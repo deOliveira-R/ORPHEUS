@@ -1,0 +1,101 @@
+----------------------------------------------------------------------
+Matlab-based Open-source Reactor Physics Education System
+
+Author: Konstantin Mikityuk, Paul Scherrer Institute, 2015-2017.
+
+Goal: Provide practical tasks to learn and train main steps of the nuclear reactor analysis.
+
+----------------------------------------------------------------------
+Task 1. Download nuclear data from IAEA site. 
+
+Folder: 01.Micro.XS.421g
+
+Download the GENDF files for the required isotopes from the open-access IAEA website: https://www-nds.iaea.org/ads/adsgendf.html
+
+The isotopes used for the PWR-like unit cell calculations:
+
+B_010.GXS
+B_011.GXS
+H_001.GXS
+O_016.GXS
+U_235.GXS
+U_238.GXS
+ZR090.GXS
+ZR091.GXS
+ZR092.GXS
+ZR094.GXS
+ZR096.GXS
+
+----------------------------------------------------------------------
+Task 2. Convert data from GXS to CSV format.
+
+Folder: 01.Micro.XS.421g
+
+Run the function convertGXStoCSV. The function scans the current folder for the files with the extension .GXS which are microscopic cross sections in 421 energy % group structure in the GENDF format and convert them to the CSV ("Comma Separated Values") file format readable by Excel and therefore easily readable by Matlab. Note that semicolons are used in the script instead of commas, therefore, check that your Windows regional settings are set to use semicolons instead of commas as the list separator symbol.
+
+----------------------------------------------------------------------
+Task 3. Convert data from CSV to M format.
+
+Folder: 01.Micro.XS.421g
+
+Run the function convertCSVtoM. The function scans the current folder for the files with the extension .CSV which are microscopic cross sections in 421 energy group structure in the CSV ("Comma-Separated Value") format, obtained from the GENDF format, and convert them to the Matlab format.
+
+For every temperature available in the GENDF file, separate Matlab file is created.
+
+The Matlab format file for an isotope includes:
+- atomic weight (amu);
+- number of energy groups (=421);
+- energy group boundaries (eV);
+- set of background cross sections, sigma-zeros (b)
+- temperature (K);
+- radiative capture cross sections (b) for each sigma-zero;
+- (n,alfa) reaction cross sections (b) for each sigma-zero;
+- (n,2n) matrix (b) for the first Legendre component;
+- scattering matrix (b) for the three Legendre components and each sigma-zero;
+- fission cross sections (b) for each sigma-zero;
+- nubar (-);
+- fission spectrum (-);
+- total cross sections (b) for each sigma-zero (b);
+
+Note that (n,3n), etc. reactions are NOT included in the current version.
+
+----------------------------------------------------------------------
+Task 4. Calculate macroscopic cross sections for a homogeneous aqueous reactor.
+
+Folder: 02.Macro.XS.421g
+
+Prerequisites: Download to 00.XSteam the Matlab functions for thermodynamic properties of water and steam from http://www.mathworks.com/matlabcentral/fileexchange/9817-x-steam--thermodynamic-properties-of-water-and-steam
+
+Run the function createH2OU. The function reads the MICROscopic group cross sections in the Matlab format from folder 01.Micro.XS.421g and calculates from them the MACROscopic cross sections for water solution of uranium-235 which is a homogeneous aqueous reactor.
+
+
+
+----------------------------------------------------------------------
+Task 5. Calculate macroscopic cross sections for a homogeneous PWR-like unit cell.
+
+Folder: 02.Macro.XS.421g
+
+Run the function createPWR_like_mix. The function reads the MICROscopic group cross sections in the Matlab format from folder 01.Micro.XS.421g for materials similar to the materials of the unit cell of the pressurized water reactor (PWR) and calculates from them the MACROscopic cross sections for homogeneous mixture of dioxide uranium (fuel), natural mixture of zirconium isotopes (cladding) and water solution of boric acid (coolant).
+
+----------------------------------------------------------------------
+Task 6. Calculate macroscopic cross sections for water solution of boric acid.
+
+Folder: 02.Macro.XS.421g
+
+Run the function createH2OB. The function reads the MICROscopic group cross sections in the Matlab format from folder 01.Micro.XS.421g and calculates from them the MACROscopic cross sections for water solution of boric acid which is similar to the coolant of the pressurized water reactor.
+
+
+----------------------------------------------------------------------
+Task 7. Calculate macroscopic cross sections for natural zirconium.
+
+Folder: 02.Macro.XS.421g
+
+Run the function createZry. The function reads the MICROsopic group cross sections in the Matlab format from folder 01.Micro.XS.421g and calculates from them the MACROscopic cross sections for natural mixture of zirconium isotopes which is the basis of zircalloy -- fuel cladding material of the pressurized water reactor.
+
+
+----------------------------------------------------------------------
+Task 8. Calculate macroscopic cross sections for dioxide uranium.
+
+Folder: 02.Macro.XS.421g
+
+Run the function createUO2_03. The function reads the MICROscopic group cross sections in the Matlab format and calculates from them the MACROscopic cross sections for dioxide uranium which is the fuel material of the pressurized water reactor.
