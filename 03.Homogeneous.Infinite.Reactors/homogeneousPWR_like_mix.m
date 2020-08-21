@@ -88,13 +88,13 @@ function homogeneousPWR_like_mix
   grid on;
   xlabel('Energy, eV');
   ylabel('Neutron flux per unit energy, 1/(cm2*s*eV)');
-  saveas(f, 'Fig_01_homogeneousPWR_like_mix.pdf');
+  saveas(f, 'PWR_01_homogeneousPWR_like_mix_flux_energy.pdf');
 
   f = figure('visible','off');
   semilogx((s.eg(1:ng)+s.eg(2:ng+1))/2, fi(1:ng) ./ du);
   grid on;
   xlabel('Energy, eV');
   ylabel('Neutron flux per unit lethargy, 1/(cm2*s)');
-  saveas(f, 'Fig_02_homogeneousPWR_like_mix.pdf');
+  saveas(f, 'PWR_02_homogeneousPWR_like_mix_flux_lethargy.pdf');
   
 end

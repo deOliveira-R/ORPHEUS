@@ -119,7 +119,7 @@ function MoC_PWR
     % production rate and neutron absorption rate (there is no neutron
     % leakage in the infinite lattice):
       keff = [keff pRate/aRate];
-      fprintf('keff = %9.5f #OuterIter =%4i\n',keff(end),nIter);
+      fprintf('keff = %9.5f #nOuter = %3i\n',keff(end),nIter);
       
     %----------------------------------------------------------------------
     % Calculate the distribution of the isotropic neutron source per ray
@@ -305,6 +305,10 @@ function MoC_PWR
   end % of the main iteration loop
 %--------------------------------------------------------------------------
 % Find integral scalar flux in fuel, cladding and coolant (average spectra)
+  vol_fuel = sum(volume(1:5,:),'all');
+  vol_clad = sum(volume(6,:),'all');
+  vol_cool = sum(volume(7:end,:),'all');
+
   FIFuel = zeros(ng,1);
   FIClad = zeros(ng,1);
   FICool = zeros(ng,1);
@@ -312,11 +316,11 @@ function MoC_PWR
       for ix=1:g.nNodes
           switch mat(ix,iy)
               case 2
-                    FIFuel = FIFuel + FI{ix,iy}*volume(ix,iy);
+                    FIFuel = FIFuel + FI{ix,iy}*volume(ix,iy)/vol_fuel;
               case 1
-                    FIClad = FIClad + FI{ix,iy}*volume(ix,iy);
+                    FIClad = FIClad + FI{ix,iy}*volume(ix,iy)/vol_clad;
               case 0
-                    FICool = FICool + FI{ix,iy}*volume(ix,iy);
+                    FICool = FICool + FI{ix,iy}*volume(ix,iy)/vol_cool;
           end
       end
   end
@@ -360,13 +364,21 @@ function MoC_PWR
   
 %--------------------------------------------------------------------------
 % Plot the rays
-  plotRays(g.nNodes, g.delta, 'Rays used to track neutrons', 'Fig_01.pdf');
+  plotRays(g.nNodes, g.delta, 'Rays used to track neutrons', 'MOC_01_tracks.pdf');
 % Plot the materials
-  plot2D(g.nNodes, g.delta, mat, 'Materials', 'Fig_02.pdf');
+  plot2D(g.nNodes, g.delta, mat, 'Materials', 'MOC_02_mesh.pdf');
 
 %--------------------------------------------------------------------------
 % Plot the results
   s = resultsPWR;
+  
+  f = figure('visible','off');
+  plot(keff,'-or');
+  ylim(ylim);
+  grid on;
+  xlabel('Iteration number');
+  ylabel('k-effective');
+  saveas(f, 'MOC_03_keff.pdf');
   
   f = figure('visible','off');
   semilogx(s.eg,s.FIFuel_du,'-r',...
@@ -376,7 +388,7 @@ function MoC_PWR
   xlabel('Energy (eV)');
   ylabel('Neutron flux per unit lethargy (a.u.)');
   legend('Fuel','Cladding','Coolant','Location','best')
-  saveas(f, 'Fig_03.pdf');
+  saveas(f, 'MOC_04_flux_lethargy.pdf');
   
   f = figure('visible','off');
   plot(s.x,s.FI_F,'-or',...
@@ -387,7 +399,7 @@ function MoC_PWR
   xlabel('Distance from the cell centre (cm)');
   ylabel('Neutron flux (a.u.)');
   legend('Fast','Resonance','Thermal','Location','northwest')
-  saveas(f, 'Fig_04.pdf');
+  saveas(f, 'MOC_05_flux_cell.pdf');
   
   for ix=1:g.nNodes
       for iy=1:g.nNodes
@@ -396,15 +408,8 @@ function MoC_PWR
           funF(ix,iy) = sum(FI{ix,iy}(356:421),1);
       end
   end
-  plot2D(g.nNodes, g.delta, funT, 'Thermal flux distribution', 'Fig_05.pdf');
-  plot2D(g.nNodes, g.delta, funR, 'Resonance flux distribution', 'Fig_06.pdf');
-  plot2D(g.nNodes, g.delta, funF, 'Fast flux distribution', 'Fig_07.pdf');
-  
-  f = figure('visible','off');
-  plot(keff,'-or');
-  ylim(ylim);
-  grid on;
-  xlabel('Iteration number');
-  ylabel('k-effective');
-  saveas(f, 'Fig_08.pdf');
+  plot2D(g.nNodes, g.delta, funT, 'Thermal flux distribution', 'MOC_06_flux_thermal.pdf');
+  plot2D(g.nNodes, g.delta, funR, 'Resonance flux distribution', 'MOC_07_flux_resonance.pdf');
+  plot2D(g.nNodes, g.delta, funF, 'Fast flux distribution', 'MOC_08_flux_fast.pdf');
+
 end

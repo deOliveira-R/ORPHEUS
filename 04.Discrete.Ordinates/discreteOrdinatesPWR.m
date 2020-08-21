@@ -201,7 +201,7 @@ function discreteOrdinatesPWR
     % production rate and neutron absorption rate (there is no neutron
     % leakage in the infinite lattice):
       keff = [keff pRate/aRate];
-      fprintf('keff = %9.5f #OuterIter =%4i ',keff(end),nIter);
+      fprintf('keff = %9.5f #nOuter = %3i ',keff(end),nIter);
 
     %-----------------------------------------------------------------------
     % Calculate fission, (n,2n) and scattering neutron sources
@@ -241,19 +241,27 @@ function discreteOrdinatesPWR
     % maximum number of iterations
       maxit = 2000;                                                        % INPUT
     % Solver of a system of linear algebraic equations:
-    % http://www4.ncsu.edu/~ctk/matlab_roots.html
-      [solution, r, nInner] = bicgstab_(guess, RHS, @funDO, [errtol maxit]);
-
+      [solution, flag, resrel, nInner, resvec] = bicgstab(@funDO, RHS, errtol, maxit, [], [], guess);
     % Save relative residual
-      residual = [residual; r(end)/norm(RHS)];
-      fprintf('numInner =%4i residual =%12.5e target =%12.5e\n',nInner, residual(end), errtol);
+      residual = [residual; resrel];
+    
+    % Alternative solver from http://www4.ncsu.edu/~ctk/matlab_roots.html
+    % [solution, r, nInner] = bicgstab_(guess, RHS, @funDO, [errtol maxit]);
+    % Save relative residual
+    % residual = [residual; r(end)/norm(RHS)];
       
-      if nInner == 0, break, end;
+      fprintf('nInner = %5.1f residual = %11.5e target = %11.5e\n', nInner, residual(end), errtol);
+      
+      if nInner == 0, break, end
 
   end % of the main iteration loop
   
 %--------------------------------------------------------------------------
 % Find integral scalar flux in fuel, cladding and coolant (average spectra)
+  vol_fuel = sum(volume(1:5,:),'all');
+  vol_clad = sum(volume(6,:),'all');
+  vol_cool = sum(volume(7:end,:),'all');
+
   FIFuel = zeros(ng,1);
   FIClad = zeros(ng,1);
   FICool = zeros(ng,1);
@@ -261,11 +269,11 @@ function discreteOrdinatesPWR
       for ix=1:g.nNodesX
           switch mat(ix,iy)
               case 2
-                    FIFuel = FIFuel + FI{ix,iy}*volume(ix,iy);
+                    FIFuel = FIFuel + FI{ix,iy}*volume(ix,iy)/vol_fuel;
               case 1
-                    FIClad = FIClad + FI{ix,iy}*volume(ix,iy);
+                    FIClad = FIClad + FI{ix,iy}*volume(ix,iy)/vol_clad;
               case 0
-                    FICool = FICool + FI{ix,iy}*volume(ix,iy);
+                    FICool = FICool + FI{ix,iy}*volume(ix,iy)/vol_cool;
           end
       end
   end
@@ -312,7 +320,7 @@ function discreteOrdinatesPWR
   
 %--------------------------------------------------------------------------
 % Plot the mesh
-  plot2D(g.nNodesX, g.nNodesY, g.delta, mat, 'Unit cell: materials', 'Fig_01_discreteOrdinates.pdf');
+  plot2D(g.nNodesX, g.nNodesY, g.delta, mat, 'Unit cell: materials', 'DO_01_mesh.pdf');
 
 %--------------------------------------------------------------------------
 % Plot the results
@@ -324,7 +332,7 @@ function discreteOrdinatesPWR
   grid on;
   xlabel('Iteration number');
   ylabel('k-effective');
-  saveas(f, 'Fig_02_discreteOrdinates.pdf');
+  saveas(f, 'DO_02_keff.pdf');
 
   f = figure('visible','off');
   semilogy(residual,'-or');
@@ -332,7 +340,7 @@ function discreteOrdinatesPWR
   grid on;
   xlabel('Iteration number');
   ylabel('Relative residual error');
-  saveas(f, 'Fig_03_discreteOrdinates.pdf');
+  saveas(f, 'DO_03_residual.pdf');
   
   f = figure('visible','off');
   semilogx(s.eg,s.FIFuel_du,'-r',...
@@ -342,7 +350,7 @@ function discreteOrdinatesPWR
   xlabel('Energy (eV)');
   ylabel('Neutron flux per unit lethargy (a.u.)');
   legend('Fuel','Cladding','Coolant','Location','northwest');
-  saveas(f, 'Fig_04_discreteOrdinates.pdf');
+  saveas(f, 'DO_04_flux_lethargy.pdf');
   
   f = figure('visible','off');
   plot(s.x,s.FI_F,'-or',...
@@ -353,7 +361,7 @@ function discreteOrdinatesPWR
   xlabel('Distance from the cell centre (cm)');
   ylabel('Neutron flux (a.u.)');
   legend('Fast','Resonance','Thermal','Location','northwest');
-  saveas(f, 'Fig_05_discreteOrdinates.pdf');
+  saveas(f, 'DO_05_flux_cell.pdf');
   
   for iy=1:g.nNodesY
       for ix=1:g.nNodesX
@@ -362,8 +370,8 @@ function discreteOrdinatesPWR
           funF(ix,iy) = sum(FI{ix,iy}(356:421),1);
       end
   end
-  plot2D(g.nNodesX, g.nNodesY, g.delta, funT, 'Thermal flux distribution', 'Fig_06_discreteOrdinates.pdf');
-  plot2D(g.nNodesX, g.nNodesY, g.delta, funR, 'Resonance flux distribution', 'Fig_07_discreteOrdinates.pdf');
-  plot2D(g.nNodesX, g.nNodesY, g.delta, funF, 'Fast flux distribution', 'Fig_08_discreteOrdinates.pdf');
+  plot2D(g.nNodesX, g.nNodesY, g.delta, funT, 'Thermal flux distribution', 'DO_06_flux_thermal.pdf');
+  plot2D(g.nNodesX, g.nNodesY, g.delta, funR, 'Resonance flux distribution', 'DO_07_flux_resonance.pdf');
+  plot2D(g.nNodesX, g.nNodesY, g.delta, funF, 'Fast flux distribution', 'DO_08_flux_fast.pdf');
     
 end

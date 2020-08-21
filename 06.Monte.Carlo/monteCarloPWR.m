@@ -292,7 +292,7 @@ function monteCarloPWR
   ylabel('k-effective');
   legend('k_{eff}','k_{eff} \pm \sigma')
   axis tight;
-  saveas(f, 'Fig_01_MonteCarlo.pdf');
+  saveas(f, 'MC_01_keff.pdf');
 
 % Plot the spectrum  
   f = figure('visible','off');
@@ -300,6 +300,6 @@ function monteCarloPWR
   grid on;
   xlabel('Energy, eV');
   ylabel('Neutron flux per unit lethargy, a.u.');
-  saveas(f, 'Fig_02_MonteCarlo.pdf');
+  saveas(f, 'MC_02_flux_lethargy.pdf');
 
 end % of function

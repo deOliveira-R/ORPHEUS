@@ -115,6 +115,8 @@ function CORE1D
   nInner = 1;
   nOuter = 1;
   
+  residual = [ ];
+  
 % Loop for outer (power) iterations over the eigenvalue (k-eff)
   while nInner > 0
 
@@ -148,9 +150,15 @@ function CORE1D
     % maximum number of iterations
       maxit = 2000;                                                  %INPUT
     % Solver of a system of linear algebraic equations:
-    % http://www4.ncsu.edu/~ctk/matlab_roots.html
-      [solution, r, nInner] = bicgstab_(guess, RHS, @funCORE1D, [errtol maxit]);
+      [solution, flag, resrel, nInner, resvec] = bicgstab(@funCORE1D, RHS, errtol, maxit, [], [], guess);
+    % Save relative residual
+      residual = [residual; resrel];
       
+    % Alternative solver from http://www4.ncsu.edu/~ctk/matlab_roots.html
+    % [solution, r, nInner] = bicgstab_(guess, RHS, @funCORE1D, [errtol maxit]);
+    % Save relative residual
+    % residual = [residual; r(end)/norm(RHS)];
+
       nOuter = nOuter + 1;
 
       fi = reshape(solution,nGroups,nNodes);
@@ -162,7 +170,7 @@ function CORE1D
       fi = fi * Power/pow;
     
     % Print on the screen multiplication factor and outer iteration number
-      fprintf('keff = %9.5f nOuter=%4i nInner=%4i residual=%12.5e\n',keff,nOuter,nInner,r(end)/norm(RHS));
+      fprintf('keff = %9.5f #nOuter = %3i nInner = %5.1f residual = %11.5e\n', keff, nOuter, nInner, residual(end));
         
   end
   
@@ -215,7 +223,7 @@ function CORE1D
   xlabel('z (cm)')
   ylabel('Neutron flux (n/cm2s)')
   legend('Fast','Thermal','Location','best')
-  saveas(f, 'Fig_01_Neutron_Flux.pdf');
+  saveas(f, 'DIF_01_flux.pdf');
   
   f = figure('visible','off');
   plot(zEdges,J(1,:), '-or', ...
@@ -224,5 +232,5 @@ function CORE1D
   xlabel('x (cm)')
   ylabel('Neutron net current (n/cm2s)')
   legend('Fast','Thermal','Location','best')
-  saveas(f, 'Fig_02_Neutron_Net_Current.pdf');
+  saveas(f, 'DIF_02_current.pdf');
 end
