@@ -2,7 +2,7 @@
 """Formal verification of transport solvers using synthetic benchmarks.
 
 Runs 1-group, 2-group, and 4-group problems with known analytical
-solutions against the homogeneous and slab CP solvers.
+solutions against the homogeneous, CP, SN, diffusion, MOC, and MC solvers.
 """
 
 import sys
@@ -10,6 +10,9 @@ _root = str(__import__('pathlib').Path(__file__).resolve().parent.parent)
 sys.path.insert(0, _root)
 sys.path.insert(0, str(__import__('pathlib').Path(_root) / '01.Homogeneous.Reactors'))
 sys.path.insert(0, str(__import__('pathlib').Path(_root) / '02.Discrete.Ordinates'))
+sys.path.insert(0, str(__import__('pathlib').Path(_root) / '03.Method.Of.Characteristics'))
+sys.path.insert(0, str(__import__('pathlib').Path(_root) / '04.Monte.Carlo'))
+sys.path.insert(0, str(__import__('pathlib').Path(_root) / '05.Diffusion.1D'))
 
 import numpy as np
 from data.macro_xs.benchmarks import (
@@ -282,12 +285,287 @@ def run_do_slab_benchmarks():
     print()
 
 
+def run_sn_1d_benchmarks():
+    """Verify the 1D SN solver with Gauss-Legendre quadrature.
+
+    Tests:
+    1. Homogeneous benchmarks (exact analytical reference)
+    2. Heterogeneous slab convergence (spatial and angular)
+       with observed order-of-accuracy
+    """
+    from sn_1d import (
+        GaussLegendreQuadrature, Slab1DGeometry, solve_sn_1d,
+    )
+
+    print("=" * 78)
+    print("1D SN (GAUSS-LEGENDRE) BENCHMARKS")
+    print("=" * 78)
+
+    # --- 1. Homogeneous benchmarks (exact reference) ---
+    print("\n  Homogeneous infinite medium (SN with reflective BCs):")
+    print(f"  {'Benchmark':<22s}  {'Groups':>6s}  {'Analytical':>10s}  "
+          f"{'SN 1D':>10s}  {'Error':>10s}  {'OK':>3s}")
+    print("  " + "-" * 68)
+
+    for label, bench_fn in [
+        ("1G homogeneous", benchmark_1g_homogeneous),
+        ("2G homogeneous", benchmark_2g_homogeneous),
+        ("4G homogeneous", benchmark_4g_homogeneous),
+    ]:
+        mix, k_analytical = bench_fn()
+        ng = mix.ng
+        materials = {i: mix for i in range(3)}
+        geom = Slab1DGeometry.homogeneous(20, 2.0, mat_id=0)
+        quad = GaussLegendreQuadrature.gauss_legendre(8)
+        result = solve_sn_1d(materials, geom, quad)
+        err = abs(result.keff - k_analytical)
+        ok = "✓" if err < 1e-4 else "✗"
+        print(f"  {label:<22s}  {ng:>6d}  {k_analytical:10.6f}  "
+              f"{result.keff:10.6f}  {err:10.2e}  {ok:>3s}")
+
+    # --- 2. Heterogeneous slab convergence ---
+    # Cross-section data (same as benchmark_1g_slab / benchmark_2g_slab)
+    fuel_1g = _make_mixture(
+        sig_t=np.array([1.0]), sig_c=np.array([0.2]),
+        sig_f=np.array([0.3]), nu=np.array([2.5]),
+        chi=np.array([1.0]), sig_s=np.array([[0.5]]),
+    )
+    mod_1g = _make_mixture(
+        sig_t=np.array([2.0]), sig_c=np.array([0.1]),
+        sig_f=np.array([0.0]), nu=np.array([0.0]),
+        chi=np.array([1.0]), sig_s=np.array([[1.9]]),
+    )
+
+    fuel_2g = _make_mixture(
+        sig_t=np.array([0.50, 1.00]),
+        sig_c=np.array([0.01, 0.02]),
+        sig_f=np.array([0.01, 0.08]),
+        nu=np.array([2.50, 2.50]),
+        chi=np.array([1.00, 0.00]),
+        sig_s=np.array([[0.38, 0.10], [0.00, 0.90]]),
+    )
+    mod_2g = _make_mixture(
+        sig_t=np.array([0.60, 2.00]),
+        sig_c=np.array([0.02, 0.05]),
+        sig_f=np.array([0.00, 0.00]),
+        nu=np.array([0.00, 0.00]),
+        chi=np.array([1.00, 0.00]),
+        sig_s=np.array([[0.40, 0.18], [0.00, 1.95]]),
+    )
+
+    t_fuel, t_mod = 0.5, 0.5
+    sn_params = dict(max_outer=300, max_inner=500, inner_tol=1e-10)
+
+    # --- Spatial convergence study (1G only, S16 fixed) ---
+    label, fuel, mod = "1G slab", fuel_1g, mod_1g
+    materials = {2: fuel, 0: mod}
+
+    print(f"\n  {label} — spatial convergence (S16, diamond-difference O(h²)):")
+    print(f"  {'dx':>8s}  {'N_cells':>7s}  {'keff':>12s}  {'Error':>10s}  {'Order':>6s}")
+    print("  " + "-" * 50)
+
+    keffs_sp = []
+    dxs = []
+    for n_per in [5, 10, 20, 40]:
+        geom = Slab1DGeometry.from_benchmark(
+            n_fuel=n_per, n_mod=n_per,
+            t_fuel=t_fuel, t_mod=t_mod,
+        )
+        quad = GaussLegendreQuadrature.gauss_legendre(16)
+        result = solve_sn_1d(materials, geom, quad, **sn_params)
+        keffs_sp.append(result.keff)
+        dxs.append(t_fuel / n_per)
+
+    # Richardson extrapolation (O(h²), ratio 2) using two finest meshes
+    k_ref_sp = keffs_sp[-1] + (keffs_sp[-1] - keffs_sp[-2]) / 3.0
+    for i, (dx, k) in enumerate(zip(dxs, keffs_sp)):
+        err = abs(k - k_ref_sp)
+        if i > 0 and abs(keffs_sp[i - 1] - k_ref_sp) > 0 and err > 0:
+            p = np.log(abs(keffs_sp[i - 1] - k_ref_sp) / err) / np.log(dxs[i - 1] / dx)
+            order_str = f"{p:6.2f}"
+        else:
+            order_str = "   ---"
+        print(f"  {dx:8.4f}  {2 * round(t_fuel / dx):>7d}  "
+              f"{k:12.8f}  {err:10.2e}  {order_str}")
+    print(f"  Richardson ref = {k_ref_sp:.8f}")
+
+    # --- Angular convergence study (1G only, 40 cells fixed) ---
+    print(f"\n  {label} — angular convergence (40 cells/region, GL spectral):")
+    print(f"  {'N_ord':>6s}  {'keff':>12s}  {'Error':>10s}  {'Order':>6s}")
+    print("  " + "-" * 42)
+
+    keffs_ang = []
+    n_ords = [4, 8, 16, 32]
+    for N_ord in n_ords:
+        geom = Slab1DGeometry.from_benchmark(
+            n_fuel=40, n_mod=40,
+            t_fuel=t_fuel, t_mod=t_mod,
+        )
+        quad = GaussLegendreQuadrature.gauss_legendre(N_ord)
+        result = solve_sn_1d(materials, geom, quad, **sn_params)
+        keffs_ang.append(result.keff)
+
+    k_ref_ang = keffs_ang[-1]
+    for i, (N, k) in enumerate(zip(n_ords, keffs_ang)):
+        err = abs(k - k_ref_ang)
+        if i > 0 and abs(keffs_ang[i - 1] - k_ref_ang) > 0 and err > 0:
+            p = np.log(abs(keffs_ang[i - 1] - k_ref_ang) / err) \
+                / np.log(N / n_ords[i - 1])
+            order_str = f"{p:6.2f}"
+        else:
+            order_str = "   ---"
+        print(f"  {N:>6d}  {k:12.8f}  {err:10.2e}  {order_str}")
+
+    # CP white-BC reference for comparison
+    k_cp = _analytical_slab_kinf(fuel, mod, t_fuel, t_mod)
+    print(f"\n  CP (white BC) ref = {k_cp:.8f}  "
+          f"(SN-CP gap = {abs(k_ref_ang - k_cp):.2e}, due to white-BC approx.)")
+
+    # --- 2G slab: single point at moderate resolution ---
+    label2, fuel2, mod2 = "2G slab", fuel_2g, mod_2g
+    materials2 = {2: fuel2, 0: mod2}
+    geom2 = Slab1DGeometry.from_benchmark(
+        n_fuel=20, n_mod=20, t_fuel=t_fuel, t_mod=t_mod,
+    )
+    quad2 = GaussLegendreQuadrature.gauss_legendre(16)
+    result2 = solve_sn_1d(materials2, geom2, quad2, **sn_params)
+    k_cp2 = _analytical_slab_kinf(fuel2, mod2, t_fuel, t_mod)
+    print(f"\n  2G slab SN-1D (S16, 40 cells): keff = {result2.keff:.8f}  "
+          f"CP ref = {k_cp2:.8f}  gap = {abs(result2.keff - k_cp2):.2e}")
+
+    print()
+
+
+def run_moc_homogeneous_benchmarks():
+    """Verify the MOC solver against homogeneous benchmarks."""
+    from method_of_characteristics import MoCGeometry, solve_moc
+
+    print("=" * 65)
+    print("METHOD OF CHARACTERISTICS HOMOGENEOUS BENCHMARKS")
+    print("=" * 65)
+    print(f"  {'Benchmark':<22s}  {'Groups':>6s}  {'Analytical':>10s}  "
+          f"{'MOC':>10s}  {'Error':>10s}  {'OK':>3s}")
+    print("  " + "-" * 62)
+
+    for label, bench_fn in [
+        ("1G homogeneous", benchmark_1g_homogeneous),
+        ("2G homogeneous", benchmark_2g_homogeneous),
+    ]:
+        mix, k_analytical = bench_fn()
+        materials = {0: mix, 1: mix, 2: mix}
+        geom = MoCGeometry.default_pwr()
+        result = solve_moc(materials, geom, max_outer=200)
+        err = abs(result.keff - k_analytical)
+        ok = "✓" if err < 1e-2 else "✗"
+        print(f"  {label:<22s}  {mix.ng:>6d}  {k_analytical:10.6f}  "
+              f"{result.keff:10.6f}  {err:10.2e}  {ok:>3s}")
+
+    print()
+
+
+def run_mc_homogeneous_benchmarks():
+    """Verify the Monte Carlo solver against homogeneous benchmarks."""
+    from monte_carlo import MCParams, solve_monte_carlo
+
+    print("=" * 65)
+    print("MONTE CARLO HOMOGENEOUS BENCHMARKS")
+    print("=" * 65)
+    print(f"  {'Benchmark':<16s}  {'Groups':>6s}  {'Analytical':>10s}  "
+          f"{'MC':>10s}  {'sigma':>8s}  {'|z|':>6s}  {'OK':>3s}")
+    print("  " + "-" * 65)
+
+    for label, bench_fn in [
+        ("1G homogeneous", benchmark_1g_homogeneous),
+        ("2G homogeneous", benchmark_2g_homogeneous),
+    ]:
+        mix, k_analytical = bench_fn()
+        materials = {0: mix, 1: mix, 2: mix}
+        # Fewer histories for 2G (slower per neutron due to scattering)
+        n_active = 200 if mix.ng > 1 else 500
+        params = MCParams(n_neutrons=200, n_inactive=50,
+                          n_active=n_active, seed=42)
+        result = solve_monte_carlo(materials, params)
+        z_score = abs(result.keff - k_analytical) / max(result.sigma, 1e-10)
+        ok = "✓" if z_score < 5.0 else "✗"
+        print(f"  {label:<16s}  {mix.ng:>6d}  {k_analytical:10.6f}  "
+              f"{result.keff:10.6f}  {result.sigma:8.5f}  {z_score:6.2f}  {ok:>3s}")
+
+    print()
+
+
+def run_diffusion_benchmarks():
+    """Verify the 1D diffusion solver against analytical buckling eigenvalue."""
+    from diffusion_1d import CoreGeometry, TwoGroupXS, solve_diffusion_1d
+
+    print("=" * 78)
+    print("1D DIFFUSION BARE-SLAB BENCHMARKS")
+    print("=" * 78)
+
+    # Use fuel XS from the default diffusion problem
+    fuel_xs = TwoGroupXS(
+        transport=np.array([0.2181, 0.7850]),
+        absorption=np.array([0.0096, 0.0959]),
+        fission=np.array([0.0024, 0.0489]),
+        production=np.array([0.0061, 0.1211]),
+        chi=np.array([1.0, 0.0]),
+        scattering=np.array([0.0160, 0.0]),
+    )
+
+    fuel_height = 50.0  # cm — short slab so FD error is visible
+
+    # Analytical keff: 2-group diffusion with buckling B² = (π/H)²
+    # The FD scheme sets zero flux at the physical boundary.
+    D_coeff = 1.0 / (3.0 * fuel_xs.transport)
+    B2 = (np.pi / fuel_height) ** 2
+    A_an = np.diag(D_coeff * B2 + fuel_xs.absorption + fuel_xs.scattering) \
+        - np.array([[0.0, 0.0], [fuel_xs.scattering[0], 0.0]])
+    F_an = np.outer(fuel_xs.chi, fuel_xs.production)
+    M_an = np.linalg.solve(A_an, F_an)
+    k_analytical = float(np.max(np.real(np.linalg.eigvals(M_an))))
+
+    # Spatial convergence study
+    print(f"\n  Bare fuel slab (H={fuel_height} cm, vacuum BCs, 2-group)")
+    print(f"  Analytical keff = {k_analytical:.6f}")
+    print(f"  Spatial convergence (O(h²) expected):")
+    print(f"  {'dz':>8s}  {'N_nodes':>7s}  "
+          f"{'k_diffusion':>12s}  {'Error':>10s}  {'Order':>6s}")
+    print("  " + "-" * 52)
+
+    keffs = []
+    dzs = [5.0, 2.5, 1.25, 0.625]
+    for dz in dzs:
+        geom = CoreGeometry(
+            bot_refl_height=0.0, fuel_height=fuel_height,
+            top_refl_height=0.0, dz=dz,
+        )
+        result = solve_diffusion_1d(
+            geom=geom, reflector_xs=fuel_xs, fuel_xs=fuel_xs,
+        )
+        keffs.append(result.keff)
+
+    for i, (dz, k) in enumerate(zip(dzs, keffs)):
+        err = abs(k - k_analytical)
+        if i > 0 and abs(keffs[i - 1] - k_analytical) > 0 and err > 0:
+            p = np.log(abs(keffs[i - 1] - k_analytical) / err) / np.log(dzs[i - 1] / dz)
+            order_str = f"{p:6.2f}"
+        else:
+            order_str = "   ---"
+        nn = int(fuel_height / dz)
+        print(f"  {dz:8.2f}  {nn:>7d}  {k:12.6f}  {err:10.2e}  {order_str}")
+
+    print()
+
+
 def main():
     print()
     run_homogeneous_benchmarks()
     run_slab_benchmarks()
     run_cylinder_benchmarks()
     run_do_slab_benchmarks()
+    run_sn_1d_benchmarks()
+    run_diffusion_benchmarks()
+    run_moc_homogeneous_benchmarks()
+    run_mc_homogeneous_benchmarks()
 
     print("=" * 65)
     print("VERIFICATION COMPLETE")
