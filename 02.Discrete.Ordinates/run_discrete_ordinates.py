@@ -9,12 +9,9 @@ import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve(
 from pathlib import Path
 
 from data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
-from discrete_ordinates import (
-    DOParams,
-    PinCellGeometry,
-    Quadrature,
-    solve_discrete_ordinates,
-)
+from sn_geometry import CartesianMesh
+from sn_quadrature import LebedevSphere
+from sn_solver import solve_sn
 from plotting import (
     plot_do_convergence,
     plot_do_spatial_flux,
@@ -37,17 +34,20 @@ def main():
     materials = {2: fuel, 1: clad, 0: cool}
 
     # 2. Set up geometry and angular quadrature
-    geom = PinCellGeometry.default_pwr()
-    params = DOParams(L=0)
-    quad = Quadrature.lebedev(order=17, L=params.L)
+    mesh = CartesianMesh.default_pwr_2d(nx=10, ny=10, delta=0.2)
+    quad = LebedevSphere.create(order=17)
 
-    print(f"\n  Mesh: {geom.nx} x {geom.ny}, delta = {geom.delta} cm")
+    print(f"\n  Mesh: {mesh.nx} x {mesh.ny}, delta = {mesh.dx[0]:.2f} cm")
     print(f"  Ordinates: {quad.N} (Lebedev order 17)")
-    print(f"  Scattering anisotropy: P{params.L}")
+    print(f"  Scattering anisotropy: P0")
     print()
 
     # 3. Solve
-    result = solve_discrete_ordinates(materials, geom, quad, params)
+    result = solve_sn(
+        materials, mesh, quad,
+        inner_solver="source_iteration",
+        max_outer=200,
+    )
 
     # 4. Report
     print(f"\n  keff = {result.keff:.5f}  (MATLAB reference: 1.04188)")
@@ -58,9 +58,9 @@ def main():
 
     # 5. Plots
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    plot_mesh_2d(geom, OUTPUT)
+    plot_mesh_2d(mesh, OUTPUT)
     plot_do_convergence(result, OUTPUT)
-    plot_do_spectra(result, OUTPUT)
+    plot_do_spectra(result, materials, OUTPUT)
     plot_do_spatial_flux(result, OUTPUT)
     print(f"\n  Plots saved to {OUTPUT.resolve()}/")
 

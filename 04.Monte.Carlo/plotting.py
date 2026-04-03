@@ -10,7 +10,6 @@ import numpy as np
 from matplotlib.patches import Rectangle
 
 if TYPE_CHECKING:
-    from discrete_ordinates import DOResult, PinCellGeometry
     from homogeneous import HomogeneousResult
     from method_of_characteristics import MoCResult, MoCGeometry
     from monte_carlo import MCResult

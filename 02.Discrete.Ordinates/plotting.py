@@ -10,10 +10,11 @@ import numpy as np
 from matplotlib.patches import Rectangle
 
 if TYPE_CHECKING:
-    from discrete_ordinates import DOResult, PinCellGeometry
     from homogeneous import HomogeneousResult
     from method_of_characteristics import MoCResult, MoCGeometry
     from monte_carlo import MCResult
+    from sn_geometry import CartesianMesh
+    from sn_solver import SNResult
 
 
 def plot_spectrum(
@@ -26,7 +27,6 @@ def plot_spectrum(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Flux per unit energy
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.loglog(result.eg_mid, result.flux_per_energy)
     ax.set_xlabel("Energy (eV)")
@@ -37,7 +37,6 @@ def plot_spectrum(
     fig.savefig(output_dir / f"{prefix}_flux_energy.pdf")
     plt.close(fig)
 
-    # Flux per unit lethargy
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.semilogx(result.eg_mid, result.flux_per_lethargy)
     ax.set_xlabel("Energy (eV)")
@@ -50,19 +49,19 @@ def plot_spectrum(
 
 
 # ---------------------------------------------------------------------------
-# Discrete Ordinates plotting
+# Discrete Ordinates plotting (uses CartesianMesh + SNResult)
 # ---------------------------------------------------------------------------
 
 def plot_mesh_2d(
-    geom: PinCellGeometry,
+    mesh: CartesianMesh,
     output_dir: Path | str = ".",
     filename: str = "DO_01_mesh.pdf",
 ) -> None:
-    """2D colored rectangle plot of the material map (port of plot2D.m)."""
+    """2D colored rectangle plot of the material map."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    _plot_2d_field(geom.nx, geom.ny, geom.delta,
-                   geom.mat_map.astype(float), "Unit cell: materials",
+    _plot_2d_field(mesh.nx, mesh.ny, mesh.dx[0],
+                   mesh.mat_map.astype(float), "Unit cell: materials",
                    output_dir / filename)
 
 
@@ -72,7 +71,7 @@ def _plot_2d_field(
     title: str,
     filepath: Path,
 ) -> None:
-    """Generic 2D colored-rectangle plot (port of MATLAB plot2D.m)."""
+    """Generic 2D colored-rectangle plot."""
     aspect_ratio = max(ny / nx, 0.3)
     fig, ax = plt.subplots(figsize=(8, max(3, 8 * aspect_ratio)))
     ax.set_aspect("equal")
@@ -104,14 +103,13 @@ def _plot_2d_field(
 
 
 def plot_do_convergence(
-    result: DOResult,
+    result: SNResult,
     output_dir: Path | str = ".",
 ) -> None:
-    """Plot keff convergence and residual history."""
+    """Plot keff convergence history."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # keff history
     fig, ax = plt.subplots()
     ax.plot(range(1, len(result.keff_history) + 1), result.keff_history, "-or", markersize=3)
     ax.set_xlabel("Iteration number")
@@ -121,33 +119,37 @@ def plot_do_convergence(
     fig.savefig(output_dir / "DO_02_keff.pdf")
     plt.close(fig)
 
-    # Residual history
-    fig, ax = plt.subplots()
-    ax.semilogy(range(1, len(result.residual_history) + 1), result.residual_history, "-or", markersize=3)
-    ax.set_xlabel("Iteration number")
-    ax.set_ylabel("Relative residual error")
-    ax.grid(True)
-    fig.tight_layout()
-    fig.savefig(output_dir / "DO_03_residual.pdf")
-    plt.close(fig)
-
 
 def plot_do_spectra(
-    result: DOResult,
+    result: SNResult,
+    materials: dict,
     output_dir: Path | str = ".",
 ) -> None:
     """Plot neutron spectra per unit lethargy in fuel, cladding, coolant."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    mesh = result.geometry
+    sf = result.scalar_flux  # (nx, ny, ng)
+    vol = mesh.volume
     eg = result.eg
     eg_mid = 0.5 * (eg[:-1] + eg[1:])
     du = np.log(eg[1:] / eg[:-1])
+    ng = sf.shape[2]
 
+    # Volume-average per material
+    labels = {2: ("Fuel", "r"), 1: ("Cladding", "g"), 0: ("Coolant", "b")}
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.semilogx(eg_mid, result.flux_fuel / du, "-r", label="Fuel")
-    ax.semilogx(eg_mid, result.flux_clad / du, "-g", label="Cladding")
-    ax.semilogx(eg_mid, result.flux_cool / du, "-b", label="Coolant")
+    for mat_id, (label, color) in labels.items():
+        mask = mesh.mat_map == mat_id
+        if not mask.any():
+            continue
+        vol_mat = vol[mask].sum()
+        flux_avg = np.zeros(ng)
+        for g in range(ng):
+            flux_avg[g] = np.sum(sf[:, :, g][mask] * vol[mask]) / vol_mat
+        ax.semilogx(eg_mid, flux_avg / du, f"-{color}", label=label)
+
     ax.set_xlabel("Energy (eV)")
     ax.set_ylabel("Neutron flux per unit lethargy (a.u.)")
     ax.legend(loc="upper left")
@@ -158,19 +160,18 @@ def plot_do_spectra(
 
 
 def plot_do_spatial_flux(
-    result: DOResult,
+    result: SNResult,
     output_dir: Path | str = ".",
 ) -> None:
     """Plot thermal/resonance/fast flux along cell centerline and 2D."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    geom = result.geometry
-    x = np.arange(geom.nx) * geom.delta
+    mesh = result.geometry
+    x = np.arange(mesh.nx) * mesh.dx[0]
 
-    # Group ranges for centerline plot
-    FI_T = result.scalar_flux[:, 0, :50].sum(axis=1)    # thermal < 1 eV
-    FI_R = result.scalar_flux[:, 0, 50:287].sum(axis=1)  # resonance < 0.1 MeV
-    FI_F = result.scalar_flux[:, 0, 287:].sum(axis=1)    # fast > 0.1 MeV
+    FI_T = result.scalar_flux[:, 0, :50].sum(axis=1)
+    FI_R = result.scalar_flux[:, 0, 50:287].sum(axis=1)
+    FI_F = result.scalar_flux[:, 0, 287:].sum(axis=1)
 
     fig, ax = plt.subplots()
     ax.plot(x, FI_F, "-or", label="Fast", markersize=3)
@@ -184,16 +185,16 @@ def plot_do_spatial_flux(
     fig.savefig(output_dir / "DO_05_flux_cell.pdf")
     plt.close(fig)
 
-    # 2D flux distributions (different group ranges)
     fun_T = result.scalar_flux[:, :, :50].sum(axis=2)
     fun_R = result.scalar_flux[:, :, 50:355].sum(axis=2)
     fun_F = result.scalar_flux[:, :, 355:].sum(axis=2)
 
-    _plot_2d_field(geom.nx, geom.ny, geom.delta, fun_T,
+    delta = mesh.dx[0]
+    _plot_2d_field(mesh.nx, mesh.ny, delta, fun_T,
                    "Thermal flux distribution", output_dir / "DO_06_flux_thermal.pdf")
-    _plot_2d_field(geom.nx, geom.ny, geom.delta, fun_R,
+    _plot_2d_field(mesh.nx, mesh.ny, delta, fun_R,
                    "Resonance flux distribution", output_dir / "DO_07_flux_resonance.pdf")
-    _plot_2d_field(geom.nx, geom.ny, geom.delta, fun_F,
+    _plot_2d_field(mesh.nx, mesh.ny, delta, fun_F,
                    "Fast flux distribution", output_dir / "DO_08_flux_fast.pdf")
 
 
@@ -206,10 +207,10 @@ def plot_moc_rays(
     output_dir: Path | str = ".",
     filename: str = "MOC_01_tracks.pdf",
 ) -> None:
-    """Plot the 8-direction ray tracks (port of MATLAB plotRays.m)."""
+    """Plot the 8-direction ray tracks."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    n, delta = geom.n_nodes, geom.delta
+    n, delta = geom.n_cells, geom.delta
     xmin, xmax = 0.0, delta * (n - 1)
 
     fig, ax = plt.subplots(figsize=(6, 6))
@@ -220,20 +221,16 @@ def plot_moc_rays(
     ax.set_ylabel("Distance from the cell centre (cm)")
     ax.set_title("Rays used to track neutrons")
 
-    # Horizontal lines
     for i in range(n):
         y = -i * delta
         ax.plot([xmin, xmax], [y, y], "k-", linewidth=0.5)
-    # Vertical lines
     for i in range(n):
         x = i * delta
         ax.plot([x, x], [-xmax, xmin], "k-", linewidth=0.5)
-    # 45-degree lines
     for i in range(2 * n):
         x0, x1 = xmin, xmin + (i + 1) * delta
         y0, y1 = -(i + 1) * delta, xmin
         ax.plot([x0, x1], [y0, y1], "k-", linewidth=0.5)
-    # 135-degree lines
     for i in range(2 * n):
         x0, x1 = xmin, xmin + (i + 1) * delta
         y0, y1 = -xmax + (i + 1) * delta, -xmax
@@ -252,7 +249,7 @@ def plot_moc_mesh(
     """Plot the material map for MoC geometry."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    _plot_2d_field(geom.n_nodes, geom.n_nodes, geom.delta,
+    _plot_2d_field(geom.n_cells, geom.n_cells, geom.delta,
                    geom.mat_map.astype(float), "Materials",
                    output_dir / filename)
 
@@ -308,10 +305,9 @@ def plot_moc_spatial_flux(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     geom = result.geometry
-    n = geom.n_nodes
+    n = geom.n_cells
     x = np.arange(n) * geom.delta
 
-    # Group ranges for centerline (iy=0 row)
     FI_T = result.scalar_flux[:, 0, :50].sum(axis=1)
     FI_R = result.scalar_flux[:, 0, 50:287].sum(axis=1)
     FI_F = result.scalar_flux[:, 0, 287:].sum(axis=1)
@@ -328,7 +324,6 @@ def plot_moc_spatial_flux(
     fig.savefig(output_dir / "MOC_05_flux_cell.pdf")
     plt.close(fig)
 
-    # 2D flux distributions
     fun_T = result.scalar_flux[:, :, :50].sum(axis=2)
     fun_R = result.scalar_flux[:, :, 50:355].sum(axis=2)
     fun_F = result.scalar_flux[:, :, 355:].sum(axis=2)
@@ -384,5 +379,3 @@ def plot_mc_spectrum(
     fig.tight_layout()
     fig.savefig(output_dir / "MC_02_flux_lethargy.pdf")
     plt.close(fig)
-
-
