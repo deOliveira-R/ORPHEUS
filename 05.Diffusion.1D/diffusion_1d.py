@@ -22,7 +22,7 @@ class CoreGeometry:
     fuel_height: float = 300.0      # cm
     top_refl_height: float = 50.0   # cm
     f2f: float = 21.61              # flat-to-flat distance (cm)
-    dz: float = 5.0                 # axial node height (cm)
+    dz: float = 5.0                 # axial cell height (cm)
 
     @property
     def n_refl_bot(self) -> int:
@@ -37,12 +37,12 @@ class CoreGeometry:
         return int(self.top_refl_height / self.dz)
 
     @property
-    def n_nodes(self) -> int:
+    def n_cells(self) -> int:
         return self.n_refl_bot + self.n_fuel + self.n_refl_top
 
     @property
-    def n_edges(self) -> int:
-        return self.n_nodes + 1
+    def n_faces(self) -> int:
+        return self.n_cells + 1
 
     @property
     def az(self) -> float:
@@ -51,7 +51,7 @@ class CoreGeometry:
 
     @property
     def dv(self) -> float:
-        """Volume of one node (cm^3)."""
+        """Volume of one cell (cm^3)."""
         return self.az * self.dz
 
 
@@ -72,10 +72,10 @@ class DiffusionResult:
     """Results of a 1D diffusion calculation."""
 
     keff: float
-    flux: np.ndarray          # (2, n_nodes) group fluxes normalized to power
-    current: np.ndarray       # (2, n_edges) net currents
-    z_nodes: np.ndarray       # (n_nodes,) node center positions
-    z_edges: np.ndarray       # (n_edges,) edge positions
+    flux: np.ndarray          # (2, n_cells) group fluxes normalized to power
+    current: np.ndarray       # (2, n_faces) net currents
+    z_cells: np.ndarray       # (n_cells,) cell center positions
+    z_faces: np.ndarray       # (n_faces,) face positions
     geometry: CoreGeometry
 
 
@@ -122,12 +122,12 @@ def solve_diffusion_1d(
         reflector_xs, fuel_xs = _default_xs()
 
     ng = 2
-    nn = geom.n_nodes
-    ne = geom.n_edges
+    nc = geom.n_cells
+    nf = geom.n_faces
     dz = geom.dz
     dv = geom.dv
 
-    # Build node-wise cross sections: (2, n_nodes)
+    # Build cell-wise cross sections: (2, n_cells)
     def _tile(refl_val, fuel_val):
         return np.hstack([
             np.tile(refl_val[:, None], geom.n_refl_bot),
@@ -142,24 +142,24 @@ def solve_diffusion_1d(
     chi = _tile(reflector_xs.chi, fuel_xs.chi)
     sig_s = _tile(reflector_xs.scattering, fuel_xs.scattering)
 
-    # Edge-interpolated transport XS for diffusion coefficient
-    sig_t_edges = np.zeros((ng, ne))
+    # Face-interpolated transport XS for diffusion coefficient
+    sig_t_face = np.zeros((ng, nf))
     for ig in range(ng):
-        sig_t_edges[ig, 0] = sig_t[ig, 0]
-        sig_t_edges[ig, -1] = sig_t[ig, -1]
-        sig_t_edges[ig, 1:-1] = 0.5 * (sig_t[ig, :-1] + sig_t[ig, 1:])
+        sig_t_face[ig, 0] = sig_t[ig, 0]
+        sig_t_face[ig, -1] = sig_t[ig, -1]
+        sig_t_face[ig, 1:-1] = 0.5 * (sig_t[ig, :-1] + sig_t[ig, 1:])
 
-    D = 1.0 / (3.0 * sig_t_edges)  # (2, n_edges) diffusion coefficient
+    D = 1.0 / (3.0 * sig_t_face)  # (2, n_faces) diffusion coefficient
 
     # Energy per fission (J)
     e_per_fission = np.array([0.3213e-10, 0.3206e-10])
 
     # Linear operator A*x
     def matvec(solution):
-        fi = solution.reshape(ng, nn)
+        fi = solution.reshape(ng, nc)
 
         # Gradient with vacuum BCs (phi=0 at boundaries)
-        dfidz = np.zeros((ng, ne))
+        dfidz = np.zeros((ng, nf))
         dfidz[:, 0] = fi[:, 0] / (0.5 * dz)
         dfidz[:, -1] = -fi[:, -1] / (0.5 * dz)
         dfidz[:, 1:-1] = np.diff(fi, axis=1) / dz
@@ -171,20 +171,20 @@ def solve_diffusion_1d(
 
         return Ax.ravel()
 
-    A_op = LinearOperator(shape=(ng * nn, ng * nn), matvec=matvec, dtype=float)
+    A_op = LinearOperator(shape=(ng * nc, ng * nc), matvec=matvec, dtype=float)
 
     # Outer (power) iteration
-    fi = np.ones((ng, nn))
+    fi = np.ones((ng, nc))
     solution = fi.ravel()
 
     n_outer = 0
     while True:
-        # Production and absorption rates (volume-integrated per node)
-        p_rate = (sig_p * fi * dv).sum(axis=0)  # (n_nodes,)
+        # Production and absorption rates (volume-integrated per cell)
+        p_rate = (sig_p * fi * dv).sum(axis=0)  # (n_cells,)
         a_rate = (sig_a * fi * dv).sum(axis=0)
 
         # Current and leakage
-        dfidz = np.zeros((ng, ne))
+        dfidz = np.zeros((ng, nf))
         dfidz[:, 0] = fi[:, 0] / (0.5 * dz)
         dfidz[:, -1] = -fi[:, -1] / (0.5 * dz)
         dfidz[:, 1:-1] = np.diff(fi, axis=1) / dz
@@ -200,7 +200,7 @@ def solve_diffusion_1d(
         guess = solution.copy()
         solution, info = bicgstab(A_op, rhs, x0=guess, rtol=errtol, maxiter=maxiter)
 
-        fi = solution.reshape(ng, nn)
+        fi = solution.reshape(ng, nc)
 
         # Normalize flux to target power
         f_rate = sig_f * fi * dv
@@ -221,20 +221,20 @@ def solve_diffusion_1d(
             break
 
     # Final current
-    dfidz = np.zeros((ng, ne))
+    dfidz = np.zeros((ng, nf))
     dfidz[:, 0] = fi[:, 0] / (0.5 * dz)
     dfidz[:, -1] = -fi[:, -1] / (0.5 * dz)
     dfidz[:, 1:-1] = np.diff(fi, axis=1) / dz
     J = -D * dfidz
 
-    z_nodes = np.arange(dz / 2, dz / 2 + dz * nn, dz)
-    z_edges = np.arange(0, dz * ne, dz)
+    z_cells = np.arange(dz / 2, dz / 2 + dz * nc, dz)
+    z_faces = np.arange(0, dz * nf, dz)
 
     return DiffusionResult(
         keff=keff,
         flux=fi,
         current=J,
-        z_nodes=z_nodes,
-        z_edges=z_edges,
+        z_cells=z_cells,
+        z_faces=z_faces,
         geometry=geom,
     )

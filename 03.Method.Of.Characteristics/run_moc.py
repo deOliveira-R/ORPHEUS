@@ -37,7 +37,7 @@ def main():
 
     # 2. Set up geometry
     geom = MoCGeometry.default_pwr()
-    print(f"\n  Mesh: {geom.n_nodes} x {geom.n_nodes}, delta = {geom.delta} cm")
+    print(f"\n  Mesh: {geom.n_cells} x {geom.n_cells}, delta = {geom.delta} cm")
     print(f"  Ray directions: 8 (E, NE, N, NW, W, SW, S, SE)")
     print()
 

@@ -44,14 +44,14 @@ _SQRT2 = np.sqrt(2.0)
 class MoCGeometry:
     """2D Cartesian mesh for a PWR pin cell (full quarter-symmetry)."""
 
-    n_nodes: int
+    n_cells: int
     delta: float  # mesh step (cm)
-    mat_map: np.ndarray  # (n_nodes, n_nodes) int — 0=cool, 1=clad, 2=fuel
-    volume: np.ndarray  # (n_nodes, n_nodes) node volumes (cm^2)
+    mat_map: np.ndarray  # (n_cells, n_cells) int — 0=cool, 1=clad, 2=fuel
+    volume: np.ndarray  # (n_cells, n_cells) cell volumes (cm^2)
 
     @classmethod
     def default_pwr(cls) -> MoCGeometry:
-        """Standard 10x10 mesh: 5 fuel + 1 clad + 4 coolant columns."""
+        """Standard 10x10 cell mesh: 5 fuel + 1 clad + 4 coolant columns."""
         n = 10
         delta = 0.2
 
@@ -65,7 +65,7 @@ class MoCGeometry:
         row = np.array([2, 2, 2, 2, 2, 1, 0, 0, 0, 0], dtype=int)
         mat = np.tile(row, (n, 1)).T  # shape (10, 10)
 
-        return cls(n_nodes=n, delta=delta, mat_map=mat, volume=vol)
+        return cls(n_cells=n, delta=delta, mat_map=mat, volume=vol)
 
 
 @dataclass
@@ -77,7 +77,7 @@ class MoCResult:
     flux_fuel: np.ndarray     # (ng,) volume-averaged scalar flux in fuel
     flux_clad: np.ndarray     # (ng,) volume-averaged scalar flux in clad
     flux_cool: np.ndarray     # (ng,) volume-averaged scalar flux in coolant
-    scalar_flux: np.ndarray   # (n_nodes, n_nodes, ng) scalar flux at each node
+    scalar_flux: np.ndarray   # (n_cells, n_cells, ng) scalar flux in each cell
     geometry: MoCGeometry
     eg: np.ndarray            # (ng+1,) energy group boundaries
     elapsed_seconds: float
@@ -114,9 +114,9 @@ def _fly_from(
 
     Parameters
     ----------
-    fi : (n_nodes, n_nodes, ng, N_RAYS) angular flux array (modified in-place).
-    sig_t : (n_nodes, n_nodes, ng) total cross section.
-    q : (n_nodes, n_nodes, ng) isotropic source per ray.
+    fi : (n_cells, n_cells, ng, N_RAYS) angular flux array (modified in-place).
+    sig_t : (n_cells, n_cells, ng) total cross section.
+    q : (n_cells, n_cells, ng) isotropic source per ray.
     """
     d = direction
 
@@ -186,7 +186,7 @@ def solve_moc(
     if geom is None:
         geom = MoCGeometry.default_pwr()
 
-    n = geom.n_nodes
+    n = geom.n_cells
     eg = materials[2].eg
     ng = materials[2].ng
 

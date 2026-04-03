@@ -527,7 +527,7 @@ def run_diffusion_benchmarks():
     print(f"\n  Bare fuel slab (H={fuel_height} cm, vacuum BCs, 2-group)")
     print(f"  Analytical keff = {k_analytical:.6f}")
     print(f"  Spatial convergence (O(h²) expected):")
-    print(f"  {'dz':>8s}  {'N_nodes':>7s}  "
+    print(f"  {'dz':>8s}  {'N_cells':>7s}  "
           f"{'k_diffusion':>12s}  {'Error':>10s}  {'Order':>6s}")
     print("  " + "-" * 52)
 
@@ -550,8 +550,8 @@ def run_diffusion_benchmarks():
             order_str = f"{p:6.2f}"
         else:
             order_str = "   ---"
-        nn = int(fuel_height / dz)
-        print(f"  {dz:8.2f}  {nn:>7d}  {k:12.6f}  {err:10.2e}  {order_str}")
+        nc = int(fuel_height / dz)
+        print(f"  {dz:8.2f}  {nc:>7d}  {k:12.6f}  {err:10.2e}  {order_str}")
 
     print()
 

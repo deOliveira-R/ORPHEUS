@@ -31,11 +31,11 @@ class PinCellGeometry:
     ny: int
     delta: float  # mesh step (cm)
     mat_map: np.ndarray  # (nx, ny) int — 0=coolant, 1=clad, 2=fuel
-    volume: np.ndarray  # (nx, ny) node volumes (cm^2)
+    volume: np.ndarray  # (nx, ny) cell volumes (cm^2)
 
     @classmethod
     def default_pwr(cls) -> PinCellGeometry:
-        """Standard 10x2 mesh: 5 fuel + 1 clad + 4 coolant nodes."""
+        """Standard 10x2 mesh: 5 fuel + 1 clad + 4 coolant cells."""
         nx, ny, delta = 10, 2, 0.2
 
         vol = np.full((nx, ny), delta**2)
@@ -128,8 +128,8 @@ class EquationMap:
     n_eq: int           # number of angular equations
     n_unknowns: int     # n_eq * NG
     ordinate: np.ndarray  # (n_eq,) int — ordinate index
-    ix: np.ndarray        # (n_eq,) int — x-node index
-    iy: np.ndarray        # (n_eq,) int — y-node index
+    ix: np.ndarray        # (n_eq,) int — x-cell index
+    iy: np.ndarray        # (n_eq,) int — y-cell index
 
 
 @dataclass
@@ -152,7 +152,7 @@ class DOResult:
     flux_fuel: np.ndarray     # (NG,) volume-averaged scalar flux in fuel
     flux_clad: np.ndarray     # (NG,) volume-averaged scalar flux in clad
     flux_cool: np.ndarray     # (NG,) volume-averaged scalar flux in coolant
-    scalar_flux: np.ndarray   # (nx, ny, NG) scalar flux at each node
+    scalar_flux: np.ndarray   # (nx, ny, NG) scalar flux at each cell
     geometry: PinCellGeometry
     eg: np.ndarray            # (NG+1,) energy group boundaries
     elapsed_seconds: float
@@ -291,7 +291,7 @@ def transport_operator(
 
     Parameters
     ----------
-    sig_t : (nx, ny, NG) total cross section at each node.
+    sig_t : (nx, ny, NG) total cross section at each cell.
     """
     fi = solution_to_angular_flux(solution, eq_map, quad, geom, ng)
 
@@ -340,17 +340,17 @@ def solve_discrete_ordinates(
     eg = _any_mat.eg
     ng = _any_mat.ng
 
-    # --- Pre-compute per-node cross sections ---
+    # --- Pre-compute per-cell cross sections ---
     sig_a = np.empty((geom.nx, geom.ny, ng))
     sig_t = np.empty((geom.nx, geom.ny, ng))
     sig_p = np.empty((geom.nx, geom.ny, ng))
-    chi_node = np.empty((geom.nx, geom.ny, ng))
+    chi_cell = np.empty((geom.nx, geom.ny, ng))
 
-    # Store references to sparse matrices per node
-    sig_s_node: list[list[list]] = [
+    # Store references to sparse matrices per cell
+    sig_s_cell: list[list[list]] = [
         [[] for _ in range(geom.ny)] for _ in range(geom.nx)
     ]
-    sig2_node: list[list] = [
+    sig2_cell: list[list] = [
         [None for _ in range(geom.ny)] for _ in range(geom.nx)
     ]
 
@@ -361,7 +361,7 @@ def solve_discrete_ordinates(
             sig_a[ix, iy, :] = m.SigF + m.SigC + m.SigL + sig2_colsum
             sig_t[ix, iy, :] = sig_a[ix, iy, :] + np.array(m.SigS[0].sum(axis=1)).ravel()
             sig_p[ix, iy, :] = m.SigP if m.SigP.ndim > 0 and len(m.SigP) == ng else np.zeros(ng)
-            chi_node[ix, iy, :] = m.chi
+            chi_cell[ix, iy, :] = m.chi
 
             # Scattering matrices for each Legendre order
             sig_s_list = []
@@ -371,8 +371,8 @@ def solve_discrete_ordinates(
                 else:
                     from scipy.sparse import csr_matrix
                     sig_s_list.append(csr_matrix((ng, ng)))
-            sig_s_node[ix][iy] = sig_s_list
-            sig2_node[ix][iy] = m.Sig2
+            sig_s_cell[ix][iy] = sig_s_list
+            sig2_cell[ix][iy] = m.Sig2
 
     # --- Build equation map ---
     eq_map = build_equation_map(geom, quad, ng)
@@ -400,7 +400,7 @@ def solve_discrete_ordinates(
         # Convert to angular flux and compute scalar flux
         fi = solution_to_angular_flux(solution, eq_map, quad, geom, ng)
 
-        # Legendre flux moments at each node
+        # Legendre flux moments at each cell
         # fiL[ix][iy] shape (ng, L+1, 2*L+1)
         scalar_flux = np.zeros((geom.nx, geom.ny, ng))
         fiL = [[None for _ in range(geom.ny)] for _ in range(geom.nx)]
@@ -425,7 +425,7 @@ def solve_discrete_ordinates(
             for ix in range(geom.nx):
                 v = geom.volume[ix, iy]
                 FI = scalar_flux[ix, iy, :]
-                sig2_cs = np.array(sig2_node[ix][iy].sum(axis=1)).ravel()
+                sig2_cs = np.array(sig2_cell[ix][iy].sum(axis=1)).ravel()
                 p_rate += (sig_p[ix, iy, :] + 2 * sig2_cs) @ FI * v
                 a_rate += sig_a[ix, iy, :] @ FI * v
 
@@ -440,9 +440,9 @@ def solve_discrete_ordinates(
                 FI = scalar_flux[ix, iy, :]
 
                 # Fission source (isotropic)
-                qF = chi_node[ix, iy, :] * (sig_p[ix, iy, :] @ FI) / keff / four_pi
+                qF = chi_cell[ix, iy, :] * (sig_p[ix, iy, :] @ FI) / keff / four_pi
                 # (n,2n) source (isotropic)
-                q2 = 2.0 * (sig2_node[ix][iy].T @ FI) / four_pi
+                q2 = 2.0 * (sig2_cell[ix][iy].T @ FI) / four_pi
 
                 for n in range(quad.N):
                     if quad.mu_z[n] < 0:
@@ -463,7 +463,7 @@ def solve_discrete_ordinates(
                         for m_idx in range(-j, j + 1):
                             col = j + m_idx
                             s += fiL[ix][iy][:, j, col] * quad.R[n, j, col]
-                        qS += (2 * j + 1) * (sig_s_node[ix][iy][j].T @ s) / four_pi
+                        qS += (2 * j + 1) * (sig_s_cell[ix][iy][j].T @ s) / four_pi
 
                     rhs[:, eq_idx] = qF + q2 + qS
                     eq_idx += 1

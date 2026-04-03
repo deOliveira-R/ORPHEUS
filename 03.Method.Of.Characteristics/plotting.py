@@ -209,7 +209,7 @@ def plot_moc_rays(
     """Plot the 8-direction ray tracks (port of MATLAB plotRays.m)."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    n, delta = geom.n_nodes, geom.delta
+    n, delta = geom.n_cells, geom.delta
     xmin, xmax = 0.0, delta * (n - 1)
 
     fig, ax = plt.subplots(figsize=(6, 6))
@@ -252,7 +252,7 @@ def plot_moc_mesh(
     """Plot the material map for MoC geometry."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    _plot_2d_field(geom.n_nodes, geom.n_nodes, geom.delta,
+    _plot_2d_field(geom.n_cells, geom.n_cells, geom.delta,
                    geom.mat_map.astype(float), "Materials",
                    output_dir / filename)
 
@@ -308,7 +308,7 @@ def plot_moc_spatial_flux(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     geom = result.geometry
-    n = geom.n_nodes
+    n = geom.n_cells
     x = np.arange(n) * geom.delta
 
     # Group ranges for centerline (iy=0 row)

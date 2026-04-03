@@ -32,8 +32,8 @@ def main():
     OUTPUT.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots()
-    ax.plot(result.z_nodes, result.flux[0, :], "-or", label="Fast", markersize=3)
-    ax.plot(result.z_nodes, result.flux[1, :], "-ob", label="Thermal", markersize=3)
+    ax.plot(result.z_cells, result.flux[0, :], "-or", label="Fast", markersize=3)
+    ax.plot(result.z_cells, result.flux[1, :], "-ob", label="Thermal", markersize=3)
     ax.set_xlabel("z (cm)")
     ax.set_ylabel(r"Neutron flux (n/cm$^2$s)")
     ax.legend()
@@ -43,8 +43,8 @@ def main():
     plt.close(fig)
 
     fig, ax = plt.subplots()
-    ax.plot(result.z_edges, result.current[0, :], "-or", label="Fast", markersize=3)
-    ax.plot(result.z_edges, result.current[1, :], "-ob", label="Thermal", markersize=3)
+    ax.plot(result.z_faces, result.current[0, :], "-or", label="Fast", markersize=3)
+    ax.plot(result.z_faces, result.current[1, :], "-ob", label="Thermal", markersize=3)
     ax.set_xlabel("z (cm)")
     ax.set_ylabel(r"Neutron net current (n/cm$^2$s)")
     ax.legend()
