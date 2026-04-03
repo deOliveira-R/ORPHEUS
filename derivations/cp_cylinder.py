@@ -1,53 +1,25 @@
-"""SymPy derivations for cylindrical collision probability eigenvalues.
+"""Semi-analytical cylindrical collision probability eigenvalues.
 
-Derives analytical k_inf for 2-region Wigner-Seitz cylindrical geometry
-using the Ki₃/Ki₄ Bickley-Naylor kernel. The CP matrix structure is
-expressed symbolically; Ki₄ values are computed numerically.
+Derives k_inf for {1,2,4} energy groups × {1,2,4} regions using the
+Ki₃/Ki₄ Bickley-Naylor kernel. The CP matrix is computed numerically
+via y-quadrature; the eigenvalue problem is a finite matrix solve.
 """
 
 from __future__ import annotations
 
 import numpy as np
-import sympy as sp
-from scipy.sparse import csr_matrix
-
-from data.macro_xs.mixture import Mixture
 
 from ._kernels import bickley_tables
 from ._types import VerificationCase
+from ._xs_library import LAYOUTS, get_xs, get_mixture
 
 
-def _make_mixture(
-    sig_t: np.ndarray,
-    sig_c: np.ndarray,
-    sig_f: np.ndarray,
-    nu: np.ndarray,
-    chi: np.ndarray,
-    sig_s: np.ndarray,
-) -> Mixture:
-    """Build a Mixture from N-group arrays."""
-    ng = len(sig_t)
-    eg = np.logspace(7, -3, ng + 1)
-    return Mixture(
-        SigC=sig_c.copy(), SigL=np.zeros(ng),
-        SigF=sig_f.copy(), SigP=(nu * sig_f).copy(),
-        SigT=sig_t.copy(), SigS=[csr_matrix(sig_s)],
-        Sig2=csr_matrix((ng, ng)), chi=chi.copy(), eg=eg.copy(),
-    )
-
+# ═══════════════════════════════════════════════════════════════════════
+# Cylindrical CP matrix from Ki₄ kernel
+# ═══════════════════════════════════════════════════════════════════════
 
 def _chord_half_lengths(radii: np.ndarray, y_pts: np.ndarray) -> np.ndarray:
-    """Half-chord lengths l_k(y) for each annular region.
-
-    Parameters
-    ----------
-    radii : (N,) outer radius of each annular region
-    y_pts : (n_y,) perpendicular distance quadrature points
-
-    Returns
-    -------
-    chords : (N, n_y) half-chord length per region per y-point
-    """
+    """Half-chord lengths l_k(y) for each annular region. Shape (N, n_y)."""
     N = len(radii)
     chords = np.zeros((N, len(y_pts)))
     r_inner = np.zeros(N)
@@ -76,28 +48,12 @@ def _cylinder_cp_matrix(
 ) -> np.ndarray:
     """Compute the infinite-lattice CP matrix for a cylindrical cell.
 
-    Uses the Ki₄ second-difference formula with y-quadrature and
-    white boundary condition.
-
-    Parameters
-    ----------
-    sig_t_all : (N_reg, ng)
-    radii : (N_reg,) outer radii of annular regions
-    volumes : (N_reg,) annular areas (pi*(r_k^2 - r_{k-1}^2))
-    r_cell : equivalent cell radius
-    n_quad_y : number of GL quadrature points per segment
-
-    Returns
-    -------
-    P_inf : (N_reg, N_reg, ng)
+    Returns P_inf : (N_reg, N_reg, ng).
     """
     N_reg = len(radii)
     ng = sig_t_all.shape[1]
-
-    # Build Ki₄ lookup table
     tables = bickley_tables()
 
-    # Build y-quadrature with breakpoints at each radius
     gl_pts, gl_wts = np.polynomial.legendre.leggauss(n_quad_y)
     breakpoints = np.concatenate(([0.0], radii))
     y_all, w_all = [], []
@@ -107,19 +63,16 @@ def _cylinder_cp_matrix(
         w_all.append(0.5 * (b - a) * gl_wts)
     y_pts = np.concatenate(y_all)
     y_wts = np.concatenate(w_all)
-
     chords = _chord_half_lengths(radii, y_pts)
     n_y = len(y_pts)
-
     ki4_0 = tables.ki4_vec(np.zeros(n_y))
 
     P_inf_g = np.empty((N_reg, N_reg, ng))
 
     for g in range(ng):
         sig_t_g = sig_t_all[:, g]
-        tau = sig_t_g[:, None] * chords  # (N_reg, n_y)
+        tau = sig_t_g[:, None] * chords
 
-        # Boundary positions in optical coordinates
         bnd_pos = np.zeros((N_reg + 1, n_y))
         for k in range(N_reg):
             bnd_pos[k + 1, :] = bnd_pos[k, :] + tau[k, :]
@@ -132,7 +85,6 @@ def _cylinder_cp_matrix(
             if sti == 0:
                 continue
 
-            # Self-same collision
             self_same = 2.0 * chords[i, :] - (2.0 / sti) * (
                 ki4_0 - tables.ki4_vec(tau_i)
             )
@@ -140,8 +92,6 @@ def _cylinder_cp_matrix(
 
             for j in range(N_reg):
                 tau_j = tau[j, :]
-
-                # Direct path
                 if j > i:
                     gap_d = np.maximum(bnd_pos[j, :] - bnd_pos[i + 1, :], 0.0)
                 elif j < i:
@@ -157,7 +107,6 @@ def _cylinder_cp_matrix(
                 else:
                     dd = np.zeros(n_y)
 
-                # Reflected path
                 gap_c = bnd_pos[i, :] + bnd_pos[j, :]
                 dc = (tables.ki4_vec(gap_c)
                       - tables.ki4_vec(gap_c + tau_i)
@@ -166,13 +115,11 @@ def _cylinder_cp_matrix(
 
                 rcp[i, j] += 2.0 * np.dot(y_wts, dd + dc)
 
-        # Normalise to P_cell
         P_cell = np.zeros((N_reg, N_reg))
         for i in range(N_reg):
             if sig_t_g[i] * volumes[i] > 0:
                 P_cell[i, :] = rcp[i, :] / (sig_t_g[i] * volumes[i])
 
-        # White-BC correction
         P_out = np.maximum(1.0 - P_cell.sum(axis=1), 0.0)
         S_cell = 2.0 * np.pi * r_cell
         P_in = sig_t_g * volumes * P_out / S_cell
@@ -181,7 +128,6 @@ def _cylinder_cp_matrix(
         P_inf = P_cell.copy()
         if P_inout < 1.0:
             P_inf += np.outer(P_out, P_in) / (1.0 - P_inout)
-
         P_inf_g[:, :, g] = P_inf
 
     return P_inf_g
@@ -224,58 +170,43 @@ def _kinf_from_cp(
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Cross-section sets (same as cp_slab — abstract regions A and B)
+# Cylindrical geometry parameters
 # ═══════════════════════════════════════════════════════════════════════
 
-# Region A: fissile
-_XS_A = dict(
-    sig_t_1g=np.array([1.0]), sig_c_1g=np.array([0.2]),
-    sig_f_1g=np.array([0.3]), nu_1g=np.array([2.5]),
-    chi_1g=np.array([1.0]), sig_s_1g=np.array([[0.5]]),
+# Radii for each region count (innermost first)
+_RADII = {
+    1: [1.0],
+    2: [0.5, 1.0],
+    4: [0.4, 0.45, 0.55, 1.0],
+}
 
-    sig_t_2g=np.array([0.50, 1.00]), sig_c_2g=np.array([0.01, 0.02]),
-    sig_f_2g=np.array([0.01, 0.08]), nu_2g=np.array([2.50, 2.50]),
-    chi_2g=np.array([1.00, 0.00]),
-    sig_s_2g=np.array([[0.38, 0.10], [0.00, 0.90]]),
-)
-
-# Region B: non-fissile scatterer
-_XS_B = dict(
-    sig_t_1g=np.array([2.0]), sig_c_1g=np.array([0.1]),
-    sig_f_1g=np.array([0.0]), nu_1g=np.array([0.0]),
-    chi_1g=np.array([1.0]), sig_s_1g=np.array([[1.9]]),
-
-    sig_t_2g=np.array([0.60, 2.00]), sig_c_2g=np.array([0.02, 0.05]),
-    sig_f_2g=np.array([0.00, 0.00]), nu_2g=np.array([0.00, 0.00]),
-    chi_2g=np.array([1.00, 0.00]),
-    sig_s_2g=np.array([[0.40, 0.18], [0.00, 1.95]]),
-)
+# Material IDs per region count (innermost = highest)
+_MAT_IDS = {
+    1: [2],
+    2: [2, 0],
+    4: [2, 3, 1, 0],
+}
 
 
-def _build_case(suffix: str, xs_a: dict, xs_b: dict) -> VerificationCase:
-    """Build a 2-region cylindrical verification case."""
-    r_fuel, r_cell = 0.5, 1.0
+# ═══════════════════════════════════════════════════════════════════════
+# Case generation
+# ═══════════════════════════════════════════════════════════════════════
 
-    mix_a = _make_mixture(
-        xs_a[f"sig_t_{suffix}"], xs_a[f"sig_c_{suffix}"],
-        xs_a[f"sig_f_{suffix}"], xs_a[f"nu_{suffix}"],
-        xs_a[f"chi_{suffix}"], xs_a[f"sig_s_{suffix}"],
-    )
-    mix_b = _make_mixture(
-        xs_b[f"sig_t_{suffix}"], xs_b[f"sig_c_{suffix}"],
-        xs_b[f"sig_f_{suffix}"], xs_b[f"nu_{suffix}"],
-        xs_b[f"chi_{suffix}"], xs_b[f"sig_s_{suffix}"],
-    )
+def _build_case(ng_key: str, n_regions: int) -> VerificationCase:
+    """Build a cylindrical CP verification case."""
+    layout = LAYOUTS[n_regions]
+    ng = int(ng_key[0])
+    radii = np.array(_RADII[n_regions])
 
-    ng = len(xs_a[f"sig_t_{suffix}"])
-    sig_t_all = np.vstack([xs_a[f"sig_t_{suffix}"], xs_b[f"sig_t_{suffix}"]])
+    # Annular volumes
+    r_inner = np.zeros(n_regions)
+    r_inner[1:] = radii[:-1]
+    volumes = np.pi * (radii**2 - r_inner**2)
 
-    # Cylindrical geometry
-    radii = np.array([r_fuel, r_cell])
-    volumes = np.array([
-        np.pi * r_fuel**2,
-        np.pi * (r_cell**2 - r_fuel**2),
-    ])
+    r_cell = radii[-1]
+
+    xs_list = [get_xs(region, ng_key) for region in layout]
+    sig_t_all = np.vstack([xs["sig_t"] for xs in xs_list])
 
     P_inf_g = _cylinder_cp_matrix(sig_t_all, radii, volumes, r_cell)
 
@@ -283,40 +214,28 @@ def _build_case(suffix: str, xs_a: dict, xs_b: dict) -> VerificationCase:
         P_inf_g=P_inf_g,
         sig_t_all=sig_t_all,
         V_arr=volumes,
-        sig_s_mats=[xs_a[f"sig_s_{suffix}"], xs_b[f"sig_s_{suffix}"]],
-        nu_sig_f_mats=[
-            xs_a[f"nu_{suffix}"] * xs_a[f"sig_f_{suffix}"],
-            xs_b[f"nu_{suffix}"] * xs_b[f"sig_f_{suffix}"],
-        ],
-        chi_mats=[xs_a[f"chi_{suffix}"], xs_b[f"chi_{suffix}"]],
+        sig_s_mats=[xs["sig_s"] for xs in xs_list],
+        nu_sig_f_mats=[xs["nu"] * xs["sig_f"] for xs in xs_list],
+        chi_mats=[xs["chi"] for xs in xs_list],
     )
 
-    # Geometry params matching solver convention
-    pitch = r_cell * np.sqrt(np.pi)
-    geom_params = dict(
-        n_fuel=1, n_clad=0, n_cool=1,
-        r_fuel=r_fuel, r_clad=r_fuel,
-        pitch=pitch,
+    mat_ids = _MAT_IDS[n_regions]
+    materials = {}
+    for i, region in enumerate(layout):
+        materials[mat_ids[i]] = get_mixture(region, ng_key)
+
+    geom_params_out = dict(
+        radii=radii.tolist(),
+        mat_ids=mat_ids,
     )
 
-    name = f"cp_cyl1D_{ng}eg_2rg"
+    name = f"cp_cyl1D_{ng}eg_{n_regions}rg"
+    dim = n_regions * ng
+
     latex = (
-        r"The cylindrical CP eigenvalue problem with white boundary conditions "
-        r"uses the Ki₄ Bickley-Naylor kernel:"
-        "\n\n"
-        r".. math::" "\n"
-        r"   \text{Ki}_3(x) = \int_0^{\pi/2} "
-        r"\exp\!\left(-\frac{x}{\sin\theta}\right) \sin\theta\, d\theta"
-        "\n\n"
-        r".. math::" "\n"
-        r"   \text{Ki}_4(x) = \int_x^\infty \text{Ki}_3(t)\, dt"
-        "\n\n"
-        r"The reduced collision probability uses the Ki₄ second-difference "
-        r"formula integrated over chord perpendicular distance :math:`y`."
-        "\n\n"
-        rf"For the {ng}-group, 2-region cylinder "
-        rf"(:math:`r_\text{{fuel}} = {r_fuel}`, "
-        rf":math:`r_\text{{cell}} = {r_cell}`):"
+        rf"Cylindrical CP eigenvalue with {ng} groups, {n_regions} regions, "
+        r"white boundary condition. "
+        rf"The Ki₄-based CP matrix yields a {dim}×{dim} eigenvalue problem."
         "\n\n"
         r".. math::" "\n"
         rf"   k_\infty = {k_inf:.10f}"
@@ -328,25 +247,19 @@ def _build_case(suffix: str, xs_a: dict, xs_b: dict) -> VerificationCase:
         method="cp",
         geometry="cyl1D",
         n_groups=ng,
-        n_regions=2,
-        materials={2: mix_a, 0: mix_b},
-        geom_params=geom_params,
+        n_regions=n_regions,
+        materials=materials,
+        geom_params=geom_params_out,
         latex=latex,
-        description=f"{ng}-group 2-region cylindrical CP (Ki₄ kernel, white BC)",
+        description=f"{ng}G {n_regions}-region cylindrical CP (Ki₄ kernel, white BC)",
         tolerance="< 1e-5",
     )
 
 
-def derive_1g_cylinder() -> VerificationCase:
-    """1-group, 2-region Wigner-Seitz cylinder verification case."""
-    return _build_case("1g", _XS_A, _XS_B)
-
-
-def derive_2g_cylinder() -> VerificationCase:
-    """2-group, 2-region Wigner-Seitz cylinder verification case."""
-    return _build_case("2g", _XS_A, _XS_B)
-
-
 def all_cases() -> list[VerificationCase]:
-    """Return all cylindrical CP verification cases."""
-    return [derive_1g_cylinder(), derive_2g_cylinder()]
+    """Return all cylindrical CP verification cases: {1,2,4}eg × {1,2,4}rg."""
+    cases = []
+    for ng_key in ["1g", "2g", "4g"]:
+        for n_regions in [1, 2, 4]:
+            cases.append(_build_case(ng_key, n_regions))
+    return cases

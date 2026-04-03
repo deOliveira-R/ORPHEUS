@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from derivations import get
+from derivations._xs_library import get_mixture
 from sn_1d import GaussLegendreQuadrature, Slab1DGeometry, solve_sn_1d
 
 
@@ -47,21 +48,8 @@ def _convergence_order(values, spacings, reference):
 
 def test_spatial_convergence():
     """Diamond-difference scheme must show O(h²) spatial convergence."""
-    case = get("homo_1eg")
-    mix = next(iter(case.materials.values()))
-
-    # Use 1G 2-region slab cross sections for a heterogeneous test
-    from derivations.cp_slab import _XS_A, _XS_B, _make_mixture
-    fuel = _make_mixture(
-        _XS_A["sig_t_1g"], _XS_A["sig_c_1g"],
-        _XS_A["sig_f_1g"], _XS_A["nu_1g"],
-        _XS_A["chi_1g"], _XS_A["sig_s_1g"],
-    )
-    mod = _make_mixture(
-        _XS_B["sig_t_1g"], _XS_B["sig_c_1g"],
-        _XS_B["sig_f_1g"], _XS_B["nu_1g"],
-        _XS_B["chi_1g"], _XS_B["sig_s_1g"],
-    )
+    fuel = get_mixture("A", "1g")
+    mod = get_mixture("B", "1g")
     materials = {2: fuel, 0: mod}
     t_fuel, t_mod = 0.5, 0.5
 
@@ -83,7 +71,6 @@ def test_spatial_convergence():
     k_ref = keffs[-1] + (keffs[-1] - keffs[-2]) / 3.0
     orders = _convergence_order(keffs, dxs, k_ref)
 
-    # The finest refinement should show order ~2.0
     assert orders[-1] > 1.7, (
         f"Expected O(h²) convergence, got order {orders[-1]:.2f}"
     )
@@ -93,17 +80,8 @@ def test_spatial_convergence():
 
 def test_angular_convergence():
     """Gauss-Legendre quadrature must show spectral convergence in angle."""
-    from derivations.cp_slab import _XS_A, _XS_B, _make_mixture
-    fuel = _make_mixture(
-        _XS_A["sig_t_1g"], _XS_A["sig_c_1g"],
-        _XS_A["sig_f_1g"], _XS_A["nu_1g"],
-        _XS_A["chi_1g"], _XS_A["sig_s_1g"],
-    )
-    mod = _make_mixture(
-        _XS_B["sig_t_1g"], _XS_B["sig_c_1g"],
-        _XS_B["sig_f_1g"], _XS_B["nu_1g"],
-        _XS_B["chi_1g"], _XS_B["sig_s_1g"],
-    )
+    fuel = get_mixture("A", "1g")
+    mod = get_mixture("B", "1g")
     materials = {2: fuel, 0: mod}
 
     keffs = []
@@ -119,11 +97,9 @@ def test_angular_convergence():
         )
         keffs.append(result.keff)
 
-    # Angular convergence should be spectral: later orders > 1.5
     k_ref = keffs[-1]
     orders = _convergence_order(keffs, [1 / N for N in n_ords], k_ref)
-    assert len(orders) >= 2, "Need at least 3 data points for order"
-    # At least one order should exceed 1.5 (spectral converges fast)
+    assert len(orders) >= 2
     assert max(orders[:-1]) > 1.5, (
         f"Expected spectral convergence, got orders {orders}"
     )

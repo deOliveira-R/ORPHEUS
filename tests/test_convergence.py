@@ -3,8 +3,8 @@
 import pytest
 
 from derivations import get
+from derivations._xs_library import get_mixture
 from sn_1d import GaussLegendreQuadrature, Slab1DGeometry, solve_sn_1d
-from derivations.cp_slab import _XS_A, _XS_B, _make_mixture
 
 
 @pytest.mark.slow
@@ -16,16 +16,8 @@ def test_sn_approaches_cp_reference():
     """
     cp_ref = get("cp_slab_1eg_2rg")
 
-    fuel = _make_mixture(
-        _XS_A["sig_t_1g"], _XS_A["sig_c_1g"],
-        _XS_A["sig_f_1g"], _XS_A["nu_1g"],
-        _XS_A["chi_1g"], _XS_A["sig_s_1g"],
-    )
-    mod = _make_mixture(
-        _XS_B["sig_t_1g"], _XS_B["sig_c_1g"],
-        _XS_B["sig_f_1g"], _XS_B["nu_1g"],
-        _XS_B["chi_1g"], _XS_B["sig_s_1g"],
-    )
+    fuel = get_mixture("A", "1g")
+    mod = get_mixture("B", "1g")
     materials = {2: fuel, 0: mod}
 
     geom = Slab1DGeometry.from_benchmark(

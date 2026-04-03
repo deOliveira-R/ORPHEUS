@@ -1,39 +1,17 @@
-"""SymPy derivations for slab collision probability eigenvalues.
+"""Semi-analytical slab collision probability eigenvalues.
 
-Derives analytical k_inf for 2-region slab geometry using the E₃
-exponential integral kernel. The CP matrix structure is expressed
-symbolically; E₃ values are computed numerically.
+Derives k_inf for {1,2,4} energy groups × {1,2,4} regions using the E₃
+exponential integral kernel. The CP matrix is computed numerically to
+integrator precision; the eigenvalue problem is then a finite matrix solve.
 """
 
 from __future__ import annotations
 
 import numpy as np
-import sympy as sp
-from scipy.sparse import csr_matrix
-
-from data.macro_xs.mixture import Mixture
 
 from ._kernels import e3
 from ._types import VerificationCase
-
-
-def _make_mixture(
-    sig_t: np.ndarray,
-    sig_c: np.ndarray,
-    sig_f: np.ndarray,
-    nu: np.ndarray,
-    chi: np.ndarray,
-    sig_s: np.ndarray,
-) -> Mixture:
-    """Build a Mixture from N-group arrays."""
-    ng = len(sig_t)
-    eg = np.logspace(7, -3, ng + 1)
-    return Mixture(
-        SigC=sig_c.copy(), SigL=np.zeros(ng),
-        SigF=sig_f.copy(), SigP=(nu * sig_f).copy(),
-        SigT=sig_t.copy(), SigS=[csr_matrix(sig_s)],
-        Sig2=csr_matrix((ng, ng)), chi=chi.copy(), eg=eg.copy(),
-    )
+from ._xs_library import XS, LAYOUTS, get_xs, get_mixture, make_mixture
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -63,17 +41,14 @@ def _slab_cp_matrix(
 
     for g in range(ng):
         sig_t_g = sig_t_all[:, g]
-        tau = sig_t_g * t_arr  # optical thicknesses
+        tau = sig_t_g * t_arr
 
-        # Boundary positions in optical coordinates
         bnd_pos = np.zeros(N_reg + 1)
         for i in range(N_reg):
             bnd_pos[i + 1] = bnd_pos[i] + tau[i]
 
-        # Reduced collision probability via E₃ second differences
         rcp = np.zeros((N_reg, N_reg))
         for i in range(N_reg):
-            # Self-collision (diagonal)
             rcp[i, i] += 0.5 * sig_t_g[i] * (
                 2 * t_arr[i] - (2.0 / sig_t_g[i]) * (0.5 - e3(tau[i]))
             )
@@ -81,7 +56,6 @@ def _slab_cp_matrix(
             for j in range(N_reg):
                 tau_i, tau_j = tau[i], tau[j]
 
-                # Direct path (different regions only)
                 if j > i:
                     gap_d = max(bnd_pos[j] - bnd_pos[i + 1], 0.0)
                 elif j < i:
@@ -94,19 +68,16 @@ def _slab_cp_matrix(
                     dd = (e3(gap_d) - e3(gap_d + tau_i)
                           - e3(gap_d + tau_j) + e3(gap_d + tau_i + tau_j))
 
-                # Reflected path (always present)
                 gap_c = bnd_pos[i] + bnd_pos[j]
                 dc = (e3(gap_c) - e3(gap_c + tau_i)
                       - e3(gap_c + tau_j) + e3(gap_c + tau_i + tau_j))
 
                 rcp[i, j] += 0.5 * (dd + dc)
 
-        # Normalise to get P_cell
         P_cell = np.zeros((N_reg, N_reg))
         for i in range(N_reg):
             P_cell[i, :] = rcp[i, :] / (sig_t_g[i] * t_arr[i])
 
-        # White-BC correction: P_inf = P_cell + P_out * P_in^T / (1 - P_inout)
         P_out = np.maximum(1.0 - P_cell.sum(axis=1), 0.0)
         P_in = sig_t_g * t_arr * P_out
         P_inout = max(1.0 - P_in.sum(), 0.0)
@@ -123,14 +94,7 @@ def _kinf_from_cp(
     nu_sig_f_mats: list[np.ndarray],
     chi_mats: list[np.ndarray],
 ) -> float:
-    """Solve the CP eigenvalue problem for k_inf.
-
-    The generalised eigenvalue problem is:
-
-    .. math::
-        (\\text{diag}(\\Sigma_t V) - P^T \\Sigma_s V) \\phi
-        = \\frac{1}{k} P^T \\chi \\nu\\Sigma_f V \\phi
-    """
+    """Solve the CP eigenvalue problem for k_inf."""
     N_reg = P_inf_g.shape[0]
     ng = P_inf_g.shape[2]
     dim = N_reg * ng
@@ -158,78 +122,39 @@ def _kinf_from_cp(
     return float(np.max(np.real(np.linalg.eigvals(M))))
 
 
-def _symbolic_latex_cp_eigenvalue(ng: int, n_reg: int) -> str:
-    """Generate LaTeX for the CP eigenvalue problem."""
-    dim = n_reg * ng
-    return (
-        r"The slab CP eigenvalue problem with white boundary conditions:"
-        "\n\n"
-        r".. math::" "\n"
-        r"   \left(\text{diag}(\Sigma_{t,i} V_i) "
-        r"- \mathbf{P}^T \text{diag}(V_j \Sigma_{s,j})\right) \phi "
-        r"= \frac{1}{k} \mathbf{P}^T \text{diag}(V_j \chi_j \nu\Sigma_{f,j}) \phi"
-        "\n\n"
-        rf"where :math:`\mathbf{{P}} \in \mathbb{{R}}^{{{n_reg} \times {n_reg}}}` "
-        r"is the collision probability matrix per energy group, computed from "
-        r"the :math:`E_3` exponential integral kernel with the second-difference "
-        r"formula."
-        "\n\n"
-        rf"The full eigenvalue problem has dimension {dim} "
-        rf"({n_reg} regions :math:`\times` {ng} groups)."
-    )
+# ═══════════════════════════════════════════════════════════════════════
+# Slab geometry parameters
+# ═══════════════════════════════════════════════════════════════════════
+
+# Region thicknesses (innermost to outermost)
+_THICKNESSES = {
+    1: [0.5],                       # A only
+    2: [0.5, 0.5],                  # A + B
+    4: [0.4, 0.05, 0.1, 0.45],     # A + D + C + B
+}
+
+# Material IDs per region count, matching solver convention
+# (innermost = highest ID)
+_MAT_IDS = {
+    1: [2],          # A → fuel(2)
+    2: [2, 0],       # A → fuel(2), B → cool(0)
+    4: [2, 3, 1, 0], # A → fuel(2), D → gap(3), C → clad(1), B → cool(0)
+}
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Cross-section sets for verification cases
+# Case generation
 # ═══════════════════════════════════════════════════════════════════════
 
-# Region A: fissile
-_XS_A = dict(
-    sig_t_1g=np.array([1.0]), sig_c_1g=np.array([0.2]),
-    sig_f_1g=np.array([0.3]), nu_1g=np.array([2.5]),
-    chi_1g=np.array([1.0]), sig_s_1g=np.array([[0.5]]),
+def _build_case(ng_key: str, n_regions: int) -> VerificationCase:
+    """Build a slab CP verification case for given groups and regions."""
+    layout = LAYOUTS[n_regions]
+    ng = int(ng_key[0])
+    t_arr = np.array(_THICKNESSES[n_regions])
 
-    sig_t_2g=np.array([0.50, 1.00]), sig_c_2g=np.array([0.01, 0.02]),
-    sig_f_2g=np.array([0.01, 0.08]), nu_2g=np.array([2.50, 2.50]),
-    chi_2g=np.array([1.00, 0.00]),
-    sig_s_2g=np.array([[0.38, 0.10], [0.00, 0.90]]),
-)
-
-# Region B: non-fissile scatterer
-_XS_B = dict(
-    sig_t_1g=np.array([2.0]), sig_c_1g=np.array([0.1]),
-    sig_f_1g=np.array([0.0]), nu_1g=np.array([0.0]),
-    chi_1g=np.array([1.0]), sig_s_1g=np.array([[1.9]]),
-
-    sig_t_2g=np.array([0.60, 2.00]), sig_c_2g=np.array([0.02, 0.05]),
-    sig_f_2g=np.array([0.00, 0.00]), nu_2g=np.array([0.00, 0.00]),
-    chi_2g=np.array([1.00, 0.00]),
-    sig_s_2g=np.array([[0.40, 0.18], [0.00, 1.95]]),
-)
-
-
-def _build_case(
-    suffix: str,
-    xs_a: dict,
-    xs_b: dict,
-    t_a: float = 0.5,
-    t_b: float = 0.5,
-) -> VerificationCase:
-    """Build a 2-region slab verification case for given group count."""
-    mix_a = _make_mixture(
-        xs_a[f"sig_t_{suffix}"], xs_a[f"sig_c_{suffix}"],
-        xs_a[f"sig_f_{suffix}"], xs_a[f"nu_{suffix}"],
-        xs_a[f"chi_{suffix}"], xs_a[f"sig_s_{suffix}"],
-    )
-    mix_b = _make_mixture(
-        xs_b[f"sig_t_{suffix}"], xs_b[f"sig_c_{suffix}"],
-        xs_b[f"sig_f_{suffix}"], xs_b[f"nu_{suffix}"],
-        xs_b[f"chi_{suffix}"], xs_b[f"sig_s_{suffix}"],
-    )
-
-    ng = len(xs_a[f"sig_t_{suffix}"])
-    sig_t_all = np.vstack([xs_a[f"sig_t_{suffix}"], xs_b[f"sig_t_{suffix}"]])
-    t_arr = np.array([t_a, t_b])
+    # Collect XS per region (innermost first)
+    xs_list = [get_xs(region, ng_key) for region in layout]
+    sig_t_all = np.vstack([xs["sig_t"] for xs in xs_list])
 
     P_inf_g = _slab_cp_matrix(sig_t_all, t_arr)
 
@@ -237,23 +162,31 @@ def _build_case(
         P_inf_g=P_inf_g,
         sig_t_all=sig_t_all,
         V_arr=t_arr,
-        sig_s_mats=[xs_a[f"sig_s_{suffix}"], xs_b[f"sig_s_{suffix}"]],
-        nu_sig_f_mats=[
-            xs_a[f"nu_{suffix}"] * xs_a[f"sig_f_{suffix}"],
-            xs_b[f"nu_{suffix}"] * xs_b[f"sig_f_{suffix}"],
-        ],
-        chi_mats=[xs_a[f"chi_{suffix}"], xs_b[f"chi_{suffix}"]],
+        sig_s_mats=[xs["sig_s"] for xs in xs_list],
+        nu_sig_f_mats=[xs["nu"] * xs["sig_f"] for xs in xs_list],
+        chi_mats=[xs["chi"] for xs in xs_list],
     )
 
-    geom_params = dict(
-        n_fuel=1, n_clad=0, n_cool=1,
-        fuel_half=t_a, clad_thick=0.0, cool_thick=t_b,
+    # Build materials dict with mat_ids matching the solver convention
+    mat_ids = _MAT_IDS[n_regions]
+    materials = {}
+    for i, region in enumerate(layout):
+        materials[mat_ids[i]] = get_mixture(region, ng_key)
+
+    # Geometry params for building SlabGeometry in solver tests
+    # Use thicknesses and mat_ids directly
+    geom_params_out = dict(
+        thicknesses=t_arr.tolist(),
+        mat_ids=mat_ids,
     )
 
-    name = f"cp_slab_{ng}eg_2rg"
-    latex = _symbolic_latex_cp_eigenvalue(ng, 2) + (
-        "\n\n"
-        rf"For the {ng}-group, 2-region slab (t_A = {t_a}, t_B = {t_b}):"
+    name = f"cp_slab_{ng}eg_{n_regions}rg"
+    dim = n_regions * ng
+
+    latex = (
+        rf"Slab CP eigenvalue with {ng} groups, {n_regions} regions, "
+        r"white boundary condition. "
+        rf"The E₃-based CP matrix yields a {dim}×{dim} eigenvalue problem."
         "\n\n"
         r".. math::" "\n"
         rf"   k_\infty = {k_inf:.10f}"
@@ -265,25 +198,19 @@ def _build_case(
         method="cp",
         geometry="slab",
         n_groups=ng,
-        n_regions=2,
-        materials={2: mix_a, 0: mix_b},
-        geom_params=geom_params,
+        n_regions=n_regions,
+        materials=materials,
+        geom_params=geom_params_out,
         latex=latex,
-        description=f"{ng}-group 2-region slab CP (E₃ kernel, white BC)",
+        description=f"{ng}G {n_regions}-region slab CP (E₃ kernel, white BC)",
         tolerance="< 1e-6",
     )
 
 
-def derive_1g_slab() -> VerificationCase:
-    """1-group, 2-region slab CP verification case."""
-    return _build_case("1g", _XS_A, _XS_B)
-
-
-def derive_2g_slab() -> VerificationCase:
-    """2-group, 2-region slab CP verification case."""
-    return _build_case("2g", _XS_A, _XS_B)
-
-
 def all_cases() -> list[VerificationCase]:
-    """Return all slab CP verification cases."""
-    return [derive_1g_slab(), derive_2g_slab()]
+    """Return all slab CP verification cases: {1,2,4}eg × {1,2,4}rg."""
+    cases = []
+    for ng_key in ["1g", "2g", "4g"]:
+        for n_regions in [1, 2, 4]:
+            cases.append(_build_case(ng_key, n_regions))
+    return cases

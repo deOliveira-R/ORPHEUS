@@ -3,8 +3,7 @@
 import numpy as np
 import pytest
 
-from derivations import get
-from derivations.cp_slab import _XS_A, _XS_B, _make_mixture
+from derivations._xs_library import get_mixture
 from discrete_ordinates import DOParams, PinCellGeometry, solve_discrete_ordinates
 
 
@@ -25,19 +24,11 @@ def _slab_geom_for_do(n_fuel, n_mod, delta, ny=2):
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("suffix,label", [("1g", "1G"), ("2g", "2G")])
-def test_do_mesh_convergence(suffix, label):
+@pytest.mark.parametrize("ng_key,label", [("1g", "1G"), ("2g", "2G")])
+def test_do_mesh_convergence(ng_key, label):
     """2D SN solver must converge with mesh refinement."""
-    fuel = _make_mixture(
-        _XS_A[f"sig_t_{suffix}"], _XS_A[f"sig_c_{suffix}"],
-        _XS_A[f"sig_f_{suffix}"], _XS_A[f"nu_{suffix}"],
-        _XS_A[f"chi_{suffix}"], _XS_A[f"sig_s_{suffix}"],
-    )
-    mod = _make_mixture(
-        _XS_B[f"sig_t_{suffix}"], _XS_B[f"sig_c_{suffix}"],
-        _XS_B[f"sig_f_{suffix}"], _XS_B[f"nu_{suffix}"],
-        _XS_B[f"chi_{suffix}"], _XS_B[f"sig_s_{suffix}"],
-    )
+    fuel = get_mixture("A", ng_key)
+    mod = get_mixture("B", ng_key)
     materials = {2: fuel, 0: mod}
 
     keffs = []
@@ -52,7 +43,6 @@ def test_do_mesh_convergence(suffix, label):
         )
         keffs.append(result.keff)
 
-    # The sequence should converge (decreasing error between successive values)
     diffs = [abs(keffs[i] - keffs[i + 1]) for i in range(len(keffs) - 1)]
     assert diffs[-1] < diffs[0], (
         f"SN not converging: diffs={diffs}"

@@ -9,6 +9,7 @@ from monte_carlo import MCParams, solve_monte_carlo
 @pytest.mark.parametrize("case_name,n_active", [
     ("mc_cyl1D_1eg_1rg", 500),
     ("mc_cyl1D_2eg_1rg", 200),
+    ("mc_cyl1D_4eg_1rg", 100),
 ])
 def test_mc_zscore(case_name, n_active):
     """MC eigenvalue must be within 5 sigma of the analytical reference."""

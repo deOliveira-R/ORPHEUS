@@ -9,6 +9,7 @@ from method_of_characteristics import MoCGeometry, solve_moc
 @pytest.mark.parametrize("case_name", [
     "moc_cyl1D_1eg_1rg",
     "moc_cyl1D_2eg_1rg",
+    "moc_cyl1D_4eg_1rg",
 ])
 def test_moc_homogeneous(case_name):
     """MOC with homogeneous fill must match infinite-medium eigenvalue."""
