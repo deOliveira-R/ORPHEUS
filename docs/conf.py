@@ -30,12 +30,14 @@ extensions = [
 ]
 
 templates_path = ['_templates']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', '_generated', 'Thumbs.db', '.DS_Store']
 
 # -- Options for HTML output -------------------------------------------
 
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
+html_js_files = ['sortable.js']
+html_css_files = ['sortable.css']
 
 # -- Options for autodoc -----------------------------------------------
 

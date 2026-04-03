@@ -1,0 +1,26 @@
+/* Sortable table styling */
+
+/* Header row: thick bottom border to separate from data */
+table.sortable thead th {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    border-bottom: 2.5px solid #333 !important;
+}
+table.sortable thead th:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+table.sortable thead th .sort-indicator {
+    font-size: 0.75em;
+    opacity: 0.7;
+}
+
+/* Active sort column header: light gray background */
+table.sortable thead th.sort-active {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Category group separator: dashed border between groups */
+table.sortable tbody tr.group-first td {
+    border-top: 2px dashed #999 !important;
+}

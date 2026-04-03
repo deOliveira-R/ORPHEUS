@@ -6,6 +6,7 @@ ORPHEUS — Open Reactor Physics Educational University System
    :caption: Theory & Derivations
 
    theory/collision_probability
+   theory/verification
 
 .. toctree::
    :maxdepth: 2
@@ -14,6 +15,7 @@ ORPHEUS — Open Reactor Physics Educational University System
    api/numerics
    api/data
    api/collision_probability
+   api/derivations
 
 
 Indices and tables

@@ -10,11 +10,113 @@ Port of MATLAB ``monteCarloPWR.m``.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Protocol, runtime_checkable
 
 import numpy as np
 
 from data.macro_xs.mixture import Mixture
+
+
+# ---------------------------------------------------------------------------
+# Geometry protocol — designed for delta-tracking (no distance-to-surface)
+# ---------------------------------------------------------------------------
+
+@runtime_checkable
+class MCGeometry(Protocol):
+    """Geometry interface for Monte Carlo delta-tracking.
+
+    Implementations must provide:
+    - ``material_id_at(x, y)`` — return the material ID at position (x, y)
+    - ``pitch`` — unit cell side length for periodic boundary conditions
+
+    The delta-tracking algorithm only needs the material at the collision
+    point, not distance-to-surface. This makes the interface simple and
+    extensible to future CSG implementations.
+    """
+
+    pitch: float
+
+    def material_id_at(self, x: float, y: float) -> int:
+        """Return the material ID at position (x, y)."""
+        ...
+
+
+@dataclass
+class ConcentricPinCell:
+    """Concentric cylindrical pin cell in a square lattice.
+
+    Parameters
+    ----------
+    radii : outer radius of each annular region (innermost first).
+    mat_ids : material ID for each annulus (same length as radii).
+        Regions outside the outermost radius get the last material ID.
+    pitch : side length of the square unit cell (cm).
+    """
+
+    radii: list[float]
+    mat_ids: list[int]
+    pitch: float
+
+    def material_id_at(self, x: float, y: float) -> int:
+        """Return material ID at (x, y) based on distance from pin center."""
+        center = self.pitch / 2.0
+        r = np.sqrt((x - center)**2 + (y - center)**2)
+        for k, r_k in enumerate(self.radii):
+            if r <= r_k:
+                return self.mat_ids[k]
+        return self.mat_ids[-1]
+
+    @classmethod
+    def default_pwr(cls, pitch: float = 3.6) -> ConcentricPinCell:
+        """Default PWR geometry matching the original MATLAB layout.
+
+        Fuel:  r < 0.9 cm  (material 2)
+        Clad:  0.9 ≤ r < 1.1 cm  (material 1)
+        Cool:  r ≥ 1.1 cm  (material 0)
+        """
+        return cls(
+            radii=[0.9, 1.1, pitch / np.sqrt(np.pi)],
+            mat_ids=[2, 1, 0],
+            pitch=pitch,
+        )
+
+
+class SlabPinCell:
+    """1D slab geometry embedded in a 2D square cell (for MATLAB compatibility).
+
+    Determines material based on x-coordinate only. Matches the original
+    MATLAB monteCarloPWR.m hard-coded regions.
+
+    Parameters
+    ----------
+    boundaries : list of x-coordinates separating regions.
+    mat_ids : material ID for each region (len = len(boundaries) + 1).
+        mat_ids[0] is for x < boundaries[0], mat_ids[-1] for x > boundaries[-1].
+    pitch : unit cell side length (cm).
+    """
+
+    def __init__(
+        self, boundaries: list[float], mat_ids: list[int], pitch: float,
+    ):
+        self.boundaries = boundaries
+        self.mat_ids = mat_ids
+        self.pitch = pitch
+
+    def material_id_at(self, x: float, y: float) -> int:
+        for k, bnd in enumerate(self.boundaries):
+            if x < bnd:
+                return self.mat_ids[k]
+        return self.mat_ids[-1]
+
+    @classmethod
+    def default_pwr(cls, pitch: float = 3.6) -> SlabPinCell:
+        """Original MATLAB slab geometry: cool|clad|fuel|clad|cool."""
+        return cls(
+            boundaries=[0.7, 0.9, 2.7, 2.9],
+            mat_ids=[0, 1, 2, 1, 0],
+            pitch=pitch,
+        )
 
 
 @dataclass
@@ -26,6 +128,7 @@ class MCParams:
     n_active: int = 2000         # active cycles (tally accumulation)
     pitch: float = 3.6           # unit cell side length (cm)
     seed: int | None = None      # Rng seed (None = random)
+    geometry: MCGeometry | None = None  # None → use default slab geometry
 
 
 @dataclass
@@ -39,27 +142,6 @@ class MCResult:
     flux_per_lethargy: np.ndarray  # (ng,) cell-averaged flux / du
     eg_mid: np.ndarray        # (ng,) mid-group energies
     elapsed_seconds: float
-
-
-def _find_material(
-    x: float,
-    fuel: Mixture,
-    clad: Mixture,
-    cool: Mixture,
-) -> Mixture:
-    """Determine material region from x-coordinate.
-
-    Geometry (matching MATLAB):
-        fuel:  0.9 < x < 2.7
-        clad:  0.7 <= x <= 0.9  or  2.7 <= x <= 2.9
-        cool:  x < 0.7  or  x > 2.9
-    """
-    if 0.9 < x < 2.7:
-        return fuel
-    elif x < 0.7 or x > 2.9:
-        return cool
-    else:
-        return clad
 
 
 def solve_monte_carlo(
@@ -79,16 +161,23 @@ def solve_monte_carlo(
         params = MCParams()
 
     rng = np.random.default_rng(params.seed)
-    fuel, clad, cool = materials[2], materials[1], materials[0]
-    ng = fuel.ng
-    pitch = params.pitch
 
-    eg = fuel.eg
+    # Geometry: use provided or default slab layout
+    geom = params.geometry
+    if geom is None:
+        geom = SlabPinCell.default_pwr(params.pitch)
+    pitch = geom.pitch
+
+    _any_mat = next(iter(materials.values()))
+    ng = _any_mat.ng
+    eg = _any_mat.eg
     eg_mid = 0.5 * (eg[:ng] + eg[1:ng + 1])
     du = np.log(eg[1:ng + 1] / eg[:ng])
 
-    # Majorant: maximum total cross section across all materials
-    sig_t_max = np.maximum(np.maximum(fuel.SigT, clad.SigT), cool.SigT)
+    # Majorant: maximum total cross section across all materials and groups
+    sig_t_max = np.zeros(ng)
+    for mix in materials.values():
+        sig_t_max = np.maximum(sig_t_max, mix.SigT)
 
     # Precompute dense scattering rows (from group ig to all groups)
     # sig_s_dense[mat_id][ig] = dense array of shape (ng,)
@@ -97,8 +186,8 @@ def solve_monte_carlo(
         rows = np.array(mix.SigS[0].todense())  # (ng, ng)
         sig_s_dense[mat_id] = rows
 
-    # Cumulative fission spectrum for sampling
-    chi_cum = np.cumsum(fuel.chi)
+    # Cumulative fission spectrum for sampling (from any fissile material)
+    chi_cum = np.cumsum(_any_mat.chi)
 
     # Scattering detector
     detect_s = np.zeros(ng)
@@ -149,22 +238,13 @@ def solve_monte_carlo(
                 nx_ = nx_ % pitch
                 ny_ = ny_ % pitch
 
-                # Determine material
-                mat = _find_material(nx_, fuel, clad, cool)
+                # Determine material from geometry
+                mat_id = geom.material_id_at(nx_, ny_)
+                mat = materials[mat_id]
 
                 # Cross sections for this group
-                if mat is fuel:
-                    mat_id = 2
-                    sig_a = fuel.SigF[ig] + fuel.SigC[ig] + fuel.SigL[ig]
-                    sig_p = fuel.SigP[ig]
-                elif mat is cool:
-                    mat_id = 0
-                    sig_a = cool.SigC[ig] + cool.SigL[ig]
-                    sig_p = 0.0
-                else:
-                    mat_id = 1
-                    sig_a = clad.SigC[ig] + clad.SigL[ig]
-                    sig_p = 0.0
+                sig_a = mat.SigF[ig] + mat.SigC[ig] + mat.SigL[ig]
+                sig_p = mat.SigP[ig]
 
                 sig_s_row = sig_s_dense[mat_id][ig, :]
                 sig_s_sum = sig_s_row.sum()

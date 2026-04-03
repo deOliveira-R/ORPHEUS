@@ -44,12 +44,12 @@ _SQRT2 = np.sqrt(2.0)
 
 @dataclass
 class MoCGeometry:
-    """2D Cartesian mesh for a PWR pin cell (full quarter-symmetry)."""
+    """2D Cartesian mesh for a pin cell with reflective boundary conditions."""
 
     n_cells: int
     delta: float  # mesh step (cm)
-    mat_map: np.ndarray  # (n_cells, n_cells) int — 0=cool, 1=clad, 2=fuel
-    volume: np.ndarray  # (n_cells, n_cells) cell volumes (cm^2)
+    mat_map: np.ndarray  # (n_cells, n_cells) int — material ID per cell
+    volume: np.ndarray  # (n_cells, n_cells) cell volumes (cm²)
 
     @classmethod
     def default_pwr(cls) -> MoCGeometry:
@@ -69,6 +69,50 @@ class MoCGeometry:
 
         return cls(n_cells=n, delta=delta, mat_map=mat, volume=vol)
 
+    @classmethod
+    def from_annular(
+        cls,
+        radii: list[float],
+        mat_ids: list[int],
+        pitch: float,
+        n_cells: int = 10,
+    ) -> MoCGeometry:
+        """Build a Cartesian mesh from concentric annular regions.
+
+        Parameters
+        ----------
+        radii : outer radius of each annular region (innermost first).
+            The outermost radius is the cell boundary; cells outside it
+            get the last material ID.
+        mat_ids : material ID for each annulus (same length as radii).
+        pitch : side length of the square unit cell (cm).
+        n_cells : number of mesh cells per side.
+        """
+        delta = pitch / n_cells
+        vol = np.full((n_cells, n_cells), delta**2)
+        vol[0, :] /= 2
+        vol[-1, :] /= 2
+        vol[:, 0] /= 2
+        vol[:, -1] /= 2
+
+        # Cell centers (origin at corner)
+        cx = (np.arange(n_cells) + 0.5) * delta
+        cy = (np.arange(n_cells) + 0.5) * delta
+
+        # Pin center
+        center = pitch / 2.0
+
+        mat = np.full((n_cells, n_cells), mat_ids[-1], dtype=int)
+        for ix in range(n_cells):
+            for iy in range(n_cells):
+                r = np.sqrt((cx[ix] - center)**2 + (cy[iy] - center)**2)
+                for k, r_k in enumerate(radii):
+                    if r <= r_k:
+                        mat[ix, iy] = mat_ids[k]
+                        break
+
+        return cls(n_cells=n_cells, delta=delta, mat_map=mat, volume=vol)
+
 
 @dataclass
 class MoCResult:
@@ -76,13 +120,24 @@ class MoCResult:
 
     keff: float
     keff_history: list[float]
-    flux_fuel: np.ndarray     # (ng,) volume-averaged scalar flux in fuel
-    flux_clad: np.ndarray     # (ng,) volume-averaged scalar flux in clad
-    flux_cool: np.ndarray     # (ng,) volume-averaged scalar flux in coolant
+    flux_per_material: dict[int, np.ndarray]  # mat_id → (ng,) volume-averaged flux
     scalar_flux: np.ndarray   # (n_cells, n_cells, ng) scalar flux in each cell
     geometry: MoCGeometry
     eg: np.ndarray            # (ng+1,) energy group boundaries
     elapsed_seconds: float
+
+    # Convenience aliases for legacy 3-material access
+    @property
+    def flux_fuel(self) -> np.ndarray:
+        return self.flux_per_material.get(2, np.zeros(len(self.eg) - 1))
+
+    @property
+    def flux_clad(self) -> np.ndarray:
+        return self.flux_per_material.get(1, np.zeros(len(self.eg) - 1))
+
+    @property
+    def flux_cool(self) -> np.ndarray:
+        return self.flux_per_material.get(0, np.zeros(len(self.eg) - 1))
 
 
 # ---------------------------------------------------------------------------
@@ -466,35 +521,27 @@ def solve_moc(
     if geom is None:
         geom = MoCGeometry.default_pwr()
 
-    eg = materials[2].eg
-    ng = materials[2].ng
+    _any_mat = next(iter(materials.values()))
+    eg = _any_mat.eg
+    ng = _any_mat.ng
 
     solver = MoCSolver(materials, geom)
     keff, keff_history, fi = power_iteration(solver, max_iter=max_outer)
 
-    # --- Post-processing: volume-averaged spectra ---
+    # --- Post-processing: volume-averaged spectra per material ---
     n = geom.n_cells
     scalar_flux = fi.sum(axis=3)  # (n, n, ng)
 
-    vol_fuel = geom.volume[geom.mat_map == 2].sum()
-    vol_clad = geom.volume[geom.mat_map == 1].sum()
-    vol_cool = geom.volume[geom.mat_map == 0].sum()
-
-    flux_fuel = np.zeros(ng)
-    flux_clad = np.zeros(ng)
-    flux_cool = np.zeros(ng)
+    unique_mats = set(int(m) for m in np.unique(geom.mat_map))
+    vol_per_mat = {m: geom.volume[geom.mat_map == m].sum() for m in unique_mats}
+    flux_per_mat = {m: np.zeros(ng) for m in unique_mats}
 
     for iy in range(n):
         for ix in range(n):
             v = geom.volume[ix, iy]
             FI = scalar_flux[ix, iy, :]
-            mat_id = geom.mat_map[ix, iy]
-            if mat_id == 2:
-                flux_fuel += FI * v / vol_fuel
-            elif mat_id == 1:
-                flux_clad += FI * v / vol_clad
-            else:
-                flux_cool += FI * v / vol_cool
+            mat_id = int(geom.mat_map[ix, iy])
+            flux_per_mat[mat_id] += FI * v / vol_per_mat[mat_id]
 
     elapsed = time.perf_counter() - t_start
     print(f"  Elapsed: {elapsed:.1f}s")
@@ -502,9 +549,7 @@ def solve_moc(
     return MoCResult(
         keff=keff_history[-1],
         keff_history=keff_history,
-        flux_fuel=flux_fuel,
-        flux_clad=flux_clad,
-        flux_cool=flux_cool,
+        flux_per_material=flux_per_mat,
         scalar_flux=scalar_flux,
         geometry=geom,
         eg=eg,

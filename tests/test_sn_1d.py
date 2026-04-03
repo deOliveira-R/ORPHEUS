@@ -1,0 +1,129 @@
+"""Verify the 1D SN solver: homogeneous exact, spatial O(h²), angular spectral."""
+
+import numpy as np
+import pytest
+
+from derivations import get
+from sn_1d import GaussLegendreQuadrature, Slab1DGeometry, solve_sn_1d
+
+
+# ─── Homogeneous infinite medium (SN with reflective BCs) ────────────
+
+@pytest.mark.parametrize("case_name", [
+    "sn_slab_1eg_1rg",
+    "sn_slab_2eg_1rg",
+    "sn_slab_4eg_1rg",
+])
+def test_homogeneous_exact(case_name):
+    """SN 1D with reflective BCs on a homogeneous slab must match
+    the analytical infinite-medium eigenvalue."""
+    case = get(case_name)
+    mix = next(iter(case.materials.values()))
+    materials = {0: mix}
+    geom = Slab1DGeometry.homogeneous(20, 2.0, mat_id=0)
+    quad = GaussLegendreQuadrature.gauss_legendre(8)
+    result = solve_sn_1d(materials, geom, quad)
+
+    assert abs(result.keff - case.k_inf) < 1e-8, (
+        f"keff={result.keff:.8f} vs analytical={case.k_inf:.8f}"
+    )
+
+
+# ─── Spatial convergence O(h²) ───────────────────────────────────────
+
+def _convergence_order(values, spacings, reference):
+    """Compute observed convergence order between successive refinements."""
+    orders = []
+    for i in range(1, len(values)):
+        err_prev = abs(values[i - 1] - reference)
+        err_curr = abs(values[i] - reference)
+        if err_prev > 0 and err_curr > 0:
+            orders.append(
+                np.log(err_prev / err_curr)
+                / np.log(spacings[i - 1] / spacings[i])
+            )
+    return orders
+
+
+def test_spatial_convergence():
+    """Diamond-difference scheme must show O(h²) spatial convergence."""
+    case = get("homo_1eg")
+    mix = next(iter(case.materials.values()))
+
+    # Use 1G 2-region slab cross sections for a heterogeneous test
+    from derivations.cp_slab import _XS_A, _XS_B, _make_mixture
+    fuel = _make_mixture(
+        _XS_A["sig_t_1g"], _XS_A["sig_c_1g"],
+        _XS_A["sig_f_1g"], _XS_A["nu_1g"],
+        _XS_A["chi_1g"], _XS_A["sig_s_1g"],
+    )
+    mod = _make_mixture(
+        _XS_B["sig_t_1g"], _XS_B["sig_c_1g"],
+        _XS_B["sig_f_1g"], _XS_B["nu_1g"],
+        _XS_B["chi_1g"], _XS_B["sig_s_1g"],
+    )
+    materials = {2: fuel, 0: mod}
+    t_fuel, t_mod = 0.5, 0.5
+
+    keffs = []
+    dxs = []
+    for n_per in [5, 10, 20, 40]:
+        geom = Slab1DGeometry.from_benchmark(
+            n_fuel=n_per, n_mod=n_per, t_fuel=t_fuel, t_mod=t_mod,
+        )
+        quad = GaussLegendreQuadrature.gauss_legendre(16)
+        result = solve_sn_1d(
+            materials, geom, quad,
+            max_outer=300, max_inner=500, inner_tol=1e-10,
+        )
+        keffs.append(result.keff)
+        dxs.append(t_fuel / n_per)
+
+    # Richardson extrapolation reference
+    k_ref = keffs[-1] + (keffs[-1] - keffs[-2]) / 3.0
+    orders = _convergence_order(keffs, dxs, k_ref)
+
+    # The finest refinement should show order ~2.0
+    assert orders[-1] > 1.7, (
+        f"Expected O(h²) convergence, got order {orders[-1]:.2f}"
+    )
+
+
+# ─── Angular spectral convergence ────────────────────────────────────
+
+def test_angular_convergence():
+    """Gauss-Legendre quadrature must show spectral convergence in angle."""
+    from derivations.cp_slab import _XS_A, _XS_B, _make_mixture
+    fuel = _make_mixture(
+        _XS_A["sig_t_1g"], _XS_A["sig_c_1g"],
+        _XS_A["sig_f_1g"], _XS_A["nu_1g"],
+        _XS_A["chi_1g"], _XS_A["sig_s_1g"],
+    )
+    mod = _make_mixture(
+        _XS_B["sig_t_1g"], _XS_B["sig_c_1g"],
+        _XS_B["sig_f_1g"], _XS_B["nu_1g"],
+        _XS_B["chi_1g"], _XS_B["sig_s_1g"],
+    )
+    materials = {2: fuel, 0: mod}
+
+    keffs = []
+    n_ords = [4, 8, 16, 32]
+    for N in n_ords:
+        geom = Slab1DGeometry.from_benchmark(
+            n_fuel=40, n_mod=40, t_fuel=0.5, t_mod=0.5,
+        )
+        quad = GaussLegendreQuadrature.gauss_legendre(N)
+        result = solve_sn_1d(
+            materials, geom, quad,
+            max_outer=300, max_inner=500, inner_tol=1e-10,
+        )
+        keffs.append(result.keff)
+
+    # Angular convergence should be spectral: later orders > 1.5
+    k_ref = keffs[-1]
+    orders = _convergence_order(keffs, [1 / N for N in n_ords], k_ref)
+    assert len(orders) >= 2, "Need at least 3 data points for order"
+    # At least one order should exceed 1.5 (spectral converges fast)
+    assert max(orders[:-1]) > 1.5, (
+        f"Expected spectral convergence, got orders {orders}"
+    )

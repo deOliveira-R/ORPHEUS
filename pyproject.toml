@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orpheus"
+version = "0.1.0"
+description = "Open Reactor Physics Educational University System"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.14",
+    "matplotlib>=3.8",
+    "pyXSteam>=0.4",
+    "h5py>=3.9",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8",
+    "sympy>=1.13",
+]
+docs = [
+    "sphinx>=7",
+    "sphinx-rtd-theme",
+    "sympy>=1.13",
+]
+dev = [
+    "orpheus[test,docs]",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [
+    ".",
+    "01.Homogeneous.Reactors",
+    "02.Discrete.Ordinates",
+    "03.Method.Of.Characteristics",
+    "04.Monte.Carlo",
+    "05.Diffusion.1D",
+    "09.Collision.Probability",
+]
+markers = [
+    "slow: long-running tests (MC, full convergence studies)",
+]
+
+[tool.setuptools.packages.find]
+include = ["data*", "numerics*", "derivations*"]
