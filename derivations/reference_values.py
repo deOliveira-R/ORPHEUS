@@ -40,10 +40,11 @@ def _load_solver_cases() -> None:
 
     cases = _ensure_loaded()
     try:
-        from . import sn, moc
-        for module in [sn, moc]:
-            for case in module.solver_cases():
-                cases[case.name] = case
+        from . import sn, moc, diffusion
+        for module in [sn, moc, diffusion]:
+            if hasattr(module, 'solver_cases'):
+                for case in module.solver_cases():
+                    cases[case.name] = case
     except ImportError:
         pass  # solvers not on path (e.g. docs build)
 
