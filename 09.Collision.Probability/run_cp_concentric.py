@@ -16,7 +16,7 @@ from data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
 from collision_probability import (
     CPGeometry,
     CPParams,
-    solve_collision_probability,
+    solve_cp_concentric,
 )
 from plotting import (
     plot_cp_convergence,
@@ -50,7 +50,7 @@ def main():
     print()
 
     # 3. Solve
-    result = solve_collision_probability(materials, geom, params)
+    result = solve_cp_concentric(materials, geom, params)
 
     # 4. Report
     print(f"\n  keff = {result.keff:.5f}  (SN slab reference: 1.04188)")

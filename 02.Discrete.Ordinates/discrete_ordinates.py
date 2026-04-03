@@ -16,7 +16,9 @@ import numpy as np
 from scipy.integrate import lebedev_rule
 from scipy.sparse.linalg import LinearOperator, bicgstab
 
+from data.macro_xs.cell_xs import assemble_cell_xs
 from data.macro_xs.mixture import Mixture
+from numerics.eigenvalue import power_iteration
 
 
 # ---------------------------------------------------------------------------
@@ -309,7 +311,268 @@ def transport_operator(
 
 
 # ---------------------------------------------------------------------------
-# Main solver
+# EigenvalueSolver implementation
+# ---------------------------------------------------------------------------
+
+class DO2DSolver:
+    """2D Discrete Ordinates solver satisfying the EigenvalueSolver protocol.
+
+    Wraps the transport operator, quadrature, geometry, and cross sections
+    into the generic power iteration interface.
+    """
+
+    def __init__(
+        self,
+        materials: dict[int, Mixture],
+        geom: PinCellGeometry,
+        quad: Quadrature,
+        params: DOParams,
+    ) -> None:
+        self.geom = geom
+        self.quad = quad
+        self.params = params
+
+        _any_mat = next(iter(materials.values()))
+        self.ng = _any_mat.ng
+
+        # --- Per-cell scalar cross sections via assemble_cell_xs ---
+        cell_xs = assemble_cell_xs(materials, geom.mat_map.ravel())
+        n_cells = geom.nx * geom.ny
+
+        # Reshape from (N_cells, ng) to (nx, ny, ng)
+        self.sig_t = cell_xs.sig_t.reshape(geom.nx, geom.ny, self.ng)
+        self.sig_a = cell_xs.sig_a.reshape(geom.nx, geom.ny, self.ng)
+        self.sig_p = cell_xs.sig_p.reshape(geom.nx, geom.ny, self.ng)
+        self.chi_cell = cell_xs.chi.reshape(geom.nx, geom.ny, self.ng)
+
+        # --- Per-cell scattering matrices and (n,2n) (need sparse storage) ---
+        self.sig_s_cell: list[list[list]] = [
+            [[] for _ in range(geom.ny)] for _ in range(geom.nx)
+        ]
+        self.sig2_cell: list[list] = [
+            [None for _ in range(geom.ny)] for _ in range(geom.nx)
+        ]
+
+        for iy in range(geom.ny):
+            for ix in range(geom.nx):
+                m = materials[geom.mat_map[ix, iy]]
+                sig_s_list = []
+                for j in range(quad.L + 1):
+                    if j < len(m.SigS):
+                        sig_s_list.append(m.SigS[j])
+                    else:
+                        from scipy.sparse import csr_matrix
+                        sig_s_list.append(csr_matrix((self.ng, self.ng)))
+                self.sig_s_cell[ix][iy] = sig_s_list
+                self.sig2_cell[ix][iy] = m.Sig2
+
+        # --- Build equation map and transport linear operator ---
+        self.eq_map = build_equation_map(geom, quad, self.ng)
+        print(f"  Equations: {self.eq_map.n_eq} angular x {self.ng} groups"
+              f" = {self.eq_map.n_unknowns} unknowns")
+
+        def matvec(x):
+            return transport_operator(x, self.eq_map, quad, geom, self.sig_t, self.ng)
+
+        self.A_op = LinearOperator(
+            shape=(self.eq_map.n_unknowns, self.eq_map.n_unknowns),
+            matvec=matvec,
+            dtype=float,
+        )
+
+        # Cached scalar flux and Legendre moments (set by solve_fixed_source)
+        self._scalar_flux: np.ndarray | None = None
+        self._residual_history: list[float] = []
+
+        self._four_pi = 4.0 * np.pi
+
+    # -- EigenvalueSolver protocol methods --
+
+    def initial_flux_distribution(self) -> np.ndarray:
+        """Return a ones vector of the correct size for the solution."""
+        return np.ones(self.eq_map.n_unknowns)
+
+    def compute_fission_source(
+        self,
+        flux_distribution: np.ndarray,
+        keff: float,
+    ) -> np.ndarray:
+        """Build per-cell fission source: chi * (sig_p . phi) / keff / 4pi.
+
+        Returns shape (nx, ny, ng) fission source density (isotropic).
+        """
+        scalar_flux = self._ensure_scalar_flux(flux_distribution)
+
+        fission_source = np.empty((self.geom.nx, self.geom.ny, self.ng))
+        for iy in range(self.geom.ny):
+            for ix in range(self.geom.nx):
+                FI = scalar_flux[ix, iy, :]
+                fission_source[ix, iy, :] = (
+                    self.chi_cell[ix, iy, :]
+                    * (self.sig_p[ix, iy, :] @ FI)
+                    / keff / self._four_pi
+                )
+        return fission_source
+
+    def solve_fixed_source(
+        self,
+        fission_source: np.ndarray,
+        flux_distribution: np.ndarray,
+    ) -> np.ndarray:
+        """Build full RHS (fission + scattering + n2n) and solve with BiCGSTAB.
+
+        Parameters
+        ----------
+        fission_source : (nx, ny, ng) isotropic fission source from
+            ``compute_fission_source``.
+        flux_distribution : 1D solution vector (previous iterate, used as
+            BiCGSTAB initial guess).
+
+        Returns
+        -------
+        Updated 1D solution vector after BiCGSTAB solve.
+        """
+        geom, quad, ng = self.geom, self.quad, self.ng
+        eq_map = self.eq_map
+
+        # Recover angular flux and Legendre moments from current solution
+        fi = solution_to_angular_flux(flux_distribution, eq_map, quad, geom, ng)
+
+        scalar_flux = np.zeros((geom.nx, geom.ny, ng))
+        fiL = [[None for _ in range(geom.ny)] for _ in range(geom.nx)]
+
+        for iy in range(geom.ny):
+            for ix in range(geom.nx):
+                fl = np.zeros((ng, quad.L + 1, 2 * quad.L + 1))
+                for j in range(quad.L + 1):
+                    for m_idx in range(-j, j + 1):
+                        col = j + m_idx
+                        s = np.zeros(ng)
+                        for n in range(quad.N):
+                            s += fi[:, n, ix, iy] * quad.R[n, j, col] * quad.weights[n]
+                        fl[:, j, col] = s
+                fiL[ix][iy] = fl
+                scalar_flux[ix, iy, :] = fl[:, 0, 0]
+
+        # Build RHS source vector
+        rhs = np.zeros((ng, eq_map.n_eq))
+        eq_idx = 0
+        for iy in range(geom.ny):
+            for ix in range(geom.nx):
+                FI = scalar_flux[ix, iy, :]
+
+                # Fission source (pre-computed, isotropic)
+                qF = fission_source[ix, iy, :]
+
+                # (n,2n) source (isotropic)
+                q2 = 2.0 * (self.sig2_cell[ix][iy].T @ FI) / self._four_pi
+
+                for n in range(quad.N):
+                    if quad.mu_z[n] < 0:
+                        continue
+                    if ix == 0 and quad.mu_x[n] > 0:
+                        continue
+                    if ix == geom.nx - 1 and quad.mu_x[n] < 0:
+                        continue
+                    if iy == 0 and quad.mu_y[n] > 0:
+                        continue
+                    if iy == geom.ny - 1 and quad.mu_y[n] < 0:
+                        continue
+
+                    # Scattering source
+                    qS = np.zeros(ng)
+                    for j in range(quad.L + 1):
+                        s = np.zeros(ng)
+                        for m_idx in range(-j, j + 1):
+                            col = j + m_idx
+                            s += fiL[ix][iy][:, j, col] * quad.R[n, j, col]
+                        qS += (2 * j + 1) * (self.sig_s_cell[ix][iy][j].T @ s) / self._four_pi
+
+                    rhs[:, eq_idx] = qF + q2 + qS
+                    eq_idx += 1
+
+        rhs_vec = rhs.ravel(order='F')
+
+        # Inner solve with BiCGSTAB
+        solution, info = bicgstab(
+            self.A_op, rhs_vec, x0=flux_distribution.copy(),
+            rtol=self.params.bicgstab_tol,
+            maxiter=self.params.bicgstab_maxiter,
+        )
+
+        # Compute and cache residual
+        res = np.linalg.norm(self.A_op @ solution - rhs_vec) / np.linalg.norm(rhs_vec)
+        self._residual_history.append(res)
+
+        # Cache scalar flux for compute_keff (avoid recomputing angular flux)
+        fi_new = solution_to_angular_flux(solution, eq_map, quad, geom, ng)
+        sf = np.zeros((geom.nx, geom.ny, ng))
+        for iy in range(geom.ny):
+            for ix in range(geom.nx):
+                sf[ix, iy, :] = np.sum(
+                    fi_new[:, :, ix, iy] * quad.weights[None, :], axis=1
+                )
+        self._scalar_flux = sf
+
+        return solution
+
+    def compute_keff(self, flux_distribution: np.ndarray) -> float:
+        """Compute keff = production / absorption (volume-weighted)."""
+        scalar_flux = self._ensure_scalar_flux(flux_distribution)
+
+        p_rate = 0.0
+        a_rate = 0.0
+        for iy in range(self.geom.ny):
+            for ix in range(self.geom.nx):
+                v = self.geom.volume[ix, iy]
+                FI = scalar_flux[ix, iy, :]
+                sig2_cs = np.array(self.sig2_cell[ix][iy].sum(axis=1)).ravel()
+                p_rate += (self.sig_p[ix, iy, :] + 2 * sig2_cs) @ FI * v
+                a_rate += self.sig_a[ix, iy, :] @ FI * v
+
+        keff = p_rate / a_rate
+        print(f"  keff = {keff:9.5f}  #outer = {len(self._residual_history):3d}"
+              f"  residual = {self._residual_history[-1]:11.5e}")
+        return keff
+
+    def converged(
+        self,
+        keff: float,
+        keff_old: float,
+        flux_distribution: np.ndarray,
+        flux_old: np.ndarray,
+        iteration: int,
+    ) -> bool:
+        """Check residual and keff convergence."""
+        res = self._residual_history[-1]
+        if res < self.params.bicgstab_tol and iteration > 1:
+            if abs(keff - keff_old) < 1e-7:
+                print("  Converged.")
+                return True
+        return False
+
+    # -- Internal helpers --
+
+    def _ensure_scalar_flux(self, flux_distribution: np.ndarray) -> np.ndarray:
+        """Return cached scalar flux or recompute from the solution vector."""
+        if self._scalar_flux is not None:
+            return self._scalar_flux
+
+        fi = solution_to_angular_flux(
+            flux_distribution, self.eq_map, self.quad, self.geom, self.ng,
+        )
+        sf = np.zeros((self.geom.nx, self.geom.ny, self.ng))
+        for iy in range(self.geom.ny):
+            for ix in range(self.geom.nx):
+                sf[ix, iy, :] = np.sum(
+                    fi[:, :, ix, iy] * self.quad.weights[None, :], axis=1
+                )
+        self._scalar_flux = sf
+        return sf
+
+
+# ---------------------------------------------------------------------------
+# Main solver (thin wrapper)
 # ---------------------------------------------------------------------------
 
 def solve_discrete_ordinates(
@@ -340,156 +603,12 @@ def solve_discrete_ordinates(
     eg = _any_mat.eg
     ng = _any_mat.ng
 
-    # --- Pre-compute per-cell cross sections ---
-    sig_a = np.empty((geom.nx, geom.ny, ng))
-    sig_t = np.empty((geom.nx, geom.ny, ng))
-    sig_p = np.empty((geom.nx, geom.ny, ng))
-    chi_cell = np.empty((geom.nx, geom.ny, ng))
-
-    # Store references to sparse matrices per cell
-    sig_s_cell: list[list[list]] = [
-        [[] for _ in range(geom.ny)] for _ in range(geom.nx)
-    ]
-    sig2_cell: list[list] = [
-        [None for _ in range(geom.ny)] for _ in range(geom.nx)
-    ]
-
-    for iy in range(geom.ny):
-        for ix in range(geom.nx):
-            m = materials[geom.mat_map[ix, iy]]
-            sig2_colsum = np.array(m.Sig2.sum(axis=1)).ravel()
-            sig_a[ix, iy, :] = m.SigF + m.SigC + m.SigL + sig2_colsum
-            sig_t[ix, iy, :] = sig_a[ix, iy, :] + np.array(m.SigS[0].sum(axis=1)).ravel()
-            sig_p[ix, iy, :] = m.SigP if m.SigP.ndim > 0 and len(m.SigP) == ng else np.zeros(ng)
-            chi_cell[ix, iy, :] = m.chi
-
-            # Scattering matrices for each Legendre order
-            sig_s_list = []
-            for j in range(quad.L + 1):
-                if j < len(m.SigS):
-                    sig_s_list.append(m.SigS[j])
-                else:
-                    from scipy.sparse import csr_matrix
-                    sig_s_list.append(csr_matrix((ng, ng)))
-            sig_s_cell[ix][iy] = sig_s_list
-            sig2_cell[ix][iy] = m.Sig2
-
-    # --- Build equation map ---
-    eq_map = build_equation_map(geom, quad, ng)
-    print(f"  Equations: {eq_map.n_eq} angular x {ng} groups = {eq_map.n_unknowns} unknowns")
-
-    # --- Build LinearOperator for BiCGSTAB ---
-    def matvec(x):
-        return transport_operator(x, eq_map, quad, geom, sig_t, ng)
-
-    A_op = LinearOperator(
-        shape=(eq_map.n_unknowns, eq_map.n_unknowns),
-        matvec=matvec,
-        dtype=float,
-    )
-
-    # --- Outer iteration loop ---
-    keff_history: list[float] = []
-    residual_history: list[float] = []
-    solution = np.ones(eq_map.n_unknowns)
-    four_pi = 4.0 * np.pi
-
-    for n_iter in range(1, params.max_outer + 1):
-        guess = solution.copy()
-
-        # Convert to angular flux and compute scalar flux
-        fi = solution_to_angular_flux(solution, eq_map, quad, geom, ng)
-
-        # Legendre flux moments at each cell
-        # fiL[ix][iy] shape (ng, L+1, 2*L+1)
-        scalar_flux = np.zeros((geom.nx, geom.ny, ng))
-        fiL = [[None for _ in range(geom.ny)] for _ in range(geom.nx)]
-
-        for iy in range(geom.ny):
-            for ix in range(geom.nx):
-                fl = np.zeros((ng, quad.L + 1, 2 * quad.L + 1))
-                for j in range(quad.L + 1):
-                    for m_idx in range(-j, j + 1):
-                        col = j + m_idx
-                        s = np.zeros(ng)
-                        for n in range(quad.N):
-                            s += fi[:, n, ix, iy] * quad.R[n, j, col] * quad.weights[n]
-                        fl[:, j, col] = s
-                fiL[ix][iy] = fl
-                scalar_flux[ix, iy, :] = fl[:, 0, 0]  # L=0, m=0 moment = scalar flux
-
-        # keff = production / absorption (volume-weighted)
-        p_rate = 0.0
-        a_rate = 0.0
-        for iy in range(geom.ny):
-            for ix in range(geom.nx):
-                v = geom.volume[ix, iy]
-                FI = scalar_flux[ix, iy, :]
-                sig2_cs = np.array(sig2_cell[ix][iy].sum(axis=1)).ravel()
-                p_rate += (sig_p[ix, iy, :] + 2 * sig2_cs) @ FI * v
-                a_rate += sig_a[ix, iy, :] @ FI * v
-
-        keff = p_rate / a_rate
-        keff_history.append(keff)
-
-        # Build RHS source vector
-        rhs = np.zeros((ng, eq_map.n_eq))
-        eq_idx = 0
-        for iy in range(geom.ny):
-            for ix in range(geom.nx):
-                FI = scalar_flux[ix, iy, :]
-
-                # Fission source (isotropic)
-                qF = chi_cell[ix, iy, :] * (sig_p[ix, iy, :] @ FI) / keff / four_pi
-                # (n,2n) source (isotropic)
-                q2 = 2.0 * (sig2_cell[ix][iy].T @ FI) / four_pi
-
-                for n in range(quad.N):
-                    if quad.mu_z[n] < 0:
-                        continue
-                    if ix == 0 and quad.mu_x[n] > 0:
-                        continue
-                    if ix == geom.nx - 1 and quad.mu_x[n] < 0:
-                        continue
-                    if iy == 0 and quad.mu_y[n] > 0:
-                        continue
-                    if iy == geom.ny - 1 and quad.mu_y[n] < 0:
-                        continue
-
-                    # Scattering source
-                    qS = np.zeros(ng)
-                    for j in range(quad.L + 1):
-                        s = np.zeros(ng)
-                        for m_idx in range(-j, j + 1):
-                            col = j + m_idx
-                            s += fiL[ix][iy][:, j, col] * quad.R[n, j, col]
-                        qS += (2 * j + 1) * (sig_s_cell[ix][iy][j].T @ s) / four_pi
-
-                    rhs[:, eq_idx] = qF + q2 + qS
-                    eq_idx += 1
-
-        rhs_vec = rhs.ravel(order='F')
-
-        # Inner solve with BiCGSTAB
-        solution, info = bicgstab(A_op, rhs_vec, x0=guess,
-                                  rtol=params.bicgstab_tol,
-                                  maxiter=params.bicgstab_maxiter)
-
-        # Compute residual
-        res = np.linalg.norm(A_op @ solution - rhs_vec) / np.linalg.norm(rhs_vec)
-        residual_history.append(res)
-
-        print(f"  keff = {keff:9.5f}  #outer = {n_iter:3d}  residual = {res:11.5e}")
-
-        if info == 0 and res < params.bicgstab_tol:
-            # Check if BiCGSTAB converged instantly (solution already satisfies)
-            if n_iter > 1 and abs(keff_history[-1] - keff_history[-2]) < 1e-7:
-                print("  Converged.")
-                break
+    solver = DO2DSolver(materials, geom, quad, params)
+    keff, keff_history, solution = power_iteration(solver, max_iter=params.max_outer)
 
     # --- Post-processing: volume-averaged spectra ---
-    fi_final = solution_to_angular_flux(solution, eq_map, quad, geom, ng)
-    # Recompute scalar flux from final solution
+    fi_final = solution_to_angular_flux(solution, solver.eq_map, quad, geom, ng)
+    scalar_flux = np.zeros((geom.nx, geom.ny, ng))
     for iy in range(geom.ny):
         for ix in range(geom.nx):
             scalar_flux[ix, iy, :] = np.sum(
@@ -522,7 +641,7 @@ def solve_discrete_ordinates(
     return DOResult(
         keff=keff_history[-1],
         keff_history=keff_history,
-        residual_history=residual_history,
+        residual_history=solver._residual_history,
         flux_fuel=flux_fuel,
         flux_clad=flux_clad,
         flux_cool=flux_cool,

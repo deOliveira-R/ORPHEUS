@@ -12,7 +12,7 @@ import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve(
 from pathlib import Path
 
 from data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
-from collision_probability_slab import SlabGeometry, solve_slab_cp
+from collision_probability import SlabGeometry, solve_cp_slab
 
 OUTPUT = Path("results")
 
@@ -39,7 +39,7 @@ def main():
           f"+ {geom.n_cool} cool = {geom.N} total")
     print()
 
-    result = solve_slab_cp(materials, geom)
+    result = solve_cp_slab(materials, geom)
 
     print(f"\n  keff = {result.keff:.5f}  (SN slab reference: 1.04188)")
     print(f"  Outer iterations: {len(result.keff_history)}")

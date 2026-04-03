@@ -1,14 +1,21 @@
-"""Generic eigenvalue solver for neutron transport and diffusion.
+"""Generic eigenvalue solvers for neutron transport and diffusion.
 
-The criticality eigenvalue problem A·φ = (1/k)·F·φ is solved by power
-iteration.  The eigenvector φ is a **flux distribution** — its shape is
-determined but its absolute scale is arbitrary.  Normalizing φ to absolute
-flux (e.g. via total power or integral flux) is a separate post-processing
-step, not part of the eigenvalue solve.
+The criticality eigenvalue problem A·φ = (1/k)·F·φ has a spectrum of
+eigenvalues k_0 > k_1 > k_2 > ...  The ``power_iteration`` function
+converges to the **dominant eigenvalue** k_0 (= k_eff) and its
+eigenvector φ_0 — the **fundamental mode**.  This is the only
+physically meaningful steady-state solution: by the Perron-Frobenius
+theorem the fundamental mode is the unique non-negative eigenvector,
+while all higher harmonics change sign in space.
+
+The eigenvector is a **flux distribution** — its shape is determined
+but its absolute scale is arbitrary.  Normalizing to absolute flux
+(e.g. via total power or integral flux) is a separate post-processing
+step.
 
 Any deterministic solver that can express its physics in terms of the
-EigenvalueSolver protocol can be plugged into the generic power_iteration
-loop defined here.
+``EigenvalueSolver`` protocol can be plugged into the generic
+``power_iteration`` loop defined here.
 """
 
 from __future__ import annotations
@@ -98,16 +105,20 @@ def power_iteration(
     solver: EigenvalueSolver,
     max_iter: int = 500,
 ) -> tuple[float, list[float], np.ndarray]:
-    """Run power iteration on any solver satisfying the EigenvalueSolver protocol.
+    """Converge to the dominant eigenvalue and fundamental mode.
+
+    Power iteration converges to the largest eigenvalue k_0 (= k_eff)
+    and its eigenvector φ_0 (the fundamental mode).  The convergence
+    rate is governed by the dominance ratio |k_1 / k_0|.
 
     Returns
     -------
     keff : float
-        Converged eigenvalue.
+        Dominant eigenvalue (k_eff).
     keff_history : list[float]
-        Eigenvalue at each outer iteration.
+        Eigenvalue estimate at each outer iteration.
     flux_distribution : np.ndarray
-        Converged flux distribution (arbitrary normalization).
+        Fundamental mode (arbitrary normalization).
     """
     flux_distribution = solver.initial_flux_distribution()
     keff = 1.0

@@ -27,8 +27,10 @@ from data.macro_xs.benchmarks import (
     _make_mixture,
 )
 from homogeneous import solve_homogeneous_infinite
-from collision_probability_slab import SlabGeometry, solve_slab_cp, _compute_slab_cp_group
-from collision_probability import CPGeometry, solve_collision_probability
+from collision_probability import (
+    SlabGeometry, solve_cp_slab, solve_cp_concentric,
+    CPGeometry, _compute_slab_cp_group,
+)
 from discrete_ordinates import (
     DOParams, PinCellGeometry, Quadrature, solve_discrete_ordinates,
 )
@@ -75,7 +77,7 @@ def run_slab_benchmarks():
         ng = materials[2].ng
 
         geom = SlabGeometry.default_pwr(**geom_params)
-        result = solve_slab_cp(materials, geom,
+        result = solve_cp_slab(materials, geom,
                                keff_tol=1e-7, flux_tol=1e-6)
 
         err = abs(result.keff - k_analytical)
@@ -103,7 +105,7 @@ def run_cylinder_benchmarks():
         ng = materials[2].ng
 
         geom = CPGeometry.default_pwr(**geom_params)
-        result = solve_collision_probability(
+        result = solve_cp_concentric(
             materials, geom,
         )
 

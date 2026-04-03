@@ -15,7 +15,9 @@ from enum import IntEnum
 
 import numpy as np
 
+from data.macro_xs.cell_xs import assemble_cell_xs
 from data.macro_xs.mixture import Mixture
+from numerics.eigenvalue import power_iteration
 
 
 # ---------------------------------------------------------------------------
@@ -165,7 +167,285 @@ def _fly_from(
 
 
 # ---------------------------------------------------------------------------
-# Main solver
+# MoC eigenvalue solver (EigenvalueSolver protocol)
+# ---------------------------------------------------------------------------
+
+class MoCSolver:
+    """2D Method of Characteristics solver satisfying the EigenvalueSolver protocol."""
+
+    def __init__(
+        self,
+        materials: dict[int, Mixture],
+        geom: MoCGeometry,
+        keff_tol: float = 1e-6,
+        flux_tol: float = 1e-5,
+    ) -> None:
+        self.geom = geom
+        self.materials = materials
+        self.keff_tol = keff_tol
+        self.flux_tol = flux_tol
+
+        n = geom.n_cells
+        ng = next(iter(materials.values())).ng
+        self.n = n
+        self.ng = ng
+
+        # Per-cell cross sections via assemble_cell_xs (flattened, then reshaped)
+        xs = assemble_cell_xs(materials, geom.mat_map)
+        self.sig_t = xs.sig_t.reshape(n, n, ng)
+        self.sig_a = xs.sig_a.reshape(n, n, ng)
+        self.sig_p = xs.sig_p.reshape(n, n, ng)
+        self.chi = xs.chi.reshape(n, n, ng)
+
+        # Sparse scattering and (n,2n) matrices per material (only 3 unique)
+        self.sig_s0_mat: dict[int, np.ndarray] = {}
+        self.sig2_mat: dict[int, np.ndarray] = {}
+        for mat_id, mix in materials.items():
+            self.sig_s0_mat[mat_id] = mix.SigS[0]
+            self.sig2_mat[mat_id] = mix.Sig2
+
+    def initial_flux_distribution(self) -> np.ndarray:
+        """Return ones array with shape (n, n, ng, N_RAYS)."""
+        return np.ones((self.n, self.n, self.ng, N_RAYS))
+
+    def compute_fission_source(
+        self,
+        flux_distribution: np.ndarray,
+        keff: float,
+    ) -> np.ndarray:
+        """Build the fission source: chi * (SigP . phi) / keff.
+
+        Also stashes the production rate for the per-iteration flux
+        normalization applied at the end of solve_fixed_source.
+
+        Returns shape (n, n, ng) — the fission component of the isotropic source.
+        """
+        scalar_flux = flux_distribution.sum(axis=3)  # (n, n, ng)
+        n = self.n
+        geom = self.geom
+        fission_source = np.empty((n, n, self.ng))
+
+        # Accumulate production rate for normalization (same flux as source)
+        p_rate = 0.0
+        for iy in range(n):
+            for ix in range(n):
+                v = geom.volume[ix, iy]
+                FI = scalar_flux[ix, iy, :]
+                mat_id = geom.mat_map[ix, iy]
+                sig2_cs = np.array(self.sig2_mat[mat_id].sum(axis=1)).ravel()
+                p_rate += (self.sig_p[ix, iy, :] + 2 * sig2_cs) @ FI * v
+                fission_source[ix, iy, :] = (
+                    self.chi[ix, iy, :] * (self.sig_p[ix, iy, :] @ FI) / keff
+                )
+        self._p_rate_for_norm = p_rate
+        return fission_source
+
+    def solve_fixed_source(
+        self,
+        fission_source: np.ndarray,
+        flux_distribution: np.ndarray,
+    ) -> np.ndarray:
+        """Ray-tracing sweep over 8 directions with scattering + (n,2n) sources.
+
+        Assembles the total isotropic source q = (fission + 2*Sig2^T + SigS0^T) * phi / N_RAYS,
+        then performs the characteristic sweeps with reflective BCs.
+
+        Returns updated angular flux (n, n, ng, N_RAYS).
+        """
+        n = self.n
+        geom = self.geom
+        fi = flux_distribution  # modified in-place by _fly_from
+        scalar_flux = fi.sum(axis=3)  # (n, n, ng)
+
+        # Isotropic source per ray: (fission + scattering + n2n) / N_RAYS
+        q = np.empty((n, n, self.ng))
+        for iy in range(n):
+            for ix in range(n):
+                FI = scalar_flux[ix, iy, :]
+                mat_id = geom.mat_map[ix, iy]
+                q[ix, iy, :] = (
+                    fission_source[ix, iy, :]
+                    + 2.0 * (self.sig2_mat[mat_id].T @ FI)
+                    + self.sig_s0_mat[mat_id].T @ FI
+                ) / N_RAYS
+
+        # --- Ray sweeps with reflective boundary conditions ---
+
+        # Horizontal: EAST then reflect, WEST then reflect
+        for iy in range(n):
+            for ix in range(n):
+                _fly_from(fi, self.sig_t, q, ix, iy, Dir.EAST, n, geom.delta)
+            fi[n - 1, iy, :, Dir.WEST] = fi[n - 1, iy, :, Dir.EAST]
+            for ix in range(n - 1, -1, -1):
+                _fly_from(fi, self.sig_t, q, ix, iy, Dir.WEST, n, geom.delta)
+            fi[0, iy, :, Dir.EAST] = fi[0, iy, :, Dir.WEST]
+
+        # Vertical: SOUTH then reflect, NORTH then reflect
+        for ix in range(n):
+            for iy in range(n):
+                _fly_from(fi, self.sig_t, q, ix, iy, Dir.SOUTH, n, geom.delta)
+            fi[ix, n - 1, :, Dir.NORTH] = fi[ix, n - 1, :, Dir.SOUTH]
+            for iy in range(n - 1, -1, -1):
+                _fly_from(fi, self.sig_t, q, ix, iy, Dir.NORTH, n, geom.delta)
+            fi[ix, 0, :, Dir.SOUTH] = fi[ix, 0, :, Dir.NORTH]
+
+        # Main diagonal SE, reflect at corner, NW back, reflect at corner
+        ixx, iyy = 0, 0
+        while ixx < n - 1:
+            _fly_from(fi, self.sig_t, q, ixx, iyy, Dir.SOUTH_EAST, n, geom.delta)
+            ixx += 1
+            iyy += 1
+        # Reflect at bottom-right corner
+        fi[n - 1, n - 1, :, Dir.NORTH_WEST] = fi[n - 1, n - 1, :, Dir.SOUTH_EAST]
+        fi[n - 1, n - 1, :, Dir.NORTH_EAST] = fi[n - 1, n - 1, :, Dir.SOUTH_EAST]
+        fi[n - 1, n - 1, :, Dir.SOUTH_WEST] = fi[n - 1, n - 1, :, Dir.SOUTH_EAST]
+        ixx, iyy = n - 1, n - 1
+        while ixx > 0:
+            _fly_from(fi, self.sig_t, q, ixx, iyy, Dir.NORTH_WEST, n, geom.delta)
+            ixx -= 1
+            iyy -= 1
+        # Reflect at top-left corner
+        fi[0, 0, :, Dir.SOUTH_EAST] = fi[0, 0, :, Dir.NORTH_WEST]
+        fi[0, 0, :, Dir.NORTH_EAST] = fi[0, 0, :, Dir.NORTH_WEST]
+        fi[0, 0, :, Dir.SOUTH_WEST] = fi[0, 0, :, Dir.NORTH_WEST]
+
+        # Anti-diagonal SW, reflect at corner, NE back, reflect at corner
+        ixx, iyy = n - 1, 0
+        while ixx > 0:
+            _fly_from(fi, self.sig_t, q, ixx, iyy, Dir.SOUTH_WEST, n, geom.delta)
+            ixx -= 1
+            iyy += 1
+        # Reflect at bottom-left corner
+        fi[0, n - 1, :, Dir.NORTH_EAST] = fi[0, n - 1, :, Dir.SOUTH_WEST]
+        fi[0, n - 1, :, Dir.NORTH_WEST] = fi[0, n - 1, :, Dir.SOUTH_WEST]
+        fi[0, n - 1, :, Dir.SOUTH_EAST] = fi[0, n - 1, :, Dir.SOUTH_WEST]
+        ixx, iyy = 0, n - 1
+        while ixx < n - 1:
+            _fly_from(fi, self.sig_t, q, ixx, iyy, Dir.NORTH_EAST, n, geom.delta)
+            ixx += 1
+            iyy -= 1
+        # Reflect at top-right corner
+        fi[n - 1, 0, :, Dir.SOUTH_WEST] = fi[n - 1, 0, :, Dir.NORTH_EAST]
+        fi[n - 1, 0, :, Dir.SOUTH_EAST] = fi[n - 1, 0, :, Dir.NORTH_EAST]
+        fi[n - 1, 0, :, Dir.NORTH_WEST] = fi[n - 1, 0, :, Dir.NORTH_EAST]
+
+        # Off-diagonal SE rays, reflect on right boundary
+        for start_ix in range(n - 2, 0, -1):
+            ixx, iyy = start_ix, 0
+            while ixx < n - 1:
+                _fly_from(fi, self.sig_t, q, ixx, iyy, Dir.SOUTH_EAST, n, geom.delta)
+                ixx += 1
+                iyy += 1
+            fi[ixx, iyy, :, Dir.SOUTH_WEST] = fi[ixx, iyy, :, Dir.SOUTH_EAST]
+
+        # Off-diagonal SE rays, reflect on bottom boundary
+        for start_iy in range(1, n - 1):
+            ixx, iyy = 0, start_iy
+            while iyy < n - 1:
+                _fly_from(fi, self.sig_t, q, ixx, iyy, Dir.SOUTH_EAST, n, geom.delta)
+                ixx += 1
+                iyy += 1
+            fi[ixx, iyy, :, Dir.NORTH_EAST] = fi[ixx, iyy, :, Dir.SOUTH_EAST]
+
+        # Off-diagonal SW rays, reflect on left boundary
+        for start_ix in range(1, n - 1):
+            ixx, iyy = start_ix, 0
+            while ixx > 0:
+                _fly_from(fi, self.sig_t, q, ixx, iyy, Dir.SOUTH_WEST, n, geom.delta)
+                ixx -= 1
+                iyy += 1
+            fi[ixx, iyy, :, Dir.SOUTH_EAST] = fi[ixx, iyy, :, Dir.SOUTH_WEST]
+
+        # Off-diagonal SW rays, reflect on bottom boundary
+        for start_iy in range(1, n - 1):
+            ixx, iyy = n - 1, start_iy
+            while iyy < n - 1:
+                _fly_from(fi, self.sig_t, q, ixx, iyy, Dir.SOUTH_WEST, n, geom.delta)
+                ixx -= 1
+                iyy += 1
+            fi[ixx, iyy, :, Dir.NORTH_WEST] = fi[ixx, iyy, :, Dir.SOUTH_WEST]
+
+        # Off-diagonal NW rays, reflect on left boundary
+        for start_ix in range(1, n - 1):
+            ixx, iyy = start_ix, n - 1
+            while ixx > 0:
+                _fly_from(fi, self.sig_t, q, ixx, iyy, Dir.NORTH_WEST, n, geom.delta)
+                ixx -= 1
+                iyy -= 1
+            fi[ixx, iyy, :, Dir.NORTH_EAST] = fi[ixx, iyy, :, Dir.NORTH_WEST]
+
+        # Off-diagonal NW rays, reflect on top boundary
+        for start_iy in range(n - 2, 0, -1):
+            ixx, iyy = n - 1, start_iy
+            while iyy > 0:
+                _fly_from(fi, self.sig_t, q, ixx, iyy, Dir.NORTH_WEST, n, geom.delta)
+                ixx -= 1
+                iyy -= 1
+            fi[ixx, iyy, :, Dir.SOUTH_WEST] = fi[ixx, iyy, :, Dir.NORTH_WEST]
+
+        # Off-diagonal NE rays, reflect on top boundary
+        for start_iy in range(1, n - 1):
+            ixx, iyy = 0, start_iy
+            while iyy > 0:
+                _fly_from(fi, self.sig_t, q, ixx, iyy, Dir.NORTH_EAST, n, geom.delta)
+                ixx += 1
+                iyy -= 1
+            fi[ixx, iyy, :, Dir.SOUTH_EAST] = fi[ixx, iyy, :, Dir.NORTH_EAST]
+
+        # Off-diagonal NE rays, reflect on right boundary
+        for start_ix in range(1, n - 1):
+            ixx, iyy = start_ix, n - 1
+            while ixx < n - 1:
+                _fly_from(fi, self.sig_t, q, ixx, iyy, Dir.NORTH_EAST, n, geom.delta)
+                ixx += 1
+                iyy -= 1
+            fi[ixx, iyy, :, Dir.NORTH_WEST] = fi[ixx, iyy, :, Dir.NORTH_EAST]
+
+        # Normalize flux so total production rate = 100 n/s (prevents overflow)
+        fi *= 100.0 / self._p_rate_for_norm
+
+        return fi
+
+    def compute_keff(self, flux_distribution: np.ndarray) -> float:
+        """Compute k_eff = production / absorption from scalar flux."""
+        n = self.n
+        geom = self.geom
+        scalar_flux = flux_distribution.sum(axis=3)  # (n, n, ng)
+
+        p_rate = 0.0
+        a_rate = 0.0
+        for iy in range(n):
+            for ix in range(n):
+                v = geom.volume[ix, iy]
+                FI = scalar_flux[ix, iy, :]
+                mat_id = geom.mat_map[ix, iy]
+                sig2_cs = np.array(self.sig2_mat[mat_id].sum(axis=1)).ravel()
+                p_rate += (self.sig_p[ix, iy, :] + 2 * sig2_cs) @ FI * v
+                a_rate += self.sig_a[ix, iy, :] @ FI * v
+
+        keff = p_rate / a_rate
+        print(f"  keff = {keff:9.5f}")
+        return keff
+
+    def converged(
+        self,
+        keff: float,
+        keff_old: float,
+        flux_distribution: np.ndarray,
+        flux_old: np.ndarray,
+        iteration: int,
+    ) -> bool:
+        """Check convergence of eigenvalue and flux."""
+        if iteration <= 2:
+            return False
+        keff_change = abs(keff - keff_old)
+        flux_change = np.linalg.norm(flux_distribution - flux_old) / \
+            max(np.linalg.norm(flux_distribution), 1e-30)
+        return keff_change < self.keff_tol and flux_change < self.flux_tol
+
+
+# ---------------------------------------------------------------------------
+# Public wrapper
 # ---------------------------------------------------------------------------
 
 def solve_moc(
@@ -186,206 +466,14 @@ def solve_moc(
     if geom is None:
         geom = MoCGeometry.default_pwr()
 
-    n = geom.n_cells
     eg = materials[2].eg
     ng = materials[2].ng
 
-    # --- Pre-compute per-node cross sections ---
-    sig_a = np.empty((n, n, ng))
-    sig_t = np.empty((n, n, ng))
-    sig_p = np.empty((n, n, ng))
-    chi_node = np.empty((n, n, ng))
-    # Store sparse scattering and (n,2n) matrices per material (only 3 unique)
-    sig_s0_mat = {}
-    sig2_mat = {}
-
-    for mat_id, mix in materials.items():
-        sig_s0_mat[mat_id] = mix.SigS[0]
-        sig2_mat[mat_id] = mix.Sig2
-
-    for iy in range(n):
-        for ix in range(n):
-            m = materials[geom.mat_map[ix, iy]]
-            sig2_cs = np.array(m.Sig2.sum(axis=1)).ravel()
-            sig_a[ix, iy, :] = m.SigF + m.SigC + m.SigL + sig2_cs
-            sig_t[ix, iy, :] = sig_a[ix, iy, :] + np.array(m.SigS[0].sum(axis=1)).ravel()
-            sig_p[ix, iy, :] = m.SigP if m.SigP.ndim > 0 and len(m.SigP) == ng else np.zeros(ng)
-            chi_node[ix, iy, :] = m.chi
-
-    # --- Initialize angular flux to 1 ---
-    fi = np.ones((n, n, ng, N_RAYS))
-
-    # --- Outer iteration loop ---
-    keff_history: list[float] = []
-
-    for n_iter in range(1, max_outer + 1):
-        # Scalar flux = sum over rays
-        scalar_flux = fi.sum(axis=3)  # (n, n, ng)
-
-        # keff = production / absorption
-        p_rate = 0.0
-        a_rate = 0.0
-        for iy in range(n):
-            for ix in range(n):
-                v = geom.volume[ix, iy]
-                FI = scalar_flux[ix, iy, :]
-                mat_id = geom.mat_map[ix, iy]
-                sig2_cs = np.array(sig2_mat[mat_id].sum(axis=1)).ravel()
-                p_rate += (sig_p[ix, iy, :] + 2 * sig2_cs) @ FI * v
-                a_rate += sig_a[ix, iy, :] @ FI * v
-
-        keff = p_rate / a_rate
-        keff_history.append(keff)
-        print(f"  keff = {keff:9.5f}  #outer = {n_iter:3d}")
-
-        # Isotropic source per ray: (chi*SigP/keff + 2*Sig2^T + SigS0^T) * FI / nRays
-        q = np.empty((n, n, ng))
-        for iy in range(n):
-            for ix in range(n):
-                FI = scalar_flux[ix, iy, :]
-                mat_id = geom.mat_map[ix, iy]
-                q[ix, iy, :] = (
-                    chi_node[ix, iy, :] * (sig_p[ix, iy, :] @ FI) / keff
-                    + 2.0 * (sig2_mat[mat_id].T @ FI)
-                    + sig_s0_mat[mat_id].T @ FI
-                ) / N_RAYS
-
-        # --- Ray sweeps with reflective boundary conditions ---
-
-        # Horizontal: EAST then reflect, WEST then reflect
-        for iy in range(n):
-            for ix in range(n):
-                _fly_from(fi, sig_t, q, ix, iy, Dir.EAST, n, geom.delta)
-            fi[n - 1, iy, :, Dir.WEST] = fi[n - 1, iy, :, Dir.EAST]
-            for ix in range(n - 1, -1, -1):
-                _fly_from(fi, sig_t, q, ix, iy, Dir.WEST, n, geom.delta)
-            fi[0, iy, :, Dir.EAST] = fi[0, iy, :, Dir.WEST]
-
-        # Vertical: SOUTH then reflect, NORTH then reflect
-        for ix in range(n):
-            for iy in range(n):
-                _fly_from(fi, sig_t, q, ix, iy, Dir.SOUTH, n, geom.delta)
-            fi[ix, n - 1, :, Dir.NORTH] = fi[ix, n - 1, :, Dir.SOUTH]
-            for iy in range(n - 1, -1, -1):
-                _fly_from(fi, sig_t, q, ix, iy, Dir.NORTH, n, geom.delta)
-            fi[ix, 0, :, Dir.SOUTH] = fi[ix, 0, :, Dir.NORTH]
-
-        # Main diagonal SE, reflect at corner, NW back, reflect at corner
-        ixx, iyy = 0, 0
-        while ixx < n - 1:
-            _fly_from(fi, sig_t, q, ixx, iyy, Dir.SOUTH_EAST, n, geom.delta)
-            ixx += 1
-            iyy += 1
-        # Reflect at bottom-right corner
-        fi[n - 1, n - 1, :, Dir.NORTH_WEST] = fi[n - 1, n - 1, :, Dir.SOUTH_EAST]
-        fi[n - 1, n - 1, :, Dir.NORTH_EAST] = fi[n - 1, n - 1, :, Dir.SOUTH_EAST]
-        fi[n - 1, n - 1, :, Dir.SOUTH_WEST] = fi[n - 1, n - 1, :, Dir.SOUTH_EAST]
-        ixx, iyy = n - 1, n - 1
-        while ixx > 0:
-            _fly_from(fi, sig_t, q, ixx, iyy, Dir.NORTH_WEST, n, geom.delta)
-            ixx -= 1
-            iyy -= 1
-        # Reflect at top-left corner
-        fi[0, 0, :, Dir.SOUTH_EAST] = fi[0, 0, :, Dir.NORTH_WEST]
-        fi[0, 0, :, Dir.NORTH_EAST] = fi[0, 0, :, Dir.NORTH_WEST]
-        fi[0, 0, :, Dir.SOUTH_WEST] = fi[0, 0, :, Dir.NORTH_WEST]
-
-        # Anti-diagonal SW, reflect at corner, NE back, reflect at corner
-        ixx, iyy = n - 1, 0
-        while ixx > 0:
-            _fly_from(fi, sig_t, q, ixx, iyy, Dir.SOUTH_WEST, n, geom.delta)
-            ixx -= 1
-            iyy += 1
-        # Reflect at bottom-left corner
-        fi[0, n - 1, :, Dir.NORTH_EAST] = fi[0, n - 1, :, Dir.SOUTH_WEST]
-        fi[0, n - 1, :, Dir.NORTH_WEST] = fi[0, n - 1, :, Dir.SOUTH_WEST]
-        fi[0, n - 1, :, Dir.SOUTH_EAST] = fi[0, n - 1, :, Dir.SOUTH_WEST]
-        ixx, iyy = 0, n - 1
-        while ixx < n - 1:
-            _fly_from(fi, sig_t, q, ixx, iyy, Dir.NORTH_EAST, n, geom.delta)
-            ixx += 1
-            iyy -= 1
-        # Reflect at top-right corner
-        fi[n - 1, 0, :, Dir.SOUTH_WEST] = fi[n - 1, 0, :, Dir.NORTH_EAST]
-        fi[n - 1, 0, :, Dir.SOUTH_EAST] = fi[n - 1, 0, :, Dir.NORTH_EAST]
-        fi[n - 1, 0, :, Dir.NORTH_WEST] = fi[n - 1, 0, :, Dir.NORTH_EAST]
-
-        # Off-diagonal SE rays, reflect on right boundary
-        for start_ix in range(n - 2, 0, -1):
-            ixx, iyy = start_ix, 0
-            while ixx < n - 1:
-                _fly_from(fi, sig_t, q, ixx, iyy, Dir.SOUTH_EAST, n, geom.delta)
-                ixx += 1
-                iyy += 1
-            fi[ixx, iyy, :, Dir.SOUTH_WEST] = fi[ixx, iyy, :, Dir.SOUTH_EAST]
-
-        # Off-diagonal SE rays, reflect on bottom boundary
-        for start_iy in range(1, n - 1):
-            ixx, iyy = 0, start_iy
-            while iyy < n - 1:
-                _fly_from(fi, sig_t, q, ixx, iyy, Dir.SOUTH_EAST, n, geom.delta)
-                ixx += 1
-                iyy += 1
-            fi[ixx, iyy, :, Dir.NORTH_EAST] = fi[ixx, iyy, :, Dir.SOUTH_EAST]
-
-        # Off-diagonal SW rays, reflect on left boundary
-        for start_ix in range(1, n - 1):
-            ixx, iyy = start_ix, 0
-            while ixx > 0:
-                _fly_from(fi, sig_t, q, ixx, iyy, Dir.SOUTH_WEST, n, geom.delta)
-                ixx -= 1
-                iyy += 1
-            fi[ixx, iyy, :, Dir.SOUTH_EAST] = fi[ixx, iyy, :, Dir.SOUTH_WEST]
-
-        # Off-diagonal SW rays, reflect on bottom boundary
-        for start_iy in range(1, n - 1):
-            ixx, iyy = n - 1, start_iy
-            while iyy < n - 1:
-                _fly_from(fi, sig_t, q, ixx, iyy, Dir.SOUTH_WEST, n, geom.delta)
-                ixx -= 1
-                iyy += 1
-            fi[ixx, iyy, :, Dir.NORTH_WEST] = fi[ixx, iyy, :, Dir.SOUTH_WEST]
-
-        # Off-diagonal NW rays, reflect on left boundary
-        for start_ix in range(1, n - 1):
-            ixx, iyy = start_ix, n - 1
-            while ixx > 0:
-                _fly_from(fi, sig_t, q, ixx, iyy, Dir.NORTH_WEST, n, geom.delta)
-                ixx -= 1
-                iyy -= 1
-            fi[ixx, iyy, :, Dir.NORTH_EAST] = fi[ixx, iyy, :, Dir.NORTH_WEST]
-
-        # Off-diagonal NW rays, reflect on top boundary
-        for start_iy in range(n - 2, 0, -1):
-            ixx, iyy = n - 1, start_iy
-            while iyy > 0:
-                _fly_from(fi, sig_t, q, ixx, iyy, Dir.NORTH_WEST, n, geom.delta)
-                ixx -= 1
-                iyy -= 1
-            fi[ixx, iyy, :, Dir.SOUTH_WEST] = fi[ixx, iyy, :, Dir.NORTH_WEST]
-
-        # Off-diagonal NE rays, reflect on top boundary
-        for start_iy in range(1, n - 1):
-            ixx, iyy = 0, start_iy
-            while iyy > 0:
-                _fly_from(fi, sig_t, q, ixx, iyy, Dir.NORTH_EAST, n, geom.delta)
-                ixx += 1
-                iyy -= 1
-            fi[ixx, iyy, :, Dir.SOUTH_EAST] = fi[ixx, iyy, :, Dir.NORTH_EAST]
-
-        # Off-diagonal NE rays, reflect on right boundary
-        for start_ix in range(1, n - 1):
-            ixx, iyy = start_ix, n - 1
-            while ixx < n - 1:
-                _fly_from(fi, sig_t, q, ixx, iyy, Dir.NORTH_EAST, n, geom.delta)
-                ixx += 1
-                iyy -= 1
-            fi[ixx, iyy, :, Dir.NORTH_WEST] = fi[ixx, iyy, :, Dir.NORTH_EAST]
-
-        # Normalize flux so total production rate = 100 n/s
-        fi *= 100.0 / p_rate
+    solver = MoCSolver(materials, geom)
+    keff, keff_history, fi = power_iteration(solver, max_iter=max_outer)
 
     # --- Post-processing: volume-averaged spectra ---
+    n = geom.n_cells
     scalar_flux = fi.sum(axis=3)  # (n, n, ng)
 
     vol_fuel = geom.volume[geom.mat_map == 2].sum()

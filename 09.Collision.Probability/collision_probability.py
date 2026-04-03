@@ -1,13 +1,16 @@
-"""Collision probability (CP) method for a cylindrical PWR pin cell.
+"""Collision probability (CP) method for neutron transport.
 
 Solves the multi-group neutron transport equation using the collision
-probability method with Wigner-Seitz cylindrical cell approximation
-and white boundary condition for an infinite lattice.
+probability method with white boundary condition for an infinite lattice.
 
-The CP matrix is computed by numerical integration over chord heights,
-with source-position averaging done analytically via Ki_4 (the
-antiderivative of Ki_3).  Both direct and through-centre paths are
-included for each source–target pair.
+Two geometries are supported:
+
+* **Slab** — 1D half-cell with E₃ exponential-integral kernel.
+* **Concentric cylinders** — Wigner-Seitz cell with Ki₃/Ki₄
+  Bickley-Naylor kernel and numerical y-quadrature.
+
+Both share the same power iteration: once the P_inf matrices are built,
+the eigenvalue solve is geometry-independent.
 """
 
 from __future__ import annotations
@@ -17,13 +20,71 @@ from dataclasses import dataclass
 
 import numpy as np
 from scipy.integrate import quad
+from scipy.special import expn
 
 from data.macro_xs.mixture import Mixture
+from data.macro_xs.cell_xs import CellXS, assemble_cell_xs
+from numerics.eigenvalue import power_iteration
 
 
-# ---------------------------------------------------------------------------
-# Data structures
-# ---------------------------------------------------------------------------
+# ═══════════════════════════════════════════════════════════════════════
+# Geometry data structures
+# ═══════════════════════════════════════════════════════════════════════
+
+@dataclass
+class SlabGeometry:
+    """1D slab half-cell with sub-regions from centre (x=0) to edge (x=L).
+
+    For the collision probability formulation, the relevant "volume" per
+    unit transverse area is the thickness of each sub-region.
+    """
+
+    n_fuel: int
+    n_clad: int
+    n_cool: int
+    thicknesses: np.ndarray  # (N,) thickness of each sub-region (cm)
+    mat_ids: np.ndarray      # (N,) material ID: 2=fuel, 1=clad, 0=cool
+    N: int
+
+    @property
+    def volumes(self) -> np.ndarray:
+        """Per unit transverse area, volume = thickness (cm)."""
+        return self.thicknesses
+
+    @classmethod
+    def default_pwr(
+        cls,
+        n_fuel: int = 10,
+        n_clad: int = 3,
+        n_cool: int = 7,
+        fuel_half: float = 0.9,
+        clad_thick: float = 0.2,
+        cool_thick: float = 0.7,
+    ) -> SlabGeometry:
+        """Build equal-thickness sub-regions for each material zone."""
+        N = n_fuel + n_clad + n_cool
+        thicknesses = np.empty(N)
+        mat_ids = np.empty(N, dtype=int)
+
+        if n_fuel > 0:
+            thicknesses[:n_fuel] = fuel_half / n_fuel
+            mat_ids[:n_fuel] = 2
+        if n_clad > 0:
+            thicknesses[n_fuel:n_fuel + n_clad] = clad_thick / n_clad
+            mat_ids[n_fuel:n_fuel + n_clad] = 1
+        if n_cool > 0:
+            thicknesses[n_fuel + n_clad:] = cool_thick / n_cool
+            mat_ids[n_fuel + n_clad:] = 0
+
+        return cls(
+            n_fuel=n_fuel, n_clad=n_clad, n_cool=n_cool,
+            thicknesses=thicknesses, mat_ids=mat_ids, N=N,
+        )
+
+    @property
+    def half_cell(self) -> float:
+        return self.thicknesses.sum()
+
 
 @dataclass
 class CPGeometry:
@@ -36,7 +97,7 @@ class CPGeometry:
     n_clad: int
     n_cool: int
     radii: np.ndarray    # (N,) outer radius of each sub-region
-    volumes: np.ndarray  # (N,) area per unit height (cm^2)
+    volumes: np.ndarray  # (N,) area per unit height (cm²)
     mat_ids: np.ndarray  # (N,) material ID: 2=fuel, 1=clad, 0=cool
     N: int
 
@@ -61,14 +122,12 @@ class CPGeometry:
             for k in range(n_fuel):
                 radii[k] = r_fuel * np.sqrt((k + 1) / n_fuel)
                 mat_ids[k] = 2
-
         if n_clad > 0:
             for k in range(n_clad):
                 radii[n_fuel + k] = np.sqrt(
                     r_fuel**2 + (k + 1) / n_clad * (r_clad**2 - r_fuel**2)
                 )
                 mat_ids[n_fuel + k] = 1
-
         if n_cool > 0:
             for k in range(n_cool):
                 radii[n_fuel + n_clad + k] = np.sqrt(
@@ -87,9 +146,13 @@ class CPGeometry:
         )
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# Parameters and result container
+# ═══════════════════════════════════════════════════════════════════════
+
 @dataclass
 class CPParams:
-    """Solver parameters for collision probability method."""
+    """Solver parameters for the collision probability method."""
 
     max_outer: int = 500
     keff_tol: float = 1e-6
@@ -109,14 +172,228 @@ class CPResult:
     flux_fuel: np.ndarray
     flux_clad: np.ndarray
     flux_cool: np.ndarray
-    geometry: CPGeometry
+    geometry: SlabGeometry | CPGeometry
     eg: np.ndarray
     elapsed_seconds: float
 
 
-# ---------------------------------------------------------------------------
-# Bickley-Naylor Ki_3 and Ki_4 tables
-# ---------------------------------------------------------------------------
+# ═══════════════════════════════════════════════════════════════════════
+# CP solver class (satisfies EigenvalueSolver protocol)
+# ═══════════════════════════════════════════════════════════════════════
+
+class CPSolver:
+    """Geometry-independent CP eigenvalue solver.
+
+    Once the infinite-lattice CP matrices P_inf are built (by the
+    geometry-specific kernel), the eigenvalue iteration is identical
+    for slab and cylindrical geometries:
+
+        φ_g = P_inf_g^T · (V · Q_g) / (Σ_t · V)
+
+    where V is the cell volume array (thicknesses for slab, areas for
+    cylinder) and Q is the total source (fission + scattering + n,2n).
+    """
+
+    def __init__(
+        self,
+        P_inf: np.ndarray,
+        xs: CellXS,
+        volumes: np.ndarray,
+        mat_ids: np.ndarray,
+        materials: dict[int, Mixture],
+        keff_tol: float = 1e-6,
+        flux_tol: float = 1e-5,
+    ) -> None:
+        self.P_inf = P_inf        # (N, N, ng)
+        self.xs = xs
+        self.volumes = volumes    # (N,)
+        self.mat_ids = mat_ids
+        self.ng = xs.sig_t.shape[1]
+        self.N = xs.sig_t.shape[0]
+        self.keff_tol = keff_tol
+        self.flux_tol = flux_tol
+
+        # Cache scattering and (n,2n) matrices per material
+        self._scat_mats = {mid: materials[mid].SigS[0] for mid in materials}
+        self._n2n_mats = {mid: materials[mid].Sig2 for mid in materials}
+
+    def initial_flux_distribution(self) -> np.ndarray:
+        return np.ones((self.N, self.ng))
+
+    def compute_fission_source(
+        self, flux_distribution: np.ndarray, keff: float,
+    ) -> np.ndarray:
+        fission_rate = np.sum(self.xs.sig_p * flux_distribution, axis=1)
+        return self.xs.chi * fission_rate[:, np.newaxis] / keff
+
+    def solve_fixed_source(
+        self, fission_source: np.ndarray, flux_distribution: np.ndarray,
+    ) -> np.ndarray:
+        N, ng = self.N, self.ng
+
+        # Total source = fission + scattering + (n,2n)
+        Q = fission_source.copy()
+        for k in range(N):
+            mid = self.mat_ids[k]
+            Q[k, :] += self._scat_mats[mid].T @ flux_distribution[k, :]
+            Q[k, :] += 2.0 * (self._n2n_mats[mid].T @ flux_distribution[k, :])
+
+        # Apply CP matrices: φ_g = P_inf_g^T · (V · Q_g) / (Σ_t · V)
+        phi = np.empty((N, ng))
+        for g in range(ng):
+            source = self.volumes * Q[:, g]
+            phi[:, g] = self.P_inf[:, :, g].T @ source
+
+        denom = self.xs.sig_t * self.volumes[:, np.newaxis]
+        pos = denom > 0
+        phi[pos] = phi[pos] / denom[pos]
+        phi[~pos] = 0.0
+
+        # Numerical conditioning (prevent overflow in subsequent iterations)
+        phi *= 1.0 / np.max(phi)
+
+        return phi
+
+    def compute_keff(self, flux_distribution: np.ndarray) -> float:
+        v = self.volumes[:, np.newaxis]
+        production = np.sum(self.xs.sig_p * flux_distribution * v)
+        absorption = np.sum(self.xs.sig_a * flux_distribution * v)
+        return float(production / absorption)
+
+    def converged(
+        self, keff: float, keff_old: float,
+        flux_distribution: np.ndarray, flux_old: np.ndarray,
+        iteration: int,
+    ) -> bool:
+        if iteration <= 2:
+            return False
+        delta_k = abs(keff - keff_old)
+        delta_phi = np.max(np.abs(flux_distribution - flux_old)) / \
+            max(np.max(np.abs(flux_distribution)), 1e-30)
+
+        if iteration <= 5 or iteration % 10 == 0:
+            print(f"    iter {iteration:4d}  keff = {keff:.6f}  "
+                  f"dk = {delta_k:.2e}  dphi = {delta_phi:.2e}")
+
+        if delta_k < self.keff_tol and delta_phi < self.flux_tol:
+            print(f"    iter {iteration:4d}  keff = {keff:.6f}  Converged.")
+            return True
+        return False
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Shared post-processing
+# ═══════════════════════════════════════════════════════════════════════
+
+def _volume_averaged_fluxes(
+    phi: np.ndarray,
+    volumes: np.ndarray,
+    mat_ids: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Volume-averaged flux per material (fuel=2, clad=1, cool=0)."""
+    ng = phi.shape[1]
+    vol_fuel = volumes[mat_ids == 2].sum()
+    vol_clad = volumes[mat_ids == 1].sum()
+    vol_cool = volumes[mat_ids == 0].sum()
+
+    flux_fuel = np.zeros(ng)
+    flux_clad = np.zeros(ng)
+    flux_cool = np.zeros(ng)
+
+    for k in range(len(mat_ids)):
+        v = volumes[k]
+        mid = mat_ids[k]
+        if mid == 2:
+            flux_fuel += phi[k, :] * v / vol_fuel
+        elif mid == 1:
+            flux_clad += phi[k, :] * v / vol_clad
+        else:
+            flux_cool += phi[k, :] * v / vol_cool
+
+    return flux_fuel, flux_clad, flux_cool
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Slab E₃ kernel
+# ═══════════════════════════════════════════════════════════════════════
+
+def _e3(x):
+    """Vectorised E_3(x) = integral_0^1 mu exp(-x/mu) dmu."""
+    return expn(3, np.maximum(x, 0.0))
+
+
+def _compute_slab_cp_group(
+    sig_t_g: np.ndarray,
+    geom: SlabGeometry,
+) -> np.ndarray:
+    """Within-cell CP matrix for one energy group in slab geometry.
+
+    Uses the E₃ second-difference formula.  The half-cell has a reflective
+    centre boundary and a white (isotropic re-entry) outer boundary.
+
+    Returns the infinite-lattice CP matrix P_inf (N, N).
+    """
+    N = geom.N
+    t = geom.thicknesses
+    tau = sig_t_g * t
+
+    bnd_pos = np.zeros(N + 1)
+    for k in range(N):
+        bnd_pos[k + 1] = bnd_pos[k] + tau[k]
+
+    rcp = np.zeros((N, N))
+
+    for i in range(N):
+        sti = sig_t_g[i]
+        tau_i = tau[i]
+        if sti <= 0:
+            continue
+
+        self_same = 0.5 * sti * (2 * t[i] - (2.0 / sti) * (0.5 - _e3(tau_i)))
+        rcp[i, i] += self_same
+
+        for j in range(N):
+            tau_j = tau[j]
+
+            if j > i:
+                gap_d = bnd_pos[j] - bnd_pos[i + 1]
+            elif j < i:
+                gap_d = bnd_pos[i] - bnd_pos[j + 1]
+            else:
+                gap_d = None
+
+            if gap_d is not None:
+                gap_d = max(gap_d, 0.0)
+                dd = (_e3(gap_d) - _e3(gap_d + tau_i)
+                      - _e3(gap_d + tau_j) + _e3(gap_d + tau_i + tau_j))
+            else:
+                dd = 0.0
+
+            gap_c = bnd_pos[i] + bnd_pos[j]
+            dc = (_e3(gap_c) - _e3(gap_c + tau_i)
+                  - _e3(gap_c + tau_j) + _e3(gap_c + tau_i + tau_j))
+
+            rcp[i, j] += 0.5 * (dd + dc)
+
+    P_cell = np.zeros((N, N))
+    for i in range(N):
+        if sig_t_g[i] * t[i] > 0:
+            P_cell[i, :] = rcp[i, :] / (sig_t_g[i] * t[i])
+
+    P_out = np.maximum(1.0 - P_cell.sum(axis=1), 0.0)
+    P_in = sig_t_g * t * P_out
+    P_inout = max(1.0 - P_in.sum(), 0.0)
+
+    P_inf = P_cell.copy()
+    if P_inout < 1.0:
+        P_inf += np.outer(P_out, P_in) / (1.0 - P_inout)
+
+    return P_inf
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Cylindrical Ki₃/Ki₄ kernel
+# ═══════════════════════════════════════════════════════════════════════
 
 def _build_ki_tables(
     n_pts: int = 20000,
@@ -125,7 +402,7 @@ def _build_ki_tables(
     """Tabulate Ki_3 and Ki_4 on a uniform grid.
 
     Ki_3(x) = int_0^{pi/2} exp(-x/sin t) sin t dt
-    Ki_4(x) = int_x^inf Ki_3(t) dt   (antiderivative of -Ki_3)
+    Ki_4(x) = int_x^inf Ki_3(t) dt
 
     Returns (x_grid, ki3_vals, ki4_vals).
     """
@@ -139,7 +416,6 @@ def _build_ki_tables(
             0, np.pi / 2,
         )
 
-    # Ki_4 via cumulative integration from right
     dx = x_grid[1] - x_grid[0]
     ki4_vals = np.cumsum(ki3_vals[::-1])[::-1] * dx
     ki4_vals[-1] = 0.0
@@ -151,10 +427,6 @@ def _ki4_lookup(x, x_grid, ki4_vals):
     """Vectorised Ki_4 lookup."""
     return np.interp(x, x_grid, ki4_vals, right=0.0)
 
-
-# ---------------------------------------------------------------------------
-# Geometry helpers
-# ---------------------------------------------------------------------------
 
 def _chord_half_lengths(radii, y_pts):
     """Half-chord lengths l_k(y) for each annular region.  Shape (N, n_y)."""
@@ -177,10 +449,6 @@ def _chord_half_lengths(radii, y_pts):
     return chords
 
 
-# ---------------------------------------------------------------------------
-# CP matrix — chord-based Ki_4 formulation (single energy group)
-# ---------------------------------------------------------------------------
-
 def _compute_cp_group(
     sig_t_g: np.ndarray,
     geom: CPGeometry,
@@ -190,135 +458,32 @@ def _compute_cp_group(
     ki_x: np.ndarray,
     ki4_v: np.ndarray,
 ) -> np.ndarray:
-    """Within-cell CP matrix for one energy group.
+    """Within-cell CP matrix for one energy group in cylindrical geometry.
 
-    For each chord at height y the contribution to P(i→j)*Σ_t,i*V_i is
-    computed by integrating Ki_3 over the source position analytically
-    (giving Ki_4 second-differences) and summing over both the direct
-    and the through-centre path.
-
-    Returns the *infinite-lattice* CP matrix P_inf (N, N) after applying
+    Uses the Ki₄ second-difference formula with numerical y-quadrature.
+    Returns the infinite-lattice CP matrix P_inf (N, N) after applying
     the white boundary condition.
     """
     N = geom.N
     V = geom.volumes
-
-    # Optical half-thicknesses  tau_k(y) = Σ_t,k * l_k(y)
-    tau = sig_t_g[:, None] * chords          # (N, n_y)
-
-    # --- Build the chord layout for each y-point ---
-    # The chord at height y passes through regions from the outermost down
-    # to the innermost intersected region and back.  We represent this as
-    # an ordered list of *segments*.  For efficiency the layout is encoded
-    # in arrays rather than Python lists.
-    #
-    # Segment ordering (left to right along the chord):
-    #   N-1 (left), N-2 (left), …, l (full or left), l (right), …, N-1 (right)
-    # where l is the innermost intersected region (the one whose inner
-    # boundary is below y).
-    #
-    # For a given (source_segment, target_segment) pair the contribution
-    # to Σ_t,i*V_i*P(i→j) at this y is:
-    #
-    #   (1/Σ_t,i) * [Ki4(gap) − Ki4(gap+τ_src) − Ki4(gap+τ_tgt) + Ki4(gap+τ_src+τ_tgt)]
-    #
-    # where gap is the cumulative optical path of all segments strictly
-    # between source and target.  τ_src and τ_tgt are the optical
-    # thicknesses of the source and target segments.
-    #
-    # Because the geometry is symmetric about the chord midpoint the
-    # contribution of (left_i, left_j) = (right_i, right_j) and
-    # (left_i, right_j) = (right_i, left_j).  So we only compute from
-    # the *right-half* source and double.
-
-    # --- Compute the "reduced CP" r(i,j) = Σ_t,i*V_i*P_cell(i,j) ---
-    rcp = np.zeros((N, N))  # reduced collision probability
-
     n_y = len(y_pts)
 
-    # Pre-compute cumulative optical path from the right outer boundary
-    # (boundary N) going inward to each boundary k.
-    # cum[k, :] = sum_{m=k}^{N-1} tau[m, :]  (right-half optical path
-    # from boundary k to boundary N)
-    cum_from_right = np.zeros((N + 1, n_y))
-    for k in range(N - 1, -1, -1):
-        cum_from_right[k, :] = cum_from_right[k + 1, :] + tau[k, :]
+    tau = sig_t_g[:, None] * chords
 
-    # Position of each boundary along the right half of the chord,
-    # measured as cumulative optical path from the deepest point:
-    # pos[k] = sum_{m=l}^{k-1} tau[m]  where l is innermost intersected.
-    # pos[l] = 0  (the deepest point).
-    #
-    # For the LEFT half, the boundary positions are mirrored:
-    # left_pos[k] = pos[k]  (same distance from centre)
-
-    # Determine innermost intersected region for each y-point.
-    # Region k is intersected if chords[k, :] > 0.  The innermost
-    # intersected region l is the smallest k with chords[k] > 0.
-    innermost = np.full(n_y, N, dtype=int)
-    for k in range(N):
-        mask = (chords[k, :] > 0) & (innermost == N)
-        innermost[mask] = k
-
-    # Build boundary positions from the deepest point outward.
-    # bnd_pos[k, y] = cumulative tau from innermost region to boundary k.
-    # bnd_pos[innermost, y] = 0 for the inner boundary of the innermost.
-    # For k > innermost: bnd_pos[k] = sum_{m=innermost}^{k-1} tau[m].
-    bnd_pos = np.zeros((N + 1, n_y))  # boundary index 0..N
+    bnd_pos = np.zeros((N + 1, n_y))
     for k in range(N):
         bnd_pos[k + 1, :] = bnd_pos[k, :] + tau[k, :]
-    # Shift so that the innermost boundary is at 0:
-    # inner boundary of innermost region l has index l (0-based).
-    # For innermost = l, we want bnd_pos_shifted[l] = 0.
-    # But inner boundary of region l has index l (the inner radius).
-    # Actually, bnd_pos[0] corresponds to the centre (R=0), and
-    # bnd_pos[k] = sum_{m=0}^{k-1} tau[m].
-    # The deepest point of the chord at height y is *inside* region l.
-    # On the right half the position goes from bnd_pos[l] (inner bnd
-    # of region l on the right side) to bnd_pos[N] (cell boundary).
-    # But for the innermost region the "inner boundary" is actually the
-    # centre of the chord — all optical path below boundary l has tau=0
-    # because chords=0 for those regions.
-    #
-    # So bnd_pos already has the correct property:
-    # bnd_pos[l] = sum_{m=0}^{l-1} tau[m] = 0  (since tau=0 for m<l).
 
-    # For each pair (i, j), the source is on the right half of region i
-    # (from bnd_pos[i] to bnd_pos[i+1], optical thickness tau[i]).
-    # Target is on either the right half or the left half of region j.
-    #
-    # RIGHT-HALF target j:
-    #   If j > i (target outward of source):
-    #     gap = bnd_pos[j] - bnd_pos[i+1]  = sum tau[k] for k=i+1..j-1
-    #   If j < i (target inward of source):
-    #     This path goes inward from source — the source needs to go LEFT
-    #     through inner regions.  We handle this via the left-half target.
-    #   If j == i (self): gap = 0.
-    #
-    # LEFT-HALF target j:
-    #   Path goes from source (right half) leftward through centre and
-    #   back out to region j on the left side.
-    #   gap = bnd_pos[i] + bnd_pos[j]
-    #       = (distance from source inner bnd to centre) +
-    #         (distance from centre to target inner bnd on the left)
-    #   The left half of region j has the same tau as the right half.
+    ki4_0 = _ki4_lookup(np.zeros(n_y), ki_x, ki4_v)
 
-    ki4_0 = _ki4_lookup(np.zeros(n_y), ki_x, ki4_v)  # Ki_4(0) vector
+    rcp = np.zeros((N, N))
 
     for i in range(N):
-        tau_i = tau[i, :]  # (n_y,)
+        tau_i = tau[i, :]
         sti = sig_t_g[i]
         if sti == 0:
             continue
 
-        # --- Self-same-segment collision ---
-        # A neutron at position x in the right-half segment of region i
-        # can collide within that SAME segment before exiting it.
-        # Going right:  1 − Ki_3(Σ_t(l_i − x))
-        # Going left:   1 − Ki_3(Σ_t · x)
-        # Integrating over x from 0 to l_i:
-        #   2·l_i − (2/Σ_t)[Ki_4(0) − Ki_4(τ_i)]
-        # Factor 2 for left-half source (by symmetry).
         self_same = 2.0 * chords[i, :] - (2.0 / sti) * (
             ki4_0 - _ki4_lookup(tau_i, ki_x, ki4_v)
         )
@@ -327,13 +492,6 @@ def _compute_cp_group(
         for j in range(N):
             tau_j = tau[j, :]
 
-            # --- Same-side path (right-half source → right-half target) ---
-            # j > i: going RIGHT (outward) from source.
-            #        gap = bnd_pos[j] − bnd_pos[i+1]
-            # j < i: going LEFT (inward) from source to an inner target
-            #        on the same side.
-            #        gap = bnd_pos[i] − bnd_pos[j+1]
-            # j == i: handled by self-same term above.
             if j > i:
                 gap_d = bnd_pos[j, :] - bnd_pos[i + 1, :]
             elif j < i:
@@ -350,34 +508,24 @@ def _compute_cp_group(
             else:
                 dd = np.zeros(n_y)
 
-            # --- Through-centre path (right-half source → left-half target) ---
-            # Valid for ALL j (including j == i: right→left half of same region).
             gap_c = bnd_pos[i, :] + bnd_pos[j, :]
-
             dc = (_ki4_lookup(gap_c, ki_x, ki4_v)
                   - _ki4_lookup(gap_c + tau_i, ki_x, ki4_v)
                   - _ki4_lookup(gap_c + tau_j, ki_x, ki4_v)
                   + _ki4_lookup(gap_c + tau_i + tau_j, ki_x, ki4_v))
 
-            # Integrate over y (factor 2 for left-half source by symmetry,
-            # and 1/Σ_t,i from the x-integration of Ki_3 → Ki_4)
             rcp[i, j] += 2.0 * np.dot(y_wts, dd + dc)
 
-    # --- Convert reduced CP to P_cell ---
     P_cell = np.zeros((N, N))
     for i in range(N):
         if sig_t_g[i] * V[i] > 0:
             P_cell[i, :] = rcp[i, :] / (sig_t_g[i] * V[i])
 
-    # --- Escape, surface-to-region, surface-to-surface probabilities ---
     P_out = np.maximum(1.0 - P_cell.sum(axis=1), 0.0)
-
     S_cell = 2.0 * np.pi * geom.r_cell
     P_in = sig_t_g * V * P_out / S_cell
-
     P_inout = max(1.0 - P_in.sum(), 0.0)
 
-    # --- Infinite-lattice CP (white boundary condition) ---
     P_inf = P_cell.copy()
     if P_inout < 1.0:
         P_inf += np.outer(P_out, P_in) / (1.0 - P_inout)
@@ -385,16 +533,64 @@ def _compute_cp_group(
     return P_inf
 
 
-# ---------------------------------------------------------------------------
-# Main solver
-# ---------------------------------------------------------------------------
+# ═══════════════════════════════════════════════════════════════════════
+# Public API: thin wrappers
+# ═══════════════════════════════════════════════════════════════════════
 
-def solve_collision_probability(
+def solve_cp_slab(
+    materials: dict[int, Mixture],
+    geom: SlabGeometry | None = None,
+    max_outer: int = 500,
+    keff_tol: float = 1e-6,
+    flux_tol: float = 1e-5,
+) -> CPResult:
+    """Solve the slab collision probability eigenvalue problem."""
+    t_start = time.perf_counter()
+
+    if geom is None:
+        geom = SlabGeometry.default_pwr()
+
+    _any_mat = next(iter(materials.values()))
+    eg = _any_mat.eg
+    ng = _any_mat.ng
+    N = geom.N
+
+    xs = assemble_cell_xs(materials, geom.mat_ids)
+
+    # Build CP matrices using slab E₃ kernel
+    print(f"  Computing slab CP matrices for {ng} groups, {N} regions ...")
+    P_inf = np.empty((N, N, ng))
+    for g in range(ng):
+        P_inf[:, :, g] = _compute_slab_cp_group(xs.sig_t[:, g], geom)
+        if (g + 1) % 100 == 0:
+            print(f"    group {g + 1}/{ng}")
+    print("  CP matrices done.")
+
+    # Eigenvalue solve
+    print("  Starting power iteration ...")
+    solver = CPSolver(P_inf, xs, geom.volumes, geom.mat_ids, materials,
+                      keff_tol=keff_tol, flux_tol=flux_tol)
+    keff, keff_history, phi = power_iteration(solver, max_iter=max_outer)
+
+    flux_fuel, flux_clad, flux_cool = _volume_averaged_fluxes(
+        phi, geom.volumes, geom.mat_ids)
+
+    elapsed = time.perf_counter() - t_start
+    print(f"  Elapsed: {elapsed:.1f}s")
+
+    return CPResult(
+        keff=keff, keff_history=keff_history, flux=phi,
+        flux_fuel=flux_fuel, flux_clad=flux_clad, flux_cool=flux_cool,
+        geometry=geom, eg=eg, elapsed_seconds=elapsed,
+    )
+
+
+def solve_cp_concentric(
     materials: dict[int, Mixture],
     geom: CPGeometry | None = None,
     params: CPParams | None = None,
 ) -> CPResult:
-    """Run the collision probability transport calculation."""
+    """Solve the cylindrical collision probability eigenvalue problem."""
     t_start = time.perf_counter()
 
     if geom is None:
@@ -410,21 +606,9 @@ def solve_collision_probability(
     print("  Building Ki3/Ki4 lookup tables ...")
     ki_x, _, ki4_v = _build_ki_tables(params.n_ki_table, params.ki_max)
 
-    # --- Per-sub-region cross sections ---
-    sig_t = np.empty((N, ng))
-    sig_a = np.empty((N, ng))
-    sig_p = np.empty((N, ng))
-    chi = np.empty((N, ng))
+    xs = assemble_cell_xs(materials, geom.mat_ids)
 
-    for k in range(N):
-        m = materials[geom.mat_ids[k]]
-        sig2_colsum = np.array(m.Sig2.sum(axis=1)).ravel()
-        sig_a[k, :] = m.SigF + m.SigC + m.SigL + sig2_colsum
-        sig_t[k, :] = sig_a[k, :] + np.array(m.SigS[0].sum(axis=1)).ravel()
-        sig_p[k, :] = m.SigP
-        chi[k, :] = m.chi
-
-    # --- y-quadrature (composite Gauss-Legendre) ---
+    # y-quadrature (composite Gauss-Legendre)
     breakpoints = np.concatenate(([0.0], geom.radii))
     gl_pts, gl_wts = np.polynomial.legendre.leggauss(params.n_quad_y)
     y_all, w_all = [], []
@@ -437,100 +621,31 @@ def solve_collision_probability(
 
     chords = _chord_half_lengths(geom.radii, y_pts)
 
-    # --- CP matrices for all energy groups ---
+    # Build CP matrices using cylindrical Ki₃/Ki₄ kernel
     print(f"  Computing CP matrices for {ng} groups, {N} regions ...")
     P_inf = np.empty((N, N, ng))
-
     for g in range(ng):
         P_inf[:, :, g] = _compute_cp_group(
-            sig_t[:, g], geom, chords, y_pts, y_wts, ki_x, ki4_v,
+            xs.sig_t[:, g], geom, chords, y_pts, y_wts, ki_x, ki4_v,
         )
         if (g + 1) % 100 == 0:
             print(f"    group {g + 1}/{ng}")
-
     print("  CP matrices done.")
 
-    # --- Power iteration ---
+    # Eigenvalue solve
     print("  Starting power iteration ...")
-    phi = np.ones((N, ng))
-    keff = 1.0
-    keff_history: list[float] = []
+    solver = CPSolver(P_inf, xs, geom.volumes, geom.mat_ids, materials,
+                      keff_tol=params.keff_tol, flux_tol=params.flux_tol)
+    keff, keff_history, phi = power_iteration(solver, max_iter=params.max_outer)
 
-    scat_mats = {mid: materials[mid].SigS[0] for mid in materials}
-    n2n_mats = {mid: materials[mid].Sig2 for mid in materials}
-
-    for n_iter in range(1, params.max_outer + 1):
-        phi_old = phi.copy()
-        keff_old = keff
-
-        Q = np.zeros((N, ng))
-
-        fission_rate = np.sum(sig_p * phi, axis=1)
-        for k in range(N):
-            Q[k, :] += chi[k, :] * fission_rate[k] / keff
-
-        for k in range(N):
-            mid = geom.mat_ids[k]
-            Q[k, :] += scat_mats[mid].T @ phi[k, :]
-            Q[k, :] += 2.0 * (n2n_mats[mid].T @ phi[k, :])
-
-        for g in range(ng):
-            source = geom.volumes * Q[:, g]
-            phi[:, g] = P_inf[:, :, g].T @ source
-
-        denom = sig_t * geom.volumes[:, None]
-        pos = denom > 0
-        phi[pos] = phi[pos] / denom[pos]
-        phi[~pos] = 0.0
-
-        production = np.sum(sig_p * phi * geom.volumes[:, None])
-        absorption = np.sum(sig_a * phi * geom.volumes[:, None])
-        keff = production / absorption
-        keff_history.append(keff)
-
-        phi *= 1.0 / np.max(phi)
-
-        delta_k = abs(keff - keff_old)
-        delta_phi = np.max(np.abs(phi - phi_old)) / max(np.max(np.abs(phi)), 1e-30)
-
-        if n_iter <= 5 or n_iter % 10 == 0:
-            print(f"    iter {n_iter:4d}  keff = {keff:.6f}  "
-                  f"dk = {delta_k:.2e}  dphi = {delta_phi:.2e}")
-
-        if n_iter > 2 and delta_k < params.keff_tol and delta_phi < params.flux_tol:
-            print(f"    iter {n_iter:4d}  keff = {keff:.6f}  Converged.")
-            break
-
-    # --- Post-processing ---
-    vol_fuel = geom.volumes[geom.mat_ids == 2].sum()
-    vol_clad = geom.volumes[geom.mat_ids == 1].sum()
-    vol_cool = geom.volumes[geom.mat_ids == 0].sum()
-
-    flux_fuel = np.zeros(ng)
-    flux_clad = np.zeros(ng)
-    flux_cool = np.zeros(ng)
-
-    for k in range(N):
-        v = geom.volumes[k]
-        mid = geom.mat_ids[k]
-        if mid == 2:
-            flux_fuel += phi[k, :] * v / vol_fuel
-        elif mid == 1:
-            flux_clad += phi[k, :] * v / vol_clad
-        else:
-            flux_cool += phi[k, :] * v / vol_cool
+    flux_fuel, flux_clad, flux_cool = _volume_averaged_fluxes(
+        phi, geom.volumes, geom.mat_ids)
 
     elapsed = time.perf_counter() - t_start
     print(f"  Elapsed: {elapsed:.1f}s")
 
     return CPResult(
-        keff=keff,
-        keff_history=keff_history,
-        flux=phi,
-        flux_fuel=flux_fuel,
-        flux_clad=flux_clad,
-        flux_cool=flux_cool,
-        geometry=geom,
-        eg=eg,
-        elapsed_seconds=elapsed,
+        keff=keff, keff_history=keff_history, flux=phi,
+        flux_fuel=flux_fuel, flux_clad=flux_clad, flux_cool=flux_cool,
+        geometry=geom, eg=eg, elapsed_seconds=elapsed,
     )
