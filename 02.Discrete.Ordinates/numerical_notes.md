@@ -81,3 +81,143 @@ The cleanest reference is the 1D GL BiCGSTAB result (1.03882): no
 pseudo-2D artifacts, well-conditioned angular quadrature, fully
 converged inner solve.  The 2D Lebedev results on a 1D-invariant
 mesh include angular quadrature effects from the unused y-direction.
+
+---
+
+## Normalization chain for the SN equation
+
+The isotropic SN transport equation for ordinate n:
+
+    μ_n · ∇ψ_n + Σ_t · ψ_n = Q / sum(w)
+
+where `Q` is the total isotropic source (fission + scattering + n2n)
+and `sum(w)` is the quadrature weight sum (4π for Lebedev, 2 for GL).
+
+The normalization chain in the code:
+
+1. **Fission source** (`compute_fission_source`):
+   `Q_f = χ · (νΣ_f · φ) / k` — raw, un-normalized.
+
+2. **Scattering source** (`_add_scattering_source`):
+   `Q_s = Σ_s^T @ φ` — also un-normalized.
+
+3. **Sweep** (`transport_sweep`):
+   applies `Q_scaled = Q * weight_norm` where `weight_norm = 1/sum(w)`.
+   This is the `1/sum(w)` division in the SN equation.
+
+4. **Scalar flux** (inside sweep):
+   `φ = Σ_n w_n · ψ_n` — standard quadrature integration.
+
+5. **keff** (`compute_keff`):
+   `k = (νΣ_f · φ · V) / (Σ_a · φ · V)` — volume-weighted ratio.
+
+The `1/sum(w)` in step 3 and the `sum(w)` implicit in step 4 cancel:
+`φ = Σ w_n · Q/(sum(w)·Σ_t) = Q/Σ_t` for uniform isotropic source.
+This cancellation is verified by `test_homogeneous_scalar_flux_equals_Q_over_sigt`.
+
+**Convention rule:** sources passed to the sweep must NOT include
+`1/sum(w)` — the sweep applies it.  The BiCGSTAB path (direct operator)
+must divide sources by `sum(w)` itself, since it solves `Tψ = b`
+without the sweep.
+
+---
+
+## Scattering matrix convention
+
+The `Mixture.SigS[l]` matrices use the convention `SigS[g_from, g_to]`:
+
+    SigS[0] = [[Σ_{0→0}, Σ_{0→1}],
+               [Σ_{1→0}, Σ_{1→1}]]
+
+For the in-scatter source (total scattering into group g from all groups g'):
+
+    Q_scatter[g] = Σ_{g'} Σ_{g'→g} · φ_{g'} = (SigS^T @ φ)[g]
+
+The vectorized form for batched cells: `phi @ SigS` (equivalent to
+`(SigS^T @ phi^T)^T` for row vectors).
+
+The analytical eigenvalue problem uses:
+
+    A = diag(Σ_t) - SigS^T    (removal matrix, NOTE: transposed)
+    F = outer(χ, νΣ_f)        (fission matrix)
+    k_inf = λ_max(A⁻¹F)
+
+The transpose in A is because `SigS^T[g, g'] = SigS[g', g] = Σ_{g'→g}`
+gives the in-scatter contribution, so `diag(Σ_t) - SigS^T` removes
+the in-scatter from the total to get the net removal.
+
+---
+
+## Why 1-group verification is degenerate
+
+For 1 energy group, the eigenvalue is:
+
+    k = νΣ_f / Σ_a
+
+This is a scalar ratio independent of the spatial or angular flux
+distribution.  Consequences:
+
+- Weight loss (z-ordinate bug) scales all flux equally → cancels in k
+- Wrong scattering convention → no inter-group coupling to distort
+- Wrong flux shape → doesn't matter, k is a material property
+
+Only multi-group problems have a flux-shape-dependent eigenvalue:
+`k = (νΣ_f · φ) / (Σ_a · φ)` where the dot product weights each
+group differently.  A wrong group ratio (from angular errors,
+normalization errors, or convergence failures) directly shifts keff.
+
+**Rule:** Every transport solver must be verified on at least 2-group
+problems.  1-group success gives false confidence.
+
+---
+
+## Two inner solver architectures
+
+### Source iteration (sweep-based)
+
+- **Operator:** `T⁻¹` (diamond-difference sweep)
+- **Solution variable:** scalar flux `φ(x, y, g)`
+- **Fixed-point:** `φ^{k+1} = T⁻¹(S·φ^k + Q_f)`
+- **Convergence rate:** spectral radius of `T⁻¹S` (~0.97 for 421 groups)
+- **Cost per iteration:** one transport sweep (~40 ms for 10×10×421)
+- **Iterations needed:** ~200 for 6 decades (does not converge within
+  `max_inner=200` at `tol=1e-8` for 421 groups)
+
+### BiCGSTAB (direct operator)
+
+- **Operator:** `T = μ·∇ + Σ_t` (finite-difference gradients)
+- **Solution variable:** angular flux `ψ(x, y, n, g)` (much larger)
+- **System:** `T·ψ = b` where `b` = fission + scattering + n2n
+- **Convergence rate:** depends on condition number of T (well-conditioned)
+- **Cost per iteration:** one matvec (comparable to one sweep)
+- **Iterations needed:** ~100 at `tol=1e-4` (always converges)
+
+The two architectures use **different spatial discretizations**
+(diamond-difference vs finite-difference) that converge to different
+keff on coarse meshes.  They agree in the limit h → 0.
+
+---
+
+## P1 scattering: available but unused
+
+The 421-group cross-section library provides both P0 and P1 scattering
+matrices (`fuel.SigS[0]` and `fuel.SigS[1]`, each 421×421).
+The verification XS library has only P0.
+
+The MATLAB code defaults to `L=0` (P0) but has the spherical harmonic
+infrastructure for P1: Legendre moments of the angular flux are
+computed via `fiL`, and the scattering source uses
+`(2l+1) · Σ_s^l @ f_l / sum(w)` for each order l.
+
+The current Python solver:
+- Accepts `scattering_order` parameter (stored but not used)
+- Only reads `SigS[0]` in `__init__`
+- Source iteration path would need angular moment computation
+  (not available from the sweep, which returns only scalar flux)
+- BiCGSTAB path could support P1 more naturally since it works with
+  angular flux directly
+
+Implementing P1: the sweep-based path would need to store the angular
+flux per ordinate (already returned by the sweep) and compute first
+moments `f_1^m = Σ_n w_n · ψ_n · R_n^{1,m}` after each sweep.
+The BiCGSTAB path would extend `build_rhs` to include the `l=1` term.
