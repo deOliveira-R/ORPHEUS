@@ -259,12 +259,13 @@ def build_rhs(
 ) -> np.ndarray:
     """Build the RHS source vector for T·ψ = b.
 
-    All isotropic sources are divided by 4π (the solid angle normalization
-    for the angular flux equation).
+    All isotropic sources are divided by sum(weights) — the angular
+    normalization for the discrete angular flux equation.
+    For Lebedev (3D sphere) this is 4π; for GL (1D) this is 2.
 
     Parameters
     ----------
-    fission_source : (nx, ny, ng) — already divided by 4π by the caller.
+    fission_source : (nx, ny, ng) — already divided by sum(w) by the caller.
     scalar_flux : (nx, ny, ng) — current scalar flux for scattering.
     sig_s0 : dict[mat_id → (ng, ng)] P0 scattering matrices.
     sig2 : dict[mat_id → (ng, ng)] (n,2n) matrices.
@@ -273,7 +274,7 @@ def build_rhs(
     -------
     (n_unknowns,) RHS vector.
     """
-    four_pi = 4.0 * np.pi
+    sum_w = float(quad.weights.sum())
 
     rhs = np.zeros((ng, eq_map.n_eq))
     eq_idx = 0
@@ -286,10 +287,10 @@ def build_rhs(
             qF = fission_source[ix, iy, :]
 
             # (n,2n) — isotropic, divide by 4π
-            q2 = 2.0 * (sig2[mid].T @ phi_cell) / four_pi
+            q2 = 2.0 * (sig2[mid].T @ phi_cell) / sum_w
 
             # P0 scattering — isotropic, divide by 4π
-            qS = (sig_s0[mid].T @ phi_cell) / four_pi
+            qS = (sig_s0[mid].T @ phi_cell) / sum_w
 
             for n in range(quad.N):
                 mu_z = getattr(quad, 'mu_z', np.zeros(quad.N))

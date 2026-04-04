@@ -223,7 +223,7 @@ class SNSolver:
         )
 
         nx, ny, ng = self.mesh.nx, self.mesh.ny, self.ng
-        four_pi = 4.0 * np.pi
+        sum_w = float(self.quad.weights.sum())
 
         # Build equation map and operator (could be cached, but clarity first)
         if not hasattr(self, '_eq_map'):
@@ -239,12 +239,12 @@ class SNSolver:
         # Scalar flux from previous iterate (for scattering RHS)
         phi = flux_distribution
 
-        # Fission source: divide by 4π for angular equation
-        fission_src_4pi = fission_source / four_pi
+        # Fission source: divide by sum(weights) for angular equation
+        fission_src_norm = fission_source / sum_w
 
-        # Build full RHS (fission + scatter + n2n, all / 4π)
+        # Build full RHS (fission + scatter + n2n, all / sum(w))
         rhs = build_rhs(
-            fission_src_4pi, phi, eq_map, self.quad,
+            fission_src_norm, phi, eq_map, self.quad,
             self.sig_s0, self.sig2, self.mesh.mat_map,
             nx, ny, ng,
         )

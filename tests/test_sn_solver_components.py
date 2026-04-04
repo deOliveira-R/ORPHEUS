@@ -12,7 +12,7 @@ import time
 
 from derivations._xs_library import get_mixture
 from sn_geometry import CartesianMesh
-from sn_quadrature import LebedevSphere
+from sn_quadrature import GaussLegendre1D, LebedevSphere
 from sn_solver import SNSolver, solve_sn
 from sn_sweep import transport_sweep
 
@@ -306,6 +306,101 @@ class TestMultiGroupEigenvector:
 
         np.testing.assert_allclose(phi_ratio, phi_expected, rtol=1e-6,
                                    err_msg="Converged group ratio ≠ analytical eigenvector")
+
+
+class TestBicgstabNormalization:
+    """BiCGSTAB must give the same keff regardless of quadrature type.
+
+    Discovery: build_rhs hardcoded 4π for the angular normalization, but
+    GL quadrature weights sum to 2, not 4π. The normalization must use
+    sum(weights), which is quadrature-dependent.
+    """
+
+    def test_1d_gl_homogeneous_exact(self):
+        """BiCGSTAB with GL quadrature on 1D slab must match analytical k_inf."""
+        from derivations import get
+
+        case = get("sn_slab_2eg_1rg")
+        mix = next(iter(case.materials.values()))
+
+        mesh = CartesianMesh.from_slab_1d(
+            np.full(4, 0.5), np.zeros(4, dtype=int),
+        )
+        gl = GaussLegendre1D.create(8)
+        solver = SNSolver({0: mix}, mesh, gl,
+                          inner_solver="bicgstab",
+                          max_inner=2000, inner_tol=1e-6)
+
+        phi = solver.initial_flux_distribution()
+        keff = 1.0
+        for _ in range(50):
+            fs = solver.compute_fission_source(phi, keff)
+            phi = solver.solve_fixed_source(fs, phi)
+            keff = solver.compute_keff(phi)
+            phi /= np.linalg.norm(phi)
+
+        assert abs(keff - case.k_inf) < 1e-4, (
+            f"1D GL BiCGSTAB keff={keff:.8f} vs analytical={case.k_inf:.8f}"
+        )
+
+    def test_2d_lebedev_homogeneous_exact(self):
+        """BiCGSTAB with Lebedev quadrature on 2D mesh must match analytical k_inf."""
+        from derivations import get
+
+        case = get("sn_slab_2eg_1rg")
+        mix = next(iter(case.materials.values()))
+
+        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        quad = LebedevSphere.create(order=17)
+        solver = SNSolver({0: mix}, mesh, quad,
+                          inner_solver="bicgstab",
+                          max_inner=2000, inner_tol=1e-6)
+
+        phi = solver.initial_flux_distribution()
+        keff = 1.0
+        for _ in range(50):
+            fs = solver.compute_fission_source(phi, keff)
+            phi = solver.solve_fixed_source(fs, phi)
+            keff = solver.compute_keff(phi)
+            phi /= np.linalg.norm(phi)
+
+        assert abs(keff - case.k_inf) < 1e-4, (
+            f"2D Lebedev BiCGSTAB keff={keff:.8f} vs analytical={case.k_inf:.8f}"
+        )
+
+    def test_gl_and_lebedev_agree(self):
+        """BiCGSTAB keff must not depend on which quadrature is used.
+
+        Both GL (sum(w)=2) and Lebedev (sum(w)=4π) must produce the same
+        eigenvalue for the same homogeneous problem.
+        """
+        from derivations import get
+
+        case = get("sn_slab_2eg_1rg")
+        mix = next(iter(case.materials.values()))
+
+        results = {}
+        for label, mesh, quad in [
+            ("GL", CartesianMesh.from_slab_1d(np.full(4, 0.5), np.zeros(4, dtype=int)),
+             GaussLegendre1D.create(8)),
+            ("Lebedev", CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int)),
+             LebedevSphere.create(order=17)),
+        ]:
+            solver = SNSolver({0: mix}, mesh, quad,
+                              inner_solver="bicgstab",
+                              max_inner=2000, inner_tol=1e-6)
+            phi = solver.initial_flux_distribution()
+            keff = 1.0
+            for _ in range(50):
+                fs = solver.compute_fission_source(phi, keff)
+                phi = solver.solve_fixed_source(fs, phi)
+                keff = solver.compute_keff(phi)
+                phi /= np.linalg.norm(phi)
+            results[label] = keff
+
+        assert abs(results["GL"] - results["Lebedev"]) < 1e-3, (
+            f"GL keff={results['GL']:.6f} vs Lebedev keff={results['Lebedev']:.6f}"
+        )
 
 
 class TestFissionSource:

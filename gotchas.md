@@ -114,6 +114,38 @@ implementation detail.
 
 ---
 
+## #4 — Hardcoded 4π in BiCGSTAB RHS normalization
+
+**Failure mode:** #4 Factor error — wrong angular normalization constant
+
+**Date:** 2026-04-03
+
+**Bug:** `sn_operator.py::build_rhs` hardcoded `four_pi = 4.0 * np.pi` to normalize
+isotropic sources for the angular flux equation. This is correct for Lebedev
+quadrature (`sum(weights) = 4π`) but wrong for Gauss-Legendre 1D quadrature
+(`sum(weights) = 2`). The normalization must use `sum(weights)`, which is
+quadrature-dependent.
+
+**Impact:** BiCGSTAB on 1D GL quadrature diverged (keff oscillating 1.9→4.5→2.8).
+BiCGSTAB on 2D Lebedev worked correctly (the hardcoded value happened to be right).
+
+**Why it hid:** All initial BiCGSTAB testing used Lebedev quadrature, where
+`4π` is the correct value. The bug only manifested when testing the 1D GL path.
+
+**Fix:** Replace `four_pi` with `float(quad.weights.sum())` in both `build_rhs`
+and the caller in `_solve_bicgstab`.
+
+**Tests that catch it:**
+- `TestBicgstabNormalization::test_1d_gl_homogeneous_exact` — 1D GL must match analytical k_inf
+- `TestBicgstabNormalization::test_2d_lebedev_homogeneous_exact` — 2D Lebedev must match
+- `TestBicgstabNormalization::test_gl_and_lebedev_agree` — both quadratures must produce same keff
+
+**Lesson:** Never hardcode physical constants that depend on the quadrature rule.
+The angular normalization `1/sum(w)` is a property of the discretization, not a
+universal constant. Testing with only one quadrature type masks this.
+
+---
+
 ## Meta-lessons
 
 1. **Multi-group is the minimum bar.** 1-group problems are degenerate — they
