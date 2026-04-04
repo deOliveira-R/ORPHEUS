@@ -261,11 +261,20 @@ class SNSolver:
         # Fission source: divide by sum(weights) for angular equation
         fission_src_norm = fission_source / sum_w
 
+        # Angular flux for Pn moment computation (from previous BiCGSTAB solve)
+        angular = None
+        if self.scattering_order > 0 and hasattr(self, '_psi_solution'):
+            angular = solution_to_angular_flux(
+                self._psi_solution, eq_map, self.quad, nx, ny, ng,
+            )
+
         # Build full RHS (fission + scatter + n2n, all / sum(w))
         rhs = build_rhs(
             fission_src_norm, phi, eq_map, self.quad,
-            self.sig_s0, self.sig2, self.mesh.mat_map,
+            self.sig_s, self.sig2, self.mesh.mat_map,
             nx, ny, ng,
+            scattering_order=self.scattering_order,
+            angular_flux=angular,
         )
 
         # Initial guess: convert previous angular flux or use zero

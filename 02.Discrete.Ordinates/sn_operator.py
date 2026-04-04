@@ -252,29 +252,53 @@ def build_rhs(
     scalar_flux: np.ndarray,
     eq_map: EquationMap,
     quad: AngularQuadrature,
-    sig_s0: dict[int, np.ndarray],
+    sig_s: dict[int, list[np.ndarray]],
     sig2: dict[int, np.ndarray],
     mat_map: np.ndarray,
     nx: int, ny: int, ng: int,
+    scattering_order: int = 0,
+    angular_flux: np.ndarray | None = None,
 ) -> np.ndarray:
     """Build the RHS source vector for T·ψ = b.
 
     All isotropic sources are divided by sum(weights) — the angular
     normalization for the discrete angular flux equation.
-    For Lebedev (3D sphere) this is 4π; for GL (1D) this is 2.
+
+    For Pn scattering (scattering_order > 0), the scattering source
+    is per-ordinate using Legendre moments of the angular flux:
+        qS(n) = Σ_l (2l+1) · Σ_s^l^T @ [Σ_m fiL_lm · Y_lm(n)] / sum_w
 
     Parameters
     ----------
     fission_source : (nx, ny, ng) — already divided by sum(w) by the caller.
     scalar_flux : (nx, ny, ng) — current scalar flux for scattering.
-    sig_s0 : dict[mat_id → (ng, ng)] P0 scattering matrices.
+    sig_s : dict[mat_id → list of (ng, ng)] Legendre scattering matrices.
     sig2 : dict[mat_id → (ng, ng)] (n,2n) matrices.
+    scattering_order : Legendre order L (0 = P0 isotropic).
+    angular_flux : (ng, N, nx, ny) angular flux for computing Legendre
+        moments. Required if scattering_order > 0.
 
     Returns
     -------
     (n_unknowns,) RHS vector.
     """
     sum_w = float(quad.weights.sum())
+    L = scattering_order
+    mu_z = getattr(quad, 'mu_z', np.zeros(quad.N))
+
+    # Precompute Legendre moments if anisotropic scattering
+    fiL = None
+    Y = None
+    if L > 0 and angular_flux is not None:
+        Y = quad.spherical_harmonics(L)  # (N, L+1, 2L+1)
+        w = quad.weights
+        fiL = np.zeros((nx, ny, ng, L + 1, 2 * L + 1))
+        for l in range(L + 1):
+            for m in range(-l, l + 1):
+                for n in range(quad.N):
+                    fiL[:, :, :, l, l + m] += (
+                        w[n] * angular_flux[:, n, :, :].T * Y[n, l, l + m]
+                    )
 
     rhs = np.zeros((ng, eq_map.n_eq))
     eq_idx = 0
@@ -286,14 +310,10 @@ def build_rhs(
             # Fission (already normalized by caller)
             qF = fission_source[ix, iy, :]
 
-            # (n,2n) — isotropic, divide by 4π
+            # (n,2n) — isotropic
             q2 = 2.0 * (sig2[mid].T @ phi_cell) / sum_w
 
-            # P0 scattering — isotropic, divide by 4π
-            qS = (sig_s0[mid].T @ phi_cell) / sum_w
-
             for n in range(quad.N):
-                mu_z = getattr(quad, 'mu_z', np.zeros(quad.N))
                 if mu_z[n] < -1e-15:
                     continue
                 if ix == 0 and quad.mu_x[n] > 1e-15:
@@ -304,6 +324,19 @@ def build_rhs(
                     continue
                 if iy == ny - 1 and quad.mu_y[n] < -1e-15:
                     continue
+
+                # Scattering source (Pn expansion)
+                qS = np.zeros(ng)
+                for l in range(L + 1):
+                    if l == 0:
+                        # P0: isotropic, use scalar flux
+                        qS += sig_s[mid][0].T @ phi_cell / sum_w
+                    elif fiL is not None:
+                        # P1+: anisotropic, use Legendre moments
+                        SUM = np.zeros(ng)
+                        for m in range(-l, l + 1):
+                            SUM += fiL[ix, iy, :, l, l + m] * Y[n, l, l + m]
+                        qS += (2 * l + 1) * (sig_s[mid][l].T @ SUM) / sum_w
 
                 rhs[:, eq_idx] = qF + q2 + qS
                 eq_idx += 1

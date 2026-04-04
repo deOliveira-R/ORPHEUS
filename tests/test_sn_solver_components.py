@@ -559,6 +559,92 @@ class TestAnisotropicScattering:
                                        err_msg="P1 source nonzero for isotropic flux")
 
 
+class TestBicgstabPnScattering:
+    """BiCGSTAB path must handle Pn scattering consistently with source iteration."""
+
+    def test_bicgstab_p0_matches_si_p0(self):
+        """BiCGSTAB and source iteration must agree at P0."""
+        from derivations import get
+
+        case = get("sn_slab_2eg_1rg")
+        mix = next(iter(case.materials.values()))
+        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        quad = LebedevSphere.create(order=17)
+
+        keffs = {}
+        for label, solver_type in [("SI", "source_iteration"), ("BC", "bicgstab")]:
+            solver = SNSolver({0: mix}, mesh, quad,
+                              inner_solver=solver_type, scattering_order=0,
+                              max_inner=500 if solver_type == "source_iteration" else 2000,
+                              inner_tol=1e-10 if solver_type == "source_iteration" else 1e-6)
+            phi = solver.initial_flux_distribution()
+            keff = 1.0
+            for _ in range(50):
+                fs = solver.compute_fission_source(phi, keff)
+                phi = solver.solve_fixed_source(fs, phi)
+                keff = solver.compute_keff(phi)
+                phi /= np.linalg.norm(phi)
+            keffs[label] = keff
+
+        assert abs(keffs["SI"] - keffs["BC"]) < 1e-4, (
+            f"P0 SI keff={keffs['SI']:.8f} vs BC keff={keffs['BC']:.8f}"
+        )
+
+    def test_bicgstab_p1_homogeneous_same_as_p0(self):
+        """BiCGSTAB with P1 on homogeneous must match P0 (isotropic flux)."""
+        from derivations._xs_library import get_mixture
+
+        mix = get_mixture("A", "2g")
+        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        quad = LebedevSphere.create(order=17)
+
+        keffs = {}
+        for L in [0, 1]:
+            solver = SNSolver({0: mix}, mesh, quad,
+                              inner_solver="bicgstab", scattering_order=L,
+                              max_inner=2000, inner_tol=1e-6)
+            phi = solver.initial_flux_distribution()
+            keff = 1.0
+            for _ in range(50):
+                fs = solver.compute_fission_source(phi, keff)
+                phi = solver.solve_fixed_source(fs, phi)
+                keff = solver.compute_keff(phi)
+                phi /= np.linalg.norm(phi)
+            keffs[L] = keff
+
+        assert abs(keffs[0] - keffs[1]) < 1e-4, (
+            f"BiCGSTAB P0 keff={keffs[0]:.6f} vs P1 keff={keffs[1]:.6f} "
+            f"should be equal on homogeneous"
+        )
+
+    def test_bicgstab_p1_matches_si_p1_homogeneous(self):
+        """BiCGSTAB and source iteration must agree at P1 on homogeneous."""
+        from derivations._xs_library import get_mixture
+
+        mix = get_mixture("A", "2g")
+        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        quad = LebedevSphere.create(order=17)
+
+        keffs = {}
+        for label, solver_type in [("SI", "source_iteration"), ("BC", "bicgstab")]:
+            solver = SNSolver({0: mix}, mesh, quad,
+                              inner_solver=solver_type, scattering_order=1,
+                              max_inner=500 if solver_type == "source_iteration" else 2000,
+                              inner_tol=1e-10 if solver_type == "source_iteration" else 1e-6)
+            phi = solver.initial_flux_distribution()
+            keff = 1.0
+            for _ in range(50):
+                fs = solver.compute_fission_source(phi, keff)
+                phi = solver.solve_fixed_source(fs, phi)
+                keff = solver.compute_keff(phi)
+                phi /= np.linalg.norm(phi)
+            keffs[label] = keff
+
+        assert abs(keffs["SI"] - keffs["BC"]) < 1e-3, (
+            f"P1 SI keff={keffs['SI']:.8f} vs BC keff={keffs['BC']:.8f}"
+        )
+
+
 class TestFissionSource:
     """Verify fission source normalization against SN equation physics."""
 
