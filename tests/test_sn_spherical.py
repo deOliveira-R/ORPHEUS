@@ -375,3 +375,114 @@ class TestSphericalBicgstab:
 
         assert np.isfinite(result.keff), f"keff is not finite: {result.keff}"
         assert np.all(np.isfinite(result.scalar_flux)), "Non-finite scalar flux"
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Multi-group / multi-region preemptive tests (spherical)
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestMultiGroupMultiRegionSpherical:
+    """Preemptive tests for error patterns that hide in simple problems.
+
+    Spherical-specific: angular redistribution + multi-group scattering
+    is the combination most likely to expose normalization and coupling bugs.
+    """
+
+    def test_2g_heterogeneous_converges(self):
+        """2G fuel+moderator sphere must converge to finite keff."""
+        fuel = get_mixture("A", "2g")
+        mod = get_mixture("B", "2g")
+        materials = {2: fuel, 0: mod}
+
+        zones = [
+            Zone(outer_edge=0.5, mat_id=2, n_cells=10),
+            Zone(outer_edge=1.0, mat_id=0, n_cells=10),
+        ]
+        mesh = mesh1d_from_zones(zones, coord=CoordSystem.SPHERICAL)
+        quad = GaussLegendre1D.create(8)
+        result = solve_sn(materials, mesh, quad,
+                          max_inner=500, inner_tol=1e-10)
+
+        assert np.isfinite(result.keff), f"keff is NaN/Inf"
+        assert 0.5 < result.keff < 3.0, f"keff={result.keff:.4f} out of range"
+        assert np.all(np.isfinite(result.scalar_flux)), "Non-finite flux"
+
+    def test_4g_scattering_convergence(self):
+        """4G homogeneous must converge (richest scattering matrix)."""
+        mix = get_mixture("A", "4g")
+        mesh = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
+        quad = GaussLegendre1D.create(8)
+        sn_mesh = SNMesh(mesh, quad)
+        solver = SNSolver({0: mix}, sn_mesh, max_inner=500, inner_tol=1e-10)
+
+        phi = solver.initial_flux_distribution()
+        keff = 1.0
+        for _ in range(5):
+            fs = solver.compute_fission_source(phi, keff)
+            phi = solver.solve_fixed_source(fs, phi)
+            keff = solver.compute_keff(phi)
+
+        assert np.all(np.isfinite(phi)), "4G scattering iteration diverged"
+        assert phi.max() < 1e10, f"4G flux blew up to {phi.max():.2e}"
+
+    def test_multigroup_eigenvector_not_flat(self):
+        """Flux spectrum must differ between fuel and moderator."""
+        fuel = get_mixture("A", "2g")
+        mod = get_mixture("B", "2g")
+        materials = {2: fuel, 0: mod}
+
+        zones = [
+            Zone(outer_edge=0.5, mat_id=2, n_cells=10),
+            Zone(outer_edge=1.0, mat_id=0, n_cells=10),
+        ]
+        mesh = mesh1d_from_zones(zones, coord=CoordSystem.SPHERICAL)
+        quad = GaussLegendre1D.create(8)
+        result = solve_sn(materials, mesh, quad,
+                          max_inner=500, inner_tol=1e-10)
+
+        flux = result.scalar_flux[:, 0, :]
+        V = mesh.volumes
+        mat_ids = mesh.mat_ids
+
+        fuel_flux = np.average(flux[mat_ids == 2], axis=0, weights=V[mat_ids == 2])
+        mod_flux = np.average(flux[mat_ids == 0], axis=0, weights=V[mat_ids == 0])
+
+        fuel_ratio = fuel_flux[0] / fuel_flux[1]
+        mod_ratio = mod_flux[0] / mod_flux[1]
+
+        assert abs(fuel_ratio - mod_ratio) > 0.01, (
+            f"Spectrum identical in fuel/mod — coupling broken: "
+            f"fuel={fuel_ratio:.4f}, mod={mod_ratio:.4f}"
+        )
+
+    def test_particle_balance_heterogeneous(self):
+        """Particle balance on 2G heterogeneous sphere."""
+        fuel = get_mixture("A", "2g")
+        mod = get_mixture("B", "2g")
+        materials = {2: fuel, 0: mod}
+
+        zones = [
+            Zone(outer_edge=0.5, mat_id=2, n_cells=10),
+            Zone(outer_edge=1.0, mat_id=0, n_cells=10),
+        ]
+        mesh = mesh1d_from_zones(zones, coord=CoordSystem.SPHERICAL)
+        quad = GaussLegendre1D.create(8)
+        sn_mesh = SNMesh(mesh, quad)
+        solver = SNSolver(materials, sn_mesh, max_inner=500, inner_tol=1e-10)
+
+        phi = solver.initial_flux_distribution()
+        keff = 1.0
+        for _ in range(100):
+            fs = solver.compute_fission_source(phi, keff)
+            phi = solver.solve_fixed_source(fs, phi)
+            keff = solver.compute_keff(phi)
+
+        vol = solver.volume[:, :, None]
+        production = np.sum(solver.sig_p * phi * vol)
+        absorption = np.sum(solver.sig_a * phi * vol)
+        k_balance = production / absorption
+
+        np.testing.assert_allclose(
+            k_balance, keff, rtol=1e-4,
+            err_msg=f"Heterogeneous balance: {k_balance:.6f} ≠ {keff:.6f}",
+        )

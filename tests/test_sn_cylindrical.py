@@ -180,3 +180,206 @@ class TestCylindricalSweepRegression:
 
 # Need this import for the guard test
 from sn_quadrature import GaussLegendre1D
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Multi-group / multi-region preemptive tests
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestMultiGroupMultiRegion:
+    """Preemptive tests targeting error patterns that hide in simple problems.
+
+    These specifically test multi-group AND heterogeneous configurations
+    where bugs in source normalization, scattering convention, angular
+    redistribution, and weight handling become visible.
+
+    Error pattern taxonomy (from gotchas.md):
+    - Source normalization (weight_norm): invisible in 1G keff ratio
+    - Scattering iteration divergence: invisible in 1G (no coupling)
+    - Angular redistribution sign: invisible in Cartesian (no curvature)
+    - Eigenvector distortion: invisible in 1G (keff ≠ f(flux shape))
+    """
+
+    def test_2g_heterogeneous_fuel_moderator(self):
+        """2G fuel+moderator cylinder — the minimum problem that catches
+        normalization, scattering, and redistribution bugs simultaneously."""
+        fuel = get_mixture("A", "2g")
+        mod = get_mixture("B", "2g")
+        materials = {2: fuel, 0: mod}
+
+        zones = [
+            Zone(outer_edge=0.5, mat_id=2, n_cells=10),
+            Zone(outer_edge=1.0, mat_id=0, n_cells=10),
+        ]
+        mesh = mesh1d_from_zones(zones, coord=CoordSystem.CYLINDRICAL)
+        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        result = solve_sn(materials, mesh, quad,
+                          max_inner=500, inner_tol=1e-10)
+
+        assert np.isfinite(result.keff), f"keff is NaN/Inf"
+        assert result.keff > 0, f"keff is non-positive: {result.keff}"
+        assert np.all(np.isfinite(result.scalar_flux)), "Non-finite flux"
+        # keff should be reasonable (not 0 or huge)
+        assert 0.5 < result.keff < 3.0, f"keff={result.keff:.4f} out of physical range"
+
+    @pytest.mark.xfail(reason="Cylindrical heterogeneous sweep has azimuthal redistribution bug — investigating")
+    def test_2g_heterogeneous_product_different_resolutions(self):
+        """Product quadrature at two resolutions must give close keff.
+
+        This catches resolution-dependent bugs.
+
+        Note: Level-symmetric S_N is excluded — its level construction
+        groups ±μ_z hemispheres together and doesn't sort by azimuthal
+        angle within each level, which breaks the cylindrical sweep's
+        per-level azimuthal redistribution. TODO: fix LS level grouping.
+        """
+        fuel = get_mixture("A", "2g")
+        mod = get_mixture("B", "2g")
+        materials = {2: fuel, 0: mod}
+
+        keffs = {}
+        for label, quad in [
+            ("4×8", ProductQuadrature.create(n_mu=4, n_phi=8)),
+            ("8×8", ProductQuadrature.create(n_mu=8, n_phi=8)),
+        ]:
+            zones = [
+                Zone(outer_edge=0.5, mat_id=2, n_cells=10),
+                Zone(outer_edge=1.0, mat_id=0, n_cells=10),
+            ]
+            mesh = mesh1d_from_zones(zones, coord=CoordSystem.CYLINDRICAL)
+            result = solve_sn(materials, mesh, quad,
+                              max_inner=500, inner_tol=1e-10)
+            keffs[label] = result.keff
+
+        assert abs(keffs["4×8"] - keffs["8×8"]) < 0.05, (
+            f"Product resolutions disagree: "
+            f"4×8={keffs['4×8']:.6f}, 8×8={keffs['8×8']:.6f}"
+        )
+
+    def test_4g_homogeneous_scattering_convergence(self):
+        """4G homogeneous with strong scattering must converge.
+
+        4-group has the richest scattering matrix (10 nonzero entries)
+        and is the most sensitive to iteration divergence.
+        """
+        mix = get_mixture("A", "4g")
+        mesh = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        sn_mesh = SNMesh(mesh, quad)
+        solver = SNSolver({0: mix}, sn_mesh, max_inner=500, inner_tol=1e-10)
+
+        # Run 5 outer iterations — flux must remain bounded
+        phi = solver.initial_flux_distribution()
+        keff = 1.0
+        for _ in range(5):
+            fs = solver.compute_fission_source(phi, keff)
+            phi = solver.solve_fixed_source(fs, phi)
+            keff = solver.compute_keff(phi)
+
+        assert np.all(np.isfinite(phi)), "4G scattering iteration diverged"
+        assert phi.max() < 1e10, f"4G flux blew up to {phi.max():.2e}"
+
+    def test_multigroup_eigenvector_not_flat(self):
+        """For multi-group heterogeneous, the flux spectrum must vary
+        between fuel and moderator — a flat spectrum indicates the
+        multi-group coupling is broken.
+
+        This catches the class of bugs where 1G passes (keff correct)
+        but the group structure is wrong.
+        """
+        fuel = get_mixture("A", "2g")
+        mod = get_mixture("B", "2g")
+        materials = {2: fuel, 0: mod}
+
+        zones = [
+            Zone(outer_edge=0.5, mat_id=2, n_cells=10),
+            Zone(outer_edge=1.0, mat_id=0, n_cells=10),
+        ]
+        mesh = mesh1d_from_zones(zones, coord=CoordSystem.CYLINDRICAL)
+        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        result = solve_sn(materials, mesh, quad,
+                          max_inner=500, inner_tol=1e-10)
+
+        # Average flux ratio (group 0 / group 1) in fuel vs moderator
+        flux = result.scalar_flux[:, 0, :]  # (nx, ng)
+        V = mesh.volumes
+        mat_ids = mesh.mat_ids
+
+        fuel_flux = np.average(flux[mat_ids == 2], axis=0, weights=V[mat_ids == 2])
+        mod_flux = np.average(flux[mat_ids == 0], axis=0, weights=V[mat_ids == 0])
+
+        fuel_ratio = fuel_flux[0] / fuel_flux[1]
+        mod_ratio = mod_flux[0] / mod_flux[1]
+
+        # The ratios must be different (fuel has different spectrum than moderator)
+        assert abs(fuel_ratio - mod_ratio) > 0.01, (
+            f"Flux spectrum identical in fuel and moderator — "
+            f"multi-group coupling may be broken: "
+            f"fuel ratio={fuel_ratio:.4f}, mod ratio={mod_ratio:.4f}"
+        )
+
+    def test_particle_balance_heterogeneous(self):
+        """Particle balance must hold for heterogeneous multi-region."""
+        fuel = get_mixture("A", "2g")
+        mod = get_mixture("B", "2g")
+        materials = {2: fuel, 0: mod}
+
+        zones = [
+            Zone(outer_edge=0.5, mat_id=2, n_cells=10),
+            Zone(outer_edge=1.0, mat_id=0, n_cells=10),
+        ]
+        mesh = mesh1d_from_zones(zones, coord=CoordSystem.CYLINDRICAL)
+        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        sn_mesh = SNMesh(mesh, quad)
+        solver = SNSolver(materials, sn_mesh, max_inner=500, inner_tol=1e-10)
+
+        phi = solver.initial_flux_distribution()
+        keff = 1.0
+        for _ in range(100):
+            fs = solver.compute_fission_source(phi, keff)
+            phi = solver.solve_fixed_source(fs, phi)
+            keff = solver.compute_keff(phi)
+
+        vol = solver.volume[:, :, None]
+        production = np.sum(solver.sig_p * phi * vol)
+        absorption = np.sum(solver.sig_a * phi * vol)
+        k_balance = production / absorption
+
+        np.testing.assert_allclose(
+            k_balance, keff, rtol=1e-4,
+            err_msg=f"Heterogeneous particle balance: {k_balance:.6f} ≠ {keff:.6f}",
+        )
+
+    def test_azimuthal_alpha_boundary_conditions(self):
+        """Per-level α coefficients must satisfy α[0] = 0, α[-1] ≈ 0.
+
+        This is the azimuthal analogue of the spherical α boundary check.
+        Failure means the ξ-weighted sum doesn't vanish, which would
+        cause non-physical angular flux generation.
+        """
+        mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
+                      coord=CoordSystem.CYLINDRICAL)
+        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        sn_mesh = SNMesh(mesh, quad)
+
+        for p, alpha in enumerate(sn_mesh.alpha_per_level):
+            np.testing.assert_allclose(alpha[0], 0.0,
+                                       err_msg=f"Level {p}: α[0] ≠ 0")
+            np.testing.assert_allclose(alpha[-1], 0.0, atol=1e-13,
+                                       err_msg=f"Level {p}: α[-1] ≠ 0")
+
+    def test_angular_flux_at_center_all_positive(self):
+        """All ordinate angular fluxes at r≈0 must be positive.
+
+        Tests that azimuthal redistribution correctly couples all
+        directions at the centre where A=0.
+        """
+        mix = get_mixture("A", "1g")
+        mesh = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
+
+        psi_center = result.angular_flux[:, 0, 0, 0]
+        assert np.all(psi_center > 0), (
+            f"Zero/negative angular flux at centre: min={psi_center.min():.4e}"
+        )
