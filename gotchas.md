@@ -146,6 +146,59 @@ universal constant. Testing with only one quadrature type masks this.
 
 ---
 
+## #5 — DD recurrence formula rewrite breaks multi-group convergence
+
+**Failure mode:** #5 Algebraically-equivalent rewrite — numerically unstable form
+
+**Date:** 2026-04-04
+
+**Bug:** During the geometry module migration, `_solve_recurrence` and `_outgoing`
+in `sn_sweep.py` were rewritten from:
+```python
+psi_out = a * psi_in + s
+return 0.5 * (psi_in + psi_out)
+```
+to the algebraically equivalent:
+```python
+return 2.0 * (psi_in * (1.0 - a) / (1.0 - a + 1e-300) + s) - psi_in
+```
+Additionally, `psi0[None, :]` lost its broadcasting dimension in the cumulative
+product computation, and `_outgoing` was changed to use a different formula
+that computes the outgoing flux from the last cell rather than simply
+propagating `cp[-1] * (psi0 + cs[-1])`.
+
+**Impact:** Scattering source iteration diverged for multi-group problems.
+The flux grew by ~1e34 per outer iteration. 1-group problems were unaffected
+(the spectral radius of the scattering iteration is <1 for 1-group).
+
+**Why it hid:**
+- Both formulas are algebraically identical for exact arithmetic.
+- The 2D wavefront sweep (which was also updated) used a different code path
+  and wasn't affected — it still passed the bitwise regression test.
+- The 1G homogeneous test passed because keff = νΣf/Σa is independent of
+  the absolute flux level.
+- The bug only manifested through multi-group scattering iteration divergence,
+  which required running the full power iteration (not just a single sweep).
+
+**Fix:** Restored the original formulas:
+- `psi_out = a * psi_in + s; return 0.5 * (psi_in + psi_out)`
+- `return cp[-1] * (psi0 + cs[-1])` for outgoing flux
+- `psi0[None, :]` broadcasting preserved
+
+**Tests that catch it:**
+- `TestSolveRecurrence::test_multi_cell_dd_relation` — verifies cell-average = 0.5*(psi_in + psi_out) for every cell
+- `TestSolveRecurrence::test_outgoing_matches_last_cell` — outgoing flux must equal last cell's psi_out
+- `TestSolveRecurrence::test_regression_multigroup_scattering_convergence` — 2G flux must remain bounded after one outer iteration
+
+**Lesson:** "Algebraically equivalent" does not mean "numerically equivalent".
+The DD recurrence is a coupled forward-solve where small per-cell differences
+compound over many cells. The stable form `0.5*(psi_in + psi_out)` is a
+direct average of known quantities, while the rewritten form subtracts
+nearly-equal large numbers (`2*(...) - psi_in`). Always regression-test
+the recurrence with multi-group data before refactoring sweep internals.
+
+---
+
 ## Meta-lessons
 
 1. **Multi-group is the minimum bar.** 1-group problems are degenerate — they

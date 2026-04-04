@@ -22,10 +22,12 @@ from geometry import (
     compute_surfaces_1d,
     compute_volumes_1d,
     compute_volumes_2d,
+    homogeneous_1d,
     mesh1d_from_zones,
     pwr_pin_2d,
     pwr_pin_equivalent,
     pwr_slab_half_cell,
+    slab_fuel_moderator,
 )
 
 
@@ -471,3 +473,23 @@ class TestFactoryEdgeCases:
     def test_pin_2d_wrong_mat_ids_length_raises(self):
         with pytest.raises(ValueError, match="len\\(mat_ids\\)"):
             pwr_pin_2d(radii=[1.0], mat_ids=[0, 1, 2])
+
+    def test_homogeneous_1d_basic(self):
+        mesh = homogeneous_1d(10, 5.0, mat_id=3)
+        assert mesh.N == 10
+        np.testing.assert_allclose(mesh.total_width, 5.0)
+        assert np.all(mesh.mat_ids == 3)
+        np.testing.assert_allclose(mesh.widths, 0.5, rtol=1e-14)
+
+    def test_homogeneous_1d_cylindrical(self):
+        mesh = homogeneous_1d(5, 2.0, coord=CoordSystem.CYLINDRICAL)
+        # Equal-volume annuli
+        np.testing.assert_allclose(mesh.volumes, mesh.volumes[0], rtol=1e-14)
+
+    def test_slab_fuel_moderator(self):
+        mesh = slab_fuel_moderator(n_fuel=10, n_mod=10, t_fuel=0.5, t_mod=0.5)
+        assert mesh.N == 20
+        assert np.all(mesh.mat_ids[:10] == 2)   # fuel
+        assert np.all(mesh.mat_ids[10:] == 0)    # moderator
+        np.testing.assert_allclose(mesh.total_width, 1.0)
+        np.testing.assert_allclose(mesh.widths, 0.05, rtol=1e-14)
