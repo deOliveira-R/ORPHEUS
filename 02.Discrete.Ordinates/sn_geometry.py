@@ -70,10 +70,7 @@ class SNMesh:
             case CoordSystem.CARTESIAN:
                 self._setup_cartesian()
             case CoordSystem.CYLINDRICAL:
-                raise NotImplementedError(
-                    "Cylindrical SN transport not yet implemented. "
-                    "Requires angular redistribution terms."
-                )
+                self._setup_cylindrical()
             case CoordSystem.SPHERICAL:
                 self._setup_spherical()
 
@@ -165,3 +162,52 @@ class SNMesh:
         self.streaming_x = None
         self.streaming_y = None
         self.curvature = "spherical"
+
+    def _setup_cylindrical(self) -> None:
+        r"""Precompute cylindrical streaming stencil and per-level azimuthal redistribution.
+
+        The 1-D cylindrical transport equation for μ-level *p*, azimuthal
+        ordinate *m*, cell *i* is:
+
+        .. math::
+
+            \frac{\eta_{p,m}}{V_i}
+            \bigl[A_{i+\frac12}\psi_{i+\frac12}
+                - A_{i-\frac12}\psi_{i-\frac12}\bigr]
+            + \frac{1}{V_i}
+            \bigl[\alpha_{p,m+\frac12}\psi_{m+\frac12}
+                - \alpha_{p,m-\frac12}\psi_{m-\frac12}\bigr]
+            + \Sigma_t \psi_{p,m,i} = Q_{p,m,i}
+
+        where :math:`\eta` is the radial direction cosine and
+        :math:`\alpha_{p,m+1/2}` is the azimuthal redistribution
+        coefficient on μ-level *p*.
+
+        Requires a quadrature with ``level_indices`` attribute
+        (e.g., :class:`LevelSymmetricSN` or :class:`ProductQuadrature`).
+        """
+        if not hasattr(self.quad, 'level_indices'):
+            raise ValueError(
+                "Cylindrical SN requires a quadrature with level structure "
+                "(LevelSymmetricSN or ProductQuadrature), "
+                f"got {type(self.quad).__name__}"
+            )
+
+        # Cell face areas: A_{i+1/2} = 2πr at each edge
+        self.face_areas: np.ndarray = self.mesh.surfaces  # (nx+1,)
+
+        # Per-level azimuthal redistribution coefficients
+        # α_{p,m+1/2} = α_{p,m-1/2} + w_{p,m} · ξ_{p,m}
+        self.alpha_per_level: list[np.ndarray] = []
+        for level_idx in self.quad.level_indices:
+            xi = self.quad.mu_y[level_idx]   # ξ values on this level
+            w = self.quad.weights[level_idx]  # weights on this level
+            M = len(level_idx)
+            alpha = np.zeros(M + 1)
+            for m in range(M):
+                alpha[m + 1] = alpha[m] + w[m] * xi[m]
+            self.alpha_per_level.append(alpha)
+
+        self.streaming_x = None
+        self.streaming_y = None
+        self.curvature = "cylindrical"

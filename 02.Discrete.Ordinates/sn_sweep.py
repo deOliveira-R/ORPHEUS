@@ -52,6 +52,9 @@ def transport_sweep(
     if sn_mesh.curvature == "spherical":
         return _sweep_1d_spherical(Q, sig_t, sn_mesh, psi_bc)
 
+    if sn_mesh.curvature == "cylindrical":
+        return _sweep_1d_cylindrical(Q, sig_t, sn_mesh, psi_bc)
+
     is_gl_1d = (ny == 1 and np.all(np.abs(quad.mu_y) < 1e-15)
                  and Q_aniso is None)
 
@@ -276,6 +279,144 @@ def _sweep_1d_spherical(
 
             # Store outgoing flux at outer boundary for reflective BC
             bc_outer[n] = psi_spatial_out
+
+    return angular_flux, scalar_flux[:, None, :]  # restore ny=1 dim
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 1D cylindrical path (per-level azimuthal redistribution)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _sweep_1d_cylindrical(
+    Q: np.ndarray,
+    sig_t: np.ndarray,
+    sn_mesh: SNMesh,
+    psi_bc: dict,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Cylindrical 1-D sweep with per-level azimuthal redistribution.
+
+    For each μ-level *p*, processes azimuthal ordinates sequentially,
+    applying the redistribution :math:`\alpha_{p,m+1/2}` which couples
+    successive azimuthal directions on that level.
+
+    The streaming direction is :math:`\eta = \sin\theta\cos\varphi`
+    (the radial projection, stored in ``mu_x``).
+
+    The DD equation at cell *i*, level *p*, azimuthal ordinate *m* is:
+
+    .. math::
+
+        \psi_{m,i} = \frac{Q V + |\eta|(A_{\rm in}+A_{\rm out})\psi_{\rm in}
+            + (|\alpha_{\rm out}|+|\alpha_{\rm in}|)\psi_{m-\frac12}}
+            {2|\eta| A_{\rm out} + 2|\alpha_{\rm out}| + \Sigma_t V}
+    """
+    nx = sn_mesh.nx
+    ng = Q.shape[2]
+    quad = sn_mesh.quad
+    N = quad.N
+    weights = quad.weights
+    ref = quad.reflection_index("x")
+
+    Q_1d = Q[:, 0, :]          # (nx, ng)
+    sig_t_1d = sig_t[:, 0, :]  # (nx, ng)
+
+    A = sn_mesh.face_areas     # (nx+1,) = 2πr at edges
+    V = sn_mesh.volumes[:, 0]  # (nx,) cell volumes
+
+    # Persistent boundary flux at the outer face (per ordinate)
+    if "bc_cyl" not in psi_bc:
+        psi_bc["bc_cyl"] = np.zeros((N, ng))
+    bc_outer = psi_bc["bc_cyl"]
+
+    angular_flux = np.zeros((N, nx, 1, ng))
+    scalar_flux = np.zeros((nx, ng))
+
+    # Isotropic source → angular source density
+    weight_norm = 1.0 / weights.sum()
+    QV = Q_1d * V[:, None] * weight_norm  # (nx, ng)
+
+    # Process each μ-level independently
+    for p, level_idx in enumerate(quad.level_indices):
+        alpha = sn_mesh.alpha_per_level[p]  # (M+1,)
+        M = len(level_idx)
+
+        # Azimuthal "face flux" between successive ordinates on this level
+        psi_angle = np.zeros((nx, ng))
+
+        for m_local in range(M):
+            n = level_idx[m_local]  # global ordinate index
+            eta_n = quad.mu_x[n]    # radial direction cosine
+            abs_eta = abs(eta_n)
+            w_n = weights[n]
+            abs_alpha_in = abs(alpha[m_local])
+            abs_alpha_out = abs(alpha[m_local + 1])
+
+            if eta_n < 0:
+                # Inward sweep: outer → centre
+                psi_spatial_in = bc_outer[ref[n]].copy()
+
+                for i in range(nx - 1, -1, -1):
+                    A_in = A[i + 1]
+                    A_out = A[i]
+
+                    denom = (2.0 * abs_eta * A_out
+                             + 2.0 * abs_alpha_out
+                             + sig_t_1d[i] * V[i])
+                    numer = (QV[i]
+                             + abs_eta * (A_in + A_out) * psi_spatial_in
+                             + (abs_alpha_out + abs_alpha_in) * psi_angle[i])
+
+                    psi = numer / denom
+
+                    psi_spatial_out = 2.0 * psi - psi_spatial_in
+                    psi_angle[i] = 2.0 * psi - psi_angle[i]
+
+                    angular_flux[n, i, 0, :] = psi
+                    scalar_flux[i] += w_n * psi
+
+                    psi_spatial_in = psi_spatial_out
+
+            elif abs_eta < 1e-15:
+                # Pure azimuthal ordinate (η≈0): no radial streaming.
+                # Only azimuthal redistribution + collision.
+                for i in range(nx):
+                    denom = 2.0 * abs_alpha_out + sig_t_1d[i] * V[i]
+                    numer = (QV[i]
+                             + (abs_alpha_out + abs_alpha_in) * psi_angle[i])
+
+                    psi = numer / denom
+                    psi_angle[i] = 2.0 * psi - psi_angle[i]
+
+                    angular_flux[n, i, 0, :] = psi
+                    scalar_flux[i] += w_n * psi
+
+            else:
+                # Outward sweep: centre → outer
+                psi_spatial_in = np.zeros(ng)
+
+                for i in range(nx):
+                    A_in = A[i]
+                    A_out = A[i + 1]
+
+                    denom = (2.0 * abs_eta * A_out
+                             + 2.0 * abs_alpha_out
+                             + sig_t_1d[i] * V[i])
+                    numer = (QV[i]
+                             + abs_eta * (A_in + A_out) * psi_spatial_in
+                             + (abs_alpha_out + abs_alpha_in) * psi_angle[i])
+
+                    psi = numer / denom
+
+                    psi_spatial_out = 2.0 * psi - psi_spatial_in
+                    psi_angle[i] = 2.0 * psi - psi_angle[i]
+
+                    angular_flux[n, i, 0, :] = psi
+                    scalar_flux[i] += w_n * psi
+
+                    psi_spatial_in = psi_spatial_out
+
+                # Store outgoing at outer boundary for reflective BC
+                bc_outer[n] = psi_spatial_out
 
     return angular_flux, scalar_flux[:, None, :]  # restore ny=1 dim
 
