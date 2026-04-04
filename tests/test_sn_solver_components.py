@@ -175,6 +175,139 @@ class TestTransportSweep:
         assert phi.shape == (mesh.nx, mesh.ny, solver.ng)
 
 
+class TestQuadratureWeightConservation:
+    """The sweep must account for ALL quadrature weight in the scalar flux.
+
+    Discovery: ordinates with mu_x = mu_y = 0 (z-directed) were previously
+    skipped, losing 0.77% of Lebedev weight.  This caused a multi-group
+    eigenvalue error of ~0.4% that was invisible in 1-group problems.
+    """
+
+    def test_no_weight_lost(self, solver_2g):
+        """Σ_n w_n · ψ_n must use the full sum(weights), not a subset."""
+        solver, _, mesh, quad = solver_2g
+        Q = np.ones((mesh.nx, mesh.ny, solver.ng))
+
+        ang, phi = transport_sweep(Q, solver.sig_t, mesh.dx, mesh.dy, quad, {})
+
+        # Reconstruct scalar flux from angular flux manually
+        phi_manual = np.zeros_like(phi)
+        for n in range(quad.N):
+            phi_manual += quad.weights[n] * ang[n]
+
+        np.testing.assert_allclose(phi, phi_manual, rtol=1e-14,
+                                   err_msg="Scalar flux missing ordinate contributions")
+
+    def test_z_ordinates_contribute(self, solver_2g):
+        """Z-directed ordinates (mu_x=mu_y=0) must have nonzero angular flux."""
+        solver, _, mesh, quad = solver_2g
+        Q = np.ones((mesh.nx, mesh.ny, solver.ng))
+
+        ang, _ = transport_sweep(Q, solver.sig_t, mesh.dx, mesh.dy, quad, {})
+
+        for n in range(quad.N):
+            if abs(quad.mu_x[n]) < 1e-15 and abs(quad.mu_y[n]) < 1e-15:
+                assert np.all(ang[n] > 0), (
+                    f"Z-directed ordinate {n} has zero angular flux"
+                )
+
+    def test_homogeneous_scalar_flux_equals_Q_over_sigt(self, solver_2g):
+        """In a homogeneous infinite medium, converged φ = Q / Σ_t.
+
+        With uniform source Q and reflective BCs, the isotropic SN
+        equation gives ψ = Q/(4π·Σ_t) per ordinate.
+        Then φ = Σ w_n ψ_n = sum(w) · Q/(4π·Σ_t) = Q/Σ_t.
+        """
+        from derivations._xs_library import get_mixture
+
+        mix = get_mixture("A", "2g")
+        materials = {0: mix}
+        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        quad = LebedevSphere.create(order=17)
+        solver = SNSolver(materials, mesh, quad)
+
+        Q = np.ones((2, 2, solver.ng))
+
+        # Run many sweeps to converge reflective BCs
+        psi_bc = {}
+        for _ in range(200):
+            _, phi = transport_sweep(Q, solver.sig_t, mesh.dx, mesh.dy, quad, psi_bc)
+
+        expected = Q / solver.sig_t
+        np.testing.assert_allclose(phi, expected, rtol=1e-6,
+                                   err_msg="Converged φ ≠ Q/Σ_t for uniform source")
+
+
+class TestAbsorptionXS:
+    """Verify that absorption_xs includes fission (not just capture).
+
+    Discovery: we initially suspected compute_keff used the wrong Σ_a.
+    In fact, Mixture.absorption_xs = SigF + SigC + SigL + Sig2_rowsum,
+    which is the correct total removal rate (Σ_t - Σ_s) for the keff formula.
+    """
+
+    def test_absorption_xs_includes_fission(self):
+        from derivations._xs_library import get_mixture
+
+        mix = get_mixture("A", "2g")
+        sig_a = mix.absorption_xs
+        expected = np.array(mix.SigF) + np.array(mix.SigC) + np.array(mix.SigL) \
+            + np.asarray(mix.Sig2.sum(axis=1)).ravel()
+        np.testing.assert_array_equal(sig_a, expected)
+
+    def test_absorption_equals_removal(self):
+        """absorption_xs must equal Σ_t - rowsum(Σ_s) (total removal)."""
+        from derivations._xs_library import get_mixture
+
+        mix = get_mixture("A", "2g")
+        removal = np.array(mix.SigT) - np.asarray(mix.SigS[0].sum(axis=1)).ravel()
+        np.testing.assert_allclose(mix.absorption_xs, removal, rtol=1e-14)
+
+
+class TestMultiGroupEigenvector:
+    """The converged flux group ratio must match the analytical eigenvector.
+
+    Discovery: 1-group tests hide bugs because k = νΣf/Σa is independent
+    of the spatial/angular flux shape.  Multi-group problems have a specific
+    eigenvector (group ratio) that must be recovered.
+    """
+
+    def test_2g_eigenvector(self):
+        from derivations import get
+
+        case = get("sn_slab_2eg_1rg")
+        mix = next(iter(case.materials.values()))
+
+        # Analytical eigenvector from (Σ_t - Σ_s^T)^{-1} · χ⊗(νΣf)
+        sig_s = mix.SigS[0].toarray()
+        A = np.diag(mix.SigT) - sig_s.T
+        F = np.outer(mix.chi, mix.SigP)
+        _, vecs = np.linalg.eig(np.linalg.solve(A, F))
+        idx = np.argmax(np.real(np.linalg.eigvals(np.linalg.solve(A, F))))
+        phi_expected = np.real(vecs[:, idx])
+        phi_expected /= phi_expected.sum()
+
+        # Run 2D solver
+        materials = {0: mix}
+        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        quad = LebedevSphere.create(order=17)
+        solver = SNSolver(materials, mesh, quad, max_inner=500, inner_tol=1e-10)
+
+        phi = solver.initial_flux_distribution()
+        keff = 1.0
+        for _ in range(100):
+            fs = solver.compute_fission_source(phi, keff)
+            phi = solver.solve_fixed_source(fs, phi)
+            keff = solver.compute_keff(phi)
+            phi = phi / np.linalg.norm(phi)
+
+        phi_cell = phi[0, 0, :]
+        phi_ratio = phi_cell / phi_cell.sum()
+
+        np.testing.assert_allclose(phi_ratio, phi_expected, rtol=1e-6,
+                                   err_msg="Converged group ratio ≠ analytical eigenvector")
+
+
 class TestFissionSource:
     """Verify fission source normalization against SN equation physics."""
 
