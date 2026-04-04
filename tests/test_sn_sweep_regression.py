@@ -184,16 +184,32 @@ class TestSNMesh:
         assert sn_mesh.volumes.shape == (3, 2)
         assert sn_mesh.is_1d is False
 
-    def test_curvilinear_raises(self):
-        """Cylindrical and spherical coords must raise NotImplementedError."""
+    def test_cylindrical_raises(self):
+        """Cylindrical coords must raise NotImplementedError (not yet implemented)."""
         from geometry import CoordSystem
 
-        for coord in [CoordSystem.CYLINDRICAL, CoordSystem.SPHERICAL]:
-            mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
-                          coord=coord)
-            quad = GaussLegendre1D.create(4)
-            with pytest.raises(NotImplementedError):
-                SNMesh(mesh, quad)
+        mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
+                      coord=CoordSystem.CYLINDRICAL)
+        quad = GaussLegendre1D.create(4)
+        with pytest.raises(NotImplementedError):
+            SNMesh(mesh, quad)
+
+    def test_spherical_setup(self):
+        """Spherical SNMesh must precompute face areas and α coefficients."""
+        from geometry import CoordSystem
+
+        mesh = Mesh1D(edges=np.array([0.0, 0.5, 1.0]), mat_ids=np.array([0, 1]),
+                      coord=CoordSystem.SPHERICAL)
+        quad = GaussLegendre1D.create(4)
+        sn_mesh = SNMesh(mesh, quad)
+
+        assert sn_mesh.curvature == "spherical"
+        assert sn_mesh.face_areas is not None
+        assert sn_mesh.alpha_half is not None
+        assert len(sn_mesh.alpha_half) == quad.N + 1
+        # α_{1/2} = 0 and α_{N+1/2} ≈ 0
+        np.testing.assert_allclose(sn_mesh.alpha_half[0], 0.0)
+        np.testing.assert_allclose(sn_mesh.alpha_half[-1], 0.0, atol=1e-14)
 
     def test_sweep_1d_2d_consistency(self):
         """1D and 2D sweeps on equivalent meshes must produce similar keff.

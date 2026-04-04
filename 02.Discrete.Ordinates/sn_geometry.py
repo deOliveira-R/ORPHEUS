@@ -75,10 +75,7 @@ class SNMesh:
                     "Requires angular redistribution terms."
                 )
             case CoordSystem.SPHERICAL:
-                raise NotImplementedError(
-                    "Spherical SN transport not yet implemented. "
-                    "Requires angular redistribution terms."
-                )
+                self._setup_spherical()
 
     # ── Properties ────────────────────────────────────────────────────
 
@@ -121,3 +118,50 @@ class SNMesh:
 
         # Curvature terms (None for Cartesian — placeholder for curvilinear)
         self.curvature = None
+
+    def _setup_spherical(self) -> None:
+        r"""Precompute spherical streaming stencil and angular redistribution.
+
+        The 1-D spherical transport equation for ordinate *n*, cell *i* is:
+
+        .. math::
+
+            \frac{\mu_n}{V_i}
+            \bigl[A_{i+\frac12}\psi_{i+\frac12}
+                - A_{i-\frac12}\psi_{i-\frac12}\bigr]
+            + \frac{1}{V_i}
+            \bigl[\alpha_{n+\frac12}\psi_{n+\frac12}
+                - \alpha_{n-\frac12}\psi_{n-\frac12}\bigr]
+            + \Sigma_t \psi_{n,i} = Q_{n,i}
+
+        Precomputed quantities:
+
+        * ``face_areas`` — :math:`A_{i+1/2} = 4\pi r_{i+1/2}^2`
+        * ``alpha_half`` — :math:`\alpha_{n+1/2} = \sum_{m=0}^{n} w_m \mu_m`
+
+        The :math:`\alpha` coefficients satisfy :math:`\alpha_{1/2} = 0`
+        and :math:`\alpha_{N+1/2} = 0` (by Gauss–Legendre antisymmetry).
+        """
+        mu = self.quad.mu_x
+        w = self.quad.weights
+        N = self.quad.N
+
+        # Cell face areas: A_{i+1/2} = 4πr² at each edge
+        self.face_areas: np.ndarray = self.mesh.surfaces  # (nx+1,)
+
+        # Angular redistribution coefficients
+        # α_{n+1/2} = Σ_{m=0}^{n} w_m μ_m
+        alpha = np.zeros(N + 1)
+        for n in range(N):
+            alpha[n + 1] = alpha[n] + w[n] * mu[n]
+        self.alpha_half: np.ndarray = alpha  # (N+1,)
+
+        # Verify GL antisymmetry: α_{N+1/2} ≈ 0
+        assert abs(alpha[N]) < 1e-12, (
+            f"GL antisymmetry violated: α_{{N+1/2}} = {alpha[N]:.2e}"
+        )
+
+        # Cartesian stencil not used for spherical
+        self.streaming_x = None
+        self.streaming_y = None
+        self.curvature = "spherical"

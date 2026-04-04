@@ -48,6 +48,10 @@ def transport_sweep(
     """
     quad = sn_mesh.quad
     ny = sn_mesh.ny
+
+    if sn_mesh.curvature == "spherical":
+        return _sweep_1d_spherical(Q, sig_t, sn_mesh, psi_bc)
+
     is_gl_1d = (ny == 1 and np.all(np.abs(quad.mu_y) < 1e-15)
                  and Q_aniso is None)
 
@@ -151,6 +155,129 @@ def _outgoing(
     cp = np.cumprod(a, axis=0)
     cs = np.cumsum(s / cp, axis=0)
     return cp[-1] * (psi0 + cs[-1])
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 1D spherical path (cell-by-cell with angular redistribution)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _sweep_1d_spherical(
+    Q: np.ndarray,
+    sig_t: np.ndarray,
+    sn_mesh: SNMesh,
+    psi_bc: dict,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Spherical 1-D sweep with diamond-difference in space and angle.
+
+    Processes ordinates sequentially from most negative :math:`\mu` to
+    most positive, applying angular redistribution via the :math:`\alpha`
+    coefficients at each cell.
+
+    The DD equation at cell *i*, ordinate *n* is:
+
+    .. math::
+
+        \psi_{n,i} = \frac{Q V + |\mu|(A_{\rm in}+A_{\rm out})\psi_{\rm in}
+            + (\alpha_{\rm out}+\alpha_{\rm in})\psi_{n-\frac12}}
+            {2|\mu| A_{\rm out} + 2\alpha_{\rm out} + \Sigma_t V}
+    """
+    nx = sn_mesh.nx
+    ng = Q.shape[2]
+    quad = sn_mesh.quad
+    N = quad.N
+    mu = quad.mu_x
+    weights = quad.weights
+    ref = quad.reflection_index("x")
+
+    Q_1d = Q[:, 0, :]          # (nx, ng)
+    sig_t_1d = sig_t[:, 0, :]  # (nx, ng)
+
+    A = sn_mesh.face_areas     # (nx+1,) surface areas at cell faces
+    V = sn_mesh.volumes[:, 0]  # (nx,) cell volumes
+    alpha = sn_mesh.alpha_half  # (N+1,) angular redistribution coefficients
+
+    # Persistent boundary flux at the outer face (per ordinate)
+    if "bc_sph" not in psi_bc:
+        psi_bc["bc_sph"] = np.zeros((N, ng))
+    bc_outer = psi_bc["bc_sph"]
+
+    # Angular "face flux" between successive ordinates: ψ_{n-1/2, i}
+    # Shape (nx, ng). Initialised to zero for the first ordinate (α_{1/2}=0).
+    psi_angle = np.zeros((nx, ng))
+
+    angular_flux = np.zeros((N, nx, 1, ng))
+    scalar_flux = np.zeros((nx, ng))
+
+    # Isotropic source → angular source density by dividing by sum(w)
+    # Then multiply by cell volume for the balance equation
+    weight_norm = 1.0 / weights.sum()
+    QV = Q_1d * V[:, None] * weight_norm  # (nx, ng)
+
+    for n in range(N):
+        mu_n = mu[n]
+        abs_mu = abs(mu_n)
+        w_n = weights[n]
+        abs_alpha_in = abs(alpha[n])      # |α_{n-1/2}|
+        abs_alpha_out = abs(alpha[n + 1])  # |α_{n+1/2}|
+
+        if mu_n < 0:
+            # Inward sweep: outer boundary → centre
+            # Incoming flux at outer boundary from reflected partner
+            psi_spatial_in = bc_outer[ref[n]].copy()
+
+            for i in range(nx - 1, -1, -1):
+                A_in = A[i + 1]   # incoming face (outer)
+                A_out = A[i]      # outgoing face (inner)
+
+                denom = (2.0 * abs_mu * A_out
+                         + 2.0 * abs_alpha_out
+                         + sig_t_1d[i] * V[i])
+                numer = (QV[i]
+                         + abs_mu * (A_in + A_out) * psi_spatial_in
+                         + (abs_alpha_out + abs_alpha_in) * psi_angle[i])
+
+                psi = numer / denom
+
+                # DD closures
+                psi_spatial_out = 2.0 * psi - psi_spatial_in
+                psi_angle[i] = 2.0 * psi - psi_angle[i]  # becomes ψ_{n+1/2,i}
+
+                angular_flux[n, i, 0, :] = psi
+                scalar_flux[i] += w_n * psi
+
+                psi_spatial_in = psi_spatial_out
+
+        else:
+            # Outward sweep: centre → outer boundary
+            # At r=0, A[0] = 4π(0)² = 0, so no spatial incoming flux
+            psi_spatial_in = np.zeros(ng)
+
+            for i in range(nx):
+                A_in = A[i]       # incoming face (inner)
+                A_out = A[i + 1]  # outgoing face (outer)
+
+                denom = (2.0 * abs_mu * A_out
+                         + 2.0 * abs_alpha_out
+                         + sig_t_1d[i] * V[i])
+                numer = (QV[i]
+                         + abs_mu * (A_in + A_out) * psi_spatial_in
+                         + (abs_alpha_out + abs_alpha_in) * psi_angle[i])
+
+                psi = numer / denom
+
+                # DD closures
+                psi_spatial_out = 2.0 * psi - psi_spatial_in
+                psi_angle[i] = 2.0 * psi - psi_angle[i]  # becomes ψ_{n+1/2,i}
+
+                angular_flux[n, i, 0, :] = psi
+                scalar_flux[i] += w_n * psi
+
+                psi_spatial_in = psi_spatial_out
+
+            # Store outgoing flux at outer boundary for reflective BC
+            bc_outer[n] = psi_spatial_out
+
+    return angular_flux, scalar_flux[:, None, :]  # restore ny=1 dim
 
 
 # ═══════════════════════════════════════════════════════════════════════
