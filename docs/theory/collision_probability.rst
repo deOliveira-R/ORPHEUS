@@ -25,14 +25,51 @@ probability that a neutron born uniformly and isotropically in region
 :math:`P_{ij}` matrix is known, the transport problem reduces to a
 matrix equation in the region-averaged scalar fluxes.
 
-This chapter derives the CP method for two geometries:
+This chapter derives the CP method for three geometries:
 
 - **Slab** (1D Cartesian) — the E\ :sub:`3` exponential-integral kernel
 - **Concentric cylinders** (1D radial) — the Ki\ :sub:`3`/Ki\ :sub:`4`
   Bickley–Naylor kernel
+- **Concentric spheres** (1D radial) — the exponential kernel with
+  :math:`y`-weighted quadrature
 
-and describes the eigenvalue iteration that uses the CP matrices to
-compute :math:`\keff`.
+and describes how all three share a single eigenvalue solver through the
+:class:`CPMesh` augmented-geometry pattern.
+
+
+Architecture: Base Geometry and Augmented Geometry
+===================================================
+
+The CP solver separates geometry description from solver logic through
+two layers:
+
+1. **Base geometry** — :class:`~geometry.mesh.Mesh1D` stores cell edges,
+   material IDs, and the coordinate system.  It computes volumes and
+   surfaces via coordinate-system-aware formulas.
+
+2. **Augmented geometry** — :class:`CPMesh` wraps a ``Mesh1D`` and adds
+   the CP-specific kernel, quadrature, and the
+   :meth:`~CPMesh.compute_pinf_group` method.  The kernel is selected
+   automatically from the mesh's coordinate system.
+
+3. **Solver** — :func:`solve_cp` creates a ``CPMesh``, builds the
+   :math:`P^{\infty}` matrices for all energy groups, and runs power
+   iteration via :class:`CPSolver` (which satisfies the
+   :class:`~numerics.eigenvalue.EigenvalueSolver` protocol).
+
+.. code-block:: text
+
+   Mesh1D (edges, mat_ids, coord)
+       │
+       ▼
+   CPMesh (kernel + quadrature + compute_pinf_group)
+       │
+       ▼
+   solve_cp() → CPResult
+
+This separation means adding a new geometry to the CP method requires
+only implementing its kernel in ``CPMesh`` — the eigenvalue solver,
+post-processing, and plotting are geometry-agnostic.
 
 
 The Integral Transport Equation
@@ -154,11 +191,23 @@ region :math:`j` are:
 
    P_{\text{in},j} = \frac{\Sigt{j} \, V_j \, P_{j,\text{out}}}{S}
 
-where :math:`S` is the cell surface area.  The geometry-dependent
-values:
+where :math:`S` is the cell surface area, computed by the base geometry:
 
-- **Slab**: :math:`S = 1` (unit transverse area)
-- **Concentric cylinder**: :math:`S = 2\pi R_{\text{cell}}`
+.. list-table::
+   :header-rows: 1
+   :widths: 30 30
+
+   * - Coordinate system
+     - Surface area :math:`S`
+   * - Cartesian (slab)
+     - :math:`1` (per unit transverse area)
+   * - Cylindrical
+     - :math:`2\pi R_{\text{cell}}`
+   * - Spherical
+     - :math:`4\pi R_{\text{cell}}^2`
+
+This is accessed uniformly via ``mesh.surfaces[-1]`` in the code,
+making the white-BC closure geometry-agnostic.
 
 The surface-to-surface probability is:
 
@@ -182,9 +231,9 @@ escape, re-enter, possibly escape again, and so on (geometric series):
      + \frac{P_{i,\text{out}} \, P_{\text{in},j}}
             {1 - P_{\text{in,out}}}
 
-This is the CP matrix used in the eigenvalue iteration.  It is
-implemented in both :func:`_compute_slab_cp_group` and
-:func:`_compute_cp_group`.
+This formula is **identical for all three geometries** when expressed
+in terms of :math:`V_i` and :math:`S`.  It is implemented in
+:meth:`CPMesh._apply_white_bc`.
 
 .. warning::
 
@@ -198,6 +247,52 @@ implemented in both :func:`_compute_slab_cp_group` and
    gives :math:`\keff \approx 1.261` for the 1G slab benchmark, while
    the CP method with white BCs gives :math:`\keff \approx 1.272` —
    a ~1% discrepancy entirely due to the white-BC approximation.
+
+
+The Three CP Kernels
+=====================
+
+The CP method requires a geometry-specific **kernel function**
+:math:`F(\tau)` that encodes the angular averaging appropriate to the
+coordinate system.  The dimensionality of the geometry determines how
+much angular integration remains:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 20 30 35
+
+   * - Geometry
+     - Dimension
+     - Kernel :math:`F(\tau)`
+     - Why
+   * - Slab
+     - 1D
+     - :math:`E_3(\tau) = \int_0^1 \mu \, e^{-\tau/\mu} \, d\mu`
+     - Polar-angle integration over half-space
+   * - Cylinder
+     - 2D
+     - :math:`\text{Ki}_4(\tau) = \int_\tau^\infty \text{Ki}_3(t)\,dt`
+     - Azimuthal-angle integration around axis
+   * - Sphere
+     - 3D
+     - :math:`e^{-\tau}`
+     - Full symmetry — no residual angular integration
+
+In all three cases, the **reduced collision probability** is built from
+a **second-difference** of the kernel:
+
+.. math::
+   :label: second-diff-general
+
+   \Delta_2[F](\tau_i, \tau_j, g)
+   = F(g) - F(g + \tau_i) - F(g + \tau_j) + F(g + \tau_i + \tau_j)
+
+where :math:`g` is the optical gap between regions and :math:`\tau_i`,
+:math:`\tau_j` are the optical thicknesses of the source and target
+regions.
+
+This common structure is why all three geometries are handled by a
+single :class:`CPMesh` class.
 
 
 Slab Geometry: The E\ :sub:`3` Kernel
@@ -243,7 +338,8 @@ sub-regions, each with constant cross sections.
    ax.set_title('Slab Half-Cell Geometry')
    plt.tight_layout()
 
-This geometry is represented by :class:`SlabGeometry`.
+This geometry is built via :func:`~geometry.factories.pwr_slab_half_cell`
+with ``coord = CoordSystem.CARTESIAN``.
 
 
 The E\ :sub:`3` Function
@@ -307,21 +403,18 @@ path types:
    .. math::
       :label: self-slab
 
-      r_{ii} = \frac{1}{2} \Sigt{i} \left[
-        2 t_i - \frac{2}{\Sigt{i}} \left(\frac{1}{2} - E_3(\tau_i)\right)
-      \right]
+      r_{ii} = \Sigt{i} t_i - \bigl(E_3(0) - E_3(\tau_i)\bigr)
 
-The factor :math:`1/2` accounts for the direction averaging (neutrons
-go left or right with equal probability).  The total reduced CP is:
+The total reduced CP for :math:`i \ne j` is:
 
 .. math::
 
    r_{ij} = \frac{1}{2}(\delta_d + \delta_c)
 
 and the within-cell CP is :math:`P_{ij}^{\text{cell}} = r_{ij} /
-(\Sigt{i} \, t_i)`.
+(\Sigt{i} \, V_i)`, where :math:`V_i = t_i` for slab geometry.
 
-This is implemented in :func:`_compute_slab_cp_group`.
+This is implemented in :meth:`CPMesh._compute_slab_rcp`.
 
 
 Concentric Cylindrical Geometry: The Ki\ :sub:`3`/Ki\ :sub:`4` Kernel
@@ -372,11 +465,12 @@ annular regions: fuel, cladding, and coolant.
    ax.legend(loc='upper right', fontsize=11)
    ax.set_xlabel('x (cm)')
    ax.set_ylabel('y (cm)')
-   ax.set_title('Wigner–Seitz Cell with Chord Integration')
+   ax.set_title('Wigner\u2013Seitz Cell with Chord Integration')
    ax.grid(True, alpha=0.3)
    plt.tight_layout()
 
-This geometry is represented by :class:`CPGeometry`.
+This geometry is built via :func:`~geometry.factories.pwr_pin_equivalent`
+with ``coord = CoordSystem.CYLINDRICAL``.
 
 
 The Bickley–Naylor Functions
@@ -443,13 +537,13 @@ differences over all chord heights:
    :label: second-diff-cyl
 
    r_{ij} = 2 \int_0^{R_{\text{cell}}}
-     \left[\text{Ki}_4(g) - \text{Ki}_4(g + \tau_i)
-           - \text{Ki}_4(g + \tau_j) + \text{Ki}_4(g + \tau_i + \tau_j)\right] dy
+     \bigl[\text{Ki}_4(g) - \text{Ki}_4(g + \tau_i)
+           - \text{Ki}_4(g + \tau_j) + \text{Ki}_4(g + \tau_i + \tau_j)\bigr] \, dy
 
 where :math:`g` is the optical gap between regions :math:`i` and
-:math:`j` along the chord.  The factor 2 accounts for the left-half
-source symmetry (by symmetry of the annular geometry, contributions from
-the left and right halves of the chord are equal).
+:math:`j` along the chord.  The factor 2 accounts for the two halves
+of the chord (by symmetry of the annular geometry, contributions from
+the left and right halves are equal).
 
 Two path types contribute (same as the slab):
 
@@ -472,45 +566,170 @@ The :math:`y`-integration is performed with composite Gauss–Legendre
 quadrature, with breakpoints at each annular boundary to capture the
 chord-length discontinuities.
 
-This is implemented in :func:`_compute_cp_group`.
+This is implemented in :meth:`CPMesh._compute_radial_rcp` with
+``self._kernel = Ki₄``.
 
 
-Slab vs. Cylinder: A Comparison
----------------------------------
+Concentric Spherical Geometry: The Exponential Kernel
+======================================================
+
+Geometry
+--------
+
+The spherical cell consists of :math:`N` concentric spherical shells.
+As with the cylindrical Wigner–Seitz approximation, the outer boundary
+is a sphere (the natural shape for an isolated fuel particle, pebble, or
+TRISO kernel).
+
+The cell is built via :func:`~geometry.factories.mesh1d_from_zones`
+with ``coord = CoordSystem.SPHERICAL``.  Volumes are:
+
+.. math::
+   :label: sphere-volume
+
+   V_i = \frac{4}{3}\pi\bigl(R_i^3 - R_{i-1}^3\bigr)
+
+and the outer surface area is :math:`S = 4\pi R_{\text{cell}}^2`.
+
+
+The Exponential Kernel
+----------------------
+
+For a sphere, **full 3-D symmetry** means that no residual angular
+integration remains after the flat-source average.  The transmission
+kernel along a chord at impact parameter :math:`y` is simply:
+
+.. math::
+   :label: sphere-kernel
+
+   F(\tau) = e^{-\tau}
+
+Compare with slab (:math:`E_3`) and cylinder (:math:`\text{Ki}_4`),
+which encode 1-D and 2-D angular averages respectively.  The sphere
+needs no special functions at all.
+
+The values at zero optical thickness are:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 20
+
+   * - Kernel
+     - :math:`F(0)`
+   * - :math:`E_3(0)`
+     - :math:`1/2`
+   * - :math:`\text{Ki}_4(0)`
+     - tabulated (~0.4244)
+   * - :math:`e^{-0}`
+     - 1
+
+
+Chord Integration with :math:`y`-Weighting
+--------------------------------------------
+
+The chord geometry through concentric shells is **identical** to the
+cylindrical case — the same formula :eq:`chord-length` gives the
+half-chord length :math:`\ell_k(y)` through each shell.
+
+The difference is in the **quadrature weight**.  For a cylinder (2-D),
+each chord at height :math:`y` represents a line of sources, giving a
+weight proportional to :math:`dy`.  For a sphere (3-D), each chord
+represents a ring of sources with circumference :math:`2\pi y`, giving
+a weight proportional to :math:`y \, dy`:
 
 .. list-table::
    :header-rows: 1
    :widths: 30 35 35
 
+   * -
+     - Cylinder
+     - Sphere
+   * - Area element
+     - :math:`2\,dy` (line)
+     - :math:`2\pi y \, dy` (ring)
+   * - Quadrature weight
+     - :math:`w_i`
+     - :math:`w_i \cdot y_i`
+
+This is why the spherical setup in ``CPMesh._setup_spherical()``
+multiplies the Gauss–Legendre weights by the :math:`y`-coordinates.
+
+
+Second-Difference Formula (Spherical)
+--------------------------------------
+
+The reduced collision probability has the same structure as cylindrical,
+but with :math:`F = \exp(-\cdot)` and :math:`y`-weighted quadrature:
+
+.. math::
+   :label: second-diff-sph
+
+   r_{ij} = 2 \int_0^{R_{\text{cell}}}
+     \left[e^{-g} - e^{-(g + \tau_i)}
+           - e^{-(g + \tau_j)} + e^{-(g + \tau_i + \tau_j)}\right] y \, dy
+
+The self-collision term follows the same pattern:
+
+.. math::
+   :label: self-sph
+
+   r_{ii} = 2\Sigt{i} \int_0^{R_{\text{cell}}}
+     \left[2\ell_i(y) - \frac{2}{\Sigt{i}}
+       \left(1 - e^{-\tau_i(y)}\right)\right] y \, dy
+
+This is implemented by :meth:`CPMesh._compute_radial_rcp` — the
+**same code path as cylindrical**, parameterised by the kernel function
+and quadrature weights.
+
+
+Geometry Comparison
+====================
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 27 27 28
+
    * - Aspect
-     - Slab (1D Cartesian)
-     - Concentric Cylinder (1D Radial)
-   * - Kernel function
-     - :math:`E_3(x)` (exponential integral)
-     - :math:`\text{Ki}_3(x)` (Bickley–Naylor)
-   * - Antiderivative
-     - analytical (:math:`E_3` directly)
-     - :math:`\text{Ki}_4(x)` (tabulated)
+     - Slab (Cartesian)
+     - Cylinder (1D radial)
+     - Sphere (1D radial)
+   * - Kernel :math:`F(\tau)`
+     - :math:`E_3(\tau)`
+     - :math:`\text{Ki}_4(\tau)` (tabulated)
+     - :math:`e^{-\tau}`
+   * - :math:`F(0)`
+     - :math:`1/2`
+     - :math:`\approx 0.4244`
+     - :math:`1`
    * - Angular integration
-     - analytical (over :math:`\mu \in [0,1]`)
-     - numerical (:math:`y`-quadrature over chords)
+     - analytical (in :math:`E_3`)
+     - numerical (:math:`y`-quadrature)
+     - numerical (:math:`y`-quadrature)
+   * - Quadrature weight
+     - none (scalar)
+     - :math:`w_i`
+     - :math:`w_i \cdot y_i`
    * - Volume :math:`V_i`
-     - thickness :math:`t_i` (per unit transverse area)
-     - :math:`\pi(R_i^2 - R_{i-1}^2)` (per unit axial length)
-   * - Surface area :math:`S`
-     - 1 (unit transverse area)
+     - :math:`t_i`
+     - :math:`\pi(R_i^2 - R_{i-1}^2)`
+     - :math:`\tfrac{4}{3}\pi(R_i^3 - R_{i-1}^3)`
+   * - Surface :math:`S`
+     - 1
      - :math:`2\pi R_{\text{cell}}`
-   * - White BC correction
-     - :math:`P_{\text{in},j} = \Sigt{j} t_j P_{j,\text{out}}`
-     - :math:`P_{\text{in},j} = \Sigt{j} V_j P_{j,\text{out}} / S`
-   * - Implementation
-     - :func:`_compute_slab_cp_group`
-     - :func:`_compute_cp_group`
+     - :math:`4\pi R_{\text{cell}}^2`
+   * - Prefactor
+     - 1/2 (half-space)
+     - 2 (chord halves)
+     - 2 (chord halves)
+   * - Code path
+     - ``_compute_slab_rcp``
+     - ``_compute_radial_rcp``
+     - ``_compute_radial_rcp``
 
 Despite these differences, the **eigenvalue iteration is identical** for
-both geometries once :math:`P_{ij}^{\infty}` is built.  This is why the
-codebase uses a single :class:`CPSolver` class that takes
-:math:`P^{\infty}` as input.
+all geometries once :math:`P_{ij}^{\infty}` is built.  The white-BC
+closure is also geometry-agnostic when expressed in terms of
+``mesh.volumes`` and ``mesh.surfaces[-1]``.
 
 
 The Eigenvalue Problem
@@ -575,36 +794,50 @@ This is implemented in :class:`CPSolver`, which satisfies the
 Verification
 ============
 
-The CP implementation is verified against analytical eigenvalues
-computed from the CP matrix itself (see :doc:`verification`):
+The CP implementation is verified against semi-analytical eigenvalues
+computed from the CP matrix itself.  For each geometry, the derivation
+module (e.g., ``derivations/cp_sphere.py``) builds the :math:`P^{\infty}`
+matrix independently, assembles the :math:`A` and :math:`B` matrices of
+the generalised eigenvalue problem
+:math:`A^{-1}B\,\mathbf{v} = k\,\mathbf{v}`, and solves for :math:`k`
+via ``numpy.linalg.eigvals``.  The solver's power-iteration result must
+match this eigenvalue.
+
+27 verification cases are tested: {1, 2, 4} energy groups × {1, 2, 4}
+spatial regions × {slab, cylinder, sphere}.
 
 .. list-table::
    :header-rows: 1
+   :widths: 25 10 30 15
 
-   * - Benchmark
+   * - Geometry
      - Groups
-     - Geometry
-     - Error
-   * - 1G 2-region slab
-     - 1
-     - :math:`t_F = 0.5` cm, :math:`t_M = 0.5` cm
-     - :math:`< 6 \times 10^{-8}`
-   * - 2G 2-region slab
-     - 2
-     - :math:`t_F = 0.5` cm, :math:`t_M = 0.5` cm
-     - :math:`< 2 \times 10^{-7}`
-   * - 1G 2-region cylinder
-     - 1
-     - :math:`R_F = 0.5` cm, :math:`R_C = 1.0` cm
-     - :math:`< 5 \times 10^{-7}`
-   * - 2G 2-region cylinder
-     - 2
-     - :math:`R_F = 0.5` cm, :math:`R_C = 1.0` cm
-     - :math:`< 3 \times 10^{-6}`
+     - Regions
+     - Tolerance
+   * - Slab (E\ :sub:`3`)
+     - 1, 2, 4
+     - 1, 2, 4
+     - :math:`< 10^{-6}`
+   * - Cylinder (Ki\ :sub:`4`)
+     - 1, 2, 4
+     - 1, 2, 4
+     - :math:`< 10^{-5}`
+   * - Sphere (exp)
+     - 1, 2, 4
+     - 1, 2, 4
+     - :math:`< 10^{-5}`
 
-Run the full verification suite::
+Additionally, **algebraic property tests** are run for all three
+coordinate systems (parametrised via ``pytest.mark.parametrize``):
 
-   python 09.Collision.Probability/run_verification.py
+- **Row sums** :math:`= 1` (neutron conservation)
+- **Reciprocity**: :math:`\Sigt{i} V_i P_{ij} = \Sigt{j} V_j P_{ji}`
+- **Non-negativity**: :math:`P_{ij} \ge 0`
+- **Homogeneous limit**: 1-region :math:`P = 1`
+
+Run the verification::
+
+   pytest tests/test_cp_slab.py tests/test_cp_cylinder.py tests/test_cp_sphere.py tests/test_cp_properties.py -v
 
 
 References
