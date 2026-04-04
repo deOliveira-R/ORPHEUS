@@ -13,8 +13,8 @@ import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve(
 from pathlib import Path
 
 from data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
+from geometry import pwr_pin_equivalent
 from collision_probability import (
-    CPGeometry,
     CPParams,
     solve_cp_concentric,
 )
@@ -40,17 +40,20 @@ def main():
     materials = {2: fuel, 1: clad, 0: cool}
 
     # 2. Set up Wigner-Seitz cylindrical geometry
-    geom = CPGeometry.default_pwr(n_fuel=10, n_clad=3, n_cool=7)
+    mesh = pwr_pin_equivalent(n_fuel=10, n_clad=3, n_cool=7)
     params = CPParams()
 
-    print(f"\n  Geometry: r_fuel = {geom.r_fuel:.3f} cm, "
-          f"r_clad = {geom.r_clad:.3f} cm, r_cell = {geom.r_cell:.3f} cm")
-    print(f"  Sub-regions: {geom.n_fuel} fuel + {geom.n_clad} clad "
-          f"+ {geom.n_cool} cool = {geom.N} total")
+    n_fuel = (mesh.mat_ids == 2).sum()
+    n_clad = (mesh.mat_ids == 1).sum()
+    n_cool = (mesh.mat_ids == 0).sum()
+
+    print(f"\n  Geometry: r_cell = {mesh.edges[-1]:.3f} cm")
+    print(f"  Sub-regions: {n_fuel} fuel + {n_clad} clad "
+          f"+ {n_cool} cool = {mesh.N} total")
     print()
 
     # 3. Solve
-    result = solve_cp_concentric(materials, geom, params)
+    result = solve_cp_concentric(materials, mesh, params)
 
     # 4. Report
     print(f"\n  keff = {result.keff:.5f}  (SN slab reference: 1.04188)")
@@ -59,7 +62,7 @@ def main():
 
     # 5. Plots
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    plot_cp_geometry(geom, OUTPUT)
+    plot_cp_geometry(mesh, OUTPUT)
     plot_cp_convergence(result, OUTPUT)
     plot_cp_spectra(result, OUTPUT)
     plot_cp_radial_flux(result, OUTPUT)

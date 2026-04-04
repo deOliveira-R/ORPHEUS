@@ -6,8 +6,12 @@ probability method with white boundary condition for an infinite lattice.
 Two geometries are supported:
 
 * **Slab** — 1D half-cell with E₃ exponential-integral kernel.
+  Requires a :class:`~geometry.mesh.Mesh1D` with
+  ``coord = CoordSystem.CARTESIAN``.
 * **Concentric cylinders** — Wigner-Seitz cell with Ki₃/Ki₄
   Bickley-Naylor kernel and numerical y-quadrature.
+  Requires a :class:`~geometry.mesh.Mesh1D` with
+  ``coord = CoordSystem.CYLINDRICAL``.
 
 Both share the same power iteration: once the P_inf matrices are built,
 the eigenvalue solve is geometry-independent.
@@ -24,126 +28,8 @@ from scipy.special import expn
 
 from data.macro_xs.mixture import Mixture
 from data.macro_xs.cell_xs import CellXS, assemble_cell_xs
+from geometry import CoordSystem, Mesh1D
 from numerics.eigenvalue import power_iteration
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Geometry data structures
-# ═══════════════════════════════════════════════════════════════════════
-
-@dataclass
-class SlabGeometry:
-    """1D slab half-cell with sub-regions from centre (x=0) to edge (x=L).
-
-    For the collision probability formulation, the relevant "volume" per
-    unit transverse area is the thickness of each sub-region.
-    """
-
-    n_fuel: int
-    n_clad: int
-    n_cool: int
-    thicknesses: np.ndarray  # (N,) thickness of each sub-region (cm)
-    mat_ids: np.ndarray      # (N,) material ID: 2=fuel, 1=clad, 0=cool
-    N: int
-
-    @property
-    def volumes(self) -> np.ndarray:
-        """Per unit transverse area, volume = thickness (cm)."""
-        return self.thicknesses
-
-    @classmethod
-    def default_pwr(
-        cls,
-        n_fuel: int = 10,
-        n_clad: int = 3,
-        n_cool: int = 7,
-        fuel_half: float = 0.9,
-        clad_thick: float = 0.2,
-        cool_thick: float = 0.7,
-    ) -> SlabGeometry:
-        """Build equal-thickness sub-regions for each material zone."""
-        N = n_fuel + n_clad + n_cool
-        thicknesses = np.empty(N)
-        mat_ids = np.empty(N, dtype=int)
-
-        if n_fuel > 0:
-            thicknesses[:n_fuel] = fuel_half / n_fuel
-            mat_ids[:n_fuel] = 2
-        if n_clad > 0:
-            thicknesses[n_fuel:n_fuel + n_clad] = clad_thick / n_clad
-            mat_ids[n_fuel:n_fuel + n_clad] = 1
-        if n_cool > 0:
-            thicknesses[n_fuel + n_clad:] = cool_thick / n_cool
-            mat_ids[n_fuel + n_clad:] = 0
-
-        return cls(
-            n_fuel=n_fuel, n_clad=n_clad, n_cool=n_cool,
-            thicknesses=thicknesses, mat_ids=mat_ids, N=N,
-        )
-
-    @property
-    def half_cell(self) -> float:
-        return self.thicknesses.sum()
-
-
-@dataclass
-class CPGeometry:
-    """Wigner-Seitz cylindrical pin cell with annular sub-regions."""
-
-    r_fuel: float
-    r_clad: float
-    r_cell: float
-    n_fuel: int
-    n_clad: int
-    n_cool: int
-    radii: np.ndarray    # (N,) outer radius of each sub-region
-    volumes: np.ndarray  # (N,) area per unit height (cm²)
-    mat_ids: np.ndarray  # (N,) material ID: 2=fuel, 1=clad, 0=cool
-    N: int
-
-    @classmethod
-    def default_pwr(
-        cls,
-        n_fuel: int = 10,
-        n_clad: int = 3,
-        n_cool: int = 7,
-        r_fuel: float = 0.9,
-        r_clad: float = 1.1,
-        pitch: float = 3.6,
-    ) -> CPGeometry:
-        """Build equi-volume annular sub-regions for each material zone."""
-        r_cell = pitch / np.sqrt(np.pi)
-        N = n_fuel + n_clad + n_cool
-
-        radii = np.empty(N)
-        mat_ids = np.empty(N, dtype=int)
-
-        if n_fuel > 0:
-            for k in range(n_fuel):
-                radii[k] = r_fuel * np.sqrt((k + 1) / n_fuel)
-                mat_ids[k] = 2
-        if n_clad > 0:
-            for k in range(n_clad):
-                radii[n_fuel + k] = np.sqrt(
-                    r_fuel**2 + (k + 1) / n_clad * (r_clad**2 - r_fuel**2)
-                )
-                mat_ids[n_fuel + k] = 1
-        if n_cool > 0:
-            for k in range(n_cool):
-                radii[n_fuel + n_clad + k] = np.sqrt(
-                    r_clad**2 + (k + 1) / n_cool * (r_cell**2 - r_clad**2)
-                )
-                mat_ids[n_fuel + n_clad + k] = 0
-
-        r_inner = np.zeros(N)
-        r_inner[1:] = radii[:-1]
-        volumes = np.pi * (radii**2 - r_inner**2)
-
-        return cls(
-            r_fuel=r_fuel, r_clad=r_clad, r_cell=r_cell,
-            n_fuel=n_fuel, n_clad=n_clad, n_cool=n_cool,
-            radii=radii, volumes=volumes, mat_ids=mat_ids, N=N,
-        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -172,7 +58,7 @@ class CPResult:
     flux_fuel: np.ndarray
     flux_clad: np.ndarray
     flux_cool: np.ndarray
-    geometry: SlabGeometry | CPGeometry
+    geometry: Mesh1D
     eg: np.ndarray
     elapsed_seconds: float
 
@@ -324,7 +210,7 @@ def _e3(x):
 
 def _compute_slab_cp_group(
     sig_t_g: np.ndarray,
-    geom: SlabGeometry,
+    mesh: Mesh1D,
 ) -> np.ndarray:
     """Within-cell CP matrix for one energy group in slab geometry.
 
@@ -333,8 +219,8 @@ def _compute_slab_cp_group(
 
     Returns the infinite-lattice CP matrix P_inf (N, N).
     """
-    N = geom.N
-    t = geom.thicknesses
+    N = mesh.N
+    t = mesh.widths
     tau = sig_t_g * t
 
     bnd_pos = np.zeros(N + 1)
@@ -451,7 +337,7 @@ def _chord_half_lengths(radii, y_pts):
 
 def _compute_cp_group(
     sig_t_g: np.ndarray,
-    geom: CPGeometry,
+    mesh: Mesh1D,
     chords: np.ndarray,
     y_pts: np.ndarray,
     y_wts: np.ndarray,
@@ -464,8 +350,8 @@ def _compute_cp_group(
     Returns the infinite-lattice CP matrix P_inf (N, N) after applying
     the white boundary condition.
     """
-    N = geom.N
-    V = geom.volumes
+    N = mesh.N
+    V = mesh.volumes
     n_y = len(y_pts)
 
     tau = sig_t_g[:, None] * chords
@@ -522,7 +408,7 @@ def _compute_cp_group(
             P_cell[i, :] = rcp[i, :] / (sig_t_g[i] * V[i])
 
     P_out = np.maximum(1.0 - P_cell.sum(axis=1), 0.0)
-    S_cell = 2.0 * np.pi * geom.r_cell
+    S_cell = mesh.surfaces[-1]  # 2*pi*r_cell for cylindrical
     P_in = sig_t_g * V * P_out / S_cell
     P_inout = max(1.0 - P_in.sum(), 0.0)
 
@@ -539,41 +425,56 @@ def _compute_cp_group(
 
 def solve_cp_slab(
     materials: dict[int, Mixture],
-    geom: SlabGeometry | None = None,
+    mesh: Mesh1D | None = None,
     max_outer: int = 500,
     keff_tol: float = 1e-6,
     flux_tol: float = 1e-5,
 ) -> CPResult:
-    """Solve the slab collision probability eigenvalue problem."""
+    """Solve the slab collision probability eigenvalue problem.
+
+    Parameters
+    ----------
+    materials : dict[int, Mixture]
+        Macroscopic cross sections keyed by material ID.
+    mesh : Mesh1D, optional
+        Cartesian 1-D mesh (half-cell).  Defaults to a standard PWR
+        slab half-cell via :func:`geometry.factories.pwr_slab_half_cell`.
+    """
     t_start = time.perf_counter()
 
-    if geom is None:
-        geom = SlabGeometry.default_pwr()
+    if mesh is None:
+        from geometry import pwr_slab_half_cell
+        mesh = pwr_slab_half_cell()
+
+    if mesh.coord != CoordSystem.CARTESIAN:
+        raise ValueError(
+            f"CP slab solver requires CARTESIAN mesh, got {mesh.coord}"
+        )
 
     _any_mat = next(iter(materials.values()))
     eg = _any_mat.eg
     ng = _any_mat.ng
-    N = geom.N
+    N = mesh.N
 
-    xs = assemble_cell_xs(materials, geom.mat_ids)
+    xs = assemble_cell_xs(materials, mesh.mat_ids)
 
     # Build CP matrices using slab E₃ kernel
     print(f"  Computing slab CP matrices for {ng} groups, {N} regions ...")
     P_inf = np.empty((N, N, ng))
     for g in range(ng):
-        P_inf[:, :, g] = _compute_slab_cp_group(xs.sig_t[:, g], geom)
+        P_inf[:, :, g] = _compute_slab_cp_group(xs.sig_t[:, g], mesh)
         if (g + 1) % 100 == 0:
             print(f"    group {g + 1}/{ng}")
     print("  CP matrices done.")
 
     # Eigenvalue solve
     print("  Starting power iteration ...")
-    solver = CPSolver(P_inf, xs, geom.volumes, geom.mat_ids, materials,
+    solver = CPSolver(P_inf, xs, mesh.volumes, mesh.mat_ids, materials,
                       keff_tol=keff_tol, flux_tol=flux_tol)
     keff, keff_history, phi = power_iteration(solver, max_iter=max_outer)
 
     flux_fuel, flux_clad, flux_cool = _volume_averaged_fluxes(
-        phi, geom.volumes, geom.mat_ids)
+        phi, mesh.volumes, mesh.mat_ids)
 
     elapsed = time.perf_counter() - t_start
     print(f"  Elapsed: {elapsed:.1f}s")
@@ -581,35 +482,54 @@ def solve_cp_slab(
     return CPResult(
         keff=keff, keff_history=keff_history, flux=phi,
         flux_fuel=flux_fuel, flux_clad=flux_clad, flux_cool=flux_cool,
-        geometry=geom, eg=eg, elapsed_seconds=elapsed,
+        geometry=mesh, eg=eg, elapsed_seconds=elapsed,
     )
 
 
 def solve_cp_concentric(
     materials: dict[int, Mixture],
-    geom: CPGeometry | None = None,
+    mesh: Mesh1D | None = None,
     params: CPParams | None = None,
 ) -> CPResult:
-    """Solve the cylindrical collision probability eigenvalue problem."""
+    """Solve the cylindrical collision probability eigenvalue problem.
+
+    Parameters
+    ----------
+    materials : dict[int, Mixture]
+        Macroscopic cross sections keyed by material ID.
+    mesh : Mesh1D, optional
+        Cylindrical 1-D mesh (Wigner-Seitz equivalent cell).
+        Defaults to a standard PWR pin via
+        :func:`geometry.factories.pwr_pin_equivalent`.
+    params : CPParams, optional
+        Solver parameters (Ki table size, quadrature order, etc.).
+    """
     t_start = time.perf_counter()
 
-    if geom is None:
-        geom = CPGeometry.default_pwr()
+    if mesh is None:
+        from geometry import pwr_pin_equivalent
+        mesh = pwr_pin_equivalent()
     if params is None:
         params = CPParams()
+
+    if mesh.coord != CoordSystem.CYLINDRICAL:
+        raise ValueError(
+            f"CP concentric solver requires CYLINDRICAL mesh, got {mesh.coord}"
+        )
 
     _any_mat = next(iter(materials.values()))
     eg = _any_mat.eg
     ng = _any_mat.ng
-    N = geom.N
+    N = mesh.N
 
     print("  Building Ki3/Ki4 lookup tables ...")
     ki_x, _, ki4_v = _build_ki_tables(params.n_ki_table, params.ki_max)
 
-    xs = assemble_cell_xs(materials, geom.mat_ids)
+    xs = assemble_cell_xs(materials, mesh.mat_ids)
 
-    # y-quadrature (composite Gauss-Legendre)
-    breakpoints = np.concatenate(([0.0], geom.radii))
+    # y-quadrature (composite Gauss-Legendre over annular breakpoints)
+    radii = mesh.edges[1:]  # outer radius of each annulus
+    breakpoints = mesh.edges  # includes 0 at start
     gl_pts, gl_wts = np.polynomial.legendre.leggauss(params.n_quad_y)
     y_all, w_all = [], []
     for seg in range(len(breakpoints) - 1):
@@ -619,14 +539,14 @@ def solve_cp_concentric(
     y_pts = np.concatenate(y_all)
     y_wts = np.concatenate(w_all)
 
-    chords = _chord_half_lengths(geom.radii, y_pts)
+    chords = _chord_half_lengths(radii, y_pts)
 
     # Build CP matrices using cylindrical Ki₃/Ki₄ kernel
     print(f"  Computing CP matrices for {ng} groups, {N} regions ...")
     P_inf = np.empty((N, N, ng))
     for g in range(ng):
         P_inf[:, :, g] = _compute_cp_group(
-            xs.sig_t[:, g], geom, chords, y_pts, y_wts, ki_x, ki4_v,
+            xs.sig_t[:, g], mesh, chords, y_pts, y_wts, ki_x, ki4_v,
         )
         if (g + 1) % 100 == 0:
             print(f"    group {g + 1}/{ng}")
@@ -634,12 +554,12 @@ def solve_cp_concentric(
 
     # Eigenvalue solve
     print("  Starting power iteration ...")
-    solver = CPSolver(P_inf, xs, geom.volumes, geom.mat_ids, materials,
+    solver = CPSolver(P_inf, xs, mesh.volumes, mesh.mat_ids, materials,
                       keff_tol=params.keff_tol, flux_tol=params.flux_tol)
     keff, keff_history, phi = power_iteration(solver, max_iter=params.max_outer)
 
     flux_fuel, flux_clad, flux_cool = _volume_averaged_fluxes(
-        phi, geom.volumes, geom.mat_ids)
+        phi, mesh.volumes, mesh.mat_ids)
 
     elapsed = time.perf_counter() - t_start
     print(f"  Elapsed: {elapsed:.1f}s")
@@ -647,5 +567,5 @@ def solve_cp_concentric(
     return CPResult(
         keff=keff, keff_history=keff_history, flux=phi,
         flux_fuel=flux_fuel, flux_clad=flux_clad, flux_cool=flux_cool,
-        geometry=geom, eg=eg, elapsed_seconds=elapsed,
+        geometry=mesh, eg=eg, elapsed_seconds=elapsed,
     )

@@ -11,8 +11,9 @@ independent of any eigenvalue solver:
 import numpy as np
 import pytest
 
+from geometry import CoordSystem, Mesh1D, Zone, mesh1d_from_zones
 from collision_probability import (
-    SlabGeometry, CPGeometry, CPParams,
+    CPParams,
     _compute_slab_cp_group, _compute_cp_group,
     _build_ki_tables, _chord_half_lengths,
 )
@@ -25,29 +26,29 @@ def _slab_pinf_1g():
     """Build P_inf for a 1G 2-region slab."""
     xs_a = get_xs("A", "1g")
     xs_b = get_xs("B", "1g")
-    geom = SlabGeometry.default_pwr(
-        n_fuel=1, n_clad=0, n_cool=1,
-        fuel_half=0.5, clad_thick=0.0, cool_thick=0.5,
-    )
+    mesh = mesh1d_from_zones([
+        Zone(outer_edge=0.5, mat_id=0, n_cells=1),
+        Zone(outer_edge=1.0, mat_id=1, n_cells=1),
+    ], coord=CoordSystem.CARTESIAN)
     sig_t_g = np.array([xs_a["sig_t"][0], xs_b["sig_t"][0]])
-    return _compute_slab_cp_group(sig_t_g, geom), sig_t_g, geom.thicknesses
+    return _compute_slab_cp_group(sig_t_g, mesh), sig_t_g, mesh.widths
 
 
 def _cyl_pinf_1g():
     """Build P_inf for a 1G 2-region cylinder."""
     r_fuel, r_cell = 0.5, 1.0
-    pitch = r_cell * np.sqrt(np.pi)
-    geom = CPGeometry.default_pwr(
-        n_fuel=1, n_clad=0, n_cool=1,
-        r_fuel=r_fuel, r_clad=r_fuel, pitch=pitch,
-    )
+    mesh = mesh1d_from_zones([
+        Zone(outer_edge=r_fuel, mat_id=0, n_cells=1),
+        Zone(outer_edge=r_cell, mat_id=1, n_cells=1),
+    ], coord=CoordSystem.CYLINDRICAL)
     xs_a = get_xs("A", "1g")
     xs_b = get_xs("B", "1g")
     sig_t_g = np.array([xs_a["sig_t"][0], xs_b["sig_t"][0]])
     ki_x, _, ki4_v = _build_ki_tables(20000, 50.0)
 
+    radii = mesh.edges[1:]
     gl_pts, gl_wts = np.polynomial.legendre.leggauss(64)
-    breakpoints = np.concatenate(([0.0], geom.radii))
+    breakpoints = mesh.edges
     y_all, w_all = [], []
     for seg in range(len(breakpoints) - 1):
         a, b = breakpoints[seg], breakpoints[seg + 1]
@@ -55,10 +56,10 @@ def _cyl_pinf_1g():
         w_all.append(0.5 * (b - a) * gl_wts)
     y_pts = np.concatenate(y_all)
     y_wts = np.concatenate(w_all)
-    chords = _chord_half_lengths(geom.radii, y_pts)
+    chords = _chord_half_lengths(radii, y_pts)
 
-    P_inf = _compute_cp_group(sig_t_g, geom, chords, y_pts, y_wts, ki_x, ki4_v)
-    return P_inf, sig_t_g, geom.volumes
+    P_inf = _compute_cp_group(sig_t_g, mesh, chords, y_pts, y_wts, ki_x, ki4_v)
+    return P_inf, sig_t_g, mesh.volumes
 
 
 # ── Row sums (neutron conservation) ──────────────────────────────────
@@ -124,30 +125,28 @@ def test_cylinder_non_negativity():
 
 def test_slab_1region_homogeneous_limit():
     """1-region CP slab must give P=1 (all neutrons collide in the only region)."""
-    geom = SlabGeometry.default_pwr(
-        n_fuel=1, n_clad=0, n_cool=0,
-        fuel_half=0.5, clad_thick=0.0, cool_thick=0.0,
-    )
+    mesh = mesh1d_from_zones([
+        Zone(outer_edge=0.5, mat_id=0, n_cells=1),
+    ], coord=CoordSystem.CARTESIAN)
     sig_t_g = np.array([1.0])
-    P_inf = _compute_slab_cp_group(sig_t_g, geom)
+    P_inf = _compute_slab_cp_group(sig_t_g, mesh)
     np.testing.assert_allclose(P_inf[0, 0], 1.0, atol=1e-10)
 
 
 def test_cylinder_1region_homogeneous_limit():
     """1-region CP cylinder must give P=1."""
     r_cell = 1.0
-    pitch = r_cell * np.sqrt(np.pi)
-    geom = CPGeometry.default_pwr(
-        n_fuel=1, n_clad=0, n_cool=0,
-        r_fuel=r_cell, r_clad=r_cell, pitch=pitch,
-    )
+    mesh = mesh1d_from_zones([
+        Zone(outer_edge=r_cell, mat_id=0, n_cells=1),
+    ], coord=CoordSystem.CYLINDRICAL)
     sig_t_g = np.array([1.0])
     ki_x, _, ki4_v = _build_ki_tables(20000, 50.0)
 
+    radii = mesh.edges[1:]
     gl_pts, gl_wts = np.polynomial.legendre.leggauss(64)
     y_pts = 0.5 * r_cell * gl_pts + 0.5 * r_cell
     y_wts = 0.5 * r_cell * gl_wts
-    chords = _chord_half_lengths(geom.radii, y_pts)
+    chords = _chord_half_lengths(radii, y_pts)
 
-    P_inf = _compute_cp_group(sig_t_g, geom, chords, y_pts, y_wts, ki_x, ki4_v)
+    P_inf = _compute_cp_group(sig_t_g, mesh, chords, y_pts, y_wts, ki_x, ki4_v)
     np.testing.assert_allclose(P_inf[0, 0], 1.0, atol=1e-10)

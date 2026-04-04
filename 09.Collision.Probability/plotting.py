@@ -10,8 +10,8 @@ import numpy as np
 from matplotlib.patches import Circle
 
 if TYPE_CHECKING:
-    from collision_probability import CPGeometry, CPResult
-
+    from geometry import Mesh1D
+    from collision_probability import CPResult
 
 
 # Material colors
@@ -19,8 +19,20 @@ _MAT_COLORS = {2: "#d62728", 1: "#2ca02c", 0: "#1f77b4"}  # fuel, clad, cool
 _MAT_LABELS = {2: "Fuel", 1: "Cladding", 0: "Coolant"}
 
 
+def _material_boundaries(mesh: Mesh1D) -> list[tuple[float, str]]:
+    """Find edges where the material ID changes."""
+    boundaries = []
+    for i in range(mesh.N - 1):
+        if mesh.mat_ids[i] != mesh.mat_ids[i + 1]:
+            mid_left = mesh.mat_ids[i]
+            mid_right = mesh.mat_ids[i + 1]
+            label = f"{_MAT_LABELS.get(mid_left, str(mid_left))}/{_MAT_LABELS.get(mid_right, str(mid_right))}"
+            boundaries.append((mesh.edges[i + 1], label))
+    return boundaries
+
+
 def plot_cp_geometry(
-    geom: CPGeometry,
+    mesh: Mesh1D,
     output_dir: Path | str = ".",
     filename: str = "CP_01_geometry.pdf",
 ) -> None:
@@ -31,23 +43,24 @@ def plot_cp_geometry(
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.set_aspect("equal")
 
-    r_inner = np.concatenate(([0.0], geom.radii[:-1]))
+    radii = mesh.edges[1:]  # outer radius of each annulus
     plotted_labels = set()
 
     # Draw from outermost to innermost so inner rings overlap outer
-    for k in reversed(range(geom.N)):
-        mat_id = geom.mat_ids[k]
+    for k in reversed(range(mesh.N)):
+        mat_id = mesh.mat_ids[k]
         label = _MAT_LABELS[mat_id] if mat_id not in plotted_labels else None
         plotted_labels.add(mat_id)
 
         circle = Circle(
-            (0, 0), geom.radii[k],
+            (0, 0), radii[k],
             facecolor=_MAT_COLORS[mat_id], edgecolor="k",
             linewidth=0.3, alpha=0.7, label=label,
         )
         ax.add_patch(circle)
 
-    lim = geom.r_cell * 1.1
+    r_cell = mesh.edges[-1]
+    lim = r_cell * 1.1
     ax.set_xlim(-lim, lim)
     ax.set_ylim(-lim, lim)
     ax.set_xlabel("x (cm)")
@@ -111,11 +124,10 @@ def plot_cp_radial_flux(
     """Plot radial flux profile for thermal, resonance, and fast groups."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    geom = result.geometry
+    mesh = result.geometry
 
     # Mid-radius of each sub-region
-    r_inner = np.concatenate(([0.0], geom.radii[:-1]))
-    r_mid = 0.5 * (r_inner + geom.radii)
+    r_mid = mesh.centers
 
     # Group ranges (same convention as DO/MoC)
     FI_T = result.flux[:, :50].sum(axis=1)     # thermal < 1 eV
@@ -128,7 +140,7 @@ def plot_cp_radial_flux(
     ax.plot(r_mid, FI_T, "-ob", label="Thermal", markersize=4)
 
     # Mark material boundaries
-    for r, lbl in [(geom.r_fuel, "Fuel/Clad"), (geom.r_clad, "Clad/Cool")]:
+    for r, lbl in _material_boundaries(mesh):
         ax.axvline(r, color="gray", linestyle="--", linewidth=0.8)
 
     ax.set_xlabel("Radius (cm)")

@@ -12,7 +12,8 @@ import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve(
 from pathlib import Path
 
 from data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
-from collision_probability import SlabGeometry, solve_cp_slab
+from geometry import pwr_slab_half_cell
+from collision_probability import solve_cp_slab
 
 OUTPUT = Path("results")
 
@@ -29,17 +30,21 @@ def main():
     materials = {2: fuel, 1: clad, 0: cool}
 
     # Match SN geometry: fuel 0.9 cm, clad 0.2 cm, coolant 0.7 cm
-    geom = SlabGeometry.default_pwr(n_fuel=10, n_clad=3, n_cool=7)
+    mesh = pwr_slab_half_cell(n_fuel=10, n_clad=3, n_cool=7)
 
-    print(f"\n  Half-cell: {geom.half_cell:.3f} cm")
-    print(f"  Fuel: {geom.thicknesses[:geom.n_fuel].sum():.3f} cm")
-    print(f"  Clad: {geom.thicknesses[geom.n_fuel:geom.n_fuel+geom.n_clad].sum():.3f} cm")
-    print(f"  Cool: {geom.thicknesses[geom.n_fuel+geom.n_clad:].sum():.3f} cm")
-    print(f"  Sub-regions: {geom.n_fuel} fuel + {geom.n_clad} clad "
-          f"+ {geom.n_cool} cool = {geom.N} total")
+    n_fuel = (mesh.mat_ids == 2).sum()
+    n_clad = (mesh.mat_ids == 1).sum()
+    n_cool = (mesh.mat_ids == 0).sum()
+
+    print(f"\n  Half-cell: {mesh.total_width:.3f} cm")
+    print(f"  Fuel: {mesh.volumes[mesh.mat_ids == 2].sum():.3f} cm")
+    print(f"  Clad: {mesh.volumes[mesh.mat_ids == 1].sum():.3f} cm")
+    print(f"  Cool: {mesh.volumes[mesh.mat_ids == 0].sum():.3f} cm")
+    print(f"  Sub-regions: {n_fuel} fuel + {n_clad} clad "
+          f"+ {n_cool} cool = {mesh.N} total")
     print()
 
-    result = solve_cp_slab(materials, geom)
+    result = solve_cp_slab(materials, mesh)
 
     print(f"\n  keff = {result.keff:.5f}  (SN slab reference: 1.04188)")
     print(f"  Outer iterations: {len(result.keff_history)}")

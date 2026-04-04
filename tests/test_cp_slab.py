@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 
 from derivations import get
-from collision_probability import SlabGeometry, solve_cp_slab
+from geometry import CoordSystem, Mesh1D
+from collision_probability import solve_cp_slab
 
 
 @pytest.mark.parametrize("case_name", [
@@ -22,13 +23,14 @@ def test_slab_cp_eigenvalue(case_name):
     """Slab CP solver must match the analytical CP eigenvalue."""
     case = get(case_name)
     gp = case.geom_params
-    geom = SlabGeometry(
-        n_fuel=0, n_clad=0, n_cool=0,
-        thicknesses=np.array(gp["thicknesses"]),
+    thicknesses = np.array(gp["thicknesses"])
+    edges = np.concatenate([[0.0], np.cumsum(thicknesses)])
+    mesh = Mesh1D(
+        edges=edges,
         mat_ids=np.array(gp["mat_ids"]),
-        N=len(gp["thicknesses"]),
+        coord=CoordSystem.CARTESIAN,
     )
-    result = solve_cp_slab(case.materials, geom, keff_tol=1e-7, flux_tol=1e-6)
+    result = solve_cp_slab(case.materials, mesh, keff_tol=1e-7, flux_tol=1e-6)
 
     err = abs(result.keff - case.k_inf)
     assert err < 1e-6, (
