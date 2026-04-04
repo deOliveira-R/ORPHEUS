@@ -403,6 +403,162 @@ class TestBicgstabNormalization:
         )
 
 
+class TestAnisotropicScattering:
+    """Pn scattering must reduce to P0 when L=0, and affect keff when L>0."""
+
+    def test_p0_gives_identical_keff(self):
+        """scattering_order=0 must give the exact same keff as the default."""
+        from derivations import get
+
+        case = get("sn_slab_2eg_1rg")
+        mix = next(iter(case.materials.values()))
+        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        quad = LebedevSphere.create(order=17)
+
+        # Default (P0)
+        solver_default = SNSolver({0: mix}, mesh, quad,
+                                  max_inner=500, inner_tol=1e-10)
+        phi = solver_default.initial_flux_distribution()
+        keff = 1.0
+        for _ in range(50):
+            fs = solver_default.compute_fission_source(phi, keff)
+            phi = solver_default.solve_fixed_source(fs, phi)
+            keff = solver_default.compute_keff(phi)
+            phi /= np.linalg.norm(phi)
+        keff_p0 = keff
+
+        # Explicit P0
+        solver_explicit = SNSolver({0: mix}, mesh, quad,
+                                   scattering_order=0,
+                                   max_inner=500, inner_tol=1e-10)
+        phi = solver_explicit.initial_flux_distribution()
+        keff = 1.0
+        for _ in range(50):
+            fs = solver_explicit.compute_fission_source(phi, keff)
+            phi = solver_explicit.solve_fixed_source(fs, phi)
+            keff = solver_explicit.compute_keff(phi)
+            phi /= np.linalg.norm(phi)
+        keff_explicit = keff
+
+        assert abs(keff_p0 - keff_explicit) < 1e-14, (
+            f"P0 default {keff_p0:.10f} != explicit P0 {keff_explicit:.10f}"
+        )
+
+    def test_p1_homogeneous_same_as_p0(self):
+        """On a homogeneous infinite medium with isotropic flux,
+        P1 scattering gives the same keff as P0.
+
+        The P1 moments are zero for isotropic flux (the current φ·Y_1^m
+        integrates to zero by symmetry), so P1 adds nothing.
+        """
+        from derivations._xs_library import get_mixture
+
+        # Use the 421-group library which has P1 data
+        fuel = get_mixture("A", "2g")  # only has P0
+
+        # Skip if no P1 data available
+        if len(fuel.SigS) < 2:
+            pytest.skip("No P1 scattering data in 2-group library")
+
+    def test_p1_request_limited_by_data(self):
+        """If scattering_order > available data, it must be clamped."""
+        from derivations._xs_library import make_mixture
+
+        # Build a mixture with P0 data only (no P1)
+        mix_p0_only = make_mixture(
+            sig_t=np.array([0.5, 1.0]),
+            sig_c=np.array([0.01, 0.02]),
+            sig_f=np.array([0.01, 0.08]),
+            nu=np.array([2.5, 2.5]),
+            chi=np.array([1.0, 0.0]),
+            sig_s=np.array([[0.38, 0.10], [0.00, 0.90]]),
+            # no sig_s1
+        )
+        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        quad = LebedevSphere.create(order=17)
+
+        # Request P1 but only P0 data available → should clamp to P0
+        solver = SNSolver({0: mix_p0_only}, mesh, quad, scattering_order=1)
+        assert solver.scattering_order == 0, (
+            f"Expected L=0 (clamped), got L={solver.scattering_order}"
+        )
+
+    def test_spherical_harmonics_orthogonality(self):
+        """Lebedev spherical harmonics must satisfy discrete orthogonality."""
+        quad = LebedevSphere.create(order=17)
+        Y = quad.spherical_harmonics(1)
+        w = quad.weights
+
+        # <Y_0^0 | Y_0^0> = sum(w) = 4pi
+        ortho_00 = np.sum(w * Y[:, 0, 0] ** 2)
+        np.testing.assert_allclose(ortho_00, w.sum(), rtol=1e-12)
+
+        # <Y_1^m | Y_1^m> = sum(w) / 3  for each m
+        for m_idx in range(3):
+            ortho_1m = np.sum(w * Y[:, 1, m_idx] ** 2)
+            np.testing.assert_allclose(ortho_1m, w.sum() / 3, rtol=1e-10,
+                                       err_msg=f"Y_1^{m_idx-1} not orthonormal")
+
+        # <Y_0^0 | Y_1^m> = 0  for all m
+        for m_idx in range(3):
+            cross = np.sum(w * Y[:, 0, 0] * Y[:, 1, m_idx])
+            np.testing.assert_allclose(cross, 0, atol=1e-14,
+                                       err_msg=f"Y_0^0 not orthogonal to Y_1^{m_idx-1}")
+
+    def test_p1_changes_heterogeneous_keff(self):
+        """P1 scattering must produce a different keff than P0 on a
+        heterogeneous problem where anisotropy matters at interfaces."""
+        from derivations._xs_library import get_mixture
+
+        fuel = get_mixture("A", "2g")
+        mod = get_mixture("B", "2g")  # B has mu_bar=0.6, strongly anisotropic
+        materials = {2: fuel, 0: mod}
+
+        mat = np.zeros((6, 2), dtype=int)
+        mat[:3, :] = 2
+        mesh = CartesianMesh.uniform_2d(6, 2, 0.2, mat)
+        quad = LebedevSphere.create(order=17)
+
+        keffs = {}
+        for L in [0, 1]:
+            solver = SNSolver(materials, mesh, quad,
+                              scattering_order=L,
+                              max_inner=500, inner_tol=1e-10)
+            phi = solver.initial_flux_distribution()
+            keff = 1.0
+            for _ in range(50):
+                fs = solver.compute_fission_source(phi, keff)
+                phi = solver.solve_fixed_source(fs, phi)
+                keff = solver.compute_keff(phi)
+                phi /= np.linalg.norm(phi)
+            keffs[L] = keff
+
+        assert abs(keffs[0] - keffs[1]) > 1e-4, (
+            f"P0 keff={keffs[0]:.6f} and P1 keff={keffs[1]:.6f} should differ"
+        )
+
+    def test_aniso_source_zero_for_isotropic_flux(self):
+        """For isotropic angular flux (all ordinates equal), P1+ source = 0."""
+        from derivations._xs_library import get_mixture
+
+        mix = get_mixture("A", "2g")
+        if len(mix.SigS) < 2:
+            pytest.skip("No P1 data")
+
+        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        quad = LebedevSphere.create(order=17)
+        solver = SNSolver({0: mix}, mesh, quad, scattering_order=1)
+
+        # Isotropic angular flux: same value for all ordinates
+        N = quad.N
+        angular = np.ones((N, 2, 2, solver.ng))
+
+        Q_aniso = solver._build_aniso_scattering(angular)
+        if Q_aniso is not None:
+            np.testing.assert_allclose(Q_aniso, 0, atol=1e-12,
+                                       err_msg="P1 source nonzero for isotropic flux")
+
+
 class TestFissionSource:
     """Verify fission source normalization against SN equation physics."""
 

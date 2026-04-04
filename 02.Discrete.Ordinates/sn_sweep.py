@@ -24,6 +24,7 @@ def transport_sweep(
     mesh_dy: np.ndarray,
     quad: AngularQuadrature,
     psi_bc: dict,
+    Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Perform one full diamond-difference transport sweep.
 
@@ -36,6 +37,8 @@ def transport_sweep(
     quad : angular quadrature providing directions and weights.
     psi_bc : mutable dict storing persistent boundary fluxes
         for reflective BCs between outer iterations.
+    Q_aniso : (N, nx, ny, ng) per-ordinate anisotropic source (P1+
+        scattering). None for isotropic-only (P0).
 
     Returns
     -------
@@ -43,12 +46,13 @@ def transport_sweep(
     scalar_flux : (nx, ny, ng) = Σ_n w_n ψ_n.
     """
     ny = len(mesh_dy)
-    is_gl_1d = (ny == 1 and np.all(np.abs(quad.mu_y) < 1e-15))
+    is_gl_1d = (ny == 1 and np.all(np.abs(quad.mu_y) < 1e-15)
+                 and Q_aniso is None)
 
     if is_gl_1d:
         return _sweep_1d_cumprod(Q, sig_t, mesh_dx, quad, psi_bc)
     else:
-        return _sweep_2d_wavefront(Q, sig_t, mesh_dx, mesh_dy, quad, psi_bc)
+        return _sweep_2d_wavefront(Q, sig_t, mesh_dx, mesh_dy, quad, psi_bc, Q_aniso)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -61,8 +65,14 @@ def _sweep_1d_cumprod(
     dx: np.ndarray,
     quad: AngularQuadrature,
     psi_bc: dict,
+    Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """1D sweep using cumulative products for the DD recurrence."""
+    """1D sweep using cumulative products for the DD recurrence.
+
+    Note: Q_aniso is accepted but not used — the cumprod path assumes
+    isotropic source.  If Pn > 0 scattering is needed on a 1D mesh,
+    use the 2D wavefront (Lebedev quadrature on ny=1 mesh).
+    """
     nx = len(dx)
     ng = Q.shape[2]
     N = quad.N
@@ -153,6 +163,7 @@ def _sweep_2d_wavefront(
     dy: np.ndarray,
     quad: AngularQuadrature,
     psi_bc: dict,
+    Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """2D sweep using wavefront parallelism along anti-diagonals."""
     nx, ny, ng = Q.shape
@@ -200,16 +211,23 @@ def _sweep_2d_wavefront(
 
     # Precompute scaled source (avoids recomputing per diagonal)
     Q_scaled = Q * weight_norm
+    has_aniso = Q_aniso is not None
+    if has_aniso:
+        Q_aniso_scaled = Q_aniso * weight_norm  # (N, nx, ny, ng)
 
     for n in range(N):
         mx = mu_x[n]
         my = mu_y[n]
         w = weights[n]
 
+        # Per-ordinate source: isotropic + anisotropic (if present)
+        Q_n = Q_scaled
+        if has_aniso:
+            Q_n = Q_scaled + Q_aniso_scaled[n]  # (nx, ny, ng)
+
         if abs(mx) < 1e-15 and abs(my) < 1e-15:
             # Pure z-directed ordinate: no streaming in x or y.
-            # DD equation reduces to Σ_t · ψ = Q/(4π), i.e. ψ = Q·weight_norm/Σ_t.
-            psi_avg = Q_scaled / sig_t  # (nx, ny, ng)
+            psi_avg = Q_n / sig_t  # (nx, ny, ng)
             angular_flux[n, :, :, :] = psi_avg
             scalar_flux += w * psi_avg
             continue
@@ -247,7 +265,7 @@ def _sweep_2d_wavefront(
             denom = sig_t[ii, jj, :] + two_abs_mx / dx_ii + two_abs_my / dy_jj
 
             psi_avg = (
-                Q_scaled[ii, jj, :]
+                Q_n[ii, jj, :]
                 + two_abs_mx * psi_in_x / dx_ii
                 + two_abs_my * psi_in_y / dy_jj
             ) / denom
