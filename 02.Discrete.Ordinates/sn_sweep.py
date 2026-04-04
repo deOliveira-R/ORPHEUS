@@ -24,6 +24,7 @@ def transport_sweep(
     mesh_dy: np.ndarray,
     quad: AngularQuadrature,
     psi_bc: dict,
+    Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Perform one full diamond-difference transport sweep.
 
@@ -36,6 +37,8 @@ def transport_sweep(
     quad : angular quadrature providing directions and weights.
     psi_bc : mutable dict storing persistent boundary fluxes
         for reflective BCs between outer iterations.
+    Q_aniso : (N, nx, ny, ng) per-ordinate anisotropic source (P1+
+        scattering). None for isotropic-only (P0).
 
     Returns
     -------
@@ -43,12 +46,13 @@ def transport_sweep(
     scalar_flux : (nx, ny, ng) = Σ_n w_n ψ_n.
     """
     ny = len(mesh_dy)
-    is_1d = (ny == 1 and np.all(np.abs(quad.mu_y) < 1e-15))
+    is_gl_1d = (ny == 1 and np.all(np.abs(quad.mu_y) < 1e-15)
+                 and Q_aniso is None)
 
-    if is_1d:
+    if is_gl_1d:
         return _sweep_1d_cumprod(Q, sig_t, mesh_dx, quad, psi_bc)
     else:
-        return _sweep_2d_wavefront(Q, sig_t, mesh_dx, mesh_dy, quad, psi_bc)
+        return _sweep_2d_wavefront(Q, sig_t, mesh_dx, mesh_dy, quad, psi_bc, Q_aniso)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -61,8 +65,14 @@ def _sweep_1d_cumprod(
     dx: np.ndarray,
     quad: AngularQuadrature,
     psi_bc: dict,
+    Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """1D sweep using cumulative products for the DD recurrence."""
+    """1D sweep using cumulative products for the DD recurrence.
+
+    Note: Q_aniso is accepted but not used — the cumprod path assumes
+    isotropic source.  If Pn > 0 scattering is needed on a 1D mesh,
+    use the 2D wavefront (Lebedev quadrature on ny=1 mesh).
+    """
     nx = len(dx)
     ng = Q.shape[2]
     N = quad.N
@@ -153,6 +163,7 @@ def _sweep_2d_wavefront(
     dy: np.ndarray,
     quad: AngularQuadrature,
     psi_bc: dict,
+    Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """2D sweep using wavefront parallelism along anti-diagonals."""
     nx, ny, ng = Q.shape
@@ -176,31 +187,57 @@ def _sweep_2d_wavefront(
 
     weight_norm = 1.0 / weights.sum()
 
+    # Precompute diagonal indices per sweep direction (4 directions).
+    # Eliminates per-ordinate list comprehensions (110 → 4 computations).
+    _diag_cache: dict[tuple[int, int], tuple] = {}
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            ix_arr = np.arange(nx) if sx >= 0 else np.arange(nx - 1, -1, -1)
+            iy_arr = np.arange(ny) if sy >= 0 else np.arange(ny - 1, -1, -1)
+            diags = []
+            for k in range(nx + ny - 1):
+                i_start = max(0, k - ny + 1)
+                i_end = min(nx - 1, k)
+                local_i = np.arange(i_start, i_end + 1)
+                local_j = k - local_i
+                diags.append((ix_arr[local_i], iy_arr[local_j]))
+            _diag_cache[(sx, sy)] = (
+                0 if sx >= 0 else 1,   # ix_in
+                1 if sx >= 0 else 0,   # ix_out
+                0 if sy >= 0 else 1,   # iy_in
+                1 if sy >= 0 else 0,   # iy_out
+                diags,
+            )
+
+    # Precompute scaled source (avoids recomputing per diagonal)
+    Q_scaled = Q * weight_norm
+    has_aniso = Q_aniso is not None
+    if has_aniso:
+        Q_aniso_scaled = Q_aniso * weight_norm  # (N, nx, ny, ng)
+
     for n in range(N):
         mx = mu_x[n]
         my = mu_y[n]
         w = weights[n]
 
+        # Per-ordinate source: isotropic + anisotropic (if present)
+        Q_n = Q_scaled
+        if has_aniso:
+            Q_n = Q_scaled + Q_aniso_scaled[n]  # (nx, ny, ng)
+
         if abs(mx) < 1e-15 and abs(my) < 1e-15:
+            # Pure z-directed ordinate: no streaming in x or y.
+            psi_avg = Q_n / sig_t  # (nx, ny, ng)
+            angular_flux[n, :, :, :] = psi_avg
+            scalar_flux += w * psi_avg
             continue
 
         abs_mx = abs(mx)
         abs_my = abs(my)
 
-        # Sweep direction depends on sign of mu
-        if mx >= 0:
-            ix_range = range(nx)
-            ix_in, ix_out = 0, 1   # psi_x indexing offset
-        else:
-            ix_range = range(nx - 1, -1, -1)
-            ix_in, ix_out = 1, 0
-
-        if my >= 0:
-            iy_range = range(ny)
-            iy_in, iy_out = 0, 1
-        else:
-            iy_range = range(ny - 1, -1, -1)
-            iy_in, iy_out = 1, 0
+        # Look up precomputed diagonal indices for this sweep direction
+        key = (1 if mx >= 0 else -1, 1 if my >= 0 else -1)
+        ix_in, ix_out, iy_in, iy_out, diags = _diag_cache[key]
 
         # Reflective BC: incoming boundary flux from reflected partner
         if mx >= 0:
@@ -213,24 +250,10 @@ def _sweep_2d_wavefront(
         else:
             psi_y[n, :, ny, :] = psi_y[ref_y[n], :, ny, :]
 
-        # Wavefront sweep: cells on anti-diagonal k are independent
-        # For the sweep order determined by (sign(mx), sign(my)),
-        # we process diagonals in the appropriate order.
-        # Convert to local indices where sweep goes (0,0) → (nx-1,ny-1)
-        ix_list = list(ix_range)
-        iy_list = list(iy_range)
+        two_abs_mx = 2.0 * abs_mx
+        two_abs_my = 2.0 * abs_my
 
-        for k in range(nx + ny - 1):
-            # Cells on this anti-diagonal in local sweep coordinates
-            i_start = max(0, k - ny + 1)
-            i_end = min(nx - 1, k)
-            local_i = np.arange(i_start, i_end + 1)
-            local_j = k - local_i
-
-            # Map to actual grid indices
-            ii = np.array([ix_list[li] for li in local_i])
-            jj = np.array([iy_list[lj] for lj in local_j])
-
+        for ii, jj in diags:
             # Gather incoming face fluxes
             psi_in_x = psi_x[n, ii + ix_in, jj, :]   # (n_diag, ng)
             psi_in_y = psi_y[n, ii, jj + iy_in, :]    # (n_diag, ng)
@@ -239,13 +262,12 @@ def _sweep_2d_wavefront(
             dx_ii = dx[ii, None]  # (n_diag, 1) for broadcasting
             dy_jj = dy[jj, None]
 
-            denom = sig_t[ii, jj, :] + 2.0 * abs_mx / dx_ii + 2.0 * abs_my / dy_jj
-            Q_scaled = Q[ii, jj, :] * weight_norm
+            denom = sig_t[ii, jj, :] + two_abs_mx / dx_ii + two_abs_my / dy_jj
 
             psi_avg = (
-                Q_scaled
-                + 2.0 * abs_mx * psi_in_x / dx_ii
-                + 2.0 * abs_my * psi_in_y / dy_jj
+                Q_n[ii, jj, :]
+                + two_abs_mx * psi_in_x / dx_ii
+                + two_abs_my * psi_in_y / dy_jj
             ) / denom
 
             # Store outgoing face fluxes for next diagonal

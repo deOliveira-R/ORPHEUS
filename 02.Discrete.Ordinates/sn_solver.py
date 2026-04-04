@@ -93,12 +93,40 @@ class SNSolver:
         self.sig_p = xs.sig_p.reshape(nx, ny, self.ng)
         self.chi = xs.chi.reshape(nx, ny, self.ng)
 
-        # Scattering matrices per material (dense, P0 for now)
-        self.sig_s0: dict[int, np.ndarray] = {}
+        # Scattering matrices per material — all available Legendre orders
+        L = min(scattering_order, min(len(m.SigS) - 1 for m in materials.values()))
+        self.scattering_order = L
+        self.sig_s: dict[int, list[np.ndarray]] = {}
         self.sig2: dict[int, np.ndarray] = {}
         for mat_id, mix in materials.items():
-            self.sig_s0[mat_id] = np.array(mix.SigS[0].todense())
+            self.sig_s[mat_id] = [
+                np.array(mix.SigS[l].todense()) for l in range(L + 1)
+            ]
             self.sig2[mat_id] = np.array(mix.Sig2.todense())
+
+        # Backward-compatible alias: sig_s0[mid] = sig_s[mid][0]
+        self.sig_s0: dict[int, np.ndarray] = {
+            mid: mats[0] for mid, mats in self.sig_s.items()
+        }
+
+        # Precompute spherical harmonics if anisotropic scattering requested
+        if L > 0:
+            self._Y = quadrature.spherical_harmonics(L)  # (N, L+1, 2L+1)
+        else:
+            self._Y = None
+
+        # Pre-group cells by material for vectorized source computation
+        self._cells_by_mat: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+        for mat_id in materials:
+            ix, iy = np.where(mesh.mat_map == mat_id)
+            self._cells_by_mat[mat_id] = (ix, iy)
+
+        # Pre-computed sig2 row sums per material (for keff)
+        self._sig2_sum: dict[int, np.ndarray] = {}
+        for mat_id in materials:
+            self._sig2_sum[mat_id] = np.asarray(
+                self.sig2[mat_id].sum(axis=1)
+            ).ravel()
 
         # Weight normalization (1/sum(w) — works for both GL and Lebedev)
         self.weight_norm = 1.0 / quadrature.weights.sum()
@@ -138,12 +166,10 @@ class SNSolver:
         """k = production / absorption (volume-weighted)."""
         vol = self.volume[:, :, None]
         production = np.sum(self.sig_p * flux_distribution * vol)
-        # Add (n,2n) contribution to production
-        for ix in range(self.mesh.nx):
-            for iy in range(self.mesh.ny):
-                mid = int(self.mesh.mat_map[ix, iy])
-                sig2_sum = np.array(self.sig2[mid].sum(axis=1)).ravel()
-                production += 2.0 * np.dot(sig2_sum, flux_distribution[ix, iy, :]) * self.volume[ix, iy]
+        # Add (n,2n) contribution — vectorized by material
+        for mid, (ix, iy) in self._cells_by_mat.items():
+            n2n = flux_distribution[ix, iy, :] @ self._sig2_sum[mid]
+            production += 2.0 * np.dot(n2n, self.volume[ix, iy])
         absorption = np.sum(self.sig_a * flux_distribution * vol)
         return float(production / absorption)
 
@@ -166,19 +192,23 @@ class SNSolver:
     ) -> np.ndarray:
         """Scattering source iteration: sweep → update scatter → sweep → ..."""
         phi = flux_distribution.copy()
+        angular = None  # no angular flux on first iteration
 
         for n_inner in range(self.max_inner):
             phi_prev = phi.copy()
 
-            # Total source = fission + scattering + (n,2n)
+            # Isotropic source = fission + P0 scattering + (n,2n)
             Q = fission_source.copy()
             self._add_scattering_source(Q, phi)
             self._add_n2n_source(Q, phi)
 
+            # Anisotropic scattering (P1+ terms, None when L=0)
+            Q_aniso = self._build_aniso_scattering(angular)
+
             # Transport sweep
-            _, phi = transport_sweep(
+            angular, phi = transport_sweep(
                 Q, self.sig_t, self.mesh.dx, self.mesh.dy,
-                self.quad, self._psi_bc,
+                self.quad, self._psi_bc, Q_aniso=Q_aniso,
             )
 
             norm = np.linalg.norm(phi)
@@ -194,58 +224,129 @@ class SNSolver:
     def _solve_bicgstab(
         self, fission_source: np.ndarray, flux_distribution: np.ndarray,
     ) -> np.ndarray:
-        """BiCGSTAB solve of (T - S)φ = F.
+        """Direct Krylov solve of the angular transport equation.
 
-        Uses the transport sweep as the matvec for the streaming+collision
-        operator, with scattering on the RHS.
+        Solves  T·ψ = b  via BiCGSTAB where T = μ·∇ + Σ_t is the
+        streaming + collision operator (formed explicitly via finite
+        differences) and b = fission + scattering + (n,2n) sources.
+
+        Returns the updated scalar flux (nx, ny, ng).
         """
-        from scipy.sparse.linalg import LinearOperator, bicgstab
-
-        phi = flux_distribution.copy()
-        shape_flat = phi.size
-
-        # RHS: fission + scattering + (n,2n) from current phi
-        rhs = fission_source.copy()
-        self._add_scattering_source(rhs, phi)
-        self._add_n2n_source(rhs, phi)
-
-        def matvec(x_flat):
-            """Apply transport operator: T·φ (streaming + collision)."""
-            x = x_flat.reshape(phi.shape)
-            # Sweep with x as source, return Σ_t·φ_sweep (the LHS of the DD eq)
-            _, phi_sweep = transport_sweep(
-                x, self.sig_t, self.mesh.dx, self.mesh.dy,
-                self.quad, self._psi_bc,
-            )
-            return phi_sweep.ravel()
-
-        A_op = LinearOperator((shape_flat, shape_flat), matvec=matvec)
-        rhs_flat = rhs.ravel()
-
-        solution, info = bicgstab(
-            A_op, rhs_flat, x0=phi.ravel(),
-            rtol=self.inner_tol, maxiter=self.max_inner,
+        from scipy.sparse.linalg import bicgstab
+        from sn_operator import (
+            build_equation_map,
+            build_transport_linear_operator,
+            build_rhs,
+            solution_to_angular_flux,
+            angular_flux_to_scalar,
         )
 
-        return solution.reshape(phi.shape)
+        nx, ny, ng = self.mesh.nx, self.mesh.ny, self.ng
+        sum_w = float(self.quad.weights.sum())
+
+        # Build equation map and operator (could be cached, but clarity first)
+        if not hasattr(self, '_eq_map'):
+            self._eq_map = build_equation_map(nx, ny, self.quad, ng)
+            self._T_op = build_transport_linear_operator(
+                self._eq_map, self.quad, self.sig_t,
+                nx, ny, ng, self.mesh.dx, self.mesh.dy,
+            )
+
+        eq_map = self._eq_map
+        T_op = self._T_op
+
+        # Scalar flux from previous iterate (for scattering RHS)
+        phi = flux_distribution
+
+        # Fission source: divide by sum(weights) for angular equation
+        fission_src_norm = fission_source / sum_w
+
+        # Angular flux for Pn moment computation (from previous BiCGSTAB solve)
+        angular = None
+        if self.scattering_order > 0 and hasattr(self, '_psi_solution'):
+            angular = solution_to_angular_flux(
+                self._psi_solution, eq_map, self.quad, nx, ny, ng,
+            )
+
+        # Build full RHS (fission + scatter + n2n, all / sum(w))
+        rhs = build_rhs(
+            fission_src_norm, phi, eq_map, self.quad,
+            self.sig_s, self.sig2, self.mesh.mat_map,
+            nx, ny, ng,
+            scattering_order=self.scattering_order,
+            angular_flux=angular,
+        )
+
+        # Initial guess: convert previous angular flux or use zero
+        if hasattr(self, '_psi_solution'):
+            x0 = self._psi_solution
+        else:
+            x0 = np.ones(eq_map.n_unknowns)
+
+        # Solve T·ψ = b
+        solution, info = bicgstab(
+            T_op, rhs, x0=x0,
+            rtol=self.inner_tol, maxiter=self.max_inner,
+        )
+        self._psi_solution = solution
+
+        # Extract scalar flux from angular flux
+        fi = solution_to_angular_flux(solution, eq_map, self.quad, nx, ny, ng)
+        return angular_flux_to_scalar(fi, self.quad, nx, ny, ng)
 
     # ── Source computation helpers ────────────────────────────────────
 
     def _add_scattering_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        """Add P0 scattering source to Q in-place."""
-        nx, ny = self.mesh.nx, self.mesh.ny
-        for ix in range(nx):
-            for iy in range(ny):
-                mid = int(self.mesh.mat_map[ix, iy])
-                Q[ix, iy, :] += self.sig_s0[mid].T @ phi[ix, iy, :]
+        """Add P0 scattering source to Q in-place (vectorized by material)."""
+        for mid, (ix, iy) in self._cells_by_mat.items():
+            Q[ix, iy, :] += phi[ix, iy, :] @ self.sig_s0[mid]
+
+    def _build_aniso_scattering(
+        self, angular_flux: np.ndarray | None,
+    ) -> np.ndarray | None:
+        """Build per-ordinate anisotropic scattering source (P1+ terms).
+
+        Returns (N, nx, ny, ng) or None if scattering_order == 0 or
+        no angular flux is available yet.
+        """
+        if self.scattering_order == 0 or angular_flux is None:
+            return None
+
+        N = self.quad.N
+        nx, ny, ng = self.mesh.nx, self.mesh.ny, self.ng
+        L = self.scattering_order
+        Y = self._Y  # (N, L+1, 2L+1)
+        w = self.quad.weights
+
+        # Compute Legendre moments: fiL[x, y, g, l, l+m] = Σ_n w_n ψ_n Y_l^m(n)
+        fiL = np.zeros((nx, ny, ng, L + 1, 2 * L + 1))
+        for l in range(L + 1):
+            for m in range(-l, l + 1):
+                # (N,) * (N, nx, ny, ng) summed over N → (nx, ny, ng)
+                fiL[:, :, :, l, l + m] = np.einsum(
+                    'n,nxyg->xyg', w * Y[:, l, l + m], angular_flux,
+                )
+
+        # Build anisotropic source: only l >= 1 terms (P0 is in Q_iso)
+        Q_aniso = np.zeros((N, nx, ny, ng))
+        for mid, (ix, iy) in self._cells_by_mat.items():
+            n_cells = len(ix)
+            sig_s_l = self.sig_s[mid]
+            for l in range(1, L + 1):  # skip l=0 (handled by _add_scattering_source)
+                # Σ_m fiL[..., l, m] * Y_l^m(n) → reconstruct angular moment at ordinate n
+                for m in range(-l, l + 1):
+                    moment = fiL[ix, iy, :, l, l + m]  # (n_cells, ng)
+                    # (n_cells, ng) @ (ng, ng) → (n_cells, ng)
+                    scattered = moment @ sig_s_l[l]  # Σ_s^l @ fiL_lm
+                    for n in range(N):
+                        Q_aniso[n, ix, iy, :] += (2 * l + 1) * Y[n, l, l + m] * scattered
+
+        return Q_aniso
 
     def _add_n2n_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        """Add (n,2n) source to Q in-place."""
-        nx, ny = self.mesh.nx, self.mesh.ny
-        for ix in range(nx):
-            for iy in range(ny):
-                mid = int(self.mesh.mat_map[ix, iy])
-                Q[ix, iy, :] += 2.0 * (self.sig2[mid].T @ phi[ix, iy, :])
+        """Add (n,2n) source to Q in-place (vectorized by material)."""
+        for mid, (ix, iy) in self._cells_by_mat.items():
+            Q[ix, iy, :] += 2.0 * (phi[ix, iy, :] @ self.sig2[mid])
 
 
 # ═══════════════════════════════════════════════════════════════════════

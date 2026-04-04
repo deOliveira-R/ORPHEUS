@@ -5,6 +5,8 @@ ORPHEUS — Open Reactor Physics Educational University System
    :maxdepth: 2
    :caption: Theory & Derivations
 
+   theory/homogeneous
+   theory/discrete_ordinates
    theory/collision_probability
    theory/verification
 
@@ -14,6 +16,8 @@ ORPHEUS — Open Reactor Physics Educational University System
 
    api/numerics
    api/data
+   api/homogeneous
+   api/discrete_ordinates
    api/collision_probability
    api/derivations
 

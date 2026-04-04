@@ -16,6 +16,35 @@ from typing import Protocol, runtime_checkable
 import numpy as np
 
 
+def _build_spherical_harmonics(
+    L: int, mu_x: np.ndarray, mu_y: np.ndarray, mu_z: np.ndarray,
+) -> np.ndarray:
+    """Compute real spherical harmonics Y_l^m for all ordinates.
+
+    Convention (matching MATLAB ``discreteOrdinatesPWR.m``):
+        Y_0^0  = 1
+        Y_1^-1 = μ_z
+        Y_1^0  = μ_x
+        Y_1^+1 = μ_y
+
+    Returns shape (N, L+1, 2L+1) with Y[n, l, l+m].
+    """
+    N = len(mu_x)
+    Y = np.zeros((N, L + 1, 2 * L + 1))
+    for n in range(N):
+        for l in range(L + 1):
+            for m in range(-l, l + 1):
+                if l == 0 and m == 0:
+                    Y[n, l, l + m] = 1.0
+                elif l == 1 and m == -1:
+                    Y[n, l, l + m] = mu_z[n]
+                elif l == 1 and m == 0:
+                    Y[n, l, l + m] = mu_x[n]
+                elif l == 1 and m == 1:
+                    Y[n, l, l + m] = mu_y[n]
+    return Y
+
+
 @runtime_checkable
 class AngularQuadrature(Protocol):
     """Contract for any angular quadrature usable by the SN solver."""
@@ -27,6 +56,10 @@ class AngularQuadrature(Protocol):
 
     def reflection_index(self, axis: str) -> np.ndarray:
         """Index array: ref[n] = partner of ordinate n reflected in ``axis``."""
+        ...
+
+    def spherical_harmonics(self, L: int) -> np.ndarray:
+        """(N, L+1, 2L+1) real spherical harmonics Y[n, l, l+m]."""
         ...
 
 
@@ -41,6 +74,11 @@ class GaussLegendre1D:
     mu_y: np.ndarray
     weights: np.ndarray
     N: int
+
+    @property
+    def mu(self) -> np.ndarray:
+        """Alias for mu_x (the 1D direction cosines)."""
+        return self.mu_x
 
     @classmethod
     def create(cls, n_ordinates: int = 16) -> GaussLegendre1D:
@@ -60,6 +98,12 @@ class GaussLegendre1D:
         else:
             # y-reflection: mu_y=0, so every ordinate is its own partner
             return np.arange(self.N)
+
+    def spherical_harmonics(self, L: int) -> np.ndarray:
+        """1D harmonics: Y_0^0=1, Y_1^0=μ_x (only x-component in 1D)."""
+        return _build_spherical_harmonics(
+            L, self.mu_x, self.mu_y, np.zeros(self.N),
+        )
 
 
 @dataclass
@@ -104,6 +148,10 @@ class LebedevSphere:
         elif axis == "z":
             return self._ref_z
         raise ValueError(f"Unknown axis: {axis}")
+
+    def spherical_harmonics(self, L: int) -> np.ndarray:
+        """(N, L+1, 2L+1) real spherical harmonics for Lebedev ordinates."""
+        return _build_spherical_harmonics(L, self.mu_x, self.mu_y, self.mu_z)
 
 
 def _find_reflections(
