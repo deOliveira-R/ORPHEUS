@@ -100,6 +100,19 @@ class SNSolver:
             self.sig_s0[mat_id] = np.array(mix.SigS[0].todense())
             self.sig2[mat_id] = np.array(mix.Sig2.todense())
 
+        # Pre-group cells by material for vectorized source computation
+        self._cells_by_mat: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+        for mat_id in materials:
+            ix, iy = np.where(mesh.mat_map == mat_id)
+            self._cells_by_mat[mat_id] = (ix, iy)
+
+        # Pre-computed sig2 row sums per material (for keff)
+        self._sig2_sum: dict[int, np.ndarray] = {}
+        for mat_id in materials:
+            self._sig2_sum[mat_id] = np.asarray(
+                self.sig2[mat_id].sum(axis=1)
+            ).ravel()
+
         # Weight normalization (1/sum(w) — works for both GL and Lebedev)
         self.weight_norm = 1.0 / quadrature.weights.sum()
 
@@ -138,12 +151,10 @@ class SNSolver:
         """k = production / absorption (volume-weighted)."""
         vol = self.volume[:, :, None]
         production = np.sum(self.sig_p * flux_distribution * vol)
-        # Add (n,2n) contribution to production
-        for ix in range(self.mesh.nx):
-            for iy in range(self.mesh.ny):
-                mid = int(self.mesh.mat_map[ix, iy])
-                sig2_sum = np.array(self.sig2[mid].sum(axis=1)).ravel()
-                production += 2.0 * np.dot(sig2_sum, flux_distribution[ix, iy, :]) * self.volume[ix, iy]
+        # Add (n,2n) contribution — vectorized by material
+        for mid, (ix, iy) in self._cells_by_mat.items():
+            n2n = flux_distribution[ix, iy, :] @ self._sig2_sum[mid]
+            production += 2.0 * np.dot(n2n, self.volume[ix, iy])
         absorption = np.sum(self.sig_a * flux_distribution * vol)
         return float(production / absorption)
 
@@ -232,20 +243,15 @@ class SNSolver:
     # ── Source computation helpers ────────────────────────────────────
 
     def _add_scattering_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        """Add P0 scattering source to Q in-place."""
-        nx, ny = self.mesh.nx, self.mesh.ny
-        for ix in range(nx):
-            for iy in range(ny):
-                mid = int(self.mesh.mat_map[ix, iy])
-                Q[ix, iy, :] += self.sig_s0[mid].T @ phi[ix, iy, :]
+        """Add P0 scattering source to Q in-place (vectorized by material)."""
+        for mid, (ix, iy) in self._cells_by_mat.items():
+            # φ @ Σ_s  is equivalent to  (Σ_s^T @ φ^T)^T  for batched rows
+            Q[ix, iy, :] += phi[ix, iy, :] @ self.sig_s0[mid]
 
     def _add_n2n_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        """Add (n,2n) source to Q in-place."""
-        nx, ny = self.mesh.nx, self.mesh.ny
-        for ix in range(nx):
-            for iy in range(ny):
-                mid = int(self.mesh.mat_map[ix, iy])
-                Q[ix, iy, :] += 2.0 * (self.sig2[mid].T @ phi[ix, iy, :])
+        """Add (n,2n) source to Q in-place (vectorized by material)."""
+        for mid, (ix, iy) in self._cells_by_mat.items():
+            Q[ix, iy, :] += 2.0 * (phi[ix, iy, :] @ self.sig2[mid])
 
 
 # ═══════════════════════════════════════════════════════════════════════

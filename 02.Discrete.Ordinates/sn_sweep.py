@@ -176,31 +176,50 @@ def _sweep_2d_wavefront(
 
     weight_norm = 1.0 / weights.sum()
 
+    # Precompute diagonal indices per sweep direction (4 directions).
+    # Eliminates per-ordinate list comprehensions (110 → 4 computations).
+    _diag_cache: dict[tuple[int, int], tuple] = {}
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            ix_arr = np.arange(nx) if sx >= 0 else np.arange(nx - 1, -1, -1)
+            iy_arr = np.arange(ny) if sy >= 0 else np.arange(ny - 1, -1, -1)
+            diags = []
+            for k in range(nx + ny - 1):
+                i_start = max(0, k - ny + 1)
+                i_end = min(nx - 1, k)
+                local_i = np.arange(i_start, i_end + 1)
+                local_j = k - local_i
+                diags.append((ix_arr[local_i], iy_arr[local_j]))
+            _diag_cache[(sx, sy)] = (
+                0 if sx >= 0 else 1,   # ix_in
+                1 if sx >= 0 else 0,   # ix_out
+                0 if sy >= 0 else 1,   # iy_in
+                1 if sy >= 0 else 0,   # iy_out
+                diags,
+            )
+
+    # Precompute scaled source (avoids recomputing per diagonal)
+    Q_scaled = Q * weight_norm
+
     for n in range(N):
         mx = mu_x[n]
         my = mu_y[n]
         w = weights[n]
 
         if abs(mx) < 1e-15 and abs(my) < 1e-15:
+            # Pure z-directed ordinate: no streaming in x or y.
+            # DD equation reduces to Σ_t · ψ = Q/(4π), i.e. ψ = Q·weight_norm/Σ_t.
+            psi_avg = Q_scaled / sig_t  # (nx, ny, ng)
+            angular_flux[n, :, :, :] = psi_avg
+            scalar_flux += w * psi_avg
             continue
 
         abs_mx = abs(mx)
         abs_my = abs(my)
 
-        # Sweep direction depends on sign of mu
-        if mx >= 0:
-            ix_range = range(nx)
-            ix_in, ix_out = 0, 1   # psi_x indexing offset
-        else:
-            ix_range = range(nx - 1, -1, -1)
-            ix_in, ix_out = 1, 0
-
-        if my >= 0:
-            iy_range = range(ny)
-            iy_in, iy_out = 0, 1
-        else:
-            iy_range = range(ny - 1, -1, -1)
-            iy_in, iy_out = 1, 0
+        # Look up precomputed diagonal indices for this sweep direction
+        key = (1 if mx >= 0 else -1, 1 if my >= 0 else -1)
+        ix_in, ix_out, iy_in, iy_out, diags = _diag_cache[key]
 
         # Reflective BC: incoming boundary flux from reflected partner
         if mx >= 0:
@@ -213,24 +232,10 @@ def _sweep_2d_wavefront(
         else:
             psi_y[n, :, ny, :] = psi_y[ref_y[n], :, ny, :]
 
-        # Wavefront sweep: cells on anti-diagonal k are independent
-        # For the sweep order determined by (sign(mx), sign(my)),
-        # we process diagonals in the appropriate order.
-        # Convert to local indices where sweep goes (0,0) → (nx-1,ny-1)
-        ix_list = list(ix_range)
-        iy_list = list(iy_range)
+        two_abs_mx = 2.0 * abs_mx
+        two_abs_my = 2.0 * abs_my
 
-        for k in range(nx + ny - 1):
-            # Cells on this anti-diagonal in local sweep coordinates
-            i_start = max(0, k - ny + 1)
-            i_end = min(nx - 1, k)
-            local_i = np.arange(i_start, i_end + 1)
-            local_j = k - local_i
-
-            # Map to actual grid indices
-            ii = np.array([ix_list[li] for li in local_i])
-            jj = np.array([iy_list[lj] for lj in local_j])
-
+        for ii, jj in diags:
             # Gather incoming face fluxes
             psi_in_x = psi_x[n, ii + ix_in, jj, :]   # (n_diag, ng)
             psi_in_y = psi_y[n, ii, jj + iy_in, :]    # (n_diag, ng)
@@ -239,13 +244,12 @@ def _sweep_2d_wavefront(
             dx_ii = dx[ii, None]  # (n_diag, 1) for broadcasting
             dy_jj = dy[jj, None]
 
-            denom = sig_t[ii, jj, :] + 2.0 * abs_mx / dx_ii + 2.0 * abs_my / dy_jj
-            Q_scaled = Q[ii, jj, :] * weight_norm
+            denom = sig_t[ii, jj, :] + two_abs_mx / dx_ii + two_abs_my / dy_jj
 
             psi_avg = (
-                Q_scaled
-                + 2.0 * abs_mx * psi_in_x / dx_ii
-                + 2.0 * abs_my * psi_in_y / dy_jj
+                Q_scaled[ii, jj, :]
+                + two_abs_mx * psi_in_x / dx_ii
+                + two_abs_my * psi_in_y / dy_jj
             ) / denom
 
             # Store outgoing face fluxes for next diagonal
