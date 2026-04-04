@@ -170,6 +170,47 @@ def pwr_pin_equivalent(
     return mesh1d_from_zones(zones, coord=CoordSystem.CYLINDRICAL)
 
 
+def homogeneous_1d(
+    n_cells: int,
+    total_width: float,
+    mat_id: int = 0,
+    coord: CoordSystem = CoordSystem.CARTESIAN,
+) -> Mesh1D:
+    """Uniform 1-D mesh with a single material.
+
+    Parameters
+    ----------
+    n_cells : int
+        Number of cells.
+    total_width : float
+        Total extent (thickness for Cartesian, outer radius for
+        cylindrical/spherical).
+    mat_id : int
+        Material identifier for all cells.
+    coord : CoordSystem
+        Coordinate system (determines subdivision strategy).
+    """
+    zones = [Zone(outer_edge=total_width, mat_id=mat_id, n_cells=n_cells)]
+    return mesh1d_from_zones(zones, coord=coord)
+
+
+def slab_fuel_moderator(
+    n_fuel: int,
+    n_mod: int,
+    t_fuel: float,
+    t_mod: float,
+) -> Mesh1D:
+    """1-D Cartesian slab benchmark: fuel + moderator.
+
+    Material IDs: 2 = fuel (inner), 0 = moderator (outer).
+    """
+    zones = [
+        Zone(outer_edge=t_fuel, mat_id=2, n_cells=n_fuel),
+        Zone(outer_edge=t_fuel + t_mod, mat_id=0, n_cells=n_mod),
+    ]
+    return mesh1d_from_zones(zones, coord=CoordSystem.CARTESIAN)
+
+
 def pwr_pin_2d(
     radii: list[float] | None = None,
     mat_ids: list[int] | None = None,

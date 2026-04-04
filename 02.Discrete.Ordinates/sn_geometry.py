@@ -1,146 +1,123 @@
-"""Cartesian mesh geometry for SN transport.
+r"""Augmented geometry for S\ :sub:`N` discrete ordinates transport.
 
-A 2D Cartesian mesh where 1D is the degenerate case ny=1.
-Boundary conditions are reflective on all sides (infinite lattice).
+:class:`SNMesh` wraps a :class:`~geometry.mesh.Mesh1D` or
+:class:`~geometry.mesh.Mesh2D` and precomputes the coordinate-specific
+streaming stencil used by the transport sweep.
+
+Currently only Cartesian coordinates are implemented.  Cylindrical and
+spherical geometries will add curvature/angular-redistribution terms to
+the stencil.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import numpy as np
 
+from geometry import CoordSystem, Mesh1D, Mesh2D
+from sn_quadrature import AngularQuadrature
 
-@dataclass
-class CartesianMesh:
-    """1D or 2D Cartesian mesh with per-cell material assignment.
 
-    For 1D slab problems, set ny=1 and dy=[1.0] (arbitrary — the
-    y-streaming term vanishes when mu_y=0 for GL quadrature).
+class SNMesh:
+    """Augmented geometry for the discrete ordinates method.
 
-    Attributes
+    Wraps a :class:`~geometry.mesh.Mesh1D` or :class:`~geometry.mesh.Mesh2D`
+    and precomputes the streaming stencil (diamond-difference coefficients
+    that depend only on geometry and angular quadrature, not on cross
+    sections).
+
+    For Cartesian geometry the stencil stores:
+
+    * ``streaming_x[n, i]`` = :math:`2|\\mu_{x,n}| / \\Delta x_i`
+    * ``streaming_y[n, j]`` = :math:`2|\\mu_{y,n}| / \\Delta y_j`
+
+    For future curvilinear geometries, additional curvature terms
+    (:math:`\\alpha_n / r_i`) will be stored in ``self.curvature``.
+
+    Parameters
     ----------
-    nx, ny : mesh dimensions
-    dx : (nx,) cell widths in x (cm)
-    dy : (ny,) cell widths in y (cm)
-    mat_map : (nx, ny) integer material IDs
+    mesh : Mesh1D or Mesh2D
+        Base geometry.
+    quadrature : AngularQuadrature
+        Angular quadrature (Gauss–Legendre, Lebedev, etc.).
     """
 
-    nx: int
-    ny: int
-    dx: np.ndarray
-    dy: np.ndarray
-    mat_map: np.ndarray
+    def __init__(
+        self,
+        mesh: Mesh1D | Mesh2D,
+        quadrature: AngularQuadrature,
+    ) -> None:
+        self.mesh = mesh
+        self.quad = quadrature
+
+        # Normalise to (nx, ny) shaped arrays for both 1-D and 2-D
+        if isinstance(mesh, Mesh1D):
+            self.nx: int = mesh.N
+            self.ny: int = 1
+            self.dx: np.ndarray = mesh.widths
+            self.dy: np.ndarray = np.array([1.0])
+            self.mat_map: np.ndarray = mesh.mat_ids.reshape(mesh.N, 1)
+            self._volumes: np.ndarray = mesh.volumes.reshape(mesh.N, 1)
+        else:
+            self.nx = mesh.nx
+            self.ny = mesh.ny
+            self.dx = mesh.dx
+            self.dy = mesh.dy
+            self.mat_map = mesh.mat_map
+            self._volumes = mesh.volumes
+
+        # Dispatch stencil setup by coordinate system
+        match mesh.coord:
+            case CoordSystem.CARTESIAN:
+                self._setup_cartesian()
+            case CoordSystem.CYLINDRICAL:
+                raise NotImplementedError(
+                    "Cylindrical SN transport not yet implemented. "
+                    "Requires angular redistribution terms."
+                )
+            case CoordSystem.SPHERICAL:
+                raise NotImplementedError(
+                    "Spherical SN transport not yet implemented. "
+                    "Requires angular redistribution terms."
+                )
+
+    # ── Properties ────────────────────────────────────────────────────
+
+    @property
+    def volumes(self) -> np.ndarray:
+        """Cell volumes, shape (nx, ny)."""
+        return self._volumes
 
     @property
     def is_1d(self) -> bool:
-        """True if this is a 1D mesh (ny=1)."""
+        """True if this is a 1-D mesh (ny == 1)."""
         return self.ny == 1
 
-    @property
-    def volume(self) -> np.ndarray:
-        """(nx, ny) cell volumes (full — no boundary halving).
+    # ── Stencil setup ─────────────────────────────────────────────────
 
-        With reflective BCs (infinite lattice), boundary cells are
-        full-size cells at the symmetry plane, not half-cells.
+    def _setup_cartesian(self) -> None:
+        """Precompute Cartesian diamond-difference streaming coefficients.
+
+        These are the purely geometric parts of the DD denominator:
+
+        .. math::
+
+            \\text{denom} = \\Sigma_t + \\frac{2|\\mu_x|}{\\Delta x}
+                            + \\frac{2|\\mu_y|}{\\Delta y}
+
+        Precomputing avoids per-ordinate per-cell divisions in the
+        inner sweep loop.
         """
-        return self.dx[:, None] * self.dy[None, :]
+        mu_x = self.quad.mu_x
+        mu_y = self.quad.mu_y
 
-    # ── 1D factories ──────────────────────────────────────────────────
-
-    @classmethod
-    def from_slab_1d(
-        cls,
-        cell_widths: np.ndarray,
-        mat_ids: np.ndarray,
-    ) -> CartesianMesh:
-        """Build a 1D mesh (ny=1) from cell widths and material IDs."""
-        nx = len(cell_widths)
-        return cls(
-            nx=nx, ny=1,
-            dx=np.asarray(cell_widths, dtype=float),
-            dy=np.array([1.0]),
-            mat_map=np.asarray(mat_ids, dtype=int).reshape(nx, 1),
+        # streaming_x[n, i] = 2|μ_x[n]| / dx[i] — shape (N_ord, nx)
+        self.streaming_x: np.ndarray = (
+            2.0 * np.abs(mu_x)[:, None] / self.dx[None, :]
+        )
+        # streaming_y[n, j] = 2|μ_y[n]| / dy[j] — shape (N_ord, ny)
+        self.streaming_y: np.ndarray = (
+            2.0 * np.abs(mu_y)[:, None] / self.dy[None, :]
         )
 
-    @classmethod
-    def from_regions(
-        cls,
-        thicknesses: list[float],
-        mat_ids: list[int],
-        n_cells_per_region: int = 10,
-    ) -> CartesianMesh:
-        """Build a 1D multi-region mesh."""
-        dx_list = []
-        mid_list = []
-        for t, mid in zip(thicknesses, mat_ids):
-            d = t / n_cells_per_region
-            dx_list.append(np.full(n_cells_per_region, d))
-            mid_list.append(np.full(n_cells_per_region, mid, dtype=int))
-        dx = np.concatenate(dx_list)
-        mids = np.concatenate(mid_list)
-        return cls.from_slab_1d(dx, mids)
-
-    @classmethod
-    def homogeneous_1d(
-        cls,
-        n_cells: int,
-        total_width: float,
-        mat_id: int = 0,
-    ) -> CartesianMesh:
-        """Build a homogeneous 1D mesh."""
-        dx = np.full(n_cells, total_width / n_cells)
-        mids = np.full(n_cells, mat_id, dtype=int)
-        return cls.from_slab_1d(dx, mids)
-
-    @classmethod
-    def from_benchmark(
-        cls,
-        n_fuel: int,
-        n_mod: int,
-        t_fuel: float,
-        t_mod: float,
-    ) -> CartesianMesh:
-        """Build a 1D fuel + moderator benchmark slab.
-
-        Material IDs: 2 = fuel, 0 = moderator.
-        """
-        dx = np.concatenate([
-            np.full(n_fuel, t_fuel / n_fuel),
-            np.full(n_mod, t_mod / n_mod),
-        ])
-        mids = np.concatenate([
-            np.full(n_fuel, 2, dtype=int),
-            np.full(n_mod, 0, dtype=int),
-        ])
-        return cls.from_slab_1d(dx, mids)
-
-    # ── 2D factories ──────────────────────────────────────────────────
-
-    @classmethod
-    def uniform_2d(
-        cls,
-        nx: int,
-        ny: int,
-        delta: float,
-        mat_map: np.ndarray,
-    ) -> CartesianMesh:
-        """Build a 2D mesh with uniform cell size."""
-        return cls(
-            nx=nx, ny=ny,
-            dx=np.full(nx, delta),
-            dy=np.full(ny, delta),
-            mat_map=np.asarray(mat_map, dtype=int),
-        )
-
-    @classmethod
-    def default_pwr_2d(cls, nx: int = 10, ny: int = 10, delta: float = 0.2) -> CartesianMesh:
-        """Standard PWR pin cell: fuel + clad + coolant columns."""
-        n_fuel = nx // 2
-        n_clad = 1
-        n_cool = nx - n_fuel - n_clad
-        row = np.array(
-            [2] * n_fuel + [1] * n_clad + [0] * n_cool, dtype=int,
-        )
-        mat = np.tile(row, (ny, 1)).T  # (nx, ny)
-        return cls.uniform_2d(nx, ny, delta, mat)
+        # Curvature terms (None for Cartesian — placeholder for curvilinear)
+        self.curvature = None

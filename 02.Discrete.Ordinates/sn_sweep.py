@@ -6,23 +6,26 @@ Two paths, automatically dispatched:
 - **2D wavefront**: for general 2D. Sweeps cells along anti-diagonals
   (i+j=const), vectorized within each diagonal.
 
-Both paths produce the same result: the scalar flux φ(x,y,g)
-integrated from the angular flux over all quadrature directions.
+Both paths use the precomputed streaming stencil from :class:`SNMesh`
+to avoid redundant per-ordinate per-cell divisions.
 """
 
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from sn_quadrature import AngularQuadrature
 
+if TYPE_CHECKING:
+    from sn_geometry import SNMesh
+
 
 def transport_sweep(
     Q: np.ndarray,
     sig_t: np.ndarray,
-    mesh_dx: np.ndarray,
-    mesh_dy: np.ndarray,
-    quad: AngularQuadrature,
+    sn_mesh: SNMesh,
     psi_bc: dict,
     Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -32,9 +35,7 @@ def transport_sweep(
     ----------
     Q : (nx, ny, ng) isotropic source density.
     sig_t : (nx, ny, ng) total macroscopic cross section.
-    mesh_dx : (nx,) cell widths in x.
-    mesh_dy : (ny,) cell widths in y.
-    quad : angular quadrature providing directions and weights.
+    sn_mesh : SNMesh — augmented geometry with precomputed stencil.
     psi_bc : mutable dict storing persistent boundary fluxes
         for reflective BCs between outer iterations.
     Q_aniso : (N, nx, ny, ng) per-ordinate anisotropic source (P1+
@@ -45,14 +46,15 @@ def transport_sweep(
     angular_flux : (N, nx, ny, ng) angular flux per ordinate.
     scalar_flux : (nx, ny, ng) = Σ_n w_n ψ_n.
     """
-    ny = len(mesh_dy)
+    quad = sn_mesh.quad
+    ny = sn_mesh.ny
     is_gl_1d = (ny == 1 and np.all(np.abs(quad.mu_y) < 1e-15)
                  and Q_aniso is None)
 
     if is_gl_1d:
-        return _sweep_1d_cumprod(Q, sig_t, mesh_dx, quad, psi_bc)
+        return _sweep_1d_cumprod(Q, sig_t, sn_mesh, psi_bc)
     else:
-        return _sweep_2d_wavefront(Q, sig_t, mesh_dx, mesh_dy, quad, psi_bc, Q_aniso)
+        return _sweep_2d_wavefront(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -62,21 +64,20 @@ def transport_sweep(
 def _sweep_1d_cumprod(
     Q: np.ndarray,
     sig_t: np.ndarray,
-    dx: np.ndarray,
-    quad: AngularQuadrature,
+    sn_mesh: SNMesh,
     psi_bc: dict,
     Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """1D sweep using cumulative products for the DD recurrence.
 
-    Note: Q_aniso is accepted but not used — the cumprod path assumes
-    isotropic source.  If Pn > 0 scattering is needed on a 1D mesh,
-    use the 2D wavefront (Lebedev quadrature on ny=1 mesh).
+    Uses the precomputed streaming stencil from SNMesh:
+    streaming_x[n, i] = 2|μ_x[n]| / dx[i].
     """
+    dx = sn_mesh.dx
     nx = len(dx)
     ng = Q.shape[2]
+    quad = sn_mesh.quad
     N = quad.N
-    mu_x = quad.mu_x
     weights = quad.weights
     ref_x = quad.reflection_index("x")
 
@@ -86,7 +87,7 @@ def _sweep_1d_cumprod(
 
     # Precompute DD coefficients for positive directions
     n_half = N // 2
-    mu_pos = np.abs(mu_x[N // 2:])  # positive half
+    mu_pos = np.abs(quad.mu_x[N // 2:])  # positive half
     w_pos = weights[N // 2:]
 
     # stream_coeff[n,i,g] = 2μ / (2μ + dx[i]·Σ_t[i,g])
@@ -159,14 +160,20 @@ def _outgoing(
 def _sweep_2d_wavefront(
     Q: np.ndarray,
     sig_t: np.ndarray,
-    dx: np.ndarray,
-    dy: np.ndarray,
-    quad: AngularQuadrature,
+    sn_mesh: SNMesh,
     psi_bc: dict,
     Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """2D sweep using wavefront parallelism along anti-diagonals."""
+    """2D sweep using wavefront parallelism along anti-diagonals.
+
+    Uses the precomputed streaming stencil from SNMesh:
+    streaming_x[n, i] = 2|μ_x[n]| / dx[i],
+    streaming_y[n, j] = 2|μ_y[n]| / dy[j].
+    """
+    dx = sn_mesh.dx
+    dy = sn_mesh.dy
     nx, ny, ng = Q.shape
+    quad = sn_mesh.quad
     N = quad.N
     mu_x = quad.mu_x
     mu_y = quad.mu_y
@@ -188,7 +195,6 @@ def _sweep_2d_wavefront(
     weight_norm = 1.0 / weights.sum()
 
     # Precompute diagonal indices per sweep direction (4 directions).
-    # Eliminates per-ordinate list comprehensions (110 → 4 computations).
     _diag_cache: dict[tuple[int, int], tuple] = {}
     for sx in (-1, 1):
         for sy in (-1, 1):
@@ -215,6 +221,10 @@ def _sweep_2d_wavefront(
     if has_aniso:
         Q_aniso_scaled = Q_aniso * weight_norm  # (N, nx, ny, ng)
 
+    # Precomputed streaming stencil
+    str_x = sn_mesh.streaming_x  # (N_ord, nx)
+    str_y = sn_mesh.streaming_y  # (N_ord, ny)
+
     for n in range(N):
         mx = mu_x[n]
         my = mu_y[n]
@@ -232,9 +242,6 @@ def _sweep_2d_wavefront(
             scalar_flux += w * psi_avg
             continue
 
-        abs_mx = abs(mx)
-        abs_my = abs(my)
-
         # Look up precomputed diagonal indices for this sweep direction
         key = (1 if mx >= 0 else -1, 1 if my >= 0 else -1)
         ix_in, ix_out, iy_in, iy_out, diags = _diag_cache[key]
@@ -250,24 +257,26 @@ def _sweep_2d_wavefront(
         else:
             psi_y[n, :, ny, :] = psi_y[ref_y[n], :, ny, :]
 
-        two_abs_mx = 2.0 * abs_mx
-        two_abs_my = 2.0 * abs_my
+        # Precomputed streaming for this ordinate
+        str_x_n = str_x[n]  # (nx,)
+        str_y_n = str_y[n]  # (ny,)
 
         for ii, jj in diags:
             # Gather incoming face fluxes
             psi_in_x = psi_x[n, ii + ix_in, jj, :]   # (n_diag, ng)
             psi_in_y = psi_y[n, ii, jj + iy_in, :]    # (n_diag, ng)
 
-            # Diamond-difference equation
-            dx_ii = dx[ii, None]  # (n_diag, 1) for broadcasting
-            dy_jj = dy[jj, None]
+            # Precomputed streaming coefficients for these cells
+            sx_ii = str_x_n[ii, None]  # (n_diag, 1)
+            sy_jj = str_y_n[jj, None]  # (n_diag, 1)
 
-            denom = sig_t[ii, jj, :] + two_abs_mx / dx_ii + two_abs_my / dy_jj
+            # Diamond-difference equation using precomputed stencil
+            denom = sig_t[ii, jj, :] + sx_ii + sy_jj
 
             psi_avg = (
                 Q_n[ii, jj, :]
-                + two_abs_mx * psi_in_x / dx_ii
-                + two_abs_my * psi_in_y / dy_jj
+                + sx_ii * psi_in_x
+                + sy_jj * psi_in_y
             ) / denom
 
             # Store outgoing face fluxes for next diagonal

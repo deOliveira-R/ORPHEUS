@@ -5,7 +5,15 @@ for common reactor geometries.
 """
 
 from geometry.coord import CoordSystem, compute_surfaces_1d, compute_volumes_1d, compute_volumes_2d
-from geometry.factories import Zone, mesh1d_from_zones, pwr_pin_2d, pwr_pin_equivalent, pwr_slab_half_cell
+from geometry.factories import (
+    Zone,
+    homogeneous_1d,
+    mesh1d_from_zones,
+    pwr_pin_2d,
+    pwr_pin_equivalent,
+    pwr_slab_half_cell,
+    slab_fuel_moderator,
+)
 from geometry.mesh import Mesh1D, Mesh2D
 
 __all__ = [
@@ -16,8 +24,10 @@ __all__ = [
     "compute_surfaces_1d",
     "compute_volumes_1d",
     "compute_volumes_2d",
+    "homogeneous_1d",
     "mesh1d_from_zones",
     "pwr_pin_2d",
     "pwr_pin_equivalent",
     "pwr_slab_half_cell",
+    "slab_fuel_moderator",
 ]

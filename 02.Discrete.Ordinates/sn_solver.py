@@ -19,8 +19,9 @@ import numpy as np
 
 from data.macro_xs.cell_xs import assemble_cell_xs
 from data.macro_xs.mixture import Mixture
+from geometry import Mesh1D, Mesh2D
 from numerics.eigenvalue import power_iteration
-from sn_geometry import CartesianMesh
+from sn_geometry import SNMesh
 from sn_quadrature import AngularQuadrature
 from sn_sweep import transport_sweep
 
@@ -37,7 +38,7 @@ class SNResult:
     keff_history: list[float]
     angular_flux: np.ndarray   # (N_ordinates, nx, ny, ng)
     scalar_flux: np.ndarray    # (nx, ny, ng) = Σ w_n ψ_n
-    geometry: CartesianMesh
+    geometry: Mesh1D | Mesh2D
     quadrature: AngularQuadrature
     eg: np.ndarray             # (ng+1,) energy group boundaries
     elapsed_seconds: float
@@ -53,8 +54,8 @@ class SNSolver:
     Parameters
     ----------
     materials : dict mapping material ID to Mixture.
-    mesh : CartesianMesh (ny=1 for 1D, ny>1 for 2D).
-    quadrature : AngularQuadrature (GaussLegendre1D or LebedevSphere).
+    sn_mesh : SNMesh — augmented geometry (wraps Mesh1D or Mesh2D with
+        precomputed streaming stencil).
     inner_solver : "source_iteration" or "bicgstab".
     scattering_order : int — Legendre order for scattering (0 = P0).
     keff_tol, flux_tol : outer iteration convergence.
@@ -64,8 +65,7 @@ class SNSolver:
     def __init__(
         self,
         materials: dict[int, Mixture],
-        mesh: CartesianMesh,
-        quadrature: AngularQuadrature,
+        sn_mesh: SNMesh,
         inner_solver: str = "source_iteration",
         scattering_order: int = 0,
         keff_tol: float = 1e-7,
@@ -73,8 +73,8 @@ class SNSolver:
         max_inner: int = 200,
         inner_tol: float = 1e-8,
     ):
-        self.mesh = mesh
-        self.quad = quadrature
+        self.sn_mesh = sn_mesh
+        self.quad = sn_mesh.quad
         self.inner_solver = inner_solver
         self.scattering_order = scattering_order
         self.keff_tol = keff_tol
@@ -82,12 +82,12 @@ class SNSolver:
         self.max_inner = max_inner
         self.inner_tol = inner_tol
 
-        nx, ny = mesh.nx, mesh.ny
+        nx, ny = sn_mesh.nx, sn_mesh.ny
         _any_mat = next(iter(materials.values()))
         self.ng = _any_mat.ng
 
         # Per-cell cross sections
-        xs = assemble_cell_xs(materials, mesh.mat_map)
+        xs = assemble_cell_xs(materials, sn_mesh.mat_map)
         self.sig_t = xs.sig_t.reshape(nx, ny, self.ng)
         self.sig_a = xs.sig_a.reshape(nx, ny, self.ng)
         self.sig_p = xs.sig_p.reshape(nx, ny, self.ng)
@@ -111,14 +111,14 @@ class SNSolver:
 
         # Precompute spherical harmonics if anisotropic scattering requested
         if L > 0:
-            self._Y = quadrature.spherical_harmonics(L)  # (N, L+1, 2L+1)
+            self._Y = sn_mesh.quad.spherical_harmonics(L)  # (N, L+1, 2L+1)
         else:
             self._Y = None
 
         # Pre-group cells by material for vectorized source computation
         self._cells_by_mat: dict[int, tuple[np.ndarray, np.ndarray]] = {}
         for mat_id in materials:
-            ix, iy = np.where(mesh.mat_map == mat_id)
+            ix, iy = np.where(sn_mesh.mat_map == mat_id)
             self._cells_by_mat[mat_id] = (ix, iy)
 
         # Pre-computed sig2 row sums per material (for keff)
@@ -129,17 +129,17 @@ class SNSolver:
             ).ravel()
 
         # Weight normalization (1/sum(w) — works for both GL and Lebedev)
-        self.weight_norm = 1.0 / quadrature.weights.sum()
+        self.weight_norm = 1.0 / sn_mesh.quad.weights.sum()
 
         # Persistent boundary flux cache (passed to sweep)
         self._psi_bc: dict = {}
 
         # Volume array for keff computation
-        self.volume = mesh.volume
+        self.volume = sn_mesh.volumes
 
     def initial_flux_distribution(self) -> np.ndarray:
         """Initial scalar flux guess: ones(nx, ny, ng)."""
-        return np.ones((self.mesh.nx, self.mesh.ny, self.ng))
+        return np.ones((self.sn_mesh.nx, self.sn_mesh.ny, self.ng))
 
     def compute_fission_source(
         self, flux_distribution: np.ndarray, keff: float,
@@ -207,8 +207,8 @@ class SNSolver:
 
             # Transport sweep
             angular, phi = transport_sweep(
-                Q, self.sig_t, self.mesh.dx, self.mesh.dy,
-                self.quad, self._psi_bc, Q_aniso=Q_aniso,
+                Q, self.sig_t, self.sn_mesh,
+                self._psi_bc, Q_aniso=Q_aniso,
             )
 
             norm = np.linalg.norm(phi)
@@ -241,7 +241,7 @@ class SNSolver:
             angular_flux_to_scalar,
         )
 
-        nx, ny, ng = self.mesh.nx, self.mesh.ny, self.ng
+        nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
         sum_w = float(self.quad.weights.sum())
 
         # Build equation map and operator (could be cached, but clarity first)
@@ -249,7 +249,7 @@ class SNSolver:
             self._eq_map = build_equation_map(nx, ny, self.quad, ng)
             self._T_op = build_transport_linear_operator(
                 self._eq_map, self.quad, self.sig_t,
-                nx, ny, ng, self.mesh.dx, self.mesh.dy,
+                nx, ny, ng, self.sn_mesh.dx, self.sn_mesh.dy,
             )
 
         eq_map = self._eq_map
@@ -271,7 +271,7 @@ class SNSolver:
         # Build full RHS (fission + scatter + n2n, all / sum(w))
         rhs = build_rhs(
             fission_src_norm, phi, eq_map, self.quad,
-            self.sig_s, self.sig2, self.mesh.mat_map,
+            self.sig_s, self.sig2, self.sn_mesh.mat_map,
             nx, ny, ng,
             scattering_order=self.scattering_order,
             angular_flux=angular,
@@ -313,7 +313,8 @@ class SNSolver:
             return None
 
         N = self.quad.N
-        nx, ny, ng = self.mesh.nx, self.mesh.ny, self.ng
+        nx, ny = self.sn_mesh.nx, self.sn_mesh.ny
+        ng = self.ng
         L = self.scattering_order
         Y = self._Y  # (N, L+1, 2L+1)
         w = self.quad.weights
@@ -355,7 +356,7 @@ class SNSolver:
 
 def solve_sn(
     materials: dict[int, Mixture],
-    mesh: CartesianMesh,
+    mesh: Mesh1D | Mesh2D,
     quadrature: AngularQuadrature,
     inner_solver: str = "source_iteration",
     scattering_order: int = 0,
@@ -370,7 +371,7 @@ def solve_sn(
     Parameters
     ----------
     materials : dict mapping material ID to Mixture.
-    mesh : CartesianMesh (ny=1 for 1D, ny>1 for 2D).
+    mesh : Mesh1D or Mesh2D (base geometry).
     quadrature : AngularQuadrature (GaussLegendre1D or LebedevSphere).
     inner_solver : "source_iteration" (default) or "bicgstab".
     scattering_order : Legendre order for scattering (0 = P0).
@@ -380,8 +381,11 @@ def solve_sn(
     """
     t_start = time.perf_counter()
 
+    # Build augmented geometry (precomputes streaming stencil)
+    sn_mesh = SNMesh(mesh, quadrature)
+
     solver = SNSolver(
-        materials, mesh, quadrature,
+        materials, sn_mesh,
         inner_solver=inner_solver,
         scattering_order=scattering_order,
         keff_tol=keff_tol, flux_tol=flux_tol,
@@ -395,8 +399,7 @@ def solve_sn(
     solver._add_scattering_source(Q_final, scalar_flux)
     solver._add_n2n_source(Q_final, scalar_flux)
     angular_flux, _ = transport_sweep(
-        Q_final, solver.sig_t, mesh.dx, mesh.dy,
-        quadrature, solver._psi_bc,
+        Q_final, solver.sig_t, sn_mesh, solver._psi_bc,
     )
 
     _any_mat = next(iter(materials.values()))

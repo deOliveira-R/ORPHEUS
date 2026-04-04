@@ -14,12 +14,13 @@ import numpy as np
 from tools.plotting import plot_2d_field, plot_spectrum  # noqa: F401
 
 if TYPE_CHECKING:
-    from sn_geometry import CartesianMesh
+    from geometry import Mesh1D, Mesh2D
+    from sn_geometry import SNMesh
     from sn_solver import SNResult
 
 
 def plot_mesh_2d(
-    mesh: CartesianMesh,
+    mesh: Mesh2D,
     output_dir: Path | str = ".",
     filename: str = "DO_01_mesh.pdf",
 ) -> None:
@@ -60,16 +61,25 @@ def plot_do_spectra(
 
     mesh = result.geometry
     sf = result.scalar_flux
-    vol = mesh.volume
     eg = result.eg
     eg_mid = 0.5 * (eg[:-1] + eg[1:])
     du = np.log(eg[1:] / eg[:-1])
     ng = sf.shape[2]
 
+    # Get volumes and mat_map in (nx, ny) shape
+    if hasattr(mesh, 'mat_map'):
+        # Mesh2D
+        mat_map = mesh.mat_map
+        vol = mesh.volumes
+    else:
+        # Mesh1D — reshape to (N, 1)
+        mat_map = mesh.mat_ids.reshape(mesh.N, 1)
+        vol = mesh.volumes.reshape(mesh.N, 1)
+
     labels = {2: ("Fuel", "r"), 1: ("Cladding", "g"), 0: ("Coolant", "b")}
     fig, ax = plt.subplots(figsize=(10, 6))
     for mat_id, (label, color) in labels.items():
-        mask = mesh.mat_map == mat_id
+        mask = mat_map == mat_id
         if not mask.any():
             continue
         vol_mat = vol[mask].sum()
@@ -95,7 +105,17 @@ def plot_do_spatial_flux(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     mesh = result.geometry
-    x = np.arange(mesh.nx) * mesh.dx[0]
+
+    # Cell centres along x
+    if hasattr(mesh, 'centers_x'):
+        x = mesh.centers_x  # Mesh2D
+        nx, ny = mesh.nx, mesh.ny
+        delta = mesh.dx[0]
+    else:
+        x = mesh.centers  # Mesh1D
+        nx = mesh.N
+        ny = 1
+        delta = mesh.widths[0]
 
     FI_T = result.scalar_flux[:, 0, :50].sum(axis=1)
     FI_R = result.scalar_flux[:, 0, 50:287].sum(axis=1)
@@ -117,10 +137,9 @@ def plot_do_spatial_flux(
     fun_R = result.scalar_flux[:, :, 50:355].sum(axis=2)
     fun_F = result.scalar_flux[:, :, 355:].sum(axis=2)
 
-    delta = mesh.dx[0]
-    plot_2d_field(mesh.nx, mesh.ny, delta, fun_T,
+    plot_2d_field(nx, ny, delta, fun_T,
                   "Thermal flux distribution", output_dir / "DO_06_flux_thermal.pdf")
-    plot_2d_field(mesh.nx, mesh.ny, delta, fun_R,
+    plot_2d_field(nx, ny, delta, fun_R,
                   "Resonance flux distribution", output_dir / "DO_07_flux_resonance.pdf")
-    plot_2d_field(mesh.nx, mesh.ny, delta, fun_F,
+    plot_2d_field(nx, ny, delta, fun_F,
                   "Fast flux distribution", output_dir / "DO_08_flux_fast.pdf")
