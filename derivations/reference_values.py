@@ -23,8 +23,8 @@ def _build_registry() -> dict[str, VerificationCase]:
     """
     cases: dict[str, VerificationCase] = {}
 
-    from . import homogeneous, cp_slab, cp_cylinder, diffusion, sn, moc, mc
-    for module in [homogeneous, sn, cp_slab, cp_cylinder, moc, mc, diffusion]:
+    from . import homogeneous, cp_slab, cp_cylinder, cp_sphere, diffusion, sn, moc, mc
+    for module in [homogeneous, sn, cp_slab, cp_cylinder, cp_sphere, moc, mc, diffusion]:
         for case in module.all_cases():
             cases[case.name] = case
 
