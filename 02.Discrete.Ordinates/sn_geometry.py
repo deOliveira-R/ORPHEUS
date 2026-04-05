@@ -166,22 +166,31 @@ class SNMesh:
     def _setup_cylindrical(self) -> None:
         r"""Precompute cylindrical streaming stencil and per-level azimuthal redistribution.
 
-        The 1-D cylindrical transport equation for μ-level *p*, azimuthal
-        ordinate *m*, cell *i* is:
+        The 1-D cylindrical balance equation for μ-level *p*, azimuthal
+        ordinate *m*, cell *i* is (Bailey et al. 2009, Eq. 50–55):
 
         .. math::
 
-            \frac{\eta_{p,m}}{V_i}
+            \eta_{p,m}
             \bigl[A_{i+\frac12}\psi_{i+\frac12}
                 - A_{i-\frac12}\psi_{i-\frac12}\bigr]
-            + \frac{1}{V_i}
+            + \frac{\Delta A_i}{w_m}
             \bigl[\alpha_{p,m+\frac12}\psi_{m+\frac12}
                 - \alpha_{p,m-\frac12}\psi_{m-\frac12}\bigr]
-            + \Sigma_t \psi_{p,m,i} = Q_{p,m,i}
+            + \Sigma_t V_i \psi_{p,m,i} = Q_{p,m,i} V_i
 
-        where :math:`\eta` is the radial direction cosine and
-        :math:`\alpha_{p,m+1/2}` is the azimuthal redistribution
-        coefficient on μ-level *p*.
+        where :math:`\eta` is the radial direction cosine,
+        :math:`\Delta A_i = A_{i+1/2} - A_{i-1/2}` is the cell
+        face-area difference, and :math:`\alpha_{p,m+1/2}` is the
+        azimuthal redistribution coefficient on μ-level *p*.
+
+        The :math:`\Delta A / w` geometry factor ensures per-ordinate
+        flat-flux consistency: streaming and redistribution cancel
+        exactly for each ordinate when the angular flux is spatially
+        uniform.
+
+        Ordinates within each level are ordered by increasing
+        :math:`\eta` (most-inward to most-outward).
 
         Requires a quadrature with ``level_indices`` attribute
         (e.g., :class:`LevelSymmetricSN` or :class:`ProductQuadrature`).
@@ -196,16 +205,20 @@ class SNMesh:
         # Cell face areas: A_{i+1/2} = 2πr at each edge
         self.face_areas: np.ndarray = self.mesh.surfaces  # (nx+1,)
 
+        # Cell face-area differences: ΔA_i = A_{i+1/2} − A_{i-1/2}
+        self.delta_A: np.ndarray = self.face_areas[1:] - self.face_areas[:-1]
+
         # Per-level azimuthal redistribution coefficients
-        # α_{p,m+1/2} = α_{p,m-1/2} + w_{p,m} · ξ_{p,m}
+        # Bailey et al. (2009) Eq. 50: α_{m+1/2} = α_{m-1/2} − w_m · η_m
+        # Ordinates are ordered by increasing η within each level.
         self.alpha_per_level: list[np.ndarray] = []
         for level_idx in self.quad.level_indices:
-            xi = self.quad.mu_y[level_idx]   # ξ values on this level
-            w = self.quad.weights[level_idx]  # weights on this level
+            eta = self.quad.mu_x[level_idx]   # η (radial cosine)
+            w = self.quad.weights[level_idx]
             M = len(level_idx)
             alpha = np.zeros(M + 1)
             for m in range(M):
-                alpha[m + 1] = alpha[m] + w[m] * xi[m]
+                alpha[m + 1] = alpha[m] - w[m] * eta[m]
             self.alpha_per_level.append(alpha)
 
         self.streaming_x = None

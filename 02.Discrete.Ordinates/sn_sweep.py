@@ -293,22 +293,29 @@ def _sweep_1d_cylindrical(
     sn_mesh: SNMesh,
     psi_bc: dict,
 ) -> tuple[np.ndarray, np.ndarray]:
-    r"""Cylindrical 1-D sweep with per-level azimuthal redistribution.
+    r"""Cylindrical 1-D sweep with geometry-weighted azimuthal redistribution.
 
-    For each μ-level *p*, processes azimuthal ordinates sequentially,
-    applying the redistribution :math:`\alpha_{p,m+1/2}` which couples
-    successive azimuthal directions on that level.
+    For each μ-level *p*, processes azimuthal ordinates sequentially
+    from most-inward (:math:`\eta = -\sin\theta`) to most-outward
+    (:math:`\eta = +\sin\theta`), applying the redistribution
+    :math:`\alpha_{p,m+1/2}` which couples successive azimuthal
+    directions on that level.
 
-    The streaming direction is :math:`\eta = \sin\theta\cos\varphi`
-    (the radial projection, stored in ``mu_x``).
-
-    The DD equation at cell *i*, level *p*, azimuthal ordinate *m* is:
+    The balance equation includes a geometry factor
+    :math:`\Delta A_i / w_m` on the redistribution term
+    (Bailey et al. 2009), ensuring per-ordinate flat-flux consistency:
 
     .. math::
 
-        \psi_{m,i} = \frac{Q V + |\eta|(A_{\rm in}+A_{\rm out})\psi_{\rm in}
-            + (|\alpha_{\rm out}|+|\alpha_{\rm in}|)\psi_{m-\frac12}}
-            {2|\eta| A_{\rm out} + 2|\alpha_{\rm out}| + \Sigma_t V}
+        \psi_{m,i} = \frac{S_i V_i + |\eta_m|(A_{\rm in}+A_{\rm out})
+            \psi^s_{\rm in} + \frac{\Delta A_i}{w_m}
+            (\alpha_{m+\frac12}+\alpha_{m-\frac12})\psi_{m-\frac12}}
+            {2|\eta_m| A^s_{\rm out}
+            + 2\frac{\Delta A_i}{w_m}\alpha_{m+\frac12} + \Sigma_t V_i}
+
+    The :math:`\alpha` coefficients are computed from the radial
+    direction cosine :math:`\eta` (Bailey et al. Eq. 50) and form a
+    non-negative dome, so the denominator is unconditionally positive.
     """
     nx = sn_mesh.nx
     ng = Q.shape[2]
@@ -322,6 +329,7 @@ def _sweep_1d_cylindrical(
 
     A = sn_mesh.face_areas     # (nx+1,) = 2πr at edges
     V = sn_mesh.volumes[:, 0]  # (nx,) cell volumes
+    dA = sn_mesh.delta_A       # (nx,) = A[i+1] - A[i], cell property
 
     # Persistent boundary flux at the outer face (per ordinate)
     if "bc_cyl" not in psi_bc:
@@ -337,10 +345,11 @@ def _sweep_1d_cylindrical(
 
     # Process each μ-level independently
     for p, level_idx in enumerate(quad.level_indices):
-        alpha = sn_mesh.alpha_per_level[p]  # (M+1,)
+        alpha = sn_mesh.alpha_per_level[p]  # (M+1,) non-negative dome
         M = len(level_idx)
 
-        # Azimuthal "face flux" between successive ordinates on this level
+        # Azimuthal "face flux" between successive ordinates on this level.
+        # Initialised to zero: α_{1/2} = 0 so the product α·ψ vanishes.
         psi_angle = np.zeros((nx, ng))
 
         for m_local in range(M):
@@ -348,8 +357,8 @@ def _sweep_1d_cylindrical(
             eta_n = quad.mu_x[n]    # radial direction cosine
             abs_eta = abs(eta_n)
             w_n = weights[n]
-            abs_alpha_in = abs(alpha[m_local])
-            abs_alpha_out = abs(alpha[m_local + 1])
+            alpha_in = alpha[m_local]       # α_{m-1/2} ≥ 0
+            alpha_out = alpha[m_local + 1]  # α_{m+1/2} ≥ 0
 
             if eta_n < 0:
                 # Inward sweep: outer → centre
@@ -358,13 +367,14 @@ def _sweep_1d_cylindrical(
                 for i in range(nx - 1, -1, -1):
                     A_in = A[i + 1]
                     A_out = A[i]
+                    dA_w = dA[i] / w_n  # ΔA_i / w_m geometry factor
 
                     denom = (2.0 * abs_eta * A_out
-                             + 2.0 * abs_alpha_out
+                             + 2.0 * dA_w * alpha_out
                              + sig_t_1d[i] * V[i])
                     numer = (QV[i]
                              + abs_eta * (A_in + A_out) * psi_spatial_in
-                             + (abs_alpha_out + abs_alpha_in) * psi_angle[i])
+                             + dA_w * (alpha_out + alpha_in) * psi_angle[i])
 
                     psi = numer / denom
 
@@ -378,11 +388,12 @@ def _sweep_1d_cylindrical(
 
             elif abs_eta < 1e-15:
                 # Pure azimuthal ordinate (η≈0): no radial streaming.
-                # Only azimuthal redistribution + collision.
                 for i in range(nx):
-                    denom = 2.0 * abs_alpha_out + sig_t_1d[i] * V[i]
+                    dA_w = dA[i] / w_n
+
+                    denom = 2.0 * dA_w * alpha_out + sig_t_1d[i] * V[i]
                     numer = (QV[i]
-                             + (abs_alpha_out + abs_alpha_in) * psi_angle[i])
+                             + dA_w * (alpha_out + alpha_in) * psi_angle[i])
 
                     psi = numer / denom
                     psi_angle[i] = 2.0 * psi - psi_angle[i]
@@ -397,13 +408,14 @@ def _sweep_1d_cylindrical(
                 for i in range(nx):
                     A_in = A[i]
                     A_out = A[i + 1]
+                    dA_w = dA[i] / w_n
 
                     denom = (2.0 * abs_eta * A_out
-                             + 2.0 * abs_alpha_out
+                             + 2.0 * dA_w * alpha_out
                              + sig_t_1d[i] * V[i])
                     numer = (QV[i]
                              + abs_eta * (A_in + A_out) * psi_spatial_in
-                             + (abs_alpha_out + abs_alpha_in) * psi_angle[i])
+                             + dA_w * (alpha_out + alpha_in) * psi_angle[i])
 
                     psi = numer / denom
 

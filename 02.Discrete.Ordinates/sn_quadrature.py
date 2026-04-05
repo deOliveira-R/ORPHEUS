@@ -255,14 +255,17 @@ def _build_level_symmetric(sn_order: int) -> tuple:
     mu_z = np.array(all_mu)    # μ — axial
     weights = np.array(all_w)
 
-    # Build level structure: group ordinates by |μ_z| value
+    # Build level structure: group ordinates by |μ_z| value,
+    # sort within each level by increasing η (mu_x) for the
+    # cylindrical azimuthal sweep convention.
     n_levels = n_half
     level_mu_vals = mu_levels
     level_indices = []
     for p in range(n_levels):
         tol = 1e-12
         idx = np.where(np.abs(np.abs(mu_z) - level_mu_vals[p]) < tol)[0]
-        level_indices.append(idx)
+        order = np.argsort(mu_x[idx])
+        level_indices.append(idx[order])
 
     return mu_x, mu_y, mu_z, weights, n_levels, level_mu_vals, level_indices
 
@@ -397,7 +400,13 @@ class ProductQuadrature:
                 weights[idx] = w_gl[p] * w_phi
                 level_idx.append(idx)
                 idx += 1
-            level_indices.append(np.array(level_idx))
+            # Sort by increasing η (mu_x) for cylindrical azimuthal sweep.
+            # The sweep proceeds from most-inward (η = −sin θ) to
+            # most-outward (η = +sin θ), matching the α recursion
+            # convention from Bailey et al. (2009) Eq. 50.
+            level_arr = np.array(level_idx)
+            order = np.argsort(mu_x[level_arr])
+            level_indices.append(level_arr[order])
 
         ref_x = _find_reflections(-mu_x, mu_y, mu_z, mu_x, mu_y, mu_z)
         ref_y = _find_reflections(mu_x, -mu_y, mu_z, mu_x, mu_y, mu_z)

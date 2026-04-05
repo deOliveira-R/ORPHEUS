@@ -222,17 +222,8 @@ class TestMultiGroupMultiRegion:
         # keff should be reasonable (not 0 or huge)
         assert 0.5 < result.keff < 3.0, f"keff={result.keff:.4f} out of physical range"
 
-    @pytest.mark.xfail(reason="Cylindrical heterogeneous sweep has azimuthal redistribution bug — investigating")
     def test_2g_heterogeneous_product_different_resolutions(self):
-        """Product quadrature at two resolutions must give close keff.
-
-        This catches resolution-dependent bugs.
-
-        Note: Level-symmetric S_N is excluded — its level construction
-        groups ±μ_z hemispheres together and doesn't sort by azimuthal
-        angle within each level, which breaks the cylindrical sweep's
-        per-level azimuthal redistribution. TODO: fix LS level grouping.
-        """
+        """Product quadrature at two resolutions must give close keff."""
         fuel = get_mixture("A", "2g")
         mod = get_mixture("B", "2g")
         materials = {2: fuel, 0: mod}
