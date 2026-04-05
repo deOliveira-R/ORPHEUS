@@ -130,10 +130,49 @@ cases.
 **Priority**: Medium | **Effort**: Large  
 **Code location**: `derivations/` (new module)
 
-Mesh-independent analytical reference for 1D multi-group transport.
-Full description in `derivations/TODO_transport_eigenmodes.md`.
+Mesh-independent analytical/semi-analytical reference for 1D
+multi-group transport eigenvalues.  Currently the only independent
+reference is the diffusion transfer matrix (`sn_heterogeneous.py`),
+which has a ~0.3% transport correction.
 
-**References**: Case (1960), Siewert (2000), Garcia & Siewert.
+**The problem**: SN heterogeneous verification uses Richardson
+extrapolation from the SN solver itself — a self-referencing test.
+Case's method would provide a truly independent reference.
+
+**Case's eigenmode method**: The exact 1D monoenergetic transport
+solution with isotropic scattering decomposes into:
+
+1. **Discrete modes** ν₀ from the dispersion relation:
+   `1 = c·ν₀·Σ_t·arctanh(1/(ν₀·Σ_t))` where c = Σ_s/Σ_t.
+2. **Continuum modes** ν ∈ [-1/Σ_t, 1/Σ_t]: singular eigenfunctions
+   with Cauchy principal value integrals.
+3. **Multi-group**: matrix dispersion relation
+   `det[I − Σ_s^T · diag(1/Σ_t) · Λ(ν)] = 0`.
+
+**Interface matching**: half-range flux continuity
+∫₀¹ μⁿ ψ_left dμ = ∫₀¹ μⁿ ψ_right dμ, truncated at order M.
+
+**Practical alternative**: The F_N method (Siewert, Garcia) avoids
+explicit continuum modes by expanding in Chandrasekhar polynomials.
+N=20 gives ~10 digits — sufficient for our verification.
+
+**Implementation plan**:
+- 1G 1-region: straightforward (dispersion + BCs)
+- 1G multi-region: moderate (interface matching)
+- Multi-group multi-region: significant (matrix dispersion + matching)
+
+**Existing diffusion reference** (`sn_heterogeneous.py`):
+
+| Case | Diffusion | SN Richardson | Diff |
+|------|-----------|---------------|------|
+| 1G 2-region | 1.2646 | 1.2605 | +0.0041 |
+| 2G 2-region | 1.2338 | 1.2380 | -0.0042 |
+| 4G 2-region | 1.0312 | 1.0344 | -0.0032 |
+
+Diffusion can be above or below transport depending on configuration.
+
+**References**: Case (1960), Case & Zweifel (1967), Siewert (2000),
+Garcia & Siewert (various).
 
 ### DO-00000000-006 — Anisotropic scattering in curvilinear sweeps
 
