@@ -4,9 +4,10 @@ r"""Augmented geometry for S\ :sub:`N` discrete ordinates transport.
 :class:`~geometry.mesh.Mesh2D` and precomputes the coordinate-specific
 streaming stencil used by the transport sweep.
 
-Currently only Cartesian coordinates are implemented.  Cylindrical and
-spherical geometries will add curvature/angular-redistribution terms to
-the stencil.
+Three coordinate systems are supported: Cartesian (1D/2D), spherical
+(1D), and cylindrical (1D).  Curvilinear geometries precompute angular
+redistribution coefficients (:math:`\alpha`), the geometry factor
+:math:`\Delta A/w`, and Morel--Montry angular closure weights.
 """
 
 from __future__ import annotations
