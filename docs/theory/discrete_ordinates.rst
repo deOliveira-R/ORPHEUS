@@ -250,7 +250,13 @@ Equal spacing in :math:`\mu^2` is used with :math:`\mu_1^2 = 4/(N(N+2))`
 [CarlsonLathrop1965]_.
 
 Weights sum to :math:`4\pi`.  Provides the ``level_indices`` structure
-needed by the cylindrical sweep.  Implemented in :class:`LevelSymmetricSN`.
+needed by the cylindrical sweep.  Unlike :class:`ProductQuadrature`
+(which has one level per :math:`\mu_z` value), the Level-Symmetric
+quadrature groups both :math:`+\mu_z` and :math:`-\mu_z` hemispheres
+on the same level (grouped by :math:`|\mu_z|`).  Within each level,
+ordinates are sorted by increasing :math:`\eta` for the azimuthal sweep.
+
+Implemented in :class:`LevelSymmetricSN`.
 
 Product Quadrature (GL x equispaced)
 -------------------------------------
@@ -642,17 +648,26 @@ This can be rewritten as:
 
    \psi_{n+\frac12} = 2\psi_{n,i} - \psi_{n-\frac12}
 
-The contamination factor :math:`\beta` measures how much the angular
-face flux :math:`\psi_{n+1/2}` deviates from the cell-average flux for
-a spatially flat source:
+The contamination factor :math:`\beta` ([Bailey2009]_ Eq. 41) quantifies
+the coupling between the leading-order scalar flux and the first-order
+current in the asymptotic diffusion limit.  For spherical geometry:
 
 .. math::
 
-   \beta = \frac{\psi_{n+\frac12}}{\psi_{n,i}}
+   \beta = \frac{1}{2} \sum_{n=1}^{N} \mu_n
+   \bigl[\alpha_{n+\frac12}\, \mu_{n+\frac12}
+        - \alpha_{n-\frac12}\, \mu_{n-\frac12}\bigr]
 
-For an ideal discretisation, :math:`\beta = 1` everywhere.  The standard
-DD gives :math:`\beta \neq 1` at finite mesh width, creating a flux dip
-(or spike) of order :math:`\sim 10\%` at the origin on typical meshes.
+where :math:`\mu_{n\pm 1/2}` are the angular cell-edge cosines.  For
+cylindrical, the equivalent is a per-level sum using :math:`\eta` and
+:math:`\eta_{m\pm 1/2}`.  When :math:`\beta \neq 0`, the discrete
+S\ :sub:`N` equations satisfy a **contaminated** diffusion equation near
+:math:`r = 0`, producing the artificial flux dip (or spike).
+
+The module :mod:`derivations.sn_contamination` computes :math:`\beta`
+for any quadrature and geometry.  With the correct :math:`\Delta A/w`
+factor AND Morel--Montry weights, :math:`\beta \sim 10^{-16}`
+(machine zero) for both spherical and cylindrical.
 
 Weighted Diamond Difference (WDD) and Morel--Montry Weights
 -------------------------------------------------------------
@@ -680,12 +695,36 @@ The M-M weights are defined as:
 
    \tau_n = \frac{\mu_n - \mu_{n-\frac12}}{\mu_{n+\frac12} - \mu_{n-\frac12}}
 
-where :math:`\mu_{n\pm 1/2}` are the angular cell edges.  For spherical
-geometry: :math:`\mu_{1/2} = -1`, :math:`\mu_{N+1/2} = +1`, and
-interior edges are defined by :math:`\mu_{n+1/2} = \mu_{n-1/2} + w_n`.
-For cylindrical geometry: :math:`\eta_{1/2} = -\sin\theta`,
-:math:`\eta_{M+1/2} = +\sin\theta`, and interior edges are midpoints
-of consecutive :math:`\eta` values.
+where :math:`\mu_{n\pm 1/2}` are the angular cell edges.
+
+**Spherical cell edges:**  :math:`\mu_{1/2} = -1`,
+:math:`\mu_{N+1/2} = +1`, and interior edges by weight-sum:
+:math:`\mu_{n+1/2} = \mu_{n-1/2} + w_n`.  This is exact for
+Gauss--Legendre quadrature because the weights correspond to the
+:math:`\mu`-space widths of the angular cells.
+
+**Cylindrical cell edges:**  :math:`\eta_{1/2} = -\sin\theta`,
+:math:`\eta_{M+1/2} = +\sin\theta`, and interior edges at
+**midpoints** of consecutive :math:`\eta` values:
+:math:`\eta_{m+1/2} = (\eta_m + \eta_{m+1})/2`.
+The weight-sum approach is NOT used for cylindrical because the
+quadrature weights are uniform in :math:`\varphi`-space (not
+:math:`\eta`-space): the Product quadrature spaces :math:`\varphi`
+equally, but :math:`\eta = \sin\theta\cos\varphi` is
+cosine-distributed, so equal :math:`\varphi`-widths map to unequal
+:math:`\eta`-widths.  The midpoint approach gives a proper partition
+of :math:`[-\sin\theta, +\sin\theta]`.
+
+For the Product quadrature with equally-spaced :math:`\varphi`,
+ordinates come in **pairs** with the same :math:`|\eta|` but opposite
+:math:`\xi` (e.g., :math:`\varphi = \pi/4` and :math:`\varphi = 7\pi/4`
+both give :math:`\eta = \sin\theta/\sqrt{2}`).  The midpoint between
+paired ordinates equals their shared :math:`\eta`, creating zero-width
+angular cells.  The resulting :math:`\tau` alternates between 0.5
+(DD, for the left member of each pair) and 1.0 (step, for the right
+member).  This alternating pattern is correct but could be smoothed by
+using a Gauss-type azimuthal quadrature with distinct :math:`\eta`
+values (see ``IMPROVEMENTS.md`` item DO-20260405-002).
 
 The M-M weights force the contamination factor :math:`\beta` to **machine
 zero** (verified: :math:`\beta \sim 10^{-16}`), completely eliminating
@@ -1313,6 +1352,38 @@ All entries are exact to machine precision.  Spherical 2G/4G results
 (previously showing ~1% error) are now exact thanks to the M-M angular
 closure weights.
 
+Heterogeneous Convergence
+--------------------------
+
+For a cylindrical fuel (r < 0.5) + moderator (r < 1.0) geometry with
+Product(4x8) quadrature:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 25 25
+
+   * - Cells/region
+     - :math:`\keff` (1G)
+     - :math:`\Delta k` from previous
+   * - 5
+     - 0.9769
+     -
+   * - 10
+     - 0.9842
+     - +0.0073
+   * - 20
+     - 0.9874
+     - +0.0032
+
+:math:`\keff` converges monotonically toward the CP reference
+(0.9955).  The ~1% residual gap is the white-BC (CP) vs reflective-BC
+(SN) approximation difference, consistent with the slab geometry
+findings.
+
+For the 2G heterogeneous resolution test, Product(4x8) and Product(8x8)
+agree to :math:`< 0.01\%` (keff = 0.7227 for both), confirming
+angular convergence.
+
 Why 1-Group Verification Is Degenerate
 ----------------------------------------
 
@@ -1460,7 +1531,16 @@ Applied the [Bailey2009]_ formulation:
    flux dip at :math:`r = 0`.
 
 4. Applied the same :math:`\Delta A/w` fix to the spherical sweep
-   (which had the same missing factor).
+   (which had the same missing factor).  The fixed-source flux spike
+   at :math:`r = 0` dropped from 5.1x to 1.1x.
+
+5. Applied the fix to both the spherical and cylindrical **BiCGSTAB
+   operators** (:func:`transport_operator_matvec_spherical`,
+   :func:`transport_operator_matvec_cylindrical`).  Multi-group
+   spherical BiCGSTAB had been unstable (keff → NaN for 2G+); the
+   root cause was the same missing :math:`\Delta A/w` factor in the
+   explicit FD operator.  After the fix, 2G and 4G spherical BiCGSTAB
+   converge to :math:`< 10^{-6}` of the analytical eigenvalue.
 
 Results After Fix
 ------------------
