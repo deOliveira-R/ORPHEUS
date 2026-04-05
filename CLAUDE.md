@@ -37,6 +37,7 @@ Five custom agents in `.claude/agents/` — use them instead of generic subagent
 
 | Agent | Invoke when | Key rule |
 |-------|-------------|----------|
+| **explorer** | Understanding code (planning, investigation) | Uses GitNexus CLI + Sphinx docs. Replaces built-in Explore agent. |
 | **archivist** | Writing/reviewing Sphinx docs | Sphinx-as-brain: full derivations, not summaries. Demands derivation scripts before archiving. |
 | **qa** | Reviewing code, validating claims | 6 AI failure modes checklist. Demands multi-group + heterogeneous tests. |
 | **numerics-investigator** | Solver gives wrong answers | 7-step diagnostic cascade. Writes scripts in `derivations/diagnostics/`. Promotes to tests. |
@@ -44,12 +45,12 @@ Five custom agents in `.claude/agents/` — use them instead of generic subagent
 | **test-architect** | Planning verification BEFORE implementation | Analytical solution catalog. Failure mode coverage matrix. 1-group is degenerate. |
 
 **Dispatch rules:**
-- Documentation tasks → **archivist** (not generic subagent)
+- Exploring code (planning mode, investigation) → **explorer** (NOT built-in Explore agent — it doesn't know GitNexus or Sphinx)
+- Documentation tasks → **archivist**
 - "Is this correct?" → **qa**
 - "Why is this broken?" → **numerics-investigator**
 - "What does Bailey Eq. 50 say?" → **literature-researcher**
 - "What tests do we need for feature X?" → **test-architect**
-- Routine code search / exploration → built-in Explore agent (lightweight)
 
 **After every specialized agent invocation**: the main agent must review the output with full session context before committing. Sub-agents lack conversation history.
 
@@ -122,7 +123,7 @@ Five custom agents in `.claude/agents/` — use them instead of generic subagent
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **ReactorPhysics_MATLAB** (1531 symbols, 4434 relationships, 122 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **ReactorPhysics_MATLAB** (1530 symbols, 4434 relationships, 122 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
