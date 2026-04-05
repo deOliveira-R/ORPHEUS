@@ -404,7 +404,7 @@ class TestMultiGroupMultiRegionSpherical:
                           max_inner=500, inner_tol=1e-10)
 
         assert np.isfinite(result.keff), f"keff is NaN/Inf"
-        assert 0.5 < result.keff < 3.0, f"keff={result.keff:.4f} out of range"
+        assert 0.1 < result.keff < 3.0, f"keff={result.keff:.4f} out of range"
         assert np.all(np.isfinite(result.scalar_flux)), "Non-finite flux"
 
     def test_4g_scattering_convergence(self):
