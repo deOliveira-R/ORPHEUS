@@ -43,11 +43,30 @@ Created `data/macro_xs/cell_xs.py` with:
 Replaces identical per-cell XS extraction loops duplicated in CP, DO,
 SN-1D, and MOC solvers.
 
+### DA-20260405-003 — NG inferred from data (not global constant)
+
+**Status**: DONE
+**Commit**: fa5732c
+
+Replaced the hardcoded `NG = 421` global constant with data-inferred
+group count:
+
+- `Isotope.ng` property: returns `len(self.eg) - 1`
+- `Mixture.ng` property: returns `len(self.SigT)`
+- HDF5 loader: infers sparse matrix shape from `eg` dataset
+- ALL solver modules (01–04, 09) and plotting modules refactored to
+  use `mix.ng` instead of importing NG
+- Data pipeline (`sigma_zeros.py`, `interpolation.py`, `gendf.py`)
+  retains `NG = 421` for GENDF-specific operations
+
+This enabled synthetic benchmarks with arbitrary group counts (1, 2, 4)
+and was the prerequisite for the formal verification system.
+
 ---
 
 ## OPEN — Not Yet Implemented
 
-### DA-20260405-003 — Production-weighted fission spectrum
+### DA-20260405-004 — Production-weighted fission spectrum
 
 **Priority**: Low | **Effort**: Small
 
@@ -57,7 +76,7 @@ Should use production-weighted average:
 Currently acceptable for single-fissile problems (UO2) but incorrect
 for MOX or mixed assemblies.
 
-### DA-20260405-004 — h2o_properties viscosity TODO untracked
+### DA-20260405-005 — h2o_properties viscosity TODO untracked
 
 **Priority**: Low | **Effort**: Small
 
@@ -66,7 +85,7 @@ IAPWS viscosity for all calls instead of pyXSteam.  Related to the NaN
 fix via IAPWS fallback documented in memory.  Should decide: either
 switch entirely to IAPWS or keep pyXSteam as primary with IAPWS fallback.
 
-### DA-20260405-005 — Scattering matrix Legendre order consistency
+### DA-20260405-006 — Scattering matrix Legendre order consistency
 
 **Priority**: Low | **Effort**: Small
 

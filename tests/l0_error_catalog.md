@@ -234,6 +234,44 @@ the full cell contributes).
 
 ---
 
+### ERR-009 — CP neutron balance transpose
+
+**Failure mode:** #2 Variable swap — P vs P.T  
+**Date:** 2026-04-05  
+**Solver:** CP (slab and cylindrical)
+
+**Bug:** The CP power iteration computed `phi = P_inf @ source` instead
+of `phi = P_inf.T @ source`.  With the convention `P[i,j]` =
+P(birth_i → collision_j), the neutron balance for collision target `j`
+sums over birth regions: `Σ_i P[i,j] · V_i · Q_i = P.T @ source`.
+
+**Impact:** Wrong eigenvalue for ALL heterogeneous problems.  For the
+1G 2-region slab benchmark: solver gave k=1.373 vs analytical k=1.272
+(8% error).  keff was systematically too high because the flux
+redistribution between fuel and moderator was incorrect.
+
+**How it hid:** Homogeneous benchmarks passed to machine precision
+because P is symmetric when all regions have identical cross sections
+(P = P.T).  The 1-group homogeneous case is doubly degenerate: no
+spatial redistribution AND k = νΣ_f/Σ_a regardless of P.  The bug
+only appeared when running 2-region heterogeneous benchmarks with the
+formal verification suite.
+
+**L0 test that catches it:** The synthetic 1G 2-region slab benchmark
+(`benchmark_1g_slab`) with analytical eigenvalue from the CP matrix.
+The analytical k is computed independently by solving the 2×2 matrix
+eigenvalue problem `det(A - (1/k)B) = 0`.  Any transpose error in the
+solver causes immediate disagreement.
+
+**Lesson:** The CP matrix convention (birth-first vs collision-first
+indexing) propagates through the entire solver.  Document the convention
+explicitly (now in `collision_probability.rst` §Flat-Source Approximation)
+and verify with heterogeneous multi-region benchmarks.  Homogeneous
+verification is *necessary but not sufficient* — it only tests the
+diagonal of the CP matrix.
+
+---
+
 ## Meta-Lessons
 
 1. **1-group is degenerate.** k = νΣ_f/Σ_a regardless of flux shape.

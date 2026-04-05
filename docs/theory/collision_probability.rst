@@ -1307,8 +1307,8 @@ geometry.
 
 .. note::
 
-   This is the same lesson as for the SN solver (see ``gotchas.md``
-   and the DO theory chapter).  The 1-group degenerate case masked
+   This is the same lesson as for the SN solver (see
+   ``tests/l0_error_catalog.md`` and the DO theory chapter).  The 1-group degenerate case masked
    the z-ordinate weight loss, the scattering transpose bug, and the
    BiCGSTAB normalisation error — all caught only by multi-group tests.
 

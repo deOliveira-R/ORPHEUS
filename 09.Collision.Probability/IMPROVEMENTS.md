@@ -43,6 +43,31 @@ Documented in `docs/theory/collision_probability.rst` §Spherical.
 `_apply_white_bc()` works for all geometries via `mesh.volumes` and
 `mesh.surfaces[-1]`.
 
+### CP-20260405-001 — Neutron balance transpose fix (ERR-009)
+
+**Status**: DONE
+**Commit**: fa5732c
+**Sphinx**: docs/theory/collision_probability.rst §Flat-Source Approximation
+**Error catalog**: tests/l0_error_catalog.md ERR-009
+
+Fixed `P @ source` → `P.T @ source` in the power iteration.  With
+`P[i,j] = P(birth_i → collision_j)`, the collision rate in target `j`
+sums over birth regions: `Σ_i P[i,j] · V_i · Q_i`.  This is a column
+operation on P, requiring the transpose.
+
+Homogeneous problems were unaffected (P symmetric).  Detected by the
+formal verification suite on the 1G 2-region slab benchmark (k=1.373
+vs analytical 1.272, 8% error).
+
+### CP-20260405-002 — NG refactoring for arbitrary group count
+
+**Status**: DONE
+**Commit**: fa5732c
+
+All solvers now infer group count from `Mixture.ng` instead of
+importing the global constant `NG = 421`.  Enables synthetic
+1/2/4-group verification benchmarks.  See DA-20260405-003.
+
 ---
 
 ## IMPL — Implemented, Sphinx Documentation Pending
