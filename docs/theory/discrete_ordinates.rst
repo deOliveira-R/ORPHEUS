@@ -1,8 +1,8 @@
 .. _theory-discrete-ordinates:
 
-====================================
+==========================================
 Discrete Ordinates Method (S\ :sub:`N`)
-====================================
+==========================================
 
 .. contents:: Contents
    :local:
@@ -135,6 +135,24 @@ where :math:`\mu = \cos\theta` is the direction cosine, :math:`Q` is the
 total isotropic source (fission + scattering), and :math:`W = \sum_n w_n`
 is the quadrature weight sum.
 
+Cartesian 2D
+--------------
+
+In two Cartesian dimensions the angular flux depends on two direction
+cosines :math:`\mu_x` and :math:`\mu_y`:
+
+.. math::
+   :label: transport-cartesian-2d
+
+   \mu_x \frac{\partial \psi}{\partial x}
+   + \mu_y \frac{\partial \psi}{\partial y}
+   + \Sigt{} \, \psi
+   = \frac{Q}{W}
+
+There is no angular coupling between ordinates --- each direction is
+solved independently.  The two streaming terms are the only difference
+from the 1D case.
+
 Spherical 1D
 -------------
 
@@ -228,7 +246,8 @@ Level-Symmetric S\ :sub:`N`
 Standard triangular quadrature with :math:`N/2` distinct :math:`\mu_z`
 values per hemisphere.  Ordinates on each level are permutations of the
 direction cosine set satisfying :math:`\eta^2 + \xi^2 + \mu^2 = 1`.
-Equal spacing in :math:`\mu^2` is used with :math:`\mu_1^2 = 4/(N(N+2))`.
+Equal spacing in :math:`\mu^2` is used with :math:`\mu_1^2 = 4/(N(N+2))`
+[CarlsonLathrop1965]_.
 
 Weights sum to :math:`4\pi`.  Provides the ``level_indices`` structure
 needed by the cylindrical sweep.  Implemented in :class:`LevelSymmetricSN`.
@@ -250,6 +269,37 @@ increasing :math:`\eta = \sin\theta\cos\varphi` to match the
 :math:`\alpha` recursion convention from [Bailey2009]_ Eq. 50.
 
 Implemented in :class:`ProductQuadrature`.
+
+Reflection Index
+-----------------
+
+Each quadrature implements a :meth:`reflection_index` method that
+returns an index array mapping each ordinate :math:`n` to its
+**mirror image** :math:`n'` obtained by negating the direction cosine
+along a specified axis.  For example, ``reflection_index("x")``
+finds the ordinate whose direction cosines match :math:`(-\mu_x, \mu_y, \mu_z)`.
+
+The implementation in :func:`_find_reflections` computes the
+Euclidean distance between the target direction (with one component
+negated) and all ordinate directions, then returns the closest match:
+
+.. math::
+
+   n' = \arg\min_j \bigl[
+       (\mu_{x,j} - (-\mu_{x,n}))^2
+       + (\mu_{y,j} - \mu_{y,n})^2
+       + (\mu_{z,j} - \mu_{z,n})^2
+   \bigr]
+
+For Gauss--Legendre (1D), the reflection in *x* is simply
+:math:`n' = N - 1 - n` because the GL points are symmetric about
+zero.  Reflection in *y* is the identity since :math:`\mu_y = 0`.
+
+For multi-dimensional quadratures (Lebedev, Level-Symmetric, Product),
+the reflection indices are precomputed at construction time for all
+three axes (*x*, *y*, *z*) and stored as ``_ref_x``, ``_ref_y``,
+``_ref_z``.  These indices are used by the sweep to implement
+reflective boundary conditions (see :ref:`boundary-conditions`).
 
 Comparison Table
 -----------------
@@ -288,12 +338,105 @@ Comparison Table
 The Discrete Balance Equation
 =============================
 
-This is the core of the S\ :sub:`N` method.  Every geometry shares a
-single algebraic structure; only the definitions of face area, volume,
-direction cosine, and redistribution coefficient change.
+This is the core of the S\ :sub:`N` method.  The balance equations are
+presented from simplest to most complex: Cartesian geometries have no
+angular redistribution; curvilinear geometries add :math:`\alpha` coupling
+and a geometry factor :math:`\Delta A/w`.
+
+.. _balance-cartesian-1d:
+
+Cartesian 1D Balance Equation
+------------------------------
+
+Integrating :eq:`transport-cartesian` over a spatial cell
+:math:`[x_{i-1/2}, x_{i+1/2}]` of width :math:`\Delta x_i` and applying
+the divergence theorem to the streaming term:
+
+.. math::
+
+   \mu_n \bigl[\psi_{i+\frac12} - \psi_{i-\frac12}\bigr]
+   + \Sigt{} \Delta x_i\, \psi_{n,i} = S_i \Delta x_i
+
+where :math:`S_i = Q_i / W` and face areas are unity in slab geometry.
+Applying the diamond-difference closure
+:math:`\psi_{n,i} = \frac{1}{2}(\psi_{\rm in} + \psi_{\rm out})` and
+:math:`\psi_{\rm out} = 2\psi_{n,i} - \psi_{\rm in}`, we solve for the
+cell-average angular flux:
+
+.. math::
+   :label: dd-cartesian-1d
+
+   \psi_{n,i}
+   = \frac{S_i + \dfrac{2|\mu_n|}{\Delta x_i}\, \psi_{\rm in}}
+          {\Sigt{} + \dfrac{2|\mu_n|}{\Delta x_i}}
+
+This is the simplest balance equation: no :math:`\alpha` redistribution
+and no :math:`\Delta A` factor, because slab geometry has no curvature.
+The streaming coefficient :math:`2|\mu|/\Delta x` is precomputed by
+:class:`SNMesh` as ``streaming_x[n, i]``.
+
+.. _balance-cartesian-2d:
+
+Cartesian 2D Balance Equation
+-------------------------------
+
+Integrating :eq:`transport-cartesian-2d` over a rectangular cell
+:math:`\Delta x_i \times \Delta y_j`:
+
+.. math::
+
+   \mu_{x,n}\bigl[\psi_{i+\frac12,j} - \psi_{i-\frac12,j}\bigr] \Delta y_j
+   + \mu_{y,n}\bigl[\psi_{i,j+\frac12} - \psi_{i,j-\frac12}\bigr] \Delta x_i
+   + \Sigt{} \Delta x_i \Delta y_j\, \psi_{n,i,j}
+   = S_{i,j}\, \Delta x_i \Delta y_j
+
+Dividing through by :math:`\Delta x_i \Delta y_j` and applying
+diamond-difference closures in **both** directions simultaneously:
+
+.. math::
+
+   \psi_{n,i} &= \tfrac{1}{2}(\psi^x_{\rm in} + \psi^x_{\rm out})
+   \qquad\text{(x-closure)} \\
+   \psi_{n,i} &= \tfrac{1}{2}(\psi^y_{\rm in} + \psi^y_{\rm out})
+   \qquad\text{(y-closure)}
+
+yields the 2D DD equation:
+
+.. math::
+   :label: dd-cartesian-2d
+
+   \psi_{n,i,j}
+   = \frac{S_{i,j}
+     + s_x\, \psi^x_{\rm in}
+     + s_y\, \psi^y_{\rm in}}
+     {\Sigt{} + s_x + s_y}
+
+where the streaming coefficients are:
+
+.. math::
+
+   s_x = \frac{2|\mu_{x,n}|}{\Delta x_i}, \qquad
+   s_y = \frac{2|\mu_{y,n}|}{\Delta y_j}
+
+Both outgoing face fluxes are then updated from the DD closure:
+
+.. math::
+
+   \psi^x_{\rm out} = 2\psi_{n,i,j} - \psi^x_{\rm in}, \qquad
+   \psi^y_{\rm out} = 2\psi_{n,i,j} - \psi^y_{\rm in}
+
+These are precomputed by :class:`SNMesh` as ``streaming_x[n, i]`` and
+``streaming_y[n, j]``, so the inner loop in
+:func:`_sweep_2d_wavefront` reduces to a single vectorised division per
+diagonal.
+
+.. _balance-curvilinear:
+
+Curvilinear Balance Equation (Spherical and Cylindrical)
+---------------------------------------------------------
 
 Derivation from the Continuous PDE
------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Start with the general 1D curvilinear transport equation.  In
 conservative form for a coordinate :math:`r` with face area
@@ -369,6 +512,11 @@ factor :math:`\Delta A_i / w_n`:
 
 where :math:`\Delta A_i = A_{i+1/2} - A_{i-1/2}`.  This is
 [Bailey2009]_ Eq. 7--10 for spherical and Eq. 50--55 for cylindrical.
+
+Note why :eq:`dd-cartesian-1d` has no :math:`\alpha` or :math:`\Delta A`
+terms: in Cartesian geometry the face area is unity (:math:`A = 1`), so
+:math:`\Delta A = 0`, and there is no curvature to redistribute angular
+flux.
 
 The Alpha Redistribution Coefficients
 --------------------------------------
@@ -585,17 +733,6 @@ direction of neutron travel (see :ref:`sweep-algorithm` below for their
 definition).  This is the equation solved by both
 :func:`_sweep_1d_spherical` and :func:`_sweep_1d_cylindrical`.
 
-For **Cartesian** geometry there is no redistribution
-(:math:`\alpha = 0`, :math:`\Delta A = 0`), and the equation reduces to
-the familiar:
-
-.. math::
-   :label: dd-cartesian
-
-   \psi_{\rm avg}
-   = \frac{Q / W + \frac{2|\mu|}{\Delta x}\, \psi_{\rm in}}
-          {\Sigt{} + \frac{2|\mu|}{\Delta x}}
-
 Geometry Comparison
 --------------------
 
@@ -650,29 +787,122 @@ Because each cell's outgoing flux becomes the next cell's incoming flux,
 the equations must be solved in the direction of neutron travel --- this
 is called a **transport sweep**.
 
+.. _sweep-cumprod:
+
 Cartesian 1D: Cumprod Recurrence
 ---------------------------------
 
-For the 1D slab with Gauss--Legendre quadrature, the DD recurrence
-:math:`\psi_{\rm out} = a\,\psi_{\rm in} + s` (where :math:`a` and
-:math:`s` are precomputed DD coefficients) has a closed-form solution
-via cumulative products.
+For the 1D slab with Gauss--Legendre quadrature, the DD equation
+:eq:`dd-cartesian-1d` defines a recurrence for the outgoing face flux:
+
+.. math::
+   :label: dd-recurrence
+
+   \psi_{\rm out} = a_i\, \psi_{\rm in} + b_i
+
+where the coefficients for cell :math:`i` are:
+
+.. math::
+
+   a_i = \frac{2|\mu_n|/\Delta x_i - \Sigt{}}
+              {2|\mu_n|/\Delta x_i + \Sigt{}},
+   \qquad
+   b_i = \frac{S_i}
+              {2|\mu_n|/\Delta x_i + \Sigt{}}
+
+This arises from substituting the DD closure
+:math:`\psi_{\rm out} = 2\psi_{\rm avg} - \psi_{\rm in}` into
+:eq:`dd-cartesian-1d`.  The coefficient :math:`a_i` is the
+**stream-to-collision ratio**: it controls how much incoming flux
+propagates through cell :math:`i`.
+
+Unrolling the recurrence :math:`\psi_{\rm out}^{(i)} = a_i\, \psi_{\rm out}^{(i-1)} + b_i`
+gives a linear first-order relation that can be solved analytically
+using **cumulative products**.  Define:
+
+.. math::
+
+   C_i = \prod_{k=0}^{i} a_k, \qquad
+   R_i = \sum_{k=0}^{i} \frac{b_k}{C_k}
+
+Then the incoming face flux at cell :math:`i+1` is:
+
+.. math::
+
+   \psi_{\rm in}^{(i+1)} = C_i \bigl(\psi_{\rm in}^{(0)} + R_i\bigr)
+
+and the cell-average flux is :math:`\psi_{\rm avg}^{(i)} = \frac{1}{2}(\psi_{\rm in}^{(i)} + \psi_{\rm out}^{(i)})`.
+
+The implementation in :func:`_sweep_1d_cumprod` computes :math:`C` and
+:math:`R` via ``np.cumprod`` and ``np.cumsum``, giving an
+:math:`O(N \cdot n_x)` **vectorised** sweep --- all spatial cells for a
+given ordinate are resolved simultaneously in numpy array operations,
+with no Python-level cell loop.  This typically runs in sub-millisecond
+time for practical meshes.
 
 Exploiting GL symmetry, only positive-:math:`\mu` ordinates are swept
 forward; negative-:math:`\mu` ordinates are obtained by reversing the
-cell array.  The result is O(N) vectorised numpy operations --- typically
-sub-millisecond for practical meshes.
+cell array and sweeping with the same coefficients.
 
-Implemented in :func:`_sweep_1d_cumprod`.
+.. _sweep-wavefront:
 
-Cartesian 2D: Wavefront Sweep
--------------------------------
+Cartesian 2D: Anti-Diagonal Wavefront Sweep
+---------------------------------------------
 
-In 2D, the sweep proceeds along anti-diagonals :math:`i + j = k`,
-vectorised within each diagonal.  Four sweep passes cover the four
-quadrants :math:`(\pm\mu_x, \pm\mu_y)`.  Reflective boundary conditions
-are applied by copying the outgoing flux from the reflected partner
-ordinate.
+In 2D, the DD equation :eq:`dd-cartesian-2d` creates a data dependency:
+cell :math:`(i, j)` requires incoming face fluxes from its upwind
+neighbours in both :math:`x` and :math:`y`.  Cells along an
+**anti-diagonal** :math:`i + j = k` are mutually independent because
+they share no incoming faces, so they can be solved simultaneously.
+
+**The four quadrant sweeps.**  Each ordinate has a sign pair
+:math:`(\text{sgn}(\mu_x), \text{sgn}(\mu_y))` that determines the
+sweep direction.  The four combinations define four sweep patterns:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 20 30 30
+
+   * - :math:`\mu_x`
+     - :math:`\mu_y`
+     - *x*-direction
+     - *y*-direction
+   * - :math:`+`
+     - :math:`+`
+     - left :math:`\to` right
+     - bottom :math:`\to` top
+   * - :math:`-`
+     - :math:`+`
+     - right :math:`\to` left
+     - bottom :math:`\to` top
+   * - :math:`+`
+     - :math:`-`
+     - left :math:`\to` right
+     - top :math:`\to` bottom
+   * - :math:`-`
+     - :math:`-`
+     - right :math:`\to` left
+     - top :math:`\to` bottom
+
+For each direction pair, the sweep visits anti-diagonals
+:math:`k = 0, 1, \ldots, n_x + n_y - 2`.  On diagonal :math:`k`, the
+cells :math:`(i, j)` satisfying :math:`i + j = k` (in the swept index
+space) are gathered into a numpy batch and solved with a single vectorised
+evaluation of :eq:`dd-cartesian-2d`.
+
+**Vectorisation within each diagonal.**  Each diagonal contains up to
+:math:`\min(n_x, n_y)` cells.  The incoming face fluxes ``psi_in_x``
+and ``psi_in_y`` are gathered by advanced indexing; the DD equation is
+evaluated as one numpy operation; and the outgoing face fluxes are
+scattered back.  There is no Python-level cell loop within a diagonal.
+
+**Reflective BCs in 2D.**  At each boundary face, the incoming flux for
+ordinate :math:`n` is set to the outgoing flux of its reflected partner.
+For the left/right boundaries (*x*-reflection), the partner is
+``ref_x[n]`` (negating :math:`\mu_x`); for the top/bottom boundaries
+(*y*-reflection), the partner is ``ref_y[n]`` (negating :math:`\mu_y`).
+The reflection indices are precomputed by the quadrature's
+:meth:`reflection_index` method.
 
 Implemented in :func:`_sweep_2d_wavefront`.
 
@@ -762,10 +992,12 @@ so the two paths may give slightly different :math:`\keff` values.  They
 converge to the same answer as :math:`h \to 0`.
 
 The curvilinear BiCGSTAB operators read ``redist_dAw`` (spherical) and
-``redist_dAw_per_level`` (cylindrical) from ``SNMesh``, along with the
+``redist_dAw_per_level`` (cylindrical) from :class:`SNMesh`, along with the
 M-M weights ``tau_mm`` / ``tau_mm_per_level``.  This ensures both paths
 share exactly the same physics.
 
+
+.. _boundary-conditions:
 
 Boundary Conditions
 ===================
@@ -787,7 +1019,7 @@ partner:
 
 where :math:`n'` is the reflected partner ordinate (negating the
 appropriate direction cosine).  Reflective partner indices are precomputed
-by each quadrature's ``reflection_index()`` method.
+by each quadrature's :meth:`reflection_index` method.
 
 Inner Boundary (Curvilinear)
 -----------------------------
@@ -850,33 +1082,123 @@ is the net removal matrix.
 P\ :sub:`0` Isotropic Scattering
 ----------------------------------
 
-The default mode.  A direction-independent source is added to all
-ordinates equally:
+The default mode (``scattering_order=0``).  A direction-independent
+source is added to all ordinates equally:
 
 .. math::
 
    Q_{\rm scatter}(\hat{\Omega}_n)
    = \sum_{g'} \Sigs{g'\to g}^{(0)}\, \phi_{g'} / W
 
+Implemented in :meth:`SNSolver._add_scattering_source`, which performs
+``phi @ SigS[0]`` per material.
+
+.. _pn-scattering:
+
 P\ :sub:`N` Anisotropic Scattering
 ------------------------------------
 
-P\ :sub:`N` (:math:`N \geq 1`) adds per-ordinate sources via Legendre
-moments of the angular flux:
+When ``scattering_order >= 1``, per-ordinate anisotropic sources are
+computed from the Legendre moments of the angular flux.  The full
+anisotropic scattering source for ordinate :math:`n` and group :math:`g`
+is:
 
 .. math::
    :label: pn-scatter
 
-   Q_{\rm scatter}(\hat{\Omega}_n)
+   Q_{\rm scatter}(\hat{\Omega}_n, g)
    = \sum_{\ell=0}^{L} (2\ell+1)
-     \sum_{g'} \Sigs{g'\to g}^{(\ell)}
-     \left[\sum_{m=-\ell}^{\ell}
-       f_{\ell,g'}^m \, Y_\ell^m(\hat{\Omega}_n)\right] / W
+     \sum_{m=-\ell}^{\ell}
+     \sum_{g'} \Sigs{g'\to g}^{(\ell)}\,
+     f_{\ell,g'}^m \; Y_\ell^m(\hat{\Omega}_n)
+
+where :math:`Y_\ell^m` are real spherical harmonics and the angular flux
+moments are computed by quadrature:
+
+.. math::
+   :label: flux-moments
+
+   f_{\ell,g}^m = \sum_{n=1}^{N} w_n \, \psi_{n,g} \, Y_\ell^m(\hat{\Omega}_n)
+
+The :math:`(2\ell+1)` factor is the addition theorem normalisation for
+real spherical harmonics: it ensures that the P\ :sub:`L` expansion
+reproduces the angular flux moments exactly when the angular flux is a
+polynomial of degree :math:`\leq L`.
+
+**Implementation in** :meth:`SNSolver._build_aniso_scattering`:
+
+1. **Compute spherical harmonics** at construction time:
+   :math:`Y[n, \ell, \ell+m]` for all ordinates, stored as ``self._Y``
+   with shape ``(N, L+1, 2L+1)``.  The convention is
+   :math:`Y_0^0 = 1`, :math:`Y_1^{-1} = \mu_z`,
+   :math:`Y_1^0 = \mu_x`, :math:`Y_1^1 = \mu_y`.
+
+2. **Compute flux moments** via an ``einsum`` contraction over the
+   ordinate index:
+
+   .. code-block:: python
+
+      fiL[:, :, :, l, l+m] = np.einsum(
+          'n,nxyg->xyg', w * Y[:, l, l+m], angular_flux,
+      )
+
+   This contracts :math:`\sum_n w_n Y_\ell^m(\hat{\Omega}_n) \psi_n(x,y,g)`
+   into a spatial-energy field of shape ``(nx, ny, ng)``.
+
+3. **Reconstruct per-ordinate source**: for each Legendre order
+   :math:`\ell \geq 1` (the :math:`\ell = 0` term is handled by
+   :meth:`SNSolver._add_scattering_source`) and each :math:`m`, the
+   scattered moment ``moment @ sig_s_l[l]`` is multiplied by
+   :math:`(2\ell+1) Y_\ell^m(\hat{\Omega}_n)` and accumulated into
+   ``Q_aniso[n, :, :, :]``.
+
+4. The resulting ``Q_aniso`` array of shape ``(N, nx, ny, ng)`` is
+   passed to :func:`transport_sweep`, which adds it to the isotropic
+   source on a per-ordinate basis.
+
+**Equivalence of the code to the mathematical form.**
+Equation :eq:`pn-scatter` writes the sum as
+:math:`\sum_\ell \sum_m \sum_{g'} \Sigs{}^{(\ell)} f_\ell^m Y_\ell^m`.
+The code separates the :math:`\ell = 0` term (isotropic, handled by
+``_add_scattering_source``) from the :math:`\ell \geq 1` terms
+(anisotropic, handled by ``_build_aniso_scattering``).  For :math:`\ell = 0`,
+:math:`Y_0^0 = 1` and :math:`(2 \cdot 0 + 1) = 1`, so the sum reduces to
+:math:`\sum_{g'} \Sigs{g' \to g}^{(0)} f_{0,g'}^0 = \sum_{g'} \Sigs{g' \to g}^{(0)} \phi_{g'}`,
+which is exactly the P\ :sub:`0` source.  The split is therefore exact
+with no double-counting.
 
 The 421-group cross-section library provides both P0 and P1 matrices.
-The current implementation uses P0 only; P1 support requires computing
-angular flux moments :math:`f_1^m = \sum_n w_n \psi_n R_n^{1,m}` after
-each sweep.
+
+.. _n2n-reactions:
+
+(n,2n) Reactions
+-----------------
+
+The :math:`(n,2n)` reaction is a threshold reaction in which a neutron
+is absorbed by a nucleus, which then emits **two** neutrons.  The net
+effect is a gain of one neutron per reaction (the incident neutron is
+consumed, two are produced).
+
+The :math:`(n,2n)` cross section is stored as a group-to-group transfer
+matrix ``Mixture.Sig2`` with the same ``[g_from, g_to]`` convention as
+the scattering matrix.  The source contribution is:
+
+.. math::
+
+   Q_{(n,2n)}(g) = 2 \sum_{g'} \Sigma_{2,g'\to g}\, \phi_{g'}
+
+The factor of 2 accounts for the two neutrons produced per reaction.
+The implementation in :meth:`SNSolver._add_n2n_source` performs:
+
+.. code-block:: python
+
+   Q[ix, iy, :] += 2.0 * (phi[ix, iy, :] @ self.sig2[mid])
+
+This is added to the isotropic source before the transport sweep, on the
+same footing as the P\ :sub:`0` scattering source.  The :math:`(n,2n)`
+contribution also enters the :math:`\keff` production term in
+:meth:`SNSolver.compute_keff`, where row sums of ``Sig2`` (total
+:math:`(n,2n)` removal rate) are used.
 
 Normalization Chain
 --------------------
