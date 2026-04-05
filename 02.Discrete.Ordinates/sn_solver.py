@@ -321,6 +321,7 @@ class SNSolver:
                 self.sn_mesh.volumes,
                 self.sn_mesh.alpha_half,
                 self.sn_mesh.redist_dAw,
+                self.sn_mesh.tau_mm,
             )
 
         eq_map = self._eq_map

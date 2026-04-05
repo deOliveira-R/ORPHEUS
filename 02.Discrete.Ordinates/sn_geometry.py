@@ -172,11 +172,23 @@ class SNMesh:
         # Precompute redistribution geometry factor ΔA_i / w_n.
         # Shape (nx, N).  Both the DD sweep and the BiCGSTAB operator
         # use this to weight the angular redistribution term.
-        # If Morel–Montry angular closure weights are implemented,
-        # they should be folded into this array (multiply by τ_m/0.5).
         self.redist_dAw: np.ndarray = (
             self.delta_A[:, None] / w[None, :]
         )
+
+        # Morel–Montry angular closure weights (Bailey et al. Eq. 74).
+        # τ_m = (μ_m − μ_{m-1/2}) / (μ_{m+1/2} − μ_{m-1/2})
+        # where μ_{m+1/2} are cell-edge direction cosines.
+        # For spherical: μ_{1/2} = −1, μ_{N+1/2} = +1.
+        mu_edge = np.zeros(N + 1)
+        mu_edge[0] = -1.0
+        for n in range(N):
+            mu_edge[n + 1] = mu_edge[n] + w[n]
+        self.tau_mm: np.ndarray = np.empty(N)
+        for n in range(N):
+            dmu = mu_edge[n + 1] - mu_edge[n]
+            tau_raw = (mu[n] - mu_edge[n]) / dmu if abs(dmu) > 1e-15 else 0.5
+            self.tau_mm[n] = max(0.5, min(1.0, tau_raw))
 
         # Cartesian stencil not used for spherical
         self.streaming_x = None
@@ -243,7 +255,7 @@ class SNMesh:
 
         # Precompute redistribution geometry factor ΔA_i / w_m per level.
         # Each entry has shape (nx, M) for M ordinates on that level.
-        # Both the DD sweep and any future BiCGSTAB cylindrical operator
+        # Both the DD sweep and the BiCGSTAB cylindrical operator
         # use this to weight the angular redistribution term.
         self.redist_dAw_per_level: list[np.ndarray] = []
         for level_idx in self.quad.level_indices:
@@ -251,6 +263,26 @@ class SNMesh:
             self.redist_dAw_per_level.append(
                 self.delta_A[:, None] / w_level[None, :]  # (nx, M)
             )
+
+        # Morel–Montry angular closure weights (Bailey et al. Eq. 74).
+        # τ_m = (η_m − η_{m-1/2}) / (η_{m+1/2} − η_{m-1/2})
+        # For cylindrical: η_{1/2} = −sin θ, η_{M+1/2} = +sin θ.
+        self.tau_mm_per_level: list[np.ndarray] = []
+        for level_idx in self.quad.level_indices:
+            eta = self.quad.mu_x[level_idx]
+            w_level = self.quad.weights[level_idx]
+            M = len(level_idx)
+            sin_theta = np.sqrt(1.0 - self.quad.mu_z[level_idx[0]]**2)
+            eta_edge = np.zeros(M + 1)
+            eta_edge[0] = -sin_theta
+            for m in range(M):
+                eta_edge[m + 1] = eta_edge[m] + w_level[m]
+            tau = np.empty(M)
+            for m in range(M):
+                deta = eta_edge[m + 1] - eta_edge[m]
+                tau_raw = (eta[m] - eta_edge[m]) / deta if abs(deta) > 1e-15 else 0.5
+                tau[m] = max(0.5, min(1.0, tau_raw))
+            self.tau_mm_per_level.append(tau)
 
         self.streaming_x = None
         self.streaming_y = None

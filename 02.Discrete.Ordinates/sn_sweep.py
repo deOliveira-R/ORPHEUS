@@ -207,6 +207,7 @@ def _sweep_1d_spherical(
     V = sn_mesh.volumes[:, 0]  # (nx,) cell volumes
     alpha = sn_mesh.alpha_half  # (N+1,) non-negative dome
     dAw = sn_mesh.redist_dAw   # (nx, N) precomputed ΔA_i/w_n
+    tau = sn_mesh.tau_mm       # (N,) Morel–Montry angular weights
 
     # Persistent boundary flux at the outer face (per ordinate)
     if "bc_sph" not in psi_bc:
@@ -231,6 +232,9 @@ def _sweep_1d_spherical(
         w_n = weights[n]
         alpha_in = alpha[n]       # α_{n-1/2} ≥ 0 (dome)
         alpha_out = alpha[n + 1]  # α_{n+1/2} ≥ 0 (dome)
+        tau_n = tau[n]            # M-M angular closure weight
+        c_out = alpha_out / tau_n               # denom coefficient
+        c_in = (1.0 - tau_n) / tau_n * alpha_out + alpha_in  # numer coefficient
 
         if mu_n < 0:
             # Inward sweep: outer boundary → centre
@@ -242,17 +246,17 @@ def _sweep_1d_spherical(
                 dA_w = dAw[i, n]  # precomputed geometry factor
 
                 denom = (2.0 * abs_mu * A_out
-                         + 2.0 * dA_w * alpha_out
+                         + dA_w * c_out
                          + sig_t_1d[i] * V[i])
                 numer = (QV[i]
                          + abs_mu * (A_in + A_out) * psi_spatial_in
-                         + dA_w * (alpha_out + alpha_in) * psi_angle[i])
+                         + dA_w * c_in * psi_angle[i])
 
                 psi = numer / denom
 
-                # DD closures
+                # WDD closures
                 psi_spatial_out = 2.0 * psi - psi_spatial_in
-                psi_angle[i] = 2.0 * psi - psi_angle[i]
+                psi_angle[i] = (psi - (1.0 - tau_n) * psi_angle[i]) / tau_n
 
                 angular_flux[n, i, 0, :] = psi
                 scalar_flux[i] += w_n * psi
@@ -270,17 +274,17 @@ def _sweep_1d_spherical(
                 dA_w = dAw[i, n]
 
                 denom = (2.0 * abs_mu * A_out
-                         + 2.0 * dA_w * alpha_out
+                         + dA_w * c_out
                          + sig_t_1d[i] * V[i])
                 numer = (QV[i]
                          + abs_mu * (A_in + A_out) * psi_spatial_in
-                         + dA_w * (alpha_out + alpha_in) * psi_angle[i])
+                         + dA_w * c_in * psi_angle[i])
 
                 psi = numer / denom
 
-                # DD closures
+                # WDD closures
                 psi_spatial_out = 2.0 * psi - psi_spatial_in
-                psi_angle[i] = 2.0 * psi - psi_angle[i]
+                psi_angle[i] = (psi - (1.0 - tau_n) * psi_angle[i]) / tau_n
 
                 angular_flux[n, i, 0, :] = psi
                 scalar_flux[i] += w_n * psi
@@ -356,6 +360,7 @@ def _sweep_1d_cylindrical(
     for p, level_idx in enumerate(quad.level_indices):
         alpha = sn_mesh.alpha_per_level[p]  # (M+1,) non-negative dome
         dAw = sn_mesh.redist_dAw_per_level[p]  # (nx, M) precomputed
+        tau_level = sn_mesh.tau_mm_per_level[p]  # (M,) M-M weights
         M = len(level_idx)
 
         # Azimuthal "face flux" between successive ordinates on this level.
@@ -369,6 +374,9 @@ def _sweep_1d_cylindrical(
             w_n = weights[n]
             alpha_in = alpha[m_local]       # α_{m-1/2} ≥ 0
             alpha_out = alpha[m_local + 1]  # α_{m+1/2} ≥ 0
+            tau_m = tau_level[m_local]       # M-M angular closure weight
+            c_out = alpha_out / tau_m
+            c_in = (1.0 - tau_m) / tau_m * alpha_out + alpha_in
 
             if eta_n < 0:
                 # Inward sweep: outer → centre
@@ -380,16 +388,16 @@ def _sweep_1d_cylindrical(
                     dA_w = dAw[i, m_local]  # precomputed geometry factor
 
                     denom = (2.0 * abs_eta * A_out
-                             + 2.0 * dA_w * alpha_out
+                             + dA_w * c_out
                              + sig_t_1d[i] * V[i])
                     numer = (QV[i]
                              + abs_eta * (A_in + A_out) * psi_spatial_in
-                             + dA_w * (alpha_out + alpha_in) * psi_angle[i])
+                             + dA_w * c_in * psi_angle[i])
 
                     psi = numer / denom
 
                     psi_spatial_out = 2.0 * psi - psi_spatial_in
-                    psi_angle[i] = 2.0 * psi - psi_angle[i]
+                    psi_angle[i] = (psi - (1.0 - tau_m) * psi_angle[i]) / tau_m
 
                     angular_flux[n, i, 0, :] = psi
                     scalar_flux[i] += w_n * psi
@@ -401,12 +409,12 @@ def _sweep_1d_cylindrical(
                 for i in range(nx):
                     dA_w = dAw[i, m_local]
 
-                    denom = 2.0 * dA_w * alpha_out + sig_t_1d[i] * V[i]
+                    denom = dA_w * c_out + sig_t_1d[i] * V[i]
                     numer = (QV[i]
-                             + dA_w * (alpha_out + alpha_in) * psi_angle[i])
+                             + dA_w * c_in * psi_angle[i])
 
                     psi = numer / denom
-                    psi_angle[i] = 2.0 * psi - psi_angle[i]
+                    psi_angle[i] = (psi - (1.0 - tau_m) * psi_angle[i]) / tau_m
 
                     angular_flux[n, i, 0, :] = psi
                     scalar_flux[i] += w_n * psi
@@ -421,16 +429,16 @@ def _sweep_1d_cylindrical(
                     dA_w = dAw[i, m_local]
 
                     denom = (2.0 * abs_eta * A_out
-                             + 2.0 * dA_w * alpha_out
+                             + dA_w * c_out
                              + sig_t_1d[i] * V[i])
                     numer = (QV[i]
                              + abs_eta * (A_in + A_out) * psi_spatial_in
-                             + dA_w * (alpha_out + alpha_in) * psi_angle[i])
+                             + dA_w * c_in * psi_angle[i])
 
                     psi = numer / denom
 
                     psi_spatial_out = 2.0 * psi - psi_spatial_in
-                    psi_angle[i] = 2.0 * psi - psi_angle[i]
+                    psi_angle[i] = (psi - (1.0 - tau_m) * psi_angle[i]) / tau_m
 
                     angular_flux[n, i, 0, :] = psi
                     scalar_flux[i] += w_n * psi

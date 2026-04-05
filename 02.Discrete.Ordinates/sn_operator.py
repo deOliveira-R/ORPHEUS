@@ -413,6 +413,7 @@ def transport_operator_matvec_spherical(
     volumes: np.ndarray,
     alpha_half: np.ndarray,
     redist_dAw: np.ndarray,
+    tau_mm: np.ndarray,
 ) -> np.ndarray:
     r"""Apply the spherical transport operator T·ψ.
 
@@ -462,15 +463,17 @@ def transport_operator_matvec_spherical(
         streaming = mu[n] * (A[i + 1] * psi_right - A[i] * psi_left) / V[i]
 
         # ── Angular redistribution: (ΔA/w) (α ∂ψ/∂μ) / V ──────────
+        # Angular face flux uses M-M weighted interpolation (τ).
         dA_w = dAw[i, n]  # precomputed geometry factor
+        tau_n = tau_mm[n]
 
         if n < N - 1:
-            psi_angle_right = 0.5 * (fi[:, n, i, 0] + fi[:, n + 1, i, 0])
+            psi_angle_right = tau_n * fi[:, n + 1, i, 0] + (1.0 - tau_n) * fi[:, n, i, 0]
         else:
             psi_angle_right = fi[:, n, i, 0]
 
         if n > 0:
-            psi_angle_left = 0.5 * (fi[:, n - 1, i, 0] + fi[:, n, i, 0])
+            psi_angle_left = tau_mm[n - 1] * fi[:, n, i, 0] + (1.0 - tau_mm[n - 1]) * fi[:, n - 1, i, 0]
         else:
             psi_angle_left = fi[:, n, i, 0]
 
@@ -494,12 +497,13 @@ def build_transport_linear_operator_spherical(
     volumes: np.ndarray,
     alpha_half: np.ndarray,
     redist_dAw: np.ndarray,
+    tau_mm: np.ndarray,
 ) -> LinearOperator:
     """Build scipy LinearOperator for spherical T."""
     def matvec(x):
         return transport_operator_matvec_spherical(
             x, eq_map, quad, sig_t, nx, ng,
-            face_areas, volumes, alpha_half, redist_dAw,
+            face_areas, volumes, alpha_half, redist_dAw, tau_mm,
         )
 
     n = eq_map.n_unknowns
