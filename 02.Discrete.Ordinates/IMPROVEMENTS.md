@@ -207,6 +207,23 @@ P1+ anisotropic scattering implemented for Cartesian 2D but NOT
 verified for curvilinear 1D.  Spherical harmonics on GL/Product
 quadrature needs verification.
 
+### DO-20260405-005 — Document quadrature–dimension mismatch behaviour
+
+**Priority**: Medium | **Effort**: Small  
+**Code location**: `sn_quadrature.py`, `docs/theory/discrete_ordinates.rst`
+
+In the 2026-04-05 session, a ~0.3% eigenvalue plateau was observed when
+using the 3D Lebedev quadrature (110 points on the unit sphere) for 1D
+slab problems.  The error was controlled by angular quadrature, not mesh
+refinement.  Switching to Gauss–Legendre (correct 1D quadrature)
+eliminated the bias entirely.
+
+**Status unclear:** the codebase has since been restructured with a
+quadrature dispatch system.  Need to verify:
+1. Does the current dispatcher avoid this mismatch automatically?
+2. If Lebedev is manually applied to 1D, does the bias still appear?
+3. Document findings in the Quadrature Comparison section of the theory chapter.
+
 ### DO-00000000-007 — GMRES/preconditioned Krylov for BiCGSTAB
 
 **Priority**: Low | **Effort**: Moderate  

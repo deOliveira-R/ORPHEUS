@@ -35,7 +35,7 @@ def _iapws_viscosity(T_K: float, rho: float) -> float:
     Same correlation as pyXSteam but without the 900 °C upper-temperature
     cutoff.  Used as a fallback when pyXSteam returns NaN.
 
-    # TODO: Consider using this for ALL viscosity calls (replacing _st.my_ph
+    # TODO DA-20260405-004: Consider using this for ALL viscosity calls (replacing _st.my_ph
     # entirely). Bit-identical below 900 °C, no region dispatch overhead,
     # and T_K/rho are already available at call sites.
     """

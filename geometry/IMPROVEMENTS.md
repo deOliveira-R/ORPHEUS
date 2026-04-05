@@ -59,6 +59,20 @@ zone.  Geometric or logarithmic spacing would be useful for boundary
 layers (thin cells near material interfaces).  The `Zone` dataclass
 could accept an optional `spacing` parameter.
 
+### GE-20260405-001 — 3D mesh terminology convention
+
+**Status**: DONE  
+**Commit**: 48925ea
+
+Adopted consistent 3D finite-volume mesh terminology across all modules,
+even in reduced dimensions (1D/2D are spatially degenerate 3D cases):
+- **cell / volume** — where material properties and volume-averaged fields live
+- **face** — interface between cells, where D, J, ∇φ are defined
+
+Renames applied: `n_nodes→n_cells`, `n_edges→n_faces`, `z_nodes→z_cells`,
+`z_edges→z_faces`, `chi_node→chi_cell`, `sig_s_node→sig_s_cell`,
+`sig2_node→sig2_cell`, `sig_t_edges→sig_t_face`.
+
 ### GE-20260404-006 — Mesh refinement utility
 
 **Priority**: Medium | **Effort**: Small
