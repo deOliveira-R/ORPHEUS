@@ -289,3 +289,16 @@ source iteration is the reliable path for curvilinear geometries.
 DSA is the highest-value improvement for overall solver performance
 (reduces outer iterations from ~200 to ~20 for 421-group problems)
 and is geometry-agnostic.
+
+---
+
+## TODO: Cylindrical azimuthal DD sign convention
+
+See `TODO_cylindrical_dd.md` for full details.
+
+**Summary**: The cylindrical sweep uses `|α|` with a positive sign
+(same as spherical), but the cylindrical azimuthal redistribution term
+has a **negative** sign (`−∂(ξψ)/∂φ/r`). This makes the scheme exact
+for homogeneous but wrong for heterogeneous (keff diverges with mesh
+refinement). The fix requires the Lewis & Miller §4.5 starting-direction
+treatment (track αψ product instead of ψ).
