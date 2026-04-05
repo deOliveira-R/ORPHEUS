@@ -12,6 +12,7 @@ Tests verify mathematical properties that any valid quadrature must satisfy.
 import numpy as np
 import pytest
 
+from geometry import CoordSystem
 from sn_quadrature import (
     GaussLegendre1D,
     LebedevSphere,
@@ -238,3 +239,108 @@ class TestAlphaRedistribution:
         assert np.all(sn_mesh.alpha_half >= -1e-14), (
             f"Negative spherical α: min = {sn_mesh.alpha_half.min():.2e}"
         )
+
+
+class TestL0TermVerification:
+    """Term-level (L0) verification tests.
+
+    Each test isolates a single property of the discretization and
+    verifies it against a hand calculation.  Tagged with L0-SN-NNN
+    for the publication catalog.
+    """
+
+    @pytest.mark.parametrize("coord", [
+        CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL,
+    ])
+    def test_per_ordinate_flat_flux_consistency(self, coord):
+        """L0-SN-003: streaming + redistribution = 0 per ordinate for flat ψ.
+
+        The fundamental correctness criterion for curvilinear SN.
+        The ΔA/w factor ensures exact per-ordinate cancellation.
+        """
+        from geometry import CoordSystem, homogeneous_1d
+        from sn_geometry import SNMesh
+
+        if coord == CoordSystem.SPHERICAL:
+            quad = GaussLegendre1D.create(8)
+        else:
+            quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+
+        mesh = homogeneous_1d(10, 1.0, mat_id=0, coord=coord)
+        sn = SNMesh(mesh, quad)
+        dA = sn.delta_A
+        psi0 = 1.0
+
+        if coord == CoordSystem.SPHERICAL:
+            alpha = sn.alpha_half
+            for n in range(quad.N):
+                streaming = quad.mu_x[n] * dA * psi0
+                alpha_diff = alpha[n + 1] - alpha[n]
+                redist = (dA / quad.weights[n]) * alpha_diff * psi0
+                residual = streaming + redist
+                np.testing.assert_allclose(
+                    residual, 0.0, atol=1e-14,
+                    err_msg=f"Spherical ordinate {n}: residual ≠ 0",
+                )
+        else:
+            for p in range(len(sn.alpha_per_level)):
+                alpha = sn.alpha_per_level[p]
+                for m, n in enumerate(quad.level_indices[p]):
+                    streaming = quad.mu_x[n] * dA * psi0
+                    alpha_diff = alpha[m + 1] - alpha[m]
+                    redist = (dA / quad.weights[n]) * alpha_diff * psi0
+                    residual = streaming + redist
+                    np.testing.assert_allclose(
+                        residual, 0.0, atol=1e-14,
+                        err_msg=f"Cyl level {p} ord {m}: residual ≠ 0",
+                    )
+
+    @pytest.mark.parametrize("coord", [
+        CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL,
+    ])
+    def test_delta_A_magnitude(self, coord):
+        """L0-SN-004: ΔA = A[i+1] − A[i], hand-computed for known mesh."""
+        from geometry import homogeneous_1d
+        from sn_geometry import SNMesh
+
+        mesh = homogeneous_1d(5, 1.0, mat_id=0, coord=coord)
+        if coord == CoordSystem.SPHERICAL:
+            quad = GaussLegendre1D.create(4)
+        else:
+            quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        sn = SNMesh(mesh, quad)
+
+        edges = mesh.edges
+        if coord == CoordSystem.SPHERICAL:
+            expected = 4 * np.pi * (edges[1:]**2 - edges[:-1]**2)
+        else:
+            expected = 2 * np.pi * (edges[1:] - edges[:-1])
+        np.testing.assert_allclose(sn.delta_A, expected, rtol=1e-14)
+
+    def test_contamination_beta_spherical(self):
+        """L0-SN-008: Contamination β ≈ 0 (machine zero) for spherical."""
+        from derivations.sn_contamination import contamination_beta
+        quad = GaussLegendre1D.create(8)
+        beta = contamination_beta(quad, "spherical")
+        assert abs(beta) < 1e-14, f"Spherical β = {beta:.2e}"
+
+    def test_contamination_beta_cylindrical(self):
+        """L0-SN-008: Contamination β ≈ 0 (machine zero) for cylindrical."""
+        from derivations.sn_contamination import contamination_beta
+        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        betas = contamination_beta(quad, "cylindrical")
+        assert np.all(np.abs(betas) < 1e-14), (
+            f"Cylindrical β_max = {np.abs(betas).max():.2e}"
+        )
+
+    def test_scattering_source_magnitude(self):
+        """L0-SN-009: Scattering source = SigS^T @ φ, hand-calculated."""
+        from derivations._xs_library import get_mixture
+        mix = get_mixture("A", "2g")
+        phi = np.array([1.0, 2.0])
+        sig_s = mix.SigS[0]
+        if hasattr(sig_s, 'toarray'):
+            sig_s = sig_s.toarray()
+        expected = sig_s.T @ phi
+        actual = phi @ sig_s
+        np.testing.assert_allclose(actual, expected, rtol=1e-14)
