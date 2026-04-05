@@ -345,6 +345,89 @@ with mixed scalar/vector indexing (MATLAB's `fuel.dz` is a vector, but
 
 ---
 
+## ERR-012 — Static heat transfer areas in deformable TH/RK modules
+
+**Failure mode:** #3 Missing factor — missing geometry update  
+**Date:** 2026-04-01  
+**Solver:** Thermal Hydraulics (Module 07), Reactor Kinetics (Module 08)
+
+**Bug:** Gap and clad radial heat transfer areas (`gap_a_bnd`, `clad_a_bnd`)
+were computed once at initialization from fabrication geometry and never
+updated with deformed radii/heights.  MATLAB's `funRHS.m` recomputes
+`gap.a_` and `clad.a_` every RHS call from the current deformed geometry
+(`clad.r`, `clad.dz`, `fuel.r`, `fuel.dz`).
+
+**Impact:** During LOCA/RIA transients, fuel thermal expansion changes the
+gap geometry by ~0.5–3%.  Using stale fabrication areas introduces a
+systematic bias in the radial heat transfer.  The impact is small at steady
+state but compounds during transients with large deformations.
+
+**How it hid from higher-level tests:**
+- At t=0 and during early transient, deformations are negligible (< 0.1%)
+  so static areas produce identical results
+- Steady-state eigenvalue tests don't exercise the deformable geometry path
+- The `clad_a_bnd_def` variable WAS computed in the RHS (line 791 of TH)
+  but never used — a classic "dead code" pattern
+
+**L0 test that catches it:** Compare fuel surface temperature with static
+vs deformed areas during a LOCA at t > 300 s.  The static version over-
+estimates gap heat transfer when the gap narrows (area decreases with
+thermal expansion).
+
+**Fix:** Replace `p["gap_a_bnd"]` and `p["clad_a_bnd"]` with locally
+computed deformed values.  Fuel areas kept static (MATLAB convention —
+fuel boundary areas are not recomputed in `funRHS.m`).
+
+**Lesson:** When initializing geometry parameters for an ODE RHS, document
+explicitly which quantities are "frozen at fabrication" vs "updated each
+call".  The MATLAB code doesn't distinguish these — it uses globals that
+are silently overwritten.
+
+---
+
+## ERR-013 — Closed-gap stress BC uses fabrication gap width instead of roughness
+
+**Failure mode:** #4 Factor error — wrong denominator  
+**Date:** 2026-04-01  
+**Solver:** Fuel Behaviour (Module 06)
+
+**Bug:** In `_solve_stress()`, the closed-gap boundary conditions (BC3 and BC4)
+divided stress/strain gradients across the gap by `params["gap_dr0"]` (fabrication
+gap width = 100 μm) instead of the effective contact gap thickness (~6 μm roughness).
+The MATLAB DAE uses the current deformed gap width, which converges to roughness
+after closure.
+
+**Impact:** Contact pressure was 40.5 MPa vs MATLAB's 39.8 MPa with the correct
+fix, but was systematically wrong by a factor related to (100/6) ≈ 17× in the
+stress gradient term before the fix.  The initial fix used `gap_dr0` → the contact
+pressure was exactly 10× too high compared to the MATLAB reference value reported
+at a different timestep.
+
+**How it hid from higher-level tests:**
+- The open-gap phase (before 2.85 years) was unaffected — BC3/BC4 use the
+  pressure BCs, not the gap gradient form
+- The closed-gap phase stress values were "reasonable" (~40 MPa) even though
+  they were wrong — no analytical reference exists for the full closed-gap
+  coupled system
+- The 10× discrepancy was initially attributed to MATLAB's contact pressure
+  being at a different timestep (it was — but the BC was also wrong)
+
+**L0 test that catches it:** Compare contact pressure at a fixed time after
+closure against an independent analytical estimate: for a thin-walled tube
+under internal pressure (p_gas - p_cool) with contact, σ_r(inner) ≈ -p_contact
+≈ -(p_gas - p_cool) × geometry_factor.
+
+**Fix:** BC4 rewritten as a displacement-based gap constraint:
+`r_clad_in_deformed - r_fuel_out_deformed = roughness`.  This is linear in
+stresses, physically transparent, and avoids any division by gap width.
+
+**Lesson:** When converting DAE residuals to algebraic equations for a linear
+solve, the effective "thickness" used in finite-difference gradients across
+interfaces must match the physical gap state.  A fabrication-time value is
+wrong after gap closure because the physics has fundamentally changed.
+
+---
+
 ## Meta-Lessons
 
 1. **1-group is degenerate.** k = νΣ_f/Σ_a regardless of flux shape.
