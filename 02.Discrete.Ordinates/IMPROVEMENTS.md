@@ -56,6 +56,13 @@ Documented in ``docs/theory/discrete_ordinates.rst`` §2.
 
 Self-referential: this IS the Sphinx chapter (1276 lines, zero warnings).
 
+### DO-20260403-001 — Volume halving bug in CartesianMesh.volume
+
+Fixed: removed boundary halving from ``CartesianMesh.volume``.  Reflective
+BCs mean boundary cells are at the symmetry plane (full volume, not half).
+Bug caused ~1e-4 systematic keff error on heterogeneous problems.
+Documented in ``tests/l0_error_catalog.md`` ERR-008.
+
 ---
 
 ## OPEN — Not Yet Implemented
@@ -83,6 +90,23 @@ For quadratures where η values are distinct, transforming actual
 instead of the midpoint approximation.
 
 **References**: Bailey et al. (2009) Eq. 52.
+
+### DO-20260403-002 — 2D Lebedev 421-group performance
+
+**Priority**: HIGH | **Effort**: Moderate
+**Code location**: `sn_sweep.py` (wavefront path)
+
+The 2D wavefront sweep with 110 Lebedev ordinates × 10×10 mesh × 421
+groups runs at ~0.3s per outer iteration (source iteration).  With
+~200 outer iterations needed for convergence, the full demo takes ~60s.
+The old BiCGSTAB solver was even slower.
+
+The main performance bottleneck is the Python `for n in range(N)` loop
+over 110 ordinates in `_sweep_2d_wavefront`.  Ordinate batching by
+octant sign pattern could reduce this to 4 sweeps.
+
+Related: DSA (DO-00000000-001) would reduce outer iterations from ~200
+to ~20.
 
 ### DO-00000000-001 — Diffusion Synthetic Acceleration (DSA)
 

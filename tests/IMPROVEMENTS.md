@@ -62,6 +62,24 @@ Create `docs/theory/verification_l0.rst` with sections per solver
 
 Generated from test docstrings + the error catalog.
 
+### TS-20260403-001 — Richardson reference caching
+
+**Priority**: Medium | **Effort**: Small
+
+SN and MOC heterogeneous verification cases recompute Richardson
+extrapolation references on every test run (~15 min for all 6 SN cases).
+These should be computed once and cached (e.g., as JSON or in a
+`_cached_references.py` generated module).  The cache is invalidated
+when the solver code or XS library changes.
+
+### TS-20260403-002 — MMS (Method of Manufactured Solutions) tests
+
+**Priority**: Medium | **Effort**: Moderate
+
+Fixed-source verification for SN, MOC, and diffusion.  Tests the
+transport operator independently of the eigenvalue iteration.
+See DV-20260403-007.
+
 ### TS-20260405-004 — L0 test coverage for CP solver
 
 **Priority**: Low | **Effort**: Moderate

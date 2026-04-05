@@ -201,6 +201,39 @@ code paths that implement the same physics (BiCGSTAB operator).
 
 ---
 
+## ERR-008 — Boundary volume halving in SN keff computation
+
+**Failure mode:** #6 Convention drift — geometry vs solver disagree  
+**Date:** 2026-04-03  
+**Solver:** SN (unified solver, CartesianMesh)
+
+**Bug:** `CartesianMesh.volume` halved first/last cell volumes (matching
+the old `PinCellGeometry` convention from the 2D MATLAB port).  The SN
+solver used these volumes in the keff computation: `k = Σ(νΣf·φ·V) / Σ(Σa·φ·V)`.
+With reflective BCs, boundary cells are at the symmetry plane and should
+have full volume, not half.
+
+**Impact:** ~1e-4 systematic error in keff for heterogeneous problems.
+Homogeneous problems unaffected (uniform flux × uniform XS → volume
+cancels in the ratio).
+
+**How it hid:** Homogeneous verification tests all passed to machine
+precision.  The error only appeared when comparing the unified solver
+against the old `sn_1d.py` solver (which correctly used full `dx` as
+volume, not the geometry's `volume` property).
+
+**L0 test that catches it:** Direct comparison of keff between old and
+new solver on the same heterogeneous problem.  A dedicated test would
+verify `Σ(νΣf·φ·V) / Σ(Σa·φ·V) = keff_reported` with known volumes.
+
+**Lesson:** Volume conventions (half-cell vs full-cell) must be
+explicit and documented.  The same geometry object should not be used
+for both "mesh for sweeping" (where boundary halving might make sense
+for source normalization) and "volumes for integral quantities" (where
+the full cell contributes).
+
+---
+
 ## Meta-Lessons
 
 1. **1-group is degenerate.** k = νΣ_f/Σ_a regardless of flux shape.
