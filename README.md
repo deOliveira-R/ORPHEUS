@@ -8,14 +8,14 @@ thermal hydraulics, and reactor kinetics.
 
 ### Prerequisites
 
-- Python 3.12+ (3.14 recommended)
+- Python 3.11+ (3.14 recommended)
 - git-lfs (for nuclear data files)
 
 ### Installation
 
 ```bash
-git clone git@github.com:deOliveira-R/reactor_physics_lessons.git
-cd reactor_physics_lessons
+git clone git@github.com:deOliveira-R/ORPHEUS.git
+cd ORPHEUS
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
@@ -34,9 +34,9 @@ python convert_gxs_to_hdf5.py
 ### Run tests
 
 ```bash
-pytest                  # non-slow tests (~90s, 56 tests)
-pytest -m slow          # slow tests (~7min, 17 tests)
-pytest -v               # all 73 tests
+pytest                  # non-slow tests
+pytest -m slow          # slow tests (MC, full convergence studies)
+pytest -v               # all ~290 tests
 ```
 
 ### Build documentation
@@ -75,7 +75,7 @@ derivations/             SymPy analytical derivations (verification single sourc
     reference_values.py  Unified registry of all verification cases
     generate_rst.py      Generates RST fragments for Sphinx documentation
 
-tests/                   pytest verification suite (73 tests)
+tests/                   pytest verification suite (~290 tests)
     test_*_properties.py Unit tests (conservation, reciprocity, symmetry)
     test_*.py            Eigenvalue verification against analytical references
 

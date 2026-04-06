@@ -1,0 +1,36 @@
+# Elsevier / Scopus API configuration.
+# Copy this file to elsevier.toml and fill in your API key:
+#
+#   cp tools/elsevier.toml.example tools/elsevier.toml
+#
+# ── API Key (required) ──────────────────────────────────────────────
+#
+# 1. Create an account at https://dev.elsevier.com/
+# 2. Go to https://dev.elsevier.com/apikey/manage
+# 3. Click "Create API Key", give it a label (e.g. "ORPHEUS")
+# 4. Copy the key below
+#
+# The free API key gives access to:
+#   - Scopus Search API  (20,000 requests/week)
+#   - Abstract Retrieval (10,000 requests/week)
+# with STANDARD view (title, authors, DOI, journal, citation count).
+
+[elsevier]
+api_key = "YOUR_API_KEY_HERE"
+
+# ── Institutional Token (optional) ──────────────────────────────────
+#
+# An institutional token unlocks COMPLETE view (abstracts, full author
+# lists, affiliations, funding info) and full-text article retrieval.
+#
+# To obtain one:
+#   1. Your institution must have a Scopus/ScienceDirect subscription
+#   2. Register your API key at https://dev.elsevier.com/apikey/manage
+#   3. Contact Elsevier Integration Support (integrationsupport@elsevier.com)
+#      with your API key and institutional affiliation
+#   4. They will issue an institutional token tied to your key
+#
+# Alternatively, if your machine's IP is on your institution's network
+# (or VPN), the API key alone may grant full access automatically.
+#
+# inst_token = "YOUR_INST_TOKEN_HERE"

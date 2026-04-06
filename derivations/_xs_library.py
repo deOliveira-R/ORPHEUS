@@ -28,6 +28,7 @@ def make_mixture(
     chi: np.ndarray,
     sig_s: np.ndarray,
     sig_s1: np.ndarray | None = None,
+    sig_2: np.ndarray | None = None,
 ) -> Mixture:
     """Build a Mixture from N-group arrays.
 
@@ -35,17 +36,19 @@ def make_mixture(
     ----------
     sig_s : (ng, ng) P0 scattering matrix.
     sig_s1 : (ng, ng) P1 scattering matrix (optional).
+    sig_2 : (ng, ng) (n,2n) transfer matrix (optional, default zeros).
     """
     ng = len(sig_t)
     eg = np.logspace(7, -3, ng + 1)
     sig_s_list = [csr_matrix(sig_s)]
     if sig_s1 is not None:
         sig_s_list.append(csr_matrix(sig_s1))
+    sig_2_sparse = csr_matrix(sig_2) if sig_2 is not None else csr_matrix((ng, ng))
     return Mixture(
         SigC=sig_c.copy(), SigL=np.zeros(ng),
         SigF=sig_f.copy(), SigP=(nu * sig_f).copy(),
         SigT=sig_t.copy(), SigS=sig_s_list,
-        Sig2=csr_matrix((ng, ng)), chi=chi.copy(), eg=eg.copy(),
+        Sig2=sig_2_sparse, chi=chi.copy(), eg=eg.copy(),
     )
 
 

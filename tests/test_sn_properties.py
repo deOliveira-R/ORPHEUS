@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from derivations import get
-from sn_geometry import CartesianMesh
+from geometry import homogeneous_1d, slab_fuel_moderator
 from sn_quadrature import GaussLegendre1D
 from sn_solver import solve_sn
 
@@ -46,7 +46,7 @@ def test_flux_symmetry():
     materials = {2: fuel, 0: mod}
 
     # Symmetric layout: 10 fuel | 10 mod (half-cell with reflective BCs)
-    mesh = CartesianMesh.from_benchmark(
+    mesh = slab_fuel_moderator(
         n_fuel=10, n_mod=10, t_fuel=0.5, t_mod=0.5,
     )
     quad = GaussLegendre1D.create(8)
@@ -58,7 +58,7 @@ def test_flux_symmetry():
     # Here fuel|mod is NOT symmetric about the center, but the flux
     # should still be smooth and monotonic from fuel to moderator.
     # A stronger test: a homogeneous slab must have exactly flat flux.
-    mesh_homo = CartesianMesh.homogeneous_1d(20, 2.0, mat_id=0)
+    mesh_homo = homogeneous_1d(20, 2.0, mat_id=0)
     result_homo = solve_sn({0: mix}, mesh_homo, quad, max_outer=200,
                            max_inner=500, inner_tol=1e-10)
     flux = result_homo.scalar_flux[:, 0, 0]  # (nx,) for group 0
@@ -73,13 +73,13 @@ def test_particle_balance():
     case = get("sn_slab_2eg_1rg")
     mix = next(iter(case.materials.values()))
     materials = {0: mix}
-    mesh = CartesianMesh.homogeneous_1d(20, 2.0, mat_id=0)
+    mesh = homogeneous_1d(20, 2.0, mat_id=0)
     quad = GaussLegendre1D.create(8)
     result = solve_sn(materials, mesh, quad,
                       max_inner=500, inner_tol=1e-10)
 
     # Volume-weighted production and absorption rates
-    dx = mesh.dx
+    dx = mesh.widths
     flux = result.scalar_flux[:, 0, :]  # (nx, ng)
     sig_p = mix.SigP
     sig_a = mix.SigC + mix.SigF

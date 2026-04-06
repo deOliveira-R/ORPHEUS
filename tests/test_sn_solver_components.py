@@ -11,10 +11,20 @@ import pytest
 import time
 
 from derivations._xs_library import get_mixture
-from sn_geometry import CartesianMesh
+from geometry import Mesh1D, Mesh2D
+from sn_geometry import SNMesh
 from sn_quadrature import GaussLegendre1D, LebedevSphere
 from sn_solver import SNSolver, solve_sn
 from sn_sweep import transport_sweep
+
+
+def _uniform_2d(nx, ny, delta, mat_map):
+    """Helper: build a uniform Mesh2D (replaces CartesianMesh.uniform_2d)."""
+    return Mesh2D(
+        edges_x=np.linspace(0, nx * delta, nx + 1),
+        edges_y=np.linspace(0, ny * delta, ny + 1),
+        mat_map=np.asarray(mat_map, dtype=int),
+    )
 
 
 @pytest.fixture
@@ -30,10 +40,11 @@ def solver_2g():
     mat[:3, :] = 2
     mat[3:, :] = 0
 
-    mesh = CartesianMesh.uniform_2d(nx, ny, delta, mat)
+    mesh = _uniform_2d(nx, ny, delta, mat)
     quad = LebedevSphere.create(order=17)
-    solver = SNSolver(materials, mesh, quad)
-    return solver, materials, mesh, quad
+    sn_mesh = SNMesh(mesh, quad)
+    solver = SNSolver(materials, sn_mesh)
+    return solver, materials, sn_mesh, quad
 
 
 # ── Reference implementations (per-cell loops, known correct) ─────────
@@ -41,10 +52,10 @@ def solver_2g():
 def _ref_add_scattering(solver, Q, phi):
     """Original per-cell scattering source (reference)."""
     out = Q.copy()
-    nx, ny = solver.mesh.nx, solver.mesh.ny
+    nx, ny = solver.sn_mesh.nx, solver.sn_mesh.ny
     for ix in range(nx):
         for iy in range(ny):
-            mid = int(solver.mesh.mat_map[ix, iy])
+            mid = int(solver.sn_mesh.mat_map[ix, iy])
             out[ix, iy, :] += solver.sig_s0[mid].T @ phi[ix, iy, :]
     return out
 
@@ -52,10 +63,10 @@ def _ref_add_scattering(solver, Q, phi):
 def _ref_add_n2n(solver, Q, phi):
     """Original per-cell (n,2n) source (reference)."""
     out = Q.copy()
-    nx, ny = solver.mesh.nx, solver.mesh.ny
+    nx, ny = solver.sn_mesh.nx, solver.sn_mesh.ny
     for ix in range(nx):
         for iy in range(ny):
-            mid = int(solver.mesh.mat_map[ix, iy])
+            mid = int(solver.sn_mesh.mat_map[ix, iy])
             out[ix, iy, :] += 2.0 * (solver.sig2[mid].T @ phi[ix, iy, :])
     return out
 
@@ -64,9 +75,9 @@ def _ref_compute_keff(solver, flux):
     """Original per-cell keff computation (reference)."""
     vol = solver.volume[:, :, None]
     production = np.sum(solver.sig_p * flux * vol)
-    for ix in range(solver.mesh.nx):
-        for iy in range(solver.mesh.ny):
-            mid = int(solver.mesh.mat_map[ix, iy])
+    for ix in range(solver.sn_mesh.nx):
+        for iy in range(solver.sn_mesh.ny):
+            mid = int(solver.sn_mesh.mat_map[ix, iy])
             sig2_sum = np.array(solver.sig2[mid].sum(axis=1)).ravel()
             production += 2.0 * np.dot(sig2_sum, flux[ix, iy, :]) * solver.volume[ix, iy]
     absorption = np.sum(solver.sig_a * flux * vol)
@@ -79,8 +90,8 @@ class TestAddScatteringSource:
     def test_matches_reference(self, solver_2g):
         solver, *_ = solver_2g
         np.random.seed(42)
-        phi = np.random.rand(solver.mesh.nx, solver.mesh.ny, solver.ng) + 0.1
-        Q = np.random.rand(solver.mesh.nx, solver.mesh.ny, solver.ng)
+        phi = np.random.rand(solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng) + 0.1
+        Q = np.random.rand(solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng)
 
         expected = _ref_add_scattering(solver, Q, phi)
 
@@ -92,7 +103,7 @@ class TestAddScatteringSource:
 
     def test_zero_flux_gives_zero_addition(self, solver_2g):
         solver, *_ = solver_2g
-        Q = np.ones((solver.mesh.nx, solver.mesh.ny, solver.ng))
+        Q = np.ones((solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng))
         phi = np.zeros_like(Q)
 
         Q_before = Q.copy()
@@ -104,8 +115,8 @@ class TestAddN2NSource:
     def test_matches_reference(self, solver_2g):
         solver, *_ = solver_2g
         np.random.seed(123)
-        phi = np.random.rand(solver.mesh.nx, solver.mesh.ny, solver.ng) + 0.1
-        Q = np.random.rand(solver.mesh.nx, solver.mesh.ny, solver.ng)
+        phi = np.random.rand(solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng) + 0.1
+        Q = np.random.rand(solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng)
 
         expected = _ref_add_n2n(solver, Q, phi)
 
@@ -120,7 +131,7 @@ class TestComputeKeff:
     def test_matches_reference(self, solver_2g):
         solver, *_ = solver_2g
         np.random.seed(99)
-        flux = np.random.rand(solver.mesh.nx, solver.mesh.ny, solver.ng) + 0.1
+        flux = np.random.rand(solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng) + 0.1
 
         expected = _ref_compute_keff(solver, flux)
         actual = solver.compute_keff(flux)
@@ -132,24 +143,24 @@ class TestComputeKeff:
 class TestTransportSweep:
     def test_deterministic_output(self, solver_2g):
         """Sweep with same input must produce same output."""
-        solver, _, mesh, quad = solver_2g
+        solver, _, sn_mesh, quad = solver_2g
         np.random.seed(7)
-        Q = np.random.rand(mesh.nx, mesh.ny, solver.ng) + 0.01
+        Q = np.random.rand(sn_mesh.nx, sn_mesh.ny, solver.ng) + 0.01
 
         psi_bc1, psi_bc2 = {}, {}
-        ang1, phi1 = transport_sweep(Q, solver.sig_t, mesh.dx, mesh.dy, quad, psi_bc1)
-        ang2, phi2 = transport_sweep(Q, solver.sig_t, mesh.dx, mesh.dy, quad, psi_bc2)
+        ang1, phi1 = transport_sweep(Q, solver.sig_t, sn_mesh, psi_bc1)
+        ang2, phi2 = transport_sweep(Q, solver.sig_t, sn_mesh, psi_bc2)
 
         np.testing.assert_array_equal(phi1, phi2,
                                       err_msg="Sweep not deterministic")
 
     def test_matches_saved_reference(self, solver_2g):
         """Sweep output must match the saved reference (bitwise regression)."""
-        solver, _, mesh, quad = solver_2g
+        solver, _, sn_mesh, quad = solver_2g
         np.random.seed(7)
-        Q = np.random.rand(mesh.nx, mesh.ny, solver.ng) + 0.01
+        Q = np.random.rand(sn_mesh.nx, sn_mesh.ny, solver.ng) + 0.01
 
-        _, phi = transport_sweep(Q, solver.sig_t, mesh.dx, mesh.dy, quad, {})
+        _, phi = transport_sweep(Q, solver.sig_t, sn_mesh, {})
         ref = np.load(Path(__file__).parent / "sweep_ref_2g.npy")
 
         np.testing.assert_allclose(phi, ref, rtol=1e-14,
@@ -157,22 +168,22 @@ class TestTransportSweep:
 
     def test_positive_source_positive_flux(self, solver_2g):
         """Positive source must produce non-negative flux."""
-        solver, _, mesh, quad = solver_2g
-        Q = np.ones((mesh.nx, mesh.ny, solver.ng))
+        solver, _, sn_mesh, quad = solver_2g
+        Q = np.ones((sn_mesh.nx, sn_mesh.ny, solver.ng))
 
-        _, phi = transport_sweep(Q, solver.sig_t, mesh.dx, mesh.dy, quad, {})
+        _, phi = transport_sweep(Q, solver.sig_t, sn_mesh, {})
 
         assert np.all(phi >= 0), "Negative flux from positive source"
 
     def test_scalar_flux_shape(self, solver_2g):
         """Output shapes must match expectations."""
-        solver, _, mesh, quad = solver_2g
-        Q = np.ones((mesh.nx, mesh.ny, solver.ng))
+        solver, _, sn_mesh, quad = solver_2g
+        Q = np.ones((sn_mesh.nx, sn_mesh.ny, solver.ng))
 
-        ang, phi = transport_sweep(Q, solver.sig_t, mesh.dx, mesh.dy, quad, {})
+        ang, phi = transport_sweep(Q, solver.sig_t, sn_mesh, {})
 
-        assert ang.shape == (quad.N, mesh.nx, mesh.ny, solver.ng)
-        assert phi.shape == (mesh.nx, mesh.ny, solver.ng)
+        assert ang.shape == (quad.N, sn_mesh.nx, sn_mesh.ny, solver.ng)
+        assert phi.shape == (sn_mesh.nx, sn_mesh.ny, solver.ng)
 
 
 class TestQuadratureWeightConservation:
@@ -185,10 +196,10 @@ class TestQuadratureWeightConservation:
 
     def test_no_weight_lost(self, solver_2g):
         """Σ_n w_n · ψ_n must use the full sum(weights), not a subset."""
-        solver, _, mesh, quad = solver_2g
-        Q = np.ones((mesh.nx, mesh.ny, solver.ng))
+        solver, _, sn_mesh, quad = solver_2g
+        Q = np.ones((sn_mesh.nx, sn_mesh.ny, solver.ng))
 
-        ang, phi = transport_sweep(Q, solver.sig_t, mesh.dx, mesh.dy, quad, {})
+        ang, phi = transport_sweep(Q, solver.sig_t, sn_mesh, {})
 
         # Reconstruct scalar flux from angular flux manually
         phi_manual = np.zeros_like(phi)
@@ -200,10 +211,10 @@ class TestQuadratureWeightConservation:
 
     def test_z_ordinates_contribute(self, solver_2g):
         """Z-directed ordinates (mu_x=mu_y=0) must have nonzero angular flux."""
-        solver, _, mesh, quad = solver_2g
-        Q = np.ones((mesh.nx, mesh.ny, solver.ng))
+        solver, _, sn_mesh, quad = solver_2g
+        Q = np.ones((sn_mesh.nx, sn_mesh.ny, solver.ng))
 
-        ang, _ = transport_sweep(Q, solver.sig_t, mesh.dx, mesh.dy, quad, {})
+        ang, _ = transport_sweep(Q, solver.sig_t, sn_mesh, {})
 
         for n in range(quad.N):
             if abs(quad.mu_x[n]) < 1e-15 and abs(quad.mu_y[n]) < 1e-15:
@@ -222,16 +233,17 @@ class TestQuadratureWeightConservation:
 
         mix = get_mixture("A", "2g")
         materials = {0: mix}
-        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = LebedevSphere.create(order=17)
-        solver = SNSolver(materials, mesh, quad)
+        local_sn_mesh = SNMesh(mesh, quad)
+        solver = SNSolver(materials, local_sn_mesh)
 
         Q = np.ones((2, 2, solver.ng))
 
         # Run many sweeps to converge reflective BCs
         psi_bc = {}
         for _ in range(200):
-            _, phi = transport_sweep(Q, solver.sig_t, mesh.dx, mesh.dy, quad, psi_bc)
+            _, phi = transport_sweep(Q, solver.sig_t, local_sn_mesh, psi_bc)
 
         expected = Q / solver.sig_t
         np.testing.assert_allclose(phi, expected, rtol=1e-6,
@@ -289,9 +301,9 @@ class TestMultiGroupEigenvector:
 
         # Run 2D solver
         materials = {0: mix}
-        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = LebedevSphere.create(order=17)
-        solver = SNSolver(materials, mesh, quad, max_inner=500, inner_tol=1e-10)
+        solver = SNSolver(materials, SNMesh(mesh, quad), max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
         keff = 1.0
@@ -323,11 +335,9 @@ class TestBicgstabNormalization:
         case = get("sn_slab_2eg_1rg")
         mix = next(iter(case.materials.values()))
 
-        mesh = CartesianMesh.from_slab_1d(
-            np.full(4, 0.5), np.zeros(4, dtype=int),
-        )
+        mesh = Mesh1D(edges=np.linspace(0, 2, 5), mat_ids=np.zeros(4, dtype=int))
         gl = GaussLegendre1D.create(8)
-        solver = SNSolver({0: mix}, mesh, gl,
+        solver = SNSolver({0: mix}, SNMesh(mesh, gl),
                           inner_solver="bicgstab",
                           max_inner=2000, inner_tol=1e-6)
 
@@ -350,9 +360,9 @@ class TestBicgstabNormalization:
         case = get("sn_slab_2eg_1rg")
         mix = next(iter(case.materials.values()))
 
-        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = LebedevSphere.create(order=17)
-        solver = SNSolver({0: mix}, mesh, quad,
+        solver = SNSolver({0: mix}, SNMesh(mesh, quad),
                           inner_solver="bicgstab",
                           max_inner=2000, inner_tol=1e-6)
 
@@ -381,12 +391,12 @@ class TestBicgstabNormalization:
 
         results = {}
         for label, mesh, quad in [
-            ("GL", CartesianMesh.from_slab_1d(np.full(4, 0.5), np.zeros(4, dtype=int)),
+            ("GL", Mesh1D(edges=np.linspace(0, 2, 5), mat_ids=np.zeros(4, dtype=int)),
              GaussLegendre1D.create(8)),
-            ("Lebedev", CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int)),
+            ("Lebedev", _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int)),
              LebedevSphere.create(order=17)),
         ]:
-            solver = SNSolver({0: mix}, mesh, quad,
+            solver = SNSolver({0: mix}, SNMesh(mesh, quad),
                               inner_solver="bicgstab",
                               max_inner=2000, inner_tol=1e-6)
             phi = solver.initial_flux_distribution()
@@ -412,11 +422,11 @@ class TestAnisotropicScattering:
 
         case = get("sn_slab_2eg_1rg")
         mix = next(iter(case.materials.values()))
-        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = LebedevSphere.create(order=17)
 
         # Default (P0)
-        solver_default = SNSolver({0: mix}, mesh, quad,
+        solver_default = SNSolver({0: mix}, SNMesh(mesh, quad),
                                   max_inner=500, inner_tol=1e-10)
         phi = solver_default.initial_flux_distribution()
         keff = 1.0
@@ -428,7 +438,7 @@ class TestAnisotropicScattering:
         keff_p0 = keff
 
         # Explicit P0
-        solver_explicit = SNSolver({0: mix}, mesh, quad,
+        solver_explicit = SNSolver({0: mix}, SNMesh(mesh, quad),
                                    scattering_order=0,
                                    max_inner=500, inner_tol=1e-10)
         phi = solver_explicit.initial_flux_distribution()
@@ -474,11 +484,11 @@ class TestAnisotropicScattering:
             sig_s=np.array([[0.38, 0.10], [0.00, 0.90]]),
             # no sig_s1
         )
-        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = LebedevSphere.create(order=17)
 
         # Request P1 but only P0 data available → should clamp to P0
-        solver = SNSolver({0: mix_p0_only}, mesh, quad, scattering_order=1)
+        solver = SNSolver({0: mix_p0_only}, SNMesh(mesh, quad), scattering_order=1)
         assert solver.scattering_order == 0, (
             f"Expected L=0 (clamped), got L={solver.scattering_order}"
         )
@@ -516,12 +526,12 @@ class TestAnisotropicScattering:
 
         mat = np.zeros((6, 2), dtype=int)
         mat[:3, :] = 2
-        mesh = CartesianMesh.uniform_2d(6, 2, 0.2, mat)
+        mesh = _uniform_2d(6, 2, 0.2, mat)
         quad = LebedevSphere.create(order=17)
 
         keffs = {}
         for L in [0, 1]:
-            solver = SNSolver(materials, mesh, quad,
+            solver = SNSolver(materials, SNMesh(mesh, quad),
                               scattering_order=L,
                               max_inner=500, inner_tol=1e-10)
             phi = solver.initial_flux_distribution()
@@ -545,9 +555,9 @@ class TestAnisotropicScattering:
         if len(mix.SigS) < 2:
             pytest.skip("No P1 data")
 
-        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = LebedevSphere.create(order=17)
-        solver = SNSolver({0: mix}, mesh, quad, scattering_order=1)
+        solver = SNSolver({0: mix}, SNMesh(mesh, quad), scattering_order=1)
 
         # Isotropic angular flux: same value for all ordinates
         N = quad.N
@@ -568,12 +578,12 @@ class TestBicgstabPnScattering:
 
         case = get("sn_slab_2eg_1rg")
         mix = next(iter(case.materials.values()))
-        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = LebedevSphere.create(order=17)
 
         keffs = {}
         for label, solver_type in [("SI", "source_iteration"), ("BC", "bicgstab")]:
-            solver = SNSolver({0: mix}, mesh, quad,
+            solver = SNSolver({0: mix}, SNMesh(mesh, quad),
                               inner_solver=solver_type, scattering_order=0,
                               max_inner=500 if solver_type == "source_iteration" else 2000,
                               inner_tol=1e-10 if solver_type == "source_iteration" else 1e-6)
@@ -595,12 +605,12 @@ class TestBicgstabPnScattering:
         from derivations._xs_library import get_mixture
 
         mix = get_mixture("A", "2g")
-        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = LebedevSphere.create(order=17)
 
         keffs = {}
         for L in [0, 1]:
-            solver = SNSolver({0: mix}, mesh, quad,
+            solver = SNSolver({0: mix}, SNMesh(mesh, quad),
                               inner_solver="bicgstab", scattering_order=L,
                               max_inner=2000, inner_tol=1e-6)
             phi = solver.initial_flux_distribution()
@@ -622,12 +632,12 @@ class TestBicgstabPnScattering:
         from derivations._xs_library import get_mixture
 
         mix = get_mixture("A", "2g")
-        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = LebedevSphere.create(order=17)
 
         keffs = {}
         for label, solver_type in [("SI", "source_iteration"), ("BC", "bicgstab")]:
-            solver = SNSolver({0: mix}, mesh, quad,
+            solver = SNSolver({0: mix}, SNMesh(mesh, quad),
                               inner_solver=solver_type, scattering_order=1,
                               max_inner=500 if solver_type == "source_iteration" else 2000,
                               inner_tol=1e-10 if solver_type == "source_iteration" else 1e-6)
@@ -658,7 +668,7 @@ class TestFissionSource:
         Verify: sweep(Q) with Q = fission_source should produce the
         same scalar flux as sweep(Q/(4π)) with a modified weight_norm=1.
         """
-        solver, _, mesh, quad = solver_2g
+        solver, _, sn_mesh, quad = solver_2g
         phi = solver.initial_flux_distribution()
         fission_src = solver.compute_fission_source(phi, 1.0)
 
@@ -703,9 +713,9 @@ class TestHomogeneousExact:
         mix = next(iter(case.materials.values()))
         materials = {0: mix}
 
-        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = LebedevSphere.create(order=17)
-        solver = SNSolver(materials, mesh, quad, max_inner=500, inner_tol=1e-10)
+        solver = SNSolver(materials, SNMesh(mesh, quad), max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
         keff = 1.0
@@ -740,11 +750,11 @@ class TestSolveFixedSource:
 
         case = get("sn_slab_2eg_1rg")
         mix = next(iter(case.materials.values()))
-        mesh = CartesianMesh.uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = LebedevSphere.create(order=17)
 
         # Source iteration
-        solver_si = SNSolver({0: mix}, mesh, quad,
+        solver_si = SNSolver({0: mix}, SNMesh(mesh, quad),
                              inner_solver="source_iteration",
                              max_inner=500, inner_tol=1e-10)
         phi = solver_si.initial_flux_distribution()
@@ -757,7 +767,7 @@ class TestSolveFixedSource:
         keff_si = keff
 
         # BiCGSTAB
-        solver_bc = SNSolver({0: mix}, mesh, quad,
+        solver_bc = SNSolver({0: mix}, SNMesh(mesh, quad),
                              inner_solver="bicgstab",
                              max_inner=2000, inner_tol=1e-6)
         phi = solver_bc.initial_flux_distribution()
@@ -788,9 +798,9 @@ def solver_421g():
     cool = borated_water(temp_K=600, pressure_MPa=16.0, boron_ppm=4000)
     materials = {2: fuel, 1: clad, 0: cool}
 
-    mesh = CartesianMesh.default_pwr_2d(nx=10, ny=10, delta=0.2)
+    mesh = _uniform_2d(10, 10, 0.2, np.tile(np.array([2]*5 + [1] + [0]*4, dtype=int), (10, 1)).T)
     quad = LebedevSphere.create(order=17)
-    solver = SNSolver(materials, mesh, quad)
+    solver = SNSolver(materials, SNMesh(mesh, quad))
     return solver, materials, mesh, quad
 
 
@@ -800,10 +810,10 @@ class TestPerformanceBaseline:
     Not assertions — just prints. Run with ``pytest -s`` to see output.
     """
     def test_profile_components(self, solver_2g):
-        solver, _, mesh, quad = solver_2g
+        solver, _, sn_mesh, quad = solver_2g
         np.random.seed(42)
-        phi = np.random.rand(mesh.nx, mesh.ny, solver.ng) + 0.1
-        Q = np.random.rand(mesh.nx, mesh.ny, solver.ng)
+        phi = np.random.rand(sn_mesh.nx, sn_mesh.ny, solver.ng) + 0.1
+        Q = np.random.rand(sn_mesh.nx, sn_mesh.ny, solver.ng)
         fission_src = solver.compute_fission_source(phi, 1.0)
 
         # Scattering source
@@ -834,7 +844,7 @@ class TestPerformanceBaseline:
         n_sweep = 5
         t0 = time.perf_counter()
         for _ in range(n_sweep):
-            transport_sweep(Q, solver.sig_t, mesh.dx, mesh.dy, quad, {})
+            transport_sweep(Q, solver.sig_t, sn_mesh, {})
         t_sweep = (time.perf_counter() - t0) / n_sweep * 1000
         print(f"  transport_sweep: {t_sweep:.1f} ms")
 
@@ -875,6 +885,6 @@ class TestPerformanceBaseline:
         n_sweep = 3
         t0 = time.perf_counter()
         for _ in range(n_sweep):
-            transport_sweep(Q, solver.sig_t, mesh.dx, mesh.dy, quad, {})
+            transport_sweep(Q, solver.sig_t, sn_mesh, {})
         t_sweep = (time.perf_counter() - t0) / n_sweep * 1000
         print(f"  [421g] transport_sweep: {t_sweep:.1f} ms")

@@ -13,6 +13,7 @@ from __future__ import annotations
 import numpy as np
 import sympy as sp
 
+from ._eigenvalue import kinf_homogeneous, kinf_from_cp
 from ._types import VerificationCase
 from ._xs_library import LAYOUTS, get_xs, get_mixture
 
@@ -34,26 +35,20 @@ def _derive_mc_homogeneous(ng_key: str) -> VerificationCase:
     xs = get_xs("A", ng_key)
     ng = len(xs["sig_t"])
 
+    k_val = kinf_homogeneous(
+        sig_t=xs["sig_t"], sig_s=xs["sig_s"],
+        nu_sig_f=xs["nu"] * xs["sig_f"], chi=xs["chi"],
+    )
+
     if ng == 1:
-        nu_s, Sig_f_sym, Sig_a = sp.symbols('nu Sigma_f Sigma_a', positive=True)
-        k_expr = nu_s * Sig_f_sym / Sig_a
-        sig_a_val = xs["sig_c"][0] + xs["sig_f"][0]
-        k_val = float(k_expr.subs({
-            nu_s: xs["nu"][0], Sig_f_sym: xs["sig_f"][0], Sig_a: sig_a_val,
-        }))
         latex = (
             r"From random walk probability: "
             r":math:`k = \nu\Sigma_f/\Sigma_a`."
             "\n\n"
             r".. math::" "\n"
-            rf"   k = {sp.latex(k_expr)} = {k_val:.6f}"
+            rf"   k = \nu\Sigma_f / \Sigma_a = {k_val:.6f}"
         )
     else:
-        A_sym = sp.Matrix(np.diag(xs["sig_t"])) - sp.Matrix(xs["sig_s"].T)
-        F_sym = sp.Matrix(np.outer(xs["chi"], xs["nu"] * xs["sig_f"]))
-        M_sym = A_sym.inv() * F_sym
-        eigs = M_sym.eigenvals()
-        k_val = float(max(sp.re(e) for e in eigs.keys()))
         latex = (
             r"Multi-group MC: collision kernel matrix gives "
             r":math:`k = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})`."
@@ -83,7 +78,7 @@ def _derive_mc_heterogeneous(ng_key: str, n_regions: int) -> VerificationCase:
     The CP semi-analytical eigenvalue serves as the reference.
     MC verification is statistical: z = |k_MC - k_ref| / σ < 5.
     """
-    from .cp_cylinder import _cylinder_cp_matrix, _kinf_from_cp
+    from .cp_cylinder import _cylinder_cp_matrix
 
     layout = LAYOUTS[n_regions]
     mat_ids = _MAT_IDS[n_regions]
@@ -100,7 +95,7 @@ def _derive_mc_heterogeneous(ng_key: str, n_regions: int) -> VerificationCase:
     sig_t_all = np.vstack([xs["sig_t"] for xs in xs_list])
 
     P_inf_g = _cylinder_cp_matrix(sig_t_all, radii, volumes, r_cell)
-    k_ref = _kinf_from_cp(
+    k_ref = kinf_from_cp(
         P_inf_g=P_inf_g,
         sig_t_all=sig_t_all,
         V_arr=volumes,

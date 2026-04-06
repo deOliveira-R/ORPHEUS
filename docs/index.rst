@@ -5,9 +5,12 @@ ORPHEUS — Open Reactor Physics Educational University System
    :maxdepth: 2
    :caption: Theory & Derivations
 
+   theory/cross_section_data
    theory/homogeneous
-   theory/discrete_ordinates
-   theory/collision_probability
+   theory/transport_methods
+   theory/fuel_behaviour
+   theory/thermal_hydraulics
+   theory/reactor_kinetics
    theory/verification
 
 .. toctree::

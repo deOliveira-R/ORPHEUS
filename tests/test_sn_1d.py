@@ -5,7 +5,7 @@ import pytest
 
 from derivations import get
 from derivations._xs_library import get_mixture
-from sn_geometry import CartesianMesh
+from geometry import homogeneous_1d, slab_fuel_moderator, mesh1d_from_zones, Zone, CoordSystem
 from sn_quadrature import GaussLegendre1D
 from sn_solver import solve_sn
 
@@ -23,7 +23,7 @@ def test_homogeneous_exact(case_name):
     case = get(case_name)
     mix = next(iter(case.materials.values()))
     materials = {0: mix}
-    mesh = CartesianMesh.homogeneous_1d(20, 2.0, mat_id=0)
+    mesh = homogeneous_1d(20, 2.0, mat_id=0)
     quad = GaussLegendre1D.create(8)
     result = solve_sn(materials, mesh, quad,
                       max_inner=500, inner_tol=1e-10)
@@ -48,9 +48,12 @@ def test_heterogeneous_convergence(case_name):
     """SN on heterogeneous slab must converge to the Richardson reference."""
     case = get(case_name)
     gp = case.geom_params
-    mesh = CartesianMesh.from_regions(
-        gp["thicknesses"], gp["mat_ids"], n_cells_per_region=20,
-    )
+    zones = []
+    edge = 0.0
+    for t, mid in zip(gp["thicknesses"], gp["mat_ids"]):
+        edge += t
+        zones.append(Zone(outer_edge=edge, mat_id=mid, n_cells=20))
+    mesh = mesh1d_from_zones(zones, coord=CoordSystem.CARTESIAN)
     quad = GaussLegendre1D.create(16)
     result = solve_sn(
         case.materials, mesh, quad,
@@ -89,7 +92,7 @@ def test_spatial_convergence():
     keffs = []
     dxs = []
     for n_per in [5, 10, 20, 40]:
-        mesh = CartesianMesh.from_benchmark(
+        mesh = slab_fuel_moderator(
             n_fuel=n_per, n_mod=n_per, t_fuel=t_fuel, t_mod=t_mod,
         )
         quad = GaussLegendre1D.create(16)
@@ -120,7 +123,7 @@ def test_angular_convergence():
     keffs = []
     n_ords = [4, 8, 16, 32]
     for N in n_ords:
-        mesh = CartesianMesh.from_benchmark(
+        mesh = slab_fuel_moderator(
             n_fuel=40, n_mod=40, t_fuel=0.5, t_mod=0.5,
         )
         quad = GaussLegendre1D.create(N)

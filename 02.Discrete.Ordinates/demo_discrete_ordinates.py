@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 from data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
-from sn_geometry import CartesianMesh
+from geometry import Mesh1D
 from sn_quadrature import GaussLegendre1D
 from sn_solver import solve_sn
 from plotting import plot_do_convergence, plot_do_spectra
@@ -32,14 +32,14 @@ def plot_spatial_flux_1d(result, output_dir):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     mesh = result.geometry
-    x = np.cumsum(mesh.dx) - mesh.dx / 2  # cell centres
+    x = mesh.centers  # cell centres
 
     sf = result.scalar_flux[:, 0, :]  # (nx, ng), squeeze ny=1
     ng = sf.shape[1]
 
     FI_T = sf[:, :50].sum(axis=1) if ng > 50 else sf.sum(axis=1)
-    FI_R = sf[:, 50:287].sum(axis=1) if ng > 287 else np.zeros(mesh.nx)
-    FI_F = sf[:, 287:].sum(axis=1) if ng > 287 else np.zeros(mesh.nx)
+    FI_R = sf[:, 50:287].sum(axis=1) if ng > 287 else np.zeros(mesh.N)
+    FI_F = sf[:, 287:].sum(axis=1) if ng > 287 else np.zeros(mesh.N)
 
     fig, ax = plt.subplots()
     ax.plot(x, FI_F, "-or", label="Fast", markersize=4)
@@ -66,15 +66,15 @@ def main():
     materials = {2: fuel, 1: clad, 0: cool}
 
     # 2. Set up 1D slab geometry: fuel(5) + clad(1) + coolant(4), δ=0.2 cm
-    widths = np.full(10, 0.2)
+    edges = np.linspace(0.0, 2.0, 11)  # 10 cells, δ = 0.2 cm
     mat_ids = np.array([2, 2, 2, 2, 2, 1, 0, 0, 0, 0], dtype=int)
-    mesh = CartesianMesh.from_slab_1d(widths, mat_ids)
+    mesh = Mesh1D(edges=edges, mat_ids=mat_ids)
 
     # 3. Angular quadrature
     n_ord = 16
     quad = GaussLegendre1D.create(n_ord)
 
-    print(f"\n  Slab: {mesh.nx} cells, delta = {widths[0]:.2f} cm")
+    print(f"\n  Slab: {mesh.N} cells, delta = {mesh.widths[0]:.2f} cm")
     print(f"  Layout: fuel(5) + clad(1) + coolant(4)")
     print(f"  Ordinates: S{n_ord} ({quad.N} Gauss-Legendre points)")
     print(f"  Inner solver: BiCGSTAB (direct transport operator)")

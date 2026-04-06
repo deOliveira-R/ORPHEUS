@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from derivations._xs_library import get_mixture
-from sn_geometry import CartesianMesh
+from geometry import Mesh2D
 from sn_quadrature import LebedevSphere
 from sn_solver import solve_sn
 
@@ -31,7 +31,11 @@ def test_do_mesh_convergence(ng_key, label):
         mat[:n_fuel, :] = 2
         mat[n_fuel:, :] = 0
 
-        mesh = CartesianMesh.uniform_2d(nx, ny, delta, mat)
+        mesh = Mesh2D(
+            edges_x=np.linspace(0, nx * delta, nx + 1),
+            edges_y=np.linspace(0, ny * delta, ny + 1),
+            mat_map=mat,
+        )
         result = solve_sn(
             materials, mesh, quad,
             inner_solver="source_iteration",

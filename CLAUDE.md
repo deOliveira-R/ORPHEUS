@@ -1,5 +1,21 @@
 # ORPHEUS — Open Reactor Physics Educational University System
 
+## Python Environment
+
+**MUST use the repo venv for ALL Python execution:**
+
+```bash
+.venv/bin/python          # scripts, sphinx, pytest, everything
+.venv/bin/python -m sphinx -b html docs docs/_build/html
+.venv/bin/python -m pytest tests/ -v
+```
+
+**NEVER** use bare `python`, `python3`, or conda Python. The repo venv (`.venv/`, Python 3.14) has all dependencies. The conda environment is incomplete.
+
+This applies to the main agent AND all sub-agents (archivist, qa, numerics-investigator, etc.).
+
+---
+
 ## Knowledge Sources
 
 This project has two complementary knowledge systems. Use **both** before making changes.
@@ -10,7 +26,7 @@ The `docs/` directory contains theory, derivations, and equations that explain t
 - **Before implementing or modifying a solver**: read the relevant theory page in `docs/theory/` to understand the physics, equations, and design decisions.
 - **Before implementing a new module**: check if a theory page exists. If not, write one as part of the implementation — document the equations and derivations alongside the code.
 - **After modifying equations or algorithms**: update the corresponding Sphinx page. Build with `python -m sphinx -b html docs docs/_build/html` and verify zero warnings.
-- **Subagents**: when briefing a subagent on physics-heavy work, point it to the specific RST file (e.g., `docs/theory/collision_probability.rst`) so it has the full mathematical context.
+- **Documentation tasks**: use the **archivist** agent (`.claude/agents/archivist/`) for all Sphinx work. It knows the project conventions, quality standards, and derivation source-of-truth rules.
 
 ### GitNexus Knowledge Graph
 GitNexus indexes the code structure (1000+ nodes, 2400+ edges). It knows what calls what, but NOT the physics. Use it for:
@@ -31,17 +47,37 @@ GitNexus indexes the code structure (1000+ nodes, 2400+ edges). It knows what ca
 - If something breaks → STOP and re-plan
 - Write detailed specs to remove ambiguity
 
-### 2. Subagent Strategy
-- Use subagents aggressively for complex problems
-- Split tasks: research, execution, analysis
-- One task per agent for clarity
-- Parallelize thinking, not just execution
+### 2. Specialized Agent Fleet
 
-### 3. Self-Improvement Loop
-- After ANY mistake → log it in gotchas.md
-- Convert mistakes into rules
-- Review past lessons before starting
-- Iterate until error rate drops
+Five custom agents in `.claude/agents/` — use them instead of generic subagents for their domains. Each has a `lessons.md` that compounds across sessions.
+
+| Agent | Invoke when | Key rule |
+|-------|-------------|----------|
+| **explorer** | Understanding code (planning, investigation) | Uses GitNexus CLI + Sphinx docs. Replaces built-in Explore agent. |
+| **archivist** | Writing/reviewing Sphinx docs | Sphinx-as-brain: full derivations, not summaries. Demands derivation scripts before archiving. |
+| **qa** | Reviewing code, validating claims | 6 AI failure modes checklist. Demands multi-group + heterogeneous tests. |
+| **numerics-investigator** | Solver gives wrong answers | 7-step diagnostic cascade. Writes scripts in `derivations/diagnostics/`. Promotes to tests. |
+| **literature-researcher** | Need equations from papers | Source priority by topic. Maps notation to ORPHEUS. Never references export-controlled codes. |
+| **test-architect** | Planning verification BEFORE implementation | Analytical solution catalog. Failure mode coverage matrix. 1-group is degenerate. |
+
+**Dispatch rules:**
+- Exploring code (planning mode, investigation) → **explorer** (NOT built-in Explore agent — it doesn't know GitNexus or Sphinx)
+- Documentation tasks → **archivist**
+- "Is this correct?" → **qa**
+- "Why is this broken?" → **numerics-investigator**
+- "What does Bailey Eq. 50 say?" → **literature-researcher**
+- "What tests do we need for feature X?" → **test-architect**
+
+**After every specialized agent invocation**: the main agent must review the output with full session context before committing. Sub-agents lack conversation history.
+
+### 3. Improvement Tracking and Self-Improvement
+
+- Every module has an `IMPROVEMENTS.md` with tracked items (`XX-YYYYMMDD-NNN`)
+- TODOs exist in exactly TWO places: the tracker AND the code location (with matching tracking number)
+- After ANY bug or improvement discovery → add to IMPROVEMENTS.md immediately
+- Items flow: OPEN → IMPL → DONE (DONE requires Sphinx documentation)
+- At session start: read IMPROVEMENTS.md for context
+- At session end: verify no orphan TODOs exist outside the tracker
 
 ### 4. Verification Before Done
 - Never mark done without proof
@@ -103,7 +139,7 @@ GitNexus indexes the code structure (1000+ nodes, 2400+ edges). It knows what ca
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **ReactorPhysics_MATLAB** (1053 symbols, 2487 relationships, 84 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **ORPHEUS** (2104 symbols, 5643 relationships, 172 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -119,7 +155,7 @@ This project is indexed by GitNexus as **ReactorPhysics_MATLAB** (1053 symbols, 
 
 1. `gitnexus_query({query: "<error or symptom>"})` — find execution flows related to the issue
 2. `gitnexus_context({name: "<suspect function>"})` — see all callers, callees, and process participation
-3. `READ gitnexus://repo/ReactorPhysics_MATLAB/process/{processName}` — trace the full execution flow step by step
+3. `READ gitnexus://repo/ORPHEUS/process/{processName}` — trace the full execution flow step by step
 4. For regressions: `gitnexus_detect_changes({scope: "compare", base_ref: "main"})` — see what your branch changed
 
 ## When Refactoring
@@ -158,10 +194,10 @@ This project is indexed by GitNexus as **ReactorPhysics_MATLAB** (1053 symbols, 
 
 | Resource | Use for |
 |----------|---------|
-| `gitnexus://repo/ReactorPhysics_MATLAB/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/ReactorPhysics_MATLAB/clusters` | All functional areas |
-| `gitnexus://repo/ReactorPhysics_MATLAB/processes` | All execution flows |
-| `gitnexus://repo/ReactorPhysics_MATLAB/process/{name}` | Step-by-step execution trace |
+| `gitnexus://repo/ORPHEUS/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/ORPHEUS/clusters` | All functional areas |
+| `gitnexus://repo/ORPHEUS/processes` | All execution flows |
+| `gitnexus://repo/ORPHEUS/process/{name}` | Step-by-step execution trace |
 
 ## Self-Check Before Finishing
 

@@ -45,4 +45,4 @@ markers = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["data*", "numerics*", "derivations*"]
+include = ["data*", "numerics*", "derivations*", "geometry*"]
