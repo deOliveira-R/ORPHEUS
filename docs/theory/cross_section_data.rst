@@ -97,7 +97,7 @@ Source
 ------
 
 The GENDF (Groupwise ENDF) files are obtained from the IAEA Nuclear Data
-Services [Mikityuk2017]_:
+Services:
 
    https://www-nds.iaea.org/ads/adsgendf.html
 
@@ -615,7 +615,3 @@ References
 .. [ENDF102] M.A. Kellett, O. Bersillon, R.W. Mills, "The JEFF-3.1/-3.1.1
    Radioactive Decay Data and Fission Yields Sub-libraries", OECD/NEA,
    2009.  ENDF-6 format manual: BNL-NCS-44945 (Rev. 2012).
-
-.. [Mikityuk2017] K. Mikityuk, "Matlab-based Open-source Reactor Physics
-   Education System", Paul Scherrer Institute, 2015–2017.
-   Source of the ``convertGXStoCSV.m`` and ``convertCSVtoM.m`` scripts.

@@ -449,6 +449,116 @@ wrong after gap closure because the physics has fundamentally changed.
 
 ---
 
+## ERR-015 — compute_keff ignores (n,2n) net neutron production
+
+**Failure mode:** #3 Missing factor — missing (n,2n) contribution in eigenvalue estimate  
+**Date:** 2026-04-05  
+**Solver:** CP (all geometries)
+
+**Bug:** `CPSolver.compute_keff` computed `k = νΣf·φ·V / Σa·φ·V` where
+`Σa = Σc + Σf + ΣL + Σ₂_out`.  Each (n,2n) reaction produces one
+*extra* neutron (one in, two out), but neither the extra neutron
+production nor the removal accounting reflected this.  The correct
+eigenvalue balance is:
+
+    k = νΣf·φ·V / (Σt − Σs − 2Σ₂)·φ·V
+
+The denominator is the *net* removal after all scattering and (n,2n)
+production is subtracted from the total.  When Σ₂ = 0, this reduces to
+`νΣf / Σa` (no change to existing tests).
+
+**Impact:** With `Sig2[0,0] = 0.01` on region A (2G), the solver
+converged to k = 1.793 instead of the analytical k = 2.045 — a 12%
+error.  The transport solve (`solve_fixed_source`) correctly included
+`2·Σ₂·φ` in the source, so the flux shape was right, but the eigenvalue
+estimate was biased low by the missing production term.
+
+**How it hid from higher-level tests:**
+- ALL test materials have `Sig2 = 0` (zero sparse matrix).  The formula
+  is correct when Sig2 = 0 because `total - scatter - 0 = absorption`.
+- The `make_mixture` function hardcoded `Sig2 = csr_matrix((ng, ng))`
+  with no parameter to override it, so it was impossible to construct
+  a test material with nonzero (n,2n) through the standard API.
+- The error only appeared when a custom `Mixture` with nonzero `Sig2`
+  was constructed directly and compared against the dense eigensolver.
+
+**First wrong fix attempt:** Added `n2n_production` to the numerator:
+`k = (νΣf + Σ₂_production) / Σa`.  This gives 1.808, still wrong.  The
+issue is that `Σa` already includes `Σ₂_out` as removal, but for the
+eigenvalue balance the (n,2n) appears as a *source* (2 neutrons out), not
+a removal.  The correct denominator is `Σt - Σs - 2Σ₂`, not `Σa`.
+
+**L0 test that catches it:** `test_cp_verification.py::TestN2N::
+test_n2n_solver_keff_matches_analytical` — constructs a 2G material with
+`Sig2[0,0] = 0.01`, computes the analytical eigenvalue via
+`kinf_from_cp(..., sig_2_mats=[sig_2])`, and compares against the
+solver.  Tolerance: 1e-5.
+
+**Lesson:** The eigenvalue estimate formula `production / absorption`
+hides the implicit assumption Σ₂ = 0.  When adding a new reaction type,
+trace it through BOTH the transport solve (where it's a source) AND the
+eigenvalue estimate (where it changes the production/removal balance).
+The two must be consistent.  Testing with zero cross sections hides the
+inconsistency — need at least one test with the term nonzero.
+
+---
+
+## ERR-016 — Tautological inner-iteration convergence residual
+
+**Failure mode:** #6 Convention drift — convergence check tests identity, not convergence  
+**Date:** 2026-04-05  
+**Solver:** CP Gauss-Seidel mode
+
+**Bug:** The GS inner convergence check computed:
+
+    phi_g_new = transported_g / denom_g
+    collision_rate_g = denom_g * phi_g_new
+    res = ||collision_rate_g - transported_g||
+
+Substituting the first line into the third: `denom_g * (transported_g /
+denom_g) - transported_g = 0`.  The residual is identically zero
+regardless of whether the within-group scattering has converged.  The
+inner loop always exited after exactly 1 iteration.
+
+**Impact:** The GS solver mode was functionally identical to a
+sequential-group Jacobi update.  Groups with strong within-group
+self-scatter (thermal groups where Σs(g→g)/Σt(g) is large) were NOT
+iterating to convergence.  The outer power iteration still converged to
+the correct eigenvalue (because it does its own convergence check), but
+the GS mode provided no acceleration benefit from inner iterations.
+
+**How it hid from higher-level tests:**
+- All 27 eigenvalue tests passed because the outer iteration converged
+  to the correct answer regardless of inner iteration count
+- The diagnostic `n_inner` array showed values of 1 everywhere, which
+  was interpreted as "fast convergence" rather than "broken residual"
+- The `test_thermal_group_needs_more_inner_iterations` test used `>=`
+  (thermal ≥ fast), which passed vacuously since all values were 1
+- The AI QA review initially concluded that inner iterations are
+  *fundamentally unnecessary* for the CP method (wrong — the source
+  depends on the flux through self-scatter)
+
+**L0 test that catches it:** `test_cp_verification.py::TestGSInnerIterations::
+test_no_self_scatter_one_inner` — material with zero diagonal in Σs
+should converge in ≤ 2 inner iterations (no self-consistency needed).
+`test_thermal_needs_more_inner_than_fast` — with the corrected residual,
+thermal groups genuinely need more inner iterations than fast groups.
+
+**Fix:** Changed residual to relative flux change:
+`||φ_new - φ_old|| / ||φ_new||`.  This is nonzero when within-group
+self-scatter changes the source between iterations, and zero when the
+source doesn't depend on the current group's flux.
+
+**Lesson:** A convergence check that compares quantities derived from
+each other by construction tests nothing.  The residual must compare
+*independent* quantities: the old flux vs the new flux, or the old
+source vs the recomputed source.  When a "convergence diagnostic" shows
+all 1s, that's a red flag — it could mean instant convergence OR a
+tautological check.  Distinguish the two by testing with a problem that
+*should* require multiple iterations (strong self-scatter).
+
+---
+
 ## Meta-Lessons
 
 1. **1-group is degenerate.** k = νΣ_f/Σ_a regardless of flux shape.
@@ -469,3 +579,15 @@ wrong after gap closure because the physics has fundamentally changed.
    regime where bugs are exposed.  For curvilinear: test near r=0 with
    mesh refinement.  For scattering: test with asymmetric matrices.
    For normalization: test with multiple quadrature types.
+
+6. **Zero cross sections hide bugs.** If a reaction type (n,2n,
+   upscatter) is zero in all test materials, every code path touching
+   it is untested.  ERR-015 survived because `Sig2 = 0` everywhere.
+   For every XS term, there must be at least one test where it's nonzero.
+
+7. **A tautological residual proves nothing.** If the convergence
+   check computes `f(x) - g(f(x))` where `g` is the inverse of the
+   step that produced `f(x)`, the residual is identically zero.
+   ERR-016 survived because "all inner iterations = 1" was mistaken
+   for fast convergence.  Always verify with a problem that SHOULD
+   require multiple iterations.

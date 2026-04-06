@@ -12,6 +12,7 @@ from scipy.sparse import csr_matrix
 
 from data.macro_xs.mixture import Mixture
 
+from ._eigenvalue import kinf_homogeneous
 from ._types import VerificationCase
 
 
@@ -52,9 +53,12 @@ def derive_1g() -> VerificationCase:
     xs = dict(sig_t=1.0, sig_c=0.2, sig_f=0.3, nu=2.5, sig_s_diag=0.5)
     sig_a_val = xs["sig_c"] + xs["sig_f"]
 
-    k_val = float(k_expr.subs({
-        nu_s: xs["nu"], Sig_f: xs["sig_f"], Sig_a: sig_a_val,
-    }))
+    k_val = kinf_homogeneous(
+        sig_t=np.array([xs["sig_t"]]),
+        sig_s=np.array([[xs["sig_s_diag"]]]),
+        nu_sig_f=np.array([xs["nu"] * xs["sig_f"]]),
+        chi=np.array([1.0]),
+    )
 
     latex = (
         r"For a 1-group infinite homogeneous medium, the neutron balance is:"
@@ -126,11 +130,9 @@ def derive_2g() -> VerificationCase:
         [chi[1] * nu[0] * sig_f[0], chi[1] * nu[1] * sig_f[1]],
     ])
 
-    M_sym = A_sym.inv() * F_sym
-    char_poly = M_sym.charpoly()
-    eigenvalues = sorted(sp.solve(char_poly, sp.Symbol('lambda')),
-                         key=lambda x: float(x), reverse=True)
-    k_val = float(eigenvalues[0])
+    k_val = kinf_homogeneous(
+        sig_t=sig_t, sig_s=sig_s, nu_sig_f=nu * sig_f, chi=chi,
+    )
 
     latex = (
         r"For 2-group infinite medium with downscatter only:"
@@ -183,15 +185,9 @@ def derive_4g() -> VerificationCase:
     ])
     sig_t = sig_c + sig_f + sig_s.sum(axis=1)
 
-    # Build symbolic matrices with numeric entries
-    ng = 4
-    A_sym = sp.Matrix(np.diag(sig_t)) - sp.Matrix(sig_s.T)
-    F_sym = sp.Matrix(np.outer(chi, nu * sig_f))
-
-    # Solve via SymPy's eigenvalue computation
-    M_sym = A_sym.inv() * F_sym
-    eigs = M_sym.eigenvals()
-    k_val = float(max(sp.re(e) for e in eigs.keys()))
+    k_val = kinf_homogeneous(
+        sig_t=sig_t, sig_s=sig_s, nu_sig_f=nu * sig_f, chi=chi,
+    )
 
     latex = (
         r"For 4-group infinite medium (fast :math:`\to` epithermal "

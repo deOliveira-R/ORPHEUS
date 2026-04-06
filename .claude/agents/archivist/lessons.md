@@ -253,3 +253,38 @@ N/A -- audit, not documentation creation.
 | **Overall** | **2.5** | Good data reference, weak on cross-refs and derivation backing |
 
 ---
+
+## 2026-04-05 — Update collision_probability.rst: GS solver, (n,2n), consolidated eigenvalues
+
+- **What worked**: Reading the error catalog (ERR-015, ERR-016) alongside the IMPROVEMENTS.md entries gave complete context for documenting both the physics and the failure history. The error catalog's "first wrong fix attempt" and "how it hid from tests" sections were directly usable in the RST. Reading the actual code (`_solve_fixed_source_gs`, `compute_keff`) verified the formulas before writing them into the RST. Building Sphinx with a clean build directory caught the duplicate `keff-update` label conflict with `homogeneous.rst`.
+- **What was missing**: The `derivations/_eigenvalue.py` module is not on the autodoc path, so `:func:` cross-references to `kinf_homogeneous` and `kinf_from_cp` will render but may not hyperlink correctly. This is an existing limitation (the derivations package is only partially on the autodoc path).
+- **Convention discovered**: The label `keff-update` was already used in `homogeneous.rst`. Label names in ORPHEUS Sphinx must be page-prefixed (e.g., `cp-keff-update`, `ho-keff-update`) to avoid collisions across theory pages. This was not documented anywhere previously.
+- **Improvement for next time**: Before adding any `:label:` to a math directive, grep all RST files for the proposed label name to catch duplicates before building. The Sphinx error message points to the duplicate but fixing it post-build wastes a rebuild cycle.
+
+### Quality Score
+
+| Dimension | Score | Notes |
+|-----------|-------|-------|
+| **Derivation depth** | 4 | Full inner iteration algorithm with 4 numbered steps, fixed-point equation, why inner iterations are meaningful |
+| **Cross-references** | 3 | :class:`CPParams`, :class:`CPResult`, :class:`CPSolver`, :func: to eigenvalue module. Private methods not linked. |
+| **Numerical evidence** | 3 | 106-test count, tolerance table, ERR-015 12% error magnitude. No convergence rate tables for GS vs Jacobi. |
+| **Failed approaches** | 5 | Full ERR-016 tautological residual history, ERR-015 first-wrong-fix, QA misdiagnosis |
+| **Code traceability** | 4 | Code snippets for both Jacobi and GS, compute_keff pseudocode, parameter/diagnostic tables |
+| **Derivation source** | 3 | _eigenvalue.py equations cited with full math. Inner iteration formulas are hand-written (no derivation script for GS convergence). |
+
+**Overall**: 3.7/5. Strong on failure history and algorithm description. Could improve with a convergence comparison table (GS vs Jacobi iteration counts for a reference problem).
+
+---
+
+## 2026-04-05 — Round 2 forensic comparison of collision_probability.rst
+
+- **What worked**: Extracting all 597 removed lines from `git diff` and systematically categorising each as reformulated/consolidated/lost. Checking `:eq:` cross-references via shell script (grep all refs, verify each label exists) was efficient and caught zero issues. Checking `:label:` uniqueness via `sort | uniq -d` was instant. Searching for specific phrases from round-1 items via grep gave immediate pass/fail per item.
+- **What was missing**: Sphinx is not installed in this environment, so I could not verify cross-reference resolution or citation warnings via a real build. The `[Hebert2009]` vs `[Hébert2009]` mismatch would have been caught instantly by a build. Future forensic comparisons MUST have Sphinx available.
+- **Convention discovered**: When a reference definition changes encoding (accent stripped), ALL citations must be updated. The committed version had `[Hébert2009]` consistently; the working copy changed the definition to `[Hebert2009]` but missed one citation at line 1530. This is a class of bug that only manifests across definition/citation pairs.
+- **Improvement for next time**: For forensic comparisons, build a checklist of "cross-file consistency pairs" (citation def/use, label def/ref, substitution def/use) and verify each pair programmatically. Do not rely on grep for individual terms when the issue is consistency between two different spellings of the same identifier.
+
+### Quality Score (for the forensic audit task itself)
+
+N/A -- this was a verification audit, not documentation creation.
+
+---

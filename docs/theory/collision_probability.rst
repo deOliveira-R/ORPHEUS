@@ -21,20 +21,41 @@ angular variable analytically.
 The key quantity is the **collision probability** :math:`P_{ij}`: the
 probability that a neutron born uniformly and isotropically in region
 :math:`i` has its *first* collision in region :math:`j`
-[Stamm1965]_.  Once the
+[Stamm1983]_.  Once the
 :math:`P_{ij}` matrix is known, the transport problem reduces to a
 matrix equation in the region-averaged scalar fluxes.
 
-This chapter derives the CP method for three geometries:
+Three geometries are supported:
 
-- **Slab** (1D Cartesian) — the E\ :sub:`3` exponential-integral kernel
-- **Concentric cylinders** (1D radial) — the Ki\ :sub:`3`/Ki\ :sub:`4`
-  Bickley–Naylor kernel
-- **Concentric spheres** (1D radial) — the exponential kernel with
+- **Slab** (1D Cartesian) --- the :math:`E_3` exponential-integral kernel
+- **Concentric cylinders** (1D radial) --- the :math:`\text{Ki}_3` /
+  :math:`\text{Ki}_4` Bickley--Naylor kernel
+- **Concentric spheres** (1D radial) --- the exponential kernel with
   :math:`y`-weighted quadrature
 
-and describes how all three share a single eigenvalue solver through the
-:class:`CPMesh` augmented-geometry pattern.
+All three share a single eigenvalue solver through the :class:`CPMesh`
+augmented-geometry pattern.
+
+**Derivation sources.**  The analytical eigenvalues and CP matrices used
+for verification are computed independently by the derivation scripts.
+These are the **source of truth** for all equations in this chapter:
+
+- ``derivations/cp_slab.py`` --- slab :math:`E_3` kernel via
+  :func:`~derivations.cp_slab._slab_cp_matrix`
+- ``derivations/cp_cylinder.py`` --- cylindrical :math:`\text{Ki}_4` kernel
+  via :func:`~derivations.cp_cylinder._cylinder_cp_matrix`
+  (uses :class:`~derivations._kernels.BickleyTables`)
+- ``derivations/cp_sphere.py`` --- spherical :math:`e^{-\tau}` kernel via
+  :func:`~derivations.cp_sphere._sphere_cp_matrix`
+- ``derivations/_kernels.py`` --- :math:`E_3` via
+  :func:`~derivations._kernels.e3`, :math:`\text{Ki}_3`/:math:`\text{Ki}_4`
+  via :class:`~derivations._kernels.BickleyTables`
+- ``derivations/_eigenvalue.py`` --- shared eigenvalue computation via
+  :func:`~derivations._eigenvalue.kinf_from_cp` and
+  :func:`~derivations._eigenvalue.kinf_homogeneous`
+
+Every equation in this chapter can be verified against these scripts.
+Every numerical value cited was produced by them.
 
 
 Architecture: Base Geometry and Augmented Geometry
@@ -43,42 +64,47 @@ Architecture: Base Geometry and Augmented Geometry
 The CP solver separates geometry description from solver logic through
 two layers:
 
-1. **Base geometry** — :class:`~geometry.mesh.Mesh1D` stores cell edges,
+1. **Base geometry** --- :class:`~geometry.mesh.Mesh1D` stores cell edges,
    material IDs, and the coordinate system.  It computes volumes and
-   surfaces via coordinate-system-aware formulas.
+   surfaces via :func:`~geometry.coord.compute_volumes_1d` and
+   :func:`~geometry.coord.compute_surfaces_1d`.
 
-2. **Augmented geometry** — :class:`CPMesh` wraps a ``Mesh1D`` and adds
-   the CP-specific kernel, quadrature, and the
-   :meth:`~CPMesh.compute_pinf_group` method.  The kernel is selected
-   automatically from the mesh's coordinate system.
+2. **Augmented geometry** --- :class:`CPMesh` wraps a ``Mesh1D`` and adds
+   the CP-specific kernel, quadrature, and
+   :meth:`CPMesh.compute_pinf_group`.  The kernel is selected
+   automatically from the mesh's coordinate system via a ``match``
+   statement in :meth:`CPMesh.__init__`.
 
-3. **Solver** — :func:`solve_cp` creates a ``CPMesh``, builds the
+3. **Solver** --- :func:`solve_cp` creates a ``CPMesh``, builds the
    :math:`P^{\infty}` matrices for all energy groups, and runs power
-   iteration via :class:`CPSolver` (which satisfies the
+   iteration via :class:`CPSolver` (satisfying the
    :class:`~numerics.eigenvalue.EigenvalueSolver` protocol).
 
 .. code-block:: text
 
    Mesh1D (edges, mat_ids, coord)
-       │
-       ▼
+       |
+       v
    CPMesh (kernel + quadrature + compute_pinf_group)
-       │
-       ▼
-   solve_cp() → CPResult
+       |
+       v
+   solve_cp() -> CPResult
 
-This separation means adding a new geometry to the CP method requires
-only implementing its kernel in ``CPMesh`` — the eigenvalue solver,
-post-processing, and plotting are geometry-agnostic.
+**Design rationale (CP-20260404-001).**  Adding a new geometry requires
+only a new ``_setup_*()`` method and kernel function --- the eigenvalue
+solver, post-processing, and plotting are geometry-agnostic.  The
+alternative (three separate solver classes) would duplicate ~200 lines of
+iteration logic.  The derivation modules mirror this: all three
+``_*_cp_matrix`` functions have identical white-BC closure code, differing
+only in the kernel and quadrature.
 
 
 The Integral Transport Equation
 ================================
 
-Starting point: the steady-state, one-speed (or single energy group)
-transport equation in integral form.  For a neutron born at
-:math:`\mathbf{r}'` travelling in direction :math:`\hat{\Omega}` toward
-:math:`\mathbf{r}`, the **uncollided flux** at :math:`\mathbf{r}` is
+Starting point: the steady-state, one-speed transport equation in
+integral form.  For a neutron born at :math:`\mathbf{r}'` travelling
+toward :math:`\mathbf{r}`, the **uncollided flux** is
 
 .. math::
    :label: first-flight-kernel
@@ -119,51 +145,43 @@ sources in region :math:`i` can be written as
    \Sigt{j} \, \phi_j \, V_j
    = \sum_i P_{ji} \, V_i \, Q_i
 
-where :math:`P_{ji}` is the collision probability (probability that a
-neutron born in :math:`i` first collides in :math:`j`), and
-:math:`V_i` is the volume of region :math:`i`.
+where :math:`P_{ji}` is the collision probability and :math:`V_i` is the
+volume of region :math:`i`.
 
 .. note::
 
    **Convention**: in this codebase, :math:`P_{ij}` is indexed as
    :math:`P[\text{birth}_i, \text{collision}_j]`.  The flux update
    uses :math:`P^T`: ``phi = P_inf.T @ source``.
-
-   This is implemented in :class:`CPSolver.solve_fixed_source`.
+   This is implemented in :meth:`CPSolver.solve_fixed_source`.
+   See :ref:`why-p-transpose` for the full derivation.
 
 
 Definition of Collision Probabilities
 ======================================
 
-Within-Cell Probabilities
--------------------------
+Within-Cell Probabilities and Complementarity
+-----------------------------------------------
 
-For a cell containing :math:`N` sub-regions, the **within-cell collision
-probability** :math:`P_{ij}^{\text{cell}}` is defined as:
-
-.. math::
-   :label: p-cell-def
-
-   P_{ij}^{\text{cell}}
-   = \frac{\text{Prob(neutron born in } i \text{ first collides in } j
-     \text{ without leaving the cell)}}{}
-
-These satisfy the **complementarity relation**:
+For a cell with :math:`N` sub-regions, the **within-cell collision
+probability** :math:`P_{ij}^{\text{cell}}` is the probability of first
+collision in :math:`j` without leaving the cell.  **Complementarity**:
 
 .. math::
    :label: complementarity
 
    \sum_{j=1}^{N} P_{ij}^{\text{cell}} + P_{i,\text{out}} = 1
 
-where :math:`P_{i,\text{out}}` is the escape probability (probability
-of reaching the cell boundary without collision).
+where :math:`P_{i,\text{out}}` is the escape probability.  In the code:
+``P_out = 1 - P_cell.sum(axis=1)`` (:meth:`CPMesh._apply_white_bc`).
+Verified by ``test_cp_properties.py::test_row_sums`` for all three
+coordinate systems.
 
 
 Reciprocity
 -----------
 
-From detailed balance, the collision probabilities satisfy
-**reciprocity**:
+From detailed balance [Hebert2009]_ section 3.2:
 
 .. math::
    :label: reciprocity
@@ -171,27 +189,46 @@ From detailed balance, the collision probabilities satisfy
    \Sigt{i} \, V_i \, P_{ij}^{\text{cell}}
    = \Sigt{j} \, V_j \, P_{ji}^{\text{cell}}
 
-This is fundamental: the CP matrix need only be computed for
-:math:`j \ge i`, and the lower triangle follows from reciprocity.
+**Why reciprocity holds.**  Time-reversal invariance: a neutron born in
+:math:`i` colliding in :math:`j` traces a path identical (in reverse) to
+one born in :math:`j` colliding in :math:`i`.  The optical thickness
+along any chord is direction-independent.  The factor :math:`\Sigt{i} V_i`
+converts from "per neutron born" (probability) to "per unit source
+intensity" (rate), accounting for different source strengths in regions of
+different sizes and cross sections.
+
+**Practical consequence.**  The CP matrix need only be computed for
+:math:`j \ge i`; the lower triangle follows from:
+
+.. math::
+
+   P_{ji}^{\text{cell}} = P_{ij}^{\text{cell}}
+   \cdot \frac{\Sigt{i} \, V_i}{\Sigt{j} \, V_j}
+
+This halves the computation cost.  In the code,
+:meth:`CPMesh._normalize_rcp` divides the reduced collision probability
+by :math:`\Sigt{i} V_i` for each row.  Reciprocity is verified by
+``test_cp_properties.py::test_reciprocity`` and extended to multi-group
+by ``test_cp_verification.py::TestMultiGroupProperties::test_reciprocity_multigroup``.
 
 
 Escape and Re-entry (White Boundary Condition)
 ----------------------------------------------
 
 For an infinite lattice, a neutron escaping one cell immediately enters
-an identical neighbouring cell.  The **white boundary condition**
-assumes the re-entering angular distribution is **isotropic** — i.e.,
-the neutron forgets its direction upon re-entry.
+an identical neighbour.  The **white boundary condition** assumes the
+re-entering angular distribution is **isotropic** --- i.e., the neutron
+forgets its direction upon re-entry.
 
-Under this approximation, the probabilities from the cell surface to
-region :math:`j` are:
+The surface-to-region probability is:
 
 .. math::
    :label: surface-to-region
 
    P_{\text{in},j} = \frac{\Sigt{j} \, V_j \, P_{j,\text{out}}}{S}
 
-where :math:`S` is the cell surface area, computed by the base geometry:
+where :math:`S` is the cell surface area, accessed uniformly via
+``mesh.surfaces[-1]`` (:func:`~geometry.coord.compute_surfaces_1d`):
 
 .. list-table::
    :header-rows: 1
@@ -206,8 +243,34 @@ where :math:`S` is the cell surface area, computed by the base geometry:
    * - Spherical
      - :math:`4\pi R_{\text{cell}}^2`
 
-This is accessed uniformly via ``mesh.surfaces[-1]`` in the code,
-making the white-BC closure geometry-agnostic.
+**Derivation of** :math:`P_{\text{in},j}`.  By reciprocity between the
+surface source and the volume source in region :math:`j`:
+
+.. math::
+   :label: pin-from-reciprocity
+
+   \frac{S}{4} \cdot P_{\text{in},j}
+   = \Sigt{j} \, V_j \cdot P_{j,\text{out}}
+
+The factor :math:`S/4` is the effective surface source strength for an
+isotropic inward flux on a convex surface.  It originates from the
+**Cauchy--Dirac mean chord length theorem**: :math:`\bar{\ell} = 4V/S`
+for a convex body ([Hebert2009]_ section 3.3).  Physically: an isotropic
+flux crossing a convex surface sees, on average, a path length of
+:math:`4V/S` through the interior.  Solving :eq:`pin-from-reciprocity`:
+
+.. math::
+
+   P_{\text{in},j} = \frac{4 \Sigt{j} V_j P_{j,\text{out}}}{S}
+
+In the standard CP formulation [Stamm1983]_ section 3.5, the
+surface-to-region probability is defined per unit inward current
+:math:`J^-`, and the normalisation convention absorbs the factor of 4.
+ORPHEUS uses this convention, so :meth:`CPMesh._apply_white_bc`
+computes::
+
+    # White-BC closure (geometry-agnostic)
+    P_in = sig_t * V * P_out / S_cell
 
 The surface-to-surface probability is:
 
@@ -216,12 +279,18 @@ The surface-to-surface probability is:
 
    P_{\text{in,out}} = 1 - \sum_j P_{\text{in},j}
 
+The same formula appears in all three derivation scripts (e.g.,
+``derivations/cp_slab.py``, line ``P_in = sig_t_g * t_arr * P_out``
+with the slab convention :math:`S = 1`, :math:`V = t`; and
+``derivations/cp_cylinder.py``, line ``S_cell = 2.0 * np.pi * r_cell``
+with cylindrical :math:`V = \pi(R_k^2 - R_{k-1}^2)`).
+
 
 Infinite-Lattice CP Matrix
 ---------------------------
 
-The infinite-lattice collision probability accounts for neutrons that
-escape, re-enter, possibly escape again, and so on (geometric series):
+The infinite-lattice CP accounts for neutrons that escape, re-enter,
+possibly escape again (geometric series):
 
 .. math::
    :label: p-inf
@@ -233,98 +302,325 @@ escape, re-enter, possibly escape again, and so on (geometric series):
 
 This formula is **identical for all three geometries** when expressed
 in terms of :math:`V_i` and :math:`S`.  It is implemented in
-:meth:`CPMesh._apply_white_bc`.
+:meth:`CPMesh._apply_white_bc` (solver) and independently in all three
+derivation scripts (e.g., ``derivations/cp_slab.py``:
+``P_inf_g[:,:,g] = P_cell + np.outer(P_out, P_in) / (1.0 - P_inout)``).
 
-Derivation of the Geometric Series
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. plot::
+   :caption: White-BC geometric series: a neutron born in region :math:`i` either collides within the cell (:math:`P_{ij}^{\text{cell}}`) or escapes, re-enters isotropically, and the chain repeats.  The infinite sum converges to :math:`P_{ij}^{\infty}`.
 
-The :math:`P^{\infty}` formula is a geometric series.  Consider a
-neutron born in region :math:`i`:
+   import numpy as np
+   import matplotlib.pyplot as plt
+   import matplotlib.patches as mpatches
 
-- With probability :math:`P_{ij}^{\text{cell}}` it collides in
-  :math:`j` on the first pass.
-- With probability :math:`P_{i,\text{out}}` it escapes.
-- After escaping, it re-enters with probabilities
-  :math:`P_{\text{in},j}` (first collision in :math:`j`) or
-  :math:`P_{\text{in,out}}` (traverses and escapes again).
-- Each subsequent escape-and-re-entry multiplies by
-  :math:`P_{\text{in,out}}`.
+   fig, ax = plt.subplots(figsize=(14, 4))
 
-Summing the infinite series:
+   cell_w = 2.0
+   cell_h = 1.5
+   gap = 0.3
+   n_cells = 4
+
+   for c in range(n_cells):
+       x0 = c * (cell_w + gap)
+       rect = mpatches.FancyBboxPatch(
+           (x0, 0), cell_w, cell_h, boxstyle="round,pad=0.05",
+           facecolor='#ecf0f1', edgecolor='black', linewidth=2)
+       ax.add_patch(rect)
+
+       fuel = plt.Circle((x0 + cell_w / 2, cell_h / 2), 0.35,
+                         color='#e74c3c', alpha=0.6)
+       ax.add_patch(fuel)
+
+       if c == 0:
+           ax.text(x0 + cell_w / 2, 0.15, 'cell', fontsize=9,
+                   ha='center', color='gray')
+
+   arrow_y = cell_h / 2
+   ax.annotate(r'born in $i$', xy=(0.6, arrow_y), fontsize=10,
+               ha='center', color='red', fontweight='bold',
+               xytext=(0.6, arrow_y + 0.5),
+               arrowprops=dict(arrowstyle='->', color='red', lw=1.5))
+
+   ax.annotate('', xy=(1.4, arrow_y + 0.15),
+               xytext=(0.8, arrow_y + 0.15),
+               arrowprops=dict(arrowstyle='->', color='green', lw=2))
+   ax.text(1.1, arrow_y + 0.35, r'$P_{ij}^{\mathrm{cell}}$',
+           fontsize=10, ha='center', color='green')
+
+   ax.annotate('', xy=(cell_w + gap / 2, arrow_y - 0.15),
+               xytext=(1.5, arrow_y - 0.15),
+               arrowprops=dict(arrowstyle='->', color='blue', lw=2))
+   ax.text(1.85, arrow_y - 0.4, r'$P_{i,\mathrm{out}}$',
+           fontsize=10, ha='center', color='blue')
+
+   x1 = cell_w + gap
+   ax.annotate('', xy=(x1 + 0.5, arrow_y),
+               xytext=(x1 - gap / 2, arrow_y),
+               arrowprops=dict(arrowstyle='->', color='blue', lw=2,
+                               linestyle='dashed'))
+   ax.text(x1 + 0.15, arrow_y + 0.25, 'white BC\n(isotropic)',
+           fontsize=8, ha='center', color='blue', style='italic')
+
+   ax.annotate('', xy=(x1 + 1.4, arrow_y + 0.15),
+               xytext=(x1 + 0.6, arrow_y + 0.15),
+               arrowprops=dict(arrowstyle='->', color='green', lw=2))
+   ax.text(x1 + 1.0, arrow_y + 0.35, r'$P_{\mathrm{in},j}$',
+           fontsize=10, ha='center', color='green')
+
+   ax.annotate('', xy=(2 * (cell_w + gap) - gap / 2, arrow_y - 0.15),
+               xytext=(x1 + 1.5, arrow_y - 0.15),
+               arrowprops=dict(arrowstyle='->', color='orange', lw=2))
+   ax.text(x1 + 1.85, arrow_y - 0.4, r'$P_{\mathrm{in,out}}$',
+           fontsize=10, ha='center', color='orange')
+
+   x2 = 2 * (cell_w + gap)
+   ax.annotate('', xy=(x2 + 0.5, arrow_y),
+               xytext=(x2 - gap / 2, arrow_y),
+               arrowprops=dict(arrowstyle='->', color='orange', lw=2,
+                               linestyle='dashed'))
+
+   x3 = 3 * (cell_w + gap)
+   ax.text(x3 + cell_w / 2, cell_h / 2, r'$\cdots$',
+           fontsize=24, ha='center', va='center')
+
+   ax.text(
+       n_cells * (cell_w + gap) / 2, -0.6,
+       r'$P_{ij}^{\infty} = P_{ij}^{\mathrm{cell}}'
+       r' + \frac{P_{i,\mathrm{out}} \cdot P_{\mathrm{in},j}}'
+       r'{1 - P_{\mathrm{in,out}}}$',
+       fontsize=14, ha='center',
+       bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+
+   ax.set_xlim(-0.5, n_cells * (cell_w + gap))
+   ax.set_ylim(-1.2, cell_h + 0.8)
+   ax.set_aspect('equal')
+   ax.set_xticks([])
+   ax.set_yticks([])
+   ax.set_title(
+       r'White-BC Geometric Series: $P^{\infty}$ from Escape and Re-entry',
+       fontsize=13)
+   plt.tight_layout()
+
+**Derivation of the geometric series.**  A neutron born in :math:`i`:
+
+- Collides in :math:`j` on the first pass: probability :math:`P_{ij}^{\text{cell}}`.
+- Escapes: probability :math:`P_{i,\text{out}}`.
+- After escaping, re-enters isotropically and collides in :math:`j`:
+  probability :math:`P_{\text{in},j}`.
+- Or traverses without collision: probability :math:`P_{\text{in,out}}`.
+- Each subsequent escape-and-re-entry multiplies by :math:`P_{\text{in,out}}`.
+
+Summing:
 
 .. math::
 
    P_{ij}^{\infty} &= P_{ij}^{\text{cell}}
-     + P_{i,\text{out}} \, P_{\text{in},j}
-     + P_{i,\text{out}} \, P_{\text{in,out}} \, P_{\text{in},j}
-     + P_{i,\text{out}} \, P_{\text{in,out}}^2 \, P_{\text{in},j}
-     + \cdots \\
+     + P_{i,\text{out}} P_{\text{in},j}
+       (1 + P_{\text{in,out}} + P_{\text{in,out}}^2 + \cdots) \\
    &= P_{ij}^{\text{cell}}
-     + P_{i,\text{out}} \, P_{\text{in},j}
-       \sum_{k=0}^{\infty} P_{\text{in,out}}^k \\
-   &= P_{ij}^{\text{cell}}
-     + \frac{P_{i,\text{out}} \, P_{\text{in},j}}
-            {1 - P_{\text{in,out}}}
+     + \frac{P_{i,\text{out}} P_{\text{in},j}}{1 - P_{\text{in,out}}}
 
 The series converges because :math:`P_{\text{in,out}} < 1` (some
 fraction of re-entering neutrons must eventually collide).
 
-**Row sum property:**  :math:`\sum_j P_{ij}^{\infty} = 1` because
-every neutron born in region :math:`i` must eventually collide
-somewhere in the infinite lattice.  This can be verified algebraically
-from the complementarity relation :eq:`complementarity`.
+**Row sum property:** :math:`\sum_j P_{ij}^{\infty} = 1`.  Proof:
+substitute complementarity :eq:`complementarity` for both sums:
+
+.. math::
+
+   \sum_j P_{ij}^{\infty}
+   &= \sum_j P_{ij}^{\text{cell}}
+     + P_{i,\text{out}} \frac{\sum_j P_{\text{in},j}}{1 - P_{\text{in,out}}} \\
+   &= (1 - P_{i,\text{out}})
+     + P_{i,\text{out}} \frac{1 - P_{\text{in,out}}}{1 - P_{\text{in,out}}} = 1
+
+Verified numerically by ``test_cp_properties.py::test_row_sums``.
 
 .. warning::
 
-   The white boundary condition is an **approximation**.  It assumes
-   the angular distribution at the cell boundary is isotropic.  For
-   lattice cells with moderate optical thickness (:math:`\tau \sim
-   0.5\text{--}1.0`), this introduces errors of order 1% compared to
-   exact transport (e.g., discrete ordinates with reflective BCs).
-
-   This was confirmed numerically: the 1D SN solver with reflective BCs
-   gives :math:`\keff \approx 1.261` for the 1G slab benchmark, while
-   the CP method with white BCs gives :math:`\keff \approx 1.272` —
-   a ~1% discrepancy entirely due to the white-BC approximation.
-
-   The error arises because the true angular distribution at a cell
-   boundary is **anisotropic** — neutrons preferentially stream in
-   the direction of the flux gradient.  The white BC smears this
+   The white BC is an **approximation**.  The true angular distribution
+   at a cell boundary is anisotropic --- neutrons preferentially stream
+   in the direction of the flux gradient.  The white BC smears this
    anisotropy into an isotropic re-entry, which overestimates the
    flux in optically thin regions and underestimates it in thick ones.
+   For the 1G slab benchmark, the CP method
+   (white BC) gives :math:`\keff \approx 1.272` while SN (reflective BC)
+   gives :math:`\approx 1.261` --- a ~1% discrepancy entirely due to
+   the white-BC approximation.  See :ref:`white-bc-quality`.
 
 
 The Three CP Kernels
 =====================
 
 The CP method requires a geometry-specific **kernel function**
-:math:`F(\tau)` that encodes the angular averaging appropriate to the
-coordinate system.  The dimensionality of the geometry determines how
-much angular integration remains:
+:math:`F(\tau)` that encodes the angular averaging.  The kernel arises
+from integrating the point-to-point transmission :math:`e^{-\tau}` over
+the angular degrees of freedom eliminated by the geometry's symmetry.
+The number of remaining angular integrations determines which special
+function appears:
 
 .. list-table::
    :header-rows: 1
-   :widths: 15 20 30 35
+   :widths: 15 25 15 25
 
    * - Geometry
-     - Dimension
      - Kernel :math:`F(\tau)`
-     - Why
+     - :math:`F(0)`
+     - Residual quadrature
    * - Slab
-     - 1D
      - :math:`E_3(\tau) = \int_0^1 \mu \, e^{-\tau/\mu} \, d\mu`
-     - Polar-angle integration over half-space
+     - :math:`1/2`
+     - None (analytical)
    * - Cylinder
-     - 2D
      - :math:`\text{Ki}_4(\tau) = \int_\tau^\infty \text{Ki}_3(t)\,dt`
-     - Azimuthal-angle integration around axis
+     - :math:`\approx 0.4244`
+     - :math:`y`-quadrature over chord heights
    * - Sphere
-     - 3D
      - :math:`e^{-\tau}`
-     - Full symmetry — no residual angular integration
+     - :math:`1`
+     - :math:`y`-quadrature (:math:`y`-weighted)
 
-In all three cases, the **reduced collision probability** is built from
-a **second-difference** of the kernel:
+In all cases, the **reduced collision probability** is built from a
+**second-difference** of the kernel :eq:`second-diff-general`.  This
+common structure is why all three geometries are handled by a single
+:class:`CPMesh` class.
+
+.. plot::
+   :caption: The three CP kernel functions: :math:`E_3` (slab), :math:`\text{Ki}_3` / :math:`\text{Ki}_4` (cylinder), and :math:`e^{-\tau}` (sphere).  All decay exponentially; they differ in :math:`F(0)` and rate of decay.
+
+   import numpy as np
+   import matplotlib.pyplot as plt
+   from scipy.special import expn
+   from scipy.integrate import quad
+
+   x = np.linspace(0.001, 6, 500)
+
+   e3 = expn(3, x)
+
+   ki3 = np.array([
+       quad(lambda t, xx=xx: np.exp(-xx / np.sin(t)) * np.sin(t),
+            0, np.pi / 2)[0]
+       for xx in x
+   ])
+
+   dx = x[1] - x[0]
+   ki4 = np.cumsum(ki3[::-1])[::-1] * dx
+
+   exp_kernel = np.exp(-x)
+
+   fig, ax = plt.subplots(figsize=(10, 6))
+   ax.semilogy(x, e3, '-r', linewidth=2, label=r'$E_3(\tau)$ (slab)')
+   ax.semilogy(x, ki3, '-g', linewidth=2,
+               label=r'$\mathrm{Ki}_3(\tau)$ (cylinder, integrand)')
+   ax.semilogy(x, ki4, '--g', linewidth=2,
+               label=r'$\mathrm{Ki}_4(\tau)$ (cylinder, kernel)')
+   ax.semilogy(x, exp_kernel, '-b', linewidth=2,
+               label=r'$e^{-\tau}$ (sphere)')
+
+   ax.axhline(0.5, color='red', linestyle=':', alpha=0.5)
+   ax.text(5.5, 0.55, r'$E_3(0)=\frac{1}{2}$', fontsize=10, color='red')
+   ax.axhline(1.0, color='blue', linestyle=':', alpha=0.5)
+   ax.text(5.5, 1.1, r'$e^0 = 1$', fontsize=10, color='blue')
+
+   ax.set_xlabel(r'Optical thickness $\tau$', fontsize=12)
+   ax.set_ylabel(r'$F(\tau)$', fontsize=12)
+   ax.set_title('CP Kernel Functions by Geometry')
+   ax.legend(fontsize=11, loc='lower left')
+   ax.set_ylim(1e-4, 2)
+   ax.grid(True, alpha=0.3)
+   plt.tight_layout()
+
+**Derivation source:** The kernels are implemented in
+``derivations/_kernels.py``:  :func:`~derivations._kernels.e3` and
+:func:`~derivations._kernels.e3_vec` for slab;
+:class:`~derivations._kernels.BickleyTables` (with
+:meth:`~derivations._kernels.BickleyTables.ki3_vec` and
+:meth:`~derivations._kernels.BickleyTables.ki4_vec`) for cylinder.
+
+
+Why the Kernel Differs by Geometry
+-----------------------------------
+
+**Slab (1D):** A neutron in a slab travels at angle :math:`\theta` to
+the normal.  The optical path scales as :math:`\tau / \mu` where
+:math:`\mu = \cos\theta`.  The angular flux contribution includes a
+factor :math:`\mu` (projected area :math:`dA = \mu\,dA_\perp`).
+Averaging the transmission :math:`e^{-\tau/\mu}` over the forward
+half-space :math:`\mu \in [0, 1]`:
+
+.. math::
+   :label: e3-def
+
+   E_3(\tau) = \int_0^1 \mu \, e^{-\tau/\mu} \, d\mu
+
+This is one angular integration, leaving a function of :math:`\tau`
+only.  :math:`E_3(0) = 1/2` and :math:`E_3(\tau) \to 0` exponentially.
+Computed analytically via :func:`scipy.special.expn` (wrapped as
+:func:`_e3` in the solver and :func:`~derivations._kernels.e3` in the
+derivations).
+
+**Cylinder (2D):** The neutron travels at polar angle :math:`\theta` to
+the cylinder axis and crosses the annular section at impact parameter
+:math:`y`.  The chord length depends on :math:`y` (geometry) and the
+optical path depends on :math:`\theta` (as :math:`\tau / \sin\theta`).
+Integrating over the polar angle yields the **Bickley--Naylor function**:
+
+.. math::
+   :label: ki3-def
+
+   \text{Ki}_3(\tau) = \int_0^{\pi/2}
+     e^{-\tau / \sin\theta} \sin\theta \, d\theta
+
+The :math:`\sin\theta` weight arises from the solid-angle measure in
+cylindrical coordinates: :math:`d\Omega = \sin\theta\,d\theta\,d\varphi`.
+The azimuthal angle :math:`\varphi` integrates trivially by symmetry;
+the projected ray length onto the cross-sectional plane is proportional
+to :math:`\sin\theta`; and the probability of a ray at angle :math:`\theta`
+is proportional to :math:`\sin\theta` from the :math:`d\Omega` measure.
+
+This eliminates one angular dimension, but the :math:`y`-integration over
+chord heights **remains as numerical quadrature** --- the second angular
+dimension that cylindrical symmetry does NOT eliminate.
+
+The antiderivative :math:`\text{Ki}_4(\tau) = \int_\tau^\infty
+\text{Ki}_3(t)\,dt` appears in the second-difference formula because the
+derivation involves double antiderivatives of the point-to-point kernel
+(see :ref:`second-diff-derivation`).  **Why Ki**\ :sub:`4` **not Ki**\ :sub:`3`:
+the slab uses :math:`E_3` (double antiderivative of the point kernel
+:math:`E_1`); the cylinder uses :math:`\text{Ki}_4` (single antiderivative
+of :math:`\text{Ki}_3`, which is already one integration up from the raw
+transmission).  The second-difference formula cancels one antiderivative
+level, leaving :math:`\text{Ki}_4`.
+
+The Ki\ :sub:`3` function plays the same role for cylindrical geometry
+that :math:`E_3` plays for slab geometry: it represents the probability
+of a neutron travelling a certain optical distance in the medium
+[Carlvik1966]_.
+
+:math:`\text{Ki}_3(0) = 1` and :math:`\text{Ki}_3(x) \to 0`
+exponentially.  :math:`\text{Ki}_3` and :math:`\text{Ki}_4` are
+tabulated numerically by :func:`_build_ki_tables` (solver) and
+:class:`~derivations._kernels.BickleyTables` (derivations) because no
+closed-form expression exists.  See :ref:`ki-table-construction`.
+
+**Sphere (3D):** Full spherical symmetry absorbs all angular variables
+into the :math:`y`-quadrature weight.  The kernel is simply
+:math:`F(\tau) = e^{-\tau}` --- no special functions needed.  The extra
+factor of :math:`y` in the quadrature weight comes from the spherical area
+element :math:`2\pi y\,dy` (ring of sources) versus the cylindrical
+:math:`2\,dy` (line of sources).  In
+:meth:`CPMesh._setup_spherical`::
+
+    # Spherical weight: extra factor of y in the quadrature
+    self._y_wts = self._y_wts * self._y_pts
+
+
+.. _second-diff-derivation:
+
+The Second-Difference Formula: Full Derivation
+-------------------------------------------------
+
+The reduced collision probability uses the four-term second-difference:
 
 .. math::
    :label: second-diff-general
@@ -332,221 +628,509 @@ a **second-difference** of the kernel:
    \Delta_2[F](\tau_i, \tau_j, g)
    = F(g) - F(g + \tau_i) - F(g + \tau_j) + F(g + \tau_i + \tau_j)
 
-where :math:`g` is the optical gap between regions and :math:`\tau_i`,
-:math:`\tau_j` are the optical thicknesses of the source and target
-regions.
+where :math:`g` is the optical gap, :math:`\tau_i` and :math:`\tau_j` are
+the optical thicknesses of the source and target regions.
 
-This common structure is why all three geometries are handled by a
-single :class:`CPMesh` class.
+**Setup.** Regions :math:`i` and :math:`j` separated by optical gap
+:math:`g`.  A neutron born at optical depth :math:`s` within region
+:math:`i` (:math:`0 \le s \le \tau_i`) must traverse
+:math:`d = (\tau_i - s) + g + t` to reach depth :math:`t` in region
+:math:`j` (:math:`0 \le t \le \tau_j`).
 
-
-Why the Kernel Differs by Geometry
------------------------------------
-
-The kernel function :math:`F(\tau)` arises from integrating the
-point-to-point first-flight transmission :math:`e^{-\tau}` over
-the angular degrees of freedom that are eliminated by the geometry's
-symmetry.  The number of remaining angular integrations determines
-which special function appears.
-
-**Slab (1D):** A neutron born at position :math:`x'` in a slab travels
-at angle :math:`\theta` to the slab normal.  The optical path length is
-:math:`\tau / \mu` where :math:`\mu = \cos\theta`.  The angular flux
-contribution per unit solid angle involves a factor :math:`\mu` (from
-the projected area :math:`dA = \mu\,dA_\perp`).  Averaging the
-transmission :math:`e^{-\tau/\mu}` over the forward half-space
-:math:`\mu \in [0, 1]` with this flux-weighting factor:
-
-.. math::
-   :label: e3-from-integration
-
-   \int_0^1 \mu \, e^{-\tau/\mu} \, d\mu = E_3(\tau)
-
-This is **one** angular integration (over :math:`\mu`), leaving a
-function of :math:`\tau` only.  The result is the third exponential
-integral :math:`E_3`, computed analytically — no numerical quadrature
-needed for the angular variable.
-
-**Cylinder (2D):** For a cylinder, the neutron travels at polar angle
-:math:`\theta` to the cylinder axis *and* passes through the annular
-cross-section at impact parameter :math:`y`.  The chord length through
-each annulus depends on :math:`y` (geometrically) and the optical path
-depends on :math:`\theta` (as :math:`\tau / \sin\theta`).  Integrating
-the transmission over the polar angle:
-
-.. math::
-   :label: ki3-from-integration
-
-   \int_0^{\pi/2} e^{-\tau/\sin\theta} \sin\theta \, d\theta
-   = \text{Ki}_3(\tau)
-
-This eliminates one angular dimension, but the :math:`y`-integration
-over chord heights **remains as a numerical quadrature**.  It is the
-second angular dimension that cylindrical symmetry does NOT eliminate.
-The antiderivative :math:`\text{Ki}_4(\tau) = \int_\tau^\infty
-\text{Ki}_3(t)\,dt` appears when averaging over the source position
-within a region (the double-integral that produces the second-difference
-formula; see below).
-
-**Sphere (3D):** Full spherical symmetry means that every direction
-through a concentric shell system is equivalent up to the impact
-parameter :math:`y`.  A chord at height :math:`y` has transmission
-:math:`e^{-\tau(y)}` with no residual angular integration — the
-solid-angle measure :math:`d\Omega = 2\pi y\,dy / R^2` is absorbed
-into the :math:`y`-quadrature weight.  Hence the kernel is simply:
+**Step 1: Source-position average.** Integrate the kernel over the birth
+position :math:`s` within region :math:`i`.  Substituting
+:math:`u = (\tau_i - s) + g + t` (so :math:`du = -ds`):
 
 .. math::
 
-   F(\tau) = e^{-\tau}
+   I(t) &= \int_0^{\tau_i} F\bigl((\tau_i - s) + g + t\bigr) \, ds \\
+        &= \int_{g+t}^{\tau_i + g + t} F(u) \, du \\
+        &= \hat{F}(\tau_i + g + t) - \hat{F}(g + t)
 
-No special functions are needed.  This is the simplest kernel, despite
-being the highest-dimensional geometry.
+where :math:`\hat{F}(x) = \int_0^x F(u)\,du` is the antiderivative.
 
-.. list-table:: Angular integrations by geometry
-   :header-rows: 1
-   :widths: 20 30 30
-
-   * - Geometry
-     - Integrations eliminated analytically
-     - Remaining numerical quadrature
-   * - Slab
-     - :math:`\mu`-integration :math:`\to E_3`
-     - None
-   * - Cylinder
-     - :math:`\theta`-integration :math:`\to \text{Ki}_3`
-     - :math:`y`-quadrature over chord heights
-   * - Sphere
-     - All (full symmetry :math:`\to e^{-\tau}`)
-     - :math:`y`-quadrature (weight includes :math:`y`)
-
-
-The Second-Difference Formula: Derivation
--------------------------------------------
-
-The four-term second-difference
-:math:`F(g) - F(g+\tau_i) - F(g+\tau_j) + F(g+\tau_i+\tau_j)` arises
-from averaging the first-flight transmission over **both** the source
-position and the collision position within their respective regions.
-
-**Setup.**  Consider two regions :math:`i` and :math:`j` separated by
-an optical gap :math:`g`.  A neutron born at optical depth :math:`s`
-within region :math:`i` (measured from the left edge,
-:math:`0 \le s \le \tau_i`) must traverse:
-
-- the remainder of region :math:`i`: distance :math:`\tau_i - s`
-- the gap: distance :math:`g`
-- region :math:`j` up to collision point :math:`t`
-  (:math:`0 \le t \le \tau_j`): distance :math:`t`
-
-Total optical path: :math:`d = (\tau_i - s) + g + t`.
-
-**Step 1: Source-position average.**  Integrating the kernel over the
-source position :math:`s` within region :math:`i`:
-
-.. math::
-
-   I(t) = \int_0^{\tau_i} F\bigl((\tau_i - s) + g + t\bigr) \, ds
-
-Substituting :math:`u = (\tau_i - s) + g + t` (so :math:`du = -ds`):
-
-.. math::
-
-   I(t) = \int_{g+t}^{\tau_i+g+t} F(u) \, du
-        = \hat{F}(g + t) - \hat{F}(g + t + \tau_i)
-
-where :math:`\hat{F}(x) = \int_0^x F(u)\,du` is the antiderivative
-of :math:`F`.
-
-**Step 2: Collision-position average.**  Integrating over the collision
+**Step 2: Collision-position average.** Integrate over the collision
 position :math:`t` within region :math:`j`:
 
 .. math::
 
-   \text{rcp}_{ij} = \int_0^{\tau_j} I(t) \, dt
-   = \int_0^{\tau_j} \bigl[\hat{F}(g+t) - \hat{F}(g+t+\tau_i)\bigr] \, dt
+   \text{rcp}_{ij} &= \int_0^{\tau_j} I(t) \, dt \\
+   &= \int_0^{\tau_j} \bigl[\hat{F}(\tau_i + g + t) - \hat{F}(g + t)\bigr] dt
 
-Evaluating each integral:
-
-.. math::
-
-   \int_0^{\tau_j} \hat{F}(g+t) \, dt
-   = \hat{\hat{F}}(g+\tau_j) - \hat{\hat{F}}(g)
-
-where :math:`\hat{\hat{F}}` is the double antiderivative.  Combining:
+Evaluating each integral using the double antiderivative
+:math:`\hat{\hat{F}}(x) = \int_0^x \hat{F}(u)\,du`:
 
 .. math::
-   :label: second-diff-derivation
+
+   \int_0^{\tau_j} \hat{F}(g + t) \, dt
+   &= \hat{\hat{F}}(g + \tau_j) - \hat{\hat{F}}(g) \\
+   \int_0^{\tau_j} \hat{F}(\tau_i + g + t) \, dt
+   &= \hat{\hat{F}}(\tau_i + g + \tau_j) - \hat{\hat{F}}(\tau_i + g)
+
+Combining:
+
+.. math::
+   :label: rcp-from-double-antideriv
 
    \text{rcp}_{ij} =
-   \hat{\hat{F}}(g) - \hat{\hat{F}}(g + \tau_i)
+     \hat{\hat{F}}(g)
+   - \hat{\hat{F}}(g + \tau_i)
    - \hat{\hat{F}}(g + \tau_j)
    + \hat{\hat{F}}(g + \tau_i + \tau_j)
 
-**Step 3: Identify the kernel.**  For the slab, the point-to-point
-transmission kernel is :math:`E_1(\tau)` (first exponential integral).
-Its antiderivative is :math:`-E_2(\tau)`, and the double antiderivative
-is :math:`E_3(\tau)`.  So :math:`\hat{\hat{F}} = E_3` and the
-second-difference uses :math:`E_3` directly.
+**Step 3: Identify** :math:`\hat{\hat{F}}` **per geometry.**
 
-For the cylinder, the point-to-point kernel (after polar averaging) is
-:math:`\text{Ki}_3(\tau)`.  Its antiderivative is
-:math:`-\text{Ki}_4(\tau)`, giving the second-difference in
-:math:`\text{Ki}_4`.
+.. list-table::
+   :header-rows: 1
+   :widths: 15 25 25 25
 
-For the sphere, :math:`F = e^{-\tau}` is its own antiderivative (up to
-sign), so the second-difference uses :math:`e^{-\tau}` directly.
+   * - Geometry
+     - Point-to-point kernel
+     - 1st antiderivative
+     - :math:`\hat{\hat{F}}`
+   * - Slab
+     - :math:`E_1(\tau)`
+     - :math:`-E_2(\tau)`
+     - :math:`E_3(\tau)`
+   * - Cylinder
+     - :math:`\text{Ki}_3(\tau)`
+     - :math:`-\text{Ki}_4(\tau)`
+     - :math:`\text{Ki}_5(\tau)`
+   * - Sphere
+     - :math:`e^{-\tau}`
+     - :math:`-e^{-\tau}`
+     - :math:`e^{-\tau}`
 
+For the slab, the :math:`E_n` functions satisfy
+:math:`E_n'(\tau) = -E_{n-1}(\tau)`.  The code evaluates
+:eq:`second-diff-general` directly with :math:`F = E_3` (slab),
+:math:`F = \text{Ki}_4` (cylinder), or :math:`F = e^{-\tau}` (sphere).
 
-Self-Collision: Why It Has a Different Form
---------------------------------------------
+**Derivation source:** This four-term structure appears in all three
+derivation scripts.  For example, in ``derivations/cp_slab.py``::
 
-The self-collision term (:math:`i = j`) cannot use the gap formula
-because source and collision are in the **same region** — there is no
-gap, and the source/collision positions overlap.
+    dd = (e3(gap_d) - e3(gap_d + tau_i)
+          - e3(gap_d + tau_j) + e3(gap_d + tau_i + tau_j))
 
-For the slab, the self-collision reduced CP is:
+And in ``derivations/cp_cylinder.py``::
 
-.. math::
-   :label: self-derivation
+    dd = (tables.ki4_vec(gap_d) - tables.ki4_vec(gap_d + tau_i)
+          - tables.ki4_vec(gap_d + tau_j)
+          + tables.ki4_vec(gap_d + tau_i + tau_j))
 
-   r_{ii} = \int_0^{\tau_i} \int_0^{\tau_i}
-     E_1(|s - t|) \, dt \, ds
+And in ``derivations/cp_sphere.py``::
 
-where :math:`E_1(|s-t|)` is the first-flight kernel for optical
-distance :math:`|s-t|` within the same region.  Evaluating this
-double integral (splitting into :math:`s > t` and :math:`s < t`
-halves) gives:
+    dd = (kernel(gap_d) - kernel(gap_d + tau_i)
+          - kernel(gap_d + tau_j) + kernel(gap_d + tau_i + tau_j))
 
-.. math::
-
-   r_{ii} = \Sigt{i} t_i - \bigl(E_3(0) - E_3(\tau_i)\bigr)
-
-The first term :math:`\Sigt{} t_i` represents the total interaction
-rate if all neutrons collided within the region.  The subtracted term
-:math:`E_3(0) - E_3(\tau_i)` is the fraction that escapes, where
-:math:`E_3(0) = 1/2` is the probability of a neutron at the surface
-escaping the half-space.
-
-For cylindrical and spherical geometries, the self-collision integral
-has the same structure but with :math:`\text{Ki}_4` or :math:`e^{-\tau}`
-replacing :math:`E_3`, and with :math:`y`-quadrature.  The code
-implements this in the ``self_same`` variable within the sweep loops
-of :meth:`CPMesh._compute_slab_rcp` and
-:meth:`CPMesh._compute_radial_rcp`.
-
-
-Slab Geometry: The E\ :sub:`3` Kernel
-=======================================
-
-Geometry
---------
-
-The 1D slab half-cell extends from the reflective centre (:math:`x = 0`)
-to the cell edge (:math:`x = L`).  It is discretized into :math:`N`
-sub-regions, each with constant cross sections.
+where ``kernel = lambda tau: np.exp(-tau)``.
 
 .. plot::
-   :caption: Slab half-cell geometry with fuel, cladding, and coolant regions.
+   :caption: Geometric meaning of the four second-difference terms :math:`\Delta_2[F](\tau_i, \tau_j, g)`.  Green arrows mark the two positive terms :math:`+F(g)` and :math:`+F(g+\tau_i+\tau_j)`; orange arrows mark the two negative terms.
+
+   import numpy as np
+   import matplotlib.pyplot as plt
+   import matplotlib.patches as mpatches
+
+   fig, ax = plt.subplots(figsize=(12, 4))
+
+   colors = ['#e74c3c', '#e67e22', '#bdc3c7', '#bdc3c7', '#3498db']
+   labels = ['Region $i$', '', 'Gap', '', 'Region $j$']
+   widths = [1.0, 0.3, 0.8, 0.3, 1.0]
+   positions = np.cumsum([0] + widths)
+
+   for k in range(5):
+       rect = mpatches.FancyBboxPatch(
+           (positions[k], 0), widths[k], 1.0,
+           boxstyle="square,pad=0",
+           facecolor=colors[k], edgecolor='black',
+           alpha=0.5 if k in [1, 2, 3] else 0.7)
+       ax.add_patch(rect)
+       if labels[k]:
+           ax.text(positions[k] + widths[k] / 2, 0.5, labels[k],
+                   ha='center', va='center', fontsize=11,
+                   fontweight='bold')
+
+   bnd_labels = [
+       (positions[0], r'$x_{i-1}$'),
+       (positions[1], r'$x_i$'),
+       (positions[3], r'$x_{j-1}$'),
+       (positions[4], r'$x_j$'),
+   ]
+   for xp, label in bnd_labels:
+       ax.plot([xp, xp], [-0.1, 1.1], 'k--', linewidth=1, alpha=0.5)
+       ax.text(xp, -0.2, label, ha='center', fontsize=11)
+
+   ax.annotate('', xy=(positions[1], 1.2), xytext=(positions[0], 1.2),
+               arrowprops=dict(arrowstyle='<->', color='red', lw=2))
+   ax.text((positions[0] + positions[1]) / 2, 1.3, r'$\tau_i$',
+           ha='center', fontsize=12, color='red')
+
+   ax.annotate('', xy=(positions[4] + widths[4], 1.2),
+               xytext=(positions[3] + widths[3], 1.2),
+               arrowprops=dict(arrowstyle='<->', color='blue', lw=2))
+   ax.text((positions[3] + widths[3] + positions[4] + widths[4]) / 2, 1.3,
+           r'$\tau_j$', ha='center', fontsize=12, color='blue')
+
+   ax.annotate('', xy=(positions[3], 1.55), xytext=(positions[1], 1.55),
+               arrowprops=dict(arrowstyle='<->', color='purple', lw=2))
+   ax.text((positions[1] + positions[3]) / 2, 1.65,
+           r'gap $g$', ha='center', fontsize=12, color='purple')
+
+   y_bot = -0.5
+   terms = [
+       (positions[1], positions[3], r'$+F(g)$', 'green'),
+       (positions[0], positions[3], r'$-F(g+\tau_i)$', 'orange'),
+       (positions[1], positions[4] + widths[4], r'$-F(g+\tau_j)$', 'orange'),
+       (positions[0], positions[4] + widths[4],
+        r'$+F(g+\tau_i+\tau_j)$', 'green'),
+   ]
+   for k, (x1, x2, label, color) in enumerate(terms):
+       y = y_bot - k * 0.35
+       ax.annotate('', xy=(x2, y), xytext=(x1, y),
+                   arrowprops=dict(arrowstyle='<->', color=color,
+                                   lw=1.5))
+       ax.text(x2 + 0.1, y, label, fontsize=10, va='center',
+               color=color)
+
+   ax.set_xlim(-0.3, 5.0)
+   ax.set_ylim(-2.0, 2.0)
+   ax.set_aspect('equal')
+   ax.set_yticks([])
+   ax.set_xticks([])
+   ax.set_title('Second-Difference: Four Boundary Evaluations',
+                fontsize=13)
+   plt.tight_layout()
+
+
+The Discretised Second-Difference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The continuous formula :eq:`rcp-from-double-antideriv` is discretised by
+evaluating the double antiderivative at region boundary positions.  Define:
+
+.. math::
+   :label: s-integral
+
+   S(i, j, g) = \int_0^{R_i}
+     \bigl[\text{Ki}_3(\tau_p(y)) - \text{Ki}_3(\tau_m(y))\bigr] \, dy
+
+The within-cell collision probability for :math:`j \ge i` is:
+
+.. math::
+   :label: pcell-from-smat
+
+   P_{ij}^{\text{cell}} = \frac{2}{\Sigt{i} V_i}
+   \Bigl[ S(i,j) - S(i{-}1,j) - S(i,j{-}1) + S(i{-}1,j{-}1) \Bigr]
+   + \delta_{ij}
+
+where :math:`\delta_{ij}` accounts for self-collision and terms with
+index 0 vanish (no region interior to region 1).
+
+.. list-table:: Correspondence: continuous vs discrete
+   :header-rows: 1
+   :widths: 40 40
+
+   * - Continuous term
+     - Discrete boundary evaluation
+   * - :math:`\hat{\hat{F}}(g)`
+     - :math:`S(i{-}1, j{-}1)` --- both inner boundaries
+   * - :math:`\hat{\hat{F}}(g + \tau_i)`
+     - :math:`S(i, j{-}1)` --- outer of source, inner of target
+   * - :math:`\hat{\hat{F}}(g + \tau_j)`
+     - :math:`S(i{-}1, j)` --- inner of source, outer of target
+   * - :math:`\hat{\hat{F}}(g + \tau_i + \tau_j)`
+     - :math:`S(i, j)` --- both outer boundaries
+
+**Implementation.** ORPHEUS does **not** pre-compute the :math:`S` array.
+Instead, :meth:`CPMesh._compute_radial_rcp` evaluates the
+second-difference at each :math:`y`-quadrature point and integrates
+numerically.  This avoids storing :math:`S` and allows the same code path
+for all three geometries by parameterising the kernel function.  The
+derivation scripts use the same approach.
+
+
+Self-Collision: Full Derivation
+---------------------------------
+
+The self-collision term (:math:`i = j`) cannot use the gap formula because
+source and collision positions overlap.  The double integral is:
+
+.. math::
+   :label: self-double-integral
+
+   r_{ii} = \int_0^{\tau_i} \int_0^{\tau_i} F_1(|s - t|) \, dt \, ds
+
+where :math:`F_1` is the point-to-point kernel.
+
+**Evaluation (slab case, :math:`F_1 = E_1`).**  Split at :math:`s = t`
+and use symmetry (:math:`s > t` half = :math:`s < t` half):
+
+.. math::
+
+   r_{ii} &= 2 \int_0^{\tau_i} \int_0^s E_1(s - t) \, dt \, ds
+
+Evaluate the inner integral using :math:`\int E_1(x) dx = -E_2(x)`:
+
+.. math::
+
+   \int_0^s E_1(s - t) \, dt
+   &= \bigl[-E_2(s - t)\bigr]_{t=0}^{t=s}
+   = -E_2(0) + E_2(s)
+   = E_2(s) - E_2(0)
+
+Since :math:`E_2(0) = 1`, the inner integral is :math:`E_2(s) - 1`.
+The outer integral:
+
+.. math::
+
+   r_{ii} &= 2 \int_0^{\tau_i} \bigl[E_2(s) - 1\bigr] ds \\
+          &= 2 \bigl[-E_3(s)\bigr]_0^{\tau_i} - 2\tau_i \\
+          &= 2 \bigl[-E_3(\tau_i) + E_3(0)\bigr] - 2\tau_i \\
+          &= 2 E_3(0) - 2 E_3(\tau_i) - 2\tau_i
+
+Wait --- let me redo this carefully.  :math:`\int_0^s E_1(s-t) dt`:
+substituting :math:`u = s - t`, :math:`du = -dt`:
+
+.. math::
+
+   \int_0^s E_1(u) du = \bigl[-E_2(u)\bigr]_0^s = -E_2(s) + E_2(0)
+
+So the inner integral is :math:`E_2(0) - E_2(s)`.  Continuing:
+
+.. math::
+
+   r_{ii} &= 2 \int_0^{\tau_i} \bigl[E_2(0) - E_2(s)\bigr] ds \\
+          &= 2 \bigl[\tau_i E_2(0) + E_3(\tau_i) - E_3(0)\bigr]
+
+Using :math:`E_2(0) = 1` and :math:`E_3(0) = 1/2`:
+
+.. math::
+
+   r_{ii} = 2\tau_i + 2 E_3(\tau_i) - 1
+
+The normalised self-collision probability is
+:math:`P_{ii} = r_{ii} / (\Sigt{i} t_i)`.  Since
+:math:`\tau_i = \Sigt{i} t_i`:
+
+.. math::
+
+   P_{ii} = \frac{2\tau_i + 2 E_3(\tau_i) - 1}{\tau_i}
+          = 2 + \frac{2 E_3(\tau_i) - 1}{\tau_i}
+          = 1 + \frac{2 E_3(\tau_i) - 2 E_3(0)}{\tau_i}
+
+which is equivalently written as:
+
+.. math::
+
+   P_{ii} = 1 - \frac{2(E_3(0) - E_3(\tau_i))}{\tau_i}
+
+For **thick regions** (:math:`\tau_i \to \infty`): :math:`E_3(\tau_i) \to 0`,
+so :math:`P_{ii} \to 1 - 1/\tau_i \to 1`.  For **thin regions**
+(:math:`\tau_i \to 0`): :math:`E_3(\tau_i) \to E_3(0) = 1/2`, so
+:math:`P_{ii} \to 0`.  Tested by
+``test_cp_verification.py::TestOpticalLimits``.
+
+In the solver code (:meth:`CPMesh._compute_slab_rcp`)::
+
+    # Self-collision (slab)
+    rcp[i, i] += sti * t[i] - (0.5 - _e3(tau_i))
+
+This is :math:`\Sigt{i} t_i - (E_3(0) - E_3(\tau_i))`, which equals
+:math:`r_{ii}/2` (the factor of 2 from two half-spaces is applied later).
+
+For **cylindrical and spherical** geometries, the same structure holds
+but with :math:`\text{Ki}_4` or :math:`e^{-\tau}` replacing :math:`E_3`,
+and with :math:`y`-quadrature.  In :meth:`CPMesh._compute_radial_rcp`::
+
+    self_same = 2.0 * chords[i, :] - (2.0 / sti) * (
+        kernel_zero - kernel(tau_i)
+    )
+    rcp[i, i] += 2.0 * sti * np.dot(y_wts, self_same)
+
+The term ``kernel_zero - kernel(tau_i)`` is :math:`F(0) - F(\tau_i)`,
+the escape fraction.  The same pattern appears in all three derivation
+scripts (compare ``derivations/cp_cylinder.py``, ``_cylinder_cp_matrix``,
+line ``self_same = 2.0 * chords[i,:] - (2.0/sti) * (ki4_0 - tables.ki4_vec(tau_i))``).
+
+
+.. _optical-path-construction:
+
+Optical Path Construction Along a Chord
+=========================================
+
+This section describes how :math:`\tau_m` and :math:`\tau_p` are
+constructed at chord height :math:`y`.  This is the most geometrically
+intricate part of the cylindrical and spherical CP implementations.
+
+
+Half-Chord Lengths
+-------------------
+
+Consider :math:`N` concentric regions with outer radii
+:math:`R_1 < \cdots < R_N`.  A chord at height :math:`y` intersects
+a subset of these.  The **half-chord length** through region :math:`k` is:
+
+.. math::
+   :label: chord-length
+
+   \ell_k(y) = \begin{cases}
+     \sqrt{R_k^2 - y^2} - \sqrt{R_{k-1}^2 - y^2}
+       & y < R_{k-1} \\
+     \sqrt{R_k^2 - y^2}
+       & R_{k-1} \le y < R_k \\
+     0 & y \ge R_k
+   \end{cases}
+
+with :math:`R_0 = 0`.
+
+- **Case 1** (:math:`y < R_{k-1}`): Chord passes entirely through region
+  :math:`k`, entering at the inner boundary and exiting at the outer.
+- **Case 2** (:math:`R_{k-1} \le y < R_k`): Chord originates inside
+  region :math:`k` --- no inner intersection.
+- **Case 3** (:math:`y \ge R_k`): Chord misses region :math:`k` entirely.
+
+Computed by :func:`_chord_half_lengths` (solver) and independently by
+``derivations/cp_cylinder.py::_chord_half_lengths`` (derivation).  Both
+return shape ``(N, n_y)``.
+
+**Optical half-thickness:** ``tau = sig_t_g[:, None] * chords``.
+
+**Gotcha: the innermost region.**  For :math:`k = 1`, :math:`R_0 = 0`
+gives :math:`\sqrt{-y^2}` (imaginary).  Both implementations handle this
+with a ``r_in = 0`` / ``r_in > 0`` branch that skips the subtraction.
+
+**Implicit zero-padding.**  When :math:`y \ge R_k`,
+:func:`_chord_half_lengths` returns :math:`\ell_k = 0`, so
+:math:`\tau_k = 0`.  Boundary positions collapse and the
+second-difference evaluates to zero --- no explicit conditional logic is
+needed to skip non-intersecting regions.
+
+.. plot::
+   :caption: Half-chord length :math:`\ell_k(y)` through region :math:`k = 2` (red outline) for each of the three cases.
+
+   import numpy as np
+   import matplotlib.pyplot as plt
+
+   fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+   radii = [0.4, 0.7, 1.0]
+   colors = ['#e74c3c', '#f1c40f', '#3498db']
+
+   for ax_idx, (y_val, case_title) in enumerate([
+       (0.2, r'Case 1: $y < R_{k-1}$'),
+       (0.5, r'Case 2: $R_{k-1} \leq y < R_k$'),
+       (0.8, r'Case 3: $y \geq R_k$'),
+   ]):
+       ax = axes[ax_idx]
+
+       for r, color in reversed(list(zip(radii, colors))):
+           ax.add_patch(plt.Circle((0, 0), r, color=color, alpha=0.3))
+           ax.add_patch(plt.Circle((0, 0), r, fill=False,
+                                   edgecolor='black', linewidth=1))
+
+       theta = np.linspace(0, 2 * np.pi, 100)
+       ax.fill_between(
+           radii[1] * np.cos(theta), radii[1] * np.sin(theta),
+           alpha=0, edgecolor='red', linewidth=3, linestyle='-')
+
+       if y_val < radii[-1]:
+           x_max = np.sqrt(radii[-1] ** 2 - y_val ** 2)
+           ax.plot([-x_max, x_max], [y_val, y_val], 'k-', linewidth=2)
+
+           k = 1
+           r_out, r_in = radii[k], radii[k - 1]
+           if y_val < r_in:
+               x_out = np.sqrt(r_out ** 2 - y_val ** 2)
+               x_in = np.sqrt(r_in ** 2 - y_val ** 2)
+               ax.plot([x_in, x_out], [y_val, y_val], 'r-', linewidth=5,
+                       alpha=0.7, label=r'$\ell_k(y)$')
+           elif y_val < r_out:
+               x_out = np.sqrt(r_out ** 2 - y_val ** 2)
+               ax.plot([0, x_out], [y_val, y_val], 'r-', linewidth=5,
+                       alpha=0.7, label=r'$\ell_k(y)$')
+
+       if y_val < radii[-1]:
+           ax.annotate('', xy=(0, y_val), xytext=(0, 0),
+                       arrowprops=dict(arrowstyle='<->', color='black',
+                                       lw=1.5))
+           ax.text(0.04, y_val / 2, '$y$', fontsize=11)
+
+       ax.text(0.41, -0.15, r'$R_1$', fontsize=10, color='#e74c3c')
+       ax.text(0.71, -0.15, r'$R_2$', fontsize=10, color='#f1c40f')
+       ax.text(1.01, -0.15, r'$R_3$', fontsize=10, color='#3498db')
+
+       ax.set_xlim(-1.2, 1.2)
+       ax.set_ylim(-1.2, 1.2)
+       ax.set_aspect('equal')
+       ax.set_title(case_title, fontsize=11)
+       ax.grid(True, alpha=0.2)
+       if ax_idx == 0:
+           ax.legend(loc='upper left', fontsize=10)
+
+   fig.suptitle(
+       r'Half-chord length $\ell_k(y)$ through region $k=2$ '
+       r'(red outline)', fontsize=13, y=1.02)
+   plt.tight_layout()
+
+
+The Two Optical Paths
+----------------------
+
+For a neutron born in region :math:`i` targeting region :math:`j \ge i`,
+there are two distinct paths along the chord:
+
+1. **Same-side path** (:math:`\tau_m`): gap between the outer boundary
+   of :math:`i` and the inner boundary of :math:`j`:
+
+   .. math::
+      :label: tau-m
+
+      \tau_m(y) = \sum_{k=i+1}^{j} \tau_k(y)
+
+   For adjacent regions :math:`j = i+1`, this is :math:`\tau_{i+1}`.
+   For self-collision :math:`j = i`, :math:`\tau_m = 0`.
+
+2. **Through-centre path** (:math:`\tau_p`): crosses all inner regions
+   twice (inward to the centre, back out):
+
+   .. math::
+      :label: tau-p
+
+      \tau_p(y) = \tau_m(y) + 2 \sum_{k=1}^{i} \tau_k(y)
+
+
+Boundary Position Arrays
+--------------------------
+
+Cumulative optical distance from the chord midpoint to the outer boundary
+of region :math:`k`:
+
+.. math::
+
+   x_k(y) = \sum_{m=1}^{k} \tau_m(y), \quad x_0 = 0
+
+In code (:meth:`CPMesh._compute_radial_rcp`, and identically in all three
+derivation scripts)::
+
+    bnd_pos = np.zeros((N + 1, n_y))
+    for k in range(N):
+        bnd_pos[k + 1, :] = bnd_pos[k, :] + tau[k, :]
+
+The gaps: ``gap_d = bnd_pos[j] - bnd_pos[i+1]`` (same-side) and
+``gap_c = bnd_pos[i] + bnd_pos[j]`` (through-centre).
+
+
+Slab Geometry: The :math:`E_3` Kernel
+=======================================
+
+The 1D slab half-cell extends from the reflective centre (:math:`x = 0`)
+to the cell edge (:math:`x = L`).  Geometry built via
+:func:`~geometry.factories.pwr_slab_half_cell` with
+``coord = CoordSystem.CARTESIAN``.
+
+.. plot::
+   :caption: Slab half-cell: fuel, cladding, and coolant with reflective (left) and white (right) boundary conditions.
 
    import numpy as np
    import matplotlib.pyplot as plt
@@ -561,54 +1145,26 @@ sub-regions, each with constant cross sections.
    fig, ax = plt.subplots(figsize=(10, 2.5))
    x = 0
    for name, width, color in regions:
-       rect = mpatches.FancyBboxPatch((x, 0), width, 1, boxstyle="square,pad=0",
-                                       facecolor=color, edgecolor='black', alpha=0.7)
+       rect = mpatches.FancyBboxPatch(
+           (x, 0), width, 1, boxstyle="square,pad=0",
+           facecolor=color, edgecolor='black', alpha=0.7)
        ax.add_patch(rect)
-       ax.text(x + width/2, 0.5, name, ha='center', va='center', fontsize=12, fontweight='bold')
+       ax.text(x + width / 2, 0.5, name, ha='center', va='center',
+               fontsize=12, fontweight='bold')
        x += width
 
    ax.set_xlim(-0.1, 2.0)
    ax.set_ylim(-0.2, 1.3)
    ax.set_xlabel('x (cm)')
    ax.set_aspect('equal')
-   ax.axvline(0, color='red', linestyle='--', linewidth=2, label='Reflective BC')
-   ax.axvline(1.8, color='blue', linestyle='--', linewidth=2, label='White BC')
+   ax.axvline(0, color='red', linestyle='--', linewidth=2,
+              label='Reflective BC')
+   ax.axvline(1.8, color='blue', linestyle='--', linewidth=2,
+              label='White BC')
    ax.legend(loc='upper right')
    ax.set_yticks([])
    ax.set_title('Slab Half-Cell Geometry')
    plt.tight_layout()
-
-This geometry is built via :func:`~geometry.factories.pwr_slab_half_cell`
-with ``coord = CoordSystem.CARTESIAN``.
-
-
-The E\ :sub:`3` Function
--------------------------
-
-For slab geometry, the angular integration of the first-flight kernel
-:eq:`first-flight-kernel` over the half-space yields the **third
-exponential integral**:
-
-.. math::
-   :label: e3-def
-
-   E_3(x) = \int_0^1 \mu \, e^{-x/\mu} \, d\mu
-
-where :math:`\mu = \cos\theta` is the direction cosine with respect to
-the slab normal.  :math:`E_3(0) = 1/2` and :math:`E_3(x) \to 0`
-exponentially as :math:`x \to \infty`.
-
-The :math:`E_3` function is the slab analogue of the Ki\ :sub:`3`
-Bickley–Naylor function used in cylindrical geometry.  It is computed
-via :func:`scipy.special.expn`.
-
-
-Second-Difference Formula
--------------------------
-
-The collision probability for a neutron born in region :math:`i` to
-first collide in region :math:`j` involves the **second difference** of
-:math:`E_3` evaluated at the optical boundaries between the regions.
 
 Let :math:`\tau_k = \Sigt{k} \, t_k` be the optical thickness of region
 :math:`k`, and define the cumulative optical path from the cell centre:
@@ -654,22 +1210,28 @@ The total reduced CP for :math:`i \ne j` is:
 and the within-cell CP is :math:`P_{ij}^{\text{cell}} = r_{ij} /
 (\Sigt{i} \, V_i)`, where :math:`V_i = t_i` for slab geometry.
 
-This is implemented in :meth:`CPMesh._compute_slab_rcp`.
+Implemented in :meth:`CPMesh._compute_slab_rcp`.  Verified element-by-element
+against ``derivations/cp_slab.py::_slab_cp_matrix`` by
+``test_cp_verification.py::TestDirectPinfComparison::test_slab_pinf_matches_derivation``
+(tolerance :math:`< 10^{-10}`).
 
 
 Concentric Cylindrical Geometry: The Ki\ :sub:`3`/Ki\ :sub:`4` Kernel
 =======================================================================
 
-Geometry
---------
+The Wigner--Seitz cell replaces the square unit cell by a circle of equal
+area.  From area equivalence :math:`p^2 = \pi R_{\text{cell}}^2`:
 
-The Wigner–Seitz cell replaces the square unit cell boundary by a circle
-of equal area (:math:`R_{\text{cell}} = p / \sqrt{\pi}` where :math:`p`
-is the lattice pitch).  The cell is divided into :math:`N` concentric
-annular regions: fuel, cladding, and coolant.
+.. math::
+   :label: wigner-seitz
+
+   R_{\text{cell}} = \frac{p}{\sqrt{\pi}}
+
+Geometry built via :func:`~geometry.factories.pwr_pin_equivalent` with
+``coord = CoordSystem.CYLINDRICAL``.
 
 .. plot::
-   :caption: Wigner–Seitz cylindrical cell with concentric annular regions.
+   :caption: Wigner--Seitz cylindrical cell with concentric annular regions and a chord at height :math:`y`.
 
    import numpy as np
    import matplotlib.pyplot as plt
@@ -683,21 +1245,20 @@ annular regions: fuel, cladding, and coolant.
    ]
 
    for r, color, label in reversed(regions):
-       circle = plt.Circle((0, 0), r, color=color, alpha=0.5, label=label)
-       ax.add_patch(circle)
-
+       ax.add_patch(plt.Circle((0, 0), r, color=color, alpha=0.5,
+                               label=label))
    for r, _, _ in regions:
-       circle = plt.Circle((0, 0), r, fill=False, edgecolor='black', linewidth=1)
-       ax.add_patch(circle)
+       ax.add_patch(plt.Circle((0, 0), r, fill=False, edgecolor='black',
+                               linewidth=1))
 
-   # Chord at height y
    y_chord = 0.6
-   x_max = np.sqrt(regions[-1][0]**2 - y_chord**2)
+   x_max = np.sqrt(regions[-1][0] ** 2 - y_chord ** 2)
    ax.plot([-x_max, x_max], [y_chord, y_chord], 'k-', linewidth=2)
-   ax.annotate('chord at height $y$', xy=(0, y_chord), xytext=(0.5, 1.5),
-               fontsize=11, arrowprops=dict(arrowstyle='->', color='black'))
+   ax.annotate('chord at height $y$', xy=(0, y_chord),
+               xytext=(0.5, 1.5), fontsize=11,
+               arrowprops=dict(arrowstyle='->', color='black'))
    ax.plot([0, 0], [0, y_chord], 'k--', alpha=0.5)
-   ax.text(0.08, y_chord/2, '$y$', fontsize=12)
+   ax.text(0.08, y_chord / 2, '$y$', fontsize=12)
 
    ax.set_xlim(-2.5, 2.5)
    ax.set_ylim(-2.5, 2.5)
@@ -709,66 +1270,13 @@ annular regions: fuel, cladding, and coolant.
    ax.grid(True, alpha=0.3)
    plt.tight_layout()
 
-This geometry is built via :func:`~geometry.factories.pwr_pin_equivalent`
-with ``coord = CoordSystem.CYLINDRICAL``.
-
-
-The Bickley–Naylor Functions
-----------------------------
-
-For cylindrical geometry, the angular integration of the first-flight
-kernel involves the **Bickley–Naylor function** of order 3:
-
-.. math::
-   :label: ki3-def
-
-   \text{Ki}_3(x) = \int_0^{\pi/2} e^{-x / \sin\theta} \sin\theta \, d\theta
-
-and its antiderivative:
-
-.. math::
-   :label: ki4-def
-
-   \text{Ki}_4(x) = \int_x^{\infty} \text{Ki}_3(t) \, dt
-
-The Ki\ :sub:`3` function plays the same role for cylindrical geometry
-that :math:`E_3` plays for slab geometry: it represents the probability
-of a neutron travelling a certain optical distance in the medium
-[Carlvik1966]_.
-
-:math:`\text{Ki}_3(0) = 1` and :math:`\text{Ki}_3(x) \to 0`
-exponentially.  The function is tabulated numerically
-(:func:`_build_ki_tables`) because no closed-form expression exists.
-
-
-Chord Integration
------------------
-
-Unlike the slab case (where the angular integration is analytical), the
-cylindrical geometry requires **numerical integration over chord
-heights** :math:`y`.
-
-A chord at height :math:`y` above the cell axis intersects a subset of
-the annular regions.  For each chord, the half-chord length through
-region :math:`k` is:
-
-.. math::
-   :label: chord-length
-
-   \ell_k(y) = \sqrt{R_k^2 - y^2} - \sqrt{R_{k-1}^2 - y^2}
-
-where :math:`R_k` is the outer radius of region :math:`k` (with
-:math:`R_0 = 0` for the innermost region).  The chord exists only for
-:math:`y < R_k`.
-
-The optical half-thickness along the chord is
-:math:`\tau_k(y) = \Sigt{k} \, \ell_k(y)`.
-
-This is computed by :func:`_chord_half_lengths`.
-
+The CP matrix integrates :math:`\text{Ki}_4` second-differences over
+chord heights using composite Gauss--Legendre quadrature
+(:func:`_composite_gauss_legendre`) with breakpoints at each annular
+boundary to capture chord-length discontinuities.
 
 Second-Difference Formula (Cylindrical)
------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The CP matrix is computed by integrating the Ki\ :sub:`4` second
 differences over all chord heights:
@@ -802,101 +1310,40 @@ The self-collision term is:
      \left[2\ell_i(y) - \frac{2}{\Sigt{i}}
        \left(\text{Ki}_4(0) - \text{Ki}_4(\tau_i(y))\right)\right] dy
 
-The :math:`y`-integration is performed with composite Gauss–Legendre
+The :math:`y`-integration is performed with composite Gauss--Legendre
 quadrature, with breakpoints at each annular boundary to capture the
 chord-length discontinuities.
 
-This is implemented in :meth:`CPMesh._compute_radial_rcp` with
-``self._kernel = Ki₄``.
+Implemented in :meth:`CPMesh._compute_radial_rcp` with
+``self._kernel = Ki_4``.  Verified against
+``derivations/cp_cylinder.py::_cylinder_cp_matrix``.
 
 
 Concentric Spherical Geometry: The Exponential Kernel
 ======================================================
 
-Geometry
---------
-
 The spherical cell consists of :math:`N` concentric spherical shells.
-As with the cylindrical Wigner–Seitz approximation, the outer boundary
-is a sphere (the natural shape for an isolated fuel particle, pebble, or
-TRISO kernel).
+Volumes: :math:`V_i = \frac{4}{3}\pi(R_i^3 - R_{i-1}^3)`.  Surface:
+:math:`S = 4\pi R_{\text{cell}}^2`.  The kernel is simply
+:math:`F(\tau) = e^{-\tau}` --- full 3-D symmetry absorbs all angular
+variables.
 
-The cell is built via :func:`~geometry.factories.mesh1d_from_zones`
-with ``coord = CoordSystem.SPHERICAL``.  Volumes are:
-
-.. math::
-   :label: sphere-volume
-
-   V_i = \frac{4}{3}\pi\bigl(R_i^3 - R_{i-1}^3\bigr)
-
-and the outer surface area is :math:`S = 4\pi R_{\text{cell}}^2`.
-
-
-The Exponential Kernel
-----------------------
-
-For a sphere, **full 3-D symmetry** means that no residual angular
-integration remains after the flat-source average.  The transmission
-kernel along a chord at impact parameter :math:`y` is simply:
-
-.. math::
-   :label: sphere-kernel
-
-   F(\tau) = e^{-\tau}
-
-Compare with slab (:math:`E_3`) and cylinder (:math:`\text{Ki}_4`),
-which encode 1-D and 2-D angular averages respectively.  The sphere
-needs no special functions at all.
-
-The values at zero optical thickness are:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 30 20
-
-   * - Kernel
-     - :math:`F(0)`
-   * - :math:`E_3(0)`
-     - :math:`1/2`
-   * - :math:`\text{Ki}_4(0)`
-     - tabulated (~0.4244)
-   * - :math:`e^{-0}`
-     - 1
-
-
-Chord Integration with :math:`y`-Weighting
---------------------------------------------
-
-The chord geometry through concentric shells is **identical** to the
-cylindrical case — the same formula :eq:`chord-length` gives the
-half-chord length :math:`\ell_k(y)` through each shell.
-
-The difference is in the **quadrature weight**.  For a cylinder (2-D),
-each chord at height :math:`y` represents a line of sources, giving a
+Chord geometry is identical to cylindrical (:eq:`chord-length`), but
+the quadrature weight includes :math:`y`.  For a cylinder (2-D), each
+chord at height :math:`y` represents a **line of sources**, giving a
 weight proportional to :math:`dy`.  For a sphere (3-D), each chord
-represents a ring of sources with circumference :math:`2\pi y`, giving
-a weight proportional to :math:`y \, dy`:
+represents a **ring of sources** with circumference :math:`2\pi y`,
+giving a weight proportional to :math:`y\,dy`.
+In :meth:`CPMesh._setup_spherical`::
 
-.. list-table::
-   :header-rows: 1
-   :widths: 30 35 35
+    # Spherical weight: extra factor of y in the quadrature
+    self._y_wts = self._y_wts * self._y_pts
 
-   * -
-     - Cylinder
-     - Sphere
-   * - Area element
-     - :math:`2\,dy` (line)
-     - :math:`2\pi y \, dy` (ring)
-   * - Quadrature weight
-     - :math:`w_i`
-     - :math:`w_i \cdot y_i`
-
-This is why the spherical setup in ``CPMesh._setup_spherical()``
-multiplies the Gauss–Legendre weights by the :math:`y`-coordinates.
-
+Geometry built via :func:`~geometry.factories.mesh1d_from_zones` with
+``coord = CoordSystem.SPHERICAL``.
 
 Second-Difference Formula (Spherical)
---------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The reduced collision probability has the same structure as cylindrical,
 but with :math:`F = \exp(-\cdot)` and :math:`y`-weighted quadrature:
@@ -917,9 +1364,9 @@ The self-collision term follows the same pattern:
      \left[2\ell_i(y) - \frac{2}{\Sigt{i}}
        \left(1 - e^{-\tau_i(y)}\right)\right] y \, dy
 
-This is implemented by :meth:`CPMesh._compute_radial_rcp` — the
-**same code path as cylindrical**, parameterised by the kernel function
-and quadrature weights.
+The **same code path** :meth:`CPMesh._compute_radial_rcp` handles both
+cylindrical and spherical, parameterised by kernel and weights.
+Verified against ``derivations/cp_sphere.py::_sphere_cp_matrix``.
 
 
 Geometry Comparison
@@ -930,21 +1377,17 @@ Geometry Comparison
    :widths: 18 27 27 28
 
    * - Aspect
-     - Slab (Cartesian)
-     - Cylinder (1D radial)
-     - Sphere (1D radial)
+     - Slab
+     - Cylinder
+     - Sphere
    * - Kernel :math:`F(\tau)`
-     - :math:`E_3(\tau)`
-     - :math:`\text{Ki}_4(\tau)` (tabulated)
+     - :math:`E_3` (:func:`_e3`)
+     - :math:`\text{Ki}_4` (:func:`_ki4_lookup`)
      - :math:`e^{-\tau}`
    * - :math:`F(0)`
      - :math:`1/2`
      - :math:`\approx 0.4244`
      - :math:`1`
-   * - Angular integration
-     - analytical (in :math:`E_3`)
-     - numerical (:math:`y`-quadrature)
-     - numerical (:math:`y`-quadrature)
    * - Quadrature weight
      - none (scalar)
      - :math:`w_i`
@@ -953,23 +1396,26 @@ Geometry Comparison
      - :math:`t_i`
      - :math:`\pi(R_i^2 - R_{i-1}^2)`
      - :math:`\tfrac{4}{3}\pi(R_i^3 - R_{i-1}^3)`
+   * - Angular integration
+     - analytical (in :math:`E_3`)
+     - numerical (:math:`y`-quadrature)
+     - numerical (:math:`y`-quadrature)
    * - Surface :math:`S`
-     - 1
+     - :math:`1`
      - :math:`2\pi R_{\text{cell}}`
      - :math:`4\pi R_{\text{cell}}^2`
    * - Prefactor
      - 1/2 (half-space)
      - 2 (chord halves)
      - 2 (chord halves)
-   * - Code path
-     - ``_compute_slab_rcp``
-     - ``_compute_radial_rcp``
-     - ``_compute_radial_rcp``
-
-Despite these differences, the **eigenvalue iteration is identical** for
-all geometries once :math:`P_{ij}^{\infty}` is built.  The white-BC
-closure is also geometry-agnostic when expressed in terms of
-``mesh.volumes`` and ``mesh.surfaces[-1]``.
+   * - Code path (solver)
+     - :meth:`CPMesh._compute_slab_rcp`
+     - :meth:`CPMesh._compute_radial_rcp`
+     - :meth:`CPMesh._compute_radial_rcp`
+   * - Derivation script
+     - ``derivations/cp_slab.py``
+     - ``derivations/cp_cylinder.py``
+     - ``derivations/cp_sphere.py``
 
 
 The Eigenvalue Problem
@@ -984,259 +1430,415 @@ group :math:`g` is:
 .. math::
    :label: neutron-balance
 
-   \Sigt{i,g} \, V_i \, \phi_{i,g}
-   = \sum_{j=1}^{N} P_{ji,g}^{\infty} \, V_j \left[
-       \frac{\chi_{j,g}}{\keff} \sum_{g'=1}^{G} \nSigf{j,g'} \phi_{j,g'}
-       + \sum_{g'=1}^{G} \Sigs{j,g' \to g} \phi_{j,g'}
+   \Sigt{ig} V_i \phi_{ig}
+   = \sum_j P_{ji,g}^{\infty} V_j \left[
+       \frac{\chi_{jg}}{\keff} \sum_{g'} \nSigf{jg'} \phi_{jg'}
+       + \sum_{g'} \bigl(\Sigs{j,g' \to g}
+       + 2\,\Sigma_{2,j,g' \to g}\bigr) \phi_{jg'}
      \right]
 
-This is an eigenvalue problem in :math:`\keff`.
+The factor of 2 on :math:`\Sigma_2` accounts for both outgoing (n,2n)
+neutrons (the original neutron is already removed by :math:`\Sigt{}`).
+
+.. note::
+
+   **Scattering convention.**  ``Mixture.SigS[l]`` uses
+   ``SigS[g_from, g_to]`` convention.  The in-scatter source uses the
+   transpose: ``Q_scatter = SigS.T @ phi``.  This is critical for
+   correct downscatter/upscatter coupling.
+
+
+Matrix Form
+-------------
+
+:eq:`neutron-balance` in matrix form:
+:math:`\mathbf{A}\Phi = (1/\keff)\mathbf{B}\Phi` with:
+
+.. math::
+   :label: matrix-A-def
+
+   A[(i,g),(j,g')] = \delta_{ij}\delta_{gg'}\Sigt{ig} V_i
+     - P_{ji,g}^{\infty} V_j (\Sigs{j,g' \to g} + 2\Sigma_{2,j,g' \to g})
+
+.. math::
+   :label: matrix-B-def
+
+   B[(i,g),(j,g')] = P_{ji,g}^{\infty} V_j \chi_{jg}\, \nSigf{jg'}
+
+The analytical verification eigenvalue is
+:math:`\lambda_{\max}(\mathbf{A}^{-1}\mathbf{B})`, computed by
+:func:`~derivations._eigenvalue.kinf_from_cp`, which builds the full
+:math:`NG \times NG` matrices and uses ``numpy.linalg.eigvals``.
+The solver does NOT form these matrices --- see :ref:`why-not-full-matrices`.
 
 
 Power Iteration
 ---------------
 
-The eigenvalue problem is solved by **power iteration** (see
-:func:`~numerics.eigenvalue.power_iteration`):
+Implemented by :func:`~numerics.eigenvalue.power_iteration` via the
+:class:`CPSolver` protocol:
 
-1. **Fission source**: compute
-   :math:`Q^F_{i,g} = \chi_{i,g} \sum_{g'} \nSigf{i,g'} \phi_{i,g'} / \keff`
+1. **Fission source** (:meth:`CPSolver.compute_fission_source`):
+   :math:`Q^F_{ig} = \chi_{ig} \sum_{g'} \nSigf{ig'} \phi_{ig'} / \keff`
 
-2. **Fixed-source solve**: add scattering and (n,2n) sources, then
-   apply the CP matrix:
+2. **Fixed-source solve** (:meth:`CPSolver.solve_fixed_source`):
+   :math:`\phi_{ig}^{\text{new}} = \sum_j P_{ji,g}^{\infty} V_j Q_{jg}^{\text{total}} / (\Sigt{ig} V_i)`
 
-   .. math::
-
-      \phi_{i,g}^{\text{new}}
-      = \frac{1}{\Sigt{i,g} \, V_i}
-        \sum_j P_{ji,g}^{\infty} \, V_j \, Q_{j,g}^{\text{total}}
-
-3. **Update** :math:`\keff`:
+3. **Update** :math:`\keff` (:meth:`CPSolver.compute_keff`):
 
    .. math::
+      :label: cp-keff-update
 
-      \keff = \frac{\sum_{i,g} \nSigf{i,g} \phi_{i,g} V_i}
-                   {\sum_{i,g} \Siga{i,g} \phi_{i,g} V_i}
+      \keff = \frac{\sum_{ig} \nSigf{ig} \phi_{ig} V_i}
+                   {\sum_{ig} (\Sigt{ig} - \Sigs{ig}^{\text{out}}
+                   - 2\Sigma_{2,ig}^{\text{out}}) \phi_{ig} V_i}
+
+   The denominator is the **net removal rate**: total interactions minus
+   all neutrons that remain in the system (scattered or produced by (n,2n)).
+
+   .. admonition:: The (n,2n) subtlety (ERR-015)
+
+      **Bug:** ``compute_keff`` used production/absorption, which is wrong
+      when :math:`\Sigma_2 \neq 0` because absorption includes (n,2n)
+      removal but does not credit the two outgoing neutrons.  With
+      ``Sig2[0,0] = 0.01`` on region A (2G), the solver converged to
+      :math:`k = 1.793` instead of analytical :math:`k = 2.045` (12% error).
+
+      **First wrong fix:** Adding (n,2n) production to the numerator
+      gave :math:`k = 1.808` --- still wrong because the extra neutron
+      has no fission spectrum :math:`\chi` weighting.
+
+      **Correct fix:** Net-removal denominator :eq:`cp-keff-update`.
+      When :math:`\Sigma_2 = 0`, this reduces to
+      :math:`\nSigf{}\phi V / \Siga{}\phi V`.
+
+      **How it hid:** All test materials had ``Sig2 = 0`` (zero sparse
+      matrix).  The ``make_mixture`` API didn't even accept a ``sig_2``
+      parameter, making it impossible to construct test materials with
+      nonzero (n,2n).
+
+      **Test:** ``test_cp_verification.py::TestN2N::test_n2n_solver_keff_matches_analytical``.
+
+      **Lesson:** When adding a new reaction type, trace it through BOTH
+      the transport solve AND the eigenvalue estimate.  Test with the
+      term nonzero.
 
    For lattice models with reflective (or white) boundary conditions,
-   the leakage term is zero.
+   the leakage term is zero, so this balance is exact.
 
-4. **Converge** when both :math:`\keff` and :math:`\phi` stop changing.
+4. **Converge** (:meth:`CPSolver.converged`) when :math:`|\Delta k| <`
+   ``keff_tol`` and :math:`\|\Delta\phi\|_\infty <` ``flux_tol``.
 
 The power iteration converges to the **dominant eigenvalue**
-(:math:`\keff`) and the **fundamental mode** — the unique non-negative
-eigenvector (Perron–Frobenius theorem) [Hébert2009]_.
+(:math:`\keff`) and the **fundamental mode** --- the unique non-negative
+eigenvector (Perron--Frobenius theorem) [Hebert2009]_.
 
 This is implemented in :class:`CPSolver`, which satisfies the
 :class:`~numerics.eigenvalue.EigenvalueSolver` protocol.
 
 
-Verification
-============
+Solver Modes: Jacobi and Gauss-Seidel
+---------------------------------------
 
-The CP implementation is verified against semi-analytical eigenvalues
-computed from the CP matrix itself.  For each geometry, the derivation
-module (e.g., ``derivations/cp_sphere.py``) builds the :math:`P^{\infty}`
-matrix independently, assembles the :math:`A` and :math:`B` matrices of
-the generalised eigenvalue problem
-:math:`A^{-1}B\,\mathbf{v} = k\,\mathbf{v}`, and solves for :math:`k`
-via ``numpy.linalg.eigvals``.  The solver's power-iteration result must
-match this eigenvalue.
+:class:`CPSolver` supports two modes via ``CPParams.solver_mode``.
 
-27 verification cases are tested: {1, 2, 4} energy groups × {1, 2, 4}
-spatial regions × {slab, cylinder, sphere}.
+**Jacobi (default,** :meth:`CPSolver._solve_fixed_source_jacobi` **).**
+Scattering source from all groups computed simultaneously using the
+previous iteration's flux.  No inner iterations.  One matrix-vector
+multiply per group per outer.
+
+**Gauss-Seidel (**\ :meth:`CPSolver._solve_fixed_source_gs` **).**
+Groups swept from fast (:math:`g=0`) to thermal (:math:`g=G-1`).  For
+each group :math:`g`, **inner iterations** converge within-group
+self-scatter before proceeding to :math:`g+1`.
+
+The inner iteration solves the fixed-point equation:
+
+.. math::
+
+   \phi_g = T_g\!\bigl[Q_g^{\text{ext}} + \Sigs{g \to g} \phi_g\bigr]
+
+where :math:`T_g[\cdot]` is the CP transport operator for group :math:`g`
+(the matrix multiply :math:`P^T V \cdot / (\Sigt{} V)`).  The operator is
+exact for a given source, but the source depends on :math:`\phi_g` through
+within-group self-scatter :math:`\Sigs{g \to g}`.
+
+**Why inner iterations matter.**  The spectral radius of the inner
+iteration operator is approximately :math:`\Sigs{g \to g} / \Sigt{g}`.
+Thermal groups (ratio ~0.6--0.9) need 3--8 inner iterations; fast groups
+(ratio << 1) converge in 1.  Convergence criterion: relative flux change
+:math:`\|\phi_g^{(n+1)} - \phi_g^{(n)}\| / \|\phi_g^{(n+1)}\| < \texttt{inner\_tol}`.
+
+.. admonition:: Tautological inner residual (ERR-016)
+
+   **Bug:** The original inner convergence check computed
+   :math:`\|\Sigt{} V \phi_g^{\text{new}} - P^T V Q_g\|`, which is
+   **identically zero by construction**:
+   :math:`\phi_g^{\text{new}} \equiv P^T V Q_g / (\Sigt{} V)`, so
+   the check computes :math:`\|x - x\| = 0`.  The inner loop always
+   exited after 1 iteration, making GS functionally identical to
+   sequential-group Jacobi.
+
+   **How it hid:** All 27 eigenvalue tests passed (the outer iteration
+   converged regardless).  The ``n_inner`` array showed all 1s,
+   interpreted as "fast convergence" rather than "broken check".  A QA
+   review initially concluded that inner iterations are *fundamentally
+   unnecessary* for CP --- this is **wrong**: the transport is exact for
+   a given source, but the source depends on :math:`\phi_g` through
+   self-scatter.
+
+   **Fix:** Changed to relative flux change
+   :math:`\|\phi^{(n+1)} - \phi^{(n)}\| / \|\phi^{(n+1)}\|`.  With the
+   corrected residual, thermal groups genuinely require multiple inner
+   iterations; fast groups converge in 1.
+
+   **Tests:** ``test_cp_verification.py::TestGSInnerIterations`` ---
+   ``test_thermal_needs_more_inner_than_fast`` (thermal > fast inner
+   counts), ``test_gs_eigenvalue_matches_jacobi`` (same eigenvalue),
+   ``test_no_self_scatter_one_inner`` (zero diagonal in :math:`\Sigma_s`
+   converges in 1).
+
+   **Lesson:** A convergence check that compares quantities derived from
+   each other by construction tests nothing.  Always verify with a
+   problem that *should* require multiple iterations.
+
+**Convergence diagnostics** (stored in :class:`CPResult`):
 
 .. list-table::
    :header-rows: 1
-   :widths: 25 10 30 15
+   :widths: 25 15 40
+
+   * - Field
+     - Shape
+     - Description
+   * - ``residual_history``
+     - ``(n_outer,)``
+     - Neutron balance residual :math:`\|\Sigt{} V \phi - P^T V Q\|_2` per outer (both modes)
+   * - ``n_inner``
+     - ``(n_outer, ng)``
+     - Inner iteration count per group per outer (GS only; ``None`` in Jacobi)
+
+Both modes converge to the **same eigenvalue and flux distribution**
+(``test_cp_verification.py::TestGSInnerIterations::test_gs_eigenvalue_matches_jacobi``).
+
+.. list-table:: Solver mode comparison
+   :header-rows: 1
+   :widths: 35 35
+
+   * - Jacobi
+     - Gauss-Seidel
+   * - All groups from previous flux
+     - Sequential; latest flux from earlier groups
+   * - No inner iterations
+     - Inner iterations for within-group self-scatter
+   * - Simpler (1 matrix multiply/group/outer)
+     - Faster convergence for strong upscatter
+
+
+Cross-Section Data Layout
+===========================
+
+Cross sections flow through two layers:
+
+1. :class:`~data.macro_xs.mixture.Mixture` --- per-material: ``(ng,)``
+   arrays for :math:`\Sigt{}`, :math:`\Siga{}`, :math:`\Sigf{}`,
+   :math:`\nSigf{}`, :math:`\chi`; ``(ng, ng)`` sparse matrices for
+   scattering :math:`\Sigs{}` (``SigS[0]``) and (n,2n) :math:`\Sigma_2`
+   (``Sig2``).
+
+2. :class:`~data.macro_xs.cell_xs.CellXS` --- per-cell on the mesh:
+   ``(N_cells, ng)`` arrays mapped from materials by
+   :func:`~data.macro_xs.cell_xs.assemble_cell_xs` using ``mat_ids``.
+
+**Indexing:** ``xs.sig_t[i, g]`` is the total macroscopic cross section
+in spatial cell :math:`i` and energy group :math:`g`.  Group 0 = fastest
+(highest energy); group :math:`G-1` = slowest (thermal).  Cell 0 =
+innermost; cell :math:`N-1` = outermost.
+
+**Scattering convention:** ``SigS[g_from, g_to]``.  The in-scatter source
+uses the transpose: ``Q += SigS.T @ phi`` (applied per-cell)::
+
+    for k in range(N):
+        mid = self.mat_ids[k]
+        Q[k, :] += self._scat_mats[mid].T @ flux_distribution[k, :]
+        Q[k, :] += 2.0 * (self._n2n_mats[mid].T @ flux_distribution[k, :])
+
+
+Verification
+============
+
+**106 tests** across 6 test files verify the CP implementation against
+analytical eigenvalues computed independently by the derivation modules.
+
+Consolidated Eigenvalue Solvers (CP-20260405-007)
+---------------------------------------------------
+
+:func:`~derivations._eigenvalue.kinf_from_cp` and
+:func:`~derivations._eigenvalue.kinf_homogeneous` replaced 10 duplicated
+eigenvalue computations across ``homogeneous.py``, ``sn.py``, ``moc.py``,
+``mc.py``, ``cp_slab.py``, ``cp_cylinder.py``, and ``cp_sphere.py``.
+Both accept optional ``sig_2`` / ``sig_2_mats`` for (n,2n) reactions.
+When omitted, (n,2n) is zero and all previous eigenvalues are preserved.
+
+
+Eigenvalue Verification Cases
+-------------------------------
+
+27 core cases: {1, 2, 4} groups |times| {1, 2, 4} regions |times|
+{slab, cylinder, sphere}.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 15 20 20
 
    * - Geometry
-     - Groups
-     - Regions
      - Tolerance
-   * - Slab (E\ :sub:`3`)
-     - 1, 2, 4
-     - 1, 2, 4
+     - Test file
+     - Derivation
+   * - Slab (:math:`E_3`)
      - :math:`< 10^{-6}`
-   * - Cylinder (Ki\ :sub:`4`)
-     - 1, 2, 4
-     - 1, 2, 4
+     - ``test_cp_slab.py``
+     - ``derivations/cp_slab.py``
+   * - Cylinder (:math:`\text{Ki}_4`)
      - :math:`< 10^{-5}`
-   * - Sphere (exp)
-     - 1, 2, 4
-     - 1, 2, 4
+     - ``test_cp_cylinder.py``
+     - ``derivations/cp_cylinder.py``
+   * - Sphere (:math:`e^{-\tau}`)
      - :math:`< 10^{-5}`
+     - ``test_cp_sphere.py``
+     - ``derivations/cp_sphere.py``
 
-Additionally, **algebraic property tests** are run for all three
-coordinate systems (parametrised via ``pytest.mark.parametrize``):
+The cylinder/sphere tolerances are 10x looser because the
+:math:`\text{Ki}_4` table interpolation introduces
+:math:`O(\Delta x^2) \approx 6 \times 10^{-6}` error
+(see :ref:`ki-table-construction`).  Confirmed by
+``test_cp_verification.py::TestKi4Resolution``.
+
+Additionally, **algebraic property tests** (``test_cp_properties.py``)
+are run for all three coordinate systems:
 
 - **Row sums** :math:`= 1` (neutron conservation)
 - **Reciprocity**: :math:`\Sigt{i} V_i P_{ij} = \Sigt{j} V_j P_{ji}`
 - **Non-negativity**: :math:`P_{ij} \ge 0`
 - **Homogeneous limit**: 1-region :math:`P = 1`
 
-Run the verification::
 
-   pytest tests/test_cp_slab.py tests/test_cp_cylinder.py tests/test_cp_sphere.py tests/test_cp_properties.py -v
+Extended Verification (CP-20260405-005)
+----------------------------------------
+
+31 additional tests in ``test_cp_verification.py`` closing 9 QA gaps:
+
+- **L0 P_inf comparison** (G-1): element-by-element solver vs derivation
+  (tolerance :math:`< 10^{-10}`)
+- **Multi-group properties** (G-6, W-2): row sums and reciprocity at 2G/4G
+- **Upscatter** (G-2, W-1): eigenvalue with nonzero thermal-to-fast transfer
+- **(n,2n)** (C-2, G-3, W-3): solver :math:`\keff` matches analytical with
+  ``Sig2[0,0] = 0.01``
+- **Optical limits** (G-4, G-7): thick (:math:`\tau \gg 1`,
+  :math:`P_{ii} > 0.99`) and thin (:math:`\tau \ll 1`, high escape)
+- **Convergence rate** (G-5): monotonic error decrease, dominance ratio
+  estimation
+- **8-region mesh** (G-8): mesh refinement convergence
+- **GS inner iterations** (C-1, G-9): thermal > fast inner counts;
+  no-self-scatter in 1; GS/Jacobi eigenvalue agreement
+- **Ki4 table resolution** (W-6): diminishing returns from 5k to 40k points
+
+Plus 36 diagnostic tests in ``test_cp_diagnostics.py``.
+
+::
+
+   pytest tests/test_cp_slab.py tests/test_cp_cylinder.py \
+          tests/test_cp_sphere.py tests/test_cp_properties.py \
+          tests/test_cp_verification.py tests/test_cp_diagnostics.py -v
 
 
 Implementation Details
 =======================
 
+.. _why-p-transpose:
+
 Why P\ :sup:`T` Appears in the Flux Update
 --------------------------------------------
 
-The CP convention :math:`P_{ij} = P[\text{birth}_i, \text{collision}_j]`
-means the *i*-th row of :math:`P` gives the probabilities of a neutron
-born in region :math:`i` colliding in each region :math:`j`.  The
-neutron balance :eq:`neutron-balance` sums over **source regions** to
-compute the collision rate in the **target region**:
-
-.. math::
-
-   \Sigt{j} V_j \phi_j = \sum_i P_{ji}^{\infty} V_i Q_i
-
-The sum is over the **first** index of :math:`P_{ji}` (birth in
-:math:`j`, collision in :math:`i` — wait, that's reversed).  In fact,
-:math:`P_{ji}` means "born in :math:`j`, collides in :math:`i`", so
-:math:`\sum_j P_{ji} V_j Q_j` computes the collision rate in region
-:math:`i` from sources in all regions :math:`j`.  In matrix form:
+With :math:`P_{ij} = P[\text{birth}_i, \text{collision}_j]`, the neutron
+balance :eq:`collision-rate` sums over birth regions (first index of
+:math:`P`), which is a column sum.  In matrix form:
 
 .. math::
 
    \Sigt{} V \phi = P^T V Q
 
-Hence the flux update: :math:`\phi = (P^T V Q) / (\Sigt{} V)`.
+Hence: :math:`\phi = P^T V Q / (\Sigt{} V)`.
 
-In code: ``phi[:, g] = P_inf[:, :, g].T @ source`` — the transpose
-converts from the birth-indexed convention to the collision-indexed sum.
+In code: ``phi[:, g] = P_inf[:, :, g].T @ source``
+(:meth:`CPSolver._solve_fixed_source_jacobi`).
+
+.. admonition:: Historical bug (ERR-009)
+
+   ``P @ source`` instead of ``P.T @ source``.  Correct for homogeneous
+   problems (:math:`P` symmetric) but **8% wrong** for the 1G 2-region
+   slab (k=1.373 vs analytical 1.272).  Caught by the formal verification
+   suite on the first heterogeneous test case.  The bug survived 4 weeks
+   because all prior tests were homogeneous.
 
 
-The Analytical Verification Eigenvalue
----------------------------------------
-
-The semi-analytical eigenvalue used for verification is computed by
-assembling the CP neutron balance into a generalised eigenvalue problem.
-
-The multi-group balance :eq:`neutron-balance` can be written as:
-
-.. math::
-   :label: cp-eigenvalue-system
-
-   \mathbf{A} \boldsymbol{\Phi} = \frac{1}{k} \mathbf{B} \boldsymbol{\Phi}
-
-where the unknown :math:`\boldsymbol{\Phi}` is the concatenation of all
-region-group fluxes :math:`[\phi_{1,1}, \phi_{1,2}, \ldots, \phi_{N,G}]`,
-and the matrices are:
-
-.. math::
-
-   A[i \cdot G + g,\; j \cdot G + g']
-   &= \delta_{ij} \delta_{gg'} \Sigt{i,g} V_i
-     - P_{ji,g}^{\infty} V_j \Sigs{j,g' \to g} \\
-   B[i \cdot G + g,\; j \cdot G + g']
-   &= P_{ji,g}^{\infty} V_j \chi_{j,g} \nSigf{j,g'}
-
-The eigenvalue :math:`k_{\infty}` is the largest eigenvalue of
-:math:`\mathbf{A}^{-1} \mathbf{B}`, computed via
-``numpy.linalg.eigvals``.
-
-This is implemented in ``_kinf_from_cp()`` in each derivation module
-(``derivations/cp_slab.py``, ``derivations/cp_cylinder.py``,
-``derivations/cp_sphere.py``).  The derivation modules compute
-:math:`P^{\infty}` independently of the solver, using the same kernel
-functions but in a self-contained implementation.  The solver's
-power-iteration result must match this independent eigenvalue.
-
+.. _ki-table-construction:
 
 Ki\ :sub:`3`/Ki\ :sub:`4` Table Construction
 ----------------------------------------------
 
-The Bickley–Naylor functions have no closed-form expression and must be
-tabulated numerically.
+:func:`_build_ki_tables` (solver) and
+:class:`~derivations._kernels.BickleyTables` (derivations) tabulate
+the functions identically:
 
-**Ki₃ table:**  The function :func:`_build_ki_tables` evaluates
-:math:`\text{Ki}_3(x)` at :math:`N = 20{,}000` equally spaced points
-on :math:`[0, x_{\max}]` where :math:`x_{\max} = 50`.  Each point is
-computed by numerical integration via ``scipy.integrate.quad``:
+1. :math:`\text{Ki}_3(x_k) = \int_0^{\pi/2} e^{-x_k/\sin\theta} \sin\theta\,d\theta`
+   at 20,000 points on :math:`[0, 50]` via ``scipy.integrate.quad``.
+   Boundary value :math:`\text{Ki}_3(0) = 1` set analytically.
 
-.. math::
+2. :math:`\text{Ki}_4` by cumulative trapezoid from right to left::
 
-   \text{Ki}_3(x_k) = \int_0^{\pi/2}
-     e^{-x_k / \sin\theta} \sin\theta \, d\theta
+       ki4_vals = np.cumsum(ki3[::-1])[::-1] * dx
 
-The boundary value :math:`\text{Ki}_3(0) = 1` is set analytically.
-For large :math:`x`, :math:`\text{Ki}_3(x) \to 0` exponentially,
-so :math:`x_{\max} = 50` is sufficient (residual :math:`< 10^{-20}`).
+3. Runtime lookup via ``np.interp`` (linear interpolation).  With
+   :math:`\Delta x = 0.0025`, error is
+   :math:`O(\Delta x^2) \approx 6 \times 10^{-6}`.
 
-**Ki₄ table:**  The antiderivative is computed by the cumulative
-trapezoid rule, integrating from right to left:
-
-.. math::
-
-   \text{Ki}_4(x_k) = \int_{x_k}^{x_{\max}}
-     \text{Ki}_3(t) \, dt
-   \approx \Delta x \sum_{j=k}^{N-1} \text{Ki}_3(x_j)
-
-This is implemented as ``np.cumsum(ki3[::-1])[::-1] * dx``.  The
-endpoint is set to zero: :math:`\text{Ki}_4(x_{\max}) = 0`.
-
-**Interpolation:**  At runtime, :func:`_ki4_lookup` evaluates
-:math:`\text{Ki}_4` by linear interpolation (``np.interp``).  For
-arguments beyond :math:`x_{\max}`, the function returns 0.
-
-**Accuracy:**  With 20000 points on [0, 50], the spacing is
-:math:`\Delta x = 0.0025`.  Linear interpolation gives
-:math:`O(\Delta x^2)` error, which is :math:`\sim 6 \times 10^{-6}`.
-This is below the tolerance of the CP eigenvalue tests (:math:`< 10^{-5}`
-for cylindrical).  The cached :class:`BickleyTables` in the derivation
-module uses the same construction.
+``test_cp_verification.py::TestKi4Resolution`` confirms that increasing
+from 5,000 to 40,000 points produces diminishing returns (validating
+the default 20,000).
 
 
 Equal-Volume Mesh Subdivision
 -------------------------------
 
-The factory functions construct meshes where each sub-cell within a
-material zone has **equal volume**.  This ensures uniform spatial
-resolution in the volume-weighted sense.
+:func:`~geometry.factories._subdivide_zone` creates equal-volume cells:
 
-**Cartesian:**  Equal-width cells: :math:`x_k = x_0 + k \Delta x`
-where :math:`\Delta x = (x_N - x_0) / N`.
+**Cartesian:** :math:`x_k = x_0 + k(x_N - x_0)/N`.
 
-**Cylindrical:**  The annular volume is
-:math:`V = \pi(R_k^2 - R_{k-1}^2)`.  Equal volumes require:
+**Cylindrical.**  Equal annular volumes:
+:math:`V = \pi(R_k^2 - R_{k-1}^2) = \text{const}`.  Summing:
+:math:`\pi R_k^2 = \pi R_0^2 + k \cdot \pi(R_N^2 - R_0^2)/N`, giving:
 
 .. math::
-   :label: cyl-subdivision
 
-   R_k^2 - R_{k-1}^2 = \frac{R_N^2 - R_0^2}{N}
+   R_k = \sqrt{R_0^2 + \frac{k}{N}(R_N^2 - R_0^2)}
 
-Solving: :math:`R_k = \sqrt{R_0^2 + \frac{k}{N}(R_N^2 - R_0^2)}`.
-For :math:`R_0 = 0`: :math:`R_k = R_N \sqrt{k/N}`.
+For :math:`R_0 = 0`: :math:`R_k = R_N\sqrt{k/N}`.
 
-**Spherical:**  The shell volume is
-:math:`V = \frac{4}{3}\pi(R_k^3 - R_{k-1}^3)`.  Equal volumes require:
+**Spherical.**  Equal shell volumes:
+:math:`V = \frac{4}{3}\pi(R_k^3 - R_{k-1}^3) = \text{const}`, giving:
 
 .. math::
-   :label: sph-subdivision
 
-   R_k^3 - R_{k-1}^3 = \frac{R_N^3 - R_0^3}{N}
+   R_k = \left(R_0^3 + \frac{k}{N}(R_N^3 - R_0^3)\right)^{1/3}
 
-Solving: :math:`R_k = \bigl(R_0^3 + \frac{k}{N}(R_N^3 - R_0^3)\bigr)^{1/3}`.
-For :math:`R_0 = 0`: :math:`R_k = R_N \,(k/N)^{1/3}`.
+For :math:`R_0 = 0`: :math:`R_k = R_N(k/N)^{1/3}`.
 
-These formulas are implemented in :func:`~geometry.factories._subdivide_zone`,
-which is the core of :func:`~geometry.factories.mesh1d_from_zones`.  The
-equal-volume property is verified by ``test_equal_volume_single_zone``
-and ``test_equal_volume_multi_zone`` in the test suite.
 
+.. _white-bc-quality:
 
 Numerical Evidence: White-BC Approximation Quality
 -----------------------------------------------------
-
-The following table compares the CP eigenvalue (white BC) with the SN
-eigenvalue (reflective BC) for the same 1G heterogeneous geometries.
-The difference quantifies the white-BC approximation error.
 
 .. list-table::
    :header-rows: 1
@@ -1253,64 +1855,52 @@ The difference quantifies the white-BC approximation error.
    * - Cylinder 2-region (10 cells/zone)
      - 0.995
      - 0.997
-     - −0.2%
+     - -0.2%
 
-The slab shows ~1% overestimation by CP because the white BC smears
-the anisotropic angular flux at the fuel-moderator interface.  The
-cylindrical discrepancy is smaller because the Wigner–Seitz cell has
+The slab shows ~1% overestimation because the white BC smears the
+anisotropic angular flux at the fuel-moderator interface.  The
+cylindrical discrepancy is smaller because the Wigner--Seitz cell has
 a larger volume-to-surface ratio, making the boundary angular
 distribution closer to isotropic.
 
 
+.. _why-not-full-matrices:
+
 Design Decisions
 ==================
 
-Why a Single CPMesh Class
---------------------------
+**Single CPMesh class (CP-20260404-001).**  All three geometries share
+the eigenvalue iteration.  Only the kernel construction differs.  Adding
+a geometry requires one ``_setup_*()`` method and kernel function, not a
+new solver class.
 
-All three geometries share the same eigenvalue iteration — only the
-CP matrix construction differs.  Rather than three separate solver
-classes, the :class:`CPMesh` class encapsulates the geometry-specific
-kernel and provides a single :meth:`~CPMesh.compute_pinf_group` method.
-Adding a new geometry (e.g., 2D ray-tracing CP) requires only adding
-a new setup method and kernel, not a new solver class.
+**Per-group loop (CP-20260404-008).**  The CP matrix
+:math:`P^{\infty}_{ij,g}` is computed independently per group because
+:math:`\tau_{ig} = \Sigt{ig} \ell_i` varies with group.  Vectorising
+over groups would require restructuring the Ki4 table lookup ---
+deferred as a performance improvement.
 
-Why the Per-Group Loop
------------------------
+**Why ORPHEUS does NOT form the full A/B matrices.**  The analytical
+verification (:func:`~derivations._eigenvalue.kinf_from_cp`) builds the
+full :math:`NG \times NG` matrices and runs ``numpy.linalg.eigvals``.
+The solver does not, for two reasons:
 
-The CP matrix :math:`P^{\infty}_{ij,g}` is computed independently for
-each energy group :math:`g` because the optical thicknesses
-:math:`\tau_{i,g} = \Sigt{i,g} \ell_i` depend on the group-dependent
-total cross section.  The loop ``for g in range(ng)`` in
-:func:`solve_cp` could in principle be vectorised over groups, but the
-Ki₄ table lookup and second-difference computation involve
-group-specific optical thicknesses that change the evaluation points.
-Vectorisation would require restructuring the table lookup, which is
-deferred as a performance improvement (see ``CP-20260404-008`` in
-``09.Collision.Probability/IMPROVEMENTS.md``).
+1. **Memory.** For 421 groups, 20 cells: :math:`8420 \times 8420 =`
+   567 MB dense.  The per-group approach: :math:`20 \times 20 \times 421 =`
+   1.3 MB.
+2. **Sparsity.** The scattering matrix is sparse (downscatter only for
+   fast groups).  Per-material sparse storage is far more efficient.
 
-Why 1-Group Verification Is Degenerate
----------------------------------------
-
-For a single energy group with no scattering coupling,
-:math:`\keff = \nSigf{}/\Siga{}` is a material property independent
-of the spatial flux distribution.  Any positive flux shape gives the
-same :math:`k`.  This means:
-
-- A wrong CP matrix still gives the correct :math:`k` (the numerator
-  and denominator of the production/absorption ratio scale identically).
-- Weight errors, normalisation bugs, and convention drifts are invisible.
-
-Only multi-group problems have a flux-ratio-dependent eigenvalue.
-The verification suite therefore tests 1, 2, AND 4 groups for every
-geometry.
+**1-group verification is degenerate.** :math:`\keff = \nSigf{}/\Siga{}`
+regardless of flux shape.  Wrong CP matrices, weight errors, and
+convention drifts are invisible.  The suite tests 1, 2, AND 4 groups.
 
 .. note::
 
-   This is the same lesson as for the SN solver (see
-   ``tests/l0_error_catalog.md`` and the DO theory chapter).  The 1-group degenerate case masked
-   the z-ordinate weight loss, the scattering transpose bug, and the
-   BiCGSTAB normalisation error — all caught only by multi-group tests.
+   The 1-group degenerate case masked ERR-001 (z-ordinate weight loss),
+   ERR-002 (scattering transpose), ERR-004 (BiCGSTAB normalisation),
+   ERR-009 (CP transpose), and ERR-015 ((n,2n) keff) --- all caught
+   only by multi-group tests.  See ``tests/l0_error_catalog.md``.
 
 
 References
@@ -1321,8 +1911,11 @@ References
    flux distributions and Dancoff factors," *Proc. Third United Nations
    Int. Conf. Peaceful Uses of Atomic Energy*, Vol. 2, 1966.
 
-.. [Stamm1965] R. Stamm'ler and M.J. Abbate, *Methods of Steady-State
+.. [Stamm1983] R. Stamm'ler and M.J. Abbate, *Methods of Steady-State
    Reactor Physics in Nuclear Design*, Academic Press, 1983.
 
-.. [Hébert2009] A. Hébert, *Applied Reactor Physics*, Presses
+.. [Hebert2009] A. Hebert, *Applied Reactor Physics*, Presses
    internationales Polytechnique, 2009.
+
+
+.. |times| unicode:: U+00D7

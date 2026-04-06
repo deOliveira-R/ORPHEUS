@@ -13,12 +13,22 @@ are supported:
 * **Spherical** (shell) — exponential kernel with y-weighted quadrature.
 
 All share the same power iteration via :class:`CPSolver`.
+
+Two solver modes are available:
+
+* **Jacobi** (default) — computes the scattering source from the
+  previous iteration's flux for all groups simultaneously.  Simple,
+  no inner iterations.
+* **Gauss-Seidel** — sweeps group-by-group from fast to thermal,
+  using the updated flux from already-processed groups.  Within each
+  group, inner iterations converge the within-group scattering.
+  Converges faster for problems with strong thermal self-scatter.
 """
 
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
 
 import numpy as np
@@ -45,6 +55,9 @@ class CPParams:
     n_ki_table: int = 20000
     ki_max: float = 50.0
     n_quad_y: int = 64
+    solver_mode: str = "jacobi"    # "jacobi" or "gauss_seidel"
+    inner_tol: float = 1e-8        # convergence for inner iterations (GS only)
+    max_inner: int = 100           # max inner iterations per group (GS only)
 
 
 @dataclass
@@ -60,6 +73,8 @@ class CPResult:
     geometry: Mesh1D
     eg: np.ndarray
     elapsed_seconds: float
+    residual_history: list[float] = field(default_factory=list)
+    n_inner: np.ndarray | None = None  # (n_outer, ng) inner iteration counts
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -406,6 +421,16 @@ class CPSolver:
 
     where V is the cell volume array and Q is the total source
     (fission + scattering + n,2n).
+
+    Two solver modes are supported:
+
+    * **Jacobi** (default) — all groups updated from previous iteration's
+      flux.  Simple, no inner iterations.
+    * **Gauss-Seidel** — groups swept from fast to thermal; each group
+      uses the latest flux from already-processed groups.  Inner
+      iterations within each group converge the within-group scattering
+      source.  Converges faster for thermal problems with strong
+      self-scatter.
     """
 
     def __init__(
@@ -417,6 +442,9 @@ class CPSolver:
         materials: dict[int, Mixture],
         keff_tol: float = 1e-6,
         flux_tol: float = 1e-5,
+        solver_mode: str = "jacobi",
+        inner_tol: float = 1e-8,
+        max_inner: int = 100,
     ) -> None:
         self.P_inf = P_inf        # (N, N, ng)
         self.xs = xs
@@ -426,10 +454,17 @@ class CPSolver:
         self.N = xs.sig_t.shape[0]
         self.keff_tol = keff_tol
         self.flux_tol = flux_tol
+        self.solver_mode = solver_mode
+        self.inner_tol = inner_tol
+        self.max_inner = max_inner
 
         # Cache scattering and (n,2n) matrices per material
         self._scat_mats = {mid: materials[mid].SigS[0] for mid in materials}
         self._n2n_mats = {mid: materials[mid].Sig2 for mid in materials}
+
+        # Convergence diagnostics (populated during iteration)
+        self.residual_history: list[float] = []
+        self.n_inner_history: list[np.ndarray] = []  # list of (ng,) arrays
 
     def initial_flux_distribution(self) -> np.ndarray:
         return np.ones((self.N, self.ng))
@@ -443,6 +478,14 @@ class CPSolver:
     def solve_fixed_source(
         self, fission_source: np.ndarray, flux_distribution: np.ndarray,
     ) -> np.ndarray:
+        if self.solver_mode == "gauss_seidel":
+            return self._solve_fixed_source_gs(fission_source, flux_distribution)
+        return self._solve_fixed_source_jacobi(fission_source, flux_distribution)
+
+    def _solve_fixed_source_jacobi(
+        self, fission_source: np.ndarray, flux_distribution: np.ndarray,
+    ) -> np.ndarray:
+        """Jacobi solver: all groups updated from previous iteration's flux."""
         N, ng = self.N, self.ng
 
         # Total source = fission + scattering + (n,2n)
@@ -468,11 +511,126 @@ class CPSolver:
 
         return phi
 
+    def _solve_fixed_source_gs(
+        self, fission_source: np.ndarray, flux_distribution: np.ndarray,
+    ) -> np.ndarray:
+        """Gauss-Seidel solver with inner iterations per group.
+
+        Sweeps groups from fast (g=0) to thermal (g=ng-1).  For each
+        group, inner iterations converge the within-group scattering
+        source by recomputing the scattering from the latest flux
+        (which includes already-updated groups < g).
+
+        The inner iteration count per group reveals which groups have
+        strong self-scatter (typically thermal groups).
+        """
+        N, ng = self.N, self.ng
+        phi = flux_distribution.copy()  # start from previous estimate
+        n_inner_this_outer = np.zeros(ng, dtype=int)
+
+        for g in range(ng):
+            for n_in in range(1, self.max_inner + 1):
+                phi_g_old = phi[:, g].copy()
+
+                # Build total source for group g using latest phi
+                Q_g = fission_source[:, g].copy()
+                for k in range(N):
+                    mid = self.mat_ids[k]
+                    # Scattering into group g from all groups (using latest phi)
+                    scat_row = np.asarray(
+                        self._scat_mats[mid].T[g, :].todense()
+                    ).ravel()
+                    Q_g[k] += scat_row @ phi[k, :]
+                    # (n,2n) into group g
+                    n2n_row = np.asarray(
+                        self._n2n_mats[mid].T[g, :].todense()
+                    ).ravel()
+                    Q_g[k] += 2.0 * (n2n_row @ phi[k, :])
+
+                # Apply CP matrix for group g
+                source_g = self.volumes * Q_g
+                transported_g = self.P_inf[:, :, g].T @ source_g
+
+                # New flux for group g
+                denom_g = self.xs.sig_t[:, g] * self.volumes
+                phi_g_new = np.zeros(N)
+                pos = denom_g > 0
+                phi_g_new[pos] = transported_g[pos] / denom_g[pos]
+
+                phi[:, g] = phi_g_new
+
+                # Inner convergence: relative change in group flux
+                # Nonzero when within-group self-scatter Σ_s(g→g) causes
+                # the source Q_g to depend on φ_g itself.
+                phi_g_norm = np.linalg.norm(phi_g_new)
+                res_in = (np.linalg.norm(phi_g_new - phi_g_old)
+                          / max(phi_g_norm, 1e-30))
+
+                if res_in < self.inner_tol:
+                    break
+
+            n_inner_this_outer[g] = n_in
+
+        self.n_inner_history.append(n_inner_this_outer.copy())
+
+        # Numerical conditioning
+        phi *= 1.0 / np.max(phi)
+        return phi
+
+    def _compute_balance_residual(
+        self, flux_distribution: np.ndarray, keff: float,
+    ) -> float:
+        """Compute the neutron balance residual ||Aφ - B1φ - (1/k)B2φ||₂.
+
+        This is the L2 norm of the difference between the collision rate
+        (Σ_t V φ) and the transported total source (P^T V Q_total) across
+        all regions and groups.  At convergence, this should be zero.
+        """
+        N, ng = self.N, self.ng
+        V = self.volumes
+
+        # Collision rate: Σ_t(i,g) · V(i) · φ(i,g)
+        collision = self.xs.sig_t * V[:, np.newaxis] * flux_distribution
+
+        # Build total source Q = fission + scattering + (n,2n)
+        fission_rate = np.sum(self.xs.sig_p * flux_distribution, axis=1)
+        Q_fis = self.xs.chi * fission_rate[:, np.newaxis] / keff
+        Q = Q_fis.copy()
+        for k in range(N):
+            mid = self.mat_ids[k]
+            Q[k, :] += self._scat_mats[mid].T @ flux_distribution[k, :]
+            Q[k, :] += 2.0 * (self._n2n_mats[mid].T @ flux_distribution[k, :])
+
+        # Transported source: P^T · (V · Q) for each group
+        transported = np.empty((N, ng))
+        for g in range(ng):
+            transported[:, g] = self.P_inf[:, :, g].T @ (V * Q[:, g])
+
+        return float(np.linalg.norm(collision - transported))
+
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
         v = self.volumes[:, np.newaxis]
         production = np.sum(self.xs.sig_p * flux_distribution * v)
-        absorption = np.sum(self.xs.sig_a * flux_distribution * v)
-        return float(production / absorption)
+
+        # Net removal = total - scattering - 2*(n,2n)
+        # This is the denominator of the eigenvalue balance:
+        #   (Σt - Σs - 2Σ₂)φV = (1/k) χ(νΣf·φ)V
+        total = np.sum(self.xs.sig_t * flux_distribution * v)
+        scatter = 0.0
+        n2n = 0.0
+        for k in range(self.N):
+            mid = self.mat_ids[k]
+            scatter += np.sum(
+                (self._scat_mats[mid].T @ flux_distribution[k, :])
+                * self.volumes[k]
+            )
+            n2n += np.sum(
+                (self._n2n_mats[mid].T @ flux_distribution[k, :])
+                * self.volumes[k]
+            )
+        net_removal = total - scatter - 2.0 * n2n
+
+        return float(production / net_removal)
 
     def converged(
         self, keff: float, keff_old: float,
@@ -481,16 +639,29 @@ class CPSolver:
     ) -> bool:
         if iteration <= 2:
             return False
+
         delta_k = abs(keff - keff_old)
         delta_phi = np.max(np.abs(flux_distribution - flux_old)) / \
             max(np.max(np.abs(flux_distribution)), 1e-30)
 
+        # Compute and store the neutron balance residual
+        residual = self._compute_balance_residual(flux_distribution, keff)
+        self.residual_history.append(residual)
+
+        # Print diagnostics
         if iteration <= 5 or iteration % 10 == 0:
-            print(f"    iter {iteration:4d}  keff = {keff:.6f}  "
-                  f"dk = {delta_k:.2e}  dphi = {delta_phi:.2e}")
+            msg = (f"    iter {iteration:4d}  keff = {keff:.6f}  "
+                   f"dk = {delta_k:.2e}  dphi = {delta_phi:.2e}  "
+                   f"res = {residual:.2e}")
+            if (self.solver_mode == "gauss_seidel"
+                    and self.n_inner_history):
+                n_in = self.n_inner_history[-1]
+                msg += f"  inner(max/mean) = {n_in.max()}/{n_in.mean():.1f}"
+            print(msg)
 
         if delta_k < self.keff_tol and delta_phi < self.flux_tol:
-            print(f"    iter {iteration:4d}  keff = {keff:.6f}  Converged.")
+            print(f"    iter {iteration:4d}  keff = {keff:.6f}  "
+                  f"res = {residual:.2e}  Converged.")
             return True
         return False
 
@@ -584,13 +755,22 @@ def solve_cp(
     print("  CP matrices done.")
 
     # Eigenvalue solve
-    print("  Starting power iteration ...")
-    solver = CPSolver(P_inf, xs, mesh.volumes, mesh.mat_ids, materials,
-                      keff_tol=params.keff_tol, flux_tol=params.flux_tol)
+    print(f"  Starting power iteration (mode: {params.solver_mode}) ...")
+    solver = CPSolver(
+        P_inf, xs, mesh.volumes, mesh.mat_ids, materials,
+        keff_tol=params.keff_tol, flux_tol=params.flux_tol,
+        solver_mode=params.solver_mode,
+        inner_tol=params.inner_tol, max_inner=params.max_inner,
+    )
     keff, keff_history, phi = power_iteration(solver, max_iter=params.max_outer)
 
     flux_fuel, flux_clad, flux_cool = _volume_averaged_fluxes(
         phi, mesh.volumes, mesh.mat_ids)
+
+    # Collect inner iteration diagnostics (GS mode only)
+    n_inner = None
+    if solver.n_inner_history:
+        n_inner = np.array(solver.n_inner_history)  # (n_outer, ng)
 
     elapsed = time.perf_counter() - t_start
     print(f"  Elapsed: {elapsed:.1f}s")
@@ -599,4 +779,6 @@ def solve_cp(
         keff=keff, keff_history=keff_history, flux=phi,
         flux_fuel=flux_fuel, flux_clad=flux_clad, flux_cool=flux_cool,
         geometry=mesh, eg=eg, elapsed_seconds=elapsed,
+        residual_history=solver.residual_history,
+        n_inner=n_inner,
     )

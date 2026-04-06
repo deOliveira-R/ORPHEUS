@@ -1,5 +1,21 @@
 # ORPHEUS — Open Reactor Physics Educational University System
 
+## Python Environment
+
+**MUST use the repo venv for ALL Python execution:**
+
+```bash
+.venv/bin/python          # scripts, sphinx, pytest, everything
+.venv/bin/python -m sphinx -b html docs docs/_build/html
+.venv/bin/python -m pytest tests/ -v
+```
+
+**NEVER** use bare `python`, `python3`, or conda Python. The repo venv (`.venv/`, Python 3.14) has all dependencies. The conda environment is incomplete.
+
+This applies to the main agent AND all sub-agents (archivist, qa, numerics-investigator, etc.).
+
+---
+
 ## Knowledge Sources
 
 This project has two complementary knowledge systems. Use **both** before making changes.
@@ -123,7 +139,7 @@ Five custom agents in `.claude/agents/` — use them instead of generic subagent
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **ReactorPhysics_MATLAB** (1750 symbols, 4750 relationships, 140 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **ORPHEUS** (2104 symbols, 5643 relationships, 172 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -139,7 +155,7 @@ This project is indexed by GitNexus as **ReactorPhysics_MATLAB** (1750 symbols, 
 
 1. `gitnexus_query({query: "<error or symptom>"})` — find execution flows related to the issue
 2. `gitnexus_context({name: "<suspect function>"})` — see all callers, callees, and process participation
-3. `READ gitnexus://repo/ReactorPhysics_MATLAB/process/{processName}` — trace the full execution flow step by step
+3. `READ gitnexus://repo/ORPHEUS/process/{processName}` — trace the full execution flow step by step
 4. For regressions: `gitnexus_detect_changes({scope: "compare", base_ref: "main"})` — see what your branch changed
 
 ## When Refactoring
@@ -178,10 +194,10 @@ This project is indexed by GitNexus as **ReactorPhysics_MATLAB** (1750 symbols, 
 
 | Resource | Use for |
 |----------|---------|
-| `gitnexus://repo/ReactorPhysics_MATLAB/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/ReactorPhysics_MATLAB/clusters` | All functional areas |
-| `gitnexus://repo/ReactorPhysics_MATLAB/processes` | All execution flows |
-| `gitnexus://repo/ReactorPhysics_MATLAB/process/{name}` | Step-by-step execution trace |
+| `gitnexus://repo/ORPHEUS/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/ORPHEUS/clusters` | All functional areas |
+| `gitnexus://repo/ORPHEUS/processes` | All execution flows |
+| `gitnexus://repo/ORPHEUS/process/{name}` | Step-by-step execution trace |
 
 ## Self-Check Before Finishing
 

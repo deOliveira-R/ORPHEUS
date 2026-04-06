@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from ._eigenvalue import kinf_from_cp
 from ._kernels import e3
 from ._types import VerificationCase
 from ._xs_library import XS, LAYOUTS, get_xs, get_mixture, make_mixture
@@ -86,42 +87,6 @@ def _slab_cp_matrix(
     return P_inf_g
 
 
-def _kinf_from_cp(
-    P_inf_g: np.ndarray,
-    sig_t_all: np.ndarray,
-    V_arr: np.ndarray,
-    sig_s_mats: list[np.ndarray],
-    nu_sig_f_mats: list[np.ndarray],
-    chi_mats: list[np.ndarray],
-) -> float:
-    """Solve the CP eigenvalue problem for k_inf."""
-    N_reg = P_inf_g.shape[0]
-    ng = P_inf_g.shape[2]
-    dim = N_reg * ng
-
-    A_mat = np.zeros((dim, dim))
-    B_mat = np.zeros((dim, dim))
-
-    for i_reg in range(N_reg):
-        for g in range(ng):
-            row = i_reg * ng + g
-            A_mat[row, row] = sig_t_all[i_reg, g] * V_arr[i_reg]
-
-            for j_reg in range(N_reg):
-                for gp in range(ng):
-                    col = j_reg * ng + gp
-                    Pji = P_inf_g[j_reg, i_reg, g]
-                    A_mat[row, col] -= Pji * V_arr[j_reg] * sig_s_mats[j_reg][gp, g]
-                    B_mat[row, col] += (
-                        Pji * V_arr[j_reg]
-                        * chi_mats[j_reg][g]
-                        * nu_sig_f_mats[j_reg][gp]
-                    )
-
-    M = np.linalg.solve(A_mat, B_mat)
-    return float(np.max(np.real(np.linalg.eigvals(M))))
-
-
 # ═══════════════════════════════════════════════════════════════════════
 # Slab geometry parameters
 # ═══════════════════════════════════════════════════════════════════════
@@ -158,7 +123,7 @@ def _build_case(ng_key: str, n_regions: int) -> VerificationCase:
 
     P_inf_g = _slab_cp_matrix(sig_t_all, t_arr)
 
-    k_inf = _kinf_from_cp(
+    k_inf = kinf_from_cp(
         P_inf_g=P_inf_g,
         sig_t_all=sig_t_all,
         V_arr=t_arr,

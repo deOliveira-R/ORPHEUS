@@ -12,6 +12,7 @@ from __future__ import annotations
 import numpy as np
 import sympy as sp
 
+from ._eigenvalue import kinf_homogeneous
 from ._types import VerificationCase
 from ._xs_library import LAYOUTS, get_xs, get_mixture
 
@@ -33,26 +34,20 @@ def _derive_moc_homogeneous(ng_key: str) -> VerificationCase:
     xs = get_xs("A", ng_key)
     ng = len(xs["sig_t"])
 
+    k_val = kinf_homogeneous(
+        sig_t=xs["sig_t"], sig_s=xs["sig_s"],
+        nu_sig_f=xs["nu"] * xs["sig_f"], chi=xs["chi"],
+    )
+
     if ng == 1:
-        nu_s, Sig_f_sym, Sig_a = sp.symbols('nu Sigma_f Sigma_a', positive=True)
-        k_expr = nu_s * Sig_f_sym / Sig_a
-        sig_a_val = xs["sig_c"][0] + xs["sig_f"][0]
-        k_val = float(k_expr.subs({
-            nu_s: xs["nu"][0], Sig_f_sym: xs["sig_f"][0], Sig_a: sig_a_val,
-        }))
         latex = (
             r"From the MOC characteristic ODE with homogeneous, isotropic "
             r"source: :math:`\bar\psi = Q/(4\pi\Sigma_t)`, giving"
             "\n\n"
             r".. math::" "\n"
-            rf"   k = {sp.latex(k_expr)} = {k_val:.6f}"
+            rf"   k = \nu\Sigma_f / \Sigma_a = {k_val:.6f}"
         )
     else:
-        A_sym = sp.Matrix(np.diag(xs["sig_t"])) - sp.Matrix(xs["sig_s"].T)
-        F_sym = sp.Matrix(np.outer(xs["chi"], xs["nu"] * xs["sig_f"]))
-        M_sym = A_sym.inv() * F_sym
-        eigs = M_sym.eigenvals()
-        k_val = float(max(sp.re(e) for e in eigs.keys()))
         latex = (
             r"Multi-group MOC homogeneous: flat-source along every "
             r"characteristic reduces to the matrix eigenvalue."
