@@ -2,7 +2,11 @@
 *.h5
 .venv/
 results/
-.claude/
 .gitnexus
 docs/_build/
 docs/_generated/
+tools/research/elsevier.toml
+
+# Claude Code — track agents, skills, commands; ignore local settings and GitNexus skills
+.claude/settings.local.json
+.claude/skills/gitnexus/

@@ -123,7 +123,7 @@ Five custom agents in `.claude/agents/` — use them instead of generic subagent
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **ReactorPhysics_MATLAB** (1586 symbols, 4551 relationships, 127 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **ReactorPhysics_MATLAB** (1750 symbols, 4750 relationships, 140 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
