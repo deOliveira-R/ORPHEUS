@@ -3,3 +3,4 @@ scipy>=1.14
 matplotlib>=3.8
 pyXSteam>=0.4
 h5py>=3.9
+sphinxcontrib-nexus>=0.4.0

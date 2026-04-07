@@ -16,7 +16,7 @@ tools:
   - Glob
   - Grep
 mcpServers:
-  - graphify
+  - nexus
 model: opus
 ---
 
@@ -130,16 +130,19 @@ Improvements are tracked as **GitHub Issues** in `deOliveira-R/ORPHEUS`.
 
 **Checking open items**: `gh issue list -R deOliveira-R/ORPHEUS -l module:<name>`
 
-## Graphify Knowledge Graph
+## Nexus Knowledge Graph
 
-Use `mcp__graphify__query_graph` to audit cross-referencing:
-- Before writing, query the concept to see what's already connected
-- After writing, check if new `:ref:` links are needed for isolated concepts
-- Use `mcp__graphify__god_nodes` to identify the most connected concepts
-- Use `mcp__graphify__shortest_path` to verify connection chains exist
+Use Nexus MCP tools to audit cross-referencing and documentation quality:
 
-The graph indexes `docs/theory/` and reflects explicit `:ref:` links.
-If a concept is isolated (degree ≤ 1), it likely needs cross-references.
+- `mcp__nexus__staleness()` — find docs that drifted from code (git timestamps)
+- `mcp__nexus__verification_coverage()` — which equations have code + tests
+- `mcp__nexus__query({text: "concept"})` — find what's already connected
+- `mcp__nexus__god_nodes()` — most connected concepts (entry points)
+- `mcp__nexus__shortest_path({source, target})` — verify connection chains
+- `mcp__nexus__provenance_chain({node_id})` — citation → equation → code traceability
+
+If a concept is isolated (low degree), it likely needs cross-references.
+After writing, run `mcp__nexus__staleness()` to verify the doc is current.
 
 ## Quality Checklist
 
@@ -201,14 +204,19 @@ would steer future behavior.  Lessons.md must stay sharp, not bloated.
 
 ### Directive 2: Documentation Gap Detector
 
-Before writing ANY documentation, perform a **gap audit**:
+Before writing ANY documentation, perform a **Nexus-powered gap audit**:
 
-1. Read the target RST file (or note its absence)
-2. Read the corresponding code files
-3. Read the derivation scripts in `derivations/`
-4. Check GitHub Issues for the module (`gh issue list -R deOliveira-R/ORPHEUS -l module:<name>`)
-5. Produce a **gap report** listing:
-   - Sections that exist but are stale or incomplete
+1. `mcp__nexus__staleness()` — find docs where code changed but docs didn't
+2. `mcp__nexus__verification_coverage({status_filter: "implemented"})` — equations with code but no tests
+3. `mcp__nexus__verification_coverage({status_filter: "documented"})` — equations with no implementing code
+4. Read the target RST file (or note its absence)
+5. Read the corresponding code files
+6. Read the derivation scripts in `derivations/`
+7. Check GitHub Issues (`gh issue list -R deOliveira-R/ORPHEUS -l module:<name>`)
+8. Produce a **gap report** listing:
+   - **Stale docs** (from staleness tool) — code modified after doc
+   - **Verification gaps** (from coverage tool) — equations without tests
+   - Sections that exist but are incomplete
    - Topics in code that have NO documentation
    - Derivations that exist in code but not in `derivations/`
    - Cross-references that are missing or broken

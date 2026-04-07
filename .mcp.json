@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "nexus": {
+      "command": ".venv/bin/nexus",
+      "args": ["serve", "--db", "docs/_build/html/_nexus/graph.db", "--project-root", "."]
+    }
+  }
+}

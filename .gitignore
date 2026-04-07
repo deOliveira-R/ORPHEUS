@@ -2,18 +2,14 @@
 *.h5
 .venv/
 results/
-.gitnexus
+results_dae/
+results_geometry/
 docs/_build/
 docs/_generated/
 derivations/_richardson_cache.json
-graphify-out/graph.html
-graphify-out/cost.json
-graphify-out/obsidian/
-graphify-out/cache/
-graphify-out/manifest.json
-.graphify_*
 tools/research/elsevier.toml
+matlab_archive/
+orpheus.egg-info/
 
-# Claude Code — track agents, skills, commands; ignore local settings and GitNexus skills
+# Claude Code
 .claude/settings.local.json
-.claude/skills/gitnexus/

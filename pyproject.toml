@@ -23,13 +23,11 @@ test = [
 docs = [
     "sphinx>=7",
     "sphinx-rtd-theme",
+    "sphinxcontrib-nexus>=0.3",
     "sympy>=1.13",
 ]
-graph = [
-    "graphifyy>=0.3",
-]
 dev = [
-    "orpheus[test,docs,graph]",
+    "orpheus[test,docs]",
 ]
 
 [tool.pytest.ini_options]

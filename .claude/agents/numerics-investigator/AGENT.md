@@ -16,7 +16,7 @@ tools:
   - Bash
   - Agent
 mcpServers:
-  - gitnexus
+  - nexus
 model: opus
 ---
 
@@ -46,6 +46,29 @@ def test_diagnostic_name():
 ```
 
 Run diagnostics with: `pytest derivations/diagnostics/ -v`
+
+## Nexus: Equation-to-Error Tracing
+
+Before starting the diagnostic cascade, use Nexus to map the mathematical
+chain from the failing test to the equations that govern the computation:
+
+```
+mcp__nexus__trace_error({test_node_id: "py:function:test_sn_1d.test_failing_case"})
+```
+
+This follows CALLS edges from the test through the solver chain and collects
+every equation and citation along the path. It tells you **which equations to
+check first** (ranked by centrality on the call path) and **which papers
+derived them**.
+
+Also use provenance to understand the math behind a suspect function:
+```
+mcp__nexus__provenance_chain({node_id: "py:function:sn_sweep.sweep_spherical"})
+→ Implements: alpha-recursion (Eq. 10), transport-spherical (Eq. 3)
+→ From: Bailey2009, CarlsonLathrop1965
+```
+
+This narrows the search BEFORE you write diagnostic scripts.
 
 ## Diagnostic Cascade
 

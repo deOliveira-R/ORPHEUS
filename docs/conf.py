@@ -27,6 +27,7 @@ extensions = [
     'sphinx.ext.intersphinx',   # Cross-reference external docs (numpy, scipy)
     'sphinx.ext.napoleon',      # Google/NumPy-style docstrings
     'matplotlib.sphinxext.plot_directive',  # .. plot:: for auto-generated figures
+    'sphinxcontrib.nexus',                  # Knowledge graph extraction
 ]
 
 templates_path = ['_templates']

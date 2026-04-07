@@ -32,6 +32,12 @@ ORPHEUS — Open Reactor Physics Educational University System
    api/derivations
 
 
+Knowledge Graph
+================
+
+`Open interactive graph explorer <_nexus/graph.html>`_ — visualize the full code + documentation connectivity graph with filtering, search, and node inspection.
+
+
 Indices and tables
 ==================
 

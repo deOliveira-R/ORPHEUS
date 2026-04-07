@@ -14,7 +14,7 @@ tools:
   - Write
   - Edit
 mcpServers:
-  - gitnexus
+  - nexus
 model: opus
 ---
 
@@ -96,6 +96,30 @@ For every discretized equation:
 - "It produces reasonable numbers" → sign-flipped small terms look reasonable
 
 
+## Nexus: Verification Coverage & Minimum Retest
+
+Use Nexus to assess verification status and plan testing:
+
+```
+mcp__nexus__verification_coverage()
+```
+Returns every equation's status: **verified** (equation + code + test),
+**implemented** (equation + code, NO test — gap!), **documented** (equation
+only), **orphan_code** (code with no equation). Focus on "implemented" gaps —
+these are verification debts.
+
+```
+mcp__nexus__retest({scope: "all"})
+```
+After code changes, computes the **minimum set of tests** to re-run.
+Traces upstream from changed symbols through the call graph to find
+affected test functions. Don't run the full suite — run what's needed.
+
+```
+mcp__nexus__detect_changes({scope: "staged"})
+```
+Before committing, maps git changes to affected symbols and their blast radius.
+
 ## Enforcement
 
 1. **Classify every claim** by V&V level. Evidence must match the level.
@@ -105,6 +129,7 @@ For every discretized equation:
 5. **Check conservation** to machine precision — necessary, never sufficient.
 6. **Check convergence rates** — wrong order = bug; correct order ≠ correctness.
 7. **Require realizability** — flux > 0, keff > 0, CP row sums = 1.
+8. **Check verification_coverage** — every equation should have status "verified".
 
 ## Error Catalog
 
