@@ -95,11 +95,21 @@ Code structure index (symbols, relationships, execution flows). Use for:
 - **Code navigation** (prefer `gitnexus_query` over grep for exploration)
 - **Refactoring safety** (rename, detect changes)
 
-### The Two Together
+### Graphify Theory Graph
+
+Physics concept graph (`graphify-out/graph.json`) indexing `docs/theory/`.
+Use for navigating cross-cutting concepts without reading full RST files:
+- `mcp__graphify__query_graph` — "What theory connects SN to CP?"
+- `mcp__graphify__shortest_path` — trace concept connections
+- `mcp__graphify__god_nodes` — most connected concepts (entry points)
+
+### The Three Together
 
 - **GitNexus** tells you WHAT the code does and what depends on it
-- **Sphinx** tells you WHY and the equations it implements
-- Before any non-trivial change: check both
+- **Graphify** tells you HOW physics concepts connect across theory pages
+- **Sphinx** tells you WHY with full derivations and investigation history
+- Before any non-trivial change: query GitNexus for code impact,
+  graphify for physics context, then read the relevant Sphinx section
 
 ### GitHub Issues
 
@@ -117,10 +127,10 @@ Each has a `lessons.md` that sharpens across sessions.
 
 | Agent | Invoke when | Key rule |
 |-------|-------------|----------|
-| **explorer** | Understanding code (mandatory first step) | Uses GitNexus + Sphinx. Replaces built-in Explore. |
-| **archivist** | Writing/reviewing Sphinx docs | Sphinx-as-brain: full derivations, not summaries. |
+| **explorer** | Understanding code (mandatory first step) | Uses GitNexus + Graphify + Sphinx. Replaces built-in Explore. |
+| **archivist** | Writing/reviewing Sphinx docs | Sphinx-as-brain: full derivations. Uses Graphify for cross-ref audits. |
 | **qa** | Reviewing code, validating claims | V&V hierarchy. 6 AI failure modes. Multi-group mandatory. |
-| **numerics-investigator** | Solver gives wrong answers | 7-step diagnostic cascade. |
+| **numerics-investigator** | Solver gives wrong answers | 7-step diagnostic cascade. Uses GitNexus for code tracing. |
 | **literature-researcher** | Need equations from papers | Source priority by topic. Maps notation to ORPHEUS. |
 | **test-architect** | Planning verification BEFORE implementation | Analytical solution catalog. 1-group is degenerate. |
 
@@ -140,7 +150,7 @@ context before committing. Sub-agents lack conversation history.
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **ORPHEUS** (2261 symbols, 6681 relationships, 185 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **ORPHEUS** (2263 symbols, 6683 relationships, 185 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -244,6 +254,7 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 This project has a graphify knowledge graph at graphify-out/.
 
 Rules:
-- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
-- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
-- After modifying code files in this session, run `.venv/bin/python -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current
+- Use `mcp__graphify__query_graph` for theory questions — it traverses the graph and returns connected concepts with source files
+- Use `mcp__graphify__shortest_path` to trace connections between concepts
+- Use `mcp__graphify__god_nodes` to find the most connected concepts (entry points)
+- After modifying theory docs, rebuild with `/graphify docs/theory/ --update`
