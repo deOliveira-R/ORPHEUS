@@ -25,6 +25,7 @@ Key Facts
 - **Gotcha**: pitch formula is ``2 * r_outer``, NOT ``4 * area`` (ERR-017: 24% error + NaN)
 - Direction sampling must be truly isotropic: ``cos(θ) = 1 - 2ξ``, ``φ = 2πξ`` (ERR-018)
 - Weight ratio keff = ``sum(w_end) / sum(w_start)`` must equal cycle keff (consistency check)
+- Verification uses :ref:`synthetic cross sections <synthetic-xs-library>`, not real nuclear data
 
 
 Overview
@@ -38,7 +39,10 @@ probability distributions derived from the underlying cross sections.
 
 ORPHEUS implements a **power iteration Monte Carlo** solver for the
 :math:`k`-eigenvalue problem in a 2-D unit cell with periodic boundary
-conditions.  The key algorithmic features are:
+conditions.  Unlike the deterministic :ref:`power-iteration-algorithm`,
+MC power iteration uses stochastic sampling of neutron histories rather
+than matrix operations on discretised flux vectors.
+The key algorithmic features are:
 
 - **Woodcock delta-tracking** --- virtual-collision rejection that avoids
   distance-to-surface calculations, enabling simple geometry interfaces.

@@ -16,7 +16,7 @@ Key Facts
 
 - CP works with **scalar flux** :math:`\phi`, not angular flux :math:`\psi`
 - :math:`P_{ij}` = probability that neutron born in *j* has first collision in *i*
-- Convention: ``P[i,j]`` = birth in *j*, collision in *i*; flux update uses :math:`P^T`
+- Convention: ``P[i,j]`` = birth in *j*, collision in *i*; flux update uses :math:`P^T` (see :ref:`scattering-matrix-convention`)
 - Row sums = 1 (conservation), reciprocity: :math:`\Sigma_{t,i} V_i P(i,j) = \Sigma_{t,j} V_j P(j,i)`
 - **Slab**: :math:`E_3` exponential-integral kernel (``scipy.special.expn``)
 - **Cylinder**: :math:`\text{Ki}_4` Bickley-Naylor kernel (20,000-point lookup table)
@@ -26,16 +26,18 @@ Key Facts
 - **Gotcha**: tautological residual if checking ``denom * phi - transported`` (ERR-016)
 - Power iteration tolerance ``keff_tol=1e-7`` bounds eigenvalue error to ~1e-6
 - Gauss-Seidel update uses latest flux immediately; Jacobi uses previous iteration
+- Verification uses :ref:`synthetic cross sections <synthetic-xs-library>`, not real nuclear data
 
 
 Overview
 ========
 
-The collision probability (CP) method solves the integral form of the
-neutron transport equation for a lattice cell.  Rather than tracking the
-angular flux :math:`\psi(\mathbf{r}, \hat{\Omega}, E)` as in discrete
-ordinates or method of characteristics, the CP method works directly with
-the **scalar flux** :math:`\phi(\mathbf{r}, E)` by integrating out the
+The collision probability (CP) method solves the
+:ref:`multi-group eigenvalue problem <mg-eigenvalue-problem>` in integral
+form.  Rather than tracking the angular flux
+:math:`\psi(\mathbf{r}, \hat{\Omega}, E)` as in discrete ordinates or
+method of characteristics, the CP method works directly with the
+**scalar flux** :math:`\phi(\mathbf{r}, E)` by integrating out the
 angular variable analytically.
 
 The key quantity is the **collision probability** :math:`P_{ij}`: the
@@ -151,7 +153,8 @@ Flat-Source Approximation
 -------------------------
 
 The CP method assumes the source is **spatially flat** within each
-sub-region :math:`i`:
+sub-region :math:`i`.  The MOC solver uses the same approximation; see
+:ref:`flat-source-approximation-moc`.
 
 .. math::
    :label: flat-source
@@ -1551,6 +1554,10 @@ Implemented by :func:`~numerics.eigenvalue.power_iteration` via the
 4. **Converge** (:meth:`CPSolver.converged`) when :math:`|\Delta k| <`
    ``keff_tol`` and :math:`\|\Delta\phi\|_\infty <` ``flux_tol``.
 
+The power iteration algorithm is shared with all ORPHEUS eigenvalue
+solvers; see :ref:`power-iteration-algorithm` in the homogeneous theory
+for the general formulation.
+
 The power iteration converges to the **dominant eigenvalue**
 (:math:`\keff`) and the **fundamental mode** --- the unique non-negative
 eigenvector (Perron--Frobenius theorem) [Hebert2009]_.
@@ -1883,7 +1890,9 @@ The slab shows ~1% overestimation because the white BC smears the
 anisotropic angular flux at the fuel-moderator interface.  The
 cylindrical discrepancy is smaller because the Wigner--Seitz cell has
 a larger volume-to-surface ratio, making the boundary angular
-distribution closer to isotropic.
+distribution closer to isotropic.  The SN solver uses reflective
+(specular) BCs; see :ref:`boundary-conditions`.  The ~1% gap between
+white and reflective BCs is expected physics, not a bug.
 
 
 .. _why-not-full-matrices:

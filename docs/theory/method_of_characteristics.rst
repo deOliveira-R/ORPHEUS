@@ -24,15 +24,17 @@ Key Facts
 - **Gotcha**: homogeneous flat-source is exact regardless of weight errors — only heterogeneous multi-region exposes bugs
 - Ray-circle intersection is exact (analytical); ray-box uses parametric clipping
 - Convergence: O(ray_spacing²) for spatial, spectral for angular
+- Verification uses :ref:`synthetic cross sections <synthetic-xs-library>`, not real nuclear data
 
 
 Overview
 ========
 
-The method of characteristics (MOC) solves the **integro-differential
-form** of the neutron transport equation by tracing **characteristic
-rays** across the geometry and integrating the transport equation
-analytically along each ray.  Unlike :ref:`discrete ordinates
+The method of characteristics (MOC) solves the
+:ref:`multi-group eigenvalue problem <mg-eigenvalue-problem>` in
+integro-differential form by tracing **characteristic rays** across the
+geometry and integrating the transport equation analytically along each
+ray.  Unlike :ref:`discrete ordinates
 <theory-discrete-ordinates>` (which discretises both angle and space on
 a grid) or :ref:`collision probabilities <theory-collision-probability>`
 (which integrates out the angular variable entirely), MOC retains the
@@ -64,8 +66,8 @@ verification are computed by:
   :func:`~derivations._eigenvalue.kinf_homogeneous` for infinite-medium
   eigenvalue (all solvers share this)
 - ``derivations/moc.py`` --- homogeneous cases (analytical) and
-  heterogeneous cases (Richardson extrapolation of the MOC solver
-  with ray-spacing refinement)
+  heterogeneous cases (:ref:`Richardson extrapolation <richardson-extrapolation>`
+  of the MOC solver with ray-spacing refinement)
 
 Every equation in this chapter can be verified against these scripts
 and the cited references.
@@ -202,7 +204,9 @@ Flat-Source Approximation
 -------------------------
 
 Within each flat-source region (FSR) :math:`i`, both :math:`\Sigt{i,g}`
-and :math:`Q_{i,g}` are assumed spatially constant.  For a ray segment
+and :math:`Q_{i,g}` are assumed spatially constant.  The CP method uses
+the same approximation; see :ref:`flat-source-approximation-cp`.
+For a ray segment
 of 2-D length :math:`\ell` crossing region :math:`i` at polar angle
 :math:`\theta_p`, the 3-D path length is :math:`\ell / \sin\theta_p`
 and the **optical thickness** is:
@@ -280,7 +284,9 @@ Angular Quadrature
 ==================
 
 MOC uses a **product quadrature**: azimuthal angles in the 2-D plane
-times polar angles from the z-axis.
+times polar angles from the z-axis.  Contrast with the
+:ref:`SN quadrature types <quadrature-types>`, which use Gauss-Legendre
+(1D) and Lebedev (2D).
 
 Azimuthal Quadrature
 --------------------
@@ -778,6 +784,10 @@ loop via the :class:`~numerics.eigenvalue.EigenvalueSolver` protocol:
 4. **Convergence** (:meth:`MOCSolver.converged`):
    :math:`|\Delta k| < \texttt{keff\_tol}` and
    :math:`\|\Delta\phi\| / \|\phi\| < \texttt{flux\_tol}`.
+
+The power iteration algorithm is shared with all ORPHEUS eigenvalue
+solvers; see :ref:`power-iteration-algorithm` in the homogeneous theory
+for the general formulation.
 
 
 Cross-Section Data Layout

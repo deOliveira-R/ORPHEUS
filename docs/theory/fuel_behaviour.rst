@@ -55,7 +55,8 @@ Key Design Decision: DAE-to-ODE Restructuring
 The MATLAB original uses ``ode15s`` with a diagonal mass matrix to solve
 a mixed ODE/AE (differential-algebraic) system.  Stress components are
 algebraic variables (zeros on the mass matrix diagonal).  ``scipy.integrate.solve_ivp``
-does not support mass matrices.
+does not support mass matrices.  The BDF time integration approach is
+shared with the thermal hydraulics module; see :ref:`bdf-integration`.
 
 **Approach adopted:**  Remove stresses from the state vector entirely.
 At every RHS evaluation, ``_solve_stress()`` constructs and solves the

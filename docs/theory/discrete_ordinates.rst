@@ -25,13 +25,15 @@ Key Facts
 - The :math:`\alpha` dome must be non-negative; negative → NaN/overflow
 - Fixed-source flat-flux diagnostic (Q/Σ_t) is the most powerful curvilinear bug detector
 - Key reference: Bailey, Morel & Chang (2009) — Eq. 50 (α recursion), Eq. 74 (M-M weights)
+- Verification uses :ref:`synthetic cross sections <synthetic-xs-library>`, not real nuclear data
 
 
 Overview
 ========
 
-The discrete ordinates (S\ :sub:`N`) method solves the **integro-differential
-form** of the neutron transport equation by discretising the angular variable
+The discrete ordinates (S\ :sub:`N`) method solves the
+:ref:`multi-group eigenvalue problem <mg-eigenvalue-problem>` in
+integro-differential form by discretising the angular variable
 :math:`\hat{\Omega}` into a finite set of directions (ordinates).  Unlike the
 collision probability method (which works with the integral form and the scalar
 flux), S\ :sub:`N` retains the **angular flux**
@@ -66,7 +68,9 @@ Two-Layer Mesh Pattern
 ----------------------
 
 The S\ :sub:`N` solver follows the same two-layer pattern as the CP
-solver:
+solver.  This pattern (base :class:`~geometry.mesh.Mesh1D` + augmented
+mesh) is shared with :ref:`theory-collision-probability` and
+:ref:`theory-method-of-characteristics`.
 
 1. **Base geometry** --- :class:`~geometry.mesh.Mesh1D` or
    :class:`~geometry.mesh.Mesh2D` stores cell edges, material IDs, and
@@ -1062,7 +1066,9 @@ Boundary Conditions
 ===================
 
 ORPHEUS uses **reflective boundary conditions** on all faces, representing
-an infinite lattice or infinite medium.
+an infinite lattice or infinite medium.  The CP solver uses white
+(isotropic) BCs instead; see :ref:`white-bc-quality` for a comparison
+showing the ~1% gap between the two approaches.
 
 Outer Boundary
 --------------
@@ -1136,7 +1142,8 @@ The **analytical eigenvalue problem** uses:
 
 Note the transpose: :math:`\text{SigS}^T[g, g'] = \Sigs{g'\to g}` gives
 the in-scatter contribution, so :math:`\text{diag}(\Sigt{}) - \text{SigS}^T`
-is the net removal matrix.
+is the net removal matrix.  See :ref:`scattering-matrix-convention` for the
+full derivation of this convention.
 
 P\ :sub:`0` Isotropic Scattering
 ----------------------------------

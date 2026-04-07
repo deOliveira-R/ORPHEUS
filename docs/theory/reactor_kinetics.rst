@@ -17,7 +17,7 @@ Key Facts
 - 0D point kinetics + thermal-hydraulic feedback
 - Reactivity insertion accident (RIA) transient
 - 6 delayed neutron precursor groups
-- BDF time integration (``scipy.integrate.solve_ivp``)
+- BDF time integration (``scipy.integrate.solve_ivp``); see :ref:`bdf-integration` in the thermal hydraulics chapter
 - Doppler + moderator temperature reactivity feedback coefficients
 - Power-temperature coupling: power → fuel temp → reactivity → power
 

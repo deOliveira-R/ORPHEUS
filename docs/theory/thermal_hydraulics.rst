@@ -481,6 +481,8 @@ ODE Integration
 The system is integrated using ``scipy.integrate.solve_ivp`` with
 ``method='BDF'`` (Backward Differentiation Formula), matching MATLAB's
 ``ode15s``.  Tolerances: ``rtol=1e-6``, ``atol=1e-4``, ``max_step=10.0``.
+The same BDF approach is used by :ref:`theory-fuel-behaviour` and
+:ref:`theory-reactor-kinetics`.
 
 Chunked Integration for Event Detection
 -----------------------------------------
