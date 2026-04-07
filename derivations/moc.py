@@ -71,9 +71,11 @@ def _derive_moc_homogeneous(ng_key: str) -> VerificationCase:
 
 
 def _derive_moc_heterogeneous(ng_key: str, n_regions: int) -> VerificationCase:
-    """Derive MOC eigenvalue via Richardson extrapolation of ray spacing."""
-    from geometry import CoordSystem, Mesh1D
-    from method_of_characteristics import solve_moc
+    """Derive MOC eigenvalue via Richardson extrapolation of ray spacing.
+
+    Results are cached to avoid recomputation on subsequent test runs.
+    """
+    from ._richardson_cache import get_cached, store
 
     layout = LAYOUTS[n_regions]
     mat_ids = _MAT_IDS[n_regions]
@@ -84,30 +86,44 @@ def _derive_moc_heterogeneous(ng_key: str, n_regions: int) -> VerificationCase:
     for i, region in enumerate(layout):
         materials[mat_ids[i]] = get_mixture(region, ng_key)
 
-    # Build Wigner-Seitz mesh
-    pitch = 2.0 * radii[-1]
-    ws_r = pitch / np.sqrt(np.pi)
-    edges = [0.0] + radii[:-1] + [ws_r]
-    mesh = Mesh1D(
-        edges=np.array(edges),
-        mat_ids=np.array(mat_ids),
-        coord=CoordSystem.CYLINDRICAL,
+    case_name = f"moc_cyl1D_{ng}eg_{n_regions}rg"
+    spacings = [0.06, 0.03, 0.015]
+
+    cache_params = dict(
+        method="moc", ng_key=ng_key, n_regions=n_regions,
+        radii=radii, mat_ids=mat_ids, spacings=spacings,
+        n_azi=32, n_polar=3,
+        xs={r: get_xs(r, ng_key) for r in layout},
     )
 
-    # Richardson extrapolation over ray spacing refinements
-    spacings = [0.06, 0.03, 0.015]
-    keffs = []
-    for sp in spacings:
-        result = solve_moc(
-            materials, mesh,
-            n_azi=32, n_polar=3, ray_spacing=sp,
-            max_outer=500, n_inner_sweeps=20,
-        )
-        keffs.append(result.keff)
+    k_ref = get_cached(case_name, cache_params)
+    if k_ref is None:
+        from geometry import CoordSystem, Mesh1D
+        from method_of_characteristics import solve_moc
 
-    # Richardson extrapolation (O(h²), ratio from spacing[1] → spacing[2])
-    h_ratio = spacings[-2] / spacings[-1]
-    k_ref = keffs[-1] + (keffs[-1] - keffs[-2]) / (h_ratio**2 - 1)
+        # Build Wigner-Seitz mesh
+        pitch = 2.0 * radii[-1]
+        ws_r = pitch / np.sqrt(np.pi)
+        edges = [0.0] + radii[:-1] + [ws_r]
+        mesh = Mesh1D(
+            edges=np.array(edges),
+            mat_ids=np.array(mat_ids),
+            coord=CoordSystem.CYLINDRICAL,
+        )
+
+        keffs = []
+        for sp in spacings:
+            result = solve_moc(
+                materials, mesh,
+                n_azi=32, n_polar=3, ray_spacing=sp,
+                max_outer=500, n_inner_sweeps=20,
+            )
+            keffs.append(result.keff)
+
+        # Richardson extrapolation (O(h²), ratio from spacing[1] → spacing[2])
+        h_ratio = spacings[-2] / spacings[-1]
+        k_ref = keffs[-1] + (keffs[-1] - keffs[-2]) / (h_ratio**2 - 1)
+        store(case_name, cache_params, k_ref, keffs)
 
     latex = (
         rf"Richardson-extrapolated MOC eigenvalue for {ng}G, "
@@ -118,7 +134,7 @@ def _derive_moc_heterogeneous(ng_key: str, n_regions: int) -> VerificationCase:
     )
 
     return VerificationCase(
-        name=f"moc_cyl1D_{ng}eg_{n_regions}rg",
+        name=case_name,
         k_inf=k_ref,
         method="moc",
         geometry="cyl1D",

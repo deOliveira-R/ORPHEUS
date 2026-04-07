@@ -9,6 +9,19 @@ Reactor Kinetics — 0-D Point Kinetics + TH
    :depth: 3
 
 
+Key Facts
+=========
+
+**Read this before modifying the kinetics solver.**
+
+- 0D point kinetics + thermal-hydraulic feedback
+- Reactivity insertion accident (RIA) transient
+- 6 delayed neutron precursor groups
+- BDF time integration (``scipy.integrate.solve_ivp``)
+- Doppler + moderator temperature reactivity feedback coefficients
+- Power-temperature coupling: power → fuel temp → reactivity → power
+
+
 Overview
 ========
 

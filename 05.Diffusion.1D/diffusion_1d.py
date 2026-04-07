@@ -4,6 +4,8 @@ Solves the 1D neutron diffusion equation with vacuum boundary conditions
 using a finite-difference discretization and BiCGSTAB inner iterations.
 
 Port of MATLAB ``CORE1D.m`` + ``funCORE1D.m``.
+
+.. seealso:: ``docs/theory/verification.rst`` — diffusion verification cases.
 """
 
 from __future__ import annotations

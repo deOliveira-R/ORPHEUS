@@ -8,6 +8,8 @@ The transport sweep uses diamond-difference spatial discretization:
 - 2D: wavefront parallelism along anti-diagonals
 
 Boundary conditions are reflective on all sides (infinite lattice).
+
+.. seealso:: ``docs/theory/discrete_ordinates.rst`` — Key Facts, equations, gotchas.
 """
 
 from __future__ import annotations

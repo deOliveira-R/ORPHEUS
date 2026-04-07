@@ -8,6 +8,25 @@ Monte Carlo Neutron Transport
    :local:
    :depth: 3
 
+
+Key Facts
+=========
+
+**Read this before modifying the MC solver.**
+
+- Power iteration MC: inactive cycles (source convergence) + active cycles (tallying)
+- Woodcock delta-tracking: sample distance with :math:`\Sigma_{\max}`, reject with :math:`1 - \Sigma_t(r)/\Sigma_{\max}`
+- Analog absorption: on absorption, weight × :math:`\nu\Sigma_f/\Sigma_a`, reborn from :math:`\chi`
+- Russian roulette (w < threshold) and splitting (w > threshold) for population control
+- keff estimator: :math:`k = \sum w_{\text{end}} / \sum w_{\text{start}}` per cycle
+- Statistical: :math:`\sigma \sim 1/\sqrt{N_{\text{active}}}` (CLT). Use z-score for verification.
+- Geometry: ``ConcentricPinCell`` (cylindrical) and ``SlabPinCell`` with periodic BC
+- **Gotcha**: 1G homogeneous has σ = 0 (all neutrons see identical XS) — not a useful test
+- **Gotcha**: pitch formula is ``2 * r_outer``, NOT ``4 * area`` (ERR-017: 24% error + NaN)
+- Direction sampling must be truly isotropic: ``cos(θ) = 1 - 2ξ``, ``φ = 2πξ`` (ERR-018)
+- Weight ratio keff = ``sum(w_end) / sum(w_start)`` must equal cycle keff (consistency check)
+
+
 Overview
 ========
 

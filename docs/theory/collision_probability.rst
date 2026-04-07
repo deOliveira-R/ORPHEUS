@@ -8,6 +8,26 @@ Collision Probability Method
    :local:
    :depth: 3
 
+
+Key Facts
+=========
+
+**Read this before modifying the CP solver.**
+
+- CP works with **scalar flux** :math:`\phi`, not angular flux :math:`\psi`
+- :math:`P_{ij}` = probability that neutron born in *j* has first collision in *i*
+- Convention: ``P[i,j]`` = birth in *j*, collision in *i*; flux update uses :math:`P^T`
+- Row sums = 1 (conservation), reciprocity: :math:`\Sigma_{t,i} V_i P(i,j) = \Sigma_{t,j} V_j P(j,i)`
+- **Slab**: :math:`E_3` exponential-integral kernel (``scipy.special.expn``)
+- **Cylinder**: :math:`\text{Ki}_4` Bickley-Naylor kernel (20,000-point lookup table)
+- **Sphere**: exponential kernel
+- White-BC approximation: isotropic return at cell boundary → ~1% gap vs reflective SN
+- Inner iteration IS needed: self-scatter :math:`\Sigma_s(g \to g) \cdot \phi_g` makes source depend on solution
+- **Gotcha**: tautological residual if checking ``denom * phi - transported`` (ERR-016)
+- Power iteration tolerance ``keff_tol=1e-7`` bounds eigenvalue error to ~1e-6
+- Gauss-Seidel update uses latest flux immediately; Jacobi uses previous iteration
+
+
 Overview
 ========
 

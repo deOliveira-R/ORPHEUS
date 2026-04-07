@@ -9,6 +9,19 @@ Homogeneous Infinite-Medium Reactor
    :depth: 3
 
 
+Key Facts
+=========
+
+**Read this before modifying the homogeneous solver.**
+
+- Balance: :math:`\mathbf{A}\phi = \frac{1}{k}\mathbf{F}\phi` where :math:`\mathbf{A} = \text{diag}(\Sigma_t) - \Sigma_s^T`, :math:`\mathbf{F} = \chi \otimes (\nu\Sigma_f)`
+- 1-group: :math:`k = \nu\Sigma_f / \Sigma_a` (exact, no iteration)
+- Multi-group: :math:`k = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})` via ``numpy.eigvals``
+- This is the reference eigenvalue for ALL solvers on homogeneous problems
+- Tolerance: < 1e-12 (limited only by FP arithmetic on small dense matrices)
+- **Gotcha**: this eigenvalue is flux-shape independent — it tests nothing about spatial or angular discretization
+
+
 Overview
 ========
 

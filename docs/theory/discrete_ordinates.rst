@@ -9,6 +9,24 @@ Discrete Ordinates Method (S\ :sub:`N`)
    :depth: 3
 
 
+Key Facts
+=========
+
+**Read this before modifying the SN solver.**
+
+- Transport equation: :math:`\mu_m \frac{\partial\psi_m}{\partial x} + \Sigma_t \psi_m = Q/2` (1D slab)
+- Curvilinear adds angular redistribution: :math:`\alpha` coefficients couple ordinates
+- Diamond difference: :math:`\psi^a = (1+\beta)\psi_{\text{out}} - \beta\psi_{\text{in}}`, Morel-Montry sets :math:`\beta = 0`
+- Scattering convention: ``SigS[l][g_from, g_to]`` — source uses **transpose**: ``Q = SigS^T @ phi``
+- GL weights sum to 2; Lebedev/LS/Product sum to :math:`4\pi`
+- **Gotcha**: 1-group tests are degenerate (k = νΣ_f/Σ_a regardless of flux shape)
+- **Gotcha**: homogeneous tests are blind to curvilinear redistribution bugs (flat flux → α terms vanish)
+- **Gotcha**: conservation holds even with wrong per-ordinate balance (telescoping sum identity)
+- The :math:`\alpha` dome must be non-negative; negative → NaN/overflow
+- Fixed-source flat-flux diagnostic (Q/Σ_t) is the most powerful curvilinear bug detector
+- Key reference: Bailey, Morel & Chang (2009) — Eq. 50 (α recursion), Eq. 74 (M-M weights)
+
+
 Overview
 ========
 

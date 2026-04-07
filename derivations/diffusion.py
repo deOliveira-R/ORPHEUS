@@ -85,28 +85,42 @@ def derive_2rg(
     The 2-group coupled system with interface matching has a complex
     transcendental equation. We use Richardson extrapolation from the
     diffusion solver at 4 mesh refinements (O(h²)) to obtain the reference.
+    Results are cached to avoid recomputation on subsequent test runs.
     """
-    from diffusion_1d import CoreGeometry, TwoGroupXS, solve_diffusion_1d
+    from ._richardson_cache import get_cached, store
 
     H_f = fuel_height
     H_r = refl_height
-    fuel_xs = TwoGroupXS(**_FUEL_XS)
-    refl_xs = TwoGroupXS(**_REFL_XS)
 
-    keffs = []
+    case_name = "dif_slab_2eg_2rg"
     dzs = [2.5, 1.25, 0.625, 0.3125]
-    for dz in dzs:
-        geom = CoreGeometry(
-            bot_refl_height=0.0, fuel_height=H_f,
-            top_refl_height=H_r, dz=dz,
-        )
-        result = solve_diffusion_1d(
-            geom=geom, reflector_xs=refl_xs, fuel_xs=fuel_xs,
-        )
-        keffs.append(result.keff)
 
-    # O(h²) Richardson extrapolation (ratio 2, two finest)
-    k_val = keffs[-1] + (keffs[-1] - keffs[-2]) / 3.0
+    cache_params = dict(
+        method="dif", fuel_height=H_f, refl_height=H_r, dzs=dzs,
+        fuel_xs=_FUEL_XS, refl_xs=_REFL_XS,
+    )
+
+    k_val = get_cached(case_name, cache_params)
+    if k_val is None:
+        from diffusion_1d import CoreGeometry, TwoGroupXS, solve_diffusion_1d
+
+        fuel_xs = TwoGroupXS(**_FUEL_XS)
+        refl_xs = TwoGroupXS(**_REFL_XS)
+
+        keffs = []
+        for dz in dzs:
+            geom = CoreGeometry(
+                bot_refl_height=0.0, fuel_height=H_f,
+                top_refl_height=H_r, dz=dz,
+            )
+            result = solve_diffusion_1d(
+                geom=geom, reflector_xs=refl_xs, fuel_xs=fuel_xs,
+            )
+            keffs.append(result.keff)
+
+        # O(h²) Richardson extrapolation (ratio 2, two finest)
+        k_val = keffs[-1] + (keffs[-1] - keffs[-2]) / 3.0
+        store(case_name, cache_params, k_val, keffs)
 
     latex = (
         rf"Fuel + reflector slab: H_f = {H_f} cm, H_r = {H_r} cm. "
@@ -117,7 +131,7 @@ def derive_2rg(
     )
 
     return VerificationCase(
-        name="dif_slab_2eg_2rg",
+        name=case_name,
         k_inf=k_val,
         method="dif",
         geometry="slab",

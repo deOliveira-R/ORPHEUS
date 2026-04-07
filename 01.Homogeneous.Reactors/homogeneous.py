@@ -10,6 +10,8 @@ where P = (Σ_p + 2·colsum(Σ₂)) · φ is the total production rate.
 The solver satisfies the ``EigenvalueSolver`` protocol from
 ``numerics.eigenvalue`` and can be used with the generic
 ``power_iteration`` function.
+
+.. seealso:: ``docs/theory/homogeneous.rst`` — Key Facts, equations.
 """
 
 from __future__ import annotations

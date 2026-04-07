@@ -11,6 +11,8 @@ tools:
   - Grep
   - Glob
   - Bash
+mcpServers:
+  - gitnexus
 ---
 
 # ORPHEUS Explorer
@@ -51,7 +53,7 @@ Cross-reference code and documentation.
 Full exploration across all knowledge systems.
 - Multiple GitNexus queries (context + impact + flows)
 - Read full Sphinx theory section for the module
-- Check IMPROVEMENTS.md for tracked items
+- Check GitHub Issues for tracked items (`gh issue list -R deOliveira-R/ORPHEUS -l module:<name>`)
 - Read related derivation scripts in `derivations/`
 - Explore alternative naming conventions and related files
 - Use for: "understand the full X subsystem", planning mode research
@@ -109,5 +111,5 @@ Scale to thoroughness level. Always include at minimum:
 1. **Code path**: file:line for the relevant implementation
 2. **Physics context** (medium+): which Sphinx section/equation applies
 3. **Dependencies** (medium+): callers and callees from GitNexus
-4. **Tracked items** (thorough): related IMPROVEMENTS.md entries
+4. **Tracked items** (thorough): related GitHub Issues
 5. **Gaps** (thorough): anything expected but not found

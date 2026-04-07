@@ -9,6 +9,20 @@ Thermal Hydraulics — Single-Channel LOCA
    :depth: 3
 
 
+Key Facts
+=========
+
+**Read this before modifying the thermal hydraulics solver.**
+
+- Single-channel LOCA transient: 1D axial, two-phase flow
+- DAE system solved with BDF (``scipy.integrate.solve_ivp``)
+- Conservation: mass, momentum, energy for liquid + vapor
+- Wall heat transfer: Dittus-Boelter (1-phase), Chen (nucleate boiling), film boiling correlations
+- Water properties: pyXSteam (IAPWS-IF97) via ``data/materials/h2o_properties.py``
+- Two solver versions exist: ODE (original MATLAB port) and DAE (improved)
+- **Gotcha**: MATLAB version has a gap conductance bug that ORPHEUS intentionally does NOT reproduce
+
+
 Overview
 ========
 

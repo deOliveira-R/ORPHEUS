@@ -9,6 +9,20 @@ Cross-Section Data Pipeline
    :depth: 3
 
 
+Key Facts
+=========
+
+**Read this before modifying the cross-section pipeline.**
+
+- 421-group microscopic XS from GENDF (GXS) files → HDF5 via ``data/micro_xs/``
+- ``Isotope`` dataclass: sig_t, sig_c, sig_f, sig_el, sig_inel, nu, chi (421 groups)
+- Sigma-zero iteration: ``data/macro_xs/sigma_zeros.py`` — self-shielding
+- ``Mixture`` dataclass: macroscopic XS with ``SigS[l][g_from, g_to]`` convention
+- Consistency: :math:`\Sigma_t = \Sigma_c + \Sigma_f + \sum_{g'} \Sigma_{s,g \to g'}`
+- ``load_isotope()`` auto-selects HDF5 or fallback .m parser
+- Verification uses synthetic XS from ``derivations/_xs_library.py`` (regions A/B/C/D), NOT this pipeline
+
+
 Overview
 ========
 

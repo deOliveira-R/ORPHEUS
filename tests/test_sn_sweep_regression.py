@@ -184,14 +184,14 @@ class TestSNMesh:
         assert sn_mesh.volumes.shape == (3, 2)
         assert sn_mesh.is_1d is False
 
-    def test_cylindrical_raises(self):
-        """Cylindrical coords must raise NotImplementedError (not yet implemented)."""
+    def test_cylindrical_requires_level_quadrature(self):
+        """Cylindrical coords require a quadrature with level structure."""
         from geometry import CoordSystem
 
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.CYLINDRICAL)
         quad = GaussLegendre1D.create(4)
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(ValueError, match="level structure"):
             SNMesh(mesh, quad)
 
     def test_spherical_setup(self):

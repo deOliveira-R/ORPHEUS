@@ -9,6 +9,19 @@ Fuel Behaviour — 1-D Radial Thermo-Mechanics
    :depth: 3
 
 
+Key Facts
+=========
+
+**Read this before modifying the fuel behaviour solver.**
+
+- 1D radial steady-state: fuel pellet + gap + cladding
+- Temperature: :math:`-\frac{1}{r}\frac{d}{dr}(r k \frac{dT}{dr}) = q'''` with temperature-dependent conductivity
+- Gap conductance: radiation + gas conduction (MATPRO correlations)
+- Cladding stress: thick-wall cylinder (Lamé equations) with internal pressure + thermal stress
+- Material properties: ``data/materials/matpro.py`` (UO2, Zircaloy, gap gases)
+- IAPWS viscosity fallback: NaN at very high temperatures fixed via fallback (ERR-010)
+
+
 Overview
 ========
 

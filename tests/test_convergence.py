@@ -4,7 +4,7 @@ import pytest
 
 from derivations import get
 from derivations._xs_library import get_mixture
-from sn_geometry import CartesianMesh
+from geometry import slab_fuel_moderator
 from sn_quadrature import GaussLegendre1D
 from sn_solver import solve_sn
 
@@ -22,7 +22,7 @@ def test_sn_approaches_cp_reference():
     mod = get_mixture("B", "1g")
     materials = {2: fuel, 0: mod}
 
-    mesh = CartesianMesh.from_benchmark(
+    mesh = slab_fuel_moderator(
         n_fuel=40, n_mod=40, t_fuel=0.5, t_mod=0.5,
     )
     quad = GaussLegendre1D.create(32)

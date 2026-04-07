@@ -9,6 +9,23 @@ Method of Characteristics (MOC)
    :depth: 3
 
 
+Key Facts
+=========
+
+**Read this before modifying the MOC solver.**
+
+- Characteristic ODE: :math:`\frac{d\psi}{ds} + \Sigma_t \psi = Q / 4\pi`
+- Flat-source solution: :math:`\bar\psi = \psi_{\text{in}} \frac{1 - e^{-\tau}}{\tau} + \frac{Q}{4\pi\Sigma_t}(1 - \frac{1-e^{-\tau}}{\tau})`
+- Scalar flux update (Boyd Eq. 45): :math:`\phi = (4\pi Q + \Delta\phi / A) / \Sigma_t`
+- Weight formula: :math:`4\pi \cdot \omega_a \cdot \omega_p \cdot t_s \cdot \sin(\theta_p)` — the :math:`4\pi` and :math:`\sin\theta_p` are invisible to homogeneous tests (ERR-019)
+- Inverse Wigner-Seitz: pitch = ``mesh.edges[-1] * sqrt(pi)``, outermost annulus = square border
+- Tabuchi-Yamamoto polar quadrature (TY-1/2/3) × uniform azimuthal
+- Reflective BC via track linking: vertical → same direction, horizontal → reversed
+- **Gotcha**: homogeneous flat-source is exact regardless of weight errors — only heterogeneous multi-region exposes bugs
+- Ray-circle intersection is exact (analytical); ray-box uses parametric clipping
+- Convergence: O(ray_spacing²) for spatial, spectral for angular
+
+
 Overview
 ========
 

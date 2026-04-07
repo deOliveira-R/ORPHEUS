@@ -124,7 +124,7 @@ Different authors use conflicting notation. ALWAYS flag:
 
 ## Self-Improvement
 
-After each research task, append to `lessons.md`:
-- Which sources were most useful
-- Notation pitfalls encountered
-- Any authoritative source discovered for future use
+For `lessons.md`: check if an existing lesson covers this case — if so,
+**sharpen it** rather than appending.  If genuinely new, distill to
+the minimum that would steer future behavior.  Lessons.md must stay
+sharp, not bloated.

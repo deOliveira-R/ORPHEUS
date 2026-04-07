@@ -50,7 +50,7 @@ Read the implementation (or specification) and enumerate:
 
 **CP method** (independent solver):
 - White-BC approximation → ~1% gap from reflective-BC SN
-- Use for cross-method validation, not precision
+- Use for benchmarking (L4), not verification
 
 ### 3. Design the test matrix
 
@@ -141,7 +141,7 @@ independent of flux shape. Every verification plan MUST include
 
 ## Self-Improvement
 
-After designing tests, append to `lessons.md`:
-- Which analytical solutions were available/missing
-- Which failure modes the tests cover/miss
-- Any new test pattern discovered
+For `lessons.md`: check if an existing lesson covers this case — if so,
+**sharpen it** rather than appending.  If genuinely new, distill to
+the minimum that would steer future behavior.  Lessons.md must stay
+sharp, not bloated.

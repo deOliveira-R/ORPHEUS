@@ -77,10 +77,9 @@ def _derive_sn_heterogeneous(ng_key: str, n_regions: int) -> VerificationCase:
 
     Runs the SN solver at 4 mesh refinements with S16 GL quadrature,
     then extrapolates to h→0 assuming O(h²) convergence.
+    Results are cached to avoid recomputation on subsequent test runs.
     """
-    from sn_geometry import CartesianMesh
-    from sn_quadrature import GaussLegendre1D
-    from sn_solver import solve_sn
+    from ._richardson_cache import get_cached, store
 
     layout = LAYOUTS[n_regions]
     mat_ids = _MAT_IDS[n_regions]
@@ -92,21 +91,42 @@ def _derive_sn_heterogeneous(ng_key: str, n_regions: int) -> VerificationCase:
     for i, region in enumerate(layout):
         materials[mat_ids[i]] = get_mixture(region, ng_key)
 
-    # Richardson extrapolation from 4 mesh levels
-    quad = GaussLegendre1D.create(16)
+    case_name = f"sn_slab_{ng}eg_{n_regions}rg"
     cells_per_region = [5, 10, 20, 40]
-    keffs = []
-    for n_per in cells_per_region:
-        mesh = CartesianMesh.from_regions(thicknesses, mat_ids, n_per)
-        result = solve_sn(
-            materials, mesh, quad,
-            max_outer=500, max_inner=500, inner_tol=1e-10,
-            keff_tol=1e-8,
-        )
-        keffs.append(result.keff)
 
-    # O(h²) Richardson extrapolation using two finest meshes (ratio 2)
-    k_ref = keffs[-1] + (keffs[-1] - keffs[-2]) / 3.0
+    # Cache key includes all inputs that affect the result
+    cache_params = dict(
+        method="sn", ng_key=ng_key, n_regions=n_regions,
+        thicknesses=thicknesses, mat_ids=mat_ids,
+        cells_per_region=cells_per_region, n_angles=16,
+        xs={r: get_xs(r, ng_key) for r in layout},
+    )
+
+    k_ref = get_cached(case_name, cache_params)
+    if k_ref is None:
+        from geometry import CoordSystem, mesh1d_from_zones, Zone
+        from sn_quadrature import GaussLegendre1D
+        from sn_solver import solve_sn
+
+        quad = GaussLegendre1D.create(16)
+        keffs = []
+        for n_per in cells_per_region:
+            edge = 0.0
+            zones = []
+            for t, mid in zip(thicknesses, mat_ids):
+                edge += t
+                zones.append(Zone(outer_edge=edge, mat_id=mid, n_cells=n_per))
+            mesh = mesh1d_from_zones(zones, coord=CoordSystem.CARTESIAN)
+            result = solve_sn(
+                materials, mesh, quad,
+                max_outer=500, max_inner=500, inner_tol=1e-10,
+                keff_tol=1e-8,
+            )
+            keffs.append(result.keff)
+
+        # O(h²) Richardson extrapolation using two finest meshes (ratio 2)
+        k_ref = keffs[-1] + (keffs[-1] - keffs[-2]) / 3.0
+        store(case_name, cache_params, k_ref, keffs)
 
     latex = (
         rf"Richardson-extrapolated S\ :sub:`N` eigenvalue for {ng}G, "
@@ -117,7 +137,7 @@ def _derive_sn_heterogeneous(ng_key: str, n_regions: int) -> VerificationCase:
     )
 
     return VerificationCase(
-        name=f"sn_slab_{ng}eg_{n_regions}rg",
+        name=case_name,
         k_inf=k_ref,
         method="sn",
         geometry="slab",

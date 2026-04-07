@@ -15,6 +15,8 @@ Architecture (MT-20260406-008):
 - :func:`solve_monte_carlo` — orchestrator (~60 lines).
 
 Port of MATLAB ``monteCarloPWR.m``.
+
+.. seealso:: ``docs/theory/monte_carlo.rst`` — Key Facts, equations, gotchas.
 """
 
 from __future__ import annotations

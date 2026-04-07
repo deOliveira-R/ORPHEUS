@@ -15,6 +15,8 @@ tools:
   - Glob
   - Bash
   - Agent
+mcpServers:
+  - gitnexus
 model: opus
 ---
 
@@ -146,7 +148,7 @@ Write: `derivations/diagnostics/diag_06_scaling.py`
 Once the root cause is found and fixed:
 1. Convert the minimal reproducer (step 2) into a regression test
 2. Move it to `tests/test_sn_*.py` with a descriptive name
-3. Add the tracking number from IMPROVEMENTS.md
+3. Reference the GitHub Issue number in the test docstring
 4. Delete the diagnostic scripts that are no longer needed
 5. Keep any diagnostic that tests a GENERAL property (like per-ordinate
    consistency) — these are valuable permanent tests
@@ -166,4 +168,6 @@ Read `.claude/agents/numerics-investigator/lessons.md` first.
    flux shape.
 5. **Write runnable evidence.** Every claim must have a script that
    proves it.
-6. **Log findings.** Append to `lessons.md` after every investigation.
+6. **Log findings.** Update `lessons.md` — sharpen an existing lesson
+   if applicable, otherwise distill the new finding to its minimum.
+   Keep lessons.md sharp, not bloated.

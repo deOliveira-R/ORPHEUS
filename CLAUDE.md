@@ -1,5 +1,16 @@
 # ORPHEUS — Open Reactor Physics Educational University System
 
+## Session Start Protocol
+
+Every session, before doing any work:
+
+1. Read `.claude/lessons.md` — behavioral corrections from past sessions
+2. Identify which module(s) the task involves
+3. Dispatch the **explorer** agent on that module (reads Sphinx theory + GitNexus structure)
+4. Check open GitHub Issues for that module: `gh issue list -l module:<name>`
+
+---
+
 ## Python Environment
 
 **MUST use the repo venv for ALL Python execution:**
@@ -10,136 +21,126 @@
 .venv/bin/python -m pytest tests/ -v
 ```
 
-**NEVER** use bare `python`, `python3`, or conda Python. The repo venv (`.venv/`, Python 3.14) has all dependencies. The conda environment is incomplete.
-
-This applies to the main agent AND all sub-agents (archivist, qa, numerics-investigator, etc.).
+**NEVER** use bare `python`, `python3`, or conda Python. The repo venv (`.venv/`, Python 3.14) has all dependencies. This applies to the main agent AND all sub-agents.
 
 ---
 
-## Knowledge Sources
+## Cardinal Rules
 
-This project has two complementary knowledge systems. Use **both** before making changes.
+These are non-negotiable. Violation of any cardinal rule is a session failure.
 
-### Sphinx Documentation (`docs/`)
-The `docs/` directory contains theory, derivations, and equations that explain the physics behind each solver. These documents cross-reference the code via `:func:`, `:class:`, and `:mod:` directives.
+### 1. Track every improvement
 
-- **Before implementing or modifying a solver**: read the relevant theory page in `docs/theory/` to understand the physics, equations, and design decisions.
-- **Before implementing a new module**: check if a theory page exists. If not, write one as part of the implementation — document the equations and derivations alongside the code.
-- **After modifying equations or algorithms**: update the corresponding Sphinx page. Build with `python -m sphinx -b html docs docs/_build/html` and verify zero warnings.
-- **Documentation tasks**: use the **archivist** agent (`.claude/agents/archivist/`) for all Sphinx work. It knows the project conventions, quality standards, and derivation source-of-truth rules.
+NEVER let an improvement opportunity pass undocumented. When you notice
+something that could be better — during implementation, debugging, code
+review, or analysis — create a GitHub Issue immediately with the
+appropriate `module:` label.
+
+### 2. Sphinx IS the LLM's brain
+
+Sphinx documentation is NOT a concise summary. It is the **specialized
+knowledge base** that makes future sessions sharp. After implementing a
+feature, the Sphinx docs must include: full derivations, design rationale
+(not just what — WHY), what was tried and failed, gotchas, literature
+references with equation numbers, numerical evidence. A feature is not
+DONE until Sphinx is this thorough.
+
+### 3. Log every caught bug
+
+Every bug caught during development → `tests/l0_error_catalog.md` with:
+ERR-NNN, failure mode (1–6), how it hid, which test catches it, lesson.
+This is a QA publication artifact.
+
+### 4. V&V levels are not interchangeable
+
+```
+VERIFICATION — "Are we solving the equations right?"
+  L0  Term Verification        hand calc vs code, per term
+  L1  Equation Verification    analytical solutions, MMS, convergence order
+  L2  Integration Testing      multi-group + heterogeneous, self-convergence
+VALIDATION — "Are we solving the right equations?"
+  L3  Validation               comparison against experiment (ICSBEP, IRPhE)
+INFORMATIONAL
+  L4  Benchmarking             code-to-code — never proves correctness
+```
+
+Each level requires the levels below it. 1-group tests are DEGENERATE
+(k = νΣ_f/Σ_a regardless of flux shape). Multi-group (≥2G) is mandatory.
+Synthetic XS at L0–L2; real data only at L3+.
+
+### 5. Absolute discipline every session
+
+At session start: check open Issues for context.
+During work: tag every new improvement immediately.
+At session end: verify no orphan TODOs exist outside GitHub Issues.
+
+---
+
+## Knowledge Architecture
+
+### Sphinx Documentation (`docs/theory/`)
+
+Theory, derivations, and equations behind each solver. Each theory page
+has a **Key Facts** header — the essential equations, gotchas, and design
+decisions. Read Key Facts before modifying any solver.
+
+- **Before modifying a solver**: dispatch the **explorer** agent (reads theory + code graph)
+- **After modifying equations**: update the theory page and rebuild Sphinx
+- **Documentation tasks**: use the **archivist** agent
 
 ### GitNexus Knowledge Graph
-GitNexus indexes the code structure (1000+ nodes, 2400+ edges). It knows what calls what, but NOT the physics. Use it for:
+
+Code structure index (symbols, relationships, execution flows). Use for:
 - **Impact analysis** before editing any symbol
-- **Code navigation** (callers, callees, execution flows)
+- **Code navigation** (prefer `gitnexus_query` over grep for exploration)
 - **Refactoring safety** (rename, detect changes)
 
 ### The Two Together
+
 - **GitNexus** tells you WHAT the code does and what depends on it
-- **Sphinx docs** tell you WHY the code does it and the equations it implements
-- Before any non-trivial change: check both. GitNexus for blast radius, docs for physics correctness.
+- **Sphinx** tells you WHY and the equations it implements
+- Before any non-trivial change: check both
+
+### GitHub Issues
+
+Single source of truth for improvements, bugs, and feature requests.
+Labels: `module:sn`, `module:cp`, `module:moc`, `module:mc`, `module:diffusion`,
+`module:geometry`, `module:data`, `module:tests`, `module:docs`,
+`level:L0`, `level:L1`, `level:L2`, `type:bug`, `type:improvement`, `type:feature`.
 
 ---
 
-### 1. Plan Mode Default
-- Enter plan mode for ANY non-trivial task (3+ steps or architecture)
-- Define BOTH execution + verification steps
-- If something breaks → STOP and re-plan
-- Write detailed specs to remove ambiguity
+## Specialized Agent Fleet
 
-### 2. Specialized Agent Fleet
-
-Five custom agents in `.claude/agents/` — use them instead of generic subagents for their domains. Each has a `lessons.md` that compounds across sessions.
+Six agents in `.claude/agents/` — use them instead of generic subagents.
+Each has a `lessons.md` that sharpens across sessions.
 
 | Agent | Invoke when | Key rule |
 |-------|-------------|----------|
-| **explorer** | Understanding code (planning, investigation) | Uses GitNexus CLI + Sphinx docs. Replaces built-in Explore agent. |
-| **archivist** | Writing/reviewing Sphinx docs | Sphinx-as-brain: full derivations, not summaries. Demands derivation scripts before archiving. |
-| **qa** | Reviewing code, validating claims | 6 AI failure modes checklist. Demands multi-group + heterogeneous tests. |
-| **numerics-investigator** | Solver gives wrong answers | 7-step diagnostic cascade. Writes scripts in `derivations/diagnostics/`. Promotes to tests. |
-| **literature-researcher** | Need equations from papers | Source priority by topic. Maps notation to ORPHEUS. Never references export-controlled codes. |
-| **test-architect** | Planning verification BEFORE implementation | Analytical solution catalog. Failure mode coverage matrix. 1-group is degenerate. |
+| **explorer** | Understanding code (mandatory first step) | Uses GitNexus + Sphinx. Replaces built-in Explore. |
+| **archivist** | Writing/reviewing Sphinx docs | Sphinx-as-brain: full derivations, not summaries. |
+| **qa** | Reviewing code, validating claims | V&V hierarchy. 6 AI failure modes. Multi-group mandatory. |
+| **numerics-investigator** | Solver gives wrong answers | 7-step diagnostic cascade. |
+| **literature-researcher** | Need equations from papers | Source priority by topic. Maps notation to ORPHEUS. |
+| **test-architect** | Planning verification BEFORE implementation | Analytical solution catalog. 1-group is degenerate. |
 
-**Dispatch rules:**
-- Exploring code (planning mode, investigation) → **explorer** (NOT built-in Explore agent — it doesn't know GitNexus or Sphinx)
-- Documentation tasks → **archivist**
-- "Is this correct?" → **qa**
-- "Why is this broken?" → **numerics-investigator**
-- "What does Bailey Eq. 50 say?" → **literature-researcher**
-- "What tests do we need for feature X?" → **test-architect**
+**After every agent invocation**: review the output with full session
+context before committing. Sub-agents lack conversation history.
 
-**After every specialized agent invocation**: the main agent must review the output with full session context before committing. Sub-agents lack conversation history.
+---
 
-### 3. Improvement Tracking and Self-Improvement
+## Working Principles
 
-- Every module has an `IMPROVEMENTS.md` with tracked items (`XX-YYYYMMDD-NNN`)
-- TODOs exist in exactly TWO places: the tracker AND the code location (with matching tracking number)
-- After ANY bug or improvement discovery → add to IMPROVEMENTS.md immediately
-- Items flow: OPEN → IMPL → DONE (DONE requires Sphinx documentation)
-- At session start: read IMPROVEMENTS.md for context
-- At session end: verify no orphan TODOs exist outside the tracker
-
-### 4. Verification Before Done
-- Never mark done without proof
-- Run tests, check logs, simulate real usage
-- Compare expected vs actual behavior
-- Ask: "Would a senior engineer approve this?"
-
-### 5. Demand Elegance
-- Ask: "Is there a simpler / cleaner way?"
-- Avoid hacky or temporary fixes
-- Optimize for long-term maintainability
-- Skip overengineering for small fixes
-
-### 6. Autonomous Bug Fixing
-- Bugs → fix immediately (no hand-holding)
-- Trace logs, errors, failing tests
-- Find root cause, not symptoms
-- Fix CI failures proactively
-
-### 7. Skills = System Layer
-- Skills are NOT just markdown files
-- They include code, scripts, data, workflows
-- Use skills for:
-  - verification
-  - automation
-  - data analysis
-  - scaffolding
-- Skills = reusable intelligence
-
-### 8. File System = Context Engine
-- Use folders for:
-  - references/
-  - scripts/
-  - templates/
-- Enable progressive disclosure
-- Structure improves reasoning quality
-
-### 9. Avoid Over-Constraining AI
-- Don't force rigid steps
-- Provide context, not micromanagement
-- Let AI adapt to the problem
-- Flexibility > strict instructions
-
-## Task Management
-1. Plan first → write tasks with checklist
-2. Verify before execution
-3. Track progress continuously
-4. Explain changes at each step
-5. Document results clearly
-6. Capture lessons after completion
-
-## Core Principles
-- Simplicity First → minimal, clean solutions
-- Systems > Prompts
-- Verification > Generation
-- Iteration > Perfection
-- No Lazy Fixes → solve root cause
+- **Plan first**: enter plan mode for any non-trivial task (3+ steps)
+- **Verify before done**: run tests, compare expected vs actual
+- **Demand elegance**: is there a simpler way? No hacky fixes.
+- **Fix root causes**: trace bugs to root cause, not symptoms
+- **Code style**: Pythonic (dataclasses, type hints, scipy). No 1:1 MATLAB copy. Never transcribe values manually.
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **ORPHEUS** (2104 symbols, 5643 relationships, 172 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **ORPHEUS** (2456 symbols, 6890 relationships, 202 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -237,3 +238,12 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current

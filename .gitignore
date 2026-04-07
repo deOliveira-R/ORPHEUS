@@ -5,6 +5,9 @@ results/
 .gitnexus
 docs/_build/
 docs/_generated/
+derivations/_richardson_cache.json
+graphify-out/
+.graphify_*
 tools/research/elsevier.toml
 
 # Claude Code — track agents, skills, commands; ignore local settings and GitNexus skills
