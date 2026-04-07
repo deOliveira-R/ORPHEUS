@@ -157,6 +157,8 @@ cross sections tabulated at several background cross section
 isotope and group.
 
 
+.. _mg-eigenvalue-problem:
+
 The Multi-Group Neutron Balance
 --------------------------------
 
@@ -225,6 +227,8 @@ theorem [Hebert2009]_, the dominant eigenvector :math:`\boldsymbol{\phi}`
 is the unique non-negative solution — the **fundamental mode** — which
 is the physically meaningful neutron spectrum.
 
+
+.. _scattering-matrix-convention:
 
 Scattering Matrix Convention
 -----------------------------
@@ -755,6 +759,8 @@ aqueous spectrum (no boron, strong thermal peak) with the PWR-like
 spectrum (4000 ppm B, suppressed thermal peak) in the
 :ref:`example-problems` section below.
 
+
+.. _power-iteration-algorithm:
 
 The Power Iteration Algorithm
 ==============================

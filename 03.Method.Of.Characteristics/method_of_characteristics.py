@@ -9,7 +9,7 @@ circular boundaries.
 Reference: Boyd et al. (2014) "The OpenMOC Method of Characteristics",
 Ann. Nucl. Energy 68, 43-52.
 
-.. seealso:: ``docs/theory/method_of_characteristics.rst`` — Key Facts, equations, gotchas.
+.. seealso:: :ref:`theory-method-of-characteristics` — Key Facts, equations, gotchas.
 """
 
 from __future__ import annotations

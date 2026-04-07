@@ -5,7 +5,7 @@ using a finite-difference discretization and BiCGSTAB inner iterations.
 
 Port of MATLAB ``CORE1D.m`` + ``funCORE1D.m``.
 
-.. seealso:: ``docs/theory/verification.rst`` — diffusion verification cases.
+.. seealso:: :ref:`theory-verification` — diffusion verification (buckling eigenvalue, Richardson).
 """
 
 from __future__ import annotations

@@ -16,7 +16,7 @@ Architecture (MT-20260406-008):
 
 Port of MATLAB ``monteCarloPWR.m``.
 
-.. seealso:: ``docs/theory/monte_carlo.rst`` — Key Facts, equations, gotchas.
+.. seealso:: :ref:`theory-monte-carlo` — Key Facts, equations, gotchas.
 """
 
 from __future__ import annotations

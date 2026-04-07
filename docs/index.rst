@@ -19,10 +19,16 @@ ORPHEUS — Open Reactor Physics Educational University System
 
    api/numerics
    api/data
+   api/geometry
    api/homogeneous
    api/discrete_ordinates
    api/collision_probability
    api/method_of_characteristics
+   api/monte_carlo
+   api/diffusion_1d
+   api/fuel_behaviour
+   api/thermal_hydraulics
+   api/reactor_kinetics
    api/derivations
 
 

@@ -40,6 +40,8 @@ Three interlinked systems flow from one source:
         └──→ docs/_generated/    RST fragments with LaTeX + results tables
 
 
+.. _synthetic-xs-library:
+
 Cross-Section Library
 ---------------------
 
@@ -152,6 +154,8 @@ high-resolution lookup tables (Ki₃/Ki₄ with 20,000 points).
 **Examples**: all CP slab and CP cylinder cases.  The CP matrix is
 exact for the collision probability formulation; the eigenvalue is
 a finite matrix problem.
+
+.. _richardson-extrapolation:
 
 Richardson-Extrapolated
 -----------------------
@@ -404,6 +408,19 @@ errors decrease at the expected rate:
 **Diffusion spatial convergence**:
   The three-point finite-difference stencil gives O(h²) convergence,
   verified against the analytical buckling eigenvalue.
+
+
+.. seealso::
+
+   Verified solvers and their theory pages:
+
+   - :ref:`theory-homogeneous` — matrix eigenvalue (analytical, exact)
+   - :ref:`theory-collision-probability` — E₃/Ki₄ semi-analytical eigenvalue
+   - :ref:`theory-discrete-ordinates` — homogeneous exact + :ref:`Richardson <richardson-extrapolation>` heterogeneous
+   - :ref:`theory-method-of-characteristics` — homogeneous exact + Richardson heterogeneous
+   - :ref:`theory-monte-carlo` — z-score against analytical + CP reference
+
+   Cross sections: :ref:`theory-cross-section-data` (real nuclear data pipeline).
 
 
 Running the Tests

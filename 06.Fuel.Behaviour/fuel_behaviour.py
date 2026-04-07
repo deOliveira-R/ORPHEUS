@@ -12,6 +12,8 @@ solving the linear stress equilibrium + strain compatibility + boundary
 condition system.  The ODE state vector contains only genuinely
 time-evolving quantities (temperatures, fission density, swelling, creep
 strains, and plastic strains).
+
+.. seealso:: :ref:`theory-fuel-behaviour` — Key Facts, gap closure model, MATPRO correlations.
 """
 
 from __future__ import annotations

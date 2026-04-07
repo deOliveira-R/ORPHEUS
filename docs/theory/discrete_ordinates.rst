@@ -231,6 +231,8 @@ where the streaming operator depends on the coordinate system and
 :math:`\phi_g = \sum_n w_n \psi_{g,n}` is the scalar flux.
 
 
+.. _quadrature-types:
+
 Angular Quadratures
 ===================
 

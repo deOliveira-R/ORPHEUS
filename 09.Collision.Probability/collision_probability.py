@@ -24,7 +24,7 @@ Two solver modes are available:
   group, inner iterations converge the within-group scattering.
   Converges faster for problems with strong thermal self-scatter.
 
-.. seealso:: ``docs/theory/collision_probability.rst`` — Key Facts, equations, gotchas.
+.. seealso:: :ref:`theory-collision-probability` — Key Facts, equations, gotchas.
 """
 
 from __future__ import annotations

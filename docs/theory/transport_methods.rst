@@ -8,11 +8,13 @@ Deterministic transport solvers for heterogeneous lattice cells.
 Each method discretises the angular variable differently and uses a
 geometry-specific kernel or sweep algorithm:
 
-- **Collision Probabilities** — integral transport via the
+- :ref:`theory-collision-probability` — integral transport via the
   :math:`P_{ij}` matrix (slab, cylindrical, spherical kernels).
-- **Discrete Ordinates** — differential transport via angular
-  quadrature and spatial sweeps (Cartesian 1-D / 2-D).
-- **Monte Carlo** — stochastic transport via Woodcock delta-tracking
+- :ref:`theory-discrete-ordinates` — differential transport via angular
+  quadrature and spatial sweeps (Cartesian 1-D / 2-D, curvilinear 1-D).
+- :ref:`theory-method-of-characteristics` — characteristic ray tracing
+  with flat-source approximation (2-D pin cell).
+- :ref:`theory-monte-carlo` — stochastic transport via Woodcock delta-tracking
   with analog absorption and weight-based population control.
 
 .. toctree::

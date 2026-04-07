@@ -9,7 +9,7 @@ The transport sweep uses diamond-difference spatial discretization:
 
 Boundary conditions are reflective on all sides (infinite lattice).
 
-.. seealso:: ``docs/theory/discrete_ordinates.rst`` — Key Facts, equations, gotchas.
+.. seealso:: :ref:`theory-discrete-ordinates` — Key Facts, equations, gotchas.
 """
 
 from __future__ import annotations

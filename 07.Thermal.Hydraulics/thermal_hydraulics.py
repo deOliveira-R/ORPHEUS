@@ -13,6 +13,8 @@ Key restructuring vs. MATLAB: pressures and cladding stress components are
 computed algebraically at each RHS evaluation (not carried as DAE state
 variables).  The ODE state vector contains only genuinely time-evolving
 quantities: temperatures, coolant enthalpy, plastic strains.
+
+.. seealso:: :ref:`theory-thermal-hydraulics` — Key Facts, LOCA model, wall heat transfer.
 """
 
 from __future__ import annotations

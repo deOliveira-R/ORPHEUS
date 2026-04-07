@@ -11,7 +11,7 @@ The solver satisfies the ``EigenvalueSolver`` protocol from
 ``numerics.eigenvalue`` and can be used with the generic
 ``power_iteration`` function.
 
-.. seealso:: ``docs/theory/homogeneous.rst`` — Key Facts, equations.
+.. seealso:: :ref:`theory-homogeneous` — Key Facts, eigenvalue equations, scattering convention.
 """
 
 from __future__ import annotations

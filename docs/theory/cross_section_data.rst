@@ -623,6 +623,17 @@ Per-component validation for U-235 at 294K (10 sigma-zeros):
      - Exact
 
 
+.. seealso::
+
+   - :ref:`theory-homogeneous` — first consumer of the XS pipeline;
+     demonstrates the full path from ``load_isotope()`` to :math:`k_\infty`.
+   - :ref:`theory-verification` — verification uses :ref:`synthetic cross
+     sections <synthetic-xs-library>` (regions A/B/C/D), not this pipeline.
+   - :ref:`theory-collision-probability`, :ref:`theory-discrete-ordinates`,
+     :ref:`theory-method-of-characteristics`, :ref:`theory-monte-carlo` — all
+     transport solvers consume ``Mixture`` objects from this pipeline.
+
+
 References
 ===========
 

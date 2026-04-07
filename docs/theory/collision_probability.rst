@@ -145,6 +145,8 @@ path** (number of mean free paths) between the two points:
      \Sigt{}\bigl(\mathbf{r}' + s\,\hat{\Omega}\bigr) \, ds
 
 
+.. _flat-source-approximation-cp:
+
 Flat-Source Approximation
 -------------------------
 

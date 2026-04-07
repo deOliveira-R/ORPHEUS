@@ -196,6 +196,8 @@ Along this ray, the PDE reduces to a first-order ODE:
    \frac{d\psi_g}{ds} + \Sigt{g}(s) \, \psi_g(s) = Q_g(s)
 
 
+.. _flat-source-approximation-moc:
+
 Flat-Source Approximation
 -------------------------
 

@@ -21,6 +21,8 @@ Key restructuring vs. MATLAB
   power, 6 delayed-neutron precursor densities, fuel & clad temperatures,
   coolant enthalpy, clad plastic effective strain, and clad plastic strain
   components.
+
+.. seealso:: :ref:`theory-reactor-kinetics` — Key Facts, point kinetics, reactivity feedback.
 """
 
 from __future__ import annotations
