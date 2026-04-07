@@ -10,6 +10,7 @@ graphify-out/graph.html
 graphify-out/cost.json
 graphify-out/obsidian/
 graphify-out/cache/
+graphify-out/manifest.json
 .graphify_*
 tools/research/elsevier.toml
 

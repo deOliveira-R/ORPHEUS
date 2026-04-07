@@ -10,6 +10,8 @@ thermal hydraulics, and reactor kinetics.
 
 - Python 3.11+ (3.14 recommended)
 - git-lfs (for nuclear data files)
+- [GitHub CLI](https://cli.github.com/) (`gh`) — for issue tracking
+- Node.js 18+ (for GitNexus code intelligence)
 
 ### Installation
 
@@ -21,6 +23,17 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
+### External tools (for Claude Code / AI-assisted development)
+
+```bash
+# GitNexus — code structure knowledge graph
+npm install -g gitnexus
+npx gitnexus analyze          # index the codebase
+
+# GitHub CLI — issue tracking
+gh auth login                 # authenticate once
+```
+
 ### Convert nuclear data
 
 The repository ships GENDF (.GXS) cross section files via git-lfs.
@@ -28,22 +41,22 @@ Convert them to HDF5 before running any calculations:
 
 ```bash
 cd data/micro_xs
-python convert_gxs_to_hdf5.py
+.venv/bin/python convert_gxs_to_hdf5.py
 ```
 
 ### Run tests
 
 ```bash
-pytest                  # non-slow tests
-pytest -m slow          # slow tests (MC, full convergence studies)
-pytest -v               # all ~290 tests
+.venv/bin/python -m pytest                  # non-slow tests (~500 tests)
+.venv/bin/python -m pytest -m slow          # slow tests (Richardson, MC high-stats)
+.venv/bin/python -m pytest -v               # all ~500 tests
 ```
 
 ### Build documentation
 
 ```bash
-python -m derivations.generate_rst
-python -m sphinx -b html docs docs/_build/html
+.venv/bin/python -m derivations.generate_rst
+.venv/bin/python -m sphinx -b html docs docs/_build/html
 open docs/_build/html/index.html
 ```
 

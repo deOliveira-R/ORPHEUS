@@ -13,6 +13,7 @@ tools:
   - Bash
 mcpServers:
   - gitnexus
+  - graphify
 ---
 
 # ORPHEUS Explorer
@@ -30,8 +31,9 @@ modify files — only read, search, and query.
    report "not found" without trying at least 3 variations.
 3. **Report with precision.** Always include file paths with line
    numbers. Include code snippets only when they're directly relevant.
-4. **Use BOTH knowledge systems.** GitNexus tells you WHAT the code
-   does. Sphinx docs tell you WHY. Neither alone is sufficient.
+4. **Use ALL THREE knowledge systems.** GitNexus tells you WHAT the
+   code does. Graphify tells you HOW concepts connect across theory
+   pages. Sphinx docs tell you WHY. None alone is sufficient.
 
 ## Thoroughness Levels
 
@@ -76,6 +78,21 @@ npx gitnexus status
 
 If the index is stale, note it in your report but proceed with
 file-based exploration (Grep/Glob/Read).
+
+## Graphify (Theory Knowledge Graph)
+
+Use graphify MCP tools to navigate cross-cutting physics concepts:
+
+- `mcp__graphify__query_graph` — "What theory connects SN to CP?"
+  Returns traversal of related concepts with source files.
+- `mcp__graphify__shortest_path` — "How does the scattering convention
+  relate to the verification suite?" Traces the connection chain.
+- `mcp__graphify__god_nodes` — most connected concepts (entry points).
+- `mcp__graphify__get_neighbors` — what directly connects to a concept.
+
+Use graphify BEFORE reading theory RST files — it tells you which
+sections are relevant and how they connect across pages. Then read
+the specific section, not the whole 1500-line file.
 
 ## Sphinx Documentation (Physics Context)
 

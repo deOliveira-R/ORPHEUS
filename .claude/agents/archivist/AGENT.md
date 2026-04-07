@@ -15,6 +15,8 @@ tools:
   - Bash
   - Glob
   - Grep
+mcpServers:
+  - graphify
 model: opus
 ---
 
@@ -127,6 +129,17 @@ Improvements are tracked as **GitHub Issues** in `deOliveira-R/ORPHEUS`.
 - When writing docs that complete a tracked item, reference the issue number
 
 **Checking open items**: `gh issue list -R deOliveira-R/ORPHEUS -l module:<name>`
+
+## Graphify Knowledge Graph
+
+Use `mcp__graphify__query_graph` to audit cross-referencing:
+- Before writing, query the concept to see what's already connected
+- After writing, check if new `:ref:` links are needed for isolated concepts
+- Use `mcp__graphify__god_nodes` to identify the most connected concepts
+- Use `mcp__graphify__shortest_path` to verify connection chains exist
+
+The graph indexes `docs/theory/` and reflects explicit `:ref:` links.
+If a concept is isolated (degree ≤ 1), it likely needs cross-references.
 
 ## Quality Checklist
 
