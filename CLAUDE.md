@@ -13,15 +13,7 @@ Every session, before doing any work:
 
 ## Python Environment
 
-**MUST use the repo venv for ALL Python execution:**
-
-```bash
-.venv/bin/python          # scripts, sphinx, pytest, everything
-.venv/bin/python -m sphinx -b html docs docs/_build/html
-.venv/bin/python -m pytest tests/ -v
-```
-
-**NEVER** use bare `python`, `python3`, or conda Python. The repo venv (`.venv/`, Python 3.14) has all dependencies. This applies to the main agent AND all sub-agents.
+All Python: `.venv/bin/python` (Python 3.14). Bare `python`/`python3`/`pip` are blocked by a PreToolUse hook.
 
 ---
 
@@ -150,7 +142,7 @@ context before committing. Sub-agents lack conversation history.
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **ORPHEUS** (2263 symbols, 6683 relationships, 185 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **ORPHEUS** (2263 symbols, 6674 relationships, 185 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
