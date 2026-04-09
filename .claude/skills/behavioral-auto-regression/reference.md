@@ -164,6 +164,28 @@ The comprehensive override lives in AGENT.md (one place per agent).
 Skills have a lightweight reinforcement. The scripts/ directory contains
 the canonical block to copy when creating a new agent.
 
+## Context Injection (`!` syntax)
+
+Shell command injection (`!`command``) **only works in SKILL.md files**,
+not in AGENT.md. AGENT.md content is delivered as a system message that
+Claude reads as-is — no preprocessing.
+
+If you need to pre-load CLI output into an agent's context, create a
+dedicated SKILL.md that uses `!` injection and add it to the agent's
+`skills:` list. However, in practice this is unnecessary: the bias
+steering via reclassification achieves zero Grep without pre-loaded
+context. All 5 agents (explorer, QA, archivist, numerics-investigator,
+test-architect) used Nexus exclusively on their first call without any
+context injection.
+
+Agent preferences for startup data (for future reference if injection
+becomes needed):
+- Explorer: `nexus briefing`
+- QA: `nexus audit`
+- Archivist: `nexus audit`
+- Numerics-investigator: `nexus coverage --status implemented`
+- Test-architect: `nexus audit`
+
 ## When This Procedure Should Run
 
 - After adding a new agent that uses Nexus skills
