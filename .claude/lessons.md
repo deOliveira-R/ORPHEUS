@@ -5,13 +5,18 @@ cut filler. Only record what changes future behavior.
 
 ---
 
-## L1: Use GitNexus tools, not just grep
+## L1: Nexus FIRST, Grep FALLBACK
 
-An entire session passed without a single GitNexus MCP call despite
-CLAUDE.md saying "MUST." Grep is for targeted text search when you
-know the exact string. For code exploration ("how does X work?",
-"what calls Y?"), use `gitnexus_query` and `gitnexus_context` first.
-A PreToolUse hook now reminds you on every Grep call.
+Two sessions now where grep was used as the primary exploration tool
+despite Nexus MCP being available. Grep finds text; Nexus finds
+relationships (callers, dependents, equations, theory connections).
+During the package restructuring, over-reliance on grep caused
+repeated missed inline imports that one `mcp__nexus__impact` query
+would have caught. Decision tree:
+- "Who calls/imports/depends on X?" → `mcp__nexus__impact`
+- "How does X connect to Y?" → `mcp__nexus__context`
+- "Find literal string 'foo'" → Grep (this is the only valid use)
+A PreToolUse hook fires on every Grep call as a hard reminder.
 
 ## L2: 1-group tests prove nothing about transport
 
@@ -52,14 +57,15 @@ The SN octant-batching optimization failed twice because tests were
 written after. When restarted with tests first, each change was
 verified in seconds.
 
-## L8: Reindex GitNexus after every commit
+## L8: Rebuild Sphinx if Nexus graph is stale
 
-`npx gitnexus analyze` after every commit/merge. A PostToolUse hook
-handles this automatically, but verify the index is fresh if impact
-analysis returns unexpected results.
+If Nexus queries return unexpected results (zero changes, old module
+names), the graph is stale. Run `sphinx-build docs docs/_build/html`
+to rebuild. The MCP server auto-reloads the graph (v0.4.3+). Always
+rebuild after major file moves or restructuring.
 
 ## L9: The explorer agent replaces built-in Explore
 
-The built-in Explore agent doesn't know GitNexus or Sphinx. Always
+The built-in Explore agent doesn't know Nexus or Sphinx. Always
 use the custom explorer agent from `.claude/agents/explorer/` for
 code investigation. It combines code graph + physics context.

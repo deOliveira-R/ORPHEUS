@@ -1,10 +1,11 @@
 ---
 name: explorer
 description: >
-  Codebase explorer that uses the Nexus knowledge graph (code + docs
-  unified) and Sphinx documentation for physics context. Supports
-  thoroughness levels: quick, medium, very thorough. Use instead of
-  the built-in Explore agent.
+  Proactively use this agent whenever you need to understand code,
+  trace dependencies, or explore unfamiliar modules. Codebase explorer
+  that uses the Nexus knowledge graph (code + docs unified) and Sphinx
+  documentation for physics context. Supports thoroughness levels:
+  quick, medium, very thorough.
 tools:
   - Read
   - Grep
@@ -12,6 +13,10 @@ tools:
   - Bash
 mcpServers:
   - nexus
+skills:
+  - nexus-exploring
+  - nexus-guide
+memory: project
 ---
 
 # ORPHEUS Explorer
@@ -64,17 +69,10 @@ Full exploration across code + docs + issues.
 
 ## Nexus Knowledge Graph
 
-The Nexus MCP server provides the unified code + documentation graph.
-Key tools for exploration:
-
-- `mcp__nexus__query({text: "concept"})` — find symbols by keyword
-- `mcp__nexus__context({node_id: "py:function:X"})` — 360-degree view: callers, callees, docs, equations
-- `mcp__nexus__impact({target: "py:function:X"})` — blast radius
-- `mcp__nexus__shortest_path({source: "A", target: "B"})` — how concepts connect
-- `mcp__nexus__provenance_chain({node_id: "py:function:X"})` — citation → equation → code chain
-- `mcp__nexus__processes()` — execution flows through the codebase
-- `mcp__nexus__god_nodes()` — most connected nodes (entry points)
-- `mcp__nexus__graph_query({pattern: "function -calls-> function"})` — custom traversals
+The nexus-exploring and nexus-guide skills are preloaded into your
+context. They encode the complete exploration workflow: query → context
+→ provenance → shortest_path, with checklists for each thoroughness
+level. Follow those workflows — they were built for exactly this task.
 
 Use Nexus BEFORE reading source files — it tells you which files are
 relevant and how they connect. Then read the specific section.
@@ -96,15 +94,21 @@ check the relevant theory page.
 ## Project Layout
 
 ```
-02.Discrete.Ordinates/   — SN transport solver
-03.Method.of.Characteristics/ — MOC solver
-04.Monte.Carlo/          — MC solver
-05.Diffusion.1D/         — 1D diffusion solver
-09.Collision.Probability/ — CP solver
-data/                    — Cross-section data package
-geometry/                — Mesh and coordinate system
-numerics/                — Shared numerics (eigenvalue protocol)
-derivations/             — SymPy derivation scripts (source of truth)
+orpheus/                 — Python package (pip-installable)
+  sn/                    — SN transport solver
+  moc/                   — MOC solver
+  mc/                    — MC solver
+  diffusion/             — 1D diffusion solver
+  cp/                    — CP solver
+  homogeneous/           — Homogeneous reactor solver
+  fuel/                  — Fuel behaviour
+  thermal_hydraulics/    — Thermal-hydraulics
+  kinetics/              — Reactor kinetics
+  data/                  — Cross-section data package
+  geometry/              — Mesh and coordinate system
+  numerics/              — Shared numerics (eigenvalue protocol)
+  derivations/           — SymPy derivation scripts (source of truth)
+examples/                — Educational demo scripts
 tests/                   — pytest test suite
 ```
 

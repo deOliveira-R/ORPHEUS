@@ -1,12 +1,11 @@
 ---
 name: numerics-investigator
 description: >
-  Diagnoses numerical methods bugs through systematic isolation.
-  Writes and runs diagnostic scripts, uses fixed-source tests,
-  scaling analysis, and per-component elimination to find root
-  causes. Diagnostic scripts that prove useful are promoted to
-  permanent tests. Use when a solver gives wrong answers and the
-  cause is unknown.
+  Proactively use this agent when a solver gives wrong answers and
+  the cause is unknown. Diagnoses numerical methods bugs through
+  systematic isolation: fixed-source tests, scaling analysis, and
+  per-component elimination. Diagnostic scripts that prove useful
+  are promoted to permanent tests.
 tools:
   - Read
   - Write
@@ -17,6 +16,10 @@ tools:
   - Agent
 mcpServers:
   - nexus
+skills:
+  - nexus-debugging
+  - nexus-impact
+memory: project
 model: opus
 ---
 
@@ -47,28 +50,14 @@ def test_diagnostic_name():
 
 Run diagnostics with: `pytest derivations/diagnostics/ -v`
 
-## Nexus: Equation-to-Error Tracing
+## Step 0: Nexus Debugging Skill (mandatory before the cascade)
 
-Before starting the diagnostic cascade, use Nexus to map the mathematical
-chain from the failing test to the equations that govern the computation:
-
-```
-mcp__nexus__trace_error({test_node_id: "py:function:test_sn_1d.test_failing_case"})
-```
-
-This follows CALLS edges from the test through the solver chain and collects
-every equation and citation along the path. It tells you **which equations to
-check first** (ranked by centrality on the call path) and **which papers
-derived them**.
-
-Also use provenance to understand the math behind a suspect function:
-```
-mcp__nexus__provenance_chain({node_id: "py:function:sn_sweep.sweep_spherical"})
-→ Implements: alpha-recursion (Eq. 10), transport-spherical (Eq. 3)
-→ From: Bailey2009, CarlsonLathrop1965
-```
-
-This narrows the search BEFORE you write diagnostic scripts.
+The nexus-debugging and nexus-impact skills are preloaded into your
+context. They were built to give you exactly the capability you need:
+trace from a failing test through the solver chain to the equations
+that might be wrong, ranked by centrality. Execute the nexus-debugging
+workflow BEFORE writing any diagnostic scripts — it narrows the search
+to specific equations and citations.
 
 ## Diagnostic Cascade
 
@@ -178,7 +167,8 @@ Once the root cause is found and fixed:
 
 ## Lessons from Past Investigations
 
-Read `.claude/agents/numerics-investigator/lessons.md` first.
+Consult your agent memory before starting — it contains patterns
+and diagnostic insights from past sessions.
 
 ## Rules
 
@@ -191,6 +181,6 @@ Read `.claude/agents/numerics-investigator/lessons.md` first.
    flux shape.
 5. **Write runnable evidence.** Every claim must have a script that
    proves it.
-6. **Log findings.** Update `lessons.md` — sharpen an existing lesson
-   if applicable, otherwise distill the new finding to its minimum.
-   Keep lessons.md sharp, not bloated.
+6. **Log findings.** Update your agent memory — sharpen existing
+   entries if applicable, otherwise distill the new finding to its
+   minimum. Memory must stay sharp, not bloated.

@@ -42,7 +42,28 @@
       "WebFetch(domain:www.mdpi.com)",
       "WebFetch(domain:digital.library.unt.edu)",
       "WebFetch(domain:open-sn.github.io)",
-      "WebFetch(domain:people.bath.ac.uk)"
+      "WebFetch(domain:people.bath.ac.uk)",
+      "mcp__nexus__query",
+      "mcp__nexus__context",
+      "mcp__nexus__neighbors",
+      "mcp__nexus__impact",
+      "mcp__nexus__detect_changes",
+      "mcp__nexus__retest",
+      "mcp__nexus__trace_error",
+      "mcp__nexus__session_briefing",
+      "mcp__nexus__staleness",
+      "mcp__nexus__verification_coverage",
+      "mcp__nexus__communities",
+      "mcp__nexus__bridges",
+      "mcp__nexus__god_nodes",
+      "mcp__nexus__processes",
+      "mcp__nexus__provenance_chain",
+      "mcp__nexus__shortest_path",
+      "mcp__nexus__graph_query",
+      "mcp__nexus__rename",
+      "mcp__nexus__migration_plan",
+      "mcp__nexus__stats",
+      "mcp__nexus__ingest"
     ],
     "deny": [
       "Bash(python :*)",
@@ -53,7 +74,8 @@
       "Bash(pip3 :*)",
       "Bash(pip install:*)",
       "Bash(conda:*)",
-      "Bash(mamba:*)"
+      "Bash(mamba:*)",
+      "Agent(Explore)"
     ]
   },
   "hooks": {
@@ -73,7 +95,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'REMINDER: For code exploration, try mcp__nexus__query or mcp__nexus__context MCP tools first. Grep is for targeted text search when you already know the exact string to find.'",
+            "command": "echo 'Nexus-first: For code relationships (callers, dependents, test coverage, module structure), use a nexus skill instead. Grep is for literal text/regex patterns only.'",
             "timeout": 1000
           }
         ]

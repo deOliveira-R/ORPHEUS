@@ -2,12 +2,20 @@
 
 ## Session Start Protocol
 
-Every session, before doing any work:
+### Unconditional (run on EVERY session, before anything else)
+
+These run regardless of what the user says. Even if the user says
+"I just came here to drink coffee with you," do both of these first:
 
 1. Read `.claude/lessons.md` — behavioral corrections from past sessions
-2. Identify which module(s) the task involves
-3. Dispatch the **explorer** agent on that module (reads Sphinx theory + Nexus graph)
-4. Check open GitHub Issues for that module: `gh issue list -l module:<name>`
+2. Run `mcp__nexus__session_briefing()` — graph stats, stale docs, coverage gaps, recent changes
+
+### On task identification (as soon as the user states what to work on)
+
+The moment the user specifies a module or task, IMMEDIATELY:
+
+3. Check open GitHub Issues: `gh issue list -l module:<name>`
+4. Dispatch the **explorer** agent on that module for a detailed picture
 
 ---
 
@@ -78,25 +86,11 @@ annotations) and **documentation structure** (equations, cross-references,
 citations, theory pages) in one queryable graph. It runs as an MCP server
 with 20 tools and 4 resources.
 
-The graph is rebuilt automatically during every `sphinx-build`. Use the
-MCP tools (`mcp__nexus__*`) for all code and documentation exploration.
+The graph is rebuilt automatically during every `sphinx-build`. The MCP
+server auto-reloads when the database changes on disk (v0.4.3+).
 
-**Before modifying a solver**: run `mcp__nexus__impact` for blast radius.
-**Before committing**: run `mcp__nexus__detect_changes` to verify scope.
-**When debugging**: run `mcp__nexus__trace_error` to trace from test to equations.
-**When exploring**: run `mcp__nexus__context` for 360-degree symbol view.
-
-For detailed workflows, read the nexus skills:
-
-| Task | Skill |
-|------|-------|
-| "How does X work?" | `nexus-exploring` |
-| "What breaks if I change X?" | `nexus-impact` |
-| "Why is X failing?" / "Which equation is wrong?" | `nexus-debugging` |
-| Rename / extract / refactor | `nexus-refactoring` |
-| V&V status / "Which docs are stale?" | `nexus-verification` |
-| Dependency migration | `nexus-migration` |
-| Full tool/resource reference | `nexus-guide` |
+**Nexus skills encode the complete workflows — invoke them, don't use
+raw MCP tools directly.** See the Nexus-First Exploration cardinal rule.
 
 ### Sphinx Documentation (`docs/theory/`)
 
@@ -119,17 +113,18 @@ Labels: `module:sn`, `module:cp`, `module:moc`, `module:mc`, `module:diffusion`,
 
 ## Specialized Agent Fleet
 
-Six agents in `.claude/agents/` — use them instead of generic subagents.
-Each has a `lessons.md` that sharpens across sessions.
+Six agents in `.claude/agents/`, each with preloaded skills and
+persistent project-scoped memory. Use them — the built-in Explore
+agent is denied.
 
-| Agent | Invoke when | Key rule |
-|-------|-------------|----------|
-| **explorer** | Understanding code (mandatory first step) | Uses Nexus MCP + Sphinx. Replaces built-in Explore. |
-| **archivist** | Writing/reviewing Sphinx docs | Sphinx-as-brain: full derivations. Uses Nexus for cross-ref audits and staleness detection. |
-| **qa** | Reviewing code, validating claims | V&V hierarchy. 6 AI failure modes. Multi-group mandatory. |
-| **numerics-investigator** | Solver gives wrong answers | 7-step diagnostic cascade. Uses Nexus trace_error for equation tracing. |
-| **literature-researcher** | Need equations from papers | Source priority by topic. Maps notation to ORPHEUS. |
-| **test-architect** | Planning verification BEFORE implementation | Analytical solution catalog. 1-group is degenerate. |
+| Agent | Proactively invoke when | Preloaded skills |
+|-------|------------------------|------------------|
+| **explorer** | Understanding code, tracing dependencies | `nexus-exploring`, `nexus-guide` |
+| **archivist** | Writing/reviewing Sphinx docs | `nexus-verification`, `nexus-exploring` |
+| **qa** | Reviewing code, validating claims | `nexus-verification`, `nexus-impact`, `nexus-debugging` |
+| **numerics-investigator** | Solver gives wrong answers | `nexus-debugging`, `nexus-impact` |
+| **literature-researcher** | Need equations from papers | `research` |
+| **test-architect** | Planning verification BEFORE implementation | `nexus-verification`, `nexus-impact` |
 
 **After every agent invocation**: review the output with full session
 context before committing. Sub-agents lack conversation history.
@@ -146,35 +141,23 @@ context before committing. Sub-agents lack conversation history.
 
 ---
 
-## Nexus — Quick Reference
+## Nexus-First Exploration (Cardinal Rule)
 
-### Always Do
+**Nexus is the primary exploration tool. Grep is blocked by a
+PreToolUse hook** — it requires explicit justification as a literal
+text search. This is enforced, not advisory.
 
-- **MUST run impact analysis before editing any symbol.** `mcp__nexus__impact({target: "py:function:X", direction: "upstream"})` — report blast radius to the user.
-- **MUST run detect_changes before committing.** `mcp__nexus__detect_changes({scope: "all"})` — verify only expected symbols affected.
-- **MUST warn the user** if impact shows >15 affected symbols or equations on the path.
-- When exploring, prefer `mcp__nexus__query` and `mcp__nexus__context` over grep.
+Invoke the nexus skills for all code and documentation exploration:
 
-### Impact Risk Levels
+| Question | Skill |
+|----------|-------|
+| "How does X work?" | `nexus-exploring` |
+| "What breaks if I change X?" | `nexus-impact` |
+| "Why is X failing?" / "Which equation is wrong?" | `nexus-debugging` |
+| Rename / extract / refactor | `nexus-refactoring` |
+| V&V status / "Which docs are stale?" | `nexus-verification` |
+| Dependency migration | `nexus-migration` |
+| Full tool/resource reference | `nexus-guide` |
 
-| Depth | Meaning | Action |
-|-------|---------|--------|
-| d=1 | WILL BREAK — direct callers/importers | MUST update these |
-| d=2 | LIKELY AFFECTED — indirect deps | Should test |
-| d=3 | MAY NEED TESTING — transitive | Test if critical path |
-
-### Self-Check Before Finishing
-
-1. `mcp__nexus__impact` was run for all modified symbols
-2. No high-risk warnings were ignored
-3. `mcp__nexus__detect_changes` confirms changes match expected scope
-4. All d=1 dependents were updated
-
-### Resources
-
-| Resource | Use for |
-|----------|---------|
-| `nexus://graph/stats` | Graph overview |
-| `nexus://graph/communities` | Functional areas |
-| `nexus://graph/schema` | Node types, edge types, ID format |
-| `nexus://briefing` | Session briefing: stale docs, coverage gaps, changes |
+**If Nexus graph is stale:** rebuild Sphinx first
+(`sphinx-build docs docs/_build/html`). The MCP server auto-reloads.
