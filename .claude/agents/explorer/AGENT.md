@@ -44,8 +44,8 @@ why Nexus is insufficient for this specific query.
 | Question | MUST use |
 |----------|----------|
 | "How does X work?" | `mcp__nexus__context` + `mcp__nexus__neighbors` |
-| "What calls X?" | `mcp__nexus__impact` (upstream) |
-| "What does X depend on?" | `mcp__nexus__impact` (downstream) |
+| "What calls X?" | `mcp__nexus__callers` (or transitive=true for full chain) |
+| "What does X call?" | `mcp__nexus__callees` |
 | "How do A and B connect?" | `mcp__nexus__shortest_path` |
 | "What's the math behind X?" | `mcp__nexus__provenance_chain` |
 | "Show me the main components" | `mcp__nexus__god_nodes` + `mcp__nexus__communities` |

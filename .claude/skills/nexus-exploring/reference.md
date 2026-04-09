@@ -11,6 +11,8 @@ This file is shared across all nexus-* skills.
 | `query` | Find symbols by keyword | `text`, `node_types`, `limit` |
 | `context` | 360-degree view of a symbol | `node_id` |
 | `neighbors` | Direct connections | `node_id`, `direction`, `edge_types` |
+| `callers` | Functions that call this symbol | `node_id`, `transitive`, `max_depth` |
+| `callees` | Functions this symbol calls | `node_id`, `transitive`, `max_depth` |
 | `shortest_path` | How two concepts connect | `source`, `target`, `max_hops` |
 | `god_nodes` | Most connected symbols | `top_n` |
 | `stats` | Graph summary | — |
@@ -32,6 +34,7 @@ This file is shared across all nexus-* skills.
 |------|----------------|----------|
 | `provenance_chain` | Citation → equation → code chain | `node_id` |
 | `verification_coverage` | V&V status map | `status_filter` |
+| `verification_audit` | Complete V&V audit (single call) | — |
 | `staleness` | Doc-code drift | — |
 | `session_briefing` | Session overview | — |
 | `trace_error` | Failing test → equations on path | `test_node_id` |
@@ -102,6 +105,9 @@ Wildcards: `*` matches any type. `name=prefix*` for prefix match.
 All output JSON to stdout. Default db: `_nexus/graph.db`.
 
 ```bash
+nexus callers <node_id> --db <path> [--transitive] [--max-depth 3]
+nexus callees <node_id> --db <path> [--transitive] [--max-depth 3]
+nexus audit --db <path> [--project-root .]
 nexus briefing --db <path>
 nexus context <node_id> --db <path>
 nexus neighbors <node_id> --db <path> [--direction in|out|both] [--edge-types calls,imports]

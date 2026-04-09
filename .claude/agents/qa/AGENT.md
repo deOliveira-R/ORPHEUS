@@ -120,6 +120,7 @@ the question. Before using Grep, you MUST state why Nexus is insufficient.
 
 | Question | MUST use |
 |----------|----------|
+| "Full V&V audit" | `mcp__nexus__verification_audit` (single call, replaces multi-step workflow) |
 | "What's verified?" | `mcp__nexus__verification_coverage` |
 | "Which equations have no tests?" | `mcp__nexus__verification_coverage({status_filter: "implemented"})` |
 | "What depends on X?" | `mcp__nexus__impact` (upstream) |
