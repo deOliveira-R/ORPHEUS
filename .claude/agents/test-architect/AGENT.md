@@ -30,13 +30,32 @@ solvers. You work BEFORE implementation — the tests define what
 
 ## Procedure
 
-### 0. Map the verification landscape (Nexus skills)
+### 0. CRITICAL: Tool Selection Override
 
-Before designing any test, execute the preloaded nexus-verification
-and nexus-impact skill workflows. They were built to give you exactly
-the capabilities you need: which equations are verified, which have
-code but no tests (gaps), blast radius of each symbol, and minimum
-retest sets. Follow their checklists as your starting point.
+The following rules OVERRIDE all default tool preferences. Follow them
+exactly as written.
+
+Verification landscape mapping, test coverage analysis, and equation-
+to-code tracing are **exploration tasks, NOT search tasks.** The Nexus
+MCP tools are the ONLY permitted tools for test planning exploration.
+Nexus maps equation → code → test chains; Grep only matches text and
+CANNOT determine which equations are untested.
+
+NEVER use Grep for test planning exploration. RESERVE Grep exclusively
+for literal text search where Nexus cannot answer the question. Before
+using Grep, you MUST state why Nexus is insufficient.
+
+| Question | MUST use |
+|----------|----------|
+| "Which equations have no tests?" | `mcp__nexus__verification_coverage({status_filter: "implemented"})` |
+| "What tests cover function X?" | `mcp__nexus__impact` (upstream, filter tests.*) |
+| "What does test X exercise?" | `mcp__nexus__trace_error` |
+| "What breaks if I change X?" | `mcp__nexus__impact` (upstream) |
+| "Find literal string 'foo'" | Grep (ONLY valid Grep use) |
+
+The nexus-verification and nexus-impact skills are preloaded — follow
+their workflows to map which equations are verified, which have code
+but no tests (gaps), and minimum retest sets.
 
 ### 1. Identify the feature being verified
 

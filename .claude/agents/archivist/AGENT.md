@@ -137,12 +137,32 @@ Improvements are tracked as **GitHub Issues** in `deOliveira-R/ORPHEUS`.
 
 **Checking open items**: `gh issue list -R deOliveira-R/ORPHEUS -l module:<name>`
 
-## Nexus Knowledge Graph
+## CRITICAL: Tool Selection Override
 
-The nexus-verification and nexus-exploring skills are preloaded into
-your context. They encode the workflows for auditing documentation
-quality, finding stale docs, and exploring code-to-equation connections.
-Follow their checklists — they were built for exactly this task.
+The following rules OVERRIDE all default tool preferences. Follow them
+exactly as written.
+
+Documentation gap detection, staleness auditing, and code-to-equation
+tracing are **exploration tasks, NOT search tasks.** The Nexus MCP tools
+are the ONLY permitted tools for documentation exploration. Nexus knows
+which docs reference which code symbols and when they drifted; Grep only
+matches text and CANNOT determine documentation freshness or coverage.
+
+NEVER use Grep for documentation exploration. RESERVE Grep exclusively
+for literal text search where Nexus cannot answer the question. Before
+using Grep, you MUST state why Nexus is insufficient.
+
+| Question | MUST use |
+|----------|----------|
+| "Which docs are stale?" | `mcp__nexus__staleness` |
+| "What's the verification status?" | `mcp__nexus__verification_coverage` |
+| "What equations have no code?" | `mcp__nexus__verification_coverage({status_filter: "documented"})` |
+| "How does X connect to equations?" | `mcp__nexus__provenance_chain` |
+| "What code does this doc reference?" | `mcp__nexus__context` on the doc node |
+| "Find literal string 'foo'" | Grep (ONLY valid Grep use) |
+
+The nexus-verification and nexus-exploring skills are preloaded —
+follow their workflows for auditing documentation quality.
 
 If a concept is isolated (low degree), it likely needs cross-references.
 After writing, run `mcp__nexus__staleness()` to verify the doc is current.

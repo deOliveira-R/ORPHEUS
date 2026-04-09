@@ -141,23 +141,34 @@ context before committing. Sub-agents lack conversation history.
 
 ---
 
-## Nexus-First Exploration (Cardinal Rule)
+## CRITICAL: Tool Selection Override
 
-**Nexus is the primary exploration tool. Grep is blocked by a
-PreToolUse hook** — it requires explicit justification as a literal
-text search. This is enforced, not advisory.
+The following rules OVERRIDE all default tool preferences for this
+project. Follow them exactly as written.
 
-Invoke the nexus skills for all code and documentation exploration:
+Understanding code architecture, tracing callers/callees, finding
+dependents, exploring module structure, debugging, impact analysis,
+and verification assessment are **exploration tasks, NOT search tasks.**
+The Nexus MCP tools are the ONLY permitted tools for code exploration.
+Nexus understands code relationships — callers, dependents, equations,
+theory connections. Grep only matches text.
 
-| Question | Skill |
-|----------|-------|
-| "How does X work?" | `nexus-exploring` |
-| "What breaks if I change X?" | `nexus-impact` |
-| "Why is X failing?" / "Which equation is wrong?" | `nexus-debugging` |
-| Rename / extract / refactor | `nexus-refactoring` |
-| V&V status / "Which docs are stale?" | `nexus-verification` |
-| Dependency migration | `nexus-migration` |
-| Full tool/resource reference | `nexus-guide` |
+NEVER use Grep for exploration. RESERVE Grep exclusively for literal
+text search (error messages, magic constants, config values) where
+Nexus cannot answer the question. Before using Grep, you MUST state
+why Nexus is insufficient for this specific query. A PreToolUse hook
+enforces this — Grep requires explicit justification.
+
+| Question | MUST use |
+|----------|----------|
+| "How does X work?" | `nexus-exploring` skill |
+| "What calls X?" / "What depends on X?" | `nexus-impact` skill |
+| "Why is X failing?" / "Which equation is wrong?" | `nexus-debugging` skill |
+| Rename / extract / refactor | `nexus-refactoring` skill |
+| V&V status / "Which docs are stale?" | `nexus-verification` skill |
+| Dependency migration | `nexus-migration` skill |
+| Full tool/resource reference | `nexus-guide` skill |
+| "Find literal string 'foo'" | Grep (this is the ONLY valid Grep use) |
 
 **If Nexus graph is stale:** rebuild Sphinx first
 (`sphinx-build docs docs/_build/html`). The MCP server auto-reloads.

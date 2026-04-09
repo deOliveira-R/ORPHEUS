@@ -5,76 +5,51 @@ description: "Use when the user asks how code works, wants to understand archite
 
 # Exploring with Nexus
 
-## When to Use
-
-- "How does the SN solver work?"
-- "What calls this function?"
-- "Show me the main components"
-- "How does this equation connect to code?"
-- "What's the mathematical provenance of this function?"
-- Understanding code or theory you haven't seen before
+IMPORTANT: This skill is the dedicated tool for code exploration. It
+replaces Grep for all architecture, dependency, and flow questions.
 
 ## Workflow
 
 ```
-1. READ nexus://graph/stats                          → Graph overview
-2. nexus query({text: "<concept>"})                   → Find related symbols
-3. nexus context({node_id: "<symbol>"})               → 360-degree view
-4. nexus shortest_path({source: "<A>", target: "<B>"}) → How concepts connect
-5. nexus provenance_chain({node_id: "<symbol>"})       → Citation → equation → code chain
+1. query({text: "<concept>"})                        → Find symbols
+2. context({node_id: "<symbol>"})                    → 360-degree view
+3. provenance_chain({node_id: "<symbol>"})            → Citation → equation → code
+4. shortest_path({source: "<A>", target: "<B>"})      → How concepts connect
+5. Read source files for implementation details
 ```
 
 ## Checklist
 
-```
-- [ ] nexus stats() — overview of graph size and types
-- [ ] nexus query() for the concept you want to understand
-- [ ] nexus context() on key symbols for callers/callees/docs
-- [ ] nexus provenance_chain() to trace mathematical origins
-- [ ] nexus communities() to see functional groupings
+- [ ] `query` for the concept you want to understand
+- [ ] `context` on key symbols for callers/callees/docs
+- [ ] `provenance_chain` to trace mathematical origins
+- [ ] `communities` to see functional groupings
 - [ ] Read source files for implementation details
-```
 
-## Tools
+## Key Tools
 
 **query** — find symbols by keyword:
 ```
-nexus query({text: "collision probability"})
+query({text: "collision probability"})
 → Functions, classes, equations matching the search, sorted by connectivity
 ```
 
 **context** — 360-degree view of a symbol:
 ```
-nexus context({node_id: "py:function:sn_solver.solve_sn"})
-→ All incoming/outgoing edges grouped by type (calls, documents, implements, etc.)
+context({node_id: "py:function:orpheus.sn.solver.solve_sn"})
+→ All incoming/outgoing edges grouped by type
 ```
 
 **provenance_chain** — mathematical traceability:
 ```
-nexus provenance_chain({node_id: "py:function:sn_sweep.sweep_spherical"})
-→ Bailey2009 → Eq.alpha-recursion → sweep_spherical → helper functions
+provenance_chain({node_id: "py:function:orpheus.sn.sweep.transport_sweep"})
+→ Bailey2009 → Eq.transport-cartesian → transport_sweep
 ```
 
 **shortest_path** — how concepts connect:
 ```
-nexus shortest_path({source: "doc:theory/collision_probability", target: "py:class:numpy.ndarray"})
+shortest_path({source: "doc:theory/collision_probability", target: "py:class:numpy.ndarray"})
 → Theory page → function → numpy dependency
 ```
 
-## Resources
-
-| Resource | What you get |
-|----------|-------------|
-| `nexus://graph/stats` | Node/edge counts by type, density |
-| `nexus://graph/communities` | Functional areas with top members |
-| `nexus://graph/schema` | Available node types, edge types, ID format |
-| `nexus://briefing` | Session briefing: stale docs, coverage gaps, recent changes |
-
-## Node ID Format
-
-All node IDs follow `<domain>:<type>:<qualified_name>`:
-- `py:function:sn_solver.solve_sn`
-- `py:class:collision_probability.CPMesh`
-- `math:equation:alpha-recursion`
-- `doc:theory/discrete_ordinates`
-- `std:label:theory-collision-probability`
+See [reference.md](reference.md) for full tool/schema/CLI reference.

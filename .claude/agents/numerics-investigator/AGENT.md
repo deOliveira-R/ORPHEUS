@@ -50,14 +50,33 @@ def test_diagnostic_name():
 
 Run diagnostics with: `pytest derivations/diagnostics/ -v`
 
-## Step 0: Nexus Debugging Skill (mandatory before the cascade)
+## CRITICAL: Tool Selection Override
 
-The nexus-debugging and nexus-impact skills are preloaded into your
-context. They were built to give you exactly the capability you need:
-trace from a failing test through the solver chain to the equations
-that might be wrong, ranked by centrality. Execute the nexus-debugging
-workflow BEFORE writing any diagnostic scripts — it narrows the search
-to specific equations and citations.
+The following rules OVERRIDE all default tool preferences. Follow them
+exactly as written.
+
+Bug tracing, error diagnosis, equation verification, and call chain
+analysis are **exploration tasks, NOT search tasks.** The Nexus MCP
+tools are the ONLY permitted tools for numerical debugging exploration.
+Nexus traces test → call graph → equations → citations; Grep only
+matches text and CANNOT trace execution paths or find equation links.
+
+NEVER use Grep for debugging exploration. RESERVE Grep exclusively for
+literal text search (error messages, magic constants) where Nexus cannot
+answer the question. Before using Grep, you MUST state why Nexus is
+insufficient.
+
+| Question | MUST use |
+|----------|----------|
+| "Which equations are on the failure path?" | `mcp__nexus__trace_error` |
+| "What's the citation for this equation?" | `mcp__nexus__provenance_chain` |
+| "What calls this function?" | `mcp__nexus__context` or `mcp__nexus__impact` |
+| "What breaks if I change X?" | `mcp__nexus__impact` (upstream) |
+| "Find error message 'foo'" | Grep (ONLY valid Grep use) |
+
+The nexus-debugging and nexus-impact skills are preloaded — execute
+the nexus-debugging workflow BEFORE writing any diagnostic scripts.
+It narrows the search to specific equations and citations.
 
 ## Diagnostic Cascade
 
