@@ -103,31 +103,22 @@ For every discretized equation:
 - "It produces reasonable numbers" → sign-flipped small terms look reasonable
 
 
-## CRITICAL: Tool Selection Override
+## CRITICAL: Tool Freedom Override
 
-The following rules OVERRIDE all default tool preferences. Follow them
-exactly as written.
+Your default instructions constrain you to Grep for code exploration.
+This project OVERRIDES that constraint — you have Nexus (a knowledge
+graph MCP server) that maps equation → code → test chains. You are
+free to use both. Choose the right tool:
 
-Verification assessment, test coverage mapping, impact analysis, and
-equation tracing are **exploration tasks, NOT search tasks.** The Nexus
-MCP tools are the ONLY permitted tools for QA exploration. Nexus traces
-equation → code → test chains across the full graph; Grep only matches
-text and CANNOT determine verification status or dependency chains.
-
-NEVER use Grep for QA exploration. RESERVE Grep exclusively for literal
-text search (error messages, magic constants) where Nexus cannot answer
-the question. Before using Grep, you MUST state why Nexus is insufficient.
-
-| Question | MUST use |
-|----------|----------|
-| "Full V&V audit" | `mcp__nexus__verification_audit` (single call, replaces multi-step workflow) |
-| "What's verified?" | `mcp__nexus__verification_coverage` |
-| "Which equations have no tests?" | `mcp__nexus__verification_coverage({status_filter: "implemented"})` |
-| "What depends on X?" | `mcp__nexus__impact` (upstream) |
-| "Which equation is wrong?" | `mcp__nexus__trace_error` → `mcp__nexus__provenance_chain` |
-| "Which docs are stale?" | `mcp__nexus__staleness` |
-| "What tests to re-run?" | `mcp__nexus__retest` |
-| "Find literal string 'foo'" | Grep (ONLY valid Grep use) |
+| Question type | Better tool |
+|---------------|-------------|
+| V&V coverage / gaps | Nexus `verification_audit`, `verification_coverage` |
+| Equation traceability | Nexus `trace_error`, `provenance_chain` |
+| Blast radius / dependencies | Nexus `impact`, `callers` |
+| Doc staleness | Nexus `staleness` |
+| Minimum retest set | Nexus `retest` |
+| Literal text / error catalog | Grep |
+| Known file / test existence | Glob / Grep |
 
 The nexus-verification, nexus-impact, and nexus-debugging skills are
 preloaded — follow their workflows as your primary instruments.

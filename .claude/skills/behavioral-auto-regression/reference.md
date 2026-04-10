@@ -66,15 +66,14 @@ The Nexus MCP tools are the ONLY permitted tools for [domain]. Nexus
 [explains why it's superior]; Grep only matches text and CANNOT [what
 Grep can't do].
 
-NEVER use Grep for [domain]. RESERVE Grep exclusively for literal text
-search where Nexus cannot answer the question. Before using Grep, you
-MUST state why Nexus is insufficient for this specific query.
+NEVER use Grep for [domain]. Grep is for literal text search —
+use it freely for those tasks.
 
 | Question | MUST use |
 |----------|----------|
 | [question 1] | `mcp__nexus__[tool]` |
 | [question 2] | `mcp__nexus__[tool]` |
-| "Find literal string 'foo'" | Grep (this is the ONLY valid Grep use) |
+| "Find literal string 'foo'" | Grep |
 ```
 
 ### Why Each Element Matters
@@ -89,8 +88,11 @@ MUST state why Nexus is insufficient for this specific query.
   system prompt vocabulary
 - **Dispatch table** — concrete pattern matching; when the agent sees
   "what calls X?", the table fires before default categorization
-- **Justification gate** — "MUST state why Nexus is insufficient"
-  creates friction even if the agent reflexively reaches for Grep
+- **Explicit Grep permission** — "Grep is for literal text search —
+  use it freely" avoids oversteering. Testing showed agents never
+  needed a justification gate — the reclassification alone prevents
+  Grep misuse, and the gate only wasted tokens on unnecessary
+  justification text
 
 ## System Prompt Biases to Counter
 

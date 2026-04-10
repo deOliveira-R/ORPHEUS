@@ -48,8 +48,7 @@ The block must:
 2. Reclassify: "These are **exploration tasks, NOT search tasks**"
 3. Use `MUST`/`NEVER`/`ONLY permitted` — hard obligations
 4. Include a dispatch table mapping questions to specific Nexus tools
-5. Add a justification gate: "Before using Grep, you MUST state why
-   Nexus is insufficient"
+5. Explicitly permit Grep for literal text search — no gate needed
 
 ### 4. Validate the fix
 

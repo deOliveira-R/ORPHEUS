@@ -17,8 +17,8 @@ tools are the ONLY permitted tools for V&V assessment. Nexus traces
 equation -> code -> test chains; Grep cannot determine verification
 status or dependency chains.
 
-NEVER use Grep for verification assessment. Before using Grep, you
-MUST state why Nexus is insufficient for this specific query.
+NEVER use Grep for verification assessment. Grep is for literal
+text search — use it freely for those tasks.
 
 | Question | MUST use |
 |----------|----------|
@@ -28,4 +28,4 @@ MUST state why Nexus is insufficient for this specific query.
 | "Which docs are stale?" | `mcp__nexus__staleness` |
 | "What tests cover X?" | `mcp__nexus__callers` (on the function, filter tests.*) |
 | "What tests to re-run?" | `mcp__nexus__retest` |
-| "Find literal string 'foo'" | Grep (ONLY valid Grep use) |
+| "Find literal string 'foo'" | Grep |

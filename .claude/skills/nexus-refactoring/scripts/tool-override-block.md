@@ -17,8 +17,8 @@ tools are the ONLY permitted tools for safe refactoring. Nexus finds
 all references via the call graph (high confidence); Grep finds text
 matches that may be comments, strings, or unrelated symbols.
 
-NEVER use Grep to find references for renaming. Before using Grep, you
-MUST state why Nexus is insufficient for this specific query.
+NEVER use Grep to find references for renaming. Grep is for literal
+text search — use it freely for those tasks.
 
 | Question | MUST use |
 |----------|----------|
@@ -27,4 +27,4 @@ MUST state why Nexus is insufficient for this specific query.
 | "Apply a rename" | `mcp__nexus__rename` (dry_run=false) |
 | "What changed?" | `mcp__nexus__detect_changes` |
 | "What tests to run?" | `mcp__nexus__retest` |
-| "Find literal string 'foo'" | Grep (ONLY valid Grep use) |
+| "Find literal string 'foo'" | Grep |

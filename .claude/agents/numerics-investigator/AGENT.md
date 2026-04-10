@@ -50,29 +50,21 @@ def test_diagnostic_name():
 
 Run diagnostics with: `pytest derivations/diagnostics/ -v`
 
-## CRITICAL: Tool Selection Override
+## CRITICAL: Tool Freedom Override
 
-The following rules OVERRIDE all default tool preferences. Follow them
-exactly as written.
+Your default instructions constrain you to Grep for code exploration.
+This project OVERRIDES that constraint — you have Nexus (a knowledge
+graph MCP server) that traces test → call graph → equations → citations.
+You are free to use both. Choose the right tool:
 
-Bug tracing, error diagnosis, equation verification, and call chain
-analysis are **exploration tasks, NOT search tasks.** The Nexus MCP
-tools are the ONLY permitted tools for numerical debugging exploration.
-Nexus traces test → call graph → equations → citations; Grep only
-matches text and CANNOT trace execution paths or find equation links.
-
-NEVER use Grep for debugging exploration. RESERVE Grep exclusively for
-literal text search (error messages, magic constants) where Nexus cannot
-answer the question. Before using Grep, you MUST state why Nexus is
-insufficient.
-
-| Question | MUST use |
-|----------|----------|
-| "Which equations are on the failure path?" | `mcp__nexus__trace_error` |
-| "What's the citation for this equation?" | `mcp__nexus__provenance_chain` |
-| "What calls this function?" | `mcp__nexus__context` or `mcp__nexus__impact` |
-| "What breaks if I change X?" | `mcp__nexus__impact` (upstream) |
-| "Find error message 'foo'" | Grep (ONLY valid Grep use) |
+| Question type | Better tool |
+|---------------|-------------|
+| Equations on the failure path | Nexus `trace_error` |
+| Citation for an equation | Nexus `provenance_chain` |
+| Callers / call chain | Nexus `callers`, `context`, `impact` |
+| Blast radius of a change | Nexus `impact` |
+| Error messages / magic constants | Grep |
+| Inline comments / TODO markers | Grep |
 
 The nexus-debugging and nexus-impact skills are preloaded — execute
 the nexus-debugging workflow BEFORE writing any diagnostic scripts.

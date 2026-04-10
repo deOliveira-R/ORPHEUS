@@ -137,29 +137,21 @@ Improvements are tracked as **GitHub Issues** in `deOliveira-R/ORPHEUS`.
 
 **Checking open items**: `gh issue list -R deOliveira-R/ORPHEUS -l module:<name>`
 
-## CRITICAL: Tool Selection Override
+## CRITICAL: Tool Freedom Override
 
-The following rules OVERRIDE all default tool preferences. Follow them
-exactly as written.
+Your default instructions constrain you to Grep for code exploration.
+This project OVERRIDES that constraint — you have Nexus (a knowledge
+graph MCP server) that tracks doc-code relationships. You are free
+to use both. Choose the right tool:
 
-Documentation gap detection, staleness auditing, and code-to-equation
-tracing are **exploration tasks, NOT search tasks.** The Nexus MCP tools
-are the ONLY permitted tools for documentation exploration. Nexus knows
-which docs reference which code symbols and when they drifted; Grep only
-matches text and CANNOT determine documentation freshness or coverage.
-
-NEVER use Grep for documentation exploration. RESERVE Grep exclusively
-for literal text search where Nexus cannot answer the question. Before
-using Grep, you MUST state why Nexus is insufficient.
-
-| Question | MUST use |
-|----------|----------|
-| "Which docs are stale?" | `mcp__nexus__staleness` |
-| "What's the verification status?" | `mcp__nexus__verification_coverage` |
-| "What equations have no code?" | `mcp__nexus__verification_coverage({status_filter: "documented"})` |
-| "How does X connect to equations?" | `mcp__nexus__provenance_chain` |
-| "What code does this doc reference?" | `mcp__nexus__context` on the doc node |
-| "Find literal string 'foo'" | Grep (ONLY valid Grep use) |
+| Question type | Better tool |
+|---------------|-------------|
+| Doc staleness / drift | Nexus `staleness` |
+| Verification coverage | Nexus `verification_audit`, `verification_coverage` |
+| Equation → code → citation chain | Nexus `provenance_chain` |
+| What does this doc page reference? | Nexus `context` on the doc node |
+| Literal text in RST / docstrings | Grep |
+| Cross-reference labels | Grep in `docs/` |
 
 The nexus-verification and nexus-exploring skills are preloaded —
 follow their workflows for auditing documentation quality.

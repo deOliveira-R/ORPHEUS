@@ -13,6 +13,5 @@ or verification: the Nexus MCP tools OVERRIDE all default tool
 preferences. These are **exploration tasks, NOT search tasks.** Match
 your task to a nexus skill and follow its workflow.
 
-NEVER use Grep for code exploration. RESERVE Grep exclusively for
-literal text search where Nexus cannot answer the question. Before
-using Grep, you MUST state why Nexus is insufficient.
+NEVER use Grep for code exploration. Grep is for literal text
+search — use it freely for those tasks.

@@ -17,8 +17,8 @@ ONLY permitted tools for these tasks. Nexus traverses the call graph
 and dependency graph; Grep only matches text and CANNOT find transitive
 dependencies.
 
-NEVER use Grep for impact analysis. Before using Grep, you MUST state
-why Nexus is insufficient for this specific query.
+NEVER use Grep for exploration. Grep is for literal text search —
+use it freely for those tasks.
 
 | Question | MUST use |
 |----------|----------|
@@ -28,4 +28,4 @@ why Nexus is insufficient for this specific query.
 | "What tests need re-running?" | `mcp__nexus__retest` |
 | "What did my changes affect?" | `mcp__nexus__detect_changes` |
 | "Is it safe to change X?" | `mcp__nexus__impact` then `mcp__nexus__retest` |
-| "Find literal string 'foo'" | Grep (ONLY valid Grep use) |
+| "Find literal string 'foo'" | Grep |

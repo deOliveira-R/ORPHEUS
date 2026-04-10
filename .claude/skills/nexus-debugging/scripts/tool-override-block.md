@@ -17,8 +17,8 @@ ONLY permitted tools for tracing from failing tests to equations.
 Nexus follows the call graph to find which equations are on the
 failure path; Grep cannot trace call chains or find equation links.
 
-NEVER use Grep for debugging exploration. Before using Grep, you MUST
-state why Nexus is insufficient for this specific query.
+NEVER use Grep for exploration. Grep is for literal text search —
+use it freely for those tasks.
 
 | Question | MUST use |
 |----------|----------|
@@ -27,4 +27,4 @@ state why Nexus is insufficient for this specific query.
 | "What does this function call?" | `mcp__nexus__context` or `mcp__nexus__callees` |
 | "What calls this function?" | `mcp__nexus__callers` |
 | "Where does this value come from?" | `mcp__nexus__impact` (downstream) |
-| "Find error message 'foo'" | Grep (ONLY valid Grep use) |
+| "Find error message 'foo'" | Grep |
