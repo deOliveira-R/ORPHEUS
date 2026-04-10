@@ -6,7 +6,7 @@ description: "Use when the user is debugging a bug, tracing an error, or asking 
 # Debugging with Nexus
 
 IMPORTANT: This skill is the dedicated tool for bug tracing and
-equation diagnosis. It replaces Grep for all debugging exploration.
+equation diagnosis. Use Nexus for structural queries; use Grep freely for text search.
 
 ## The Key Insight
 

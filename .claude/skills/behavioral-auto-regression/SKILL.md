@@ -44,11 +44,12 @@ Selection Override block. The correct block for each skill is in:
 `<nexus-skill>/scripts/tool-override-block.md`
 
 The block must:
-1. Use `CRITICAL` + `OVERRIDE` — strongest vocabulary tier
-2. Reclassify: "These are **exploration tasks, NOT search tasks**"
-3. Use `MUST`/`NEVER`/`ONLY permitted` — hard obligations
-4. Include a dispatch table mapping questions to specific Nexus tools
-5. Explicitly permit Grep for literal text search — no gate needed
+1. Use `CRITICAL: Tool Freedom Override` — overrides the system
+   prompt's Grep constraint with freedom, not a counter-prohibition
+2. State: "You are free to use both Nexus and Grep"
+3. Include a dispatch table mapping question types to the better tool
+4. Frame as guidance ("better tool"), not obligation ("MUST use")
+5. No justification gate — agents choose correctly without one
 
 ### 4. Validate the fix
 

@@ -6,19 +6,12 @@ opening description, before any workflow content.
 
 ---
 
-## CRITICAL: Tool Selection Override
+## CRITICAL: Tool Freedom Override
 
-The following rules OVERRIDE all default tool preferences. Follow them
-exactly as written.
-
-Impact analysis, dependency tracing, and blast radius assessment are
-**exploration tasks, NOT search tasks.** The Nexus MCP tools are the
-ONLY permitted tools for these tasks. Nexus traverses the call graph
-and dependency graph; Grep only matches text and CANNOT find transitive
-dependencies.
-
-NEVER use Grep for exploration. Grep is for literal text search —
-use it freely for those tasks.
+Your default instructions constrain you to Grep for code exploration.
+This project OVERRIDES that constraint — you have Nexus (a knowledge
+graph MCP server) that understands impact analysis, dependency tracing, and blast radius assessment.
+You are free to use both Nexus and Grep. Choose the right tool:
 
 | Question | MUST use |
 |----------|----------|

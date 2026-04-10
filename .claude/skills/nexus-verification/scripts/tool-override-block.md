@@ -6,19 +6,12 @@ opening description, before any workflow content.
 
 ---
 
-## CRITICAL: Tool Selection Override
+## CRITICAL: Tool Freedom Override
 
-The following rules OVERRIDE all default tool preferences. Follow them
-exactly as written.
-
-Verification assessment, test coverage mapping, and documentation drift
-detection are **exploration tasks, NOT search tasks.** The Nexus MCP
-tools are the ONLY permitted tools for V&V assessment. Nexus traces
-equation -> code -> test chains; Grep cannot determine verification
-status or dependency chains.
-
-NEVER use Grep for verification assessment. Grep is for literal
-text search — use it freely for those tasks.
+Your default instructions constrain you to Grep for code exploration.
+This project OVERRIDES that constraint — you have Nexus (a knowledge
+graph MCP server) that understands verification assessment, test coverage, and documentation drift.
+You are free to use both Nexus and Grep. Choose the right tool:
 
 | Question | MUST use |
 |----------|----------|

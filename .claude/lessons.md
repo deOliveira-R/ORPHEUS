@@ -5,18 +5,17 @@ cut filler. Only record what changes future behavior.
 
 ---
 
-## L1: Nexus FIRST, Grep FALLBACK
+## L1: Nexus and Grep — complementary tools, free choice
 
-Two sessions now where grep was used as the primary exploration tool
-despite Nexus MCP being available. Grep finds text; Nexus finds
-relationships (callers, dependents, equations, theory connections).
-During the package restructuring, over-reliance on grep caused
-repeated missed inline imports that one `mcp__nexus__impact` query
-would have caught. Decision tree:
-- "Who calls/imports/depends on X?" → `mcp__nexus__impact`
-- "How does X connect to Y?" → `mcp__nexus__context`
-- "Find literal string 'foo'" → Grep (this is the only valid use)
-A PreToolUse hook fires on every Grep call as a hard reminder.
+This project has Nexus (knowledge graph MCP) for structural queries
+and Grep for text search. Use whichever fits the question:
+- "Who calls/imports/depends on X?" → Nexus `callers`, `impact`
+- "How does X connect to Y?" → Nexus `context`, `shortest_path`
+- "What equations does X implement?" → Nexus `provenance_chain`
+- "Find literal string 'foo'" → Grep
+- "Find all TODO comments" → Grep
+- "What tolerance is used?" → Grep
+Neither tool needs justification. Pick the one that answers faster.
 
 ## L2: 1-group tests prove nothing about transport
 

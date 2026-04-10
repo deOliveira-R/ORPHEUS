@@ -6,7 +6,7 @@ description: "Use when the user wants to check verification status, documentatio
 # Verification & Documentation Quality with Nexus
 
 IMPORTANT: This skill is the dedicated tool for V&V assessment and
-documentation drift detection. It replaces Grep for all coverage questions.
+documentation drift detection. Use Nexus for structural queries; use Grep freely for text search.
 
 ## Workflow
 

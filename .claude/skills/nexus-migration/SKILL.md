@@ -6,7 +6,7 @@ description: "Use when the user wants to plan a dependency migration, find all u
 # Dependency Migration with Nexus
 
 IMPORTANT: This skill is the dedicated tool for migration planning.
-It replaces Grep for dependency analysis and usage tracking.
+Use Nexus for structural queries; use Grep freely for text search.
 
 ## Workflow
 

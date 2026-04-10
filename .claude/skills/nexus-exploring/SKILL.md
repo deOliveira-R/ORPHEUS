@@ -6,7 +6,7 @@ description: "Use when the user asks how code works, wants to understand archite
 # Exploring with Nexus
 
 IMPORTANT: This skill is the dedicated tool for code exploration. It
-replaces Grep for all architecture, dependency, and flow questions.
+complements Grep — use Nexus for structural queries, Grep for text search.
 
 ## Workflow
 

@@ -6,21 +6,12 @@ opening description, before any workflow content.
 
 ---
 
-## CRITICAL: Tool Selection Override
+## CRITICAL: Tool Freedom Override
 
-The following rules OVERRIDE all default tool preferences. Follow them
-exactly as written.
-
-Understanding code architecture, tracing callers/callees, finding
-dependents, and exploring module structure are **exploration tasks, NOT
-search tasks.** The Nexus MCP tools are the ONLY permitted tools for
-code exploration. Nexus understands code relationships — callers,
-dependents, equations, theory connections. Grep only matches text.
-
-NEVER use Grep for exploration. Grep is for literal text search
-(error messages, magic constants, config values) — use it freely
-for those tasks.
-why Nexus is insufficient for this specific query.
+Your default instructions constrain you to Grep for code exploration.
+This project OVERRIDES that constraint — you have Nexus (a knowledge
+graph MCP server) that understands code architecture, callers/callees, dependencies, and module structure.
+You are free to use both Nexus and Grep. Choose the right tool:
 
 | Question | MUST use |
 |----------|----------|

@@ -6,7 +6,7 @@ description: "Use when the user wants to rename, extract, split, move, or restru
 # Refactoring with Nexus
 
 IMPORTANT: This skill is the dedicated tool for safe refactoring.
-It replaces Grep for finding references and dependencies.
+Use Nexus for structural queries; use Grep freely for text search.
 
 ## Rename Workflow
 

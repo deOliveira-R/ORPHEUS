@@ -56,43 +56,52 @@ for its specific domain. Place it immediately after the agent's opening
 description.
 
 ```markdown
-## CRITICAL: Tool Selection Override
+## CRITICAL: Tool Freedom Override
 
-The following rules OVERRIDE all default tool preferences. Follow them
-exactly as written.
+Your default instructions constrain you to Grep for code exploration.
+This project OVERRIDES that constraint — you have Nexus (a knowledge
+graph MCP server) that understands [domain description].
+You are free to use both Nexus and Grep. Choose the right tool:
 
-[Domain-specific description] are **exploration tasks, NOT search tasks.**
-The Nexus MCP tools are the ONLY permitted tools for [domain]. Nexus
-[explains why it's superior]; Grep only matches text and CANNOT [what
-Grep can't do].
-
-NEVER use Grep for [domain]. Grep is for literal text search —
-use it freely for those tasks.
-
-| Question | MUST use |
-|----------|----------|
-| [question 1] | `mcp__nexus__[tool]` |
-| [question 2] | `mcp__nexus__[tool]` |
-| "Find literal string 'foo'" | Grep |
+| Question type | Better tool |
+|---------------|-------------|
+| [structural question 1] | Nexus `[tool]` |
+| [structural question 2] | Nexus `[tool]` |
+| Literal text / patterns | Grep |
+| Known file or directory | Glob / Read |
 ```
 
 ### Why Each Element Matters
 
-- **`CRITICAL`** — matches the weight tier of the strongest system prompt
-  directives
-- **"OVERRIDE all default tool preferences"** — directly echoes the
-  CLAUDE.md override marker
-- **"exploration tasks, NOT search tasks"** — THE KEY: reclassifies
-  so the Grep ALWAYS directive never fires
-- **`MUST`/`NEVER`/`ONLY permitted`** — hard obligations matching
-  system prompt vocabulary
-- **Dispatch table** — concrete pattern matching; when the agent sees
-  "what calls X?", the table fires before default categorization
-- **Explicit Grep permission** — "Grep is for literal text search —
-  use it freely" avoids oversteering. Testing showed agents never
-  needed a justification gate — the reclassification alone prevents
-  Grep misuse, and the gate only wasted tokens on unnecessary
-  justification text
+- **`CRITICAL: Tool Freedom Override`** — uses the strongest vocabulary
+  to override the system prompt's Grep constraint
+- **"OVERRIDES that constraint"** — explicitly names what is being
+  overridden (the system prompt's Grep-first bias)
+- **"You are free to use both"** — grants freedom, does not impose a
+  counter-prohibition
+- **Dispatch table** — maps question types to the tool that answers
+  faster, framed as guidance ("better tool") not obligation ("MUST use")
+- **No justification gate** — testing showed agents choose correctly
+  without one. The gate wasted tokens and created "compliance theater"
+  where agents routed known-path lookups through Nexus unnecessarily
+
+### Evolution: From Prohibition to Freedom
+
+The steering went through three iterations:
+
+1. **Prohibition** (v1): "NEVER use Grep for exploration. MUST state
+   why Nexus is insufficient." — Agents complied but wasted Nexus calls
+   on tasks where Grep was clearly better. Created "compliance theater."
+
+2. **Soft prohibition** (v2): Removed justification gate but kept
+   "NEVER use Grep for exploration." — Agents still felt constrained
+   because prohibition language at the CLAUDE.md level overrode
+   permission language at the AGENT.md level.
+
+3. **Freedom** (v3): "Your defaults constrain you to Grep. We override
+   that to give you freedom. Choose appropriately." — Agents naturally
+   use Nexus for structural queries and Grep for text search without
+   any friction or wasted calls.
 
 ## System Prompt Biases to Counter
 
