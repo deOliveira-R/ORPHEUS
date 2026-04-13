@@ -95,6 +95,8 @@ def derive_1g() -> VerificationCase:
         latex=latex,
         description="1-group infinite medium: k = nu*Sig_f / Sig_a = 1.5",
         tolerance="< 1e-12",
+        vv_level="L1",
+        equation_labels=("one-group-kinf", "inf-hom-balance"),
     )
 
 
@@ -161,6 +163,19 @@ def derive_2g() -> VerificationCase:
         latex=latex,
         description="2-group infinite medium (fast + thermal, downscatter only)",
         tolerance="< 1e-12",
+        vv_level="L1",
+        equation_labels=(
+            "matrix-eigenvalue",
+            "removal-matrix",
+            "fission-matrix",
+            "mg-balance",
+            "two-group-A",
+            "two-group-F",
+            "two-group-Ainv",
+            "two-group-M",
+            "two-group-charpoly",
+            "two-group-roots",
+        ),
     )
 
 
@@ -221,6 +236,13 @@ def derive_4g() -> VerificationCase:
         latex=latex,
         description="4-group infinite medium (downscatter cascade)",
         tolerance="< 1e-12",
+        vv_level="L1",
+        equation_labels=(
+            "matrix-eigenvalue",
+            "removal-matrix",
+            "fission-matrix",
+            "mg-balance",
+        ),
     )
 
 

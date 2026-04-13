@@ -71,6 +71,11 @@ def derive_1rg(fuel_height: float = 50.0) -> VerificationCase:
         latex=latex,
         description=f"2-group diffusion bare slab (H={fuel_height} cm, vacuum BCs)",
         tolerance="O(h²)",
+        vv_level="L1",
+        # TODO: no labels yet — docs/theory/diffusion.rst does not exist
+        # (issue #35). Populate with bare-slab-buckling / two-group-diffusion
+        # labels once the theory page lands.
+        equation_labels=(),
     )
 
 
@@ -145,6 +150,11 @@ def derive_2rg(
             f"(H_f={H_f}, H_r={H_r} cm, vacuum BCs)"
         ),
         tolerance="O(h²)",
+        vv_level="L2",
+        # TODO: no labels yet — docs/theory/diffusion.rst does not exist
+        # (issue #35). Populate with fuel-reflector-matching / flux-continuity
+        # / current-continuity labels once the theory page lands.
+        equation_labels=(),
     )
 
 

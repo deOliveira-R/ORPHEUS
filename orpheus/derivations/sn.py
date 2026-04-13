@@ -57,6 +57,12 @@ def _derive_sn_homogeneous(ng_key: str) -> VerificationCase:
             rf"   k_\infty = {k_val:.10f}"
         )
 
+    labels: list[str] = ["transport-cartesian", "reflective-bc"]
+    if ng == 1:
+        labels.append("one-group-kinf")
+    else:
+        labels += ["matrix-eigenvalue", "mg-balance", "multigroup"]
+
     return VerificationCase(
         name=f"sn_slab_{ng}eg_1rg",
         k_inf=k_val,
@@ -69,6 +75,8 @@ def _derive_sn_homogeneous(ng_key: str) -> VerificationCase:
         latex=latex,
         description=f"SN 1D reflective slab, {ng}G homogeneous — from transport equation",
         tolerance="< 1e-8",
+        vv_level="L1",
+        equation_labels=tuple(labels),
     )
 
 
@@ -148,6 +156,15 @@ def _derive_sn_heterogeneous(ng_key: str, n_regions: int) -> VerificationCase:
         latex=latex,
         description=f"SN 1D slab, {ng}G {n_regions}-region — Richardson extrapolation",
         tolerance="O(h²)",
+        vv_level="L2",
+        equation_labels=(
+            "dd-cartesian-1d",
+            "dd-solve",
+            "dd-recurrence",
+            "transport-cartesian",
+            "multigroup",
+            "reflective-bc",
+        ),
     )
 
 

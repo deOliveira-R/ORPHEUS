@@ -57,6 +57,12 @@ def _derive_mc_homogeneous(ng_key: str) -> VerificationCase:
             rf"   k_\infty = {k_val:.10f}"
         )
 
+    labels: list[str] = ["free-flight", "decompose", "scattering-cdf", "keff-mean", "sigma-keff"]
+    if ng == 1:
+        labels += ["kinf-1g", "one-group-kinf"]
+    else:
+        labels += ["kinf-mg", "matrix-eigenvalue", "mg-balance", "chi-sampling"]
+
     return VerificationCase(
         name=f"mc_cyl1D_{ng}eg_1rg",
         k_inf=k_val,
@@ -69,6 +75,8 @@ def _derive_mc_homogeneous(ng_key: str) -> VerificationCase:
         latex=latex,
         description=f"MC pin cell, {ng}G homogeneous — from random walk probability",
         tolerance="z < 5\u03c3",
+        vv_level="L1",
+        equation_labels=tuple(labels),
     )
 
 
@@ -117,6 +125,18 @@ def _derive_mc_heterogeneous(ng_key: str, n_regions: int) -> VerificationCase:
         rf"   k_{{\rm ref}} = {k_ref:.10f}"
     )
 
+    labels: list[str] = [
+        "keff-mean",
+        "sigma-keff",
+        "free-flight",
+        "decompose",
+        "scattering-cdf",
+        "ws-pitch",
+        "periodic-bc",
+    ]
+    if ng >= 4:
+        labels.append("chi-sampling")
+
     return VerificationCase(
         name=f"mc_cyl1D_{ng}eg_{n_regions}rg",
         k_inf=k_ref,
@@ -129,6 +149,8 @@ def _derive_mc_heterogeneous(ng_key: str, n_regions: int) -> VerificationCase:
         latex=latex,
         description=f"MC cylindrical, {ng}G {n_regions}-region — ref from CP cylinder",
         tolerance="z < 5\u03c3",
+        vv_level="L1",
+        equation_labels=tuple(labels),
     )
 
 

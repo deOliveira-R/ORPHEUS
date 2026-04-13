@@ -55,6 +55,12 @@ def _derive_moc_homogeneous(ng_key: str) -> VerificationCase:
             rf"   k_\infty = {k_val:.10f}"
         )
 
+    labels: list[str] = ["characteristic-ode", "bar-psi", "isotropic-source"]
+    if ng == 1:
+        labels.append("one-group-kinf")
+    else:
+        labels += ["matrix-eigenvalue", "mg-balance"]
+
     return VerificationCase(
         name=f"moc_cyl1D_{ng}eg_1rg",
         k_inf=k_val,
@@ -67,6 +73,8 @@ def _derive_moc_homogeneous(ng_key: str) -> VerificationCase:
         latex=latex,
         description=f"MOC cylindrical pin cell, {ng}G homogeneous — from characteristic ODE",
         tolerance="< 1e-4",
+        vv_level="L1",
+        equation_labels=tuple(labels),
     )
 
 
@@ -145,6 +153,15 @@ def _derive_moc_heterogeneous(ng_key: str, n_regions: int) -> VerificationCase:
         latex=latex,
         description=f"MOC cylindrical, {ng}G {n_regions}-region — Richardson extrapolation",
         tolerance="< 1e-2",
+        vv_level="L2",
+        equation_labels=(
+            "moc-wigner-seitz",
+            "characteristic-ode",
+            "delta-psi",
+            "bar-psi",
+            "moc-keff-update",
+            "boyd-eq-45",
+        ),
     )
 
 

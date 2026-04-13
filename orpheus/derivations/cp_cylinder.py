@@ -206,6 +206,14 @@ def _build_case(ng_key: str, n_regions: int) -> VerificationCase:
         rf"   k_\infty = {k_inf:.10f}"
     )
 
+    labels: list[str] = ["collision-rate", "ki3-def", "chord-length", "self-cyl"]
+    if n_regions > 1:
+        labels += ["second-diff-cyl", "wigner-seitz"]
+    if ng == 1 and n_regions == 1:
+        labels.append("one-group-kinf")
+    if ng > 1:
+        labels += ["matrix-eigenvalue", "mg-balance"]
+
     return VerificationCase(
         name=name,
         k_inf=k_inf,
@@ -218,6 +226,8 @@ def _build_case(ng_key: str, n_regions: int) -> VerificationCase:
         latex=latex,
         description=f"{ng}G {n_regions}-region cylindrical CP (Ki₄ kernel, white BC)",
         tolerance="< 1e-5",
+        vv_level="L1",
+        equation_labels=tuple(labels),
     )
 
 

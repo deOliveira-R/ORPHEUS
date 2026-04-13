@@ -92,34 +92,61 @@ def _level_from_func_name(item: pytest.Item) -> str | None:
     return f"L{m.group(1)}" if m else None
 
 
-def _case_names_from_parametrize(item: pytest.Item) -> tuple[str, ...]:
-    """Extract VerificationCase.name values if the test parametrizes ``case``.
+def _resolve_case(item: pytest.Item) -> object | None:
+    """Return the VerificationCase a parametrized item consumes, or None.
 
-    Relies on pytest's ``callspec`` attribute populated for parametrized
-    items. Returns an empty tuple for non-parametrized tests.
+    Two supported shapes:
+
+    1. ``@pytest.mark.parametrize("case", [VerificationCase(...), ...])`` —
+       the parameter value is the case object itself. Used by
+       :func:`tests._harness.verify.vv_cases`.
+    2. ``@pytest.mark.parametrize("case_name", ["homo_1eg", ...])`` —
+       the parameter value is a string that keys into the reference
+       registry via :func:`orpheus.derivations.reference_values.get`.
+       Legacy shape used by most pre-harness tests.
+
+    Returns the resolved ``VerificationCase`` instance in both cases, or
+    None if the item doesn't parametrize over a case at all.
     """
     callspec = getattr(item, "callspec", None)
     if callspec is None:
+        return None
+    params = callspec.params
+    # Shape 1: case object directly.
+    case_obj = params.get("case")
+    if case_obj is not None and hasattr(case_obj, "vv_level"):
+        return case_obj
+    # Shape 2: case_name string → registry lookup.
+    case_name = params.get("case_name")
+    if isinstance(case_name, str):
+        try:
+            return get_reference(case_name)
+        except KeyError:
+            return None
+    return None
+
+
+def _case_names_from_parametrize(item: pytest.Item) -> tuple[str, ...]:
+    """Return a single-element tuple with the case name the item uses, or ()."""
+    case = _resolve_case(item)
+    if case is None:
         return ()
-    case_obj = callspec.params.get("case")
-    if case_obj is None:
-        return ()
-    name = getattr(case_obj, "name", None)
-    if isinstance(name, str):
-        return (name,)
-    return ()
+    name = getattr(case, "name", None)
+    return (name,) if isinstance(name, str) else ()
 
 
 def _level_from_case(item: pytest.Item) -> tuple[str | None, tuple[str, ...]]:
-    """Return (level, equation_labels) inherited from a parametrized VerificationCase."""
-    callspec = getattr(item, "callspec", None)
-    if callspec is None:
+    """Return (level, equation_labels) inherited from the item's VerificationCase.
+
+    Walks both the ``case`` (object) and ``case_name`` (string → registry)
+    parametrize shapes. Returns ``(None, ())`` for tests not parametrized
+    over a case or for cases without an assigned ``vv_level``.
+    """
+    case = _resolve_case(item)
+    if case is None:
         return None, ()
-    case_obj = callspec.params.get("case")
-    if case_obj is None:
-        return None, ()
-    level = getattr(case_obj, "vv_level", None)
-    labels = tuple(getattr(case_obj, "equation_labels", ()) or ())
+    level = getattr(case, "vv_level", None)
+    labels = tuple(getattr(case, "equation_labels", ()) or ())
     return level, labels
 
 
