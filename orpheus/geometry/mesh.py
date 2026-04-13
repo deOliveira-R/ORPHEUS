@@ -40,11 +40,23 @@ class Mesh1D:
         Integer material ID for each cell.
     coord : CoordSystem
         Coordinate system (default: Cartesian).
+    precomputed_volumes : ndarray or None, shape (N,)
+        Optional override for cell volumes. When provided, the
+        :attr:`volumes` property returns this array verbatim instead
+        of recomputing it from ``edges``. This is the escape hatch for
+        equal-volume subdivisions (cylindrical / spherical) where
+        recomputation from edges loses ~1 ULP per cell through the
+        ``sqrt→**2`` or ``cbrt→**3`` round trip and breaks invariants
+        like "every cell in a zone has identical volume." Set by
+        :func:`~orpheus.geometry.factories.mesh1d_from_zones` and
+        friends; None for manually-constructed meshes with arbitrary
+        edges, which still derive volumes from edges as before.
     """
 
     edges: np.ndarray
     mat_ids: np.ndarray
     coord: CoordSystem = CoordSystem.CARTESIAN
+    precomputed_volumes: np.ndarray | None = None
 
     def __post_init__(self) -> None:
         edges = np.asarray(self.edges, dtype=float)
@@ -62,9 +74,21 @@ class Mesh1D:
         if not np.all(np.diff(edges) > 0):
             raise ValueError("edges must be strictly monotonically increasing")
 
+        precomputed = self.precomputed_volumes
+        if precomputed is not None:
+            precomputed = np.asarray(precomputed, dtype=float)
+            if precomputed.shape != (len(edges) - 1,):
+                raise ValueError(
+                    f"precomputed_volumes shape {precomputed.shape} must be "
+                    f"({len(edges) - 1},)"
+                )
+            if not np.all(precomputed > 0):
+                raise ValueError("precomputed_volumes must be strictly positive")
+
         # Store validated arrays (frozen bypass via object.__setattr__)
         object.__setattr__(self, "edges", edges)
         object.__setattr__(self, "mat_ids", mat_ids)
+        object.__setattr__(self, "precomputed_volumes", precomputed)
 
     # ── Derived properties ────────────────────────────────────────────
 
@@ -85,7 +109,19 @@ class Mesh1D:
 
     @property
     def volumes(self) -> np.ndarray:
-        """Cell volumes, shape (N,).  Formula depends on *coord*."""
+        """Cell volumes, shape (N,).
+
+        When ``precomputed_volumes`` was supplied at construction (the
+        normal path via :func:`~orpheus.geometry.factories.mesh1d_from_zones`),
+        those exact values are returned. Otherwise volumes are derived
+        from edges via :func:`~orpheus.geometry.coord.compute_volumes_1d`
+        — which is correct to ~1 ULP per cell but can break
+        "all cells in an equal-volume zone are bit-identical"
+        assertions for the cylindrical/spherical cases where the
+        ``sqrt→**2`` / ``cbrt→**3`` edge round trip loses precision.
+        """
+        if self.precomputed_volumes is not None:
+            return self.precomputed_volumes
         return compute_volumes_1d(self.coord, self.edges)
 
     @property

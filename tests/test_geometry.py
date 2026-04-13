@@ -143,18 +143,34 @@ class TestVolumes2D:
 class TestZoneSubdivision:
     """Verify that zone subdivision produces equal-volume cells."""
 
+    @pytest.mark.l0
+    @pytest.mark.catches("ERR-020")
     @pytest.mark.parametrize("coord", list(CoordSystem))
     def test_equal_volume_single_zone(self, coord):
-        """All sub-cells within a zone must have equal volume."""
+        """All sub-cells within a zone must have equal volume (bit-identical).
+
+        Guards ERR-020: the ``cbrt(x)**3 != x`` round trip in
+        ``compute_volumes_1d`` drifted each cell volume by ~1 ULP in the
+        spherical (and to a lesser extent cylindrical) case, breaking
+        the structural equal-volume invariant. Fix: compute ``V_cell``
+        from the algebraic invariant at subdivision time and broadcast.
+        """
         n = 20
         zones = [Zone(outer_edge=2.0, mat_id=0, n_cells=n)]
         mesh = mesh1d_from_zones(zones, coord=coord)
         vols = mesh.volumes
         np.testing.assert_allclose(vols, vols[0], rtol=1e-14)
 
+    @pytest.mark.l0
+    @pytest.mark.catches("ERR-020")
     @pytest.mark.parametrize("coord", list(CoordSystem))
     def test_equal_volume_multi_zone(self, coord):
-        """Equal-volume within each zone, but zones may differ."""
+        """Equal-volume within each zone, but zones may differ.
+
+        Same invariant as :meth:`test_equal_volume_single_zone` but
+        across multiple zones. Catches the same ERR-020 round-trip bug
+        at zone boundaries as well as within a single zone.
+        """
         zones = [
             Zone(outer_edge=1.0, mat_id=0, n_cells=10),
             Zone(outer_edge=3.0, mat_id=1, n_cells=15),

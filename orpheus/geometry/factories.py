@@ -52,25 +52,43 @@ def _subdivide_zone(
     outer: float,
     n: int,
     coord: CoordSystem,
-) -> np.ndarray:
-    """Return *n + 1* edge positions within a zone (inner to outer).
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return *n + 1* edge positions AND *n* exact cell volumes for a zone.
 
-    Subdivision guarantees equal-volume cells in each coordinate system:
+    Subdivision guarantees equal-volume cells in each coordinate
+    system — and this function returns volumes computed **directly
+    from the algebraic invariant**, not re-derived from the edges
+    after the fact. Deriving from edges via
+    :func:`~orpheus.geometry.coord.compute_volumes_1d` loses ~1 ULP
+    per cell because ``cbrt(x)**3 != x`` exactly (and likewise
+    ``sqrt(x)**2``), which breaks the "equal-volume zone" property
+    at ``rtol=1e-14``.
 
-    * Cartesian:   ``x_k = inner + k/n * (outer - inner)``
-    * Cylindrical: ``r_k = sqrt(inner^2 + k/n * (outer^2 - inner^2))``
-    * Spherical:   ``r_k = cbrt(inner^3 + k/n * (outer^3 - inner^3))``
+    * Cartesian:   ``x_k = inner + k/n * (outer - inner)``,
+      ``V_cell = (outer - inner) / n``.
+    * Cylindrical: ``r_k = sqrt(inner^2 + k/n * (outer^2 - inner^2))``,
+      ``V_cell = π (outer^2 - inner^2) / n``.
+    * Spherical:   ``r_k = cbrt(inner^3 + k/n * (outer^3 - inner^3))``,
+      ``V_cell = (4/3) π (outer^3 - inner^3) / n``.
+
+    Each cell gets the same ``V_cell`` (a scalar broadcast), so every
+    cell in the zone is **bit-identical** by construction.
     """
     fracs = np.linspace(0.0, 1.0, n + 1)
     match coord:
         case CoordSystem.CARTESIAN:
-            return inner + fracs * (outer - inner)
+            edges = inner + fracs * (outer - inner)
+            v_cell = (outer - inner) / n
         case CoordSystem.CYLINDRICAL:
-            return np.sqrt(inner**2 + fracs * (outer**2 - inner**2))
+            edges = np.sqrt(inner**2 + fracs * (outer**2 - inner**2))
+            v_cell = np.pi * (outer**2 - inner**2) / n
         case CoordSystem.SPHERICAL:
-            return np.cbrt(inner**3 + fracs * (outer**3 - inner**3))
+            edges = np.cbrt(inner**3 + fracs * (outer**3 - inner**3))
+            v_cell = (4.0 / 3.0) * np.pi * (outer**3 - inner**3) / n
         case _:
             raise ValueError(f"Unknown coordinate system: {coord}")
+    volumes = np.full(n, v_cell, dtype=float)
+    return edges, volumes
 
 
 def mesh1d_from_zones(
@@ -100,19 +118,29 @@ def mesh1d_from_zones(
 
     edges_list: list[np.ndarray] = []
     mat_ids_list: list[np.ndarray] = []
+    volumes_list: list[np.ndarray] = []
     inner = origin
 
     for zone in zones:
-        sub_edges = _subdivide_zone(inner, zone.outer_edge, zone.n_cells, coord)
+        sub_edges, sub_volumes = _subdivide_zone(
+            inner, zone.outer_edge, zone.n_cells, coord
+        )
         # Append sub-edges, skipping the first (== previous outer)
         edges_list.append(sub_edges[1:])
         mat_ids_list.append(np.full(zone.n_cells, zone.mat_id, dtype=int))
+        volumes_list.append(sub_volumes)
         inner = zone.outer_edge
 
     edges = np.concatenate([[origin], *edges_list])
     mat_ids = np.concatenate(mat_ids_list)
+    volumes = np.concatenate(volumes_list)
 
-    return Mesh1D(edges=edges, mat_ids=mat_ids, coord=coord)
+    return Mesh1D(
+        edges=edges,
+        mat_ids=mat_ids,
+        coord=coord,
+        precomputed_volumes=volumes,
+    )
 
 
 # ── PWR convenience factories ────────────────────────────────────────

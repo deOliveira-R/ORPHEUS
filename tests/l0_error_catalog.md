@@ -690,6 +690,77 @@ homogeneous case.
 
 ---
 
+## ERR-020 — ULP-noisy cell volumes from `cbrt → **3` round trip
+
+**Failure mode:** #3 Missing factor — numerical round-trip through a
+non-bijective float64 operation destroys a structural invariant.
+**Date:** 2026-04-13
+**Solver:** `orpheus.geometry` (all consumers via `Mesh1D.volumes`)
+
+**Bug:** `_subdivide_zone` constructed equal-volume spherical edges via
+`r_k = cbrt(inner^3 + k/n * (outer^3 - inner^3))`, and `compute_volumes_1d`
+then re-derived cell volumes as `(4/3) π · diff(edges**3)`. Because
+`cbrt(x) ** 3 != x` at the ULP level in float64, the reconstructed
+`edges**3` values drifted ~1 ULP per cell, so cells in a zone that were
+*supposed* to have identical volume by construction drifted by up to
+~2.2e-14 relative error. The cylindrical path (`sqrt → **2`) had the
+same bug but at ~6.7e-15 — just under the common `rtol=1e-14` threshold,
+which is why only the spherical case failed visibly.
+
+The specific failing tests:
+
+    tests/test_geometry.py::TestZoneSubdivision::test_equal_volume_single_zone[SPHERICAL]
+    tests/test_geometry.py::TestZoneSubdivision::test_equal_volume_multi_zone[SPHERICAL]
+
+reported volumes of `7.260569688296488` vs reference `7.260569688296414`
+— a relative difference of `1.03e-14` against an `rtol=1e-14` assertion.
+
+**Impact:** None observed in solver eigenvalues (the relative drift is
+well below every physics tolerance in the repo), but the assertion
+`"all cells in an equal-volume zone are bit-identical"` was broken,
+masking an invariant a future bug could violate more seriously without
+detection. Fixing it also tightens the cylindrical path from ~7e-15 to
+bit-exact, eliminating a hidden source of noise in CP/SN/MOC
+quadrature-weighted integrals over spherical/cylindrical meshes.
+
+**How it hid:** Every downstream consumer tolerates ULP-level volume
+drift (physics tolerances are ≥1e-10 for eigenvalues, ≥1e-8 for flux
+shapes). The only test that asserted bit-exactness was the geometry
+invariant test itself, and it was introduced late enough that the
+spherical path had never been pushed to `rtol=1e-14`. The cylindrical
+path accidentally passed.
+
+**Fix:** Compute cell volumes **from the algebraic invariant** at
+subdivision time, not from the edges after the fact. `_subdivide_zone`
+now returns `(edges, volumes)`; for each coordinate system:
+
+* Cartesian:   `V_cell = (outer - inner) / n`
+* Cylindrical: `V_cell = π · (outer² - inner²) / n`
+* Spherical:   `V_cell = (4/3) π · (outer³ - inner³) / n`
+
+One scalar per zone, broadcast to every cell — no round trip through
+`sqrt`/`cbrt`, so every cell in an equal-volume zone is bit-identical
+by construction. `Mesh1D` gained an optional
+`precomputed_volumes` field that overrides the edge-derived default;
+`mesh1d_from_zones` populates it. Manually-constructed meshes with
+arbitrary edges continue to fall back to `compute_volumes_1d` from
+edges.
+
+**L0 test that catches it:**
+`tests/test_geometry.py::TestZoneSubdivision::test_equal_volume_{single,multi}_zone`
+for every `CoordSystem` — enforces bit-equal volumes at `rtol=1e-14`.
+
+**Lesson:** Non-bijective float operations (`sqrt`, `cbrt`, `exp`,
+`log`) do not survive a round trip, and invariants that *should* hold
+algebraically are not free — they must be preserved by design. When
+an invariant of the form "X_i == X_j for all i, j" exists, compute X
+once and broadcast, don't compute it N times and hope for the best.
+Fishbone: whenever you see `op(op_inverse(x))` in the code, ask
+whether the inverse is bit-exact, and if not, refactor to avoid the
+round trip.
+
+---
+
 ## Meta-Lessons
 
 1. **1-group is degenerate.** k = νΣ_f/Σ_a regardless of flux shape.
