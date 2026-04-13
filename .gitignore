@@ -14,3 +14,10 @@ orpheus.egg-info/
 # Claude Code
 .claude/settings.local.json
 student_resources/*_results/
+
+# OS cruft
+.DS_Store
+**/.DS_Store
+
+# System-dependent container config
+.devcontainer/
