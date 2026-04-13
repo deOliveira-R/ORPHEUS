@@ -18,6 +18,8 @@ from orpheus.geometry import CoordSystem, Mesh1D, Zone, mesh1d_from_zones
 from orpheus.cp.solver import CPMesh
 from orpheus.derivations._xs_library import get_xs
 
+pytestmark = pytest.mark.l0  # CP matrix algebraic invariants (row sums, reciprocity, ...)
+
 
 # ── Fixtures ──────────────────────────────────────────────────────────
 

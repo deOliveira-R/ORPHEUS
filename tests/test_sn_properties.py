@@ -15,6 +15,8 @@ from orpheus.geometry import homogeneous_1d, slab_fuel_moderator
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.solver import solve_sn
 
+pytestmark = pytest.mark.l0  # SN property checks (quadrature weights, symmetry, balance)
+
 
 def test_gl_weights_sum():
     """Gauss-Legendre weights on [-1,1] must sum to 2."""

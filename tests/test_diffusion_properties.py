@@ -11,6 +11,8 @@ import pytest
 
 from orpheus.diffusion.solver import CoreGeometry, TwoGroupXS, solve_diffusion_1d
 
+pytestmark = pytest.mark.l0  # Diffusion property checks (BC, continuity, balance)
+
 
 def _default_xs():
     """Return the default fuel XS for testing."""

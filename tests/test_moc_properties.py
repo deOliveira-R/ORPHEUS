@@ -7,6 +7,8 @@ from orpheus.geometry import CoordSystem, Mesh1D
 from orpheus.derivations import get
 from orpheus.moc.solver import solve_moc
 
+pytestmark = pytest.mark.l0  # MOC property invariants (positivity, balance, symmetry)
+
 
 def _homogeneous_result():
     """Run a 1G homogeneous MOC calculation for property tests."""

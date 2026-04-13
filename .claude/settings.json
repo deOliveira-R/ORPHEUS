@@ -91,7 +91,8 @@
       "Bash(python -c ':*)",
       "Bash(pytest tests/test_homogeneous.py tests/test_cp_slab.py tests/test_cp_cylinder.py tests/test_cp_sphere.py tests/test_diffusion.py -q)",
       "Bash(pip install:*)",
-      "Bash(pip show:*)"
+      "Bash(pip show:*)",
+      "Bash(pytest tests/test_cp_properties.py tests/test_cp_diagnostics.py tests/test_moc_properties.py tests/test_moc_quadrature.py tests/test_mc_properties.py tests/test_sn_properties.py tests/test_diffusion_properties.py -q)"
     ],
     "deny": [
       "Bash(conda:*)",

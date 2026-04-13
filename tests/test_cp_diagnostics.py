@@ -7,6 +7,11 @@ from orpheus.derivations import get
 from orpheus.geometry import CoordSystem, Mesh1D
 from orpheus.cp.solver import solve_cp, CPParams
 
+# Diagnostic *term* tests (residuals, inner-iter counts) are L0.
+# NOT file-level — the parametrized eigenvalue tests below inherit L1
+# from their VerificationCase via the conftest hook, and a file-level
+# l0 mark would incorrectly override that inheritance.
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Helpers
@@ -41,6 +46,7 @@ def _tolerance_for(case):
 # Phase 2: Jacobi diagnostics
 # ═══════════════════════════════════════════════════════════════════════
 
+@pytest.mark.l0
 class TestJacobiDiagnostics:
     """Verify residual_history is populated and n_inner is None in Jacobi mode."""
 
@@ -75,6 +81,7 @@ class TestJacobiDiagnostics:
 # Phase 3a: Gauss-Seidel single-case diagnostics
 # ═══════════════════════════════════════════════════════════════════════
 
+@pytest.mark.l0
 class TestGaussSeidelDiagnostics:
     """Verify GS mode produces correct keff and diagnostics."""
 

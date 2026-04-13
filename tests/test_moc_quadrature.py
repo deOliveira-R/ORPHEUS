@@ -5,6 +5,8 @@ import pytest
 
 from orpheus.moc.quadrature import MOCQuadrature
 
+pytestmark = pytest.mark.l0  # MOC TY polar quadrature weights and azimuthal spacing
+
 
 # ── TY polar weight sums ────────────────────────────────────────────
 

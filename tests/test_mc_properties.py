@@ -27,6 +27,8 @@ from orpheus.geometry.factories import (
 from orpheus.derivations import get
 from orpheus.derivations._xs_library import get_xs, get_mixture
 
+pytestmark = pytest.mark.l0  # MC algorithmic term checks (L0-MC-NNN in docstrings)
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Existing geometry tests
