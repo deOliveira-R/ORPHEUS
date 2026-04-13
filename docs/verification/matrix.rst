@@ -31,11 +31,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 318
+   explicit, 358
    verify, 0
    class-name, 46
    func-name, 0
-   case, 82
+   case, 42
    unmarked, 55
 
 Module × level grid
@@ -148,17 +148,11 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``removal-matrix``, 3
    ``dd-cartesian-2d``, 2
    ``transport-cartesian-2d``, 2
-   ``two-group-A``, 1
-   ``two-group-Ainv``, 1
-   ``two-group-F``, 1
-   ``two-group-M``, 1
-   ``two-group-charpoly``, 1
-   ``two-group-roots``, 1
 
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``. **66** of the equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``. **72** of the equations found on theory pages are orphan.
 
 - ``absorption-xs``
 - ``attenuation``
@@ -225,6 +219,12 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``. **66** of
 - ``tau-m``
 - ``tau-p``
 - ``transport-equation``
+- ``two-group-A``
+- ``two-group-Ainv``
+- ``two-group-F``
+- ``two-group-M``
+- ``two-group-charpoly``
+- ``two-group-roots``
 - ``xs-interp``
 
 L0 error-catalog coverage

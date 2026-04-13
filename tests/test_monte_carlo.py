@@ -13,7 +13,7 @@ import pytest
 from orpheus.derivations import get
 from orpheus.mc.solver import MCParams, ConcentricPinCell, SlabPinCell, solve_monte_carlo
 
-pytestmark = pytest.mark.verifies(
+pytestmark = [pytest.mark.l1, pytest.mark.verifies(
     "free-flight",
     "decompose",
     "scattering-cdf",
@@ -27,7 +27,7 @@ pytestmark = pytest.mark.verifies(
     "one-group-kinf",
     "matrix-eigenvalue",
     "mg-balance",
-)
+)]
 
 
 # ═══════════════════════════════════════════════════════════════════════

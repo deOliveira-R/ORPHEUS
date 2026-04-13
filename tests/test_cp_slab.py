@@ -9,7 +9,7 @@ from orpheus.cp.solver import CPParams, solve_cp
 
 # Every test in this file exercises the slab CP pipeline end-to-end
 # against an analytical CPmatrix eigenvalue (see PR-2 derivations).
-pytestmark = pytest.mark.verifies(
+pytestmark = [pytest.mark.l1, pytest.mark.verifies(
     "collision-rate",
     "e3-def",
     "self-slab",
@@ -20,7 +20,7 @@ pytestmark = pytest.mark.verifies(
     "one-group-kinf",
     "matrix-eigenvalue",
     "mg-balance",
-)
+)]
 
 
 @pytest.mark.parametrize("case_name", [

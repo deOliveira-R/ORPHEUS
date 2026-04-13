@@ -48,7 +48,7 @@ class MCParams:
 
 
 @dataclass
-class MCResult:
+class StudentMCResult:
     """Results of a Monte Carlo calculation."""
 
     keff: float               # estimated k-effective
@@ -92,7 +92,7 @@ def _find_material(
 def solve_monte_carlo(
     materials: dict[int, Mixture],
     params: MCParams | None = None,
-) -> MCResult:
+) -> StudentMCResult:
     """Run Monte Carlo neutron transport simulation.
 
     Parameters
@@ -301,7 +301,7 @@ def solve_monte_carlo(
 
     print(f"  Elapsed: {elapsed:.1f}s")
 
-    return MCResult(
+    return StudentMCResult(
         keff=keff_history[-1],
         sigma=sigma_history[-1],
         keff_history=keff_history,
@@ -317,7 +317,7 @@ def solve_monte_carlo(
 # ===========================================================================
 
 def plot_mc_keff(
-    result: MCResult,
+    result: StudentMCResult,
     output_dir: Path | str = ".",
 ) -> None:
     """Plot keff convergence with uncertainty bands."""
@@ -340,7 +340,7 @@ def plot_mc_keff(
 
 
 def plot_mc_spectrum(
-    result: MCResult,
+    result: StudentMCResult,
     output_dir: Path | str = ".",
 ) -> None:
     """Plot cell-averaged neutron flux per unit lethargy."""

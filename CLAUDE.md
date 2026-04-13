@@ -76,6 +76,42 @@ At session end: verify no orphan TODOs exist outside GitHub Issues.
 
 ---
 
+## V&V Test Harness
+
+The `tests/_harness/` package carries the project's verification
+metadata. Architecture doc: `docs/testing/architecture.rst`.
+
+**Tagging a test** (pick one — all feed the same registry):
+
+- Explicit: `@pytest.mark.l0` / `l1` / `l2` / `l3` (most specific)
+- Class: `class TestL0Foo:` (legacy naming convention, still honored)
+- File-level: `pytestmark = [pytest.mark.l1, pytest.mark.verifies("label")]`
+- Inherited: tests that parametrize over `case_name=` inherit `vv_level`
+  and `equation_labels` from the matching `VerificationCase`
+
+Precedence: explicit > class decorator > class name > case inheritance.
+
+**Linking to a Sphinx equation**: `@pytest.mark.verifies("label")` where
+`label` matches a `.. math:: :label: label` block in `docs/theory/`.
+Nexus parses the decorator and writes a `tests` edge from test node to
+equation node.
+
+**Linking to a caught error**: `@pytest.mark.catches("ERR-NNN")` for
+every entry logged in `tests/l0_error_catalog.md` (Cardinal Rule 3).
+
+**Trivial execution**:
+
+- `pytest -m l0` — all term-verification tests
+- `pytest -m "l1 and not slow"` — skip long convergence runs
+- `pytest -m "verifies('matrix-eigenvalue')"` — every test for one equation
+
+**Trivial audit**: `python -m tests._harness.audit` prints the V&V
+matrix (level × module × equation), orphan equations, and ERR-NNN
+coverage. Sphinx auto-regenerates `docs/verification/matrix.rst` from
+the same registry on every build.
+
+---
+
 ## Knowledge Architecture
 
 ### Nexus Knowledge Graph

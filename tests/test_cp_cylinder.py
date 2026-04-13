@@ -7,7 +7,7 @@ from orpheus.derivations import get
 from orpheus.geometry import CoordSystem, Mesh1D
 from orpheus.cp.solver import solve_cp
 
-pytestmark = pytest.mark.verifies(
+pytestmark = [pytest.mark.l1, pytest.mark.verifies(
     "collision-rate",
     "ki3-def",
     "chord-length",
@@ -17,7 +17,7 @@ pytestmark = pytest.mark.verifies(
     "one-group-kinf",
     "matrix-eigenvalue",
     "mg-balance",
-)
+)]
 
 
 @pytest.mark.parametrize("case_name", [

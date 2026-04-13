@@ -10,14 +10,14 @@ from orpheus.homogeneous.solver import solve_homogeneous_infinite
 # matrix-eigenvalue / mg-balance for 2G / 4G. Declared explicitly here
 # (rather than inherited from VerificationCase) so the Nexus AST pass
 # picks it up via decorator parsing and writes TESTS edges.
-pytestmark = pytest.mark.verifies(
+pytestmark = [pytest.mark.l1, pytest.mark.verifies(
     "one-group-kinf",
     "inf-hom-balance",
     "matrix-eigenvalue",
     "removal-matrix",
     "fission-matrix",
     "mg-balance",
-)
+)]
 
 
 @pytest.mark.parametrize("case_name", [

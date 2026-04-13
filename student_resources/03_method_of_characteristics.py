@@ -83,7 +83,7 @@ class MoCGeometry:
 
 
 @dataclass
-class MoCResult:
+class StudentMoCResult:
     """Results of a Method of Characteristics calculation."""
 
     keff: float
@@ -186,7 +186,7 @@ def solve_moc(
     materials: dict[int, Mixture],
     geom: MoCGeometry | None = None,
     max_outer: int = 200,
-) -> MoCResult:
+) -> StudentMoCResult:
     """Run the 2D Method of Characteristics transport calculation.
 
     Parameters
@@ -425,7 +425,7 @@ def solve_moc(
     elapsed = time.perf_counter() - t_start
     print(f"  Elapsed: {elapsed:.1f}s")
 
-    return MoCResult(
+    return StudentMoCResult(
         keff=keff_history[-1],
         keff_history=keff_history,
         flux_fuel=flux_fuel,
@@ -536,7 +536,7 @@ def plot_moc_mesh(
 
 
 def plot_moc_convergence(
-    result: MoCResult,
+    result: StudentMoCResult,
     output_dir: Path | str = ".",
 ) -> None:
     """Plot keff convergence for MoC."""
@@ -554,7 +554,7 @@ def plot_moc_convergence(
 
 
 def plot_moc_spectra(
-    result: MoCResult,
+    result: StudentMoCResult,
     output_dir: Path | str = ".",
 ) -> None:
     """Plot neutron spectra per unit lethargy in fuel, cladding, coolant."""
@@ -579,7 +579,7 @@ def plot_moc_spectra(
 
 
 def plot_moc_spatial_flux(
-    result: MoCResult,
+    result: StudentMoCResult,
     output_dir: Path | str = ".",
 ) -> None:
     """Plot thermal/resonance/fast flux along cell centerline and 2D."""
