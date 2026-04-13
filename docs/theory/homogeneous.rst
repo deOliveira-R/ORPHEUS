@@ -292,6 +292,12 @@ group 1), and the eigenvalue problem gives immediately:
 
    \kinf = \frac{\nu \Sigf{}}{\Siga{}}
 
+.. verifies:: one-group-kinf
+   :by: orpheus.derivations.homogeneous.derive_1g
+
+   Verified analytically (exact closed-form ratio) against the
+   ``homo_1eg`` :class:`~orpheus.derivations._types.VerificationCase`.
+
 This is the most fundamental result in reactor physics.  It states that
 :math:`\kinf` is the ratio of neutron production to neutron absorption,
 which is the definition of the infinite multiplication factor [Stacey2007]_.
