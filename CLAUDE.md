@@ -175,6 +175,18 @@ context before committing. Sub-agents lack conversation history.
 - **Fix root causes**: trace bugs to root cause, not symptoms
 - **Code style**: Pythonic (dataclasses, type hints, scipy). No 1:1 MATLAB copy. Never transcribe values manually.
 
+## Git Workflow
+
+See `docs/development.rst` for the full workflow. Quick version:
+
+- **`main` is always green** — never commit directly. Always branch.
+- **Branch naming**: `<type>/<topic>` where type ∈ `feature|fix|docs|refactor|test|chore`
+- **Commit convention**: Conventional Commits — `<type>(<scope>): <summary>`
+  (e.g., `feat(cp): add interface current method`, `fix(moc): restore tau factor`)
+- **Merge strategy**: `git merge --ff-only` to preserve linear history. Never squash-merge.
+- **Delete branches** locally and remotely after merge.
+- **Close issues** via `Closes #NN` trailer in the commit body.
+
 ---
 
 ## CRITICAL: Tool Freedom Override
