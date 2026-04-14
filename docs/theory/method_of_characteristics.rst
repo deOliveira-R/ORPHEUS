@@ -188,6 +188,8 @@ isotropic scattering:
    + \Sigt{g}(\mathbf{r}) \, \psi_g(\mathbf{r}, \hat{\Omega})
    = Q_g(\mathbf{r})
 
+.. vv-status: transport-equation documented
+
 where :math:`Q_g` is the isotropic source (fission + scattering + (n,2n)),
 independent of :math:`\hat{\Omega}`.
 
@@ -328,6 +330,8 @@ angular integration involves the Bickley function:
    :label: bickley-integral
 
    \text{Ki}_3(\tau) = \int_0^{\pi/2} e^{-\tau/\sin\theta} \sin\theta \, d\theta
+
+.. vv-status: bickley-integral documented
 
 Yamamoto et al. [Yamamoto2007]_ derived optimal polar angles and
 weights that minimise the maximum approximation error of the

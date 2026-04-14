@@ -14,7 +14,20 @@ from orpheus.moc.geometry import (
 )
 from orpheus.moc.quadrature import MOCQuadrature
 
-pytestmark = pytest.mark.l0  # MOC ray-tracing geometry primitives (MOCMesh, Track, ...)
+# MOC ray-tracing geometry primitives (MOCMesh, Track, ...).
+# Labels added in Phase B.3 (issue #87):
+# * ray-circle — directly tested by test_ray_circle_{hit,miss,tangent,
+#   chord_length} (4 dedicated L0 tests for the quadratic formula)
+# * effective-spacing — exercised by test_volume_conservation which
+#   calls MOCMesh.effective_spacing(a_idx) and asserts that
+#   length * ts * omega_a sums to the geometric region area
+# * pitch-recovery — directly tested by test_moc_mesh_pitch_recovery
+#   (asserts pitch = r_cell * sqrt(pi) on factory output)
+pytestmark = [pytest.mark.l0, pytest.mark.verifies(
+    "ray-circle",
+    "effective-spacing",
+    "pitch-recovery",
+)]
 
 
 # ── Helpers ──────────────────────────────────────────────────────────

@@ -5,7 +5,10 @@ import pytest
 
 from orpheus.moc.quadrature import MOCQuadrature
 
-pytestmark = pytest.mark.l0  # MOC TY polar quadrature weights and azimuthal spacing
+# MOC TY polar quadrature weights and azimuthal spacing.
+# test_azimuthal_angles_{in_range,uniform_spacing} directly verify
+# Eq. :label:`azimuthal-angles` (issue #87 Phase B.3).
+pytestmark = [pytest.mark.l0, pytest.mark.verifies("azimuthal-angles")]
 
 
 # ── TY polar weight sums ────────────────────────────────────────────

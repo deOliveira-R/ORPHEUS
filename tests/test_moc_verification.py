@@ -39,6 +39,19 @@ from orpheus.moc.core import MOCSolver
 from orpheus.moc.solver import solve_moc
 
 
+# B.3 additions (issue #87): labels directly exercised by the L0
+# single-track tests (attenuation, optical-thickness) and by every
+# MOC solve through the angular integral in the flux update
+# (scalar-flux-integral). This is a mixed L0/L1/L2 file, so the
+# file-level marker carries no V&V level — individual classes
+# declare L0/L1/L2 on their own.
+pytestmark = pytest.mark.verifies(
+    "attenuation",
+    "optical-thickness",
+    "scalar-flux-integral",
+)
+
+
 # =====================================================================
 # Helpers
 # =====================================================================
