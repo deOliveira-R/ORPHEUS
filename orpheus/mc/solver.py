@@ -561,7 +561,7 @@ def solve_monte_carlo(
         sigma=sigma_history[-1],
         keff_history=keff_history,
         sigma_history=sigma_history,
-        flux_per_lethargy=tally / xs.du,
+        flux_per_lethargy=tally / np.abs(xs.du),
         eg_mid=xs.eg_mid,
         elapsed_seconds=elapsed,
     )

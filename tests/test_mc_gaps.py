@@ -352,11 +352,7 @@ def test_2g_flux_ratio_homogeneous():
     )
     result = solve_monte_carlo({0: mix}, params)
 
-    # flux_per_lethargy = detect_s / du, where du = log(E_upper/E_lower).
-    # The energy grid is high-to-low, so du is negative → flux_per_lethargy
-    # is negative.  This is a known documentation gap (MT-20260406-007).
-    # Use absolute values for the spectral shape test.
-    flux = np.abs(result.flux_per_lethargy)
+    flux = result.flux_per_lethargy
 
     assert flux[0] > 0, "Fast flux tally should be nonzero"
     assert flux[1] > 0, "Thermal flux tally should be nonzero"
@@ -369,6 +365,42 @@ def test_2g_flux_ratio_homogeneous():
     # events in thermal group due to sig_s = 0.90 vs 0.48)
     assert ratio > 0.1, (
         f"Thermal/fast flux ratio={ratio:.4f} seems too low for material A"
+    )
+
+
+# =====================================================================
+# L0-MC-022: flux_per_lethargy is non-negative (ERR-022)
+# =====================================================================
+
+@pytest.mark.l0
+@pytest.mark.catches("ERR-022")
+def test_flux_per_lethargy_nonnegative():
+    """L0-MC-022: flux_per_lethargy >= 0 regardless of grid ordering.
+
+    Nuclear-data group grids are conventionally descending
+    (``eg[0]`` = fast), so ``du = log(eg[1:]/eg[:-1])`` is negative.
+    Dividing a non-negative tally by this signed ``du`` previously
+    flipped the sign of every ``flux_per_lethargy`` entry (ERR-022).
+
+    The fix takes ``abs(du)`` at the point of definition in
+    ``orpheus.mc.solver``; this test pins that invariant.
+    """
+    case = get("mc_cyl1D_2eg_1rg")
+    mix = next(iter(case.materials.values()))
+
+    geom = SlabPinCell(boundaries=[], mat_ids=[0], pitch=3.6)
+    params = MCParams(
+        n_neutrons=100, n_inactive=20, n_active=100,
+        seed=7, geometry=geom,
+    )
+    result = solve_monte_carlo({0: mix}, params)
+
+    assert np.all(np.isfinite(result.flux_per_lethargy)), (
+        "flux_per_lethargy must be finite"
+    )
+    assert np.all(result.flux_per_lethargy >= 0.0), (
+        "flux_per_lethargy must be non-negative; a signed du would "
+        f"flip the sign: got {result.flux_per_lethargy}"
     )
 
 

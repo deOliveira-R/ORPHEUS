@@ -812,6 +812,76 @@ coincident) as first-class cases, not crashes — in a ray tracer,
 
 ---
 
+## ERR-022 — Negative lethargy bin width flips flux-per-lethargy sign
+
+**Failure mode:** #6 Convention drift — sign of `du` depends on the
+energy-grid ordering convention, which the callers silently relied on.
+**Date:** 2026-04-14
+**Solver:** MC (`orpheus.mc.solver.solve_monte_carlo`), homogeneous
+spectrum solver (`orpheus.homogeneous.solver`), MOC plotting helper
+(`orpheus.plotting.plot_moc_spectra`).
+
+**Bug:** Group boundaries in ORPHEUS follow the standard nuclear-data
+convention of *descending* energy (`eg[0]` = fast edge, `eg[-1]` =
+thermal edge), so the lethargy widths
+`du[g] = log(eg[g+1] / eg[g])` are **negative**. Three call sites
+divided the (non-negative) group tally by this signed `du` to get
+`flux_per_lethargy`, producing uniformly negative values:
+
+* `orpheus.mc.solver.solve_monte_carlo`:
+  `flux_per_lethargy = tally / xs.du`
+* `orpheus.homogeneous.solver.HomogeneousResult.flux_per_lethargy`:
+  `self.flux / self.du` (where `du` was stored signed)
+* `orpheus.plotting.plot_moc_spectra`: `flux / du` for fuel, clad,
+  coolant spectra
+
+The homogeneous solver also stored `de = eg[1:] - eg[:-1]` as a
+signed value, so `flux_per_energy` had the same sign flip.
+
+**Impact:** None on eigenvalues — `flux_per_lethargy` is used only
+for spectrum visualization, never fed back into a solver. The
+visual output of every MC / MOC / homogeneous spectrum plot was
+mirror-flipped through `y = 0`, which readers were silently
+compensating for by reading the magnitudes and ignoring the sign.
+
+**Fix:** Take the absolute value at the *definition* site of
+`du` / `de`, not at the consumer site, so "lethargy bin width" and
+"energy bin width" are non-negative by construction regardless of
+grid ordering:
+
+    du = np.abs(np.log(eg[1:] / eg[:-1]))
+    de = np.abs(eg[1:] - eg[:-1])
+
+Applied in `orpheus.mc.solver` (MCResult assignment),
+`orpheus.homogeneous.solver._spectrum_result`, and
+`orpheus.plotting.plot_moc_spectra`.
+
+**L0 test that catches it:**
+`tests/test_mc_gaps.py::test_flux_per_lethargy_nonnegative` — runs a
+small MC with a descending two-group grid, asserts
+`result.flux_per_lethargy >= 0` element-wise.
+
+**Lesson:** "Width" quantities should be non-negative by convention,
+and sign should be a property of a *direction*, not of a *measure*.
+When the same quantity is computed at three different call sites, fix
+it at the *definition* site — the code equivalent of normalizing at
+the source rather than patching every consumer. Every consumer is an
+opportunity for the bug to resurface.
+
+This also reinforces ERR-006 / Meta-Lesson 6: convention-dependent
+values (like "is `eg` ascending or descending?") must be pinned down
+at a single source of truth, and every helper must be robust to the
+convention, not assume it.
+
+**Scope note:** This does *not* address the separate design question
+in issue #25 about whether the MC tally should be a scattering
+estimator (`w/Σ_s` on scatters, current behavior) or a collision
+estimator (`w/Σ_t` on all collisions). That is a choice, not a bug —
+both are unbiased estimators of the scalar flux. The sign-flip was
+the genuine bug.
+
+---
+
 ## Meta-Lessons
 
 1. **1-group is degenerate.** k = νΣ_f/Σ_a regardless of flux shape.

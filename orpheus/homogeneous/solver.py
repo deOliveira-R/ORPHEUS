@@ -143,8 +143,8 @@ def solve_homogeneous_infinite(
     ng = mix.ng
     eg = mix.eg
     eg_mid = 0.5 * (eg[:ng] + eg[1:ng + 1])
-    de = eg[1:ng + 1] - eg[:ng]
-    du = np.log(eg[1:ng + 1] / eg[:ng])
+    de = np.abs(eg[1:ng + 1] - eg[:ng])
+    du = np.abs(np.log(eg[1:ng + 1] / eg[:ng]))
 
     return HomogeneousResult(
         k_inf=k_inf,

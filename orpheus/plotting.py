@@ -180,7 +180,7 @@ def plot_moc_spectra(
 
     eg = result.eg
     eg_mid = 0.5 * (eg[:-1] + eg[1:])
-    du = np.log(eg[1:] / eg[:-1])
+    du = np.abs(np.log(eg[1:] / eg[:-1]))
 
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.semilogx(eg_mid, result.flux_fuel / du, "-r", label="Fuel")
