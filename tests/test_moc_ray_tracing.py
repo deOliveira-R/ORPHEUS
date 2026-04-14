@@ -8,6 +8,7 @@ from orpheus.moc.geometry import (
     MOCMesh,
     Track,
     _identify_region,
+    _ray_box_intersections,
     _ray_circle_intersections,
     _trace_single_ray,
 )
@@ -165,6 +166,40 @@ def test_trace_misses_inner_circle():
 
     # All segments should be in the outer region
     assert all(s.region_id == 1 for s in segments)
+
+
+@pytest.mark.catches("ERR-021")
+def test_degenerate_corner_ray_box_returns_none():
+    """Ray grazing a box corner yields < 2 distinct crossings → None.
+
+    A 45 deg ray seeded at (x0, y0) = (0, 0) passes exactly through the
+    (0, 0) and (pitch, pitch) corners. Each corner is simultaneously a
+    hit on two walls at the same ``s``, so after dedup the list has at
+    most one distinct entry and the legacy code raised ``IndexError``.
+    The fixed primitive must return ``None`` (degenerate) or a valid
+    distinct pair — it must not crash.
+    """
+    pitch = 1.0
+    sqrt_half = np.sqrt(0.5)
+    result = _ray_box_intersections(
+        x0=0.0, y0=0.0, cos_phi=sqrt_half, sin_phi=sqrt_half, pitch=pitch,
+    )
+    assert result is None or result[0] < result[1]
+
+
+@pytest.mark.catches("ERR-021")
+def test_degenerate_corner_ray_trace_short_circuits():
+    """``_trace_single_ray`` must not raise on a degenerate corner ray."""
+    pitch = 1.0
+    sqrt_half = np.sqrt(0.5)
+    segments, _, _, entry_surf, exit_surf = _trace_single_ray(
+        x0=0.0, y0=0.0, cos_phi=sqrt_half, sin_phi=sqrt_half,
+        pitch=pitch, cx=0.5, cy=0.5,
+        radii=np.array([], dtype=float), n_regions=1,
+    )
+    if not segments:
+        assert entry_surf == -1
+        assert exit_surf == -1
 
 
 def test_trace_three_regions():

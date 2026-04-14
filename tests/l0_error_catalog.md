@@ -761,6 +761,57 @@ round trip.
 
 ---
 
+## ERR-021 — Degenerate ray tangent to pin-cell corner raises IndexError
+
+**Failure mode:** #5 Index error — unchecked assumption that the
+intersection list always has ≥2 entries.
+**Date:** 2026-04-14
+**Solver:** MOC (`orpheus.moc.geometry._ray_box_intersections`)
+
+**Bug:** `_ray_box_intersections` walks the four walls of the square
+pin cell `[0, pitch]^2`, collects every wall crossing whose hit point
+lies inside the wall segment, deduplicates by `s`-tolerance, and then
+indexed `s_vals[0]` and `s_vals[1]` as entry/exit. If the ray grazes a
+*corner* of the box, the two adjacent wall solutions collapse to the
+same `s` value; after the `1e-12` dedup pass only **one** entry
+remains, and `s_vals[1]` raises `IndexError`. The same failure mode
+triggers if the ray is parallel to one axis and offset so neither
+orthogonal wall yields an in-range hit — the list can even start
+empty. The half-step offset in the track generator makes an exact
+corner hit vanishingly unlikely in normal use, but the guard was
+missing.
+
+**Impact:** None observed in production (no test ever seeded a ray
+exactly through a corner). A seeded pitch or azimuthal angle that
+aligned a ray with a corner would crash ray tracing before any flux
+solve, masking the degeneracy as a random `IndexError` rather than a
+skippable geometric edge case.
+
+**Fix:** `_ray_box_intersections` now returns
+`tuple | None`: `None` signals a degenerate ray (empty `s_vals`, or
+fewer than two distinct entries after dedup). `_trace_single_ray`
+short-circuits a `None` to `([], (x0, y0), (x0, y0), -1, -1)`, and
+`MOCMesh._trace_all_rays` already skips tracks with `if not
+segments: continue`, so a degenerate ray is now silently dropped
+instead of aborting the trace.
+
+**L0 test that catches it:**
+`tests/test_moc_ray_tracing.py::test_degenerate_corner_ray` — seeds a
+ray with `(x0, y0) = (0, 0)` and `phi = π/4` so the entry point is
+exactly the `(0, 0)` corner, and asserts that
+`_ray_box_intersections` returns `None` and `_trace_single_ray`
+returns empty segments rather than raising.
+
+**Lesson:** Whenever a function indexes a collection by a fixed
+position (`list[0]`, `list[1]`), the *precondition* that the
+collection has that many entries must be either enforced by
+construction or checked explicitly. Geometric primitives in
+particular must handle degenerate inputs (tangent, parallel,
+coincident) as first-class cases, not crashes — in a ray tracer,
+"this ray contributes nothing" is a valid outcome.
+
+---
+
 ## Meta-Lessons
 
 1. **1-group is degenerate.** k = νΣ_f/Σ_a regardless of flux shape.

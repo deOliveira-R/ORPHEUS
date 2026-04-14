@@ -100,11 +100,14 @@ def _ray_box_intersections(
     cos_phi: float,
     sin_phi: float,
     pitch: float,
-) -> tuple[float, float, tuple[float, float], tuple[float, float], int, int]:
+) -> tuple[float, float, tuple[float, float], tuple[float, float], int, int] | None:
     """Entry and exit for a ray through [0, pitch]^2.
 
     Returns (s_entry, s_exit, entry_point, exit_point,
-             entry_surface, exit_surface).
+             entry_surface, exit_surface), or ``None`` if the ray is
+    degenerate (tangent to a corner, or otherwise yielding fewer than
+    two distinct crossings of the cell boundary). Callers should treat
+    a ``None`` result as "no usable track" and skip the ray.
     """
     s_vals: list[tuple[float, int]] = []
 
@@ -128,16 +131,21 @@ def _ray_box_intersections(
         if -1e-10 <= x_top <= pitch + 1e-10:
             s_vals.append((s_top, 2))
 
+    if not s_vals:
+        return None
+
     s_vals.sort(key=lambda t: t[0])
 
     filtered: list[tuple[float, int]] = [s_vals[0]]
     for sv in s_vals[1:]:
         if sv[0] - filtered[-1][0] > 1e-12:
             filtered.append(sv)
-    s_vals = filtered
 
-    s_entry, surf_entry = s_vals[0]
-    s_exit, surf_exit = s_vals[1]
+    if len(filtered) < 2:
+        return None
+
+    s_entry, surf_entry = filtered[0]
+    s_exit, surf_exit = filtered[1]
     entry_pt = (x0 + s_entry * cos_phi, y0 + s_entry * sin_phi)
     exit_pt = (x0 + s_exit * cos_phi, y0 + s_exit * sin_phi)
     return s_entry, s_exit, entry_pt, exit_pt, surf_entry, surf_exit
@@ -174,9 +182,10 @@ def _trace_single_ray(
 
     Returns (segments, entry_point, exit_point, entry_surface, exit_surface).
     """
-    s_entry, s_exit, entry_pt, exit_pt, surf_entry, surf_exit = (
-        _ray_box_intersections(x0, y0, cos_phi, sin_phi, pitch)
-    )
+    box = _ray_box_intersections(x0, y0, cos_phi, sin_phi, pitch)
+    if box is None:
+        return [], (x0, y0), (x0, y0), -1, -1
+    s_entry, s_exit, entry_pt, exit_pt, surf_entry, surf_exit = box
 
     crossings: list[float] = [s_entry, s_exit]
     for r_k in radii:
