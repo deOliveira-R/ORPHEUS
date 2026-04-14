@@ -18,33 +18,42 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import LevelSymmetricSN, ProductQuadrature
 from orpheus.sn.solver import SNSolver, solve_sn
 
-pytestmark = [
-    pytest.mark.l1,  # Default: eigenvalue / analytical comparison (L1).
-    # TestCylindricalSweepRegression overrides to L0 below.
-    pytest.mark.verifies(
-        "transport-cylindrical",
-        "alpha-cylindrical",
-        "alpha-recursion",
-        "wdd-closure",
-        "wdd-face",
-        "mm-weights",
-        "multigroup",
-        "reflective-bc",
-        "one-group-kinf",
-        "matrix-eigenvalue",
-        "mg-balance",
-        # B.4 (#87): the Bailey (2009) general curvilinear balance
-        # equation with the DeltaA/w geometry factor. Every
-        # cylindrical sweep implements this form; the per-ordinate
-        # flat-flux tests and the end-to-end eigenvalue tests here
-        # both verify it.
-        "balance-general",
-    ),
-]
+# File-level marker: only the equation-coverage list is global.
+# V&V level is set per-class / per-function below — this avoids the
+# "conflicting V&V level markers" warning that pytest emits when a
+# class-level @pytest.mark.lN tries to override a file-level lN
+# (pytest stacks them rather than replacing). Each test class
+# declares its own level explicitly:
+#
+#   * TestCylindricalSweepRegression — L0 (per-sweep regression guards)
+#   * TestMultiGroupMultiRegion      — L2 (multi-group integration)
+#
+# The four module-level test functions below carry @pytest.mark.l1
+# directly (eigenvalue / analytical comparison is the L1 default).
+pytestmark = pytest.mark.verifies(
+    "transport-cylindrical",
+    "alpha-cylindrical",
+    "alpha-recursion",
+    "wdd-closure",
+    "wdd-face",
+    "mm-weights",
+    "multigroup",
+    "reflective-bc",
+    "one-group-kinf",
+    "matrix-eigenvalue",
+    "mg-balance",
+    # B.4 (#87): the Bailey (2009) general curvilinear balance
+    # equation with the DeltaA/w geometry factor. Every
+    # cylindrical sweep implements this form; the per-ordinate
+    # flat-flux tests and the end-to-end eigenvalue tests here
+    # both verify it.
+    "balance-general",
+)
 
 
 # ── Homogeneous infinite medium ──────────────────────────────────────
 
+@pytest.mark.l1
 @pytest.mark.parametrize("case_name", [
     "sn_slab_1eg_1rg",
     "sn_slab_2eg_1rg",
@@ -73,6 +82,7 @@ def test_homogeneous_exact(case_name, quad_factory):
 
 # ── Particle balance ─────────────────────────────────────────────────
 
+@pytest.mark.l1
 @pytest.mark.parametrize("quad_factory", [
     lambda: ProductQuadrature.create(n_mu=4, n_phi=8),
     lambda: LevelSymmetricSN.create(4),
@@ -103,6 +113,7 @@ def test_particle_balance(quad_factory):
 
 # ── Cross-check with CP cylindrical ──────────────────────────────────
 
+@pytest.mark.l1
 def test_cross_check_with_cp_1g():
     """SN and CP on the same cylindrical geometry should give close k_inf."""
     from orpheus.cp.solver import solve_cp
@@ -125,6 +136,7 @@ def test_cross_check_with_cp_1g():
 
 # ── Flux non-negativity ──────────────────────────────────────────────
 
+@pytest.mark.l1
 def test_flux_non_negative():
     mix = get_mixture("A", "1g")
     mesh = homogeneous_1d(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)

@@ -18,33 +18,43 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.solver import SNSolver, solve_sn
 
-pytestmark = [
-    pytest.mark.l1,  # Default: eigenvalue / analytical comparison.
-    # TestAlphaCoefficients, TestSphericalSweepRegression, TestSphericalBicgstab
-    # override to L0 below; TestMultiGroupMultiRegionSpherical to L2.
-    pytest.mark.verifies(
-        "transport-spherical",
-        "alpha-recursion",
-        "wdd-closure",
-        "wdd-face",
-        "multigroup",
-        "reflective-bc",
-        "one-group-kinf",
-        "matrix-eigenvalue",
-        "mg-balance",
-        # B.4 (#87): Eq. balance-general is the Bailey (2009) form
-        # with the DeltaA/w geometry factor that every curvilinear
-        # sweep implements. The per-ordinate flat-flux tests
-        # (test_sn_quadrature::test_per_ordinate_flat_flux_consistency)
-        # and the end-to-end spherical eigenvalue tests here both
-        # exercise this balance equation directly.
-        "balance-general",
-    ),
-]
+# File-level marker: only the equation-coverage list is global.
+# V&V level is set per-class / per-function below — this avoids the
+# "conflicting V&V level markers" warning that pytest emits when a
+# class-level @pytest.mark.lN tries to override a file-level lN
+# (pytest stacks them rather than replacing). Each test class
+# declares its own level explicitly:
+#
+#   * TestAlphaCoefficients       — L0 (algebraic/recursion identities)
+#   * TestSphericalSweepRegression — L0 (per-sweep regression guards)
+#   * TestSphericalBicgstab       — L0 (linear-operator unit checks)
+#   * TestMultiGroupMultiRegionSpherical — L2 (multi-group integration)
+#
+# The five module-level test functions below carry @pytest.mark.l1
+# directly (eigenvalue / analytical comparison is the L1 default).
+pytestmark = pytest.mark.verifies(
+    "transport-spherical",
+    "alpha-recursion",
+    "wdd-closure",
+    "wdd-face",
+    "multigroup",
+    "reflective-bc",
+    "one-group-kinf",
+    "matrix-eigenvalue",
+    "mg-balance",
+    # B.4 (#87): Eq. balance-general is the Bailey (2009) form
+    # with the DeltaA/w geometry factor that every curvilinear
+    # sweep implements. The per-ordinate flat-flux tests
+    # (test_sn_quadrature::test_per_ordinate_flat_flux_consistency)
+    # and the end-to-end spherical eigenvalue tests here both
+    # exercise this balance equation directly.
+    "balance-general",
+)
 
 
 # ── Homogeneous infinite medium (geometry-independent k_inf) ─────────
 
+@pytest.mark.l1
 @pytest.mark.parametrize("case_name", [
     "sn_slab_1eg_1rg",
     "sn_slab_2eg_1rg",
@@ -74,6 +84,7 @@ def test_homogeneous_exact(case_name):
 
 # ── Particle balance ─────────────────────────────────────────────────
 
+@pytest.mark.l1
 def test_particle_balance():
     """For reflective BCs (no leakage), production / absorption = keff."""
     case = get("sn_slab_2eg_1rg")
@@ -153,6 +164,7 @@ class TestAlphaCoefficients:
 
 # ── Spatial convergence ──────────────────────────────────────────────
 
+@pytest.mark.l1
 @pytest.mark.slow
 def test_spatial_convergence():
     """Diamond-difference on spherical mesh must show O(h²) convergence."""
@@ -197,6 +209,7 @@ def test_spatial_convergence():
 
 # ── Cross-check with CP spherical ────────────────────────────────────
 
+@pytest.mark.l1
 def test_cross_check_with_cp_1g():
     """SN and CP on the same spherical geometry should give close k_inf.
 
@@ -229,6 +242,7 @@ def test_cross_check_with_cp_1g():
 
 # ── Flux positivity ──────────────────────────────────────────────────
 
+@pytest.mark.l1
 def test_flux_non_negative():
     """Converged scalar flux must be non-negative everywhere."""
     mix = get_mixture("A", "1g")
