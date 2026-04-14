@@ -348,9 +348,48 @@ surface roughness :math:`\varepsilon_{\text{rough}} = 6\,\mu\text{m}`:
 
    E(t, \mathbf{y}) = \delta(t) - \varepsilon_{\text{rough}}
 
-The event function uses a one-shot cache from the last RHS evaluation for
-efficiency.  When :math:`E` crosses zero (direction :math:`-1`, terminal),
-``solve_ivp`` stops Phase 1.
+When :math:`E` crosses zero (direction :math:`-1`, terminal),
+``solve_ivp`` stops Phase 1 and hands control back to the driver
+so that BC3/BC4/BC5 can switch to closed-gap form.
+
+**Event function implementation.** Computing :math:`\delta(t)`
+from scratch inside the event function would require re-running
+the entire ``_solve_stress()`` linear system — a waste, because
+the same stress solve just happened at the latest RHS call.
+``_gap_closure_event()`` therefore uses a **one-shot cache** of
+the deformed gap width, keyed by ``(t_last, y_last)`` and updated
+at the tail of every ``_rhs()`` call:
+
+.. code-block:: python
+
+   # At the end of each RHS evaluation:
+   self._cache_gap = (t, y.copy(), delta_deformed)
+
+   def _gap_closure_event(self, t, y):
+       t_last, y_last, delta_last = self._cache_gap
+       if t == t_last and np.array_equal(y, y_last):
+           return delta_last - self.eps_rough  # cache hit
+       try:
+           # Cache miss: recompute from scratch
+           sigma = self._solve_stress(t, y, closed=False)
+           delta = self._deformed_gap(y, sigma)
+           return delta - self.eps_rough
+       except np.linalg.LinAlgError:
+           # Ill-conditioned right at closure — return
+           # the cached value (safe fallback)
+           return delta_last - self.eps_rough
+
+The try/except fallback is a defensive guard: in extremely tight
+pre-closure states the stress linear system can become
+ill-conditioned. Falling back to the cached value is safe because
+(a) the cache is at most one RHS call stale, and (b) ``solve_ivp``
+uses sign changes to trigger the event, not absolute magnitude —
+a slightly stale :math:`E` is still monotonic across the root.
+
+The ``direction=-1`` flag ensures the event fires **only** on
+gap closing, not opening. Terminal event means ``solve_ivp``
+stops immediately when detected, rather than continuing the
+integration.
 
 After closure, the solver:
 
