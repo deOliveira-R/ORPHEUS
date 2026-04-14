@@ -18,7 +18,15 @@ from orpheus.geometry import CoordSystem, Mesh1D, Zone, mesh1d_from_zones
 from orpheus.cp.solver import CPMesh
 from orpheus.derivations._xs_library import get_xs
 
-pytestmark = pytest.mark.l0  # CP matrix algebraic invariants (row sums, reciprocity, ...)
+# CP matrix algebraic invariants (row sums, reciprocity, non-negativity).
+# The complementarity and reciprocity labels are named in the theory
+# page (docs/theory/collision_probability.rst) as verified by the
+# two specific tests in this file — the decorators below make that
+# cross-reference load-bearing for the V&V harness audit.
+pytestmark = [pytest.mark.l0, pytest.mark.verifies(
+    "complementarity",  # test_row_sums: sum_j P_ij + P_out = 1
+    "reciprocity",      # test_reciprocity: Sigma_t V P_ij = Sigma_t V P_ji
+)]
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────

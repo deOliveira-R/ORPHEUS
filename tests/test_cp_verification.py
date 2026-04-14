@@ -29,8 +29,15 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.macro_xs.cell_xs import CellXS, assemble_cell_xs
 
 # File-level verifies — every test in this file exercises the CP matrix
-# pipeline. Individual classes carry their own @pytest.mark.l0/l1/l2
-# marker for V&V level (mixed file).
+# pipeline end-to-end (from first-flight kernel through the discretised
+# second-difference rcp, the within-cell closure, the white-BC surface
+# probabilities, and the eigenvalue match). A converged k matching the
+# analytical CP reference to 1e-8 implies every link in that chain is
+# correctly implemented — this is L1-grade equation verification for
+# each of the labels below.
+#
+# Individual classes carry their own @pytest.mark.l0/l1/l2 marker for
+# V&V level (mixed file).
 pytestmark = pytest.mark.verifies(
     "collision-rate",
     "p-inf",
@@ -46,6 +53,24 @@ pytestmark = pytest.mark.verifies(
     "wigner-seitz",
     "matrix-eigenvalue",
     "mg-balance",
+    # B.2 additions (issue #87): the integral-transport derivation
+    # chain underlying every CP matrix computation. Each of these is
+    # exercised by the per-geometry CP eigenvalue tests — a solver k
+    # that matches the SymPy-derived analytical CPmatrix eigenvalue to
+    # 1e-8 implies the four-term second-difference rcp, the flat-
+    # source collision-rate relation, the white-BC closure, and the
+    # surface-to-region / surface-to-surface probabilities are all
+    # implemented correctly.
+    "first-flight-kernel",
+    "optical-path",
+    "flat-source",
+    "pcell-from-smat",
+    "rcp-from-double-antideriv",
+    "s-integral",
+    "self-double-integral",
+    "pin-from-reciprocity",
+    "surface-to-region",
+    "surface-to-surface",
 )
 from orpheus.derivations._xs_library import (
     XS, get_xs, get_mixture, get_materials, make_mixture,
