@@ -377,6 +377,7 @@ class TestSphericalBicgstab:
             f"SI keff={keffs['SI']:.8f} vs BC keff={keffs['BC']:.8f}"
         )
 
+    @pytest.mark.catches("ERR-007")
     def test_bicgstab_finite_result(self):
         """BiCGSTAB on 1G spherical must produce finite flux and keff.
 

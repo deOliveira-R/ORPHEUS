@@ -48,6 +48,7 @@ def test_homogeneous_exact(case_name):
 # ─── Heterogeneous: convergence to Richardson reference ──────────────
 
 @pytest.mark.slow
+@pytest.mark.catches("ERR-003")
 @pytest.mark.parametrize("case_name", [
     "sn_slab_1eg_2rg",
     "sn_slab_2eg_2rg",

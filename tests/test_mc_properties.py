@@ -534,6 +534,7 @@ def test_scattering_branching_ratio():
 # L0-MC-012: Direction sampling
 # ═══════════════════════════════════════════════════════════════════════
 
+@pytest.mark.catches("ERR-018")
 def test_direction_sampling():
     """L0-MC-012: Direction sampling matches the intended formula.
 

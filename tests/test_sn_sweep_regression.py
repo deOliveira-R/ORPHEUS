@@ -88,6 +88,7 @@ class TestSolveRecurrence:
         actual = _outgoing(a, s, psi0)
         np.testing.assert_allclose(actual, expected_outgoing, rtol=1e-13)
 
+    @pytest.mark.catches("ERR-005")
     def test_regression_multigroup_scattering_convergence(self):
         """Scattering source iteration must converge for multi-group.
 

@@ -196,6 +196,7 @@ class TestQuadratureWeightConservation:
     eigenvalue error of ~0.4% that was invisible in 1-group problems.
     """
 
+    @pytest.mark.catches("ERR-001")
     def test_no_weight_lost(self, solver_2g):
         """Σ_n w_n · ψ_n must use the full sum(weights), not a subset."""
         solver, _, sn_mesh, quad = solver_2g
@@ -330,6 +331,7 @@ class TestBicgstabNormalization:
     sum(weights), which is quadrature-dependent.
     """
 
+    @pytest.mark.catches("ERR-004")
     def test_1d_gl_homogeneous_exact(self):
         """BiCGSTAB with GL quadrature on 1D slab must match analytical k_inf."""
         from orpheus.derivations import get

@@ -497,6 +497,7 @@ class TestN2N:
             f"k_n2n={k_n2n:.8f} k_no={k_no:.8f}"
         )
 
+    @pytest.mark.catches("ERR-015")
     def test_n2n_solver_keff_matches_analytical(self):
         """[L1] Solver keff with (n,2n) must match analytical reference.
 
@@ -849,6 +850,7 @@ class TestGSInnerIterations:
     multiple inner iterations; groups without self-scatter converge in 1.
     """
 
+    @pytest.mark.catches("ERR-016")
     def test_thermal_needs_more_inner_than_fast(self):
         """[L0] Thermal group (g=3) needs more inner iterations than fast (g=0).
 
@@ -914,6 +916,7 @@ class TestGSInnerIterations:
             f"Jacobi keff={res_j.keff:.8f} vs GS keff={res_gs.keff:.8f}"
         )
 
+    @pytest.mark.catches("ERR-016")
     def test_no_self_scatter_one_inner(self):
         """[L0] Groups without self-scatter converge in exactly 1 inner iteration.
 

@@ -265,6 +265,7 @@ class TestL0TermVerification:
     for the publication catalog.
     """
 
+    @pytest.mark.catches("ERR-006", "ERR-007")
     @pytest.mark.parametrize("coord", [
         CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL,
     ])
@@ -349,6 +350,7 @@ class TestL0TermVerification:
             f"Cylindrical β_max = {np.abs(betas).max():.2e}"
         )
 
+    @pytest.mark.catches("ERR-002")
     def test_scattering_source_magnitude(self):
         """L0-SN-009: Scattering source = SigS^T @ φ, hand-calculated."""
         from orpheus.derivations._xs_library import get_mixture

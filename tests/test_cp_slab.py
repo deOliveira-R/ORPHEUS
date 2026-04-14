@@ -23,6 +23,7 @@ pytestmark = [pytest.mark.l1, pytest.mark.verifies(
 )]
 
 
+@pytest.mark.catches("ERR-009")
 @pytest.mark.parametrize("case_name", [
     "cp_slab_1eg_1rg",
     "cp_slab_1eg_2rg",

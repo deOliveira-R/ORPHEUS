@@ -245,6 +245,7 @@ class TestL0EquilibriumFlux:
     Catches [FM-03] missing area factor, [FM-06] 4*pi normalization.
     """
 
+    @pytest.mark.catches("ERR-019")
     def test_pure_scatterer_equilibrium_single_sweep(self):
         """[L0] Pure scatterer: transport sweep preserves uniform flux.
 

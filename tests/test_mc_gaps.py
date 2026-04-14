@@ -536,6 +536,7 @@ def test_weight_normalization_consistency():
 # =====================================================================
 
 @pytest.mark.l1
+@pytest.mark.catches("ERR-014")
 def test_xs_consistency_in_solver():
     """L1-MC-010: sig_t used in solver = SigF + SigC + SigL + sig_s_sum.
 
