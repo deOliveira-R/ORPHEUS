@@ -243,6 +243,106 @@ Flags:
     with a test. A real gap (implemented-but-untested equation)
     still fires the gate.
 
+.. _vv-foundation-tests:
+
+Foundation tests — software invariants outside the L0..L3 ladder
+-----------------------------------------------------------------
+
+The L0..L3 ladder is defined around Cardinal Rule 4 — "Are we solving
+the equations right?" Each rung assumes there is a **physics
+equation** in a Sphinx theory page being verified: L0 checks a
+hand-calculation of a single term, L1 asserts measured convergence
+order against an analytical or manufactured solution, L2 proves
+multi-group heterogeneous consistency, and L3 compares against
+experiment. A test that doesn't verify a labelled theory equation
+has no natural place on this ladder.
+
+But some tests exist that are **not** about physics:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 35 65
+
+   * - Example
+     - What it verifies
+   * - ``test_geometry::test_cartesian_single_cell``
+     - ``compute_volumes_1d`` returns the right cell volume for
+       known edges — a data-structure contract of the
+       :class:`~orpheus.geometry.Mesh1D` factory.
+   * - ``test_geometry::TestZoneSubdivision::test_equal_volume_*``
+     - Every cell in an equal-volume zone has bit-identical volume
+       by construction (the algebraic invariant that caught
+       ERR-020). Not a physics claim — a round-trip
+       correctness property of ``mesh1d_from_zones``.
+   * - ``test_geometry::TestPWRFactories``
+     - ``pwr_pin_equivalent(pitch)`` returns the correct cell
+       radius from the Wigner-Seitz identity. Geometric primitive,
+       not transport physics.
+   * - ``test_geometry::TestMesh1D``
+     - ``Mesh1D`` instances are frozen and reject invalid inputs.
+       Language-level contract, not a reactor-physics equation.
+
+These tests **must** exist — every downstream solver depends on
+them — but there is no theory label for "volumes are computed
+correctly" or "the factory rejects non-monotone edges." Calling
+them L0 is a category error: L0 is term verification of a physics
+equation, and these tests don't have a physics equation to verify.
+
+The ``foundation`` marker exists for exactly this case.
+
+**When to use** ``@pytest.mark.foundation``:
+
+- The test verifies a **software invariant**: data-structure
+  contract, numerical primitive, factory output, immutability
+  guard, input validation, algebraic identity of a pre-physics
+  building block.
+- There is **no** ``:label:`` in any ``docs/theory/*.rst`` page
+  that corresponds to what the test is checking. Foundation tests
+  **never** carry ``@pytest.mark.verifies(...)`` — if they did,
+  they would belong on the L0..L3 ladder instead.
+- A failure means the code is broken **as software**, not that
+  the physics is wrong.
+
+**When NOT to use** it:
+
+- The test does have a natural theory-page label. Use L0..L3
+  instead — the physics ladder is the stronger claim.
+- You aren't sure what level a test should be. The anti-pattern
+  is "I don't know what level this is, so I'll call it
+  foundation." If in doubt, read the test's docstring: if it
+  reads like "term X of equation Y matches a hand calculation,"
+  it's L0; if it reads like "this data structure satisfies
+  invariant Z," it's foundation.
+- The test is testing a reference implementation or derivation
+  helper. Those belong in the derivation scripts' own tests, not
+  the main suite.
+
+**Interaction with other markers.** ``foundation`` is orthogonal
+to the physics ladder. If two conflicting markers are applied
+(e.g. ``l1`` and ``foundation`` on the same test), the physics
+level wins — see the tiebreak rule in ``_existing_level`` of
+``tests/conftest.py``. The ``catches("ERR-NNN")`` decorator is
+orthogonal to the level bucket: a foundation test can absolutely
+be the catcher for an ERR entry (ERR-020 is caught by
+``TestZoneSubdivision``, which is foundation).
+
+**Audit reporting.** ``python -m tests._harness.audit`` reports
+foundation tests in their own row of the level breakdown and
+their own ``FD`` column of the module × level grid, separate
+from L0..L3. They do not affect the orphan-equation gate
+(foundation tests carry no ``verifies(...)``, so they cannot
+close an orphan) but they do satisfy the ``--strict`` mode's
+untagged-tests gate — a foundation marker is a valid tag.
+
+**Selection at runtime.**
+
+.. code-block:: console
+
+   pytest -m foundation              # only foundation tests
+   pytest -m "not foundation"        # only physics V&V
+   pytest -m "l0 or foundation"      # L0 + foundation (fast)
+
+
 .. _vv-status-documented:
 
 Documented-only equations (``:vv-status:``)

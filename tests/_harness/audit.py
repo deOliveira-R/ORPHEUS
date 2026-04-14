@@ -112,10 +112,14 @@ def _render_text(
     lines.append(f"Total tests collected: {total}")
     lines.append("")
     lines.append("By V&V level:")
-    for lvl in ("L0", "L1", "L2", "L3", "unmarked"):
+    # L0..L3 are the physics-verification ladder. foundation is the
+    # orthogonal software-invariant bucket; it is reported here for
+    # visibility but is not part of the L0..L3 progression. "unmarked"
+    # is a gap that the --strict gate surfaces.
+    for lvl in ("L0", "L1", "L2", "L3", "foundation", "unmarked"):
         count = level_totals.get(lvl, 0)
         pct = 100 * count / total if total else 0
-        lines.append(f"  {lvl:9}  {count:5}   ({pct:4.1f}%)")
+        lines.append(f"  {lvl:11} {count:5}   ({pct:4.1f}%)")
     lines.append("")
     lines.append("By tagging source:")
     for src in (
@@ -130,10 +134,14 @@ def _render_text(
         lines.append(f"  {src:12} {count:5}")
     lines.append("")
 
-    # Module × level grid
+    # Module × level grid. ``FD`` column counts foundation-marker tests
+    # (software invariants, orthogonal to the physics ladder).
     grid = _group_by_module_level(items)
     lines.append("Module × level grid:")
-    header = f"  {'module':<36} {'L0':>4} {'L1':>4} {'L2':>4} {'L3':>4} {'??':>4}"
+    header = (
+        f"  {'module':<36} "
+        f"{'L0':>4} {'L1':>4} {'L2':>4} {'L3':>4} {'FD':>4} {'??':>4}"
+    )
     lines.append(header)
     lines.append("  " + "-" * (len(header) - 2))
     for module in sorted(grid):
@@ -144,6 +152,7 @@ def _render_text(
             f"{row.get('L1', 0):>4} "
             f"{row.get('L2', 0):>4} "
             f"{row.get('L3', 0):>4} "
+            f"{row.get('foundation', 0):>4} "
             f"{row.get('unmarked', 0):>4}"
         )
     lines.append("")

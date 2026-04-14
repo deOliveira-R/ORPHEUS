@@ -30,6 +30,26 @@ from orpheus.geometry import (
     slab_fuel_moderator,
 )
 
+# Every test in this file is a FOUNDATION test — it verifies a
+# software invariant of orpheus.geometry (volume formulas, factory
+# outputs, frozen immutability, input validation, algebraic
+# subdivision identities) rather than a physics equation labelled
+# in docs/theory/*.rst. Foundation tests are orthogonal to the
+# L0..L3 physics-verification ladder (Cardinal Rule 4) and never
+# carry @pytest.mark.verifies decorators — they have no theory
+# label to verify.
+#
+# The ERR-020 bit-exact equal-volume tests in TestZoneSubdivision
+# are the canonical foundation test: they assert that every cell
+# in an equal-volume zone has bit-identical volume by construction,
+# which is an algebraic invariant of Mesh1D.volumes, not a physics
+# claim. The catches("ERR-020") decorators on those specific tests
+# stay — ERR catalogue coverage is orthogonal to the marker type.
+#
+# See docs/testing/architecture.rst ("Foundation tests — software
+# invariants outside the L0..L3 ladder") for the taxonomy.
+pytestmark = pytest.mark.foundation
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Volume formulas (1-D)
@@ -143,7 +163,6 @@ class TestVolumes2D:
 class TestZoneSubdivision:
     """Verify that zone subdivision produces equal-volume cells."""
 
-    @pytest.mark.l0
     @pytest.mark.catches("ERR-020")
     @pytest.mark.parametrize("coord", list(CoordSystem))
     def test_equal_volume_single_zone(self, coord):
@@ -161,7 +180,6 @@ class TestZoneSubdivision:
         vols = mesh.volumes
         np.testing.assert_allclose(vols, vols[0], rtol=1e-14)
 
-    @pytest.mark.l0
     @pytest.mark.catches("ERR-020")
     @pytest.mark.parametrize("coord", list(CoordSystem))
     def test_equal_volume_multi_zone(self, coord):

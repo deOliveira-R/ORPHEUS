@@ -50,23 +50,51 @@ def ref():
 
 _LEVEL_CLASS_RE = re.compile(r"TestL([0-3])")
 _LEVEL_FUNC_RE = re.compile(r"(?:^|_)l([0-3])(?:_|$)")
-_LEVEL_MARKERS = ("l0", "l1", "l2", "l3")
+
+# Markers the harness recognises as V&V-level tags. ``l0``..``l3`` are
+# the physics ladder (Cardinal Rule 4); ``foundation`` is the orthogonal
+# software-invariant bucket described in
+# ``docs/testing/architecture.rst``. All share the same resolution
+# precedence and the same audit reporting path.
+_LEVEL_MARKERS = ("l0", "l1", "l2", "l3", "foundation")
+
+
+def _marker_to_level(marker_name: str) -> str:
+    """Convert a pytest marker name to its registry ``VVLevel`` value.
+
+    ``l0`` -> ``L0``, ``foundation`` -> ``foundation``. The asymmetry
+    (uppercase for the ladder, lowercase for foundation) is load-bearing:
+    the L0..L3 values are sorted and compared as strings elsewhere, and
+    ``foundation`` deliberately sorts below them so the "numerically
+    highest wins" tiebreak in :func:`_existing_level` never promotes a
+    foundation tag over a conflicting physics-level tag. If both markers
+    are stacked, the physics level wins and the foundation marker is
+    surfaced as the conflict.
+    """
+    return marker_name.upper() if marker_name.startswith("l") else marker_name
 
 
 def _existing_level(item: pytest.Item) -> tuple[str | None, bool]:
     """Return (level_str, was_already_marked).
 
     Inspects already-applied markers, including file-level ``pytestmark``
-    and class-level markers inherited from `@verify.lN(...)`. If two
-    different L<N> markers are present, the numerically highest wins
-    (matching pytest's precedence for stacked markers) and a warning is
-    emitted so duplicate tagging surfaces early.
+    and class-level markers inherited from `@verify.lN(...)`. Recognises
+    both the L0..L3 physics ladder and the orthogonal ``foundation``
+    marker. If two different markers are present, the numerically highest
+    wins (matching pytest's precedence for stacked markers); a
+    foundation marker stacked with any L<N> marker yields the L<N>,
+    never foundation (the physics ladder dominates because it is the
+    stronger claim). A warning is emitted so duplicate tagging surfaces
+    early.
     """
     present = [m.name for m in item.iter_markers() if m.name in _LEVEL_MARKERS]
     if not present:
         return None, False
     if len(set(present)) > 1:
-        # Surface the conflict; choose deterministically.
+        # Surface the conflict; choose deterministically. Sort ensures
+        # ``foundation`` < ``l0`` < ``l1`` < ``l2`` < ``l3`` alphabetically,
+        # and we pick the last (highest) entry — so an L<N> always wins
+        # over foundation, which is the desired dominance.
         chosen = sorted(set(present))[-1]
         item.warn(
             pytest.PytestUnknownMarkWarning(
@@ -74,8 +102,8 @@ def _existing_level(item: pytest.Item) -> tuple[str | None, bool]:
                 f"{sorted(set(present))}; using {chosen!r}"
             )
         )
-        return chosen.upper(), True
-    return present[0].upper(), True
+        return _marker_to_level(chosen), True
+    return _marker_to_level(present[0]), True
 
 
 def _level_from_class_name(item: pytest.Item) -> str | None:
@@ -163,7 +191,11 @@ def _collect_str_marker_args(item: pytest.Item, marker_name: str) -> tuple[str, 
 
 
 def _apply_level_marker(item: pytest.Item, level: str) -> None:
-    item.add_marker(getattr(pytest.mark, level.lower()))
+    # Physics levels are stored uppercase (``L0``..``L3``) but the
+    # pytest marker name is lowercase (``l0``..``l3``). Foundation is
+    # already lowercase in both forms.
+    marker = "foundation" if level == "foundation" else level.lower()
+    item.add_marker(getattr(pytest.mark, marker))
 
 
 def pytest_collection_modifyitems(

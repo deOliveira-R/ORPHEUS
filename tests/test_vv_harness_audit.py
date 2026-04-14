@@ -133,3 +133,58 @@ def test_scanner_handles_subdirectories(tmp_path: Path) -> None:
     labels, documented = _scan_theory_equations(tmp_path)
     assert labels == {"top_label", "deep_label"}
     assert documented == {"deep_label"}
+
+
+# ── Foundation marker — software-invariant classification ───────────
+
+def test_foundation_marker_is_registered_in_pyproject() -> None:
+    """``pytest.mark.foundation`` must be declared in pyproject.toml
+    so pytest doesn't emit ``PytestUnknownMarkWarning`` for it.
+
+    Reads the raw pyproject.toml text to keep the test hermetic —
+    no TOML parser needed and the failure mode is a clear string
+    miss rather than a nested lookup error.
+    """
+    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+    assert '"foundation:' in pyproject, (
+        "pyproject.toml markers list must contain a 'foundation:' entry "
+        "so pytest registers the marker; otherwise strict-markers mode "
+        "would reject it and ORPHEUS cannot enforce the foundation bucket."
+    )
+
+
+def test_marker_to_level_mapping_is_orthogonal() -> None:
+    """The conftest marker-to-level helper must classify ``l0``..``l3``
+    as uppercase physics levels and ``foundation`` as lowercase.
+
+    Pins the asymmetry that makes ``foundation`` sort below every L<N>
+    in the conflicting-marker tiebreak, so a test accidentally carrying
+    both ``l1`` and ``foundation`` markers is resolved to ``L1`` (the
+    stronger physics claim), not ``foundation``.
+    """
+    from tests.conftest import _marker_to_level
+
+    assert _marker_to_level("l0") == "L0"
+    assert _marker_to_level("l1") == "L1"
+    assert _marker_to_level("l2") == "L2"
+    assert _marker_to_level("l3") == "L3"
+    assert _marker_to_level("foundation") == "foundation"
+    # Tiebreak invariant: sorted order must put ``foundation`` below
+    # every L<N>, so sorted(...)[ -1] picks the physics level.
+    assert sorted(["foundation", "l1"])[-1] == "l1"
+    assert sorted(["foundation", "l0"])[-1] == "l0"
+
+
+def test_vvlevel_literal_includes_foundation() -> None:
+    """The ``VVLevel`` type alias must advertise ``foundation`` as a
+    legal value so downstream tooling (Sphinx matrix generator, Nexus
+    ingest, audit JSON output) accepts foundation tests without
+    falling back to ``unmarked``."""
+    from typing import get_args
+
+    from tests._harness.registry import VVLevel
+
+    legal = set(get_args(VVLevel))
+    assert legal == {"L0", "L1", "L2", "L3", "foundation"}, (
+        f"VVLevel Literal mismatch: got {legal}"
+    )

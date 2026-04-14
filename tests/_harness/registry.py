@@ -17,13 +17,30 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-VVLevel = Literal["L0", "L1", "L2", "L3"]
+# V&V level values.
+#
+# L0..L3 are the physics-verification ladder from Cardinal Rule 4
+# ("Are we solving the equations right?"). Each rung assumes there
+# is a physics equation in a Sphinx theory page being verified.
+#
+# ``"foundation"`` is orthogonal to the L0..L3 ladder. A foundation
+# test verifies a **software invariant** — a data-structure contract,
+# a numerical primitive, a factory output, an algebraic identity of
+# a pre-physics building block — that does **not** correspond to any
+# ``:label:`` in ``docs/theory/*.rst``. Foundation tests never carry
+# a ``verifies(...)`` marker (they have no physics label to verify)
+# and the audit tool reports them in their own bucket alongside
+# L0..L3 rather than mixing them into the ladder counts.
+#
+# See ``docs/testing/architecture.rst`` ("Foundation tests — software
+# invariants outside the L0..L3 ladder") for the full rationale.
+VVLevel = Literal["L0", "L1", "L2", "L3", "foundation"]
 
 # Resolution tag for how a test got its V&V level. Used by the audit
 # tool to show provenance and by CI gates to distinguish explicit
 # tagging from inherited/heuristic tagging.
 #
-# - "explicit"     : @pytest.mark.lN on the test itself
+# - "explicit"     : @pytest.mark.lN / @pytest.mark.foundation on the test
 # - "verify"       : @verify.lN(...) decorator on class or function
 # - "class-name"   : TestL<N>Foo class naming convention
 # - "func-name"    : test_l<N>_* function naming convention

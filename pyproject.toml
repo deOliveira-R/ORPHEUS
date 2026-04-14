@@ -39,6 +39,7 @@ markers = [
     "l1: L1 Equation Verification — analytical/MMS, asserts convergence order",
     "l2: L2 Integration — multi-group heterogeneous, self-convergence",
     "l3: L3 Validation — comparison against experiment (ICSBEP, IRPhE)",
+    "foundation: Foundation — software invariant (data structure / numerical primitive), not a physics equation",
     "verifies(*labels): Sphinx equation labels (:label: in docs/theory/*.rst) that this test exercises",
     "catches(*tags): failure-mode (FM-NN) or error-catalog (ERR-NNN) tags this test guards",
 ]

@@ -62,11 +62,25 @@ VALIDATION — "Are we solving the right equations?"
   L3  Validation               comparison against experiment (ICSBEP, IRPhE)
 INFORMATIONAL
   L4  Benchmarking             code-to-code — never proves correctness
+
+ORTHOGONAL TO THE LADDER
+  foundation                   software invariants (data structures,
+                                numerical primitives, factory outputs)
+                                NOT corresponding to a theory-page
+                                equation — e.g. test_geometry volumes,
+                                Mesh1D frozen-immutability, subdivision
+                                equal-volume algebraic invariant
 ```
 
-Each level requires the levels below it. 1-group tests are DEGENERATE
-(k = νΣ_f/Σ_a regardless of flux shape). Multi-group (≥2G) is mandatory.
-Synthetic XS at L0–L2; real data only at L3+.
+Each physics level requires the levels below it. 1-group tests are
+DEGENERATE (k = νΣ_f/Σ_a regardless of flux shape). Multi-group (≥2G)
+is mandatory. Synthetic XS at L0–L2; real data only at L3+.
+
+**Foundation tests** sit outside the L0–L3 ladder. Use
+`@pytest.mark.foundation` when a test verifies a software invariant
+(not a physics equation) and has no `:label:` in `docs/theory/*.rst`
+to point at. Foundation tests never carry `verifies(...)`. See the
+"Foundation tests" section in `docs/testing/architecture.rst`.
 
 ### 5. Absolute discipline every session
 
@@ -83,7 +97,7 @@ metadata. Architecture doc: `docs/testing/architecture.rst`.
 
 **Tagging a test** (pick one — all feed the same registry):
 
-- Explicit: `@pytest.mark.l0` / `l1` / `l2` / `l3` (most specific)
+- Explicit: `@pytest.mark.l0` / `l1` / `l2` / `l3` / `foundation` (most specific)
 - Class: `class TestL0Foo:` (legacy naming convention, still honored)
 - File-level: `pytestmark = [pytest.mark.l1, pytest.mark.verifies("label")]`
 - Inherited: tests that parametrize over `case_name=` inherit `vv_level`
