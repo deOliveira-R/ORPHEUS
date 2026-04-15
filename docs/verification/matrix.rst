@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **533**
+Total tests collected: **600**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 278, 52.2%
-   L1, 149, 28.0%
-   L2, 45, 8.4%
+   L0, 345, 57.5%
+   L1, 149, 24.8%
+   L2, 45, 7.5%
    L3, 0, 0.0%
-   foundation, 61, 11.4%
+   foundation, 61, 10.2%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 445
+   explicit, 512
    verify, 0
    class-name, 46
    func-name, 0
@@ -54,6 +54,7 @@ Module × level grid
    cp/test_verification, 1, 25, 5, 0, 0, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
+   derivations/test_kernels, 67, 0, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
    geometry/test_geometry, 0, 0, 0, 0, 61, 0
@@ -140,6 +141,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``effective-spacing``, 22
    ``pitch-recovery``, 22
    ``ray-circle``, 22
+   ``en-kernel-derivative``, 20
+   ``kin-kernel-derivative``, 20
    ``dd-slab``, 16
    ``direction-sampling``, 16
    ``fission-weight``, 16
@@ -153,6 +156,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``dd-cartesian-1d``, 14
    ``transport-cartesian``, 13
    ``complementarity``, 12
+   ``kin-bickley-legacy-convention``, 12
    ``kinf-1g``, 12
    ``kinf-mg``, 12
    ``periodic-bc``, 12
@@ -168,10 +172,13 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``characteristic-ode``, 6
    ``delta-psi``, 6
    ``isotropic-source``, 6
+   ``kin-kernel-special-values``, 6
    ``moc-keff-update``, 6
    ``moc-wigner-seitz``, 6
+   ``en-kernel-special-values``, 5
    ``xs-interp``, 5
    ``absorption-xs``, 4
+   ``en-kernel-integral``, 4
    ``fission-matrix``, 4
    ``fission-source``, 4
    ``fixed-source-solve``, 4

@@ -9,4 +9,5 @@ regenerated on every Sphinx build.
 .. toctree::
    :maxdepth: 2
 
+   reference_solutions
    matrix

@@ -1,15 +1,43 @@
-"""Unified registry of all analytical verification cases.
+"""Unified registry of all verification reference solutions.
 
-Imports all derivation modules and collects their VerificationCase
-objects into a single dict for easy lookup by tests and documentation.
+Holds two parallel registries during the Phase-0 → Phase-6 migration:
+
+1. ``_CASES`` — the legacy :class:`VerificationCase` registry keyed
+   by name, populated from existing ``derive_*`` functions. Every
+   currently-green test consumes this.
+
+2. ``_CONTINUOUS`` — the new :class:`ContinuousReferenceSolution`
+   registry. Populated by derivations that have been retrofitted to
+   the Phase-0 contract. Keys are identical to ``_CASES`` when a
+   derivation has been upgraded, so a test can migrate one call site
+   at a time.
+
+Retrieval functions:
+
+- :func:`get` — legacy, returns a :class:`VerificationCase`.
+- :func:`continuous_get` — returns a :class:`ContinuousReferenceSolution`
+  if registered; raises :class:`KeyError` otherwise. Tests that need
+  a continuous reference call this; tests that only need a scalar
+  ``k_inf`` can stay on :func:`get`.
+- :func:`continuous_all_names`, :func:`continuous_all` — enumerate
+  the upgraded derivations.
+
+The two registries are additive — upgrading a derivation registers
+the new :class:`ContinuousReferenceSolution` **without** removing
+the legacy case (the new one can call ``.as_verification_case()`` to
+produce a backward-compatible bridge), so the migration is incremental.
 """
 
 from __future__ import annotations
 
+from ._reference import ContinuousReferenceSolution
 from ._types import VerificationCase
 
-# Registry populated lazily on first access
+# Legacy registry populated lazily on first access
 _CASES: dict[str, VerificationCase] | None = None
+
+# Phase-0 continuous-reference registry
+_CONTINUOUS: dict[str, ContinuousReferenceSolution] | None = None
 
 
 _SOLVER_CASES_LOADED = False
@@ -93,3 +121,84 @@ def by_groups(n_groups: int) -> list[VerificationCase]:
 def by_method(method: str) -> list[VerificationCase]:
     """Filter cases by solver method (homo, cp, sn, moc, mc, dif)."""
     return [c for c in _ensure_loaded().values() if c.method == method]
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Phase-0 continuous-reference registry
+# ═══════════════════════════════════════════════════════════════════════
+
+def _build_continuous_registry() -> dict[str, ContinuousReferenceSolution]:
+    """Import retrofitted derivation modules and collect their continuous references.
+
+    As each module in :mod:`orpheus.derivations` is upgraded to the
+    Phase-0 contract, add its import here. The function signature
+    modules are expected to expose is ``continuous_cases() -> list[ContinuousReferenceSolution]``.
+    """
+    refs: dict[str, ContinuousReferenceSolution] = {}
+
+    # Populated incrementally through Phases 1–5 of the verification
+    # campaign. Empty during Phase 0; the first retrofitted module
+    # (homogeneous) will add entries in Phase 1 Session 1.1.
+    _continuous_modules: list = []
+
+    for module in _continuous_modules:
+        if hasattr(module, "continuous_cases"):
+            for ref in module.continuous_cases():
+                refs[ref.name] = ref
+
+    return refs
+
+
+def _ensure_continuous_loaded() -> dict[str, ContinuousReferenceSolution]:
+    global _CONTINUOUS
+    if _CONTINUOUS is None:
+        _CONTINUOUS = _build_continuous_registry()
+    return _CONTINUOUS
+
+
+def continuous_register(ref: ContinuousReferenceSolution) -> None:
+    """Register a :class:`ContinuousReferenceSolution` into the registry.
+
+    The preferred registration path is to add the producing module
+    to the ``_continuous_modules`` list inside
+    :func:`_build_continuous_registry`. This explicit entry point
+    exists for tests and one-off derivations that need to inject
+    a reference at import time without touching the registry source.
+    """
+    refs = _ensure_continuous_loaded()
+    refs[ref.name] = ref
+
+
+def continuous_get(name: str) -> ContinuousReferenceSolution:
+    """Retrieve a continuous reference solution by name.
+
+    Raises :class:`KeyError` if ``name`` has not been upgraded yet.
+    Tests that need a continuous reference should call this directly;
+    tests that only need a scalar ``k_inf`` should stay on
+    :func:`get` until Phase 2 of the migration.
+    """
+    refs = _ensure_continuous_loaded()
+    return refs[name]
+
+
+def continuous_all_names() -> list[str]:
+    """List every registered continuous reference solution name."""
+    return sorted(_ensure_continuous_loaded().keys())
+
+
+def continuous_all() -> list[ContinuousReferenceSolution]:
+    """Return every registered continuous reference solution."""
+    return list(_ensure_continuous_loaded().values())
+
+
+def continuous_by_operator_form(form: str) -> list[ContinuousReferenceSolution]:
+    """Filter continuous references by :attr:`ContinuousReferenceSolution.operator_form`.
+
+    Used by the verification audit tool to group references by the
+    equation form they commit to, and by tests that want to pull
+    every reference valid for their solver's operator.
+    """
+    return [
+        r for r in _ensure_continuous_loaded().values()
+        if r.operator_form == form
+    ]
