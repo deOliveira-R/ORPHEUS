@@ -8,26 +8,6 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-# -- Workaround: exclude student_resources/ from Nexus AST analysis ------
-#
-# student_resources/ contains pedagogical tutorial scripts that
-# intentionally shadow orpheus.* class names (CPParams, CPResult, etc.).
-# Autodoc's py-domain xref resolver matches the short names against both
-# orpheus.* and student_resources.*, which causes every api/*.rst page
-# that automodules an affected orpheus module to be falsely flagged
-# stale whenever a tutorial script is touched. Exclude the tutorial
-# tree from Nexus AST analysis so the graph only carries the orpheus.*
-# symbols.
-#
-# TODO: remove once sphinxcontrib-nexus ships a user-facing
-# ``nexus_source_exclude_patterns`` config option (upstream issue to be
-# filed at session end).
-import sphinxcontrib.nexus as _nexus_mod
-_nexus_mod._BASE_EXCLUDE_PATTERNS = (
-    *_nexus_mod._BASE_EXCLUDE_PATTERNS,
-    "student_resources/*",
-)
-
 # -- Project information -----------------------------------------------
 
 project = 'ORPHEUS'
@@ -62,6 +42,16 @@ html_css_files = ['sortable.css']
 # -- Options for Nexus knowledge graph ------------------------------------
 
 nexus_extra_source_dirs = ['tests']
+
+# Exclude pedagogical tutorial scripts from the Nexus knowledge graph.
+# student_resources/ contains reduced re-implementations whose class
+# names intentionally shadow orpheus.* (CPParams, CPResult, TwoGroupXS,
+# HomogeneousResult, MCParams, FuelBehaviourResult, KineticsResult).
+# Without this exclusion, Sphinx's py-domain xref resolver attaches
+# both the orpheus.* class and the tutorial duplicate to every
+# api/*.rst page, inflating the graph and triggering false staleness
+# flags whenever a tutorial file is touched.
+nexus_source_exclude_patterns = ['student_resources/*']
 
 # -- Options for autodoc -----------------------------------------------
 
