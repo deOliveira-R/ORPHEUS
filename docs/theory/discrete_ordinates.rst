@@ -68,6 +68,13 @@ The solver is implemented in :class:`SNSolver`, which satisfies the
 function :func:`solve_sn` runs the full calculation and returns an
 :class:`SNResult`.
 
+Because the protocol puts the scattering source *inside*
+``solve_fixed_source``, the inner source iteration (which converges the
+in-scatter and anisotropic source) stays encapsulated in the SN-specific
+sweep — the outer :func:`~numerics.eigenvalue.power_iteration` loop is
+identical to the one used by CP, MOC, diffusion, and the homogeneous
+solver.  See :doc:`../api/numerics` for the protocol contract.
+
 
 Architecture
 ============

@@ -771,7 +771,12 @@ Power Iteration
 ===============
 
 The MOC solver plugs into the generic :func:`~numerics.eigenvalue.power_iteration`
-loop via the :class:`~numerics.eigenvalue.EigenvalueSolver` protocol:
+loop via the :class:`~numerics.eigenvalue.EigenvalueSolver` protocol.  The
+critical structural decision is that the in-scatter source is assembled
+**inside** ``solve_fixed_source`` — each inner transport sweep sees the
+most recent scalar flux, which is how the Gauss–Seidel-style inner
+iteration converges the scattering source without leaking MOC-specific
+logic into the outer eigenvalue loop (see :doc:`../api/numerics`).
 
 1. **Fission source** (:meth:`MOCSolver.compute_fission_source`):
    :math:`F_{i,g} = \chi_{i,g} \cdot (\nSigf{i} \cdot \phi_i) / k`
