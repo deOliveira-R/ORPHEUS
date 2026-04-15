@@ -213,7 +213,8 @@ def transport_operator_matvec(
 
     Returns
     -------
-    (n_unknowns,) result of T applied to the angular flux.
+    np.ndarray
+        Shape ``(n_unknowns,)``. T applied to the angular flux.
     """
     fi = solution_to_angular_flux(solution, eq_map, quad, nx, ny, ng)
 
@@ -285,7 +286,8 @@ def build_rhs(
 
     Returns
     -------
-    (n_unknowns,) RHS vector.
+    np.ndarray
+        Shape ``(n_unknowns,)``. The RHS source vector.
     """
     sum_w = float(quad.weights.sum())
     L = scattering_order
