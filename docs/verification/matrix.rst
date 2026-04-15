@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **531**
+Total tests collected: **533**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 278, 52.4%
-   L1, 147, 27.7%
-   L2, 45, 8.5%
+   L0, 278, 52.2%
+   L1, 149, 28.0%
+   L2, 45, 8.4%
    L3, 0, 0.0%
-   foundation, 61, 11.5%
+   foundation, 61, 11.4%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 443
+   explicit, 445
    verify, 0
    class-name, 46
    func-name, 0
@@ -71,6 +71,7 @@ Module × level grid
    sn/test_cartesian, 0, 5, 6, 0, 0, 0
    sn/test_cylindrical, 4, 10, 11, 0, 0, 0
    sn/test_discrete_ordinates_2d, 0, 0, 2, 0, 0, 0
+   sn/test_mms, 0, 2, 0, 0, 0, 0
    sn/test_properties, 4, 0, 0, 0, 0, 0
    sn/test_quadrature, 49, 0, 0, 0, 0, 0
    sn/test_solver_components, 35, 0, 0, 0, 0, 0
@@ -139,23 +140,23 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``effective-spacing``, 22
    ``pitch-recovery``, 22
    ``ray-circle``, 22
+   ``dd-slab``, 16
    ``direction-sampling``, 16
    ``fission-weight``, 16
    ``keff-cycle``, 16
    ``roulette-conservation``, 16
    ``roulette-prob``, 16
    ``dc-slab``, 15
-   ``dd-slab``, 15
    ``second-diff-cyl``, 15
    ``second-diff-general``, 15
    ``second-diff-sph``, 15
+   ``dd-cartesian-1d``, 14
+   ``transport-cartesian``, 13
    ``complementarity``, 12
-   ``dd-cartesian-1d``, 12
    ``kinf-1g``, 12
    ``kinf-mg``, 12
    ``periodic-bc``, 12
    ``reciprocity``, 12
-   ``transport-cartesian``, 12
    ``ws-pitch``, 12
    ``dd-recurrence``, 11
    ``dd-solve``, 11
@@ -196,6 +197,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``majorant``, 1
    ``normalisation``, 1
    ``sigT-computed``, 1
+   ``sn-mms-psi``, 1
+   ``sn-mms-qext``, 1
    ``splitting``, 1
 
 Orphan equations

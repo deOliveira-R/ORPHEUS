@@ -1355,6 +1355,157 @@ meshes.  They agree in the limit :math:`h \to 0`.
 Verification
 ============
 
+.. _sn-mms-verification:
+
+Method of Manufactured Solutions (1D slab)
+-------------------------------------------
+
+Homogeneous and heterogeneous eigenvalue tests verify :math:`\keff`
+--- a scalar. They do not tell us whether the **spatial operator**
+itself converges at the design order :math:`\mathcal O(h^{2})` of
+diamond difference.  The Method of Manufactured Solutions closes
+that gap by constructing a fixed-source problem whose exact angular
+flux is known in closed form, so the error against the prescribed
+flux is pure spatial-discretisation error.
+
+**Ansatz.**  For a vacuum-BC slab of length :math:`L` in one energy
+group, pick an isotropic angular flux
+
+.. math::
+   :label: sn-mms-psi
+
+   \psi_n(x) = \frac{1}{W}\,A(x),
+   \qquad A(x) = \sin\!\left(\frac{\pi x}{L}\right),
+
+where :math:`W = \sum_n w_n = 2` for Gauss--Legendre.  Because
+:math:`A(0) = A(L) = 0`, every ordinate vanishes at both faces ---
+the vacuum boundary conditions are satisfied automatically, with no
+inflow bookkeeping required on the caller side.  Since :math:`\psi_n`
+is independent of ordinate, the scalar flux recovered by any
+quadrature order is *exactly* :math:`\phi(x) = A(x)` --- the test
+isolates spatial error from angular quadrature error.
+
+**Manufactured source.**  Substituting :eq:`sn-mms-psi` into the
+discrete ordinates transport equation :eq:`transport-cartesian`
+(with the :math:`1/W` convention ORPHEUS uses),
+
+.. math::
+
+   \mu_n\,\frac{\partial\psi_n}{\partial x} + \Sigma_t\,\psi_n
+   = \frac{1}{W}\!\left(\Sigma_s\,\phi + Q^{\text{ext}}_n\right),
+
+and solving algebraically for :math:`Q^{\text{ext}}_n` gives
+
+.. math::
+   :label: sn-mms-qext
+
+   Q^{\text{ext}}_n(x)
+   = \mu_n\,A'(x) + \bigl(\Sigma_t - \Sigma_s\bigr)\,A(x)
+   = \mu_n\,\frac{\pi}{L}\cos\!\left(\frac{\pi x}{L}\right)
+     + \bigl(\Sigma_t - \Sigma_s\bigr)\sin\!\left(\frac{\pi x}{L}\right).
+
+The :math:`W` factor cancels cleanly because the ansatz was already
+divided by :math:`W`, so what we hand the solver is the full residual
+without any additional rescaling.  The expression is per-ordinate and
+linear in :math:`\mu_n`: a constant isotropic external source *cannot*
+drive a non-trivial manufactured flux because the streaming term
+:math:`\mu_n\,\psi'_n` is odd in :math:`\mu`.  That is the fundamental
+reason MMS for SN requires the :math:`Q_{\rm aniso}` plumbing path ---
+no "cheat" with a cell-by-cell isotropic source exists.
+
+**Why :math:`\sin(\pi x/L)`?**  The ansatz is smooth
+(:math:`C^{\infty}`) so all derivatives of the exact solution exist
+and DD's :math:`\mathcal O(h^{2})` truncation error dominates.  It
+vanishes at both boundaries for free.  Its derivatives do not collapse
+to a polynomial --- a cubic ansatz, for instance, has a constant
+second derivative so the DD truncation term :math:`\psi'''` would be
+zero and the error could disappear for a non-physical reason,
+hiding bugs.  Trigonometric or exponential ansätze have bounded
+but non-zero derivatives of every order and therefore expose the
+leading truncation term cleanly.
+
+**Implementation.**  The case is built by
+:func:`orpheus.derivations.sn_mms.build_1d_slab_mms_case` and
+consumed by :func:`orpheus.sn.solve_sn_fixed_source`.  The latter
+accepts a per-ordinate external source of shape
+:math:`(N, n_x, n_y, n_g)` and threads it through the sweep's
+:math:`Q_{\rm aniso}` slot --- merging additively with any P1+
+scattering contribution the solver itself builds.  The vacuum
+boundary condition is a new parameter on
+:func:`orpheus.sn.sweep.transport_sweep`; for ``"vacuum"`` the
+:math:`2\mathrm D` wavefront path skips the reflective-partner
+copy, leaving incoming-face angular fluxes at their zero
+initialisation (which is correct because no code path writes the
+incoming-face slot of any ordinate except the reflection step
+itself).
+
+**Measured convergence.**  With
+:math:`\Sigma_t = 1\ \mathrm{cm^{-1}}`,
+:math:`\Sigma_s = 0.5\ \mathrm{cm^{-1}}`,
+:math:`L = 5\ \mathrm{cm}`, Gauss--Legendre :math:`S_{16}`:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 10 20 20
+
+   * - :math:`n_{\rm cells}`
+     - :math:`\|\phi_h - \phi_{\rm ex}\|_{L^{2}}`
+     - measured order
+   * - 10
+     - :math:`2.17\!\times\!10^{-3}`
+     - ---
+   * - 20
+     - :math:`5.40\!\times\!10^{-4}`
+     - 2.01
+   * - 40
+     - :math:`1.35\!\times\!10^{-4}`
+     - 2.00
+   * - 80
+     - :math:`3.37\!\times\!10^{-5}`
+     - 2.00
+   * - 160
+     - :math:`8.42\!\times\!10^{-6}`
+     - 2.00
+
+Successive ratios hit :math:`4.00\pm0.02`, i.e. the measured order
+is exactly the design order of diamond difference.  The L1 test
+:func:`tests.sn.test_mms.test_sn_1d_slab_mms_converges_second_order`
+asserts a slightly loose ``order > 1.9`` bracket to leave room for
+round-off at the finest mesh.
+
+**Risk points / things that can go wrong.**
+
+- *Vacuum BC not honoured.*  If the reflective-partner copy is not
+  skipped, incoming-face angular flux at the boundary is non-zero
+  (the reflected outgoing from the opposite sweep) and the
+  manufactured solution no longer satisfies the discrete problem.
+  Symptom: :math:`\mathcal O(1)` error at the coarsest mesh; no
+  convergence regardless of refinement.
+- *Wrong normalisation for* :math:`Q_{\rm ext}`.  The solver's
+  :math:`Q_{\rm aniso}` slot is divided by :math:`W` internally;
+  the ansatz has a :math:`1/W` prefactor; the two must cancel.
+  If the derivation forgets the :math:`W` cancellation, the
+  measured flux is a factor of :math:`W` off but still converges at
+  order 2 --- sneaky.  Guard: the second test in ``test_mms.py``
+  cross-checks the algebraic symmetry of :eq:`sn-mms-qext`.
+- *Non-smooth ansatz.*  A discontinuous material or a piecewise
+  linear ansatz degrades the observed order to :math:`\mathcal O(h)`.
+  The homogeneous sinusoid avoids both.
+- *1-group vs multigroup.*  Because the manufactured flux is isotropic
+  and there is no fission in the fixed-source problem, 1 group is
+  sufficient --- the degeneracy warning about 1-group eigenvalue
+  tests does not apply, since no :math:`\keff` enters.  Multigroup
+  and heterogeneous MMS extensions are tracked as follow-ups for
+  richer operator coverage.
+
+**Follow-ups.**  MMS for :doc:`method_of_characteristics`, diffusion,
+and heterogeneous / multigroup SN is tracked in GitHub Issues
+(see ``type:feature level:L1``).  The current case
+verifies only the Cartesian diamond-difference sweep --- spherical
+and cylindrical curvilinear sweeps need their own ansatz because
+their vacuum BC plumbing is not yet wired up.
+
+
 Homogeneous Infinite Medium
 ----------------------------
 
