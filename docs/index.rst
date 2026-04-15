@@ -8,6 +8,7 @@ ORPHEUS — Open Reactor Physics Educational University System
    theory/cross_section_data
    theory/homogeneous
    theory/transport_methods
+   theory/diffusion_1d
    theory/fuel_behaviour
    theory/thermal_hydraulics
    theory/reactor_kinetics

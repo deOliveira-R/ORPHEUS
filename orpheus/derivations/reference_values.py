@@ -138,8 +138,8 @@ def _build_continuous_registry() -> dict[str, ContinuousReferenceSolution]:
 
     # Populated incrementally through Phases 1–5 of the verification
     # campaign.
-    from . import homogeneous
-    _continuous_modules: list = [homogeneous]
+    from . import diffusion, homogeneous
+    _continuous_modules: list = [homogeneous, diffusion]
 
     for module in _continuous_modules:
         if hasattr(module, "continuous_cases"):

@@ -120,6 +120,7 @@ class DiffusionSolver:
         *,
         errtol: float = 1e-6,
         maxiter_inner: int = 2000,
+        outer_tol: float = 1e-5,
     ) -> None:
         self.geom = geom
         self.ng = 2
@@ -129,6 +130,7 @@ class DiffusionSolver:
         self.dv = geom.dv
         self.errtol = errtol
         self.maxiter_inner = maxiter_inner
+        self.outer_tol = outer_tol
 
         # Build cell-wise cross sections: (2, n_cells)
         def _tile(refl_val: np.ndarray, fuel_val: np.ndarray) -> np.ndarray:
@@ -268,7 +270,7 @@ class DiffusionSolver:
             f"  keff = {keff:9.6f}  #outer = {iteration:3d}"
             f"  rel_change = {rel_change:.2e}"
         )
-        return rel_change < 1e-5
+        return rel_change < self.outer_tol
 
 
 def solve_diffusion_1d(
@@ -278,6 +280,7 @@ def solve_diffusion_1d(
     power_W: float = 1.76752e7,
     errtol: float = 1e-6,
     maxiter: int = 2000,
+    outer_tol: float = 1e-5,
 ) -> DiffusionResult:
     """Solve the 1D two-group diffusion eigenvalue problem.
 
@@ -286,6 +289,14 @@ def solve_diffusion_1d(
     geom : CoreGeometry (default: standard PWR SA).
     reflector_xs, fuel_xs : TwoGroupXS (default: from MATLAB CORE1D.m).
     power_W : float — target power for flux normalization (W).
+    errtol : float — BiCGSTAB inner solver relative tolerance.
+    maxiter : int — BiCGSTAB inner solver iteration cap.
+    outer_tol : float — outer power-iteration convergence tolerance
+        on relative flux change. Default ``1e-5`` preserves the
+        historical behaviour; Phase-1.2 convergence-order
+        verification tests pass ``1e-12`` to push the residual
+        well below the finite-difference discretisation error
+        at all mesh refinements.
     """
     if geom is None:
         geom = CoreGeometry()
@@ -294,7 +305,7 @@ def solve_diffusion_1d(
 
     solver = DiffusionSolver(
         geom, reflector_xs, fuel_xs,
-        errtol=errtol, maxiter_inner=maxiter,
+        errtol=errtol, maxiter_inner=maxiter, outer_tol=outer_tol,
     )
 
     keff, _keff_history, flux = power_iteration(solver, max_iter=200)

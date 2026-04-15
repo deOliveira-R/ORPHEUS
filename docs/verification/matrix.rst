@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **607**
+Total tests collected: **615**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 345, 56.8%
-   L1, 156, 25.7%
-   L2, 45, 7.4%
+   L0, 345, 56.1%
+   L1, 164, 26.7%
+   L2, 45, 7.3%
    L3, 0, 0.0%
-   foundation, 61, 10.0%
+   foundation, 61, 9.9%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 519
+   explicit, 527
    verify, 0
    class-name, 46
    func-name, 0
@@ -55,6 +55,7 @@ Module × level grid
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
    derivations/test_kernels, 67, 0, 0, 0, 0, 0
+   diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
    geometry/test_geometry, 0, 0, 0, 0, 61, 0
@@ -175,6 +176,15 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``pn-scatter``, 9
    ``tau-m``, 9
    ``tau-p``, 9
+   ``bare-slab-buckling``, 8
+   ``bare-slab-critical-equation``, 8
+   ``bare-slab-eigenfunction``, 8
+   ``diffusion-back-substitution``, 8
+   ``diffusion-coefficient``, 8
+   ``diffusion-interface-matching``, 8
+   ``diffusion-operator``, 8
+   ``diffusion-transcendental``, 8
+   ``diffusion-transfer-matrix``, 8
    ``bar-psi``, 6
    ``boyd-eq-45``, 6
    ``characteristic-ode``, 6
