@@ -571,14 +571,12 @@ def test_xs_consistency_in_solver():
     """L1-MC-010: sig_t used in solver = SigF + SigC + SigL + sig_s_sum.
 
     Also verifies :label:`sigT-computed` from
-    docs/theory/cross_section_data.rst for the Sig2 = 0 subset. The
-    theory-page formula additionally includes a rowsum(Sig_2n) term,
-    which is numerically zero for every current test material; when
-    issue #23 (MC (n,2n) support) lands with a nonzero-Sig2 material,
-    this decorator should be re-examined to confirm the coverage
-    still matches.
+    docs/theory/cross_section_data.rst. The theory-page formula also
+    includes a rowsum(Sig_2n) term; this test exercises the Sig2 = 0
+    subset (regions A/B/C/D from the synthetic library all have
+    Sig2 = 0). The nonzero-Sig2 path added by issue #23 is covered
+    separately by :func:`test_mc_n2n_keff_matches_analytical`.
 
-    The solver computes sig_t on line 296 as sig_a + sig_s_sum.
     If SigT from the mixture is inconsistent with the components,
     delta-tracking would use the wrong majorant but the right collision
     physics, causing a subtle bias.
