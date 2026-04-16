@@ -3,14 +3,53 @@
 Provides the explicit operator T: ψ → T·ψ via finite differences, used
 by the ``bicgstab`` inner solver path in :class:`SNSolver`.
 
-Two geometries are supported:
+Three geometries are supported:
 
 * **Cartesian 2D** — ``T = μ_x ∂/∂x + μ_y ∂/∂y + Σ_t``
 * **Spherical 1D** — ``T = μ (A ∂/∂r)/V + (α ∂/∂μ)/V + Σ_t``
+* **Cylindrical 1D** — per-level azimuthal redistribution
 
 The sweep-based solver (source iteration) inverts T implicitly via
 diamond-difference sweeps.  This module forms T explicitly so that
 scipy's Krylov solvers (BiCGSTAB, GMRES) can solve  T·ψ = b  directly.
+
+.. warning:: Operator-sweep inconsistency
+
+   The operator T formed here does **not** use the same diamond-difference
+   (DD) or weighted-diamond-difference (WDD) closure as the sweep paths
+   in :mod:`orpheus.sn.sweep`. Instead it uses:
+
+   * **Cartesian**: upwind cell-center finite differences for the
+     streaming gradient — first-order accurate and consistent with DD
+     on **uniform** meshes, but first-order inconsistent on
+     non-uniform meshes (divides by the local ``dx[ix]`` rather than
+     the cell-center distance ``(dx[ix]+dx[ix±1])/2``).
+   * **Curvilinear**: arithmetic averages for spatial face fluxes and
+     τ-weighted interpolation for angular face fluxes, rather than the
+     DD closure ``ψ_out = 2·ψ_avg − ψ_in`` and the WDD closure
+     ``ψ_angle_out = (ψ − (1−τ)·ψ_angle_in)/τ`` used by the sweeps.
+
+   **Why not use DD face fluxes directly?** The DD/WDD closure turns
+   the operator into a triangular system whose condition number grows
+   exponentially with optical thickness. Forward-substitution (the
+   sweep) is the natural solver for such systems; applying them as a
+   matvec inside unpreconditioned BiCGSTAB produces catastrophically
+   growing face fluxes in the Krylov search directions, leading to
+   overflow. A DD-consistent Krylov solve would require a sweep-based
+   preconditioner (DSA/TSA), which is a future enhancement.
+
+   **Practical implication.** On uniform meshes, the BiCGSTAB and
+   source-iteration paths converge to the same physics in the fine-mesh
+   limit (both are first-order consistent with the transport equation).
+   On non-uniform meshes, the BiCGSTAB Cartesian path has an additional
+   O(h) inconsistency in the gradient stencil. On heterogeneous problems
+   at coarse meshes, the two paths can differ at O(h²) in the
+   eigenvalue. For verification work, **always use source iteration**
+   (the default).
+
+   See GitHub issues #96 (Cartesian) and #97 (curvilinear) for the
+   full audit trail. The inconsistency was surfaced during the
+   ERR-025 diagnosis (Phase 2.1b of the verification campaign).
 """
 
 from __future__ import annotations
@@ -153,9 +192,17 @@ def _compute_gradients(
     nx: int, ny: int,
     dx: np.ndarray, dy: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Diamond-scheme gradients with reflective BCs.
+    """Upwind cell-center gradients with reflective BCs.
 
     Returns (dfi/dx, dfi/dy), each shape (ng,).
+
+    The gradient between adjacent cell centers is divided by the
+    **cell-center distance** ``(dx[i] + dx[j]) / 2`` rather than
+    the local cell width ``dx[i]``. On a uniform mesh these are
+    identical; on a non-uniform mesh the cell-center distance is
+    the correct denominator for a first-order consistent FD stencil.
+    The original MATLAB code (Mikityuk, PSI 2015) used a scalar
+    ``g.delta`` (uniform mesh only), so this distinction did not arise.
     """
     ref_x = quad.reflection_index("x")
     ref_y = quad.reflection_index("y")
@@ -165,31 +212,41 @@ def _compute_gradients(
     if mu_x[n] > 1e-15:
         if ix == 0:
             dfix = fi[:, ref_x[n], ix, iy] - fi[:, ref_x[n], ix + 1, iy]
+            hx = 0.5 * (dx[ix] + dx[ix + 1])
         else:
             dfix = fi[:, n, ix, iy] - fi[:, n, ix - 1, iy]
+            hx = 0.5 * (dx[ix] + dx[ix - 1])
     elif mu_x[n] < -1e-15:
         if ix == nx - 1:
             dfix = fi[:, ref_x[n], ix - 1, iy] - fi[:, ref_x[n], ix, iy]
+            hx = 0.5 * (dx[ix - 1] + dx[ix])
         else:
             dfix = fi[:, n, ix + 1, iy] - fi[:, n, ix, iy]
+            hx = 0.5 * (dx[ix + 1] + dx[ix])
     else:
         dfix = np.zeros(fi.shape[0])
+        hx = 1.0
 
     # Y gradient
     if mu_y[n] > 1e-15:
         if iy == 0:
             dfiy = fi[:, ref_y[n], ix, iy] - fi[:, ref_y[n], ix, iy + 1]
+            hy = 0.5 * (dy[iy] + dy[iy + 1])
         else:
             dfiy = fi[:, n, ix, iy] - fi[:, n, ix, iy - 1]
+            hy = 0.5 * (dy[iy] + dy[iy - 1])
     elif mu_y[n] < -1e-15:
         if iy == ny - 1:
             dfiy = fi[:, ref_y[n], ix, iy - 1] - fi[:, ref_y[n], ix, iy]
+            hy = 0.5 * (dy[iy - 1] + dy[iy])
         else:
             dfiy = fi[:, n, ix, iy + 1] - fi[:, n, ix, iy]
+            hy = 0.5 * (dy[iy + 1] + dy[iy])
     else:
         dfiy = np.zeros(fi.shape[0])
+        hy = 1.0
 
-    return dfix / dx[ix], dfiy / dy[iy]
+    return dfix / hx, dfiy / hy
 
 
 # ═══════════════════════════════════════════════════════════════════════
