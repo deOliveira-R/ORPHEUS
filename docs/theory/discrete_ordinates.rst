@@ -1832,7 +1832,99 @@ immediately, while a self-convergence test might not.
 - *Aspect ratio.*  The test uses :math:`L_x = L_y` (square domain).
   A non-square domain would work identically — the separable ansatz
   is parameterised by :math:`L_x` and :math:`L_y` independently.
-  Phase 3.2 will extend to 2-group with heterogeneous materials.
+  Phase 3.2 extends to 2-group with heterogeneous materials (below).
+
+
+.. _sn-mms-2d-2g-verification:
+
+2D Cartesian 2-group heterogeneous MMS
+----------------------------------------
+
+Phase 3.2 combines the 2D geometry from Phase 3.1 with the
+smooth-:math:`\Sigma` heterogeneous approach from Phase 2.1a.  The
+cross sections are smooth 2D functions :math:`\Sigma(x, y)` so the
+diamond-difference design order :math:`\mathcal O(h^{2})` is preserved
+(no interface degradation).
+
+**Ansatz.**  Per-group amplitudes :math:`c_g` with the same 2D shape:
+
+.. math::
+   :label: sn-mms-2d-2g-psi
+
+   \psi_{n,g}(x, y) = \frac{c_g}{W}\,A(x, y), \qquad
+   A(x, y) = \sin(\pi x/L_x)\,\sin(\pi y/L_y),
+
+giving :math:`\phi_g(x, y) = c_g\,A(x, y)` with
+:math:`\mathbf c = (1.0, 0.3)`.
+
+**Manufactured source.**  From the 2D multigroup transport equation:
+
+.. math::
+   :label: sn-mms-2d-2g-qext
+
+   Q^{\text{ext}}_{n,g}(x, y) =
+       \mu_{x,n}\,c_g\,\partial_x A
+     + \mu_{y,n}\,c_g\,\partial_y A
+     + \Sigma_{t,g}(x, y)\,c_g\,A
+     - \sum_{g'}\Sigma_{s,g'\to g}(x, y)\,c_{g'}\,A.
+
+The thermal (:math:`g = 2`) source couples to :math:`c_1` through
+the downscatter term :math:`\Sigma_{s,1\to 2}(x, y)\,c_1\,A`, which
+exercises the multigroup scatter assembly in the 2D sweep.
+
+**Cross-section profiles.**  The 2D functions extend the 1D
+Phase-2.1a profiles (see :ref:`sn-mms-heterogeneous-verification`)
+with a mild :math:`y`-dependent modulation:
+
+- :math:`\Sigma_{t,1}(x,y) = 1.0 + 0.2\sin(\pi x/L_x) + 0.1\cos(\pi y/L_y)`
+- :math:`\Sigma_{t,2}(x,y) = 2.0 + 0.3\cos(\pi x/L_x) + 0.1\sin(\pi y/L_y)`
+
+Scattering cross sections carry a :math:`0.05\cos(\pi y/L_y)` modulation.
+All :math:`\Sigma_a > 0` bounds from the 1D case are preserved because
+the :math:`y`-modulation amplitudes (0.1, 0.05) are smaller than the
+1D absorption margin (:math:`\sim 0.165`).
+
+**Measured convergence.**  Four refinements on a :math:`5 \times 5` cm
+square:
+
+.. list-table::
+   :header-rows: 1
+
+   * - :math:`n_x = n_y`
+     - L2 error (g=1)
+     - Order (g=1)
+     - L2 error (g=2)
+     - Order (g=2)
+   * - 10
+     - :math:`3.79 \times 10^{-3}`
+     -
+     - :math:`2.85 \times 10^{-3}`
+     -
+   * - 20
+     - :math:`9.41 \times 10^{-4}`
+     - 2.01
+     - :math:`7.09 \times 10^{-4}`
+     - 2.01
+   * - 40
+     - :math:`2.35 \times 10^{-4}`
+     - 2.00
+     - :math:`1.77 \times 10^{-4}`
+     - 2.00
+   * - 80
+     - :math:`5.87 \times 10^{-5}`
+     - 2.00
+     - :math:`4.42 \times 10^{-5}`
+     - 2.00
+
+Both groups achieve the design :math:`\mathcal O(h^{2})` rate.
+
+**Code pointers.**
+
+- Derivation:
+  :class:`orpheus.derivations.sn_mms.SN2DCartesian2GHeterogeneousMMSCase`
+  and :func:`orpheus.derivations.sn_mms.build_2d_cartesian_heterogeneous_mms_case`.
+- Test:
+  :func:`tests.sn.test_mms_2d.test_sn_2d_cartesian_2g_heterogeneous_mms_converges_second_order`.
 
 
 .. _sn-case-heterogeneous-verification:

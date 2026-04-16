@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **618**
+Total tests collected: **620**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 346, 56.0%
-   L1, 175, 28.3%
+   L0, 346, 55.8%
+   L1, 177, 28.5%
    L2, 36, 5.8%
    L3, 0, 0.0%
-   foundation, 61, 9.9%
+   foundation, 61, 9.8%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 539
+   explicit, 541
    verify, 0
    class-name, 46
    func-name, 0
@@ -76,7 +76,8 @@ Module × level grid
    sn/test_cylindrical, 4, 10, 11, 0, 0, 0
    sn/test_discrete_ordinates_2d, 0, 0, 2, 0, 0, 0
    sn/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
-   sn/test_mms, 0, 3, 0, 0, 0, 0
+   sn/test_mms, 0, 2, 0, 0, 0, 0
+   sn/test_mms_2d, 0, 3, 0, 0, 0, 0
    sn/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
    sn/test_properties, 4, 0, 0, 0, 0, 0
    sn/test_quadrature, 49, 0, 0, 0, 0, 0
@@ -96,7 +97,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    :header: Equation label, Tests
    :widths: 50, 10
 
-   ``mg-balance``, 164
+   ``mg-balance``, 165
    ``matrix-eigenvalue``, 160
    ``one-group-kinf``, 116
    ``reflective-bc``, 110
@@ -106,7 +107,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``collision-rate``, 88
    ``alpha-cylindrical``, 74
    ``mm-weights``, 74
-   ``multigroup``, 64
+   ``multigroup``, 65
    ``self-slab``, 52
    ``balance-general``, 51
    ``self-cyl``, 51
@@ -201,6 +202,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``en-kernel-special-values``, 5
    ``xs-interp``, 5
    ``absorption-xs``, 4
+   ``dd-cartesian-2d``, 4
    ``en-kernel-integral``, 4
    ``fission-source``, 4
    ``fixed-source-solve``, 4
@@ -208,9 +210,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``macro-sum``, 4
    ``sn-mms-hetero-psi``, 4
    ``sn-mms-hetero-qext``, 4
+   ``transport-cartesian-2d``, 4
    ``two-group-charpoly``, 4
    ``two-group-roots``, 4
-   ``dd-cartesian-2d``, 3
    ``delta-psi``, 3
    ``hetero-tolerance``, 3
    ``isotropic-source``, 3
@@ -220,7 +222,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``moc-wigner-seitz``, 3
    ``number-density``, 3
    ``sigma-zero``, 3
-   ``transport-cartesian-2d``, 3
    ``richardson-diffusion``, 2
    ``roulette-restore``, 2
    ``sn-case-back-substitution``, 2
@@ -230,11 +231,13 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-case-real-basis``, 2
    ``sn-case-slope-matrix``, 2
    ``sn-case-spatial-modes``, 2
+   ``sn-mms-2d-2g-psi``, 2
    ``branching``, 1
    ``collision-estimator``, 1
    ``majorant``, 1
    ``normalisation``, 1
    ``sigT-computed``, 1
+   ``sn-mms-2d-2g-qext``, 1
    ``sn-mms-2d-psi``, 1
    ``sn-mms-2d-qext``, 1
    ``sn-mms-psi``, 1
