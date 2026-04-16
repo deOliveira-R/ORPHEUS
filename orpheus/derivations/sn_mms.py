@@ -63,8 +63,8 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import Mesh1D
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.geometry import Mesh1D, Mesh2D
+from orpheus.sn.quadrature import GaussLegendre1D, LebedevSphere
 
 from ._reference import (
     ContinuousReferenceSolution,
@@ -576,6 +576,189 @@ def build_1d_slab_heterogeneous_mms_case(
     )
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# Phase 3.1 — 2D Cartesian MMS (1-group, Lebedev quadrature)
+# ═══════════════════════════════════════════════════════════════════════
+r"""
+2D Cartesian SN MMS reference.
+
+**Problem.** A vacuum-BC rectangle :math:`[0, L_x] \times [0, L_y]`
+with uniform cross sections, 1 energy group, Lebedev angular
+quadrature. The MMS ansatz is separable and isotropic in angle:
+
+.. math::
+
+    \psi_n(x, y) = \frac{1}{W}\,A(x, y),
+    \qquad A(x, y) = \sin\!\left(\frac{\pi x}{L_x}\right)
+                      \sin\!\left(\frac{\pi y}{L_y}\right),
+
+so the scalar flux equals :math:`\phi(x, y) = A(x, y)` for any
+quadrature set — angular error is exactly zero.
+
+**Manufactured source.** Substituting into the 2D transport equation
+:eq:`transport-cartesian-2d`:
+
+.. math::
+
+    Q^{\text{ext}}_n(x, y) \;=\;
+        \mu_{x,n}\,\frac{\partial A}{\partial x}
+      + \mu_{y,n}\,\frac{\partial A}{\partial y}
+      + (\Sigma_t - \Sigma_s)\,A(x, y).
+
+The partial derivatives are:
+
+.. math::
+
+    \frac{\partial A}{\partial x} =
+        \frac{\pi}{L_x}\cos\!\left(\frac{\pi x}{L_x}\right)
+        \sin\!\left(\frac{\pi y}{L_y}\right), \qquad
+    \frac{\partial A}{\partial y} =
+        \sin\!\left(\frac{\pi x}{L_x}\right)
+        \frac{\pi}{L_y}\cos\!\left(\frac{\pi y}{L_y}\right).
+
+The ansatz vanishes on all four edges, so vacuum BCs are automatic.
+
+.. seealso::
+
+    - :doc:`/theory/discrete_ordinates` — 2D Cartesian MMS section.
+    - :func:`orpheus.sn.solve_sn_fixed_source` — consumer.
+"""
+
+
+@dataclass(frozen=True)
+class SN2DCartesianMMSCase:
+    r"""Closed-form MMS fixed-source problem for 2D Cartesian SN verification.
+
+    Attributes
+    ----------
+    name : str
+        Unique identifier, e.g. ``"sn_mms_2d_cartesian_sin"``.
+    sigma_t, sigma_s : float
+        Total and isotropic scattering cross sections (1-group, cm⁻¹).
+    length_x, length_y : float
+        Physical dimensions of the rectangle in cm.
+    materials : dict[int, Mixture]
+        Material map consumable by the SN solver.
+    mat_id : int
+        Material ID assigned to every cell.
+    quadrature : LebedevSphere
+        Angular quadrature (fixed across mesh refinements).
+    tolerance : str
+        Expected convergence order.
+    equation_labels : tuple[str, ...]
+        Sphinx labels exercised by tests built from this case.
+    """
+
+    name: str
+    sigma_t: float
+    sigma_s: float
+    length_x: float
+    length_y: float
+    materials: dict[int, "Mixture"]
+    mat_id: int
+    quadrature: LebedevSphere
+    tolerance: str = "O(h^2)"
+    equation_labels: tuple[str, ...] = (
+        "transport-cartesian-2d",
+        "dd-cartesian-2d",
+        "sn-mms-2d-psi",
+        "sn-mms-2d-qext",
+    )
+
+    # ── Manufactured solution ─────────────────────────────────────────
+
+    def phi_exact(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+        r"""Reference scalar flux :math:`\phi(x,y) = \sin(\pi x/L_x)\sin(\pi y/L_y)`.
+
+        Parameters
+        ----------
+        x, y : ndarray, shapes (nx,) and (ny,)
+            Cell-centre coordinates.  Broadcast to ``(nx, ny)`` via
+            outer product.
+        """
+        x = np.asarray(x, dtype=float)
+        y = np.asarray(y, dtype=float)
+        return np.sin(np.pi * x[:, None] / self.length_x) * \
+               np.sin(np.pi * y[None, :] / self.length_y)
+
+    # ── Mesh + source construction ────────────────────────────────────
+
+    def build_mesh(self, nx: int, ny: int | None = None) -> Mesh2D:
+        """Uniform Cartesian 2D mesh with ``nx × ny`` cells.
+
+        If ``ny`` is None, uses ``ny = nx`` for a square mesh.
+        """
+        if ny is None:
+            ny = nx
+        edges_x = np.linspace(0.0, self.length_x, nx + 1)
+        edges_y = np.linspace(0.0, self.length_y, ny + 1)
+        mat_map = np.full((nx, ny), self.mat_id, dtype=int)
+        return Mesh2D(edges_x=edges_x, edges_y=edges_y, mat_map=mat_map)
+
+    def external_source(self, mesh: Mesh2D) -> np.ndarray:
+        r"""Per-ordinate external source on a 2D mesh.
+
+        Returns shape ``(N, nx, ny, 1)`` — per ordinate, per cell (x),
+        per cell (y), one energy group.  Evaluated at cell centres.
+        """
+        cx = mesh.centers_x                          # (nx,)
+        cy = mesh.centers_y                          # (ny,)
+        Lx, Ly = self.length_x, self.length_y
+
+        # Spatial ansatz and its partial derivatives
+        sin_x = np.sin(np.pi * cx / Lx)              # (nx,)
+        cos_x = np.cos(np.pi * cx / Lx)              # (nx,)
+        sin_y = np.sin(np.pi * cy / Ly)              # (ny,)
+        cos_y = np.cos(np.pi * cy / Ly)              # (ny,)
+
+        A = sin_x[:, None] * sin_y[None, :]           # (nx, ny)
+        dA_dx = (np.pi / Lx) * cos_x[:, None] * sin_y[None, :]  # (nx, ny)
+        dA_dy = sin_x[:, None] * (np.pi / Ly) * cos_y[None, :]  # (nx, ny)
+
+        mu_x = self.quadrature.mu_x                   # (N,)
+        mu_y = self.quadrature.mu_y                   # (N,)
+        N = len(mu_x)
+
+        # streaming: mu_x * dA/dx + mu_y * dA/dy   → (N, nx, ny)
+        streaming = (mu_x[:, None, None] * dA_dx[None, :, :]
+                     + mu_y[:, None, None] * dA_dy[None, :, :])
+        removal = (self.sigma_t - self.sigma_s) * A   # (nx, ny)
+        Q = streaming + removal[None, :, :]            # (N, nx, ny)
+        return Q[:, :, :, None]                        # (N, nx, ny, 1)
+
+
+def build_2d_cartesian_mms_case(
+    sigma_t: float = 1.0,
+    sigma_s: float = 0.5,
+    length_x: float = 5.0,
+    length_y: float = 5.0,
+    lebedev_order: int = 17,
+    mat_id: int = 1,
+    name: str = "sn_mms_2d_cartesian_sin",
+) -> SN2DCartesianMMSCase:
+    r"""Build the canonical 2D Cartesian MMS case.
+
+    Default parameters:
+
+    - :math:`c = 0.5` — geometric source-iteration convergence.
+    - :math:`L_x = L_y = 5\,\text{cm}` — square domain, several MFP.
+    - Lebedev order 17 (110 ordinates) — consistent with existing
+      2D eigenvalue tests.
+    """
+    materials = {mat_id: _make_1g_mixture(sigma_t, sigma_s)}
+    quadrature = LebedevSphere.create(order=lebedev_order)
+    return SN2DCartesianMMSCase(
+        name=name,
+        sigma_t=sigma_t,
+        sigma_s=sigma_s,
+        length_x=length_x,
+        length_y=length_y,
+        materials=materials,
+        mat_id=mat_id,
+        quadrature=quadrature,
+    )
+
+
 # ── Phase-0 ContinuousReferenceSolution wrapper ──────────────────────
 
 def _build_heterogeneous_continuous_reference() -> ContinuousReferenceSolution:
@@ -663,6 +846,78 @@ def _build_heterogeneous_continuous_reference() -> ContinuousReferenceSolution:
     )
 
 
+def _build_2d_cartesian_continuous_reference() -> ContinuousReferenceSolution:
+    r"""Produce the Phase-0 :class:`ContinuousReferenceSolution`
+    wrapper for the 2D Cartesian MMS case.
+
+    The reference is a **fixed-source** problem with
+    ``is_eigenvalue=False``. The reference scalar flux is
+    :math:`\phi(x,y) = \sin(\pi x/L_x)\sin(\pi y/L_y)`.
+    """
+    mms_case = build_2d_cartesian_mms_case()
+
+    def phi(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+        return mms_case.phi_exact(x, y)
+
+    return ContinuousReferenceSolution(
+        name=mms_case.name,
+        problem=ProblemSpec(
+            materials=mms_case.materials,
+            geometry_type="cartesian-2d",
+            geometry_params={
+                "length_x": mms_case.length_x,
+                "length_y": mms_case.length_y,
+                "mms_case": mms_case,
+            },
+            boundary_conditions={
+                "left": "vacuum", "right": "vacuum",
+                "bottom": "vacuum", "top": "vacuum",
+            },
+            external_source=None,  # constructed per-mesh
+            is_eigenvalue=False,
+            n_groups=1,
+        ),
+        operator_form="differential-sn",
+        phi=phi,
+        provenance=Provenance(
+            citation=(
+                "Salari & Knupp, SAND2000-1444 §6 (MMS methodology); "
+                "Oberkampf & Roy 2010, Ch. 6 (MMS fundamentals)"
+            ),
+            derivation_notes=(
+                "1-group 2D Cartesian SN spatial-operator reference "
+                "via the Method of Manufactured Solutions. Ansatz "
+                "ψ_n(x,y) = (1/W) sin(πx/Lx) sin(πy/Ly), giving "
+                "φ(x,y) = sin(πx/Lx) sin(πy/Ly). Manufactured source "
+                "Q_ext_n = μ_x ∂A/∂x + μ_y ∂A/∂y + (Σ_t − Σ_s) A. "
+                "Isotropic-in-angle ansatz eliminates angular "
+                "quadrature error; the only remaining error is the "
+                "2D diamond-difference spatial truncation at O(h²). "
+                "Vacuum BCs are satisfied because the separable "
+                "sinusoidal ansatz vanishes on all four edges."
+            ),
+            sympy_expression=(
+                r"Q^{\text{ext}}_n(x,y) = \mu_{x,n}\,\partial_x A "
+                r"+ \mu_{y,n}\,\partial_y A "
+                r"+ (\Sigma_t - \Sigma_s)\,A(x,y)"
+            ),
+            precision_digits=None,
+        ),
+        k_eff=None,
+        psi=None,
+        equation_labels=mms_case.equation_labels,
+        vv_level="L1",
+        description=(
+            "1-group 2D Cartesian SN MMS — separable sinusoidal ansatz, "
+            "vacuum BCs, Lebedev quadrature. Phase-3.1 continuous reference."
+        ),
+        tolerance="O(h^2)",
+    )
+
+
 def continuous_cases() -> list[ContinuousReferenceSolution]:
     """Return the Phase-0 continuous references produced by this module."""
-    return [_build_heterogeneous_continuous_reference()]
+    return [
+        _build_heterogeneous_continuous_reference(),
+        _build_2d_cartesian_continuous_reference(),
+    ]

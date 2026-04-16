@@ -16,7 +16,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.sn_mms import build_1d_slab_mms_case
+from orpheus.derivations.sn_mms import build_1d_slab_mms_case, build_2d_cartesian_mms_case
 from orpheus.sn import solve_sn_fixed_source
 
 
@@ -106,3 +106,57 @@ def test_sn_mms_manufactured_source_vanishes_at_zero_material():
     removal = (case.sigma_t - case.sigma_s) * case.phi_exact(mesh.centers)
     np.testing.assert_allclose(Q_sym, np.broadcast_to(removal, Q_sym.shape),
                                 rtol=1e-13, atol=1e-13)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 2D Cartesian MMS — Phase 3.1
+# ═══════════════════════════════════════════════════════════════════════
+
+def _l2_error_2d(
+    phi_num: np.ndarray, phi_ref: np.ndarray, volumes: np.ndarray,
+) -> float:
+    """Volume-weighted discrete L2 norm of the 2D flux error."""
+    diff = phi_num - phi_ref
+    return float(np.sqrt(np.sum(volumes * diff * diff)))
+
+
+@pytest.mark.l1
+@pytest.mark.verifies(
+    "transport-cartesian-2d", "dd-cartesian-2d",
+    "sn-mms-2d-psi", "sn-mms-2d-qext",
+)
+def test_sn_2d_cartesian_mms_converges_second_order():
+    r"""Diamond-difference SN on a 2D Cartesian mesh shows :math:`\mathcal{O}(h^2)`.
+
+    Runs the separable MMS problem on four refinements of a square
+    mesh (nx = ny = 10, 20, 40, 80) and asserts the observed
+    convergence order between successive refinements is > 1.9.
+    """
+    case = build_2d_cartesian_mms_case()
+
+    n_cells = [10, 20, 40, 80]
+    errors = []
+    for nc in n_cells:
+        mesh = case.build_mesh(nc)
+        Q = case.external_source(mesh)
+        result = solve_sn_fixed_source(
+            case.materials, mesh, case.quadrature, Q,
+            boundary_condition="vacuum",
+            max_inner=500,
+            inner_tol=1e-13,
+        )
+        phi_num = result.scalar_flux[:, :, 0]         # (nx, ny)
+        phi_ref = case.phi_exact(mesh.centers_x, mesh.centers_y)
+        errors.append(_l2_error_2d(phi_num, phi_ref, mesh.volumes))
+
+    errors = np.asarray(errors)
+    ratios = errors[:-1] / errors[1:]
+    orders = np.log2(ratios)
+
+    assert np.all(orders > 1.9), (
+        f"Expected O(h^2) convergence, got orders={orders} "
+        f"from errors={errors}"
+    )
+    # Absolute magnitude: finest mesh error should be small but above
+    # the solver tolerance floor.
+    assert 1e-8 < errors[-1] < 1e-3

@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **617**
+Total tests collected: **618**
 
 V&V level distribution
 ----------------------
@@ -16,8 +16,8 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 346, 56.1%
-   L1, 174, 28.2%
+   L0, 346, 56.0%
+   L1, 175, 28.3%
    L2, 36, 5.8%
    L3, 0, 0.0%
    foundation, 61, 9.9%
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 538
+   explicit, 539
    verify, 0
    class-name, 46
    func-name, 0
@@ -76,7 +76,7 @@ Module × level grid
    sn/test_cylindrical, 4, 10, 11, 0, 0, 0
    sn/test_discrete_ordinates_2d, 0, 0, 2, 0, 0, 0
    sn/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
-   sn/test_mms, 0, 2, 0, 0, 0, 0
+   sn/test_mms, 0, 3, 0, 0, 0, 0
    sn/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
    sn/test_properties, 4, 0, 0, 0, 0, 0
    sn/test_quadrature, 49, 0, 0, 0, 0, 0
@@ -210,6 +210,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-mms-hetero-qext``, 4
    ``two-group-charpoly``, 4
    ``two-group-roots``, 4
+   ``dd-cartesian-2d``, 3
    ``delta-psi``, 3
    ``hetero-tolerance``, 3
    ``isotropic-source``, 3
@@ -219,7 +220,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``moc-wigner-seitz``, 3
    ``number-density``, 3
    ``sigma-zero``, 3
-   ``dd-cartesian-2d``, 2
+   ``transport-cartesian-2d``, 3
    ``richardson-diffusion``, 2
    ``roulette-restore``, 2
    ``sn-case-back-substitution``, 2
@@ -229,12 +230,13 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-case-real-basis``, 2
    ``sn-case-slope-matrix``, 2
    ``sn-case-spatial-modes``, 2
-   ``transport-cartesian-2d``, 2
    ``branching``, 1
    ``collision-estimator``, 1
    ``majorant``, 1
    ``normalisation``, 1
    ``sigT-computed``, 1
+   ``sn-mms-2d-psi``, 1
+   ``sn-mms-2d-qext``, 1
    ``sn-mms-psi``, 1
    ``sn-mms-qext``, 1
    ``splitting``, 1

@@ -1702,6 +1702,139 @@ semi-analytical, from the first-order Boltzmann equation
 itself, no diffusion approximation).
 
 
+.. _sn-mms-2d-verification:
+
+2D Cartesian MMS — separable sinusoidal ansatz
+-----------------------------------------------
+
+Phase 3.1 of the verification campaign extends the MMS spatial-operator
+verification to **two Cartesian dimensions**.  The 1D slab MMS tests
+verify the :math:`\mu\,\partial\psi/\partial x` streaming term in
+isolation; this section adds :math:`\mu_y\,\partial\psi/\partial y`
+and confirms that the 2D wavefront sweep
+(:func:`orpheus.sn.sweep._sweep_2d_wavefront`) with diamond-difference
+closure achieves its design :math:`\mathcal O(h^{2})` convergence rate.
+
+**Ansatz.**  On a rectangle :math:`[0, L_x] \times [0, L_y]` with
+vacuum boundary conditions:
+
+.. math::
+   :label: sn-mms-2d-psi
+
+   \psi_n(x, y) \;=\; \frac{1}{W}\,A(x, y),
+   \qquad A(x, y) \;=\; \sin\!\left(\frac{\pi x}{L_x}\right)
+                         \sin\!\left(\frac{\pi y}{L_y}\right).
+
+The ansatz is **isotropic in angle** --- every ordinate carries the
+same angular flux amplitude --- so the scalar flux recovered by any
+quadrature set equals :math:`\phi(x, y) = A(x, y)` exactly.  This
+design is deliberate: it isolates **spatial** discretisation error from
+angular quadrature error, exactly as in the 1D case
+(:eq:`sn-mms-psi`).
+
+The separable sinusoidal ansatz vanishes on all four domain edges
+(:math:`x = 0`, :math:`x = L_x`, :math:`y = 0`, :math:`y = L_y`),
+so vacuum BCs are satisfied automatically for every ordinate.
+
+**Manufactured source.**  Substituting :eq:`sn-mms-2d-psi` into the
+2D Cartesian transport equation :eq:`transport-cartesian-2d` and
+solving for the residual:
+
+.. math::
+   :label: sn-mms-2d-qext
+
+   Q^{\text{ext}}_n(x, y) \;=\;
+       \mu_{x,n}\,\frac{\partial A}{\partial x}
+     + \mu_{y,n}\,\frac{\partial A}{\partial y}
+     + (\Sigma_t - \Sigma_s)\,A(x, y)
+
+where the partial derivatives of the separable ansatz are:
+
+.. math::
+
+   \frac{\partial A}{\partial x} =
+       \frac{\pi}{L_x}\cos\!\left(\frac{\pi x}{L_x}\right)
+       \sin\!\left(\frac{\pi y}{L_y}\right), \qquad
+   \frac{\partial A}{\partial y} =
+       \sin\!\left(\frac{\pi x}{L_x}\right)
+       \frac{\pi}{L_y}\cos\!\left(\frac{\pi y}{L_y}\right).
+
+The manufactured source :eq:`sn-mms-2d-qext` is angle-dependent through
+:math:`\mu_{x,n}` and :math:`\mu_{y,n}` (streaming terms) and
+angle-independent in the removal term :math:`(\Sigma_t - \Sigma_s) A`.
+It enters the solver through the ``Q_aniso`` external source slot in
+:func:`orpheus.sn.solve_sn_fixed_source`.
+
+**Quadrature.**  2D problems use Lebedev spherical quadrature
+(:class:`orpheus.sn.quadrature.LebedevSphere`, order 17 = 110 ordinates).
+Because the ansatz is isotropic in angle, the quadrature-level angular
+integration is exact for *any* quadrature set --- the spatial
+convergence study isolates spatial error exclusively.
+
+**Measured convergence.**  Four mesh refinements on a
+:math:`5 \times 5\,\text{cm}` square domain with
+:math:`\Sigma_t = 1.0`, :math:`\Sigma_s = 0.5`:
+
+.. list-table::
+   :header-rows: 1
+
+   * - :math:`n_x = n_y`
+     - L2 error
+     - Order
+   * - 10
+     - :math:`5.50 \times 10^{-3}`
+     -
+   * - 20
+     - :math:`1.37 \times 10^{-3}`
+     - 2.01
+   * - 40
+     - :math:`3.41 \times 10^{-4}`
+     - 2.00
+   * - 80
+     - :math:`8.53 \times 10^{-5}`
+     - 2.00
+
+The measured order is indistinguishable from 2.00 across all
+refinements, confirming that the 2D wavefront sweep preserves the
+diamond-difference design order.
+
+**Code pointers.**
+
+- Derivation:
+  :class:`orpheus.derivations.sn_mms.SN2DCartesianMMSCase` and
+  :func:`orpheus.derivations.sn_mms.build_2d_cartesian_mms_case`.
+- Test:
+  :func:`tests.sn.test_mms.test_sn_2d_cartesian_mms_converges_second_order`.
+- Sweep:
+  :func:`orpheus.sn.sweep._sweep_2d_wavefront` (the 2D diamond-difference
+  kernel verified by this test).
+
+**Why this test matters.**  The existing 2D SN tests
+(:mod:`tests.sn.test_discrete_ordinates_2d`) are L2 self-convergence
+tests with real cross sections that verify the solver as a black box.
+This MMS test is more incisive: it provides a **closed-form reference
+flux** and asserts the **design convergence order** of the spatial
+discretisation.  A bug that corrupts the 2D DD cell-average formula
+(e.g. swapping :math:`\Delta x` and :math:`\Delta y`, mis-indexing the
+wavefront anti-diagonal, or computing face fluxes with the wrong
+sign) would break the :math:`\mathcal O(h^{2})` rate while possibly
+still converging at some reduced order — the MMS test catches this
+immediately, while a self-convergence test might not.
+
+**Gotchas.**
+
+- *Ordinates with* :math:`\mu_x = \mu_y = 0`.  The Lebedev set
+  includes purely :math:`z`-directed ordinates.  For these, the
+  streaming terms vanish, and the sweep reduces to
+  :math:`\psi = Q/\Sigma_t`.  The manufactured source formula
+  handles this correctly because both :math:`\mu_{x,n}` and
+  :math:`\mu_{y,n}` multiply the gradient terms.
+- *Aspect ratio.*  The test uses :math:`L_x = L_y` (square domain).
+  A non-square domain would work identically — the separable ansatz
+  is parameterised by :math:`L_x` and :math:`L_y` independently.
+  Phase 3.2 will extend to 2-group with heterogeneous materials.
+
+
 .. _sn-case-heterogeneous-verification:
 
 Heterogeneous eigenvalue — Case singular-eigenfunction method
