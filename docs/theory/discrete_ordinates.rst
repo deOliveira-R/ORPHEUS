@@ -1694,15 +1694,305 @@ manufactured-solution algebra, not from the solver.
 
 **Complementary eigenvalue verification.** The MMS test
 verifies the **spatial operator** on a heterogeneous problem
-but does not exercise the eigenvalue iteration. Phase 2.1b of
-the verification campaign lands a Case singular-eigenfunction
-eigenvalue reference that restores eigenvalue-heterogeneous
-coverage for the SN solver (T2 semi-analytical, from the
-first-order Boltzmann equation itself, no diffusion
-approximation). Until Phase 2.1b lands, the eigenvalue
-iteration is verified transitively through the homogeneous
-:math:`k_\infty = \nu\Sigma_f/\Sigma_a` tests, which are
-themselves Phase 1.1 continuous references.
+but does not exercise the eigenvalue iteration. Phase 2.1b
+lands a Case singular-eigenfunction eigenvalue reference --- see
+:ref:`sn-case-heterogeneous-verification` --- that restores
+eigenvalue-heterogeneous coverage for the SN solver (T2
+semi-analytical, from the first-order Boltzmann equation
+itself, no diffusion approximation).
+
+
+.. _sn-case-heterogeneous-verification:
+
+Heterogeneous eigenvalue — Case singular-eigenfunction method
+--------------------------------------------------------------
+
+Phase 2.1b of the verification campaign closes the last
+heterogeneous gap in the SN verification ladder: the
+**eigenvalue iteration** on a 1-group two-region reflective
+slab, verified against a semi-analytical reference derived
+from the discrete-:math:`S_N` slope matrix itself --- no
+diffusion approximation, no cross-code comparison, no
+Richardson self-test.
+
+The reference is produced by
+:func:`orpheus.derivations.sn.derive_sn_heterogeneous_continuous`
+and consumed by
+:func:`tests.sn.test_heterogeneous_transport.test_sn_2region_reflective_case_eigenvalue`
+(eigenvalue) and
+:func:`tests.sn.test_heterogeneous_transport.test_sn_2region_reflective_flux_shape`
+(scalar flux shape). The Phase 2.1a smooth-:math:`\Sigma` MMS
+test verifies the **spatial operator** at :math:`\mathcal O(h^{2})`
+design order; this section's Case method verifies the
+**eigenvalue** iteration at the material-interface-degraded
+:math:`\mathcal O(h)` rate expected for diamond-difference on
+piecewise-constant :math:`\Sigma`.
+
+**Motivation: why a second verification path.** The Phase 2.1a
+MMS test deliberately uses smooth :math:`\Sigma(x)` to avoid
+interface degradation and hit the :math:`\mathcal O(h^{2})`
+design order of diamond difference. That is the right choice
+for verifying the spatial operator, but it **cannot** exercise
+the heterogeneous-interface regime where material
+discontinuities force the operator into its interface-layer
+behaviour --- the regime where a significant fraction of
+production solver bugs live (including ERR-025; see
+:ref:`investigation-err-025`). The Case singular-eigenfunction
+method provides the complementary reference: an eigenvalue
+solution with genuine material-interface discontinuities, built
+from the transport equation without running the solver.
+
+**Operator.** The 1-group 1D slab SN transport equation in a
+single region with cross sections
+:math:`(\Sigma_t, \Sigma_s, \nu\Sigma_f)` and reflective BCs
+is, per ordinate,
+
+.. math::
+   :label: sn-case-per-ordinate
+
+   \mu_n\,\frac{d\psi_n}{dx} + \Sigma_t\,\psi_n
+     \;=\; \frac{c_\text{eff}(k)}{W}\,\phi,
+   \qquad
+   \phi = \sum_m w_m\,\psi_m,
+   \qquad
+   c_\text{eff}(k) = \Sigma_s + \frac{\nu\Sigma_f}{k},
+
+where :math:`W = \sum_m w_m`. Substituting the scalar-flux
+definition and stacking the angular flux into
+:math:`\mathbf y \in \mathbb R^N` (for Gauss--Legendre order
+:math:`N`), the system becomes a first-order constant-coefficient
+ODE
+
+.. math::
+   :label: sn-case-slope-matrix
+
+   \frac{d\mathbf y}{dx} \;=\; \mathbf S(k)\,\mathbf y,
+   \qquad
+   \mathbf S(k)[n, m] \;=\; \frac{1}{\mu_n}
+       \left(-\Sigma_t\,\delta_{nm}
+             + \frac{c_\text{eff}(k)}{W}\,w_m\right).
+
+Note the **row-scaling** :math:`1/\mu_n`: the slope matrix is
+generally non-symmetric even for symmetric GL quadrature,
+because the angular ODE has different "speeds" for different
+ordinates.
+
+**Per-region spatial modes.** For each region (fuel at
+:math:`x \in [0, H_A]` and moderator at :math:`x \in [H_A, L]`),
+diagonalise :math:`\mathbf S(k)`:
+
+.. math::
+   :label: sn-case-spatial-modes
+
+   \mathbf S(k)\,\mathbf v_i \;=\; \lambda_i\,\mathbf v_i,
+   \qquad i = 1,\ldots,N,
+
+via :func:`numpy.linalg.eig`. For subcritical regions
+(:math:`c_\text{eff}(k) < 1`, typical moderator) the eigenvalues
+come in :math:`\pm` real pairs. For supercritical regions
+(:math:`c_\text{eff}(k) > 1`, fuel at :math:`k` below
+:math:`k_{\infty,\text{fuel}}`) some pairs are
+complex-conjugate. Each real eigenvalue gives one exponential
+mode :math:`\exp(\lambda\,x)\,\mathbf v`; each complex-conjugate
+pair gives two real modes built from the canonical
+:math:`\cos/\sin/\Re/\Im` combination.
+
+**Real bounded basis.** The naive unbounded basis
+:math:`\exp(\lambda\,x)\,\mathbf v` is catastrophically
+ill-conditioned for optically thick slabs --- the Phase 1.2
+diffusion investigation history records the ``expm``-based
+transfer-matrix composition dying from :math:`\text{cond}
+\sim 10^{17}` on an 80-cm slab, finding spurious roots with
+:math:`\mathcal O(10^{-3})` null-vector residuals rather than
+machine-precision zeros. The fix, ported verbatim to Phase 2.1b,
+is to **anchor each mode at the nearer region edge**:
+
+.. math::
+   :label: sn-case-real-basis
+
+   m^{\text{real}}_j(x) &\;=\; \exp(\lambda_j\,\xi_j)\,\mathbf v_j,
+       \qquad
+       \xi_j = \begin{cases}
+         x - L_\text{reg} & \lambda_j \ge 0 \;\;\text{(anchor right)} \\
+         x                & \lambda_j < 0 \;\;\text{(anchor left)}
+       \end{cases} \\[1mm]
+   m^{\text{c}}_j(x) &\;=\; e^{\Re\lambda_j\,\xi_j}\,
+       \bigl(\cos(\Im\lambda_j\,\xi_j)\,\mathbf v_{R,j}
+          - \sin(\Im\lambda_j\,\xi_j)\,\mathbf v_{I,j}\bigr), \\
+   m^{\text{s}}_j(x) &\;=\; e^{\Re\lambda_j\,\xi_j}\,
+       \bigl(\sin(\Im\lambda_j\,\xi_j)\,\mathbf v_{R,j}
+          + \cos(\Im\lambda_j\,\xi_j)\,\mathbf v_{I,j}\bigr),
+
+where :math:`\mathbf v_j = \mathbf v_{R,j} + i\,\mathbf v_{I,j}`
+is the complex eigenvector. Every mode is bounded by
+:math:`|\mathbf v_j|` on its region, so the assembled matching
+matrix has :math:`\mathcal O(1)` entries.
+
+**Matching matrix.** For the 2-region reflective slab the
+coefficient vector has dimension :math:`2N` (one real mode per
+eigenvalue per region). The linear constraints are:
+
+.. math::
+   :label: sn-case-matching-matrix
+
+   &\text{Reflective at } x = 0:\quad
+      \psi^A_n(0) - \psi^A_{N-1-n}(0) = 0,
+      \qquad n \in [0, N/2) \\[1mm]
+   &\text{Interface at } x = H_A:\quad
+      \psi^A_n(H_A) - \psi^B_n(H_A) = 0,
+      \qquad n \in [0, N) \\[1mm]
+   &\text{Reflective at } x = L:\quad
+      \psi^B_n(L) - \psi^B_{N-1-n}(L) = 0,
+      \qquad n \in [0, N/2)
+
+:math:`N/2 + N + N/2 = 2N` equations in :math:`2N` unknowns.
+The partner index :math:`N-1-n` is the Gauss--Legendre
+reflection pairing (ordinates sorted by ascending :math:`\mu`).
+The eigenvalue condition is
+:math:`\det\mathbf C(k) = 0`.
+
+**Root finding.** :func:`scipy.optimize.brentq` on
+:math:`\det\mathbf C(k)` over a coarse :math:`k`-scan, with
+sign-change bracketing, refines every candidate to
+``xtol=1e-14``. But :func:`numpy.linalg.eig`'s eigenvalue
+ordering is not a continuous function of :math:`k` --- at
+parameter values where two per-region eigenvalues cross, the
+eigenvalue labels permute discontinuously, and
+:math:`\det\mathbf C(k)` flips sign by permutation rather than
+by passing through zero. brentq will "converge" to such
+spurious points.
+
+**Physical validation.** Every candidate root is rebuilt via
+SVD of :math:`\mathbf C(k)`, and the null vector's reflective-BC
+residuals at :math:`x = 0` and :math:`x = L`, and the interface
+continuity residual at :math:`x = H_A`, are explicitly
+reconstructed and checked against a dimensionless tolerance
+relative to the peak angular flux:
+
+.. math::
+   :label: sn-case-physical-validation
+
+   \|\psi(0, +\mu_n) - \psi(0, -\mu_n)\| / \|\psi\|_\text{peak}
+     &< \text{tol} \\
+   \|\psi^A(H_A) - \psi^B(H_A)\| / \|\psi\|_\text{peak}
+     &< \text{tol} \\
+   \|\psi(L, +\mu_n) - \psi(L, -\mu_n)\| / \|\psi\|_\text{peak}
+     &< \text{tol}
+
+Only candidates passing all three are accepted; the fundamental
+is the largest validated root. This is the SN analogue of the
+Phase 1.2 diffusion physical validation (same pattern, different
+operator).
+
+**Back-substitution.** Once :math:`k_\text{fund}` is found,
+the null vector at that :math:`k` is the coefficient vector in
+the :math:`2N`-dimensional real basis. Evaluation of
+:math:`\phi(x) = \sum_n w_n\,\psi_n(x)` at any point reduces to
+a linear combination of a handful of bounded exponential or
+trigonometric modes:
+
+.. math::
+   :label: sn-case-back-substitution
+
+   \psi(x) = \begin{cases}
+     \sum_j c^A_j\,m^A_j(x) & x \le H_A \\[1mm]
+     \sum_j c^B_j\,m^B_j(x - H_A) & x > H_A
+   \end{cases},
+   \qquad
+   \phi(x) = \sum_n w_n\,\psi_n(x).
+
+All modes are bounded by :math:`\mathcal O(1)`, so
+:math:`\phi(x)` is stable to machine precision.
+
+**The Phase 2.1b diagnostic configuration.** The canonical
+test problem is the ``A`` + ``B`` 1-group mixture pair from
+:mod:`orpheus.derivations._xs_library`:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 15 15 15 15
+
+   * - Region
+     - :math:`\Sigma_t`
+     - :math:`\Sigma_s`
+     - :math:`\nu\Sigma_f`
+     - :math:`k_\infty`
+   * - A (fuel)
+     - 1.0
+     - 0.5
+     - 0.75
+     - 1.5
+   * - B (moderator)
+     - 2.0
+     - 1.9
+     - 0
+     - ---
+
+with :math:`H_A = H_B = 0.5\,\text{cm}`, reflective BCs on both
+outer edges, :math:`S_8` Gauss--Legendre quadrature. The
+resulting Case reference is
+
+.. math::
+
+   k_\text{eff}^{\text{Case}}(S_8) = 1.2746160417
+
+--- the exact discrete-:math:`S_8` eigenvalue. For
+cross-validation, the same configuration run through ORPHEUS's
+:func:`~orpheus.cp.solver.solve_cp` (1D slab E\ :sub:`3` kernel,
+completely independent numerical path) gives
+:math:`k^{\text{CP}} = 1.2744284665` --- agreement to
+:math:`\sim 2\times 10^{-4}`, well below the :math:`\mathcal O(1\%)`
+difference that typically exists between discrete-SN and
+continuous-angle formulations. This cross-check is used only as
+a sanity input, not as a verification crutch.
+
+**Measured convergence.** With :math:`S_8`, refining
+:math:`n_\text{per}` per region:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 25 15
+
+   * - :math:`n_\text{per}`
+     - :math:`k_\text{solve}`
+     - :math:`|k_\text{solve} - k_\text{Case}|`
+   * - 20
+     - 1.2746074093
+     - :math:`\sim 8.6\!\times\!10^{-6}`
+   * - 40
+     - 1.2746138837
+     - :math:`\sim 2.2\!\times\!10^{-6}`
+   * - 80
+     - 1.2746155022
+     - :math:`\sim 5.4\!\times\!10^{-7}`
+   * - 160
+     - 1.2746159068
+     - :math:`\sim 1.3\!\times\!10^{-7}`
+   * - 320
+     - 1.2746160080
+     - :math:`\sim 3.4\!\times\!10^{-8}`
+
+Each refinement roughly halves the error, confirming the
+:math:`\mathcal O(h)` rate expected at a material interface with
+piecewise-constant :math:`\Sigma`. The finest-mesh residual of
+:math:`3.4 \times 10^{-8}` is **machine-precision agreement**
+between two independent mathematical constructions (the Case
+matching-matrix + back-substitution reference and the
+diamond-difference sweep-based power iteration); both
+implementations solve the same discrete-:math:`S_N` spectral
+problem and agree to within the BiCGSTAB-compatible
+truncation.
+
+**Contrast with Phase 2.1a.** The Phase 2.1a MMS section hits
+:math:`\mathcal O(h^{2})` because it uses smooth
+:math:`\Sigma(x)`; the Phase 2.1b Case section hits
+:math:`\mathcal O(h)` because it uses piecewise-constant
+:math:`\Sigma(x)` with a genuine material interface. Both are
+correct for their respective regimes. The degradation from
+:math:`h^{2}` to :math:`h` at the interface is the standard
+Salari--Knupp result for DD on discontinuous coefficients, and
+is the **reason** Phase 2.1a deliberately chose smooth
+:math:`\Sigma` to isolate the spatial operator.
 
 
 Homogeneous Infinite Medium
@@ -1958,6 +2248,313 @@ Results After Fix
    * - Contamination :math:`\beta` (cylindrical)
      - ~2.0
      - ~10\ :sup:`-16` (machine zero)
+
+
+.. _investigation-err-025:
+
+Investigation History: ERR-025 and the Phase 2.1b Case reference
+=================================================================
+
+This section documents the full diagnostic history of ERR-025 and
+the Phase 2.1b Case singular-eigenfunction reference, preserved to
+give future sessions a vivid example of how silent
+derivation-implementation drift can survive every eigenvalue-based
+test a module has.
+
+Symptoms
+--------
+
+Phase 2.1b originally set out to land a Case singular-eigenfunction
+eigenvalue reference for the 1-group two-region reflective slab
+(configuration in :ref:`sn-case-heterogeneous-verification`). The
+prototype Case code was self-consistent: homogeneous limits exact,
+region-swap invariance exact, :math:`H_B \to 0` limit matching
+:math:`k_{\infty,\text{fuel}}`, physical-reconstruction residuals at
+machine precision. But the mesh-refined ``solve_sn`` sequence on the
+same configuration converged cleanly to a **different** value:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 30 25
+
+   * - Implementation
+     - :math:`k_\text{eff}`
+     - Residual vs Case
+   * - Case singular-eigenfunction
+     - 1.27461604
+     - ---
+   * - CP slab :math:`E_3` kernel (converged)
+     - 1.27442847
+     - :math:`-1.88\times 10^{-4}`
+   * - ``solve_sn`` S\ :sub:`8`, :math:`n=1280`
+     - 1.25986980
+     - :math:`-1.48\times 10^{-2}`
+
+Two independent transport methods (Case + CP) agreed to
+:math:`\sim 2\times 10^{-4}`; ``solve_sn`` disagreed by almost two
+orders of magnitude more. The gap did not shrink with mesh
+refinement or with increasing quadrature order (:math:`S_4` through
+:math:`S_{64}` all converged to the wrong asymptote). It was also
+**invisible on every homogeneous test**: pure fuel slab gave
+:math:`k_\infty = 1.5` exactly, same-material two-region gave
+:math:`k_\infty` exactly, and the Phase 2.1a smooth-:math:`\Sigma`
+heterogeneous MMS test hit :math:`\mathcal O(h^{2})`. The only
+configuration that showed the discrepancy was the one with a
+piecewise-constant material interface under the eigenvalue driver.
+
+Initial Hypothesis (wrong)
+--------------------------
+
+The first hypothesis was that the Case implementation was computing
+the **continuous-angle** limit of the SN eigenvalue while
+``solve_sn`` was solving the discrete-:math:`S_8` problem, and the
+:math:`\sim 1.5\%` gap was the quadrature-order error expected for
+:math:`S_8` Gauss--Legendre (:math:`\sim 1/N^{2} \approx 1.5\%`).
+
+Testing this hypothesis with an :math:`S_N` order sweep killed it
+immediately: ``solve_sn`` at :math:`S_4, S_8, S_{16}, S_{32}, S_{64}`
+converged cleanly **in angle** to :math:`\sim 1.2609`, not to
+:math:`1.2746` --- plateau of :math:`\sim 3\times 10^{-5}` at
+:math:`S_{32}`. The two methods were not approaching the same
+continuous-angle answer. The disagreement was structural.
+
+Cross-Check That Localised The Bug
+-----------------------------------
+
+The next move was to run the same configuration through a
+completely independent transport method: ORPHEUS's collision
+probability solver :func:`orpheus.cp.solver.solve_cp` on a 1D slab
+with the :math:`E_3` kernel. CP uses the Peierls integral equation
+--- no diamond difference, no finite-volume discretisation, no
+explicit ordinate sweep --- and its numerical path has nothing in
+common with ``solve_sn``. CP converged to :math:`k = 1.27442847`,
+essentially matching the Case reference to the CP quadrature
+precision.
+
+Result: two independent methods agreed on :math:`k \approx 1.27461`,
+``solve_sn`` disagreed by :math:`\sim 1.5\%`. **The SN solver was
+the outlier.** Since homogeneous and same-material problems worked,
+the bug had to live somewhere that activates specifically at a
+**material interface** in the ``solve_sn`` code path.
+
+Root Cause: ERR-025
+-------------------
+
+A focused audit of the four SN sweep paths and the source-builder
+helpers localised the bug to
+:func:`orpheus.sn.sweep._sweep_1d_cumprod`, the 1D Cartesian
+Gauss--Legendre fast path. Its diamond-difference face-flux
+recurrence coefficients were
+
+.. math::
+
+   a_\text{bug} &= \frac{2\mu}{2\mu + \Delta x\,\Sigma_t}
+     \qquad (\text{WRONG: missing } -\Sigma_t\text{ in numerator}) \\
+   b_\text{bug} &= \frac{0.5\,\Delta x\,Q}{2\mu + \Delta x\,\Sigma_t}
+     \qquad (\text{WRONG: missing } 1/W\text{, extra factor } 0.5)
+
+instead of the canonical diamond-difference recurrence derived
+symbolically in
+:func:`orpheus.derivations.sn_balance.derive_cumprod_recurrence`:
+
+.. math::
+
+   a &= \frac{2\mu - \Delta x\,\Sigma_t}{2\mu + \Delta x\,\Sigma_t} \\
+   b &= \frac{2\,\Delta x\,(Q/W)}{2\mu + \Delta x\,\Sigma_t}
+
+where :math:`W = \sum_n w_n` is the quadrature weight sum, needed
+because :func:`orpheus.sn.solver.SNSolver._add_scattering_source`
+produces :math:`Q` in **scalar-flux units** while the per-ordinate
+transport equation sees :math:`Q/W` as its right-hand side. The 2D
+wavefront sweep :func:`~orpheus.sn.sweep._sweep_2d_wavefront`
+already applied this normalisation via its ``weight_norm = 1/W``
+factor; the 1D fast path had been independently derived without it
+and drifted silently.
+
+Why the Two Errors Cancel For Homogeneous Problems
+---------------------------------------------------
+
+The fixed point of the buggy recurrence is
+:math:`\psi_n = Q/(2\Sigma_t)`, half the correct
+:math:`Q/\Sigma_t`. But for Gauss--Legendre on :math:`[-1, 1]`,
+:math:`W = \sum_n w_n = 2`, so the missing :math:`1/W = 1/2`
+multiplies the buggy fixed point by exactly :math:`2`, turning
+:math:`Q/(2\Sigma_t)` back into the correct
+:math:`\psi_n = Q/(W\Sigma_t)` per ordinate. The resulting scalar
+flux
+
+.. math::
+
+   \phi = \sum_n w_n\,\psi_n = W\cdot\frac{Q}{W\Sigma_t} = \frac{Q}{\Sigma_t}
+
+is identical in magnitude to the correct value. This is why every
+homogeneous test passed at machine precision, including
+:math:`k_\infty` assertions to :math:`10^{-8}`.
+
+For an eigenvalue problem, even without the :math:`W=2` coincidence
+rescaling, the Rayleigh quotient
+
+.. math::
+
+   k \;=\; \frac{\nu\Sigma_f\,\phi}{\Sigma_a\,\phi}
+
+is **invariant** under a uniform rescaling :math:`\phi \to C\phi`,
+because :math:`C` cancels between numerator and denominator.
+Homogeneous and same-material-multi-region problems have a
+uniform-in-:math:`x` rescaling, so the buggy :math:`k_\text{eff}`
+is exact. Only at a **material interface** does the rescale factor
+:math:`C(x)` become :math:`x`-dependent (through :math:`\Sigma_t(x)`),
+and only then does the cancellation break and a real error appear.
+
+Dead End #1: "It must be S\ :sub:`8` vs continuous angle"
+----------------------------------------------------------
+
+The :math:`\sim 1.5\%` magnitude is numerically close to the
+typical :math:`1/N^{2}` error for Gauss--Legendre :math:`S_8`,
+which made this hypothesis seductive. Cost to refute: 30 seconds
+with an :math:`S_N` sweep showing the gap was invariant in
+quadrature order. Lesson: **always run the cheapest diagnostic
+first**. A 30-second experiment would have saved an hour of
+grooming the Case code for non-existent quadrature-convention
+bugs.
+
+Dead End #2: "It must be the Case code --- its symmetry checks
+passed but it's newer code"
+--------------------------------------------------------------
+
+Before the CP cross-check, the natural first suspicion was the
+Case prototype. It was ephemeral session code with hand-derived
+algebra and no reference implementation to compare against; the
+``solve_sn`` path was production code shipping for months with a
+full test suite. The CP cross-check inverted this: two
+**independent mathematical constructions** (Case via
+eigendecomposition, CP via :math:`E_3` integral kernel) agreed,
+and the production solver was the outlier. Lesson: **trust
+agreement over pedigree**. A test suite that never exercised the
+failure mode is not evidence of correctness, no matter how big
+it is.
+
+Dead End #3: "Maybe the reflective BC is subtly wrong"
+-------------------------------------------------------
+
+One hypothesis was that ``_sweep_1d_cumprod``'s reflective BC
+persistence (via the ``psi_bc["bc_1d"]`` dict between outer
+iterations) was mishandling the ordinate pairing at a material
+interface. The bug is upstream of the BC code --- the coefficients
+are wrong before the BC ever touches them --- but the hypothesis
+was plausible enough to warrant an audit of the BC application
+code. It was clean. Lesson: **trace the data flow in order**.
+The BC is applied to the output of the recurrence; if the
+recurrence itself is wrong, the BC can't fix it and can't
+manifest the bug.
+
+Dead End #4: "Maybe it's the ``compute_keff`` volume integration"
+-----------------------------------------------------------------
+
+Another hypothesis was that :func:`~orpheus.sn.solver.SNSolver.compute_keff`
+was accumulating :math:`\nu\Sigma_f\,\phi\,V` with a wrong
+material-id lookup at the interface cell (e.g., using
+``mat_ids[c+1]`` for cell ``c``'s fission). The code turned out to
+use the correct per-cell material id. Lesson: **read the code
+before blaming it**. The audit took five minutes and ruled out
+two more hypotheses for free (``_add_fission_source`` and
+``_add_scattering_source`` both checked).
+
+The Fix and the Test
+---------------------
+
+The fix is a one-formula correction in
+:func:`orpheus.sn.sweep._sweep_1d_cumprod` plus a comment block
+pointing at ``sn_balance.derive_cumprod_recurrence`` as the
+source of truth. After the fix, Case :math:`\leftrightarrow`
+``solve_sn`` agreement went from :math:`1.48\times 10^{-2}` to
+:math:`3.4\times 10^{-8}` --- a six-order-of-magnitude
+improvement at matching quadrature order. All 165 SN tests pass,
+and two new tests landed with the fix:
+
+1. **L0 term verification**
+   :func:`tests.sn.test_cartesian.test_sweep_1d_cumprod_recurrence_matches_symbolic_derivation`
+   --- a white-box test that calls ``_sweep_1d_cumprod`` on a
+   1-cell homogeneous slab with a controlled inflow and source,
+   and checks the returned cell-average angular flux against a
+   numerical substitution of the **symbolic** expressions
+   produced by ``derive_cumprod_recurrence()``. This is the
+   minimal isolation of the failure mode; it runs in
+   milliseconds and does not need any reference solver.
+2. **L1 regression**
+   :func:`tests.sn.test_cartesian.test_heterogeneous_absolute_keff`
+   --- a black-box test that pins the 2-region A+B reflective
+   slab against the Case reference to :math:`5\times 10^{-4}`.
+   The pre-fix solver (:math:`1.48\times 10^{-2}` error) would
+   fail this assertion by almost two orders of magnitude.
+
+Both tests were verified to **fail** on the buggy code before
+the fix was landed.
+
+Aftermath: Issue #95 and the Broader Audit
+-------------------------------------------
+
+ERR-025 was a silent derivation-implementation drift: a symbolic
+derivation existed (``sn_balance.derive_cumprod_recurrence``) and
+was **correct**, but the implementation had independently re-derived
+the coefficients and gotten them wrong, with no mechanical link
+between the two. GitHub issue #95 tracks the follow-up audit work
+to systematically check every solver implementation against its
+symbolic derivation module. During the ERR-025 audit, two
+pre-existing BiCGSTAB inconsistencies were surfaced (Cartesian
+BiCGSTAB using upwind cell-centre FD instead of DD, curvilinear
+BiCGSTAB using arithmetic face averages instead of the sweep's DD
+closure); these are tracked as issues #96 and #97 respectively.
+
+The four sweep paths audited during ERR-025 diagnosis ---
+:func:`~orpheus.sn.sweep._sweep_2d_wavefront`,
+:func:`~orpheus.sn.sweep._sweep_1d_spherical`,
+:func:`~orpheus.sn.sweep._sweep_1d_cylindrical`, and
+post-fix ``_sweep_1d_cumprod`` --- were all verified **clean**
+against the ``sn_balance`` symbolic derivation. The source-builder
+helpers (:meth:`~orpheus.sn.solver.SNSolver._add_scattering_source`,
+:meth:`~orpheus.sn.solver.SNSolver._add_fission_source`,
+:meth:`~orpheus.sn.solver.SNSolver._build_aniso_scattering`) were
+also audited clean.
+
+Meta-Lessons
+------------
+
+1. **Uniform-rescale invariance hides coefficient bugs.** Any
+   eigenvalue problem where :math:`\phi` is the target quantity
+   is invariant under :math:`\phi \to C\phi`, which makes it
+   blind to factor-of-two errors that preserve the flux shape.
+   Homogeneous and same-material-multi-region problems have
+   spatially uniform rescaling; only genuine material
+   interfaces break the cancellation. **Always include at least
+   one absolute-:math:`\phi` test** (fixed-source, or an absolute
+   eigenvalue comparison against an independent reference) to
+   expose rescale-invariant bugs.
+
+2. **Symbolic derivations must be load-bearing, not decorative.**
+   ``sn_balance.derive_cumprod_recurrence`` existed, was correct,
+   and was not referenced from anywhere in the consuming code.
+   It became a museum piece. A comment in the implementation
+   pointing at the derivation function would have caught this at
+   code review. Issue #95 proposes a CI check to flag orphan
+   derivations across the whole codebase.
+
+3. **Cross-check before debugging.** When a self-consistent
+   mathematical construction disagrees with a production solver
+   and you do not know which is right, spend the 30-minute
+   budget to run an **independent third** implementation
+   before going deep on either. CP vs SN vs Case is the pattern
+   that made the ERR-025 diagnosis possible in under an hour.
+   This is explicitly **not** a verification crutch --- the
+   final Phase 2.1b reference stands on its own mathematical
+   merits --- but as an investigation sanity input it is
+   invaluable.
+
+4. **Cheap diagnostic first.** The :math:`S_N` order sweep that
+   killed Dead End #1 took 30 seconds; the CP cross-check took
+   five minutes. Both ran before any serious debugging. Lesson
+   from Phase 1.2 investigation (diffusion): the order of
+   operations matters as much as the operations themselves.
 
 
 Numerical Sensitivities

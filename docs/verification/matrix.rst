@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **615**
+Total tests collected: **617**
 
 V&V level distribution
 ----------------------
@@ -16,8 +16,8 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 346, 56.3%
-   L1, 169, 27.5%
+   L0, 346, 56.1%
+   L1, 171, 27.7%
    L2, 39, 6.3%
    L3, 0, 0.0%
    foundation, 61, 9.9%
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 533
+   explicit, 535
    verify, 0
    class-name, 46
    func-name, 0
@@ -74,6 +74,7 @@ Module × level grid
    sn/test_cartesian, 1, 6, 0, 0, 0, 0
    sn/test_cylindrical, 4, 10, 11, 0, 0, 0
    sn/test_discrete_ordinates_2d, 0, 0, 2, 0, 0, 0
+   sn/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    sn/test_mms, 0, 2, 0, 0, 0, 0
    sn/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
    sn/test_properties, 4, 0, 0, 0, 0, 0
@@ -96,8 +97,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 
    ``mg-balance``, 167
    ``matrix-eigenvalue``, 163
-   ``one-group-kinf``, 117
-   ``reflective-bc``, 108
+   ``one-group-kinf``, 119
+   ``reflective-bc``, 110
    ``alpha-recursion``, 100
    ``wdd-closure``, 100
    ``wdd-face``, 100
@@ -147,6 +148,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``dd-slab``, 20
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
+   ``dd-cartesian-1d``, 16
    ``direction-sampling``, 16
    ``fission-weight``, 16
    ``keff-cycle``, 16
@@ -156,8 +158,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``second-diff-cyl``, 15
    ``second-diff-general``, 15
    ``second-diff-sph``, 15
-   ``dd-cartesian-1d``, 14
-   ``transport-cartesian``, 13
+   ``transport-cartesian``, 15
    ``complementarity``, 12
    ``kin-bickley-legacy-convention``, 12
    ``kinf-1g``, 12
@@ -172,6 +173,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``two-group-Ainv``, 11
    ``two-group-F``, 11
    ``two-group-M``, 11
+   ``dd-recurrence``, 9
    ``pn-scatter``, 9
    ``tau-m``, 9
    ``tau-p``, 9
@@ -190,7 +192,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``diffusion-spurious-root-validation``, 8
    ``diffusion-transcendental``, 8
    ``diffusion-trigonometric-branch``, 8
-   ``dd-recurrence``, 7
    ``dd-solve``, 7
    ``bar-psi``, 6
    ``boyd-eq-45``, 6
@@ -218,6 +219,12 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``dd-cartesian-2d``, 2
    ``richardson-diffusion``, 2
    ``roulette-restore``, 2
+   ``sn-case-back-substitution``, 2
+   ``sn-case-matching-matrix``, 2
+   ``sn-case-physical-validation``, 2
+   ``sn-case-real-basis``, 2
+   ``sn-case-slope-matrix``, 2
+   ``sn-case-spatial-modes``, 2
    ``transport-cartesian-2d``, 2
    ``branching``, 1
    ``collision-estimator``, 1
@@ -231,9 +238,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **0** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **1** of the testable equations found on theory pages are orphan.
 
-*(none — every testable theory equation has at least one verifying test)*
+- ``sn-case-per-ordinate``
 
 Documented-only equations
 -------------------------
@@ -303,7 +310,7 @@ Every ``ERR-NNN`` entry in ``tests/l0_error_catalog.md`` and the tests that carr
    ``ERR-022``, 1
    ``ERR-023``, 1
    ``ERR-024``, 1
-   ``ERR-025``, 2
+   ``ERR-025``, 4
 
 Unmarked tests
 --------------

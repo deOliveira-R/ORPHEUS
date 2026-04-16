@@ -258,16 +258,21 @@ def test_heterogeneous_absolute_keff():
     k ≈ 1.27461 for this config, against which the fixed DD
     recurrence now matches to 5e-5 at n_per=320.
     """
-    fuel = get_mixture("A", "1g")  # Σ_t=1, Σ_s=0.5, νΣ_f=0.75 → k_inf=1.5
-    mod = get_mixture("B", "1g")   # Σ_t=2, Σ_s=1.9, νΣ_f=0
-    materials = {0: fuel, 1: mod}
+    from orpheus.derivations.reference_values import continuous_get
+    from orpheus.geometry import Mesh1D, CoordSystem
+
+    ref = continuous_get("sn_slab_1eg_2rg_S8")
+    geom = ref.problem.geometry_params
+    materials = ref.problem.materials
+    H_A = float(geom["fuel_height"])
+    H_B = float(geom["refl_height"])
+    N_ord = int(geom["n_ordinates"])
 
     n_per = 320
-    edges = np.linspace(0.0, 1.0, 2 * n_per + 1)
+    edges = np.linspace(0.0, H_A + H_B, 2 * n_per + 1)
     mat_ids = np.array([0] * n_per + [1] * n_per)
-    from orpheus.geometry import Mesh1D, CoordSystem
     mesh = Mesh1D(edges=edges, mat_ids=mat_ids, coord=CoordSystem.CARTESIAN)
-    quad = GaussLegendre1D.create(8)
+    quad = GaussLegendre1D.create(N_ord)
 
     result = solve_sn(
         materials, mesh, quad,
@@ -275,12 +280,15 @@ def test_heterogeneous_absolute_keff():
         keff_tol=1e-11, inner_tol=1e-11,
     )
 
-    # Case singular-eigenfunction reference (16x16 matching matrix,
-    # independently cross-checked against CP E₃ to 2e-4).
-    k_ref = 1.27461604
-    assert abs(result.keff - k_ref) < 5e-4, (
-        f"keff={result.keff:.8f} vs Case reference={k_ref:.8f} "
-        f"(Δ={result.keff - k_ref:+.2e})"
+    # 5e-4 tolerance is loose enough to accommodate the O(h) spatial
+    # truncation at material interfaces with DD on a piecewise-constant
+    # Σ(x), and tight enough to catch the 1.4e-2 ERR-025 gap. Phase 2.1b
+    # proper (the convergence study in
+    # ``tests/sn/test_heterogeneous_transport.py``) asserts the actual
+    # asymptotic agreement to ~1e-5.
+    assert abs(result.keff - ref.k_eff) < 5e-4, (
+        f"keff={result.keff:.10f} vs Case reference={ref.k_eff:.10f} "
+        f"(Δ={result.keff - ref.k_eff:+.2e})"
     )
 
 
