@@ -102,7 +102,10 @@ deterministic solvers:
 2. **Augmented geometry** --- :class:`MOCMesh` wraps the ``Mesh1D`` and
    an :class:`MOCQuadrature`, precomputing all ray-tracing data:
    tracks, segments through flat-source regions, effective ray spacings,
-   and reflective boundary condition links.
+   and reflective boundary condition links.  The BC is declared on
+   the base geometry via :class:`~geometry.mesh.BC` on
+   :attr:`Mesh1D.bc_right <geometry.mesh.Mesh1D.bc_right>` and resolved
+   at construction time against :attr:`MOCMesh.BC_REGISTRY`.
 
 3. **Solver** --- :class:`MOCSolver` satisfies the
    :class:`~numerics.eigenvalue.EigenvalueSolver` protocol.
@@ -114,7 +117,7 @@ deterministic solvers:
    Mesh1D (cylindrical, Wigner-Seitz)
        |
        v
-   MOCMesh (tracks + segments + reflective BC links)
+   MOCMesh (tracks + segments + BC via BC_REGISTRY)
        |
        v
    MOCSolver (EigenvalueSolver protocol)
@@ -490,6 +493,14 @@ centre belongs to region :math:`k` where
 
 Reflective Boundary Conditions
 ==============================
+
+The MOC solver uses the project-wide ``BC_REGISTRY`` pattern for
+boundary condition resolution.  The BC is declared on the base geometry
+via :class:`~geometry.mesh.BC` on :attr:`Mesh1D.bc_right
+<geometry.mesh.Mesh1D.bc_right>` and resolved at :class:`MOCMesh`
+construction time.  :attr:`MOCMesh.BC_REGISTRY` currently supports only
+``"reflective"`` (the default); additional BC types (e.g., vacuum for
+isolated-pin transport) can be registered in the future.
 
 For a pin cell with reflective BCs, each ray that exits through a cell
 wall re-enters as a reflected ray.  The outgoing angular flux from one

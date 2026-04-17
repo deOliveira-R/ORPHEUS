@@ -12,11 +12,31 @@ redistribution coefficients (:math:`\alpha`), the geometry factor
 
 from __future__ import annotations
 
+from typing import Any, ClassVar
+
 import numpy as np
 
-from orpheus.geometry import CoordSystem, Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from .quadrature import AngularQuadrature
 
+
+# ═══════════════════════════════════════════════════════════════════════
+# SN boundary condition factories
+# ═══════════════════════════════════════════════════════════════════════
+
+def _sn_bc_vacuum(sn_mesh: SNMesh, bc: BC, face: str) -> str:
+    """Zero incoming angular flux at this face."""
+    return "vacuum"
+
+
+def _sn_bc_reflective(sn_mesh: SNMesh, bc: BC, face: str) -> str:
+    """Specular reflection: ψ_in(Ω) = ψ_out(Ω_reflected)."""
+    return "reflective"
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# SNMesh
+# ═══════════════════════════════════════════════════════════════════════
 
 class SNMesh:
     """Augmented geometry for the discrete ordinates method.
@@ -40,7 +60,25 @@ class SNMesh:
         Base geometry.
     quadrature : AngularQuadrature
         Angular quadrature (Gauss–Legendre, Lebedev, etc.).
+
+    Attributes
+    ----------
+    BC_REGISTRY : dict[str, Callable]
+        Supported boundary condition kinds. Each value is a factory
+        ``(sn_mesh, bc, face) -> resolved_kind``.  Docstrings on
+        the factories serve as descriptions for programmatic query::
+
+            >>> {k: v.__doc__ for k, v in SNMesh.BC_REGISTRY.items()}
+    bc_left, bc_right : str
+        Resolved BC kind for the left/right (1-D) boundaries.
+    bc_xmin, bc_xmax, bc_ymin, bc_ymax : str
+        Resolved BC kinds for the four faces of a 2-D mesh.
     """
+
+    BC_REGISTRY: ClassVar[dict[str, Any]] = {
+        "vacuum": _sn_bc_vacuum,
+        "reflective": _sn_bc_reflective,
+    }
 
     def __init__(
         self,
@@ -74,6 +112,66 @@ class SNMesh:
                 self._setup_cylindrical()
             case CoordSystem.SPHERICAL:
                 self._setup_spherical()
+
+        # Resolve boundary conditions from mesh declarations
+        self._resolve_bcs(mesh)
+
+    # ── Boundary condition resolution ─────────────────────────────────
+
+    def _resolve_bcs(self, mesh: Mesh1D | Mesh2D) -> None:
+        """Resolve geometry-declared BCs into validated kind strings.
+
+        ``None`` on the mesh defaults to ``"reflective"`` (infinite
+        lattice / eigenvalue convention).
+        """
+        default = BC("reflective")
+
+        if isinstance(mesh, Mesh1D):
+            self.bc_left: str = self._resolve_one(
+                mesh.bc_left or default, "left",
+            )
+            self.bc_right: str = self._resolve_one(
+                mesh.bc_right or default, "right",
+            )
+            # Expose 2-D-style attributes for uniform sweep access
+            self.bc_xmin: str = self.bc_left
+            self.bc_xmax: str = self.bc_right
+            self.bc_ymin: str = "reflective"
+            self.bc_ymax: str = "reflective"
+        else:
+            self.bc_xmin = self._resolve_one(
+                mesh.bc_xmin or default, "xmin",
+            )
+            self.bc_xmax = self._resolve_one(
+                mesh.bc_xmax or default, "xmax",
+            )
+            self.bc_ymin = self._resolve_one(
+                mesh.bc_ymin or default, "ymin",
+            )
+            self.bc_ymax = self._resolve_one(
+                mesh.bc_ymax or default, "ymax",
+            )
+            self.bc_left = self.bc_xmin
+            self.bc_right = self.bc_xmax
+
+    def _resolve_one(self, bc: BC, face: str) -> str:
+        """Look up a single BC in the registry; raise on unsupported kind."""
+        factory = self.BC_REGISTRY.get(bc.kind)
+        if factory is None:
+            supported = ", ".join(f"'{k}'" for k in sorted(self.BC_REGISTRY))
+            raise ValueError(
+                f"SN solver does not support boundary condition '{bc.kind}' "
+                f"on face '{face}'. Supported: {supported}."
+            )
+        kind = factory(self, bc, face)
+
+        # Curvilinear geometries only support reflective for now
+        if self.curvature in ("spherical", "cylindrical") and kind != "reflective":
+            raise NotImplementedError(
+                f"{self.curvature} SN sweep only supports reflective BC, "
+                f"got '{kind}' on face '{face}'"
+            )
+        return kind
 
     # ── Properties ────────────────────────────────────────────────────
 

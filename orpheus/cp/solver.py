@@ -1,7 +1,9 @@
 """Collision probability (CP) method for neutron transport.
 
 Solves the multi-group neutron transport equation using the collision
-probability method with white boundary condition for an infinite lattice.
+probability method.  Boundary conditions default to white (isotropic
+re-entry, infinite lattice) but are configurable via
+:class:`~orpheus.geometry.mesh.BC` on the mesh.
 
 The geometry-specific kernel is encapsulated in :class:`CPMesh`, an
 augmented geometry that wraps a :class:`~geometry.mesh.Mesh1D` and
@@ -39,7 +41,7 @@ from scipy.special import expn
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.macro_xs.cell_xs import CellXS, assemble_cell_xs
-from orpheus.geometry import CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.eigenvalue import power_iteration
 
 
@@ -177,7 +179,15 @@ class CPMesh:
         Base geometry.
     params : CPParams, optional
         Solver parameters (Ki table size, quadrature order, etc.).
+
+    Attributes
+    ----------
+    BC_REGISTRY : dict[str, Callable]
+        Supported boundary condition kinds.  Docstrings on the
+        factories serve as descriptions for programmatic query.
     """
+
+    BC_REGISTRY: dict[str, Callable] = {}
 
     def __init__(self, mesh: Mesh1D, params: CPParams | None = None) -> None:
         self.mesh = mesh
@@ -192,6 +202,9 @@ class CPMesh:
                 self._setup_spherical()
             case _:
                 raise ValueError(f"CP not implemented for {mesh.coord}")
+
+        # Resolve boundary condition from mesh (outer surface)
+        self._resolve_bc(mesh)
 
     # ── Setup methods ─────────────────────────────────────────────────
 
@@ -232,6 +245,20 @@ class CPMesh:
         # Spherical weight: extra factor of y in the quadrature
         self._y_wts = self._y_wts * self._y_pts
 
+    # ── Boundary condition resolution ────────────────────────────────
+
+    def _resolve_bc(self, mesh: Mesh1D) -> None:
+        """Resolve the outer-surface BC into a P_cell → P_inf transform."""
+        bc = mesh.bc_right or BC("white")  # outer surface, default white
+        factory = self.BC_REGISTRY.get(bc.kind)
+        if factory is None:
+            supported = ", ".join(f"'{k}'" for k in sorted(self.BC_REGISTRY))
+            raise ValueError(
+                f"CP method does not support boundary condition '{bc.kind}'. "
+                f"Supported: {supported}."
+            )
+        self._bc_transform: Callable = factory(self, bc)
+
     # ── P_inf computation ─────────────────────────────────────────────
 
     def compute_pinf_group(self, sig_t_g: np.ndarray) -> np.ndarray:
@@ -254,7 +281,7 @@ class CPMesh:
                 rcp = self._compute_radial_rcp(sig_t_g)
 
         P_cell = self._normalize_rcp(rcp, sig_t_g)
-        return self._apply_white_bc(P_cell, sig_t_g)
+        return self._bc_transform(P_cell, sig_t_g)
 
     def _compute_slab_rcp(self, sig_t_g: np.ndarray) -> np.ndarray:
         """Reduced collision probabilities for slab geometry (E₃ kernel).
@@ -406,6 +433,32 @@ class CPMesh:
             P_inf += np.outer(P_out, P_in) / (1.0 - P_inout)
 
         return P_inf
+
+
+# ── CP boundary condition factories ──────────────────────────────────
+
+def _cp_bc_white(cp_mesh: CPMesh, bc: BC) -> Callable:
+    """Isotropic (white) re-entry — infinite lattice approximation.
+
+    Escaped neutrons re-enter with an isotropic angular distribution.
+    P_inf = P_cell + P_out ⊗ P_in / (1 − P_inout).
+    Default for CP eigenvalue problems.
+    """
+    return cp_mesh._apply_white_bc
+
+
+def _cp_bc_vacuum(cp_mesh: CPMesh, bc: BC) -> Callable:
+    """Vacuum — escaped neutrons are lost (no re-entry).
+
+    P_inf = P_cell (rows sum to < 1 for optically thin cells).
+    """
+    return lambda P_cell, sig_t_g: P_cell.copy()
+
+
+CPMesh.BC_REGISTRY = {
+    "white": _cp_bc_white,
+    "vacuum": _cp_bc_vacuum,
+}
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -28,7 +28,7 @@ from typing import Protocol, runtime_checkable
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem, Mesh1D
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -151,7 +151,15 @@ class MCMesh:
         Base geometry (from :mod:`geometry.factories`).
     pitch : float
         Unit cell side length (cm) for periodic boundary conditions.
+
+    Attributes
+    ----------
+    BC_REGISTRY : dict[str, Callable]
+        Supported boundary condition kinds.  Docstrings on the
+        factories serve as descriptions for programmatic query.
     """
+
+    BC_REGISTRY: dict = {}
 
     def __init__(self, mesh: Mesh1D, pitch: float) -> None:
         if mesh.coord not in (CoordSystem.CARTESIAN, CoordSystem.CYLINDRICAL):
@@ -164,6 +172,17 @@ class MCMesh:
         self._mat_ids = mesh.mat_ids
         self._center = pitch / 2.0
 
+        # Resolve boundary condition from mesh
+        bc = mesh.bc_right or BC("periodic")
+        factory = self.BC_REGISTRY.get(bc.kind)
+        if factory is None:
+            supported = ", ".join(f"'{k}'" for k in sorted(self.BC_REGISTRY))
+            raise ValueError(
+                f"MC solver does not support boundary condition '{bc.kind}'. "
+                f"Supported: {supported}."
+            )
+        self.bc_kind: str = factory(self, bc)
+
     def material_id_at(self, x: float, y: float) -> int:
         """Return the material ID at position (x, y)."""
         if self.mesh.coord is CoordSystem.CARTESIAN:
@@ -174,6 +193,22 @@ class MCMesh:
         idx = np.searchsorted(self._edges, pos, side="right") - 1
         idx = max(0, min(idx, len(self._mat_ids) - 1))
         return int(self._mat_ids[idx])
+
+
+# ── MC boundary condition factories ──────────────────────────────────
+
+def _mc_bc_periodic(mc_mesh: MCMesh, bc: BC) -> str:
+    """Periodic wrapping — translational symmetry.
+
+    Particle position is wrapped via modulo arithmetic:
+    x' = x mod pitch.  Default for infinite-lattice calculations.
+    """
+    return "periodic"
+
+
+MCMesh.BC_REGISTRY = {
+    "periodic": _mc_bc_periodic,
+}
 
 
 # ═══════════════════════════════════════════════════════════════════════

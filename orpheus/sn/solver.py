@@ -7,7 +7,8 @@ The transport sweep uses diamond-difference spatial discretization:
 - 1D: cumulative-product recurrence (~ms)
 - 2D: wavefront parallelism along anti-diagonals
 
-Boundary conditions are reflective on all sides (infinite lattice).
+Boundary conditions default to reflective (infinite lattice) but are
+configurable via :class:`~orpheus.geometry.mesh.BC` on the mesh.
 
 .. seealso:: :ref:`theory-discrete-ordinates` — Key Facts, equations, gotchas.
 """
@@ -15,17 +16,38 @@ Boundary conditions are reflective on all sides (infinite lattice).
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 
 from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import Mesh1D, Mesh2D
+from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.numerics.eigenvalue import power_iteration
 from .geometry import SNMesh
 from .quadrature import AngularQuadrature
 from .sweep import transport_sweep
+
+
+def _apply_default_bcs(
+    mesh: Mesh1D | Mesh2D,
+    boundary_condition: str,
+) -> Mesh1D | Mesh2D:
+    """Apply *boundary_condition* string to all faces that lack explicit BCs.
+
+    Returns the original mesh unchanged when it already carries explicit
+    :class:`~orpheus.geometry.mesh.BC` declarations, so user-set BCs
+    always take precedence over the ``boundary_condition`` parameter.
+    """
+    bc = BC(boundary_condition)
+    if isinstance(mesh, Mesh1D):
+        if mesh.bc_left is None and mesh.bc_right is None:
+            return replace(mesh, bc_left=bc, bc_right=bc)
+    else:
+        faces = ("bc_xmin", "bc_xmax", "bc_ymin", "bc_ymax")
+        if all(getattr(mesh, f) is None for f in faces):
+            return replace(mesh, **{f: bc for f in faces})
+    return mesh
 
 
 @dataclass
@@ -579,6 +601,10 @@ def solve_sn_fixed_source(
         Passed to the sweep as its ``Q_aniso`` argument (the solver
         applies the :math:`1/W` factor internally).
     boundary_condition : {"vacuum", "reflective"}
+        Applied to all faces when the mesh has no explicit BC
+        declarations (``bc_left`` etc. are ``None``).  When the mesh
+        carries explicit :class:`~orpheus.geometry.mesh.BC` fields,
+        those take precedence and this parameter is ignored.
         Vacuum is the default because the intended consumer is
         Method of Manufactured Solutions verification on a finite slab.
     max_inner, inner_tol :
@@ -594,6 +620,8 @@ def solve_sn_fixed_source(
     """
     t_start = time.perf_counter()
 
+    # Apply boundary_condition parameter to mesh if no explicit BCs set
+    mesh = _apply_default_bcs(mesh, boundary_condition)
     sn_mesh = SNMesh(mesh, quadrature)
     solver = SNSolver(
         materials, sn_mesh,
@@ -631,7 +659,6 @@ def solve_sn_fixed_source(
         angular, phi = transport_sweep(
             Q, solver.sig_t, sn_mesh, solver._psi_bc,
             Q_aniso=Q_aniso_total,
-            boundary_condition=boundary_condition,
         )
 
         norm = np.linalg.norm(phi)

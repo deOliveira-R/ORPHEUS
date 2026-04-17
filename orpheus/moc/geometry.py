@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from orpheus.geometry import Mesh1D
+from orpheus.geometry import BC, Mesh1D
 
 from .quadrature import MOCQuadrature
 
@@ -244,6 +244,12 @@ class MOCMesh:
 
     The outermost ``Mesh1D`` region is reinterpreted as the square border
     via the inverse Wigner-Seitz transformation: ``pitch = edges[-1] * sqrt(pi)``.
+
+    Attributes
+    ----------
+    BC_REGISTRY : dict[str, Callable]
+        Supported boundary condition kinds.  Docstrings on the
+        factories serve as descriptions for programmatic query.
     """
 
     def __init__(
@@ -280,7 +286,27 @@ class MOCMesh:
         self.tracks_per_azi: list[list[int]] = []
         self._effective_spacing: list[float] = []
         self._generate_tracks()
+
+        # Resolve boundary condition from mesh
+        self._resolve_bc(mesh)
+
         self._link_tracks()
+
+    # ── Boundary condition resolution ─────────────────────────────────
+
+    BC_REGISTRY: dict = {}
+
+    def _resolve_bc(self, mesh: Mesh1D) -> None:
+        """Resolve the outer-surface BC into a track-linking strategy."""
+        bc = mesh.bc_right or BC("reflective")  # default: reflective
+        factory = self.BC_REGISTRY.get(bc.kind)
+        if factory is None:
+            supported = ", ".join(f"'{k}'" for k in sorted(self.BC_REGISTRY))
+            raise ValueError(
+                f"MOC solver does not support boundary condition '{bc.kind}'. "
+                f"Supported: {supported}."
+            )
+        self.bc_kind: str = factory(self, bc)
 
     def _generate_tracks(self) -> None:
         """Generate tracks for all azimuthal angles."""
@@ -410,3 +436,19 @@ class MOCMesh:
     def effective_spacing(self, azi_index: int) -> float:
         """Effective perpendicular ray spacing for azimuthal angle index."""
         return self._effective_spacing[azi_index]
+
+
+# ── MOC boundary condition factories ─────────────────────────────────
+
+def _moc_bc_reflective(moc_mesh: MOCMesh, bc: BC) -> str:
+    """Specular reflection via track linking.
+
+    Outgoing flux from one track feeds the reflected track's entry.
+    Default for MOC eigenvalue problems (infinite lattice).
+    """
+    return "reflective"
+
+
+MOCMesh.BC_REGISTRY = {
+    "reflective": _moc_bc_reflective,
+}

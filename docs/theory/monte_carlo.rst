@@ -534,6 +534,14 @@ Verified by ``test_mc_properties.py::test_direction_sampling``:
 Periodic Boundary Conditions
 -----------------------------
 
+The MC solver uses the project-wide ``BC_REGISTRY`` pattern for boundary
+condition resolution.  The BC is declared on the base geometry via
+:class:`~geometry.mesh.BC` on :attr:`Mesh1D.bc_right
+<geometry.mesh.Mesh1D.bc_right>` and resolved at :class:`MCMesh`
+construction time.  :attr:`MCMesh.BC_REGISTRY` currently supports only
+``"periodic"`` (the default); additional BC types can be registered in
+the future.
+
 The unit cell is a square of side length :math:`p` (``pitch``).  When a
 neutron exits the cell, its position wraps via the modulo operation:
 

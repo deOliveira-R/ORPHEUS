@@ -15,6 +15,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import (
+    BC,
     CoordSystem,
     Mesh1D,
     Mesh2D,
@@ -467,6 +468,107 @@ class TestMesh2D:
                 edges_y=np.array([0.0, 1.0]),
                 mat_map=np.array([[0]]),
                 coord=CoordSystem.SPHERICAL,
+            )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# BC dataclass and mesh integration
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestBC:
+    """BC declaration dataclass and integration with mesh fields."""
+
+    def test_bc_creation_kind_only(self):
+        bc = BC("vacuum")
+        assert bc.kind == "vacuum"
+        assert bc.params == {}
+
+    def test_bc_creation_with_params(self):
+        bc = BC("white", {"albedo": 0.7})
+        assert bc.kind == "white"
+        assert bc.params == {"albedo": 0.7}
+
+    def test_bc_frozen(self):
+        bc = BC("vacuum")
+        with pytest.raises(AttributeError):
+            bc.kind = "reflective"
+
+    def test_bc_equality(self):
+        assert BC("vacuum") == BC("vacuum")
+        assert BC("vacuum") != BC("reflective")
+        assert BC("white", {"albedo": 0.7}) == BC("white", {"albedo": 0.7})
+        assert BC("white", {"albedo": 0.7}) != BC("white", {"albedo": 0.5})
+
+    def test_bc_convenience_instances(self):
+        assert BC.vacuum == BC("vacuum")
+        assert BC.reflective == BC("reflective")
+        assert BC.white == BC("white")
+
+    def test_bc_repr(self):
+        assert repr(BC("vacuum")) == "BC('vacuum')"
+        assert repr(BC("white", {"albedo": 0.7})) == "BC('white', {'albedo': 0.7})"
+
+    # ── Mesh1D BC fields ─────────────────────────────────────────────
+
+    def test_mesh1d_bc_defaults_none(self):
+        mesh = Mesh1D(edges=[0, 1, 2], mat_ids=[0, 1])
+        assert mesh.bc_left is None
+        assert mesh.bc_right is None
+
+    def test_mesh1d_bc_explicit(self):
+        mesh = Mesh1D(
+            edges=[0, 1, 2], mat_ids=[0, 1],
+            bc_left=BC.reflective, bc_right=BC.vacuum,
+        )
+        assert mesh.bc_left == BC("reflective")
+        assert mesh.bc_right == BC("vacuum")
+
+    def test_mesh1d_bc_frozen(self):
+        mesh = Mesh1D(
+            edges=[0, 1, 2], mat_ids=[0, 1],
+            bc_left=BC.reflective,
+        )
+        with pytest.raises(AttributeError):
+            mesh.bc_left = BC.vacuum
+
+    def test_mesh1d_bc_invalid_type_raises(self):
+        with pytest.raises(TypeError, match="bc_left must be a BC instance"):
+            Mesh1D(edges=[0, 1], mat_ids=[0], bc_left="vacuum")
+
+    def test_mesh1d_backward_compat(self):
+        """All existing Mesh1D constructors (no BC args) still work."""
+        m1 = Mesh1D(edges=np.array([0.0, 1.0, 3.0, 6.0]),
+                     mat_ids=np.array([0, 1, 2]))
+        assert m1.N == 3
+        m2 = Mesh1D(edges=[0, 1], mat_ids=[0],
+                     coord=CoordSystem.CYLINDRICAL)
+        assert m2.coord == CoordSystem.CYLINDRICAL
+
+    # ── Mesh2D BC fields ─────────────────────────────────────────────
+
+    def test_mesh2d_bc_defaults_none(self):
+        mesh = Mesh2D(
+            edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
+        )
+        assert mesh.bc_xmin is None
+        assert mesh.bc_xmax is None
+        assert mesh.bc_ymin is None
+        assert mesh.bc_ymax is None
+
+    def test_mesh2d_bc_explicit(self):
+        mesh = Mesh2D(
+            edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
+            bc_xmin=BC.reflective, bc_xmax=BC.vacuum,
+            bc_ymin=BC.reflective, bc_ymax=BC.vacuum,
+        )
+        assert mesh.bc_xmin == BC("reflective")
+        assert mesh.bc_xmax == BC("vacuum")
+
+    def test_mesh2d_bc_invalid_type_raises(self):
+        with pytest.raises(TypeError, match="bc_xmin must be a BC instance"):
+            Mesh2D(
+                edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
+                bc_xmin="reflective",
             )
 
 

@@ -58,13 +58,39 @@ Key Facts
   :math:`\mathcal O(h)` at material interfaces that do not lie on
   cell faces.
 
-- Boundary conditions: ORPHEUS uses hard Dirichlet
-  :math:`\phi_g(0) = \phi_g(L) = 0` for all groups — the zero-flux
-  variant of the vacuum condition (contrast with the
-  extrapolation-distance Marshak form). This choice is
-  intentional: it lets the analytical reference solutions below be
-  pure sinusoids without an extrapolation-length fudge, so the
-  spatial convergence test isolates finite-difference error.
+- Boundary conditions are configurable via
+  :attr:`DiffusionSolver.BC_REGISTRY` and declared on the geometry
+  through :class:`~diffusion.solver.CoreGeometry`'s ``bc_bottom`` and
+  ``bc_top`` fields (both default to ``"vacuum"``).  Two kinds are
+  supported:
+
+  .. list-table:: Diffusion Boundary Conditions
+     :header-rows: 1
+     :widths: 15 35 35
+
+     * - Kind
+       - Physics
+       - Gradient at face
+     * - ``"vacuum"`` (default)
+       - Hard Dirichlet :math:`\phi = 0`
+       - :math:`\partial\phi/\partial z = \phi_{\text{cell}} / (0.5\,\Delta z)`
+     * - ``"reflective"``
+       - Neumann :math:`\partial\phi/\partial n = 0` (zero net current)
+       - :math:`\partial\phi/\partial z = 0`
+
+  The vacuum condition uses the zero-flux variant (contrast with the
+  extrapolation-distance Marshak form).  This choice is intentional:
+  it lets the analytical reference solutions below be pure sinusoids
+  without an extrapolation-length fudge, so the spatial convergence
+  test isolates finite-difference error.  The reflective condition
+  enforces zero net current at the boundary, useful for symmetry
+  planes or quarter-core calculations.
+
+  Both BCs are applied in the shared :meth:`DiffusionSolver._boundary_gradient`
+  method, which consolidates the gradient computation for all faces.
+  The BC kind is resolved from the registry at solver construction::
+
+      solver = DiffusionSolver(CoreGeometry(bc_bottom="reflective", bc_top="vacuum"))
 
 
 .. _diffusion-1g-bare-slab:

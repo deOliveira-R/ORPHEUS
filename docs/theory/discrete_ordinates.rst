@@ -88,12 +88,24 @@ mesh) is shared with :ref:`theory-collision-probability` and
 :ref:`theory-method-of-characteristics`.
 
 1. **Base geometry** --- :class:`~geometry.mesh.Mesh1D` or
-   :class:`~geometry.mesh.Mesh2D` stores cell edges, material IDs, and
-   coordinate system.
+   :class:`~geometry.mesh.Mesh2D` stores cell edges, material IDs,
+   coordinate system, and **boundary condition declarations**.
+   Each face carries an optional :class:`~geometry.mesh.BC` field
+   (``bc_left``/``bc_right`` for 1-D;
+   ``bc_xmin``/``bc_xmax``/``bc_ymin``/``bc_ymax`` for 2-D).
+   When ``None`` (the default), the solver applies its own default
+   --- for the SN solver, that default is reflective.
+   See :ref:`boundary-conditions` for details.
 
 2. **Augmented geometry** --- :class:`SNMesh` wraps the base mesh and
    an angular quadrature, precomputing the coordinate-specific streaming
-   stencil:
+   stencil.  It also **resolves boundary conditions**: each ``BC`` tag
+   on the mesh is looked up in :attr:`SNMesh.BC_REGISTRY` and converted
+   to a validated kind string (``"vacuum"`` or ``"reflective"``)
+   stored as ``sn_mesh.bc_left``, ``sn_mesh.bc_right``, etc.
+   The sweep reads these resolved strings directly --- it never
+   inspects the raw :class:`~geometry.mesh.BC` objects.  Precomputed
+   stencil contents per coordinate system:
 
    - **Cartesian**: ``streaming_x[n,i] = 2|mu_x|/dx[i]`` and
      ``streaming_y[n,j] = 2|mu_y|/dy[j]`` --- the diamond-difference
@@ -113,10 +125,10 @@ mesh) is shared with :ref:`theory-collision-probability` and
 
 .. code-block:: text
 
-   Mesh1D / Mesh2D (base geometry)
+   Mesh1D / Mesh2D (base geometry + BC declarations)
        |
        v
-   SNMesh (stencil + quadrature + alpha coefficients)
+   SNMesh (stencil + quadrature + alpha coefficients + resolved BCs)
        |
        v
    solve_sn() --> SNResult
@@ -125,7 +137,10 @@ Quadrature Dispatch
 -------------------
 
 The sweep dispatcher in :func:`transport_sweep` routes based on the
-``SNMesh.curvature`` attribute and the quadrature type:
+``SNMesh.curvature`` attribute and the quadrature type.  Boundary
+conditions are **not** passed as a parameter to the sweep --- the
+sweep reads the resolved BC kind strings directly from
+``sn_mesh.bc_left``, ``sn_mesh.bc_right``, etc.:
 
 .. code-block:: python
 
@@ -1082,14 +1097,74 @@ share exactly the same physics.
 Boundary Conditions
 ===================
 
-ORPHEUS uses **reflective boundary conditions** on all faces, representing
-an infinite lattice or infinite medium.  The CP solver uses white
-(isotropic) BCs instead; see :ref:`white-bc-quality` for a comparison
-showing the ~1% gap between the two approaches.
-
-Outer Boundary
+Infrastructure
 --------------
 
+Boundary conditions are declared on the **geometry mesh** and resolved
+by the **solver's augmented mesh** at construction time.  This two-stage
+design separates physics intent (what condition to apply) from solver
+mechanics (how to enforce it in the sweep).
+
+**Stage 1 --- Geometry declaration.**
+:class:`~geometry.mesh.Mesh1D` carries ``bc_left: BC | None`` and
+``bc_right: BC | None``; :class:`~geometry.mesh.Mesh2D` carries
+``bc_xmin``/``bc_xmax``/``bc_ymin``/``bc_ymax: BC | None``.
+:class:`~geometry.mesh.BC` is a frozen dataclass with two fields:
+
+- ``kind: str`` --- an identifier such as ``"vacuum"``, ``"reflective"``,
+  or ``"white"``.
+- ``params: dict[str, float]`` --- optional numeric parameters
+  (e.g. ``{"albedo": 0.7}``).
+
+Convenience instances are available for the common cases:
+:attr:`BC.vacuum <geometry.mesh.BC.vacuum>`,
+:attr:`BC.reflective <geometry.mesh.BC.reflective>`, and
+:attr:`BC.white <geometry.mesh.BC.white>`.
+When a face is left as ``None``, the solver applies its own default
+(reflective for the SN solver, matching the infinite-lattice /
+eigenvalue convention).
+
+**Stage 2 --- Solver resolution.**
+:class:`SNMesh` owns a class-level :attr:`~SNMesh.BC_REGISTRY` dictionary
+mapping kind strings to factory callables::
+
+    BC_REGISTRY = {
+        "vacuum":     _sn_bc_vacuum,
+        "reflective": _sn_bc_reflective,
+    }
+
+During ``SNMesh.__init__``, each face's :class:`~geometry.mesh.BC` is
+looked up in the registry.  If the kind is not found, a ``ValueError``
+lists the supported kinds.  For curvilinear geometries (spherical,
+cylindrical), only ``"reflective"`` is currently supported --- requesting
+any other kind on a curvilinear mesh raises ``NotImplementedError``.
+The resolved kind string (a plain ``str``) is stored as
+``sn_mesh.bc_left``, ``sn_mesh.bc_right``, ``sn_mesh.bc_xmin``, etc.,
+and the sweep reads these directly.
+
+**Backward compatibility.**
+:func:`solve_sn_fixed_source` still accepts a ``boundary_condition: str``
+parameter (default ``"vacuum"``).  Internally it calls
+``_apply_default_bcs(mesh, boundary_condition)``, which applies the
+string to **all faces** that lack explicit :class:`~geometry.mesh.BC`
+declarations.  When the mesh already carries explicit BCs, the parameter
+is silently ignored --- mesh-level declarations always take precedence.
+:func:`solve_sn` (the eigenvalue entry point) does not expose a
+``boundary_condition`` parameter; eigenvalue problems use whatever the
+mesh declares (defaulting to reflective on all faces).
+
+.. note::
+
+   Before this infrastructure existed, the SN solver hardcoded
+   reflective BCs on all faces and :func:`transport_sweep` accepted
+   a ``boundary_condition: str`` parameter.  That parameter has been
+   removed --- BCs now flow exclusively through the mesh → SNMesh
+   resolution path described above.
+
+Supported Types
+---------------
+
+**Reflective** (specular reflection).
 At the outer boundary :math:`r = R` (or :math:`x = L`), the incoming
 flux for ordinate :math:`n` is set to the outgoing flux of its reflected
 partner:
@@ -1101,7 +1176,26 @@ partner:
 
 where :math:`n'` is the reflected partner ordinate (negating the
 appropriate direction cosine).  Reflective partner indices are precomputed
-by each quadrature's :meth:`reflection_index` method.
+by each quadrature's :meth:`reflection_index` method.  This is the
+default for eigenvalue problems (infinite lattice / infinite medium).
+The CP solver uses white (isotropic) BCs instead; see
+:ref:`white-bc-quality` for a comparison showing the ~1% gap between
+the two approaches.
+
+**Vacuum** (zero incoming flux).
+All incoming angular fluxes at the face are set to zero:
+
+.. math::
+   :label: vacuum-bc
+
+   \psi_n^{\rm in} = 0
+
+In the 1-D cumprod path, this means the recurrence starts from zero
+instead of the reflected outgoing flux.  In the 2-D wavefront sweep,
+the reflective-partner copy is skipped, leaving incoming-face angular
+fluxes at their zero initialisation.  Vacuum BCs are the natural
+choice for fixed-source MMS verification on finite slabs (see
+:ref:`sn-mms-verification`).
 
 Inner Boundary (Curvilinear)
 -----------------------------
@@ -1119,6 +1213,9 @@ At :math:`r = 0`:
 
 This means the curvilinear sweep does not need an explicit boundary
 condition at :math:`r = 0` --- the geometry handles it naturally.
+Curvilinear sweeps currently only support reflective BCs on the outer
+face; this is enforced by the validation in
+:meth:`SNMesh._resolve_one`.
 
 
 Scattering
@@ -1430,14 +1527,29 @@ consumed by :func:`orpheus.sn.solve_sn_fixed_source`.  The latter
 accepts a per-ordinate external source of shape
 :math:`(N, n_x, n_y, n_g)` and threads it through the sweep's
 :math:`Q_{\rm aniso}` slot --- merging additively with any P1+
-scattering contribution the solver itself builds.  The vacuum
-boundary condition is a new parameter on
-:func:`orpheus.sn.sweep.transport_sweep`; for ``"vacuum"`` the
-:math:`2\mathrm D` wavefront path skips the reflective-partner
-copy, leaving incoming-face angular fluxes at their zero
-initialisation (which is correct because no code path writes the
-incoming-face slot of any ordinate except the reflection step
-itself).
+scattering contribution the solver itself builds.  Vacuum boundary
+conditions are applied via the mesh-level BC infrastructure
+described in :ref:`boundary-conditions`:
+:func:`solve_sn_fixed_source` defaults its ``boundary_condition``
+parameter to ``"vacuum"`` and the internal helper
+``_apply_default_bcs`` stamps :attr:`BC.vacuum <geometry.mesh.BC.vacuum>`
+onto every face of the mesh that lacks an explicit BC declaration.
+:class:`SNMesh` then resolves these to the ``"vacuum"`` kind string,
+which the sweep reads directly.  In the 1-D cumprod path, the
+recurrence starts from zero; in the 2-D wavefront path, the
+reflective-partner copy is skipped, leaving incoming-face angular
+fluxes at their zero initialisation (which is correct because no
+code path writes the incoming-face slot of any ordinate except the
+reflection step itself).
+
+.. note::
+
+   Before the BC infrastructure was introduced,
+   :func:`~orpheus.sn.sweep.transport_sweep` accepted a
+   ``boundary_condition: str`` parameter directly.  That parameter
+   has been removed --- BCs now flow through the mesh → SNMesh
+   resolution path.  The description above reflects the current
+   implementation.
 
 **Measured convergence.**  With
 :math:`\Sigma_t = 1\ \mathrm{cm^{-1}}`,

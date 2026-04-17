@@ -11,7 +11,7 @@ once created, their fields cannot be reassigned.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -21,6 +21,44 @@ from .coord import (
     compute_volumes_1d,
     compute_volumes_2d,
 )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Boundary condition declaration
+# ═══════════════════════════════════════════════════════════════════════
+
+@dataclass(frozen=True)
+class BC:
+    """Solver-agnostic boundary condition declaration.
+
+    A lightweight tag attached to geometry surfaces.  The geometry module
+    makes no assumptions about what a given ``kind`` means — semantics
+    are resolved by each solver's augmented mesh at construction time
+    via its ``BC_REGISTRY``.
+
+    Parameters
+    ----------
+    kind : str
+        Boundary condition identifier (e.g. ``"vacuum"``,
+        ``"reflective"``, ``"white"``).  Each solver defines which
+        kinds it supports.
+    params : dict[str, float]
+        Optional numeric parameters (e.g. ``{"albedo": 0.7}``).
+    """
+
+    kind: str
+    params: dict[str, float] = field(default_factory=dict)
+
+    def __repr__(self) -> str:
+        if self.params:
+            return f"BC({self.kind!r}, {self.params!r})"
+        return f"BC({self.kind!r})"
+
+
+# Convenience instances — tab-completable, zero-import overhead.
+BC.vacuum = BC("vacuum")  # type: ignore[attr-defined]
+BC.reflective = BC("reflective")  # type: ignore[attr-defined]
+BC.white = BC("white")  # type: ignore[attr-defined]
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -57,6 +95,8 @@ class Mesh1D:
     mat_ids: np.ndarray
     coord: CoordSystem = CoordSystem.CARTESIAN
     precomputed_volumes: np.ndarray | None = None
+    bc_left: BC | None = None
+    bc_right: BC | None = None
 
     def __post_init__(self) -> None:
         edges = np.asarray(self.edges, dtype=float)
@@ -84,6 +124,14 @@ class Mesh1D:
                 )
             if not np.all(precomputed > 0):
                 raise ValueError("precomputed_volumes must be strictly positive")
+
+        # Validate BC fields
+        for attr in ("bc_left", "bc_right"):
+            bc = getattr(self, attr)
+            if bc is not None and not isinstance(bc, BC):
+                raise TypeError(
+                    f"{attr} must be a BC instance or None, got {type(bc).__name__}"
+                )
 
         # Store validated arrays (frozen bypass via object.__setattr__)
         object.__setattr__(self, "edges", edges)
@@ -159,6 +207,10 @@ class Mesh2D:
     edges_y: np.ndarray
     mat_map: np.ndarray
     coord: CoordSystem = CoordSystem.CARTESIAN
+    bc_xmin: BC | None = None
+    bc_xmax: BC | None = None
+    bc_ymin: BC | None = None
+    bc_ymax: BC | None = None
 
     def __post_init__(self) -> None:
         edges_x = np.asarray(self.edges_x, dtype=float)
@@ -184,6 +236,14 @@ class Mesh2D:
             raise ValueError(
                 f"Mesh2D supports CARTESIAN or CYLINDRICAL, got {self.coord}"
             )
+
+        # Validate BC fields
+        for attr in ("bc_xmin", "bc_xmax", "bc_ymin", "bc_ymax"):
+            bc = getattr(self, attr)
+            if bc is not None and not isinstance(bc, BC):
+                raise TypeError(
+                    f"{attr} must be a BC instance or None, got {type(bc).__name__}"
+                )
 
         object.__setattr__(self, "edges_x", edges_x)
         object.__setattr__(self, "edges_y", edges_y)

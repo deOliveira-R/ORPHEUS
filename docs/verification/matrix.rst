@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **620**
+Total tests collected: **645**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 346, 55.8%
-   L1, 177, 28.5%
-   L2, 36, 5.8%
+   L0, 346, 53.6%
+   L1, 177, 27.4%
+   L2, 36, 5.6%
    L3, 0, 0.0%
-   foundation, 61, 9.8%
-   unmarked, 0, 0.0%
+   foundation, 75, 11.6%
+   unmarked, 11, 1.7%
 
 Tagging source
 --------------
@@ -32,12 +32,12 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 541
+   explicit, 555
    verify, 0
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 0
+   unmarked, 11
 
 Module × level grid
 -------------------
@@ -58,7 +58,7 @@ Module × level grid
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
-   geometry/test_geometry, 0, 0, 0, 0, 61, 0
+   geometry/test_geometry, 0, 0, 0, 0, 75, 0
    homogeneous/test_continuous_reference, 0, 7, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 4, 0, 0, 0, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
@@ -72,6 +72,7 @@ Module × level grid
    moc/test_quadrature, 24, 0, 0, 0, 0, 0
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
+   sn/test_boundary_conditions, 0, 0, 0, 0, 0, 11
    sn/test_cartesian, 1, 6, 0, 0, 0, 0
    sn/test_cylindrical, 4, 10, 11, 0, 0, 0
    sn/test_discrete_ordinates_2d, 0, 0, 2, 0, 0, 0
@@ -247,9 +248,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **0** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **1** of the testable equations found on theory pages are orphan.
 
-*(none — every testable theory equation has at least one verifying test)*
+- ``vacuum-bc``
 
 Documented-only equations
 -------------------------
@@ -324,5 +325,17 @@ Every ``ERR-NNN`` entry in ``tests/l0_error_catalog.md`` and the tests that carr
 Unmarked tests
 --------------
 
-*(none — every test carries an L0/L1/L2/L3 or foundation marker)*
+**11 tests** have no V&V level marker.
+This is a gap — every test in the tree should carry either
+a physics-ladder marker (``l0``..``l3``) or the orthogonal
+``foundation`` marker (``@pytest.mark.foundation``) for
+tests that verify software invariants rather than physics
+equations. See ``docs/testing/architecture.rst``
+:ref:`vv-foundation-tests` for the taxonomy.
+
+.. csv-table::
+   :header: File, Unmarked tests
+   :widths: 60, 10
+
+   ``tests/sn/test_boundary_conditions.py``, 11
 

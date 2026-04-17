@@ -56,6 +56,112 @@ an equal-volume zone is bit-identical" at ``rtol=1e-14``. Manually
 constructed meshes with arbitrary edges still derive volumes from
 edges as before — the override only kicks in on the factory path.
 
+**Boundary condition declaration and deferred resolution.**
+Boundary conditions follow a two-phase pattern: *declare* on the
+geometry, *resolve* at solver construction. The geometry layer
+provides :class:`~orpheus.geometry.mesh.BC`, a frozen dataclass
+carrying a ``kind`` string (e.g. ``"vacuum"``, ``"reflective"``,
+``"white"``) and an optional ``params`` dict for numeric parameters
+(e.g. ``{"albedo": 0.7}``). The meshes store ``BC | None`` on each
+boundary face — :class:`~orpheus.geometry.mesh.Mesh1D` has
+``bc_left`` and ``bc_right``;
+:class:`~orpheus.geometry.mesh.Mesh2D` has ``bc_xmin``,
+``bc_xmax``, ``bc_ymin``, and ``bc_ymax``. A value of ``None``
+means "use the solver's default," which varies by method (e.g.
+reflective for SN eigenvalue, white for CP).
+
+The geometry module makes **no assumptions** about what a given
+``kind`` means physically. Semantics are resolved by each solver's
+augmented mesh (``SNMesh``, ``CPMesh``, ``MOCMesh``, ``MCMesh``,
+``DiffusionSolver``) at construction time via a class-level
+``BC_REGISTRY: dict[str, Callable]``. This registry maps kind
+strings to factory functions that translate the abstract declaration
+into solver-specific internal state (e.g. setting incoming angular
+flux to zero for SN vacuum, or choosing a collision-probability
+transform for CP white). If a mesh carries a ``kind`` that the
+solver does not support, construction raises ``ValueError`` listing
+the supported kinds.
+
+This pattern has three advantages:
+
+1. **Solver-agnostic problem setup.** The same ``Mesh1D`` with
+   ``bc_right=BC.vacuum`` can be passed to SN, CP, or diffusion
+   solvers without modification — each resolves the tag through
+   its own registry.
+2. **Extensibility.** Adding a new BC type (e.g. albedo, periodic)
+   requires only a new factory function and a one-line addition
+   to the solver's ``BC_REGISTRY``. No geometry code changes.
+3. **Discoverability.** Each factory function carries a docstring
+   that serves as a human-readable description, queryable at
+   runtime via
+   ``{k: v.__doc__ for k, v in SolverMesh.BC_REGISTRY.items()}``.
+
+The current ``BC_REGISTRY`` contents per solver are:
+
+.. list-table:: Supported boundary conditions by solver
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Solver
+     - Supported kinds
+     - Default (when ``None``)
+   * - SN
+     - ``vacuum``, ``reflective``
+     - ``reflective``
+   * - CP
+     - ``white``, ``vacuum``
+     - ``white``
+   * - MOC
+     - ``reflective``
+     - ``reflective``
+   * - MC
+     - ``periodic``
+     - ``periodic``
+   * - Diffusion
+     - ``vacuum``, ``reflective``
+     - ``vacuum``
+
+
+Boundary Conditions
+-------------------
+
+The :class:`~orpheus.geometry.mesh.BC` dataclass is the single type
+used to declare boundary conditions on geometry surfaces. It is
+exported from :mod:`orpheus.geometry` for convenience:
+
+.. code-block:: python
+
+   from orpheus.geometry import BC, Mesh1D, CoordSystem
+   import numpy as np
+
+   # Pre-built convenience instances (tab-completable)
+   bc_v = BC.vacuum       # BC("vacuum")
+   bc_r = BC.reflective   # BC("reflective")
+   bc_w = BC.white        # BC("white")
+
+   # Custom BC with parameters
+   bc_a = BC("albedo", params={"albedo": 0.7})
+
+   # Attach to mesh faces — None means "use solver default"
+   mesh = Mesh1D(
+       edges=np.linspace(0, 10, 21),
+       mat_ids=np.zeros(20, dtype=int),
+       coord=CoordSystem.CARTESIAN,
+       bc_left=BC.reflective,
+       bc_right=BC.vacuum,
+   )
+
+Three convenience class-level instances are pre-defined:
+:obj:`BC.vacuum`, :obj:`BC.reflective`, and :obj:`BC.white`.
+These are ordinary ``BC`` instances, not subclasses — they exist
+solely to avoid spelling out ``BC("vacuum")`` at every call site.
+
+.. autoclass:: orpheus.geometry.mesh.BC
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
 
 Mesh
 ----

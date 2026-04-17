@@ -299,8 +299,7 @@ flux crossing a convex surface sees, on average, a path length of
 In the standard CP formulation [Stamm1983]_ section 3.5, the
 surface-to-region probability is defined per unit inward current
 :math:`J^-`, and the normalisation convention absorbs the factor of 4.
-ORPHEUS uses this convention, so :meth:`CPMesh._apply_white_bc`
-computes::
+ORPHEUS uses this convention in the white-BC transform::
 
     # White-BC closure (geometry-agnostic)
     P_in = sig_t * V * P_out / S_cell
@@ -334,10 +333,56 @@ possibly escape again (geometric series):
             {1 - P_{\text{in,out}}}
 
 This formula is **identical for all three geometries** when expressed
-in terms of :math:`V_i` and :math:`S`.  It is implemented in
-:meth:`CPMesh._apply_white_bc` (solver) and independently in all three
-derivation scripts (e.g., ``derivations/cp_slab.py``:
+in terms of :math:`V_i` and :math:`S`.  It is implemented in the
+white-BC transform selected from :attr:`CPMesh.BC_REGISTRY` and
+independently in all three derivation scripts (e.g., ``derivations/cp_slab.py``:
 ``P_inf_g[:,:,g] = P_cell + np.outer(P_out, P_in) / (1.0 - P_inout)``).
+
+.. _cp-bc-registry:
+
+Boundary Condition Infrastructure
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The CP solver uses the project-wide ``BC_REGISTRY`` pattern for boundary
+condition resolution.  The boundary condition is **declared** on the base
+geometry via :class:`~geometry.mesh.BC` on :attr:`Mesh1D.bc_right
+<geometry.mesh.Mesh1D.bc_right>` (the outer cell surface), and
+**resolved** at :class:`CPMesh` construction time against the registry:
+
+.. code-block:: python
+
+   # Declaration (on geometry)
+   mesh = Mesh1D(..., bc_right=BC("vacuum"))
+
+   # Resolution (in CPMesh.__init__)
+   factory = CPMesh.BC_REGISTRY[bc.kind]
+   self._bc_transform = factory(self, bc)
+
+:attr:`CPMesh.BC_REGISTRY` currently supports two boundary conditions:
+
+.. list-table:: CP Boundary Conditions
+   :header-rows: 1
+   :widths: 15 30 40
+
+   * - Kind
+     - Physics
+     - Effect on :math:`P^{\infty}`
+   * - ``"white"`` (default)
+     - Isotropic re-entry (infinite lattice)
+     - Geometric series :eq:`p-inf` applied to :math:`P^{\text{cell}}`
+   * - ``"vacuum"``
+     - No re-entry (isolated cell)
+     - :math:`P^{\infty} = P^{\text{cell}}` (rows sum to < 1)
+
+The default is ``BC("white")``, matching the infinite-lattice assumption
+used throughout the CP derivation above.  The vacuum BC is useful for
+studying isolated fuel pins where neutrons escaping the cell are lost.
+
+:meth:`CPMesh.compute_pinf_group` calls ``self._bc_transform(P_cell,
+sig_t_g)`` to apply whichever BC was resolved at construction time.
+Factory docstrings serve as descriptions for programmatic query::
+
+    >>> {k: v.__doc__ for k, v in CPMesh.BC_REGISTRY.items()}
 
 .. plot::
    :caption: White-BC geometric series: a neutron born in region :math:`i` either collides within the cell (:math:`P_{ij}^{\text{cell}}`) or escapes, re-enters isotropically, and the chain repeats.  The infinite sum converges to :math:`P_{ij}^{\infty}`.
@@ -894,7 +939,7 @@ and sphere share one algebraic form.
 
 
 The Discretised Second-Difference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The continuous formula :eq:`rcp-from-double-antideriv` is discretised by
 evaluating the double antiderivative at region boundary positions.  Define:

@@ -14,9 +14,10 @@ from .factories import (
     pwr_slab_half_cell,
     slab_fuel_moderator,
 )
-from .mesh import Mesh1D, Mesh2D
+from .mesh import BC, Mesh1D, Mesh2D
 
 __all__ = [
+    "BC",
     "CoordSystem",
     "Mesh1D",
     "Mesh2D",

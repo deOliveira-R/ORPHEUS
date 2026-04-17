@@ -27,6 +27,8 @@ class CoreGeometry:
     top_refl_height: float = 50.0   # cm
     f2f: float = 21.61              # flat-to-flat distance (cm)
     dz: float = 5.0                 # axial cell height (cm)
+    bc_bottom: str = "vacuum"       # boundary condition at bottom face
+    bc_top: str = "vacuum"          # boundary condition at top face
 
     @property
     def n_refl_bot(self) -> int:
@@ -104,13 +106,40 @@ def _default_xs() -> tuple[TwoGroupXS, TwoGroupXS]:
     return reflector, fuel
 
 
+def _diff_bc_vacuum(solver, bc_str: str) -> str:
+    """Zero-flux (Dirichlet φ=0) at the boundary face.
+
+    Gradient: dφ/dz = φ_cell / (0.5·��z).
+    """
+    return "vacuum"
+
+
+def _diff_bc_reflective(solver, bc_str: str) -> str:
+    """Reflective (Neumann ∂φ/∂n=0) — zero net current at the boundary.
+
+    Gradient: dφ/dz = 0.
+    """
+    return "reflective"
+
+
 class DiffusionSolver:
     """1D two-group diffusion eigenvalue solver (EigenvalueSolver protocol).
 
-    Wraps the finite-difference diffusion operator with vacuum boundary
-    conditions and BiCGSTAB inner solves into the generic power iteration
-    framework.
+    Wraps the finite-difference diffusion operator with configurable
+    boundary conditions and BiCGSTAB inner solves into the generic power
+    iteration framework.
+
+    Attributes
+    ----------
+    BC_REGISTRY : dict[str, Callable]
+        Supported boundary condition kinds.  Docstrings on the
+        factories serve as descriptions for programmatic query.
     """
+
+    BC_REGISTRY: dict = {
+        "vacuum": _diff_bc_vacuum,
+        "reflective": _diff_bc_reflective,
+    }
 
     def __init__(
         self,
@@ -156,6 +185,9 @@ class DiffusionSolver:
 
         self.D = 1.0 / (3.0 * sig_t_face)  # (2, n_faces) diffusion coefficient
 
+        # Resolve boundary conditions
+        self._resolve_bcs(geom)
+
         # Linear operator A*x
         self.A_op = LinearOperator(
             shape=(self.ng * self.nc, self.ng * self.nc),
@@ -164,20 +196,46 @@ class DiffusionSolver:
         )
 
     # ------------------------------------------------------------------
+    # Boundary condition resolution
+    # ------------------------------------------------------------------
+
+    def _resolve_bcs(self, geom: CoreGeometry) -> None:
+        """Validate and store resolved BC kinds from geometry."""
+        for face, attr in [("bottom", "bc_bottom"), ("top", "bc_top")]:
+            kind = getattr(geom, attr)
+            if kind not in self.BC_REGISTRY:
+                supported = ", ".join(f"'{k}'" for k in sorted(self.BC_REGISTRY))
+                raise ValueError(
+                    f"Diffusion solver does not support BC '{kind}' "
+                    f"on face '{face}'. Supported: {supported}."
+                )
+        self._bc_bottom: str = self.BC_REGISTRY[geom.bc_bottom](self, geom.bc_bottom)
+        self._bc_top: str = self.BC_REGISTRY[geom.bc_top](self, geom.bc_top)
+
+    # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _boundary_gradient(self, fi: np.ndarray) -> np.ndarray:
+        """Compute gradient dφ/dz at all faces with boundary conditions."""
+        dfidz = np.zeros((self.ng, self.nf))
+        # Interior faces
+        dfidz[:, 1:-1] = np.diff(fi, axis=1) / self.dz
+        # Bottom face
+        if self._bc_bottom == "vacuum":
+            dfidz[:, 0] = fi[:, 0] / (0.5 * self.dz)
+        # else reflective: dfidz[:, 0] = 0.0 (already zero)
+        # Top face
+        if self._bc_top == "vacuum":
+            dfidz[:, -1] = -fi[:, -1] / (0.5 * self.dz)
+        # else reflective: dfidz[:, -1] = 0.0 (already zero)
+        return dfidz
 
     def _matvec(self, solution: np.ndarray) -> np.ndarray:
         """Diffusion operator: -div(D grad phi) + removal - inscatter."""
         fi = solution.reshape(self.ng, self.nc)
 
-        # Gradient with vacuum BCs (phi=0 at boundaries)
-        dfidz = np.zeros((self.ng, self.nf))
-        dfidz[:, 0] = fi[:, 0] / (0.5 * self.dz)
-        dfidz[:, -1] = -fi[:, -1] / (0.5 * self.dz)
-        dfidz[:, 1:-1] = np.diff(fi, axis=1) / self.dz
-
-        J = -self.D * dfidz
+        J = -self.D * self._boundary_gradient(fi)
 
         # A*fi = div(J)/dz + (SigA + SigS)*fi - SigS_flipped * fi_flipped
         Ax = (
@@ -188,12 +246,8 @@ class DiffusionSolver:
         return Ax.ravel()
 
     def _compute_current(self, fi: np.ndarray) -> np.ndarray:
-        """Net current J = -D * dphi/dz with vacuum BCs."""
-        dfidz = np.zeros((self.ng, self.nf))
-        dfidz[:, 0] = fi[:, 0] / (0.5 * self.dz)
-        dfidz[:, -1] = -fi[:, -1] / (0.5 * self.dz)
-        dfidz[:, 1:-1] = np.diff(fi, axis=1) / self.dz
-        return -self.D * dfidz
+        """Net current J = -D * dphi/dz with boundary conditions."""
+        return -self.D * self._boundary_gradient(fi)
 
     # ------------------------------------------------------------------
     # EigenvalueSolver protocol
