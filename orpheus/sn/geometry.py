@@ -165,12 +165,6 @@ class SNMesh:
             )
         kind = factory(self, bc, face)
 
-        # Curvilinear geometries only support reflective for now
-        if self.curvature in ("spherical", "cylindrical") and kind != "reflective":
-            raise NotImplementedError(
-                f"{self.curvature} SN sweep only supports reflective BC, "
-                f"got '{kind}' on face '{face}'"
-            )
         return kind
 
     # ── Properties ────────────────────────────────────────────────────

@@ -234,6 +234,9 @@ def _sweep_1d_spherical(
     dAw = sn_mesh.redist_dAw   # (nx, N) precomputed ΔA_i/w_n
     tau = sn_mesh.tau_mm       # (N,) Morel–Montry angular weights
 
+    # Boundary condition at the outer face (r = R)
+    is_vacuum_outer = sn_mesh.bc_right == "vacuum"
+
     # Persistent boundary flux at the outer face (per ordinate)
     if "bc_sph" not in psi_bc:
         psi_bc["bc_sph"] = np.zeros((N, ng))
@@ -263,7 +266,10 @@ def _sweep_1d_spherical(
 
         if mu_n < 0:
             # Inward sweep: outer boundary → centre
-            psi_spatial_in = bc_outer[ref[n]].copy()
+            if is_vacuum_outer:
+                psi_spatial_in = np.zeros(ng)
+            else:
+                psi_spatial_in = bc_outer[ref[n]].copy()
 
             for i in range(nx - 1, -1, -1):
                 A_in = A[i + 1]   # incoming face (outer)
@@ -369,6 +375,9 @@ def _sweep_1d_cylindrical(
     A = sn_mesh.face_areas     # (nx+1,) = 2πr at edges
     V = sn_mesh.volumes[:, 0]  # (nx,) cell volumes
 
+    # Boundary condition at the outer face (r = R)
+    is_vacuum_outer = sn_mesh.bc_right == "vacuum"
+
     # Persistent boundary flux at the outer face (per ordinate)
     if "bc_cyl" not in psi_bc:
         psi_bc["bc_cyl"] = np.zeros((N, ng))
@@ -405,7 +414,10 @@ def _sweep_1d_cylindrical(
 
             if eta_n < 0:
                 # Inward sweep: outer → centre
-                psi_spatial_in = bc_outer[ref[n]].copy()
+                if is_vacuum_outer:
+                    psi_spatial_in = np.zeros(ng)
+                else:
+                    psi_spatial_in = bc_outer[ref[n]].copy()
 
                 for i in range(nx - 1, -1, -1):
                     A_in = A[i + 1]
