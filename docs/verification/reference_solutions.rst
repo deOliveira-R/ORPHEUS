@@ -322,8 +322,9 @@ its reference:
      - T1 analytical
      - Phase 1.1 — fold into ``homogeneous.py``.
    * - ``sn.py`` heterogeneous
-     - T3 **BANNED** (Richardson extrapolation of the SN solver)
-     - Phase 2.1 — replace with continuous transfer-matrix reference.
+     - ~~T3~~ **RETIRED** (Phase 2.1a)
+     - Replaced by MMS continuous references in ``sn_mms.py``.
+       ``solver_cases()`` deleted from ``sn.py``.
    * - ``sn_heterogeneous.py``
      - T2 semi-analytical (transfer matrix, eigenvalue only)
      - Phase 1.2 — expose continuous :math:`\phi_g(x)` via back-substitution.
@@ -343,8 +344,8 @@ its reference:
      - T1 analytical
      - Phase 1.1 — fold into ``homogeneous.py``.
    * - ``moc.py`` heterogeneous
-     - T3 **BANNED** (Richardson extrapolation of the MOC solver)
-     - Phase 2.2 — replace with along-characteristic continuous reference.
+     - ~~T3~~ **RETIRED** (Phase 2.2a)
+     - Replaced by MMS continuous reference in ``moc_mms.py``.
    * - ``mc.py`` homogeneous
      - T1 analytical
      - Phase 1.1 — fold into ``homogeneous.py``.
@@ -352,9 +353,13 @@ its reference:
      - T4 **BANNED** (CP derivation used as reference for MC)
      - Phase 2.3 — replace with Case/Placzek or Peierls continuous reference.
    * - ``sn_mms.py``
-     - T1.5 (Phase 0 template — landed in Session 2)
-     - Already consumes the new contract; serves as the template
-       for differential-form MMS work in Phase 3.
+     - T1.5 analytical MMS (6 continuous references)
+     - Phases 2.1a, 3.1–3.5 complete. Covers: slab 2G hetero,
+       2D Cartesian 1G/2G, spherical, cylindrical, P1 anisotropic.
+       Phases 3.3–3.4 blocked by sweep-operator inconsistency (#98).
+   * - ``moc_mms.py``
+     - T1.5 analytical MMS (1 continuous reference)
+     - Phase 2.2a complete. Pin-cell MMS spatial-operator test.
 
 Tiers:
 
