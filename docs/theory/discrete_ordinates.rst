@@ -2039,6 +2039,84 @@ Both groups achieve the design :math:`\mathcal O(h^{2})` rate.
   :func:`tests.sn.test_mms_2d.test_sn_2d_cartesian_2g_heterogeneous_mms_converges_second_order`.
 
 
+.. _sn-mms-p1-verification:
+
+P1 anisotropic scattering MMS
+-------------------------------
+
+Phase 3.5 verifies that the P\ :sub:`N` anisotropic scattering
+source assembly (:ref:`pn-scattering`) preserves
+:math:`\mathcal O(h^{2})` convergence. All previous MMS tests use
+isotropic (P0) scattering; this test exercises the P1 slot
+:math:`\Sigma_s^{(1)}` through a weakly angle-dependent ansatz.
+
+**Ansatz.** On a 1D vacuum-BC slab :math:`[0, L]`:
+
+.. math::
+   :label: sn-mms-p1-psi
+
+   \psi_n(x) = \frac{1}{W}\bigl(A(x) + \alpha\,\mu_n\,B(x)\bigr)
+
+with :math:`A(x) = B(x) = \sin(\pi x/L)` and small
+:math:`\alpha = 0.1`. The scalar flux is :math:`\phi(x) = A(x)`
+(the :math:`\mu`-odd term integrates to zero), and the P1 current
+is :math:`J(x) = \alpha\,B(x)/3` (using
+:math:`\sum w_n\mu_n^2 = 2/3` for Gauss–Legendre on
+:math:`[-1, 1]`).
+
+**Manufactured source.** Substituting :eq:`sn-mms-p1-psi` into
+the 1D transport equation with P1 scattering and solving for
+the residual:
+
+.. math::
+   :label: sn-mms-p1-qext
+
+   Q^{\text{ext}}_n(x) =
+       \mu_n\,A'(x)
+     + (\Sigma_t - \Sigma_s^{(0)})\,A(x)
+     + \alpha\,\mu_n\,(\Sigma_t - \Sigma_s^{(1)})\,B(x)
+     + \alpha\,\mu_n^2\,B'(x).
+
+The first two terms are the isotropic MMS source from
+:eq:`sn-mms-qext`. The third term comes from the P1 scattering
+slot :math:`3\,\Sigma_s^{(1)}\,\mu_n\,J(x)` in the transport
+equation, and the fourth from the :math:`\mu_n`-weighted
+streaming of :math:`B(x)`.
+
+**Measured convergence.** Four refinements with
+:math:`\Sigma_t = 1.0`, :math:`\Sigma_s^{(0)} = 0.5`,
+:math:`\Sigma_s^{(1)} = 0.2`, :math:`\alpha = 0.1`:
+
+.. list-table::
+   :header-rows: 1
+
+   * - :math:`n_{\text{cells}}`
+     - L2 error
+     - Order
+   * - 20
+     - :math:`6.15 \times 10^{-4}`
+     -
+   * - 40
+     - :math:`1.53 \times 10^{-4}`
+     - 2.00
+   * - 80
+     - :math:`3.84 \times 10^{-5}`
+     - 2.00
+   * - 160
+     - :math:`9.59 \times 10^{-6}`
+     - 2.00
+
+**Code pointers.**
+
+- Derivation:
+  :class:`orpheus.derivations.sn_mms.SNP1AnisoMMSCase` and
+  :func:`orpheus.derivations.sn_mms.build_p1_aniso_mms_case`.
+- Test:
+  :func:`tests.sn.test_mms_aniso.test_sn_p1_aniso_mms_converges_second_order`.
+- P1 assembly:
+  :meth:`orpheus.sn.solver.SNSolver._build_aniso_scattering`.
+
+
 .. _sn-case-heterogeneous-verification:
 
 Heterogeneous eigenvalue — Case singular-eigenfunction method

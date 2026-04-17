@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **645**
+Total tests collected: **653**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 346, 53.6%
-   L1, 177, 27.4%
-   L2, 36, 5.6%
+   L0, 346, 53.0%
+   L1, 185, 28.3%
+   L2, 36, 5.5%
    L3, 0, 0.0%
-   foundation, 75, 11.6%
+   foundation, 75, 11.5%
    unmarked, 11, 1.7%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 555
+   explicit, 563
    verify, 0
    class-name, 46
    func-name, 0
@@ -79,11 +79,14 @@ Module × level grid
    sn/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    sn/test_mms, 0, 2, 0, 0, 0, 0
    sn/test_mms_2d, 0, 3, 0, 0, 0, 0
+   sn/test_mms_aniso, 0, 2, 0, 0, 0, 0
+   sn/test_mms_curvilinear, 0, 2, 0, 0, 0, 0
    sn/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
    sn/test_properties, 4, 0, 0, 0, 0, 0
    sn/test_quadrature, 49, 0, 0, 0, 0, 0
    sn/test_solver_components, 35, 0, 0, 0, 0, 0
    sn/test_spherical, 13, 7, 6, 0, 0, 0
+   sn/test_sweep_operator_inconsistency, 0, 4, 0, 0, 0, 0
    sn/test_sweep_regression, 12, 0, 0, 0, 0, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
@@ -142,26 +145,26 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``chi-sampling``, 28
    ``decompose``, 28
    ``scattering-cdf``, 28
-   ``transport-spherical``, 26
-   ``transport-cylindrical``, 25
+   ``transport-spherical``, 27
+   ``transport-cylindrical``, 26
    ``azimuthal-angles``, 24
    ``effective-spacing``, 22
    ``pitch-recovery``, 22
    ``ray-circle``, 22
-   ``dd-slab``, 20
+   ``dd-slab``, 21
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
-   ``dd-cartesian-1d``, 16
+   ``dd-cartesian-1d``, 17
    ``direction-sampling``, 16
    ``fission-weight``, 16
    ``keff-cycle``, 16
    ``roulette-conservation``, 16
    ``roulette-prob``, 16
+   ``transport-cartesian``, 16
    ``dc-slab``, 15
    ``second-diff-cyl``, 15
    ``second-diff-general``, 15
    ``second-diff-sph``, 15
-   ``transport-cartesian``, 15
    ``complementarity``, 12
    ``kin-bickley-legacy-convention``, 12
    ``kinf-1g``, 12
@@ -171,13 +174,13 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``ws-pitch``, 12
    ``fission-matrix``, 11
    ``inf-hom-balance``, 11
+   ``pn-scatter``, 11
    ``removal-matrix``, 11
    ``two-group-A``, 11
    ``two-group-Ainv``, 11
    ``two-group-F``, 11
    ``two-group-M``, 11
    ``dd-recurrence``, 9
-   ``pn-scatter``, 9
    ``tau-m``, 9
    ``tau-p``, 9
    ``bare-slab-buckling``, 8
@@ -233,6 +236,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-case-slope-matrix``, 2
    ``sn-case-spatial-modes``, 2
    ``sn-mms-2d-2g-psi``, 2
+   ``sn-mms-p1-qext``, 2
    ``branching``, 1
    ``collision-estimator``, 1
    ``majorant``, 1
@@ -241,8 +245,13 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-mms-2d-2g-qext``, 1
    ``sn-mms-2d-psi``, 1
    ``sn-mms-2d-qext``, 1
+   ``sn-mms-cylindrical-psi``, 1
+   ``sn-mms-cylindrical-qext``, 1
+   ``sn-mms-p1-psi``, 1
    ``sn-mms-psi``, 1
    ``sn-mms-qext``, 1
+   ``sn-mms-spherical-psi``, 1
+   ``sn-mms-spherical-qext``, 1
    ``splitting``, 1
 
 Orphan equations
@@ -321,6 +330,7 @@ Every ``ERR-NNN`` entry in ``tests/l0_error_catalog.md`` and the tests that carr
    ``ERR-023``, 1
    ``ERR-024``, 1
    ``ERR-025``, 4
+   ``ERR-026``, 4
 
 Unmarked tests
 --------------
