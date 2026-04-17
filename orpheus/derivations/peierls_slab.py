@@ -1,0 +1,675 @@
+r"""Peierls integral equation reference for slab CP verification.
+
+Solves the 1-D slab Peierls (integral transport) equation via Nyström
+quadrature at mpmath precision, producing
+:class:`ContinuousReferenceSolution` objects whose operator form is
+``"integral-peierls"``.
+
+The Peierls equation for a homogeneous or piecewise-constant slab
+:math:`[0, L]` reads:
+
+.. math::
+
+   \Sigma_t(x)\,\varphi(x)
+   = \tfrac12 \int_0^L E_1\!\bigl(\tau(x,x')\bigr)\,q(x')\,\mathrm{d}x'
+     + S_{\rm bc}(x)
+
+where :math:`q = \Sigma_s\varphi + \frac{\chi\,\nu\Sigma_f}{k}\varphi`
+is the total isotropic source and :math:`S_{\rm bc}` accounts for
+boundary re-entry (white BC).
+
+The :math:`E_1` kernel has a logarithmic singularity at :math:`x=x'`:
+
+.. math::
+
+   E_1(z) = \bigl[-\ln z - \gamma\bigr] + R(z),
+   \qquad R(z)\equiv E_1(z)+\ln z+\gamma,\quad R(0)=0.
+
+The Nyström method uses **singularity subtraction**: standard GL weights
+for the smooth remainder *R*, and **product-integration weights**
+(computed via mpmath.quad) for the :math:`-\ln|x-x'|` part.
+
+This module is the Phase-4.1 deliverable of the verification campaign.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import mpmath
+import numpy as np
+
+from ._kernels import e_n_mp
+from ._reference import (
+    ContinuousReferenceSolution,
+    ProblemSpec,
+    Provenance,
+)
+from ._xs_library import LAYOUTS, get_mixture, get_xs
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Gauss–Legendre helpers
+# ═══════════════════════════════════════════════════════════════════════
+
+def _gl_nodes_weights(n: int, dps: int) -> tuple[list, list]:
+    """*n*-point GL on [-1, 1] at *dps* decimal digits."""
+    with mpmath.workdps(dps):
+        nm, wm = mpmath.gauss_quadrature(n, "legendre")
+        return [nm[i] for i in range(n)], [wm[i] for i in range(n)]
+
+
+def _map_to_interval(nodes, weights, a, b):
+    """Map GL nodes/weights from [-1, 1] to [a, b]."""
+    h = (b - a) / 2
+    m = (a + b) / 2
+    return [m + h * t for t in nodes], [h * w for w in weights]
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Product-integration for the log singularity
+# ═══════════════════════════════════════════════════════════════════════
+
+def _product_log_weights(panel_a, panel_b, x_eval, nodes, dps):
+    r"""Modified weights for :math:`\int_a^b f(x')(-\ln|x_i-x'|)\,dx'`.
+
+    Computes one weight per node by exactly integrating each Lagrange
+    basis polynomial against the :math:`-\ln|\cdot|` weight via
+    mpmath.quad.
+    """
+    p = len(nodes)
+    weights = []
+    with mpmath.workdps(dps + 10):
+        for j in range(p):
+            # Build Lagrange basis L_j as a closure
+            def _basis(x, _j=j):
+                val = mpmath.mpf(1)
+                for m in range(p):
+                    if m == _j:
+                        continue
+                    val *= (x - nodes[m]) / (nodes[_j] - nodes[m])
+                return val
+
+            def integrand(x):
+                d = abs(x_eval - x)
+                if d == 0:
+                    return mpmath.mpf(0)
+                return _basis(x) * (-mpmath.log(d))
+
+            w = mpmath.quad(integrand, [panel_a, panel_b])
+            weights.append(+w)
+    return weights
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Nyström kernel builder
+# ═══════════════════════════════════════════════════════════════════════
+
+def _build_kernel_matrix(
+    x_nodes: list,
+    w_nodes: list,
+    panel_bounds: list[tuple],
+    node_panel: list[int],
+    sig_t_at_node: list,
+    boundaries: list,
+    sig_t_per_region: list[list],
+    n_regions: int,
+    ng: int,
+    dps: int,
+) -> object:
+    r"""Build the half-E₁ kernel matrix K[i,j,g] for cell-interior transport.
+
+    Returns an mpmath matrix of shape ``(N, N)`` for **each group** g,
+    stored as a list of mpmath matrices.  The caller multiplies by XS
+    to assemble scatter/fission kernels.
+
+    ``K_g[i,j] = (1/2) E_1(τ(x_i, x_j, g)) * w_j`` with
+    product-integration on the diagonal panel.
+    """
+    N = len(x_nodes)
+
+    def region_of(x):
+        for r in range(n_regions):
+            if x <= boundaries[r + 1] or r == n_regions - 1:
+                return r
+        return n_regions - 1  # pragma: no cover
+
+    def optical_path(xi, xj, g):
+        if xi == xj:
+            return mpmath.mpf(0)
+        a, b = (min(xi, xj), max(xi, xj))
+        tau = mpmath.mpf(0)
+        for rr in range(n_regions):
+            ra, rb = boundaries[rr], boundaries[rr + 1]
+            oa, ob = max(a, ra), min(b, rb)
+            if oa < ob:
+                tau += sig_t_per_region[rr][g] * (ob - oa)
+        return tau
+
+    euler_gamma = mpmath.euler
+    K_per_group: list[object] = []
+
+    with mpmath.workdps(dps):
+        for g in range(ng):
+            K = mpmath.matrix(N, N)
+
+            # Off-diagonal panels: standard GL + E₁
+            for i in range(N):
+                for j in range(N):
+                    if node_panel[i] == node_panel[j]:
+                        continue  # handled below
+                    tau = optical_path(x_nodes[i], x_nodes[j], g)
+                    if tau > 0:
+                        K[i, j] = e_n_mp(1, tau, dps) * w_nodes[j] / 2
+                    # tau == 0 off-panel shouldn't happen
+
+            # Diagonal panels: singularity subtraction
+            for pa, pb, i_start, i_end in panel_bounds:
+                pnodes = x_nodes[i_start:i_end]
+                pweights = w_nodes[i_start:i_end]
+                p_count = i_end - i_start
+
+                for i_loc in range(p_count):
+                    i_glob = i_start + i_loc
+                    xi = x_nodes[i_glob]
+                    sig_t_g = sig_t_at_node[i_glob][g]
+                    ln_sig_t = mpmath.log(sig_t_g) if sig_t_g > 0 else mpmath.mpf(0)
+
+                    # Product-integration weights for -ln|x_i - x'|
+                    log_w = _product_log_weights(pa, pb, xi, pnodes, dps)
+
+                    for j_loc in range(p_count):
+                        j_glob = i_start + j_loc
+                        xj = x_nodes[j_glob]
+                        dist = abs(xi - xj)
+                        tau = sig_t_g * dist  # same region within panel
+
+                        # Smooth remainder R(τ) = E₁(τ) + ln(τ) + γ
+                        if tau > 0:
+                            R_val = e_n_mp(1, tau, dps) + mpmath.log(tau) + euler_gamma
+                        else:
+                            R_val = mpmath.mpf(0)
+
+                        # Full kernel weight via singularity subtraction:
+                        # (1/2) * [R(τ)*w_j + (-ln Σ_t - γ)*w_j + log_w_j]
+                        K[i_glob, j_glob] = (
+                            R_val * pweights[j_loc]
+                            + (-ln_sig_t - euler_gamma) * pweights[j_loc]
+                            + log_w[j_loc]
+                        ) / 2
+
+            K_per_group.append(K)
+
+    return K_per_group
+
+
+def _build_system_matrices(
+    K_per_group: list,
+    x_nodes: list,
+    w_nodes: list,
+    sig_t_at_node: list,
+    sig_s_at_node: list,
+    nusigf_at_node: list,
+    chi_at_node: list,
+    boundaries: list,
+    sig_t_per_region: list[list],
+    n_regions: int,
+    ng: int,
+    dps: int,
+    boundary: str,
+) -> tuple[object, object, object]:
+    r"""Assemble scatter and fission operator matrices (dim × dim).
+
+    The Peierls equation for scalar flux is:
+
+    .. math::
+
+       \varphi(x) = \tfrac12\!\int E_1(\tau)\,q(x')\,dx' + \varphi_{\rm bc}(x)
+
+    Returns ``(A, B)`` where ``A = I − K_scatter``, ``B = K_fission``,
+    and the eigenvalue problem is ``A\varphi = (1/k)\,B\varphi``.
+    """
+    N = len(x_nodes)
+    dim = N * ng
+
+    with mpmath.workdps(dps):
+        K_scatter = mpmath.matrix(dim, dim)
+        K_fission = mpmath.matrix(dim, dim)
+
+        # Cell-interior kernel → scatter and fission operators
+        for ge in range(ng):
+            Kg = K_per_group[ge]
+            for i in range(N):
+                for j in range(N):
+                    kij = Kg[i, j]
+                    if kij == 0:
+                        continue
+                    for gs in range(ng):
+                        row = i * ng + ge
+                        col = j * ng + gs
+                        K_scatter[row, col] += kij * sig_s_at_node[j][gs][ge]
+                        K_fission[row, col] += kij * chi_at_node[i][ge] * nusigf_at_node[j][gs]
+
+        # White-BC: add separable re-entry kernel
+        if boundary == "white":
+            L = boundaries[-1]
+
+            def optical_from_face(x, face, g):
+                a, b = (mpmath.mpf(0), x) if face == "left" else (x, L)
+                if a >= b:
+                    return mpmath.mpf(0)
+                tau = mpmath.mpf(0)
+                for rr in range(n_regions):
+                    ra, rb = boundaries[rr], boundaries[rr + 1]
+                    oa, ob = max(a, ra), min(b, rb)
+                    if oa < ob:
+                        tau += sig_t_per_region[rr][g] * (ob - oa)
+                return tau
+
+            # E₂ vectors from each face
+            e2L: list[list] = []  # e2L[g][i]
+            e2R: list[list] = []
+            for g in range(ng):
+                e2l, e2r = [], []
+                for i in range(N):
+                    e2l.append(e_n_mp(2, optical_from_face(x_nodes[i], "left", g), dps))
+                    e2r.append(e_n_mp(2, optical_from_face(x_nodes[i], "right", g), dps))
+                e2L.append(e2l)
+                e2R.append(e2r)
+
+            # Slab transmission T_g = 2 E₃(τ_total(g))
+            for g in range(ng):
+                tau_tot = sum(
+                    sig_t_per_region[r][g] * (boundaries[r + 1] - boundaries[r])
+                    for r in range(n_regions)
+                )
+                T_g = 2 * e_n_mp(3, tau_tot, dps)
+                denom = 1 - T_g * T_g
+                if abs(denom) < mpmath.power(10, -dps + 2):
+                    continue  # optically thin — skip
+
+                # White-BC kernel for the φ equation (no Σ_t factor):
+                #   φ_bc(x_i) = 1/(1-T²) × Σ_j w_j q_j ×
+                #     [e2L_i (e2L_j + T·e2R_j) + e2R_i (e2R_j + T·e2L_j)]
+                for i in range(N):
+                    for j in range(N):
+                        bc = (
+                            e2L[g][i] * (e2L[g][j] + T_g * e2R[g][j])
+                            + e2R[g][i] * (e2R[g][j] + T_g * e2L[g][j])
+                        ) * w_nodes[j] / denom
+
+                        for gs in range(ng):
+                            row = i * ng + g
+                            col = j * ng + gs
+                            K_scatter[row, col] += bc * sig_s_at_node[j][gs][g]
+                            K_fission[row, col] += bc * chi_at_node[i][g] * nusigf_at_node[j][gs]
+
+        # A = I - K_scatter (identity, not Σ_t diagonal)
+        A = mpmath.matrix(dim, dim)
+        for idx in range(dim):
+            A[idx, idx] = mpmath.mpf(1)
+        A -= K_scatter
+        B = K_fission
+
+    return A, B
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Solution container
+# ═══════════════════════════════════════════════════════════════════════
+
+@dataclass(frozen=True)
+class PeierlsSlabSolution:
+    """Result of a Peierls Nyström solve on a 1-D slab."""
+
+    x_nodes: np.ndarray
+    """Quadrature node positions, shape ``(N,)``."""
+
+    phi_values: np.ndarray
+    """Flux at each node and group, shape ``(N, ng)``."""
+
+    k_eff: float | None
+    """Eigenvalue (None for fixed-source problems)."""
+
+    slab_length: float
+    n_groups: int
+    n_quad: int
+    precision_digits: int
+
+    _panel_bounds: list | None = None
+
+    def phi(self, x: np.ndarray, g: int = 0) -> np.ndarray:
+        """Evaluate flux at arbitrary points via barycentric interpolation."""
+        x = np.asarray(x, dtype=float).ravel()
+        result = np.empty_like(x)
+
+        if self._panel_bounds is None:
+            return np.interp(x, self.x_nodes, self.phi_values[:, g])
+
+        for pa, pb, i_start, i_end in self._panel_bounds:
+            if pb == self.slab_length:
+                mask = (x >= pa) & (x <= pb)
+            else:
+                mask = (x >= pa) & (x < pb)
+            if not mask.any():
+                continue
+            result[mask] = _bary_interp(
+                self.x_nodes[i_start:i_end],
+                self.phi_values[i_start:i_end, g],
+                x[mask],
+            )
+        return result
+
+
+def _bary_interp(nodes, values, x_eval):
+    """Barycentric Lagrange interpolation."""
+    n = len(nodes)
+    w = np.ones(n)
+    for j in range(n):
+        for k in range(n):
+            if k != j:
+                w[j] /= (nodes[j] - nodes[k])
+    out = np.empty_like(x_eval)
+    for idx, xv in enumerate(x_eval):
+        d = xv - nodes
+        exact = np.where(np.abs(d) < 1e-30)[0]
+        if len(exact) > 0:
+            out[idx] = values[exact[0]]
+        else:
+            t = w / d
+            out[idx] = np.dot(t, values) / t.sum()
+    return out
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Main solver interface
+# ═══════════════════════════════════════════════════════════════════════
+
+def solve_peierls_eigenvalue(
+    sig_t_regions: list[np.ndarray],
+    sig_s_matrices: list[np.ndarray],
+    nu_sig_f_all: list[np.ndarray],
+    chi_all: list[np.ndarray],
+    thicknesses: list[float],
+    *,
+    n_panels_per_region: int = 16,
+    p_order: int = 6,
+    precision_digits: int = 30,
+    boundary: str = "white",
+) -> PeierlsSlabSolution:
+    r"""Solve the multi-group Peierls k-eigenvalue equation on a 1-D slab.
+
+    Parameters
+    ----------
+    sig_t_regions : list of (ng,) arrays
+        Total XS per region.
+    sig_s_matrices : list of (ng, ng) arrays
+        P0 scattering matrices per region (``sig_s[g', g]`` = g → g').
+    nu_sig_f_all : list of (ng,) arrays
+        :math:`\nu\Sigma_f` per region.
+    chi_all : list of (ng,) arrays
+        Fission spectrum per region.
+    thicknesses : list of float
+        Region thicknesses.
+    n_panels_per_region : int
+        GL panels per material region.
+    p_order : int
+        GL order per panel.
+    precision_digits : int
+        mpmath working precision.
+    boundary : {"white", "vacuum"}
+        Boundary condition type.
+
+    Returns
+    -------
+    PeierlsSlabSolution
+    """
+    dps = precision_digits
+    n_regions = len(thicknesses)
+    ng = len(sig_t_regions[0])
+
+    with mpmath.workdps(dps):
+        # Region boundaries
+        boundaries = [mpmath.mpf(0)]
+        for t in thicknesses:
+            boundaries.append(boundaries[-1] + mpmath.mpf(t))
+
+        # Sigma_t per region at mpmath precision
+        sig_t_per_region = [
+            [mpmath.mpf(float(sig_t_regions[r][g])) for g in range(ng)]
+            for r in range(n_regions)
+        ]
+
+        def region_of(x):
+            for r in range(n_regions):
+                if x <= boundaries[r + 1] or r == n_regions - 1:
+                    return r
+            return n_regions - 1
+
+        # Build composite GL quadrature
+        gl_ref, gl_wt = _gl_nodes_weights(p_order, dps)
+        x_all: list = []
+        w_all: list = []
+        panel_bounds: list[tuple] = []
+
+        for r in range(n_regions):
+            pw = (boundaries[r + 1] - boundaries[r]) / n_panels_per_region
+            for pidx in range(n_panels_per_region):
+                pa = boundaries[r] + pidx * pw
+                pb = pa + pw
+                xp, wp = _map_to_interval(gl_ref, gl_wt, pa, pb)
+                panel_bounds.append((pa, pb, len(x_all), len(x_all) + len(xp)))
+                x_all.extend(xp)
+                w_all.extend(wp)
+
+        N = len(x_all)
+
+        # Node-to-panel mapping
+        node_panel = [0] * N
+        for pidx, (_, _, i0, i1) in enumerate(panel_bounds):
+            for i in range(i0, i1):
+                node_panel[i] = pidx
+
+        # Per-node XS at mpmath precision
+        sig_t_at_node = [sig_t_per_region[region_of(x_all[i])] for i in range(N)]
+        sig_s_at_node = [
+            [[mpmath.mpf(float(sig_s_matrices[region_of(x_all[i])][g1, g2]))
+              for g2 in range(ng)] for g1 in range(ng)]
+            for i in range(N)
+        ]
+        nusigf_at_node = [
+            [mpmath.mpf(float(nu_sig_f_all[region_of(x_all[i])][g])) for g in range(ng)]
+            for i in range(N)
+        ]
+        chi_at_node = [
+            [mpmath.mpf(float(chi_all[region_of(x_all[i])][g])) for g in range(ng)]
+            for i in range(N)
+        ]
+
+    # Build E₁ kernel matrices (one per group)
+    K_per_group = _build_kernel_matrix(
+        x_all, w_all, panel_bounds, node_panel,
+        sig_t_at_node, boundaries, sig_t_per_region,
+        n_regions, ng, dps,
+    )
+
+    # Assemble A and B matrices
+    A, B = _build_system_matrices(
+        K_per_group, x_all, w_all,
+        sig_t_at_node, sig_s_at_node, nusigf_at_node, chi_at_node,
+        boundaries, sig_t_per_region, n_regions, ng, dps, boundary,
+    )
+
+    dim = N * ng
+
+    # Power iteration for the dominant eigenvalue.
+    # Eigenproblem: A·φ = (1/k)·B·φ  where A = Σ_t − K_scatter,
+    #                                        B = K_fission.
+    # Standard fission source iteration:
+    #   1) q^(n) = (1/k^(n)) B·φ^(n)
+    #   2) A·φ^(n+1) = q^(n)
+    #   3) k^(n+1) = k^(n) · ‖B·φ^(n+1)‖ / ‖B·φ^(n)‖
+    with mpmath.workdps(dps):
+        phi = mpmath.matrix(dim, 1)
+        for i in range(dim):
+            phi[i] = mpmath.mpf(1)
+
+        tol = mpmath.power(10, -(dps - 5))
+        k_val = mpmath.mpf(1)
+
+        # Initial fission source norm
+        fiss_old = B * phi
+        prod_old = sum(abs(fiss_old[i]) for i in range(dim))
+
+        for iteration in range(500):
+            # Step 1: fission source divided by k
+            q = mpmath.matrix(dim, 1)
+            for i in range(dim):
+                q[i] = fiss_old[i] / k_val
+
+            # Step 2: transport solve
+            phi_new = mpmath.lu_solve(A, q)
+
+            # Step 3: update k
+            fiss_new = B * phi_new
+            prod_new = sum(abs(fiss_new[i]) for i in range(dim))
+            k_new = k_val * prod_new / prod_old if prod_old > 0 else k_val
+
+            # Normalise φ
+            n_new = sum(abs(phi_new[i]) for i in range(dim))
+            for i in range(dim):
+                phi_new[i] /= n_new
+
+            # Re-compute fiss for normalised phi (for next iteration)
+            fiss_norm = B * phi_new
+            prod_norm = sum(abs(fiss_norm[i]) for i in range(dim))
+
+            converged = abs(k_new - k_val) < tol and iteration > 5
+            phi, k_val = phi_new, k_new
+            fiss_old, prod_old = fiss_norm, prod_norm
+
+            if converged:
+                break
+
+    # Extract results
+    k_eff = float(k_val)
+    phi_arr = np.zeros((N, ng))
+    for i in range(N):
+        for g in range(ng):
+            phi_arr[i, g] = float(phi[i * ng + g])
+
+    # Normalise: unit integral per group
+    x_f = np.array([float(xi) for xi in x_all])
+    w_f = np.array([float(wi) for wi in w_all])
+    for g in range(ng):
+        integral = np.dot(w_f, phi_arr[:, g])
+        if abs(integral) > 1e-30:
+            phi_arr[:, g] /= integral
+
+    # Panel bounds for interpolation (float)
+    pb_float = [(float(a), float(b), i0, i1) for a, b, i0, i1 in panel_bounds]
+
+    return PeierlsSlabSolution(
+        x_nodes=x_f,
+        phi_values=phi_arr,
+        k_eff=k_eff,
+        slab_length=sum(thicknesses),
+        n_groups=ng,
+        n_quad=N,
+        precision_digits=precision_digits,
+        _panel_bounds=pb_float,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ContinuousReferenceSolution builders
+# ═══════════════════════════════════════════════════════════════════════
+
+_MAT_IDS = {1: [2], 2: [2, 0], 4: [2, 3, 1, 0]}
+
+
+def _build_peierls_slab_case(
+    ng_key: str,
+    n_regions: int,
+    n_panels_per_region: int = 16,
+    p_order: int = 6,
+    precision_digits: int = 30,
+) -> ContinuousReferenceSolution:
+    """Build a Peierls reference matching the corresponding cp_slab case."""
+    from .cp_slab import _THICKNESSES
+
+    layout = LAYOUTS[n_regions]
+    ng = int(ng_key[0])
+    thicknesses = _THICKNESSES[n_regions]
+
+    xs_list = [get_xs(region, ng_key) for region in layout]
+    sig_t_regions = [xs["sig_t"] for xs in xs_list]
+    sig_s_matrices = [xs["sig_s"] for xs in xs_list]
+    nu_sig_f_all = [xs["nu"] * xs["sig_f"] for xs in xs_list]
+    chi_all = [xs["chi"] for xs in xs_list]
+
+    sol = solve_peierls_eigenvalue(
+        sig_t_regions, sig_s_matrices, nu_sig_f_all, chi_all,
+        thicknesses,
+        n_panels_per_region=n_panels_per_region,
+        p_order=p_order,
+        precision_digits=precision_digits,
+        boundary="white",
+    )
+
+    def phi_fn(x: np.ndarray, g: int = 0) -> np.ndarray:
+        return sol.phi(x, g)
+
+    mat_ids = _MAT_IDS[n_regions]
+    materials = {
+        mat_ids[i]: get_mixture(region, ng_key)
+        for i, region in enumerate(layout)
+    }
+
+    return ContinuousReferenceSolution(
+        name=f"peierls_slab_{ng}eg_{n_regions}rg",
+        problem=ProblemSpec(
+            materials=materials,
+            geometry_type="slab",
+            geometry_params={
+                "length": sum(thicknesses),
+                "thicknesses": thicknesses,
+                "mat_ids": mat_ids,
+            },
+            boundary_conditions={"left": "white", "right": "white"},
+            is_eigenvalue=True,
+            n_groups=ng,
+        ),
+        operator_form="integral-peierls",
+        phi=phi_fn,
+        k_eff=sol.k_eff,
+        provenance=Provenance(
+            citation=(
+                "Case & Zweifel 1967, Ch. 4; "
+                "Kress 2014 (Nyström for Fredholm equations)"
+            ),
+            derivation_notes=(
+                f"Nyström discretisation with {n_panels_per_region} panels × "
+                f"{p_order} GL points per region, E₁ kernel with singularity "
+                f"subtraction (product-integration for log part), "
+                f"white BC via E₂ re-entry closure."
+            ),
+            sympy_expression=None,
+            precision_digits=precision_digits,
+        ),
+        equation_labels=("peierls-equation",),
+        vv_level="L1",
+        description=f"{ng}G {n_regions}-region slab Peierls (E₁ Nyström, white BC)",
+        tolerance="O(h^2)",
+    )
+
+
+def continuous_cases() -> list[ContinuousReferenceSolution]:
+    """Return Peierls slab continuous references for the registry.
+
+    Uses moderate resolution (8 panels × 6 points per region) for
+    fast import.  Tests that need higher precision should call
+    ``_build_peierls_slab_case`` directly with larger parameters.
+    """
+    return [_build_peierls_slab_case("2g", 2, n_panels_per_region=4, p_order=4,
+                                     precision_digits=20)]

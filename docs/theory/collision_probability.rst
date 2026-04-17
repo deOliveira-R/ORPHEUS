@@ -2042,6 +2042,70 @@ convention drifts are invisible.  The suite tests 1, 2, AND 4 groups.
    only by multi-group tests.  See ``tests/l0_error_catalog.md``.
 
 
+Peierls integral equation reference
+====================================
+
+The collision probability method discretises the integral transport
+equation by assuming flat sources within each region.  The **Peierls
+integral equation** is the continuous (pre-discretisation) form of that
+equation, and solving it at high quadrature resolution provides an
+independent reference for verifying the CP solver's flux profiles.
+
+For a 1-D slab :math:`[0, L]` with piecewise-constant cross sections,
+the Peierls equation for the scalar flux :math:`\varphi(x)` is:
+
+.. math::
+   :label: peierls-equation
+
+   \varphi(x)
+   = \tfrac12 \int_0^L E_1\!\bigl(\tau(x,x')\bigr)\,q(x')\,\mathrm{d}x'
+     + \varphi_{\rm bc}(x)
+
+where :math:`q(x') = \sum_{g'}\Sigma_{s,g'\to g}\varphi_{g'}(x')
++ \chi_g\sum_{g'}\nu\Sigma_{f,g'}\varphi_{g'}(x')/k` is the total
+isotropic source and the optical path is
+:math:`\tau(x,x') = \int_{\min(x,x')}^{\max(x,x')}\Sigma_t(s)\,\mathrm{d}s`.
+
+**Singularity treatment.**
+The :math:`E_1` kernel has a logarithmic singularity at :math:`x = x'`:
+
+.. math::
+
+   E_1(z) = \bigl[-\ln z - \gamma\bigr] + R(z),
+   \qquad R(z) \equiv E_1(z) + \ln z + \gamma,\quad R(0) = 0.
+
+The Nyström discretisation splits the integral over each composite
+Gauss–Legendre panel.  Off-diagonal panels (where the kernel is smooth)
+use standard GL weights evaluated via :func:`~derivations._kernels.e_n_mp`.
+Diagonal panels use **product-integration weights** that exactly
+integrate the Lagrange basis against the :math:`-\ln|x - x'|` weight,
+computed via ``mpmath.quad``.
+
+**White boundary conditions.**
+For an infinite lattice (white BC), the re-entrant isotropic flux is:
+
+.. math::
+
+   \varphi_{\rm bc}(x) = \frac{1}{1 - T^2}\sum_j w_j\,q_j\,
+   \bigl[E_2(\tau_{0,i})(E_2(\tau_{0,j}) + T\,E_2(\tau_{L,j}))
+   + E_2(\tau_{L,i})(E_2(\tau_{L,j}) + T\,E_2(\tau_{0,j}))\bigr]
+
+where :math:`T = 2\,E_3(\tau_{\rm total})` is the slab transmission
+probability.
+
+**Relationship to CP.**
+The CP flat-source approximation integrates the :math:`E_1` kernel
+analytically over each region to obtain the :math:`E_3` second-difference
+formulae (:eq:`dd-slab`, :eq:`dc-slab`, :eq:`self-slab`).  The
+Peierls reference bypasses this integration and solves the full
+integral equation numerically, making it an independent check on
+the CP method's spatial discretisation.
+
+.. seealso::
+
+   :mod:`orpheus.derivations.peierls_slab` — Nyström solver implementation.
+
+
 References
 ==========
 
