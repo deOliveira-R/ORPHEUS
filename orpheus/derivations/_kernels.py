@@ -39,6 +39,64 @@ from scipy.special import expn
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# Chord geometry — concentric annular / spherical regions
+# ═══════════════════════════════════════════════════════════════════════
+
+def chord_half_lengths(radii: np.ndarray, y_pts: np.ndarray) -> np.ndarray:
+    r"""Half-chord lengths :math:`\ell_k(y)` for concentric annuli / shells.
+
+    For a cylinder or sphere partitioned into ``N`` regions with outer
+    radii ``radii = [r_1, r_2, ..., r_N]`` (``0 < r_1 < ... < r_N = R``)
+    and a chord of impact parameter :math:`y`, the **half-chord length**
+    through region :math:`k` (inner radius :math:`r_{k-1}`, outer radius
+    :math:`r_k`; :math:`r_0 \equiv 0`) is
+
+    .. math::
+
+        \ell_k(y) = \begin{cases}
+            0, & y \ge r_k,\\
+            \sqrt{r_k^{2}-y^{2}}, & r_{k-1} \le y < r_k,\\
+            \sqrt{r_k^{2}-y^{2}}-\sqrt{r_{k-1}^{2}-y^{2}}, & y < r_{k-1}.
+        \end{cases}
+
+    This is the primitive consumed by the CP cylinder / sphere
+    derivations (:mod:`~orpheus.derivations.cp_cylinder`,
+    :mod:`~orpheus.derivations.cp_sphere`) and by the Phase-4 Peierls
+    cylinder reference (:mod:`~orpheus.derivations.peierls_cylinder`).
+    Tested at L0 in ``tests/derivations/test_kernels.py``.
+
+    Parameters
+    ----------
+    radii : np.ndarray, shape (N,)
+        Outer radii of the ``N`` concentric regions, strictly increasing.
+    y_pts : np.ndarray, shape (n_y,)
+        Impact parameters at which the chord lengths are evaluated.
+
+    Returns
+    -------
+    np.ndarray, shape (N, n_y)
+        ``chords[k, m] = ℓ_k(y_pts[m])``.
+    """
+    N = len(radii)
+    chords = np.zeros((N, len(y_pts)))
+    r_inner = np.zeros(N)
+    r_inner[1:] = radii[:-1]
+    y2 = y_pts ** 2
+
+    for k in range(N):
+        r_out, r_in = radii[k], r_inner[k]
+        outer = np.sqrt(np.maximum(r_out ** 2 - y2, 0.0))
+        if r_in > 0:
+            inner = np.sqrt(np.maximum(r_in ** 2 - y2, 0.0))
+            mask = y_pts < r_in
+            chords[k, mask] = outer[mask] - inner[mask]
+        mask_p = (y_pts >= r_in) & (y_pts < r_out)
+        chords[k, mask_p] = outer[mask_p]
+
+    return chords
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # E₃ kernel (slab geometry)
 # ═══════════════════════════════════════════════════════════════════════
 

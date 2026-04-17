@@ -18,7 +18,7 @@ from __future__ import annotations
 import numpy as np
 
 from ._eigenvalue import kinf_from_cp
-from ._kernels import bickley_tables
+from ._kernels import bickley_tables, chord_half_lengths
 from ._types import VerificationCase
 from ._xs_library import LAYOUTS, get_xs, get_mixture
 
@@ -26,26 +26,6 @@ from ._xs_library import LAYOUTS, get_xs, get_mixture
 # ═══════════════════════════════════════════════════════════════════════
 # Cylindrical CP matrix from Ki₄ kernel
 # ═══════════════════════════════════════════════════════════════════════
-
-def _chord_half_lengths(radii: np.ndarray, y_pts: np.ndarray) -> np.ndarray:
-    """Half-chord lengths l_k(y) for each annular region. Shape (N, n_y)."""
-    N = len(radii)
-    chords = np.zeros((N, len(y_pts)))
-    r_inner = np.zeros(N)
-    r_inner[1:] = radii[:-1]
-    y2 = y_pts**2
-
-    for k in range(N):
-        r_out, r_in = radii[k], r_inner[k]
-        outer = np.sqrt(np.maximum(r_out**2 - y2, 0.0))
-        if r_in > 0:
-            inner = np.sqrt(np.maximum(r_in**2 - y2, 0.0))
-            mask = y_pts < r_in
-            chords[k, mask] = outer[mask] - inner[mask]
-        mask_p = (y_pts >= r_in) & (y_pts < r_out)
-        chords[k, mask_p] = outer[mask_p]
-
-    return chords
 
 
 def _cylinder_cp_matrix(
@@ -72,7 +52,7 @@ def _cylinder_cp_matrix(
         w_all.append(0.5 * (b - a) * gl_wts)
     y_pts = np.concatenate(y_all)
     y_wts = np.concatenate(w_all)
-    chords = _chord_half_lengths(radii, y_pts)
+    chords = chord_half_lengths(radii, y_pts)
     n_y = len(y_pts)
     ki4_0 = tables.Ki3_vec(np.zeros(n_y))
 

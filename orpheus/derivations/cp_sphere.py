@@ -36,6 +36,7 @@ from __future__ import annotations
 import numpy as np
 
 from ._eigenvalue import kinf_from_cp
+from ._kernels import chord_half_lengths
 from ._types import VerificationCase
 from ._xs_library import LAYOUTS, get_xs, get_mixture
 
@@ -43,32 +44,6 @@ from ._xs_library import LAYOUTS, get_xs, get_mixture
 # ═══════════════════════════════════════════════════════════════════════
 # Spherical CP matrix from exponential kernel
 # ═══════════════════════════════════════════════════════════════════════
-
-def _chord_half_lengths(radii: np.ndarray, y_pts: np.ndarray) -> np.ndarray:
-    """Half-chord lengths l_k(y) for each spherical shell.  Shape (N, n_y).
-
-    Same formula as cylindrical (chord through concentric annuli):
-    for shell k with inner radius r_in and outer radius r_out,
-    l_k(y) = sqrt(r_out² - y²) - sqrt(r_in² - y²)  for y < r_in,
-    l_k(y) = sqrt(r_out² - y²)                      for r_in ≤ y < r_out.
-    """
-    N = len(radii)
-    chords = np.zeros((N, len(y_pts)))
-    r_inner = np.zeros(N)
-    r_inner[1:] = radii[:-1]
-    y2 = y_pts**2
-
-    for k in range(N):
-        r_out, r_in = radii[k], r_inner[k]
-        outer = np.sqrt(np.maximum(r_out**2 - y2, 0.0))
-        if r_in > 0:
-            inner = np.sqrt(np.maximum(r_in**2 - y2, 0.0))
-            mask = y_pts < r_in
-            chords[k, mask] = outer[mask] - inner[mask]
-        mask_p = (y_pts >= r_in) & (y_pts < r_out)
-        chords[k, mask_p] = outer[mask_p]
-
-    return chords
 
 
 def _sphere_cp_matrix(
@@ -102,7 +77,7 @@ def _sphere_cp_matrix(
     # Spherical weight: extra factor of y
     y_wts = y_wts * y_pts
 
-    chords = _chord_half_lengths(radii, y_pts)
+    chords = chord_half_lengths(radii, y_pts)
     n_y = len(y_pts)
 
     # Kernel F(τ) = exp(-τ), F(0) = 1
