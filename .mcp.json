@@ -9,6 +9,12 @@
         "--project-root",
         "."
       ]
+    },
+    "zotero": {
+      "command": "zotero-mcp",
+      "env": {
+        "ZOTERO_LOCAL": "true"
+      }
     }
   }
 }

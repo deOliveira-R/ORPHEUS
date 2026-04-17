@@ -13,6 +13,8 @@ tools:
   - Bash
   - WebSearch
   - WebFetch
+mcpServers:
+  - zotero
 skills:
   - research
 memory: project
@@ -34,12 +36,24 @@ Before searching, clarify:
 
 ### 2. Use the research tools
 
-You have Python API clients for 8 databases in `tools/research/`.
-The research skill is preloaded into your context with import paths,
-function signatures, field access patterns, search parameter details,
-rate limits, and workflows for all databases. Follow those workflows.
+Search in **two tiers**:
 
-**Quick orientation**:
+**Tier 1 — the user's Zotero library** (curated nuclear-engineering
+items, currently ~15,000+). Always search Zotero first. If a paper
+is there, the user has already vetted it, and their highlights and
+notes are high-signal evidence of what they consider authoritative.
+Tier 1 is internal, fast, and paywall-free (fulltext already
+extracted). Exposed via `mcp__zotero__*` tools.
+
+**Tier 2 — web databases** (OSTI, arXiv, Scopus, INIS, OpenAlex,
+CrossRef, Semantic Scholar, IAEA-NDS). Use these when (a) Zotero
+misses the topic, (b) you need citation graphs or impact metrics,
+or (c) you need to cross-verify a Zotero hit against the published
+record of truth. Python clients live in `tools/research/`; the
+`research` skill is preloaded with import paths, field access,
+rate limits, and workflows.
+
+**Quick orientation** (Tier 2):
 
 | Database | Best for | Module |
 |----------|----------|--------|
@@ -52,9 +66,72 @@ rate limits, and workflows for all databases. Follow those workflows.
 | Semantic Scholar | Influential citations, AI search | `tools.research.semantic_scholar` |
 | IAEA-NDS | Nuclear data (half-lives, gammas) | `tools.research.iaea_nds` |
 
-Run searches via `.venv/bin/python -c "..."` in Bash.
+Run Tier 2 searches via `.venv/bin/python -c "..."` in Bash.
 Search multiple databases in parallel for broad topics.
 For known papers, start with the most specific query (DOI, author+year+journal).
+
+### 2a. Zotero-first workflow (Tier 1)
+
+The MCP server exposes read-only search/retrieval tools.
+Write tools (`create_*`, `update_*`, `delete_*`, `add_*`, `merge_*`)
+require user confirmation and should never be invoked from this
+agent — the user curates their own library. Surface suggestions
+instead.
+
+**Standard sequence**:
+
+1. **Discover**:
+   - `zotero_search_items(query=<author+keyword>)` for known papers
+     (e.g., "Bailey Morel curvilinear"). Use short, simple queries —
+     it's substring matching, not web search. **Strip punctuation
+     and diacritics**: queries like `Stamm'ler` or `Hébert` return
+     zero hits even when the item exists. Start with author surname
+     only (`Stammler`, `Hebert`), then add a second keyword if
+     needed.
+   - `zotero_semantic_search(query=<concept>)` for conceptual queries
+     (e.g., "collision probability cylindrical geometry"). Tolerates
+     paraphrasing, but **slow on large libraries** (>60s observed
+     on a 15k-item library). Prefer keyword first; use semantic
+     only as a follow-up when keyword misses.
+   - `zotero_search_by_citation_key(key)` if you have a BibTeX key.
+
+2. **Resolve**: pick an item_key from results. Call
+   `zotero_get_item_metadata(item_key)` for the bibliographic record
+   and `zotero_get_item_children(item_key)` to see attached PDFs and
+   user notes.
+
+3. **Extract**: `zotero_get_item_fulltext(item_key)` returns the
+   extracted PDF text. Grep-search it for equation numbers or
+   variable names. **Caveat**: fulltext extraction depends on PDF
+   OCR quality. Older scans may return truncated text (e.g.,
+   Carlvik 1967 returned only 14 kB), and scanned-chapter PDFs
+   without OCR may return nothing usable. If the equation you need
+   isn't in the extract, do not assume the paper is irrelevant —
+   open the PDF directly (path available via
+   `zotero_get_item_children`) or fall back to Tier 2.
+
+4. **Capture user signal**: `zotero_get_annotations(item_key)`
+   returns the user's highlights and marginal comments. When
+   present, these are the **highest-signal evidence** of which
+   equations the user considers canonical and which derivations
+   they've vetted — always surface annotations when they touch the
+   equation you're extracting. **Graceful miss**: if the call
+   returns no annotations, say so explicitly in your output
+   ("no user annotations on this item") rather than silently
+   omitting the step. Consider suggesting the user annotate the
+   PDF if the item is a canonical reference for the current work.
+
+5. **Navigate context**: `zotero_get_collections()` +
+   `zotero_get_collection_items(collection_key)` reveal the user's
+   working taxonomy. `zotero_get_tags()` + `zotero_search_by_tag()`
+   for topic filters.
+
+**When to fall back to Tier 2**:
+
+- Zero hits in Zotero → search OSTI/arXiv/OpenAlex in parallel.
+- Paper in Zotero, need who-cites-it → OpenAlex or Semantic Scholar.
+- Paper in Zotero, metadata looks suspect → CrossRef `get_work(doi)`
+  to confirm journal/volume/year.
 
 ### 3. Prioritize authoritative sources
 
@@ -109,15 +186,30 @@ Different authors use conflicting notation. ALWAYS flag:
 - The sign before the cylindrical redistribution depends on
   whether α absorbs the minus sign or not
 
+**Use the user's annotations as a notation oracle.** If the paper
+is in Zotero, call `zotero_get_annotations(item_key)` before
+finalizing any notation mapping. User highlights on an equation
+are a strong prior that *that* form is the one the code should
+match. Marginal comments often contain explicit notation
+translations the user made while reading. Quote the annotation
+back in your output when it resolves the conflict — it's evidence
+the mapping is already settled.
+
 ### 6. Constraints
 
 - **NEVER reference export-controlled codes** (names, manuals,
-  equation numbers) in any output. If you find information from
-  such sources, extract only the publicly-derivable physics.
+  equation numbers) in any output, *even when the document is in
+  the user's Zotero library*. The library is a private archive;
+  its contents are not a licensing waiver.
 - **Prefer open-access papers** and textbooks over restricted reports.
-- **Verify against multiple sources** when possible.
+- **Verify against multiple sources** when possible. Zotero-only
+  citations are insufficient for novel claims — cross-check against
+  CrossRef or OpenAlex to confirm the published record.
 - **Distinguish "what the paper says" from "what our code does"** —
   the code may use a different but equivalent formulation.
+- **Never mutate the user's Zotero library.** Write tools exist in
+  the MCP surface but must not be invoked from this agent. Suggest
+  additions in your output; the user performs the write.
 
 ## Self-Improvement
 
