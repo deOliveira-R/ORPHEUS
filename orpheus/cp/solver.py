@@ -41,6 +41,7 @@ from scipy.special import expn
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.macro_xs.cell_xs import CellXS, assemble_cell_xs
+from orpheus.derivations._kernels import chord_half_lengths
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.eigenvalue import power_iteration
 
@@ -123,27 +124,6 @@ def _ki4_lookup(x, x_grid, ki4_vals):
     return np.interp(x, x_grid, ki4_vals, right=0.0)
 
 
-def _chord_half_lengths(radii, y_pts):
-    """Half-chord lengths l_k(y) for each annular region.  Shape (N, n_y)."""
-    N = len(radii)
-    chords = np.zeros((N, len(y_pts)))
-    r_inner = np.zeros(N)
-    r_inner[1:] = radii[:-1]
-    y2 = y_pts**2
-
-    for k in range(N):
-        r_out, r_in = radii[k], r_inner[k]
-        outer = np.sqrt(np.maximum(r_out**2 - y2, 0.0))
-        if r_in > 0:
-            inner = np.sqrt(np.maximum(r_in**2 - y2, 0.0))
-            mask = y_pts < r_in
-            chords[k, mask] = outer[mask] - inner[mask]
-        mask_p = (y_pts >= r_in) & (y_pts < r_out)
-        chords[k, mask_p] = outer[mask_p]
-
-    return chords
-
-
 def _composite_gauss_legendre(breakpoints, n_quad):
     """Composite Gauss-Legendre quadrature over breakpoint intervals.
 
@@ -223,7 +203,7 @@ class CPMesh:
         self._y_pts, self._y_wts = _composite_gauss_legendre(
             self.mesh.edges, p.n_quad_y,
         )
-        self._chords = _chord_half_lengths(radii, self._y_pts)
+        self._chords = chord_half_lengths(radii, self._y_pts)
 
     def _setup_cylindrical(self) -> None:
         """Cylindrical: Ki₄ kernel + y-quadrature."""
