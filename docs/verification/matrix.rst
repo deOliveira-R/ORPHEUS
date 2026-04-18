@@ -293,7 +293,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **47** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **52** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bickley-integral``
 - ``boltzmann``
@@ -328,15 +328,20 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-cylinder-ray-optical-depth``
 - ``peierls-cylinder-rho-max``
 - ``peierls-cylinder-row-sum-identity``
+- ``peierls-davison-urho``
+- ``peierls-delta-tracking-equivalence``
 - ``peierls-e1-derivation``
+- ``peierls-exp-stretched-mu``
 - ``peierls-ki1-derivation``
 - ``peierls-point-kernel-3d``
 - ``peierls-polar-jacobian-cancellation``
+- ``peierls-scaled-chebyshev``
 - ``peierls-sphere-green-3d``
 - ``peierls-sphere-polar``
 - ``peierls-sphere-r-prime``
 - ``peierls-sphere-rho-max``
 - ``peierls-sphere-row-sum-identity``
+- ``peierls-tau-coordinate-transform``
 - ``peierls-unified``
 - ``power-equation``
 - ``precursor-equation``

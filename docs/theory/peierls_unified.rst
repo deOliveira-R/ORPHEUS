@@ -2708,6 +2708,1020 @@ is the *organisation*: naming the levels, naming the operator, and
 factoring the per-geometry data into four primitives + two flags.
 
 
+.. _peierls-part-iii:
+
+======================================================================
+Part III — Beyond the basic unification
+======================================================================
+
+Sections 1–17 described the *basic* unification: three 1-D geometries
+as one polar-form Peierls equation, and the three-tier kernel hierarchy
+that links pointwise Nyström to flat-source CP. Part III steps beyond
+that baseline to record the three extensions identified in session-N
+planning that have **not** yet been implemented, but whose mathematics
+are load-bearing enough that they must be preserved here before any
+session forgets them.
+
+The three extensions are independent of each other but share a common
+theme: every one of them moves numerical difficulty around a carefully
+chosen coordinate transform until the remaining integrand is in a form
+that a standard quadrature rule handles well. The transforms are *not*
+black magic — each one has a one-line physical or geometric
+justification — but they are easy to confuse with the original
+integrand if the motivation is not recorded.
+
+The reserved section numbers are:
+
+- **Section 20 — Topology of 1-D radial geometries.** 2-boundary vs
+  1-boundary+singularity classes; diffeomorphism between Class-A
+  members; hollow-core as the Class-A extension. *Deferred to Phase F
+  (Issue #110).*
+- **Section 21 — The planar limit.** Slab as hollow-cylinder with
+  :math:`r_0 \to \infty`; the :math:`\mathrm{Ki}_1 \to E_1/2` kernel
+  reduction; numerical verification strategy. *Deferred to Phase F
+  (Issue #110).*
+- **Section 22 — Coordinate transformations in Nyström quadrature.**
+  Below. (Phase H, Issue #109 — this page.)
+- **Section 23 — Monte Carlo connections.** Below. (Phase H, Issue
+  #109 — this page.)
+
+Section 20 and 21 are reserved by number so that the toc of this page
+stays stable across future commits. Do NOT renumber §§22–23 if §§20–21
+land in a later phase; the reservation is deliberate.
+
+
+Section 22 — Coordinate transformations in Nyström quadrature
+=============================================================
+
+.. _section-22-coordinate-transforms:
+
+This section catalogues the coordinate transforms available to the
+Nyström ray integrator. Some are already used
+(§22.2 — the :math:`s^2 = r'^2-y^2` Jacobian-absorbing substitution);
+others are merely available as fallbacks (§22.5 — Gauss-Jacobi); one
+(§22.3 — the optical-depth coordinate :math:`\tau`) is the dominant
+under-exploited opportunity and is the subject of the bulk of this
+section.
+
+22.1 Principle: transforms relocate singularities, they don't eliminate them
+----------------------------------------------------------------------------
+
+Every coordinate transform in this catalogue is an exercise in
+**relocation**: the singular or stiff behaviour of the original
+integrand is pushed into one of three places where a standard
+quadrature rule handles it gracefully:
+
+1. *Into the quadrature weight*, where Gauss-Jacobi (§22.5) or
+   Gauss-Laguerre (§22.3) absorbs the singular factor exactly and
+   polynomial accuracy is recovered for the remaining smooth part.
+2. *Into the Jacobian*, where the polar-form volume element
+   :math:`\rho^{d-1}\,\mathrm d\Omega\,\mathrm d\rho` of §3 cancels
+   the kernel's :math:`1/|r-r'|^{d-1}` inverse-distance singularity
+   (:eq:`peierls-polar-jacobian-cancellation`).
+3. *Into the angular measure*, where the slab polar form pushes the
+   :math:`-\ln\tau` E\ :sub:`1` singularity at :math:`\tau = 0` into
+   the grazing-ray limit :math:`\mu \to 0` (the source of stiffness
+   handled by §22.4 — the exp-stretched :math:`\mu` substitution).
+
+No transform eliminates a singularity that is intrinsic to the
+physics. The log singularity of :math:`E_1(\tau)` at :math:`\tau = 0`
+is physically real — it reflects the mild divergence of the 1-D
+pointwise scalar flux near a delta-source in a slab. The polar form
+relocates it into the angular integrand at :math:`\mu = 0`, where a
+tanh-sinh or exp-stretched quadrature handles it cleanly, but the
+singularity is still there. Likewise the curvilinear chord form's
+:math:`1/\sqrt{r'^2 - y^2}` Jacobian singularity at the tangent radius
+is a geometric singularity of the chord parametrisation; the polar
+form cancels it via Jacobian cancellation (§3), but a chord-form
+Nyström integrator has to resolve it either by Gauss-Jacobi weights
+or by an explicit :math:`s^2 = r'^2 - y^2` substitution (§22.2).
+
+A corollary is that **the choice of coordinates is a choice of which
+quadrature rule becomes the natural one**. Section 3 picks polar
+coordinates because polynomial quadrature is natural after Jacobian
+cancellation. Section 22.3 picks the :math:`\tau`-coordinate because
+Gauss-Laguerre with :math:`e^{-\tau}` weight is exactly the right rule
+for the resulting integrand. The transforms in this catalogue are
+not optimisations — they are *choices of basis* in which different
+quadrature rules become natural.
+
+
+22.2 Jacobian-absorbing transforms (background — already in use)
+-----------------------------------------------------------------
+
+The chord-form Peierls integrand for a curvilinear geometry
+(cylinder or sphere) has a Jacobian singularity
+:math:`1/\sqrt{r'^2 - y^2}` at the tangent radius :math:`r' = y`.
+Textbook treatments ([Sanchez1982]_ §IV, [Carlvik1966]_,
+[Stamm1983]_ §6.4) absorb this singularity via the
+**half-chord substitution**
+
+.. math::
+
+   s^2 \;=\; r'^2 - y^2, \qquad r' = \sqrt{s^2 + y^2},
+   \qquad r'\,\mathrm dr' = s\,\mathrm ds,
+
+which turns the :math:`1/\sqrt{r'^2-y^2} \cdot r'\,\mathrm dr'` chord
+measure into the smooth Cartesian measure :math:`\mathrm ds` on
+:math:`[0, s_{\max}]`. The same transform underlies the classical
+:math:`\mathrm{Ki}_n` arc-length parametrisation.
+
+In the unified polar form of §§3–4 this transform is **not needed**:
+the polar volume element :math:`\rho^{d-1}\,\mathrm d\rho` of the
+observer-centred parametrisation cancels the
+:math:`1/|r-r'|^{d-1}` inverse-distance factor of the Green's function
+*before* any chord variable is introduced. The Jacobian cancellation
+of :eq:`peierls-polar-jacobian-cancellation` is this page's route to
+a smooth curvilinear integrand.
+
+**Why the two routes agree.** The chord form and the polar form are
+the same integral written in two coordinate systems. Given
+:math:`\rho = |r - r'|` and :math:`y = r\sin\beta`, the chord-form
+Jacobian :math:`r'/\sqrt{r'^2-y^2}` times the chord-form area element
+:math:`y\,\mathrm dy` equals the polar-form volume element
+:math:`\rho\,\mathrm d\beta\,\mathrm d\rho` for the cylinder, and
+likewise :math:`y^2/\sqrt{r'^2-y^2}` times :math:`y^2\sin\gamma\,
+\mathrm dy\,\mathrm d\gamma` equals :math:`\rho^2\sin\theta\,\mathrm
+d\theta\,\mathrm d\rho` for the sphere. Both routes produce the same
+numerical answer; the polar form is preferred on this page because it
+extends to pointwise sources (Level 1 in §11) without any
+flat-source-specific bookkeeping.
+
+This subsection establishes the **baseline**: §§22.3–22.6 are
+additional transforms that further reduce the difficulty of the
+polar-form integrand along different axes (kernel-uniformity,
+grazing-ray stiffness, endpoint singularities, interior
+singularities).
+
+
+22.3 The optical-depth coordinate :math:`\tau`
+-----------------------------------------------
+
+This is the heart of §22 — the one transform of the four listed here
+that has not been implemented anywhere in ORPHEUS yet, and the one
+with the highest expected efficiency gain. The derivation is preserved
+in full mathematical detail here, so that later sessions implementing
+Phase H.2–H.5 have an unambiguous target.
+
+Motivation
+~~~~~~~~~~
+
+In the current ρ-coordinate ray integrator, every node inside the
+per-ray radial quadrature (§8 step 2) forces the optical-depth walker
+(step 4) to evaluate :math:`\tau(\rho) = \int_0^\rho \Sigma_t(r(s))\,
+\mathrm ds`, a piecewise-linear function of :math:`\rho` with slope
+changes at every annular crossing. The kernel :math:`e^{-\tau(\rho)}`
+then has to track this piecewise structure through the walker.
+
+The question this section answers is: *what is the "natural"
+integration variable*? The answer is :math:`\tau` itself. The exponent
+in the integrating factor of :eq:`peierls-point-kernel-3d` is
+:math:`\tau`, not :math:`\rho`; if we integrate in :math:`\tau` the
+kernel becomes the bare :math:`e^{-\tau}`, which has no piecewise
+structure and is the canonical weight for Gauss-Laguerre quadrature.
+
+Derivation
+~~~~~~~~~~
+
+Start from the ρ-parametrisation of the Peierls ray integrand at
+observer :math:`r_i` in direction :math:`\Omega`:
+
+.. math::
+
+   I(r_i, \Omega) \;=\;
+     \int_0^{\rho_{\max}(r_i,\Omega)}
+       e^{-\tau(\rho)}\,q(r'(\rho,\Omega,r_i))\,\mathrm d\rho,
+
+where :math:`\tau(\rho) = \int_0^\rho \Sigma_t(r(s))\,\mathrm ds` is
+the cumulative optical depth along the ray. Since :math:`\Sigma_t
+\ge 0`, :math:`\tau(\rho)` is monotonically non-decreasing in
+:math:`\rho`; wherever :math:`\Sigma_t > 0` it is strictly
+increasing and therefore admits an inverse :math:`\rho = \rho(\tau)`.
+Regions where :math:`\Sigma_t = 0` (vacuum cavities, Phase F) are
+handled separately — see the "cavity special case" paragraph below.
+
+**Step 1 — differentials.** From the definition
+:math:`\tau(\rho) = \int_0^\rho \Sigma_t(r(s))\,\mathrm ds`:
+
+.. math::
+
+   \frac{\mathrm d\tau}{\mathrm d\rho} \;=\; \Sigma_t(r(\rho)),
+   \qquad \mathrm d\rho \;=\; \frac{\mathrm d\tau}{\Sigma_t(r'(\tau))},
+
+where we abbreviate :math:`r'(\tau) \equiv r(\rho(\tau))`.
+
+**Step 2 — substitute.** Change variable :math:`\tau = \tau(\rho)` in
+the ρ-integral. The upper limit maps to
+:math:`\tau_{\max} \equiv \tau(\rho_{\max})`:
+
+.. math::
+   :label: peierls-tau-coordinate-transform
+
+   I(r_i, \Omega) \;=\;
+     \int_0^{\tau_{\max}(r_i,\Omega)}\!
+       e^{-\tau}\,
+       \frac{q(r'(\tau))}{\Sigma_t(r'(\tau))}\,
+       \mathrm d\tau.
+
+.. vv-status: peierls-tau-coordinate-transform documented
+
+This is the **τ-coordinate Peierls ray integrand**. Compared with the
+ρ-form, four properties change simultaneously:
+
+1. **The kernel is geometry- and medium-invariant.** The integrating
+   factor is now the bare :math:`e^{-\tau}`, independent of
+   :math:`r'(\tau)` and of :math:`\Sigma_t(r'(\tau))`. Multi-region
+   structure, vacuum cavities, anisotropic scattering, and the ray's
+   specific direction have all been absorbed into the two objects
+   :math:`r'(\tau)` and :math:`\Sigma_t(r'(\tau))` — the "ray-walker
+   outputs" — which enter only through the remaining integrand
+   :math:`q \cdot (1/\Sigma_t)`.
+
+2. **Gauss-Laguerre is the ideal quadrature.** The weight of
+   :math:`n`-point Gauss-Laguerre on :math:`[0, \infty)` is
+   :math:`e^{-\tau}`; the rule is exact for any polynomial
+   :math:`q(r'(\tau))/\Sigma_t(r'(\tau))` of degree :math:`\le 2n-1`
+   (and spectrally accurate for general smooth integrands). By
+   contrast, Gauss-Legendre on :math:`[0, \rho_{\max}]` treats the
+   exponentially-decaying :math:`e^{-\tau(\rho)}` as "just another
+   factor" of the integrand and over-samples the tail where the
+   kernel is already exponentially small. For optically thick cells
+   (:math:`\Sigma_t \cdot R \gtrsim 5`) the expected node-count
+   reduction is 2–4× for equal precision (plan §5.5).
+
+3. **Hollow cavities become τ-jumps of zero measure** — see the
+   dedicated paragraph below. This is the single most important
+   downstream benefit: Phase F hollow-core geometries become
+   *trivial* to integrate in the τ-coordinate.
+
+4. **Multi-region uniformity.** The kernel no longer tracks annular
+   boundaries; they live entirely in the :math:`\rho(\tau)` map.
+
+Multi-region :math:`\rho(\tau)` is piecewise linear
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For a multi-region ray with :math:`\Sigma_t` piecewise constant on
+:math:`K` segments — with values :math:`\Sigma_{t,k}` on segment
+:math:`[\rho_{k-1}, \rho_k]` — the cumulative optical depth is
+piecewise linear in :math:`\rho`:
+
+.. math::
+
+   \tau(\rho) \;=\; \sum_{j < k} \Sigma_{t,j}\,(\rho_j - \rho_{j-1})
+     + \Sigma_{t,k}\,(\rho - \rho_{k-1})
+   \qquad \text{for } \rho \in [\rho_{k-1}, \rho_k].
+
+The inverse map :math:`\rho(\tau)` is therefore also piecewise
+linear, with slope :math:`1/\Sigma_{t,k}` on each :math:`\tau`-segment.
+The ORPHEUS code pattern is to return a list of breakpoints
+:math:`\{(\tau_k, \rho_k)\}_{k=0}^{K}` from the ray walker — one
+breakpoint per annular crossing — after which :math:`\rho(\tau)` can
+be evaluated at any :math:`\tau` by linear interpolation between the
+bracketing breakpoints. The forthcoming
+``optical_depth_along_ray_with_map`` helper (Phase H.2; see
+`Issue #109 <https://github.com/deOliveira-R/ORPHEUS/issues/109>`_)
+returns exactly this list.
+
+Crucially, **the kernel** :math:`e^{-\tau}` **never sees the
+breakpoints.** The Gauss-Laguerre nodes :math:`\{\tau_m\}` are placed
+on :math:`[0, \tau_{\max}]` purely by the kernel weight; for each
+:math:`\tau_m` the ray walker returns :math:`\rho(\tau_m)` — and
+thence :math:`r'(\tau_m)` and :math:`\Sigma_t(r'(\tau_m))` — by
+interpolation against the breakpoint list. The piecewise structure of
+the medium lives in the ray walker, not in the quadrature.
+
+Cavity special case
+~~~~~~~~~~~~~~~~~~~
+
+When a ray traverses a vacuum cavity — a segment with
+:math:`\Sigma_t = 0` — the τ-coordinate behaviour is remarkable:
+
+.. math::
+
+   \frac{\mathrm d\tau}{\mathrm d\rho} \;=\; \Sigma_t \;=\; 0
+   \qquad \Longrightarrow \qquad
+   \text{τ is constant across the cavity}.
+
+The cavity maps to a **single point** :math:`\tau = \tau(\rho_a) =
+\tau(\rho_b)` in τ-space, regardless of the cavity's geometric extent
+:math:`\rho_b - \rho_a`. A Gauss-Laguerre quadrature with nodes on
+:math:`[0, \tau_{\max}]` sees no contribution from the cavity
+interval: it is a point of measure zero. The cavity is **invisible**
+in τ-space.
+
+This is the single largest structural benefit of the τ-coordinate for
+Phase F (hollow-core support, Issue #110): in ρ-coordinates, traversing
+a cavity requires the ray walker to skip :math:`[\rho_a, \rho_b]` with
+special-case logic while carrying the pre-cavity :math:`e^{-\tau}`
+factor forward; in τ-coordinates, the cavity *is* skipped without any
+special-case logic, because the cavity segment has zero τ-measure.
+
+The equivalent statement in Monte Carlo language (§23 below): a
+delta-tracking history that samples a flight of length :math:`\tau_i`
+from :math:`\text{Exp}(1)` and walks the ρ-coordinate to find the
+corresponding :math:`\rho_i` will walk *straight through* a cavity
+without advancing its sampled :math:`\tau`. The deterministic and
+stochastic formulations agree that the cavity is a no-op.
+
+Monte Carlo connection — delta / Woodcock tracking
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The τ-coordinate is not a numerical curiosity — it is the **canonical
+coordinate of Monte Carlo neutron transport**, introduced in the GEM
+code by Woodcock, Murphy, Hemmings and Longworth in 1965
+([Woodcock1965]_). In Monte Carlo particle transport, the distance to
+the next collision is sampled as :math:`\tau_i \sim \text{Exp}(1)`,
+:math:`\tau_i = -\ln(1 - \xi)` for :math:`\xi \in [0,1)` uniform, and
+the :math:`\rho`-coordinate is then walked on-the-fly until the
+accumulated optical depth reaches :math:`\tau_i`. In heterogeneous
+geometries Woodcock tracking samples against a majorant cross-section
+:math:`\Sigma_{\max}` and accepts / rejects at each virtual collision;
+both variants share the same underlying statement — the natural
+coordinate is :math:`\tau`, and :math:`\rho(\tau)` is computed by the
+ray walker on demand.
+
+**The deterministic Nyström and Monte Carlo are the same integral
+evaluated two ways.** Both produce an estimate of
+
+.. math::
+
+   \int_0^{\tau_{\max}}
+     e^{-\tau}\,\bigl[q(r'(\tau))/\Sigma_t(r'(\tau))\bigr]\,\mathrm d\tau,
+
+differing only in the estimator:
+
+- **Monte Carlo** samples :math:`\{\tau_i\}_{i=1}^{N_{\rm hist}}` from
+  :math:`\text{Exp}(1)`, evaluates the integrand at each, and averages.
+  Error decays as :math:`O(1/\sqrt{N_{\rm hist}})`.
+- **Nyström (τ-coordinate)** places :math:`\{\tau_m\}_{m=1}^{n}` at
+  Gauss-Laguerre nodes and averages with Gauss weights. Error decays
+  super-algebraically in :math:`n` for smooth integrands.
+
+For further reading on delta-tracking in modern MC codes see the
+review in [MartinBrown2003]_ (LANL technical memorandum on the
+algorithm's numerical properties) and the Serpent implementation
+documented in [Leppanen2010]_. The related discussion in
+:doc:`monte_carlo` §"Woodcock delta-tracking" describes the
+algorithm in its original stochastic context; this page treats the
+same mathematics from the deterministic Nyström side.
+
+Quadrature choice
+~~~~~~~~~~~~~~~~~
+
+Two quadrature rules are natural for the finite interval
+:math:`[0, \tau_{\max}]` with the :math:`e^{-\tau}` weight:
+
+**Option A — Gauss-Laguerre on** :math:`[0, \infty)` **with
+truncation.** The :math:`n`-point Gauss-Laguerre rule is tuned for
+:math:`\int_0^\infty e^{-\tau} f(\tau)\,\mathrm d\tau`. For our finite
+upper limit :math:`\tau_{\max}`, the approximation
+
+.. math::
+
+   \int_0^{\tau_{\max}}\!e^{-\tau} f(\tau)\,\mathrm d\tau
+     \;=\; \int_0^\infty e^{-\tau} f(\tau)\,\mathrm d\tau
+           \;-\; \int_{\tau_{\max}}^\infty\!e^{-\tau} f(\tau)\,\mathrm d\tau
+
+is exact. The first term is handled by the full Laguerre rule; the
+second (the tail) is bounded in magnitude by
+:math:`e^{-\tau_{\max}} \cdot \max_{\tau \ge \tau_{\max}} |f(\tau)|`,
+which for :math:`\tau_{\max} \gtrsim 20` is already below double
+precision. In practice the tail is simply dropped (equivalent to
+treating :math:`f(\tau) = 0` on :math:`[\tau_{\max}, \infty)`), and
+only Laguerre nodes :math:`\tau_m < \tau_{\max}` are retained.
+
+**Option B — Tanh-sinh (double-exponential) on**
+:math:`[0, \tau_{\max}]`. For very small :math:`\tau_{\max}` (thin
+cells, :math:`\tau_{\max} \lesssim 1`) Laguerre may place only a
+handful of nodes in the integration interval, and tanh-sinh on the
+finite interval is more robust. This is the fallback for thin cells.
+
+The benchmark planned in Phase H.4 (Issue #109 commit `H.4`) measures
+node-count-vs-precision for both rules across
+:math:`\Sigma_t R \in \{1, 2, 5, 10, 20\}` and sets the default via the
+threshold :math:`\Sigma_t R > 5` (Laguerre) vs
+:math:`\Sigma_t R \le 5` (tanh-sinh or Gauss-Legendre).
+
+Equivalence with the standard ρ-form
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The :math:`\tau`-coordinate Peierls equation is *exactly equivalent*
+to the ρ-coordinate form of §§3–4 — not an approximation. The only
+differences are which variable the Nyström nodes are placed on and
+which quadrature weight is absorbed into the rule. Cross-verification
+(Phase H.4) therefore consists of comparing the two quadrature paths
+at matching node counts on matching problems — any discrepancy is a
+bug in either the ray walker or one of the two quadrature rules, not
+a physics-level disagreement.
+
+
+22.4 Exp-stretched :math:`\mu` for slab grazing rays
+-----------------------------------------------------
+
+The slab's observer-centred polar form (§4) has
+:math:`\rho_{\max}(x,\mu) = L/|\mu|` for :math:`\mu > 0` and
+:math:`x/|\mu|` for :math:`\mu < 0`. As :math:`\mu \to 0` the grazing
+ray length :math:`\rho_{\max}` diverges, and the polar-form integrand
+becomes stiff: most of the ray's contribution comes from a
+vanishingly small neighbourhood of :math:`\mu = 0` and the kernel
+:math:`e^{-\Sigma_t L/|\mu|}` has an essential singularity at the
+endpoint.
+
+The exp-stretched substitution absorbs this stiffness by mapping
+:math:`\mu \in (0,1]` onto the half-line :math:`v \in [0, \infty)`:
+
+.. math::
+   :label: peierls-exp-stretched-mu
+
+   v \;=\; -\ln|\mu|,
+   \qquad \mu \;=\; e^{-v},
+   \qquad \mathrm d\mu \;=\; -e^{-v}\,\mathrm dv.
+
+.. vv-status: peierls-exp-stretched-mu documented
+
+Full derivation of the slab-integrand equivalence
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To connect the exp-stretched polar form to the textbook
+:math:`E_1`-Nyström, integrate the source-free slab characteristic
+integrand (i.e., take :math:`q \equiv 0` except for a delta at the
+boundary):
+
+.. math::
+
+   J(x) \;=\; \frac{1}{2}\int_0^1 e^{-\Sigma_t L/\mu}\,\mathrm d\mu
+     \;=\; \frac{1}{2}\,E_1^{\rm eff}(\Sigma_t L),
+
+where the final equality is the slab vacuum-boundary escape
+probability, as given for example in [BellGlasstone1970]_ §2.6.
+Substitute :math:`v = -\ln\mu`:
+
+.. math::
+
+   \int_0^1 e^{-\Sigma_t L/\mu}\,\mathrm d\mu
+     \;=\; \int_0^\infty e^{-\Sigma_t L\,e^{v}}\,e^{-v}\,\mathrm dv.
+
+The integrand factorises as :math:`e^{-v}` (the standard
+Gauss-Laguerre weight) times a **super-exponentially decaying**
+bounded function :math:`e^{-\Sigma_t L\,e^v}`. One additional
+substitution :math:`u = \Sigma_t L\,e^v` gives
+:math:`\mathrm du = u\,\mathrm dv` hence :math:`\mathrm dv = \mathrm
+du / u`, and :math:`e^{-v} = \Sigma_t L / u`:
+
+.. math::
+
+   \int_0^\infty e^{-\Sigma_t L\,e^v}\,e^{-v}\,\mathrm dv
+     \;=\; \int_{\Sigma_t L}^\infty
+             e^{-u}\,\frac{\Sigma_t L}{u^2}\,\mathrm du
+     \;=\; \Sigma_t L \int_{\Sigma_t L}^\infty\!\frac{e^{-u}}{u^2}\,\mathrm du.
+
+The integral on the right is the standard definition of the
+second exponential integral scaled by :math:`1/u^2` — by integration
+by parts, :math:`\int_a^\infty e^{-u}/u^2\,\mathrm du = e^{-a}/a -
+E_1(a)`, so:
+
+.. math::
+
+   \int_0^1 e^{-\Sigma_t L/\mu}\,\mathrm d\mu
+     \;=\; e^{-\Sigma_t L} - \Sigma_t L\,E_1(\Sigma_t L)
+     \;\equiv\; E_2(\Sigma_t L)
+
+(the last equality is the standard recursion
+:math:`E_2(x) = e^{-x} - x E_1(x)`, [AbramowitzStegun1964]_ §5.1.14).
+The exp-stretched polar-form slab is **numerically equivalent** to the
+:math:`E_n`-Nyström form: it is the same integral evaluated through a
+different quadrature rule.
+
+Why this matters for the unified framework
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Adding slab to the unified ``CurvilinearGeometry`` framework
+(Phase G, Issue #111) without sacrificing precision-per-node
+requires a quadrature rule whose weight function matches the stiff
+polar-form integrand. The derivation above shows that such a rule
+**exists and is standard**: Gauss-Laguerre on :math:`v \in [0,\infty)`
+with the substitution :math:`\mu = e^{-v}` recovers the
+:math:`E_1`-Nyström accuracy without introducing an
+:math:`E_1`-specific special-function evaluator. The slab entry in the
+Phase-G unified framework then uses:
+
+- ``kind = "slab"``;
+- ``angular_range = (-1, 1)`` with ``angular_quadrature = "exp-stretched"``;
+- ``rho_max(x, mu) = (L - x)/mu`` for :math:`\mu > 0`,
+  :math:`x/|\mu|` for :math:`\mu < 0`;
+- ``source_position(x, rho, mu) = x + rho * mu``;
+- ``volume_kernel = exp(-tau)`` — identical to the sphere.
+
+(The observation that *slab and sphere share the same Level-1 polar
+kernel* :math:`e^{-\tau}` — modulo the prefactor :math:`1/2` vs
+:math:`1/(4\pi)` — is the surprising consequence of the polar-form
+unification; see §4 for discussion.)
+
+
+22.5 Gauss-Jacobi endpoint weights (fallback)
+---------------------------------------------
+
+**General method.** For integrals of the form
+
+.. math::
+
+   \int_a^b (x - a)^\alpha\,(b - x)^\beta\,f(x)\,\mathrm dx,
+   \qquad \alpha,\beta > -1,
+
+with :math:`f` smooth, the :math:`n`-point Gauss-Jacobi rule places
+nodes and weights such that the rule is exact for polynomial :math:`f`
+of degree :math:`\le 2n-1` (the same polynomial-exactness guarantee as
+Gauss-Legendre). The singular weight :math:`(x-a)^\alpha (b-x)^\beta`
+is handled analytically by the quadrature, so power-law endpoint
+singularities of the original integrand are treated without stiffness.
+
+**Application to chord-form** :math:`1/\sqrt{r'^2 - y^2}`. The
+curvilinear chord-form integrand has
+:math:`1/\sqrt{r'^2 - y^2} = 1/\sqrt{(r'-y)(r'+y)}`. Over
+:math:`r' \in [y, R]` the left endpoint carries the singular weight
+:math:`(r'-y)^{-1/2}` — the factor :math:`(r'+y)^{-1/2}` is bounded
+and smooth. This is exactly a Gauss-Jacobi weight with
+:math:`\alpha = -1/2`, :math:`\beta = 0`. The rule would absorb the
+singular factor and deliver polynomial accuracy on the remaining
+smooth :math:`f(r') = (r'+y)^{-1/2}\,f_0(r')`.
+
+**Why this page does not use Gauss-Jacobi by default.** The unified
+polar form of §§3–4 **sidesteps the chord-form singularity entirely**
+via the :math:`\rho^{d-1}` Jacobian cancellation of
+:eq:`peierls-polar-jacobian-cancellation`. Once that cancellation has
+been performed there is no power-law endpoint singularity left to
+absorb; Gauss-Legendre on the bounded :math:`\rho`-interval is already
+spectrally accurate for the resulting smooth integrand.
+
+Gauss-Jacobi is nevertheless kept as a documented fallback:
+
+- For any future chord-form Nyström (e.g. if a hypothetical 2-D
+  ray-tracing CP code — Issue #55 — found it more natural to keep
+  the chord parametrisation), Gauss-Jacobi with
+  :math:`\alpha = -1/2, \beta = 0` is the correct rule.
+- For any endpoint power-law singularity encountered in a future
+  variant of Nyström quadrature where the polar form isn't available
+  (e.g. 3-D general-geometry ray tracing with oblique chord paths
+  through faces), Gauss-Jacobi is the standard tool.
+
+**No Gauss-Jacobi for the slab** :math:`E_1` **log singularity.**
+The slab pointwise kernel :math:`E_1(\tau) \sim -\ln\tau - \gamma`
+has a logarithmic singularity at :math:`\tau = 0`, not a power-law
+one. Gauss-Jacobi weights are power-law :math:`(x-a)^\alpha` — they
+cannot absorb a log singularity. The correct method for the slab
+:math:`E_1` Nyström is the singularity-subtraction approach already
+implemented in :mod:`orpheus.derivations.peierls_slab` (§5 of that
+page), which decomposes :math:`E_1(\tau) = -\ln\tau \cdot
+g_1(\tau) + g_2(\tau)` with :math:`g_1, g_2` smooth, integrates the
+smooth part by Gauss-Legendre, and handles the log part by product
+integration against a log-weighted quadrature.
+
+
+22.6 Davison's :math:`u = r\cdot\varphi` substitution (historical)
+-------------------------------------------------------------------
+
+A classical trick for the spherical Peierls equation is the
+substitution
+
+.. math::
+   :label: peierls-davison-urho
+
+   u(r) \;\equiv\; r\,\varphi(r),
+
+.. vv-status: peierls-davison-urho documented
+
+with the natural boundary condition :math:`u(0) = 0` (since
+:math:`\varphi(0)` is finite and :math:`r = 0` is a coordinate
+singularity, not a physical one). The substitution transforms the
+spherical Peierls equation
+
+.. math::
+
+   \Sigma_t(r)\,\varphi(r) \;=\; \int_0^R K_{\rm sph}(r, r')\,
+                                \varphi(r')\,\mathrm dr' + S_{\rm bc}(r)
+
+into an equivalent 1-D integral equation on :math:`u(r)`, with a
+modified kernel :math:`\tilde K(r,r') = (r'/r)\,K_{\rm sph}(r,r')`
+and a natural :math:`u(0) = 0` boundary condition that **regularises
+the coordinate singularity at** :math:`r = 0` **at the level of the
+unknown**.
+
+Davison's substitution is attributed to B. Davison in the classical
+spherical transport literature; it appears in
+[BellGlasstone1970]_ §2.7 and is a standard technique in the bare-sphere
+analytic solutions of [CaseZweifel1967]_ Chapter 2 (where it is the
+canonical change of variable for the Case-de Hoffmann-Placzek bare-sphere
+critical-radius derivations).
+
+Why this page does not implement Davison's substitution
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The observer-centred polar form of §§3–4 **does not encounter the
+coordinate singularity at** :math:`r = 0`. Rays emanating from an
+interior observer :math:`r_i > 0` pass through the centre without
+incident — :math:`r = 0` is geometrically a regular interior point of
+the ray, not a special point. The composite-GL radial grid used by
+:mod:`orpheus.derivations.peierls_geometry` places no collocation node
+at :math:`r = 0` (the first panel is :math:`[0, r_1]` with GL nodes
+strictly interior to it), so the pointwise unknown :math:`\varphi(r)`
+is never evaluated at :math:`r = 0` and there is nothing to
+regularise.
+
+The polar-form cancellation of §3 is therefore a *structural*
+replacement for Davison's substitution at the Nyström level: both
+methods remove the :math:`r = 0` singular behaviour, but the polar
+form does so at the level of the coordinate system (the Jacobian
+cancels the coordinate singularity) whereas Davison does so at the
+level of the unknown (rescaling :math:`\varphi` by :math:`r` absorbs
+the singularity).
+
+Where Davison's substitution remains useful
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- **Differential-form transport.** If ORPHEUS ever switches to a
+  differential formulation of the sphere Peierls equation, the
+  coordinate singularity at :math:`r = 0` returns (it is native to
+  the operator :math:`\partial_r + 2/r`, not to the integral form),
+  and Davison's substitution is then the standard regulariser.
+- **Analytic bare-sphere critical radii.** The classical Case-de
+  Hoffmann-Placzek-style closed-form critical-radius expressions all
+  use :math:`u = r\varphi` as the natural variable. Any cross-check
+  against these analytic results (e.g. [CaseZweifel1967]_ Chapter 2)
+  would flow more cleanly through Davison's form than through the
+  polar-form Nyström.
+- **Milne problem asymptotics.** The asymptotic expansion of the
+  angular flux near a curved vacuum boundary is conventionally
+  expressed in the :math:`u(r) = r\varphi(r)` variable, again because
+  the curved-boundary analogue of the Milne problem is naturally set
+  up that way.
+
+**Recommendation.** Document, do not implement. If a specific need
+emerges (a Case-Zweifel critical-radius cross-check, or a differential
+spherical module) the substitution can be added as a specialist
+transform at that time. Until then, the polar form in §§3–4 is the
+canonical ORPHEUS treatment.
+
+
+Section 23 — Monte Carlo connections
+====================================
+
+.. _section-23-mc-connections:
+
+The τ-coordinate unification of §22.3 is the deterministic analogue of
+a family of Monte Carlo algorithms that have been standard since the
+GEM code introduced delta-tracking in 1965 ([Woodcock1965]_). This
+section makes the correspondence explicit, and identifies a new V&V
+band — cross-stochastic-deterministic verification — that becomes
+possible once the τ-Nyström is implemented (Phase H.2+).
+
+23.1 Delta-tracking :math:`\equiv` τ-coordinate sampling
+---------------------------------------------------------
+
+Woodcock delta-tracking samples a particle's flight distance as
+
+.. math::
+
+   \tau_i \;\sim\; \text{Exp}(1),
+   \qquad \tau_i \;=\; -\ln(1 - \xi_i),
+   \quad \xi_i \sim \text{Uniform}[0, 1),
+
+and walks the ρ-coordinate until :math:`\tau` (accumulated along the
+ray) reaches :math:`\tau_i`. In heterogeneous media the walk uses a
+majorant :math:`\Sigma_{\max} \ge \max_r \Sigma_t(r)` and accepts /
+rejects virtual collisions at each trial point; this is a variance
+reduction on top of the underlying :math:`\tau \sim \text{Exp}(1)`
+sampling. The full algorithm is described in :doc:`monte_carlo`
+§"Woodcock delta-tracking".
+
+The deterministic τ-coordinate Peierls Nyström
+:eq:`peierls-tau-coordinate-transform` evaluates **the same integral
+that delta-tracking estimates**:
+
+.. math::
+   :label: peierls-delta-tracking-equivalence
+
+   I(r_i,\Omega) \;=\;
+     \int_0^{\tau_{\max}} e^{-\tau}\,g_\Omega(\tau)\,\mathrm d\tau
+   \quad\text{where}\quad
+   g_\Omega(\tau) \;\equiv\; \frac{q(r'(\tau))}{\Sigma_t(r'(\tau))}.
+
+.. vv-status: peierls-delta-tracking-equivalence documented
+
+The two evaluators differ only in how the integral is estimated:
+
+- **Delta-tracking MC**: estimate :math:`I` as
+  :math:`\hat I_{\rm MC} = \frac{1}{N}\sum_{i=1}^{N} g_\Omega(\tau_i)`
+  with :math:`\tau_i \sim \text{Exp}(1)`. Error decays as
+  :math:`O(1/\sqrt{N})` (Monte Carlo).
+- **τ-coordinate Nyström**: estimate :math:`I` as
+  :math:`\hat I_{\rm Nys} = \sum_{m=1}^{n} w_m^{\rm Lag}\,g_\Omega(\tau_m)`
+  with :math:`(\tau_m, w_m^{\rm Lag})` the Gauss-Laguerre nodes and
+  weights. Error decays super-algebraically in :math:`n` for smooth
+  :math:`g_\Omega`.
+
+Both estimators share the ray-walker primitive that maps
+:math:`\tau \mapsto r'(\tau)` and :math:`\tau \mapsto
+\Sigma_t(r'(\tau))`. The shared primitive is the Nexus-graph "bridge"
+connecting the two methods: any bug in the ray walker produces a
+correlated error in both, whereas bugs unique to one estimator produce
+disagreement.
+
+23.2 Next-event estimator :math:`\equiv` fixed-ray Nyström
+----------------------------------------------------------
+
+The **next-event estimator** in Monte Carlo (also called the
+"surface-crossing" or "track-length" estimator, depending on context)
+accumulates contributions at every virtual collision along a
+sampled ray direction, weighted by the collision probability at that
+point. For a fixed incoming direction :math:`\Omega`, the
+next-event estimator of the scalar flux at :math:`r_i` is
+
+.. math::
+
+   \hat\varphi_{\rm NEE}(r_i; \Omega) \;=\;
+     \frac{1}{N}\sum_{i=1}^{N}
+       e^{-\tau_i}\,g_\Omega(\tau_i),
+
+which is MC quadrature on the same integrand as
+:eq:`peierls-delta-tracking-equivalence` but with :math:`\tau_i` now
+sampled uniformly along the geometric ray rather than from
+:math:`\text{Exp}(1)` — i.e., an importance-sampling variant. This
+corresponds exactly to a single direction :math:`\Omega` in the
+Nyström angular sum, with the :math:`\tau`-nodes chosen by a different
+rule (uniform or track-length) in place of Gauss-Laguerre.
+
+The correspondence is: **fixing** :math:`\Omega` **in the Nyström sum
+and evaluating at one angle with** :math:`n` **τ-nodes is the
+deterministic analogue of a single-direction next-event estimator
+history.**
+
+23.3 Cross-code V&V opportunity
+-------------------------------
+
+The existence of the τ-Nyström (Phase H.2+) and the Woodcock tracker
+(already shipped in :mod:`orpheus.mc.solver` per the
+:doc:`monte_carlo` documentation) creates a new **deterministic ↔
+stochastic verification band** that has no precedent in ORPHEUS's
+current L0–L3 ladder.
+
+**Proposed verification experiment** (future commit; see the session
+plan `.claude/plans/post-cp-topology-and-coordinate-transforms.md`
+Appendix B.6):
+
+1. Choose a canonical test problem with known :math:`k_{\rm eff}` —
+   e.g. the bare homogeneous cylinder at :math:`R = 2` MFP
+   (:math:`k_\infty = 1.5`, rank-1 white BC k_eff tabulated in §3 and
+   §10 of this page).
+2. Run τ-coordinate Nyström with :math:`n = 16, 32, 64` Laguerre
+   nodes; record :math:`k_{\rm eff}` for each.
+3. Run Woodcock delta-tracking MC with
+   :math:`N_{\rm hist} = 10^4, 10^5, 10^6` histories; record
+   :math:`k_{\rm eff}` and its :math:`1\sigma` error bar for each.
+4. Verify: :math:`|k_{\rm eff}^{\rm MC} - k_{\rm eff}^{\rm Nys}|
+   \le 3\sigma_{\rm MC}` at all :math:`N_{\rm hist}`, for a
+   sufficiently converged :math:`n` (say :math:`n = 64`).
+
+**Interpretation.** If both methods agree within Monte Carlo error,
+the shared ray-walker primitive is correct — a simultaneous L1
+verification for both codes. If they disagree systematically (i.e.,
+:math:`|k^{\rm MC} - k^{\rm Nys}|` does not shrink as
+:math:`\sigma_{\rm MC}` shrinks), the bug is in the **shared
+primitive** (ray walker geometry, optical-depth accumulation,
+cross-section lookup), localised to the one module both paths go
+through.
+
+This is **new V&V coverage**. The existing L0–L3 ladder validates
+within-code correctness against analytics or cross-code reference
+solutions; the τ-Nyström ↔ Woodcock agreement validates the shared
+geometry-walking primitive across two fundamentally different
+algorithms (stochastic vs deterministic) that *must* produce the same
+answer. A disagreement localises faults to code shared by both paths.
+
+It also enables a novel use of the MC code: as a reference solution
+for a Nyström quadrature convergence study. By running MC to
+:math:`\sigma < 10^{-5}` on a suitably small problem, the MC result
+becomes a reference value against which the Nyström-in-τ convergence
+curve (precision vs :math:`n`) can be measured directly — faster than
+generating mpmath-at-30-dps references for the same problem, and
+automatically medium-invariant by construction.
+
+**Relationship to Issue #55** (2D ray-tracing CP). The τ-coordinate
+is the natural primitive for any future 2-D or 3-D ray-tracing code
+because the ray walker's output is already the right integrand for
+Gauss-Laguerre. Issue #55 (planned 2-D CP via ray tracing) and any
+future general-geometry Monte Carlo module in ORPHEUS would share the
+same τ-walker by construction — the MC ↔ Nyström cross-verification
+of this subsection extends to any such future module.
+
+
+Mathematical appendix (Part III)
+================================
+
+.. _part-iii-appendix:
+
+This appendix collects numerical techniques that are load-bearing
+for Part III's transforms but are general enough to be of use
+elsewhere. The lessons were learned by session-N+1 during Phase B.4
+(BickleyTables retirement) and the Phase H.1 session (this commit).
+
+App D — Scaled-kernel Chebyshev interpolation
+---------------------------------------------
+
+.. _app-d-scaled-chebyshev:
+
+**Problem.** Interpolate :math:`\mathrm{Ki}_3(\tau)` on
+:math:`\tau \in [0, 50]` at double precision (error
+:math:`\lesssim 10^{-15}`) using a single polynomial. Plain Chebyshev
+interpolation of :math:`\mathrm{Ki}_3` fails: the kernel spans 22
+orders of magnitude on the interval (:math:`\mathrm{Ki}_3(0) =
+\pi/4 \approx 0.785` vs :math:`\mathrm{Ki}_3(50) \approx
+2 \times 10^{-23}`), and no polynomial of reasonable degree can
+resolve both the plateau near :math:`\tau = 0` and the
+exponentially-decaying tail simultaneously — at degree 128, best
+relative accuracy caps at :math:`\sim 3\times 10^{-8}`.
+
+**Technique.** Interpolate the **scaled kernel**
+
+.. math::
+   :label: peierls-scaled-chebyshev
+
+   f(\tau) \;\equiv\; e^{\tau}\,\mathrm{Ki}_3(\tau),
+
+which varies from :math:`f(0) = \pi/4 \approx 0.785` to
+:math:`f(60) \approx 0.16` — a **slowly-varying function of order
+unity**, with no exponential dynamic range. A degree-63 Chebyshev
+interpolant of :math:`f` on :math:`[0, 50]` achieves :math:`\sim
+2\times 10^{-6}` relative accuracy on :math:`f`; evaluation of
+:math:`\mathrm{Ki}_3(\tau)` is then
+
+.. math::
+
+   \mathrm{Ki}_3(\tau) \;=\; f(\tau)\,e^{-\tau}
+     \;=\; \bigl[\text{Cheb63 interpolant of } f\bigr](\tau)
+             \cdot e^{-\tau},
+
+i.e. one polynomial evaluation plus one :func:`numpy.exp` call. The
+:math:`e^{-\tau}` factor is exact at double precision; the relative
+error of the interpolant on :math:`f` transfers directly to the
+relative error on :math:`\mathrm{Ki}_3`, bounded by :math:`2 \times
+10^{-6}` uniformly over :math:`[0, 50]`.
+
+**Why this works.** The scaling converts the
+dynamic range of :math:`\mathrm{Ki}_3` from 22 orders of magnitude to
+a single order of magnitude, which is exactly the regime where
+polynomial interpolation is efficient. The :math:`e^{-\tau}` factor
+that is "removed" is restored exactly at evaluation time — the
+double-precision exponential is accurate to one ulp over the entire
+range, so the exponential acts as a noiseless post-processor.
+
+.. vv-status: peierls-scaled-chebyshev documented
+
+**Generalisation.** The same idea applies to any kernel of the form
+:math:`e^{-\tau} \cdot g(\tau)` with :math:`g` slowly varying —
+precisely the structure that all three Level-1 Peierls kernels share
+(§2):
+
+- :math:`\tfrac{1}{2}E_1(\tau) = \tfrac{1}{2}\int_1^\infty
+  e^{-\tau t}/t\,\mathrm dt` — for
+  :math:`\tau \gtrsim 1`, :math:`E_1(\tau) \sim e^{-\tau}/\tau`.
+- :math:`\mathrm{Ki}_1(\tau) = \int_0^{\pi/2} e^{-\tau/\sin\theta}\,
+  \mathrm d\theta` — similarly exponentially decaying.
+- :math:`e^{-\tau}/(4\pi)` — trivially of this form.
+
+For any of these, scaling by :math:`e^{\tau}` converts the kernel into
+a slowly-varying target that Chebyshev interpolation handles with
+modest degree. The trick is **not** obvious — session-N+1 burned
+20 minutes trying plain Chebyshev at degree 128 before pivoting — so
+this appendix records it explicitly.
+
+**Connection to the Nyström quadrature choice.** The analytic
+analogue of the scaled-kernel Chebyshev technique is the
+Gauss-Laguerre quadrature of §22.3: the τ-coordinate Nyström
+absorbs the :math:`e^{-\tau}` factor into the quadrature weight
+natively, which is the integration-theoretic parallel of moving
+the exponential factor outside of the interpolant in
+:eq:`peierls-scaled-chebyshev`. The same idea applied to the exp-stretched
+slab quadrature (§22.4) recovers the :math:`E_1`-Nyström accuracy
+without an :math:`E_1`-specific table: the
+:math:`e^{-\Sigma_t L e^v}` factor in the integrand is exactly the
+slowly-varying part after the :math:`e^{-v}` Laguerre weight has been
+factored out.
+
+**Reference implementation.** See
+:func:`orpheus.derivations.cp_geometry._ki3_scaled_cheb` for the
+implementation used in the shipped :mod:`orpheus.derivations.cp_geometry`
+module. The key lines are:
+
+.. code-block:: python
+
+   def _ki3_scaled_cheb():
+       """Chebyshev interpolant of f(tau) = exp(tau) * Ki_3(tau)."""
+       def func_scaled(tau):
+           return np.array(
+               [float(ki_n_mp(3, t, 30)) * float(np.exp(t)) for t in tau]
+           )
+       return np.polynomial.Chebyshev.interpolate(
+           func_scaled, deg=_KI3_DEG, domain=[0.0, _KI3_TAU_MAX]
+       )
+
+   def _ki3_mp(tau):
+       """Double-precision Ki_3(tau) via scaled Chebyshev."""
+       poly = _ki3_scaled_cheb()
+       return poly(tau) * np.exp(-tau)
+
+The build cost is one-time and cached via :func:`functools.lru_cache`;
+subsequent evaluations cost one Chebyshev polynomial evaluation plus
+one exponential.
+
+
+App E — ``mpmath.quad`` composition pitfall
+-------------------------------------------
+
+.. _app-e-mpmath-composition:
+
+**Problem.** Verification tests for Part III's identities
+(e.g. :eq:`peierls-tau-coordinate-transform`,
+:eq:`peierls-exp-stretched-mu`) will need to compare the left-hand
+side (an integral) against the right-hand side (another integral, or
+a closed-form expression involving antiderivatives). The temptation
+is to write both sides as :func:`mpmath.quad` calls and compare.
+
+**The pitfall.** Some of the integrals in these derivations are
+themselves defined via inner integrals — e.g.
+:math:`\mathrm{Ki}_1(\tau) = \int_0^{\pi/2}\!e^{-\tau/\sin\theta}\,
+\mathrm d\theta`. Composing the outer :func:`mpmath.quad` with an
+inner :func:`mpmath.quad` produces an :math:`O(N^2)` blow-up in
+evaluation count that can render even simple identity checks
+intractable.
+
+The concrete pattern (observed 2026-04-18 during Phase B.3 test
+writing):
+
+.. code-block:: python
+
+   # DO NOT DO THIS
+   integral = mpmath.quad(
+       lambda t: mpmath.quad(
+           lambda u: mpmath.exp(-t * mpmath.cosh(u)) / mpmath.cosh(u),
+           [0, mpmath.inf],
+       ),  # inner Ki_1 integral
+       [a, b],
+   )
+
+The outer :func:`mpmath.quad` adaptive algorithm samples ~50 points
+on :math:`[a, b]`, and **each outer sample triggers ~50 inner
+samples**. Total evaluation count :math:`\sim O(2{,}500)` per call,
+each already slow at 30 dps. The original test hung for **45+
+minutes** before being killed.
+
+**The fix.** Use the existing single-quad evaluator
+:func:`~orpheus.derivations._kernels.ki_n_mp` as the **integrand** of
+a single outer :func:`mpmath.quad`. The inner integral is then
+evaluated in closed form (or by ``ki_n_mp``'s own internal quad, but
+only **once per outer sample**):
+
+.. code-block:: python
+
+   # DO THIS
+   left = float(mpmath.quad(
+       lambda x: ki_n_mp(1, float(x), dps=20),
+       [a, b],
+   ))
+   right = float(ki_n_mp(2, a, dps=30)) - float(ki_n_mp(2, b, dps=30))
+   assert abs(left - right) < 1e-10
+
+Runtime: :math:`\sim 0.5` s per test, same verification content.
+
+**General rules for numerical identity tests.**
+
+1. **Never compose** :func:`mpmath.quad` **with** :func:`mpmath.quad`
+   **inside a test.** Even one level of nesting produces
+   :math:`O(N^2)` blow-up and often exceeds the test suite timeout.
+2. **Verify numerical identities via endpoint evaluation of
+   antiderivatives** on one side, compared to **one-level
+   integration** on the other side. The identity
+   :math:`\int_a^b \mathrm{Ki}_1(\tau)\,\mathrm d\tau = \mathrm{Ki}_2(a)
+   - \mathrm{Ki}_2(b)` is verified with one :func:`mpmath.quad` for
+   the LHS and two :func:`~orpheus.derivations._kernels.ki_n_mp`
+   evaluations for the RHS — not by evaluating :math:`\mathrm{Ki}_2`
+   itself via another :func:`mpmath.quad`.
+3. **Prefer closed-form equivalents where available**: for
+   :math:`E_n`, use :func:`mpmath.expint` (reduced-noise closed form);
+   for :math:`\mathrm{Ki}_n`, use
+   :func:`~orpheus.derivations._kernels.ki_n_mp` (wraps a single
+   adaptive quad at the point of call, not composed).
+4. **For τ-coordinate verification** (Phase H.4): compare the
+   τ-Nyström and ρ-Nyström evaluations of the **same ray integral**
+   at matched Gauss-Laguerre and Gauss-Legendre node counts. Both are
+   single-level quadratures; the comparison is direct.
+
+This pitfall is recorded here because every future session verifying
+a τ-coordinate identity will encounter the same temptation. The rule
+"never compose mpmath.quad inside a test" prevents a 45-minute hang
+that otherwise requires an external timeout and an after-the-fact
+re-derivation.
+
+
 .. seealso::
 
    **Phase B target modules** (all shipped; see commits
@@ -2809,3 +3823,21 @@ References
    functions :math:`\mathrm{Ki}_n(x)`, from :math:`n=1` to
    :math:`n=16`," *Philosophical Magazine Series 7*,
    **20**, 343–347 (1935).
+
+.. [MartinBrown2003] W.R. Martin and F.B. Brown, "Status of MCNP5,"
+   Los Alamos National Laboratory technical memorandum LA-UR-03-7127,
+   2003. Discusses delta-tracking performance and accuracy in the
+   MCNP5 implementation, and reviews the Woodcock algorithm's
+   correspondence to deterministic ray integration in optically thick
+   media.
+
+.. [Leppanen2010] J. Leppänen, "Performance of Woodcock delta-tracking
+   in lattice physics applications using the Serpent Monte Carlo
+   reactor physics burnup calculation code," *Annals of Nuclear
+   Energy* **37** (5), 715–722 (2010).
+   DOI: 10.1016/j.anucene.2010.01.011. Serpent code implementation of
+   delta-tracking with optimisations for continuous-energy
+   cross-section lookup; the description of the τ-space ray walker
+   (§3 of the paper) is the closest stochastic analogue of the
+   deterministic ``optical_depth_along_ray_with_map`` helper proposed
+   for Phase H.2 (`Issue #109 <https://github.com/deOliveira-R/ORPHEUS/issues/109>`_).
