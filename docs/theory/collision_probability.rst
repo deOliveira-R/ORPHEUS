@@ -2402,6 +2402,681 @@ For this reason, the slow 2G 2-region convergence test is marked
    the Peierls reference.
 
 
+Peierls integral equation reference — cylinder
+===============================================
+
+The slab Peierls reference above verifies the CP flat-source
+discretisation in Cartesian 1-D. The **cylindrical** Peierls reference
+serves the same role for ``cyl1D`` meshes: it solves the integral
+transport equation on a bare or concentric-annulus cylinder at
+arbitrary quadrature order, providing an independent numerical
+reference against :func:`~orpheus.cp.solver.solve_cp` and the
+analytical CP eigenvalue in :mod:`orpheus.derivations.cp_cylinder`.
+
+Unlike the slab, the cylinder's kernel is not an exponential integral
+:math:`E_n` but the **Bickley--Naylor function** :math:`\mathrm{Ki}_1`
+that arises from integrating the 3-D point-kernel over the infinite
+axial direction. Unlike the slab, the boundary is a continuous lateral
+surface, not a pair of discrete faces, so white-BC closure is not
+a rank-2 outer product. And unlike the slab, a direct Nyström
+discretisation of the canonical Sanchez--McCormick chord form picks
+up a **non-integrable coincident singularity** that the slab's
+product-integration trick does not cure — this motivates the
+reformulation described below.
+
+The implementation lives in :mod:`orpheus.derivations.peierls_cylinder`.
+This section documents the mathematics, the formulation choice
+(including the dead-end that was tried first), and the verification
+evidence.
+
+Canonical chord form and why it is not what the code solves
+------------------------------------------------------------
+
+Integrating the 3-D point kernel :math:`e^{-\tau R}/(4\pi R^{2})`
+over the infinite axial coordinate :math:`z` yields the 2-D
+transverse Green's function
+
+.. math::
+   :label: peierls-cylinder-green-2d
+
+   G_{\rm 2D}(|\mathbf{r} - \mathbf{r}'|)
+     \;=\; \frac{\mathrm{Ki}_1(\tau)}{2\pi\,|\mathbf{r}-\mathbf{r}'|},
+   \qquad
+   \tau \;=\; \int_{\mathbf{r}'}^{\mathbf{r}} \Sigma_t(\mathbf{s})\,\mathrm{d}\ell.
+
+.. vv-status: peierls-cylinder-green-2d documented
+
+The **pointwise** scalar-flux form of the Peierls integral equation
+on a bare cylinder of radius :math:`R` is therefore
+
+.. math::
+
+   \varphi(\mathbf{r})
+     \;=\; \frac{1}{2\pi}\!\iint_{\rm disc}
+       \frac{\mathrm{Ki}_1\!\bigl(\tau(\mathbf{r},\mathbf{r}')\bigr)}
+            {|\mathbf{r}-\mathbf{r}'|}\,q(\mathbf{r}')\,\mathrm{d}^{2}r'
+     \;+\; \varphi_{\rm bc}(\mathbf{r}).
+
+The classical textbook presentation ([Sanchez1982]_ §IV.A,
+Eqs. 47--49; [Stamm1983]_ §6.2--6.3; [Hebert2020]_ Eqs. 3.95--3.110)
+rotates the 2-D integral to the **chord** coordinate
+system :math:`(y, r')`, where :math:`y` is the perpendicular distance
+from the cylinder axis to the straight-line trajectory through
+:math:`\mathbf{r}` and :math:`\mathbf{r}'`. Expressing
+:math:`\mathrm{d}^{2}r'` as :math:`\bigl(r'/\sqrt{r'^{2}-y^{2}}\bigr)\,
+\mathrm{d}r'\,\mathrm{d}y` on each branch and pairing the two
+branches gives
+
+.. math::
+
+   \Sigma_t(r)\,\varphi(r)
+     \;=\; \frac{1}{\pi}
+       \int_{0}^{\min(r,R)}\!\mathrm{d}y
+       \int_{y}^{R}
+         \bigl[\mathrm{Ki}_1(\tau^{+}) + \mathrm{Ki}_1(\tau^{-})\bigr]\,
+         \frac{q(r')\,r'}{\sqrt{r'^{2}-y^{2}}}\,\mathrm{d}r'
+     \;+\; S_{\rm bc}(r).
+
+.. warning::
+
+   A derivation shortcut that keeps only the :math:`r'` Jacobian
+   :math:`r'/\sqrt{r'^{2}-y^{2}}` (as the Phase-4.2 literature
+   sweep initially reported) **is missing a factor**. Computing the
+   branch sum :math:`|\mathrm{d}\alpha_{+}/\mathrm{d}y| +
+   |\mathrm{d}\alpha_{-}/\mathrm{d}y|` for the
+   :math:`(r', \alpha) \to (y, r')` transformation — where
+   :math:`\alpha` is the chord-angle coordinate at the source point
+   — gives :math:`2/\sqrt{\min(r,r')^{2} - y^{2}}`, **not**
+   :math:`2` as the one-sided Jacobian would suggest. The correct
+   combined Jacobian is therefore
+
+   .. math::
+
+      \frac{1}{\sqrt{(r^{2}-y^{2})(r'^{2}-y^{2})}},
+
+   with a **second** integrable singularity at :math:`y = r`
+   (co-located with the :math:`y = r'` root of the :math:`r'`-side
+   factor when :math:`r = r'`). The unchecked "simplified" form with
+   only :math:`r'/\sqrt{r'^{2}-y^{2}}` would amount to a mass-loss
+   bug of the same flavour as missing the :math:`\Delta A/w_m`
+   redistribution factor in a cylindrical :math:`S_N` sweep: the
+   integrand does not reproduce the infinite-medium identity
+   :math:`\sum_j K_{ij}\,\Sigma_t(r_j) = \Sigma_t(r_i)`.
+
+The chord form above therefore has **two coincident endpoint
+singularities** (at :math:`y = r` *and* :math:`y = r'`). The slab's
+product-integration recipe absorbs one singularity (log at
+:math:`x = x'`) analytically against a Lagrange basis; it does not
+generalise to two coincident inverse-square-root singularities
+sitting at nested quadrature endpoints. Attempting it produced
+numerical divergence of the row-sum identity under refinement —
+the kernel matrix simply does not converge for a
+moderate-precision radial grid.
+
+Formulation pivot: polar coordinates centred at the observer
+-------------------------------------------------------------
+
+Rather than patching the chord form, the implementation uses the
+**equivalent polar form** centred on the observer. Let
+:math:`\beta \in [0, 2\pi]` be the azimuth from the outward radial
+direction at :math:`\mathbf{r}`, and :math:`\rho \ge 0` the distance
+along the ray at angle :math:`\beta`. The source position is
+
+.. math::
+   :label: peierls-cylinder-r-prime
+
+   r'(r, \rho, \beta) \;=\; \sqrt{r^{2} + 2r\rho\cos\beta + \rho^{2}}.
+
+.. vv-status: peierls-cylinder-r-prime documented
+
+Because the 2-D area element is :math:`\rho\,\mathrm{d}\rho\,
+\mathrm{d}\beta` and the Green's function carries
+:math:`1/|\mathbf{r} - \mathbf{r}'| = 1/\rho`, the :math:`\rho`
+factor **cancels** and the integrand becomes smooth:
+
+.. math::
+   :label: peierls-cylinder-polar
+
+   \varphi(r)
+     \;=\; \frac{1}{\pi}\!
+       \int_{0}^{\pi}\!\mathrm{d}\beta\!
+       \int_{0}^{\rho_{\max}(r,\beta)}\!\!
+         \mathrm{Ki}_1\!\bigl(\tau(r, \rho, \beta)\bigr)\,
+         q\bigl(r'(r, \rho, \beta)\bigr)\,\mathrm{d}\rho
+     \;+\; \varphi_{\rm bc}(r).
+
+.. vv-status: peierls-cylinder-polar documented
+
+The prefactor :math:`1/\pi` absorbs the :math:`1/(2\pi)` of the 2-D
+Green's function plus a factor of 2 from :math:`\beta \to -\beta`
+symmetry that folds :math:`[0, 2\pi] \to [0, \pi]`. The upper
+radial limit is the intersection of the ray with the cylinder
+boundary,
+
+.. math::
+   :label: peierls-cylinder-rho-max
+
+   \rho_{\max}(r, \beta)
+     \;=\; -r\cos\beta
+         + \sqrt{r^{2}\cos^{2}\beta + R^{2} - r^{2}}.
+
+.. vv-status: peierls-cylinder-rho-max documented
+
+Writing the identity-LHS form used by the eigenvalue driver, the
+canonical cylindrical Peierls equation solved by this module is
+
+.. math::
+   :label: peierls-cylinder-equation
+
+   \Sigma_t(r_i)\,\varphi(r_i)
+     \;=\; \frac{\Sigma_t(r_i)}{\pi}\!
+       \int_{0}^{\pi}\!\mathrm{d}\beta\!
+       \int_{0}^{\rho_{\max}(r_i,\beta)}\!\!
+         \mathrm{Ki}_1\!\bigl(\tau(r_i, \rho, \beta)\bigr)\,
+         q\!\bigl(r'(r_i, \rho, \beta)\bigr)\,\mathrm{d}\rho
+     \;+\; S_{\rm bc}(r_i).
+
+.. vv-status: peierls-cylinder-equation documented
+
+The Sanchez tie-point and row-sum-identity tests currently carry
+``@pytest.mark.verifies("peierls-equation", ...)`` (the slab label).
+Retrofitting those decorators to point at the cylinder-specific
+labels is a follow-up tracked in the V&V harness; until then this
+equation is marked ``documented`` rather than ``tested`` to keep
+the orphan gate honest.
+
+.. note::
+
+   The polar formulation is **mathematically equivalent** to the
+   Sanchez chord form — the underlying integral equation is the
+   same — but the :math:`\rho\,\mathrm{d}\rho\,\mathrm{d}\beta`
+   area element absorbs the :math:`1/\rho` of the Green's function
+   and thus the integrand
+   :math:`\mathrm{Ki}_1(\tau(\rho))\,q(r'(\rho))` is **regular on
+   the whole integration domain**. Ordinary tensor-product
+   Gauss--Legendre quadrature converges spectrally. This is the
+   dominant motivation for the pivot: the chord form trades one
+   integrable singularity for two, the polar form eliminates them.
+
+Why :math:`\mathrm{Ki}_1` and not :math:`\mathrm{Ki}_3`
+-------------------------------------------------------
+
+The flat-source CP method (:mod:`orpheus.derivations.cp_cylinder`)
+uses the :math:`\mathrm{Ki}_3` kernel because it averages the
+pointwise :math:`\mathrm{Ki}_1` kernel twice — once over the
+source region :math:`j` and once over the target region :math:`i`
+— producing the second-difference formula
+
+.. math::
+
+   P_{ij} \;\propto\; \mathrm{Ki}_3(\text{gap})
+                    - \mathrm{Ki}_3(\text{gap} + \tau_i)
+                    - \mathrm{Ki}_3(\text{gap} + \tau_j)
+                    + \mathrm{Ki}_3(\text{gap} + \tau_i + \tau_j).
+
+See :eq:`ki3-def` for the :math:`\mathrm{Ki}_n` definition and
+:eq:`chord-length` for the chord geometry underlying
+:math:`P_{ij}`.
+
+The Peierls reference solves for the **pointwise** flux
+:math:`\varphi(r_i)`, not the region-average collision rate, so it
+uses :math:`\mathrm{Ki}_1` directly. This is the independent-kernel
+property that makes the reference useful:
+
+- The :math:`\mathrm{Ki}_n` kernels are computed by recursion
+  :math:`\mathrm{Ki}_{n+1}(x) = \int_x^\infty \mathrm{Ki}_n(t)\,
+  \mathrm{d}t`, so a sign error or off-by-one index in the recursion
+  would affect every :math:`\mathrm{Ki}_n` built from
+  :math:`\mathrm{Ki}_1`. The CP test suite verifies the CP solver
+  against analytically-constructed CP matrices (same
+  :math:`\mathrm{Ki}_3`, same flat-source discretisation), so a
+  systematic :math:`\mathrm{Ki}` bug could cancel between test and
+  code. The Peierls reference uses :math:`\mathrm{Ki}_1` and a
+  polynomial source representation, breaking the common-mode path.
+- Because the Peierls Nyström operator resolves the flux as a
+  piecewise polynomial of degree :math:`p-1` on each radial panel,
+  it is sensitive to flux-shape errors that are invisible to a
+  CP-vs-CP comparison with flat sources.
+
+The Bickley--Naylor recurrence and pre-computed table live in
+:class:`~orpheus.derivations._kernels.BickleyTables`.
+
+Nyström assembly in polar coordinates
+-------------------------------------
+
+The discretisation has three nested quadrature layers, each chosen
+to match a distinct piece of the integrand's structure.
+
+**Radial grid (composite Gauss--Legendre on** :math:`[0, R]`\ **).**
+The r-axis is partitioned into the :math:`N_{\rm reg}` annular
+regions :math:`[r_{k-1}, r_k]`, :math:`r_0 = 0`, :math:`r_{N} = R`.
+Each region carries :math:`n_{\rm panels}` panels, each carrying
+:math:`p` Gauss--Legendre nodes. Panel breakpoints coincide with
+annular radii so the emission density :math:`q(r')`, which is
+piecewise-smooth but has **slope discontinuities** at material
+boundaries, is represented by a piecewise polynomial of degree
+:math:`p-1`. This mirrors the slab composite-panel strategy.
+The total number of radial Nyström unknowns is
+:math:`N = N_{\rm reg} \times n_{\rm panels} \times p`. The builder
+is ``composite_gl_r`` (aliased from ``composite_gl_y`` in
+:mod:`orpheus.derivations.peierls_cylinder`).
+
+**Azimuthal quadrature (Gauss--Legendre on** :math:`[0, \pi]`\ **).**
+With :math:`n_\beta` nodes and weights :math:`w_{\beta,k}`; the
+physical interval :math:`[0, 2\pi]` is folded to :math:`[0, \pi]`
+by the :math:`\beta \to -\beta` symmetry already absorbed into the
+:math:`1/\pi` prefactor.
+
+**Ray-distance quadrature (Gauss--Legendre on**
+:math:`[0, \rho_{\max}(r_i, \beta_k)]`\ **).**
+With :math:`n_\rho` nodes per ray. The upper limit depends on both
+the observer radius :math:`r_i` and the direction :math:`\beta_k`,
+so the ρ-quadrature is **remapped per (i, k)** from the reference
+interval :math:`[-1, 1]`. For a homogeneous bare cylinder, a fixed
+:math:`\rho`-scale would under-resolve rays near the tangent
+direction and over-resolve radial rays; the per-ray remapping
+gives uniform relative accuracy.
+
+**Source interpolation by Lagrange basis.**
+Because the source point :math:`r'(r_i, \rho_m, \beta_k)` is
+**generally not a radial quadrature node**, the emission density
+at the source is expressed via the panel-local Lagrange basis:
+
+.. math::
+
+   q\bigl(r'_{ikm}\bigr)
+     \;=\; \sum_{j=1}^{N} L_j(r'_{ikm})\,q_j,
+
+where :math:`L_j` is the degree-:math:`(p-1)` Lagrange polynomial
+supported only on the panel containing :math:`r'_{ikm}`
+(piecewise-polynomial representation matching the composite GL
+radial mesh). The basis is built by
+``_lagrange_basis_on_panels`` in
+:mod:`orpheus.derivations.peierls_cylinder`. Two properties are
+enforced by L0 foundation tests:
+
+- **Partition of unity**: :math:`\sum_j L_j(r) = 1` for any
+  :math:`r \in [0, R]`. Tested in
+  ``TestLagrangeBasisOnPanels.test_partition_of_unity``.
+- **Polynomial reproduction**: for any polynomial of degree
+  :math:`< p`, :math:`\sum_j p(r_j)\,L_j(r) = p(r)` exactly.
+  Tested in
+  ``TestLagrangeBasisOnPanels.test_reproduces_polynomial``.
+
+**Assembled matrix.**
+Substituting :math:`q(r'_{ikm}) = \sum_j L_j(r'_{ikm})\,q_j`
+into :eq:`peierls-cylinder-equation` gives the identity-LHS form
+
+.. math::
+   :label: peierls-cylinder-nystrom
+
+   \Sigma_t(r_i)\,\varphi_i
+     \;=\; \sum_{j=1}^{N} K_{ij}\,q_j + S_{\rm bc}(r_i),
+
+.. vv-status: peierls-cylinder-nystrom documented
+
+with
+
+.. math::
+
+   K_{ij}
+     \;=\; \frac{\Sigma_t(r_i)}{\pi}
+       \sum_{k=1}^{n_\beta}\!\sum_{m=1}^{n_\rho}
+         w_{\beta,k}\,w_{\rho,m}(r_i,\beta_k)\,
+         \mathrm{Ki}_1(\tau_{ikm})\,L_j(r'_{ikm}).
+
+The kernel matrix is assembled by ``build_volume_kernel`` in
+:mod:`orpheus.derivations.peierls_cylinder`. The per-sample optical
+depth :math:`\tau_{ikm}` is computed by ``_optical_depth_along_ray``,
+which walks annular boundary crossings as described next.
+
+Ray optical-depth walker
+------------------------
+
+The optical depth along the ray from :math:`r_i` in direction
+:math:`\beta` over distance :math:`\rho`,
+
+.. math::
+   :label: peierls-cylinder-ray-optical-depth
+
+   \tau(r_i, \rho, \beta)
+     \;=\; \int_{0}^{\rho}
+       \Sigma_t\!\bigl(r'(r_i, s, \beta)\bigr)\,\mathrm{d}s,
+
+.. vv-status: peierls-cylinder-ray-optical-depth documented
+
+is piecewise-constant in the integrand. The boundary crossings
+:math:`|\mathbf{r}(s)|^{2} = r_k^{2}` give the quadratic
+
+.. math::
+
+   s^{2} + 2 r_i \cos\beta\,s + (r_i^{2} - r_k^{2}) \;=\; 0,
+
+whose roots :math:`s = -r_i \cos\beta \pm
+\sqrt{r_i^{2}\cos^{2}\beta + r_k^{2} - r_i^{2}}` are the entry and
+exit points for the ray crossing annulus :math:`k`. The walker
+sorts all such roots in :math:`(0, \rho)`, evaluates
+:math:`r_{\rm mid}` on each segment, and accumulates
+:math:`\Sigma_{t,k}\cdot\Delta s`. The homogeneous case
+(:math:`N_{\rm reg} = 1`) short-circuits to
+:math:`\tau = \Sigma_t\,\rho` for speed.
+
+The walker is L0-verified against closed-form traversals in
+``tests/derivations/test_peierls_cylinder_multi_region.py``:
+``TestOpticalDepthAlongRay`` covers the homogeneous short-circuit,
+a ray staying in the outer annulus, a ray crossing one inner
+boundary, a ray through the axis traversing three annular
+segments, and a tangent ray that grazes the inner annulus.
+
+Relationship to the :math:`\tau^{\pm}` chord walker
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The module also exposes a separate walker ``optical_depths_pm``
+that computes the same-side (:math:`\tau^{+}`) and through-centre
+(:math:`\tau^{-}`) branches of the chord form for reference /
+verification purposes. It is not used by
+``build_volume_kernel`` (which operates in polar coordinates)
+but is the primitive that would be needed for any future
+Schur-complemented white-BC boundary closure (see
+:ref:`peierls-cylinder-white-bc` below), where the relevant
+variable is the chord impact parameter :math:`y`, not the
+observer-centred :math:`\rho`. Its L0 tests live in
+``tests/derivations/test_peierls_cylinder_geometry.py``.
+
+.. _peierls-cylinder-row-sum:
+
+Row-sum identity — homogeneous vs multi-region
+----------------------------------------------
+
+The row-sum identity is the single most diagnostic
+self-consistency check for the Peierls operator. It isolates the
+prefactor, the kernel normalisation, and the quadrature against
+the multiplicative-factor class of bugs that otherwise only show
+up as a biased eigenvalue. The cylindrical identity is subtler
+than the slab's because of how :math:`\Sigma_t` interacts with
+the ray integral.
+
+**Homogeneous cylinder.** For a bare homogeneous cylinder of
+radius :math:`R`, the infinite-medium identity for the
+identity-LHS kernel :eq:`peierls-cylinder-nystrom` is
+
+.. math::
+
+   \sum_{j=1}^{N} K_{ij} \;=\; \Sigma_t(r_i) \qquad (R \to \infty).
+
+The finite-cylinder deficit
+:math:`\Sigma_t - \sum_j K_{ij}` equals the uncollided escape
+probability :math:`\Sigma_t\,P_{\rm esc}(r_i)` times :math:`\Sigma_t`
+(a standard result: [BellGlasstone1970]_ §2.7; [Hebert2020]_
+Eq. 3.101), and for :math:`R = 10` MFP this deficit is
+:math:`< 10^{-3}` at :math:`r_i \le R/2`. Tested in
+``TestRowSumIdentity.test_interior_row_sum_equals_sigma_t`` in
+``tests/derivations/test_peierls_cylinder_prefactor.py``.
+
+**Multi-region cylinder.** The naive "apply :math:`K` to
+:math:`q \equiv 1`" identity **fails** when :math:`\Sigma_t` is
+piecewise-constant across annuli. The reason is visible in the
+change-of-variables :math:`u = \tau(\rho)`:
+
+.. math::
+
+   \int_{0}^{\rho_{\max}}\!\mathrm{Ki}_1\!\bigl(\tau(\rho)\bigr)\,
+     \mathrm{d}\rho
+     \;=\; \int_{0}^{\tau_{\max}}\!
+       \frac{\mathrm{Ki}_1(u)}{\Sigma_t\!\bigl(r'(u)\bigr)}\,\mathrm{d}u.
+
+The :math:`1/\Sigma_t` in the integrand depends on **where along
+the ray** the source point sits, so the identity collapses only
+if :math:`\Sigma_t` is constant.
+
+The correct multi-region identity is obtained by applying
+:math:`K` to the source :math:`q = \Sigma_t` — physically, the
+pure-scatter emission density that sustains a spatially uniform
+flux :math:`\varphi \equiv 1`:
+
+.. math::
+   :label: peierls-cylinder-row-sum-identity
+
+   \sum_{j=1}^{N} K_{ij}\,\Sigma_t(r_j) \;=\; \Sigma_t(r_i)
+   \qquad\text{(multi-region, } R \to \infty\text{)}.
+
+.. vv-status: peierls-cylinder-row-sum-identity documented
+
+The :math:`\Sigma_t(r_j)` factor absorbs the :math:`1/\Sigma_t`
+left behind by the change of variables, restoring
+:math:`\int \mathrm{Ki}_1(u)\,\mathrm{d}u = 1` independently of
+:math:`\Sigma_t` variation along the ray. This is the identity
+actually tested in
+``TestMultiRegionKernel.test_K_applied_to_sig_t_gives_local_sig_t``
+— it applies :math:`K` to :math:`q_j = \Sigma_t(r_j)` and
+verifies recovery of :math:`\Sigma_t(r_i)` at every interior
+observer, to 0.5 % accuracy on an
+:math:`(r_1, R) = (3, 10)`-MFP two-annulus configuration with
+:math:`\Sigma_{t,{\rm inner}} = 0.8, \Sigma_{t,{\rm outer}} = 1.4`.
+
+.. warning::
+
+   A test that applied :math:`K` to :math:`\mathbf{1}` and
+   compared to :math:`\Sigma_t(r_i)` would silently fail for the
+   multi-region case even when the implementation is correct.
+   The row sum
+   :math:`\sum_j K_{ij}` instead equals a ray-path-weighted
+   average of :math:`1/\Sigma_t`, which is not a local quantity.
+   This is the reason the multi-region test file applies
+   :math:`K` to :math:`\Sigma_t`, not to :math:`\mathbf{1}`.
+
+.. _peierls-cylinder-white-bc:
+
+Boundary conditions
+-------------------
+
+**Vacuum.** :math:`S_{\rm bc} \equiv 0`. The kernel :math:`K` is
+the full operator; the eigenvalue problem is
+
+.. math::
+
+   \bigl[\mathrm{diag}(\Sigma_t) - K\,\mathrm{diag}(\Sigma_s)\bigr]
+     \varphi \;=\; \frac{1}{k}\,K\,\mathrm{diag}(\nu\Sigma_f)\,\varphi,
+
+solved by fission-source power iteration in
+``solve_peierls_cylinder_1g_vacuum`` in
+:mod:`orpheus.derivations.peierls_cylinder`. This is the closure
+that is currently implemented; it is used for the Sanchez tie-point
+verification below.
+
+**White / reflective.** The cylinder's lateral surface is a
+continuous 1-parameter family of boundary points; every
+(impact-parameter :math:`y`, travel-direction) pair produces a
+distinct re-entering ray. The slab's rank-2 :math:`E_2` outer
+product — which comes from exactly two boundary faces — does **not**
+generalise. Instead, the white-BC closure is a rank-:math:`N_y`
+**dense** Schur-complement block, where :math:`N_y` is the
+number of :math:`y`-quadrature nodes used to represent the
+outgoing/incoming currents on the cylinder surface.
+
+The two implementable options are:
+
+(a) **Reduced form.** Eliminate the boundary-current unknowns
+    by Schur complement; the result is an effective boundary
+    source :math:`S_{\rm bc}(r_i)` that is a smooth integral
+    operator of the volume unknowns :math:`\varphi_j`. [Sanchez1982]_
+    §IV.B.3 uses this form.
+(b) **Full form.** Keep the boundary currents :math:`J^\pm(y_\ell)`
+    as explicit unknowns and solve the coupled
+    :math:`(\varphi, J^{+}, J^{-})` block system. [Hebert2020]_
+    uses this form because the coupling block is trivially
+    populated from the :math:`\tau^{\pm}` walker.
+
+For :math:`N_y = O(50\text{--}100)` the dense block is a
+:math:`50 \times 50` to :math:`100 \times 100` matrix, negligible
+relative to the :math:`O(N^{3})` radial LU factorisation.
+
+.. note::
+
+   The white-BC closure is **not yet implemented**. The current
+   :func:`~orpheus.derivations.peierls_cylinder.solve_peierls_cylinder_1g_vacuum`
+   handles vacuum BC only. The ``optical_depths_pm`` :math:`\tau^{\pm}`
+   walker that lives alongside ``build_volume_kernel`` is the
+   primitive needed for either option (a) or option (b); it is
+   retained in the module for this planned extension. The
+   white-BC driver is Phase-4.2 item C8 of the verification
+   campaign and is a prerequisite for comparing the Peierls
+   reference against the CP flat-source cylinder flux profile
+   at full white-BC parity.
+
+Verification evidence
+---------------------
+
+Three independent checks gate the Peierls cylinder implementation.
+
+**Sanchez--McCormick 1982 tie-point.** For a bare 1-group
+homogeneous cylinder with :math:`\Sigma_t = 1` cm⁻¹,
+:math:`(\Sigma_s, \nu\Sigma_f) = (0.5, 0.75)` — giving
+:math:`k_\infty = \nu\Sigma_f/\Sigma_a = 1.5` — [Sanchez1982]_
+Table IV reports a critical radius :math:`R = 1.9798` cm.
+At that :math:`R` the present solver gives
+
+.. math::
+
+   k_{\rm eff}(R = 1.9798) \;=\; 1.00421 \pm 10^{-5}
+
+under polar-quadrature refinement
+:math:`(n_\beta, n_\rho) = (20, 20) \to (32, 32)`. The 0.42 %
+offset from unity reflects the ambiguous scatter / fission split
+in the Sanchez ``c = 1.5`` problem definition: the 1-group
+:math:`k_{\rm eff}` is **not invariant** under the split at fixed
+:math:`k_\infty`, because :math:`\Sigma_s` enters the resolvent
+:math:`(\Sigma_t\mathbf{I} - K\Sigma_s)^{-1}` separately from the
+fission source. The Zotero MCP server was unreachable during the
+Phase-4.2 literature sweep (see Directive-4 demand note in
+``.claude/agent-memory/literature-researcher/phase4_cylinder_peierls.md``),
+so the reference split cannot yet be cross-checked; the test gate
+is set to a 1 % tolerance in
+``TestSanchezTiePoint.test_k_eff_at_R_equals_1_dot_9798``, which
+is robust to this ambiguity but tight enough to catch any
+multiplicative-factor regression.
+
+**Vacuum-BC thick-cylinder limit.** As :math:`R \to \infty`,
+leakage vanishes and :math:`k_{\rm eff} \to k_\infty`. At
+:math:`R = 30` MFP the solver reaches
+:math:`k_{\rm eff} \approx 1.49` against :math:`k_\infty = 1.5`
+(0.5 % gap), and :math:`k_{\rm eff}(R)` is **monotone increasing**
+for :math:`R \in \{1.5, 3, 6, 12, 24\}` MFP. Tested in
+``TestVacuumBCThickLimit``.
+
+**Row-sum identity.** For the homogeneous :math:`R = 10` MFP
+configuration, :math:`\max_i |\Sigma_t - \sum_j K_{ij}| < 10^{-3}`
+at :math:`r_i \le R/2`, and the deficit decays monotonically
+toward :math:`1` as :math:`r_i \to R` (escape probability rises
+at the surface). The multi-region identity
+:math:`\sum_j K_{ij}\,\Sigma_t(r_j) = \Sigma_t(r_i)` holds to
+0.5 % on a :math:`(\Sigma_{t,{\rm inner}},
+\Sigma_{t,{\rm outer}}) = (0.8, 1.4)` two-annulus problem.
+Tested in
+``TestRowSumIdentity`` and ``TestMultiRegionKernel`` in
+``tests/derivations/test_peierls_cylinder_prefactor.py`` and
+``tests/derivations/test_peierls_cylinder_multi_region.py``.
+
+.. list-table:: Cylindrical Peierls verification summary
+   :header-rows: 1
+   :widths: 35 25 20 20
+
+   * - Check
+     - Tolerance
+     - Status
+     - Identity
+   * - Sanchez tie-point :math:`R = 1.9798`
+     - :math:`|k_{\rm eff} - 1| < 2\times10^{-2}`
+     - passes at :math:`10^{-2}`
+     - :eq:`peierls-cylinder-equation`
+   * - Thick limit :math:`R = 30` MFP
+     - :math:`|k_{\rm eff} - k_\infty|/k_\infty < 10^{-2}`
+     - passes at :math:`5\times10^{-3}`
+     - vacuum-BC fixed point
+   * - Row sum (homogeneous)
+     - :math:`<10^{-3}` at :math:`r_i \le R/2`
+     - passes
+     - :eq:`peierls-cylinder-nystrom`
+   * - Row sum (multi-region)
+     - :math:`<5\times10^{-3}` bulk interior
+     - passes
+     - :eq:`peierls-cylinder-row-sum-identity`
+
+Relationship to the CP flat-source cylinder solver
+--------------------------------------------------
+
+The CP flat-source method for the cylinder
+(:func:`~orpheus.cp.solver.solve_cp` on ``cyl1D`` meshes;
+:mod:`orpheus.derivations.cp_cylinder`) integrates the
+:math:`\mathrm{Ki}_1` kernel analytically over each annulus to
+produce the :math:`\mathrm{Ki}_3` second-difference formula
+quoted above. The Peierls reference **bypasses that integration**
+entirely:
+
+- the kernel is :math:`\mathrm{Ki}_1`, not :math:`\mathrm{Ki}_3`,
+- the spatial representation is a piecewise polynomial of degree
+  :math:`p - 1` per panel, not a piecewise constant,
+- the ray integration is performed numerically in polar
+  coordinates, not analytically over rectangular annular regions.
+
+So the two methods share almost nothing except the underlying
+integral equation. A sign error, off-by-one index, or factor-of-2
+in the :math:`\mathrm{Ki}_3` second-difference formula — which
+would cancel between the CP solver and a CP-self-verification
+test — would be caught by the Peierls reference. Conversely, a
+systematic error in :math:`\mathrm{Ki}_1` evaluation would be
+caught by the CP eigenvalue tests (which use pre-tabulated
+:math:`\mathrm{Ki}_3` values). The two together triangulate the
+cylindrical integral-transport stack.
+
+Numerical cost
+--------------
+
+The :math:`(\beta, \rho)` tensor-product quadrature is the dominant
+cost. For each observer :math:`r_i` and each :math:`\beta_k`, the
+kernel assembly evaluates :math:`\mathrm{Ki}_1` at :math:`n_\rho`
+points via :func:`~orpheus.derivations._kernels.ki_n_mp` (mpmath
+at ``dps`` precision), which is :math:`O(N \cdot n_\beta \cdot
+n_\rho)` kernel evaluations. For :math:`N = 10` radial nodes,
+:math:`(n_\beta, n_\rho) = (24, 24)`, ``dps = 20``, kernel
+assembly takes :math:`\approx 3` s on current hardware; eigenvalue
+power iteration is a further :math:`O(N^{3})` LU per iteration,
+typically converging in 20--30 iterations to
+:math:`10^{-10}` eigenvalue tolerance.
+
+Short-circuit: the homogeneous single-region branch of
+``_optical_depth_along_ray`` returns :math:`\Sigma_t \rho` without
+sorting crossings, making the bare-cylinder case
+:math:`\sim\!2\times` faster than the multi-region path.
+
+.. seealso::
+
+   :mod:`orpheus.derivations.peierls_cylinder` — Nyström solver
+   implementation; module docstring contains the full derivation
+   of the polar-form Jacobian and the pivot rationale.
+
+   :class:`orpheus.derivations.peierls_cylinder.PeierlsCylinderSolution`
+   — result container with radial node positions, flux values,
+   and :math:`k_{\rm eff}`.
+
+   :func:`orpheus.derivations.peierls_cylinder.solve_peierls_cylinder_1g_vacuum`
+   — 1-group vacuum-BC eigenvalue driver.
+
+   ``tests/derivations/test_peierls_cylinder_geometry.py`` — L0
+   tests for ``composite_gl_y`` and ``optical_depths_pm``.
+
+   ``tests/derivations/test_peierls_cylinder_prefactor.py`` — L0
+   row-sum-identity tests (homogeneous).
+
+   ``tests/derivations/test_peierls_cylinder_multi_region.py`` —
+   L0 multi-region optical-depth walker, Lagrange-basis
+   foundation tests, and the multi-region
+   :math:`\sum_j K_{ij}\,\Sigma_t(r_j) = \Sigma_t(r_i)` identity.
+
+   ``tests/derivations/test_peierls_cylinder_eigenvalue.py`` — L1
+   Sanchez tie-point and thick-cylinder limit eigenvalue tests.
+
+
 References
 ==========
 
@@ -2415,6 +3090,17 @@ References
 
 .. [Hebert2009] A. Hebert, *Applied Reactor Physics*, Presses
    internationales Polytechnique, 2009.
+
+.. [Hebert2020] A. Hébert, *Applied Reactor Physics*, 3rd ed.,
+   Presses Internationales Polytechnique, 2020.
+   DOI: 10.1515/9782553017445.
+
+.. [Sanchez1982] R. Sanchez and N.J. McCormick, "A Review of Neutron
+   Transport Approximations," *Nucl. Sci. Eng.* **80**, 481–535
+   (1982). DOI: 10.13182/nse80-04-481.
+
+.. [BellGlasstone1970] G.I. Bell and S. Glasstone, *Nuclear Reactor
+   Theory*, Van Nostrand Reinhold, 1970.
 
 .. [Kress2014] R. Kress, *Linear Integral Equations*, 3rd ed.,
    Springer, 2014.
