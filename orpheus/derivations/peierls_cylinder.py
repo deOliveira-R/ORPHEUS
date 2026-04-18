@@ -6,54 +6,84 @@ producing :class:`ContinuousReferenceSolution` objects whose operator
 form is ``"integral-peierls"``.
 
 The cylindrical Peierls equation for a radially-symmetric emission
-density :math:`q(r)` on :math:`0 \le r \le R` reads (Sanchez &
-McCormick, *Nucl. Sci. Eng.* **80** (1982) Eqs. 47–49; Hébert 2020
-§3.5; Stamm'ler & Abbate 1983 §6.2–6.3):
+density :math:`q(r)` on :math:`0 \le r \le R` is obtained by
+integrating the 3-D point kernel over the infinite z-axis, yielding
+the 2-D transverse Green's function
+:math:`G_{2D}(|\mathbf{r}-\mathbf{r}'|) = \mathrm{Ki}_1(\Sigma_t\,
+|\mathbf{r}-\mathbf{r}'|) / (2\pi\,|\mathbf{r}-\mathbf{r}'|)`:
 
 .. math::
 
-   \Sigma_t(r)\,\varphi(r)
-     \;=\; \frac{1}{\pi}
-       \int_{0}^{\min(r,R)}\!\mathrm{d}y
-       \int_{y}^{R}
-         \bigl[\mathrm{Ki}_1\bigl(\tau^{+}(r,r',y)\bigr)
-             + \mathrm{Ki}_1\bigl(\tau^{-}(r,r',y)\bigr)\bigr]\,
-         \frac{q(r')\,r'}{\sqrt{r'^{2}-y^{2}}}\,\mathrm{d}r'
-     \;+\; S_{\rm bc}(r)
+   \varphi(\mathbf{r})
+     \;=\; \frac{1}{2\pi}\!\iint_{\rm disc}
+       \frac{\mathrm{Ki}_1\!\bigl(\tau(\mathbf{r},\mathbf{r}')\bigr)}
+            {|\mathbf{r}-\mathbf{r}'|}\,q(\mathbf{r}')\,\mathrm{d}^{2}r'
+     + \varphi_{\rm bc}(\mathbf{r})
 
-where for a chord of impact parameter :math:`y`, a point at radius
-:math:`r` sits at signed chord position :math:`\pm s_r` with
-:math:`s_r = \sqrt{r^{2}-y^{2}}`, and the two optical-path branches
-are
+For the Nyström discretisation this module expresses the 2-D
+integral in **polar coordinates centred at the observer**:
 
 .. math::
 
-   \tau^{+}(r,r',y) &= \int_{s_{r}}^{s_{r'}} \Sigma_{t}\bigl(r(s)\bigr)\,\mathrm{d}s
-     &&\text{(same-side chord integral)} \\
-   \tau^{-}(r,r',y) &= \int_{-s_{r}}^{s_{r'}} \Sigma_{t}\bigl(r(s)\bigr)\,\mathrm{d}s
-     &&\text{(through-centre chord integral)}.
+   \varphi(r)
+     \;=\; \frac{1}{\pi}\!
+       \int_{0}^{\pi}\!\mathrm{d}\beta\!
+       \int_{0}^{\rho_{\max}(r,\beta)}\!\!
+         \mathrm{Ki}_1\!\bigl(\tau(r, \rho, \beta)\bigr)\,
+         q\bigl(r'(r, \rho, \beta)\bigr)\,\mathrm{d}\rho
+     + \varphi_{\rm bc}(r)
 
-Key differences from :mod:`peierls_slab` (documented at length in
-``docs/theory/collision_probability.rst``):
+where :math:`\rho` is the distance from the observer along the ray
+at angle :math:`\beta` (measured from the outward radial direction
+at the observer), :math:`r'(r,\rho,\beta) = \sqrt{r^{2} + 2 r\rho
+\cos\beta + \rho^{2}}` is the source radius, :math:`\rho_{\max}
+= -r\cos\beta + \sqrt{r^{2}\cos^{2}\beta + R^{2}-r^{2}}` is the
+distance to the cylinder boundary, and the prefactor :math:`1/\pi`
+absorbs the :math:`1/(2\pi)` of the 2-D kernel plus a factor of 2
+from the :math:`y\to-y` (β-reflection) symmetry that folds
+:math:`\beta\in[0,2\pi]` to :math:`[0,\pi]`.
+
+Compared to the equivalent chord :math:`(y, r')` form used in
+Sanchez-McCormick 1982 §IV.A, the polar form has **no singular
+Jacobian** — the 2-D area element :math:`\rho\,\mathrm{d}\rho\,
+\mathrm{d}\beta` cancels the :math:`1/\rho` in the Green's function,
+leaving a smooth integrand :math:`\mathrm{Ki}_1(\tau)\,q(r')` that
+is handled cleanly by ordinary Gauss–Legendre quadrature in both
+:math:`\beta` and :math:`\rho`. The chord :math:`(y, r')`
+parametrisation picks up the Jacobian
+:math:`1/\sqrt{(r^{2}-y^{2})(r'^{2}-y^{2})}` from the two-branch sum
+:math:`|\mathrm{d}\alpha_{+}/\mathrm{d}y| + |\mathrm{d}\alpha_{-}/
+\mathrm{d}y| = 2/\sqrt{\min(r,r')^{2}-y^{2}}` and carries an extra
+singularity at :math:`y=\min(r,r')`. The polar form avoids this.
+
+Key differences from :mod:`peierls_slab`:
 
 - **Kernel**: :math:`\mathrm{Ki}_1` (Bickley–Naylor order 1), not
   :math:`E_1`. The slab's :math:`E_1` comes from integrating the 1-D
   point kernel over polar angle; the cylinder's :math:`\mathrm{Ki}_1`
   comes from integrating the 3-D point kernel over the infinite
-  axial direction, leaving the 2-D transverse integral in
-  :math:`(y, r')`.
-- **Singularity**: the slab integrand has a log singularity
-  *in the kernel* (:math:`E_1 \sim -\ln z`) cured by singularity
-  subtraction. The cylinder integrand has an inverse-square-root
-  singularity :math:`1/\sqrt{r'^{2}-y^{2}}` *in the Jacobian*; it is
-  absorbed by the natural Chebyshev-of-second-kind product rule.
-- **Prefactor**: :math:`1/\pi`, not :math:`1/2`. Sanchez 1982
-  Eq. (47) — the :math:`1/\pi` absorbs the :math:`\mathrm{d}y/2` from
-  the half-plane chord sweep and the factor 2 from pairing
-  :math:`\pm\mu` directions.
-- **White BC closure**: rank-:math:`N_y` dense Schur block
-  (continuous lateral surface), not the slab's rank-2 E₂ outer
+  axial direction.
+- **Singularity**: none in the polar form (:math:`\rho\,\mathrm{d}\rho\,
+  \mathrm{d}\beta` cancels the :math:`1/\rho` of
+  :math:`\mathrm{Ki}_1/|\mathbf{r}-\mathbf{r}'|`). Contrast the slab's
+  log-singular kernel :math:`E_1(\tau)\sim -\ln\tau`.
+- **Prefactor**: :math:`1/\pi`, not :math:`1/2`. Derived above.
+- **Source interpolation**: because :math:`r'(\rho,\beta,r_i)` is
+  generally not a quadrature node, the Nyström unknown is connected
+  to :math:`q(r'_{ikm})` via Lagrange-basis interpolation on the
+  radial grid — hence the kernel matrix picks up a
+  :math:`L_j(r'_{ikm})` factor.
+- **White BC closure**: rank-:math:`N_\rho` dense Schur block
+  (continuous lateral surface; C5), not the slab's rank-2 E₂ outer
   product (two discrete faces).
+
+The :math:`\tau^{\pm}` chord walker (:func:`optical_depths_pm`, C2)
+remains part of this module: it is the primitive used to evaluate
+:math:`\tau(r,\rho,\beta)` for **multi-region** problems (C4),
+where the optical depth along the ray from :math:`r_i` in direction
+:math:`\beta` to a source at distance :math:`\rho` decomposes into a
+same-side / through-centre branch depending on whether the ray
+crosses the chord midpoint.
 
 This module is the Phase-4.2 deliverable of the verification campaign.
 It is the independent reference against which the flat-source CP
@@ -73,6 +103,8 @@ from dataclasses import dataclass
 
 import mpmath
 import numpy as np
+
+from ._kernels import ki_n_mp
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -262,6 +294,293 @@ def optical_depths_pm(
     tau_minus = _optical_on_positive(zero, s_r) + _optical_on_positive(zero, s_rp)
 
     return tau_plus, tau_minus
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Volume kernel assembly (polar (β, ρ) Nyström with Lagrange interpolation)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _gl_float(n: int, a: float, b: float, dps: int = 30) -> tuple[np.ndarray, np.ndarray]:
+    """*n*-point GL on ``[a, b]``, returned as float arrays."""
+    ref_nodes, ref_wts = _gl_nodes_weights(n, dps)
+    h = (b - a) / 2
+    m = (a + b) / 2
+    nodes = np.array([float(m + h * t) for t in ref_nodes])
+    wts = np.array([float(h * w) for w in ref_wts])
+    return nodes, wts
+
+
+def _lagrange_basis_on_panels(
+    r_nodes: np.ndarray,
+    panel_bounds: list[tuple[float, float, int, int]],
+    r_eval: float,
+) -> np.ndarray:
+    r"""Evaluate the Lagrange basis :math:`L_j(r_{\rm eval})` at an
+    arbitrary point, using the panel structure of the r-grid.
+
+    On each panel :math:`[p_a, p_b]`, the Lagrange basis polynomials are
+    built over that panel's nodes only; on other panels the basis is
+    zero (piecewise polynomial representation). This matches how
+    :class:`PeierlsCylinderSolution` would interpolate a discrete
+    nodal vector back to a continuous function.
+
+    Parameters
+    ----------
+    r_nodes : np.ndarray, shape (N,)
+        All r-nodes across all panels.
+    panel_bounds : list of (pa, pb, i_start, i_end)
+        Panel layout from :func:`composite_gl_y` / :func:`composite_gl_r`.
+    r_eval : float
+        Point at which to evaluate the basis.
+
+    Returns
+    -------
+    np.ndarray, shape (N,)
+        :math:`L_j(r_{\rm eval})` for :math:`j=0,\dots,N-1`. Nonzero
+        only on the panel containing :math:`r_{\rm eval}`.
+    """
+    N = len(r_nodes)
+    L = np.zeros(N)
+
+    # Find the panel containing r_eval (boundary right-biased)
+    panel_idx = None
+    for k, (pa, pb, i_start, i_end) in enumerate(panel_bounds):
+        if pa <= r_eval <= pb:
+            panel_idx = k
+            break
+    if panel_idx is None:
+        # r_eval out of [0, R]: clamp to nearest panel endpoint
+        if r_eval < panel_bounds[0][0]:
+            panel_idx = 0
+        else:
+            panel_idx = len(panel_bounds) - 1
+
+    pa, pb, i_start, i_end = panel_bounds[panel_idx]
+    local_nodes = r_nodes[i_start:i_end]
+    p = i_end - i_start
+    for a in range(p):
+        num, den = 1.0, 1.0
+        for b in range(p):
+            if b == a:
+                continue
+            num *= (r_eval - local_nodes[b])
+            den *= (local_nodes[a] - local_nodes[b])
+        L[i_start + a] = num / den
+    return L
+
+
+def _rho_max(r_obs: float, cos_beta: float, R: float) -> float:
+    r"""Distance along ray at angle β from observer at :math:`r_{\rm obs}`
+    to the cylinder boundary :math:`|\mathbf{r}| = R`.
+
+    Positive root of :math:`(r_{\rm obs} + \rho\cos\beta)^{2}
+    + (\rho\sin\beta)^{2} = R^{2}`.
+    """
+    disc = r_obs * r_obs * cos_beta * cos_beta + R * R - r_obs * r_obs
+    return -r_obs * cos_beta + np.sqrt(max(disc, 0.0))
+
+
+def _optical_depth_along_ray(
+    r_obs: float,
+    cos_beta: float,
+    sin_beta: float,
+    rho: float,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+) -> float:
+    r"""Optical depth from :math:`r_{\rm obs}` along direction
+    :math:`(\cos\beta, \sin\beta)` over a distance :math:`\rho`.
+
+    Homogeneous (1-region) short-circuit: :math:`\tau = \Sigma_t\,\rho`.
+    Multi-region: the ray crosses annular boundaries
+    :math:`r = r_k` at roots of :math:`r_{\rm obs}^{2} + 2r_{\rm obs}
+    s\cos\beta + s^{2} = r_k^{2}` (a quadratic in :math:`s`); the
+    optical depth is the sum of :math:`\Sigma_{t,k}\cdot\Delta s`
+    over each annular segment of the ray. This routine handles
+    both cases.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    N = len(radii)
+
+    # Fast path: homogeneous
+    if N == 1:
+        return float(sig_t[0]) * rho
+
+    # Multi-region: find all boundary crossings s_k where |r(s)| = r_k
+    # r(s)² = r_obs² + 2 r_obs s cos β + s²
+    # Crossing r_k: s² + 2 r_obs cos β · s + (r_obs² - r_k²) = 0
+    crossings = [0.0]
+    for r_k in radii[:-1]:  # outer boundary handled by rho bounds
+        disc = r_obs * r_obs * cos_beta * cos_beta - (r_obs * r_obs - r_k * r_k)
+        if disc < 0:
+            continue  # ray does not intersect this annular boundary
+        sqrt_disc = np.sqrt(disc)
+        s_a = -r_obs * cos_beta - sqrt_disc
+        s_b = -r_obs * cos_beta + sqrt_disc
+        for s in (s_a, s_b):
+            if 0.0 < s < rho:
+                crossings.append(s)
+    crossings.append(rho)
+    crossings.sort()
+
+    # Between consecutive crossings, the ray is inside a single annulus.
+    # Determine annulus index by mid-segment radius.
+    tau = 0.0
+    for i_seg in range(len(crossings) - 1):
+        s_lo, s_hi = crossings[i_seg], crossings[i_seg + 1]
+        s_mid = 0.5 * (s_lo + s_hi)
+        r_mid_sq = r_obs * r_obs + 2.0 * r_obs * s_mid * cos_beta + s_mid * s_mid
+        r_mid = np.sqrt(max(r_mid_sq, 0.0))
+        # Annulus k contains r_mid iff r_{k-1} ≤ r_mid < r_k (r_0 = 0)
+        k = 0
+        for kk in range(N):
+            if r_mid < radii[kk]:
+                k = kk
+                break
+            k = N - 1  # outermost
+        tau += sig_t[k] * (s_hi - s_lo)
+    return tau
+
+
+def build_volume_kernel(
+    r_nodes: np.ndarray,
+    panel_bounds: list[tuple[float, float, int, int]],
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_beta: int,
+    n_rho: int,
+    dps: int = 30,
+) -> np.ndarray:
+    r"""Assemble the **volume** Nyström kernel matrix for a single group.
+
+    The cylindrical Peierls equation in polar coordinates centred at
+    the observer reads
+
+    .. math::
+
+       \Sigma_t(r_i)\,\varphi(r_i)
+         \;=\; \frac{\Sigma_t(r_i)}{\pi}
+           \int_{0}^{\pi}\!\mathrm{d}\beta\!
+           \int_{0}^{\rho_{\max}(r_i,\beta)}\!
+             \mathrm{Ki}_1\!\bigl(\tau(r_i,\rho,\beta)\bigr)\,
+             q\!\bigl(r'(r_i,\rho,\beta)\bigr)\,\mathrm{d}\rho
+         + S_{\rm bc}(r_i).
+
+    With Lagrange interpolation
+    :math:`q(r'_{ikm}) = \sum_j L_j(r'_{ikm})\,q_j`, this discretises to
+
+    .. math::
+
+       \Sigma_t(r_i)\,\varphi_i
+         \;=\; \sum_j K_{ij}\,q_j + S_{\rm bc}(r_i),
+       \qquad
+       K_{ij} = \frac{\Sigma_t(r_i)}{\pi}\sum_{k,m} w_{\beta,k}\,
+                  w_{\rho,m}(r_i,\beta_k)\,
+                  \mathrm{Ki}_1(\tau_{ikm})\,L_j(r'_{ikm}).
+
+    Row-sum identity (for the **1-group, homogeneous, pure scatterer**
+    check): at :math:`\varphi\equiv1,\,q=\Sigma_t`, the infinite-medium
+    identity :math:`\sum_j K_{ij} \to \Sigma_t` holds exactly, and the
+    finite-cylinder deficit equals :math:`\Sigma_t P_{\rm esc}(r_i)`
+    where :math:`P_{\rm esc}` is the uncollided-escape probability
+    from :math:`r_i`. The test gate uses :math:`R = 10` mean free
+    paths so that :math:`P_{\rm esc}(r_i \lesssim R/2) \ll 10^{-3}`.
+
+    Parameters
+    ----------
+    r_nodes : np.ndarray, shape (N,)
+        Radial quadrature nodes (composite GL on :math:`[0, R]`).
+    panel_bounds : list of (pa, pb, i_start, i_end)
+        Panel layout of the r-grid, from :func:`composite_gl_r`. Used
+        for Lagrange-basis interpolation on the local panel.
+    radii : np.ndarray, shape (N_reg,)
+        Outer radii of concentric annuli.
+    sig_t : np.ndarray, shape (N_reg,)
+        Total macroscopic cross-section per annulus.
+    n_beta : int
+        GL order for the :math:`\beta`-integral on :math:`[0, \pi]`.
+    n_rho : int
+        GL order for the :math:`\rho`-integral on
+        :math:`[0, \rho_{\max}(r_i, \beta_k)]`.
+    dps : int
+        mpmath working precision for :math:`\mathrm{Ki}_1`.
+
+    Returns
+    -------
+    K : np.ndarray, shape (N, N)
+        Nyström kernel matrix.
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    N = len(r_nodes)
+    R = float(radii[-1])
+
+    # β-quadrature on [0, π]
+    beta_pts, beta_wts = _gl_float(n_beta, 0.0, np.pi, dps)
+    cos_betas = np.cos(beta_pts)
+    sin_betas = np.sin(beta_pts)
+
+    # Reference ρ-quadrature nodes on [-1, 1] — we map per (i, k)
+    ref_rho_nodes, ref_rho_wts = _gl_nodes_weights(n_rho, dps)
+    ref_rho_nodes = np.array([float(x) for x in ref_rho_nodes])
+    ref_rho_wts = np.array([float(w) for w in ref_rho_wts])
+
+    K = np.zeros((N, N))
+    inv_pi = 1.0 / np.pi
+
+    for i in range(N):
+        r_i = r_nodes[i]
+        # Σ_t(r_i): locate the annulus containing r_i
+        k_obs = 0
+        for kk in range(len(radii)):
+            if r_i < radii[kk]:
+                k_obs = kk
+                break
+            k_obs = len(radii) - 1
+        sig_t_i = sig_t[k_obs]
+
+        for k in range(n_beta):
+            cb = cos_betas[k]
+            sb = sin_betas[k]
+            rho_max = _rho_max(r_i, cb, R)
+            if rho_max <= 0.0:
+                continue
+
+            # Map reference ρ-nodes [-1, 1] → [0, ρ_max]
+            h = 0.5 * rho_max
+            rho_pts = h * ref_rho_nodes + h
+            rho_wts = h * ref_rho_wts
+
+            for m in range(n_rho):
+                rho = rho_pts[m]
+                r_prime = np.sqrt(r_i * r_i + 2.0 * r_i * rho * cb + rho * rho)
+                tau = _optical_depth_along_ray(
+                    r_i, cb, sb, rho, radii, sig_t,
+                )
+                ki1 = float(ki_n_mp(1, float(tau), dps))
+                L_vals = _lagrange_basis_on_panels(
+                    r_nodes, panel_bounds, float(r_prime),
+                )
+                weight = inv_pi * sig_t_i * beta_wts[k] * rho_wts[m] * ki1
+                K[i, :] += weight * L_vals
+
+    return K
+
+
+def composite_gl_r(
+    radii: np.ndarray,
+    n_panels_per_region: int,
+    p_order: int,
+    dps: int = 30,
+) -> tuple[np.ndarray, np.ndarray, list[tuple[float, float, int, int]]]:
+    """Composite GL quadrature on :math:`[0, R]` with panel breakpoints
+    at each annular radius. Same structure as :func:`composite_gl_y`;
+    exposed separately because the radial grid and the y-grid may
+    have different resolutions in practice.
+    """
+    return composite_gl_y(radii, n_panels_per_region, p_order, dps=dps)
 
 
 # ═══════════════════════════════════════════════════════════════════════
