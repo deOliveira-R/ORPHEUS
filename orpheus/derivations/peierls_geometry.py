@@ -51,7 +51,11 @@ from dataclasses import dataclass
 import mpmath
 import numpy as np
 
-from ._kernels import chord_half_lengths, ki_n_mp  # noqa: F401
+from ._kernels import (  # noqa: F401
+    _shifted_legendre_eval,
+    chord_half_lengths,
+    ki_n_mp,
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -723,6 +727,290 @@ def build_white_bc_correction(
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# Unified white-BC rank-N (Marshak / DP_N) closure
+# ═══════════════════════════════════════════════════════════════════════
+
+def compute_P_esc_mode(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_angular: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Mode-:math:`n` weighted escape probability.
+
+    .. math::
+
+       P_{\rm esc}^{(n)}(r_i)
+         = C_d\!\int_0^\pi W_\Omega(\Omega)\,
+                 \tilde P_n\!\bigl(\mu_{\rm exit}(r_i, \Omega, R)\bigr)\,
+                 K_{\rm esc}\!\bigl(\tau(r_i, \Omega)\bigr)\,\mathrm d\Omega
+
+    with
+    :math:`\mu_{\rm exit}(r, \Omega, R) = (\rho_{\max} + r\cos\Omega)/R`
+    the direction cosine of the outgoing ray with the outward surface
+    normal at the exit point. For :math:`n = 0`,
+    :math:`\tilde P_0 \equiv 1` and this reduces to
+    :func:`compute_P_esc`. The shifted Legendre weighting is the
+    Gelbard DP\ :sub:`N` / Marshak basis
+    (:func:`~orpheus.derivations._kernels._shifted_legendre_eval`); see
+    :ref:`theory-peierls-unified` §8 for the rank-N closure derivation.
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    omega_low, omega_high = geometry.angular_range
+    omega_pts, omega_wts = gl_float(n_angular, omega_low, omega_high, dps)
+    cos_omegas = np.cos(omega_pts)
+    angular_factor = geometry.angular_weight(omega_pts)
+    pref = geometry.prefactor
+
+    N = len(r_nodes)
+    P = np.zeros(N)
+    for i in range(N):
+        r_i = r_nodes[i]
+        total = 0.0
+        for k in range(n_angular):
+            cos_om = cos_omegas[k]
+            rho_max_val = geometry.rho_max(r_i, cos_om, R)
+            if rho_max_val <= 0.0:
+                continue
+            tau = geometry.optical_depth_along_ray(
+                r_i, cos_om, rho_max_val, radii, sig_t,
+            )
+            K_esc = geometry.escape_kernel_mp(tau, dps)
+            mu_exit = (rho_max_val + r_i * cos_om) / R
+            p_tilde = float(
+                _shifted_legendre_eval(n_mode, np.array([mu_exit]))[0]
+            )
+            total += omega_wts[k] * angular_factor[k] * p_tilde * K_esc
+        P[i] = pref * total
+    return P
+
+
+def compute_G_bc_mode(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Mode-:math:`n` weighted surface-to-volume Green's function.
+
+    Sphere (observer-centred :math:`\theta`-integral):
+
+    .. math::
+
+       G_{\rm bc}^{(n)}(r_i) = 2\!\int_0^\pi \sin\theta\,
+          \tilde P_n(\mu_{\rm exit})\,
+          e^{-\tau(r_i, \rho_{\max}(\theta))}\,\mathrm d\theta,
+       \qquad
+       \mu_{\rm exit} = \frac{\rho_{\max} + r_i\cos\theta}{R}.
+
+    Cylinder (surface-centred :math:`\phi`-integral, matching the
+    mode-0 :func:`compute_G_bc` form):
+
+    .. math::
+
+       G_{\rm bc}^{(n)}(r_i) = \frac{2R}{\pi}\!\int_0^\pi
+          \tilde P_n(|\mu_s|)\,
+          \frac{\mathrm{Ki}_1(\tau_{\rm surf})}{d}\,\mathrm d\phi,
+       \qquad
+       |\mu_s| = \frac{R - r_i\cos\phi}{d},\quad
+       d = \sqrt{r_i^2 + R^2 - 2 r_i R\cos\phi}.
+
+    For :math:`n = 0`, :math:`\tilde P_0 \equiv 1` and this reduces to
+    :func:`compute_G_bc`.
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    N = len(r_nodes)
+    G = np.zeros(N)
+
+    if geometry.kind == "sphere-1d":
+        theta_pts, theta_wts = gl_float(n_surf_quad, 0.0, np.pi, dps)
+        cos_thetas = np.cos(theta_pts)
+        sin_thetas = np.sin(theta_pts)
+
+        for i in range(N):
+            r_i = r_nodes[i]
+            total = 0.0
+            for k in range(n_surf_quad):
+                ct = cos_thetas[k]
+                st = sin_thetas[k]
+                rho_to_surface = geometry.rho_max(r_i, ct, R)
+                if rho_to_surface <= 0.0:
+                    continue
+                if len(radii) == 1:
+                    tau = sig_t[0] * rho_to_surface
+                else:
+                    tau = geometry.optical_depth_along_ray(
+                        r_i, ct, rho_to_surface, radii, sig_t,
+                    )
+                mu_exit = (rho_to_surface + r_i * ct) / R
+                p_tilde = float(
+                    _shifted_legendre_eval(n_mode, np.array([mu_exit]))[0]
+                )
+                total += theta_wts[k] * st * p_tilde * float(np.exp(-tau))
+            G[i] = 2.0 * total
+        return G
+
+    # Cylinder: surface-centred Ki_1/d kernel, weighted by P̃_n(|μ_s_2D|).
+    phi_pts, phi_wts = gl_float(n_surf_quad, 0.0, np.pi, dps)
+    cos_phis = np.cos(phi_pts)
+    sin_phis = np.sin(phi_pts)
+    inv_pi = 1.0 / np.pi
+
+    for i in range(N):
+        r_i = r_nodes[i]
+        total = 0.0
+        for k in range(n_surf_quad):
+            cf = cos_phis[k]
+            d_sq = r_i * r_i + R * R - 2.0 * r_i * R * cf
+            d = np.sqrt(max(d_sq, 0.0))
+            if d <= 0.0:
+                continue
+            if len(radii) == 1:
+                tau = sig_t[0] * d
+            else:
+                cb = (R * cf - r_i) / d
+                sb = R * sin_phis[k] / d  # noqa: F841 (kept for symmetry)
+                tau = geometry.optical_depth_along_ray(
+                    r_i, cb, d, radii, sig_t,
+                )
+            mu_s = (R - r_i * cf) / d
+            p_tilde = float(
+                _shifted_legendre_eval(n_mode, np.array([mu_s]))[0]
+            )
+            ki1 = float(ki_n_mp(1, float(tau), dps))
+            total += phi_wts[k] * p_tilde * ki1 / d
+        G[i] = 2.0 * inv_pi * R * total
+    return G
+
+
+def build_white_bc_correction_rank_n(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    n_angular: int = 32,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+    n_bc_modes: int = 1,
+) -> np.ndarray:
+    r"""Rank-:math:`N` Marshak / DP\ :sub:`N-1` white-BC correction.
+
+    .. math::
+
+       K_{\rm bc} \;=\; \sum_{n=0}^{N-1} u_n \otimes v_n,
+       \quad
+       u_n[i] = \frac{\Sigma_t(r_i)\,G_{\rm bc}^{(n)}(r_i)}
+                     {A_d^{\rm divisor}(R)},
+       \quad
+       v_n[j] = (2n+1)\,r_j^{d-1}\,w_j\,P_{\rm esc}^{(n)}(r_j).
+
+    For :math:`n = 0`, :math:`\tilde P_0 \equiv 1` and the
+    corresponding :math:`u_0 \otimes v_0` is **identical** to the
+    existing rank-1 correction built by
+    :func:`build_white_bc_correction` — the :math:`n = 0` contribution
+    is in fact routed through that function to preserve bit-exact
+    regression. For :math:`n \ge 1`, additional rank-1 outer products
+    are accumulated, each capturing one higher Legendre moment of the
+    outgoing surface partial-current distribution.
+
+    See :ref:`theory-peierls-unified` §8 for the mathematical
+    derivation and the Sanchez & McCormick 1982 §III.F.1 reference.
+
+    .. warning::
+
+       **Experimental as of this commit.** The :math:`n = 0` rank-1
+       contribution is bit-exact against the legacy
+       :func:`build_white_bc_correction` (regression-gated by
+       ``tests/derivations/test_peierls_rank_n_bc.py::test_rank1_bit_exact_recovery``).
+       The rank-1 decomposition of :math:`K_{\rm bc}(N) - K_{\rm
+       bc}(N-1)` is also verified to be a rank-1 outer product per
+       mode (``test_rank_n_cross_mode_diagonal``), so the
+       *structural* assembly is correct. However, the *magnitude* of
+       the mode-:math:`n \ge 1` contributions is not yet in the
+       canonical Gelbard DP\ :sub:`N` normalization:
+
+       - **Cylinder** mode-:math:`n`: uses the 2-D projected cosine
+         :math:`\mu_{s,2D} = (R - r_i \cos\phi)/d` as the argument
+         of :math:`\tilde P_n` inside the surface-centred
+         :math:`\mathrm{Ki}_1/d` integrand. The canonical form
+         requires the full 3-D cosine
+         :math:`\mu_{s,3D} = \sin\theta_p \cdot \mu_{s,2D}` with
+         the :math:`\theta_p` integration carried out explicitly
+         (producing higher-order Bickley functions
+         :math:`\mathrm{Ki}_{2+k}`). Using the 2-D projection
+         makes rank-:math:`N` non-monotone in the thin-cell limit.
+       - **Sphere** mode-:math:`n`: shape is directionally correct
+         (mode-1 cuts the thin-cell error roughly in half) but the
+         magnitude is a geometry-dependent factor off from canonical
+         — mode-:math:`n \ge 2` contributions plateau instead of
+         continuing to reduce the error.
+
+       For ``n_bc_modes = 1`` (default) the function is bit-exactly
+       equivalent to :func:`build_white_bc_correction` and is safe
+       to use in production. For ``n_bc_modes > 1`` the solver will
+       run and converge, but the k\ :sub:`eff` ladder will not match
+       the expected Marshak/DP\ :sub:`N` convergence rate.
+
+       Issue **#112** tracks the normalization fix (3-D angular
+       quadrature for cylinder + sphere normalization audit).
+    """
+    if n_bc_modes < 1:
+        raise ValueError(f"n_bc_modes must be >= 1, got {n_bc_modes}")
+
+    # Mode 0: reuse the existing rank-1 closure for bit-exact regression.
+    K = build_white_bc_correction(
+        geometry, r_nodes, r_wts, radii, sig_t,
+        n_angular=n_angular, n_surf_quad=n_surf_quad, dps=dps,
+    )
+    if n_bc_modes == 1:
+        return K
+
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    r_wts = np.asarray(r_wts, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    N = len(r_nodes)
+
+    sig_t_n = np.empty(N)
+    for i, ri in enumerate(r_nodes):
+        sig_t_n[i] = sig_t[geometry.which_annulus(ri, radii)]
+
+    rv = np.array([geometry.radial_volume_weight(rj) for rj in r_nodes])
+    divisor = geometry.rank1_surface_divisor(R)
+
+    for n_mode in range(1, n_bc_modes):
+        P_esc_n = compute_P_esc_mode(
+            geometry, r_nodes, radii, sig_t, n_mode,
+            n_angular=n_angular, dps=dps,
+        )
+        G_bc_n = compute_G_bc_mode(
+            geometry, r_nodes, radii, sig_t, n_mode,
+            n_surf_quad=n_surf_quad, dps=dps,
+        )
+        u_n = sig_t_n * G_bc_n / divisor
+        v_n = (2 * n_mode + 1) * rv * r_wts * P_esc_n
+        K = K + np.outer(u_n, v_n)
+    return K
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # Unified solution container + eigenvalue driver
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -777,6 +1065,7 @@ def solve_peierls_1g(
     dps: int = 25,
     max_iter: int = 300,
     tol: float = 1e-10,
+    n_bc_modes: int = 1,
 ) -> PeierlsSolution:
     r"""Unified 1-group Peierls eigenvalue driver for curvilinear geometry.
 
@@ -807,9 +1096,10 @@ def solve_peierls_1g(
     )
 
     if boundary == "white":
-        K_bc = build_white_bc_correction(
+        K_bc = build_white_bc_correction_rank_n(
             geometry, r_nodes, r_wts, radii, sig_t,
             n_angular=n_angular, n_surf_quad=n_surf_quad, dps=dps,
+            n_bc_modes=n_bc_modes,
         )
         K = K + K_bc
     elif boundary != "vacuum":

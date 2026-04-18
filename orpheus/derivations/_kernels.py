@@ -336,3 +336,64 @@ def e_n_at_zero(n: int) -> float:
     if n <= 1:
         raise ValueError(f"E_n(0) requires n > 1 (E_1 diverges), got {n}")
     return 1.0 / (n - 1)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Shifted Legendre polynomials (Gelbard DP_N half-range basis)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _shifted_legendre_eval(n: int, mu: np.ndarray) -> np.ndarray:
+    r"""Evaluate the shifted Legendre polynomial :math:`\tilde P_n(\mu)
+    = P_n(2\mu - 1)` on :math:`\mu \in [0, 1]`.
+
+    This is the Gelbard half-range / double-P\ :sub:`N` basis used by
+    the rank-N Marshak white-boundary closure for the pointwise Peierls
+    Nyström operator (see :ref:`theory-peierls-unified` §8 and Sanchez
+    & McCormick 1982 §III.F.1 Eqs. 165–169). The orthogonality relation
+
+    .. math::
+
+       \int_0^1 \tilde P_n(\mu)\,\tilde P_m(\mu)\,\mathrm d\mu
+         \;=\; \frac{\delta_{nm}}{2n+1}
+
+    is the reason this specific rescaling is preferred over the Case–
+    Zweifel half-range polynomials (which carry a material-dependent
+    weight) for CP / Peierls work.
+
+    Evaluated via the three-term Bonnet recurrence
+
+    .. math::
+
+       (k+1)\,P_{k+1}(x) = (2k+1)\,x\,P_k(x) - k\,P_{k-1}(x),
+       \qquad P_0 = 1,\; P_1 = x,
+
+    on the affine-transformed argument :math:`x = 2\mu - 1 \in [-1, 1]`.
+    This is stable for all :math:`n \lesssim 100` in double precision,
+    far beyond the :math:`n \le 8` range of practical rank-N closures.
+
+    Parameters
+    ----------
+    n : int
+        Polynomial order, :math:`n \ge 0`.
+    mu : np.ndarray
+        Evaluation points, assumed to lie in :math:`[0, 1]`.
+
+    Returns
+    -------
+    np.ndarray
+        :math:`\tilde P_n(\mu)` at each input point, same shape as ``mu``.
+    """
+    if n < 0:
+        raise ValueError(f"n must be non-negative, got {n}")
+    mu = np.asarray(mu, dtype=float)
+    x = 2.0 * mu - 1.0
+    if n == 0:
+        return np.ones_like(x)
+    if n == 1:
+        return x
+    P_km1 = np.ones_like(x)
+    P_k = x
+    for k in range(1, n):
+        P_kp1 = ((2 * k + 1) * x * P_k - k * P_km1) / (k + 1)
+        P_km1, P_k = P_k, P_kp1
+    return P_k

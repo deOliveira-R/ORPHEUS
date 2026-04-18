@@ -1384,6 +1384,96 @@ angular decomposition — but they apply **equally** to cylinder
 and sphere. Neither is a sphere-specific blocker.
 
 
+Rank-N (Marshak / Gelbard DP\ :sub:`N-1`) skeleton — WIP
+--------------------------------------------------------
+
+A rank-:math:`N` extension to the white-BC closure is under
+construction at
+:func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction_rank_n`.
+The canonical form (Sanchez & McCormick 1982 §III.F.1
+Eqs. 165–169; Gelbard 1968; Stepanek 1981) expands the half-range
+surface angular flux in shifted Legendre polynomials
+:math:`\tilde P_n(\mu_s) = P_n(2\mu_s - 1)` on
+:math:`\mu_s \in [0, 1]` (inward hemisphere, orthogonality
+:math:`\int_0^1 \tilde P_n \tilde P_m \,\mathrm d\mu =
+\delta_{nm}/(2n+1)`), and imposes the Marshak per-mode equality
+:math:`J^{-}_n = J^{+}_n` for :math:`n = 0, \ldots, N-1`. The
+assembled correction is a sum of rank-1 outer products,
+
+.. math::
+   :label: peierls-rank-n-bc-closure
+
+   K_{\rm bc} \;=\; \sum_{n=0}^{N-1} u_n \otimes v_n,
+   \qquad
+   u_n[i] = \frac{\Sigma_t(r_i)\,G_{\rm bc}^{(n)}(r_i)}{A_d},
+   \qquad
+   v_n[j] = (2n+1)\,r_j^{d-1}\,w_j\,P_{\rm esc}^{(n)}(r_j),
+
+with :math:`P_{\rm esc}^{(n)}` and :math:`G_{\rm bc}^{(n)}` the
+mode-:math:`n` Legendre-weighted versions of the rank-1
+primitives. For :math:`n = 0`, :math:`\tilde P_0 \equiv 1` and
+the mode-0 contribution is routed through the existing rank-1
+:func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction`,
+preserving bit-exact regression at
+``rtol = 1e-14`` (gated by
+``tests/derivations/test_peierls_rank_n_bc.py::test_rank1_bit_exact_recovery``).
+The rank-1 **structural** decomposition
+:math:`K_{\rm bc}(N) - K_{\rm bc}(N-1) = u_{N-1} \otimes v_{N-1}`
+is also verified (``test_rank_n_cross_mode_diagonal``): each
+successive rank increment is a single rank-1 outer product, which
+is the content of Sanchez & McCormick's Eq. (167) reciprocity
+after rotational symmetry collapses the surface-to-surface
+mode-index matrix to diagonal.
+
+**Current limitation** (Issue #112). The mode-:math:`n \ge 1`
+*magnitudes* are geometry-dependent off from canonical:
+
+- **Cylinder**: the current implementation weights the existing
+  surface-centred :math:`\mathrm{Ki}_1/d` integrand by
+  :math:`\tilde P_n(|\mu_{s,2D}|)` where
+  :math:`|\mu_{s,2D}| = (R - r_i \cos\phi)/d` is the 2-D
+  projected cosine. The canonical closure requires the 3-D
+  cosine :math:`\mu_{s,3D} = \sin\theta_p \cdot \mu_{s,2D}` with
+  the :math:`\theta_p` integration carried out *inside* the
+  :math:`\tilde P_n`-weighted integrand (producing higher-order
+  Bickley functions :math:`\mathrm{Ki}_{2+k}` per Knyazev 1993).
+  The 2-D projection is exact for :math:`n = 0` (trivially
+  :math:`\tilde P_0 \equiv 1`) but diverges from the 3-D
+  canonical for :math:`n \ge 1`, making rank-:math:`N`
+  non-monotone at thin :math:`R`. Thick-cell k\ :sub:`eff`
+  drifts by 1–10 % for :math:`N \ge 2` at :math:`R = 10` MFP
+  because the mode-:math:`n \ge 1` contributions are persistently
+  O(0.2–0.6) of mode-0 magnitude rather than decaying as
+  Lambertian predicts.
+
+- **Sphere**: mode-1 is directionally correct (27 % → 15 %
+  thin-cell error, mode magnitudes match Lambertian asymptotics
+  ``|v_2 / v_0| ≈ 0.04``), but the convergence ladder plateaus at
+  mode 2 rather than continuing. The current hypothesis is that
+  the :math:`(2n+1)` factor sits on the wrong side of the u/v
+  split, or an additional cosine weight is absorbed by the
+  Gelbard basis that the naive transcription is missing. Sphere
+  thick-cell also drifts by ~7 % at :math:`N = 2` for the same
+  magnitude issue.
+
+**Until Issue #112 lands** the 3-D cylinder quadrature and
+sphere normalization audit, the function is safe at the default
+``n_bc_modes = 1`` (byte-identical to the legacy
+:func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction`).
+Convergence-ladder tests
+(``test_rank_n_row_sum_improves_thin_cell_*``,
+``test_rank_n_thick_cell_unchanged``,
+``test_rank_n_sphere_thin_cell_convergence``) carry ``xfail``
+markers with diagnostic reasons referencing Issue #112 — they
+flip to pass automatically when the fix lands.
+
+The :func:`~orpheus.derivations._kernels._shifted_legendre_eval`
+utility (orthonormality and known-value tests in the same file)
+is verified-correct and is the basis building block both the
+Cylinder 3-D quadrature and the sphere normalization audit will
+reuse unchanged.
+
+
 Section 9 — Test-bed evidence from Phase 4.2 (cylinder)
 ========================================================
 
