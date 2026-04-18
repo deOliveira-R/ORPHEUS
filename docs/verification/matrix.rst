@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **741**
+Total tests collected: **787**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 406, 54.8%
-   L1, 210, 28.3%
-   L2, 36, 4.9%
+   L0, 452, 57.4%
+   L1, 210, 26.7%
+   L2, 36, 4.6%
    L3, 0, 0.0%
-   foundation, 78, 10.5%
-   unmarked, 11, 1.5%
+   foundation, 78, 9.9%
+   unmarked, 11, 1.4%
 
 Tagging source
 --------------
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 651
+   explicit, 697
    verify, 0
    class-name, 46
    func-name, 0
@@ -57,6 +57,7 @@ Module × level grid
    cp/test_verification, 1, 25, 5, 0, 0, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
+   derivations/test_cp_geometry, 46, 0, 0, 0, 0, 0
    derivations/test_kernels, 67, 0, 0, 0, 0, 0
    derivations/test_peierls_convergence, 5, 0, 0, 0, 0, 0
    derivations/test_peierls_cylinder_eigenvalue, 3, 5, 0, 0, 0, 0
@@ -125,13 +126,13 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``alpha-cylindrical``, 74
    ``mm-weights``, 74
    ``multigroup``, 65
-   ``ki3-def``, 52
+   ``ki3-def``, 61
+   ``e3-def``, 58
    ``self-slab``, 52
    ``balance-general``, 51
    ``chord-length``, 51
    ``self-cyl``, 51
    ``p-inf``, 50
-   ``e3-def``, 49
    ``flux-moments``, 49
    ``self-sph``, 49
    ``attenuation``, 48
@@ -139,6 +140,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``scalar-flux-integral``, 48
    ``wigner-seitz``, 46
    ``peierls-unified``, 39
+   ``cp-kernel-differential-identities``, 36
    ``keff-mean``, 33
    ``sigma-keff``, 33
    ``flat-source``, 32
@@ -157,16 +159,22 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``self-double-integral``, 31
    ``surface-to-region``, 31
    ``surface-to-surface``, 31
+   ``dd-slab``, 30
    ``chi-sampling``, 28
    ``decompose``, 28
    ``scattering-cdf``, 28
+   ``cp-flat-source-derivation``, 27
+   ``cp-flat-source-double-integral``, 27
+   ``cp-unified-outer-integration``, 27
    ``transport-spherical``, 27
    ``transport-cylindrical``, 26
    ``azimuthal-angles``, 24
+   ``dc-slab``, 24
+   ``second-diff-cyl``, 24
+   ``second-diff-sph``, 24
    ``effective-spacing``, 22
    ``pitch-recovery``, 22
    ``ray-circle``, 22
-   ``dd-slab``, 21
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
    ``dd-cartesian-1d``, 17
@@ -176,10 +184,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``roulette-conservation``, 16
    ``roulette-prob``, 16
    ``transport-cartesian``, 16
-   ``dc-slab``, 15
-   ``second-diff-cyl``, 15
    ``second-diff-general``, 15
-   ``second-diff-sph``, 15
    ``complementarity``, 12
    ``kin-bickley-legacy-convention``, 12
    ``kinf-1g``, 12
@@ -201,6 +206,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``bare-slab-buckling``, 8
    ``bare-slab-critical-equation``, 8
    ``bare-slab-eigenfunction``, 8
+   ``cp-inner-integral-antiderivative``, 8
    ``diffusion-M-matrix``, 8
    ``diffusion-back-substitution``, 8
    ``diffusion-coefficient``, 8
@@ -218,6 +224,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``boyd-eq-45``, 6
    ``characteristic-ode``, 6
    ``kin-kernel-special-values``, 6
+   ``cp-outer-integral-antiderivative``, 5
    ``en-kernel-special-values``, 5
    ``xs-interp``, 5
    ``absorption-xs``, 4
@@ -232,6 +239,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``transport-cartesian-2d``, 4
    ``two-group-charpoly``, 4
    ``two-group-roots``, 4
+   ``cp-escape-from-p-cell``, 3
    ``delta-psi``, 3
    ``hetero-tolerance``, 3
    ``isotropic-source``, 3
@@ -241,6 +249,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``moc-wigner-seitz``, 3
    ``number-density``, 3
    ``sigma-zero``, 3
+   ``cp-second-difference-operator``, 2
    ``richardson-diffusion``, 2
    ``roulette-restore``, 2
    ``sn-case-back-substitution``, 2
@@ -285,7 +294,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **55** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **47** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bickley-integral``
 - ``boltzmann``
@@ -296,14 +305,6 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``coolant-energy``
 - ``coolant-feedback``
 - ``coolant-rate``
-- ``cp-escape-from-p-cell``
-- ``cp-flat-source-derivation``
-- ``cp-flat-source-double-integral``
-- ``cp-inner-integral-antiderivative``
-- ``cp-kernel-differential-identities``
-- ``cp-outer-integral-antiderivative``
-- ``cp-second-difference-operator``
-- ``cp-unified-outer-integration``
 - ``creep-rate``
 - ``doppler-feedback``
 - ``fb-bc4-displacement``

@@ -1674,7 +1674,7 @@ The ladder can be stated compactly as the differential identities
    E_n'(\tau) \;=\; -E_{n-1}(\tau),\qquad
    \mathrm{Ki}_n'(\tau) \;=\; -\mathrm{Ki}_{n-1}(\tau),
 
-.. vv-status: cp-kernel-differential-identities documented
+.. vv-status: cp-kernel-differential-identities tested
 
 valid for all :math:`n \ge 1` (A&S 5.1.26 and 11.2.11). These
 identities are already implemented as
@@ -1780,7 +1780,7 @@ produced by :math:`V_j` is
      \;=\; \int_{V_i}\!\mathrm dV \int_{V_j}\!\mathrm dV'\,
            G_d\bigl(|\mathbf r - \mathbf r'|\bigr)\,q_j,
 
-.. vv-status: cp-flat-source-double-integral documented
+.. vv-status: cp-flat-source-double-integral tested
 
 where :math:`G_d` is the Level-1 kernel already pre-integrated against
 the symmetry directions of the geometry
@@ -1837,7 +1837,7 @@ regions' chord intersections. With :math:`u = (\tau_j - s) + g + t`:
         \;=\; \int_{g+t}^{\tau_j + g + t}\! F_1(u)\,\mathrm du
         \;=\; \hat F_1\bigl(\tau_j + g + t\bigr) - \hat F_1\bigl(g + t\bigr),
 
-.. vv-status: cp-inner-integral-antiderivative documented
+.. vv-status: cp-inner-integral-antiderivative tested
 
 where :math:`F_1` is the **Level-1 chord kernel** — the one-argument
 function of optical path that results from the symmetry integrations
@@ -1882,7 +1882,7 @@ position :math:`t \in [0, \tau_i]`:
      \;=\; \int_{0}^{\tau_i}\!\Bigl[\hat F_1(\tau_j + g + t)
                                - \hat F_1(g + t)\Bigr]\mathrm dt.
 
-.. vv-status: cp-outer-integral-antiderivative documented
+.. vv-status: cp-outer-integral-antiderivative tested
 
 Substituting :math:`\hat F_1 = -F_2` (with :math:`F_2` the Level-2
 kernel) and integrating once more gives :math:`\hat F_2 = F_3`,
@@ -1895,7 +1895,7 @@ the Level-3 kernel:
      \;=\; F_3(g) - F_3(g + \tau_i) - F_3(g + \tau_j)
              + F_3(g + \tau_i + \tau_j),
 
-.. vv-status: cp-flat-source-derivation documented
+.. vv-status: cp-flat-source-derivation tested
 
 where the superscript :math:`(y)` reminds us that this is the
 contribution to :math:`\text{rcp}_{ij}` from one chord at impact
@@ -1921,7 +1921,7 @@ flat-source CP. Factor it out as an **operator**:
      \;-\; \mathcal F(\mathrm{gap}+\tau_j)
      \;+\; \mathcal F(\mathrm{gap}+\tau_i+\tau_j).
 
-.. vv-status: cp-second-difference-operator documented
+.. vv-status: cp-second-difference-operator tested
 
 This is nothing more than the second finite difference of
 :math:`\mathcal F` on the rectangular grid
@@ -2056,7 +2056,7 @@ Concretely:
         & d = 3 \text{ (sphere)},
    \end{cases}
 
-.. vv-status: cp-unified-outer-integration documented
+.. vv-status: cp-unified-outer-integration tested
 
 where "SS" and "TC" are the **same-side** and **through-centre**
 chord branches documented at :eq:`tau-m`, :eq:`tau-p`,
@@ -2406,7 +2406,7 @@ value but extracted from the CP matrix itself:
      \;=\; 1 - \sum_{j} P_{ij}^{\rm cell}
      \;=\; 1 - \frac{1}{\Sigma_{t,i}\,V_i}\sum_{j}\text{rcp}_{ij}^{\rm cell},
 
-.. vv-status: cp-escape-from-p-cell documented
+.. vv-status: cp-escape-from-p-cell tested
 
 which is the code line ``P_out = np.maximum(1.0 - P_cell.sum(axis=1),
 0.0)`` in all three CP derivation modules. The two routes agree at

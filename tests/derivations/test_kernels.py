@@ -64,7 +64,7 @@ def test_en_closed_form_at_zero(n: int, expected: float):
 
 
 @pytest.mark.l0
-@pytest.mark.verifies("en-kernel-derivative")
+@pytest.mark.verifies("en-kernel-derivative", "cp-kernel-differential-identities")
 @pytest.mark.parametrize("n", [2, 3, 4, 5])
 @pytest.mark.parametrize("x", [0.1, 0.5, 1.0, 2.5, 5.0])
 def test_en_derivative_identity(n: int, x: float):
@@ -130,7 +130,7 @@ def test_kin_closed_form_at_zero(n: int, expected: float):
 
 
 @pytest.mark.l0
-@pytest.mark.verifies("kin-kernel-derivative")
+@pytest.mark.verifies("kin-kernel-derivative", "cp-kernel-differential-identities")
 @pytest.mark.parametrize("n", [2, 3, 4, 5])
 @pytest.mark.parametrize("x", [0.3, 1.0, 2.5, 5.0])
 def test_kin_derivative_identity(n: int, x: float):
