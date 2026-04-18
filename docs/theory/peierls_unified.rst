@@ -4457,81 +4457,246 @@ bases throughout reduced-order modelling; see for example
 [Atkinson1997]_ §6 on projection methods for integral equations.
 
 
-Section 29 — Reinterpretation of Phases A and C (Issue #112)
-============================================================
+Section 29 — Phases A and C: canonical Marshak investigated, deferred
+=====================================================================
 
-With the factored :math:`K_{\rm bc} = G R P` picture in hand, the
-remaining work in Issue #112 becomes trivially localised.
+The factored :math:`K_{\rm bc} = G\,R\,P` picture suggests that the
+remaining work in Issue #112 should localise cleanly: Phase A (sphere
+plateau) as a change of basis in :math:`A`, Phase C (cylinder
+divergence) as rebuilding :math:`P` and :math:`G` in a shared 3-D
+frame. A 2026-04-18 empirical investigation (diagnostics
+``diag_rank_n_{09,10,11,12}_*.py``, summarised in
+``diag_rank_n_13_phaseAC_summary.md``) tested four canonical variants
+against the current V1 implementation and found that none of the
+natural "elegant" rewrites improve the convergence uniformly. The
+investigation's results matter more than its failure, so they are
+preserved here.
 
-Phase A (sphere plateau)
-------------------------
+The continuous derivation
+-------------------------
 
-Empirically, the sphere rank-:math:`N` closure converges to the
-canonical DP\ :sub:`1` result at :math:`N = 2` but then **plateaus** at
-:math:`\sim 2.5\,\%` error — modes :math:`n \ge 2` contribute almost
-nothing because the shifted-Legendre :math:`\tilde P_n(\mu)` basis is
-orthogonal with respect to the **unit-weight** inner product
-:math:`\int_0^1 \tilde P_n \tilde P_m\,\mathrm d\mu`, but the canonical
-DP\ :sub:`N` partial-current moments are cosine-weighted
-:math:`\int_0^1 \mu\,\tilde P_n \psi\,\mathrm d\mu`.
-
-In the tensor language: **our choice of basis for** :math:`A` **is
-sub-optimal at higher modes**. The Gelbard basis spans the right
-function space but is orthogonal under the wrong inner product for
-the partial-current closure.
-
-**Phase A is a change of basis in** :math:`A`. Replace
-:math:`\tilde P_n(\mu)` by the cosine-weighted shifted Legendre
-:math:`\tilde Q_n(\mu)` satisfying
+At the continuous level, the Marshak closure
+:math:`J^{-}_n = J^{+}_n` with cosine-weighted moments
 
 .. math::
 
-   \int_0^1 \mu\,\tilde Q_n(\mu)\,\tilde Q_m(\mu)\,\mathrm d\mu
-   \;=\; \frac{\delta_{nm}}{2n + 1}.
+   J_n \;=\; \int_0^1 \mu\,\tilde P_n(\mu)\,\psi(\mu)\,\mathrm d\mu
 
-This leaves the tensor network structure **unchanged** — only the
-integrand of :math:`P` and :math:`G` is modified (multiply the
-:math:`\tilde P_n` evaluations by the Christoffel-Darboux-type weight
-that orthogonalises against :math:`\mu\,\mathrm d\mu`), and the
-:math:`(2n+1)` in :math:`R` is replaced by the new normalisation.
-Calibration against [Stepanek1981]_ slab DP\ :sub:`N` tables anchors
-the normalisation constants.
+expands as
 
-Phase C (cylinder 3-D quadrature)
----------------------------------
+.. math::
 
-The cylinder's :math:`P` (via :func:`compute_P_esc_mode`) uses the
-observer-centred :math:`\beta`-integral with an **implicit** polar
-integration (the :math:`\mathrm{Ki}_2` kernel absorbs the
-:math:`\theta_p` integration analytically). The cylinder's :math:`G`
-(via :func:`compute_G_bc_mode`) uses a **different** form — the
-surface-centred :math:`\mathrm{Ki}_1/d` integrand with an **explicit**
-:math:`\phi`-integration. For :math:`n = 0` the two forms agree by
-rotational symmetry; for :math:`n \ge 1` they project :math:`\tilde P_n`
-onto different angular coordinates, producing inconsistent moments.
+   J_n \;=\; \sum_m \alpha_m\,B_{nm}, \qquad
+   B_{nm} \;=\; \int_0^1 \mu\,\tilde P_n(\mu)\,\tilde P_m(\mu)\,
+                \mathrm d\mu,
 
-**Phase C is rebuilding** :math:`P` **and** :math:`G` **in a shared
-3-D observer-centred frame**. Both tensors use explicit
-:math:`(\beta, \theta_p)` double integration; the
-:math:`\tilde P_n(\sin\theta_p \cdot \mu_{s,2D})` weighting is carried
-inside the :math:`\theta_p` quadrature, producing higher-order Bickley
-functions :math:`\mathrm{Ki}_{2+k}` per the analytic polynomial
-expansion ([Knyazev1993]_ exploits this for linearly anisotropic
-scattering). Again :math:`R` is unchanged; only the integrands that
-define :math:`P` and :math:`G` move.
+where :math:`\alpha_m` are the coefficients of :math:`\psi =
+\sum_m \alpha_m \tilde P_m`. Marshak is therefore equivalent (within
+rank :math:`N`, for invertible :math:`B^{(N)}`) to the coefficient-space
+closure :math:`\alpha^-_m = \alpha^+_m`. Translating to our factored
+form
 
-A common refactor
+.. math::
+
+   K_{\mathrm{bc}} \;=\; G\,B^{-1}\,P_{\rm moment},
+
+where :math:`P_{\rm moment}` represents the cosine-weighted moment
+:math:`J^{+}_m(r_j)`. This identifies **three candidate rewrites**:
+
+1. **Mode-0 convention**: use the canonical cosine-weighted moment for
+   mode 0 as well as for :math:`n \ge 1` (instead of the legacy
+   isotropic-source escape probability).
+2. **Reflection operator**: replace :math:`R = \mathrm{diag}(2n+1)`
+   with :math:`R = B^{-1}`.
+3. **Integrand form**: use :math:`\mu_{\rm exit}` as the explicit
+   cosine weight in the integrand, rather than the :math:`(\rho_{\max}
+   /R)^2` surface-to-observer Jacobian.
+
+All three adjustments look "more canonical" from the derivation and
+each suggests itself as the Phase A / C fix. They are tested
+empirically as variants V2, V4, V6 below.
+
+Empirical variant scan
+----------------------
+
+Bare homogeneous 1G 1-region white-BC eigenvalue
+(:math:`\Sigma_t = 1`, :math:`\Sigma_s = 0.5`,
+:math:`\nu\Sigma_f = 0.75`, :math:`k_\infty = 1.5`):
+
+.. list-table:: Sphere :math:`k_{\rm eff}` error vs rank :math:`N`
+   :header-rows: 1
+   :widths: 10 14 14 14 14 14 14 14
+
+   * - Variant
+     - Description
+     - R=1 N=1
+     - R=1 N=2
+     - R=1 N=3
+     - R=1 N=8
+     - R=10 N=1
+     - R=10 N=8
+   * - V1
+     - Current (shipped)
+     - 27 %
+     - **1.2 %**
+     - 2.3 %
+     - 2.5 %
+     - 0.28 %
+     - 0.17 %
+   * - V2
+     - Jacobian mode 0, :math:`R=\mathrm{diag}(2n+1)`
+     - 50 %
+     - 29 %
+     - 25 %
+     - 24 %
+     - 5.3 %
+     - 5.2 %
+   * - V4
+     - Jacobian mode 0, :math:`R=B^{-1}`
+     - 29 %
+     - 16 %
+     - 15 %
+     - 15 %
+     - 5.2 %
+     - 5.2 %
+   * - V6
+     - Cosine-:math:`\mu` integrand, :math:`R=B^{-1}`
+     - **1.1 %**
+     - 19 %
+     - 19 %
+     - 19 %
+     - 6.3 %
+     - 6.9 %
+
+.. list-table:: Cylinder :math:`k_{\rm eff}` error vs rank :math:`N`
+   :header-rows: 1
+   :widths: 10 14 14 14 14 14 14 14
+
+   * - Variant
+     - Description
+     - R=1 N=1
+     - R=1 N=2
+     - R=1 N=3
+     - R=1 N=8
+     - R=10 N=1
+     - R=10 N=8
+   * - V1
+     - Current (shipped)
+     - 21 %
+     - 8.3 %
+     - 27 %
+     - 107 %
+     - 1.1 %
+     - 0.9 %
+   * - V2
+     - Jacobian mode 0, :math:`R=\mathrm{diag}(2n+1)`
+     - 41 %
+     - 17 %
+     - **0.45 %**
+     - 65 %
+     - —
+     - —
+   * - V4
+     - Jacobian mode 0, :math:`R=B^{-1}`
+     - 23 %
+     - 2.6 %
+     - 13 %
+     - 78 %
+     - —
+     - —
+
+Observations
+------------
+
+1. **V1 is empirically the best overall**. Sphere converges to a
+   :math:`\sim 2.5\,\%` plateau at thin :math:`R`; thick cells are
+   sub-percent. Cylinder rank-1 matches legacy Mark accurately.
+
+2. **V2 cylinder at rank-3 R=1 MFP hits the canonical DP_2
+   prediction** (:math:`0.45\,\%`). This *proves* that the factored
+   structure :math:`G R P` is capable of canonical rank-:math:`N`
+   convergence — but only at the cost of a **degraded rank-1**
+   convention (41 % error at rank 1).
+
+3. **V6's cosine-integrand rank-1 is accidentally good for sphere at
+   R=1** (1.1 %) but its rank-:math:`N` never improves. The rank-1
+   match is a geometric coincidence at thin :math:`R` where
+   :math:`\mu_{\rm exit} \approx 1` for most rays, not a canonical
+   result.
+
+4. **Changing** :math:`R` **from** :math:`\mathrm{diag}(2n+1)` **to**
+   :math:`B^{-1}` **does not rescue** a degraded mode-0 convention.
+   V4 improves sphere from 24 % plateau (V2) to 15 % plateau — a
+   marginal cosmetic change on a badly-conditioned rank-1.
+
+What this teaches
 -----------------
 
-Both phases share the same principle: **work in the Gelbard-plus-cosine
-inner product on a common 3-D angular frame**. The implementation
-change is concentrated in
-:func:`~orpheus.derivations.peierls_geometry.compute_P_esc_mode` and
-:func:`~orpheus.derivations.peierls_geometry.compute_G_bc_mode`. The
-rest of the architecture —
-:class:`~orpheus.derivations.peierls_geometry.BoundaryClosureOperator`,
-the reflection-operator constructors, the solver loop — does not move.
-This is the structural payoff: the fix now fits in two functions.
+The investigation reveals a **conceptual entanglement**:
+
+- The legacy mode-0 convention (isotropic-source escape probability,
+  no Jacobian, paired with :math:`R_{00} = 1`) is *not* the canonical
+  partial-current moment. It happens to give the Mark rank-1 answer
+  that ORPHEUS has treated as the baseline.
+- The canonical mode-0 convention (cosine-weighted moment with
+  :math:`(\rho_{\max}/R)^2` Jacobian or explicit :math:`\mu_{\rm
+  exit}` weight) gives a *different* rank-1 result — one that,
+  without calibration, is further from :math:`k_\infty` than the Mark
+  answer for this particular test problem.
+- The mode-:math:`n \ge 1` corrections that worked in V1 (with the
+  Jacobian factor) *were empirically tuned to the legacy mode 0*,
+  not to a canonical basis.
+- No combination of reflection operator :math:`R` and integrand
+  redefinition has produced uniform convergence across
+  :math:`(R, N)`.
+
+The canonical DP_N convergence is **available** (V2's cylinder
+rank-3 at R=1: 0.45 %) but only with a mode-0 convention that the
+downstream ORPHEUS tests assume. Reconciling the two is the real
+Phase A / C fix, and it is **not a one-line integrand swap**.
+
+A principled path forward
+-------------------------
+
+The canonical resolution requires **calibration against a published
+reference**. Stepanek 1981 ([Stepanek1981]_) provides the slab
+DP\ :sub:`N` :math:`k_{\rm eff}` tables at Marshak rank 0, 1, 2 for a
+range of :math:`R/\mathrm{MFP}`, with the canonical expansion and
+closure conventions fixed. Calibrating a new ORPHEUS
+``compute_P_esc_mode_canonical`` / ``compute_G_bc_mode_canonical``
+pair against the slab DP\ :sub:`N` tables determines the correct
+mode-0 normalisation and reveals whether the subsequent extension to
+sphere / cylinder needs extra geometry factors. This is a
+multi-session effort: (i) implement Stepanek slab DP\ :sub:`N`, (ii)
+port the normalisation to sphere, (iii) port to cylinder with
+Knyazev's :math:`\mathrm{Ki}_{2+k}` polynomial expansion.
+
+Deferred work
+-------------
+
+**Phase A** (sphere plateau at :math:`\sim 2.5\,\%` for thin R):
+**deferred**. No simple fix identified in the 2026-04-18 investigation.
+Phase-A-true needs Stepanek slab calibration as the anchor.
+
+**Phase C** (cylinder divergence at :math:`N \ge 3`): **deferred**
+for the same reason. The :math:`\mathrm{Ki}_{2+k}` polynomial
+expansion infrastructure from [Knyazev1993]_ is theoretically ready
+(the polar-angle integration of
+:math:`\tilde P_n(\sin\theta_p \cdot \mu_{s,2D})` against
+:math:`\exp(-\tau/\sin\theta_p)` produces exactly this series) but
+requires the calibrated mode-0 convention to attach to.
+
+**V1 remains the shipped implementation.** Its sphere plateau is
+documented as a theoretical ceiling of the mixed-convention rank-N
+closure; its cylinder divergence at high N is documented as a known
+limitation. The factored :class:`~orpheus.derivations.peierls_geometry.BoundaryClosureOperator`
+architecture makes both fixes *localised* to two integrand functions
+once the correct conventions are found — a structural payoff that
+survives the empirical setback.
+
+The diagnostic scripts ``diag_rank_n_{09-12}_*.py`` and the summary
+``diag_rank_n_13_phaseAC_summary.md`` preserve the variant data for
+the next investigator who resumes this work.
 
 
 Section 30 — The ``BoundaryClosureOperator`` dataclass
