@@ -586,18 +586,151 @@ def composite_gl_r(
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Solution container (stub — full implementation lands with C3)
+# 1G eigenvalue solver (vacuum BC)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _which_annulus(r: float, radii: np.ndarray) -> int:
+    """Index of the annulus containing ``r`` (outer-biased for r on a
+    panel boundary; matches :func:`build_volume_kernel`'s own lookup)."""
+    k = len(radii) - 1
+    for kk, r_k in enumerate(radii):
+        if r < r_k:
+            return kk
+    return k
+
+
+def solve_peierls_cylinder_1g_vacuum(
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    sig_s: np.ndarray,
+    nu_sig_f: np.ndarray,
+    *,
+    n_panels_per_region: int = 2,
+    p_order: int = 5,
+    n_beta: int = 24,
+    n_rho: int = 24,
+    dps: int = 25,
+    max_iter: int = 300,
+    tol: float = 1e-10,
+) -> PeierlsCylinderSolution:
+    r"""Solve the 1-group cylindrical Peierls k-eigenvalue problem with
+    **vacuum** boundary conditions.
+
+    The equation
+
+    .. math::
+
+       \Sigma_{t,i}\,\varphi_i
+         \;=\; \sum_j K_{ij}\bigl(\Sigma_{s,j}\,\varphi_j
+                                 + \tfrac{1}{k}\nu\Sigma_{f,j}\,\varphi_j\bigr)
+
+    is recast as the generalised eigenvalue problem
+    :math:`\tilde A\,\varphi = (1/k)\,\tilde B\,\varphi` with
+    :math:`\tilde A_{ij} = \delta_{ij}\,\Sigma_{t,i} - K_{ij}\,\Sigma_{s,j}`
+    and :math:`\tilde B_{ij} = K_{ij}\,\nu\Sigma_{f,j}`. Dominant
+    eigenvalue via fission-source power iteration (mirrors
+    :func:`orpheus.derivations.peierls_slab.solve_peierls_eigenvalue`).
+
+    Parameters
+    ----------
+    radii : np.ndarray, shape (N_reg,)
+        Outer radii of annular regions.
+    sig_t, sig_s, nu_sig_f : np.ndarray, shape (N_reg,)
+        Single-group cross-sections per region.
+    n_panels_per_region, p_order : int
+        Composite-GL radial mesh controls.
+    n_beta, n_rho : int
+        Quadrature orders for the :math:`(\beta, \rho)` polar
+        integration in :func:`build_volume_kernel`.
+    dps : int
+        mpmath working precision for Ki₁.
+
+    Returns
+    -------
+    PeierlsCylinderSolution
+
+    Notes
+    -----
+    The critical-cylinder verification target is Sanchez-McCormick
+    1982 Table IV: :math:`\Sigma_t = 1\,{\rm cm}^{-1}`,
+    :math:`(\Sigma_s + \nu\Sigma_f)/\Sigma_t = 1.5`,
+    :math:`R = 1.9798\,{\rm cm}` gives :math:`k_{\rm eff} = 1.0`.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    sig_s = np.asarray(sig_s, dtype=float)
+    nu_sig_f = np.asarray(nu_sig_f, dtype=float)
+
+    r_nodes, r_wts, panels = composite_gl_r(
+        radii, n_panels_per_region, p_order, dps=dps,
+    )
+    K = build_volume_kernel(
+        r_nodes, panels, radii, sig_t, n_beta=n_beta, n_rho=n_rho, dps=dps,
+    )
+
+    # Per-node cross-sections
+    N = len(r_nodes)
+    sig_t_n = np.empty(N)
+    sig_s_n = np.empty(N)
+    nu_sig_f_n = np.empty(N)
+    for i, ri in enumerate(r_nodes):
+        ki = _which_annulus(ri, radii)
+        sig_t_n[i] = sig_t[ki]
+        sig_s_n[i] = sig_s[ki]
+        nu_sig_f_n[i] = nu_sig_f[ki]
+
+    # A = diag(Σ_t) - K · diag(Σ_s)
+    A = np.diag(sig_t_n) - K * sig_s_n[np.newaxis, :]
+    # B = K · diag(νΣ_f)
+    B = K * nu_sig_f_n[np.newaxis, :]
+
+    # Power iteration: A φ = (1/k) B φ
+    phi = np.ones(N)
+    k_val = 1.0
+    B_phi = B @ phi
+    prod_old = np.abs(B_phi).sum()
+
+    for it in range(max_iter):
+        q = B_phi / k_val
+        phi_new = np.linalg.solve(A, q)
+        B_phi_new = B @ phi_new
+        prod_new = np.abs(B_phi_new).sum()
+        k_new = k_val * prod_new / prod_old if prod_old > 0 else k_val
+
+        nrm = np.abs(phi_new).sum()
+        if nrm > 0:
+            phi_new = phi_new / nrm
+        B_phi_norm = B @ phi_new
+        prod_norm = np.abs(B_phi_norm).sum()
+
+        converged = abs(k_new - k_val) < tol and it > 5
+        phi, k_val = phi_new, k_new
+        B_phi, prod_old = B_phi_norm, prod_norm
+        if converged:
+            break
+
+    return PeierlsCylinderSolution(
+        r_nodes=r_nodes,
+        phi_values=phi[:, np.newaxis],
+        k_eff=float(k_val),
+        cell_radius=float(radii[-1]),
+        n_groups=1,
+        n_quad_r=N,
+        n_quad_y=n_beta * n_rho,
+        precision_digits=dps,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Solution container
 # ═══════════════════════════════════════════════════════════════════════
 
 @dataclass(frozen=True)
 class PeierlsCylinderSolution:
     """Result of a Peierls Nyström solve on a 1-D radial cylinder.
 
-    .. note::
-
-       Stub dataclass. The methods ``phi``, ``phi_cell_average`` and
-       the full ``solve_peierls_cylinder_eigenvalue`` driver land in
-       commit C3 of the Phase-4.2 plan.
+    Full multi-group / white-BC methods (``phi_cell_average``, etc.)
+    land in subsequent commits (C6/C7).
     """
 
     r_nodes: np.ndarray
