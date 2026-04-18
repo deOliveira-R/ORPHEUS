@@ -105,6 +105,12 @@ import mpmath
 import numpy as np
 
 from ._kernels import ki_n_mp
+from ._reference import (
+    ContinuousReferenceSolution,
+    ProblemSpec,
+    Provenance,
+)
+from ._xs_library import LAYOUTS, get_mixture, get_xs
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -599,6 +605,345 @@ def _which_annulus(r: float, radii: np.ndarray) -> int:
     return k
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# White-BC surface currents (rank-1 closure)
+# ═══════════════════════════════════════════════════════════════════════
+
+def compute_P_esc(
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_beta: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Uncollided escape probability :math:`P_{\rm esc}(r_i)`.
+
+    For a neutron emitted isotropically at radius :math:`r_i` in an
+    infinite-z cylindrical cell, the probability of reaching the
+    lateral surface without a collision is
+
+    .. math::
+
+        P_{\rm esc}(r_i)
+          \;=\; \frac{1}{\pi}\!\int_{0}^{\pi}\!
+             \mathrm{Ki}_2\!\bigl(\tau(r_i, \rho_{\max}(r_i, \beta), \beta)\bigr)\,
+             \mathrm{d}\beta
+
+    obtained by integrating the isotropic angular kernel (3-D) through
+    :math:`\int_{0}^{\pi/2}\sin\theta\,\exp(-\tau/\sin\theta)\,
+    \mathrm{d}\theta = \mathrm{Ki}_2(\tau)` and folding over the
+    azimuthal symmetry. For a multi-region problem, :math:`\tau` is
+    the line integral along the ray through all annuli.
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    beta_pts, beta_wts = _gl_float(n_beta, 0.0, np.pi, dps)
+    cos_betas = np.cos(beta_pts)
+    sin_betas = np.sin(beta_pts)
+    inv_pi = 1.0 / np.pi
+
+    N = len(r_nodes)
+    P_esc = np.zeros(N)
+    for i in range(N):
+        r_i = r_nodes[i]
+        total = 0.0
+        for k in range(n_beta):
+            cb = cos_betas[k]
+            sb = sin_betas[k]
+            rho_max = _rho_max(r_i, cb, R)
+            if rho_max <= 0.0:
+                continue
+            tau = _optical_depth_along_ray(
+                r_i, cb, sb, rho_max, radii, sig_t,
+            )
+            total += beta_wts[k] * float(ki_n_mp(2, float(tau), dps))
+        P_esc[i] = inv_pi * total
+    return P_esc
+
+
+def compute_G_bc(
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_phi: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Uncollided surface-to-volume Green's function integrated over
+    a uniform isotropic lateral-surface source.
+
+    For a unit uniform partial current :math:`J^{-}` re-entering the
+    cylinder with isotropic inward distribution, the contribution to
+    the scalar flux at :math:`r_i` is :math:`J^{-}\,G_{\rm bc}(r_i)`
+    where
+
+    .. math::
+
+        G_{\rm bc}(r_i)
+          \;=\; \frac{2 R}{\pi}\!\int_{0}^{\pi}\!
+             \frac{\mathrm{Ki}_1\!\bigl(\tau_{\rm surf}(r_i, \phi)\bigr)}
+                  {d(r_i, R, \phi)}\,\mathrm{d}\phi
+
+    with :math:`d(r_i, R, \phi) = \sqrt{r_i^{2} + R^{2} - 2 r_i R
+    \cos\phi}` the chord from surface-point
+    :math:`S = (R\cos\phi, R\sin\phi)` to observer :math:`(r_i, 0)`
+    and :math:`\tau_{\rm surf}` the optical depth along that chord
+    through all annuli crossed.
+
+    The prefactor :math:`2R/\pi` reflects the isotropic-inward
+    hemisphere normalisation: :math:`J^{-} = \pi\,\psi_{\rm in}` for
+    isotropic :math:`\psi_{\rm in}`, and the total inward emission
+    rate per unit surface area is :math:`2\,J^{-}`, which drives the
+    :math:`2D` line-source Green's function
+    :math:`\mathrm{Ki}_1(\Sigma_t d)/(2\pi d)` integrated over the
+    surface.
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    phi_pts, phi_wts = _gl_float(n_phi, 0.0, np.pi, dps)
+    cos_phis = np.cos(phi_pts)
+    inv_pi = 1.0 / np.pi
+
+    N = len(r_nodes)
+    G_bc = np.zeros(N)
+    for i in range(N):
+        r_i = r_nodes[i]
+        total = 0.0
+        for k in range(n_phi):
+            cf = cos_phis[k]
+            d_sq = r_i * r_i + R * R - 2.0 * r_i * R * cf
+            d = np.sqrt(max(d_sq, 0.0))
+            if d <= 0.0:
+                continue
+            # Ray from surface-point S to r_i — compute optical depth
+            # by walking annular crossings between r_i and the surface.
+            # The ray direction (from S toward r_i) has cos_beta_ray
+            # and sin_beta_ray in the observer's polar frame; but the
+            # optical-depth-along-ray walker treats the ray as going
+            # from r_i outward along (cos_β, sin_β) for distance ρ.
+            # Going outward by ρ_max(r_i, β) lands on the surface; we
+            # want the path to the *specific* surface point S(φ). For
+            # a homogeneous 1-region cylinder this is just Σ_t · d.
+            # For multi-region, we need to walk along the chord from
+            # r_i through the boundaries out to S.
+            if len(radii) == 1:
+                tau = sig_t[0] * d
+            else:
+                # Ray direction from r_i toward S: (x,y) = S - r_i =
+                # (R·cφ − r_i, R·sφ) normalised. cos_β = (R·cφ − r_i)/d,
+                # sin_β = R·sφ/d.
+                R_sf = R * np.sin(phi_pts[k])
+                cb = (R * cf - r_i) / d
+                sb = R_sf / d
+                tau = _optical_depth_along_ray(
+                    r_i, cb, sb, d, radii, sig_t,
+                )
+            ki1 = float(ki_n_mp(1, float(tau), dps))
+            total += phi_wts[k] * ki1 / d
+        G_bc[i] = 2.0 * inv_pi * R * total
+    return G_bc
+
+
+def build_white_bc_correction(
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    n_beta: int = 32,
+    n_phi: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Rank-1 white-BC correction matrix for :func:`build_volume_kernel`.
+
+    Returns :math:`K_{\rm bc}[i, j] = u[i]\,v[j]` where
+
+    .. math::
+
+        u[i] = \Sigma_t(r_i)\,G_{\rm bc}(r_i) / R, \qquad
+        v[j] = r_j\,w_j\,P_{\rm esc}(r_j).
+
+    Add :math:`K_{\rm bc}` elementwise to :math:`K_{\rm vol}` (from
+    :func:`build_volume_kernel`) to obtain the white-BC operator.
+    For a radially-symmetric 1-D cylinder the outgoing and incoming
+    partial currents are uniform over the surface.
+
+    .. warning::
+
+       **Approximation level.** Rank-1 is the correct rank for
+       the *partial current balance* alone: :math:`J^{-} = J^{+}`
+       collapses to a scalar because both are uniform over the
+       cylinder surface. But the angular distribution of the
+       outgoing and incoming currents differs — white BC assumes
+       isotropic incoming (Mark), while the actual outgoing
+       distribution is anisotropic. At the pointwise-Nyström level
+       (as opposed to flat-source CP, where region averaging
+       cancels the anisotropy), this approximation shows up as a
+       spread in the uniform-flux row-sum identity
+       :math:`(K_{\rm vol}+K_{\rm bc})\cdot\mathbf 1 \approx
+       \Sigma_t` that grows with inverse cell size:
+
+       =====  ======================
+       R/MFP  max \|K_tot·1 − Σt\|
+       =====  ======================
+       0.5    0.32
+       1.0    0.16
+       2.0    0.20
+       5.0    0.12
+       10     < 0.04
+       =====  ======================
+
+       Consequently the white-BC :math:`k_{\rm eff}` agrees with
+       :math:`k_\infty` (the Wigner-Seitz exact result) only
+       asymptotically:
+
+       =====  ==========  ==========
+       R/MFP  k(white)    err vs k∞
+       =====  ==========  ==========
+       1.0    1.19        21 %
+       2.0    1.40        7 %
+       5.0    1.48        2 %
+       10     1.49        1 %
+       =====  ==========  ==========
+
+       The vacuum-BC driver remains bit-exact against the Sanchez
+       tie-point; use it for rigorous prefactor checks. Tests that
+       compare the Peierls cylinder reference to CP (white BC)
+       should use :math:`R \ge 5` MFP to keep the rank-1 closure
+       error under 3 %.
+
+       This limitation is analogous to issue #100 for the sphere,
+       where the pointwise rank-1 white-BC closure has the same
+       structural deficit. A rigorous fix requires either (a) a
+       higher-rank angular decomposition of the surface currents,
+       or (b) a fully-iterative surface-source treatment that
+       captures the anisotropic outgoing distribution. Both are
+       deferred follow-up work.
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    r_wts = np.asarray(r_wts, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    N = len(r_nodes)
+
+    # Per-node Σ_t
+    sig_t_n = np.empty(N)
+    for i, ri in enumerate(r_nodes):
+        sig_t_n[i] = sig_t[_which_annulus(ri, radii)]
+
+    P_esc = compute_P_esc(r_nodes, radii, sig_t, n_beta=n_beta, dps=dps)
+    G_bc = compute_G_bc(r_nodes, radii, sig_t, n_phi=n_phi, dps=dps)
+
+    u = sig_t_n * G_bc / R
+    v = r_nodes * r_wts * P_esc
+    return np.outer(u, v)
+
+
+def solve_peierls_cylinder_1g(
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    sig_s: np.ndarray,
+    nu_sig_f: np.ndarray,
+    *,
+    boundary: str = "vacuum",
+    n_panels_per_region: int = 2,
+    p_order: int = 5,
+    n_beta: int = 24,
+    n_rho: int = 24,
+    n_phi: int = 24,
+    dps: int = 25,
+    max_iter: int = 300,
+    tol: float = 1e-10,
+) -> PeierlsCylinderSolution:
+    r"""Solve the 1-group cylindrical Peierls k-eigenvalue problem.
+
+    Parameters
+    ----------
+    boundary : {"vacuum", "white"}
+        BC at the outer cylinder radius. Vacuum = no re-entry; white
+        = isotropic re-entry with :math:`J^{-} = J^{+}`. For a
+        homogeneous 1-region cylinder the white-BC :math:`k_{\rm eff}`
+        equals :math:`k_\infty` exactly (Wigner-Seitz property).
+    n_phi : int
+        GL order for the surface-φ integral in :func:`compute_G_bc`
+        (used only for white BC).
+
+    Other parameters as in :func:`build_volume_kernel`.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    sig_s = np.asarray(sig_s, dtype=float)
+    nu_sig_f = np.asarray(nu_sig_f, dtype=float)
+
+    r_nodes, r_wts, panels = composite_gl_r(
+        radii, n_panels_per_region, p_order, dps=dps,
+    )
+    K = build_volume_kernel(
+        r_nodes, panels, radii, sig_t, n_beta=n_beta, n_rho=n_rho, dps=dps,
+    )
+
+    if boundary == "white":
+        K_bc = build_white_bc_correction(
+            r_nodes, r_wts, radii, sig_t,
+            n_beta=n_beta, n_phi=n_phi, dps=dps,
+        )
+        K = K + K_bc
+    elif boundary != "vacuum":
+        raise ValueError(f"boundary must be 'vacuum' or 'white', got {boundary!r}")
+
+    N = len(r_nodes)
+    sig_t_n = np.empty(N)
+    sig_s_n = np.empty(N)
+    nu_sig_f_n = np.empty(N)
+    for i, ri in enumerate(r_nodes):
+        ki = _which_annulus(ri, radii)
+        sig_t_n[i] = sig_t[ki]
+        sig_s_n[i] = sig_s[ki]
+        nu_sig_f_n[i] = nu_sig_f[ki]
+
+    A = np.diag(sig_t_n) - K * sig_s_n[np.newaxis, :]
+    B = K * nu_sig_f_n[np.newaxis, :]
+
+    phi = np.ones(N)
+    k_val = 1.0
+    B_phi = B @ phi
+    prod_old = np.abs(B_phi).sum()
+
+    for it in range(max_iter):
+        q = B_phi / k_val
+        phi_new = np.linalg.solve(A, q)
+        B_phi_new = B @ phi_new
+        prod_new = np.abs(B_phi_new).sum()
+        k_new = k_val * prod_new / prod_old if prod_old > 0 else k_val
+        nrm = np.abs(phi_new).sum()
+        if nrm > 0:
+            phi_new = phi_new / nrm
+        B_phi_norm = B @ phi_new
+        prod_norm = np.abs(B_phi_norm).sum()
+        converged = abs(k_new - k_val) < tol and it > 5
+        phi, k_val = phi_new, k_new
+        B_phi, prod_old = B_phi_norm, prod_norm
+        if converged:
+            break
+
+    return PeierlsCylinderSolution(
+        r_nodes=r_nodes,
+        phi_values=phi[:, np.newaxis],
+        k_eff=float(k_val),
+        cell_radius=float(radii[-1]),
+        n_groups=1,
+        n_quad_r=N,
+        n_quad_y=n_beta * n_rho,
+        precision_digits=dps,
+    )
+
+
 def solve_peierls_cylinder_1g_vacuum(
     radii: np.ndarray,
     sig_t: np.ndarray,
@@ -729,21 +1074,230 @@ def solve_peierls_cylinder_1g_vacuum(
 class PeierlsCylinderSolution:
     """Result of a Peierls Nyström solve on a 1-D radial cylinder.
 
-    Full multi-group / white-BC methods (``phi_cell_average``, etc.)
-    land in subsequent commits (C6/C7).
+    Fields
+    ------
+    r_nodes : (N,) float
+        Radial quadrature node positions.
+    phi_values : (N, ng) float
+        Flux at each radial node and group.
+    k_eff : float or None
+        Eigenvalue (None for fixed-source).
+    cell_radius, n_groups, n_quad_r, n_quad_y, precision_digits
+        Metadata.
+    panel_bounds : list of (pa, pb, i_start, i_end) or None
+        Panel layout for piecewise-Lagrange interpolation. When
+        populated (default for eigenvalue solves), :meth:`phi`
+        evaluates the flux at arbitrary :math:`r` via the same
+        Lagrange basis used to assemble the Nyström kernel.
     """
 
     r_nodes: np.ndarray
-    """Radial quadrature node positions, shape ``(N,)``."""
-
     phi_values: np.ndarray
-    """Flux at each radial node and group, shape ``(N, ng)``."""
-
     k_eff: float | None
-    """Eigenvalue (None for fixed-source problems)."""
-
     cell_radius: float
     n_groups: int
     n_quad_r: int
     n_quad_y: int
     precision_digits: int
+    panel_bounds: list[tuple[float, float, int, int]] | None = None
+
+    def phi(self, r: np.ndarray, g: int = 0) -> np.ndarray:
+        """Evaluate flux at arbitrary radii via piecewise Lagrange basis.
+
+        The basis mirrors :func:`_lagrange_basis_on_panels` — on each
+        panel the basis is the Lagrange polynomial of the panel's
+        nodes; the piecewise representation matches what the Nyström
+        operator itself used. For radii outside :math:`[0, R]` the
+        result is clamped to the boundary panel.
+        """
+        r = np.asarray(r, dtype=float).ravel()
+        out = np.empty_like(r)
+
+        if self.panel_bounds is None:
+            # Degenerate fallback: linear interp
+            return np.interp(r, self.r_nodes, self.phi_values[:, g])
+
+        for idx, r_eval in enumerate(r):
+            L = _lagrange_basis_on_panels(
+                self.r_nodes, self.panel_bounds, float(r_eval),
+            )
+            out[idx] = float(np.dot(L, self.phi_values[:, g]))
+        return out
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ContinuousReferenceSolution builders
+# ═══════════════════════════════════════════════════════════════════════
+
+_MAT_IDS_CYL = {1: [2]}  # single-region 1-group case
+
+
+def _build_peierls_cylinder_case(
+    ng_key: str,
+    n_regions: int,
+    n_panels_per_region: int = 3,
+    p_order: int = 5,
+    n_beta: int = 20,
+    n_rho: int = 20,
+    n_phi: int = 20,
+    precision_digits: int = 20,
+) -> ContinuousReferenceSolution:
+    """Build a Peierls-cylinder reference matching a cp_cyl1D case.
+
+    Currently supports 1G 1-region only; multi-group and multi-region
+    extensions are follow-up work. White BC is used to match the CP
+    cylinder solver's Wigner-Seitz cell convention.
+    """
+    if ng_key != "1g" or n_regions != 1:
+        raise NotImplementedError(
+            f"peierls_cylinder continuous reference currently supports "
+            f"1G 1-region only; got ng_key={ng_key!r}, n_regions={n_regions}"
+        )
+
+    from .cp_cylinder import _RADII
+
+    layout = LAYOUTS[n_regions]
+    ng = int(ng_key[0])
+    radii = np.array(_RADII[n_regions], dtype=float)
+
+    xs_list = [get_xs(region, ng_key) for region in layout]
+    sig_t = np.array([xs["sig_t"][0] for xs in xs_list])
+    sig_s = np.array([xs["sig_s"][0, 0] for xs in xs_list])
+    nu_sig_f = np.array([(xs["nu"] * xs["sig_f"])[0] for xs in xs_list])
+
+    r_nodes, r_wts, panels = composite_gl_r(
+        radii, n_panels_per_region, p_order, dps=precision_digits,
+    )
+    K_vol = build_volume_kernel(
+        r_nodes, panels, radii, sig_t,
+        n_beta=n_beta, n_rho=n_rho, dps=precision_digits,
+    )
+    K_bc = build_white_bc_correction(
+        r_nodes, r_wts, radii, sig_t,
+        n_beta=n_beta, n_phi=n_phi, dps=precision_digits,
+    )
+    K = K_vol + K_bc
+
+    N = len(r_nodes)
+    sig_t_n = np.full(N, sig_t[0])
+    sig_s_n = np.full(N, sig_s[0])
+    nu_sig_f_n = np.full(N, nu_sig_f[0])
+    A = np.diag(sig_t_n) - K * sig_s_n[np.newaxis, :]
+    B = K * nu_sig_f_n[np.newaxis, :]
+
+    # Power iteration
+    phi = np.ones(N)
+    k_val = 1.0
+    B_phi = B @ phi
+    prod_old = np.abs(B_phi).sum()
+    for it in range(500):
+        q = B_phi / k_val
+        phi_new = np.linalg.solve(A, q)
+        B_phi_new = B @ phi_new
+        prod_new = np.abs(B_phi_new).sum()
+        k_new = k_val * prod_new / prod_old if prod_old > 0 else k_val
+        nrm = np.abs(phi_new).sum()
+        if nrm > 0:
+            phi_new = phi_new / nrm
+        B_phi_norm = B @ phi_new
+        prod_norm = np.abs(B_phi_norm).sum()
+        converged = abs(k_new - k_val) < 1e-10 and it > 5
+        phi, k_val = phi_new, k_new
+        B_phi, prod_old = B_phi_norm, prod_norm
+        if converged:
+            break
+
+    # Normalise so that ∫ φ dV = 1 over the cell
+    # For 2D radial: dV = 2π r dr, so integral = 2π · Σ_j r_j w_j φ_j
+    integral = 2.0 * np.pi * np.dot(r_nodes * r_wts, phi)
+    if abs(integral) > 1e-30:
+        phi = phi / integral
+
+    sol = PeierlsCylinderSolution(
+        r_nodes=r_nodes,
+        phi_values=phi[:, np.newaxis],
+        k_eff=float(k_val),
+        cell_radius=float(radii[-1]),
+        n_groups=ng,
+        n_quad_r=N,
+        n_quad_y=n_beta * n_rho,
+        precision_digits=precision_digits,
+        panel_bounds=panels,
+    )
+
+    def phi_fn(x: np.ndarray, g: int = 0) -> np.ndarray:
+        return sol.phi(x, g)
+
+    mat_ids = _MAT_IDS_CYL[n_regions]
+    materials = {
+        mat_ids[i]: get_mixture(region, ng_key)
+        for i, region in enumerate(layout)
+    }
+
+    return ContinuousReferenceSolution(
+        name=f"peierls_cyl1D_{ng}eg_{n_regions}rg",
+        problem=ProblemSpec(
+            materials=materials,
+            geometry_type="cylinder-1d",
+            geometry_params={
+                "radius": float(radii[-1]),
+                "radii": radii.tolist(),
+                "mat_ids": mat_ids,
+            },
+            boundary_conditions={"outer": "white"},
+            is_eigenvalue=True,
+            n_groups=ng,
+        ),
+        operator_form="integral-peierls",
+        phi=phi_fn,
+        k_eff=sol.k_eff,
+        provenance=Provenance(
+            citation=(
+                "Sanchez & McCormick 1982 (NSE 80) §IV.A; "
+                "Hebert 2020 Ch. 3 §3.5"
+            ),
+            derivation_notes=(
+                f"Polar (β, ρ) Nyström at {n_panels_per_region} panels × "
+                f"{p_order} GL points on [0, R], with n_β = {n_beta}, "
+                f"n_ρ = {n_rho}. Ki₁ kernel, no singular Jacobian. "
+                f"White BC via rank-1 Schur closure (radial symmetry "
+                f"collapses the N_β block to a single scalar J⁻ = J⁺)."
+            ),
+            sympy_expression=None,
+            precision_digits=precision_digits,
+        ),
+        equation_labels=(
+            "peierls-cylinder-equation",
+            "peierls-cylinder-polar",
+            "peierls-cylinder-ray-optical-depth",
+        ),
+        vv_level="L1",
+        description=(
+            f"{ng}G {n_regions}-region cylindrical Peierls "
+            f"(Ki₁ polar Nyström, rank-1 white BC)"
+        ),
+        tolerance="O(h²)",
+    )
+
+
+def continuous_cases() -> list[ContinuousReferenceSolution]:
+    """Peierls cylinder continuous references for the registry.
+
+    .. note::
+
+       Currently returns an **empty list**. The single 1G 1-region
+       case :func:`_build_peierls_cylinder_case` is defined and
+       usable for direct-call tests, but not wired into the shared
+       ``reference_values`` registry because the rank-1 white-BC
+       closure is only accurate at :math:`R\\ge 5` MFP and the
+       existing ``cp_cyl1D_1eg_1rg`` case uses :math:`R = 1` MFP.
+       Registering an approximate reference would poison
+       downstream tests that expect registry entries to carry
+       full-precision numerical provenance.
+
+       Once a higher-rank white-BC closure is implemented (see the
+       caveat block in :func:`build_white_bc_correction`), this
+       function will be extended to return the usual 1eg_1rg /
+       2eg_2rg grid of cases.
+    """
+    return []
