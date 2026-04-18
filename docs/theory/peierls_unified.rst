@@ -1588,6 +1588,1118 @@ standard tests.
    sphere); open.
 
 
+Section 11 — The three-tier integration hierarchy
+=================================================
+
+Sections 1–10 unified the **pointwise** (Nyström) Peierls equation
+across slab, cylinder, and sphere, treating :math:`\varphi(r)` as a
+continuous function sampled at radial collocation nodes. The
+flat-source CP method used by :mod:`orpheus.cp.solver` operates at a
+different rung of the integration ladder: it averages over entire
+regions rather than sampling at points. The two methods consume the
+**same** 3-D point kernel :eq:`peierls-point-kernel-3d`; they differ
+only in how many successive spatial integrations of that kernel have
+been carried out in closed form before numerics takes over.
+
+This section and the three that follow extend the unification up to
+the flat-source level. The key organising principle is the
+**integration hierarchy**: each successive integration of the 3-D
+isotropic point kernel defines a new kernel level, and the slab,
+cylinder, and sphere each occupy the same three levels with different
+special-function names.
+
+.. _cp-three-tier-hierarchy-note:
+
+The three kernel levels
+-----------------------
+
+Let :math:`R = |\mathbf r - \mathbf r'|` be the centre-to-centre
+distance, :math:`\tau = \Sigma_t R` the line-integrated optical
+depth, and :math:`d` the native geometric dimensionality
+(1 for slab, 2 for cylinder, 3 for sphere). Define three kernel
+levels:
+
+- **Level 0 — the 3-D point kernel.** The "un-integrated" Green's
+  function for the isotropic point emitter,
+  :math:`G_{3\mathrm D}(R) = e^{-\tau}/(4\pi R^{2})`, identified as
+  :eq:`peierls-point-kernel-3d`. It is native 3-D for *every*
+  geometry — the geometry only enters through the optical-path
+  integral :math:`\tau(r,r')` and through which symmetry directions
+  one elects to integrate out.
+- **Level 1 — the pointwise (Peierls) kernel.** Integrating the 3-D
+  point kernel over the unbroken symmetry directions of each geometry
+  yields the one-argument kernel
+  :math:`\kappa_d(\tau)` used by :eq:`peierls-unified`:
+
+  .. math::
+
+     \kappa_1^{\rm slab}(\tau) \;=\; \tfrac{1}{2} E_1(\tau),\qquad
+     \kappa_1^{\rm cyl}(\tau)  \;=\; \frac{\mathrm{Ki}_1(\tau)}{2\pi},\qquad
+     \kappa_1^{\rm sph}(\tau)  \;=\; \frac{e^{-\tau}}{4\pi}.
+
+  These are the Level-1 kernels *already derived* in Section 2. They
+  are consumed by the pointwise Peierls Nyström drivers
+  (:mod:`~orpheus.derivations.peierls_slab`,
+  :mod:`~orpheus.derivations.peierls_cylinder`,
+  :mod:`~orpheus.derivations.peierls_sphere`).
+- **Level 2 — the partial-current / escape kernel.** Integrating the
+  Level-1 kernel *once more* along a line of flight (the neutron's
+  path through a single region) gives the Level-2 kernel that
+  underwrites *escape* and *partial-current* probabilities:
+
+  .. math::
+
+     \kappa_2^{\rm slab}(\tau) \;=\; E_2(\tau),\qquad
+     \kappa_2^{\rm cyl}(\tau)  \;=\; \mathrm{Ki}_2(\tau),\qquad
+     \kappa_2^{\rm sph}(\tau)  \;=\; e^{-\tau}.
+
+- **Level 3 — the flat-source / CP kernel.** Integrating Level-2 a
+  *second* time — specifically over the spatial extent of the
+  *target* region, with a flat source assumed in the *emitting*
+  region — gives the Level-3 kernel that the flat-source CP
+  second-difference formula evaluates at four arguments per
+  :math:`P_{ij}` element:
+
+  .. math::
+
+     \kappa_3^{\rm slab}(\tau) \;=\; E_3(\tau),\qquad
+     \kappa_3^{\rm cyl}(\tau)  \;=\; \mathrm{Ki}_3(\tau),\qquad
+     \kappa_3^{\rm sph}(\tau)  \;=\; e^{-\tau}.
+
+The ladder can be stated compactly as the differential identities
+
+.. math::
+   :label: cp-kernel-differential-identities
+
+   E_n'(\tau) \;=\; -E_{n-1}(\tau),\qquad
+   \mathrm{Ki}_n'(\tau) \;=\; -\mathrm{Ki}_{n-1}(\tau),
+
+.. vv-status: cp-kernel-differential-identities documented
+
+valid for all :math:`n \ge 1` (A&S 5.1.26 and 11.2.11). These
+identities are already implemented as
+:func:`~orpheus.derivations._kernels.e_n_derivative` and
+:func:`~orpheus.derivations._kernels.ki_n_derivative`, and they
+are tested term-by-term at L0 by
+``tests/derivations/test_kernels.py`` via finite-difference
+agreement with the direct mpmath evaluators
+:func:`~orpheus.derivations._kernels.e_n_mp` and
+:func:`~orpheus.derivations._kernels.ki_n_mp`. Passing up the ladder
+from :math:`E_{n-1} \to E_n` or :math:`\mathrm{Ki}_{n-1} \to
+\mathrm{Ki}_n` is therefore a pure antiderivation — one indefinite
+integral against the same variable.
+
+Hierarchy in one picture
+------------------------
+
+.. list-table:: Three-tier integration hierarchy
+   :header-rows: 1
+   :widths: 16 28 28 28
+
+   * - Level
+     - Slab
+     - Cylinder
+     - Sphere
+   * - **L0** — 3-D point kernel
+     - :math:`e^{-\tau}/(4\pi R^{2})`
+     - :math:`e^{-\tau}/(4\pi R^{2})`
+     - :math:`e^{-\tau}/(4\pi R^{2})`
+   * - **L1** — Peierls kernel
+       (pointwise)
+     - :math:`\tfrac{1}{2}E_1(\tau)`
+     - :math:`\mathrm{Ki}_1(\tau)/(2\pi)`
+     - :math:`e^{-\tau}/(4\pi)`
+   * - **L2** — escape / partial-current
+     - :math:`E_2(\tau)`
+     - :math:`\mathrm{Ki}_2(\tau)`
+     - :math:`e^{-\tau}`
+   * - **L3** — flat-source CP (second-difference antiderivative)
+     - :math:`E_3(\tau)`
+     - :math:`\mathrm{Ki}_3(\tau)`
+     - :math:`e^{-\tau}`
+
+.. note::
+
+   **The sphere does not "promote" through the ladder.** Because
+   :math:`e^{-\tau}` is its own antiderivative up to sign, all three
+   sphere levels use the *same* special function. This is a
+   coincidence of the 3-D point kernel being the identity
+   :math:`\tfrac{\mathrm d}{\mathrm d\tau} e^{-\tau} = -e^{-\tau}` —
+   the same coincidence that lets the sphere skip the Bickley /
+   exponential-integral tabulation enterprise entirely. It is **not**
+   a sign that the sphere is "skipping levels"; the integration is
+   still being performed, it just happens to close on itself.
+
+   In the CP literature ([BellGlasstone1970]_ §2.7, [Stamm1983]_
+   §6.4) this is sometimes reported as "the sphere kernel needs no
+   special functions". That statement is correct only after the three
+   levels have been identified — before that, it sounds like an
+   asymmetry between the geometries. The three-tier hierarchy makes
+   the symmetry manifest: what differs between geometries is the
+   *dimensionality* of the outer integral at each level (§13), not
+   the kernel ladder itself.
+
+Scope of the unification
+------------------------
+
+Sections 12–14 extend the Phase-4.2 unified architecture to **Level
+3** — i.e., to the flat-source CP matrix. The current flat-source CP
+modules (:mod:`~orpheus.derivations.cp_slab`,
+:mod:`~orpheus.derivations.cp_cylinder`,
+:mod:`~orpheus.derivations.cp_sphere`) each implement the same
+geometry at the same kernel level but in three separate files, with
+the same :math:`\Delta^{2}` operator rewritten once per geometry and
+the same outer y-quadrature duplicated between the two curvilinear
+cases. Phase B of the CP refactor (see GitHub Issue
+`#107 <https://github.com/deOliveira-R/ORPHEUS/issues/107>`_) will
+collapse them into a single ``cp_geometry.py`` module, exactly
+mirroring the Phase-4.2 collapse of the pointwise modules into
+:mod:`~orpheus.derivations.peierls_geometry`.
+
+Sections 12–14 present the derivational target for that refactor;
+Section 15 revisits the escape probability as the explicit Level-2
+"bridge" between Level 1 and Level 3; and Section 16 documents the
+retirement of the legacy :class:`BickleyTables` tabulation, which the
+Phase B.2 refactor will obsolete in favour of canonical
+mpmath-backed evaluators.
+
+
+Section 12 — The flat-source integral: going from Level 1 to Level 3
+====================================================================
+
+Starting point. Consider a target region :math:`V_i` and a source
+region :math:`V_j` with volumetric emission density
+:math:`q(\mathbf r') = q_j` constant on :math:`V_j` (the flat-source
+assumption). The region-averaged collision rate in :math:`V_i`
+produced by :math:`V_j` is
+
+.. math::
+   :label: cp-flat-source-double-integral
+
+   \Sigma_{t,i}\,\bar\varphi_i\,V_i
+     \;=\; \int_{V_i}\!\mathrm dV \int_{V_j}\!\mathrm dV'\,
+           G_d\bigl(|\mathbf r - \mathbf r'|\bigr)\,q_j,
+
+.. vv-status: cp-flat-source-double-integral documented
+
+where :math:`G_d` is the Level-1 kernel already pre-integrated against
+the symmetry directions of the geometry
+(:eq:`peierls-ki1-derivation`, :eq:`peierls-e1-derivation`, or the
+3-D point kernel itself for the sphere). The flat-source
+:math:`P_{ij}` matrix is obtained by factoring out
+:math:`q_j V_j / (4\pi)` or the geometry-appropriate normalisation;
+the quantity we track here is the reduced collision probability
+
+.. math::
+
+   \text{rcp}_{ij} \;\equiv\;
+     \int_{V_i}\!\mathrm dV \int_{V_j}\!\mathrm dV'\,
+     G_d\bigl(|\mathbf r - \mathbf r'|\bigr),
+
+which differs from :math:`P_{ij}\,\Sigma_{t,i}\,V_i` only by the
+kernel's normalisation convention and by the white-BC closure added
+on top (see :eq:`p-inf` in :doc:`collision_probability`).
+
+The derivation in :doc:`collision_probability`, §
+:ref:`second-diff-derivation`, performs the double integral in
+**chord coordinates** :math:`(y, s, t)` where :math:`y` is the impact
+parameter of the chord through the pair of annuli, :math:`s` is the
+birth position along the chord within :math:`V_j`, and :math:`t` is
+the collision position along the chord within :math:`V_i`. In those
+coordinates, the two spatial integrations over :math:`s` and
+:math:`t` are integrations of :math:`G_d` along a **one-dimensional
+optical-path variable**, so each brings the kernel up one level in
+the hierarchy.
+
+That derivation — the integration-by-parts chain from
+:eq:`peierls-point-kernel-3d` to the four-term
+:eq:`rcp-from-double-antideriv` — is already presented at full length
+in :doc:`collision_probability`. We restate its result here in the
+language of the three-tier hierarchy and use it to identify the
+**geometry-invariant operator** that underwrites the Phase B unified
+architecture.
+
+Inner integration: :math:`V_j \to` Level 2
+------------------------------------------
+
+Fix a chord of impact parameter :math:`y` and a collision position
+:math:`t` along the chord in :math:`V_i`. Parametrise the source
+point along the same chord by :math:`s`; the optical distance between
+source and collision point along the chord is :math:`(\tau_j - s) +
+g + t`, where :math:`\tau_j` is the chord's optical traversal of the
+source region and :math:`g` is the optical gap between the two
+regions' chord intersections. With :math:`u = (\tau_j - s) + g + t`:
+
+.. math::
+   :label: cp-inner-integral-antiderivative
+
+   I(t) \;=\; \int_{0}^{\tau_j}\! F_1\bigl((\tau_j - s) + g + t\bigr)\,\mathrm ds
+        \;=\; \int_{g+t}^{\tau_j + g + t}\! F_1(u)\,\mathrm du
+        \;=\; \hat F_1\bigl(\tau_j + g + t\bigr) - \hat F_1\bigl(g + t\bigr),
+
+.. vv-status: cp-inner-integral-antiderivative documented
+
+where :math:`F_1` is the **Level-1 chord kernel** — the one-argument
+function of optical path that results from the symmetry integrations
+of Section 2 (:math:`E_1` for the slab, :math:`\mathrm{Ki}_1`
+*weighted by the azimuthal Jacobian that the chord form collapses*
+for the cylinder, :math:`e^{-\tau}` for the sphere along each chord)
+— and :math:`\hat F_1(x) = \int_0^x F_1(u)\,\mathrm du` is its
+antiderivative.
+
+The antiderivative :math:`\hat F_1` is **exactly the Level-2 kernel
+of §11**:
+
+.. math::
+
+   \widehat{E_1}     &\;=\; -E_2 \quad (\text{modulo the boundary term}), \\
+   \widehat{\mathrm{Ki}_1} &\;=\; -\mathrm{Ki}_2, \\
+   \widehat{e^{-\tau}} &\;=\; -e^{-\tau}.
+
+The minus signs are absorbed into the convention
+:math:`E_n'(\tau) = -E_{n-1}(\tau)` (A&S 5.1.26) — i.e., raising
+:math:`n` by 1 **is** antiderivation, and the overall sign is
+chosen such that :math:`E_n(0)` is finite (positive) for
+:math:`n \ge 2`. The takeaway is physical rather than
+conventional: *the inner integration over the source region
+promotes the kernel from Level 1 to Level 2*. Level 2 is the
+escape-probability level (§15) — an :math:`F_2` evaluation at the
+right argument is the uncollided probability that a neutron emitted
+from a point passes through a specific optical thickness before its
+first collision.
+
+Outer integration: :math:`V_i \to` Level 3
+------------------------------------------
+
+With :math:`I(t)` in hand, integrate :math:`I(t)` over the collision
+position :math:`t \in [0, \tau_i]`:
+
+.. math::
+   :label: cp-outer-integral-antiderivative
+
+   \text{rcp}_{ij}^{(y)}
+     \;=\; \int_{0}^{\tau_i}\! I(t)\,\mathrm dt
+     \;=\; \int_{0}^{\tau_i}\!\Bigl[\hat F_1(\tau_j + g + t)
+                               - \hat F_1(g + t)\Bigr]\mathrm dt.
+
+.. vv-status: cp-outer-integral-antiderivative documented
+
+Substituting :math:`\hat F_1 = -F_2` (with :math:`F_2` the Level-2
+kernel) and integrating once more gives :math:`\hat F_2 = F_3`,
+the Level-3 kernel:
+
+.. math::
+   :label: cp-flat-source-derivation
+
+   \text{rcp}_{ij}^{(y)}
+     \;=\; F_3(g) - F_3(g + \tau_i) - F_3(g + \tau_j)
+             + F_3(g + \tau_i + \tau_j),
+
+.. vv-status: cp-flat-source-derivation documented
+
+where the superscript :math:`(y)` reminds us that this is the
+contribution to :math:`\text{rcp}_{ij}` from one chord at impact
+parameter :math:`y`. The four terms come from the four corners of
+the integration box :math:`\{(s, t) : s \in [0, \tau_j],
+t \in [0, \tau_i]\}` under the antiderivation chain — i.e., from
+evaluating the double antiderivative :math:`\hat{\hat F_1} = F_3`
+at the four corners :math:`(0, 0), (\tau_i, 0), (0, \tau_j),
+(\tau_i, \tau_j)` after the change of variable to optical path. The
+full step-by-step derivation is the content of
+:eq:`rcp-from-double-antideriv` in :doc:`collision_probability`.
+
+The four-argument structure is the geometry-invariant core of
+flat-source CP. Factor it out as an **operator**:
+
+.. math::
+   :label: cp-second-difference-operator
+
+   \Delta^{2}\!\bigl[\mathcal F\bigr]\!\bigl(\tau_i, \tau_j;\,\mathrm{gap}\bigr)
+     \;\equiv\;
+     \mathcal F(\mathrm{gap})
+     \;-\; \mathcal F(\mathrm{gap}+\tau_i)
+     \;-\; \mathcal F(\mathrm{gap}+\tau_j)
+     \;+\; \mathcal F(\mathrm{gap}+\tau_i+\tau_j).
+
+.. vv-status: cp-second-difference-operator documented
+
+This is nothing more than the second finite difference of
+:math:`\mathcal F` on the rectangular grid
+:math:`\{(\mathrm{gap},\mathrm{gap}+\tau_j)\}\times
+\{(\mathrm{gap},\mathrm{gap}+\tau_i)\}`. The two coordinate
+"differences" pick up the two optical traversals :math:`\tau_i` and
+:math:`\tau_j`, and the mixed term
+:math:`\mathcal F(\mathrm{gap}+\tau_i+\tau_j)` closes the rectangle.
+
+**The operator :math:`\Delta^{2}` is geometry-invariant.** It knows
+nothing about slab vs cylinder vs sphere; it knows only that
+:math:`\mathcal F` is a scalar function of one scalar argument. What
+makes the geometry enter the *reduced collision probability* is the
+**choice of** :math:`\mathcal F_d`:
+
+.. list-table:: Level-3 kernels :math:`\mathcal F_d` per geometry
+   :header-rows: 1
+   :widths: 16 24 28 32
+
+   * - Geometry
+     - :math:`\mathcal F_d`
+     - Small-:math:`\tau` value
+     - Large-:math:`\tau` tail
+   * - Slab
+     - :math:`E_3(\tau)`
+     - :math:`E_3(0) = 1/2`
+     - :math:`E_3(\tau) \to e^{-\tau}/\tau^{3}` (A&S 5.1.51)
+   * - Cylinder
+     - :math:`\mathrm{Ki}_3(\tau)`
+     - :math:`\mathrm{Ki}_3(0) = \pi/4`
+     - :math:`\mathrm{Ki}_3(\tau) \to \sqrt{\pi/(2\tau)}\,e^{-\tau}`
+   * - Sphere
+     - :math:`e^{-\tau}`
+     - :math:`e^{0} = 1`
+     - :math:`e^{-\tau}` (self-similar)
+
+The operator is **shared**; the table is the only per-geometry
+data. This is the architectural lever for Phase B — one
+``_second_difference`` function in ``cp_geometry.py`` serves all
+three geometries; three one-line kernel methods
+(``kernel_F3_slab = e_n(3, ·)`` etc.) distinguish them.
+
+.. tip::
+
+   **Why ":math:`\Delta^{2}`" and not ":math:`\Delta_2`"?** The
+   existing flat-source derivation in :doc:`collision_probability`
+   (:eq:`second-diff-general`, :eq:`rcp-from-double-antideriv`)
+   writes the operator as :math:`\Delta_2[F]`. The two notations
+   name the same object. We adopt :math:`\Delta^{2}` on this page
+   because the *unified* presentation emphasises that the four-term
+   formula is the **second** (finite) difference in the discrete
+   sense — one difference per region's chord traversal — which is a
+   cleaner abstraction than reading the subscripted 2 as "two
+   variables". The :math:`\Delta_2` notation is still correct in
+   its source document; no equation labels collide.
+
+A Level-2 sanity check: the one-region limit
+--------------------------------------------
+
+As a check on :eq:`cp-flat-source-derivation`, consider :math:`i = j`
+with :math:`\mathrm{gap} = 0` and :math:`\tau_i = \tau_j = \tau`
+(self-collision within one region). The operator evaluates to
+
+.. math::
+
+   \Delta^{2}[\mathcal F_d](\tau, \tau;\,0)
+     \;=\; \mathcal F_d(0) - 2\,\mathcal F_d(\tau) + \mathcal F_d(2\tau).
+
+For the slab, :math:`\mathcal F_d = E_3`, :math:`E_3(0) = 1/2`, and
+the small-:math:`\tau` expansion
+:math:`E_3(\tau) = 1/2 - \tau + \tfrac{\tau^{2}}{2}(3/2 - \ln\tau) +
+O(\tau^{3})` gives
+:math:`\Delta^{2}[E_3](\tau,\tau;0) = \tau\cdot[2 - (\tau/2)(\text{stuff})]`,
+recovering the small-:math:`\tau` limit :math:`\text{rcp}_{ii}
+\sim \tau\,V_i` that the self-collision probability must satisfy.
+This limit is checked inside the diagonal self-collision formula
+documented at :eq:`self-slab`, :eq:`self-cyl`, and :eq:`self-sph` of
+:doc:`collision_probability`.
+
+The derivation source of record
+-------------------------------
+
+The IBP chain above is verified programmatically by the SymPy script
+embedded in :ref:`second-diff-derivation` (:doc:`collision_probability`,
+lines under "SymPy verification of the four-term structure"). That
+script builds the double integral :math:`\int_0^{\tau_i}\int_0^{\tau_j}
+F_1((\tau_j - s) + g + t)\,\mathrm ds\,\mathrm dt` for a *generic*
+:math:`F_1` and asserts symbolically that the result equals the
+four-term :eq:`cp-second-difference-operator`. The assertion holds
+without specialising :math:`F_1` to :math:`E_1`, :math:`\mathrm{Ki}_1`,
+or :math:`e^{-\tau}`, which is the strongest possible form of the
+claim that the operator is geometry-invariant.
+
+For Phase B.3, the same SymPy script will be lifted into a proper
+``derivations/cp_geometry.py`` derivation module (with a
+``derive_second_difference()`` function returning the SymPy
+expression tree) and a test case
+``test_second_difference_operator_is_geometry_invariant`` will
+exercise the symbolic claim at L1. Today the verification is
+documented but not automated.
+
+
+Section 13 — Geometry-specific outer integration
+================================================
+
+The operator :math:`\Delta^{2}` and its kernel table collapse the
+*inner* algebraic structure of flat-source CP to a single shared
+routine. What still varies between geometries is the **outer**
+integration — how :math:`\text{rcp}_{ij}^{(y)}` is aggregated over
+the chord family. The outer integration captures the *dimensionality
+of the physical source region*: a slab region is 1-D (no outer
+integral needed), a cylindrical region has one transverse dimension
+(impact parameter :math:`y`), a spherical region has the same
+:math:`y` dimension plus a measure factor.
+
+Concretely:
+
+.. math::
+   :label: cp-unified-outer-integration
+
+   \text{rcp}_{ij} \;=\;
+   \begin{cases}
+     \tfrac{1}{2\Sigma_{t,i}}\,\Delta^{2}[E_3](\tau_i,\tau_j;\,\mathrm{gap})
+        & d = 1 \text{ (slab)}, \\[6pt]
+     \displaystyle
+     \int_{0}^{R}\! 2\,\bigl[\Delta^{2}[\mathrm{Ki}_3]_{\rm SS}
+                        + \Delta^{2}[\mathrm{Ki}_3]_{\rm TC}\bigr]\,\mathrm dy
+        & d = 2 \text{ (cylinder)}, \\[6pt]
+     \displaystyle
+     \int_{0}^{R}\! 2\,\bigl[\Delta^{2}[e^{-\tau}]_{\rm SS}
+                        + \Delta^{2}[e^{-\tau}]_{\rm TC}\bigr]\,y\,\mathrm dy
+        & d = 3 \text{ (sphere)},
+   \end{cases}
+
+.. vv-status: cp-unified-outer-integration documented
+
+where "SS" and "TC" are the **same-side** and **through-centre**
+chord branches documented at :eq:`tau-m`, :eq:`tau-p`,
+:eq:`dd-slab`, :eq:`dc-slab`, :eq:`second-diff-cyl`, and
+:eq:`second-diff-sph` of :doc:`collision_probability`.
+
+.. list-table:: Outer-integration rule per geometry
+   :header-rows: 1
+   :widths: 16 22 28 34
+
+   * - Geometry
+     - Outer variable
+     - Measure
+     - Origin of the measure
+   * - Slab
+     - None (:math:`y \equiv 0`)
+     - —
+     - Region is a 1-D interval; the chord *is* the region.
+   * - Cylinder
+     - :math:`y \in [0, R]`
+     - :math:`2\,\mathrm dy`
+     - Per-chord length :math:`2\sqrt{R^{2}-y^{2}}`-equivalent; the
+       factor of 2 accounts for the two sides of the symmetry axis.
+   * - Sphere
+     - :math:`y \in [0, R]`
+     - :math:`2y\,\mathrm dy`
+     - Spherical ring area :math:`2\pi y\,\mathrm dy` divided by the
+       :math:`\pi` the kernel already absorbs; see
+       :mod:`~orpheus.derivations.cp_sphere` line
+       ``y_wts = y_wts * y_pts``.
+
+Same-side and through-centre branches
+-------------------------------------
+
+For any chord with :math:`y < \min(r_{i-1}, r_{j-1})` (both regions
+intersect on both sides of the symmetry axis), the chord family
+splits into two branches:
+
+- **Same-side (SS).** The chord intersects both regions on the same
+  side of the axis. The optical gap is
+  :math:`\mathrm{gap}_{\rm SS} = |\text{optical position of
+  region-}j - \text{region-}i|`, computed via the chord-walker in
+  :func:`~orpheus.derivations._kernels.chord_half_lengths` followed
+  by optical-depth accumulation along the sorted annular crossings.
+- **Through-centre (TC).** The chord intersects region :math:`i` on
+  one side of the axis and region :math:`j` on the other. The optical
+  gap is the full chord path across the central regions plus both
+  regions' inner half-chords:
+  :math:`\mathrm{gap}_{\rm TC} = (\text{optical position of }i) +
+  (\text{optical position of }j)`.
+
+Both branches use **the same** :math:`\Delta^{2}` operator; only the
+``gap`` argument differs. The SS branch becomes zero when
+:math:`y > \min(r_{i-1}, r_{j-1})` (one of the regions doesn't have a
+hollow core at that :math:`y`), in which case only the TC branch
+survives. This is the reason the :math:`\Delta^{2}[\mathcal F]_{\rm SS}`
+term in :eq:`cp-unified-outer-integration` is conditional.
+
+This branch structure is **identical** between cylinder and sphere.
+In code it is one chord-walker, one ``bnd_pos`` array, one
+``gap_d = max(bnd_pos[j] - bnd_pos[i+1], 0)`` expression. Both
+:mod:`~orpheus.derivations.cp_cylinder` and
+:mod:`~orpheus.derivations.cp_sphere` already share this structure
+verbatim (compare the respective ``for j in range(N_reg):`` inner
+loops); the only differences between the two modules are the kernel
+function and the final :math:`y`-weighting. This is the raw material
+for the Phase B unification.
+
+The slab as a degenerate outer integral
+---------------------------------------
+
+The slab deserves a brief derivational comment because it looks like
+a different case (no :math:`y`-quadrature) but is actually the
+degenerate limit of the curvilinear formula. A slab region is a 1-D
+interval, so the "chord family" parametrised by :math:`y` collapses
+to a single chord; the outer integral reduces to a Dirac delta at
+:math:`y = 0`, giving the direct algebraic
+:math:`\text{rcp}_{ij} = \tfrac{1}{2\Sigma_{t,i}}
+\Delta^{2}[E_3](\tau_i,\tau_j;\,\mathrm{gap})` formula. The factor
+of :math:`1/(2\Sigma_{t,i})` is the slab's residual angular
+normalisation (the :math:`1/2` of :math:`E_3` after its 1-D
+angular integration, divided by the :math:`\Sigma_t` that turns
+"optical rcp" into "linear-distance rcp"). See :eq:`self-slab` for
+the self-region form.
+
+The SS/TC distinction is vacuous for the slab: regions have no
+"other side of the axis" to route through, so the TC term is zero
+and only SS survives. This is another reason Phase B's
+``FlatSourceCPGeometry`` will carry a ``has_through_centre`` flag
+(True for curvilinear, False for slab) — the same kernel-evaluation
+pipeline then handles all three cases.
+
+
+Section 14 — The unified ``FlatSourceCPGeometry`` abstraction
+=============================================================
+
+Sections 12 and 13 establish that the entire flat-source CP matrix
+construction factors as
+
+.. math::
+
+   \text{rcp}_{ij}
+     \;=\;
+     \underbrace{\int_{0}^{R}\!\mathrm{(outer\ measure)}}_{\text{geometry-specific}}
+     \;\cdot\;
+     \underbrace{\Delta^{2}\!\bigl[\mathcal F_d\bigr]}_{\text{geometry-invariant operator}}
+     \;\bigl(\tau_i,\tau_j;\,\mathrm{gap}(y)\bigr),
+
+with the :math:`(\mathrm{gap}, \tau_i, \tau_j)` arguments supplied
+by the chord-walker shared between cylinder and sphere. The rest
+of this section describes the class structure that implements this
+factorisation in Phase B.2 and motivates the design choices.
+
+Design intent
+-------------
+
+Phase 4.2 delivered the pointwise Peierls unification as
+:class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`,
+a single class whose concrete instances (``CYLINDER_1D``,
+``SPHERE_1D``) dispatch on the geometry-specific primitives
+(angular measure, Level-1 kernel, ray-boundary distance, source
+position). Phase B.2 will deliver the analogous abstraction at
+Level 3:
+
+.. code-block:: python
+
+   # orpheus/derivations/cp_geometry.py  (Phase B.2, not yet shipped)
+
+   @dataclass(frozen=True)
+   class FlatSourceCPGeometry:
+       """Level-3 flat-source CP abstraction.
+
+       Mirrors CurvilinearGeometry at a different rung of the
+       three-tier hierarchy. See docs/theory/peierls_unified.rst
+       §14 for the design rationale.
+       """
+
+       kind: str   # "slab" | "cylinder-1d" | "sphere-1d"
+
+       # --- kernel methods --------------------------------------
+       def kernel_F3(self, tau: float) -> float:
+           """Level-3 kernel F_3: E_3 / Ki_3 / exp, by geometry."""
+           ...
+
+       def kernel_F3_at_zero(self) -> float:
+           """F_3(0) in closed form: 1/2, π/4, 1 respectively."""
+           ...
+
+       # --- outer-integration measure ---------------------------
+       def outer_y_weight(self, y: np.ndarray) -> np.ndarray:
+           """1 (slab / cyl) vs y (sph) weighting for the y-quadrature."""
+           ...
+
+       has_through_centre: bool   # False for slab, True otherwise
+       surface_area: float        # 1, 2πR, 4πR² per unit cell
+
+Four primitives (``kernel_F3``, ``kernel_F3_at_zero``,
+``outer_y_weight``, ``surface_area``) and two flags
+(``has_through_centre``, ``kind``) are the full list of
+geometry-specific data. Everything else — the
+:math:`\Delta^{2}` operator, the chord-walker, the y-quadrature
+rule, the composite Gauss–Legendre panels on :math:`[0, R]`, the
+self-collision formula, the white-BC geometric series — is
+shared and parametrised by these primitives.
+
+One class vs two: recommended path
+----------------------------------
+
+A natural question for the Phase B.2 design: should
+:class:`FlatSourceCPGeometry` be folded *into*
+:class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`
+(so one class covers all three kernel levels), or should it remain
+a **sibling** class?
+
+**Option (a) — one class, three kernel levels.** Extend
+``CurvilinearGeometry`` with ``level_3_kernel``, ``level_3_outer_weight``
+etc., and keep ``level_1_kernel`` aliased to the existing
+``volume_kernel_mp``. Pros: one source-of-truth object per geometry,
+closer correspondence to the three-tier ladder, any future
+Level-4-and-beyond extension lands in the same class. Cons: the
+class grows to ~12 methods with two loosely-coupled sets
+(pointwise Nyström uses :math:`\kappa_1`, ray-walker,
+:math:`\rho_{\max}`, etc.; flat-source CP uses :math:`\mathcal F_3`,
+chord-walker, :math:`y`-quadrature), and the
+pointwise-vs-flat-source distinction becomes an implicit flag on
+the methods rather than an explicit class signature.
+
+**Option (b) — sibling classes, shared primitives.** Keep
+:class:`CurvilinearGeometry` as the pointwise abstraction;
+introduce :class:`FlatSourceCPGeometry` as the flat-source
+abstraction. Both call the **same** ``chord_half_lengths``,
+``composite_gl_r``, and ray-walker primitives from
+:mod:`~orpheus.derivations._kernels` and
+:mod:`~orpheus.derivations.peierls_geometry`. Pros: the two classes
+compute fundamentally different quantities (pointwise
+:math:`\varphi(r)` vs region-average :math:`P_{ij}`), so the class
+signature advertises that distinction and the type system enforces
+it. Cons: two classes instead of one; the three-tier ladder is
+implicit in which class you instantiate rather than in a method
+argument.
+
+**Recommendation: option (b) for Phase B.2.** The decision is
+driven by *what is being computed* more than by *how the kernel is
+integrated*. A ``CurvilinearGeometry`` instance answers "give me
+:math:`\varphi(r)` at a collocation node"; a
+``FlatSourceCPGeometry`` instance answers "give me
+:math:`P_{ij}` for a pair of regions". These are different
+physical quantities — collapsing them under one class would force
+the type system to encode a union over quantities, which is less
+clear than two classes.
+
+Option (b) does **not** duplicate code. The shared infrastructure
+lives in :mod:`~orpheus.derivations._kernels` and
+:mod:`~orpheus.derivations.peierls_geometry`; both classes import
+and call those primitives:
+
+- ``chord_half_lengths(radii, y_pts)`` — already shipped in
+  ``_kernels.py``; common to both classes.
+- ``composite_gl_r(radii, n_panels, p_order, dps)`` — already
+  shipped in ``peierls_geometry.py``; common to both.
+- The chord-walker / ``bnd_pos`` accumulation pattern — factored
+  into a new ``peierls_geometry.optical_boundary_positions()``
+  helper that both classes call.
+
+Phase B.2 therefore delivers ``cp_geometry.py`` containing
+:class:`FlatSourceCPGeometry` and its three singleton instances
+(``SLAB``, ``CYLINDER_1D``, ``SPHERE_1D``), plus a
+``build_cp_matrix(geom, sig_t, radii, ...)`` entry point that
+mirrors the existing ``_cylinder_cp_matrix`` / ``_sphere_cp_matrix``
+signature. Then ``cp_slab.py``, ``cp_cylinder.py``, ``cp_sphere.py``
+become thin facades re-exporting ``build_cp_matrix`` with the
+pre-selected geometry.
+
+.. _cp-unified-class-architecture:
+
+Implementation shape (Phase B.2 target)
+---------------------------------------
+
+.. code-block:: python
+   :caption: ``cp_geometry.py`` — intended skeleton; not yet shipped.
+
+   def _second_difference(kernel, gap, tau_i, tau_j):
+       """The geometry-invariant operator Δ²[F](τ_i, τ_j; gap).
+
+       See docs/theory/peierls_unified.rst §12 for the derivation.
+       """
+       return (kernel(gap)
+               - kernel(gap + tau_i)
+               - kernel(gap + tau_j)
+               + kernel(gap + tau_i + tau_j))
+
+   def build_cp_matrix(
+       geom: FlatSourceCPGeometry,
+       sig_t_all: np.ndarray,   # (N_reg, ng)
+       radii: np.ndarray,       # (N_reg,), outer radii (slab: thicknesses)
+       volumes: np.ndarray,
+       n_quad_y: int = 64,
+   ) -> np.ndarray:
+       """Unified flat-source CP matrix constructor.
+
+       Delegates kernel evaluation and outer-measure choice to `geom`;
+       shares chord-walker, second-difference, and white-BC closure
+       across all three geometries.
+       """
+       ...
+
+One unit of work — adding the sphere to the unified code path — is
+a five-line change (pass ``SPHERE_1D`` instead of ``CYLINDER_1D``
+when invoking ``build_cp_matrix``). Contrast this with the present
+three-file implementation in which each geometry carries its own
+~100-line kernel loop.
+
+.. tip::
+
+   **Why not collapse the pointwise and flat-source modules into a
+   single class after all?** Because the four primitives that
+   distinguish pointwise Peierls geometries (``rho_max``, ``r_prime``,
+   angular measure, Level-1 kernel) have **no flat-source analogue**
+   — flat-source CP integrates over a region's chord family, which is
+   a *simpler* geometric structure than a general observer-centred
+   polar parametrisation. Conversely, the flat-source primitives
+   (``outer_y_weight``, Level-3 kernel, ``has_through_centre``) have
+   no pointwise analogue — they presume a region-averaged quantity.
+   Forcing both sets under one class obscures which primitives are
+   active for a given computation. Two classes make the active
+   primitive set explicit.
+
+
+Section 15 — Escape probabilities as Level 2
+============================================
+
+The escape probability :math:`P_{\rm esc}(r_i)` — the uncollided
+probability that a neutron emitted at :math:`r_i` escapes the current
+cell — is the Level-2 quantity of §11. It is **one integration above
+the Level-1 point kernel** (integrate :math:`\kappa_1` along the
+outward ray to the boundary) and **one integration below the Level-3
+flat-source CP kernel** (region-averaging the escape integrand gives
+:math:`\mathcal F_3`). It is therefore the natural "bridge" between
+the pointwise Peierls and flat-source CP methods, and it appears
+explicitly in both codebases.
+
+Level-2 kernel evaluations
+--------------------------
+
+.. list-table:: Level-2 kernels and their escape-probability role
+   :header-rows: 1
+   :widths: 16 28 28 28
+
+   * - Geometry
+     - :math:`\mathcal F_2`
+     - Pointwise use
+     - Flat-source use
+   * - Slab
+     - :math:`E_2(\tau)`
+     - :math:`P_{\rm esc}(x)` via ray integration
+     - White-BC closure :math:`P_{\rm in}` factor
+       (:eq:`pin-from-reciprocity`)
+   * - Cylinder
+     - :math:`\mathrm{Ki}_2(\tau)`
+     - Same — :func:`~orpheus.derivations.peierls_geometry.compute_P_esc`
+       with ``CYLINDER_1D``
+     - White-BC closure of
+       :func:`~orpheus.derivations.cp_cylinder._cylinder_cp_matrix`
+   * - Sphere
+     - :math:`e^{-\tau}`
+     - Same — :func:`~orpheus.derivations.peierls_geometry.compute_P_esc`
+       with ``SPHERE_1D``
+     - White-BC closure of
+       :func:`~orpheus.derivations.cp_sphere._sphere_cp_matrix`
+
+For the curvilinear cases the pointwise :math:`P_{\rm esc}` is
+already implemented via the unified
+:func:`orpheus.derivations.peierls_geometry.compute_P_esc` call,
+which integrates the geometry-specific ``escape_kernel_mp`` along
+each outgoing ray. The slab equivalent lives in
+:mod:`~orpheus.derivations.peierls_slab` as the
+``build_white_bc_correction`` helper (rank-2 because of two boundary
+faces — see :eq:`peierls-white-bc` and §8 above).
+
+The flat-source white-BC closure reuses the *same* :math:`P_{\rm esc}`
+value but extracted from the CP matrix itself:
+
+.. math::
+   :label: cp-escape-from-p-cell
+
+   P_{{\rm esc},i}^{\rm CP}
+     \;=\; 1 - \sum_{j} P_{ij}^{\rm cell}
+     \;=\; 1 - \frac{1}{\Sigma_{t,i}\,V_i}\sum_{j}\text{rcp}_{ij}^{\rm cell},
+
+.. vv-status: cp-escape-from-p-cell documented
+
+which is the code line ``P_out = np.maximum(1.0 - P_cell.sum(axis=1),
+0.0)`` in all three CP derivation modules. The two routes agree at
+the sum level because the row sum identity
+:math:`\sum_j P_{ij}^{\rm cell} + P_{{\rm esc},i} = 1` is exactly the
+Level-2 statement that the kernel integrates to unit escape-or-collision
+probability.
+
+Cross-check at Level 2: flat-source vs pointwise
+------------------------------------------------
+
+An L2 regression test available for Phase B.3 is the following
+algebraic identity: evaluate :math:`P_{\rm esc}` two ways —
+(a) pointwise via :func:`compute_P_esc`, then volume-average over the
+region; (b) flat-source via :eq:`cp-escape-from-p-cell`. Both should
+agree on the region-averaged level to the CP-matrix quadrature
+tolerance (``tolerance = 1e-5`` in
+:func:`~orpheus.derivations.cp_cylinder.all_cases`). This is a
+**cross-level** verification: it checks that the Level-2 kernel is
+correctly related to the Level-1 kernel by one antiderivation, using
+the Level-3 machinery as the consumer. It is the natural L2-bridge
+test for the three-tier hierarchy.
+
+The sphere is a useful edge case here because its Level-2 kernel is
+the unmodified :math:`e^{-\tau}` — the cross-check therefore reduces
+to comparing mpmath's ``mpmath.exp(-tau)`` against the composite-GL
+pointwise integral of the same. Any discrepancy would immediately
+signal a coordinate / Jacobian error in one of the two routes.
+
+
+Section 16 — ``BickleyTables`` retirement plan
+==============================================
+
+The legacy :class:`~orpheus.derivations._kernels.BickleyTables` class
+is a 20,000-point tabulation of :math:`\mathrm{Ki}_n` evaluations
+built at ~1e-3 accuracy by :func:`scipy.integrate.quad` and cached
+via :func:`~orpheus.derivations._kernels.bickley_tables`. It was
+introduced with the original flat-source CP cylindrical module and
+has survived every subsequent refactor because the CP formulas were
+written against its (non-A&S) naming and because every replacement
+candidate would have required simultaneous audit of the physics.
+
+As of Phase B.2, both conditions are lifted:
+
+- The high-precision :func:`~orpheus.derivations._kernels.e_n` and
+  :func:`~orpheus.derivations._kernels.ki_n` evaluators are shipped
+  and tested to 50-digit precision.
+- The Phase B.2 refactor is a full rewrite of the CP-matrix
+  construction, not an in-place rename. The new code can adopt
+  canonical A&S naming from the first line — ``Ki3_vec(x) →
+  ki_n_mp(3, x, dps=30)``.
+
+The off-by-one naming discrepancy (GitHub Issue `#94
+<https://github.com/deOliveira-R/ORPHEUS/issues/94>`_) is therefore
+resolved **structurally**: the new code never uses the legacy names
+``Ki3_vec`` or ``ki4_vec``, so there is nothing to rename.
+
+Replacement table
+-----------------
+
+.. list-table:: BickleyTables replacement by Phase B.2
+   :header-rows: 1
+   :widths: 36 36 28
+
+   * - Legacy call
+     - Canonical replacement
+     - A&S identity
+   * - ``tables.ki3(x)`` / ``ki3_vec(x)``
+     - ``ki_n_mp(2, x, dps=30)``
+     - canonical :math:`\mathrm{Ki}_2(x)`
+   * - ``tables.ki4(x)`` / ``ki4_vec(x)``
+     - ``ki_n_mp(3, x, dps=30)``
+     - canonical :math:`\mathrm{Ki}_3(x)`
+   * - ``tables.Ki2_vec(x)`` (canonical alias, added Phase 4.2)
+     - ``ki_n_mp(2, x, dps=30)``
+     - canonical :math:`\mathrm{Ki}_2(x)`
+   * - ``tables.Ki3_vec(x)`` (canonical alias, added Phase 4.2)
+     - ``ki_n_mp(3, x, dps=30)``
+     - canonical :math:`\mathrm{Ki}_3(x)`
+   * - ``e3(x)`` / ``e3_vec(x)`` (slab)
+     - ``e_n_mp(3, x, dps=30)``
+     - canonical :math:`E_3(x)`
+
+The precision upgrade (1e-3 tabulation → 30 dps mpmath) is
+sufficient for Phase B regression: a ``test_bickley_replacement``
+case will confirm that the Phase B.2 CP matrix agrees with the
+Phase-A baseline to at least 1e-5 absolute on every existing
+``cp_*`` verification case (``tests/cp/test_cylinder.py``,
+``test_sphere.py``, ``test_slab.py``). Agreement to 1e-3 is
+guaranteed by construction (both codes hit the same second-difference
+formula with the same table's precision); improvement to 1e-5 is
+the payoff for the mpmath upgrade and comes from eliminating the
+tabulation's interpolation error.
+
+Retirement steps (Phase B sequence)
+-----------------------------------
+
+1. **Phase B.2** (this theory page is the predecessor): implement
+   ``cp_geometry.py`` with mpmath-backed kernel methods. The
+   legacy :class:`BickleyTables` remains in ``_kernels.py`` but is
+   **no longer imported** by any ``cp_*`` module.
+2. **Phase B.3**: regression tests confirm bit-identical-or-better
+   agreement with the Phase-A CP matrices; the pointwise-vs-CP
+   cross-level test (§15) passes at Level 2 and Level 3.
+3. **Phase B.4**: delete :class:`BickleyTables` and
+   :func:`bickley_tables` from
+   :mod:`~orpheus.derivations._kernels`. Update
+   ``docs/verification/matrix.rst`` to mark Issue #94 closed.
+   The deletion commit title is ``chore(derivations): retire
+   BickleyTables (closes #94)``.
+
+Performance regression — what to measure
+----------------------------------------
+
+Each mpmath :math:`\mathrm{Ki}_n` call is ~100× slower than a
+double-precision table lookup. The flat-source CP matrix requires
+:math:`O(N_{\rm reg}^{2}\cdot n_y)` kernel evaluations per group;
+for a 4-region 64-quadrature-point cylindrical case at 4 groups,
+this is ~4×16×64 = 4,096 kernel calls per :math:`P_{ij}` matrix
+(~16,384 per full 4-group case). At 100 μs per ``ki_n_mp`` call,
+the matrix construction time grows from ~10 ms (legacy tables) to
+~1.5 s.
+
+The Phase B.2 implementation therefore pre-tabulates
+:math:`\mathrm{Ki}_n` at the *actual* optical-depth arguments seen
+during a solve — a Chebyshev interpolant built once at 30 dps,
+evaluated at double precision during the matrix loop. This recovers
+the speed of the legacy tables while preserving the arbitrary
+precision available for verification runs. The interpolant's
+accuracy is a tunable (``dps_table = 30``) parameter; at 30 dps
+the Chebyshev error is ~1e-12 on :math:`\tau \in [0, 50]`, which is
+O(10⁷) tighter than the legacy table's ~1e-3.
+
+This is the correct place to stop: Phase B.2 *does* pre-tabulate,
+but it pre-tabulates *from the canonical mpmath primitive*, not from
+a quad-based 20k-point linear interpolant. The tabulation is an
+implementation detail of ``cp_geometry.py``, invisible to callers.
+
+
+Section 17 — Relationship to the existing literature
+====================================================
+
+The second-difference formulas documented above are not original to
+this codebase. They originate in the classical flat-source CP
+literature, which pre-dates computer-based transport by a decade or
+more. We credit the standard sources here and flag the
+specialisations that each contributed:
+
+- **Slab** :math:`\Delta^{2}[E_3]`. The four-term structure was in
+  wide use by the 1960s; it appears explicitly in
+  [Carlvik1966]_ §III for the infinite-cylinder case (with a brief
+  side-remark on the slab analogue obtained by the :math:`\sin\theta
+  \to 1` limit) and is presented in full in [Stamm1983]_ §6.3 with
+  the :math:`E_n` derivative identity :math:`E_n' = -E_{n-1}` made
+  explicit. The slab second-difference formula has no single
+  canonical citation because it emerged as a straightforward
+  specialisation of the cylinder derivation.
+- **Cylinder** :math:`\Delta^{2}[\mathrm{Ki}_3]`. [Carlvik1966]_ is
+  the canonical modern reference: it introduces the chord-form
+  :math:`y`-quadrature, derives the four-term
+  :math:`\mathrm{Ki}_3`-based formula, and applies it to Dancoff
+  factors. [Stamm1983]_ §6.4 presents a cleaner exposition with
+  careful attention to the annular geometry's SS / TC branch
+  distinction (§13 above) and to the :math:`\mathrm{Ki}_n`
+  derivative identity. The derivation in our
+  :mod:`~orpheus.derivations.cp_cylinder` follows [Stamm1983]_
+  more closely than [Carlvik1966]_.
+- **Sphere** :math:`\Delta^{2}[e^{-\tau}]`. [BellGlasstone1970]_
+  §2.7 derives the spherical CP matrix with the bare
+  :math:`e^{-\tau}` kernel and the :math:`y\,\mathrm dy` outer
+  measure. The derivation is brief because the spherical case
+  inherits the chord machinery verbatim from the cylinder — only
+  the outer weight changes. [BellGlasstone1970]_ also presents
+  the limiting cases (small :math:`R`, large :math:`R`) as
+  sanity checks on the formula, which
+  :mod:`~orpheus.derivations.cp_sphere` replicates at
+  :math:`R = 10` MFP via the :math:`k_\infty \to 1.5` agreement
+  with the homogeneous analytic solution.
+
+Historical context — the pre-computer origin
+--------------------------------------------
+
+The reason these formulas are presented in chord coordinates in
+every historical reference is that chord coordinates give **closed-form
+flat-source annular integrals**. A pre-1970 user computing a CP
+matrix by hand needed to read :math:`\mathrm{Ki}_3(\tau)` or
+:math:`E_3(\tau)` off a tabulated function, multiply by a handful
+of geometric factors, and sum four terms per :math:`P_{ij}` element.
+The alternative — the polar-form pointwise Peierls — required
+:math:`O(n_\beta \cdot n_\rho)` kernel evaluations per observer
+and was simply not computable by hand.
+
+By the time computers made the polar form feasible, the chord-form
+derivations had become standard pedagogy and the flat-source CP
+method had its own decade of established engineering use. The
+pointwise Peierls Nyström formulation — the basis for the modern
+verification pipeline — therefore was *not* developed in parallel
+with flat-source CP. It emerged later, from the integral-transport
+verification literature (e.g. [Sanchez1982]_, then the integral
+benchmark programmes of the 1990s-2000s), and used the polar form
+because by then :math:`\mathrm{Ki}_1` was cheaper to evaluate than
+:math:`\mathrm{Ki}_3` (one fewer antiderivation, and
+machine-precision special-function libraries had matured).
+
+**The unification on this page is the first time the polar-form
+Level-1 and the chord-form Level-3 have been put into a single
+conceptual framework in ORPHEUS.** This framework makes it obvious
+that:
+
+- The three flat-source CP modules can (and should) share one
+  :math:`\Delta^{2}` operator and one chord-walker. Phase B does
+  this.
+- The pointwise Peierls and flat-source CP are two instances of the
+  same integral transport equation at two different rungs of the
+  integration ladder. Cross-level verification (§15) is therefore
+  *meaningful* — it checks one geometry at two kernel levels — not
+  a coincidence.
+- The sphere's "no special functions" result is not an asymmetry but
+  a consequence of :math:`e^{-\tau}` being its own antiderivative.
+  The ladder structure explains why this is the case, removing what
+  looked like a geometry-specific surprise.
+
+No equation on this page originates here — all four derivations
+(:eq:`cp-flat-source-double-integral`,
+:eq:`cp-inner-integral-antiderivative`,
+:eq:`cp-outer-integral-antiderivative`,
+:eq:`cp-second-difference-operator`) reproduce steps already in the
+classical references or in :doc:`collision_probability`. What is new
+is the *organisation*: naming the levels, naming the operator, and
+factoring the per-geometry data into four primitives + two flags.
+
+
+.. seealso::
+
+   **Phase B.2 target modules** (forthcoming — the Sphinx build will
+   flag these as unresolved until the code lands; that is expected):
+
+   :mod:`orpheus.derivations.cp_geometry` — the unified
+   ``FlatSourceCPGeometry`` class and
+   ``build_cp_matrix`` entry point.
+
+   :mod:`orpheus.derivations.cp_slab` — will become a thin facade
+   over ``cp_geometry`` with ``SLAB`` preselected; the current
+   bespoke :func:`~orpheus.derivations.cp_slab._slab_cp_matrix` is
+   the derivation predecessor.
+
+   :mod:`orpheus.derivations.cp_cylinder` — will become a thin
+   facade over ``cp_geometry`` with ``CYLINDER_1D`` preselected;
+   the current :func:`~orpheus.derivations.cp_cylinder._cylinder_cp_matrix`
+   is the derivation predecessor.
+
+   :mod:`orpheus.derivations.cp_sphere` — will become a thin facade
+   over ``cp_geometry`` with ``SPHERE_1D`` preselected; the current
+   :func:`~orpheus.derivations.cp_sphere._sphere_cp_matrix` is the
+   derivation predecessor.
+
+   **Existing building blocks** (already shipped):
+
+   :func:`orpheus.derivations._kernels.chord_half_lengths` — the
+   chord-walker consumed by both curvilinear CP modules and by the
+   cylinder Peierls reference.
+
+   :func:`orpheus.derivations._kernels.e_n_mp`,
+   :func:`orpheus.derivations._kernels.ki_n_mp` — canonical mpmath
+   evaluators that replace :class:`~orpheus.derivations._kernels.BickleyTables`
+   in Phase B.2.
+
+   :func:`orpheus.derivations._kernels.e_n_derivative`,
+   :func:`orpheus.derivations._kernels.ki_n_derivative` — the
+   differential identities :eq:`cp-kernel-differential-identities`.
+
+   :func:`orpheus.derivations.peierls_geometry.compute_P_esc` —
+   pointwise Level-2 escape probability used by §15's cross-level
+   test.
+
+   **Theory cross-references:**
+
+   :doc:`collision_probability` §:ref:`second-diff-derivation` —
+   the full IBP chain underlying :eq:`cp-flat-source-derivation`,
+   already programmatically verified by an embedded SymPy script.
+
+   :doc:`collision_probability` §:ref:`ki-table-construction` — the
+   original :class:`BickleyTables` documentation that §16 deprecates.
+
+   GitHub Issue `#107
+   <https://github.com/deOliveira-R/ORPHEUS/issues/107>`_ — N6:
+   Phase B tracking issue (CP flat-source unification).
+
+   GitHub Issue `#94
+   <https://github.com/deOliveira-R/ORPHEUS/issues/94>`_ —
+   BickleyTables naming discrepancy (closed structurally by §16).
+
+
 References
 ==========
 

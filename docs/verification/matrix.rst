@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **653**
+Total tests collected: **741**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 346, 53.0%
-   L1, 185, 28.3%
-   L2, 36, 5.5%
+   L0, 406, 54.8%
+   L1, 210, 28.3%
+   L2, 36, 4.9%
    L3, 0, 0.0%
-   foundation, 75, 11.5%
-   unmarked, 11, 1.7%
+   foundation, 78, 10.5%
+   unmarked, 11, 1.5%
 
 Tagging source
 --------------
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 563
+   explicit, 651
    verify, 0
    class-name, 46
    func-name, 0
@@ -48,6 +48,9 @@ Module × level grid
 
    cp/test_cylinder, 0, 9, 0, 0, 0, 0
    cp/test_diagnostics, 8, 28, 0, 0, 0, 0
+   cp/test_peierls_cylinder_flux, 0, 4, 0, 0, 0, 0
+   cp/test_peierls_flux, 0, 1, 0, 0, 0, 0
+   cp/test_peierls_sphere_flux, 0, 4, 0, 0, 0, 0
    cp/test_properties, 12, 0, 0, 0, 0, 0
    cp/test_slab, 0, 9, 0, 0, 0, 0
    cp/test_sphere, 0, 9, 0, 0, 0, 0
@@ -55,6 +58,16 @@ Module × level grid
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
    derivations/test_kernels, 67, 0, 0, 0, 0, 0
+   derivations/test_peierls_convergence, 5, 0, 0, 0, 0, 0
+   derivations/test_peierls_cylinder_eigenvalue, 3, 5, 0, 0, 0, 0
+   derivations/test_peierls_cylinder_geometry, 10, 0, 0, 0, 0, 0
+   derivations/test_peierls_cylinder_multi_region, 7, 0, 0, 0, 3, 0
+   derivations/test_peierls_cylinder_prefactor, 4, 0, 0, 0, 0, 0
+   derivations/test_peierls_cylinder_white_bc, 4, 3, 0, 0, 0, 0
+   derivations/test_peierls_sphere_eigenvalue, 0, 4, 0, 0, 0, 0
+   derivations/test_peierls_sphere_geometry, 21, 0, 0, 0, 0, 0
+   derivations/test_peierls_sphere_prefactor, 6, 0, 0, 0, 0, 0
+   derivations/test_peierls_sphere_white_bc, 0, 4, 0, 0, 0, 0
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
@@ -103,39 +116,41 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 
    ``mg-balance``, 165
    ``matrix-eigenvalue``, 160
-   ``one-group-kinf``, 116
+   ``one-group-kinf``, 132
    ``reflective-bc``, 110
    ``alpha-recursion``, 100
    ``wdd-closure``, 100
    ``wdd-face``, 100
-   ``collision-rate``, 88
+   ``collision-rate``, 91
    ``alpha-cylindrical``, 74
    ``mm-weights``, 74
    ``multigroup``, 65
+   ``ki3-def``, 52
    ``self-slab``, 52
    ``balance-general``, 51
+   ``chord-length``, 51
    ``self-cyl``, 51
+   ``p-inf``, 50
    ``e3-def``, 49
    ``flux-moments``, 49
-   ``ki3-def``, 49
-   ``p-inf``, 49
    ``self-sph``, 49
    ``attenuation``, 48
    ``optical-thickness``, 48
    ``scalar-flux-integral``, 48
    ``wigner-seitz``, 46
-   ``chord-length``, 36
+   ``peierls-unified``, 39
    ``keff-mean``, 33
    ``sigma-keff``, 33
+   ``flat-source``, 32
    ``cp-keff-update``, 31
    ``first-flight-kernel``, 31
-   ``flat-source``, 31
    ``free-flight``, 31
    ``matrix-A-def``, 31
    ``matrix-B-def``, 31
    ``neutron-balance``, 31
    ``optical-path``, 31
    ``pcell-from-smat``, 31
+   ``peierls-equation``, 31
    ``pin-from-reciprocity``, 31
    ``rcp-from-double-antideriv``, 31
    ``s-integral``, 31
@@ -257,14 +272,20 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **1** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **7** of the testable equations found on theory pages are orphan.
 
+- ``e1-decomposition``
+- ``peierls-sphere-G-bc``
+- ``peierls-sphere-equation``
+- ``peierls-sphere-nystrom``
+- ``peierls-sphere-ray-optical-depth``
+- ``peierls-white-bc``
 - ``vacuum-bc``
 
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **29** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **55** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bickley-integral``
 - ``boltzmann``
@@ -275,6 +296,14 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``coolant-energy``
 - ``coolant-feedback``
 - ``coolant-rate``
+- ``cp-escape-from-p-cell``
+- ``cp-flat-source-derivation``
+- ``cp-flat-source-double-integral``
+- ``cp-inner-integral-antiderivative``
+- ``cp-kernel-differential-identities``
+- ``cp-outer-integral-antiderivative``
+- ``cp-second-difference-operator``
+- ``cp-unified-outer-integration``
 - ``creep-rate``
 - ``doppler-feedback``
 - ``fb-bc4-displacement``
@@ -291,6 +320,24 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``group-xs``
 - ``maxwellian``
 - ``one-over-E``
+- ``peierls-cylinder-equation``
+- ``peierls-cylinder-green-2d``
+- ``peierls-cylinder-nystrom``
+- ``peierls-cylinder-polar``
+- ``peierls-cylinder-r-prime``
+- ``peierls-cylinder-ray-optical-depth``
+- ``peierls-cylinder-rho-max``
+- ``peierls-cylinder-row-sum-identity``
+- ``peierls-e1-derivation``
+- ``peierls-ki1-derivation``
+- ``peierls-point-kernel-3d``
+- ``peierls-polar-jacobian-cancellation``
+- ``peierls-sphere-green-3d``
+- ``peierls-sphere-polar``
+- ``peierls-sphere-r-prime``
+- ``peierls-sphere-rho-max``
+- ``peierls-sphere-row-sum-identity``
+- ``peierls-unified``
 - ``power-equation``
 - ``precursor-equation``
 - ``sigs-convention``
