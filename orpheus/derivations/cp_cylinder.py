@@ -1,32 +1,44 @@
 """Semi-analytical cylindrical collision probability eigenvalues.
 
-Derives k_inf for {1,2,4} energy groups × {1,2,4} regions using the
-canonical Ki₃ (Bickley-Naylor) kernel as the second-difference
-anti-derivative. The CP matrix is computed numerically via
-y-quadrature; the eigenvalue problem is a finite matrix solve.
+Thin facade over :mod:`~orpheus.derivations.cp_geometry` with
+:data:`~.cp_geometry.CYLINDER_1D` pre-selected. Derives ``k_inf``
+for {1, 2, 4} energy groups × {1, 2, 4} regions using the canonical
+:math:`\\mathrm{Ki}_3` (Bickley-Naylor) kernel as the second-difference
+anti-derivative.
+
+See :doc:`/theory/peierls_unified` §§11-17 for the three-tier
+integration hierarchy and the unified :math:`\\Delta^{2}` operator.
 
 .. note::
 
    Phase-4.2 resolved the naming discrepancy documented in #94:
    the legacy ``BickleyTables.ki4`` method computes the canonical
-   Ki₃ (A&S convention).  This module now uses the canonical-named
-   alias ``Ki3_vec`` for clarity.
+   :math:`\\mathrm{Ki}_3` (A&S convention). Phase B.2 routes the
+   cylinder kernel through ``Ki3_vec`` via the unified builder;
+   Phase B.4 will replace the tabulation with ``ki_n_mp(3, ·, 30)``
+   and retire :class:`~._kernels.BickleyTables`.
 """
 
 from __future__ import annotations
 
 import numpy as np
 
+from . import cp_geometry as _cpg
 from ._eigenvalue import kinf_from_cp
-from ._kernels import bickley_tables, chord_half_lengths
 from ._types import VerificationCase
 from ._xs_library import LAYOUTS, get_xs, get_mixture
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Cylindrical CP matrix from Ki₄ kernel
+# Geometry singleton (binds the unified infrastructure)
 # ═══════════════════════════════════════════════════════════════════════
 
+GEOMETRY = _cpg.CYLINDER_1D
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Backward-compatible cylindrical CP matrix
+# ═══════════════════════════════════════════════════════════════════════
 
 def _cylinder_cp_matrix(
     sig_t_all: np.ndarray,
@@ -37,89 +49,19 @@ def _cylinder_cp_matrix(
 ) -> np.ndarray:
     """Compute the infinite-lattice CP matrix for a cylindrical cell.
 
+    Delegates to :func:`cp_geometry.build_cp_matrix` with the
+    pre-bound :data:`~.cp_geometry.CYLINDER_1D` geometry.
+
     Returns P_inf : (N_reg, N_reg, ng).
     """
-    N_reg = len(radii)
-    ng = sig_t_all.shape[1]
-    tables = bickley_tables()
-
-    gl_pts, gl_wts = np.polynomial.legendre.leggauss(n_quad_y)
-    breakpoints = np.concatenate(([0.0], radii))
-    y_all, w_all = [], []
-    for seg in range(len(breakpoints) - 1):
-        a, b = breakpoints[seg], breakpoints[seg + 1]
-        y_all.append(0.5 * (b - a) * gl_pts + 0.5 * (b + a))
-        w_all.append(0.5 * (b - a) * gl_wts)
-    y_pts = np.concatenate(y_all)
-    y_wts = np.concatenate(w_all)
-    chords = chord_half_lengths(radii, y_pts)
-    n_y = len(y_pts)
-    ki4_0 = tables.Ki3_vec(np.zeros(n_y))
-
-    P_inf_g = np.empty((N_reg, N_reg, ng))
-
-    for g in range(ng):
-        sig_t_g = sig_t_all[:, g]
-        tau = sig_t_g[:, None] * chords
-
-        bnd_pos = np.zeros((N_reg + 1, n_y))
-        for k in range(N_reg):
-            bnd_pos[k + 1, :] = bnd_pos[k, :] + tau[k, :]
-
-        rcp = np.zeros((N_reg, N_reg))
-
-        for i in range(N_reg):
-            tau_i = tau[i, :]
-            sti = sig_t_g[i]
-            if sti == 0:
-                continue
-
-            self_same = 2.0 * chords[i, :] - (2.0 / sti) * (
-                ki4_0 - tables.Ki3_vec(tau_i)
-            )
-            rcp[i, i] += 2.0 * sti * np.dot(y_wts, self_same)
-
-            for j in range(N_reg):
-                tau_j = tau[j, :]
-                if j > i:
-                    gap_d = np.maximum(bnd_pos[j, :] - bnd_pos[i + 1, :], 0.0)
-                elif j < i:
-                    gap_d = np.maximum(bnd_pos[i, :] - bnd_pos[j + 1, :], 0.0)
-                else:
-                    gap_d = None
-
-                if gap_d is not None:
-                    dd = (tables.Ki3_vec(gap_d)
-                          - tables.Ki3_vec(gap_d + tau_i)
-                          - tables.Ki3_vec(gap_d + tau_j)
-                          + tables.Ki3_vec(gap_d + tau_i + tau_j))
-                else:
-                    dd = np.zeros(n_y)
-
-                gap_c = bnd_pos[i, :] + bnd_pos[j, :]
-                dc = (tables.Ki3_vec(gap_c)
-                      - tables.Ki3_vec(gap_c + tau_i)
-                      - tables.Ki3_vec(gap_c + tau_j)
-                      + tables.Ki3_vec(gap_c + tau_i + tau_j))
-
-                rcp[i, j] += 2.0 * np.dot(y_wts, dd + dc)
-
-        P_cell = np.zeros((N_reg, N_reg))
-        for i in range(N_reg):
-            if sig_t_g[i] * volumes[i] > 0:
-                P_cell[i, :] = rcp[i, :] / (sig_t_g[i] * volumes[i])
-
-        P_out = np.maximum(1.0 - P_cell.sum(axis=1), 0.0)
-        S_cell = 2.0 * np.pi * r_cell
-        P_in = sig_t_g * volumes * P_out / S_cell
-        P_inout = max(1.0 - P_in.sum(), 0.0)
-
-        P_inf = P_cell.copy()
-        if P_inout < 1.0:
-            P_inf += np.outer(P_out, P_in) / (1.0 - P_inout)
-        P_inf_g[:, :, g] = P_inf
-
-    return P_inf_g
+    return _cpg.build_cp_matrix(
+        GEOMETRY,
+        sig_t_all=sig_t_all,
+        radii_or_thicknesses=np.asarray(radii, dtype=float),
+        volumes=np.asarray(volumes, dtype=float),
+        R_cell=float(r_cell),
+        n_quad_y=n_quad_y,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════

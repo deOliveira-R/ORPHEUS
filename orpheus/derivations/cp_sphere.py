@@ -1,50 +1,46 @@
-"""Semi-analytical spherical collision probability eigenvalues.
+r"""Semi-analytical spherical collision probability eigenvalues.
 
-Derives k_inf for {1,2,4} energy groups × {1,2,4} regions using the
-exponential kernel with y-weighted quadrature.  The CP matrix is
-computed numerically; the eigenvalue problem is a finite matrix solve.
+Thin facade over :mod:`~orpheus.derivations.cp_geometry` with
+:data:`~.cp_geometry.SPHERE_1D` pre-selected. Derives ``k_inf`` for
+{1, 2, 4} energy groups × {1, 2, 4} regions using the exponential
+kernel with y-weighted quadrature.
+
+See :doc:`/theory/peierls_unified` §§11-17 for the three-tier
+integration hierarchy and the unified :math:`\Delta^{2}` operator.
 
 Spherical CP kernel
 -------------------
-For concentric spherical shells, the transmission kernel along a chord
-at impact parameter y is simply ``exp(-τ)`` — full 3-D symmetry removes
-any residual angular integration (unlike slab E₃ or cylinder Ki₃).
 
-The reduced collision probability integral uses:
-
-.. math::
-
-    \\text{rcp}_{ij} = 2 \\int_0^{r_{\\text{cell}}}
-        \\Delta_2[F](\\tau_i, \\tau_j, \\text{gap}) \\; y \\, dy
-
-where :math:`F(\\tau) = e^{-\\tau}` and :math:`\\Delta_2[F]` is the
-second-difference formula, and the extra factor of *y* in the
-quadrature weight comes from the spherical area element ``2πy dy``.
-
-White boundary condition
-~~~~~~~~~~~~~~~~~~~~~~~~
-The cell surface is :math:`S = 4\\pi r_{\\text{cell}}^2`, and the
-escape-to-re-entry closure is the same as for slab / cylinder:
-
-.. math::
-
-    P_{\\text{in},i} = \\Sigma_{t,i} V_i P_{\\text{out},i} / S_{\\text{cell}}
+For concentric spherical shells, the transmission kernel along a
+chord at impact parameter :math:`y` is simply :math:`e^{-\tau}` —
+full 3-D symmetry removes any residual angular integration (unlike
+slab :math:`E_3` or cylinder :math:`\mathrm{Ki}_3`). The spherical
+area element :math:`2\pi y\,\mathrm d y` gives a
+:attr:`~.cp_geometry.FlatSourceCPGeometry.outer_y_weight` of
+:math:`y` (the :math:`2\pi` is absorbed into the white-BC surface
+area :math:`4\pi R^{2}`).
 """
 
 from __future__ import annotations
 
 import numpy as np
 
+from . import cp_geometry as _cpg
 from ._eigenvalue import kinf_from_cp
-from ._kernels import chord_half_lengths
 from ._types import VerificationCase
 from ._xs_library import LAYOUTS, get_xs, get_mixture
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Spherical CP matrix from exponential kernel
+# Geometry singleton (binds the unified infrastructure)
 # ═══════════════════════════════════════════════════════════════════════
 
+GEOMETRY = _cpg.SPHERE_1D
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Backward-compatible spherical CP matrix
+# ═══════════════════════════════════════════════════════════════════════
 
 def _sphere_cp_matrix(
     sig_t_all: np.ndarray,
@@ -53,107 +49,23 @@ def _sphere_cp_matrix(
     r_cell: float,
     n_quad_y: int = 64,
 ) -> np.ndarray:
-    """Compute the infinite-lattice CP matrix for a spherical cell.
+    r"""Compute the infinite-lattice CP matrix for a spherical cell.
 
-    Uses F(τ) = exp(-τ) as the kernel, with y-weighted Gauss-Legendre
-    quadrature over the impact parameter.
+    Delegates to :func:`cp_geometry.build_cp_matrix` with the
+    pre-bound :data:`~.cp_geometry.SPHERE_1D` geometry, which applies
+    :math:`F(\tau) = e^{-\tau}` and the :math:`y`-weighted outer
+    quadrature characteristic of spherical geometry.
 
     Returns P_inf : (N_reg, N_reg, ng).
     """
-    N_reg = len(radii)
-    ng = sig_t_all.shape[1]
-
-    # Composite Gauss-Legendre quadrature over shell breakpoints
-    gl_pts, gl_wts = np.polynomial.legendre.leggauss(n_quad_y)
-    breakpoints = np.concatenate(([0.0], radii))
-    y_all, w_all = [], []
-    for seg in range(len(breakpoints) - 1):
-        a, b = breakpoints[seg], breakpoints[seg + 1]
-        y_all.append(0.5 * (b - a) * gl_pts + 0.5 * (b + a))
-        w_all.append(0.5 * (b - a) * gl_wts)
-    y_pts = np.concatenate(y_all)
-    y_wts = np.concatenate(w_all)
-
-    # Spherical weight: extra factor of y
-    y_wts = y_wts * y_pts
-
-    chords = chord_half_lengths(radii, y_pts)
-    n_y = len(y_pts)
-
-    # Kernel F(τ) = exp(-τ), F(0) = 1
-    def kernel(tau):
-        return np.exp(-tau)
-    kernel_zero = np.ones(n_y)
-
-    P_inf_g = np.empty((N_reg, N_reg, ng))
-
-    for g in range(ng):
-        sig_t_g = sig_t_all[:, g]
-        tau = sig_t_g[:, None] * chords
-
-        bnd_pos = np.zeros((N_reg + 1, n_y))
-        for k in range(N_reg):
-            bnd_pos[k + 1, :] = bnd_pos[k, :] + tau[k, :]
-
-        rcp = np.zeros((N_reg, N_reg))
-
-        for i in range(N_reg):
-            tau_i = tau[i, :]
-            sti = sig_t_g[i]
-            if sti == 0:
-                continue
-
-            # Self-same collision
-            self_same = 2.0 * chords[i, :] - (2.0 / sti) * (
-                kernel_zero - kernel(tau_i)
-            )
-            rcp[i, i] += 2.0 * sti * np.dot(y_wts, self_same)
-
-            for j in range(N_reg):
-                tau_j = tau[j, :]
-                if j > i:
-                    gap_d = np.maximum(
-                        bnd_pos[j, :] - bnd_pos[i + 1, :], 0.0)
-                elif j < i:
-                    gap_d = np.maximum(
-                        bnd_pos[i, :] - bnd_pos[j + 1, :], 0.0)
-                else:
-                    gap_d = None
-
-                if gap_d is not None:
-                    dd = (kernel(gap_d)
-                          - kernel(gap_d + tau_i)
-                          - kernel(gap_d + tau_j)
-                          + kernel(gap_d + tau_i + tau_j))
-                else:
-                    dd = np.zeros(n_y)
-
-                gap_c = bnd_pos[i, :] + bnd_pos[j, :]
-                dc = (kernel(gap_c)
-                      - kernel(gap_c + tau_i)
-                      - kernel(gap_c + tau_j)
-                      + kernel(gap_c + tau_i + tau_j))
-
-                rcp[i, j] += 2.0 * np.dot(y_wts, dd + dc)
-
-        # Normalize: P_cell = rcp / (Σ_t · V)
-        P_cell = np.zeros((N_reg, N_reg))
-        for i in range(N_reg):
-            if sig_t_g[i] * volumes[i] > 0:
-                P_cell[i, :] = rcp[i, :] / (sig_t_g[i] * volumes[i])
-
-        # White boundary condition
-        P_out = np.maximum(1.0 - P_cell.sum(axis=1), 0.0)
-        S_cell = 4.0 * np.pi * r_cell**2
-        P_in = sig_t_g * volumes * P_out / S_cell
-        P_inout = max(1.0 - P_in.sum(), 0.0)
-
-        P_inf = P_cell.copy()
-        if P_inout < 1.0:
-            P_inf += np.outer(P_out, P_in) / (1.0 - P_inout)
-        P_inf_g[:, :, g] = P_inf
-
-    return P_inf_g
+    return _cpg.build_cp_matrix(
+        GEOMETRY,
+        sig_t_all=sig_t_all,
+        radii_or_thicknesses=np.asarray(radii, dtype=float),
+        volumes=np.asarray(volumes, dtype=float),
+        R_cell=float(r_cell),
+        n_quad_y=n_quad_y,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════

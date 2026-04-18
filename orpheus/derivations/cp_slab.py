@@ -1,22 +1,32 @@
 """Semi-analytical slab collision probability eigenvalues.
 
-Derives k_inf for {1,2,4} energy groups × {1,2,4} regions using the E₃
-exponential integral kernel. The CP matrix is computed numerically to
-integrator precision; the eigenvalue problem is then a finite matrix solve.
+Thin facade over :mod:`~orpheus.derivations.cp_geometry` with
+:data:`~.cp_geometry.SLAB` pre-selected. Derives ``k_inf`` for
+{1, 2, 4} energy groups × {1, 2, 4} regions using the :math:`E_3`
+exponential-integral kernel. See :doc:`/theory/peierls_unified`
+§§11-17 for the three-tier integration hierarchy and the
+derivation of the geometry-invariant :math:`\\Delta^{2}` operator.
 """
 
 from __future__ import annotations
 
 import numpy as np
 
+from . import cp_geometry as _cpg
 from ._eigenvalue import kinf_from_cp
-from ._kernels import e3
 from ._types import VerificationCase
-from ._xs_library import XS, LAYOUTS, get_xs, get_mixture, make_mixture
+from ._xs_library import LAYOUTS, get_xs, get_mixture
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Slab CP matrix from E₃ kernel (N regions, N_g groups)
+# Geometry singleton (binds the unified infrastructure)
+# ═══════════════════════════════════════════════════════════════════════
+
+GEOMETRY = _cpg.SLAB
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Backward-compatible slab CP matrix
 # ═══════════════════════════════════════════════════════════════════════
 
 def _slab_cp_matrix(
@@ -25,7 +35,11 @@ def _slab_cp_matrix(
 ) -> np.ndarray:
     """Compute the infinite-lattice CP matrix for a slab.
 
-    Uses the E₃ second-difference formula with white boundary condition.
+    Delegates to :func:`cp_geometry.build_cp_matrix` with the
+    pre-bound :data:`~.cp_geometry.SLAB` geometry. The slab's
+    "volumes" are the thicknesses (1-D, V == t), and ``R_cell``
+    is the total slab thickness for the white-BC surface-area
+    normalisation (which returns 1 for the slab).
 
     Parameters
     ----------
@@ -36,55 +50,13 @@ def _slab_cp_matrix(
     -------
     P_inf : (N_reg, N_reg, ng) — collision probability matrix
     """
-    N_reg = len(t_arr)
-    ng = sig_t_all.shape[1]
-    P_inf_g = np.zeros((N_reg, N_reg, ng))
-
-    for g in range(ng):
-        sig_t_g = sig_t_all[:, g]
-        tau = sig_t_g * t_arr
-
-        bnd_pos = np.zeros(N_reg + 1)
-        for i in range(N_reg):
-            bnd_pos[i + 1] = bnd_pos[i] + tau[i]
-
-        rcp = np.zeros((N_reg, N_reg))
-        for i in range(N_reg):
-            rcp[i, i] += 0.5 * sig_t_g[i] * (
-                2 * t_arr[i] - (2.0 / sig_t_g[i]) * (0.5 - e3(tau[i]))
-            )
-
-            for j in range(N_reg):
-                tau_i, tau_j = tau[i], tau[j]
-
-                if j > i:
-                    gap_d = max(bnd_pos[j] - bnd_pos[i + 1], 0.0)
-                elif j < i:
-                    gap_d = max(bnd_pos[i] - bnd_pos[j + 1], 0.0)
-                else:
-                    gap_d = None
-
-                dd = 0.0
-                if gap_d is not None:
-                    dd = (e3(gap_d) - e3(gap_d + tau_i)
-                          - e3(gap_d + tau_j) + e3(gap_d + tau_i + tau_j))
-
-                gap_c = bnd_pos[i] + bnd_pos[j]
-                dc = (e3(gap_c) - e3(gap_c + tau_i)
-                      - e3(gap_c + tau_j) + e3(gap_c + tau_i + tau_j))
-
-                rcp[i, j] += 0.5 * (dd + dc)
-
-        P_cell = np.zeros((N_reg, N_reg))
-        for i in range(N_reg):
-            P_cell[i, :] = rcp[i, :] / (sig_t_g[i] * t_arr[i])
-
-        P_out = np.maximum(1.0 - P_cell.sum(axis=1), 0.0)
-        P_in = sig_t_g * t_arr * P_out
-        P_inout = max(1.0 - P_in.sum(), 0.0)
-        P_inf_g[:, :, g] = P_cell + np.outer(P_out, P_in) / (1.0 - P_inout)
-
-    return P_inf_g
+    return _cpg.build_cp_matrix(
+        GEOMETRY,
+        sig_t_all=sig_t_all,
+        radii_or_thicknesses=np.asarray(t_arr, dtype=float),
+        volumes=np.asarray(t_arr, dtype=float),
+        R_cell=float(np.sum(t_arr)),
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -139,7 +111,6 @@ def _build_case(ng_key: str, n_regions: int) -> VerificationCase:
         materials[mat_ids[i]] = get_mixture(region, ng_key)
 
     # Geometry params for building SlabGeometry in solver tests
-    # Use thicknesses and mat_ids directly
     geom_params_out = dict(
         thicknesses=t_arr.tolist(),
         mat_ids=mat_ids,
