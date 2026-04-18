@@ -1759,9 +1759,9 @@ mirroring the Phase-4.2 collapse of the pointwise modules into
 Sections 12–14 present the derivational target for that refactor;
 Section 15 revisits the escape probability as the explicit Level-2
 "bridge" between Level 1 and Level 3; and Section 16 documents the
-retirement of the legacy :class:`BickleyTables` tabulation, which the
-Phase B.2 refactor will obsolete in favour of canonical
-mpmath-backed evaluators.
+retirement of the legacy ``BickleyTables`` tabulation, which the
+Phase B.4 commit obsoleted in favour of a Chebyshev interpolant of
+the canonical mpmath-backed :math:`\mathrm{Ki}_3`.
 
 
 Section 12 — The flat-source integral: going from Level 1 to Level 3
@@ -2437,113 +2437,182 @@ pointwise integral of the same. Any discrepancy would immediately
 signal a coordinate / Jacobian error in one of the two routes.
 
 
-Section 16 — ``BickleyTables`` retirement plan
-==============================================
+Section 16 — ``BickleyTables`` retirement (completed)
+=====================================================
 
-The legacy :class:`~orpheus.derivations._kernels.BickleyTables` class
-is a 20,000-point tabulation of :math:`\mathrm{Ki}_n` evaluations
-built at ~1e-3 accuracy by :func:`scipy.integrate.quad` and cached
-via :func:`~orpheus.derivations._kernels.bickley_tables`. It was
-introduced with the original flat-source CP cylindrical module and
-has survived every subsequent refactor because the CP formulas were
-written against its (non-A&S) naming and because every replacement
-candidate would have required simultaneous audit of the physics.
+.. note::
 
-As of Phase B.2, both conditions are lifted:
+   **Status: retired.** The legacy ``BickleyTables`` class and
+   ``bickley_tables()`` cache function were deleted from
+   :mod:`orpheus.derivations._kernels` in commit ``6badbe5``
+   (`Issue #94 <https://github.com/deOliveira-R/ORPHEUS/issues/94>`_,
+   Phase B.4). Every former consumer now routes through the
+   Chebyshev interpolant :func:`orpheus.derivations.cp_geometry._ki3_mp`,
+   which is shared by the flat-source CP derivation and the runtime
+   solver :mod:`orpheus.cp.solver`. This section is retained as the
+   project's **authoritative postmortem** of a 20 000-point
+   tabulation that had been a ceiling on cylindrical CP accuracy
+   since the solver was first written.
 
-- The high-precision :func:`~orpheus.derivations._kernels.e_n` and
-  :func:`~orpheus.derivations._kernels.ki_n` evaluators are shipped
-  and tested to 50-digit precision.
-- The Phase B.2 refactor is a full rewrite of the CP-matrix
-  construction, not an in-place rename. The new code can adopt
-  canonical A&S naming from the first line — ``Ki3_vec(x) →
-  ki_n_mp(3, x, dps=30)``.
+Until Phase B.4 the legacy ``BickleyTables`` was a 20 000-point
+tabulation of :math:`\mathrm{Ki}_n` evaluations built at
+~:math:`10^{-3}` accuracy by :func:`scipy.integrate.quad` and cached
+via a ``bickley_tables()`` ``lru_cache`` wrapper. It was introduced
+with the original flat-source CP cylindrical module and survived
+every subsequent refactor because the CP formulas were written
+against its (non-A&S) naming and because every replacement candidate
+would have required a simultaneous audit of the physics.
 
-The off-by-one naming discrepancy (GitHub Issue `#94
-<https://github.com/deOliveira-R/ORPHEUS/issues/94>`_) is therefore
-resolved **structurally**: the new code never uses the legacy names
-``Ki3_vec`` or ``ki4_vec``, so there is nothing to rename.
+Two conditions had to be met before the table could be safely
+retired:
 
-Replacement table
------------------
+- The high-precision :func:`~orpheus.derivations._kernels.e_n_mp` and
+  :func:`~orpheus.derivations._kernels.ki_n_mp` evaluators had to
+  be shipped and tested to 30+ digit precision. Done in Phase 0 of
+  the verification campaign.
+- The flat-source CP construction had to be re-expressed as a full
+  geometry-dispatching module
+  (:mod:`orpheus.derivations.cp_geometry`, Phase B.1 theory and
+  Phase B.2 code) so that the kernel swap could happen in one place
+  rather than three. Done in commit ``f1b869b``.
 
-.. list-table:: BickleyTables replacement by Phase B.2
+With both conditions met, the off-by-one naming discrepancy (GitHub
+Issue `#94 <https://github.com/deOliveira-R/ORPHEUS/issues/94>`_ —
+now **CLOSED**) was resolved **structurally**: the new code never
+uses the legacy names ``Ki3_vec`` or ``ki4_vec``, so there was
+nothing to rename — only a kernel to replace.
+
+Replacement table (what each legacy call became)
+------------------------------------------------
+
+.. list-table:: Legacy ``BickleyTables`` methods and their canonical replacements
    :header-rows: 1
    :widths: 36 36 28
 
-   * - Legacy call
-     - Canonical replacement
+   * - Legacy call (pre-Phase B.4)
+     - Canonical replacement (post-Phase B.4)
      - A&S identity
    * - ``tables.ki3(x)`` / ``ki3_vec(x)``
      - ``ki_n_mp(2, x, dps=30)``
      - canonical :math:`\mathrm{Ki}_2(x)`
    * - ``tables.ki4(x)`` / ``ki4_vec(x)``
-     - ``ki_n_mp(3, x, dps=30)``
+     - :func:`~orpheus.derivations.cp_geometry._ki3_mp` (fast) or
+       ``ki_n_mp(3, x, dps=30)`` (arbitrary precision)
      - canonical :math:`\mathrm{Ki}_3(x)`
    * - ``tables.Ki2_vec(x)`` (canonical alias, added Phase 4.2)
      - ``ki_n_mp(2, x, dps=30)``
      - canonical :math:`\mathrm{Ki}_2(x)`
    * - ``tables.Ki3_vec(x)`` (canonical alias, added Phase 4.2)
-     - ``ki_n_mp(3, x, dps=30)``
+     - :func:`~orpheus.derivations.cp_geometry._ki3_mp` (fast) or
+       ``ki_n_mp(3, x, dps=30)`` (arbitrary precision)
      - canonical :math:`\mathrm{Ki}_3(x)`
    * - ``e3(x)`` / ``e3_vec(x)`` (slab)
-     - ``e_n_mp(3, x, dps=30)``
+     - :func:`~orpheus.derivations._kernels.e3_vec` (retained;
+       already double-precision via :func:`scipy.special.expn`)
      - canonical :math:`E_3(x)`
 
-The precision upgrade (1e-3 tabulation → 30 dps mpmath) is
-sufficient for Phase B regression: a ``test_bickley_replacement``
-case will confirm that the Phase B.2 CP matrix agrees with the
-Phase-A baseline to at least 1e-5 absolute on every existing
-``cp_*`` verification case (``tests/cp/test_cylinder.py``,
-``test_sphere.py``, ``test_slab.py``). Agreement to 1e-3 is
-guaranteed by construction (both codes hit the same second-difference
-formula with the same table's precision); improvement to 1e-5 is
-the payoff for the mpmath upgrade and comes from eliminating the
-tabulation's interpolation error.
+Retirement sequence (what actually happened)
+--------------------------------------------
 
-Retirement steps (Phase B sequence)
------------------------------------
+1. **Phase B.1** (commit ``ea6b05e``, theory-first):
+   :doc:`peierls_unified` §§12–17 landed as a theory page before
+   any code changed, naming the forthcoming modules and the unified
+   :math:`\Delta^{2}` operator.
+2. **Phase B.2** (commits ``f1b869b`` +  ``bf128d3``): the new
+   :mod:`orpheus.derivations.cp_geometry` module was implemented
+   with ``FlatSourceCPGeometry`` and the three singletons
+   :data:`SLAB`, :data:`CYLINDER_1D`, :data:`SPHERE_1D`; the
+   pre-existing :mod:`~orpheus.derivations.cp_slab`,
+   :mod:`~orpheus.derivations.cp_cylinder`, and
+   :mod:`~orpheus.derivations.cp_sphere` modules became thin facades
+   over the geometry-dispatching core. ``BickleyTables`` was
+   **no longer imported** by any ``cp_*`` derivation module, but
+   the class itself was kept in :mod:`~orpheus.derivations._kernels`
+   so the Phase B.2 commit was a drop-in refactor with bit-identity
+   to Phase A (safety milestone).
+3. **Phase B.4** (commit ``6badbe5``, this postmortem's subject):
+   ``BickleyTables`` and ``bickley_tables()`` were deleted from
+   :mod:`~orpheus.derivations._kernels`. The cylinder kernel was
+   replaced by :func:`~orpheus.derivations.cp_geometry._ki3_mp`, a
+   Chebyshev polynomial of degree 63 fit to the scaled kernel
+   :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)` on :math:`[0, 50]` at
+   Chebyshev-Gauss-Lobatto nodes (~:math:`5\times 10^{-6}`
+   absolute accuracy; build cost ~0.3 s, lazy via
+   :func:`functools.lru_cache`). The runtime solver
+   :mod:`orpheus.cp.solver` was rewired in the *same commit* to
+   import ``_ki3_mp`` from :mod:`~orpheus.derivations.cp_geometry`
+   and consume it via ``_setup_cylindrical``; the solver's own
+   private ``_build_ki_tables`` + ``_ki4_lookup`` pair (~30 lines
+   of cumsum-based :math:`O(h)` quadrature) were deleted. Solver
+   ``keff`` and derivation ``k_inf`` now evaluate :math:`\mathrm{Ki}_3`
+   through the **same code path** — the solver/derivation
+   kernel-split bias that had been hiding behind the
+   ``CPParams.n_ki_table`` knob is gone (the knob is retained as
+   an unused no-op for construction-site backwards compatibility).
 
-1. **Phase B.2** (this theory page is the predecessor): implement
-   ``cp_geometry.py`` with mpmath-backed kernel methods. The
-   legacy :class:`BickleyTables` remains in ``_kernels.py`` but is
-   **no longer imported** by any ``cp_*`` module.
-2. **Phase B.3**: regression tests confirm bit-identical-or-better
-   agreement with the Phase-A CP matrices; the pointwise-vs-CP
-   cross-level test (§15) passes at Level 2 and Level 3.
-3. **Phase B.4**: delete :class:`BickleyTables` and
-   :func:`bickley_tables` from
-   :mod:`~orpheus.derivations._kernels`. Update
-   ``docs/verification/matrix.rst`` to mark Issue #94 closed.
-   The deletion commit title is ``chore(derivations): retire
-   BickleyTables (closes #94)``.
+Phase B.4 postmortem — measured impact
+--------------------------------------
 
-Performance regression — what to measure
-----------------------------------------
+The kernel swap was an **improvement**, not a regression. The
+measurable shifts are:
+
+- **Cylinder** :math:`k_\infty` **reference values** shifted by up to
+  ~:math:`4\times 10^{-4}` for multi-region 1-group cases. The
+  Bickley tabulation's trapezoidal :math:`O(\Delta x^2)` error had
+  been the dominant bias in the reference; each new value is
+  closer to the exact mpmath result than the pre-refactor one.
+- **Solver/reference agreement**. The ``solve_cp`` cylinder
+  ``keff`` now agrees with the shifted :math:`k_\infty` reference
+  to machine precision (same kernel on both sides). All nine
+  ``cp_cyl1D_*`` L1 eigenvalue tests pass at their declared
+  ``tolerance = 1e-5`` with actual error ~:math:`10^{-7}` — about
+  100× headroom, where previously the ``1e-5`` tolerance had been
+  the *actual* floor set by kernel bias.
+- **Tabulation-size sensitivity test retired**. The old
+  ``test_cylindrical_ki4_convergence_with_table_size`` (which
+  documented that 5 000 → 20 000 → 40 000 points gave diminishing
+  returns) was replaced by
+  ``test_ki3_kernel_is_insensitive_to_n_ki_table``: ``n_ki_table``
+  is a no-op, and ``keff`` is bit-identical across
+  ``{5000, 20000, 40000}``.
+- **Solver startup latency**. The 20 000-point
+  :func:`scipy.integrate.quad` loop at ``CPMesh`` construction is
+  gone; the Chebyshev polynomial is built lazily on first call to
+  ``_ki3_mp`` (~0.3 s once per process) and cached via
+  :func:`~functools.lru_cache`. Repeated solves pay zero kernel
+  setup cost.
+
+Why a Chebyshev interpolant and not direct mpmath
+--------------------------------------------------
 
 Each mpmath :math:`\mathrm{Ki}_n` call is ~100× slower than a
 double-precision table lookup. The flat-source CP matrix requires
 :math:`O(N_{\rm reg}^{2}\cdot n_y)` kernel evaluations per group;
 for a 4-region 64-quadrature-point cylindrical case at 4 groups,
-this is ~4×16×64 = 4,096 kernel calls per :math:`P_{ij}` matrix
-(~16,384 per full 4-group case). At 100 μs per ``ki_n_mp`` call,
-the matrix construction time grows from ~10 ms (legacy tables) to
-~1.5 s.
+this is ~4 × 16 × 64 = 4 096 kernel calls per :math:`P_{ij}` matrix
+(~16 384 per full 4-group case). At ~100 μs per ``ki_n_mp`` call,
+matrix construction at full 30 dps would cost ~1.5 s per group —
+a showstopper for any iterative solve.
 
-The Phase B.2 implementation therefore pre-tabulates
-:math:`\mathrm{Ki}_n` at the *actual* optical-depth arguments seen
-during a solve — a Chebyshev interpolant built once at 30 dps,
-evaluated at double precision during the matrix loop. This recovers
-the speed of the legacy tables while preserving the arbitrary
-precision available for verification runs. The interpolant's
-accuracy is a tunable (``dps_table = 30``) parameter; at 30 dps
-the Chebyshev error is ~1e-12 on :math:`\tau \in [0, 50]`, which is
-O(10⁷) tighter than the legacy table's ~1e-3.
+The chosen compromise is a **single-scale Chebyshev polynomial on
+the scaled kernel** :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)`. Scaling
+by :math:`e^{\tau}` converts the exponentially-decaying tail into
+a slowly-varying function that a degree-63 polynomial fits to
+~:math:`10^{-6}` relative accuracy over :math:`[0, 50]`; the
+evaluation cost is one :class:`numpy.polynomial.Chebyshev` call
+plus one :func:`numpy.exp`, comparable to the legacy
+:func:`numpy.interp` on the 20 000-point grid. Beyond
+:math:`\tau = 50`, :math:`\mathrm{Ki}_3(\tau) \approx
+3\times 10^{-23}` and the interpolant clamps to zero; this is
+already below double precision.
 
-This is the correct place to stop: Phase B.2 *does* pre-tabulate,
-but it pre-tabulates *from the canonical mpmath primitive*, not from
-a quad-based 20k-point linear interpolant. The tabulation is an
-implementation detail of ``cp_geometry.py``, invisible to callers.
+The tabulation is an implementation detail of
+:mod:`orpheus.derivations.cp_geometry`, invisible to callers. The
+key structural difference from the legacy ``BickleyTables`` is that
+the new interpolant is built **from the canonical mpmath primitive**
+(:func:`~orpheus.derivations._kernels.ki_n_mp` at 30 dps) rather
+than from a quad-based 20k-point linear interpolant — the accuracy
+ceiling is raised by ~3 orders of magnitude in one step.
 
 
 Section 17 — Relationship to the existing literature
@@ -2641,38 +2710,37 @@ factoring the per-geometry data into four primitives + two flags.
 
 .. seealso::
 
-   **Phase B.2 target modules** (forthcoming — the Sphinx build will
-   flag these as unresolved until the code lands; that is expected):
+   **Phase B target modules** (all shipped; see commits
+   ``f1b869b`` → ``bf128d3`` → ``6badbe5``):
 
    :mod:`orpheus.derivations.cp_geometry` — the unified
-   ``FlatSourceCPGeometry`` class and
-   ``build_cp_matrix`` entry point.
+   :class:`~orpheus.derivations.cp_geometry.FlatSourceCPGeometry`
+   class and :func:`~orpheus.derivations.cp_geometry.build_cp_matrix`
+   entry point. Hosts the double-precision kernel
+   :func:`~orpheus.derivations.cp_geometry._ki3_mp` (Chebyshev
+   interpolant of :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)` built from
+   :func:`~orpheus.derivations._kernels.ki_n_mp` at 30 dps), now
+   shared by derivation and runtime solver.
 
-   :mod:`orpheus.derivations.cp_slab` — will become a thin facade
-   over ``cp_geometry`` with ``SLAB`` preselected; the current
-   bespoke :func:`~orpheus.derivations.cp_slab._slab_cp_matrix` is
-   the derivation predecessor.
+   :mod:`orpheus.derivations.cp_slab`,
+   :mod:`orpheus.derivations.cp_cylinder`,
+   :mod:`orpheus.derivations.cp_sphere` — thin facades over
+   ``cp_geometry`` with the respective ``SLAB`` / ``CYLINDER_1D`` /
+   ``SPHERE_1D`` singletons preselected.
 
-   :mod:`orpheus.derivations.cp_cylinder` — will become a thin
-   facade over ``cp_geometry`` with ``CYLINDER_1D`` preselected;
-   the current :func:`~orpheus.derivations.cp_cylinder._cylinder_cp_matrix`
-   is the derivation predecessor.
-
-   :mod:`orpheus.derivations.cp_sphere` — will become a thin facade
-   over ``cp_geometry`` with ``SPHERE_1D`` preselected; the current
-   :func:`~orpheus.derivations.cp_sphere._sphere_cp_matrix` is the
-   derivation predecessor.
-
-   **Existing building blocks** (already shipped):
+   **Shared building blocks**:
 
    :func:`orpheus.derivations._kernels.chord_half_lengths` — the
    chord-walker consumed by both curvilinear CP modules and by the
    cylinder Peierls reference.
 
    :func:`orpheus.derivations._kernels.e_n_mp`,
-   :func:`orpheus.derivations._kernels.ki_n_mp` — canonical mpmath
-   evaluators that replace :class:`~orpheus.derivations._kernels.BickleyTables`
-   in Phase B.2.
+   :func:`orpheus.derivations._kernels.ki_n_mp` — canonical
+   arbitrary-precision mpmath evaluators for :math:`E_n` and
+   :math:`\mathrm{Ki}_n`. The former :class:`BickleyTables`
+   tabulation is retired (Issue #94) — double-precision
+   :math:`\mathrm{Ki}_3` goes through
+   :func:`~orpheus.derivations.cp_geometry._ki3_mp`.
 
    :func:`orpheus.derivations._kernels.e_n_derivative`,
    :func:`orpheus.derivations._kernels.ki_n_derivative` — the
@@ -2688,8 +2756,9 @@ factoring the per-geometry data into four primitives + two flags.
    the full IBP chain underlying :eq:`cp-flat-source-derivation`,
    already programmatically verified by an embedded SymPy script.
 
-   :doc:`collision_probability` §:ref:`ki-table-construction` — the
-   original :class:`BickleyTables` documentation that §16 deprecates.
+   :doc:`collision_probability` §:ref:`ki-table-construction` —
+   historical documentation of the retired ``BickleyTables``
+   tabulation.
 
    GitHub Issue `#107
    <https://github.com/deOliveira-R/ORPHEUS/issues/107>`_ — N6:
@@ -2697,7 +2766,8 @@ factoring the per-geometry data into four primitives + two flags.
 
    GitHub Issue `#94
    <https://github.com/deOliveira-R/ORPHEUS/issues/94>`_ —
-   BickleyTables naming discrepancy (closed structurally by §16).
+   ``BickleyTables`` naming discrepancy, **CLOSED** by commit
+   ``6badbe5`` (Phase B.4).
 
 
 References

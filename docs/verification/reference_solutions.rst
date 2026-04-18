@@ -266,37 +266,70 @@ Bessel function)
 :func:`~tests.derivations.test_kernels.test_kin1_derivative_is_bessel_k0`.
 
 
-Legacy naming discrepancy in :class:`BickleyTables`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Legacy naming discrepancy in ``BickleyTables`` (historical)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. math::
-   :label: kin-bickley-legacy-convention
+.. note::
 
-   \mathtt{BickleyTables.ki3}(x) \;\equiv\;
-   \mathrm{Ki}_2^{\text{A\&S}}(x),
-   \qquad
-   \mathtt{BickleyTables.ki4}(x) \;\approx\;
-   \mathrm{Ki}_3^{\text{A\&S}}(x).
+   **Retired in Phase B.4 (commit 6badbe5, Issue #94).** The
+   ``BickleyTables`` class and its ``bickley_tables()`` cache
+   function have been deleted from
+   :mod:`orpheus.derivations._kernels`. The canonical replacement is
+   :func:`~orpheus.derivations._kernels.ki_n_mp` (arbitrary precision,
+   A&S naming) and, for double-precision fast paths, the Chebyshev
+   interpolant :func:`orpheus.derivations.cp_geometry._ki3_mp`.
+   This subsection is retained as **historical documentation** —
+   both the tabulation error and the naming convention shaped the
+   V&V ladder for the life of the project, and the record of *why*
+   the retirement was safe matters for future sessions.
 
-The legacy 20 000-point lookup table
-:class:`orpheus.derivations._kernels.BickleyTables` is **off-by-one**
-from the Abramowitz & Stegun numbering. Its :meth:`ki3` method
-integrates :math:`\sin(t)\,\exp(-x/\sin t)` which equals
-:math:`\mathrm{Ki}_2^{\text{A\&S}}(x)` under :math:`\theta = \pi/2 - t`,
-**not** :math:`\mathrm{Ki}_3^{\text{A\&S}}`. Its :meth:`ki4`
-computes a cumulative-sum approximation to
-:math:`\mathrm{Ki}_3^{\text{A\&S}}` with ~1e-3 absolute error.
+Until Phase B.4 the cylindrical CP modules relied on the legacy
+tabulation ``BickleyTables``, whose method names were **off-by-one**
+from the Abramowitz & Stegun numbering:
 
-This discrepancy is **kept** during Phase 0 — not silently
-corrected — because :mod:`orpheus.derivations.cp_cylinder` may be
-numerically self-consistent under the legacy naming, and silently
-renaming the methods would break that self-consistency. The legacy
-behaviour is pinned by
-:func:`tests.derivations.test_kernels.test_legacy_bt_ki3_equals_kin2`
-and
-:func:`~tests.derivations.test_kernels.test_legacy_bt_ki4_approximates_kin3`
-so it cannot regress. A GitHub issue tracks the Phase-4 retirement
-of these legacy methods in favour of :func:`ki_n`.
+- ``BickleyTables.ki3(x)`` integrated
+  :math:`\sin(t)\,\exp(-x/\sin t)` which equals
+  :math:`\mathrm{Ki}_2^{\text{A\&S}}(x)` under the substitution
+  :math:`\theta = \pi/2 - t` — **not**
+  :math:`\mathrm{Ki}_3^{\text{A\&S}}`.
+- ``BickleyTables.ki4(x)`` computed a cumulative-trapezoid
+  approximation to :math:`\mathrm{Ki}_3^{\text{A\&S}}` on a
+  20 000-point grid with ~:math:`10^{-3}` absolute accuracy. The
+  cumsum trick (``np.cumsum(ki3[::-1])[::-1] * dx``) was a
+  pre-computer-era idiom for realising
+  :math:`\mathrm{Ki}_{n+1}(x) = \int_x^\infty \mathrm{Ki}_n(t)\,dt`
+  with a single pass over a uniform grid; it kept one antiderivation
+  cheap on 1960s hardware at the cost of :math:`O(\Delta x^2)`
+  trapezoidal error that propagated through every
+  :math:`P_{ij}` evaluation.
+
+The retirement was numerically safe because the downstream P-matrix
+assembly in :mod:`orpheus.derivations.cp_cylinder` (and its solver
+sibling in :mod:`orpheus.cp.solver`) consumed the legacy ``ki4`` value
+under the canonical alias ``Ki3_vec`` (introduced in a Phase-4.2
+compatibility shim). The chord-form second-difference formula had
+always been :math:`\Delta^2[\mathrm{Ki}_3^{\text{A\&S}}]`; the
+legacy naming was purely internal. Swapping
+``BickleyTables.ki4_vec`` for the Chebyshev interpolant
+:func:`~orpheus.derivations.cp_geometry._ki3_mp` therefore replaced a
+~:math:`10^{-3}`-accurate approximation of the canonical
+:math:`\mathrm{Ki}_3` with a ~:math:`5\times 10^{-6}`-accurate one —
+no convention change, just a precision upgrade of the kernel already
+in use.
+
+Cylinder :math:`k_\infty` reference values shifted by up to
+~:math:`4\times 10^{-4}` for multi-region 1-group cases as the
+legacy tabulation's bias was removed (shift toward the exact mpmath
+result, not regression). The nine ``cp_cyl1D_*`` L1 eigenvalue tests
+now pass at their declared ``< 1e-5`` tolerance with actual error
+~:math:`10^{-7}` — ~100× headroom.
+
+The legacy-convention regression guards
+``test_legacy_bt_ki3_equals_kin2`` and
+``test_legacy_bt_ki4_approximates_kin3`` that pinned the off-by-one
+naming during Phase 0 through Phase B.3 were deleted alongside the
+class in commit 6badbe5; they are listed here only as a pointer for
+readers tracing through older commits in ``git log``.
 
 
 .. _verification-campaign-migration:

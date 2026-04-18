@@ -60,8 +60,11 @@ matrix equation in the region-averaged scalar fluxes.
 Three geometries are supported:
 
 - **Slab** (1D Cartesian) --- the :math:`E_3` exponential-integral kernel
-- **Concentric cylinders** (1D radial) --- the :math:`\text{Ki}_3` /
-  :math:`\text{Ki}_4` Bickley--Naylor kernel
+- **Concentric cylinders** (1D radial) --- the canonical
+  :math:`\mathrm{Ki}_3` Bickley--Naylor kernel (A&S 11.2), evaluated via
+  :func:`orpheus.derivations.cp_geometry._ki3_mp` (Chebyshev
+  interpolant of :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)` built from
+  :func:`~orpheus.derivations._kernels.ki_n_mp` at 30 dps)
 - **Concentric spheres** (1D radial) --- the exponential kernel with
   :math:`y`-weighted quadrature
 
@@ -72,16 +75,27 @@ augmented-geometry pattern.
 for verification are computed independently by the derivation scripts.
 These are the **source of truth** for all equations in this chapter:
 
-- ``derivations/cp_slab.py`` --- slab :math:`E_3` kernel via
-  :func:`~derivations.cp_slab._slab_cp_matrix`
-- ``derivations/cp_cylinder.py`` --- cylindrical :math:`\text{Ki}_4` kernel
-  via :func:`~derivations.cp_cylinder._cylinder_cp_matrix`
-  (uses :class:`~derivations._kernels.BickleyTables`)
-- ``derivations/cp_sphere.py`` --- spherical :math:`e^{-\tau}` kernel via
-  :func:`~derivations.cp_sphere._sphere_cp_matrix`
+- ``derivations/cp_geometry.py`` --- the unified geometry-dispatching
+  core :class:`~derivations.cp_geometry.FlatSourceCPGeometry` and
+  :func:`~derivations.cp_geometry.build_cp_matrix` (Phase B.2 refactor,
+  commits ``f1b869b`` → ``bf128d3``)
+- ``derivations/cp_slab.py`` --- slab :math:`E_3` kernel; thin facade
+  over :data:`~derivations.cp_geometry.SLAB`
+- ``derivations/cp_cylinder.py`` --- cylindrical canonical
+  :math:`\mathrm{Ki}_3` kernel; thin facade over
+  :data:`~derivations.cp_geometry.CYLINDER_1D`
+- ``derivations/cp_sphere.py`` --- spherical :math:`e^{-\tau}` kernel;
+  thin facade over :data:`~derivations.cp_geometry.SPHERE_1D`
 - ``derivations/_kernels.py`` --- :math:`E_3` via
-  :func:`~derivations._kernels.e3`, :math:`\text{Ki}_3`/:math:`\text{Ki}_4`
-  via :class:`~derivations._kernels.BickleyTables`
+  :func:`~derivations._kernels.e3_vec` (wraps
+  :func:`scipy.special.expn`); arbitrary-precision :math:`\mathrm{Ki}_n`
+  via :func:`~derivations._kernels.ki_n_mp` (wraps
+  :func:`mpmath.quad`). Double-precision :math:`\mathrm{Ki}_3`
+  goes through :func:`~derivations.cp_geometry._ki3_mp` — a
+  Chebyshev interpolant of :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)`
+  built from ``ki_n_mp`` at 30 dps (~:math:`5\times 10^{-6}`
+  accuracy). The legacy ``BickleyTables`` tabulation was retired
+  in Phase B.4 (commit ``6badbe5``, Issue #94)
 - ``derivations/_eigenvalue.py`` --- shared eigenvalue computation via
   :func:`~derivations._eigenvalue.kinf_from_cp` and
   :func:`~derivations._eigenvalue.kinf_homogeneous`
@@ -611,11 +625,16 @@ common structure is why all three geometries are handled by a single
    plt.tight_layout()
 
 **Derivation source:** The kernels are implemented in
-``derivations/_kernels.py``:  :func:`~derivations._kernels.e3` and
-:func:`~derivations._kernels.e3_vec` for slab;
-:class:`~derivations._kernels.BickleyTables` (with
-:meth:`~derivations._kernels.BickleyTables.ki3_vec` and
-:meth:`~derivations._kernels.BickleyTables.ki4_vec`) for cylinder.
+``derivations/_kernels.py`` (slab, arbitrary-precision) and
+``derivations/cp_geometry.py`` (cylinder double-precision fast
+path).  Slab :math:`E_3`: :func:`~derivations._kernels.e3` and
+:func:`~derivations._kernels.e3_vec` (wrappers over
+:func:`scipy.special.expn`). Cylinder :math:`\mathrm{Ki}_3`:
+:func:`~derivations.cp_geometry._ki3_mp` — a Chebyshev interpolant
+of :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)` built from
+:func:`~derivations._kernels.ki_n_mp` at 30 dps. The legacy
+``BickleyTables`` tabulation that preceded ``_ki3_mp`` was retired
+in Phase B.4 (commit ``6badbe5``, Issue #94).
 
 
 Why the Kernel Differs by Geometry
@@ -677,11 +696,38 @@ that :math:`E_3` plays for slab geometry: it represents the probability
 of a neutron travelling a certain optical distance in the medium
 [Carlvik1966]_.
 
-:math:`\text{Ki}_3(0) = 1` and :math:`\text{Ki}_3(x) \to 0`
-exponentially.  :math:`\text{Ki}_3` and :math:`\text{Ki}_4` are
-tabulated numerically by :func:`_build_ki_tables` (solver) and
-:class:`~derivations._kernels.BickleyTables` (derivations) because no
-closed-form expression exists.  See :ref:`ki-table-construction`.
+:math:`\text{Ki}_3(0) = 1` (under the sine-weighted convention used
+in :eq:`ki3-def`) and :math:`\text{Ki}_3(x) \to 0` exponentially.
+
+.. note::
+
+   The equation label :eq:`ki3-def` uses the legacy ORPHEUS
+   convention :math:`\text{Ki}_3(\tau) = \int_0^{\pi/2} e^{-\tau/\sin\theta}
+   \sin\theta\,d\theta`. Under the Abramowitz & Stegun substitution
+   :math:`\theta \to \pi/2 - t`, this is actually canonical
+   :math:`\mathrm{Ki}_2^{\text{A\&S}}(\tau)`; the kernel consumed by
+   the second-difference CP formula is the next function up in the
+   hierarchy (called :math:`\text{Ki}_4` below) which equals
+   canonical :math:`\mathrm{Ki}_3^{\text{A\&S}}`. The legacy naming
+   is preserved in this theory page for cross-consistency with
+   existing ``verifies("ki3-def")`` decorators on
+   ``tests/cp/test_cylinder.py``,
+   ``tests/derivations/test_cp_geometry.py``,
+   ``tests/cp/test_verification.py``, and
+   ``tests/derivations/test_peierls_cylinder_prefactor.py``. See
+   :doc:`/verification/reference_solutions` §"Legacy naming
+   discrepancy in ``BickleyTables``" for the full postmortem.
+
+Neither :math:`\text{Ki}_3` nor :math:`\text{Ki}_4` has a
+closed-form expression.  The derivation path is now
+:func:`~derivations._kernels.ki_n_mp` (arbitrary precision via
+:func:`mpmath.quad`) with a double-precision fast path through
+:func:`~derivations.cp_geometry._ki3_mp` (a Chebyshev interpolant of
+the canonical-:math:`\mathrm{Ki}_3` scaled kernel
+:math:`e^{\tau}\,\mathrm{Ki}_3(\tau)`); the solver and the
+derivation share the *same* code path so there is no kernel-split
+bias across the CP V&V stack. See :ref:`ki-table-construction` for
+the full account of what this replaced.
 
 **Sphere (3D):** Full spherical symmetry absorbs all angular variables
 into the :math:`y`-quadrature weight.  The kernel is simply
@@ -784,26 +830,34 @@ Combining:
 For the slab, the :math:`E_n` functions satisfy
 :math:`E_n'(\tau) = -E_{n-1}(\tau)`.  The code evaluates
 :eq:`second-diff-general` directly with :math:`F = E_3` (slab),
-:math:`F = \text{Ki}_4` (cylinder), or :math:`F = e^{-\tau}` (sphere).
+:math:`F = \mathrm{Ki}_3^{\text{A\&S}}` (cylinder; the
+ORPHEUS-local "Ki\ :sub:`4`\ " of the legacy narrative is canonical
+A&S :math:`\mathrm{Ki}_3`), or :math:`F = e^{-\tau}` (sphere).
 
-**Derivation source:** This four-term structure appears in all three
-derivation scripts.  For example, in ``derivations/cp_slab.py``::
+**Derivation source.** After the Phase B.2 unification, all three
+flat-source CP modules dispatch through a single
+geometry-invariant operator implemented as the module-level free
+function :func:`~derivations.cp_geometry._second_difference`::
 
-    dd = (e3(gap_d) - e3(gap_d + tau_i)
-          - e3(gap_d + tau_j) + e3(gap_d + tau_i + tau_j))
+    def _second_difference(kernel, gap, tau_i, tau_j):
+        return (kernel(gap)
+                - kernel(gap + tau_i)
+                - kernel(gap + tau_j)
+                + kernel(gap + tau_i + tau_j))
 
-And in ``derivations/cp_cylinder.py``::
+The per-geometry kernel is supplied by the
+:class:`~derivations.cp_geometry.FlatSourceCPGeometry` singleton:
 
-    dd = (tables.ki4_vec(gap_d) - tables.ki4_vec(gap_d + tau_i)
-          - tables.ki4_vec(gap_d + tau_j)
-          + tables.ki4_vec(gap_d + tau_i + tau_j))
+- :data:`~derivations.cp_geometry.SLAB` — ``kernel_F3 = e3_vec``
+  (:func:`scipy.special.expn`)
+- :data:`~derivations.cp_geometry.CYLINDER_1D` —
+  ``kernel_F3 = _ki3_mp`` (Chebyshev interpolant of
+  canonical :math:`\mathrm{Ki}_3^{\text{A\&S}}`)
+- :data:`~derivations.cp_geometry.SPHERE_1D` —
+  ``kernel_F3 = _exp_kernel`` (``np.exp(-tau)``)
 
-And in ``derivations/cp_sphere.py``::
-
-    dd = (kernel(gap_d) - kernel(gap_d + tau_i)
-          - kernel(gap_d + tau_j) + kernel(gap_d + tau_i + tau_j))
-
-where ``kernel = lambda tau: np.exp(-tau)``.
+so the four-term structure is written exactly once in the whole
+derivations package.
 
 **SymPy verification of the four-term structure.** The following
 script verifies the derivation in :eq:`rcp-from-double-antideriv`
@@ -1077,8 +1131,9 @@ This is :math:`\Sigt{i} t_i - (E_3(0) - E_3(\tau_i))`, which equals
 :math:`r_{ii}/2` (the factor of 2 from two half-spaces is applied later).
 
 For **cylindrical and spherical** geometries, the same structure holds
-but with :math:`\text{Ki}_4` or :math:`e^{-\tau}` replacing :math:`E_3`,
-and with :math:`y`-quadrature.  In :meth:`CPMesh._compute_radial_rcp`::
+but with canonical :math:`\mathrm{Ki}_3^{\text{A\&S}}` or
+:math:`e^{-\tau}` replacing :math:`E_3`, and with
+:math:`y`-quadrature.  In :meth:`CPMesh._compute_radial_rcp`::
 
     self_same = 2.0 * chords[i, :] - (2.0 / sti) * (
         kernel_zero - kernel(tau_i)
@@ -1086,9 +1141,13 @@ and with :math:`y`-quadrature.  In :meth:`CPMesh._compute_radial_rcp`::
     rcp[i, i] += 2.0 * sti * np.dot(y_wts, self_same)
 
 The term ``kernel_zero - kernel(tau_i)`` is :math:`F(0) - F(\tau_i)`,
-the escape fraction.  The same pattern appears in all three derivation
-scripts (compare ``derivations/cp_cylinder.py``, ``_cylinder_cp_matrix``,
-line ``self_same = 2.0 * chords[i,:] - (2.0/sti) * (ki4_0 - tables.ki4_vec(tau_i))``).
+the escape fraction.  The same pattern is expressed once in the
+unified Phase B.2 derivation core
+:mod:`derivations.cp_geometry` — the self-term pairing consumes
+:meth:`~derivations.cp_geometry.FlatSourceCPGeometry.kernel_F3_at_zero`
+(returns :math:`1/2`, :math:`\pi/4`, or :math:`1` for slab / cyl
+/ sph) alongside :meth:`~derivations.cp_geometry.FlatSourceCPGeometry.kernel_F3`
+for the evaluated-at-:math:`\tau_i` term.
 
 
 .. _optical-path-construction:
@@ -1849,11 +1908,22 @@ Eigenvalue Verification Cases
      - ``test_cp_sphere.py``
      - ``derivations/cp_sphere.py``
 
-The cylinder/sphere tolerances are 10x looser because the
-:math:`\text{Ki}_4` table interpolation introduces
-:math:`O(\Delta x^2) \approx 6 \times 10^{-6}` error
-(see :ref:`ki-table-construction`).  Confirmed by
-``test_cp_verification.py::TestKi4Resolution``.
+Historically, the cylinder/sphere tolerances were 10× looser
+because the legacy 20 000-point :math:`\text{Ki}_4` table
+interpolation introduced :math:`O(\Delta x^2) \approx
+6\times 10^{-6}` error. Phase B.4 (commit ``6badbe5``, Issue #94)
+replaced the table with the Chebyshev interpolant
+:func:`~derivations.cp_geometry._ki3_mp` of canonical
+:math:`\mathrm{Ki}_3`, which reaches ~:math:`5\times 10^{-6}`
+absolute accuracy; the declared ``< 1e-5`` tolerance is now
+~100× larger than the actual solver/reference error
+(~:math:`10^{-7}`, same kernel on both sides).  See
+:ref:`ki-table-construction` for the full postmortem.  The old
+convergence-with-table-size regression
+``test_cp_verification.py::TestKi4Resolution`` was replaced by
+``test_ki3_kernel_is_insensitive_to_n_ki_table``: ``n_ki_table``
+is now a no-op and ``keff`` is bit-identical across
+``{5000, 20000, 40000}``.
 
 Additionally, **algebraic property tests** (``test_cp_properties.py``)
 are run for all three coordinate systems:
@@ -1923,28 +1993,96 @@ In code: ``phi[:, g] = P_inf[:, :, g].T @ source``
 
 .. _ki-table-construction:
 
-Ki\ :sub:`3`/Ki\ :sub:`4` Table Construction
-----------------------------------------------
+Ki\ :sub:`3` Kernel Construction (historical: Ki\ :sub:`3`/Ki\ :sub:`4` tables)
+-------------------------------------------------------------------------------
 
-:func:`_build_ki_tables` (solver) and
-:class:`~derivations._kernels.BickleyTables` (derivations) tabulate
-the functions identically:
+**Current path (post-Phase B.4, commit 6badbe5).** Both the
+derivation module and the runtime solver consume the **same**
+kernel via :func:`~derivations.cp_geometry._ki3_mp`: a Chebyshev
+polynomial of degree 63 fit to the scaled kernel
+:math:`e^{\tau}\,\mathrm{Ki}_3(\tau)` (canonical A&S) on
+:math:`[0, 50]` at Chebyshev-Gauss-Lobatto nodes. The tabulation
+values are computed once at module load by
+:func:`~derivations._kernels.ki_n_mp` at 30 dps and cached via
+:func:`functools.lru_cache`; Chebyshev fitting of the
+:math:`e^{\tau}`-scaled kernel converts the exponentially-decaying
+tail into a slowly-varying function the polynomial reaches to
+~:math:`5\times 10^{-6}` absolute accuracy. Evaluation at runtime
+is one :class:`numpy.polynomial.Chebyshev` call plus one
+:func:`numpy.exp` — comparable in cost to the legacy
+:func:`numpy.interp` on a 20 000-point grid. For
+:math:`\tau > 50`, the clamp to zero is already below double
+precision (:math:`\mathrm{Ki}_3(50) \approx 3\times 10^{-23}`).
+
+.. note::
+
+   :func:`~derivations.cp_geometry._ki3_mp` uses the **canonical
+   A&S convention**:
+   :math:`\mathrm{Ki}_n^{\text{A\&S}}(x) = \int_0^{\pi/2}
+   \cos^{n-1}\theta\,\exp(-x/\cos\theta)\,d\theta`, so
+   :math:`\mathrm{Ki}_3^{\text{A\&S}}(0) = \pi/4`. The legacy
+   ORPHEUS convention carried by :eq:`ki3-def` used an extra power
+   of :math:`\sin\theta`, making the ORPHEUS-local "Ki\ :sub:`4`\ "
+   the canonical :math:`\mathrm{Ki}_3^{\text{A\&S}}`. The
+   :math:`P_{ij}` matrix assembled by
+   :mod:`derivations.cp_cylinder` consumes canonical
+   :math:`\mathrm{Ki}_3^{\text{A\&S}}` — the Phase-4.2 alias
+   ``BickleyTables.Ki3_vec := BickleyTables.ki4_vec`` made the
+   convention uniform before the Phase B.4 retirement deleted both
+   names.
+
+**Historical path (retired, pre-Phase B.4).** Until commit
+``6badbe5``, the kernel tabulation lived in two places that had to
+stay in sync:
+
+1. :func:`_build_ki_tables` on :class:`orpheus.cp.solver.CPMesh`
+   (solver side) and
+2. The ``BickleyTables`` class in :mod:`derivations._kernels`
+   (derivation side).
+
+Both tabulated the functions identically:
 
 1. :math:`\text{Ki}_3(x_k) = \int_0^{\pi/2} e^{-x_k/\sin\theta} \sin\theta\,d\theta`
-   at 20,000 points on :math:`[0, 50]` via ``scipy.integrate.quad``.
-   Boundary value :math:`\text{Ki}_3(0) = 1` set analytically.
+   (ORPHEUS-local convention, equivalent to canonical
+   :math:`\mathrm{Ki}_2^{\text{A\&S}}`) at 20 000 points on
+   :math:`[0, 50]` via :func:`scipy.integrate.quad`. Boundary
+   value :math:`\text{Ki}_3(0) = 1` set analytically.
 
-2. :math:`\text{Ki}_4` by cumulative trapezoid from right to left::
+2. :math:`\text{Ki}_4` (ORPHEUS-local) via cumulative trapezoid
+   from right to left (a pre-computer-era idiom for the recurrence
+   :math:`\mathrm{Ki}_{n+1}(x) = \int_x^\infty \mathrm{Ki}_n(t)\,dt`)::
 
        ki4_vals = np.cumsum(ki3[::-1])[::-1] * dx
 
-3. Runtime lookup via ``np.interp`` (linear interpolation).  With
-   :math:`\Delta x = 0.0025`, error is
-   :math:`O(\Delta x^2) \approx 6 \times 10^{-6}`.
+   This realised canonical :math:`\mathrm{Ki}_3^{\text{A\&S}}` to
+   :math:`O(\Delta x^2)` trapezoidal error on a uniform grid.
 
-``test_cp_verification.py::TestKi4Resolution`` confirms that increasing
-from 5,000 to 40,000 points produces diminishing returns (validating
-the default 20,000).
+3. Runtime lookup via :func:`numpy.interp` (linear interpolation);
+   with :math:`\Delta x = 0.0025`, interpolation error was
+   :math:`O(\Delta x^2) \approx 6 \times 10^{-6}` and the
+   cumulative-trapezoid bias on the antiderivative pushed the
+   effective kernel accuracy to ~:math:`10^{-3}` at :math:`x = 0`
+   tapering to ~:math:`10^{-4}` elsewhere — the dominant error in
+   every cylindrical flat-source CP reference value for the life
+   of the project.
+
+The old ``test_cp_verification.py::TestKi4Resolution`` confirmed
+that increasing from 5 000 to 40 000 points produced diminishing
+returns (validating the legacy 20 000 default). It was replaced in
+Phase B.4 by
+``test_cylinder_ki3_kernel_is_insensitive_to_n_ki_table`` — a much
+stronger statement than "converges with more points": the Chebyshev
+interpolant is built lazily from mpmath and is ignorant of any
+``CPParams.n_ki_table`` knob, so ``keff`` is bit-identical across
+``{5000, 20000, 40000}`` table-size values. The knob itself is
+kept only as an unused no-op argument so that callers constructing
+:class:`~orpheus.cp.solver.CPParams` with explicit
+``n_ki_table=...`` do not break.
+
+Why the retirement was deferrable until Phase B.4 is covered in
+:doc:`/theory/peierls_unified` §16 (postmortem) and
+:doc:`/verification/reference_solutions` §"Legacy naming
+discrepancy in ``BickleyTables``" (safety argument for the swap).
 
 
 Equal-Volume Mesh Subdivision
@@ -2638,8 +2776,15 @@ property that makes the reference useful:
   it is sensitive to flux-shape errors that are invisible to a
   CP-vs-CP comparison with flat sources.
 
-The Bickley--Naylor recurrence and pre-computed table live in
-:class:`~orpheus.derivations._kernels.BickleyTables`.
+The canonical :math:`\mathrm{Ki}_n` recurrence evaluator lives in
+:func:`~orpheus.derivations._kernels.ki_n_mp` (arbitrary precision
+via :func:`mpmath.quad` on the A&S integral form). The
+double-precision fast path for :math:`\mathrm{Ki}_3` goes through
+:func:`~orpheus.derivations.cp_geometry._ki3_mp` — a Chebyshev
+interpolant built from ``ki_n_mp`` at module load (Phase B.4,
+commit ``6badbe5``, Issue #94). The legacy ``BickleyTables``
+20 000-point tabulation this replaced is documented historically
+in :ref:`ki-table-construction`.
 
 Nyström assembly in polar coordinates
 -------------------------------------
@@ -3368,10 +3513,13 @@ construction:
 
 The :math:`e^{-\tau}` kernel also avoids the common-mode
 :math:`\mathrm{Ki}_n` recursion path: the cylinder Peierls depends
-on :class:`~orpheus.derivations._kernels.BickleyTables` for every
-:math:`\mathrm{Ki}_1` evaluation, but a sphere Peierls run makes
-**zero** calls into that table. The two references triangulate the
-integral-transport stack from orthogonal angles.
+on :func:`~orpheus.derivations._kernels.ki_n_mp` (via the
+mpmath-backed :math:`\mathrm{Ki}_1` evaluator, as the Phase B.4
+retirement of ``BickleyTables`` routes all cylindrical kernel
+evaluations through a single canonical primitive), but a sphere
+Peierls run makes **zero** calls into any :math:`\mathrm{Ki}_n`
+code path — just :func:`numpy.exp`. The two references triangulate
+the integral-transport stack from orthogonal angles.
 
 Nyström assembly in polar coordinates
 -------------------------------------
