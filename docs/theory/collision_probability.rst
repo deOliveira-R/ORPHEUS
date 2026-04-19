@@ -2313,60 +2313,84 @@ The :math:`E_1` kernel has a logarithmic singularity at :math:`x = x'`:
    \qquad R(z) \equiv E_1(z) + \ln z + \gamma,\quad R(0) = 0.
 
 The remainder :math:`R(z)` is a smooth (analytic) function that
-vanishes at the origin.  This decomposition is the basis for
-**singularity subtraction**: on each panel, the kernel is split
-into a smooth part (handled by standard GL weights) and a logarithmic
-part (handled by product-integration weights).
+vanishes at the origin. This decomposition motivates the classical
+**singularity-subtraction** approach (used in the original
+implementation), in which diagonal panels split the kernel into a
+smooth :math:`R` part (handled by GL weights) and a
+:math:`-\ln|x_i - x'|` part (handled by product-integration weights).
+Off-diagonal panels would then use standard GL weights on the smooth
+:math:`E_1` integrand.
 
-For a diagonal panel :math:`[a, b]` containing evaluation point
-:math:`x_i`, the integral is:
+**Why this classical scheme fails in practice** (issue #113,
+ERR-027/028). The scheme rests on two assumptions that turn out to
+be insufficient:
+
+1. *Off-diagonal GL is exact for smooth integrands.* This is true for
+   polynomial integrands of degree :math:`\le 2p-1`, but :math:`E_1`
+   is transcendental with a near-log spike at :math:`x'\to x_i`. One-
+   point collocation (``E_1(τ_ij)·w_j``) gives ~1% error even for
+   panel pairs with moderate optical separation, worst at
+   panel-boundary neighbours where the log spike sits just outside
+   the source panel.
+
+2. *R is smooth across the diagonal panel.* True in :math:`\tau` but
+   :math:`R(\Sigt{}|x_i - x'|)` has a derivative kink in :math:`x'`
+   at :math:`x'=x_i` (from the absolute value). GL cannot integrate
+   across interior derivative discontinuities. This adds ~1% error
+   on every diagonal panel.
+
+Both bugs were invisible to row-sum conservation tests because
+:math:`\sum_j L_j(x')=1` kills the kink in the summed integrand even
+when each basis-individual :math:`K[i,j]` is wrong — hence the
+"passes at mode 0, fails at mode n>0" signature observed in the rank-N
+investigation.
+
+**Unified basis-aware assembly** (current implementation,
+:func:`~orpheus.derivations.peierls_slab._basis_kernel_weights`).
+Every :math:`K[i, j]` is computed directly as
 
 .. math::
 
-   \int_a^b f(x')\,\bigl[-\ln|x_i - x'|\bigr]\,\mathrm{d}x'
-   \approx \sum_{j=1}^{p} w_j^{(\ln)}\,f(x_j)
+   K[i, j] \;=\; \tfrac{1}{2} \int_{p_a}^{p_b}
+                  E_1\!\bigl(\tau(x_i, x')\bigr)\,L_j(x')\,\mathrm{d}x'
 
-where the **product-integration weights** :math:`w_j^{(\ln)}` are
-computed by exactly integrating each Lagrange basis polynomial
-:math:`L_j(x')` against the :math:`-\ln|x_i - x'|` weight:
+via adaptive :func:`mpmath.quad`, with the subdivision hint
+:math:`[p_a, x_i, p_b]` when :math:`x_i` lies inside the source
+panel (same-panel case). This single code path:
 
-.. math::
+- handles the integrable log singularity at :math:`x'=x_i` via the
+  subdivision hint (mpmath resolves it to machine precision);
+- handles the derivative kink of :math:`R(\tau)` in :math:`x'` — GL
+  on each smooth half of the subdivided panel converges spectrally;
+- eliminates the off-diagonal-panel quadrature error — adaptive
+  refinement resolves :math:`E_1`'s non-polynomial structure on
+  arbitrary panel pairs without relying on near-log assumptions.
 
-   w_j^{(\ln)} = \int_a^b L_j(x')\,\bigl[-\ln|x_i - x'|\bigr]\,\mathrm{d}x'
+The implementation exactly mirrors the adaptive reference
+:func:`~orpheus.derivations.peierls_reference.slab_K_vol_element`, so
+the production code and the reference agree to machine
+:math:`\mathrm{dps}` by construction.
 
-These integrals are evaluated to high precision via ``mpmath.quad``
-(see ``_product_log_weights()`` in :mod:`orpheus.derivations.peierls_slab`).
-The full Nystrom weight for the diagonal panel entry :math:`K[i, j]` is
-then (in the implementation):
+**Why adaptive quadrature over the alternatives.**
+Four strategies exist for the Peierls log singularity [Atkinson1997]_:
 
-.. math::
-
-   K[i, j] = \tfrac{1}{2}\bigl[R(\tau_{ij})\,w_j
-   + (-\ln\Sigt{} - \gamma)\,w_j + w_j^{(\ln)}\bigr]
-
-where the :math:`-\ln\Sigt{}` term arises from separating
-:math:`\ln\tau = \ln(\Sigt{}\,|x_i - x_j|)
-= \ln\Sigt{} + \ln|x_i - x_j|`.
-
-**Why this approach over alternatives.**
-Several singularity-handling strategies exist [Atkinson1997]_:
-
-1. *Graded meshes* (cluster quadrature nodes near the diagonal):
-   algebraic convergence only, many nodes needed for high accuracy.
-2. *IMT (Iri--Moriguti--Takahashi) transformation*: double-exponential
-   variable substitution that neutralises endpoint singularities.
-   Effective but hard to control for the travelling singularity at
-   :math:`x = x'`.
-3. *Singularity subtraction + product integration* (used here):
-   splits the known singular part from the smooth remainder.  The smooth
-   part converges spectrally with GL; the singular part is handled
-   analytically.  This gives spectral convergence for the smooth part
-   and guaranteed exactness for the logarithmic part, making it the
-   natural choice for a reference-quality solver.
-
-Off-diagonal panels (where the kernel is smooth because :math:`x_i`
-is far from the panel containing :math:`x_j`) use standard GL weights
-evaluated via :func:`~orpheus.derivations._kernels.e_n_mp`.
+1. *Graded meshes* (cluster GL nodes near the diagonal): algebraic
+   convergence only; many nodes needed for high accuracy.
+2. *IMT transformation* (Iri–Moriguti–Takahashi double-exponential):
+   effective for endpoint singularities but hard to control for the
+   travelling singularity at :math:`x'=x_i`.
+3. *Singularity subtraction + product integration*: the classical
+   approach. Exact for the isolated log, but still requires the
+   surrounding integrand to be polynomial-representable — which is
+   false for the full :math:`E_1`-times-:math:`L_j` product (see
+   bugs above).
+4. *Adaptive :func:`mpmath.quad` with explicit subdivision hints*
+   (used here): handles all three non-smoothness sources — log
+   singularity at :math:`x'=x_i`, derivative kink of :math:`R` at
+   :math:`x'=x_i`, and non-polynomial :math:`E_1` decay across the
+   source panel — in one uniform code path. The cost is higher per
+   weight than GL product integration, but this is a reference-quality
+   solver; correctness beats speed.
 
 White boundary conditions
 -------------------------

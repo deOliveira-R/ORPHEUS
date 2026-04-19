@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **909**
+Total tests collected: **925**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 520, 57.2%
-   L1, 225, 24.8%
-   L2, 36, 4.0%
+   L0, 520, 56.2%
+   L1, 241, 26.1%
+   L2, 36, 3.9%
    L3, 0, 0.0%
-   foundation, 117, 12.9%
+   foundation, 117, 12.6%
    unmarked, 11, 1.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 819
+   explicit, 835
    verify, 0
    class-name, 46
    func-name, 0
@@ -69,6 +69,7 @@ Module × level grid
    derivations/test_peierls_rank_n_bc, 59, 15, 0, 0, 0, 0
    derivations/test_peierls_rank_n_conservation, 0, 0, 0, 0, 4, 0
    derivations/test_peierls_rank_n_primitives, 19, 0, 0, 0, 0, 0
+   derivations/test_peierls_reference, 0, 16, 0, 0, 0, 0
    derivations/test_peierls_sphere_eigenvalue, 0, 4, 0, 0, 0, 0
    derivations/test_peierls_sphere_geometry, 21, 0, 0, 0, 0, 0
    derivations/test_peierls_sphere_prefactor, 6, 0, 0, 0, 0, 0
@@ -133,6 +134,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``multigroup``, 65
    ``ki3-def``, 61
    ``e3-def``, 58
+   ``peierls-unified``, 55
    ``self-slab``, 52
    ``balance-general``, 51
    ``chord-length``, 51
@@ -144,7 +146,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``optical-thickness``, 48
    ``scalar-flux-integral``, 48
    ``wigner-seitz``, 46
-   ``peierls-unified``, 39
    ``cp-kernel-differential-identities``, 36
    ``keff-mean``, 33
    ``sigma-keff``, 33
@@ -397,6 +398,9 @@ Every ``ERR-NNN`` entry in ``tests/l0_error_catalog.md`` and the tests that carr
    ``ERR-024``, 1
    ``ERR-025``, 4
    ``ERR-026``, 4
+   ``ERR-027``, 5
+   ``ERR-028``, 1
+   ``ERR-029``, 6
 
 Unmarked tests
 --------------

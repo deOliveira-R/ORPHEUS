@@ -1256,6 +1256,77 @@ adaptive-with-hint approach is more robust and unifies all cases.
 
 ---
 
+## ERR-029 — Peierls curvilinear K-matrix: ρ/ω integration does not subdivide at ray-panel crossings or tangent angles
+
+**Failure mode:** #3 Missing factor — missing subdivision hint
+**Date:** 2026-04-19
+**Solver:** CP / Peierls curvilinear
+(`orpheus.derivations.peierls_geometry.build_volume_kernel`).
+
+**Bug:** The unified polar-form Nyström assembly for sphere and cylinder
+used fixed-order Gauss–Legendre on both the angular (ω) and radial (ρ)
+integration domains with no subdivision. Two independent sources of
+non-smoothness went unresolved:
+
+1. **ρ-integration:** along a ray, the source position
+   ``r'(ρ) = sqrt(r_i² + 2 r_i ρ cos ω + ρ²)`` crosses spatial panel
+   boundaries at specific ρ values; the Lagrange basis L_j(r') has a
+   derivative discontinuity at each crossing. Fixed GL cannot
+   integrate across these kinks — produces 0.5–5% per-entry error
+   that decays only as O(h) in n_ρ under refinement, and
+   non-monotonically (GL nodes straddle kinks differently at each
+   order).
+
+2. **ω-integration:** for observers strictly outside an interior
+   panel boundary ``r_b`` (``r_i > r_b``), there is a critical angle
+   ``ω_c = arcsin(r_b/r_i)`` at which the ray is *tangent* to the
+   boundary. Just below ω_c the ray crosses r_b twice; just above,
+   zero crossings. At ω_c the ρ-crossing breakpoint structure bifurcates
+   and the integrand L_j(r'(ρ)) acquires a C¹-discontinuous quadratic
+   kink at the tangent ρ. Without subdivision at ω_c the outer GL on
+   ω plateaus at ~1e-3 even with n_ang=128.
+
+**Impact:** K[i, j] entries for observers near interior panel boundaries
+wrong by 0.5–5%; downstream k_eff affected at the ~0.4% level
+(Sanchez cylinder R≈1.98 tie-point). The rank-N investigation's
+"K·[1] = 1 error 3%→7% for sphere R=10 at N=2" is consistent with
+this bug: the row-sum K·[1] is exact even with buggy entries due to
+``∑_j L_j(r') = 1`` (partition of unity) cancelling the kinks, but
+non-uniform rank-N closures break this cancellation.
+
+**How it hid from higher-level tests:**
+- Row-sum K·[1] conservation passes at 1e-15 because partition of
+  unity cancels the L_j kinks in the summed integrand. Every existing
+  row-sum test was blind (``test_peierls_sphere_white_bc``, etc.).
+- 1-group k_eff ∝ Rayleigh quotient of K — the shape independence
+  (ERR-002 lesson) masks ~1% K errors.
+- Multi-group eigenvalue tolerances were 2% — absorbed the error.
+
+**L1 test that catches it:**
+`tests/derivations/test_peierls_reference.py::TestSphereKMatrixElementwise`
+— element-wise K[i, j] vs an independent shell-average reference at
+n_ang=64, n_rho=32, p=3 with n_panels=2; all diagonal-entry rel diffs
+gate at 1e-5. Companion test asserts monotone non-oscillating
+convergence under (n_ang, n_rho) refinement.
+
+**Fix:** Two new geometry methods on ``CurvilinearGeometry`` —
+``rho_crossings_for_ray`` (panel-boundary crossings along a ray) and
+``omega_tangent_angles`` (tangent critical angles per observer).
+``build_volume_kernel`` now subdivides the ρ integration at each
+crossing *and* the ω integration at each tangent angle, applying
+independent GL rules on each sub-interval. See issue #114.
+
+**Lesson:** Row-sum conservation tests are systematically blind to
+basis-individual quadrature errors that cancel under partition of
+unity. Element-wise K[i, j] verification with at least two
+*mathematically-independent* references (shell-average + polar-form)
+is required for curvilinear Peierls assembly. Multi-dimensional
+Nyström also needs *each* integration dimension audited for kinks —
+ρ-crossings were the obvious candidate, but the ω-tangent bifurcation
+is equally load-bearing and easy to miss.
+
+---
+
 ## Meta-Lessons
 
 1. **1-group is degenerate.** k = νΣ_f/Σ_a regardless of flux shape.

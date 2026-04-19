@@ -48,12 +48,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import math
+
 import mpmath
 import numpy as np
 
 from ._kernels import (  # noqa: F401
     _shifted_legendre_eval,
     chord_half_lengths,
+    ki_n_float,
     ki_n_mp,
 )
 
@@ -341,17 +344,109 @@ class CurvilinearGeometry:
                 return kk
         return k
 
+    # ── ray / panel-boundary crossings ────────────────────────────────
+
+    def omega_tangent_angles(
+        self,
+        r_obs: float,
+        panel_boundaries_r: np.ndarray,
+        *,
+        tol: float = 1e-12,
+    ) -> list[float]:
+        r"""Angles :math:`\omega` at which the observer-anchored ray is
+        tangent to an interior panel-boundary shell.
+
+        For observers strictly outside a panel boundary :math:`r_b`, the
+        ray has :math:`r_{\min}(\omega) = r_{\rm obs}|\sin\omega|`; this
+        equals :math:`r_b` when :math:`\sin\omega = r_b/r_{\rm obs}`,
+        producing a *bifurcation* in the ρ integration structure (two
+        crossings just below, zero crossings just above the critical
+        angle). The tangent geometry gives :math:`L_j(r'(\rho))` a
+        quadratic (C¹-discontinuous) kink at the tangent ρ, which
+        translates into a derivative discontinuity of the outer
+        :math:`\omega` integrand. Fixed-order GL cannot integrate across
+        such kinks.
+
+        Returns the sorted list of critical ω in :math:`(0, \pi)` that
+        need to appear as subdivision breakpoints in the outer rule
+        (issue #114 — second phase of the curvilinear-ρ/ω fix).
+
+        For observers *inside* a boundary (``r_obs ≤ r_b``), no tangent
+        critical angle exists.
+        """
+        angles: list[float] = []
+        for r_b in panel_boundaries_r:
+            if r_obs <= r_b + tol:
+                continue
+            ratio = r_b / r_obs
+            if ratio >= 1.0 - tol:
+                continue
+            omega_c = float(np.arcsin(ratio))
+            # Two tangent angles per boundary: symmetric about π/2
+            for ang in (omega_c, np.pi - omega_c):
+                if tol < ang < np.pi - tol:
+                    angles.append(ang)
+        return sorted(angles)
+
+    def rho_crossings_for_ray(
+        self,
+        r_obs: float,
+        cos_omega: float,
+        rho_max_val: float,
+        panel_boundaries_r: np.ndarray,
+        *,
+        tol: float = 1e-12,
+    ) -> list[float]:
+        r"""Ray distances :math:`\rho` at which :math:`r'(\rho)` crosses a
+        spatial panel boundary :math:`r_b`.
+
+        Solves :math:`r_{\rm obs}^2 + 2 r_{\rm obs}\,\rho\,\cos\Omega +
+        \rho^2 = r_b^2` for each panel boundary :math:`r_b` and keeps the
+        positive roots strictly inside :math:`(0, \rho_{\max})`. These
+        are the points along the ray where the piecewise-polynomial
+        Lagrange basis :math:`L_j(r')` has a derivative discontinuity
+        (panel kink). Fixed-order Gauss-Legendre cannot integrate across
+        such kinks — the quadrature on :math:`\rho` must subdivide at
+        every crossing to restore spectral convergence. See :issue:`114`.
+
+        Identical formula for cylinder and sphere; both share
+        :meth:`source_position`.
+        """
+        crossings: set[float] = set()
+        r_obs_sq = r_obs * r_obs
+        disc_base = r_obs_sq * cos_omega * cos_omega - r_obs_sq
+        for r_b in panel_boundaries_r:
+            disc = disc_base + r_b * r_b
+            if disc < 0.0:
+                continue
+            sqrt_disc = float(np.sqrt(disc))
+            for sign in (+1.0, -1.0):
+                rho = -r_obs * cos_omega + sign * sqrt_disc
+                if tol < rho < rho_max_val - tol:
+                    crossings.add(rho)
+        return sorted(crossings)
+
     # ── volume kernel :math:`\kappa_d(\tau)` ──────────────────────────
 
     def volume_kernel_mp(self, tau: float, dps: int = 25) -> float:
-        r"""Volume Peierls kernel :math:`\kappa_d(\tau)` at mpmath precision.
+        r"""Volume Peierls kernel :math:`\kappa_d(\tau)` returned as a
+        Python :class:`float`.
 
         Cylinder: :math:`\mathrm{Ki}_1(\tau)` (A&S 11.2).
         Sphere:  :math:`e^{-\tau}`.
+
+        Uses the fast scipy-based :func:`~.._kernels.ki_n_float`
+        evaluation for the cylinder since the return is always cast
+        to :class:`float` for use in the float-precision K-matrix
+        assembly. At ``dps>=30`` falls back to the arbitrary-precision
+        :func:`~.._kernels.ki_n_mp` so high-precision reference
+        computations keep full accuracy.
         """
         if self.kind == "cylinder-1d":
-            return float(ki_n_mp(1, float(tau), dps))
-        return float(mpmath.exp(-mpmath.mpf(tau)))
+            if dps >= 30:
+                return float(ki_n_mp(1, float(tau), dps))
+            return ki_n_float(1, float(tau))
+        return math.exp(-float(tau))
 
     # ── escape kernel (for :math:`P_{\rm esc}` angular integration) ───
 
@@ -472,13 +567,24 @@ def build_volume_kernel(
     R = float(radii[-1])
 
     omega_low, omega_high = geometry.angular_range
-    omega_pts, omega_wts = gl_float(n_angular, omega_low, omega_high, dps)
-    cos_omegas = np.cos(omega_pts)
-    angular_factor = geometry.angular_weight(omega_pts)
+    ref_omega_nodes, ref_omega_wts = gl_nodes_weights(n_angular, dps)
+    ref_omega_nodes = np.array([float(x) for x in ref_omega_nodes])
+    ref_omega_wts = np.array([float(w) for w in ref_omega_wts])
 
     ref_rho_nodes, ref_rho_wts = gl_nodes_weights(n_rho, dps)
     ref_rho_nodes = np.array([float(x) for x in ref_rho_nodes])
     ref_rho_wts = np.array([float(w) for w in ref_rho_wts])
+
+    # Sorted unique panel-boundary radii (kink locations of the Lagrange
+    # basis along each ray). Excludes the outer boundary R because that
+    # is always the ρ_max endpoint.
+    panel_boundaries_r = np.array(sorted(
+        {pa for (pa, pb, _, _) in panel_bounds}
+        | {pb for (pa, pb, _, _) in panel_bounds}
+    ), dtype=float)
+    interior_boundaries_r = panel_boundaries_r[
+        (panel_boundaries_r > 0.0) & (panel_boundaries_r < R)
+    ]
 
     K = np.zeros((N, N))
     pref = geometry.prefactor
@@ -488,32 +594,67 @@ def build_volume_kernel(
         ki = geometry.which_annulus(r_i, radii)
         sig_t_i = sig_t[ki]
 
-        for k in range(n_angular):
-            cos_om = cos_omegas[k]
-            rho_max_val = geometry.rho_max(r_i, cos_om, R)
-            if rho_max_val <= 0.0:
+        # Subdivide ω at tangent-to-interior-boundary critical angles.
+        # For r_i > r_b, sin ω = r_b/r_i is the bifurcation where the
+        # ρ-crossing count jumps 2→0; the outer integrand has a C¹
+        # discontinuity at ω_c that fixed GL cannot integrate across.
+        tangent_angles = geometry.omega_tangent_angles(
+            r_i, interior_boundaries_r,
+        )
+        omega_subintervals = [omega_low, *tangent_angles, omega_high]
+
+        for t_idx in range(len(omega_subintervals) - 1):
+            om_a = omega_subintervals[t_idx]
+            om_b = omega_subintervals[t_idx + 1]
+            if om_b <= om_a:
                 continue
+            h_om = 0.5 * (om_b - om_a)
+            m_om = 0.5 * (om_a + om_b)
+            omega_pts = h_om * ref_omega_nodes + m_om
+            omega_wts = h_om * ref_omega_wts
+            cos_omegas = np.cos(omega_pts)
+            angular_factor = geometry.angular_weight(omega_pts)
 
-            h = 0.5 * rho_max_val
-            rho_pts = h * ref_rho_nodes + h
-            rho_wts = h * ref_rho_wts
+            for k in range(n_angular):
+                cos_om = cos_omegas[k]
+                rho_max_val = geometry.rho_max(r_i, cos_om, R)
+                if rho_max_val <= 0.0:
+                    continue
 
-            for m in range(n_rho):
-                rho = rho_pts[m]
-                r_prime = geometry.source_position(r_i, rho, cos_om)
-                tau = geometry.optical_depth_along_ray(
-                    r_i, cos_om, rho, radii, sig_t,
+                # Subdivide ρ at panel-boundary crossings — without this,
+                # the Lagrange-basis kinks along the ray are unresolved
+                # and the fixed-order GL rule leaves ~1–5% error per
+                # K[i,j]. See issue #114.
+                crossings = geometry.rho_crossings_for_ray(
+                    r_i, cos_om, rho_max_val, interior_boundaries_r,
                 )
-                kappa = geometry.volume_kernel_mp(tau, dps)
-                L_vals = lagrange_basis_on_panels(
-                    r_nodes, panel_bounds, float(r_prime),
+                rho_subintervals = [0.0, *crossings, rho_max_val]
+
+                outer_weight = (
+                    pref * sig_t_i * omega_wts[k] * angular_factor[k]
                 )
-                weight = (
-                    pref * sig_t_i
-                    * omega_wts[k] * angular_factor[k]
-                    * rho_wts[m] * kappa
-                )
-                K[i, :] += weight * L_vals
+                for s_idx in range(len(rho_subintervals) - 1):
+                    rho_a = rho_subintervals[s_idx]
+                    rho_b = rho_subintervals[s_idx + 1]
+                    if rho_b <= rho_a:
+                        continue
+                    h_r = 0.5 * (rho_b - rho_a)
+                    m_r = 0.5 * (rho_a + rho_b)
+                    rho_pts = h_r * ref_rho_nodes + m_r
+                    rho_wts = h_r * ref_rho_wts
+
+                    for m in range(n_rho):
+                        rho = rho_pts[m]
+                        r_prime = geometry.source_position(r_i, rho, cos_om)
+                        tau = geometry.optical_depth_along_ray(
+                            r_i, cos_om, rho, radii, sig_t,
+                        )
+                        kappa = geometry.volume_kernel_mp(tau, dps)
+                        L_vals = lagrange_basis_on_panels(
+                            r_nodes, panel_bounds, float(r_prime),
+                        )
+                        weight = outer_weight * rho_wts[m] * kappa
+                        K[i, :] += weight * L_vals
 
     return K
 

@@ -38,6 +38,12 @@ from orpheus.derivations.peierls_reference import (
     slab_K_vol_element,
 )
 from orpheus.derivations import peierls_slab
+from orpheus.derivations.peierls_geometry import (
+    SPHERE_1D,
+    CYLINDER_1D,
+    build_volume_kernel,
+    lagrange_basis_on_panels,
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -284,4 +290,135 @@ class TestSlabKMatrixElementwiseVsReference:
             f"At n_panels={n_panels}, worst adjacent-panel K entry "
             f"K[{worst}] differs from adaptive ref by {max_rel:.3e}. "
             f"Regression of issue #113."
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Layer 3 — Curvilinear K volume-kernel verification (issue #114)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _build_sphere_K(R, sig_t, n_panels, p_order,
+                    *, n_angular=32, n_rho=32, dps=25):
+    """Helper: build a single-region sphere K via production assembly."""
+    with mpmath.workdps(dps):
+        gl_ref, gl_wt = peierls_slab._gl_nodes_weights(p_order, dps)
+        x_all, w_all, pbs = [], [], []
+        pw = mpmath.mpf(R) / n_panels
+        for pidx in range(n_panels):
+            pa = mpmath.mpf(pidx) * pw
+            pb = pa + pw
+            i_start = len(x_all)
+            xs, ws = peierls_slab._map_to_interval(gl_ref, gl_wt, pa, pb)
+            x_all.extend(xs); w_all.extend(ws)
+            pbs.append((pa, pb, i_start, len(x_all)))
+    x_nodes = np.array([float(x) for x in x_all])
+    pbs_f = [(float(pa), float(pb), i0, i1) for pa, pb, i0, i1 in pbs]
+    radii = np.array([R])
+    sig_t_arr = np.array([sig_t])
+    K = build_volume_kernel(
+        SPHERE_1D, x_nodes, pbs_f, radii, sig_t_arr,
+        n_angular=n_angular, n_rho=n_rho, dps=dps,
+    )
+    return K, x_nodes, pbs_f, radii, sig_t_arr
+
+
+def _shell_avg_sphere_K(i, j, x_nodes, pbs, R, sig_t, *, dps=40):
+    """Independent reference via shell-average of the 3-D isotropic point
+    kernel (used as the arbiter against the polar-adaptive reference).
+
+        <exp(-Σ_t d)/(4π d²)>_shell =
+            (1/(8π r_i r')) * [E_1(Σ_t|r_i-r'|) - E_1(Σ_t(r_i+r'))]
+
+    Volume-integrated against L_j(r') gives
+        K[i, j] = Σ_t(r_i) * (1/(2 r_i)) * ∫_0^R r' * [E_1 - E_1] * L_j dr'
+    with subdivision at 0, r_i, R, and each panel boundary (handles both
+    the log singularity at r'=r_i and the Lagrange-basis kinks).
+    """
+    r_i = mpmath.mpf(x_nodes[i])
+    s = mpmath.mpf(sig_t)
+
+    def integrand(rp):
+        rp_mp = mpmath.mpf(rp)
+        if rp_mp == 0 or rp_mp == r_i:
+            return mpmath.mpf(0)
+        tau1 = s * abs(r_i - rp_mp)
+        tau2 = s * (r_i + rp_mp)
+        term = mpmath.expint(1, tau1) - mpmath.expint(1, tau2)
+        L_vals = lagrange_basis_on_panels(x_nodes, pbs, float(rp_mp))
+        return rp_mp * term * mpmath.mpf(float(L_vals[j]))
+
+    breaks_set = {mpmath.mpf(0), mpmath.mpf(R), r_i}
+    for pa, pb, _, _ in pbs:
+        breaks_set.add(mpmath.mpf(pa))
+        breaks_set.add(mpmath.mpf(pb))
+    breaks = sorted(breaks_set)
+    with mpmath.workdps(dps):
+        val = mpmath.quad(integrand, breaks)
+    return s / (2 * r_i) * val
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("peierls-unified")
+class TestSphereKMatrixElementwise:
+    """Element-wise comparison of the sphere production K (via
+    :func:`~peierls_geometry.build_volume_kernel`) to the
+    mesh-independent shell-average reference (:func:`_shell_avg_sphere_K`).
+
+    Before the fix (:issue:`114`), cross-panel-crossing rays produced
+    0.5–5% per-entry error, plateauing at ~1e-3 even with n_rho=128
+    (see retired ``diag_sphere_kvol_ray_crossing.py``). After the fix
+    (ρ + ω subdivision at panel crossings and tangent angles), each
+    entry converges algebraically in (n_angular, n_rho).
+    """
+
+    @pytest.mark.catches("ERR-029")
+    @pytest.mark.parametrize("i,j", [(0, 0), (2, 2), (5, 5), (3, 3), (1, 1)])
+    def test_sphere_K_entry_vs_shell_avg_reference(self, i, j):
+        R, sig_t = 1.0, 1.0
+        n_panels, p_order = 2, 3
+        K, x_nodes, pbs, _, _ = _build_sphere_K(
+            R, sig_t, n_panels, p_order,
+            n_angular=64, n_rho=32, dps=25,
+        )
+        ref = float(_shell_avg_sphere_K(i, j, x_nodes, pbs, R, sig_t, dps=40))
+        got = float(K[i, j])
+        assert abs(ref) > 1e-10, f"Shell-avg ref vanishes at K[{i},{j}]"
+        rel = abs(got - ref) / abs(ref)
+        # Algebraic (not spectral) convergence due to the sqrt cusp at
+        # tangent critical angles; gate at 1e-5 which n=64, n_rho=32 meets.
+        assert rel < 1e-5, (
+            f"Sphere K[{i},{j}]: production={got:.6e}, shell-avg ref={ref:.6e}, "
+            f"rel_diff={rel:.3e}. Regression of issue #114 (ρ / ω subdivision "
+            f"at ray/panel-boundary crossings and tangent angles)."
+        )
+
+    @pytest.mark.catches("ERR-029")
+    def test_sphere_K_converges_under_refinement(self):
+        """At fixed panels (p=3, 2 panels), refining n_angular=n_rho
+        monotonically reduces the K[3,3] error vs the shell-avg reference.
+        Pre-fix this was non-monotonic (oscillating 4e-2 → 7e-2 → 1e-2).
+        """
+        R, sig_t = 1.0, 1.0
+        K, x_nodes, pbs, _, _ = _build_sphere_K(
+            R, sig_t, 2, 3, n_angular=8, n_rho=8, dps=20,
+        )
+        ref = float(_shell_avg_sphere_K(3, 3, x_nodes, pbs, R, sig_t, dps=40))
+        errors = []
+        for n_q in (8, 16, 32, 64):
+            K, *_ = _build_sphere_K(
+                R, sig_t, 2, 3,
+                n_angular=n_q, n_rho=n_q, dps=20,
+            )
+            errors.append(abs(float(K[3, 3]) - ref) / abs(ref))
+
+        # Allow small noise floor tolerance but require non-oscillating
+        # monotonic decrease.
+        for k in range(len(errors) - 1):
+            assert errors[k + 1] <= errors[k] * 1.5, (
+                f"Sphere K[3,3] error oscillates under refinement: "
+                f"errors = {errors}. Regression of issue #114."
+            )
+        assert errors[-1] < 1e-4, (
+            f"At n_angular=n_rho=64, K[3,3] error = {errors[-1]:.3e}, "
+            f"expected < 1e-4."
         )
