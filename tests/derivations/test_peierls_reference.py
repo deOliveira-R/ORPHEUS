@@ -36,9 +36,11 @@ import pytest
 from orpheus.derivations.peierls_reference import (
     slab_uniform_source_analytical,
     slab_K_vol_element,
+    slab_polar_K_vol_element,
 )
 from orpheus.derivations import peierls_slab
 from orpheus.derivations.peierls_geometry import (
+    SLAB_POLAR_1D,
     SPHERE_1D,
     CYLINDER_1D,
     build_volume_kernel,
@@ -421,4 +423,162 @@ class TestSphereKMatrixElementwise:
         assert errors[-1] < 1e-4, (
             f"At n_angular=n_rho=64, K[3,3] error = {errors[-1]:.3e}, "
             f"expected < 1e-4."
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Layer 4 — Unified slab polar-form (same adaptive-mpmath methodology
+# as curvilinear; proves slab is a first-class CurvilinearGeometry kind)
+# ═══════════════════════════════════════════════════════════════════════
+
+@pytest.mark.l1
+@pytest.mark.verifies("peierls-unified")
+class TestSlabPolarReferenceEquivalence:
+    """The **slab polar-form reference** (:func:`slab_polar_K_vol_element`)
+    uses the SAME adaptive-mpmath methodology as the curvilinear reference
+    (:func:`curvilinear_K_vol_element`): observer-centred (μ, ρ)
+    integration of the exp-kernel times the Lagrange basis. It is
+    *mathematically equivalent* to the classical E₁ form
+    (:func:`slab_K_vol_element`) but gives the unified ``CurvilinearGeometry``
+    framework a common reference shape across all three geometries.
+
+    This test is the architectural invariant: ONE methodology (adaptive
+    mpmath.quad on the polar form with appropriate breakpoint hints)
+    produces the K matrix for slab, cylinder, AND sphere. See
+    ``.claude/plans/post-cp-topology-and-coordinate-transforms.md`` §4
+    and :doc:`/theory/peierls_unified` §4.
+    """
+
+    def test_polar_reference_matches_E1_reference(self):
+        """Adaptive polar-form slab K (with Σ_t pre-factor from the
+        unified operator ``Σ_t·φ = K·q``) equals Σ_t times the classical
+        E₁ slab K to machine precision."""
+        L, sig_t = 1.0, 1.0
+        dps = 25
+        K, x_nodes, _, panel_bounds = _build_slab_K_and_nodes(
+            L, sig_t, n_panels=2, p_order=4, dps=dps,
+        )
+
+        # Four strategic entries: diagonal (same-panel same-basis),
+        # neighbor-straddling-boundary, far cross-panel, off-diagonal.
+        for i, j in [(0, 0), (3, 3), (4, 3), (0, 5)]:
+            ref_e1 = float(slab_K_vol_element(
+                i, j, x_nodes, panel_bounds, L, sig_t, dps=25,
+            ))
+            ref_polar = float(slab_polar_K_vol_element(
+                i, j, x_nodes, panel_bounds, L, sig_t, dps=25,
+            ))
+            # Unified operator: Σ_t·φ = K·q ⇒ K_polar = Σ_t · K_E1
+            expected_polar = sig_t * ref_e1
+            if abs(expected_polar) > 1e-30:
+                rel = abs(ref_polar - expected_polar) / abs(expected_polar)
+            else:
+                rel = abs(ref_polar - expected_polar)
+            assert rel < 1e-10, (
+                f"Polar form and E_1 form disagree at K[{i},{j}]: "
+                f"polar={ref_polar:.12e}, σ·E_1={expected_polar:.12e}, "
+                f"rel_diff={rel:.3e}. Mathematical equivalence broken."
+            )
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("peierls-unified")
+class TestSlabPolarBuildVolumeKernel:
+    """The **slab polar-form production assembly** (via
+    :func:`build_volume_kernel` with ``SLAB_POLAR_1D``) uses:
+
+    * τ-coordinate transform + subdivided Gauss-Legendre on each
+      panel-boundary-bounded sub-interval, with a dyadic τ-cap on the
+      open tail for grazing rays (plan §5 / Chapter 5).
+    * Exp-stretched μ (``v = -ln|μ|``) + Gauss-Laguerre on
+      :math:`v \\in [0, \\infty)` (plan §6 / Chapter 6).
+
+    This is the PRINCIPLED quadrature for the slab polar form and
+    replaces the legacy :math:`E_1` Nyström's ad-hoc singularity
+    subtraction with one uniform scheme that also serves sphere and
+    (pending #114 follow-up) cylinder.
+    """
+
+    def test_converges_to_E1_reference(self):
+        """Unified slab K via ``build_volume_kernel(SLAB_POLAR_1D,...)``
+        converges to the legacy E₁ reference as (n_angular, n_rho)
+        increase. Gate at 1e-3 for n=64 — the τ-GL + v-Laguerre scheme
+        converges algebraically (~O(N⁻²)) due to residual outer-integrand
+        structure; machine precision requires either adaptive quadrature
+        (the slab_polar_K_vol_element reference does this) or
+        outer-μ subdivision at specific kink angles (future work)."""
+        L, sig_t = 1.0, 1.0
+        dps = 25
+        K_legacy, x_nodes, _, panel_bounds = _build_slab_K_and_nodes(
+            L, sig_t, n_panels=2, p_order=4, dps=dps,
+        )
+        import numpy as np
+        radii = np.array([L])
+        sig_t_arr = np.array([sig_t])
+
+        errors = []
+        for n_q in (16, 32, 64):
+            K_unified = build_volume_kernel(
+                SLAB_POLAR_1D, x_nodes, panel_bounds, radii, sig_t_arr,
+                n_angular=n_q, n_rho=n_q, dps=dps,
+            )
+            N = len(x_nodes)
+            max_rel = 0.0
+            for i in range(N):
+                for j in range(N):
+                    # Unified operator: K_unified ≡ Σ_t · K_legacy
+                    ref = sig_t * float(K_legacy[i, j])
+                    if abs(ref) > 1e-30:
+                        rel = abs(K_unified[i, j] - ref) / abs(ref)
+                        if rel > max_rel:
+                            max_rel = rel
+            errors.append(max_rel)
+
+        # Monotone decrease required
+        for k in range(len(errors) - 1):
+            assert errors[k + 1] <= errors[k], (
+                f"Unified slab-polar K does not converge monotonically "
+                f"to legacy E_1: errors = {errors}."
+            )
+        # Finest gate
+        assert errors[-1] < 1e-3, (
+            f"At n_angular=n_rho=64, unified slab-polar K vs legacy E_1 "
+            f"max rel err = {errors[-1]:.3e}, expected < 1e-3."
+        )
+
+    def test_row_sum_identity(self):
+        """``K · [1,1,...]`` equals :math:`\\Sigma_t \\varphi(x)` for
+        uniform unit source on a pure-absorber vacuum-BC slab. Tests
+        the full assembly (kernel, weights, subdivision logic) in one
+        shot, independent of the legacy E_1 reference."""
+        L, sig_t = 1.0, 1.0
+        dps = 25
+        import numpy as np
+        _, x_nodes, _, panel_bounds = _build_slab_K_and_nodes(
+            L, sig_t, n_panels=2, p_order=4, dps=dps,
+        )
+        radii = np.array([L])
+        sig_t_arr = np.array([sig_t])
+        K = build_volume_kernel(
+            SLAB_POLAR_1D, x_nodes, panel_bounds, radii, sig_t_arr,
+            n_angular=64, n_rho=64, dps=dps,
+        )
+        N = len(x_nodes)
+        max_rel = 0.0
+        for i in range(N):
+            ref = sig_t * float(slab_uniform_source_analytical(
+                x_nodes[i], L, sig_t, dps=dps,
+            ))
+            got = float(K[i].sum())
+            if abs(ref) > 1e-30:
+                rel = abs(got - ref) / abs(ref)
+                if rel > max_rel:
+                    max_rel = rel
+        # Row-sum is a weaker test than element-wise (partition-of-unity
+        # cancels basis-individual errors) — should be well below the
+        # element-wise gate.
+        assert max_rel < 1e-3, (
+            f"Slab-polar row-sum error = {max_rel:.3e}, expected < 1e-3 "
+            f"at n_angular=n_rho=64. Regression of the unified polar-form "
+            f"slab assembly."
         )

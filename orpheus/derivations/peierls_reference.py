@@ -60,6 +60,7 @@ from ._kernels import ki_n_mp
 from .peierls_geometry import (
     CurvilinearGeometry,
     CYLINDER_1D,
+    SLAB_POLAR_1D,
     SPHERE_1D,
     lagrange_basis_on_panels,
 )
@@ -137,6 +138,113 @@ def slab_K_vol_element(
             else:
                 K_ij += mpmath.quad(integrand, [pa_mp, pb_mp])
     return K_ij
+
+
+def slab_polar_K_vol_element(
+    i: int, j: int,
+    x_nodes: list, panel_bounds: list[tuple[float, float, int, int]],
+    L: float, sig_t: float,
+    *, dps: int = 50,
+) -> mpmath.mpf:
+    r"""Reference :math:`K[i, j]` for slab Peierls via the **unified
+    polar form** with adaptive :func:`mpmath.quad`.
+
+    Computes, with :math:`\Sigma_t` assumed constant on each panel:
+
+    .. math::
+
+       K_{ij} \;=\; \tfrac{1}{2}\,\Sigma_t\,
+                    \int_{-1}^{1}\!\mathrm d\mu\!
+                    \int_0^{\rho_{\max}(x_i, \mu)}
+                    e^{-\Sigma_t \rho}\,L_j(x_i + \rho\mu)\,
+                    \mathrm d\rho
+
+    This is the **same adaptive-quadrature methodology** used by
+    :func:`curvilinear_K_vol_element` for sphere / cylinder — only the
+    geometry primitives differ. Agreement between this and
+    :func:`slab_K_vol_element` (the ``E_1``-direct reference) is the
+    mathematical equivalence statement: the unified polar form and
+    the classical :math:`E_1` Nyström form are equal to machine
+    precision.
+
+    The unified form has a ``Σ_t`` prefactor in the operator
+    (because the polar form writes
+    :math:`\Sigma_t\,\varphi = K\,q`, not :math:`\varphi = K\,q`),
+    so this returns :math:`\Sigma_t` times :func:`slab_K_vol_element`
+    for homogeneous problems.
+    """
+    x_i = float(x_nodes[i])
+    sig_t_mp = mpmath.mpf(sig_t)
+    x_nodes_f = np.array([float(x) for x in x_nodes], dtype=float)
+
+    # Panel-boundary breakpoints for ρ-subdivision; identical to the
+    # `rho_crossings_for_ray` machinery for cylinder/sphere, but with
+    # the linear map r'(ρ) = x + ρμ.
+    panel_boundaries_r = sorted({pa for (pa, pb, _, _) in panel_bounds}
+                                | {pb for (pa, pb, _, _) in panel_bounds})
+    panel_boundaries_r = [float(r) for r in panel_boundaries_r]
+
+    def rho_crossings(mu: float, rho_max_val: float) -> list[float]:
+        if mu == 0.0:
+            return []
+        out = []
+        for r_b in panel_boundaries_r:
+            rho = (r_b - x_i) / mu
+            if 1e-12 < rho < rho_max_val - 1e-12:
+                out.append(rho)
+        return sorted(out)
+
+    def integrand_rho(rho, mu):
+        mu_f = float(mu)
+        rho_f = float(rho)
+        if mu_f > 0:
+            rho_max_val = (L - x_i) / mu_f
+        elif mu_f < 0:
+            rho_max_val = -x_i / mu_f
+        else:
+            return mpmath.mpf(0)
+        if rho_f >= rho_max_val or rho_f <= 0:
+            return mpmath.mpf(0)
+        x_prime = x_i + rho_f * mu_f
+        tau = sig_t_mp * rho
+        kappa = mpmath.exp(-tau)
+        L_vals = lagrange_basis_on_panels(x_nodes_f, panel_bounds, float(x_prime))
+        return kappa * mpmath.mpf(float(L_vals[j]))
+
+    def outer_mu(mu):
+        mu_f = float(mu)
+        if mu_f > 0:
+            rho_max_val = (L - x_i) / mu_f
+        elif mu_f < 0:
+            rho_max_val = -x_i / mu_f
+        else:
+            return mpmath.mpf(0)
+        if rho_max_val <= 0:
+            return mpmath.mpf(0)
+        crossings = rho_crossings(mu_f, rho_max_val)
+        breaks = ([mpmath.mpf(0)]
+                  + [mpmath.mpf(r) for r in crossings]
+                  + [mpmath.mpf(rho_max_val)])
+        return mpmath.quad(
+            lambda rho: integrand_rho(rho, mu),
+            breaks,
+        )
+
+    with mpmath.workdps(dps):
+        # Split at μ=0 so tanh-sinh densifies nodes near the grazing-ray
+        # stiffness (ρ_max → ∞ as μ → 0). The *principled* solution is
+        # the τ-coordinate transform (:doc:`/theory/peierls_unified` §5
+        # / post-CP plan Chapter 5) — with τ = Σ_t ρ as the inner
+        # integration variable and Gauss-Laguerre on [0, ∞), the e^{-τ}
+        # weight naturally absorbs the stiffness. That path is used by
+        # :func:`~peierls_geometry.build_volume_kernel` in production;
+        # here we use the adaptive mpmath.quad equivalent, which is
+        # slower per evaluation but guaranteed convergent.
+        mu_integral = mpmath.quad(
+            outer_mu,
+            [mpmath.mpf(-1), mpmath.mpf(0), mpmath.mpf(1)],
+        )
+        return sig_t_mp * mu_integral / 2
 
 
 def slab_uniform_source_analytical(
@@ -303,6 +411,7 @@ def slab_row_sum_uniform_identity(
 __all__ = [
     "slab_kernel_point_to_point",
     "slab_K_vol_element",
+    "slab_polar_K_vol_element",
     "slab_uniform_source_analytical",
     "slab_row_sum_uniform_identity",
     "curvilinear_K_vol_element",
