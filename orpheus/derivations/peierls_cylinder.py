@@ -73,17 +73,6 @@ GEOMETRY = _pg.CYLINDER_1D
 composite_gl_r = _pg.composite_gl_r
 
 
-def composite_gl_y(
-    radii: np.ndarray,
-    n_panels_per_region: int,
-    p_order: int,
-    dps: int = 30,
-):
-    """Alias retained for the Phase-4.2 C2 tests (which treated the
-    radial grid as a y-grid). Identical to :func:`composite_gl_r`."""
-    return _pg.composite_gl_r(radii, n_panels_per_region, p_order, dps=dps)
-
-
 _lagrange_basis_on_panels = _pg.lagrange_basis_on_panels
 
 
@@ -215,65 +204,6 @@ def build_white_bc_correction(
         GEOMETRY, r_nodes, r_wts, radii, sig_t,
         n_angular=n_beta, n_surf_quad=n_phi, dps=dps,
     )
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# τ± chord walker (C2 scaffold — kept as a geometric utility)
-# ═══════════════════════════════════════════════════════════════════════
-
-def optical_depths_pm(
-    r: float,
-    r_prime: float,
-    y_pts: np.ndarray,
-    radii: np.ndarray,
-    sig_t: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
-    r"""Same-side :math:`\tau^+` and through-centre :math:`\tau^-`
-    optical-path branches for a chord at impact parameter :math:`y`.
-
-    For a chord at impact parameter :math:`y`, a point at radius
-    :math:`\rho \ge y` sits at signed chord position :math:`\pm s_\rho`
-    with :math:`s_\rho = \sqrt{\rho^{2}-y^{2}}`.
-
-    - **Same-side (τ⁺)**: from :math:`s_r` to :math:`s_{r'}` on the
-      positive branch.
-    - **Through-centre (τ⁻)**: from :math:`s_r` to :math:`-s_{r'}`.
-
-    This primitive dates from the Phase-4.2 C2 scaffold and is kept
-    for backward compatibility. The polar-form kernel builder uses
-    :meth:`CurvilinearGeometry.optical_depth_along_ray` instead,
-    which integrates along a directed ray — a strictly more general
-    primitive than the ±-branch chord walker.
-    """
-    radii = np.asarray(radii, dtype=float)
-    sig_t = np.asarray(sig_t, dtype=float)
-    y_pts = np.asarray(y_pts, dtype=float)
-    r = float(r)
-    r_prime = float(r_prime)
-
-    s_r = np.sqrt(np.maximum(r ** 2 - y_pts ** 2, 0.0))
-    s_rp = np.sqrt(np.maximum(r_prime ** 2 - y_pts ** 2, 0.0))
-
-    N = len(radii)
-    s_breaks = np.zeros((N + 1, len(y_pts)))
-    for k in range(N):
-        s_breaks[k + 1] = np.sqrt(np.maximum(radii[k] ** 2 - y_pts ** 2, 0.0))
-
-    def _on_pos(s_lo: np.ndarray, s_hi: np.ndarray) -> np.ndarray:
-        tau = np.zeros_like(s_lo)
-        for k in range(N):
-            lo = np.maximum(s_lo, s_breaks[k])
-            hi = np.minimum(s_hi, s_breaks[k + 1])
-            overlap = np.maximum(hi - lo, 0.0)
-            tau += sig_t[k] * overlap
-        return tau
-
-    s_lo = np.minimum(s_r, s_rp)
-    s_hi = np.maximum(s_r, s_rp)
-    tau_plus = _on_pos(s_lo, s_hi)
-    zero = np.zeros_like(y_pts)
-    tau_minus = _on_pos(zero, s_r) + _on_pos(zero, s_rp)
-    return tau_plus, tau_minus
 
 
 # ═══════════════════════════════════════════════════════════════════════

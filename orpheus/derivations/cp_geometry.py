@@ -61,6 +61,7 @@ from typing import Callable
 import numpy as np
 
 from ._kernels import chord_half_lengths, e3_vec, ki_n_mp
+from .peierls_geometry import composite_gl_r
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -229,21 +230,6 @@ SPHERE_1D = FlatSourceCPGeometry(kind="sphere-1d")
 # Shared y-quadrature with breakpoints at each radius
 # ═══════════════════════════════════════════════════════════════════════
 
-def _composite_gl_y(
-    radii: np.ndarray, n_quad_y: int,
-) -> tuple[np.ndarray, np.ndarray]:
-    r"""Composite GL quadrature on :math:`[0, R]` with breakpoints at
-    each annular radius. Returns ``(y_pts, y_wts)``."""
-    gl_pts, gl_wts = np.polynomial.legendre.leggauss(n_quad_y)
-    breakpoints = np.concatenate(([0.0], radii))
-    y_all, w_all = [], []
-    for seg in range(len(breakpoints) - 1):
-        a, b = breakpoints[seg], breakpoints[seg + 1]
-        y_all.append(0.5 * (b - a) * gl_pts + 0.5 * (b + a))
-        w_all.append(0.5 * (b - a) * gl_wts)
-    return np.concatenate(y_all), np.concatenate(w_all)
-
-
 # ═══════════════════════════════════════════════════════════════════════
 # Unified flat-source CP matrix builder
 # ═══════════════════════════════════════════════════════════════════════
@@ -295,7 +281,12 @@ def build_cp_matrix(
 
     # Outer quadrature setup
     if geom.has_y_quadrature:
-        y_pts, y_wts = _composite_gl_y(radii_or_thicknesses, n_quad_y)
+        # Shared composite-GL helper with the Peierls Nyström side — the
+        # ``n_panels_per_region=1, p_order=n_quad_y`` specialisation is
+        # what this CP use-case needs; panel-bounds are discarded here.
+        y_pts, y_wts, _ = composite_gl_r(
+            radii_or_thicknesses, n_panels_per_region=1, p_order=n_quad_y,
+        )
         y_wts = y_wts * geom.outer_y_weight(y_pts)
         chords = chord_half_lengths(radii_or_thicknesses, y_pts)
     else:
