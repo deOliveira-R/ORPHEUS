@@ -502,6 +502,110 @@ class TestRank2SlabKEffKInfConvergence:
             f"Tensor K_bc·1 vs partial-current reference rel err = {rel:.3e}"
         )
 
+    def test_rank_n_sph_transmission_N1_matches_scalar_bit_exact(self):
+        r"""Phase F.5 / Issue #119 infrastructure check: the rank-N
+        :func:`compute_hollow_sph_transmission_rank_n` at ``N = 1``
+        produces exactly the same :math:`2 \times 2` matrix as the
+        scalar :func:`compute_hollow_sph_transmission` — the regression
+        pin for the rank-N generalisation.
+        """
+        from orpheus.derivations.peierls_geometry import (
+            compute_hollow_sph_transmission,
+            compute_hollow_sph_transmission_rank_n,
+        )
+        r0, R_out = 0.3, 1.0
+        radii = np.array([R_out])
+        sig_t = np.array([1.0])
+        W_scalar = compute_hollow_sph_transmission(r0, R_out, radii, sig_t, dps=20)
+        W_N1 = compute_hollow_sph_transmission_rank_n(
+            r0, R_out, radii, sig_t, n_bc_modes=1, dps=20,
+        )
+        np.testing.assert_array_equal(W_scalar, W_N1)
+
+    def test_rank_n_sph_transmission_reciprocity_transposed_modes(self):
+        r"""Sanchez-McCormick 1982 reciprocity for rank-N per-face:
+
+        .. math::
+
+           A_k\,W_{jk}^{(m, n)} = A_j\,W_{kj}^{(n, m)}
+
+        with surface-area ratio :math:`(R/r_0)^2` for sphere and
+        **transposed mode indices**. Catches a mis-port from the scalar
+        (m = n = 0) reciprocity relation which has no transpose.
+        """
+        from orpheus.derivations.peierls_geometry import (
+            compute_hollow_sph_transmission_rank_n,
+        )
+        r0, R_out = 0.25, 1.0
+        N = 3
+        W = compute_hollow_sph_transmission_rank_n(
+            r0, R_out, np.array([R_out]), np.array([0.8]),
+            n_bc_modes=N, dps=20,
+        )
+        area_ratio = (R_out / r0) ** 2
+        # Block indices: outer [0:N], inner [N:2N].
+        # Reciprocity: W[m, N+n] = (R/r0)² · W[N+n, m] (since outer-
+        # from-inner is related to inner-from-outer with transposed
+        # mode indices — the construction we used is
+        # W_outer_inner[m, n] = (R/r0)²·W_inner_outer[n, m]).
+        for m in range(N):
+            for n in range(N):
+                assert abs(
+                    W[m, N + n] - area_ratio * W[N + n, m]
+                ) < 1e-14
+
+    def test_rank_n_white_closure_raises_pending_normalisation(self):
+        r"""Guard against accidental use of the unresolved rank-N
+        per-face closure: ``n_bc_modes > 1`` with ``reflection="white"``
+        on hollow sphere must raise :class:`NotImplementedError` with
+        an explicit pointer to Issue #119 until the Mark/Gelbard
+        normalisation is reconciled.
+        """
+        from orpheus.derivations.peierls_geometry import CurvilinearGeometry
+
+        geom = CurvilinearGeometry(kind="sphere-1d", inner_radius=0.3)
+        radii = np.array([1.0])
+        sig_t = np.array([1.0])
+        r_nodes, r_wts, _ = composite_gl_r(
+            radii, 2, 4, dps=15, inner_radius=0.3,
+        )
+        with pytest.raises(NotImplementedError, match="Issue #119"):
+            build_closure_operator(
+                geom, r_nodes, r_wts, radii, sig_t,
+                reflection="white", n_bc_modes=2,
+                n_angular=16, n_surf_quad=16, dps=15,
+            )
+
+    def test_sphere_mode_primitives_match_scalar_at_mode_0(self):
+        r"""The per-face, per-mode primitives must agree with the
+        scalar (rank-1 per face) primitives at mode 0 — the basis of
+        any rank-N closure that reduces to the Phase F.4 rank-2 white
+        closure when the higher modes are zeroed out.
+        """
+        from orpheus.derivations.peierls_geometry import (
+            CurvilinearGeometry,
+            compute_G_bc_inner, compute_G_bc_inner_mode,
+            compute_G_bc_outer, compute_G_bc_outer_mode,
+            compute_P_esc_inner, compute_P_esc_inner_mode,
+            compute_P_esc_outer, compute_P_esc_outer_mode,
+        )
+
+        geom = CurvilinearGeometry(kind="sphere-1d", inner_radius=0.3)
+        radii = np.array([1.0])
+        sig_t = np.array([1.0])
+        r_nodes = np.array([0.4, 0.6, 0.9])
+
+        for name, mode_fn, scalar_fn, kw in [
+            ("P_out", compute_P_esc_outer_mode, compute_P_esc_outer, "n_angular"),
+            ("P_in", compute_P_esc_inner_mode, compute_P_esc_inner, "n_angular"),
+            ("G_out", compute_G_bc_outer_mode, compute_G_bc_outer, "n_surf_quad"),
+            ("G_in", compute_G_bc_inner_mode, compute_G_bc_inner, "n_surf_quad"),
+        ]:
+            kw_dict = {kw: 24, "dps": 15}
+            m0 = mode_fn(geom, r_nodes, radii, sig_t, 0, **kw_dict)
+            s = scalar_fn(geom, r_nodes, radii, sig_t, **kw_dict)
+            np.testing.assert_array_equal(m0, s, err_msg=f"{name} mode=0")
+
     @pytest.mark.slow
     def test_rank2_error_converges_monotonically_under_refinement(self):
         r"""Mesh-refinement convergence check: doubling n_panels reduces

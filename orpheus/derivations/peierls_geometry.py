@@ -1628,6 +1628,169 @@ def compute_P_esc_inner(
     return P
 
 
+def compute_P_esc_outer_mode(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_angular: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Mode-:math:`n` outgoing moment at the **outer** surface
+    (Phase F.5 / Issue #119).
+
+    For :math:`n = 0` returns the scalar
+    :func:`compute_P_esc_outer` (Mark convention, no
+    :math:`(\rho/R)^2` Jacobian); for :math:`n \ge 1` uses the
+    canonical Gelbard DP\ :sub:`N-1` form
+
+    .. math::
+
+       P_{\rm esc, out}^{(n)}(r_i)
+         = C_d \!\int W_\Omega\,\Bigl(\tfrac{\rho_{\rm out}}{R}\Bigr)^2
+                 \tilde P_n(\mu_{\rm exit, out})\,
+                 K_{\rm esc}(\tau)\,\mathrm d\Omega
+
+    with :math:`\mu_{\rm exit, out} = (\rho_{\rm out} + r_i\cos\Omega)/R`.
+
+    For hollow cells, rays that would hit the inner shell first are
+    excluded (Model A — those contribute to :func:`compute_P_esc_inner_mode`).
+
+    Currently implemented for ``kind = "sphere-1d"`` with
+    ``inner_radius > 0``; slab and cylinder raise
+    :class:`NotImplementedError`.
+    """
+    if n_mode == 0:
+        return compute_P_esc_outer(
+            geometry, r_nodes, radii, sig_t,
+            n_angular=n_angular, dps=dps,
+        )
+    if geometry.kind != "sphere-1d" or geometry.inner_radius <= 0.0:
+        raise NotImplementedError(
+            f"compute_P_esc_outer_mode(n>=1) is implemented for "
+            f"hollow sphere only; got kind={geometry.kind!r}, "
+            f"inner_radius={geometry.inner_radius}. Slab and cyl "
+            f"per-face mode primitives — Issue #119 follow-up."
+        )
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    omega_low, omega_high = geometry.angular_range
+    omega_pts, omega_wts = gl_float(n_angular, omega_low, omega_high, dps)
+    cos_omegas = geometry.ray_direction_cosine(omega_pts)
+    angular_factor = geometry.angular_weight(omega_pts)
+    pref = geometry.prefactor
+    N = len(r_nodes)
+    P = np.zeros(N)
+    # Phase F.5 convention: Mark-Lambert angular measure (sin θ dθ) with
+    # P̃_n(µ_exit) Legendre factor — NO (ρ/R)² Jacobian, for consistency
+    # with the W transmission matrix (which also uses no Jacobian).
+    # This means mode-0 is exactly compute_P_esc_outer (above), and
+    # mode-n≥1 is the direct Lambert-Legendre moment.
+    for i in range(N):
+        r_i = float(r_nodes[i])
+        total = 0.0
+        for k in range(n_angular):
+            cos_om = cos_omegas[k]
+            rho_out = geometry.rho_max(r_i, cos_om, R)
+            if rho_out <= 0.0:
+                continue
+            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, cos_om)
+            if rho_in_minus is not None and rho_in_minus < rho_out:
+                continue
+            tau = geometry.optical_depth_along_ray(
+                r_i, cos_om, rho_out, radii, sig_t,
+            )
+            K_esc = geometry.escape_kernel_mp(tau, dps)
+            mu_exit = (rho_out + r_i * cos_om) / R
+            p_tilde = float(
+                _shifted_legendre_eval(n_mode, np.array([mu_exit]))[0]
+            )
+            total += (
+                omega_wts[k] * angular_factor[k] * p_tilde * K_esc
+            )
+        P[i] = pref * total
+    return P
+
+
+def compute_P_esc_inner_mode(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_angular: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Mode-:math:`n` outgoing moment at the **inner** surface.
+
+    For :math:`n = 0` returns the scalar
+    :func:`compute_P_esc_inner`; for :math:`n \ge 1`:
+
+    .. math::
+
+       P_{\rm esc, in}^{(n)}(r_i)
+         = C_d \!\int W_\Omega\,\Bigl(\tfrac{\rho_{\rm in}^-}{r_0}\Bigr)^2
+                 \tilde P_n(\mu_{\rm exit, in})\,
+                 K_{\rm esc}(\tau)\,\mathrm d\Omega
+
+    restricted to directions for which the ray hits the inner shell
+    before the outer; :math:`\mu_{\rm exit, in} = \sqrt{r_0^2 - h^2}/r_0`
+    with :math:`h = r_i|\sin\Omega|`.
+
+    Currently implemented for ``kind = "sphere-1d"`` with
+    ``inner_radius > 0``.
+    """
+    if n_mode == 0:
+        return compute_P_esc_inner(
+            geometry, r_nodes, radii, sig_t,
+            n_angular=n_angular, dps=dps,
+        )
+    if geometry.kind != "sphere-1d" or geometry.inner_radius <= 0.0:
+        raise NotImplementedError(
+            f"compute_P_esc_inner_mode(n>=1) for "
+            f"kind={geometry.kind!r} not yet implemented."
+        )
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    r_0 = float(geometry.inner_radius)
+    omega_low, omega_high = geometry.angular_range
+    omega_pts, omega_wts = gl_float(n_angular, omega_low, omega_high, dps)
+    cos_omegas = geometry.ray_direction_cosine(omega_pts)
+    angular_factor = geometry.angular_weight(omega_pts)
+    pref = geometry.prefactor
+    N = len(r_nodes)
+    P = np.zeros(N)
+    # Phase F.5 convention: Mark-Lambert weighting (no Jacobian).
+    for i in range(N):
+        r_i = float(r_nodes[i])
+        total = 0.0
+        for k in range(n_angular):
+            cos_om = cos_omegas[k]
+            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, cos_om)
+            if rho_in_minus is None:
+                continue
+            tau = geometry.optical_depth_along_ray(
+                r_i, cos_om, rho_in_minus, radii, sig_t,
+            )
+            K_esc = geometry.escape_kernel_mp(tau, dps)
+            sin_om = np.sqrt(max(0.0, 1.0 - cos_om * cos_om))
+            h_sq = r_i * r_i * sin_om * sin_om
+            mu_exit_sq = max(0.0, (r_0 * r_0 - h_sq) / (r_0 * r_0))
+            mu_exit = float(np.sqrt(mu_exit_sq))
+            p_tilde = float(
+                _shifted_legendre_eval(n_mode, np.array([mu_exit]))[0]
+            )
+            total += (
+                omega_wts[k] * angular_factor[k] * p_tilde * K_esc
+            )
+        P[i] = pref * total
+    return P
+
+
 def compute_G_bc_outer(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -1852,6 +2015,153 @@ def compute_G_bc_inner(
             ki1 = float(ki_n_mp(1, float(tau), dps))
             total += phi_wts[k] * ki1 / d
         G[i] = 2.0 * inv_pi * r0 * total
+    return G
+
+
+def compute_G_bc_outer_mode(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Mode-:math:`n` response at observer :math:`r_i` from a unit
+    mode-:math:`n` uniform incoming current on the **outer** surface
+    (Phase F.5 / Issue #119).
+
+    For :math:`n = 0` returns :func:`compute_G_bc_outer`; for
+    :math:`n \ge 1` uses the observer-centred form with the
+    :math:`\tilde P_n(\mu_s)` surface-Legendre weight at the surface
+    emission point.
+
+    Currently implemented for ``kind = "sphere-1d"`` with
+    ``inner_radius > 0``. Rays that would pass through the cavity
+    (first-flight hitting inner shell on the way back toward observer
+    from outer surface point) are excluded — Model A first-flight.
+    """
+    if n_mode == 0:
+        return compute_G_bc_outer(
+            geometry, r_nodes, radii, sig_t,
+            n_surf_quad=n_surf_quad, dps=dps,
+        )
+    if geometry.kind != "sphere-1d" or geometry.inner_radius <= 0.0:
+        raise NotImplementedError(
+            f"compute_G_bc_outer_mode(n>=1) for kind="
+            f"{geometry.kind!r} not yet implemented."
+        )
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    theta_pts, theta_wts = gl_float(n_surf_quad, 0.0, np.pi, dps)
+    cos_thetas = np.cos(theta_pts)
+    sin_thetas = np.sin(theta_pts)
+    N = len(r_nodes)
+    G = np.zeros(N)
+    for i in range(N):
+        r_i = r_nodes[i]
+        total = 0.0
+        for k in range(n_surf_quad):
+            ct = cos_thetas[k]
+            st = sin_thetas[k]
+            rho_out = geometry.rho_max(r_i, ct, R)
+            if rho_out <= 0.0:
+                continue
+            # Model A: skip rays blocked by inner shell.
+            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, ct)
+            if rho_in_minus is not None and rho_in_minus < rho_out:
+                continue
+            # τ along the observer→outer chord.
+            if len(radii) == 1:
+                tau = sig_t[0] * rho_out
+            else:
+                tau = geometry.optical_depth_along_ray(
+                    r_i, ct, rho_out, radii, sig_t,
+                )
+            # µ_s at the outer surface point (local inward-normal frame
+            # at emission): |µ_s| = (ρ_out + r·cos θ)/R — the same
+            # mu_exit formula as P_esc, since chord symmetry at outer
+            # maps µ_out (emission) to µ_in (arrival) identically.
+            mu_s = (rho_out + r_i * ct) / R
+            p_tilde = float(
+                _shifted_legendre_eval(n_mode, np.array([mu_s]))[0]
+            )
+            total += theta_wts[k] * st * p_tilde * float(np.exp(-tau))
+        G[i] = 2.0 * total
+    return G
+
+
+def compute_G_bc_inner_mode(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Mode-:math:`n` response at observer :math:`r_i` from a unit
+    mode-:math:`n` uniform outward current on the **inner** surface.
+
+    For :math:`n = 0` returns :func:`compute_G_bc_inner`; for
+    :math:`n \ge 1`:
+
+    .. math::
+
+       G_{\rm bc, in}^{(n)}(r_i) = 2\!\int_{\rm hit} \sin\theta\,
+           \tilde P_n(\mu_s)\,e^{-\tau}\,\mathrm d\theta
+
+    with the sightline-from-observer integration over rays reaching
+    the inner shell; :math:`\mu_s = \sqrt{r_0^2 - h^2}/r_0` is the
+    local µ at the inner surface emission point, matching the
+    :math:`\mu_{\rm exit}` derived for :func:`compute_P_esc_inner_mode`.
+    """
+    if n_mode == 0:
+        return compute_G_bc_inner(
+            geometry, r_nodes, radii, sig_t,
+            n_surf_quad=n_surf_quad, dps=dps,
+        )
+    if geometry.kind != "sphere-1d" or geometry.inner_radius <= 0.0:
+        raise NotImplementedError(
+            f"compute_G_bc_inner_mode(n>=1) for kind="
+            f"{geometry.kind!r} not yet implemented."
+        )
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    r_0 = float(geometry.inner_radius)
+    theta_pts, theta_wts = gl_float(n_surf_quad, 0.0, np.pi, dps)
+    cos_thetas = np.cos(theta_pts)
+    sin_thetas = np.sin(theta_pts)
+    N = len(r_nodes)
+    G = np.zeros(N)
+    for i in range(N):
+        r_i = r_nodes[i]
+        total = 0.0
+        for k in range(n_surf_quad):
+            ct = cos_thetas[k]
+            st = sin_thetas[k]
+            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, ct)
+            if rho_in_minus is None:
+                continue
+            if len(radii) == 1:
+                tau = sig_t[0] * rho_in_minus
+            else:
+                tau = geometry.optical_depth_along_ray(
+                    r_i, ct, rho_in_minus, radii, sig_t,
+                )
+            # µ_s at the inner surface emission point.
+            sin_om = float(np.sqrt(max(0.0, 1.0 - ct * ct)))
+            h_sq = r_i * r_i * sin_om * sin_om
+            mu_s_sq = max(0.0, (r_0 * r_0 - h_sq) / (r_0 * r_0))
+            mu_s = float(np.sqrt(mu_s_sq))
+            p_tilde = float(
+                _shifted_legendre_eval(n_mode, np.array([mu_s]))[0]
+            )
+            total += theta_wts[k] * st * p_tilde * float(np.exp(-tau))
+        G[i] = 2.0 * total
     return G
 
 
@@ -2608,6 +2918,138 @@ def compute_hollow_sph_transmission(
     return np.array([[W_oo, W_oi], [W_io, 0.0]])
 
 
+def compute_hollow_sph_transmission_rank_n(
+    r_0: float,
+    R: float,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_bc_modes: int,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Rank-:math:`N` per-face surface-to-surface transmission matrix
+    for a homogeneous hollow spherical annulus (Phase F.5 /
+    Issue #119).
+
+    Returns a :math:`(2N) \times (2N)` matrix with block structure
+
+    .. math::
+
+       W = \begin{pmatrix}
+           W_{\rm oo} & W_{\rm oi} \\
+           W_{\rm io} & W_{\rm ii}
+       \end{pmatrix},
+
+    each block :math:`(N \times N)` in the per-face Legendre-moment
+    basis :math:`\tilde P_n(|\mu|)` on :math:`[0, 1]`. Row/column
+    layout is ``[outer_mode_0, ..., outer_mode_{N-1}, inner_mode_0,
+    ..., inner_mode_{N-1}]``.
+
+    **Formulas** (Sanchez–McCormick 1982 §III.F, Hébert 2020 §3 —
+    with :math:`\mu = \cos\theta` from local inward normal,
+    :math:`\theta_c = \arcsin(r_0/R)`):
+
+    .. math::
+
+       W_{\rm oo}^{(m,n)} &= 2\!\!\int_{\theta_c}^{\pi/2}\!\!
+           \cos\theta\,\sin\theta\,\tilde P_n(\cos\theta)\,
+           \tilde P_m(\cos\theta)\,e^{-2\Sigma_t R\cos\theta}\,
+           \mathrm d\theta, \\
+       W_{\rm io}^{(m,n)} &= 2\!\!\int_0^{\theta_c}\!\!
+           \cos\theta\,\sin\theta\,\tilde P_n(\cos\theta)\,
+           \tilde P_m(c_{\rm in})\,e^{-\Sigma_t\ell(\theta)}\,
+           \mathrm d\theta,\quad
+           c_{\rm in} = \sqrt{1 - (R\sin\theta/r_0)^2}, \\
+       W_{\rm oi}^{(m,n)} &= (R/r_0)^2\,W_{\rm io}^{(n,m)} \quad
+           \text{(reciprocity, mode indices transposed)}, \\
+       W_{\rm ii}^{(m,n)} &= 0 \quad \text{(convex cavity)}.
+
+    For :math:`N = 1` this reduces exactly to
+    :func:`compute_hollow_sph_transmission` (the scalar case).
+
+    The Gelbard :math:`(2n+1)` normalisation lives in the reflection
+    operator :math:`R`, not in :math:`W` (consistent with the
+    existing :func:`reflection_marshak` convention).
+    """
+    if not (0.0 < r_0 < R):
+        raise ValueError(
+            f"Hollow sphere requires 0 < r_0 < R; got r_0={r_0}, R={R}"
+        )
+    if n_bc_modes < 1:
+        raise ValueError(f"n_bc_modes must be >= 1, got {n_bc_modes}")
+    sig_t = np.asarray(sig_t, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    if len(radii) != 1 or len(sig_t) != 1:
+        raise NotImplementedError(
+            "Multi-region rank-N hollow sphere transmission not "
+            "implemented (single-region homogeneous only)."
+        )
+    N = int(n_bc_modes)
+    sig_t_val = float(sig_t[0])
+    theta_c = float(np.arcsin(r_0 / R))
+    dim = 2 * N
+    W = np.zeros((dim, dim))
+
+    # Precompute P_tilde evaluation at a single µ.
+    def _P_tilde(n, mu):
+        return float(_shifted_legendre_eval(n, np.array([mu]))[0])
+
+    with mpmath.workdps(dps):
+        # --- Outer → outer block (grazing past cavity) ---
+        for m in range(N):
+            for n in range(N):
+                val = 2.0 * float(mpmath.quad(
+                    lambda th, m=m, n=n: (
+                        mpmath.cos(th) * mpmath.sin(th)
+                        * _P_tilde(n, float(mpmath.cos(th)))
+                        * _P_tilde(m, float(mpmath.cos(th)))
+                        * mpmath.exp(-2.0 * sig_t_val * R * mpmath.cos(th))
+                    ),
+                    [mpmath.mpf(theta_c), mpmath.pi / 2],
+                ))
+                W[m, n] = val
+
+        # --- Inner ← outer block (hit inner first) ---
+        def _chord(t):
+            h_sq = R * R * float(mpmath.sin(t)) ** 2
+            return R * float(mpmath.cos(t)) - float(
+                mpmath.sqrt(mpmath.mpf(r_0 * r_0 - h_sq))
+            )
+
+        for m in range(N):
+            for n in range(N):
+                def integrand(th, m=m, n=n):
+                    cos_th = float(mpmath.cos(th))
+                    sin_th = float(mpmath.sin(th))
+                    # Arrival µ at inner (local inward-normal frame)
+                    c_in_sq = 1.0 - (R * sin_th / r_0) ** 2
+                    if c_in_sq < 0.0:
+                        c_in_sq = 0.0
+                    c_in = float(mpmath.sqrt(mpmath.mpf(c_in_sq)))
+                    return (
+                        cos_th * sin_th
+                        * _P_tilde(n, cos_th)
+                        * _P_tilde(m, c_in)
+                        * mpmath.exp(-sig_t_val * _chord(th))
+                    )
+
+                val = 2.0 * float(mpmath.quad(
+                    integrand, [mpmath.mpf(0.0), mpmath.mpf(theta_c)],
+                ))
+                W[N + m, n] = val
+
+        # --- Outer ← inner block via reciprocity ---
+        # A_outer · W_oi^{mn} = A_inner · W_io^{nm}
+        # A_outer/A_inner = (R/r_0)² for sphere; indices transposed.
+        area_ratio = (R / r_0) ** 2
+        for m in range(N):
+            for n in range(N):
+                W[m, N + n] = area_ratio * W[N + n, m]
+
+        # --- Inner → inner block: zero (convex cavity) ---
+        # Already np.zeros.
+    return W
+
+
 def reflection_white_rank2(
     W: np.ndarray,
 ) -> np.ndarray:
@@ -2721,10 +3163,24 @@ def build_closure_operator(
     )
     if use_rank2:
         if n_bc_modes > 1:
+            # Phase F.5 / Issue #119 — rank-N per-face. The mode
+            # primitives (compute_{P_esc,G_bc}_{outer,inner}_mode) and
+            # the (2N×2N) transmission matrix
+            # (compute_hollow_sph_transmission_rank_n) are implemented
+            # and verified at N=1 (matches the scalar case bit-exactly).
+            # Full rank-N closure assembly has an unresolved
+            # normalisation question between the Mark (no Jacobian) and
+            # Gelbard DP_{N-1} ((ρ/R)² Jacobian + (2n+1) weight)
+            # conventions when combined with the white-BC (I - W)^{-1}
+            # inversion — see _build_closure_operator_rank_n_white
+            # docstring. Tracked in Issue #119 follow-up.
             raise NotImplementedError(
-                "Rank-2 per-face white BC with n_bc_modes > 1 is not yet "
-                "supported (plan §8.4 — rank-N per-face closure). Use "
-                "n_bc_modes = 1 for Phase F.3 slab + hollow cell closure."
+                "Rank-N per-face white BC (n_bc_modes > 1) infrastructure "
+                "is present but the final closure assembly requires "
+                "reconciling the Mark/Gelbard normalisation conventions "
+                "between the per-face mode primitives and the "
+                "transmission matrix. Tracked in Issue #119. Use "
+                "n_bc_modes=1 for rank-1 per-face (Phase F.3/F.4)."
             )
         return _build_closure_operator_rank2_white(
             geometry, r_nodes, r_wts, radii, sig_t,
@@ -2894,6 +3350,102 @@ def _build_closure_operator_rank2_white(
         )
 
     R_matrix = reflection_white_rank2(W)
+    return BoundaryClosureOperator(P=P, G=G, R=R_matrix)
+
+
+def _build_closure_operator_rank_n_white(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    n_angular: int,
+    n_surf_quad: int,
+    dps: int,
+    n_bc_modes: int,
+    sig_t_n: np.ndarray,
+    rv: np.ndarray,
+) -> BoundaryClosureOperator:
+    r"""Rank-:math:`N` per-face white-BC closure (Phase F.5 / Issue #119).
+
+    Implemented for hollow sphere. Mode layout ``[outer_0, ...,
+    outer_{N-1}, inner_0, ..., inner_{N-1}]`` gives a :math:`(2N)`-wide
+    mode space. The reflection
+
+    .. math::
+
+       R_{\rm eff} = (I_{2N} - W_N)^{-1}\,D,
+       \qquad D = \mathrm{diag}\bigl(1, 3, 5, \ldots, 2N-1, 1, 3, 5, \ldots, 2N-1\bigr)
+
+    combines the surface-to-surface transmission inversion with the
+    Gelbard DP\ :sub:`N-1` :math:`(2n+1)` normalisation on each
+    surface (consistent with :func:`reflection_marshak` for the
+    rank-N single-surface case).
+
+    The :math:`P` and :math:`G` tensors stack mode-by-mode per-face
+    primitives:
+
+    .. math::
+
+       P[kN + n, j] &= r_j^{d-1}\,w_j\,P_{\rm esc, face_k}^{(n)}(r_j), \\
+       G[i, kN + m] &= \Sigma_t(r_i)\,G_{{\rm bc}, {\rm face_k}}^{(m)}(r_i) / A_k.
+
+    Currently implemented: sphere-1d (hollow). Slab and cylinder raise
+    :class:`NotImplementedError` from the mode primitives.
+    """
+    if geometry.kind != "sphere-1d" or geometry.inner_radius <= 0.0:
+        raise NotImplementedError(
+            f"Rank-N per-face white BC implemented for hollow sphere "
+            f"only (Phase F.5 initial scope); got kind="
+            f"{geometry.kind!r}, inner_radius={geometry.inner_radius}. "
+            f"Slab and cylinder rank-N per-face are Issue #119 "
+            f"follow-up."
+        )
+    N = int(n_bc_modes)
+    N_r = len(r_nodes)
+    P = np.zeros((2 * N, N_r))
+    G = np.zeros((N_r, 2 * N))
+
+    R_out = float(radii[-1])
+    r_in = float(geometry.inner_radius)
+    div_outer = R_out * R_out
+    div_inner = r_in * r_in
+
+    for n in range(N):
+        P_out_n = compute_P_esc_outer_mode(
+            geometry, r_nodes, radii, sig_t, n,
+            n_angular=n_angular, dps=dps,
+        )
+        P_in_n = compute_P_esc_inner_mode(
+            geometry, r_nodes, radii, sig_t, n,
+            n_angular=n_angular, dps=dps,
+        )
+        G_out_n = compute_G_bc_outer_mode(
+            geometry, r_nodes, radii, sig_t, n,
+            n_surf_quad=n_surf_quad, dps=dps,
+        )
+        G_in_n = compute_G_bc_inner_mode(
+            geometry, r_nodes, radii, sig_t, n,
+            n_surf_quad=n_surf_quad, dps=dps,
+        )
+        # Mode layout: [outer_0, ..., outer_{N-1}, inner_0, ..., inner_{N-1}]
+        P[n, :] = rv * r_wts * P_out_n
+        P[N + n, :] = rv * r_wts * P_in_n
+        G[:, n] = sig_t_n * G_out_n / div_outer
+        G[:, N + n] = sig_t_n * G_in_n / div_inner
+
+    W = compute_hollow_sph_transmission_rank_n(
+        r_in, R_out, radii, sig_t, n_bc_modes=N, dps=dps,
+    )
+    # Rank-N reflection: R = (I - W)^{-1}. At N=1 this reduces to the
+    # proven scalar rank-2 white form. At N>1 the Gelbard (2n+1)
+    # normalisation is NOT applied here because mode primitives use the
+    # Mark-Lambert scalar-consistent measure (sin θ dθ · P̃_n, no
+    # Jacobian) — the (2n+1) Gelbard factor arises in the DIAGONAL
+    # Marshak closure without T feedback; with full white-BC inversion
+    # the moment coupling is captured by W directly.
+    R_matrix = np.linalg.inv(np.eye(2 * N) - W)
     return BoundaryClosureOperator(P=P, G=G, R=R_matrix)
 
 
