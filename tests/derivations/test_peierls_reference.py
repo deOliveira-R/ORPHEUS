@@ -48,7 +48,9 @@ from orpheus.derivations.peierls_geometry import (
     build_volume_kernel,
     build_volume_kernel_adaptive,
     composite_gl_r,
+    gl_nodes_weights,
     lagrange_basis_on_panels,
+    map_gl_to,
 )
 
 
@@ -61,7 +63,7 @@ def _build_slab_K_and_nodes(L, sig_t, n_panels=8, p_order=6, dps=30):
     # Build composite Gauss-Legendre quadrature exactly as the solver does.
     with mpmath.workdps(dps):
         boundaries = [mpmath.mpf(0), mpmath.mpf(L)]
-        gl_ref, gl_wt = peierls_slab._gl_nodes_weights(p_order, dps)
+        gl_ref, gl_wt = gl_nodes_weights(p_order, dps)
 
         x_all, w_all, panel_bounds = [], [], []
         pw = mpmath.mpf(L) / n_panels
@@ -69,7 +71,7 @@ def _build_slab_K_and_nodes(L, sig_t, n_panels=8, p_order=6, dps=30):
             pa = mpmath.mpf(pidx) * pw
             pb = pa + pw
             i_start = len(x_all)
-            xs, ws = peierls_slab._map_to_interval(gl_ref, gl_wt, pa, pb)
+            xs, ws = map_gl_to(gl_ref, gl_wt, pa, pb)
             x_all.extend(xs)
             w_all.extend(ws)
             i_end = len(x_all)
@@ -307,14 +309,14 @@ def _build_sphere_K(R, sig_t, n_panels, p_order,
                     *, n_angular=32, n_rho=32, dps=25):
     """Helper: build a single-region sphere K via production assembly."""
     with mpmath.workdps(dps):
-        gl_ref, gl_wt = peierls_slab._gl_nodes_weights(p_order, dps)
+        gl_ref, gl_wt = gl_nodes_weights(p_order, dps)
         x_all, w_all, pbs = [], [], []
         pw = mpmath.mpf(R) / n_panels
         for pidx in range(n_panels):
             pa = mpmath.mpf(pidx) * pw
             pb = pa + pw
             i_start = len(x_all)
-            xs, ws = peierls_slab._map_to_interval(gl_ref, gl_wt, pa, pb)
+            xs, ws = map_gl_to(gl_ref, gl_wt, pa, pb)
             x_all.extend(xs); w_all.extend(ws)
             pbs.append((pa, pb, i_start, len(x_all)))
     x_nodes = np.array([float(x) for x in x_all])

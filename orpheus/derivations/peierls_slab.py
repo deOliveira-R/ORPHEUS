@@ -46,24 +46,11 @@ from ._reference import (
     Provenance,
 )
 from ._xs_library import LAYOUTS, get_mixture, get_xs
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Gauss–Legendre helpers
-# ═══════════════════════════════════════════════════════════════════════
-
-def _gl_nodes_weights(n: int, dps: int) -> tuple[list, list]:
-    """*n*-point GL on [-1, 1] at *dps* decimal digits."""
-    with mpmath.workdps(dps):
-        nm, wm = mpmath.gauss_quadrature(n, "legendre")
-        return [nm[i] for i in range(n)], [wm[i] for i in range(n)]
-
-
-def _map_to_interval(nodes, weights, a, b):
-    """Map GL nodes/weights from [-1, 1] to [a, b]."""
-    h = (b - a) / 2
-    m = (a + b) / 2
-    return [m + h * t for t in nodes], [h * w for w in weights]
+from .peierls_geometry import (
+    gl_nodes_weights,
+    lagrange_basis_on_panels,
+    map_gl_to,
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -376,46 +363,27 @@ class PeierlsSlabSolution:
     _panel_bounds: list | None = None
 
     def phi(self, x: np.ndarray, g: int = 0) -> np.ndarray:
-        """Evaluate flux at arbitrary points via barycentric interpolation."""
+        """Evaluate flux at arbitrary points via the piecewise Lagrange
+        basis on composite-panel nodes.
+
+        Falls through to ``np.interp`` when no panel structure is
+        attached (legacy paths that predate the panel Nyström); the
+        normal production path goes through
+        :func:`~.peierls_geometry.lagrange_basis_on_panels`.
+        """
         x = np.asarray(x, dtype=float).ravel()
-        result = np.empty_like(x)
 
         if self._panel_bounds is None:
             return np.interp(x, self.x_nodes, self.phi_values[:, g])
 
-        for pa, pb, i_start, i_end in self._panel_bounds:
-            if pb == self.slab_length:
-                mask = (x >= pa) & (x <= pb)
-            else:
-                mask = (x >= pa) & (x < pb)
-            if not mask.any():
-                continue
-            result[mask] = _bary_interp(
-                self.x_nodes[i_start:i_end],
-                self.phi_values[i_start:i_end, g],
-                x[mask],
+        values_g = self.phi_values[:, g]
+        result = np.empty_like(x)
+        for idx, xv in enumerate(x):
+            basis = lagrange_basis_on_panels(
+                self.x_nodes, self._panel_bounds, float(xv),
             )
+            result[idx] = float(np.dot(basis, values_g))
         return result
-
-
-def _bary_interp(nodes, values, x_eval):
-    """Barycentric Lagrange interpolation."""
-    n = len(nodes)
-    w = np.ones(n)
-    for j in range(n):
-        for k in range(n):
-            if k != j:
-                w[j] /= (nodes[j] - nodes[k])
-    out = np.empty_like(x_eval)
-    for idx, xv in enumerate(x_eval):
-        d = xv - nodes
-        exact = np.where(np.abs(d) < 1e-30)[0]
-        if len(exact) > 0:
-            out[idx] = values[exact[0]]
-        else:
-            t = w / d
-            out[idx] = np.dot(t, values) / t.sum()
-    return out
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -484,7 +452,7 @@ def solve_peierls_eigenvalue(
             return n_regions - 1
 
         # Build composite GL quadrature
-        gl_ref, gl_wt = _gl_nodes_weights(p_order, dps)
+        gl_ref, gl_wt = gl_nodes_weights(p_order, dps)
         x_all: list = []
         w_all: list = []
         panel_bounds: list[tuple] = []
@@ -494,7 +462,7 @@ def solve_peierls_eigenvalue(
             for pidx in range(n_panels_per_region):
                 pa = boundaries[r] + pidx * pw
                 pb = pa + pw
-                xp, wp = _map_to_interval(gl_ref, gl_wt, pa, pb)
+                xp, wp = map_gl_to(gl_ref, gl_wt, pa, pb)
                 panel_bounds.append((pa, pb, len(x_all), len(x_all) + len(xp)))
                 x_all.extend(xp)
                 w_all.extend(wp)
