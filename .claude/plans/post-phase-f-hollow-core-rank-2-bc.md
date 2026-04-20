@@ -117,12 +117,20 @@ The tensors become:
 
 ### 3.3 Rank-1 recovery when inner surface is absent
 
-For solid cyl/sph (`inner_radius = 0`), the inner surface degenerates to a point (cyl) or doesn't exist (sphere at r = 0). In these cases, `A_{in}` contributes nothing:
-- `P_{esc,in} = 0` (no volume source escapes to a non-existent surface)
-- `G_{bc,in} = 0` (no re-entry contribution from a non-existent surface)
-- `R_{in}` can be anything (zeroed out by P and G being zero)
+Two distinct degenerations to the solid cyl/sph behaviour, each catching a different class of bug:
 
-The effective mode space reduces to `A_{out}` and rank-2 = rank-1. **Bit-exact recovery of rank-1 for solid cyl/sph is the regression gate** — existing tests must pass unchanged.
+**Regime A — `inner_radius == 0.0` exactly (explicit branch).** The code takes the solid-geometry branch directly: `rho_inner_intersections` early-exits returning `(None, None)`, `compute_P_esc_inner` / `compute_G_bc_inner` return zero arrays, `build_closure_operator` auto-detects `n_surfaces = 1`, and `BoundaryClosureOperator` uses the rank-1 layout. Result: bit-exact reproduction of today's rank-1 solid code path. **Gate**: `TestRank2ReductionToRank1` — existing rank-1 tests (`test_peierls_closure_operator.py`, `test_peierls_cylinder_white_bc.py`, etc.) pass unchanged.
+
+**Regime B — `inner_radius → 0⁺` (small but positive limit).** The hollow code paths activate and inner-surface contributions are numerically small but nonzero. Should converge to the solid result at a definite algebraic rate:
+
+- Inner surface area → 0 as `2π·r_0` (cyl) or `4π·r_0²` (sph)
+- `P_esc_inner(r_i) ~ O(r_0)` for cyl, `~ O(r_0²)` for sphere
+- `G_bc_inner(r_i)` scales with the inner rank-1 surface divisor analog
+- K_bc contribution from inner surface → 0 at the algebraic product rate
+
+**Gate**: `TestRank2ConvergesToSolidAsRInnerApproachesZero` — for a sequence `r_0 ∈ {0.1, 0.01, 0.001, 1e-6} · R`, the K_bc difference from the solid-rank-1 K_bc decreases monotonically at the predicted rate. Catches ill-conditioning in the quadratic-root inner-intersection formula at very small `r_0` that the regime-A bit-exact test would not expose.
+
+These are **two orthogonal regression gates** — regime A guards the explicit branch; regime B guards the numerical stability of the hollow code path itself.
 
 ### 3.4 Verification: k_eff = k_inf for homogeneous Class-A cell
 
@@ -428,7 +436,8 @@ For solid cyl/sph (n_surfaces = 1), the new code path must produce **byte-exact*
 ### 6.6 Tests (F.3)
 
 - `TestBoundaryClosureOperatorRank2Structure` — per-face stacking layout, R block-diag
-- `TestRank2ReductionToRank1` — for solid cyl/sph, rank-2 build produces same K_bc as rank-1 (bit-exact)
+- `TestRank2ReductionToRank1` — regime A: `inner_radius == 0.0` exactly. Rank-2 build with `n_surfaces = 1` auto-detect produces bit-exact same K_bc as today's rank-1 solid path.
+- `TestRank2ConvergesToSolidAsRInnerApproachesZero` — regime B: `inner_radius → 0⁺`. For `r_0 ∈ {0.1, 0.01, 0.001, 1e-6} · R`, `‖K_bc(r_0) − K_bc_solid‖` decreases at the predicted algebraic rate (O(r_0) for cyl, O(r_0²) for sph). Exposes numerical-stability bugs in the inner-intersection quadratic that regime A would hide.
 - `TestRank2SlabHomogeneousKEffKInf` — **THE KEY GATE**: homogeneous slab `[0, L]` with fission + scatter, white BC via rank-2 Mark, gives `k_eff = k_inf` to 1e-10 for L ∈ {0.5, 1, 3, 10} MFP
 - `TestRank2HollowCylKEffKInf` — same for hollow cyl with `r_0 = 0.3·R`
 - `TestRank2HollowSphKEffKInf` — same for hollow sphere
