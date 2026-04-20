@@ -247,10 +247,20 @@ class CurvilinearGeometry:
     """
 
     kind: str
+    inner_radius: float = 0.0
 
     def __post_init__(self) -> None:
         if self.kind not in ("slab-polar", "cylinder-1d", "sphere-1d"):
             raise ValueError(f"Unsupported geometry kind {self.kind!r}")
+        if self.inner_radius < 0.0:
+            raise ValueError(
+                f"inner_radius must be >= 0, got {self.inner_radius!r}"
+            )
+        if self.kind == "slab-polar" and self.inner_radius != 0.0:
+            raise ValueError(
+                "slab-polar does not carry inner_radius (use face_0 / face_L "
+                "per-surface BC directly)"
+            )
 
     # ── geometric constants ───────────────────────────────────────────
 
@@ -283,6 +293,24 @@ class CurvilinearGeometry:
             "cylinder-1d": 1.0 / np.pi,
             "sphere-1d": 0.5,
         }[self.kind]
+
+    @property
+    def n_surfaces(self) -> int:
+        """Number of distinct boundary surfaces carrying re-entry data.
+
+        - ``slab-polar``: 2 (face at :math:`x = 0` and face at :math:`x = L`).
+        - ``cylinder-1d`` / ``sphere-1d`` with ``inner_radius == 0``:
+          1 (outer boundary only).
+        - ``cylinder-1d`` / ``sphere-1d`` with ``inner_radius > 0``:
+          2 (outer at :math:`R` and inner at :math:`r_0`).
+
+        Phase F's :class:`BoundaryClosureOperator` uses this to size
+        the per-face mode space :math:`A = \\mathbb{R}^{N_{\\rm modes}
+        \\times N_{\\rm surfaces}}`.
+        """
+        if self.kind == "slab-polar":
+            return 2
+        return 2 if self.inner_radius > 0.0 else 1
 
     @property
     def is_planar(self) -> bool:
@@ -360,6 +388,44 @@ class CurvilinearGeometry:
         disc = r_obs * r_obs * cos_omega * cos_omega + R * R - r_obs * r_obs
         return -r_obs * cos_omega + np.sqrt(max(disc, 0.0))
 
+    def rho_inner_intersections(
+        self, r_obs: float, cos_omega: float,
+    ) -> tuple[float | None, float | None]:
+        r"""Forward-distances at which a ray hits the **inner** shell
+        :math:`r = r_0` (``self.inner_radius``).
+
+        Solves
+        :math:`(r_{\rm obs} + \rho\cos\Omega)^2 + (\rho\sin\Omega)^2 = r_0^2`
+        for :math:`\rho`, returning the two roots
+        :math:`(\rho^-, \rho^+)` with :math:`\rho^- \le \rho^+` if both are
+        positive, otherwise ``None`` in the slot of any non-positive root.
+
+        Returns ``(None, None)`` when:
+
+        - :math:`r_0 = 0` (solid geometry — no cavity shell);
+        - ``kind == "slab-polar"`` (slab carries its two faces explicitly,
+          not via an inner radius);
+        - the ray misses the inner shell (negative discriminant) or both
+          intersections are behind the observer (:math:`\rho \le 0`).
+
+        Tangent rays to the inner shell produce a double root; both
+        slots return the same positive value.
+        """
+        if self.inner_radius == 0.0 or self.kind == "slab-polar":
+            return (None, None)
+        r0 = float(self.inner_radius)
+        r_obs_sq = r_obs * r_obs
+        disc = r_obs_sq * cos_omega * cos_omega - (r_obs_sq - r0 * r0)
+        if disc < 0.0:
+            return (None, None)
+        sqrt_disc = float(np.sqrt(disc))
+        rho_minus = -r_obs * cos_omega - sqrt_disc
+        rho_plus = -r_obs * cos_omega + sqrt_disc
+        return (
+            rho_minus if rho_minus > 0.0 else None,
+            rho_plus if rho_plus > 0.0 else None,
+        )
+
     def source_position(
         self, r_obs: float, rho: float, cos_omega: float,
     ) -> float:
@@ -404,7 +470,10 @@ class CurvilinearGeometry:
         sig_t = np.asarray(sig_t, dtype=float)
         N = len(radii)
 
-        if N == 1:
+        # Homogeneous solid cell fast path (single annulus, no cavity).
+        # Hollow cells must fall through to the crossing walker so the
+        # cavity segment can be skipped.
+        if N == 1 and self.inner_radius == 0.0:
             return float(sig_t[0]) * rho
 
         if self.kind == "slab-polar":
@@ -446,6 +515,20 @@ class CurvilinearGeometry:
             for s in (s_a, s_b):
                 if 0.0 < s < rho:
                     crossings.append(s)
+
+        # Hollow-core cavity: interior to r_0 the medium is void
+        # (:math:`\Sigma_t = 0`). Insert the cavity entry/exit ρ as
+        # crossings and skip τ accumulation for segments whose midpoint
+        # falls inside the cavity (r_mid < r_0).
+        r0 = float(self.inner_radius)
+        if r0 > 0.0:
+            rho_in_minus, rho_in_plus = self.rho_inner_intersections(
+                r_obs, cos_omega,
+            )
+            for s in (rho_in_minus, rho_in_plus):
+                if s is not None and 0.0 < s < rho:
+                    crossings.append(s)
+
         crossings.append(rho)
         crossings.sort()
 
@@ -457,6 +540,9 @@ class CurvilinearGeometry:
                 r_obs * r_obs + 2.0 * r_obs * s_mid * cos_omega + s_mid * s_mid
             )
             r_mid = np.sqrt(max(r_mid_sq, 0.0))
+            # Cavity segment (void): zero-Σ_t, skip contribution.
+            if r0 > 0.0 and r_mid < r0:
+                continue
             # Outermost annulus is the default (handles floating-point
             # noise at the cylinder boundary).
             k = N - 1
@@ -1298,6 +1384,419 @@ def compute_G_bc(
             total += phi_wts[k] * ki1 / d
         G_bc[i] = 2.0 * inv_pi * R * total
     return G_bc
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Per-surface escape / response primitives (Phase F.2)
+#
+# The single-surface :func:`compute_P_esc` / :func:`compute_G_bc`
+# aggregate escape-to-any-boundary / response-from-all-boundaries.
+# Phase F splits these into per-face primitives so that
+# :class:`BoundaryClosureOperator` can carry a per-face mode space
+# ``A = ℝ^(N_modes × N_surfaces)`` and couple independent partial
+# currents at each boundary via a block-diagonal reflection ``R``.
+#
+# For solid cyl/sph (``inner_radius == 0``) the ``_inner`` variants
+# return zero arrays — regime-A bit-exact contract. For slab, the
+# "outer" surface is face ``x = L`` and "inner" is face ``x = 0`` (the
+# faces are positional, not parametrised by inner_radius). For hollow
+# cyl/sph (``inner_radius > 0``) the cavity segment contributes zero
+# to τ (handled by :meth:`CurvilinearGeometry.optical_depth_along_ray`).
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _slab_E2(tau: float) -> float:
+    """Closed-form :math:`E_2(\\tau)` at machine precision via mpmath."""
+    if tau > 0.0:
+        return float(mpmath.expint(2, tau))
+    return 1.0
+
+
+def compute_P_esc_outer(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_angular: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Uncollided escape probability to the **outer** boundary.
+
+    For slab, this is the face at :math:`x = L`:
+    :math:`P_{\rm esc,L}(x_i) = \tfrac{1}{2}\,E_2(\Sigma_t(L - x_i))`
+    (homogeneous single region — closed form at machine precision).
+
+    For cylinder/sphere (solid or hollow), this integrates
+    :math:`K_{\rm esc}` over all directions from the observer, with
+    τ taken along the full path to :math:`\rho_{\max}(r_i, \Omega, R)`.
+    If the ray traverses the cavity (hollow case), the cavity segment
+    contributes zero to τ (via
+    :meth:`CurvilinearGeometry.optical_depth_along_ray`).
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    N = len(r_nodes)
+
+    if geometry.kind == "slab-polar" and len(radii) == 1:
+        # Slab homogeneous: face L closed form.
+        L = float(radii[-1])
+        sig_t_val = float(sig_t[0])
+        P = np.zeros(N)
+        for i in range(N):
+            x_i = float(r_nodes[i])
+            P[i] = 0.5 * _slab_E2(sig_t_val * (L - x_i))
+        return P
+
+    # Multi-region slab and curvilinear: GL over angular range.
+    omega_low, omega_high = geometry.angular_range
+    omega_pts, omega_wts = gl_float(n_angular, omega_low, omega_high, dps)
+    cos_omegas = geometry.ray_direction_cosine(omega_pts)
+    angular_factor = geometry.angular_weight(omega_pts)
+    pref = geometry.prefactor
+
+    P = np.zeros(N)
+    is_slab = geometry.kind == "slab-polar"
+    for i in range(N):
+        r_i = float(r_nodes[i])
+        total = 0.0
+        for k in range(n_angular):
+            cos_om = cos_omegas[k]
+            rho_to_outer = geometry.rho_max(r_i, cos_om, R)
+            if rho_to_outer <= 0.0:
+                continue
+            if is_slab:
+                # Slab outer = face at x=L, reached only for µ > 0.
+                if cos_om <= 0.0:
+                    continue
+            tau = geometry.optical_depth_along_ray(
+                r_i, cos_om, rho_to_outer, radii, sig_t,
+            )
+            K_esc = geometry.escape_kernel_mp(tau, dps)
+            total += omega_wts[k] * angular_factor[k] * K_esc
+        P[i] = pref * total
+    return P
+
+
+def compute_P_esc_inner(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_angular: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Uncollided escape probability to the **inner** boundary.
+
+    Solid geometry (``inner_radius == 0`` and not slab) has no inner
+    boundary and returns a zero array — the regime-A sentinel.
+
+    For slab, this is the face at :math:`x = 0`:
+    :math:`P_{\rm esc,0}(x_i) = \tfrac{1}{2}\,E_2(\Sigma_t x_i)`.
+
+    For hollow cyl/sph, integrates :math:`K_{\rm esc}` over those
+    directions where the ray reaches the inner shell before the outer
+    (:math:`\rho^-_{\rm in}` exists and :math:`< \rho_{\max}`), with τ
+    taken along the annulus path from :math:`r_i` to :math:`\rho^-_{\rm in}`
+    (cavity not yet entered).
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    N = len(r_nodes)
+
+    if geometry.n_surfaces == 1:
+        # Solid cyl/sph: regime-A zero-array sentinel.
+        return np.zeros(N)
+
+    if geometry.kind == "slab-polar" and len(radii) == 1:
+        # Slab homogeneous: face 0 closed form.
+        sig_t_val = float(sig_t[0])
+        P = np.zeros(N)
+        for i in range(N):
+            x_i = float(r_nodes[i])
+            P[i] = 0.5 * _slab_E2(sig_t_val * x_i)
+        return P
+
+    # Multi-region slab: GL over µ ∈ (-1, 0) for face 0.
+    if geometry.kind == "slab-polar":
+        omega_pts, omega_wts = gl_float(n_angular, -1.0, 1.0, dps)
+        cos_omegas = omega_pts
+        pref = geometry.prefactor
+        P = np.zeros(N)
+        for i in range(N):
+            x_i = float(r_nodes[i])
+            total = 0.0
+            for k in range(n_angular):
+                mu = cos_omegas[k]
+                if mu >= 0.0:
+                    continue
+                rho = -x_i / mu  # ρ = (0 − x_i)/µ for µ<0
+                if rho <= 0.0:
+                    continue
+                tau = geometry.optical_depth_along_ray(
+                    x_i, mu, rho, radii, sig_t,
+                )
+                K_esc = geometry.escape_kernel_mp(tau, dps)
+                total += omega_wts[k] * K_esc
+            P[i] = pref * total
+        return P
+
+    # Hollow cyl/sph: GL over angular range, restricted to directions
+    # that hit the inner shell.
+    omega_low, omega_high = geometry.angular_range
+    omega_pts, omega_wts = gl_float(n_angular, omega_low, omega_high, dps)
+    cos_omegas = geometry.ray_direction_cosine(omega_pts)
+    angular_factor = geometry.angular_weight(omega_pts)
+    pref = geometry.prefactor
+
+    P = np.zeros(N)
+    for i in range(N):
+        r_i = float(r_nodes[i])
+        total = 0.0
+        for k in range(n_angular):
+            cos_om = cos_omegas[k]
+            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, cos_om)
+            if rho_in_minus is None:
+                continue
+            # τ along the ray from r_i to the first inner intersection
+            # (annulus path only — cavity not yet entered).
+            tau = geometry.optical_depth_along_ray(
+                r_i, cos_om, rho_in_minus, radii, sig_t,
+            )
+            K_esc = geometry.escape_kernel_mp(tau, dps)
+            total += omega_wts[k] * angular_factor[k] * K_esc
+        P[i] = pref * total
+    return P
+
+
+def compute_G_bc_outer(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Scalar flux at :math:`r_i` from a unit uniform-isotropic inward
+    partial current on the **outer** boundary.
+
+    For slab, this is the face at :math:`x = L`:
+    :math:`G_{\rm bc,L}(x_i) = 2\,E_2(\Sigma_t(L - x_i))`.
+
+    For cylinder/sphere, the legacy observer-centred / surface-centred
+    integrals apply, with τ including cavity-segment zero-attenuation
+    for hollow cells.
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    N = len(r_nodes)
+
+    if geometry.kind == "slab-polar" and len(radii) == 1:
+        L = R
+        sig_t_val = float(sig_t[0])
+        G = np.zeros(N)
+        for i in range(N):
+            x_i = float(r_nodes[i])
+            G[i] = 2.0 * _slab_E2(sig_t_val * (L - x_i))
+        return G
+
+    if geometry.kind == "slab-polar":
+        # Multi-region slab: GL over µ ∈ (0, 1) for face L.
+        L = R
+        mu_pts, mu_wts = gl_float(n_surf_quad, 0.0, 1.0, dps)
+        G = np.zeros(N)
+        for i in range(N):
+            x_i = float(r_nodes[i])
+            total = 0.0
+            for k in range(n_surf_quad):
+                mu = float(mu_pts[k])
+                if mu <= 1e-15:
+                    continue
+                rho_L = (L - x_i) / mu
+                tau_L = geometry.optical_depth_along_ray(
+                    L, -mu, rho_L, radii, sig_t,
+                )
+                total += float(mu_wts[k]) * 2.0 * float(np.exp(-tau_L))
+            G[i] = total
+        return G
+
+    if geometry.kind == "sphere-1d":
+        # Observer-centred angular integral. rho_to_surface is the full
+        # path to the outer boundary; cavity handling lives in
+        # optical_depth_along_ray.
+        theta_pts, theta_wts = gl_float(n_surf_quad, 0.0, np.pi, dps)
+        cos_thetas = np.cos(theta_pts)
+        sin_thetas = np.sin(theta_pts)
+        G = np.zeros(N)
+        for i in range(N):
+            r_i = r_nodes[i]
+            total = 0.0
+            for k in range(n_surf_quad):
+                ct = cos_thetas[k]
+                st = sin_thetas[k]
+                rho_to_surface = geometry.rho_max(r_i, ct, R)
+                if rho_to_surface <= 0.0:
+                    continue
+                if len(radii) == 1 and geometry.inner_radius == 0.0:
+                    tau = sig_t[0] * rho_to_surface
+                else:
+                    tau = geometry.optical_depth_along_ray(
+                        r_i, ct, rho_to_surface, radii, sig_t,
+                    )
+                total += theta_wts[k] * st * float(np.exp(-tau))
+            G[i] = 2.0 * total
+        return G
+
+    # Cylinder outer — surface-centred, Ki_1/d kernel.
+    phi_pts, phi_wts = gl_float(n_surf_quad, 0.0, np.pi, dps)
+    cos_phis = np.cos(phi_pts)
+    sin_phis = np.sin(phi_pts)
+    inv_pi = 1.0 / np.pi
+    G = np.zeros(N)
+    for i in range(N):
+        r_i = r_nodes[i]
+        total = 0.0
+        for k in range(n_surf_quad):
+            cf = cos_phis[k]
+            d_sq = r_i * r_i + R * R - 2.0 * r_i * R * cf
+            d = float(np.sqrt(max(d_sq, 0.0)))
+            if d <= 0.0:
+                continue
+            if len(radii) == 1 and geometry.inner_radius == 0.0:
+                tau = sig_t[0] * d
+            else:
+                cb = (R * cf - r_i) / d
+                _ = R * sin_phis[k] / d  # symmetry only
+                tau = geometry.optical_depth_along_ray(
+                    r_i, cb, d, radii, sig_t,
+                )
+            ki1 = float(ki_n_mp(1, float(tau), dps))
+            total += phi_wts[k] * ki1 / d
+        G[i] = 2.0 * inv_pi * R * total
+    return G
+
+
+def compute_G_bc_inner(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Scalar flux at :math:`r_i` from a unit uniform-isotropic outward
+    partial current on the **inner** boundary.
+
+    Solid geometry returns a zero array (regime-A sentinel).
+
+    For slab, this is the face at :math:`x = 0`:
+    :math:`G_{\rm bc,0}(x_i) = 2\,E_2(\Sigma_t x_i)`.
+
+    For hollow sphere, observer-centred integration restricted to those
+    directions where the sightline to :math:`r_0` exists (ray hits the
+    inner shell). For hollow cylinder, surface-centred form from
+    :math:`r_0`, analogous to the outer ``Ki_1/d`` formula but with the
+    chord length and bearing from the inner surface.
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    N = len(r_nodes)
+
+    if geometry.n_surfaces == 1:
+        return np.zeros(N)
+
+    if geometry.kind == "slab-polar" and len(radii) == 1:
+        sig_t_val = float(sig_t[0])
+        G = np.zeros(N)
+        for i in range(N):
+            x_i = float(r_nodes[i])
+            G[i] = 2.0 * _slab_E2(sig_t_val * x_i)
+        return G
+
+    if geometry.kind == "slab-polar":
+        # Multi-region slab: GL over µ ∈ (0, 1) for face 0
+        # (ray enters at x=0 with direction +µ, observer at x_i has ρ=x_i/µ).
+        mu_pts, mu_wts = gl_float(n_surf_quad, 0.0, 1.0, dps)
+        G = np.zeros(N)
+        for i in range(N):
+            x_i = float(r_nodes[i])
+            total = 0.0
+            for k in range(n_surf_quad):
+                mu = float(mu_pts[k])
+                if mu <= 1e-15:
+                    continue
+                rho_0 = x_i / mu
+                tau_0 = geometry.optical_depth_along_ray(
+                    0.0, mu, rho_0, radii, sig_t,
+                )
+                total += float(mu_wts[k]) * 2.0 * float(np.exp(-tau_0))
+            G[i] = total
+        return G
+
+    r0 = float(geometry.inner_radius)
+
+    if geometry.kind == "sphere-1d":
+        # Observer-centred, directions that hit the inner shell.
+        theta_pts, theta_wts = gl_float(n_surf_quad, 0.0, np.pi, dps)
+        cos_thetas = np.cos(theta_pts)
+        sin_thetas = np.sin(theta_pts)
+        G = np.zeros(N)
+        for i in range(N):
+            r_i = r_nodes[i]
+            total = 0.0
+            for k in range(n_surf_quad):
+                ct = cos_thetas[k]
+                st = sin_thetas[k]
+                rho_in_minus, _ = geometry.rho_inner_intersections(r_i, ct)
+                if rho_in_minus is None:
+                    continue
+                if len(radii) == 1:
+                    tau = sig_t[0] * rho_in_minus
+                else:
+                    tau = geometry.optical_depth_along_ray(
+                        r_i, ct, rho_in_minus, radii, sig_t,
+                    )
+                total += theta_wts[k] * st * float(np.exp(-tau))
+            G[i] = 2.0 * total
+        return G
+
+    # Cylinder inner — surface-centred on r=r_0, Ki_1/d_inner kernel.
+    phi_pts, phi_wts = gl_float(n_surf_quad, 0.0, np.pi, dps)
+    cos_phis = np.cos(phi_pts)
+    sin_phis = np.sin(phi_pts)
+    inv_pi = 1.0 / np.pi
+    G = np.zeros(N)
+    for i in range(N):
+        r_i = r_nodes[i]
+        total = 0.0
+        for k in range(n_surf_quad):
+            cf = cos_phis[k]
+            d_sq = r_i * r_i + r0 * r0 - 2.0 * r_i * r0 * cf
+            d = float(np.sqrt(max(d_sq, 0.0)))
+            if d <= 0.0:
+                continue
+            if len(radii) == 1:
+                tau = sig_t[0] * d
+            else:
+                # Direction cosine from observer at r_i to a surface point
+                # on r=r_0. Mirror of the outer-surface formula with the
+                # inner radius substituted.
+                cb = (r0 * cf - r_i) / d
+                _ = r0 * sin_phis[k] / d
+                tau = geometry.optical_depth_along_ray(
+                    r_i, cb, d, radii, sig_t,
+                )
+            ki1 = float(ki_n_mp(1, float(tau), dps))
+            total += phi_wts[k] * ki1 / d
+        G[i] = 2.0 * inv_pi * r0 * total
+    return G
 
 
 def build_white_bc_correction(

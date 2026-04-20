@@ -52,7 +52,12 @@ from orpheus.derivations.peierls_geometry import (
     build_white_bc_correction_rank_n,
     composite_gl_r,
     compute_G_bc,
+    compute_G_bc_inner,
+    compute_G_bc_outer,
     compute_P_esc,
+    compute_P_esc_inner,
+    compute_P_esc_outer,
+    CurvilinearGeometry,
     gl_nodes_weights,
     lagrange_basis_on_panels,
     map_gl_to,
@@ -994,3 +999,288 @@ class TestSlabRankNNotImplementedGuard:
                 SLAB_POLAR_1D, r_nodes, radii, sig_t, n_mode=1,
                 n_surf_quad=16, dps=20,
             )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Layer 6b — Per-surface P_esc / G_bc primitives (Phase F.2)
+#
+# The Phase F per-face :class:`BoundaryClosureOperator` requires P_esc
+# and G_bc to be resolved *per boundary* — not merely summed over all
+# boundaries of the cell. These tests verify the additive split:
+#
+# - Slab: face 0 and face L each carry half of the rank-1 flux. Per-face
+#   closed forms match :math:`(1/2)\,E_2` and :math:`2\,E_2` at machine
+#   precision; the sum over the two faces reproduces the legacy
+#   :func:`compute_P_esc` / :func:`compute_G_bc` (backwards-compat pin).
+# - Solid cyl/sph (regime A, ``inner_radius == 0``): the "inner"
+#   primitive returns an all-zero array (sentinel); the "outer"
+#   primitive matches the legacy single-surface function bit-exactly.
+# - Hollow cyl/sph (``inner_radius > 0``): the inner primitive must be
+#   strictly positive in the annulus; regime B (``r_0 → 0⁺``) sends the
+#   inner contribution and ``|outer − solid|`` to zero monotonically.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _E2(tau):
+    if tau > 0.0:
+        return float(mpmath.expint(2, tau))
+    return 1.0
+
+
+@pytest.mark.l0
+@pytest.mark.verifies("peierls-unified")
+class TestSlabPescPerFace:
+    r"""Per-face slab :math:`P_{\rm esc}` closed-form verification."""
+
+    @pytest.mark.parametrize("L, sig_t", [
+        (1.0, 1.0),
+        (2.0, 0.5),
+        (0.5, 2.0),
+    ])
+    def test_outer_face_matches_E2_at_machine_precision(self, L, sig_t):
+        r"""Face :math:`x = L`:
+        :math:`P_{\rm esc,L}(x_i) = \tfrac{1}{2} E_2(\Sigma_t(L - x_i))`."""
+        radii = np.array([L])
+        sig_t_arr = np.array([sig_t])
+        r_nodes, _, _ = composite_gl_r(radii, 2, 4, dps=25)
+        P_out = compute_P_esc_outer(
+            SLAB_POLAR_1D, r_nodes, radii, sig_t_arr,
+            n_angular=32, dps=25,
+        )
+        for i, x_i in enumerate(r_nodes):
+            expected = 0.5 * _E2(sig_t * (L - float(x_i)))
+            rel = abs(P_out[i] - expected) / abs(expected)
+            assert rel < 1e-14, (
+                f"P_esc_outer(x={x_i:.4f}) rel={rel:.3e}"
+            )
+
+    @pytest.mark.parametrize("L, sig_t", [
+        (1.0, 1.0),
+        (2.0, 0.5),
+        (0.5, 2.0),
+    ])
+    def test_inner_face_matches_E2_at_machine_precision(self, L, sig_t):
+        r"""Face :math:`x = 0`:
+        :math:`P_{\rm esc,0}(x_i) = \tfrac{1}{2} E_2(\Sigma_t x_i)`."""
+        radii = np.array([L])
+        sig_t_arr = np.array([sig_t])
+        r_nodes, _, _ = composite_gl_r(radii, 2, 4, dps=25)
+        P_in = compute_P_esc_inner(
+            SLAB_POLAR_1D, r_nodes, radii, sig_t_arr,
+            n_angular=32, dps=25,
+        )
+        for i, x_i in enumerate(r_nodes):
+            expected = 0.5 * _E2(sig_t * float(x_i))
+            rel = abs(P_in[i] - expected) / abs(expected)
+            assert rel < 1e-14, (
+                f"P_esc_inner(x={x_i:.4f}) rel={rel:.3e}"
+            )
+
+    @pytest.mark.parametrize("L, sig_t", [
+        (1.0, 1.0),
+        (2.0, 0.5),
+        (0.5, 2.0),
+    ])
+    def test_sum_equals_legacy_compute_P_esc(self, L, sig_t):
+        r"""Backwards-compat pin: per-face sum reproduces
+        :func:`compute_P_esc` exactly (the legacy single-surface function)."""
+        radii = np.array([L])
+        sig_t_arr = np.array([sig_t])
+        r_nodes, _, _ = composite_gl_r(radii, 2, 4, dps=25)
+        P_tot = compute_P_esc(SLAB_POLAR_1D, r_nodes, radii, sig_t_arr)
+        P_out = compute_P_esc_outer(SLAB_POLAR_1D, r_nodes, radii, sig_t_arr)
+        P_in = compute_P_esc_inner(SLAB_POLAR_1D, r_nodes, radii, sig_t_arr)
+        err = np.max(np.abs(P_tot - P_out - P_in))
+        assert err < 1e-14, f"per-face sum vs legacy err={err:.3e}"
+
+
+@pytest.mark.l0
+@pytest.mark.verifies("peierls-unified")
+class TestSlabGbcPerFace:
+    r"""Per-face slab :math:`G_{\rm bc}` closed-form verification."""
+
+    @pytest.mark.parametrize("L, sig_t", [
+        (1.0, 1.0),
+        (2.0, 0.5),
+        (0.5, 2.0),
+    ])
+    def test_outer_face_matches_2E2_at_machine_precision(self, L, sig_t):
+        radii = np.array([L])
+        sig_t_arr = np.array([sig_t])
+        r_nodes, _, _ = composite_gl_r(radii, 2, 4, dps=25)
+        G_out = compute_G_bc_outer(SLAB_POLAR_1D, r_nodes, radii, sig_t_arr)
+        for i, x_i in enumerate(r_nodes):
+            expected = 2.0 * _E2(sig_t * (L - float(x_i)))
+            rel = abs(G_out[i] - expected) / abs(expected)
+            assert rel < 1e-14
+
+    @pytest.mark.parametrize("L, sig_t", [
+        (1.0, 1.0),
+        (2.0, 0.5),
+        (0.5, 2.0),
+    ])
+    def test_inner_face_matches_2E2_at_machine_precision(self, L, sig_t):
+        radii = np.array([L])
+        sig_t_arr = np.array([sig_t])
+        r_nodes, _, _ = composite_gl_r(radii, 2, 4, dps=25)
+        G_in = compute_G_bc_inner(SLAB_POLAR_1D, r_nodes, radii, sig_t_arr)
+        for i, x_i in enumerate(r_nodes):
+            expected = 2.0 * _E2(sig_t * float(x_i))
+            rel = abs(G_in[i] - expected) / abs(expected)
+            assert rel < 1e-14
+
+    @pytest.mark.parametrize("L, sig_t", [
+        (1.0, 1.0),
+        (2.0, 0.5),
+    ])
+    def test_sum_equals_legacy_compute_G_bc(self, L, sig_t):
+        radii = np.array([L])
+        sig_t_arr = np.array([sig_t])
+        r_nodes, _, _ = composite_gl_r(radii, 2, 4, dps=25)
+        G_tot = compute_G_bc(SLAB_POLAR_1D, r_nodes, radii, sig_t_arr)
+        G_out = compute_G_bc_outer(SLAB_POLAR_1D, r_nodes, radii, sig_t_arr)
+        G_in = compute_G_bc_inner(SLAB_POLAR_1D, r_nodes, radii, sig_t_arr)
+        err = np.max(np.abs(G_tot - G_out - G_in))
+        assert err < 1e-14, f"per-face G_bc sum vs legacy err={err:.3e}"
+
+
+@pytest.mark.foundation
+class TestSolidCylSphInnerZeroSentinel:
+    r"""Regime-A sentinel: for solid cyl/sph the ``_inner`` primitives
+    return all-zero arrays AND the ``_outer`` primitives match the
+    legacy single-surface :func:`compute_P_esc` / :func:`compute_G_bc`
+    bit-exactly. This is the contract that makes the rank-2
+    :class:`BoundaryClosureOperator` reduce bit-exactly to rank-1 when
+    ``inner_radius == 0``.
+    """
+
+    @pytest.mark.parametrize("geometry", [
+        pytest.param(CYLINDER_1D, id="cylinder-1d"),
+        pytest.param(SPHERE_1D, id="sphere-1d"),
+    ])
+    @pytest.mark.parametrize("R, sig_t", [
+        (1.0, 1.5),
+        (2.0, 0.5),
+    ])
+    def test_P_esc_inner_all_zero(self, geometry, R, sig_t):
+        radii = np.array([R])
+        sig_t_arr = np.array([sig_t])
+        r_nodes, _, _ = composite_gl_r(radii, 2, 4, dps=25)
+        P_in = compute_P_esc_inner(geometry, r_nodes, radii, sig_t_arr)
+        assert np.all(P_in == 0.0)
+
+    @pytest.mark.parametrize("geometry", [
+        pytest.param(CYLINDER_1D, id="cylinder-1d"),
+        pytest.param(SPHERE_1D, id="sphere-1d"),
+    ])
+    @pytest.mark.parametrize("R, sig_t", [
+        (1.0, 1.5),
+        (2.0, 0.5),
+    ])
+    def test_G_bc_inner_all_zero(self, geometry, R, sig_t):
+        radii = np.array([R])
+        sig_t_arr = np.array([sig_t])
+        r_nodes, _, _ = composite_gl_r(radii, 2, 4, dps=25)
+        G_in = compute_G_bc_inner(geometry, r_nodes, radii, sig_t_arr)
+        assert np.all(G_in == 0.0)
+
+    @pytest.mark.parametrize("geometry", [
+        pytest.param(CYLINDER_1D, id="cylinder-1d"),
+        pytest.param(SPHERE_1D, id="sphere-1d"),
+    ])
+    @pytest.mark.parametrize("R, sig_t", [
+        (1.0, 1.5),
+        (2.0, 0.5),
+    ])
+    def test_P_esc_outer_matches_legacy_bit_exact(self, geometry, R, sig_t):
+        radii = np.array([R])
+        sig_t_arr = np.array([sig_t])
+        r_nodes, _, _ = composite_gl_r(radii, 2, 4, dps=25)
+        P_tot = compute_P_esc(geometry, r_nodes, radii, sig_t_arr)
+        P_out = compute_P_esc_outer(geometry, r_nodes, radii, sig_t_arr)
+        # Bit-exact (same code path, same GL nodes).
+        assert np.array_equal(P_out, P_tot)
+
+    @pytest.mark.parametrize("geometry", [
+        pytest.param(CYLINDER_1D, id="cylinder-1d"),
+        pytest.param(SPHERE_1D, id="sphere-1d"),
+    ])
+    @pytest.mark.parametrize("R, sig_t", [
+        (1.0, 1.5),
+        (2.0, 0.5),
+    ])
+    def test_G_bc_outer_matches_legacy_bit_exact(self, geometry, R, sig_t):
+        radii = np.array([R])
+        sig_t_arr = np.array([sig_t])
+        r_nodes, _, _ = composite_gl_r(radii, 2, 4, dps=25)
+        G_tot = compute_G_bc(geometry, r_nodes, radii, sig_t_arr)
+        G_out = compute_G_bc_outer(geometry, r_nodes, radii, sig_t_arr)
+        assert np.array_equal(G_out, G_tot)
+
+
+@pytest.mark.l0
+@pytest.mark.verifies("peierls-unified")
+class TestHollowCylSphPerFacePositivityAndRegimeB:
+    r"""Hollow cyl/sph per-face sanity + regime-B convergence.
+
+    Regime B: as :math:`r_0 \to 0^+`, the hollow-cell per-face
+    primitives must converge to the solid-geometry result. The inner
+    contribution vanishes (geometric support in angle collapses), and
+    the outer contribution approaches the solid value at an algebraic
+    rate. This exposes numerical-stability bugs in the inner-intersection
+    quadratic that the regime-A (``inner_radius == 0``) sentinel would
+    hide.
+    """
+
+    @pytest.mark.parametrize("kind", ["cylinder-1d", "sphere-1d"])
+    @pytest.mark.parametrize("r0", [0.3, 0.5])
+    def test_hollow_per_face_primitives_strictly_positive(self, kind, r0):
+        R = 1.0
+        sig_t_val = 1.5
+        geom = CurvilinearGeometry(kind=kind, inner_radius=r0)
+        # Observer nodes strictly inside the annulus (r0 < r < R).
+        r_nodes = np.array([r0 + 0.05, 0.5 * (r0 + R), R - 0.05])
+        radii = np.array([R])
+        sig_t = np.array([sig_t_val])
+        P_out = compute_P_esc_outer(geom, r_nodes, radii, sig_t)
+        P_in = compute_P_esc_inner(geom, r_nodes, radii, sig_t)
+        G_out = compute_G_bc_outer(geom, r_nodes, radii, sig_t)
+        G_in = compute_G_bc_inner(geom, r_nodes, radii, sig_t)
+        assert np.all(P_out > 0.0)
+        assert np.all(P_in > 0.0)
+        assert np.all(G_out > 0.0)
+        assert np.all(G_in > 0.0)
+
+    @pytest.mark.parametrize("kind", ["cylinder-1d", "sphere-1d"])
+    def test_regime_B_hollow_to_solid_monotone_convergence(self, kind):
+        r"""For a sequence :math:`r_0 \in \{0.1, 0.01\} \cdot R`, the
+        deviation from the solid result decreases strictly. At
+        :math:`r_0 \le 10^{-3}` the 32-point GL rule can no longer
+        resolve the tangent cone so the inner contribution rounds to
+        exactly zero (numerical floor) — the convergence check is
+        restricted to the regime where the primitive has visible
+        support."""
+        R = 1.0
+        sig_t_val = 1.5
+        # Observer nodes outside all tested r_0 values.
+        r_nodes = np.array([0.4, 0.6, 0.8, 0.95])
+        radii = np.array([R])
+        sig_t = np.array([sig_t_val])
+        solid = CurvilinearGeometry(kind=kind)
+        P_solid = compute_P_esc_outer(solid, r_nodes, radii, sig_t)
+
+        errs = []
+        max_inners = []
+        for r0 in (0.1, 0.01):
+            g = CurvilinearGeometry(kind=kind, inner_radius=r0)
+            P_out = compute_P_esc_outer(g, r_nodes, radii, sig_t)
+            P_in = compute_P_esc_inner(g, r_nodes, radii, sig_t)
+            errs.append(float(np.max(np.abs(P_out - P_solid))))
+            max_inners.append(float(np.max(P_in)))
+
+        # Monotone decrease: at least a factor-of-5 improvement per
+        # decade for both outer-deviation and inner-magnitude.
+        assert errs[1] < errs[0] / 5.0, f"outer err not decreasing: {errs}"
+        assert max_inners[1] < max_inners[0] / 5.0, (
+            f"inner magnitude not decreasing: {max_inners}"
+        )
