@@ -60,11 +60,18 @@ primitive :func:`~.peierls_geometry.K_vol_element_adaptive`.
 - :func:`sphere_uniform_source_analytical` — semi-analytical vacuum-BC
   uniform-source flux for a spherical cell; one ``mpmath.quad`` over
   :math:`\mu = \cos\Theta`.
+- :func:`slab_uniform_source_white_bc_analytical` — closed-form slab
+  flux under the Mark / isotropic white BC (albedo 1) on both faces,
+  derived from the :math:`E_3` transmission formula and the
+  partial-current balance. This is the first rung of the BC
+  verification ladder — it exercises the
+  :class:`~.peierls_geometry.BoundaryClosureOperator`'s rank-1
+  (``reflection = mark``) path for the slab geometry.
 
-Together with the slab counterpart these three functions complete the
-machine-precision analytical flux reference for vacuum-BC row-sum gating
-of the K matrix built by :func:`~.peierls_geometry.build_volume_kernel_adaptive`
-(the unified verification primitive).
+Together these functions complete the machine-precision analytical flux
+reference for vacuum-BC row-sum gating of the K matrix built by
+:func:`~.peierls_geometry.build_volume_kernel_adaptive` (the unified
+verification primitive), plus the first white-BC variant.
 """
 
 from __future__ import annotations
@@ -322,6 +329,99 @@ def sphere_uniform_source_analytical(
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# Slab white-BC analytical (Mark / rank-1 isotropic re-entry closure)
+# ═══════════════════════════════════════════════════════════════════════
+
+def slab_uniform_source_white_bc_analytical(
+    x, L: float, sig_t: float, *, dps: int = 50,
+) -> mpmath.mpf:
+    r"""Exact scalar flux from uniform unit source :math:`S = 1` on a
+    pure-absorber slab :math:`[0, L]` with **Mark / isotropic white BC**
+    (albedo 1) on both faces:
+
+    .. math::
+
+       \varphi_{\rm white}(x) \;=\; \frac{1}{2\,\Sigma_t}\!\left[\,
+           2 + (2\beta - 1)\bigl(E_2(\Sigma_t\,x)
+                               + E_2(\Sigma_t\,(L - x))\bigr)\,\right],
+
+    where
+
+    .. math::
+
+       \beta \;=\; \frac{1 - E_3(\Sigma_t L)}{1 - 2\,E_3(\Sigma_t L)}.
+
+    **Derivation.** The Peierls integral equation for the slab reads
+
+    .. math::
+
+       \varphi(x) \;=\; \tfrac{1}{2}\!\int_0^L\!
+                         E_1(\Sigma_t|x-x'|)\,\mathrm d x'
+                       + 2\,J^-\bigl[E_2(\Sigma_t x) + E_2(\Sigma_t(L-x))\bigr],
+
+    where :math:`J^-` is the (symmetric) re-entering partial current at
+    each face and the factor 2 accounts for the inward-half-range
+    isotropic distribution (:math:`\psi_{\rm in} = 2 J^-`). The volume
+    term evaluates to :func:`slab_uniform_source_analytical` — the
+    vacuum-BC result. The partial-current balance at :math:`x = L` for
+    uniform :math:`S = 1`:
+
+    .. math::
+
+       J^+(L) \;=\; \tfrac{1}{2\Sigma_t}\bigl(1 - E_3(\Sigma_t L)\bigr)
+                  + 2\,E_3(\Sigma_t L)\,J^-(0),
+
+    together with symmetry (:math:`J^-(0) = J^-(L) = J^-`) and the Mark
+    white-BC closure (:math:`J^- = J^+`), closes to
+
+    .. math::
+
+       J^- \;=\; \frac{1 - E_3(\Sigma_t L)}
+                      {2\,\Sigma_t\,(1 - 2\,E_3(\Sigma_t L))}.
+
+    Substituting back and collecting terms gives the displayed form.
+
+    **Sanity limits.**
+
+    - :math:`\Sigma_t L \to \infty` (thick): :math:`E_3 \to 0`,
+      :math:`\beta \to 1`, :math:`(2\beta - 1) \to 1`; deep interior
+      :math:`(x = L/2)` has :math:`E_2 \to 0`, so
+      :math:`\varphi \to 1/\Sigma_t` — the infinite-medium limit.
+    - :math:`\Sigma_t L \to 0` (thin): :math:`E_3 \to 1/2`, the
+      denominator :math:`1 - 2 E_3 \to 0`, and :math:`\beta` diverges —
+      a non-absorbing cell with a volume source and reflection has
+      unbounded flux.
+    - :math:`\varphi_{\rm white}(x) > \varphi_{\rm vacuum}(x)` for all
+      :math:`x`, as the reflected boundary sources add to the flux.
+
+    **Implementation.** Closed-form in :func:`mpmath.expint` — no
+    quadrature needed. Machine precision via ``dps``.
+
+    References
+    ----------
+    Davison (1957) "Neutron Transport Theory" Ch. 5; Case & Zweifel
+    (1967) "Linear Transport Theory" Ch. 6.
+    """
+    with mpmath.workdps(dps):
+        x_mp = x if isinstance(x, mpmath.mpf) else mpmath.mpf(x)
+        L_mp = mpmath.mpf(L)
+        sig_t_mp = mpmath.mpf(sig_t)
+
+        tau = sig_t_mp * x_mp
+        tau_prime = sig_t_mp * (L_mp - x_mp)
+        tau_L = sig_t_mp * L_mp
+
+        E3_tau_L = mpmath.expint(3, tau_L)
+        denom = 1 - 2 * E3_tau_L
+        if denom == 0:
+            return mpmath.mpf("inf")
+        beta = (1 - E3_tau_L) / denom
+
+        E2_sum = mpmath.expint(2, tau) + mpmath.expint(2, tau_prime)
+        return (2 + (2 * beta - 1) * E2_sum) / (2 * sig_t_mp)
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # Analytical diagnostics (independent of any Nyström)
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -342,6 +442,7 @@ __all__ = [
     "slab_kernel_point_to_point",
     "slab_K_vol_element",
     "slab_uniform_source_analytical",
+    "slab_uniform_source_white_bc_analytical",
     "slab_row_sum_uniform_identity",
     "cylinder_uniform_source_analytical",
     "sphere_uniform_source_analytical",

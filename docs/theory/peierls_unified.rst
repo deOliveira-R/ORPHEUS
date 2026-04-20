@@ -2297,6 +2297,85 @@ cylindrical and spherical cells with isotropic volume sources);
 [CaseZweifel1967]_ Ch. 3 (point-kernel volume integration).
 
 
+.. _peierls-slab-white-bc-analytical:
+
+White-BC analytical flux — slab (2026-04-21)
+--------------------------------------------
+
+The slab white-BC (Mark / isotropic rank-1 closure) uniform-source
+flux admits a closed form in :math:`E_2` and :math:`E_3`. Starting
+from the Peierls integral equation with half-range isotropic re-entry
+:math:`J^{-}` at each face:
+
+.. math::
+
+   \varphi(x) \;=\; \tfrac{1}{2}\!\int_0^L E_1\!\bigl(\Sigma_t|x-x'|\bigr)\,
+                    \mathrm d x'
+              \;+\; 2\,J^{-}\bigl[E_2(\Sigma_t x) + E_2(\Sigma_t(L - x))\bigr],
+
+where the factor 2 arises from :math:`\psi_{\rm in} = 2 J^{-}` for
+unit inward-half-range partial current. The partial-current balance
+at :math:`x = L` for uniform :math:`S = 1`:
+
+.. math::
+
+   J^{+}(L) \;=\; \tfrac{1}{2\Sigma_t}\bigl(1 - E_3(\Sigma_t L)\bigr)
+              + 2\,E_3(\Sigma_t L)\,J^{-}(0),
+
+together with the symmetry :math:`J^{-}(0) = J^{-}(L) = J^{-}` and
+the Mark closure :math:`J^{-} = J^{+}`, closes to
+
+.. math::
+
+   J^{-} \;=\;
+     \frac{1 - E_3(\Sigma_t L)}{2\,\Sigma_t\,(1 - 2\,E_3(\Sigma_t L))}.
+
+Substituting and collecting:
+
+.. math::
+   :label: peierls-white-bc-slab
+
+   \varphi_{\rm white}(x) \;=\; \frac{1}{2\,\Sigma_t}\!\left[
+     \,2 + (2\beta - 1)\bigl(E_2(\Sigma_t x) + E_2(\Sigma_t(L - x))\bigr)
+     \,\right],
+   \qquad
+   \beta \;=\; \frac{1 - E_3(\Sigma_t L)}{1 - 2\,E_3(\Sigma_t L)}.
+
+Implemented in
+:func:`~orpheus.derivations.peierls_reference.slab_uniform_source_white_bc_analytical`.
+Closed-form — zero quadrature; machine precision via ``dps``. The
+analytical is verified to :math:`10^{-39}` against an independent
+fixed-point iteration of the partial-current balance in
+:file:`derivations/diagnostics/diag_slab_white_bc_analytical.py`.
+
+**Sanity limits.**
+
+- :math:`\Sigma_t L \to \infty`: :math:`E_3 \to 0`,
+  :math:`(2\beta - 1) \to 1`, deep interior has :math:`E_2 \to 0`, so
+  :math:`\varphi \to 1/\Sigma_t` (infinite-medium).
+- :math:`\Sigma_t L \to 0`: :math:`E_3 \to 1/2`, :math:`\beta`
+  diverges — a thin non-absorbing cell with reflected volume source
+  has unbounded flux.
+
+.. note::
+
+   **BC tensor-network gap (Issue #118).** This analytical is
+   **not yet gated as a row-sum identity test** against the unified
+   :class:`~orpheus.derivations.peierls_geometry.BoundaryClosureOperator`.
+   Diagnostic evaluation showed that
+   :func:`~orpheus.derivations.peierls_geometry.compute_P_esc` and
+   :func:`~orpheus.derivations.peierls_geometry.compute_G_bc` have two
+   specific slab-polar gaps: the former calls
+   ``np.cos(omega_pts)`` assuming the angular variable is a polar
+   angle (only true for curvilinear), and the latter has no
+   ``slab-polar`` branch and falls through to the cylinder code.
+   Fixing these unlocks the slab white-BC row-sum gate.
+
+**References.** [Davison1957]_ Ch. 5 (half-range isotropic re-entry
+partial-current balance); [CaseZweifel1967]_ Ch. 6 (albedo-1 BC
+analytical solutions).
+
+
 Section 8 — White-BC closure, geometry-by-geometry
 ==================================================
 
@@ -5954,6 +6033,11 @@ References
 
 .. [CaseZweifel1967] K.M. Case and P.F. Zweifel,
    *Linear Transport Theory*, Addison-Wesley, 1967.
+
+.. [Davison1957] B. Davison, *Neutron Transport Theory*,
+   Clarendon Press, 1957. Ch. 5 covers the slab albedo / partial-current
+   balance relations that underpin the Mark (isotropic rank-1)
+   white-BC closed form :eq:`peierls-white-bc-slab`.
 
 .. [Atkinson1997] K.E. Atkinson, *The Numerical Solution of Integral
    Equations of the Second Kind*, Cambridge University Press, 1997.
