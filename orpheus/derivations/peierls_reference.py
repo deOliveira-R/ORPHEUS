@@ -53,9 +53,18 @@ primitive :func:`~.peierls_geometry.K_vol_element_adaptive`.
   uniform-source flux for slab; the analytical reference for the
   K-row-sum identity.
 - :func:`slab_row_sum_uniform_identity` — convenience alias.
+- :func:`cylinder_uniform_source_analytical` — semi-analytical vacuum-BC
+  uniform-source flux for an infinite cylindrical cell; one
+  ``mpmath.quad`` over the in-plane azimuth with :math:`\mathrm{Ki}_2`
+  absorbing the out-of-plane polar integral.
+- :func:`sphere_uniform_source_analytical` — semi-analytical vacuum-BC
+  uniform-source flux for a spherical cell; one ``mpmath.quad`` over
+  :math:`\mu = \cos\Theta`.
 
-For cylinder and sphere analogs of the analytical vacuum-BC reference,
-see TODO (the 2026-04-20 strategic-milestone work).
+Together with the slab counterpart these three functions complete the
+machine-precision analytical flux reference for vacuum-BC row-sum gating
+of the K matrix built by :func:`~.peierls_geometry.build_volume_kernel_adaptive`
+(the unified verification primitive).
 """
 
 from __future__ import annotations
@@ -63,6 +72,7 @@ from __future__ import annotations
 import mpmath
 import numpy as np
 
+from ._kernels import ki_n_mp
 from .peierls_geometry import lagrange_basis_on_panels  # noqa: F401  (re-exported for downstream)
 
 
@@ -173,6 +183,145 @@ def slab_uniform_source_analytical(
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# Cylinder and sphere vacuum-BC uniform-source analytical references
+# ═══════════════════════════════════════════════════════════════════════
+
+def cylinder_uniform_source_analytical(
+    r: float, R: float, sig_t: float, *, dps: int = 50,
+) -> mpmath.mpf:
+    r"""Exact scalar flux from uniform unit source :math:`S = 1` on a
+    pure-absorber cylindrical cell of radius :math:`R` (infinite axial
+    extent) with vacuum BC on the lateral surface:
+
+    .. math::
+
+       \varphi_{\rm cyl}(r) \;=\;
+           \frac{1}{\pi\,\Sigma_t}\!\int_0^\pi\!
+             \Bigl[\,1 - \mathrm{Ki}_2\!\bigl(\Sigma_t\,L_{2D}(r,\theta')\bigr)\,\Bigr]
+             \,\mathrm d\theta',
+
+    with in-plane chord length
+
+    .. math::
+
+       L_{2D}(r, \theta') \;=\; -r\cos\theta'
+                                + \sqrt{R^{2} - r^{2}\sin^{2}\theta'}.
+
+    **Derivation.** Start from the 3-D point kernel
+    :math:`e^{-\Sigma_t R'}/(4\pi R'^{2})` integrated against the
+    spatial volume. In observer-centred cylindrical coordinates with
+    in-plane azimuth :math:`\theta'` and polar angle
+    :math:`\psi \in (0, \pi)` from the cylinder axis, the 3-D ray length
+    to the exit on the lateral surface is
+    :math:`\rho_{\max} = L_{2D}/\sin\psi`. The :math:`\psi`-integral
+    then reduces to Bickley :math:`\mathrm{Ki}_2` via the definition
+    :math:`\mathrm{Ki}_n(x) = \int_0^{\pi/2}\!\cos^{n-1}\!\phi\,
+    e^{-x/\cos\phi}\,\mathrm d\phi` with the substitution
+    :math:`\phi = \pi/2 - \psi`.
+
+    **Sanity checks.**
+
+    - :math:`r = 0`: :math:`L_{2D} = R` (constant) gives
+      :math:`\varphi(0) = (1 - \mathrm{Ki}_2(\Sigma_t R))/\Sigma_t`.
+    - :math:`\Sigma_t R \to 0` (thin):
+      :math:`\mathrm{Ki}_2(x) \approx 1 - (\pi/2)\,x`, so
+      :math:`\varphi(0) \to (\pi/2)\,R` — the 3-D mean chord through
+      the axis of an infinite cylinder.
+    - :math:`\Sigma_t R \to \infty`: :math:`\mathrm{Ki}_2 \to 0` and
+      :math:`\varphi \to 1/\Sigma_t` (infinite-medium limit).
+
+    **Implementation.** A single adaptive :func:`mpmath.quad` over
+    :math:`\theta' \in [0, \pi]`. The integrand is smooth; no
+    breakpoints needed. Machine precision via ``dps``.
+
+    References
+    ----------
+    Bell & Glasstone (1970) "Nuclear Reactor Theory" Ch. 2; Case &
+    Zweifel (1967) "Linear Transport Theory" Ch. 3.
+    """
+    with mpmath.workdps(dps):
+        r_mp = mpmath.mpf(r)
+        R_mp = mpmath.mpf(R)
+        sig_t_mp = mpmath.mpf(sig_t)
+
+        def integrand(theta_p):
+            cos_tp = mpmath.cos(theta_p)
+            sin_tp = mpmath.sin(theta_p)
+            L_2d = -r_mp * cos_tp + mpmath.sqrt(
+                R_mp ** 2 - r_mp ** 2 * sin_tp ** 2
+            )
+            ki2 = ki_n_mp(2, sig_t_mp * L_2d, dps)
+            return 1 - ki2
+
+        integral = mpmath.quad(integrand, [0, mpmath.pi])
+        return integral / (mpmath.pi * sig_t_mp)
+
+
+def sphere_uniform_source_analytical(
+    r: float, R: float, sig_t: float, *, dps: int = 50,
+) -> mpmath.mpf:
+    r"""Exact scalar flux from uniform unit source :math:`S = 1` on a
+    pure-absorber spherical cell of radius :math:`R` with vacuum BC:
+
+    .. math::
+
+       \varphi_{\rm sph}(r) \;=\; \frac{1}{2\,\Sigma_t}\!\left[\,
+           2 - \int_{-1}^{1}\!\exp\!\Bigl(
+               -\Sigma_t\bigl[-r\mu + \sqrt{R^{2} - r^{2} + r^{2}\mu^{2}}\bigr]
+             \Bigr)\,\mathrm d\mu\,\right],
+
+    where :math:`\mu = \cos\Theta` is the cosine of the polar angle
+    from the observer's outward radial direction.
+
+    **Derivation.** In observer-centred spherical coordinates
+    :math:`(\rho, \Theta, \psi)` the point kernel
+    :math:`e^{-\Sigma_t\rho}/(4\pi\rho^{2})` cancels the
+    :math:`\rho^{2}` volume Jacobian; axial symmetry eliminates
+    :math:`\psi`. The chord length from the observer at radius
+    :math:`r` in direction :math:`\Theta` to the spherical surface is
+
+    .. math::
+
+       L_{\rm chord}(r, \mu) \;=\;
+           -r\mu + \sqrt{R^{2} - r^{2}(1 - \mu^{2})}.
+
+    The inner :math:`\rho`-integral gives
+    :math:`(1 - e^{-\Sigma_t L_{\rm chord}})/\Sigma_t`; averaging over
+    :math:`\mu \in [-1, 1]` yields the displayed form.
+
+    **Sanity checks.**
+
+    - :math:`r = 0`: :math:`L_{\rm chord} = R` (constant) gives
+      :math:`\varphi(0) = (1 - e^{-\Sigma_t R})/\Sigma_t`.
+    - :math:`\Sigma_t R \to 0` (thin): :math:`\varphi(0) \to R`, the
+      3-D mean chord through the centre of a sphere.
+    - :math:`\Sigma_t R \to \infty`:
+      :math:`\varphi \to 1/\Sigma_t` (infinite-medium limit).
+
+    **Implementation.** A single adaptive :func:`mpmath.quad` over
+    :math:`\mu \in [-1, 1]`. The integrand is analytic; no breakpoints
+    needed. Machine precision via ``dps``.
+
+    References
+    ----------
+    Case & Zweifel (1967) "Linear Transport Theory" Ch. 3.
+    """
+    with mpmath.workdps(dps):
+        r_mp = mpmath.mpf(r)
+        R_mp = mpmath.mpf(R)
+        sig_t_mp = mpmath.mpf(sig_t)
+
+        def integrand(mu):
+            L_chord = -r_mp * mu + mpmath.sqrt(
+                R_mp ** 2 - r_mp ** 2 * (1 - mu ** 2)
+            )
+            return mpmath.exp(-sig_t_mp * L_chord)
+
+        integral = mpmath.quad(integrand, [-1, 1])
+        return (2 - integral) / (2 * sig_t_mp)
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # Analytical diagnostics (independent of any Nyström)
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -194,4 +343,6 @@ __all__ = [
     "slab_K_vol_element",
     "slab_uniform_source_analytical",
     "slab_row_sum_uniform_identity",
+    "cylinder_uniform_source_analytical",
+    "sphere_uniform_source_analytical",
 ]

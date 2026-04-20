@@ -36,6 +36,8 @@ import pytest
 from orpheus.derivations.peierls_reference import (
     slab_uniform_source_analytical,
     slab_K_vol_element,
+    cylinder_uniform_source_analytical,
+    sphere_uniform_source_analytical,
 )
 from orpheus.derivations import peierls_slab
 from orpheus.derivations.peierls_geometry import (
@@ -44,6 +46,8 @@ from orpheus.derivations.peierls_geometry import (
     CYLINDER_1D,
     K_vol_element_adaptive,
     build_volume_kernel,
+    build_volume_kernel_adaptive,
+    composite_gl_r,
     lagrange_basis_on_panels,
 )
 
@@ -563,3 +567,117 @@ class TestSlabPolarBuildVolumeKernel:
 # ``derivations/archive/peierls_cylinder_polar_assembly.py``.)
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# Layer 5 — Cylinder / sphere K-matrix row-sum identity at machine
+# precision against the new analytical vacuum-BC references (the
+# 2026-04-20 strategic milestone).
+# ═══════════════════════════════════════════════════════════════════════
+
+@pytest.mark.l1
+@pytest.mark.verifies("peierls-unified")
+class TestCylinderKernelRowSum:
+    r"""Cylinder K-matrix row-sum equals the semi-analytical vacuum-BC
+    uniform-source flux at machine precision.
+
+    Identity: :math:`\sum_j K_{ij}\cdot 1 \;=\; \Sigma_t\,\varphi_{\rm cyl}(r_i)`
+    where :math:`\varphi_{\rm cyl}` is the reference from
+    :func:`cylinder_uniform_source_analytical` (single ``mpmath.quad``
+    over in-plane azimuth; Bickley :math:`\mathrm{Ki}_2` absorbing the
+    out-of-plane polar integral).
+
+    The LHS K is built via
+    :func:`build_volume_kernel_adaptive(CYLINDER_1D, ...)` — the unified
+    verification primitive at machine precision. Any deviation isolates
+    the bug to one of:
+
+    * the analytical reference (the new closed-form integral),
+    * the unified primitive's geometry primitives (:meth:`CurvilinearGeometry.rho_max`,
+      :meth:`~.source_position`, :meth:`~.optical_depth_along_ray`,
+      :meth:`~.volume_kernel_mp`).
+
+    The parametrisation sweeps one-MFP, thin-larger-radius, and
+    thick-smaller-radius regimes. Small N (one panel × ``p=2`` = 2
+    nodes) keeps the N² adaptive K cost bounded.
+    """
+
+    @pytest.mark.parametrize("R, sig_t", [
+        (1.0, 1.0),   # 1 MFP cylinder
+        (2.0, 0.5),   # same optical thickness, larger R
+        (0.5, 2.0),   # same optical thickness, smaller R
+    ])
+    def test_row_sum_matches_analytical_uniform_source(self, R, sig_t):
+        dps = 25
+        radii = np.array([R])
+        sig_t_arr = np.array([sig_t])
+        r_nodes, _, panel_bounds = composite_gl_r(
+            radii, n_panels_per_region=1, p_order=2, dps=dps,
+        )
+        K = build_volume_kernel_adaptive(
+            CYLINDER_1D, r_nodes, panel_bounds, radii, sig_t_arr,
+            dps=dps,
+        )
+        N = len(r_nodes)
+        for i in range(N):
+            ref = sig_t * float(cylinder_uniform_source_analytical(
+                float(r_nodes[i]), R, sig_t, dps=dps,
+            ))
+            got = float(K[i].sum())
+            if abs(ref) > 1e-30:
+                rel = abs(got - ref) / abs(ref)
+                assert rel < 1e-10, (
+                    f"Cylinder K row-sum at r={r_nodes[i]:.4f} "
+                    f"(R={R}, Σ_t={sig_t}): K-sum={got:.10e}, "
+                    f"σ·φ_analytical={ref:.10e}, rel={rel:.3e}. "
+                    f"Localises bug to the analytical reference or the "
+                    f"unified primitive's geometry primitives."
+                )
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("peierls-unified")
+class TestSphereKernelRowSum:
+    r"""Sphere K-matrix row-sum equals the semi-analytical vacuum-BC
+    uniform-source flux at machine precision.
+
+    Identity: :math:`\sum_j K_{ij}\cdot 1 \;=\; \Sigma_t\,\varphi_{\rm sph}(r_i)`
+    where :math:`\varphi_{\rm sph}` is the reference from
+    :func:`sphere_uniform_source_analytical` (single ``mpmath.quad``
+    over :math:`\mu = \cos\Theta`; spherical symmetry collapses the
+    azimuthal integral analytically).
+
+    The LHS K is built via
+    :func:`build_volume_kernel_adaptive(SPHERE_1D, ...)`. Same pattern
+    and rationale as :class:`TestCylinderKernelRowSum`.
+    """
+
+    @pytest.mark.parametrize("R, sig_t", [
+        (1.0, 1.0),   # 1 MFP sphere
+        (2.0, 0.5),   # same optical thickness, larger R
+        (0.5, 2.0),   # same optical thickness, smaller R
+    ])
+    def test_row_sum_matches_analytical_uniform_source(self, R, sig_t):
+        dps = 25
+        radii = np.array([R])
+        sig_t_arr = np.array([sig_t])
+        r_nodes, _, panel_bounds = composite_gl_r(
+            radii, n_panels_per_region=1, p_order=2, dps=dps,
+        )
+        K = build_volume_kernel_adaptive(
+            SPHERE_1D, r_nodes, panel_bounds, radii, sig_t_arr,
+            dps=dps,
+        )
+        N = len(r_nodes)
+        for i in range(N):
+            ref = sig_t * float(sphere_uniform_source_analytical(
+                float(r_nodes[i]), R, sig_t, dps=dps,
+            ))
+            got = float(K[i].sum())
+            if abs(ref) > 1e-30:
+                rel = abs(got - ref) / abs(ref)
+                assert rel < 1e-10, (
+                    f"Sphere K row-sum at r={r_nodes[i]:.4f} "
+                    f"(R={R}, Σ_t={sig_t}): K-sum={got:.10e}, "
+                    f"σ·φ_analytical={ref:.10e}, rel={rel:.3e}. "
+                    f"Localises bug to the analytical reference or the "
+                    f"unified primitive's geometry primitives."
+                )

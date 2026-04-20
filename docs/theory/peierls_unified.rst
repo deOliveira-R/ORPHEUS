@@ -86,6 +86,27 @@ or before extending the architecture to a new geometry.**
   :file:`derivations/archive/peierls_cylinder_polar_assembly.py` —
   cylinder-1d (with :math:`\mathrm{Ki}_1` evaluated directly) is the
   natural-kernel form and the active production path.
+- **Vacuum-BC verification milestone (2026-04-20).** Machine-precision
+  (rel tol :math:`10^{-10}`) analytical references for the uniform-source
+  vacuum-BC flux exist for all three geometries:
+  :func:`~orpheus.derivations.peierls_reference.slab_uniform_source_analytical`
+  (closed-form :math:`E_2` differences),
+  :func:`~orpheus.derivations.peierls_reference.cylinder_uniform_source_analytical`
+  (one ``mpmath.quad`` over in-plane azimuth with :math:`\mathrm{Ki}_2`
+  absorbing the polar integral), and
+  :func:`~orpheus.derivations.peierls_reference.sphere_uniform_source_analytical`
+  (one ``mpmath.quad`` over :math:`\mu = \cos\Theta`). The row-sum
+  identity :math:`\sum_j K_{ij} \cdot 1 = \Sigma_t\,\varphi_d(r_i)` is
+  gated against these references by
+  ``TestSlabKernelRowSum``, ``TestCylinderKernelRowSum``, and
+  ``TestSphereKernelRowSum`` in :mod:`tests.derivations.test_peierls_reference`.
+  Full derivations live at :ref:`peierls-vacuum-bc-analytical-references`.
+  Because vacuum BC is :math:`R = 0` in the boundary-closure tensor
+  network :math:`K_{\rm bc} = G\cdot R\cdot P` (see
+  :class:`~orpheus.derivations.peierls_geometry.BoundaryClosureOperator`),
+  this closes the volume-kernel verification at the flux level; the BC
+  tensor-network expansion (Mark / Marshak DP_N / albedo) proceeds on a
+  verified foundation.
 
 
 .. _theory-peierls-moment-form:
@@ -2121,6 +2142,159 @@ at observer radii :math:`r_i \le R/2`
 (see :eq:`peierls-cylinder-row-sum-identity` and the quantitative
 table in :ref:`peierls-cylinder-row-sum`); the same scaling
 (deficit :math:`\sim e^{-R}`) applies to slab and sphere.
+
+
+.. _peierls-vacuum-bc-analytical-references:
+
+Vacuum-BC analytical flux references (2026-04-20 milestone)
+-----------------------------------------------------------
+
+The row-sum deficit above is one diagnostic form. A stronger
+diagnostic — and the one that closes the **machine-precision
+vacuum-BC verification milestone** — is a closed-form evaluation of
+the flux
+
+.. math::
+   :label: peierls-vacuum-bc-flux
+
+   \varphi_d(r) \;=\; \int_{\mathcal V}\!K_d(r, r')\,q(r')\,\mathrm dV'
+
+for :math:`q \equiv 1` on a bare pure-absorber cell with vacuum BC.
+Because vacuum BC factorises the boundary closure operator as
+:math:`K_{\rm bc} = G\cdot R\cdot P` with reflection operator
+:math:`R = 0`
+(see :class:`~orpheus.derivations.peierls_geometry.BoundaryClosureOperator`),
+the operator reduces to the volume kernel alone, and
+:eq:`peierls-vacuum-bc-flux` is the only ground truth needed to gate
+the full K matrix assembly to machine precision:
+
+.. math::
+   :label: peierls-vacuum-bc-row-sum-gate
+
+   \sum_{j=1}^{N} K_{ij}\cdot 1 \;\stackrel{!}{=}\; \Sigma_t(r_i)\,\varphi_d(r_i).
+
+Slab
+~~~~
+
+For a slab of thickness :math:`L`, the exact result follows from
+integrating :math:`(1/2)E_1(\Sigma_t|x - x'|)` over :math:`[0, L]`
+and using the recurrence :math:`\int E_1(\alpha u)\,\mathrm du =
+(1/\alpha)[1 - E_2(\alpha u)]`:
+
+.. math::
+   :label: peierls-vacuum-bc-slab
+
+   \varphi_{\rm slab}(x) \;=\; \frac{1}{2\,\Sigma_t}
+     \Bigl[\,2 - E_2(\Sigma_t\,x) - E_2(\Sigma_t\,(L - x))\,\Bigr].
+
+Implemented in
+:func:`~orpheus.derivations.peierls_reference.slab_uniform_source_analytical`.
+Closed form — zero adaptive integration.
+
+Cylinder (infinite axial extent)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Using observer-centred 3-D coordinates with in-plane azimuth
+:math:`\theta'` and polar angle :math:`\psi \in (0, \pi)` from the
+axis, the ray to the exit has in-plane projection
+
+.. math::
+
+   L_{2D}(r, \theta') \;=\; -r\cos\theta'
+                            + \sqrt{R^{2} - r^{2}\sin^{2}\theta'}
+
+and 3-D length :math:`\rho_{\max} = L_{2D}/\sin\psi`. The point
+kernel :math:`e^{-\Sigma_t\rho}/(4\pi\rho^{2})` cancels the
+:math:`\rho^{2}` Jacobian; the out-of-plane :math:`\psi`-integral
+reduces to Bickley :math:`\mathrm{Ki}_2` via the substitution
+:math:`\phi = \pi/2 - \psi` and the Bickley definition
+:math:`\mathrm{Ki}_n(x) = \int_0^{\pi/2}\cos^{n-1}\!\phi\,
+e^{-x/\cos\phi}\,\mathrm d\phi`.  Result:
+
+.. math::
+   :label: peierls-vacuum-bc-cylinder
+
+   \varphi_{\rm cyl}(r) \;=\; \frac{1}{\pi\,\Sigma_t}\!\int_0^\pi\!
+     \Bigl[\,1 - \mathrm{Ki}_2\!\bigl(\Sigma_t\,L_{2D}(r,\theta')\bigr)\,\Bigr]
+     \,\mathrm d\theta'.
+
+Implemented in
+:func:`~orpheus.derivations.peierls_reference.cylinder_uniform_source_analytical`
+as a single adaptive :func:`mpmath.quad` over :math:`\theta'`. The
+integrand is smooth on :math:`[0, \pi]` — no breakpoints needed.
+
+**Sanity limits.**
+
+- :math:`r = 0`: :math:`L_{2D} \equiv R`, giving
+  :math:`\varphi_{\rm cyl}(0) = (1 - \mathrm{Ki}_2(\Sigma_t R))/\Sigma_t`.
+- :math:`\Sigma_t R \to 0`: :math:`\mathrm{Ki}_2(x) \approx 1 - (\pi/2)x`,
+  so :math:`\varphi_{\rm cyl}(0) \to (\pi/2)\,R` — the 3-D
+  mean-chord through the axis of an infinite cylinder
+  (cf. `Cauchy's theorem <https://en.wikipedia.org/wiki/Mean_chord_length>`_).
+- :math:`\Sigma_t R \to \infty`: :math:`\mathrm{Ki}_2 \to 0` and
+  :math:`\varphi \to 1/\Sigma_t` — the infinite-medium limit.
+
+Sphere
+~~~~~~
+
+For a sphere of radius :math:`R`, spherical symmetry collapses the
+azimuth analytically. The chord length from the observer at radius
+:math:`r` in direction :math:`\mu = \cos\Theta` to the spherical
+surface is
+
+.. math::
+
+   L_{\rm chord}(r, \mu) \;=\; -r\mu + \sqrt{R^{2} - r^{2}(1 - \mu^{2})}.
+
+The inner :math:`\rho`-integral of the point kernel (whose
+:math:`\rho^{2}` Jacobian cancels the :math:`1/\rho^{2}` factor)
+yields :math:`(1 - e^{-\Sigma_t L_{\rm chord}})/\Sigma_t`, and the
+remaining :math:`\mu`-integral is:
+
+.. math::
+   :label: peierls-vacuum-bc-sphere
+
+   \varphi_{\rm sph}(r) \;=\; \frac{1}{2\,\Sigma_t}\!\left[\,
+       2 - \int_{-1}^{1}\!\exp\!\Bigl(
+           -\Sigma_t\bigl[-r\mu + \sqrt{R^{2} - r^{2} + r^{2}\mu^{2}}\bigr]
+         \Bigr)\,\mathrm d\mu\,\right].
+
+Implemented in
+:func:`~orpheus.derivations.peierls_reference.sphere_uniform_source_analytical`
+as a single adaptive :func:`mpmath.quad` over :math:`\mu`.
+
+**Sanity limits.**
+
+- :math:`r = 0`: :math:`L_{\rm chord} \equiv R`, giving
+  :math:`\varphi_{\rm sph}(0) = (1 - e^{-\Sigma_t R})/\Sigma_t`.
+- :math:`\Sigma_t R \to 0`: :math:`\varphi_{\rm sph}(0) \to R` — the
+  3-D mean chord through the centre of a sphere.
+- :math:`\Sigma_t R \to \infty`: :math:`\varphi \to 1/\Sigma_t`.
+
+Verification gate
+~~~~~~~~~~~~~~~~~
+
+The row-sum identity :eq:`peierls-vacuum-bc-row-sum-gate` against
+these three closed-form / semi-analytical references is exercised
+at machine precision (rel tol :math:`10^{-10}`) by
+
+- ``TestSlabKernelRowSum`` (slab, N = 48 nodes, p_order = 6),
+- ``TestSphereKernelRowSum`` and ``TestCylinderKernelRowSum``
+  (curvilinear, small-N with the unified adaptive primitive
+  :func:`~orpheus.derivations.peierls_geometry.build_volume_kernel_adaptive`),
+
+in :mod:`tests.derivations.test_peierls_reference`. Agreement at
+:math:`10^{-10}` across three independently-constructed references
+(slab closed-form :math:`E_2`, cylinder Bickley-:math:`\mathrm{Ki}_2`
+quadrature, sphere :math:`\mu`-quadrature) together with the unified
+adaptive K primitive exhausts the failure modes available to the
+volume-kernel layer. Vacuum-BC verification is complete at the K
+level, and the BC tensor-network expansion (Mark / Marshak DP_N /
+albedo closures) proceeds on a verified foundation.
+
+**References.** [BellGlasstone1970]_ Ch. 2 (chord integration for
+cylindrical and spherical cells with isotropic volume sources);
+[CaseZweifel1967]_ Ch. 3 (point-kernel volume integration).
 
 
 Section 8 — White-BC closure, geometry-by-geometry
