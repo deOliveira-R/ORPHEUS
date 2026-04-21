@@ -59,36 +59,52 @@ reflection operator.
 
 ## Where the interface-current material actually lives in Stamm'ler-Abbate
 
-Not in Chapter VI. The book is organized roughly:
+**Chapter IV** ("Integral Transport Theory; Collision Probabilities",
+pp. 105-141) is the CP + IC chapter. Now confirmed — PDF
+`/workspaces/ORPHEUS/Stammler(1983)Chapter4.pdf` is on disk and has
+been fully extracted (see
+`rank_n_closure_four_references_synthesis.md` in this directory for
+the cross-reference).
 
-- Ch. I-II: Boltzmann equation foundations
-- Ch. III: Collision probability method (this is where CP primitives,
-  Wigner-Seitz cells, and interface currents appear)
-- Ch. IV: Integral transport, P_L theory in slab
-- Ch. V: P_L spherical-harmonics in multi-D
-- **Ch. VI: SN method** ← the PDF we have
-- Ch. VII+: resonance treatment, thermalization, reactor calculation
+**Important**: Stamm'ler Ch.IV uses a **scalar (rank-0)
+cosine-return / white-BC** interface-current closure throughout.
+Eqs. 29-37 build the closure from:
 
-For the rank-N interface-current formulation, the relevant chapter
-in Stamm'ler-Abbate is **Chapter III (Collision Probability Method)**
-— NOT Chapter VI. We do not have a PDF of Chapter III on disk.
+- a single integrated partial in-current j⁻ per face (Eq. 29)
+- cosine (Lambertian) return distribution at white boundary
+- scalar multi-reflection `Y_i(a) = Y_i / (1 − a(1−Γ))` (Eq. 34)
+- multicollision blackness Γ = Σᵢ Σ_{r,i} V_i Y_i (Eq. 32)
+
+**There is no Legendre-moment / DP_N / rank-N ladder in Stamm'ler
+Ch.IV or Ch.VI.** Stamm'ler-Abbate does not treat rank-N IC at all.
+The book's CP content stops at the scalar closure (which the
+`subroutine COPRAN` on pp. 124-125 programs).
+
+Contrary to the guess above, Ch. III is not the CP chapter
+(Ch. III per the implicit chapter numbering is a different topic
+and we have no PDF; the table of contents accessible to us shows
+Ch. IV = CP/IC).
 
 ## Follow-up: where to actually get the rank-N per-face formulation
 
-Since Stamm'ler-Abbate Ch. VI is the wrong chapter, the canonical
-rank-N per-face closure still lives in:
+Based on the four-reference cross-check
+(`rank_n_closure_four_references_synthesis.md`), the rank-N Legendre
+ladder is NOT in Ligou 1982 Ch.8, Sanchez 2002 NSE 140, Stamm'ler
+1983 Ch.IV, or Stacey 2007 Ch.9 — all four use scalar/DP-0. The
+§III.F.1 ladder of Sanchez-McCormick 1982 appears to be a **lone
+formulation** without independent cross-validation in the standard
+reactor-physics textbook corpus.
 
-1. **Sanchez & McCormick (1982)** NSE 80 — see
-   `sanchez_mccormick_rank_n_per_face.md` in this memory directory
-   for the extraction we already have.
-2. **Stamm'ler-Abbate Ch. III** — would need to acquire PDF
-   separately. Bonalumi and Pellaud formulations are typically
-   attributed here.
-3. **Hébert (2009)** *Applied Reactor Physics* — Ch. 3 covers CP
-   with interface currents, generally more modern notation.
-4. **Stepanek (1982, 1984)** — the anisotropic-interface-current
-   author cited in the prior Peierls investigation. Original papers
-   in NSE / ANE.
+Candidate sources still untested:
+
+1. **Hébert (2009/2020)** *Applied Reactor Physics* Ch. 3 — modern
+   textbook. Not yet extracted; highest-priority next read if a
+   second rank-N derivation is needed.
+2. **Stepanek (1982, 1984)** — anisotropic-interface-current author.
+   Original papers in NSE/ANE.
+3. **Bonalumi, Pellaud** — 1960s-70s primary rank-N literature.
+4. **APOLLO/TDT code documentation** (Sanchez 2002 reference 12) —
+   export-controlled, not accessible.
 
 ## How to apply
 

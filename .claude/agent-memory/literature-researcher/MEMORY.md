@@ -1,7 +1,9 @@
 - [Zotero MCP flakiness diagnosis](reference_zotero_flakiness.md) — recognize a broken Zotero server (0-hit + conn-refused pattern) and fail over to Tier 2.
 - [Phase 4.2 cylinder Peierls reference](phase4_cylinder_peierls.md) — Ki1 vs Ki3, 1/π prefactor, chord branches, rank-N_y white BC, benchmark radii.
 - [DP_N is slab-only](dpn_curvilinear_nonexistence.md) — no Stepanek-style DP_N k_eff tables exist for cylinder/sphere; Sood 2003 F_N is the correct truth set.
-- [CP moment-integral recursions](cp_moment_integrals.md) — J_k slab and T_k cylinder closed forms: cite A&S §5.1 + Hébert §3 / Stamm'ler-Abbate Ch.4-6, NOT Carlvik 1965 or Sanchez-McCormick 1982.
-- [Rank-N per-face interface currents](rank_n_interface_current_canonical.md) — canonical ref is Sanchez-McCormick 1982 §III.F; (2n+1) belongs in R not W; reciprocity transposes mode indices at N≥1.
+- [CP moment-integral recursions](cp_moment_integrals.md) — J_k slab and T_k cylinder closed forms: cite A&S §5.1 + Hébert §3.4-3.5. Stamm'ler Ch.IV is rank-0 flat-source only; NOT a home for higher-order moment recursions.
+- [Rank-N per-face interface currents](rank_n_interface_current_canonical.md) — Sanchez-McCormick 1982 §III.F is the LONE source in the standard textbook corpus; Ligou/Sanchez-2002/Stamm'ler/Stacey all use scalar DP-0 instead. Treat §III.F.1 k_eff claims with scepticism.
 - [Sanchez-McCormick §III.F.1 rank-N primitives](sanchez_mccormick_rank_n_per_face.md) — Eq.166 cluster verbatim; the σ_t-dependent N=2 residual in ORPHEUS is a missing (Ω·n) µ-weight, not (ρ/R)².
+- [Rank-N closure — four-reference synthesis](rank_n_closure_four_references_synthesis.md) — Ligou 1982 Ch.8 + Sanchez 2002 + Stamm'ler 1983 Ch.IV + Stacey 2007 Ch.9 all use scalar/DP-0; ORPHEUS F.4 IS the textbook closure. Plateau explained by non-conservation of higher modes in §III.F.1.
+- [Stamm'ler-Abbate Ch.VI scope](stammler_1983_ch6_interface_currents.md) — Ch.VI is SN method; Ch.IV is CP + scalar IC (rank-0 only). Stamm'ler-Abbate does NOT contain rank-N interface currents anywhere.
 - [lessons.md](lessons.md) — prior behavioral corrections (pre-existing).
