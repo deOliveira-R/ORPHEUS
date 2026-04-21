@@ -1,0 +1,7 @@
+- [Zotero MCP flakiness diagnosis](reference_zotero_flakiness.md) — recognize a broken Zotero server (0-hit + conn-refused pattern) and fail over to Tier 2.
+- [Phase 4.2 cylinder Peierls reference](phase4_cylinder_peierls.md) — Ki1 vs Ki3, 1/π prefactor, chord branches, rank-N_y white BC, benchmark radii.
+- [DP_N is slab-only](dpn_curvilinear_nonexistence.md) — no Stepanek-style DP_N k_eff tables exist for cylinder/sphere; Sood 2003 F_N is the correct truth set.
+- [CP moment-integral recursions](cp_moment_integrals.md) — J_k slab and T_k cylinder closed forms: cite A&S §5.1 + Hébert §3 / Stamm'ler-Abbate Ch.4-6, NOT Carlvik 1965 or Sanchez-McCormick 1982.
+- [Rank-N per-face interface currents](rank_n_interface_current_canonical.md) — canonical ref is Sanchez-McCormick 1982 §III.F; (2n+1) belongs in R not W; reciprocity transposes mode indices at N≥1.
+- [Sanchez-McCormick §III.F.1 rank-N primitives](sanchez_mccormick_rank_n_per_face.md) — Eq.166 cluster verbatim; the σ_t-dependent N=2 residual in ORPHEUS is a missing (Ω·n) µ-weight, not (ρ/R)².
+- [lessons.md](lessons.md) — prior behavioral corrections (pre-existing).
