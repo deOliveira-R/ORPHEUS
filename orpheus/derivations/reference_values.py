@@ -154,20 +154,40 @@ def _build_continuous_registry() -> dict[str, ContinuousReferenceSolution]:
     """Import retrofitted derivation modules and collect their continuous references.
 
     As each module in :mod:`orpheus.derivations` is upgraded to the
-    Phase-0 contract, add its import here. The function signature
-    modules are expected to expose is ``continuous_cases() -> list[ContinuousReferenceSolution]``.
+    Phase-0 contract (a ``continuous_cases() -> list[ContinuousReferenceSolution]``
+    entry point), it is **auto-discovered** — no manual registration
+    required. This replaces the previous manual ``_continuous_modules``
+    list that required incremental updates and was a known source of
+    "module added but not registered" bugs (e.g., the cylinder / sphere
+    hollow F.4 registration this required two follow-up commits).
+
+    The walker examines every ``orpheus.derivations.*`` module, checks
+    for a callable ``continuous_cases`` attribute, and ingests its
+    results. Modules with no ``continuous_cases`` are silently skipped
+    (the contract is opt-in via the presence of the function).
     """
+    import importlib
+    import pkgutil
+
+    from . import __name__ as pkg_name
+    from . import __path__ as pkg_path
+
     refs: dict[str, ContinuousReferenceSolution] = {}
 
-    # Populated incrementally through Phases 1–5 of the verification
-    # campaign.
-    from . import diffusion, homogeneous, moc_mms, peierls_slab, sn, sn_mms
-    _continuous_modules: list = [homogeneous, diffusion, sn, sn_mms, moc_mms, peierls_slab]
-
-    for module in _continuous_modules:
-        if hasattr(module, "continuous_cases"):
-            for ref in module.continuous_cases():
-                refs[ref.name] = ref
+    # Walk all orpheus.derivations.* modules. Skip private modules
+    # (leading underscore) since the contract is "opt-in public".
+    for module_info in pkgutil.iter_modules(pkg_path):
+        if module_info.name.startswith("_"):
+            continue
+        try:
+            module = importlib.import_module(f"{pkg_name}.{module_info.name}")
+        except ImportError:
+            continue
+        cases_fn = getattr(module, "continuous_cases", None)
+        if not callable(cases_fn):
+            continue
+        for ref in cases_fn():
+            refs[ref.name] = ref
 
     return refs
 

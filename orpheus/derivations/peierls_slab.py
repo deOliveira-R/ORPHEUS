@@ -52,6 +52,19 @@ from .peierls_geometry import (
     map_gl_to,
 )
 
+# Topological class — slab has two parallel boundary faces at x=0 and
+# x=L, so it belongs to the same F.4-applicable topology class as
+# hollow cylinder and hollow sphere. See
+# :ref:`theory-peierls-capabilities` (Class A) and
+# :file:`.claude/plans/topology-based-consolidation.md`. The native
+# E_1 Nyström machinery in this module is distinct from the curvilinear
+# CurvilinearGeometry machinery (slab's log singularity does not factor
+# through the polar reformulation); a future session will unify via
+# arbitrary-precision quadrature on the polar form. The TOPOLOGY label
+# below is what the case-builder uses to register slab alongside hollow
+# cyl / hollow sph, even while the implementation stays separate.
+TOPOLOGY: str = "two_surface"
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Product-integration for the log singularity
@@ -670,11 +683,15 @@ def _build_peierls_slab_case(
 
 
 def continuous_cases() -> list[ContinuousReferenceSolution]:
-    """Return Peierls slab continuous references for the registry.
+    """Deprecated: per-geometry case registration is centralized.
 
-    Uses moderate resolution (8 panels × 6 points per region) for
-    fast import.  Tests that need higher precision should call
-    ``_build_peierls_slab_case`` directly with larger parameters.
+    Returns an empty list. Peierls continuous references are
+    registered by
+    :func:`orpheus.derivations.peierls_cases.continuous_cases`
+    (the topology-organized single source of truth — see
+    :file:`.claude/plans/topology-based-consolidation.md` Stage T2).
+
+    The case-builder :func:`_build_peierls_slab_case` remains as
+    the underlying constructor; ``peierls_cases`` imports it.
     """
-    return [_build_peierls_slab_case("2g", 2, n_panels_per_region=4, p_order=4,
-                                     precision_digits=20)]
+    return []
