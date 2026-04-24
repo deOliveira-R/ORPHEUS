@@ -531,3 +531,185 @@ class TestMG2GHollowRegistration:
         assert np.isfinite(ref.k_eff) and ref.k_eff < 100.0
         assert "2eg" in ref.name
         assert ref.operator_form == "integral-peierls"
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Tier 2b — Issue #130 Phase G.5 slab routing infrastructure
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.foundation
+class TestSlabViaUnifiedRoutingInfrastructure:
+    r"""Issue #130 Phase G.5 routing-switch infrastructure checks.
+
+    These tests verify that the plumbing works:
+
+    - The ``_SLAB_VIA_UNIFIED`` flag can be flipped.
+    - ``_build_peierls_slab_case_via_unified`` produces a valid
+      :class:`ContinuousReferenceSolution` with the same name as the
+      native-path reference.
+    - ``ORPHEUS_SLAB_VIA_UNIFIED=1`` env-var is honoured.
+
+    **These tests do NOT assert parity** between the native and
+    unified paths — that's a separate verification gate. The current
+    state (2026-04-24) is that the two paths disagree by ~1.5 % on
+    the ``peierls_slab_2eg_2rg`` fixture at modest quadrature, which
+    is why the default stays on native. The discrepancy
+    investigation is deferred as a follow-up issue.
+    """
+
+    def test_default_flag_is_native(self):
+        """Default routing is the native E₁ path (``_SLAB_VIA_UNIFIED
+        is False``). Flipping the default requires an explicit code
+        change AND a resolved discrepancy per Issue #130."""
+        import importlib
+        import os
+
+        from orpheus.derivations import peierls_cases as pc
+
+        # Clear any env-var the test runner might have set, reload,
+        # then confirm the default is False.
+        old = os.environ.pop("ORPHEUS_SLAB_VIA_UNIFIED", None)
+        try:
+            importlib.reload(pc)
+            assert pc._SLAB_VIA_UNIFIED is False, (
+                "_SLAB_VIA_UNIFIED must default to False until the "
+                "Phase G.5 parity gate is met. See Issue #130."
+            )
+        finally:
+            if old is not None:
+                os.environ["ORPHEUS_SLAB_VIA_UNIFIED"] = old
+            importlib.reload(pc)
+
+    def test_env_var_overrides_default(self):
+        """``ORPHEUS_SLAB_VIA_UNIFIED=1`` flips the flag on import."""
+        import importlib
+        import os
+
+        from orpheus.derivations import peierls_cases as pc
+
+        old = os.environ.get("ORPHEUS_SLAB_VIA_UNIFIED")
+        os.environ["ORPHEUS_SLAB_VIA_UNIFIED"] = "1"
+        try:
+            importlib.reload(pc)
+            assert pc._SLAB_VIA_UNIFIED is True
+        finally:
+            if old is None:
+                os.environ.pop("ORPHEUS_SLAB_VIA_UNIFIED", None)
+            else:
+                os.environ["ORPHEUS_SLAB_VIA_UNIFIED"] = old
+            importlib.reload(pc)
+
+    def test_unified_builder_produces_valid_reference(self):
+        """The unified-path slab builder runs to completion on the
+        1G 1-region fixture and emits a well-formed
+        ``ContinuousReferenceSolution``. Uses tight quadrature to
+        keep the cost bounded (~30 s)."""
+        from orpheus.derivations.peierls_cases import (
+            _build_peierls_slab_case_via_unified,
+        )
+
+        ref = _build_peierls_slab_case_via_unified(
+            ng_key="1g", n_regions=1,
+            n_panels_per_region=1, p_order=3, precision_digits=15,
+        )
+        assert ref.name == "peierls_slab_1eg_1rg"
+        assert ref.problem.n_groups == 1
+        assert ref.operator_form == "integral-peierls"
+        assert ref.k_eff is not None and ref.k_eff > 0.0
+        assert np.isfinite(ref.k_eff) and ref.k_eff < 100.0
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.verifies("peierls-unified")
+class TestSlabViaUnifiedDiscrepancyDiagnostic:
+    r"""Phase G.5 (Issue #130) diagnostic: quantify the current gap
+    between native and unified slab builds on the shipped 2G 2-region
+    fixture.
+
+    This is a **diagnostic recording test**, not a pass/fail gate.
+    It runs both routing paths on the ``peierls_slab_2eg_2rg``
+    fixture at modest quadrature (keeping cost manageable; full-
+    precision benchmark would take > 1 h), records the rel_diff,
+    and asserts only the loose tolerance ``rel_diff < 5 %`` —
+    intended to catch regressions of the current measurement, not
+    to certify agreement.
+
+    Current measurement (2026-04-24, `n_panels_per_region=2`,
+    `p_order=3`, `dps=20`): **rel_diff ≈ 1.5 %**, unified
+    k_eff ≈ 1.2455, native k_eff ≈ 1.2265. Cost ratio ≈ 606×.
+
+    Closing this gap to 1e-10 (the original Phase G.5 acceptance
+    criterion) is deferred to a follow-up numerics investigation
+    (new Issue TBD). When that lands, the assertion here should be
+    tightened and the ``_SLAB_VIA_UNIFIED`` default flipped.
+
+    Test is ``@pytest.mark.slow`` — skip in CI's fast suite.
+    """
+
+    def test_2eg_2rg_discrepancy_bounded_below_5pct(self):
+        import numpy as _np
+        from orpheus.derivations._xs_library import LAYOUTS, get_xs
+        from orpheus.derivations.cp_slab import _THICKNESSES
+        from orpheus.derivations.peierls_geometry import (
+            SLAB_POLAR_1D, solve_peierls_mg,
+        )
+        from orpheus.derivations.peierls_slab import (
+            solve_peierls_eigenvalue,
+        )
+
+        # Fixture setup
+        n_regions = 2
+        ng_key = "2g"
+        layout = LAYOUTS[n_regions]
+        thicknesses = _THICKNESSES[n_regions]
+        xs_list = [get_xs(region, ng_key) for region in layout]
+
+        sig_t_list = [xs["sig_t"] for xs in xs_list]
+        sig_s_list = [xs["sig_s"] for xs in xs_list]
+        nu_list = [xs["nu"] * xs["sig_f"] for xs in xs_list]
+        chi_list = [xs["chi"] for xs in xs_list]
+
+        sig_t_mg = _np.stack(sig_t_list)
+        sig_s_mg = _np.stack(sig_s_list)
+        nu_sig_f_mg = _np.stack(nu_list)
+        chi_mg = _np.stack(chi_list)
+        radii_mg = _np.cumsum(_np.asarray(thicknesses, dtype=float))
+
+        n_panels, p_order, dps = 2, 3, 20
+
+        # Native path — fast. O(h²) E₁ Nyström; converged to 1e-8+
+        # at this N for this problem class.
+        sol_nat = solve_peierls_eigenvalue(
+            sig_t_regions=sig_t_list,
+            sig_s_matrices=sig_s_list,
+            nu_sig_f_all=nu_list,
+            chi_all=chi_list,
+            thicknesses=thicknesses,
+            n_panels_per_region=n_panels, p_order=p_order,
+            precision_digits=dps, boundary="white",
+        )
+
+        # Unified MG path — slow. Expect rel_diff ≈ 1.5 % per
+        # 2026-04-24 benchmark.
+        sol_mg = solve_peierls_mg(
+            SLAB_POLAR_1D, radii_mg,
+            sig_t=sig_t_mg, sig_s=sig_s_mg,
+            nu_sig_f=nu_sig_f_mg, chi=chi_mg,
+            boundary="white_f4",
+            n_panels_per_region=n_panels, p_order=p_order,
+            dps=dps, tol=1e-12,
+        )
+
+        rel = abs(sol_mg.k_eff - sol_nat.k_eff) / abs(sol_nat.k_eff)
+        # Loose bound — catch regressions of the recorded value, not
+        # certify agreement. The 1e-10 target for the ``_SLAB_VIA_UNIFIED``
+        # default flip is a separate investigation.
+        assert rel < 0.05, (
+            f"Phase G.5 slab discrepancy grew beyond 5 %: "
+            f"rel_diff={rel:.3e} (expected ≈ 1.5 % as of 2026-04-24). "
+            f"Unified={sol_mg.k_eff:.10f}, native={sol_nat.k_eff:.10f}. "
+            f"If this test fails, the unified path has regressed further; "
+            f"investigate before landing more MG code."
+        )

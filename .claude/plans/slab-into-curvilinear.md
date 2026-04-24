@@ -576,26 +576,61 @@ to the specific `exp(−Σ_t · L · e^v)` decay. Not blocking.
     for physics investigation. Not a shipping test. Sphinx
     narrative updated to document the finding.
 
-  - **G.5 ❌ BLOCKED on Issue #104 (multi-group)**. The shipped slab
-    reference is `peierls_slab_2eg_2rg` (2 groups × 2 regions).
-    `solve_peierls_1g` in `peierls_geometry.py` is 1-group by name
-    and implementation; `build_two_surface_case("slab", ...)` can
-    not be routed through the unified path until the multi-group
-    extension (Issue #104 / N2) lands. The plan's OQ2 conflated
-    "multi-region" with "multi-group" — the unified path handles
-    multi-*region* via the `radii` array, but multi-*group* is not
-    implemented.
+  - **G.5 ⚠️ INFRASTRUCTURE LANDED, ACTIVATION DEFERRED (2026-04-24,
+    Issue #130)**. After Issue #104 unblocked multi-group
+    `solve_peierls_mg`, this session ran the direct parity benchmark
+    the original plan called for. The result:
 
-    **Resolution**: filed as
-    [Issue #130](https://github.com/deOliveira-R/ORPHEUS/issues/130),
-    depends on #104. The `_SLAB_VIA_UNIFIED` flag and env-var
-    override are premature infrastructure until #104 lands.
+    - Native E₁ Nyström on `peierls_slab_2eg_2rg`:
+      k_eff = 1.226 530 511 976, 1.53 s wall time.
+    - Unified `solve_peierls_mg(SLAB_POLAR_1D, ..., "white_f4")`:
+      k_eff = 1.245 529 269 703, 930.11 s wall time.
+    - **rel_diff = 1.5 %, cost ratio = 606×** (N=12, dps=20).
+
+    That's far too large for default routing activation (plan
+    target: 1e-10). Single-region 1G (TestSlabPolarVsNativeE1KEff)
+    and single-region 2G with fabricated XS
+    (TestMGSlabPolarMatchesNativeSlabMG) both showed 1e-8
+    agreement, so the discrepancy appears specifically in the
+    multi-region multi-group regime of the unified path. Likely
+    causes (in decreasing likelihood):
+
+    1. Quadrature underconvergence for the specific XS combination
+       (region-B Σ_t,2 = 2.0 → deep thermal optical depth across
+       the moderator; adaptive `mpmath.quad` may terminate below
+       the E₁ Nyström's easy-regime precision at this N).
+    2. Multi-region ray walker subtlety (optical-depth
+       accumulation across material interfaces under 2G
+       assembly).
+    3. F.4 closure inter-group coupling on multi-region slabs.
+
+    **What landed anyway** (Issue #130 partial completion):
+
+    - `peierls_cases._SLAB_VIA_UNIFIED` flag, default `False`.
+    - `ORPHEUS_SLAB_VIA_UNIFIED=1` env-var override for bisection.
+    - `_build_peierls_slab_case_via_unified` unified-path builder.
+    - Dispatch in `build_two_surface_case("slab", ...)`.
+    - Diagnostic test
+      `TestSlabViaUnifiedDiscrepancyDiagnostic` that records the
+      current 1.5 % gap as a regression barometer (loose 5 %
+      bound — passes today, catches future degradation).
+    - Sphinx `§theory-peierls-slab-polar-g5-routing` documents the
+      benchmark + deferral.
+
+    **What's deferred** ([Issue #131](https://github.com/deOliveira-R/ORPHEUS/issues/131)):
+
+    - Root-cause the 1.5 % gap (probably a combined quadrature +
+      multi-region investigation).
+    - Tighten the diagnostic bound and flip `_SLAB_VIA_UNIFIED`
+      default when the gap reaches 1e-10.
 
 - **Outcomes for this plan**:
-  - 1G slab-polar verification-reference equivalence is now
+  - 1G slab-polar verification-reference equivalence is
     **proven** (G.1, G.2, G.3) — documented + tested + passing.
-  - Plan's claimed 2-session "land G.5" scope is not
-    achievable until Issue #104 lands.
-  - Plan's G.4 is a physics misconception; the hollow-cyl-to-slab
+  - G.4 is a physics misconception; the hollow-cyl-to-slab
     planar limit does not hold at 1e-8 under matched
-    `(Σ_t, Σ_s, νΣ_f, L)`. Future work.
+    `(Σ_t, Σ_s, νΣ_f, L)`. Future work (Issue #129).
+  - G.5 **infrastructure is in place** but activation blocked on
+    a ~1.5 % unified-vs-native k_eff gap discovered 2026-04-24.
+    Follow-up numerics investigation required before default
+    activation.

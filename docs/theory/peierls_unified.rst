@@ -791,11 +791,13 @@ not retired, as an independent cross-check implementation. Rationale:
    :func:`~orpheus.derivations.peierls_slab._basis_kernel_weights` is
    a documented instance of the classical Nyström-on-E₁ technique
    useful for future readers studying slab-specific numerics.
-3. **Low cost of retention.** Once the routing switch of Phase G.5
-   sets :data:`_SLAB_VIA_UNIFIED = True`, the legacy module is not
-   exercised by default but remains available for bisection via the
-   ``ORPHEUS_SLAB_VIA_E1=1`` environment variable override. It does
-   not add runtime cost to anyone who is not explicitly selecting it.
+3. **Low cost of retention.** The Phase G.5 routing switch
+   (Issue #130, 2026-04-24) landed the ``_SLAB_VIA_UNIFIED`` flag
+   and the ``ORPHEUS_SLAB_VIA_UNIFIED=1`` env-var override but kept
+   the **default on the native path** (see the following subsection
+   for the benchmark result that drove this decision). The native
+   E₁ Nyström remains the shipped reference generator; the unified
+   path can be opted into for testing / bisection.
 4. **L0 error-catalog references.** The entries at
    ``tests/l0_error_catalog.md`` lines 1168 and 1221 cite
    :func:`~orpheus.derivations.peierls_slab._build_kernel_matrix`
@@ -805,6 +807,95 @@ not retired, as an independent cross-check implementation. Rationale:
 path that is unfixable without major rework, the module can be moved
 to :file:`derivations/archive/` (reversible via ``git mv``) at that
 time. Do not delete.
+
+
+.. _theory-peierls-slab-polar-g5-routing:
+
+Subsection — Phase G.5 slab routing switch (Issue #130)
+--------------------------------------------------------
+
+**Status (2026-04-24): infrastructure landed, default activation
+deferred.**
+
+Phase G.5's goal was to route the shipped slab continuous reference
+(``peierls_slab_2eg_2rg``) through the unified
+:func:`~orpheus.derivations.peierls_geometry.solve_peierls_mg` +
+:data:`SLAB_POLAR_1D` path instead of the native
+:func:`~orpheus.derivations.peierls_slab.solve_peierls_eigenvalue`.
+The routing infrastructure landed as:
+
+- :data:`~orpheus.derivations.peierls_cases._SLAB_VIA_UNIFIED` —
+  module-level boolean; the
+  :func:`~orpheus.derivations.peierls_cases.build_two_surface_case`
+  dispatcher picks between native and unified based on its value.
+- ``ORPHEUS_SLAB_VIA_UNIFIED=1`` — environment-variable override
+  that flips the flag at import time for bisection.
+- :func:`~orpheus.derivations.peierls_cases._build_peierls_slab_case_via_unified`
+  — the unified-path case builder (symmetric with the native
+  ``_build_peierls_slab_case`` but uses ``solve_peierls_mg``).
+
+**Default value: False** (native E₁ Nyström path). The reason is a
+direct parity benchmark on the shipped ``peierls_slab_2eg_2rg``
+fixture at modest quadrature:
+
+.. list-table:: Phase G.5 parity benchmark (2026-04-24, N=12, dps=20)
+   :header-rows: 1
+
+   * - Path
+     - :math:`k_{\rm eff}`
+     - Wall time
+   * - Native E₁ Nyström (``boundary="white"``)
+     - 1.226 530 511 976
+     - 1.53 s
+   * - Unified ``solve_peierls_mg`` (``boundary="white_f4"``)
+     - 1.245 529 269 703
+     - 930.11 s
+   * - **Relative disagreement**
+     - **1.5 %**
+     - **606 × cost**
+
+The 1.5 % disagreement is far above the 1e-10 target the Phase G.5
+plan originally set for activation. The size of the gap, combined
+with the fact that prior single-region 1G and single-region 2G
+parity tests (:class:`TestSlabPolarVsNativeE1KEff`,
+:class:`TestMGSlabPolarMatchesNativeSlabMG`) both showed 1e-8
+agreement, points to a discrepancy that appears specifically in the
+**multi-region multi-group** regime of the unified adaptive-mpmath
+path. The most likely causes (in decreasing likelihood):
+
+1. **Quadrature underconvergence** for the specific XS combination
+   of region-B's Σ_t,2 = 2.0 (deep thermal optical depth across the
+   moderator) causing the adaptive ``mpmath.quad`` to terminate
+   before reaching the same precision class the native E₁ Nyström
+   achieves trivially at this N.
+2. **Multi-region ray walker** — a subtle issue in how the unified
+   path accumulates τ across material-interface crossings under the
+   2-group K matrix assembly. Panel-boundary breakpoints in the
+   inner ρ integral are inserted (panel boundaries coincide with
+   material interfaces at this N), so this is a secondary
+   suspicion.
+3. **F.4 closure inter-group coupling** — although the closure
+   primitives take per-region scalar Σ_t and are group-local by
+   construction (verified at Issue #104 scoping), a multi-region
+   2G combination may interact with the transmission W matrix in
+   a subtle way.
+
+The investigation is filed as
+`Issue #131 <https://github.com/deOliveira-R/ORPHEUS/issues/131>`_
+(see also the session trail in
+:file:`.claude/plans/slab-into-curvilinear.md`). Until it lands,
+the shipping ``peierls_slab_2eg_2rg`` reference continues to be
+produced by the native path and the ``_SLAB_VIA_UNIFIED`` flag
+defaults to False.
+
+**The diagnostic test**
+:class:`tests.derivations.test_peierls_multigroup.TestSlabViaUnifiedDiscrepancyDiagnostic`
+records the current gap as a regression barometer: it asserts only
+the loose bound ``rel_diff < 5 %`` so the test passes at the
+current ~1.5 % while catching future degradations (or
+improvements). When the discrepancy investigation resolves, the
+bound there should be tightened and the ``_SLAB_VIA_UNIFIED``
+default flipped in the same commit.
 
 
 Subsection — Related open questions
@@ -882,12 +973,15 @@ The shape wrappers have matching multi-group entry points:
 Slab continues to use the native
 :func:`~orpheus.derivations.peierls_slab.solve_peierls_eigenvalue`
 (E\ :sub:`1` Nyström block-Toeplitz assembly) for the shipped
-``peierls_slab_2eg_2rg`` continuous reference. Routing the slab
-reference through :func:`solve_peierls_mg(SLAB_POLAR_1D, \dots)` is
-tracked as Phase G.5 (`Issue #130 <https://github.com/deOliveira-R/ORPHEUS/issues/130>`_)
-and gated on a direct-precision benchmark — no expected bit-exact
-agreement because the two drivers use different underlying
-quadrature (adaptive tanh-sinh vs classical E\ :sub:`1` Nyström).
+``peierls_slab_2eg_2rg`` continuous reference. The Phase G.5
+routing switch (Issue #130) landed on 2026-04-24 with the
+:data:`~orpheus.derivations.peierls_cases._SLAB_VIA_UNIFIED` flag
+and ``ORPHEUS_SLAB_VIA_UNIFIED=1`` env-var override, but the
+default stays on the native path because a direct parity benchmark
+shows a ~1.5 % k_eff gap between the two routes on the shipped 2G
+2-region fixture — too large for default activation. See
+:ref:`theory-peierls-slab-polar-g5-routing` for the benchmark
+record and the deferred discrepancy investigation.
 
 
 Subsection — The multi-group operator form

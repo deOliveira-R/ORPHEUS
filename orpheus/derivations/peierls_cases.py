@@ -39,17 +39,34 @@ Slab note (2026-04-24): slab has two independent verification paths:
 
 Both paths are now multi-group capable as of Issue #104
 (2026-04-24); routing the slab continuous reference through the
-unified path is tracked as Issue #130 (Phase G.5) and gated on a
-benchmark not yet run at this file. Until then slab cases ship via
-the native E₁ module but the registration **key** lives here under
-Class A alongside the curvilinear hollow cells, because the closure
-class (F.4 scalar rank-2 per-face) and the verification methodology
-(L19 stability protocol) are identical across Class A regardless of
-machinery.
+unified path is tracked as Issue #130 (Phase G.5). **Routing
+infrastructure landed 2026-04-24; default activation deferred.**
+
+The ``_SLAB_VIA_UNIFIED`` flag below selects which path produces the
+shipped ``peierls_slab_{Ng}eg_{Nr}rg`` continuous reference.
+Setting the env var ``ORPHEUS_SLAB_VIA_UNIFIED=1`` forces the
+unified path for bisection / testing. The flag defaults to **False**
+(native E₁ Nyström) because the unified
+:func:`~orpheus.derivations.peierls_geometry.solve_peierls_mg`
+path, benchmarked on the shipped ``peierls_slab_2eg_2rg`` fixture
+at modest quadrature (n_panels_per_region=2, p_order=3, dps=20)
+gives ``k_eff = 1.245529`` vs the native ``k_eff = 1.226530`` — a
+1.5 % relative disagreement at 606× higher cost. This is too large
+a gap for a shipped reference; activation is gated on a follow-up
+discrepancy investigation (see the Sphinx theory page
+§theory-peierls-slab-polar for the benchmark record).
 """
 from __future__ import annotations
 
+import os as _os
+
 from ._reference import ContinuousReferenceSolution
+
+# Issue #130 Phase G.5 routing switch. See the module docstring for
+# the benchmark rationale on the False default.
+_SLAB_VIA_UNIFIED: bool = (
+    _os.environ.get("ORPHEUS_SLAB_VIA_UNIFIED", "0") == "1"
+)
 
 
 # ---------------------------------------------------------------------
@@ -103,6 +120,8 @@ def build_two_surface_case(
         :func:`build_one_surface_compact_case` for solid geometry.
     """
     if shape == "slab":
+        if _SLAB_VIA_UNIFIED:
+            return _build_peierls_slab_case_via_unified(ng_key, n_regions)
         from .peierls_slab import _build_peierls_slab_case
         return _build_peierls_slab_case(
             ng_key, n_regions,
@@ -142,6 +161,134 @@ def build_two_surface_case(
     raise ValueError(
         f"build_two_surface_case: unknown shape {shape!r}; "
         f"expected 'slab', 'cylinder-1d', or 'sphere-1d'"
+    )
+
+
+# ---------------------------------------------------------------------
+# Phase G.5 — slab routing through the unified adaptive-mpmath path
+# (Issue #130). Default-off; enabled by ``_SLAB_VIA_UNIFIED``.
+# ---------------------------------------------------------------------
+
+
+def _build_peierls_slab_case_via_unified(
+    ng_key: str,
+    n_regions: int,
+    n_panels_per_region: int = 16,
+    p_order: int = 6,
+    precision_digits: int = 30,
+) -> ContinuousReferenceSolution:
+    r"""Build the slab continuous reference through the unified
+    :func:`peierls_geometry.solve_peierls_mg` path
+    (:data:`peierls_geometry.SLAB_POLAR_1D` + adaptive ``mpmath.quad``
+    with forced :math:`\mu = 0` breakpoint).
+
+    Mirrors :func:`orpheus.derivations.peierls_slab._build_peierls_slab_case`
+    on inputs and on the ``ContinuousReferenceSolution`` output
+    schema. The difference is the K-matrix assembly route:
+
+    - Native path: classical :math:`E_1` Nyström with singularity
+      subtraction + product integration (fast, O(h²) convergence).
+    - Unified path: adaptive ``mpmath.quad`` on observer-centred
+      polar coords, one adaptive double-quad per K element
+      (verification-primitive precision, O(N²) adaptive cost).
+
+    **Not the default** for the shipped reference as of Issue #130
+    (2026-04-24). Benchmark at modest quadrature shows a ~1.5 %
+    rel_diff on the ``peierls_slab_2eg_2rg`` fixture — too large for
+    a shipped L1 reference. Enable via ``ORPHEUS_SLAB_VIA_UNIFIED=1``
+    for bisection / testing; default routing stays on the native
+    path until the discrepancy is resolved.
+    """
+    import numpy as _np
+
+    from ._xs_library import LAYOUTS, get_mixture, get_xs
+    from ._reference import ProblemSpec, Provenance
+    from .cp_slab import _THICKNESSES
+    from .peierls_geometry import SLAB_POLAR_1D, solve_peierls_mg
+    from .peierls_slab import _MAT_IDS
+
+    layout = LAYOUTS[n_regions]
+    ng = int(ng_key[0])
+    thicknesses = _THICKNESSES[n_regions]
+
+    xs_list = [get_xs(region, ng_key) for region in layout]
+
+    # (n_regions, ng) per-region per-group arrays.
+    sig_t = _np.stack(
+        [_np.asarray(xs["sig_t"], dtype=float) for xs in xs_list]
+    )
+    sig_s = _np.stack(
+        [_np.asarray(xs["sig_s"], dtype=float) for xs in xs_list]
+    )
+    nu_sig_f = _np.stack(
+        [_np.asarray(xs["nu"] * xs["sig_f"], dtype=float) for xs in xs_list]
+    )
+    chi = _np.stack(
+        [_np.asarray(xs["chi"], dtype=float) for xs in xs_list]
+    )
+
+    # Cumulative outer-radius boundaries (slab thicknesses → radii).
+    radii = _np.cumsum(_np.asarray(thicknesses, dtype=float))
+
+    sol = solve_peierls_mg(
+        SLAB_POLAR_1D, radii,
+        sig_t=sig_t, sig_s=sig_s, nu_sig_f=nu_sig_f, chi=chi,
+        boundary="white_f4",
+        n_panels_per_region=n_panels_per_region,
+        p_order=p_order,
+        dps=precision_digits,
+        tol=10 ** -(precision_digits - 5),
+    )
+
+    def phi_fn(x: _np.ndarray, g: int = 0) -> _np.ndarray:
+        return sol.phi(x, g)
+
+    mat_ids = _MAT_IDS[n_regions]
+    materials = {
+        mat_ids[i]: get_mixture(region, ng_key)
+        for i, region in enumerate(layout)
+    }
+
+    return ContinuousReferenceSolution(
+        name=f"peierls_slab_{ng}eg_{n_regions}rg",
+        problem=ProblemSpec(
+            materials=materials,
+            geometry_type="slab",
+            geometry_params={
+                "length": sum(thicknesses),
+                "thicknesses": thicknesses,
+                "mat_ids": mat_ids,
+            },
+            boundary_conditions={"left": "white", "right": "white"},
+            is_eigenvalue=True,
+            n_groups=ng,
+        ),
+        operator_form="integral-peierls",
+        phi=phi_fn,
+        k_eff=sol.k_eff,
+        provenance=Provenance(
+            citation=(
+                "Case & Zweifel 1967 Ch. 4; "
+                "Kress 2014 (Nyström for Fredholm); "
+                "Phase G §theory-peierls-slab-polar"
+            ),
+            derivation_notes=(
+                f"Unified-path slab Peierls via solve_peierls_mg "
+                f"(SLAB_POLAR_1D, adaptive mpmath.quad with forced "
+                f"µ=0 breakpoint). {n_panels_per_region} panels × "
+                f"{p_order} GL points per region, white_f4 rank-2 "
+                f"per-face F.4 closure. Issue #130 routing path."
+            ),
+            sympy_expression=None,
+            precision_digits=precision_digits,
+        ),
+        equation_labels=("peierls-equation", "peierls-unified"),
+        vv_level="L1",
+        description=(
+            f"{ng}G {n_regions}-region slab Peierls "
+            f"(unified adaptive mpmath.quad, white_f4 BC)"
+        ),
+        tolerance="verification-primitive (see Sphinx §theory-peierls-multigroup)",
     )
 
 
