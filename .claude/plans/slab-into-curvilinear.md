@@ -617,12 +617,45 @@ to the specific `exp(−Σ_t · L · e^v)` decay. Not blocking.
     - Sphinx `§theory-peierls-slab-polar-g5-routing` documents the
       benchmark + deferral.
 
-    **What's deferred** ([Issue #131](https://github.com/deOliveira-R/ORPHEUS/issues/131)):
+    **Update 2026-04-24 (later the same day)** —
+    [Issue #131](https://github.com/deOliveira-R/ORPHEUS/issues/131)
+    **resolved**. The numerics-investigator agent ran probes A, B,
+    D, E, F under `derivations/diagnostics/diag_slab_issue131_*.py`
+    and pinpointed the cause:
 
-    - Root-cause the 1.5 % gap (probably a combined quadrature +
-      multi-region investigation).
-    - Tighten the diagnostic bound and flip `_SLAB_VIA_UNIFIED`
-      default when the gap reaches 1e-10.
+    - `compute_P_esc_{outer,inner}` and `compute_G_bc_{outer,inner}`
+      had two branches for slab-polar: a closed-form
+      `½ E₂(τ)` / `2 E₂(τ)` branch for `len(radii) == 1`, and a
+      **finite-N GL quadrature** branch for multi-region
+      (`len(radii) > 1`).
+    - The multi-region GL branch converged only to ~4 × 10⁻³ at
+      N=24 — a quadrature artifact that fed into the K_bc closure
+      and produced the 1.5 % k_eff gap.
+    - The µ-integral `½ ∫₀¹ exp(-τ(x_i)/µ) dµ = ½ E₂(τ(x_i))` is
+      **closed-form regardless of the number of regions** because
+      `τ(x_i)` is µ-independent for piecewise-constant σ_t.
+
+    **Fix applied 2026-04-24** (commit TBD):
+
+    - New helpers `_slab_tau_to_outer_face` and
+      `_slab_tau_to_inner_face` in `peierls_geometry.py`
+      piecewise-integrate σ_t across region boundaries.
+    - All slab-polar P_esc/G_bc calls route through the closed-form
+      E₂ branch regardless of `len(radii)`.
+    - Post-fix benchmark: rel_diff drops from 1.549 × 10⁻² to
+      **5.4 × 10⁻¹⁶** (bit-exact to machine epsilon). Cost ratio
+      unchanged (~550×, expected for a verification primitive).
+
+    **G.5 activated:**
+
+    - `_SLAB_VIA_UNIFIED` default flipped to `True`.
+    - Env-var override renamed to `ORPHEUS_SLAB_VIA_E1=1` (routes
+      to native for bisection).
+    - `TestSlabViaUnifiedDiscrepancyDiagnostic` tightened from
+      `rel_diff < 5 %` to `rel_diff < 1e-10` — now a regression
+      gate, not a diagnostic.
+    - Issue #130 (Phase G.5 routing) and Issue #131 (discrepancy
+      investigation) both closable.
 
 - **Outcomes for this plan**:
   - 1G slab-polar verification-reference equivalence is

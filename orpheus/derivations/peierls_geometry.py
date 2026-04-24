@@ -1579,6 +1579,50 @@ def _slab_E2(tau: float) -> float:
     return 1.0
 
 
+def _slab_tau_to_outer_face(x_i: float, radii: np.ndarray,
+                            sig_t: np.ndarray) -> float:
+    r"""Piecewise-integrated optical depth from ``x_i`` to the outer
+    face ``x = radii[-1]`` for a slab with piecewise-constant
+    :math:`\Sigma_t(x)` taking value ``sig_t[k]`` on
+    :math:`(r_{k-1}, r_k]`, with :math:`r_{-1} = 0`.
+
+    Matches the convention used by the native multi-region slab
+    reference (``peierls_slab._build_system_matrices::optical_from_face``).
+    """
+    L = float(radii[-1])
+    if x_i >= L:
+        return 0.0
+    tau = 0.0
+    r_prev = 0.0
+    for k, r_k in enumerate(radii):
+        a = max(float(r_prev), x_i)
+        b = float(r_k)
+        if a < b:
+            tau += float(sig_t[k]) * (b - a)
+        r_prev = float(r_k)
+    return tau
+
+
+def _slab_tau_to_inner_face(x_i: float, radii: np.ndarray,
+                            sig_t: np.ndarray) -> float:
+    r"""Piecewise-integrated optical depth from ``x_i`` to the inner
+    face ``x = 0`` for a slab with piecewise-constant
+    :math:`\Sigma_t(x)` taking value ``sig_t[k]`` on
+    :math:`(r_{k-1}, r_k]`, with :math:`r_{-1} = 0`.
+    """
+    if x_i <= 0.0:
+        return 0.0
+    tau = 0.0
+    r_prev = 0.0
+    for k, r_k in enumerate(radii):
+        a = float(r_prev)
+        b = min(float(r_k), x_i)
+        if a < b:
+            tau += float(sig_t[k]) * (b - a)
+        r_prev = float(r_k)
+    return tau
+
+
 def compute_P_esc_outer(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -1606,17 +1650,27 @@ def compute_P_esc_outer(
     R = float(radii[-1])
     N = len(r_nodes)
 
-    if geometry.kind == "slab-polar" and len(radii) == 1:
-        # Slab homogeneous: face L closed form.
-        L = float(radii[-1])
-        sig_t_val = float(sig_t[0])
+    if geometry.kind == "slab-polar":
+        # Slab (homogeneous OR multi-region): closed-form ½ E_2(τ_total)
+        # where τ_total is the piecewise-integrated optical depth from
+        # x_i to the outer face. The µ-integral in
+        #   P_esc_outer(x_i) = ½ ∫₀¹ exp(-τ_total(x_i)/µ) dµ = ½ E_2(τ_total)
+        # is closed-form for ANY piecewise-constant σ_t because the
+        # angular dependence factors out of τ. The finite-N GL branch
+        # that used to live here (Issue #131) placed nodes symmetrically
+        # around µ=0 on (-1, 1), then discarded µ≤0 inside the loop,
+        # producing 4e-3 error at N=24 for the shipped 2eg_2rg fixture
+        # and ultimately a ~1.5 % gap in the unified slab k_eff. The
+        # closed-form branch matches the homogeneous path bit-exactly
+        # and the native E₁ Nyström slab reference to 1e-12.
         P = np.zeros(N)
         for i in range(N):
             x_i = float(r_nodes[i])
-            P[i] = 0.5 * _slab_E2(sig_t_val * (L - x_i))
+            tau = _slab_tau_to_outer_face(x_i, radii, sig_t)
+            P[i] = 0.5 * _slab_E2(tau)
         return P
 
-    # Multi-region slab and curvilinear: GL over angular range.
+    # Curvilinear: GL over angular range.
     omega_low, omega_high = geometry.angular_range
     omega_pts, omega_wts = gl_float(n_angular, omega_low, omega_high, dps)
     cos_omegas = geometry.ray_direction_cosine(omega_pts)
@@ -1690,37 +1744,17 @@ def compute_P_esc_inner(
         # Solid cyl/sph: regime-A zero-array sentinel.
         return np.zeros(N)
 
-    if geometry.kind == "slab-polar" and len(radii) == 1:
-        # Slab homogeneous: face 0 closed form.
-        sig_t_val = float(sig_t[0])
-        P = np.zeros(N)
-        for i in range(N):
-            x_i = float(r_nodes[i])
-            P[i] = 0.5 * _slab_E2(sig_t_val * x_i)
-        return P
-
-    # Multi-region slab: GL over µ ∈ (-1, 0) for face 0.
     if geometry.kind == "slab-polar":
-        omega_pts, omega_wts = gl_float(n_angular, -1.0, 1.0, dps)
-        cos_omegas = omega_pts
-        pref = geometry.prefactor
+        # Slab (homogeneous OR multi-region): closed-form ½ E_2(τ_total)
+        # where τ_total is the piecewise-integrated optical depth from
+        # x_i to the inner face (x=0). See Issue #131 — the previous
+        # finite-N GL branch introduced a 4e-3 error by wasting nodes
+        # on µ ≥ 0.
         P = np.zeros(N)
         for i in range(N):
             x_i = float(r_nodes[i])
-            total = 0.0
-            for k in range(n_angular):
-                mu = cos_omegas[k]
-                if mu >= 0.0:
-                    continue
-                rho = -x_i / mu  # ρ = (0 − x_i)/µ for µ<0
-                if rho <= 0.0:
-                    continue
-                tau = geometry.optical_depth_along_ray(
-                    x_i, mu, rho, radii, sig_t,
-                )
-                K_esc = geometry.escape_kernel_mp(tau, dps)
-                total += omega_wts[k] * K_esc
-            P[i] = pref * total
+            tau = _slab_tau_to_inner_face(x_i, radii, sig_t)
+            P[i] = 0.5 * _slab_E2(tau)
         return P
 
     # Hollow cyl/sph: GL over angular range, restricted to directions
@@ -1938,33 +1972,22 @@ def compute_G_bc_outer(
     R = float(radii[-1])
     N = len(r_nodes)
 
-    if geometry.kind == "slab-polar" and len(radii) == 1:
-        L = R
-        sig_t_val = float(sig_t[0])
-        G = np.zeros(N)
-        for i in range(N):
-            x_i = float(r_nodes[i])
-            G[i] = 2.0 * _slab_E2(sig_t_val * (L - x_i))
-        return G
-
     if geometry.kind == "slab-polar":
-        # Multi-region slab: GL over µ ∈ (0, 1) for face L.
-        L = R
-        mu_pts, mu_wts = gl_float(n_surf_quad, 0.0, 1.0, dps)
+        # Slab (homogeneous OR multi-region): closed-form 2 E_2(τ_total)
+        # where τ_total is the piecewise-integrated optical depth from
+        # x_i to the outer face. Parallels compute_P_esc_outer's fix
+        # for Issue #131 — the µ-integral
+        #   G_bc_outer(x_i) = 2 ∫₀¹ exp(-τ_total(x_i)/µ) dµ = 2 E_2(τ_total)
+        # is closed-form for any piecewise-constant σ_t. G_bc used to
+        # use a finite-N GL branch on µ ∈ (0, 1) that converged faster
+        # than P_esc but still only to ~1e-5 at N=24 for the shipped
+        # fixture; moving to closed form matches the native reference
+        # to machine precision.
         G = np.zeros(N)
         for i in range(N):
             x_i = float(r_nodes[i])
-            total = 0.0
-            for k in range(n_surf_quad):
-                mu = float(mu_pts[k])
-                if mu <= 1e-15:
-                    continue
-                rho_L = (L - x_i) / mu
-                tau_L = geometry.optical_depth_along_ray(
-                    L, -mu, rho_L, radii, sig_t,
-                )
-                total += float(mu_wts[k]) * 2.0 * float(np.exp(-tau_L))
-            G[i] = total
+            tau = _slab_tau_to_outer_face(x_i, radii, sig_t)
+            G[i] = 2.0 * _slab_E2(tau)
         return G
 
     if geometry.kind == "sphere-1d":
@@ -2054,32 +2077,16 @@ def compute_G_bc_inner(
     if geometry.n_surfaces == 1:
         return np.zeros(N)
 
-    if geometry.kind == "slab-polar" and len(radii) == 1:
-        sig_t_val = float(sig_t[0])
-        G = np.zeros(N)
-        for i in range(N):
-            x_i = float(r_nodes[i])
-            G[i] = 2.0 * _slab_E2(sig_t_val * x_i)
-        return G
-
     if geometry.kind == "slab-polar":
-        # Multi-region slab: GL over µ ∈ (0, 1) for face 0
-        # (ray enters at x=0 with direction +µ, observer at x_i has ρ=x_i/µ).
-        mu_pts, mu_wts = gl_float(n_surf_quad, 0.0, 1.0, dps)
+        # Slab (homogeneous OR multi-region): closed-form 2 E_2(τ_total)
+        # where τ_total is the piecewise-integrated optical depth from
+        # x_i to the inner face (x=0). Parallels compute_G_bc_outer's
+        # fix for Issue #131.
         G = np.zeros(N)
         for i in range(N):
             x_i = float(r_nodes[i])
-            total = 0.0
-            for k in range(n_surf_quad):
-                mu = float(mu_pts[k])
-                if mu <= 1e-15:
-                    continue
-                rho_0 = x_i / mu
-                tau_0 = geometry.optical_depth_along_ray(
-                    0.0, mu, rho_0, radii, sig_t,
-                )
-                total += float(mu_wts[k]) * 2.0 * float(np.exp(-tau_0))
-            G[i] = total
+            tau = _slab_tau_to_inner_face(x_i, radii, sig_t)
+            G[i] = 2.0 * _slab_E2(tau)
         return G
 
     r0 = float(geometry.inner_radius)

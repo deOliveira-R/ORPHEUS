@@ -28,33 +28,34 @@ Slab note (2026-04-24): slab has two independent verification paths:
 
 1. **Native E₁ Nyström** (:mod:`~orpheus.derivations.peierls_slab`) —
    classical singularity-subtraction + product-integration, multi-
-   group via a block-Toeplitz assembly. This is the path
-   ``_build_peierls_slab_case`` currently uses to populate the
-   ``peierls_slab_2eg_2rg`` continuous reference.
+   group via a block-Toeplitz assembly. Retained as an independent
+   cross-check.
 2. **Unified curvilinear** (:func:`~orpheus.derivations.peierls_geometry.solve_peierls_mg`
    with :data:`~orpheus.derivations.peierls_geometry.SLAB_POLAR_1D`)
    — adaptive ``mpmath.quad`` with forced :math:`\mu = 0` breakpoint,
    machine precision by construction (see Phase G — Sphinx
    §theory-peierls-slab-polar).
 
-Both paths are now multi-group capable as of Issue #104
-(2026-04-24); routing the slab continuous reference through the
-unified path is tracked as Issue #130 (Phase G.5). **Routing
-infrastructure landed 2026-04-24; default activation deferred.**
-
-The ``_SLAB_VIA_UNIFIED`` flag below selects which path produces the
-shipped ``peierls_slab_{Ng}eg_{Nr}rg`` continuous reference.
-Setting the env var ``ORPHEUS_SLAB_VIA_UNIFIED=1`` forces the
-unified path for bisection / testing. The flag defaults to **False**
-(native E₁ Nyström) because the unified
-:func:`~orpheus.derivations.peierls_geometry.solve_peierls_mg`
-path, benchmarked on the shipped ``peierls_slab_2eg_2rg`` fixture
-at modest quadrature (n_panels_per_region=2, p_order=3, dps=20)
-gives ``k_eff = 1.245529`` vs the native ``k_eff = 1.226530`` — a
-1.5 % relative disagreement at 606× higher cost. This is too large
-a gap for a shipped reference; activation is gated on a follow-up
-discrepancy investigation (see the Sphinx theory page
-§theory-peierls-slab-polar for the benchmark record).
+Both paths are multi-group capable as of Issue #104 (2026-04-24).
+Phase G.5 routing activation (Issue #130, 2026-04-24): after
+`Issue #131 <https://github.com/deOliveira-R/ORPHEUS/issues/131>`_
+diagnosed the 1.5 % discrepancy to closed-form-avoidance in the
+multi-region slab branches of ``compute_P_esc_{outer,inner}`` and
+``compute_G_bc_{outer,inner}`` (finite-N GL over the µ-integral
+when the integral has a closed form
+:math:`\tfrac12\,E_2(\tau_{\rm total})`), the fix was applied and
+the unified path now matches native E₁ **bit-exactly** on the
+shipped ``peierls_slab_2eg_2rg`` fixture
+(``rel_diff = 5.4e-16`` at ``n_panels_per_region=2, p_order=3,
+dps=20``). The ``_SLAB_VIA_UNIFIED`` flag now **defaults to True**;
+set ``ORPHEUS_SLAB_VIA_E1=1`` to force the native path for
+bisection. Both paths remain exercised by the test suite: the
+unified path is the shipped registry route, and the native path is
+exercised by
+:mod:`tests.derivations.test_peierls_slab_reference` plus the
+diagnostic test
+:class:`tests.derivations.test_peierls_multigroup.TestSlabViaUnifiedDiscrepancyDiagnostic`
+(now at ``rel_diff < 1e-10`` bound).
 """
 from __future__ import annotations
 
@@ -62,10 +63,12 @@ import os as _os
 
 from ._reference import ContinuousReferenceSolution
 
-# Issue #130 Phase G.5 routing switch. See the module docstring for
-# the benchmark rationale on the False default.
+# Issue #130 Phase G.5 routing switch. Defaults to True (unified
+# path) as of 2026-04-24 — see module docstring for the benchmark
+# that unblocked activation. ``ORPHEUS_SLAB_VIA_E1=1`` overrides to
+# the native E₁ Nyström for bisection / testing.
 _SLAB_VIA_UNIFIED: bool = (
-    _os.environ.get("ORPHEUS_SLAB_VIA_UNIFIED", "0") == "1"
+    _os.environ.get("ORPHEUS_SLAB_VIA_E1", "0") != "1"
 )
 
 
