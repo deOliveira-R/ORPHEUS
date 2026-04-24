@@ -20,7 +20,11 @@ index). For terminology that has historical collisions ("F.4",
 ``boundary`` strings, ``n_bc_modes`` vs ``n_surfaces``) see
 :ref:`theory-peierls-naming`. For the **active slab-polar adaptive
 mpmath.quad path** (and the two retired predecessors — τ-Laguerre
-and moment-form), see :ref:`theory-peierls-slab-polar`.
+and moment-form), see :ref:`theory-peierls-slab-polar`. For the
+**multi-group extension** (Issue #104, 2026-04-24), which added
+:func:`~orpheus.derivations.peierls_geometry.solve_peierls_mg` and
+reduced :func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+to a thin wrapper, see :ref:`theory-peierls-multigroup`.
 
 - **Primary organizing principle (2026-04-23): topology, not shape.**
   The cases this module ships partition into two **topological
@@ -273,6 +277,49 @@ that query, the table is wrong.
      - 0.3
      - :math:`{\rm F.4}` (Stamm'ler Eq. 34)
      - ~3.3 % structural (scalar mode)
+   * - ``peierls_cyl1D_hollow_2eg_1rg_r0_10``
+     - cylinder-1d
+     - 2
+     - 1
+     - 0.1
+     - :math:`{\rm F.4}` (Stamm'ler Eq. 34)
+     - 2G; parity vs discrete ``cp_cylinder`` — future work (Issue #104 AC)
+   * - ``peierls_cyl1D_hollow_2eg_1rg_r0_20``
+     - cylinder-1d
+     - 2
+     - 1
+     - 0.2
+     - :math:`{\rm F.4}` (Stamm'ler Eq. 34)
+     - same
+   * - ``peierls_cyl1D_hollow_2eg_1rg_r0_30``
+     - cylinder-1d
+     - 2
+     - 1
+     - 0.3
+     - :math:`{\rm F.4}` (Stamm'ler Eq. 34)
+     - same
+   * - ``peierls_sph1D_hollow_2eg_1rg_r0_10``
+     - sphere-1d
+     - 2
+     - 1
+     - 0.1
+     - :math:`{\rm F.4}` (Stamm'ler Eq. 34)
+     - 2G; parity vs discrete ``cp_sphere`` — future work (Issue #104 AC)
+   * - ``peierls_sph1D_hollow_2eg_1rg_r0_20``
+     - sphere-1d
+     - 2
+     - 1
+     - 0.2
+     - :math:`{\rm F.4}` (Stamm'ler Eq. 34)
+     - same
+   * - ``peierls_sph1D_hollow_2eg_1rg_r0_30``
+     - sphere-1d
+     - 2
+     - 1
+     - 0.3
+     - :math:`{\rm F.4}` (Stamm'ler Eq. 34)
+     - same
+
 All rows carry ``vv_level = "L1"``, ``equation_labels`` include
 ``peierls-unified`` and — for F.4 cases —
 :math:numref:`hebert-3-323`. Regressions land in
@@ -381,9 +428,12 @@ flux / k_eff verification.
 
 Known infrastructure gaps:
 
-- **Multi-group Peierls continuous references** for cylinder and
-  sphere (Issue #104 / N2). The hollow F.4 references above are
-  1-group only.
+- **Multi-group parity benchmarks** vs the discrete ``cp_cylinder`` /
+  ``cp_sphere`` native 2G solvers. Issue #104 commit 2
+  (2026-04-24) added the 6 2G hollow cyl/sph reference cases above
+  and a Phase G.5 tie-back test against the native slab MG driver,
+  but the parity gate vs ``cp_cylinder`` / ``cp_sphere`` (1 %
+  target per Issue #104 AC) is deferred to a follow-up session.
 - **Multi-region Peierls references for cylinder and sphere** (the
   ``cp_{cyl,sph}1D_{2,4}rg`` solver cases have no matching
   continuous reference). Requires either F.4-per-internal-interface
@@ -803,6 +853,219 @@ Subsection — Related open questions
   Phase G.4 as specified in the plan is filed as a
   GitHub Issue for future physics investigation rather than a
   shipping test.
+
+
+.. _theory-peierls-multigroup:
+
+Multi-group Peierls eigenvalue driver (Issue #104)
+==================================================
+
+**This section documents the multi-group extension
+(:func:`~orpheus.derivations.peierls_geometry.solve_peierls_mg`) that
+landed on 2026-04-24**, generalising the 1-group driver
+:func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g` to
+:math:`n_g \ge 1` energy groups with downscatter/upscatter coupling
+and :math:`\chi`-weighted fission. :func:`solve_peierls_1g` is now a
+25-line thin wrapper over :func:`solve_peierls_mg` with
+:math:`n_g = 1` and synthesised :math:`\chi = 1`; a bit-exact
+regression test (:class:`tests.derivations.test_peierls_multigroup.TestMGNg1BitMatch1G`)
+enforces that the ng=1 MG path reproduces every legacy 1G k_eff and
+flux value to numerical zero.
+
+The shape wrappers have matching multi-group entry points:
+
+- :func:`~orpheus.derivations.peierls_cylinder.solve_peierls_cylinder_mg`
+  — cylinder with ``inner_radius`` for hollow cells
+- :func:`~orpheus.derivations.peierls_sphere.solve_peierls_sphere_mg`
+  — sphere with ``inner_radius`` for hollow cells
+
+Slab continues to use the native
+:func:`~orpheus.derivations.peierls_slab.solve_peierls_eigenvalue`
+(E\ :sub:`1` Nyström block-Toeplitz assembly) for the shipped
+``peierls_slab_2eg_2rg`` continuous reference. Routing the slab
+reference through :func:`solve_peierls_mg(SLAB_POLAR_1D, \dots)` is
+tracked as Phase G.5 (`Issue #130 <https://github.com/deOliveira-R/ORPHEUS/issues/130>`_)
+and gated on a direct-precision benchmark — no expected bit-exact
+agreement because the two drivers use different underlying
+quadrature (adaptive tanh-sinh vs classical E\ :sub:`1` Nyström).
+
+
+Subsection — The multi-group operator form
+-------------------------------------------
+
+For observer at radial coordinate :math:`r_i` in region :math:`k`,
+group :math:`g_{\rm out}`, the unified multi-group Peierls equation
+is
+
+.. math::
+   :label: peierls-mg-operator
+
+   \Sigma_{t,g_{\rm out}}(r_i)\,\varphi_{g_{\rm out}}(r_i)
+     \;=\;\sum_{j}\!K^{(g_{\rm out})}_{ij}\!\!
+         \sum_{g_{\rm in}}\!\Biggl[\,
+           \Sigma_{s,\,g_{\rm in} \to g_{\rm out}}(r_j)\,
+           \varphi_{g_{\rm in}}(r_j)
+           + \frac{1}{k}\,\chi_{g_{\rm out}}(r_i)\,
+             \nu\Sigma_{f,g_{\rm in}}(r_j)\,
+             \varphi_{g_{\rm in}}(r_j)
+         \,\Biggr],
+
+recast as the generalised eigenvalue problem
+:math:`\tilde A\,\varphi = (1/k)\,\tilde B\,\varphi` with
+
+.. math::
+
+   \tilde A_{i,g_{\rm out};\,j,g_{\rm in}}
+     &\;=\;\Sigma_{t,g_{\rm out}}(r_i)\,\delta_{ij}\,\delta_{g_{\rm out},g_{\rm in}}
+           \;-\;K^{(g_{\rm out})}_{ij}\,\Sigma_{s,\,g_{\rm in} \to g_{\rm out}}(r_j), \\[4pt]
+   \tilde B_{i,g_{\rm out};\,j,g_{\rm in}}
+     &\;=\;K^{(g_{\rm out})}_{ij}\,\chi_{g_{\rm out}}(r_i)\,
+           \nu\Sigma_{f,g_{\rm in}}(r_j).
+
+Row indexing is **node-major**: the flattened index is
+:math:`i \cdot n_g + g`, matching the convention in
+:func:`orpheus.derivations.peierls_slab._build_system_matrices`
+(the native slab driver predates Issue #104 and has always used this
+pattern). The solve uses the same fission-source power iteration
+as the 1G path, acting on a vector of dimension :math:`N \cdot n_g`
+instead of :math:`N`.
+
+**Sig_s convention.** ``sig_s[r, g_src, g_dst]`` = scatter rate
+**from** ``g_src`` **into** ``g_dst`` at region ``r``. Downscatter
+(fast → thermal with group 0 = fast) sits in the upper-triangular
+entries. This matches the XS library
+(:mod:`orpheus.derivations._xs_library`) and the slab driver's
+internal indexing — despite the historical
+:func:`solve_peierls_eigenvalue` docstring claiming the opposite
+convention (the docstring is wrong; the code is right). A 2G slab
+parity test (:class:`TestMGSlabPolarMatchesNativeSlabMG`) is the
+definitive cross-check: if the two drivers agree on a 2G
+eigenvalue with genuinely directional (non-symmetric) scatter, the
+convention is correct.
+
+
+Subsection — The per-group K matrix
+------------------------------------
+
+The only group-local loop in :func:`solve_peierls_mg` rebuilds the
+volume+closure K matrix once per group with that group's
+:math:`\Sigma_{t,g}` trace:
+
+.. code-block:: python
+
+   for g in range(ng):
+       K_per_group[g] = (
+           build_volume_kernel(geometry, r_nodes, panels, radii,
+                               sig_t[:, g], ...)
+           + (closure correction from sig_t[:, g] if boundary != "vacuum")
+       )
+
+The closure primitives
+(:func:`~orpheus.derivations.peierls_geometry.build_closure_operator`,
+:func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction_rank_n`)
+are **group-local by construction**: each primitive consumes a
+per-region scalar :math:`\Sigma_t` and emits per-face escape /
+response / transmission primitives that couple only within that
+group. No cross-group coupling passes through the reflection
+operator — this is verified by reading
+:func:`~orpheus.derivations.peierls_geometry._build_closure_operator_rank2_white`,
+and was the primary de-risking step of Issue #104's scoping pass.
+
+
+Subsection — Why the 1G path remains a wrapper
+-----------------------------------------------
+
+Approximately 30 downstream callers use
+:func:`solve_peierls_1g` (direct tests, rank-N diagnostics, the
+shape-specific ``solve_peierls_*_1g`` wrappers, and the case
+builders at
+:mod:`~orpheus.derivations.peierls_cylinder` and
+:mod:`~orpheus.derivations.peierls_sphere`). Lifting every caller
+to the MG signature in a single commit would have forced a large
+multi-module diff that obscures the core refactor. Instead, Issue
+#104 commit 1 added the MG path and reduced :func:`solve_peierls_1g`
+to a wrapper that coerces 1-D :math:`\Sigma_t`, 1-D scatter, 1-D
+:math:`\nu\Sigma_f`, and synthesised :math:`\chi = 1` into the
+:math:`(n_r, n_g = 1)`-shaped arrays the MG path expects.
+
+The wrapper is verified bit-exact against the pre-refactor 1G
+behaviour on **every** ``(boundary, geometry)`` combination in the
+regression suite — not a tolerance, numerical zero difference on
+k_eff and on every flux value. This guarantees existing callers
+see no behavioural change.
+
+
+Subsection — Shipped multi-group references
+---------------------------------------------
+
+As of 2026-04-24, :func:`~orpheus.derivations.peierls_cases._class_a_cases`
+registers the following 2-group hollow cells alongside the legacy
+1G entries:
+
+.. list-table:: 2-group hollow cells (added in Issue #104)
+   :header-rows: 1
+   :widths: 50 20 30
+
+   * - Reference name
+     - :math:`r_0 / R`
+     - Closure
+   * - ``peierls_cyl1D_hollow_2eg_1rg_r0_10``
+     - 0.1
+     - F.4 scalar rank-2 per-face (Ki\ :sub:`3` fold)
+   * - ``peierls_cyl1D_hollow_2eg_1rg_r0_20``
+     - 0.2
+     - same
+   * - ``peierls_cyl1D_hollow_2eg_1rg_r0_30``
+     - 0.3
+     - same
+   * - ``peierls_sph1D_hollow_2eg_1rg_r0_10``
+     - 0.1
+     - F.4 scalar rank-2 per-face (bare :math:`e^{-\tau}` kernel)
+   * - ``peierls_sph1D_hollow_2eg_1rg_r0_20``
+     - 0.2
+     - same
+   * - ``peierls_sph1D_hollow_2eg_1rg_r0_30``
+     - 0.3
+     - same
+
+All six use the single-region fuel composition (``LAYOUTS[1] =
+["A"]``, ``get_xs("A", "2g")``) with region-A's 2G XS. Registry
+is lazy (built on first access to
+:func:`~orpheus.derivations.reference_values.continuous_all` or
+:func:`~orpheus.derivations.reference_values.continuous_get`); each
+reference builds on demand at ~1–2 min wall time at default
+quadrature, so the first access after import is expensive.
+
+The L1 residuals vs an independent MG reference solver have not been
+benchmarked as part of Issue #104 commit 2 — the parity gate against
+``cp_cylinder`` / ``cp_sphere`` 2G native solvers is planned as a
+follow-up (1 % target per Issue #104 AC, matching the 1G hollow
+residual class). The registered cases are **buildable and
+reproducible** as established by the smoke tests in
+:class:`tests.derivations.test_peierls_multigroup.TestMG2GHollowRegistration`.
+
+
+Subsection — Cost characteristics
+----------------------------------
+
+For :math:`n_g` groups, :math:`n_r` radial nodes, the MG driver's
+cost scales as:
+
+- **K build**: :math:`n_g \cdot n_r^2 \cdot c_K` where :math:`c_K`
+  is the cost of one adaptive-quad element call. For the
+  verification-primitive curvilinear path at ``dps = 25``,
+  :math:`c_K` is :math:`\sim 100\,\mathrm{ms}`; for slab-polar
+  adaptive :math:`c_K` is :math:`\sim 1\,\mathrm{s}` per element.
+- **Closure build**: :math:`n_g \cdot c_{\rm BC}` — group-local
+  per construction, scales linearly in :math:`n_g`.
+- **Eigenvalue solve**: :math:`O((n_r n_g)^3)` for one LU per
+  iteration × :math:`O(100)` power-iteration iterations.
+
+In the verification regime (N < 50 nodes, ``dps = 25``), the K
+build dominates: the 2G hollow cyl/sph smoke tests at tight
+quadrature run in :math:`\sim 60\,\mathrm{s}` each; at default
+quadrature :math:`\sim 2\,\mathrm{min}`. This is acceptable for an
+L1 reference primitive but not for a production hot path.
 
 
 .. _theory-peierls-moment-form:
