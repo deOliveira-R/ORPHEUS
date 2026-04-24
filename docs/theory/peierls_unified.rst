@@ -14,6 +14,32 @@ Key Facts
 
 **Read this before modifying any Peierls Nyström reference solver,
 or before extending the architecture to a new geometry.**
+For "what references do we ship for problem X?" see
+:ref:`theory-peierls-capabilities` (the capability matrix is the
+index). For terminology that has historical collisions ("F.4",
+``boundary`` strings, ``n_bc_modes`` vs ``n_surfaces``) see
+:ref:`theory-peierls-naming`. For the **active slab-polar adaptive
+mpmath.quad path** (and the two retired predecessors — τ-Laguerre
+and moment-form), see :ref:`theory-peierls-slab-polar`.
+
+- **Primary organizing principle (2026-04-23): topology, not shape.**
+  The cases this module ships partition into two **topological
+  classes**, each with a distinct set of applicable closures:
+
+  - **Class A — two-surface (F.4 applies).** Members: slab
+    (two parallel faces), hollow annular cylinder (inner + outer
+    ring), hollow sphere (inner + outer shell). Shared closure
+    class: F.4 scalar rank-2 per-face (Stamm'ler Eq. 34 =
+    Hébert 2009 Eq. 3.323 = :math:numref:`hebert-3-323`).
+  - **Class B — one-surface compact (rank-1 Mark only).** Members:
+    solid cylinder, solid sphere. F.4 structurally collapses here
+    (no second face to couple to); only rank-1 Mark is shipped.
+
+  The ``CurvilinearGeometry.topology`` property returns
+  ``"two_surface"`` or ``"one_surface_compact"`` and is the canonical
+  runtime discriminator. This supersedes shape-keyed dispatch
+  (``kind="cylinder-1d"``) as the primary axis of organization —
+  shape is a sub-axis *within* a topology class.
 
 - All three 1-D Peierls integral equations (slab, cylinder, sphere)
   are *instances of one equation*
@@ -173,10 +199,616 @@ or before extending the architecture to a new geometry.**
   verified foundation.
 
 
+.. _theory-peierls-capabilities:
+
+Capabilities at a glance — what references this module ships
+=============================================================
+
+**For readers trying to answer "what continuous references do we have
+for geometry X at closure Y?"** this section is the canonical index.
+The table below enumerates every shipped Peierls continuous reference
+case with its production status, accuracy class, and the test label
+that gates regressions. The data is the source-of-truth produced by
+``orpheus.derivations.reference_values.continuous_all()`` filtered to
+``operator_form == "integral-peierls"`` — if this table diverges from
+that query, the table is wrong.
+
+.. list-table:: Shipped Peierls continuous references (operator_form ``integral-peierls``)
+   :header-rows: 1
+   :widths: 33 12 8 8 12 15 12
+
+   * - Reference name
+     - Geometry
+     - n_g
+     - n_reg
+     - :math:`r_0 / R`
+     - Closure
+     - Accuracy class
+   * - ``peierls_slab_2eg_2rg``
+     - slab
+     - 2
+     - 2
+     - —
+     - white rank-2 per-face (E₂/E₃)
+     - O(h²), Wigner-Seitz exact
+   * - ``peierls_cyl1D_hollow_1eg_1rg_r0_10``
+     - cylinder-1d
+     - 1
+     - 1
+     - 0.1
+     - :math:`{\rm F.4}` (Stamm'ler Eq. 34)
+     - ~1.4 % structural (scalar mode)
+   * - ``peierls_cyl1D_hollow_1eg_1rg_r0_20``
+     - cylinder-1d
+     - 1
+     - 1
+     - 0.2
+     - :math:`{\rm F.4}` (Stamm'ler Eq. 34)
+     - ~5.4 % structural (scalar mode)
+   * - ``peierls_cyl1D_hollow_1eg_1rg_r0_30``
+     - cylinder-1d
+     - 1
+     - 1
+     - 0.3
+     - :math:`{\rm F.4}` (Stamm'ler Eq. 34)
+     - ~13 % structural (scalar mode)
+   * - ``peierls_sph1D_hollow_1eg_1rg_r0_10``
+     - sphere-1d
+     - 1
+     - 1
+     - 0.1
+     - :math:`{\rm F.4}` (Stamm'ler Eq. 34)
+     - ~0.4 % structural (scalar mode)
+   * - ``peierls_sph1D_hollow_1eg_1rg_r0_20``
+     - sphere-1d
+     - 1
+     - 1
+     - 0.2
+     - :math:`{\rm F.4}` (Stamm'ler Eq. 34)
+     - ~1.2 % structural (scalar mode)
+   * - ``peierls_sph1D_hollow_1eg_1rg_r0_30``
+     - sphere-1d
+     - 1
+     - 1
+     - 0.3
+     - :math:`{\rm F.4}` (Stamm'ler Eq. 34)
+     - ~3.3 % structural (scalar mode)
+All rows carry ``vv_level = "L1"``, ``equation_labels`` include
+``peierls-unified`` and — for F.4 cases —
+:math:numref:`hebert-3-323`. Regressions land in
+``tests/derivations/test_peierls_rank2_bc.py`` (F.4 cases) and
+``tests/derivations/test_peierls_reference.py`` (slab rank-2).
+
+Class A — two-surface (F.4 applies)
+------------------------------------
+
+Members: slab, hollow annular cylinder, hollow sphere. Shared closure
+class (F.4 scalar rank-2 per-face, Stamm'ler Eq. 34 =
+:math:numref:`hebert-3-323`) and shared L19 stability-protocol
+coverage. Implementation of F.4 lives in
+:func:`~orpheus.derivations.peierls_geometry._build_closure_operator_rank2_white`
+for cylinder and sphere, and in
+:mod:`~orpheus.derivations.peierls_slab` (native E₁ Nyström) for
+slab. As of 2026-04-23 slab **also** has a unified-path reference via
+:data:`~orpheus.derivations.peierls_geometry.SLAB_POLAR_1D` and
+:func:`~orpheus.derivations.peierls_geometry.K_vol_element_adaptive`
+(adaptive tanh-sinh :func:`mpmath.quad` with a forced :math:`\mu = 0`
+breakpoint — see :ref:`theory-peierls-slab-polar`). The two
+implementations are independent cross-checks: they agree at machine
+precision on the K matrix but follow different numerical routes
+(polar-form adaptive quadrature vs classical :math:`E_1` Nyström with
+singularity subtraction + product integration). The **closure class**
+is the same across all Class A members, which is what makes Class A
+a coherent group.
+
+.. list-table:: Class A — closures shipped per shape
+   :header-rows: 1
+   :widths: 34 22 22 22
+
+   * - Closure
+     - Slab
+     - Hollow cylinder
+     - Hollow sphere
+   * - ``vacuum``
+     - ✅ E₁ Nyström (native) + unified adaptive (see :ref:`theory-peierls-slab-polar`)
+     - ✅ Ki₁ via unified
+     - ✅ exp(-τ) via unified
+   * - ``white_rank1_mark`` (dep. alias: ``white``)
+     - ✅ scalar collapse
+     - ✅ production
+     - ✅ production
+   * - ``white_f4`` (dep. alias: ``white_rank2``)
+     - ✅ E₂/E₃ bilinear — Wigner-Seitz exact
+     - ✅ Ki₃ fold, R/r_0 reciprocity
+     - ✅ bare exp(-τ), (R/r_0)² reciprocity
+   * - White rank-N Marshak per-face
+     - n/a
+     - 🚫 ``NotImplementedError`` per L21; primitives retained (load-bearing for rank-1 path + conservation tests)
+     - 🚫 same as cylinder
+
+Class B — one-surface compact (rank-1 Mark only)
+-------------------------------------------------
+
+Members: solid cylinder, solid sphere (both ``inner_radius == 0``).
+F.4 structurally collapses (no second face to couple to); the only
+shipped closure is rank-1 Mark. Requesting ``closure="white_f4"`` on
+a Class B geometry emits a ``DeprecationWarning`` and silently
+collapses to rank-1 Mark (future release: ``ValueError``). Class B
+has **zero** shipped continuous references in the registry today —
+the rank-1 Mark floor (21 % err at R=1 MFP for cylinder per Issue
+#103) is too loose to serve as an L1 reference for the ``cp_cyl1D``
+/ ``cp_sph1D`` solver tests. Lifting the floor is the scope of
+Issue #103 (rank-N DP_N on the single outer face, subject to the
+L19 stability protocol) or Issue #101 (chord-based Ki₁ analytical
+Nyström).
+
+.. list-table:: Class B — closures shipped per shape
+   :header-rows: 1
+   :widths: 40 30 30
+
+   * - Closure
+     - Solid cylinder
+     - Solid sphere
+   * - ``vacuum``
+     - ✅ Ki₁ via unified
+     - ✅ exp(-τ) via unified
+   * - ``white_rank1_mark`` (dep. alias: ``white``)
+     - ✅ production
+     - ✅ production
+   * - ``white_f4`` (dep. alias: ``white_rank2``)
+     - ⚠️ silent collapse + ``DeprecationWarning`` (no second face)
+     - ⚠️ silent collapse + ``DeprecationWarning``
+   * - White rank-N DP\ :sub:`N` on outer face
+     - 🚫 Issue #103 open
+     - 🚫 Issue #100 / #103 open
+   * - Periodic / albedo / specular
+     - 🚫 not shipped
+     - 🚫 not shipped
+
+The "✅ production" mark means *reachable through the shipped public
+API* (``solve_peierls_*_1g`` with the topology-appropriate parameters),
+*tested under the L19 stability protocol where applicable*, and
+*documented in this page*. "🚫" means the path raises, is absent,
+or is known to be too loose to ship as a reference. "⚠️" means the
+call succeeds but with a documented collapse behavior.
+
+**What the table does NOT cover** (separate tables / pages):
+``VerificationCase`` registry (discrete solver test cases) —
+see :doc:`/api/derivations`. Discrete CP, MOC, MC, SN, and
+diffusion test cases live there with their own naming conventions.
+Peierls continuous references bridge those two worlds for L1
+flux / k_eff verification.
+
+Known infrastructure gaps:
+
+- **Multi-group Peierls continuous references** for cylinder and
+  sphere (Issue #104 / N2). The hollow F.4 references above are
+  1-group only.
+- **Multi-region Peierls references for cylinder and sphere** (the
+  ``cp_{cyl,sph}1D_{2,4}rg`` solver cases have no matching
+  continuous reference). Requires either F.4-per-internal-interface
+  or a different closure class.
+- **Solid cylinder / sphere rank-N DP\ :sub:`N` reference** at
+  thin R (Issue #103). Blocks registration of solid-geometry
+  ``peierls_{cyl,sph}1D_NeG_MrG`` matching the CP solver tests.
+
+
+.. _theory-peierls-naming:
+
+Terminology glossary — unambiguous names, despite the history
+=============================================================
+
+Several names in this module have historical collisions. A fresh
+reader must disambiguate them before reading any dispatch code.
+
+**Topology** is the primary organizing principle (see Key Facts
+above). Two classes:
+
+- ``"two_surface"``: slab, hollow cylinder, hollow sphere. F.4 applies.
+- ``"one_surface_compact"``: solid cylinder, solid sphere. Only
+  rank-1 Mark shipped.
+
+Queryable at runtime as
+:attr:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry.topology`.
+For slab (which does not use :class:`CurvilinearGeometry`) the
+module-level constant ``orpheus.derivations.peierls_slab.TOPOLOGY``
+carries the same label. This property **supersedes**
+:attr:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry.n_surfaces`
+as the user-facing identifier: ``n_surfaces`` remains an internal
+integer count, ``topology`` is the semantic label for dispatch +
+documentation + test filtering. The plan that introduced this
+concept lives at
+:file:`.claude/plans/topology-based-consolidation.md`.
+
+**"F.4"** is **overloaded**. Two distinct referents:
+
+- **Phase F.4** (development subphase) — the 2026-04-21 Phase F
+  rollout subphase that added hollow-cylinder support to
+  :func:`~orpheus.derivations.peierls_geometry.compute_hollow_cyl_transmission`
+  and the cylinder branch of
+  :func:`~orpheus.derivations.peierls_geometry._build_closure_operator_rank2_white`.
+  Historical label only; not part of the runtime API.
+- **F.4 (closure formula)** — Stamm'ler & Abbate 1983 Ch. IV
+  Eq. 34 = Hébert 2009 §3.8.4 Eq. 3.323 (see
+  :math:numref:`hebert-3-323`), the scalar rank-2 per-face
+  white-BC closure. **This** is the production closure, the thing
+  the L21 research program confirmed is optimal within the rank-N
+  white-BC paradigm on 1D curvilinear hollow cells.
+
+When reading session notes, research logs, or commit messages,
+interpret "F.4" by context: development timeline → Phase F.4;
+closure math → Stamm'ler Eq. 34.
+
+**Boundary string → closure semantics**. The ``boundary=`` (a.k.a.
+``closure=``) argument to :func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+accepts three values today, each meaning a specific closure:
+
+.. list-table:: ``boundary`` / ``closure`` string semantics (Stage 5 landed)
+   :header-rows: 1
+   :widths: 22 28 22 28
+
+   * - Canonical name
+     - Deprecated alias
+     - Routes to
+     - Physical meaning
+   * - ``"vacuum"``
+     - —
+     - no BC correction added
+     - Zero re-entering flux; outgoing rays escape.
+   * - ``"white_rank1_mark"``
+     - ``"white"`` (emits ``DeprecationWarning``)
+     - :func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction_rank_n`
+     - Rank-1 Mark (isotropic) re-emission. Accurate for flat-source
+       region-averaged CP (exact at the limit) but loose at pointwise
+       Nyström for curvilinear geometries.
+   * - ``"white_f4"``
+     - ``"white_rank2"`` (emits ``DeprecationWarning``)
+     - :func:`~orpheus.derivations.peierls_geometry._build_closure_operator_rank2_white`
+     - F.4 scalar rank-2 per-face. Distinct scalar moment per face,
+       coupled via the :math:`(I - W)^{-1}` transmission operator.
+       **On solid geometry (``n_surfaces == 1``) emits a
+       ``DeprecationWarning`` and silently collapses to rank-1 Mark**
+       — the collapse will become a ``ValueError`` in a future
+       release. Use ``closure="white_rank1_mark"`` for solid.
+
+Both the deprecated aliases and the new canonical names are accepted
+by :func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+(and the per-geometry thin wrappers). Existing code continues to
+work unchanged; the canonical names are preferred for new callers.
+
+**Guard terminology**: the ``NotImplementedError`` raised by
+:func:`~orpheus.derivations.peierls_geometry.build_closure_operator`
+when ``reflection="white"`` AND ``n_bc_modes > 1`` AND
+``geometry.n_surfaces == 2`` guards **rank-N Marshak per-face**
+(Phase F.5's attempted and falsified enrichment), NOT F.4. F.4
+itself always uses ``n_bc_modes = 1``. The guard is load-bearing
+per research-log L21; removing it is the Stage 5 archive action,
+not a bug fix.
+
+**``n_bc_modes`` vs ``n_surfaces``**:
+
+- ``n_surfaces`` is a geometry property (1 for solid slab, cylinder,
+  sphere; 2 for hollow cylinder / sphere / slab-polar with two face
+  constants). Determined by
+  :attr:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry.n_surfaces`.
+- ``n_bc_modes`` is a closure parameter specifying the number of
+  angular moments retained per face. ``n_bc_modes = 1`` = scalar per
+  face (F.4's formulation and the only shipped mode). Higher
+  ``n_bc_modes`` is currently guarded per L21.
+
+**"Hollow"** means ``inner_radius > 0`` on ``cylinder-1d`` or
+``sphere-1d``. A hollow cell has 2 surfaces (inner + outer); a
+solid cell has 1 surface (outer only). This is the same as
+``n_surfaces`` semantically but is more user-facing. The shipped
+1-region solver cases (``cp_cyl1D_1eg_1rg`` etc.) are **solid**;
+the shipped hollow Peierls continuous references are **1-region
+shell-only**. Multi-region hollow cells are not yet shipped.
+
+
+.. _theory-peierls-slab-polar:
+
+Slab-polar in the unified framework — the active adaptive-mpmath path
+======================================================================
+
+**This section documents the slab path that is active in the shipping
+code.** It supersedes two retired predecessors (archived below):
+
+- The **τ-Laguerre prototype** (commit 4395cb8, 2026-04-07). Retired
+  because Gauss–Laguerre on the substitution :math:`v = -\ln|\mu|`
+  converges only algebraically on an integrand that is polynomial in
+  :math:`e^{-v}` rather than polynomial in :math:`v`. See
+  :ref:`theory-peierls-moment-form-failed-polar` for the full defect
+  analysis and the diagnostic tables.
+- The **moment-form fast-assembly** (2026-04-19). Archived on
+  2026-04-20 per
+  `Issue #117 <https://github.com/deOliveira-R/ORPHEUS/issues/117>`_
+  because the verification side of the CP module does not need a fast
+  slab-K assembly. The math is preserved in
+  :ref:`theory-peierls-moment-form` for a future production discrete
+  CP solver; it is not on the verification-reference hot path.
+
+The active path — implemented in
+:func:`~orpheus.derivations.peierls_geometry.K_vol_element_adaptive`
+and dispatched via
+:func:`~orpheus.derivations.peierls_geometry.build_volume_kernel` when
+``geometry.kind == "slab-polar"`` — computes each :math:`K[i, j]`
+element with **two nested adaptive** :func:`mpmath.quad` **calls**
+sharing breakpoint hints with the cylinder and sphere paths. The
+result is machine-precision :math:`K` uniformly across all three
+geometries, paid for by a higher cost-per-element than a tuned
+fast-assembly would give.
+
+
+Subsection — The slab polar-form equation (recap)
+--------------------------------------------------
+
+Observer at :math:`x = x_i`, direction cosine :math:`\mu \in [-1, 1]`,
+ray length :math:`\rho \in [0, \rho_{\max}(x_i, \mu)]`. The unified
+Peierls equation :eq:`peierls-unified` specialises to
+
+.. math::
+   :label: peierls-slab-polar
+
+   \Sigma_t(x_i)\,\varphi(x_i)
+     \;=\;\frac{1}{2}
+     \int_{-1}^{1}\!\mathrm d\mu
+     \int_{0}^{\rho_{\max}(x_i,\mu)}
+       e^{-\int_0^\rho \Sigma_t(x_i + s\mu)\,\mathrm ds}\,
+       q\bigl(x_i + \rho\mu\bigr)\,\mathrm d\rho,
+
+with the chord range
+
+.. math::
+
+   \rho_{\max}(x_i, \mu) \;=\;
+     \begin{cases}
+       (L - x_i)/\mu     & \mu > 0, \\[2pt]
+       -x_i/\mu = x_i/|\mu| & \mu < 0, \\[2pt]
+       \infty            & \mu = 0 \text{ (rays parallel to faces)}.
+     \end{cases}
+
+The prefactor :math:`1/2` is the slab's
+:attr:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry.prefactor`
+value (already folded in the code path). The source
+:math:`q(x') = \Sigma_s(x')\,\varphi(x') + \chi\,\nu\Sigma_f(x')\,\varphi(x')/k`
+follows the unified scattering + fission convention.
+
+This is **the same form** that
+:func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g` solves
+for cylinder-1d and sphere-1d. The only per-geometry differences are
+already factored behind the :class:`CurvilinearGeometry` primitives
+(``ray_direction_cosine``, ``rho_max``, ``source_position``,
+``volume_kernel_mp``, ``angular_weight``). Slab inherits the
+*architecture* for free.
+
+
+Subsection — Why the outer :math:`\mu`-integral is stiff at :math:`\mu = 0`
+----------------------------------------------------------------------------
+
+For non-grazing :math:`\mu`, the inner integrand along the ray decays
+as :math:`e^{-\Sigma_t\,\rho}`: essentially all the contribution comes
+from the first few mean free paths, and the integrand is smooth in
+both :math:`\rho` and :math:`\mu`.
+
+Near :math:`\mu = 0` the ray becomes nearly parallel to the faces:
+:math:`\rho_{\max}(x_i, \mu) \sim 1/|\mu| \to \infty`, and the
+exponential decay along the ray measures optical depths proportional
+to :math:`\Sigma_t \cdot L / |\mu|`. Concretely, substituting
+:math:`v = -\ln|\mu|`, the outer integrand acquires a factor
+
+.. math::
+
+   \exp\!\bigl(-\Sigma_t\,L\,e^{v}\bigr),
+
+which is **super-exponentially** suppressed in :math:`v`. This is the
+*grazing-ray stiffness*: a smooth envelope everywhere except a thin
+region near :math:`\mu = 0` where the integrand collapses to zero on
+a scale set by the material.
+
+**Why ordinary Gauss–Laguerre fails.** Gauss–Laguerre on :math:`v`
+is polynomial-exact against the weight :math:`e^{-v}`. Our integrand
+is polynomial-in-:math:`e^{-v}` (equivalent to polynomial-in-:math:`\mu`),
+not polynomial-in-:math:`v`, so Gauss–Laguerre converges only
+algebraically. The full defect — including generalised-Laguerre
+:math:`\alpha`-sweep tables showing no Laguerre flavour helps — is
+:ref:`theory-peierls-moment-form-failed-polar` below. **Do not
+re-attempt the exp-stretched substitution** on the active path; the
+failure is structural, not a tuning issue.
+
+
+Subsection — Strategy: adaptive tanh-sinh with a forced breakpoint at :math:`\mu = 0`
+--------------------------------------------------------------------------------------
+
+The active path integrates :math:`\mu` on its native range
+:math:`[-1, 1]` with :func:`mpmath.quad` and passes a forced
+breakpoint at :math:`\mu = 0`:
+
+.. code-block:: python
+
+   outer_breaks = [mpmath.mpf(-1), mpmath.mpf(0), mpmath.mpf(1)]
+   omega_integral = mpmath.quad(outer_integrand, outer_breaks)
+
+:func:`mpmath.quad` uses tanh-sinh (double-exponential) quadrature by
+default and subdivides recursively from each breakpoint outward until
+the estimated error falls below the working precision. Two properties
+make this well-suited to the grazing-ray problem:
+
+1. **Tanh-sinh is endpoint-robust.** The nodes pile up at the
+   breakpoints, which is exactly where the stiffness lives (:math:`\mu
+   \to 0^{\pm}`). No weight pre-matching is required — the rule
+   handles :math:`e^{-c\,e^{v}}`-style super-exp decay by pure node
+   concentration, not by being polynomial-exact against it.
+2. **The µ = 0 breakpoint splits the outer integrand into two
+   branches**, each smooth all the way to the endpoint. Without the
+   breakpoint the integrand has a weak (non-:math:`C^\infty`)
+   transition at :math:`\mu = 0` where the ray direction flips
+   (:math:`\rho_{\max}` switches branches). Recursive subdivision
+   from the breakpoint keeps both branches' tanh-sinh estimates
+   monotonically accurate in the node count.
+
+The inner :math:`\rho`-integral uses the same adaptive
+:func:`mpmath.quad` with breakpoints inserted at panel-boundary
+crossings of :math:`r'(\rho)` along the ray (the Lagrange basis has
+kinks there). Panel-boundary-crossing subdivision is shared with the
+cylinder and sphere paths (Issue #114); the only slab-specific
+subdivision is the :math:`\mu = 0` split.
+
+
+Subsection — What this path costs and where it is called
+---------------------------------------------------------
+
+**Cost model.** Each :math:`K[i, j]` element costs one outer adaptive
+:math:`\mu` integral over two breakpoint-segments, each of which
+contains one inner adaptive :math:`\rho` integral. Assembly of the
+:math:`N \times N` matrix therefore scales as
+
+.. math::
+
+   C_{\rm assembly}
+     \;=\; N^2 \cdot \bigl\langle n_\mu \bigr\rangle
+           \cdot \bigl\langle n_\rho \bigr\rangle
+           \cdot c_{\rm eval},
+
+with :math:`\langle n_\mu \rangle, \langle n_\rho \rangle` the
+adaptive node counts and :math:`c_{\rm eval}` the cost of evaluating
+the inner integrand (kernel + Lagrange basis). On a vacuum slab with
+:math:`N = 8` (two panels, :math:`p = 4`) at ``dps = 25`` a
+representative wall-time is minutes, not seconds. **This is the
+verification reference**, not a production K-assembly.
+
+**Where it is called.** Every path that requests a slab-polar K
+matrix eventually hits
+:func:`~orpheus.derivations.peierls_geometry.build_volume_kernel`,
+which dispatches to
+:func:`~orpheus.derivations.peierls_geometry.build_volume_kernel_adaptive`
+for ``kind == "slab-polar"``. This includes
+:func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g` when
+called on :data:`SLAB_POLAR_1D`. The legacy
+:func:`orpheus.derivations.peierls_slab.solve_peierls_eigenvalue`
+retains its **classical** :math:`E_1` Nyström (singularity-subtraction
++ product-integration weights) as an independent cross-check
+implementation — see :ref:`theory-peierls-slab-polar-retirement` for
+the rationale.
+
+
+Subsection — Verification status
+--------------------------------
+
+The active slab-polar path is gated by two L1 tests in
+:mod:`tests.derivations.test_peierls_reference`:
+
+- :class:`TestSlabPolarReferenceEquivalence.test_adaptive_polar_matches_E1_reference`
+  — pointwise agreement :math:`K_{\rm polar}[i,j] = \Sigma_t\,K_{E_1}[i,j]`
+  to relative tolerance :math:`10^{-10}` on four representative
+  :math:`(i, j)` indices at :math:`N = 8` (two panels × :math:`p=4`).
+  The :math:`\Sigma_t` prefactor is the unified-operator convention
+  (:math:`\Sigma_t\varphi = Kq`) — the classical :math:`E_1` Nyström
+  absorbs it into :math:`K` directly.
+- :class:`TestSlabPolarBuildVolumeKernel.test_matches_E1_reference_at_machine_precision`
+  — full :math:`N \times N` assembly via
+  :func:`build_volume_kernel(SLAB_POLAR_1D, \dots)` at :math:`N = 2`
+  (one panel × :math:`p = 2`), element-wise relative tolerance
+  :math:`10^{-10}`.
+- :class:`TestSlabPolarBuildVolumeKernel.test_row_sum_identity` —
+  :math:`K \cdot \mathbf{1} = \Sigma_t\,\varphi_{\rm uniform}(x_i)`
+  against :func:`slab_uniform_source_analytical` at relative
+  tolerance :math:`10^{-10}`.
+
+These close the volume-kernel verification for slab-polar at machine
+precision. The white-BC closure side is separately covered by
+:class:`tests.derivations.test_peierls_rank2_bc` which exercises
+:func:`~orpheus.derivations.peierls_geometry._build_closure_operator_rank2_white`'s
+slab branch against the Wigner–Seitz-exact
+:math:`E_2/E_3` bilinear form.
+
+
+.. _theory-peierls-slab-polar-retirement:
+
+Subsection — Retention of :mod:`peierls_slab` (the native E₁ Nyström)
+----------------------------------------------------------------------
+
+The legacy module
+:mod:`orpheus.derivations.peierls_slab` is **retained indefinitely**,
+not retired, as an independent cross-check implementation. Rationale:
+
+1. **Independent verification.** Two implementations that compute the
+   same answer via different numerical routes (polar-form adaptive
+   mpmath.quad vs classical :math:`E_1` Nyström with singularity
+   subtraction + product integration) catch bugs that either
+   implementation alone would miss.
+2. **Archaeological reference.** The 697-line
+   singularity-subtraction / product-integration machinery in
+   :func:`~orpheus.derivations.peierls_slab._basis_kernel_weights` is
+   a documented instance of the classical Nyström-on-E₁ technique
+   useful for future readers studying slab-specific numerics.
+3. **Low cost of retention.** Once the routing switch of Phase G.5
+   sets :data:`_SLAB_VIA_UNIFIED = True`, the legacy module is not
+   exercised by default but remains available for bisection via the
+   ``ORPHEUS_SLAB_VIA_E1=1`` environment variable override. It does
+   not add runtime cost to anyone who is not explicitly selecting it.
+4. **L0 error-catalog references.** The entries at
+   ``tests/l0_error_catalog.md`` lines 1168 and 1221 cite
+   :func:`~orpheus.derivations.peierls_slab._build_kernel_matrix`
+   explicitly. Retiring the module orphans those catalog entries.
+
+**Exception.** If a future session discovers a bug in the native E₁
+path that is unfixable without major rework, the module can be moved
+to :file:`derivations/archive/` (reversible via ``git mv``) at that
+time. Do not delete.
+
+
+Subsection — Related open questions
+------------------------------------
+
+- **OQ — Can the cost per K element be reduced?** The active adaptive
+  path is a verification reference, not a production K-assembly. If a
+  future user needs slab K at scale, candidates include sinh-sinh
+  quadrature (a super-exp variant of tanh-sinh tuned for the
+  specific :math:`e^{-c\,e^v}` decay near :math:`\mu = 0`) and the
+  archived moment-form architecture in
+  :ref:`theory-peierls-moment-form`. Neither is blocking the
+  verification story.
+- **OQ — Multi-group / multi-region slab via the unified path?** The
+  shipped ``peierls_slab_2eg_2rg`` continuous reference is 2-group;
+  :func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g` is
+  1-group by name and implementation. The unified-path equivalent
+  requires
+  `Issue #104 <https://github.com/deOliveira-R/ORPHEUS/issues/104>`_
+  (N2: multi-group Peierls extension) before the slab reference can
+  be routed through the unified path. Until then the routing of
+  :func:`~orpheus.derivations.peierls_cases.build_two_surface_case`
+  for ``shape="slab"`` stays on the legacy
+  :mod:`~orpheus.derivations.peierls_slab` module. Phase G.3
+  established 1-group parity; multi-group parity is blocked.
+- **OQ — Planar-limit cross-check against hollow cylinder?** The
+  naive claim "hollow cylinder at :math:`r_0 \to R` reduces to a
+  slab of thickness :math:`L = R - r_0`" does **not** hold at the
+  :math:`10^{-8}` level that Phase G.4 originally hoped for. Probed
+  empirically at :math:`r_0 = 0.999\,R`, :math:`R = 1`,
+  :math:`L = 0.001`, :math:`\Sigma_t = 1`, :math:`c = 0.4`,
+  :math:`\nu\Sigma_f = 0.6`: unified slab gives
+  :math:`k_{\rm eff} = 0.002\,355` and unified cylinder gives
+  :math:`k_{\rm eff} = 0.001\,825`, a **22 %** relative disagreement.
+  The physical reason is that the cylinder's :math:`\mathrm{Ki}_1`
+  has already integrated the axial direction analytically; the
+  remaining in-plane chord-length distribution in a thin annular
+  shell scales as :math:`\sqrt{2\,R\,L}` for tangential rays
+  (:math:`\approx 0.045` for the probe's parameters), not
+  :math:`L/|\mu|` as in a slab. The two kernels therefore see
+  different optical-depth spectra even in the thin-shell limit, so
+  there is no simple geometric equivalence at matched
+  :math:`(\Sigma_t, \Sigma_s, \nu\Sigma_f, L)`. A meaningful
+  planar limit needs either a ray-distribution-matched comparison
+  or a curvature-over-thickness expansion — both are future work.
+  Phase G.4 as specified in the plan is filed as a
+  GitHub Issue for future physics investigation rather than a
+  shipping test.
+
+
 .. _theory-peierls-moment-form:
 
 Moment-form Nyström assembly (closed-form polynomial moments) — ARCHIVED
-=======================================================================
+========================================================================
 
 .. note::
 
@@ -3088,6 +3720,59 @@ textbook (Stacey) arrive at the same scalar closure. The rank-:math:`N`
 Legendre ladder of Sanchez-McCormick 1982 §III.F.1 has **zero
 cross-validation** among these five references.
 
+The same equation is the production F.4 closure on BOTH 1D
+curvilinear geometries shipped in ORPHEUS (:class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`,
+``kind`` ∈ :code:`{"cylinder-1d", "sphere-1d"}`), with the
+geometry-specific transmission matrix :math:`W` supplied by
+:func:`~orpheus.derivations.peierls_geometry.compute_hollow_cyl_transmission`
+(cylinder, Ki\ :sub:`3` Bickley fold of the Lambertian emission) or
+:func:`~orpheus.derivations.peierls_geometry.compute_hollow_sph_transmission`
+(sphere, bare :math:`\exp(-\tau)` with explicit :math:`\theta`
+integration). The two geometries differ in the :math:`W_{oi} /
+W_{io}` reciprocity: cylinder uses circumference per unit length so
+:math:`W_{oi} = (R / r_0)\,W_{io}` (FIRST power), sphere uses surface
+area so :math:`W_{oi} = (R / r_0)^2\,W_{io}` (squared). The
+zero-absorption conservation pair
+:math:`W_{oo} + W_{io} = W_{oi} = 1`, :math:`W_{ii} = 0` holds in
+both geometries and is regressed by
+``test_hollow_{cyl,sph}_transmission_zero_absorption_conservation``
+(see :file:`tests/derivations/test_peierls_rank2_bc.py`).
+Residuals at default quadrature (2 panels × p_order=4, n_angular=24,
+n_rho=24, n_surf_quad=24, dps=15):
+
+.. list-table:: F.4 residual across :math:`r_0 / R` at :math:`k_\infty = 1.5` (:math:`\Sigma_t = 1`, :math:`\Sigma_s = 0.5`, :math:`\nu\Sigma_f = 0.75`)
+   :header-rows: 1
+   :widths: 15 20 20 22 23
+
+   * - :math:`r_0 / R`
+     - Cylinder F.4
+     - Cylinder Mark
+     - Sphere F.4
+     - Sphere Mark
+   * - 0.1
+     - 1.4 %
+     - 24.9 %
+     - 0.4 %
+     - ~ 25 %
+   * - 0.2
+     - 5.4 %
+     - 28.5 %
+     - 1.2 %
+     - —
+   * - 0.3
+     - 13.2 %
+     - 32.4 %
+     - 3.3 %
+     - —
+
+Sphere residuals are 3–10× tighter than cylinder at the same
+:math:`r_0/R` because the sphere's higher SO(3) symmetry captures
+more angular structure at the scalar mode, while the cylinder's
+out-of-plane :math:`\theta` fold into Ki\ :sub:`3` averages
+irreversibly over that dimension. Neither is improvable via rank-N
+refinement — see the Phase F.5 close-out below and research log
+lesson L21.
+
 See :file:`.claude/agent-memory/literature-researcher/rank_n_closure_four_references_synthesis.md`
 for the Ligou / Sanchez 2002 / Stamm'ler IV / Stacey 9
 side-by-side, and
@@ -3308,6 +3993,317 @@ expression of Stacey 2007's warning on p. 329 that
 forward-peaked boundary fluxes: the error class is geometric, baked
 into the DP-0 assumption, and cannot be removed without changing
 the angular representation.
+
+.. _peierls-f4-rank-1-gauge-why:
+
+Why F.4 works at rank-1 but does not generalise (Direction Q, Issue #122)
+-------------------------------------------------------------------------
+
+F.4 scalar (Eq. 3.323 of Hébert 2009) pairs **Lambert-basis**
+:math:`P_{\rm esc}, G_{bc}` (integrand has no :math:`\mu` weight on
+the outgoing side) with **Marshak-basis** :math:`W` (the transmission
+operator is defined on the :math:`\mu`-weighted half-range Gram). The
+pairing is formally inconsistent — the escape / coupling primitives
+and the transmission operator live in different inner products — yet
+it is **empirically load-bearing**: every formally-consistent rank-N
+closure we built (Marshak everywhere, Lambert everywhere, split
+c\ :sub:`in`-aware basis with adaptive scale — see
+``diag_cin_aware_split_basis_keff.py``) plateaus 10–100× above F.4's
+residual on the hollow sphere at :math:`\sigma_t R \ge 5`.
+
+Two sub-agent investigations closed Issue #122 with verdict **(B)**:
+**F.4's Lambert/Marshak asymmetry is a lucky rank-1 algebraic
+accident with a principled re-phrasing.** The algebraic bridge
+between F.4 and the rank-N Marshak closure is the solid-harmonic
+change-of-basis matrix between the two half-range L\ :sup:`2`
+structures on :math:`[0, 1]`.
+
+**Setup.** On the outgoing-:math:`\mu` half-line the two natural
+inner products are
+
+.. math::
+   :label: peierls-half-range-inner-products
+
+   \langle f, g \rangle_L \;=\; \int_0^1 f(\mu)\,g(\mu)\,\mathrm d\mu,
+   \qquad
+   \langle f, g \rangle_M \;=\; \int_0^1 f(\mu)\,g(\mu)\,\mu\,\mathrm d\mu.
+
+Shifted-Legendre on :math:`[0, 1]` is orthogonal under
+:math:`\langle \cdot, \cdot \rangle_L`; F.4 uses the
+:math:`L`-orthonormal basis
+:math:`\phi_n^L(\mu) = \sqrt{2n+1}\,P_n(2\mu-1)` for its :math:`P` and
+:math:`G`. The ORPHEUS rank-N Marshak closure (helper
+``_build_closure_operator_rank_n_white``, guarded behind
+:exc:`NotImplementedError`) uses the :math:`M`-orthonormal basis
+:math:`\psi_n^M` obtained by Gram-Schmidt of :math:`\{1, \mu, \mu^2, \ldots\}`
+under :math:`\langle \cdot, \cdot \rangle_M` (equivalent to scaled
+Jacobi :math:`P_n^{(0,1)}(2\mu-1)`).
+
+**Change-of-basis matrix.** The matrix that expresses Lambert ONB
+functions in Marshak ONB coordinates is
+
+.. math::
+   :label: peierls-change-of-basis
+
+   M_{nm} \;=\; \langle \psi_n^M, \phi_m^L \rangle_M
+          \;=\; \int_0^1 \psi_n^M(\mu)\,\phi_m^L(\mu)\,\mu\,\mathrm d\mu,
+   \qquad
+   \phi_m^L \;=\; \sum_n M_{nm}\,\psi_n^M.
+
+The Marshak Gram matrix of the Lambert basis (already cited above for
+the Phase F.5 rank-N primitives),
+:math:`B^{\mu}_{mn} = \langle \phi_m^L, \phi_n^L \rangle_M`, equals
+:math:`M^{\!\top} M` identically. This is the :math:`B^{\mu}` matrix
+consumed by the existing ``_build_closure_operator_rank_n_white``
+helper.
+
+**Symbolic closed forms** (verified in
+``derivations/diagnostics/diag_lambert_marshak_basis_change.py``;
+runs in ~1 s).
+
+At rank :math:`N = 1` the change-of-basis matrix is a **scalar**
+
+.. math::
+   :label: peierls-M-rank-1
+
+   M^{(1)} \;=\; \tfrac{\sqrt{2}}{2} \;\approx\; 0.7071,
+   \qquad
+   (B^{\mu})^{(1)} \;=\; \tfrac{1}{2}.
+
+At rank :math:`N = 2` the change-of-basis matrix is **upper bidiagonal**
+
+.. math::
+   :label: peierls-M-rank-2
+
+   M^{(2)} \;=\;
+   \begin{pmatrix}
+     \tfrac{\sqrt{2}}{2} & \tfrac{\sqrt{6}}{6} \\[4pt]
+     0                   & \tfrac{\sqrt{3}}{3}
+   \end{pmatrix},
+   \qquad
+   (B^{\mu})^{(2)} \;=\;
+   \begin{pmatrix}
+     \tfrac{1}{2} & \tfrac{\sqrt{3}}{6} \\[4pt]
+     \tfrac{\sqrt{3}}{6} & \tfrac{1}{2}
+   \end{pmatrix}.
+
+:math:`M^{(2)}` has singular values :math:`(0.460, 0.888)`. They
+are **unequal**, so :math:`M^{(2)}` is not a scalar multiple of an
+orthogonal matrix — it is a **genuine basis rotation**, not a scalar
+gauge. The rank-3 and rank-4 change-of-basis matrices preserve this
+upper-bidiagonal structure; the sum of magnitudes of strictly-off-
+diagonal entries grows monotonically (0, 0.408, 0.855, 1.318 at
+ranks 1–4).
+
+**Implication for F.4.** At rank-1, the Lambert / Marshak mismatch is
+the scalar :math:`M^{(1)} = \sqrt{2}/2`; it factors out of the closure
+:math:`K_{bc} = G \beta (I - \beta W)^{-1} P` as a rescaling of
+:math:`\beta`. F.4's "trick" is to effectively use the Marshak-side
+:math:`\beta_{\rm eff} = \beta / (M^{(1)})^2 = 2\beta` without
+explicitly saying so. The closure-level gauge factor
+:math:`\alpha(\tau) \approx 0.38` measured in
+``diag_lambert_marshak_symbolic.py`` (see §Experiment 7 of the
+research log) is this basis-change scalar **times** the
+:math:`\exp(-\sigma R)` attenuation integrated through the ray — a
+single number, identifiable, and absorbable.
+
+At rank :math:`N \ge 2`, :math:`M` ceases to commute with any
+diagonal :math:`\operatorname{diag}(\beta_0, \beta_1, \ldots)`. There
+is **no vector** :math:`\beta_{\rm eff}` that, pre-multiplied onto the
+Marshak closure, reproduces F.4's Lambert behaviour. The off-diagonal
+entries of :math:`M` mix Lambert mode-0 into Marshak mode-1 and vice
+versa, and that mixing propagates through the closure operator
+:math:`(I - \beta W)^{-1}` with uncontrolled amplification. This is
+the algebraic origin of Experiment E2.4's rank-N Lambert-P/G
+catastrophe (33–737 % k\ :sub:`eff` error on the 6-point reference
+grid) documented in the research log.
+
+**The precise obstruction: asymmetric µ-multiplication with a
+polynomial-truncation leak.** A frame-covariant rewrite of F.4
+— conjugating the Lambert closure by :math:`M` on both sides as
+:math:`K_{bc}^{F.4} = G_L \cdot M^{\!\top}\,(I - M W_L M^{\!\top})^{-1}\,M\,P_L`
+— was tested at rank-2 and rank-3 (symbolic + mpmath, see
+``derivations/diagnostics/diag_frame_4_connection_form.py``) and
+fails: 22 % relative error at the rank-2 anchor, 48 % at rank-1,
+across 5 conjugation variants and 7 values of :math:`\sigma_t R`.
+:math:`W` is NOT a (1,1) tensor under :math:`M`; at rank-1 already
+:math:`M W_L M^{\!\top} = 0.05` versus :math:`W_M = 0.005` at
+:math:`\sigma_t R = 10`, a tenfold discrepancy. The correct
+algebraic relationship is the **asymmetric identity**
+
+.. math::
+   :label: peierls-WM-WL-asymmetric
+
+   W_M \;=\; B^{\mu}\,W_L,
+   \qquad
+   B^{\mu} \;=\; M^{\!\top} M,
+
+verified bit-exactly at infinite rank. At rank :math:`N`, this
+identity holds on rows :math:`0, 1, \ldots, N-2` of
+:math:`W_M - B^{\mu} W_L` (vanishing symbolically) but **row**
+:math:`N-1` **carries a non-vanishing τ-dependent polynomial-
+truncation residual** — because :math:`\mu \cdot \tilde P_{N-1}`
+has a :math:`\tilde P_N` component that the rank-:math:`N` basis
+cannot represent. Equation :math:numref:`peierls-WM-WL-asymmetric`
+is the exact statement of Lambert ↔ Marshak at the transmission
+operator; the rank-1 scalar-gauge picture of
+:math:numref:`peierls-M-rank-1` is the finite-truncation limit
+where the leaking row has empty support. This obstruction is
+structural and cannot be cured by any basis rotation on the rank-
+:math:`N` space.
+
+**Connection to the gauge-theoretic literature.** Sanchez (2014)
+NSE 177(1), DOI ``10.13182/NSE12-95``, establishes that the
+first-order :math:`P_N` equations are **degenerate** — multiple IC/BC
+closures are admissible, with uniqueness imposed via second-order-
+parity equivalence and solid-harmonic expansions that reproduce
+results originally due to Davison (1957) and Rumyantsev (1950s). The
+Sanchez theorem applies to the differential :math:`P_N` equations,
+not directly to the integral CP operator F.4 lives on, but the
+gauge-freedom framing is the right language: **at rank-1 the integral
+CP admits a scalar gauge (equation** :math:numref:`peierls-M-rank-1`
+**) that F.4 exploits**; at rank-N the "gauge" becomes a full basis
+rotation (equation
+:math:numref:`peierls-change-of-basis`) that the Marshak closure
+must account for explicitly. Canonical open-access channels to the
+underlying solid-harmonic material are Davison (1957) *Neutron
+Transport Theory* (Oxford; AEC NAA-SR-3509) and Case & Zweifel (1967)
+*Linear Transport Theory*.
+
+**Statistical-mechanical picture (partial).** The scalar gauge
+:math:`\alpha(\tau, \rho) \approx 0.38` has a partial statistical-
+mechanical interpretation via the surface Markov chain on the outer
+hemisphere: state space is outgoing :math:`\mu \in [0, 1]`; the
+transition kernel is ballistic chord through the hollow sphere
+followed by isotropic re-emission with in-shell scattering
+:math:`c = 1/3`. Direct 500 k-history Monte Carlo of this chain
+(see ``derivations/diagnostics/diag_frame_3_surface_markov_mc.py``)
+gives a Perron eigenfunction :math:`p_{\infty}(\mu)` whose moments
+are **ρ-independent to :math:`\le 1.3\,\%`** across
+:math:`\rho \in [0.3, 0.5]` at fixed :math:`\tau` — this is the
+mechanism behind the observed ρ-flatness of :math:`\alpha`. But
+:math:`p_{\infty}(\mu)` is **not Laplace-type**: an exponential
+fit :math:`A e^{-\lambda\mu} + B` leaves 7–11 % residual; the
+histogram is monotone *increasing* in :math:`\mu`, with
+:math:`\mathbb E[\mu] \approx 0.56\text{–}0.61` and
+:math:`\mathbb E[\mu^2]/\mathbb E[\mu] \approx 0.70\text{–}0.72`.
+No natural moment of :math:`p_{\infty}` identifies :math:`\alpha`
+to better than 5 % uniformly across the 6-point grid. The rank-N
+polynomial expansion of :math:`p_{\infty}` is therefore
+**basis-resistant** because :math:`p_{\infty}` is neither polynomial
+nor single-exponential — supplementing the algebraic Schur-reduction
+story (equation :math:numref:`peierls-WM-WL-asymmetric`) with an
+independent statistical obstruction. An analytical computation of
+:math:`p_{\infty}` as the left Peierls-kernel eigenvector on the
+outer surface would settle the quantitative :math:`\alpha`
+identification without MC bias; this is unresolved and listed as a
+follow-up.
+
+**Production decision.** The guard on
+``boundary="white", n_bc_modes > 1`` stays in place. F.4 remains
+production. The rank-N Marshak primitives below are retained because
+they are tested, reciprocity-verified, and equal-to-F.4 at :math:`N=1`
+— but no principled rank-N generalisation of the Lambert-side trick
+exists. Any future rank-N white-BC closure candidate must compete
+against F.4 under the two-quadrature stability protocol (Direction N,
+Issue #123) — see L19 in the research log.
+
+.. _peierls-rank-n-stability:
+
+Rank-N stability protocol (L19)
+--------------------------------
+
+A rank-N white-BC closure candidate :math:`C` claims to beat F.4 at a
+reference point :math:`(\tau, \rho)` if and only if the claim survives
+the **two-quadrature signed-error stability protocol** defined here.
+This protocol is the operational response to lessons L17–L19 in
+``.claude/plans/rank-n-closure-research-log.md``: RICH = (4, 8, 64) is
+below F.4's own structural floor at :math:`\sigma_t R \ge 10`, so a
+naive single-quadrature comparison rewards quadrature-noise cancellation
+rather than truncation-residual reduction.
+
+**Protocol.** Let :math:`\mathcal Q = (q_1, q_2, \ldots, q_K)`,
+:math:`K \ge 2`, be a sequence of quadrature triples
+:math:`(n_{\rm panels}, p_{\rm order}, n_{\rm ang})` of monotonically
+increasing refinement (lexicographic in any component). Let
+:math:`e_C(q_k)` and :math:`e_{F.4}(q_k)` denote the **signed** relative
+errors :math:`(k_{\rm eff}^{C/F.4}(q_k) - k_\infty)/k_\infty` at each
+quadrature.
+
+The candidate :math:`C` is a **structural win** over F.4 at
+:math:`(\tau, \rho)` iff all five of the following hold:
+
+.. math::
+   :label: peierls-rank-n-stability
+
+   \begin{aligned}
+   & \textbf{(S1)} \quad K \ge 2, \\
+   & \textbf{(S2)} \quad |e_C(q_k)| \;<\; |e_{F.4}(q_k)|
+       \quad \text{for every } k, \\
+   & \textbf{(S3)} \quad \operatorname{sign}\,e_C(q_k) \;=\; \operatorname{sign}\,e_C(q_{k+1})
+       \quad \text{for every } k, \\
+   & \textbf{(S4)} \quad |e_C(q_k)| \;\ge\; |e_C(q_{k+1})|
+       \quad \text{for every } k, \\
+   & \textbf{(S5)} \quad \operatorname{sign}\,e_{F.4}(q_k)
+       \;=\; \operatorname{sign}\,e_{F.4}(q_{k+1})
+     \; \wedge \; |e_{F.4}(q_k)| \;\ge\; |e_{F.4}(q_{k+1})|
+       \quad \text{for every } k.
+   \end{aligned}
+
+Assertion **(S5)** is the L17/L19 reference-verifiability gate: if
+F.4 itself sign-flips or grows in magnitude under refinement at
+:math:`(\tau, \rho)`, the *reference* is unverifiable at
+:math:`\mathcal Q` and no rank-N comparison there is admissible.
+This is strictly stronger than L16's "match quadrature across
+compared closures" — it additionally demands that the match resolves
+the smaller structural floor.
+
+**Implementation.** The helper
+``tests.cp.test_peierls_rank_n_protocol.assert_rank_n_structural_win``
+raises :exc:`AssertionError` on any of S1–S5 failing and returns a
+``StabilityReport`` dataclass with the full signed-error trajectory
+otherwise. The helper ships with pinning tests for the RICH vs
+RICH+panels pair at the six reference points
+:math:`(\sigma_t R, \rho) \in \{5, 10, 20\} \times \{0.3, 0.5\}`;
+two of those six (:math:`\sigma_t R = 10, \rho = 0.3` and
+:math:`\sigma_t R = 20, \rho = 0.5`) reproduce the canonical L17
+sign-flip of F.4 itself and are tagged ``@pytest.mark.slow``.
+
+A baseline of F.4 at ULTRA = (5, 10, 96) and richer at all six points
+— the reference that would make :math:`\mathcal Q` trivially
+L19-compliant without needing S5 — is currently **unresolved** on the
+devcontainer hardware used during Issue #123 development: ULTRA and
+RICH+pp exceeded the 120-s-per-point budget at every point tested.
+Resolving the full ULTRA baseline requires either richer hardware or
+a relaxed wall budget (target: :math:`\ge` 300 s per point at
+:math:`\sigma_t R = 20`). See L20 in the research log.
+
+**Randomized QMC alternative (validated 2026-04-22).** The product-
+Gauss bias that produces L17 sign flips is driven by the tangent-
+angle kink in the exp(−τd) integrand, whose Hardy-Krause variation
+is *bounded in* :math:`\tau`. Owen-scrambled Sobol' on the angular
+dimension (32 scrambles × 4096 points) gives 95 % bootstrap CI
+widths of :math:`6 \times 10^{-5}` to :math:`6 \times 10^{-4}` per
+cent on F.4 at all six reference points — 20–100× tighter than the
+PG RICH vs RICH+panels spread the L19 protocol uses to *detect*
+instability. Both L17 sign-flip points
+(:math:`\sigma_t R = 10, \rho = 0.3` and
+:math:`\sigma_t R = 20, \rho = 0.5`) resolve to crisp negative
+QMC means whose CIs do not cross zero. See
+``derivations/diagnostics/diag_f4_qmc_quadrature.py`` and the
+Frame 5 memo. A future rank-N closure candidate can therefore
+replace the S3–S4 gates of :math:numref:`peierls-rank-n-stability`
+by a **single CI-separation assertion**:
+
+   closure mean, F.4 mean with disjoint 95 % CIs, AND closure CI
+   strictly tighter than :math:`|{\text{F.4 mean}}|`.
+
+The thin wrapper ``assert_rank_n_qmc_structural_win(closure, f4,
+point, N=4096, n_scrambles=32)`` implementing this is sketched in
+the Frame 5 memo; not shipped because no current closure passes
+Frame 5. Issue #128 tracks the optional migration of F.4 production
+quadrature from product-Gauss to randomized QMC; LOW priority, not
+on the critical path.
 
 Infrastructure retained (dead-code-guarded for future research)
 ----------------------------------------------------------------

@@ -391,18 +391,38 @@ class TestRank2SlabKEffKInfConvergence:
             f"plumbed through. Delta = {abs(float(sol.k_eff) - k_ref):.3e}."
         )
 
-    @pytest.mark.parametrize("r0", [0.1, 0.2, 0.3])
-    def test_hollow_cyl_rank2_beats_rank1_mark(self, r0):
-        r"""Phase F.4: rank-2 white BC on hollow cylinder beats rank-1
-        Mark for all tested :math:`r_0`. The exact :math:`k_{\rm eff} =
-        k_\infty` identity does NOT close at rank-1-per-face (scalar
-        Lambertian at each surface): on curved surfaces the outgoing
-        angular distribution after reflection carries higher Legendre
-        moments that the scalar-mode closure omits. For small
-        :math:`r_0/R` the residual is already a 10-20× improvement
-        over rank-1 Mark; for larger :math:`r_0` the scalar-mode
-        limitation dominates (rank-N per-face closure — Phase F.5 —
-        would lift it).
+    @pytest.mark.verifies("hebert-3-323")
+    @pytest.mark.parametrize(
+        "r0, err_ceiling, min_improvement",
+        [
+            (0.1, 2.0e-2, 10.0),
+            (0.2, 6.0e-2, 4.0),
+            (0.3, 1.5e-1, 2.0),
+        ],
+    )
+    def test_hollow_cyl_rank2_beats_rank1_mark(self, r0, err_ceiling, min_improvement):
+        r"""Phase F.4 on hollow cylinder: rank-2 white BC (Stamm'ler IV
+        Eq. 34 = Hébert 2009 Eq. 3.323) beats rank-1 Mark, reaches the
+        per-:math:`r_0` err ceiling, and improves over Mark by at least
+        ``min_improvement``×.
+
+        The exact :math:`k_{\rm eff} = k_\infty` identity does NOT close
+        at rank-1-per-face (scalar Lambertian at each surface): on curved
+        surfaces the outgoing angular distribution after reflection
+        carries higher Legendre moments that the scalar-mode closure
+        omits. The residual grows with :math:`r_0 / R` because the
+        cavity exposes more of the curved inner surface to grazing
+        rays. Ceilings match the measured baseline at default quadrature
+        (2 panels × p_order=4, n_angular=24, n_rho=24, n_surf_quad=24,
+        dps=15) with modest headroom; regressions in the :math:`W_{\rm io}`
+        Ki₃ fold or the :math:`R/r_0` reciprocity will trip the ceilings.
+        Cylinder cannot reach sphere's 0.4 % / 1.2 % / 3.3 % baseline
+        because the cylinder's 2-D out-of-plane fold into Ki₃ loses
+        angular resolution that the sphere's explicit 3-D theta
+        integration retains — this is a geometry-level, not algorithm-
+        level, bound (L21 in the research log). Rank-N per-face (Phase
+        F.5) was falsified as a path to improve beyond F.4 — see
+        :ref:`peierls-rank-n-per-face-closeout`.
         """
         from orpheus.derivations.peierls_geometry import (
             CurvilinearGeometry,
@@ -422,7 +442,6 @@ class TestRank2SlabKEffKInfConvergence:
             geom, r_nodes, panels, radii, sig_t,
             n_angular=24, n_rho=24, dps=15,
         )
-        N = len(r_nodes)
         results = {}
         for tag, refl in (("mark", "mark"), ("white", "white")):
             K = K_vol + build_closure_operator(
@@ -432,9 +451,14 @@ class TestRank2SlabKEffKInfConvergence:
             results[tag] = _solve_k_eff(K, sig_t_v, sig_s_v, nu_sig_f_v)
         e_mark = abs(results["mark"] - k_inf) / k_inf
         e_white = abs(results["white"] - k_inf) / k_inf
-        assert e_white < e_mark, (
-            f"r_0={r0}: rank-2 white err={e_white:.3e} must beat "
-            f"rank-1 Mark err={e_mark:.3e}"
+        assert e_white < e_mark / min_improvement, (
+            f"r_0={r0}: cylinder rank-2 err={e_white:.3e} must beat "
+            f"rank-1 Mark err={e_mark:.3e} by ≥{min_improvement}×, "
+            f"observed {e_mark / e_white:.2f}×"
+        )
+        assert e_white < err_ceiling, (
+            f"r_0={r0}: cylinder rank-2 err={e_white:.3e} above ceiling "
+            f"{err_ceiling:.0e} — Ki₃ fold or R/r_0 reciprocity regression?"
         )
 
     @pytest.mark.parametrize("r0, err_ceiling", [
@@ -510,6 +534,56 @@ class TestRank2SlabKEffKInfConvergence:
         assert abs(W[0, 1] - 1.0) < 1e-14
         # Reciprocity: W_oi = (R/r_0)² · W_io.
         assert abs(W[0, 1] - (R_out / r0) ** 2 * W[1, 0]) < 1e-14
+
+    @pytest.mark.verifies("hebert-3-323")
+    def test_hollow_cyl_transmission_zero_absorption_conservation(self):
+        r"""Cylinder analog of
+        :meth:`test_hollow_sph_transmission_zero_absorption_conservation`.
+
+        At :math:`\Sigma_t = 0` every ray returns to SOME surface.
+        :math:`W_{\rm oo} + W_{\rm io} = 1` (outer emissions all return);
+        :math:`W_{\rm oi} = 1` (inner emissions all reach outer through
+        the convex cavity, so :math:`W_{\rm ii} = 0`).
+
+        **Cylinder-area reciprocity** :math:`W_{\rm oi} = (R/r_0)\,W_{\rm io}`
+        must hold — distinct from the sphere's :math:`(R/r_0)^2`.
+        The sphere case ratios surface areas (:math:`4\pi R^2`); the
+        cylinder case ratios circumferences per unit length
+        (:math:`2\pi R`). Mis-porting the sphere form to the cylinder
+        would give a tenfold discrepancy at :math:`r_0/R = 0.3` and
+        this test catches that trap explicitly.
+        """
+        from orpheus.derivations.peierls_geometry import (
+            compute_hollow_cyl_transmission,
+        )
+
+        r0, R_out = 0.3, 1.0
+        W = compute_hollow_cyl_transmission(
+            r0, R_out, np.array([R_out]), np.array([0.0]), dps=20,
+        )
+        # Outer emissions go to outer (grazing past cavity) or inner:
+        # sum = 1 at zero absorption.
+        assert abs(W[0, 0] + W[1, 0] - 1.0) < 1e-14
+        # Inner emissions all reach outer (convex cavity): W_oi = 1.
+        assert abs(W[0, 1] - 1.0) < 1e-14
+        # Convex cavity implies W_ii = 0 (no inner-to-inner transmission
+        # when the inner surface is the cavity wall and rays must cross
+        # the shell).
+        assert abs(W[1, 1]) < 1e-14
+        # Cylinder reciprocity: W_oi = (R/r_0) · W_io  (FIRST power).
+        # This is the conceptual trap — sphere is (R/r_0)².
+        assert abs(W[0, 1] - (R_out / r0) * W[1, 0]) < 1e-14, (
+            f"cylinder reciprocity violated: W_oi={W[0,1]} vs "
+            f"(R/r_0)·W_io={(R_out/r0)*W[1,0]} — the (R/r_0)² sphere "
+            f"form must NOT be used here"
+        )
+        # Sanity: sphere form would be wrong here by a factor R/r_0:
+        # asserting the NOT relationship documents the trap.
+        assert abs(W[0, 1] - (R_out / r0) ** 2 * W[1, 0]) > 1.0, (
+            f"sphere (R/r_0)² relationship should NOT hold on cylinder; "
+            f"if this passes, the transmission primitive is spherical, "
+            f"not cylindrical"
+        )
 
     def test_hollow_cyl_rank2_partial_current_balance_closes(self):
         r"""The rank-2 tensor :math:`K_{\rm bc} = G R P` on hollow cylinder
@@ -776,3 +850,96 @@ class TestRank2SlabKEffKInfConvergence:
             assert errs[i] < errs[i - 1] / 3.0, (
                 f"Non-monotone / sub-O(h²) convergence: {errs}"
             )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 4. Phase G.3 — Unified slab-polar vs native E₁ Nyström k_eff benchmark
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.verifies("peierls-unified")
+class TestSlabPolarVsNativeE1KEff:
+    r"""Phase G.3 benchmark: unified ``solve_peierls_1g(SLAB_POLAR_1D)``
+    agrees with native :func:`peierls_slab.solve_peierls_eigenvalue` on
+    k_eff and flux shape, at matched precision.
+
+    The existing :class:`TestSlabPolarBuildVolumeKernel` and
+    :class:`TestSlabPolarReferenceEquivalence` prove that the K matrix
+    agrees to 1e-10 at the element level. This test closes the loop by
+    verifying that the agreement carries through the power iteration
+    into k_eff and flux shape — the quantity end-users actually consume.
+
+    See :ref:`theory-peierls-slab-polar` in the Sphinx documentation.
+    Mark ``@pytest.mark.slow``: the unified path is a verification
+    reference, not a production assembly; each K element needs one
+    adaptive ``mpmath.quad`` pair, so total cost is minutes at N = 6.
+    """
+
+    @pytest.mark.parametrize("L, sig_t, sig_s, nu_sig_f", [
+        # (L, Σ_t, Σ_s, νΣ_f) — vacuum slab, scattering ratio c and fission
+        (1.0, 1.0, 0.4, 0.6),   # k ≈ 0.7 (subcritical)
+        (2.0, 1.0, 0.3, 0.8),   # larger slab, higher ν*fiss
+    ])
+    def test_1g_vacuum_slab_k_eff_matches_native(
+        self, L, sig_t, sig_s, nu_sig_f,
+    ):
+        from orpheus.derivations.peierls_geometry import solve_peierls_1g
+        from orpheus.derivations.peierls_slab import solve_peierls_eigenvalue
+
+        n_panels, p_order, dps = 1, 3, 20
+
+        sol_unified = solve_peierls_1g(
+            SLAB_POLAR_1D,
+            radii=np.array([L]),
+            sig_t=np.array([sig_t]),
+            sig_s=np.array([sig_s]),
+            nu_sig_f=np.array([nu_sig_f]),
+            boundary="vacuum",
+            n_panels_per_region=n_panels,
+            p_order=p_order,
+            dps=dps,
+            tol=1e-12,
+        )
+        sol_native = solve_peierls_eigenvalue(
+            sig_t_regions=[np.array([sig_t])],
+            sig_s_matrices=[np.array([[sig_s]])],
+            nu_sig_f_all=[np.array([nu_sig_f])],
+            chi_all=[np.array([1.0])],
+            thicknesses=[L],
+            n_panels_per_region=n_panels,
+            p_order=p_order,
+            precision_digits=dps,
+            boundary="vacuum",
+        )
+
+        k_unified = float(sol_unified.k_eff)
+        k_native = float(sol_native.k_eff)
+        rel_k = abs(k_unified - k_native) / k_native
+
+        # k_eff precision: 1e-8 at N=3 (1 panel × p=3) at dps=20.
+        # At higher dps + larger N the agreement approaches 1e-12.
+        assert rel_k < 1e-8, (
+            f"k_eff disagreement at (L={L}, Σ_t={sig_t}, Σ_s={sig_s}, "
+            f"νΣ_f={nu_sig_f}): unified={k_unified:.12f}, "
+            f"native={k_native:.12f}, rel={rel_k:.3e}"
+        )
+
+        # Flux shape comparison: both solvers use the same composite-GL
+        # panel layout (same n_panels × p_order) so their radial nodes
+        # coincide pointwise. Compare normalised flux at the group-0
+        # column.
+        phi_u = np.asarray(sol_unified.phi_values[:, 0])
+        phi_n = np.asarray(sol_native.phi_values[:, 0])
+        phi_u = phi_u / np.max(np.abs(phi_u))
+        phi_n = phi_n / np.max(np.abs(phi_n))
+        # Sign ambiguity — eigenvectors are defined up to a sign.
+        if np.dot(phi_u, phi_n) < 0:
+            phi_n = -phi_n
+        flux_max_rel = float(np.max(np.abs(phi_u - phi_n)))
+        assert flux_max_rel < 1e-6, (
+            f"Normalised flux shape disagreement "
+            f"||φ_unified − φ_native||_∞ = {flux_max_rel:.3e} "
+            f"at (L={L}, Σ_t={sig_t})."
+        )
