@@ -24,12 +24,24 @@ avoid double-registration; the registry-builder's auto-discovery
 walks every module and this module is the single source for Peierls
 continuous references.
 
-Slab note (2026-04-23): slab's machinery (native E₁ Nyström) has
-not yet been absorbed into the curvilinear
-:class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`
-polar form — that requires arbitrary-precision quadrature on the
-log singularity, scheduled for a future numerics session. Until
-then slab lives in its own module but is **registered** here under
+Slab note (2026-04-24): slab has two independent verification paths:
+
+1. **Native E₁ Nyström** (:mod:`~orpheus.derivations.peierls_slab`) —
+   classical singularity-subtraction + product-integration, multi-
+   group via a block-Toeplitz assembly. This is the path
+   ``_build_peierls_slab_case`` currently uses to populate the
+   ``peierls_slab_2eg_2rg`` continuous reference.
+2. **Unified curvilinear** (:func:`~orpheus.derivations.peierls_geometry.solve_peierls_mg`
+   with :data:`~orpheus.derivations.peierls_geometry.SLAB_POLAR_1D`)
+   — adaptive ``mpmath.quad`` with forced :math:`\mu = 0` breakpoint,
+   machine precision by construction (see Phase G — Sphinx
+   §theory-peierls-slab-polar).
+
+Both paths are now multi-group capable as of Issue #104
+(2026-04-24); routing the slab continuous reference through the
+unified path is tracked as Issue #130 (Phase G.5) and gated on a
+benchmark not yet run at this file. Until then slab cases ship via
+the native E₁ module but the registration **key** lives here under
 Class A alongside the curvilinear hollow cells, because the closure
 class (F.4 scalar rank-2 per-face) and the verification methodology
 (L19 stability protocol) are identical across Class A regardless of
@@ -111,6 +123,7 @@ def build_two_surface_case(
         R_out = float(_CYL_RADII[n_regions][-1])
         return _build_peierls_cylinder_hollow_f4_case(
             r0_over_R=float(inner_radius) / R_out,
+            ng_key=ng_key,
         )
     if shape == "sphere-1d":
         if inner_radius is None:
@@ -124,6 +137,7 @@ def build_two_surface_case(
         R_out = float(_SPH_RADII[n_regions][-1])
         return _build_peierls_sphere_hollow_f4_case(
             r0_over_R=float(inner_radius) / R_out,
+            ng_key=ng_key,
         )
     raise ValueError(
         f"build_two_surface_case: unknown shape {shape!r}; "
@@ -174,19 +188,35 @@ def build_one_surface_compact_case(
 
 
 def _class_a_cases() -> list[ContinuousReferenceSolution]:
-    """Class A — two-surface cases. Slab + hollow cylinder/sphere F.4."""
+    """Class A — two-surface cases. Slab + hollow cylinder/sphere F.4.
+
+    Multi-group hollow cyl/sph references were added in Issue #104
+    (2026-04-24) once the unified :func:`peierls_geometry.solve_peierls_mg`
+    path landed. Each ``r_0/R`` sweep entry now ships a 1G and 2G
+    variant — the 1G residuals against :math:`k_\\infty` are
+    reference-stable (1.4 % / 5.4 % / 13 % cyl; 0.4 % / 1.2 % / 3.3 %
+    sph); the 2G variants inherit the same F.4 scalar rank-2 per-face
+    closure applied group-wise.
+    """
     refs: list[ContinuousReferenceSolution] = []
-    # Slab: 2G 2-region (current shipped default)
+    # Slab: 2G 2-region (current shipped default — native E₁ Nyström
+    # path per peierls_cases module docstring).
     refs.append(build_two_surface_case("slab", "2g", 2))
-    # Hollow cylinder F.4 at r_0/R ∈ {0.1, 0.2, 0.3}
+    # Hollow cylinder F.4 at r_0/R ∈ {0.1, 0.2, 0.3}, 1G and 2G variants.
     for r0 in (0.1, 0.2, 0.3):
         refs.append(build_two_surface_case(
             "cylinder-1d", "1g", 1, inner_radius=r0,
         ))
-    # Hollow sphere F.4 at r_0/R ∈ {0.1, 0.2, 0.3}
+        refs.append(build_two_surface_case(
+            "cylinder-1d", "2g", 1, inner_radius=r0,
+        ))
+    # Hollow sphere F.4 at r_0/R ∈ {0.1, 0.2, 0.3}, 1G and 2G variants.
     for r0 in (0.1, 0.2, 0.3):
         refs.append(build_two_surface_case(
             "sphere-1d", "1g", 1, inner_radius=r0,
+        ))
+        refs.append(build_two_surface_case(
+            "sphere-1d", "2g", 1, inner_radius=r0,
         ))
     return refs
 

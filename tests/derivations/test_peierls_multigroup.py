@@ -368,3 +368,166 @@ class TestMGNg2Sanity:
         assert np.all(sol.phi_values >= 0) or np.all(sol.phi_values <= 0), (
             f"Flux sign pattern is not monochromatic: {sol.phi_values}"
         )
+# ═══════════════════════════════════════════════════════════════════════
+# Tier 2 — 2G parity against native slab driver (Phase G.5 tie-back)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.verifies("peierls-unified")
+class TestMGSlabPolarMatchesNativeSlabMG:
+    r"""Phase G.5 tie-back (Issue #130): the unified multi-group slab
+    path (:func:`solve_peierls_mg(SLAB_POLAR_1D, ...)`) must agree
+    with :func:`peierls_slab.solve_peierls_eigenvalue` on k_eff and
+    flux shape for the shipped 2G XS set.
+
+    This is the **definitive cross-check** on the sig_s convention:
+    if the two drivers agree on the 2G eigenvalue, the per-region
+    ``sig_s[g_src, g_dst]`` indexing in :func:`solve_peierls_mg` is
+    correct (the native slab driver predates Issue #104 and has
+    always used the same indexing pattern internally).
+
+    Marked ``@pytest.mark.slow`` — the unified adaptive path is ~100×
+    slower than the native E₁ Nyström at matched precision. 1G
+    baseline cost at ``N = 3`` is ~30 s; 2G ~60 s.
+    """
+
+    def test_2g_vacuum_slab_matches_native_eigenvalue(self):
+        from orpheus.derivations.peierls_geometry import (
+            SLAB_POLAR_1D, solve_peierls_mg,
+        )
+        from orpheus.derivations.peierls_slab import solve_peierls_eigenvalue
+
+        # Use a simple fabricated 2G XS set — values chosen to give a
+        # healthy, well-conditioned eigenproblem (k_eff ~ O(1)) and to
+        # exercise downscatter (sig_s[0, 1] = 0.1, fast → thermal).
+        L = 1.0
+        sig_t_region = np.array([0.8, 1.2])            # (ng,)
+        sig_s_region = np.array([[0.3, 0.2],           # (ng, ng)
+                                 [0.0, 0.7]])          # convention: [src, dst]
+        nu_sig_f_region = np.array([0.1, 0.6])         # (ng,)
+        chi_region = np.array([0.9, 0.1])              # (ng,)
+
+        n_panels, p_order, dps = 1, 3, 20
+
+        # Unified MG path
+        sol_unified = solve_peierls_mg(
+            SLAB_POLAR_1D,
+            radii=np.array([L]),
+            sig_t=sig_t_region[np.newaxis, :],          # (1, ng)
+            sig_s=sig_s_region[np.newaxis, :, :],       # (1, ng, ng)
+            nu_sig_f=nu_sig_f_region[np.newaxis, :],
+            chi=chi_region[np.newaxis, :],
+            boundary="vacuum",
+            n_panels_per_region=n_panels,
+            p_order=p_order,
+            dps=dps,
+            tol=1e-10,
+        )
+
+        # Native slab MG driver (block-Toeplitz E₁ Nyström)
+        sol_native = solve_peierls_eigenvalue(
+            sig_t_regions=[sig_t_region],
+            sig_s_matrices=[sig_s_region],
+            nu_sig_f_all=[nu_sig_f_region],
+            chi_all=[chi_region],
+            thicknesses=[L],
+            n_panels_per_region=n_panels,
+            p_order=p_order,
+            precision_digits=dps,
+            boundary="vacuum",
+        )
+
+        k_uni, k_nat = float(sol_unified.k_eff), float(sol_native.k_eff)
+        rel = abs(k_uni - k_nat) / abs(k_nat)
+
+        # Target: 1e-8. The two drivers use different quadrature
+        # (adaptive tanh-sinh vs E₁ Nyström) so agreement is limited
+        # by the worse of the two at matched nominal precision.
+        assert rel < 1e-8, (
+            f"2G unified slab vs native disagreement: "
+            f"unified={k_uni:.12f}, native={k_nat:.12f}, rel={rel:.3e}\n"
+            f"This is a conventions-mismatch smoking-gun — if >1e-4, "
+            f"check the sig_s ordering in solve_peierls_mg."
+        )
+
+        # Flux shape per group — both solvers produce shape (N, 2).
+        phi_u = np.asarray(sol_unified.phi_values)
+        phi_n = np.asarray(sol_native.phi_values)
+        assert phi_u.shape == phi_n.shape, (
+            f"Shape mismatch: unified {phi_u.shape}, native {phi_n.shape}"
+        )
+        for g in range(2):
+            pu = phi_u[:, g] / np.max(np.abs(phi_u[:, g]))
+            pn = phi_n[:, g] / np.max(np.abs(phi_n[:, g]))
+            if np.dot(pu, pn) < 0:
+                pn = -pn
+            max_rel = float(np.max(np.abs(pu - pn)))
+            assert max_rel < 1e-6, (
+                f"Flux shape group {g}: ||φ_unified - φ_native||_∞ = "
+                f"{max_rel:.3e}"
+            )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Tier 2 — Registration smoke test for 2G hollow cyl / sph
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.verifies("peierls-unified")
+class TestMG2GHollowRegistration:
+    r"""The 2G hollow cyl / sph continuous references registered in
+    :func:`peierls_cases._class_a_cases` are **buildable** and
+    produce finite, positive k_eff and finite flux.
+
+    This is a slow integration test: each reference rebuilds the
+    continuous case (adaptive ``mpmath.quad`` per K element, 2
+    groups). Expected wall time ~2 min per reference; 6 references
+    ⇒ ~12 min. Marked ``@pytest.mark.slow``.
+
+    The test does NOT check k_eff parity against an independent
+    solver — that's outside the scope of commit 2. Parity against
+    ``cp_cylinder`` / ``cp_sphere`` discrete MG solvers is future
+    work (Issue #104 AC requires 1 % agreement at thick R).
+    """
+
+    @pytest.mark.parametrize("r0_over_R", [0.1, 0.2, 0.3])
+    def test_hollow_cyl_2g_builds(self, r0_over_R):
+        from orpheus.derivations.peierls_cylinder import (
+            _build_peierls_cylinder_hollow_f4_case,
+        )
+        # Tight quadrature — default quadrature would make this test
+        # prohibitive. The goal is "does the builder run to completion
+        # and produce physical-looking output", not full precision.
+        ref = _build_peierls_cylinder_hollow_f4_case(
+            r0_over_R=r0_over_R, ng_key="2g",
+            n_panels_per_region=1, p_order=3,
+            n_beta=12, n_rho=12, n_phi=12,
+            precision_digits=15,
+        )
+        assert ref.problem.n_groups == 2
+        assert ref.k_eff is not None and ref.k_eff > 0.0
+        assert np.isfinite(ref.k_eff) and ref.k_eff < 100.0
+        # The 2G name layout is peierls_cyl1D_hollow_{ng}eg_{n_regions}rg_r0_{r0_tag}
+        assert "2eg" in ref.name
+        assert ref.operator_form == "integral-peierls"
+
+    @pytest.mark.parametrize("r0_over_R", [0.1, 0.2, 0.3])
+    def test_hollow_sph_2g_builds(self, r0_over_R):
+        from orpheus.derivations.peierls_sphere import (
+            _build_peierls_sphere_hollow_f4_case,
+        )
+        ref = _build_peierls_sphere_hollow_f4_case(
+            r0_over_R=r0_over_R, ng_key="2g",
+            n_panels_per_region=1, p_order=3,
+            n_theta=12, n_rho=12, n_phi=12,
+            precision_digits=15,
+        )
+        assert ref.problem.n_groups == 2
+        assert ref.k_eff is not None and ref.k_eff > 0.0
+        assert np.isfinite(ref.k_eff) and ref.k_eff < 100.0
+        assert "2eg" in ref.name
+        assert ref.operator_form == "integral-peierls"
