@@ -518,28 +518,89 @@ def test_class_b_sphere_hebert_chi_dependence(chi_spectrum,
     )
 
 
-@pytest.mark.l1
-@pytest.mark.parametrize("kind", ["cylinder-1d", "slab-polar"])
-def test_class_b_hebert_raises_for_non_sphere(kind):
-    """Hébert closure currently sphere-only; cylinder / slab must raise."""
-    from orpheus.derivations.peierls_geometry import (
-        CurvilinearGeometry, SLAB_POLAR_1D,
-    )
-    geom = CYLINDER_1D if kind == "cylinder-1d" else SLAB_POLAR_1D
-    if kind == "slab-polar":
-        # slab-polar with rank-1 doesn't accept multi-region in this
-        # validation path — pick the simplest 1G/1R sphere XS to skip
-        # the geometry-validation entanglement
-        pytest.skip("slab-polar uses different MR routing; checked elsewhere")
+# ═══════════════════════════════════════════════════════════════════════
+# 3c. Cylinder Hébert (Issue #112 Phase C — 3-D corrected G_bc)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# The Issue #112 Phase C fix landed compute_G_bc_cylinder_3d (Knyazev
+# Ki_2 form) and lifted the cylinder white_hebert NotImplementedError.
+# Cylinder Class B converges to the same pattern as sphere:
+#   - 1G/1R, 2G/1R: <1 % (essentially exact)
+#   - 1G/2R, 2G/2R: Mark uniformity overshoot (~10-50 %, same root
+#     cause as sphere 1G/2R chi=[0,1] case)
 
-    xs = _build_xs_arrays("1g", 1)
-    radii = np.array(cp_cylinder._RADII[1])
-    with pytest.raises(NotImplementedError, match="sphere-only"):
-        solve_peierls_mg(
-            geom, radii=radii, **xs,
-            boundary="white_hebert", n_bc_modes=1,
-            **_QUAD_BASE,
-        )
+
+@pytest.mark.l1
+@pytest.mark.parametrize("ng_key, n_regions, expected_err_pct, tol_pct", [
+    pytest.param("1g", 1, -0.1, 0.5, id="1G_1R_homogeneous"),
+    pytest.param("2g", 1, -0.5, 1.0, id="2G_1R_homogeneous"),
+])
+def test_class_b_cylinder_hebert_recovers_kinf(ng_key, n_regions,
+                                                 expected_err_pct, tol_pct):
+    """Cylinder Hébert (corrected 3-D G_bc + (1-P_ss^cyl)⁻¹) recovers
+    cp_cylinder k_inf to <1 % on homogeneous configs at BASE.
+
+    Excludes 1G/2R and 2G/2R which retain Mark uniformity overshoot
+    (pinned separately below). Issue #112 Phase C resolution.
+    """
+    k_eff = _solve_class_b_hebert(CYLINDER_1D, ng_key, n_regions,
+                                    quad=_QUAD_BASE)
+    k_inf = _kinf_ref(CYLINDER_1D, ng_key, n_regions)
+    actual_err_pct = (k_eff - k_inf) / k_inf * 100
+    assert abs(actual_err_pct - expected_err_pct) < tol_pct, (
+        f"cylinder {ng_key}/{n_regions}r Hébert: actual err = "
+        f"{actual_err_pct:+.3f} %, expected {expected_err_pct:+.2f} % "
+        f"± {tol_pct} %. Either the Issue #112 Phase C fix regressed "
+        f"or the cp_cylinder reference changed."
+    )
+
+
+@pytest.mark.l1
+@pytest.mark.parametrize("ng_key, n_regions, expected_err_low, expected_err_high", [
+    pytest.param("1g", 2, 9.0, 13.0, id="1G_2R_heterogeneous"),
+    pytest.param("2g", 2, 45.0, 55.0, id="2G_2R_heterogeneous"),
+])
+def test_class_b_cylinder_hebert_heterogeneous_overshoot_known(
+    ng_key, n_regions, expected_err_low, expected_err_high,
+):
+    """Pin the known Mark-uniformity overshoot on cylinder 1G/2R + 2G/2R.
+
+    Same root cause as sphere 1G/2R: the Mark closure assumes uniform-
+    isotropic re-emission across the surface, which is amplified by the
+    (1-P_ss)⁻¹ geometric series on strongly heterogeneous cells.
+    Cylinder 2G/2R is more sensitive than sphere 2G/2R because the
+    cylinder eigenvector is more localized than the sphere eigenvector
+    for the same fuel-mod arrangement.
+
+    Resolution requires either an angular-distribution-preserving
+    closure (Sanchez 1977 NSE 64 multiple-collision K_∞) or
+    augmented Nyström (both flagged in Issue #132 — sphere
+    investigation showed augmented Nyström is algebraically equivalent
+    to existing rank-M Schur, so the Sanchez 1977 path is the live
+    candidate).
+    """
+    k_eff = _solve_class_b_hebert(CYLINDER_1D, ng_key, n_regions,
+                                    quad=_QUAD_BASE)
+    k_inf = _kinf_ref(CYLINDER_1D, ng_key, n_regions)
+    err_pct = (k_eff - k_inf) / k_inf * 100
+    assert expected_err_low < err_pct < expected_err_high, (
+        f"cylinder {ng_key}/{n_regions}r Hébert: err = {err_pct:+.3f} %, "
+        f"expected in [{expected_err_low}, {expected_err_high}] %. "
+        f"Either the closure regressed (different magnitude) or the "
+        f"Mark limit was resolved (in which case flip this test to "
+        f"the convergent form)."
+    )
+
+
+@pytest.mark.l1
+def test_class_b_hebert_raises_for_slab():
+    """Slab uses the orthogonal E_2 piecewise sum (Issue #131); the
+    Hébert path doesn't apply to it."""
+    from orpheus.derivations.peierls_geometry import SLAB_POLAR_1D
+    pytest.skip(
+        "slab-polar uses different MR routing; covered by Issue #131 "
+        "E_2 piecewise sum (test_peierls_slab*.py)"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════

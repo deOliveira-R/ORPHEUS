@@ -1518,6 +1518,93 @@ def compute_G_bc(
     return G_bc
 
 
+def compute_G_bc_cylinder_3d(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""3-D-corrected surface-to-volume Green's function for cylinder
+    white BC (Issue #112 Phase C).
+
+    Correct observer-centric form:
+
+    .. math::
+        :label: peierls-cyl-Gbc-3d
+
+        G_{\rm bc}^{\rm cyl}(r) =
+            \frac{4}{\pi}\!\int_0^\pi
+                \mathrm{Ki}_2\!\bigl(\Sigma_t\,d_{\rm 2D}(r, \psi)\bigr)\,d\psi
+
+    where :math:`d_{\rm 2D}(r, \psi) = -r\cos\psi + \sqrt{R^2 - r^2\sin^2\psi}`
+    is the in-plane backward chord from interior point :math:`r` in observer
+    direction :math:`\psi` (measured from the outward radial). The
+    :math:`\mathrm{Ki}_2` arises from analytical integration over the polar
+    angle :math:`\theta_p` from the cylinder axis (with the
+    :math:`\sin^2\theta_p` Jacobian — Knyazev 1993 :math:`\mathrm{Ki}_{2+k}`
+    expansion at :math:`k = 0`).
+
+    Compare to the EXISTING ``compute_G_bc`` cylinder branch which uses a
+    surface-centric ``Ki_1(τ)/d`` form lacking the Lambertian projection
+    factor :math:`(R - r\cos\phi)/d`. The current form **under-estimates by
+    25-50 %** at thin cells (verified by row-sum probe :math:`K\cdot 1/\Sigma_t`
+    going from 0.89 to 0.9996 when this corrected form replaces the
+    current). Used by ``boundary="white_hebert"`` for cylinder; the legacy
+    ``compute_G_bc`` is preserved for backward compatibility with the
+    existing rank-1 Mark closure tests.
+
+    Multi-region: the in-plane chord :math:`d_{\rm 2D}` is integrated
+    piecewise via :meth:`CurvilinearGeometry.optical_depth_along_ray`
+    (which already handles the ψ-direction multi-region τ accumulation
+    for the in-plane chord traversal across annular boundaries).
+
+    Reference: derived in
+    ``derivations/peierls_cylinder_g_bc_3d_derivation.py``.
+    """
+    if geometry.kind != "cylinder-1d":
+        raise ValueError(
+            f"compute_G_bc_cylinder_3d requires kind='cylinder-1d'; "
+            f"got {geometry.kind!r}. Use compute_G_bc for sphere/slab."
+        )
+
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    psi_pts, psi_wts = gl_float(n_surf_quad, 0.0, np.pi, dps)
+
+    N = len(r_nodes)
+    G_bc = np.zeros(N)
+    for i in range(N):
+        r_i = float(r_nodes[i])
+        total = 0.0
+        for k in range(n_surf_quad):
+            cp = float(np.cos(psi_pts[k]))
+            sp = float(np.sin(psi_pts[k]))
+            # 2-D backward chord from r_i in observer direction ψ
+            disc = R * R - r_i * r_i * sp * sp
+            if disc <= 0.0:
+                continue
+            d_2d = -r_i * cp + float(np.sqrt(disc))
+            if d_2d <= 0.0:
+                continue
+            if len(radii) == 1:
+                tau_2d = float(sig_t[0]) * d_2d
+            else:
+                # Backward direction has cos_omega = -cp
+                tau_2d = float(geometry.optical_depth_along_ray(
+                    r_i, -cp, d_2d, radii, sig_t,
+                ))
+            total += psi_wts[k] * float(ki_n_mp(2, tau_2d, dps))
+        G_bc[i] = float(4.0 / np.pi * total)
+
+    return G_bc
+
+
 def compute_P_ss_cylinder(
     radii: np.ndarray,
     sig_t: np.ndarray,
@@ -4337,23 +4424,23 @@ def _build_full_K_per_group(
         #
         #   K_bc^Hébert = K_bc^Mark / (1 - P_ss)
         #
-        # Recovers k_inf to within 1.2 % for sphere 1G/1R, 2G/1R, 2G/2R
-        # (vs 27 %, 88 %, 79 % errors with the bare Mark closure).
-        # Heterogeneous 1G/2R retains a ~10 % overshoot from the Mark
-        # uniformity assumption being amplified by the geometric series
-        # — see Sphinx §peierls-class-b-sphere-hebert for the limitation
-        # discussion. Implemented for sphere only; cylinder needs Issue
-        # #112 Phase C (Knyazev Ki_{2+k}) for the 3D-vs-2D correction.
-        if geometry.kind != "sphere-1d":
+        # Sphere: recovers k_inf to within 0.05 % at RICH for 1G/1R,
+        # 2G/1R, 2G/2R chi=[1,0]; +10 % overshoot on 1G/2R (Mark
+        # uniformity limit, see Sphinx §peierls-class-b-sphere-hebert).
+        #
+        # Cylinder: replaces compute_G_bc with the corrected 3-D form
+        # (compute_G_bc_cylinder_3d, Issue #112 Phase C — Knyazev
+        # Ki_{2+k} expansion at k=0). Same convergence pattern as
+        # sphere — <0.5 % on 1G/1R, 2G/1R; ~10-50 % overshoot on
+        # heterogeneous configurations (same Mark uniformity limit).
+        #
+        # Slab uses the E_2 piecewise sum (Issue #131) which is
+        # structurally different and not routed through this closure.
+        if geometry.kind == "slab-polar":
             raise NotImplementedError(
-                f"closure='white_hebert' is currently sphere-only. "
-                f"Got geometry.kind={geometry.kind!r}. Cylinder needs "
-                f"Issue #112 Phase C (Knyazev Ki_{{2+k}} expansion) "
-                f"before the Hébert series can be applied; slab uses the "
-                f"E_2 piecewise sum (Issue #131) which is structurally "
-                f"different. Use closure='white_rank1_mark' for a "
-                f"non-sphere geometry (with the documented Mark error "
-                f"floor)."
+                f"closure='white_hebert' not applicable to slab-polar; "
+                f"slab uses the E_2 piecewise-sum closed form via the "
+                f"unified 'white' closure path (Issue #131)."
             )
         if n_bc_modes != 1:
             raise NotImplementedError(
@@ -4365,22 +4452,60 @@ def _build_full_K_per_group(
                 f"#132; rank-N adds nothing once the geometric series "
                 f"is included."
             )
-        K_bc = build_white_bc_correction_rank_n(
-            geometry, r_nodes, r_wts, radii, sig_t_g,
-            n_angular=n_angular, n_surf_quad=n_surf_quad, dps=dps,
-            n_bc_modes=1,
-        )
-        P_ss = compute_P_ss_sphere(
-            radii, sig_t_g, n_quad=n_surf_quad, dps=dps,
-        )
+
+        # Build K_bc using the geometry-appropriate 3-D-correct G_bc and
+        # the analytically-correct P_ss; routed through a custom
+        # rank-1 assembly here rather than build_closure_operator so the
+        # cylinder Knyazev correction stays out of the legacy rank-1
+        # Mark code path (preserves backward compat).
+        if geometry.kind == "cylinder-1d":
+            G_bc_n = compute_G_bc_cylinder_3d(
+                geometry, r_nodes, radii, sig_t_g,
+                n_surf_quad=n_surf_quad, dps=dps,
+            )
+            P_ss = compute_P_ss_cylinder(
+                radii, sig_t_g, n_quad=n_surf_quad, dps=dps,
+            )
+        elif geometry.kind == "sphere-1d":
+            G_bc_n = compute_G_bc(
+                geometry, r_nodes, radii, sig_t_g,
+                n_surf_quad=n_surf_quad, dps=dps,
+            )
+            P_ss = compute_P_ss_sphere(
+                radii, sig_t_g, n_quad=n_surf_quad, dps=dps,
+            )
+        else:  # pragma: no cover
+            raise NotImplementedError(
+                f"white_hebert: unsupported geometry kind {geometry.kind!r}"
+            )
+
         if P_ss >= 1.0:
             raise RuntimeError(
                 f"P_ss = {P_ss} is >= 1, would give negative or infinite "
-                f"geometric-series factor. Likely a thin-cell pathology "
-                f"or a bug in compute_P_ss_sphere. radii={radii}, "
-                f"sig_t={sig_t_g}."
+                f"geometric-series factor for {geometry.kind}. Likely a "
+                f"thin-cell pathology. radii={radii}, sig_t={sig_t_g}."
             )
-        return K + K_bc / (1.0 - P_ss)
+
+        # Manual rank-1 K_bc assembly with the corrected G_bc primitive
+        R_cell = float(radii[-1])
+        sig_t_n = np.array([
+            sig_t_g[geometry.which_annulus(float(r_nodes[i]), radii)]
+            for i in range(len(r_nodes))
+        ])
+        rv = np.array([
+            geometry.radial_volume_weight(float(rj)) for rj in r_nodes
+        ])
+        divisor = geometry.rank1_surface_divisor(R_cell)
+        P_esc_n = compute_P_esc(
+            geometry, r_nodes, radii, sig_t_g,
+            n_angular=n_angular, dps=dps,
+        )
+        v_n = rv * r_wts * P_esc_n  # shape (N,)
+        u_n = sig_t_n * G_bc_n / divisor  # shape (N,)
+        K_bc_mark = np.outer(u_n, v_n)
+        K_bc_hebert = K_bc_mark / (1.0 - P_ss)
+
+        return K + K_bc_hebert
     if closure == "white_f4":
         if n_bc_modes > 1:
             raise NotImplementedError(

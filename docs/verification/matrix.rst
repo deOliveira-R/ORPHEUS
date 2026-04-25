@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1154**
+Total tests collected: **1157**
 
 V&V level distribution
 ----------------------
@@ -16,8 +16,8 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 578, 50.1%
-   L1, 336, 29.1%
+   L0, 578, 50.0%
+   L1, 339, 29.3%
    L2, 36, 3.1%
    L3, 0, 0.0%
    foundation, 193, 16.7%
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1064
+   explicit, 1067
    verify, 0
    class-name, 46
    func-name, 0
@@ -72,7 +72,7 @@ Module × level grid
    derivations/test_peierls_multigroup, 9, 10, 0, 0, 8, 0
    derivations/test_peierls_rank2_bc, 9, 24, 0, 0, 4, 0
    derivations/test_peierls_rank_n_bc, 59, 15, 0, 0, 0, 0
-   derivations/test_peierls_rank_n_class_b_mr_mg, 0, 28, 0, 0, 0, 0
+   derivations/test_peierls_rank_n_class_b_mr_mg, 0, 31, 0, 0, 0, 0
    derivations/test_peierls_rank_n_conservation, 0, 0, 0, 0, 4, 0
    derivations/test_peierls_rank_n_primitives, 19, 0, 0, 0, 0, 0
    derivations/test_peierls_reference, 40, 25, 0, 0, 16, 0
@@ -131,7 +131,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``matrix-eigenvalue``, 160
    ``peierls-unified``, 158
    ``one-group-kinf``, 132
-   ``peierls-rank-n-bc-closure``, 121
+   ``peierls-rank-n-bc-closure``, 124
    ``reflective-bc``, 110
    ``alpha-recursion``, 100
    ``wdd-closure``, 100
@@ -296,7 +296,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **43** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **44** of the testable equations found on theory pages are orphan.
 
 - ``c-in-jacobian``
 - ``c-in-remapping``
@@ -311,6 +311,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``peierls-class-b-Jn-canonical``
 - ``peierls-class-b-Pss-homogeneous``
 - ``peierls-class-b-hebert-closure``
+- ``peierls-cyl-Gbc-3d-final``
 - ``peierls-cyl-Pss-derivation``
 - ``peierls-factored-kernel``
 - ``peierls-half-range-inner-products``

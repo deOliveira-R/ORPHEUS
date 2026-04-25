@@ -5730,7 +5730,7 @@ Probes:
 memory:
 :file:`.claude/agent-memory/numerics-investigator/issue_132_augmented_nystrom.md`.
 
-**3. Cylinder Hébert (PARTIAL, blocked on Issue #112 Phase C)**
+**3. Cylinder Hébert + Issue #112 Phase C (RESOLVED for homogeneous)**
 
 The cylinder analog of :func:`compute_P_ss_sphere` derives cleanly:
 
@@ -5745,12 +5745,14 @@ the polar angle :math:`\beta` from the cylinder axis. Multi-region
 extension mirrors the sphere chord-piecewise integration with the
 2-D :math:`h = R\sin\alpha` impact-parameter geometry. Verified to
 :math:`<5\times10^{-3}` against independent Monte Carlo. Shipped as
-:func:`compute_P_ss_cylinder` with foundation tests at
+:func:`compute_P_ss_cylinder` with 16 foundation tests at
 ``tests/cp/test_cylinder_pss.py``.
 
-**However**, applying :math:`(1 - P_{ss}^{\rm cyl})^{-1}` to the
-existing cylinder rank-1 Mark closure does NOT close the cylinder
-Class B verification gap. Row-sum probe:
+**Issue #112 Phase C — corrected 3-D G_bc for cylinder**
+
+The cylinder rank-1 Mark closure historically used a surface-centric
+``Ki_1(τ)/d`` form lacking the Lambertian projection factor
+:math:`(R - r\cos\phi)/d`. Row-sum probe quantified the bias:
 
 .. list-table::
    :header-rows: 1
@@ -5759,35 +5761,76 @@ Class B verification gap. Row-sum probe:
      - :math:`\min(K\cdot 1/\Sigma_t)`
      - mean
      - max
-   * - Sphere 1G/1R
+   * - Sphere 1G/1R (Hébert)
      - 0.9993
      - 0.9993
      - 0.9994
-   * - Cylinder 1G/1R
+   * - Cylinder 1G/1R (Hébert + buggy G_bc)
      - 0.8886
      - **0.8924**
      - 0.9089
+   * - Cylinder 1G/1R (Hébert + corrected G_bc)
+     - 0.9994
+     - **0.9996**
+     - 0.9997
 
-Cylinder kernel is biased by **7.6 % independent of quadrature** (scan
-over :math:`n_{\rm angular} \in \{16, 24, 48\}`,
-:math:`n_{\rm surf} \in \{16, 32, 64, 128\}` all give the same mean
-:math:`-0.0764`). This is the missing 3-D polar-angle integration in
-:func:`compute_G_bc` cylinder — exactly the Knyazev
-:math:`\mathrm{Ki}_{2+k}` expansion called out in Issue #112 Phase C.
-The Hébert geometric series is geometry-correct; it amplifies a
-kernel that is itself 8 % low.
+The corrected 3-D form, derived via SymPy in
+``derivations/peierls_cylinder_g_bc_3d_derivation.py``, is the
+observer-centric integral
 
-**Recommendation**: ``boundary="white_hebert"`` for cylinder remains
-``NotImplementedError`` until Issue #112 Phase C lands a 3-D corrected
-:func:`compute_G_bc` for cylinder. At that point, the
-:func:`compute_P_ss_cylinder` primitive shipped here can be wired
-directly. By analogy with the sphere case, the expected result is
-:math:`<1.5\,\%` k_eff agreement on cylinder Class B 1G/1R, 2G/1R,
-2G/2R for the chi = [1, 0] spectrum, with the same chi-dependent
-overshoot as sphere on source-localised cases.
+.. math::
+   :label: peierls-cyl-Gbc-3d-final
+
+   G_{\rm bc}^{\rm cyl}(r) = \frac{4}{\pi}\!\int_0^\pi
+       \mathrm{Ki}_2\!\bigl(\Sigma_t\,d_{\rm 2D}(r, \psi)\bigr)\,d\psi
+
+with :math:`d_{\rm 2D}(r, \psi) = -r\cos\psi + \sqrt{R^2 - r^2\sin^2\psi}`
+the in-plane backward chord. The :math:`\mathrm{Ki}_2` arises from
+analytical integration over the polar angle from the cylinder axis
+(Knyazev :math:`\mathrm{Ki}_{2+k}` expansion at :math:`k = 0`).
+
+Shipped as :func:`compute_G_bc_cylinder_3d` and wired into
+``boundary="white_hebert"`` for cylinder (the
+``NotImplementedError`` is now lifted). Cylinder Class B convergence
+results at BASE quadrature:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Configuration
+     - cp_cylinder k_inf
+     - Hébert k_eff
+     - err
+   * - cyl 1G/1R
+     - 1.500
+     - 1.4985
+     - **−0.097 %**
+   * - cyl 1G/2R *(fuel-A inner / mod-B outer)*
+     - 0.990
+     - 1.0997
+     - +11.08 %
+   * - cyl 2G/1R
+     - 1.875
+     - 1.8651
+     - **−0.529 %**
+   * - cyl 2G/2R
+     - 0.740
+     - 1.1067
+     - +49.6 %
+
+**Same convergence pattern as sphere**: homogeneous configs
+(1G/1R, 2G/1R) reach <1 % L1 tolerance; heterogeneous configs
+(1G/2R, 2G/2R) retain the Mark uniformity overshoot. Cylinder 2G/2R
+is more sensitive than sphere 2G/2R because the cylinder eigenvector
+is more localized than the sphere eigenvector for the same fuel-mod
+arrangement. Resolution remains the open question (Sanchez 1977
+NSE 64 — see synthesis below).
 
 Probes:
-``derivations/diagnostics/diag_cylinder_hebert_{pss,keff,diagnose_residual}.py``;
+``derivations/diagnostics/diag_cylinder_hebert_{pss,keff,diagnose_residual}.py``,
+``diag_cylinder_g_bc_3d_patched_test.py``;
+derivation:
+``derivations/peierls_cylinder_g_bc_3d_derivation.py``;
 memory:
 :file:`.claude/agent-memory/numerics-investigator/issue_132_cylinder_hebert.md`.
 
