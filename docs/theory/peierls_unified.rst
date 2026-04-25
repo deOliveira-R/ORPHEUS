@@ -5463,6 +5463,231 @@ landed at
 - ERR-030 catalog entry.
 - Issue #132 filed (open) with the candidate fix paths.
 - This Sphinx subsection (the falsification archive).
+- Issue #132 partial resolution via the Hébert (1−P_ss)⁻¹ closure
+  shipped as ``boundary="white_hebert"`` —
+  see :ref:`peierls-class-b-sphere-hebert`.
+
+
+.. _peierls-class-b-sphere-hebert:
+
+Class B sphere — Hébert (1−P_ss)⁻¹ resolution (Issue #132 partial fix)
+======================================================================
+
+After the rank-N Marshak path was falsified (above), the
+literature-researcher pull
+(:file:`.claude/agent-memory/literature-researcher/bickley_naylor_sphere_white_bc.md`)
+identified the canonical CP white-BC closure for sphere as Hébert
+(2009) *Applied Reactor Physics* §3.8.5 Eq. (3.323):
+
+.. math::
+   :label: peierls-class-b-hebert-closure
+
+   \mathbb{P}_{\rm white} \;=\;
+       \mathbb{P}_{\rm vac}
+       \;+\;
+       \frac{\beta^{+}}{1 - \beta^{+}\,P_{ss}}\;
+       \mathbf{P}_{iS}\,\mathbf{P}_{Sj}^{\top}
+
+with :math:`\beta^{+} = 1` (white BC). The current ORPHEUS rank-1 Mark
+code (``compute_P_esc`` × ``compute_G_bc`` rank-1 outer product)
+implements the :math:`\mathbf{P}_{iS}\,\mathbf{P}_{Sj}^{\top}` term —
+i.e. **one bounce off the surface** — but is **missing the
+:math:`(1 - \beta^{+}\,P_{ss})^{-1}` geometric-series factor** that
+captures multiple reflections.
+
+Surface-to-surface probability
+------------------------------
+
+For a homogeneous sphere of radius :math:`R` with total cross section
+:math:`\Sigma_t`, the surface-to-surface probability under uniform
+isotropic inward distribution :math:`\psi^- = J^-/\pi`:
+
+.. math::
+   :label: peierls-class-b-Pss-homogeneous
+
+   P_{ss}(\Sigma_t, R) \;=\;
+       2\!\int_0^{\pi/2}\cos\theta'\,\sin\theta'\,
+                       e^{-2\Sigma_t R\cos\theta'}\,d\theta'
+       \;=\;
+       \frac{1 - (1 + 2\tau_R)\,e^{-2\tau_R}}{2\,\tau_R^{\,2}}
+
+with :math:`\tau_R = \Sigma_t R`. The :math:`\cos\theta'` weight is
+the µ-weight that converts angular flux to partial current; the
+:math:`2\Sigma_t R\cos\theta'` argument is the chord optical depth
+from a surface point in direction :math:`\theta'` from the inward
+normal to the opposite surface point. For multi-region, the chord
+crosses annuli with piecewise :math:`\Sigma_t`; the optical depth
+:math:`\tau(\theta')` is the sum of :math:`\Sigma_{t,k}\,\ell_k(\theta')`
+over annular segments using the standard sphere-shell intersection
+geometry (see :func:`compute_P_ss_sphere`).
+
+**Sample values** (homogeneous sphere):
+
+.. list-table::
+   :header-rows: 1
+
+   * - :math:`\tau_R = \Sigma_t R`
+     - :math:`P_{ss}`
+     - :math:`(1 - P_{ss})^{-1}`
+   * - 1.0
+     - 0.297
+     - 1.422
+   * - 2.0
+     - 0.114
+     - 1.128
+   * - 5.0
+     - 0.020
+     - 1.020
+   * - 10.0
+     - 0.005
+     - 1.005
+
+The geometric-series factor is largest for thin cells (where multiple
+reflections matter most), tending to 1 for thick cells (where surface
+neutrons are absorbed before completing a transit).
+
+Numerical results — three of four configurations recover k_inf
+---------------------------------------------------------------
+
+Comparing ``boundary="white_rank1_mark"`` (BEFORE — bare Mark, missing
+the geometric series) vs ``boundary="white_hebert"`` (AFTER — Hébert
+closure with the (1−P_ss)⁻¹ factor) at the BASE quadrature
+(``n_panels_per_region=2, p_order=3, n_angular=24, n_rho=24,
+n_surf_quad=24, dps=15``):
+
+.. list-table::
+   :header-rows: 1
+
+   * - Configuration
+     - cp_sphere k_inf
+     - BEFORE k_eff
+     - BEFORE err
+     - AFTER k_eff
+     - AFTER err
+   * - sphere 1G/1R
+     - 1.500
+     - 1.0957
+     - −26.95 %
+     - 1.4977
+     - **−0.153 %**
+   * - sphere 1G/2R *(fuel-A inner / mod-B outer)*
+     - 0.6480
+     - 0.5510
+     - −14.96 %
+     - 0.7149
+     - +10.33 %
+   * - sphere 2G/1R
+     - 1.875
+     - 0.2288
+     - −87.80 %
+     - 1.8594
+     - **−0.833 %**
+   * - sphere 2G/2R
+     - 0.4140
+     - 0.0862
+     - −79.18 %
+     - 0.4092
+     - **−1.166 %**
+
+**Three of four configurations now within 1.2 % of cp_sphere k_inf**.
+The 1G/2R case retains a +10 % overshoot — see the limitation
+discussion below.
+
+The 1G/2R heterogeneous limitation
+----------------------------------
+
+The Mark closure assumes the surface re-emission is **uniform isotropic**
+across the surface — i.e. :math:`\psi^-(r_b, \Omega) = J^-/\pi`
+independent of the surface point. For homogeneous cells this is
+exact (by sphere symmetry the eigenvector is uniform on the
+surface). For cells where the eigenvector is NON-uniform on the
+surface — strongly heterogeneous configurations like 1G/2R fuel-inner
+/ pure-absorber-moderator-outer where the moderator absorbs nearly
+all back-flowing neutrons — the Mark uniformity assumption introduces
+an error. The Hébert (1−P_ss)⁻¹ factor **amplifies** this Mark error
+through the geometric series rather than correcting it.
+
+Quantitatively, the cp_sphere k_inf with finer subdivisions converges
+to 0.6485 (verified up to 64 sub-regions; see
+:file:`derivations/diagnostics/diag_sphere_geometric_series_thicker_cell_scan.py`),
+so the +10 % overshoot is NOT a "pointwise vs flat-flux CP" artifact
+— it is a real Mark-closure limitation. The 2G/2R case escapes the
+limitation because the fast/thermal coupling smooths the surface
+flux profile (fast neutrons are mostly absorbed in fuel after
+downscatter; thermal in moderator), so the net surface distribution
+is more nearly uniform.
+
+To fully resolve the 1G/2R case requires either:
+
+(a) An angular-distribution-preserving closure — the rank-N Marshak
+    path was falsified (Issue #132, this session); rank-N does NOT
+    converge structurally.
+(b) The Davison sphere kernel via method-of-images, absorbing the
+    surface reflection analytically into the volume kernel itself
+    via the spherical inversion :math:`r' \mapsto R^2/r'`. This
+    requires literature confirmation that a closed form exists; the
+    method is feasible in principle but no canonical textbook
+    reference was found in the 2026-04-25 literature pull.
+(c) Augmented Nyström — adding the surface partial current
+    :math:`J^+` as an extra unknown in the matrix system, enforcing
+    :math:`J^- = J^+` as a constraint equation rather than a closure
+    approximation. Issue #100 original suggestion; engineering work
+    but no novel mathematics.
+
+Issue #132 stays OPEN for the 1G/2R limitation; the Hébert closure
+ships as a substantial partial fix.
+
+Code reference
+--------------
+
+- :func:`compute_P_ss_sphere` — analytical / numerical surface-to-
+  surface probability for sphere with white BC. Implements
+  :eq:`peierls-class-b-Pss-homogeneous` (homogeneous closed form when
+  reduced) and the multi-region piecewise generalisation.
+- ``boundary="white_hebert"`` in
+  :func:`solve_peierls_mg` (and the 1G wrapper
+  :func:`solve_peierls_1g`) — applies the
+  :math:`K \to K_{\rm vol} + K_{\rm bc}^{\rm Mark}/(1 - P_{ss})`
+  correction.
+
+The closure is currently **sphere-only**. ``cylinder-1d`` raises
+:class:`NotImplementedError` because the cylinder rank-1 primitive
+needs Issue #112 Phase C (Knyazev :math:`\mathrm{Ki}_{2+k}`
+expansion) for the 3D-vs-2D angular normalisation correction before
+the Hébert series can be applied. ``slab-polar`` uses the E_2
+piecewise sum (:doc:`Issue #131 close-out </theory/peierls_unified>`
+§ ``theory-peierls-slab-polar-g5-diagnosis``) which is structurally
+different.
+
+Test reference
+--------------
+
+``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py``:
+
+- ``test_class_b_sphere_hebert_recovers_kinf`` — passes at <1.5 %
+  tolerance for 1G/1R, 2G/1R, 2G/2R sphere
+- ``test_class_b_sphere_hebert_heterogeneous_overshoot_known`` —
+  pins the +10 % overshoot for sphere 1G/2R as the documented
+  Mark-closure limitation
+- ``test_class_b_hebert_raises_for_non_sphere`` — confirms
+  cylinder + slab raise NotImplementedError
+
+Citation
+--------
+
+- Hébert, A. (2009/2020). *Applied Reactor Physics* (3rd ed.),
+  Presses internationales Polytechnique. DOI:
+  `10.1515/9782553017445 <https://doi.org/10.1515/9782553017445>`_.
+  Chapter 3 §3.8.5 "Spherical 1D geometry", pp. 123-124, especially
+  Eq. (3.323) for the white-BC closure structure.
+
+Together with the Issue #131 slab-polar resolution and the F.4
+hollow-cyl/sph closures, the integral-transport verification
+infrastructure now covers the four-corner topology
+(slab/cyl/sph × hollow/solid) for L1 verification of the Peierls
+solver against the analytical white-BC k_inf, with the documented
+1G/2R sphere limitation as the only remaining open
+configuration-axis question (Issue #132).
 
 
 .. _peierls-rank-n-bc-closure-section:

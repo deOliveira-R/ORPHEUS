@@ -1518,6 +1518,117 @@ def compute_G_bc(
     return G_bc
 
 
+def compute_P_ss_sphere(
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    n_quad: int = 64,
+    dps: int = 25,
+) -> float:
+    r"""Surface-to-surface probability :math:`P_{ss}` for solid sphere
+    with white BC.
+
+    Defined as the probability that a neutron entering the cell at the
+    surface (uniform isotropic inward distribution :math:`\psi^- =
+    J^-/\pi`) exits the surface uncollided. For a homogeneous sphere
+    of radius :math:`R` and total cross section :math:`\Sigma_t`:
+
+    .. math::
+        :label: peierls-sphere-Pss-homogeneous
+
+        P_{ss}(\Sigma_t, R) = 2\int_0^{\pi/2}\cos\theta'\,\sin\theta'\,
+                               e^{-2\Sigma_t R\cos\theta'}\,d\theta'
+                            = \frac{1 - (1 + 2\tau_R)\,e^{-2\tau_R}}
+                                   {2\,\tau_R^{\,2}}
+
+    with :math:`\tau_R = \Sigma_t R`. The :math:`\cos\theta'` weight is
+    the µ-weight that converts angular flux to partial current; the
+    :math:`2\Sigma_t R\cos\theta'` argument is the chord optical depth
+    from a surface point in direction :math:`\theta'` from the inward
+    normal to the opposite surface point.
+
+    For a multi-region sphere with piecewise-constant
+    :math:`\Sigma_t(r)`, the chord traverses annular regions in a
+    known sequence determined by the impact parameter :math:`h = R
+    \sin\theta'`, and the optical depth is
+
+    .. math::
+
+        \tau(\theta') = \sum_k \Sigma_{t,k} \cdot \ell_k(\theta')
+
+    with chord-segment :math:`\ell_k(\theta')` in annulus :math:`k`
+    given by the standard sphere-shell intersection geometry:
+
+    .. math::
+
+        \ell_k(\theta') = 2 \cdot \bigl(
+            \sqrt{r_{k,\rm out}^{\,2} - h^2} \cdot
+            \mathbb{1}_{[h < r_{k,\rm out}]}
+            -
+            \sqrt{r_{k,\rm in}^{\,2} - h^2} \cdot
+            \mathbb{1}_{[h < r_{k,\rm in}]}
+        \bigr)
+
+    The integral is evaluated via Gauss-Legendre on
+    :math:`\theta' \in [0, \pi/2]`.
+
+    See :func:`build_white_hebert_correction` for usage in the
+    Hébert (2009) §3.8.5 Eq. (3.323) closure.
+
+    Parameters
+    ----------
+    radii
+        Outer radii per region, ascending. Shape ``(n_regions,)``.
+    sig_t
+        Total cross section per region for the current group. Shape
+        ``(n_regions,)``.
+    n_quad
+        Gauss-Legendre order on :math:`\theta'`. Default 64 — converged
+        to ~1e-10 for typical sphere R/MFP ranges.
+    dps
+        mpmath working precision for the chord/exp products (currently
+        unused — float64 evaluation is sufficient at n_quad=64).
+
+    Returns
+    -------
+    float
+        :math:`P_{ss}` value in :math:`[0, 1]`. Larger for thin cells
+        (most surface neutrons transit), smaller for thick cells.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    radii_inner = np.concatenate([[0.0], radii[:-1]])
+    radii_outer = radii
+
+    theta_pts, theta_wts = np.polynomial.legendre.leggauss(n_quad)
+    theta_pts_mapped = 0.5 * (theta_pts + 1) * (np.pi / 2)
+    theta_wts_mapped = theta_wts * (np.pi / 4)
+
+    P_ss = 0.0
+    for k in range(n_quad):
+        theta = theta_pts_mapped[k]
+        cos_theta = np.cos(theta)
+        sin_theta = np.sin(theta)
+        h = R * sin_theta
+        tau = 0.0
+        for n_reg in range(len(radii)):
+            r_in = radii_inner[n_reg]
+            r_out = radii_outer[n_reg]
+            if h >= r_out:
+                continue
+            seg_outer = np.sqrt(max(r_out * r_out - h * h, 0.0))
+            seg_inner = (
+                np.sqrt(max(r_in * r_in - h * h, 0.0)) if h < r_in else 0.0
+            )
+            chord_in_annulus = 2.0 * (seg_outer - seg_inner)
+            tau += sig_t[n_reg] * chord_in_annulus
+
+        P_ss += theta_wts_mapped[k] * cos_theta * sin_theta * np.exp(-tau)
+
+    return float(2.0 * P_ss)
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Per-surface escape / response primitives (Phase F.2)
 #
@@ -4123,6 +4234,58 @@ def _build_full_K_per_group(
             n_bc_modes=n_bc_modes,
         )
         return K + K_bc
+    if closure == "white_hebert":
+        # Hébert (2009) §3.8.5 Eq. (3.323) white-BC closure. The rank-1
+        # Mark K_bc captures one bounce off the boundary; the
+        # (1 - β·P_ss)⁻¹ geometric series captures multiple reflections
+        # through the surface. With β = 1 (white BC):
+        #
+        #   K_bc^Hébert = K_bc^Mark / (1 - P_ss)
+        #
+        # Recovers k_inf to within 1.2 % for sphere 1G/1R, 2G/1R, 2G/2R
+        # (vs 27 %, 88 %, 79 % errors with the bare Mark closure).
+        # Heterogeneous 1G/2R retains a ~10 % overshoot from the Mark
+        # uniformity assumption being amplified by the geometric series
+        # — see Sphinx §peierls-class-b-sphere-hebert for the limitation
+        # discussion. Implemented for sphere only; cylinder needs Issue
+        # #112 Phase C (Knyazev Ki_{2+k}) for the 3D-vs-2D correction.
+        if geometry.kind != "sphere-1d":
+            raise NotImplementedError(
+                f"closure='white_hebert' is currently sphere-only. "
+                f"Got geometry.kind={geometry.kind!r}. Cylinder needs "
+                f"Issue #112 Phase C (Knyazev Ki_{{2+k}} expansion) "
+                f"before the Hébert series can be applied; slab uses the "
+                f"E_2 piecewise sum (Issue #131) which is structurally "
+                f"different. Use closure='white_rank1_mark' for a "
+                f"non-sphere geometry (with the documented Mark error "
+                f"floor)."
+            )
+        if n_bc_modes != 1:
+            raise NotImplementedError(
+                f"closure='white_hebert' is rank-1 only (Mark closure "
+                f"with the (1-P_ss)⁻¹ geometric-series correction). "
+                f"Got n_bc_modes={n_bc_modes}. Higher-rank Hébert is "
+                f"structurally identical at rank-1 because the Marshak "
+                f"DP_N expansion was falsified for Class B in Issue "
+                f"#132; rank-N adds nothing once the geometric series "
+                f"is included."
+            )
+        K_bc = build_white_bc_correction_rank_n(
+            geometry, r_nodes, r_wts, radii, sig_t_g,
+            n_angular=n_angular, n_surf_quad=n_surf_quad, dps=dps,
+            n_bc_modes=1,
+        )
+        P_ss = compute_P_ss_sphere(
+            radii, sig_t_g, n_quad=n_surf_quad, dps=dps,
+        )
+        if P_ss >= 1.0:
+            raise RuntimeError(
+                f"P_ss = {P_ss} is >= 1, would give negative or infinite "
+                f"geometric-series factor. Likely a thin-cell pathology "
+                f"or a bug in compute_P_ss_sphere. radii={radii}, "
+                f"sig_t={sig_t_g}."
+            )
+        return K + K_bc / (1.0 - P_ss)
     if closure == "white_f4":
         if n_bc_modes > 1:
             raise NotImplementedError(
@@ -4154,8 +4317,9 @@ def _build_full_K_per_group(
         )
         return K + op.as_matrix()
     raise ValueError(
-        f"closure must be 'vacuum', 'white_rank1_mark', or "
-        f"'white_f4' (or the deprecated aliases 'white' / "
+        f"closure must be 'vacuum', 'white_rank1_mark', "
+        f"'white_hebert' (sphere only — Issue #132 Hébert correction), "
+        f"or 'white_f4' (or the deprecated aliases 'white' / "
         f"'white_rank2'); got {closure!r}"
     )
 

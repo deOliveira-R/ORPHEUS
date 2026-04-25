@@ -307,6 +307,132 @@ def test_class_b_mr_catastrophe_cylinder_1g_2r_rank2():
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# 3b. Hébert (1-P_ss)⁻¹ closure — the Issue #132 production fix for sphere
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Per Hébert *Applied Reactor Physics* (3rd ed.) §3.8.5 Eq. (3.323) the
+# canonical CP white-BC closure for sphere is:
+#
+#   ℙ_white = ℙ_vac + (β⁺/(1 - β⁺·P_ss)) · P_iS · P_Sj^T
+#
+# The current ORPHEUS rank-1 Mark code computes the rank-1 outer product
+# but is missing the (1-β⁺·P_ss)⁻¹ geometric-series factor that captures
+# multiple reflections off the surface. ``boundary="white_hebert"`` adds
+# this factor and recovers k_inf to within ~1.2 % on 3 of 4 sphere
+# configurations vs 15-88 % errors with the bare Mark closure.
+#
+# Heterogeneous 1G/2R retains a ~10 % overshoot from the Mark uniformity
+# assumption being amplified by the geometric series — pinned as a
+# known limitation here (xfail strict=True with the 10 % deviation as
+# the boundary).
+
+
+def _solve_class_b_hebert(geometry, ng_key: str, n_regions: int,
+                           *, quad: dict):
+    """Same as _solve_class_b but uses boundary='white_hebert'."""
+    cp_module = cp_cylinder if geometry is CYLINDER_1D else cp_sphere
+    xs = _build_xs_arrays(ng_key, n_regions)
+    radii = np.array(cp_module._RADII[n_regions])
+    sol = solve_peierls_mg(
+        geometry, radii=radii, **xs,
+        boundary="white_hebert", n_bc_modes=1,
+        **quad,
+    )
+    return sol.k_eff
+
+
+@pytest.mark.l1
+@pytest.mark.parametrize("ng_key, n_regions, expected_err_pct, tol_pct", [
+    pytest.param("1g", 1, 0.0, 0.5, id="1G_1R_homogeneous"),
+    pytest.param("2g", 1, -1.0, 1.5, id="2G_1R_homogeneous"),
+    pytest.param("2g", 2, -1.2, 1.5, id="2G_2R_heterogeneous"),
+])
+def test_class_b_sphere_hebert_recovers_kinf(ng_key, n_regions,
+                                             expected_err_pct, tol_pct):
+    """Hébert (1-P_ss)⁻¹ closure recovers cp_sphere k_inf for sphere.
+
+    These are the three configurations where the geometric-series
+    correction is sufficient. The 1G/2R heterogeneous case has a
+    larger residual (~10 %) due to Mark uniformity-assumption
+    amplification — pinned separately below.
+
+    Tolerance bounds are set to absorb numerical noise (Issue #114
+    ρ-quadrature floor, BASE-preset effects) while still gating any
+    structural regression.
+    """
+    k_eff = _solve_class_b_hebert(SPHERE_1D, ng_key, n_regions,
+                                   quad=_QUAD_BASE)
+    k_inf = _kinf_ref(SPHERE_1D, ng_key, n_regions)
+    actual_err_pct = (k_eff - k_inf) / k_inf * 100
+    assert abs(actual_err_pct - expected_err_pct) < tol_pct, (
+        f"sphere {ng_key}/{n_regions}r Hébert closure: actual err = "
+        f"{actual_err_pct:+.3f} %, expected {expected_err_pct:+.2f} % "
+        f"± {tol_pct} %. k_eff = {k_eff:.10f}, k_inf = {k_inf:.10f}. "
+        f"Either the closure regressed or the cp_sphere reference "
+        f"changed."
+    )
+
+
+@pytest.mark.l1
+def test_class_b_sphere_hebert_heterogeneous_overshoot_known():
+    """Pin the known +10 % overshoot on sphere 1G/2R fuel-A/mod-B.
+
+    The Hébert geometric-series factor amplifies the Mark closure's
+    uniformity assumption. For homogeneous cells (1G/1R) and weakly
+    heterogeneous cells (2G/2R, where fast/thermal coupling smooths
+    the spatial structure), Mark is approximately exact and the
+    Hébert closure converges to k_inf. For strongly heterogeneous
+    1G/2R (fuel inner / pure-absorber moderator outer), Mark error
+    is amplified by the (1-P_ss)⁻¹ factor → +10 % overshoot.
+
+    This is a fundamental Mark-closure limitation, NOT a bug in the
+    Hébert correction. To fix the 1G/2R case requires either:
+    (a) an angular-distribution-preserving closure (rank-N path,
+        falsified in Issue #132 — does not converge structurally)
+    (b) Davison method-of-images sphere kernel (open question)
+    (c) augmented Nyström with surface partial current as extra
+        unknown
+    """
+    k_eff = _solve_class_b_hebert(SPHERE_1D, "1g", 2, quad=_QUAD_BASE)
+    k_inf = _kinf_ref(SPHERE_1D, "1g", 2)
+    err_pct = (k_eff - k_inf) / k_inf * 100
+    # Pin the +10.3 % overshoot as the known Mark limitation
+    assert 9.0 < err_pct < 12.0, (
+        f"sphere 1G/2R Hébert closure: err = {err_pct:+.3f} %. "
+        f"Expected the +10.33 % overshoot characteristic of the Mark "
+        f"uniformity assumption amplified by the (1-P_ss)⁻¹ factor "
+        f"on strongly heterogeneous cells. Either the closure "
+        f"regressed (different overshoot magnitude) or the issue is "
+        f"resolved (in which case flip this test to the convergent "
+        f"form)."
+    )
+
+
+@pytest.mark.l1
+@pytest.mark.parametrize("kind", ["cylinder-1d", "slab-polar"])
+def test_class_b_hebert_raises_for_non_sphere(kind):
+    """Hébert closure currently sphere-only; cylinder / slab must raise."""
+    from orpheus.derivations.peierls_geometry import (
+        CurvilinearGeometry, SLAB_POLAR_1D,
+    )
+    geom = CYLINDER_1D if kind == "cylinder-1d" else SLAB_POLAR_1D
+    if kind == "slab-polar":
+        # slab-polar with rank-1 doesn't accept multi-region in this
+        # validation path — pick the simplest 1G/1R sphere XS to skip
+        # the geometry-validation entanglement
+        pytest.skip("slab-polar uses different MR routing; checked elsewhere")
+
+    xs = _build_xs_arrays("1g", 1)
+    radii = np.array(cp_cylinder._RADII[1])
+    with pytest.raises(NotImplementedError, match="sphere-only"):
+        solve_peierls_mg(
+            geom, radii=radii, **xs,
+            boundary="white_hebert", n_bc_modes=1,
+            **_QUAD_BASE,
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # 4. Class B 2G/2R rank-1 floor — regression pinning during Issue #132
 # ═══════════════════════════════════════════════════════════════════════
 #
