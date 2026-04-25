@@ -408,6 +408,48 @@ def test_class_b_sphere_hebert_heterogeneous_overshoot_known():
     )
 
 
+# RICH-quadrature variant: same configurations as the BASE pin above,
+# but tighter tolerances reflecting the RICH-quadrature near-exactness.
+# Wall-time per case ~30-300 s; marked @slow.
+
+_QUAD_RICH = dict(
+    n_panels_per_region=4,
+    p_order=5,
+    n_angular=64,
+    n_rho=48,
+    n_surf_quad=64,
+    dps=20,
+)
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.parametrize("ng_key, n_regions, expected_err_pct, tol_pct", [
+    pytest.param("1g", 1, 0.0, 0.05, id="1G_1R_homogeneous_RICH"),
+    pytest.param("2g", 1, 0.0, 0.05, id="2G_1R_homogeneous_RICH"),
+    pytest.param("2g", 2, 0.0, 0.05, id="2G_2R_heterogeneous_RICH"),
+])
+def test_class_b_sphere_hebert_recovers_kinf_rich(ng_key, n_regions,
+                                                   expected_err_pct, tol_pct):
+    """At RICH quadrature, Hébert recovers cp k_inf to <0.05 %.
+
+    The BASE-preset 0.15-1.5 % residuals were quadrature noise (Issue
+    #114 ρ-subdivision); the underlying Hébert closure is exact to
+    numerical precision when the Mark uniformity assumption holds.
+    Excludes 1G/2R (covered by the structural-overshoot pin below).
+    """
+    k_eff = _solve_class_b_hebert(SPHERE_1D, ng_key, n_regions,
+                                   quad=_QUAD_RICH)
+    k_inf = _kinf_ref(SPHERE_1D, ng_key, n_regions)
+    actual_err_pct = (k_eff - k_inf) / k_inf * 100
+    assert abs(actual_err_pct - expected_err_pct) < tol_pct, (
+        f"sphere {ng_key}/{n_regions}r Hébert RICH: actual err = "
+        f"{actual_err_pct:+.4f} %, expected {expected_err_pct:+.2f} % "
+        f"± {tol_pct} %. RICH is the verification-grade tolerance; "
+        f"BASE has Issue #114 ρ-quadrature noise that masks exactness."
+    )
+
+
 @pytest.mark.l1
 @pytest.mark.parametrize("kind", ["cylinder-1d", "slab-polar"])
 def test_class_b_hebert_raises_for_non_sphere(kind):

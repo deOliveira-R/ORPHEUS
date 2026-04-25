@@ -5546,52 +5546,56 @@ The geometric-series factor is largest for thin cells (where multiple
 reflections matter most), tending to 1 for thick cells (where surface
 neutrons are absorbed before completing a transit).
 
-Numerical results — three of four configurations recover k_inf
----------------------------------------------------------------
+Numerical results — three of four configurations recover k_inf to <0.03 %
+-------------------------------------------------------------------------
 
 Comparing ``boundary="white_rank1_mark"`` (BEFORE — bare Mark, missing
 the geometric series) vs ``boundary="white_hebert"`` (AFTER — Hébert
 closure with the (1−P_ss)⁻¹ factor) at the BASE quadrature
 (``n_panels_per_region=2, p_order=3, n_angular=24, n_rho=24,
-n_surf_quad=24, dps=15``):
+n_surf_quad=24, dps=15``) and the RICH preset
+(``n_panels_per_region=4, p_order=5, n_angular=64, n_rho=48,
+n_surf_quad=64, dps=20``):
 
 .. list-table::
    :header-rows: 1
 
    * - Configuration
      - cp_sphere k_inf
-     - BEFORE k_eff
-     - BEFORE err
-     - AFTER k_eff
-     - AFTER err
+     - BEFORE Mark
+     - AFTER (BASE)
+     - **AFTER (RICH)**
    * - sphere 1G/1R
      - 1.500
-     - 1.0957
      - −26.95 %
-     - 1.4977
-     - **−0.153 %**
+     - −0.153 %
+     - **−0.005 %**
    * - sphere 1G/2R *(fuel-A inner / mod-B outer)*
      - 0.6480
-     - 0.5510
      - −14.96 %
-     - 0.7149
      - +10.33 %
+     - **+10.69 %**
    * - sphere 2G/1R
      - 1.875
-     - 0.2288
      - −87.80 %
-     - 1.8594
-     - **−0.833 %**
+     - −0.833 %
+     - **−0.030 %**
    * - sphere 2G/2R
      - 0.4140
-     - 0.0862
      - −79.18 %
-     - 0.4092
-     - **−1.166 %**
+     - −1.166 %
+     - **+0.006 %**
 
-**Three of four configurations now within 1.2 % of cp_sphere k_inf**.
-The 1G/2R case retains a +10 % overshoot — see the limitation
-discussion below.
+**Three of four configurations are essentially exact at RICH quadrature**
+(< 0.03 % residual — 1G/1R, 2G/1R, 2G/2R). The BASE-preset residuals
+of 0.15–1.5 % were quadrature noise (Issue #114 ρ-subdivision); the
+underlying Hébert closure is exact to numerical precision when the
+Mark uniformity assumption holds. **The 1G/2R case retains a stable
++10.7 % overshoot at both BASE and RICH quadrature** — confirmed
+structural, not numerical.
+
+Reproducer:
+:file:`derivations/diagnostics/diag_sphere_hebert_rich_check.py`.
 
 The 1G/2R heterogeneous limitation
 ----------------------------------
