@@ -60,6 +60,7 @@ from ._kernels import (  # noqa: F401
     ki_n_float,
     ki_n_mp,
 )
+from ._quadrature_recipes import chord_quadrature
 
 
 @functools.lru_cache(maxsize=64)
@@ -1888,34 +1889,27 @@ def compute_P_ss_cylinder(
     radii = np.asarray(radii, dtype=float)
     sig_t = np.asarray(sig_t, dtype=float)
     R = float(radii[-1])
-    radii_inner = np.concatenate([[0.0], radii[:-1]])
-    radii_outer = radii
 
-    pts, wts = np.polynomial.legendre.leggauss(n_quad)
-    alpha_pts = 0.5 * (pts + 1) * (np.pi / 2)
-    alpha_wts = wts * (np.pi / 4)
-
-    P_ss = 0.0
-    for k in range(n_quad):
-        ca = float(np.cos(alpha_pts[k]))
-        sa = float(np.sin(alpha_pts[k]))
-        h = R * sa
-        tau_2d = 0.0
-        for n_reg in range(len(radii)):
-            r_in = float(radii_inner[n_reg])
-            r_out = float(radii_outer[n_reg])
-            if h >= r_out:
-                continue
-            seg_outer = float(np.sqrt(max(r_out * r_out - h * h, 0.0)))
-            seg_inner = (
-                float(np.sqrt(max(r_in * r_in - h * h, 0.0)))
-                if h < r_in else 0.0
-            )
-            chord_2d_in_annulus = 2.0 * (seg_outer - seg_inner)
-            tau_2d += sig_t[n_reg] * chord_2d_in_annulus
-        P_ss += alpha_wts[k] * ca * float(ki_n_mp(3, tau_2d, dps))
-
-    return float(4.0 / np.pi * P_ss)
+    # Q2 of the quadrature-architecture rollout (commit b281a97):
+    # rewrite in impact-parameter h ∈ [0, R] coordinates via h = R·sin α,
+    # dα = dh/√(R²-h²), cos α = √(R²-h²)/R.  The integrand collapses:
+    #
+    #     P_ss^cyl = (4/π) ∫_0^{π/2} cos α · Ki_3(τ_2D(α)) dα
+    #              = (4/(πR)) ∫_0^R Ki_3(τ_2D(h)) dh
+    #
+    # h-space lets `chord_quadrature` (with vis-cone subdivision at the
+    # interior shell radii r_k) handle the τ-derivative singularities at
+    # every shell crossing — spectral on every panel — and lets the τ
+    # build collapse to one matrix-vector product through
+    # `chord_half_lengths`.
+    q = chord_quadrature(radii, n_quad)
+    chords = 2.0 * chord_half_lengths(radii, q.pts)  # full antipodal chord
+    tau_2d = sig_t @ chords  # vectorised shell-sum
+    Ki = np.fromiter(
+        (ki_n_mp(3, float(t), dps) for t in tau_2d),
+        dtype=float, count=len(q),
+    )
+    return float(4.0 / (np.pi * R) * q.integrate_array(Ki))
 
 
 def compute_P_ss_sphere(
@@ -1998,35 +1992,25 @@ def compute_P_ss_sphere(
     radii = np.asarray(radii, dtype=float)
     sig_t = np.asarray(sig_t, dtype=float)
     R = float(radii[-1])
-    radii_inner = np.concatenate([[0.0], radii[:-1]])
-    radii_outer = radii
 
-    theta_pts, theta_wts = np.polynomial.legendre.leggauss(n_quad)
-    theta_pts_mapped = 0.5 * (theta_pts + 1) * (np.pi / 2)
-    theta_wts_mapped = theta_wts * (np.pi / 4)
-
-    P_ss = 0.0
-    for k in range(n_quad):
-        theta = theta_pts_mapped[k]
-        cos_theta = np.cos(theta)
-        sin_theta = np.sin(theta)
-        h = R * sin_theta
-        tau = 0.0
-        for n_reg in range(len(radii)):
-            r_in = radii_inner[n_reg]
-            r_out = radii_outer[n_reg]
-            if h >= r_out:
-                continue
-            seg_outer = np.sqrt(max(r_out * r_out - h * h, 0.0))
-            seg_inner = (
-                np.sqrt(max(r_in * r_in - h * h, 0.0)) if h < r_in else 0.0
-            )
-            chord_in_annulus = 2.0 * (seg_outer - seg_inner)
-            tau += sig_t[n_reg] * chord_in_annulus
-
-        P_ss += theta_wts_mapped[k] * cos_theta * sin_theta * np.exp(-tau)
-
-    return float(2.0 * P_ss)
+    # Q2 of the quadrature-architecture rollout (commit b281a97):
+    # rewrite in impact-parameter h ∈ [0, R] coordinates via the chain
+    #
+    #     P_ss = 2 ∫_0^{π/2} cos θ' sin θ' e^{-τ(θ')} dθ'
+    #          = 2 ∫_0^1 µ e^{-τ(µ)} dµ        (µ = cos θ')
+    #          = (2/R²) ∫_0^R h e^{-τ(h)} dh   (µ = √(1 - h²/R²))
+    #
+    # The h-form pairs with `chord_quadrature` (vis-cone subdivision
+    # at the interior shell radii) and `chord_half_lengths` (full
+    # antipodal chord per annulus); the integrand h·e^{-τ(h)} is then
+    # spectral on every panel.  The algebraic identity
+    # T_00^sphere = P_ss^sphere is now bit-equal at every Q because
+    # `compute_T_specular_sphere` shares this same h-space integral.
+    q = chord_quadrature(radii, n_quad)
+    chords = 2.0 * chord_half_lengths(radii, q.pts)  # full antipodal chord
+    tau = sig_t @ chords
+    integrand = q.pts * np.exp(-tau)
+    return float(2.0 / (R * R) * q.integrate_array(integrand))
 
 
 def compute_T_specular_sphere(
@@ -2115,44 +2099,30 @@ def compute_T_specular_sphere(
     radii = np.asarray(radii, dtype=float)
     sig_t = np.asarray(sig_t, dtype=float)
     R = float(radii[-1])
-    radii_inner = np.concatenate([[0.0], radii[:-1]])
-    radii_outer = radii
 
-    # GL on µ ∈ [0, 1].
-    nodes, wts = np.polynomial.legendre.leggauss(n_quad)
-    mu_pts = 0.5 * (nodes + 1.0)
-    mu_wts = 0.5 * wts
-
-    # Multi-region τ along the antipodal chord at each µ.
-    tau_arr = np.zeros(n_quad)
-    for k in range(n_quad):
-        mu = float(mu_pts[k])
-        h = R * float(np.sqrt(max(0.0, 1.0 - mu * mu)))
-        tau = 0.0
-        for n_reg in range(len(radii)):
-            r_in = float(radii_inner[n_reg])
-            r_out = float(radii_outer[n_reg])
-            if h >= r_out:
-                continue
-            seg_outer = float(np.sqrt(max(r_out * r_out - h * h, 0.0)))
-            seg_inner = (
-                float(np.sqrt(max(r_in * r_in - h * h, 0.0)))
-                if h < r_in else 0.0
-            )
-            chord_in_annulus = 2.0 * (seg_outer - seg_inner)
-            tau += float(sig_t[n_reg]) * chord_in_annulus
-        tau_arr[k] = tau
-
-    decay = np.exp(-tau_arr)
-
-    # Build T matrix in the rank-N shifted-Legendre basis.
-    T = np.zeros((n_modes, n_modes))
-    for m in range(n_modes):
-        Pm = _shifted_legendre_eval(m, mu_pts)
-        for n in range(n_modes):
-            Pn = _shifted_legendre_eval(n, mu_pts)
-            T[m, n] = 2.0 * float(np.sum(mu_wts * mu_pts * Pm * Pn * decay))
-    return T
+    # Q2 of the quadrature-architecture rollout (commit b281a97):
+    # rewrite in impact-parameter h ∈ [0, R] coordinates.  With
+    # µ = √(1 - h²/R²) the substitution gives
+    #
+    #     T_{mn} = 2 ∫_0^1 µ P̃_m(µ) P̃_n(µ) e^{-τ(µ)} dµ
+    #            = (2/R²) ∫_0^R h P̃_m(µ(h)) P̃_n(µ(h)) e^{-τ(h)} dh,
+    #
+    # so a single `chord_quadrature` (vis-cone subdivision at the
+    # interior shell radii r_k) handles the τ-derivative singularities
+    # spectrally, and the τ build collapses to one matrix-vector
+    # product through `chord_half_lengths`.  At rank-1 the integrand
+    # h·e^{-τ(h)} is bit-equal to the integrand of compute_P_ss_sphere
+    # ⇒ T_00 = P_ss algebraic identity holds at every Q.
+    q = chord_quadrature(radii, n_quad)
+    chords = 2.0 * chord_half_lengths(radii, q.pts)  # full antipodal chord
+    tau = sig_t @ chords
+    mu = np.sqrt(np.maximum(1.0 - (q.pts / R) ** 2, 0.0))
+    weighted = q.wts * q.pts * np.exp(-tau)  # h-space measure
+    P_eval = np.stack(
+        [_shifted_legendre_eval(m, mu) for m in range(n_modes)], axis=0,
+    )  # (n_modes, n_q)
+    # T_{mn} = (2/R²) Σ_q wts_q · h_q · e^{-τ_q} · P̃_m(µ_q) P̃_n(µ_q)
+    return (2.0 / (R * R)) * np.einsum("mq,nq,q->mn", P_eval, P_eval, weighted)
 
 
 def compute_T_specular_slab(
@@ -2330,62 +2300,51 @@ def compute_T_specular_cylinder_3d(
     radii = np.asarray(radii, dtype=float)
     sig_t = np.asarray(sig_t, dtype=float)
     R = float(radii[-1])
-    radii_inner = np.concatenate([[0.0], radii[:-1]])
-    radii_outer = radii
 
-    nodes, wts = np.polynomial.legendre.leggauss(n_quad)
-    alpha = 0.5 * (nodes + 1.0) * (np.pi / 2.0)
-    aw = wts * (np.pi / 4.0)
-    cos_a = np.cos(alpha)
-    sin_a = np.sin(alpha)
+    # Q2 of the quadrature-architecture rollout (commit b281a97):
+    # rewrite in impact-parameter h ∈ [0, R] coordinates via
+    # h = R sin α, dα = dh/√(R²-h²), cos α · dα = dh/R, so
+    #
+    #     T_{mn}^cyl = (4/π) ∫_0^{π/2} cos α · Σ_kk (c_m * c_n)[kk]
+    #                                 (cos α)^kk Ki_{3+kk}(τ(α)) dα
+    #               = (4/(πR)) Σ_kk (c_m ★ c_n)[kk] · I_kk
+    #     I_kk = ∫_0^R ((R²-h²)/R²)^{kk/2} · Ki_{3+kk}(τ_2D(h)) dh
+    #
+    # where ★ is polynomial convolution (np.convolve of the
+    # shifted-Legendre monomial coefs).  The kk-indexed kernel I_kk
+    # is (m, n)-independent so the n_modes² loop reduces to one
+    # convolve + one dot per matrix entry; the τ build is one
+    # matrix-vector product through `chord_half_lengths`.  Vis-cone
+    # subdivision via `chord_quadrature` makes every panel spectral.
+    q = chord_quadrature(radii, n_quad)
+    n_q = len(q)
+    chords = 2.0 * chord_half_lengths(radii, q.pts)
+    tau_2d = sig_t @ chords
 
-    # Multi-region τ_2D along antipodal in-plane chord at each α.
-    # Impact parameter h = R sin α; same shell-intersection geometry as
-    # compute_P_ss_cylinder.
-    tau_arr = np.zeros(n_quad)
-    for k in range(n_quad):
-        h = R * float(sin_a[k])
-        tau = 0.0
-        for n_reg in range(len(radii)):
-            r_in = float(radii_inner[n_reg])
-            r_out = float(radii_outer[n_reg])
-            if h >= r_out:
-                continue
-            seg_outer = float(np.sqrt(max(r_out * r_out - h * h, 0.0)))
-            seg_inner = (
-                float(np.sqrt(max(r_in * r_in - h * h, 0.0)))
-                if h < r_in else 0.0
-            )
-            chord_in_annulus = 2.0 * (seg_outer - seg_inner)
-            tau += float(sig_t[n_reg]) * chord_in_annulus
-        tau_arr[k] = tau
-
-    # Pre-evaluate Ki_(j+3) for j = 0 .. 2(N-1) at each α node.
-    # Use float ki_n_float for speed (Knyazev integrand needs O(n_quad ·
-    # 2N) Ki evaluations and ki_n_mp would be ~1000x slower).
     max_kk = 2 * (n_modes - 1) if n_modes > 0 else 0
-    Ki_arr = np.zeros((max_kk + 1, n_quad))
-    for j in range(max_kk + 1):
-        for k in range(n_quad):
-            Ki_arr[j, k] = ki_n_float(j + 3, float(tau_arr[k]))
+    # Ki_{3+kk}(τ(h_q)) — shape (max_kk+1, n_q).  ki_n_float is a
+    # scalar mpmath call; keep a comprehension since the kernel is
+    # not vectorisable without a different Bickley implementation.
+    Ki_kk = np.array([
+        [ki_n_float(j + 3, float(t)) for t in tau_2d]
+        for j in range(max_kk + 1)
+    ])
+    # ((R²-h²)/R²)^{kk/2} factor — half-integer powers of (1 - (h/R)²).
+    cos_alpha_sq = np.maximum(1.0 - (q.pts / R) ** 2, 0.0)  # = cos² α
+    cos_pow = cos_alpha_sq[None, :] ** (
+        0.5 * np.arange(max_kk + 1)[:, None]
+    )  # (max_kk+1, n_q)
+    # I_kk = ∫_0^R cos^kk α · Ki_{3+kk}(τ) dh — one weighted sum per kk.
+    I_kk = (cos_pow * Ki_kk) @ q.wts  # (max_kk+1,)
 
     coef_list = [_shifted_legendre_monomial_coefs(m) for m in range(n_modes)]
-
     T = np.zeros((n_modes, n_modes))
-    for m in range(n_modes):
-        cm = coef_list[m]
-        for n in range(n_modes):
-            cn = coef_list[n]
-            kernel = np.zeros(n_quad)
-            for k_m, c_m in enumerate(cm):
-                if c_m == 0.0:
-                    continue
-                for k_n, c_n in enumerate(cn):
-                    if c_n == 0.0:
-                        continue
-                    kk = k_m + k_n
-                    kernel += c_m * c_n * (cos_a ** kk) * Ki_arr[kk]
-            T[m, n] = (4.0 / np.pi) * float(np.sum(aw * cos_a * kernel))
+    for m, cm in enumerate(coef_list):
+        for n, cn in enumerate(coef_list):
+            conv = np.convolve(cm, cn)  # (k_m + k_n + 1,)
+            T[m, n] = (4.0 / (np.pi * R)) * float(
+                np.dot(conv, I_kk[: len(conv)])
+            )
     return T
 
 
