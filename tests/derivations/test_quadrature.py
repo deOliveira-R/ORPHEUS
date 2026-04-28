@@ -90,15 +90,83 @@ def test_quadrature1d_rejects_invalid_construction():
 @pytest.mark.foundation
 def test_quadrature1d_concatenation_via_or_operator():
     """``q1 | q2`` concatenates abutting panels and accumulates
-    ``panel_bounds`` in left-to-right order."""
+    ``panel_bounds`` and ``panel_sizes`` in left-to-right order."""
     q1 = gauss_legendre(0.0, 0.5, 4)
     q2 = gauss_legendre(0.5, 1.0, 6)
     q = q1 | q2
     assert len(q) == 10
     assert q.interval == (0.0, 1.0)
     assert q.panel_bounds == ((0.0, 0.5), (0.5, 1.0))
+    assert q.panel_sizes == (4, 6)
     # The composite integrates correctly.
     assert q.integrate(lambda x: x) == pytest.approx(0.5, abs=1e-14)
+
+
+@pytest.mark.foundation
+def test_quadrature1d_panel_slice_indexes_nodes_correctly():
+    """``q.panel_slice(k)`` selects exactly the nodes belonging to
+    panel ``k`` — used by per-panel basis evaluators (Lagrange,
+    spectral elements) to map a panel index to the right slice of
+    ``q.pts`` / ``q.wts`` without recomputing offsets externally."""
+    q1 = gauss_legendre(0.0, 0.5, 4)
+    q2 = gauss_legendre(0.5, 1.0, 6)
+    q3 = gauss_legendre(1.0, 2.0, 3)
+    q = q1 | q2 | q3
+    assert q.n_panels == 3
+    assert q.panel_sizes == (4, 6, 3)
+
+    # Panel 0: first 4 nodes, all in [0, 0.5].
+    s0 = q.panel_slice(0)
+    assert s0 == slice(0, 4)
+    assert np.all((q.pts[s0] > 0.0) & (q.pts[s0] < 0.5))
+
+    # Panel 1: next 6 nodes, all in [0.5, 1.0].
+    s1 = q.panel_slice(1)
+    assert s1 == slice(4, 10)
+    assert np.all((q.pts[s1] > 0.5) & (q.pts[s1] < 1.0))
+
+    # Panel 2: last 3 nodes, all in [1.0, 2.0].
+    s2 = q.panel_slice(2)
+    assert s2 == slice(10, 13)
+    assert np.all((q.pts[s2] > 1.0) & (q.pts[s2] < 2.0))
+
+    # Out-of-range panel index raises.
+    with pytest.raises(IndexError):
+        q.panel_slice(3)
+    with pytest.raises(IndexError):
+        q.panel_slice(-1)
+
+
+@pytest.mark.foundation
+def test_quadrature1d_single_panel_panel_slice_is_full_range():
+    """Default single-panel rule has ``panel_slice(0) == slice(0, n)``
+    — bridges scalar consumers to the per-panel API uniformly."""
+    q = gauss_legendre(0.0, 1.0, 7)
+    assert q.n_panels == 1
+    assert q.panel_sizes == (7,)
+    assert q.panel_slice(0) == slice(0, 7)
+
+
+@pytest.mark.foundation
+def test_quadrature1d_panel_sizes_validation():
+    """Construction validates panel_sizes/panel_bounds length and that
+    sizes sum to the node count."""
+    pts = np.linspace(0.1, 0.9, 5)
+    wts = np.ones(5) * 0.1
+    # Bad: sum(panel_sizes) != n_pts.
+    with pytest.raises(ValueError, match=r"sum\(panel_sizes\)"):
+        Quadrature1D(
+            pts=pts, wts=wts, interval=(0.0, 1.0),
+            panel_bounds=((0.0, 0.5), (0.5, 1.0)),
+            panel_sizes=(3, 3),
+        )
+    # Bad: panel_sizes length != panel_bounds length.
+    with pytest.raises(ValueError, match=r"panel_sizes length"):
+        Quadrature1D(
+            pts=pts, wts=wts, interval=(0.0, 1.0),
+            panel_bounds=((0.0, 0.5), (0.5, 1.0)),
+            panel_sizes=(5,),
+        )
 
 
 @pytest.mark.foundation

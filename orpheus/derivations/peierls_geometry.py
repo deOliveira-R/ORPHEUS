@@ -60,6 +60,7 @@ from ._kernels import (  # noqa: F401
     ki_n_float,
     ki_n_mp,
 )
+from ._quadrature import composite_gauss_legendre
 from ._quadrature_recipes import (
     chord_quadrature,
     observer_angular_quadrature,
@@ -187,7 +188,18 @@ def composite_gl_r(
 
     Returns ``(r_pts, r_wts, panel_bounds)`` where ``panel_bounds`` is
     a list of ``(pa, pb, i_start, i_end)`` tuples describing the
-    composite rule's panels.
+    composite rule's panels — the index range identifies which slice
+    of ``r_pts`` / ``r_wts`` belongs to each panel, used downstream by
+    :func:`lagrange_basis_on_panels` to know which nodes carry the
+    Lagrange basis on that panel.
+
+    Q4 of the quadrature-architecture rollout: this is now a thin
+    wrapper that builds the breakpoint list (with ``n_panels_per_region``
+    uniform sub-panels per inter-shell segment) and delegates the
+    GL-on-panels work to
+    :func:`~orpheus.derivations._quadrature.composite_gauss_legendre`,
+    then re-derives the ``(i_start, i_end)`` per-panel index ranges
+    from the (constant) ``p_order`` per-panel node count.
     """
     radii = np.asarray(radii, dtype=float)
     if inner_radius < 0.0:
@@ -197,32 +209,30 @@ def composite_gl_r(
             f"inner_radius ({inner_radius}) must be < outer radius "
             f"({float(radii[-1])})"
         )
-    gl_ref, gl_wt = gl_nodes_weights(p_order, dps)
 
-    breakpoints = [mpmath.mpf(inner_radius)] + [
-        mpmath.mpf(float(r)) for r in radii if float(r) > inner_radius
+    # Outer breakpoints: inner_radius, then each shell radius strictly
+    # > inner_radius, terminating at R.
+    seg_breaks = [float(inner_radius)] + [
+        float(r) for r in radii if float(r) > inner_radius
     ]
-    r_all: list = []
-    w_all: list = []
-    panel_bounds: list[tuple[float, float, int, int]] = []
+    # Sub-divide each segment into ``n_panels_per_region`` uniform panels.
+    bps = [
+        a + j * (b - a) / n_panels_per_region
+        for a, b in zip(seg_breaks[:-1], seg_breaks[1:])
+        for j in range(n_panels_per_region)
+    ]
+    bps.append(seg_breaks[-1])
 
-    with mpmath.workdps(dps):
-        for seg in range(len(breakpoints) - 1):
-            a_seg = breakpoints[seg]
-            b_seg = breakpoints[seg + 1]
-            pw = (b_seg - a_seg) / n_panels_per_region
-            for pidx in range(n_panels_per_region):
-                pa = a_seg + pidx * pw
-                pb = pa + pw
-                xp, wp = map_gl_to(gl_ref, gl_wt, pa, pb)
-                i0 = len(r_all)
-                r_all.extend(xp)
-                w_all.extend(wp)
-                panel_bounds.append((float(pa), float(pb), i0, len(r_all)))
-
-    r_pts = np.array([float(r) for r in r_all])
-    r_wts = np.array([float(w) for w in w_all])
-    return r_pts, r_wts, panel_bounds
+    q = composite_gauss_legendre(bps, p_order, dps=dps)
+    # The (i_start, i_end) panel index ranges that downstream
+    # ``lagrange_basis_on_panels`` consumes are a property of the
+    # quadrature itself — defer to the contract's ``panel_slice(k)``
+    # rather than recomputing offsets externally.
+    panel_bounds = [
+        (float(a), float(b), q.panel_slice(k).start, q.panel_slice(k).stop)
+        for k, (a, b) in enumerate(q.panel_bounds)
+    ]
+    return q.pts, q.wts, panel_bounds
 
 
 # ═══════════════════════════════════════════════════════════════════════

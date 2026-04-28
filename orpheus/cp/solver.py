@@ -41,6 +41,7 @@ from scipy.special import expn
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.macro_xs.cell_xs import CellXS, assemble_cell_xs
 from orpheus.derivations._kernels import chord_half_lengths
+from orpheus.derivations._quadrature import composite_gauss_legendre
 from orpheus.derivations.cp_geometry import _ki3_mp as _ki3_kernel
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.eigenvalue import power_iteration
@@ -94,18 +95,10 @@ def _e3(x):
     return expn(3, np.maximum(x, 0.0))
 
 
-def _composite_gauss_legendre(breakpoints, n_quad):
-    """Composite Gauss-Legendre quadrature over breakpoint intervals.
-
-    Returns (pts, wts) concatenated across all intervals.
-    """
-    gl_pts, gl_wts = np.polynomial.legendre.leggauss(n_quad)
-    y_all, w_all = [], []
-    for seg in range(len(breakpoints) - 1):
-        a, b = breakpoints[seg], breakpoints[seg + 1]
-        y_all.append(0.5 * (b - a) * gl_pts + 0.5 * (b + a))
-        w_all.append(0.5 * (b - a) * gl_wts)
-    return np.concatenate(y_all), np.concatenate(w_all)
+# Q4 of the quadrature-architecture rollout: the private composite-GL
+# helper that used to live here is subsumed by the unified
+# :func:`orpheus.derivations._quadrature.composite_gauss_legendre`
+# constructor.  See the call site in ``_setup_radial_quadrature`` below.
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -170,9 +163,8 @@ class CPMesh:
         cylindrical or spherical meshes."""
         p = self.params
         radii = self.mesh.edges[1:]
-        self._y_pts, self._y_wts = _composite_gauss_legendre(
-            self.mesh.edges, p.n_quad_y,
-        )
+        q = composite_gauss_legendre(self.mesh.edges, p.n_quad_y)
+        self._y_pts, self._y_wts = q.pts, q.wts
         self._chords = chord_half_lengths(radii, self._y_pts)
 
     def _setup_cylindrical(self) -> None:

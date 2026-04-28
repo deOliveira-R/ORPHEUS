@@ -95,6 +95,7 @@ class Quadrature1D:
     wts: np.ndarray
     interval: tuple[float, float]
     panel_bounds: tuple[tuple[float, float], ...] = field(default=())
+    panel_sizes: tuple[int, ...] = field(default=())
 
     def __post_init__(self) -> None:
         # Coerce to float64 ndarrays so callers can pass lists / mpmath.
@@ -114,9 +115,25 @@ class Quadrature1D:
             raise ValueError(
                 f"Quadrature1D: need interval[0] < interval[1], got {self.interval}"
             )
-        # Default panel_bounds to the single full interval.
+        # Default panel_bounds to the single full interval and place all
+        # nodes into that single panel. Composite rules (and ``__or__``)
+        # populate ``panel_sizes`` explicitly with one entry per panel.
         if not self.panel_bounds:
             object.__setattr__(self, "panel_bounds", ((float(a), float(b)),))
+        if not self.panel_sizes:
+            object.__setattr__(self, "panel_sizes", (int(self.pts.size),))
+        if len(self.panel_sizes) != len(self.panel_bounds):
+            raise ValueError(
+                f"Quadrature1D: panel_sizes length "
+                f"({len(self.panel_sizes)}) != panel_bounds length "
+                f"({len(self.panel_bounds)})"
+            )
+        if int(np.sum(self.panel_sizes)) != int(self.pts.size):
+            raise ValueError(
+                f"Quadrature1D: sum(panel_sizes) "
+                f"({int(np.sum(self.panel_sizes))}) != pts.size "
+                f"({int(self.pts.size)})"
+            )
 
     def __len__(self) -> int:
         return int(self.pts.size)
@@ -129,6 +146,26 @@ class Quadrature1D:
     def n_panels(self) -> int:
         """Number of sub-panels in this rule."""
         return len(self.panel_bounds)
+
+    def panel_slice(self, k: int) -> slice:
+        r"""Index range of the ``self.pts`` / ``self.wts`` entries that
+        belong to panel :math:`k`.
+
+        Composite rules concatenate per-panel arrays in left-to-right
+        order, so ``self.pts[self.panel_slice(k)]`` returns exactly the
+        nodes contributed by panel :math:`k` (whose bounds are
+        ``self.panel_bounds[k]``). Consumers that need to evaluate
+        per-panel basis functions (e.g.
+        :func:`~orpheus.derivations.peierls_geometry.lagrange_basis_on_panels`)
+        index through this method rather than recomputing offsets from
+        an external per-panel node count.
+        """
+        if not 0 <= k < self.n_panels:
+            raise IndexError(
+                f"panel_slice: k={k} out of range [0, {self.n_panels})"
+            )
+        offsets = np.concatenate([[0], np.cumsum(self.panel_sizes)])
+        return slice(int(offsets[k]), int(offsets[k + 1]))
 
     def integrate(
         self,
@@ -176,6 +213,7 @@ class Quadrature1D:
             wts=np.concatenate([self.wts, other.wts]),
             interval=(self.interval[0], other.interval[1]),
             panel_bounds=self.panel_bounds + other.panel_bounds,
+            panel_sizes=self.panel_sizes + other.panel_sizes,
         )
 
 
