@@ -6897,17 +6897,72 @@ Best-use envelope
   path to Hébert :math:`(1-P_{ss})^{-1}` accuracy at rank-1
   (algebraically equivalent to MB rank-1 on sphere/cyl).
 
-**Phase 5 — continuous-:math:`\mu` reformulation** (research, open).
-The proper fix for the sphere/cyl matrix-Galerkin pathology is to
-replace the matrix inverse :math:`(I - T R)^{-1}` with a direct
-multiplication by the continuous-:math:`\mu` multi-bounce factor
-:math:`\mu / (1 - e^{-\sigma\,2R\mu})` (sphere; analogous for cyl/slab),
-performing the :math:`\mu`-integral once with adaptive quadrature
-rather than projecting onto a basis and inverting. This is
-out-of-scope for Phase 4; see
-``.claude/agent-memory/numerics-investigator/specular_mb_overshoot_root_cause.md``
-for the conceptual sketch and the operator-norm proof of the
-matrix-form divergence.
+**Phase 5a — continuous-:math:`\mu` reformulation** (research
+prototype, 2026-04-28). The proper fix for the sphere/cyl
+matrix-Galerkin pathology is the textbook integral form derived in
+Sanchez 1986 [SanchezTTSP1986]_ Eq. (A6) for the homogeneous sphere
+with specular boundary:
+
+.. math::
+   :label: peierls-phase5-sanchez-A6
+
+   g_h(\rho' \to \rho) \;=\;
+        2\!\int_{\mu_0}^{1}\!T(\mu_-)\,\mu_*^{-1}\,
+        \cosh(\rho\mu)\,\cosh(\rho'\mu_*)\,e^{-2a\mu_-}\,\mathrm d\mu
+
+with :math:`a = \Sigma_t R`, :math:`T(\mu_-) = 1/(1 - e^{-2a\mu_-})`
+the continuous multi-bounce factor, :math:`\mu_-(\mu) =
+\sqrt{a^2 - \rho^2(1-\mu^2)}/a` and :math:`\mu_*(\mu) =
+\sqrt{\rho'^2 - \rho^2(1-\mu^2)}/\rho'` dimensionless cosines, and
+chord-visibility cutoff :math:`\mu_0 = \sqrt{\max(0, 1 - (\rho'/\rho)^2)}`.
+This bypasses the matrix-Galerkin projection entirely — the
+multi-bounce factor :math:`T(\mu_-)` is a multiplication operator,
+not the inverse of one, so there is no operator-norm divergence.
+
+**Status of Phase 5a in ORPHEUS**:
+
+- **Reference implementation shipped** as
+  :func:`compute_K_bc_specular_continuous_mu_sphere`. Calls Sanchez
+  Eq. (A6) verbatim with :math:`\alpha = 1, \beta = 0, \omega_1 = 0`
+  (perfect specular, isotropic scattering, homogeneous sphere).
+- **SymPy verification shipped** at
+  :file:`derivations/peierls_specular_continuous_mu.py` — 4/4 checks
+  PASS, including the µ-weight equivalence with the cross-domain
+  attacker's M1 sketch (the M1 sketch had a factor-of-:math:`\mu`
+  bug that SymPy V2 caught).
+- **Sanchez 1986 literature memo** at
+  :file:`.claude/agent-memory/literature-researcher/phase5_sanchez_1986_sphere_specular.md`.
+- **Production wiring DEFERRED to Phase 5+**. The closure
+  ``boundary="specular_continuous_mu"`` is registered in the
+  dispatch but raises :class:`NotImplementedError`. Two open
+  blockers:
+
+  1. **Diagonal singularity**: SymPy V4 surfaced that the integrand
+     at :math:`\rho' = \rho` has a :math:`1/\mu^2` non-integrable
+     singularity at the surface diagonal :math:`\rho = a` and a
+     :math:`1/\mu` (logarithmic) singularity at interior diagonals.
+     Sanchez does not specify a numerical method. ORPHEUS Nyström
+     sampling at quadrature points hits the singularity directly;
+     production wiring needs adaptive µ-quadrature, singularity
+     subtraction, or a change-of-variables.
+  2. **Sanchez ↔ ORPHEUS K_ij Jacobian conversion**: Sanchez's
+     :math:`g_h(\rho' \to \rho)` has the surface-area Jacobian
+     :math:`4\pi\rho'^2` baked in via Eq. (2). ORPHEUS's discrete
+     Nyström convention uses explicit ``rv = 4π r²`` radial-volume
+     weights. The conversion factor is not closed-form in Sanchez
+     1986; deriving it (likely via a rank-1 cross-check against
+     ``boundary="white_hebert"``) is Phase 5+ work.
+
+For multi-bounce specular today, use
+``boundary="specular_multibounce"`` (Phase 4 matrix-Galerkin form).
+At rank-1 it reduces algebraically to ``boundary="white_hebert"``
+for sphere/cyl, which has the same Hébert-quality accuracy as the
+Phase 5 closure would in the continuous limit.
+
+.. [SanchezTTSP1986] R. Sanchez, "Integral form of the equation of
+   transfer for a homogeneous sphere with linearly anisotropic
+   scattering," *Transport Theory & Statistical Physics*, vol. 14,
+   pp. 333–343 (1986). DOI: 10.1080/00411458608210456.
 
 References and further reading
 ------------------------------

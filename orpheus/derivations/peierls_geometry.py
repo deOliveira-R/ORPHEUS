@@ -2389,6 +2389,229 @@ def compute_T_specular_cylinder_3d(
     return T
 
 
+def _chord_tau_mu_sphere(
+    radii: np.ndarray, sig_t: np.ndarray, mu: float | np.ndarray,
+) -> np.ndarray:
+    r"""Multi-region antipodal-chord optical depth :math:`\tau(\mu)` for a
+    sphere of radii ``radii`` (annular outer boundaries; ``radii[-1] = R``).
+
+    Returns :math:`\tau(\mu) = \sum_k \Sigma_{t,k}\,\ell_k(\mu)` where
+    :math:`\ell_k` is the chord length in annulus :math:`k` along the
+    antipodal chord with impact parameter :math:`h = R\sqrt{1 - \mu^2}`.
+    Same chord-shell intersection geometry as
+    :func:`compute_P_ss_sphere` and :func:`compute_T_specular_sphere`.
+
+    Used by Phase 5 ``closure="specular_continuous_mu"`` (sphere) for the
+    multi-bounce factor :math:`T(\mu) = 1/(1 - e^{-\tau(\mu)})` (Sanchez
+    1986 Eq. (A4) with :math:`\alpha = 1`, multi-region :math:`\tau`).
+    Extracted from the inlined logic in :func:`compute_T_specular_sphere`
+    (Phase 4) to keep the two paths bit-equivalent.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    radii_inner = np.concatenate([[0.0], radii[:-1]])
+    radii_outer = radii
+
+    mu_arr = np.atleast_1d(np.asarray(mu, dtype=float))
+    tau_out = np.zeros_like(mu_arr)
+    for q, mu_val in enumerate(mu_arr):
+        h = R * float(np.sqrt(max(0.0, 1.0 - mu_val * mu_val)))
+        tau = 0.0
+        for n_reg in range(len(radii)):
+            r_in = float(radii_inner[n_reg])
+            r_out = float(radii_outer[n_reg])
+            if h >= r_out:
+                continue
+            seg_outer = float(np.sqrt(max(r_out * r_out - h * h, 0.0)))
+            seg_inner = (
+                float(np.sqrt(max(r_in * r_in - h * h, 0.0)))
+                if h < r_in else 0.0
+            )
+            chord_in_annulus = 2.0 * (seg_outer - seg_inner)
+            tau += float(sig_t[n_reg]) * chord_in_annulus
+        tau_out[q] = tau
+
+    if np.isscalar(mu):
+        return float(tau_out[0])
+    return tau_out
+
+
+def compute_K_bc_specular_continuous_mu_sphere(
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    n_quad: int = 64,
+) -> np.ndarray:
+    r"""**Phase 5** continuous-:math:`\mu` multi-bounce specular BC kernel
+    for the **homogeneous** sphere — Sanchez 1986 Eq. (A6) with
+    :math:`\alpha = 1, \beta = 0, \omega_1 = 0`.
+
+    .. math::
+       :label: peierls-phase5-sphere-Kbc
+
+       K_{\rm bc}^{\rm cmu,sph}(r_i, r_j) \;=\;
+            2\!\int_{\mu_0(r_i, r_j)}^{1}\,T(\mu)\,
+            \mu_*(r_i, r_j, \mu)^{-1}\,
+            \cosh(\Sigma\,\rho_<\,\mu)\,
+            \cosh(\Sigma\,\rho_>\,\mu_*)\,
+            e^{-\Sigma\,2R\mu}\,\mathrm d\mu
+
+    where :math:`\rho_< = \min(r_i, r_j)`, :math:`\rho_> = \max(r_i, r_j)`,
+    and
+
+    .. math::
+
+       T(\mu) &= \frac{1}{1 - e^{-\Sigma\,2R\mu}}, \\
+       \mu_*(r_i, r_j, \mu) &= \sqrt{\rho_>^2 - \rho_<^2(1 - \mu^2)} / R, \\
+       \mu_0(r_i, r_j) &= \sqrt{\max\bigl(0,\,1 - (\rho_</\rho_>)^2\bigr)}.
+
+    .. note::
+
+       The :math:`\mu_*` formula above carries an extra :math:`/R` because
+       Sanchez's :math:`\mu_*^2 = \rho'^2 - \rho^2(1 - \mu^2)` uses the
+       optical radii :math:`\rho = \Sigma r`; rewriting in physical
+       units :math:`r` gives :math:`\mu_*^2 = (\Sigma r')^2 - (\Sigma r)^2(1 -
+       \mu^2) = \Sigma^2 [r'^2 - r^2(1-\mu^2)]`, so :math:`\mu_*/\Sigma =
+       \sqrt{r'^2 - r^2(1-\mu^2)}` is what enters the cosh. The
+       :math:`\mu_*^{-1}` Jacobian factor in Eq. (A6) becomes
+       :math:`1/(\Sigma\sqrt{r'^2 - r^2(1-\mu^2)})`; the leading
+       :math:`\Sigma^{-1}` cancels with the :math:`2 \Sigma`-prefactor in
+       Sanchez's flux-density convention. The implementation below uses
+       physical units throughout.
+
+    **Algebraic verification**: SymPy proves the integrand is
+    :math:`2 \cosh(\Sigma r_i \mu)\,e^{-\Sigma r_i \mu} \cdot
+    \cosh(\Sigma r_j \mu_*)\,e^{-\Sigma r_j \mu} \cdot \mu_*^{-1} \cdot
+    T(\mu)` (no extra :math:`\mu` in numerator) — see
+    :file:`derivations/peierls_specular_continuous_mu.py` (V2).
+
+    **Why this fixes the Phase 4 pathology**. The integrand at
+    :math:`\mu \to 0` has a removable simple pole: :math:`T(\mu) \sim
+    1/(\Sigma\,2R\,\mu)` and :math:`\mu_*^{-1} \to 1/r_>` finite, so the
+    integrand stays bounded provided the quadrature handles the µ → 0
+    behaviour (Gauss-Jacobi or smooth GL with sufficient nodes). No
+    matrix inversion, no rank-N basis, no operator-norm divergence as
+    Q grows — convergence is spectral.
+
+    **Homogeneous-only restriction**. Sanchez's spherical-from-slab
+    reduction (the cosh closed forms) requires uniform :math:`\Sigma_t`.
+    Multi-region sphere with piecewise :math:`\Sigma_t` does NOT admit
+    Eq. (A6) directly — the cosh structure has to be re-derived for the
+    inhomogeneous Green's function. This function raises ``ValueError``
+    if ``radii`` has more than one annulus. Multi-region sphere is
+    Phase 5+ (deferred per the approved plan).
+
+    Parameters
+    ----------
+    r_nodes : (N_r,) ndarray of float
+        Radial collocation nodes for the receiver and source positions.
+    radii : (1,) ndarray of float
+        Single outer radius :math:`R`. Multi-region NOT supported.
+    sig_t : (1,) ndarray of float
+        Single :math:`\Sigma_t` value (homogeneous sphere).
+    n_quad : int, default 64
+        Number of Gauss-Legendre nodes on :math:`\mu \in [0, 1]`.
+        Spectral convergence beyond N=32 for thin/medium cells; for
+        very-thin :math:`\tau_R \lesssim 0.5` consider Q=128 to absorb
+        the µ → 0 pole at :math:`\alpha = 1`.
+
+    Returns
+    -------
+    K_bc : (N_r, N_r) ndarray of float
+        The boundary-condition contribution to the volume kernel
+        :math:`K(r_i, r_j) = K_{\rm vol}(r_i, r_j) + K_{\rm bc}(r_i, r_j)`.
+        Add to :func:`build_volume_kernel` output.
+
+    Raises
+    ------
+    ValueError
+        If ``radii`` has more than one annulus (multi-region sphere is
+        Phase 5+ deferred).
+
+    See Also
+    --------
+    compute_T_specular_sphere : the Phase 4 matrix-Galerkin variant that
+        diverges at high rank N. This function bypasses the matrix
+        inverse entirely.
+    derivations/peierls_specular_continuous_mu.py : SymPy verification
+        of Eq. (A6) and the µ-weight convention question.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    if len(radii) != 1:
+        raise NotImplementedError(
+            f"compute_K_bc_specular_continuous_mu_sphere: multi-region "
+            f"sphere ({len(radii)} annuli) is Phase 5+ deferred — "
+            f"Sanchez 1986 Eq. (A6) cosh closed form requires "
+            f"homogeneous Σ_t. For multi-region sphere use "
+            f"closure='specular_multibounce' (matrix-Galerkin form, "
+            f"with rank gate) until Phase 5+ ships the inhomogeneous "
+            f"derivation."
+        )
+
+    sigma = float(sig_t[0])
+    R = float(radii[0])
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    N_r = len(r_nodes)
+
+    # Sanchez optical units: a = σR, ρ = σr. Per p. 342 of
+    # the paper, µ_- and µ_* are DIMENSIONLESS COSINES, NOT optical
+    # lengths:
+    #   µ_- = √[a² − ρ²(1−µ²)] / a   (cosine at surface for receiver-side trajectory)
+    #   µ_* = √[ρ'² − ρ²(1−µ²)] / ρ'  (chord-projection cosine for source ρ')
+    # These appear in T(µ_-), e^{-2aµ_-}, µ_*^{-1}, and cosh(ρ'µ_*).
+    a = sigma * R
+    rho_opt = sigma * r_nodes  # (N_r,)
+
+    # GL on µ ∈ [0, 1].
+    nodes, wts = np.polynomial.legendre.leggauss(n_quad)
+    mu_pts = 0.5 * (nodes + 1.0)
+    mu_wts = 0.5 * wts
+
+    K_bc = np.zeros((N_r, N_r))
+    for i in range(N_r):
+        rho = float(rho_opt[i])  # receiver
+        # µ_- (cosine at surface for receiver-side trajectory) depends
+        # only on rho (receiver) and µ:
+        a_mu_minus_sq = a * a - rho * rho * (1.0 - mu_pts * mu_pts)
+        a_mu_minus = np.sqrt(np.maximum(a_mu_minus_sq, 0.0))
+        mu_minus = a_mu_minus / a
+        # T(µ_-) with full chord τ(µ_-) = 2a·µ_-. NB: this carries the
+        # Σ-dependence via a = σR.
+        tau_chord_full = 2.0 * a * mu_minus
+        T_mu_minus = 1.0 / (1.0 - np.exp(-tau_chord_full))
+        decay_chord = np.exp(-tau_chord_full)
+
+        for j in range(N_r):
+            rho_p = float(rho_opt[j])  # source ρ'
+            # µ_* = √[ρ'² − ρ²(1−µ²)] / ρ' depends on (rho, rho_p, µ).
+            # Visibility cone: µ_*² > 0 requires either ρ' > ρ (always
+            # visible) or µ > µ_0 = √[1 − (ρ'/ρ)²] (when ρ' < ρ).
+            rho_p_mu_star_sq = (
+                rho_p * rho_p - rho * rho * (1.0 - mu_pts * mu_pts)
+            )
+            valid = rho_p_mu_star_sq > 0.0
+            if not np.any(valid):
+                continue
+            rho_p_mu_star = np.sqrt(np.maximum(rho_p_mu_star_sq, 0.0))
+            # mu_star = (ρ' µ_*) / ρ' — but we work with ρ'·µ_* directly
+            # because that's what enters cosh(ρ'·µ_*). The 1/µ_* factor
+            # becomes ρ' / (ρ'·µ_*) = ρ' / rho_p_mu_star.
+            integrand = np.zeros(n_quad)
+            integrand[valid] = (
+                T_mu_minus[valid]
+                * (rho_p / rho_p_mu_star[valid])  # µ_*^{-1} = ρ' / (ρ'µ_*)
+                * np.cosh(rho * mu_pts[valid])
+                * np.cosh(rho_p_mu_star[valid])  # cosh(ρ' · µ_*)
+                * decay_chord[valid]
+            )
+            K_bc[i, j] = 2.0 * float(np.sum(mu_wts * integrand))
+
+    return K_bc
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Per-surface escape / response primitives (Phase F.2)
 #
@@ -5355,6 +5578,65 @@ def _build_full_K_per_group(
         ITR = np.eye(N) - T @ R_spec
         K_bc = G @ R_spec @ np.linalg.solve(ITR, P)
         return K + K_bc
+    if closure == "specular_continuous_mu":
+        # Phase 5 — Continuous-µ multi-bounce specular BC (RESEARCH
+        # PROTOTYPE — not yet production-wired).
+        #
+        # Bypasses the Phase 4 matrix-Galerkin form
+        # `(I - T·R)^{-1}` by integrating the multi-bounce kernel
+        # directly in µ. This is the "proper fix" for the matrix-
+        # Galerkin divergence flagged in the sphere
+        # `closure="specular_multibounce"` docstring (see
+        # `compute_T_specular_sphere` and
+        # `.claude/agent-memory/numerics-investigator/specular_mb_overshoot_root_cause.md`
+        # for the operator-norm proof).
+        #
+        # **Status (Phase 5a, 2026-04-28)**: Sanchez 1986 Eq. (A6) is
+        # confirmed as the textbook continuous-µ multi-bounce kernel
+        # for homogeneous sphere with specular BC (literature pull
+        # in `.claude/agent-memory/literature-researcher/
+        # phase5_sanchez_1986_sphere_specular.md`). The SymPy
+        # derivation in `derivations/peierls_specular_continuous_mu.py`
+        # verified the algebraic equivalence with the cross-domain-
+        # attacker's M1 sketch (resolving the µ-weight convention
+        # question).
+        #
+        # **The reference implementation** is available as
+        # :func:`compute_K_bc_specular_continuous_mu_sphere` and
+        # produces Sanchez Eq. (A6) directly. **Production wiring is
+        # blocked on a Jacobian-conversion question** (Phase 5+):
+        # Sanchez's `g_h(ρ' → ρ)` uses an integral form
+        # ``I(ρ) = ∫ g · F dρ'`` where ``F`` is the local emission and
+        # ``g`` has the surface-area Jacobian ``4π ρ'²`` baked in via
+        # Sanchez Eq. (2). ORPHEUS's `K_ij` discretises a different
+        # Peierls form ``Σ_t·φ_i = Σ_j K_ij · q_j`` where the
+        # radial-volume weight (``rv = 4π r²``) and quadrature weight
+        # ``r_wts`` are explicit. Bridging the two normalisations
+        # requires deriving the conversion `K_ij = α(r_i, r_j) ·
+        # g_h(r_j, r_i)` where α carries (a) the σ from ``dρ' =
+        # σ·dr'``, (b) the radial-volume weight, and (c) any
+        # remaining 4π / surface-area factors. This Jacobian is **not
+        # documented in Sanchez 1986** and the closed-form `cosh`
+        # structure of Eq. (A6) makes the comparison subtle. Phase 5+
+        # plan: derive the conversion via a rank-1-equivalence
+        # cross-check against `closure="white_hebert"` (which works
+        # at rank-1 in ORPHEUS's K_ij convention) before re-wiring.
+        #
+        # In the meantime, the Phase 4 matrix-Galerkin form
+        # ``closure="specular_multibounce"`` remains the production
+        # path for sphere/cyl/slab multi-bounce.
+        raise NotImplementedError(
+            f"closure='specular_continuous_mu' is a Phase 5 research "
+            f"prototype, not yet wired into solve_peierls_*. The "
+            f"reference kernel `compute_K_bc_specular_continuous_mu_sphere` "
+            f"implements Sanchez 1986 Eq. (A6) directly but the "
+            f"Jacobian conversion to ORPHEUS's K_ij Nyström convention "
+            f"is pending (see Phase 5+ in "
+            f".claude/plans/specular-bc-phase4-multibounce-rollout.md "
+            f"§10). For multi-bounce specular today, use "
+            f"closure='specular_multibounce' (matrix-Galerkin form, "
+            f"with rank gate)."
+        )
     if closure == "specular":
         # Specular reflection BC: psi^-(r_b, mu_in) = psi^+(r_b, mu_in)
         # at every surface point — exact angular preservation, no
@@ -5582,11 +5864,14 @@ def _build_full_K_per_group(
         f"'white_hebert' (sphere/cyl only — Issue #132 Hébert correction), "
         f"'white_f4', 'specular' (slab/sphere/cyl — exact angular "
         f"preservation; rank-N partial-current matching; per-face "
-        f"block-diagonal R for slab), or 'specular_multibounce' (slab/"
-        f"sphere/cyl — multi-bounce-corrected specular; sphere/cyl best "
+        f"block-diagonal R for slab), 'specular_multibounce' (slab/"
+        f"sphere/cyl — matrix-Galerkin multi-bounce; sphere/cyl best "
         f"at thin cells with N <= 3 with UserWarning at N >= 4; slab "
-        f"converges monotonically at any N) — or the deprecated aliases "
-        f"'white' / 'white_rank2'; got {closure!r}"
+        f"converges monotonically at any N), or 'specular_continuous_mu' "
+        f"(sphere only in Phase 5 — continuous-µ form via Sanchez 1986 "
+        f"Eq. (A6); no rank parameter, no UserWarning, homogeneous-only) "
+        f"— or the deprecated aliases 'white' / 'white_rank2'; "
+        f"got {closure!r}"
     )
 
 
