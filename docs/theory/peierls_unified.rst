@@ -8472,6 +8472,21 @@ others are merely available as fallbacks (§22.5 — Gauss-Jacobi); one
 under-exploited opportunity and is the subject of the bulk of this
 section.
 
+The transforms catalogued here all share a single implementation
+contract: the :class:`~orpheus.derivations._quadrature.Quadrature1D`
+value object exposed by :mod:`orpheus.derivations._quadrature`. Each
+transform is a *constructor* of that contract — :func:`gauss_legendre`,
+:func:`gauss_legendre_visibility_cone`, :func:`composite_gauss_legendre`,
+:func:`gauss_laguerre` — and consumers integrate via
+``q.integrate(f)`` (callable broadcast at the nodes) or
+``q.integrate_array(values)`` (precomputed values), composing
+panels via the ``q1 | q2`` operator. Two geometry-aware recipes
+(:func:`chord_quadrature` and :func:`observer_angular_quadrature`
+in :mod:`._quadrature_recipes`) compose these primitives into the
+recurring ORPHEUS chord-and-angular patterns. The contract details
+and design rationale are documented in the
+:class:`~orpheus.derivations._quadrature.Quadrature1D` docstring.
+
 22.1 Principle: transforms relocate singularities, they don't eliminate them
 ----------------------------------------------------------------------------
 
@@ -9081,7 +9096,7 @@ Sections 22.2 and 22.5 catalogued the *Jacobian-absorbing* and
 subsection promotes a third, lighter-weight option that is now the
 ORPHEUS default for chord- and visibility-cone integrals with a
 **single** :math:`\sqrt{\,\cdot\,}`-vanishing endpoint. The primitive
-is :func:`~orpheus.derivations._kernels.gauss_legendre_visibility_cone`,
+is :func:`~orpheus.derivations._quadrature.gauss_legendre_visibility_cone`,
 shipped on branch ``feature/peierls-specular-bc`` (this commit). The
 substitution itself is classical (it reduces to the
 :math:`s^2 = r'^{2} - y^{2}` Jacobian-absorbing transform of §22.2 in
@@ -9339,7 +9354,7 @@ responsible for choosing a sensible variant.
 Numerical evidence
 ~~~~~~~~~~~~~~~~~~
 
-The L0 test module at ``tests/derivations/test_kernels.py`` covers six
+The L0 test module at ``tests/derivations/test_quadrature.py`` covers six
 configurations; the three most informative are reproduced here. All
 integrals are evaluated against either an analytical closed form or an
 ``mpmath.quad`` ground truth at 50-digit working precision.
@@ -9417,7 +9432,7 @@ Three properties of the substitution are visible in this table:
    is a singularity to absorb, not as a default replacement.
 
 These numbers are fully reproducible from
-``tests/derivations/test_kernels.py`` and the originating diagnostic at
+``tests/derivations/test_quadrature.py`` and the originating diagnostic at
 ``derivations/diagnostics/diag_phase5_round3_visibility_cone_quad.py``.
 
 Gotchas and non-uses
@@ -9481,10 +9496,10 @@ specific call sites in :mod:`~orpheus.derivations.peierls_geometry`.
      - Target
      - Notes
    * - 1A
-     - :func:`~orpheus.derivations._kernels.gauss_legendre_visibility_cone`
+     - :func:`~orpheus.derivations._quadrature.gauss_legendre_visibility_cone`
        + L0 test
      - **Shipped (this commit)**. Six L0 tests in
-       ``tests/derivations/test_kernels.py``, all carrying
+       ``tests/derivations/test_quadrature.py``, all carrying
        ``@pytest.mark.verifies("gauss-legendre-visibility-cone")``.
    * - 1B
      - ``compute_T_specular_sphere``,

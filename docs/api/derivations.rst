@@ -37,7 +37,21 @@ Submodules
    * - :mod:`~orpheus.derivations._kernels`
      - Exponential-integral (``E_3``) and Bickley–Naylor
        (``Ki_3``/``Ki_4``) kernels shared by the slab and cylinder
-       derivations.
+       derivations, plus the :func:`chord_half_lengths` chord-segment
+       primitive consumed by chord-impact-parameter integrals.
+   * - :mod:`~orpheus.derivations._quadrature`
+     - Unified 1-D quadrature contract
+       (:class:`~orpheus.derivations._quadrature.Quadrature1D` value
+       object) and its primitive constructors:
+       :func:`gauss_legendre`,
+       :func:`gauss_legendre_visibility_cone`,
+       :func:`composite_gauss_legendre`, :func:`gauss_laguerre`.
+   * - :mod:`~orpheus.derivations._quadrature_recipes`
+     - Geometry-aware quadrature recipes:
+       :func:`chord_quadrature` (impact-parameter integrals on
+       concentric annular geometries) and
+       :func:`observer_angular_quadrature` (kink-aware ω-sweeps from
+       an internal observer).
    * - :mod:`~orpheus.derivations._xs_library`
      - Synthetic cross-section library (``_FUEL_XS``, ``_REFL_XS``, …)
        that guarantees derivation cases and solver tests use the exact
@@ -90,6 +104,18 @@ Kernels
 -------
 
 .. automodule:: orpheus.derivations._kernels
+   :members:
+
+Quadrature contract
+-------------------
+
+.. automodule:: orpheus.derivations._quadrature
+   :members:
+
+Quadrature recipes (geometry-aware)
+-----------------------------------
+
+.. automodule:: orpheus.derivations._quadrature_recipes
    :members:
 
 Cross-section library
