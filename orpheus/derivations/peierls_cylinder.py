@@ -40,7 +40,7 @@ symmetric :math:`\pm\beta` reflection.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 
@@ -290,12 +290,12 @@ def _build_peierls_cylinder_case(
     sig_s = np.array([xs["sig_s"][0, 0] for xs in xs_list])
     nu_sig_f = np.array([(xs["nu"] * xs["sig_f"])[0] for xs in xs_list])
 
-    sol = solve_peierls_cylinder_1g(
-        radii, sig_t, sig_s, nu_sig_f,
+    sol = _pg.solve_peierls_1g(
+        GEOMETRY, radii, sig_t, sig_s, nu_sig_f,
         boundary="white",
         n_panels_per_region=n_panels_per_region,
         p_order=p_order,
-        n_beta=n_beta, n_rho=n_rho, n_phi=n_phi,
+        n_angular=n_beta, n_rho=n_rho, n_surf_quad=n_phi,
         dps=precision_digits,
     )
 
@@ -307,17 +307,7 @@ def _build_peierls_cylinder_case(
     integral = GEOMETRY.shell_volume_integral(r_nodes, r_wts, phi)
     if abs(integral) > 1e-30:
         phi_normed = phi / integral
-        sol = PeierlsCylinderSolution(
-            r_nodes=sol.r_nodes,
-            phi_values=phi_normed[:, np.newaxis],
-            k_eff=sol.k_eff,
-            cell_radius=sol.cell_radius,
-            n_groups=sol.n_groups,
-            n_quad_r=sol.n_quad_r,
-            n_quad_y=sol.n_quad_y,
-            precision_digits=sol.precision_digits,
-            panel_bounds=sol.panel_bounds,
-        )
+        sol = replace(sol, phi_values=phi_normed[:, np.newaxis])
 
     def phi_fn(x: np.ndarray, g: int = 0) -> np.ndarray:
         return sol.phi(x, g)
@@ -422,12 +412,12 @@ def _build_peierls_cylinder_hollow_f4_case(
         Cavity ratio. Must be in ``(0, 1)``.
     ng_key
         XS-library group key (``"1g"``, ``"2g"``, ...). Added in
-        Issue #104 (2026-04-24); the MG path routes through
-        :func:`solve_peierls_cylinder_mg`
-        which delegates to the unified
-        :func:`peierls_geometry.solve_peierls_mg`. ``"1g"`` preserves
-        the legacy residuals listed above; ``"2g"`` runs a fresh
-        benchmark per commit 2 of the Issue #104 plan.
+        Issue #104 (2026-04-24); the MG path routes through the
+        canonical :func:`peierls_geometry.solve_peierls_mg` with
+        :class:`CurvilinearGeometry` bound for the hollow case.
+        ``"1g"`` preserves the legacy residuals listed above;
+        ``"2g"`` runs a fresh benchmark per commit 2 of the Issue
+        #104 plan.
     """
     from .cp_cylinder import _RADII
 
@@ -453,13 +443,15 @@ def _build_peierls_cylinder_hollow_f4_case(
 
     radii = np.array([R_out])
 
-    sol = solve_peierls_cylinder_mg(
-        radii, sig_t, sig_s, nu_sig_f, chi,
+    geometry = _pg.CurvilinearGeometry(
+        kind="cylinder-1d", inner_radius=r0,
+    )
+    sol = _pg.solve_peierls_mg(
+        geometry, radii, sig_t, sig_s, nu_sig_f, chi,
         boundary="white_f4",
-        inner_radius=r0,
         n_panels_per_region=n_panels_per_region,
         p_order=p_order,
-        n_beta=n_beta, n_rho=n_rho, n_phi=n_phi,
+        n_angular=n_beta, n_rho=n_rho, n_surf_quad=n_phi,
         dps=precision_digits,
     )
 
@@ -478,17 +470,7 @@ def _build_peierls_cylinder_hollow_f4_case(
         phi_normed[:, g] = (
             phi_g / integral_g if abs(integral_g) > 1e-30 else phi_g
         )
-    sol = PeierlsCylinderSolution(
-        r_nodes=sol.r_nodes,
-        phi_values=phi_normed,
-        k_eff=sol.k_eff,
-        cell_radius=sol.cell_radius,
-        n_groups=sol.n_groups,
-        n_quad_r=sol.n_quad_r,
-        n_quad_y=sol.n_quad_y,
-        precision_digits=sol.precision_digits,
-        panel_bounds=sol.panel_bounds,
-    )
+    sol = replace(sol, phi_values=phi_normed)
 
     def phi_fn(x: np.ndarray, g: int = 0) -> np.ndarray:
         return sol.phi(x, g)
