@@ -1,7 +1,9 @@
 """L1 tests for the rank-1 white-BC closure of the Peierls cylinder solver.
 
 C7 of the Phase-4.2 campaign. Exercises the ``boundary='white'``
-path of :func:`solve_peierls_cylinder_1g` and the two helpers
+path of
+:func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+(with ``geometry=_pg.CYLINDER_1D``) and the two helpers
 :func:`~orpheus.derivations.peierls_geometry.compute_P_esc` and
 :func:`~orpheus.derivations.peierls_geometry.compute_G_bc`.
 
@@ -35,10 +37,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.peierls_cylinder import (
-    GEOMETRY,
-    solve_peierls_cylinder_1g,
-)
+from orpheus.derivations import peierls_geometry as _pg
+from orpheus.derivations.peierls_cylinder import GEOMETRY
 from orpheus.derivations.peierls_geometry import (
     compute_G_bc,
     compute_P_esc,
@@ -115,12 +115,13 @@ class TestWhiteBCEigenvalue:
     def test_k_eff_thick_approaches_kinf(self):
         """At R = 10 MFP, the rank-1 white-BC closure gives k_eff
         within 2 % of k_inf = 1.5."""
-        sol = solve_peierls_cylinder_1g(
+        sol = _pg.solve_peierls_1g(
+            _pg.CYLINDER_1D,
             radii=np.array([10.0]),
             sig_t=_SIG_T, sig_s=_SIG_S, nu_sig_f=_NU_SIG_F,
             boundary="white",
             n_panels_per_region=3, p_order=5,
-            n_beta=20, n_rho=20, n_phi=20, dps=20,
+            n_angular=20, n_rho=20, n_surf_quad=20, dps=20,
         )
         err = abs(sol.k_eff - _K_INF) / _K_INF
         assert err < 2e-2, (
@@ -132,19 +133,21 @@ class TestWhiteBCEigenvalue:
         """White BC suppresses leakage ⇒ k_eff(white) > k_eff(vacuum)
         at every finite R."""
         for R in (2.0, 5.0, 10.0):
-            sol_vac = solve_peierls_cylinder_1g(
+            sol_vac = _pg.solve_peierls_1g(
+                _pg.CYLINDER_1D,
                 radii=np.array([R]),
                 sig_t=_SIG_T, sig_s=_SIG_S, nu_sig_f=_NU_SIG_F,
                 boundary="vacuum",
                 n_panels_per_region=3, p_order=5,
-                n_beta=18, n_rho=18, dps=20,
+                n_angular=18, n_rho=18, dps=20,
             )
-            sol_wht = solve_peierls_cylinder_1g(
+            sol_wht = _pg.solve_peierls_1g(
+                _pg.CYLINDER_1D,
                 radii=np.array([R]),
                 sig_t=_SIG_T, sig_s=_SIG_S, nu_sig_f=_NU_SIG_F,
                 boundary="white",
                 n_panels_per_region=3, p_order=5,
-                n_beta=18, n_rho=18, n_phi=18, dps=20,
+                n_angular=18, n_rho=18, n_surf_quad=18, dps=20,
             )
             assert sol_wht.k_eff > sol_vac.k_eff, (
                 f"At R={R}: white k_eff = {sol_wht.k_eff:.6f} should "
@@ -156,12 +159,13 @@ class TestWhiteBCEigenvalue:
         """k_eff(white) → k_inf monotonically from below as R increases."""
         keffs = []
         for R in (3.0, 5.0, 10.0, 20.0):
-            sol = solve_peierls_cylinder_1g(
+            sol = _pg.solve_peierls_1g(
+                _pg.CYLINDER_1D,
                 radii=np.array([R]),
                 sig_t=_SIG_T, sig_s=_SIG_S, nu_sig_f=_NU_SIG_F,
                 boundary="white",
                 n_panels_per_region=3, p_order=5,
-                n_beta=16, n_rho=16, n_phi=16, dps=20,
+                n_angular=16, n_rho=16, n_surf_quad=16, dps=20,
             )
             keffs.append(sol.k_eff)
         # All below k_inf

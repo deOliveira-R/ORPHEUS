@@ -25,9 +25,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.peierls_sphere import (
-    solve_peierls_sphere_1g,
-)
+from orpheus.derivations import peierls_geometry as _pg
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -47,12 +45,13 @@ class TestVacuumBCThickLimit:
         """k_eff(R = 30 MFP) is within 1 % of k_inf = 1.5."""
         sig_t, sig_s, nu_sig_f = 1.0, 0.5, 0.75
         k_inf = self._k_inf(sig_t, sig_s, nu_sig_f)
-        sol = solve_peierls_sphere_1g(
+        sol = _pg.solve_peierls_1g(
+            _pg.SPHERE_1D,
             np.array([30.0]),
             np.array([sig_t]), np.array([sig_s]), np.array([nu_sig_f]),
             boundary="vacuum",
             n_panels_per_region=3, p_order=5,
-            n_theta=24, n_rho=24, dps=25,
+            n_angular=24, n_rho=24, dps=25,
         )
         assert abs(sol.k_eff - k_inf) / k_inf < 1e-2, (
             f"k_eff(R=30 MFP) = {sol.k_eff:.4f} is more than 1 % from "
@@ -65,13 +64,14 @@ class TestVacuumBCThickLimit:
         R_values = [1.5, 3.0, 6.0, 12.0, 24.0]
         k_values = []
         for R in R_values:
-            sol = solve_peierls_sphere_1g(
+            sol = _pg.solve_peierls_1g(
+                _pg.SPHERE_1D,
                 np.array([R]),
                 np.array([sig_t]), np.array([sig_s]),
                 np.array([nu_sig_f]),
                 boundary="vacuum",
                 n_panels_per_region=2, p_order=5,
-                n_theta=20, n_rho=20, dps=22,
+                n_angular=20, n_rho=20, dps=22,
             )
             k_values.append(sol.k_eff)
         diffs = np.diff(k_values)
@@ -96,13 +96,14 @@ class TestQuadratureConvergence:
         radii = np.array([R])
         k_values = []
         for n_q in (12, 20, 28):
-            sol = solve_peierls_sphere_1g(
+            sol = _pg.solve_peierls_1g(
+                _pg.SPHERE_1D,
                 radii,
                 np.array([sig_t]), np.array([sig_s]),
                 np.array([nu_sig_f]),
                 boundary="vacuum",
                 n_panels_per_region=2, p_order=5,
-                n_theta=n_q, n_rho=n_q, dps=22,
+                n_angular=n_q, n_rho=n_q, dps=22,
             )
             k_values.append(sol.k_eff)
         # The change between the last two refinements is smaller than
@@ -126,12 +127,13 @@ class TestWhiteBCThickLimit:
     def test_k_eff_matches_k_inf_at_ten_mfp(self):
         sig_t, sig_s, nu_sig_f = 1.0, 0.5, 0.75
         k_inf = nu_sig_f / (sig_t - sig_s)
-        sol = solve_peierls_sphere_1g(
+        sol = _pg.solve_peierls_1g(
+            _pg.SPHERE_1D,
             np.array([10.0]),
             np.array([sig_t]), np.array([sig_s]), np.array([nu_sig_f]),
             boundary="white",
             n_panels_per_region=2, p_order=5,
-            n_theta=20, n_rho=20, n_phi=32, dps=25,
+            n_angular=20, n_rho=20, n_surf_quad=32, dps=25,
         )
         err = abs(sol.k_eff - k_inf) / k_inf
         assert err < 1e-2, (

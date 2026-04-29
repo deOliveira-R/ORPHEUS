@@ -24,11 +24,9 @@ import pytest
 
 from orpheus.cp.solver import CPParams, solve_cp
 from orpheus.derivations._xs_library import get_mixture
-from orpheus.derivations.peierls_cylinder import (
-    GEOMETRY,
-    PeierlsCylinderSolution,
-)
+from orpheus.derivations.peierls_cylinder import GEOMETRY
 from orpheus.derivations.peierls_geometry import (
+    PeierlsSolution,
     build_volume_kernel,
     build_white_bc_correction,
     composite_gl_r,
@@ -45,9 +43,10 @@ _K_INF = _NU_SIG_F / (_SIG_T - _SIG_S)  # = 1.5
 def _build_peierls_cylinder_reference(
     R: float, n_panels: int = 3, p_order: int = 5,
     n_beta: int = 20, n_rho: int = 20, n_phi: int = 20, dps: int = 20,
-) -> PeierlsCylinderSolution:
+) -> PeierlsSolution:
     """Solve the 1G 1-region Peierls cylinder with white BC and return
-    the PeierlsCylinderSolution carrying both k_eff and interpolable φ."""
+    the canonical :class:`PeierlsSolution` carrying both k_eff and
+    interpolable φ."""
     radii = np.array([R])
     sig_t_arr = np.array([_SIG_T])
     sig_s_arr = np.array([_SIG_S])
@@ -94,14 +93,15 @@ def _build_peierls_cylinder_reference(
         if converged:
             break
 
-    return PeierlsCylinderSolution(
+    return PeierlsSolution(
         r_nodes=r_nodes,
         phi_values=phi[:, np.newaxis],
         k_eff=float(k_val),
         cell_radius=R,
         n_groups=1,
+        geometry_kind="cylinder-1d",
         n_quad_r=N,
-        n_quad_y=n_beta * n_rho,
+        n_quad_angular=n_beta * n_rho,
         precision_digits=dps,
         panel_bounds=panels,
     )

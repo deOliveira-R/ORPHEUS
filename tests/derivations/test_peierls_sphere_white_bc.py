@@ -32,7 +32,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.peierls_sphere import solve_peierls_sphere_1g
+from orpheus.derivations import peierls_geometry as _pg
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -53,12 +53,13 @@ class TestWhiteBCRank1ErrorScan:
     @classmethod
     def _solve(cls, R: float):
         sig_t, sig_s, nu_sig_f, _ = cls._k_inf()
-        return solve_peierls_sphere_1g(
+        return _pg.solve_peierls_1g(
+            _pg.SPHERE_1D,
             np.array([R]),
             np.array([sig_t]), np.array([sig_s]), np.array([nu_sig_f]),
             boundary="white",
             n_panels_per_region=2, p_order=5,
-            n_theta=20, n_rho=20, n_phi=32, dps=25,
+            n_angular=20, n_rho=20, n_surf_quad=32, dps=25,
         )
 
     def test_k_eff_monotone_in_R(self):

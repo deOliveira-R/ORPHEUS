@@ -27,14 +27,12 @@ import pytest
 from orpheus.cp.solver import CPParams, solve_cp
 from orpheus.derivations._xs_library import get_mixture
 from orpheus.derivations.peierls_geometry import (
+    PeierlsSolution,
     build_volume_kernel,
     build_white_bc_correction,
     composite_gl_r,
 )
-from orpheus.derivations.peierls_sphere import (
-    GEOMETRY,
-    PeierlsSphereSolution,
-)
+from orpheus.derivations.peierls_sphere import GEOMETRY
 from orpheus.geometry import CoordSystem, Mesh1D
 
 
@@ -47,9 +45,10 @@ _K_INF = _NU_SIG_F / (_SIG_T - _SIG_S)  # = 1.5
 def _build_peierls_sphere_reference(
     R: float, n_panels: int = 3, p_order: int = 5,
     n_theta: int = 20, n_rho: int = 20, n_phi: int = 20, dps: int = 20,
-) -> PeierlsSphereSolution:
+) -> PeierlsSolution:
     """Solve the 1G 1-region Peierls sphere with white BC and return the
-    :class:`PeierlsSphereSolution` carrying both k_eff and interpolable φ."""
+    canonical :class:`PeierlsSolution` carrying both k_eff and
+    interpolable φ."""
     radii = np.array([R])
     sig_t_arr = np.array([_SIG_T])
     sig_s_arr = np.array([_SIG_S])
@@ -96,14 +95,15 @@ def _build_peierls_sphere_reference(
         if converged:
             break
 
-    return PeierlsSphereSolution(
+    return PeierlsSolution(
         r_nodes=r_nodes,
         phi_values=phi[:, np.newaxis],
         k_eff=float(k_val),
         cell_radius=R,
         n_groups=1,
+        geometry_kind="sphere-1d",
         n_quad_r=N,
-        n_quad_theta=n_theta * n_rho,
+        n_quad_angular=n_theta * n_rho,
         precision_digits=dps,
         panel_bounds=panels,
     )
