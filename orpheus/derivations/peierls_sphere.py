@@ -2,14 +2,21 @@ r"""Peierls integral equation reference for spherical CP verification.
 
 Spherical specialisation of the unified polar-form Peierls Nyström
 infrastructure in :mod:`orpheus.derivations.peierls_geometry`. This
-module is a THIN FACADE that mirrors :mod:`peierls_cylinder`: it owns
-the sphere-specific API names (``solve_peierls_sphere_{1g,mg}``
-permanent wrappers per :ref:`theory-peierls-api-posture`), the
-:class:`PeierlsSphereSolution` dataclass, and the
-``_build_peierls_sphere_case`` registry constructors. Everything
-else — volume-kernel assembly, Lagrange basis, angular/radial
-composite quadrature, white-BC rank-1 closure, eigenvalue power
-iteration — lives in
+module is a **registry-only façade** as of Issue #138 (2026-04-29),
+mirror of :mod:`peierls_cylinder`: it owns the
+:func:`~orpheus.derivations.peierls_sphere._build_peierls_sphere_case`
+and
+:func:`~orpheus.derivations.peierls_sphere._build_peierls_sphere_hollow_f4_case`
+continuous-reference constructors and the
+:data:`~orpheus.derivations.peierls_sphere.GEOMETRY` singleton
+binding the canonical
+:data:`~orpheus.derivations.peierls_geometry.SPHERE_1D`. The
+``solve_peierls_sphere_{1g,mg}`` wrappers and the shape-specific
+``PeierlsSphereSolution`` dataclass were retired in commit 99a05ab
+— see :ref:`theory-peierls-api-posture` "Retired wrappers
+(Issue #138)" for the migration recipe. Everything else — volume-kernel
+assembly, Lagrange basis, angular/radial composite quadrature,
+white-BC closures, eigenvalue power iteration — lives in
 :mod:`~orpheus.derivations.peierls_geometry` and dispatches through
 :class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`
 with ``kind = "sphere-1d"``.
@@ -59,7 +66,7 @@ observer.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import replace
 
 import numpy as np
 
@@ -77,200 +84,6 @@ from ._xs_library import LAYOUTS, get_mixture, get_xs
 # ═══════════════════════════════════════════════════════════════════════
 
 GEOMETRY = _pg.SPHERE_1D
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Solution container — backward-compatible alias for PeierlsSolution
-# ═══════════════════════════════════════════════════════════════════════
-
-@dataclass(frozen=True)
-class PeierlsSphereSolution:
-    """Result of a Peierls Nyström solve on a 1-D radial sphere.
-
-    Kept as a sphere-flavoured facade over
-    :class:`~peierls_geometry.PeierlsSolution`. Mirrors the
-    :class:`~peierls_cylinder.PeierlsCylinderSolution` shape for
-    symmetry — new code may use the unified
-    :class:`~peierls_geometry.PeierlsSolution` directly.
-    """
-
-    r_nodes: np.ndarray
-    phi_values: np.ndarray
-    k_eff: float | None
-    cell_radius: float
-    n_groups: int
-    n_quad_r: int
-    n_quad_theta: int
-    precision_digits: int
-    panel_bounds: list[tuple[float, float, int, int]] | None = None
-
-    def phi(self, r: np.ndarray, g: int = 0) -> np.ndarray:
-        r = np.asarray(r, dtype=float).ravel()
-        out = np.empty_like(r)
-        if self.panel_bounds is None:
-            return np.interp(r, self.r_nodes, self.phi_values[:, g])
-        for idx, r_eval in enumerate(r):
-            L = _pg.lagrange_basis_on_panels(
-                self.r_nodes, self.panel_bounds, float(r_eval),
-            )
-            out[idx] = float(np.dot(L, self.phi_values[:, g]))
-        return out
-
-
-def _soln_to_sphere(sol: _pg.PeierlsSolution) -> PeierlsSphereSolution:
-    return PeierlsSphereSolution(
-        r_nodes=sol.r_nodes,
-        phi_values=sol.phi_values,
-        k_eff=sol.k_eff,
-        cell_radius=sol.cell_radius,
-        n_groups=sol.n_groups,
-        n_quad_r=sol.n_quad_r,
-        n_quad_theta=sol.n_quad_angular,
-        precision_digits=sol.precision_digits,
-        panel_bounds=sol.panel_bounds,
-    )
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# 1G eigenvalue drivers
-# ═══════════════════════════════════════════════════════════════════════
-
-def solve_peierls_sphere_1g(
-    radii: np.ndarray,
-    sig_t: np.ndarray,
-    sig_s: np.ndarray,
-    nu_sig_f: np.ndarray,
-    *,
-    boundary: str = "vacuum",
-    inner_radius: float = 0.0,
-    n_panels_per_region: int = 2,
-    p_order: int = 5,
-    n_theta: int = 24,
-    n_rho: int = 24,
-    n_phi: int = 24,
-    dps: int = 25,
-    max_iter: int = 300,
-    tol: float = 1e-10,
-) -> PeierlsSphereSolution:
-    r"""1G spherical Peierls k-eigenvalue driver.
-
-    Thin wrapper over :func:`peierls_geometry.solve_peierls_1g` with
-    the sphere geometry pre-bound.
-
-    Parameters
-    ----------
-    boundary
-        - ``"vacuum"`` (default): vacuum BC on the outer surface.
-        - ``"white"``: rank-1 Mark (isotropic) white BC. For
-          :math:`r_0 = 0` (solid sphere) this is the baseline
-          closure used throughout the Phase 4.x CP-vs-Peierls
-          campaign. Scalar accuracy on solid spheres is bounded by
-          ``build_white_bc_correction``'s rank-1 assumption (GitHub
-          Issue #100 / #103).
-        - ``"white_rank2"`` (**F.4 — Stamm'ler IV Eq. 34 = Hébert
-          2009 Eq. 3.323**): scalar rank-2 per-face closure. Requires
-          ``inner_radius > 0`` (a hollow sphere — F.4 reduces to
-          rank-1 Mark on solid geometry because there is no
-          second-face coupling). At default quadrature:
-          :math:`r_0 / R = 0.1 \to 0.4\,\%`,
-          :math:`r_0 / R = 0.2 \to 1.2\,\%`,
-          :math:`r_0 / R = 0.3 \to 3.3\,\%`. The sphere's explicit
-          3-D :math:`\theta` integration retains angular information
-          that the cylinder's Ki\ :sub:`3` fold averages away,
-          giving 3–10× tighter residuals at the same :math:`r_0/R`.
-          Rank-N per-face refinement was falsified as a path to
-          improve beyond F.4 — see
-          :ref:`peierls-rank-n-per-face-closeout` and research-log
-          lesson L21.
-
-    inner_radius
-        Inner cavity radius for hollow-sphere geometries (Phase F.5).
-        Default ``0.0`` (solid sphere). Must be strictly less than
-        ``radii[-1]``.
-    """
-    if inner_radius != 0.0:
-        geometry = _pg.CurvilinearGeometry(
-            kind="sphere-1d", inner_radius=float(inner_radius),
-        )
-    else:
-        geometry = GEOMETRY
-    sol = _pg.solve_peierls_1g(
-        geometry, radii, sig_t, sig_s, nu_sig_f,
-        boundary=boundary,
-        n_panels_per_region=n_panels_per_region,
-        p_order=p_order,
-        n_angular=n_theta,
-        n_rho=n_rho,
-        n_surf_quad=n_phi,
-        dps=dps,
-        max_iter=max_iter,
-        tol=tol,
-    )
-    return _soln_to_sphere(sol)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Multi-group eigenvalue driver (Issue #104)
-# ═══════════════════════════════════════════════════════════════════════
-
-
-def solve_peierls_sphere_mg(
-    radii: np.ndarray,
-    sig_t: np.ndarray,
-    sig_s: np.ndarray,
-    nu_sig_f: np.ndarray,
-    chi: np.ndarray,
-    *,
-    boundary: str = "vacuum",
-    inner_radius: float = 0.0,
-    n_panels_per_region: int = 2,
-    p_order: int = 5,
-    n_theta: int = 24,
-    n_rho: int = 24,
-    n_phi: int = 24,
-    dps: int = 25,
-    max_iter: int = 300,
-    tol: float = 1e-10,
-) -> PeierlsSphereSolution:
-    r"""Multi-group spherical Peierls k-eigenvalue driver.
-
-    Thin wrapper over :func:`peierls_geometry.solve_peierls_mg` with
-    the sphere geometry pre-bound. Semantics of ``boundary`` and
-    ``inner_radius`` match :func:`solve_peierls_sphere_1g`.
-
-    Parameters
-    ----------
-    sig_t
-        Total cross section per region and group, shape
-        ``(n_regions, ng)``.
-    sig_s
-        P\ :sub:`0` scattering matrix, shape ``(n_regions, ng, ng)``.
-        Convention: ``sig_s[r, g_src, g_dst]`` = rate from ``g_src``
-        to ``g_dst`` at region ``r``. See
-        :func:`peierls_geometry.solve_peierls_mg` for the full
-        convention note.
-    nu_sig_f, chi
-        ``(n_regions, ng)`` per-group arrays.
-    """
-    if inner_radius != 0.0:
-        geometry = _pg.CurvilinearGeometry(
-            kind="sphere-1d", inner_radius=float(inner_radius),
-        )
-    else:
-        geometry = GEOMETRY
-    sol = _pg.solve_peierls_mg(
-        geometry, radii, sig_t, sig_s, nu_sig_f, chi,
-        boundary=boundary,
-        n_panels_per_region=n_panels_per_region,
-        p_order=p_order,
-        n_angular=n_theta,
-        n_rho=n_rho,
-        n_surf_quad=n_phi,
-        dps=dps,
-        max_iter=max_iter,
-        tol=tol,
-    )
-    return _soln_to_sphere(sol)
 
 
 # ═══════════════════════════════════════════════════════════════════════
