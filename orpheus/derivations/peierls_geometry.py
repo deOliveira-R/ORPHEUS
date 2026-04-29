@@ -60,7 +60,7 @@ from ._kernels import (  # noqa: F401
     ki_n_float,
     ki_n_mp,
 )
-from ._quadrature import composite_gauss_legendre
+from ._quadrature import adaptive_mpmath, composite_gauss_legendre
 from ._quadrature_recipes import (
     chord_quadrature,
     observer_angular_quadrature,
@@ -1101,43 +1101,52 @@ def K_vol_element_adaptive(
         rho_max_val = float(geometry.rho_max(r_i, cos_om, R))
         if rho_max_val <= 0.0:
             return mpmath.mpf(0)
-        # Inner ρ subdivision at panel-boundary crossings.
+        # Q6.L2: route the inner ρ integral through `adaptive_mpmath`.
+        # Panel-boundary crossings of the ray are subdivision hints
+        # that let mpmath.quad resolve the chord-segment kinks
+        # spectrally; without them the C¹ kinks at panel edges produce
+        # ~1e-5 plateau errors.
         crossings = geometry.rho_crossings_for_ray(
             r_i, cos_om, rho_max_val, interior_boundaries_r,
         )
-        breaks = [mpmath.mpf(0)]
-        for rho in crossings:
-            breaks.append(mpmath.mpf(float(rho)))
-        breaks.append(mpmath.mpf(rho_max_val))
-        inner = mpmath.quad(
-            lambda rho: integrand_rho(rho, cos_om),
-            breaks,
+        crossings_in = tuple(
+            float(rho) for rho in crossings
+            if 0.0 < float(rho) < rho_max_val
         )
+        q_rho = adaptive_mpmath(
+            0.0, rho_max_val, breakpoints=crossings_in, dps=dps,
+        )
+        inner = mpmath.mpf(q_rho.integrate(
+            lambda rho: integrand_rho(rho, cos_om),
+        ))
         ang_factor = float(geometry.angular_weight(
             np.array([float(angular_mp)]),
         )[0])
         return mpmath.mpf(ang_factor) * inner
 
     with mpmath.workdps(dps):
-        # Outer angular subdivision:
+        # Q6.L2: outer ω integral via `adaptive_mpmath` with the
+        # geometry-specific subdivision hints that `mpmath.quad`
+        # previously consumed inline.
         #   Slab: split at μ = 0 (grazing-ray stiffness).
         #   Curvilinear: split at tangent angles to interior shells.
         if geometry.kind == "slab-polar":
-            outer_breaks = [
-                mpmath.mpf(omega_low),
-                mpmath.mpf(0),
-                mpmath.mpf(omega_high),
-            ]
+            outer_brk = (
+                (0.0,) if omega_low < 0.0 < omega_high else ()
+            )
         else:
             tangent_angles = geometry.omega_tangent_angles(
                 r_i, interior_boundaries_r,
             )
-            outer_breaks = [mpmath.mpf(omega_low)]
-            for ang in tangent_angles:
-                outer_breaks.append(mpmath.mpf(float(ang)))
-            outer_breaks.append(mpmath.mpf(omega_high))
-
-        omega_integral = mpmath.quad(outer_integrand, outer_breaks)
+            outer_brk = tuple(
+                float(ang) for ang in tangent_angles
+                if omega_low < float(ang) < omega_high
+            )
+        q_omega = adaptive_mpmath(
+            float(omega_low), float(omega_high),
+            breakpoints=outer_brk, dps=dps,
+        )
+        omega_integral = mpmath.mpf(q_omega.integrate(outer_integrand))
 
     return mpmath.mpf(sig_t_i) * pref * omega_integral
 
@@ -1734,6 +1743,65 @@ def _knyazev_mode_per_obs(
         dtype=float, count=len(q),
     )
     return q.integrate_array(integrand)
+
+
+def _p_esc_sphere_solid_mode(
+    geometry: "CurvilinearGeometry",
+    r_i: float,
+    R: float,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    omega_low: float,
+    omega_high: float,
+    n_angular: int,
+    dps: int,
+) -> float:
+    r"""Mark-Lambert mode-:math:`n` outgoing moment at the outer
+    surface for **solid sphere** (no inner-shell skip).
+
+    Returns the un-prefactored integral (caller multiplies by
+    :attr:`CurvilinearGeometry.prefactor`):
+
+    .. math::
+
+       \int_{\omega_{\rm low}}^{\omega_{\rm high}}
+            W_\Omega(\omega)\,\tilde P_n(\mu_{\rm exit})\,
+            K_{\rm esc}(\tau)\,\mathrm d\omega,
+
+    with :math:`\mu_{\rm exit} = (\rho_{\max} + r_i\cos\omega)/R`.
+
+    This is the solid-sphere analog of
+    :func:`compute_P_esc_outer_mode` (which is hollow-only by
+    design — the latter applies the Phase F.4 Model-A skip on rays
+    that hit the inner shell first; here there is no inner shell).
+    Used by the multi-bounce specular sphere assembly and by the
+    rank-N specular sphere assembly (both solid-only). Routes through
+    :func:`observer_angular_quadrature` for kink-aware subdivision in
+    multi-region cells.
+    """
+    q = observer_angular_quadrature(
+        r_obs=r_i, omega_low=omega_low, omega_high=omega_high,
+        radii=radii, n_per_panel=n_angular, dps=dps,
+    )
+    cos_om = geometry.ray_direction_cosine(q.pts)
+    ang_factor = geometry.angular_weight(q.pts)
+
+    def _eval(c: float) -> tuple[float, float]:
+        rho_max = float(geometry.rho_max(r_i, c, R))
+        if rho_max <= 0.0:
+            return 0.0, 0.0
+        tau = float(geometry.optical_depth_along_ray(
+            r_i, c, rho_max, radii, sig_t,
+        ))
+        mu_exit = (rho_max + r_i * c) / R
+        return float(geometry.escape_kernel_mp(tau, dps)), mu_exit
+
+    ev = [_eval(float(c)) for c in cos_om]
+    K_esc = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
+    mu_exit = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
+    p_tilde = _shifted_legendre_eval(n_mode, mu_exit)
+    return q.integrate_array(ang_factor * p_tilde * K_esc)
 
 
 def compute_P_esc_cylinder_3d_mode(
@@ -5541,40 +5609,22 @@ def _build_full_K_per_group(
         P = np.zeros((N, N_r))
         G = np.zeros((N_r, N))
         if geometry.kind == "sphere-1d":
-            # Same no-Jacobian P/G build as the sphere branch of
-            # closure="specular" (kept inline for clarity).
+            # Same no-Jacobian Mark-Lambert P/G build as
+            # compute_P_esc_outer_mode (hollow), but the multi-bounce
+            # specular assembly only runs for solid sphere here, so
+            # there is no inner-shell Model-A skip.  Q6.L4: route the
+            # observer-centred ω-sweep through observer_angular_quadrature
+            # to inherit kink-aware subdivision for multi-region cells.
             omega_low, omega_high = geometry.angular_range
-            omega_pts, omega_wts = gl_float(
-                n_angular, omega_low, omega_high, dps,
-            )
-            cos_omegas = geometry.ray_direction_cosine(omega_pts)
-            angular_factor = geometry.angular_weight(omega_pts)
             pref = geometry.prefactor
             for n in range(N):
-                P_esc_n = np.zeros(N_r)
-                for i in range(N_r):
-                    r_i = float(r_nodes[i])
-                    total = 0.0
-                    for k_q in range(n_angular):
-                        cos_om = cos_omegas[k_q]
-                        rho_max_val = geometry.rho_max(r_i, cos_om, R_cell)
-                        if rho_max_val <= 0.0:
-                            continue
-                        tau = geometry.optical_depth_along_ray(
-                            r_i, cos_om, rho_max_val, radii, sig_t_g,
-                        )
-                        K_esc = geometry.escape_kernel_mp(tau, dps)
-                        mu_exit = (rho_max_val + r_i * cos_om) / R_cell
-                        p_tilde = float(
-                            _shifted_legendre_eval(
-                                n, np.array([mu_exit]),
-                            )[0]
-                        )
-                        total += (
-                            omega_wts[k_q] * angular_factor[k_q]
-                            * p_tilde * K_esc
-                        )
-                    P_esc_n[i] = pref * total
+                P_esc_n = np.array([
+                    pref * _p_esc_sphere_solid_mode(
+                        geometry, float(r_i), R_cell, radii, sig_t_g,
+                        n, omega_low, omega_high, n_angular, dps,
+                    )
+                    for r_i in r_nodes
+                ])
                 G_bc_n = compute_G_bc_mode(
                     geometry, r_nodes, radii, sig_t_g, n,
                     n_surf_quad=n_surf_quad, dps=dps,
@@ -5814,39 +5864,19 @@ def _build_full_K_per_group(
             # has no polar-integration absorption to undo, so the
             # canonical no-Jacobian P primitive is just
             # P̃_n(µ_exit) · exp(-τ) integrated against the sphere's
-            # sin θ dθ measure with prefactor 1/2.
+            # sin θ dθ measure with prefactor 1/2.  Q6.L4 routes through
+            # the shared `_p_esc_sphere_solid_mode` helper so the
+            # observer-angular ω-sweep inherits kink-aware subdivision.
             omega_low, omega_high = geometry.angular_range
-            omega_pts, omega_wts = gl_float(
-                n_angular, omega_low, omega_high, dps,
-            )
-            cos_omegas = geometry.ray_direction_cosine(omega_pts)
-            angular_factor = geometry.angular_weight(omega_pts)
             pref = geometry.prefactor
             for n in range(N):
-                P_esc_n = np.zeros(N_r)
-                for i in range(N_r):
-                    r_i = float(r_nodes[i])
-                    total = 0.0
-                    for k_q in range(n_angular):
-                        cos_om = cos_omegas[k_q]
-                        rho_max_val = geometry.rho_max(r_i, cos_om, R_cell)
-                        if rho_max_val <= 0.0:
-                            continue
-                        tau = geometry.optical_depth_along_ray(
-                            r_i, cos_om, rho_max_val, radii, sig_t_g,
-                        )
-                        K_esc = geometry.escape_kernel_mp(tau, dps)
-                        mu_exit = (rho_max_val + r_i * cos_om) / R_cell
-                        p_tilde = float(
-                            _shifted_legendre_eval(
-                                n, np.array([mu_exit]),
-                            )[0]
-                        )
-                        total += (
-                            omega_wts[k_q] * angular_factor[k_q]
-                            * p_tilde * K_esc
-                        )
-                    P_esc_n[i] = pref * total
+                P_esc_n = np.array([
+                    pref * _p_esc_sphere_solid_mode(
+                        geometry, float(r_i), R_cell, radii, sig_t_g,
+                        n, omega_low, omega_high, n_angular, dps,
+                    )
+                    for r_i in r_nodes
+                ])
                 G_bc_n = compute_G_bc_mode(
                     geometry, r_nodes, radii, sig_t_g, n,
                     n_surf_quad=n_surf_quad, dps=dps,

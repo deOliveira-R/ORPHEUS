@@ -40,6 +40,7 @@ import mpmath
 import numpy as np
 
 from ._kernels import e_n_mp
+from ._quadrature import adaptive_mpmath
 from ._reference import (
     ContinuousReferenceSolution,
     ProblemSpec,
@@ -96,8 +97,13 @@ def _product_log_weights(panel_a, panel_b, x_eval, nodes, dps):
                     return mpmath.mpf(0)
                 return _basis(x) * (-mpmath.log(d))
 
-            w = mpmath.quad(integrand, [panel_a, panel_b])
-            weights.append(+w)
+            # Q6.L1: route through the unified adaptive contract while
+            # preserving the original behavior of letting mpmath.quad
+            # auto-detect the log singularity (no breakpoint hint).
+            q = adaptive_mpmath(
+                float(panel_a), float(panel_b), dps=dps + 10,
+            )
+            weights.append(mpmath.mpf(q.integrate(integrand)))
     return weights
 
 
@@ -153,11 +159,21 @@ def _basis_kernel_weights(
                     return mpmath.mpf(0)
                 return _basis(x) * e_n_mp(1, tau, dps)
 
-            if inside:
-                w = mpmath.quad(integrand, [panel_a, x_eval, panel_b])
-            else:
-                w = mpmath.quad(integrand, [panel_a, panel_b])
-            weights.append(+w)
+            # Q6.L1: route through the unified adaptive contract.  The
+            # x_eval subdivision hint (when *strictly* inside the
+            # panel) lets the adaptive engine resolve both the E_1 log
+            # singularity at the observer point AND the C¹ kink in the
+            # smooth remainder R(τ) = E_1(τ)+ln τ+γ.  When x_eval
+            # coincides with a panel endpoint there is no interior
+            # singularity to hint at — adaptive integration on
+            # [panel_a, panel_b] is already correct.
+            interior_kink = panel_a < x_eval < panel_b
+            q = adaptive_mpmath(
+                float(panel_a), float(panel_b),
+                breakpoints=(float(x_eval),) if interior_kink else (),
+                dps=dps + 10,
+            )
+            weights.append(mpmath.mpf(q.integrate(integrand)))
     return weights
 
 
