@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass
+from typing import Callable
 
 import math
 
@@ -1384,6 +1385,184 @@ def build_volume_kernel(
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# Per-observer angular-sweep assemblers
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Most curvilinear escape/response primitives in this module share the
+# same five-line `_per_obs(r_i)` skeleton:
+#
+#     q = <recipe>(r_obs=r_i, ...)
+#     cos_om = geometry.ray_direction_cosine(q.pts)
+#     ang_factor = geometry.angular_weight(q.pts)
+#     integrand_arr = <user-supplied per-node assembly>
+#     return prefactor * q.integrate_array(integrand_arr)
+#
+# repeated 18+ times across `compute_P_esc_*`, `compute_G_bc_*`,
+# `compute_T_specular_*`, and the `*_mode`, `*_mode_marshak`,
+# `*_outer`, `*_inner` per-face / per-mode variants. The two driver
+# functions below collapse the boilerplate to one place. Consumers
+# specify only the per-node assembly callable and a prefactor; the
+# driver handles the recipe build, the angular-basis evaluation, the
+# fromiter materialisation pattern, and the per-observer reduction.
+#
+# Two recipes ⇒ two drivers (same shape, different recipe call):
+#
+# - :func:`per_observer_angular_assembly` uses
+#   :func:`observer_angular_quadrature` (kink subdivision at
+#   :math:`\arcsin(r_k/r_{\rm obs})`).
+# - :func:`per_surface_centred_angular_assembly` uses
+#   :func:`surface_centred_angular_quadrature` (chord-quadratic kink
+#   subdivision); used by the four legacy cylinder
+#   :math:`G_{\rm bc}^{\rm cyl}` :math:`\mathrm{Ki}_1/d` branches.
+#
+# A consumer's per-node callable receives ``(r_i, cos_om, ang_factor,
+# q)`` and returns a 1-D ndarray of length ``len(q)`` — the integrand
+# values to be summed against ``q.wts``. This signature lets the
+# callable do its own per-node loop (for kernels that don't vectorise
+# over ``cos_om`` because they call `geometry.optical_depth_along_ray`
+# or `mpmath` per node) while still sharing the surrounding structure.
+
+def per_observer_angular_assembly(
+    geometry: "CurvilinearGeometry",
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    n_per_panel: int,
+    *,
+    integrand_at_node: Callable[
+        [float, np.ndarray, np.ndarray, "Quadrature1D"], np.ndarray,
+    ],
+    prefactor: float = 1.0,
+    angular_range: tuple[float, float] | None = None,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Driver for observer-centred angular-sweep primitives.
+
+    For each radial node :math:`r_i` in ``r_nodes``:
+
+    1. Build the kink-aware quadrature
+       :math:`q = \mathrm{observer\_angular\_quadrature}(r_i, \omega_{\min},
+       \omega_{\max}, \mathrm{radii}, n_{\rm per\_panel}, dps)`.
+    2. Compute ``cos_om = geometry.ray_direction_cosine(q.pts)`` and
+       ``ang_factor = geometry.angular_weight(q.pts)``.
+    3. Build the integrand values at the quadrature nodes via
+       ``integrand_arr = integrand_at_node(r_i, cos_om, ang_factor, q)``.
+    4. Reduce to a scalar via
+       ``prefactor * q.integrate_array(integrand_arr)``.
+
+    Returns the per-observer scalar in an array of shape
+    ``(len(r_nodes),)``.
+
+    Parameters
+    ----------
+    geometry
+        :class:`CurvilinearGeometry` for ``ray_direction_cosine``,
+        ``angular_weight``, and ``angular_range``.
+    r_nodes
+        Radial collocation nodes for the observer.
+    radii
+        Outer shell radii — passed to the recipe for tangent-angle
+        subdivision.
+    n_per_panel
+        Plain Gauss-Legendre nodes per sub-panel of the kink-subdivided
+        rule.
+    integrand_at_node
+        Callable ``(r_i, cos_om, ang_factor, q) -> ndarray`` returning
+        the per-node integrand values to be summed against ``q.wts``.
+        Caller is responsible for any per-node loop, vectorisation, or
+        ``np.fromiter`` pattern. The returned array must have the same
+        shape as ``cos_om`` (which is ``(len(q),)``).
+    prefactor
+        Constant multiplier on the per-observer integral. Default ``1.0``;
+        most consumers pass :attr:`CurvilinearGeometry.prefactor`.
+    angular_range
+        ``(omega_low, omega_high)`` integration interval. Default
+        ``geometry.angular_range`` — the standard
+        :math:`[0, \pi]` for sphere/cylinder, scoped to the per-face
+        hemisphere by the consumer when needed.
+    dps
+        mpmath working precision for the underlying GL nodes.
+
+    Returns
+    -------
+    np.ndarray, shape ``(len(r_nodes),)``
+        The per-observer scalar integral.
+    """
+    if angular_range is None:
+        omega_low, omega_high = geometry.angular_range
+    else:
+        omega_low, omega_high = angular_range
+
+    def _per_obs(r_i: float) -> float:
+        q = observer_angular_quadrature(
+            r_obs=r_i, omega_low=omega_low, omega_high=omega_high,
+            radii=radii, n_per_panel=n_per_panel, dps=dps,
+        )
+        cos_om = geometry.ray_direction_cosine(q.pts)
+        ang_factor = geometry.angular_weight(q.pts)
+        integrand_arr = integrand_at_node(r_i, cos_om, ang_factor, q)
+        return prefactor * q.integrate_array(integrand_arr)
+
+    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+
+
+def per_surface_centred_angular_assembly(
+    geometry: "CurvilinearGeometry",
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    r_surface: float,
+    n_per_panel: int,
+    *,
+    integrand_at_node: Callable[
+        [float, np.ndarray, "Quadrature1D"], np.ndarray,
+    ],
+    prefactor: float = 1.0,
+    phi_low: float = 0.0,
+    phi_high: float = np.pi,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Driver for surface-centred angular-sweep primitives.
+
+    Sibling of :func:`per_observer_angular_assembly` for the four
+    legacy cylinder :math:`G_{\rm bc}^{\rm cyl}` :math:`\mathrm{Ki}_1/d`
+    branches that consume :func:`surface_centred_angular_quadrature`.
+    The recipe takes a chord from observer at :math:`r_i` to surface
+    point on :math:`r_{\rm surface}` (outer or inner cylindrical
+    surface), with kink-aware subdivision at the chord-quadratic
+    tangent angles.
+
+    Parameters
+    ----------
+    geometry, r_nodes, radii, n_per_panel, prefactor, dps
+        See :func:`per_observer_angular_assembly`.
+    r_surface
+        Radius of the cylindrical surface the chord terminates on.
+        Outer-surface case: ``r_surface = R = radii[-1]``. Inner-surface
+        case (``compute_G_bc_inner`` cylinder): ``r_surface =
+        geometry.inner_radius``.
+    integrand_at_node
+        Callable ``(r_i, cos_phi, q) -> ndarray`` returning the per-node
+        integrand values. **Note**: this driver does NOT pass
+        ``ang_factor`` because the surface-centred form has no
+        ``angular_weight`` polymorphism — the cylinder
+        :math:`G_{\rm bc}^{\rm cyl}` integrand is
+        :math:`\mathrm{Ki}_1(\tau)/d` with no per-geometry weight.
+    phi_low, phi_high
+        Integration interval for :math:`\phi`. Default :math:`[0, \pi]`.
+    """
+    def _per_obs(r_i: float) -> float:
+        q = surface_centred_angular_quadrature(
+            r_obs=r_i, r_surface=r_surface,
+            radii=radii, n_per_panel=n_per_panel,
+            phi_low=phi_low, phi_high=phi_high, dps=dps,
+        )
+        cos_phi = np.cos(q.pts)
+        integrand_arr = integrand_at_node(r_i, cos_phi, q)
+        return prefactor * q.integrate_array(integrand_arr)
+
+    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # Unified white-BC rank-1 closure
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -1436,24 +1615,12 @@ def compute_P_esc(
             P_esc[i] = 0.5 * (_slab_E2(tau_inner) + _slab_E2(tau_outer))
         return P_esc
 
-    # Q3 of the quadrature-architecture rollout: observer-centred ω-sweep
-    # via the kink-aware `observer_angular_quadrature` recipe.  For
-    # multi-region cells the integrand has √(ω - ω_k) derivative
-    # singularities at the tangent angles ω_k = arcsin(r_k/r_obs);
-    # subdividing at the {ω_k} (per observer, since the set depends on
-    # r_obs) recovers spectral convergence on each smooth sub-panel.
-    # For homogeneous cells the recipe degenerates to plain GL, so this
-    # path is bit-equivalent to the pre-Q3 single gl_float call.
-    omega_low, omega_high = geometry.angular_range
-    pref = geometry.prefactor
-
-    def _per_observer(r_i: float) -> float:
-        q = observer_angular_quadrature(
-            r_obs=r_i, omega_low=omega_low, omega_high=omega_high,
-            radii=radii, n_per_panel=n_angular, dps=dps,
-        )
-        cos_om = geometry.ray_direction_cosine(q.pts)
-        ang_factor = geometry.angular_weight(q.pts)
+    # Q3/refactor #1: observer-centred ω-sweep via the
+    # `per_observer_angular_assembly` driver. For multi-region cells the
+    # integrand has √(ω - ω_k) derivative singularities at the tangent
+    # angles ω_k = arcsin(r_k/r_obs); the recipe subdivides at the {ω_k}
+    # (per observer) for spectral convergence on each smooth sub-panel.
+    def _integrand(r_i, cos_om, ang_factor, q):
         rho_max_arr = np.fromiter(
             (float(geometry.rho_max(r_i, c, R)) for c in cos_om),
             dtype=float, count=len(q),
@@ -1469,9 +1636,13 @@ def compute_P_esc(
             ),
             dtype=float, count=len(q),
         )
-        return pref * q.integrate_array(ang_factor * K_esc_arr)
+        return ang_factor * K_esc_arr
 
-    return np.array([_per_observer(float(r_i)) for r_i in r_nodes])
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
 
 
 def compute_G_bc(
@@ -1539,10 +1710,7 @@ def compute_G_bc(
         return G_bc
 
     if geometry.kind == "sphere-1d":
-        # Q3: observer-centred ω-sweep with kink-aware subdivision at
-        # the tangent angles arcsin(r_k/r_obs) for r_k < r_obs.
-        # Homogeneous cells degenerate to plain GL — bit-equivalent to
-        # the pre-Q3 single gl_float(n_surf_quad, 0, π) call.
+        # Q3/refactor #1: observer-centred ω-sweep, driver-routed.
         def _tau_at(r_i: float, cos_th: float) -> float:
             rho = float(geometry.rho_max(r_i, cos_th, R))
             if rho <= 0.0:
@@ -1553,29 +1721,23 @@ def compute_G_bc(
                 r_i, cos_th, rho, radii, sig_t,
             ))
 
-        def _sphere_per_obs(r_i: float) -> float:
-            q = observer_angular_quadrature(
-                r_obs=r_i, omega_low=0.0, omega_high=np.pi,
-                radii=radii, n_per_panel=n_surf_quad, dps=dps,
-            )
-            cos_th = np.cos(q.pts)
-            sin_th = np.sin(q.pts)
+        def _sphere_integrand(r_i, cos_om, ang_factor, q):
             tau_arr = np.fromiter(
-                (_tau_at(r_i, float(c)) for c in cos_th),
+                (_tau_at(r_i, float(c)) for c in cos_om),
                 dtype=float, count=len(q),
             )
-            return 2.0 * q.integrate_array(sin_th * np.exp(-tau_arr))
+            return ang_factor * np.exp(-tau_arr)
 
-        return np.array([_sphere_per_obs(float(r_i)) for r_i in r_nodes])
+        return per_observer_angular_assembly(
+            geometry, r_nodes, radii, n_surf_quad,
+            integrand_at_node=_sphere_integrand,
+            prefactor=2.0, dps=dps,
+        )
 
-    # Cylinder: surface-centred form, Ki_1/d kernel. Q-L3: route through
-    # `surface_centred_angular_quadrature` for kink-aware subdivision at
-    # the chord-quadratic tangent angles. Homogeneous (radii=[R]) cells
-    # have no shells with r_k < min(r_obs, R) = r_obs, so the rule
-    # degenerates to plain GL — bit-equivalent to the pre-L3 single
-    # gl_float(n_surf_quad, 0, π) call.
-    inv_pi = 1.0 / np.pi
-
+    # Cylinder: surface-centred Ki_1/d kernel via the
+    # `per_surface_centred_angular_assembly` driver. Q-L3 already routed
+    # this through the recipe; refactor #1 collapses the `_per_obs`
+    # boilerplate.
     def _per_node_kernel(r_i: float, cf: float) -> float:
         d_sq = r_i * r_i + R * R - 2.0 * r_i * R * cf
         d = float(np.sqrt(max(d_sq, 0.0)))
@@ -1591,19 +1753,17 @@ def compute_G_bc(
         ki1 = float(ki_n_mp(1, tau, dps))
         return ki1 / d
 
-    def _cyl_per_obs(r_i: float) -> float:
-        q = surface_centred_angular_quadrature(
-            r_obs=r_i, r_surface=R,
-            radii=radii, n_per_panel=n_surf_quad, dps=dps,
-        )
-        cos_phi = np.cos(q.pts)
-        kernel = np.fromiter(
+    def _cyl_integrand(r_i, cos_phi, q):
+        return np.fromiter(
             (_per_node_kernel(r_i, float(c)) for c in cos_phi),
             dtype=float, count=len(q),
         )
-        return 2.0 * inv_pi * R * q.integrate_array(kernel)
 
-    return np.array([_cyl_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_surface_centred_angular_assembly(
+        geometry, r_nodes, radii, r_surface=R, n_per_panel=n_surf_quad,
+        integrand_at_node=_cyl_integrand,
+        prefactor=2.0 * R / np.pi, dps=dps,
+    )
 
 
 def compute_G_bc_cylinder_3d(
@@ -1663,10 +1823,9 @@ def compute_G_bc_cylinder_3d(
     sig_t = np.asarray(sig_t, dtype=float)
     R = float(radii[-1])
 
-    # Q3: observer-centred ψ-sweep with kink-aware subdivision at the
-    # tangent angles arcsin(r_k/r_obs) for r_k < r_obs.  The chord d_2D
-    # has impact parameter |r_obs sin ψ|, so the kink structure matches
-    # `observer_angular_quadrature` exactly.
+    # Q3/refactor #1: observer-centred ψ-sweep — driver-routed.
+    # The chord d_2D has impact parameter |r_obs sin ψ|, so the kink
+    # structure matches `observer_angular_quadrature` exactly.
     def _tau_2d_at(r_i: float, cos_psi: float, d_2d: float) -> float:
         if len(radii) == 1:
             return float(sig_t[0]) * d_2d
@@ -1674,16 +1833,17 @@ def compute_G_bc_cylinder_3d(
             r_i, -cos_psi, d_2d, radii, sig_t,
         ))
 
-    def _per_obs(r_i: float) -> float:
-        q = observer_angular_quadrature(
-            r_obs=r_i, omega_low=0.0, omega_high=np.pi,
-            radii=radii, n_per_panel=n_surf_quad, dps=dps,
-        )
-        cp = np.cos(q.pts)
+    def _integrand(r_i, cos_om, ang_factor, q):
+        # NOTE: cos_om = cos(ψ); ang_factor = sin ψ from
+        # geometry.angular_weight, but the cylinder-3D form does NOT
+        # include the ang_factor (the analytical Ki_2 expansion
+        # already absorbed the polar Jacobian — the `dψ` integration
+        # is unweighted).
+        cp = cos_om
         sp = np.sin(q.pts)
         disc = np.maximum(R * R - r_i * r_i * sp * sp, 0.0)
         d_2d = -r_i * cp + np.sqrt(disc)
-        Ki2 = np.fromiter(
+        return np.fromiter(
             (
                 float(ki_n_mp(2, _tau_2d_at(r_i, float(c), float(d)), dps))
                 if d > 0.0 else 0.0
@@ -1691,44 +1851,46 @@ def compute_G_bc_cylinder_3d(
             ),
             dtype=float, count=len(q),
         )
-        return float(4.0 / np.pi * q.integrate_array(Ki2))
 
-    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=4.0 / np.pi, dps=dps,
+    )
 
 
-def _knyazev_mode_per_obs(
+def _knyazev_integrand_at_node(
     r_i: float,
+    cos_om: np.ndarray,
+    q: "Quadrature1D",
+    *,
     R: float,
     radii: np.ndarray,
     sig_t: np.ndarray,
     coefs: tuple[float, ...],
-    n_angular: int,
     dps: int,
     geometry: "CurvilinearGeometry",
-    *,
     direction_sign: int,
-) -> float:
-    r"""Knyazev cylinder-3D mode integral at one observer.
+) -> np.ndarray:
+    r"""Knyazev cylinder-3D mode per-node integrand
+    :math:`\sum_k c_k\,\mu_{2D}^{k}\,\mathrm{Ki}_{k+2}(\tau_{2D})`.
 
-    Returns ``∫₀^π Σ_k c_k µ_2D^k Ki_{k+2}(τ_2D) dω`` evaluated with
-    the kink-aware observer-angular quadrature.  ``direction_sign``
-    is +1 for the outward (P_esc) form and −1 for the backward
-    (G_bc) form — the only difference between the two consumers.
+    Used by :func:`compute_P_esc_cylinder_3d_mode` (``direction_sign=+1``,
+    outward) and :func:`compute_G_bc_cylinder_3d_mode`
+    (``direction_sign=-1``, backward) via the
+    :func:`per_observer_angular_assembly` driver — the only thing that
+    differs between the two consumers is the direction sign and the
+    consumer-side prefactor.
     """
-    q = observer_angular_quadrature(
-        r_obs=r_i, omega_low=0.0, omega_high=np.pi,
-        radii=radii, n_per_panel=n_angular, dps=dps,
-    )
-    cp = np.cos(q.pts)
     sp = np.sin(q.pts)
     disc = np.maximum(R * R - r_i * r_i * sp * sp, 0.0)
-    d_2d = -r_i * cp + np.sqrt(disc)
+    d_2d = -r_i * cos_om + np.sqrt(disc)
     valid = d_2d > 0.0
 
     def _kernel(k: int) -> float:
         if not valid[k]:
             return 0.0
-        c, d = float(cp[k]), float(d_2d[k])
+        c, d = float(cos_om[k]), float(d_2d[k])
         if len(radii) == 1:
             tau = float(sig_t[0]) * d
         else:
@@ -1741,11 +1903,10 @@ def _knyazev_mode_per_obs(
             for k_p, c_k in enumerate(coefs) if c_k != 0.0
         )
 
-    integrand = np.fromiter(
+    return np.fromiter(
         (_kernel(k) for k in range(len(q))),
         dtype=float, count=len(q),
     )
-    return q.integrate_array(integrand)
 
 
 def _p_esc_sphere_solid_mode(
@@ -1865,13 +2026,18 @@ def compute_P_esc_cylinder_3d_mode(
     R = float(radii[-1])
     coefs = _shifted_legendre_monomial_coefs(n_mode)
 
-    return np.array([
-        (1.0 / np.pi) * _knyazev_mode_per_obs(
-            float(r_i), R, radii, sig_t, coefs,
-            n_angular, dps, geometry, direction_sign=+1,
+    def _integrand(r_i, cos_om, ang_factor, q):
+        return _knyazev_integrand_at_node(
+            r_i, cos_om, q,
+            R=R, radii=radii, sig_t=sig_t, coefs=coefs, dps=dps,
+            geometry=geometry, direction_sign=+1,
         )
-        for r_i in r_nodes
-    ])
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=1.0 / np.pi, dps=dps,
+    )
 
 
 def compute_G_bc_cylinder_3d_mode(
@@ -1919,13 +2085,18 @@ def compute_G_bc_cylinder_3d_mode(
     R = float(radii[-1])
     coefs = _shifted_legendre_monomial_coefs(n_mode)
 
-    return np.array([
-        (4.0 / np.pi) * _knyazev_mode_per_obs(
-            float(r_i), R, radii, sig_t, coefs,
-            n_surf_quad, dps, geometry, direction_sign=-1,
+    def _integrand(r_i, cos_om, ang_factor, q):
+        return _knyazev_integrand_at_node(
+            r_i, cos_om, q,
+            R=R, radii=radii, sig_t=sig_t, coefs=coefs, dps=dps,
+            geometry=geometry, direction_sign=-1,
         )
-        for r_i in r_nodes
-    ])
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=4.0 / np.pi, dps=dps,
+    )
 
 
 def compute_P_ss_cylinder(
@@ -2823,19 +2994,13 @@ def compute_P_esc_outer(
             P[i] = 0.5 * _slab_E2(tau)
         return P
 
-    # Q3: observer-centred ω-sweep with kink-aware subdivision.
-    omega_low, omega_high = geometry.angular_range
-    pref = geometry.prefactor
+    # Q3: observer-centred ω-sweep with kink-aware subdivision via the
+    # `per_observer_angular_assembly` driver — the per-node kernel is
+    # the only thing this primitive contributes; everything else is
+    # boilerplate shared with the ~17 other observer-centred primitives.
     is_hollow = geometry.inner_radius > 0.0
 
-    def _per_obs(r_i: float) -> float:
-        q = observer_angular_quadrature(
-            r_obs=r_i, omega_low=omega_low, omega_high=omega_high,
-            radii=radii, n_per_panel=n_angular, dps=dps,
-        )
-        cos_om = geometry.ray_direction_cosine(q.pts)
-        ang_factor = geometry.angular_weight(q.pts)
-
+    def _integrand(r_i, cos_om, ang_factor, q):
         def _kernel(c: float) -> float:
             rho_out = float(geometry.rho_max(r_i, c, R))
             if rho_out <= 0.0:
@@ -2855,9 +3020,13 @@ def compute_P_esc_outer(
             (_kernel(float(c)) for c in cos_om),
             dtype=float, count=len(q),
         )
-        return pref * q.integrate_array(ang_factor * K_esc_arr)
+        return ang_factor * K_esc_arr
 
-    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
 
 
 def compute_P_esc_inner(
@@ -2906,19 +3075,9 @@ def compute_P_esc_inner(
         return P
 
     # Q3: hollow cyl/sph — observer-centred ω-sweep restricted to
-    # directions that hit the inner shell, with kink-aware
-    # subdivision at the tangent angles arcsin(r_k/r_obs).
-    omega_low, omega_high = geometry.angular_range
-    pref = geometry.prefactor
-
-    def _per_obs(r_i: float) -> float:
-        q = observer_angular_quadrature(
-            r_obs=r_i, omega_low=omega_low, omega_high=omega_high,
-            radii=radii, n_per_panel=n_angular, dps=dps,
-        )
-        cos_om = geometry.ray_direction_cosine(q.pts)
-        ang_factor = geometry.angular_weight(q.pts)
-
+    # directions that hit the inner shell. Driver-routed via
+    # `per_observer_angular_assembly`.
+    def _integrand(r_i, cos_om, ang_factor, q):
         def _kernel(c: float) -> float:
             rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
             if rho_in_minus is None:
@@ -2932,9 +3091,13 @@ def compute_P_esc_inner(
             (_kernel(float(c)) for c in cos_om),
             dtype=float, count=len(q),
         )
-        return pref * q.integrate_array(ang_factor * K_esc_arr)
+        return ang_factor * K_esc_arr
 
-    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
 
 
 def compute_P_esc_outer_mode(
@@ -2986,20 +3149,12 @@ def compute_P_esc_outer_mode(
     radii = np.asarray(radii, dtype=float)
     sig_t = np.asarray(sig_t, dtype=float)
     R = float(radii[-1])
-    omega_low, omega_high = geometry.angular_range
-    pref = geometry.prefactor
 
     # Q3: Phase F.5 Mark-Lambert moment, observer-centred ω-sweep with
-    # kink-aware subdivision.  Hollow-sphere only (Model A: rays hitting
-    # inner shell first counted by compute_P_esc_inner_mode).
-    def _per_obs(r_i: float) -> float:
-        q = observer_angular_quadrature(
-            r_obs=r_i, omega_low=omega_low, omega_high=omega_high,
-            radii=radii, n_per_panel=n_angular, dps=dps,
-        )
-        cos_om = geometry.ray_direction_cosine(q.pts)
-        ang_factor = geometry.angular_weight(q.pts)
-
+    # kink-aware subdivision via the `per_observer_angular_assembly`
+    # driver. Hollow-sphere only (Model A: rays hitting inner shell
+    # first counted by compute_P_esc_inner_mode).
+    def _integrand(r_i, cos_om, ang_factor, q):
         def _kernel_at(c: float) -> tuple[float, float]:
             rho_out = float(geometry.rho_max(r_i, c, R))
             if rho_out <= 0.0:
@@ -3021,11 +3176,13 @@ def compute_P_esc_outer_mode(
             (kv[1] for kv in kernel_vals), dtype=float, count=len(q),
         )
         p_tilde_arr = _shifted_legendre_eval(n_mode, mu_exit_arr)
-        return pref * q.integrate_array(
-            ang_factor * p_tilde_arr * K_esc_arr,
-        )
+        return ang_factor * p_tilde_arr * K_esc_arr
 
-    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
 
 
 def compute_P_esc_inner_mode(
@@ -3070,19 +3227,10 @@ def compute_P_esc_inner_mode(
     radii = np.asarray(radii, dtype=float)
     sig_t = np.asarray(sig_t, dtype=float)
     r_0 = float(geometry.inner_radius)
-    omega_low, omega_high = geometry.angular_range
-    pref = geometry.prefactor
 
     # Q3: hollow sphere — observer-centred ω-sweep restricted to
-    # rays hitting the inner shell, kink-aware subdivision.
-    def _per_obs(r_i: float) -> float:
-        q = observer_angular_quadrature(
-            r_obs=r_i, omega_low=omega_low, omega_high=omega_high,
-            radii=radii, n_per_panel=n_angular, dps=dps,
-        )
-        cos_om = geometry.ray_direction_cosine(q.pts)
-        ang_factor = geometry.angular_weight(q.pts)
-
+    # rays hitting the inner shell, kink-aware subdivision via driver.
+    def _integrand(r_i, cos_om, ang_factor, q):
         def _kernel_at(c: float) -> tuple[float, float]:
             rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
             if rho_in_minus is None:
@@ -3102,11 +3250,13 @@ def compute_P_esc_inner_mode(
             (kv[1] for kv in kernel_vals), dtype=float, count=len(q),
         )
         p_tilde_arr = _shifted_legendre_eval(n_mode, mu_exit_arr)
-        return pref * q.integrate_array(
-            ang_factor * p_tilde_arr * K_esc_arr,
-        )
+        return ang_factor * p_tilde_arr * K_esc_arr
 
-    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
 
 
 def compute_G_bc_outer(
@@ -3152,8 +3302,7 @@ def compute_G_bc_outer(
         return G
 
     if geometry.kind == "sphere-1d":
-        # Q3: observer-centred sphere ω-sweep with kink-aware
-        # subdivision.  cavity handling lives in optical_depth_along_ray.
+        # Q3: observer-centred sphere ω-sweep — driver-routed.
         def _sphere_tau(r_i: float, c: float, rho: float) -> float:
             if len(radii) == 1 and geometry.inner_radius == 0.0:
                 return float(sig_t[0]) * rho
@@ -3161,14 +3310,7 @@ def compute_G_bc_outer(
                 r_i, c, rho, radii, sig_t,
             ))
 
-        def _sphere_per_obs(r_i: float) -> float:
-            q = observer_angular_quadrature(
-                r_obs=r_i, omega_low=0.0, omega_high=np.pi,
-                radii=radii, n_per_panel=n_surf_quad, dps=dps,
-            )
-            cos_th = np.cos(q.pts)
-            sin_th = np.sin(q.pts)
-
+        def _integrand(r_i, cos_om, ang_factor, q):
             def _kernel(c: float) -> float:
                 rho = float(geometry.rho_max(r_i, c, R))
                 if rho <= 0.0:
@@ -3176,17 +3318,21 @@ def compute_G_bc_outer(
                 return float(np.exp(-_sphere_tau(r_i, c, rho)))
 
             decay = np.fromiter(
-                (_kernel(float(c)) for c in cos_th),
+                (_kernel(float(c)) for c in cos_om),
                 dtype=float, count=len(q),
             )
-            return 2.0 * q.integrate_array(sin_th * decay)
+            return ang_factor * decay
 
-        return np.array([_sphere_per_obs(float(r_i)) for r_i in r_nodes])
+        return per_observer_angular_assembly(
+            geometry, r_nodes, radii, n_surf_quad,
+            integrand_at_node=_integrand,
+            prefactor=2.0, dps=dps,
+        )
 
-    # Cylinder outer — surface-centred, Ki_1/d kernel. Q-L3: route
-    # through `surface_centred_angular_quadrature` for kink-aware
-    # subdivision at the chord-quadratic tangent angles.
-    inv_pi = 1.0 / np.pi
+    # Cylinder outer — surface-centred, Ki_1/d kernel via the
+    # `per_surface_centred_angular_assembly` driver. The L3 migration
+    # routed this through the recipe; #1-arch consolidates the
+    # `_per_obs` skeleton through the driver.
     is_solid_homogeneous = len(radii) == 1 and geometry.inner_radius == 0.0
 
     def _per_node_kernel(r_i: float, cf: float) -> float:
@@ -3204,19 +3350,17 @@ def compute_G_bc_outer(
         ki1 = float(ki_n_mp(1, tau, dps))
         return ki1 / d
 
-    def _per_obs(r_i: float) -> float:
-        q = surface_centred_angular_quadrature(
-            r_obs=r_i, r_surface=R,
-            radii=radii, n_per_panel=n_surf_quad, dps=dps,
-        )
-        cos_phi = np.cos(q.pts)
-        kernel = np.fromiter(
+    def _integrand(r_i, cos_phi, q):
+        return np.fromiter(
             (_per_node_kernel(r_i, float(c)) for c in cos_phi),
             dtype=float, count=len(q),
         )
-        return 2.0 * inv_pi * R * q.integrate_array(kernel)
 
-    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_surface_centred_angular_assembly(
+        geometry, r_nodes, radii, r_surface=R, n_per_panel=n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=2.0 * R / np.pi, dps=dps,
+    )
 
 
 def compute_G_bc_inner(
@@ -3265,7 +3409,7 @@ def compute_G_bc_inner(
     r0 = float(geometry.inner_radius)
 
     if geometry.kind == "sphere-1d":
-        # Q3: hollow sphere — observer-centred ω-sweep, kink-aware.
+        # Q3: hollow sphere — observer-centred ω-sweep, driver-routed.
         def _tau(r_i: float, c: float, rho: float) -> float:
             if len(radii) == 1:
                 return float(sig_t[0]) * rho
@@ -3273,14 +3417,7 @@ def compute_G_bc_inner(
                 r_i, c, rho, radii, sig_t,
             ))
 
-        def _per_obs(r_i: float) -> float:
-            q = observer_angular_quadrature(
-                r_obs=r_i, omega_low=0.0, omega_high=np.pi,
-                radii=radii, n_per_panel=n_surf_quad, dps=dps,
-            )
-            cos_th = np.cos(q.pts)
-            sin_th = np.sin(q.pts)
-
+        def _integrand(r_i, cos_om, ang_factor, q):
             def _kernel(c: float) -> float:
                 rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
                 if rho_in_minus is None:
@@ -3288,21 +3425,22 @@ def compute_G_bc_inner(
                 return float(np.exp(-_tau(r_i, c, float(rho_in_minus))))
 
             decay = np.fromiter(
-                (_kernel(float(c)) for c in cos_th),
+                (_kernel(float(c)) for c in cos_om),
                 dtype=float, count=len(q),
             )
-            return 2.0 * q.integrate_array(sin_th * decay)
+            return ang_factor * decay
 
-        return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+        return per_observer_angular_assembly(
+            geometry, r_nodes, radii, n_surf_quad,
+            integrand_at_node=_integrand,
+            prefactor=2.0, dps=dps,
+        )
 
-    # Cylinder inner — surface-centred on r=r_0, Ki_1/d_inner kernel.
-    # Q-L3: route through `surface_centred_angular_quadrature` with
-    # r_surface = r_0. The shell layout for a hollow cylinder has
-    # r_k >= r_0 for every shell, so min(r_obs, r_surface) = r_0 and
-    # no shell qualifies as "interior to both" — the recipe degenerates
-    # to plain GL on [0, π], bit-equivalent to the pre-L3 gl_float.
-    inv_pi = 1.0 / np.pi
-
+    # Cylinder inner — surface-centred on r=r_0, Ki_1/d_inner kernel
+    # via the `per_surface_centred_angular_assembly` driver. The shell
+    # layout for a hollow cylinder has r_k >= r_0 for every shell, so
+    # min(r_obs, r_surface) = r_0 and no shell qualifies as "interior
+    # to both" — the recipe degenerates to plain GL on [0, π].
     def _per_node_kernel(r_i: float, cf: float) -> float:
         d_sq = r_i * r_i + r0 * r0 - 2.0 * r_i * r0 * cf
         d = float(np.sqrt(max(d_sq, 0.0)))
@@ -3321,19 +3459,17 @@ def compute_G_bc_inner(
         ki1 = float(ki_n_mp(1, tau, dps))
         return ki1 / d
 
-    def _per_obs(r_i: float) -> float:
-        q = surface_centred_angular_quadrature(
-            r_obs=r_i, r_surface=r0,
-            radii=radii, n_per_panel=n_surf_quad, dps=dps,
-        )
-        cos_phi = np.cos(q.pts)
-        kernel = np.fromiter(
+    def _integrand(r_i, cos_phi, q):
+        return np.fromiter(
             (_per_node_kernel(r_i, float(c)) for c in cos_phi),
             dtype=float, count=len(q),
         )
-        return 2.0 * inv_pi * r0 * q.integrate_array(kernel)
 
-    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_surface_centred_angular_assembly(
+        geometry, r_nodes, radii, r_surface=r0, n_per_panel=n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=2.0 * r0 / np.pi, dps=dps,
+    )
 
 
 def compute_G_bc_outer_mode(
@@ -3374,17 +3510,9 @@ def compute_G_bc_outer_mode(
     sig_t = np.asarray(sig_t, dtype=float)
     R = float(radii[-1])
 
-    # Q3: hollow sphere outer-face mode response — observer-centred
-    # ω-sweep with kink-aware subdivision, Model A skip on rays
-    # blocked by the inner shell.
-    def _per_obs(r_i: float) -> float:
-        q = observer_angular_quadrature(
-            r_obs=r_i, omega_low=0.0, omega_high=np.pi,
-            radii=radii, n_per_panel=n_surf_quad, dps=dps,
-        )
-        cos_th = np.cos(q.pts)
-        sin_th = np.sin(q.pts)
-
+    # Q3: hollow sphere outer-face mode response — driver-routed,
+    # Model A skip on rays blocked by the inner shell.
+    def _integrand(r_i, cos_om, ang_factor, q):
         def _eval(c: float) -> tuple[float, float]:
             rho_out = float(geometry.rho_max(r_i, c, R))
             if rho_out <= 0.0:
@@ -3401,13 +3529,17 @@ def compute_G_bc_outer_mode(
             mu_s = (rho_out + r_i * c) / R
             return float(np.exp(-tau)), mu_s
 
-        ev = [_eval(float(c)) for c in cos_th]
+        ev = [_eval(float(c)) for c in cos_om]
         decay = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
         mu_s = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
         p_tilde = _shifted_legendre_eval(n_mode, mu_s)
-        return 2.0 * q.integrate_array(sin_th * p_tilde * decay)
+        return ang_factor * p_tilde * decay
 
-    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=2.0, dps=dps,
+    )
 
 
 def compute_G_bc_inner_mode(
@@ -3450,16 +3582,9 @@ def compute_G_bc_inner_mode(
     sig_t = np.asarray(sig_t, dtype=float)
     r_0 = float(geometry.inner_radius)
 
-    # Q3: hollow sphere inner-face mode response — observer-centred
-    # ω-sweep restricted to rays hitting the inner shell.
-    def _per_obs(r_i: float) -> float:
-        q = observer_angular_quadrature(
-            r_obs=r_i, omega_low=0.0, omega_high=np.pi,
-            radii=radii, n_per_panel=n_surf_quad, dps=dps,
-        )
-        cos_th = np.cos(q.pts)
-        sin_th = np.sin(q.pts)
-
+    # Q3: hollow sphere inner-face mode response — driver-routed,
+    # restricted to rays hitting the inner shell.
+    def _integrand(r_i, cos_om, ang_factor, q):
         def _eval(c: float) -> tuple[float, float]:
             rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
             if rho_in_minus is None:
@@ -3474,13 +3599,17 @@ def compute_G_bc_inner_mode(
             mu_s_sq = max(0.0, (r_0 * r_0 - r_i * r_i * sin_sq) / (r_0 * r_0))
             return float(np.exp(-tau)), float(np.sqrt(mu_s_sq))
 
-        ev = [_eval(float(c)) for c in cos_th]
+        ev = [_eval(float(c)) for c in cos_om]
         decay = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
         mu_s = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
         p_tilde = _shifted_legendre_eval(n_mode, mu_s)
-        return 2.0 * q.integrate_array(sin_th * p_tilde * decay)
+        return ang_factor * p_tilde * decay
 
-    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=2.0, dps=dps,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -3557,18 +3686,9 @@ def compute_P_esc_outer_mode_marshak(
     radii = np.asarray(radii, dtype=float)
     sig_t = np.asarray(sig_t, dtype=float)
     R = float(radii[-1])
-    omega_low, omega_high = geometry.angular_range
-    pref = geometry.prefactor
 
     # Q3 Marshak partial-current variant — outer face, hollow sphere.
-    def _per_obs(r_i: float) -> float:
-        q = observer_angular_quadrature(
-            r_obs=r_i, omega_low=omega_low, omega_high=omega_high,
-            radii=radii, n_per_panel=n_angular, dps=dps,
-        )
-        cos_om = geometry.ray_direction_cosine(q.pts)
-        ang_factor = geometry.angular_weight(q.pts)
-
+    def _integrand(r_i, cos_om, ang_factor, q):
         def _eval(c: float) -> tuple[float, float]:
             rho_out = float(geometry.rho_max(r_i, c, R))
             if rho_out <= 0.0:
@@ -3586,11 +3706,13 @@ def compute_P_esc_outer_mode_marshak(
         K_esc = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
         mu_exit = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
         p_tilde = _shifted_legendre_eval(n_mode, mu_exit)
-        return pref * q.integrate_array(
-            ang_factor * mu_exit * p_tilde * K_esc,
-        )
+        return ang_factor * mu_exit * p_tilde * K_esc
 
-    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
 
 
 def compute_P_esc_inner_mode_marshak(
@@ -3631,18 +3753,9 @@ def compute_P_esc_inner_mode_marshak(
     radii = np.asarray(radii, dtype=float)
     sig_t = np.asarray(sig_t, dtype=float)
     r_0 = float(geometry.inner_radius)
-    omega_low, omega_high = geometry.angular_range
-    pref = geometry.prefactor
 
     # Q3 Marshak partial-current variant — inner face, hollow sphere.
-    def _per_obs(r_i: float) -> float:
-        q = observer_angular_quadrature(
-            r_obs=r_i, omega_low=omega_low, omega_high=omega_high,
-            radii=radii, n_per_panel=n_angular, dps=dps,
-        )
-        cos_om = geometry.ray_direction_cosine(q.pts)
-        ang_factor = geometry.angular_weight(q.pts)
-
+    def _integrand(r_i, cos_om, ang_factor, q):
         def _eval(c: float) -> tuple[float, float]:
             rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
             if rho_in_minus is None:
@@ -3658,11 +3771,13 @@ def compute_P_esc_inner_mode_marshak(
         K_esc = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
         mu_exit = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
         p_tilde = _shifted_legendre_eval(n_mode, mu_exit)
-        return pref * q.integrate_array(
-            ang_factor * mu_exit * p_tilde * K_esc,
-        )
+        return ang_factor * mu_exit * p_tilde * K_esc
 
-    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
 
 
 def compute_G_bc_outer_mode_marshak(
@@ -3705,14 +3820,7 @@ def compute_G_bc_outer_mode_marshak(
     R = float(radii[-1])
 
     # Q3 Marshak — outer-face partial-current response, hollow sphere.
-    def _per_obs(r_i: float) -> float:
-        q = observer_angular_quadrature(
-            r_obs=r_i, omega_low=0.0, omega_high=np.pi,
-            radii=radii, n_per_panel=n_surf_quad, dps=dps,
-        )
-        cos_th = np.cos(q.pts)
-        sin_th = np.sin(q.pts)
-
+    def _integrand(r_i, cos_om, ang_factor, q):
         def _eval(c: float) -> tuple[float, float]:
             rho_out = float(geometry.rho_max(r_i, c, R))
             if rho_out <= 0.0:
@@ -3729,13 +3837,17 @@ def compute_G_bc_outer_mode_marshak(
             mu_s = (rho_out + r_i * c) / R
             return float(np.exp(-tau)), mu_s
 
-        ev = [_eval(float(c)) for c in cos_th]
+        ev = [_eval(float(c)) for c in cos_om]
         decay = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
         mu_s = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
         p_tilde = _shifted_legendre_eval(n_mode, mu_s)
-        return 2.0 * q.integrate_array(sin_th * mu_s * p_tilde * decay)
+        return ang_factor * mu_s * p_tilde * decay
 
-    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=2.0, dps=dps,
+    )
 
 
 def compute_G_bc_inner_mode_marshak(
@@ -3771,14 +3883,7 @@ def compute_G_bc_inner_mode_marshak(
     r_0 = float(geometry.inner_radius)
 
     # Q3 Marshak — inner-face partial-current response, hollow sphere.
-    def _per_obs(r_i: float) -> float:
-        q = observer_angular_quadrature(
-            r_obs=r_i, omega_low=0.0, omega_high=np.pi,
-            radii=radii, n_per_panel=n_surf_quad, dps=dps,
-        )
-        cos_th = np.cos(q.pts)
-        sin_th = np.sin(q.pts)
-
+    def _integrand(r_i, cos_om, ang_factor, q):
         def _eval(c: float) -> tuple[float, float]:
             rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
             if rho_in_minus is None:
@@ -3793,13 +3898,17 @@ def compute_G_bc_inner_mode_marshak(
             mu_s_sq = max(0.0, (r_0 * r_0 - r_i * r_i * sin_sq) / (r_0 * r_0))
             return float(np.exp(-tau)), float(np.sqrt(mu_s_sq))
 
-        ev = [_eval(float(c)) for c in cos_th]
+        ev = [_eval(float(c)) for c in cos_om]
         decay = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
         mu_s = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
         p_tilde = _shifted_legendre_eval(n_mode, mu_s)
-        return 2.0 * q.integrate_array(sin_th * mu_s * p_tilde * decay)
+        return ang_factor * mu_s * p_tilde * decay
 
-    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=2.0, dps=dps,
+    )
 
 
 def build_white_bc_correction(
@@ -3934,19 +4043,9 @@ def compute_P_esc_mode(
     sig_t = np.asarray(sig_t, dtype=float)
     R = float(radii[-1])
     inv_R2 = 1.0 / (R * R)
-    omega_low, omega_high = geometry.angular_range
-    pref = geometry.prefactor
 
-    # Q3: rank-N DP_N moment with (ρ_max/R)² Jacobian — observer-
-    # centred ω-sweep, kink-aware.
-    def _per_obs(r_i: float) -> float:
-        q = observer_angular_quadrature(
-            r_obs=r_i, omega_low=omega_low, omega_high=omega_high,
-            radii=radii, n_per_panel=n_angular, dps=dps,
-        )
-        cos_om = geometry.ray_direction_cosine(q.pts)
-        ang_factor = geometry.angular_weight(q.pts)
-
+    # Q3: rank-N DP_N moment with (ρ_max/R)² Jacobian — driver-routed.
+    def _integrand(r_i, cos_om, ang_factor, q):
         def _eval(c: float) -> tuple[float, float, float]:
             rho = float(geometry.rho_max(r_i, c, R))
             if rho <= 0.0:
@@ -3963,11 +4062,13 @@ def compute_P_esc_mode(
         rho = np.fromiter((e[2] for e in ev), dtype=float, count=len(q))
         p_tilde = _shifted_legendre_eval(n_mode, mu_exit)
         jacobian = rho * rho * inv_R2
-        return pref * q.integrate_array(
-            ang_factor * jacobian * p_tilde * K_esc,
-        )
+        return ang_factor * jacobian * p_tilde * K_esc
 
-    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
 
 
 def compute_G_bc_mode(
@@ -4024,15 +4125,8 @@ def compute_G_bc_mode(
     G = np.zeros(N)
 
     if geometry.kind == "sphere-1d":
-        # Q3: observer-centred ω-sweep, kink-aware.
-        def _sphere_per_obs(r_i: float) -> float:
-            q = observer_angular_quadrature(
-                r_obs=r_i, omega_low=0.0, omega_high=np.pi,
-                radii=radii, n_per_panel=n_surf_quad, dps=dps,
-            )
-            cos_th = np.cos(q.pts)
-            sin_th = np.sin(q.pts)
-
+        # Q3: observer-centred ω-sweep, driver-routed.
+        def _sphere_integrand(r_i, cos_om, ang_factor, q):
             def _eval(c: float) -> tuple[float, float]:
                 rho = float(geometry.rho_max(r_i, c, R))
                 if rho <= 0.0:
@@ -4045,19 +4139,20 @@ def compute_G_bc_mode(
                     ))
                 return float(np.exp(-tau)), (rho + r_i * c) / R
 
-            ev = [_eval(float(c)) for c in cos_th]
+            ev = [_eval(float(c)) for c in cos_om]
             decay = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
             mu_exit = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
             p_tilde = _shifted_legendre_eval(n_mode, mu_exit)
-            return 2.0 * q.integrate_array(sin_th * p_tilde * decay)
+            return ang_factor * p_tilde * decay
 
-        return np.array([_sphere_per_obs(float(r_i)) for r_i in r_nodes])
+        return per_observer_angular_assembly(
+            geometry, r_nodes, radii, n_surf_quad,
+            integrand_at_node=_sphere_integrand,
+            prefactor=2.0, dps=dps,
+        )
 
     # Cylinder: surface-centred Ki_1/d kernel, weighted by P̃_n(|μ_s_2D|).
-    # Q-L3: route through `surface_centred_angular_quadrature` for
-    # kink-aware subdivision at the chord-quadratic tangent angles.
-    inv_pi = 1.0 / np.pi
-
+    # Q-L3: route through `per_surface_centred_angular_assembly` driver.
     def _per_node(r_i: float, cf: float) -> float:
         d_sq = r_i * r_i + R * R - 2.0 * r_i * R * cf
         d = float(np.sqrt(max(d_sq, 0.0)))
@@ -4075,19 +4170,17 @@ def compute_G_bc_mode(
         ki1 = float(ki_n_mp(1, tau, dps))
         return p_tilde * ki1 / d
 
-    def _per_obs(r_i: float) -> float:
-        q = surface_centred_angular_quadrature(
-            r_obs=r_i, r_surface=R,
-            radii=radii, n_per_panel=n_surf_quad, dps=dps,
-        )
-        cos_phi = np.cos(q.pts)
-        kernel = np.fromiter(
+    def _cyl_integrand(r_i, cos_phi, q):
+        return np.fromiter(
             (_per_node(r_i, float(c)) for c in cos_phi),
             dtype=float, count=len(q),
         )
-        return 2.0 * inv_pi * R * q.integrate_array(kernel)
 
-    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+    return per_surface_centred_angular_assembly(
+        geometry, r_nodes, radii, r_surface=R, n_per_panel=n_surf_quad,
+        integrand_at_node=_cyl_integrand,
+        prefactor=2.0 * R / np.pi, dps=dps,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
