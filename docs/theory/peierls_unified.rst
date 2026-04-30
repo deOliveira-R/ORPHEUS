@@ -6830,54 +6830,12 @@ special-case logic while carrying the pre-cavity :math:`e^{-\tau}`
 factor forward; in τ-coordinates, the cavity *is* skipped without any
 special-case logic, because the cavity segment has zero τ-measure.
 
-The equivalent statement in Monte Carlo language (§23 below): a
-delta-tracking history that samples a flight of length :math:`\tau_i`
-from :math:`\text{Exp}(1)` and walks the ρ-coordinate to find the
-corresponding :math:`\rho_i` will walk *straight through* a cavity
-without advancing its sampled :math:`\tau`. The deterministic and
-stochastic formulations agree that the cavity is a no-op.
-
-Monte Carlo connection — delta / Woodcock tracking
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The τ-coordinate is not a numerical curiosity — it is the **canonical
-coordinate of Monte Carlo neutron transport**, introduced in the GEM
-code by Woodcock, Murphy, Hemmings and Longworth in 1965
-([Woodcock1965]_). In Monte Carlo particle transport, the distance to
-the next collision is sampled as :math:`\tau_i \sim \text{Exp}(1)`,
-:math:`\tau_i = -\ln(1 - \xi)` for :math:`\xi \in [0,1)` uniform, and
-the :math:`\rho`-coordinate is then walked on-the-fly until the
-accumulated optical depth reaches :math:`\tau_i`. In heterogeneous
-geometries Woodcock tracking samples against a majorant cross-section
-:math:`\Sigma_{\max}` and accepts / rejects at each virtual collision;
-both variants share the same underlying statement — the natural
-coordinate is :math:`\tau`, and :math:`\rho(\tau)` is computed by the
-ray walker on demand.
-
-**The deterministic Nyström and Monte Carlo are the same integral
-evaluated two ways.** Both produce an estimate of
-
-.. math::
-
-   \int_0^{\tau_{\max}}
-     e^{-\tau}\,\bigl[q(r'(\tau))/\Sigma_t(r'(\tau))\bigr]\,\mathrm d\tau,
-
-differing only in the estimator:
-
-- **Monte Carlo** samples :math:`\{\tau_i\}_{i=1}^{N_{\rm hist}}` from
-  :math:`\text{Exp}(1)`, evaluates the integrand at each, and averages.
-  Error decays as :math:`O(1/\sqrt{N_{\rm hist}})`.
-- **Nyström (τ-coordinate)** places :math:`\{\tau_m\}_{m=1}^{n}` at
-  Gauss-Laguerre nodes and averages with Gauss weights. Error decays
-  super-algebraically in :math:`n` for smooth integrands.
-
-For further reading on delta-tracking in modern MC codes see the
-review in [MartinBrown2003]_ (LANL technical memorandum on the
-algorithm's numerical properties) and the Serpent implementation
-documented in [Leppanen2010]_. The related discussion in
-:doc:`monte_carlo` §"Woodcock delta-tracking" describes the
-algorithm in its original stochastic context; this page treats the
-same mathematics from the deterministic Nyström side.
+The equivalent statement in Monte Carlo language: a delta-tracking
+history walks straight through a cavity without advancing its sampled
+:math:`\tau`. The deterministic Nyström and Woodcock delta-tracking
+are the same integral evaluated two ways — see §23.1 for the
+deterministic-↔-stochastic equivalence (originating reference
+[Woodcock1965]_).
 
 Quadrature choice
 ~~~~~~~~~~~~~~~~~
@@ -7152,22 +7110,14 @@ the singularity).
 Where Davison's substitution remains useful
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- **Differential-form transport.** If ORPHEUS ever switches to a
-  differential formulation of the sphere Peierls equation, the
-  coordinate singularity at :math:`r = 0` returns (it is native to
-  the operator :math:`\partial_r + 2/r`, not to the integral form),
-  and Davison's substitution is then the standard regulariser.
-- **Analytic bare-sphere critical radii.** The classical Case-de
-  Hoffmann-Placzek-style closed-form critical-radius expressions all
-  use :math:`u = r\varphi` as the natural variable. Any cross-check
-  against these analytic results (e.g. [CaseZweifel1967]_ Chapter 2)
-  would flow more cleanly through Davison's form than through the
-  polar-form Nyström.
-- **Milne problem asymptotics.** The asymptotic expansion of the
-  angular flux near a curved vacuum boundary is conventionally
-  expressed in the :math:`u(r) = r\varphi(r)` variable, again because
-  the curved-boundary analogue of the Milne problem is naturally set
-  up that way.
+- **Differential-form transport.** A differential formulation of the
+  sphere Peierls equation re-exposes the :math:`\partial_r + 2/r`
+  coordinate singularity, for which :math:`u = r\varphi` is the
+  standard regulariser.
+- **Analytic bare-sphere critical radii** (Case-Zweifel, Milne-problem
+  asymptotics): closed-form work in [CaseZweifel1967]_ Chapter 2
+  flows naturally through :math:`u = r\varphi`. Any future analytic
+  cross-check would use this form.
 
 **Recommendation.** Document, do not implement. If a specific need
 emerges (a Case-Zweifel critical-radius cross-check, or a differential
@@ -7570,76 +7520,21 @@ during the L0 test design.
 Where this primitive plugs in
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The visibility-cone substitution is the first phase of a planned
-rollout across ORPHEUS chord and angular-cone quadratures. The full
-rollout plan lives at
-``.claude/plans/visibility-cone-substitution-rollout.md`` (Phase 1A
-through 1F). At the time of this commit only Phase 1A — the utility
-itself — is shipped; subsequent phases land the substitution at
-specific call sites in :mod:`~orpheus.derivations.peierls_geometry`.
-
-.. list-table:: Planned rollout sites and predecessor work
-   :header-rows: 1
-   :widths: 8 32 60
-
-   * - Phase
-     - Target
-     - Notes
-   * - 1A
-     - :func:`~orpheus.derivations._quadrature.gauss_legendre_visibility_cone`
-       + L0 test
-     - **Shipped (this commit)**. Six L0 tests in
-       ``tests/derivations/test_quadrature.py``, all carrying
-       ``@pytest.mark.verifies("gauss-legendre-visibility-cone")``.
-   * - 1B
-     - ``compute_T_specular_sphere``,
-       ``compute_T_specular_cylinder_3d``
-     - Phase 4 multi-bounce specular T-matrix integrals (commit
-       ``9178cc6``). Highest leverage: the rank-N Galerkin overshoot
-       at :math:`N \ge 4` is currently quadrature-limited.
-   * - 1C
-     - ``compute_P_esc_*_mode``, ``compute_G_bc_*_mode``
-     - Rank-N Knyazev / Hébert mode primitives. Algebraic identities
-       at rank 1 must be preserved bit-equally (1e-14).
-   * - 1D
-     - ``compute_P_ss_sphere``, ``compute_P_ss_cylinder``
-     - Surface-to-surface kernels. Verifies the Phase 4 algebraic
-       identity :math:`T_{00} = P_{ss}^{\rm cyl/sphere}` to 1e-14.
-   * - 1E
-     - ``build_volume_kernel_adaptive``
-     - The :math:`\Omega`-integration in
-       :mod:`~orpheus.derivations.peierls_geometry`; possibly
-       redundant with the existing ``mpmath.quad`` adaptive routine.
-       Phase 1E will assess.
-   * - 1F
-     - CP modules (``cp_cylinder.py``, ``cp_sphere.py``)
-     - Optional, low priority. CP discretisation error dominates
-       quadrature error here, so the benefit is marginal until other
-       error sources are addressed.
-
-Provenance
-~~~~~~~~~~
-
-The substitution surfaced during the Phase 5 Round 3 SECONDARY mission
-of the Peierls specular-BC investigation (commit ``4dc03cf``, retreat
-note in the §"Phase 5 retreat" subsection above). The original
-diagnostic at
-``derivations/diagnostics/diag_phase5_round3_visibility_cone_quad.py``
-used a *linear-shift* variant
-:math:`\mu = \mu_{\rm vis} + (1 - \mu_{\rm vis})\,u^{2}` which works
-locally near the singular endpoint but does **not** give the global
-:math:`\sqrt{y^{2}-y_{\min}^{2}} = u\,\Delta` identity. The shipped
-utility uses the *quadratic-in-* :math:`y^{2}` variant derived above,
-which is globally exact and unifies the two endpoint patterns under a
-single weight formula. Phase 5 itself was retreated as research-grade
-(continuous-:math:`\mu` :math:`K_{\rm bc}` is hypersingular and cannot
-be wired into production); the substitution is the durable promotion-
-worthy primitive recovered from the wreckage. See §22.5 for the
-Gauss-Jacobi fallback when a *both-endpoint* :math:`\sqrt{}`-vanishing
-integrand makes the visibility-cone substitution insufficient, and
+The visibility-cone substitution is the canonical chord/µ-cone
+quadrature primitive across the production
+:mod:`~orpheus.derivations.peierls_geometry` call sites; the
+post-rollout audit lives in §22.9. See §22.5 for the Gauss-Jacobi
+fallback when a *both-endpoint* :math:`\sqrt{}`-vanishing integrand
+makes the visibility-cone substitution insufficient, and
 :func:`~orpheus.derivations._kernels.chord_half_lengths` for the chord
 primitive whose annular partition the substitution is built to
 complement.
+
+The historical Phase-5 Round-3-SECONDARY provenance — including the
+falsified linear-shift variant and the Phase 5 retreat that surfaced
+the substitution as the durable primitive — is recorded in the
+`Issue #133 close-out comment
+<https://github.com/deOliveira-R/ORPHEUS/issues/133#issuecomment-4348746336>`_.
 
 
 22.8 Surface-centred angular quadrature for cylinder :math:`G_{\rm bc}`
@@ -9393,24 +9288,6 @@ References
    functions :math:`\mathrm{Ki}_n(x)`, from :math:`n=1` to
    :math:`n=16`," *Philosophical Magazine Series 7*,
    **20**, 343–347 (1935).
-
-.. [MartinBrown2003] W.R. Martin and F.B. Brown, "Status of MCNP5,"
-   Los Alamos National Laboratory technical memorandum LA-UR-03-7127,
-   2003. Discusses delta-tracking performance and accuracy in the
-   MCNP5 implementation, and reviews the Woodcock algorithm's
-   correspondence to deterministic ray integration in optically thick
-   media.
-
-.. [Leppanen2010] J. Leppänen, "Performance of Woodcock delta-tracking
-   in lattice physics applications using the Serpent Monte Carlo
-   reactor physics burnup calculation code," *Annals of Nuclear
-   Energy* **37** (5), 715–722 (2010).
-   DOI: 10.1016/j.anucene.2010.01.011. Serpent code implementation of
-   delta-tracking with optimisations for continuous-energy
-   cross-section lookup; the description of the τ-space ray walker
-   (§3 of the paper) is the closest stochastic analogue of the
-   deterministic ``optical_depth_along_ray_with_map`` helper proposed
-   for Phase H.2 (`Issue #109 <https://github.com/deOliveira-R/ORPHEUS/issues/109>`_).
 
 .. [Stepanek1981] J. Stepanek, "The DP\ :sub:`N` Surface Flux Integral
    Neutron Transport Method for Slab Geometry," *Nuclear Science and
