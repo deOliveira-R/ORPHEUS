@@ -2321,29 +2321,19 @@ smooth :math:`R` part (handled by GL weights) and a
 Off-diagonal panels would then use standard GL weights on the smooth
 :math:`E_1` integrand.
 
-**Why this classical scheme fails in practice** (issue #113,
-ERR-027/028). The scheme rests on two assumptions that turn out to
-be insufficient:
-
-1. *Off-diagonal GL is exact for smooth integrands.* This is true for
-   polynomial integrands of degree :math:`\le 2p-1`, but :math:`E_1`
-   is transcendental with a near-log spike at :math:`x'\to x_i`. One-
-   point collocation (``E_1(τ_ij)·w_j``) gives ~1% error even for
-   panel pairs with moderate optical separation, worst at
-   panel-boundary neighbours where the log spike sits just outside
-   the source panel.
-
-2. *R is smooth across the diagonal panel.* True in :math:`\tau` but
-   :math:`R(\Sigt{}|x_i - x'|)` has a derivative kink in :math:`x'`
-   at :math:`x'=x_i` (from the absolute value). GL cannot integrate
-   across interior derivative discontinuities. This adds ~1% error
-   on every diagonal panel.
-
-Both bugs were invisible to row-sum conservation tests because
-:math:`\sum_j L_j(x')=1` kills the kink in the summed integrand even
-when each basis-individual :math:`K[i,j]` is wrong — hence the
-"passes at mode 0, fails at mode n>0" signature observed in the rank-N
-investigation.
+**Why the classical singularity-subtraction scheme failed.** Issue
+#113 closed the slab K-matrix cross-panel logarithmic-singularity
+bug — the naive GL-collocation scheme made two assumptions that
+turned out to be insufficient (off-diagonal GL exact for smooth
+integrands; :math:`R(\tau)` smooth across the diagonal panel) and
+hid the resulting ~1 % error inside row-sum conservation because
+:math:`\sum_j L_j(x') = 1` cancels basis-individual :math:`K[i,j]`
+errors. The forensic — including the basis-aware ERR-027 /
+ERR-028 catalog entries and the rank-N "passes at mode 0, fails
+at mode n > 0" diagnostic signature — is preserved in
+`Issue #113 <https://github.com/deOliveira-R/ORPHEUS/issues/113>`_.
+The unified ``_pg.solve_peierls_*`` adaptive-quadrature K-matrix
+assembly described next is the production path.
 
 **Unified basis-aware assembly** (current implementation,
 :func:`~orpheus.derivations.peierls_slab._basis_kernel_weights`).
@@ -3043,9 +3033,13 @@ the full operator; the eigenvalue problem is
      \varphi \;=\; \frac{1}{k}\,K\,\mathrm{diag}(\nu\Sigma_f)\,\varphi,
 
 solved by fission-source power iteration in
-``solve_peierls_cylinder_1g(..., boundary="vacuum")`` in
-:mod:`orpheus.derivations.peierls_cylinder`. This is the closure
-that is currently implemented; it is used for the Sanchez tie-point
+:func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+(with ``geometry=_pg.CYLINDER_1D`` and ``boundary="vacuum"``); the
+sphere-/cylinder-specific façades in
+:mod:`orpheus.derivations.peierls_cylinder` /
+:mod:`orpheus.derivations.peierls_sphere` are registry-only
+shims after the Issue #138 collapse. This is the closure that is
+currently implemented; it is used for the Sanchez tie-point
 verification below.
 
 **White / reflective.** The cylinder's lateral surface is a
