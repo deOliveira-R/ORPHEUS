@@ -2820,98 +2820,38 @@ at any cell size. Tests that compare the Peierls cylinder reference
 against CP (white BC) must use :math:`R \ge 5` MFP to keep the
 closure error under 3 %.
 
-Sphere — Issue #100 (retracted; historical record)
---------------------------------------------------
+Sphere rank-1 — Issue #100 close-out
+------------------------------------
 
-.. note::
+The shipped sphere Peierls rank-1 white-BC closure (Phase-4.3,
+commits ``435c0b3``, ``9d03948``, ``cad2f0b``) reproduces the
+cylinder's inverse-cell-size error scaling:
 
-   **2026-04-18 update — retraction.** The Phase-4.3 unified
-   sphere Peierls implementation delivers **physically sensible
-   rank-1 white-BC behaviour matching the cylinder**. The
-   ":math:`k_{\rm eff} \approx 6.7`" datum and the
-   "rank-1 fails structurally on the sphere" conclusion below
-   are artefacts of the earlier attempt's missing :math:`R^{2}`
-   surface divisor (the cylinder code was repurposed for the
-   sphere without updating :math:`A_d = 2\pi R \to 4\pi R^{2}`).
-   The corrected divisor is now dispatched by
-   :meth:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry.rank1_surface_divisor`.
+======  ===================  ===============
+R/MFP   :math:`k_{\rm eff}`  err vs k_∞
+======  ===================  ===============
+1.0     1.0963               26.9 %
+5.0     1.4897               0.7 %
+10.0    1.4957               0.3 %
+======  ===================  ===============
 
-   Current sphere rank-1 :math:`k_{\rm eff}` scan (bare sphere,
-   :math:`\Sigma_t = 1`, :math:`\Sigma_s = 0.5`,
-   :math:`\nu\Sigma_f = 0.75`, :math:`k_\infty = 1.5`):
-
-   ======  ===================  ===============
-   R/MFP   :math:`k_{\rm eff}`  err vs k_∞
-   ======  ===================  ===============
-   1.0     1.0963               26.9 %
-   2.0     1.3914               7.2 %
-   5.0     1.4897               0.7 %
-   10.0    1.4957               0.3 %
-   20.0    1.4945               0.4 %
-   ======  ===================  ===============
-
-   This **parallels the cylinder** (21 % at :math:`R=1` MFP,
-   falling to 1 % at :math:`R=10` MFP): both geometries show the
-   same inverse-cell-size growth of the rank-1 Mark closure
-   error, which is a flat-source artefact reapplied at the
-   pointwise level (Issue #103 / N1). The full retraction
-   discussion and the R-vs-R² gotcha are archived in
-   :doc:`collision_probability`, §
-   :ref:`issue-100-retraction`. The text below is preserved as
-   historical context — keeping the record of what was tried and
-   why it failed prevents the same mistake from being made twice.
-
-   Sphere Peierls is **shipped** as of Phase-4.3 (commits
-   ``435c0b3``, ``9d03948``, ``cad2f0b``); the Peierls-vs-CP
-   comparison at white-BC parity runs in
-   ``tests/cp/test_peierls_sphere_flux.py``.
-
-*Historical text (pre-correction):* The identical failure mode was
-observed in the Phase-4.3 spherical Peierls attempt (GitHub Issue
-#100). The sphere's uncollided escape probability
-:math:`P_{\rm esc}(r)` varies from ~0.37 at the centre to ~0.68
-at the surface, while the re-entry distribution
-:math:`G_{\rm bc}(r)` varies from 0 at the centre (Davison's
-:math:`u(0) = 0` constraint) to ~2.7 at the surface, and the
-ratio is not constant — it varies by ~40 % across the sphere
-radius. A rank-1 correction necessarily imposes a *constant*
-ratio, so it over-shoots near the surface and under-shoots near
-the centre, giving :math:`k_{\rm eff} \approx 6.7` for a 1-G
-1-region case (expected :math:`k_\infty = 1.5`).
-
-Both observations — the cylinder's size-dependent error and the
-sphere's structural failure — are **the same phenomenon**: rank-1
-is a flat-source result re-applied at the pointwise level. The
-two paths forward (and open as of the session of this writing)
-are:
-
-(a) *Augmented Nyström system*: add the surface-current unknowns
-    as additional degrees of freedom, promoting the
-    :math:`(N\times N)` system to :math:`(N+n_{\rm surf})\times
-    (N+n_{\rm surf})`. The rank of the white-BC block grows from 1
-    to :math:`n_{\rm surf}`, which represents the angular
-    resolution of the re-entering distribution.
-(b) *Higher-rank angular decomposition*: resolve :math:`J^{-}` in
-    a Mark-:math:`n`-like :math:`P_n` expansion of the re-entering
-    hemisphere. Rank :math:`n+1` correction.
-
-*Post-correction assessment (2026-04-18).* The "ratio varies by
-40 %" argument above conflates two independent things: the rank-1
-closure is an outer product :math:`u_i\,v_j` where :math:`u` and
-:math:`v` can individually vary with radius. What the rank-1
-closure approximates is the re-entering **angular distribution**
-:math:`J^{-}(\Omega)` (treated as uniform isotropic by Mark),
-**not** the :math:`(i, j)` coupling structure. A radius-dependent
-ratio :math:`P_{\rm esc} / G_{\rm bc}` therefore does **not**
-imply structural failure; it is absorbed into the outer-product
-factorisation. What the rank-1 closure actually suffers from is
-the Mark-closure error in the angular shape of :math:`J^{-}`, and
-that error scales with cell optical thickness (thick cells
-homogenise the angular distribution via multiple scattering, thin
-cells do not). Path (a) and path (b) above are the correct
-architectural fixes — Issue #103 (N1) tracks higher-rank
-angular decomposition — but they apply **equally** to cylinder
-and sphere. Neither is a sphere-specific blocker.
+The closure is structurally correct; the error is a flat-source
+artefact reapplied at the pointwise Nyström level, the same
+phenomenon as the cylinder. The earlier Phase-4.3 ":math:`k_{\rm
+eff} \approx 6.7`" datum and the "rank-1 fails structurally on the
+sphere because :math:`P_{\rm esc}/G_{\rm bc}` ratio varies 40 %"
+argument were both wrong: the first was a missing :math:`R^2`
+surface divisor (cylinder code reused for sphere without updating
+:math:`A_d = 2\pi R \to 4\pi R^2`); the second conflated the
+rank-1 outer-product :math:`u_i v_j` (where :math:`u`, :math:`v`
+can vary independently with radius) with the angular structure of
+:math:`J^-` that Mark approximates as isotropic. The historical
+debate is preserved in
+`Issue #100 close-out
+<https://github.com/deOliveira-R/ORPHEUS/issues/100#issuecomment-4348744491>`_;
+the live capability matrix is at
+:ref:`theory-peierls-capabilities`. The Peierls-vs-CP white-BC
+parity test is ``tests/cp/test_peierls_sphere_flux.py``.
 
 
 Rank-N (Marshak / Gelbard DP\ :sub:`N-1`) skeleton — WIP
@@ -2955,143 +2895,59 @@ is the content of Sanchez & McCormick's Eq. (167) reciprocity
 after rotational symmetry collapses the surface-to-surface
 mode-index matrix to diagonal.
 
-**Current limitation** (Issue #112). The mode-:math:`n \ge 1`
-*magnitudes* are geometry-dependent off from canonical:
-
-- **Cylinder**: the current implementation weights the existing
-  surface-centred :math:`\mathrm{Ki}_1/d` integrand by
-  :math:`\tilde P_n(|\mu_{s,2D}|)` where
-  :math:`|\mu_{s,2D}| = (R - r_i \cos\phi)/d` is the 2-D
-  projected cosine. The canonical closure requires the 3-D
-  cosine :math:`\mu_{s,3D} = \sin\theta_p \cdot \mu_{s,2D}` with
-  the :math:`\theta_p` integration carried out *inside* the
-  :math:`\tilde P_n`-weighted integrand (producing higher-order
-  Bickley functions :math:`\mathrm{Ki}_{2+k}` per Knyazev 1993).
-  The 2-D projection is exact for :math:`n = 0` (trivially
-  :math:`\tilde P_0 \equiv 1`) but diverges from the 3-D
-  canonical for :math:`n \ge 1`, making rank-:math:`N`
-  non-monotone at thin :math:`R`. Thick-cell k\ :sub:`eff`
-  drifts by 1–10 % for :math:`N \ge 2` at :math:`R = 10` MFP
-  because the mode-:math:`n \ge 1` contributions are persistently
-  O(0.2–0.6) of mode-0 magnitude rather than decaying as
-  Lambertian predicts.
-
-- **Sphere**: mode-1 is directionally correct (27 % → 15 %
-  thin-cell error, mode magnitudes match Lambertian asymptotics
-  ``|v_2 / v_0| ≈ 0.04``), but the convergence ladder plateaus at
-  mode 2 rather than continuing. The current hypothesis is that
-  the :math:`(2n+1)` factor sits on the wrong side of the u/v
-  split, or an additional cosine weight is absorbed by the
-  Gelbard basis that the naive transcription is missing. Sphere
-  thick-cell also drifts by ~7 % at :math:`N = 2` for the same
-  magnitude issue.
-
-**Until Issue #112 lands** the 3-D cylinder quadrature and
-sphere canonical DP\ :sub:`N` audit, the function is safe at the
-default ``n_bc_modes = 1`` (byte-identical to the legacy
-:func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction`).
-Convergence-ladder tests
+**Current limitation — magnitudes off-canonical for** :math:`n \ge 1`.
+The cylinder and sphere mode-:math:`n \ge 1` *magnitudes* are
+geometry-dependent off from the canonical Sanchez–McCormick form
+(cylinder uses 2-D projected :math:`\mu_{s,2D}` rather than 3-D
+:math:`\mu_{s,3D} = \sin\theta_p\,\mu_{s,2D}` with Knyazev
+:math:`\mathrm{Ki}_{2+k}` integration; sphere mode-2 plateau
+hypothesised as :math:`(2n+1)` placement / Gelbard cosine-weight
+issue). Convergence-ladder tests
 (``test_rank_n_row_sum_improves_thin_cell_*``,
 ``test_rank_n_thick_cell_unchanged``,
 ``test_rank_n_sphere_thin_cell_convergence``) carry ``xfail``
-markers with diagnostic reasons referencing Issue #112 — they
-flip to pass automatically when the full fix lands.
+markers referencing Issue #112; they flip to pass when the canonical
+3-D audit lands. The default ``n_bc_modes = 1`` is byte-identical to
+:func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction`
+and is safe production. The full magnitude scan (cylinder
+:math:`\mathrm{Ki}_1/d` vs Knyazev 3-D, sphere mode-2 plateau
+diagnostics, all the empirical k\ :sub:`eff` drift tables) is
+recorded in
+`Issue #112 <https://github.com/deOliveira-R/ORPHEUS/issues/112>`_.
 
 The :func:`~orpheus.derivations._kernels._shifted_legendre_eval`
-utility (orthonormality and known-value tests in the same file)
-is verified-correct and is the basis building block both the
-cylinder 3-D quadrature and the sphere canonical DP\ :sub:`N`
-audit will reuse unchanged.
+utility is the basis building block both the cylinder 3-D
+quadrature and the sphere canonical DP\ :sub:`N` audit will reuse
+unchanged.
 
 
 .. _peierls-rank-n-jacobian-section:
 
-Surface-to-observer Jacobian :math:`(\rho_{\max}/R)^2` — 2026-04-18 fix
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Surface-to-observer Jacobian :math:`(\rho_{\max}/R)^2`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The initial rank-:math:`N` skeleton weighted the same angular
-integrand :math:`\int W_\Omega(\Omega)\,e^{-\tau}\,\mathrm d\Omega`
-by :math:`\tilde P_n(\mu_{\rm exit})` for BOTH
-:math:`G_{\rm bc}^{(n)}` (the flux-per-unit-\ :math:`J^-_n`
-response) and :math:`P_{\rm esc}^{(n)}` (the outgoing partial-
-current moment per unit source). The numerics-investigator
-uncovered an **identity** for the sphere,
-
-.. math::
-
-   G_{\rm bc}^{(n)}(r_i) \;=\; 4\,P_{\rm esc}^{(n)}(r_i)
-   \qquad \text{(sphere only, every } r,\ n,\ R\text{)},
-
-verified numerically to :math:`10^{-12}` precision across all
-modes and all cell radii. Both primitives share the **same**
-observer-centred integrand
-:math:`\int_{4\pi} \tilde P_n(\mu_s)\,e^{-\tau}\,\mathrm d\Omega`;
-the ratio :math:`4` is the geometry-prefactor convention
-(:math:`2` for :math:`G_{\rm bc}` vs :math:`0.5` for
-:math:`P_{\rm esc}`).
-
-**Consequence.** Each rank-1 outer product
-:math:`u_n \otimes v_n` of the form
-
-.. math::
-
-   u_n[i]\,v_n[j] \;=\;
-     \text{(scalar)} \cdot \tilde P_n(\mu_{\rm exit}(r_i)) \,\cdot\,
-                             \tilde P_n(\mu_{\rm exit}(r_j))
-
-is a **symmetric** :math:`\tilde P_n(r_i)\,\tilde P_n(r_j)`
-factorisation — the same function evaluated at both indices.
-Summed over :math:`n`, this gives a rank-:math:`N` matrix in the
-:math:`\tilde P_n` basis, but all modes share the **same** basis
-functions and the same integrand structure. No amount of scalar
-re-weighting by :math:`(2n+1)` vs :math:`1` vs :math:`1/(2n+1)`
-can recover a proper Marshak closure — verified empirically over
-three α-scans in
-``derivations/diagnostics/diag_rank_n_{06,07}_*.py``.
-
-**The fix**. Derive the canonical outgoing partial-current moment
-per unit volumetric source at :math:`r_i` from first principles.
-For a uniform source :math:`q = 1`:
-
-.. math::
-
-   J^{+}_n \;=\; \frac{1}{A_d}\,\int_S \mathrm d A_s
-                 \int_{\text{outward}} |\mu_{\rm out}|\,
-                 \tilde P_n(\mu_{\rm out})\,\psi^{+}\,\mathrm d\Omega.
-
-Convert the surface-plus-outward-hemisphere integral to an
-**observer-centred** integral at the source point :math:`r_i`
-using the 3-D projection Jacobian
-
-.. math::
-
-   \mathrm d A_s\,\mathrm d\Omega_{\rm out}\,|\mu_s|
-   \;=\; d^{\,2}\,\mathrm d\Omega_{r_i},
-   \qquad d = \rho_{\max}(r_i,\Omega)
-
-(standard optics; the outgoing direction :math:`\Omega_{\rm out}`
-at the surface is the reverse of the observer-centred direction
-:math:`\Omega_{r_i}`). The :math:`|\mu_s|` cancels the
-:math:`|\mu_{\rm out}|` cosine weight of the partial-current
-moment, and the :math:`\mathrm d A_s\,\mathrm d\Omega_{\rm out}`
-pair becomes :math:`\mathrm d\Omega_{r_i}\,d^{\,2}`:
+The canonical outgoing partial-current moment for mode :math:`n` per
+unit volumetric source at observer :math:`r_i` follows from
+substituting the surface-to-observer Jacobian
+:math:`\mathrm dA_s\,|\mu_s|\,\mathrm d\Omega_{\rm out} = d^{\,2}\,
+\mathrm d\Omega_{r_i}` (with :math:`d = \rho_{\max}(r_i, \Omega)`)
+into the surface-side definition
+:math:`J^+_n = \int_S\!\mathrm dA_s\!\int_{\rm out}|\mu_{\rm out}|\,
+\tilde P_n(\mu_{\rm out})\,\psi^+\,\mathrm d\Omega/A_d`. The
+:math:`|\mu_s|` cancels :math:`|\mu_{\rm out}|`, and the result is
 
 .. math::
    :label: peierls-rank-n-jacobian-derivation
 
    J^{+}_n(r_i) \;=\; \frac{1}{A_d}\,
                       \int_\Omega \tilde P_n(\mu_{\rm exit})\,
-                      d^{\,2}(r_i,\Omega)\,\psi^{+}\,\mathrm d\Omega
-                 \;=\; \frac{1}{A_d}\,
-                      \int_\Omega \tilde P_n(\mu_{\rm exit})\,
                       \rho_{\max}^{\,2}(r_i,\Omega)\,e^{-\tau}\,
                       \mathrm d\Omega.
 
 Dividing by the cell's characteristic :math:`R^2` (to match the
-:math:`A_d^{\rm divisor}` convention in
-:meth:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry.rank1_surface_divisor`,
-which is :math:`R` for cylinder and :math:`R^2` for sphere) gives
-the dimensionless factor :math:`(\rho_{\max}/R)^2` now carried in
+:meth:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry.rank1_surface_divisor`
+convention — :math:`R` for cylinder, :math:`R^2` for sphere) gives
+the dimensionless factor :math:`(\rho_{\max}/R)^2` carried in
 :func:`~orpheus.derivations.peierls_geometry.compute_P_esc_mode`:
 
 .. math::
@@ -3102,107 +2958,34 @@ the dimensionless factor :math:`(\rho_{\max}/R)^2` now carried in
                     \tilde P_n\!\bigl(\mu_{\rm exit}\bigr)\,
                     K_{\rm esc}(\tau)\,\mathrm d\Omega.
 
-The :math:`(\rho_{\max}/R)^2` factor is **trivially** :math:`1`
-at :math:`r = 0` in the sphere (where every ray has the same
-exit distance :math:`\rho_{\max} \equiv R`) and only matters
-off-centre. This is why the old rank-N skeleton produced
-apparently-correct mode-0 behaviour at :math:`r = 0`: the
-Jacobian factor is :math:`1` there, hiding the bug. The
-investigator's :math:`G_{\rm bc}^{(n)} = 4\,P_{\rm esc}^{(n)}`
-identity only breaks for :math:`r > 0` once the Jacobian is
-restored.
-
-**Empirical impact** (bare homogeneous 1G 1-region white-BC,
-:math:`k_\infty = 1.5`):
+The :math:`(\rho_{\max}/R)^2` factor is :math:`1` at :math:`r = 0`
+in the sphere (every ray has :math:`\rho_{\max} \equiv R`) and only
+matters off-centre. The conservation gate
+``tests/derivations/test_peierls_rank_n_conservation.py`` pins the
+identity :math:`K \cdot \mathbf 1 = \Sigma_t\,\mathbf 1` for a pure
+absorber, which the Jacobian fix preserves uniformly across
+:math:`R`.
 
 .. note::
 
-   **Retraction (2026-04-25, Issue #132).** The 1R "rank-N
-   converges" headline below is a **calibration artifact**, not
-   evidence that the rank-:math:`N` Marshak closure is correct on
-   Class B. The numerical values are reproducible — they were
-   measured correctly at the BASE preset — but they are produced by
-   a hybrid mode-0 / mode-:math:`n \ge 1` routing in
-   :func:`~orpheus.derivations.peierls_geometry.build_closure_operator`
-   (peierls_geometry.py:3618-3642) where mode 0 uses the *legacy*
-   :func:`compute_P_esc` / :func:`compute_G_bc` (no
-   :math:`(\rho_{\max}/R)^2` Jacobian) while modes :math:`n \ge 1`
-   use the *canonical* Jacobian-weighted
-   :func:`compute_P_esc_mode` / :func:`compute_G_bc_mode`. The two
-   normalisations live in **different partial-current expansion
-   spaces**. The 1R rank-2 = -1.10 % sphere result lands near
-   :math:`k_\infty` only because the legacy mode-0 was historically
-   calibrated to make rank-1 Mark approximately right, and the
-   residual error from adding a single mismatched mode-1 happens
-   to be small for this configuration. **The same closure produces
-   :math:`+57\,\%` k\ :sub:`eff` sign-flip catastrophes on Class B
-   2R configurations** (sphere 1G, fuel-A inner /
-   moderator-B outer). See
-   :ref:`peierls-rank-n-class-b-mr-mg-falsification` below for the
-   MR×MG falsification table, the Probe G LEGACY-vs-CANONICAL
-   evidence, and the Issue #132 re-derivation paths. **Do not
-   cite the 1G/1R rank-N table as evidence that the rank-:math:`N`
-   Marshak closure works on Class B.**
-
-.. list-table:: Rank-:math:`N` :math:`k_{\rm eff}` error, pre- and post-fix (1G/1R only — see retraction above)
-   :header-rows: 1
-   :widths: 10 10 15 15 15 15
-
-   * - Geom
-     - :math:`R`
-     - N=1 err
-     - N=2 pre-fix
-     - N=2 post-fix
-     - Improvement
-   * - Sphere
-     - 1 MFP
-     - 26.9 %
-     - 16 % (plateau)
-     - **1.22 %**
-     - :math:`22\times`
-   * - Sphere
-     - 10 MFP
-     - 0.28 %
-     - 6.64 % (worse!)
-     - **0.17 %**
-     - conserves
-   * - Cylinder
-     - 1 MFP
-     - 20.9 %
-     - 5.4 %
-     - **8.3 %** (worse)
-     - –
-   * - Cylinder
-     - 10 MFP
-     - 1.14 %
-     - 9.3 % (worse!)
-     - **1.06 %**
-     - conserves
-
-Sphere is the clean win **at 1R only — see the 2026-04-25 retraction
-note above**. Cylinder is partial — at thick :math:`R`
-the fix prevents the rank-N degradation observed pre-fix (rank-2
-no longer shoots up to 9.3 %), but the thin-cell rank-2 behaves
-slightly worse than the old (no-Jacobian) form because the
-cylinder's :func:`compute_G_bc_mode` still uses the 2-D projected
-:math:`\mu_{s,2D}` in the surface-centred :math:`\mathrm{Ki}_1/d`
-integrand rather than the 3-D :math:`\mu_{s,3D} = \sin\theta_p
-\cdot \mu_{s,2D}`. That 3-D upgrade (Phase C of Issue #112) is
-expected to flip the cylinder improvement too. Both observations
-are conditional on the mode-0 normalisation hack remaining in
-place, which Issue #132 (see
-:ref:`peierls-rank-n-class-b-mr-mg-falsification`) tracks for
-re-derivation.
-
-**Conservation** (the quantitative smoking gun). For a
-homogeneous pure absorber (:math:`\Sigma_s = \nu\Sigma_f = 0`)
-with uniform :math:`q = 1`, the kernel identity
-:math:`K\cdot\mathbf 1 = \Sigma_t\,\mathbf 1` must hold.
-Pre-fix: rank-N **degraded** the defect by :math:`10\times` at
-thick :math:`R`. Post-fix: rank-N **reduces** the defect
-uniformly. The
-``tests/derivations/test_peierls_rank_n_conservation.py``
-fixtures gate this explicitly.
+   **Retraction (2026-04-25, Issue #132).** The Jacobian fix is
+   the canonical mode-:math:`n \ge 1` form, but
+   :func:`build_closure_operator` still routes mode 0 through the
+   *legacy* (no-Jacobian) :func:`compute_P_esc` / :func:`compute_G_bc`
+   while modes :math:`n \ge 1` use the canonical form — the two
+   normalisations live in different partial-current expansion
+   spaces. The 1G/1R rank-N table previously shown here (sphere
+   :math:`R = 1` MFP rank-2 = -1.10 %, etc.) is a **calibration
+   artifact**, not closure convergence: the legacy mode-0 was
+   historically tuned to make rank-1 Mark approximately right, and
+   the same closure produces :math:`+57\,\%` k\ :sub:`eff`
+   sign-flip catastrophes on Class B 2R configurations. See
+   :ref:`peierls-rank-n-class-b-mr-mg-falsification` for the MR×MG
+   falsification + Probe G LEGACY-vs-CANONICAL evidence; the full
+   pre-fix/post-fix scan and the retraction debate are recorded in
+   `Issue #112 <https://github.com/deOliveira-R/ORPHEUS/issues/112>`_
+   and
+   `Issue #132 <https://github.com/deOliveira-R/ORPHEUS/issues/132>`_.
 
 
 .. _peierls-rank-n-per-face-closeout:
