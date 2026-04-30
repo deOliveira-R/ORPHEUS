@@ -3457,92 +3457,21 @@ reproduce ~1500 lines of peer-reviewed infrastructure.
 Open research (not production-blocking)
 ---------------------------------------
 
-Two paths might break the 1.42 % plateau. Both require novel
-mathematics outside the five-reference corpus. A ``research`` tag
-GitHub issue is filed against each.
+Two paths might break the 1.42 % plateau, both requiring novel
+mathematics outside the five-reference corpus:
 
-1. **Geometry-adapted Legendre basis.** Use
+1. **Geometry-adapted Legendre basis** — use
    :math:`\{\tilde P_n(\mu_{\rm emit})\}` at the outer surface and
    :math:`\{\tilde P_n(c_{\rm in}(\mu_{\rm emit}))\}` at the inner
-   surface, with the Jacobian
+   surface to diagonalise the outer→inner geometric map at the basis
+   level. Tracked in
+   `Issue #120 <https://github.com/deOliveira-R/ORPHEUS/issues/120>`_.
 
-   .. math::
-      :label: c-in-jacobian
-
-      \frac{\mathrm d c_{\rm in}}{\mathrm d \mu_{\rm emit}}
-      \;=\; \left(\frac{R}{r_0}\right)^{\!2}
-         \frac{\mu_{\rm emit}}{c_{\rm in}(\mu_{\rm emit})},
-
-   folded into the transmission integrand. This *diagonalises* the
-   outer→inner geometric map at the basis level, which the plain
-   Legendre ladder fails to do. The closure would need to reduce to
-   F.4 at :math:`N = 1` and then converge to k\ :sub:`inf` as
-   :math:`N \to \infty`. Genuinely novel — not in Ligou, Sanchez
-   2002, Stamm'ler IV, Stacey 9, or Hébert 2009.
-
-2. **Piecewise-constant angular (PCA) sectors, Sanchez 2002
-   style.** Partition each hemisphere into :math:`N_\theta \times
-   N_\phi` angular sectors and use characteristic functions as the
-   basis (Sanchez 2002 Eq. 37). Conservation is exact by
-   construction because the basis elements are indicator functions
-   and the measure is handled per-sector. Closure reduces to F.4 at
-   :math:`N_\theta \times N_\phi = 1 \times 1`. This is the angular
-   representation APOLLO2's TDT module actually uses in production
-   pin-cell solvers. Major infrastructure lift
-   (~1–2 engineering weeks) because it requires new sector data
-   structures, sector-averaged P/G/W primitives, and new
-   trajectory-tracking.
-
-Session trail
--------------
-
-The investigation spanned ~150 k tokens across three sessions on
-``investigate/peierls-solver-bugs``:
-
-- ``b9bc3df`` — measure-mismatch diagnostics (earlier hypothesis).
-- ``d890a1e`` — feat: rank-:math:`N` per-face infrastructure
-  (Lambert primitives + :math:`(2N \times 2N)` W).
-- ``ca9d68f`` — feat: Marshak partial-current per-face primitives
-  (dead code behind guard).
-- ``53fae60`` — fix: ``solve_peierls_1g`` forwards ``inner_radius``
-  to ``composite_gl_r`` (one-line pre-existing bug) + 33 MC
-  cross-check tests of :math:`W` (all pass — :math:`W` is correct).
-- ``cf6ab48`` — docs: earlier Marshak rank-:math:`N` plan
-  (superseded by four-reference synthesis).
-- ``0b0533b`` — diag: Sanchez-McCormick §III.F.1 recipe
-  investigation (60+ variants, plateaus at 1.43 %).
-- ``a2e2205`` — diag: closure characterisation + cross-:math:`\sigma_t
-  \cdot R` parameter scan.
-- ``a640a83`` — docs: four-reference synthesis (Ligou, Sanchez
-  2002, Stamm'ler IV, Stacey 9). **Headline commit.**
-- ``4a169ea`` — docs: F.4 quadrature-floor data added to close-out.
-- ``ed69a09`` — docs: next-session plan for Hébert extraction.
-- **This commit** — docs: five-reference synthesis + V-S
-  falsification + Issue #119 close-out.
-
-Diagnostic scripts in :file:`derivations/diagnostics/`:
-
-- ``diag_rank_n_W_mc_crosscheck.py`` — :math:`W_N` Monte-Carlo
-  cross-check (33 tests, all pass).
-- ``diag_rank_n_sph_marshak_primitives_sigt_zero.py`` — Marshak
-  primitive :math:`\sigma_t = 0` verification.
-- ``diag_rank_n_closure_characterization.py`` — F.4 vs Sanchez
-  :math:`\sigma_t \cdot R` scan (source of the production residual
-  table above).
-- ``diag_rank_n_sanchez_conservation_probe.py`` — structural
-  diagnosis (per-mode conservation table above).
-- ``diag_sanchez_N_convergence.py`` — Sanchez :math:`N = 1,\ldots,4`
-  plateau proof.
-- ``diag_rank_n_villarino_stammler_per_mode.py`` — V-S per-mode
-  falsification (source of the V-S table above).
-
-Memory files consulted:
-
-- :file:`.claude/agent-memory/literature-researcher/rank_n_closure_four_references_synthesis.md`
-- :file:`.claude/agent-memory/literature-researcher/hebert_2009_ch3_interface_currents.md`
-- :file:`.claude/agent-memory/literature-researcher/sanchez_mccormick_rank_n_per_face.md`
-- :file:`.claude/agent-memory/numerics-investigator/peierls_rank_n_sanchez_closure_failed.md`
-- :file:`.claude/agent-memory/numerics-investigator/peierls_villarino_stammler_per_mode.md`
+2. **Piecewise-constant angular (PCA) sectors, Sanchez 2002 style**
+   — partition each hemisphere into characteristic-function sectors
+   (APOLLO2 TDT representation). Conservation exact by construction;
+   major infrastructure lift. Tracked in
+   `Issue #121 <https://github.com/deOliveira-R/ORPHEUS/issues/121>`_.
 
 .. _peierls-rank-n-class-b-mr-mg-falsification:
 
