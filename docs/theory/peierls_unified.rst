@@ -332,17 +332,16 @@ flux / k_eff verification.
 Known infrastructure gaps:
 
 - **Multi-group parity benchmarks** vs the discrete ``cp_cylinder`` /
-  ``cp_sphere`` native 2G solvers. Issue #104 commit 2
-  (2026-04-24) added the 6 2G hollow cyl/sph reference cases above
-  and a Phase G.5 tie-back test against the native slab MG driver,
-  but the parity gate vs ``cp_cylinder`` / ``cp_sphere`` (1 %
-  target per Issue #104 AC) is deferred to a follow-up session.
+  ``cp_sphere`` native 2G solvers. The 6 2G hollow cyl/sph reference
+  cases above ship; the cross-module residual benchmark (1 % AC,
+  matching the 1G hollow class) is tracked under
+  `Issue #140 <https://github.com/deOliveira-R/ORPHEUS/issues/140>`_.
 - **Multi-region Peierls references for cylinder and sphere** (the
   ``cp_{cyl,sph}1D_{2,4}rg`` solver cases have no matching
   continuous reference). Requires either F.4-per-internal-interface
   or a different closure class.
 - **Solid cylinder / sphere rank-N DP\ :sub:`N` reference** at
-  thin R (Issue #103). Blocks registration of solid-geometry
+  thin R (Issue #103, OPEN). Blocks registration of solid-geometry
   ``peierls_{cyl,sph}1D_NeG_MrG`` matching the CP solver tests.
 
 
