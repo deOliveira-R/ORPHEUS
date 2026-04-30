@@ -2642,29 +2642,17 @@ Implemented in
 :func:`~orpheus.derivations.peierls_reference.slab_uniform_source_white_bc_analytical`.
 
 **History of the algebra bug.** Commit ``2538cfe`` shipped an
-incorrect closed form
-
-.. math::
-
-   \varphi_{\rm wrong}(x) \;=\; \tfrac{1}{2\Sigma_t}\!\left[
-     2 + (2\beta - 1)\bigl(E_2(\Sigma_t x) + E_2(\Sigma_t(L - x))\bigr)
-   \right],
-   \qquad \beta = \tfrac{1 - E_3(\tau_L)}{1 - 2 E_3(\tau_L)},
-
-derived with :math:`J^{+}(L)|_{\rm vol} = \tfrac{1}{2\Sigma_t}(1 -
-E_3(\tau_L))` — which uses the wrong antiderivative identity
-(:math:`\int E_2 \neq 1 - E_3`, it is :math:`\tfrac{1}{2} - E_3`). The
-accompanying fixed-point diagnostic agreed with the wrong formula to
-:math:`10^{-39}` because the fixed-point iteration had the *same
-bug*. The error was caught when the first-order :math:`K_{\rm bc}`
-row-sum disagreed with the published formula by a factor of
-:math:`\sim 2.2` — a concrete example of how "two independent
-derivations agreeing at 1e-39" is worthless if both share a
-factor-of-two algebra mistake. Re-derivation showed the algebraic
-simplification :math:`(\tfrac{1}{2} - E_3)/(1 - 2 E_3) = \tfrac{1}{2}`
-collapses :math:`J^{-}` to :math:`1/(4\Sigma_t)`, giving
-:math:`\varphi \equiv 1/\Sigma_t` exactly — the Wigner-Seitz
-identity for the uniform cell.
+incorrect closed form using the wrong antiderivative identity
+(:math:`\int E_2 \neq 1 - E_3`; correct is
+:math:`\tfrac{1}{2} - E_3`). The algebraic simplification
+:math:`(\tfrac{1}{2} - E_3)/(1 - 2 E_3) = \tfrac{1}{2}` collapses
+:math:`J^{-}` to :math:`1/(4 \Sigma_t)`, giving
+:math:`\varphi \equiv 1/\Sigma_t` exactly — the Wigner-Seitz identity
+for the uniform cell. **Lesson:** two independent derivations agreeing
+at :math:`10^{-39}` is worthless evidence if both share an upstream
+identity. Cataloged as **ERR-032** in
+:file:`tests/l0_error_catalog.md`; caught by ``TestSlabKernelRowSum``
+(:mod:`tests.derivations.test_peierls_reference`).
 
 **Testing leverage.** Because :math:`\varphi_{\rm white}` is spatially
 constant, it supports two precise tests of the Peierls white-BC
