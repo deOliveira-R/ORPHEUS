@@ -1279,3 +1279,180 @@ def test_specular_multibounce_slab_monotonic_high_N(thin_slab_fuelA_like_1G):
         f"(geometric-immunity claim). k_eff = {keffs[8]:.6f}, "
         f"k_inf = {k_inf:.6f}"
     )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# H. Phase-4 synthesis: per-geometry overshoot pathology characterization
+# ──────────────────────────────────────────────────────────────────────
+# The Phase-4 specular multibounce investigation (2026-04-28) established
+# the following GEOMETRIC ROOT CAUSES for the matrix-Galerkin overshoot
+# pathology:
+#
+# - Sphere:  chord(µ) = 2Rµ. At grazing µ → 0, transmission → 1; the
+#   continuous-µ resolvent 1/(1 - e^{-σ·2Rµ}) DIVERGES at µ = 0. Bare
+#   specular and specular_multibounce both overshoot k_inf at high N.
+# - Cylinder: in-plane chord d_2D(α) = 2R cos α. Resolvent BOUNDED but
+#   R = (1/2) M^{-1} ill-conditioned at high N → MB drifts past k_inf.
+# - Slab: chord(µ) = L/µ → ∞ at grazing, transmission → 0 exponentially;
+#   T is purely block off-diagonal with ρ(T·R) ≤ 0.08. Slab MB
+#   converges monotonically with N. NO OVERSHOOT, NO DIVERGENCE.
+#
+# These tests pin the per-geometry behaviour at the THIN τ = 2.5 regime
+# (the regime where the pathology is most pronounced). They serve as
+# foundation gates: any future closure modification that REMOVES the
+# pathology on sphere/cyl (i.e. yields a converging MB closure across
+# all N) is a structural change that must be reflected here.
+#
+# Promoted from `derivations/diagnostics/diag_specular_mb_phase4_07_synthesis.py`
+# (2026-04-30 triage).
+
+
+class TestSpecularMultibounceOvershootCharacterization:
+    """Phase-4 synthesis: per-geometry overshoot pathology pins.
+
+    These tests CHARACTERIZE the matrix-Galerkin overshoot at high N
+    that is fundamental to the sphere/cyl specular_multibounce closure
+    on thin cells (τ_R = 2.5). Slab is the only geometry where the
+    closure is provably bounded for all N, and its monotonic convergence
+    is gated here at extended N (16, 20).
+
+    Reuses the ``thin_sphere_fuelA_like_1G`` / ``thin_cyl_fuelA_like_1G``
+    / ``thin_slab_fuelA_like_1G`` fixtures defined above (same XS:
+    σ_t = 0.5, σ_s = 0.38, νσ_f = 0.025, R = 5 cm, k_inf = 0.208333…).
+    """
+
+    @pytest.mark.foundation
+    def test_sphere_overshoot_at_high_N(self, thin_sphere_fuelA_like_1G):
+        """Sphere MB at thin τ_R=2.5 undershoots k_inf at N=2 and
+        OVERSHOOTS at N=8.
+
+        Geometric root cause: continuous-µ resolvent 1/(1-e^{-σ·2Rµ})
+        diverges at grazing µ → 0 (transmission → 1). The matrix-Galerkin
+        truncation cannot regularise this — overshoot is unavoidable as
+        the rank grows. Any future closure change that REMOVES this
+        overshoot at N=8 represents a structural fix.
+
+        Fixed numbers from the Phase-4 synthesis (BASE quadrature):
+          - N=2: ~ -0.25 % (undershoot, single-bounce calibration limit)
+          - N=8: ~ +5.6 %  (overshoot, divergent matrix-Galerkin form)
+        """
+        fix = thin_sphere_fuelA_like_1G
+        k_inf = fix["k_inf"]
+        # N=2: must undershoot.
+        sol_2 = solve_peierls_1g(
+            SPHERE_1D, fix["radii"], fix["sig_t"], fix["sig_s"],
+            fix["nu_sig_f"], boundary="specular_multibounce", n_bc_modes=2,
+            p_order=4, n_panels_per_region=2,
+            n_angular=24, n_rho=24, n_surf_quad=24, dps=20, tol=1e-10,
+        )
+        assert sol_2.k_eff < k_inf, (
+            f"Sphere MB N=2 should undershoot: k_2={sol_2.k_eff:.6f} "
+            f"vs k_inf={k_inf:.6f}"
+        )
+        # N=8: must overshoot. Suppress the documented N>=4 UserWarning.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            sol_8 = solve_peierls_1g(
+                SPHERE_1D, fix["radii"], fix["sig_t"], fix["sig_s"],
+                fix["nu_sig_f"], boundary="specular_multibounce", n_bc_modes=8,
+                p_order=4, n_panels_per_region=2,
+                n_angular=24, n_rho=24, n_surf_quad=24, dps=20, tol=1e-10,
+            )
+        assert sol_8.k_eff > k_inf, (
+            f"Sphere MB N=8 should OVERSHOOT k_inf (continuous-µ resolvent "
+            f"divergence): k_8={sol_8.k_eff:.6f} vs k_inf={k_inf:.6f}"
+        )
+
+    @pytest.mark.foundation
+    def test_cyl_overshoot_at_high_N(self, thin_cyl_fuelA_like_1G):
+        """Cylinder MB at thin τ_R=2.5 undershoots k_inf at N=2 and
+        OVERSHOOTS at N=8.
+
+        Geometric root cause: continuous-limit resolvent BOUNDED, but
+        R = (1/2) M^{-1} grows polynomially in N → ill-conditioning
+        amplified by the (I - T·R)^{-1} geometric series. Overshoot
+        mechanism is DIFFERENT from sphere (sphere = continuous-µ
+        divergence; cyl = matrix conditioning) but the operational
+        consequence is identical.
+
+        Fixed numbers from the Phase-4 synthesis (BASE quadrature):
+          - N=2: ~ -0.17 % (undershoot)
+          - N=8: ~ +0.44 % (overshoot)
+        """
+        fix = thin_cyl_fuelA_like_1G
+        k_inf = fix["k_inf"]
+        sol_2 = solve_peierls_1g(
+            CYLINDER_1D, fix["radii"], fix["sig_t"], fix["sig_s"],
+            fix["nu_sig_f"], boundary="specular_multibounce", n_bc_modes=2,
+            p_order=4, n_panels_per_region=2,
+            n_angular=24, n_rho=24, n_surf_quad=24, dps=20, tol=1e-10,
+        )
+        assert sol_2.k_eff < k_inf, (
+            f"Cyl MB N=2 should undershoot: k_2={sol_2.k_eff:.6f} "
+            f"vs k_inf={k_inf:.6f}"
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            sol_8 = solve_peierls_1g(
+                CYLINDER_1D, fix["radii"], fix["sig_t"], fix["sig_s"],
+                fix["nu_sig_f"], boundary="specular_multibounce", n_bc_modes=8,
+                p_order=4, n_panels_per_region=2,
+                n_angular=24, n_rho=24, n_surf_quad=24, dps=20, tol=1e-10,
+            )
+        assert sol_8.k_eff > k_inf, (
+            f"Cyl MB N=8 should OVERSHOOT k_inf (R = (1/2) M^{{-1}} "
+            f"ill-conditioning): k_8={sol_8.k_eff:.6f} vs k_inf={k_inf:.6f}"
+        )
+
+    @pytest.mark.foundation
+    def test_slab_monotonic_no_overshoot_to_N20(self, thin_slab_fuelA_like_1G):
+        r"""Slab MB at thin :math:`\tau_L = 2.5` converges monotonically
+        from below to k_inf across N = 1, 2, 4, 8, 16, 20.
+
+        This is the geometric-immunity claim: slab is the ONLY
+        geometry where the matrix-Galerkin (I - T·R)^{-1} form converges
+        as N → ∞. Mechanism: chord = L/µ → ∞ at grazing µ → 0, so
+        transmission e^{-σL/µ} → 0 exponentially → T_op^slab → 0 →
+        resolvent bounded with very small spectrum (ρ(T·R) ≤ 0.08
+        across all N).
+
+        Extends ``test_specular_multibounce_slab_monotonic_high_N``
+        (which gates N = 1, 4, 8) to N = 16 and 20 — the upper-N regime
+        where the sphere/cyl matrix-Galerkin form has already diverged.
+
+        Fixed numbers from the Phase-4 synthesis (BASE quadrature):
+          - N=1:  ~ -0.168 %
+          - N=4:  ~ -0.148 %
+          - N=8:  ~ -0.100 %
+          - N=16: ~ -0.091 %
+          - N=20: ~ -0.091 %
+        """
+        fix = thin_slab_fuelA_like_1G
+        k_inf = fix["k_inf"]
+        keffs = []
+        for N in (1, 2, 4, 8, 16, 20):
+            # Slab MB never warns — geometric immunity. Promote any
+            # warning into an error to lock that property.
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", UserWarning)
+                sol = solve_peierls_1g(
+                    SLAB_POLAR_1D, fix["radii"], fix["sig_t"], fix["sig_s"],
+                    fix["nu_sig_f"], boundary="specular_multibounce", n_bc_modes=N,
+                    p_order=4, n_panels_per_region=2,
+                    n_angular=24, n_rho=24, n_surf_quad=24, dps=20, tol=1e-10,
+                )
+            keffs.append((N, sol.k_eff))
+        # No overshoot at any N.
+        for N, k in keffs:
+            assert k < k_inf, (
+                f"Slab MB N={N} OVERSHOT k_inf: k={k:.8f} vs "
+                f"k_inf={k_inf:.8f}"
+            )
+        # Monotonic toward k_inf (within numerical noise).
+        for i in range(1, len(keffs)):
+            N_prev, k_prev = keffs[i - 1]
+            N, k = keffs[i]
+            assert k >= k_prev - 1e-8, (
+                f"Slab MB non-monotonic at N={N}: k={k:.8f} < "
+                f"prev (N={N_prev})={k_prev:.8f}"
+            )

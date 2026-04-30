@@ -174,3 +174,104 @@ class TestWhiteBCEigenvalue:
         assert all(keffs[i+1] >= keffs[i] - 1e-5 for i in range(len(keffs)-1)), keffs
         # Last point within 2 % of k_inf
         assert abs(keffs[-1] - _K_INF) / _K_INF < 2e-2
+
+
+# ──────────────────────────────────────────────────────────────────────
+# NEGATIVE-regression gate: scalar Hébert (1-P_ss)⁻¹ alone is INSUFFICIENT
+# on cylinder Class B (Issue #132 WONTFIX)
+# ──────────────────────────────────────────────────────────────────────
+# Issue #132 investigated whether the Hébert (1 - P_ss^cyl)⁻¹ factor —
+# which closes the sphere Class B Mark gap to <1.5 % on 1G/1R, 2G/1R,
+# 2G/2R — could be applied to cylinder. Result: it does NOT close the
+# cylinder Mark gap (the bare Mark closure has a -22 % to -82 % error
+# on Class B 1G-2G/1R-2R cases; the patched closure inherits the same
+# error because the cylinder Mark calibration limit is upstream of the
+# geometric-series factor — most likely the ``compute_G_bc`` cylinder
+# branch's 2-D-projected-cosine limitation, which needs the 3-D
+# Knyazev correction (Issue #112 Phase C / Hypothesis 3).
+#
+# This is a NEGATIVE-regression gate: it pins that the Mark-only path
+# on cylinder Class B has a documented error in the WONTFIX range
+# (-10 % to -90 %). Any future closure improvement that closes the gap
+# below 10 % is a structural fix and must update this gate.
+#
+# The pss diagnostic that supplies the multi-region P_ss^cyl
+# integration lives in
+# ``derivations/diagnostics/diag_cylinder_hebert_pss.py`` (an
+# investigation primitive, not a diag scratchpad — kept).
+#
+# Promoted from
+# ``derivations/diagnostics/diag_cylinder_hebert_keff.py`` (2026-04-30
+# triage).
+
+
+@pytest.mark.foundation
+class TestHebertCylinderInsufficient:
+    """Cylinder Mark closure on Class B has a documented -10 % to -90 %
+    error that the Hébert (1 - P_ss)⁻¹ factor alone does NOT close.
+
+    The test is a NEGATIVE-regression gate: it asserts the gap on each
+    Class B fixture is in the published WONTFIX range. If a future
+    closure improvement reduces the gap below the lower bound, this
+    test SHOULD start failing — that is the signal the structural fix
+    has been integrated and the gate must be updated.
+    """
+
+    @pytest.mark.parametrize(
+        "ng_key,n_regions,err_min_pct,err_max_pct",
+        [
+            # Empirical numbers from 2026-04-30 triage of the keff diag:
+            # 1G/1R: -21.85 %, 1G/2R: -22.52 %, 2G/1R: -82.06 %, 2G/2R: -76.65 %.
+            # Tolerance: ±5 % around each pinned value to absorb quadrature
+            # / numerical jitter while still failing on a ≥10 % structural
+            # change in the error magnitude.
+            ("1g", 1, 16.0, 27.0),
+            ("1g", 2, 17.0, 28.0),
+            ("2g", 1, 75.0, 88.0),
+            ("2g", 2, 70.0, 83.0),
+        ],
+    )
+    def test_mark_only_cylinder_class_B_gap_in_wontfix_range(
+        self, ng_key, n_regions, err_min_pct, err_max_pct,
+    ):
+        """rank-1 Mark cylinder Class B gap stays in the documented
+        WONTFIX range (~-10 % to -90 %).
+
+        Bug it would catch: a regression that *worsens* the Mark
+        cylinder error (>err_max_pct%) — likely a sign error or
+        quadrature drift in ``compute_G_bc`` cylinder branch — OR a
+        silent structural fix that *closes* the gap below err_min_pct%
+        without updating this gate.
+        """
+        from orpheus.derivations import cp_cylinder
+        from orpheus.derivations._xs_library import LAYOUTS, get_xs
+        from orpheus.derivations.peierls_geometry import (
+            CYLINDER_1D, solve_peierls_mg,
+        )
+
+        layout = LAYOUTS[n_regions]
+        xs_list = [get_xs(region, ng_key) for region in layout]
+        sig_t = np.vstack([xs["sig_t"] for xs in xs_list])
+        sig_s = np.stack([xs["sig_s"] for xs in xs_list], axis=0)
+        nu_sig_f = np.vstack([xs["nu"] * xs["sig_f"] for xs in xs_list])
+        chi = np.vstack([xs["chi"] for xs in xs_list])
+        radii = np.array(cp_cylinder._RADII[n_regions])
+        kinf = cp_cylinder._build_case(ng_key, n_regions).k_inf
+
+        sol = solve_peierls_mg(
+            CYLINDER_1D, radii=radii, sig_t=sig_t, sig_s=sig_s,
+            nu_sig_f=nu_sig_f, chi=chi,
+            boundary="white_rank1_mark", n_bc_modes=1,
+            n_panels_per_region=2, p_order=3,
+            n_angular=24, n_rho=24, n_surf_quad=24, dps=15,
+        )
+        err_pct = abs(sol.k_eff - kinf) / kinf * 100.0
+        assert err_min_pct <= err_pct <= err_max_pct, (
+            f"Cylinder Mark Class-B {ng_key}/{n_regions}r error "
+            f"{err_pct:.3f} % outside WONTFIX range "
+            f"[{err_min_pct:.1f}, {err_max_pct:.1f}] %. "
+            f"k_eff={sol.k_eff:.6f}, k_inf={kinf:.6f}. "
+            f"If err_pct < {err_min_pct:.1f} %, a structural closure "
+            f"improvement has landed — update this gate (Issue #132 / "
+            f"#112 Phase C)."
+        )
