@@ -808,58 +808,14 @@ same ``solve_peierls_mg`` API surface.
 Subsubsection — How the 1.5 % gap was diagnosed (Issue #131)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The original Phase G.5 benchmark (recorded in commit ``aa6ebf0``)
-showed a 1.5 % disagreement on k_eff. Single-region 1G and
-single-region 2G parity tests (:class:`TestSlabPolarVsNativeE1KEff`,
-:class:`TestMGSlabPolarMatchesNativeSlabMG`) had shown 1e-8
-agreement, so the gap was specific to multi-region slab.
-
-The
-`numerics-investigator agent <https://github.com/deOliveira-R/ORPHEUS/issues/131>`_
-ran a cascade of isolation probes under
-:file:`derivations/diagnostics/diag_slab_issue131_probe_*.py`:
-
-- **Probe A** (1G 2-region vacuum) — isolated multi-region from
-  MG / closure. Already showed the gap — ruling out MG-only bugs.
-- **Probe B** (2G 2-region vacuum) — isolated from F.4 closure.
-  Gap persisted → bug is in the volume kernel, not the closure.
-- **Probe D** (multi-region P_esc quadrature) — pinned down
-  the cause: ``compute_P_esc_outer`` / ``compute_P_esc_inner`` /
-  ``compute_G_bc_outer`` / ``compute_G_bc_inner`` had separate
-  branches for ``len(radii) == 1`` (closed-form
-  :math:`\tfrac12 E_2(\tau)`) and ``len(radii) > 1`` (finite-N GL
-  over the µ-integral). The multi-region branches converged only
-  to ~4 × 10\ :sup:`-3` at N=24 — a quadrature artifact.
-
-**The fix.** For a slab with piecewise-constant
-:math:`\Sigma_t(x)`, the angular integral
-
-.. math::
-
-   P_{\rm esc}^{\rm outer}(x_i)
-     \;=\; \frac{1}{2}\!\int_0^1\!
-       \exp\!\bigl[-\tau_{\rm outer}(x_i)/\mu\bigr]\,\mathrm d\mu
-     \;=\; \frac{1}{2}\,E_2\!\bigl(\tau_{\rm outer}(x_i)\bigr),
-
-is closed-form **regardless of the number of regions**, because
-:math:`\tau_{\rm outer}(x_i) = \sum_k \Sigma_{t,k}\,
-(r_k - \max(r_{k-1}, x_i))^+` is independent of µ. The GL quadrature
-branch was therefore wasteful (and underconvergent). The fix adds
-two helpers :func:`_slab_tau_to_outer_face` and
-:func:`_slab_tau_to_inner_face` in
-:mod:`orpheus.derivations.peierls_geometry` that piecewise-integrate
-:math:`\Sigma_t` across region boundaries, and routes
-**all slab-polar calls** (any ``n_regions``) through the closed-form
-branch.
-
-**Result.** The shipped 2eg_2rg parity drops from rel_diff = 1.5 %
-to rel_diff = 5.4 × 10\ :sup:`-16` — **bit-exact to machine
-epsilon**. Same for the 1-region case (already bit-exact before,
-untouched by the fix). The parity-gate test
+`Issue #131 <https://github.com/deOliveira-R/ORPHEUS/issues/131#issuecomment-4348745846>`_
+closed the original 1.5 % multi-region gap — see the close-out comment
+for the diagnostic cascade (Probes A/B/D, the underconvergent GL
+branch, the closed-form :math:`\tfrac12 E_2(\tau)` fix). Both
+unified-vs-native paths now agree bit-exactly on the shipped fixture;
+the parity-gate test
 :class:`tests.derivations.test_peierls_multigroup.TestSlabViaUnifiedDiscrepancyDiagnostic`
-now asserts ``rel_diff < 10^{-10}`` (5 orders of margin above the
-current measurement) and flips from a diagnostic recording test
-into a regression guard.
+enforces ``rel_diff < 10^{-10}`` as a regression guard.
 
 
 Subsection — Related open questions
