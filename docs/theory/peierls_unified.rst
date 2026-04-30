@@ -3481,83 +3481,42 @@ Phase F.6 — Rank-N on Class B (solid cyl/sph) MR×MG: empirical falsification 
 Status
 ------
 
-**Issue #132 OPEN as of 2026-04-25.** This section is the empirical
-falsification of "rank-:math:`N` Marshak closure converges on Class B
-(solid cylinder, solid sphere) cells" for any cell with non-trivial
-:math:`\Sigma_t` breakpoints. The structural failure is that
+**Issue #132 OPEN as of 2026-04-25.** Rank-N Marshak closure on
+Class B (solid cyl/sph) cells with non-trivial :math:`\Sigma_t`
+breakpoints is empirically falsified:
 :func:`~orpheus.derivations.peierls_geometry.build_closure_operator`
 mixes two incompatible partial-current normalisations into the same
-rank-:math:`N` outer-product expansion (mode 0 uses one Jacobian
-convention, modes :math:`n \ge 1` use a different one). In single-region
-the calibration of mode 0 hides the mismatch — see the
-:ref:`peierls-rank-n-jacobian-section` retraction note. In
-multi-region the two normalisations decouple from the calibration
-fixed-point and the closure produces sign-flip catastrophes on the
-order of :math:`+57\,\%` in :math:`k_{\rm eff}`. Pure-canonical mode-0
-is **not a fix** — it makes the 1R results uniformly worse without
-fixing MR. Re-derivation of the rank-:math:`N` partial-current
-moment basis end-to-end is required and tracked in Issue #132.
+rank-:math:`N` outer-product expansion (mode 0 uses the legacy
+no-Jacobian convention, modes :math:`n \ge 1` use the canonical
+:math:`(\rho_{\max}/R)^2` Jacobian). 1R hides the mismatch via mode-0
+calibration; MR decouples the two normalisations from the calibration
+fixed-point and produces :math:`+57\,\%` k\ :sub:`eff` sign-flip
+catastrophes. Pure-canonical mode-0 is not a fix — it makes 1R
+uniformly worse without fixing MR.
 
-This section is the Class B sibling of the
-:ref:`peierls-rank-n-per-face-closeout` (Class A hollow rank-:math:`N`
-falsification). **Rank-:math:`N` has now been falsified on both
-topological classes for distinct reasons:**
+This is the Class B sibling of the Class A
+:ref:`peierls-rank-n-per-face-closeout`: **rank-N has now been
+falsified on both topological classes** — Class A by the
+:eq:`c-in-remapping` Legendre-basis non-diagonalisation (CLOSED
+under L21); Class B by the mode-0 / mode-:math:`n \ge 1`
+normalisation mismatch (OPEN, conditional on re-derivation per
+Issue #132). The active resolution path is the Hébert
+:math:`(1 - P_{ss})^{-1}` partial fix shipped as
+``boundary="white_hebert"`` (see :ref:`peierls-class-b-sphere-hebert`
+below).
 
-- **Class A (hollow cyl/sph)**: F.4-style per-face Marshak rank-:math:`N`
-  fails because the Legendre basis does not diagonalise the nonlinear
-  outer→inner :math:`c_{\rm in}` arrival-cosine remap
-  (:eq:`c-in-remapping`); plateau at 1.42 % under µ-ortho rank-2,
-  no further improvement under V-S correction. **Closed L21**, F.4
-  rank-2 scalar is production.
-- **Class B (solid cyl/sph)**: rank-:math:`N` *single-surface* Marshak
-  closure mixes two incompatible partial-current normalisations
-  (mode 0 vs mode :math:`n \ge 1` in
-  :func:`build_closure_operator`); +57 % sphere 1G/2R catastrophe
-  exposed only in multi-region. **OPEN under Issue #132** —
-  conditional on a corrective re-derivation, this falsification
-  may yet flip.
-
-The Class B falsification is therefore *less final* than the Class A
-falsification: a principled re-derivation of the mode-0 normalisation
-that lives in the same expansion space as mode :math:`n \ge 1`
-remains a viable path to a working rank-:math:`N` Class B closure.
-Three candidate paths are listed below.
-
-Hypothesis under test (Plan §3 H_B, Issue #131 echo)
-------------------------------------------------------
-
-The plan at
-:file:`.claude/plans/issue-100-103-rank-n-class-b-multi-region.md` §3
-hypothesised three outcomes for a multi-region × multi-group rank-:math:`N`
-sweep on Class B:
-
-- **H_A (clean extension)** — rank-:math:`N` plateaus on Class B in
-  MR×MG at the same 1G/1R floor; falsification simply extends from
-  Class A to Class B.
-- **H_B (hidden bug, Issue #131 template)** — rank-:math:`N` exhibits
-  MR×MG behaviour the 1G/1R sweep missed; probe-cascade to localise.
-- **H_C (rank-N actually beats rank-1 Mark in MR×MG)** — would
-  invalidate the 1R falsification.
-
-The investigation landed unambiguously on **H_B**. Outcome A would
-have been the strong prior (Class A had already falsified F.4-style
-rank-:math:`N` per-face; the 1G/1R Class B numbers in the docstring
-table looked superficially convincing). Outcome B was the user's
-explicit echo of the Issue #131 lesson — *single-region single-group
-passing rates are degenerate evidence*. The Issue #131 precedent on
-slab (2-region 2-group parity gap of 1.5 % invisible at 1G/1R or
-2G/1R, surfaced only at 2G/2R because the multi-region branch was a
-silently underconvergent quadrature where a closed-form integral
-existed, see :ref:`theory-peierls-slab-polar-g5-diagnosis`) primed
-the search for an analogous bug on the curvilinear side.
-
-The investigation is recorded in
-:file:`.claude/agent-memory/numerics-investigator/issue_100_class_b_mr_mg.md`
-and pinned by the L1 test suite at
+The investigation is pinned by the L1 test suite at
 :file:`tests/derivations/test_peierls_rank_n_class_b_mr_mg.py`
 (14 passing + 2 ``xfail strict=True`` regression-pinning the
 catastrophe). The L0 catalog entry is **ERR-030** in
-:file:`tests/l0_error_catalog.md`.
+:file:`tests/l0_error_catalog.md`. The probe-cascade hypothesis
+analysis (H_A / H_B / H_C from
+:file:`.claude/plans/issue-100-103-rank-n-class-b-multi-region.md`,
+landing on H_B following the Issue #131 single-region-degeneracy
+precedent at :ref:`theory-peierls-slab-polar-g5-diagnosis`) is
+recorded in
+`Issue #132 close-out
+<https://github.com/deOliveira-R/ORPHEUS/issues/132>`_.
 
 The MR×MG empirical evidence
 ----------------------------
@@ -3720,58 +3679,26 @@ floor). It is structural.
 Root cause — Probe G normalisation mismatch
 -------------------------------------------
 
-The full probe-cascade (Probes B–H, see
-:file:`derivations/diagnostics/diag_class_b_rank_n_probe_{b,c,d,e,f,g}_*.py`)
-ruled out:
+The probe-cascade (Probes B–H) localised the bug to mode-0 routing
+in :func:`build_closure_operator`. Probes B (volume-kernel MR), C
+(uniform-:math:`\Sigma_t` routing invariance — promoted to passing
+test ``test_class_b_mr_routing_invariance_uniform_sigma``), D
+(primitive convergence under quadrature refinement), E
+(conservation-defect localisation — established that uniform-
+:math:`\Sigma_t` row-sum tests are structurally blind to MR
+mismatches; this is the methodological lesson recorded in ERR-030),
+and F (per-mode K\ :sub:`bc` isolation showing mode-1 jumps
+k\ :sub:`eff` by +84 % on sphere 1G/2R) ruled out the obvious
+candidates. The full probe walkthrough is in
+`Issue #132 close-out
+<https://github.com/deOliveira-R/ORPHEUS/issues/132>`_.
 
-- **Volume kernel multi-region path** (Probe B, ``vacuum_2r``) — the
-  vacuum-BC :math:`K_{\rm vol}` MR routing is tight against the 1R
-  baseline within :math:`\sim 2 \times 10^{-4}`. The volume kernel is
-  not the bug.
-- **Routing path under uniform :math:`\Sigma_t`** (Probe C,
-  ``homogeneous_2r``, promoted to permanent passing test
-  ``test_class_b_mr_routing_invariance_uniform_sigma``) — sphere/cyl
-  with ``radii=[0.5, 1.0]`` and uniform :math:`\Sigma_t = 1` matches
-  ``radii=[1.0]`` within :math:`5 \times 10^{-3}` (Issue #114 noise
-  floor). The 2R routing path is consistent with 1R at the
-  :math:`\sim 10^{-3}` level when the :math:`\Sigma_t` profile is
-  flat — *the divergence requires a real :math:`\Sigma_t` step*.
-- **Primitive convergence under quadrature refinement** (Probe D,
-  ``primitive_quadrature``) — :func:`compute_P_esc_mode` /
-  :func:`compute_G_bc_mode` plateau at :math:`\sim 10^{-5}` under
-  ``n_angular`` refinement to 192. The primitives are essentially
-  correct; no closed-form-avoidance anti-pattern à la Issue #131.
-- **Conservation defect localisation** (Probe E,
-  ``conservation``) — per-node :math:`(K \cdot 1 - \Sigma_t)/\Sigma_t`
-  defects are 5–7 % rms in 2R-Z, but the 1R control has 9 % rms
-  defect with k\ :sub:`eff` *still right*. **The conservation defect
-  is not a strong predictor of k\ :sub:`eff` error in MR.** This is
-  important methodologically: the conservation row-sum test at
-  :file:`tests/derivations/test_peierls_rank_n_conservation.py` uses
-  uniform :math:`\Sigma_t = 1` where :math:`K \cdot \mathbf 1 = \mathbf 1`
-  holds by construction; **the test is structurally blind to MR
-  mismatches** (the identity becomes an integrated identity, not
-  pointwise, when :math:`\Sigma_t` is piecewise). The numerics-
-  investigator's initial conservation diagnostic was structurally
-  wrong for this reason; the lesson is captured in ERR-030 and
-  pinned by the new MR routing-invariance test.
-- **Per-mode K\ :sub:`bc` isolation** (Probe F,
-  ``mode_isolation``) — adding mode-1 alone to mode-0 jumps
-  k\ :sub:`eff` by **+84 %** on sphere 1G/2R (vs +35 % on the 1R
-  control). Mode-1 contribution does not scale linearly between 1R
-  and 2R — the mode-1 → mode-0 ratio depends sensitively on the
-  :math:`\Sigma_t` profile in a way that no per-mode primitive
-  could be wrong about (it would need to go wrong at *first contact*
-  with mode 1).
+Probe G (``normalization_mismatch``) is the localisation:
 
-Probe G (``normalization_mismatch``) is the localisation. It runs
-the same 1R / 2R sweep with two variants of the mode-0 routing:
-
-- **LEGACY** (production, the bug):
-  :func:`compute_P_esc` + :func:`compute_G_bc` at mode 0; no
-  :math:`(\rho_{\max}/R)^2` Jacobian. Modes :math:`n \ge 1` use
-  :func:`compute_P_esc_mode` + :func:`compute_G_bc_mode` (with
-  Jacobian).
+- **LEGACY** (production, the bug): :func:`compute_P_esc` +
+  :func:`compute_G_bc` at mode 0; no :math:`(\rho_{\max}/R)^2`
+  Jacobian. Modes :math:`n \ge 1` use the canonical Jacobian-weighted
+  :func:`compute_P_esc_mode` / :func:`compute_G_bc_mode`.
 - **CANONICAL**: :func:`compute_P_esc_mode` (n=0) +
   :func:`compute_G_bc_mode` (n=0) at mode 0, identical Jacobian-
   weighted form as modes :math:`n \ge 1`.
@@ -3790,22 +3717,19 @@ the same 1R / 2R sweep with two variants of the mode-0 routing:
      - **+56.7 %**
      - -28.0 %
 
-The CANONICAL variant produces *consistent* errors across 1R and
-2R (both plateau near -25 % to -29 % at high :math:`N`) — the
-mismatch is gone, the routing is internally consistent. **But the
-CANONICAL closure is uniformly worse**. The legacy mode-0 form is
-not a *bug* in the sense of "wrong code"; it is a *calibration*:
-the legacy :func:`compute_P_esc` was historically tuned to make the
-rank-1 Mark closure (no rank-:math:`N` involved) approximately
-right on solid cells. When summed with mode-:math:`n \ge 1` to form
-a rank-:math:`N` outer-product expansion, that calibration breaks
-the algebraic structure of the rank-:math:`N` partial-current basis
-because the two terms do not live in the same expansion space.
+CANONICAL produces *consistent* errors across 1R and 2R (both
+plateau near -25 % to -29 % at high :math:`N`) — but is uniformly
+worse. The legacy mode-0 form is a calibration, not a bug:
+:func:`compute_P_esc` was historically tuned to make rank-1 Mark
+approximately right on solid cells. Summing with mode-:math:`n \ge 1`
+into a rank-:math:`N` expansion breaks the algebraic structure
+because the two terms live in different partial-current expansion
+spaces.
 
 **Why the legacy/canonical hybrid is structurally inconsistent.**
-The Marshak partial-current moment of order :math:`n` from a uniform
-unit volumetric source at radial node :math:`r_i` is, by
-:eq:`peierls-rank-n-jacobian-derivation`,
+The canonical Marshak partial-current moment of order :math:`n`
+from a uniform unit volumetric source at radial node :math:`r_i`
+is, by :eq:`peierls-rank-n-jacobian-derivation`,
 
 .. math::
    :label: peierls-class-b-Jn-canonical
@@ -3815,51 +3739,29 @@ unit volumetric source at radial node :math:`r_i` is, by
                       \rho_{\max}^{\,2}(r_i,\Omega)\,e^{-\tau}\,
                       \mathrm d\Omega,
 
-where the surface-to-observer Jacobian
-:math:`\mathrm d A_s\,|\mu_s|\,\mathrm d\Omega_{\rm out} = d^{\,2}\,
-\mathrm d\Omega_{r_i}` (with :math:`d = \rho_{\max}`) makes
-:math:`|\mu_{\rm out}|` cancel against :math:`|\mu_s|` so that
-*every* mode :math:`n` (including :math:`n = 0`) carries the
-:math:`\rho_{\max}^{2}` weight in the observer-centred integrand.
-The legacy mode-0 :func:`compute_P_esc` *omits* this Jacobian: it
-returns the unweighted half-sphere outgoing-hemisphere integral
-:math:`\int_{2\pi^+} e^{-\tau}\,\mathrm d\Omega` divided by an
-isotropic-source escape-probability normalisation. The two integrals
-span **different sub-spaces** of the half-range partial-current
-basis — :math:`\mu`-weighted (Marshak inner product
-:math:`\langle f, g\rangle_M = \int_0^1 f g\,\mu\,\mathrm d\mu`) vs
-unweighted (Lambert inner product
-:math:`\langle f, g\rangle_L = \int_0^1 f g\,\mathrm d\mu`). The
-mismatch is exactly the Lambert / Marshak basis change documented
-for the Class A F.4 closure at
-:ref:`peierls-f4-rank-1-gauge-why` — the algebraic bridge between
-the two is a non-trivial upper-bidiagonal change-of-basis matrix
-:math:`M^{(N)}` (:eq:`peierls-M-rank-2`) which becomes a genuine
-*basis rotation* (not a scalar gauge) at :math:`N \ge 2`. F.4
-gets away with the Lambert/Marshak hybrid at rank-1 because the
-mismatch is the scalar :math:`M^{(1)} = \sqrt{2}/2` and factors out;
-the Class B legacy mode-0 / canonical mode-:math:`n \ge 1`
+so *every* mode :math:`n` (including :math:`n = 0`) carries the
+:math:`\rho_{\max}^{2}` weight. The legacy mode-0 :func:`compute_P_esc`
+omits this Jacobian — the two integrals span **different sub-spaces**
+of the half-range partial-current basis (Lambert
+:math:`\langle f, g\rangle_L = \int_0^1 f g\,\mathrm d\mu`
+unweighted vs Marshak
+:math:`\langle f, g\rangle_M = \int_0^1 f g\,\mu\,\mathrm d\mu`
+µ-weighted). This is exactly the Lambert / Marshak basis change of
+the Class A F.4 closure at :ref:`peierls-f4-rank-1-gauge-why`:
+the algebraic bridge is the upper-bidiagonal change-of-basis matrix
+:math:`M^{(N)}` (:eq:`peierls-M-rank-2`), a genuine basis rotation
+(not a scalar gauge) at :math:`N \ge 2`. F.4 gets away with the
+Lambert/Marshak hybrid at rank-1 because :math:`M^{(1)} = \sqrt{2}/2`
+factors out; Class B's legacy mode-0 / canonical mode-:math:`n \ge 1`
 hybrid does the same trick at rank-1, but at rank :math:`\ge 2`
 the basis rotation is genuine and the closure is structurally
 inconsistent.
 
-**Why pure-canonical is not the fix.** Switching mode-0 to
-:func:`compute_P_esc_mode` (n=0) makes the rank-:math:`N` expansion
-internally consistent, but the resulting closure is not the right
-closure: it converges to a wrong limit (~-25 % across all 1R and
-2R configurations at high :math:`N`). The reason is that the
-canonical Marshak partial-current basis with mode-0 weighted by
-:math:`\rho_{\max}^{2}` does not reduce to the production rank-1
-Mark closure at :math:`N = 1` — it gives a different (worse)
-single-mode closure. Pure-canonical breaks the rank-1 regression
-gate and converges to the wrong answer. **The production rank-1
-Mark closure and the canonical rank-:math:`N` Marshak closure
-disagree at :math:`N = 1`**; reconciling them requires either
-re-deriving rank-1 Mark in the canonical basis (which is not the
-shipped Mark) or re-deriving mode-:math:`n \ge 1` so that the
-:math:`N = 1` truncation is the shipped Mark, with mode-:math:`n
-\ge 1` corrections living in a basis where they compose
-consistently with that mode-0.
+**Pure-canonical is not the fix.** It converges to ~-25 % across
+all 1R and 2R configurations because the canonical mode-0 form
+does not reduce to the production rank-1 Mark closure at
+:math:`N = 1` — Mark and canonical Marshak rank-1 are genuinely
+different closures.
 
 Production decision and forward path
 ------------------------------------
@@ -3960,100 +3862,37 @@ re-derivation work:
   *wrong* choice for mode 0 of a rank-:math:`N` Marshak expansion.
   Both clients must be supported until Issue #132 lands.
 
-Diagnostic scripts in :file:`derivations/diagnostics/`:
+Diagnostic scripts live under :file:`derivations/diagnostics/` as
+``diag_class_b_rank_n_probe_*.py`` (one per probe) and
+``diag_class_b_rank_n_rich_check.py`` (the BASE↔RICH stability
+control showing the catastrophe is structural — 0.022 % shift).
 
-- ``diag_class_b_rank_n_probe.py`` — full BASE-preset rank-:math:`N`
-  sweep on sphere/cyl × {1G, 2G} × {1R, 2R} × N ∈ {1, 2, 3, 5, 8}.
-  Source of the headline tables above.
-- ``diag_class_b_rank_n_probe_b_vacuum_2r.py`` — Probe B (volume-
-  kernel routing).
-- ``diag_class_b_rank_n_probe_c_homogeneous_2r.py`` — Probe C
-  (uniform-:math:`\Sigma_t` routing invariance, promoted to passing
-  test).
-- ``diag_class_b_rank_n_probe_d_primitive_quadrature.py`` — Probe D
-  (primitive convergence under ``n_angular`` refinement).
-- ``diag_class_b_rank_n_probe_e_conservation.py`` — Probe E (per-node
-  :math:`(K \cdot 1 - \Sigma_t)/\Sigma_t` defect localisation).
-- ``diag_class_b_rank_n_probe_f_mode_isolation.py`` — Probe F
-  (per-mode K\ :sub:`bc` isolation: mode-1 alone vs mode-0+mode-1).
-- ``diag_class_b_rank_n_probe_g_normalization_mismatch.py`` — Probe G
-  (LEGACY vs CANONICAL mode-0 routing — source of the bug
-  localisation table above).
-- ``diag_class_b_rank_n_rich_check.py`` — BASE↔RICH stability of
-  the sphere 1G/2R rank-2 catastrophe (0.022 % shift,
-  confirms structural).
+L1 test pinning is at
+:file:`tests/derivations/test_peierls_rank_n_class_b_mr_mg.py`
+(14 pass + 2 ``xfail strict=True``):
+``test_class_b_mr_catastrophe_sphere_1g_2r_rank2`` and the cylinder
+analog pin the catastrophe magnitude so any future improvement (or
+regression) is detectable;
+``test_class_b_mr_routing_invariance_uniform_sigma`` is the Probe C
+permanent regression gate;
+``test_class_b_2g_2r_rank1_mark_floor_pinned`` pins the
+-77 %/-79 % 2G/2R rank-1 Mark floor.
 
-Test files (L1):
+Lesson (ERR-030)
+----------------
 
-- :file:`tests/derivations/test_peierls_rank_n_class_b_mr_mg.py`
-  (14 pass + 2 ``xfail strict=True``):
-
-  - ``test_class_b_1g_1r_reproduces_published_table`` — sanity
-    baseline against the docstring table at peierls_geometry.py
-    lines 3934-3961, ±2 percentage points.
-  - ``test_class_b_mr_routing_invariance_uniform_sigma`` — Probe C
-    promoted; 2R routing path matches 1R within :math:`5 \times
-    10^{-3}` (sphere) / :math:`2 \times 10^{-2}` (cylinder).
-  - ``test_class_b_mr_catastrophe_sphere_1g_2r_rank2`` — XFAIL
-    strict=True on Issue #132; pins the +57 % sphere catastrophe.
-  - ``test_class_b_mr_catastrophe_cylinder_1g_2r_rank2`` — XFAIL
-    strict=True on Issue #132; pins the +18 % cylinder analog.
-  - ``test_class_b_2g_2r_rank1_mark_floor_pinned`` — pins the
-    -77 %/-79 % 2G/2R rank-1 Mark floor as a regression gate.
-
-Memory and plan files:
-
-- :file:`.claude/agent-memory/numerics-investigator/issue_100_class_b_mr_mg.md`
-  — full probe-cascade walkthrough.
-- :file:`.claude/plans/issue-100-103-rank-n-class-b-multi-region.md`
-  — the closing plan (§3 hypothesis under test, §6 decision tree,
-  §7 acceptance criteria).
-- :file:`tests/l0_error_catalog.md` ERR-030 — the bug catalog
-  entry (failure-mode classification, how it hid, lesson).
-
-Lesson (recorded in ERR-030)
-----------------------------
-
-A "rank-:math:`N` converges" claim must be verified at MR×MG —
+A "rank-N converges" claim must be verified at MR×MG —
 single-region single-group passing rates are *degenerate evidence*
 because two structurally-different normalisations can produce the
-same k\ :sub:`eff` by historical calibration. For any partial-
-current-moment closure, the rank-1 → rank-2 step must hold across
-``radii=[1.0]`` AND ``radii=[0.5, 1.0]`` with non-trivial
-:math:`\Sigma_t` breakpoints. The Issue #131 anti-pattern audit
-("does the multi-region branch silently differ from the single-
-region branch?") must be performed for every closure primitive, not
-just the volume kernel. The conservation row-sum identity is *not*
-a sufficient gate when :math:`\Sigma_t` is uniform (the identity
-collapses to a tautology); it must be tested with piecewise
-:math:`\Sigma_t` to discriminate real conservation from algebraic
-self-consistency. This lesson generalises L19 (signed-error
-stability under quadrature refinement) and L21 (basis refinement
-cannot beat F.4 on Class A): on Class B, *configuration refinement*
-(MR/MG) is an additional necessary axis the L19 quadrature axis
-does not cover.
-
-Session trail
--------------
-
-This investigation spanned one session on
-``feature/rank-n-class-b-mr-mg`` (2026-04-25), following the plan
-landed at
-:file:`.claude/plans/issue-100-103-rank-n-class-b-multi-region.md`:
-
-- Probe-cascade dispatch by numerics-investigator agent through
-  Probes B–H, localising the bug to the
-  :func:`build_closure_operator` mode-0 routing.
-- Test-file landing at
-  :file:`tests/derivations/test_peierls_rank_n_class_b_mr_mg.py`
-  with two XFAIL-strict pinning tests + three passing regression
-  gates.
-- ERR-030 catalog entry.
-- Issue #132 filed (open) with the candidate fix paths.
-- This Sphinx subsection (the falsification archive).
-- Issue #132 partial resolution via the Hébert (1−P_ss)⁻¹ closure
-  shipped as ``boundary="white_hebert"`` —
-  see :ref:`peierls-class-b-sphere-hebert`.
+same k\ :sub:`eff` by historical calibration. The conservation
+row-sum identity is **not** a sufficient gate when
+:math:`\Sigma_t` is uniform (the identity collapses to a
+tautology); it must be tested with piecewise :math:`\Sigma_t` to
+discriminate real conservation from algebraic self-consistency.
+This generalises L19 (signed-error stability under quadrature
+refinement) and L21 (basis refinement cannot beat F.4 on Class A):
+on Class B, *configuration refinement* (MR/MG) is an additional
+necessary axis the L19 quadrature axis does not cover.
 
 
 .. _peierls-class-b-sphere-hebert:
