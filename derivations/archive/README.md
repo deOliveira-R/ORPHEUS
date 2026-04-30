@@ -8,14 +8,20 @@ records *why* it was removed and *when* it should come back.
 
 ```
 derivations/archive/
-├── README.md                        ← this file (the index)
-├── peierls_moments.py               ← see "Moment-form Nyström"
-├── peierls_slab_moments_assembly.py ← slab K assembly via moments
-├── peierls_cylinder_polar_assembly.py ← cylinder-polar (φ-quad)
-└── tests/
-    ├── test_peierls_moments.py            ← L0 moment-recursion gates
-    └── test_peierls_slab_moments.py       ← L1 slab moment-form K gates
+├── README.md                              ← this file (the index)
+├── peierls_moments.py                     ← see "Moment-form Nyström"
+├── peierls_slab_moments_assembly.py       ← slab K assembly via moments
+├── peierls_cylinder_polar_assembly.py     ← cylinder-polar (φ-quad)
+└── peierls_class_b_sphere_bickley_naylor.py ← see "Sphere class-B Bickley-Naylor"
 ```
+
+The `tests/` subdirectory was removed on 2026-04-30 — both
+`test_peierls_moments.py` and `test_peierls_slab_moments.py` had
+bit-rotted (orphaned imports of `orpheus.derivations.peierls_moments`
+and `slab_polar_K_vol_element` after the post-#131 consolidation in
+commit 529cdbe). When the moment-form path is revived for issue #117,
+the tests should be regenerated against the lifted module rather than
+restored from git history.
 
 ## Archive entries
 
@@ -69,3 +75,31 @@ integrated Bickley value), e.g., for higher-order angular flux
 moments at the cell surface, this is the assembly to start from.
 Otherwise, `cylinder-1d` with closed-form `ki_n_mp` is the natural
 form.
+
+### Sphere class-B Bickley-Naylor SymPy derivation — see [GitHub Issue #101](https://github.com/deOliveira-R/ORPHEUS/issues/101)
+
+**Files:**
+- `peierls_class_b_sphere_bickley_naylor.py` — first-principles
+  SymPy derivation of solid-sphere $P_\text{esc}(r)$ via the angular
+  $\theta$ form, $u = \cos\theta$ substitution, and $t = \rho$
+  recognition that lands at the closed-form $E_n$ expression.
+
+**Why archived:** Stalled investigation. The derivation reaches a
+clean closed form, but the production primitive it was meant to feed
+(`compute_P_esc_bickley` / `compute_G_bc_bickley`) was never written
+in `orpheus.derivations.peierls_geometry`. Without a Sphinx breadcrumb
+or a paired test, the file was a Cardinal Rule 1 violation
+(orphan derivation at the package root). Archived 2026-04-30 with the
+expectation that Issue #101 / #132 will revive it as the math origin
+when the sphere class-B closure is closed-out.
+
+**When to bring back:** When implementing
+`compute_P_esc_bickley(r)` and `compute_G_bc_bickley(r)` in the
+production package. The derivation is the **canonical
+specification** — the production code should import from a lifted
+`orpheus.derivations.peierls_sphere` and a paired
+`tests/derivations/test_peierls_sphere_bickley_symbolic.py` should
+verify production-vs-symbolic at machine precision (template:
+`tests/derivations/test_peierls_specular_symbolic.py`, established
+2026-04-30 as the math-origin → bifurcation pattern POC for
+issue #95).
