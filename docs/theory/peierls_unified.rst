@@ -3234,30 +3234,26 @@ the angular representation.
 
 .. _peierls-f4-rank-1-gauge-why:
 
-Why F.4 works at rank-1 but does not generalise (Direction Q, Issue #122)
--------------------------------------------------------------------------
+Why F.4 works at rank-1 but does not generalise (Issue #122 close-out)
+----------------------------------------------------------------------
 
 F.4 scalar (Eq. 3.323 of Hébert 2009) pairs **Lambert-basis**
 :math:`P_{\rm esc}, G_{bc}` (integrand has no :math:`\mu` weight on
 the outgoing side) with **Marshak-basis** :math:`W` (the transmission
 operator is defined on the :math:`\mu`-weighted half-range Gram). The
-pairing is formally inconsistent — the escape / coupling primitives
+pairing is formally inconsistent — the escape and coupling primitives
 and the transmission operator live in different inner products — yet
-it is **empirically load-bearing**: every formally-consistent rank-N
-closure we built (Marshak everywhere, Lambert everywhere, split
-c\ :sub:`in`-aware basis with adaptive scale — see
-``diag_cin_aware_split_basis_keff.py``) plateaus 10–100× above F.4's
-residual on the hollow sphere at :math:`\sigma_t R \ge 5`.
+it is empirically load-bearing: every formally-consistent rank-N
+closure built (Marshak everywhere, Lambert everywhere, c\ :sub:`in`-aware
+split basis with adaptive scale) plateaus 10–100× above F.4's residual
+on the hollow sphere at :math:`\sigma_t R \ge 5`. Issue #122 closed
+with verdict **(B)**: F.4's Lambert/Marshak asymmetry is a lucky
+rank-1 algebraic accident, with a principled re-phrasing as the
+solid-harmonic change-of-basis between the two half-range
+:math:`L^2` structures on :math:`[0, 1]`.
 
-Two sub-agent investigations closed Issue #122 with verdict **(B)**:
-**F.4's Lambert/Marshak asymmetry is a lucky rank-1 algebraic
-accident with a principled re-phrasing.** The algebraic bridge
-between F.4 and the rank-N Marshak closure is the solid-harmonic
-change-of-basis matrix between the two half-range L\ :sup:`2`
-structures on :math:`[0, 1]`.
-
-**Setup.** On the outgoing-:math:`\mu` half-line the two natural
-inner products are
+**The two natural inner products** on the outgoing-:math:`\mu`
+half-line:
 
 .. math::
    :label: peierls-half-range-inner-products
@@ -3266,49 +3262,29 @@ inner products are
    \qquad
    \langle f, g \rangle_M \;=\; \int_0^1 f(\mu)\,g(\mu)\,\mu\,\mathrm d\mu.
 
-Shifted-Legendre on :math:`[0, 1]` is orthogonal under
-:math:`\langle \cdot, \cdot \rangle_L`; F.4 uses the
-:math:`L`-orthonormal basis
-:math:`\phi_n^L(\mu) = \sqrt{2n+1}\,P_n(2\mu-1)` for its :math:`P` and
-:math:`G`. The ORPHEUS rank-N Marshak closure (helper
-``_build_closure_operator_rank_n_white``, guarded behind
+F.4 uses the :math:`L`-orthonormal basis
+:math:`\phi_n^L(\mu) = \sqrt{2n+1}\,P_n(2\mu-1)`; the rank-N Marshak
+helper ``_build_closure_operator_rank_n_white`` (guarded behind
 :exc:`NotImplementedError`) uses the :math:`M`-orthonormal basis
-:math:`\psi_n^M` obtained by Gram-Schmidt of :math:`\{1, \mu, \mu^2, \ldots\}`
-under :math:`\langle \cdot, \cdot \rangle_M` (equivalent to scaled
-Jacobi :math:`P_n^{(0,1)}(2\mu-1)`).
-
-**Change-of-basis matrix.** The matrix that expresses Lambert ONB
-functions in Marshak ONB coordinates is
+:math:`\psi_n^M`. The change-of-basis matrix between them is
 
 .. math::
    :label: peierls-change-of-basis
 
-   M_{nm} \;=\; \langle \psi_n^M, \phi_m^L \rangle_M
-          \;=\; \int_0^1 \psi_n^M(\mu)\,\phi_m^L(\mu)\,\mu\,\mathrm d\mu,
+   M_{nm} \;=\; \langle \psi_n^M, \phi_m^L \rangle_M,
    \qquad
-   \phi_m^L \;=\; \sum_n M_{nm}\,\psi_n^M.
+   B^{\mu}_{mn} \;=\; \langle \phi_m^L, \phi_n^L \rangle_M
+                \;=\; (M^{\!\top} M)_{mn}.
 
-The Marshak Gram matrix of the Lambert basis (already cited above for
-the Phase F.5 rank-N primitives),
-:math:`B^{\mu}_{mn} = \langle \phi_m^L, \phi_n^L \rangle_M`, equals
-:math:`M^{\!\top} M` identically. This is the :math:`B^{\mu}` matrix
-consumed by the existing ``_build_closure_operator_rank_n_white``
-helper.
-
-**Symbolic closed forms** (verified in
-``derivations/diagnostics/diag_lambert_marshak_basis_change.py``;
-runs in ~1 s).
-
-At rank :math:`N = 1` the change-of-basis matrix is a **scalar**
+Closed forms (verified in
+``derivations/diagnostics/diag_lambert_marshak_basis_change.py``):
 
 .. math::
    :label: peierls-M-rank-1
 
-   M^{(1)} \;=\; \tfrac{\sqrt{2}}{2} \;\approx\; 0.7071,
+   M^{(1)} \;=\; \tfrac{\sqrt{2}}{2}\;\approx\;0.7071,
    \qquad
    (B^{\mu})^{(1)} \;=\; \tfrac{1}{2}.
-
-At rank :math:`N = 2` the change-of-basis matrix is **upper bidiagonal**
 
 .. math::
    :label: peierls-M-rank-2
@@ -3325,49 +3301,17 @@ At rank :math:`N = 2` the change-of-basis matrix is **upper bidiagonal**
      \tfrac{\sqrt{3}}{6} & \tfrac{1}{2}
    \end{pmatrix}.
 
-:math:`M^{(2)}` has singular values :math:`(0.460, 0.888)`. They
-are **unequal**, so :math:`M^{(2)}` is not a scalar multiple of an
-orthogonal matrix — it is a **genuine basis rotation**, not a scalar
-gauge. The rank-3 and rank-4 change-of-basis matrices preserve this
-upper-bidiagonal structure; the sum of magnitudes of strictly-off-
-diagonal entries grows monotonically (0, 0.408, 0.855, 1.318 at
-ranks 1–4).
-
-**Implication for F.4.** At rank-1, the Lambert / Marshak mismatch is
-the scalar :math:`M^{(1)} = \sqrt{2}/2`; it factors out of the closure
-:math:`K_{bc} = G \beta (I - \beta W)^{-1} P` as a rescaling of
-:math:`\beta`. F.4's "trick" is to effectively use the Marshak-side
-:math:`\beta_{\rm eff} = \beta / (M^{(1)})^2 = 2\beta` without
-explicitly saying so. The closure-level gauge factor
-:math:`\alpha(\tau) \approx 0.38` measured in
-``diag_lambert_marshak_symbolic.py`` (see §Experiment 7 of the
-research log) is this basis-change scalar **times** the
-:math:`\exp(-\sigma R)` attenuation integrated through the ray — a
-single number, identifiable, and absorbable.
-
-At rank :math:`N \ge 2`, :math:`M` ceases to commute with any
-diagonal :math:`\operatorname{diag}(\beta_0, \beta_1, \ldots)`. There
-is **no vector** :math:`\beta_{\rm eff}` that, pre-multiplied onto the
-Marshak closure, reproduces F.4's Lambert behaviour. The off-diagonal
-entries of :math:`M` mix Lambert mode-0 into Marshak mode-1 and vice
-versa, and that mixing propagates through the closure operator
-:math:`(I - \beta W)^{-1}` with uncontrolled amplification. This is
-the algebraic origin of Experiment E2.4's rank-N Lambert-P/G
-catastrophe (33–737 % k\ :sub:`eff` error on the 6-point reference
-grid) documented in the research log.
-
-**The precise obstruction: asymmetric µ-multiplication with a
-polynomial-truncation leak.** A frame-covariant rewrite of F.4
-— conjugating the Lambert closure by :math:`M` on both sides as
-:math:`K_{bc}^{F.4} = G_L \cdot M^{\!\top}\,(I - M W_L M^{\!\top})^{-1}\,M\,P_L`
-— was tested at rank-2 and rank-3 (symbolic + mpmath, see
-``derivations/diagnostics/diag_frame_4_connection_form.py``) and
-fails: 22 % relative error at the rank-2 anchor, 48 % at rank-1,
-across 5 conjugation variants and 7 values of :math:`\sigma_t R`.
-:math:`W` is NOT a (1,1) tensor under :math:`M`; at rank-1 already
-:math:`M W_L M^{\!\top} = 0.05` versus :math:`W_M = 0.005` at
-:math:`\sigma_t R = 10`, a tenfold discrepancy. The correct
-algebraic relationship is the **asymmetric identity**
+:math:`M^{(2)}` has singular values :math:`(0.460, 0.888)` — unequal,
+so it is a genuine basis rotation, not a scalar gauge. At rank-1 the
+Lambert / Marshak mismatch is a scalar :math:`M^{(1)} = \sqrt{2}/2`
+that factors out of the closure as a rescaling of :math:`\beta`; F.4
+effectively uses :math:`\beta_{\rm eff} = 2\beta` without saying so.
+At rank :math:`N \ge 2` the off-diagonal entries of :math:`M` mix
+Lambert mode-0 into Marshak mode-1 and the closure operator
+:math:`(I - \beta W)^{-1}` amplifies the mixing — Experiment E2.4's
+rank-N Lambert-P/G catastrophe (33–737 % k\ :sub:`eff` error)
+demonstrates this empirically. The asymmetric identity at the
+transmission operator,
 
 .. math::
    :label: peierls-WM-WL-asymmetric
@@ -3376,100 +3320,48 @@ algebraic relationship is the **asymmetric identity**
    \qquad
    B^{\mu} \;=\; M^{\!\top} M,
 
-verified bit-exactly at infinite rank. At rank :math:`N`, this
-identity holds on rows :math:`0, 1, \ldots, N-2` of
-:math:`W_M - B^{\mu} W_L` (vanishing symbolically) but **row**
-:math:`N-1` **carries a non-vanishing τ-dependent polynomial-
-truncation residual** — because :math:`\mu \cdot \tilde P_{N-1}`
-has a :math:`\tilde P_N` component that the rank-:math:`N` basis
-cannot represent. Equation :math:numref:`peierls-WM-WL-asymmetric`
-is the exact statement of Lambert ↔ Marshak at the transmission
-operator; the rank-1 scalar-gauge picture of
-:math:numref:`peierls-M-rank-1` is the finite-truncation limit
-where the leaking row has empty support. This obstruction is
-structural and cannot be cured by any basis rotation on the rank-
-:math:`N` space.
-
-**Connection to the gauge-theoretic literature.** Sanchez (2014)
-NSE 177(1), DOI ``10.13182/NSE12-95``, establishes that the
-first-order :math:`P_N` equations are **degenerate** — multiple IC/BC
-closures are admissible, with uniqueness imposed via second-order-
-parity equivalence and solid-harmonic expansions that reproduce
-results originally due to Davison (1957) and Rumyantsev (1950s). The
-Sanchez theorem applies to the differential :math:`P_N` equations,
-not directly to the integral CP operator F.4 lives on, but the
-gauge-freedom framing is the right language: **at rank-1 the integral
-CP admits a scalar gauge (equation** :math:numref:`peierls-M-rank-1`
-**) that F.4 exploits**; at rank-N the "gauge" becomes a full basis
-rotation (equation
-:math:numref:`peierls-change-of-basis`) that the Marshak closure
-must account for explicitly. Canonical open-access channels to the
-underlying solid-harmonic material are Davison (1957) *Neutron
-Transport Theory* (Oxford; AEC NAA-SR-3509) and Case & Zweifel (1967)
-*Linear Transport Theory*.
-
-**Statistical-mechanical picture (partial).** The scalar gauge
-:math:`\alpha(\tau, \rho) \approx 0.38` has a partial statistical-
-mechanical interpretation via the surface Markov chain on the outer
-hemisphere: state space is outgoing :math:`\mu \in [0, 1]`; the
-transition kernel is ballistic chord through the hollow sphere
-followed by isotropic re-emission with in-shell scattering
-:math:`c = 1/3`. Direct 500 k-history Monte Carlo of this chain
-(see ``derivations/diagnostics/diag_frame_3_surface_markov_mc.py``)
-gives a Perron eigenfunction :math:`p_{\infty}(\mu)` whose moments
-are **ρ-independent to :math:`\le 1.3\,\%`** across
-:math:`\rho \in [0.3, 0.5]` at fixed :math:`\tau` — this is the
-mechanism behind the observed ρ-flatness of :math:`\alpha`. But
-:math:`p_{\infty}(\mu)` is **not Laplace-type**: an exponential
-fit :math:`A e^{-\lambda\mu} + B` leaves 7–11 % residual; the
-histogram is monotone *increasing* in :math:`\mu`, with
-:math:`\mathbb E[\mu] \approx 0.56\text{–}0.61` and
-:math:`\mathbb E[\mu^2]/\mathbb E[\mu] \approx 0.70\text{–}0.72`.
-No natural moment of :math:`p_{\infty}` identifies :math:`\alpha`
-to better than 5 % uniformly across the 6-point grid. The rank-N
-polynomial expansion of :math:`p_{\infty}` is therefore
-**basis-resistant** because :math:`p_{\infty}` is neither polynomial
-nor single-exponential — supplementing the algebraic Schur-reduction
-story (equation :math:numref:`peierls-WM-WL-asymmetric`) with an
-independent statistical obstruction. An analytical computation of
-:math:`p_{\infty}` as the left Peierls-kernel eigenvector on the
-outer surface would settle the quantitative :math:`\alpha`
-identification without MC bias; this is unresolved and listed as a
-follow-up.
+is exact at infinite rank but at rank :math:`N` carries a
+non-vanishing τ-dependent polynomial-truncation residual on row
+:math:`N-1` (because :math:`\mu \cdot \tilde P_{N-1}` has a
+:math:`\tilde P_N` component the rank-:math:`N` basis cannot
+represent). The rank-1 scalar-gauge picture of
+:math:numref:`peierls-M-rank-1` is the finite-truncation limit where
+the leaking row has empty support; it cannot be lifted to higher
+rank by any basis rotation on the rank-:math:`N` space.
 
 **Production decision.** The guard on
 ``boundary="white", n_bc_modes > 1`` stays in place. F.4 remains
-production. The rank-N Marshak primitives below are retained because
-they are tested, reciprocity-verified, and equal-to-F.4 at :math:`N=1`
-— but no principled rank-N generalisation of the Lambert-side trick
-exists. Any future rank-N white-BC closure candidate must compete
-against F.4 under the two-quadrature stability protocol (Direction N,
-Issue #123) — see L19 in the research log.
+production. Future rank-N white-BC closure candidates must compete
+under the two-quadrature stability protocol (L19, Issue #123, see
+:ref:`peierls-rank-n-stability` below).
+
+The full Issue #122 forensic — the asymmetric-µ-multiplication
+polynomial-truncation derivation across 5 conjugation variants × 7
+values of :math:`\sigma_t R`, the Sanchez 2014 NSE 177(1) gauge
+theorem connection (Davison + Rumyantsev solid-harmonic precedents),
+the partial statistical-mechanical picture of the surface Markov
+chain (Perron eigenfunction :math:`p_\infty(\mu)` ρ-independent to
+≤1.3 %, non-Laplace, basis-resistant), and the Stepanek 1981
+calibration plan — is in
+`Issue #122 close-out
+<https://github.com/deOliveira-R/ORPHEUS/issues/122#issuecomment-4348745355>`_.
 
 .. _peierls-rank-n-stability:
 
-Rank-N stability protocol (L19)
---------------------------------
+Rank-N stability protocol (L19, tracked in Issue #123)
+------------------------------------------------------
 
 A rank-N white-BC closure candidate :math:`C` claims to beat F.4 at a
 reference point :math:`(\tau, \rho)` if and only if the claim survives
-the **two-quadrature signed-error stability protocol** defined here.
-This protocol is the operational response to lessons L17–L19 in
-``.claude/plans/rank-n-closure-research-log.md``: RICH = (4, 8, 64) is
-below F.4's own structural floor at :math:`\sigma_t R \ge 10`, so a
+the **two-quadrature signed-error stability protocol**: RICH = (4, 8, 64)
+is below F.4's own structural floor at :math:`\sigma_t R \ge 10`, so a
 naive single-quadrature comparison rewards quadrature-noise cancellation
-rather than truncation-residual reduction.
-
-**Protocol.** Let :math:`\mathcal Q = (q_1, q_2, \ldots, q_K)`,
-:math:`K \ge 2`, be a sequence of quadrature triples
-:math:`(n_{\rm panels}, p_{\rm order}, n_{\rm ang})` of monotonically
-increasing refinement (lexicographic in any component). Let
-:math:`e_C(q_k)` and :math:`e_{F.4}(q_k)` denote the **signed** relative
-errors :math:`(k_{\rm eff}^{C/F.4}(q_k) - k_\infty)/k_\infty` at each
-quadrature.
-
-The candidate :math:`C` is a **structural win** over F.4 at
-:math:`(\tau, \rho)` iff all five of the following hold:
+rather than truncation-residual reduction. Let
+:math:`\mathcal Q = (q_1, \ldots, q_K)`, :math:`K \ge 2`, be a sequence
+of quadrature triples of monotonically increasing refinement, and
+:math:`e_C(q_k)`, :math:`e_{F.4}(q_k)` the **signed** relative errors
+:math:`(k_{\rm eff} - k_\infty)/k_\infty`. The candidate is a
+**structural win** iff:
 
 .. math::
    :label: peierls-rank-n-stability
@@ -3477,71 +3369,46 @@ The candidate :math:`C` is a **structural win** over F.4 at
    \begin{aligned}
    & \textbf{(S1)} \quad K \ge 2, \\
    & \textbf{(S2)} \quad |e_C(q_k)| \;<\; |e_{F.4}(q_k)|
-       \quad \text{for every } k, \\
+       \quad \forall k, \\
    & \textbf{(S3)} \quad \operatorname{sign}\,e_C(q_k) \;=\; \operatorname{sign}\,e_C(q_{k+1})
-       \quad \text{for every } k, \\
+       \quad \forall k, \\
    & \textbf{(S4)} \quad |e_C(q_k)| \;\ge\; |e_C(q_{k+1})|
-       \quad \text{for every } k, \\
+       \quad \forall k, \\
    & \textbf{(S5)} \quad \operatorname{sign}\,e_{F.4}(q_k)
        \;=\; \operatorname{sign}\,e_{F.4}(q_{k+1})
      \; \wedge \; |e_{F.4}(q_k)| \;\ge\; |e_{F.4}(q_{k+1})|
-       \quad \text{for every } k.
+       \quad \forall k.
    \end{aligned}
 
-Assertion **(S5)** is the L17/L19 reference-verifiability gate: if
-F.4 itself sign-flips or grows in magnitude under refinement at
+Assertion **(S5)** is the L17/L19 reference-verifiability gate: if F.4
+itself sign-flips or grows in magnitude under refinement at
 :math:`(\tau, \rho)`, the *reference* is unverifiable at
 :math:`\mathcal Q` and no rank-N comparison there is admissible.
-This is strictly stronger than L16's "match quadrature across
-compared closures" — it additionally demands that the match resolves
-the smaller structural floor.
 
-**Implementation.** The helper
+The helper
 ``tests.cp.test_peierls_rank_n_protocol.assert_rank_n_structural_win``
 raises :exc:`AssertionError` on any of S1–S5 failing and returns a
-``StabilityReport`` dataclass with the full signed-error trajectory
-otherwise. The helper ships with pinning tests for the RICH vs
-RICH+panels pair at the six reference points
-:math:`(\sigma_t R, \rho) \in \{5, 10, 20\} \times \{0.3, 0.5\}`;
-two of those six (:math:`\sigma_t R = 10, \rho = 0.3` and
-:math:`\sigma_t R = 20, \rho = 0.5`) reproduce the canonical L17
-sign-flip of F.4 itself and are tagged ``@pytest.mark.slow``.
+``StabilityReport`` with the full signed-error trajectory; pinning
+tests cover six reference points
+:math:`(\sigma_t R, \rho) \in \{5, 10, 20\} \times \{0.3, 0.5\}`,
+two of which reproduce the canonical L17 sign-flip of F.4 itself
+(``@pytest.mark.slow``).
 
-A baseline of F.4 at ULTRA = (5, 10, 96) and richer at all six points
-— the reference that would make :math:`\mathcal Q` trivially
-L19-compliant without needing S5 — is currently **unresolved** on the
-devcontainer hardware used during Issue #123 development: ULTRA and
-RICH+pp exceeded the 120-s-per-point budget at every point tested.
-Resolving the full ULTRA baseline requires either richer hardware or
-a relaxed wall budget (target: :math:`\ge` 300 s per point at
-:math:`\sigma_t R = 20`). See L20 in the research log.
+The protocol is tracked in
+`Issue #123 <https://github.com/deOliveira-R/ORPHEUS/issues/123>`_
+(OPEN). Open work items recorded in
+`#123 close-out
+<https://github.com/deOliveira-R/ORPHEUS/issues/123#issuecomment-4348745506>`_:
 
-**Randomized QMC alternative (validated 2026-04-22).** The product-
-Gauss bias that produces L17 sign flips is driven by the tangent-
-angle kink in the exp(−τd) integrand, whose Hardy-Krause variation
-is *bounded in* :math:`\tau`. Owen-scrambled Sobol' on the angular
-dimension (32 scrambles × 4096 points) gives 95 % bootstrap CI
-widths of :math:`6 \times 10^{-5}` to :math:`6 \times 10^{-4}` per
-cent on F.4 at all six reference points — 20–100× tighter than the
-PG RICH vs RICH+panels spread the L19 protocol uses to *detect*
-instability. Both L17 sign-flip points
-(:math:`\sigma_t R = 10, \rho = 0.3` and
-:math:`\sigma_t R = 20, \rho = 0.5`) resolve to crisp negative
-QMC means whose CIs do not cross zero. See
-``derivations/diagnostics/diag_f4_qmc_quadrature.py`` and the
-Frame 5 memo. A future rank-N closure candidate can therefore
-replace the S3–S4 gates of :math:numref:`peierls-rank-n-stability`
-by a **single CI-separation assertion**:
-
-   closure mean, F.4 mean with disjoint 95 % CIs, AND closure CI
-   strictly tighter than :math:`|{\text{F.4 mean}}|`.
-
-The thin wrapper ``assert_rank_n_qmc_structural_win(closure, f4,
-point, N=4096, n_scrambles=32)`` implementing this is sketched in
-the Frame 5 memo; not shipped because no current closure passes
-Frame 5. Issue #128 tracks the optional migration of F.4 production
-quadrature from product-Gauss to randomized QMC; LOW priority, not
-on the critical path.
+- ULTRA = (5, 10, 96) baseline at all six reference points is
+  unresolved on the devcontainer hardware (>120 s / point budget).
+- Owen-scrambled Sobol' on the angular dimension (32 × 4096) gives
+  95 % bootstrap CI widths 20–100× tighter than PG RICH vs
+  RICH+panels and resolves both L17 sign-flip points to crisp
+  negative QMC means; a candidate-vs-F.4 CI-separation assertion
+  could replace the S3–S4 gates. Issue #128 tracks the optional
+  migration of F.4 production quadrature from product-Gauss to
+  randomized QMC (LOW priority).
 
 .. _peierls-f5-infrastructure-retained:
 
