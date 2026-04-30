@@ -4164,7 +4164,7 @@ The cylinder rank-1 Mark closure historically used a surface-centric
      - 0.9997
 
 The corrected 3-D form, derived via SymPy in
-``scratch/derivations/peierls_cylinder_g_bc_3d_derivation.py``, is the
+:mod:`orpheus.derivations.peierls_cylinder_g_bc_3d`, is the
 observer-centric integral
 
 .. math::
@@ -4219,7 +4219,8 @@ Probes:
 ``scratch/derivations/diagnostics/diag_cylinder_hebert_{pss,keff,diagnose_residual}.py``,
 ``diag_cylinder_g_bc_3d_patched_test.py``;
 derivation:
-``scratch/derivations/peierls_cylinder_g_bc_3d_derivation.py``;
+:mod:`orpheus.derivations.peierls_cylinder_g_bc_3d` (pinned by
+``tests/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py``);
 memory:
 :file:`.claude/agent-memory/numerics-investigator/issue_132_cylinder_hebert.md`.
 
@@ -4624,8 +4625,10 @@ Note that the cylinder rank-1 specular (-0.31 %) is much closer to
 Consequently rank-1 specular cylinder ≡ rank-1 Hébert cylinder for
 homogeneous (both -0.16 %--0.31 %).
 
-See ``scratch/derivations/peierls_cylinder_3d_mode_n.py`` for the full SymPy
-derivation and verification of the Knyazev expansion.
+See :mod:`orpheus.derivations.peierls_cylinder_knyazev` for the full
+SymPy derivation and verification of the Knyazev expansion; the
+contract is pinned by
+``tests/derivations/test_peierls_cylinder_knyazev_symbolic.py``.
 
 Convergence — homogeneous slab (per-face block-diagonal closure)
 ----------------------------------------------------------------
@@ -4734,9 +4737,12 @@ Verification on the homogeneous fuel-A slab (1G, :math:`L =
 Monotonic improvement; rank-1 bit-equals Mark legacy in the
 dominant eigenvalue.
 
-See ``scratch/derivations/peierls_specular_slab.py`` for the SymPy
-derivation and the ``test_slab_mark_decomposes_into_four_per_face_blocks``
-test for the algebraic identity locking the per-face decomposition.
+See :mod:`orpheus.derivations.peierls_specular.slab` for the SymPy
+derivation and ``tests/derivations/test_peierls_specular_slab_symbolic.py``
+for the math-origin contract; the
+``test_slab_mark_decomposes_into_four_per_face_blocks`` test (in
+``tests/derivations/test_peierls_specular_bc.py``) covers the
+algebraic identity locking the per-face decomposition end-to-end.
 
 Verification posture
 --------------------
@@ -5210,8 +5216,10 @@ multi-bounce specular at all three geometries. The
 ``closure="specular_multibounce"``; the reference implementation
 :func:`compute_K_bc_specular_continuous_mu_sphere` is preserved
 because the SymPy 4/4 verifications in
-:file:`scratch/derivations/peierls_specular_continuous_mu.py` pass against
-Sanchez 1986 [SanchezTTSP1986]_ Eq. (A6), but the Sanchez↔ORPHEUS
+:mod:`orpheus.derivations.peierls_specular.continuous_mu` pass against
+Sanchez 1986 [SanchezTTSP1986]_ Eq. (A6) (pinned by
+``tests/derivations/test_peierls_specular_continuous_mu_symbolic.py``),
+but the Sanchez↔ORPHEUS
 Jacobian conversion and the diagonal singularity remain open.
 
 **Useful side-finding** (portable): the chord/visibility-cone

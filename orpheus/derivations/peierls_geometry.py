@@ -1766,7 +1766,9 @@ def compute_G_bc_cylinder_3d(
     for the in-plane chord traversal across annular boundaries).
 
     Reference: derived in
-    ``derivations/peierls_cylinder_g_bc_3d_derivation.py``.
+    :mod:`orpheus.derivations.peierls_cylinder_g_bc_3d`; the math-origin
+    contract is pinned by
+    ``tests/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py``.
     """
     if geometry.kind != "cylinder-1d":
         raise ValueError(
@@ -1967,8 +1969,9 @@ def compute_P_esc_cylinder_3d_mode(
     survives, and this reduces exactly to :func:`compute_P_esc`
     (cylinder branch). Used by ``boundary="specular"`` for cylinder.
 
-    See ``derivations/peierls_cylinder_3d_mode_n.py`` for the SymPy
-    derivation.
+    See :mod:`orpheus.derivations.peierls_cylinder_knyazev` for the
+    SymPy derivation; the math-origin contract is pinned by
+    ``tests/derivations/test_peierls_cylinder_knyazev_symbolic.py``.
     """
     if geometry.kind != "cylinder-1d":
         raise ValueError(
@@ -2022,7 +2025,8 @@ def compute_G_bc_cylinder_3d_mode(
     factor of 4 arises from the inward-distribution convention
     :math:`\psi^{-}(\mu) = (b_n/\pi)\,\tilde P_n(\mu)` integrated over
     the full inward 4π solid angle (see SymPy derivation in
-    ``derivations/peierls_cylinder_3d_mode_n.py``).
+    :mod:`orpheus.derivations.peierls_cylinder_knyazev`; pinned by
+    ``tests/derivations/test_peierls_cylinder_knyazev_symbolic.py``).
 
     For :math:`n = 0`: :math:`c_0^0 = 1`, only the :math:`k = 0` term
     survives, and this reduces exactly to
@@ -2677,7 +2681,9 @@ def compute_K_bc_specular_continuous_mu_sphere(
     :math:`2 \cosh(\Sigma r_i \mu)\,e^{-\Sigma r_i \mu} \cdot
     \cosh(\Sigma r_j \mu_*)\,e^{-\Sigma r_j \mu} \cdot \mu_*^{-1} \cdot
     T(\mu)` (no extra :math:`\mu` in numerator) — see
-    :file:`derivations/peierls_specular_continuous_mu.py` (V2).
+    :mod:`orpheus.derivations.peierls_specular.continuous_mu` (V2);
+    pinned by
+    ``tests/derivations/test_peierls_specular_continuous_mu_symbolic.py``.
 
     **Why this fixes the Phase 4 pathology**. The integrand at
     :math:`\mu \to 0` has a removable simple pole: :math:`T(\mu) \sim
@@ -2727,8 +2733,9 @@ def compute_K_bc_specular_continuous_mu_sphere(
     compute_T_specular_sphere : the Phase 4 matrix-Galerkin variant that
         diverges at high rank N. This function bypasses the matrix
         inverse entirely.
-    derivations/peierls_specular_continuous_mu.py : SymPy verification
-        of Eq. (A6) and the µ-weight convention question.
+    orpheus.derivations.peierls_specular.continuous_mu : SymPy verification
+        of Eq. (A6) and the µ-weight convention question. Pinned by
+        ``tests/derivations/test_peierls_specular_continuous_mu_symbolic.py``.
     """
     radii = np.asarray(radii, dtype=float)
     sig_t = np.asarray(sig_t, dtype=float)
@@ -6170,7 +6177,7 @@ def _build_full_K_per_group(
         #   (R1 Front A falsified, B partial, C failed → recommended M2)
         # - `.claude/agent-memory/numerics-investigator/specular_continuous_mu_phase5a_closeout.md`
         #   (Phase 5a baseline that started the investigation)
-        # - `derivations/peierls_specular_continuous_mu.py`
+        # - :mod:`orpheus.derivations.peierls_specular.continuous_mu`
         #   (4 SymPy verifications PASS — math is correct, but
         #   discretisation is fundamentally not Nyström-compatible)
         # - GitHub Issue #133 (Phase 5+ tracking — closing as wontfix

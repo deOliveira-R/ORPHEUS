@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1284**
+Total tests collected: **1325**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 585, 45.6%
-   L1, 357, 27.8%
-   L2, 36, 2.8%
+   L0, 585, 44.2%
+   L1, 394, 29.7%
+   L2, 36, 2.7%
    L3, 0, 0.0%
-   foundation, 295, 23.0%
-   unmarked, 11, 0.9%
+   foundation, 299, 22.6%
+   unmarked, 11, 0.8%
 
 Tagging source
 --------------
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1194
+   explicit, 1235
    verify, 0
    class-name, 46
    func-name, 0
@@ -66,7 +66,9 @@ Module × level grid
    derivations/test_peierls_closure_operator, 0, 0, 0, 0, 48, 0
    derivations/test_peierls_convergence, 5, 0, 0, 0, 0, 0
    derivations/test_peierls_cylinder_eigenvalue, 3, 5, 0, 0, 0, 0
+   derivations/test_peierls_cylinder_g_bc_3d_symbolic, 0, 5, 0, 0, 0, 0
    derivations/test_peierls_cylinder_geometry, 10, 0, 0, 0, 0, 0
+   derivations/test_peierls_cylinder_knyazev_symbolic, 0, 22, 0, 0, 0, 0
    derivations/test_peierls_cylinder_multi_region, 7, 0, 0, 0, 3, 0
    derivations/test_peierls_cylinder_prefactor, 4, 0, 0, 0, 0, 0
    derivations/test_peierls_cylinder_white_bc, 4, 3, 0, 0, 4, 0
@@ -80,6 +82,8 @@ Module × level grid
    derivations/test_peierls_reference, 40, 25, 0, 0, 16, 0
    derivations/test_peierls_slab_legacy_aggregate, 0, 0, 0, 0, 4, 0
    derivations/test_peierls_specular_bc, 0, 0, 0, 0, 27, 0
+   derivations/test_peierls_specular_continuous_mu_symbolic, 0, 0, 0, 0, 4, 0
+   derivations/test_peierls_specular_slab_symbolic, 0, 10, 0, 0, 0, 0
    derivations/test_peierls_specular_symbolic, 0, 18, 0, 0, 0, 0
    derivations/test_peierls_sphere_eigenvalue, 0, 4, 0, 0, 0, 0
    derivations/test_peierls_sphere_geometry, 21, 0, 0, 0, 0, 0
@@ -189,15 +193,16 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``transport-cylindrical``, 26
    ``azimuthal-angles``, 24
    ``dc-slab``, 24
+   ``peierls-specular-bc-defn``, 24
    ``second-diff-cyl``, 24
    ``second-diff-sph``, 24
    ``effective-spacing``, 22
+   ``peierls-cyl-3d-mode-formula``, 22
    ``pitch-recovery``, 22
    ``ray-circle``, 22
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
    ``peierls-rank-n-stability``, 20
-   ``peierls-specular-bc-defn``, 18
    ``dd-cartesian-1d``, 17
    ``direction-sampling``, 16
    ``fission-weight``, 16
@@ -248,6 +253,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``kin-kernel-special-values``, 6
    ``cp-outer-integral-antiderivative``, 5
    ``en-kernel-special-values``, 5
+   ``peierls-cyl-Gbc-3d-final``, 5
    ``xs-interp``, 5
    ``absorption-xs``, 4
    ``dd-cartesian-2d``, 4
@@ -273,6 +279,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``number-density``, 3
    ``sigma-zero``, 3
    ``cp-second-difference-operator``, 2
+   ``peierls-slab-Gbc-mode``, 2
+   ``peierls-slab-Pesc-mode``, 2
    ``richardson-diffusion``, 2
    ``roulette-restore``, 2
    ``sn-case-back-substitution``, 2
@@ -304,7 +312,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **42** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **38** of the testable equations found on theory pages are orphan.
 
 - ``c-in-remapping``
 - ``e1-decomposition``
@@ -317,8 +325,6 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``peierls-class-b-Jn-canonical``
 - ``peierls-class-b-Pss-homogeneous``
 - ``peierls-class-b-hebert-closure``
-- ``peierls-cyl-3d-mode-formula``
-- ``peierls-cyl-Gbc-3d-final``
 - ``peierls-cyl-Pss-derivation``
 - ``peierls-factored-kernel``
 - ``peierls-half-range-inner-products``
@@ -327,8 +333,6 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``peierls-operator-form``
 - ``peierls-rank-n-P-esc-moment``
 - ``peierls-rank-n-jacobian-derivation``
-- ``peierls-slab-Gbc-mode``
-- ``peierls-slab-Pesc-mode``
 - ``peierls-slab-polar``
 - ``peierls-specular-M-tridiagonal``
 - ``peierls-specular-R-formula``

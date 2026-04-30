@@ -1,8 +1,15 @@
-"""SymPy derivation of the Phase 5 continuous-µ multi-bounce specular kernel.
+r"""SymPy derivation of the Phase 5 continuous-:math:`\mu`
+multi-bounce specular kernel.
 
-Created by Claude Opus 4.7, 2026-04-28, as the Phase-5a step-1 R1 mitigation
-per `.claude/plans/specular-bc-phase4-multibounce-rollout.md` §10 and the
-approved Phase 5 plan (Sanchez 1986 TTSP DOI 10.1080/00411458608210456).
+This module is the **math origin** for
+:func:`compute_K_bc_specular_continuous_mu_sphere` in
+:mod:`peierls_geometry`. It pins the Sanchez 1986 [SanchezTTSP1986]_
+Eq. (A6) ↔ ORPHEUS M1 sketch equivalence (the µ-weight convention
+question that R1 closure required) and the diagonal-singularity
+finding that blocks production wiring of
+``boundary="specular_continuous_mu"`` (the closure raises
+:class:`NotImplementedError`; production multi-bounce specular uses
+``closure="specular_multibounce"`` instead — see Issue #133 close-out).
 
 Purpose
 -------
@@ -96,12 +103,11 @@ V3. **Vacuum-BC reduction**: prove that taking :math:`\\alpha \\to 0` in
 Output
 ------
 
-The script prints PASS/FAIL for each verification and exits 0 if all pass,
-1 if any fails. Designed to be run as a one-shot script:
-
-.. code-block:: bash
-
-    python scratch/derivations/peierls_specular_continuous_mu.py
+Each ``derive_*`` function returns a dict with the SymPy expressions
+and a ``pass`` flag for the corresponding verification. The pytest
+gate in ``tests/derivations/test_peierls_specular_continuous_mu_symbolic.py``
+asserts the four dicts are pass-True and bit-checks the load-bearing
+identities (V1, V2, V3 gating; V4 documentary).
 
 If V1/V2 PASS the production implementation in
 ``compute_K_bc_specular_continuous_mu_sphere`` (peierls_geometry.py) can
@@ -120,8 +126,6 @@ References
 - ``.claude/agent-memory/numerics-investigator/specular_mb_overshoot_root_cause.md``
 """
 from __future__ import annotations
-
-import sys
 
 import sympy as sp
 
@@ -415,85 +419,3 @@ def derive_vacuum_reduction() -> dict:
     }
 
 
-def main() -> int:
-    """Run all three verifications and report PASS/FAIL."""
-    print("=" * 72)
-    print("Phase 5 SymPy verification: Sanchez 1986 Eq. (A6) ↔ M1 sketch")
-    print("=" * 72)
-
-    results = [
-        derive_multi_bounce_factor(),
-        derive_m1_equivalence(),
-        derive_vacuum_reduction(),
-        derive_diagonal_singularity(),
-    ]
-
-    n_pass = 0
-    for r in results:
-        status = "✅ PASS" if r["pass"] else "❌ FAIL"
-        print(f"\n{status}  {r['name']}")
-        if r["name"].startswith("V1"):
-            print(f"  T(µ)            = {r['expr_T']}")
-            print(f"  µ·T(µ)          = {r['expr_muT']}")
-            print(f"  lim_{{µ→0+}} µ·T(µ) = {r['limit']}")
-            print(f"  expected        = {r['expected']}")
-        elif r["name"].startswith("V2"):
-            print(f"  I_sanchez(µ)     = {sp.simplify(r['I_sanchez'])}")
-            print(f"  I_M1_naive(µ)    = {sp.simplify(r['I_M1_naive'])}")
-            print(f"  ratio I_S/I_M1   = {r['ratio_naive']}  "
-                  f"(should be 1/µ if M1 has wrong µ in numerator)")
-            print(f"  I_M1_corrected   = {sp.simplify(r['I_M1_corrected'])}")
-            print(f"  diff_corrected   = {r['diff_corrected']}  "
-                  f"(should be 0)")
-            print(f"  Verdict: {r['verdict']}")
-        elif r["name"].startswith("V3"):
-            print(f"  prefactor       = {r['prefactor']}")
-            print(f"  lim_{{α→0}} prefactor = {r['limit_alpha_zero']}")
-        elif r["name"].startswith("V4"):
-            print(f"  Integrand at diagonal ρ'=ρ:")
-            print(f"    {r['integrand_diag_form']}")
-            print(f"  Leading order at µ → 0:")
-            print(f"    {r['leading_at_mu_zero']}")
-            print(f"  Verdict: {r['verdict']}")
-        if r["pass"]:
-            n_pass += 1
-
-    print("\n" + "=" * 72)
-    print(f"RESULT: {n_pass}/4 verifications PASS")
-    print("=" * 72)
-
-    if n_pass < 4:
-        print(
-            "\n❌ Production implementation must NOT proceed until all "
-            "verifications pass. Re-derive before coding."
-        )
-        return 1
-
-    print(
-        "\n✅ Phase 5a algebraic foundation verified. Sanchez 1986 Eq. "
-        "(A6) is the textbook continuous-µ multi-bounce specular "
-        "kernel for homogeneous sphere. Reference implementation lives "
-        "at `compute_K_bc_specular_continuous_mu_sphere` in "
-        "peierls_geometry.py.\n"
-    )
-    print(
-        "⚠️  Phase 5+ open: production wiring blocked by"
-    )
-    print(
-        "    (1) diagonal singularity (V4): non-integrable 1/µ² at "
-        "surface ρ=a; integrable 1/µ logarithmic at interior diagonals."
-    )
-    print(
-        "    (2) Sanchez ↔ ORPHEUS K_ij Jacobian conversion: Sanchez's "
-        "g_h has 4π ρ'² baked in via Eq. (2); ORPHEUS uses explicit "
-        "rv·r_wts. Conversion factor not closed-form."
-    )
-    print(
-        "\n    See Phase 5+ ticket for the production wiring plan."
-    )
-
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

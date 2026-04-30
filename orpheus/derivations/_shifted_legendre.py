@@ -13,10 +13,11 @@ These coefficients are used by:
 - :func:`peierls_geometry.compute_P_esc_*_mode` and friends — the
   rank-:math:`N` Knyazev :math:`\mathrm{Ki}_{2+k}` and :math:`E_{n+2}`
   expansions in cylinder and slab geometries.
-- The root-level SymPy derivation scripts in :file:`derivations/`
-  (``peierls_specular_slab.py``, ``peierls_cylinder_3d_mode_n.py``)
-  which retain local copies for now (Issue #95 sub-tasks track lifting
-  those root scripts into the package).
+- The lifted SymPy derivation modules
+  :mod:`orpheus.derivations.peierls_cylinder_knyazev` and
+  :mod:`orpheus.derivations.peierls_specular.slab` consume this same
+  canonical coefficient source (the workbench duplicates were
+  removed when those scripts were lifted into the package).
 
 Implementation
 --------------
@@ -28,12 +29,15 @@ expands :math:`(2\mu - 1)^j` binomially. This avoids SymPy at runtime
 inside the angular-quadrature loop) while remaining bit-exact for
 :math:`n \lesssim 20` in float64.
 
-The two SymPy-based variants in the root derivation files
-(``peierls_specular_slab.py``, ``peierls_cylinder_3d_mode_n.py``) compute
-the same coefficients via :func:`sympy.legendre` + :func:`sympy.Poly`;
-they are used in self-contained derivation scripts and are kept
-duplicated until those scripts are lifted into the package
-(Issue #95 sub-tasks).
+Historical note: prior to the workbench-to-package lift, the
+``peierls_specular_slab.py`` and ``peierls_cylinder_3d_mode_n.py``
+derivation scripts in ``scratch/derivations/`` carried duplicate
+SymPy-based copies of these coefficients (computed via
+:func:`sympy.legendre` + :func:`sympy.Poly`). Those duplicates were
+removed when the scripts were lifted to
+:mod:`orpheus.derivations.peierls_specular.slab` and
+:mod:`orpheus.derivations.peierls_cylinder_knyazev` respectively;
+the lifted modules now import this canonical implementation directly.
 """
 
 from __future__ import annotations
