@@ -5308,8 +5308,7 @@ product-integration weights, and the rank-2 white-BC closure. The
 test depth is comparable; the evidence table is deliberately
 not reproduced here since the geometry is specific.
 
-The sphere Peierls reference **is shipped** (Phase-4.3; commits
-``435c0b3``, ``9d03948``, ``cad2f0b``). The three-checks pattern —
+The sphere Peierls reference **is shipped**. The three-checks pattern —
 row-sum, vacuum-BC leakage limit, CP cross-check — transfers
 verbatim:
 
@@ -5882,13 +5881,11 @@ without specialising :math:`F_1` to :math:`E_1`, :math:`\mathrm{Ki}_1`,
 or :math:`e^{-\tau}`, which is the strongest possible form of the
 claim that the operator is geometry-invariant.
 
-For Phase B.3, the same SymPy script will be lifted into a proper
-``derivations/cp_geometry.py`` derivation module (with a
-``derive_second_difference()`` function returning the SymPy
-expression tree) and a test case
-``test_second_difference_operator_is_geometry_invariant`` will
-exercise the symbolic claim at L1. Today the verification is
-documented but not automated.
+Future: lift the SymPy snippet into
+:func:`orpheus.derivations.cp_geometry.derive_second_difference` and
+add ``test_second_difference_operator_is_geometry_invariant`` as a
+programmatic L1 check. Tracked in
+`Issue #141 <https://github.com/deOliveira-R/ORPHEUS/issues/141>`_.
 
 
 Section 13 — Geometry-specific outer integration
@@ -6035,7 +6032,7 @@ construction factors as
 with the :math:`(\mathrm{gap}, \tau_i, \tau_j)` arguments supplied
 by the chord-walker shared between cylinder and sphere. The rest
 of this section describes the class structure that implements this
-factorisation in Phase B.2 and motivates the design choices.
+factorisation and motivates the design choices.
 
 Design intent
 -------------
@@ -6045,12 +6042,11 @@ Phase 4.2 delivered the pointwise Peierls unification as
 a single class whose concrete instances (``CYLINDER_1D``,
 ``SPHERE_1D``) dispatch on the geometry-specific primitives
 (angular measure, Level-1 kernel, ray-boundary distance, source
-position). Phase B.2 will deliver the analogous abstraction at
-Level 3:
+position). The Level-3 abstraction follows the same pattern:
 
 .. code-block:: python
 
-   # orpheus/derivations/cp_geometry.py  (Phase B.2, not yet shipped)
+   # orpheus/derivations/cp_geometry.py
 
    @dataclass(frozen=True)
    class FlatSourceCPGeometry:
@@ -6092,7 +6088,7 @@ shared and parametrised by these primitives.
 One class vs two: recommended path
 ----------------------------------
 
-A natural question for the Phase B.2 design: should
+A natural question for the design: should
 :class:`FlatSourceCPGeometry` be folded *into*
 :class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`
 (so one class covers all three kernel levels), or should it remain
@@ -6125,7 +6121,7 @@ it. Cons: two classes instead of one; the three-tier ladder is
 implicit in which class you instantiate rather than in a method
 argument.
 
-**Recommendation: option (b) for Phase B.2.** The decision is
+**Decision: option (b).** The architecture is
 driven by *what is being computed* more than by *how the kernel is
 integrated*. A ``CurvilinearGeometry`` instance answers "give me
 :math:`\varphi(r)` at a collocation node"; a
@@ -6148,22 +6144,22 @@ and call those primitives:
   into a new ``peierls_geometry.optical_boundary_positions()``
   helper that both classes call.
 
-Phase B.2 therefore delivers ``cp_geometry.py`` containing
-:class:`FlatSourceCPGeometry` and its three singleton instances
-(``SLAB``, ``CYLINDER_1D``, ``SPHERE_1D``), plus a
-``build_cp_matrix(geom, sig_t, radii, ...)`` entry point that
-mirrors the existing ``_cylinder_cp_matrix`` / ``_sphere_cp_matrix``
-signature. Then ``cp_slab.py``, ``cp_cylinder.py``, ``cp_sphere.py``
-become thin facades re-exporting ``build_cp_matrix`` with the
-pre-selected geometry.
+``cp_geometry.py`` therefore ships
+:class:`FlatSourceCPGeometry` with its three singleton instances
+(``SLAB``, ``CYLINDER_1D``, ``SPHERE_1D``) and a
+:func:`build_cp_matrix` entry point that mirrors the historical
+``_cylinder_cp_matrix`` / ``_sphere_cp_matrix`` signatures.
+``cp_slab.py``, ``cp_cylinder.py``, ``cp_sphere.py`` are thin
+facades re-exporting ``build_cp_matrix`` with the pre-selected
+geometry.
 
 .. _cp-unified-class-architecture:
 
-Implementation shape (Phase B.2 target)
----------------------------------------
+Implementation shape
+--------------------
 
 .. code-block:: python
-   :caption: ``cp_geometry.py`` — intended skeleton; not yet shipped.
+   :caption: ``cp_geometry.py`` — actual code (excerpt).
 
    def _second_difference(kernel, gap, tau_i, tau_j):
        """The geometry-invariant operator Δ²[F](τ_i, τ_j; gap).
@@ -6190,11 +6186,10 @@ Implementation shape (Phase B.2 target)
        """
        ...
 
-One unit of work — adding the sphere to the unified code path — is
-a five-line change (pass ``SPHERE_1D`` instead of ``CYLINDER_1D``
-when invoking ``build_cp_matrix``). Contrast this with the present
-three-file implementation in which each geometry carries its own
-~100-line kernel loop.
+Adding a new geometry to the unified path is a singleton-plus-kernel
+addition (define a new ``FlatSourceCPGeometry`` ``kind`` and supply
+its ``F_3`` and ``F_3(0)`` evaluators); the chord-walker, the
+y-quadrature, and the white-BC closure are reused unchanged.
 
 .. tip::
 
@@ -6285,8 +6280,8 @@ probability.
 Cross-check at Level 2: flat-source vs pointwise
 ------------------------------------------------
 
-An L2 regression test available for Phase B.3 is the following
-algebraic identity: evaluate :math:`P_{\rm esc}` two ways —
+A natural L2 regression test is the following algebraic identity:
+evaluate :math:`P_{\rm esc}` two ways —
 (a) pointwise via :func:`compute_P_esc`, then volume-average over the
 region; (b) flat-source via :eq:`cp-escape-from-p-cell`. Both should
 agree on the region-averaged level to the CP-matrix quadrature
