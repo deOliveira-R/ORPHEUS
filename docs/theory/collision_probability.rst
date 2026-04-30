@@ -2727,9 +2727,10 @@ canonical cylindrical Peierls equation solved by this module is
 
 The Sanchez tie-point and row-sum-identity tests currently carry
 ``@pytest.mark.verifies("peierls-equation", ...)`` (the slab label).
-Retrofitting those decorators to point at the cylinder-specific
-labels is a follow-up tracked in the V&V harness; until then this
-equation is marked ``documented`` rather than ``tested`` to keep
+Retrofitting those decorators to point at the cylinder/sphere-specific
+labels is tracked under `Issue #142
+<https://github.com/deOliveira-R/ORPHEUS/issues/142>`_; until then
+this equation is marked ``documented`` rather than ``tested`` to keep
 the orphan gate honest.
 
 .. note::
@@ -3071,18 +3072,15 @@ relative to the :math:`O(N^{3})` radial LU factorisation.
 
 .. note::
 
-   The white-BC closure is **not yet implemented**. The current
+   The cylinder white-BC closure is **not yet implemented**;
    :func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
-   call (with ``geometry=_pg.CYLINDER_1D``) and ``boundary="vacuum"``
-   handles vacuum BC only. The
-   ``optical_depths_pm`` :math:`\tau^{\pm}`
-   walker that lives alongside ``build_volume_kernel`` is the
-   primitive needed for either option (a) or option (b); it is
-   retained in the module for this planned extension. The
-   white-BC driver is Phase-4.2 item C8 of the verification
-   campaign and is a prerequisite for comparing the Peierls
-   reference against the CP flat-source cylinder flux profile
-   at full white-BC parity.
+   with ``geometry=_pg.CYLINDER_1D`` handles vacuum BC only. The
+   :math:`\tau^{\pm}` walker (``optical_depths_pm``) that lives
+   alongside ``build_volume_kernel`` is the primitive needed for
+   either option (a) or option (b); it is retained for the planned
+   extension. Tracked under `Issue #103
+   <https://github.com/deOliveira-R/ORPHEUS/issues/103>`_
+   (higher-rank N1 white-BC closure for cylinder + sphere).
 
 Verification evidence
 ---------------------
@@ -3107,11 +3105,10 @@ in the Sanchez ``c = 1.5`` problem definition: the 1-group
 :math:`k_{\rm eff}` is **not invariant** under the split at fixed
 :math:`k_\infty`, because :math:`\Sigma_s` enters the resolvent
 :math:`(\Sigma_t\mathbf{I} - K\Sigma_s)^{-1}` separately from the
-fission source. The Zotero MCP server was unreachable during the
-Phase-4.2 literature sweep (see Directive-4 demand note in
-``.claude/agent-memory/literature-researcher/phase4_cylinder_peierls.md``),
-so the reference split cannot yet be cross-checked; the test gate
-is set to a 1 % tolerance in
+fission source. The reference-split lit cross-check is tracked
+under `Issue #144
+<https://github.com/deOliveira-R/ORPHEUS/issues/144>`_; until
+then the test gate is set to a 1 % tolerance in
 ``TestSanchezTiePoint.test_k_eff_at_R_equals_1_dot_9798``, which
 is robust to this ambiguity but tight enough to catch any
 multiplicative-factor regression.
@@ -4207,11 +4204,12 @@ unchanged.
 \Sigma_a` (1-group) and offers a literature tie-point analogous to
 the cylinder's Sanchez 1982 tie-point. The Peierls-sphere test
 suite currently pins the solver empirically via the vacuum-BC
-thick-limit and the monotone-:math:`R` scan rather than by
-transcribing numerical :math:`R_c` values from the Case–Zweifel
-tables (Cardinal Rule L4 forbids hand-transcription; a programmatic
-ingestion of the tables via the literature-researcher agent is a
-planned follow-up).
+thick-limit and the monotone-:math:`R` scan rather than against
+the Case–Zweifel table directly — Cardinal Rule L4 forbids
+hand-transcription. Programmatic ingestion of the table (and the
+parametrized ``TestCaseZweifelTiePoint`` test class it gates) is
+tracked under `Issue #143
+<https://github.com/deOliveira-R/ORPHEUS/issues/143>`_.
 
 Numerical cost
 --------------
