@@ -70,10 +70,10 @@ quadrature tables are also documented in [KnottYamamoto2010]_.
 **Derivation sources.**  The analytical eigenvalues used for
 verification are computed by:
 
-- ``derivations/_eigenvalue.py`` ---
+- ``orpheus/derivations/_eigenvalue.py`` ---
   :func:`~derivations._eigenvalue.kinf_homogeneous` for infinite-medium
   eigenvalue (all solvers share this)
-- ``derivations/moc.py`` --- homogeneous cases (analytical) and
+- ``orpheus/derivations/moc.py`` --- homogeneous cases (analytical) and
   heterogeneous cases (:ref:`Richardson extrapolation <richardson-extrapolation>`
   of the MOC solver with ray-spacing refinement)
 
@@ -82,7 +82,7 @@ and the cited references.
 
 The key equations (segment-averaged angular flux, scalar flux update
 weight, homogeneous consistency) are independently verified by SymPy
-in ``derivations/moc_equations.py``.
+in ``orpheus/derivations/moc_equations.py``.
 
 
 Architecture

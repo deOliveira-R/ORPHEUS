@@ -101,7 +101,7 @@ The script prints PASS/FAIL for each verification and exits 0 if all pass,
 
 .. code-block:: bash
 
-    python derivations/peierls_specular_continuous_mu.py
+    python scratch/derivations/peierls_specular_continuous_mu.py
 
 If V1/V2 PASS the production implementation in
 ``compute_K_bc_specular_continuous_mu_sphere`` (peierls_geometry.py) can

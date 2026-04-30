@@ -14,7 +14,7 @@ the "Bmu-inverse-W" or "(2n+1)-weighted-W" recipe should land at
 from __future__ import annotations
 import sys
 sys.path.insert(0, "/workspaces/ORPHEUS")
-sys.path.insert(0, "/workspaces/ORPHEUS/derivations/diagnostics")
+sys.path.insert(0, "/workspaces/ORPHEUS/scratch/derivations/diagnostics")
 
 import numpy as np
 import pytest
@@ -34,7 +34,7 @@ except ImportError:
     import importlib.util
     _spec = importlib.util.spec_from_file_location(
         "diag_probe",
-        "/workspaces/ORPHEUS/derivations/diagnostics/"
+        "/workspaces/ORPHEUS/scratch/derivations/diagnostics/"
         "diag_rank_n_sph_normalisation_probe.py",
     )
     _m = importlib.util.module_from_spec(_spec)

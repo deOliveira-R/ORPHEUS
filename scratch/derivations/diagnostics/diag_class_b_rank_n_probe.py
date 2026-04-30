@@ -15,7 +15,7 @@ Quadrature: BASE preset (n_panels_per_region=2, p_order=3, n_angular=24,
 n_rho=24, n_surf_quad=24, dps=15). RICH only if BASE shows interesting
 signal worth refining.
 
-Run from repo root: ``python derivations/diagnostics/diag_class_b_rank_n_probe.py``
+Run from repo root: ``python scratch/derivations/diagnostics/diag_class_b_rank_n_probe.py``
 """
 
 from __future__ import annotations

@@ -75,18 +75,18 @@ augmented-geometry pattern.
 for verification are computed independently by the derivation scripts.
 These are the **source of truth** for all equations in this chapter:
 
-- ``derivations/cp_geometry.py`` --- the unified geometry-dispatching
+- ``orpheus/derivations/cp_geometry.py`` --- the unified geometry-dispatching
   core :class:`~derivations.cp_geometry.FlatSourceCPGeometry` and
   :func:`~derivations.cp_geometry.build_cp_matrix` (Phase B.2 refactor,
   commits ``f1b869b`` → ``bf128d3``)
-- ``derivations/cp_slab.py`` --- slab :math:`E_3` kernel; thin facade
+- ``orpheus/derivations/cp_slab.py`` --- slab :math:`E_3` kernel; thin facade
   over :data:`~derivations.cp_geometry.SLAB`
-- ``derivations/cp_cylinder.py`` --- cylindrical canonical
+- ``orpheus/derivations/cp_cylinder.py`` --- cylindrical canonical
   :math:`\mathrm{Ki}_3` kernel; thin facade over
   :data:`~derivations.cp_geometry.CYLINDER_1D`
-- ``derivations/cp_sphere.py`` --- spherical :math:`e^{-\tau}` kernel;
+- ``orpheus/derivations/cp_sphere.py`` --- spherical :math:`e^{-\tau}` kernel;
   thin facade over :data:`~derivations.cp_geometry.SPHERE_1D`
-- ``derivations/_kernels.py`` --- :math:`E_3` via
+- ``orpheus/derivations/_kernels.py`` --- :math:`E_3` via
   :func:`~derivations._kernels.e3_vec` (wraps
   :func:`scipy.special.expn`); arbitrary-precision :math:`\mathrm{Ki}_n`
   via :func:`~derivations._kernels.ki_n_mp` (wraps
@@ -96,7 +96,7 @@ These are the **source of truth** for all equations in this chapter:
   built from ``ki_n_mp`` at 30 dps (~:math:`5\times 10^{-6}`
   accuracy). The legacy ``BickleyTables`` tabulation was retired
   in Phase B.4 (commit ``6badbe5``, Issue #94)
-- ``derivations/_eigenvalue.py`` --- shared eigenvalue computation via
+- ``orpheus/derivations/_eigenvalue.py`` --- shared eigenvalue computation via
   :func:`~derivations._eigenvalue.kinf_from_cp` and
   :func:`~derivations._eigenvalue.kinf_homogeneous`
 
@@ -328,9 +328,9 @@ The surface-to-surface probability is:
    P_{\text{in,out}} = 1 - \sum_j P_{\text{in},j}
 
 The same formula appears in all three derivation scripts (e.g.,
-``derivations/cp_slab.py``, line ``P_in = sig_t_g * t_arr * P_out``
+``orpheus/derivations/cp_slab.py``, line ``P_in = sig_t_g * t_arr * P_out``
 with the slab convention :math:`S = 1`, :math:`V = t`; and
-``derivations/cp_cylinder.py``, line ``S_cell = 2.0 * np.pi * r_cell``
+``orpheus/derivations/cp_cylinder.py``, line ``S_cell = 2.0 * np.pi * r_cell``
 with cylindrical :math:`V = \pi(R_k^2 - R_{k-1}^2)`).
 
 
@@ -351,7 +351,7 @@ possibly escape again (geometric series):
 This formula is **identical for all three geometries** when expressed
 in terms of :math:`V_i` and :math:`S`.  It is implemented in the
 white-BC transform selected from :attr:`CPMesh.BC_REGISTRY` and
-independently in all three derivation scripts (e.g., ``derivations/cp_slab.py``:
+independently in all three derivation scripts (e.g., ``orpheus/derivations/cp_slab.py``:
 ``P_inf_g[:,:,g] = P_cell + np.outer(P_out, P_in) / (1.0 - P_inout)``).
 
 .. _cp-bc-registry:
@@ -625,8 +625,8 @@ common structure is why all three geometries are handled by a single
    plt.tight_layout()
 
 **Derivation source:** The kernels are implemented in
-``derivations/_kernels.py`` (slab, arbitrary-precision) and
-``derivations/cp_geometry.py`` (cylinder double-precision fast
+``orpheus/derivations/_kernels.py`` (slab, arbitrary-precision) and
+``orpheus/derivations/cp_geometry.py`` (cylinder double-precision fast
 path).  Slab :math:`E_3`: :func:`~derivations._kernels.e3` and
 :func:`~derivations._kernels.e3_vec` (wrappers over
 :func:`scipy.special.expn`). Cylinder :math:`\mathrm{Ki}_3`:
@@ -1187,7 +1187,7 @@ with :math:`R_0 = 0`.
 - **Case 3** (:math:`y \ge R_k`): Chord misses region :math:`k` entirely.
 
 Computed by :func:`_chord_half_lengths` (solver) and independently by
-``derivations/cp_cylinder.py::_chord_half_lengths`` (derivation).  Both
+``orpheus/derivations/cp_cylinder.py::_chord_half_lengths`` (derivation).  Both
 return shape ``(N, n_y)``.
 
 **Optical half-thickness:** ``tau = sig_t_g[:, None] * chords``.
@@ -1407,7 +1407,7 @@ and the within-cell CP is :math:`P_{ij}^{\text{cell}} = r_{ij} /
 (\Sigt{i} \, V_i)`, where :math:`V_i = t_i` for slab geometry.
 
 Implemented in :meth:`CPMesh._compute_slab_rcp`.  Verified element-by-element
-against ``derivations/cp_slab.py::_slab_cp_matrix`` by
+against ``orpheus/derivations/cp_slab.py::_slab_cp_matrix`` by
 ``test_cp_verification.py::TestDirectPinfComparison::test_slab_pinf_matches_derivation``
 (tolerance :math:`< 10^{-10}`).
 
@@ -1512,7 +1512,7 @@ chord-length discontinuities.
 
 Implemented in :meth:`CPMesh._compute_radial_rcp` with
 ``self._kernel = Ki_4``.  Verified against
-``derivations/cp_cylinder.py::_cylinder_cp_matrix``.
+``orpheus/derivations/cp_cylinder.py::_cylinder_cp_matrix``.
 
 
 Concentric Spherical Geometry: The Exponential Kernel
@@ -1562,7 +1562,7 @@ The self-collision term follows the same pattern:
 
 The **same code path** :meth:`CPMesh._compute_radial_rcp` handles both
 cylindrical and spherical, parameterised by kernel and weights.
-Verified against ``derivations/cp_sphere.py::_sphere_cp_matrix``.
+Verified against ``orpheus/derivations/cp_sphere.py::_sphere_cp_matrix``.
 
 
 Geometry Comparison
@@ -1609,9 +1609,9 @@ Geometry Comparison
      - :meth:`CPMesh._compute_radial_rcp`
      - :meth:`CPMesh._compute_radial_rcp`
    * - Derivation script
-     - ``derivations/cp_slab.py``
-     - ``derivations/cp_cylinder.py``
-     - ``derivations/cp_sphere.py``
+     - ``orpheus/derivations/cp_slab.py``
+     - ``orpheus/derivations/cp_cylinder.py``
+     - ``orpheus/derivations/cp_sphere.py``
 
 
 The Eigenvalue Problem
@@ -1898,15 +1898,15 @@ Eigenvalue Verification Cases
    * - Slab (:math:`E_3`)
      - :math:`< 10^{-6}`
      - ``test_cp_slab.py``
-     - ``derivations/cp_slab.py``
+     - ``orpheus/derivations/cp_slab.py``
    * - Cylinder (:math:`\text{Ki}_4`)
      - :math:`< 10^{-5}`
      - ``test_cp_cylinder.py``
-     - ``derivations/cp_cylinder.py``
+     - ``orpheus/derivations/cp_cylinder.py``
    * - Sphere (:math:`e^{-\tau}`)
      - :math:`< 10^{-5}`
      - ``test_cp_sphere.py``
-     - ``derivations/cp_sphere.py``
+     - ``orpheus/derivations/cp_sphere.py``
 
 Historically, the cylinder/sphere tolerances were 10× looser
 because the legacy 20 000-point :math:`\text{Ki}_4` table
@@ -3497,7 +3497,7 @@ of :math:`e^{-\tau}` involves :math:`E_1` and :math:`E_2` depending
 on which combination of chord endpoints is averaged, and the
 particular combination that appears for a concentric-shell spherical
 geometry happens to collapse to :math:`E_3`. Full derivation in
-``derivations/cp_sphere.py``; see :eq:`second-diff-sph` and
+``orpheus/derivations/cp_sphere.py``; see :eq:`second-diff-sph` and
 :eq:`self-sph` for the resulting CP matrix elements, and
 :eq:`rcp-from-double-antideriv` for the general second-difference
 identity that specialises to the sphere via the same

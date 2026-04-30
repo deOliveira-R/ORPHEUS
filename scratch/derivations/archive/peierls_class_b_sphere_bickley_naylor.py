@@ -13,7 +13,7 @@ This script derives the spherical P_esc(r) and G_bc(r) from first
 principles via SymPy and identifies which canonical functions appear.
 The result feeds into:
 
-- ``orpheus/derivations/peierls_geometry.py`` — new
+- ``orpheus/scratch/derivations/peierls_geometry.py`` — new
   ``compute_P_esc_bickley`` / ``compute_G_bc_bickley`` primitives
 - ``boundary="white_bickley"`` closure routing through
   ``build_closure_operator``

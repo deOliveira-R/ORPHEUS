@@ -22,7 +22,7 @@ own, as if every other solver were deleted.
 The same code that produces the LaTeX equations in this chapter also produces
 the reference values consumed by the ``pytest`` test suite.  This is the
 **single source of truth**: equations in the documentation cannot drift from
-the values in the tests because both come from the same ``derivations/``
+the values in the tests because both come from the same ``orpheus/derivations/``
 package.
 
 
@@ -33,11 +33,27 @@ Three interlinked systems flow from one source:
 
 .. code-block:: text
 
-   derivations/                  SymPy derivations (single source of truth)
+   orpheus/derivations/      SymPy derivations (single source of truth — library)
         │
-        ├──→ tests/              pytest imports reference values, runs solvers
+        ├──→ tests/           pytest imports reference values, runs solvers
         │
-        └──→ docs/_generated/    RST fragments with LaTeX + results tables
+        └──→ docs/_generated/ RST fragments with LaTeX + results tables
+
+The ``orpheus/derivations/`` package is the **library** of analytical
+and semi-analytical reference solutions: SymPy ``derive_*`` functions
+paired with ``test_*`` pytest gates, importable by production code
+(see e.g. :mod:`orpheus.derivations.sn_balance` cited from
+:func:`orpheus.sn.sweep._sweep_1d_cumprod`, or
+:mod:`orpheus.derivations.peierls_specular` cited from
+:func:`orpheus.derivations.peierls_geometry.reflection_specular`).
+
+Separately, ``scratch/derivations/`` (project root, **not** a Python
+package) is the **workbench** — in-flight SymPy drafts, diagnostic
+scripts (``scratch/derivations/diagnostics/``), and retired code with
+"why archived" notes (``scratch/derivations/archive/``). Workbench
+content has no production consumer and is not on the import path; it
+graduates to the library by being lifted into ``orpheus/derivations/``
+with a paired test (see GitHub Issue #95 for the ongoing migration).
 
 
 .. _reference-values-lazy-registry:
@@ -95,7 +111,7 @@ Cross-Section Library
 ---------------------
 
 All verification cases use **abstract synthetic cross sections** from
-``derivations/_xs_library.py``.  Four regions are defined, each with
+``orpheus/derivations/_xs_library.py``.  Four regions are defined, each with
 {1G, 2G, 4G} variants:
 
 - **Region A** (fissile): fuel-like, with fission and moderate scattering

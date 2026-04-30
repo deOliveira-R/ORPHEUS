@@ -7,7 +7,7 @@ H_B hypothesis (hidden bug in MR rank-N path).
 Also runs the conservation row-sum defect check ((K_vol+K_bc)·1 vs Σ_t,i)
 per radial node to surface where the closure breaks down spatially.
 
-Run from repo root: ``python derivations/diagnostics/diag_class_b_rank_n_rich_check.py``
+Run from repo root: ``python scratch/derivations/diagnostics/diag_class_b_rank_n_rich_check.py``
 """
 
 from __future__ import annotations

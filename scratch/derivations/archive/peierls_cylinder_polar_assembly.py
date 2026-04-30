@@ -1,7 +1,7 @@
 r"""Archived: cylinder K matrix via the explicit out-of-plane
 :math:`\varphi`-quadrature form (the "cylinder-polar" detour).
 
-Extracted verbatim from `orpheus/derivations/peierls_geometry.py`
+Extracted verbatim from `orpheus/scratch/derivations/peierls_geometry.py`
 during the 2026-04-19 cleanup. Originally added in commit ``213278f``
 of the ``investigate/peierls-solver-bugs`` branch as part of the
 "retire Bickley" sub-thread of issue #116. **Mathematically equivalent**
@@ -36,7 +36,7 @@ This module is **not** part of the active import path. To use it:
 .. code-block:: python
 
    import sys
-   sys.path.insert(0, "derivations/archive")
+   sys.path.insert(0, "scratch/derivations/archive")
    from peierls_cylinder_polar_assembly import _build_volume_kernel_cylinder_phi
 
 Live dependencies (still in ``orpheus.derivations``):

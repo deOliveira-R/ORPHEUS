@@ -1,6 +1,6 @@
 # Diagnostic → Permanent Test Promotion Policy
 
-`derivations/diagnostics/diag_*.py` is a scratchpad for the
+`scratch/derivations/diagnostics/diag_*.py` is a scratchpad for the
 **numerics-investigator** agent and human debuggers. Scripts land
 there during an investigation and pile up fast. This policy decides,
 once an investigation is over, which scripts graduate into the
@@ -83,7 +83,7 @@ concluded and nobody triaged the scratchpad).
 Convert these into real tests or delete — do not pretend they are
 regression gates by adding a pytest marker.
 
-## What lives in `derivations/diagnostics/` permanently
+## What lives in `scratch/derivations/diagnostics/` permanently
 
 Nothing. Files named `_*.json`, `_*.py`, and other leading-underscore
 artifacts are investigation *state* (scan results, cached derivations)

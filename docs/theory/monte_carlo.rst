@@ -68,11 +68,11 @@ The key algorithmic features are:
 are computed independently by the derivation scripts.  These are the
 **source of truth** for all equations in this chapter:
 
-- ``derivations/mc.py`` --- homogeneous eigenvalues from random walk
+- ``orpheus/derivations/mc.py`` --- homogeneous eigenvalues from random walk
   probability (:func:`~derivations._eigenvalue.kinf_homogeneous`),
   heterogeneous eigenvalues from CP cylinder reference
   (:func:`~derivations._eigenvalue.kinf_from_cp`).
-- ``derivations/_xs_library.py`` --- synthetic cross-section library
+- ``orpheus/derivations/_xs_library.py`` --- synthetic cross-section library
   (regions A/B/C/D in {1G, 2G, 4G}).
 
 Every numerical value cited in this chapter was produced by these scripts.
@@ -713,7 +713,7 @@ The expected multiplication per generation is:
 This is exact for 1G and equals the weight factor applied at each
 absorption.  For region A (1G): :math:`\Sigma_a = 0.2 + 0.3 = 0.5`,
 :math:`\nu\Sigma_f = 2.5 \times 0.3 = 0.75`, so :math:`k = 1.5`.
-The numerical value is produced by ``derivations/mc.py`` via
+The numerical value is produced by ``orpheus/derivations/mc.py`` via
 :func:`~derivations._eigenvalue.kinf_homogeneous`; the derivation above
 is presented for pedagogical context.
 

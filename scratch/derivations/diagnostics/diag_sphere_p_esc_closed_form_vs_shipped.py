@@ -1,7 +1,7 @@
 """Sanity gate: closed-form E_2 P_esc vs shipped rank-1 Mark compute_P_esc.
 
 The SymPy derivation in
-``derivations/peierls_class_b_sphere_bickley_naylor.py`` produced a
+``scratch/derivations/peierls_class_b_sphere_bickley_naylor.py`` produced a
 closed form for the spherical pointwise escape probability:
 
     P_esc(r) = (1/(4r·Σ_t)) · [

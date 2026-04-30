@@ -1,9 +1,9 @@
 """Foundation tests for ``compute_P_ss_cylinder`` — surface-to-surface
 probability for cylinder white BC.
 
-Promoted from ``derivations/diagnostics/diag_cylinder_hebert_pss.py``
+Promoted from ``scratch/derivations/diagnostics/diag_cylinder_hebert_pss.py``
 on 2026-04-25 (Issue #132 cylinder follow-up). The primitive itself
-is shipped in ``orpheus/derivations/peierls_geometry.py``; this file
+is shipped in ``orpheus/scratch/derivations/peierls_geometry.py``; this file
 pins its derivation against:
 
 - closed-form Bickley-Naylor identities at limiting τ values

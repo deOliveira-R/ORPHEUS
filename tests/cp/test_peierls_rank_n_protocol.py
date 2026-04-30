@@ -566,7 +566,7 @@ F4_REFERENCE_BASELINE: dict[tuple[float, float], dict] = {
 _WORKER_CODE = textwrap.dedent(
     r"""
     import json, sys, time
-    sys.path.insert(0, '/workspaces/ORPHEUS/derivations/diagnostics')
+    sys.path.insert(0, '/workspaces/ORPHEUS/scratch/derivations/diagnostics')
     from diag_cin_aware_split_basis_keff import run_scalar_f4
     tau = float(sys.argv[1]); rho = float(sys.argv[2])
     n_panels = int(sys.argv[3]); p_order = int(sys.argv[4]); n_ang = int(sys.argv[5])

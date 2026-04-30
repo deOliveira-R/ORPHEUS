@@ -717,7 +717,7 @@ not retired, as an independent cross-check implementation. Rationale:
 
 **Exception.** If a future session discovers a bug in the native E₁
 path that is unfixable without major rework, the module can be moved
-to :file:`derivations/archive/` (reversible via ``git mv``) at that
+to :file:`scratch/derivations/archive/` (reversible via ``git mv``) at that
 time. Do not delete.
 
 
@@ -1018,7 +1018,7 @@ parity with the unified path on the
 ``peierls_slab_2eg_2rg`` fixture, the slab native solver becomes
 redundant as an oracle and the
 :mod:`~orpheus.derivations.peierls_slab` module can be moved to
-:file:`derivations/archive/` (reversible via ``git mv``). At that
+:file:`scratch/derivations/archive/` (reversible via ``git mv``). At that
 point this whole subsection collapses, and Issue #138's original
 Phase B (lift ``_basis_kernel_weights`` into the unified slab
 branch, delete ``_build_kernel_matrix`` / ``_build_system_matrices``,
@@ -1283,8 +1283,8 @@ higher-order discrete CP solver (where performance matters).
 
 **Where the code lives.**
 
-- :file:`derivations/archive/peierls_moments.py` — closed-form moment recursions
-- :file:`derivations/archive/peierls_slab_moments_assembly.py` — slab K matrix assembler
+- :file:`scratch/derivations/archive/peierls_moments.py` — closed-form moment recursions
+- :file:`scratch/derivations/archive/peierls_slab_moments_assembly.py` — slab K matrix assembler
 
 **Where the close-out narrative lives.** See
 `GitHub Issue #117 <https://github.com/deOliveira-R/ORPHEUS/issues/117#issuecomment-4348745026>`_
@@ -3190,14 +3190,14 @@ machine-precision evidence) is in
 `Issue #119 close-out
 <https://github.com/deOliveira-R/ORPHEUS/issues/119#issuecomment-4348745180>`_;
 diagnostic at
-:file:`derivations/diagnostics/diag_rank_n_villarino_stammler_per_mode.py`.
+:file:`scratch/derivations/diagnostics/diag_rank_n_villarino_stammler_per_mode.py`.
 
 Production closure decision
 ---------------------------
 
 **F.4 scalar rank-2 per-face is production.** Its residual across
 optical thickness at :math:`r_0/R = 0.3` (from
-:file:`derivations/diagnostics/diag_rank_n_closure_characterization.py`):
+:file:`scratch/derivations/diagnostics/diag_rank_n_closure_characterization.py`):
 
 .. list-table:: F.4 scalar rank-2 residual, hollow sphere, :math:`r_0/R = 0.3`
    :header-rows: 1
@@ -3277,7 +3277,7 @@ helper ``_build_closure_operator_rank_n_white`` (guarded behind
                 \;=\; (M^{\!\top} M)_{mn}.
 
 Closed forms (verified in
-``derivations/diagnostics/diag_lambert_marshak_basis_change.py``):
+``scratch/derivations/diagnostics/diag_lambert_marshak_basis_change.py``):
 
 .. math::
    :label: peierls-M-rank-1
@@ -3541,7 +3541,7 @@ Quadrature: BASE preset
 ``(n_panels_per_region, p_order, n_angular, n_rho, n_surf_quad, dps)
 = (2, 3, 24, 24, 24, 15)``. The same sweep at RICH preset
 ``(4, 5, 64, 48, 64, 20)`` is recorded in
-:file:`derivations/diagnostics/diag_class_b_rank_n_rich_check.py`
+:file:`scratch/derivations/diagnostics/diag_class_b_rank_n_rich_check.py`
 and reproduces the BASE values to within :math:`0.022\,\%` —
 **the catastrophe is structural, not quadrature noise.**
 
@@ -3666,7 +3666,7 @@ and reproduces the BASE values to within :math:`0.022\,\%` —
    root once a canonical re-derivation lands.
 
 **Auxiliary numerical control: BASE↔RICH stability.**
-:file:`derivations/diagnostics/diag_class_b_rank_n_rich_check.py`
+:file:`scratch/derivations/diagnostics/diag_class_b_rank_n_rich_check.py`
 re-runs the sphere 1G/2R rank-2 catastrophe at the RICH preset
 ``(4, 5, 64, 48, 64, 20)``. Result: BASE k\ :sub:`eff` = 1.0152, RICH
 k\ :sub:`eff` = 1.0150, signed-error stability of :math:`0.022\,\%`.
@@ -3862,7 +3862,7 @@ re-derivation work:
   *wrong* choice for mode 0 of a rank-:math:`N` Marshak expansion.
   Both clients must be supported until Issue #132 lands.
 
-Diagnostic scripts live under :file:`derivations/diagnostics/` as
+Diagnostic scripts live under :file:`scratch/derivations/diagnostics/` as
 ``diag_class_b_rank_n_probe_*.py`` (one per probe) and
 ``diag_class_b_rank_n_rich_check.py`` (the BASE↔RICH stability
 control showing the catastrophe is structural — 0.022 % shift).
@@ -4022,7 +4022,7 @@ Mark uniformity assumption holds. **The 1G/2R case retains a stable
 structural, not numerical.
 
 Reproducer:
-:file:`derivations/diagnostics/diag_sphere_hebert_rich_check.py`.
+:file:`scratch/derivations/diagnostics/diag_sphere_hebert_rich_check.py`.
 
 The 1G/2R heterogeneous limitation — Mark uniformity assumption
 ----------------------------------------------------------------
@@ -4040,7 +4040,7 @@ through the geometric series rather than correcting it.
 
 Quantitatively, the cp_sphere k_inf with finer subdivisions converges
 to 0.6485 (verified up to 64 sub-regions; see
-:file:`derivations/diagnostics/diag_sphere_geometric_series_thicker_cell_scan.py`),
+:file:`scratch/derivations/diagnostics/diag_sphere_geometric_series_thicker_cell_scan.py`),
 so the +10 % overshoot is NOT a "pointwise vs flat-flux CP" artifact
 — it is a real Mark-closure limitation.
 
@@ -4082,7 +4082,7 @@ dependence:
      - **+6.58 %**
 
 Reproducer:
-:file:`derivations/diagnostics/diag_sphere_chi_dependence_hebert.py`.
+:file:`scratch/derivations/diagnostics/diag_sphere_chi_dependence_hebert.py`.
 
 **Pattern**: more spatially-localised source → larger Mark uniformity
 overshoot. The 2G/2R "good result" is coincident with the chi = [1, 0]
@@ -4164,7 +4164,7 @@ The cylinder rank-1 Mark closure historically used a surface-centric
      - 0.9997
 
 The corrected 3-D form, derived via SymPy in
-``derivations/peierls_cylinder_g_bc_3d_derivation.py``, is the
+``scratch/derivations/peierls_cylinder_g_bc_3d_derivation.py``, is the
 observer-centric integral
 
 .. math::
@@ -4216,10 +4216,10 @@ arrangement. Resolution remains the open question (Sanchez 1977
 NSE 64 — see synthesis below).
 
 Probes:
-``derivations/diagnostics/diag_cylinder_hebert_{pss,keff,diagnose_residual}.py``,
+``scratch/derivations/diagnostics/diag_cylinder_hebert_{pss,keff,diagnose_residual}.py``,
 ``diag_cylinder_g_bc_3d_patched_test.py``;
 derivation:
-``derivations/peierls_cylinder_g_bc_3d_derivation.py``;
+``scratch/derivations/peierls_cylinder_g_bc_3d_derivation.py``;
 memory:
 :file:`.claude/agent-memory/numerics-investigator/issue_132_cylinder_hebert.md`.
 
@@ -4624,7 +4624,7 @@ Note that the cylinder rank-1 specular (-0.31 %) is much closer to
 Consequently rank-1 specular cylinder ≡ rank-1 Hébert cylinder for
 homogeneous (both -0.16 %--0.31 %).
 
-See ``derivations/peierls_cylinder_3d_mode_n.py`` for the full SymPy
+See ``scratch/derivations/peierls_cylinder_3d_mode_n.py`` for the full SymPy
 derivation and verification of the Knyazev expansion.
 
 Convergence — homogeneous slab (per-face block-diagonal closure)
@@ -4734,7 +4734,7 @@ Verification on the homogeneous fuel-A slab (1G, :math:`L =
 Monotonic improvement; rank-1 bit-equals Mark legacy in the
 dominant eigenvalue.
 
-See ``derivations/peierls_specular_slab.py`` for the SymPy
+See ``scratch/derivations/peierls_specular_slab.py`` for the SymPy
 derivation and the ``test_slab_mark_decomposes_into_four_per_face_blocks``
 test for the algebraic identity locking the per-face decomposition.
 
@@ -5210,7 +5210,7 @@ multi-bounce specular at all three geometries. The
 ``closure="specular_multibounce"``; the reference implementation
 :func:`compute_K_bc_specular_continuous_mu_sphere` is preserved
 because the SymPy 4/4 verifications in
-:file:`derivations/peierls_specular_continuous_mu.py` pass against
+:file:`scratch/derivations/peierls_specular_continuous_mu.py` pass against
 Sanchez 1986 [SanchezTTSP1986]_ Eq. (A6), but the Sanchez↔ORPHEUS
 Jacobian conversion and the diagonal singularity remain open.
 
@@ -6050,7 +6050,7 @@ position). The Level-3 abstraction follows the same pattern:
 
 .. code-block:: python
 
-   # orpheus/derivations/cp_geometry.py
+   # orpheus/scratch/derivations/cp_geometry.py
 
    @dataclass(frozen=True)
    class FlatSourceCPGeometry:
@@ -7179,7 +7179,7 @@ giving an integrable :math:`1/\sqrt{\mu^{2} - \mu_{\rm vis}^{2}}`-type
 singularity at the lower endpoint :math:`\mu = \mu_{\rm vis}`. This is
 the off-diagonal Phase 5 Round 3 SECONDARY pattern, isolated and
 reproduced in
-``derivations/diagnostics/diag_phase5_round3_visibility_cone_quad.py``.
+``scratch/derivations/diagnostics/diag_phase5_round3_visibility_cone_quad.py``.
 
 **(ii) Chord half-length on an annulus.** The primitive
 :func:`~orpheus.derivations._kernels.chord_half_lengths` returns
@@ -7477,7 +7477,7 @@ Three properties of the substitution are visible in this table:
 
 These numbers are fully reproducible from
 ``tests/derivations/test_quadrature.py`` and the originating diagnostic at
-``derivations/diagnostics/diag_phase5_round3_visibility_cone_quad.py``.
+``scratch/derivations/diagnostics/diag_phase5_round3_visibility_cone_quad.py``.
 
 Gotchas and non-uses
 ~~~~~~~~~~~~~~~~~~~~

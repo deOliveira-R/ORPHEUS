@@ -11,7 +11,7 @@ These tests serve as both **regression guards** (catch if the sweep
 behavior changes) and **evidence** (document the inconsistency for
 the V&V capstone report).
 
-Promoted from ``derivations/diagnostics/diag_{11,13,15}_*.py``.
+Promoted from ``scratch/derivations/diagnostics/diag_{11,13,15}_*.py``.
 
 See:
 - GitHub Issue #98 (sweep-operator inconsistency)

@@ -1,7 +1,7 @@
 r"""Archived: slab K matrix assembly via the **moment-form Nyström**
 architecture (closed-form polynomial moments).
 
-Extracted verbatim from `orpheus/derivations/peierls_geometry.py`
+Extracted verbatim from `orpheus/scratch/derivations/peierls_geometry.py`
 (commit before 2026-04-19 archival). Originally implemented during
 the Peierls unification close-out (branch
 ``investigate/peierls-solver-bugs``); archived because the
@@ -10,7 +10,7 @@ verification-side machinery uses adaptive ``mpmath.quad`` per element
 The moment form is the *production* path for a future higher-order
 discrete CP solver.
 
-See `derivations/archive/README.md` and **GitHub Issue #117** for the
+See `scratch/derivations/archive/README.md` and **GitHub Issue #117** for the
 full architecture, performance characteristics, conditioning caveats,
 and trigger conditions for re-introducing this code into production.
 
@@ -19,12 +19,12 @@ This module is **not** part of the active import path. To use it:
 .. code-block:: python
 
    import sys
-   sys.path.insert(0, "derivations/archive")
+   sys.path.insert(0, "scratch/derivations/archive")
    from peierls_slab_moments_assembly import _build_volume_kernel_slab_moments
 
    from peierls_moments import slab_segment_moments_mp  # also archived
 
-Dependencies (all archived alongside in ``derivations/archive/``):
+Dependencies (all archived alongside in ``scratch/derivations/archive/``):
 
 - ``peierls_moments`` — closed-form moment recursions for E_n, Ki_n, exp.
 

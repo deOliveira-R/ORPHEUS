@@ -1,6 +1,6 @@
 """Monkey-patch test: does the corrected 3-D G_bc^cyl fix the row-sum bias?
 
-Per derivations/peierls_cylinder_g_bc_3d_derivation.py:
+Per scratch/derivations/peierls_cylinder_g_bc_3d_derivation.py:
 
   Correct: G_bc^cyl(r) = (4/π) · ∫_0^π Ki_2(Σ_t · d_2D(r, ψ)) dψ
            with d_2D(r, ψ) = -r cos ψ + sqrt(R² - r² sin² ψ)
