@@ -1233,12 +1233,11 @@ is lazy (built on first access to
 reference builds on demand at ~1–2 min wall time at default
 quadrature, so the first access after import is expensive.
 
-The L1 residuals vs an independent MG reference solver have not been
-benchmarked as part of Issue #104 commit 2 — the parity gate against
-``cp_cylinder`` / ``cp_sphere`` 2G native solvers is planned as a
-follow-up (1 % target per Issue #104 AC, matching the 1G hollow
-residual class). The registered cases are **buildable and
-reproducible** as established by the smoke tests in
+Multi-group residual benchmarks vs the discrete CP modules are
+tracked separately under
+`Issue #140 <https://github.com/deOliveira-R/ORPHEUS/issues/140>`_.
+The registered cases are **buildable and reproducible** as established
+by the smoke tests in
 :class:`tests.derivations.test_peierls_multigroup.TestMG2GHollowRegistration`.
 
 
