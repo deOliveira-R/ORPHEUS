@@ -164,7 +164,14 @@ import sympy as sp
 @functools.lru_cache(maxsize=64)
 def shifted_legendre_monomial_coefs(n: int) -> tuple[float, ...]:
     """Same as in peierls_geometry.py — duplicated here for the
-    derivation script's standalone usage."""
+    derivation script's standalone usage.
+
+    TODO(Issue #95 sub-task): Once this root derivation script is
+    lifted into ``orpheus/derivations/``, replace this local copy with
+    ``from ._shifted_legendre import shifted_legendre_monomial_coefs``.
+    The canonical implementation lives in
+    ``orpheus/derivations/_shifted_legendre.py``.
+    """
     if n < 0:
         raise ValueError(n)
     mu = sp.symbols("mu", real=True)

@@ -4403,7 +4403,10 @@ so :math:`b = \pi\,e = \tfrac{1}{2}\,M^{-1}\,J^{+}`. Therefore
 The full SymPy derivation, including verification of the closed-form
 tridiagonal :math:`M` against direct integration at :math:`N = 1,
 \ldots, 5` and the :math:`2\,M\,R_{\rm spec} = I` contract at every
-rank, lives in :file:`derivations/peierls_specular_bc.py`.
+rank, lives in :mod:`orpheus.derivations.peierls_specular`. The
+paired symbolic-vs-numpy parity test (consuming the SymPy origin as
+a contract) lives in
+:file:`tests/derivations/test_peierls_specular_symbolic.py`.
 
 R_specular ladder
 -----------------
@@ -5239,9 +5242,10 @@ References and further reading
 - :func:`reflection_specular` — :math:`R_{\rm spec}` matrix builder
   in the rank-:math:`N` Marshak basis (closed-form tridiagonal
   :math:`M`)
-- :file:`derivations/peierls_specular_bc.py` — SymPy derivation +
+- :mod:`orpheus.derivations.peierls_specular` — SymPy derivation +
   symbolic verification of the closed-form :math:`M` and the
-  :math:`2\,M\,R = I` contract
+  :math:`2\,M\,R = I` contract (paired numpy parity test in
+  :file:`tests/derivations/test_peierls_specular_symbolic.py`)
 - ``boundary="specular"`` — user-facing string in
   :func:`solve_peierls_1g` / :func:`solve_peierls_mg`
 

@@ -46,7 +46,6 @@ change any numerics; it purely consolidates infrastructure.
 
 from __future__ import annotations
 
-import functools
 from dataclasses import dataclass
 from typing import Callable
 
@@ -71,52 +70,9 @@ from ._quadrature_recipes import (
     observer_angular_quadrature,
     surface_centred_angular_quadrature,
 )
-
-
-@functools.lru_cache(maxsize=64)
-def _shifted_legendre_monomial_coefs(n: int) -> tuple[float, ...]:
-    r"""Monomial-basis coefficients :math:`(c_n^0, c_n^1, \ldots, c_n^n)`
-    of the shifted Legendre polynomial
-
-    .. math::
-
-       \tilde P_n(\mu) \;=\; P_n(2\mu - 1)
-                       \;=\; \sum_{k=0}^{n} c_n^k\,\mu^k.
-
-    Computed once and cached per polynomial order. Used by the
-    cylinder rank-:math:`N` Knyazev :math:`\mathrm{Ki}_{2+k}` expansion
-    for the specular and any future rank-:math:`N` 3-D-correct
-    primitives (see ``derivations/peierls_cylinder_3d_mode_n.py``).
-
-    Examples
-    --------
-    >>> _shifted_legendre_monomial_coefs(0)
-    (1.0,)
-    >>> _shifted_legendre_monomial_coefs(1)
-    (-1.0, 2.0)
-    >>> _shifted_legendre_monomial_coefs(2)
-    (1.0, -6.0, 6.0)
-    """
-    if n < 0:
-        raise ValueError(f"n must be non-negative, got {n}")
-    # Build P_n in standard form via Bonnet, then substitute x = 2µ - 1.
-    # Use numpy.polynomial: leg2poly converts Legendre coefficients to
-    # monomial coefficients in x = 2µ - 1, then expand binomially.
-    # SymPy is overkill at runtime; do this with numpy's Polynomial class.
-    leg_coefs = np.zeros(n + 1)
-    leg_coefs[n] = 1.0
-    # P_n(x) coefficients in monomial basis (x ascending order)
-    px_ascending = np.polynomial.legendre.leg2poly(leg_coefs)
-    # Substitute x = 2µ - 1: expand each x^j as (2µ - 1)^j
-    coefs = np.zeros(n + 1)
-    for j, aj in enumerate(px_ascending):
-        if aj == 0.0:
-            continue
-        # (2µ - 1)^j = sum_{m=0}^j C(j,m) (2µ)^m (-1)^(j-m)
-        for m in range(j + 1):
-            binom = math.comb(j, m)
-            coefs[m] += aj * binom * (2.0**m) * ((-1.0) ** (j - m))
-    return tuple(float(c) for c in coefs)
+from ._shifted_legendre import (
+    shifted_legendre_monomial_coefs as _shifted_legendre_monomial_coefs,
+)
 # ═══════════════════════════════════════════════════════════════════════
 # Gauss-Legendre helpers (geometry-agnostic)
 # ═══════════════════════════════════════════════════════════════════════
@@ -4438,7 +4394,7 @@ def reflection_specular(n_modes: int) -> np.ndarray:
     where :math:`\tilde P_n(\mu) = P_n(2\mu - 1)` is the Gelbard
     half-range shifted-Legendre basis. :math:`M` is symmetric tridiagonal
     in this basis (closed form derived in
-    ``derivations/peierls_specular_bc.py``):
+    :mod:`orpheus.derivations.peierls_specular`):
 
     .. math::
 
@@ -4452,7 +4408,8 @@ def reflection_specular(n_modes: int) -> np.ndarray:
     :math:`N`-mode subspace. Verification: the contract
     :math:`2\,M\,R_{\mathrm{spec}} = I` is built into the construction
     and tested at every :math:`N` in
-    ``test_peierls_specular_bc.py``.
+    ``test_peierls_specular_symbolic.py`` (symbolic) and
+    ``test_peierls_specular_bc.py`` (end-to-end).
 
     Distinguishing features:
 
@@ -4473,8 +4430,8 @@ def reflection_specular(n_modes: int) -> np.ndarray:
       in float64. For :math:`N \gtrsim 8` use higher dps for the
       inversion.
 
-    See ``derivations/peierls_specular_bc.py`` for the full derivation
-    and the SymPy verification at :math:`N = 1, \ldots, 5`.
+    See :mod:`orpheus.derivations.peierls_specular` for the full
+    derivation and the SymPy verification at :math:`N = 1, \ldots, 5`.
     """
     if n_modes < 1:
         raise ValueError(f"n_modes must be >= 1, got {n_modes}")

@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1254**
+Total tests collected: **1284**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 585, 46.7%
-   L1, 339, 27.0%
-   L2, 36, 2.9%
+   L0, 585, 45.6%
+   L1, 357, 27.8%
+   L2, 36, 2.8%
    L3, 0, 0.0%
-   foundation, 283, 22.6%
+   foundation, 295, 23.0%
    unmarked, 11, 0.9%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1164
+   explicit, 1194
    verify, 0
    class-name, 46
    func-name, 0
@@ -61,6 +61,7 @@ Module × level grid
    data/test_mixture, 4, 0, 0, 0, 0, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
    derivations/test_kernels, 55, 0, 0, 0, 0, 0
+   derivations/test_mu_weighted_basis, 0, 0, 0, 0, 1, 0
    derivations/test_peierls_assembly_drivers, 0, 0, 0, 0, 9, 0
    derivations/test_peierls_closure_operator, 0, 0, 0, 0, 48, 0
    derivations/test_peierls_convergence, 5, 0, 0, 0, 0, 0
@@ -68,7 +69,7 @@ Module × level grid
    derivations/test_peierls_cylinder_geometry, 10, 0, 0, 0, 0, 0
    derivations/test_peierls_cylinder_multi_region, 7, 0, 0, 0, 3, 0
    derivations/test_peierls_cylinder_prefactor, 4, 0, 0, 0, 0, 0
-   derivations/test_peierls_cylinder_white_bc, 4, 3, 0, 0, 0, 0
+   derivations/test_peierls_cylinder_white_bc, 4, 3, 0, 0, 4, 0
    derivations/test_peierls_geometry, 0, 0, 0, 0, 32, 0
    derivations/test_peierls_multigroup, 9, 10, 0, 0, 8, 0
    derivations/test_peierls_rank2_bc, 9, 24, 0, 0, 4, 0
@@ -77,7 +78,9 @@ Module × level grid
    derivations/test_peierls_rank_n_conservation, 0, 0, 0, 0, 4, 0
    derivations/test_peierls_rank_n_primitives, 19, 0, 0, 0, 0, 0
    derivations/test_peierls_reference, 40, 25, 0, 0, 16, 0
-   derivations/test_peierls_specular_bc, 0, 0, 0, 0, 24, 0
+   derivations/test_peierls_slab_legacy_aggregate, 0, 0, 0, 0, 4, 0
+   derivations/test_peierls_specular_bc, 0, 0, 0, 0, 27, 0
+   derivations/test_peierls_specular_symbolic, 0, 18, 0, 0, 0, 0
    derivations/test_peierls_sphere_eigenvalue, 0, 4, 0, 0, 0, 0
    derivations/test_peierls_sphere_geometry, 21, 0, 0, 0, 0, 0
    derivations/test_peierls_sphere_prefactor, 6, 0, 0, 0, 0, 0
@@ -194,6 +197,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
    ``peierls-rank-n-stability``, 20
+   ``peierls-specular-bc-defn``, 18
    ``dd-cartesian-1d``, 17
    ``direction-sampling``, 16
    ``fission-weight``, 16
@@ -300,7 +304,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **43** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **42** of the testable equations found on theory pages are orphan.
 
 - ``c-in-remapping``
 - ``e1-decomposition``
@@ -329,7 +333,6 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``peierls-specular-M-tridiagonal``
 - ``peierls-specular-R-formula``
 - ``peierls-specular-T-matrix``
-- ``peierls-specular-bc-defn``
 - ``peierls-specular-multibounce-formula``
 - ``peierls-sphere-G-bc``
 - ``peierls-sphere-equation``
@@ -448,6 +451,7 @@ Every ``ERR-NNN`` entry in ``tests/l0_error_catalog.md`` and the tests that carr
    ``ERR-030``, 2
    ``ERR-031``, **0 (MISSING)**
    ``ERR-032``, 4
+   ``ERR-033``, 4
 
 Unmarked tests
 --------------

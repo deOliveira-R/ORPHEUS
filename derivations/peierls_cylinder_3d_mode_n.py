@@ -74,6 +74,12 @@ def shifted_legendre_monomial_coefs(n: int) -> tuple[float, ...]:
     """Return the monomial-basis coefficients :math:`(c_n^0, c_n^1,
     \\ldots, c_n^n)` of :math:`\\tilde P_n(\\mu) = \\sum_k c_n^k\\,
     \\mu^k`, computed symbolically and cached.
+
+    TODO(Issue #95 sub-task): Once this root derivation script is
+    lifted into ``orpheus/derivations/``, replace this local copy with
+    ``from ._shifted_legendre import shifted_legendre_monomial_coefs``.
+    The canonical implementation lives in
+    ``orpheus/derivations/_shifted_legendre.py``.
     """
     if n < 0:
         raise ValueError(f"n must be non-negative, got {n}")
