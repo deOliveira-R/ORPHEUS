@@ -841,29 +841,13 @@ Subsection — Related open questions
   for ``shape="slab"`` stays on the legacy
   :mod:`~orpheus.derivations.peierls_slab` module. Phase G.3
   established 1-group parity; multi-group parity is blocked.
-- **OQ — Planar-limit cross-check against hollow cylinder?** The
-  naive claim "hollow cylinder at :math:`r_0 \to R` reduces to a
-  slab of thickness :math:`L = R - r_0`" does **not** hold at the
-  :math:`10^{-8}` level that Phase G.4 originally hoped for. Probed
-  empirically at :math:`r_0 = 0.999\,R`, :math:`R = 1`,
-  :math:`L = 0.001`, :math:`\Sigma_t = 1`, :math:`c = 0.4`,
-  :math:`\nu\Sigma_f = 0.6`: unified slab gives
-  :math:`k_{\rm eff} = 0.002\,355` and unified cylinder gives
-  :math:`k_{\rm eff} = 0.001\,825`, a **22 %** relative disagreement.
-  The physical reason is that the cylinder's :math:`\mathrm{Ki}_1`
-  has already integrated the axial direction analytically; the
-  remaining in-plane chord-length distribution in a thin annular
-  shell scales as :math:`\sqrt{2\,R\,L}` for tangential rays
-  (:math:`\approx 0.045` for the probe's parameters), not
-  :math:`L/|\mu|` as in a slab. The two kernels therefore see
-  different optical-depth spectra even in the thin-shell limit, so
-  there is no simple geometric equivalence at matched
-  :math:`(\Sigma_t, \Sigma_s, \nu\Sigma_f, L)`. A meaningful
-  planar limit needs either a ray-distribution-matched comparison
-  or a curvature-over-thickness expansion — both are future work.
-  Phase G.4 as specified in the plan is filed as a
-  GitHub Issue for future physics investigation rather than a
-  shipping test.
+- **OQ — Planar-limit cross-check against hollow cylinder?** Probed
+  empirically and found structurally non-trivial; tracked in
+  `Issue #129 <https://github.com/deOliveira-R/ORPHEUS/issues/129#issuecomment-4348745701>`_.
+  The cylinder's :math:`\mathrm{Ki}_1` has already integrated the
+  axial direction, giving a different chord-length distribution than
+  slab — there is no simple thin-shell equivalence at matched optical
+  parameters.
 
 
 .. _theory-peierls-api-posture:
