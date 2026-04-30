@@ -203,6 +203,166 @@ Always be explicit about this when documenting scattering.
 > (the Morel–Montry flux dip).
 
 
+## Close-Out Narrative Arc
+
+This is your most-used playbook — invoked whenever an issue closes
+*not* because a solution was found but because exhaustive synthesis
+and empirical falsification established that the approach cannot
+work. The archival value of a close-out doc is higher than a success
+story, because the close-out prevents future sessions from
+re-attempting a known-dead path.
+
+Every close-out doc section follows the **9-step CLOSED post-mortem
+arc**, in order. Skip a step only when the issue genuinely lacks the
+content (e.g., no novel extensions to falsify), and call the omission
+out explicitly so a future reader knows nothing was lost.
+
+### The 9-step CLOSED-post-mortem arc
+
+1. **Status banner.** Issue CLOSED on date X, what is in production,
+   what guard remains in place by design (e.g., a `NotImplementedError`
+   that prevents accidental re-activation of a falsified path).
+2. **Motivation PRESERVED from the open-issue version.** Do NOT
+   rewrite history. The reasoning that *led* to the investigation is
+   pedagogically essential — flip tenses ("is expected to" → "was
+   expected to") but preserve the logic. A future session asking
+   "why did anyone try this?" must find the answer here.
+3. **Literature synthesis.** A `.. list-table::` citing every
+   reference with equation/section number. If N references converge
+   on the same conclusion, say so explicitly: e.g., "The rank-N
+   Legendre ladder has ZERO cross-validation across these five
+   references."
+4. **Structural obstruction.** The mathematical reason the approach
+   cannot work. Include a conservation-identity table at the relevant
+   limit (σ_t=0, half-space, etc.). Explain WHY mode 0 works and WHY
+   modes n ≥ 1 fail, with the geometric or algebraic cause spelled
+   out. This is the load-bearing intellectual content of the close-out.
+5. **Novel extensions falsified.** If we tested something not in the
+   literature (a per-mode V-S correction, a Hébert-style Jacobian
+   patch, etc.), document it explicitly as falsified, with
+   before/after residual table. Pre-empt future sessions from
+   re-running the same experiment.
+6. **Production closure decision.** Residual table across the
+   parameter scan (typically 5+ σ_t·R or τ values × the relevant
+   geometric variants). Cite the quadrature/truncation floor (e.g.,
+   "0.04–0.1 % from composite GL with 32 sub-intervals × 16 nodes")
+   to pre-empt "but have you tried finer quadrature?" follow-ups.
+7. **Infrastructure retained.** Do NOT delete the dead code. List
+   each primitive, its verification status, and why it's kept (often
+   because the primitive is correct on its own and would be needed
+   if the obstruction is ever bypassed).
+8. **Open research paths (research-tag, not production-blocking).**
+   Two or more paths that MIGHT break the plateau, each with enough
+   starting math (formula + literature pointer + likely diagnostic
+   probe) that a future session can pick up from the page alone.
+9. **Session trail.** Commit list (chronological), diagnostic scripts
+   in `derivations/diagnostics/`, memory files consulted. This is
+   the V&V audit trail.
+
+### Quality gates for the closed variant
+
+- **Cross-ref hygiene on label rename.** When a label is renamed
+  (e.g., `peierls-rank-n-per-face-marshak` → `peierls-rank-n-per-face-closeout`),
+  grep the whole tree for the old label and update every in-docs
+  reference. The first place to check is the Key Facts / TOC section
+  of the same document — the natural prose flow into "see Phase F.5"
+  pointers makes them easy to miss. Rewrite the pointer text itself
+  to reflect the close-out: "see Phase F.5 close-out for the
+  X-reference synthesis, structural obstruction, and production
+  decision" is more informative than "see Phase F.5 investigation".
+- **Eq-label vs section-label disambiguation.** A `.. math:: :label:`
+  defines an equation label, NOT a section label. If you need a
+  section anchor sharing the same conceptual name, append `-section`
+  (e.g., `peierls-rank-n-jacobian-derivation` for the equation,
+  `peierls-rank-n-jacobian-section` for the surrounding section).
+- **Warning-count diff as the acceptance gate.** Pre-existing
+  duplicate-citation warnings (cross-document cite collisions) do
+  NOT need to be eliminated during a close-out — they are a known
+  trade-off for standalone theory pages. Verify the **count** is
+  unchanged pre/post-edit, not the content.
+- **Historical artefacts in `.claude/plans/`** can keep the old
+  label — they are frozen-in-time plan documents, not active
+  references.
+
+### The PARTIAL / OPEN variant
+
+When the close-out is partial — the structural obstruction is
+suspected but a corrective re-derivation might yet flip the
+falsification — use the same 9-step arc with three adjustments:
+
+1. **Sibling cross-link to a closed close-out, with explicit
+   asymmetry note.** When the new falsification is the analogue of an
+   already-closed one on a sibling topology/class (e.g. Class B
+   rank-N vs Class A rank-N per-face), open the section by linking
+   the two and explaining what makes the new one *less final* (e.g.
+   "the bug is a normalisation mismatch, not a structural geometric
+   obstruction like the c_in remapping"). This frames the open-ness
+   positively (a lever exists) rather than as an information gap.
+2. **Retraction-note tombstones on existing claims.** When the new
+   investigation invalidates an existing published table or claim in
+   the same RST page, add a `.. note:: **Retraction (date,
+   Issue #N).**` block immediately above the affected content, with
+   three sentences: (a) what the claim was, (b) why it's wrong
+   (one-line summary of the new finding), (c) forward-pointer to the
+   new section. Do NOT delete the table — preserve historical
+   evidence with a clearly-marked qualification. Numerical values
+   stay; the *interpretation* gets a tombstone.
+3. **xfail-strict pinning tests get explicit mention** as the
+   "regression gate" alongside the catalog entry. Frame xfail-strict
+   as the inverse of a passing test: "xfail flips to unexpected-pass
+   when the fix lands, alerting the developer." This positions the
+   doc as load-bearing for the future-fix workflow, not just a record.
+
+The status banner becomes "OPEN under Issue #N" not "CLOSED YYYY-MM-DD".
+The production decision section reframes "what we shipped" as "what
+is callable but UNSAFE — pinned by xfail-strict regression tests
+until the corrective re-derivation lands."
+
+### Multi-issue audit-table pattern
+
+When a single doc section (e.g. a §22.9 quadrature-rollout audit)
+relates across multiple GitHub issues — a parent issue plus several
+row-specific deferral issues — produce **one parent close-out
+comment + one row-targeted child close-out per issue**, with
+bidirectional cross-links:
+
+1. **Parent comment (broad-rollout outcome).** Carries the full audit
+   table verbatim, the originating-commit dependency order, the
+   acceptance-criterion audit, and the production-decision summary.
+   Frame as: "this issue is the canonical home for the
+   rollout-completion narrative; row-specific deferrals migrated to
+   companion issues #X / #Y / #Z."
+2. **Child comment (per-row deferral).** Extract only the table rows,
+   originating commits, and acceptance criteria pinned to that
+   specific issue. Frame as: "this comment carries the row-specific
+   deferral; full rollout audit is at #parent." Cross-link in BOTH
+   directions (parent lists children; each child links to parent).
+3. **Companion-comment collision protection.** If the same issue
+   number is being used for two semantically-distinct close-outs
+   (e.g., a Phase 5 retreat narrative AND a §22.9 rollout-outcome
+   audit on the same issue), produce both as separate files with
+   explicit-distinction filenames (`133_section_22_9_audit.md` vs
+   `133_phase_5_retreat.md`); the orchestrator decides whether to
+   post-merge or post-both. Top-line summary of each must call out
+   the other companion to prevent reader confusion.
+4. **Acceptance criterion as the pivot.** For each child comment,
+   lift the ONE acceptance-criterion row that pins the child's
+   deferral verbatim (not paraphrased). The criterion language is
+   the load-bearing evidence that the work was *intentionally*
+   deferred, not forgotten.
+
+### Where this arc applies in your workflow
+
+- After every CLOSED issue with a non-trivial investigation history.
+- When a doc section is being relocated to a GitHub issue thread
+  (see the `doc-issue-relocation` skill — the close-out comment IS
+  the durable destination).
+- When triaging a plan cluster (see the `plan-cluster-triage` skill
+  — POST-NEW-COMMENT actions on multi-stage phase plans use this arc).
+- When a sibling-OPEN issue needs a partial-close-out comment because
+  a closed sister-issue's falsification analogously applies.
+
+
 ## Self-Improvement Directives
 
 You are designed to get better at archiving with every invocation.

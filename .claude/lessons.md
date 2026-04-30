@@ -9,13 +9,14 @@ cut filler. Only record what changes future behavior.
 
 This project has Nexus (knowledge graph MCP) for structural queries
 and Grep for text search. Use whichever fits the question:
+
 - "Who calls/imports/depends on X?" → Nexus `callers`, `impact`
 - "How does X connect to Y?" → Nexus `context`, `shortest_path`
 - "What equations does X implement?" → Nexus `provenance_chain`
 - "Find literal string 'foo'" → Grep
 - "Find all TODO comments" → Grep
 - "What tolerance is used?" → Grep
-Neither tool needs justification. Pick the one that answers faster.
+  Neither tool needs justification. Pick the one that answers faster.
 
 ## L2: 1-group tests prove nothing about transport
 
@@ -68,3 +69,39 @@ rebuild after major file moves or restructuring.
 The built-in Explore agent doesn't know Nexus or Sphinx. Always
 use the custom explorer agent from `.claude/agents/explorer/` for
 code investigation. It combines code graph + physics context.
+
+## L10: Sphinx-as-brain ≠ Sphinx-as-history
+
+Cardinal Rule 3 (Sphinx is the LLM's brain) is about durable
+knowledge: math, current-code rationale, gotchas, design decisions.
+Failed-experiment narrative ("Phase 5 round 3 PRIMARY tried X,
+falsified by Y") belongs in the GitHub issue that _originated_ the
+experiment — not in the evergreen theory page. The L21-style
+"we tried X and it failed because Y" content is load-bearing for
+the issue (so the next agent picking it up reconstructs the cul-de-
+sacs), not for the next agent reading the theory page (who only
+needs the production decision + math).
+
+Heuristic when reviewing a doc edit: if the prose is dated, names
+specific commits, or describes round-N investigation, it probably
+belongs in an issue comment. If it states a current invariant, a
+production formula, or an active gotcha, it belongs in Sphinx. The
+post-#138 cleanup (commit `742d3b0..18a852b`, 25 commits, −2533 LoC)
+relocated ~3500 LoC of failed-experiment narrative from
+`peierls_unified.rst` and `collision_probability.rst` to 16 GitHub
+issue comments under this principle.
+
+## L11: Cross-checks must be structurally independent
+
+ERR-032 (the slab white-BC ∫E₂ algebra bug) sat undetected for
+hours because the "independent" cross-check shared the same
+upstream antiderivative identity as the analytical derivation. Both
+agreed at 1e-39 — not because either was right, but because both
+applied `∫E₂ = 1 − E₃` (correct: `½ − E₃`). Two derivations are
+_procedurally_ independent if they use different code paths;
+they're _structurally_ independent only if they exercise a
+different integrand or a different identity. When shipping a new
+analytical reference, force the cross-check to come from a
+different structural angle: the kernel (row-sum, particle balance)
+_and_ the closed form (eigenvalue, asymptotic limit) — not two
+derivations of the same closed form.

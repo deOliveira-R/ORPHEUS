@@ -203,3 +203,13 @@ Two trigger entries need to be sharpened (do on next revision):
 - `orpheus/derivations/peierls_geometry.py` lines 2032-2400
 - `derivations/diagnostics/diag_specular_overshoot_*.py` (12 numbered)
 - `derivations/diagnostics/diag_specular_mb_phase4_*.py` (9 numbered)
+
+---
+
+**Promoted to skill on 2026-04-30** — see `cross-domain-frames`
+reference.md Parts A.7 (Hilbert-Schmidt / separable kernels)
+and A.3 (Spectral theory of multiplication operators)
+sharpenings, plus new precedent file
+`scripts/validated_hilbert_schmidt_separable.md` capturing
+the M1/M2/M4 verification triad. This memory file remains as
+evidence / precedent until Phase 5 production lands.

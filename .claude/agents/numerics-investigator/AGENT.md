@@ -181,7 +181,9 @@ Write: `derivations/diagnostics/diag_06_scaling.py`
 
 ### Step 7: Promote diagnostics to tests
 
-Once the root cause is found and fixed:
+Once the root cause is found and fixed, follow the canonical
+**diagnostic-promotion policy** at `tests/derivations/_promotion_policy.md`
+(DELETE / PROMOTE / LEAVE — three outcomes per script). Quick rules:
 
 1. Convert the minimal reproducer (step 2) into a regression test
 2. Move it to the matching per-module folder — e.g.
@@ -191,6 +193,8 @@ Once the root cause is found and fixed:
 4. Keep any diagnostic that tests a GENERAL property (like per-ordinate
    consistency) — these are valuable permanent tests
 5. Delete the diagnostic scripts that are no longer needed
+6. Never promote a print-only or plot-only script — those aren't
+   regression gates even with a pytest marker
 
 ## Lessons from Past Investigations
 

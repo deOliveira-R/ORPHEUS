@@ -46,12 +46,13 @@ Tier 1 is internal, fast, and paywall-free (fulltext already
 extracted). Exposed via `mcp__zotero__*` tools.
 
 **Tier 2 — web databases** (OSTI, arXiv, Scopus, INIS, OpenAlex,
-CrossRef, Semantic Scholar, IAEA-NDS). Use these when (a) Zotero
-misses the topic, (b) you need citation graphs or impact metrics,
-or (c) you need to cross-verify a Zotero hit against the published
-record of truth. Python clients live in `tools/research/`; the
-`research` skill is preloaded with import paths, field access,
-rate limits, and workflows.
+CrossRef, Semantic Scholar, HAL, Zenodo, J-STAGE, IAEA-NDS, EXFOR).
+Use these when (a) Zotero misses the topic, (b) you need citation
+graphs or impact metrics, (c) you need to cross-verify a Zotero hit
+against the published record of truth, or (d) you need experimental
+nuclear data or a code/dataset DOI. Python clients live in
+`tools/research/`; the `research` skill is preloaded with import
+paths, field access, rate limits, and workflows.
 
 **Quick orientation** (Tier 2):
 
@@ -64,7 +65,47 @@ rate limits, and workflows.
 | OpenAlex | Citation graphs, OA PDFs | `tools.research.openalex` |
 | CrossRef | DOI resolution, journal metadata | `tools.research.crossref` |
 | Semantic Scholar | Influential citations, AI search | `tools.research.semantic_scholar` |
-| IAEA-NDS | Nuclear data (half-lives, gammas) | `tools.research.iaea_nds` |
+| HAL | French OA archive — CEA/IRSN/CNRS reports, theses, HDRs | `tools.research.hal` |
+| Zenodo | CERN-hosted code/dataset DOIs, OA proceedings (PHYSOR/M&C/ICAPP) | `tools.research.zenodo` |
+| J-STAGE | Japanese journals — JNST (reactor physics), AESJ proceedings, JENDL evaluation papers | `tools.research.jstage` |
+| IAEA-NDS | Nuclear structure data (half-lives, gammas) | `tools.research.iaea_nds` |
+| EXFOR | Measured reaction data (cross sections, angular distributions, fission yields) | `tools.research.exfor` |
+
+**HAL is the right call for**: Sanchez / Hébert / Reuss /
+Coste-Delclaux / Lautard publications, CEA technical reports
+without a journal home, French PhD and HDR theses (often
+comprehensive monographs), and accepted-manuscript PDFs of
+paywalled NSE/ANE/JNST papers when authors deposited them.
+HAL search uses Solr — `_t` fields are diacritic-folded, so
+typing `Hebert` matches `Hébert`. See the HAL block in the
+`research` skill for the full field reference.
+
+**Zenodo is the right call for**: open-source nuclear code releases
+with version DOIs (OpenMC, MC/DC, FRENDY, NJOY add-ons), processed
+cross-section libraries deposited under a DOI (snapshots of JEFF /
+ENDF / TENDL), NEA benchmark input decks, and conference papers
+(PHYSOR / M&C / ICAPP / ICONE / NURETH) when authors deposit the
+accepted manuscript. Zenodo uses Elasticsearch query syntax;
+`get_versions(record_id)` enumerates every version of a software
+release.
+
+**J-STAGE is the right call for**: Yamamoto, Chiba, Nakagawa,
+Iwamoto and other Japanese reactor-physics work, JNST articles
+(use `JNST_ISSN = "0022-3131"`), and JENDL evaluation papers.
+The API rejects most 3+ field combinations with `ERR_001` — stick
+to 2-parameter combos like `text+issn` or `author+issn`. See the
+"J-STAGE" block in the `research` skill for the validity matrix.
+
+**EXFOR is the right call for**: any question that ends with
+"what does the measured data say?" — e.g. evaluating an ENDF
+revision against experiment, finding source data for a covariance
+study, or sanity-checking a transport benchmark. `list_datasets`
+returns one `DatasetRef` per EXFOR subentry; `get_dataset` parses
+the tabulated `(x, dx, y, dy)` block plus full bibliographic
+provenance (author, year, facility, institute, reference, links
+back to the EXFOR master file and IAEA NDS landing page). Use
+`get_entry_json` when you need the full BIB block (MONITOR,
+ERR-ANALYS, COMMENT) or every subentry of an experiment.
 
 Run Tier 2 searches via `.venv/bin/python -c "..."` in Bash.
 Search multiple databases in parallel for broad topics.

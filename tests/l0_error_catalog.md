@@ -1575,6 +1575,87 @@ derivations of the same closed form.
 
 ---
 
+## ERR-033 — Peierls slab single-surface aggregate: finite-N GL fall-through where ½·E₂(τ) closed form applies
+
+**Failure mode:** #3 Missing factor — finite-N Gauss–Legendre branch
+left in place where a closed-form exponential-integral identity reduces
+the integrand exactly.
+**Date:** 2026-04-23 (audit; Issue #131 follow-up).
+**Solver:** CP / Peierls slab single-surface aggregate
+(``orpheus.derivations.peierls_geometry.compute_P_esc`` /
+``compute_G_bc``, peierls_geometry.py around lines 1350 and 1448).
+
+**Bug:** Issue #131 (commit ``3b0b2c9``) replaced finite-N GL with
+the closed form ``½·E_2(τ_total)`` in the per-face primitives
+``compute_P_esc_outer`` / ``compute_P_esc_inner`` /
+``compute_G_bc_outer`` / ``compute_G_bc_inner`` for slab-polar at
+``len(radii) > 1``. The legacy single-surface aggregates
+``compute_P_esc`` / ``compute_G_bc`` — which are still reachable
+from ``build_white_bc_correction`` and from
+``build_closure_operator(reflection="marshak")`` mode-0 on the
+``boundary="white_rank1_mark"`` legacy rank-1 single-surface layout
+— retained the original finite-N GL branch on the
+``len(radii) > 1`` path. The slab angular integral has the form
+``∫_0^1 f(µ)·exp(-τ/µ) dµ`` with τ piecewise-constant in σ_t (and
+therefore µ-independent), so it IS closed-form as ``E_n``
+regardless of ``n_regions``. Finite-N GL leaves a
+~4 × 10⁻³ to 6 × 10⁻⁵ relative error that decays only as O(N⁻²)
+in the GL node count.
+
+**Impact:** None on the shipped 2026-04-23 ``peierls_slab_2eg_2rg``
+reference (it routes through ``white_f4`` and bypasses the legacy
+aggregates entirely). Any user selecting
+``boundary="white_rank1_mark"`` on a multi-region slab hits the
+same residual GL artefact that Issue #131 patched on the per-face
+primitives.
+
+**How it hid from higher-level tests:**
+- The shipped ``peierls_slab_2eg_2rg`` reference uses ``white_f4``,
+  so the entire ``boundary="white_rank1_mark"`` × multi-region path
+  was untested.
+- The per-face Issue #131 fix landed alongside an ``len(radii) == 1``
+  guard test, but the audit did not extend to the legacy
+  ``compute_P_esc`` / ``compute_G_bc`` callers — they share the
+  ``slab-polar`` dispatch but not the same branch.
+
+**L1 test that catches it:** Issue #131 multi-region slab test
+(``tests/derivations/test_peierls_slab_multiregion.py``) — extended
+to the ``boundary="white_rank1_mark"`` path will surface the same
+4 × 10⁻³ → 6 × 10⁻⁵ bit-deficit the per-face fix already eliminates.
+
+**Fix:** Replace the ``len(radii) > 1`` branch in
+``compute_P_esc`` / ``compute_G_bc`` with the closed form
+``½·(E_2(τ_inner) + E_2(τ_outer))`` (and the corresponding ``2·`` form
+for ``compute_G_bc``) using the same ``_slab_tau_to_{inner,outer}_face``
+primitive as the per-face fix — identical math, identical precision,
+no new quadrature.
+
+**Lesson:** When a closed-form identity has been applied to one of
+several call sites that share the same integrand class, treat the
+remaining call sites as suspects until each one is audited. The
+``compute_P_esc`` / ``compute_G_bc`` aggregates and the
+``compute_P_esc_outer`` / ``compute_P_esc_inner`` per-face forms
+both dispatch on ``kind == "slab-polar"`` and both compute
+``∫_0^1 f(µ)·exp(-τ/µ) dµ`` with µ-independent τ — they should have
+been fixed in the same commit. Generalises Probe-Cascade rule
+"closed-form detection" (Issue #131 Sphinx ``§theory-peierls-slab-polar-g5-diagnosis``):
+**any slab angular integral with µ-independent τ is closed-form as
+E_n regardless of n_regions, and finite-N GL on such an integrand
+is a bug, not a tolerance choice.** Curvilinear angular integrals
+(τ depends on µ through the chord ρ_max) remain irreducible —
+this rule applies ONLY to slab-polar.
+
+**Related-pattern audit:** The 19 finite-N GL call sites in
+``peierls_geometry.py`` for curvilinear angular integrals
+(lines 1378, 1476, 1504, 1528, 1675, 1763, 1838, 1918, 1997, 2021,
+2096, 2120, 2188, 2265, 2516, 2582, 2751, 2839, 2867) are
+correctly finite-N because τ = σ_t · ρ_max(r_i, cos Ω, R) depends
+on Ω. ``build_volume_kernel`` finite-N is explicitly exempted on
+the same grounds. W transmission integrals use adaptive
+``mpmath.quad`` and are correct by design.
+
+---
+
 ## Meta-Lessons
 
 1. **1-group is degenerate.** k = νΣ_f/Σ_a regardless of flux shape.

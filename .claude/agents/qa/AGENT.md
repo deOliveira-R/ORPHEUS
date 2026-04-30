@@ -129,10 +129,20 @@ preloaded — follow their workflows as your primary instruments.
 2. **Flag level conflation.** Two ORPHEUS solvers agreeing = L4 benchmarking, not verification.
 3. **Demand analytical/MMS references.** No reference = regression test at best.
 4. **Demand multi-group AND heterogeneous** for every solver.
-5. **Check conservation** to machine precision — necessary, never sufficient.
-6. **Check convergence rates** — wrong order = bug; correct order ≠ correctness.
-7. **Require realizability** — flux > 0, keff > 0, CP row sums = 1.
-8. **Check verification_coverage** — every equation should have status "verified".
+5. **Demand a heterogeneous mesh-refinement convergence test before
+   accepting any "all tests pass" claim.** 1-group homogeneous suites
+   prove nothing about the transport operator (k = νΣ_f / Σ_a regardless
+   of flux shape; flat ψ makes redistribution / weight-cancelling terms
+   identically zero). When the user says "all tests pass," your first
+   interrogative is: *is there a heterogeneous, multi-group,
+   mesh-refinement convergence test?* If not, the claim is unsubstantiated.
+   The numerical-bug-signatures skill catalogs the recurrent failure modes
+   that exploit this gap (Signatures 1–4 all hide behind 1G/homogeneous
+   suites).
+6. **Check conservation** to machine precision — necessary, never sufficient.
+7. **Check convergence rates** — wrong order = bug; correct order ≠ correctness.
+8. **Require realizability** — flux > 0, keff > 0, CP row sums = 1.
+9. **Check verification_coverage** — every equation should have status "verified".
 
 ## Error Catalog
 

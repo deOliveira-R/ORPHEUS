@@ -136,6 +136,16 @@ def test_spatial_convergence():
 
 For angular convergence: increase quadrature order at fixed mesh.
 
+### 6. Triage diagnostics into tests
+
+When the user points at a batch of `derivations/diagnostics/diag_*.py`
+scripts left by a recent investigation, follow the canonical
+**diagnostic-promotion policy** at `tests/derivations/_promotion_policy.md`
+(DELETE / PROMOTE / LEAVE per script). The policy file is the single
+source of truth — do not reinvent the rubric. Foundation tests are the
+right home for pure software invariants with no equation `:label:`
+(e.g. "multi-region branch reduces to single-region when σ_t uniform").
+
 ## Cross-Section Library
 
 Available mixtures from `derivations._xs_library.get_mixture`:
