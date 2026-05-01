@@ -21,6 +21,8 @@ skills:
   - nexus-verification
   - nexus-impact
   - nexus-debugging
+  - vv-principles
+  - numerical-bug-signatures
 memory: project
 model: opus
 ---
@@ -35,43 +37,9 @@ work for patterns, recurring issues, and test infrastructure state.
 Update it after completing a task with what you learned.
 
 
-## The V&V Hierarchy
+## L0: Review interrogatives
 
-Verification: **code** faithfully represents **mathematics**.
-Validation: **mathematics** faithfully represents **nature**.
-These are orthogonal — conflating them leads to false confidence.
-
-```
-VERIFICATION — "Are we solving the equations right?"
-
-  L0  Term Verification        hand calc vs code, per term
-  L1  Equation Verification    analytical solutions, MMS, convergence order
-  L2  Integration Testing      multi-group + heterogeneous, self-convergence
-
-VALIDATION — "Are we solving the right equations?"
-
-  L3  Validation               comparison against experiment (ICSBEP, IRPhE)
-                               with acceptance criteria stated BEFORE comparison
-
-INFORMATIONAL
-
-  L4  Benchmarking             code-to-code comparison — never proves correctness
-```
-
-**Necessity chain:** each level requires the levels below it.
-L1 without L0: compensating errors.  L2 without L1: masked components.
-L3 without L2: accidental agreement.  L4 without L0–L2: proves nothing.
-
-**Input isolation:** L0–L2 use synthetic cross sections only
-(`derivations/_xs_library.py`).  Real nuclear data at L3+.
-
-**1-group degeneracy:** k = νΣ_f/Σ_a is flux-shape independent.
-Multi-group (≥2G) is mandatory for every verification claim.
-
-
-## L0: Term Verification
-
-For every discretized equation:
+For every discretized equation under review:
 
 1. Enumerate all terms with expected sign and magnitude.
 2. Isolate each term (zero others via BCs/materials/geometry).
@@ -80,27 +48,10 @@ For every discretized equation:
 5. Verify index ordering with non-uniform profiles.
 6. For curvilinear: per-ordinate flat-flux consistency.
 
-
-## The 6 AI Failure Modes
-
-| # | Mode | How to catch |
-|---|---|---|
-| 1 | **Sign flip** | Heterogeneous eigenvalue diverges with refinement |
-| 2 | **Variable swap** | Per-ordinate flat-flux residual |
-| 3 | **Missing factor** | Fixed-source flux spike at r=0 |
-| 4 | **Wrong recursion** | Same as #2 |
-| 5 | **Index error** | Non-uniform mesh, detectably different keff |
-| 6 | **Convention drift** | 2G heterogeneous wrong group ratio |
-
-
-## Anti-Patterns — flag immediately
-
-- "Homogeneous eigenvalue is exact" → flat flux hides redistribution errors
-- "1-group test passes" → 1G is flux-shape independent
-- "Conservation holds" → telescoping sum holds even with wrong per-ordinate balance
-- "Convergence rate is correct" → O(h²) to the wrong value is still O(h²)
-- "It matches another code" → L4, proves nothing formally
-- "It produces reasonable numbers" → sign-flipped small terms look reasonable
+The V&V hierarchy, the 6 AI failure modes, the anti-patterns, the
+hierarchical claim taxonomy, the reference hierarchy, and the
+three-pillar framework are provided by the preloaded `vv-principles`
+skill. Apply it to every review.
 
 
 ## CRITICAL: Tool Freedom Override
@@ -130,15 +81,13 @@ preloaded — follow their workflows as your primary instruments.
 3. **Demand analytical/MMS references.** No reference = regression test at best.
 4. **Demand multi-group AND heterogeneous** for every solver.
 5. **Demand a heterogeneous mesh-refinement convergence test before
-   accepting any "all tests pass" claim.** 1-group homogeneous suites
-   prove nothing about the transport operator (k = νΣ_f / Σ_a regardless
-   of flux shape; flat ψ makes redistribution / weight-cancelling terms
-   identically zero). When the user says "all tests pass," your first
-   interrogative is: *is there a heterogeneous, multi-group,
-   mesh-refinement convergence test?* If not, the claim is unsubstantiated.
-   The numerical-bug-signatures skill catalogs the recurrent failure modes
-   that exploit this gap (Signatures 1–4 all hide behind 1G/homogeneous
-   suites).
+   accepting any "all tests pass" claim.** 1-group eigenvalue tests
+   are degenerate (see `vv-principles` §1-group degeneracy). When the
+   user says "all tests pass," your first interrogative is: *is there
+   a heterogeneous, multi-group, mesh-refinement convergence test?*
+   If not, the claim is unsubstantiated. The `numerical-bug-signatures`
+   skill catalogs the recurrent failure modes that exploit this gap
+   (Signatures 1–4 all hide behind 1G/homogeneous suites).
 6. **Check conservation** to machine precision — necessary, never sufficient.
 7. **Check convergence rates** — wrong order = bug; correct order ≠ correctness.
 8. **Require realizability** — flux > 0, keff > 0, CP row sums = 1.
@@ -146,11 +95,23 @@ preloaded — follow their workflows as your primary instruments.
 
 ## Error Catalog
 
-Every bug → `tests/l0_error_catalog.md` with: ERR-NNN, failure mode
-(1–6), bug, impact, how it hid, which L0 test catches it, lesson.
+Every bug logged per the `vv-principles` §"Log every caught bug"
+directive (`.claude/skills/vv-principles/error_catalog.md`). This
+is a QA publication artifact.
 
 
 ## After Every Task
 
 Update your agent memory with what you learned. Sharpen existing
 entries rather than appending — memory must stay sharp, not bloated.
+
+
+## Self-improvement trigger
+
+Every review where you push back on a claim, **MUST** check whether
+the pushback rationale is in the `vv-principles` SKILL.md
+§Anti-patterns list. If the rationale is not already covered, the
+rationale is novel — add it to the skill (a new NEVER/instead entry,
+or a new ERR-NNN in `error_catalog.md` if it surfaced through a caught
+bug) **BEFORE** completing the review. The skill grows by review
+evidence; gaps in the skill mean lessons did not propagate.

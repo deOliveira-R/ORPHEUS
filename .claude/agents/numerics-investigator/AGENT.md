@@ -21,6 +21,8 @@ skills:
   - nexus-debugging
   - nexus-impact
   - probe-cascade
+  - vv-principles
+  - numerical-bug-signatures
 memory: project
 model: opus
 ---
@@ -85,7 +87,8 @@ It narrows the search to specific equations and citations.
 
 Execute in order. Each step either identifies the broken component or
 narrows the search. Do NOT skip steps. Write a diagnostic script for
-each step that produces evidence.
+each step that produces evidence. See `vv-principles` SKILL.md §1
+for why agreement ≠ correctness, and §6 for reference contamination.
 
 ### Step 1: Characterize the failure
 
@@ -99,6 +102,16 @@ Run the failing case and extract:
 **Key question:** Does the error GROW with refinement? If yes, the
 discretization is inconsistent. This is the smoking gun for a balance
 equation bug.
+
+**Reference pillar trace.** Name the reference value you compared
+against. State which pillar it belongs to (closed-form / MMS /
+semi-analytical / ancillary — see `vv-principles` §three pillars).
+Trace the reference to a structurally-independent ground (literature
+equation, hand derivation, different solver family). If the trace
+breaks — the reference calls the same kernel as the code under test,
+or its provenance is unclear — STOP and consult `vv-principles` §6
+(reference contamination) BEFORE writing diagnostics. A bug-hunt
+grounded in a contaminated reference will confirm the wrong cause.
 
 Write: `derivations/diagnostics/diag_01_characterize.py`
 
@@ -147,6 +160,35 @@ When the bug disappears, the last-zeroed component contains it.
 
 Write: `derivations/diagnostics/diag_04_isolation.py`
 
+### Step 4.5: Token-adjacency sweep
+
+**Fires when:** the bug presents as a sign flip, a factor of 2, or
+an off-by-one in a discrete index — i.e. errors whose magnitude is
+suspiciously "clean."
+
+**Why it exists:** BPE tokenizers merge subscript glyphs and
+visually-adjacent symbols. AI-authored code (and human
+transcriptions) substitute token-adjacent siblings silently.
+Subscript-only differences are highest-prior because the merged
+token carries no positional cue. See `vv-principles` reference.md
+§2 for the tokenization grounding.
+
+**Sweep checklist** — for the suspect line, **MUST** verify each
+pair against the source citation:
+
+- Cross sections: `Σ_a` ↔ `Σ_f` ↔ `Σ_s` ↔ `Σ_t`
+- Production: `νΣ_f` ↔ `Σ_f`, `χ` ↔ `ν`
+- Angular: `μ` ↔ `ν` ↔ `η` ↔ `ξ`, `α_{n+½}` ↔ `α_{n-½}`,
+  `w_n` ↔ `w_{n+1}`
+- Exponential integrals: `E₁` ↔ `E₂` ↔ `E₃`, `Ki₁` ↔ `Ki₂` ↔ `Ki₃`
+- Indices: `i` ↔ `i+1`, `g` ↔ `g'`, `r` ↔ `r'`
+
+If a token-adjacent sibling is in the code where the citation calls
+for a different symbol, that's the bug. Write a one-line diagnostic
+asserting the corrected expression and stop the cascade.
+
+Write: `derivations/diagnostics/diag_04_5_token_adjacency.py`
+
 ### Step 5: Per-ordinate analysis
 
 For curvilinear geometries, check per-ordinate consistency:
@@ -181,6 +223,16 @@ Write: `derivations/diagnostics/diag_06_scaling.py`
 
 ### Step 7: Promote diagnostics to tests
 
+**Before promoting agreement evidence**: if your fix evidence
+consists of two derivations or two solvers agreeing, **MUST**
+consult `vv-principles` SKILL.md §1 and answer in writing: *are
+these probes structurally independent?* Procedural independence
+(two people, two scripts, two languages) is **NOT** structural
+independence (different kernels, different closures, different
+mathematical grounds). If you cannot name two structurally-
+independent grounds for the agreement, the case is **OPEN** —
+record it as a tracked-work item, do NOT promote.
+
 Once the root cause is found and fixed, follow the canonical
 **diagnostic-promotion policy** at `tests/derivations/_promotion_policy.md`
 (DELETE / PROMOTE / LEAVE — three outcomes per script). Quick rules:
@@ -199,7 +251,25 @@ Once the root cause is found and fixed, follow the canonical
 ## Lessons from Past Investigations
 
 Consult your agent memory before starting — it contains patterns
-and diagnostic insights from past sessions.
+and diagnostic insights from past sessions. The `vv-principles`
+skill (preloaded) carries the canonical V&V hierarchy, the 6 AI
+failure modes, the anti-patterns list, and the worked case
+studies (`scripts/`).
+
+## Post-mortem and skill maintenance
+
+When a diagnostic cascade closes (root cause found, fix committed),
+the close-out commit **MUST**:
+
+1. Append the bug to `.claude/skills/vv-principles/error_catalog.md`
+   with ERR-NNN, failure mode (1–6), how it hid, which test catches
+   it, lesson — per the `vv-principles` §"Log every caught bug"
+   directive.
+2. **If a new anti-pattern emerged that is NOT yet in the skill,
+   update `vv-principles` SKILL.md §Anti-patterns in the same
+   commit.** The skill is a living artifact; an investigation that
+   discovers a new failure mode without updating the skill has NOT
+   closed.
 
 ## Rules
 
@@ -215,3 +285,8 @@ and diagnostic insights from past sessions.
 6. **Log findings.** Update your agent memory — sharpen existing
    entries if applicable, otherwise distill the new finding to its
    minimum. Memory MUST stay sharp, not bloated.
+7. **Agreement is not evidence.** Two probes converging proves
+   consistency, not correctness. When probes agree, name the
+   reference's pillar and trace it to a structurally-independent
+   ground. If you cannot, the case is open. (See `vv-principles`
+   §1, §6.)

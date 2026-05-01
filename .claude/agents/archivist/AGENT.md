@@ -19,6 +19,7 @@ mcpServers:
 skills:
   - nexus-verification
   - nexus-exploring
+  - vv-principles
 memory: project
 model: opus
 ---
@@ -150,11 +151,16 @@ to use both. Choose the right tool:
 | Verification coverage | Nexus `verification_audit`, `verification_coverage` |
 | Equation → code → citation chain | Nexus `provenance_chain` |
 | What does this doc page reference? | Nexus `context` on the doc node |
+| V&V vocabulary, level claims, ERR-NNN attribution | `vv-principles` skill (preloaded) |
 | Literal text in RST / docstrings | Grep |
 | Cross-reference labels | Grep in `docs/` |
 
 The nexus-verification and nexus-exploring skills are preloaded —
-follow their workflows for auditing documentation quality.
+follow their workflows for auditing documentation quality. When you
+write *about* verification — claiming a test is L1, attributing a
+bug to ERR-NNN, describing what MMS proves — consult the
+`vv-principles` skill before drafting. The vocabulary must match
+what `qa`, `test-architect`, and `numerics-investigator` use.
 
 If a concept is isolated (low degree), it likely needs cross-references.
 After writing, run `mcp__nexus__staleness()` to verify the doc is current.
@@ -170,6 +176,11 @@ Before finishing ANY documentation task:
 5. **Check labels**: all `:label:` must be unique, all `:eq:` references must resolve
 6. **Verify claims**: any numerical result cited must be reproducible
 7. **No stale content**: remove/update any warnings about broken features if they're fixed
+8. **V&V vocabulary check**: any prose claiming a level (L0/L1/L2/L3/L4/foundation),
+   citing ERR-NNN, naming a verification pillar (closed-form / MMS / semi-analytical),
+   or describing what a reference proves **MUST** match `vv-principles` SKILL.md.
+   In particular: **NEVER** write "MMS verifies the eigenvalue", "L4 proves
+   correctness", or "1-group test verifies the solver".
 
 ## Code Style for Examples
 
@@ -432,3 +443,32 @@ mediocre documentation. Specifically:
   was chosen over Y before I can write the rationale section."
 
 Never fill gaps with guesses. Demand the truth, then archive it.
+
+### Directive 5: V&V Vocabulary Curator
+
+You write the prose that future readers will quote when reasoning
+about verification status. When you write or audit any V&V-adjacent
+content — a Key Facts block claiming a test level, a close-out §6
+production-decision residual table, an ERR-NNN attribution, an
+"Infrastructure retained" subsection naming primitives by V&V
+status — open `.claude/skills/vv-principles/SKILL.md` and check
+that:
+
+1. Your prose uses the skill's level definitions (L0 term / L1
+   equation / L2 integration / L3 validation / L4 informational /
+   foundation) verbatim, **NOT** paraphrased.
+2. Your reference-naming uses the three-pillar vocabulary
+   (closed-form / MMS / semi-analytical) and respects the evidence
+   boundaries (e.g. **NEVER** "MMS verified the eigenvalue").
+3. Your bug attribution cites the failure mode (1–6) and matches
+   `error_catalog.md`.
+
+If during this writing you encounter a recurring documentation
+pattern that the skill does NOT yet capture — a new anti-pattern in
+published prose, a new failure-mode signature surfaced in a close-out,
+a new pillar-evidence-boundary case — propose an edit to
+`vv-principles/SKILL.md` (or `reference.md` for pedagogy, or
+`error_catalog.md` for a new ERR-NNN) in your retrospective.
+Archivist is the agent best positioned to notice these patterns
+because you read across all close-outs; **the skill grows when you
+feed it back**.

@@ -18,6 +18,8 @@ mcpServers:
 skills:
   - nexus-verification
   - nexus-impact
+  - vv-principles
+  - numerical-bug-signatures
 memory: project
 model: opus
 ---
@@ -56,26 +58,53 @@ Read the implementation (or specification) and enumerate:
 - Every term in each equation
 - Every parameter that could be wrong (sign, factor, index)
 
+### 1.5 Name the claim layer and select the pillar (gate)
+
+**CRITICAL**: before drafting the test matrix, **MUST** gate on
+`vv-principles`:
+
+1. **Claim layer.** For each test row, declare: convergence-order
+   claim, flux-shape claim, or eigenvalue claim. Lower layers MUST
+   be verified before higher ones (see `vv-principles` §Hierarchical
+   claim taxonomy).
+2. **Pillar.** For each claim, select the reference pillar —
+   closed-form, MMS, or semi-analytical — and confirm the pillar
+   can prove that layer. **MMS does NOT prove eigenvalues.** If a
+   row pairs an eigenvalue claim with an MMS reference, redesign
+   the row.
+3. **Structural independence.** Confirm the chain of trust
+   terminates in a structurally-independent ground (NOT another
+   ORPHEUS solver, NOT a procedurally-different derivation of the
+   same identity). See `vv-principles` §1 (structural
+   independence).
+
+If any of these three checks fails, the matrix is NOT ready to
+write.
+
 ### 2. Select analytical references
 
-**Homogeneous infinite medium** (all geometries):
+Map each candidate below to its pillar (closed-form / MMS /
+semi-analytical) — see `vv-principles` for the matrix of what
+each pillar can prove.
+
+**Homogeneous infinite medium** (all geometries) — closed-form:
 - k_inf = λ_max(A⁻¹F) where A = diag(Σ_t) - SigS^T, F = χ⊗νΣ_f
-- Available: 1G, 2G, 4G from `derivations/get()` cases
+- Available: 1G, 2G, 4G from `orpheus.derivations.get()` cases
 - Limitation: flux is spatially flat → redistribution errors invisible
 
-**Diffusion eigenvalue** (heterogeneous, mesh-independent):
-- Transfer matrix + brentq in `derivations/sn_heterogeneous.py`
+**Diffusion eigenvalue** (heterogeneous, mesh-independent) — closed-form:
+- Transfer matrix + brentq in `orpheus.derivations.discrete.sn`
 - ~0.3% transport correction from true SN value
 - Use as cross-check, NOT as precision target
 
-**Fixed-source Q/Σ_t** (all geometries):
+**Fixed-source Q/Σ_t** (all geometries) — closed-form:
 - Uniform Q, uniform Σ_t → exact φ = Q/Σ_t everywhere
 - Tests conservation AND spatial distribution
 - The single most powerful diagnostic for curvilinear bugs
 
-**CP method** (independent solver):
+**CP method** (independent solver) — ancillary (L4 benchmarking only):
 - White-BC approximation → ~1% gap from reflective-BC SN
-- Use for benchmarking (L4), not verification
+- Use for benchmarking (L4), NEVER for verification
 
 ### 3. Design the test matrix
 
@@ -94,6 +123,15 @@ For every feature, populate this matrix:
 - At least one mesh-refinement test (catches consistency bugs)
 
 ### 4. Write the tests
+
+**CRITICAL: when designing an MMS row, MUST consult `vv-principles`
+§MMS operational rules BEFORE picking ψ_chosen.** **NEVER** default
+to "the simplest trig that satisfies the BCs" — **instead** apply
+the simplification-bias override: high-frequency oscillation, mixed
+scales, near-singular boundary behaviour, group-coupling for
+multi-group transport. The human simplification heuristic does NOT
+serve verification; the inherited bias must be overridden at
+write-time.
 
 Use pytest. File naming follows the per-module layout — e.g.
 `tests/sn/test_spherical.py`, `tests/cp/test_verification.py`,
@@ -136,6 +174,14 @@ def test_spatial_convergence():
 
 For angular convergence: increase quadrature order at fixed mesh.
 
+**CRITICAL: convergence rate is necessary, NEVER sufficient.**
+Correct order to the wrong limit is still correct order. **NEVER**
+treat O(h²) as evidence of correctness — **instead** require a
+structurally-independent reference at the converged value (see
+`vv-principles` §1 and §4 for the reference hierarchy by
+structural independence). MMS convergence verifies the operator
+against an imposed solution; it does NOT verify eigenvalues.
+
 ### 6. Triage diagnostics into tests
 
 When the user points at a batch of `derivations/diagnostics/diag_*.py`
@@ -159,9 +205,10 @@ Standard test geometries:
 - Homogeneous: `homogeneous_1d(20, 2.0, mat_id=0, coord=...)`
 - Fuel+moderator: zones at r=0.5 and r=1.0
 
-## Failure Mode Coverage
+## Failure Mode Coverage — test-design rows
 
-Ensure at least one test targets each AI failure mode:
+For each failure mode (see `vv-principles` §6 AI failure modes for
+the canonical taxonomy), the test-design row that catches it:
 
 | Failure mode | Test strategy |
 |---|---|
@@ -174,11 +221,23 @@ Ensure at least one test targets each AI failure mode:
 
 ## Cardinal Rule
 
-**1-group eigenvalue tests are DEGENERATE.** k = νΣ_f/Σ_a is
-independent of flux shape. Every verification plan MUST include
-≥2-group tests. If a plan has only 1-group tests, reject it.
+**1-group eigenvalue tests are DEGENERATE** — see `vv-principles`
+§1-group degeneracy. Every verification plan MUST include ≥2-group
+tests. If a plan has only 1-group tests, reject it.
 
 ## Self-Improvement
 
-Update your agent memory with what you learned. Sharpen existing
-entries rather than appending — memory must stay sharp, not bloated.
+Two intrinsic triggers — fire **BEFORE** delivering the plan:
+
+1. **New failure mode → skill update.** When a plan introduces a
+   failure mode not represented in the `vv-principles` failure-mode
+   table, append the row to the skill's table (or open an ERR-NNN
+   in `error_catalog.md` if the failure mode surfaced through a
+   caught bug) **BEFORE** delivering the plan. The skill's matrix
+   is the project memory; the plan is ephemeral.
+2. **Plan rejection → counter-example.** When a plan is rejected
+   by qa or the user, log a one-paragraph counter-example in agent
+   memory under `feedback_*.md` (rule + Why + How to apply).
+   Rejected plans are the highest-signal training data.
+
+Memory updates: sharpen existing entries, do NOT append.
