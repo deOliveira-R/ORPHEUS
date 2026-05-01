@@ -741,7 +741,7 @@ After the sweep, the scalar flux is updated as::
    **Lesson:** Always verify the transport sweep with a heterogeneous
    problem before trusting the homogeneous result.  The weight formula
    should be derived from first principles, not guessed by analogy.
-   See ``tests/l0_error_catalog.md`` ERR-019.
+   See ``.claude/skills/vv-principles/error_catalog.md`` ERR-019.
 
 
 Eigenvalue Update

@@ -1,6 +1,6 @@
 """Xfail placeholders for ERR-NNN entries without an extant catching test.
 
-Each entry in ``tests/l0_error_catalog.md`` must be paired with a test
+Each entry in ``.claude/skills/vv-principles/error_catalog.md`` must be paired with a test
 carrying ``@pytest.mark.catches("ERR-NNN")`` so the V&V harness audit
 can enforce the invariant that every documented bug is regression-
 guarded. For five entries the catching test does not yet exist:

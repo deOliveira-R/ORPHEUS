@@ -36,7 +36,7 @@ def test_do_mesh_convergence(ng_key, label):
     2G heterogeneous fuel+moderator 2D run with default reflective
     BCs exercises exactly the same ordinate-ordering coupling that
     produced the original bug (see the Phase 2.1a commit for full
-    context, and ``tests/l0_error_catalog.md`` ERR-003 for the
+    context, and ``.claude/skills/vv-principles/error_catalog.md`` ERR-003 for the
     failure-mode description).
     """
     fuel = get_mixture("A", ng_key)

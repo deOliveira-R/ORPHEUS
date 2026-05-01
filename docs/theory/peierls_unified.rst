@@ -711,7 +711,7 @@ not retired, as an independent cross-check implementation. Rationale:
    shipped reference, so retention is purely for cross-check
    robustness rather than a correctness backstop.
 4. **L0 error-catalog references.** The entries at
-   ``tests/l0_error_catalog.md`` lines 1168 and 1221 cite
+   ``.claude/skills/vv-principles/error_catalog.md`` lines 1168 and 1221 cite
    :func:`~orpheus.derivations.continuous.peierls.slab._build_kernel_matrix`
    explicitly. Retiring the module orphans those catalog entries.
 
@@ -2619,7 +2619,7 @@ incorrect closed form using the wrong antiderivative identity
 for the uniform cell. **Lesson:** two independent derivations agreeing
 at :math:`10^{-39}` is worthless evidence if both share an upstream
 identity. Cataloged as **ERR-032** in
-:file:`tests/l0_error_catalog.md`; caught by ``TestSlabKernelRowSum``
+:file:`.claude/skills/vv-principles/error_catalog.md`; caught by ``TestSlabKernelRowSum``
 (:mod:`tests.derivations.test_peierls_reference`).
 
 **Testing leverage.** Because :math:`\varphi_{\rm white}` is spatially
@@ -3509,7 +3509,7 @@ The investigation is pinned by the L1 test suite at
 :file:`tests/derivations/test_peierls_rank_n_class_b_mr_mg.py`
 (14 passing + 2 ``xfail strict=True`` regression-pinning the
 catastrophe). The L0 catalog entry is **ERR-030** in
-:file:`tests/l0_error_catalog.md`. The probe-cascade hypothesis
+:file:`.claude/skills/vv-principles/error_catalog.md`. The probe-cascade hypothesis
 analysis (H_A / H_B / H_C from
 :file:`.claude/plans/issue-100-103-rank-n-class-b-multi-region.md`,
 landing on H_B following the Issue #131 single-region-degeneracy

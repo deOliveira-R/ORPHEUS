@@ -10,7 +10,7 @@ Sphinx RST page with:
 - Orphan equations (`.. math:: :label:` blocks with zero declared tests,
   excluding ``:vv-status: documented`` labels)
 - Documented-only labels (excluded from the orphan gate)
-- ERR-NNN catalog cross-check (from ``tests/l0_error_catalog.md``)
+- ERR-NNN catalog cross-check (from ``.claude/skills/vv-principles/error_catalog.md``)
 - Unmarked tests listing
 
 The ``foundation`` bucket is orthogonal to the L0..L3 physics ladder
@@ -232,7 +232,7 @@ def _render(payload: dict) -> str:
     lines.append("L0 error-catalog coverage\n")
     lines.append("-------------------------\n\n")
     lines.append(
-        "Every ``ERR-NNN`` entry in ``tests/l0_error_catalog.md`` and "
+        "Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and "
         "the tests that carry ``@pytest.mark.catches(\"ERR-NNN\")`` "
         "to guard it. A missing catcher is a publication-blocker for "
         "the error catalog.\n\n"

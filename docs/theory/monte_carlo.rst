@@ -617,7 +617,7 @@ particle: one sample of a reaction whose rate is :math:`\Sigma_{2n}\phi`
 already carries weight two, so the total expected source into any exit
 group :math:`g'` is :math:`2\,\Sigma_{2n}(g \to g')\phi_g`, matching the
 CP/SN treatment (:ref:`theory-collision-probability`, anti-ERR-015).
-This is documented as **ERR-023** in ``tests/l0_error_catalog.md`` and
+This is documented as **ERR-023** in ``.claude/skills/vv-principles/error_catalog.md`` and
 pinned by
 ``tests/mc/test_gaps.py::test_mc_n2n_keff_matches_analytical``.
 
@@ -956,7 +956,7 @@ spectrum output, not keff.
    for a Σ\\ :sub:`s`\\ -weighted response but **not** for the scalar
    flux, and the resulting shape distortion is visible at the ~10 %
    level for Region A (2 G).  The design bug is documented as
-   **ERR-024** in ``tests/l0_error_catalog.md`` and closed by issue
+   **ERR-024** in ``.claude/skills/vv-principles/error_catalog.md`` and closed by issue
    #25 together with this change.
 
 .. note::

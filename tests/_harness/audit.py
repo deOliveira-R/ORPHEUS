@@ -204,7 +204,7 @@ def _render_text(
     if err_tags:
         missing = sorted(err_tags - caught.keys())
         lines.append(
-            f"l0_error_catalog.md ERR coverage "
+            f"error_catalog.md ERR coverage "
             f"({len(err_tags) - len(missing)}/{len(err_tags)} entries have a "
             "catching test):"
         )
@@ -361,7 +361,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--err-catalog",
         type=Path,
-        default=Path("tests/l0_error_catalog.md"),
+        default=Path(".claude/skills/vv-principles/error_catalog.md"),
         help="L0 error catalog markdown (for ERR coverage)",
     )
     args = parser.parse_args(argv)

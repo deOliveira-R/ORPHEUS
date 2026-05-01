@@ -16,7 +16,7 @@ Promoted from ``scratch/derivations/diagnostics/diag_{11,13,15}_*.py``.
 See:
 - GitHub Issue #98 (sweep-operator inconsistency)
 - GitHub Issue #99 (Phase 3.3–3.4 MMS blocker)
-- ``tests/l0_error_catalog.md`` ERR-026
+- ``.claude/skills/vv-principles/error_catalog.md`` ERR-026
 """
 
 from __future__ import annotations

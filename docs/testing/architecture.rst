@@ -46,7 +46,7 @@ ladder — see :ref:`vv-foundation-tests` for the taxonomy.
 :math:`k = \nu\Sigma_f / \Sigma_a` regardless of flux shape, so angular
 errors, normalization bugs, and convergence failures are invisible. The
 ORPHEUS cylindrical diamond-difference recurrence bug (ERR-006 in
-``tests/l0_error_catalog.md``) survived 20 one-group tests before a
+``.claude/skills/vv-principles/error_catalog.md``) survived 20 one-group tests before a
 multi-group run caught it. **Always demand ≥2G for any test claiming to
 verify transport.**
 
@@ -80,7 +80,7 @@ Design principles
 5. **Central audit, not per-file checks.** A single command —
    ``python -m tests._harness.audit`` — produces the full V&V matrix,
    lists orphan equations, and cross-checks
-   ``tests/l0_error_catalog.md``. No scattered assertions.
+   ``.claude/skills/vv-principles/error_catalog.md``. No scattered assertions.
 
 6. **Enforcement mode.** Every test in ``tests/`` carries a level
    tag — physics (``l0``..``l3``) or ``foundation``. The audit tool
@@ -292,7 +292,7 @@ The audit CLI
      sigma-zero
      xs-interp
 
-   l0_error_catalog.md ERR coverage (22/22 entries have a catching test):
+   error_catalog.md ERR coverage (22/22 entries have a catching test):
 
 The ``FD`` column counts :ref:`foundation tests <vv-foundation-tests>`.
 The three remaining orphans are tracked in issue #88 (dedicated test
@@ -316,7 +316,7 @@ Flags:
 ``--gaps``
     List orphan equations (labels in ``docs/theory/*.rst`` with zero
     verifying tests, excluding ``:vv-status: documented`` labels) and
-    ``ERR-NNN`` entries in ``tests/l0_error_catalog.md`` with no
+    ``ERR-NNN`` entries in ``.claude/skills/vv-principles/error_catalog.md`` with no
     catching test.
 ``--strict``
     Exit 1 if **any** of three gates trip:
@@ -601,7 +601,7 @@ When adding a new test:
   foundation — don't fabricate a label.
 - [ ] If the test protects against a specific ERR-NNN or FM-NN, add
   ``@pytest.mark.catches("ERR-NNN", "FM-NN")`` and update
-  ``tests/l0_error_catalog.md`` to reference the new test by nodeid.
+  ``.claude/skills/vv-principles/error_catalog.md`` to reference the new test by nodeid.
   The ``catches`` decorator is orthogonal to the level bucket — a
   foundation test can be the catcher for an ERR entry (ERR-020 is
   the canonical example).

@@ -417,7 +417,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 L0 error-catalog coverage
 -------------------------
 
-Every ``ERR-NNN`` entry in ``tests/l0_error_catalog.md`` and the tests that carry ``@pytest.mark.catches("ERR-NNN")`` to guard it. A missing catcher is a publication-blocker for the error catalog.
+Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and the tests that carry ``@pytest.mark.catches("ERR-NNN")`` to guard it. A missing catcher is a publication-blocker for the error catalog.
 
 .. csv-table::
    :header: Error tag, Catching tests

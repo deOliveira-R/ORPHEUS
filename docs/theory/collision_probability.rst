@@ -2179,7 +2179,7 @@ convention drifts are invisible.  The suite tests 1, 2, AND 4 groups.
    The 1-group degenerate case masked ERR-001 (z-ordinate weight loss),
    ERR-002 (scattering transpose), ERR-004 (BiCGSTAB normalisation),
    ERR-009 (CP transpose), and ERR-015 ((n,2n) keff) --- all caught
-   only by multi-group tests.  See ``tests/l0_error_catalog.md``.
+   only by multi-group tests.  See ``.claude/skills/vv-principles/error_catalog.md``.
 
 
 Peierls integral equation reference
