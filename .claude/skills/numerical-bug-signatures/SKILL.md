@@ -66,6 +66,35 @@ ERR-006 was such a case (α recursion + ΔA/w simultaneously).
 
 ---
 
+## Reading the 2-D fingerprint — sign × magnitude scaling
+
+Errors carry diagnostic information beyond magnitude. **Sign direction**
+(under-prediction vs over-prediction), **magnitude scaling with a
+parameter** (mesh refinement, σ_t, geometry parameter), and **regime
+gating** (rank ≥ 2 only, heterogeneous only, σ_t·R ≥ 10 only) together
+form a 2-D fingerprint that pins the bug class before debugger steps.
+**Read fingerprints before opening mpmath.**
+
+Worked examples:
+
+- **Sign positive, magnitude `+57%` with rank ≥ 2 only, scaling as
+  `(ρ_max/R)²`** → fingerprint of a missing Jacobian. The sign tells
+  you "extra flux," the rank-gating tells you "rank-dependent term,"
+  the scaling tells you "geometry-coupled."
+- **Sign negative, growing with mesh refinement, homogeneous-exact** →
+  fingerprint of a redistribution-term error (sign flip or missing
+  ΔA/w). See ERR-006.
+- **Sign mixed, oscillating with iteration** → fingerprint of an
+  iteration-scheme bug (BC ordering, normalisation), not a discrete
+  operator bug. See ERR-003, ERR-004.
+
+When the fingerprint matches a catalogued signature below, use the
+"Catching test" line. When the fingerprint is new, the
+[../probe-cascade/SKILL.md](../probe-cascade/SKILL.md) skill isolates
+the offending factor.
+
+---
+
 ## Signature 1: Curvilinear sweep divergence under refinement
 
 - **Symptom:** k_eff or fixed-source flux *diverges* (not converges)
