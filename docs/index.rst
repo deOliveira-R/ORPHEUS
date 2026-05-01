@@ -9,6 +9,7 @@ ORPHEUS — Open Reactor Physics Educational University System
    theory/homogeneous
    theory/transport_methods
    theory/peierls_unified
+   theory/peierls_greens
    theory/diffusion_1d
    theory/fuel_behaviour
    theory/thermal_hydraulics

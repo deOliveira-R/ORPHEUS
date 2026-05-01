@@ -5229,6 +5229,23 @@ machine-precision off-diagonal Q-convergence (1e-9 at Q=128) for any
 µ-resolved per-pair integral with a single-endpoint visibility-cone
 singularity.
 
+**Successor: Variant α angle-resolved Green's function reference**
+(Plan 2, 2026-05-01). The Phase 5 retreat established that the
+**angle-integrated** kernel :math:`g_\alpha(\rho'\to\rho)` is
+hypersingular and cannot be Nyström-discretised. Plan 2 Variant α
+shipped a parallel research-grade reference that uses the
+**angle-resolved** kernel :math:`\tilde t(r'\to r,\mu)` directly —
+Sanchez Eq. (A1) split with BC absorbed via Eq. (A5), bounce sum
+closed in :math:`T(\mu_{\rm surf}) = 1/(1 - e^{-\Sigt{}\,L_p})` —
+giving exact :math:`k_{\rm eff} = \kinf` for the closed homogeneous
+sphere. See :doc:`peierls_greens` for the architecture, V_α1 / V_α2
+/ V_α3 algebraic identities, and the cross-verification matrix
+showing Phase 4 N=3 differs from Variant α by 0.12 % on a fuel-A-like
+sphere. **Variant α is a parallel reference, not a production
+replacement** for ``boundary="specular_multibounce"`` — the validation
+envelope is narrower (homogeneous sphere only; isotropic scattering
+only; perfect specular BC only).
+
 The full Phase 5a → Round 1 → Round 2 → Round 3 investigation
 record (Sanchez 1986 reference equation, the bounce-resolved
 :math:`f_\infty(\mu)` closed-form derivation with Bose-Einstein

@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1325**
+Total tests collected: **1339**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 585, 44.2%
-   L1, 394, 29.7%
+   L0, 585, 43.7%
+   L1, 394, 29.4%
    L2, 36, 2.7%
    L3, 0, 0.0%
-   foundation, 299, 22.6%
+   foundation, 313, 23.4%
    unmarked, 11, 0.8%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1235
+   explicit, 1249
    verify, 0
    class-name, 46
    func-name, 0
@@ -73,6 +73,9 @@ Module × level grid
    derivations/test_peierls_cylinder_prefactor, 4, 0, 0, 0, 0, 0
    derivations/test_peierls_cylinder_white_bc, 4, 3, 0, 0, 4, 0
    derivations/test_peierls_geometry, 0, 0, 0, 0, 32, 0
+   derivations/test_peierls_greens_function_solver, 0, 0, 0, 0, 3, 0
+   derivations/test_peierls_greens_function_symbolic, 0, 0, 0, 0, 8, 0
+   derivations/test_peierls_greens_function_xverif, 0, 0, 0, 0, 3, 0
    derivations/test_peierls_multigroup, 9, 10, 0, 0, 8, 0
    derivations/test_peierls_rank2_bc, 9, 24, 0, 0, 4, 0
    derivations/test_peierls_rank_n_bc, 59, 15, 0, 0, 0, 0
@@ -312,7 +315,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **38** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **55** of the testable equations found on theory pages are orphan.
 
 - ``c-in-remapping``
 - ``e1-decomposition``
@@ -327,6 +330,23 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``peierls-class-b-hebert-closure``
 - ``peierls-cyl-Pss-derivation``
 - ``peierls-factored-kernel``
+- ``peierls-greens-A1-split``
+- ``peierls-greens-A5-specular``
+- ``peierls-greens-L0``
+- ``peierls-greens-Lp``
+- ``peierls-greens-T-mu-surf``
+- ``peierls-greens-T00-integrand``
+- ``peierls-greens-V-alpha-1``
+- ``peierls-greens-V-alpha-2``
+- ``peierls-greens-V-alpha-3``
+- ``peierls-greens-bounce-period-integral``
+- ``peierls-greens-defining-bvp``
+- ``peierls-greens-function-architecture``
+- ``peierls-greens-k-inf``
+- ``peierls-greens-mu-surf``
+- ``peierls-greens-sanchez-A6``
+- ``peierls-greens-surface-fixed-point``
+- ``peierls-greens-trajectory-integral``
 - ``peierls-half-range-inner-products``
 - ``peierls-mg-operator``
 - ``peierls-operator-factorisation``
