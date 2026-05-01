@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations import get
-from orpheus.derivations._xs_library import get_mixture
+from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import homogeneous_1d, slab_fuel_moderator
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.solver import solve_sn
@@ -121,7 +121,7 @@ def test_spatial_convergence():
 def test_sweep_1d_cumprod_recurrence_matches_symbolic_derivation():
     """Term-level verification that ``_sweep_1d_cumprod``'s face-flux
     recurrence coefficients match the symbolic derivation in
-    :func:`orpheus.derivations.sn_balance.derive_cumprod_recurrence`.
+    :func:`orpheus.derivations.discrete.sn.balance.derive_cumprod_recurrence`.
 
     Rationale for this as an L0 test: the legacy code diverged silently
     from the derivation (ERR-025). Both a wrong coefficient formula and
@@ -152,7 +152,7 @@ def test_sweep_1d_cumprod_recurrence_matches_symbolic_derivation():
     cannot silently drift without the symbolic source complaining.
     """
     import sympy as sp
-    from orpheus.derivations.sn_balance import derive_cumprod_recurrence
+    from orpheus.derivations.discrete.sn.balance import derive_cumprod_recurrence
     from orpheus.geometry import CoordSystem, Mesh1D
     from orpheus.sn.geometry import SNMesh
     from orpheus.sn.sweep import _sweep_1d_cumprod
@@ -242,7 +242,7 @@ def test_heterogeneous_absolute_keff():
         s = 0.5·Δx·Q / (2μ + Δx·Σ_t)    (wrong)
 
     instead of those derived in
-    ``orpheus.derivations.sn_balance.derive_cumprod_recurrence``
+    ``orpheus.derivations.discrete.sn.balance.derive_cumprod_recurrence``
 
         a = (2μ − Δx·Σ_t) / (2μ + Δx·Σ_t)
         b = 2·Δx·(Q/W) / (2μ + Δx·Σ_t)

@@ -42,7 +42,7 @@ def test_flux_symmetry():
     mix = next(iter(case.materials.values()))
 
     # Build a symmetric 2-region slab: fuel | moderator | moderator | fuel
-    from orpheus.derivations._xs_library import get_mixture
+    from orpheus.derivations.common.xs_library import get_mixture
     fuel = get_mixture("A", "1g")
     mod = get_mixture("B", "1g")
     materials = {2: fuel, 0: mod}

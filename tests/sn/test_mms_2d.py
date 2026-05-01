@@ -21,7 +21,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations import continuous_get
-from orpheus.derivations.sn_mms import (
+from orpheus.derivations.continuous.mms.sn import (
     build_2d_cartesian_mms_case,
     build_2d_cartesian_heterogeneous_mms_case,
 )

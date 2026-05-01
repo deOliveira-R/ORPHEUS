@@ -32,7 +32,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations import peierls_geometry as _pg
+from orpheus.derivations.continuous.peierls import geometry as _pg
 
 
 # ═══════════════════════════════════════════════════════════════════════

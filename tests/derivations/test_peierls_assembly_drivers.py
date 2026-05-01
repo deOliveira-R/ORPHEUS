@@ -27,7 +27,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.peierls_geometry import (
+from orpheus.derivations.continuous.peierls.geometry import (
     CYLINDER_1D,
     SPHERE_1D,
     per_observer_angular_assembly,
@@ -137,7 +137,7 @@ def test_per_observer_matches_hand_coded_skeleton_bit_equally():
     r"""Driver output equals the hand-coded `_per_obs` skeleton for a
     representative integrand. This is the bit-equivalence guard that
     every migrated `compute_*` primitive relies on transitively."""
-    from orpheus.derivations._quadrature_recipes import (
+    from orpheus.derivations.common.quadrature_recipes import (
         observer_angular_quadrature,
     )
 
@@ -259,7 +259,7 @@ def test_per_surface_centred_matches_hand_coded_skeleton_bit_equally():
     skeleton for a representative integrand. Bit-equivalence guard for
     the four cylinder G_bc legacy branches that the L3 migration
     routes through this driver."""
-    from orpheus.derivations._quadrature_recipes import (
+    from orpheus.derivations.common.quadrature_recipes import (
         surface_centred_angular_quadrature,
     )
 

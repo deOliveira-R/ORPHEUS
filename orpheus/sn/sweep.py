@@ -102,7 +102,7 @@ def _sweep_1d_cumprod(
     # Precompute DD face-flux recurrence coefficients for positive directions.
     # The diamond-difference face-flux recurrence is
     #     ψ_out = a·ψ_in + b·(Q/W)
-    # where (see ``orpheus.derivations.sn_balance.derive_cumprod_recurrence``
+    # where (see ``orpheus.derivations.discrete.sn.balance.derive_cumprod_recurrence``
     # for the symbolic derivation of Eq. dd-recurrence)
     #     a = (2μ − Δx·Σ_t) / (2μ + Δx·Σ_t)
     #     b = 2·Δx / (2μ + Δx·Σ_t)

@@ -301,10 +301,10 @@ group 1), and the eigenvalue problem gives immediately:
    \kinf = \frac{\nu \Sigf{}}{\Siga{}}
 
 .. verifies:: one-group-kinf
-   :by: orpheus.derivations.homogeneous.derive_1g
+   :by: orpheus.derivations.continuous.analytical.homogeneous.derive_1g
 
    Verified analytically (exact closed-form ratio) against the
-   ``homo_1eg`` :class:`~orpheus.derivations._types.VerificationCase`.
+   ``homo_1eg`` :class:`~orpheus.derivations.common.verification_case.VerificationCase`.
 
 This is the most fundamental result in reactor physics.  It states that
 :math:`\kinf` is the ratio of neutron production to neutron absorption,
@@ -316,7 +316,7 @@ escape probability :math:`p = 1` (no spatial heterogeneity), and the
 fast fission factor :math:`\varepsilon = 1`, so :math:`\kinf = \eta \cdot f
 \cdot p \cdot \varepsilon = \eta`.
 
-**Numerical example** (from :func:`derivations.homogeneous.derive_1g`):
+**Numerical example** (from :func:`orpheus.derivations.continuous.analytical.homogeneous.derive_1g`):
 :math:`\Sigt{} = 1.0`, :math:`\Sigma_\mathrm{c} = 0.2`,
 :math:`\Sigf{} = 0.3`, :math:`\nu = 2.5`,
 :math:`\Sigs{} = 0.5` cm\ :sup:`-1`:
@@ -402,7 +402,7 @@ whose roots are:
 
 The dominant root :math:`\lambda_+` is :math:`\kinf`.
 
-**Worked numerical example** (from :func:`derivations.homogeneous.derive_2g`):
+**Worked numerical example** (from :func:`orpheus.derivations.continuous.analytical.homogeneous.derive_2g`):
 
 .. list-table::
    :header-rows: 1
@@ -474,7 +474,7 @@ analytical eigenvalue is computed numerically by SymPy's symbolic
 eigenvalue solver applied to the :math:`4 \times 4` matrix
 :math:`\mathbf{A}^{-1} \mathbf{F}`.
 
-**Result** (from :func:`derivations.homogeneous.derive_4g`):
+**Result** (from :func:`orpheus.derivations.continuous.analytical.homogeneous.derive_4g`):
 
 .. math::
 
@@ -1073,8 +1073,8 @@ Verification
 =============
 
 The homogeneous solver is verified against **analytical eigenvalues**
-derived symbolically with SymPy (see :mod:`derivations.homogeneous`).
-The same :class:`~derivations._types.VerificationCase` objects serve
+derived symbolically with SymPy (see :mod:`orpheus.derivations.continuous.analytical.homogeneous`).
+The same :class:`~orpheus.derivations.common.verification_case.VerificationCase` objects serve
 both the documentation (LaTeX equations in :doc:`verification`) and the
 test suite.
 

@@ -46,8 +46,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations._kernels import _shifted_legendre_eval
-from orpheus.derivations.peierls_geometry import (
+from orpheus.derivations.common.kernels import _shifted_legendre_eval
+from orpheus.derivations.continuous.peierls.geometry import (
     CYLINDER_1D,
     SPHERE_1D,
     build_white_bc_correction,
@@ -167,7 +167,7 @@ def test_shifted_legendre_orthonormality(n, m):
     """
     # 40-point GL on [0, 1] is exact for polynomials up to degree 79,
     # far beyond the degree-8 product P̃_4·P̃_4.
-    from orpheus.derivations.peierls_geometry import gl_float
+    from orpheus.derivations.continuous.peierls.geometry import gl_float
     mu_pts, mu_wts = gl_float(40, 0.0, 1.0, dps=30)
     pn = _shifted_legendre_eval(n, mu_pts)
     pm = _shifted_legendre_eval(m, mu_pts)
@@ -554,7 +554,7 @@ def test_rank_n_angular_moment_exactness():
     numerical-consistency check that sanity-tests any analytic-form
     optimisation against the slow-but-trusted direct route.
     """
-    from orpheus.derivations.peierls_geometry import (  # type: ignore[attr-defined]
+    from orpheus.derivations.continuous.peierls.geometry import (  # type: ignore[attr-defined]
         _cylinder_mode_partial_current_polynomial,
         _cylinder_mode_partial_current_2d_quadrature,
     )

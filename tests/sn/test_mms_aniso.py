@@ -21,7 +21,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.sn_mms import build_p1_aniso_mms_case
+from orpheus.derivations.continuous.mms.sn import build_p1_aniso_mms_case
 from orpheus.sn import solve_sn_fixed_source
 
 
@@ -80,7 +80,7 @@ def test_sn_p1_aniso_mms_source_degrades_to_p0():
     consistent with the isotropic case when the μ-dependent terms
     vanish.
     """
-    from orpheus.derivations.sn_mms import build_1d_slab_mms_case
+    from orpheus.derivations.continuous.mms.sn import build_1d_slab_mms_case
 
     case_p0 = build_1d_slab_mms_case(sigma_t=1.0, sigma_s=0.5)
     case_p1 = build_p1_aniso_mms_case(

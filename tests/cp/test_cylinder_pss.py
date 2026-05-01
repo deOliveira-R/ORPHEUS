@@ -29,8 +29,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations._kernels import ki_n_mp
-from orpheus.derivations.peierls_geometry import compute_P_ss_cylinder
+from orpheus.derivations.common.kernels import ki_n_mp
+from orpheus.derivations.continuous.peierls.geometry import compute_P_ss_cylinder
 
 
 pytestmark = [pytest.mark.foundation]

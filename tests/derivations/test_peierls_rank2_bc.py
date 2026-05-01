@@ -37,7 +37,7 @@ import mpmath
 import numpy as np
 import pytest
 
-from orpheus.derivations.peierls_geometry import (
+from orpheus.derivations.continuous.peierls.geometry import (
     CYLINDER_1D,
     SLAB_POLAR_1D,
     SPHERE_1D,
@@ -286,7 +286,7 @@ class TestRank2SlabKEffKInfConvergence:
         ``reflection="white"`` and produces the same k_eff as the
         direct matrix assembly path. End-to-end regression: the public
         solver API wires the new closure correctly."""
-        from orpheus.derivations.peierls_geometry import solve_peierls_1g
+        from orpheus.derivations.continuous.peierls.geometry import solve_peierls_1g
 
         sig_t_v, sig_s_v, nu_sig_f_v = 1.0, 0.5, 0.75
         k_inf = nu_sig_f_v / (sig_t_v - sig_s_v)
@@ -310,7 +310,7 @@ class TestRank2SlabKEffKInfConvergence:
         to Phase F.5 — calling boundary='white_rank2' with higher modes
         must fail clearly rather than silently computing something
         wrong."""
-        from orpheus.derivations.peierls_geometry import solve_peierls_1g
+        from orpheus.derivations.continuous.peierls.geometry import solve_peierls_1g
 
         with pytest.raises(NotImplementedError, match="n_bc_modes > 1"):
             solve_peierls_1g(
@@ -339,7 +339,7 @@ class TestRank2SlabKEffKInfConvergence:
         :func:`build_closure_operator` + :func:`build_volume_kernel`
         assembly path (same k_eff to 1e-10).
         """
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.continuous.peierls.geometry import (
             CurvilinearGeometry,
             build_volume_kernel,
             solve_peierls_1g,
@@ -424,7 +424,7 @@ class TestRank2SlabKEffKInfConvergence:
         F.5) was falsified as a path to improve beyond F.4 — see
         :ref:`peierls-rank-n-per-face-closeout`.
         """
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.continuous.peierls.geometry import (
             CurvilinearGeometry,
             build_volume_kernel,
         )
@@ -474,7 +474,7 @@ class TestRank2SlabKEffKInfConvergence:
         higher symmetry captures more of the physics at the scalar
         mode — see table in ``docs/theory/peierls_unified.rst``.
         """
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.continuous.peierls.geometry import (
             CurvilinearGeometry,
             build_volume_kernel,
         )
@@ -520,7 +520,7 @@ class TestRank2SlabKEffKInfConvergence:
         must hold — catches a conceptual mis-port from the cylinder
         case (where reciprocity is :math:`R/r_0`, not :math:`(R/r_0)^2`).
         """
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.continuous.peierls.geometry import (
             compute_hollow_sph_transmission,
         )
 
@@ -553,7 +553,7 @@ class TestRank2SlabKEffKInfConvergence:
         would give a tenfold discrepancy at :math:`r_0/R = 0.3` and
         this test catches that trap explicitly.
         """
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.continuous.peierls.geometry import (
             compute_hollow_cyl_transmission,
         )
 
@@ -600,7 +600,7 @@ class TestRank2SlabKEffKInfConvergence:
         :meth:`test_hollow_cyl_rank2_beats_rank1_mark`), the tensor
         factorisation itself must be correct.
         """
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.continuous.peierls.geometry import (
             CurvilinearGeometry,
             compute_G_bc_inner,
             compute_G_bc_outer,
@@ -649,7 +649,7 @@ class TestRank2SlabKEffKInfConvergence:
         scalar :func:`compute_hollow_sph_transmission` — the regression
         pin for the rank-N generalisation.
         """
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.continuous.peierls.geometry import (
             compute_hollow_sph_transmission,
             compute_hollow_sph_transmission_rank_n,
         )
@@ -673,7 +673,7 @@ class TestRank2SlabKEffKInfConvergence:
         **transposed mode indices**. Catches a mis-port from the scalar
         (m = n = 0) reciprocity relation which has no transpose.
         """
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.continuous.peierls.geometry import (
             compute_hollow_sph_transmission_rank_n,
         )
         r0, R_out = 0.25, 1.0
@@ -701,7 +701,7 @@ class TestRank2SlabKEffKInfConvergence:
         an explicit pointer to Issue #119 until the Mark/Gelbard
         normalisation is reconciled.
         """
-        from orpheus.derivations.peierls_geometry import CurvilinearGeometry
+        from orpheus.derivations.continuous.peierls.geometry import CurvilinearGeometry
 
         geom = CurvilinearGeometry(kind="sphere-1d", inner_radius=0.3)
         radii = np.array([1.0])
@@ -722,7 +722,7 @@ class TestRank2SlabKEffKInfConvergence:
         any rank-N closure that reduces to the Phase F.4 rank-2 white
         closure when the higher modes are zeroed out.
         """
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.continuous.peierls.geometry import (
             CurvilinearGeometry,
             compute_G_bc_inner, compute_G_bc_inner_mode,
             compute_G_bc_outer, compute_G_bc_outer_mode,
@@ -760,7 +760,7 @@ class TestRank2SlabKEffKInfConvergence:
         foundation identity that the rank-N per-face Marshak closure
         builds on (Phase F.5 / Issue #119).
         """
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.continuous.peierls.geometry import (
             CurvilinearGeometry,
             compute_P_esc_outer_mode_marshak,
             compute_P_esc_inner_mode_marshak,
@@ -797,7 +797,7 @@ class TestRank2SlabKEffKInfConvergence:
         mode-0 value at every r_i (in absolute value). A sanity check
         that the new µ weight really IS in the integrand.
         """
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.continuous.peierls.geometry import (
             CurvilinearGeometry,
             compute_P_esc_outer_mode,
             compute_P_esc_outer_mode_marshak,
@@ -885,8 +885,8 @@ class TestSlabPolarVsNativeE1KEff:
     def test_1g_vacuum_slab_k_eff_matches_native(
         self, L, sig_t, sig_s, nu_sig_f,
     ):
-        from orpheus.derivations.peierls_geometry import solve_peierls_1g
-        from orpheus.derivations.peierls_slab import solve_peierls_eigenvalue
+        from orpheus.derivations.continuous.peierls.geometry import solve_peierls_1g
+        from orpheus.derivations.continuous.peierls.slab import solve_peierls_eigenvalue
 
         n_panels, p_order, dps = 1, 3, 20
 

@@ -150,7 +150,7 @@ def test_sn_heterogeneous_mms_manufactured_source_couples_groups():
     :math:`-\Sigma_{s,0\to 1}(x)\,c_{0,\text{ref}}\,A(x)`, independent
     of ordinate.
     """
-    from orpheus.derivations.sn_mms import (
+    from orpheus.derivations.continuous.mms.sn import (
         build_1d_slab_heterogeneous_mms_case,
     )
 

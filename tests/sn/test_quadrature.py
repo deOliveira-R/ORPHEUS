@@ -336,14 +336,14 @@ class TestL0TermVerification:
 
     def test_contamination_beta_spherical(self):
         """L0-SN-008: Contamination β ≈ 0 (machine zero) for spherical."""
-        from orpheus.derivations.sn_contamination import contamination_beta
+        from orpheus.derivations.discrete.sn.contamination import contamination_beta
         quad = GaussLegendre1D.create(8)
         beta = contamination_beta(quad, "spherical")
         assert abs(beta) < 1e-14, f"Spherical β = {beta:.2e}"
 
     def test_contamination_beta_cylindrical(self):
         """L0-SN-008: Contamination β ≈ 0 (machine zero) for cylindrical."""
-        from orpheus.derivations.sn_contamination import contamination_beta
+        from orpheus.derivations.discrete.sn.contamination import contamination_beta
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
         betas = contamination_beta(quad, "cylindrical")
         assert np.all(np.abs(betas) < 1e-14), (
@@ -353,7 +353,7 @@ class TestL0TermVerification:
     @pytest.mark.catches("ERR-002")
     def test_scattering_source_magnitude(self):
         """L0-SN-009: Scattering source = SigS^T @ φ, hand-calculated."""
-        from orpheus.derivations._xs_library import get_mixture
+        from orpheus.derivations.common.xs_library import get_mixture
         mix = get_mixture("A", "2g")
         phi = np.array([1.0, 2.0])
         sig_s = mix.SigS[0]

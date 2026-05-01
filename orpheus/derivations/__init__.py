@@ -1,29 +1,41 @@
-"""Analytical and semi-analytical reference solutions for verifying ORPHEUS solvers.
+"""Reference solutions and symbolic discretisations for ORPHEUS verification.
 
-SymPy and mpmath derivations that produce **continuous, mesh-independent
-reference solutions** for verifying numerical solvers against the exact
-form of the equation each solver discretises:
+This package is organised into three top-level paths:
 
-- Differential transport (SN, MOC) → analytical :math:`\\psi(x)` /
-  :math:`\\phi(x)` via Method of Manufactured Solutions.
-- Diffusion → closed-form eigenfunctions (sine, Bessel) or
-  piecewise-smooth transfer-matrix solutions.
-- Integral transport (CP) → semi-analytical Peierls solutions via
-  high-precision Nyström quadrature of the exact
-  :math:`E_n` / :math:`\\mathrm{Ki}_n` kernels.
-- Stochastic transport (MC) → Case/Placzek, Milne, Sood analytical
-  reference solutions from the transport literature.
+- :mod:`~orpheus.derivations.common` — shared math root and utilities
+  (kernels, quadrature, cross-section library, eigenvalue helpers,
+  the :class:`VerificationCase` /
+  :class:`ContinuousReferenceSolution` types). The symbolic transport
+  equation that both verification paths branch from lives in
+  :mod:`~orpheus.derivations.common.transport_equation`.
 
-Legacy scalar ``k_inf``-only :class:`VerificationCase` objects are
-retrieved via :func:`get` / :func:`all_names`. The new Phase-0
-:class:`ContinuousReferenceSolution` objects are retrieved via
-:func:`continuous_get` / :func:`continuous_all_names`.
+- :mod:`~orpheus.derivations.discrete` — *Path 1*: symbolic
+  discretisations of the production solvers
+  (S\\ :sub:`N` balance / contamination, MOC characteristics, …).
+  These describe the equations the solvers commit to satisfying.
+
+- :mod:`~orpheus.derivations.continuous` — *Path 2*: continuous,
+  mesh-independent reference solutions
+  (closed-form analytical, flat-source CP, Peierls integral form,
+  Method of Manufactured Solutions, transfer-matrix diffusion,
+  Case/Placzek MC analytics, …). These are what the production
+  solvers are verified against.
+
+Two retrieval registries live at the top of this package:
+
+- :func:`get` / :func:`all_names` — legacy scalar ``k_inf``
+  :class:`VerificationCase` lookup.
+- :func:`continuous_get` / :func:`continuous_all_names` —
+  :class:`ContinuousReferenceSolution` lookup, the Phase-0
+  contract that the verification campaign is migrating to.
 
 See :doc:`/verification/reference_solutions` for the contract these
-references commit to, and the verification-campaign migration plan.
+references commit to and the verification-campaign migration plan,
+and ``orpheus/derivations/README.md`` for the architectural
+treatment of the two paths.
 """
 
-from ._reference import (
+from .common.continuous_reference import (
     ContinuousReferenceSolution,
     OperatorForm,
     ProblemSpec,

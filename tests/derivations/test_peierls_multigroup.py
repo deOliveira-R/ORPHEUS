@@ -30,7 +30,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.peierls_geometry import (
+from orpheus.derivations.continuous.peierls.geometry import (
     CYLINDER_1D,
     CurvilinearGeometry,
     PeierlsSolution,
@@ -394,10 +394,10 @@ class TestMGSlabPolarMatchesNativeSlabMG:
     """
 
     def test_2g_vacuum_slab_matches_native_eigenvalue(self):
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.continuous.peierls.geometry import (
             SLAB_POLAR_1D, solve_peierls_mg,
         )
-        from orpheus.derivations.peierls_slab import solve_peierls_eigenvalue
+        from orpheus.derivations.continuous.peierls.slab import solve_peierls_eigenvalue
 
         # Use a simple fabricated 2G XS set — values chosen to give a
         # healthy, well-conditioned eigenproblem (k_eff ~ O(1)) and to
@@ -496,7 +496,7 @@ class TestMG2GHollowRegistration:
 
     @pytest.mark.parametrize("r0_over_R", [0.1, 0.2, 0.3])
     def test_hollow_cyl_2g_builds(self, r0_over_R):
-        from orpheus.derivations.peierls_cylinder import (
+        from orpheus.derivations.continuous.peierls.cylinder import (
             _build_peierls_cylinder_hollow_f4_case,
         )
         # Tight quadrature — default quadrature would make this test
@@ -517,7 +517,7 @@ class TestMG2GHollowRegistration:
 
     @pytest.mark.parametrize("r0_over_R", [0.1, 0.2, 0.3])
     def test_hollow_sph_2g_builds(self, r0_over_R):
-        from orpheus.derivations.peierls_sphere import (
+        from orpheus.derivations.continuous.peierls.sphere import (
             _build_peierls_sphere_hollow_f4_case,
         )
         ref = _build_peierls_sphere_hollow_f4_case(
@@ -563,7 +563,7 @@ class TestSlabViaUnifiedRoutingInfrastructure:
         import importlib
         import os
 
-        from orpheus.derivations import peierls_cases as pc
+        from orpheus.derivations.continuous.peierls import cases as pc
 
         # Clear any env-var the test runner might have set, reload,
         # then confirm the default is True.
@@ -587,7 +587,7 @@ class TestSlabViaUnifiedRoutingInfrastructure:
         import importlib
         import os
 
-        from orpheus.derivations import peierls_cases as pc
+        from orpheus.derivations.continuous.peierls import cases as pc
 
         old = os.environ.get("ORPHEUS_SLAB_VIA_E1")
         os.environ["ORPHEUS_SLAB_VIA_E1"] = "1"
@@ -606,7 +606,7 @@ class TestSlabViaUnifiedRoutingInfrastructure:
         1G 1-region fixture and emits a well-formed
         ``ContinuousReferenceSolution``. Uses tight quadrature to
         keep the cost bounded (~30 s)."""
-        from orpheus.derivations.peierls_cases import (
+        from orpheus.derivations.continuous.peierls.cases import (
             _build_peierls_slab_case_via_unified,
         )
 
@@ -647,12 +647,12 @@ class TestSlabViaUnifiedDiscrepancyDiagnostic:
 
     def test_2eg_2rg_parity_bit_exact(self):
         import numpy as _np
-        from orpheus.derivations._xs_library import LAYOUTS, get_xs
-        from orpheus.derivations.cp_slab import _THICKNESSES
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.common.xs_library import LAYOUTS, get_xs
+        from orpheus.derivations.continuous.flat_source_cp.slab import _THICKNESSES
+        from orpheus.derivations.continuous.peierls.geometry import (
             SLAB_POLAR_1D, solve_peierls_mg,
         )
-        from orpheus.derivations.peierls_slab import (
+        from orpheus.derivations.continuous.peierls.slab import (
             solve_peierls_eigenvalue,
         )
 
@@ -753,11 +753,11 @@ class TestSlabMultiRegionVacuumParity:
 
     def test_1g_2rg_vacuum_parity(self):
         """Issue #131 Probe A — 1G 2-region vacuum unified vs native."""
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.continuous.peierls.geometry import (
             SLAB_POLAR_1D,
             solve_peierls_mg,
         )
-        from orpheus.derivations.peierls_slab import solve_peierls_eigenvalue
+        from orpheus.derivations.continuous.peierls.slab import solve_peierls_eigenvalue
 
         thicknesses = [0.5, 0.5]
         sig_t_A = np.array([0.5])
@@ -818,13 +818,13 @@ class TestSlabMultiRegionVacuumParity:
         here while that passes (or vice versa) cleanly isolates MG ×
         multi-region handling from the white-BC closure.
         """
-        from orpheus.derivations._xs_library import LAYOUTS, get_xs
-        from orpheus.derivations.cp_slab import _THICKNESSES
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.common.xs_library import LAYOUTS, get_xs
+        from orpheus.derivations.continuous.flat_source_cp.slab import _THICKNESSES
+        from orpheus.derivations.continuous.peierls.geometry import (
             SLAB_POLAR_1D,
             solve_peierls_mg,
         )
-        from orpheus.derivations.peierls_slab import solve_peierls_eigenvalue
+        from orpheus.derivations.continuous.peierls.slab import solve_peierls_eigenvalue
 
         n_regions = 2
         ng_key = "2g"
@@ -912,7 +912,7 @@ class TestMultiRegionEscapeReduction:
 
     def test_pesc_gbc_multiregion_reduces_to_homogeneous(self):
         """σ_t uniform across regions ⇒ multi-region branch == homogeneous."""
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.continuous.peierls.geometry import (
             SLAB_POLAR_1D,
             compute_G_bc_inner,
             compute_G_bc_outer,

@@ -72,11 +72,11 @@ pytestmark = pytest.mark.verifies(
     "surface-to-region",
     "surface-to-surface",
 )
-from orpheus.derivations._xs_library import (
+from orpheus.derivations.common.xs_library import (
     XS, get_xs, get_mixture, get_materials, make_mixture,
 )
-from orpheus.derivations._eigenvalue import kinf_from_cp
-from orpheus.derivations.cp_slab import _slab_cp_matrix
+from orpheus.derivations.common.eigenvalue import kinf_from_cp
+from orpheus.derivations.continuous.flat_source_cp.slab import _slab_cp_matrix
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -268,7 +268,7 @@ class TestDirectPinfComparison:
         errors that happen to cancel in eigenvalue but not in matrix.
         Closes: G-1.
         """
-        from orpheus.derivations._xs_library import LAYOUTS
+        from orpheus.derivations.common.xs_library import LAYOUTS
         layout = LAYOUTS[n_regions]
         ng = int(ng_key[0])
 

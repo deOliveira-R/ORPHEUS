@@ -30,8 +30,8 @@ produce a backward-compatible bridge), so the migration is incremental.
 
 from __future__ import annotations
 
-from ._reference import ContinuousReferenceSolution
-from ._types import VerificationCase
+from .common.continuous_reference import ContinuousReferenceSolution
+from .common.verification_case import VerificationCase
 
 # Legacy registry populated lazily on first access
 _CASES: dict[str, VerificationCase] | None = None
@@ -51,7 +51,11 @@ def _build_registry() -> dict[str, VerificationCase]:
     """
     cases: dict[str, VerificationCase] = {}
 
-    from . import homogeneous, cp_slab, cp_cylinder, cp_sphere, diffusion, sn, moc, mc
+    from .continuous.analytical import homogeneous
+    from .continuous.cases import diffusion, sn, moc, mc
+    from .continuous.flat_source_cp import slab as cp_slab
+    from .continuous.flat_source_cp import cylinder as cp_cylinder
+    from .continuous.flat_source_cp import sphere as cp_sphere
     for module in [homogeneous, sn, cp_slab, cp_cylinder, cp_sphere, moc, mc, diffusion]:
         for case in module.all_cases():
             cases[case.name] = case
@@ -70,7 +74,7 @@ def _load_solver_cases() -> None:
 
         - ``sn.py`` — deleted in Phase 2.1a; heterogeneous SN
           verification is now the MMS continuous reference in
-          :mod:`orpheus.derivations.sn_mms`.
+          :mod:`orpheus.derivations.continuous.mms.sn`.
         - ``moc.py`` — Phase 2.2 target (still T3 at the time of
           writing).
         - ``diffusion.py`` — Phase 1.2 replaced the *continuous*
@@ -91,7 +95,7 @@ def _load_solver_cases() -> None:
 
     cases = _ensure_loaded()
     try:
-        from . import diffusion, moc, sn
+        from .continuous.cases import diffusion, moc, sn
         for module in [sn, moc, diffusion]:
             if hasattr(module, 'solver_cases'):
                 for case in module.solver_cases():
@@ -174,13 +178,19 @@ def _build_continuous_registry() -> dict[str, ContinuousReferenceSolution]:
 
     refs: dict[str, ContinuousReferenceSolution] = {}
 
-    # Walk all orpheus.derivations.* modules. Skip private modules
-    # (leading underscore) since the contract is "opt-in public".
-    for module_info in pkgutil.iter_modules(pkg_path):
-        if module_info.name.startswith("_"):
+    # Walk every ``orpheus.derivations.*`` module recursively (including
+    # the ``common``, ``discrete`` and ``continuous`` sub-packages added
+    # by the three-path reorganisation). Skip private modules (leading
+    # underscore) since the contract is "opt-in public", and skip any
+    # module whose import fails (e.g. on a docs build with solvers off
+    # the path).
+    for module_info in pkgutil.walk_packages(pkg_path, prefix=f"{pkg_name}."):
+        # Skip any path component starting with an underscore — keeps
+        # private utility modules and ``__pycache__`` out of the walk.
+        if any(part.startswith("_") for part in module_info.name.split(".")):
             continue
         try:
-            module = importlib.import_module(f"{pkg_name}.{module_info.name}")
+            module = importlib.import_module(module_info.name)
         except ImportError:
             continue
         cases_fn = getattr(module, "continuous_cases", None)

@@ -1522,7 +1522,7 @@ but non-zero derivatives of every order and therefore expose the
 leading truncation term cleanly.
 
 **Implementation.**  The case is built by
-:func:`orpheus.derivations.sn_mms.build_1d_slab_mms_case` and
+:func:`orpheus.derivations.continuous.mms.sn.build_1d_slab_mms_case` and
 consumed by :func:`orpheus.sn.solve_sn_fixed_source`.  The latter
 accepts a per-ordinate external source of shape
 :math:`(N, n_x, n_y, n_g)` and threads it through the sweep's
@@ -1753,7 +1753,7 @@ difference design order and not degrading the measured
 convergence rate. The number of materials scales with mesh
 refinement, so each mesh in the convergence study builds a
 fresh materials dictionary via
-:meth:`orpheus.derivations.sn_mms.SNSlab2GHeterogeneousMMSCase.build_materials`.
+:meth:`orpheus.derivations.continuous.mms.sn.SNSlab2GHeterogeneousMMSCase.build_materials`.
 
 **Measured convergence.**  With default parameters
 (:math:`L = 5\,\text{cm}`, :math:`\mathbf c = (1.0, 0.3)`,
@@ -1793,7 +1793,7 @@ mesh.
 
 **What this replaces.** Before Phase 2.1a, the heterogeneous
 SN verification was
-:func:`orpheus.derivations.sn._derive_sn_heterogeneous`, which
+:func:`orpheus.derivations.continuous.cases.sn._derive_sn_heterogeneous`, which
 computed the reference :math:`k_{\text{eff}}` by running the
 SN solver itself at four mesh refinements and Richardson-
 extrapolating the eigenvalue sequence. That is a **T3 circular
@@ -1913,8 +1913,8 @@ diamond-difference design order.
 **Code pointers.**
 
 - Derivation:
-  :class:`orpheus.derivations.sn_mms.SN2DCartesianMMSCase` and
-  :func:`orpheus.derivations.sn_mms.build_2d_cartesian_mms_case`.
+  :class:`orpheus.derivations.continuous.mms.sn.SN2DCartesianMMSCase` and
+  :func:`orpheus.derivations.continuous.mms.sn.build_2d_cartesian_mms_case`.
 - Test:
   :func:`tests.sn.test_mms.test_sn_2d_cartesian_mms_converges_second_order`.
 - Sweep:
@@ -2033,8 +2033,8 @@ Both groups achieve the design :math:`\mathcal O(h^{2})` rate.
 **Code pointers.**
 
 - Derivation:
-  :class:`orpheus.derivations.sn_mms.SN2DCartesian2GHeterogeneousMMSCase`
-  and :func:`orpheus.derivations.sn_mms.build_2d_cartesian_heterogeneous_mms_case`.
+  :class:`orpheus.derivations.continuous.mms.sn.SN2DCartesian2GHeterogeneousMMSCase`
+  and :func:`orpheus.derivations.continuous.mms.sn.build_2d_cartesian_heterogeneous_mms_case`.
 - Test:
   :func:`tests.sn.test_mms_2d.test_sn_2d_cartesian_2g_heterogeneous_mms_converges_second_order`.
 
@@ -2109,8 +2109,8 @@ streaming of :math:`B(x)`.
 **Code pointers.**
 
 - Derivation:
-  :class:`orpheus.derivations.sn_mms.SNP1AnisoMMSCase` and
-  :func:`orpheus.derivations.sn_mms.build_p1_aniso_mms_case`.
+  :class:`orpheus.derivations.continuous.mms.sn.SNP1AnisoMMSCase` and
+  :func:`orpheus.derivations.continuous.mms.sn.build_p1_aniso_mms_case`.
 - Test:
   :func:`tests.sn.test_mms_aniso.test_sn_p1_aniso_mms_converges_second_order`.
 - P1 assembly:
@@ -2131,7 +2131,7 @@ diffusion approximation, no cross-code comparison, no
 Richardson self-test.
 
 The reference is produced by
-:func:`orpheus.derivations.sn.derive_sn_heterogeneous_continuous`
+:func:`orpheus.derivations.continuous.cases.sn.derive_sn_heterogeneous_continuous`
 and consumed by
 :func:`tests.sn.test_heterogeneous_transport.test_sn_2region_reflective_case_eigenvalue`
 (eigenvalue) and
@@ -2321,7 +2321,7 @@ All modes are bounded by :math:`\mathcal O(1)`, so
 
 **The Phase 2.1b diagnostic configuration.** The canonical
 test problem is the ``A`` + ``B`` 1-group mixture pair from
-:mod:`orpheus.derivations._xs_library`:
+:mod:`orpheus.derivations.common.xs_library`:
 
 .. list-table::
    :header-rows: 1
@@ -2770,7 +2770,7 @@ recurrence coefficients were
 
 instead of the canonical diamond-difference recurrence derived
 symbolically in
-:func:`orpheus.derivations.sn_balance.derive_cumprod_recurrence`:
+:func:`orpheus.derivations.discrete.sn.balance.derive_cumprod_recurrence`:
 
 .. math::
 

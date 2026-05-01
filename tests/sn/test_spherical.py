@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations import get
-from orpheus.derivations._xs_library import get_mixture
+from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import CoordSystem, Mesh1D, homogeneous_1d, mesh1d_from_zones, Zone
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import GaussLegendre1D

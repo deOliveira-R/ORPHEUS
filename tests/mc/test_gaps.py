@@ -42,7 +42,7 @@ pytestmark = pytest.mark.verifies(
     "fission-weight",
     "chi-sampling",
 )
-from orpheus.derivations._xs_library import get_xs, get_mixture
+from orpheus.derivations.common.xs_library import get_xs, get_mixture
 from orpheus.mc.solver import (
     MCParams, SlabPinCell, ConcentricPinCell, MCMesh,
     solve_monte_carlo,

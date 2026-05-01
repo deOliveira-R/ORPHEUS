@@ -6,11 +6,11 @@ finite-difference diffusion solver with a fuel/reflector core geometry.
 The underlying theory (two-group eigenvalue problem, power iteration,
 boundary treatment) is covered in the diffusion theory chapter and
 verified against analytical reference solutions built by
-:mod:`orpheus.derivations.diffusion`.
+:mod:`orpheus.derivations.continuous.cases.diffusion`.
 
 See :ref:`theory-verification` for the L0/L1 verification cases that
-exercise this solver, and :func:`orpheus.derivations.diffusion.solver_cases`
-for the set of :class:`~orpheus.derivations._types.VerificationCase`
+exercise this solver, and :func:`orpheus.derivations.continuous.cases.diffusion.solver_cases`
+for the set of :class:`~orpheus.derivations.common.verification_case.VerificationCase`
 instances a test consumes via ``ref(name)``.
 
 Solver

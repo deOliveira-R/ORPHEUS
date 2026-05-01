@@ -42,10 +42,10 @@ Three interlinked systems flow from one source:
 The ``orpheus/derivations/`` package is the **library** of analytical
 and semi-analytical reference solutions: SymPy ``derive_*`` functions
 paired with ``test_*`` pytest gates, importable by production code
-(see e.g. :mod:`orpheus.derivations.sn_balance` cited from
+(see e.g. :mod:`orpheus.derivations.discrete.sn.balance` cited from
 :func:`orpheus.sn.sweep._sweep_1d_cumprod`, or
-:mod:`orpheus.derivations.peierls_specular` cited from
-:func:`orpheus.derivations.peierls_geometry.reflection_specular`).
+:mod:`orpheus.derivations.continuous.peierls.origins.specular` cited from
+:func:`orpheus.derivations.continuous.peierls.geometry.reflection_specular`).
 
 Separately, ``scratch/derivations/`` (project root, **not** a Python
 package) is the **workbench** — in-flight SymPy drafts, diagnostic
@@ -111,7 +111,7 @@ Cross-Section Library
 ---------------------
 
 All verification cases use **abstract synthetic cross sections** from
-``orpheus/derivations/_xs_library.py``.  Four regions are defined, each with
+``orpheus/derivations/common/xs_library.py``.  Four regions are defined, each with
 {1G, 2G, 4G} variants:
 
 - **Region A** (fissile): fuel-like, with fission and moderate scattering
@@ -148,7 +148,7 @@ intended to match real nuclear data. Production runs always use the
 real library from ``orpheus/data/micro_xs/``.
 
 The definitive values and per-group arrays live in
-``orpheus/derivations/_xs_library.py`` (see the ``_MU_BAR`` dict at
+``orpheus/derivations/common/xs_library.py`` (see the ``_MU_BAR`` dict at
 the top of the file). Changing them there automatically propagates
 to every verification case because all derivation modules import
 ``make_mixture`` from the same module.
@@ -411,8 +411,8 @@ The grid is deliberate, not incidental:
 The per-case ``VerificationCase`` records are populated by SymPy
 evaluation of the E\ :sub:`3` (slab) or Ki\ :sub:`4` (cylinder)
 second-difference formulas at build time — see
-``orpheus/derivations/cp_slab.py`` and
-``orpheus/derivations/cp_cylinder.py``. Each record carries:
+``orpheus/derivations/continuous/flat_source_cp/slab.py`` and
+``orpheus/derivations/continuous/flat_source_cp/cylinder.py``. Each record carries:
 analytical :math:`k`, materials, geometry, matrix-eigenvalue
 context, and (since PR-2) the V&V level and equation-label list
 used by the test harness (see ``docs/testing/architecture.rst``).
@@ -516,7 +516,7 @@ the fuel composition alone would produce, quantifying the
 **reflector savings** from returning leaked neutrons back into the
 fuel region.
 
-The derivation lives in ``orpheus/derivations/diffusion.py::derive_2rg``.
+The derivation lives in ``orpheus/derivations/continuous/cases/diffusion.py::derive_2rg``.
 Because running the solver four times costs ~15 minutes, the
 result is cached on disk in
 ``orpheus/derivations/_richardson_cache.json`` (see

@@ -3,7 +3,7 @@
 import pytest
 
 from orpheus.derivations import get
-from orpheus.derivations._xs_library import get_mixture
+from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import slab_fuel_moderator
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.solver import solve_sn

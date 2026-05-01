@@ -29,7 +29,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.peierls_geometry import (
+from orpheus.derivations.continuous.peierls.geometry import (
     CYLINDER_1D,
     SPHERE_1D,
     compute_G_bc,

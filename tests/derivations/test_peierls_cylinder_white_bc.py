@@ -37,9 +37,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations import peierls_geometry as _pg
-from orpheus.derivations.peierls_cylinder import GEOMETRY
-from orpheus.derivations.peierls_geometry import (
+from orpheus.derivations.continuous.peierls import geometry as _pg
+from orpheus.derivations.continuous.peierls.cylinder import GEOMETRY
+from orpheus.derivations.continuous.peierls.geometry import (
     compute_G_bc,
     compute_P_esc,
 )
@@ -243,9 +243,9 @@ class TestHebertCylinderInsufficient:
         silent structural fix that *closes* the gap below err_min_pct%
         without updating this gate.
         """
-        from orpheus.derivations import cp_cylinder
-        from orpheus.derivations._xs_library import LAYOUTS, get_xs
-        from orpheus.derivations.peierls_geometry import (
+        from orpheus.derivations.continuous.flat_source_cp import cylinder as cp_cylinder
+        from orpheus.derivations.common.xs_library import LAYOUTS, get_xs
+        from orpheus.derivations.continuous.peierls.geometry import (
             CYLINDER_1D, solve_peierls_mg,
         )
 

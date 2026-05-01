@@ -138,7 +138,7 @@ tests. The contract it exposes:
   :ref:`operator-form-taxonomy`, asserted by consumers.
 
 The full dataclass definition lives in
-:mod:`orpheus.derivations._reference`.
+:mod:`orpheus.derivations.common.continuous_reference`.
 
 
 .. _reference-solution-registry:
@@ -150,7 +150,7 @@ Two parallel registries coexist during the Phase-0 → Phase-6
 migration:
 
 - :func:`orpheus.derivations.get` — legacy
-  :class:`~orpheus.derivations._types.VerificationCase` by name.
+  :class:`~orpheus.derivations.common.verification_case.VerificationCase` by name.
   Carries only the scalar ``k_inf`` and problem spec. Every
   currently-green test consumes this.
 - :func:`orpheus.derivations.continuous_get` — new
@@ -206,7 +206,7 @@ Canonical definition (Abramowitz & Stegun 5.1.4):
    \int_0^{\infty} E_n(x)\,dx \;=\; \frac{1}{n}.
 
 Evaluated to arbitrary precision by
-:func:`orpheus.derivations._kernels.e_n` (which wraps
+:func:`orpheus.derivations.common.kernels.e_n` (which wraps
 :func:`mpmath.expint`) and by :func:`scipy.special.expn` at double
 precision. Both engines are exercised against the three identities
 above in
@@ -229,7 +229,7 @@ Canonical definition (Bickley & Naylor 1935; A&S 11.2):
 
 The integrand has an essential singularity at :math:`\theta = \pi/2`
 when :math:`x > 0`. ORPHEUS's high-precision evaluator
-:func:`orpheus.derivations._kernels.ki_n` resolves this by the
+:func:`orpheus.derivations.common.kernels.ki_n` resolves this by the
 substitution :math:`u = \tan\theta`, which produces a smooth
 integrand on :math:`[0, \infty)`:
 
@@ -274,10 +274,10 @@ Legacy naming discrepancy in ``BickleyTables`` (historical)
    **Retired in Phase B.4 (commit 6badbe5, Issue #94).** The
    ``BickleyTables`` class and its ``bickley_tables()`` cache
    function have been deleted from
-   :mod:`orpheus.derivations._kernels`. The canonical replacement is
-   :func:`~orpheus.derivations._kernels.ki_n_mp` (arbitrary precision,
+   :mod:`orpheus.derivations.common.kernels`. The canonical replacement is
+   :func:`~orpheus.derivations.common.kernels.ki_n_mp` (arbitrary precision,
    A&S naming) and, for double-precision fast paths, the Chebyshev
-   interpolant :func:`orpheus.derivations.cp_geometry._ki3_mp`.
+   interpolant :func:`orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp`.
    This subsection is retained as **historical documentation** —
    both the tabulation error and the naming convention shaped the
    V&V ladder for the life of the project, and the record of *why*
@@ -304,14 +304,14 @@ from the Abramowitz & Stegun numbering:
   :math:`P_{ij}` evaluation.
 
 The retirement was numerically safe because the downstream P-matrix
-assembly in :mod:`orpheus.derivations.cp_cylinder` (and its solver
+assembly in :mod:`orpheus.derivations.continuous.flat_source_cp.cylinder` (and its solver
 sibling in :mod:`orpheus.cp.solver`) consumed the legacy ``ki4`` value
 under the canonical alias ``Ki3_vec`` (introduced in a Phase-4.2
 compatibility shim). The chord-form second-difference formula had
 always been :math:`\Delta^2[\mathrm{Ki}_3^{\text{A\&S}}]`; the
 legacy naming was purely internal. Swapping
 ``BickleyTables.ki4_vec`` for the Chebyshev interpolant
-:func:`~orpheus.derivations.cp_geometry._ki3_mp` therefore replaced a
+:func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp` therefore replaced a
 ~:math:`10^{-3}`-accurate approximation of the canonical
 :math:`\mathrm{Ki}_3` with a ~:math:`5\times 10^{-6}`-accurate one —
 no convention change, just a precision upgrade of the kernel already

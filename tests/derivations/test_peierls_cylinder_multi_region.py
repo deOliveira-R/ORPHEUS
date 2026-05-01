@@ -25,8 +25,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.peierls_cylinder import GEOMETRY
-from orpheus.derivations.peierls_geometry import (
+from orpheus.derivations.continuous.peierls.cylinder import GEOMETRY
+from orpheus.derivations.continuous.peierls.geometry import (
     build_volume_kernel,
     composite_gl_r,
     lagrange_basis_on_panels,

@@ -20,7 +20,7 @@ Key Facts
 - ``Mixture`` dataclass: macroscopic XS with ``SigS[l][g_from, g_to]`` convention
 - Consistency: :math:`\Sigma_t = \Sigma_c + \Sigma_f + \sum_{g'} \Sigma_{s,g \to g'}`
 - ``load_isotope()`` auto-selects HDF5 or fallback .m parser
-- Verification uses synthetic XS from ``orpheus/derivations/_xs_library.py`` (regions A/B/C/D), NOT this pipeline
+- Verification uses synthetic XS from ``orpheus/derivations/common/xs_library.py`` (regions A/B/C/D), NOT this pipeline
 
 
 Overview
@@ -429,7 +429,7 @@ Three application regimes **do** need :math:`(n,xn)`:
 None of these are current ORPHEUS use cases. The V&V suite
 (:doc:`/verification/index`) exclusively verifies thermal-spectrum
 analytical benchmarks; synthetic cross sections in
-``orpheus/derivations/_xs_library.py`` do not include an
+``orpheus/derivations/common/xs_library.py`` do not include an
 :math:`(n,xn)` term.
 
 Implementation sketch (deferred)

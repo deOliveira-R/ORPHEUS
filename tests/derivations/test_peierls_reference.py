@@ -33,15 +33,15 @@ import mpmath
 import numpy as np
 import pytest
 
-from orpheus.derivations.peierls_reference import (
+from orpheus.derivations.continuous.peierls.reference import (
     slab_uniform_source_analytical,
     slab_uniform_source_white_bc_analytical,
     slab_K_vol_element,
     cylinder_uniform_source_analytical,
     sphere_uniform_source_analytical,
 )
-from orpheus.derivations import peierls_slab
-from orpheus.derivations.peierls_geometry import (
+from orpheus.derivations.continuous.peierls import slab as peierls_slab
+from orpheus.derivations.continuous.peierls.geometry import (
     SLAB_POLAR_1D,
     SPHERE_1D,
     CYLINDER_1D,
@@ -980,7 +980,7 @@ class TestSlabRankNNotImplementedGuard:
     """
 
     def test_P_esc_mode_raises_for_slab_polar_at_mode_n(self):
-        from orpheus.derivations.peierls_geometry import compute_P_esc_mode
+        from orpheus.derivations.continuous.peierls.geometry import compute_P_esc_mode
         radii = np.array([1.0])
         sig_t = np.array([1.0])
         r_nodes, _, _ = composite_gl_r(radii, 1, 2, dps=20)
@@ -991,7 +991,7 @@ class TestSlabRankNNotImplementedGuard:
             )
 
     def test_G_bc_mode_raises_for_slab_polar_at_mode_n(self):
-        from orpheus.derivations.peierls_geometry import compute_G_bc_mode
+        from orpheus.derivations.continuous.peierls.geometry import compute_G_bc_mode
         radii = np.array([1.0])
         sig_t = np.array([1.0])
         r_nodes, _, _ = composite_gl_r(radii, 1, 2, dps=20)

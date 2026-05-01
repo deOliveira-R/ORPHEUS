@@ -53,9 +53,9 @@ import warnings
 import numpy as np
 import pytest
 
-from orpheus.derivations._eigenvalue import kinf_and_spectrum_homogeneous
-from orpheus.derivations._xs_library import get_xs
-from orpheus.derivations.peierls_geometry import (
+from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
+from orpheus.derivations.common.xs_library import get_xs
+from orpheus.derivations.continuous.peierls.geometry import (
     CYLINDER_1D,
     SLAB_POLAR_1D,
     SPHERE_1D,
@@ -360,7 +360,7 @@ def test_slab_mark_decomposes_into_four_per_face_blocks():
     specular investigation (`specular_bc_slab_fix.md` agent memory).
     """
     import numpy as np
-    from orpheus.derivations.peierls_geometry import (
+    from orpheus.derivations.continuous.peierls.geometry import (
         SLAB_POLAR_1D, _build_full_K_per_group, _slab_E_n,
         _slab_tau_to_inner_face, _slab_tau_to_outer_face,
         build_volume_kernel, composite_gl_r,
@@ -1158,7 +1158,7 @@ def test_specular_multibounce_slab_rank1_equals_2E3_identity():
     transit at constant direction cannot leave a face and return
     without an intermediate reflection.
     """
-    from orpheus.derivations.peierls_geometry import (
+    from orpheus.derivations.continuous.peierls.geometry import (
         compute_T_specular_slab, _slab_E_n,
     )
     cases = [

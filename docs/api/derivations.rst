@@ -4,7 +4,7 @@ Analytical Derivations (``derivations``)
 Reference for the :mod:`orpheus.derivations` package — the single
 source of truth for analytical reference eigenvalues used across the
 V&V ladder. Each derivation module is a SymPy- or closed-form
-calculation that emits :class:`~orpheus.derivations._types.VerificationCase`
+calculation that emits :class:`~orpheus.derivations.common.verification_case.VerificationCase`
 objects carrying the analytical :math:`k_\infty` (or :math:`k_\text{eff}`),
 the material definitions, the geometry parameters, a LaTeX trace of the
 derivation, and the V&V level.
@@ -25,42 +25,42 @@ Submodules
 
    * - Module
      - Purpose
-   * - :mod:`~orpheus.derivations.homogeneous`
+   * - :mod:`~orpheus.derivations.continuous.analytical.homogeneous`
      - Infinite-medium :math:`k_\infty` for 1/2/4-group synthetic XS.
-   * - :mod:`~orpheus.derivations.cp_slab`
+   * - :mod:`~orpheus.derivations.continuous.flat_source_cp.slab`
      - Closed-form slab collision-probability eigenvalues.
-   * - :mod:`~orpheus.derivations.cp_cylinder`
+   * - :mod:`~orpheus.derivations.continuous.flat_source_cp.cylinder`
      - Closed-form cylindrical-annulus collision-probability eigenvalues.
-   * - :mod:`~orpheus.derivations.diffusion`
+   * - :mod:`~orpheus.derivations.continuous.cases.diffusion`
      - 1-D / 2-region two-group diffusion eigenvalues matching the
        ``diffusion`` solver's core geometry.
-   * - :mod:`~orpheus.derivations._kernels`
+   * - :mod:`~orpheus.derivations.common.kernels`
      - Exponential-integral (``E_3``) and Bickley–Naylor
        (``Ki_3``/``Ki_4``) kernels shared by the slab and cylinder
        derivations, plus the :func:`chord_half_lengths` chord-segment
        primitive consumed by chord-impact-parameter integrals.
-   * - :mod:`~orpheus.derivations._quadrature`
+   * - :mod:`~orpheus.derivations.common.quadrature`
      - Unified 1-D quadrature contract
-       (:class:`~orpheus.derivations._quadrature.Quadrature1D` value
+       (:class:`~orpheus.derivations.common.quadrature.Quadrature1D` value
        object) and its primitive constructors:
        :func:`gauss_legendre`,
        :func:`gauss_legendre_visibility_cone`,
        :func:`composite_gauss_legendre`, :func:`gauss_laguerre`.
        Plus the sibling
-       :class:`~orpheus.derivations._quadrature.AdaptiveQuadrature1D`
+       :class:`~orpheus.derivations.common.quadrature.AdaptiveQuadrature1D`
        (no-fixed-nodes adaptive rule built via
-       :func:`~orpheus.derivations._quadrature.adaptive_mpmath`).
-   * - :mod:`~orpheus.derivations._quadrature_recipes`
+       :func:`~orpheus.derivations.common.quadrature.adaptive_mpmath`).
+   * - :mod:`~orpheus.derivations.common.quadrature_recipes`
      - Geometry-aware quadrature recipes:
        :func:`chord_quadrature` (impact-parameter integrals on
        concentric annular geometries) and
        :func:`observer_angular_quadrature` (kink-aware ω-sweeps from
        an internal observer).
-   * - :mod:`~orpheus.derivations._xs_library`
+   * - :mod:`~orpheus.derivations.common.xs_library`
      - Synthetic cross-section library (``_FUEL_XS``, ``_REFL_XS``, …)
        that guarantees derivation cases and solver tests use the exact
        same numbers.
-   * - :mod:`~orpheus.derivations._types`
+   * - :mod:`~orpheus.derivations.common.verification_case`
      - :class:`VerificationCase` dataclass + ``VVLevel`` literal.
    * - :mod:`~orpheus.derivations.reference_values`
      - Lazy registry and lookup helpers (``get``, ``all_names``,
@@ -75,55 +75,55 @@ Reference-value registry
 Verification case type
 ----------------------
 
-.. automodule:: orpheus.derivations._types
+.. automodule:: orpheus.derivations.common.verification_case
    :members:
 
 Homogeneous
 -----------
 
-.. automodule:: orpheus.derivations.homogeneous
+.. automodule:: orpheus.derivations.continuous.analytical.homogeneous
    :members:
 
 Slab Collision Probability
 --------------------------
 
-.. automodule:: orpheus.derivations.cp_slab
+.. automodule:: orpheus.derivations.continuous.flat_source_cp.slab
    :members:
    :exclude-members: _XS_A, _XS_B
 
 Cylindrical Collision Probability
 ---------------------------------
 
-.. automodule:: orpheus.derivations.cp_cylinder
+.. automodule:: orpheus.derivations.continuous.flat_source_cp.cylinder
    :members:
    :exclude-members: _XS_A, _XS_B
 
 Diffusion
 ---------
 
-.. automodule:: orpheus.derivations.diffusion
+.. automodule:: orpheus.derivations.continuous.cases.diffusion
    :members:
 
 Kernels
 -------
 
-.. automodule:: orpheus.derivations._kernels
+.. automodule:: orpheus.derivations.common.kernels
    :members:
 
 Quadrature contract
 -------------------
 
-.. automodule:: orpheus.derivations._quadrature
+.. automodule:: orpheus.derivations.common.quadrature
    :members:
 
 Quadrature recipes (geometry-aware)
 -----------------------------------
 
-.. automodule:: orpheus.derivations._quadrature_recipes
+.. automodule:: orpheus.derivations.common.quadrature_recipes
    :members:
 
 Cross-section library
 ---------------------
 
-.. automodule:: orpheus.derivations._xs_library
+.. automodule:: orpheus.derivations.common.xs_library
    :members:

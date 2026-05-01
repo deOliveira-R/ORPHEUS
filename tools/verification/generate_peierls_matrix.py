@@ -6,8 +6,8 @@ at :ref:`theory-peierls-capabilities`.
 
 The data is the **single source of truth** for which continuous
 Peierls references are shipped: it is pulled from
-:func:`orpheus.derivations.peierls_cases.capability_rows`, the same
-registry function that :func:`orpheus.derivations.peierls_cases.continuous_cases`
+:func:`orpheus.derivations.continuous.peierls.cases.capability_rows`, the same
+registry function that :func:`orpheus.derivations.continuous.peierls.cases.continuous_cases`
 iterates (see the "Metadata-only enumeration" section of that
 module). Running this tool therefore cannot drift from the shipping
 registry — any new reference added to ``_class_{a,b}_cases()`` must
@@ -125,7 +125,7 @@ def _render(rows: list[dict]) -> str:
         "``tools/verification/generate_peierls_matrix.py``.\n"
         "   Do not edit by hand — changes will be overwritten on the\n"
         "   next Sphinx build. The single source of truth is\n"
-        "   ``orpheus.derivations.peierls_cases.capability_rows()``.\n"
+        "   ``orpheus.derivations.continuous.peierls.cases.capability_rows()``.\n"
     )
     lines.append("")
 
@@ -177,7 +177,7 @@ def main(argv: list[str] | None = None) -> int:
     # invoke any eigenvalue solver (that would bottleneck Sphinx
     # builds to O(minutes)). The registry-aligned cross-check lives
     # in the test suite, not here.
-    from orpheus.derivations.peierls_cases import capability_rows
+    from orpheus.derivations.continuous.peierls.cases import capability_rows
 
     rows = capability_rows()
     rst = _render(rows)

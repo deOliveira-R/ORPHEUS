@@ -25,14 +25,14 @@ import numpy as np
 import pytest
 
 from orpheus.cp.solver import CPParams, solve_cp
-from orpheus.derivations._xs_library import get_mixture
-from orpheus.derivations.peierls_geometry import (
+from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.derivations.continuous.peierls.geometry import (
     PeierlsSolution,
     build_volume_kernel,
     build_white_bc_correction,
     composite_gl_r,
 )
-from orpheus.derivations.peierls_sphere import GEOMETRY
+from orpheus.derivations.continuous.peierls.sphere import GEOMETRY
 from orpheus.geometry import CoordSystem, Mesh1D
 
 

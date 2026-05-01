@@ -65,7 +65,7 @@ def test_flux_per_material_matches_scalar():
 
 def test_heterogeneous_flux_depression():
     """In a fuel+coolant pin, thermal flux should be higher in coolant."""
-    from orpheus.derivations._xs_library import get_mixture
+    from orpheus.derivations.common.xs_library import get_mixture
     fuel = get_mixture("A", "2g")
     cool = get_mixture("B", "2g")
 

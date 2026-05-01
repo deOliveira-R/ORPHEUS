@@ -62,9 +62,9 @@ Three geometries are supported:
 - **Slab** (1D Cartesian) --- the :math:`E_3` exponential-integral kernel
 - **Concentric cylinders** (1D radial) --- the canonical
   :math:`\mathrm{Ki}_3` Bickley--Naylor kernel (A&S 11.2), evaluated via
-  :func:`orpheus.derivations.cp_geometry._ki3_mp` (Chebyshev
+  :func:`orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp` (Chebyshev
   interpolant of :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)` built from
-  :func:`~orpheus.derivations._kernels.ki_n_mp` at 30 dps)
+  :func:`~orpheus.derivations.common.kernels.ki_n_mp` at 30 dps)
 - **Concentric spheres** (1D radial) --- the exponential kernel with
   :math:`y`-weighted quadrature
 
@@ -75,30 +75,30 @@ augmented-geometry pattern.
 for verification are computed independently by the derivation scripts.
 These are the **source of truth** for all equations in this chapter:
 
-- ``orpheus/derivations/cp_geometry.py`` --- the unified geometry-dispatching
-  core :class:`~derivations.cp_geometry.FlatSourceCPGeometry` and
-  :func:`~derivations.cp_geometry.build_cp_matrix` (Phase B.2 refactor,
+- ``orpheus/derivations/continuous/flat_source_cp/geometry.py`` --- the unified geometry-dispatching
+  core :class:`~orpheus.derivations.continuous.flat_source_cp.geometry.FlatSourceCPGeometry` and
+  :func:`~orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix` (Phase B.2 refactor,
   commits ``f1b869b`` → ``bf128d3``)
-- ``orpheus/derivations/cp_slab.py`` --- slab :math:`E_3` kernel; thin facade
-  over :data:`~derivations.cp_geometry.SLAB`
-- ``orpheus/derivations/cp_cylinder.py`` --- cylindrical canonical
+- ``orpheus/derivations/continuous/flat_source_cp/slab.py`` --- slab :math:`E_3` kernel; thin facade
+  over :data:`~orpheus.derivations.continuous.flat_source_cp.geometry.SLAB`
+- ``orpheus/derivations/continuous/flat_source_cp/cylinder.py`` --- cylindrical canonical
   :math:`\mathrm{Ki}_3` kernel; thin facade over
-  :data:`~derivations.cp_geometry.CYLINDER_1D`
-- ``orpheus/derivations/cp_sphere.py`` --- spherical :math:`e^{-\tau}` kernel;
-  thin facade over :data:`~derivations.cp_geometry.SPHERE_1D`
-- ``orpheus/derivations/_kernels.py`` --- :math:`E_3` via
-  :func:`~derivations._kernels.e3_vec` (wraps
+  :data:`~orpheus.derivations.continuous.flat_source_cp.geometry.CYLINDER_1D`
+- ``orpheus/derivations/continuous/flat_source_cp/sphere.py`` --- spherical :math:`e^{-\tau}` kernel;
+  thin facade over :data:`~orpheus.derivations.continuous.flat_source_cp.geometry.SPHERE_1D`
+- ``orpheus/derivations/common/kernels.py`` --- :math:`E_3` via
+  :func:`~orpheus.derivations.common.kernels.e3_vec` (wraps
   :func:`scipy.special.expn`); arbitrary-precision :math:`\mathrm{Ki}_n`
-  via :func:`~derivations._kernels.ki_n_mp` (wraps
+  via :func:`~orpheus.derivations.common.kernels.ki_n_mp` (wraps
   :func:`mpmath.quad`). Double-precision :math:`\mathrm{Ki}_3`
-  goes through :func:`~derivations.cp_geometry._ki3_mp` — a
+  goes through :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp` — a
   Chebyshev interpolant of :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)`
   built from ``ki_n_mp`` at 30 dps (~:math:`5\times 10^{-6}`
   accuracy). The legacy ``BickleyTables`` tabulation was retired
   in Phase B.4 (commit ``6badbe5``, Issue #94)
-- ``orpheus/derivations/_eigenvalue.py`` --- shared eigenvalue computation via
-  :func:`~derivations._eigenvalue.kinf_from_cp` and
-  :func:`~derivations._eigenvalue.kinf_homogeneous`
+- ``orpheus/derivations/common/eigenvalue.py`` --- shared eigenvalue computation via
+  :func:`~orpheus.derivations.common.eigenvalue.kinf_from_cp` and
+  :func:`~orpheus.derivations.common.eigenvalue.kinf_homogeneous`
 
 Every equation in this chapter can be verified against these scripts.
 Every numerical value cited was produced by them.
@@ -328,9 +328,9 @@ The surface-to-surface probability is:
    P_{\text{in,out}} = 1 - \sum_j P_{\text{in},j}
 
 The same formula appears in all three derivation scripts (e.g.,
-``orpheus/derivations/cp_slab.py``, line ``P_in = sig_t_g * t_arr * P_out``
+``orpheus/derivations/continuous/flat_source_cp/slab.py``, line ``P_in = sig_t_g * t_arr * P_out``
 with the slab convention :math:`S = 1`, :math:`V = t`; and
-``orpheus/derivations/cp_cylinder.py``, line ``S_cell = 2.0 * np.pi * r_cell``
+``orpheus/derivations/continuous/flat_source_cp/cylinder.py``, line ``S_cell = 2.0 * np.pi * r_cell``
 with cylindrical :math:`V = \pi(R_k^2 - R_{k-1}^2)`).
 
 
@@ -351,7 +351,7 @@ possibly escape again (geometric series):
 This formula is **identical for all three geometries** when expressed
 in terms of :math:`V_i` and :math:`S`.  It is implemented in the
 white-BC transform selected from :attr:`CPMesh.BC_REGISTRY` and
-independently in all three derivation scripts (e.g., ``orpheus/derivations/cp_slab.py``:
+independently in all three derivation scripts (e.g., ``orpheus/derivations/continuous/flat_source_cp/slab.py``:
 ``P_inf_g[:,:,g] = P_cell + np.outer(P_out, P_in) / (1.0 - P_inout)``).
 
 .. _cp-bc-registry:
@@ -625,14 +625,14 @@ common structure is why all three geometries are handled by a single
    plt.tight_layout()
 
 **Derivation source:** The kernels are implemented in
-``orpheus/derivations/_kernels.py`` (slab, arbitrary-precision) and
-``orpheus/derivations/cp_geometry.py`` (cylinder double-precision fast
-path).  Slab :math:`E_3`: :func:`~derivations._kernels.e3` and
-:func:`~derivations._kernels.e3_vec` (wrappers over
+``orpheus/derivations/common/kernels.py`` (slab, arbitrary-precision) and
+``orpheus/derivations/continuous/flat_source_cp/geometry.py`` (cylinder double-precision fast
+path).  Slab :math:`E_3`: :func:`~orpheus.derivations.common.kernels.e3` and
+:func:`~orpheus.derivations.common.kernels.e3_vec` (wrappers over
 :func:`scipy.special.expn`). Cylinder :math:`\mathrm{Ki}_3`:
-:func:`~derivations.cp_geometry._ki3_mp` — a Chebyshev interpolant
+:func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp` — a Chebyshev interpolant
 of :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)` built from
-:func:`~derivations._kernels.ki_n_mp` at 30 dps. The legacy
+:func:`~orpheus.derivations.common.kernels.ki_n_mp` at 30 dps. The legacy
 ``BickleyTables`` tabulation that preceded ``_ki3_mp`` was retired
 in Phase B.4 (commit ``6badbe5``, Issue #94).
 
@@ -655,7 +655,7 @@ half-space :math:`\mu \in [0, 1]`:
 This is one angular integration, leaving a function of :math:`\tau`
 only.  :math:`E_3(0) = 1/2` and :math:`E_3(\tau) \to 0` exponentially.
 Computed analytically via :func:`scipy.special.expn` (wrapped as
-:func:`_e3` in the solver and :func:`~derivations._kernels.e3` in the
+:func:`_e3` in the solver and :func:`~orpheus.derivations.common.kernels.e3` in the
 derivations).
 
 **Cylinder (2D):** The neutron travels at polar angle :math:`\theta` to
@@ -720,9 +720,9 @@ in :eq:`ki3-def`) and :math:`\text{Ki}_3(x) \to 0` exponentially.
 
 Neither :math:`\text{Ki}_3` nor :math:`\text{Ki}_4` has a
 closed-form expression.  The derivation path is now
-:func:`~derivations._kernels.ki_n_mp` (arbitrary precision via
+:func:`~orpheus.derivations.common.kernels.ki_n_mp` (arbitrary precision via
 :func:`mpmath.quad`) with a double-precision fast path through
-:func:`~derivations.cp_geometry._ki3_mp` (a Chebyshev interpolant of
+:func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp` (a Chebyshev interpolant of
 the canonical-:math:`\mathrm{Ki}_3` scaled kernel
 :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)`); the solver and the
 derivation share the *same* code path so there is no kernel-split
@@ -837,7 +837,7 @@ A&S :math:`\mathrm{Ki}_3`), or :math:`F = e^{-\tau}` (sphere).
 **Derivation source.** After the Phase B.2 unification, all three
 flat-source CP modules dispatch through a single
 geometry-invariant operator implemented as the module-level free
-function :func:`~derivations.cp_geometry._second_difference`::
+function :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._second_difference`::
 
     def _second_difference(kernel, gap, tau_i, tau_j):
         return (kernel(gap)
@@ -846,14 +846,14 @@ function :func:`~derivations.cp_geometry._second_difference`::
                 + kernel(gap + tau_i + tau_j))
 
 The per-geometry kernel is supplied by the
-:class:`~derivations.cp_geometry.FlatSourceCPGeometry` singleton:
+:class:`~orpheus.derivations.continuous.flat_source_cp.geometry.FlatSourceCPGeometry` singleton:
 
-- :data:`~derivations.cp_geometry.SLAB` — ``kernel_F3 = e3_vec``
+- :data:`~orpheus.derivations.continuous.flat_source_cp.geometry.SLAB` — ``kernel_F3 = e3_vec``
   (:func:`scipy.special.expn`)
-- :data:`~derivations.cp_geometry.CYLINDER_1D` —
+- :data:`~orpheus.derivations.continuous.flat_source_cp.geometry.CYLINDER_1D` —
   ``kernel_F3 = _ki3_mp`` (Chebyshev interpolant of
   canonical :math:`\mathrm{Ki}_3^{\text{A\&S}}`)
-- :data:`~derivations.cp_geometry.SPHERE_1D` —
+- :data:`~orpheus.derivations.continuous.flat_source_cp.geometry.SPHERE_1D` —
   ``kernel_F3 = _exp_kernel`` (``np.exp(-tau)``)
 
 so the four-term structure is written exactly once in the whole
@@ -1143,10 +1143,10 @@ but with canonical :math:`\mathrm{Ki}_3^{\text{A\&S}}` or
 The term ``kernel_zero - kernel(tau_i)`` is :math:`F(0) - F(\tau_i)`,
 the escape fraction.  The same pattern is expressed once in the
 unified Phase B.2 derivation core
-:mod:`derivations.cp_geometry` — the self-term pairing consumes
-:meth:`~derivations.cp_geometry.FlatSourceCPGeometry.kernel_F3_at_zero`
+:mod:`orpheus.derivations.continuous.flat_source_cp.geometry` — the self-term pairing consumes
+:meth:`~orpheus.derivations.continuous.flat_source_cp.geometry.FlatSourceCPGeometry.kernel_F3_at_zero`
 (returns :math:`1/2`, :math:`\pi/4`, or :math:`1` for slab / cyl
-/ sph) alongside :meth:`~derivations.cp_geometry.FlatSourceCPGeometry.kernel_F3`
+/ sph) alongside :meth:`~orpheus.derivations.continuous.flat_source_cp.geometry.FlatSourceCPGeometry.kernel_F3`
 for the evaluated-at-:math:`\tau_i` term.
 
 
@@ -1187,7 +1187,7 @@ with :math:`R_0 = 0`.
 - **Case 3** (:math:`y \ge R_k`): Chord misses region :math:`k` entirely.
 
 Computed by :func:`_chord_half_lengths` (solver) and independently by
-``orpheus/derivations/cp_cylinder.py::_chord_half_lengths`` (derivation).  Both
+``orpheus/derivations/continuous/flat_source_cp/cylinder.py::_chord_half_lengths`` (derivation).  Both
 return shape ``(N, n_y)``.
 
 **Optical half-thickness:** ``tau = sig_t_g[:, None] * chords``.
@@ -1407,7 +1407,7 @@ and the within-cell CP is :math:`P_{ij}^{\text{cell}} = r_{ij} /
 (\Sigt{i} \, V_i)`, where :math:`V_i = t_i` for slab geometry.
 
 Implemented in :meth:`CPMesh._compute_slab_rcp`.  Verified element-by-element
-against ``orpheus/derivations/cp_slab.py::_slab_cp_matrix`` by
+against ``orpheus/derivations/continuous/flat_source_cp/slab.py::_slab_cp_matrix`` by
 ``test_cp_verification.py::TestDirectPinfComparison::test_slab_pinf_matches_derivation``
 (tolerance :math:`< 10^{-10}`).
 
@@ -1512,7 +1512,7 @@ chord-length discontinuities.
 
 Implemented in :meth:`CPMesh._compute_radial_rcp` with
 ``self._kernel = Ki_4``.  Verified against
-``orpheus/derivations/cp_cylinder.py::_cylinder_cp_matrix``.
+``orpheus/derivations/continuous/flat_source_cp/cylinder.py::_cylinder_cp_matrix``.
 
 
 Concentric Spherical Geometry: The Exponential Kernel
@@ -1562,7 +1562,7 @@ The self-collision term follows the same pattern:
 
 The **same code path** :meth:`CPMesh._compute_radial_rcp` handles both
 cylindrical and spherical, parameterised by kernel and weights.
-Verified against ``orpheus/derivations/cp_sphere.py::_sphere_cp_matrix``.
+Verified against ``orpheus/derivations/continuous/flat_source_cp/sphere.py::_sphere_cp_matrix``.
 
 
 Geometry Comparison
@@ -1609,9 +1609,9 @@ Geometry Comparison
      - :meth:`CPMesh._compute_radial_rcp`
      - :meth:`CPMesh._compute_radial_rcp`
    * - Derivation script
-     - ``orpheus/derivations/cp_slab.py``
-     - ``orpheus/derivations/cp_cylinder.py``
-     - ``orpheus/derivations/cp_sphere.py``
+     - ``orpheus/derivations/continuous/flat_source_cp/slab.py``
+     - ``orpheus/derivations/continuous/flat_source_cp/cylinder.py``
+     - ``orpheus/derivations/continuous/flat_source_cp/sphere.py``
 
 
 The Eigenvalue Problem
@@ -1663,7 +1663,7 @@ Matrix Form
 
 The analytical verification eigenvalue is
 :math:`\lambda_{\max}(\mathbf{A}^{-1}\mathbf{B})`, computed by
-:func:`~derivations._eigenvalue.kinf_from_cp`, which builds the full
+:func:`~orpheus.derivations.common.eigenvalue.kinf_from_cp`, which builds the full
 :math:`NG \times NG` matrices and uses ``numpy.linalg.eigvals``.
 The solver does NOT form these matrices --- see :ref:`why-not-full-matrices`.
 
@@ -1873,8 +1873,8 @@ analytical eigenvalues computed independently by the derivation modules.
 Consolidated Eigenvalue Solvers (CP-20260405-007)
 ---------------------------------------------------
 
-:func:`~derivations._eigenvalue.kinf_from_cp` and
-:func:`~derivations._eigenvalue.kinf_homogeneous` replaced 10 duplicated
+:func:`~orpheus.derivations.common.eigenvalue.kinf_from_cp` and
+:func:`~orpheus.derivations.common.eigenvalue.kinf_homogeneous` replaced 10 duplicated
 eigenvalue computations across ``homogeneous.py``, ``sn.py``, ``moc.py``,
 ``mc.py``, ``cp_slab.py``, ``cp_cylinder.py``, and ``cp_sphere.py``.
 Both accept optional ``sig_2`` / ``sig_2_mats`` for (n,2n) reactions.
@@ -1898,22 +1898,22 @@ Eigenvalue Verification Cases
    * - Slab (:math:`E_3`)
      - :math:`< 10^{-6}`
      - ``test_cp_slab.py``
-     - ``orpheus/derivations/cp_slab.py``
+     - ``orpheus/derivations/continuous/flat_source_cp/slab.py``
    * - Cylinder (:math:`\text{Ki}_4`)
      - :math:`< 10^{-5}`
      - ``test_cp_cylinder.py``
-     - ``orpheus/derivations/cp_cylinder.py``
+     - ``orpheus/derivations/continuous/flat_source_cp/cylinder.py``
    * - Sphere (:math:`e^{-\tau}`)
      - :math:`< 10^{-5}`
      - ``test_cp_sphere.py``
-     - ``orpheus/derivations/cp_sphere.py``
+     - ``orpheus/derivations/continuous/flat_source_cp/sphere.py``
 
 Historically, the cylinder/sphere tolerances were 10× looser
 because the legacy 20 000-point :math:`\text{Ki}_4` table
 interpolation introduced :math:`O(\Delta x^2) \approx
 6\times 10^{-6}` error. Phase B.4 (commit ``6badbe5``, Issue #94)
 replaced the table with the Chebyshev interpolant
-:func:`~derivations.cp_geometry._ki3_mp` of canonical
+:func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp` of canonical
 :math:`\mathrm{Ki}_3`, which reaches ~:math:`5\times 10^{-6}`
 absolute accuracy; the declared ``< 1e-5`` tolerance is now
 ~100× larger than the actual solver/reference error
@@ -1998,12 +1998,12 @@ Ki\ :sub:`3` Kernel Construction (historical: Ki\ :sub:`3`/Ki\ :sub:`4` tables)
 
 **Current path (post-Phase B.4, commit 6badbe5).** Both the
 derivation module and the runtime solver consume the **same**
-kernel via :func:`~derivations.cp_geometry._ki3_mp`: a Chebyshev
+kernel via :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp`: a Chebyshev
 polynomial of degree 63 fit to the scaled kernel
 :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)` (canonical A&S) on
 :math:`[0, 50]` at Chebyshev-Gauss-Lobatto nodes. The tabulation
 values are computed once at module load by
-:func:`~derivations._kernels.ki_n_mp` at 30 dps and cached via
+:func:`~orpheus.derivations.common.kernels.ki_n_mp` at 30 dps and cached via
 :func:`functools.lru_cache`; Chebyshev fitting of the
 :math:`e^{\tau}`-scaled kernel converts the exponentially-decaying
 tail into a slowly-varying function the polynomial reaches to
@@ -2016,7 +2016,7 @@ precision (:math:`\mathrm{Ki}_3(50) \approx 3\times 10^{-23}`).
 
 .. note::
 
-   :func:`~derivations.cp_geometry._ki3_mp` uses the **canonical
+   :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp` uses the **canonical
    A&S convention**:
    :math:`\mathrm{Ki}_n^{\text{A\&S}}(x) = \int_0^{\pi/2}
    \cos^{n-1}\theta\,\exp(-x/\cos\theta)\,d\theta`, so
@@ -2025,7 +2025,7 @@ precision (:math:`\mathrm{Ki}_3(50) \approx 3\times 10^{-23}`).
    of :math:`\sin\theta`, making the ORPHEUS-local "Ki\ :sub:`4`\ "
    the canonical :math:`\mathrm{Ki}_3^{\text{A\&S}}`. The
    :math:`P_{ij}` matrix assembled by
-   :mod:`derivations.cp_cylinder` consumes canonical
+   :mod:`orpheus.derivations.continuous.flat_source_cp.cylinder` consumes canonical
    :math:`\mathrm{Ki}_3^{\text{A\&S}}` — the Phase-4.2 alias
    ``BickleyTables.Ki3_vec := BickleyTables.ki4_vec`` made the
    convention uniform before the Phase B.4 retirement deleted both
@@ -2037,7 +2037,7 @@ stay in sync:
 
 1. :func:`_build_ki_tables` on :class:`orpheus.cp.solver.CPMesh`
    (solver side) and
-2. The ``BickleyTables`` class in :mod:`derivations._kernels`
+2. The ``BickleyTables`` class in :mod:`orpheus.derivations.common.kernels`
    (derivation side).
 
 Both tabulated the functions identically:
@@ -2160,7 +2160,7 @@ over groups would require restructuring the Ki4 table lookup ---
 deferred as a performance improvement.
 
 **Why ORPHEUS does NOT form the full A/B matrices.**  The analytical
-verification (:func:`~derivations._eigenvalue.kinf_from_cp`) builds the
+verification (:func:`~orpheus.derivations.common.eigenvalue.kinf_from_cp`) builds the
 full :math:`NG \times NG` matrices and runs ``numpy.linalg.eigvals``.
 The solver does not, for two reasons:
 
@@ -2336,7 +2336,7 @@ The unified ``_pg.solve_peierls_*`` adaptive-quadrature K-matrix
 assembly described next is the production path.
 
 **Unified basis-aware assembly** (current implementation,
-:func:`~orpheus.derivations.peierls_slab._basis_kernel_weights`).
+:func:`~orpheus.derivations.continuous.peierls.slab._basis_kernel_weights`).
 Every :math:`K[i, j]` is computed directly as
 
 .. math::
@@ -2357,7 +2357,7 @@ panel (same-panel case). This single code path:
   arbitrary panel pairs without relying on near-log assumptions.
 
 The implementation exactly mirrors the adaptive reference
-:func:`~orpheus.derivations.peierls_reference.slab_K_vol_element`, so
+:func:`~orpheus.derivations.continuous.peierls.reference.slab_K_vol_element`, so
 the production code and the reference agree to machine
 :math:`\mathrm{dps}` by construction.
 
@@ -2462,9 +2462,9 @@ See :ref:`peierls-scattering-convention` (in the Peierls unified
 theory page) for the canonical, project-wide statement of the
 ``sig_s[g_src, g_dst]`` convention, which the CP / Peierls
 drivers and the XS library
-(:mod:`orpheus.derivations._xs_library`) all follow. In the Peierls
+(:mod:`orpheus.derivations.common.xs_library`) all follow. In the Peierls
 slab assembly loop
-(:func:`orpheus.derivations.peierls_slab._build_system_matrices`)
+(:func:`orpheus.derivations.continuous.peierls.slab._build_system_matrices`)
 the scatter kernel for the equation in group ``ge`` sums over
 source groups ``gs`` via ``sig_s_at_node[j][gs][ge]`` =
 :math:`\Sigma_{s,\,gs \to ge}` — first index source, second
@@ -2515,7 +2515,7 @@ purposes, the 2% agreement at moderate resolution is sufficient to
 confirm that both methods solve the same integral transport equation.
 
 The registered reference in the test suite
-(``continuous_cases()`` in :mod:`orpheus.derivations.peierls_slab`) uses a
+(``continuous_cases()`` in :mod:`orpheus.derivations.continuous.peierls.slab`) uses a
 lightweight configuration (4 panels |times| 4 GL points per region,
 20-digit ``mpmath`` precision) to keep import time fast.  Tests that
 need higher accuracy should call
@@ -2537,9 +2537,9 @@ For this reason, the slow 2G 2-region convergence test is marked
 
 .. seealso::
 
-   :mod:`orpheus.derivations.peierls_slab` — Nystrom solver implementation.
+   :mod:`orpheus.derivations.continuous.peierls.slab` — Nystrom solver implementation.
 
-   :class:`orpheus.derivations.peierls_slab.PeierlsSlabSolution` — result container
+   :class:`orpheus.derivations.continuous.peierls.slab.PeierlsSlabSolution` — result container
    with barycentric interpolation for flux evaluation at arbitrary points.
 
    ``tests/derivations/test_peierls_convergence.py`` — L0 self-convergence
@@ -2558,7 +2558,7 @@ serves the same role for ``cyl1D`` meshes: it solves the integral
 transport equation on a bare or concentric-annulus cylinder at
 arbitrary quadrature order, providing an independent numerical
 reference against :func:`~orpheus.cp.solver.solve_cp` and the
-analytical CP eigenvalue in :mod:`orpheus.derivations.cp_cylinder`.
+analytical CP eigenvalue in :mod:`orpheus.derivations.continuous.flat_source_cp.cylinder`.
 
 Unlike the slab, the cylinder's kernel is not an exponential integral
 :math:`E_n` but the **Bickley--Naylor function** :math:`\mathrm{Ki}_1`
@@ -2571,7 +2571,7 @@ up a **non-integrable coincident singularity** that the slab's
 product-integration trick does not cure — this motivates the
 reformulation described below.
 
-The implementation lives in :mod:`orpheus.derivations.peierls_cylinder`.
+The implementation lives in :mod:`orpheus.derivations.continuous.peierls.cylinder`.
 This section documents the mathematics, the formulation choice
 (including the dead-end that was tried first), and the verification
 evidence.
@@ -2749,7 +2749,7 @@ the orphan gate honest.
 Why :math:`\mathrm{Ki}_1` and not :math:`\mathrm{Ki}_3`
 -------------------------------------------------------
 
-The flat-source CP method (:mod:`orpheus.derivations.cp_cylinder`)
+The flat-source CP method (:mod:`orpheus.derivations.continuous.flat_source_cp.cylinder`)
 uses the :math:`\mathrm{Ki}_3` kernel because it averages the
 pointwise :math:`\mathrm{Ki}_1` kernel twice — once over the
 source region :math:`j` and once over the target region :math:`i`
@@ -2787,10 +2787,10 @@ property that makes the reference useful:
   CP-vs-CP comparison with flat sources.
 
 The canonical :math:`\mathrm{Ki}_n` recurrence evaluator lives in
-:func:`~orpheus.derivations._kernels.ki_n_mp` (arbitrary precision
+:func:`~orpheus.derivations.common.kernels.ki_n_mp` (arbitrary precision
 via :func:`mpmath.quad` on the A&S integral form). The
 double-precision fast path for :math:`\mathrm{Ki}_3` goes through
-:func:`~orpheus.derivations.cp_geometry._ki3_mp` — a Chebyshev
+:func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp` — a Chebyshev
 interpolant built from ``ki_n_mp`` at module load (Phase B.4,
 commit ``6badbe5``, Issue #94). The legacy ``BickleyTables``
 20 000-point tabulation this replaced is documented historically
@@ -2814,7 +2814,7 @@ boundaries, is represented by a piecewise polynomial of degree
 The total number of radial Nyström unknowns is
 :math:`N = N_{\rm reg} \times n_{\rm panels} \times p`. The builder
 is ``composite_gl_r`` (aliased from ``composite_gl_y`` in
-:mod:`orpheus.derivations.peierls_cylinder`).
+:mod:`orpheus.derivations.continuous.peierls.cylinder`).
 
 **Azimuthal quadrature (Gauss--Legendre on** :math:`[0, \pi]`\ **).**
 With :math:`n_\beta` nodes and weights :math:`w_{\beta,k}`; the
@@ -2847,7 +2847,7 @@ supported only on the panel containing :math:`r'_{ikm}`
 (piecewise-polynomial representation matching the composite GL
 radial mesh). The basis is built by
 ``_lagrange_basis_on_panels`` in
-:mod:`orpheus.derivations.peierls_cylinder`. Two properties are
+:mod:`orpheus.derivations.continuous.peierls.cylinder`. Two properties are
 enforced by L0 foundation tests:
 
 - **Partition of unity**: :math:`\sum_j L_j(r) = 1` for any
@@ -2881,7 +2881,7 @@ with
          \mathrm{Ki}_1(\tau_{ikm})\,L_j(r'_{ikm}).
 
 The kernel matrix is assembled by ``build_volume_kernel`` in
-:mod:`orpheus.derivations.peierls_cylinder`. The per-sample optical
+:mod:`orpheus.derivations.continuous.peierls.cylinder`. The per-sample optical
 depth :math:`\tau_{ikm}` is computed by ``_optical_depth_along_ray``,
 which walks annular boundary crossings as described next.
 
@@ -3034,11 +3034,11 @@ the full operator; the eigenvalue problem is
      \varphi \;=\; \frac{1}{k}\,K\,\mathrm{diag}(\nu\Sigma_f)\,\varphi,
 
 solved by fission-source power iteration in
-:func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
 (with ``geometry=_pg.CYLINDER_1D`` and ``boundary="vacuum"``); the
 sphere-/cylinder-specific façades in
-:mod:`orpheus.derivations.peierls_cylinder` /
-:mod:`orpheus.derivations.peierls_sphere` are registry-only
+:mod:`orpheus.derivations.continuous.peierls.cylinder` /
+:mod:`orpheus.derivations.continuous.peierls.sphere` are registry-only
 shims after the Issue #138 collapse. This is the closure that is
 currently implemented; it is used for the Sanchez tie-point
 verification below.
@@ -3073,7 +3073,7 @@ relative to the :math:`O(N^{3})` radial LU factorisation.
 .. note::
 
    The cylinder white-BC closure is **not yet implemented**;
-   :func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+   :func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
    with ``geometry=_pg.CYLINDER_1D`` handles vacuum BC only. The
    :math:`\tau^{\pm}` walker (``optical_depths_pm``) that lives
    alongside ``build_volume_kernel`` is the primitive needed for
@@ -3164,7 +3164,7 @@ Relationship to the CP flat-source cylinder solver
 
 The CP flat-source method for the cylinder
 (:func:`~orpheus.cp.solver.solve_cp` on ``cyl1D`` meshes;
-:mod:`orpheus.derivations.cp_cylinder`) integrates the
+:mod:`orpheus.derivations.continuous.flat_source_cp.cylinder`) integrates the
 :math:`\mathrm{Ki}_1` kernel analytically over each annulus to
 produce the :math:`\mathrm{Ki}_3` second-difference formula
 quoted above. The Peierls reference **bypasses that integration**
@@ -3192,7 +3192,7 @@ Numerical cost
 The :math:`(\beta, \rho)` tensor-product quadrature is the dominant
 cost. For each observer :math:`r_i` and each :math:`\beta_k`, the
 kernel assembly evaluates :math:`\mathrm{Ki}_1` at :math:`n_\rho`
-points via :func:`~orpheus.derivations._kernels.ki_n_mp` (mpmath
+points via :func:`~orpheus.derivations.common.kernels.ki_n_mp` (mpmath
 at ``dps`` precision), which is :math:`O(N \cdot n_\beta \cdot
 n_\rho)` kernel evaluations. For :math:`N = 10` radial nodes,
 :math:`(n_\beta, n_\rho) = (24, 24)`, ``dps = 20``, kernel
@@ -3208,18 +3208,18 @@ sorting crossings, making the bare-cylinder case
 
 .. seealso::
 
-   :mod:`orpheus.derivations.peierls_cylinder` — registry-only
+   :mod:`orpheus.derivations.continuous.peierls.cylinder` — registry-only
    module; binds the cylinder ``GEOMETRY`` singleton and ships the
    ``_build_peierls_cylinder_*_case`` continuous-reference
    constructors. The Nyström solver implementation lives in
-   :mod:`~orpheus.derivations.peierls_geometry`.
+   :mod:`~orpheus.derivations.continuous.peierls.geometry`.
 
-   :class:`~orpheus.derivations.peierls_geometry.PeierlsSolution`
+   :class:`~orpheus.derivations.continuous.peierls.geometry.PeierlsSolution`
    — canonical result container with radial node positions, flux
    values, :math:`k_{\rm eff}`, and ``geometry_kind`` discriminator.
    Same dataclass for slab / cylinder / sphere.
 
-   :func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+   :func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
    — 1-group eigenvalue driver (call with
    ``geometry=_pg.CYLINDER_1D`` and ``boundary="vacuum"`` for the
    vacuum-BC closure described above).
@@ -3249,7 +3249,7 @@ symmetry. The **spherical** Peierls reference closes the trio for
 bare or concentric-shell sphere at arbitrary quadrature order,
 providing an independent numerical reference against
 :func:`~orpheus.cp.solver.solve_cp` on spherical meshes and the
-flat-source spherical CP of :mod:`orpheus.derivations.cp_sphere`.
+flat-source spherical CP of :mod:`orpheus.derivations.continuous.flat_source_cp.sphere`.
 
 Unlike the slab (:math:`E_1` from :math:`y, z`-integration) and the
 cylinder (:math:`\mathrm{Ki}_1` from :math:`z`-integration), the
@@ -3269,9 +3269,9 @@ recursion bug: any factor-of-two, off-by-one, or sign error in the
 Bickley recurrence that would affect the cylinder cancels out of the
 sphere, and vice-versa.
 
-The implementation lives in :mod:`orpheus.derivations.peierls_sphere`
+The implementation lives in :mod:`orpheus.derivations.continuous.peierls.sphere`
 — a thin facade over the unified
-:class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`
+:class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
 (``kind = "sphere-1d"``). The sphere shares the
 Lagrange-basis, composite-GL radial quadrature, optical-depth walker,
 and power-iteration primitives with the cylinder verbatim; the only
@@ -3363,7 +3363,7 @@ position is
 not care whether the surrounding source field is
 :math:`2`-D-symmetric (cylinder) or :math:`3`-D-symmetric
 (sphere). That is the architectural insight that let
-:class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`
+:class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
 share ray primitives between the two geometries.
 
 The 3-D volume element in observer-centred coordinates is
@@ -3466,7 +3466,7 @@ Why :math:`e^{-\tau}` and not :math:`E_3` / :math:`\mathrm{Ki}_3`
 ------------------------------------------------------------------
 
 The flat-source CP method for the sphere
-(:mod:`orpheus.derivations.cp_sphere`) uses a second-difference
+(:mod:`orpheus.derivations.continuous.flat_source_cp.sphere`) uses a second-difference
 formula in the :math:`E_3` function (see :eq:`second-diff-sph` above)
 because it averages the pointwise :math:`e^{-\tau}` kernel twice —
 once over the source region :math:`j` and once over the target
@@ -3497,7 +3497,7 @@ of :math:`e^{-\tau}` involves :math:`E_1` and :math:`E_2` depending
 on which combination of chord endpoints is averaged, and the
 particular combination that appears for a concentric-shell spherical
 geometry happens to collapse to :math:`E_3`. Full derivation in
-``orpheus/derivations/cp_sphere.py``; see :eq:`second-diff-sph` and
+``orpheus/derivations/continuous/flat_source_cp/sphere.py``; see :eq:`second-diff-sph` and
 :eq:`self-sph` for the resulting CP matrix elements, and
 :eq:`rcp-from-double-antideriv` for the general second-difference
 identity that specialises to the sphere via the same
@@ -3530,7 +3530,7 @@ construction:
 
 The :math:`e^{-\tau}` kernel also avoids the common-mode
 :math:`\mathrm{Ki}_n` recursion path: the cylinder Peierls depends
-on :func:`~orpheus.derivations._kernels.ki_n_mp` (via the
+on :func:`~orpheus.derivations.common.kernels.ki_n_mp` (via the
 mpmath-backed :math:`\mathrm{Ki}_1` evaluator, as the Phase B.4
 retirement of ``BickleyTables`` routes all cylindrical kernel
 evaluations through a single canonical primitive), but a sphere
@@ -3543,7 +3543,7 @@ Nyström assembly in polar coordinates
 
 The sphere discretisation mirrors the cylinder's three-layer polar
 quadrature; each layer is dispatched through the unified
-:class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`
+:class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
 with ``kind = "sphere-1d"``.
 
 **Radial grid (composite Gauss–Legendre on** :math:`[0, R]`\ **).**
@@ -3559,7 +3559,7 @@ total number of radial Nyström unknowns is
 :math:`N = N_{\rm reg} \cdot n_{\rm panels} \cdot p`. Builder is
 ``composite_gl_r`` (shared with the cylinder; the sphere module
 re-exports it verbatim via
-:mod:`orpheus.derivations.peierls_sphere`).
+:mod:`orpheus.derivations.continuous.peierls.sphere`).
 
 Verified by ``TestSphereCompositeRadialGL`` in
 ``tests/derivations/test_peierls_sphere_geometry.py``: the weighted
@@ -3603,7 +3603,7 @@ expressed via the panel-local Lagrange basis:
 where :math:`L_j` is the degree-:math:`(p-1)` Lagrange polynomial
 supported only on the panel containing :math:`r'_{ikm}`. The basis
 is shared with the cylinder (``_lagrange_basis_on_panels`` in
-:mod:`orpheus.derivations.peierls_geometry`); partition of unity
+:mod:`orpheus.derivations.continuous.peierls.geometry`); partition of unity
 and polynomial reproduction are L0-verified in the cylinder's
 ``TestLagrangeBasisOnPanels`` and carry over to the sphere case
 without modification.
@@ -3631,7 +3631,7 @@ with
          e^{-\tau_{ikm}}\,L_j\!\bigl(r'_{ikm}\bigr).
 
 The kernel matrix is assembled by ``build_volume_kernel`` in
-:mod:`orpheus.derivations.peierls_sphere`, which dispatches to
+:mod:`orpheus.derivations.continuous.peierls.sphere`, which dispatches to
 :func:`peierls_geometry.build_volume_kernel` with the sphere
 geometry singleton pre-bound. The per-sample optical depth
 :math:`\tau_{ikm}` is computed by the shared multi-annulus walker,
@@ -3907,10 +3907,10 @@ so the divisor is :math:`R`. These two cases are dispatched by
    exists precisely to make this mistake impossible in new code.
 
 The implementation is thin: :func:`build_white_bc_correction` in
-:mod:`orpheus.derivations.peierls_sphere` calls
+:mod:`orpheus.derivations.continuous.peierls.sphere` calls
 :func:`compute_G_bc`, :func:`compute_P_esc`, and assembles the
 rank-1 outer product with the geometry-aware divisor — all via the
-unified :class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`
+unified :class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
 dispatch in :func:`peierls_geometry.build_white_bc_correction`.
 
 .. _issue-100-retraction:
@@ -4026,7 +4026,7 @@ the full operator; the eigenvalue problem is
      \varphi \;=\; \frac{1}{k}\,K\,\mathrm{diag}(\nu\Sigma_f)\,\varphi,
 
 solved by fission-source power iteration in
-:func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
 (with ``geometry=_pg.SPHERE_1D``) and ``boundary="vacuum"``. This
 is the clean closure: no approximation enters beyond the quadrature
 orders.
@@ -4034,7 +4034,7 @@ orders.
 **Rank-1 white.** The unified :math:`K_{\rm vol} + K_{\rm bc}`
 structure with :math:`K_{\rm bc}` the rank-1 outer product derived
 above, solved by the same power iteration via
-:func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
 (with ``geometry=_pg.SPHERE_1D``) and ``boundary="white"``. Accuracy is governed by the cell
 optical thickness (``test_thin_sphere_rank1_error_bounded`` /
 ``test_medium_sphere_rank1_error_bounded`` /
@@ -4062,7 +4062,7 @@ Relationship to the CP flat-source sphere solver
 
 The CP flat-source method for the sphere
 (:func:`~orpheus.cp.solver.solve_cp` on ``sph1D`` meshes;
-:mod:`orpheus.derivations.cp_sphere`) integrates the native
+:mod:`orpheus.derivations.continuous.flat_source_cp.sphere`) integrates the native
 :math:`e^{-\tau}` 3-D kernel analytically over each concentric
 shell to produce the :math:`E_3` second-difference formula
 (:eq:`second-diff-sph` and :eq:`self-sph` above). The Peierls
@@ -4229,30 +4229,30 @@ LU per iteration, typically converging in 20–30 iterations to
 :math:`10^{-10}` eigenvalue tolerance.
 
 Short-circuit: the homogeneous single-shell branch of
-:func:`~orpheus.derivations.peierls_geometry.compute_G_bc` bypasses
+:func:`~orpheus.derivations.continuous.peierls.geometry.compute_G_bc` bypasses
 the multi-annulus walker and computes :math:`\tau_{\rm surf} =
 \Sigma_t\,\rho_{\max}` directly, making the bare-sphere case
 :math:`\sim 2\times` faster than the multi-region path.
 
 .. seealso::
 
-   :mod:`orpheus.derivations.peierls_sphere` — thin facade; the
+   :mod:`orpheus.derivations.continuous.peierls.sphere` — thin facade; the
    sphere-specific API names, the
    ``_build_peierls_sphere_case`` registry builder, and the
    ``continuous_cases`` registration.
 
-   :mod:`orpheus.derivations.peierls_geometry` — unified polar-form
+   :mod:`orpheus.derivations.continuous.peierls.geometry` — unified polar-form
    Nyström infrastructure; the
-   :class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`
+   :class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
    class with ``kind = "sphere-1d"`` and
    ``kind = "cylinder-1d"`` handles both geometries through one
    code path.
 
-   :class:`~orpheus.derivations.peierls_geometry.PeierlsSolution`
+   :class:`~orpheus.derivations.continuous.peierls.geometry.PeierlsSolution`
    — canonical result container; same dataclass shape for
    ``geometry_kind="sphere-1d"`` / ``"cylinder-1d"`` / ``"slab"``.
 
-   :func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+   :func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
    — 1-group vacuum- or white-BC eigenvalue driver. Pass
    ``geometry=_pg.SPHERE_1D`` (or ``CYLINDER_1D`` / ``SLAB_POLAR_1D``)
    and ``boundary="vacuum"`` for the scaffold-level verification

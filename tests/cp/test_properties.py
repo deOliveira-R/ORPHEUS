@@ -16,7 +16,7 @@ import pytest
 
 from orpheus.geometry import CoordSystem, Mesh1D, Zone, mesh1d_from_zones
 from orpheus.cp.solver import CPMesh
-from orpheus.derivations._xs_library import get_xs
+from orpheus.derivations.common.xs_library import get_xs
 
 # CP matrix algebraic invariants (row sums, reciprocity, non-negativity).
 # The complementarity and reciprocity labels are named in the theory

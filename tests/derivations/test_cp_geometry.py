@@ -20,16 +20,16 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations import cp_cylinder as _legacy_cyl
-from orpheus.derivations import cp_slab as _legacy_slab
-from orpheus.derivations import cp_sphere as _legacy_sph
-from orpheus.derivations.cp_geometry import (
+from orpheus.derivations.continuous.flat_source_cp import cylinder as _legacy_cyl
+from orpheus.derivations.continuous.flat_source_cp import slab as _legacy_slab
+from orpheus.derivations.continuous.flat_source_cp import sphere as _legacy_sph
+from orpheus.derivations.continuous.flat_source_cp.geometry import (
     CYLINDER_1D,
     SLAB,
     SPHERE_1D,
     build_cp_matrix,
 )
-from orpheus.derivations._xs_library import LAYOUTS, get_xs
+from orpheus.derivations.common.xs_library import LAYOUTS, get_xs
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -172,7 +172,7 @@ class TestSecondDifferenceOperator:
     regardless of which geometry 'owns' the kernel."""
 
     def test_identity_holds_for_all_three_kernels(self):
-        from orpheus.derivations.cp_geometry import _second_difference
+        from orpheus.derivations.continuous.flat_source_cp.geometry import _second_difference
 
         gap = np.array([0.5, 1.0, 2.0])
         tau_i = np.array([0.3, 0.7, 1.1])
@@ -192,7 +192,7 @@ class TestSecondDifferenceOperator:
             )
 
     def test_degenerate_zero_tau_gives_zero(self):
-        from orpheus.derivations.cp_geometry import _second_difference
+        from orpheus.derivations.continuous.flat_source_cp.geometry import _second_difference
 
         gap = np.array([0.5, 1.0, 2.0])
         zero = np.zeros_like(gap)
@@ -233,7 +233,7 @@ class TestInnerIntegralAntiderivative:
 
     @pytest.mark.parametrize("a,b", [(0.1, 1.0), (0.5, 3.0)])
     def test_ki1_integral_to_ki2(self, a, b):
-        from orpheus.derivations._kernels import ki_n_mp
+        from orpheus.derivations.common.kernels import ki_n_mp
         import mpmath
         # Single mpmath.quad over the already-defined Ki_1 function —
         # each evaluation is one high-precision Ki_1 call, so the
@@ -277,7 +277,7 @@ class TestOuterIntegralAntiderivative:
 
     @pytest.mark.parametrize("a,b", [(0.1, 1.0), (0.5, 3.0)])
     def test_ki2_integral_to_ki3(self, a, b):
-        from orpheus.derivations._kernels import ki_n_mp
+        from orpheus.derivations.common.kernels import ki_n_mp
         import mpmath
         left = float(mpmath.quad(
             lambda x: ki_n_mp(2, float(x), 20), [a, b],
@@ -304,7 +304,7 @@ class TestEscapeFromPCell:
 
     def test_white_bc_row_sum_equals_one_cylinder(self):
         import numpy as np
-        from orpheus.derivations.cp_geometry import CYLINDER_1D, build_cp_matrix
+        from orpheus.derivations.continuous.flat_source_cp.geometry import CYLINDER_1D, build_cp_matrix
 
         # Simple 2-region, 1-group problem
         sig_t_all = np.array([[1.0], [0.5]])
@@ -322,7 +322,7 @@ class TestEscapeFromPCell:
 
     def test_white_bc_row_sum_equals_one_sphere(self):
         import numpy as np
-        from orpheus.derivations.cp_geometry import SPHERE_1D, build_cp_matrix
+        from orpheus.derivations.continuous.flat_source_cp.geometry import SPHERE_1D, build_cp_matrix
 
         sig_t_all = np.array([[1.0], [0.5]])
         radii = np.array([0.5, 1.0])
@@ -339,7 +339,7 @@ class TestEscapeFromPCell:
 
     def test_white_bc_row_sum_equals_one_slab(self):
         import numpy as np
-        from orpheus.derivations.cp_geometry import SLAB, build_cp_matrix
+        from orpheus.derivations.continuous.flat_source_cp.geometry import SLAB, build_cp_matrix
 
         sig_t_all = np.array([[1.0], [0.5]])
         t_arr = np.array([0.5, 0.5])
@@ -365,8 +365,8 @@ class TestKi3ChebyshevInterpolant:
     target: ~1e-6 absolute on ``[0, 50]`` (vs legacy ~1e-3)."""
 
     def test_agrees_with_mpmath(self):
-        from orpheus.derivations._kernels import ki_n_mp
-        from orpheus.derivations.cp_geometry import _ki3_mp
+        from orpheus.derivations.common.kernels import ki_n_mp
+        from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp
 
         probes = np.linspace(0.01, 48.0, 40)
         cheb = _ki3_mp(probes)
@@ -377,11 +377,11 @@ class TestKi3ChebyshevInterpolant:
         )
 
     def test_ki3_at_zero_matches_pi_over_four(self):
-        from orpheus.derivations.cp_geometry import _ki3_mp
+        from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp
         val = _ki3_mp(np.array([0.0]))[0]
         assert abs(val - np.pi / 4.0) < 5e-6
 
     def test_clamps_beyond_tau_max_to_zero(self):
-        from orpheus.derivations.cp_geometry import _ki3_mp
+        from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp
         far = np.array([60.0, 100.0, 1e6])
         np.testing.assert_allclose(_ki3_mp(far), 0.0, atol=1e-20)

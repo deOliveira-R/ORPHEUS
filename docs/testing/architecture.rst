@@ -65,7 +65,7 @@ Design principles
 
 3. **Inherit from the reference case when possible.** Tests that pull
    analytical values via :func:`ref` inherit the V&V level from the
-   underlying :class:`~orpheus.derivations._types.VerificationCase`.
+   underlying :class:`~orpheus.derivations.common.verification_case.VerificationCase`.
    Case metadata is populated once (in
    :mod:`orpheus.derivations`) and every consuming test is tagged
    automatically by the conftest hook.
@@ -536,7 +536,7 @@ expression language doesn't parse marker arguments).
        meshes.py        # (stub) shared mesh/geometry builders
 
 ``xs.py`` re-exports the canonical cross-section helpers from
-``orpheus.derivations._xs_library`` (``make_mixture``, ``get_mixture``,
+``orpheus.derivations.common.xs_library`` (``make_mixture``, ``get_mixture``,
 ``get_xs``, ``get_materials``, ``validate_all``) so tests can import
 them from a single stable path. ``meshes.py`` is currently an empty
 placeholder — the shared ``_ws_mesh``, ``_homogeneous_ws_mesh``, and

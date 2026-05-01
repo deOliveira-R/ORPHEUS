@@ -1,7 +1,7 @@
 """Shared cross-section / mixture builders for tests.
 
 **Stub in PR-1** — this module re-exports the canonical XS helpers from
-``orpheus.derivations._xs_library`` so test files can ``from
+``orpheus.derivations.common.xs_library`` so test files can ``from
 tests._harness.xs import make_mixture, get_mixture, get_materials`` from
 day one. In later PRs the ~200 LOC of duplicated ``_make_pure_absorber_1g``,
 ``_make_fission_only_2g``, etc. scattered across ``test_moc_verification.py``,
@@ -14,7 +14,7 @@ only need to change ``from orpheus.derivations import ...`` to
 
 from __future__ import annotations
 
-from orpheus.derivations._xs_library import (
+from orpheus.derivations.common.xs_library import (
     get_materials,
     get_mixture,
     get_xs,

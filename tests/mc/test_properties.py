@@ -25,7 +25,7 @@ from orpheus.geometry.factories import (
     pwr_pin_equivalent, pwr_slab_half_cell, mesh1d_from_zones, Zone,
 )
 from orpheus.derivations import get
-from orpheus.derivations._xs_library import get_xs, get_mixture
+from orpheus.derivations.common.xs_library import get_xs, get_mixture
 
 pytestmark = pytest.mark.l0  # MC algorithmic term checks (L0-MC-NNN in docstrings)
 

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from orpheus.derivations._xs_library import get_mixture
+from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh2D
 from orpheus.sn.quadrature import LebedevSphere
 from orpheus.sn.solver import solve_sn

@@ -16,7 +16,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.sn_mms import build_1d_slab_mms_case
+from orpheus.derivations.continuous.mms.sn import build_1d_slab_mms_case
 from orpheus.sn import solve_sn_fixed_source
 
 

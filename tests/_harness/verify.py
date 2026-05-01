@@ -8,7 +8,7 @@ Two surfaces:
 
 ``vv_cases(level=..., method=..., geometry=...)``
     ``pytest.mark.parametrize`` replacement that auto-selects matching
-    :class:`~orpheus.derivations._types.VerificationCase` entries and
+    :class:`~orpheus.derivations.common.verification_case.VerificationCase` entries and
     attaches the inherited level marker.
 
 Both are thin layers over raw ``pytest.mark.*``. Teams that prefer

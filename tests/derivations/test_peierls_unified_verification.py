@@ -26,7 +26,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.peierls_geometry import (
+from orpheus.derivations.continuous.peierls.geometry import (
     SLAB_POLAR_1D,
     SPHERE_1D,
     CYLINDER_1D,

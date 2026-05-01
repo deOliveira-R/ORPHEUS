@@ -40,9 +40,9 @@ from scipy.special import expn
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.macro_xs.cell_xs import CellXS, assemble_cell_xs
-from orpheus.derivations._kernels import chord_half_lengths
-from orpheus.derivations._quadrature import composite_gauss_legendre
-from orpheus.derivations.cp_geometry import _ki3_mp as _ki3_kernel
+from orpheus.derivations.common.kernels import chord_half_lengths
+from orpheus.derivations.common.quadrature import composite_gauss_legendre
+from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp as _ki3_kernel
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.eigenvalue import power_iteration
 
@@ -60,7 +60,7 @@ class CPParams:
     flux_tol: float = 1e-5
     # n_ki_table, ki_max: retained for backwards compatibility; as of
     # Phase B.4 the cylinder kernel is a fixed-precision Chebyshev
-    # interpolant in orpheus.derivations.cp_geometry (see #94).
+    # interpolant in orpheus.derivations.continuous.flat_source_cp.geometry (see #94).
     n_ki_table: int = 20000
     ki_max: float = 50.0
     n_quad_y: int = 64
@@ -97,7 +97,7 @@ def _e3(x):
 
 # Q4 of the quadrature-architecture rollout: the private composite-GL
 # helper that used to live here is subsumed by the unified
-# :func:`orpheus.derivations._quadrature.composite_gauss_legendre`
+# :func:`orpheus.derivations.common.quadrature.composite_gauss_legendre`
 # constructor.  See the call site in ``_setup_radial_quadrature`` below.
 
 
@@ -171,7 +171,7 @@ class CPMesh:
         """Cylindrical: canonical Ki_3 kernel + y-quadrature.
 
         Shares the Chebyshev interpolant of ``exp(τ)·Ki_3(τ)`` built
-        in :mod:`orpheus.derivations.cp_geometry` so the solver's
+        in :mod:`orpheus.derivations.continuous.flat_source_cp.geometry` so the solver's
         ``keff`` and the derivation's ``k_inf`` reference use
         bit-identical kernel evaluations. Accuracy ~:math:`10^{-6}`
         absolute (cf legacy cumulative-sum tabulation at ~:math:`10^{-3}`)."""

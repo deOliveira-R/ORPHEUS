@@ -29,7 +29,7 @@ import mpmath
 import numpy as np
 import pytest
 
-from orpheus.derivations._quadrature import (
+from orpheus.derivations.common.quadrature import (
     AdaptiveQuadrature1D,
     Quadrature1D,
     adaptive_mpmath,
@@ -38,7 +38,7 @@ from orpheus.derivations._quadrature import (
     gauss_legendre,
     gauss_legendre_visibility_cone,
 )
-from orpheus.derivations._quadrature_recipes import (
+from orpheus.derivations.common.quadrature_recipes import (
     chord_quadrature,
     observer_angular_quadrature,
     surface_centred_angular_quadrature,
@@ -953,7 +953,7 @@ def test_chord_quadrature_sphere_T00_equals_P_ss(radii_sigt):
     :math:`(2/R^2)\!\int_0^R h\,\mathrm e^{-\tau(h)}\,\mathrm dh`.
     Same integrand, so same value when computed with the same
     ``chord_quadrature``."""
-    from orpheus.derivations._kernels import chord_half_lengths
+    from orpheus.derivations.common.kernels import chord_half_lengths
 
     radii, sig_t = radii_sigt
     R = float(radii[-1])

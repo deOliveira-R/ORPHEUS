@@ -1,6 +1,6 @@
 r"""Paired symbolic-vs-closed-form contract test for the specular BC.
 
-Math-origin pattern (mirroring :func:`orpheus.derivations.sn_balance.
+Math-origin pattern (mirroring :func:`orpheus.derivations.discrete.sn.balance.
 derive_cumprod_recurrence`): the SymPy derivation in
 :mod:`orpheus.derivations.peierls_specular` is the **source of truth**
 for the rank-:math:`N` specular reflection matrix
@@ -34,8 +34,8 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from orpheus.derivations.peierls_geometry import reflection_specular
-from orpheus.derivations.peierls_specular import (
+from orpheus.derivations.continuous.peierls.geometry import reflection_specular
+from orpheus.derivations.continuous.peierls.origins.specular import (
     build_M_closed_form,
     build_M_symbolic,
     build_R_specular_symbolic,

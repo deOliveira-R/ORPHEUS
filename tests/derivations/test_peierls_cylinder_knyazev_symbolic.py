@@ -2,7 +2,7 @@ r"""Paired symbolic-vs-production contract test for the cylinder
 mode-N Knyazev :math:`\mathrm{Ki}_{2+k}` expansion.
 
 Math-origin pattern (mirroring
-:func:`orpheus.derivations.sn_balance.derive_cumprod_recurrence`): the
+:func:`orpheus.derivations.discrete.sn.balance.derive_cumprod_recurrence`): the
 SymPy derivation in :mod:`orpheus.derivations.peierls_cylinder_knyazev`
 is the **source of truth** for the rank-:math:`N` cylinder
 :math:`P_{\rm esc}^{(n,3d)}` and :math:`G_{\rm bc}^{(n,3d)}`
@@ -31,16 +31,16 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from orpheus.derivations._kernels import ki_n_mp
-from orpheus.derivations._shifted_legendre import (
+from orpheus.derivations.common.kernels import ki_n_mp
+from orpheus.derivations.common.shifted_legendre import (
     shifted_legendre_monomial_coefs,
 )
-from orpheus.derivations.peierls_cylinder_knyazev import (
+from orpheus.derivations.continuous.peierls.origins.cylinder_knyazev import (
     derive_g_prefactor,
     derive_p_prefactor,
     derive_polar_integral_identity,
 )
-from orpheus.derivations.peierls_geometry import (
+from orpheus.derivations.continuous.peierls.geometry import (
     CYLINDER_1D,
     compute_P_esc,
     compute_P_esc_cylinder_3d_mode,

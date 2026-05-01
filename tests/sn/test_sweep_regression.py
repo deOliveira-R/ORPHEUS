@@ -95,7 +95,7 @@ class TestSolveRecurrence:
         Gotcha #5: an algebraically-equivalent rewrite of _solve_recurrence
         caused the inner loop to diverge for 2+ groups while 1-group worked.
         """
-        from orpheus.derivations._xs_library import get_mixture
+        from orpheus.derivations.common.xs_library import get_mixture
         from orpheus.sn.solver import SNSolver
 
         mix = get_mixture("A", "2g")
@@ -220,7 +220,7 @@ class TestSNMesh:
         A Mesh1D slab and a Mesh2D with ny=1 must give comparable results
         when using the same quadrature (Lebedev can handle ny=1).
         """
-        from orpheus.derivations._xs_library import get_mixture
+        from orpheus.derivations.common.xs_library import get_mixture
         from orpheus.sn.solver import SNSolver
 
         mix = get_mixture("A", "1g")

@@ -31,8 +31,8 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.geometry import CoordSystem, Mesh1D
-from orpheus.derivations._xs_library import make_mixture, get_mixture, get_xs
-from orpheus.derivations._eigenvalue import kinf_homogeneous
+from orpheus.derivations.common.xs_library import make_mixture, get_mixture, get_xs
+from orpheus.derivations.common.eigenvalue import kinf_homogeneous
 from orpheus.moc.geometry import MOCMesh
 from orpheus.moc.quadrature import MOCQuadrature
 from orpheus.moc.core import MOCSolver

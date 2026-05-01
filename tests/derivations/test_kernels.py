@@ -28,7 +28,7 @@ import mpmath
 import numpy as np
 import pytest
 
-from orpheus.derivations._kernels import (
+from orpheus.derivations.common.kernels import (
     e_n,
     e_n_at_zero,
     e_n_derivative,

@@ -90,7 +90,7 @@ def test_mc_vs_cp_slab():
     infinite lattice that CP computes.
     """
     # Use the same 2G cross sections as the cylindrical case
-    from orpheus.derivations._xs_library import get_mixture, get_xs
+    from orpheus.derivations.common.xs_library import get_mixture, get_xs
 
     mix_fuel = get_mixture("A", "2g")
     mix_mod = get_mixture("B", "2g")

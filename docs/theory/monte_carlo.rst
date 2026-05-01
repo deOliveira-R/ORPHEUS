@@ -68,11 +68,11 @@ The key algorithmic features are:
 are computed independently by the derivation scripts.  These are the
 **source of truth** for all equations in this chapter:
 
-- ``orpheus/derivations/mc.py`` --- homogeneous eigenvalues from random walk
-  probability (:func:`~derivations._eigenvalue.kinf_homogeneous`),
+- ``orpheus/derivations/continuous/cases/mc.py`` --- homogeneous eigenvalues from random walk
+  probability (:func:`~orpheus.derivations.common.eigenvalue.kinf_homogeneous`),
   heterogeneous eigenvalues from CP cylinder reference
-  (:func:`~derivations._eigenvalue.kinf_from_cp`).
-- ``orpheus/derivations/_xs_library.py`` --- synthetic cross-section library
+  (:func:`~orpheus.derivations.common.eigenvalue.kinf_from_cp`).
+- ``orpheus/derivations/common/xs_library.py`` --- synthetic cross-section library
   (regions A/B/C/D in {1G, 2G, 4G}).
 
 Every numerical value cited in this chapter was produced by these scripts.
@@ -713,8 +713,8 @@ The expected multiplication per generation is:
 This is exact for 1G and equals the weight factor applied at each
 absorption.  For region A (1G): :math:`\Sigma_a = 0.2 + 0.3 = 0.5`,
 :math:`\nu\Sigma_f = 2.5 \times 0.3 = 0.75`, so :math:`k = 1.5`.
-The numerical value is produced by ``orpheus/derivations/mc.py`` via
-:func:`~derivations._eigenvalue.kinf_homogeneous`; the derivation above
+The numerical value is produced by ``orpheus/derivations/continuous/cases/mc.py`` via
+:func:`~orpheus.derivations.common.eigenvalue.kinf_homogeneous`; the derivation above
 is presented for pedagogical context.
 
 Verified by ``test_mc_properties.py::test_fission_weight_adjustment``
@@ -1063,7 +1063,7 @@ transpose converts from the ``[from, to]`` storage convention to the
 in-scatter form needed by the balance equation; see scattering convention
 note in :ref:`theory-monte-carlo`) and
 :math:`\mathbf{F} = \chi \otimes (\nu\Sigma_f)`.  Computed by
-:func:`~derivations._eigenvalue.kinf_homogeneous`.
+:func:`~orpheus.derivations.common.eigenvalue.kinf_homogeneous`.
 
 .. list-table:: Homogeneous eigenvalues
    :header-rows: 1
@@ -1087,7 +1087,7 @@ Heterogeneous Pin Cell
 -----------------------
 
 For multi-region problems, the reference eigenvalue comes from the **CP
-cylinder derivation** (:func:`~derivations._eigenvalue.kinf_from_cp`).
+cylinder derivation** (:func:`~orpheus.derivations.common.eigenvalue.kinf_from_cp`).
 
 .. list-table:: MC heterogeneous verification cases
    :header-rows: 1

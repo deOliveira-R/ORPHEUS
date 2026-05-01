@@ -141,13 +141,13 @@ multigroup generalisation (all groups share the same spatial
 :math:`\sin(\pi x/L)` shape), multigroup reduces to a
 :math:`ng \times ng` matrix eigenvalue problem in the spectrum
 vector — exactly what
-:func:`orpheus.derivations.homogeneous.kinf_and_spectrum_homogeneous`
+:func:`orpheus.derivations.continuous.analytical.homogeneous.kinf_and_spectrum_homogeneous`
 solves, plus an extra ``D B²`` removal term on the diagonal of
 :math:`\mathbf{A}`.
 
 This is a **T1 analytical reference**: no integration, no
 quadrature, no iteration. See
-:func:`orpheus.derivations.diffusion.derive_1rg_continuous` for the
+:func:`orpheus.derivations.continuous.cases.diffusion.derive_1rg_continuous` for the
 Phase-0 :class:`~orpheus.derivations.ContinuousReferenceSolution`
 that carries :math:`k_{\text{eff}}` and the continuous
 multigroup eigenfunction callable.
@@ -387,7 +387,7 @@ calls
 :meth:`~orpheus.derivations.ContinuousReferenceSolution.phi_on_mesh`,
 and compares the diffusion solver's output to the continuous
 reference at exactly those points. See
-:func:`orpheus.derivations.diffusion.derive_2rg_continuous`.
+:func:`orpheus.derivations.continuous.cases.diffusion.derive_2rg_continuous`.
 
 This is a **T2 semi-analytical reference**: the eigenvalue
 :math:`k` is found to ``xtol=1e-14`` via brentq on a

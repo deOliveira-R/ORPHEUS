@@ -14,7 +14,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.sn_mms import (
+from orpheus.derivations.continuous.mms.sn import (
     build_spherical_mms_case,
     build_cylindrical_mms_case,
 )

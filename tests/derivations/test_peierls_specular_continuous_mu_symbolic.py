@@ -41,7 +41,7 @@ from __future__ import annotations
 import pytest
 import sympy as sp
 
-from orpheus.derivations.peierls_specular import (
+from orpheus.derivations.continuous.peierls.origins.specular import (
     derive_diagonal_singularity,
     derive_m1_equivalence,
     derive_multi_bounce_factor,

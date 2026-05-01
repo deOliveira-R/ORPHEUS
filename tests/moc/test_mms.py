@@ -16,7 +16,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.moc_mms import (
+from orpheus.derivations.continuous.mms.moc import (
     build_moc_mms_case,
     build_moc_mesh,
     mms_sweep,

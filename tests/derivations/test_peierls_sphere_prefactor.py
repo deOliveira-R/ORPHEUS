@@ -22,12 +22,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.peierls_geometry import (
+from orpheus.derivations.continuous.peierls.geometry import (
     build_volume_kernel,
     build_white_bc_correction,
     composite_gl_r,
 )
-from orpheus.derivations.peierls_sphere import GEOMETRY
+from orpheus.derivations.continuous.peierls.sphere import GEOMETRY
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -180,7 +180,7 @@ class TestSphereGBCVacuumLimit:
     scalar flux φ = 4 J⁻ (4π sr times ψ_in = J⁻/π equals 4)."""
 
     def test_vacuum_G_bc_is_four(self):
-        from orpheus.derivations.peierls_geometry import compute_G_bc
+        from orpheus.derivations.continuous.peierls.geometry import compute_G_bc
 
         radii = np.array([1.0])
         # Σ_t·R = 1e-8: effectively vacuum at double precision.

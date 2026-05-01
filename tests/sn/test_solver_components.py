@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 import time
 
-from orpheus.derivations._xs_library import get_mixture
+from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh1D, Mesh2D
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import GaussLegendre1D, LebedevSphere
@@ -232,7 +232,7 @@ class TestQuadratureWeightConservation:
         equation gives ψ = Q/(4π·Σ_t) per ordinate.
         Then φ = Σ w_n ψ_n = sum(w) · Q/(4π·Σ_t) = Q/Σ_t.
         """
-        from orpheus.derivations._xs_library import get_mixture
+        from orpheus.derivations.common.xs_library import get_mixture
 
         mix = get_mixture("A", "2g")
         materials = {0: mix}
@@ -262,7 +262,7 @@ class TestAbsorptionXS:
     """
 
     def test_absorption_xs_includes_fission(self):
-        from orpheus.derivations._xs_library import get_mixture
+        from orpheus.derivations.common.xs_library import get_mixture
 
         mix = get_mixture("A", "2g")
         sig_a = mix.absorption_xs
@@ -272,7 +272,7 @@ class TestAbsorptionXS:
 
     def test_absorption_equals_removal(self):
         """absorption_xs must equal Σ_t - rowsum(Σ_s) (total removal)."""
-        from orpheus.derivations._xs_library import get_mixture
+        from orpheus.derivations.common.xs_library import get_mixture
 
         mix = get_mixture("A", "2g")
         removal = np.array(mix.SigT) - np.asarray(mix.SigS[0].sum(axis=1)).ravel()
@@ -474,7 +474,7 @@ class TestAnisotropicScattering:
         The P1 moments are zero for isotropic flux (the current φ·Y_1^m
         integrates to zero by symmetry), so P1 adds nothing.
         """
-        from orpheus.derivations._xs_library import get_mixture
+        from orpheus.derivations.common.xs_library import get_mixture
 
         # Use the 421-group library which has P1 data
         fuel = get_mixture("A", "2g")  # only has P0
@@ -485,7 +485,7 @@ class TestAnisotropicScattering:
 
     def test_p1_request_limited_by_data(self):
         """If scattering_order > available data, it must be clamped."""
-        from orpheus.derivations._xs_library import make_mixture
+        from orpheus.derivations.common.xs_library import make_mixture
 
         # Build a mixture with P0 data only (no P1)
         mix_p0_only = make_mixture(
@@ -531,7 +531,7 @@ class TestAnisotropicScattering:
     def test_p1_changes_heterogeneous_keff(self):
         """P1 scattering must produce a different keff than P0 on a
         heterogeneous problem where anisotropy matters at interfaces."""
-        from orpheus.derivations._xs_library import get_mixture
+        from orpheus.derivations.common.xs_library import get_mixture
 
         fuel = get_mixture("A", "2g")
         mod = get_mixture("B", "2g")  # B has mu_bar=0.6, strongly anisotropic
@@ -562,7 +562,7 @@ class TestAnisotropicScattering:
 
     def test_aniso_source_zero_for_isotropic_flux(self):
         """For isotropic angular flux (all ordinates equal), P1+ source = 0."""
-        from orpheus.derivations._xs_library import get_mixture
+        from orpheus.derivations.common.xs_library import get_mixture
 
         mix = get_mixture("A", "2g")
         if len(mix.SigS) < 2:
@@ -623,7 +623,7 @@ class TestBicgstabPnScattering:
 
     def test_bicgstab_p1_homogeneous_same_as_p0(self):
         """BiCGSTAB with P1 on homogeneous must match P0 (isotropic flux)."""
-        from orpheus.derivations._xs_library import get_mixture
+        from orpheus.derivations.common.xs_library import get_mixture
 
         mix = get_mixture("A", "2g")
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
@@ -650,7 +650,7 @@ class TestBicgstabPnScattering:
 
     def test_bicgstab_p1_matches_si_p1_homogeneous(self):
         """BiCGSTAB and source iteration must agree at P1 on homogeneous."""
-        from orpheus.derivations._xs_library import get_mixture
+        from orpheus.derivations.common.xs_library import get_mixture
 
         mix = get_mixture("A", "2g")
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))

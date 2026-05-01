@@ -1,0 +1,6522 @@
+r"""Unified polar-form Peierls Nyström infrastructure.
+
+Provides the geometry-abstract machinery shared between the 1-D
+radial cylindrical and spherical Peierls integral-equation reference
+solvers. The slab geometry is qualitatively different (the 1-D kernel
+:math:`E_1` carries a log singularity that the polar reformulation
+moves into a :math:`\rho_{\max}\to\infty` grazing-angle divergence)
+and is NOT unified here — it remains in :mod:`peierls_slab` with its
+native :math:`E_1` Nyström.
+
+See :doc:`/theory/peierls_unified` for the end-to-end mathematical
+derivation. The executive summary:
+
+- The 3-D isotropic point kernel is
+  :math:`G_{3D}(R) = e^{-\Sigma_t R}/(4\pi R^{2})`.
+- Reducing dimensions by the geometry's symmetry gives
+  :math:`G_{d}(|r-r'|) = \kappa_d(\Sigma_t|r-r'|) / (S_d\,|r-r'|^{d-1})`
+  with :math:`\kappa_d \in \{E_1/2, \mathrm{Ki}_1, e^{-\tau}\}` and
+  :math:`S_d \in \{2, 2\pi, 4\pi\}`.
+- Writing the Peierls equation in polar coordinates centred at the
+  observer, the volume element :math:`\rho^{d-1}\,\mathrm d\Omega\,
+  \mathrm d\rho` cancels the :math:`1/|r-r'|^{d-1}` denominator,
+  leaving a SMOOTH integrand
+  :math:`\kappa_d(\Sigma_t\rho)\,q(r'(\rho,\Omega,r))` for all
+  curvilinear geometries:
+
+.. math::
+
+   \Sigma_t(r)\,\varphi(r)
+     \;=\; \frac{\Sigma_t(r)}{S_d}\!
+       \int_{\Omega_d}\!\mathrm d\Omega\!
+       \int_0^{\rho_{\max}(r,\Omega)}\!\!
+         \kappa_d(\Sigma_t\rho)\,q\bigl(r'(\rho,\Omega,r)\bigr)\,
+       \mathrm d\rho
+     + S_{\rm bc}(r).
+
+For the radially-symmetric 1-D problem, cylinder and sphere share
+identical ray-geometry formulas — only the angular measure and the
+kernel function differ. That is the architectural lever this module
+exploits: one body of ray-walking, Lagrange-basis, quadrature, and
+power-iteration code serves both.
+
+This module is the Phase-4.2-post refactor deliverable. It does not
+change any numerics; it purely consolidates infrastructure.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Callable
+
+import math
+
+import mpmath
+import numpy as np
+
+from ...common.kernels import (  # noqa: F401
+    _shifted_legendre_eval,
+    chord_half_lengths,
+    ki_n_float,
+    ki_n_mp,
+)
+from ...common.quadrature import (
+    adaptive_mpmath,
+    composite_gauss_legendre,
+    gauss_legendre,
+)
+from ...common.quadrature_recipes import (
+    chord_quadrature,
+    observer_angular_quadrature,
+    surface_centred_angular_quadrature,
+)
+from ...common.shifted_legendre import (
+    shifted_legendre_monomial_coefs as _shifted_legendre_monomial_coefs,
+)
+# ═══════════════════════════════════════════════════════════════════════
+# Gauss-Legendre helpers (geometry-agnostic)
+# ═══════════════════════════════════════════════════════════════════════
+
+def gl_nodes_weights(n: int, dps: int) -> tuple[list, list]:
+    """*n*-point Gauss-Legendre on :math:`[-1, 1]` at *dps* precision."""
+    with mpmath.workdps(dps):
+        nm, wm = mpmath.gauss_quadrature(n, "legendre")
+        return [nm[i] for i in range(n)], [wm[i] for i in range(n)]
+
+
+def map_gl_to(nodes, weights, a, b):
+    """Map reference GL nodes/weights from :math:`[-1, 1]` to :math:`[a, b]`."""
+    h = (b - a) / 2
+    m = (a + b) / 2
+    return [m + h * t for t in nodes], [h * w for w in weights]
+
+
+def gl_float(n: int, a: float, b: float, dps: int = 30) -> tuple[np.ndarray, np.ndarray]:
+    """*n*-point GL on :math:`[a, b]` returned as double-precision arrays."""
+    ref_nodes, ref_wts = gl_nodes_weights(n, dps)
+    h = (b - a) / 2
+    m = (a + b) / 2
+    nodes = np.array([float(m + h * t) for t in ref_nodes])
+    wts = np.array([float(h * w) for w in ref_wts])
+    return nodes, wts
+
+
+def gauss_laguerre_nodes_weights(
+    n: int, dps: int = 30,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""*n*-point Gauss-Laguerre on :math:`[0, \infty)` with weight
+    :math:`e^{-\tau}`.
+
+    Optimal for integrands of the form :math:`e^{-\tau}\,g(\tau)` where
+    :math:`g` is smooth on :math:`[0, \infty)`. In Peierls polar form
+    under the :math:`\tau`-coordinate transform (:doc:`/theory/peierls_unified`
+    §5), the ρ integration becomes
+    :math:`\int_0^{\tau_{\max}} e^{-\tau}\,q(r'(\tau))/\Sigma_t\,
+    \mathrm d\tau`, which Gauss-Laguerre integrates spectrally — the
+    grazing-ray stiffness (``τ_max → ∞`` as ``μ → 0``) is absorbed by
+    the e^{-τ} weight automatically, since Laguerre nodes concentrate
+    where the exponential is non-negligible (:math:`\tau \lesssim n`).
+
+    Returns ``(nodes, weights)`` as :class:`numpy.ndarray`.
+    """
+    with mpmath.workdps(dps):
+        nm, wm = mpmath.gauss_quadrature(n, "laguerre")
+        nodes = np.array([float(nm[i]) for i in range(n)])
+        weights = np.array([float(wm[i]) for i in range(n)])
+    return nodes, weights
+
+
+def composite_gl_r(
+    radii: np.ndarray,
+    n_panels_per_region: int,
+    p_order: int,
+    dps: int = 30,
+    *,
+    inner_radius: float = 0.0,
+) -> tuple[np.ndarray, np.ndarray, list[tuple[float, float, int, int]]]:
+    r"""Composite GL on :math:`[r_0, R]` with panel breakpoints at
+    annular radii.
+
+    For solid geometries (``inner_radius == 0``, the default), nodes
+    cover the full disk :math:`[0, R]`. For hollow cells
+    (``inner_radius > 0``, Phase F.4) nodes cover the annulus
+    :math:`[r_0, R]` only — the cavity :math:`[0, r_0]` carries no
+    source and is excluded from the radial mesh. The inner endpoint
+    :math:`r_0` becomes an additional panel breakpoint.
+
+    Shared by cylindrical and spherical Peierls solvers; the panel
+    structure accommodates the :math:`\Sigma_t(r)` discontinuities at
+    each :math:`r_k`.
+
+    Returns ``(r_pts, r_wts, panel_bounds)`` where ``panel_bounds`` is
+    a list of ``(pa, pb, i_start, i_end)`` tuples describing the
+    composite rule's panels — the index range identifies which slice
+    of ``r_pts`` / ``r_wts`` belongs to each panel, used downstream by
+    :func:`lagrange_basis_on_panels` to know which nodes carry the
+    Lagrange basis on that panel.
+
+    Q4 of the quadrature-architecture rollout: this is now a thin
+    wrapper that builds the breakpoint list (with ``n_panels_per_region``
+    uniform sub-panels per inter-shell segment) and delegates the
+    GL-on-panels work to
+    :func:`~orpheus.derivations.common.quadrature.composite_gauss_legendre`,
+    then re-derives the ``(i_start, i_end)`` per-panel index ranges
+    from the (constant) ``p_order`` per-panel node count.
+    """
+    radii = np.asarray(radii, dtype=float)
+    if inner_radius < 0.0:
+        raise ValueError(f"inner_radius must be >= 0, got {inner_radius}")
+    if inner_radius >= float(radii[-1]):
+        raise ValueError(
+            f"inner_radius ({inner_radius}) must be < outer radius "
+            f"({float(radii[-1])})"
+        )
+
+    # Outer breakpoints: inner_radius, then each shell radius strictly
+    # > inner_radius, terminating at R.
+    seg_breaks = [float(inner_radius)] + [
+        float(r) for r in radii if float(r) > inner_radius
+    ]
+    # Sub-divide each segment into ``n_panels_per_region`` uniform panels.
+    bps = [
+        a + j * (b - a) / n_panels_per_region
+        for a, b in zip(seg_breaks[:-1], seg_breaks[1:])
+        for j in range(n_panels_per_region)
+    ]
+    bps.append(seg_breaks[-1])
+
+    q = composite_gauss_legendre(bps, p_order, dps=dps)
+    # The (i_start, i_end) panel index ranges that downstream
+    # ``lagrange_basis_on_panels`` consumes are a property of the
+    # quadrature itself — defer to the contract's ``panel_slice(k)``
+    # rather than recomputing offsets externally.
+    panel_bounds = [
+        (float(a), float(b), q.panel_slice(k).start, q.panel_slice(k).stop)
+        for k, (a, b) in enumerate(q.panel_bounds)
+    ]
+    return q.pts, q.wts, panel_bounds
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Lagrange basis on composite-GL panels (geometry-agnostic)
+# ═══════════════════════════════════════════════════════════════════════
+
+def lagrange_basis_on_panels(
+    r_nodes: np.ndarray,
+    panel_bounds: list[tuple[float, float, int, int]],
+    r_eval: float,
+) -> np.ndarray:
+    r"""Piecewise Lagrange basis :math:`L_j(r_{\rm eval})`.
+
+    On each panel :math:`[p_a, p_b]` the basis is the Lagrange
+    polynomial of the panel's nodes; elsewhere it is zero. Points
+    outside :math:`[0, R]` are clamped to the nearest panel.
+    """
+    N = len(r_nodes)
+    L = np.zeros(N)
+
+    panel_idx = None
+    for k, (pa, pb, i_start, i_end) in enumerate(panel_bounds):
+        if pa <= r_eval <= pb:
+            panel_idx = k
+            break
+    if panel_idx is None:
+        panel_idx = 0 if r_eval < panel_bounds[0][0] else len(panel_bounds) - 1
+
+    pa, pb, i_start, i_end = panel_bounds[panel_idx]
+    local_nodes = r_nodes[i_start:i_end]
+    p = i_end - i_start
+    for a in range(p):
+        num, den = 1.0, 1.0
+        for b in range(p):
+            if b == a:
+                continue
+            num *= (r_eval - local_nodes[b])
+            den *= (local_nodes[a] - local_nodes[b])
+        L[i_start + a] = num / den
+    return L
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Curvilinear geometry abstraction
+# ═══════════════════════════════════════════════════════════════════════
+
+@dataclass(frozen=True)
+class CurvilinearGeometry:
+    r"""Unified 1-D radial curvilinear geometry for the Peierls polar form.
+
+    Three concrete specialisations:
+
+    - ``kind = "slab-polar"``: :math:`d = 3` but Cartesian;
+      :math:`\kappa = e^{-\tau}`, angular variable
+      :math:`\mu \in [-1, 1]` with uniform measure :math:`\mathrm d\mu`.
+      Observer-centred form: :math:`\varphi(x) = \tfrac12\!\int_{-1}^{1}\!
+      \mathrm d\mu\!\int_0^{\rho_{\max}}\!e^{-\Sigma_t\rho}\,q(x+\rho\mu)
+      \,\mathrm d\rho`. NOT the log-E₁ Nyström; see
+      :doc:`/theory/peierls_unified` §4 (Chapter 4).
+    - ``kind = "cylinder-1d"``: :math:`d = 2`, :math:`S_d = 2\pi`,
+      :math:`\kappa_d = \mathrm{Ki}_1`, angular variable
+      :math:`\beta \in [0, \pi]` with uniform measure
+      :math:`\mathrm d\beta`.
+    - ``kind = "sphere-1d"``: :math:`d = 3`, :math:`S_d = 4\pi`,
+      :math:`\kappa_d = e^{-\tau}`, angular variable
+      :math:`\theta \in [0, \pi]` with measure
+      :math:`\sin\theta\,\mathrm d\theta` (azimuthal folded).
+
+    The geometric primitives (:math:`\rho_{\max}`,
+    :math:`r'(\rho, \Omega, r)`) share a single closed-form across
+    cylinder and sphere; slab has its own linear-ray forms.
+
+    The **direction cosine** :math:`\mu = \cos(\rm angle\ from\ radial/normal)`
+    is the unified downstream quantity. For cylinder/sphere
+    :math:`\mu = \cos(\omega)`; for slab the angular variable IS
+    :math:`\mu`. :meth:`ray_direction_cosine` maps from the
+    integration variable to :math:`\mu`.
+
+    The **polar-form prefactor** ``prefactor`` bundles together:
+
+    1. :math:`1/S_d` from the 3-D point-kernel normalisation.
+    2. The azimuthal-symmetry fold.
+    3. The :math:`\pm\beta` / :math:`\pm\theta` reflection fold.
+
+    For cylinder: :math:`2 \cdot 2\pi / (2\pi) = 2` net numerator
+    divided by :math:`2\pi` gives :math:`1/\pi`.
+    For sphere: :math:`2\pi / (4\pi) = 1/2` — with :math:`\sin\theta`
+    weight.
+    For slab: :math:`1/2` — the :math:`(1/(4\pi))\cdot 2\pi`
+    azimuthal fold gives :math:`1/2` with uniform :math:`\mathrm d\mu`
+    measure after the :math:`\mu = \cos\theta` change of variable.
+    """
+
+    kind: str
+    inner_radius: float = 0.0
+
+    def __post_init__(self) -> None:
+        if self.kind not in ("slab-polar", "cylinder-1d", "sphere-1d"):
+            raise ValueError(f"Unsupported geometry kind {self.kind!r}")
+        if self.inner_radius < 0.0:
+            raise ValueError(
+                f"inner_radius must be >= 0, got {self.inner_radius!r}"
+            )
+        if self.kind == "slab-polar" and self.inner_radius != 0.0:
+            raise ValueError(
+                "slab-polar does not carry inner_radius (use face_0 / face_L "
+                "per-surface BC directly)"
+            )
+
+    # ── geometric constants ───────────────────────────────────────────
+
+    @property
+    def d(self) -> int:
+        """Effective dimension of the dimensionally-reduced kernel (2 or 3)."""
+        return {
+            "slab-polar": 3,
+            "cylinder-1d": 2,
+            "sphere-1d": 3,
+        }[self.kind]
+
+    @property
+    def S_d(self) -> float:
+        r"""Total solid angle :math:`S_d` of the unit :math:`(d-1)`-sphere."""
+        return {
+            "slab-polar": 4.0 * np.pi,
+            "cylinder-1d": 2.0 * np.pi,
+            "sphere-1d": 4.0 * np.pi,
+        }[self.kind]
+
+    @property
+    def prefactor(self) -> float:
+        """Composite prefactor absorbing :math:`1/S_d` + azimuth fold + :math:`\\pm` fold.
+
+        See the class docstring for the derivation.
+        """
+        return {
+            "slab-polar": 0.5,
+            "cylinder-1d": 1.0 / np.pi,
+            "sphere-1d": 0.5,
+        }[self.kind]
+
+    @property
+    def n_surfaces(self) -> int:
+        """Number of distinct boundary surfaces carrying re-entry data.
+
+        - ``slab-polar``: 2 (face at :math:`x = 0` and face at :math:`x = L`).
+        - ``cylinder-1d`` / ``sphere-1d`` with ``inner_radius == 0``:
+          1 (outer boundary only).
+        - ``cylinder-1d`` / ``sphere-1d`` with ``inner_radius > 0``:
+          2 (outer at :math:`R` and inner at :math:`r_0`).
+
+        Phase F's :class:`BoundaryClosureOperator` uses this to size
+        the per-face mode space :math:`A = \\mathbb{R}^{N_{\\rm modes}
+        \\times N_{\\rm surfaces}}`.
+        """
+        if self.kind == "slab-polar":
+            return 2
+        return 2 if self.inner_radius > 0.0 else 1
+
+    @property
+    def topology(self) -> str:
+        r"""Topological class for Peierls closure dispatch.
+
+        Returns one of:
+
+        - ``"two_surface"`` — the cell has two boundary surfaces that
+          carry re-entry data. Members: slab (two parallel faces),
+          hollow annular cylinder (inner + outer ring), hollow sphere
+          (inner + outer shell). **F.4 scalar rank-2 per-face closure
+          (Stamm'ler Eq. 34 = Hébert 2009 Eq. 3.323) applies to this
+          class.** All members share the same L19 stability-protocol
+          coverage and the L21 structural residual class.
+
+        - ``"one_surface_compact"`` — the cell has a single boundary
+          surface (compact convex body). Members: solid cylinder
+          (``inner_radius == 0``), solid sphere (``inner_radius == 0``).
+          **F.4 is structurally unavailable** on this class because
+          there is no second face to couple to; the only shipped
+          closure is rank-1 Mark.
+
+        This is the **primary organizing principle** for Peierls
+        reference cases (see
+        :ref:`theory-peierls-capabilities` and
+        :file:`.claude/plans/topology-based-consolidation.md`). Tests
+        and case builders should dispatch on ``topology`` rather than
+        on ``kind`` + ``inner_radius`` gymnastics.
+
+        Semantically equivalent to ``n_surfaces`` (2 ↔ ``"two_surface"``,
+        1 ↔ ``"one_surface_compact"``), but named for its role rather
+        than its arity. Code that cares about the topology *label* —
+        dispatching case builders, filtering tests, gating closure
+        applicability — should prefer this property.
+        """
+        return "two_surface" if self.n_surfaces == 2 else "one_surface_compact"
+
+    @property
+    def is_planar(self) -> bool:
+        """True for Cartesian (slab) geometry; False for curvilinear.
+
+        Flips which branch of the ray-geometry formulas is active
+        (linear vs. circular). Use sparingly — prefer the polymorphic
+        geometry methods whenever possible.
+        """
+        return self.kind == "slab-polar"
+
+    @property
+    def angular_range(self) -> tuple[float, float]:
+        """Integration range of the angular variable.
+
+        Slab: :math:`\\mu \\in [-1, 1]` (direction cosine).
+        Cylinder / sphere: :math:`\\omega \\in [0, \\pi]`.
+        """
+        if self.kind == "slab-polar":
+            return (-1.0, 1.0)
+        return (0.0, np.pi)
+
+    # ── angular variable ↔ direction cosine ───────────────────────────
+
+    def ray_direction_cosine(self, angular_var: np.ndarray) -> np.ndarray:
+        r"""Map the angular integration variable to the ray's direction
+        cosine :math:`\mu`.
+
+        Slab: identity (the angular variable IS :math:`\mu`).
+        Cylinder / sphere: :math:`\mu = \cos(\omega)`.
+
+        ``build_volume_kernel`` uses this so every downstream
+        ray-geometry primitive (rho_max, source_position, optical
+        depth, crossings) sees the same :math:`\mu` regardless of
+        geometry kind.
+        """
+        if self.kind == "slab-polar":
+            return np.asarray(angular_var, dtype=float)
+        return np.cos(angular_var)
+
+    # ── angular measure ───────────────────────────────────────────────
+
+    def angular_weight(self, omega_pts: np.ndarray) -> np.ndarray:
+        r"""Weight factor in the angular measure.
+
+        Slab: :math:`\mathrm d\mu` ⇒ weight = 1.
+        Cylinder: :math:`\mathrm d\beta` ⇒ weight = 1.
+        Sphere:  :math:`\sin\theta\,\mathrm d\theta` ⇒ weight = :math:`\sin\theta`.
+        """
+        omega_pts = np.asarray(omega_pts, dtype=float)
+        if self.kind == "sphere-1d":
+            return np.sin(omega_pts)
+        return np.ones_like(omega_pts)
+
+    # ── ray geometry ──────────────────────────────────────────────────
+
+    def rho_max(self, r_obs: float, cos_omega: float, R: float) -> float:
+        r"""Ray-exit distance along direction :math:`\mu = \cos\Omega`.
+
+        Slab: :math:`(R - x)/\mu` for :math:`\mu > 0`,
+        :math:`-x/\mu` for :math:`\mu < 0`. At :math:`\mu = 0` the ray
+        is parallel to the slab faces and would have infinite
+        :math:`\rho_{\max}` — the caller must avoid sampling exactly
+        :math:`\mu = 0` (GL interior nodes naturally skip endpoints).
+
+        Cylinder / sphere: positive root of
+        :math:`(r_{\rm obs} + \rho\cos\Omega)^2 + (\rho\sin\Omega)^2 = R^2`.
+        """
+        if self.kind == "slab-polar":
+            if cos_omega > 0.0:
+                return (R - r_obs) / cos_omega
+            if cos_omega < 0.0:
+                return -r_obs / cos_omega  # = r_obs / |cos_omega|
+            return float("inf")
+        disc = r_obs * r_obs * cos_omega * cos_omega + R * R - r_obs * r_obs
+        return -r_obs * cos_omega + np.sqrt(max(disc, 0.0))
+
+    def rho_inner_intersections(
+        self, r_obs: float, cos_omega: float,
+    ) -> tuple[float | None, float | None]:
+        r"""Forward-distances at which a ray hits the **inner** shell
+        :math:`r = r_0` (``self.inner_radius``).
+
+        Solves
+        :math:`(r_{\rm obs} + \rho\cos\Omega)^2 + (\rho\sin\Omega)^2 = r_0^2`
+        for :math:`\rho`, returning the two roots
+        :math:`(\rho^-, \rho^+)` with :math:`\rho^- \le \rho^+` if both are
+        positive, otherwise ``None`` in the slot of any non-positive root.
+
+        Returns ``(None, None)`` when:
+
+        - :math:`r_0 = 0` (solid geometry — no cavity shell);
+        - ``kind == "slab-polar"`` (slab carries its two faces explicitly,
+          not via an inner radius);
+        - the ray misses the inner shell (negative discriminant) or both
+          intersections are behind the observer (:math:`\rho \le 0`).
+
+        Tangent rays to the inner shell produce a double root; both
+        slots return the same positive value.
+        """
+        if self.inner_radius == 0.0 or self.kind == "slab-polar":
+            return (None, None)
+        r0 = float(self.inner_radius)
+        r_obs_sq = r_obs * r_obs
+        disc = r_obs_sq * cos_omega * cos_omega - (r_obs_sq - r0 * r0)
+        if disc < 0.0:
+            return (None, None)
+        sqrt_disc = float(np.sqrt(disc))
+        rho_minus = -r_obs * cos_omega - sqrt_disc
+        rho_plus = -r_obs * cos_omega + sqrt_disc
+        return (
+            rho_minus if rho_minus > 0.0 else None,
+            rho_plus if rho_plus > 0.0 else None,
+        )
+
+    def source_position(
+        self, r_obs: float, rho: float, cos_omega: float,
+    ) -> float:
+        r"""Source position along the ray at distance :math:`\rho`.
+
+        Slab: linear, :math:`x' = x + \rho\,\mu`.
+        Cylinder / sphere: curvilinear,
+        :math:`r' = \sqrt{r_{\rm obs}^2 + 2 r_{\rm obs}\rho\cos\Omega + \rho^2}`.
+        The 1-D radial symmetry hides the 3-D direction-of-ray-in-azimuth
+        dependence, so only :math:`\cos\Omega` matters.
+        """
+        if self.kind == "slab-polar":
+            return r_obs + rho * cos_omega
+        return np.sqrt(
+            r_obs * r_obs + 2.0 * r_obs * rho * cos_omega + rho * rho
+        )
+
+    # ── ray-integrated optical depth ──────────────────────────────────
+
+    def optical_depth_along_ray(
+        self,
+        r_obs: float,
+        cos_omega: float,
+        rho: float,
+        radii: np.ndarray,
+        sig_t: np.ndarray,
+    ) -> float:
+        r"""Integrate :math:`\Sigma_t(\cdot)` along the ray from
+        :math:`r_{\rm obs}` in direction :math:`\mu = \cos\Omega` for
+        distance :math:`\rho`.
+
+        Slab: linear path :math:`x'(s) = x + s\mu` crossing slab
+        boundaries at :math:`s_b = (r_b - x)/\mu`. ``radii`` is
+        interpreted as :math:`[0, r_1, \dots, r_{N-1} = L]`, i.e. the
+        cumulative region boundaries including both endpoints.
+
+        Cylinder / sphere: walks curvilinear crossings of the annular
+        shells via :math:`(r_{\rm obs}+\rho\cos\Omega)^2 +
+        (\rho\sin\Omega)^2 = r_k^2`.
+        """
+        radii = np.asarray(radii, dtype=float)
+        sig_t = np.asarray(sig_t, dtype=float)
+        N = len(radii)
+
+        # Homogeneous solid cell fast path (single annulus, no cavity).
+        # Hollow cells must fall through to the crossing walker so the
+        # cavity segment can be skipped.
+        if N == 1 and self.inner_radius == 0.0:
+            return float(sig_t[0]) * rho
+
+        if self.kind == "slab-polar":
+            # Linear ray x'(s) = r_obs + s*cos_omega on s ∈ [0, rho].
+            # ``radii`` follows the curvilinear convention:
+            # ``[r_1, r_2, ..., r_N = L]`` are outer edges of N slabs
+            # with implicit r_0 = 0; ``sig_t[k]`` is the XS in
+            # :math:`[r_{k-1}, r_k]` (r_{-1} = 0). Walk linear interior
+            # crossings.
+            crossings = [0.0]
+            if cos_omega != 0.0:
+                for r_k in radii[:-1]:
+                    s = (r_k - r_obs) / cos_omega
+                    if 0.0 < s < rho:
+                        crossings.append(s)
+            crossings.append(rho)
+            crossings.sort()
+
+            tau = 0.0
+            for i_seg in range(len(crossings) - 1):
+                s_lo, s_hi = crossings[i_seg], crossings[i_seg + 1]
+                x_mid = r_obs + 0.5 * (s_lo + s_hi) * cos_omega
+                k = self.which_annulus(x_mid, radii)
+                tau += float(sig_t[k]) * (s_hi - s_lo)
+            return tau
+
+        # Curvilinear (cylinder/sphere): ring crossings.
+        crossings = [0.0]
+        for r_k in radii[:-1]:
+            disc = (
+                r_obs * r_obs * cos_omega * cos_omega
+                - (r_obs * r_obs - r_k * r_k)
+            )
+            if disc < 0.0:
+                continue
+            sqrt_disc = np.sqrt(disc)
+            s_a = -r_obs * cos_omega - sqrt_disc
+            s_b = -r_obs * cos_omega + sqrt_disc
+            for s in (s_a, s_b):
+                if 0.0 < s < rho:
+                    crossings.append(s)
+
+        # Hollow-core cavity: interior to r_0 the medium is void
+        # (:math:`\Sigma_t = 0`). Insert the cavity entry/exit ρ as
+        # crossings and skip τ accumulation for segments whose midpoint
+        # falls inside the cavity (r_mid < r_0).
+        r0 = float(self.inner_radius)
+        if r0 > 0.0:
+            rho_in_minus, rho_in_plus = self.rho_inner_intersections(
+                r_obs, cos_omega,
+            )
+            for s in (rho_in_minus, rho_in_plus):
+                if s is not None and 0.0 < s < rho:
+                    crossings.append(s)
+
+        crossings.append(rho)
+        crossings.sort()
+
+        tau = 0.0
+        for i_seg in range(len(crossings) - 1):
+            s_lo, s_hi = crossings[i_seg], crossings[i_seg + 1]
+            s_mid = 0.5 * (s_lo + s_hi)
+            r_mid_sq = (
+                r_obs * r_obs + 2.0 * r_obs * s_mid * cos_omega + s_mid * s_mid
+            )
+            r_mid = np.sqrt(max(r_mid_sq, 0.0))
+            # Cavity segment (void): zero-Σ_t, skip contribution.
+            if r0 > 0.0 and r_mid < r0:
+                continue
+            # Outermost annulus is the default (handles floating-point
+            # noise at the cylinder boundary).
+            k = N - 1
+            for kk in range(N):
+                if r_mid < radii[kk]:
+                    k = kk
+                    break
+            tau += sig_t[k] * (s_hi - s_lo)
+        return tau
+
+    def which_annulus(self, r: float, radii: np.ndarray) -> int:
+        """Index of the region containing ``r`` (outer-biased at boundary).
+
+        Shared convention for slab and curvilinear: ``radii`` holds
+        outer edges :math:`[r_1, \\ldots, r_N = R]` with implicit
+        :math:`r_0 = 0`; ``sig_t[k]`` is the XS in the region
+        :math:`[r_{k-1}, r_k]`. ``k`` is the smallest index with
+        :math:`r < r_k`, clamped at ``N-1``.
+        """
+        k = len(radii) - 1
+        for kk, r_k in enumerate(radii):
+            if r < r_k:
+                return kk
+        return k
+
+    # ── ray / panel-boundary crossings ────────────────────────────────
+
+    def omega_tangent_angles(
+        self,
+        r_obs: float,
+        panel_boundaries_r: np.ndarray,
+        *,
+        tol: float = 1e-12,
+    ) -> list[float]:
+        r"""Angles :math:`\omega` at which the observer-anchored ray is
+        tangent to an interior panel-boundary shell.
+
+        For observers strictly outside a panel boundary :math:`r_b`, the
+        ray has :math:`r_{\min}(\omega) = r_{\rm obs}|\sin\omega|`; this
+        equals :math:`r_b` when :math:`\sin\omega = r_b/r_{\rm obs}`,
+        producing a *bifurcation* in the ρ integration structure (two
+        crossings just below, zero crossings just above the critical
+        angle). The tangent geometry gives :math:`L_j(r'(\rho))` a
+        quadratic (C¹-discontinuous) kink at the tangent ρ, which
+        translates into a derivative discontinuity of the outer
+        :math:`\omega` integrand. Fixed-order GL cannot integrate across
+        such kinks.
+
+        Returns the sorted list of critical ω in :math:`(0, \pi)` that
+        need to appear as subdivision breakpoints in the outer rule
+        (issue #114 — second phase of the curvilinear-ρ/ω fix).
+
+        For observers *inside* a boundary (``r_obs ≤ r_b``), no tangent
+        critical angle exists.
+
+        **Slab**: rays are linear, there is no turning-point geometry,
+        so no tangent bifurcation. Returns ``[]``.
+        """
+        if self.kind == "slab-polar":
+            return []
+        angles: list[float] = []
+        for r_b in panel_boundaries_r:
+            if r_obs <= r_b + tol:
+                continue
+            ratio = r_b / r_obs
+            if ratio >= 1.0 - tol:
+                continue
+            omega_c = float(np.arcsin(ratio))
+            # Two tangent angles per boundary: symmetric about π/2
+            for ang in (omega_c, np.pi - omega_c):
+                if tol < ang < np.pi - tol:
+                    angles.append(ang)
+        return sorted(angles)
+
+    def rho_crossings_for_ray(
+        self,
+        r_obs: float,
+        cos_omega: float,
+        rho_max_val: float,
+        panel_boundaries_r: np.ndarray,
+        *,
+        tol: float = 1e-12,
+    ) -> list[float]:
+        r"""Ray distances :math:`\rho` at which :math:`r'(\rho)` crosses a
+        spatial panel boundary :math:`r_b`.
+
+        Solves :math:`r_{\rm obs}^2 + 2 r_{\rm obs}\,\rho\,\cos\Omega +
+        \rho^2 = r_b^2` for each panel boundary :math:`r_b` and keeps the
+        positive roots strictly inside :math:`(0, \rho_{\max})`. These
+        are the points along the ray where the piecewise-polynomial
+        Lagrange basis :math:`L_j(r')` has a derivative discontinuity
+        (panel kink). Fixed-order Gauss-Legendre cannot integrate across
+        such kinks — the quadrature on :math:`\rho` must subdivide at
+        every crossing to restore spectral convergence. See :issue:`114`.
+
+        Identical formula for cylinder and sphere; both share
+        :meth:`source_position`.
+
+        **Slab**: :math:`x'(\rho) = x + \rho\mu` is linear, so each
+        panel boundary :math:`r_b` gives at most one crossing at
+        :math:`\rho = (r_b - x)/\mu`. Same kink-in-:math:`L_j` mechanism
+        as curvilinear, same subdivision requirement.
+        """
+        crossings: set[float] = set()
+        if self.kind == "slab-polar":
+            if cos_omega == 0.0:
+                return []
+            for r_b in panel_boundaries_r:
+                rho = (r_b - r_obs) / cos_omega
+                if tol < rho < rho_max_val - tol:
+                    crossings.add(rho)
+            return sorted(crossings)
+
+        r_obs_sq = r_obs * r_obs
+        disc_base = r_obs_sq * cos_omega * cos_omega - r_obs_sq
+        for r_b in panel_boundaries_r:
+            disc = disc_base + r_b * r_b
+            if disc < 0.0:
+                continue
+            sqrt_disc = float(np.sqrt(disc))
+            for sign in (+1.0, -1.0):
+                rho = -r_obs * cos_omega + sign * sqrt_disc
+                if tol < rho < rho_max_val - tol:
+                    crossings.add(rho)
+        return sorted(crossings)
+
+    # ── volume kernel :math:`\kappa_d(\tau)` ──────────────────────────
+
+    def volume_kernel_mp(self, tau: float, dps: int = 25) -> float:
+        r"""Volume Peierls kernel :math:`\kappa_d(\tau)` returned as a
+        Python :class:`float`.
+
+        Slab (observer-centred polar form): :math:`e^{-\tau}` — the
+        SAME kernel as the sphere, because both arise from full 3-D
+        integration of the isotropic point kernel over the respective
+        symmetry. The log-:math:`E_1` that appears in the legacy slab
+        Nyström comes from pre-integrating the angular coordinate
+        analytically; keeping it explicit (as we do here) gives the
+        simpler kernel.
+
+        Cylinder: :math:`\mathrm{Ki}_1(\tau)` (A&S 11.2).
+        Sphere:  :math:`e^{-\tau}`.
+
+        For cylinder at ``dps < 30``, uses the fast scipy-based
+        :func:`~.._kernels.ki_n_float` since the output is always cast
+        to :class:`float`. At ``dps >= 30`` falls back to the
+        arbitrary-precision :func:`~.._kernels.ki_n_mp` for
+        high-precision reference computations.
+        """
+        if self.kind == "cylinder-1d":
+            if dps >= 30:
+                return float(ki_n_mp(1, float(tau), dps))
+            return ki_n_float(1, float(tau))
+        # slab-polar and sphere-1d both use exp(-τ)
+        return math.exp(-float(tau))
+
+    # ── escape kernel (for :math:`P_{\rm esc}` angular integration) ───
+
+    def escape_kernel_mp(self, tau: float, dps: int = 25) -> float:
+        r"""Escape-angular-integral kernel :math:`K_{\rm esc}(\tau)`.
+
+        Cylinder: :math:`\mathrm{Ki}_2(\tau)`. The factor of 2 from the
+        3-D polar-angle integration
+        :math:`\int_0^\pi \sin\theta\,e^{-\tau/\sin\theta}\,\mathrm d\theta =
+        2\,\mathrm{Ki}_2(\tau)` is already absorbed into the geometry's
+        :attr:`prefactor` :math:`1/\pi` (via the 2π-to-π azimuthal
+        fold: :math:`1/(4\pi) \cdot 2 \cdot 2 / S_2^{\rm fold} = 1/\pi`).
+
+        Sphere: :math:`e^{-\tau}` directly (3-D integration is explicit
+        with the :math:`\sin\theta` angular weight).
+
+        The unified identity
+        :math:`P_{\rm esc}(r_i) = C_d \cdot \int \mathrm d\Omega \cdot
+        W_\Omega(\Omega) \cdot K_{\rm esc}(\tau(\Omega))` uses the SAME
+        :attr:`prefactor` as the volume kernel for both geometries —
+        a consequence of both escape and emergence being angular integrals
+        of the same point kernel over the same solid-angle domain.
+        """
+        if self.kind == "cylinder-1d":
+            return float(ki_n_mp(2, float(tau), dps))
+        return float(mpmath.exp(-mpmath.mpf(tau)))
+
+    # ── radial integration weight (per-unit-volume element) ───────────
+
+    def radial_volume_weight(self, r: float) -> float:
+        r"""Weight :math:`r^{d-1}` from the polar area/volume element
+        :math:`\mathrm dV' = r^{d-1}\,\mathrm dr\,\mathrm d\Omega`.
+
+        Slab (1-D radial coordinate :math:`x`, :math:`\mathrm dV = \mathrm dx`):
+        returns :math:`1` (no geometric factor).
+        Cylinder (:math:`d = 2`): returns :math:`r` (for
+        :math:`r\,\mathrm d r\,\mathrm d\beta`).
+        Sphere (:math:`d = 3`): returns :math:`r^2`.
+        """
+        if self.kind == "slab-polar":
+            return 1.0
+        if self.kind == "cylinder-1d":
+            return r
+        return r * r
+
+    # ── surface measure at the outer boundary :math:`|r|=R` ───────────
+
+    def surface_area_per_z(self, R: float) -> float:
+        """Surface 'area' measure:
+
+        - Cylinder: :math:`2\\pi R` (lateral surface per unit z).
+        - Sphere:   :math:`4\\pi R^2` (full spherical surface area).
+        """
+        if self.kind == "cylinder-1d":
+            return 2.0 * np.pi * R
+        return 4.0 * np.pi * R * R
+
+    def rank1_surface_divisor(self, R: float) -> float:
+        r"""Normalisation divisor for the rank-1 white-BC :math:`u_i` vector.
+
+        The theoretical form :math:`K_{\rm bc}[i, j] = \Sigma_t(r_i)\,
+        G_{\rm bc}(r_i) / A_d \cdot A_j\,P_{\rm esc}(r_j)` with
+        :math:`A_j` the volume-element area and :math:`A_d` the cell's
+        surface area reduces — after the shared azimuthal factor cancels
+        between :math:`A_d` and :math:`A_j` — to geometry-specific
+        divisors:
+
+        - **Slab** (:math:`A_d = 2` per unit transverse area — two unit-area
+          faces at :math:`x = 0` and :math:`x = L`;
+          :math:`A_j = w_j` per-panel length): ratio :math:`A_j/A_d = w_j/2`,
+          divisor :math:`2`.
+        - **Cylinder** (:math:`A_d = 2\pi R`, :math:`A_j = 2\pi r_j w_j`):
+          ratio :math:`A_j / A_d = r_j w_j / R`, divisor :math:`R`.
+        - **Sphere** (:math:`A_d = 4\pi R^2`, :math:`A_j = 4\pi r_j^2 w_j`):
+          ratio :math:`A_j / A_d = r_j^2 w_j / R^{2}`, divisor :math:`R^{2}`.
+        """
+        if self.kind == "slab-polar":
+            return 2.0
+        if self.kind == "cylinder-1d":
+            return R
+        return R * R
+
+    # ── case-builder helpers (Stage 2 of the simplification) ──────────
+
+    def shell_volume_integral(
+        self, r_nodes: np.ndarray, r_wts: np.ndarray, phi: np.ndarray,
+    ) -> float:
+        r"""Compute :math:`\int_{r_0}^{R}\!\varphi(r)\,\mathrm dV(r)` at the
+        current geometry's volume element.
+
+        Used by continuous-reference case builders to normalize the flux.
+        Replaces the per-geometry duplicated expressions previously
+        hand-coded in ``peierls_{cylinder,sphere,slab}.py``:
+
+        - **Slab** (``kind="slab-polar"``): :math:`\int \varphi\,\mathrm dx
+          = \sum_j w_j\,\varphi_j`.
+        - **Cylinder** (``kind="cylinder-1d"``): :math:`2\pi\int r\,\varphi
+          \,\mathrm dr = 2\pi\sum_j r_j\,w_j\,\varphi_j` (per unit z).
+        - **Sphere** (``kind="sphere-1d"``): :math:`4\pi\int r^2\,\varphi
+          \,\mathrm dr = 4\pi\sum_j r_j^2\,w_j\,\varphi_j`.
+
+        Parameters
+        ----------
+        r_nodes, r_wts
+            Composite GL radial nodes and weights on :math:`[r_0, R]`.
+        phi
+            Scalar flux sampled at ``r_nodes`` (shape matches).
+
+        Returns
+        -------
+        float
+            The shell-volume integral. Zero or near-zero indicates
+            either trivial flux (eigenvector not yet normalised) or a
+            quadrature pathology.
+        """
+        r_nodes = np.asarray(r_nodes, dtype=float)
+        r_wts = np.asarray(r_wts, dtype=float)
+        phi = np.asarray(phi, dtype=float)
+        if self.kind == "slab-polar":
+            return float(np.dot(r_wts, phi))
+        if self.kind == "cylinder-1d":
+            return float(2.0 * np.pi * np.dot(r_nodes * r_wts, phi))
+        if self.kind == "sphere-1d":
+            return float(
+                4.0 * np.pi * np.dot(r_nodes * r_nodes * r_wts, phi)
+            )
+        raise ValueError(
+            f"shell_volume_integral: unknown kind {self.kind!r}"
+        )
+
+    def reciprocity_factor(self, R_outer: float, r_inner: float) -> float:
+        r"""Return the outer-to-inner area ratio for F.4 reciprocity:
+
+        .. math::
+
+           W_{oi} \;=\; \bigl(A_{\rm outer} / A_{\rm inner}\bigr)\,
+           W_{io}.
+
+        - **Cylinder** (``2\pi R`` per unit z): returns :math:`R/r_0`.
+        - **Sphere** (``4\pi R^2``): returns :math:`(R/r_0)^2`.
+        - **Slab-polar**: raises ``ValueError`` — slab has flat faces
+          of equal area with :math:`W_{oi} = W_{io}` (no curvilinear
+          cavity reciprocity). Callers should use the slab rank-2
+          per-face closure directly.
+
+        This codifies the reciprocity trap noted in the test
+        ``test_hollow_cyl_transmission_zero_absorption_conservation``:
+        the cylinder form (first power) must not be confused with the
+        sphere form (squared).
+        """
+        if r_inner <= 0.0 or r_inner >= R_outer:
+            raise ValueError(
+                f"reciprocity_factor requires 0 < r_inner < R_outer; "
+                f"got r_inner={r_inner}, R_outer={R_outer}"
+            )
+        if self.kind == "cylinder-1d":
+            return R_outer / r_inner
+        if self.kind == "sphere-1d":
+            return (R_outer / r_inner) ** 2
+        if self.kind == "slab-polar":
+            raise ValueError(
+                "reciprocity_factor is undefined for slab-polar — "
+                "slab has flat equal-area faces. Use the slab rank-2 "
+                "per-face closure directly."
+            )
+        raise ValueError(
+            f"reciprocity_factor: unknown kind {self.kind!r}"
+        )
+
+
+# Convenience singletons
+SLAB_POLAR_1D = CurvilinearGeometry(kind="slab-polar")
+CYLINDER_1D = CurvilinearGeometry(kind="cylinder-1d")
+SPHERE_1D = CurvilinearGeometry(kind="sphere-1d")
+
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Unified verification: adaptive mpmath.quad over polar form
+# ═══════════════════════════════════════════════════════════════════════
+
+def K_vol_element_adaptive(
+    geometry: CurvilinearGeometry,
+    i: int,
+    j: int,
+    r_nodes: np.ndarray,
+    panel_bounds: list[tuple[float, float, int, int]],
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    dps: int = 50,
+) -> "mpmath.mpf":
+    r"""Unified K-matrix element via adaptive :func:`mpmath.quad` over
+    the polar form. **The single verification primitive** for slab,
+    cylinder, and sphere Peierls operators (and, by extension, future
+    2-D MoC verification).
+
+    Computes
+
+    .. math::
+
+       K_{ij} \;=\; \Sigma_t(r_i)\,C_d \int_{\Omega_d}\!\!
+                    W_\Omega(\Omega)\,\mathrm d\Omega
+                    \int_0^{\rho_{\max}(r_i, \Omega)}\!\!
+                    \kappa_d(\tau(r_i, \Omega, \rho))\,
+                    L_j(r'(\rho, \Omega, r_i))\,\mathrm d\rho
+
+    via nested adaptive :func:`mpmath.quad` with breakpoint hints at:
+
+    - **Outer angular**: tangent-to-interior-boundary critical angles
+      for cylinder / sphere; ``μ = 0`` split for slab (grazing-ray
+      stiffness).
+    - **Inner radial**: panel-boundary crossings of :math:`r'(\rho)`
+      along the ray.
+
+    Achieves machine precision uniformly across geometries; the only
+    geometry-specific code is the four primitives (``ray_direction_cosine``,
+    ``rho_max``, ``source_position``, ``optical_depth_along_ray``,
+    ``volume_kernel_mp``) on :class:`CurvilinearGeometry`. Performance
+    is intentionally not optimized — this is the verification reference,
+    cached by callers as needed.
+
+    Parameters
+    ----------
+    geometry
+        Geometry instance providing the polar primitives.
+    i, j
+        Observer node index, source basis index.
+    r_nodes, panel_bounds, radii, sig_t
+        Standard Nyström inputs.
+    dps
+        mpmath working precision (decimal digits).
+
+    Returns
+    -------
+    mpmath.mpf
+        :math:`K[i, j]` at ``dps`` precision.
+    """
+    r_nodes_arr = np.asarray(r_nodes, dtype=float)
+    radii_arr = np.asarray(radii, dtype=float)
+    sig_t_arr = np.asarray(sig_t, dtype=float)
+    panel_bounds_f = [
+        (float(pa), float(pb), int(i_start), int(i_end))
+        for (pa, pb, i_start, i_end) in panel_bounds
+    ]
+    R = float(radii_arr[-1])
+
+    r_i = float(r_nodes_arr[i])
+    ki = geometry.which_annulus(r_i, radii_arr)
+    sig_t_i = float(sig_t_arr[ki])
+
+    panel_boundaries_r = sorted(
+        {pa for (pa, pb, _, _) in panel_bounds_f}
+        | {pb for (pa, pb, _, _) in panel_bounds_f}
+    )
+    interior_boundaries_r = np.array(
+        [r for r in panel_boundaries_r if 0.0 < r < R],
+        dtype=float,
+    )
+
+    omega_low, omega_high = geometry.angular_range
+    pref = mpmath.mpf(geometry.prefactor)
+
+    def integrand_rho(rho_mp, cos_om: float):
+        rho_f = float(rho_mp)
+        rho_max_val = float(geometry.rho_max(r_i, cos_om, R))
+        if rho_f >= rho_max_val or rho_f <= 0:
+            return mpmath.mpf(0)
+        r_prime = float(geometry.source_position(r_i, rho_f, cos_om))
+        if r_prime < 0.0 or r_prime > R:
+            return mpmath.mpf(0)
+        tau = float(geometry.optical_depth_along_ray(
+            r_i, cos_om, rho_f, radii_arr, sig_t_arr,
+        ))
+        kappa = geometry.volume_kernel_mp(tau, dps)
+        L_vals = lagrange_basis_on_panels(
+            r_nodes_arr, panel_bounds_f, r_prime,
+        )
+        return mpmath.mpf(kappa) * mpmath.mpf(float(L_vals[j]))
+
+    def outer_integrand(angular_mp):
+        cos_om = float(geometry.ray_direction_cosine(
+            np.array([float(angular_mp)]),
+        )[0])
+        rho_max_val = float(geometry.rho_max(r_i, cos_om, R))
+        if rho_max_val <= 0.0:
+            return mpmath.mpf(0)
+        # Q6.L2: route the inner ρ integral through `adaptive_mpmath`.
+        # Panel-boundary crossings of the ray are subdivision hints
+        # that let mpmath.quad resolve the chord-segment kinks
+        # spectrally; without them the C¹ kinks at panel edges produce
+        # ~1e-5 plateau errors.
+        crossings = geometry.rho_crossings_for_ray(
+            r_i, cos_om, rho_max_val, interior_boundaries_r,
+        )
+        crossings_in = tuple(
+            float(rho) for rho in crossings
+            if 0.0 < float(rho) < rho_max_val
+        )
+        q_rho = adaptive_mpmath(
+            0.0, rho_max_val, breakpoints=crossings_in, dps=dps,
+        )
+        inner = mpmath.mpf(q_rho.integrate(
+            lambda rho: integrand_rho(rho, cos_om),
+        ))
+        ang_factor = float(geometry.angular_weight(
+            np.array([float(angular_mp)]),
+        )[0])
+        return mpmath.mpf(ang_factor) * inner
+
+    with mpmath.workdps(dps):
+        # Q6.L2: outer ω integral via `adaptive_mpmath` with the
+        # geometry-specific subdivision hints that `mpmath.quad`
+        # previously consumed inline.
+        #   Slab: split at μ = 0 (grazing-ray stiffness).
+        #   Curvilinear: split at tangent angles to interior shells.
+        if geometry.kind == "slab-polar":
+            outer_brk = (
+                (0.0,) if omega_low < 0.0 < omega_high else ()
+            )
+        else:
+            tangent_angles = geometry.omega_tangent_angles(
+                r_i, interior_boundaries_r,
+            )
+            outer_brk = tuple(
+                float(ang) for ang in tangent_angles
+                if omega_low < float(ang) < omega_high
+            )
+        q_omega = adaptive_mpmath(
+            float(omega_low), float(omega_high),
+            breakpoints=outer_brk, dps=dps,
+        )
+        omega_integral = mpmath.mpf(q_omega.integrate(outer_integrand))
+
+    return mpmath.mpf(sig_t_i) * pref * omega_integral
+
+
+def build_volume_kernel_adaptive(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    panel_bounds: list[tuple[float, float, int, int]],
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    dps: int = 30,
+) -> np.ndarray:
+    r"""Assemble the K matrix by calling :func:`K_vol_element_adaptive`
+    once per (i, j) pair. **The unified verification assembly** for all
+    geometries.
+
+    Returns float array (cast from mpmath at end). For mpmath-typed
+    output, call :func:`K_vol_element_adaptive` directly per element.
+
+    No ``n_angular`` / ``n_rho`` / ``n_phi`` parameters — adaptive
+    quadrature self-determines node counts to reach machine precision.
+    Performance scales as :math:`O(N^2 \cdot \text{cost per quad})`;
+    not intended as a production hot path.
+    """
+    r_nodes_arr = np.asarray(r_nodes, dtype=float)
+    N = len(r_nodes_arr)
+    K = np.zeros((N, N))
+    for i in range(N):
+        for j in range(N):
+            K[i, j] = float(K_vol_element_adaptive(
+                geometry, i, j, r_nodes, panel_bounds, radii, sig_t,
+                dps=dps,
+            ))
+    return K
+
+
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Unified volume-kernel assembly
+# ═══════════════════════════════════════════════════════════════════════
+
+def build_volume_kernel(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    panel_bounds: list[tuple[float, float, int, int]],
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_angular: int,
+    n_rho: int,
+    dps: int = 30,
+    n_phi: int = 16,
+) -> np.ndarray:
+    r"""Assemble the Nyström volume kernel matrix for a single group.
+
+    The unified operator (identity-:math:`\Sigma_t`-LHS form):
+
+    .. math::
+
+       \Sigma_t(r_i)\,\varphi_i
+         \;=\; \sum_j K_{ij}\,q_j + S_{\rm bc}(r_i),
+       \quad
+       K_{ij} = \Sigma_t(r_i)\,C_d\!\sum_{k,m}
+                  w_{\Omega,k}\,W_\Omega(\Omega_k)\,w_{\rho,m}(r_i,\Omega_k)\,
+                  \kappa_d\bigl(\Sigma_t\,\rho_m\bigr)\,L_j(r'_{ikm}),
+
+    with :math:`C_d` = :attr:`CurvilinearGeometry.prefactor`,
+    :math:`W_\Omega(\Omega) = 1` (cylinder) or :math:`\sin\Omega`
+    (sphere), :math:`\kappa_d(\tau) = \mathrm{Ki}_1(\tau)` (cylinder)
+    or :math:`e^{-\tau}` (sphere), :math:`r'_{ikm} = r'(\rho_m,
+    \Omega_k, r_i)`, and :math:`L_j` the piecewise-panel Lagrange
+    basis.
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+
+    # Slab routes through the unified adaptive primitive — there is no
+    # fast slab path in the active code base (the moment-form K assembly
+    # has been archived per GitHub Issue #117 for future production
+    # discrete-CP application). ``n_angular`` / ``n_rho`` / ``n_phi``
+    # are accepted but ignored (mpmath.quad self-determines node count).
+    if geometry.kind == "slab-polar":
+        return build_volume_kernel_adaptive(
+            geometry, r_nodes, panel_bounds, radii, sig_t, dps=dps,
+        )
+
+    N = len(r_nodes)
+    R = float(radii[-1])
+
+    omega_low, omega_high = geometry.angular_range
+
+    # Sorted unique panel-boundary radii (kink locations of the Lagrange
+    # basis along each ray). Excludes the outer boundary R because that
+    # is always the ρ_max endpoint.
+    panel_boundaries_r = np.array(sorted(
+        {pa for (pa, pb, _, _) in panel_bounds}
+        | {pb for (pa, pb, _, _) in panel_bounds}
+    ), dtype=float)
+    interior_boundaries_r = panel_boundaries_r[
+        (panel_boundaries_r > 0.0) & (panel_boundaries_r < R)
+    ]
+
+    # Optical-length cap per ρ sub-interval: beyond τ_cap MFP the
+    # exp-decay makes GL nodes waste resolution on the already-
+    # negligible tail. Splitting at dyadic τ-breakpoints keeps each
+    # sub-interval's integrand within ~1 order of magnitude. Matters
+    # most for grazing rays in slab (ρ_max = L/|μ| → ∞ as μ → 0)
+    # and for optically-thick curvilinear rays.
+    tau_cap_per_subinterval = 4.0
+    sig_t_max = float(np.max(sig_t)) if sig_t.size else 1.0
+    rho_cap_per_subinterval = (
+        tau_cap_per_subinterval / sig_t_max if sig_t_max > 0.0 else float("inf")
+    )
+
+    def _insert_tau_breakpoints(subintervals: list[float]) -> list[float]:
+        """Split any sub-interval whose length exceeds ``rho_cap_per_subinterval``
+        at dyadic τ-breakpoints (rho_cap, 2·rho_cap, 4·rho_cap, ...)
+        measured from the left endpoint."""
+        if rho_cap_per_subinterval == float("inf"):
+            return subintervals
+        out = [subintervals[0]]
+        for rho_end in subintervals[1:]:
+            rho_a = out[-1]
+            cap = rho_cap_per_subinterval
+            while rho_end - rho_a > cap:
+                out.append(rho_a + cap)
+                rho_a = out[-1]
+                cap *= 2.0
+            out.append(rho_end)
+        return out
+
+    K = np.zeros((N, N))
+    pref = geometry.prefactor
+
+    for i in range(N):
+        r_i = r_nodes[i]
+        ki = geometry.which_annulus(r_i, radii)
+        sig_t_i = sig_t[ki]
+
+        # Issue #135: outer ω-sweep with kink-aware subdivision via
+        # `observer_angular_quadrature`. The recipe uses panel-boundary
+        # radii (not shell radii) so the Lagrange-basis tangent kinks are
+        # resolved — see :issue:`114` for the original requirement.
+        # Bit-equivalent to the pre-#135 hand-coded `omega_tangent_angles`
+        # + per-panel GL loop modulo open-interval-vs-tolerance filtering
+        # at the angular endpoints (recipe uses strict open-interval; the
+        # legacy `omega_tangent_angles` used `1e-12` slack — academic
+        # difference for non-degenerate inputs).
+        q_omega = observer_angular_quadrature(
+            r_obs=float(r_i),
+            omega_low=omega_low, omega_high=omega_high,
+            radii=interior_boundaries_r,
+            n_per_panel=n_angular, dps=dps,
+        )
+        cos_omegas = geometry.ray_direction_cosine(q_omega.pts)
+        angular_factor = geometry.angular_weight(q_omega.pts)
+
+        for k in range(len(q_omega)):
+            cos_om = cos_omegas[k]
+            rho_max_val = geometry.rho_max(r_i, cos_om, R)
+            if rho_max_val <= 0.0:
+                continue
+
+            # Phase F.4: for a hollow cell, the ray's first-flight
+            # stop is the inner shell r = r_0 if it intersects before
+            # the outer boundary. Cap ρ accordingly — any contribution
+            # beyond that is "after the ray escapes" and must not be
+            # counted in the volumetric integral.
+            if geometry.inner_radius > 0.0:
+                rho_in_minus, _ = geometry.rho_inner_intersections(
+                    r_i, cos_om,
+                )
+                if (
+                    rho_in_minus is not None
+                    and rho_in_minus < rho_max_val
+                ):
+                    rho_max_val = rho_in_minus
+
+            # Issue #135: inner ρ-sweep via `composite_gauss_legendre`
+            # over the panel-crossing breakpoints + dyadic τ-cap insertion.
+            # The τ-cap insertion is geometry-specific (no recipe carries
+            # it) and stays in `_insert_tau_breakpoints`.
+            crossings = geometry.rho_crossings_for_ray(
+                r_i, cos_om, rho_max_val, interior_boundaries_r,
+            )
+            rho_subintervals = _insert_tau_breakpoints(
+                [0.0, *crossings, rho_max_val]
+            )
+            # Drop empty sub-intervals (e.g., when a crossing coincides
+            # with rho_max within rounding) before constructing the rule.
+            rho_breakpoints = [rho_subintervals[0]]
+            for rho_b in rho_subintervals[1:]:
+                if rho_b > rho_breakpoints[-1]:
+                    rho_breakpoints.append(rho_b)
+            if len(rho_breakpoints) < 2:
+                continue
+            q_rho = composite_gauss_legendre(
+                rho_breakpoints, n_rho, dps=dps,
+            )
+
+            outer_weight = (
+                pref * sig_t_i * q_omega.wts[k] * angular_factor[k]
+            )
+            for m in range(len(q_rho)):
+                rho = float(q_rho.pts[m])
+                r_prime = geometry.source_position(r_i, rho, cos_om)
+                # Skip source contributions from inside the
+                # cavity of a hollow cell (Phase F.4): the cavity
+                # is void and carries no source; the Lagrange
+                # basis over annular nodes would otherwise
+                # extrapolate a spurious contribution.
+                if (
+                    geometry.inner_radius > 0.0
+                    and float(r_prime) < geometry.inner_radius
+                ):
+                    continue
+                tau = geometry.optical_depth_along_ray(
+                    r_i, cos_om, rho, radii, sig_t,
+                )
+                kappa = geometry.volume_kernel_mp(tau, dps)
+                L_vals = lagrange_basis_on_panels(
+                    r_nodes, panel_bounds, float(r_prime),
+                )
+                weight = outer_weight * float(q_rho.wts[m]) * kappa
+                K[i, :] += weight * L_vals
+
+    return K
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Per-observer angular-sweep assemblers
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Most curvilinear escape/response primitives in this module share the
+# same five-line `_per_obs(r_i)` skeleton:
+#
+#     q = <recipe>(r_obs=r_i, ...)
+#     cos_om = geometry.ray_direction_cosine(q.pts)
+#     ang_factor = geometry.angular_weight(q.pts)
+#     integrand_arr = <user-supplied per-node assembly>
+#     return prefactor * q.integrate_array(integrand_arr)
+#
+# repeated 18+ times across `compute_P_esc_*`, `compute_G_bc_*`,
+# `compute_T_specular_*`, and the `*_mode`, `*_mode_marshak`,
+# `*_outer`, `*_inner` per-face / per-mode variants. The two driver
+# functions below collapse the boilerplate to one place. Consumers
+# specify only the per-node assembly callable and a prefactor; the
+# driver handles the recipe build, the angular-basis evaluation, the
+# fromiter materialisation pattern, and the per-observer reduction.
+#
+# Two recipes ⇒ two drivers (same shape, different recipe call):
+#
+# - :func:`per_observer_angular_assembly` uses
+#   :func:`observer_angular_quadrature` (kink subdivision at
+#   :math:`\arcsin(r_k/r_{\rm obs})`).
+# - :func:`per_surface_centred_angular_assembly` uses
+#   :func:`surface_centred_angular_quadrature` (chord-quadratic kink
+#   subdivision); used by the four legacy cylinder
+#   :math:`G_{\rm bc}^{\rm cyl}` :math:`\mathrm{Ki}_1/d` branches.
+#
+# A consumer's per-node callable receives ``(r_i, cos_om, ang_factor,
+# q)`` and returns a 1-D ndarray of length ``len(q)`` — the integrand
+# values to be summed against ``q.wts``. This signature lets the
+# callable do its own per-node loop (for kernels that don't vectorise
+# over ``cos_om`` because they call `geometry.optical_depth_along_ray`
+# or `mpmath` per node) while still sharing the surrounding structure.
+
+def per_observer_angular_assembly(
+    geometry: "CurvilinearGeometry",
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    n_per_panel: int,
+    *,
+    integrand_at_node: Callable[
+        [float, np.ndarray, np.ndarray, "Quadrature1D"], np.ndarray,
+    ],
+    prefactor: float = 1.0,
+    angular_range: tuple[float, float] | None = None,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Driver for observer-centred angular-sweep primitives.
+
+    For each radial node :math:`r_i` in ``r_nodes``:
+
+    1. Build the kink-aware quadrature
+       :math:`q = \mathrm{observer\_angular\_quadrature}(r_i, \omega_{\min},
+       \omega_{\max}, \mathrm{radii}, n_{\rm per\_panel}, dps)`.
+    2. Compute ``cos_om = geometry.ray_direction_cosine(q.pts)`` and
+       ``ang_factor = geometry.angular_weight(q.pts)``.
+    3. Build the integrand values at the quadrature nodes via
+       ``integrand_arr = integrand_at_node(r_i, cos_om, ang_factor, q)``.
+    4. Reduce to a scalar via
+       ``prefactor * q.integrate_array(integrand_arr)``.
+
+    Returns the per-observer scalar in an array of shape
+    ``(len(r_nodes),)``.
+
+    Parameters
+    ----------
+    geometry
+        :class:`CurvilinearGeometry` for ``ray_direction_cosine``,
+        ``angular_weight``, and ``angular_range``.
+    r_nodes
+        Radial collocation nodes for the observer.
+    radii
+        Outer shell radii — passed to the recipe for tangent-angle
+        subdivision.
+    n_per_panel
+        Plain Gauss-Legendre nodes per sub-panel of the kink-subdivided
+        rule.
+    integrand_at_node
+        Callable ``(r_i, cos_om, ang_factor, q) -> ndarray`` returning
+        the per-node integrand values to be summed against ``q.wts``.
+        Caller is responsible for any per-node loop, vectorisation, or
+        ``np.fromiter`` pattern. The returned array must have the same
+        shape as ``cos_om`` (which is ``(len(q),)``).
+    prefactor
+        Constant multiplier on the per-observer integral. Default ``1.0``;
+        most consumers pass :attr:`CurvilinearGeometry.prefactor`.
+    angular_range
+        ``(omega_low, omega_high)`` integration interval. Default
+        ``geometry.angular_range`` — the standard
+        :math:`[0, \pi]` for sphere/cylinder, scoped to the per-face
+        hemisphere by the consumer when needed.
+    dps
+        mpmath working precision for the underlying GL nodes.
+
+    Returns
+    -------
+    np.ndarray, shape ``(len(r_nodes),)``
+        The per-observer scalar integral.
+    """
+    if angular_range is None:
+        omega_low, omega_high = geometry.angular_range
+    else:
+        omega_low, omega_high = angular_range
+
+    def _per_obs(r_i: float) -> float:
+        q = observer_angular_quadrature(
+            r_obs=r_i, omega_low=omega_low, omega_high=omega_high,
+            radii=radii, n_per_panel=n_per_panel, dps=dps,
+        )
+        cos_om = geometry.ray_direction_cosine(q.pts)
+        ang_factor = geometry.angular_weight(q.pts)
+        integrand_arr = integrand_at_node(r_i, cos_om, ang_factor, q)
+        return prefactor * q.integrate_array(integrand_arr)
+
+    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+
+
+def per_surface_centred_angular_assembly(
+    geometry: "CurvilinearGeometry",
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    r_surface: float,
+    n_per_panel: int,
+    *,
+    integrand_at_node: Callable[
+        [float, np.ndarray, "Quadrature1D"], np.ndarray,
+    ],
+    prefactor: float = 1.0,
+    phi_low: float = 0.0,
+    phi_high: float = np.pi,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Driver for surface-centred angular-sweep primitives.
+
+    Sibling of :func:`per_observer_angular_assembly` for the four
+    legacy cylinder :math:`G_{\rm bc}^{\rm cyl}` :math:`\mathrm{Ki}_1/d`
+    branches that consume :func:`surface_centred_angular_quadrature`.
+    The recipe takes a chord from observer at :math:`r_i` to surface
+    point on :math:`r_{\rm surface}` (outer or inner cylindrical
+    surface), with kink-aware subdivision at the chord-quadratic
+    tangent angles.
+
+    Parameters
+    ----------
+    geometry, r_nodes, radii, n_per_panel, prefactor, dps
+        See :func:`per_observer_angular_assembly`.
+    r_surface
+        Radius of the cylindrical surface the chord terminates on.
+        Outer-surface case: ``r_surface = R = radii[-1]``. Inner-surface
+        case (``compute_G_bc_inner`` cylinder): ``r_surface =
+        geometry.inner_radius``.
+    integrand_at_node
+        Callable ``(r_i, cos_phi, q) -> ndarray`` returning the per-node
+        integrand values. **Note**: this driver does NOT pass
+        ``ang_factor`` because the surface-centred form has no
+        ``angular_weight`` polymorphism — the cylinder
+        :math:`G_{\rm bc}^{\rm cyl}` integrand is
+        :math:`\mathrm{Ki}_1(\tau)/d` with no per-geometry weight.
+    phi_low, phi_high
+        Integration interval for :math:`\phi`. Default :math:`[0, \pi]`.
+    """
+    def _per_obs(r_i: float) -> float:
+        q = surface_centred_angular_quadrature(
+            r_obs=r_i, r_surface=r_surface,
+            radii=radii, n_per_panel=n_per_panel,
+            phi_low=phi_low, phi_high=phi_high, dps=dps,
+        )
+        cos_phi = np.cos(q.pts)
+        integrand_arr = integrand_at_node(r_i, cos_phi, q)
+        return prefactor * q.integrate_array(integrand_arr)
+
+    return np.array([_per_obs(float(r_i)) for r_i in r_nodes])
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Unified white-BC rank-1 closure
+# ═══════════════════════════════════════════════════════════════════════
+
+def compute_P_esc(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_angular: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Uncollided escape probability :math:`P_{\rm esc}(r_i)` via
+
+    .. math::
+
+       P_{\rm esc}(r_i)
+         = \frac{1}{S_d^{\rm reduced}}\,\int_0^\pi W_\Omega(\Omega)\,
+           K_{\rm esc}\!\bigl(\tau(r_i,\rho_{\max}(r_i,\Omega),\Omega)\bigr)\,
+           \mathrm d\Omega
+
+    where :math:`K_{\rm esc}` is :meth:`CurvilinearGeometry.escape_kernel_mp`
+    and the leading factor is :attr:`CurvilinearGeometry.prefactor`
+    (which already absorbs the azimuthal fold).
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    if geometry.kind == "slab-polar":
+        # Slab (homogeneous OR multi-region): closed-form sum of the two
+        # face escape probabilities
+        #
+        #     P_esc_slab(x_i) = ½ E_2(τ_inner(x_i)) + ½ E_2(τ_outer(x_i))
+        #
+        # where τ_{inner,outer}(x_i) is the piecewise-integrated optical
+        # depth from x_i to the corresponding face. The µ-integral is
+        # closed-form because τ is µ-independent when σ_t(x) is
+        # piecewise-constant. This matches the per-face primitives
+        # compute_P_esc_outer + compute_P_esc_inner bit-exactly and
+        # fixes the multi-region fallthrough to finite-N GL that was
+        # the Issue #131 signature in the legacy single-surface
+        # aggregate (L131a consolidation).
+        N = len(r_nodes)
+        P_esc = np.zeros(N)
+        for i in range(N):
+            x_i = float(r_nodes[i])
+            tau_inner = _slab_tau_to_inner_face(x_i, radii, sig_t)
+            tau_outer = _slab_tau_to_outer_face(x_i, radii, sig_t)
+            P_esc[i] = 0.5 * (_slab_E2(tau_inner) + _slab_E2(tau_outer))
+        return P_esc
+
+    # Q3/refactor #1: observer-centred ω-sweep via the
+    # `per_observer_angular_assembly` driver. For multi-region cells the
+    # integrand has √(ω - ω_k) derivative singularities at the tangent
+    # angles ω_k = arcsin(r_k/r_obs); the recipe subdivides at the {ω_k}
+    # (per observer) for spectral convergence on each smooth sub-panel.
+    def _integrand(r_i, cos_om, ang_factor, q):
+        rho_max_arr = np.fromiter(
+            (float(geometry.rho_max(r_i, c, R)) for c in cos_om),
+            dtype=float, count=len(q),
+        )
+        K_esc_arr = np.fromiter(
+            (
+                float(geometry.escape_kernel_mp(
+                    float(geometry.optical_depth_along_ray(
+                        r_i, c, rho, radii, sig_t,
+                    )), dps,
+                )) if rho > 0.0 else 0.0
+                for c, rho in zip(cos_om, rho_max_arr)
+            ),
+            dtype=float, count=len(q),
+        )
+        return ang_factor * K_esc_arr
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
+
+
+def compute_G_bc(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Surface-to-volume Green's function :math:`G_{\rm bc}(r_i)` for
+    unit uniform isotropic-inward re-entry.
+
+    Geometry-specific integral:
+
+    - **Cylinder:** :math:`G_{\rm bc}(r_i) = (2R/\pi)\!\int_0^\pi
+      \mathrm{Ki}_1(\tau_{\rm surf}(r_i,\phi))/d(r_i,R,\phi)\,
+      \mathrm d\phi` where :math:`d = \sqrt{r_i^2 + R^2 - 2 r_i R
+      \cos\phi}`.
+
+    - **Sphere:**  :math:`G_{\rm bc}(r_i) = 2\!\int_0^\pi \sin\theta\,
+      e^{-\tau(r_i,\rho_{\max}(r_i,\theta))}\,\mathrm d\theta`.
+
+      Observer-centred ray parametrisation. For a uniform isotropic
+      inward partial current :math:`J^{-}` on the sphere, the
+      angular flux inside is :math:`\psi_{\rm in} = J^{-}/\pi` (since
+      :math:`J^{-} = \pi\,\psi_{\rm in}` for an isotropic inward
+      hemisphere). The scalar flux at observer :math:`r_i` is
+      :math:`\psi_{\rm in}\,\int_{4\pi}e^{-\tau}\,\mathrm d\Omega
+      = (J^{-}/\pi)\,\cdot 2\pi\,\int_0^\pi\sin\theta\,e^{-\tau}\,
+      \mathrm d\theta`, dividing by :math:`J^{-}` gives the
+      prefactor :math:`2`. No Jacobian :math:`1/d^{2}` appears
+      because we integrate over *directions at the observer* rather
+      than *area on the surface* (the two forms are equivalent via a
+      change of variables; the observer form avoids the
+      :math:`\cos\theta'` Lambertian weight).
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    N = len(r_nodes)
+    G_bc = np.zeros(N)
+
+    if geometry.kind == "slab-polar":
+        # Slab (homogeneous OR multi-region): the scalar flux at
+        # interior x_i from UNIT uniform isotropic inward partial
+        # currents at *each* face is
+        #
+        #   G_bc_slab(x_i) = 2·[E_2(τ_inner(x_i)) + E_2(τ_outer(x_i))]
+        #
+        # with τ_{inner,outer}(x_i) the piecewise-integrated optical
+        # depth from x_i to the corresponding face. Closed-form for any
+        # piecewise-constant σ_t because the µ-integral factors out of
+        # τ. Matches compute_G_bc_outer + compute_G_bc_inner bit-exactly
+        # and fixes the Issue #131 multi-region fallthrough to
+        # finite-N GL in the legacy single-surface aggregate
+        # (L131a consolidation).
+        for i in range(N):
+            x_i = float(r_nodes[i])
+            tau_inner = _slab_tau_to_inner_face(x_i, radii, sig_t)
+            tau_outer = _slab_tau_to_outer_face(x_i, radii, sig_t)
+            G_bc[i] = 2.0 * (_slab_E2(tau_inner) + _slab_E2(tau_outer))
+        return G_bc
+
+    if geometry.kind == "sphere-1d":
+        # Q3/refactor #1: observer-centred ω-sweep, driver-routed.
+        def _tau_at(r_i: float, cos_th: float) -> float:
+            rho = float(geometry.rho_max(r_i, cos_th, R))
+            if rho <= 0.0:
+                return np.inf  # exp(-∞) = 0 — masks no-ray case
+            if len(radii) == 1:
+                return float(sig_t[0]) * rho
+            return float(geometry.optical_depth_along_ray(
+                r_i, cos_th, rho, radii, sig_t,
+            ))
+
+        def _sphere_integrand(r_i, cos_om, ang_factor, q):
+            tau_arr = np.fromiter(
+                (_tau_at(r_i, float(c)) for c in cos_om),
+                dtype=float, count=len(q),
+            )
+            return ang_factor * np.exp(-tau_arr)
+
+        return per_observer_angular_assembly(
+            geometry, r_nodes, radii, n_surf_quad,
+            integrand_at_node=_sphere_integrand,
+            prefactor=2.0, dps=dps,
+        )
+
+    # Cylinder: surface-centred Ki_1/d kernel via the
+    # `per_surface_centred_angular_assembly` driver. Q-L3 already routed
+    # this through the recipe; refactor #1 collapses the `_per_obs`
+    # boilerplate.
+    def _per_node_kernel(r_i: float, cf: float) -> float:
+        d_sq = r_i * r_i + R * R - 2.0 * r_i * R * cf
+        d = float(np.sqrt(max(d_sq, 0.0)))
+        if d <= 0.0:
+            return 0.0
+        if len(radii) == 1:
+            tau = float(sig_t[0]) * d
+        else:
+            cb = (R * cf - r_i) / d
+            tau = float(geometry.optical_depth_along_ray(
+                r_i, cb, d, radii, sig_t,
+            ))
+        ki1 = float(ki_n_mp(1, tau, dps))
+        return ki1 / d
+
+    def _cyl_integrand(r_i, cos_phi, q):
+        return np.fromiter(
+            (_per_node_kernel(r_i, float(c)) for c in cos_phi),
+            dtype=float, count=len(q),
+        )
+
+    return per_surface_centred_angular_assembly(
+        geometry, r_nodes, radii, r_surface=R, n_per_panel=n_surf_quad,
+        integrand_at_node=_cyl_integrand,
+        prefactor=2.0 * R / np.pi, dps=dps,
+    )
+
+
+def compute_G_bc_cylinder_3d(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""3-D-corrected surface-to-volume Green's function for cylinder
+    white BC (Issue #112 Phase C).
+
+    Correct observer-centric form:
+
+    .. math::
+        :label: peierls-cyl-Gbc-3d
+
+        G_{\rm bc}^{\rm cyl}(r) =
+            \frac{4}{\pi}\!\int_0^\pi
+                \mathrm{Ki}_2\!\bigl(\Sigma_t\,d_{\rm 2D}(r, \psi)\bigr)\,d\psi
+
+    where :math:`d_{\rm 2D}(r, \psi) = -r\cos\psi + \sqrt{R^2 - r^2\sin^2\psi}`
+    is the in-plane backward chord from interior point :math:`r` in observer
+    direction :math:`\psi` (measured from the outward radial). The
+    :math:`\mathrm{Ki}_2` arises from analytical integration over the polar
+    angle :math:`\theta_p` from the cylinder axis (with the
+    :math:`\sin^2\theta_p` Jacobian — Knyazev 1993 :math:`\mathrm{Ki}_{2+k}`
+    expansion at :math:`k = 0`).
+
+    Compare to the EXISTING ``compute_G_bc`` cylinder branch which uses a
+    surface-centric ``Ki_1(τ)/d`` form lacking the Lambertian projection
+    factor :math:`(R - r\cos\phi)/d`. The current form **under-estimates by
+    25-50 %** at thin cells (verified by row-sum probe :math:`K\cdot 1/\Sigma_t`
+    going from 0.89 to 0.9996 when this corrected form replaces the
+    current). Used by ``boundary="white_hebert"`` for cylinder; the legacy
+    ``compute_G_bc`` is preserved for backward compatibility with the
+    existing rank-1 Mark closure tests.
+
+    Multi-region: the in-plane chord :math:`d_{\rm 2D}` is integrated
+    piecewise via :meth:`CurvilinearGeometry.optical_depth_along_ray`
+    (which already handles the ψ-direction multi-region τ accumulation
+    for the in-plane chord traversal across annular boundaries).
+
+    Reference: derived in
+    :mod:`orpheus.derivations.continuous.peierls.origins.cylinder_g_bc_3d`; the math-origin
+    contract is pinned by
+    ``tests/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py``.
+    """
+    if geometry.kind != "cylinder-1d":
+        raise ValueError(
+            f"compute_G_bc_cylinder_3d requires kind='cylinder-1d'; "
+            f"got {geometry.kind!r}. Use compute_G_bc for sphere/slab."
+        )
+
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    # Q3/refactor #1: observer-centred ψ-sweep — driver-routed.
+    # The chord d_2D has impact parameter |r_obs sin ψ|, so the kink
+    # structure matches `observer_angular_quadrature` exactly.
+    def _tau_2d_at(r_i: float, cos_psi: float, d_2d: float) -> float:
+        if len(radii) == 1:
+            return float(sig_t[0]) * d_2d
+        return float(geometry.optical_depth_along_ray(
+            r_i, -cos_psi, d_2d, radii, sig_t,
+        ))
+
+    def _integrand(r_i, cos_om, ang_factor, q):
+        # NOTE: cos_om = cos(ψ); ang_factor = sin ψ from
+        # geometry.angular_weight, but the cylinder-3D form does NOT
+        # include the ang_factor (the analytical Ki_2 expansion
+        # already absorbed the polar Jacobian — the `dψ` integration
+        # is unweighted).
+        cp = cos_om
+        sp = np.sin(q.pts)
+        disc = np.maximum(R * R - r_i * r_i * sp * sp, 0.0)
+        d_2d = -r_i * cp + np.sqrt(disc)
+        return np.fromiter(
+            (
+                float(ki_n_mp(2, _tau_2d_at(r_i, float(c), float(d)), dps))
+                if d > 0.0 else 0.0
+                for c, d in zip(cp, d_2d)
+            ),
+            dtype=float, count=len(q),
+        )
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=4.0 / np.pi, dps=dps,
+    )
+
+
+def _knyazev_integrand_at_node(
+    r_i: float,
+    cos_om: np.ndarray,
+    q: "Quadrature1D",
+    *,
+    R: float,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    coefs: tuple[float, ...],
+    dps: int,
+    geometry: "CurvilinearGeometry",
+    direction_sign: int,
+) -> np.ndarray:
+    r"""Knyazev cylinder-3D mode per-node integrand
+    :math:`\sum_k c_k\,\mu_{2D}^{k}\,\mathrm{Ki}_{k+2}(\tau_{2D})`.
+
+    Used by :func:`compute_P_esc_cylinder_3d_mode` (``direction_sign=+1``,
+    outward) and :func:`compute_G_bc_cylinder_3d_mode`
+    (``direction_sign=-1``, backward) via the
+    :func:`per_observer_angular_assembly` driver — the only thing that
+    differs between the two consumers is the direction sign and the
+    consumer-side prefactor.
+    """
+    sp = np.sin(q.pts)
+    disc = np.maximum(R * R - r_i * r_i * sp * sp, 0.0)
+    d_2d = -r_i * cos_om + np.sqrt(disc)
+    valid = d_2d > 0.0
+
+    def _kernel(k: int) -> float:
+        if not valid[k]:
+            return 0.0
+        c, d = float(cos_om[k]), float(d_2d[k])
+        if len(radii) == 1:
+            tau = float(sig_t[0]) * d
+        else:
+            tau = float(geometry.optical_depth_along_ray(
+                r_i, direction_sign * c, d, radii, sig_t,
+            ))
+        mu_2d = (r_i * c + d) / R
+        return sum(
+            c_k * (mu_2d ** k_p) * float(ki_n_mp(k_p + 2, tau, dps))
+            for k_p, c_k in enumerate(coefs) if c_k != 0.0
+        )
+
+    return np.fromiter(
+        (_kernel(k) for k in range(len(q))),
+        dtype=float, count=len(q),
+    )
+
+
+def _p_esc_sphere_solid_mode(
+    geometry: "CurvilinearGeometry",
+    r_i: float,
+    R: float,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    omega_low: float,
+    omega_high: float,
+    n_angular: int,
+    dps: int,
+) -> float:
+    r"""Mark-Lambert mode-:math:`n` outgoing moment at the outer
+    surface for **solid sphere** (no inner-shell skip).
+
+    Returns the un-prefactored integral (caller multiplies by
+    :attr:`CurvilinearGeometry.prefactor`):
+
+    .. math::
+
+       \int_{\omega_{\rm low}}^{\omega_{\rm high}}
+            W_\Omega(\omega)\,\tilde P_n(\mu_{\rm exit})\,
+            K_{\rm esc}(\tau)\,\mathrm d\omega,
+
+    with :math:`\mu_{\rm exit} = (\rho_{\max} + r_i\cos\omega)/R`.
+
+    This is the solid-sphere analog of
+    :func:`compute_P_esc_outer_mode` (which is hollow-only by
+    design — the latter applies the Phase F.4 Model-A skip on rays
+    that hit the inner shell first; here there is no inner shell).
+    Used by the multi-bounce specular sphere assembly and by the
+    rank-N specular sphere assembly (both solid-only). Routes through
+    :func:`observer_angular_quadrature` for kink-aware subdivision in
+    multi-region cells.
+    """
+    q = observer_angular_quadrature(
+        r_obs=r_i, omega_low=omega_low, omega_high=omega_high,
+        radii=radii, n_per_panel=n_angular, dps=dps,
+    )
+    cos_om = geometry.ray_direction_cosine(q.pts)
+    ang_factor = geometry.angular_weight(q.pts)
+
+    def _eval(c: float) -> tuple[float, float]:
+        rho_max = float(geometry.rho_max(r_i, c, R))
+        if rho_max <= 0.0:
+            return 0.0, 0.0
+        tau = float(geometry.optical_depth_along_ray(
+            r_i, c, rho_max, radii, sig_t,
+        ))
+        mu_exit = (rho_max + r_i * c) / R
+        return float(geometry.escape_kernel_mp(tau, dps)), mu_exit
+
+    ev = [_eval(float(c)) for c in cos_om]
+    K_esc = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
+    mu_exit = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
+    p_tilde = _shifted_legendre_eval(n_mode, mu_exit)
+    return q.integrate_array(ang_factor * p_tilde * K_esc)
+
+
+def compute_P_esc_cylinder_3d_mode(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    *,
+    n_angular: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""3-D-corrected mode-:math:`n` outgoing partial-current moment for
+    cylinder (Knyazev :math:`\mathrm{Ki}_{2+k}` expansion).
+
+    .. math::
+       :label: peierls-cyl-Pesc-3d-mode
+
+       P_{\rm esc}^{(n,3d)}(r_i) \;=\; \frac{1}{\pi}\!\int_0^\pi
+            \sum_{k=0}^{n} c_n^k\,\mu_{\rm 2D}(\omega)^k\,
+            \mathrm{Ki}_{k+2}\!\bigl(\tau_{\rm 2D}(\omega)\bigr)\,
+            \mathrm d\omega
+
+    where :math:`c_n^k` are the monomial coefficients of
+    :math:`\tilde P_n(\mu) = \sum_k c_n^k \mu^k`,
+    :math:`\mu_{\rm 2D}(\omega) = (r_i\cos\omega + d_{\rm 2D})/R` is
+    the in-plane direction cosine at the surface exit, and
+    :math:`d_{\rm 2D}(\omega) = -r_i\cos\omega + \sqrt{R^2 - r_i^2
+    \sin^2\omega}` is the in-plane chord.
+
+    Why this primitive (and not :func:`compute_P_esc_mode`):
+    :func:`compute_P_esc_mode` evaluates :math:`\tilde P_n` at the
+    in-plane :math:`\mu_{\rm 2D}` and uses :math:`\mathrm{Ki}_2(\tau)`
+    for the polar absorption — but the polar :math:`\mathrm{Ki}_2`
+    absorption is only consistent at :math:`n = 0` (where
+    :math:`\tilde P_0 \equiv 1` so the polar integral is trivially
+    :math:`\mathrm{Ki}_2`). For :math:`n \ge 1` the 3-D direction
+    cosine is :math:`\mu_{\rm 3D} = \sin\theta_p\,\mu_{\rm 2D}`, and
+    the polar integral expands into the Knyazev :math:`\mathrm{Ki}_{2+k}`
+    series.
+
+    For :math:`n = 0`: :math:`c_0^0 = 1`, only the :math:`k = 0` term
+    survives, and this reduces exactly to :func:`compute_P_esc`
+    (cylinder branch). Used by ``boundary="specular"`` for cylinder.
+
+    See :mod:`orpheus.derivations.continuous.peierls.origins.cylinder_knyazev` for the
+    SymPy derivation; the math-origin contract is pinned by
+    ``tests/derivations/test_peierls_cylinder_knyazev_symbolic.py``.
+    """
+    if geometry.kind != "cylinder-1d":
+        raise ValueError(
+            f"compute_P_esc_cylinder_3d_mode requires kind='cylinder-1d'; "
+            f"got {geometry.kind!r}."
+        )
+
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    coefs = _shifted_legendre_monomial_coefs(n_mode)
+
+    def _integrand(r_i, cos_om, ang_factor, q):
+        return _knyazev_integrand_at_node(
+            r_i, cos_om, q,
+            R=R, radii=radii, sig_t=sig_t, coefs=coefs, dps=dps,
+            geometry=geometry, direction_sign=+1,
+        )
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=1.0 / np.pi, dps=dps,
+    )
+
+
+def compute_G_bc_cylinder_3d_mode(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    *,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""3-D-corrected mode-:math:`n` surface-to-volume Green's function
+    for cylinder (Knyazev :math:`\mathrm{Ki}_{2+k}` expansion).
+
+    .. math::
+       :label: peierls-cyl-Gbc-3d-mode
+
+       G_{\rm bc}^{(n,3d)}(r_i) \;=\; \frac{4}{\pi}\!\int_0^\pi
+            \sum_{k=0}^{n} c_n^k\,\mu_{\rm 2D}(\omega)^k\,
+            \mathrm{Ki}_{k+2}\!\bigl(\tau_{\rm 2D}(\omega)\bigr)\,
+            \mathrm d\omega.
+
+    Same kernel as :func:`compute_P_esc_cylinder_3d_mode`; differs only
+    by the prefactor :math:`(4/\pi)` vs :math:`(1/\pi)` — the
+    factor of 4 arises from the inward-distribution convention
+    :math:`\psi^{-}(\mu) = (b_n/\pi)\,\tilde P_n(\mu)` integrated over
+    the full inward 4π solid angle (see SymPy derivation in
+    :mod:`orpheus.derivations.continuous.peierls.origins.cylinder_knyazev`; pinned by
+    ``tests/derivations/test_peierls_cylinder_knyazev_symbolic.py``).
+
+    For :math:`n = 0`: :math:`c_0^0 = 1`, only the :math:`k = 0` term
+    survives, and this reduces exactly to
+    :func:`compute_G_bc_cylinder_3d`. Used by ``boundary="specular"``
+    for cylinder.
+    """
+    if geometry.kind != "cylinder-1d":
+        raise ValueError(
+            f"compute_G_bc_cylinder_3d_mode requires kind='cylinder-1d'; "
+            f"got {geometry.kind!r}."
+        )
+
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    coefs = _shifted_legendre_monomial_coefs(n_mode)
+
+    def _integrand(r_i, cos_om, ang_factor, q):
+        return _knyazev_integrand_at_node(
+            r_i, cos_om, q,
+            R=R, radii=radii, sig_t=sig_t, coefs=coefs, dps=dps,
+            geometry=geometry, direction_sign=-1,
+        )
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=4.0 / np.pi, dps=dps,
+    )
+
+
+def compute_P_ss_cylinder(
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    n_quad: int = 64,
+    dps: int = 25,
+) -> float:
+    r"""Surface-to-surface probability :math:`P_{ss}` for solid cylinder
+    with white BC.
+
+    Defined as the probability that a neutron entering the cylinder at
+    the lateral surface (uniform isotropic inward distribution
+    :math:`\psi^- = J^-/\pi`) exits the surface uncollided. For a
+    homogeneous cylinder of radius :math:`R` and total cross section
+    :math:`\Sigma_t`, after integrating analytically over the polar
+    angle :math:`\beta` from the cylinder axis (which produces a
+    Bickley-Naylor :math:`\mathrm{Ki}_3`):
+
+    .. math::
+        :label: peierls-cyl-Pss-homogeneous
+
+        P_{ss}^{\rm cyl}(\Sigma_t, R) =
+            \frac{4}{\pi}\!\int_0^{\pi/2}\cos\alpha\,
+                \mathrm{Ki}_3\!\bigl(2\Sigma_t R\cos\alpha\bigr)\,d\alpha
+
+    where :math:`\alpha` is the in-plane azimuthal offset from the
+    inward surface normal in the transverse plane. The :math:`2 R
+    \cos\alpha` factor is the in-plane chord length; the
+    :math:`\mathrm{Ki}_3` arises from the polar integration with the
+    :math:`\sin^2\beta` weight from the slanted-chord geometry.
+
+    Multi-region: chords cross annular boundaries at impact parameter
+    :math:`h = R\sin\alpha`; the in-plane chord becomes piecewise
+    :math:`\tau^{\rm 2D}(\alpha) = \sum_k \Sigma_{t,k}\ell_k^{\rm 2D}(\alpha)`
+    with the standard cylinder-shell intersection geometry, and
+    :math:`\mathrm{Ki}_3(\tau^{\rm 2D}(\alpha))` replaces
+    :math:`\mathrm{Ki}_3(2\Sigma_t R\cos\alpha)`.
+
+    See :func:`compute_P_ss_sphere` for the sphere analog. The
+    cylinder formula derives in
+    ``derivations/diagnostics/diag_cylinder_hebert_pss.py``; verified
+    to <5e-3 against an independent Monte Carlo estimate.
+
+    Parameters
+    ----------
+    radii
+        Outer radii per region, ascending. Shape ``(n_regions,)``.
+    sig_t
+        Total cross section per region for the current group. Shape
+        ``(n_regions,)``.
+    n_quad
+        Gauss-Legendre order on :math:`\alpha`. Default 64 — converged
+        to ~1e-10 for typical cylinder R/MFP ranges.
+    dps
+        mpmath working precision for the inner :math:`\mathrm{Ki}_3`
+        evaluations.
+
+    Returns
+    -------
+    float
+        :math:`P_{ss}^{\rm cyl}` value in :math:`[0, 1]`.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    # Q2 of the quadrature-architecture rollout (commit b281a97):
+    # rewrite in impact-parameter h ∈ [0, R] coordinates via h = R·sin α,
+    # dα = dh/√(R²-h²), cos α = √(R²-h²)/R.  The integrand collapses:
+    #
+    #     P_ss^cyl = (4/π) ∫_0^{π/2} cos α · Ki_3(τ_2D(α)) dα
+    #              = (4/(πR)) ∫_0^R Ki_3(τ_2D(h)) dh
+    #
+    # h-space lets `chord_quadrature` (with vis-cone subdivision at the
+    # interior shell radii r_k) handle the τ-derivative singularities at
+    # every shell crossing — spectral on every panel — and lets the τ
+    # build collapse to one matrix-vector product through
+    # `chord_half_lengths`.
+    q = chord_quadrature(radii, n_quad)
+    chords = 2.0 * chord_half_lengths(radii, q.pts)  # full antipodal chord
+    tau_2d = sig_t @ chords  # vectorised shell-sum
+    Ki = np.fromiter(
+        (ki_n_mp(3, float(t), dps) for t in tau_2d),
+        dtype=float, count=len(q),
+    )
+    return float(4.0 / (np.pi * R) * q.integrate_array(Ki))
+
+
+def compute_P_ss_sphere(
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    n_quad: int = 64,
+    dps: int = 25,
+) -> float:
+    r"""Surface-to-surface probability :math:`P_{ss}` for solid sphere
+    with white BC.
+
+    Defined as the probability that a neutron entering the cell at the
+    surface (uniform isotropic inward distribution :math:`\psi^- =
+    J^-/\pi`) exits the surface uncollided. For a homogeneous sphere
+    of radius :math:`R` and total cross section :math:`\Sigma_t`:
+
+    .. math::
+        :label: peierls-sphere-Pss-homogeneous
+
+        P_{ss}(\Sigma_t, R) = 2\int_0^{\pi/2}\cos\theta'\,\sin\theta'\,
+                               e^{-2\Sigma_t R\cos\theta'}\,d\theta'
+                            = \frac{1 - (1 + 2\tau_R)\,e^{-2\tau_R}}
+                                   {2\,\tau_R^{\,2}}
+
+    with :math:`\tau_R = \Sigma_t R`. The :math:`\cos\theta'` weight is
+    the µ-weight that converts angular flux to partial current; the
+    :math:`2\Sigma_t R\cos\theta'` argument is the chord optical depth
+    from a surface point in direction :math:`\theta'` from the inward
+    normal to the opposite surface point.
+
+    For a multi-region sphere with piecewise-constant
+    :math:`\Sigma_t(r)`, the chord traverses annular regions in a
+    known sequence determined by the impact parameter :math:`h = R
+    \sin\theta'`, and the optical depth is
+
+    .. math::
+
+        \tau(\theta') = \sum_k \Sigma_{t,k} \cdot \ell_k(\theta')
+
+    with chord-segment :math:`\ell_k(\theta')` in annulus :math:`k`
+    given by the standard sphere-shell intersection geometry:
+
+    .. math::
+
+        \ell_k(\theta') = 2 \cdot \bigl(
+            \sqrt{r_{k,\rm out}^{\,2} - h^2} \cdot
+            \mathbb{1}_{[h < r_{k,\rm out}]}
+            -
+            \sqrt{r_{k,\rm in}^{\,2} - h^2} \cdot
+            \mathbb{1}_{[h < r_{k,\rm in}]}
+        \bigr)
+
+    The integral is evaluated via Gauss-Legendre on
+    :math:`\theta' \in [0, \pi/2]`.
+
+    See :func:`build_white_hebert_correction` for usage in the
+    Hébert (2009) §3.8.5 Eq. (3.323) closure.
+
+    Parameters
+    ----------
+    radii
+        Outer radii per region, ascending. Shape ``(n_regions,)``.
+    sig_t
+        Total cross section per region for the current group. Shape
+        ``(n_regions,)``.
+    n_quad
+        Gauss-Legendre order on :math:`\theta'`. Default 64 — converged
+        to ~1e-10 for typical sphere R/MFP ranges.
+    dps
+        mpmath working precision for the chord/exp products (currently
+        unused — float64 evaluation is sufficient at n_quad=64).
+
+    Returns
+    -------
+    float
+        :math:`P_{ss}` value in :math:`[0, 1]`. Larger for thin cells
+        (most surface neutrons transit), smaller for thick cells.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    # Q2 of the quadrature-architecture rollout (commit b281a97):
+    # rewrite in impact-parameter h ∈ [0, R] coordinates via the chain
+    #
+    #     P_ss = 2 ∫_0^{π/2} cos θ' sin θ' e^{-τ(θ')} dθ'
+    #          = 2 ∫_0^1 µ e^{-τ(µ)} dµ        (µ = cos θ')
+    #          = (2/R²) ∫_0^R h e^{-τ(h)} dh   (µ = √(1 - h²/R²))
+    #
+    # The h-form pairs with `chord_quadrature` (vis-cone subdivision
+    # at the interior shell radii) and `chord_half_lengths` (full
+    # antipodal chord per annulus); the integrand h·e^{-τ(h)} is then
+    # spectral on every panel.  The algebraic identity
+    # T_00^sphere = P_ss^sphere is now bit-equal at every Q because
+    # `compute_T_specular_sphere` shares this same h-space integral.
+    q = chord_quadrature(radii, n_quad)
+    chords = 2.0 * chord_half_lengths(radii, q.pts)  # full antipodal chord
+    tau = sig_t @ chords
+    integrand = q.pts * np.exp(-tau)
+    return float(2.0 / (R * R) * q.integrate_array(integrand))
+
+
+def compute_T_specular_sphere(
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_modes: int,
+    *,
+    n_quad: int = 64,
+) -> np.ndarray:
+    r"""Surface-to-surface partial-current **transfer matrix** for the
+    sphere specular BC, used by the multi-bounce-corrected closure.
+
+    .. math::
+       :label: peierls-sphere-T-specular
+
+       T_{mn} \;=\; 2\!\int_0^1 \mu\,\tilde P_m(\mu)\,\tilde P_n(\mu)\,
+                      e^{-\tau(\mu)}\,\mathrm d\mu
+
+    where :math:`\tau(\mu)` is the multi-region optical depth along the
+    chord from the surface in direction :math:`\mu` (cosine with the
+    inward normal at the emission point) through the cell to the
+    antipodal exit point. The chord parameters are:
+
+    - chord length :math:`= 2R\mu`
+    - impact parameter :math:`h = R\sqrt{1 - \mu^2}`
+    - multi-region :math:`\tau(\mu) = \sum_k \Sigma_{t,k}\,\ell_k(\mu)`
+      with :math:`\ell_k` the chord segment in annulus :math:`k` per the
+      standard sphere-shell intersection geometry (same as in
+      :func:`compute_P_ss_sphere`).
+
+    **Use**. Combined with :func:`reflection_specular` (= :math:`R`),
+    the matrix :math:`T` enables the **multi-bounce correction** to
+    rank-:math:`N` specular:
+
+    .. math::
+
+       K_{\rm bc}^{\rm spec,mb} \;=\; G \cdot R \cdot
+                                       (I - T\,R)^{-1} \cdot P
+
+    The inverse :math:`(I - T R)^{-1}` is the rank-:math:`N` analog of
+    Hébert's :math:`(1 - P_{ss})^{-1}` factor — it sums the geometric
+    series of partial-current contributions that successively bounce
+    between the surface and the cell interior.
+
+    **Rank-1 reduction**. At :math:`n_{\rm modes} = 1`,
+    :math:`T_{00} = P_{ss}` exactly (algebraic identity), so the
+    multi-bounce specular reduces to Hébert's :math:`(1-P_{ss})^{-1}`
+    white BC. Beyond rank-1, :math:`T` carries the off-diagonal
+    couplings that capture the non-isotropic surface re-emergence.
+
+    **Fundamental matrix-Galerkin divergence at high :math:`N`**. The
+    multi-bounce closure overshoots :math:`k_\infty` for :math:`N \ge 4`
+    on thin sphere even when rank-1 / 2 / 3 were excellent. The root
+    cause is **structural, not numerical**:
+
+    - In continuous-:math:`\mu` space, :math:`T \cdot R` is multiplication
+      by :math:`e^{-\sigma\,2R\mu}` (spectrum on :math:`(e^{-2\sigma R}, 1]`)
+      and :math:`(I - T R)^{-1}` is multiplication by
+      :math:`1/(1 - e^{-\sigma\,2R\mu})`, which **diverges at
+      :math:`\mu = 0`** (grazing rays — chord :math:`2R\mu \to 0`,
+      transmission :math:`\to 1`, so the geometric sum of bounces does
+      not terminate).
+    - The continuous-:math:`\mu` integral form of :math:`K_{\rm bc}^{\rm
+      mb}` carries an additional :math:`\mu`-weight that **cancels this
+      singularity** (:math:`\mu / (1 - e^{-2\sigma R\mu}) \to 1/(2\sigma R)`,
+      finite). MC ground truth gives :math:`k_{\rm eff} = k_\infty` at
+      homogeneous specular sphere (verified by `diag_specular_overshoot_05`).
+    - But the **matrix-Galerkin projection** distributes the
+      :math:`\mu`-weight across :math:`P, T, G` separately and the
+      matrix inverse :math:`(I - T R)^{-1}` does not preserve the
+      cancellation. As :math:`N` grows the basis resolves grazing
+      modes more sharply, exposing the divergence:
+      :math:`\| (I - T R)^{-1} \|_2` at thin :math:`\tau_R = 2.5` grows
+      from :math:`1.08` (:math:`N=1`) to :math:`53.9` (:math:`N=25`) —
+      **unbounded**.
+
+    **Recommended use is** :math:`N \in \{1, 2, 3\}` for thin cells
+    (:math:`\tau_R \lesssim 5`); for thicker cells use plain
+    ``boundary="specular"`` at higher :math:`N`. A ``UserWarning`` is
+    emitted at :math:`N \ge 4`. The proper fix (Phase 5) is a
+    continuous-:math:`\mu` reformulation that bypasses the matrix
+    inversion entirely — see ``.claude/agent-memory/numerics-investigator/
+    specular_mb_overshoot_root_cause.md`` for the operator-norm proof
+    and the Phase 5 sketch.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    # Q2 of the quadrature-architecture rollout (commit b281a97):
+    # rewrite in impact-parameter h ∈ [0, R] coordinates.  With
+    # µ = √(1 - h²/R²) the substitution gives
+    #
+    #     T_{mn} = 2 ∫_0^1 µ P̃_m(µ) P̃_n(µ) e^{-τ(µ)} dµ
+    #            = (2/R²) ∫_0^R h P̃_m(µ(h)) P̃_n(µ(h)) e^{-τ(h)} dh,
+    #
+    # so a single `chord_quadrature` (vis-cone subdivision at the
+    # interior shell radii r_k) handles the τ-derivative singularities
+    # spectrally, and the τ build collapses to one matrix-vector
+    # product through `chord_half_lengths`.  At rank-1 the integrand
+    # h·e^{-τ(h)} is bit-equal to the integrand of compute_P_ss_sphere
+    # ⇒ T_00 = P_ss algebraic identity holds at every Q.
+    q = chord_quadrature(radii, n_quad)
+    chords = 2.0 * chord_half_lengths(radii, q.pts)  # full antipodal chord
+    tau = sig_t @ chords
+    mu = np.sqrt(np.maximum(1.0 - (q.pts / R) ** 2, 0.0))
+    weighted = q.wts * q.pts * np.exp(-tau)  # h-space measure
+    P_eval = np.stack(
+        [_shifted_legendre_eval(m, mu) for m in range(n_modes)], axis=0,
+    )  # (n_modes, n_q)
+    # T_{mn} = (2/R²) Σ_q wts_q · h_q · e^{-τ_q} · P̃_m(µ_q) P̃_n(µ_q)
+    return (2.0 / (R * R)) * np.einsum("mq,nq,q->mn", P_eval, P_eval, weighted)
+
+
+def compute_T_specular_slab(
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_modes: int,
+    *,
+    n_quad: int = 64,
+) -> np.ndarray:
+    r"""Surface-to-surface partial-current **transfer matrix** for the
+    slab specular BC, used by the multi-bounce-corrected closure.
+
+    The slab has two faces (outer at :math:`x = L`, inner at
+    :math:`x = 0`), each carrying :math:`N` partial-current modes, so
+    the mode space is :math:`\mathbb R^{2N}` with the per-face block
+    decomposition used by ``closure="specular"`` for slab. A single
+    transit at constant direction crosses the slab from one face to
+    the other; the **self-blocks** :math:`T_{oo} = T_{ii} = 0` exactly
+    (a ray cannot leave outer face and return without an intermediate
+    reflection at inner face). The structure is therefore purely
+    block off-diagonal:
+
+    .. math::
+       :label: peierls-slab-T-specular
+
+       T_{\rm slab} \;=\; \begin{pmatrix} 0 & T_{oi} \\
+                                          T_{io} & 0
+                          \end{pmatrix}, \qquad
+       T_{io} \;=\; T_{oi}\ \text{(face symmetry, homogeneous)},
+
+    with
+
+    .. math::
+
+       T_{oi}^{(mn)} \;=\; 2\!\int_0^1\!\mu\,\tilde P_m(\mu)\,
+                              \tilde P_n(\mu)\,e^{-\tau_{\rm tot}/\mu}\,
+                              \mathrm d\mu
+
+    and :math:`\tau_{\rm tot} = \sum_k \Sigma_{t,k}\,L_k` the integrated
+    optical thickness (slab chord length is uniformly :math:`L/\mu`, so
+    multi-region :math:`\tau(\mu) = \tau_{\rm tot}/\mu`).
+
+    **Use**. Combined with :func:`reflection_specular` (= per-face
+    :math:`R_{\rm face}`) and the block-diagonal slab reflection
+    :math:`R_{\rm slab} = \operatorname{diag}(R_{\rm face}, R_{\rm face})`,
+    the multi-bounce-corrected slab specular closure is
+
+    .. math::
+
+       K_{\rm bc}^{\rm spec,mb,slab} \;=\;
+            G_{\rm slab}\,R_{\rm slab}\,
+            (I - T_{\rm slab}\,R_{\rm slab})^{-1}\,P_{\rm slab}.
+
+    **Rank-1 reduction**. At :math:`N = 1`, :math:`T_{oi}^{(0,0)} = 2
+    E_3(\tau_{\rm tot})` exactly (closed form by substitution
+    :math:`u = 1/\mu`). The block off-diagonal :math:`T_{\rm slab}`
+    yields :math:`(I - T \cdot R)^{-1}` with diagonal blocks
+    :math:`(I - T_{oi} R T_{io} R)^{-1}` and an extremely well-conditioned
+    inverse.
+
+    **No high-:math:`N` pathology**. Unlike sphere (where the
+    continuous-:math:`\mu` operator :math:`1/(1 - e^{-\sigma\,2R\mu})`
+    diverges at grazing :math:`\mu \to 0`) and unlike cylinder (where
+    :math:`R = (1/2) M^{-1}` is ill-conditioned at high :math:`N`),
+    the slab **chord** is :math:`L/\mu \to \infty` at grazing, so
+    :math:`e^{-\tau_{\rm tot}/\mu} \to 0` exponentially. The operator
+    :math:`T_{\rm op}^{\rm slab}(\mu) = e^{-\sigma L/\mu}` vanishes at
+    both endpoints :math:`\mu = 0, 1` and the spectral radius
+    :math:`\rho(T R) \le 0.08` across all :math:`N` at thin
+    :math:`\tau_L = 2.5`. The matrix-Galerkin (I - T R)^{-1}
+    **converges as** :math:`N \to \infty` for slab — the only geometry
+    where this is true.
+
+    See ``.claude/agent-memory/numerics-investigator/specular_mb_phase4_cyl_slab.md``
+    for the geometric-immunity derivation and the pinned regime sweep
+    over :math:`\tau_L \in [0.5, 10]`.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    region_lengths = np.diff(np.concatenate([[0.0], radii]))
+    tau_total = float(np.sum(sig_t * region_lengths))
+
+    # Half-range Gauss-Legendre on µ ∈ [0, 1] via the Quadrature1D
+    # contract. Issue #136: slab is plan-exempt from kink-aware
+    # subdivision (geometric immunity at µ→0 means plain GL is
+    # already spectral) but routes through the contract for module-
+    # wide consistency.
+    q = gauss_legendre(0.0, 1.0, n_quad)
+    mu = q.pts
+
+    # τ(µ) = τ_total / µ for slab (chord = L/µ uniformly).
+    decay = np.exp(-tau_total / mu)
+
+    T_oi = np.zeros((n_modes, n_modes))
+    for m in range(n_modes):
+        Pm = _shifted_legendre_eval(m, mu)
+        for n in range(n_modes):
+            Pn = _shifted_legendre_eval(n, mu)
+            T_oi[m, n] = 2.0 * q.integrate_array(mu * Pm * Pn * decay)
+
+    T = np.zeros((2 * n_modes, 2 * n_modes))
+    T[:n_modes, n_modes:] = T_oi
+    T[n_modes:, :n_modes] = T_oi  # T_io = T_oi by face symmetry
+    return T
+
+
+def compute_T_specular_cylinder_3d(
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_modes: int,
+    *,
+    n_quad: int = 64,
+) -> np.ndarray:
+    r"""Surface-to-surface partial-current **transfer matrix** for the
+    cylinder specular BC (Knyazev expansion), used by the multi-bounce-
+    corrected closure.
+
+    .. math::
+       :label: peierls-cyl-T-specular
+
+       T_{mn}^{\rm cyl} \;=\; \frac{4}{\pi}\!\int_0^{\pi/2}\!\cos\alpha\,
+            \sum_{k_m, k_n} c_m^{k_m}\,c_n^{k_n}\,
+            (\cos\alpha)^{k_m+k_n}\,
+            \mathrm{Ki}_{3+k_m+k_n}\!\bigl(\tau_{\rm 2D}(\alpha)\bigr)\,
+            \mathrm d\alpha
+
+    where :math:`c_n^k` are the monomial coefficients of
+    :math:`\tilde P_n(\mu)`, :math:`\alpha` is the in-plane angle
+    measured from the inward normal at the surface emission point, and
+    :math:`\tau_{\rm 2D}(\alpha)` is the multi-region optical depth
+    along the antipodal in-plane chord with impact parameter
+    :math:`h = R \sin\alpha` (same chord geometry as in
+    :func:`compute_P_ss_cylinder` / :func:`compute_P_esc_cylinder_3d_mode`).
+
+    The :math:`\mathrm{Ki}_{3+k_m+k_n}` order is **one higher** than
+    the :math:`\mathrm{Ki}_{2+k}` of the analogous P/G primitives —
+    because :math:`T` carries an additional :math:`\mu_{\rm 3D} =
+    \sin\theta_p \cos\alpha` factor for the partial-current weight on
+    top of the polar absorption already present in P/G.
+
+    **Use**. Combined with :func:`reflection_specular` (= :math:`R`),
+    the cylinder multi-bounce specular closure is
+
+    .. math::
+
+       K_{\rm bc}^{\rm spec,mb,cyl} \;=\; G^{\rm cyl}\,R\,
+                                   (I - T^{\rm cyl}\,R)^{-1}\,P^{\rm cyl}.
+
+    **Rank-1 reduction**. At :math:`m = n = 0` only the
+    :math:`k_m = k_n = 0` term survives; :math:`T_{00}^{\rm cyl} =
+    (4/\pi) \int_0^{\pi/2} \cos\alpha\,\mathrm{Ki}_3(\tau_{\rm 2D}(\alpha))\,
+    \mathrm d\alpha = P_{ss}^{\rm cyl}` exactly (the same kernel as
+    :func:`compute_P_ss_cylinder`). At rank-1 the multi-bounce closure
+    therefore reduces algebraically to Hébert's :math:`(1 - P_{ss})^{-1}`
+    white BC for cylinder — bit-equal to ``boundary="white_hebert"`` at
+    :math:`N = 1`.
+
+    **High-rank pathology**. Although the **continuous-limit**
+    resolvent for cylinder is bounded (the :math:`\cos\alpha` partial-
+    current weight in :math:`T_{\rm op}^{\rm cyl}(\alpha)` vanishes at
+    grazing :math:`\alpha \to \pi/2`), the **matrix** :math:`R = (1/2)
+    M^{-1}` is poorly conditioned at high :math:`N` and the geometric
+    series :math:`(I - T R)^{-1}` amplifies the conditioning blow-up.
+    Empirically the closure overshoots :math:`k_\infty` for :math:`N
+    \ge 4` at thin cells (:math:`\tau_R = 2.5`: :math:`+0.03 \%` at
+    :math:`N=4`, :math:`+1.27 \%` at :math:`N=8`). **Recommended use
+    is** :math:`N \in \{1, 2, 3\}` for thin cells; for thicker cells
+    use plain ``boundary="specular"`` at higher :math:`N`. A
+    ``UserWarning`` is emitted at :math:`N \ge 4` mirroring the sphere
+    multi-bounce gating.
+
+    See ``.claude/agent-memory/numerics-investigator/specular_mb_phase4_cyl_slab.md``
+    for the Knyazev derivation, the rank-1 :math:`= P_{ss}^{\rm cyl}`
+    identity (verified to 1e-14), and the regime sweep showing the
+    overshoot persists across :math:`\tau_R \in [1, 5]`.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    # Q2 of the quadrature-architecture rollout (commit b281a97):
+    # rewrite in impact-parameter h ∈ [0, R] coordinates via
+    # h = R sin α, dα = dh/√(R²-h²), cos α · dα = dh/R, so
+    #
+    #     T_{mn}^cyl = (4/π) ∫_0^{π/2} cos α · Σ_kk (c_m * c_n)[kk]
+    #                                 (cos α)^kk Ki_{3+kk}(τ(α)) dα
+    #               = (4/(πR)) Σ_kk (c_m ★ c_n)[kk] · I_kk
+    #     I_kk = ∫_0^R ((R²-h²)/R²)^{kk/2} · Ki_{3+kk}(τ_2D(h)) dh
+    #
+    # where ★ is polynomial convolution (np.convolve of the
+    # shifted-Legendre monomial coefs).  The kk-indexed kernel I_kk
+    # is (m, n)-independent so the n_modes² loop reduces to one
+    # convolve + one dot per matrix entry; the τ build is one
+    # matrix-vector product through `chord_half_lengths`.  Vis-cone
+    # subdivision via `chord_quadrature` makes every panel spectral.
+    q = chord_quadrature(radii, n_quad)
+    n_q = len(q)
+    chords = 2.0 * chord_half_lengths(radii, q.pts)
+    tau_2d = sig_t @ chords
+
+    max_kk = 2 * (n_modes - 1) if n_modes > 0 else 0
+    # Ki_{3+kk}(τ(h_q)) — shape (max_kk+1, n_q).  ki_n_float is a
+    # scalar mpmath call; keep a comprehension since the kernel is
+    # not vectorisable without a different Bickley implementation.
+    Ki_kk = np.array([
+        [ki_n_float(j + 3, float(t)) for t in tau_2d]
+        for j in range(max_kk + 1)
+    ])
+    # ((R²-h²)/R²)^{kk/2} factor — half-integer powers of (1 - (h/R)²).
+    cos_alpha_sq = np.maximum(1.0 - (q.pts / R) ** 2, 0.0)  # = cos² α
+    cos_pow = cos_alpha_sq[None, :] ** (
+        0.5 * np.arange(max_kk + 1)[:, None]
+    )  # (max_kk+1, n_q)
+    # I_kk = ∫_0^R cos^kk α · Ki_{3+kk}(τ) dh — one weighted sum per kk.
+    I_kk = (cos_pow * Ki_kk) @ q.wts  # (max_kk+1,)
+
+    coef_list = [_shifted_legendre_monomial_coefs(m) for m in range(n_modes)]
+    T = np.zeros((n_modes, n_modes))
+    for m, cm in enumerate(coef_list):
+        for n, cn in enumerate(coef_list):
+            conv = np.convolve(cm, cn)  # (k_m + k_n + 1,)
+            T[m, n] = (4.0 / (np.pi * R)) * float(
+                np.dot(conv, I_kk[: len(conv)])
+            )
+    return T
+
+
+def _chord_tau_mu_sphere(
+    radii: np.ndarray, sig_t: np.ndarray, mu: float | np.ndarray,
+) -> np.ndarray:
+    r"""Multi-region antipodal-chord optical depth :math:`\tau(\mu)` for a
+    sphere of radii ``radii`` (annular outer boundaries; ``radii[-1] = R``).
+
+    Returns :math:`\tau(\mu) = \sum_k \Sigma_{t,k}\,\ell_k(\mu)` where
+    :math:`\ell_k` is the chord length in annulus :math:`k` along the
+    antipodal chord with impact parameter :math:`h = R\sqrt{1 - \mu^2}`.
+    Same chord-shell intersection geometry as
+    :func:`compute_P_ss_sphere` and :func:`compute_T_specular_sphere`.
+
+    Used by Phase 5 ``closure="specular_continuous_mu"`` (sphere) for the
+    multi-bounce factor :math:`T(\mu) = 1/(1 - e^{-\tau(\mu)})` (Sanchez
+    1986 Eq. (A4) with :math:`\alpha = 1`, multi-region :math:`\tau`).
+    Extracted from the inlined logic in :func:`compute_T_specular_sphere`
+    (Phase 4) to keep the two paths bit-equivalent.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    radii_inner = np.concatenate([[0.0], radii[:-1]])
+    radii_outer = radii
+
+    mu_arr = np.atleast_1d(np.asarray(mu, dtype=float))
+    tau_out = np.zeros_like(mu_arr)
+    for q, mu_val in enumerate(mu_arr):
+        h = R * float(np.sqrt(max(0.0, 1.0 - mu_val * mu_val)))
+        tau = 0.0
+        for n_reg in range(len(radii)):
+            r_in = float(radii_inner[n_reg])
+            r_out = float(radii_outer[n_reg])
+            if h >= r_out:
+                continue
+            seg_outer = float(np.sqrt(max(r_out * r_out - h * h, 0.0)))
+            seg_inner = (
+                float(np.sqrt(max(r_in * r_in - h * h, 0.0)))
+                if h < r_in else 0.0
+            )
+            chord_in_annulus = 2.0 * (seg_outer - seg_inner)
+            tau += float(sig_t[n_reg]) * chord_in_annulus
+        tau_out[q] = tau
+
+    if np.isscalar(mu):
+        return float(tau_out[0])
+    return tau_out
+
+
+def compute_K_bc_specular_continuous_mu_sphere(
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    n_quad: int = 64,
+) -> np.ndarray:
+    r"""**Phase 5** continuous-:math:`\mu` multi-bounce specular BC kernel
+    for the **homogeneous** sphere — Sanchez 1986 Eq. (A6) with
+    :math:`\alpha = 1, \beta = 0, \omega_1 = 0`.
+
+    .. math::
+       :label: peierls-phase5-sphere-Kbc
+
+       K_{\rm bc}^{\rm cmu,sph}(r_i, r_j) \;=\;
+            2\!\int_{\mu_0(r_i, r_j)}^{1}\,T(\mu)\,
+            \mu_*(r_i, r_j, \mu)^{-1}\,
+            \cosh(\Sigma\,\rho_<\,\mu)\,
+            \cosh(\Sigma\,\rho_>\,\mu_*)\,
+            e^{-\Sigma\,2R\mu}\,\mathrm d\mu
+
+    where :math:`\rho_< = \min(r_i, r_j)`, :math:`\rho_> = \max(r_i, r_j)`,
+    and
+
+    .. math::
+
+       T(\mu) &= \frac{1}{1 - e^{-\Sigma\,2R\mu}}, \\
+       \mu_*(r_i, r_j, \mu) &= \sqrt{\rho_>^2 - \rho_<^2(1 - \mu^2)} / R, \\
+       \mu_0(r_i, r_j) &= \sqrt{\max\bigl(0,\,1 - (\rho_</\rho_>)^2\bigr)}.
+
+    .. note::
+
+       The :math:`\mu_*` formula above carries an extra :math:`/R` because
+       Sanchez's :math:`\mu_*^2 = \rho'^2 - \rho^2(1 - \mu^2)` uses the
+       optical radii :math:`\rho = \Sigma r`; rewriting in physical
+       units :math:`r` gives :math:`\mu_*^2 = (\Sigma r')^2 - (\Sigma r)^2(1 -
+       \mu^2) = \Sigma^2 [r'^2 - r^2(1-\mu^2)]`, so :math:`\mu_*/\Sigma =
+       \sqrt{r'^2 - r^2(1-\mu^2)}` is what enters the cosh. The
+       :math:`\mu_*^{-1}` Jacobian factor in Eq. (A6) becomes
+       :math:`1/(\Sigma\sqrt{r'^2 - r^2(1-\mu^2)})`; the leading
+       :math:`\Sigma^{-1}` cancels with the :math:`2 \Sigma`-prefactor in
+       Sanchez's flux-density convention. The implementation below uses
+       physical units throughout.
+
+    **Algebraic verification**: SymPy proves the integrand is
+    :math:`2 \cosh(\Sigma r_i \mu)\,e^{-\Sigma r_i \mu} \cdot
+    \cosh(\Sigma r_j \mu_*)\,e^{-\Sigma r_j \mu} \cdot \mu_*^{-1} \cdot
+    T(\mu)` (no extra :math:`\mu` in numerator) — see
+    :mod:`orpheus.derivations.continuous.peierls.origins.specular.continuous_mu` (V2);
+    pinned by
+    ``tests/derivations/test_peierls_specular_continuous_mu_symbolic.py``.
+
+    **Why this fixes the Phase 4 pathology**. The integrand at
+    :math:`\mu \to 0` has a removable simple pole: :math:`T(\mu) \sim
+    1/(\Sigma\,2R\,\mu)` and :math:`\mu_*^{-1} \to 1/r_>` finite, so the
+    integrand stays bounded provided the quadrature handles the µ → 0
+    behaviour (Gauss-Jacobi or smooth GL with sufficient nodes). No
+    matrix inversion, no rank-N basis, no operator-norm divergence as
+    Q grows — convergence is spectral.
+
+    **Homogeneous-only restriction**. Sanchez's spherical-from-slab
+    reduction (the cosh closed forms) requires uniform :math:`\Sigma_t`.
+    Multi-region sphere with piecewise :math:`\Sigma_t` does NOT admit
+    Eq. (A6) directly — the cosh structure has to be re-derived for the
+    inhomogeneous Green's function. This function raises ``ValueError``
+    if ``radii`` has more than one annulus. Multi-region sphere is
+    Phase 5+ (deferred per the approved plan).
+
+    Parameters
+    ----------
+    r_nodes : (N_r,) ndarray of float
+        Radial collocation nodes for the receiver and source positions.
+    radii : (1,) ndarray of float
+        Single outer radius :math:`R`. Multi-region NOT supported.
+    sig_t : (1,) ndarray of float
+        Single :math:`\Sigma_t` value (homogeneous sphere).
+    n_quad : int, default 64
+        Number of Gauss-Legendre nodes on :math:`\mu \in [0, 1]`.
+        Spectral convergence beyond N=32 for thin/medium cells; for
+        very-thin :math:`\tau_R \lesssim 0.5` consider Q=128 to absorb
+        the µ → 0 pole at :math:`\alpha = 1`.
+
+    Returns
+    -------
+    K_bc : (N_r, N_r) ndarray of float
+        The boundary-condition contribution to the volume kernel
+        :math:`K(r_i, r_j) = K_{\rm vol}(r_i, r_j) + K_{\rm bc}(r_i, r_j)`.
+        Add to :func:`build_volume_kernel` output.
+
+    Raises
+    ------
+    ValueError
+        If ``radii`` has more than one annulus (multi-region sphere is
+        Phase 5+ deferred).
+
+    See Also
+    --------
+    compute_T_specular_sphere : the Phase 4 matrix-Galerkin variant that
+        diverges at high rank N. This function bypasses the matrix
+        inverse entirely.
+    orpheus.derivations.continuous.peierls.origins.specular.continuous_mu : SymPy verification
+        of Eq. (A6) and the µ-weight convention question. Pinned by
+        ``tests/derivations/test_peierls_specular_continuous_mu_symbolic.py``.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    if len(radii) != 1:
+        raise NotImplementedError(
+            f"compute_K_bc_specular_continuous_mu_sphere: multi-region "
+            f"sphere ({len(radii)} annuli) is Phase 5+ deferred — "
+            f"Sanchez 1986 Eq. (A6) cosh closed form requires "
+            f"homogeneous Σ_t. For multi-region sphere use "
+            f"closure='specular_multibounce' (matrix-Galerkin form, "
+            f"with rank gate) until Phase 5+ ships the inhomogeneous "
+            f"derivation."
+        )
+
+    sigma = float(sig_t[0])
+    R = float(radii[0])
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    N_r = len(r_nodes)
+
+    # Sanchez optical units: a = σR, ρ = σr. Per p. 342 of
+    # the paper, µ_- and µ_* are DIMENSIONLESS COSINES, NOT optical
+    # lengths:
+    #   µ_- = √[a² − ρ²(1−µ²)] / a   (cosine at surface for receiver-side trajectory)
+    #   µ_* = √[ρ'² − ρ²(1−µ²)] / ρ'  (chord-projection cosine for source ρ')
+    # These appear in T(µ_-), e^{-2aµ_-}, µ_*^{-1}, and cosh(ρ'µ_*).
+    a = sigma * R
+    rho_opt = sigma * r_nodes  # (N_r,)
+
+    # GL on µ ∈ [0, 1] via the Quadrature1D contract. Issue #136:
+    # this is a verification-tier reference, not a production
+    # primitive; routes through the contract for module-wide
+    # consistency.
+    q = gauss_legendre(0.0, 1.0, n_quad)
+    mu_pts = q.pts
+
+    K_bc = np.zeros((N_r, N_r))
+    for i in range(N_r):
+        rho = float(rho_opt[i])  # receiver
+        # µ_- (cosine at surface for receiver-side trajectory) depends
+        # only on rho (receiver) and µ:
+        a_mu_minus_sq = a * a - rho * rho * (1.0 - mu_pts * mu_pts)
+        a_mu_minus = np.sqrt(np.maximum(a_mu_minus_sq, 0.0))
+        mu_minus = a_mu_minus / a
+        # T(µ_-) with full chord τ(µ_-) = 2a·µ_-. NB: this carries the
+        # Σ-dependence via a = σR.
+        tau_chord_full = 2.0 * a * mu_minus
+        T_mu_minus = 1.0 / (1.0 - np.exp(-tau_chord_full))
+        decay_chord = np.exp(-tau_chord_full)
+
+        for j in range(N_r):
+            rho_p = float(rho_opt[j])  # source ρ'
+            # µ_* = √[ρ'² − ρ²(1−µ²)] / ρ' depends on (rho, rho_p, µ).
+            # Visibility cone: µ_*² > 0 requires either ρ' > ρ (always
+            # visible) or µ > µ_0 = √[1 − (ρ'/ρ)²] (when ρ' < ρ).
+            #
+            # Numerically stable form. The naive identity
+            #   ρ'² − ρ²(1 − µ²) = (ρ'² − ρ²) + ρ²·µ²
+            # is equivalent algebraically but the RHS avoids
+            # catastrophic cancellation when ρ ≈ ρ' (e.g., near the
+            # diagonal in adaptive quadrature where µ may approach
+            # zero). The naive LHS suffers `1 − µ²` cancellation at
+            # small µ; the rewritten form uses ρ²·µ² directly.
+            # Phase 5+ Front B (numerics-investigator,
+            # `phase5_front_b_singularity_subtraction.md`) flagged
+            # this as a latent landmine for the (research-prototype)
+            # Phase 5 closure if production-wired with adaptive
+            # quadrature.
+            rho_p_mu_star_sq = (
+                (rho_p * rho_p - rho * rho) + rho * rho * mu_pts * mu_pts
+            )
+            valid = rho_p_mu_star_sq > 0.0
+            if not np.any(valid):
+                continue
+            rho_p_mu_star = np.sqrt(np.maximum(rho_p_mu_star_sq, 0.0))
+            # mu_star = (ρ' µ_*) / ρ' — but we work with ρ'·µ_* directly
+            # because that's what enters cosh(ρ'·µ_*). The 1/µ_* factor
+            # becomes ρ' / (ρ'·µ_*) = ρ' / rho_p_mu_star.
+            integrand = np.zeros(n_quad)
+            integrand[valid] = (
+                T_mu_minus[valid]
+                * (rho_p / rho_p_mu_star[valid])  # µ_*^{-1} = ρ' / (ρ'µ_*)
+                * np.cosh(rho * mu_pts[valid])
+                * np.cosh(rho_p_mu_star[valid])  # cosh(ρ' · µ_*)
+                * decay_chord[valid]
+            )
+            K_bc[i, j] = 2.0 * q.integrate_array(integrand)
+
+    return K_bc
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Per-surface escape / response primitives (Phase F.2)
+#
+# The single-surface :func:`compute_P_esc` / :func:`compute_G_bc`
+# aggregate escape-to-any-boundary / response-from-all-boundaries.
+# Phase F splits these into per-face primitives so that
+# :class:`BoundaryClosureOperator` can carry a per-face mode space
+# ``A = ℝ^(N_modes × N_surfaces)`` and couple independent partial
+# currents at each boundary via a block-diagonal reflection ``R``.
+#
+# For solid cyl/sph (``inner_radius == 0``) the ``_inner`` variants
+# return zero arrays — regime-A bit-exact contract. For slab, the
+# "outer" surface is face ``x = L`` and "inner" is face ``x = 0`` (the
+# faces are positional, not parametrised by inner_radius). For hollow
+# cyl/sph (``inner_radius > 0``) the cavity segment contributes zero
+# to τ (handled by :meth:`CurvilinearGeometry.optical_depth_along_ray`).
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _slab_E2(tau: float) -> float:
+    """Closed-form :math:`E_2(\\tau)` at machine precision via mpmath."""
+    if tau > 0.0:
+        return float(mpmath.expint(2, tau))
+    return 1.0
+
+
+def _slab_E_n(n: int, tau: float) -> float:
+    r"""Closed-form :math:`E_n(\tau) = \int_1^\infty e^{-\tau t}/t^n\,
+    \mathrm dt` at machine precision via mpmath.
+
+    For :math:`n = 1` and :math:`\tau = 0` this diverges; for
+    :math:`n \ge 2` :math:`E_n(0) = 1/(n-1)`.
+    """
+    if tau > 0.0:
+        return float(mpmath.expint(n, tau))
+    if n <= 1:
+        raise ValueError(f"E_n(0) requires n > 1 (E_1 diverges), got {n}")
+    return 1.0 / (n - 1)
+
+
+def _slab_tau_to_outer_face(x_i: float, radii: np.ndarray,
+                            sig_t: np.ndarray) -> float:
+    r"""Piecewise-integrated optical depth from ``x_i`` to the outer
+    face ``x = radii[-1]`` for a slab with piecewise-constant
+    :math:`\Sigma_t(x)` taking value ``sig_t[k]`` on
+    :math:`(r_{k-1}, r_k]`, with :math:`r_{-1} = 0`.
+
+    Matches the convention used by the native multi-region slab
+    reference (``peierls_slab._build_system_matrices::optical_from_face``).
+    """
+    L = float(radii[-1])
+    if x_i >= L:
+        return 0.0
+    tau = 0.0
+    r_prev = 0.0
+    for k, r_k in enumerate(radii):
+        a = max(float(r_prev), x_i)
+        b = float(r_k)
+        if a < b:
+            tau += float(sig_t[k]) * (b - a)
+        r_prev = float(r_k)
+    return tau
+
+
+def _slab_tau_to_inner_face(x_i: float, radii: np.ndarray,
+                            sig_t: np.ndarray) -> float:
+    r"""Piecewise-integrated optical depth from ``x_i`` to the inner
+    face ``x = 0`` for a slab with piecewise-constant
+    :math:`\Sigma_t(x)` taking value ``sig_t[k]`` on
+    :math:`(r_{k-1}, r_k]`, with :math:`r_{-1} = 0`.
+    """
+    if x_i <= 0.0:
+        return 0.0
+    tau = 0.0
+    r_prev = 0.0
+    for k, r_k in enumerate(radii):
+        a = float(r_prev)
+        b = min(float(r_k), x_i)
+        if a < b:
+            tau += float(sig_t[k]) * (b - a)
+        r_prev = float(r_k)
+    return tau
+
+
+def compute_P_esc_outer(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_angular: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Uncollided escape probability to the **outer** boundary.
+
+    For slab, this is the face at :math:`x = L`:
+    :math:`P_{\rm esc,L}(x_i) = \tfrac{1}{2}\,E_2(\Sigma_t(L - x_i))`
+    (homogeneous single region — closed form at machine precision).
+
+    For cylinder/sphere (solid or hollow), this integrates
+    :math:`K_{\rm esc}` over all directions from the observer, with
+    τ taken along the full path to :math:`\rho_{\max}(r_i, \Omega, R)`.
+    If the ray traverses the cavity (hollow case), the cavity segment
+    contributes zero to τ (via
+    :meth:`CurvilinearGeometry.optical_depth_along_ray`).
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    N = len(r_nodes)
+
+    if geometry.kind == "slab-polar":
+        # Slab (homogeneous OR multi-region): closed-form ½ E_2(τ_total)
+        # where τ_total is the piecewise-integrated optical depth from
+        # x_i to the outer face. The µ-integral in
+        #   P_esc_outer(x_i) = ½ ∫₀¹ exp(-τ_total(x_i)/µ) dµ = ½ E_2(τ_total)
+        # is closed-form for ANY piecewise-constant σ_t because the
+        # angular dependence factors out of τ. The finite-N GL branch
+        # that used to live here (Issue #131) placed nodes symmetrically
+        # around µ=0 on (-1, 1), then discarded µ≤0 inside the loop,
+        # producing 4e-3 error at N=24 for the shipped 2eg_2rg fixture
+        # and ultimately a ~1.5 % gap in the unified slab k_eff. The
+        # closed-form branch matches the homogeneous path bit-exactly
+        # and the native E₁ Nyström slab reference to 1e-12.
+        P = np.zeros(N)
+        for i in range(N):
+            x_i = float(r_nodes[i])
+            tau = _slab_tau_to_outer_face(x_i, radii, sig_t)
+            P[i] = 0.5 * _slab_E2(tau)
+        return P
+
+    # Q3: observer-centred ω-sweep with kink-aware subdivision via the
+    # `per_observer_angular_assembly` driver — the per-node kernel is
+    # the only thing this primitive contributes; everything else is
+    # boilerplate shared with the ~17 other observer-centred primitives.
+    is_hollow = geometry.inner_radius > 0.0
+
+    def _integrand(r_i, cos_om, ang_factor, q):
+        def _kernel(c: float) -> float:
+            rho_out = float(geometry.rho_max(r_i, c, R))
+            if rho_out <= 0.0:
+                return 0.0
+            if is_hollow:
+                # Phase F.4 hollow rule: rays that strike the inner
+                # shell first are counted by compute_P_esc_inner.
+                rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
+                if rho_in_minus is not None and rho_in_minus < rho_out:
+                    return 0.0
+            tau = float(geometry.optical_depth_along_ray(
+                r_i, c, rho_out, radii, sig_t,
+            ))
+            return float(geometry.escape_kernel_mp(tau, dps))
+
+        K_esc_arr = np.fromiter(
+            (_kernel(float(c)) for c in cos_om),
+            dtype=float, count=len(q),
+        )
+        return ang_factor * K_esc_arr
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
+
+
+def compute_P_esc_inner(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_angular: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Uncollided escape probability to the **inner** boundary.
+
+    Solid geometry (``inner_radius == 0`` and not slab) has no inner
+    boundary and returns a zero array — the regime-A sentinel.
+
+    For slab, this is the face at :math:`x = 0`:
+    :math:`P_{\rm esc,0}(x_i) = \tfrac{1}{2}\,E_2(\Sigma_t x_i)`.
+
+    For hollow cyl/sph, integrates :math:`K_{\rm esc}` over those
+    directions where the ray reaches the inner shell before the outer
+    (:math:`\rho^-_{\rm in}` exists and :math:`< \rho_{\max}`), with τ
+    taken along the annulus path from :math:`r_i` to :math:`\rho^-_{\rm in}`
+    (cavity not yet entered).
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    N = len(r_nodes)
+
+    if geometry.n_surfaces == 1:
+        # Solid cyl/sph: regime-A zero-array sentinel.
+        return np.zeros(N)
+
+    if geometry.kind == "slab-polar":
+        # Slab (homogeneous OR multi-region): closed-form ½ E_2(τ_total)
+        # where τ_total is the piecewise-integrated optical depth from
+        # x_i to the inner face (x=0). See Issue #131 — the previous
+        # finite-N GL branch introduced a 4e-3 error by wasting nodes
+        # on µ ≥ 0.
+        P = np.zeros(N)
+        for i in range(N):
+            x_i = float(r_nodes[i])
+            tau = _slab_tau_to_inner_face(x_i, radii, sig_t)
+            P[i] = 0.5 * _slab_E2(tau)
+        return P
+
+    # Q3: hollow cyl/sph — observer-centred ω-sweep restricted to
+    # directions that hit the inner shell. Driver-routed via
+    # `per_observer_angular_assembly`.
+    def _integrand(r_i, cos_om, ang_factor, q):
+        def _kernel(c: float) -> float:
+            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
+            if rho_in_minus is None:
+                return 0.0
+            tau = float(geometry.optical_depth_along_ray(
+                r_i, c, rho_in_minus, radii, sig_t,
+            ))
+            return float(geometry.escape_kernel_mp(tau, dps))
+
+        K_esc_arr = np.fromiter(
+            (_kernel(float(c)) for c in cos_om),
+            dtype=float, count=len(q),
+        )
+        return ang_factor * K_esc_arr
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
+
+
+def compute_P_esc_outer_mode(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_angular: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Mode-:math:`n` outgoing moment at the **outer** surface
+    (Phase F.5 / Issue #119).
+
+    For :math:`n = 0` returns the scalar
+    :func:`compute_P_esc_outer` (Mark convention, no
+    :math:`(\rho/R)^2` Jacobian); for :math:`n \ge 1` uses the
+    canonical Gelbard DP\ :sub:`N-1` form
+
+    .. math::
+
+       P_{\rm esc, out}^{(n)}(r_i)
+         = C_d \!\int W_\Omega\,\Bigl(\tfrac{\rho_{\rm out}}{R}\Bigr)^2
+                 \tilde P_n(\mu_{\rm exit, out})\,
+                 K_{\rm esc}(\tau)\,\mathrm d\Omega
+
+    with :math:`\mu_{\rm exit, out} = (\rho_{\rm out} + r_i\cos\Omega)/R`.
+
+    For hollow cells, rays that would hit the inner shell first are
+    excluded (Model A — those contribute to :func:`compute_P_esc_inner_mode`).
+
+    Currently implemented for ``kind = "sphere-1d"`` with
+    ``inner_radius > 0``; slab and cylinder raise
+    :class:`NotImplementedError`.
+    """
+    if n_mode == 0:
+        return compute_P_esc_outer(
+            geometry, r_nodes, radii, sig_t,
+            n_angular=n_angular, dps=dps,
+        )
+    if geometry.kind != "sphere-1d" or geometry.inner_radius <= 0.0:
+        raise NotImplementedError(
+            f"compute_P_esc_outer_mode(n>=1) is implemented for "
+            f"hollow sphere only; got kind={geometry.kind!r}, "
+            f"inner_radius={geometry.inner_radius}. Slab and cyl "
+            f"per-face mode primitives — Issue #119 follow-up."
+        )
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    # Q3: Phase F.5 Mark-Lambert moment, observer-centred ω-sweep with
+    # kink-aware subdivision via the `per_observer_angular_assembly`
+    # driver. Hollow-sphere only (Model A: rays hitting inner shell
+    # first counted by compute_P_esc_inner_mode).
+    def _integrand(r_i, cos_om, ang_factor, q):
+        def _kernel_at(c: float) -> tuple[float, float]:
+            rho_out = float(geometry.rho_max(r_i, c, R))
+            if rho_out <= 0.0:
+                return 0.0, 0.0
+            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
+            if rho_in_minus is not None and rho_in_minus < rho_out:
+                return 0.0, 0.0
+            tau = float(geometry.optical_depth_along_ray(
+                r_i, c, rho_out, radii, sig_t,
+            ))
+            mu_exit = (rho_out + r_i * c) / R
+            return float(geometry.escape_kernel_mp(tau, dps)), mu_exit
+
+        kernel_vals = [_kernel_at(float(c)) for c in cos_om]
+        K_esc_arr = np.fromiter(
+            (kv[0] for kv in kernel_vals), dtype=float, count=len(q),
+        )
+        mu_exit_arr = np.fromiter(
+            (kv[1] for kv in kernel_vals), dtype=float, count=len(q),
+        )
+        p_tilde_arr = _shifted_legendre_eval(n_mode, mu_exit_arr)
+        return ang_factor * p_tilde_arr * K_esc_arr
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
+
+
+def compute_P_esc_inner_mode(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_angular: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Mode-:math:`n` outgoing moment at the **inner** surface.
+
+    For :math:`n = 0` returns the scalar
+    :func:`compute_P_esc_inner`; for :math:`n \ge 1`:
+
+    .. math::
+
+       P_{\rm esc, in}^{(n)}(r_i)
+         = C_d \!\int W_\Omega\,\Bigl(\tfrac{\rho_{\rm in}^-}{r_0}\Bigr)^2
+                 \tilde P_n(\mu_{\rm exit, in})\,
+                 K_{\rm esc}(\tau)\,\mathrm d\Omega
+
+    restricted to directions for which the ray hits the inner shell
+    before the outer; :math:`\mu_{\rm exit, in} = \sqrt{r_0^2 - h^2}/r_0`
+    with :math:`h = r_i|\sin\Omega|`.
+
+    Currently implemented for ``kind = "sphere-1d"`` with
+    ``inner_radius > 0``.
+    """
+    if n_mode == 0:
+        return compute_P_esc_inner(
+            geometry, r_nodes, radii, sig_t,
+            n_angular=n_angular, dps=dps,
+        )
+    if geometry.kind != "sphere-1d" or geometry.inner_radius <= 0.0:
+        raise NotImplementedError(
+            f"compute_P_esc_inner_mode(n>=1) for "
+            f"kind={geometry.kind!r} not yet implemented."
+        )
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    r_0 = float(geometry.inner_radius)
+
+    # Q3: hollow sphere — observer-centred ω-sweep restricted to
+    # rays hitting the inner shell, kink-aware subdivision via driver.
+    def _integrand(r_i, cos_om, ang_factor, q):
+        def _kernel_at(c: float) -> tuple[float, float]:
+            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
+            if rho_in_minus is None:
+                return 0.0, 0.0
+            tau = float(geometry.optical_depth_along_ray(
+                r_i, c, rho_in_minus, radii, sig_t,
+            ))
+            sin_sq = max(0.0, 1.0 - c * c)
+            mu_exit_sq = max(0.0, (r_0 * r_0 - r_i * r_i * sin_sq) / (r_0 * r_0))
+            return float(geometry.escape_kernel_mp(tau, dps)), float(np.sqrt(mu_exit_sq))
+
+        kernel_vals = [_kernel_at(float(c)) for c in cos_om]
+        K_esc_arr = np.fromiter(
+            (kv[0] for kv in kernel_vals), dtype=float, count=len(q),
+        )
+        mu_exit_arr = np.fromiter(
+            (kv[1] for kv in kernel_vals), dtype=float, count=len(q),
+        )
+        p_tilde_arr = _shifted_legendre_eval(n_mode, mu_exit_arr)
+        return ang_factor * p_tilde_arr * K_esc_arr
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
+
+
+def compute_G_bc_outer(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Scalar flux at :math:`r_i` from a unit uniform-isotropic inward
+    partial current on the **outer** boundary.
+
+    For slab, this is the face at :math:`x = L`:
+    :math:`G_{\rm bc,L}(x_i) = 2\,E_2(\Sigma_t(L - x_i))`.
+
+    For cylinder/sphere, the legacy observer-centred / surface-centred
+    integrals apply, with τ including cavity-segment zero-attenuation
+    for hollow cells.
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    N = len(r_nodes)
+
+    if geometry.kind == "slab-polar":
+        # Slab (homogeneous OR multi-region): closed-form 2 E_2(τ_total)
+        # where τ_total is the piecewise-integrated optical depth from
+        # x_i to the outer face. Parallels compute_P_esc_outer's fix
+        # for Issue #131 — the µ-integral
+        #   G_bc_outer(x_i) = 2 ∫₀¹ exp(-τ_total(x_i)/µ) dµ = 2 E_2(τ_total)
+        # is closed-form for any piecewise-constant σ_t. G_bc used to
+        # use a finite-N GL branch on µ ∈ (0, 1) that converged faster
+        # than P_esc but still only to ~1e-5 at N=24 for the shipped
+        # fixture; moving to closed form matches the native reference
+        # to machine precision.
+        G = np.zeros(N)
+        for i in range(N):
+            x_i = float(r_nodes[i])
+            tau = _slab_tau_to_outer_face(x_i, radii, sig_t)
+            G[i] = 2.0 * _slab_E2(tau)
+        return G
+
+    if geometry.kind == "sphere-1d":
+        # Q3: observer-centred sphere ω-sweep — driver-routed.
+        def _sphere_tau(r_i: float, c: float, rho: float) -> float:
+            if len(radii) == 1 and geometry.inner_radius == 0.0:
+                return float(sig_t[0]) * rho
+            return float(geometry.optical_depth_along_ray(
+                r_i, c, rho, radii, sig_t,
+            ))
+
+        def _integrand(r_i, cos_om, ang_factor, q):
+            def _kernel(c: float) -> float:
+                rho = float(geometry.rho_max(r_i, c, R))
+                if rho <= 0.0:
+                    return 0.0
+                return float(np.exp(-_sphere_tau(r_i, c, rho)))
+
+            decay = np.fromiter(
+                (_kernel(float(c)) for c in cos_om),
+                dtype=float, count=len(q),
+            )
+            return ang_factor * decay
+
+        return per_observer_angular_assembly(
+            geometry, r_nodes, radii, n_surf_quad,
+            integrand_at_node=_integrand,
+            prefactor=2.0, dps=dps,
+        )
+
+    # Cylinder outer — surface-centred, Ki_1/d kernel via the
+    # `per_surface_centred_angular_assembly` driver. The L3 migration
+    # routed this through the recipe; #1-arch consolidates the
+    # `_per_obs` skeleton through the driver.
+    is_solid_homogeneous = len(radii) == 1 and geometry.inner_radius == 0.0
+
+    def _per_node_kernel(r_i: float, cf: float) -> float:
+        d_sq = r_i * r_i + R * R - 2.0 * r_i * R * cf
+        d = float(np.sqrt(max(d_sq, 0.0)))
+        if d <= 0.0:
+            return 0.0
+        if is_solid_homogeneous:
+            tau = float(sig_t[0]) * d
+        else:
+            cb = (R * cf - r_i) / d
+            tau = float(geometry.optical_depth_along_ray(
+                r_i, cb, d, radii, sig_t,
+            ))
+        ki1 = float(ki_n_mp(1, tau, dps))
+        return ki1 / d
+
+    def _integrand(r_i, cos_phi, q):
+        return np.fromiter(
+            (_per_node_kernel(r_i, float(c)) for c in cos_phi),
+            dtype=float, count=len(q),
+        )
+
+    return per_surface_centred_angular_assembly(
+        geometry, r_nodes, radii, r_surface=R, n_per_panel=n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=2.0 * R / np.pi, dps=dps,
+    )
+
+
+def compute_G_bc_inner(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Scalar flux at :math:`r_i` from a unit uniform-isotropic outward
+    partial current on the **inner** boundary.
+
+    Solid geometry returns a zero array (regime-A sentinel).
+
+    For slab, this is the face at :math:`x = 0`:
+    :math:`G_{\rm bc,0}(x_i) = 2\,E_2(\Sigma_t x_i)`.
+
+    For hollow sphere, observer-centred integration restricted to those
+    directions where the sightline to :math:`r_0` exists (ray hits the
+    inner shell). For hollow cylinder, surface-centred form from
+    :math:`r_0`, analogous to the outer ``Ki_1/d`` formula but with the
+    chord length and bearing from the inner surface.
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    N = len(r_nodes)
+
+    if geometry.n_surfaces == 1:
+        return np.zeros(N)
+
+    if geometry.kind == "slab-polar":
+        # Slab (homogeneous OR multi-region): closed-form 2 E_2(τ_total)
+        # where τ_total is the piecewise-integrated optical depth from
+        # x_i to the inner face (x=0). Parallels compute_G_bc_outer's
+        # fix for Issue #131.
+        G = np.zeros(N)
+        for i in range(N):
+            x_i = float(r_nodes[i])
+            tau = _slab_tau_to_inner_face(x_i, radii, sig_t)
+            G[i] = 2.0 * _slab_E2(tau)
+        return G
+
+    r0 = float(geometry.inner_radius)
+
+    if geometry.kind == "sphere-1d":
+        # Q3: hollow sphere — observer-centred ω-sweep, driver-routed.
+        def _tau(r_i: float, c: float, rho: float) -> float:
+            if len(radii) == 1:
+                return float(sig_t[0]) * rho
+            return float(geometry.optical_depth_along_ray(
+                r_i, c, rho, radii, sig_t,
+            ))
+
+        def _integrand(r_i, cos_om, ang_factor, q):
+            def _kernel(c: float) -> float:
+                rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
+                if rho_in_minus is None:
+                    return 0.0
+                return float(np.exp(-_tau(r_i, c, float(rho_in_minus))))
+
+            decay = np.fromiter(
+                (_kernel(float(c)) for c in cos_om),
+                dtype=float, count=len(q),
+            )
+            return ang_factor * decay
+
+        return per_observer_angular_assembly(
+            geometry, r_nodes, radii, n_surf_quad,
+            integrand_at_node=_integrand,
+            prefactor=2.0, dps=dps,
+        )
+
+    # Cylinder inner — surface-centred on r=r_0, Ki_1/d_inner kernel
+    # via the `per_surface_centred_angular_assembly` driver. The shell
+    # layout for a hollow cylinder has r_k >= r_0 for every shell, so
+    # min(r_obs, r_surface) = r_0 and no shell qualifies as "interior
+    # to both" — the recipe degenerates to plain GL on [0, π].
+    def _per_node_kernel(r_i: float, cf: float) -> float:
+        d_sq = r_i * r_i + r0 * r0 - 2.0 * r_i * r0 * cf
+        d = float(np.sqrt(max(d_sq, 0.0)))
+        if d <= 0.0:
+            return 0.0
+        if len(radii) == 1:
+            tau = float(sig_t[0]) * d
+        else:
+            # Direction cosine from observer at r_i to a surface point
+            # on r=r_0. Mirror of the outer-surface formula with the
+            # inner radius substituted.
+            cb = (r0 * cf - r_i) / d
+            tau = float(geometry.optical_depth_along_ray(
+                r_i, cb, d, radii, sig_t,
+            ))
+        ki1 = float(ki_n_mp(1, tau, dps))
+        return ki1 / d
+
+    def _integrand(r_i, cos_phi, q):
+        return np.fromiter(
+            (_per_node_kernel(r_i, float(c)) for c in cos_phi),
+            dtype=float, count=len(q),
+        )
+
+    return per_surface_centred_angular_assembly(
+        geometry, r_nodes, radii, r_surface=r0, n_per_panel=n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=2.0 * r0 / np.pi, dps=dps,
+    )
+
+
+def compute_G_bc_outer_mode(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Mode-:math:`n` response at observer :math:`r_i` from a unit
+    mode-:math:`n` uniform incoming current on the **outer** surface
+    (Phase F.5 / Issue #119).
+
+    For :math:`n = 0` returns :func:`compute_G_bc_outer`; for
+    :math:`n \ge 1` uses the observer-centred form with the
+    :math:`\tilde P_n(\mu_s)` surface-Legendre weight at the surface
+    emission point.
+
+    Currently implemented for ``kind = "sphere-1d"`` with
+    ``inner_radius > 0``. Rays that would pass through the cavity
+    (first-flight hitting inner shell on the way back toward observer
+    from outer surface point) are excluded — Model A first-flight.
+    """
+    if n_mode == 0:
+        return compute_G_bc_outer(
+            geometry, r_nodes, radii, sig_t,
+            n_surf_quad=n_surf_quad, dps=dps,
+        )
+    if geometry.kind != "sphere-1d" or geometry.inner_radius <= 0.0:
+        raise NotImplementedError(
+            f"compute_G_bc_outer_mode(n>=1) for kind="
+            f"{geometry.kind!r} not yet implemented."
+        )
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    # Q3: hollow sphere outer-face mode response — driver-routed,
+    # Model A skip on rays blocked by the inner shell.
+    def _integrand(r_i, cos_om, ang_factor, q):
+        def _eval(c: float) -> tuple[float, float]:
+            rho_out = float(geometry.rho_max(r_i, c, R))
+            if rho_out <= 0.0:
+                return 0.0, 0.0
+            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
+            if rho_in_minus is not None and rho_in_minus < rho_out:
+                return 0.0, 0.0
+            if len(radii) == 1:
+                tau = float(sig_t[0]) * rho_out
+            else:
+                tau = float(geometry.optical_depth_along_ray(
+                    r_i, c, rho_out, radii, sig_t,
+                ))
+            mu_s = (rho_out + r_i * c) / R
+            return float(np.exp(-tau)), mu_s
+
+        ev = [_eval(float(c)) for c in cos_om]
+        decay = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
+        mu_s = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
+        p_tilde = _shifted_legendre_eval(n_mode, mu_s)
+        return ang_factor * p_tilde * decay
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=2.0, dps=dps,
+    )
+
+
+def compute_G_bc_inner_mode(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Mode-:math:`n` response at observer :math:`r_i` from a unit
+    mode-:math:`n` uniform outward current on the **inner** surface.
+
+    For :math:`n = 0` returns :func:`compute_G_bc_inner`; for
+    :math:`n \ge 1`:
+
+    .. math::
+
+       G_{\rm bc, in}^{(n)}(r_i) = 2\!\int_{\rm hit} \sin\theta\,
+           \tilde P_n(\mu_s)\,e^{-\tau}\,\mathrm d\theta
+
+    with the sightline-from-observer integration over rays reaching
+    the inner shell; :math:`\mu_s = \sqrt{r_0^2 - h^2}/r_0` is the
+    local µ at the inner surface emission point, matching the
+    :math:`\mu_{\rm exit}` derived for :func:`compute_P_esc_inner_mode`.
+    """
+    if n_mode == 0:
+        return compute_G_bc_inner(
+            geometry, r_nodes, radii, sig_t,
+            n_surf_quad=n_surf_quad, dps=dps,
+        )
+    if geometry.kind != "sphere-1d" or geometry.inner_radius <= 0.0:
+        raise NotImplementedError(
+            f"compute_G_bc_inner_mode(n>=1) for kind="
+            f"{geometry.kind!r} not yet implemented."
+        )
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    r_0 = float(geometry.inner_radius)
+
+    # Q3: hollow sphere inner-face mode response — driver-routed,
+    # restricted to rays hitting the inner shell.
+    def _integrand(r_i, cos_om, ang_factor, q):
+        def _eval(c: float) -> tuple[float, float]:
+            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
+            if rho_in_minus is None:
+                return 0.0, 0.0
+            if len(radii) == 1:
+                tau = float(sig_t[0]) * float(rho_in_minus)
+            else:
+                tau = float(geometry.optical_depth_along_ray(
+                    r_i, c, rho_in_minus, radii, sig_t,
+                ))
+            sin_sq = max(0.0, 1.0 - c * c)
+            mu_s_sq = max(0.0, (r_0 * r_0 - r_i * r_i * sin_sq) / (r_0 * r_0))
+            return float(np.exp(-tau)), float(np.sqrt(mu_s_sq))
+
+        ev = [_eval(float(c)) for c in cos_om]
+        decay = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
+        mu_s = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
+        p_tilde = _shifted_legendre_eval(n_mode, mu_s)
+        return ang_factor * p_tilde * decay
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=2.0, dps=dps,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Marshak partial-current-moment per-face primitives (Phase F.5, Issue #119)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# These variants add the partial-current weight µ to the integrand of
+# both P_esc and G_bc for every mode (including n = 0). They live in
+# the same moment basis as :func:`compute_hollow_sph_transmission_rank_n`
+# (which has `cos θ · sin θ · P̃_m · P̃_n · e^{-τ}` — i.e. µ dµ with
+# P̃_n(µ) test functions). Using a consistent basis across P, G, and W
+# is the fix for the Phase F.5 closure failure at N ≥ 2 identified in
+# Issue #119: the Lambert / angular-flux primitives have a different
+# inner-product Gram matrix than the Marshak / partial-current ones
+# that W sits in, so the matrix product `G (I − W)⁻¹ P` couples
+# incompatible bases at rank > 1.
+#
+# At N = 1 these new primitives do NOT reduce bit-exactly to the
+# scalar :func:`compute_P_esc_outer` etc. — the scalar primitives are
+# Mark-Lambert (no µ weight). The rank-2 Phase F.4 assembly
+# (:func:`_build_closure_operator_rank2_white`) keeps the scalar
+# primitives, so Phase F.4 regression remains bit-exact; the rank-N
+# (N ≥ 2) assembly in
+# :func:`_build_closure_operator_rank_n_white` uses these Marshak
+# variants instead.
+
+
+def compute_P_esc_outer_mode_marshak(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_angular: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Marshak partial-current moment :math:`n` of the escape
+    probability to the **outer** surface (Phase F.5 / Issue #119).
+
+    .. math::
+
+       P_{\rm esc, out, marshak}^{(n)}(r_i)
+         = C_d \!\int_{\rm rays\ reaching\ outer}\!
+                 W_\Omega\,\mu_{\rm exit}\,\tilde P_n(\mu_{\rm exit})
+                 \,K_{\rm esc}(\tau)\,\mathrm d\Omega
+
+    with :math:`\mu_{\rm exit} = (\rho_{\rm out} + r_i\cos\Omega)/R`,
+    :math:`C_d =` :attr:`CurvilinearGeometry.prefactor`, and
+    :math:`W_\Omega =` :meth:`CurvilinearGeometry.angular_weight`.
+
+    Unlike :func:`compute_P_esc_outer_mode` (Lambert basis, no
+    :math:`\mu` weight), this integrand carries the emission direction
+    cosine :math:`\mu_{\rm exit}` explicitly, placing it in the same
+    partial-current moment basis as
+    :func:`compute_hollow_sph_transmission_rank_n` (which has
+    :math:`\cos\theta\,\sin\theta = \mu\,\mathrm d\mu\,/\,\mathrm d\theta`).
+
+    Model A: rays that would hit the inner shell before the outer
+    surface are excluded (those contribute to
+    :func:`compute_P_esc_inner_mode_marshak`).
+
+    Currently implemented for ``kind = "sphere-1d"`` with
+    ``inner_radius > 0``; slab and cylinder raise
+    :class:`NotImplementedError`.
+    """
+    if geometry.kind != "sphere-1d" or geometry.inner_radius <= 0.0:
+        raise NotImplementedError(
+            f"compute_P_esc_outer_mode_marshak is implemented for "
+            f"hollow sphere only; got kind={geometry.kind!r}, "
+            f"inner_radius={geometry.inner_radius}. Slab and cyl "
+            f"per-face Marshak primitives — Issue #119 follow-up."
+        )
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    # Q3 Marshak partial-current variant — outer face, hollow sphere.
+    def _integrand(r_i, cos_om, ang_factor, q):
+        def _eval(c: float) -> tuple[float, float]:
+            rho_out = float(geometry.rho_max(r_i, c, R))
+            if rho_out <= 0.0:
+                return 0.0, 0.0
+            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
+            if rho_in_minus is not None and rho_in_minus < rho_out:
+                return 0.0, 0.0
+            tau = float(geometry.optical_depth_along_ray(
+                r_i, c, rho_out, radii, sig_t,
+            ))
+            mu_exit = (rho_out + r_i * c) / R
+            return float(geometry.escape_kernel_mp(tau, dps)), mu_exit
+
+        ev = [_eval(float(c)) for c in cos_om]
+        K_esc = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
+        mu_exit = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
+        p_tilde = _shifted_legendre_eval(n_mode, mu_exit)
+        return ang_factor * mu_exit * p_tilde * K_esc
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
+
+
+def compute_P_esc_inner_mode_marshak(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_angular: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Marshak partial-current moment :math:`n` of the escape
+    probability to the **inner** surface (Phase F.5 / Issue #119).
+
+    .. math::
+
+       P_{\rm esc, in, marshak}^{(n)}(r_i)
+         = C_d \!\int_{\rm hit}\!
+                 W_\Omega\,\mu_{\rm exit, in}\,
+                 \tilde P_n(\mu_{\rm exit, in})\,
+                 K_{\rm esc}(\tau)\,\mathrm d\Omega
+
+    with :math:`\mu_{\rm exit, in} = \sqrt{r_0^2 - h^2}/r_0` and
+    :math:`h = r_i|\sin\Omega|`.
+
+    Integration is restricted to directions for which the ray hits the
+    inner shell before exiting via the outer.
+
+    Currently implemented for ``kind = "sphere-1d"`` with
+    ``inner_radius > 0``.
+    """
+    if geometry.kind != "sphere-1d" or geometry.inner_radius <= 0.0:
+        raise NotImplementedError(
+            f"compute_P_esc_inner_mode_marshak for "
+            f"kind={geometry.kind!r} not yet implemented."
+        )
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    r_0 = float(geometry.inner_radius)
+
+    # Q3 Marshak partial-current variant — inner face, hollow sphere.
+    def _integrand(r_i, cos_om, ang_factor, q):
+        def _eval(c: float) -> tuple[float, float]:
+            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
+            if rho_in_minus is None:
+                return 0.0, 0.0
+            tau = float(geometry.optical_depth_along_ray(
+                r_i, c, rho_in_minus, radii, sig_t,
+            ))
+            sin_sq = max(0.0, 1.0 - c * c)
+            mu_exit_sq = max(0.0, (r_0 * r_0 - r_i * r_i * sin_sq) / (r_0 * r_0))
+            return float(geometry.escape_kernel_mp(tau, dps)), float(np.sqrt(mu_exit_sq))
+
+        ev = [_eval(float(c)) for c in cos_om]
+        K_esc = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
+        mu_exit = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
+        p_tilde = _shifted_legendre_eval(n_mode, mu_exit)
+        return ang_factor * mu_exit * p_tilde * K_esc
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
+
+
+def compute_G_bc_outer_mode_marshak(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Marshak partial-current response at observer :math:`r_i` from a
+    unit mode-:math:`n` (partial-current-moment) outward-normal incident
+    current on the **outer** surface (Phase F.5 / Issue #119).
+
+    .. math::
+
+       G_{\rm bc, out, marshak}^{(n)}(r_i) = 2\!\int_{\rm hit\ outer}
+           \sin\theta\,\mu_s\,\tilde P_n(\mu_s)\,e^{-\tau}\,
+           \mathrm d\theta
+
+    where :math:`\mu_s = (\rho_{\rm out} + r_i\cos\theta)/R` is the
+    cosine at the outer surface emission point (by chord symmetry on
+    outer-outer grazing rays).
+
+    The integrand is µ-weighted consistent with
+    :func:`compute_P_esc_outer_mode_marshak` and
+    :func:`compute_hollow_sph_transmission_rank_n`.
+
+    Model A: rays blocked by the inner shell are excluded.
+    """
+    if geometry.kind != "sphere-1d" or geometry.inner_radius <= 0.0:
+        raise NotImplementedError(
+            f"compute_G_bc_outer_mode_marshak for kind="
+            f"{geometry.kind!r} not yet implemented."
+        )
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    # Q3 Marshak — outer-face partial-current response, hollow sphere.
+    def _integrand(r_i, cos_om, ang_factor, q):
+        def _eval(c: float) -> tuple[float, float]:
+            rho_out = float(geometry.rho_max(r_i, c, R))
+            if rho_out <= 0.0:
+                return 0.0, 0.0
+            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
+            if rho_in_minus is not None and rho_in_minus < rho_out:
+                return 0.0, 0.0
+            if len(radii) == 1:
+                tau = float(sig_t[0]) * rho_out
+            else:
+                tau = float(geometry.optical_depth_along_ray(
+                    r_i, c, rho_out, radii, sig_t,
+                ))
+            mu_s = (rho_out + r_i * c) / R
+            return float(np.exp(-tau)), mu_s
+
+        ev = [_eval(float(c)) for c in cos_om]
+        decay = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
+        mu_s = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
+        p_tilde = _shifted_legendre_eval(n_mode, mu_s)
+        return ang_factor * mu_s * p_tilde * decay
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=2.0, dps=dps,
+    )
+
+
+def compute_G_bc_inner_mode_marshak(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Marshak partial-current response at observer :math:`r_i` from a
+    unit mode-:math:`n` outward current on the **inner** surface
+    (Phase F.5 / Issue #119).
+
+    .. math::
+
+       G_{\rm bc, in, marshak}^{(n)}(r_i) = 2\!\int_{\rm hit\ inner}
+           \sin\theta\,\mu_s\,\tilde P_n(\mu_s)\,e^{-\tau}\,
+           \mathrm d\theta
+
+    with :math:`\mu_s = \sqrt{r_0^2 - h^2}/r_0` the cosine at the
+    inner surface emission point.
+    """
+    if geometry.kind != "sphere-1d" or geometry.inner_radius <= 0.0:
+        raise NotImplementedError(
+            f"compute_G_bc_inner_mode_marshak for kind="
+            f"{geometry.kind!r} not yet implemented."
+        )
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    r_0 = float(geometry.inner_radius)
+
+    # Q3 Marshak — inner-face partial-current response, hollow sphere.
+    def _integrand(r_i, cos_om, ang_factor, q):
+        def _eval(c: float) -> tuple[float, float]:
+            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
+            if rho_in_minus is None:
+                return 0.0, 0.0
+            if len(radii) == 1:
+                tau = float(sig_t[0]) * float(rho_in_minus)
+            else:
+                tau = float(geometry.optical_depth_along_ray(
+                    r_i, c, rho_in_minus, radii, sig_t,
+                ))
+            sin_sq = max(0.0, 1.0 - c * c)
+            mu_s_sq = max(0.0, (r_0 * r_0 - r_i * r_i * sin_sq) / (r_0 * r_0))
+            return float(np.exp(-tau)), float(np.sqrt(mu_s_sq))
+
+        ev = [_eval(float(c)) for c in cos_om]
+        decay = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
+        mu_s = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
+        p_tilde = _shifted_legendre_eval(n_mode, mu_s)
+        return ang_factor * mu_s * p_tilde * decay
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_surf_quad,
+        integrand_at_node=_integrand,
+        prefactor=2.0, dps=dps,
+    )
+
+
+def build_white_bc_correction(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    n_angular: int = 32,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Rank-1 white-BC correction :math:`K_{\rm bc}[i,j] = u[i]\,v[j]`
+    for the unified polar-form volume kernel.
+
+    .. math::
+
+       u[i] = \Sigma_t(r_i)\,G_{\rm bc}(r_i) / A_d, \quad
+       v[j] = r_j^{d-1}\,w_j\,P_{\rm esc}(r_j).
+
+    Here :math:`A_d` is the cell-surface measure
+    (:meth:`CurvilinearGeometry.surface_area_per_z` divided by
+    :math:`2\pi` for cylinder to match the
+    :math:`\int\,\mathrm dA_s / A` normalisation of the partial
+    current :math:`J^+`). The approximation error is discussed at
+    length in the companion Sphinx page.
+    """
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    r_wts = np.asarray(r_wts, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    N = len(r_nodes)
+
+    sig_t_n = np.empty(N)
+    for i, ri in enumerate(r_nodes):
+        sig_t_n[i] = sig_t[geometry.which_annulus(ri, radii)]
+
+    P_esc = compute_P_esc(
+        geometry, r_nodes, radii, sig_t,
+        n_angular=n_angular, dps=dps,
+    )
+    G_bc = compute_G_bc(
+        geometry, r_nodes, radii, sig_t,
+        n_surf_quad=n_surf_quad, dps=dps,
+    )
+
+    # u[i] = Σ_t(r_i) · G_bc(r_i) / A_d_divisor
+    #   cylinder: divisor R  (A_d = 2πR, A_j = 2π r_j w_j, ratio → r_j w_j / R)
+    #   sphere:   divisor R² (A_d = 4πR², A_j = 4π r_j² w_j, ratio → r_j² w_j / R²)
+    u = sig_t_n * G_bc / geometry.rank1_surface_divisor(R)
+    # radial_volume_weight(r_j) · w_j captures r_j (cyl) or r_j^2 (sphere)
+    rv = np.array([geometry.radial_volume_weight(rj) for rj in r_nodes])
+    v = rv * r_wts * P_esc
+    return np.outer(u, v)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Unified white-BC rank-N (Marshak / DP_N) closure
+# ═══════════════════════════════════════════════════════════════════════
+
+def compute_P_esc_mode(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_angular: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Mode-:math:`n` outgoing partial-current moment per unit source.
+
+    For :math:`n = 0`, :math:`\tilde P_0 \equiv 1` and this reduces
+    algebraically to :func:`compute_P_esc` (the isotropic-source
+    escape probability). For :math:`n \ge 1`, the **canonical DP**\
+    :sub:`N` **outgoing partial-current moment** per unit volumetric
+    source at :math:`r_i` is
+
+    .. math::
+       :label: peierls-rank-n-P-esc-moment
+
+       P_{\rm esc}^{(n)}(r_i)
+         \;=\; C_d\!\int_0^\pi W_\Omega(\Omega)\,
+                 \Bigl(\tfrac{\rho_{\max}(r_i, \Omega)}{R}\Bigr)^{\!2}\,
+                 \tilde P_n\!\bigl(\mu_{\rm exit}(r_i, \Omega, R)\bigr)\,
+                 K_{\rm esc}\!\bigl(\tau(r_i, \Omega)\bigr)\,\mathrm d\Omega
+
+    with
+    :math:`\mu_{\rm exit}(r, \Omega, R) = (\rho_{\max} + r\cos\Omega)/R`
+    the direction cosine of the outgoing ray with the outward surface
+    normal at the exit point.
+
+    The :math:`(\rho_{\max}/R)^2` factor is the **surface-to-observer
+    Jacobian** :math:`\mathrm d A_s / \mathrm d\Omega_{\mathrm{obs}} =
+    d^2 / |\mu_s|` (with :math:`d = \rho_{\max}`), after the
+    :math:`1/|\mu_s|` cancels the cosine weighting
+    :math:`|\mu_{\rm out}|` of the partial-current moment
+    :math:`J^+_n = \int \mu\,\tilde P_n(\mu)\,\psi^+\,\mathrm d\mu`.
+    The :math:`R^2` denominator normalises it against the cell's
+    characteristic surface area (:math:`A_d = 4\pi R^2` for sphere,
+    :math:`A_d = 2\pi R` per unit :math:`z` for cylinder — the
+    factor is absorbed into the rank-1 divisor
+    :meth:`CurvilinearGeometry.rank1_surface_divisor`, which is
+    :math:`R` for cylinder and :math:`R^2` for sphere).
+
+    For :math:`n = 0`, :math:`\tilde P_0 \equiv 1` and
+    :math:`(\rho_{\max}/R)^2` is generally **not** :math:`\equiv 1`,
+    so this function does not reduce to :func:`compute_P_esc` at
+    :math:`n = 0`. The mode-0 path is therefore routed through the
+    existing :func:`compute_P_esc` by
+    :func:`build_white_bc_correction_rank_n` for bit-exact rank-1
+    regression. The function here is the canonical DP\ :sub:`N`
+    moment for :math:`n \ge 1`; calling it at :math:`n = 0` returns
+    the Jacobian-weighted moment, not :math:`P_{\rm esc}`.
+    """
+    if geometry.kind == "slab-polar" and n_mode > 0:
+        # The current mode-n ≥ 1 formulation uses the curvilinear
+        # (ρ_max/R)² surface-to-observer Jacobian and a single-surface
+        # mode space A = R^N. For slab this requires per-face mode
+        # decomposition (A = R^(2·N)) because the two faces at x = 0
+        # and x = L carry independent Legendre moments. Not in scope
+        # for Issue #118; tracked separately.
+        raise NotImplementedError(
+            "Rank-N (n_mode > 0) BC closure for slab-polar requires "
+            "per-face mode decomposition; use n_bc_modes = 1 (rank-1 "
+            "Mark closure) for slab. See Issue #118 follow-up."
+        )
+
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+    inv_R2 = 1.0 / (R * R)
+
+    # Q3: rank-N DP_N moment with (ρ_max/R)² Jacobian — driver-routed.
+    def _integrand(r_i, cos_om, ang_factor, q):
+        def _eval(c: float) -> tuple[float, float, float]:
+            rho = float(geometry.rho_max(r_i, c, R))
+            if rho <= 0.0:
+                return 0.0, 0.0, 0.0
+            tau = float(geometry.optical_depth_along_ray(
+                r_i, c, rho, radii, sig_t,
+            ))
+            mu_exit = (rho + r_i * c) / R
+            return float(geometry.escape_kernel_mp(tau, dps)), mu_exit, rho
+
+        ev = [_eval(float(c)) for c in cos_om]
+        K_esc = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
+        mu_exit = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
+        rho = np.fromiter((e[2] for e in ev), dtype=float, count=len(q))
+        p_tilde = _shifted_legendre_eval(n_mode, mu_exit)
+        jacobian = rho * rho * inv_R2
+        return ang_factor * jacobian * p_tilde * K_esc
+
+    return per_observer_angular_assembly(
+        geometry, r_nodes, radii, n_angular,
+        integrand_at_node=_integrand,
+        prefactor=geometry.prefactor, dps=dps,
+    )
+
+
+def compute_G_bc_mode(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_mode: int,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Mode-:math:`n` weighted surface-to-volume Green's function.
+
+    Sphere (observer-centred :math:`\theta`-integral):
+
+    .. math::
+
+       G_{\rm bc}^{(n)}(r_i) = 2\!\int_0^\pi \sin\theta\,
+          \tilde P_n(\mu_{\rm exit})\,
+          e^{-\tau(r_i, \rho_{\max}(\theta))}\,\mathrm d\theta,
+       \qquad
+       \mu_{\rm exit} = \frac{\rho_{\max} + r_i\cos\theta}{R}.
+
+    Cylinder (surface-centred :math:`\phi`-integral, matching the
+    mode-0 :func:`compute_G_bc` form):
+
+    .. math::
+
+       G_{\rm bc}^{(n)}(r_i) = \frac{2R}{\pi}\!\int_0^\pi
+          \tilde P_n(|\mu_s|)\,
+          \frac{\mathrm{Ki}_1(\tau_{\rm surf})}{d}\,\mathrm d\phi,
+       \qquad
+       |\mu_s| = \frac{R - r_i\cos\phi}{d},\quad
+       d = \sqrt{r_i^2 + R^2 - 2 r_i R\cos\phi}.
+
+    For :math:`n = 0`, :math:`\tilde P_0 \equiv 1` and this reduces to
+    :func:`compute_G_bc`.
+    """
+    if geometry.kind == "slab-polar" and n_mode > 0:
+        # Same scope limit as compute_P_esc_mode: rank-N slab needs
+        # per-face modes. Issue #118 follow-up.
+        raise NotImplementedError(
+            "Rank-N (n_mode > 0) G_bc for slab-polar requires per-face "
+            "mode decomposition; use n_bc_modes = 1 (rank-1 Mark closure) "
+            "for slab. See Issue #118 follow-up."
+        )
+
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R = float(radii[-1])
+
+    N = len(r_nodes)
+    G = np.zeros(N)
+
+    if geometry.kind == "sphere-1d":
+        # Q3: observer-centred ω-sweep, driver-routed.
+        def _sphere_integrand(r_i, cos_om, ang_factor, q):
+            def _eval(c: float) -> tuple[float, float]:
+                rho = float(geometry.rho_max(r_i, c, R))
+                if rho <= 0.0:
+                    return 0.0, 0.0
+                if len(radii) == 1:
+                    tau = float(sig_t[0]) * rho
+                else:
+                    tau = float(geometry.optical_depth_along_ray(
+                        r_i, c, rho, radii, sig_t,
+                    ))
+                return float(np.exp(-tau)), (rho + r_i * c) / R
+
+            ev = [_eval(float(c)) for c in cos_om]
+            decay = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
+            mu_exit = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
+            p_tilde = _shifted_legendre_eval(n_mode, mu_exit)
+            return ang_factor * p_tilde * decay
+
+        return per_observer_angular_assembly(
+            geometry, r_nodes, radii, n_surf_quad,
+            integrand_at_node=_sphere_integrand,
+            prefactor=2.0, dps=dps,
+        )
+
+    # Cylinder: surface-centred Ki_1/d kernel, weighted by P̃_n(|μ_s_2D|).
+    # Q-L3: route through `per_surface_centred_angular_assembly` driver.
+    def _per_node(r_i: float, cf: float) -> float:
+        d_sq = r_i * r_i + R * R - 2.0 * r_i * R * cf
+        d = float(np.sqrt(max(d_sq, 0.0)))
+        if d <= 0.0:
+            return 0.0
+        if len(radii) == 1:
+            tau = float(sig_t[0]) * d
+        else:
+            cb = (R * cf - r_i) / d
+            tau = float(geometry.optical_depth_along_ray(
+                r_i, cb, d, radii, sig_t,
+            ))
+        mu_s = (R - r_i * cf) / d
+        p_tilde = float(_shifted_legendre_eval(n_mode, np.array([mu_s]))[0])
+        ki1 = float(ki_n_mp(1, tau, dps))
+        return p_tilde * ki1 / d
+
+    def _cyl_integrand(r_i, cos_phi, q):
+        return np.fromiter(
+            (_per_node(r_i, float(c)) for c in cos_phi),
+            dtype=float, count=len(q),
+        )
+
+    return per_surface_centred_angular_assembly(
+        geometry, r_nodes, radii, r_surface=R, n_per_panel=n_surf_quad,
+        integrand_at_node=_cyl_integrand,
+        prefactor=2.0 * R / np.pi, dps=dps,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Factored tensor form of the boundary-closure kernel
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Mathematical background (see :ref:`theory-peierls-unified` Part IV for
+# the full derivation). The boundary-closure contribution K_bc is a
+# Hilbert-Schmidt integral operator on the radial function space V.
+# In the Nyström discretisation V = R^{N_r}, K_bc is a matrix in V ⊗ V*
+# (a (1,1) tensor). The white-BC physics factors it through a finite
+# mode space A = R^N (the Gelbard shifted-Legendre expansion on the
+# inward surface hemisphere) as the tensor network
+#
+#     K_bc = G · R · P    ∈ V ⊗ V*
+#
+# with the three operators
+#
+#     P : V → A    outgoing angular-moment operator ("escape tensor")
+#     R : A → A    reflection operator on the mode space
+#     G : A → V    surface-to-volume response operator
+#
+# Every BC flavour (vacuum, reflective, white-Mark, white-Marshak DP_N,
+# albedo, interface current) is a CHOICE OF R. The geometry-specific
+# integrals live entirely in P and G; the BC physics lives entirely in
+# R. The classes and helpers below expose this structure directly.
+
+
+@dataclass(frozen=True)
+class BoundaryClosureOperator:
+    r"""Factored tensor-network representation of :math:`K_{\mathrm{bc}}`.
+
+    Stores three (or four) tensors of the factorisation
+
+    .. math::
+
+       K_{\mathrm{bc}} \;=\; G \cdot R \cdot P,
+       \qquad \text{(bare; }T\text{ is None)}
+
+    or, with optional transmission :math:`T` enabling the multi-bounce
+    geometric-series correction,
+
+    .. math::
+
+       K_{\mathrm{bc}} \;=\; G \cdot R \cdot (I - T\,R)^{-1} \cdot P,
+       \qquad \text{(multibounce; }T\text{ provided)},
+
+    where :math:`P : V \to A`, :math:`R : A \to A`, :math:`G : A \to V`,
+    and :math:`T : A \to A` is the surface-to-surface partial-current
+    transfer matrix in the same mode space :math:`A`. :math:`V` is the
+    radial Nyström space (dim :math:`N_r`); :math:`A` is the finite
+    mode space on the surface (dim :math:`N`). Contraction is over the
+    shared mode index.
+
+    Complexity. Bare: storage and :meth:`apply` cost
+    :math:`\mathcal O(N_r N + N^2)`. Multibounce: same storage; the
+    :meth:`apply` path solves an :math:`N \times N` linear system
+    once at construction (or per call if not cached). Materialising
+    the dense :math:`N_r \times N_r` matrix via :meth:`as_matrix`
+    costs :math:`\mathcal O(N_r^2 N)` regardless.
+
+    Boundary conditions. Every shipped ORPHEUS closure routes through
+    this operator:
+
+    - **vacuum** — handled outside the operator (:math:`K_{\mathrm{bc}} = 0`).
+    - **white_rank1_mark / white_f4 / Marshak DP_N** — bare; ``T = None``,
+      ``R`` from :func:`reflection_mark` /
+      :func:`reflection_marshak`.
+    - **white_hebert** — multibounce at rank-1 with ``R = [[1]]``
+      (Mark) and ``T = [[P_ss]]``: yields the Hébert
+      :math:`1/(1-P_{ss})` geometric-series factor exactly.
+    - **specular** — bare; ``R = (1/2) M^{-1}`` from
+      :func:`reflection_specular`.
+    - **specular_multibounce** — multibounce; same ``R`` plus
+      :math:`T` from :func:`compute_T_specular_*`.
+
+    See :ref:`theory-peierls-unified` Part IV for the Hilbert-Schmidt
+    factorisation, the Karhunen-Loève / SVD connection, and the full
+    derivation of the factored form.
+    """
+
+    P: np.ndarray  # escape tensor,       shape (N_modes, N_nodes)
+    G: np.ndarray  # response tensor,     shape (N_nodes, N_modes)
+    R: np.ndarray  # reflection operator, shape (N_modes, N_modes)
+    T: np.ndarray | None = None  # transmission, shape (N_modes, N_modes)
+
+    def __post_init__(self) -> None:
+        if self.P.ndim != 2 or self.G.ndim != 2 or self.R.ndim != 2:
+            raise ValueError("P, G, R must all be 2-D arrays")
+        N = self.R.shape[0]
+        if self.R.shape != (N, N):
+            raise ValueError(f"R must be square, got shape {self.R.shape}")
+        if self.P.shape[0] != N or self.G.shape[1] != N:
+            raise ValueError(
+                f"Shape mismatch: P {self.P.shape}, R {self.R.shape}, "
+                f"G {self.G.shape} — mode dim (axis 0 of P, both axes "
+                f"of R, axis 1 of G) must all equal {N}"
+            )
+        if self.P.shape[1] != self.G.shape[0]:
+            raise ValueError(
+                f"Radial node count mismatch: P has {self.P.shape[1]} "
+                f"nodes but G has {self.G.shape[0]}"
+            )
+        if self.T is not None:
+            if self.T.ndim != 2 or self.T.shape != (N, N):
+                raise ValueError(
+                    f"T must be a square (N, N) matrix matching R; "
+                    f"got T.shape {self.T.shape}, expected {(N, N)}"
+                )
+
+    @property
+    def n_modes(self) -> int:
+        """Mode-space dimension :math:`N`."""
+        return self.R.shape[0]
+
+    @property
+    def n_nodes(self) -> int:
+        """Radial-space dimension :math:`N_r`."""
+        return self.P.shape[1]
+
+    @property
+    def is_multibounce(self) -> bool:
+        """``True`` iff the operator carries an explicit transmission
+        matrix :math:`T` and assembles via the geometric-series form
+        :math:`G R (I - T R)^{-1} P` (:func:`as_matrix`) rather than
+        the bare :math:`G R P` (:func:`as_matrix` when ``T is None``)."""
+        return self.T is not None
+
+    @property
+    def closure_rank(self) -> int:
+        """Numerical rank of :math:`K_{\\mathrm{bc}}`, = rank(:math:`R`)
+        under the generic assumption that :math:`P` and :math:`G` have
+        full mode rank."""
+        return int(np.linalg.matrix_rank(self.R))
+
+    def _effective_R(self) -> np.ndarray:
+        r"""Effective mode-space operator: :math:`R` (bare) or
+        :math:`R\,(I - T\,R)^{-1}` (multibounce)."""
+        if self.T is None:
+            return self.R
+        N = self.n_modes
+        ITR = np.eye(N) - self.T @ self.R
+        return self.R @ np.linalg.inv(ITR)
+
+    def apply(self, q: np.ndarray) -> np.ndarray:
+        r"""Matrix-free application :math:`K_{\mathrm{bc}}\,q` via the
+        three-step tensor contraction
+
+        .. math::
+
+           K_{\mathrm{bc}}\,q \;=\; G\,(R_{\rm eff}\,(P\,q)),
+
+        with :math:`R_{\rm eff} = R` (bare) or
+        :math:`R_{\rm eff} = R\,(I - T\,R)^{-1}` (multibounce). For
+        the multibounce form the :math:`N \times N` solve is performed
+        on each call; cache externally if hot.
+
+        Cost :math:`\mathcal O(N_r N + N^2)` flops (plus an
+        :math:`\mathcal O(N^3)` linear solve per call when
+        multibounce). No intermediate :math:`N_r \times N_r` matrix
+        is allocated — storage stays at :math:`\mathcal O(N_r N + N^2)`.
+        """
+        outgoing_moments = self.P @ q                  # V → A
+        if self.T is None:
+            incoming_moments = self.R @ outgoing_moments
+        else:
+            N = self.n_modes
+            ITR = np.eye(N) - self.T @ self.R
+            incoming_moments = self.R @ np.linalg.solve(
+                ITR, outgoing_moments,
+            )
+        return self.G @ incoming_moments               # A → V
+
+    def as_matrix(self) -> np.ndarray:
+        r"""Materialise the dense :math:`N_r \times N_r` matrix
+        :math:`K_{\mathrm{bc}} = G\,R_{\rm eff}\,P`, with
+        :math:`R_{\rm eff} = R` (bare) or
+        :math:`R_{\rm eff} = R\,(I - T\,R)^{-1}` (multibounce).
+
+        Cost :math:`\mathcal O(N_r^2 N)`; useful when a caller
+        requires a dense representation (e.g. the direct-solve inner
+        iteration of :func:`solve_peierls_1g`, which uses
+        :func:`numpy.linalg.solve` on :math:`A = \mathrm{diag}(\Sigma_t)
+        - K\,\mathrm{diag}(\Sigma_s)`).
+        """
+        if self.T is None:
+            return self.G @ self.R @ self.P
+        N = self.n_modes
+        ITR = np.eye(N) - self.T @ self.R
+        return self.G @ self.R @ np.linalg.solve(ITR, self.P)
+
+
+def reflection_vacuum(n_modes: int) -> np.ndarray:
+    r"""Vacuum-BC reflection: :math:`R = 0`.
+
+    All outgoing moments are absorbed; no re-entering flux.
+    :math:`K_{\mathrm{bc}} = 0` regardless of :math:`P`, :math:`G`.
+    """
+    return np.zeros((n_modes, n_modes))
+
+
+def reflection_mark(n_modes: int) -> np.ndarray:
+    r"""Mark / isotropic white-BC reflection: rank-1 projector on the
+    scalar mode.
+
+    .. math::
+
+       R \;=\; e_0 e_0^{\top}
+             \;=\; \mathrm{diag}(1, 0, 0, \ldots, 0).
+
+    The zeroth outgoing moment :math:`J^{+}_0` is returned as an
+    isotropic inward distribution with :math:`J^{-}_0 = J^{+}_0`; all
+    higher moments are discarded. This is the classical Mark closure
+    and coincides with the pre-rank-N ORPHEUS rank-1 white BC.
+    """
+    R = np.zeros((n_modes, n_modes))
+    R[0, 0] = 1.0
+    return R
+
+
+def reflection_marshak(n_modes: int) -> np.ndarray:
+    r"""Marshak / Gelbard DP\ :sub:`N-1` diagonal reflection with the
+    :math:`(2n+1)` normalisation built in.
+
+    .. math::
+
+       R \;=\; \mathrm{diag}\bigl(1,\,3,\,5,\,\ldots,\,(2(N-1)+1)\bigr).
+
+    Entry :math:`n = 0` is :math:`1` (preserves bit-exact rank-1
+    Mark recovery when the other modes are truncated by
+    :math:`n_{\mathrm{modes}} = 1`); entries :math:`n \ge 1` carry the
+    Gelbard-shifted-Legendre expansion normalisation :math:`2n+1`
+    that appears in :math:`\psi(\mu) = \sum_n (2n+1)\,a_n\,\tilde P_n(\mu)`.
+    Off-diagonal entries are zero: under isotropic scattering on a
+    rotationally-symmetric cell with white BC, the closure is
+    strictly diagonal in mode index (Sanchez & McCormick 1982
+    Eq. 167).
+    """
+    R = np.diag(
+        np.array([1.0] + [2.0 * n + 1.0 for n in range(1, n_modes)])
+    )
+    return R
+
+
+def reflection_specular(n_modes: int) -> np.ndarray:
+    r"""Specular-BC reflection: full :math:`N`-mode partial-current matching.
+
+    .. math::
+
+       R_{\mathrm{spec}} \;=\; \tfrac{1}{2}\,M^{-1},
+       \qquad
+       M_{nm} \;=\; \int_0^1 \mu\,\tilde P_n(\mu)\,\tilde P_m(\mu)\,
+       \mathrm d\mu
+
+    where :math:`\tilde P_n(\mu) = P_n(2\mu - 1)` is the Gelbard
+    half-range shifted-Legendre basis. :math:`M` is symmetric tridiagonal
+    in this basis (closed form derived in
+    :mod:`orpheus.derivations.continuous.peierls.origins.specular`):
+
+    .. math::
+
+       M_{nn} = \frac{1}{2(2n+1)},\qquad
+       M_{n,n+1} = M_{n+1,n} = \frac{n+1}{2(2n+1)(2n+3)}.
+
+    By construction :math:`R_{\mathrm{spec}}` enforces the **exact
+    rank-:math:`N` partial-current identity** :math:`J^{-}_m = J^{+}_m`
+    for :math:`m = 0,\ldots,N-1`, which is the specular reflection
+    condition :math:`\psi^{-}(\mu) = \psi^{+}(\mu)` projected onto the
+    :math:`N`-mode subspace. Verification: the contract
+    :math:`2\,M\,R_{\mathrm{spec}} = I` is built into the construction
+    and tested at every :math:`N` in
+    ``test_peierls_specular_symbolic.py`` (symbolic) and
+    ``test_peierls_specular_bc.py`` (end-to-end).
+
+    Distinguishing features:
+
+    - **Rank-1**: :math:`R_{\mathrm{spec}} = [[1]] = R_{\mathrm{Mark}}
+      = R_{\mathrm{Marshak}}`. The trivial truncation collapses to the
+      isotropic mode-0 closure because the only resolvable angular
+      shape is constant.
+    - **Rank-2**: :math:`R_{\mathrm{spec}} = \tfrac{1}{2}\bigl[\begin{smallmatrix}3 & -3\\-3 & 9\end{smallmatrix}\bigr]`,
+      a **dense** matrix with :math:`R_{01} = -3/2 \ne 0` (off-diagonal
+      coupling). This contrasts with :func:`reflection_marshak` which
+      is strictly diagonal (Marshak DP\ :sub:`N` is a moment-matching
+      *approximation*; specular is the exact partial-current condition).
+    - **Numerical conditioning**: :math:`M` is ill-conditioned at high
+      :math:`N` (the partial-current overlap matrix discretises a
+      Hilbert-Schmidt operator, so :math:`\kappa(M)` grows
+      polynomially). At :math:`N = 6` the largest entry of
+      :math:`R_{\mathrm{spec}}` is ~30 and conditioning is still safe
+      in float64. For :math:`N \gtrsim 8` use higher dps for the
+      inversion.
+
+    See :mod:`orpheus.derivations.continuous.peierls.origins.specular` for the full
+    derivation and the SymPy verification at :math:`N = 1, \ldots, 5`.
+    """
+    if n_modes < 1:
+        raise ValueError(f"n_modes must be >= 1, got {n_modes}")
+
+    # Build M as a tridiagonal matrix using the closed form.
+    M = np.zeros((n_modes, n_modes))
+    for n in range(n_modes):
+        M[n, n] = 1.0 / (2.0 * (2 * n + 1))
+        if n + 1 < n_modes:
+            off = (n + 1) / (2.0 * (2 * n + 1) * (2 * n + 3))
+            M[n, n + 1] = off
+            M[n + 1, n] = off
+
+    return 0.5 * np.linalg.inv(M)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Rank-2 per-face white-BC closure (Phase F.3)
+#
+# For 2-boundary (Class-A) geometries — slab, hollow cylinder, hollow
+# sphere — the rank-1 Mark closure omits the surface-to-surface
+# transmission feedback. The acid test is the Wigner-Seitz identity
+# :math:`k_{\rm eff} = k_\infty` for a homogeneous cell with white BC on
+# both surfaces: rank-1 Mark misses it by 16-40 % at finite L, rank-2
+# white closes it to machine precision.
+#
+# The rank-2 closure decomposes the mode space as
+# :math:`A = \mathbb{R}^{N_{\rm modes} \times N_{\rm surfaces}}` and
+# stitches the per-face escape (:func:`compute_P_esc_{outer,inner}`),
+# per-face response (:func:`compute_G_bc_{outer,inner}`), and a 2x2
+# reflection that inverts the coupled partial-current balance
+#
+# .. math::
+#
+#    J^-_{\rm out} = J^+_{\rm out} = q \otimes P_{\rm esc,out}
+#                                   + T\,J^-_{\rm in}, \\
+#    J^-_{\rm in}  = J^+_{\rm in}  = q \otimes P_{\rm esc,in}
+#                                   + T\,J^-_{\rm out},
+#
+# giving
+# :math:`R_{\rm white} = (I - W)^{-1}` with :math:`W = T \cdot
+# \bigl(\begin{smallmatrix}0 & 1\\1 & 0\end{smallmatrix}\bigr)` for
+# slab (:math:`T = 2 E_3(\tau_L)`). For hollow cyl/sph the transmission
+# matrix :math:`W` additionally carries self-transmission entries
+# (tangent rays grazing the cavity) — see Phase F.4.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def compute_slab_transmission(
+    L: float,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    dps: int = 25,
+) -> float:
+    r"""Slab surface-to-surface transmission coefficient
+
+    .. math::
+
+       T \;=\; 2\,E_3(\Sigma_t\,L)
+
+    for a slab of optical thickness :math:`\Sigma_t\,L`. For a
+    multi-region slab :math:`[0, L] = \bigcup_k [r_{k-1}, r_k]` with
+    piecewise-constant :math:`\Sigma_t^{(k)}`,
+    :math:`T = 2\,E_3(\tau_{\rm total})` with
+    :math:`\tau_{\rm total} = \sum_k \Sigma_t^{(k)}(r_k - r_{k-1})`.
+
+    Used by the rank-2 white-BC reflection builder to couple the two
+    slab faces.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    tau_total = 0.0
+    r_prev = 0.0
+    for k, r_k in enumerate(radii):
+        tau_total += float(sig_t[k]) * (float(r_k) - r_prev)
+        r_prev = float(r_k)
+    return 2.0 * float(mpmath.expint(3, mpmath.mpf(tau_total)))
+
+
+def compute_hollow_cyl_transmission(
+    r_0: float,
+    R: float,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Surface-to-surface transmission matrix :math:`W` for a
+    homogeneous hollow cylindrical annulus :math:`[r_0, R]` with a
+    pure absorber.
+
+    Returns the :math:`2 \times 2` matrix whose entry :math:`W_{k,l}`
+    is the probability that a unit uniform-isotropic (Lambertian)
+    outgoing current leaving surface :math:`l` re-arrives at surface
+    :math:`k` without collision. The mode convention is:
+    index 0 = outer surface (:math:`r = R`), index 1 = inner
+    (:math:`r = r_0`).
+
+    Closed-form chord decomposition under Lambertian emission
+    (3-D angle fold into :math:`\mathrm{Ki}_3`):
+
+    .. math::
+
+       W_{\rm oo} = \frac{4}{\pi}\!\int_{\alpha_c}^{\pi/2}\!
+           \cos\alpha \,\mathrm{Ki}_3(2\Sigma_t R\cos\alpha)\,\mathrm d\alpha,
+           \qquad \alpha_c = \arcsin(r_0/R),
+
+    (rays from :math:`R` grazing past the cavity, chord
+    :math:`2R\cos\alpha`);
+
+    .. math::
+
+       W_{\rm io} = \frac{4}{\pi}\!\int_0^{\alpha_c}\!
+           \cos\alpha \,\mathrm{Ki}_3\!\bigl(\Sigma_t(R\cos\alpha
+               - \sqrt{r_0^2 - R^2\sin^2\alpha})\bigr)\,\mathrm d\alpha,
+
+    (rays from :math:`R` hitting the inner shell before the opposite
+    outer face, chord only the annular leg). The inner-to-outer
+    transmission follows by reciprocity (the surface-areas enter via
+    :math:`2\pi R \cdot W_{\rm io} = 2\pi r_0 \cdot W_{\rm oi}`):
+
+    .. math::
+
+       W_{\rm oi} = \frac{R}{r_0}\,W_{\rm io}.
+
+    Self-transmission at the inner surface is :math:`W_{\rm ii} = 0`:
+    rays leaving :math:`r_0` outward travel through the annulus and
+    either exit through :math:`R` or are absorbed; a convex cavity
+    cannot route a ray back to :math:`r_0` without a BC reflection.
+
+    For multi-region annuli the integral replaces :math:`\Sigma_t\cdot
+    \text{chord}` by the piecewise optical depth
+    :math:`\int_{\rm annulus} \Sigma_t(r(s))\,\mathrm ds`; this function
+    handles the homogeneous single-region case directly and defers
+    multi-region to the general
+    :meth:`CurvilinearGeometry.optical_depth_along_ray` walker.
+
+    Parameters
+    ----------
+    r_0, R
+        Inner and outer radii (:math:`0 < r_0 < R`).
+    radii
+        Outer edges of annular regions (length 1 for homogeneous,
+        longer for multi-region). For multi-region the Ki_3 argument
+        becomes the actual piecewise-integrated optical depth.
+    sig_t
+        Region-wise total macroscopic XS.
+    dps
+        mpmath working precision.
+
+    Returns
+    -------
+    W : ndarray, shape (2, 2)
+        Transmission matrix with rows/cols indexed [outer, inner].
+    """
+    if not (0.0 < r_0 < R):
+        raise ValueError(
+            f"Hollow cylinder requires 0 < r_0 < R; got r_0={r_0}, R={R}"
+        )
+    sig_t = np.asarray(sig_t, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    if len(radii) != 1 or len(sig_t) != 1:
+        raise NotImplementedError(
+            "Multi-region hollow cylinder transmission is planned but "
+            "not yet implemented — pass a single-region annulus "
+            "(len(radii) == 1). For multi-region, the Ki_3 chord "
+            "integral must be replaced by the piecewise optical depth."
+        )
+    sig_t_val = float(sig_t[0])
+
+    alpha_c = float(np.arcsin(r_0 / R))
+
+    def _Ki3(x):
+        return float(ki_n_mp(3, float(x), dps))
+
+    with mpmath.workdps(dps):
+        # W_outer_outer: grazing-cavity rays hit outer again.
+        W_oo = float(mpmath.quad(
+            lambda a: mpmath.cos(a) * _Ki3(
+                2.0 * sig_t_val * R * float(mpmath.cos(a))
+            ),
+            [mpmath.mpf(alpha_c), mpmath.pi / 2],
+        ))
+        W_oo *= 4.0 / float(mpmath.pi)
+
+        # W_outer_inner: rays hitting inner shell before opposite
+        # outer face. Chord from R to the first inner intersection.
+        def _chord_out_to_in(a):
+            h_sq = R * R * float(mpmath.sin(a)) ** 2
+            return R * float(mpmath.cos(a)) - float(
+                mpmath.sqrt(mpmath.mpf(r_0 * r_0 - h_sq))
+            )
+
+        W_io = float(mpmath.quad(
+            lambda a: mpmath.cos(a) * _Ki3(
+                sig_t_val * _chord_out_to_in(a)
+            ),
+            [mpmath.mpf(0.0), mpmath.mpf(alpha_c)],
+        ))
+        W_io *= 4.0 / float(mpmath.pi)
+
+    # Reciprocity for outer←inner; convex-cavity inner←inner = 0.
+    W_oi = (R / r_0) * W_io
+    return np.array([[W_oo, W_oi], [W_io, 0.0]])
+
+
+def compute_hollow_sph_transmission(
+    r_0: float,
+    R: float,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Surface-to-surface transmission matrix :math:`W` for a
+    homogeneous hollow spherical shell :math:`[r_0, R]` with a pure
+    absorber.
+
+    Mirrors :func:`compute_hollow_cyl_transmission` but with the
+    bare :math:`e^{-\tau}` kernel — the sphere's 3-D geometry
+    integrates directly over solid angle without the
+    :math:`\mathrm{Ki}_n` out-of-plane fold:
+
+    .. math::
+
+       W_{\rm oo} &= 2\!\int_{\theta_c}^{\pi/2}\!
+           \cos\theta\,\sin\theta\,
+           e^{-2\Sigma_t R\cos\theta}\,\mathrm d\theta, \\
+       W_{\rm io} &= 2\!\int_0^{\theta_c}\!
+           \cos\theta\,\sin\theta\,
+           e^{-\Sigma_t(R\cos\theta - \sqrt{r_0^2 - R^2\sin^2\theta})}\,
+           \mathrm d\theta,
+
+    :math:`\theta_c = \arcsin(r_0/R)`. Reciprocity on spherical
+    surface areas (:math:`A_{\rm out} = 4\pi R^2`,
+    :math:`A_{\rm in} = 4\pi r_0^2`) gives
+
+    .. math::
+
+       W_{\rm oi} = (R/r_0)^2\,W_{\rm io},
+
+    and :math:`W_{\rm ii} = 0` by convex-cavity reasoning identical
+    to cylinder.
+
+    Parameters
+    ----------
+    r_0, R
+        Inner and outer radii (:math:`0 < r_0 < R`).
+    radii, sig_t
+        Homogeneous single-region inputs: ``len(radii) == 1``.
+    dps
+        mpmath working precision.
+
+    Returns
+    -------
+    W : ndarray, shape (2, 2)
+        Transmission matrix [outer, inner] × [outer, inner].
+    """
+    if not (0.0 < r_0 < R):
+        raise ValueError(
+            f"Hollow sphere requires 0 < r_0 < R; got r_0={r_0}, R={R}"
+        )
+    sig_t = np.asarray(sig_t, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    if len(radii) != 1 or len(sig_t) != 1:
+        raise NotImplementedError(
+            "Multi-region hollow sphere transmission is planned but "
+            "not yet implemented — pass a single-region annulus "
+            "(len(radii) == 1)."
+        )
+    sig_t_val = float(sig_t[0])
+
+    theta_c = float(np.arcsin(r_0 / R))
+
+    with mpmath.workdps(dps):
+        W_oo = 2.0 * float(mpmath.quad(
+            lambda t: (
+                mpmath.cos(t) * mpmath.sin(t)
+                * mpmath.exp(-2.0 * sig_t_val * R * mpmath.cos(t))
+            ),
+            [mpmath.mpf(theta_c), mpmath.pi / 2],
+        ))
+
+        def _chord(t):
+            h_sq = R * R * float(mpmath.sin(t)) ** 2
+            return R * float(mpmath.cos(t)) - float(
+                mpmath.sqrt(mpmath.mpf(r_0 * r_0 - h_sq))
+            )
+
+        W_io = 2.0 * float(mpmath.quad(
+            lambda t: (
+                mpmath.cos(t) * mpmath.sin(t)
+                * mpmath.exp(-sig_t_val * _chord(t))
+            ),
+            [mpmath.mpf(0.0), mpmath.mpf(theta_c)],
+        ))
+
+    # Reciprocity on 4π R² / 4π r_0² — sphere area ratio is (R/r_0)².
+    W_oi = (R / r_0) ** 2 * W_io
+    return np.array([[W_oo, W_oi], [W_io, 0.0]])
+
+
+def compute_hollow_sph_transmission_rank_n(
+    r_0: float,
+    R: float,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    n_bc_modes: int,
+    dps: int = 25,
+) -> np.ndarray:
+    r"""Rank-:math:`N` per-face surface-to-surface transmission matrix
+    for a homogeneous hollow spherical annulus (Phase F.5 /
+    Issue #119).
+
+    Returns a :math:`(2N) \times (2N)` matrix with block structure
+
+    .. math::
+
+       W = \begin{pmatrix}
+           W_{\rm oo} & W_{\rm oi} \\
+           W_{\rm io} & W_{\rm ii}
+       \end{pmatrix},
+
+    each block :math:`(N \times N)` in the per-face Legendre-moment
+    basis :math:`\tilde P_n(|\mu|)` on :math:`[0, 1]`. Row/column
+    layout is ``[outer_mode_0, ..., outer_mode_{N-1}, inner_mode_0,
+    ..., inner_mode_{N-1}]``.
+
+    **Formulas** (Sanchez–McCormick 1982 §III.F, Hébert 2020 §3 —
+    with :math:`\mu = \cos\theta` from local inward normal,
+    :math:`\theta_c = \arcsin(r_0/R)`):
+
+    .. math::
+
+       W_{\rm oo}^{(m,n)} &= 2\!\!\int_{\theta_c}^{\pi/2}\!\!
+           \cos\theta\,\sin\theta\,\tilde P_n(\cos\theta)\,
+           \tilde P_m(\cos\theta)\,e^{-2\Sigma_t R\cos\theta}\,
+           \mathrm d\theta, \\
+       W_{\rm io}^{(m,n)} &= 2\!\!\int_0^{\theta_c}\!\!
+           \cos\theta\,\sin\theta\,\tilde P_n(\cos\theta)\,
+           \tilde P_m(c_{\rm in})\,e^{-\Sigma_t\ell(\theta)}\,
+           \mathrm d\theta,\quad
+           c_{\rm in} = \sqrt{1 - (R\sin\theta/r_0)^2}, \\
+       W_{\rm oi}^{(m,n)} &= (R/r_0)^2\,W_{\rm io}^{(n,m)} \quad
+           \text{(reciprocity, mode indices transposed)}, \\
+       W_{\rm ii}^{(m,n)} &= 0 \quad \text{(convex cavity)}.
+
+    For :math:`N = 1` this reduces exactly to
+    :func:`compute_hollow_sph_transmission` (the scalar case).
+
+    The Gelbard :math:`(2n+1)` normalisation lives in the reflection
+    operator :math:`R`, not in :math:`W` (consistent with the
+    existing :func:`reflection_marshak` convention).
+    """
+    if not (0.0 < r_0 < R):
+        raise ValueError(
+            f"Hollow sphere requires 0 < r_0 < R; got r_0={r_0}, R={R}"
+        )
+    if n_bc_modes < 1:
+        raise ValueError(f"n_bc_modes must be >= 1, got {n_bc_modes}")
+    sig_t = np.asarray(sig_t, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    if len(radii) != 1 or len(sig_t) != 1:
+        raise NotImplementedError(
+            "Multi-region rank-N hollow sphere transmission not "
+            "implemented (single-region homogeneous only)."
+        )
+    N = int(n_bc_modes)
+    sig_t_val = float(sig_t[0])
+    theta_c = float(np.arcsin(r_0 / R))
+    dim = 2 * N
+    W = np.zeros((dim, dim))
+
+    # Precompute P_tilde evaluation at a single µ.
+    def _P_tilde(n, mu):
+        return float(_shifted_legendre_eval(n, np.array([mu]))[0])
+
+    with mpmath.workdps(dps):
+        # --- Outer → outer block (grazing past cavity) ---
+        for m in range(N):
+            for n in range(N):
+                val = 2.0 * float(mpmath.quad(
+                    lambda th, m=m, n=n: (
+                        mpmath.cos(th) * mpmath.sin(th)
+                        * _P_tilde(n, float(mpmath.cos(th)))
+                        * _P_tilde(m, float(mpmath.cos(th)))
+                        * mpmath.exp(-2.0 * sig_t_val * R * mpmath.cos(th))
+                    ),
+                    [mpmath.mpf(theta_c), mpmath.pi / 2],
+                ))
+                W[m, n] = val
+
+        # --- Inner ← outer block (hit inner first) ---
+        def _chord(t):
+            h_sq = R * R * float(mpmath.sin(t)) ** 2
+            return R * float(mpmath.cos(t)) - float(
+                mpmath.sqrt(mpmath.mpf(r_0 * r_0 - h_sq))
+            )
+
+        for m in range(N):
+            for n in range(N):
+                def integrand(th, m=m, n=n):
+                    cos_th = float(mpmath.cos(th))
+                    sin_th = float(mpmath.sin(th))
+                    # Arrival µ at inner (local inward-normal frame)
+                    c_in_sq = 1.0 - (R * sin_th / r_0) ** 2
+                    if c_in_sq < 0.0:
+                        c_in_sq = 0.0
+                    c_in = float(mpmath.sqrt(mpmath.mpf(c_in_sq)))
+                    return (
+                        cos_th * sin_th
+                        * _P_tilde(n, cos_th)
+                        * _P_tilde(m, c_in)
+                        * mpmath.exp(-sig_t_val * _chord(th))
+                    )
+
+                val = 2.0 * float(mpmath.quad(
+                    integrand, [mpmath.mpf(0.0), mpmath.mpf(theta_c)],
+                ))
+                W[N + m, n] = val
+
+        # --- Outer ← inner block via reciprocity ---
+        # A_outer · W_oi^{mn} = A_inner · W_io^{nm}
+        # A_outer/A_inner = (R/r_0)² for sphere; indices transposed.
+        area_ratio = (R / r_0) ** 2
+        for m in range(N):
+            for n in range(N):
+                W[m, N + n] = area_ratio * W[N + n, m]
+
+        # --- Inner → inner block: zero (convex cavity) ---
+        # Already np.zeros.
+    return W
+
+
+def reflection_white_rank2(
+    W: np.ndarray,
+) -> np.ndarray:
+    r"""White-BC reflection with transmission feedback:
+    :math:`R = (I - W)^{-1}`.
+
+    ``W`` is the surface-to-surface transmission matrix — entry
+    :math:`W_{kl}` is the probability that a unit uniform isotropic
+    outgoing current leaving surface :math:`l` re-arrives at surface
+    :math:`k` without attenuation on the far side (i.e., having
+    traversed the cell interior). For Class-A (:math:`N_{\rm surf} = 2`)
+    cells with a pure absorber, :math:`W` is :math:`2 \times 2`.
+
+    For slab with scalar transmission :math:`T`:
+    :math:`W = T\,\bigl(\begin{smallmatrix}0 & 1\\1 & 0\end{smallmatrix}\bigr)`,
+    giving :math:`R = 1/(1-T^2)\,\bigl(\begin{smallmatrix}1 & T\\T & 1\end{smallmatrix}\bigr)`.
+
+    For hollow cyl/sph :math:`W` additionally has self-transmission
+    diagonal entries (tangent rays). See :func:`compute_transmission_matrix`.
+    """
+    W = np.asarray(W, dtype=float)
+    if W.ndim != 2 or W.shape[0] != W.shape[1]:
+        raise ValueError(f"W must be square 2-D, got {W.shape}")
+    n = W.shape[0]
+    I_n = np.eye(n)
+    det = np.linalg.det(I_n - W)
+    if abs(det) < 1e-30:
+        raise ValueError(
+            f"(I - W) is singular (det = {det:.3e}) — "
+            f"transmission matrix W yields an ill-posed closure. "
+            f"This indicates a critical configuration (k_eff = 1 "
+            f"without BC) or a bug in W's construction."
+        )
+    return np.linalg.inv(I_n - W)
+
+
+def build_closure_operator(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    n_angular: int = 32,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+    n_bc_modes: int = 1,
+    reflection: str | np.ndarray = "marshak",
+) -> BoundaryClosureOperator:
+    r"""Assemble the factored :math:`K_{\mathrm{bc}} = G\,R\,P` operator.
+
+    The escape tensor :math:`P` and response tensor :math:`G` are
+    built from geometry-specific Nyström integrals of the mode-0
+    (legacy Mark) and mode-:math:`n \ge 1` (Gelbard DP\ :sub:`N-1`)
+    primitives. The reflection operator :math:`R` is chosen via
+    the ``reflection`` argument (default: Marshak / Gelbard
+    DP\ :sub:`N-1` diagonal).
+
+    **Mode-0 convention**. Mode 0 is routed through the existing
+    :func:`compute_P_esc` / :func:`compute_G_bc` (the Mark
+    escape-probability form that predates the rank-N extension), so
+    that ``n_bc_modes = 1`` together with ``reflection = "mark"`` or
+    ``"marshak"`` (both have :math:`R_{00} = 1`) yields the rank-1
+    :math:`K_{\mathrm{bc}}` bit-exactly matching the legacy
+    :func:`build_white_bc_correction`. This is the regression gate.
+
+    **Mode-n (n ≥ 1) convention**. Modes :math:`n \ge 1` use
+    :func:`compute_P_esc_mode` (with the canonical
+    :math:`(\rho_{\max}/R)^2` surface-to-observer Jacobian
+    :eq:`peierls-rank-n-P-esc-moment`) and
+    :func:`compute_G_bc_mode`. The Gelbard :math:`(2n+1)` expansion
+    normalisation lives in :attr:`BoundaryClosureOperator.R`, not in
+    :math:`P` — this exposes the closure structure as the identity
+    :math:`R = \mathrm{diag}(2n+1)` on the mode space.
+
+    See :ref:`theory-peierls-unified` Part IV for the operator-level
+    derivation and the Hilbert-Schmidt / SVD interpretation.
+
+    Parameters
+    ----------
+    reflection : str | np.ndarray
+        ``"vacuum"``, ``"mark"``, ``"marshak"``, or an explicit
+        :math:`(N \times N)` matrix. See
+        :func:`reflection_vacuum`, :func:`reflection_mark`,
+        :func:`reflection_marshak` for the canonical choices.
+    """
+    if n_bc_modes < 1:
+        raise ValueError(f"n_bc_modes must be >= 1, got {n_bc_modes}")
+
+    r_nodes = np.asarray(r_nodes, dtype=float)
+    r_wts = np.asarray(r_wts, dtype=float)
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    R_cell = float(radii[-1])
+    N_r = len(r_nodes)
+    N = n_bc_modes
+
+    sig_t_n = np.empty(N_r)
+    for i, ri in enumerate(r_nodes):
+        sig_t_n[i] = sig_t[geometry.which_annulus(ri, radii)]
+    rv = np.array([geometry.radial_volume_weight(rj) for rj in r_nodes])
+
+    # ── Rank-2 per-face layout (Phase F.3, reflection="white") ──────
+    # Triggered only for Class-A cells (geometry.n_surfaces == 2) under
+    # the "white" string reflection. Solid cyl/sph fall back to the
+    # legacy single-surface layout for bit-exact rank-1 regression.
+    use_rank2 = (
+        isinstance(reflection, str)
+        and reflection == "white"
+        and geometry.n_surfaces == 2
+    )
+    if use_rank2:
+        if n_bc_modes > 1:
+            # Phase F.5 / Issue #119 — rank-N per-face white BC.
+            # Infrastructure is present (mode primitives both Lambert
+            # and Marshak variants, (2N × 2N) transmission matrix,
+            # assembly helper) but the final closure
+            # `K_bc = G · (I − W)⁻¹ · P` does NOT close the Wigner-Seitz
+            # identity at N ≥ 2 regardless of basis choice. A 16-recipe
+            # scan at R=5, r_0/R=0.3, homogeneous Σ_t=1 gives best-case
+            # ~1.4 % residual vs the Phase F.4 N=1 scalar result of
+            # 0.077 % — adding mode-1 DEGRADES accuracy instead of
+            # improving it, indicating a deeper bug beyond the measure
+            # mismatch originally diagnosed. Candidates for follow-up
+            # investigation: (a) mode-1 primitive sign/normalisation,
+            # (b) transmission matrix indexing at cross-face blocks,
+            # (c) reciprocity / surface-area factor in W_oi at n ≥ 1.
+            # Tracked in Issue #119 follow-up (see the measure-mismatch
+            # memo + recipe scan in `derivations/diagnostics/`).
+            raise NotImplementedError(
+                "Rank-N per-face white BC (n_bc_modes > 1) infrastructure "
+                "is present but the final closure DEGRADES k_eff instead "
+                "of converging it (best recipe ~1.4 % residual at r_0/R=0.3 "
+                "vs 0.077 % at N=1). The measure-mismatch fix from Issue "
+                "#119 is necessary but not sufficient — the mode-1 "
+                "primitive or transmission-matrix off-diagonal entries "
+                "have a second bug. Tracked in Issue #119 follow-up. "
+                "Use n_bc_modes=1 for rank-2 per-face (Phase F.3/F.4)."
+            )
+        return _build_closure_operator_rank2_white(
+            geometry, r_nodes, r_wts, radii, sig_t,
+            n_angular=n_angular, n_surf_quad=n_surf_quad, dps=dps,
+            sig_t_n=sig_t_n, rv=rv,
+        )
+
+    # ── Legacy single-surface layout (rank-1 Mark / Marshak, vacuum) ─
+    divisor = geometry.rank1_surface_divisor(R_cell)
+
+    P = np.zeros((N, N_r))
+    G = np.zeros((N_r, N))
+
+    # Mode 0 — legacy Mark convention for rank-1 bit-exact regression.
+    P_esc_0 = compute_P_esc(
+        geometry, r_nodes, radii, sig_t,
+        n_angular=n_angular, dps=dps,
+    )
+    G_bc_0 = compute_G_bc(
+        geometry, r_nodes, radii, sig_t,
+        n_surf_quad=n_surf_quad, dps=dps,
+    )
+    P[0, :] = rv * r_wts * P_esc_0
+    G[:, 0] = sig_t_n * G_bc_0 / divisor
+
+    # Modes n ≥ 1 — canonical Gelbard DP_{N-1} partial-current moments
+    # with the (ρ_max/R)² Jacobian baked into compute_P_esc_mode.
+    for n in range(1, N):
+        P_esc_n = compute_P_esc_mode(
+            geometry, r_nodes, radii, sig_t, n,
+            n_angular=n_angular, dps=dps,
+        )
+        G_bc_n = compute_G_bc_mode(
+            geometry, r_nodes, radii, sig_t, n,
+            n_surf_quad=n_surf_quad, dps=dps,
+        )
+        P[n, :] = rv * r_wts * P_esc_n
+        G[:, n] = sig_t_n * G_bc_n / divisor
+
+    # Reflection operator on the mode space.
+    if isinstance(reflection, str):
+        reflection_map = {
+            "vacuum": reflection_vacuum,
+            "mark": reflection_mark,
+            "marshak": reflection_marshak,
+        }
+        if reflection == "white":
+            # n_surfaces == 1 (solid cyl/sph): "white" == "mark" (the
+            # single-surface form's self-reflection IS white BC for
+            # solid geometries — the 2-boundary T-feedback path is
+            # inapplicable when only one boundary exists).
+            R_matrix = reflection_mark(N)
+        elif reflection not in reflection_map:
+            raise ValueError(
+                f"Unknown reflection = {reflection!r}; expected one of "
+                f"{list(reflection_map)} or a {N}×{N} matrix."
+            )
+        else:
+            R_matrix = reflection_map[reflection](N)
+    else:
+        R_matrix = np.asarray(reflection, dtype=float)
+
+    return BoundaryClosureOperator(P=P, G=G, R=R_matrix)
+
+
+def _build_closure_operator_rank2_white(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    n_angular: int,
+    n_surf_quad: int,
+    dps: int,
+    sig_t_n: np.ndarray,
+    rv: np.ndarray,
+) -> BoundaryClosureOperator:
+    r"""Rank-2 per-face white-BC closure assembly (Phase F.3).
+
+    Internal helper called by :func:`build_closure_operator` for
+    Class-A cells (:math:`N_{\rm surfaces} = 2`) under
+    ``reflection="white"``.
+
+    Builds :math:`P \in \mathbb{R}^{2 \times N_r}`,
+    :math:`G \in \mathbb{R}^{N_r \times 2}` from the per-face
+    escape / response primitives, and
+    :math:`R = (I - W)^{-1} \in \mathbb{R}^{2 \times 2}` from the
+    surface-to-surface transmission. For slab,
+    :math:`W = T\,\bigl(\begin{smallmatrix}0 & 1\\1 & 0\end{smallmatrix}\bigr)`
+    with :math:`T = 2\,E_3(\tau_{\rm total})`. Hollow cyl/sph will be
+    added in Phase F.4 via geometry-specific transmission integrals.
+
+    Per-face divisor convention: each surface has its own characteristic
+    area, so the divisor is the per-face area (slab: 1 per unit
+    transverse area per face; cyl: :math:`2\pi R_{\rm out}` / :math:`2\pi r_0`
+    per unit z, cancelled against the per-face volume-element ratio;
+    sph: :math:`4\pi R_{\rm out}^2` / :math:`4\pi r_0^2`). For slab
+    this reduces to divisor_outer = divisor_inner = 1.
+    """
+    N_r = len(r_nodes)
+    P = np.zeros((2, N_r))
+    G = np.zeros((N_r, 2))
+
+    P_esc_outer_arr = compute_P_esc_outer(
+        geometry, r_nodes, radii, sig_t,
+        n_angular=n_angular, dps=dps,
+    )
+    P_esc_inner_arr = compute_P_esc_inner(
+        geometry, r_nodes, radii, sig_t,
+        n_angular=n_angular, dps=dps,
+    )
+    G_bc_outer_arr = compute_G_bc_outer(
+        geometry, r_nodes, radii, sig_t,
+        n_surf_quad=n_surf_quad, dps=dps,
+    )
+    G_bc_inner_arr = compute_G_bc_inner(
+        geometry, r_nodes, radii, sig_t,
+        n_surf_quad=n_surf_quad, dps=dps,
+    )
+
+    # Per-surface divisor. For slab both faces have unit area
+    # (per unit transverse), divisor = 1 each.
+    if geometry.kind == "slab-polar":
+        div_outer = 1.0
+        div_inner = 1.0
+    elif geometry.kind == "cylinder-1d":
+        div_outer = float(radii[-1])
+        div_inner = float(geometry.inner_radius)
+    else:  # sphere-1d
+        R_out = float(radii[-1])
+        r_in = float(geometry.inner_radius)
+        div_outer = R_out * R_out
+        div_inner = r_in * r_in
+
+    # Mode layout (rows 0 = outer, 1 = inner) — matches plan §3.2.
+    P[0, :] = rv * r_wts * P_esc_outer_arr
+    P[1, :] = rv * r_wts * P_esc_inner_arr
+    G[:, 0] = sig_t_n * G_bc_outer_arr / div_outer
+    G[:, 1] = sig_t_n * G_bc_inner_arr / div_inner
+
+    # Surface-to-surface transmission matrix.
+    if geometry.kind == "slab-polar":
+        L = float(radii[-1])
+        T = compute_slab_transmission(L, radii, sig_t, dps=dps)
+        W = T * np.array([[0.0, 1.0], [1.0, 0.0]])
+    elif geometry.kind == "cylinder-1d":
+        # Hollow cylinder (Phase F.4): Lambert-emission chord transmission
+        # with the out-of-plane θ fold into Ki_3. See
+        # :func:`compute_hollow_cyl_transmission` docstring for the full
+        # derivation; the 2×2 W matrix below drives the partial-current
+        # inversion R = (I - W)^{-1}.
+        r0 = float(geometry.inner_radius)
+        R_out = float(radii[-1])
+        W = compute_hollow_cyl_transmission(r0, R_out, radii, sig_t, dps=dps)
+    elif geometry.kind == "sphere-1d":
+        # Hollow sphere (Phase F.4): same chord decomposition as cylinder
+        # but with the bare exp(-τ) kernel (no Ki_3 θ-fold — sphere's
+        # 3-D angular integration is explicit). See
+        # :func:`compute_hollow_sph_transmission` for the derivation.
+        r0 = float(geometry.inner_radius)
+        R_out = float(radii[-1])
+        W = compute_hollow_sph_transmission(r0, R_out, radii, sig_t, dps=dps)
+    else:  # pragma: no cover
+        raise NotImplementedError(
+            f"Rank-2 white BC for kind={geometry.kind!r} not implemented."
+        )
+
+    R_matrix = reflection_white_rank2(W)
+    return BoundaryClosureOperator(P=P, G=G, R=R_matrix)
+
+
+def _build_closure_operator_rank_n_white(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    n_angular: int,
+    n_surf_quad: int,
+    dps: int,
+    n_bc_modes: int,
+    sig_t_n: np.ndarray,
+    rv: np.ndarray,
+) -> BoundaryClosureOperator:
+    r"""Rank-:math:`N` per-face Marshak white-BC closure (Phase F.5 /
+    Issue #119).
+
+    Implemented for hollow sphere. Mode layout ``[outer_0, ...,
+    outer_{N-1}, inner_0, ..., inner_{N-1}]`` gives a :math:`(2N)`-wide
+    mode space, all modes in the **Marshak / partial-current-moment**
+    basis.
+
+    The reflection
+
+    .. math::
+
+       R_{\rm eff} = (I_{2N} - W_N)^{-1}
+
+    combines the surface-to-surface transmission feedback with the
+    mode-wise white BC :math:`J^-_m = J^+_m`. In the Marshak basis
+    this BC is diagonal; the transmission matrix
+    :func:`compute_hollow_sph_transmission_rank_n` is already in the
+    Marshak basis (cos θ · sin θ integrand = µ dµ), so the closure
+    requires no basis conversion once the per-face primitives are in
+    the same basis.
+
+    The :math:`P` and :math:`G` tensors stack mode-by-mode per-face
+    primitives:
+
+    .. math::
+
+       P[kN + n, j] &= r_j^{d-1}\,w_j\,P_{\rm esc, face_k, marshak}^{(n)}(r_j), \\
+       G[i, kN + m] &= \Sigma_t(r_i)\,G_{{\rm bc}, {\rm face_k}, {\rm marshak}}^{(m)}(r_i) / A_k,
+
+    where the primitives are the
+    :func:`compute_P_esc_{outer,inner}_mode_marshak` /
+    :func:`compute_G_bc_{outer,inner}_mode_marshak` variants that
+    include the :math:`µ` partial-current weight in the integrand.
+    This is the **Phase F.5 fix for Issue #119** — the Lambert-basis
+    (no-µ) mode primitives used by
+    :func:`_build_closure_operator_rank2_white` mismatch the Marshak
+    basis of the transmission matrix at N ≥ 2, producing a :math:`G
+    (I−W)^{-1} P` product that couples incompatible inner products.
+
+    Currently implemented: sphere-1d (hollow). Slab and cylinder raise
+    :class:`NotImplementedError` from the Marshak mode primitives.
+    """
+    if geometry.kind != "sphere-1d" or geometry.inner_radius <= 0.0:
+        raise NotImplementedError(
+            f"Rank-N per-face white BC implemented for hollow sphere "
+            f"only (Phase F.5 initial scope); got kind="
+            f"{geometry.kind!r}, inner_radius={geometry.inner_radius}. "
+            f"Slab and cylinder rank-N per-face are Issue #120 / #121 "
+            f"follow-ups."
+        )
+    N = int(n_bc_modes)
+    N_r = len(r_nodes)
+    P = np.zeros((2 * N, N_r))
+    G = np.zeros((N_r, 2 * N))
+
+    R_out = float(radii[-1])
+    r_in = float(geometry.inner_radius)
+    div_outer = R_out * R_out
+    div_inner = r_in * r_in
+
+    for n in range(N):
+        P_out_n = compute_P_esc_outer_mode_marshak(
+            geometry, r_nodes, radii, sig_t, n,
+            n_angular=n_angular, dps=dps,
+        )
+        P_in_n = compute_P_esc_inner_mode_marshak(
+            geometry, r_nodes, radii, sig_t, n,
+            n_angular=n_angular, dps=dps,
+        )
+        G_out_n = compute_G_bc_outer_mode_marshak(
+            geometry, r_nodes, radii, sig_t, n,
+            n_surf_quad=n_surf_quad, dps=dps,
+        )
+        G_in_n = compute_G_bc_inner_mode_marshak(
+            geometry, r_nodes, radii, sig_t, n,
+            n_surf_quad=n_surf_quad, dps=dps,
+        )
+        # Mode layout: [outer_0, ..., outer_{N-1}, inner_0, ..., inner_{N-1}]
+        P[n, :] = rv * r_wts * P_out_n
+        P[N + n, :] = rv * r_wts * P_in_n
+        G[:, n] = sig_t_n * G_out_n / div_outer
+        G[:, N + n] = sig_t_n * G_in_n / div_inner
+
+    W = compute_hollow_sph_transmission_rank_n(
+        r_in, R_out, radii, sig_t, n_bc_modes=N, dps=dps,
+    )
+    # Rank-N white-BC reflection in the Marshak partial-current-moment
+    # basis. The (2n+1) Gelbard factor is NOT applied here: both P, G,
+    # and W use the same µ-weighted half-range inner product, so the
+    # closure `G · (I − W)^{-1} · P` is basis-consistent. The Gelbard
+    # (2n+1) weighting is a property of a DIFFERENT choice (the
+    # Lambert / angular-flux-moment basis, used by the legacy
+    # single-surface :func:`reflection_marshak` helper) — conflating
+    # the two was the Phase F.5 measure-mismatch bug.
+    R_matrix = np.linalg.inv(np.eye(2 * N) - W)
+    return BoundaryClosureOperator(P=P, G=G, R=R_matrix)
+
+
+def build_white_bc_correction_rank_n(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    *,
+    n_angular: int = 32,
+    n_surf_quad: int = 32,
+    dps: int = 25,
+    n_bc_modes: int = 1,
+) -> np.ndarray:
+    r"""Rank-:math:`N` Marshak / DP\ :sub:`N-1` white-BC correction.
+
+    .. math::
+
+       K_{\rm bc} \;=\; \sum_{n=0}^{N-1} u_n \otimes v_n,
+       \quad
+       u_n[i] = \frac{\Sigma_t(r_i)\,G_{\rm bc}^{(n)}(r_i)}
+                     {A_d^{\rm divisor}(R)},
+       \quad
+       v_n[j] = (2n+1)\,r_j^{d-1}\,w_j\,P_{\rm esc}^{(n)}(r_j).
+
+    For :math:`n = 0`, :math:`\tilde P_0 \equiv 1` and the
+    corresponding :math:`u_0 \otimes v_0` is **identical** to the
+    existing rank-1 correction built by
+    :func:`build_white_bc_correction` — the :math:`n = 0` contribution
+    is in fact routed through that function to preserve bit-exact
+    regression. For :math:`n \ge 1`, additional rank-1 outer products
+    are accumulated, each capturing one higher Legendre moment of the
+    outgoing surface partial-current distribution.
+
+    See :ref:`theory-peierls-unified` §8 for the mathematical
+    derivation and the Sanchez & McCormick 1982 §III.F.1 reference.
+
+    .. note::
+
+       **Partial fix landed 2026-04-18.** The
+       :math:`(\rho_{\max}/R)^2` surface-to-observer Jacobian
+       factor in :func:`compute_P_esc_mode` (see
+       :eq:`peierls-rank-n-P-esc-moment`) replaces the old
+       plain-weight form. Headline results for the bare homogeneous
+       1G 1-region white-BC eigenvalue (:math:`k_\infty = 1.5`):
+
+       .. list-table:: Rank-:math:`N` :math:`k_{\rm eff}` error (fixed)
+          :header-rows: 1
+
+          * - Geometry
+            - :math:`R` [MFP]
+            - N=1
+            - N=2
+            - N=3 (cyl diverges)
+          * - Sphere
+            - 1.0
+            - 26.9 %
+            - **1.22 %**
+            - 2.5 %
+          * - Sphere
+            - 10.0
+            - 0.28 %
+            - **0.17 %**
+            - 0.17 %
+          * - Cylinder
+            - 1.0
+            - 20.9 %
+            - **8.3 %**
+            - 26.7 %
+          * - Cylinder
+            - 10.0
+            - 1.14 %
+            - **1.06 %**
+            - 1.04 %
+
+       The rank-1 → rank-2 step is a clean Marshak-ladder
+       improvement for both geometries, and rank-N no longer
+       degrades thick-cell convergence. Conservation
+       (:math:`K\cdot\mathbf 1 = \Sigma_t` for pure absorber) also
+       **improves** with rank-N instead of degrading — see
+       ``tests/derivations/test_peierls_rank_n_conservation.py``.
+
+       **Remaining work** (tracked in Issue #112):
+
+       - **Cylinder** high-:math:`N` still diverges because
+         :func:`compute_G_bc_mode` uses the 2-D projected cosine in
+         the surface-centred :math:`\mathrm{Ki}_1/d` integrand. The
+         canonical DP\ :sub:`N` closure needs the 3-D
+         :math:`\mu_{s,3D} = \sin\theta_p \cdot \mu_{s,2D}` with
+         explicit :math:`\theta_p` integration (producing higher-
+         order Bickley functions :math:`\mathrm{Ki}_{2+k}`; Knyazev
+         1993). Phase C of Issue #112.
+
+       - **Sphere** plateaus at ~2.5 % for :math:`N \ge 3` at
+         :math:`R = 1` MFP. Closing the plateau to <1 % at N=8
+         likely requires adding a cosine weight on top of the
+         Jacobian (the canonical DP\ :sub:`N` partial-current
+         moment). Phase A of Issue #112 (slab DP\ :sub:`N`
+         calibration) will anchor this.
+
+       For ``n_bc_modes = 1`` (default) the function remains
+       bit-exactly equivalent to :func:`build_white_bc_correction`.
+       For ``n_bc_modes = 2`` (DP\ :sub:`1` closure) the solver
+       converges with the canonical rank-1-to-rank-2 Marshak
+       improvement on both geometries. For ``n_bc_modes ≥ 3`` on
+       cylinder, results become unreliable until Phase C lands.
+
+    .. note::
+
+       **Thin wrapper** around :func:`build_closure_operator` +
+       :meth:`BoundaryClosureOperator.as_matrix`. The factored form
+       is the structural representation — assembling the dense
+       matrix here is a convenience for the direct-solve eigenvalue
+       iteration in :func:`solve_peierls_1g`. Callers that want
+       matrix-free application (e.g. large :math:`N_r`, iterative
+       solvers) should call :func:`build_closure_operator` and use
+       :meth:`BoundaryClosureOperator.apply` directly.
+    """
+    op = build_closure_operator(
+        geometry, r_nodes, r_wts, radii, sig_t,
+        n_angular=n_angular, n_surf_quad=n_surf_quad, dps=dps,
+        n_bc_modes=n_bc_modes, reflection="marshak",
+    )
+    return op.as_matrix()
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Unified solution container + eigenvalue driver
+# ═══════════════════════════════════════════════════════════════════════
+
+@dataclass(frozen=True)
+class PeierlsSolution:
+    """Result of a polar-form Peierls Nyström solve on a 1-D curvilinear cell.
+
+    Carries both the nodal flux and the piecewise-Lagrange basis
+    needed for arbitrary-:math:`r` interpolation via :meth:`phi`.
+    """
+
+    r_nodes: np.ndarray
+    phi_values: np.ndarray
+    k_eff: float | None
+    cell_radius: float
+    n_groups: int
+    geometry_kind: str
+    n_quad_r: int
+    n_quad_angular: int
+    precision_digits: int
+    panel_bounds: list[tuple[float, float, int, int]] | None = None
+
+    def phi(self, r: np.ndarray, g: int = 0) -> np.ndarray:
+        r"""Evaluate flux at arbitrary radii via the piecewise Lagrange basis."""
+        r = np.asarray(r, dtype=float).ravel()
+        out = np.empty_like(r)
+
+        if self.panel_bounds is None:
+            return np.interp(r, self.r_nodes, self.phi_values[:, g])
+
+        for idx, r_eval in enumerate(r):
+            L = lagrange_basis_on_panels(
+                self.r_nodes, self.panel_bounds, float(r_eval),
+            )
+            out[idx] = float(np.dot(L, self.phi_values[:, g]))
+        return out
+
+
+_DEPRECATED_CLOSURE_ALIASES = {
+    "white": "white_rank1_mark",
+    "white_rank2": "white_f4",
+}
+
+
+def _resolve_closure_name(boundary: str, *, user_stacklevel: int) -> str:
+    """Resolve deprecated closure aliases to canonical names.
+
+    Parameters
+    ----------
+    boundary
+        The user-facing closure name (may be a deprecated alias).
+    user_stacklevel
+        The ``stacklevel`` value to hand to :func:`warnings.warn` so
+        the resulting ``DeprecationWarning`` points at the user's
+        call site, not at an intermediate wrapper frame.
+
+        Call from :func:`solve_peierls_mg` directly: pass ``3``
+        (``warn -> _resolve -> solve_peierls_mg -> user``).
+        Call from :func:`solve_peierls_1g` (which itself calls
+        :func:`solve_peierls_mg`): pass ``3`` from inside the 1G
+        wrapper *before* calling ``solve_peierls_mg``, so the
+        MG-side resolution is a no-op on the canonical name.
+    """
+    if boundary in _DEPRECATED_CLOSURE_ALIASES:
+        new_name = _DEPRECATED_CLOSURE_ALIASES[boundary]
+        import warnings as _warnings
+        _warnings.warn(
+            f"boundary={boundary!r} is a deprecated alias; the canonical "
+            f"name is {new_name!r}. The old name still works for this "
+            f"release. See docs/theory/peierls_unified.rst "
+            f"§theory-peierls-naming.",
+            DeprecationWarning,
+            stacklevel=user_stacklevel,
+        )
+        return new_name
+    return boundary
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Specular per-mode P/G builders shared by closure="specular" and
+# closure="specular_multibounce" (refactor #2-helper)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# The two specular closures share identical P / G mode-decomposition
+# builds — they differ only in whether the geometric-series factor
+# (I − T·R)⁻¹ is inserted between R and P. Factoring the P/G build into
+# helpers eliminates ~150 LoC of near-verbatim duplication and pins the
+# slab `DIVISOR_PER_FACE = 1` convention (vs the legacy
+# `geometry.rank1_surface_divisor(R) = 2` for the combined-face Mark
+# primitive — see ERR-031 anti-pattern lineage and the slab specular
+# block commentary in `_build_full_K_per_group`).
+
+def _specular_assembly_setup(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    radii: np.ndarray,
+    sig_t_g: np.ndarray,
+) -> tuple[float, np.ndarray, np.ndarray, float]:
+    r"""Common per-observer setup shared by every specular closure
+    branch: returns ``(R_cell, sig_t_n, rv, divisor)``.
+
+    ``sig_t_n`` is the per-node Σ_t_g looked up via
+    :meth:`CurvilinearGeometry.which_annulus`. ``rv`` is the radial
+    volume weight per node. ``divisor`` is the rank-1 surface-area
+    divisor (``R²`` for sphere, ``R`` for cylinder, ``2`` for slab —
+    the latter is overridden to ``1`` per face by the slab-specific
+    :func:`_build_slab_per_face_specular_PG` builder below).
+    """
+    R_cell = float(radii[-1])
+    sig_t_n = np.array([
+        sig_t_g[geometry.which_annulus(float(r_nodes[i]), radii)]
+        for i in range(len(r_nodes))
+    ])
+    rv = np.array([
+        geometry.radial_volume_weight(float(rj)) for rj in r_nodes
+    ])
+    divisor = geometry.rank1_surface_divisor(R_cell)
+    return R_cell, sig_t_n, rv, divisor
+
+
+def _build_slab_per_face_specular_PG(
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t_g: np.ndarray,
+    n_modes: int,
+    sig_t_n: np.ndarray,
+    rv: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    r"""Build the slab per-face mode-decomposed P, G, R operators for
+    specular closures (rank-:math:`N` per face, 2N total mode space).
+
+    Returns ``(P_slab, G_slab, R_slab)`` where ``P_slab.shape = (2N,
+    N_r)``, ``G_slab.shape = (N_r, 2N)``, and ``R_slab`` is the
+    block-diagonal :math:`\mathrm{diag}(R_{\rm spec}(N), R_{\rm spec}(N))`.
+
+    Used by both ``closure="specular"`` and ``closure="specular_multibounce"``
+    on slab; the per-face decomposition uses the
+    :math:`\mathrm{DIVISOR\_PER\_FACE} = 1` convention (vs the legacy
+    combined-face ``divisor = 2``).
+    """
+    N_r = len(r_nodes)
+    N = n_modes
+    P_o = np.zeros((N, N_r))
+    P_i = np.zeros((N, N_r))
+    G_o = np.zeros((N_r, N))
+    G_i = np.zeros((N_r, N))
+    for i in range(N_r):
+        x_i = float(r_nodes[i])
+        tau_o = _slab_tau_to_outer_face(x_i, radii, sig_t_g)
+        tau_n = _slab_tau_to_inner_face(x_i, radii, sig_t_g)
+        for n in range(N):
+            coefs = _shifted_legendre_monomial_coefs(n)
+            Po = Pn = Go = Gn = 0.0
+            for k, c in enumerate(coefs):
+                if c == 0.0:
+                    continue
+                E_o = _slab_E_n(k + 2, tau_o)
+                E_n_val = _slab_E_n(k + 2, tau_n)
+                Po += 0.5 * c * E_o
+                Pn += 0.5 * c * E_n_val
+                Go += 2.0 * c * E_o
+                Gn += 2.0 * c * E_n_val
+            P_o[n, i] = Po
+            P_i[n, i] = Pn
+            G_o[i, n] = Go
+            G_i[i, n] = Gn
+    DIVISOR_PER_FACE = 1.0
+    P_o_w = rv * r_wts * P_o
+    P_i_w = rv * r_wts * P_i
+    G_o_w = sig_t_n[:, None] * G_o / DIVISOR_PER_FACE
+    G_i_w = sig_t_n[:, None] * G_i / DIVISOR_PER_FACE
+    P_slab = np.vstack([P_o_w, P_i_w])  # (2N, N_r)
+    G_slab = np.hstack([G_o_w, G_i_w])  # (N_r, 2N)
+    R_face = reflection_specular(N)
+    R_slab = np.zeros((2 * N, 2 * N))
+    R_slab[:N, :N] = R_face
+    R_slab[N:, N:] = R_face
+    return P_slab, G_slab, R_slab
+
+
+def _build_sphere_specular_mode_PG(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t_g: np.ndarray,
+    n_modes: int,
+    sig_t_n: np.ndarray,
+    rv: np.ndarray,
+    divisor: float,
+    R_cell: float,
+    n_angular: int,
+    n_surf_quad: int,
+    dps: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Build the sphere mode-decomposed P, G operators for specular
+    closures (rank-:math:`N`, single-surface mode space).
+
+    Returns ``(P, G)`` with ``P.shape = (N, N_r)`` and ``G.shape =
+    (N_r, N)``. The P side uses the :func:`_p_esc_sphere_solid_mode`
+    helper (canonical no-Jacobian Mark-Lambert primitive); the G side
+    uses :func:`compute_G_bc_mode`.
+    """
+    N_r = len(r_nodes)
+    N = n_modes
+    P = np.zeros((N, N_r))
+    G = np.zeros((N_r, N))
+    omega_low, omega_high = geometry.angular_range
+    pref = geometry.prefactor
+    for n in range(N):
+        P_esc_n = np.array([
+            pref * _p_esc_sphere_solid_mode(
+                geometry, float(r_i), R_cell, radii, sig_t_g,
+                n, omega_low, omega_high, n_angular, dps,
+            )
+            for r_i in r_nodes
+        ])
+        G_bc_n = compute_G_bc_mode(
+            geometry, r_nodes, radii, sig_t_g, n,
+            n_surf_quad=n_surf_quad, dps=dps,
+        )
+        P[n, :] = rv * r_wts * P_esc_n
+        G[:, n] = sig_t_n * G_bc_n / divisor
+    return P, G
+
+
+def _build_cylinder_specular_mode_PG(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t_g: np.ndarray,
+    n_modes: int,
+    sig_t_n: np.ndarray,
+    rv: np.ndarray,
+    divisor: float,
+    n_angular: int,
+    n_surf_quad: int,
+    dps: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Build the cylinder mode-decomposed P, G operators for specular
+    closures (rank-:math:`N`, single-surface mode space).
+
+    Returns ``(P, G)``. Uses the 3-D Knyazev primitives
+    :func:`compute_P_esc_cylinder_3d_mode` and
+    :func:`compute_G_bc_cylinder_3d_mode` for both sides — the polar
+    :math:`\mathrm{Ki}_{2+k}` series carries the 3-D
+    :math:`\mu_{3D} = \sin\theta_p\,\mu_{2D}` factor that the
+    sphere's plain :math:`\exp(-\tau)` integrand does not need.
+    """
+    N_r = len(r_nodes)
+    N = n_modes
+    P = np.zeros((N, N_r))
+    G = np.zeros((N_r, N))
+    for n in range(N):
+        P_esc_n = compute_P_esc_cylinder_3d_mode(
+            geometry, r_nodes, radii, sig_t_g, n,
+            n_angular=n_angular, dps=dps,
+        )
+        G_bc_n = compute_G_bc_cylinder_3d_mode(
+            geometry, r_nodes, radii, sig_t_g, n,
+            n_surf_quad=n_surf_quad, dps=dps,
+        )
+        P[n, :] = rv * r_wts * P_esc_n
+        G[:, n] = sig_t_n * G_bc_n / divisor
+    return P, G
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Closure-recipe registry (refactor #2-registry, Issue #137)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Every closure assembles K_bc as `BoundaryClosureOperator.as_matrix()`,
+# either bare (G·R·P) or multi-bounce (G·R·(I-T·R)⁻¹·P). The five
+# shipped closures (white_rank1_mark, white_hebert, specular,
+# specular_multibounce, white_f4) each have a builder function that
+# returns the operator. The dispatcher walks the registry, runs any
+# input-only validators, then calls the builder. This eliminates the
+# 600-LoC `if closure == ...` chain and makes the K_bc tensor network
+# load-bearing for every closure (not just the white-Marshak family).
+
+
+def _build_white_rank1_mark_op(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t_g: np.ndarray,
+    n_bc_modes: int,
+    *,
+    n_angular: int,
+    n_surf_quad: int,
+    dps: int,
+) -> BoundaryClosureOperator:
+    r"""Rank-:math:`N` Marshak / DP\ :sub:`N-1` white-BC closure operator.
+
+    Wraps :func:`build_closure_operator` with ``reflection="marshak"``.
+    For ``n_bc_modes = 1`` this is the legacy rank-1 Mark closure
+    (mode-0 routed through :func:`compute_P_esc` /
+    :func:`compute_G_bc`); for :math:`n \ge 1` modes the canonical
+    DP\ :sub:`N-1` :math:`(\rho_{\max}/R)^2` Jacobian appears via
+    :func:`compute_P_esc_mode` / :func:`compute_G_bc_mode`.
+    """
+    return build_closure_operator(
+        geometry, r_nodes, r_wts, radii, sig_t_g,
+        n_angular=n_angular, n_surf_quad=n_surf_quad, dps=dps,
+        n_bc_modes=n_bc_modes, reflection="marshak",
+    )
+
+
+def _build_white_f4_op(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t_g: np.ndarray,
+    n_bc_modes: int,
+    *,
+    n_angular: int,
+    n_surf_quad: int,
+    dps: int,
+) -> BoundaryClosureOperator:
+    r"""F.4 rank-2 per-face white-BC closure operator (Class A).
+
+    Wraps :func:`build_closure_operator` with ``reflection="white"``,
+    which switches into the rank-2 per-face layout for two-surface
+    geometries (hollow sphere/cylinder). Forced to ``n_bc_modes = 1``
+    by the validator (rank-N per-face was falsified by the 2026-04-22
+    research program — see ``research log L21`` and Sphinx
+    §peierls-rank-n-per-face-closeout).
+    """
+    return build_closure_operator(
+        geometry, r_nodes, r_wts, radii, sig_t_g,
+        n_angular=n_angular, n_surf_quad=n_surf_quad, dps=dps,
+        n_bc_modes=1, reflection="white",
+    )
+
+
+def _build_white_hebert_op(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t_g: np.ndarray,
+    n_bc_modes: int,  # noqa: ARG001 — validated to 1
+    *,
+    n_angular: int,
+    n_surf_quad: int,
+    dps: int,
+) -> BoundaryClosureOperator:
+    r"""Hébert (2009) Eq. (3.323) rank-1 white-BC closure operator.
+
+    Built as a multi-bounce :class:`BoundaryClosureOperator` at rank-1
+    with :math:`R = [[1]]` (Mark) and :math:`T = [[P_{ss}]]`. The
+    geometric-series factor :math:`(I - T R)^{-1}_{00} = 1/(1 - P_{ss})`
+    matches the closed-form Hébert correction exactly:
+
+    .. math::
+
+       K_{\rm bc}^{\rm Hébert} \;=\; G \cdot R \cdot (I - T R)^{-1}
+                                          \cdot P
+       \;=\; \frac{u_n \otimes v_n}{1 - P_{ss}}
+       \;=\; \frac{K_{\rm bc}^{\rm Mark}}{1 - P_{ss}}.
+
+    Sphere uses :func:`compute_G_bc` (legacy form); cylinder uses
+    :func:`compute_G_bc_cylinder_3d` (Issue #112 Phase C 3-D-correct
+    Knyazev :math:`\mathrm{Ki}_{2+k}` expansion). Slab is plan-exempt
+    (uses the closed-form :math:`E_2` piecewise sum via the unified
+    "white" closure path; see Issue #131).
+    """
+    R_cell, sig_t_n, rv, divisor = _specular_assembly_setup(
+        geometry, r_nodes, radii, sig_t_g,
+    )
+    if geometry.kind == "cylinder-1d":
+        G_bc_n = compute_G_bc_cylinder_3d(
+            geometry, r_nodes, radii, sig_t_g,
+            n_surf_quad=n_surf_quad, dps=dps,
+        )
+        P_ss = compute_P_ss_cylinder(
+            radii, sig_t_g, n_quad=n_surf_quad, dps=dps,
+        )
+    elif geometry.kind == "sphere-1d":
+        G_bc_n = compute_G_bc(
+            geometry, r_nodes, radii, sig_t_g,
+            n_surf_quad=n_surf_quad, dps=dps,
+        )
+        P_ss = compute_P_ss_sphere(
+            radii, sig_t_g, n_quad=n_surf_quad, dps=dps,
+        )
+    else:  # pragma: no cover — guarded by validator
+        raise NotImplementedError(
+            f"white_hebert: unsupported geometry kind {geometry.kind!r}"
+        )
+
+    if P_ss >= 1.0:
+        raise RuntimeError(
+            f"P_ss = {P_ss} is >= 1, would give negative or infinite "
+            f"geometric-series factor for {geometry.kind}. Likely a "
+            f"thin-cell pathology. radii={radii}, sig_t={sig_t_g}."
+        )
+
+    P_esc_n = compute_P_esc(
+        geometry, r_nodes, radii, sig_t_g,
+        n_angular=n_angular, dps=dps,
+    )
+    v_n = rv * r_wts * P_esc_n          # shape (N_r,)
+    u_n = sig_t_n * G_bc_n / divisor    # shape (N_r,)
+
+    P_op = v_n.reshape(1, -1)            # (1, N_r)
+    G_op = u_n.reshape(-1, 1)            # (N_r, 1)
+    R_op = np.array([[1.0]])             # Mark closure
+    T_op = np.array([[float(P_ss)]])     # P_ss as 1×1 transmission
+    return BoundaryClosureOperator(P=P_op, G=G_op, R=R_op, T=T_op)
+
+
+def _build_specular_op(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t_g: np.ndarray,
+    n_bc_modes: int,
+    *,
+    n_angular: int,
+    n_surf_quad: int,
+    dps: int,
+) -> BoundaryClosureOperator:
+    r"""Bare specular (rank-:math:`N`) closure operator
+    :math:`K_{\rm bc} = G \cdot R_{\rm spec} \cdot P`.
+
+    Slab routes through :func:`_build_slab_per_face_specular_PG`
+    (per-face 2N mode space, block-diagonal R); sphere/cylinder use
+    the single-surface mode space (N modes) via the geometry-specific
+    P/G builders. The reflection operator is
+    :math:`R_{\rm spec} = (1/2) M^{-1}` from
+    :func:`reflection_specular`.
+    """
+    R_cell, sig_t_n, rv, divisor = _specular_assembly_setup(
+        geometry, r_nodes, radii, sig_t_g,
+    )
+    N = n_bc_modes
+    if geometry.kind == "slab-polar":
+        P_slab, G_slab, R_slab = _build_slab_per_face_specular_PG(
+            r_nodes, r_wts, radii, sig_t_g, N, sig_t_n, rv,
+        )
+        return BoundaryClosureOperator(P=P_slab, G=G_slab, R=R_slab)
+    if geometry.kind == "sphere-1d":
+        P_op, G_op = _build_sphere_specular_mode_PG(
+            geometry, r_nodes, r_wts, radii, sig_t_g, N,
+            sig_t_n, rv, divisor, R_cell,
+            n_angular, n_surf_quad, dps,
+        )
+    elif geometry.kind == "cylinder-1d":
+        P_op, G_op = _build_cylinder_specular_mode_PG(
+            geometry, r_nodes, r_wts, radii, sig_t_g, N,
+            sig_t_n, rv, divisor,
+            n_angular, n_surf_quad, dps,
+        )
+    else:  # pragma: no cover — guarded by validator
+        raise NotImplementedError(
+            f"specular: unsupported geometry kind {geometry.kind!r}"
+        )
+    return BoundaryClosureOperator(P=P_op, G=G_op, R=reflection_specular(N))
+
+
+def _build_specular_multibounce_op(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    radii: np.ndarray,
+    sig_t_g: np.ndarray,
+    n_bc_modes: int,
+    *,
+    n_angular: int,
+    n_surf_quad: int,
+    dps: int,
+) -> BoundaryClosureOperator:
+    r"""Multi-bounce specular (rank-:math:`N`) closure operator
+    :math:`K_{\rm bc} = G \cdot R_{\rm spec} \cdot (I - T R_{\rm spec})^{-1} \cdot P`.
+
+    Same P, G, R as :func:`_build_specular_op` plus a transmission
+    matrix :math:`T` from
+    :func:`compute_T_specular_{slab,sphere,cylinder_3d}`. The
+    geometric-series factor is encoded as the operator's :attr:`T`
+    field; assembly happens in :meth:`BoundaryClosureOperator.as_matrix`.
+
+    At rank-1 with R = Mark and T = P_ss this reduces algebraically
+    to the Hébert closure (verified by
+    ``test_specular_multibounce_cyl_rank1_equals_hebert``).
+    """
+    R_cell, sig_t_n, rv, divisor = _specular_assembly_setup(
+        geometry, r_nodes, radii, sig_t_g,
+    )
+    N = n_bc_modes
+    if geometry.kind == "slab-polar":
+        P_slab, G_slab, R_slab = _build_slab_per_face_specular_PG(
+            r_nodes, r_wts, radii, sig_t_g, N, sig_t_n, rv,
+        )
+        T_slab = compute_T_specular_slab(radii, sig_t_g, N, n_quad=64)
+        return BoundaryClosureOperator(
+            P=P_slab, G=G_slab, R=R_slab, T=T_slab,
+        )
+    if geometry.kind == "sphere-1d":
+        P_op, G_op = _build_sphere_specular_mode_PG(
+            geometry, r_nodes, r_wts, radii, sig_t_g, N,
+            sig_t_n, rv, divisor, R_cell,
+            n_angular, n_surf_quad, dps,
+        )
+        T_op = compute_T_specular_sphere(radii, sig_t_g, N, n_quad=64)
+    elif geometry.kind == "cylinder-1d":
+        P_op, G_op = _build_cylinder_specular_mode_PG(
+            geometry, r_nodes, r_wts, radii, sig_t_g, N,
+            sig_t_n, rv, divisor,
+            n_angular, n_surf_quad, dps,
+        )
+        T_op = compute_T_specular_cylinder_3d(
+            radii, sig_t_g, N, n_quad=64,
+        )
+    else:  # pragma: no cover — guarded by validator
+        raise NotImplementedError(
+            f"specular_multibounce: unsupported geometry kind "
+            f"{geometry.kind!r}"
+        )
+    return BoundaryClosureOperator(
+        P=P_op, G=G_op, R=reflection_specular(N), T=T_op,
+    )
+
+
+# ── Validators (input-only, run before any computation) ──────────────
+
+
+def _validate_white_hebert(
+    geometry: CurvilinearGeometry, n_bc_modes: int,
+) -> None:
+    """Hébert closure is rank-1 only and not applicable to slab."""
+    if geometry.kind == "slab-polar":
+        raise NotImplementedError(
+            f"closure='white_hebert' not applicable to slab-polar; "
+            f"slab uses the E_2 piecewise-sum closed form via the "
+            f"unified 'white' closure path (Issue #131)."
+        )
+    if n_bc_modes != 1:
+        raise NotImplementedError(
+            f"closure='white_hebert' is rank-1 only (Mark closure "
+            f"with the (1-P_ss)⁻¹ geometric-series correction). "
+            f"Got n_bc_modes={n_bc_modes}. Higher-rank Hébert is "
+            f"structurally identical at rank-1 because the Marshak "
+            f"DP_N expansion was falsified for Class B in Issue "
+            f"#132; rank-N adds nothing once the geometric series "
+            f"is included."
+        )
+
+
+def _validate_specular_multibounce(
+    geometry: CurvilinearGeometry, n_bc_modes: int,
+) -> None:
+    """Geometry guard + N>=4 sphere/cylinder pathology warning."""
+    if geometry.kind not in ("sphere-1d", "cylinder-1d", "slab-polar"):
+        raise NotImplementedError(
+            f"closure='specular_multibounce': unsupported geometry "
+            f"kind {geometry.kind!r}. Supported: sphere-1d, "
+            f"cylinder-1d, slab-polar."
+        )
+    if geometry.kind in ("sphere-1d", "cylinder-1d") and n_bc_modes >= 4:
+        import warnings as _warnings
+        geom_label = (
+            "sphere" if geometry.kind == "sphere-1d" else "cylinder"
+        )
+        _warnings.warn(
+            f"closure='specular_multibounce' on {geom_label} at "
+            f"n_bc_modes={n_bc_modes} >= 4: the (I - T·R)^(-1) "
+            f"geometric-series factor enters the high-rank pathology "
+            f"regime (sphere: matrix-Galerkin divergence at grazing µ; "
+            f"cylinder: R = (1/2) M^(-1) ill-conditioning amplified by "
+            f"the geometric series) and the closure overshoots k_inf. "
+            f"Recommended n_bc_modes ∈ {{1, 2, 3}} for thin cells. For "
+            f"thicker cells use closure='specular' (no multi-bounce) at "
+            f"higher rank, or closure='specular_multibounce' on slab "
+            f"(no pathology at any N).",
+            UserWarning,
+            stacklevel=5,
+        )
+
+
+def _validate_specular(
+    geometry: CurvilinearGeometry, n_bc_modes: int,  # noqa: ARG001
+) -> None:
+    """Geometry guard for bare specular."""
+    if geometry.kind not in ("sphere-1d", "cylinder-1d", "slab-polar"):
+        raise NotImplementedError(
+            f"closure='specular': unsupported geometry kind "
+            f"{geometry.kind!r}"
+        )
+
+
+def _validate_white_f4(
+    geometry: CurvilinearGeometry, n_bc_modes: int,
+) -> None:
+    """F.4 rank-2 closure: n_bc_modes guard + 1-surface deprecation."""
+    if n_bc_modes > 1:
+        raise NotImplementedError(
+            "closure='white_f4' with n_bc_modes > 1 is not a "
+            "shipped closure. The rank-N Marshak per-face path "
+            "was falsified by the 2026-04-22 research program "
+            "(see research log L21 and Sphinx §peierls-rank-n-"
+            "per-face-closeout). Use n_bc_modes=1 for F.4, or "
+            "closure='white_rank1_mark' for rank-1 Mark."
+        )
+    if getattr(geometry, "n_surfaces", 1) == 1:
+        import warnings as _warnings
+        _warnings.warn(
+            f"closure='white_f4' on a 1-surface (solid) geometry "
+            f"(kind={geometry.kind!r}, inner_radius="
+            f"{getattr(geometry, 'inner_radius', 0.0)}) silently "
+            f"collapses to rank-1 Mark because there is no second-"
+            f"face coupling. Use closure='white_rank1_mark' to "
+            f"make the intent explicit. This silent-collapse "
+            f"behavior will become a ValueError in a future "
+            f"release.",
+            DeprecationWarning,
+            stacklevel=5,
+        )
+
+
+# ── Registry ──────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class ClosureRecipe:
+    """A registered closure: a builder that returns a
+    :class:`BoundaryClosureOperator` plus zero or more input-only
+    validators.
+
+    Validators run before the builder and may raise
+    :class:`NotImplementedError` for unsupported configurations or
+    emit :class:`UserWarning` / :class:`DeprecationWarning` for
+    documented pathologies. Runtime checks on computed quantities
+    (e.g. :func:`_build_white_hebert_op`'s ``P_ss >= 1`` guard) live
+    inside the builder.
+    """
+
+    name: str
+    build: Callable[..., BoundaryClosureOperator]
+    validators: tuple[Callable[[CurvilinearGeometry, int], None], ...] = ()
+
+
+CLOSURE_REGISTRY: dict[str, ClosureRecipe] = {
+    "white_rank1_mark": ClosureRecipe(
+        name="white_rank1_mark",
+        build=_build_white_rank1_mark_op,
+    ),
+    "white_hebert": ClosureRecipe(
+        name="white_hebert",
+        build=_build_white_hebert_op,
+        validators=(_validate_white_hebert,),
+    ),
+    "specular": ClosureRecipe(
+        name="specular",
+        build=_build_specular_op,
+        validators=(_validate_specular,),
+    ),
+    "specular_multibounce": ClosureRecipe(
+        name="specular_multibounce",
+        build=_build_specular_multibounce_op,
+        validators=(_validate_specular_multibounce,),
+    ),
+    "white_f4": ClosureRecipe(
+        name="white_f4",
+        build=_build_white_f4_op,
+        validators=(_validate_white_f4,),
+    ),
+}
+
+
+def _build_full_K_per_group(
+    geometry: CurvilinearGeometry,
+    r_nodes: np.ndarray,
+    r_wts: np.ndarray,
+    panels: list,
+    radii: np.ndarray,
+    sig_t_g: np.ndarray,
+    closure: str,
+    *,
+    n_angular: int,
+    n_rho: int,
+    n_surf_quad: int,
+    n_bc_modes: int,
+    dps: int,
+) -> np.ndarray:
+    """Assemble K = K_vol + K_bc for a single group at per-region Σ_t,g.
+
+    Internal helper shared by the MG driver and the 1G wrapper. The
+    closure arg is pre-resolved (no alias handling here).
+    """
+    K = build_volume_kernel(
+        geometry, r_nodes, panels, radii, sig_t_g,
+        n_angular=n_angular, n_rho=n_rho, dps=dps,
+    )
+    if closure == "vacuum":
+        return K
+    if closure == "specular_continuous_mu":
+        # Phase 5 — Continuous-µ multi-bounce specular BC.
+        #
+        # **Status: ABANDONED for production wiring.** After three
+        # rounds of numerics-investigator dispatches (Phase 5a + Round 1
+        # Front A/B/C + Round 2 PRIMARY/BACKUP + Round 3 PRIMARY/SECONDARY,
+        # all in 2026-04-28), the continuous-µ K_bc kernel was proven
+        # **HYPERSINGULAR** — a Hadamard finite-part / Cauchy principal-
+        # value kernel that is **not Nyström-discretisable in principle**.
+        #
+        # The structural finding (independently confirmed by 3 agents):
+        # the µ-resolved primitives `F_out(r,µ) · G_in(r,µ)` carry a
+        # `1/(cos(ω_i) cos(ω_j))` Jacobian. At the discrete diagonal
+        # `r_i = r_j = r`, both cosines vanish at the SAME `µ_min(r) =
+        # √(1 - (r/R)²)`, yielding non-integrable `1/(µ² - µ_min²)` on
+        # the visibility cone. This singularity persists at K_max=0 (no
+        # multi-bounce — bare specular alone), proving it is in the
+        # primitive structure, not in the multi-bounce factor.
+        #
+        # The Phase 4 matrix-Galerkin form `(I - T·R)^{-1}` ABSORBS
+        # this singularity through basis projection (the rank-N
+        # shifted-Legendre projection acts as a smoothing). Six
+        # quadrature-handling approaches were tried in Round 3 — singularity
+        # subtraction, change-of-variables (u² substitution),
+        # Gauss-Kronrod adaptive subdivision, Galerkin diagonal
+        # cell-averaging, full Galerkin double-integration over
+        # Lagrange basis, and bounce-resolved geometric series
+        # truncation. ALL failed: end-to-end k_eff errors -34 % to
+        # -50 %, with monotone divergence in n_quad. The matrix-
+        # Galerkin and continuous-µ per-pair forms are different
+        # integral operators despite same physical interpretation.
+        #
+        # **Useful side-finding** (promote-worthy from Round 3):
+        # the chord/visibility-cone substitution `u² = (µ² - µ_min²) /
+        # (1 - µ_min²)` gives MACHINE PRECISION (1e-9 at Q=128) off-
+        # diagonal Q-convergence. Portable technique for any µ-resolved
+        # per-pair integral with a single-endpoint visibility-cone
+        # singularity.
+        #
+        # **Closed-form multi-bounce factor** (Round 2 BACKUP, useful
+        # for theoretical reference):
+        #     f_∞(µ) = (1/2) µ / (1 - exp(-σ·2Rµ))
+        # bounded at µ=0 (limit = 1/(4a)). The (1/2) comes from
+        # R = (1/2) M^{-1}; the µ from the µ-weighted basis Gram
+        # measure. Closed form: K_∞^half = (1/(8a²)) [π²/6 - Li_2(e^{-2a})
+        # + 2a ln(1 - e^{-2a})].
+        #
+        # See:
+        # - `.claude/agent-memory/numerics-investigator/phase5_round3_*.md`
+        #   (R3 PRIMARY adaptive quadrature + R3 SECONDARY Galerkin
+        #   double-int both fail with hypersingular diagnosis)
+        # - `.claude/agent-memory/numerics-investigator/phase5_round2_*.md`
+        #   (M2 PRIMARY isolates singularity; BACKUP closed-form factor)
+        # - `.claude/agent-memory/numerics-investigator/phase5_front_*.md`
+        #   (R1 Front A falsified, B partial, C failed → recommended M2)
+        # - `.claude/agent-memory/numerics-investigator/specular_continuous_mu_phase5a_closeout.md`
+        #   (Phase 5a baseline that started the investigation)
+        # - :mod:`orpheus.derivations.continuous.peierls.origins.specular.continuous_mu`
+        #   (4 SymPy verifications PASS — math is correct, but
+        #   discretisation is fundamentally not Nyström-compatible)
+        # - GitHub Issue #133 (Phase 5+ tracking — closing as wontfix
+        #   after the round-3 structural conclusion).
+        #
+        # **For users**: `closure="specular_multibounce"` (Phase 4
+        # matrix-Galerkin form) is the **permanent production path**
+        # for multi-bounce specular. At rank N ∈ {1, 2, 3} it gives
+        # Hébert-quality k_eff for thin sphere/cyl/slab. The Phase 4
+        # docstring's reference to "Phase 5 — proper fix" is now
+        # withdrawn: there is no proper fix in the continuous-µ
+        # discretisation framework.
+        raise NotImplementedError(
+            f"closure='specular_continuous_mu': Phase 5 production "
+            f"wiring was ABANDONED after 3 rounds of investigation "
+            f"(2026-04-28). The continuous-µ K_bc kernel is "
+            f"HYPERSINGULAR (Hadamard finite-part) and not Nyström-"
+            f"discretisable. The matrix-Galerkin Phase 4 form's "
+            f"(I - T·R)^(-1) mode-mixing is essential — not a basis-"
+            f"truncation artefact. Use closure='specular_multibounce' "
+            f"for production multi-bounce specular at any geometry. "
+            f"See `.claude/agent-memory/numerics-investigator/"
+            f"phase5_round3_adaptive_quadrature.md` for the full "
+            f"forensic record + Sphinx §peierls-phase5-retreat."
+        )
+    # Refactor #2-registry (Issue #137): every other closure routes
+    # through a registered ClosureRecipe that returns a
+    # BoundaryClosureOperator (bare or multi-bounce). The dispatcher
+    # walks the registry, runs validators, then assembles K_bc via
+    # `op.as_matrix()`.
+    if closure not in CLOSURE_REGISTRY:
+        valid = sorted([*CLOSURE_REGISTRY.keys(), "vacuum", "specular_continuous_mu"])
+        raise ValueError(
+            f"closure must be one of {valid} — or the deprecated aliases "
+            f"'white' / 'white_rank2'; got {closure!r}"
+        )
+    recipe = CLOSURE_REGISTRY[closure]
+    for validator in recipe.validators:
+        validator(geometry, n_bc_modes)
+    op = recipe.build(
+        geometry, r_nodes, r_wts, radii, sig_t_g, n_bc_modes,
+        n_angular=n_angular, n_surf_quad=n_surf_quad, dps=dps,
+    )
+    return K + op.as_matrix()
+
+
+def solve_peierls_mg(
+    geometry: CurvilinearGeometry,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    sig_s: np.ndarray,
+    nu_sig_f: np.ndarray,
+    chi: np.ndarray,
+    *,
+    boundary: str = "vacuum",
+    n_panels_per_region: int = 2,
+    p_order: int = 5,
+    n_angular: int = 24,
+    n_rho: int = 24,
+    n_surf_quad: int = 24,
+    dps: int = 25,
+    max_iter: int = 300,
+    tol: float = 1e-10,
+    n_bc_modes: int = 1,
+) -> PeierlsSolution:
+    r"""Unified multi-group Peierls eigenvalue driver for curvilinear geometry.
+
+    Generalisation of :func:`solve_peierls_1g` to ``ng ≥ 1`` energy
+    groups with downscatter / upscatter coupling and :math:`\chi`-weighted
+    fission. The per-group Peierls equation is
+
+    .. math::
+
+       \Sigma_{t,g}(r_i)\,\varphi_g(r_i) \;=\;
+         \sum_j K^{(g)}_{ij}\!\!
+         \sum_{g'}\!\bigl(
+           \Sigma_{s,g'\to g}(r_j)\,\varphi_{g'}(r_j)
+           + \tfrac{1}{k}\,\chi_g(r_i)\,\nu\Sigma_{f,g'}(r_j)\,\varphi_{g'}(r_j)
+         \bigr),
+
+    assembled into a block :math:`(N \cdot n_g)` × :math:`(N \cdot n_g)`
+    linear system with row index ``i * ng + g`` (node-major) and solved
+    by fission-source power iteration. The volume kernel
+    :math:`K^{(g)}` differs across groups only through :math:`\Sigma_{t,g}`;
+    the closure (vacuum / white_rank1_mark / white_f4) is rebuilt once
+    per group from the per-group :math:`\Sigma_{t,g}` trace.
+
+    The closure primitives (``build_closure_operator``,
+    ``build_white_bc_correction_rank_n``) are group-local by
+    construction (no cross-group coupling through the reflection
+    operator — verified during Issue #104 scoping; see research log
+    L21 / Sphinx §peierls-rank-n-per-face-closeout for the F.4 case).
+
+    Parameters
+    ----------
+    geometry
+        Curvilinear geometry instance (slab-polar / cylinder-1d /
+        sphere-1d, optionally hollow).
+    radii
+        Outer radii per region, shape ``(n_regions,)``. The inner
+        cavity radius (if any) comes from ``geometry.inner_radius``.
+    sig_t
+        Total cross section, shape ``(n_regions, ng)``.
+    sig_s
+        P\ :sub:`0` scattering matrix per region, shape
+        ``(n_regions, ng, ng)``. Convention: ``sig_s[r, g_src, g_dst]``
+        is the rate of scatter **from** group ``g_src`` **into** group
+        ``g_dst`` at region ``r`` — i.e., the first group index is
+        the source and the second is the destination. This matches
+        the XS library (:mod:`orpheus.derivations.common.xs_library`) and
+        the slab driver
+        :func:`~orpheus.derivations.continuous.peierls.slab.solve_peierls_eigenvalue`.
+        Under this convention downscatter (fast → thermal, i.e.,
+        ``g_src < g_dst`` with group 0 = fast) sits in the
+        upper-triangular entries.
+    nu_sig_f
+        :math:`\nu\Sigma_f` per region and group, shape
+        ``(n_regions, ng)``.
+    chi
+        Fission emission spectrum per region and group, shape
+        ``(n_regions, ng)``. Must sum to 1 along the group axis
+        per region (not checked — caller's responsibility).
+    boundary, n_panels_per_region, p_order, n_angular, n_rho,
+    n_surf_quad, dps, max_iter, tol, n_bc_modes
+        See :func:`solve_peierls_1g`; semantics are unchanged.
+        Tolerances apply to the scalar eigenvalue iteration only.
+
+    Returns
+    -------
+    PeierlsSolution
+        ``phi_values`` has shape ``(N, ng)``; ``n_groups == ng``.
+
+    Notes
+    -----
+    **ng = 1 bit-match guarantee.** For ``ng == 1`` with ``chi == 1``
+    the MG path reduces algebraically to the original 1G assembly
+    (same K, same A / B, same power iteration). This is enforced by
+    the regression test ``test_mg_bitmatch_1g_*`` and is a prerequisite
+    for preserving the behaviour of all 1G callers via the
+    :func:`solve_peierls_1g` wrapper.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    sig_s = np.asarray(sig_s, dtype=float)
+    nu_sig_f = np.asarray(nu_sig_f, dtype=float)
+    chi = np.asarray(chi, dtype=float)
+
+    if sig_t.ndim != 2:
+        raise ValueError(
+            f"sig_t must be shape (n_regions, ng); got ndim={sig_t.ndim}, "
+            f"shape={sig_t.shape}. Use solve_peierls_1g for 1-D Σ_t input."
+        )
+    n_regions, ng = sig_t.shape
+    if sig_s.shape != (n_regions, ng, ng):
+        raise ValueError(
+            f"sig_s must be shape (n_regions={n_regions}, ng={ng}, "
+            f"ng={ng}); got {sig_s.shape}."
+        )
+    if nu_sig_f.shape != (n_regions, ng):
+        raise ValueError(
+            f"nu_sig_f must be shape (n_regions={n_regions}, ng={ng}); "
+            f"got {nu_sig_f.shape}."
+        )
+    if chi.shape != (n_regions, ng):
+        raise ValueError(
+            f"chi must be shape (n_regions={n_regions}, ng={ng}); "
+            f"got {chi.shape}."
+        )
+
+    # stacklevel=3 resolves:  warn -> _resolve_closure_name ->
+    # solve_peierls_mg -> user's call site.
+    closure = _resolve_closure_name(boundary, user_stacklevel=3)
+
+    # Forward hollow-cell cavity exclusion to the radial mesh builder
+    # (identical to solve_peierls_1g — Issue #119).
+    r_nodes, r_wts, panels = composite_gl_r(
+        radii, n_panels_per_region, p_order, dps=dps,
+        inner_radius=getattr(geometry, "inner_radius", 0.0) or 0.0,
+    )
+    N = len(r_nodes)
+
+    # Per-group K = K_vol + K_bc. This is the only group-local loop.
+    K_per_group = np.empty((ng, N, N))
+    for g in range(ng):
+        K_per_group[g] = _build_full_K_per_group(
+            geometry, r_nodes, r_wts, panels, radii, sig_t[:, g],
+            closure,
+            n_angular=n_angular, n_rho=n_rho, n_surf_quad=n_surf_quad,
+            n_bc_modes=n_bc_modes, dps=dps,
+        )
+
+    # Per-node XS (look up the annulus-region index per radial node).
+    k_annulus = np.array(
+        [geometry.which_annulus(float(r_nodes[i]), radii) for i in range(N)],
+        dtype=int,
+    )
+    sig_t_n = sig_t[k_annulus, :]          # (N, ng)
+    sig_s_n = sig_s[k_annulus, :, :]       # (N, ng, ng)
+    nu_f_n  = nu_sig_f[k_annulus, :]       # (N, ng)
+    chi_n   = chi[k_annulus, :]            # (N, ng)
+
+    # Block (N·ng) × (N·ng) assembly — node-major indexing row = i*ng + g.
+    # Convention bit-matches slab's _build_system_matrices in
+    # peierls_slab.py:243 (row = i*ng + ge, col = j*ng + gs).
+    dim = N * ng
+    A = np.zeros((dim, dim))
+    B = np.zeros((dim, dim))
+
+    # Diagonal Σ_t term: A[i*ng+g, i*ng+g] = Σ_t,g(r_i).
+    for i in range(N):
+        for g in range(ng):
+            A[i * ng + g, i * ng + g] = sig_t_n[i, g]
+
+    # Off-diagonal scatter / fission operators. Σ_t-LHS convention
+    # (matches solve_peierls_1g): A = diag(Σ_t) − K·Σ_s, B = K·χ·νΣ_f.
+    # Access sig_s_n[j, gs, ge] as "scatter gs → ge at node j" per the
+    # slab reference pattern.
+    for ge in range(ng):
+        Kg = K_per_group[ge]
+        for i in range(N):
+            chi_ie = chi_n[i, ge]
+            row = i * ng + ge
+            for j in range(N):
+                kij = Kg[i, j]
+                if kij == 0.0:
+                    continue
+                for gs in range(ng):
+                    col = j * ng + gs
+                    A[row, col] -= kij * sig_s_n[j, gs, ge]
+                    B[row, col] += kij * chi_ie * nu_f_n[j, gs]
+
+    # Fission-source power iteration — bit-identical structure to the
+    # 1G path (just acts on a dim-wide vector instead of N-wide).
+    phi = np.ones(dim)
+    k_val = 1.0
+    B_phi = B @ phi
+    prod_old = np.abs(B_phi).sum()
+    for it in range(max_iter):
+        q = B_phi / k_val
+        phi_new = np.linalg.solve(A, q)
+        B_phi_new = B @ phi_new
+        prod_new = np.abs(B_phi_new).sum()
+        k_new = k_val * prod_new / prod_old if prod_old > 0 else k_val
+        nrm = np.abs(phi_new).sum()
+        if nrm > 0:
+            phi_new = phi_new / nrm
+        B_phi_norm = B @ phi_new
+        prod_norm = np.abs(B_phi_norm).sum()
+        converged = abs(k_new - k_val) < tol and it > 5
+        phi, k_val = phi_new, k_new
+        B_phi, prod_old = B_phi_norm, prod_norm
+        if converged:
+            break
+
+    # Reshape (N*ng,) → (N, ng) for the dataclass; node-major layout
+    # means phi[i*ng + g] goes to phi_values[i, g].
+    phi_values = phi.reshape(N, ng)
+
+    return PeierlsSolution(
+        r_nodes=r_nodes,
+        phi_values=phi_values,
+        k_eff=float(k_val),
+        cell_radius=float(radii[-1]),
+        n_groups=ng,
+        geometry_kind=geometry.kind,
+        n_quad_r=N,
+        n_quad_angular=n_angular * n_rho,
+        precision_digits=dps,
+        panel_bounds=panels,
+    )
+
+
+def solve_peierls_1g(
+    geometry: CurvilinearGeometry,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+    sig_s: np.ndarray,
+    nu_sig_f: np.ndarray,
+    *,
+    boundary: str = "vacuum",
+    n_panels_per_region: int = 2,
+    p_order: int = 5,
+    n_angular: int = 24,
+    n_rho: int = 24,
+    n_surf_quad: int = 24,
+    dps: int = 25,
+    max_iter: int = 300,
+    tol: float = 1e-10,
+    n_bc_modes: int = 1,
+) -> PeierlsSolution:
+    r"""Unified 1-group Peierls eigenvalue driver for curvilinear geometry.
+
+    The equation
+
+    .. math::
+
+       \Sigma_{t,i}\,\varphi_i \;=\;
+         \sum_j K_{ij}\,\bigl(\Sigma_{s,j}\varphi_j + \tfrac1k\,\nu\Sigma_{f,j}\varphi_j\bigr)
+
+    with :math:`K = K_{\rm vol} + K_{\rm bc}\,\delta_{\rm white}` is
+    recast as :math:`\tilde A\,\varphi = (1/k)\,\tilde B\,\varphi`
+    with :math:`\tilde A = \mathrm{diag}(\Sigma_t) - K\cdot
+    \mathrm{diag}(\Sigma_s)` and :math:`\tilde B = K\cdot
+    \mathrm{diag}(\nu\Sigma_f)`. Fission-source power iteration.
+
+    As of Issue #104 (2026-04-24) this function is a thin wrapper over
+    :func:`solve_peierls_mg` with ``ng = 1`` and a synthesised
+    :math:`\chi = 1`. The ng=1 MG path is algebraically identical to the
+    original 1G assembly (verified by ``test_mg_bitmatch_1g_*``), so
+    all downstream 1G callers continue to work unchanged.
+    """
+    radii = np.asarray(radii, dtype=float)
+    sig_t = np.asarray(sig_t, dtype=float)
+    sig_s = np.asarray(sig_s, dtype=float)
+    nu_sig_f = np.asarray(nu_sig_f, dtype=float)
+
+    # Coerce per-region 1-D arrays to (n_regions, 1) for the MG path.
+    if sig_t.ndim != 1:
+        raise ValueError(
+            f"solve_peierls_1g: sig_t must be a 1-D per-region array; "
+            f"got shape={sig_t.shape}. Use solve_peierls_mg for ng > 1."
+        )
+    n_regions = sig_t.shape[0]
+    sig_t_mg = sig_t[:, np.newaxis]                                   # (n_r, 1)
+    sig_s_mg = sig_s.reshape(n_regions, 1, 1)                         # (n_r, 1, 1)
+    nu_sig_f_mg = nu_sig_f[:, np.newaxis]                             # (n_r, 1)
+    chi_mg = np.ones((n_regions, 1))                                  # χ = 1 for 1G
+
+    # Resolve deprecated aliases here so the DeprecationWarning points
+    # at the user's call to solve_peierls_1g rather than at the internal
+    # solve_peierls_mg call. stacklevel=3 resolves to:
+    # warn -> _resolve_closure_name -> solve_peierls_1g -> user.
+    canonical_boundary = _resolve_closure_name(boundary, user_stacklevel=3)
+
+    sol = solve_peierls_mg(
+        geometry, radii, sig_t_mg, sig_s_mg, nu_sig_f_mg, chi_mg,
+        boundary=canonical_boundary,
+        n_panels_per_region=n_panels_per_region, p_order=p_order,
+        n_angular=n_angular, n_rho=n_rho, n_surf_quad=n_surf_quad,
+        dps=dps, max_iter=max_iter, tol=tol, n_bc_modes=n_bc_modes,
+    )
+    return sol

@@ -55,7 +55,7 @@ class SNFixedSourceResult:
     """Results of an SN fixed-source (non-eigenvalue) calculation.
 
     Used by :func:`solve_sn_fixed_source` and MMS verification
-    (:mod:`orpheus.derivations.sn_mms`). Carries the same flux arrays
+    (:mod:`orpheus.derivations.continuous.mms.sn`). Carries the same flux arrays
     as :class:`SNResult` but omits the fission eigenvalue fields.
     """
 
@@ -615,7 +615,7 @@ def solve_sn_fixed_source(
     This entry point exists for L1 verification via MMS, not for
     engineering problems — real fixed-source calculations should still
     build on :func:`solve_sn` with an appropriate external-source hook.
-    See :mod:`orpheus.derivations.sn_mms` and the MMS verification
+    See :mod:`orpheus.derivations.continuous.mms.sn` and the MMS verification
     section of the discrete-ordinates theory page.
     """
     t_start = time.perf_counter()

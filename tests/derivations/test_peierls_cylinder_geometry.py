@@ -31,7 +31,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.peierls_geometry import CYLINDER_1D, composite_gl_r
+from orpheus.derivations.continuous.peierls.geometry import CYLINDER_1D, composite_gl_r
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -22,8 +22,8 @@ index). For terminology that has historical collisions ("F.4",
 mpmath.quad path** (and the two retired predecessors — τ-Laguerre
 and moment-form), see :ref:`theory-peierls-slab-polar`. For the
 **multi-group extension** (Issue #104, 2026-04-24), which added
-:func:`~orpheus.derivations.peierls_geometry.solve_peierls_mg` and
-reduced :func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_mg` and
+reduced :func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
 to a thin wrapper, see :ref:`theory-peierls-multigroup`. For the
 **rank-:math:`N` falsifications on both topology classes** —
 Class A (hollow) closed by L21 and Class B (solid) under Issue #132
@@ -93,25 +93,25 @@ re-derivation — see :ref:`peierls-rank-n-per-face-closeout` and
   :mod:`orpheus.cp.solver`), but is only an *approximation* at the
   pointwise Nyström level. The error is bounded by the rank-1
   scaling of ``build_white_bc_correction`` in
-  :mod:`orpheus.derivations.peierls_cylinder`; it is the same
+  :mod:`orpheus.derivations.continuous.peierls.cylinder`; it is the same
   phenomenon reported for the sphere in GitHub Issue #100.
 - **Phase F (Issue #110, 2026-04-21).** ``CurvilinearGeometry``
   carries an ``inner_radius`` field (hollow-core support), a
   per-face ``n_surfaces`` property (2 for slab and hollow cyl/sph,
   1 for solid), and per-surface escape/response primitives
-  :func:`~orpheus.derivations.peierls_geometry.compute_P_esc_outer`
+  :func:`~orpheus.derivations.continuous.peierls.geometry.compute_P_esc_outer`
   /
-  :func:`~orpheus.derivations.peierls_geometry.compute_P_esc_inner`
+  :func:`~orpheus.derivations.continuous.peierls.geometry.compute_P_esc_inner`
   /
-  :func:`~orpheus.derivations.peierls_geometry.compute_G_bc_outer`
+  :func:`~orpheus.derivations.continuous.peierls.geometry.compute_G_bc_outer`
   /
-  :func:`~orpheus.derivations.peierls_geometry.compute_G_bc_inner`.
-  :func:`~orpheus.derivations.peierls_geometry.build_closure_operator`
+  :func:`~orpheus.derivations.continuous.peierls.geometry.compute_G_bc_inner`.
+  :func:`~orpheus.derivations.continuous.peierls.geometry.build_closure_operator`
   with ``reflection="white"`` builds a **rank-2 per-face** closure
   on Class-A geometries (slab today; hollow cyl/sph land in F.4)
   with :math:`R = (I - W)^{-1}` from the surface-to-surface
   transmission
-  :func:`~orpheus.derivations.peierls_geometry.compute_slab_transmission`.
+  :func:`~orpheus.derivations.continuous.peierls.geometry.compute_slab_transmission`.
   Rank-2 white closes the Wigner-Seitz identity
   :math:`k_{\rm eff} = k_\infty` up to the outer-GL quadrature
   order (O(h²) due to the :math:`E_2` endpoint log singularity)
@@ -125,7 +125,7 @@ re-derivation — see :ref:`peierls-rank-n-per-face-closeout` and
   (:math:`R = (I - 0)^{-1} = 1`), preserving bit-exact regression.
   **Phase F.4 (hollow cylinder).** Extended rank-2 white to
   hollow cylindrical annuli via
-  :func:`~orpheus.derivations.peierls_geometry.compute_hollow_cyl_transmission`
+  :func:`~orpheus.derivations.continuous.peierls.geometry.compute_hollow_cyl_transmission`
   — Lambert-emission chord decomposition with the out-of-plane
   :math:`\theta` fold into the :math:`\mathrm{Ki}_3` Bickley
   function: :math:`W_{\rm oo} = (4/\pi)\!\int_{\alpha_c}^{\pi/2}
@@ -151,7 +151,7 @@ re-derivation — see :ref:`peierls-rank-n-per-face-closeout` and
   and the production decision to keep F.4 rank-2 scalar as the
   closure.
   **Hollow sphere** uses the same chord decomposition
-  (:func:`~orpheus.derivations.peierls_geometry.compute_hollow_sph_transmission`)
+  (:func:`~orpheus.derivations.continuous.peierls.geometry.compute_hollow_sph_transmission`)
   with the bare :math:`e^{-\tau}` kernel (no Bickley fold) and
   reciprocity :math:`W_{\rm oi} = (R/r_0)^2\,W_{\rm io}` on
   spherical surface areas. The sphere's higher symmetry yields
@@ -171,7 +171,7 @@ re-derivation — see :ref:`peierls-rank-n-per-face-closeout` and
   the written record of that choice.
 - **Production status.** Slab :math:`K` is production via the unified
   adaptive ``mpmath.quad`` path
-  (:func:`~orpheus.derivations.peierls_geometry.K_vol_element_adaptive`).
+  (:func:`~orpheus.derivations.continuous.peierls.geometry.K_vol_element_adaptive`).
 - **Vacuum-BC verification.** Machine-precision (rel tol
   :math:`10^{-10}`) analytical references exist for the uniform-source
   vacuum-BC flux in all three geometries; the row-sum identity
@@ -198,7 +198,7 @@ that gates regressions. The table body is auto-generated at Sphinx
 build time by
 :mod:`tools.verification.generate_peierls_matrix` from the registry
 function
-:func:`orpheus.derivations.peierls_cases.capability_rows` — if this
+:func:`orpheus.derivations.continuous.peierls.cases.capability_rows` — if this
 table diverges from ``continuous_all()`` filtered to
 ``operator_form == "integral-peierls"``, the capability-matrix
 cross-check test will fail.
@@ -218,12 +218,12 @@ Members: slab, hollow annular cylinder, hollow sphere. Shared closure
 class (F.4 scalar rank-2 per-face, Stamm'ler Eq. 34 =
 :math:numref:`hebert-3-323`) and shared L19 stability-protocol
 coverage. Implementation of F.4 lives in
-:func:`~orpheus.derivations.peierls_geometry._build_closure_operator_rank2_white`
+:func:`~orpheus.derivations.continuous.peierls.geometry._build_closure_operator_rank2_white`
 for cylinder and sphere, and in
-:mod:`~orpheus.derivations.peierls_slab` (native E₁ Nyström) for
+:mod:`~orpheus.derivations.continuous.peierls.slab` (native E₁ Nyström) for
 slab. As of 2026-04-23 slab **also** has a unified-path reference via
-:data:`~orpheus.derivations.peierls_geometry.SLAB_POLAR_1D` and
-:func:`~orpheus.derivations.peierls_geometry.K_vol_element_adaptive`
+:data:`~orpheus.derivations.continuous.peierls.geometry.SLAB_POLAR_1D` and
+:func:`~orpheus.derivations.continuous.peierls.geometry.K_vol_element_adaptive`
 (adaptive tanh-sinh :func:`mpmath.quad` with a forced :math:`\mu = 0`
 breakpoint — see :ref:`theory-peierls-slab-polar`). The two
 implementations are independent cross-checks: they agree at machine
@@ -361,11 +361,11 @@ above). Two classes:
   rank-1 Mark shipped.
 
 Queryable at runtime as
-:attr:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry.topology`.
+:attr:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry.topology`.
 For slab (which does not use :class:`CurvilinearGeometry`) the
-module-level constant ``orpheus.derivations.peierls_slab.TOPOLOGY``
+module-level constant ``orpheus.derivations.continuous.peierls.slab.TOPOLOGY``
 carries the same label. This property **supersedes**
-:attr:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry.n_surfaces`
+:attr:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry.n_surfaces`
 as the user-facing identifier: ``n_surfaces`` remains an internal
 integer count, ``topology`` is the semantic label for dispatch +
 documentation + test filtering. The plan that introduced this
@@ -376,9 +376,9 @@ concept lives at
 
 - **Phase F.4** (development subphase) — the 2026-04-21 Phase F
   rollout subphase that added hollow-cylinder support to
-  :func:`~orpheus.derivations.peierls_geometry.compute_hollow_cyl_transmission`
+  :func:`~orpheus.derivations.continuous.peierls.geometry.compute_hollow_cyl_transmission`
   and the cylinder branch of
-  :func:`~orpheus.derivations.peierls_geometry._build_closure_operator_rank2_white`.
+  :func:`~orpheus.derivations.continuous.peierls.geometry._build_closure_operator_rank2_white`.
   Historical label only; not part of the runtime API.
 - **F.4 (closure formula)** — Stamm'ler & Abbate 1983 Ch. IV
   Eq. 34 = Hébert 2009 §3.8.4 Eq. 3.323 (see
@@ -395,10 +395,10 @@ closure math → Stamm'ler Eq. 34.
 with first index = **source** group, second = **destination**. See
 :ref:`peierls-scattering-convention` in the multi-group driver
 section for the authoritative statement and its cross-check against
-the physical fixture in :mod:`orpheus.derivations._xs_library`.
+the physical fixture in :mod:`orpheus.derivations.common.xs_library`.
 
 **Boundary string → closure semantics**. The ``boundary=`` (a.k.a.
-``closure=``) argument to :func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+``closure=``) argument to :func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
 accepts three values today, each meaning a specific closure:
 
 .. list-table:: ``boundary`` / ``closure`` string semantics (Stage 5 landed)
@@ -415,13 +415,13 @@ accepts three values today, each meaning a specific closure:
      - Zero re-entering flux; outgoing rays escape.
    * - ``"white_rank1_mark"``
      - ``"white"`` (emits ``DeprecationWarning``)
-     - :func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction_rank_n`
+     - :func:`~orpheus.derivations.continuous.peierls.geometry.build_white_bc_correction_rank_n`
      - Rank-1 Mark (isotropic) re-emission. Accurate for flat-source
        region-averaged CP (exact at the limit) but loose at pointwise
        Nyström for curvilinear geometries.
    * - ``"white_f4"``
      - ``"white_rank2"`` (emits ``DeprecationWarning``)
-     - :func:`~orpheus.derivations.peierls_geometry._build_closure_operator_rank2_white`
+     - :func:`~orpheus.derivations.continuous.peierls.geometry._build_closure_operator_rank2_white`
      - F.4 scalar rank-2 per-face. Distinct scalar moment per face,
        coupled via the :math:`(I - W)^{-1}` transmission operator.
        **On solid geometry (``n_surfaces == 1``) emits a
@@ -430,12 +430,12 @@ accepts three values today, each meaning a specific closure:
        release. Use ``closure="white_rank1_mark"`` for solid.
 
 Both the deprecated aliases and the new canonical names are accepted
-by :func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+by :func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
 (and the per-geometry thin wrappers). Existing code continues to
 work unchanged; the canonical names are preferred for new callers.
 
 **Guard terminology**: the ``NotImplementedError`` raised by
-:func:`~orpheus.derivations.peierls_geometry.build_closure_operator`
+:func:`~orpheus.derivations.continuous.peierls.geometry.build_closure_operator`
 when ``reflection="white"`` AND ``n_bc_modes > 1`` AND
 ``geometry.n_surfaces == 2`` guards **rank-N Marshak per-face**
 (Phase F.5's attempted and falsified enrichment), NOT F.4. F.4
@@ -448,7 +448,7 @@ not a bug fix.
 - ``n_surfaces`` is a geometry property (1 for solid slab, cylinder,
   sphere; 2 for hollow cylinder / sphere / slab-polar with two face
   constants). Determined by
-  :attr:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry.n_surfaces`.
+  :attr:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry.n_surfaces`.
 - ``n_bc_modes`` is a closure parameter specifying the number of
   angular moments retained per face. ``n_bc_modes = 1`` = scalar per
   face (F.4's formulation and the only shipped mode). Higher
@@ -487,9 +487,9 @@ code.** It supersedes two retired predecessors (archived below):
   in-tree pointer is :ref:`theory-peierls-moment-form`.
 
 The active path — implemented in
-:func:`~orpheus.derivations.peierls_geometry.K_vol_element_adaptive`
+:func:`~orpheus.derivations.continuous.peierls.geometry.K_vol_element_adaptive`
 and dispatched via
-:func:`~orpheus.derivations.peierls_geometry.build_volume_kernel` when
+:func:`~orpheus.derivations.continuous.peierls.geometry.build_volume_kernel` when
 ``geometry.kind == "slab-polar"`` — computes each :math:`K[i, j]`
 element with **two nested adaptive** :func:`mpmath.quad` **calls**
 sharing breakpoint hints with the cylinder and sphere paths. The
@@ -527,13 +527,13 @@ with the chord range
      \end{cases}
 
 The prefactor :math:`1/2` is the slab's
-:attr:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry.prefactor`
+:attr:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry.prefactor`
 value (already folded in the code path). The source
 :math:`q(x') = \Sigma_s(x')\,\varphi(x') + \chi\,\nu\Sigma_f(x')\,\varphi(x')/k`
 follows the unified scattering + fission convention.
 
 This is **the same form** that
-:func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g` solves
+:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g` solves
 for cylinder-1d and sphere-1d. The only per-geometry differences are
 already factored behind the :class:`CurvilinearGeometry` primitives
 (``ray_direction_cosine``, ``rho_max``, ``source_position``,
@@ -639,13 +639,13 @@ verification reference**, not a production K-assembly.
 
 **Where it is called.** Every path that requests a slab-polar K
 matrix eventually hits
-:func:`~orpheus.derivations.peierls_geometry.build_volume_kernel`,
+:func:`~orpheus.derivations.continuous.peierls.geometry.build_volume_kernel`,
 which dispatches to
-:func:`~orpheus.derivations.peierls_geometry.build_volume_kernel_adaptive`
+:func:`~orpheus.derivations.continuous.peierls.geometry.build_volume_kernel_adaptive`
 for ``kind == "slab-polar"``. This includes
-:func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g` when
+:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g` when
 called on :data:`SLAB_POLAR_1D`. The legacy
-:func:`orpheus.derivations.peierls_slab.solve_peierls_eigenvalue`
+:func:`orpheus.derivations.continuous.peierls.slab.solve_peierls_eigenvalue`
 retains its **classical** :math:`E_1` Nyström (singularity-subtraction
 + product-integration weights) as an independent cross-check
 implementation — see :ref:`theory-peierls-slab-polar-retirement` for
@@ -678,7 +678,7 @@ The active slab-polar path is gated by two L1 tests in
 These close the volume-kernel verification for slab-polar at machine
 precision. The white-BC closure side is separately covered by
 :class:`tests.derivations.test_peierls_rank2_bc` which exercises
-:func:`~orpheus.derivations.peierls_geometry._build_closure_operator_rank2_white`'s
+:func:`~orpheus.derivations.continuous.peierls.geometry._build_closure_operator_rank2_white`'s
 slab branch against the Wigner–Seitz-exact
 :math:`E_2/E_3` bilinear form.
 
@@ -689,7 +689,7 @@ Subsection — Retention of :mod:`peierls_slab` (the native E₁ Nyström)
 ----------------------------------------------------------------------
 
 The legacy module
-:mod:`orpheus.derivations.peierls_slab` is **retained indefinitely**,
+:mod:`orpheus.derivations.continuous.peierls.slab` is **retained indefinitely**,
 not retired, as an independent cross-check implementation. Rationale:
 
 1. **Independent verification.** Two implementations that compute the
@@ -699,7 +699,7 @@ not retired, as an independent cross-check implementation. Rationale:
    implementation alone would miss.
 2. **Archaeological reference.** The 697-line
    singularity-subtraction / product-integration machinery in
-   :func:`~orpheus.derivations.peierls_slab._basis_kernel_weights` is
+   :func:`~orpheus.derivations.continuous.peierls.slab._basis_kernel_weights` is
    a documented instance of the classical Nyström-on-E₁ technique
    useful for future readers studying slab-specific numerics.
 3. **Low cost of retention.** The Phase G.5 routing switch
@@ -712,7 +712,7 @@ not retired, as an independent cross-check implementation. Rationale:
    robustness rather than a correctness backstop.
 4. **L0 error-catalog references.** The entries at
    ``tests/l0_error_catalog.md`` lines 1168 and 1221 cite
-   :func:`~orpheus.derivations.peierls_slab._build_kernel_matrix`
+   :func:`~orpheus.derivations.continuous.peierls.slab._build_kernel_matrix`
    explicitly. Retiring the module orphans those catalog entries.
 
 **Exception.** If a future session discovers a bug in the native E₁
@@ -731,18 +731,18 @@ Subsection — Phase G.5 slab routing switch (Issue #130)
 Phase G.5 routes the shipped slab continuous reference
 (``peierls_slab_2eg_2rg`` and any future ``peierls_slab_{ng}eg_{nr}rg``)
 through the unified
-:func:`~orpheus.derivations.peierls_geometry.solve_peierls_mg` +
+:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_mg` +
 :data:`SLAB_POLAR_1D` path instead of the native
-:func:`~orpheus.derivations.peierls_slab.solve_peierls_eigenvalue`.
+:func:`~orpheus.derivations.continuous.peierls.slab.solve_peierls_eigenvalue`.
 The routing is controlled by:
 
-- :data:`~orpheus.derivations.peierls_cases._SLAB_VIA_UNIFIED` —
+- :data:`~orpheus.derivations.continuous.peierls.cases._SLAB_VIA_UNIFIED` —
   module-level boolean, **defaults to True**. The
-  :func:`~orpheus.derivations.peierls_cases.build_two_surface_case`
+  :func:`~orpheus.derivations.continuous.peierls.cases.build_two_surface_case`
   dispatcher picks between native and unified based on its value.
 - ``ORPHEUS_SLAB_VIA_E1=1`` — environment-variable override that
   forces the native path at import time (for bisection / testing).
-- :func:`~orpheus.derivations.peierls_cases._build_peierls_slab_case_via_unified`
+- :func:`~orpheus.derivations.continuous.peierls.cases._build_peierls_slab_case_via_unified`
   — the unified-path case builder (symmetric with the native
   ``_build_peierls_slab_case`` but uses ``solve_peierls_mg``).
 
@@ -803,15 +803,15 @@ Subsection — Related open questions
   verification story.
 - **OQ — Multi-group / multi-region slab via the unified path?** The
   shipped ``peierls_slab_2eg_2rg`` continuous reference is 2-group;
-  :func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g` is
+  :func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g` is
   1-group by name and implementation. The unified-path equivalent
   requires
   `Issue #104 <https://github.com/deOliveira-R/ORPHEUS/issues/104>`_
   (N2: multi-group Peierls extension) before the slab reference can
   be routed through the unified path. Until then the routing of
-  :func:`~orpheus.derivations.peierls_cases.build_two_surface_case`
+  :func:`~orpheus.derivations.continuous.peierls.cases.build_two_surface_case`
   for ``shape="slab"`` stays on the legacy
-  :mod:`~orpheus.derivations.peierls_slab` module. Phase G.3
+  :mod:`~orpheus.derivations.continuous.peierls.slab` module. Phase G.3
   established 1-group parity; multi-group parity is blocked.
 - **OQ — Planar-limit cross-check against hollow cylinder?** Probed
   empirically and found structurally non-trivial; tracked in
@@ -851,12 +851,12 @@ them breaks the public contract.
 
    * - Function
      - Why permanent
-   * - :func:`~orpheus.derivations.peierls_geometry.solve_peierls_mg`
+   * - :func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_mg`
      - The canonical multi-group driver. All other entry points
        eventually hit this function. Geometry is the **first**
        positional argument — bind it inline at the call site
        (e.g. ``solve_peierls_mg(_pg.CYLINDER_1D, ...)``).
-   * - :func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+   * - :func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
      - Permanent 1G convenience. Rationale: 1-group problems have
        scalar ``sig_t``, scalar ``sig_s``, scalar ``nu_sig_f`` — no
        ``chi`` axis — and forcing callers to reshape to
@@ -864,7 +864,7 @@ them breaks the public contract.
        problem has no pedagogical or maintenance benefit. The
        wrapper is 25 lines and is bit-exact regression-gated by
        :class:`~tests.derivations.test_peierls_multigroup.TestMGNg1BitMatch1G`.
-   * - :class:`~orpheus.derivations.peierls_geometry.PeierlsSolution`
+   * - :class:`~orpheus.derivations.continuous.peierls.geometry.PeierlsSolution`
      - The canonical solution dataclass returned by both
        :func:`solve_peierls_1g` and :func:`solve_peierls_mg`.
        Carries ``geometry_kind`` ("``slab``" / "``cylinder-1d``" /
@@ -886,7 +886,7 @@ critical) concluded that:
 1. The parameter renames (``n_angular`` → ``n_beta`` / ``n_theta``
    and ``n_surf_quad`` → ``n_phi``) are a *docstring concern*, not
    an *API* concern. The lower-level
-   :meth:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry.optical_depth_along_ray`
+   :meth:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry.optical_depth_along_ray`
    already chose the geometry-agnostic ``cos_omega`` over per-shape
    ``cos_beta`` / ``cos_theta``; the façade wrappers were an
    inconsistent island above that abstraction layer.
@@ -916,26 +916,26 @@ reversal of it.
 
    * - Retired symbol
      - Canonical replacement
-   * - :py:func:`!orpheus.derivations.peierls_cylinder.solve_peierls_cylinder_mg`
+   * - :py:func:`!orpheus.derivations.continuous.peierls.cylinder.solve_peierls_cylinder_mg`
      - ``solve_peierls_mg(_pg.CYLINDER_1D, ...)`` — pass
        ``n_angular`` (was ``n_beta``), ``n_surf_quad`` (was
        ``n_phi``)
-   * - :py:func:`!orpheus.derivations.peierls_cylinder.solve_peierls_cylinder_1g`
+   * - :py:func:`!orpheus.derivations.continuous.peierls.cylinder.solve_peierls_cylinder_1g`
      - ``solve_peierls_1g(_pg.CYLINDER_1D, ...)`` — same parameter
        rename
-   * - :py:func:`!orpheus.derivations.peierls_sphere.solve_peierls_sphere_mg`
+   * - :py:func:`!orpheus.derivations.continuous.peierls.sphere.solve_peierls_sphere_mg`
      - ``solve_peierls_mg(_pg.SPHERE_1D, ...)`` — pass
        ``n_angular`` (was ``n_theta``), ``n_surf_quad`` (was
        ``n_phi``)
-   * - :py:func:`!orpheus.derivations.peierls_sphere.solve_peierls_sphere_1g`
+   * - :py:func:`!orpheus.derivations.continuous.peierls.sphere.solve_peierls_sphere_1g`
      - ``solve_peierls_1g(_pg.SPHERE_1D, ...)`` — same parameter
        rename
-   * - :py:class:`!orpheus.derivations.peierls_cylinder.PeierlsCylinderSolution`
-     - :class:`~orpheus.derivations.peierls_geometry.PeierlsSolution`
+   * - :py:class:`!orpheus.derivations.continuous.peierls.cylinder.PeierlsCylinderSolution`
+     - :class:`~orpheus.derivations.continuous.peierls.geometry.PeierlsSolution`
        — rename ``n_quad_y`` to ``n_quad_angular`` and add
        ``geometry_kind="cylinder-1d"``
-   * - :py:class:`!orpheus.derivations.peierls_sphere.PeierlsSphereSolution`
-     - :class:`~orpheus.derivations.peierls_geometry.PeierlsSolution`
+   * - :py:class:`!orpheus.derivations.continuous.peierls.sphere.PeierlsSphereSolution`
+     - :class:`~orpheus.derivations.continuous.peierls.geometry.PeierlsSolution`
        — rename ``n_quad_theta`` to ``n_quad_angular`` and add
        ``geometry_kind="sphere-1d"``
 
@@ -952,11 +952,11 @@ The ``peierls_cylinder`` and ``peierls_sphere`` modules survive as
 **registry-only modules** containing the
 ``_build_peierls_*_case`` / ``_build_peierls_*_hollow_f4_case``
 constructors used by
-:func:`~orpheus.derivations.peierls_cases.build_two_surface_case`
+:func:`~orpheus.derivations.continuous.peierls.cases.build_two_surface_case`
 and the per-shape ``_F4_*_TOL`` tolerance tables consumed by
-:func:`~orpheus.derivations.peierls_cases.capability_rows`. The
-:data:`~orpheus.derivations.peierls_cylinder.GEOMETRY` /
-:data:`~orpheus.derivations.peierls_sphere.GEOMETRY` singletons are
+:func:`~orpheus.derivations.continuous.peierls.cases.capability_rows`. The
+:data:`~orpheus.derivations.continuous.peierls.cylinder.GEOMETRY` /
+:data:`~orpheus.derivations.continuous.peierls.sphere.GEOMETRY` singletons are
 preserved as convenient bindings of the canonical ``CYLINDER_1D`` /
 ``SPHERE_1D`` for registry-internal use.
 
@@ -981,13 +981,13 @@ independently-developed algorithm.
 
    * - Function
      - Permitted callers
-   * - :func:`~orpheus.derivations.peierls_slab.solve_peierls_eigenvalue`
+   * - :func:`~orpheus.derivations.continuous.peierls.slab.solve_peierls_eigenvalue`
      - Only (a)
        :class:`~tests.derivations.test_peierls_multigroup.TestSlabViaUnifiedDiscrepancyDiagnostic`
        — the parity gate that keeps unified honest, and (b) anyone
        who sets ``ORPHEUS_SLAB_VIA_E1=1`` (explicit bisection /
        testing). Production references go through
-       :func:`~orpheus.derivations.peierls_cases.build_two_surface_case`
+       :func:`~orpheus.derivations.continuous.peierls.cases.build_two_surface_case`
        which dispatches on ``_SLAB_VIA_UNIFIED`` (default ``True``).
        If you find yourself importing ``solve_peierls_eigenvalue``
        from non-test code, you are writing something that should be
@@ -1017,7 +1017,7 @@ candidate third route. Once it ships and demonstrates bit-exact
 parity with the unified path on the
 ``peierls_slab_2eg_2rg`` fixture, the slab native solver becomes
 redundant as an oracle and the
-:mod:`~orpheus.derivations.peierls_slab` module can be moved to
+:mod:`~orpheus.derivations.continuous.peierls.slab` module can be moved to
 :file:`scratch/derivations/archive/` (reversible via ``git mv``). At that
 point this whole subsection collapses, and Issue #138's original
 Phase B (lift ``_basis_kernel_weights`` into the unified slab
@@ -1034,9 +1034,9 @@ Multi-group Peierls eigenvalue driver (Issue #104)
 ==================================================
 
 **This section documents the multi-group extension
-(:func:`~orpheus.derivations.peierls_geometry.solve_peierls_mg`) that
+(:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_mg`) that
 landed on 2026-04-24**, generalising the 1-group driver
-:func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g` to
+:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g` to
 :math:`n_g \ge 1` energy groups with downscatter/upscatter coupling
 and :math:`\chi`-weighted fission. :func:`solve_peierls_1g` is now a
 25-line thin wrapper over :func:`solve_peierls_mg` with
@@ -1057,11 +1057,11 @@ entry point with the geometry bound at the call site:
 
 Slab's shipped ``peierls_slab_2eg_2rg`` continuous reference now
 routes through the unified
-:func:`~orpheus.derivations.peierls_geometry.solve_peierls_mg` +
+:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_mg` +
 :data:`SLAB_POLAR_1D` path by default, after Phase G.5 activation
 (Issue #130 + Issue #131, 2026-04-24). The two routes agree
 bit-exactly on k_eff (rel_diff ≈ 5 × 10\ :sup:`-16`); the native
-:func:`~orpheus.derivations.peierls_slab.solve_peierls_eigenvalue`
+:func:`~orpheus.derivations.continuous.peierls.slab.solve_peierls_eigenvalue`
 E\ :sub:`1` Nyström path is retained as an independent cross-check
 and can be forced via ``ORPHEUS_SLAB_VIA_E1=1``. See
 :ref:`theory-peierls-slab-polar-g5-routing` for the benchmark
@@ -1104,7 +1104,7 @@ recast as the generalised eigenvalue problem
 
 Row indexing is **node-major**: the flattened index is
 :math:`i \cdot n_g + g`, matching the convention in
-:func:`orpheus.derivations.peierls_slab._build_system_matrices`
+:func:`orpheus.derivations.continuous.peierls.slab._build_system_matrices`
 (the native slab driver predates Issue #104 and has always used this
 pattern). The solve uses the same fission-source power iteration
 as the 1G path, acting on a vector of dimension :math:`N \cdot n_g`
@@ -1120,16 +1120,16 @@ Canonical ``sig_s`` convention (project-wide single source of truth)
 destination. Downscatter (fast → thermal with group 0 = fast) sits
 in the **upper-triangular** entries; the physical fixture
 ``_A_2G["sig_s"] = [[0.38, 0.10], [0.00, 0.90]]`` in
-:mod:`orpheus.derivations._xs_library` has ``sig_s[0, 1] = 0.10``
+:mod:`orpheus.derivations.common.xs_library` has ``sig_s[0, 1] = 0.10``
 (fast-to-thermal downscatter) and ``sig_s[1, 0] = 0`` (no
 upscatter), which is the physical sanity-check this convention
 must pass. Both Peierls drivers
-(:func:`~orpheus.derivations.peierls_geometry.solve_peierls_mg`
+(:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_mg`
 for slab/cylinder/sphere via ``geometry`` binding, and
-:func:`~orpheus.derivations.peierls_slab.solve_peierls_eigenvalue`
+:func:`~orpheus.derivations.continuous.peierls.slab.solve_peierls_eigenvalue`
 for the verification-of-verification slab native path) follow this
 convention — see their docstrings and the
-:func:`~orpheus.derivations._xs_library.get_xs` module note. The
+:func:`~orpheus.derivations.common.xs_library.get_xs` module note. The
 2G slab parity test (:class:`TestMGSlabPolarMatchesNativeSlabMG`)
 is the definitive cross-check: if the two drivers agree on a 2G
 eigenvalue with genuinely directional (non-symmetric) scatter, the
@@ -1155,14 +1155,14 @@ volume+closure K matrix once per group with that group's
        )
 
 The closure primitives
-(:func:`~orpheus.derivations.peierls_geometry.build_closure_operator`,
-:func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction_rank_n`)
+(:func:`~orpheus.derivations.continuous.peierls.geometry.build_closure_operator`,
+:func:`~orpheus.derivations.continuous.peierls.geometry.build_white_bc_correction_rank_n`)
 are **group-local by construction**: each primitive consumes a
 per-region scalar :math:`\Sigma_t` and emits per-face escape /
 response / transmission primitives that couple only within that
 group. No cross-group coupling passes through the reflection
 operator — this is verified by reading
-:func:`~orpheus.derivations.peierls_geometry._build_closure_operator_rank2_white`,
+:func:`~orpheus.derivations.continuous.peierls.geometry._build_closure_operator_rank2_white`,
 and was the primary de-risking step of Issue #104's scoping pass.
 
 
@@ -1173,8 +1173,8 @@ Approximately 30 downstream callers use
 :func:`solve_peierls_1g` (direct tests, rank-N diagnostics, the
 shape-specific ``solve_peierls_*_1g`` wrappers, and the case
 builders at
-:mod:`~orpheus.derivations.peierls_cylinder` and
-:mod:`~orpheus.derivations.peierls_sphere`). Lifting every caller
+:mod:`~orpheus.derivations.continuous.peierls.cylinder` and
+:mod:`~orpheus.derivations.continuous.peierls.sphere`). Lifting every caller
 to the MG signature in a single commit would have forced a large
 multi-module diff that obscures the core refactor. Instead, Issue
 #104 commit 1 added the MG path and reduced :func:`solve_peierls_1g`
@@ -1192,7 +1192,7 @@ see no behavioural change.
 Subsection — Shipped multi-group references
 ---------------------------------------------
 
-As of 2026-04-24, :func:`~orpheus.derivations.peierls_cases._class_a_cases`
+As of 2026-04-24, :func:`~orpheus.derivations.continuous.peierls.cases._class_a_cases`
 registers the following 2-group hollow cells alongside the legacy
 1G entries:
 
@@ -1273,7 +1273,7 @@ via Lewis–Miller / Hébert / Stamm'ler integration-by-parts) and its
 predecessor τ-Laguerre polar form have both been **archived**. The
 verification side of the CP module no longer needs a fast slab K
 assembly — it uses adaptive ``mpmath.quad`` per element via
-:func:`~orpheus.derivations.peierls_geometry.K_vol_element_adaptive`,
+:func:`~orpheus.derivations.continuous.peierls.geometry.K_vol_element_adaptive`,
 the single unified verification primitive across all geometries.
 
 **Production decision.** Slab :math:`K` is production via the unified
@@ -1309,12 +1309,12 @@ solver (:mod:`orpheus.cp.solver`) against the full, un-integrated
 integral transport equation. The three instances are currently
 housed in:
 
-- :mod:`orpheus.derivations.peierls_slab` — slab :math:`E_1` reference
+- :mod:`orpheus.derivations.continuous.peierls.slab` — slab :math:`E_1` reference
   (Phase 4.1, shipped).
-- :mod:`orpheus.derivations.peierls_cylinder` — cylinder
+- :mod:`orpheus.derivations.continuous.peierls.cylinder` — cylinder
   :math:`\mathrm{Ki}_1` reference (Phase 4.2, shipped; companion
   theory page in :doc:`collision_probability`).
-- :mod:`orpheus.derivations.peierls_sphere` — sphere
+- :mod:`orpheus.derivations.continuous.peierls.sphere` — sphere
   :math:`e^{-\tau}` reference (registry-only façade per Issue #138;
   canonical entry is ``solve_peierls_mg(_pg.SPHERE_1D, ...)``).
 
@@ -1507,7 +1507,7 @@ Peierls equation is therefore
      E_1\!\bigl(\tau(x,x')\bigr)\,q(x')\,\mathrm dx'
      \;+\; \varphi_{\rm bc}(x).
 
-This is the form used by :mod:`orpheus.derivations.peierls_slab` and
+This is the form used by :mod:`orpheus.derivations.continuous.peierls.slab` and
 documented in the :eq:`peierls-equation` section of
 :doc:`collision_probability`. The singularity structure of the kernel
 comes from the small-:math:`z` asymptote
@@ -1598,7 +1598,7 @@ scalar-flux Peierls equation is
 
 identical in structure to the 3-D expression but one dimension
 lower. It is the form used by
-:mod:`orpheus.derivations.peierls_cylinder` before the polar-form
+:mod:`orpheus.derivations.continuous.peierls.cylinder` before the polar-form
 pivot.
 
 Sphere geometry — the bare exponential kernel
@@ -1770,7 +1770,7 @@ explicit :math:`1/|\mu|` bookkeeping.
 *(b)* For the cylinder the formal prefactor reads
 :math:`C_d\kappa_d = \mathrm{Ki}_1/(2\pi)`, but the azimuthal symmetry
 :math:`\beta \to -\beta` is already exploited inside the module
-:mod:`orpheus.derivations.peierls_cylinder`: the physical integration
+:mod:`orpheus.derivations.continuous.peierls.cylinder`: the physical integration
 range is folded from :math:`[0,2\pi]` to :math:`[0,\pi]` and the
 remaining factor :math:`1/\pi` appears in front of the integral.
 This is purely a halving of the work — mathematically equivalent to
@@ -1904,7 +1904,7 @@ angular quadrature and kernel call change. A future
 ``peierls_sphere.py`` module can share ``_optical_depth_along_ray``,
 ``_rho_max`` (via rename), ``composite_gl_r``,
 ``_lagrange_basis_on_panels`` with
-:mod:`orpheus.derivations.peierls_cylinder` essentially verbatim;
+:mod:`orpheus.derivations.continuous.peierls.cylinder` essentially verbatim;
 only the angular quadrature (Gauss–Legendre on
 :math:`[0,\pi]` weighted by :math:`\sin\theta`, replacing the
 uniform :math:`\mathrm d\beta`) and the kernel
@@ -2015,7 +2015,7 @@ arguments above therefore inverts:
   so there is no incentive to keep the chord coordinates. The
   :math:`\mathrm{Ki}_n` recurrence is bypassed entirely.
 - The kernel is evaluated by direct numerical integration
-  (:func:`~orpheus.derivations._kernels.ki_n_mp`) at mpmath precision;
+  (:func:`~orpheus.derivations.common.kernels.ki_n_mp`) at mpmath precision;
   no tables needed.
 - The Jacobian singularity at :math:`y=r` becomes a *pointwise*
   numerical obstacle rather than something that integrates out.
@@ -2042,10 +2042,10 @@ The preceding sections motivate the architectural claim that a
 single Nyström scaffolding handles all three geometries. This
 section makes the claim concrete by listing the abstract operations
 and mapping each one to actual code in
-:mod:`orpheus.derivations.peierls_cylinder`. The same map applies
-to :mod:`orpheus.derivations.peierls_slab` (with kernel and
+:mod:`orpheus.derivations.continuous.peierls.cylinder`. The same map applies
+to :mod:`orpheus.derivations.continuous.peierls.slab` (with kernel and
 angular-quadrature substitutions) and to a future
-``orpheus.derivations.peierls_sphere``.
+``orpheus.derivations.continuous.peierls.sphere``.
 
 Abstract operations
 -------------------
@@ -2252,7 +2252,7 @@ A single scaffolding function
 
 could then drive all three Peierls references, with geometry-specific
 logic confined to three concrete ``PeierlsGeometry`` implementations.
-The :func:`~orpheus.derivations.peierls_geometry.build_volume_kernel`
+The :func:`~orpheus.derivations.continuous.peierls.geometry.build_volume_kernel`
 already reads as such a scaffold minus one indirection — the
 kernel :math:`\mathrm{Ki}_1` and the :math:`\rho_{\max}` formula
 are hard-coded where they could accept injected callables. This
@@ -2415,7 +2415,7 @@ for :math:`q \equiv 1` on a bare pure-absorber cell with vacuum BC.
 Because vacuum BC factorises the boundary closure operator as
 :math:`K_{\rm bc} = G\cdot R\cdot P` with reflection operator
 :math:`R = 0`
-(see :class:`~orpheus.derivations.peierls_geometry.BoundaryClosureOperator`),
+(see :class:`~orpheus.derivations.continuous.peierls.geometry.BoundaryClosureOperator`),
 the operator reduces to the volume kernel alone, and
 :eq:`peierls-vacuum-bc-flux` is the only ground truth needed to gate
 the full K matrix assembly to machine precision:
@@ -2440,7 +2440,7 @@ and using the recurrence :math:`\int E_1(\alpha u)\,\mathrm du =
      \Bigl[\,2 - E_2(\Sigma_t\,x) - E_2(\Sigma_t\,(L - x))\,\Bigr].
 
 Implemented in
-:func:`~orpheus.derivations.peierls_reference.slab_uniform_source_analytical`.
+:func:`~orpheus.derivations.continuous.peierls.reference.slab_uniform_source_analytical`.
 Closed form — zero adaptive integration.
 
 Cylinder (infinite axial extent)
@@ -2471,7 +2471,7 @@ e^{-x/\cos\phi}\,\mathrm d\phi`.  Result:
      \,\mathrm d\theta'.
 
 Implemented in
-:func:`~orpheus.derivations.peierls_reference.cylinder_uniform_source_analytical`
+:func:`~orpheus.derivations.continuous.peierls.reference.cylinder_uniform_source_analytical`
 as a single adaptive :func:`mpmath.quad` over :math:`\theta'`. The
 integrand is smooth on :math:`[0, \pi]` — no breakpoints needed.
 
@@ -2512,7 +2512,7 @@ remaining :math:`\mu`-integral is:
          \Bigr)\,\mathrm d\mu\,\right].
 
 Implemented in
-:func:`~orpheus.derivations.peierls_reference.sphere_uniform_source_analytical`
+:func:`~orpheus.derivations.continuous.peierls.reference.sphere_uniform_source_analytical`
 as a single adaptive :func:`mpmath.quad` over :math:`\mu`.
 
 **Sanity limits.**
@@ -2533,7 +2533,7 @@ at machine precision (rel tol :math:`10^{-10}`) by
 - ``TestSlabKernelRowSum`` (slab, N = 48 nodes, p_order = 6),
 - ``TestSphereKernelRowSum`` and ``TestCylinderKernelRowSum``
   (curvilinear, small-N with the unified adaptive primitive
-  :func:`~orpheus.derivations.peierls_geometry.build_volume_kernel_adaptive`),
+  :func:`~orpheus.derivations.continuous.peierls.geometry.build_volume_kernel_adaptive`),
 
 in :mod:`tests.derivations.test_peierls_reference`. Agreement at
 :math:`10^{-10}` across three independently-constructed references
@@ -2607,7 +2607,7 @@ collapses the :math:`E_2` terms and leaves :math:`\varphi \equiv
 1/\Sigma_t`.
 
 Implemented in
-:func:`~orpheus.derivations.peierls_reference.slab_uniform_source_white_bc_analytical`.
+:func:`~orpheus.derivations.continuous.peierls.reference.slab_uniform_source_white_bc_analytical`.
 
 **History of the algebra bug.** Commit ``2538cfe`` shipped an
 incorrect closed form using the wrong antiderivative identity
@@ -2658,8 +2658,8 @@ white-BC eigenvalue (see ``TestWhiteBCThickLimit`` for cylinder /
 sphere).
 
 **Slab-polar BC machinery fix (Issue #118).** The
-:func:`~orpheus.derivations.peierls_geometry.compute_P_esc` and
-:func:`~orpheus.derivations.peierls_geometry.compute_G_bc` functions
+:func:`~orpheus.derivations.continuous.peierls.geometry.compute_P_esc` and
+:func:`~orpheus.derivations.continuous.peierls.geometry.compute_G_bc` functions
 were originally implemented for curvilinear geometries only. Slab
 support landed with these fixes:
 
@@ -2682,8 +2682,8 @@ support landed with these fixes:
    (two unit-area faces).
 
 4. Rank-N :math:`(n > 0)` modes in
-   :func:`~orpheus.derivations.peierls_geometry.compute_P_esc_mode`
-   and :func:`~orpheus.derivations.peierls_geometry.compute_G_bc_mode`
+   :func:`~orpheus.derivations.continuous.peierls.geometry.compute_P_esc_mode`
+   and :func:`~orpheus.derivations.continuous.peierls.geometry.compute_G_bc_mode`
    raise :class:`NotImplementedError` for slab: rank-N slab requires
    per-face mode decomposition (:math:`A = \mathbb{R}^{2N}` rather
    than :math:`\mathbb{R}^N`), which is a scope extension tracked
@@ -2740,7 +2740,7 @@ gives the **rank-1** correction
      \;=\; u_i\,v_j.
 
 This is the form implemented in
-:func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction`
+:func:`~orpheus.derivations.continuous.peierls.geometry.build_white_bc_correction`
 (the cylinder branch dispatches on ``GEOMETRY = CYLINDER_1D``):
 :math:`u_i = \Sigma_t(r_i)\,G_{\rm bc}(r_i)/R`,
 :math:`v_j = r_j\,w_j\,P_{\rm esc}(r_j)`, because :math:`A_d = 2\pi R`
@@ -2783,7 +2783,7 @@ at the per-node level.
 
 The deviation is a function of the cell's optical size. For a
 homogeneous bare cylinder tested via
-:func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction`
+:func:`~orpheus.derivations.continuous.peierls.geometry.build_white_bc_correction`
 on ``CYLINDER_1D``:
 
 .. list-table:: Rank-1 white-BC error (cylinder, 1-region, homogeneous)
@@ -2859,7 +2859,7 @@ Rank-N (Marshak / Gelbard DP\ :sub:`N-1`) skeleton — WIP
 
 A rank-:math:`N` extension to the white-BC closure is under
 construction at
-:func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction_rank_n`.
+:func:`~orpheus.derivations.continuous.peierls.geometry.build_white_bc_correction_rank_n`.
 The canonical form (Sanchez & McCormick 1982 §III.F.1
 Eqs. 165–169; Gelbard 1968; Stepanek 1981) expands the half-range
 surface angular flux in shifted Legendre polynomials
@@ -2883,7 +2883,7 @@ with :math:`P_{\rm esc}^{(n)}` and :math:`G_{\rm bc}^{(n)}` the
 mode-:math:`n` Legendre-weighted versions of the rank-1
 primitives. For :math:`n = 0`, :math:`\tilde P_0 \equiv 1` and
 the mode-0 contribution is routed through the existing rank-1
-:func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction`,
+:func:`~orpheus.derivations.continuous.peierls.geometry.build_white_bc_correction`,
 preserving bit-exact regression at
 ``rtol = 1e-14`` (gated by
 ``tests/derivations/test_peierls_rank_n_bc.py::test_rank1_bit_exact_recovery``).
@@ -2908,14 +2908,14 @@ issue). Convergence-ladder tests
 ``test_rank_n_sphere_thin_cell_convergence``) carry ``xfail``
 markers referencing Issue #112; they flip to pass when the canonical
 3-D audit lands. The default ``n_bc_modes = 1`` is byte-identical to
-:func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction`
+:func:`~orpheus.derivations.continuous.peierls.geometry.build_white_bc_correction`
 and is safe production. The full magnitude scan (cylinder
 :math:`\mathrm{Ki}_1/d` vs Knyazev 3-D, sphere mode-2 plateau
 diagnostics, all the empirical k\ :sub:`eff` drift tables) is
 recorded in
 `Issue #112 <https://github.com/deOliveira-R/ORPHEUS/issues/112>`_.
 
-The :func:`~orpheus.derivations._kernels._shifted_legendre_eval`
+The :func:`~orpheus.derivations.common.kernels._shifted_legendre_eval`
 utility is the basis building block both the cylinder 3-D
 quadrature and the sphere canonical DP\ :sub:`N` audit will reuse
 unchanged.
@@ -2945,10 +2945,10 @@ into the surface-side definition
                       \mathrm d\Omega.
 
 Dividing by the cell's characteristic :math:`R^2` (to match the
-:meth:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry.rank1_surface_divisor`
+:meth:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry.rank1_surface_divisor`
 convention — :math:`R` for cylinder, :math:`R^2` for sphere) gives
 the dimensionless factor :math:`(\rho_{\max}/R)^2` carried in
-:func:`~orpheus.derivations.peierls_geometry.compute_P_esc_mode`:
+:func:`~orpheus.derivations.continuous.peierls.geometry.compute_P_esc_mode`:
 
 .. math::
    :label: peierls-rank-n-P-esc-moment
@@ -3001,7 +3001,7 @@ rank-2 per-face* closure (Stamm'ler & Abbate 1983 Ch. IV Eq. 34 =
 Hébert 2009 §3.8.4 Eq. 3.323) is the production path for hollow
 2-surface cells under white BC. The :exc:`NotImplementedError`
 guard in
-:func:`~orpheus.derivations.peierls_geometry.build_closure_operator`
+:func:`~orpheus.derivations.continuous.peierls.geometry.build_closure_operator`
 (``n_bc_modes > 1`` + ``reflection="white"`` on 2-surface cells)
 **remains in place by design**: five independent textbook
 references (Ligou 1982, Sanchez-Mao-Santandrea 2002, Stamm'ler &
@@ -3040,9 +3040,9 @@ scalar geometric series :math:`(1 - P_{SS})^{-1}` is exactly the
 the production F.4 closure on BOTH 1D curvilinear geometries shipped
 in ORPHEUS, with the geometry-specific transmission matrix :math:`W`
 supplied by
-:func:`~orpheus.derivations.peierls_geometry.compute_hollow_cyl_transmission`
+:func:`~orpheus.derivations.continuous.peierls.geometry.compute_hollow_cyl_transmission`
 (cylinder, Ki\ :sub:`3` Bickley fold of the Lambertian emission) or
-:func:`~orpheus.derivations.peierls_geometry.compute_hollow_sph_transmission`
+:func:`~orpheus.derivations.continuous.peierls.geometry.compute_hollow_sph_transmission`
 (sphere, bare :math:`\exp(-\tau)` with explicit :math:`\theta`
 integration). The two geometries differ in the :math:`W_{oi} /
 W_{io}` reciprocity: cylinder uses circumference per unit length so
@@ -3127,7 +3127,7 @@ that F.4's physics requires at every mode is
    \quad\text{(naive per-mode conservation)}.
 
 Direct numerical evaluation of the shipped (Monte-Carlo-verified)
-:func:`~orpheus.derivations.peierls_geometry.compute_hollow_sph_transmission_rank_n`
+:func:`~orpheus.derivations.continuous.peierls.geometry.compute_hollow_sph_transmission_rank_n`
 at :math:`r_0/R = 0.3`, :math:`\sigma_t = 0` gives:
 
 .. list-table:: Per-mode conservation on hollow sphere (:math:`r_0/R = 0.3`, :math:`\sigma_t = 0`)
@@ -3421,7 +3421,7 @@ in the source tree because they are tested, correct at
 documented below. They are unreachable through the public API
 while the :exc:`NotImplementedError` guard remains in place.
 
-- :func:`~orpheus.derivations.peierls_geometry.compute_hollow_sph_transmission_rank_n`
+- :func:`~orpheus.derivations.continuous.peierls.geometry.compute_hollow_sph_transmission_rank_n`
   — :math:`(2N \times 2N)` surface-to-surface transmission matrix
   for hollow sphere; bit-exact reduction to the scalar transmission
   at :math:`N = 1`; Sanchez-McCormick reciprocity
@@ -3484,7 +3484,7 @@ Status
 **Issue #132 OPEN as of 2026-04-25.** Rank-N Marshak closure on
 Class B (solid cyl/sph) cells with non-trivial :math:`\Sigma_t`
 breakpoints is empirically falsified:
-:func:`~orpheus.derivations.peierls_geometry.build_closure_operator`
+:func:`~orpheus.derivations.continuous.peierls.geometry.build_closure_operator`
 mixes two incompatible partial-current normalisations into the same
 rank-:math:`N` outer-product expansion (mode 0 uses the legacy
 no-Jacobian convention, modes :math:`n \ge 1` use the canonical
@@ -3522,10 +3522,10 @@ The MR×MG empirical evidence
 ----------------------------
 
 Test cell: solid cyl / sph, ``radii = cp_module._RADII[n_regions]``
-from :mod:`orpheus.derivations.cp_cylinder` /
-:mod:`orpheus.derivations.cp_sphere` (``[1.0]`` for 1R,
+from :mod:`orpheus.derivations.continuous.flat_source_cp.cylinder` /
+:mod:`orpheus.derivations.continuous.flat_source_cp.sphere` (``[1.0]`` for 1R,
 ``[0.5, 1.0]`` for 2R), with the
-:mod:`orpheus.derivations._xs_library` ``LAYOUTS`` mapping
+:mod:`orpheus.derivations.common.xs_library` ``LAYOUTS`` mapping
 (``LAYOUTS = {1: ["A"], 2: ["A", "B"], 4: ["A", "D", "C", "B"]}``).
 Material A is fuel (:math:`\nu\Sigma_f > 0`), material B is
 moderator (:math:`\nu\Sigma_f = 0`, :math:`\sigma_s = 1.9`). The
@@ -3533,7 +3533,7 @@ load-bearing 2R configuration is fuel-A inner
 (:math:`r \in [0, 0.5]`, :math:`\sigma_t = 1`) + moderator-B outer
 (:math:`r \in [0.5, 1.0]`, :math:`\sigma_t = 2`); the analytical
 reference :math:`k_\infty = 0.6479728` comes from
-:meth:`~orpheus.derivations.cp_sphere._build_case`
+:meth:`~orpheus.derivations.continuous.flat_source_cp.sphere._build_case`
 (``"1g", 2``).k_inf via the analytical CP-matrix path, which is
 independent of any Peierls assembly.
 
@@ -3655,7 +3655,7 @@ and reproduces the BASE values to within :math:`0.022\,\%` —
    (+56.7 %) only because Issue #112 Phase C is already broken on
    cylinder rank-:math:`N` for separate reasons.** The cylinder
    rank-:math:`N` primitive
-   :func:`~orpheus.derivations.peierls_geometry.compute_G_bc_mode`
+   :func:`~orpheus.derivations.continuous.peierls.geometry.compute_G_bc_mode`
    uses the 2-D projected cosine :math:`\mu_{s,2D}` in the
    :math:`\mathrm{Ki}_1/d` integrand rather than the 3-D
    :math:`\mu_{s,3D} = \sin\theta_p \cdot \mu_{s,2D}` (Knyazev 1993
@@ -3770,7 +3770,7 @@ Production decision and forward path
 (``solve_peierls_*_1g`` with default ``n_bc_modes=1``), preserving
 the historical calibration. Calls with ``n_bc_modes ≥ 2`` on
 ``boundary="white_rank1_mark"`` are still callable through
-:func:`~orpheus.derivations.peierls_geometry.solve_peierls_mg` —
+:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_mg` —
 they do not raise, but they are **not safe**: the closure is
 structurally inconsistent in MR and quietly produces sign-flip
 errors with no diagnostic. The new XFAIL-strict tests at
@@ -3839,24 +3839,24 @@ falsification — they are the working primitives at :math:`N = 1`
 mode :math:`n \ge 1`, so all of them are needed for Issue #132
 re-derivation work:
 
-- :func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction`
+- :func:`~orpheus.derivations.continuous.peierls.geometry.build_white_bc_correction`
   — rank-1 Mark closure assembly. Production-shipped, not affected
   by the rank-:math:`N` mismatch (no mode mixing).
-- :func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction_rank_n`
+- :func:`~orpheus.derivations.continuous.peierls.geometry.build_white_bc_correction_rank_n`
   — rank-:math:`N` Marshak closure assembly. Reachable but unsafe
   in MR; the docstring 1G/1R table at lines 3934-3961 stays for
   historical reference, with the retraction note at the parent
   section above.
-- :func:`~orpheus.derivations.peierls_geometry.build_closure_operator`
+- :func:`~orpheus.derivations.continuous.peierls.geometry.build_closure_operator`
   — the routing function with the legacy/canonical mode-0 split at
   lines 3618-3642. Fix lives here once Issue #132 lands.
-- :func:`~orpheus.derivations.peierls_geometry.compute_P_esc_mode`
-  / :func:`~orpheus.derivations.peierls_geometry.compute_G_bc_mode`
+- :func:`~orpheus.derivations.continuous.peierls.geometry.compute_P_esc_mode`
+  / :func:`~orpheus.derivations.continuous.peierls.geometry.compute_G_bc_mode`
   — canonical Jacobian-weighted primitives for modes :math:`n \ge 1`.
   Correct as far as the Probe D quadrature refinement can verify
   (algebraic ~1/N convergence to ~1e-5 at ``n_angular=192``).
-- :func:`~orpheus.derivations.peierls_geometry.compute_P_esc` /
-  :func:`~orpheus.derivations.peierls_geometry.compute_G_bc` —
+- :func:`~orpheus.derivations.continuous.peierls.geometry.compute_P_esc` /
+  :func:`~orpheus.derivations.continuous.peierls.geometry.compute_G_bc` —
   legacy Mark-tuned primitives at mode 0. The historical
   calibration is the *correct* choice for rank-1 Mark; it is the
   *wrong* choice for mode 0 of a rank-:math:`N` Marshak expansion.
@@ -4164,7 +4164,7 @@ The cylinder rank-1 Mark closure historically used a surface-centric
      - 0.9997
 
 The corrected 3-D form, derived via SymPy in
-:mod:`orpheus.derivations.peierls_cylinder_g_bc_3d`, is the
+:mod:`orpheus.derivations.continuous.peierls.origins.cylinder_g_bc_3d`, is the
 observer-centric integral
 
 .. math::
@@ -4219,7 +4219,7 @@ Probes:
 ``scratch/derivations/diagnostics/diag_cylinder_hebert_{pss,keff,diagnose_residual}.py``,
 ``diag_cylinder_g_bc_3d_patched_test.py``;
 derivation:
-:mod:`orpheus.derivations.peierls_cylinder_g_bc_3d` (pinned by
+:mod:`orpheus.derivations.continuous.peierls.origins.cylinder_g_bc_3d` (pinned by
 ``tests/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py``);
 memory:
 :file:`.claude/agent-memory/numerics-investigator/issue_132_cylinder_hebert.md`.
@@ -4404,7 +4404,7 @@ so :math:`b = \pi\,e = \tfrac{1}{2}\,M^{-1}\,J^{+}`. Therefore
 The full SymPy derivation, including verification of the closed-form
 tridiagonal :math:`M` against direct integration at :math:`N = 1,
 \ldots, 5` and the :math:`2\,M\,R_{\rm spec} = I` contract at every
-rank, lives in :mod:`orpheus.derivations.peierls_specular`. The
+rank, lives in :mod:`orpheus.derivations.continuous.peierls.origins.specular`. The
 paired symbolic-vs-numpy parity test (consuming the SymPy origin as
 a contract) lives in
 :file:`tests/derivations/test_peierls_specular_symbolic.py`.
@@ -4625,7 +4625,7 @@ Note that the cylinder rank-1 specular (-0.31 %) is much closer to
 Consequently rank-1 specular cylinder ≡ rank-1 Hébert cylinder for
 homogeneous (both -0.16 %--0.31 %).
 
-See :mod:`orpheus.derivations.peierls_cylinder_knyazev` for the full
+See :mod:`orpheus.derivations.continuous.peierls.origins.cylinder_knyazev` for the full
 SymPy derivation and verification of the Knyazev expansion; the
 contract is pinned by
 ``tests/derivations/test_peierls_cylinder_knyazev_symbolic.py``.
@@ -4737,7 +4737,7 @@ Verification on the homogeneous fuel-A slab (1G, :math:`L =
 Monotonic improvement; rank-1 bit-equals Mark legacy in the
 dominant eigenvalue.
 
-See :mod:`orpheus.derivations.peierls_specular.slab` for the SymPy
+See :mod:`orpheus.derivations.continuous.peierls.origins.specular.slab` for the SymPy
 derivation and ``tests/derivations/test_peierls_specular_slab_symbolic.py``
 for the math-origin contract; the
 ``test_slab_mark_decomposes_into_four_per_face_blocks`` test (in
@@ -5216,7 +5216,7 @@ multi-bounce specular at all three geometries. The
 ``closure="specular_multibounce"``; the reference implementation
 :func:`compute_K_bc_specular_continuous_mu_sphere` is preserved
 because the SymPy 4/4 verifications in
-:mod:`orpheus.derivations.peierls_specular.continuous_mu` pass against
+:mod:`orpheus.derivations.continuous.peierls.origins.specular.continuous_mu` pass against
 Sanchez 1986 [SanchezTTSP1986]_ Eq. (A6) (pinned by
 ``tests/derivations/test_peierls_specular_continuous_mu_symbolic.py``),
 but the Sanchez↔ORPHEUS
@@ -5250,7 +5250,7 @@ References and further reading
 - :func:`reflection_specular` — :math:`R_{\rm spec}` matrix builder
   in the rank-:math:`N` Marshak basis (closed-form tridiagonal
   :math:`M`)
-- :mod:`orpheus.derivations.peierls_specular` — SymPy derivation +
+- :mod:`orpheus.derivations.continuous.peierls.origins.specular` — SymPy derivation +
   symbolic verification of the closed-form :math:`M` and the
   :math:`2\,M\,R = I` contract (paired numpy parity test in
   :file:`tests/derivations/test_peierls_specular_symbolic.py`)
@@ -5363,7 +5363,7 @@ Section 10 — Extending to a new geometry: a checklist
      :math:`e^{-\tau}` kernel, rank-1 white-BC closure with
      geometry-aware :math:`R^{2}` surface divisor).
 
-   The unified :class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`
+   The unified :class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
    covers both curvilinear cases; any further 1-D extension (e.g. a
    1-D Cartesian Nyström sharing the cylinder's sweep machinery)
    follows the steps below.
@@ -5384,7 +5384,7 @@ reference for a new 1-D geometry requires:
 
 3. **Reuse** the Lagrange-basis, composite-GL, optical-depth walker,
    and power-iteration primitives from
-   :mod:`orpheus.derivations.peierls_cylinder` verbatim. The walker
+   :mod:`orpheus.derivations.continuous.peierls.cylinder` verbatim. The walker
    must be taught the new boundary-crossing algebra, but its
    structure (sort crossings, accumulate :math:`\Sigma_{t,k}\Delta s`)
    is unchanged.
@@ -5428,28 +5428,28 @@ standard tests.
    (:eq:`en-definition`, :eq:`kin-definition`,
    :eq:`en-kernel-integral`, :eq:`kin-kernel-derivative`).
 
-   :mod:`orpheus.derivations.peierls_slab` — Phase-4.1 slab Peierls
+   :mod:`orpheus.derivations.continuous.peierls.slab` — Phase-4.1 slab Peierls
    reference (:math:`E_1`).
 
-   :mod:`orpheus.derivations.peierls_cylinder` — Phase-4.2 cylinder
+   :mod:`orpheus.derivations.continuous.peierls.cylinder` — Phase-4.2 cylinder
    Peierls reference (:math:`\mathrm{Ki}_1`), a thin façade over the
-   unified :class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`
+   unified :class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
    (``kind = "cylinder-1d"``). Eigenvalue driver
-   :func:`~orpheus.derivations.peierls_cylinder.solve_peierls_cylinder_1g`;
+   :func:`~orpheus.derivations.continuous.peierls.cylinder.solve_peierls_cylinder_1g`;
    the rank-1 white-BC correction lives at
-   :func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction`
+   :func:`~orpheus.derivations.continuous.peierls.geometry.build_white_bc_correction`
    on ``CYLINDER_1D``.
 
-   :mod:`orpheus.derivations.peierls_sphere` — Phase-4.3 sphere
+   :mod:`orpheus.derivations.continuous.peierls.sphere` — Phase-4.3 sphere
    Peierls reference (:math:`e^{-\tau}`), a thin façade over the
-   unified :class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`
+   unified :class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
    (``kind = "sphere-1d"``). Eigenvalue driver
-   :func:`~orpheus.derivations.peierls_sphere.solve_peierls_sphere_1g`;
+   :func:`~orpheus.derivations.continuous.peierls.sphere.solve_peierls_sphere_1g`;
    white-BC correction at
-   :func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction`
+   :func:`~orpheus.derivations.continuous.peierls.geometry.build_white_bc_correction`
    on ``SPHERE_1D``.
 
-   :mod:`orpheus.derivations.peierls_geometry` — unified
+   :mod:`orpheus.derivations.continuous.peierls.geometry` — unified
    polar-form Nyström infrastructure; ``CurvilinearGeometry``
    singletons ``CYLINDER_1D`` and ``SPHERE_1D``.
 
@@ -5517,9 +5517,9 @@ levels:
 
   These are the Level-1 kernels *already derived* in Section 2. They
   are consumed by the pointwise Peierls Nyström drivers
-  (:mod:`~orpheus.derivations.peierls_slab`,
-  :mod:`~orpheus.derivations.peierls_cylinder`,
-  :mod:`~orpheus.derivations.peierls_sphere`).
+  (:mod:`~orpheus.derivations.continuous.peierls.slab`,
+  :mod:`~orpheus.derivations.continuous.peierls.cylinder`,
+  :mod:`~orpheus.derivations.continuous.peierls.sphere`).
 - **Level 2 — the partial-current / escape kernel.** Integrating the
   Level-1 kernel *once more* along a line of flight (the neutron's
   path through a single region) gives the Level-2 kernel that
@@ -5556,13 +5556,13 @@ The ladder can be stated compactly as the differential identities
 
 valid for all :math:`n \ge 1` (A&S 5.1.26 and 11.2.11). These
 identities are already implemented as
-:func:`~orpheus.derivations._kernels.e_n_derivative` and
-:func:`~orpheus.derivations._kernels.ki_n_derivative`, and they
+:func:`~orpheus.derivations.common.kernels.e_n_derivative` and
+:func:`~orpheus.derivations.common.kernels.ki_n_derivative`, and they
 are tested term-by-term at L0 by
 ``tests/derivations/test_kernels.py`` via finite-difference
 agreement with the direct mpmath evaluators
-:func:`~orpheus.derivations._kernels.e_n_mp` and
-:func:`~orpheus.derivations._kernels.ki_n_mp`. Passing up the ladder
+:func:`~orpheus.derivations.common.kernels.e_n_mp` and
+:func:`~orpheus.derivations.common.kernels.ki_n_mp`. Passing up the ladder
 from :math:`E_{n-1} \to E_n` or :math:`\mathrm{Ki}_{n-1} \to
 \mathrm{Ki}_n` is therefore a pure antiderivation — one indefinite
 integral against the same variable.
@@ -5622,9 +5622,9 @@ Scope of the unification
 
 Sections 12–14 extend the Phase-4.2 unified architecture to **Level
 3** — i.e., to the flat-source CP matrix. The current flat-source CP
-modules (:mod:`~orpheus.derivations.cp_slab`,
-:mod:`~orpheus.derivations.cp_cylinder`,
-:mod:`~orpheus.derivations.cp_sphere`) each implement the same
+modules (:mod:`~orpheus.derivations.continuous.flat_source_cp.slab`,
+:mod:`~orpheus.derivations.continuous.flat_source_cp.cylinder`,
+:mod:`~orpheus.derivations.continuous.flat_source_cp.sphere`) each implement the same
 geometry at the same kernel level but in three separate files, with
 the same :math:`\Delta^{2}` operator rewritten once per geometry and
 the same outer y-quadrature duplicated between the two curvilinear
@@ -5632,7 +5632,7 @@ cases. Phase B of the CP refactor (see GitHub Issue
 `#107 <https://github.com/deOliveira-R/ORPHEUS/issues/107>`_) will
 collapse them into a single ``cp_geometry.py`` module, exactly
 mirroring the Phase-4.2 collapse of the pointwise modules into
-:mod:`~orpheus.derivations.peierls_geometry`.
+:mod:`~orpheus.derivations.continuous.peierls.geometry`.
 
 Sections 12–14 present the derivational target for that refactor;
 Section 15 revisits the escape probability as the explicit Level-2
@@ -5894,7 +5894,7 @@ or :math:`e^{-\tau}`, which is the strongest possible form of the
 claim that the operator is geometry-invariant.
 
 Future: lift the SymPy snippet into
-:func:`orpheus.derivations.cp_geometry.derive_second_difference` and
+:func:`orpheus.derivations.continuous.flat_source_cp.geometry.derive_second_difference` and
 add ``test_second_difference_operator_is_geometry_invariant`` as a
 programmatic L1 check. Tracked in
 `Issue #141 <https://github.com/deOliveira-R/ORPHEUS/issues/141>`_.
@@ -5961,7 +5961,7 @@ chord branches documented at :eq:`tau-m`, :eq:`tau-p`,
      - :math:`2y\,\mathrm dy`
      - Spherical ring area :math:`2\pi y\,\mathrm dy` divided by the
        :math:`\pi` the kernel already absorbs; see
-       :mod:`~orpheus.derivations.cp_sphere` line
+       :mod:`~orpheus.derivations.continuous.flat_source_cp.sphere` line
        ``y_wts = y_wts * y_pts``.
 
 Same-side and through-centre branches
@@ -5975,7 +5975,7 @@ splits into two branches:
   side of the axis. The optical gap is
   :math:`\mathrm{gap}_{\rm SS} = |\text{optical position of
   region-}j - \text{region-}i|`, computed via the chord-walker in
-  :func:`~orpheus.derivations._kernels.chord_half_lengths` followed
+  :func:`~orpheus.derivations.common.kernels.chord_half_lengths` followed
   by optical-depth accumulation along the sorted annular crossings.
 - **Through-centre (TC).** The chord intersects region :math:`i` on
   one side of the axis and region :math:`j` on the other. The optical
@@ -5994,8 +5994,8 @@ term in :eq:`cp-unified-outer-integration` is conditional.
 This branch structure is **identical** between cylinder and sphere.
 In code it is one chord-walker, one ``bnd_pos`` array, one
 ``gap_d = max(bnd_pos[j] - bnd_pos[i+1], 0)`` expression. Both
-:mod:`~orpheus.derivations.cp_cylinder` and
-:mod:`~orpheus.derivations.cp_sphere` already share this structure
+:mod:`~orpheus.derivations.continuous.flat_source_cp.cylinder` and
+:mod:`~orpheus.derivations.continuous.flat_source_cp.sphere` already share this structure
 verbatim (compare the respective ``for j in range(N_reg):`` inner
 loops); the only differences between the two modules are the kernel
 function and the final :math:`y`-weighting. This is the raw material
@@ -6050,7 +6050,7 @@ Design intent
 -------------
 
 Phase 4.2 delivered the pointwise Peierls unification as
-:class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`,
+:class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`,
 a single class whose concrete instances (``CYLINDER_1D``,
 ``SPHERE_1D``) dispatch on the geometry-specific primitives
 (angular measure, Level-1 kernel, ray-boundary distance, source
@@ -6102,7 +6102,7 @@ One class vs two: recommended path
 
 A natural question for the design: should
 :class:`FlatSourceCPGeometry` be folded *into*
-:class:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry`
+:class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
 (so one class covers all three kernel levels), or should it remain
 a **sibling** class?
 
@@ -6124,8 +6124,8 @@ the methods rather than an explicit class signature.
 introduce :class:`FlatSourceCPGeometry` as the flat-source
 abstraction. Both call the **same** ``chord_half_lengths``,
 ``composite_gl_r``, and ray-walker primitives from
-:mod:`~orpheus.derivations._kernels` and
-:mod:`~orpheus.derivations.peierls_geometry`. Pros: the two classes
+:mod:`~orpheus.derivations.common.kernels` and
+:mod:`~orpheus.derivations.continuous.peierls.geometry`. Pros: the two classes
 compute fundamentally different quantities (pointwise
 :math:`\varphi(r)` vs region-average :math:`P_{ij}`), so the class
 signature advertises that distinction and the type system enforces
@@ -6144,8 +6144,8 @@ the type system to encode a union over quantities, which is less
 clear than two classes.
 
 Option (b) does **not** duplicate code. The shared infrastructure
-lives in :mod:`~orpheus.derivations._kernels` and
-:mod:`~orpheus.derivations.peierls_geometry`; both classes import
+lives in :mod:`~orpheus.derivations.common.kernels` and
+:mod:`~orpheus.derivations.continuous.peierls.geometry`; both classes import
 and call those primitives:
 
 - ``chord_half_lengths(radii, y_pts)`` — already shipped in
@@ -6250,23 +6250,23 @@ Level-2 kernel evaluations
        (:eq:`pin-from-reciprocity`)
    * - Cylinder
      - :math:`\mathrm{Ki}_2(\tau)`
-     - Same — :func:`~orpheus.derivations.peierls_geometry.compute_P_esc`
+     - Same — :func:`~orpheus.derivations.continuous.peierls.geometry.compute_P_esc`
        with ``CYLINDER_1D``
      - White-BC closure of
-       :func:`~orpheus.derivations.cp_cylinder._cylinder_cp_matrix`
+       :func:`~orpheus.derivations.continuous.flat_source_cp.cylinder._cylinder_cp_matrix`
    * - Sphere
      - :math:`e^{-\tau}`
-     - Same — :func:`~orpheus.derivations.peierls_geometry.compute_P_esc`
+     - Same — :func:`~orpheus.derivations.continuous.peierls.geometry.compute_P_esc`
        with ``SPHERE_1D``
      - White-BC closure of
-       :func:`~orpheus.derivations.cp_sphere._sphere_cp_matrix`
+       :func:`~orpheus.derivations.continuous.flat_source_cp.sphere._sphere_cp_matrix`
 
 For the curvilinear cases the pointwise :math:`P_{\rm esc}` is
 already implemented via the unified
-:func:`orpheus.derivations.peierls_geometry.compute_P_esc` call,
+:func:`orpheus.derivations.continuous.peierls.geometry.compute_P_esc` call,
 which integrates the geometry-specific ``escape_kernel_mp`` along
 each outgoing ray. The slab equivalent lives in
-:mod:`~orpheus.derivations.peierls_slab` as the
+:mod:`~orpheus.derivations.continuous.peierls.slab` as the
 ``build_white_bc_correction`` helper (rank-2 because of two boundary
 faces — see :eq:`peierls-white-bc` and §8 above).
 
@@ -6298,7 +6298,7 @@ evaluate :math:`P_{\rm esc}` two ways —
 region; (b) flat-source via :eq:`cp-escape-from-p-cell`. Both should
 agree on the region-averaged level to the CP-matrix quadrature
 tolerance (``tolerance = 1e-5`` in
-:func:`~orpheus.derivations.cp_cylinder.all_cases`). This is a
+:func:`~orpheus.derivations.continuous.flat_source_cp.cylinder.all_cases`). This is a
 **cross-level** verification: it checks that the Level-2 kernel is
 correctly related to the Level-1 kernel by one antiderivation, using
 the Level-3 machinery as the consumer. It is the natural L2-bridge
@@ -6318,10 +6318,10 @@ Section 16 — ``BickleyTables`` retirement (completed)
 
    **Status: retired.** The legacy ``BickleyTables`` class and
    ``bickley_tables()`` cache function were deleted from
-   :mod:`orpheus.derivations._kernels` in commit ``6badbe5``
+   :mod:`orpheus.derivations.common.kernels` in commit ``6badbe5``
    (`Issue #94 <https://github.com/deOliveira-R/ORPHEUS/issues/94>`_,
    Phase B.4). Every former consumer now routes through the
-   Chebyshev interpolant :func:`orpheus.derivations.cp_geometry._ki3_mp`,
+   Chebyshev interpolant :func:`orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp`,
    which is shared by the flat-source CP derivation and the runtime
    solver :mod:`orpheus.cp.solver`. This section is retained as the
    project's **authoritative postmortem** of a 20 000-point
@@ -6340,13 +6340,13 @@ would have required a simultaneous audit of the physics.
 Two conditions had to be met before the table could be safely
 retired:
 
-- The high-precision :func:`~orpheus.derivations._kernels.e_n_mp` and
-  :func:`~orpheus.derivations._kernels.ki_n_mp` evaluators had to
+- The high-precision :func:`~orpheus.derivations.common.kernels.e_n_mp` and
+  :func:`~orpheus.derivations.common.kernels.ki_n_mp` evaluators had to
   be shipped and tested to 30+ digit precision. Done in Phase 0 of
   the verification campaign.
 - The flat-source CP construction had to be re-expressed as a full
   geometry-dispatching module
-  (:mod:`orpheus.derivations.cp_geometry`, Phase B.1 theory and
+  (:mod:`orpheus.derivations.continuous.flat_source_cp.geometry`, Phase B.1 theory and
   Phase B.2 code) so that the kernel swap could happen in one place
   rather than three. Done in commit ``f1b869b``.
 
@@ -6403,10 +6403,10 @@ plus one :func:`numpy.exp`, comparable to the legacy
 already below double precision.
 
 The tabulation is an implementation detail of
-:mod:`orpheus.derivations.cp_geometry`, invisible to callers. The
+:mod:`orpheus.derivations.continuous.flat_source_cp.geometry`, invisible to callers. The
 key structural difference from the legacy ``BickleyTables`` is that
 the new interpolant is built **from the canonical mpmath primitive**
-(:func:`~orpheus.derivations._kernels.ki_n_mp` at 30 dps) rather
+(:func:`~orpheus.derivations.common.kernels.ki_n_mp` at 30 dps) rather
 than from a quad-based 20k-point linear interpolant — the accuracy
 ceiling is raised by ~3 orders of magnitude in one step.
 
@@ -6437,7 +6437,7 @@ specialisations that each contributed:
   careful attention to the annular geometry's SS / TC branch
   distinction (§13 above) and to the :math:`\mathrm{Ki}_n`
   derivative identity. The derivation in our
-  :mod:`~orpheus.derivations.cp_cylinder` follows [Stamm1983]_
+  :mod:`~orpheus.derivations.continuous.flat_source_cp.cylinder` follows [Stamm1983]_
   more closely than [Carlvik1966]_.
 - **Sphere** :math:`\Delta^{2}[e^{-\tau}]`. [BellGlasstone1970]_
   §2.7 derives the spherical CP matrix with the bare
@@ -6447,7 +6447,7 @@ specialisations that each contributed:
   the outer weight changes. [BellGlasstone1970]_ also presents
   the limiting cases (small :math:`R`, large :math:`R`) as
   sanity checks on the formula, which
-  :mod:`~orpheus.derivations.cp_sphere` replicates at
+  :mod:`~orpheus.derivations.continuous.flat_source_cp.sphere` replicates at
   :math:`R = 10` MFP via the :math:`k_\infty \to 1.5` agreement
   with the homogeneous analytic solution.
 
@@ -6560,8 +6560,8 @@ under-exploited opportunity and is the subject of the bulk of this
 section.
 
 The transforms catalogued here all share a single implementation
-contract: the :class:`~orpheus.derivations._quadrature.Quadrature1D`
-value object exposed by :mod:`orpheus.derivations._quadrature`. Each
+contract: the :class:`~orpheus.derivations.common.quadrature.Quadrature1D`
+value object exposed by :mod:`orpheus.derivations.common.quadrature`. Each
 transform is a *constructor* of that contract — :func:`gauss_legendre`,
 :func:`gauss_legendre_visibility_cone`, :func:`composite_gauss_legendre`,
 :func:`gauss_laguerre` — and consumers integrate via
@@ -6573,12 +6573,12 @@ panels via the ``q1 | q2`` operator. Three geometry-aware recipes
 :mod:`._quadrature_recipes`) compose these primitives into the
 recurring ORPHEUS chord-and-angular patterns. The contract details
 and design rationale are documented in the
-:class:`~orpheus.derivations._quadrature.Quadrature1D` docstring.
+:class:`~orpheus.derivations.common.quadrature.Quadrature1D` docstring.
 
 For verification-tier integrals where the consumer needs only the
 scalar (no fixed nodes, no per-panel basis evaluation), the sibling
-:class:`~orpheus.derivations._quadrature.AdaptiveQuadrature1D`
-type — built via :func:`~orpheus.derivations._quadrature.adaptive_mpmath`
+:class:`~orpheus.derivations.common.quadrature.AdaptiveQuadrature1D`
+type — built via :func:`~orpheus.derivations.common.quadrature.adaptive_mpmath`
 — shares the ``integrate(f) -> float`` consumer ergonomic with
 :class:`Quadrature1D` while delegating node selection to
 :func:`mpmath.quad` at evaluation time. Use the static
@@ -7054,7 +7054,7 @@ has a logarithmic singularity at :math:`\tau = 0`, not a power-law
 one. Gauss-Jacobi weights are power-law :math:`(x-a)^\alpha` — they
 cannot absorb a log singularity. The correct method for the slab
 :math:`E_1` Nyström is the singularity-subtraction approach already
-implemented in :mod:`orpheus.derivations.peierls_slab` (§5 of that
+implemented in :mod:`orpheus.derivations.continuous.peierls.slab` (§5 of that
 page), which decomposes :math:`E_1(\tau) = -\ln\tau \cdot
 g_1(\tau) + g_2(\tau)` with :math:`g_1, g_2` smooth, integrates the
 smooth part by Gauss-Legendre, and handles the log part by product
@@ -7105,7 +7105,7 @@ coordinate singularity at** :math:`r = 0`. Rays emanating from an
 interior observer :math:`r_i > 0` pass through the centre without
 incident — :math:`r = 0` is geometrically a regular interior point of
 the ray, not a special point. The composite-GL radial grid used by
-:mod:`orpheus.derivations.peierls_geometry` places no collocation node
+:mod:`orpheus.derivations.continuous.peierls.geometry` places no collocation node
 at :math:`r = 0` (the first panel is :math:`[0, r_1]` with GL nodes
 strictly interior to it), so the pointwise unknown :math:`\varphi(r)`
 is never evaluated at :math:`r = 0` and there is nothing to
@@ -7148,7 +7148,7 @@ Sections 22.2 and 22.5 catalogued the *Jacobian-absorbing* and
 subsection promotes a third, lighter-weight option that is now the
 ORPHEUS default for chord- and visibility-cone integrals with a
 **single** :math:`\sqrt{\,\cdot\,}`-vanishing endpoint. The primitive
-is :func:`~orpheus.derivations._quadrature.gauss_legendre_visibility_cone`,
+is :func:`~orpheus.derivations.common.quadrature.gauss_legendre_visibility_cone`,
 shipped on branch ``feature/peierls-specular-bc`` (this commit). The
 substitution itself is classical (it reduces to the
 :math:`s^2 = r'^{2} - y^{2}` Jacobian-absorbing transform of §22.2 in
@@ -7157,7 +7157,7 @@ formulation, the precise bookkeeping of the Bernstein-ellipse branch
 points, and the treatment as a *portable Gauss-Legendre rule on the
 original* :math:`y`-*interval* are what makes the utility usable as a
 drop-in replacement at a dozen call sites in
-:mod:`~orpheus.derivations.peierls_geometry`.
+:mod:`~orpheus.derivations.continuous.peierls.geometry`.
 
 Where this singularity comes from in ORPHEUS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -7190,7 +7190,7 @@ reproduced in
 ``scratch/derivations/diagnostics/diag_phase5_round3_visibility_cone_quad.py``.
 
 **(ii) Chord half-length on an annulus.** The primitive
-:func:`~orpheus.derivations._kernels.chord_half_lengths` returns
+:func:`~orpheus.derivations.common.kernels.chord_half_lengths` returns
 piecewise chord lengths through concentric annuli — for an outermost
 shell with inner radius :math:`r_{k-1}` and outer radius :math:`r_{k}`,
 the chord half-length on the strip :math:`y \in [r_{k-1}, r_{k}]` is
@@ -7516,7 +7516,7 @@ during the L0 test design.
   :math:`(\alpha, \beta) = (1/2, 1/2)` rule of §22.5 which absorbs both
   endpoint factors directly into the weight. In the present ORPHEUS
   chord library this case does *not* arise — by construction
-  :func:`~orpheus.derivations._kernels.chord_half_lengths` partitions
+  :func:`~orpheus.derivations.common.kernels.chord_half_lengths` partitions
   the impact-parameter axis at the inner-radius knots so each strip
   has at most one :math:`\sqrt{}`-vanishing endpoint.
 
@@ -7534,11 +7534,11 @@ Where this primitive plugs in
 
 The visibility-cone substitution is the canonical chord/µ-cone
 quadrature primitive across the production
-:mod:`~orpheus.derivations.peierls_geometry` call sites; the
+:mod:`~orpheus.derivations.continuous.peierls.geometry` call sites; the
 post-rollout audit lives in §22.9. See §22.5 for the Gauss-Jacobi
 fallback when a *both-endpoint* :math:`\sqrt{}`-vanishing integrand
 makes the visibility-cone substitution insufficient, and
-:func:`~orpheus.derivations._kernels.chord_half_lengths` for the chord
+:func:`~orpheus.derivations.common.kernels.chord_half_lengths` for the chord
 primitive whose annular partition the substitution is built to
 complement.
 
@@ -7568,7 +7568,7 @@ has tangent angles given by the **chord-quadratic in**
 :math:`\cos\phi`. This subsection derives the chord-quadratic
 explicitly, identifies the regimes where tangent angles exist, and
 documents the
-:func:`~orpheus.derivations._quadrature_recipes.surface_centred_angular_quadrature`
+:func:`~orpheus.derivations.common.quadrature_recipes.surface_centred_angular_quadrature`
 recipe that subdivides at those tangents.
 
 Geometry
@@ -7690,12 +7690,12 @@ Recipe and consumer pattern
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The
-:func:`~orpheus.derivations._quadrature_recipes.surface_centred_angular_quadrature`
+:func:`~orpheus.derivations.common.quadrature_recipes.surface_centred_angular_quadrature`
 recipe enumerates the candidate tangent angles
 :eq:`peierls-surface-centred-tangent-angles` for every interior
 shell, filters those falling strictly inside
 :math:`(\phi_{\min}, \phi_{\max})`, and returns a
-:class:`~orpheus.derivations._quadrature.Quadrature1D` composite
+:class:`~orpheus.derivations.common.quadrature.Quadrature1D` composite
 plain-GL rule with one panel per smooth sub-interval. Per-panel
 plain Gauss-Legendre is spectral on each sub-interval modulo the
 :math:`\sqrt{|\phi - \phi_{\pm}|}` derivative singularity at the
@@ -7704,7 +7704,7 @@ isolates each kink as a panel boundary, recovering spectral
 convergence on the interior of every sub-panel).
 
 The four legacy cylinder :math:`G_{\rm bc}` branches in
-:mod:`~orpheus.derivations.peierls_geometry`
+:mod:`~orpheus.derivations.continuous.peierls.geometry`
 (:func:`compute_G_bc`, :func:`compute_G_bc_outer`,
 :func:`compute_G_bc_inner`, :func:`compute_G_bc_mode`) consume the
 recipe through the standard ``_per_obs(r_i)`` template:
@@ -7776,17 +7776,17 @@ the Mark closure tests).
 
 Sections §22.7 and §22.8 derive the substitution and subdivision
 primitives that motivated the
-:func:`~orpheus.derivations._quadrature_recipes.chord_quadrature`,
-:func:`~orpheus.derivations._quadrature_recipes.observer_angular_quadrature`,
-and :func:`~orpheus.derivations._quadrature_recipes.surface_centred_angular_quadrature`
-recipes shipped in :mod:`~orpheus.derivations._quadrature_recipes`.
+:func:`~orpheus.derivations.common.quadrature_recipes.chord_quadrature`,
+:func:`~orpheus.derivations.common.quadrature_recipes.observer_angular_quadrature`,
+and :func:`~orpheus.derivations.common.quadrature_recipes.surface_centred_angular_quadrature`
+recipes shipped in :mod:`~orpheus.derivations.common.quadrature_recipes`.
 The original
 ``.claude/plans/visibility-cone-substitution-rollout.md`` plan was
 scoped as a single-utility substitution rollout; the work that
 actually shipped is broader — a unified
-:class:`~orpheus.derivations._quadrature.Quadrature1D` contract with
+:class:`~orpheus.derivations.common.quadrature.Quadrature1D` contract with
 three composable geometry-aware recipes plus a sibling
-:class:`~orpheus.derivations._quadrature.AdaptiveQuadrature1D` for
+:class:`~orpheus.derivations.common.quadrature.AdaptiveQuadrature1D` for
 verification-tier integrals. Each acceptance criterion (a)–(h) from
 the plan landed across commits Q1–Q6 + L3.
 
@@ -7819,7 +7819,7 @@ governs it:
 Intentional residual ``leggauss`` consumers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Three call sites in :mod:`~orpheus.derivations.peierls_geometry`
+Three call sites in :mod:`~orpheus.derivations.continuous.peierls.geometry`
 remain on raw :func:`numpy.polynomial.legendre.leggauss` and are
 **load-bearing for future Phase work** rather than leftover legacy
 code:
@@ -8090,8 +8090,8 @@ slowly-varying part after the :math:`e^{-v}` Laguerre weight has been
 factored out.
 
 **Reference implementation.** See
-:func:`orpheus.derivations.cp_geometry._ki3_scaled_cheb` for the
-implementation used in the shipped :mod:`orpheus.derivations.cp_geometry`
+:func:`orpheus.derivations.continuous.flat_source_cp.geometry._ki3_scaled_cheb` for the
+implementation used in the shipped :mod:`orpheus.derivations.continuous.flat_source_cp.geometry`
 module. The key lines are:
 
 .. code-block:: python
@@ -8157,7 +8157,7 @@ each already slow at 30 dps. The original test hung for **45+
 minutes** before being killed.
 
 **The fix.** Use the existing single-quad evaluator
-:func:`~orpheus.derivations._kernels.ki_n_mp` as the **integrand** of
+:func:`~orpheus.derivations.common.kernels.ki_n_mp` as the **integrand** of
 a single outer :func:`mpmath.quad`. The inner integral is then
 evaluated in closed form (or by ``ki_n_mp``'s own internal quad, but
 only **once per outer sample**):
@@ -8184,13 +8184,13 @@ Runtime: :math:`\sim 0.5` s per test, same verification content.
    integration** on the other side. The identity
    :math:`\int_a^b \mathrm{Ki}_1(\tau)\,\mathrm d\tau = \mathrm{Ki}_2(a)
    - \mathrm{Ki}_2(b)` is verified with one :func:`mpmath.quad` for
-   the LHS and two :func:`~orpheus.derivations._kernels.ki_n_mp`
+   the LHS and two :func:`~orpheus.derivations.common.kernels.ki_n_mp`
    evaluations for the RHS — not by evaluating :math:`\mathrm{Ki}_2`
    itself via another :func:`mpmath.quad`.
 3. **Prefer closed-form equivalents where available**: for
    :math:`E_n`, use :func:`mpmath.expint` (reduced-noise closed form);
    for :math:`\mathrm{Ki}_n`, use
-   :func:`~orpheus.derivations._kernels.ki_n_mp` (wraps a single
+   :func:`~orpheus.derivations.common.kernels.ki_n_mp` (wraps a single
    adaptive quad at the point of call, not composed).
 4. **For τ-coordinate verification** (Phase H.4): compare the
    τ-Nyström and ρ-Nyström evaluations of the **same ray integral**
@@ -8208,40 +8208,40 @@ re-derivation.
 
    **Phase B target modules** (all shipped):
 
-   :mod:`orpheus.derivations.cp_geometry` — the unified
-   :class:`~orpheus.derivations.cp_geometry.FlatSourceCPGeometry`
-   class and :func:`~orpheus.derivations.cp_geometry.build_cp_matrix`
+   :mod:`orpheus.derivations.continuous.flat_source_cp.geometry` — the unified
+   :class:`~orpheus.derivations.continuous.flat_source_cp.geometry.FlatSourceCPGeometry`
+   class and :func:`~orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix`
    entry point. Hosts the double-precision kernel
-   :func:`~orpheus.derivations.cp_geometry._ki3_mp` (Chebyshev
+   :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp` (Chebyshev
    interpolant of :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)` built from
-   :func:`~orpheus.derivations._kernels.ki_n_mp` at 30 dps), now
+   :func:`~orpheus.derivations.common.kernels.ki_n_mp` at 30 dps), now
    shared by derivation and runtime solver.
 
-   :mod:`orpheus.derivations.cp_slab`,
-   :mod:`orpheus.derivations.cp_cylinder`,
-   :mod:`orpheus.derivations.cp_sphere` — thin facades over
+   :mod:`orpheus.derivations.continuous.flat_source_cp.slab`,
+   :mod:`orpheus.derivations.continuous.flat_source_cp.cylinder`,
+   :mod:`orpheus.derivations.continuous.flat_source_cp.sphere` — thin facades over
    ``cp_geometry`` with the respective ``SLAB`` / ``CYLINDER_1D`` /
    ``SPHERE_1D`` singletons preselected.
 
    **Shared building blocks**:
 
-   :func:`orpheus.derivations._kernels.chord_half_lengths` — the
+   :func:`orpheus.derivations.common.kernels.chord_half_lengths` — the
    chord-walker consumed by both curvilinear CP modules and by the
    cylinder Peierls reference.
 
-   :func:`orpheus.derivations._kernels.e_n_mp`,
-   :func:`orpheus.derivations._kernels.ki_n_mp` — canonical
+   :func:`orpheus.derivations.common.kernels.e_n_mp`,
+   :func:`orpheus.derivations.common.kernels.ki_n_mp` — canonical
    arbitrary-precision mpmath evaluators for :math:`E_n` and
    :math:`\mathrm{Ki}_n`. The former :class:`BickleyTables`
    tabulation is retired (Issue #94) — double-precision
    :math:`\mathrm{Ki}_3` goes through
-   :func:`~orpheus.derivations.cp_geometry._ki3_mp`.
+   :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp`.
 
-   :func:`orpheus.derivations._kernels.e_n_derivative`,
-   :func:`orpheus.derivations._kernels.ki_n_derivative` — the
+   :func:`orpheus.derivations.common.kernels.e_n_derivative`,
+   :func:`orpheus.derivations.common.kernels.ki_n_derivative` — the
    differential identities :eq:`cp-kernel-differential-identities`.
 
-   :func:`orpheus.derivations.peierls_geometry.compute_P_esc` —
+   :func:`orpheus.derivations.continuous.peierls.geometry.compute_P_esc` —
    pointwise Level-2 escape probability used by §15's cross-level
    test.
 
@@ -8276,7 +8276,7 @@ and the programme of work remaining in Issue #112 all become trivially
 readable from a single tensor network diagram. This part develops the
 operator-level picture, connects it to classical reduced-order-modelling
 theory, and motivates the
-:class:`~orpheus.derivations.peierls_geometry.BoundaryClosureOperator`
+:class:`~orpheus.derivations.continuous.peierls.geometry.BoundaryClosureOperator`
 dataclass that now carries the structure in code.
 
 
@@ -8577,11 +8577,11 @@ work. Mode-by-mode:
 where :math:`\mathcal P^{(n)}` and :math:`\mathcal G^{(n)}` are the
 mode-:math:`n` escape integral and mode-:math:`n` response integral
 respectively (implemented in
-:func:`~orpheus.derivations.peierls_geometry.compute_P_esc_mode` and
-:func:`~orpheus.derivations.peierls_geometry.compute_G_bc_mode`, with
+:func:`~orpheus.derivations.continuous.peierls.geometry.compute_P_esc_mode` and
+:func:`~orpheus.derivations.continuous.peierls.geometry.compute_G_bc_mode`, with
 mode 0 routed through the legacy
-:func:`~orpheus.derivations.peierls_geometry.compute_P_esc` /
-:func:`~orpheus.derivations.peierls_geometry.compute_G_bc` for rank-1
+:func:`~orpheus.derivations.continuous.peierls.geometry.compute_P_esc` /
+:func:`~orpheus.derivations.continuous.peierls.geometry.compute_G_bc` for rank-1
 bit-exact recovery).
 
 **Both tensors are BC-independent.** Once :math:`P` and :math:`G` are
@@ -8819,7 +8819,7 @@ requires the calibrated mode-0 convention to attach to.
 **V1 remains the shipped implementation.** Its sphere plateau is
 documented as a theoretical ceiling of the mixed-convention rank-N
 closure; its cylinder divergence at high N is documented as a known
-limitation. The factored :class:`~orpheus.derivations.peierls_geometry.BoundaryClosureOperator`
+limitation. The factored :class:`~orpheus.derivations.continuous.peierls.geometry.BoundaryClosureOperator`
 architecture makes both fixes *localised* to two integrand functions
 once the correct conventions are found — a structural payoff that
 survives the empirical setback.
@@ -8832,7 +8832,7 @@ the next investigator who resumes this work.
 Section 30 — The ``BoundaryClosureOperator`` dataclass
 ======================================================
 
-The :class:`~orpheus.derivations.peierls_geometry.BoundaryClosureOperator`
+The :class:`~orpheus.derivations.continuous.peierls.geometry.BoundaryClosureOperator`
 dataclass carries the three tensors :math:`P`, :math:`G`, :math:`R` and
 exposes the factored-form operations directly:
 
@@ -8861,7 +8861,7 @@ The three methods embody the three algorithmic regimes:
   :math:`\mathcal O(N_r N + N^{2})` per apply.
 - :meth:`~.BoundaryClosureOperator.as_matrix` — on-demand dense
   assembly for direct-LU eigenvalue iteration (what
-  :func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+  :func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
   currently uses). Cost :math:`\mathcal O(N_r^{2} N)` once, per
   cell, per group, per BC.
 - :attr:`~.BoundaryClosureOperator.closure_rank` — structural
@@ -8870,7 +8870,7 @@ The three methods embody the three algorithmic regimes:
   for lattice couplings).
 
 The assembly function
-:func:`~orpheus.derivations.peierls_geometry.build_closure_operator`
+:func:`~orpheus.derivations.continuous.peierls.geometry.build_closure_operator`
 takes a geometry, a radial grid, the optical profile, and a
 reflection choice (``"vacuum"``, ``"mark"``, ``"marshak"``, or any
 user-supplied :math:`N \times N` matrix) and returns the factored
@@ -8879,24 +8879,24 @@ boundary closure at any rank and for any BC — no separate
 per-BC assembly functions are required.
 
 The pre-existing
-:func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction_rank_n`
+:func:`~orpheus.derivations.continuous.peierls.geometry.build_white_bc_correction_rank_n`
 remains as a thin convenience wrapper that calls
 :func:`build_closure_operator` with ``reflection="marshak"`` and
 returns :meth:`~.BoundaryClosureOperator.as_matrix`. This is purely
 for API continuity with the pre-factored-form callers (chiefly
-:func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`).
+:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`).
 
 Reflection-operator constructors
 --------------------------------
 
 Three canonical reflection operators are provided as free functions in
-:mod:`~orpheus.derivations.peierls_geometry`:
+:mod:`~orpheus.derivations.continuous.peierls.geometry`:
 
-- :func:`~orpheus.derivations.peierls_geometry.reflection_vacuum` —
+- :func:`~orpheus.derivations.continuous.peierls.geometry.reflection_vacuum` —
   :math:`R = 0` (vacuum BC)
-- :func:`~orpheus.derivations.peierls_geometry.reflection_mark` —
+- :func:`~orpheus.derivations.continuous.peierls.geometry.reflection_mark` —
   :math:`R = e_0 e_0^{\top}` (rank-1 isotropic white)
-- :func:`~orpheus.derivations.peierls_geometry.reflection_marshak` —
+- :func:`~orpheus.derivations.continuous.peierls.geometry.reflection_marshak` —
   :math:`R = \mathrm{diag}(1, 3, 5, \ldots, 2N{-}1)` (Marshak
   DP\ :sub:`N-1` with Gelbard normalisation)
 
@@ -8988,6 +8988,6 @@ References
    arising from the :math:`P_n`-weighted polar-angle integration in
    cylindrical geometry — the analytic identity behind the Phase-C
    3-D angular-quadrature reformulation of the cylinder
-   :func:`~orpheus.derivations.peierls_geometry.compute_P_esc_mode` /
-   :func:`~orpheus.derivations.peierls_geometry.compute_G_bc_mode`
+   :func:`~orpheus.derivations.continuous.peierls.geometry.compute_P_esc_mode` /
+   :func:`~orpheus.derivations.continuous.peierls.geometry.compute_G_bc_mode`
    primitives (Issue #112).
