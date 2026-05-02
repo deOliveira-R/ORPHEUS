@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1491**
+Total tests collected: **1524**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 585, 39.2%
-   L1, 445, 29.8%
+   L0, 585, 38.4%
+   L1, 456, 29.9%
    L2, 36, 2.4%
    L3, 0, 0.0%
-   foundation, 414, 27.8%
+   foundation, 436, 28.6%
    unmarked, 11, 0.7%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1401
+   explicit, 1434
    verify, 0
    class-name, 46
    func-name, 0
@@ -73,6 +73,8 @@ Module × level grid
    derivations/test_peierls_cylinder_prefactor, 4, 0, 0, 0, 0, 0
    derivations/test_peierls_cylinder_white_bc, 4, 3, 0, 0, 4, 0
    derivations/test_peierls_geometry, 0, 0, 0, 0, 32, 0
+   derivations/test_peierls_greens_function_annulus_solver, 0, 11, 0, 0, 0, 0
+   derivations/test_peierls_greens_function_annulus_symbolic, 0, 0, 0, 0, 22, 0
    derivations/test_peierls_greens_function_cylinder_solver, 0, 12, 0, 0, 0, 0
    derivations/test_peierls_greens_function_cylinder_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_peierls_greens_function_garcia2021, 0, 0, 0, 0, 17, 0
@@ -231,6 +233,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``complementarity``, 12
    ``kinf-1g``, 12
    ``kinf-mg``, 12
+   ``peierls-greens-annulus-architecture``, 12
    ``peierls-greens-hollow-sph-architecture``, 12
    ``periodic-bc``, 12
    ``reciprocity``, 12
@@ -320,6 +323,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``collision-estimator``, 1
    ``majorant``, 1
    ``normalisation``, 1
+   ``peierls-greens-annulus-3d-chord-scaling``, 1
+   ``peierls-greens-annulus-impact-parameter-partition``, 1
+   ``peierls-greens-annulus-through-rank2``, 1
    ``peierls-greens-cylinder-bounce-period``, 1
    ``peierls-greens-cylinder-impact-parameter``, 1
    ``peierls-greens-cylinder-in-plane-speed``, 1
@@ -345,7 +351,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **72** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **73** of the testable equations found on theory pages are orphan.
 
 - ``c-in-remapping``
 - ``e1-decomposition``
@@ -391,6 +397,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``peierls-greens-slab-bounce-period``
 - ``peierls-greens-surface-fixed-point``
 - ``peierls-greens-trajectory-integral``
+- ``peierls-greens-unification-resolvent``
 - ``peierls-half-range-inner-products``
 - ``peierls-integral-form``
 - ``peierls-mg-operator``
