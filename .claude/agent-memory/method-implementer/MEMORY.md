@@ -1,1 +1,2 @@
 - [Origin context](origin_context.md) — Why this agent exists; the A1+A2 case study from `feature/peierls-greens-function` (commits `4754993..6a61ed8`) and what minted on 2026-05-02.
+- [Cylinder Variant α Phase-1 closeout](cylinder_variant_alpha_phase1.md) — `feature/peierls-greens-cylinder` 2026-05-02; standalone cylinder Variant α (1G+MG, α∈[0,1]) shipped clean on first try. Accuracy floor: 1e-15 at α=1, ~8e-8 self-consistency at α=0 vacuum.
