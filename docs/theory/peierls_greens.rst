@@ -1776,7 +1776,8 @@ Slab Variant α (Phase 3A standalone, symmetric reflective)
    load-bearing equations, labels them for cross-reference, and
    points to the SymPy module + tests. The full mathematical
    narrative (worked algebra; design rationale; the
-   2-bounce-per-period structural distinction; treatment of the
+   2-bounce-per-period structural distinction; the ERR-035 history
+   and the post-fix delegation architecture; treatment of the
    :math:`\mu \to 0` grazing co-divergence; convergence-floor
    discussion; comparison with the slab Nyström specular reference;
    roadmap to Phase 3B asymmetric BC requiring rank-2 resolvent) is
@@ -1800,12 +1801,29 @@ Slab Variant α (Phase 3A standalone, symmetric reflective)
    - Closeout memo:
      :file:`.claude/agent-memory/method-implementer/slab_variant_alpha_phase3a.md`.
 
-Phase-3A slab Variant α mounts on the same shared
-:mod:`~orpheus.derivations.continuous.peierls_greens_function.variant_alpha_core`
-rank-1 resolvent + closure as sphere and cylinder. The
-:func:`apply_variant_alpha_closure` API was extended (back-
-compatibly) with an ``alpha_per_period`` keyword to encode the
-**2-bounce-per-period** structural distinction of slab geometry.
+Phase-3A slab Variant α has two implementation phases:
+
+1. **Original Phase-3A (2026-05-02 morning)** mounted on the same
+   rank-1 resolvent as sphere/cylinder, using a heuristic
+   ``alpha_per_period = α²`` extension of :func:`apply_variant_alpha_closure`
+   to encode the **2-bounce-per-period** structural distinction of
+   slab geometry. The heuristic closure
+   :math:`\psi_{\rm surf} = \alpha\,B_{\rm period}/(1 - \alpha^2\,
+   e^{-2\tau})` was found at the Phase-3B reduce-to-symmetric
+   consistency check to be incorrect at intermediate :math:`\alpha`
+   (logged as ERR-035 in :file:`.claude/skills/vv-principles/error_catalog.md`).
+2. **ERR-035 fix (2026-05-02 afternoon)**: Phase-3A
+   :func:`solve_greens_function_slab` and
+   :func:`solve_greens_function_slab_mg` were refactored as thin
+   wrappers that delegate to the Phase-3B
+   :func:`solve_greens_function_slab_asymmetric` /
+   :func:`solve_greens_function_slab_asymmetric_mg` at
+   :math:`\alpha_L = \alpha_R = \alpha`. The first-principles
+   rank-2 closure
+   :math:`\psi_{\rm surf} = \alpha\,B/(1 - \alpha\,e^{-\tau})` (with
+   single-transit B integral) replaces the heuristic. The Phase-3A
+   public API surface is preserved. See
+   :ref:`peierls-greens-slab-asym-err035-fix` below for details.
 
 Slab phase-space and 2-bounce-per-period structure
 ---------------------------------------------------
@@ -1840,22 +1858,38 @@ arrival depends on the sign of :math:`\mu`:
        (L-x) / |\mu| & \mu < 0 \text{ (came from } x = L \text{)}
    \end{cases}.
 
-Resolvent (closed-form geometric series with α²)
--------------------------------------------------
+Resolvent (first-principles single-transit closure, post-ERR-035)
+------------------------------------------------------------------
 
-The slab Variant α surface fixed-point closure is
+The slab Variant α surface fixed-point closure (post-ERR-035 fix,
+2026-05-02) is
 
 .. math::
    :label: peierls-greens-slab-T
 
    \psi_{\rm surf}(\mu) = \frac{\alpha\,B(\mu)}
-                                {1 - \alpha^2\,e^{-\Sigma_t L_{\rm period}}},
+                                {1 - \alpha\,e^{-\Sigma_t L/|\mu|}},
 
-with :math:`B(\mu)` the bounce-period source integral over the full
-two-wall trajectory. The leading factor :math:`\alpha` is the single-
-reflection amplitude for the FIRST surface arrival; the
-:math:`\alpha^2` inside the geometric resolvent reflects two-bounce
-periodicity.
+with :math:`B(\mu)` the **single-transit** source integral
+:math:`\int_0^{L/|\mu|} q\,e^{-\Sigma_t s}\,\mathrm d s` (NOT the
+full out+back period integral). The leading factor :math:`\alpha`
+is the reflection amplitude for the FIRST surface arrival; the
+denominator :math:`(1 - \alpha\,e^{-\Sigma_t L/|\mu|})^{-1}` is
+the rank-2 boundary-to-boundary scattering resolvent at
+:math:`\alpha_L = \alpha_R = \alpha`. See
+:eq:`peierls-greens-slab-asym-resolvent` for the underlying rank-2
+matrix form; the symmetric-BC reduction collapses
+:math:`\det(I - S) = 1 - \alpha^2\,e^{-2\tau}` into the closure
+denominator's :math:`(1 - \alpha\,e^{-\tau})` via the algebraic
+identity :math:`(1 - \alpha\,e^{-\tau})(1 + \alpha\,e^{-\tau}) =
+1 - \alpha^2\,e^{-2\tau}` (with the :math:`(1 + \alpha\,e^{-\tau})`
+factor absorbed by the rank-2 numerator matrix off-diagonals).
+
+The original Phase-3A heuristic closure
+:math:`\alpha\,B_{\rm period}/(1 - \alpha^2\,e^{-2\tau})` (with
+full-period B integral) coincides with this form ONLY at
+:math:`\alpha \in \{0, 1\}` and at uniform-source profiles. ERR-035
+documents the discrepancy at intermediate α and the resolution.
 
 Variant α architecture for slab
 --------------------------------
@@ -1898,8 +1932,7 @@ Operator-level identities (V_α1_slab / V_α2_slab / V_α3_slab)
   quadrature on both ORIGINAL integrands.
 - **V_α3_slab** — surface fixed-point closure
   (:eq:`peierls-greens-slab-T`) carries leading factor
-  :math:`\alpha`; the :math:`\alpha^2` inside the resolvent does
-  not change the limit. :math:`\psi_{\rm surf} \to 0` at
+  :math:`\alpha`; :math:`\psi_{\rm surf} \to 0` at
   :math:`\alpha = 0`. Vacuum BC is the trivial limit; no
   special-case branch.
 
@@ -1920,40 +1953,43 @@ Numerical verification status (Phase 3A standalone)
 - **MG G=1 reduction** — bit-equal to the 1G solver at α=0.
 - **Vacuum α=0** — physics-plausible peaked-at-center symmetric
   flux profile, positive leakage, :math:`k_{\rm eff} < k_\infty`.
-  fuel-A-like τ_L = 5: :math:`k_{\rm eff} \approx 0.130`,
-  :math:`k_{\rm eff}/k_\infty \approx 0.62`. Quadrature
-  convergence is **slower than sphere/cylinder** — the slab
-  vacuum k_eff has self-consistency :math:`\sim 5\mathrm e{-4}`
-  between the (24, 40, 96) and (32, 56, 128) grids, vs the
-  cylinder's :math:`\sim 1\mathrm e{-7}`. The slow convergence
-  reflects the integrable :math:`1/|\mu|` weight on the chord
-  lengths in the bounce-period integral: plain Gauss-Legendre on
-  µ converges slowly there. A future refinement could use a
-  µ-weighted Gauss-Jacobi quadrature concentrating nodes near
-  :math:`\mu = 0`.
+  fuel-A-like τ_L = 5: :math:`k_{\rm eff} \approx 0.157`,
+  :math:`k_{\rm eff}/k_\infty \approx 0.756` (post-ERR-034 +
+  ERR-035 fixes). Quadrature self-consistency between the
+  (24, 40, 96) and (32, 56, 128) grids is :math:`\sim 9\mathrm
+  e{-6}` (regression-gated at 5e-5), down from the pre-fix
+  :math:`\sim 5\mathrm e{-4}` floor that was originally
+  misattributed to a slow-µ-quadrature limitation but was
+  actually the dominant ERR-034 trajectory bug masquerading as
+  quadrature noise.
 - **V_α2_slab production-primitive cross-check** —
   :math:`T_{\rm slab}[0, n_modes][0, 1] = 2\,E_3(\Sigma_t L)` from
   :func:`compute_T_specular_slab` agrees with arbitrary-precision
   ``mpmath.expint(3, τ_L)`` to :math:`\le 1\mathrm e{-10}` over
   five :math:`\tau_L` values.
 
-The shared core's ``alpha_per_period`` extension
--------------------------------------------------
+The shared core's ``alpha_per_period`` extension (sphere/cylinder)
+-------------------------------------------------------------------
 
-The slab is the FIRST geometry that needs to distinguish per-
-period reflection product from BC reflectivity. The shared
-:func:`apply_variant_alpha_closure` API was extended (back-
-compatibly) with an ``alpha_per_period`` keyword:
+The shared :func:`apply_variant_alpha_closure` API carries an
+``alpha_per_period`` keyword that distinguishes per-period
+reflection product from BC reflectivity:
 
-- Sphere/cylinder: do NOT pass the keyword (default ``None`` →
-  ``alpha``); reproduces pre-extension behaviour bit-equal.
-- Slab symmetric: passes ``alpha_per_period=alpha**2`` to encode
-  the 2-bounce-per-period structure.
+- Sphere/cylinder (1-bounce-per-period): do NOT pass the keyword
+  (default ``None`` → ``alpha``).
+- Slab symmetric (2-bounce-per-period): pre-ERR-035, the slab
+  Phase-3A path passed ``alpha_per_period=alpha**2`` to encode the
+  two-bounce structure with a rank-1 resolvent. **Post-ERR-035
+  this code path is unused**: slab Phase-3A delegates to the
+  rank-2 asymmetric solver, which uses
+  :func:`apply_variant_alpha_closure_rank2` directly. The
+  ``alpha_per_period`` keyword is retained on
+  :func:`apply_variant_alpha_closure` for API stability and for
+  use by any future 2-bounce-per-period geometry that legitimately
+  benefits from the rank-1 form (none currently in the codebase).
 
 Foundation tests pin both branches in
-:file:`tests/derivations/test_peierls_variant_alpha_core.py`
-(``test_closure_alpha_per_period_default_matches_alpha`` and
-``test_closure_alpha_per_period_alpha_squared_for_slab``).
+:file:`tests/derivations/test_peierls_variant_alpha_core.py`.
 
 
 .. _peierls-greens-slab-asym:
@@ -1968,10 +2004,10 @@ Slab asymmetric Variant α (Phase 3B, rank-2 resolvent)
    points to the SymPy module + tests. The full mathematical
    narrative (worked rank-2 algebra; method-of-images derivation
    linking the asymmetric reflective-vacuum slab to the
-   doubled-domain symmetric vacuum slab; the latent algebraic
-   discrepancy in Phase-3A's intermediate-α closure surfaced by
-   Phase-3B; roadmap to hollow sphere / annulus in Phase 3C
-   inheriting the rank-2 framework) is the archivist's deliverable.
+   doubled-domain symmetric vacuum slab; ERR-035 history and fix
+   linking Phase-3A symmetric to Phase-3B rank-2; roadmap to
+   hollow sphere / annulus in Phase 3C inheriting the rank-2
+   framework) is the archivist's deliverable.
 
    Source artifacts:
 
@@ -2133,17 +2169,19 @@ Numerical verification status (Phase 3B)
   :func:`~orpheus.derivations.common.eigenvalue.kinf_homogeneous`
   to :math:`\le 1\mathrm e{-9}` relative.
 
-The Phase-3A rank-1 algebraic discrepancy (latent finding)
------------------------------------------------------------
+.. _peierls-greens-slab-asym-err035-fix:
+
+ERR-035 history and fix (Phase-3A heuristic closure)
+-----------------------------------------------------
 
 The Phase-3B rank-2 closure (verified by direct first-principles
 derivation in
 :func:`derive_operator_constant_trial_closed_slab_asymmetric`) and
-the Phase-3A rank-1 symmetric closure agree at the BC-square
-corners :math:`\alpha \in \{0, 1\}` (where flux profiles are
-uniform-or-rank-1-collapsing) but DIFFER by :math:`\sim 1.3
+the original Phase-3A rank-1 symmetric closure agreed at the
+BC-square corners :math:`\alpha \in \{0, 1\}` (where flux profiles
+are uniform-or-rank-1-collapsing) but DIFFERED by :math:`\sim 1.3
 \mathrm e{-4}` relative at intermediate :math:`\alpha = 0.5`. The
-Phase-3A formula
+original Phase-3A formula
 
 .. math::
 
@@ -2151,22 +2189,34 @@ Phase-3A formula
                           {1 - \alpha^2\,e^{-2\tau}}, \qquad
    B_{\rm period} = \int_0^{2L/|\mu|} q\,e^{-\Sigma_t s}\,\mathrm d s,
 
-is a heuristic generalisation that does NOT match the
+was a heuristic generalisation that did NOT match the
 structurally-correct (per first-principles derivation) rank-2 form
 :math:`\psi_{\rm surf} = \alpha\,B / (1 - \alpha\,e^{-\tau})` at
 intermediate :math:`\alpha`. The Phase-3A V_α1 / vacuum tests
-miss the discrepancy because they only exercise the corners. The
-Phase-3B test
-:func:`test_rank2_vs_rank1_at_intermediate_alpha_documented_discrepancy`
-captures the achieved disagreement (~3e-4 gate) so any regression
-or fix surfaces immediately.
+missed the discrepancy because they only exercise the corners.
 
-A clean Phase-3A fix would be to replace its rank-1 closure with
-the rank-2 closure at :math:`\alpha_L = \alpha_R = \alpha` —
-deferred to a follow-on phase per the Phase-3B brief's "DO NOT
-modify Phase 3A symmetric slab" scope guard.
+**Fix applied 2026-05-02** (logged as ERR-035 in the V&V
+:file:`.claude/skills/vv-principles/error_catalog.md`).
+:func:`solve_greens_function_slab` and
+:func:`solve_greens_function_slab_mg` were refactored as thin
+wrappers that delegate to
+:func:`solve_greens_function_slab_asymmetric` and
+:func:`solve_greens_function_slab_asymmetric_mg` at
+:math:`\alpha_L = \alpha_R = \alpha`. The heuristic
+``_apply_operator_slab`` and the helper chord-length functions
+were deleted (dead code after delegation; keeping them as
+"alternative paths" would re-create the very pattern the fix
+removes). The Phase-3A public API surface (:class:`SlabGreensResult`,
+:class:`SlabGreensMGResult`, the two solver entrypoints) is
+preserved by re-wrapping the rank-2 result. Net effect: all
+Phase-3A code paths use the first-principles rank-2 closure;
+the test
+:func:`test_rank1_path_now_agrees_with_rank2_via_delegation_after_ERR035_fix`
+asserts ≤ 1e-12 rtol bit-equal agreement between the two paths
+at :math:`\alpha = 0.5` (regression-prevention gate against any
+future re-introduction of a heuristic closure).
 
-A second latent bug (the trajectory parametrisation
+A second latent bug (ERR-034: the trajectory parametrisation
 :math:`x_{\rm traj}(s) = x - s` instead of :math:`x - \mu \cdot s`,
 silent on uniform-:math:`q` cases) was caught and FIXED in both
 Phase-3A and Phase-3B during Phase-3B integration. See ERR

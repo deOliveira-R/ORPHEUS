@@ -1733,14 +1733,19 @@ pattern as ERR-006 (curvilinear sphere α-recursion + ΔA/w bug).
 
 ## ERR-035 — Slab Variant α symmetric closure: heuristic α·B_period/(1-α²·e^{-2τ}) is wrong at intermediate α
 
+**Status:** **FIXED 2026-05-02** by delegating Phase-3A symmetric
+slab to the Phase-3B rank-2 path at :math:`\alpha_L = \alpha_R =
+\alpha`. See "Fix" section below.
+
 **Failure mode:** #1 Sign flip / convention drift — the symmetric
 rank-1 closure was constructed by analogy with sphere/cylinder
 (applying `alpha_per_period = α²` for the 2-bounce-per-period
 geometry) without re-deriving from first principles. The
 analogical formula coincides with the correct closure ONLY at
 α∈{0, 1} corners.
-**Date:** 2026-05-02 (Phase-3B reduce-to-symmetric consistency
-check).
+**Date discovered:** 2026-05-02 (Phase-3B reduce-to-symmetric
+consistency check).
+**Date fixed:** 2026-05-02 (delegation refactor, same day).
 **Solver:** Slab Variant α Green's function reference, Phase-3A
 symmetric (`greens_function_slab.py::_apply_operator_slab` calling
 `apply_variant_alpha_closure(... alpha_per_period=α²)` with the
@@ -1783,20 +1788,50 @@ that the Phase-3A formula encodes.
   construction — none of them stress the closure formula at
   intermediate α with a spatially non-uniform eigenmode.
 
-**L1 test that captures it:**
+**L1 test that captures it (post-fix regression gate):**
+`test_rank1_path_now_agrees_with_rank2_via_delegation_after_ERR035_fix`
+in `tests/derivations/test_peierls_greens_function_slab_asymmetric_solver.py`,
+tagged `@pytest.mark.catches("ERR-035")`. The test was originally
 `test_rank2_vs_rank1_at_intermediate_alpha_documented_discrepancy`
-in `tests/derivations/test_peierls_greens_function_slab_asymmetric_solver.py`
-captures the achieved disagreement (~1.3e-4 at α=0.5; gate is
-[5e-5, 5e-4] — fails if it gets tighter (silent fix) or looser
-(regression)).
+with a `[5e-5, 5e-4]` disagreement gate; post-fix it asserts ≤
+1e-12 rtol bit-equal agreement at α=0.5, catching any
+re-introduction of a heuristic Phase-3A closure.
 
-**Fix (deferred per Phase-3B brief scope):** Replace Phase-3A's
-`_apply_operator_slab` with a call to the Phase-3B
-`_apply_operator_slab_asymmetric` at α_L=α_R=α (single-transit B
-integrals + rank-2 closure). The two formulations would then be
-identically the same, both correct. Deferred to a follow-on phase
-because the Phase-3B brief explicitly excludes Phase-3A
-modifications.
+**Fix (applied 2026-05-02):** Refactored
+`solve_greens_function_slab` and `solve_greens_function_slab_mg`
+into thin wrappers that delegate to
+`solve_greens_function_slab_asymmetric{,_mg}` at α_L=α_R=α. The
+heuristic `_apply_operator_slab`, `_first_leg_chord_slab`, and
+`_bounce_period_chord_slab` helpers were deleted (dead code after
+delegation — keeping them as "alternative paths" would re-create
+the very pattern this fix removes). The Phase-3A public API
+(`SlabGreensResult`, `SlabGreensMGResult`, the two solver
+entrypoints) is preserved via re-wrap of the asymmetric result
+into the original dataclass shape. Net effect: all Phase-3A code
+paths now use the first-principles single-transit closure
+:math:`\alpha\cdot B/(1-\alpha\,e^{-\tau})`.
+
+**Side effects of the fix:**
+
+- The Phase-3A vacuum α=0 convergence floor improved
+  dramatically: pre-fix the floor was ~5e-4 between (24,40,96)
+  and (32,56,128) grids and was misattributed to slow GL
+  quadrature; post-fix the same finest pair self-consistency
+  is ~8.85e-6. The improvement comes from ERR-034 (the dominant
+  fix at α=0; ERR-035's closure isn't load-bearing at α=0 since
+  the closure is bypassed) plus the rank-2 path's single-transit
+  B integrals having less integrand variation than the full-
+  period integrals. The floor gate in
+  `test_alpha_zero_convergence_floor` was retightened from 1e-3
+  to 5e-5 to match.
+- Phase-3A V_α1_slab k_inf-exactness preserved bit-equal
+  (closed slab, constant source — the closure formula difference
+  cancels).
+- Phase-3A 2G asymmetric scattering at α=1 → k_inf preserved at
+  1e-9 rtol.
+- Sphere and cylinder solvers untouched (they live in separate
+  modules and continue to use the rank-1 `apply_variant_alpha_closure`
+  with `alpha_per_period=alpha`).
 
 **Lesson:** **Analogical generalisation of a closure formula
 across geometries is an algebraic claim that requires a proof,

@@ -517,6 +517,8 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-031``, **0 (MISSING)**
    ``ERR-032``, 4
    ``ERR-033``, 4
+   ``ERR-034``, **0 (MISSING)**
+   ``ERR-035``, 1
 
 Unmarked tests
 --------------
