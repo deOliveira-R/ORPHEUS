@@ -128,7 +128,7 @@ independent analytical paths for specular k_eff", we now have
     `heterogeneous_AB_2G`)
   - Added 9 new test cases (3 geometries × 3 multi-G/MR cases)
   - Added `_check_monotonic_and_settled` helper with two-stage gate
-- `docs/theory/peierls_unified.rst`:
+- `docs/theory/peierls_nystrom.rst`:
   - Multi-energy / multi-region convergence subsection updated with
     actual k-value tables
   - Per-geometry convergence rate documentation

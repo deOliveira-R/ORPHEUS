@@ -93,7 +93,7 @@ def _regenerate_verification_matrix(app):
 #
 # Runs `python -m tools.verification.generate_peierls_matrix` before
 # Sphinx collects sources so the capability table in
-# `docs/theory/peierls_unified.rst` (§theory-peierls-capabilities)
+# `docs/theory/peierls_nystrom.rst` (§theory-peierls-capabilities)
 # cannot drift from the registry function
 # `orpheus.derivations.peierls_cases.capability_rows()`. Consolidation
 # task T2.1.

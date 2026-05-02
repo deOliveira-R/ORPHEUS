@@ -1,7 +1,7 @@
 r"""Unified flat-source collision-probability construction.
 
 Level-3 sibling of :mod:`~orpheus.derivations.continuous.peierls.geometry`.
-See :doc:`/theory/peierls_unified` §§11-17 for the end-to-end
+See :doc:`/theory/peierls_nystrom` §§11-17 for the end-to-end
 derivation of the three-tier kernel hierarchy and the factorisation
 
 .. math::
@@ -65,7 +65,7 @@ from ...common.quadrature_recipes import chord_quadrature
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Geometry-invariant second-difference operator (§12 of peierls_unified)
+# Geometry-invariant second-difference operator (§12 of peierls_nystrom)
 # ═══════════════════════════════════════════════════════════════════════
 
 def _second_difference(

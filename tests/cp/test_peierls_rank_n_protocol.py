@@ -34,7 +34,7 @@ This module ships:
    canonical 6-point grid.
 
 Verifies Sphinx label ``peierls-rank-n-stability`` (to be added to
-``docs/theory/peierls_unified.rst`` when Issue #123 is closed; see
+``docs/theory/peierls_nystrom.rst`` when Issue #123 is closed; see
 file-level TODO below).
 
 Runtime
@@ -46,7 +46,7 @@ themselves are fast (no F.4 evaluation).
 """
 
 # TODO(Issue #123 close-out): add the ``:label: peierls-rank-n-stability``
-# block to ``docs/theory/peierls_unified.rst`` next to the existing
+# block to ``docs/theory/peierls_nystrom.rst`` next to the existing
 # ``peierls-rank-n-bc-closure`` label. The policy text should cite L17-L19.
 from __future__ import annotations
 

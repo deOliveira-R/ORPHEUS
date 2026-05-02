@@ -1,4 +1,4 @@
-.. _theory-peierls-unified:
+.. _theory-peierls-nystrom:
 
 ======================================================================
 Unified polar-form Peierls Nyström architecture (slab · cyl · sph)
@@ -14,6 +14,13 @@ Key Facts
 
 **Read this before modifying any Peierls Nyström reference solver,
 or before extending the architecture to a new geometry.**
+For the **method-agnostic foundations** (integral form of the
+transport equation, geometry reductions, BC parametrisation,
+common verification chain), see :ref:`theory-peierls`. That page is
+the index for the two ORPHEUS Peierls implementation families and
+contains the comparison table that decides when to use this Nyström
+path vs the Green's function path at :ref:`theory-peierls-greens`.
+
 For "what references do we ship for problem X?" see
 :ref:`theory-peierls-capabilities` (the capability matrix is the
 index). For terminology that has historical collisions ("F.4",
@@ -6082,7 +6089,7 @@ position). The Level-3 abstraction follows the same pattern:
        """Level-3 flat-source CP abstraction.
 
        Mirrors CurvilinearGeometry at a different rung of the
-       three-tier hierarchy. See docs/theory/peierls_unified.rst
+       three-tier hierarchy. See docs/theory/peierls_nystrom.rst
        §14 for the design rationale.
        """
 
@@ -6193,7 +6200,7 @@ Implementation shape
    def _second_difference(kernel, gap, tau_i, tau_j):
        """The geometry-invariant operator Δ²[F](τ_i, τ_j; gap).
 
-       See docs/theory/peierls_unified.rst §12 for the derivation.
+       See docs/theory/peierls_nystrom.rst §12 for the derivation.
        """
        return (kernel(gap)
                - kernel(gap + tau_i)
@@ -8995,7 +9002,7 @@ References
    closure for the surface-flux integral equation in slab geometry;
    the slab DP\ :sub:`N` k\ :sub:`eff` tables in Tables I–III are the
    calibration anchor for the Phase-A sphere normalisation audit
-   (see :ref:`theory-peierls-unified` §29 and Issue #112).
+   (see :ref:`theory-peierls-nystrom` §29 and Issue #112).
 
 .. [Knyazev1993] A.P. Knyazev, "Solution of the transport equation in
    integral form in a one-dimensional cylindrical geometry with

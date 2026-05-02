@@ -178,7 +178,7 @@ def test_three_bug_diff_quantified():
     that re-introduces any of the three bugs (Bickley order, geometry
     factor, leading coefficient) will trip this gate.
 
-    Reference: see ``peierls_unified.rst:peierls-cyl-Gbc-3d-final``
+    Reference: see ``peierls_nystrom.rst:peierls-cyl-Gbc-3d-final``
     section for the cylinder 1G/1R row-sum probe table that drove
     the Phase C fix.
     """

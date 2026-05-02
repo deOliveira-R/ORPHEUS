@@ -97,7 +97,7 @@ sanity values :math:`G_{\rm correct}(0) = 4\,\mathrm{Ki}_2(0) = 4`
 and :math:`G_{\rm legacy}(0) = 2\,\mathrm{Ki}_1(0) = \pi`, a
 :math:`\pi/4 \approx 21\,\%` overestimate at the optically-thin
 end. See
-``docs/theory/peierls_unified.rst:peierls-cyl-Gbc-3d-final``
+``docs/theory/peierls_nystrom.rst:peierls-cyl-Gbc-3d-final``
 (Issue #112 Phase C) for the cylinder-1G/1R row-sum probe table
 and the Hébert convergence improvement that motivated the fix.
 """

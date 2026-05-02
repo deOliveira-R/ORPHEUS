@@ -8,7 +8,8 @@ ORPHEUS — Open Reactor Physics Educational University System
    theory/cross_section_data
    theory/homogeneous
    theory/transport_methods
-   theory/peierls_unified
+   theory/peierls
+   theory/peierls_nystrom
    theory/peierls_greens
    theory/diffusion_1d
    theory/fuel_behaviour

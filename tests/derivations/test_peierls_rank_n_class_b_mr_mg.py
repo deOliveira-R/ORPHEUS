@@ -512,7 +512,7 @@ def test_class_b_sphere_hebert_chi_dependence(chi_spectrum,
         f"{actual_err_pct:+.3f} %, expected {expected_err_pct:+.2f} % "
         f"± {tol_pct} %. The chi-dependent overshoot trend is the "
         f"signature of the Mark uniformity assumption — see "
-        f"docs/theory/peierls_unified.rst §peierls-class-b-sphere-hebert. "
+        f"docs/theory/peierls_nystrom.rst §peierls-class-b-sphere-hebert. "
         f"Drift here indicates either a Mark-closure improvement (good!) "
         f"or a regression in the Hébert path (bad)."
     )

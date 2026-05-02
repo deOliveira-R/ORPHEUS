@@ -88,7 +88,7 @@ belongs in an issue comment. If it states a current invariant, a
 production formula, or an active gotcha, it belongs in Sphinx. The
 post-#138 cleanup (commit `742d3b0..18a852b`, 25 commits, −2533 LoC)
 relocated ~3500 LoC of failed-experiment narrative from
-`peierls_unified.rst` and `collision_probability.rst` to 16 GitHub
+`peierls_nystrom.rst` and `collision_probability.rst` to 16 GitHub
 issue comments under this principle.
 
 ## L11: Cross-checks must be structurally independent

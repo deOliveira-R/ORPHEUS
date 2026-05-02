@@ -1,18 +1,31 @@
 ---
-name: Plan 2 Phase B closeout — Variant α Green's function reference shipped (closed-sphere homogeneous specular)
-description: Plan 2 Part B complete. Variant α (integral-operator power iteration on Sanchez 1986 Eq. A6 angle-resolved Green's function) shipped as research-grade parallel reference. Gives k_eff = k_inf to machine precision for closed homogeneous sphere, beating Phase 4 specular_multibounce (rank-N truncation error 0.12-0.27%). Decision: ship as parallel research-grade reference; not a production replacement (Phase 4 retains broader validation).
+name: Variant α Green's function — running closeout (Plan 2 Phase B + A1-A3 + Plan-(b))
+description: Living closeout for the Variant α Green's function prototype. Plan 2 Phase B closed 2026-05-01 (closed-sphere homogeneous specular). A1-A3 follow-on closed 2026-05-02 (vacuum BC + PS-1982 + multi-group). Plan-(b) Options 1+2 closed 2026-05-02 (multi-region + Issue #132 attack + Garcia 2021 cross-check). 53 tests across all phases, all green. V&V layered: L1 closed 1G via SymPy + Phase 4 cross-check; L1 vacuum 1G via PS-1982; L1 closed MG via transfer-matrix; L1 multi-region fixed-source via Garcia 2021.
 type: project
 ---
 
-# Plan 2 Phase B closeout — Variant α Green's function reference
+# Variant α Green's function — running closeout
 
-**Date**: 2026-05-01.
+**Started**: 2026-05-01 (Plan 2 Phase B).
+**Last update**: 2026-05-02 (Plan-(b) Options 1+2).
 **Branch**: `feature/peierls-greens-function`.
-**Outcome**: Variant α shipped as research-grade parallel reference for the
-closed homogeneous sphere with specular BC. Gives :math:`k_{\rm eff} =
-k_\infty` to machine precision (V_α1 algebraic identity, numerically
-verified). Phase 4 ``specular_multibounce`` retained as the production
-path (broader validation across configurations).
+**Outcome**: Variant α shipped as research-grade parallel reference covering
+homogeneous + multi-region sphere across vacuum, partial-albedo, and
+specular BCs, with multi-group support up to general G. Phase 4
+``specular_multibounce`` retained as the production path — Variant α is
+the verification reference, not a production replacement.
+
+**Phases tracked**:
+- **Plan 2 B1-B6** (2026-05-01) — closed homogeneous sphere, specular BC,
+  1-group: V_α1 closed-sphere identity, V_α2 T_00=P_ss algebraic
+  cross-check, V_α3 vacuum-reduction algebra, Sphinx page.
+- **A1-A2** (2026-05-02) — vacuum BC parametrisation + PS-1982 Eq. (21)
+  L1 cross-check (structurally-independent kernel reference).
+- **A3** (2026-05-02) — multi-group extension (general G, full G×G
+  scattering matrix, χ-spectrum). Closes 1G Cardinal-Rule-6 gap.
+- **Plan-(b) Options 1+2** (2026-05-02) — multi-region extension
+  (k-eigenvalue + fixed-source); Issue #132 reproducer; Garcia 2021
+  flux-shape L1 cross-check.
 
 ## TL;DR
 
@@ -92,7 +105,7 @@ XS: σ_t = 0.5, σ_s = 0.38, νσ_f = 0.025. k_inf = 0.025 / 0.12 = 0.2083‾.
 
 ### Sphinx (deferred to follow-on, see "Decision" below)
 
-The plan calls for a Sphinx subsection in `docs/theory/peierls_unified.rst`
+The plan calls for a Sphinx subsection in `docs/theory/peierls_nystrom.rst`
 (or new page `docs/theory/peierls_greens.rst`) with the Green's function
 architecture, Sanchez 1986 derivation walkthrough, and the
 cross-verification table. This is dispatched to the archivist agent

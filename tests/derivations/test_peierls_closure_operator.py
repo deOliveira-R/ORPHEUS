@@ -8,7 +8,7 @@ factors as a tensor network
    K_{\mathrm{bc}} \;=\; G \cdot R \cdot P
 
 through a finite mode space :math:`A = \mathbb R^N` (see
-:ref:`theory-peierls-unified` Part IV). This file checks:
+:ref:`theory-peierls-nystrom` Part IV). This file checks:
 
 1. **Algebraic consistency** between :meth:`apply` and :meth:`as_matrix`
    (matrix-free application matches the dense-matrix product for random

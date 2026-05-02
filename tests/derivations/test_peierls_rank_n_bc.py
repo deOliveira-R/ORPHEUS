@@ -7,7 +7,7 @@ These tests define the contract for the upcoming rank-N extension of
 :func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction`.
 The rank-1 (Mark / isotropic re-entry) closure currently shipped
 incurs the well-known boundary-leakage error documented in
-``docs/theory/peierls_unified.rst`` §8:
+``docs/theory/peierls_nystrom.rst`` §8:
 
 ==========  =================  =================
 R/MFP       k_eff (cyl rank-1) k_eff (sph rank-1)
@@ -36,7 +36,7 @@ Harness tagging
 All tests are linked to a new Sphinx label
 ``peierls-rank-n-bc-closure`` (to be added with a ``:label:`` block
 when the implementation and its companion theory section land in
-``docs/theory/peierls_unified.rst``). For tests that also stress the
+``docs/theory/peierls_nystrom.rst``). For tests that also stress the
 existing rank-1 surface, additional ``verifies()`` labels are carried
 explicitly at the test level.
 """

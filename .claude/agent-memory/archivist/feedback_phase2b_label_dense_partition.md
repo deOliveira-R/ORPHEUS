@@ -9,7 +9,7 @@ mixed KEEP/TRIM/RELOCATE/DELETE across one H1 section, ~1500 LoC
 total), do an anchor-triage pass FIRST and group the cuts so each
 commit's stub preservation pattern is uniform.**
 
-**Why:** Task 2026-04-30 Phase 2b peierls_unified.rst cleanup
+**Why:** Task 2026-04-30 Phase 2b peierls_nystrom.rst cleanup
 relocated §F.5 / §F.6 / §Specular-multibounce / §Phase-5 to
 Issues #100/#112/#119/#122/#123/#132/#133. The partition contained
 ~24 `:label:` blocks. Naïve "cut each step in its own commit and

@@ -5,7 +5,7 @@ Thin facade over :mod:`~orpheus.derivations.continuous.flat_source_cp.geometry` 
 {1, 2, 4} energy groups × {1, 2, 4} regions using the exponential
 kernel with y-weighted quadrature.
 
-See :doc:`/theory/peierls_unified` §§11-17 for the three-tier
+See :doc:`/theory/peierls_nystrom` §§11-17 for the three-tier
 integration hierarchy and the unified :math:`\Delta^{2}` operator.
 
 Spherical CP kernel

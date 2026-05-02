@@ -110,7 +110,7 @@ directives. Convert the verbatim block element-by-element.
 | `.. list-table::` w/ `:header-rows: 1`           | GitHub pipe table. Multi-paragraph cells flatten with `<br>` or a sibling `*notes*` row.                          |
 | Multi-line `* -` rows                            | Collapse to single-line; sub-bullets become `<br>·` separated runs.                                               |
 | `[CitationKey]_` references                      | Plain-text `[CitationKey]` (no underscore). Repeat the bibliography under `## References:`.                       |
-| `:ref:\`some-anchor\``, `:eq:\`label\``          | Backticked anchor name + a sentence describing what the anchor names; cite the file path: `` `docs/theory/peierls_unified.rst` ≈ lines 5410–5476 ``. |
+| `:ref:\`some-anchor\``, `:eq:\`label\``          | Backticked anchor name + a sentence describing what the anchor names; cite the file path: `` `docs/theory/peierls_nystrom.rst` ≈ lines 5410–5476 ``. |
 | `.. note::`, `.. warning::` admonitions          | Markdown blockquote `> **Note.**` / `> **Warning.**` followed by the body indented under the quote.               |
 | `**bold**` / `*italic*`                          | Stay as-is — both renderers agree.                                                                                |
 | `.. code-block:: python`                         | Fenced ``` ```python ``` block.                                                                                    |
@@ -140,7 +140,7 @@ GitHub-Markdown:
 
 The escape kernel reduces to $\frac{1}{2} E_2(\tau)$ — see
 `compute_P_esc_outer` and the surviving doc anchor
-`theory-peierls-slab-polar` in `docs/theory/peierls_unified.rst`.
+`theory-peierls-slab-polar` in `docs/theory/peierls_nystrom.rst`.
 ````
 
 ## Collapsibles for ≥ 50-LoC verbatim blocks
@@ -151,7 +151,7 @@ line is the only thing every reader sees first; the body is what an
 agent reconstructing context unfolds.
 
 ```html
-<details><summary>Full investigation record (verbatim from peierls_unified.rst:5410–5476)</summary>
+<details><summary>Full investigation record (verbatim from peierls_nystrom.rst:5410–5476)</summary>
 
 […verbatim block, converted per the table above…]
 
@@ -181,7 +181,7 @@ issue is a frozen archaeological record or an active hand-off.
 ## The ≥ 900-LoC stub pattern
 
 When the cut block is a whole H1 section (typically ≥ 900 LoC, e.g.
-"Moment-form Nyström assembly — ARCHIVED" in `peierls_unified.rst`)
+"Moment-form Nyström assembly — ARCHIVED" in `peierls_nystrom.rst`)
 **and** its `:label:` anchors are referenced from elsewhere in the
 doc tree, do NOT delete the section. Leave a ~25-LoC stub that
 preserves the anchors and points at the durable archive.
@@ -269,7 +269,7 @@ the orphan list shrinks accordingly.
 3. **Cross-doc references.** RST `:ref:\`anchor\`` and `:eq:\`label\``
    cannot resolve in GitHub markdown. Convert to backticked anchor
    names with a sentence describing what they point to. Cite the file
-   path explicitly: `` `docs/theory/peierls_unified.rst` ≈ lines 5410–5476 ``.
+   path explicitly: `` `docs/theory/peierls_nystrom.rst` ≈ lines 5410–5476 ``.
 
 4. **Citation entries.** RST `[CitationKey]_` reference blocks must be
    repeated as plain-text lines under `## References:`. The GitHub

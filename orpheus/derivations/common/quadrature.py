@@ -42,7 +42,7 @@ default). For ``dps > 53`` the nodes are computed via
 to ``float64`` for the returned arrays — same pattern as the
 legacy :func:`~orpheus.derivations.continuous.peierls.geometry.gl_float`.
 
-See :doc:`/theory/peierls_unified` § "Quadrature contract"
+See :doc:`/theory/peierls_nystrom` § "Quadrature contract"
 (§22.0) for the design rationale and § "Coordinate transformations
 in Nyström quadrature" (§22.1–§22.7) for the substitution catalogue
 that the constructors implement.
@@ -297,7 +297,7 @@ def gauss_legendre_visibility_cone(
     :math:`y \to b`); the substitution is symmetric.
 
     See :ref:`§22.7 <section-22-7-visibility-cone>` in
-    :doc:`/theory/peierls_unified` for the full derivation,
+    :doc:`/theory/peierls_nystrom` for the full derivation,
     Bernstein-ellipse convergence analysis, and gotchas (notably
     the upper-variant degeneracy at :math:`a = 0` and the lower-
     variant degeneracy when :math:`a \ll b`).

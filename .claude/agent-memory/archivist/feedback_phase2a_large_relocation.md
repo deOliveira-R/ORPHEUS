@@ -6,13 +6,13 @@ type: feedback
 
 **For very large relocation cuts (≥ 900 LoC, often a whole H1 section), preserve every `:label:` anchor inside the cut block as part of the replacement stub.** A 25-LoC stub is enough if it carries: (a) all preserved labels, (b) production decision, (c) "where the code lives" file pointers, (d) "where the close-out narrative lives" — the GitHub issue close-out comment URL, (e) git-archaeology hint (`git log --grep=...`).
 
-**Why:** Task 2026-04-30 Phase 2a peierls_unified.rst cleanup. Issue #138 close-out cut 935 LoC of moment-form Nyström architectural narrative (the archived τ-Laguerre + closed-form moment-recursion derivations). The labels `theory-peierls-moment-form` and `theory-peierls-moment-form-failed-polar` were referenced from FOUR other sites in the same doc. Wholesale deletion would have produced 4 broken `:ref:`s, each requiring an inline rewrite. Instead a 25-LoC stub preserved both labels AND the load-bearing pointers, so the cross-references continued to resolve to a useful target.
+**Why:** Task 2026-04-30 Phase 2a peierls_nystrom.rst cleanup. Issue #138 close-out cut 935 LoC of moment-form Nyström architectural narrative (the archived τ-Laguerre + closed-form moment-recursion derivations). The labels `theory-peierls-moment-form` and `theory-peierls-moment-form-failed-polar` were referenced from FOUR other sites in the same doc. Wholesale deletion would have produced 4 broken `:ref:`s, each requiring an inline rewrite. Instead a 25-LoC stub preserved both labels AND the load-bearing pointers, so the cross-references continued to resolve to a useful target.
 
 **How to apply:**
 
 1. **Inventory references to the cut content's labels FIRST.** Before any edit:
    ```bash
-   grep -n "theory-peierls-moment-form\|theory-peierls-moment-form-failed-polar" docs/theory/peierls_unified.rst
+   grep -n "theory-peierls-moment-form\|theory-peierls-moment-form-failed-polar" docs/theory/peierls_nystrom.rst
    ```
    Anything inside the cut block is fine (will be deleted with the rest); anything OUTSIDE the cut block needs the label preserved in the stub OR the citing site rewritten.
 

@@ -76,7 +76,7 @@ The Phase 4 docstring reference to "Phase 5 — proper fix" is **withdrawn**. Th
 - Round 1: `phase5_front_a_jacobian_conversion.md`, `phase5_front_b_singularity_subtraction.md`, `phase5_front_c_orpheus_native.md`
 - Round 2: `phase5_round2_m2_bounce_resolved.md`, `phase5_round2_backup_symbolic_limit.md`
 - Round 3: `phase5_round3_adaptive_quadrature.md`, `phase5_round3_galerkin_double_integration.md`
-- Sphinx: `docs/theory/peierls_unified.rst` §peierls-phase5-retreat (this same content in user-facing form)
+- Sphinx: `docs/theory/peierls_nystrom.rst` §peierls-phase5-retreat (this same content in user-facing form)
 - Code: `orpheus/derivations/peierls_geometry.py` — dispatch raises NotImplementedError with retreat message; reference impl preserved
 - SymPy: `derivations/peierls_specular_continuous_mu.py` (4/4 PASS — math is right, discretisation is fundamentally not Nyström-compatible)
 - Diagnostic record: 14 diagnostics in `derivations/diagnostics/diag_phase5_*.py`

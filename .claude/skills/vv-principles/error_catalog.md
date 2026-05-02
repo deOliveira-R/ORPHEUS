@@ -1556,7 +1556,7 @@ disagreement: factor ``~ 2.2`` between row-sum from ``K`` and
 collapses algebraically to ``φ ≡ 1/Σ_t`` (uniform Wigner-Seitz). The
 shipped function in
 ``orpheus.derivations.peierls_reference.slab_uniform_source_white_bc_analytical``
-returns this constant. See ``docs/theory/peierls_unified.rst``
+returns this constant. See ``docs/theory/peierls_nystrom.rst``
 ``§White-BC analytical flux — slab`` (the canonical derivation; the
 "History of the algebra bug" subsection in that page now points at
 this catalog entry).

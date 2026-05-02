@@ -2080,7 +2080,7 @@ kept only as an unused no-op argument so that callers constructing
 ``n_ki_table=...`` do not break.
 
 Why the retirement was deferrable until Phase B.4 is covered in
-:doc:`/theory/peierls_unified` §16 (postmortem) and
+:doc:`/theory/peierls_nystrom` §16 (postmortem) and
 :doc:`/verification/reference_solutions` §"Legacy naming
 discrepancy in ``BickleyTables``" (safety argument for the swap).
 
@@ -3280,7 +3280,7 @@ e^{-\tau}`, the angular weight :math:`W_\Omega(\theta) =
 \sin\theta`, the prefactor :math:`C_d = 1/2`, and the
 surface-divisor :math:`A_d = R^{2}` in the rank-1 white-BC
 closure. The architectural separation is documented at full length
-in :doc:`peierls_unified`.
+in :doc:`peierls_nystrom`.
 
 Derivation from the 3-D point kernel
 -------------------------------------
@@ -3328,7 +3328,7 @@ without ever crossing the shell boundary.
 
    The monotone progression of dimensional reductions — two for the
    slab, one for the cylinder, zero for the sphere — is the defining
-   feature of the trio. :doc:`peierls_unified` §2 tabulates the
+   feature of the trio. :doc:`peierls_nystrom` §2 tabulates the
    reduced kernels side-by-side.
 
 Observer-centred polar form and Jacobian cancellation
@@ -3383,7 +3383,7 @@ integrand becomes
 The :math:`\rho^{2}` polar volume factor **cancels the**
 :math:`1/\rho^{2}` **of the Green's function exactly** — the
 Jacobian-cancellation trick derived in full generality in
-:doc:`peierls_unified` §3. The integrand is now a bounded,
+:doc:`peierls_nystrom` §3. The integrand is now a bounded,
 polynomial-smooth function on the whole integration domain (modulo
 :math:`\Sigma_t` jumps, which are handled by the composite radial
 grid described below). Because the source field is radially
@@ -4007,7 +4007,7 @@ inflation at :math:`R \sim 1` MFP, and the
 debate (pre-correction "ratio varies 40 % so rank-1 fails"
 argument and the divisor-bug post-mortem) lives in
 `Issue #100 <https://github.com/deOliveira-R/ORPHEUS/issues/100>`_
-and the sister stub in :doc:`peierls_unified` §8. The
+and the sister stub in :doc:`peierls_nystrom` §8. The
 **residual** rank-1 deficit at :math:`R \to 0` is the genuine
 flat-source-accuracy limit shared by sphere and cylinder; it is
 tracked under
@@ -4282,7 +4282,7 @@ the multi-annulus walker and computes :math:`\tau_{\rm surf} =
    Peierls self-convergence and CP-vs-Peierls flux / eigenvalue
    agreement at :math:`R = 10` MFP.
 
-   :doc:`peierls_unified` — cross-cutting architectural page:
+   :doc:`peierls_nystrom` — cross-cutting architectural page:
    §2 dimensionally-reduced kernels, §3 Jacobian cancellation,
    §8 white-BC rank-1 closure and Issue #100 historical record.
 
@@ -4293,7 +4293,7 @@ References
 .. note::
 
    Citations shared across pages are defined in
-   :doc:`/theory/peierls_unified` (the deeper treatment) and
+   :doc:`/theory/peierls_nystrom` (the deeper treatment) and
    :doc:`/theory/discrete_ordinates`; ``[Foo1234]_`` references on
    this page resolve cross-document via Sphinx's docutils citation
    index. Only citations unique to this page are defined locally.

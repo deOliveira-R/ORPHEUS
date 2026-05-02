@@ -137,7 +137,7 @@ alpha documentation but does not prove a variational identity.
 ## Proposed Sphinx edit
 
 **None warranted.** The identification is NOT supported by the numerics.
-No edit to `docs/theory/peierls_unified.rst §peierls-f4-rank-1-gauge-why`
+No edit to `docs/theory/peierls_nystrom.rst §peierls-f4-rank-1-gauge-why`
 should be made — the current text (classifying F.4 as a lucky rank-1
 algebraic accident via change-of-basis scalar M^(1) = sqrt(2)/2) is
 more accurate than any Rayleigh-Ritz framing.

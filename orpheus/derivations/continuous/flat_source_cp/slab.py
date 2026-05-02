@@ -3,7 +3,7 @@
 Thin facade over :mod:`~orpheus.derivations.continuous.flat_source_cp.geometry` with
 :data:`~.cp_geometry.SLAB` pre-selected. Derives ``k_inf`` for
 {1, 2, 4} energy groups × {1, 2, 4} regions using the :math:`E_3`
-exponential-integral kernel. See :doc:`/theory/peierls_unified`
+exponential-integral kernel. See :doc:`/theory/peierls_nystrom`
 §§11-17 for the three-tier integration hierarchy and the
 derivation of the geometry-invariant :math:`\\Delta^{2}` operator.
 """

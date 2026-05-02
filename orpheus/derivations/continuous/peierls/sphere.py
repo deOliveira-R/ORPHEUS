@@ -21,7 +21,7 @@ white-BC closures, eigenvalue power iteration — lives in
 :class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
 with ``kind = "sphere-1d"``.
 
-See :doc:`/theory/peierls_unified` for the end-to-end derivation of
+See :doc:`/theory/peierls_nystrom` for the end-to-end derivation of
 the unified structure and :doc:`/theory/collision_probability` for
 the sphere-specific narrative (3-D point kernel, :math:`\sin\theta`
 angular measure, rank-1 white-BC limitations paralleling the

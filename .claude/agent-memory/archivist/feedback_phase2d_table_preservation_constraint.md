@@ -38,6 +38,6 @@ estimate written without table-LoC subtraction.
    for the full debate.
 5. Preserve the original `:ref:` anchor verbatim — even if the
    section title flips, callers from sister documents
-   (`peierls_unified.rst:5332`, `:5449`) still cite the anchor
+   (`peierls_nystrom.rst:5332`, `:5449`) still cite the anchor
    and the new framing reads cleanly when their text is
    "see ... for the numerical evidence".

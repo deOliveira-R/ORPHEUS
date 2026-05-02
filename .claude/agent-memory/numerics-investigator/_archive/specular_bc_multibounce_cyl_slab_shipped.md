@@ -100,7 +100,7 @@ N≥4, suppressed for slab.
   monotonic at N ∈ {1, 4, 8}, no overshoot, NO warning at any N
   (geometric-immunity regression).
 
-## Sphinx update (`docs/theory/peierls_unified.rst`)
+## Sphinx update (`docs/theory/peierls_nystrom.rst`)
 
 - Class B closure table widened to 4 columns (cyl / sphere / slab)
   with `specular_multibounce` row populated for all three
@@ -130,5 +130,5 @@ N≥4, suppressed for slab.
 - `orpheus/derivations/peierls_geometry.py` (+~360 LoC: two new T
   funcs + dispatch refactor + sphere docstring rewrite)
 - `tests/derivations/test_peierls_specular_bc.py` (+~270 LoC)
-- `docs/theory/peierls_unified.rst` (+~210 lines)
+- `docs/theory/peierls_nystrom.rst` (+~210 lines)
 - `.claude/agent-memory/numerics-investigator/MEMORY.md` index entry

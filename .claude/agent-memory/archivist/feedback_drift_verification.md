@@ -9,7 +9,7 @@ fix, **always verify the quote against the committed file first**.
 The user's snapshot may pre-date a fix that already landed.
 
 **Why:** In the Phase G.5 docs reconcile (2026-04-23), drift item 1
-quoted "Slab continues to use the native..." but `peierls_unified.rst`
+quoted "Slab continues to use the native..." but `peierls_nystrom.rst`
 already said "Slab's shipped peierls_slab_2eg_2rg continuous reference
 now routes through the unified...path by default" (committed in
 `3b0b2c9`/`529cdbe`). The stale quote was the pre-3b0b2c9 state from

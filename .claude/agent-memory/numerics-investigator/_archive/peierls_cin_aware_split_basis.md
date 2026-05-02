@@ -131,7 +131,7 @@ close-out).
 
 - `.claude/plans/next-session-rank-n-hebert-and-beyond.md` — prior plan.
 - `peierls_rank_n_sanchez_closure_failed.md` — Sanchez-McCormick §III.F.1 memo.
-- `docs/theory/peierls_unified.rst` §F.4/F.5 — shipped closures.
+- `docs/theory/peierls_nystrom.rst` §F.4/F.5 — shipped closures.
 - Sanchez-McCormick 1982 NSE 80 — original §III.F.1 derivation.
 
 ---

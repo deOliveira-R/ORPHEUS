@@ -8,7 +8,7 @@ moves into a :math:`\rho_{\max}\to\infty` grazing-angle divergence)
 and is NOT unified here — it remains in :mod:`peierls_slab` with its
 native :math:`E_1` Nyström.
 
-See :doc:`/theory/peierls_unified` for the end-to-end mathematical
+See :doc:`/theory/peierls_nystrom` for the end-to-end mathematical
 derivation. The executive summary:
 
 - The 3-D isotropic point kernel is
@@ -109,7 +109,7 @@ def gauss_laguerre_nodes_weights(
 
     Optimal for integrands of the form :math:`e^{-\tau}\,g(\tau)` where
     :math:`g` is smooth on :math:`[0, \infty)`. In Peierls polar form
-    under the :math:`\tau`-coordinate transform (:doc:`/theory/peierls_unified`
+    under the :math:`\tau`-coordinate transform (:doc:`/theory/peierls_nystrom`
     §5), the ρ integration becomes
     :math:`\int_0^{\tau_{\max}} e^{-\tau}\,q(r'(\tau))/\Sigma_t\,
     \mathrm d\tau`, which Gauss-Laguerre integrates spectrally — the
@@ -253,7 +253,7 @@ class CurvilinearGeometry:
       Observer-centred form: :math:`\varphi(x) = \tfrac12\!\int_{-1}^{1}\!
       \mathrm d\mu\!\int_0^{\rho_{\max}}\!e^{-\Sigma_t\rho}\,q(x+\rho\mu)
       \,\mathrm d\rho`. NOT the log-E₁ Nyström; see
-      :doc:`/theory/peierls_unified` §4 (Chapter 4).
+      :doc:`/theory/peierls_nystrom` §4 (Chapter 4).
     - ``kind = "cylinder-1d"``: :math:`d = 2`, :math:`S_d = 2\pi`,
       :math:`\kappa_d = \mathrm{Ki}_1`, angular variable
       :math:`\beta \in [0, \pi]` with uniform measure
@@ -4150,7 +4150,7 @@ def compute_G_bc_mode(
 # Factored tensor form of the boundary-closure kernel
 # ═══════════════════════════════════════════════════════════════════════
 #
-# Mathematical background (see :ref:`theory-peierls-unified` Part IV for
+# Mathematical background (see :ref:`theory-peierls-nystrom` Part IV for
 # the full derivation). The boundary-closure contribution K_bc is a
 # Hilbert-Schmidt integral operator on the radial function space V.
 # In the Nyström discretisation V = R^{N_r}, K_bc is a matrix in V ⊗ V*
@@ -4220,7 +4220,7 @@ class BoundaryClosureOperator:
     - **specular_multibounce** — multibounce; same ``R`` plus
       :math:`T` from :func:`compute_T_specular_*`.
 
-    See :ref:`theory-peierls-unified` Part IV for the Hilbert-Schmidt
+    See :ref:`theory-peierls-nystrom` Part IV for the Hilbert-Schmidt
     factorisation, the Karhunen-Loève / SVD connection, and the full
     derivation of the factored form.
     """
@@ -4946,7 +4946,7 @@ def build_closure_operator(
     :math:`P` — this exposes the closure structure as the identity
     :math:`R = \mathrm{diag}(2n+1)` on the mode space.
 
-    See :ref:`theory-peierls-unified` Part IV for the operator-level
+    See :ref:`theory-peierls-nystrom` Part IV for the operator-level
     derivation and the Hilbert-Schmidt / SVD interpretation.
 
     Parameters
@@ -5326,7 +5326,7 @@ def build_white_bc_correction_rank_n(
     are accumulated, each capturing one higher Legendre moment of the
     outgoing surface partial-current distribution.
 
-    See :ref:`theory-peierls-unified` §8 for the mathematical
+    See :ref:`theory-peierls-nystrom` §8 for the mathematical
     derivation and the Sanchez & McCormick 1982 §III.F.1 reference.
 
     .. note::
@@ -5488,7 +5488,7 @@ def _resolve_closure_name(boundary: str, *, user_stacklevel: int) -> str:
         _warnings.warn(
             f"boundary={boundary!r} is a deprecated alias; the canonical "
             f"name is {new_name!r}. The old name still works for this "
-            f"release. See docs/theory/peierls_unified.rst "
+            f"release. See docs/theory/peierls_nystrom.rst "
             f"§theory-peierls-naming.",
             DeprecationWarning,
             stacklevel=user_stacklevel,

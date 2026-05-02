@@ -25,9 +25,9 @@ When the user asks for a doc-cleanup audit (typically before pushing a refactor 
 3. **Distinguish three categories of "narrative"**:
    - **Load-bearing teaching** (R-vs-R² gotcha, "why polar form not chord form", four-strategy taxonomy for log singularities) → KEEP. These prevent future readers from making the same architectural mistake.
    - **Tracked-work narrative** ("Phase-4.2 item C8 is a prerequisite for…", "white-BC closure not yet implemented") → trim to one sentence + GitHub issue ref.
-   - **Session-history / wrong-attempt narrative** ("Phase-4.1 debugging insight", "the Zotero MCP server was unreachable", "earlier conclusion is retracted") → relocate to issue or `peierls_unified` (the unified page is the natural home for retraction-in-context). Doc retains a 1-3 line pointer.
+   - **Session-history / wrong-attempt narrative** ("Phase-4.1 debugging insight", "the Zotero MCP server was unreachable", "earlier conclusion is retracted") → relocate to issue or `peierls_nystrom` (the unified page is the natural home for retraction-in-context). Doc retains a 1-3 line pointer.
 4. **Numerical-evidence tables (k_eff scans, row-sum residuals, convergence tables) are Cardinal Rule 2** ("numerical evidence: before/after with multiple cases"). Always KEEP them, even when the surrounding narrative is the wrong-attempt story — move the tables into the **current** subsection if necessary.
-5. **Cross-doc cross-refs to retraction sections work** — `:doc:`peierls_unified` §8` is enough; do not re-state the wrong claim in the new page just so you can retract it. The retraction lives once, where the deep architectural narrative lives.
+5. **Cross-doc cross-refs to retraction sections work** — `:doc:`peierls_nystrom` §8` is enough; do not re-state the wrong claim in the new page just so you can retract it. The retraction lives once, where the deep architectural narrative lives.
 6. **Phase tags ("Phase-4.2", "Phase B.4", commit hashes in parens) are session-internal noise** in a theory page. Strip them; the cross-ref to a labelled section/issue is enough. Git log preserves commit attribution.
 7. **Estimate LoC reduction per section** so the user knows where the bulk of the cleanup lives. The bulk is almost always in the most recent retraction/postmortem section, because that's where session-history accumulates fastest.
 

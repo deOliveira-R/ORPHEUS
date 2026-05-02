@@ -406,7 +406,7 @@ def test_adaptive_quadrature1d_is_distinct_type():
 # substitution: on integrands with a √-endpoint factor the rule is
 # spectral, while plain GL plateaus at algebraic-convergence error;
 # on smooth integrands it introduces no bias. Math derivation in
-# :ref:`section-22-7-visibility-cone` of :doc:`/theory/peierls_unified`.
+# :ref:`section-22-7-visibility-cone` of :doc:`/theory/peierls_nystrom`.
 
 def _plain_gl_pts_wts(a: float, b: float, n: int):
     """Reference plain-GL nodes/weights — kept private to this file

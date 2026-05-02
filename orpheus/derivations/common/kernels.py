@@ -386,7 +386,7 @@ def _shifted_legendre_eval(n: int, mu: np.ndarray) -> np.ndarray:
 
     This is the Gelbard half-range / double-P\ :sub:`N` basis used by
     the rank-N Marshak white-boundary closure for the pointwise Peierls
-    Nyström operator (see :ref:`theory-peierls-unified` §8 and Sanchez
+    Nyström operator (see :ref:`theory-peierls-nystrom` §8 and Sanchez
     & McCormick 1982 §III.F.1 Eqs. 165–169). The orthogonality relation
 
     .. math::

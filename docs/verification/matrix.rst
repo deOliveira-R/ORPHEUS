@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1339**
+Total tests collected: **1378**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 585, 43.7%
-   L1, 394, 29.4%
-   L2, 36, 2.7%
+   L0, 585, 42.5%
+   L1, 394, 28.6%
+   L2, 36, 2.6%
    L3, 0, 0.0%
-   foundation, 313, 23.4%
+   foundation, 352, 25.5%
    unmarked, 11, 0.8%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1249
+   explicit, 1288
    verify, 0
    class-name, 46
    func-name, 0
@@ -73,10 +73,16 @@ Module × level grid
    derivations/test_peierls_cylinder_prefactor, 4, 0, 0, 0, 0, 0
    derivations/test_peierls_cylinder_white_bc, 4, 3, 0, 0, 4, 0
    derivations/test_peierls_geometry, 0, 0, 0, 0, 32, 0
+   derivations/test_peierls_greens_function_garcia2021, 0, 0, 0, 0, 17, 0
+   derivations/test_peierls_greens_function_mg, 0, 0, 0, 0, 7, 0
+   derivations/test_peierls_greens_function_mr, 0, 0, 0, 0, 4, 0
    derivations/test_peierls_greens_function_solver, 0, 0, 0, 0, 3, 0
    derivations/test_peierls_greens_function_symbolic, 0, 0, 0, 0, 8, 0
+   derivations/test_peierls_greens_function_vacuum, 0, 0, 0, 0, 5, 0
    derivations/test_peierls_greens_function_xverif, 0, 0, 0, 0, 3, 0
+   derivations/test_peierls_greens_function_xverif_ps1982, 0, 0, 0, 0, 6, 0
    derivations/test_peierls_multigroup, 9, 10, 0, 0, 8, 0
+   derivations/test_peierls_nystrom_verification, 0, 4, 0, 0, 0, 0
    derivations/test_peierls_rank2_bc, 9, 24, 0, 0, 4, 0
    derivations/test_peierls_rank_n_bc, 59, 15, 0, 0, 0, 0
    derivations/test_peierls_rank_n_class_b_mr_mg, 0, 31, 0, 0, 0, 0
@@ -92,7 +98,6 @@ Module × level grid
    derivations/test_peierls_sphere_geometry, 21, 0, 0, 0, 0, 0
    derivations/test_peierls_sphere_prefactor, 6, 0, 0, 0, 0, 0
    derivations/test_peierls_sphere_white_bc, 0, 4, 0, 0, 0, 0
-   derivations/test_peierls_unified_verification, 0, 4, 0, 0, 0, 0
    derivations/test_quadrature, 7, 0, 0, 0, 44, 0
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
@@ -315,49 +320,63 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **55** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **69** of the testable equations found on theory pages are orphan.
 
 - ``c-in-remapping``
 - ``e1-decomposition``
 - ``mode-conservation-target``
+- ``peierls-3d``
 - ``peierls-M-rank-1``
 - ``peierls-M-rank-2``
 - ``peierls-WM-WL-asymmetric``
+- ``peierls-bc-general``
 - ``peierls-bc-operator``
+- ``peierls-boltzmann``
 - ``peierls-change-of-basis``
 - ``peierls-class-b-Jn-canonical``
 - ``peierls-class-b-Pss-homogeneous``
 - ``peierls-class-b-hebert-closure``
 - ``peierls-cyl-Pss-derivation``
+- ``peierls-cyl-foundations``
 - ``peierls-factored-kernel``
 - ``peierls-greens-A1-split``
 - ``peierls-greens-A5-specular``
 - ``peierls-greens-L0``
 - ``peierls-greens-Lp``
+- ``peierls-greens-T-alpha``
 - ``peierls-greens-T-mu-surf``
 - ``peierls-greens-T00-integrand``
 - ``peierls-greens-V-alpha-1``
 - ``peierls-greens-V-alpha-2``
 - ``peierls-greens-V-alpha-3``
 - ``peierls-greens-bounce-period-integral``
+- ``peierls-greens-bounce-sum-alpha``
 - ``peierls-greens-defining-bvp``
+- ``peierls-greens-fixed-source-iteration``
 - ``peierls-greens-function-architecture``
+- ``peierls-greens-garcia-convention``
 - ``peierls-greens-k-inf``
+- ``peierls-greens-mg-source``
+- ``peierls-greens-mr-piecewise-tau``
+- ``peierls-greens-mr-trajectory-segments``
 - ``peierls-greens-mu-surf``
 - ``peierls-greens-sanchez-A6``
 - ``peierls-greens-surface-fixed-point``
 - ``peierls-greens-trajectory-integral``
 - ``peierls-half-range-inner-products``
+- ``peierls-integral-form``
 - ``peierls-mg-operator``
 - ``peierls-operator-factorisation``
 - ``peierls-operator-form``
 - ``peierls-rank-n-P-esc-moment``
 - ``peierls-rank-n-jacobian-derivation``
+- ``peierls-slab-foundations``
 - ``peierls-slab-polar``
 - ``peierls-specular-M-tridiagonal``
 - ``peierls-specular-R-formula``
 - ``peierls-specular-T-matrix``
 - ``peierls-specular-multibounce-formula``
+- ``peierls-sph-ps1982-foundations``
 - ``peierls-sphere-G-bc``
 - ``peierls-sphere-equation``
 - ``peierls-sphere-nystrom``

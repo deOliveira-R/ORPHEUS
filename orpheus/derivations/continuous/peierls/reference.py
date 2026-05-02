@@ -3,7 +3,7 @@ r"""Independent high-precision reference for the unified Peierls operator.
 Purpose: provide a **mesh-independent, mathematically self-contained**
 reference for verifying the production Nyström solver in
 :mod:`orpheus.derivations.continuous.peierls.geometry`. Built from the same
-unified polar form documented in :doc:`/theory/peierls_unified` §4,
+unified polar form documented in :doc:`/theory/peierls_nystrom` §4,
 but uses :func:`mpmath.quad` (adaptive Gauss-Kronrod) and native
 arbitrary-precision special functions instead of fixed-order
 Gauss-Legendre + mpmath dps truncation.
@@ -98,7 +98,7 @@ def slab_kernel_point_to_point(
 
     At high dps this is the exact point-to-point infinite-medium slab
     kernel. The ``1/2`` factor emerges from the 2-D transverse
-    integration of the 3-D point kernel (§2 of peierls_unified).
+    integration of the 3-D point kernel (§2 of peierls_nystrom).
     """
     with mpmath.workdps(dps):
         tau = sig_t * abs(mpmath.mpf(x_i) - mpmath.mpf(x_j))

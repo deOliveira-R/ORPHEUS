@@ -65,7 +65,7 @@ References:
 
 2. **Multi-row list-tables.** RST `.. list-table::` with multi-line `* -` rows must collapse to single-line markdown rows. Multi-paragraph cells (with sub-bullets) must be flattened to a single cell with `<br>` or a `*notes*` style adjunct row.
 
-3. **Cross-doc references.** RST `:ref:\`some-anchor\`` and `:eq:\`label\`` cannot resolve in GitHub markdown. Convert to backticked anchor names with a sentence describing what they point to. Cite the file path explicitly: `\`docs/theory/peierls_unified.rst\` ≈ lines 5410–5476`.
+3. **Cross-doc references.** RST `:ref:\`some-anchor\`` and `:eq:\`label\`` cannot resolve in GitHub markdown. Convert to backticked anchor names with a sentence describing what they point to. Cite the file path explicitly: `\`docs/theory/peierls_nystrom.rst\` ≈ lines 5410–5476`.
 
 4. **Citation entries.** RST `[CitationKey] ...` reference blocks must be repeated as plain-text lines under "References:" — the GitHub viewer does not back-resolve them.
 

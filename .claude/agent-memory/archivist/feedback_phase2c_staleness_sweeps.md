@@ -4,7 +4,7 @@ description: Pattern for distributed staleness fixes + audit-table relocations a
 type: feedback
 ---
 
-Phase 2c (peierls_unified.rst, ~−536 LoC across 5 commits) was the small-cut counterpart to Phase 2a/2b. The pattern differs from large relocations:
+Phase 2c (peierls_nystrom.rst, ~−536 LoC across 5 commits) was the small-cut counterpart to Phase 2a/2b. The pattern differs from large relocations:
 
 **Why:** Earlier phases moved 100s-of-LoC contiguous failed-experiment narrative; Phase 2c was 12 small edits scattered across 9000 LoC, each <100 LoC. Repeating the 2a/2b commit-per-step cadence would produce noise. Group adjacent same-theme cuts (e.g. all "Phase B.X forward-looking framing" into one commit) — 5 commits for 12 sub-steps.
 
@@ -24,7 +24,7 @@ Phase 2c (peierls_unified.rst, ~−536 LoC across 5 commits) was the small-cut c
 4. **Orphan-citation trap when cutting MC / discipline-specific sub-subsections.** Cutting a sub-subsection sometimes orphans citations that were referenced ONLY from that sub-subsection. After the cut, run `sphinx-build -W` — orphaned `[CitationName]` will surface as `WARNING: Citation [X] is not referenced`. Resolution paths:
    - **Move citation to another section** that references the same topic (e.g. §22.3 MC sub-subsection cut → move [MartinBrown2003], [Leppanen2010] to §23 if §23 covers MC).
    - **Delete the citation entirely** if it's only relevant to the cut sub-subsection AND there's a sibling section that covers the topic with its own citations (§23 already had [Woodcock1965] etc., so deleting the orphans was clean).
-   - DO NOT introduce a new `[Sanchez1986]_` citation that doesn't exist in References — `grep -n "^\.\. \[Sanchez" docs/theory/peierls_unified.rst` to verify before adding any citation marker.
+   - DO NOT introduce a new `[Sanchez1986]_` citation that doesn't exist in References — `grep -n "^\.\. \[Sanchez" docs/theory/peierls_nystrom.rst` to verify before adding any citation marker.
 
 5. **Audit-table cut to issue-cross-link block.** §22.9 had a 17-row per-primitive landing table + commit-dependency narrative + (a)-(h) acceptance-criterion audit (~245 LoC). All four destination issues (#133/#134/#135/#136) already had verbatim copies in close-out comments. The Sphinx stub that replaces this should:
    - Name the recipes (`chord_quadrature`, `observer_angular_quadrature`, `surface_centred_angular_quadrature`) without enumerating per-primitive landing.
@@ -36,7 +36,7 @@ Phase 2c (peierls_unified.rst, ~−536 LoC across 5 commits) was the small-cut c
 
 7. **§seealso commit-hash trims.** Same pattern as §9 Phase 4.2: drop "(commits aaa → bbb → ccc)" parentheticals — git log is authoritative. Keep narrative pointers like "Phase B.4" (a phase name, not a hash); drop the actual hash trailer.
 
-8. **Anchor preservation guards (Phase 2c specific).** After every step, `grep -n "^\.\. _" docs/theory/peierls_unified.rst | grep <suspect>` to confirm anchor-bearing labels and section anchors all survive. The Phase 2c critical anchors were `theory-peierls-multigroup`, `peierls-rank-n-bc-closure-section`, `peierls-part-iii`, `section-22-7-visibility-cone`, `section-22-9-rollout-outcome`, plus all `:label:` equation labels in §§22.3/22.7/§29 (`peierls-tau-coordinate-transform`, `gauss-legendre-visibility-cone`, `peierls-davison-urho`).
+8. **Anchor preservation guards (Phase 2c specific).** After every step, `grep -n "^\.\. _" docs/theory/peierls_nystrom.rst | grep <suspect>` to confirm anchor-bearing labels and section anchors all survive. The Phase 2c critical anchors were `theory-peierls-multigroup`, `peierls-rank-n-bc-closure-section`, `peierls-part-iii`, `section-22-7-visibility-cone`, `section-22-9-rollout-outcome`, plus all `:label:` equation labels in §§22.3/22.7/§29 (`peierls-tau-coordinate-transform`, `gauss-legendre-visibility-cone`, `peierls-davison-urho`).
 
 **Quality scores (Phase 2c, 1-5 scale):**
 - Derivation depth: 4 — kept all teaching math (§22.3 Step 1/Step 2 derivation, §22.7 Bernstein-ellipse analysis, §29 continuous Marshak derivation).

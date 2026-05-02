@@ -109,7 +109,7 @@ either be run on faster hardware or use a >= 180 s/run budget.
    `test_f4_is_sign_stable_at_its_reference_quadrature` parametrize will
    then run instead of skip.
 2. Add the `:label: peierls-rank-n-stability` block to
-   `docs/theory/peierls_unified.rst` next to `peierls-rank-n-bc-closure`
+   `docs/theory/peierls_nystrom.rst` next to `peierls-rank-n-bc-closure`
    (marker-coverage gap flagged by the current `@pytest.mark.verifies`).
 3. Issue #121 (PCA falsification) is ready to close referencing this memo.
 4. Issue #123 itself stays open until (1) lands; the test file is already

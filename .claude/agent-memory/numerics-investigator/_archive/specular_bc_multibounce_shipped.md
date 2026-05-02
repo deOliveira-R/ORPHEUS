@@ -106,7 +106,7 @@ or `boundary="white_hebert"` (cyl rank-1, scalar Hébert).
   - `test_specular_multibounce_rank1_equals_hebert` (PASS)
   - `test_specular_multibounce_thin_sphere_lifts_plateau` (PASS)
   - `test_specular_multibounce_rejects_non_sphere` (PASS)
-- `docs/theory/peierls_unified.rst`:
+- `docs/theory/peierls_nystrom.rst`:
   - New "Multi-bounce-corrected specular for thin sphere" subsection
   - Class B closure table updated with `specular_multibounce` entry
   - Test list extended

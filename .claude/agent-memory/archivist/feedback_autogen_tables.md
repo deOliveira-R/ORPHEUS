@@ -50,7 +50,7 @@ A title or caption not found". Fix: wrap the content in a titled
 sub-section. Feedback_peierls_docs.md's title-underline code-point
 rule still applies.
 
-**Sphinx section marker depth in peierls_unified.rst (2026-04-23):**
+**Sphinx section marker depth in peierls_nystrom.rst (2026-04-23):**
 ``====`` = h1, ``----`` = h2, ``~~~~`` = h3, ``^^^^`` = h4. Skipping
 a level (e.g. inserting ``^^^^`` directly under ``----``) raises
 ERROR: Inconsistent title style: skip from level 3 to 5. Always match
