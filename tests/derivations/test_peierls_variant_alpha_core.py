@@ -145,6 +145,89 @@ def test_closure_matches_inlined_cylinder_formula():
 
 
 @pytest.mark.foundation
+def test_closure_alpha_per_period_default_matches_alpha():
+    """When ``alpha_per_period`` is omitted, the closure must produce
+    bit-equal output to passing ``alpha_per_period=alpha`` explicitly.
+
+    This pins the back-compatibility contract — sphere and cylinder
+    call sites do NOT pass ``alpha_per_period`` and must reproduce
+    their pre-extension behaviour (per-period reflection product =
+    :math:`\\alpha`, the BC reflectivity).
+    """
+    rng = np.random.default_rng(101)
+    for _ in range(15):
+        F = float(rng.uniform(0.1, 5.0))
+        B = float(rng.uniform(0.1, 5.0))
+        sigma_t = float(rng.uniform(0.1, 2.0))
+        L_back = float(rng.uniform(0.1, 5.0))
+        L_p = float(rng.uniform(0.1, 5.0))
+        alpha = float(rng.uniform(0.05, 1.0))
+
+        out_default = apply_variant_alpha_closure(
+            F=F, B=B,
+            tau_first_leg=sigma_t * L_back,
+            tau_period=sigma_t * L_p,
+            alpha=alpha,
+        )
+        out_explicit = apply_variant_alpha_closure(
+            F=F, B=B,
+            tau_first_leg=sigma_t * L_back,
+            tau_period=sigma_t * L_p,
+            alpha=alpha,
+            alpha_per_period=alpha,
+        )
+        assert out_default == out_explicit, (
+            f"Default alpha_per_period must equal alpha at "
+            f"alpha={alpha}: default={out_default}, "
+            f"explicit={out_explicit}"
+        )
+
+
+@pytest.mark.foundation
+def test_closure_alpha_per_period_alpha_squared_for_slab():
+    """Slab symmetric (2 bounces per period) call site must produce
+    :math:`\\psi_{\\rm new} = F + e^{-\\tau_0}\\,\\alpha\\,B / (1
+    - \\alpha^2 e^{-\\tau_p})` when called with
+    ``alpha_per_period=alpha**2``.
+
+    Verified by inlining the slab-specific formula and comparing to
+    the closure output across a sweep of :math:`(\\alpha, \\tau_0,
+    \\tau_p)` points.
+    """
+    rng = np.random.default_rng(202)
+    for _ in range(15):
+        F = float(rng.uniform(0.1, 5.0))
+        B = float(rng.uniform(0.1, 5.0))
+        sigma_t = float(rng.uniform(0.1, 2.0))
+        L_back = float(rng.uniform(0.1, 5.0))
+        L_p = float(rng.uniform(0.1, 5.0))
+        alpha = float(rng.uniform(0.05, 1.0))
+
+        # Inlined slab closure: leading α (single first surface
+        # arrival reflection), per-period reflection product α²
+        # inside the geometric resolvent (bounces alternate left/right
+        # walls for a full period of two transits).
+        denom = 1.0 - (alpha * alpha) * math.exp(-sigma_t * L_p)
+        psi_surf = alpha * B / denom
+        psi_new_inlined = F + math.exp(-sigma_t * L_back) * psi_surf
+
+        psi_new_unified = apply_variant_alpha_closure(
+            F=F, B=B,
+            tau_first_leg=sigma_t * L_back,
+            tau_period=sigma_t * L_p,
+            alpha=alpha,
+            alpha_per_period=alpha * alpha,
+        )
+
+        assert psi_new_unified == pytest.approx(
+            psi_new_inlined, rel=0.0, abs=1e-15,
+        ), (
+            f"Slab closure mismatch at alpha={alpha}: "
+            f"inlined={psi_new_inlined}, unified={psi_new_unified}"
+        )
+
+
+@pytest.mark.foundation
 def test_closure_vectorised_matches_scalar_loop():
     """Vectorised application produces identical results to a
     scalar-by-scalar loop.

@@ -80,23 +80,36 @@ from __future__ import annotations
 import numpy as np
 
 
-def compute_resolvent_T(alpha: float, tau_period: float) -> float:
+def compute_resolvent_T(
+    alpha_per_period: float, tau_period: float,
+) -> float:
     r"""Rank-1 boundary-to-boundary scattering resolvent.
 
     .. math::
 
-        T(\alpha, \tau_{\rm period}) \;=\; \frac{1}{1 - \alpha
+        T(\alpha_{\rm per\,period}, \tau_{\rm period}) \;=\;
+            \frac{1}{1 - \alpha_{\rm per\,period}
             \, e^{-\tau_{\rm period}}}.
 
     This is the rank-1 case of the operator resolvent :math:`T =
-    (I - S)^{-1}` with :math:`S = \alpha\,R_{\rm chord}` where
-    :math:`R_{\rm chord} = e^{-\tau_{\rm period}}` is the
-    chord-attenuation kernel along one bounce period.
+    (I - S)^{-1}` with :math:`S = \alpha_{\rm per\,period}\,R_{\rm chord}`
+    where :math:`R_{\rm chord} = e^{-\tau_{\rm period}}` is the chord-
+    attenuation kernel along one bounce period.
+
+    The first argument is the **per-period reflection product** —
+    the cumulative reflection amplitude accumulated by ONE FULL BOUNCE
+    PERIOD of the trajectory. For 1-bounce-per-period geometries
+    (sphere, cylinder) this is the BC reflectivity itself,
+    :math:`\alpha`. For 2-bounce-per-period geometries (slab symmetric
+    rank-1), one full period samples both walls so the reflection
+    product is :math:`\alpha^2` — see :func:`apply_variant_alpha_closure`
+    for the back-compatible call-site contract.
 
     Parameters
     ----------
-    alpha : float
-        Surface reflectivity in :math:`[0, 1]`.
+    alpha_per_period : float
+        Per-period reflection product. Must lie in :math:`[0, 1]`.
+        Sphere/cylinder: :math:`\alpha`. Slab symmetric: :math:`\alpha^2`.
     tau_period : float
         Optical depth :math:`\Sigma_t \cdot L_{\rm period}` of one
         bounce period along the trajectory. Geometry-specific:
@@ -104,17 +117,19 @@ def compute_resolvent_T(alpha: float, tau_period: float) -> float:
         - Sphere: :math:`\tau_{\rm period} = \Sigma_t \cdot 2 R \mu_{\rm surf}`
         - Cylinder: :math:`\tau_{\rm period} = \Sigma_t \cdot 2\sqrt{R^2
           - b^2} / \sqrt{1 - \mu_{\rm axial}^2}`
+        - Slab symmetric: :math:`\tau_{\rm period} = \Sigma_t \cdot 2L /
+          |\mu|` (full transit out + reverse transit back).
 
     Returns
     -------
     float
-        The resolvent :math:`T \ge 1`. At :math:`\alpha = 0` returns
-        :math:`1` (no boundary feedback). At :math:`\alpha = 1` and
-        small :math:`\tau_{\rm period}` diverges as :math:`1/\tau_{\rm
-        period}` (offset by :math:`B \to 0` in the calling closure —
-        see V_α1).
+        The resolvent :math:`T \ge 1`. At :math:`\alpha_{\rm per\,period}
+        = 0` returns :math:`1` (no boundary feedback). At unit per-
+        period reflection product and small :math:`\tau_{\rm period}`
+        diverges as :math:`1/\tau_{\rm period}` (offset by :math:`B \to
+        0` in the calling closure — see V_α1).
     """
-    return 1.0 / (1.0 - alpha * np.exp(-tau_period))
+    return 1.0 / (1.0 - alpha_per_period * np.exp(-tau_period))
 
 
 def apply_variant_alpha_closure(
@@ -123,6 +138,8 @@ def apply_variant_alpha_closure(
     tau_first_leg: float | np.ndarray,
     tau_period: float | np.ndarray,
     alpha: float,
+    *,
+    alpha_per_period: float | None = None,
 ) -> float | np.ndarray:
     r"""Variant α operator closure — combine first-leg and bounce-period
     integrals into the new angular flux.
@@ -132,12 +149,38 @@ def apply_variant_alpha_closure(
     .. math::
 
         \psi_{\rm new} \;=\; F + e^{-\tau_{\rm first\,leg}}\,
-            \alpha\,B\,T(\alpha, \tau_{\rm period}),
+            \alpha\,B\,T(\alpha_{\rm per\,period}, \tau_{\rm period}),
 
     where :math:`F`, :math:`B`, :math:`\tau_{\rm first\,leg}`, and
     :math:`\tau_{\rm period}` are computed by the calling geometry's
-    trajectory machinery, and :math:`T` is :func:`compute_resolvent_T`.
-    At :math:`\alpha = 0` the second term vanishes identically.
+    trajectory machinery, :math:`\alpha` is the per-bounce reflection
+    amplitude (the BC reflectivity, applied once for the FIRST surface
+    arrival), and :math:`T` is :func:`compute_resolvent_T` evaluated at
+    the **per-period reflection product** — the cumulative reflection
+    amplitude accumulated over ONE FULL BOUNCE PERIOD.
+
+    Per-period reflection product (:math:`\alpha_{\rm per\,period}`)
+    -----------------------------------------------------------------
+
+    The distinction between ``alpha`` and ``alpha_per_period``
+    formalises a structural difference between geometries:
+
+    - **Sphere / cylinder rank-1** — 1 bounce per period (one
+      reflection on the single closed surface per trajectory cycle).
+      Per-period reflection product :math:`= \alpha`. Defaults
+      reproduce existing behaviour at all sphere/cylinder call sites
+      (no kwarg needed).
+    - **Slab symmetric rank-1** — 2 bounces per period (one
+      reflection on each wall per trajectory cycle). Per-period
+      reflection product :math:`= \alpha^2`. Caller must pass
+      ``alpha_per_period=alpha**2``.
+
+    The leading factor :math:`\alpha` in :math:`\psi_{\rm surf} =
+    \alpha B T` is geometry-independent — it is the reflection
+    amplitude for the SINGLE first surface arrival (the bouncing
+    geometric series only kicks in *after* that first reflection,
+    and the resolvent :math:`T` carries the whole subsequent
+    geometric series).
 
     Vectorised over the inputs — pass arrays of identical shape and
     receive an array of the same shape.
@@ -160,7 +203,14 @@ def apply_variant_alpha_closure(
     tau_period : float or ndarray
         Optical depth of one full bounce period.
     alpha : float
-        Surface reflectivity in :math:`[0, 1]`.
+        Reflection amplitude for the FIRST surface arrival (i.e. the
+        BC reflectivity). Lies in :math:`[0, 1]`.
+    alpha_per_period : float, keyword-only, optional
+        Per-period reflection product feeding the geometric resolvent
+        :math:`T`. **Defaults to ``alpha``** for back-compatibility
+        with sphere/cylinder (1-bounce-per-period geometries). Slab
+        symmetric (2-bounce-per-period) callers must pass
+        ``alpha_per_period=alpha**2``.
 
     Returns
     -------
@@ -168,8 +218,10 @@ def apply_variant_alpha_closure(
         The new angular flux :math:`\psi_{\rm new}` with the same
         shape as the inputs.
     """
+    if alpha_per_period is None:
+        alpha_per_period = alpha
     if alpha == 0.0:
         return F
-    T = compute_resolvent_T(alpha, tau_period)
+    T = compute_resolvent_T(alpha_per_period, tau_period)
     psi_surf = alpha * B * T
     return F + np.exp(-tau_first_leg) * psi_surf
