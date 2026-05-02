@@ -31,12 +31,24 @@ Modules
   with rank-2 closure on the through-ray subset (:math:`b \\le R_{\\rm
   in}`) and rank-1 closure on the outer-only subset (:math:`b > R_{\\rm
   in}`). First curvilinear 2-surface instance of the rank-2 frame.
+- :mod:`.greens_function_annulus` — annulus (hollow cylinder) V_α
+  identities. Cylindrical analog of hollow sphere; rank-2 closure on
+  through-rays + rank-1 outer-only with the cylinder 3D angular
+  phase-space :math:`(r, \\mu_{\\rm axial}, \\varphi_{\\rm az})` and
+  axial-cosine corrected chord algebra (Issue #129 angle-resolved
+  discipline). Last 2-BC topology in the Variant α plan.
 """
 
 from .greens_function import (
     derive_T00_equals_P_ss_sphere,
     derive_alpha_zero_kernel_reduction,
     derive_operator_constant_trial_closed_sphere,
+)
+from .greens_function_annulus import (
+    derive_3d_chord_scaling_annulus,
+    derive_alpha_zero_kernel_reduction_annulus,
+    derive_operator_constant_trial_closed_annulus,
+    derive_rank2_resolvent_annulus,
 )
 from .greens_function_cylinder import (
     derive_T00_equals_P_ss_cylinder,
@@ -82,4 +94,10 @@ __all__ = [
     "derive_alpha_zero_kernel_reduction_hollow_sphere",
     "derive_operator_constant_trial_closed_hollow_sphere",
     "derive_rank2_resolvent_hollow_sphere",
+    # greens_function_annulus (rank-2 + impact-parameter partition,
+    # cylinder 3D angular phase-space)
+    "derive_3d_chord_scaling_annulus",
+    "derive_alpha_zero_kernel_reduction_annulus",
+    "derive_operator_constant_trial_closed_annulus",
+    "derive_rank2_resolvent_annulus",
 ]
