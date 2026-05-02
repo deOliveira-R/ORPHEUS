@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1378**
+Total tests collected: **1394**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 585, 42.5%
-   L1, 394, 28.6%
+   L0, 585, 42.0%
+   L1, 401, 28.8%
    L2, 36, 2.6%
    L3, 0, 0.0%
-   foundation, 352, 25.5%
+   foundation, 361, 25.9%
    unmarked, 11, 0.8%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1288
+   explicit, 1304
    verify, 0
    class-name, 46
    func-name, 0
@@ -73,6 +73,8 @@ Module × level grid
    derivations/test_peierls_cylinder_prefactor, 4, 0, 0, 0, 0, 0
    derivations/test_peierls_cylinder_white_bc, 4, 3, 0, 0, 4, 0
    derivations/test_peierls_geometry, 0, 0, 0, 0, 32, 0
+   derivations/test_peierls_greens_function_cylinder_solver, 0, 7, 0, 0, 0, 0
+   derivations/test_peierls_greens_function_cylinder_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_peierls_greens_function_garcia2021, 0, 0, 0, 0, 17, 0
    derivations/test_peierls_greens_function_mg, 0, 0, 0, 0, 7, 0
    derivations/test_peierls_greens_function_mr, 0, 0, 0, 0, 4, 0
@@ -255,6 +257,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``diffusion-trigonometric-branch``, 8
    ``dd-solve``, 7
    ``gauss-legendre-visibility-cone``, 7
+   ``peierls-greens-cylinder-architecture``, 7
    ``bar-psi``, 6
    ``boyd-eq-45``, 6
    ``characteristic-ode``, 6
@@ -320,7 +323,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **69** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **74** of the testable equations found on theory pages are orphan.
 
 - ``c-in-remapping``
 - ``e1-decomposition``
@@ -351,6 +354,11 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``peierls-greens-V-alpha-3``
 - ``peierls-greens-bounce-period-integral``
 - ``peierls-greens-bounce-sum-alpha``
+- ``peierls-greens-cylinder-T``
+- ``peierls-greens-cylinder-bounce-period``
+- ``peierls-greens-cylinder-impact-parameter``
+- ``peierls-greens-cylinder-in-plane-speed``
+- ``peierls-greens-cylinder-trajectory``
 - ``peierls-greens-defining-bvp``
 - ``peierls-greens-fixed-source-iteration``
 - ``peierls-greens-function-architecture``
