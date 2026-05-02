@@ -106,6 +106,7 @@ def fuelA_moderate_slab():
 
 @pytest.mark.l1
 @pytest.mark.verifies("peierls-greens-slab-asym-method-of-images")
+@pytest.mark.catches("ERR-034")
 def test_method_of_images_reflective_vacuum_equals_double_vacuum():
     r"""L1 — slab :math:`[0, L=1]` with :math:`\alpha_L=1, \alpha_R=0`
     ≡ slab :math:`[0, 2L=2]` with :math:`\alpha = 0` on both ends.
