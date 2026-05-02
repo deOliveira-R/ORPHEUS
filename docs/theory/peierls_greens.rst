@@ -2223,6 +2223,174 @@ Phase-3A and Phase-3B during Phase-3B integration. See ERR
 catalog entry in :file:`.claude/skills/vv-principles/error_catalog.md`.
 
 
+.. _peierls-greens-hollow-sph:
+
+Hollow sphere Variant α (Phase 3C-1, rank-2 + impact-parameter partition)
+==========================================================================
+
+.. todo:: Archivist expansion needed.
+
+   This section is a **method-implementer stub** — it states the
+   load-bearing equations, labels them for cross-reference, and
+   points to the SymPy module + tests. The full mathematical
+   narrative (worked impact-parameter partition derivation;
+   trajectory case analysis for sign-of-:math:`\mu` × b-vs-R_in
+   geometry; rank-2 closure on the curvilinear shell chord;
+   composability proof linking outer-only rank-1 to through-ray
+   rank-2 at the boundary :math:`b = R_{\rm in}`; method-of-images
+   discussion comparing hollow sphere to slab asymmetric;
+   cavity-absorber physical interpretation under interpretation
+   (A); roadmap to Phase 3C-2 annulus inheriting the same partition
+   on the cylinder side) is the archivist's deliverable.
+
+   Source artifacts:
+
+   - Branch-1 SymPy:
+     :mod:`orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function_hollow_sphere`
+     (V_α1_hollow_sph, V_α2_hollow_sph, V_α3_hollow_sph).
+   - Branch-2 production:
+     :mod:`orpheus.derivations.continuous.peierls_greens_function.greens_function_hollow_sphere`
+     (:func:`solve_greens_function_hollow_sphere`,
+     :func:`solve_greens_function_hollow_sphere_mg`).
+   - Symbolic test gate:
+     :file:`tests/derivations/test_peierls_greens_function_hollow_sphere_symbolic.py`
+     (18 foundation-tagged tests).
+   - Numerical L1 gates:
+     :file:`tests/derivations/test_peierls_greens_function_hollow_sphere_solver.py`
+     (11 L1-tagged tests including the load-bearing V_α1 closed-
+     shell composability check and the R_in → 0 solid-sphere
+     limit).
+   - Plan: :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md`.
+   - Closeout memo:
+     :file:`.claude/agent-memory/method-implementer/hollow_sphere_variant_alpha_phase3c1.md`.
+
+Phase-3C-1 hollow sphere Variant α extends the rank-2 BIE block
+resolvent (validated in Phase 3B for the asymmetric slab) to the
+first **curvilinear 2-surface topology**. Two new geometric features
+are introduced compared to slab:
+
+1. **Impact-parameter phase-space partition** — trajectories split
+   into outer-only (rank-1) and through-ray (rank-2) subsets.
+2. **Curvilinear shell-traversal chord** — the slab single-transit
+   :math:`L/|\mu|` is replaced by the shell-traversal length
+   :math:`\sqrt{R_{\rm out}^2 - b^2} - \sqrt{R_{\rm in}^2 - b^2}`.
+
+Impact-parameter phase-space partition
+---------------------------------------
+
+For an interior shell point :math:`(r, \mu)` with :math:`r \in [R_{
+\rm in}, R_{\rm out}]` and :math:`\mu \in [-1, 1]`, the impact
+parameter
+
+.. math::
+   :label: peierls-greens-hollow-sph-impact-parameter-partition
+
+   b(r, \mu) = r\sqrt{1 - \mu^2}
+
+is conserved along straight-line travel. The phase space splits at
+:math:`b = R_{\rm in}`:
+
+- :math:`b > R_{\rm in}` — **outer-only ray**. The trajectory line
+  does not intersect the inner sphere; the particle bounces between
+  two points on the OUTER surface only. Topologically rank-1,
+  structurally identical to a solid-sphere ray.
+- :math:`b \le R_{\rm in}` — **through-ray**. The trajectory line
+  crosses the inner cavity. Under interpretation (A) — the inner
+  surface is a specular reflector with reflectivity
+  :math:`\alpha_{\rm in}` — the particle bounces alternately between
+  the inner and outer surfaces. Topologically rank-2, structurally
+  identical to the asymmetric slab with curved chord algebra.
+
+Outer-only resolvent
+--------------------
+
+For :math:`b > R_{\rm in}`, the bounce-period chord on the outer
+sphere has length :math:`L_{\rm period}(b) = 2\sqrt{R_{\rm out}^2 -
+b^2}`, and the closure is the rank-1 form
+
+.. math::
+   :label: peierls-greens-hollow-sph-outer-only-resolvent
+
+   \psi_{\rm surf}(b) = \frac{\alpha_{\rm out}\,B(b; q)}
+                              {1 - \alpha_{\rm out}\,
+                               e^{-\Sigma_t\,L_{\rm period}(b)}},
+
+identical to the solid-sphere closure. The inner cavity is "invisible"
+to outer-only rays.
+
+Through-ray rank-2 resolvent
+----------------------------
+
+For :math:`b \le R_{\rm in}`, the surface state is the 2-vector
+:math:`[\psi_{\rm in}^{\rm out}(b, \mu), \psi_{\rm out}^{\rm in}(b,
+\mu)]` with **single-transit** (shell-traversal) optical depth
+
+.. math::
+
+   \tau_{\rm step}(b) = \Sigma_t \cdot \bigl(\sqrt{R_{\rm out}^2
+                                              - b^2}
+                                              - \sqrt{R_{\rm in}^2 - b^2}\bigr).
+
+The monodromy and resolvent have the same antidiagonal structure as
+the asymmetric slab (only :math:`\tau_{\rm step}`'s chord meaning
+differs):
+
+.. math::
+   :label: peierls-greens-hollow-sph-through-rank2
+
+   T(\alpha_{\rm in}, \alpha_{\rm out}, \tau_{\rm step})
+       = \frac{1}{1 - \alpha_{\rm in}\,\alpha_{\rm out}\,
+                     e^{-2\tau_{\rm step}}}
+         \begin{pmatrix}
+             1                                 & \alpha_{\rm in}\,
+                                                  e^{-\tau_{\rm step}} \\
+             \alpha_{\rm out}\,e^{-\tau_{\rm step}}    & 1
+         \end{pmatrix}.
+
+Architecture summary
+--------------------
+
+.. math::
+   :label: peierls-greens-hollow-sph-architecture
+
+   \psi(r, \mu) = F(r, \mu) + e^{-\Sigma_t\,L_{\rm first}(r, \mu)}
+                                \cdot \psi_{\rm surface}(r, \mu),
+
+where :math:`\psi_{\rm surface}` is determined by the phase-space
+partition: rank-1 outer-only closure for :math:`b > R_{\rm in}`,
+rank-2 closure for :math:`b \le R_{\rm in}` selecting
+:math:`\psi_{\rm in}^{\rm out}` for :math:`\mu > 0` (first arrival
+backward = inner surface) and :math:`\psi_{\rm out}^{\rm in}` for
+:math:`\mu < 0` (first arrival backward = outer surface).
+
+Verification status
+-------------------
+
+- **V_α1 closed-shell exactness** at :math:`\alpha_{\rm in} = \alpha_{
+  \rm out} = 1`: BOTH outer-only AND through-ray closures
+  independently produce :math:`\psi = q/\Sigma_t` for the closed-
+  shell eigenmode. Numerical: :math:`k_{\rm eff} = k_\infty` at
+  4e-16 in 1 iteration with uniform :math:`\phi` (machine precision).
+  This proves the impact-parameter partition composes cleanly with
+  the rank-2 closure — load-bearing structural composability check.
+- **R_in → 0 solid-sphere limit**: hollow with :math:`R_{\rm in} =
+  10^{-3} R_{\rm out}` and :math:`\alpha_{\rm in} = \alpha_{\rm out}
+  = 0` agrees with solid-sphere vacuum to ≤ 1e-9 relative (target
+  was 1e-3).
+- **Asymmetric reflective-inner / vacuum-outer** at
+  :math:`\alpha_{\rm in} = 1, \alpha_{\rm out} = 0`: physical sanity
+  — flux peaks near the reflective inner wall, monotone decay
+  toward outer.
+- **Cavity-absorber** at :math:`\alpha_{\rm in} = 0, \alpha_{\rm out}
+  = 1`: through-rays absorbed at inner; outer-only rays bounce
+  normally; flux peaks at outer.
+- **MG closed-shell** at :math:`\alpha_{\rm in} = \alpha_{\rm out}
+  = 1` with 2G asymmetric scattering: :math:`k_{\rm eff}` matches
+  :func:`kinf_homogeneous` to ≤ 1.5e-11 (ERR-002 anti-pattern
+  detector).
+- **Convergence floor** for reflective-inner / vacuum-outer: pin
+  achieved across (n_r, n_mu, n_traj_quad) ladder up to (48, 48, 96).
+
 Provenance: literature, code, and tests
 ========================================
 
