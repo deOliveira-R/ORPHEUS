@@ -2391,6 +2391,208 @@ Verification status
 - **Convergence floor** for reflective-inner / vacuum-outer: pin
   achieved across (n_r, n_mu, n_traj_quad) ladder up to (48, 48, 96).
 
+
+.. _peierls-greens-annulus:
+
+Annulus Variant α (Phase 3C-2, rank-2 + cylinder 3D angular phase-space)
+==========================================================================
+
+.. todo:: Archivist expansion needed.
+
+   This section is a **method-implementer stub** — it states the
+   load-bearing equations, labels them for cross-reference, and
+   points to the SymPy module + tests. The full mathematical
+   narrative (worked impact-parameter partition derivation on the
+   cylinder cross-section; trajectory case analysis for sign-of-
+   :math:`\cos\varphi_{\rm az}` × b-vs-R_in geometry; rank-2 closure
+   on the curvilinear shell chord lifted to 3D arclength via
+   :math:`1/\sqrt{1 - \mu_{\rm axial}^2}`; composability proof
+   linking outer-only rank-1 to through-ray rank-2 at the boundary
+   :math:`b = R_{\rm in}`; comparison to Phase-3C-1 hollow sphere
+   showing the closure operator is byte-equal-shared while only
+   the chord meaning acquires the cylinder axial correction;
+   roadmap discussion of the now-complete 6-geometry × 2-topology
+   family on the unified rank-1/rank-2 framework via
+   :mod:`.variant_alpha_core`) is the archivist's deliverable.
+
+   Source artifacts:
+
+   - Branch-1 SymPy:
+     :mod:`orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function_annulus`
+     (V_α1_annulus, V_α2_annulus, V_α2_annulus.aux,
+     V_α3_annulus).
+   - Branch-2 production:
+     :mod:`orpheus.derivations.continuous.peierls_greens_function.greens_function_annulus`
+     (:func:`solve_greens_function_annulus`,
+     :func:`solve_greens_function_annulus_mg`).
+   - Symbolic test gate:
+     :file:`tests/derivations/test_peierls_greens_function_annulus_symbolic.py`
+     (22 foundation-tagged tests).
+   - Numerical L1 gates:
+     :file:`tests/derivations/test_peierls_greens_function_annulus_solver.py`
+     (11 L1-tagged tests including the load-bearing V_α1 closed-
+     annulus composability check, the R_in → 0 solid-cylinder limit
+     reduction, and the research-grade convergence floor).
+   - Plan: :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md`.
+   - Closeout memo:
+     :file:`.claude/agent-memory/method-implementer/annulus_variant_alpha_phase3c2.md`.
+
+Phase-3C-2 annulus Variant α extends the rank-2 BIE block resolvent
+(validated in Phase 3B for asymmetric slab; lifted to curvilinear
+2-surface in Phase 3C-1 for hollow sphere) to the **cylindrical
+analog of the hollow sphere**. The closure operator is **byte-equal-
+shared** with hollow sphere — only the chord meaning differs:
+
+1. **Phase-space change**: cylinder uses
+   :math:`(r, \mu_{\rm axial}, \varphi_{\rm az})` instead of
+   sphere's :math:`(r, \mu)`. Conserved invariants under specular
+   reflection at radial-normal cylinder surfaces are
+   :math:`\mu_{\rm axial}` (axial cosine — the bounce point's mirror
+   plane is perpendicular to the cylinder axis) and :math:`b =
+   r\,|\sin\varphi_{\rm az}|` (in-plane impact parameter — preserved
+   across all bounces).
+
+2. **3D chord scaling lift**: the cylinder 2D in-plane shell chord
+   is lifted to 3D arclength by the **axial-correction factor**
+   :math:`1/\sqrt{1 - \mu_{\rm axial}^2}`. Per Issue #129, the
+   cylinder Bickley-Naylor :math:`\mathrm{Ki}_n` form pre-integrates
+   axial and produces ~22 % planar-limit mismatch — Variant α
+   stays angle-resolved to avoid this.
+
+Impact-parameter phase-space partition
+---------------------------------------
+
+For each interior phase-space point :math:`(r, \mu_{\rm axial},
+\varphi_{\rm az})` with :math:`r \in [R_{\rm in}, R_{\rm out}]`,
+the conserved in-plane impact parameter
+
+.. math::
+   :label: peierls-greens-annulus-impact-parameter-partition
+
+   b(r, \varphi_{\rm az}) = r\,|\sin\varphi_{\rm az}|
+
+partitions phase-space at :math:`b = R_{\rm in}`:
+
+- :math:`b > R_{\rm in}` — **outer-only ray**. The 2D in-plane
+  projection ray does NOT intersect the inner-radius circle; the
+  particle bounces between two points on the OUTER cylinder only.
+  Topologically rank-1, structurally identical to a solid-cylinder
+  ray at the same outer radius and impact parameter.
+- :math:`b \le R_{\rm in}` — **through-ray**. The 2D in-plane ray
+  crosses the inner cavity. Under interpretation (A) — the inner
+  surface is a specular reflector with reflectivity
+  :math:`\alpha_{\rm in}` — the particle bounces alternately inner
+  ↔ outer. Topologically rank-2.
+
+3D chord scaling identity
+-------------------------
+
+The annulus 3D shell-traversal chord and the hollow-sphere shell
+chord are related by the cylinder axial-correction factor:
+
+.. math::
+   :label: peierls-greens-annulus-3d-chord-scaling
+
+   \tau_{\rm step}^{\rm annulus}(b, \mu_{\rm axial})
+        = \frac{\tau_{\rm step}^{\rm hollow\,sph}(b)}
+               {\sqrt{1 - \mu_{\rm axial}^2}}
+        = \Sigma_t \cdot
+          \frac{\sqrt{R_{\rm out}^2 - b^2} - \sqrt{R_{\rm in}^2 - b^2}}
+               {\sqrt{1 - \mu_{\rm axial}^2}}.
+
+Same lift applies to the outer-only branch's bounce-period chord
+:math:`L_{\rm period}^{\rm 3D, annulus} = 2\sqrt{R_{\rm out}^2 -
+b^2} / \sqrt{1 - \mu_{\rm axial}^2}` (the cylinder Phase-1 identity
+:func:`derive_bounce_period_chord_cylinder` at the annulus outer
+surface).
+
+Through-ray rank-2 resolvent
+----------------------------
+
+For :math:`b \le R_{\rm in}`, the surface state is the 2-vector
+:math:`[\psi_{\rm in}^{\rm out}(b, \mu_{\rm axial}),
+\psi_{\rm out}^{\rm in}(b, \mu_{\rm axial})]` and the rank-2
+resolvent has the **same antidiagonal monodromy structure** as
+hollow sphere and asymmetric slab:
+
+.. math::
+   :label: peierls-greens-annulus-through-rank2
+
+   T(\alpha_{\rm in}, \alpha_{\rm out}, \tau_{\rm step})
+       = \frac{1}{1 - \alpha_{\rm in}\,\alpha_{\rm out}\,
+                     e^{-2\tau_{\rm step}}}
+         \begin{pmatrix}
+             1                                   & \alpha_{\rm in}\,
+                                                    e^{-\tau_{\rm step}} \\
+             \alpha_{\rm out}\,e^{-\tau_{\rm step}}      & 1
+         \end{pmatrix},
+
+with :math:`\tau_{\rm step}` given by Eq.
+:eq:`peierls-greens-annulus-3d-chord-scaling`. The closure operator
+is **byte-equal-shared** with hollow sphere via
+:func:`compute_resolvent_T_rank2` and
+:func:`apply_variant_alpha_closure_rank2` in
+:mod:`.variant_alpha_core` — the annulus prototype's only new code
+is the cylinder-specific chord arithmetic.
+
+Architecture summary
+--------------------
+
+.. math::
+   :label: peierls-greens-annulus-architecture
+
+   \psi(r, \mu_{\rm axial}, \varphi_{\rm az}) =
+       F(r, \mu_{\rm axial}, \varphi_{\rm az}) +
+       e^{-\Sigma_t\,L_{\rm first}^{\rm 3D}(r, \mu_{\rm axial},
+                                                  \varphi_{\rm az})}
+       \cdot \psi_{\rm surface}(r, \mu_{\rm axial}, \varphi_{\rm az}),
+
+where :math:`\psi_{\rm surface}` is determined by the phase-space
+partition: rank-1 outer-only closure for :math:`b > R_{\rm in}`,
+rank-2 closure for :math:`b \le R_{\rm in}` selecting
+:math:`\psi_{\rm in}^{\rm out}` for :math:`\cos\varphi_{\rm az} > 0`
+(first arrival backward = inner surface) and
+:math:`\psi_{\rm out}^{\rm in}` for :math:`\cos\varphi_{\rm az} \le 0`
+(first arrival backward = outer surface).
+
+Verification status
+-------------------
+
+- **V_α1 closed-annulus exactness** at :math:`\alpha_{\rm in} =
+  \alpha_{\rm out} = 1`: BOTH outer-only AND through-ray closures
+  independently produce :math:`\psi = q/\Sigma_t` for the closed-
+  annulus eigenmode. Numerical: :math:`k_{\rm eff} = k_\infty` at
+  9.3e-16 in 1 iteration with uniform :math:`\phi` (machine
+  precision). This proves the impact-parameter partition + cylinder
+  axial-correction lift compose cleanly with the rank-2 closure.
+- **R_in → 0 solid-cylinder limit**: annulus with :math:`R_{\rm in}
+  = 10^{-3} R_{\rm out}` and :math:`\alpha_{\rm in} = \alpha_{\rm
+  out} = 0` agrees with the Phase-1 solid-cylinder vacuum reference
+  to 3.7e-6 relative (target was 1e-3).
+- **Asymmetric reflective-inner / vacuum-outer** at
+  :math:`\alpha_{\rm in} = 1, \alpha_{\rm out} = 0`: physical sanity
+  — flux peaks near the reflective inner wall (ratio inner/outer ≈
+  2.62 at moderate shell thickness).
+- **Cavity-absorber** at :math:`\alpha_{\rm in} = 0, \alpha_{\rm
+  out} = 1`: through-rays absorbed at inner; outer-only rays bounce
+  normally; flux peaks at outer (ratio outer/inner ≈ 2.27).
+- **MG closed-annulus** at :math:`\alpha_{\rm in} = \alpha_{\rm
+  out} = 1` with 2G asymmetric scattering: :math:`k_{\rm eff}`
+  matches :func:`kinf_homogeneous` to ≤ 1.5e-11 (ERR-002 anti-
+  pattern detector).
+- **Convergence floor** for reflective-inner / vacuum-outer:
+  finest pair :math:`\Delta_{\rm rel} \approx 1.75 \times 10^{-4}`
+  at :math:`(n_r, n_{\mu_{\rm axial}}, n_{\varphi_{\rm az}},
+  n_{\rm traj}) = (24, 24, 32, 48)`.
+
+The Phase-3 family is **complete** with this prototype: sphere
+(Phase 1), cylinder (Phase 1), slab (Phase 3A → ERR-035 fix
+delegating to rank-2), slab asymmetric (Phase 3B), hollow sphere
+(Phase 3C-1), annulus (Phase 3C-2). Six geometries on two
+topologies (1-surface compact + 2-surface) all on the unified
+rank-1 / rank-2 framework via :mod:`.variant_alpha_core`.
+
+
 Provenance: literature, code, and tests
 ========================================
 
