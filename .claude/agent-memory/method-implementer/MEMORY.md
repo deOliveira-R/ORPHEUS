@@ -1,0 +1,1 @@
+- [Origin context](origin_context.md) — Why this agent exists; the A1+A2 case study from `feature/peierls-greens-function` (commits `4754993..6a61ed8`) and what minted on 2026-05-02.

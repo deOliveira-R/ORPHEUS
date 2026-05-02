@@ -86,15 +86,16 @@ list includes `subagent-handoff-protocol` (THIS skill) can themselves
 emit `DISPATCH_REQUEST` blocks; sub-agents without it must complete
 in one shot or return to the user.
 
-| Agent                     | Proactively invoke when                          | Preloaded skills                                                                                                            |
-| ------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| **explorer**              | Understanding code, tracing dependencies         | `nexus-exploring`, `nexus-guide`                                                                                            |
-| **archivist**             | Writing/reviewing Sphinx docs                    | `nexus-verification`, `nexus-exploring`, `vv-principles`, `subagent-handoff-protocol`                                       |
-| **qa**                    | Reviewing code, validating claims                | `nexus-verification`, `nexus-impact`, `nexus-debugging`, `vv-principles`, `numerical-bug-signatures`, `subagent-handoff-protocol` |
-| **numerics-investigator** | Solver gives wrong answers                       | `nexus-debugging`, `nexus-impact`, `probe-cascade`, `vv-principles`, `numerical-bug-signatures`, `subagent-handoff-protocol` |
-| **literature-researcher** | Need equations from papers / external references | `research`, `subagent-handoff-protocol`                                                                                     |
-| **test-architect**        | Planning verification BEFORE implementation      | `nexus-verification`, `nexus-impact`, `vv-principles`, `numerical-bug-signatures`, `subagent-handoff-protocol`              |
-| **cross-domain-attacker** | Detecting structural patterns                    | `cross-domain-frames`, `subagent-handoff-protocol`                                                                          |
+| Agent                     | Proactively invoke when                                                       | Preloaded skills                                                                                                            |
+| ------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **explorer**              | Understanding code, tracing dependencies                                      | `nexus-exploring`, `nexus-guide`                                                                                            |
+| **archivist**             | Writing/reviewing Sphinx docs                                                 | `nexus-verification`, `nexus-exploring`, `vv-principles`, `subagent-handoff-protocol`, `algebra-of-record`                  |
+| **qa**                    | Reviewing code, validating claims                                             | `nexus-verification`, `nexus-impact`, `nexus-debugging`, `vv-principles`, `numerical-bug-signatures`, `subagent-handoff-protocol` |
+| **numerics-investigator** | Solver gives wrong answers                                                    | `nexus-debugging`, `nexus-impact`, `probe-cascade`, `vv-principles`, `numerical-bug-signatures`, `subagent-handoff-protocol` |
+| **literature-researcher** | Need equations from papers / external references                              | `research`, `subagent-handoff-protocol`                                                                                     |
+| **test-architect**        | Planning verification BEFORE implementation                                   | `nexus-verification`, `nexus-impact`, `vv-principles`, `numerical-bug-signatures`, `subagent-handoff-protocol`, `algebra-of-record` |
+| **cross-domain-attacker** | Detecting structural patterns                                                 | `cross-domain-frames`, `subagent-handoff-protocol`                                                                          |
+| **method-implementer**    | Building a new verified prototype from a published mathematical formulation   | `vv-principles`, `numerical-bug-signatures`, `cross-domain-frames`, `algebra-of-record`, `subagent-handoff-protocol`        |
 
 (The `subagent-handoff-protocol` entry on each row is the target
 state after rollout — existing AGENT.md frontmatter may not yet list
@@ -115,6 +116,10 @@ that makes nested-coordination requests work for every agent.)
   system-under-test** → `test-architect`
 - **Sense that the formulation might not match the problem's native
   mathematical structure** → `cross-domain-attacker`
+- **Building a new verified prototype solver from a published
+  mathematical formulation** (math-to-verified-code constructor —
+  bifurcates Branch 1 / Branch 2 per `algebra-of-record`, ships an L1
+  cross-check + Sphinx stub) → `method-implementer`
 - **Anything else / general** → `general-purpose`
 
 If you can't find a clean match, prefer `general-purpose` with a very
