@@ -23,6 +23,7 @@ mcpServers:
 skills:
   - cross-domain-frames
   - nexus-exploring
+  - subagent-handoff-protocol
 memory: project
 model: opus
 ---

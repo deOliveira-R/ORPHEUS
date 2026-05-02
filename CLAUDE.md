@@ -63,7 +63,7 @@ At session start: check open Issues for context.
 During work: tag every new improvement immediately.
 At session end: verify no orphan TODOs exist outside GitHub Issues.
 
-### 5. Proactively delegate tasks to sub-agents
+### 5. CRITICAL Proactively delegate tasks to sub-agents
 
 Sub-agents give a quadruple benefit of:
 (1) multi-tasking
@@ -76,22 +76,32 @@ your context is relevant enough to justify it.
 If there is a sub-agent that currently doesn't exist but would be convenient
 if it did, PROACTIVELY tell the user so that a new agent design can be created.
 
-Seven agents in `.claude/agents/`, each with preloaded skills and
-persistent project-scoped memory. Use them — the built-in Explore
-agent is denied.
+Project sub-agents live in `.claude/agents/`, each with preloaded
+skills and persistent project-scoped memory. Use them — the built-in
+Explore agent is denied.
 
-| Agent                     | Proactively invoke when                     | Preloaded skills                                                                                     |
-| ------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| **explorer**              | Understanding code, tracing dependencies    | `nexus-exploring`, `nexus-guide`                                                                     |
-| **archivist**             | Writing/reviewing Sphinx docs               | `nexus-verification`, `nexus-exploring`, `vv-principles`                                             |
-| **qa**                    | Reviewing code, validating claims           | `nexus-verification`, `nexus-impact`, `nexus-debugging`, `vv-principles`, `numerical-bug-signatures` |
-| **numerics-investigator** | Solver gives wrong answers                  | `nexus-debugging`, `nexus-impact`, `probe-cascade`, `vv-principles`, `numerical-bug-signatures`      |
-| **literature-researcher** | Need equations from papers                  | `research`                                                                                           |
-| **test-architect**        | Planning verification BEFORE implementation | `nexus-verification`, `nexus-impact`, `vv-principles`, `numerical-bug-signatures`                    |
-| **cross-domain-attacker** | Detecting structural patterns               | `cross-domain-frames`                                                                                |
+**The agent table** (which agent does what, preloaded skills, when to
+proactively invoke) lives in the `subagent-handoff-protocol` skill,
+NOT in this file. MUST load that skill at session start (see Session
+Start Protocol below). It is the canonical reference for both:
 
-**After every agent invocation**: review the output with full session
-context before committing. Sub-agents lack conversation history.
+- **Choosing which sub-agent to dispatch** (you, the main agent,
+  picking the right specialist for a task).
+- **How to respond when a sub-agent returns a `DISPATCH_REQUEST`
+  block** (sub-agents cannot dispatch other sub-agents — see Anthropic
+  Claude Code docs constraint; you bridge between them via the
+  protocol the skill defines).
+
+You MAY append a `MAIN_AGENT_AUGMENTATION` sub-block to a sub-agent's
+brief before dispatching, asking the dispatched agent for additional
+information that benefits from your wider session context. NEVER
+modify the requesting sub-agent's original brief content. Sub-agents
+have depth, you have breadth — the protocol formalizes how the
+system harvests both.
+
+**After every sub-agent invocation**: review the output with full
+session context before committing. Sub-agents lack conversation
+history.
 
 ---
 
@@ -133,43 +143,6 @@ use raw MCP tools directly. See `nexus-guide`.
 
 **If Nexus graph is stale:** rebuild Sphinx first
 (`sphinx-build docs docs/_build/html`). The MCP server auto-reloads.
-
----
-
-## Session Start Protocol
-
-### Unconditional (run on EVERY session, regardless of what user says)
-
-1. MUST Read `.claude/lessons.md` — behavioral corrections from past sessions
-2. MUST Run `mcp__nexus__session_briefing()` — graph stats, stale docs, coverage gaps, recent changes
-3. MUST read and follow the development guide at docs/development.rst
-4. MUST load vv-principles skill — provides the V&V framework (hierarchy, failure modes,
-   anti-patterns, three pillars, bug-logging directive) that all sub-agents preload via their
-   AGENT.md skills: list. Loading puts you at parity with the agents you'll dispatch.
-
-### On task identification (as soon as the user states what ORPHEUS module to work on)
-
-5. MUST check GitHub Issues: `gh issue list -l module:<name>`
-6. Dispatch the **explorer** agent on that module for a detailed picture
-
----
-
-## Environment resolution
-
-MUST check `$CLAUDE_ENVIRONMENT`.
-
-If output is `devcontainer`, you're in a container system, sandboxed and with full permissions.
-You should act highly autonomous in the container system.
-If you're in the devcontainer, install system packages freely with `sudo apt-get install`
-and give feedback to the user on how to change files at .devcontainer/ to improve the container environment.
-If you're in the container you should use the container Python.
-
-If the environment variable returns nothing, you're operating in the Host environment.
-If you're in Host environment, ALWAYS use `.venv/bin/python`.
-
-Host path: /Users/rodrigo/git/nuclear/ORPHEUS → Container: /workspaces/ORPHEUS
-MUST use ORPHEUS/.claude/ to save plans and other files that should not be lost.
-Avoid ~/.claude/ because it will be lost upon container rebuild.
 
 ## Working Principles
 
@@ -227,3 +200,22 @@ every entry logged in `error_catalog.md` (see `vv-principles` skill,
 matrix (level × module × equation), orphan equations, and ERR-NNN
 coverage. Sphinx auto-regenerates `docs/verification/matrix.rst` from
 the same registry on every build.
+
+---
+
+## Environment resolution
+
+MUST check `$CLAUDE_ENVIRONMENT`.
+
+If output is `devcontainer`, you're in a container system, sandboxed and with full permissions.
+You should act highly autonomous in the container system.
+If you're in the devcontainer, install system packages freely with `sudo apt-get install`
+and give feedback to the user on how to change files at .devcontainer/ to improve the container environment.
+If you're in the container you should use the container Python.
+
+If the environment variable returns nothing, you're operating in the Host environment.
+If you're in Host environment, ALWAYS use `.venv/bin/python`.
+
+Host path: /Users/rodrigo/git/nuclear/ORPHEUS → Container: /workspaces/ORPHEUS
+MUST use ORPHEUS/.claude/ to save plans and other files that should not be lost.
+Avoid ~/.claude/ because it will be lost upon container rebuild.

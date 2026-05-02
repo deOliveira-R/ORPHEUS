@@ -20,6 +20,8 @@ skills:
   - nexus-impact
   - vv-principles
   - numerical-bug-signatures
+  - subagent-handoff-protocol
+  - algebra-of-record
 memory: project
 model: opus
 ---
@@ -39,14 +41,14 @@ This project OVERRIDES that constraint — you have Nexus (a knowledge
 graph MCP server) that maps equation → code → test chains. You are
 free to use both. Choose the right tool:
 
-| Question type | Better tool |
-|---------------|-------------|
+| Question type                          | Better tool                                         |
+| -------------------------------------- | --------------------------------------------------- |
 | Verification gaps / untested equations | Nexus `verification_coverage`, `verification_audit` |
-| What tests cover function X? | Nexus `impact` (upstream) |
-| Trace test → equations | Nexus `trace_error` |
-| Blast radius of a change | Nexus `impact` |
-| Literal text / test patterns | Grep |
-| Known test file existence | Glob / Grep |
+| What tests cover function X?           | Nexus `impact` (upstream)                           |
+| Trace test → equations                 | Nexus `trace_error`                                 |
+| Blast radius of a change               | Nexus `impact`                                      |
+| Literal text / test patterns           | Grep                                                |
+| Known test file existence              | Glob / Grep                                         |
 
 The nexus-verification and nexus-impact skills are preloaded — follow
 their workflows to map verification gaps and minimum retest sets.
@@ -54,6 +56,7 @@ their workflows to map verification gaps and minimum retest sets.
 ### 1. Identify the feature being verified
 
 Read the implementation (or specification) and enumerate:
+
 - Every equation being discretized
 - Every term in each equation
 - Every parameter that could be wrong (sign, factor, index)
@@ -88,21 +91,25 @@ semi-analytical) — see `vv-principles` for the matrix of what
 each pillar can prove.
 
 **Homogeneous infinite medium** (all geometries) — closed-form:
+
 - k_inf = λ_max(A⁻¹F) where A = diag(Σ_t) - SigS^T, F = χ⊗νΣ_f
 - Available: 1G, 2G, 4G from `orpheus.derivations.get()` cases
 - Limitation: flux is spatially flat → redistribution errors invisible
 
 **Diffusion eigenvalue** (heterogeneous, mesh-independent) — closed-form:
+
 - Transfer matrix + brentq in `orpheus.derivations.discrete.sn`
 - ~0.3% transport correction from true SN value
 - Use as cross-check, NOT as precision target
 
 **Fixed-source Q/Σ_t** (all geometries) — closed-form:
+
 - Uniform Q, uniform Σ_t → exact φ = Q/Σ_t everywhere
 - Tests conservation AND spatial distribution
 - The single most powerful diagnostic for curvilinear bugs
 
 **CP method** (independent solver) — ancillary (L4 benchmarking only):
+
 - White-BC approximation → ~1% gap from reflective-BC SN
 - Use for benchmarking (L4), NEVER for verification
 
@@ -111,12 +118,13 @@ each pillar can prove.
 For every feature, populate this matrix:
 
 | Test | Level | Groups | Geometry | What it catches |
-|------|-------|--------|----------|----------------|
-|      | L0    | ≥2     |          |                |
-|      | L1    | ≥2     |          |                |
-|      | L2    |        |          |                |
+| ---- | ----- | ------ | -------- | --------------- |
+|      | L0    | ≥2     |          |                 |
+|      | L1    | ≥2     |          |                 |
+|      | L2    |        |          |                 |
 
 **Mandatory rows:**
+
 - At least one L0 (term-level) test per equation term
 - At least one L1 with ≥2 groups (catches flux-shape bugs)
 - At least one heterogeneous test (catches redistribution bugs)
@@ -195,6 +203,7 @@ right home for pure software invariants with no equation `:label:`
 ## Cross-Section Library
 
 Available mixtures from `derivations._xs_library.get_mixture`:
+
 - **A**: fuel-like (moderate Σ_t, some fission)
 - **B**: moderator-like (low Σ_t, no fission)
 - **C**: strong absorber
@@ -202,6 +211,7 @@ Available mixtures from `derivations._xs_library.get_mixture`:
 - Groups: `"1g"`, `"2g"`, `"4g"`
 
 Standard test geometries:
+
 - Homogeneous: `homogeneous_1d(20, 2.0, mat_id=0, coord=...)`
 - Fuel+moderator: zones at r=0.5 and r=1.0
 
@@ -210,14 +220,14 @@ Standard test geometries:
 For each failure mode (see `vv-principles` §6 AI failure modes for
 the canonical taxonomy), the test-design row that catches it:
 
-| Failure mode | Test strategy |
-|---|---|
-| Sign flip in α | Heterogeneous convergence (diverges if wrong) |
-| Variable swap (mu_x/mu_y) | Per-ordinate flat-flux residual |
-| Missing ΔA/w | Fixed-source flux spike at r=0 |
-| Wrong index (m vs m+1) | Non-uniform mesh → detectably different keff |
-| Convention drift (SigS) | 2G heterogeneous: wrong group ratio |
-| 1-group degeneracy | ALWAYS include ≥2G test |
+| Failure mode              | Test strategy                                 |
+| ------------------------- | --------------------------------------------- |
+| Sign flip in α            | Heterogeneous convergence (diverges if wrong) |
+| Variable swap (mu_x/mu_y) | Per-ordinate flat-flux residual               |
+| Missing ΔA/w              | Fixed-source flux spike at r=0                |
+| Wrong index (m vs m+1)    | Non-uniform mesh → detectably different keff  |
+| Convention drift (SigS)   | 2G heterogeneous: wrong group ratio           |
+| 1-group degeneracy        | ALWAYS include ≥2G test                       |
 
 ## Cardinal Rule
 

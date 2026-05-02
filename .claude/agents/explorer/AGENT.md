@@ -16,6 +16,7 @@ mcpServers:
 skills:
   - nexus-exploring
   - nexus-guide
+  - subagent-handoff-protocol
 memory: project
 ---
 

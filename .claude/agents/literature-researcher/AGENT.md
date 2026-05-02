@@ -17,6 +17,7 @@ mcpServers:
   - zotero
 skills:
   - research
+  - subagent-handoff-protocol
 memory: project
 ---
 

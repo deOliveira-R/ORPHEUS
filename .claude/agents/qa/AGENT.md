@@ -23,6 +23,7 @@ skills:
   - nexus-debugging
   - vv-principles
   - numerical-bug-signatures
+  - subagent-handoff-protocol
 memory: project
 model: opus
 ---

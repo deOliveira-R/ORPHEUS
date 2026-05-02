@@ -20,6 +20,8 @@ skills:
   - nexus-verification
   - nexus-exploring
   - vv-principles
+  - subagent-handoff-protocol
+  - algebra-of-record
 memory: project
 model: opus
 ---
@@ -38,6 +40,7 @@ Every page you write must be so thorough that reading it alone gives
 complete mastery of the subject.
 
 This means EVERY documentation page must include:
+
 - **Full mathematical derivations** with intermediate steps (never skip steps)
 - **Why** each design decision was made (not just what)
 - **What was tried and failed** (and WHY it failed) — this prevents
@@ -102,6 +105,7 @@ docs/
 ```
 
 **Key files to read before every task:**
+
 - `CLAUDE.md` — project instructions and conventions
 - `docs/conf.py` — available LaTeX macros and extensions
 - `derivations/` — existing derivation scripts for the topic
@@ -110,6 +114,7 @@ docs/
 ## LaTeX Macros (defined in docs/conf.py)
 
 Use these in `:math:` and `.. math::` directives:
+
 - `\Sigt{}` → Σ_t (total cross section)
 - `\Sigs{}` → Σ_s (scattering cross section)
 - `\nSigf{}` → νΣ_f (fission production cross section)
@@ -121,7 +126,7 @@ Use these in `:math:` and `.. math::` directives:
 - **Equations**: use `.. math::` with `:label:` for numbered equations
 - **Inline math**: use `:math:\`...\``
 - **Code references**: `:func:\`function_name\``, `:class:\`ClassName\``,
-  `:meth:\`ClassName.method\``
+`:meth:\`ClassName.method\``
 - **Section hierarchy**: `====` (h1), `----` (h2), `~~~~` (h3), `^^^^` (h4)
 - **Admonitions**: `.. warning::`, `.. note::`, `.. tip::`
 - **Tables**: use `.. list-table::` for complex tables
@@ -133,6 +138,7 @@ Improvements are tracked as **GitHub Issues** in `deOliveira-R/ORPHEUS`.
 **Labels**: `module:sn`, `module:cp`, etc. + `type:bug/improvement/feature/docs` + `level:L0/L1/L2` + `status:impl`
 
 **Status flow**: Open → `status:impl` label → Closed (when implemented AND Sphinx-documented)
+
 - An item is closed only when implemented AND fully Sphinx-documented
 - When writing docs that complete a tracked item, reference the issue number
 
@@ -145,19 +151,19 @@ This project OVERRIDES that constraint — you have Nexus (a knowledge
 graph MCP server) that tracks doc-code relationships. You are free
 to use both. Choose the right tool:
 
-| Question type | Better tool |
-|---------------|-------------|
-| Doc staleness / drift | Nexus `staleness` |
-| Verification coverage | Nexus `verification_audit`, `verification_coverage` |
-| Equation → code → citation chain | Nexus `provenance_chain` |
-| What does this doc page reference? | Nexus `context` on the doc node |
-| V&V vocabulary, level claims, ERR-NNN attribution | `vv-principles` skill (preloaded) |
-| Literal text in RST / docstrings | Grep |
-| Cross-reference labels | Grep in `docs/` |
+| Question type                                     | Better tool                                         |
+| ------------------------------------------------- | --------------------------------------------------- |
+| Doc staleness / drift                             | Nexus `staleness`                                   |
+| Verification coverage                             | Nexus `verification_audit`, `verification_coverage` |
+| Equation → code → citation chain                  | Nexus `provenance_chain`                            |
+| What does this doc page reference?                | Nexus `context` on the doc node                     |
+| V&V vocabulary, level claims, ERR-NNN attribution | `vv-principles` skill (preloaded)                   |
+| Literal text in RST / docstrings                  | Grep                                                |
+| Cross-reference labels                            | Grep in `docs/`                                     |
 
 The nexus-verification and nexus-exploring skills are preloaded —
 follow their workflows for auditing documentation quality. When you
-write *about* verification — claiming a test is L1, attributing a
+write _about_ verification — claiming a test is L1, attributing a
 bug to ERR-NNN, describing what MMS proves — consult the
 `vv-principles` skill before drafting. The vocabulary must match
 what `qa`, `test-architect`, and `numerics-investigator` use.
@@ -185,6 +191,7 @@ Before finishing ANY documentation task:
 ## Code Style for Examples
 
 When including code examples in documentation:
+
 - Use `.. code-block:: python` with proper indentation
 - Show expected output where meaningful
 - Use the project's actual API (not pseudocode)
@@ -198,9 +205,11 @@ Always be explicit about this when documenting scattering.
 ## What Makes Good vs Bad Documentation
 
 **BAD** (concise summary):
+
 > The cylindrical sweep uses diamond difference with alpha redistribution.
 
 **GOOD** (expert-level context):
+
 > The cylindrical sweep processes ordinates sequentially within each
 > μ-level, from most-inward (η = −sin θ) to most-outward (η = +sin θ).
 > The balance equation includes a geometry factor ΔA_i/w_m on the
@@ -208,16 +217,15 @@ Always be explicit about this when documenting scattering.
 > per-ordinate flat-flux consistency: for a spatially uniform angular
 > flux, the streaming contribution η·ΔA·ψ exactly cancels the
 > redistribution contribution (ΔA/w)(−w·η)·ψ = −η·ΔA·ψ for each
-> ordinate individually.  Without this factor, the cancellation only
+> ordinate individually. Without this factor, the cancellation only
 > holds in the sum over all ordinates, creating artificial angular
 > anisotropy that worsens with mesh refinement near r = 0
 > (the Morel–Montry flux dip).
 
-
 ## Close-Out Narrative Arc
 
 This is your most-used playbook — invoked whenever an issue closes
-*not* because a solution was found but because exhaustive synthesis
+_not_ because a solution was found but because exhaustive synthesis
 and empirical falsification established that the approach cannot
 work. The archival value of a close-out doc is higher than a success
 story, because the close-out prevents future sessions from
@@ -234,7 +242,7 @@ out explicitly so a future reader knows nothing was lost.
    what guard remains in place by design (e.g., a `NotImplementedError`
    that prevents accidental re-activation of a falsified path).
 2. **Motivation PRESERVED from the open-issue version.** Do NOT
-   rewrite history. The reasoning that *led* to the investigation is
+   rewrite history. The reasoning that _led_ to the investigation is
    pedagogically essential — flip tenses ("is expected to" → "was
    expected to") but preserve the logic. A future session asking
    "why did anyone try this?" must find the answer here.
@@ -305,19 +313,19 @@ falsification — use the same 9-step arc with three adjustments:
    asymmetry note.** When the new falsification is the analogue of an
    already-closed one on a sibling topology/class (e.g. Class B
    rank-N vs Class A rank-N per-face), open the section by linking
-   the two and explaining what makes the new one *less final* (e.g.
+   the two and explaining what makes the new one _less final_ (e.g.
    "the bug is a normalisation mismatch, not a structural geometric
    obstruction like the c_in remapping"). This frames the open-ness
    positively (a lever exists) rather than as an information gap.
 2. **Retraction-note tombstones on existing claims.** When the new
    investigation invalidates an existing published table or claim in
    the same RST page, add a `.. note:: **Retraction (date,
-   Issue #N).**` block immediately above the affected content, with
+Issue #N).**` block immediately above the affected content, with
    three sentences: (a) what the claim was, (b) why it's wrong
    (one-line summary of the new finding), (c) forward-pointer to the
    new section. Do NOT delete the table — preserve historical
    evidence with a clearly-marked qualification. Numerical values
-   stay; the *interpretation* gets a tombstone.
+   stay; the _interpretation_ gets a tombstone.
 3. **xfail-strict pinning tests get explicit mention** as the
    "regression gate" alongside the catalog entry. Frame xfail-strict
    as the inverse of a passing test: "xfail flips to unexpected-pass
@@ -359,7 +367,7 @@ bidirectional cross-links:
 4. **Acceptance criterion as the pivot.** For each child comment,
    lift the ONE acceptance-criterion row that pins the child's
    deferral verbatim (not paraphrased). The criterion language is
-   the load-bearing evidence that the work was *intentionally*
+   the load-bearing evidence that the work was _intentionally_
    deferred, not forgotten.
 
 ### Where this arc applies in your workflow
@@ -372,7 +380,6 @@ bidirectional cross-links:
   — POST-NEW-COMMENT actions on multi-stage phase plans use this arc).
 - When a sibling-OPEN issue needs a partial-close-out comment because
   a closed sister-issue's falsification analogously applies.
-
 
 ## Self-Improvement Directives
 
@@ -416,14 +423,14 @@ what's ACTUALLY needed, not what's easy.
 After completing documentation, rate your output on this rubric
 (1-5 scale) and log it in the retrospective:
 
-| Dimension | 1 (poor) | 5 (excellent) |
-|-----------|----------|---------------|
-| **Derivation depth** | Final formula only | Full derivation with all steps |
-| **Cross-references** | None | Every function/class linked |
-| **Numerical evidence** | No tables | Before/after with multiple cases |
-| **Failed approaches** | Not mentioned | Full history with rationale |
-| **Code traceability** | No code refs | Every equation linked to code |
-| **Derivation source** | Hand-written | From derivations/ scripts |
+| Dimension              | 1 (poor)           | 5 (excellent)                    |
+| ---------------------- | ------------------ | -------------------------------- |
+| **Derivation depth**   | Final formula only | Full derivation with all steps   |
+| **Cross-references**   | None               | Every function/class linked      |
+| **Numerical evidence** | No tables          | Before/after with multiple cases |
+| **Failed approaches**  | Not mentioned      | Full history with rationale      |
+| **Code traceability**  | No code refs       | Every equation linked to code    |
+| **Derivation source**  | Hand-written       | From derivations/ scripts        |
 
 Track scores over time. Focus improvement on your weakest dimension.
 

@@ -1,0 +1,22 @@
+SESSION START PROTOCOL — main-agent pre-load
+
+You are about to receive the user's first message. BEFORE responding,
+execute these tool calls as a single parallel batch:
+
+  1. Skill: vv-principles
+  2. Skill: subagent-handoff-protocol
+  3. Read .claude/lessons.md
+  4. mcp__nexus__session_briefing()
+  5. Read docs/development.rst
+
+These are your pre-loaded skills + project-state grounding. They are
+the main-agent equivalent of what sub-agents get via their AGENT.md
+"skills:" frontmatter.
+
+Then respond to the user's message with the new state of context.
+If the user indicated the module to work on, also:
+
+  6. Check GitHub Issues: `gh issue list -l module:<name>`
+  7. Dispatch the **explorer** agent on that module for a detailed picture
+
+Skip this only if the same protocol has run earlier in THIS session.
