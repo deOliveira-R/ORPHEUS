@@ -27,6 +27,10 @@ Modules
   with reductions to symmetric / one-vacuum-wall / vacuum-vacuum
   corners, :math:`\\alpha_L = \\alpha_R = 0` kernel reduction). First
   validated instance of the cross-domain frame's rank-2 prediction.
+- :mod:`.greens_function_hollow_sphere` — hollow sphere V_α identities
+  with rank-2 closure on the through-ray subset (:math:`b \\le R_{\\rm
+  in}`) and rank-1 closure on the outer-only subset (:math:`b > R_{\\rm
+  in}`). First curvilinear 2-surface instance of the rank-2 frame.
 """
 
 from .greens_function import (
@@ -39,6 +43,11 @@ from .greens_function_cylinder import (
     derive_alpha_zero_kernel_reduction_cylinder,
     derive_bounce_period_chord_cylinder,
     derive_operator_constant_trial_closed_cylinder,
+)
+from .greens_function_hollow_sphere import (
+    derive_alpha_zero_kernel_reduction_hollow_sphere,
+    derive_operator_constant_trial_closed_hollow_sphere,
+    derive_rank2_resolvent_hollow_sphere,
 )
 from .greens_function_slab import (
     derive_T00_equals_P_ss_slab,
@@ -69,4 +78,8 @@ __all__ = [
     "derive_alpha_zero_kernel_reduction_slab_asymmetric",
     "derive_operator_constant_trial_closed_slab_asymmetric",
     "derive_rank2_resolvent_slab_asymmetric",
+    # greens_function_hollow_sphere (rank-2 + impact-parameter partition)
+    "derive_alpha_zero_kernel_reduction_hollow_sphere",
+    "derive_operator_constant_trial_closed_hollow_sphere",
+    "derive_rank2_resolvent_hollow_sphere",
 ]
