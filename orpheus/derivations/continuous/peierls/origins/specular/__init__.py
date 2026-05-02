@@ -45,6 +45,12 @@ from .greens_function import (
     derive_alpha_zero_kernel_reduction,
     derive_operator_constant_trial_closed_sphere,
 )
+from .greens_function_cylinder import (
+    derive_T00_equals_P_ss_cylinder,
+    derive_alpha_zero_kernel_reduction_cylinder,
+    derive_bounce_period_chord_cylinder,
+    derive_operator_constant_trial_closed_cylinder,
+)
 
 __all__ = [
     # r_matrix
@@ -62,8 +68,13 @@ __all__ = [
     "derive_m1_equivalence",
     "derive_multi_bounce_factor",
     "derive_vacuum_reduction",
-    # greens_function
+    # greens_function (sphere)
     "derive_T00_equals_P_ss_sphere",
     "derive_alpha_zero_kernel_reduction",
     "derive_operator_constant_trial_closed_sphere",
+    # greens_function_cylinder
+    "derive_T00_equals_P_ss_cylinder",
+    "derive_alpha_zero_kernel_reduction_cylinder",
+    "derive_bounce_period_chord_cylinder",
+    "derive_operator_constant_trial_closed_cylinder",
 ]
