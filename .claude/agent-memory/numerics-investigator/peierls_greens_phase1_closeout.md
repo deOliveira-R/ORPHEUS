@@ -139,6 +139,20 @@ machine-precision data point for the cross-verification matrix). The
 
 ## What's NOT in scope for Phase B (deferred to future plans)
 
+0. ~~**1-group Cardinal-Rule-6 violation**.~~ **CLOSED IN A3 follow-on
+   (2026-05-02).** Prototype extended to multi-group via
+   `solve_greens_function_sphere_mg(R, sigma_t, sigma_s, nu_sigma_f, chi)`
+   with arbitrary G groups, full G×G scattering matrix (downscatter +
+   upscatter both supported), and arbitrary χ fission spectrum. Cross-
+   checks at closed sphere reduce to `kinf_and_spectrum_homogeneous`
+   transfer-matrix dominant eigenvalue + spectrum to ≤ 1e-9 relative.
+   Tests cover G=1 (matches 1G solver bit-equal), 2G downscatter, 2G
+   upscatter, 2G vacuum, 2G analytical flux ratio
+   (Σ_{1→2}/Σ_R,2 = 0.5 closed-form), 4G fuel-A with realistic
+   χ = (0.6, 0.35, 0.05, 0.0), 4G vacuum. Refactor extracted shared
+   `_apply_operator_with_source_profile` so 1G case becomes a thin
+   wrapper — no regression in 25 prior 1G tests.
+
 1. ~~**Vacuum BC** (:math:`\alpha = 0`).~~ **CLOSED IN A1+A2 follow-on
    (2026-05-02).** Prototype now takes `alpha ∈ [0, 1]` parameter.
    Vacuum BC cross-checked against a structurally-independent

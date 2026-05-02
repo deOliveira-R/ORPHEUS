@@ -114,6 +114,106 @@ class GreensFunctionResult:
     converged: bool
 
 
+def _apply_operator_with_source_profile(
+    psi: np.ndarray,
+    source_profile: np.ndarray,
+    r_nodes: np.ndarray,
+    mu_nodes: np.ndarray,
+    R: float,
+    sigma_t: float,
+    alpha: float,
+    *,
+    n_traj_quad: int,
+) -> np.ndarray:
+    r"""Per-group Variant α operator.
+
+    Evaluates :math:`\psi_g^{(n+1)}(r,\mu) = \int_0^{L_{\rm back}}
+    q_g(|r(s)|)\,e^{-\Sigma_{t,g} s}\,\mathrm d s + \alpha\,
+    e^{-\Sigma_{t,g} L_{\rm back}}\,T_\alpha(\mu_{\rm surf})\,B_g`
+    along bouncing characteristics, taking the source profile
+    :math:`q_g(r_i)` (per steradian per unit volume) as input rather
+    than computing it from a scalar coefficient times the in-group
+    flux. Multi-group friendly: the caller supplies whatever cross-
+    group + fission terms apply.
+
+    Parameters
+    ----------
+    psi : (n_r, n_mu) ndarray
+        Current group's angular flux iterate (used only in vacuum
+        branch where ``psi`` doesn't enter — kept for shape/symmetry).
+    source_profile : (n_r,) ndarray
+        :math:`q_g(r_i) / (4\pi)` — already-divided isotropic source
+        per steradian per unit volume. Cubic-spline-interpolated for
+        evaluation along trajectory points.
+    r_nodes, mu_nodes : ndarray
+        Radial GL grid on :math:`(0, R)`, angular GL grid on
+        :math:`[-1, 1]`.
+    R, sigma_t : float
+        Outer radius and per-group total cross section.
+    alpha : float
+        Surface reflectivity in :math:`[0, 1]`.
+    n_traj_quad : int
+        Trajectory + bounce-period quadrature order.
+
+    Returns
+    -------
+    (n_r, n_mu) ndarray
+        Updated angular flux for this group.
+    """
+    source_interp = CubicSpline(r_nodes, source_profile, extrapolate=True)
+
+    # Gauss-Legendre on s ∈ [0, 1] (rescaled per integral).
+    s_quad_raw, w_quad_raw = np.polynomial.legendre.leggauss(n_traj_quad)
+    s_unit = 0.5 * (s_quad_raw + 1.0)
+    w_unit = 0.5 * w_quad_raw
+
+    n_r = len(r_nodes)
+    n_mu = len(mu_nodes)
+    psi_new = np.zeros((n_r, n_mu))
+
+    for i in range(n_r):
+        r = r_nodes[i]
+        for q_idx in range(n_mu):
+            mu = mu_nodes[q_idx]
+
+            # Backward-leg geometry (see _apply_operator docstring).
+            disc = R * R - r * r * (1.0 - mu * mu)
+            sqrt_disc = np.sqrt(max(disc, 0.0))
+            L_back = r * mu + sqrt_disc
+            mu_surf = sqrt_disc / R
+            L_p = 2.0 * R * mu_surf
+
+            # First-leg trajectory integral.
+            s_pts = s_unit * L_back
+            r_traj_sq = r * r - 2.0 * r * mu * s_pts + s_pts * s_pts
+            r_traj = np.sqrt(np.clip(r_traj_sq, 0.0, R * R))
+            integrand_F = source_interp(r_traj) * np.exp(-sigma_t * s_pts)
+            F = L_back * np.sum(w_unit * integrand_F)
+
+            # Vacuum branch.
+            if alpha == 0.0:
+                psi_new[i, q_idx] = F
+                continue
+
+            atten_first_leg = np.exp(-sigma_t * L_back)
+
+            # Bounce-period integral on antipodal chord.
+            s_pts_p = s_unit * L_p
+            h_sq = R * R * (1.0 - mu_surf * mu_surf)
+            r_chord_sq = h_sq + (s_pts_p - 0.5 * L_p) ** 2
+            r_chord = np.sqrt(np.clip(r_chord_sq, 0.0, R * R))
+            integrand_B = source_interp(r_chord) * np.exp(-sigma_t * s_pts_p)
+            B = L_p * np.sum(w_unit * integrand_B)
+
+            # Geometric bounce-sum closure.
+            denom = 1.0 - alpha * np.exp(-sigma_t * L_p)
+            psi_surf = alpha * B / denom
+
+            psi_new[i, q_idx] = F + atten_first_leg * psi_surf
+
+    return psi_new
+
+
 def _apply_operator(
     psi: np.ndarray,
     r_nodes: np.ndarray,
@@ -189,95 +289,15 @@ def _apply_operator(
     (n_r, n_mu) ndarray
         Updated angular flux :math:`\psi^{(n+1)}`.
     """
-    # Scalar flux φ(r_i) = ∫ ψ(r_i, Ω) dΩ = 2π · ∫_{-1}^{1} ψ(r_i, µ) dµ
-    # (azimuthal integration gives the 2π).
+    # Scalar flux φ(r_i) = 2π · ∫_{-1}^{1} ψ(r_i, µ) dµ.
     phi = 2.0 * np.pi * np.sum(psi * mu_weights[None, :], axis=1)
-
-    # Cubic spline interpolant for φ(r) — smooth source between grid nodes.
-    # Trajectory points satisfy 0 ≤ |r(s)| ≤ R (geometry confines them);
-    # GL nodes are open (excludes endpoints), so r_chord can fall slightly
-    # below r_nodes[0] (at chord midpoint with small impact parameter)
-    # or slightly above r_nodes[-1] (near the surface). Cubic extrapolation
-    # is well-behaved for the physically smooth φ(r).
-    phi_interp = CubicSpline(r_nodes, phi, extrapolate=True)
-
-    # Gauss-Legendre on s ∈ [0, 1] (we'll rescale per integral).
-    s_quad_raw, w_quad_raw = np.polynomial.legendre.leggauss(n_traj_quad)
-    s_unit = 0.5 * (s_quad_raw + 1.0)
-    w_unit = 0.5 * w_quad_raw
-
-    n_r = len(r_nodes)
-    n_mu = len(mu_nodes)
-    psi_new = np.zeros((n_r, n_mu))
-
-    for i in range(n_r):
-        r = r_nodes[i]
-        for q_idx in range(n_mu):
-            mu = mu_nodes[q_idx]
-
-            # Geometry: backward-leg distance + surface cosine.
-            # The integral form ψ(r,Ω) = e^{-Σ_t L_back}·ψ_BC(r_b,Ω) +
-            # ∫_0^{L_back} q(r-sΩ)·e^{-Σ_t s} ds traces BACKWARD from r
-            # in direction -Ω to the upstream surface point r_b.
-            #
-            # For r(s) = r - sΩ, |r(s)|² = R² gives roots s_± = rµ ±
-            # √(R² − r²(1−µ²)). Both have rµ ± √(...) where √(...) > |rµ|
-            # (since √² − (rµ)² = R² − r² > 0), so s_+ = rµ + √(...) > 0
-            # is the unique positive root — the backward distance to
-            # surface. (Earlier prototype used √(...) − rµ which is the
-            # FORWARD distance s_fwd = −rµ + √(...) instead; that quantity
-            # is the chord length from r out the opposite surface, not
-            # the backward distance the integral form needs.)
-            disc = R * R - r * r * (1.0 - mu * mu)
-            sqrt_disc = np.sqrt(max(disc, 0.0))
-            L_back = r * mu + sqrt_disc  # > 0 for any r < R, |µ| ≤ 1
-            mu_surf = sqrt_disc / R       # |cosine| at surface (specular bounce flips sign)
-            L_p = 2.0 * R * mu_surf       # antipodal chord = bounce period
-
-            # First-leg trajectory integral (backward from r to surface).
-            #   F = ∫_0^{L_back} q(|r(s)|)·e^{-σ_t s} ds, q = source_coeff·φ.
-            # Trajectory: r(s) = r − sΩ_µ, |r(s)|² = r² − 2rsµ + s².
-            s_pts = s_unit * L_back
-            r_traj_sq = r * r - 2.0 * r * mu * s_pts + s_pts * s_pts
-            r_traj = np.sqrt(np.clip(r_traj_sq, 0.0, R * R))
-            phi_traj = phi_interp(r_traj)
-            integrand_F = (
-                source_coeff * phi_traj * np.exp(-sigma_t * s_pts)
-            )
-            F = L_back * np.sum(w_unit * integrand_F)
-
-            # Vacuum BC branch: skip bounce machinery entirely.
-            if alpha == 0.0:
-                psi_new[i, q_idx] = F
-                continue
-            # Specular branch needs the attenuation along L_back from
-            # the upstream boundary back to r — same exp factor either
-            # way since L_back is the backward leg.
-            atten_first_leg = np.exp(-sigma_t * L_back)
-
-            # Bounce-period integral on antipodal chord.
-            #   B = ∫_0^L_p q(|r_chord(s)|) e^{-σ_t s} ds.
-            # Chord parametrization: at impact parameter h, position at
-            # arc length s ∈ [0, L_p] is |r_chord(s)|² = h² + (s − L_p/2)².
-            s_pts_p = s_unit * L_p
-            h_sq = R * R * (1.0 - mu_surf * mu_surf)
-            r_chord_sq = h_sq + (s_pts_p - 0.5 * L_p) ** 2
-            r_chord = np.sqrt(np.clip(r_chord_sq, 0.0, R * R))
-            phi_chord = phi_interp(r_chord)
-            integrand_B = (
-                source_coeff * phi_chord * np.exp(-sigma_t * s_pts_p)
-            )
-            B = L_p * np.sum(w_unit * integrand_B)
-
-            # Geometric bounce-sum closure with reflectivity α:
-            #   ψ_surf = α · B / (1 − α · e^{-σ_t L_p}).
-            denom = 1.0 - alpha * np.exp(-sigma_t * L_p)
-            psi_surf = alpha * B / denom
-
-            # Total angular flux at (r_i, µ_q).
-            psi_new[i, q_idx] = F + atten_first_leg * psi_surf
-
-    return psi_new
+    # 1G source profile: q(r)/(4π) = source_coeff · φ(r). The source_coeff
+    # already absorbs the 1/(4π) factor (it's (Σ_s + νΣ_f/k) / (4π)).
+    source_profile = source_coeff * phi
+    return _apply_operator_with_source_profile(
+        psi, source_profile, r_nodes, mu_nodes, R, sigma_t, alpha,
+        n_traj_quad=n_traj_quad,
+    )
 
 
 def solve_greens_function_sphere(
@@ -430,6 +450,241 @@ def solve_greens_function_sphere(
         k_eff=float(k_eff),
         psi=psi,
         phi=phi,
+        r_nodes=r_nodes,
+        mu_nodes=mu_nodes,
+        iterations=iterations,
+        converged=converged,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Multi-group extension (A3) — homogeneous sphere, isotropic scattering
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True)
+class GreensFunctionMGResult:
+    """Result of multi-group Variant α power iteration."""
+
+    k_eff: float
+    psi_g: np.ndarray   # (G, n_r, n_mu) — angular flux per group
+    phi_g: np.ndarray   # (G, n_r) — scalar flux per group
+    r_nodes: np.ndarray
+    mu_nodes: np.ndarray
+    iterations: int
+    converged: bool
+
+
+def solve_greens_function_sphere_mg(
+    R: float,
+    sigma_t: np.ndarray,        # (G,)
+    sigma_s: np.ndarray,        # (G, G), sigma_s[g_from, g_to]
+    nu_sigma_f: np.ndarray,     # (G,)
+    chi: np.ndarray | None = None,  # (G,), defaults to (1, 0, ..., 0)
+    *,
+    alpha: float = 1.0,
+    n_r: int = 24,
+    n_mu: int = 24,
+    n_traj_quad: int = 64,
+    max_iter: int = 300,
+    tol: float = 1e-9,
+    initial_psi: np.ndarray | None = None,
+    initial_k: float | None = None,
+) -> GreensFunctionMGResult:
+    r"""Multi-group Variant α power iteration on homogeneous sphere
+    with isotropic scattering, parametrised by surface reflectivity α.
+
+    Solves the multi-group k-eigenvalue problem
+
+    .. math::
+
+       \Sigma_{t,g}\,\psi_g(r,\Omega) \;=\;
+            \frac{1}{4\pi}\Bigl[
+                \sum_{g'}\Sigma_{s,g'\to g}\,\phi_{g'}(r)
+                + \frac{\chi_g}{k}\sum_{g'}\nu\Sigma_{f,g'}\,\phi_{g'}(r)
+            \Bigr] + \text{(transport operator)}
+
+    via fission-source iteration. At each outer iteration:
+
+    1. Compute scalar fluxes :math:`\phi_g(r)` from the current
+       :math:`\psi_g(r,\mu)`.
+    2. Compute fission rate :math:`F(r) = \sum_{g'} \nu\Sigma_{f,g'}\,
+       \phi_{g'}(r)`.
+    3. For each group :math:`g`, build the source profile
+       :math:`q_g(r)/(4\pi) = \frac{1}{4\pi}\bigl[\sum_{g'}
+       \Sigma_{s,g'\to g}\,\phi_{g'}(r) + (\chi_g/k)\,F(r)\bigr]` and
+       apply the per-group operator.
+    4. Update :math:`k_{\rm eff}` via Rayleigh quotient on
+       volume-integrated fission rate.
+    5. Normalise; check convergence.
+
+    Convention: ``sigma_s[g_from, g_to]`` = scatter cross section from
+    group ``g_from`` to group ``g_to``. This matches
+    :func:`orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`
+    where the matrix-form transport operator uses ``sigma_s.T``.
+
+    For Option A scope: handles arbitrary G with arbitrary scattering
+    matrix (downscatter + upscatter both supported algorithmically;
+    upscatter just slows convergence). Cross-check at closed sphere
+    (α=1) reduces to ``kinf_homogeneous`` exactly.
+
+    Parameters
+    ----------
+    R : float
+        Outer radius (cm).
+    sigma_t : (G,) ndarray
+        Per-group total cross section.
+    sigma_s : (G, G) ndarray
+        Scattering matrix; ``sigma_s[g_from, g_to]``.
+    nu_sigma_f : (G,) ndarray
+        Per-group production cross section :math:`\nu\Sigma_f`.
+    chi : (G,) ndarray, optional
+        Fission spectrum, sums to 1. Default: all-fast emission
+        (``chi = [1, 0, ..., 0]``).
+    alpha : float, default 1.0
+        Surface reflectivity. 1 = closed sphere, 0 = vacuum.
+    n_r, n_mu, n_traj_quad : int
+        Quadrature orders.
+    max_iter, tol : int, float
+        Power-iteration parameters.
+    initial_psi : (G, n_r, n_mu) ndarray, optional
+        Initial angular flux. Default: uniform constant per group.
+    initial_k : float, optional
+        Initial k_eff guess. Default: ``kinf_homogeneous`` from XS.
+
+    Returns
+    -------
+    :class:`GreensFunctionMGResult`
+    """
+    sigma_t = np.asarray(sigma_t, dtype=float)
+    sigma_s = np.asarray(sigma_s, dtype=float)
+    nu_sigma_f = np.asarray(nu_sigma_f, dtype=float)
+    G = len(sigma_t)
+    if sigma_s.shape != (G, G):
+        raise ValueError(
+            f"sigma_s shape must be ({G}, {G}); got {sigma_s.shape}"
+        )
+    if len(nu_sigma_f) != G:
+        raise ValueError(
+            f"nu_sigma_f length must be {G}; got {len(nu_sigma_f)}"
+        )
+    if chi is None:
+        chi = np.zeros(G)
+        chi[0] = 1.0
+    else:
+        chi = np.asarray(chi, dtype=float)
+        if len(chi) != G:
+            raise ValueError(
+                f"chi length must be {G}; got {len(chi)}"
+            )
+    if not (0.0 <= alpha <= 1.0):
+        raise ValueError(f"alpha = {alpha} must lie in [0, 1]")
+
+    # Radial grid and angular grid (same as 1G).
+    r_quad_pts, r_quad_wts = np.polynomial.legendre.leggauss(n_r)
+    r_nodes = R * 0.5 * (r_quad_pts + 1.0)
+    r_weights = R * 0.5 * r_quad_wts
+
+    mu_quad_pts, mu_quad_wts = np.polynomial.legendre.leggauss(n_mu)
+    mu_nodes = mu_quad_pts
+    mu_weights = mu_quad_wts
+
+    # Initial guess
+    if initial_psi is not None:
+        psi = np.asarray(initial_psi, dtype=float).copy()
+        if psi.shape != (G, n_r, n_mu):
+            raise ValueError(
+                f"initial_psi shape must be ({G}, {n_r}, {n_mu}); "
+                f"got {psi.shape}"
+            )
+    else:
+        psi = np.ones((G, n_r, n_mu))
+
+    # Initial k_eff: use k_inf from infinite-medium balance.
+    if initial_k is not None:
+        k_eff = float(initial_k)
+    else:
+        # Diagonal of A = diag(σ_t) - σ_s.T; F = outer(χ, νΣ_f).
+        # k_inf = largest eigenvalue of A^{-1} F.
+        A = np.diag(sigma_t) - sigma_s.T
+        F = np.outer(chi, nu_sigma_f)
+        eig = np.linalg.eigvals(np.linalg.solve(A, F))
+        k_eff = float(np.real(eig).max())
+        if k_eff <= 0:
+            raise ValueError(
+                f"k_inf estimate non-positive ({k_eff}); XS likely "
+                "degenerate."
+            )
+
+    # Volume-integrated fission rate for Rayleigh quotient.
+    def total_fission_rate(phi_g: np.ndarray) -> float:
+        # ∫_0^R [Σ_g νΣ_f,g · φ_g(r)] · 4π r² dr
+        F_r = np.einsum('g,gr->r', nu_sigma_f, phi_g)
+        return float(4.0 * np.pi * np.sum(F_r * r_nodes ** 2 * r_weights))
+
+    iterations = 0
+    converged = False
+    inv_4pi = 1.0 / (4.0 * np.pi)
+
+    for it in range(max_iter):
+        iterations = it + 1
+
+        # Current scalar fluxes per group: (G, n_r).
+        phi_g = 2.0 * np.pi * np.sum(
+            psi * mu_weights[None, None, :], axis=2,
+        )
+
+        # Fission rate F(r) = Σ_g' νΣ_f,g' · φ_g'(r). Shape (n_r,).
+        F_r = np.einsum('g,gr->r', nu_sigma_f, phi_g)
+
+        # Per-group source profiles q_g(r)/(4π) at r-nodes:
+        #   = inv_4pi · [Σ_g' σ_s[g',g] · φ_g'(r) + (χ_g/k) · F(r)]
+        # Scatter contribution: einsum 'sg,sr->gr' over s=source group.
+        scatter_source = np.einsum('sg,sr->gr', sigma_s, phi_g)
+        fission_source = (chi[:, None] / k_eff) * F_r[None, :]
+        source_profile_g = inv_4pi * (scatter_source + fission_source)
+
+        # Apply per-group operator.
+        psi_new = np.zeros_like(psi)
+        for g in range(G):
+            psi_new[g] = _apply_operator_with_source_profile(
+                psi[g], source_profile_g[g], r_nodes, mu_nodes, R,
+                float(sigma_t[g]), alpha, n_traj_quad=n_traj_quad,
+            )
+
+        # Update k_eff via Rayleigh quotient on fission rate.
+        phi_g_new = 2.0 * np.pi * np.sum(
+            psi_new * mu_weights[None, None, :], axis=2,
+        )
+        Frate_old = total_fission_rate(phi_g)
+        Frate_new = total_fission_rate(phi_g_new)
+        if Frate_old < 1e-30:
+            raise RuntimeError(
+                f"Fission rate vanished at iter {iterations}; XS likely "
+                "non-multiplying."
+            )
+        k_new = k_eff * Frate_new / Frate_old
+
+        # Normalise so the fission rate stays O(1) — prevents drift.
+        norm = Frate_new
+        psi_normed = psi_new / norm
+
+        rel_dk = abs(k_new - k_eff) / max(abs(k_eff), 1e-30)
+        psi = psi_normed
+        k_eff = k_new
+
+        if rel_dk < tol:
+            converged = True
+            break
+
+    phi_g = 2.0 * np.pi * np.sum(
+        psi * mu_weights[None, None, :], axis=2,
+    )
+
+    return GreensFunctionMGResult(
+        k_eff=float(k_eff),
+        psi_g=psi,
+        phi_g=phi_g,
         r_nodes=r_nodes,
         mu_nodes=mu_nodes,
         iterations=iterations,
