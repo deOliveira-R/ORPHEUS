@@ -99,6 +99,10 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.interpolate import CubicSpline
 
+from orpheus.derivations.continuous.peierls.variant_alpha_core import (
+    apply_variant_alpha_closure,
+)
+
 
 @dataclass(frozen=True)
 class GreensFunctionResult:
@@ -190,12 +194,10 @@ def _apply_operator_with_source_profile(
             integrand_F = source_interp(r_traj) * np.exp(-sigma_t * s_pts)
             F = L_back * np.sum(w_unit * integrand_F)
 
-            # Vacuum branch.
+            # Vacuum branch — short-circuit before computing B.
             if alpha == 0.0:
                 psi_new[i, q_idx] = F
                 continue
-
-            atten_first_leg = np.exp(-sigma_t * L_back)
 
             # Bounce-period integral on antipodal chord.
             s_pts_p = s_unit * L_p
@@ -205,11 +207,13 @@ def _apply_operator_with_source_profile(
             integrand_B = source_interp(r_chord) * np.exp(-sigma_t * s_pts_p)
             B = L_p * np.sum(w_unit * integrand_B)
 
-            # Geometric bounce-sum closure.
-            denom = 1.0 - alpha * np.exp(-sigma_t * L_p)
-            psi_surf = alpha * B / denom
-
-            psi_new[i, q_idx] = F + atten_first_leg * psi_surf
+            # Shared Variant α closure: ψ_new = F + e^{-τ_first}·αBT.
+            psi_new[i, q_idx] = apply_variant_alpha_closure(
+                F=F, B=B,
+                tau_first_leg=sigma_t * L_back,
+                tau_period=sigma_t * L_p,
+                alpha=alpha,
+            )
 
     return psi_new
 
@@ -853,11 +857,10 @@ def _apply_operator_mr(
 
             tau_first_leg = tau_back  # cumulative τ at s = L_back
 
+            # Vacuum branch — short-circuit before computing B.
             if alpha == 0.0:
                 psi_new[i, q_idx] = F
                 continue
-
-            atten_first_leg = np.exp(-tau_first_leg)
 
             # Bounce-period chord: same impact parameter as first leg.
             disc = R * R - r * r * (1.0 - mu * mu)
@@ -882,10 +885,13 @@ def _apply_operator_mr(
 
             tau_p = tau_p_partial  # total chord optical depth
 
-            denom = 1.0 - alpha * np.exp(-tau_p)
-            psi_surf = alpha * B / denom
-
-            psi_new[i, q_idx] = F + atten_first_leg * psi_surf
+            # Shared Variant α closure with piecewise-σ_t optical depths.
+            psi_new[i, q_idx] = apply_variant_alpha_closure(
+                F=F, B=B,
+                tau_first_leg=tau_first_leg,
+                tau_period=tau_p,
+                alpha=alpha,
+            )
 
     return psi_new
 
