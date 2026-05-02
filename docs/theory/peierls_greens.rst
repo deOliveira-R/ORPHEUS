@@ -105,14 +105,18 @@ follow-ons all closed):
   the bare vacuum sphere kernel :math:`\bar g_2`. No special-case
   branch is needed; vacuum BC is the trivial limit of specular BC,
   not a separate solver path.
-- **What this prototype does NOT cover**: cylinder geometry,
-  anisotropic scattering (:math:`\omega_1\ne 0`), Sanchez 1986
-  diffuse-re-emission :math:`\beta`-branch. Multi-region sphere
-  (homogeneous regions, piecewise σ_t) **is** covered — see
+- **What this prototype does NOT cover**: anisotropic scattering
+  (:math:`\omega_1\ne 0`), Sanchez 1986 diffuse-re-emission
+  :math:`\beta`-branch, multi-region cylinder, multi-region cylinder
+  fixed-source (Phase 1b). Multi-region sphere (homogeneous regions,
+  piecewise σ_t) **is** covered — see
   :ref:`peierls-greens-multiregion`. Vacuum-BC k-eigenvalue with
   non-trivial spatial mode **is** covered — see
-  :ref:`peierls-greens-vacuum-extension` and the PS-1982
-  cross-check. The remaining items are flagged as future work below.
+  :ref:`peierls-greens-vacuum-extension` and the PS-1982 cross-check.
+  **Cylinder geometry (1G + MG homogeneous, α∈[0,1])** is covered
+  as a Phase 1 standalone — see :ref:`peierls-greens-cylinder` below.
+  Phase 2 unification with sphere is deferred until both standalone
+  reference solvers have captured accuracy floors.
 - **Phase 5 framing**. The Phase 5 retreat is a structural finding,
   not a failure narrative. The retreat established that the
   **angle-integrated** kernel :math:`g_\alpha` is hypersingular —
@@ -1551,6 +1555,214 @@ The Variant α architecture is the structural fix that closes those
 paths. Future research-grade reformulations for sphere homogeneous
 specular k_eff should fork from Variant α, not from any of the
 above.
+
+
+.. _peierls-greens-cylinder:
+
+Cylinder Variant α (Phase 1 standalone)
+========================================
+
+.. todo:: Archivist expansion needed.
+
+   This section is a **method-implementer stub** — it states the
+   load-bearing equations, labels them for cross-reference, and
+   points to the SymPy module + tests. The full mathematical
+   narrative (worked algebra; design rationale; convergence-floor
+   discussion; comparison with the cylinder Nyström vacuum
+   reference; treatment of the dual grazing-ray pathology
+   :math:`\mu_{\rm axial} \to \pm 1` and :math:`\varphi_{\rm az}
+   \to \pm \pi/2`) is the archivist's deliverable.
+
+   Source artifacts:
+
+   - Branch-1 SymPy: :mod:`orpheus.derivations.continuous.peierls.origins.specular.greens_function_cylinder`
+     (V_α1_cyl, V_α1_cyl.geometry, V_α2_cyl, V_α3_cyl).
+   - Branch-2 production:
+     :mod:`orpheus.derivations.continuous.peierls.greens_function_cylinder`
+     (:func:`solve_greens_function_cylinder`,
+     :func:`solve_greens_function_cylinder_mg`).
+   - Symbolic test gate:
+     :file:`tests/derivations/test_peierls_greens_function_cylinder_symbolic.py`
+     (9 foundation-tagged tests).
+   - Numerical L1 gates:
+     :file:`tests/derivations/test_peierls_greens_function_cylinder_solver.py`
+     (7 L1-tagged tests).
+   - Plan: :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md`.
+   - Closeout memo:
+     :file:`.claude/agent-memory/method-implementer/cylinder_variant_alpha_phase1.md`.
+
+Phase-1 cylinder Variant α mirrors the sphere architecture (F first-leg
++ B bounce-period + closed-form geometric series) on a 3D phase-space
+:math:`(r, \mu_{\rm axial}, \varphi_{\rm az})`. The axial direction is
+kept **explicit** per Issue #129 — the cylinder Nyström kernel
+pre-integrates axial via :math:`\mathrm{Ki}_n`, which produces the
+documented planar-limit mismatch; Variant α avoids this by retaining
+the full angular distribution.
+
+Cylinder phase-space and conserved invariants
+----------------------------------------------
+
+Phase-space coordinates: :math:`r \in [0, R]` (radial position),
+:math:`\mu_{\rm axial} = \cos\theta_{\rm axis} \in [-1, 1]` (cosine
+to cylinder axis :math:`\hat z`), :math:`\varphi_{\rm az} \in [0,
+2\pi)` (azimuth of the in-plane velocity component).
+
+In-plane velocity fraction:
+
+.. math::
+   :label: peierls-greens-cylinder-in-plane-speed
+
+   s_{\rm in\!-\!plane}(\mu_{\rm axial}) =
+       \sin\theta_{\rm axis} = \sqrt{1 - \mu_{\rm axial}^2}.
+
+Conserved impact parameter (preserved across all bounces of a
+specular trajectory):
+
+.. math::
+   :label: peierls-greens-cylinder-impact-parameter
+
+   b(r, \varphi_{\rm az}) = r\,|\sin\varphi_{\rm az}|.
+
+First-leg trajectory chord (3D)
+--------------------------------
+
+The 2D in-plane backward chord from interior point :math:`(r,
+\varphi_{\rm az})` to the cylinder surface is
+
+.. math::
+   :label: peierls-greens-cylinder-trajectory
+
+   L_{\rm 2D, first}(r, \varphi_{\rm az}) =
+       r\,\cos\varphi_{\rm az} +
+       \sqrt{R^2 - r^2 \sin^2\varphi_{\rm az}}, \qquad
+   L_{0, \rm 3D} =
+       \frac{L_{\rm 2D, first}}{s_{\rm in\!-\!plane}}.
+
+Bounce-period chord (3D)
+-------------------------
+
+The 2D in-plane antipodal chord at conserved impact parameter
+:math:`b` is :math:`L_{\rm 2D, period} = 2\sqrt{R^2 - b^2}` and the
+3D bounce-period chord is
+
+.. math::
+   :label: peierls-greens-cylinder-bounce-period
+
+   L_{\rm period}(b, \mu_{\rm axial}) =
+       \frac{2\sqrt{R^2 - b^2}}{\sqrt{1 - \mu_{\rm axial}^2}}.
+
+This is the cylinder analogue of the sphere :math:`L_p = 2 R
+\mu_{\rm surf}` — but cylinder's period depends on TWO conserved
+quantities (impact parameter AND axial cosine), where sphere's
+depends on one (:math:`\mu_{\rm surf}`).
+
+Resolvent (closed-form geometric series)
+-----------------------------------------
+
+The cylinder Variant α surface fixed-point closure is
+
+.. math::
+   :label: peierls-greens-cylinder-T
+
+   \psi_{\rm surf}(b, \mu_{\rm axial}) =
+       \frac{\alpha\,B(b, \mu_{\rm axial})}
+            {1 - \alpha\,e^{-\Sigma_t L_{\rm period}}},
+
+with :math:`B` the bounce-period source integral (analogue of
+sphere's bounce-period :math:`B`).
+
+Variant α architecture for cylinder
+------------------------------------
+
+For each phase-space grid point :math:`(r_i, \mu_{q,\rm axial},
+\varphi_{p,\rm az})`:
+
+.. math::
+   :label: peierls-greens-cylinder-architecture
+
+   \psi(r_i, \mu_{\rm axial}, \varphi_{\rm az}) =
+       F(r_i, \mu_{\rm axial}, \varphi_{\rm az})
+       + e^{-\Sigma_t L_{0, \rm 3D}}\,\psi_{\rm surf}(b, \mu_{\rm axial}),
+
+where :math:`F` is the first-leg trajectory integral with 3D
+attenuation and :math:`\psi_{\rm surf}` is the bounce-sum closure
+(:eq:`peierls-greens-cylinder-T`). The scalar flux is the full
+angular reduction:
+
+.. math::
+
+   \phi(r) = \int_{-1}^{1}\!\mathrm d\mu_{\rm axial}
+             \int_0^{2\pi}\!\mathrm d\varphi_{\rm az}\,
+             \psi(r, \mu_{\rm axial}, \varphi_{\rm az}).
+
+Operator-level identities (V_α1_cyl / V_α2_cyl / V_α3_cyl)
+-----------------------------------------------------------
+
+Mirroring the sphere proofs, the cylinder Branch-1 SymPy module
+verifies three identities:
+
+- **V_α1_cyl** — closed-cylinder bounce-sum self-consistency. For
+  homogeneous cylinder with constant volumetric source :math:`q`,
+  :math:`\psi(r, \mu_{\rm axial}, \varphi_{\rm az}) = q/\Sigma_t`
+  everywhere. Algebraically identical to V_α1 sphere — only the
+  chord formula :math:`L_{\rm period}` differs. Operator action on
+  isotropic trial gives :math:`(K \cdot 1) = \omega_0`, hence
+  :math:`k_{\rm eff} = k_\infty` for closed cylinder.
+- **V_α1_cyl.geometry** — bounce-period chord
+  :math:`L_{\rm period}(b, \mu_{\rm axial}) = 2\sqrt{R^2 - b^2} /
+  \sqrt{1 - \mu_{\rm axial}^2}` derived two ways (impact-parameter
+  form; surface-tangent form) agree. Foundation for V_α1_cyl.
+- **V_α2_cyl** — :math:`T_{00}^{\rm cyl} = P_{ss}^{\rm cyl}`
+  integrand-level identity (rank-1 cylinder Variant α ≡ cylinder
+  Hébert white-BC closure). Unlike sphere, the cylinder
+  :math:`\mathrm{Ki}_3` integrand has no elementary closed form,
+  so the identity is integrand-level (both reduce to
+  :math:`(4/\pi) \cos\alpha\,\mathrm{Ki}_3(2 \Sigma_t R \cos\alpha)`).
+- **V_α3_cyl** — surface fixed-point closure
+  (:eq:`peierls-greens-cylinder-T`) carries leading factor
+  :math:`\alpha`, so :math:`\psi_{\rm surf} \to 0` at :math:`\alpha
+  = 0`. Vacuum BC is the trivial limit; no special-case branch.
+
+Numerical verification status (Phase 1 standalone)
+---------------------------------------------------
+
+- **k_inf exactness at α=1** — fuel-A-like XS, both thin
+  (:math:`\tau_R = 2.5`) and moderate (:math:`\tau_R = 5`):
+  :math:`k_{\rm eff} = k_\infty = 0.20833\overline{3}` to ≤ 1e-10
+  relative. Convergence in 1 iteration from constant initial
+  guess; convergence in ~50 iterations to 1e-9 from aggressive
+  :math:`(r/R)^2` perturbation. Scalar flux uniform to ~1e-15.
+- **Multi-group at α=1** — 2G with asymmetric scattering
+  (downscatter + upscatter):
+  :math:`k_{\rm eff} = k_\infty` from
+  :func:`~orpheus.derivations.common.eigenvalue.kinf_homogeneous`
+  to ≤ 1e-9. The asymmetric XS detects the SigS-transpose
+  convention drift (ERR-002 anti-pattern).
+- **MG G=1 reduction** — bit-equal to the 1G solver at α=0.
+- **Vacuum α=0** — physics-plausible peaked-at-center flux profile,
+  positive leakage, :math:`k_{\rm eff} < k_\infty`. fuel-A-like τ_R
+  = 2.5: k_eff ≈ 0.12045 (k_eff/k_inf ≈ 0.578). Convergence floor
+  achieved at quadrature order :math:`(n_r, n_\mu, n_\varphi,
+  n_{\rm traj}) = (24, 20, 64, 96)`: ~1e-7 self-consistency relative
+  to next-coarser grid.
+
+Cross-check disclaimer (Issue #129)
+------------------------------------
+
+The cylinder Variant α and cylinder Nyström vacuum solvers do NOT
+agree to machine precision on the same XS:
+
+- Variant α (3D angle-resolved): :math:`k_{\rm eff} \approx
+  0.12045159` at fuel-A-like τ_R = 2.5.
+- Nyström vacuum (axial pre-integrated): :math:`k_{\rm eff} \approx
+  0.12046563` at fuel-A-like τ_R = 2.5.
+
+The relative difference (~1.4e-4) is **not a bug** — it reflects the
+documented Issue #129 axial pre-integration discrepancy. Both are
+correct solutions of slightly different formulations. The
+load-bearing L1 cross-check for cylinder Variant α is the
+**k_inf-exactness invariant at α=1**, which is structurally
+independent (closed-form analytical from V_α1_cyl).
 
 
 Provenance: literature, code, and tests
