@@ -170,10 +170,34 @@ machine-precision data point for the cross-verification matrix). The
    µ-grid from `(0, 1]` (closed-sphere µ → −µ symmetry assumption) to
    the full `[−1, 1]` (vacuum BC breaks the symmetry — different
    trajectories outward vs inward).
-2. **Multi-region sphere**. Sanchez 1986's closed-form :math:`T(\mu)`
-   extends to multi-region under perfect specular BC via piecewise
-   :math:`\tau(\mu) = \sum_k \Sigma_{t,k} \cdot \ell_k(\mu)`. Direct
-   attack on Issue #132 Class B MR catastrophe — high impact.
+2. ~~**Multi-region sphere**.~~ **CLOSED IN Plan-(b) follow-on
+   (2026-05-02).** Prototype extended to multi-region via
+   `solve_greens_function_sphere_mr` and
+   `solve_greens_function_sphere_mr_fixed_source` (~520 LoC). Both
+   handle arbitrary G-region sphere with piecewise σ_t along
+   trajectories and bounce-period chords (composite GL quadrature
+   per region segment).
+
+   **Plan-(b) Option 2 (Issue #132 reproducer)**: 4 tests pass.
+   Sphere `radii=[0.5, 1.0]`, fuel-A inner / moderator-B outer,
+   closed BC: Variant α gives k_eff = 0.735 vs Phase 4 specular_-
+   multibounce rank-2 = 1.015 (+57 % catastrophe avoided). Spatial
+   mode physically correct (φ peaked in fuel, decreasing through
+   moderator, slope discontinuity at interface).
+
+   **Plan-(b) Option 1 (Garcia 2021 flux-shape L1 cross-check)**:
+   17 tests pass. Three-region sphere fixed-source benchmark
+   (Williams 1991 Case 1, Garcia 2021 Table 5) with
+   structurally-independent stable-P_N reference. Convention-
+   converted Variant α agrees with Garcia table to < 1 % at non-
+   interface r-points, < 12 % near interfaces (cubic-spline
+   smoothing of source profile across discontinuous σ_s — known
+   prototype limitation). All 15 r-points pass tolerance gates.
+
+   Direct attack on Issue #132 Class B MR catastrophe demonstrated
+   working: Variant α has no rank-N closure, so the mode-0/mode-≥1
+   normalisation mismatch that breaks Phase 4 simply cannot occur
+   structurally.
 3. **Cylinder geometry**. Sanchez 1986 has cylinder via the unified
    :math:`\alpha`-parameter (:math:`\alpha = 1` for cylinder, but here
    :math:`\alpha` is geometry-shape, not specular-coefficient — confusing
