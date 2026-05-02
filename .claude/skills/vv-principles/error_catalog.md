@@ -1656,6 +1656,173 @@ the same grounds. W transmission integrals use adaptive
 
 ---
 
+## ERR-034 — Slab Variant α first-leg trajectory: missing µ factor in x_traj parametrisation
+
+**Failure mode:** #6 Convention drift — the chord arclength
+parameter `s` was used to advance the position with NO direction-
+cosine factor (`x_traj = x - s` instead of `x_traj = x - μ·s`),
+silent for any uniform-source test.
+**Date:** 2026-05-02 (Phase-3B method-of-images dispatch).
+**Solver:** Slab Variant α Green's function reference, both
+Phase-3A symmetric (`greens_function_slab.py::_apply_operator_slab`)
+and the inherited Phase-3B asymmetric-slab module
+(`greens_function_slab_asymmetric.py::_apply_operator_slab_asymmetric`).
+
+**Bug:** The first-leg backward chord parametrisation per the
+transport equation's formal solution along characteristics is
+`x_back(s) = x - μ·s` (1D slab, μ = direction cosine). The Phase-3A
+code wrote `x_traj = x - s_pts_first` (no μ factor), incorrectly
+treating arclength `s` as x-distance. The exponential factor
+`exp(-σ_t · s_pts_first)` IS arclength-correct (σ_t × arclength is
+the correct optical depth weighting), so the bug is purely in the
+position-lookup of the source `q(x_traj(s))` — INVISIBLE for any
+spatially uniform `q`.
+
+**Impact:** For non-uniform source profiles (which arise during
+the eigenvalue iteration on a non-uniform flux), the F integral
+evaluates `q` at the wrong positions along the chord, producing a
+biased operator with a different fixed point than the correct
+operator. Phase-3A vacuum α=0 k_eff was off by ~21% relative
+(0.130 vs corrected 0.157 at fuel-A τ_L=5). The asymmetric Phase-3B
+method-of-images test caught the bug because it requires the
+asymmetric eigenmode to peak AT the reflective wall x=0 — the
+buggy parametrisation gave a peak at x≈0.16, ~5% relative k_eff
+error vs the symmetric vacuum reference, neither of which Phase-3A
+exercised.
+
+**How it hid from higher-level tests:**
+- Phase-3A V_α1_slab (closed slab α=1) uses constant source `q =
+  Σ_s` — `q(x_traj)` is the same value regardless of x_traj
+  parametrisation. The bug is invisible.
+- Phase-3A vacuum α=0 self-consistency test only checked
+  `0.45 < k_eff/k_inf < 0.85` (a wide band). The 21% systematic
+  offset was within the band.
+- The vacuum slow-convergence floor (5e-4 between (24,40,96) and
+  (32,56,128) grids) was REINTERPRETED as a quadrature limitation
+  in the Phase-3A closeout memo. With the fix, vacuum converges
+  faster (the slow floor was the bug's spatial bias being slowly
+  resolved as the Spline interpolation got finer).
+
+**L0 test that catches it:** Method-of-images symmetry test
+(`test_method_of_images_reflective_vacuum_equals_double_vacuum`)
+in `tests/derivations/test_peierls_greens_function_slab_asymmetric_solver.py`
+(tagged `@pytest.mark.catches("ERR-034")` if added). The asymmetric
+[0,1] reflective-vacuum eigenvalue must equal the symmetric [0,2]
+vacuum-vacuum eigenvalue to ≤ 1e-7; the buggy version differed by
+~5% relative.
+
+**Fix:** Replace `x_traj = x - s_pts_first` with `x_traj = x - mu *
+s_pts_first` for μ > 0, and `x_traj = x + abs_mu * s_pts_first`
+for μ < 0. Applied to both Phase-3A and Phase-3B modules in the
+Phase-3B integration commit.
+
+**Lesson:** The transport equation's characteristic parametrisation
+along arclength s in direction Ω̂ has Δr = s·Ω̂ (vector). In 1D, this
+means Δx = s·μ — NOT Δx = s·sign(μ). The factor of μ matters for
+ANY non-uniform source / non-trivial flux profile. **A test
+exercising non-trivial spatial profiles (mesh-refinement on a
+heterogeneous problem, or a method-of-images consistency check)
+catches this immediately; uniform-source-only tests are blind by
+construction.**
+
+This is a slab-specific instance of the same "trajectory
+parametrisation must respect the direction-cosine chain rule"
+pattern as ERR-006 (curvilinear sphere α-recursion + ΔA/w bug).
+
+---
+
+## ERR-035 — Slab Variant α symmetric closure: heuristic α·B_period/(1-α²·e^{-2τ}) is wrong at intermediate α
+
+**Failure mode:** #1 Sign flip / convention drift — the symmetric
+rank-1 closure was constructed by analogy with sphere/cylinder
+(applying `alpha_per_period = α²` for the 2-bounce-per-period
+geometry) without re-deriving from first principles. The
+analogical formula coincides with the correct closure ONLY at
+α∈{0, 1} corners.
+**Date:** 2026-05-02 (Phase-3B reduce-to-symmetric consistency
+check).
+**Solver:** Slab Variant α Green's function reference, Phase-3A
+symmetric (`greens_function_slab.py::_apply_operator_slab` calling
+`apply_variant_alpha_closure(... alpha_per_period=α²)` with the
+full out-and-back bounce-period B integral).
+
+**Bug:** The Phase-3A heuristic closure
+
+    ψ_surf = α · B_period / (1 - α² · e^{-2τ})
+    where B_period = ∫_0^{2L/|μ|} q · e^{-σ_t · s} ds (no α factor)
+
+does NOT match the first-principles rank-2-at-symmetric closure
+
+    ψ_surf = α · B / (1 - α · e^{-τ})
+    where B = ∫_0^{L/|μ|} q · e^{-σ_t · s} ds (single transit)
+
+— EXCEPT at α=1 (closed slab, where (1-e^{-τ})(1+e^{-τ}) =
+1-e^{-2τ} collapses both forms to q/Σ_t for constant source) and
+α=0 (vacuum, where both reduce to F). The first-principles
+derivation is documented in the Phase-3B closeout memo: starting
+from `ψ_L^+ = α_L · ψ(0, -μ̂)` and tracing the trajectory
+explicitly through both walls yields the correct rank-2 closure,
+which under symmetric BC reduces to `α · B / (1 - α · e^{-τ})`.
+
+**Impact:** For 0 < α < 1 (partial-reflection BCs that are common
+in real reactor problems), Phase-3A k_eff is off by ~1.3e-4 relative
+at α=0.5 (fuel-A τ_L=5). Phase-3B's Branch-1 SymPy V_α2_slab_asym
+proves the discrepancy algebraically: rank-2 at α_L=α_R=α gives
+`(T_11 + T_12) = 1/(1 - α·e^{-τ})`, NOT `(1 + e^{-τ})/(1 - α²·e^{-2τ})`
+that the Phase-3A formula encodes.
+
+**How it hid from higher-level tests:**
+- Phase-3A V_α1_slab uses constant source — both formulas reduce
+  to q/Σ_t, agreement at machine precision masks the heuristic.
+- Phase-3A vacuum-only and closed-only tests exercise α∈{0,1}
+  corners only; intermediate α was never tested.
+- Phase-3A's MG-2G-asymmetric test uses α=1 (closed asymmetric
+  scattering matrix detector); α<1 path was never multi-group
+  tested.
+- The 22 Phase-3A tests are all blind to the discrepancy by
+  construction — none of them stress the closure formula at
+  intermediate α with a spatially non-uniform eigenmode.
+
+**L1 test that captures it:**
+`test_rank2_vs_rank1_at_intermediate_alpha_documented_discrepancy`
+in `tests/derivations/test_peierls_greens_function_slab_asymmetric_solver.py`
+captures the achieved disagreement (~1.3e-4 at α=0.5; gate is
+[5e-5, 5e-4] — fails if it gets tighter (silent fix) or looser
+(regression)).
+
+**Fix (deferred per Phase-3B brief scope):** Replace Phase-3A's
+`_apply_operator_slab` with a call to the Phase-3B
+`_apply_operator_slab_asymmetric` at α_L=α_R=α (single-transit B
+integrals + rank-2 closure). The two formulations would then be
+identically the same, both correct. Deferred to a follow-on phase
+because the Phase-3B brief explicitly excludes Phase-3A
+modifications.
+
+**Lesson:** **Analogical generalisation of a closure formula
+across geometries is an algebraic claim that requires a proof,
+not a substitution.** Phase-3A took the sphere/cylinder rank-1
+form `α · B_period / (1 - α^N · e^{-N·τ})` and applied it with
+`N=2` to slab on the strength of "slab has 2 bounces per period",
+WITHOUT re-deriving from first principles for the slab geometry.
+The derivation actually requires careful tracking of α factors
+inside the bounce-period source integral — a single α factor does
+appear inside the second-leg term, NOT just as a denominator α².
+**Every Variant α generalisation to a new geometry must include a
+first-principles derivation of the closure on a non-uniform
+source, with the result cross-checked against the rank-2 closure
+at the symmetric corner.**
+
+This is a meta-instance of ERR-032's "structural-independence
+illusion": Phase-3A had the V_α1_slab algebraic identity AND the
+vacuum α=0 sanity check, both of which agreed with the
+implementation by construction (constant source / α=0). The bug
+hid in the algebraic interpolation between those two corners that
+no test exercised — exactly as ERR-032 hid in the algebraic step
+that two procedurally-independent derivations both inherited from
+the same identity.
+
+---
+
 ## Meta-Lessons
 
 1. **1-group is degenerate.** k = νΣ_f/Σ_a regardless of flux shape.

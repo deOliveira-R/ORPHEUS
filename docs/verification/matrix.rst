@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1435**
+Total tests collected: **1462**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 585, 40.8%
-   L1, 423, 29.5%
+   L0, 585, 40.0%
+   L1, 434, 29.7%
    L2, 36, 2.5%
    L3, 0, 0.0%
-   foundation, 380, 26.5%
+   foundation, 396, 27.1%
    unmarked, 11, 0.8%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1345
+   explicit, 1372
    verify, 0
    class-name, 46
    func-name, 0
@@ -78,6 +78,8 @@ Module × level grid
    derivations/test_peierls_greens_function_garcia2021, 0, 0, 0, 0, 17, 0
    derivations/test_peierls_greens_function_mg, 0, 0, 0, 0, 7, 0
    derivations/test_peierls_greens_function_mr, 0, 0, 0, 0, 4, 0
+   derivations/test_peierls_greens_function_slab_asymmetric_solver, 0, 11, 0, 0, 0, 0
+   derivations/test_peierls_greens_function_slab_asymmetric_symbolic, 0, 0, 0, 0, 16, 0
    derivations/test_peierls_greens_function_slab_solver, 0, 12, 0, 0, 0, 0
    derivations/test_peierls_greens_function_slab_symbolic, 0, 0, 0, 0, 10, 0
    derivations/test_peierls_greens_function_solver, 0, 0, 0, 0, 3, 0
@@ -238,6 +240,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``two-group-Ainv``, 11
    ``two-group-F``, 11
    ``two-group-M``, 11
+   ``peierls-greens-slab-asym-architecture``, 10
    ``peierls-white-bc``, 10
    ``dd-recurrence``, 9
    ``tau-m``, 9
@@ -296,6 +299,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``number-density``, 3
    ``sigma-zero``, 3
    ``cp-second-difference-operator``, 2
+   ``peierls-greens-slab-asym-method-of-images``, 2
    ``peierls-slab-Gbc-mode``, 2
    ``peierls-slab-Pesc-mode``, 2
    ``richardson-diffusion``, 2
@@ -317,6 +321,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-greens-cylinder-impact-parameter``, 1
    ``peierls-greens-cylinder-in-plane-speed``, 1
    ``peierls-greens-cylinder-trajectory``, 1
+   ``peierls-greens-slab-asym-closure``, 1
+   ``peierls-greens-slab-asym-resolvent``, 1
    ``peierls-greens-slab-trajectory``, 1
    ``sigT-computed``, 1
    ``sn-mms-2d-2g-qext``, 1
@@ -334,7 +340,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **70** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **71** of the testable equations found on theory pages are orphan.
 
 - ``c-in-remapping``
 - ``e1-decomposition``
@@ -375,6 +381,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``peierls-greens-mr-trajectory-segments``
 - ``peierls-greens-mu-surf``
 - ``peierls-greens-sanchez-A6``
+- ``peierls-greens-slab-asym-monodromy``
 - ``peierls-greens-slab-bounce-period``
 - ``peierls-greens-surface-fixed-point``
 - ``peierls-greens-trajectory-integral``

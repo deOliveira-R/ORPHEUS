@@ -1956,6 +1956,223 @@ Foundation tests pin both branches in
 ``test_closure_alpha_per_period_alpha_squared_for_slab``).
 
 
+.. _peierls-greens-slab-asym:
+
+Slab asymmetric Variant α (Phase 3B, rank-2 resolvent)
+=======================================================
+
+.. todo:: Archivist expansion needed.
+
+   This section is a **method-implementer stub** — it states the
+   load-bearing equations, labels them for cross-reference, and
+   points to the SymPy module + tests. The full mathematical
+   narrative (worked rank-2 algebra; method-of-images derivation
+   linking the asymmetric reflective-vacuum slab to the
+   doubled-domain symmetric vacuum slab; the latent algebraic
+   discrepancy in Phase-3A's intermediate-α closure surfaced by
+   Phase-3B; roadmap to hollow sphere / annulus in Phase 3C
+   inheriting the rank-2 framework) is the archivist's deliverable.
+
+   Source artifacts:
+
+   - Branch-1 SymPy:
+     :mod:`orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function_slab_asymmetric`
+     (V_α1_slab_asym, V_α2_slab_asym, V_α3_slab_asym).
+   - Branch-2 production:
+     :mod:`orpheus.derivations.continuous.peierls_greens_function.greens_function_slab_asymmetric`
+     (:func:`solve_greens_function_slab_asymmetric`,
+     :func:`solve_greens_function_slab_asymmetric_mg`).
+   - Symbolic test gate:
+     :file:`tests/derivations/test_peierls_greens_function_slab_asymmetric_symbolic.py`
+     (16 foundation-tagged tests).
+   - Numerical L1 gates:
+     :file:`tests/derivations/test_peierls_greens_function_slab_asymmetric_solver.py`
+     (11 L1-tagged tests including the load-bearing method-of-images
+     symmetry test).
+   - Plan: :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md`.
+   - Closeout memo:
+     :file:`.claude/agent-memory/method-implementer/slab_asymmetric_variant_alpha_phase3b.md`.
+
+Phase-3B asymmetric slab Variant α extends the BC parameter space
+from one scalar :math:`\alpha \in [0, 1]` to TWO independent per-
+wall reflectivities :math:`\alpha_L, \alpha_R \in [0, 1]`. The
+shared rank-1 closure (sphere, cylinder, symmetric slab) is
+replaced by a **rank-2 boundary-to-boundary scattering resolvent**
+:math:`T = (I - S)^{-1}` — the predicted generalisation from the
+cross-domain frame memo
+:file:`.claude/agent-memory/cross-domain-attacker/variant_alpha_2surface_bie_frame.md`.
+
+Rank-2 monodromy and resolvent
+-------------------------------
+
+Phase space :math:`(x, \mu)` with surface state
+:math:`[\psi_L^+(\mu), \psi_R^-(\mu)]` (outgoing flux at the left
+wall in :math:`+\hat\mu` direction and at the right wall in
+:math:`-\hat\mu` direction). The monodromy operator advancing the
+surface state by ONE STEP of the bouncing trajectory is
+
+.. math::
+   :label: peierls-greens-slab-asym-monodromy
+
+   S(\alpha_L, \alpha_R, \tau) = \begin{pmatrix}
+       0                              & \alpha_L\,e^{-\tau} \\
+       \alpha_R\,e^{-\tau}            & 0
+   \end{pmatrix}, \qquad
+   \tau = \Sigma_t\,L /|\mu|
+
+(single-transit optical depth — NOT the full out-and-back period).
+The diagonal of :math:`S` is identically zero: one step never
+returns to the same wall.
+
+The rank-2 resolvent is
+
+.. math::
+   :label: peierls-greens-slab-asym-resolvent
+
+   T(\alpha_L, \alpha_R, \tau) = (I - S)^{-1}
+       = \frac{1}{1 - \alpha_L\,\alpha_R\,e^{-2\tau}}
+         \begin{pmatrix}
+             1                       & \alpha_L\,e^{-\tau} \\
+             \alpha_R\,e^{-\tau}     & 1
+         \end{pmatrix}.
+
+Surface-flux closure
+---------------------
+
+The closure equations involve **single-transit** B integrals (NOT
+full bounce-period integrals as in the rank-1 symmetric closure):
+
+.. math::
+   :label: peierls-greens-slab-asym-closure
+
+   \psi_L^+(\mu) &= \alpha_L\,B_{LR}(\mu) + \alpha_L\,e^{-\tau}\,
+                       \psi_R^-(\mu), \\
+   \psi_R^-(\mu) &= \alpha_R\,B_{RL}(\mu) + \alpha_R\,e^{-\tau}\,
+                       \psi_L^+(\mu),
+
+where
+
+.. math::
+
+   B_{LR}(\mu) = \int_0^{L/|\mu|} q(|\mu|\,s)\,e^{-\Sigma_t s}\,
+                  \mathrm d s, \qquad
+   B_{RL}(\mu) = \int_0^{L/|\mu|} q(L - |\mu|\,s)\,e^{-\Sigma_t s}\,
+                  \mathrm d s.
+
+In matrix form :math:`\psi_{\rm surf} = T \cdot \alpha\,B` with
+:math:`(\alpha B)_L = \alpha_L\,B_{LR}` and :math:`(\alpha B)_R =
+\alpha_R\,B_{RL}`.
+
+Variant α architecture for asymmetric slab
+-------------------------------------------
+
+For each phase-space grid point :math:`(x_i, \mu_q)`:
+
+.. math::
+   :label: peierls-greens-slab-asym-architecture
+
+   \psi(x_i, \mu) = F(x_i, \mu)
+                   + e^{-\Sigma_t L_{\rm first}}\,
+                     \psi_{\rm surface}(\mu),
+
+where :math:`\psi_{\rm surface}` is :math:`\psi_L^+(\mu)` for
+:math:`\mu > 0` (the trajectory entered from the left wall) and
+:math:`\psi_R^-(\mu)` for :math:`\mu < 0` (entered from the right
+wall).
+
+Method-of-images symmetry test (load-bearing acceptance)
+---------------------------------------------------------
+
+.. math::
+   :label: peierls-greens-slab-asym-method-of-images
+
+   \boxed{\;
+   k_{\rm eff}\!\big[\text{slab } [0, L],\, \alpha_L = 1,\, \alpha_R = 0\big]
+   \;=\;
+   k_{\rm eff}\!\big[\text{slab } [0, 2L],\, \alpha_L = \alpha_R = 0\big]
+   \;}
+
+The reflective BC at :math:`x = 0` enforces the even-symmetry plane
+of the fundamental eigenmode of the symmetric vacuum slab
+:math:`[0, 2L]` (which is symmetric about :math:`x = L`). Cutting
+the symmetric slab at :math:`x = L` and applying the specular
+condition (which holds by symmetry) yields an equivalent problem
+on the right half :math:`[L, 2L]` — bijectively mapped to
+:math:`[0, L]` via :math:`x_{\rm asym} = x_{\rm sym} - L`. Therefore
+the eigenvalues match exactly, and the flux profiles satisfy
+:math:`\phi_{\rm asym}(x) = \phi_{\rm sym}(L + x)` for :math:`x \in
+[0, L]`.
+
+This is the **canonical structural-independence test** for the
+rank-2 prototype — it exercises both the closure algebra (across
+the diagonal of the BC parameter square) and the trajectory
+machinery (the asymmetric flux profile peaks AT the reflective
+wall, not at an interior point — a sensitive bug-fingerprint for
+trajectory-parametrisation errors).
+
+Numerical verification status (Phase 3B)
+-----------------------------------------
+
+- **k_inf exactness at α_L=α_R=1** — fuel-A-like XS, both thin
+  (:math:`\tau_L = 1`) and moderate (:math:`\tau_L = 5`):
+  :math:`k_{\rm eff} = k_\infty` to :math:`\le 1\mathrm e{-10}`
+  relative (machine floor :math:`\sim 5.55\mathrm e{-17}`,
+  1 iteration from constant initial guess).
+- **Method-of-images symmetry test** (the load-bearing gate) —
+  asym :math:`[0, 1]` :math:`(\alpha_L=1, \alpha_R=0)` agrees with
+  sym :math:`[0, 2]` :math:`(\alpha=0, 0)` at :math:`\le 5.6\mathrm
+  e{-8}` relative at (n_x_asym=32, n_mu=32, n_traj_quad=64);
+  :math:`\le 6.5\mathrm e{-9}` at (64, 64, 128). Asymmetric flux
+  peaks at :math:`x \approx 0.001` (the reflective wall), monotone
+  decreasing to vacuum.
+- **Vacuum-vacuum bit-equality** — at :math:`\alpha_L = \alpha_R = 0`,
+  rank-2 result is bit-equal to Phase-3A rank-1 (both bypass the
+  closure entirely and reduce to the bare first-leg integral).
+- **Multi-group at α_L=α_R=1** — 2G with asymmetric scattering
+  matches :math:`k_\infty` from
+  :func:`~orpheus.derivations.common.eigenvalue.kinf_homogeneous`
+  to :math:`\le 1\mathrm e{-9}` relative.
+
+The Phase-3A rank-1 algebraic discrepancy (latent finding)
+-----------------------------------------------------------
+
+The Phase-3B rank-2 closure (verified by direct first-principles
+derivation in
+:func:`derive_operator_constant_trial_closed_slab_asymmetric`) and
+the Phase-3A rank-1 symmetric closure agree at the BC-square
+corners :math:`\alpha \in \{0, 1\}` (where flux profiles are
+uniform-or-rank-1-collapsing) but DIFFER by :math:`\sim 1.3
+\mathrm e{-4}` relative at intermediate :math:`\alpha = 0.5`. The
+Phase-3A formula
+
+.. math::
+
+   \psi_{\rm surf} = \frac{\alpha\,B_{\rm period}}
+                          {1 - \alpha^2\,e^{-2\tau}}, \qquad
+   B_{\rm period} = \int_0^{2L/|\mu|} q\,e^{-\Sigma_t s}\,\mathrm d s,
+
+is a heuristic generalisation that does NOT match the
+structurally-correct (per first-principles derivation) rank-2 form
+:math:`\psi_{\rm surf} = \alpha\,B / (1 - \alpha\,e^{-\tau})` at
+intermediate :math:`\alpha`. The Phase-3A V_α1 / vacuum tests
+miss the discrepancy because they only exercise the corners. The
+Phase-3B test
+:func:`test_rank2_vs_rank1_at_intermediate_alpha_documented_discrepancy`
+captures the achieved disagreement (~3e-4 gate) so any regression
+or fix surfaces immediately.
+
+A clean Phase-3A fix would be to replace its rank-1 closure with
+the rank-2 closure at :math:`\alpha_L = \alpha_R = \alpha` —
+deferred to a follow-on phase per the Phase-3B brief's "DO NOT
+modify Phase 3A symmetric slab" scope guard.
+
+A second latent bug (the trajectory parametrisation
+:math:`x_{\rm traj}(s) = x - s` instead of :math:`x - \mu \cdot s`,
+silent on uniform-:math:`q` cases) was caught and FIXED in both
+Phase-3A and Phase-3B during Phase-3B integration. See ERR
+catalog entry in :file:`.claude/skills/vv-principles/error_catalog.md`.
+
+
 Provenance: literature, code, and tests
 ========================================
 
