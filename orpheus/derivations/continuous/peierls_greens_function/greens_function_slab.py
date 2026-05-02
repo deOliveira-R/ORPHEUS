@@ -284,10 +284,11 @@ def _apply_operator_slab(
             #         so x'(s) = x + s; entry wall at x = L.
             if mu > 0:
                 L_first = x / mu
-                # Backward chord parametrisation: x' = x - s, s ∈ [0, L_first].
-                # Entry point at s = L_first is x = 0 (matches x'(L_first) = 0).
+                # Backward chord parametrisation: at arclength s back
+                # from (x, μ), position x'(s) = x - μ·s. Entry point
+                # at s = L_first = x/μ is x'(L_first) = 0.
                 s_pts_first = s_unit * L_first
-                x_traj = x - s_pts_first
+                x_traj = x - mu * s_pts_first
                 # Bounce-period trajectory: starts at entry wall (x=0)
                 # in direction +mu_hat (mu > 0); traverses full slab
                 # to x = L (s_2 = L/mu = L/|mu|), reflects to -mu,
@@ -305,9 +306,10 @@ def _apply_operator_slab(
                 # mu < 0
                 L_first = (L - x) / abs_mu
                 s_pts_first = s_unit * L_first
-                # Backward direction is +x_hat: x' = x + s.
-                # Entry point at s = L_first is x = L (matches x'(L_first) = L).
-                x_traj = x + s_pts_first
+                # Backward direction is -μ̂ = +x̂: at arclength s back
+                # from (x, μ), position x'(s) = x - μ·s = x + |μ|·s.
+                # Entry point at s = L_first = (L-x)/|μ| is x'(L_first) = L.
+                x_traj = x + abs_mu * s_pts_first
                 # Bounce period: enters at x = L in direction -mu_hat
                 # (mu < 0); traverses to x = 0 (s_2 = L/|mu|), reflects,
                 # traverses back to x = L.
