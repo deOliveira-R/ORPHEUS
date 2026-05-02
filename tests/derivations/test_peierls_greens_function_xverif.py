@@ -41,7 +41,7 @@ from orpheus.derivations.continuous.peierls.geometry import (
     solve_peierls_1g,
 )
 from orpheus.derivations.continuous.peierls.greens_function import (
-    solve_greens_function_specular_sphere,
+    solve_greens_function_sphere,
 )
 
 
@@ -69,7 +69,7 @@ def test_b5_variant_alpha_gives_k_inf_exactly(fuelA_thin_sphere_1G):
     it as their rank or quadrature parameters tighten.
     """
     fix = fuelA_thin_sphere_1G
-    res = solve_greens_function_specular_sphere(
+    res = solve_greens_function_sphere(
         R=float(fix["radii"][0]),
         sigma_t=float(fix["sig_t"][0]),
         sigma_s=float(fix["sig_s"][0, 0]),
@@ -142,7 +142,7 @@ def test_b5_phase4_converges_toward_variant_alpha(fuelA_thin_sphere_1G):
     fix = fuelA_thin_sphere_1G
 
     # Variant α reference (exact = k_inf).
-    res_alpha = solve_greens_function_specular_sphere(
+    res_alpha = solve_greens_function_sphere(
         R=float(fix["radii"][0]),
         sigma_t=float(fix["sig_t"][0]),
         sigma_s=float(fix["sig_s"][0, 0]),

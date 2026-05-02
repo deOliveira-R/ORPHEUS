@@ -122,6 +122,7 @@ def _apply_operator(
     R: float,
     sigma_t: float,
     source_coeff: float,
+    alpha: float,
     *,
     n_traj_quad: int,
 ) -> np.ndarray:
@@ -134,6 +135,25 @@ def _apply_operator(
     \psi(r, \mu)\,\mathrm d\mu` (the factor 4π = 2 × 2π combines the
     azimuthal :math:`2\pi` with the :math:`\mu`-symmetry doubling).
 
+    Boundary condition is parametrised by :math:`\alpha \in [0, 1]`
+    (Sanchez 1986 Eq. A3.a with :math:`\beta = 0`):
+
+    - :math:`\alpha = 1`: perfect specular reflection (closed sphere)
+    - :math:`\alpha = 0`: vacuum BC (no surface re-entry)
+    - :math:`0 < \alpha < 1`: partial-reflection albedo
+
+    The bounce-sum closure carries :math:`\alpha`:
+
+    .. math::
+
+        \psi_{\rm surf} \;=\; \frac{\alpha\,B(\mu_{\rm surf})}
+                                   {1 - \alpha\,e^{-\Sigma_t L_p}}.
+
+    For :math:`\alpha = 0` this collapses to :math:`\psi_{\rm surf} = 0`,
+    so the total flux reduces to the first-leg integral
+    :math:`\psi(r, \mu) = F(r, \mu)`. The bounce-period integral
+    :math:`B` is not computed in this branch (efficiency).
+
     Parameters
     ----------
     psi : (n_r, n_mu) ndarray
@@ -141,10 +161,14 @@ def _apply_operator(
     r_nodes : (n_r,) ndarray
         Radial grid nodes on :math:`(0, R]`.
     mu_nodes : (n_mu,) ndarray
-        Angular grid on :math:`(0, 1]` (outward direction cosines).
+        Angular grid on :math:`[-1, 1]` (cosine of :math:`\Omega` with
+        outward radial). Vacuum BC breaks the :math:`\mu \to -\mu`
+        symmetry — the full range must be discretised. For closed sphere
+        the eigenmode is :math:`\mu`-isotropic anyway, so this incurs
+        only redundant compute, not wrong answers.
     mu_weights : (n_mu,) ndarray
         Quadrature weights matching ``mu_nodes`` for the full
-        :math:`\int_0^1 \cdot\,\mathrm d\mu` integral.
+        :math:`\int_{-1}^{1} \cdot\,\mathrm d\mu` integral.
     R : float
         Outer radius.
     sigma_t : float
@@ -153,6 +177,9 @@ def _apply_operator(
         Combined source factor :math:`(\Sigma_s + \nu\Sigma_f/k) / 4\pi`
         — multiplied by :math:`\phi(r)` to give the isotropic source
         per steradian per unit volume.
+    alpha : float
+        Surface reflectivity in :math:`[0, 1]`. 1 = perfect specular,
+        0 = vacuum, intermediate = partial-reflection albedo.
     n_traj_quad : int
         Gauss-Legendre order for the trajectory + bounce-chord
         integrals.
@@ -162,9 +189,9 @@ def _apply_operator(
     (n_r, n_mu) ndarray
         Updated angular flux :math:`\psi^{(n+1)}`.
     """
-    # Scalar flux φ(r_i) = ∫ ψ(r_i, Ω) dΩ = 2 · 2π · ∫_0^1 ψ(r_i, µ) dµ.
-    # The factor 2 absorbs the µ → -µ symmetry (we only discretise µ > 0).
-    phi = 4.0 * np.pi * np.sum(psi * mu_weights[None, :], axis=1)
+    # Scalar flux φ(r_i) = ∫ ψ(r_i, Ω) dΩ = 2π · ∫_{-1}^{1} ψ(r_i, µ) dµ
+    # (azimuthal integration gives the 2π).
+    phi = 2.0 * np.pi * np.sum(psi * mu_weights[None, :], axis=1)
 
     # Cubic spline interpolant for φ(r) — smooth source between grid nodes.
     # Trajectory points satisfy 0 ≤ |r(s)| ≤ R (geometry confines them);
@@ -188,26 +215,45 @@ def _apply_operator(
         for q_idx in range(n_mu):
             mu = mu_nodes[q_idx]
 
-            # Geometry: first-leg distance + surface cosine.
-            # Line from r in direction -Ω_µ exits at distance L_0.
-            # Discriminant: R² − r²(1 − µ²) — always positive for r < R.
+            # Geometry: backward-leg distance + surface cosine.
+            # The integral form ψ(r,Ω) = e^{-Σ_t L_back}·ψ_BC(r_b,Ω) +
+            # ∫_0^{L_back} q(r-sΩ)·e^{-Σ_t s} ds traces BACKWARD from r
+            # in direction -Ω to the upstream surface point r_b.
+            #
+            # For r(s) = r - sΩ, |r(s)|² = R² gives roots s_± = rµ ±
+            # √(R² − r²(1−µ²)). Both have rµ ± √(...) where √(...) > |rµ|
+            # (since √² − (rµ)² = R² − r² > 0), so s_+ = rµ + √(...) > 0
+            # is the unique positive root — the backward distance to
+            # surface. (Earlier prototype used √(...) − rµ which is the
+            # FORWARD distance s_fwd = −rµ + √(...) instead; that quantity
+            # is the chord length from r out the opposite surface, not
+            # the backward distance the integral form needs.)
             disc = R * R - r * r * (1.0 - mu * mu)
             sqrt_disc = np.sqrt(max(disc, 0.0))
-            L_0 = sqrt_disc - r * mu  # > 0 for any r < R
-            mu_surf = sqrt_disc / R   # surface cosine of trajectory
-            L_p = 2.0 * R * mu_surf   # antipodal chord = bounce period
+            L_back = r * mu + sqrt_disc  # > 0 for any r < R, |µ| ≤ 1
+            mu_surf = sqrt_disc / R       # |cosine| at surface (specular bounce flips sign)
+            L_p = 2.0 * R * mu_surf       # antipodal chord = bounce period
 
-            # First-leg trajectory integral.
-            #   F = ∫_0^L_0 q(|r(s)|) e^{-σ_t s} ds, q = source_coeff · φ.
-            # Trajectory: r(s) = r + s · (-Ω_µ), |r(s)|² = r² − 2rsµ + s².
-            s_pts = s_unit * L_0
+            # First-leg trajectory integral (backward from r to surface).
+            #   F = ∫_0^{L_back} q(|r(s)|)·e^{-σ_t s} ds, q = source_coeff·φ.
+            # Trajectory: r(s) = r − sΩ_µ, |r(s)|² = r² − 2rsµ + s².
+            s_pts = s_unit * L_back
             r_traj_sq = r * r - 2.0 * r * mu * s_pts + s_pts * s_pts
             r_traj = np.sqrt(np.clip(r_traj_sq, 0.0, R * R))
             phi_traj = phi_interp(r_traj)
             integrand_F = (
                 source_coeff * phi_traj * np.exp(-sigma_t * s_pts)
             )
-            F = L_0 * np.sum(w_unit * integrand_F)
+            F = L_back * np.sum(w_unit * integrand_F)
+
+            # Vacuum BC branch: skip bounce machinery entirely.
+            if alpha == 0.0:
+                psi_new[i, q_idx] = F
+                continue
+            # Specular branch needs the attenuation along L_back from
+            # the upstream boundary back to r — same exp factor either
+            # way since L_back is the backward leg.
+            atten_first_leg = np.exp(-sigma_t * L_back)
 
             # Bounce-period integral on antipodal chord.
             #   B = ∫_0^L_p q(|r_chord(s)|) e^{-σ_t s} ds.
@@ -223,24 +269,24 @@ def _apply_operator(
             )
             B = L_p * np.sum(w_unit * integrand_B)
 
-            # Geometric bounce-sum closure: ψ_surf = T(µ_surf) · B.
-            # T(µ) = 1/(1 − e^{-σ_t L_p}) with L_p = 2R·µ_surf.
-            denom = 1.0 - np.exp(-sigma_t * L_p)
-            T_factor = 1.0 / denom if denom > 1e-15 else 1.0 / (sigma_t * L_p)
-            psi_surf = T_factor * B
+            # Geometric bounce-sum closure with reflectivity α:
+            #   ψ_surf = α · B / (1 − α · e^{-σ_t L_p}).
+            denom = 1.0 - alpha * np.exp(-sigma_t * L_p)
+            psi_surf = alpha * B / denom
 
             # Total angular flux at (r_i, µ_q).
-            psi_new[i, q_idx] = F + np.exp(-sigma_t * L_0) * psi_surf
+            psi_new[i, q_idx] = F + atten_first_leg * psi_surf
 
     return psi_new
 
 
-def solve_greens_function_specular_sphere(
+def solve_greens_function_sphere(
     R: float,
     sigma_t: float,
     sigma_s: float,
     nu_sigma_f: float,
     *,
+    alpha: float = 1.0,
     n_r: int = 24,
     n_mu: int = 24,
     n_traj_quad: int = 64,
@@ -248,43 +294,57 @@ def solve_greens_function_specular_sphere(
     tol: float = 1e-10,
     initial_psi: np.ndarray | None = None,
 ) -> GreensFunctionResult:
-    r"""Power iteration on the Variant α operator for homogeneous
-    sphere with perfect specular BC and isotropic scattering.
+    r"""Power iteration on the Variant α operator for homogeneous sphere
+    with isotropic scattering, parametrised by surface reflectivity α.
 
     Solves the k-eigenvalue problem :math:`(I - K_{\rm scat})\,\psi =
     (\nu\Sigma_f/k)\,K_{\rm transport}\,\psi` via fission-source
     iteration with the Variant α operator (angle-resolved Green's
-    function with specular bounces summed analytically).
+    function with bounces summed analytically — Sanchez 1986 Eq. A5
+    specular leg).
 
-    For closed sphere (specular BC, no leakage) the rank-1 isotropic
-    mode is the unique eigenmode with :math:`k_{\rm eff} = k_\infty =
-    \nu\Sigma_f/\Sigma_a` (V_α1 algebraic identity). This solver
-    verifies the **numerical implementation** matches that identity
-    within quadrature error — it does not extract physically-different
-    information from the specular-BC closed sphere (which is trivially
-    :math:`k_\infty`).
+    Boundary condition is parametrised by :math:`\alpha \in [0, 1]`
+    (Sanchez 1986 Eq. A3.a with :math:`\beta = 0`):
+
+    - :math:`\alpha = 1`: perfect specular reflection. Closed sphere,
+      no leakage, rank-1 isotropic eigenmode with
+      :math:`k_{\rm eff} = k_\infty = \nu\Sigma_f/\Sigma_a` (V_α1).
+      Trivially exact at machine precision (V_α1.numerical).
+    - :math:`\alpha = 0`: vacuum BC, no surface re-entry. Spatial
+      eigenmode is non-trivial (peaked at center, depleted at surface
+      due to leakage). :math:`k_{\rm eff} < k_\infty`. **This case
+      stress-tests the trajectory machinery** — closed sphere does not.
+      Cross-check against Pomraning-Siewert 1982 closed form.
+    - :math:`0 < \alpha < 1`: partial-reflection albedo. Intermediate
+      between the two extremes.
 
     Parameters
     ----------
     R : float
         Outer radius.
     sigma_t, sigma_s, nu_sigma_f : float
-        Group cross sections (1G; multi-group / multi-region deferred).
+        Group cross sections (1G; multi-group deferred to A3).
+    alpha : float, default 1.0
+        Surface reflectivity. 1 = closed sphere (specular), 0 = vacuum.
     n_r, n_mu : int
         Radial and angular quadrature orders.
     n_traj_quad : int
         Trajectory + bounce-chord quadrature order.
     max_iter, tol : int, float
-        Power-iteration convergence parameters.
+        Power-iteration convergence parameters. Vacuum BC needs
+        :math:`O(10^2)` iterations from a uniform initial guess; closed
+        sphere converges in 1.
     initial_psi : (n_r, n_mu) ndarray, optional
-        Initial angular flux. Default: uniform constant
-        (rank-1 isotropic — the algebraic eigenmode).
+        Initial angular flux. Default: uniform constant.
 
     Returns
     -------
     :class:`GreensFunctionResult`
         Converged k_eff, ψ, φ, grid info, iteration count.
     """
+    if not (0.0 <= alpha <= 1.0):
+        raise ValueError(f"alpha = {alpha} must lie in [0, 1]")
+
     # Radial grid: Gauss-Legendre on (0, R) — open quadrature avoids
     # the boundary point r = R exactly (where the Phase-5 hypersingular
     # spike lives in the angle-integrated kernel; here the angle-resolved
@@ -293,11 +353,14 @@ def solve_greens_function_specular_sphere(
     r_nodes = R * 0.5 * (r_quad_pts + 1.0)
     r_weights = R * 0.5 * r_quad_wts
 
-    # Angular grid: GL on (0, 1] (outward µ only; inward µ < 0 absorbed
-    # via the µ → -µ symmetry of the homogeneous closed-sphere mode).
+    # Angular grid: GL on [-1, 1] (full µ range). For vacuum BC the
+    # µ → -µ symmetry is broken (different trajectories for outward vs
+    # inward Ω), so both signs are needed. For closed-sphere specular
+    # the eigenmode is µ-isotropic anyway, so the extra inward nodes
+    # are redundant but harmless.
     mu_quad_pts, mu_quad_wts = np.polynomial.legendre.leggauss(n_mu)
-    mu_nodes = 0.5 * (mu_quad_pts + 1.0)
-    mu_weights = 0.5 * mu_quad_wts
+    mu_nodes = mu_quad_pts
+    mu_weights = mu_quad_wts
 
     # Initial guess
     if initial_psi is not None:
@@ -305,12 +368,14 @@ def solve_greens_function_specular_sphere(
     else:
         psi = np.ones((n_r, n_mu))
 
-    # Initial k_eff from k_inf
+    # Initial k_eff: use k_inf as starting guess where defined.
+    # For α < 1 the converged k_eff < k_inf due to leakage; the
+    # Rayleigh quotient walks it down during iteration.
     sigma_a = sigma_t - sigma_s
     if sigma_a <= 0:
         raise ValueError(
-            f"sigma_a = sigma_t - sigma_s = {sigma_a} ≤ 0; "
-            "k_inf undefined for non-absorbing medium."
+            f"sigma_a = sigma_t - sigma_s = {sigma_a} ≤ 0; non-absorbing "
+            "medium not supported (k_inf undefined)."
         )
     k_eff = nu_sigma_f / sigma_a
 
@@ -332,12 +397,12 @@ def solve_greens_function_specular_sphere(
 
         psi_new = _apply_operator(
             psi, r_nodes, mu_nodes, mu_weights, R, sigma_t,
-            source_coeff, n_traj_quad=n_traj_quad,
+            source_coeff, alpha, n_traj_quad=n_traj_quad,
         )
 
         # Scalar flux for Rayleigh quotient.
-        phi_old = 4.0 * np.pi * np.sum(psi * mu_weights[None, :], axis=1)
-        phi_new = 4.0 * np.pi * np.sum(
+        phi_old = 2.0 * np.pi * np.sum(psi * mu_weights[None, :], axis=1)
+        phi_new = 2.0 * np.pi * np.sum(
             psi_new * mu_weights[None, :], axis=1
         )
 
@@ -359,7 +424,7 @@ def solve_greens_function_specular_sphere(
             converged = True
             break
 
-    phi = 4.0 * np.pi * np.sum(psi * mu_weights[None, :], axis=1)
+    phi = 2.0 * np.pi * np.sum(psi * mu_weights[None, :], axis=1)
 
     return GreensFunctionResult(
         k_eff=float(k_eff),

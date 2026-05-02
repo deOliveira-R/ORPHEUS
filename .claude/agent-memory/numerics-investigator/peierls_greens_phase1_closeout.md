@@ -139,11 +139,23 @@ machine-precision data point for the cross-verification matrix). The
 
 ## What's NOT in scope for Phase B (deferred to future plans)
 
-1. **Vacuum BC** (:math:`\alpha = 0`). V_α3 algebraically verifies
-   the kernel reduction, but the prototype only iterates the specular
-   case. Future Plan 2 follow-on should extend the prototype to
-   vacuum BC and cross-check against the existing ``boundary="vacuum"``
-   Peierls reference.
+1. ~~**Vacuum BC** (:math:`\alpha = 0`).~~ **CLOSED IN A1+A2 follow-on
+   (2026-05-02).** Prototype now takes `alpha ∈ [0, 1]` parameter.
+   Vacuum BC cross-checked against a structurally-independent
+   Pomraning-Siewert 1982 Eq. (21) reference solver
+   (`orpheus.derivations.continuous.peierls.ps1982_reference`). Six
+   parametrised tests pass at ≤ 1e-4 relative agreement on the k_eff
+   eigenvalue, exercising thin (τ_R = 2.5) and moderate (τ_R = 5)
+   spheres with strong/medium absorber. **Bug found and fixed during
+   A1+A2**: original prototype used the FORWARD distance from r to the
+   surface (`√(R²−r²(1−µ²)) − r·µ`) where the integral form needs the
+   BACKWARD distance (`r·µ + √(...)`). For closed sphere (V_α1
+   algebraic identity) the bug was masked because the closure cancels
+   L_first identically; for vacuum BC it surfaced as a 6 % k_eff
+   disagreement vs PS-1982 → corrected to < 1e-4. Also generalised the
+   µ-grid from `(0, 1]` (closed-sphere µ → −µ symmetry assumption) to
+   the full `[−1, 1]` (vacuum BC breaks the symmetry — different
+   trajectories outward vs inward).
 2. **Multi-region sphere**. Sanchez 1986's closed-form :math:`T(\mu)`
    extends to multi-region under perfect specular BC via piecewise
    :math:`\tau(\mu) = \sum_k \Sigma_{t,k} \cdot \ell_k(\mu)`. Direct

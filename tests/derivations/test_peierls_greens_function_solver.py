@@ -30,7 +30,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.peierls.greens_function import (
-    solve_greens_function_specular_sphere,
+    solve_greens_function_sphere,
 )
 
 
@@ -68,7 +68,7 @@ def test_v_alpha1_numerical_constant_initial_guess(fuelA_like_thin_sphere):
     fix = fuelA_like_thin_sphere
     k_inf = fix["nu_sigma_f"] / (fix["sigma_t"] - fix["sigma_s"])
 
-    res = solve_greens_function_specular_sphere(
+    res = solve_greens_function_sphere(
         **fix, n_r=12, n_mu=12, n_traj_quad=24, max_iter=50, tol=1e-12,
     )
 
@@ -122,7 +122,7 @@ def test_v_alpha1_numerical_nonuniform_initial_guess(
     R_grid, MU_grid = np.meshgrid(r_nodes, mu_nodes, indexing="ij")
     psi0 = 1.0 + 0.5 * np.sin(np.pi * R_grid / R) * np.cos(np.pi * MU_grid)
 
-    res = solve_greens_function_specular_sphere(
+    res = solve_greens_function_sphere(
         **fix, n_r=n_r, n_mu=n_mu, n_traj_quad=32,
         max_iter=100, tol=1e-10, initial_psi=psi0,
     )
@@ -159,7 +159,7 @@ def test_v_alpha1_numerical_two_thicknesses(
     """
     for fix in (fuelA_like_thin_sphere, fuelA_like_moderate_sphere):
         k_inf = fix["nu_sigma_f"] / (fix["sigma_t"] - fix["sigma_s"])
-        res = solve_greens_function_specular_sphere(
+        res = solve_greens_function_sphere(
             **fix, n_r=12, n_mu=12, n_traj_quad=24,
             max_iter=20, tol=1e-12,
         )
