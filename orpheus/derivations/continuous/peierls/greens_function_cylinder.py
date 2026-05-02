@@ -122,6 +122,10 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.interpolate import CubicSpline
 
+from orpheus.derivations.continuous.peierls.variant_alpha_core import (
+    apply_variant_alpha_closure,
+)
+
 
 @dataclass(frozen=True)
 class CylinderGreensResult:
@@ -307,14 +311,10 @@ def _apply_operator_cylinder(
                 # Total integral = (L_2D_first / s_ip) · Σ w · integrand
                 F = L_first_3D * np.sum(w_unit * integrand_F)
 
-                # Vacuum branch.
+                # Vacuum branch — short-circuit before computing B.
                 if alpha == 0.0:
                     psi_new[i, q_idx, p_idx] = F
                     continue
-
-                # 3D attenuation across first leg.
-                tau_first_leg = sigma_t * L_first_3D
-                atten_first_leg = np.exp(-tau_first_leg)
 
                 # Bounce-period integral on antipodal in-plane chord.
                 b = _impact_parameter(r, phi_az)
@@ -336,12 +336,13 @@ def _apply_operator_cylinder(
                 integrand_B = source_interp(r_chord) * np.exp(-tau_3D_p)
                 B = L_period_3D * np.sum(w_unit * integrand_B)
 
-                # Geometric bounce-sum closure.
-                exp_period = np.exp(-sigma_t * L_period_3D)
-                denom = 1.0 - alpha * exp_period
-                psi_surf = alpha * B / denom
-
-                psi_new[i, q_idx, p_idx] = F + atten_first_leg * psi_surf
+                # Shared Variant α closure: ψ_new = F + e^{-τ_first}·αBT.
+                psi_new[i, q_idx, p_idx] = apply_variant_alpha_closure(
+                    F=F, B=B,
+                    tau_first_leg=sigma_t * L_first_3D,
+                    tau_period=sigma_t * L_period_3D,
+                    alpha=alpha,
+                )
 
     return psi_new
 
