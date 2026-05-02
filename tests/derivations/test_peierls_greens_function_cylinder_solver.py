@@ -78,6 +78,10 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
+from orpheus.derivations.continuous.peierls.geometry import (
+    compute_P_ss_cylinder,
+    compute_T_specular_cylinder_3d,
+)
 from orpheus.derivations.continuous.peierls.greens_function_cylinder import (
     solve_greens_function_cylinder,
     solve_greens_function_cylinder_mg,
@@ -376,19 +380,104 @@ def test_mg_g1_reduces_to_1g_solver():
 # ═══════════════════════════════════════════════════════════════════════
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# V_α2_cyl numerical primitive cross-check — the structurally-independent
+# L1 evidence for T_00^cyl = P_ss^cyl (no closed-form sphere-equivalent
+# available because Ki_3 has no elementary closed form, so the SymPy
+# proof can only get to the integrand level via the Bickley-Naylor
+# identity bridge — see derive_T00_equals_P_ss_cylinder docstring).
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l1
+@pytest.mark.parametrize(
+    "tau_R",
+    [0.5, 1.0, 2.5, 5.0, 10.0],
+    ids=["tauR_0.5", "tauR_1.0", "tauR_2.5", "tauR_5.0", "tauR_10.0"],
+)
+@pytest.mark.verifies("peierls-greens-cylinder-T")
+def test_v_alpha2_cyl_T00_equals_Pss_via_production_primitives(tau_R):
+    r"""V_α2_cyl — **structurally-independent L1 cross-check**:
+    :math:`T_{00}^{\rm cyl} = P_{ss}^{\rm cyl}` at the production-
+    primitive level over a :math:`\tau_R` sweep.
+
+    Why this test is load-bearing for cylinder V_α2: unlike sphere,
+    cylinder has no elementary closed form (Ki_3 obstruction), so the
+    SymPy V_α2_cyl proof
+    (:func:`derive_T00_equals_P_ss_cylinder`) can only reach the
+    integrand-identity level via the Bickley-Naylor bridge
+    :math:`\mathrm{Ki}_3(x) = \int_0^{\pi/2}\sin^2\beta e^{-x/\sin\beta}\mathrm d\beta`
+    — a known mathematical fact applied as a substitution, not a
+    SymPy-derived equality. The rigorous V&V evidence for the rank-1
+    Knyazev ≡ Hébert white-BC theorem must therefore come from the
+    **numerical level**.
+
+    This test pins the identity at the production-code level: the
+    matrix function :func:`compute_T_specular_cylinder_3d` (Knyazev
+    expansion + scattering kernel + matrix construction) and the
+    scalar function :func:`compute_P_ss_cylinder` (slanted-chord polar
+    integration → Ki_3 → in-plane :math:`\alpha` integration) are
+    independent code paths — different functions, different
+    intermediate quantities. At rank-1 (``n_modes = 1``,
+    :math:`m = n = 0`, all Knyazev shifted-Legendre coefficients
+    :math:`k_m = k_n = 0`) the matrix [0, 0] element MUST equal the
+    scalar :math:`P_{ss}^{\rm cyl}`.
+
+    The L1 evidence pillar for cylinder V_α2 is therefore this
+    numerical cross-check, not the SymPy integrand identity (which
+    must rely on the Bickley-Naylor bridge as a known identity).
+    """
+    R = 5.0
+    sig_t = np.array([tau_R / R])
+    radii = np.array([R])
+
+    P_ss_scalar = compute_P_ss_cylinder(radii, sig_t, n_quad=64, dps=25)
+    T_matrix = compute_T_specular_cylinder_3d(
+        radii, sig_t, n_modes=1, n_quad=64,
+    )
+    T_00 = float(T_matrix[0, 0])
+
+    np.testing.assert_allclose(
+        T_00, P_ss_scalar, rtol=1e-10, atol=1e-12,
+        err_msg=(
+            f"V_α2_cyl production-primitive cross-check failed at "
+            f"τ_R = {tau_R}: T_00 = {T_00:.16e}, P_ss = "
+            f"{P_ss_scalar:.16e}, diff = {abs(T_00 - P_ss_scalar):.3e}"
+        ),
+    )
+
+
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.verifies("peierls-greens-cylinder-architecture")
 def test_alpha_zero_convergence_floor():
-    r"""L1 — α=0 vacuum k_eff convergence-floor capture (slow).
+    r"""L1 — α=0 vacuum k_eff convergence-floor (slow, **research-grade
+    gate**).
 
-    Records the achieved accuracy floor for the α=0 vacuum case at
-    successive quadrature orders. Phase 2 unification must preserve
-    this floor.
+    Pins the achieved accuracy floor for the α=0 vacuum case at
+    successive quadrature orders, **asserting research-grade
+    self-consistency between the two finest grids**. Phase 2
+    unification must preserve this floor — any unified architecture
+    that regresses the finest-pair self-consistency above
+    ``RESEARCH_GRADE_FLOOR_CYL`` halts the unification per
+    ``feedback_unify_after_two_instances.md``.
 
-    fuel-A-like XS, τ_R = 2.5: k_eff converges with quadrature order;
-    the (24, 20, 64, 96) grid gives ~5e-7 self-consistency relative to
-    the (20, 16, 48, 64) grid.
+    Quadrature ladder (n_r, n_mu_axial, n_phi_az, n_traj_quad):
+
+    - (12, 10, 24, 32) — coarse
+    - (16, 12, 32, 48) — medium
+    - (20, 16, 48, 64) — fine
+    - (24, 20, 64, 96) — research-grade
+
+    The Phase-1 closeout memo recorded :math:`8.24 \times 10^{-8}`
+    self-consistency between the fine and research-grade grids. The
+    floor assertion below is set at ``5e-7`` to allow for slight
+    iteration-tolerance variation while still catching any genuine
+    regression — anything above 5e-7 means the (24, 20, 64, 96)
+    quadrature is no longer at research-grade convergence.
+
+    fuel-A-like XS, τ_R = 2.5: k_eff ≈ 0.12045 (not k_inf; physics
+    says :math:`0.5 < k_{\rm eff}/k_\infty < 0.7`).
     """
     fix = {
         "R": 5.0, "sigma_t": 0.5, "sigma_s": 0.38, "nu_sigma_f": 0.025,
@@ -397,30 +486,44 @@ def test_alpha_zero_convergence_floor():
         (12, 10, 24, 32),
         (16, 12, 32, 48),
         (20, 16, 48, 64),
+        (24, 20, 64, 96),  # research-grade — the Phase-2 benchmark
     ]
     k_values = []
     for n_r, n_mu, n_phi, n_t in orders:
         res = solve_greens_function_cylinder(
             **fix, alpha=0.0,
             n_r=n_r, n_mu_axial=n_mu, n_phi_az=n_phi, n_traj_quad=n_t,
-            max_iter=300, tol=1e-9,
+            max_iter=400, tol=1e-10,
         )
         k_values.append(res.k_eff)
 
-    # Compare adjacent grids — successive refinements should not
-    # change k_eff by more than 1e-3 (very loose; tighter requires
-    # the slowest grid as reference).
+    # Coarse-to-fine sanity: every refinement step should at least
+    # halve the error (roughly). Loose 1e-3 catastrophic-failure bound.
     for i in range(len(k_values) - 1):
         diff = abs(k_values[i + 1] - k_values[i]) / k_values[-1]
         assert diff < 1e-3, (
             f"Convergence-floor: order {orders[i]} → {orders[i+1]} "
-            f"differs by {diff:.3e} relative — exceeds 1e-3 sanity "
+            f"differs by {diff:.3e} relative — exceeds 1e-3 catastrophic "
             f"bound"
         )
 
+    # ── Research-grade gate (the Phase-2 acceptance benchmark) ───────
+    # Self-consistency between the two FINEST grids must be tight.
+    # Closeout memo recorded ~8.24e-8 here; gate at 5e-7 to allow
+    # iteration-tolerance fluctuation while catching regressions.
+    RESEARCH_GRADE_FLOOR_CYL = 5e-7
+    finest_pair_diff = (
+        abs(k_values[-1] - k_values[-2]) / k_values[-1]
+    )
+    assert finest_pair_diff < RESEARCH_GRADE_FLOOR_CYL, (
+        f"Research-grade floor: {orders[-2]} → {orders[-1]} "
+        f"self-consistency = {finest_pair_diff:.3e}, exceeds "
+        f"{RESEARCH_GRADE_FLOOR_CYL:.0e}. Phase-2 unification "
+        f"benchmark broken — investigate before proceeding "
+        f"(see feedback_unify_after_two_instances.md)."
+    )
+
     # Pin the achieved value at the finest tested grid for posterity.
-    # Variant α α=0 fuel-A-like τ_R=2.5: k_eff ≈ 0.12045 (this is
-    # NOT k_inf; physics says 0.5 < k_eff/k_inf < 0.7).
     assert 0.117 < k_values[-1] < 0.125, (
         f"Convergence-floor: finest k_eff = {k_values[-1]} outside "
         f"expected physics band [0.117, 0.125]"

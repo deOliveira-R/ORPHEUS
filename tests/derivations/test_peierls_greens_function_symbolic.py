@@ -128,33 +128,62 @@ def test_v_alpha1_overall_pass():
 
 
 @pytest.mark.foundation
-def test_v_alpha2_integrands_are_identical():
-    r"""V_α2.a — :math:`T_{00}` and :math:`P_{ss}` have identical integrand.
+def test_v_alpha2_T00_matches_hebert_via_matrix_path():
+    r"""V_α2.a — Path A: :math:`T_{00}` from the transfer-matrix
+    definition reduces to the Hébert closed form.
 
-    Both reduce to :math:`2\mu\,e^{-2\Sigma_t R \mu}` on
-    :math:`\mu \in [0, 1]` for homogeneous sphere.
+    SymPy integrates :math:`T_{00} = 2\!\int_0^1 \mu\,P_0(\mu)^2\,
+    e^{-2\Sigma_t R\mu}\,\mathrm d\mu` over :math:`\mu \in [0, 1]`
+    starting from the matrix-element construction (with
+    :math:`P_0(\mu)` kept symbolic). The result must equal
+    :math:`(1 - (1 + 2\tau_R)e^{-2\tau_R})/(2\tau_R^2)`.
     """
     result = derive_T00_equals_P_ss_sphere()
-    assert result["pass_integrand_match"], (
-        f"V_α2 integrand-match failed: T_00 - P_ss = "
-        f"{sp.simplify(result['T_00_integrand'] - result['P_ss_integrand'])}"
+    assert result["pass_T00_matches_hebert"], (
+        f"V_α2 Path A failed: T_00 closed form = "
+        f"{result['T_00_closed_form']}, Hébert = "
+        f"{result['hebert_closed_form']}"
     )
 
 
 @pytest.mark.foundation
-def test_v_alpha2_closed_form_is_hebert_pss():
-    r"""V_α2.b — closed-form :math:`(1 - (1 + 2\tau_R)e^{-2\tau_R})/(2\tau_R^2)`.
+def test_v_alpha2_Pss_matches_hebert_via_polar_path():
+    r"""V_α2.b — Path B: :math:`P_{ss}` from the escape-probability
+    polar integral reduces to the same Hébert closed form.
 
-    SymPy integrates :math:`2\int_0^1 \mu\,e^{-2\Sigma_t R\mu}\,
-    \mathrm d\mu` to the Hébert :math:`P_{ss}` closed form. This
-    pins the rank-1 algebraic equivalence between Variant α and the
-    Hébert white-BC closure.
+    SymPy integrates :math:`P_{ss} = 2\!\int_0^{\pi/2}
+    \cos\theta'\sin\theta'\,e^{-2\Sigma_t R \cos\theta'}\,\mathrm d\theta'`
+    over :math:`\theta' \in [0, \pi/2]` — a different domain with a
+    different Jacobian (:math:`\sin\theta'` solid-angle measure) from
+    Path A. The independent integration must converge to the same
+    Hébert form. This is the structural-independence pillar of V_α2:
+    two different mathematical objects (transfer-matrix element vs
+    escape probability) reduce to the same closed form via SymPy
+    integrating two distinct integrals.
     """
     result = derive_T00_equals_P_ss_sphere()
-    assert result["pass_closed_form"], (
-        f"V_α2 closed-form failed: T_00 = "
-        f"{result['T_00_closed_form']}, expected = "
-        f"{result['expected_closed_form']}"
+    assert result["pass_Pss_matches_hebert"], (
+        f"V_α2 Path B failed: P_ss closed form = "
+        f"{result['P_ss_closed_form']}, Hébert = "
+        f"{result['hebert_closed_form']}"
+    )
+
+
+@pytest.mark.foundation
+def test_v_alpha2_T00_equals_Pss_closed_forms():
+    r"""V_α2.c — closed-form match :math:`T_{00} = P_{ss}` after
+    independent SymPy integration.
+
+    Cross-check that Paths A and B produce numerically-equal SymPy
+    closed forms (transitively from V_α2.a and V_α2.b, but verified
+    here as a direct algebraic identity to catch any SymPy
+    simplification asymmetry).
+    """
+    result = derive_T00_equals_P_ss_sphere()
+    assert result["pass_T00_equals_Pss"], (
+        f"V_α2 cross-path identity failed: "
+        f"T_00 = {result['T_00_closed_form']}, "
+        f"P_ss = {result['P_ss_closed_form']}"
     )
 
 

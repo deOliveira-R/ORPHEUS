@@ -38,6 +38,8 @@ import pytest
 
 from orpheus.derivations.continuous.peierls.geometry import (
     SPHERE_1D,
+    compute_P_ss_sphere,
+    compute_T_specular_sphere,
     solve_peierls_1g,
 )
 from orpheus.derivations.continuous.peierls.greens_function import (
@@ -183,4 +185,56 @@ def test_b5_phase4_converges_toward_variant_alpha(fuelA_thin_sphere_1G):
         f"B5.C: Phase 4 should converge toward Variant α as rank grows; "
         f"got eps_1 = {eps_1*100:.4f} % vs eps_3 = {eps_3*100:.4f} % "
         f"(rank-3 not closer than rank-1)"
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# V_α2 numerical primitive cross-check — structurally-independent L1
+# evidence for T_00 = P_ss at the production-code level.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l1
+@pytest.mark.parametrize(
+    "tau_R",
+    [0.5, 1.0, 2.5, 5.0, 10.0],
+    ids=["tauR_0.5", "tauR_1.0", "tauR_2.5", "tauR_5.0", "tauR_10.0"],
+)
+def test_v_alpha2_sphere_T00_equals_Pss_via_production_primitives(tau_R):
+    r"""V_α2 — **structurally-independent L1 cross-check**:
+    :math:`T_{00}^{\rm sphere} = P_{ss}^{\rm sphere}` at the
+    production-primitive level over a :math:`\tau_R` sweep.
+
+    The SymPy V_α2 sphere proof
+    (:func:`derive_T00_equals_P_ss_sphere`) reduces both sides to the
+    same Hébert closed form via independent integration paths
+    (transfer-matrix vs polar escape). This test pins the analogous
+    identity at the **production-code level**: the matrix function
+    :func:`compute_T_specular_sphere` and the scalar function
+    :func:`compute_P_ss_sphere` are independent code paths (different
+    functions, different intermediate quantities — matrix construction
+    vs scalar P_ss). At rank-1 (``n_modes = 1``, isotropic mode
+    :math:`\tilde P_0 = 1`) the matrix [0, 0] element MUST equal the
+    scalar :math:`P_{ss}`.
+
+    This is the V&V evidence the original integrand-tautology proof
+    in SymPy could not provide. Each side comes from its own
+    derivation in the production code; equality is a structurally-
+    independent cross-check.
+    """
+    R = 5.0
+    sig_t = np.array([tau_R / R])
+    radii = np.array([R])
+
+    P_ss_scalar = compute_P_ss_sphere(radii, sig_t, n_quad=64, dps=25)
+    T_matrix = compute_T_specular_sphere(radii, sig_t, n_modes=1, n_quad=64)
+    T_00 = float(T_matrix[0, 0])
+
+    np.testing.assert_allclose(
+        T_00, P_ss_scalar, rtol=1e-10, atol=1e-12,
+        err_msg=(
+            f"V_α2 sphere production-primitive cross-check failed at "
+            f"τ_R = {tau_R}: T_00 = {T_00:.16e}, P_ss = "
+            f"{P_ss_scalar:.16e}, diff = {abs(T_00 - P_ss_scalar):.3e}"
+        ),
     )

@@ -71,6 +71,7 @@ from orpheus.derivations.continuous.peierls.origins.specular import (
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies("peierls-greens-cylinder-trajectory")
 def test_v_alpha1_cyl_surface_fixed_point_solves_to_q_over_sigma_t():
     r"""V_α1_cyl.a — surface fixed-point gives :math:`\psi_{\rm surf}
     = q/\Sigma_t`.
@@ -81,6 +82,11 @@ def test_v_alpha1_cyl_surface_fixed_point_solves_to_q_over_sigma_t():
     solution independent of the bounce period :math:`L_{\rm period}`.
     The algebra is structurally identical to V_α1 sphere — only the
     chord formula :math:`L_{\rm period}(b, \mu_{\rm axial})` differs.
+
+    Verifies the first-leg trajectory eq.
+    :eq:`peierls-greens-cylinder-trajectory`: the surface fixed-point
+    closure cancels the first-leg :math:`L_0`-dependence by
+    construction.
     """
     result = derive_operator_constant_trial_closed_cylinder()
     assert result["pass_surf_consistency"], (
@@ -136,6 +142,11 @@ def test_v_alpha1_cyl_overall_pass():
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies(
+    "peierls-greens-cylinder-bounce-period",
+    "peierls-greens-cylinder-in-plane-speed",
+    "peierls-greens-cylinder-impact-parameter",
+)
 def test_v_alpha1_cyl_bounce_period_chord_two_derivations_agree():
     r"""V_α1_cyl.geometry — :math:`L_{\rm period} = 2\sqrt{R^2-b^2} /
     \sqrt{1-\mu_{\rm axial}^2}`.
@@ -145,6 +156,20 @@ def test_v_alpha1_cyl_bounce_period_chord_two_derivations_agree():
     must agree. Without this geometric foundation, the bounce-sum
     closure has the wrong period and V_α1_cyl's algebraic cancellation
     breaks.
+
+    Verifies three coupled cylinder geometry equations:
+
+    - :eq:`peierls-greens-cylinder-impact-parameter` —
+      :math:`b = r|\sin\varphi_{\rm az}|` is the conserved impact
+      parameter, used in both derivations of :math:`L_{\rm period}`.
+    - :eq:`peierls-greens-cylinder-in-plane-speed` —
+      :math:`s_{\rm in\!-\!plane} = \sqrt{1-\mu_{\rm axial}^2}` is
+      the in-plane velocity fraction; the :math:`1/s_{\rm in\!-\!plane}`
+      factor in the 3D chord is what couples axial and in-plane geometry.
+    - :eq:`peierls-greens-cylinder-bounce-period` —
+      :math:`L_{\rm period}(b, \mu_{\rm axial}) = 2\sqrt{R^2-b^2}/
+      \sqrt{1-\mu_{\rm axial}^2}` itself, the load-bearing geometry
+      identity.
     """
     result = derive_bounce_period_chord_cylinder()
     assert result["pass"], (
