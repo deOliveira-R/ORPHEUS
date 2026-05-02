@@ -44,6 +44,24 @@ instances and easier to refactor later if a third geometry comes
 for the rationale and the ``CurvilinearGeometry`` mounting trade-off
 that was rejected.
 
+Rank-2 extension (Phase 3B)
+---------------------------
+
+For two-surface geometries with **independent reflectivities on each
+surface** (asymmetric slab :math:`\alpha_L \ne \alpha_R`, hollow
+sphere, annulus), the rank-1 scalar resolvent is replaced by a
+:math:`2 \times 2` matrix resolvent
+:func:`compute_resolvent_T_rank2` and the closure becomes
+:func:`apply_variant_alpha_closure_rank2`. The rank-2 monodromy is
+:math:`S = \mathrm{antidiag}(\alpha_L\,e^{-\tau}, \alpha_R\,e^{-\tau})`
+with single-transit optical depth :math:`\tau = \Sigma_t L /|\mu|`
+(NOT the full out+back period — the rank-2 resolvent encodes the
+two-bounce pattern via matrix structure, not via :math:`\alpha^2` in a
+scalar formula). At :math:`\alpha_L = \alpha_R` the rank-2 closure is
+mathematically equivalent to the rank-1 symmetric closure (verified
+numerically to ≤ 1e-10 in the Phase 3B test suite); the two arithmetic
+forms are NOT bit-equal because IEEE-754 evaluation order differs.
+
 What is NOT unified
 -------------------
 
@@ -130,6 +148,197 @@ def compute_resolvent_T(
         0` in the calling closure — see V_α1).
     """
     return 1.0 / (1.0 - alpha_per_period * np.exp(-tau_period))
+
+
+def compute_resolvent_T_rank2(
+    alpha_left: float,
+    alpha_right: float,
+    tau_single_transit: float | np.ndarray,
+) -> np.ndarray:
+    r"""Rank-2 boundary-to-boundary scattering resolvent for asymmetric
+    two-surface geometries.
+
+    Returns the :math:`2 \times 2` matrix :math:`T = (I - S)^{-1}` for
+    the asymmetric-slab monodromy
+
+    .. math::
+
+        S(\alpha_L, \alpha_R, \tau) = \begin{pmatrix}
+            0                              & \alpha_L\,e^{-\tau} \\
+            \alpha_R\,e^{-\tau}            & 0
+        \end{pmatrix},
+
+    yielding
+
+    .. math::
+
+        T(\alpha_L, \alpha_R, \tau)
+            = \frac{1}{1 - \alpha_L\,\alpha_R\,e^{-2\tau}}
+              \begin{pmatrix}
+                  1                       & \alpha_L\,e^{-\tau} \\
+                  \alpha_R\,e^{-\tau}     & 1
+              \end{pmatrix}.
+
+    Phase-space: the 2-vector surface state is :math:`[\psi_L^+, \psi_R^-]`
+    (outgoing flux at :math:`x=0` in :math:`+\mu` direction, outgoing
+    flux at :math:`x=L` in :math:`-\mu` direction). One step of the
+    bouncing trajectory carries :math:`\psi_L^+` to :math:`\psi_R^-`
+    (transit + reflection at right wall, factor :math:`\alpha_R\,
+    e^{-\tau}`) and :math:`\psi_R^-` to :math:`\psi_L^+` (transit +
+    reflection at left wall, factor :math:`\alpha_L\,e^{-\tau}`). The
+    diagonal of :math:`S` is zero because one step never returns to
+    the same wall.
+
+    Special cases verified by direct algebra:
+
+    - :math:`\alpha_L = \alpha_R = \alpha` (symmetric): ``T_11 = T_22 =
+      1/(1-\alpha^2 e^{-2\tau})``, ``T_12 = T_21 = \alpha\,e^{-\tau}/
+      (1-\alpha^2 e^{-2\tau})``. The leading-:math:`\alpha` factor in
+      the closure (which lives outside :math:`T`) reduces this to the
+      rank-1 :math:`\psi_{\rm surf} = \alpha B / (1 - \alpha^2
+      e^{-2\tau})` exactly, so the rank-2 framework reproduces the
+      Phase-3A symmetric slab when both walls share :math:`\alpha`.
+    - :math:`\alpha_L = 0` or :math:`\alpha_R = 0` (one vacuum wall):
+      ``det(I - S) = 1``, ``T_11 = T_22 = 1``, ``T_12 = \alpha_L
+      e^{-\tau}``, ``T_21 = \alpha_R e^{-\tau}``. The vacuum wall
+      simply zeroes the corresponding column of :math:`\alpha B` in
+      the closure.
+    - :math:`\alpha_L = \alpha_R = 0` (vacuum-vacuum): :math:`T = I`.
+
+    Parameters
+    ----------
+    alpha_left, alpha_right : float
+        Per-wall reflection amplitudes in :math:`[0, 1]`.
+    tau_single_transit : float or ndarray
+        Optical depth :math:`\Sigma_t \cdot L / |\mu|` of one
+        single-wall-to-wall transit (NOT the full out+back period).
+        Vectorisable.
+
+    Returns
+    -------
+    ndarray
+        Shape ``(2, 2)`` for scalar input, or ``(..., 2, 2)`` for
+        array input — final two axes carry the matrix.
+    """
+    e_tau = np.exp(-np.asarray(tau_single_transit, dtype=float))
+    det = 1.0 - alpha_left * alpha_right * e_tau * e_tau
+    # Build the 2x2 (or batched) matrix.
+    T = np.empty(e_tau.shape + (2, 2)) if e_tau.ndim > 0 else np.empty((2, 2))
+    T[..., 0, 0] = 1.0
+    T[..., 0, 1] = alpha_left * e_tau
+    T[..., 1, 0] = alpha_right * e_tau
+    T[..., 1, 1] = 1.0
+    T = T / det[..., None, None] if e_tau.ndim > 0 else T / det
+    return T
+
+
+def apply_variant_alpha_closure_rank2(
+    F: float | np.ndarray,
+    B_RL: float | np.ndarray,
+    B_LR: float | np.ndarray,
+    tau_first_leg: float | np.ndarray,
+    tau_single_transit: float | np.ndarray,
+    alpha_left: float,
+    alpha_right: float,
+    *,
+    surface: str,
+) -> float | np.ndarray:
+    r"""Rank-2 Variant α surface closure for the asymmetric slab.
+
+    Combines first-leg (:math:`F`) and **single-transit** B integrals
+    (:math:`B_{RL}` from :math:`x=L` toward :math:`x=0`,
+    :math:`B_{LR}` from :math:`x=0` toward :math:`x=L`) into the new
+    angular flux at the interior point, by attenuating the appropriate
+    surface flux back along the first-leg chord.
+
+    The closure equations (single-transit bounce):
+
+    .. math::
+
+       \psi_L^+(\mu) &= \alpha_L\,B_{LR}(\mu) + \alpha_L\,e^{-\tau}\,
+                          \psi_R^-(\mu), \\
+       \psi_R^-(\mu) &= \alpha_R\,B_{RL}(\mu) + \alpha_R\,e^{-\tau}\,
+                          \psi_L^+(\mu),
+
+    where :math:`B_{LR}` is the single-transit chord integral
+    parameterized as :math:`\int_0^{L/|\mu|} q(|\mu|\,s)\,e^{-\Sigma_t
+    s}\,\mathrm d s` (source contribution AT :math:`x=0` from particles
+    moving in the :math:`-\hat\mu` direction; chord traverses :math:`x
+    = 0 \to L`), and :math:`B_{RL}` is the mirror :math:`\int_0^{L/|\mu|}
+    q(L - |\mu|\,s)\,e^{-\Sigma_t s}\,\mathrm d s` (source contribution
+    AT :math:`x=L` from particles moving in the :math:`+\hat\mu`
+    direction; chord traverses :math:`x = L \to 0`).
+
+    The intuition: :math:`\psi_L^+ = \alpha_L\,\psi(0, -\mu)`. The
+    incoming :math:`\psi(0, -\mu)` integrates source emitted along
+    the chord from :math:`x=0` going INTO the slab (in :math:`+x`
+    direction) — that is :math:`B_{LR}`. Symmetrically, :math:`\psi_R^-
+    = \alpha_R\,\psi(L, +\mu)` involves source from :math:`x=L` going
+    INTO the slab (in :math:`-x` direction) which is :math:`B_{RL}`.
+
+    The interior reconstruction is
+
+    .. math::
+
+       \psi(x, \mu) = F(x, \mu) + e^{-\tau_{\rm first\,leg}}\,
+                       \psi_{\rm surface}(\mu),
+
+    where :math:`\psi_{\rm surface}` is :math:`\psi_L^+(\mu)` for
+    :math:`\mu > 0` (the trajectory entered from the left wall) and
+    :math:`\psi_R^-(\mu)` for :math:`\mu < 0` (entered from the right
+    wall). The ``surface`` argument selects which one.
+
+    Parameters
+    ----------
+    F : float or ndarray
+        First-leg trajectory integral.
+    B_RL : float or ndarray
+        Single-transit chord integral with chord traversed from
+        :math:`x=L` to :math:`x=0`, parametrised as
+        :math:`\int_0^{L/|\mu|} q(L - |\mu|\,s)\,e^{-\Sigma_t s}\,
+        \mathrm d s`. Used in the :math:`\psi_R^-` closure equation.
+    B_LR : float or ndarray
+        Single-transit chord integral with chord traversed from
+        :math:`x=0` to :math:`x=L`, parametrised as
+        :math:`\int_0^{L/|\mu|} q(|\mu|\,s)\,e^{-\Sigma_t s}\,
+        \mathrm d s`. Used in the :math:`\psi_L^+` closure equation.
+    tau_first_leg : float or ndarray
+        Optical depth of the backward chord from :math:`(x, \mu)` to
+        the first surface arrival.
+    tau_single_transit : float or ndarray
+        Optical depth :math:`\Sigma_t \cdot L / |\mu|` of one
+        single-wall-to-wall transit.
+    alpha_left, alpha_right : float
+        Per-wall reflection amplitudes in :math:`[0, 1]`.
+    surface : {'left', 'right'}
+        Which surface flux feeds the interior reconstruction. ``left``
+        for :math:`\mu > 0` (entered from :math:`x = 0`); ``right``
+        for :math:`\mu < 0` (entered from :math:`x = L`).
+
+    Returns
+    -------
+    float or ndarray
+        New angular flux :math:`\psi_{\rm new}` at :math:`(x, \mu)`.
+    """
+    if surface not in ("left", "right"):
+        raise ValueError(f"surface must be 'left' or 'right'; got {surface!r}")
+
+    e_tau = np.exp(-np.asarray(tau_single_transit, dtype=float))
+    det = 1.0 - alpha_left * alpha_right * e_tau * e_tau
+
+    # Closure: with the (α B)-vector being [α_L · B_LR, α_R · B_RL]:
+    # ψ_L^+ = T_11 · α_L · B_LR + T_12 · α_R · B_RL
+    #       = (1/det) · [α_L · B_LR + α_L · e^{-τ} · α_R · B_RL]
+    # ψ_R^- = T_21 · α_L · B_LR + T_22 · α_R · B_RL
+    #       = (1/det) · [α_R · e^{-τ} · α_L · B_LR + α_R · B_RL]
+    if surface == "left":
+        psi_surf = (alpha_left * B_LR
+                    + alpha_left * e_tau * alpha_right * B_RL) / det
+    else:  # "right"
+        psi_surf = (alpha_right * e_tau * alpha_left * B_LR
+                    + alpha_right * B_RL) / det
+
+    return F + np.exp(-tau_first_leg) * psi_surf
 
 
 def apply_variant_alpha_closure(
