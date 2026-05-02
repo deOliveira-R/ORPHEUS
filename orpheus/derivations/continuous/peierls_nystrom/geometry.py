@@ -1766,7 +1766,7 @@ def compute_G_bc_cylinder_3d(
     for the in-plane chord traversal across annular boundaries).
 
     Reference: derived in
-    :mod:`orpheus.derivations.continuous.peierls.origins.cylinder_g_bc_3d`; the math-origin
+    :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_g_bc_3d`; the math-origin
     contract is pinned by
     ``tests/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py``.
     """
@@ -1969,7 +1969,7 @@ def compute_P_esc_cylinder_3d_mode(
     survives, and this reduces exactly to :func:`compute_P_esc`
     (cylinder branch). Used by ``boundary="specular"`` for cylinder.
 
-    See :mod:`orpheus.derivations.continuous.peierls.origins.cylinder_knyazev` for the
+    See :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_knyazev` for the
     SymPy derivation; the math-origin contract is pinned by
     ``tests/derivations/test_peierls_cylinder_knyazev_symbolic.py``.
     """
@@ -2025,7 +2025,7 @@ def compute_G_bc_cylinder_3d_mode(
     factor of 4 arises from the inward-distribution convention
     :math:`\psi^{-}(\mu) = (b_n/\pi)\,\tilde P_n(\mu)` integrated over
     the full inward 4π solid angle (see SymPy derivation in
-    :mod:`orpheus.derivations.continuous.peierls.origins.cylinder_knyazev`; pinned by
+    :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_knyazev`; pinned by
     ``tests/derivations/test_peierls_cylinder_knyazev_symbolic.py``).
 
     For :math:`n = 0`: :math:`c_0^0 = 1`, only the :math:`k = 0` term
@@ -2681,7 +2681,7 @@ def compute_K_bc_specular_continuous_mu_sphere(
     :math:`2 \cosh(\Sigma r_i \mu)\,e^{-\Sigma r_i \mu} \cdot
     \cosh(\Sigma r_j \mu_*)\,e^{-\Sigma r_j \mu} \cdot \mu_*^{-1} \cdot
     T(\mu)` (no extra :math:`\mu` in numerator) — see
-    :mod:`orpheus.derivations.continuous.peierls.origins.specular.continuous_mu` (V2);
+    :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular.continuous_mu` (V2);
     pinned by
     ``tests/derivations/test_peierls_specular_continuous_mu_symbolic.py``.
 
@@ -2733,7 +2733,7 @@ def compute_K_bc_specular_continuous_mu_sphere(
     compute_T_specular_sphere : the Phase 4 matrix-Galerkin variant that
         diverges at high rank N. This function bypasses the matrix
         inverse entirely.
-    orpheus.derivations.continuous.peierls.origins.specular.continuous_mu : SymPy verification
+    orpheus.derivations.continuous.peierls_nystrom.origins.specular.continuous_mu : SymPy verification
         of Eq. (A6) and the µ-weight convention question. Pinned by
         ``tests/derivations/test_peierls_specular_continuous_mu_symbolic.py``.
     """
@@ -4401,7 +4401,7 @@ def reflection_specular(n_modes: int) -> np.ndarray:
     where :math:`\tilde P_n(\mu) = P_n(2\mu - 1)` is the Gelbard
     half-range shifted-Legendre basis. :math:`M` is symmetric tridiagonal
     in this basis (closed form derived in
-    :mod:`orpheus.derivations.continuous.peierls.origins.specular`):
+    :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular`):
 
     .. math::
 
@@ -4437,7 +4437,7 @@ def reflection_specular(n_modes: int) -> np.ndarray:
       in float64. For :math:`N \gtrsim 8` use higher dps for the
       inversion.
 
-    See :mod:`orpheus.derivations.continuous.peierls.origins.specular` for the full
+    See :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular` for the full
     derivation and the SymPy verification at :math:`N = 1, \ldots, 5`.
     """
     if n_modes < 1:
@@ -6177,7 +6177,7 @@ def _build_full_K_per_group(
         #   (R1 Front A falsified, B partial, C failed → recommended M2)
         # - `.claude/agent-memory/numerics-investigator/specular_continuous_mu_phase5a_closeout.md`
         #   (Phase 5a baseline that started the investigation)
-        # - :mod:`orpheus.derivations.continuous.peierls.origins.specular.continuous_mu`
+        # - :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular.continuous_mu`
         #   (4 SymPy verifications PASS — math is correct, but
         #   discretisation is fundamentally not Nyström-compatible)
         # - GitHub Issue #133 (Phase 5+ tracking — closing as wontfix
@@ -6289,7 +6289,7 @@ def solve_peierls_mg(
         the source and the second is the destination. This matches
         the XS library (:mod:`orpheus.derivations.common.xs_library`) and
         the slab driver
-        :func:`~orpheus.derivations.continuous.peierls.slab.solve_peierls_eigenvalue`.
+        :func:`~orpheus.derivations.continuous.peierls_nystrom.slab.solve_peierls_eigenvalue`.
         Under this convention downscatter (fast → thermal, i.e.,
         ``g_src < g_dst`` with group 0 = fast) sits in the
         upper-triangular entries.

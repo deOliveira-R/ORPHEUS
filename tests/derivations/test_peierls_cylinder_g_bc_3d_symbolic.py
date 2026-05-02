@@ -35,12 +35,12 @@ import pytest
 import sympy as sp
 
 from orpheus.derivations.common.kernels import ki_n_mp
-from orpheus.derivations.continuous.peierls.origins.cylinder_g_bc_3d import (
+from orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_g_bc_3d import (
     G_bc_cyl_correct,
     G_bc_cyl_legacy_three_bug,
     Ki_n,
 )
-from orpheus.derivations.continuous.peierls.geometry import (
+from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     CYLINDER_1D,
     compute_G_bc_cylinder_3d,
 )

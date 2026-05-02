@@ -41,7 +41,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_xs
-from orpheus.derivations.continuous.peierls.greens_function import (
+from orpheus.derivations.continuous.peierls_greens_function.greens_function import (
     solve_greens_function_sphere_mg,
     solve_greens_function_sphere_mr,
 )

@@ -24,8 +24,8 @@ import pytest
 
 from orpheus.cp.solver import CPParams, solve_cp
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.derivations.continuous.peierls.cylinder import GEOMETRY
-from orpheus.derivations.continuous.peierls.geometry import (
+from orpheus.derivations.continuous.peierls_nystrom.cylinder import GEOMETRY
+from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     PeierlsSolution,
     build_volume_kernel,
     build_white_bc_correction,

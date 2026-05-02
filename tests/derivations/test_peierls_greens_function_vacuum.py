@@ -37,7 +37,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.peierls.greens_function import (
+from orpheus.derivations.continuous.peierls_greens_function.greens_function import (
     solve_greens_function_sphere,
 )
 

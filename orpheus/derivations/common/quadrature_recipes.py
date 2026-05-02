@@ -21,7 +21,7 @@ patterns:
   (and their backward mirrors) for each interior shell visible from
   the observer. Plain Gauss-Legendre per sub-panel; this is the
   kink-aware quadrature that today lives only in
-  :func:`~orpheus.derivations.continuous.peierls.geometry.build_volume_kernel`,
+  :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.build_volume_kernel`,
   promoted to a primitive so the per-face mode primitives
   (``compute_P_esc_*_mode``, ``compute_G_bc_*_mode``) can inherit
   it for free instead of each open-coding a smaller version.
@@ -222,7 +222,7 @@ def observer_angular_quadrature(
     needed).
 
     Today this kink-aware subdivision exists only inside
-    :func:`~orpheus.derivations.continuous.peierls.geometry.build_volume_kernel`;
+    :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.build_volume_kernel`;
     promoting it to a primitive lets the ~20
     ``compute_P_esc_*_mode`` / ``compute_G_bc_*_mode`` /
     ``compute_*_mode_marshak`` primitives — which today reinvent a

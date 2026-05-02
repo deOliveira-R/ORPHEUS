@@ -418,9 +418,9 @@ kernel :math:`g_h(\rho'\to\rho)` whose Hadamard finite-part
 singularity killed Phase 5.
 
 The reference implementation of :eq:`peierls-greens-function-architecture`
-is :func:`~orpheus.derivations.continuous.peierls.greens_function._apply_operator`;
+is :func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function._apply_operator`;
 the public driver is
-:func:`~orpheus.derivations.continuous.peierls.greens_function.solve_greens_function_specular_sphere`.
+:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_specular_sphere`.
 
 
 V_α1 — closed-sphere k_inf identity
@@ -452,7 +452,7 @@ This is the no-leakage k_inf of the closed sphere, derivable
 without any spatial transport machinery — but it must hold for the
 Variant α implementation if the operator action is wired correctly.
 The symbolic proof of :eq:`peierls-greens-V-alpha-1` lives in
-:func:`~orpheus.derivations.continuous.peierls.origins.specular.greens_function.derive_operator_constant_trial_closed_sphere`
+:func:`~orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function.derive_operator_constant_trial_closed_sphere`
 (SymPy verification, paired numerical gate in
 :file:`tests/derivations/test_peierls_greens_function_symbolic.py`).
 The argument has three steps.
@@ -554,7 +554,7 @@ Variant α at rank-1 agrees bit-for-bit with the existing Phase 4
 same closed-form geometric series.
 
 The Phase 4 multi-bounce transmission matrix
-:func:`~orpheus.derivations.continuous.peierls.geometry.compute_T_specular_sphere`
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_T_specular_sphere`
 in the rank-1 isotropic basis (:math:`\tilde P_0 = 1`) reduces to the
 scalar
 
@@ -584,7 +584,7 @@ while the Hébert chord-self-collision probability (Hébert 2009
 
 This makes the rank-1 algebraic equivalence airtight, *independent
 of any quadrature implementation*. The symbolic proof lives in
-:func:`~orpheus.derivations.continuous.peierls.origins.specular.greens_function.derive_T00_equals_P_ss_sphere`.
+:func:`~orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function.derive_T00_equals_P_ss_sphere`.
 
 Operator-level interpretation. At rank-1 the Phase 4 closure
 :math:`(I - T R)^{-1}` reduces to :math:`1/(1 - T_{00}) =
@@ -626,7 +626,7 @@ Eq. (A6) is
 proportional to :math:`\alpha`. At :math:`\alpha = 0` the BC kernel
 vanishes identically, and the Variant α prototype collapses to the
 existing ORPHEUS vacuum sphere reference (the
-:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
 with ``boundary="vacuum"`` path) without any special-case branch.
 
 This is more important than it looks. The Variant α prototype is
@@ -634,10 +634,10 @@ shipped only for :math:`\alpha = 1` (perfect specular), but the
 underlying operator structure is correct for any :math:`\alpha \in
 [0, 1]`. A future extension to :math:`\alpha = 0` (vacuum BC) requires
 only setting the prefactor to zero in
-:func:`~orpheus.derivations.continuous.peierls.greens_function._apply_operator`'s
+:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function._apply_operator`'s
 bounce-sum branch — V_α3 guarantees this is mathematically correct
 without re-deriving anything. The symbolic proof is in
-:func:`~orpheus.derivations.continuous.peierls.origins.specular.greens_function.derive_alpha_zero_kernel_reduction`.
+:func:`~orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function.derive_alpha_zero_kernel_reduction`.
 
 Practical note. The closed sphere with vacuum BC is *not* the same
 problem as the closed sphere with specular BC. For specular BC the
@@ -848,7 +848,7 @@ which is the integral form of the vacuum sphere transport equation.
 This is V_α3 numerically realised: the operator structure carries
 the full :math:`\alpha\in[0,1]` parameter range without a separate
 code path. The implementation lives in
-:func:`~orpheus.derivations.continuous.peierls.greens_function._apply_operator`
+:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function._apply_operator`
 (``alpha`` parameter; see ``# Vacuum branch.`` comment in source).
 
 The full :math:`\mu`-grid for vacuum BC
@@ -884,7 +884,7 @@ independent routes; PS-1982 itself confirmed via
 method-of-characteristics is a third independent confirmation.
 
 Implementation: a Nyström solver for [PS1982]_ Eq. (21) lives in
-:func:`orpheus.derivations.continuous.peierls.ps1982_reference.solve_ps1982_vacuum_sphere`
+:func:`orpheus.derivations.continuous.peierls_nystrom.ps1982_reference.solve_ps1982_vacuum_sphere`
 — Gauss-Legendre quadrature on :math:`(0, R\Sigt{}]` (optical
 units), :math:`E_1` evaluated via :func:`mpmath.expint`, the kernel
 log-singularity at :math:`r = x` handled by QUADPACK QAGS. Power
@@ -995,9 +995,9 @@ The per-group :math:`q_g(r)` is plugged into
 group structure at all.
 
 The implementation is
-:func:`~orpheus.derivations.continuous.peierls.greens_function.solve_greens_function_sphere_mg`
+:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere_mg`
 with shared per-group operator
-:func:`~orpheus.derivations.continuous.peierls.greens_function._apply_operator_with_source_profile`
+:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function._apply_operator_with_source_profile`
 (extracted during A3 so the 1G path becomes a thin wrapper —
 no regression in the 25 prior 1G tests). At each outer iteration,
 the solver:
@@ -1117,9 +1117,9 @@ crosses :math:`R_k` (whenever :math:`R_k > h`) at
 :math:`s = L_p/2 \pm\sqrt{R_k^2 - h^2}`.
 
 The segment decomposition implementation is in the private helpers
-:func:`~orpheus.derivations.continuous.peierls.greens_function._trajectory_segments`
+:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function._trajectory_segments`
 and
-:func:`~orpheus.derivations.continuous.peierls.greens_function._chord_segments`.
+:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function._chord_segments`.
 
 Piecewise optical depth
 -----------------------
@@ -1153,9 +1153,9 @@ depth does not change. This is what keeps the geometric series
 multi-region case.
 
 The implementation is
-:func:`~orpheus.derivations.continuous.peierls.greens_function.solve_greens_function_sphere_mr`
+:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere_mr`
 (k-eigenvalue, Plan-(b) Option 2) and
-:func:`~orpheus.derivations.continuous.peierls.greens_function.solve_greens_function_sphere_mr_fixed_source`
+:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere_mr_fixed_source`
 (fixed-source, Plan-(b) Option 1).
 
 .. _peierls-greens-issue132-result:
@@ -1204,7 +1204,7 @@ region boosts the effective multiplication) and well below 1.0
 (the configuration is subcritical). Variant α has **no rank-N
 closure** — the BC is absorbed into the kernel via Sanchez Eq. (A1)
 — so the mode-0 / mode-:math:`n\ge 1` normalisation mismatch in
-:func:`~orpheus.derivations.continuous.peierls.geometry.build_closure_operator`
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.build_closure_operator`
 that breaks Phase 4 simply cannot occur structurally.
 
 The test gate
@@ -1289,7 +1289,7 @@ Convention conversion to Garcia table 5
 
 Garcia 2021's source :math:`S_k` is **per cm³ per steradian**;
 ORPHEUS's ``external_source`` argument to
-:func:`~orpheus.derivations.continuous.peierls.greens_function.solve_greens_function_sphere_mr_fixed_source`
+:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere_mr_fixed_source`
 is **total per cm³** (the operator divides by :math:`4\pi`
 internally). These differ by :math:`4\pi`. Garcia's "scalar flux"
 :math:`\phi(r) = \int_{-1}^{1}\Psi(r,\mu)\,\mathrm d\mu` (no
@@ -1331,7 +1331,7 @@ but iterates on the scattering source alone:
 where :math:`k(r)` is the region containing radius :math:`r`. No
 fission, no eigenvalue iteration; convergence is on the relative
 :math:`\phi_g`-change to a fixed tolerance. The implementation is
-:func:`~orpheus.derivations.continuous.peierls.greens_function.solve_greens_function_sphere_mr_fixed_source`.
+:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere_mr_fixed_source`.
 
 Garcia Case 1 agreement
 ------------------------
@@ -1575,10 +1575,10 @@ Cylinder Variant α (Phase 1 standalone)
 
    Source artifacts:
 
-   - Branch-1 SymPy: :mod:`orpheus.derivations.continuous.peierls.origins.specular.greens_function_cylinder`
+   - Branch-1 SymPy: :mod:`orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function_cylinder`
      (V_α1_cyl, V_α1_cyl.geometry, V_α2_cyl, V_α3_cyl).
    - Branch-2 production:
-     :mod:`orpheus.derivations.continuous.peierls.greens_function_cylinder`
+     :mod:`orpheus.derivations.continuous.peierls_greens_function.greens_function_cylinder`
      (:func:`solve_greens_function_cylinder`,
      :func:`solve_greens_function_cylinder_mg`).
    - Symbolic test gate:
@@ -1834,48 +1834,48 @@ Code provenance
 
 The Variant α implementation spans three files:
 
-- :mod:`orpheus.derivations.continuous.peierls.origins.specular.greens_function`
+- :mod:`orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function`
   — SymPy derivations V_α1, V_α2, V_α3 (operator-level identities).
   About 270 lines.
 
-  - :func:`~orpheus.derivations.continuous.peierls.origins.specular.greens_function.derive_operator_constant_trial_closed_sphere`
+  - :func:`~orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function.derive_operator_constant_trial_closed_sphere`
     — V_α1 closed-sphere bounce-sum self-consistency.
-  - :func:`~orpheus.derivations.continuous.peierls.origins.specular.greens_function.derive_T00_equals_P_ss_sphere`
+  - :func:`~orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function.derive_T00_equals_P_ss_sphere`
     — V_α2 algebraic identity :math:`T_{00}^{\rm sphere} =
     P_{ss}^{\rm sphere}`.
-  - :func:`~orpheus.derivations.continuous.peierls.origins.specular.greens_function.derive_alpha_zero_kernel_reduction`
+  - :func:`~orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function.derive_alpha_zero_kernel_reduction`
     — V_α3 vacuum-BC kernel reduction.
 
-- :mod:`orpheus.derivations.continuous.peierls.greens_function` —
+- :mod:`orpheus.derivations.continuous.peierls_greens_function.greens_function` —
   production solver suite. About 1300 lines.
 
-  - :func:`~orpheus.derivations.continuous.peierls.greens_function._apply_operator_with_source_profile`
+  - :func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function._apply_operator_with_source_profile`
     — per-group homogeneous operator action; the load-bearing
     primitive shared by 1G / MG / 1-region paths.
-  - :func:`~orpheus.derivations.continuous.peierls.greens_function._apply_operator`
+  - :func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function._apply_operator`
     — 1G wrapper around ``_apply_operator_with_source_profile``;
     builds :math:`q(r) = (\Sigma_s + \nu\Sigma_f/k)\,\phi(r) / 4\pi`.
-  - :func:`~orpheus.derivations.continuous.peierls.greens_function.solve_greens_function_sphere`
+  - :func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere`
     — 1G public driver with :math:`\alpha\in[0,1]` parametrisation
     (B-phase + A1+A2 vacuum extension).
-  - :func:`~orpheus.derivations.continuous.peierls.greens_function.solve_greens_function_sphere_mg`
+  - :func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere_mg`
     — multi-group public driver (A3 follow-on); arbitrary G,
     full :math:`G\times G` scattering matrix, arbitrary :math:`\chi`.
-  - :func:`~orpheus.derivations.continuous.peierls.greens_function._apply_operator_mr`
+  - :func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function._apply_operator_mr`
     — multi-region per-group operator with piecewise :math:`\Sigt{}`
     along trajectory + bounce-period chord (Plan-(b)).
-  - :func:`~orpheus.derivations.continuous.peierls.greens_function.solve_greens_function_sphere_mr`
+  - :func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere_mr`
     — multi-region multi-group k-eigenvalue driver
     (Plan-(b) Option 2, Issue #132 attack).
-  - :func:`~orpheus.derivations.continuous.peierls.greens_function.solve_greens_function_sphere_mr_fixed_source`
+  - :func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere_mr_fixed_source`
     — multi-region multi-group fixed-source driver
     (Plan-(b) Option 1, Garcia 2021 cross-check).
-  - :class:`~orpheus.derivations.continuous.peierls.greens_function.GreensFunctionResult`,
+  - :class:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.GreensFunctionResult`,
     :class:`GreensFunctionMGResult`,
     :class:`GreensFunctionMRResult`,
     :class:`GreensFunctionFixedSourceResult` — result dataclasses.
 
-- :mod:`orpheus.derivations.continuous.peierls.ps1982_reference` —
+- :mod:`orpheus.derivations.continuous.peierls_nystrom.ps1982_reference` —
   PS-1982 Eq. (21) Nyström reference solver for the homogeneous
   vacuum sphere (used as the structurally-independent A2 cross-check).
 

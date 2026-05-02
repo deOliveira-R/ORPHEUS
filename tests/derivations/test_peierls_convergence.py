@@ -16,7 +16,7 @@ import pytest
 
 from orpheus.derivations import reference_values
 from orpheus.derivations.common.xs_library import LAYOUTS, get_xs
-from orpheus.derivations.continuous.peierls.slab import solve_peierls_eigenvalue
+from orpheus.derivations.continuous.peierls_nystrom.slab import solve_peierls_eigenvalue
 
 
 @pytest.mark.l0

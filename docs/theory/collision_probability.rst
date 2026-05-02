@@ -2336,7 +2336,7 @@ The unified ``_pg.solve_peierls_*`` adaptive-quadrature K-matrix
 assembly described next is the production path.
 
 **Unified basis-aware assembly** (current implementation,
-:func:`~orpheus.derivations.continuous.peierls.slab._basis_kernel_weights`).
+:func:`~orpheus.derivations.continuous.peierls_nystrom.slab._basis_kernel_weights`).
 Every :math:`K[i, j]` is computed directly as
 
 .. math::
@@ -2357,7 +2357,7 @@ panel (same-panel case). This single code path:
   arbitrary panel pairs without relying on near-log assumptions.
 
 The implementation exactly mirrors the adaptive reference
-:func:`~orpheus.derivations.continuous.peierls.reference.slab_K_vol_element`, so
+:func:`~orpheus.derivations.continuous.peierls_nystrom.reference.slab_K_vol_element`, so
 the production code and the reference agree to machine
 :math:`\mathrm{dps}` by construction.
 
@@ -2464,7 +2464,7 @@ theory page) for the canonical, project-wide statement of the
 drivers and the XS library
 (:mod:`orpheus.derivations.common.xs_library`) all follow. In the Peierls
 slab assembly loop
-(:func:`orpheus.derivations.continuous.peierls.slab._build_system_matrices`)
+(:func:`orpheus.derivations.continuous.peierls_nystrom.slab._build_system_matrices`)
 the scatter kernel for the equation in group ``ge`` sums over
 source groups ``gs`` via ``sig_s_at_node[j][gs][ge]`` =
 :math:`\Sigma_{s,\,gs \to ge}` — first index source, second
@@ -2515,7 +2515,7 @@ purposes, the 2% agreement at moderate resolution is sufficient to
 confirm that both methods solve the same integral transport equation.
 
 The registered reference in the test suite
-(``continuous_cases()`` in :mod:`orpheus.derivations.continuous.peierls.slab`) uses a
+(``continuous_cases()`` in :mod:`orpheus.derivations.continuous.peierls_nystrom.slab`) uses a
 lightweight configuration (4 panels |times| 4 GL points per region,
 20-digit ``mpmath`` precision) to keep import time fast.  Tests that
 need higher accuracy should call
@@ -2537,9 +2537,9 @@ For this reason, the slow 2G 2-region convergence test is marked
 
 .. seealso::
 
-   :mod:`orpheus.derivations.continuous.peierls.slab` — Nystrom solver implementation.
+   :mod:`orpheus.derivations.continuous.peierls_nystrom.slab` — Nystrom solver implementation.
 
-   :class:`orpheus.derivations.continuous.peierls.slab.PeierlsSlabSolution` — result container
+   :class:`orpheus.derivations.continuous.peierls_nystrom.slab.PeierlsSlabSolution` — result container
    with barycentric interpolation for flux evaluation at arbitrary points.
 
    ``tests/derivations/test_peierls_convergence.py`` — L0 self-convergence
@@ -2571,7 +2571,7 @@ up a **non-integrable coincident singularity** that the slab's
 product-integration trick does not cure — this motivates the
 reformulation described below.
 
-The implementation lives in :mod:`orpheus.derivations.continuous.peierls.cylinder`.
+The implementation lives in :mod:`orpheus.derivations.continuous.peierls_nystrom.cylinder`.
 This section documents the mathematics, the formulation choice
 (including the dead-end that was tried first), and the verification
 evidence.
@@ -2814,7 +2814,7 @@ boundaries, is represented by a piecewise polynomial of degree
 The total number of radial Nyström unknowns is
 :math:`N = N_{\rm reg} \times n_{\rm panels} \times p`. The builder
 is ``composite_gl_r`` (aliased from ``composite_gl_y`` in
-:mod:`orpheus.derivations.continuous.peierls.cylinder`).
+:mod:`orpheus.derivations.continuous.peierls_nystrom.cylinder`).
 
 **Azimuthal quadrature (Gauss--Legendre on** :math:`[0, \pi]`\ **).**
 With :math:`n_\beta` nodes and weights :math:`w_{\beta,k}`; the
@@ -2847,7 +2847,7 @@ supported only on the panel containing :math:`r'_{ikm}`
 (piecewise-polynomial representation matching the composite GL
 radial mesh). The basis is built by
 ``_lagrange_basis_on_panels`` in
-:mod:`orpheus.derivations.continuous.peierls.cylinder`. Two properties are
+:mod:`orpheus.derivations.continuous.peierls_nystrom.cylinder`. Two properties are
 enforced by L0 foundation tests:
 
 - **Partition of unity**: :math:`\sum_j L_j(r) = 1` for any
@@ -2881,7 +2881,7 @@ with
          \mathrm{Ki}_1(\tau_{ikm})\,L_j(r'_{ikm}).
 
 The kernel matrix is assembled by ``build_volume_kernel`` in
-:mod:`orpheus.derivations.continuous.peierls.cylinder`. The per-sample optical
+:mod:`orpheus.derivations.continuous.peierls_nystrom.cylinder`. The per-sample optical
 depth :math:`\tau_{ikm}` is computed by ``_optical_depth_along_ray``,
 which walks annular boundary crossings as described next.
 
@@ -3034,11 +3034,11 @@ the full operator; the eigenvalue problem is
      \varphi \;=\; \frac{1}{k}\,K\,\mathrm{diag}(\nu\Sigma_f)\,\varphi,
 
 solved by fission-source power iteration in
-:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
 (with ``geometry=_pg.CYLINDER_1D`` and ``boundary="vacuum"``); the
 sphere-/cylinder-specific façades in
-:mod:`orpheus.derivations.continuous.peierls.cylinder` /
-:mod:`orpheus.derivations.continuous.peierls.sphere` are registry-only
+:mod:`orpheus.derivations.continuous.peierls_nystrom.cylinder` /
+:mod:`orpheus.derivations.continuous.peierls_nystrom.sphere` are registry-only
 shims after the Issue #138 collapse. This is the closure that is
 currently implemented; it is used for the Sanchez tie-point
 verification below.
@@ -3073,7 +3073,7 @@ relative to the :math:`O(N^{3})` radial LU factorisation.
 .. note::
 
    The cylinder white-BC closure is **not yet implemented**;
-   :func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
+   :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
    with ``geometry=_pg.CYLINDER_1D`` handles vacuum BC only. The
    :math:`\tau^{\pm}` walker (``optical_depths_pm``) that lives
    alongside ``build_volume_kernel`` is the primitive needed for
@@ -3208,18 +3208,18 @@ sorting crossings, making the bare-cylinder case
 
 .. seealso::
 
-   :mod:`orpheus.derivations.continuous.peierls.cylinder` — registry-only
+   :mod:`orpheus.derivations.continuous.peierls_nystrom.cylinder` — registry-only
    module; binds the cylinder ``GEOMETRY`` singleton and ships the
    ``_build_peierls_cylinder_*_case`` continuous-reference
    constructors. The Nyström solver implementation lives in
-   :mod:`~orpheus.derivations.continuous.peierls.geometry`.
+   :mod:`~orpheus.derivations.continuous.peierls_nystrom.geometry`.
 
-   :class:`~orpheus.derivations.continuous.peierls.geometry.PeierlsSolution`
+   :class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.PeierlsSolution`
    — canonical result container with radial node positions, flux
    values, :math:`k_{\rm eff}`, and ``geometry_kind`` discriminator.
    Same dataclass for slab / cylinder / sphere.
 
-   :func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
+   :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
    — 1-group eigenvalue driver (call with
    ``geometry=_pg.CYLINDER_1D`` and ``boundary="vacuum"`` for the
    vacuum-BC closure described above).
@@ -3269,9 +3269,9 @@ recursion bug: any factor-of-two, off-by-one, or sign error in the
 Bickley recurrence that would affect the cylinder cancels out of the
 sphere, and vice-versa.
 
-The implementation lives in :mod:`orpheus.derivations.continuous.peierls.sphere`
+The implementation lives in :mod:`orpheus.derivations.continuous.peierls_nystrom.sphere`
 — a thin facade over the unified
-:class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
+:class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry`
 (``kind = "sphere-1d"``). The sphere shares the
 Lagrange-basis, composite-GL radial quadrature, optical-depth walker,
 and power-iteration primitives with the cylinder verbatim; the only
@@ -3363,7 +3363,7 @@ position is
 not care whether the surrounding source field is
 :math:`2`-D-symmetric (cylinder) or :math:`3`-D-symmetric
 (sphere). That is the architectural insight that let
-:class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
+:class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry`
 share ray primitives between the two geometries.
 
 The 3-D volume element in observer-centred coordinates is
@@ -3543,7 +3543,7 @@ Nyström assembly in polar coordinates
 
 The sphere discretisation mirrors the cylinder's three-layer polar
 quadrature; each layer is dispatched through the unified
-:class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
+:class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry`
 with ``kind = "sphere-1d"``.
 
 **Radial grid (composite Gauss–Legendre on** :math:`[0, R]`\ **).**
@@ -3559,7 +3559,7 @@ total number of radial Nyström unknowns is
 :math:`N = N_{\rm reg} \cdot n_{\rm panels} \cdot p`. Builder is
 ``composite_gl_r`` (shared with the cylinder; the sphere module
 re-exports it verbatim via
-:mod:`orpheus.derivations.continuous.peierls.sphere`).
+:mod:`orpheus.derivations.continuous.peierls_nystrom.sphere`).
 
 Verified by ``TestSphereCompositeRadialGL`` in
 ``tests/derivations/test_peierls_sphere_geometry.py``: the weighted
@@ -3603,7 +3603,7 @@ expressed via the panel-local Lagrange basis:
 where :math:`L_j` is the degree-:math:`(p-1)` Lagrange polynomial
 supported only on the panel containing :math:`r'_{ikm}`. The basis
 is shared with the cylinder (``_lagrange_basis_on_panels`` in
-:mod:`orpheus.derivations.continuous.peierls.geometry`); partition of unity
+:mod:`orpheus.derivations.continuous.peierls_nystrom.geometry`); partition of unity
 and polynomial reproduction are L0-verified in the cylinder's
 ``TestLagrangeBasisOnPanels`` and carry over to the sphere case
 without modification.
@@ -3631,7 +3631,7 @@ with
          e^{-\tau_{ikm}}\,L_j\!\bigl(r'_{ikm}\bigr).
 
 The kernel matrix is assembled by ``build_volume_kernel`` in
-:mod:`orpheus.derivations.continuous.peierls.sphere`, which dispatches to
+:mod:`orpheus.derivations.continuous.peierls_nystrom.sphere`, which dispatches to
 :func:`peierls_geometry.build_volume_kernel` with the sphere
 geometry singleton pre-bound. The per-sample optical depth
 :math:`\tau_{ikm}` is computed by the shared multi-annulus walker,
@@ -3907,10 +3907,10 @@ so the divisor is :math:`R`. These two cases are dispatched by
    exists precisely to make this mistake impossible in new code.
 
 The implementation is thin: :func:`build_white_bc_correction` in
-:mod:`orpheus.derivations.continuous.peierls.sphere` calls
+:mod:`orpheus.derivations.continuous.peierls_nystrom.sphere` calls
 :func:`compute_G_bc`, :func:`compute_P_esc`, and assembles the
 rank-1 outer product with the geometry-aware divisor — all via the
-unified :class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
+unified :class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry`
 dispatch in :func:`peierls_geometry.build_white_bc_correction`.
 
 .. _issue-100-retraction:
@@ -4026,7 +4026,7 @@ the full operator; the eigenvalue problem is
      \varphi \;=\; \frac{1}{k}\,K\,\mathrm{diag}(\nu\Sigma_f)\,\varphi,
 
 solved by fission-source power iteration in
-:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
 (with ``geometry=_pg.SPHERE_1D``) and ``boundary="vacuum"``. This
 is the clean closure: no approximation enters beyond the quadrature
 orders.
@@ -4034,7 +4034,7 @@ orders.
 **Rank-1 white.** The unified :math:`K_{\rm vol} + K_{\rm bc}`
 structure with :math:`K_{\rm bc}` the rank-1 outer product derived
 above, solved by the same power iteration via
-:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
 (with ``geometry=_pg.SPHERE_1D``) and ``boundary="white"``. Accuracy is governed by the cell
 optical thickness (``test_thin_sphere_rank1_error_bounded`` /
 ``test_medium_sphere_rank1_error_bounded`` /
@@ -4229,30 +4229,30 @@ LU per iteration, typically converging in 20–30 iterations to
 :math:`10^{-10}` eigenvalue tolerance.
 
 Short-circuit: the homogeneous single-shell branch of
-:func:`~orpheus.derivations.continuous.peierls.geometry.compute_G_bc` bypasses
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc` bypasses
 the multi-annulus walker and computes :math:`\tau_{\rm surf} =
 \Sigma_t\,\rho_{\max}` directly, making the bare-sphere case
 :math:`\sim 2\times` faster than the multi-region path.
 
 .. seealso::
 
-   :mod:`orpheus.derivations.continuous.peierls.sphere` — thin facade; the
+   :mod:`orpheus.derivations.continuous.peierls_nystrom.sphere` — thin facade; the
    sphere-specific API names, the
    ``_build_peierls_sphere_case`` registry builder, and the
    ``continuous_cases`` registration.
 
-   :mod:`orpheus.derivations.continuous.peierls.geometry` — unified polar-form
+   :mod:`orpheus.derivations.continuous.peierls_nystrom.geometry` — unified polar-form
    Nyström infrastructure; the
-   :class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
+   :class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry`
    class with ``kind = "sphere-1d"`` and
    ``kind = "cylinder-1d"`` handles both geometries through one
    code path.
 
-   :class:`~orpheus.derivations.continuous.peierls.geometry.PeierlsSolution`
+   :class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.PeierlsSolution`
    — canonical result container; same dataclass shape for
    ``geometry_kind="sphere-1d"`` / ``"cylinder-1d"`` / ``"slab"``.
 
-   :func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`
+   :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
    — 1-group vacuum- or white-BC eigenvalue driver. Pass
    ``geometry=_pg.SPHERE_1D`` (or ``CYLINDER_1D`` / ``SLAB_POLAR_1D``)
    and ``boundary="vacuum"`` for the scaffold-level verification

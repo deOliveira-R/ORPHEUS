@@ -2,7 +2,7 @@ r"""Independent high-precision reference for the unified Peierls operator.
 
 Purpose: provide a **mesh-independent, mathematically self-contained**
 reference for verifying the production Nyström solver in
-:mod:`orpheus.derivations.continuous.peierls.geometry`. Built from the same
+:mod:`orpheus.derivations.continuous.peierls_nystrom.geometry`. Built from the same
 unified polar form documented in :doc:`/theory/peierls_nystrom` §4,
 but uses :func:`mpmath.quad` (adaptive Gauss-Kronrod) and native
 arbitrary-precision special functions instead of fixed-order

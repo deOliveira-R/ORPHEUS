@@ -37,9 +37,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.peierls import geometry as _pg
-from orpheus.derivations.continuous.peierls.cylinder import GEOMETRY
-from orpheus.derivations.continuous.peierls.geometry import (
+from orpheus.derivations.continuous.peierls_nystrom import geometry as _pg
+from orpheus.derivations.continuous.peierls_nystrom.cylinder import GEOMETRY
+from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     compute_G_bc,
     compute_P_esc,
 )
@@ -245,7 +245,7 @@ class TestHebertCylinderInsufficient:
         """
         from orpheus.derivations.continuous.flat_source_cp import cylinder as cp_cylinder
         from orpheus.derivations.common.xs_library import LAYOUTS, get_xs
-        from orpheus.derivations.continuous.peierls.geometry import (
+        from orpheus.derivations.continuous.peierls_nystrom.geometry import (
             CYLINDER_1D, solve_peierls_mg,
         )
 

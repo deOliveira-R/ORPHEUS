@@ -19,8 +19,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.peierls.geometry import composite_gl_r
-from orpheus.derivations.continuous.peierls.sphere import GEOMETRY
+from orpheus.derivations.continuous.peierls_nystrom.geometry import composite_gl_r
+from orpheus.derivations.continuous.peierls_nystrom.sphere import GEOMETRY
 
 
 # ═══════════════════════════════════════════════════════════════════════

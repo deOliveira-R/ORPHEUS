@@ -34,8 +34,8 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from orpheus.derivations.continuous.peierls.geometry import reflection_specular
-from orpheus.derivations.continuous.peierls.origins.specular import (
+from orpheus.derivations.continuous.peierls_nystrom.geometry import reflection_specular
+from orpheus.derivations.continuous.peierls_nystrom.origins.specular import (
     build_M_closed_form,
     build_M_symbolic,
     build_R_specular_symbolic,

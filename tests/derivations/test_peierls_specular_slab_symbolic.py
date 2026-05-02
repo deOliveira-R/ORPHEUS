@@ -37,14 +37,14 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from orpheus.derivations.continuous.peierls.geometry import (
+from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     SLAB_POLAR_1D,
     compute_G_bc_inner,
     compute_G_bc_outer,
     compute_P_esc_inner,
     compute_P_esc_outer,
 )
-from orpheus.derivations.continuous.peierls.origins.specular import (
+from orpheus.derivations.continuous.peierls_nystrom.origins.specular import (
     build_M_symbolic,
     build_R_slab_blockdiag,
     derive_slab_g_outer_n0,

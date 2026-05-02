@@ -36,13 +36,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.peierls.geometry import (
+from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     SPHERE_1D,
     compute_P_ss_sphere,
     compute_T_specular_sphere,
     solve_peierls_1g,
 )
-from orpheus.derivations.continuous.peierls.greens_function import (
+from orpheus.derivations.continuous.peierls_greens_function.greens_function import (
     solve_greens_function_sphere,
 )
 

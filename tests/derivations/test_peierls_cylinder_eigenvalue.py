@@ -43,7 +43,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.peierls import geometry as _pg
+from orpheus.derivations.continuous.peierls_nystrom import geometry as _pg
 
 
 # Canonical synthetic XS used elsewhere in the verification campaign

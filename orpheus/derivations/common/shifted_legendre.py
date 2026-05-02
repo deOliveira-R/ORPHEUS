@@ -14,8 +14,8 @@ These coefficients are used by:
   rank-:math:`N` Knyazev :math:`\mathrm{Ki}_{2+k}` and :math:`E_{n+2}`
   expansions in cylinder and slab geometries.
 - The lifted SymPy derivation modules
-  :mod:`orpheus.derivations.continuous.peierls.origins.cylinder_knyazev` and
-  :mod:`orpheus.derivations.continuous.peierls.origins.specular.slab` consume this same
+  :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_knyazev` and
+  :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular.slab` consume this same
   canonical coefficient source (the workbench duplicates were
   removed when those scripts were lifted into the package).
 
@@ -35,8 +35,8 @@ derivation scripts in ``scratch/derivations/`` carried duplicate
 SymPy-based copies of these coefficients (computed via
 :func:`sympy.legendre` + :func:`sympy.Poly`). Those duplicates were
 removed when the scripts were lifted to
-:mod:`orpheus.derivations.continuous.peierls.origins.specular.slab` and
-:mod:`orpheus.derivations.continuous.peierls.origins.cylinder_knyazev` respectively;
+:mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular.slab` and
+:mod:`orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_knyazev` respectively;
 the lifted modules now import this canonical implementation directly.
 """
 

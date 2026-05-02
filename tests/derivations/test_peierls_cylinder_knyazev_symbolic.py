@@ -35,12 +35,12 @@ from orpheus.derivations.common.kernels import ki_n_mp
 from orpheus.derivations.common.shifted_legendre import (
     shifted_legendre_monomial_coefs,
 )
-from orpheus.derivations.continuous.peierls.origins.cylinder_knyazev import (
+from orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_knyazev import (
     derive_g_prefactor,
     derive_p_prefactor,
     derive_polar_integral_identity,
 )
-from orpheus.derivations.continuous.peierls.geometry import (
+from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     CYLINDER_1D,
     compute_P_esc,
     compute_P_esc_cylinder_3d_mode,

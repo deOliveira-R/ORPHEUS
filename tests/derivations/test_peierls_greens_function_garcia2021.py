@@ -73,7 +73,7 @@ import numpy as np
 import pytest
 from scipy.interpolate import CubicSpline
 
-from orpheus.derivations.continuous.peierls.greens_function import (
+from orpheus.derivations.continuous.peierls_greens_function.greens_function import (
     solve_greens_function_sphere_mr_fixed_source,
 )
 

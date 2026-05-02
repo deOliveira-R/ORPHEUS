@@ -15,11 +15,14 @@ Sub-packages:
 - :mod:`~orpheus.derivations.continuous.flat_source_cp` —
   flat-source collision-probability eigenvalues for slab, cylinder,
   sphere.
-- :mod:`~orpheus.derivations.continuous.peierls` — Peierls integral
-  form via high-precision Nyström quadrature; the active reference
-  for heterogeneous CP verification.
-- :mod:`~orpheus.derivations.continuous.greens_function` — placeholder
-  for analytical Green's-function references (Plan-2).
+- :mod:`~orpheus.derivations.continuous.peierls_nystrom` — Peierls
+  integral form via high-precision Nyström quadrature; the active
+  reference for heterogeneous CP verification (scalar-flux integral
+  equation).
+- :mod:`~orpheus.derivations.continuous.peierls_greens_function` —
+  Peierls Variant α angle-resolved Green's-function references
+  (rank-1 resolvent shared between sphere and cylinder kernels;
+  α ∈ [0, 1] interpolates vacuum and specular BC).
 - :mod:`~orpheus.derivations.continuous.mms` — Method of Manufactured
   Solutions for S\\ :sub:`N` and MOC.
 - :mod:`~orpheus.derivations.continuous.cases` — per-method case

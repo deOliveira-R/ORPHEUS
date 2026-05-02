@@ -78,11 +78,11 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
-from orpheus.derivations.continuous.peierls.geometry import (
+from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     compute_P_ss_cylinder,
     compute_T_specular_cylinder_3d,
 )
-from orpheus.derivations.continuous.peierls.greens_function_cylinder import (
+from orpheus.derivations.continuous.peierls_greens_function.greens_function_cylinder import (
     solve_greens_function_cylinder,
     solve_greens_function_cylinder_mg,
 )

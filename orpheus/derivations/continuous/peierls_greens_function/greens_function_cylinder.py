@@ -108,12 +108,12 @@ References
 ----------
 
 - Sanchez, R. (1986). *Transp. Theor. Stat. Phys.* 14.
-- :mod:`orpheus.derivations.continuous.peierls.origins.specular.greens_function_cylinder`
+- :mod:`orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function_cylinder`
   — V_α1_cyl/V_α2_cyl/V_α3_cyl SymPy verifications.
 - :file:`/.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 1
   cylinder Variant α plan.
 - Sphere reference solver:
-  :mod:`orpheus.derivations.continuous.peierls.greens_function`
+  :mod:`orpheus.derivations.continuous.peierls_greens_function.greens_function`
 """
 from __future__ import annotations
 
@@ -122,7 +122,7 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.interpolate import CubicSpline
 
-from orpheus.derivations.continuous.peierls.variant_alpha_core import (
+from orpheus.derivations.continuous.peierls_greens_function.variant_alpha_core import (
     apply_variant_alpha_closure,
 )
 

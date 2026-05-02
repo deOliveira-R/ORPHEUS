@@ -15,9 +15,9 @@ The two topological classes are:
 
 This module is the canonical entry point for continuous-reference
 registration via :func:`cases`. The per-geometry modules
-(:mod:`~orpheus.derivations.continuous.peierls.slab`,
-:mod:`~orpheus.derivations.continuous.peierls.cylinder`,
-:mod:`~orpheus.derivations.continuous.peierls.sphere`) retain their
+(:mod:`~orpheus.derivations.continuous.peierls_nystrom.slab`,
+:mod:`~orpheus.derivations.continuous.peierls_nystrom.cylinder`,
+:mod:`~orpheus.derivations.continuous.peierls_nystrom.sphere`) retain their
 ``_build_*_case`` constructor functions — this module calls them
 directly. Their ``continuous_cases()`` hooks return empty lists to
 avoid double-registration; the registry-builder's auto-discovery
@@ -26,12 +26,12 @@ continuous references.
 
 Slab note (2026-04-24): slab has two independent verification paths:
 
-1. **Native E₁ Nyström** (:mod:`~orpheus.derivations.continuous.peierls.slab`) —
+1. **Native E₁ Nyström** (:mod:`~orpheus.derivations.continuous.peierls_nystrom.slab`) —
    classical singularity-subtraction + product-integration, multi-
    group via a block-Toeplitz assembly. Retained as an independent
    cross-check.
-2. **Unified curvilinear** (:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_mg`
-   with :data:`~orpheus.derivations.continuous.peierls.geometry.SLAB_POLAR_1D`)
+2. **Unified curvilinear** (:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_mg`
+   with :data:`~orpheus.derivations.continuous.peierls_nystrom.geometry.SLAB_POLAR_1D`)
    — adaptive ``mpmath.quad`` with forced :math:`\mu = 0` breakpoint,
    machine precision by construction (see Phase G — Sphinx
    §theory-peierls-slab-polar).
@@ -90,13 +90,13 @@ def build_two_surface_case(
     (:math:numref:`hebert-3-323`). Dispatch on ``shape``:
 
     - ``"slab"`` — calls
-      :func:`orpheus.derivations.continuous.peierls.slab._build_peierls_slab_case`.
+      :func:`orpheus.derivations.continuous.peierls_nystrom.slab._build_peierls_slab_case`.
       ``inner_radius`` is ignored (slab has two parallel faces at
       :math:`x=0` and :math:`x=L`, not a cavity).
     - ``"cylinder-1d"`` — requires ``inner_radius > 0``; calls
-      :func:`orpheus.derivations.continuous.peierls.cylinder._build_peierls_cylinder_hollow_f4_case`.
+      :func:`orpheus.derivations.continuous.peierls_nystrom.cylinder._build_peierls_cylinder_hollow_f4_case`.
     - ``"sphere-1d"`` — requires ``inner_radius > 0``; calls
-      :func:`orpheus.derivations.continuous.peierls.sphere._build_peierls_sphere_hollow_f4_case`.
+      :func:`orpheus.derivations.continuous.peierls_nystrom.sphere._build_peierls_sphere_hollow_f4_case`.
 
     Parameters
     ----------
@@ -185,7 +185,7 @@ def _build_peierls_slab_case_via_unified(
     (:data:`peierls_geometry.SLAB_POLAR_1D` + adaptive ``mpmath.quad``
     with forced :math:`\mu = 0` breakpoint).
 
-    Mirrors :func:`orpheus.derivations.continuous.peierls.slab._build_peierls_slab_case`
+    Mirrors :func:`orpheus.derivations.continuous.peierls_nystrom.slab._build_peierls_slab_case`
     on inputs and on the ``ContinuousReferenceSolution`` output
     schema. The difference is the K-matrix assembly route:
 

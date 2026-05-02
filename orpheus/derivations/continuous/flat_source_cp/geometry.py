@@ -1,6 +1,6 @@
 r"""Unified flat-source collision-probability construction.
 
-Level-3 sibling of :mod:`~orpheus.derivations.continuous.peierls.geometry`.
+Level-3 sibling of :mod:`~orpheus.derivations.continuous.peierls_nystrom.geometry`.
 See :doc:`/theory/peierls_nystrom` §§11-17 for the end-to-end
 derivation of the three-tier kernel hierarchy and the factorisation
 
@@ -149,7 +149,7 @@ class FlatSourceCPGeometry:
 
     One instance per geometry; four primitives + one flag fully
     specify the flat-source CP construction. Sibling to
-    :class:`~orpheus.derivations.continuous.peierls.geometry.CurvilinearGeometry`
+    :class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry`
     (same family, different kernel level). The three pre-built
     singletons :data:`SLAB`, :data:`CYLINDER_1D`, :data:`SPHERE_1D`
     are the conventional consumption path."""

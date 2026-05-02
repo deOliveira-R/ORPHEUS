@@ -40,7 +40,7 @@ Precision dial: every constructor accepts ``dps=53`` (the float64
 default). For ``dps > 53`` the nodes are computed via
 ``mpmath.gauss_quadrature`` at the requested precision and cast
 to ``float64`` for the returned arrays — same pattern as the
-legacy :func:`~orpheus.derivations.continuous.peierls.geometry.gl_float`.
+legacy :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.gl_float`.
 
 See :doc:`/theory/peierls_nystrom` § "Quadrature contract"
 (§22.0) for the design rationale and § "Coordinate transformations
@@ -159,7 +159,7 @@ class Quadrature1D:
         nodes contributed by panel :math:`k` (whose bounds are
         ``self.panel_bounds[k]``). Consumers that need to evaluate
         per-panel basis functions (e.g.
-        :func:`~orpheus.derivations.continuous.peierls.geometry.lagrange_basis_on_panels`)
+        :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.lagrange_basis_on_panels`)
         index through this method rather than recomputing offsets from
         an external per-panel node count.
         """

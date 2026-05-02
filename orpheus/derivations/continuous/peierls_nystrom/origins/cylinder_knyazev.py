@@ -7,7 +7,7 @@ families: the curvilinear specular closure
 (:func:`compute_P_esc_cylinder_3d_mode` /
 :func:`compute_G_bc_cylinder_3d_mode` for ``boundary="specular"``) and
 the corrected 3-D Hébert white-BC kernel (Issue #112 Phase C — see
-:mod:`orpheus.derivations.continuous.peierls.origins.cylinder_g_bc_3d`). For that reason
+:mod:`orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_g_bc_3d`). For that reason
 this module sits **outside** the ``peierls_specular`` sub-package and
 serves both clients.
 

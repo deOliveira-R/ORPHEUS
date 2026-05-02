@@ -47,7 +47,7 @@ from orpheus.derivations.common.eigenvalue import (
     kinf_and_spectrum_homogeneous,
 )
 from orpheus.derivations.common.xs_library import get_xs
-from orpheus.derivations.continuous.peierls.greens_function import (
+from orpheus.derivations.continuous.peierls_greens_function.greens_function import (
     solve_greens_function_sphere,
     solve_greens_function_sphere_mg,
 )

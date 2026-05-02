@@ -36,7 +36,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.peierls.geometry import (
+from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     BoundaryClosureOperator,
     CYLINDER_1D,
     SPHERE_1D,

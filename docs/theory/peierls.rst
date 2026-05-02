@@ -91,7 +91,7 @@ Why this matters for verification:
    bounded by the radial-grid + closure-quadrature error, *not* by
    any angular quadrature error (which has already been folded into
    the kernel analytically). This is the architectural reason
-   ``orpheus.derivations.continuous.peierls`` is the L1 reference
+   ``orpheus.derivations.continuous.peierls_nystrom`` is the L1 reference
    class for the discrete CP / S_N / MoC solvers in
    ``orpheus.cp`` / ``orpheus.sn`` / ``orpheus.moc``.
 
@@ -349,7 +349,7 @@ Five canonical BC choices fall out of :math:numref:`peierls-bc-general`:
      - any
      - Convex combination of vacuum / specular / diffuse. The
        :math:`\alpha`-parameter in
-       :func:`~orpheus.derivations.continuous.peierls.greens_function.solve_greens_function_sphere`
+       :func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere`
        interpolates the full :math:`\alpha\in[0,1]` range.
    * - Periodic
      - n/a
@@ -384,7 +384,7 @@ The :math:`\beta`-branch (diffuse re-emission) is **not** shipped
 in either family. Sanchez 1986 Eq. (A6) carries the full
 :math:`(\alpha,\beta)` kernel, but the prototype Green's function
 solver in
-:func:`~orpheus.derivations.continuous.peierls.greens_function.solve_greens_function_sphere`
+:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere`
 is restricted to :math:`\beta = 0`. Adding :math:`\beta`-support is
 flagged as future work in :ref:`theory-peierls-greens`.
 
@@ -438,11 +438,11 @@ to follow:
        and bounce-period chord
    * - Multi-group
      - Production via
-       :func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_mg`
+       :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_mg`
        (Issue #104); shipped registry rows for slab + hollow
        cyl/sph 2G
      - Production via
-       :func:`~orpheus.derivations.continuous.peierls.greens_function.solve_greens_function_sphere_mg`
+       :func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere_mg`
        (closed sphere reduces to
        :func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`
        transfer-matrix dominant eigenvalue)
@@ -528,7 +528,7 @@ independent confirmation of the same kernel. The local PDF copy is
 *JQSRT* 28(6), 503-506 (1982)).
 
 ORPHEUS implementation:
-:func:`orpheus.derivations.continuous.peierls.ps1982_reference.solve_ps1982_vacuum_sphere`
+:func:`orpheus.derivations.continuous.peierls_nystrom.ps1982_reference.solve_ps1982_vacuum_sphere`
 — Nyström quadrature on the
 :math:`[E_1(|r-x|) - E_1(r+x)]` kernel via
 :func:`mpmath.expint`. Used as the L1 cross-check truth source for
@@ -576,9 +576,9 @@ closed-form geometric series.
 **multi-group** Peierls form — group-wise iteration with
 cross-group + fission source. The same form is implemented in
 both ORPHEUS families
-(:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_mg`
+(:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_mg`
 for the Nyström family;
-:func:`~orpheus.derivations.continuous.peierls.greens_function.solve_greens_function_sphere_mg`
+:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere_mg`
 for the Green's function family).
 
 The Garcia 2018 / 2020 / 2021 stable :math:`P_N` family
@@ -675,22 +675,22 @@ The literature PDFs cited above are stored in the repo root
 
 Codebase pointers:
 
-- :mod:`orpheus.derivations.continuous.peierls.geometry` — Nyström
+- :mod:`orpheus.derivations.continuous.peierls_nystrom.geometry` — Nyström
   family unified solver
-  (:func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_1g`,
-  :func:`~orpheus.derivations.continuous.peierls.geometry.solve_peierls_mg`).
-- :mod:`orpheus.derivations.continuous.peierls.greens_function` —
+  (:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`,
+  :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_mg`).
+- :mod:`orpheus.derivations.continuous.peierls_greens_function.greens_function` —
   Green's function family
-  (:func:`~orpheus.derivations.continuous.peierls.greens_function.solve_greens_function_sphere`,
+  (:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere`,
   ``_mg``, ``_mr``, ``_mr_fixed_source``).
-- :mod:`orpheus.derivations.continuous.peierls.ps1982_reference` —
+- :mod:`orpheus.derivations.continuous.peierls_nystrom.ps1982_reference` —
   PS-1982 reference solver (vacuum sphere only).
-- :mod:`orpheus.derivations.continuous.peierls.origins.specular.greens_function`
+- :mod:`orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function`
   — SymPy derivations V_α1, V_α2, V_α3 for the Green's function
   family.
 - :file:`docs/theory/_peierls_capability_matrix.inc.rst` —
   auto-generated from
-  :func:`orpheus.derivations.continuous.peierls.cases.capability_rows`;
+  :func:`orpheus.derivations.continuous.peierls_nystrom.cases.capability_rows`;
   rebuilt every Sphinx build by
   :mod:`tools.verification.generate_peierls_matrix`.
 

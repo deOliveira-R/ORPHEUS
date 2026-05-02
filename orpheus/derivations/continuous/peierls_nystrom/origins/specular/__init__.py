@@ -1,9 +1,10 @@
-"""Specular boundary-condition derivations for the Peierls path.
+"""Specular boundary-condition derivations for the Peierls Nyström path.
 
-Sub-package shell for the SymPy math-origin functions that produce
-the curvilinear specular reflection operator and the slab per-face
+Sub-package shell for the SymPy math-origin functions that produce the
+curvilinear specular reflection operator and the slab per-face
 companion. Public symbols are re-exported here so existing call sites
-that imported from the flat ``orpheus.derivations.continuous.peierls.origins.specular``
+that imported from the flat
+``orpheus.derivations.continuous.peierls_nystrom.origins.specular``
 module continue to resolve.
 
 Modules
@@ -18,8 +19,6 @@ Modules
 - :mod:`.continuous_mu` — Phase-5 Sanchez 1986 Eq. (A6)
   continuous-:math:`\\mu` multi-bounce kernel verifications (V1..V4
   identities for the textbook reference implementation).
-- :mod:`.greens_function` — Plan-2 Variant α operator-level identities
-  (V_α1..V_α3) for the angle-resolved Green's function reference.
 """
 
 from .r_matrix import (
@@ -40,17 +39,6 @@ from .continuous_mu import (
     derive_multi_bounce_factor,
     derive_vacuum_reduction,
 )
-from .greens_function import (
-    derive_T00_equals_P_ss_sphere,
-    derive_alpha_zero_kernel_reduction,
-    derive_operator_constant_trial_closed_sphere,
-)
-from .greens_function_cylinder import (
-    derive_T00_equals_P_ss_cylinder,
-    derive_alpha_zero_kernel_reduction_cylinder,
-    derive_bounce_period_chord_cylinder,
-    derive_operator_constant_trial_closed_cylinder,
-)
 
 __all__ = [
     # r_matrix
@@ -68,13 +56,4 @@ __all__ = [
     "derive_m1_equivalence",
     "derive_multi_bounce_factor",
     "derive_vacuum_reduction",
-    # greens_function (sphere)
-    "derive_T00_equals_P_ss_sphere",
-    "derive_alpha_zero_kernel_reduction",
-    "derive_operator_constant_trial_closed_sphere",
-    # greens_function_cylinder
-    "derive_T00_equals_P_ss_cylinder",
-    "derive_alpha_zero_kernel_reduction_cylinder",
-    "derive_bounce_period_chord_cylinder",
-    "derive_operator_constant_trial_closed_cylinder",
 ]

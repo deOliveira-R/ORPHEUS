@@ -69,7 +69,7 @@ def chord_half_lengths(radii: np.ndarray, y_pts: np.ndarray) -> np.ndarray:
     This is the primitive consumed by the CP cylinder / sphere
     derivations (:mod:`~orpheus.derivations.continuous.flat_source_cp.cylinder`,
     :mod:`~orpheus.derivations.continuous.flat_source_cp.sphere`) and by the Phase-4 Peierls
-    cylinder reference (:mod:`~orpheus.derivations.continuous.peierls.cylinder`).
+    cylinder reference (:mod:`~orpheus.derivations.continuous.peierls_nystrom.cylinder`).
     Tested at L0 in ``tests/derivations/test_kernels.py``.
 
     Parameters
@@ -287,7 +287,7 @@ def ki_n_float(n: int, x: float) -> float:
     accuracy — sufficient for every float-valued Peierls kernel
     assembly (the output is always cast to float before use in the
     Nyström matrix). Designed for use inside hot loops of
-    :func:`~orpheus.derivations.continuous.peierls.geometry.build_volume_kernel`.
+    :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.build_volume_kernel`.
     """
     if n < 1:
         raise ValueError(f"Ki_n requires n >= 1, got {n}")

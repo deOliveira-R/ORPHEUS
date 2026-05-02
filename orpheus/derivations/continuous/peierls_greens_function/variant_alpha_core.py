@@ -66,9 +66,9 @@ References
 ----------
 
 - Sanchez, R. (1986). *Transp. Theor. Stat. Phys.* 14.
-- :mod:`orpheus.derivations.continuous.peierls.greens_function`
+- :mod:`orpheus.derivations.continuous.peierls_greens_function.greens_function`
   (sphere) and
-  :mod:`orpheus.derivations.continuous.peierls.greens_function_cylinder`
+  :mod:`orpheus.derivations.continuous.peierls_greens_function.greens_function_cylinder`
   (cylinder) — call sites.
 - Phase-2 unification memo:
   ``.claude/agent-memory/method-implementer/cylinder_variant_alpha_phase2_unification.md``.

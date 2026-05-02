@@ -95,7 +95,7 @@ References
   shifted-Legendre identities for cylinder transport.
 - :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 1
   cylinder Variant α plan.
-- :mod:`orpheus.derivations.continuous.peierls.origins.specular.greens_function`
+- :mod:`orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function`
   — sphere V_α1/V_α2/V_α3 reference (this module mirrors structure).
 """
 from __future__ import annotations

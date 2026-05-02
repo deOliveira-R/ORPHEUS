@@ -39,10 +39,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.peierls.greens_function import (
+from orpheus.derivations.continuous.peierls_greens_function.greens_function import (
     solve_greens_function_sphere,
 )
-from orpheus.derivations.continuous.peierls.ps1982_reference import (
+from orpheus.derivations.continuous.peierls_nystrom.ps1982_reference import (
     solve_ps1982_vacuum_sphere,
 )
 

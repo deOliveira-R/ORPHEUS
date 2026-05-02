@@ -52,7 +52,7 @@ import pytest
 
 from orpheus.derivations.continuous.flat_source_cp import cylinder as cp_cylinder, sphere as cp_sphere
 from orpheus.derivations.common.xs_library import LAYOUTS, get_xs
-from orpheus.derivations.continuous.peierls.geometry import (
+from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     CYLINDER_1D,
     SPHERE_1D,
     solve_peierls_mg,
@@ -596,7 +596,7 @@ def test_class_b_cylinder_hebert_heterogeneous_overshoot_known(
 def test_class_b_hebert_raises_for_slab():
     """Slab uses the orthogonal E_2 piecewise sum (Issue #131); the
     Hébert path doesn't apply to it."""
-    from orpheus.derivations.continuous.peierls.geometry import SLAB_POLAR_1D
+    from orpheus.derivations.continuous.peierls_nystrom.geometry import SLAB_POLAR_1D
     pytest.skip(
         "slab-polar uses different MR routing; covered by Issue #131 "
         "E_2 piecewise sum (test_peierls_slab*.py)"
