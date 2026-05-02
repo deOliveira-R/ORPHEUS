@@ -479,26 +479,40 @@ def test_alpha_zero_convergence_floor():
 
     Quadrature ladder (n_x, n_mu, n_traj_quad):
 
-    - (12, 16, 32) — coarse
     - (16, 24, 48) — medium
     - (20, 32, 64) — fine
     - (24, 40, 96) — research-grade
+    - (32, 56, 128) — finest
 
     fuel-A-like XS, τ_L = 5: physics says :math:`0.45 < k_{\rm eff}/
     k_\infty < 0.85` (slabs leak less than spheres of the same τ).
+
+    History
+    -------
+
+    Pre-ERR-034 + ERR-035 fix: the finest-pair self-consistency was
+    pinned at ~5e-4 with a 1e-3 gate; the slow convergence was
+    misattributed to a quadrature limitation (slow GL convergence on
+    µ for the grazing-ray locus). After both fixes:
+
+    - ERR-034 corrected the trajectory parametrisation
+      :math:`x_{\rm back}(s) = x - \mu\,s` (the missing :math:`\mu`
+      factor was the dominant error mode).
+    - ERR-035 corrected the closure formula to the first-principles
+      :math:`\alpha\,B/(1 - \alpha\,e^{-\tau})` — at :math:`\alpha=0`
+      the closure is bypassed entirely so this fix is not directly
+      load-bearing here, but the delegation refactor uses the
+      rank-2 single-transit B integrals which converge faster than
+      the rank-1 full-period integrals.
+
+    Post-fix re-measured floor: ~9e-6 between (24,40,96) and
+    (32,56,128). The new gate is 5e-5 — catches genuine regressions
+    with margin while keeping a comfortable cushion above the
+    achieved value.
     """
     fix = {
         "L": 10.0, "sigma_t": 0.5, "sigma_s": 0.38, "nu_sigma_f": 0.025,
     }
-    # Convergence ladder. Slab vacuum quadrature converges noticeably
-    # SLOWER than sphere/cylinder Variant α — see Phase-3A closeout
-    # memo for the diagnosis. The grazing-ray locus :math:`\mu \to 0`
-    # has L_first → ∞ AND L_period → ∞ (planar-geometry co-divergence),
-    # but the `B` integrand picks up the integrable :math:`1/|\mu|`
-    # weight from the chord lengths and converges slowly under
-    # plain GL on µ ∈ [-1, 1]. A future improvement could use a µ-
-    # weighted GJ quadrature concentrating nodes near µ = 0 — left
-    # for a later phase.
     orders = [
         (16, 24, 48),
         (20, 32, 64),
@@ -515,9 +529,7 @@ def test_alpha_zero_convergence_floor():
         k_values.append(res.k_eff)
 
     # Coarse-to-fine sanity: each refinement should not regress
-    # catastrophically. Slab quadrature converges slowly here
-    # (~1e-3 between successive grids at moderate orders); 5e-3 is
-    # the catastrophic-failure bound.
+    # catastrophically.
     for i in range(len(k_values) - 1):
         diff = abs(k_values[i + 1] - k_values[i]) / k_values[-1]
         assert diff < 5e-3, (
@@ -526,11 +538,12 @@ def test_alpha_zero_convergence_floor():
             f"5e-3"
         )
 
-    # Achievable floor for slab vacuum at fuel-A-like τ_L=5.
-    # Phase-3A closeout records ~5e-4 between (24,40,96) and
-    # (32,56,128); 1e-3 is the gate (catches genuine regressions
-    # while accepting the slow GL convergence on µ).
-    SLAB_VACUUM_FLOOR = 1e-3
+    # Post-ERR-035-fix achievable floor for slab vacuum at fuel-A τ_L=5.
+    # Re-measured 2026-05-02: (24,40,96) → (32,56,128) ≈ 8.85e-6 rel.
+    # The 5e-5 gate has ~5x margin over the achieved value; tighten
+    # only after a structurally-independent reference (PS-1982-class
+    # for slab) is added.
+    SLAB_VACUUM_FLOOR = 5e-5
     finest_pair_diff = (
         abs(k_values[-1] - k_values[-2]) / k_values[-1]
     )
@@ -538,8 +551,8 @@ def test_alpha_zero_convergence_floor():
         f"Vacuum-slab floor: {orders[-2]} → {orders[-1]} "
         f"self-consistency = {finest_pair_diff:.3e}, exceeds "
         f"{SLAB_VACUUM_FLOOR:.0e}. Either a regression in the slab "
-        f"trajectory machinery, or a quadrature change that lost "
-        f"the slow convergence floor."
+        f"trajectory machinery / closure, or a quadrature change "
+        f"that lost the post-fix convergence floor."
     )
 
     # Pin the achieved value at the finest tested grid for posterity.

@@ -36,13 +36,13 @@ Test strategy
    that is bit-equal because the closure contributes nothing to
    either formulation).
 
-5. **L1 — α_L = α_R = α intermediate consistency check**: rank-2
-   with symmetric BC reduces to a CORRECTED rank-1 closure (see
-   the `algebra-of-record` discipline + closeout memo). A latent
-   algebraic discrepancy in the Phase-3A rank-1 production formula
-   surfaces at intermediate :math:`\alpha`; the gate captures the
-   actual achievable consistency level (~3e-4 at intermediate α)
-   while pinning bit-equality at α=0 (vacuum) and α=1 (closed).
+5. **L1 — α_L = α_R = α intermediate agreement gate**: post-ERR-035
+   fix (2026-05-02), the Phase-3A symmetric path delegates to the
+   rank-2 asymmetric solver internally, so the two paths are
+   bit-equal at all :math:`\alpha\in[0, 1]`. The gate enforces ≤
+   1e-12 rtol agreement at :math:`\alpha=0.5` as a regression-
+   prevention guard against any future re-introduction of a
+   heuristic Phase-3A closure.
 
 6. **L1 — multi-group at α_L = α_R = 1 with asymmetric Σ_s**: 2G with
    asymmetric scattering reduces to :math:`k_\infty` from
@@ -381,34 +381,25 @@ def test_vacuum_vacuum_at_alpha_zero_zero_matches_phase_3a_rank1(
 @pytest.mark.verifies("peierls-greens-slab-asym-architecture")
 def test_rank2_symmetric_BC_agrees_with_phase3a_at_endpoints():
     r"""L1 — at :math:`\alpha_L = \alpha_R = 0` and :math:`\alpha_L =
-    \alpha_R = 1`, rank-2 agrees with Phase-3A rank-1 to machine
+    \alpha_R = 1`, rank-2 agrees with Phase-3A symmetric to machine
     precision.
 
     These are the two corners of the BC parameter square where the
-    rank-2 and Phase-3A rank-1 closures are mathematically and
-    arithmetically equivalent:
+    rank-2 closure has a clean reduction:
 
     - :math:`\alpha = 0` — both formulations skip the closure entirely
       (vacuum branch).
     - :math:`\alpha = 1` — the rank-2 closure on a constant-source
-      eigenmode (closed-slab uniform flux) gives the same answer as
-      Phase-3A rank-1's :math:`\alpha \cdot B_{\rm period} / (1 -
-      \alpha^2 e^{-2\tau})` formula because the spatial profile is
-      uniform and the algebraic identity :math:`(1-e^{-\tau})(1+e^{-\tau})
-      = 1 - e^{-2\tau}` collapses both forms to :math:`q/\Sigma_t`.
+      eigenmode (closed-slab uniform flux) gives :math:`q/\Sigma_t`
+      for the surface flux, recovering the V_α1_slab algebraic
+      identity to machine precision.
 
-    At intermediate :math:`\alpha \in (0, 1)`, the rank-2 and
-    Phase-3A rank-1 formulations DIFFER by a finite amount (~1.3e-4
-    relative at fuel-A τ_L=5, α=0.5). This is a latent algebraic
-    discrepancy in the Phase-3A rank-1 closure (see Phase-3B closeout
-    memo + ``error_catalog.md`` ERR-NNN entry) — Phase-3A's heuristic
-    formula :math:`\alpha \cdot B_{\rm period} / (1 - \alpha^2 e^{-2\tau})`
-    with :math:`B_{\rm period} = \int q \cdot e^{-\Sigma_t s}\,ds`
-    over the full out-and-back period agrees with the
-    structurally-correct rank-2 closure ONLY at :math:`\alpha \in
-    \{0, 1\}` (where flux profiles are uniform-or-rank-1-collapsing).
-    The intermediate-α gate is captured separately in
-    :func:`test_rank2_vs_rank1_at_intermediate_alpha_documented_discrepancy`.
+    Post-ERR-035 fix (2026-05-02), the Phase-3A symmetric solver
+    delegates to the rank-2 asymmetric solver at :math:`\alpha_L =
+    \alpha_R = \alpha`, so the two paths are now bit-equal at all
+    :math:`\alpha`. The intermediate-α agreement is captured
+    separately in
+    :func:`test_rank1_path_now_agrees_with_rank2_via_delegation_after_ERR035_fix`.
     """
     L, sigma_t, sigma_s, nu_sigma_f = 10.0, 0.5, 0.38, 0.025
 
@@ -447,38 +438,39 @@ def test_rank2_symmetric_BC_agrees_with_phase3a_at_endpoints():
 
 
 @pytest.mark.l1
+@pytest.mark.catches("ERR-035")
 @pytest.mark.verifies("peierls-greens-slab-asym-architecture")
-def test_rank2_vs_rank1_at_intermediate_alpha_documented_discrepancy():
-    r"""L1 — at intermediate :math:`\alpha = 0.5`, rank-2 (this Phase
-    3B prototype) and Phase-3A rank-1 agree to ~3e-4 relative,
-    documenting the latent algebraic discrepancy in the Phase-3A
-    closure formula.
+def test_rank1_path_now_agrees_with_rank2_via_delegation_after_ERR035_fix():
+    r"""L1 — at intermediate :math:`\alpha = 0.5`, the Phase-3A
+    symmetric solver agrees with the rank-2 asymmetric solver to
+    machine precision after the ERR-035 fix (2026-05-02).
 
-    See the Phase-3B closeout memo for the algebraic derivation
-    showing that the structurally-correct closure on a symmetric BC
-    eigenmode is
+    **History.** This test originally asserted a documented
+    discrepancy gate ``[5e-5, 5e-4]`` capturing the latent algebraic
+    error in the Phase-3A heuristic closure
+    :math:`\alpha\cdot B_{\rm period}/(1-\alpha^2\,e^{-2\tau})`,
+    which coincides with the first-principles rank-2 closure
+    :math:`\alpha\cdot B/(1-\alpha\,e^{-\tau})` only at
+    :math:`\alpha\in\{0, 1\}`.
 
-    .. math::
+    **ERR-035 fix.** The Phase-3A path was refactored to delegate
+    to the rank-2 asymmetric solver at :math:`\alpha_L = \alpha_R =
+    \alpha`, eliminating the heuristic. The two paths now produce
+    bit-equal results.
 
-       \psi_{\rm surf} = \frac{\alpha\,B}{1 - \alpha\,e^{-\tau}}
+    **Repurposed gate.** The test now serves as a
+    regression-prevention gate: if anyone re-introduces a heuristic
+    Phase-3A closure later, the agreement breaks and this test
+    catches it. The tolerance is tight (≤ 1e-12 rtol) — bit-equal
+    is expected because Phase-3A delegates straight through to the
+    rank-2 path without any independent arithmetic.
 
-    (single-transit B with a *single*-bounce-period denominator),
-    NOT the Phase-3A heuristic
-    :math:`\alpha \cdot B_{\rm period} / (1 - \alpha^2\,e^{-2\tau})`
-    with :math:`B_{\rm period} = \int q \cdot e^{-\Sigma_t s}\,ds`
-    over the full out+back period.
-
-    The two coincide on uniform-source / closed-slab cases (V_α1_slab
-    constant trial, and the vacuum reduction at α=0) but DIFFER on
-    non-uniform source profiles with intermediate α. The Phase-3A
-    test suite never exercised intermediate α, so the discrepancy
-    remained latent until Phase-3B forced the comparison.
-
-    The gate here CAPTURES the actual achievable level of agreement
-    (~3e-4 at α=0.5) so any regression in the Phase-3A or Phase-3B
-    formulation surfaces immediately. Tightening this to 1e-10 would
-    require fixing Phase-3A's algebra to match the rank-2 closure —
-    deferred (see closeout memo for follow-on plan).
+    Because the two solvers are now the SAME computation under the
+    hood, this test no longer probes structural independence — it
+    only locks the delegation in place. The structurally-independent
+    L1 verification of the rank-2 closure itself lives in
+    :func:`test_method_of_images_reflective_vacuum_equals_double_vacuum`
+    and the V_α1_slab_asym SymPy gates.
     """
     L, sigma_t, sigma_s, nu_sigma_f = 10.0, 0.5, 0.38, 0.025
     alpha = 0.5
@@ -493,20 +485,17 @@ def test_rank2_vs_rank1_at_intermediate_alpha_documented_discrepancy():
         alpha=alpha,
         n_x=20, n_mu=24, n_traj_quad=64, max_iter=400, tol=1e-11,
     )
-    rel_diff = abs(res_rank2.k_eff - res_rank1.k_eff) / res_rank1.k_eff
-    # Pin the achieved level of agreement (~1.3e-4 → loose 5e-4 gate).
-    assert rel_diff < 5e-4, (
-        f"rank-2 vs rank-1 disagreement at α=0.5 exceeds 5e-4: "
-        f"rank2={res_rank2.k_eff:.10e}, rank1={res_rank1.k_eff:.10e}, "
-        f"rel diff={rel_diff:.3e}"
-    )
-    # Pin the achieved level as a downward sanity bound: must NOT be
-    # bit-equal (would indicate the algebraic discrepancy was
-    # silently fixed without updating the test).
-    assert rel_diff > 5e-5, (
-        f"rank-2 vs rank-1 agreement at α=0.5 is suspiciously tight: "
-        f"rel diff={rel_diff:.3e}. If the Phase-3A algebra was fixed, "
-        f"update this test (and replace with a tighter 1e-10 gate)."
+    np.testing.assert_allclose(
+        res_rank1.k_eff, res_rank2.k_eff, rtol=1e-12, atol=0.0,
+        err_msg=(
+            f"ERR-035 regression: Phase-3A symmetric path no longer "
+            f"agrees bit-equal with rank-2 path at α={alpha}. "
+            f"rank1={res_rank1.k_eff:.16e}, "
+            f"rank2={res_rank2.k_eff:.16e}, "
+            f"rel diff={abs(res_rank1.k_eff - res_rank2.k_eff)/res_rank2.k_eff:.3e}. "
+            f"Either the delegation was removed or a parallel "
+            f"heuristic closure was re-introduced."
+        ),
     )
 
 
