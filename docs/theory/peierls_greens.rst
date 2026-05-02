@@ -1765,6 +1765,197 @@ load-bearing L1 cross-check for cylinder Variant α is the
 independent (closed-form analytical from V_α1_cyl).
 
 
+.. _peierls-greens-slab:
+
+Slab Variant α (Phase 3A standalone, symmetric reflective)
+===========================================================
+
+.. todo:: Archivist expansion needed.
+
+   This section is a **method-implementer stub** — it states the
+   load-bearing equations, labels them for cross-reference, and
+   points to the SymPy module + tests. The full mathematical
+   narrative (worked algebra; design rationale; the
+   2-bounce-per-period structural distinction; treatment of the
+   :math:`\mu \to 0` grazing co-divergence; convergence-floor
+   discussion; comparison with the slab Nyström specular reference;
+   roadmap to Phase 3B asymmetric BC requiring rank-2 resolvent) is
+   the archivist's deliverable.
+
+   Source artifacts:
+
+   - Branch-1 SymPy: :mod:`orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function_slab`
+     (V_α1_slab, V_α2_slab, V_α3_slab).
+   - Branch-2 production:
+     :mod:`orpheus.derivations.continuous.peierls_greens_function.greens_function_slab`
+     (:func:`solve_greens_function_slab`,
+     :func:`solve_greens_function_slab_mg`).
+   - Symbolic test gate:
+     :file:`tests/derivations/test_peierls_greens_function_slab_symbolic.py`
+     (10 foundation-tagged tests).
+   - Numerical L1 gates:
+     :file:`tests/derivations/test_peierls_greens_function_slab_solver.py`
+     (12 L1-tagged tests).
+   - Plan: :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md`.
+   - Closeout memo:
+     :file:`.claude/agent-memory/method-implementer/slab_variant_alpha_phase3a.md`.
+
+Phase-3A slab Variant α mounts on the same shared
+:mod:`~orpheus.derivations.continuous.peierls_greens_function.variant_alpha_core`
+rank-1 resolvent + closure as sphere and cylinder. The
+:func:`apply_variant_alpha_closure` API was extended (back-
+compatibly) with an ``alpha_per_period`` keyword to encode the
+**2-bounce-per-period** structural distinction of slab geometry.
+
+Slab phase-space and 2-bounce-per-period structure
+---------------------------------------------------
+
+Phase-space coordinates: :math:`x \in [0, L]` (Cartesian position
+across the slab), :math:`\mu \in [-1, 1]` (signed direction-cosine
+wrt outward normal at :math:`x = L`). Specular reflection on a
+symmetric slab preserves :math:`|\mu|` and alternates trajectory
+sign at each wall. **One full period traverses both walls** (out
++ back transit at constant :math:`|\mu|`), totaling
+
+.. math::
+   :label: peierls-greens-slab-bounce-period
+
+   L_{\rm period}^{\rm slab}(\mu) = \frac{2 L}{|\mu|}.
+
+Two reflections per period, so the **per-period reflection product is**
+:math:`\alpha^2`, distinct from the single-reflection per-period
+products of sphere (:math:`\alpha`) and cylinder (:math:`\alpha`).
+
+First-leg trajectory chord
+---------------------------
+
+The backward chord from interior :math:`(x, \mu)` to first surface
+arrival depends on the sign of :math:`\mu`:
+
+.. math::
+   :label: peierls-greens-slab-trajectory
+
+   L_{\rm first}(x, \mu) = \begin{cases}
+       x / \mu       & \mu > 0 \text{ (came from } x = 0 \text{)} \\
+       (L-x) / |\mu| & \mu < 0 \text{ (came from } x = L \text{)}
+   \end{cases}.
+
+Resolvent (closed-form geometric series with α²)
+-------------------------------------------------
+
+The slab Variant α surface fixed-point closure is
+
+.. math::
+   :label: peierls-greens-slab-T
+
+   \psi_{\rm surf}(\mu) = \frac{\alpha\,B(\mu)}
+                                {1 - \alpha^2\,e^{-\Sigma_t L_{\rm period}}},
+
+with :math:`B(\mu)` the bounce-period source integral over the full
+two-wall trajectory. The leading factor :math:`\alpha` is the single-
+reflection amplitude for the FIRST surface arrival; the
+:math:`\alpha^2` inside the geometric resolvent reflects two-bounce
+periodicity.
+
+Variant α architecture for slab
+--------------------------------
+
+For each phase-space grid point :math:`(x_i, \mu_q)`:
+
+.. math::
+   :label: peierls-greens-slab-architecture
+
+   \psi(x_i, \mu) =
+       F(x_i, \mu)
+       + e^{-\Sigma_t L_{\rm first}}\,\psi_{\rm surf}(\mu),
+
+where :math:`F` is the first-leg trajectory integral and
+:math:`\psi_{\rm surf}` is :eq:`peierls-greens-slab-T`. The scalar flux
+is
+
+.. math::
+
+   \phi(x) = 2\pi \int_{-1}^{1}\!\psi(x, \mu)\,\mathrm d\mu.
+
+Operator-level identities (V_α1_slab / V_α2_slab / V_α3_slab)
+--------------------------------------------------------------
+
+- **V_α1_slab** — closed-slab bounce-sum self-consistency. For
+  homogeneous slab with constant volumetric source :math:`q`,
+  :math:`\psi(x, \mu) = q/\Sigma_t` everywhere. Algebraically
+  identical to V_α1 sphere/cylinder — only the chord formula
+  :math:`L_{\rm period} = 2L/|\mu|` differs. Operator action on
+  isotropic trial gives :math:`(K \cdot 1) = \omega_0`, hence
+  :math:`k_{\rm eff} = k_\infty` for closed slab.
+- **V_α2_slab** — :math:`T_{00}^{\rm slab} = P_{ss}^{\rm slab} =
+  2\,E_3(\Sigma_t L)`. Two structurally-independent derivational
+  paths: per-face transfer-matrix definition (µ-domain) and polar
+  escape-probability integral (θ-domain). SymPy chokes on direct
+  integration of :math:`e^{-\tau/\mu}` (algebra-of-record SymPy
+  choke mode #1) but reduces via the :math:`u = 1/\mu`
+  substitution to the canonical :math:`E_3` form. Numerical
+  structural-independence verified via arbitrary-precision mpmath
+  quadrature on both ORIGINAL integrands.
+- **V_α3_slab** — surface fixed-point closure
+  (:eq:`peierls-greens-slab-T`) carries leading factor
+  :math:`\alpha`; the :math:`\alpha^2` inside the resolvent does
+  not change the limit. :math:`\psi_{\rm surf} \to 0` at
+  :math:`\alpha = 0`. Vacuum BC is the trivial limit; no
+  special-case branch.
+
+Numerical verification status (Phase 3A standalone)
+----------------------------------------------------
+
+- **k_inf exactness at α=1** — fuel-A-like XS, both thin
+  (:math:`\tau_L = 1`) and moderate (:math:`\tau_L = 5`):
+  :math:`k_{\rm eff} = k_\infty = 0.20833\overline{3}` to
+  :math:`\le 1\mathrm e{-10}` relative. Convergence in 1 iteration
+  from constant initial guess; convergence in :math:`\sim 50`
+  iterations to 1e-9 from aggressive quadratic perturbation.
+  Scalar flux uniform to :math:`\sim 1\mathrm e{-15}`.
+- **Multi-group at α=1** — 2G with asymmetric scattering
+  (downscatter + upscatter): :math:`k_{\rm eff} = k_\infty` to
+  :math:`\le 1\mathrm e{-9}`. Asymmetric XS detects the
+  SigS-transpose convention drift (ERR-002 anti-pattern).
+- **MG G=1 reduction** — bit-equal to the 1G solver at α=0.
+- **Vacuum α=0** — physics-plausible peaked-at-center symmetric
+  flux profile, positive leakage, :math:`k_{\rm eff} < k_\infty`.
+  fuel-A-like τ_L = 5: :math:`k_{\rm eff} \approx 0.130`,
+  :math:`k_{\rm eff}/k_\infty \approx 0.62`. Quadrature
+  convergence is **slower than sphere/cylinder** — the slab
+  vacuum k_eff has self-consistency :math:`\sim 5\mathrm e{-4}`
+  between the (24, 40, 96) and (32, 56, 128) grids, vs the
+  cylinder's :math:`\sim 1\mathrm e{-7}`. The slow convergence
+  reflects the integrable :math:`1/|\mu|` weight on the chord
+  lengths in the bounce-period integral: plain Gauss-Legendre on
+  µ converges slowly there. A future refinement could use a
+  µ-weighted Gauss-Jacobi quadrature concentrating nodes near
+  :math:`\mu = 0`.
+- **V_α2_slab production-primitive cross-check** —
+  :math:`T_{\rm slab}[0, n_modes][0, 1] = 2\,E_3(\Sigma_t L)` from
+  :func:`compute_T_specular_slab` agrees with arbitrary-precision
+  ``mpmath.expint(3, τ_L)`` to :math:`\le 1\mathrm e{-10}` over
+  five :math:`\tau_L` values.
+
+The shared core's ``alpha_per_period`` extension
+-------------------------------------------------
+
+The slab is the FIRST geometry that needs to distinguish per-
+period reflection product from BC reflectivity. The shared
+:func:`apply_variant_alpha_closure` API was extended (back-
+compatibly) with an ``alpha_per_period`` keyword:
+
+- Sphere/cylinder: do NOT pass the keyword (default ``None`` →
+  ``alpha``); reproduces pre-extension behaviour bit-equal.
+- Slab symmetric: passes ``alpha_per_period=alpha**2`` to encode
+  the 2-bounce-per-period structure.
+
+Foundation tests pin both branches in
+:file:`tests/derivations/test_peierls_variant_alpha_core.py`
+(``test_closure_alpha_per_period_default_matches_alpha`` and
+``test_closure_alpha_per_period_alpha_squared_for_slab``).
+
+
 Provenance: literature, code, and tests
 ========================================
 

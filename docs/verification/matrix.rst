@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1411**
+Total tests collected: **1435**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 585, 41.5%
-   L1, 411, 29.1%
-   L2, 36, 2.6%
+   L0, 585, 40.8%
+   L1, 423, 29.5%
+   L2, 36, 2.5%
    L3, 0, 0.0%
-   foundation, 368, 26.1%
+   foundation, 380, 26.5%
    unmarked, 11, 0.8%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1321
+   explicit, 1345
    verify, 0
    class-name, 46
    func-name, 0
@@ -78,6 +78,8 @@ Module × level grid
    derivations/test_peierls_greens_function_garcia2021, 0, 0, 0, 0, 17, 0
    derivations/test_peierls_greens_function_mg, 0, 0, 0, 0, 7, 0
    derivations/test_peierls_greens_function_mr, 0, 0, 0, 0, 4, 0
+   derivations/test_peierls_greens_function_slab_solver, 0, 12, 0, 0, 0, 0
+   derivations/test_peierls_greens_function_slab_symbolic, 0, 0, 0, 0, 10, 0
    derivations/test_peierls_greens_function_solver, 0, 0, 0, 0, 3, 0
    derivations/test_peierls_greens_function_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_peierls_greens_function_vacuum, 0, 0, 0, 0, 5, 0
@@ -100,7 +102,7 @@ Module × level grid
    derivations/test_peierls_sphere_geometry, 21, 0, 0, 0, 0, 0
    derivations/test_peierls_sphere_prefactor, 6, 0, 0, 0, 0, 0
    derivations/test_peierls_sphere_white_bc, 0, 4, 0, 0, 0, 0
-   derivations/test_peierls_variant_alpha_core, 0, 0, 0, 0, 6, 0
+   derivations/test_peierls_variant_alpha_core, 0, 0, 0, 0, 8, 0
    derivations/test_quadrature, 7, 0, 0, 0, 44, 0
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
@@ -256,6 +258,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``diffusion-spurious-root-validation``, 8
    ``diffusion-transcendental``, 8
    ``diffusion-trigonometric-branch``, 8
+   ``peierls-greens-slab-architecture``, 8
    ``dd-solve``, 7
    ``gauss-legendre-visibility-cone``, 7
    ``peierls-greens-cylinder-architecture``, 7
@@ -263,6 +266,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``boyd-eq-45``, 6
    ``characteristic-ode``, 6
    ``kin-kernel-special-values``, 6
+   ``peierls-greens-slab-T``, 6
    ``cp-outer-integral-antiderivative``, 5
    ``en-kernel-special-values``, 5
    ``peierls-cyl-Gbc-3d-final``, 5
@@ -313,6 +317,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-greens-cylinder-impact-parameter``, 1
    ``peierls-greens-cylinder-in-plane-speed``, 1
    ``peierls-greens-cylinder-trajectory``, 1
+   ``peierls-greens-slab-trajectory``, 1
    ``sigT-computed``, 1
    ``sn-mms-2d-2g-qext``, 1
    ``sn-mms-2d-psi``, 1
@@ -329,7 +334,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **69** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **70** of the testable equations found on theory pages are orphan.
 
 - ``c-in-remapping``
 - ``e1-decomposition``
@@ -370,6 +375,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``peierls-greens-mr-trajectory-segments``
 - ``peierls-greens-mu-surf``
 - ``peierls-greens-sanchez-A6``
+- ``peierls-greens-slab-bounce-period``
 - ``peierls-greens-surface-fixed-point``
 - ``peierls-greens-trajectory-integral``
 - ``peierls-half-range-inner-products``
