@@ -1,14 +1,40 @@
-"""Slab F_N benchmarks — placeholder.
+"""Slab F_N benchmarks.
 
-Will house :func:`solve_critical_slab_1g` (Kaper-Lindeman-Leaf 1974
-NSE 54, 94) and :func:`solve_critical_slab_2g` (Forster 1970 PhD /
-Stewart 1974 PhD / Bosler 1975 PhD).
+Implements the bare-critical-slab F_N method per Siewert-Benoist 1979
+(Part I) Section IV + Grandjean-Siewert 1979 (Part II) Section III.
 
-Targets:
-  * `Ua-1-0-SL` (problem 12) — :math:`r_c = 0.93772556` mfp.
-  * `URRa-2-1-SL` (problem 71) — 2G linearly anisotropic.
-  * `UD2O-2-1-SL` (problem 73) — 2G heavy-water reactor.
+Public entry point:
 
-TODO: populate after literature-researcher delivers KLL 1974.
+* :func:`solve_fn_slab_bare_critical` — given the mean number of
+  secondaries per collision :math:`c > 1`, returns the critical
+  half-thickness :math:`a` (mfp) and the F_N expansion coefficients.
+* :func:`fn_slab_flux_at_x_cosine_only` — diagnostic discrete-mode
+  flux approximation (NOT the full F_N reconstruction; see docstring).
+
+Verified against:
+
+* LA-13511 ``Ua-1-0-SL`` (Sood problem 12): :math:`r_c = 0.93772556`
+  mfp at :math:`c = 1.30` — exact from KLL 1974 Table I.
+* Grandjean-Siewert 1979 Table XI: critical thickness for
+  :math:`c \\in \\{1.10, 1.30, 1.50, 1.70, 1.90\\}`.
+
+References
+----------
+
+* Siewert & Benoist 1979, *Nucl. Sci. Eng.* **69**, 156-160.
+* Grandjean & Siewert 1979, *Nucl. Sci. Eng.* **69**, 161-168.
+* Kaper, Lindeman & Leaf 1974, *Nucl. Sci. Eng.* **54**, 94.
 """
 from __future__ import annotations
+
+from .one_group import (
+    SlabFNResult,
+    fn_slab_flux_at_x_cosine_only,
+    solve_fn_slab_bare_critical,
+)
+
+__all__ = [
+    "SlabFNResult",
+    "solve_fn_slab_bare_critical",
+    "fn_slab_flux_at_x_cosine_only",
+]
