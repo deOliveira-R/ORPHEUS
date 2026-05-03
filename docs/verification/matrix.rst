@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1555**
+Total tests collected: **1592**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 585, 37.6%
-   L1, 470, 30.2%
+   L0, 585, 36.7%
+   L1, 475, 29.8%
    L2, 36, 2.3%
    L3, 0, 0.0%
-   foundation, 453, 29.1%
+   foundation, 485, 30.5%
    unmarked, 11, 0.7%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1465
+   explicit, 1502
    verify, 0
    class-name, 46
    func-name, 0
@@ -61,6 +61,10 @@ Module × level grid
    data/test_mixture, 4, 0, 0, 0, 0, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
    derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 17, 0
+   derivations/test_fn_la13511_slab, 0, 0, 0, 0, 21, 0
+   derivations/test_fn_la13511_slab_xverif, 0, 2, 0, 0, 0, 0
+   derivations/test_fn_la13511_sphere, 0, 0, 0, 0, 11, 0
+   derivations/test_fn_la13511_sphere_xverif, 0, 3, 0, 0, 0, 0
    derivations/test_kernels, 55, 0, 0, 0, 0, 0
    derivations/test_mu_weighted_basis, 0, 0, 0, 0, 1, 0
    derivations/test_peierls_assembly_drivers, 0, 0, 0, 0, 9, 0
