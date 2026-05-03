@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1536**
+Total tests collected: **1538**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 585, 38.1%
-   L1, 468, 30.5%
+   L0, 585, 38.0%
+   L1, 470, 30.6%
    L2, 36, 2.3%
    L3, 0, 0.0%
-   foundation, 436, 28.4%
+   foundation, 436, 28.3%
    unmarked, 11, 0.7%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1446
+   explicit, 1448
    verify, 0
    class-name, 46
    func-name, 0
@@ -77,6 +77,7 @@ Module × level grid
    derivations/test_peierls_greens_function_annulus_symbolic, 0, 0, 0, 0, 22, 0
    derivations/test_peierls_greens_function_cylinder_solver, 0, 13, 0, 0, 0, 0
    derivations/test_peierls_greens_function_cylinder_symbolic, 0, 0, 0, 0, 9, 0
+   derivations/test_peierls_greens_function_cylinder_xverif_sood2003, 0, 2, 0, 0, 0, 0
    derivations/test_peierls_greens_function_garcia2021, 0, 0, 0, 0, 17, 0
    derivations/test_peierls_greens_function_hollow_sphere_solver, 0, 14, 0, 0, 0, 0
    derivations/test_peierls_greens_function_hollow_sphere_symbolic, 0, 0, 0, 0, 18, 0
@@ -247,6 +248,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``two-group-Ainv``, 11
    ``two-group-F``, 11
    ``two-group-M``, 11
+   ``peierls-greens-cylinder-architecture``, 10
    ``peierls-greens-slab-architecture``, 10
    ``peierls-white-bc``, 10
    ``dd-recurrence``, 9
@@ -268,7 +270,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``diffusion-spurious-root-validation``, 8
    ``diffusion-transcendental``, 8
    ``diffusion-trigonometric-branch``, 8
-   ``peierls-greens-cylinder-architecture``, 8
    ``dd-solve``, 7
    ``gauss-legendre-visibility-cone``, 7
    ``bar-psi``, 6
