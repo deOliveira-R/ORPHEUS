@@ -197,6 +197,90 @@ The structural-bridge gates live in
    architecture document
    (``docs/testing/architecture.rst``) for the full ladder.
 
+Solver-output caching
+=====================
+
+.. _sood-registry-cache:
+
+The :mod:`~orpheus.derivations.continuous.sood_registry.cache`
+submodule provides a **persistent solver-output cache** for tests
+that exercise slow solvers on Sood cases. It is distinct from the
+*truth-value* "cache" — published reference values are hard-coded
+on each :class:`La13511Case` and need no caching infrastructure.
+The cache addresses the complementary problem: when a test calls
+e.g. ``solve_fn_sphere_bare_critical(c=1.30, n_modes=15)``, store
+the result on disk so subsequent test runs reuse it instead of
+recomputing.
+
+Key components:
+
+* **Cache key** — ``(solver_qualified_name, params_hash)`` where
+  ``params_hash`` is a 16-char SHA-256 prefix over a canonicalized
+  JSON representation of the solver kwargs. Numpy scalars/arrays
+  are normalised so ``np.float64(1.30)`` and ``1.30`` produce the
+  same key.
+* **Version** — every cache entry carries a version string. Default
+  ``"auto"`` resolves to ``git rev-parse --short HEAD``; a
+  mismatch on read is treated as a miss (and the entry is
+  overwritten on the next write). This auto-invalidates entries
+  on solver-implementation changes that bump the SHA.
+* **Storage** — pickle files under ``.cache/sood_registry/`` at
+  the project root, one ``.pkl`` per entry. The directory is
+  gitignored. Pickle is chosen over JSON because solver result
+  types are dataclasses with numpy arrays — pickle handles them
+  natively. Inspecting an entry from a debugger is a single
+  ``pickle.load`` call.
+* **API** — two equivalent forms:
+
+  - **Decorator** (recommended for one-off test wrappers):
+
+    .. code-block:: python
+
+       from orpheus.derivations.continuous.sood_registry import sood_cache
+
+       @sood_cache()
+       def fn_sphere_at_n(*, c, n_modes):
+           return solve_fn_sphere_bare_critical(c=c, n_modes=n_modes)
+
+  - **Class** (for tests that need programmatic invalidation /
+    introspection):
+
+    .. code-block:: python
+
+       from orpheus.derivations.continuous.sood_registry import (
+           SoodResultCache,
+       )
+
+       cache = SoodResultCache()
+       result = cache.get_or_compute(
+           solver_name="solve_fn_sphere",
+           params={"c": 1.30, "n_modes": 15},
+           compute=lambda: solve_fn_sphere_bare_critical(c=1.30, n_modes=15),
+       )
+
+The cache is **opt-in**: no existing test imports it. Adoption is
+per-test, on demand, by the test author. The unit-test gate at
+``tests/derivations/test_sood_registry_cache.py`` pins the
+load-bearing invariants — round trip, miss-vs-hit, version
+invalidation, hash stability, ``clear()``, decorator integration,
+and an L1 smoke against the transfer-matrix :math:`k_\infty`
+reference solver on Sood ``PUa-1-0-IN``.
+
+.. note:: TODO — Archivist expansion needed.
+
+   Document where caching pays off most: sphere F_N at
+   :math:`N \geq 15` (~10x speedup expected); Variant α at fine
+   quadrature (Phase 3 cylinder / hollow-sphere benchmarks at
+   ``n_r=24, n_mu=128``); future cylinder Westfall-Metcalf F_N
+   when Phase B1 lands. Discuss the cache-poisoning hazard
+   (a buggy solver's output survives across runs until the SHA
+   changes or the user clears manually) and the mitigation:
+   external-reference assertions in the same test that would
+   themselves fail under poisoning. Reference the closeout memo
+   ``.claude/agent-memory/method-implementer/sood_registry_cache_phase_b4.md``
+   and the Phase B1/B2/B3 closeout memos for context on the
+   parallel work.
+
 Phase B preview
 ================
 
@@ -212,8 +296,10 @@ Phase B (parallel after Phase A lands) will:
    radius is verified).
 3. Enumerate the wide LA-13511 catalogue (problems 1-67) into the
    registry — currently only the 5-case first slice is populated.
-4. Build a verification cache so re-running the LA-13511 sweep
-   doesn't recompute reference solver values from scratch.
+4. Build a solver-output cache so re-running the LA-13511 sweep
+   doesn't recompute slow reference solver values from scratch
+   (delivered in Phase B4 — see the "Solver-output caching"
+   section above).
 
 .. note:: TODO — Archivist expansion needed.
 
