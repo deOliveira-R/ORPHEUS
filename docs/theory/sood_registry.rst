@@ -281,30 +281,129 @@ reference solver on Sood ``PUa-1-0-IN``.
    and the Phase B1/B2/B3 closeout memos for context on the
    parallel work.
 
-Phase B preview
-================
+Phase B3 — wide enumeration coverage
+=====================================
 
-.. _sood-registry-phase-b:
+.. _sood-registry-phase-b3-wide:
 
-Phase B (parallel after Phase A lands) will:
+Phase B3 expanded the registry from the 5-case Phase A first slice to
+**42 cases** spanning every LA-13511 class the existing ``fn_method``
+machinery (k_inf 1G/2G/MG, slab F_N, sphere F_N) can solve TODAY,
+plus stubs for the cases pending solver dispatch. Coverage matrix:
 
-1. Build the cylinder Westfall-Metcalf F_N solver and activate
-   ``Ua-1-0-CY`` against Sood's published truth.
-2. Add flux reconstruction support so the slab/sphere F_N solvers
-   can verify the published flux ratios at
-   ``r/r_c ∈ {0.25, 0.5, 0.75, 1.0}`` (currently only the critical
-   radius is verified).
-3. Enumerate the wide LA-13511 catalogue (problems 1-67) into the
-   registry — currently only the 5-case first slice is populated.
-4. Build a solver-output cache so re-running the LA-13511 sweep
-   doesn't recompute slow reference solver values from scratch
-   (delivered in Phase B4 — see the "Solver-output caching"
-   section above).
+.. list-table::
+   :header-rows: 1
+   :widths: 35 12 18 35
+
+   * - Class
+     - Cases
+     - Status
+     - Solver / cross-check
+   * - 1G k_inf infinite-medium
+     - 12
+     - active
+     - :func:`compute_kinf_1g` (Sood Eq 19)
+   * - 2G k_inf infinite-medium (no upscatter)
+     - 6
+     - active
+     - :func:`compute_kinf_2g_no_upscatter` (Sood Eq 29)
+   * - 2G k_inf infinite-medium (with upscatter)
+     - 2
+     - active
+     - :func:`compute_kinf_2g_general` (Sood Eq 28 corrected)
+   * - 3G k_inf infinite-medium
+     - 1
+     - active
+     - :func:`compute_kinf_mg` (Sood Eq 76)
+   * - 6G k_inf infinite-medium
+     - 1
+     - active
+     - :func:`compute_kinf_mg` (handles upscatter)
+   * - 1G slab bare-critical
+     - 4
+     - active
+     - :func:`solve_fn_slab_bare_critical` (Siewert-Benoist /
+       Grandjean-Siewert F_N at N=12)
+   * - 1G sphere bare-critical
+     - 3
+     - active
+     - :func:`solve_fn_sphere_bare_critical` (Siewert-Thomas F_N at N=10)
+   * - 1G cylinder bare-critical
+     - 3
+     - **STUB**
+     - Pending B1 dispatch (Westfall-Metcalf 1973 NSE 52, 1)
+   * - 2G slab bare-critical
+     - 5
+     - **STUB**
+     - Pending Siewert-Thomas 1986 2G F_N (matrix Λ dispersion law)
+   * - 2G sphere bare-critical
+     - 5
+     - **STUB**
+     - Same — 2G F_N machinery deferred
+
+Total active: **30 cases**; total stubs: **12 cases** (registered
+truth values; activation pending solver dispatch).
+
+Verification gates live in:
+
+* ``tests/derivations/test_sood_registry_wide_kinf.py`` — k_inf gate,
+  one parametrised case per :data:`WIDE_SLICE_KINF` entry plus the
+  cross-implementation gate against
+  :func:`orpheus.derivations.common.eigenvalue.kinf_homogeneous`.
+* ``tests/derivations/test_sood_registry_wide_bare_critical.py`` —
+  L1 reference-value gate for slab/sphere F_N.
+
+Tolerances achieved: every k_inf case at ≤ 7e-6 absolute (well within
+1e-5 target). Slab F_N at N=12 reaches ≤ 3e-6 absolute on
+:math:`a_c`; sphere F_N at N=10 reaches ≤ 5e-8 absolute on
+:math:`R_c`.
 
 .. note:: TODO — Archivist expansion needed.
 
-   Once Phase B lands, this section becomes the "wide enumeration"
-   chapter. For now it is a forward-looking placeholder.
+   For each Phase-B3 class, document Sood's published cross-section
+   set, which equation (Sood Eq 19 / 28 / 29 / 32 / 42 / 59 / 76) gives
+   the closed-form k_inf, and how the SymPy proof in
+   :mod:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations`
+   verifies the algebraic identity. Highlight the URRb/URRc upscatter
+   distinction (Σ_21s > 0 — must use Eq 28 general form, not Eq 29).
+   For URR-3-0-IN, walk through Forster's worked example (Eqs 60-65 —
+   cross sections constructed by inverse design so f_23=4, f_13=15
+   give k_inf=1.60 exactly).
+
+   For the 2G bare-critical stubs, document the Siewert-Thomas 1986
+   matrix Λ dispersion law and the geometry-sign abstraction that lets
+   slab and sphere share machinery (already in place at the 1G level
+   — see ``fn_method/core/fn_matrix.py::assemble_fn_matrix``). The
+   2G extension makes Λ a 2x2 matrix, the Case eigenvalues are 2x2
+   matrix roots, and the F_N matrix entries become matrix-valued —
+   the structural pattern is the same.
+
+   Reference the Phase B3 closeout memo
+   ``.claude/agent-memory/method-implementer/sood_registry_wide_enumeration_phase_b3.md``
+   for the full enumeration log + tolerance table.
+
+Phase B preview (forward-looking)
+==================================
+
+.. _sood-registry-phase-b:
+
+Remaining Phase B work after the parallel B1/B2/B3/B4 dispatches:
+
+1. **B1 active**: cylinder Westfall-Metcalf F_N solver. Activates the
+   3 cylinder STUB cases (``Ua-1-0-CY`` already cross-checked at
+   8.5e-6 by Variant α; B1 will provide a structurally-independent
+   reference).
+2. **B2 active**: flux reconstruction so the slab/sphere F_N solvers
+   can verify the published flux ratios at
+   :math:`r/r_c \in \{0.25, 0.5, 0.75, 1.0\}` against
+   :attr:`La13511Truth.flux_ratios` (currently only the critical
+   radius is verified).
+3. **Siewert-Thomas 1986 2G F_N** (separate dispatch, future): the
+   load-bearing follow-on after B1/B2 land. Activates 10+ 2G
+   bare-critical STUBS (PU-2-0-SL/SP, U-2-0-SL/SP, UAL-2-0-SL/SP,
+   URRa-2-0-SL/SP, UD2O-2-0-SL/SP). The 2G sphere F_N is the natural
+   structurally-independent reference for the Variant α sphere
+   2G/MG extension.
 
 References
 ==========

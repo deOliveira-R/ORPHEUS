@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1592**
+Total tests collected: **1817**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 585, 36.7%
-   L1, 475, 29.8%
-   L2, 36, 2.3%
+   L0, 585, 32.2%
+   L1, 517, 28.5%
+   L2, 36, 2.0%
    L3, 0, 0.0%
-   foundation, 485, 30.5%
-   unmarked, 11, 0.7%
+   foundation, 668, 36.8%
+   unmarked, 11, 0.6%
 
 Tagging source
 --------------
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1502
+   explicit, 1727
    verify, 0
    class-name, 46
    func-name, 0
@@ -62,8 +62,11 @@ Module × level grid
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
    derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 17, 0
    derivations/test_fn_la13511_slab, 0, 0, 0, 0, 21, 0
+   derivations/test_fn_la13511_slab_flux, 0, 10, 0, 0, 0, 0
+   derivations/test_fn_la13511_slab_flux_symbolic, 0, 0, 0, 0, 6, 0
    derivations/test_fn_la13511_slab_xverif, 0, 2, 0, 0, 0, 0
    derivations/test_fn_la13511_sphere, 0, 0, 0, 0, 11, 0
+   derivations/test_fn_la13511_sphere_flux, 0, 10, 0, 0, 0, 0
    derivations/test_fn_la13511_sphere_xverif, 0, 3, 0, 0, 0, 0
    derivations/test_kernels, 55, 0, 0, 0, 0, 0
    derivations/test_mu_weighted_basis, 0, 0, 0, 0, 1, 0
@@ -116,6 +119,12 @@ Module × level grid
    derivations/test_peierls_sphere_white_bc, 0, 4, 0, 0, 0, 0
    derivations/test_peierls_variant_alpha_core, 0, 0, 0, 0, 8, 0
    derivations/test_quadrature, 7, 0, 0, 0, 44, 0
+   derivations/test_singular_eigenfunction_cylinder, 0, 2, 0, 0, 13, 0
+   derivations/test_singular_eigenfunction_cylinder_xverif, 0, 1, 0, 0, 0, 0
+   derivations/test_sood_registry_cache, 0, 0, 0, 0, 15, 0
+   derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 98, 0
+   derivations/test_sood_registry_wide_bare_critical, 0, 17, 0, 0, 2, 0
+   derivations/test_sood_registry_wide_kinf, 0, 0, 0, 0, 49, 0
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
@@ -253,6 +262,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``two-group-Ainv``, 11
    ``two-group-F``, 11
    ``two-group-M``, 11
+   ``kll-1974-slab-flux``, 10
+   ``kll-1974-sphere-flux``, 10
    ``peierls-greens-cylinder-architecture``, 10
    ``peierls-greens-slab-architecture``, 10
    ``peierls-white-bc``, 10
