@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1824**
+Total tests collected: **1895**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 585, 32.1%
-   L1, 523, 28.7%
-   L2, 36, 2.0%
+   L0, 585, 30.9%
+   L1, 574, 30.3%
+   L2, 36, 1.9%
    L3, 0, 0.0%
-   foundation, 669, 36.7%
+   foundation, 689, 36.4%
    unmarked, 11, 0.6%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1734
+   explicit, 1805
    verify, 0
    class-name, 46
    func-name, 0
@@ -59,6 +59,11 @@ Module × level grid
    cp/test_verification, 1, 25, 5, 0, 0, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
+   derivations/test_carlvik_galerkin_slab, 0, 18, 0, 0, 0, 0
+   derivations/test_carlvik_galerkin_sood_registry, 0, 5, 0, 0, 2, 0
+   derivations/test_carlvik_galerkin_sphere, 0, 18, 0, 0, 0, 0
+   derivations/test_carlvik_galerkin_symbolic, 0, 0, 0, 0, 8, 0
+   derivations/test_carlvik_galerkin_xverif_fn, 0, 10, 0, 0, 0, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
    derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 17, 0
    derivations/test_fn_la13511_slab, 0, 0, 0, 0, 21, 0
@@ -122,7 +127,7 @@ Module × level grid
    derivations/test_singular_eigenfunction_cylinder, 0, 8, 0, 0, 14, 0
    derivations/test_singular_eigenfunction_cylinder_xverif, 0, 1, 0, 0, 0, 0
    derivations/test_sood_registry_cache, 0, 0, 0, 0, 15, 0
-   derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 98, 0
+   derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 108, 0
    derivations/test_sood_registry_wide_bare_critical, 0, 17, 0, 0, 2, 0
    derivations/test_sood_registry_wide_kinf, 0, 0, 0, 0, 49, 0
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
