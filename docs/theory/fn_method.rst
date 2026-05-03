@@ -692,7 +692,7 @@ Branch-1 SymPy module:
 V_fn-flux-slab.1 — KLL Eq. 7 slab scalar-flux structure
 ---------------------------------------------------------
 
-.. todo:: Archivist expansion needed.
+.. note:: TODO — Archivist expansion needed.
    The SymPy derivation lives in
    :mod:`orpheus.derivations.continuous.fn_method.origins.fn_flux_reconstruction_derivations`
    (function ``derive_slab_kll_phi_eq7_structure``). Test gate:
@@ -714,7 +714,7 @@ V_fn-flux-slab.1 — KLL Eq. 7 slab scalar-flux structure
 V_fn-flux-slab.2 — :math:`\phi(z)/\phi(0)` is normalisation-free
 ------------------------------------------------------------------
 
-.. todo:: Archivist expansion needed.
+.. note:: TODO — Archivist expansion needed.
    Function ``derive_slab_phi_endpoint_normalization``. Test gate:
    :func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_slab_2_endpoint_normalization`.
 
@@ -728,7 +728,7 @@ V_fn-flux-slab.2 — :math:`\phi(z)/\phi(0)` is normalisation-free
 V_fn-flux-slab.3 — Interior :math:`\psi(z, \mu)` via characteristics
 ---------------------------------------------------------------------
 
-.. todo:: Archivist expansion needed.
+.. note:: TODO — Archivist expansion needed.
    Function ``derive_slab_psi_from_phi_characteristic``. Test gate:
    :func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_slab_3_psi_from_phi_characteristic`.
 
@@ -745,7 +745,7 @@ V_fn-flux-slab.3 — Interior :math:`\psi(z, \mu)` via characteristics
 V_fn-flux-sphere.1 — KLL Eq. 15 sphere scalar-flux structure
 --------------------------------------------------------------
 
-.. todo:: Archivist expansion needed.
+.. note:: TODO — Archivist expansion needed.
    Function ``derive_sphere_kll_phi_eq15_structure``. Test gate:
    :func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_sphere_1_kll_eq15_structure`.
 
@@ -760,7 +760,7 @@ V_fn-flux-sphere.1 — KLL Eq. 15 sphere scalar-flux structure
 V_fn-flux-sphere.2 — Sphere chord-length characteristic
 ----------------------------------------------------------
 
-.. todo:: Archivist expansion needed.
+.. note:: TODO — Archivist expansion needed.
    Function ``derive_sphere_psi_from_phi_characteristic``. Test gate:
    :func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_sphere_2_psi_from_phi_characteristic`.
 
@@ -775,7 +775,7 @@ V_fn-flux-sphere.2 — Sphere chord-length characteristic
 V_fn-flux-shared.1 — Universal angular-flux closure
 -----------------------------------------------------
 
-.. todo:: Archivist expansion needed.
+.. note:: TODO — Archivist expansion needed.
    Function ``derive_scalar_flux_angular_integral``. Test gate:
    :func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_shared_1_scalar_from_angular`.
 
@@ -824,7 +824,7 @@ agrees with the KLL benchmark tables at the following tolerances:
   the characteristic integral becomes more singular and the
   achievable closure precision is ~1e-5).
 
-.. todo:: Archivist expansion needed (rich narrative).
+.. note:: TODO — Archivist expansion needed.(rich narrative).
    The interior-flux reconstruction is the **rich-machinery
    extension** that makes the F_N reference solver useful for
    verifying both CP solvers (need :math:`\phi`) AND SN solvers
@@ -845,9 +845,185 @@ agrees with the KLL benchmark tables at the following tolerances:
    benchmarks). Sood-style ``PUb-1-0-SP`` extension awaits Phase B3
    (case-registry expansion).
 
+.. _fn-method-V-fn-slab-refl-1:
+
+V_fn-slab-refl.1 — Reflected-slab moment recursions match bare-slab
+-------------------------------------------------------------------
+
+.. note:: TODO — Archivist expansion needed.
+
+   The SymPy derivation lives in
+   :mod:`orpheus.derivations.continuous.fn_method.origins.fn_slab_reflected_derivations`
+   (function ``derive_reflected_moment_recursions_match_bare``).
+   Test gate:
+   :func:`tests.derivations.test_fn_la13511_slab_reflected.test_v_fn_slab_refl_1_recursions_match_bare`.
+
+   Brief: V_fn-slab-refl.1 verifies that the :math:`A_\alpha` and
+   :math:`B_\alpha^{(i)}` moment recursions of the reflected-slab
+   F_N method (Neshat-Maiorino 1980) are **identical** to the
+   bare-slab Grandjean-Siewert recursions, parametrised by
+   :math:`c_i` per region. The structural insight: the X-function
+   is **medium-local** — each region uses its own :math:`c_i`
+   independently; the coupling lives entirely in the boundary
+   projection equations. There is NO two-region X-function. This
+   is the architectural win that makes the reflected-slab F_N
+   method a trivial extension.
+
+.. _fn-method-V-fn-slab-refl-2:
+
+V_fn-slab-refl.2 — NM Eq. 10/11 attenuation signs + Eq. 17 limits
+-----------------------------------------------------------------
+
+.. note:: TODO — Archivist expansion needed.
+
+   The SymPy derivation lives in
+   :mod:`orpheus.derivations.continuous.fn_method.origins.fn_slab_reflected_derivations`
+   (function ``derive_reflector_attenuation_signs``).
+   Test gate:
+   :func:`tests.derivations.test_fn_la13511_slab_reflected.test_v_fn_slab_refl_2_attenuation_signs`.
+
+   Brief: V_fn-slab-refl.2 verifies that the exponential signs in
+   NM Eqs. 10-11 (:math:`e^{-\Delta/\hat\xi}` and
+   :math:`e^{+\Delta/\hat\xi}`) are self-consistent under the
+   reflector-traversal interpretation, and that NM Eq. 17 (the
+   :math:`F_0` initial-guess for :math:`b_0`) has the correct
+   limits :math:`b_0 \to 0` as :math:`\Delta \to 0` (no
+   reflector, no return) and :math:`b_0 \to A_0/B_0^{(2)}` as
+   :math:`\Delta \to \infty` (infinite-reflector limit).
+
+.. _fn-method-V-fn-slab-refl-3:
+
+V_fn-slab-refl.3 — Critical condition NM Eq. 15 reduces to Eq. 16
+-----------------------------------------------------------------
+
+.. note:: TODO — Archivist expansion needed.
+
+   The SymPy derivation lives in
+   :mod:`orpheus.derivations.continuous.fn_method.origins.fn_slab_reflected_derivations`
+   (function ``derive_critical_condition_eq15_structure``).
+   Test gate:
+   :func:`tests.derivations.test_fn_la13511_slab_reflected.test_v_fn_slab_refl_3_eq15_critical_condition`.
+
+   Brief: V_fn-slab-refl.3 verifies that the critical condition
+   NM Eq. 15 (collocated at the core Case discrete eigenvalue
+   :math:`\xi = \nu_0`) reduces to the closed-form NM Eq. 16
+
+   .. math::
+
+      \tau^{(0)} = -\frac{\nu_0}{2}\,\log\!\left[
+      \frac{b_0 A_0(\nu_0) - B_0^{(1)}(\nu_0)}
+           {A_0(\nu_0) - b_0 B_0^{(1)}(\nu_0)}\right]
+
+   at :math:`N = 0` with :math:`a_0 = 1`. SymPy verifies the
+   algebraic equivalence symbolically.
+
+.. _fn-method-V-fn-slab-refl-4:
+
+V_fn-slab-refl.4 — F_0 b_0 (NM Eq. 17) reduces from Eqs. 10-11
+--------------------------------------------------------------
+
+.. note:: TODO — Archivist expansion needed.
+
+   The SymPy derivation lives in
+   :mod:`orpheus.derivations.continuous.fn_method.origins.fn_slab_reflected_derivations`
+   (function ``derive_F0_initial_guess_structure``).
+   Test gate:
+   :func:`tests.derivations.test_fn_la13511_slab_reflected.test_v_fn_slab_refl_4_F0_initial_guess`.
+
+   Brief: V_fn-slab-refl.4 verifies that the :math:`F_0`
+   initial-guess :math:`b_0` formula NM Eq. 17 follows
+   algebraically from the :math:`N = 0` truncation of NM
+   Eqs. 10-11 with :math:`a_0 = 1`. The result is a
+   2-stream reflector albedo coefficient.
+
+.. _fn-method-V-fn-proj-1:
+
+V_fn-proj.1 — phi(z) = ∫ psi dmu universal closure
+--------------------------------------------------
+
+.. note:: TODO — Archivist expansion needed.
+
+   The SymPy derivation lives in
+   :mod:`orpheus.derivations.continuous.fn_method.origins.fn_projection_flux_derivations`
+   (function ``derive_path_ai_phi_from_psi_integral``).
+   Test gate:
+   :func:`tests.derivations.test_fn_projection_vs_kll_flux.test_v_fn_proj_1_phi_from_psi_closure`.
+
+   Brief: V_fn-proj.1 verifies the universal scalar-flux ↔
+   angular-flux closure :math:`\phi(z) = \int_{-1}^{1} \psi(z, \mu)
+   \,d\mu`. This holds for any solution of the BTE independent of
+   geometry, BC, or algorithm.
+
+.. _fn-method-V-fn-proj-2:
+
+V_fn-proj.2 — Characteristic propagation satisfies BTE
+------------------------------------------------------
+
+.. note:: TODO — Archivist expansion needed.
+
+   The SymPy derivation lives in
+   :mod:`orpheus.derivations.continuous.fn_method.origins.fn_projection_flux_derivations`
+   (function ``derive_psi_characteristic_vacuum_bc_slab``).
+   Test gate:
+   :func:`tests.derivations.test_fn_projection_vs_kll_flux.test_v_fn_proj_2_characteristic_propagation`.
+
+   Brief: V_fn-proj.2 verifies that the characteristic-propagation
+   formulas for :math:`\psi(z, \mu)` (with vacuum BC) satisfy the
+   BTE identically. Used in Path A.i source iteration.
+
+.. _fn-method-V-fn-proj-3:
+
+V_fn-proj.3 — F_N surface-flux constraint requires non-flat phi
+---------------------------------------------------------------
+
+.. note:: TODO — Archivist expansion needed.
+
+   The SymPy derivation lives in
+   :mod:`orpheus.derivations.continuous.fn_method.origins.fn_projection_flux_derivations`
+   (function ``derive_fn_surface_flux_constraint``).
+   Test gate:
+   :func:`tests.derivations.test_fn_projection_vs_kll_flux.test_v_fn_proj_3_surface_flux_constraint`.
+
+   Brief: V_fn-proj.3 verifies that a constant interior
+   :math:`\phi = \phi_0` produces a surface outgoing flux
+   :math:`\psi(a, +\mu) = (c\phi_0/2)(1 - e^{-2a/\mu})` which is
+   NOT polynomial in :math:`\mu`. Hence the F_N polynomial
+   :math:`\sum a_\alpha \mu^\alpha` requires a non-flat eigenmode
+   :math:`\phi(z)` — consistent with the symmetric critical mode.
+
+.. _fn-method-V-fn-proj-4:
+
+V_fn-proj.4 — Path A.i and Path B share the discrete-mode form
+--------------------------------------------------------------
+
+.. note:: TODO — Archivist expansion needed.
+
+   The SymPy derivation lives in
+   :mod:`orpheus.derivations.continuous.fn_method.origins.fn_projection_flux_derivations`
+   (function ``derive_path_ai_path_b_same_eigenmode``).
+   Test gate:
+   :func:`tests.derivations.test_fn_projection_vs_kll_flux.test_v_fn_proj_4_path_ai_path_b_same_eigenmode`.
+
+   Brief: V_fn-proj.4 verifies that Path A.i (BTE phase-space
+   iteration) and Path B (KLL Wiener-Hopf + Fredholm) share the
+   discrete-mode form :math:`\phi^{(0)}(z) = \cos(z/u_0)` for the
+   bare-critical 1G slab. The structural-independence claim is at
+   the algorithm level: agreement on this discrete-mode shape +
+   procedural divergence in continuum-correction algorithms is
+   the L1 cross-check evidence.
+
 References
 ==========
 
+* Neshat, K., Maiorino, J.R. (1980). *The F_N method for solving
+  the critical problem for a slab with a finite reflector.* *Annals
+  of Nuclear Energy* **7**, 79-81. **Reflected-slab F_N method
+  specification** — Wave 2-A Extension 1. PDF locally available at
+  ``scratch/literature/Neshat-Maiorino(1980)The FN method for
+  solving the critial problem for a slab with a finite reflector.pdf``.
+* Burkart, A.R. (1976). *Trans. Am. Nucl. Soc.* **24**, 190.
+  "Exact" reference values cited in NM Table 2 (matched by F_7 to
+  all printed digits).
 * Sood, A., Forster, R.A., Parsons, D.K. (1999). *Analytical
   Benchmark Test Set for Criticality Code Verification.* Los
   Alamos National Laboratory report LA-13511. PDF at
