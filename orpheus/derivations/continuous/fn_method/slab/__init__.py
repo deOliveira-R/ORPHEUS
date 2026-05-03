@@ -27,6 +27,15 @@ References
 """
 from __future__ import annotations
 
+from .flux_reconstruction import (
+    KLLSlabFluxResult,
+    slab_angular_flux_from_scalar,
+    slab_scalar_flux_from_angular_quadrature,
+    slab_scalar_flux_kll,
+    slab_scalar_flux_ratio,
+    slab_surface_angular_flux_fn,
+    solve_kll_slab_continuum_coefficient,
+)
 from .one_group import (
     SlabFNResult,
     fn_slab_flux_at_x_cosine_only,
@@ -37,4 +46,12 @@ __all__ = [
     "SlabFNResult",
     "solve_fn_slab_bare_critical",
     "fn_slab_flux_at_x_cosine_only",
+    # Rich-machinery flux reconstruction (KLL Fredholm + characteristics).
+    "KLLSlabFluxResult",
+    "solve_kll_slab_continuum_coefficient",
+    "slab_scalar_flux_kll",
+    "slab_scalar_flux_ratio",
+    "slab_angular_flux_from_scalar",
+    "slab_scalar_flux_from_angular_quadrature",
+    "slab_surface_angular_flux_fn",
 ]

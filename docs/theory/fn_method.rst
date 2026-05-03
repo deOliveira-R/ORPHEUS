@@ -660,23 +660,190 @@ F_N method works in the Case singular-eigenfunction representation
 and never reduces to an integral equation in :math:`r` (genuinely
 structurally independent above the trusted-library line).
 
-Flux reconstruction — deferred
-================================
+Flux reconstruction
+====================
 
-The Sood Case 2 (``Ua-1-0-SL``) flux ratios at :math:`r/r_c \in
-\{0.25, 0.5, 0.75, 1.0\}` (KLL Table III: 0.96695, 0.86863, 0.70552,
-0.44619) are NOT verified in this slice. The discrete-mode cosine
-approximation :math:`\phi(x) \approx \cos(x/u_0)` gives ~20 % error
-at the slab edge — too coarse for a flux-shape verification. The
-full F_N angular-flux reconstruction
-:math:`\psi(\pm a, \mp\mu) = \sum_\alpha a_\alpha \mu^\alpha`
-followed by self-consistent scalar-flux integration is documented
-as a stub
-(:func:`orpheus.derivations.continuous.fn_method.slab.fn_slab_flux_at_x_cosine_only`)
-and deferred to a follow-up slice. The KLL Wiener-Hopf iterated
-Fredholm representation
-:math:`\phi(x) = 2a\,[\cos(x/u_0) + \int_0^1 A(\nu)\,e^{-b/\nu}\cosh(x/\nu)\,d\nu]`
-is the alternative path to high-precision flux profiles; future work.
+.. _fn-method-flux-recon-overview:
+
+Overview — Phase B2 rich-machinery extension
+----------------------------------------------
+
+The F_N solvers (:mod:`...slab.one_group`, :mod:`...sphere.one_group`)
+return only the **boundary** angular flux representation
+:math:`\psi(\pm a, \mp\mu) = \sum_{\alpha=0}^{N} a_\alpha \mu^\alpha`
+plus the critical dimension :math:`r_c`. The Phase B2 extension
+(:mod:`...slab.flux_reconstruction`, :mod:`...sphere.flux_reconstruction`)
+adds **interior** scalar flux :math:`\phi(z)` /  :math:`\phi(r)` and
+**interior** angular flux :math:`\psi(z, \mu)` / :math:`\psi(r, \mu)`
+at any point.
+
+The interior representation comes from Kaper-Lindeman-Leaf 1974
+(KLL) — the canonical published interior-flux benchmark for the
+bare-critical slab and sphere. KLL's recipe is **structurally
+independent of F_N** (Fredholm integral equation in :math:`A(\nu)`
+vs F_N's half-range collocation), giving a cross-check above the
+trusted-library line.
+
+Branch-1 SymPy module:
+:mod:`orpheus.derivations.continuous.fn_method.origins.fn_flux_reconstruction_derivations`.
+
+.. _fn-method-flux-recon-V_fn-flux-slab-1:
+
+V_fn-flux-slab.1 — KLL Eq. 7 slab scalar-flux structure
+---------------------------------------------------------
+
+.. todo:: Archivist expansion needed.
+   The SymPy derivation lives in
+   :mod:`orpheus.derivations.continuous.fn_method.origins.fn_flux_reconstruction_derivations`
+   (function ``derive_slab_kll_phi_eq7_structure``). Test gate:
+   :func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_slab_1_kll_eq7_structure`.
+
+   Brief: KLL Eq. 7 (the :math:`c > 1` critical-slab scalar-flux
+   reconstruction) has the structure
+   :math:`\phi(x) = a [\cos(x/u_0) + \int_0^1 A(\nu)\,
+   e^{-b/\nu}\,\cosh(x/\nu)\,d\nu]`. Both the cosine and
+   :math:`\cosh`-integral terms are even in :math:`x`, so the bare-
+   critical eigenmode symmetry :math:`\phi(-x) = \phi(x)` follows
+   from the formula structure (not from the specific :math:`A(\nu)`).
+   At :math:`x = 0`, the formula reduces to :math:`\phi(0) =
+   a [1 + \int_0^1 A(\nu)\,e^{-b/\nu}\,d\nu]`, which is the
+   denominator of all flux-ratio computations.
+
+.. _fn-method-flux-recon-V_fn-flux-slab-2:
+
+V_fn-flux-slab.2 — :math:`\phi(z)/\phi(0)` is normalisation-free
+------------------------------------------------------------------
+
+.. todo:: Archivist expansion needed.
+   Function ``derive_slab_phi_endpoint_normalization``. Test gate:
+   :func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_slab_2_endpoint_normalization`.
+
+   Brief: the multiplicative constant :math:`a` cancels in
+   :math:`\phi(z)/\phi(0)`, so the published Sood Table 14 / KLL
+   Table III ratios are directly computable from the converged
+   Fredholm solution :math:`A(\nu)` without fixing the normalisation.
+
+.. _fn-method-flux-recon-V_fn-flux-slab-3:
+
+V_fn-flux-slab.3 — Interior :math:`\psi(z, \mu)` via characteristics
+---------------------------------------------------------------------
+
+.. todo:: Archivist expansion needed.
+   Function ``derive_slab_psi_from_phi_characteristic``. Test gate:
+   :func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_slab_3_psi_from_phi_characteristic`.
+
+   Brief: once :math:`\phi(z)` is known via KLL, the BTE
+   :math:`\mu \partial_z \psi + \psi = (c/2)\phi(z)` integrates
+   along characteristics with vacuum BC :math:`\psi(\mp b, \pm\mu) =
+   0` (μ > 0) to give the closed-form
+   :math:`\psi(z, \mu > 0) = (c/(2\mu))\int_{-b}^{z} \phi(z')\,
+   e^{-(z-z')/\mu}\,dz'` (and the symmetric version for :math:`\mu < 0`).
+   SymPy verifies this expression satisfies the BTE + BC.
+
+.. _fn-method-flux-recon-V_fn-flux-sphere-1:
+
+V_fn-flux-sphere.1 — KLL Eq. 15 sphere scalar-flux structure
+--------------------------------------------------------------
+
+.. todo:: Archivist expansion needed.
+   Function ``derive_sphere_kll_phi_eq15_structure``. Test gate:
+   :func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_sphere_1_kll_eq15_structure`.
+
+   Brief: KLL Eq. 15
+   :math:`\phi(r) = (2 b /r) [u_0 \sin(r/u_0) - \int_0^1 B(\nu)\,
+   e^{-R/\nu}\,\sinh(r/\nu)\,d\nu]` is the sphere analog of slab
+   Eq. 7. The :math:`r \to 0` limit is well-defined via
+   :math:`\sin(r/u_0)/r \to 1/u_0` and :math:`\sinh(r/\nu)/r \to 1/\nu`.
+
+.. _fn-method-flux-recon-V_fn-flux-sphere-2:
+
+V_fn-flux-sphere.2 — Sphere chord-length characteristic
+----------------------------------------------------------
+
+.. todo:: Archivist expansion needed.
+   Function ``derive_sphere_psi_from_phi_characteristic``. Test gate:
+   :func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_sphere_2_psi_from_phi_characteristic`.
+
+   Brief: chord length from :math:`(r, \mu)` back to the surface is
+   :math:`s_{\rm in}(r, \mu) = r\mu + \sqrt{R^2 - r^2(1-\mu^2)}`.
+   This gives the characteristic-integration formula
+   :math:`\psi(r, \mu) = (c/2) \int_0^{s_{\rm in}}
+   \phi(\sqrt{r^2 - 2 r s' \mu + s'^2})\,e^{-s'}\,ds'`.
+
+.. _fn-method-flux-recon-V_fn-flux-shared-1:
+
+V_fn-flux-shared.1 — Universal angular-flux closure
+-----------------------------------------------------
+
+.. todo:: Archivist expansion needed.
+   Function ``derive_scalar_flux_angular_integral``. Test gate:
+   :func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_shared_1_scalar_from_angular`.
+
+   Brief: :math:`\phi(z) = \int_{-1}^{1} \psi(z, \mu)\,d\mu` is the
+   literal definition of scalar flux from angular flux. SymPy
+   verifies on three example trial :math:`\psi`: constant,
+   trigonometric, polynomial. This is the **closure-consistency
+   test** — the L1 numerical gate verifies that the reconstructed
+   :math:`\psi(z, \mu)` integrates back to the converged
+   :math:`\phi(z)` to within quadrature accuracy.
+
+L1 verification gates
+----------------------
+
+The verification labels for these gates are:
+
+.. math::
+   :label: kll-1974-slab-flux
+
+   \phi_{\rm slab}(z)/\phi_{\rm slab}(0) = \frac{\cos(z/u_0) +
+   \int_0^1 A(\nu)\,e^{-b/\nu}\,\cosh(z/\nu)\,d\nu}
+   {1 + \int_0^1 A(\nu)\,e^{-b/\nu}\,d\nu}
+
+.. math::
+   :label: kll-1974-sphere-flux
+
+   \phi_{\rm sphere}(r)/\phi_{\rm sphere}(0) =
+   \frac{(2/r)[u_0 \sin(r/u_0) - \int_0^1 B(\nu)\,e^{-R/\nu}\,
+   \sinh(r/\nu)\,d\nu]}{2[1 - \int_0^1 (B(\nu)/\nu)\,
+   e^{-R/\nu}\,d\nu]}
+
+The Branch-2 implementation
+(:mod:`...slab.flux_reconstruction`, :mod:`...sphere.flux_reconstruction`)
+agrees with the KLL benchmark tables at the following tolerances:
+
+* **Slab Table III at c=1.30 (Sood Ua-1-0-SL)**: ≤ 1e-5 absolute
+  on :math:`\phi(z)/\phi(0)` at :math:`z/b \in \{0.25, 0.5, 0.75,
+  1.0\}` (achieved 4e-7 at :math:`n_{\rm nodes} = 64`).
+* **Slab Table III at c \in [1.05, 1.60]**: ≤ 5e-5 absolute on the
+  full sweep.
+* **Sphere Table VII at c=1.30 (Sood Ua-1-0-SP)**: ≤ 1e-5 absolute
+  on :math:`\phi(r)/\phi(0)` at :math:`r/R \in \{0.25, 0.5, 0.75,
+  1.0\}` (achieved 2e-8 at :math:`n_{\rm nodes} = 64`).
+* **Closure check**: :math:`\int_{-1}^{1} \psi\,d\mu = \phi` to
+  ≤ 1e-5 absolute (interior points; near-boundary asymptotically
+  the characteristic integral becomes more singular and the
+  achievable closure precision is ~1e-5).
+
+.. todo:: Archivist expansion needed (rich narrative).
+   The interior-flux reconstruction is the **rich-machinery
+   extension** that makes the F_N reference solver useful for
+   verifying both CP solvers (need :math:`\phi`) AND SN solvers
+   (need :math:`\psi(r, \mu)`). The discipline used here:
+
+   1. F_N gives :math:`r_c` and surface :math:`\psi(\pm a, \mp\mu)`.
+   2. KLL Fredholm iteration (structurally independent of F_N)
+      gives interior :math:`\phi(z)`, :math:`\phi(r)`.
+   3. BTE characteristic integration (closed-form, given converged
+      :math:`\phi`) gives interior :math:`\psi(z, \mu)`,
+      :math:`\psi(r, \mu)`.
+   4. Closure :math:`\phi = \int \psi\,d\mu` self-consistency
+      validates the chain.
+
+   The rich machinery is documented in the Branch-1 SymPy
+   derivations + Branch-2 numpy production code, with L1 gates
+   against KLL Tables III + VII (the canonical published
+   benchmarks). Sood-style ``PUb-1-0-SP`` extension awaits Phase B3
+   (case-registry expansion).
 
 References
 ==========

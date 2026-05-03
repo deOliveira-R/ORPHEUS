@@ -23,6 +23,15 @@ References
 """
 from __future__ import annotations
 
+from .flux_reconstruction import (
+    KLLSphereFluxResult,
+    solve_kll_sphere_continuum_coefficient,
+    sphere_angular_flux_from_scalar,
+    sphere_scalar_flux_from_angular_quadrature,
+    sphere_scalar_flux_kll,
+    sphere_scalar_flux_ratio,
+    sphere_surface_angular_flux_fn,
+)
 from .one_group import (
     SphereFNResult,
     solve_fn_sphere_bare_critical,
@@ -31,4 +40,12 @@ from .one_group import (
 __all__ = [
     "SphereFNResult",
     "solve_fn_sphere_bare_critical",
+    # Rich-machinery flux reconstruction (KLL Fredholm + characteristics).
+    "KLLSphereFluxResult",
+    "solve_kll_sphere_continuum_coefficient",
+    "sphere_scalar_flux_kll",
+    "sphere_scalar_flux_ratio",
+    "sphere_angular_flux_from_scalar",
+    "sphere_scalar_flux_from_angular_quadrature",
+    "sphere_surface_angular_flux_fn",
 ]
