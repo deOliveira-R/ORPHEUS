@@ -40,7 +40,7 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.derivations.continuous.fn_method.benchmarks import UA_1_0_SL_STUB
+from orpheus.derivations.continuous.sood_registry import UA_1_0_SL_STUB
 from orpheus.derivations.continuous.fn_method.slab import (
     solve_fn_slab_bare_critical,
 )

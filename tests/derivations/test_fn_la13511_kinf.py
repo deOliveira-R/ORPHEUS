@@ -51,7 +51,7 @@ from orpheus.derivations.common.eigenvalue import (
     kinf_and_spectrum_homogeneous,
     kinf_homogeneous,
 )
-from orpheus.derivations.continuous.fn_method.benchmarks import (
+from orpheus.derivations.continuous.sood_registry import (
     PU_2_0_IN,
     PUA_1_0_IN,
 )

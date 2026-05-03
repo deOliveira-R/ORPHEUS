@@ -57,7 +57,7 @@ pytestmark = [
     ),
 ]
 
-from orpheus.derivations.continuous.fn_method.benchmarks import UA_1_0_SP_STUB
+from orpheus.derivations.continuous.sood_registry import UA_1_0_SP_STUB
 from orpheus.derivations.continuous.fn_method.origins.fn_sphere_derivations import (
     derive_sphere_2g_to_1g_reduction,
     derive_sphere_bc_sign_flip,

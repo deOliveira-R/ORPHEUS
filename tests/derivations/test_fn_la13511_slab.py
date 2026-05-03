@@ -48,7 +48,7 @@ pytestmark = [
     ),
 ]
 
-from orpheus.derivations.continuous.fn_method.benchmarks import UA_1_0_SL_STUB
+from orpheus.derivations.continuous.sood_registry import UA_1_0_SL_STUB
 from orpheus.derivations.continuous.fn_method.core import (
     A_alpha,
     A_alpha_array,

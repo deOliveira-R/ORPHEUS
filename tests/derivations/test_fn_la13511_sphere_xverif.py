@@ -57,7 +57,7 @@ pytestmark = [
     ),
 ]
 
-from orpheus.derivations.continuous.fn_method.benchmarks import UA_1_0_SP_STUB
+from orpheus.derivations.continuous.sood_registry import UA_1_0_SP_STUB
 from orpheus.derivations.continuous.fn_method.sphere import (
     solve_fn_sphere_bare_critical,
 )
