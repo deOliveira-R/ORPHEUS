@@ -31,6 +31,8 @@ from .flux_reconstruction import (
     KLLSlabFluxResult,
     slab_angular_flux_from_scalar,
     slab_scalar_flux_from_angular_quadrature,
+    slab_scalar_flux_fn_projection,
+    slab_scalar_flux_fn_projection_ratio,
     slab_scalar_flux_kll,
     slab_scalar_flux_ratio,
     slab_surface_angular_flux_fn,
@@ -61,4 +63,7 @@ __all__ = [
     "slab_angular_flux_from_scalar",
     "slab_scalar_flux_from_angular_quadrature",
     "slab_surface_angular_flux_fn",
+    # Path A.i — F_N projection flux extraction (Peierls iteration).
+    "slab_scalar_flux_fn_projection",
+    "slab_scalar_flux_fn_projection_ratio",
 ]
