@@ -117,6 +117,18 @@ from .la13511 import (
     WIDE_SLICE_BARE_CRITICAL_1G,
     WIDE_SLICE_STUBS,
 )
+from .atalay1997 import (
+    ATALAY_ALL_CASES,
+    ATALAY_SLAB_CASES,
+    ATALAY_SLAB_C130_R000_F0,
+    ATALAY_SLAB_C130_R000_F010,
+    ATALAY_SLAB_C130_R025_F0,
+    ATALAY_SLAB_C130_R050_F0,
+    ATALAY_SLAB_C130_R050_F010,
+    ATALAY_SLAB_C130_R075_F0,
+    ATALAY_SPHERE_C130_R000_F0,
+    ATALAY_SPHERE_CASES,
+)
 from .builders import build_cp_params, build_materials, build_mesh
 from .cache import SoodResultCache, cache_info, clear_cache, sood_cache
 from .extractors import mixture_to_fn_arrays
@@ -196,4 +208,15 @@ __all__ = [
     "sood_cache",
     "clear_cache",
     "cache_info",
+    # Atalay 1997 reflected slab + sphere catalogue (Wave 2-B)
+    "ATALAY_SLAB_C130_R000_F0",
+    "ATALAY_SLAB_C130_R025_F0",
+    "ATALAY_SLAB_C130_R050_F0",
+    "ATALAY_SLAB_C130_R075_F0",
+    "ATALAY_SLAB_C130_R000_F010",
+    "ATALAY_SLAB_C130_R050_F010",
+    "ATALAY_SPHERE_C130_R000_F0",
+    "ATALAY_SLAB_CASES",
+    "ATALAY_SPHERE_CASES",
+    "ATALAY_ALL_CASES",
 ]
