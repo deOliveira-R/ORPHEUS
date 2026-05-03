@@ -7,6 +7,9 @@ results_geometry/
 docs/_build/
 docs/_generated/
 orpheus/derivations/_richardson_cache.json
+
+# Sood-registry solver-output cache (local-machine state, never committed)
+.cache/
 tools/research/elsevier.toml
 matlab_archive/
 orpheus.egg-info/

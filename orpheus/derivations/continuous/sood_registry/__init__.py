@@ -63,6 +63,7 @@ from .la13511 import (
     UA_1_0_SP_STUB,
 )
 from .builders import build_cp_params, build_materials, build_mesh
+from .cache import SoodResultCache, cache_info, clear_cache, sood_cache
 from .extractors import mixture_to_fn_arrays
 
 __all__ = [
@@ -83,4 +84,9 @@ __all__ = [
     "build_mesh",
     "build_cp_params",
     "mixture_to_fn_arrays",
+    # Cache (Phase B4)
+    "SoodResultCache",
+    "sood_cache",
+    "clear_cache",
+    "cache_info",
 ]
