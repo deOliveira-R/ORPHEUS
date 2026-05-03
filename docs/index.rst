@@ -11,6 +11,7 @@ ORPHEUS — Open Reactor Physics Educational University System
    theory/peierls
    theory/peierls_nystrom
    theory/peierls_greens
+   theory/fn_method
    theory/diffusion_1d
    theory/fuel_behaviour
    theory/thermal_hydraulics
