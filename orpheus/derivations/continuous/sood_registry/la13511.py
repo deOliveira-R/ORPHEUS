@@ -2008,6 +2008,151 @@ WIDE_SLICE_BARE_CRITICAL_1G: tuple[La13511Case, ...] = (
 existing slab/sphere F_N solvers (5)."""
 
 
+# ═══════════════════════════════════════════════════════════════════
+# Wave 2-C — 1G P_1 anisotropic bare-critical slab + sphere cases
+# ═══════════════════════════════════════════════════════════════════
+#
+# Bare-critical slab/sphere with linearly anisotropic scattering.
+# Verified by :mod:`...carlvik_galerkin`. CRITICAL convention: Sood's
+# Σ_s1 is the scattering-only anisotropy moment; Dahl-Sjostrand 1979
+# uses μ̄ = mean cosine of all secondaries (scattering + fission,
+# fission isotropic). Conversion: μ̄_eff = Σ_s1/(c·Σ_t).
+
+
+def _mix_1g_anisotropic(
+    sigma_t: float, sigma_c: float, sigma_f: float, nu: float,
+    sigma_s_self: float, sigma_s1_self: float,
+) -> Mixture:
+    """Build a 1G P_1 anisotropic Mixture from raw Sood XS components."""
+    return make_mixture(
+        sig_t=np.array([sigma_t]),
+        sig_c=np.array([sigma_c]),
+        sig_f=np.array([sigma_f]),
+        nu=np.array([nu]),
+        chi=np.array([1.0]),
+        sig_s=np.array([[sigma_s_self]]),
+        sig_s1=np.array([[sigma_s1_self]]),
+    )
+
+
+PUA_1_1_SL = La13511Case(
+    case_id="PUa-1-1-SL",
+    problem_number=32,
+    description="Pu-239 (a) bare slab, 1G P_1 anisotropic (forward), c=1.40",
+    materials={0: _mix_1g_anisotropic(
+        sigma_t=1.0, sigma_c=0.0, sigma_f=0.266667, nu=2.5,
+        sigma_s_self=0.733333, sigma_s1_self=0.20,
+    )},
+    mesh_template=MeshTemplate(
+        geometry="slab",
+        critical_dimension_mfp=0.77032,
+        critical_dimension_cm=0.77032,
+        n_groups=1,
+        bc_left=BC.vacuum, bc_right=BC.vacuum,
+    ),
+    scattering_order=1,
+    truth=La13511Truth(k_eff_or_kinf=1.0),
+    sood_table=25,
+    primary_reference="Sood Table 25 / problem 32 / Sanchez 1976 (Ref. 30)",
+    notes="Σ_s1=0.20. Carlvik-Galerkin uses μ̄_eff = 0.20/1.40 = 0.142857.",
+)
+
+PUB_1_1_SL = La13511Case(
+    case_id="PUb-1-1-SL",
+    problem_number=34,
+    description="Pu-239 (b) bare slab, 1G P_1 anisotropic (strong forward), c=1.40",
+    materials={0: _mix_1g_anisotropic(
+        sigma_t=1.0, sigma_c=0.0, sigma_f=0.266667, nu=2.5,
+        sigma_s_self=0.733333, sigma_s1_self=0.333333,
+    )},
+    mesh_template=MeshTemplate(
+        geometry="slab",
+        critical_dimension_mfp=0.79606,
+        critical_dimension_cm=0.79606,
+        n_groups=1,
+        bc_left=BC.vacuum, bc_right=BC.vacuum,
+    ),
+    scattering_order=1,
+    truth=La13511Truth(k_eff_or_kinf=1.0),
+    sood_table=25,
+    primary_reference="Sood Table 25 / problem 34 / Sanchez 1976 (Ref. 30)",
+    notes="Σ_s1=0.333333 (negative scattering for μ near -1). μ̄_eff = 0.238095.",
+)
+
+UD2OA_1_1_SP = La13511Case(
+    case_id="UD2Oa-1-1-SP",
+    problem_number=39,
+    description="U-D2O (a) bare sphere, 1G P_1 anisotropic, c=1.0308381",
+    materials={0: _mix_1g_anisotropic(
+        sigma_t=0.54628, sigma_c=0.027314, sigma_f=0.054628, nu=1.808381,
+        sigma_s_self=0.464338, sigma_s1_self=0.056312624,
+    )},
+    mesh_template=MeshTemplate(
+        geometry="sphere",
+        critical_dimension_mfp=10.0,
+        critical_dimension_cm=18.30563081,
+        n_groups=1,
+        bc_left=BC.reflective, bc_right=BC.vacuum,
+    ),
+    scattering_order=1,
+    truth=La13511Truth(k_eff_or_kinf=1.0),
+    sood_table=29,
+    primary_reference="Sood Table 29 / problem 39 / Mitsis 1963 (Ref. 15)",
+    notes="μ̄_eff = 0.10 — matches DS Table I row d=20, μ̄=0.10.",
+)
+
+UD2OB_1_1_SP = La13511Case(
+    case_id="UD2Ob-1-1-SP",
+    problem_number=41,
+    description="U-D2O (b) bare sphere, 1G P_1 anisotropic, c=1.0341086",
+    materials={0: _mix_1g_anisotropic(
+        sigma_t=0.54628, sigma_c=0.027314, sigma_f=0.054628, nu=1.841086,
+        sigma_s_self=0.464338, sigma_s1_self=0.112982569,
+    )},
+    mesh_template=MeshTemplate(
+        geometry="sphere",
+        critical_dimension_mfp=10.0,
+        critical_dimension_cm=18.30563081,
+        n_groups=1,
+        bc_left=BC.reflective, bc_right=BC.vacuum,
+    ),
+    scattering_order=1,
+    truth=La13511Truth(k_eff_or_kinf=1.0),
+    sood_table=29,
+    primary_reference="Sood Table 29 / problem 41 / Mitsis 1963 (Ref. 15)",
+    notes="μ̄_eff = 0.20 — matches DS Table I row d=20, μ̄=0.20.",
+)
+
+UD2OC_1_1_SP = La13511Case(
+    case_id="UD2Oc-1-1-SP",
+    problem_number=43,
+    description="U-D2O (c) bare sphere, 1G P_1 anisotropic (back-peaked!), c=1.01964",
+    materials={0: _mix_1g_anisotropic(
+        sigma_t=0.54628, sigma_c=0.027314, sigma_f=0.054628, nu=1.6964,
+        sigma_s_self=0.464338, sigma_s1_self=-0.27850447,
+    )},
+    mesh_template=MeshTemplate(
+        geometry="sphere",
+        critical_dimension_mfp=10.0,
+        critical_dimension_cm=18.30563081,
+        n_groups=1,
+        bc_left=BC.reflective, bc_right=BC.vacuum,
+    ),
+    scattering_order=1,
+    truth=La13511Truth(k_eff_or_kinf=1.0),
+    sood_table=29,
+    primary_reference="Sood Table 29 / problem 43 / Boffi-Molinari-Spiga 1977 (Ref. 16)",
+    notes="μ̄_eff = -0.50 (back-peaked). Outside Dahl-Sjostrand table coverage.",
+)
+
+
+WIDE_SLICE_BARE_CRITICAL_1G_P1: tuple[La13511Case, ...] = (
+    PUA_1_1_SL, PUB_1_1_SL,
+    UD2OA_1_1_SP, UD2OB_1_1_SP, UD2OC_1_1_SP,
+)
+"""Wave 2-C P_1 anisotropic bare-critical cases (5)."""
+
+
 WIDE_SLICE_STUBS: tuple[La13511Case, ...] = (
     # Cylinder stubs (Ua already in FIRST_SLICE; these 2 are new):
     PUB_1_0_CY_STUB, UD2O_1_0_CY_STUB,
@@ -2027,6 +2172,7 @@ _ALL_CASES: tuple[La13511Case, ...] = (
     *ALL_FIRST_SLICE,
     *WIDE_SLICE_KINF,
     *WIDE_SLICE_BARE_CRITICAL_1G,
+    *WIDE_SLICE_BARE_CRITICAL_1G_P1,
     *WIDE_SLICE_STUBS,
 )
 

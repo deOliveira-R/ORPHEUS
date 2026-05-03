@@ -92,6 +92,13 @@ from .la13511 import (
     UD2O_1_0_SL,
     PUB_1_0_SP,
     UD2O_1_0_SP,
+    # Wave 2-C — 1G P_1 anisotropic bare-critical (5)
+    PUA_1_1_SL,
+    PUB_1_1_SL,
+    UD2OA_1_1_SP,
+    UD2OB_1_1_SP,
+    UD2OC_1_1_SP,
+    WIDE_SLICE_BARE_CRITICAL_1G_P1,
     # Phase B3 — STUBS (cylinder + 2G bare-critical)
     PUB_1_0_CY_STUB,
     UD2O_1_0_CY_STUB,
@@ -153,6 +160,13 @@ __all__ = [
     "UD2O_1_0_SL",
     "PUB_1_0_SP",
     "UD2O_1_0_SP",
+    # Wave 2-C — P_1 anisotropic bare-critical
+    "PUA_1_1_SL",
+    "PUB_1_1_SL",
+    "UD2OA_1_1_SP",
+    "UD2OB_1_1_SP",
+    "UD2OC_1_1_SP",
+    "WIDE_SLICE_BARE_CRITICAL_1G_P1",
     # Phase B3 — stubs
     "PUB_1_0_CY_STUB",
     "UD2O_1_0_CY_STUB",
