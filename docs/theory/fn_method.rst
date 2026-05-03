@@ -26,12 +26,12 @@ Why F_N at all?
 ================
 
 The Variant α Green's-function family
-(:doc:`peierls_greens`) is ORPHEUS's primary continuous-mu reference
+(:doc:`trajectory_resolvent`) is ORPHEUS's primary continuous-mu reference
 for the angle-resolved transport eigenvalue and flux-shape problems
 in compact and 2-surface geometries. It already cross-checks against
 external benchmarks: Sood/Forster/Parsons ``Ua-1-0-CY`` cylinder
 critical radius at 8.5e-6 (see
-:func:`tests.derivations.test_peierls_greens_function_xverif_sood2003_cylinder`).
+:func:`tests.derivations.test_trajectory_resolvent_xverif_sood2003_cylinder`).
 
 That cross-check, however, leans on a single published value. The
 F_N method gives a **second, structurally-independent reference
@@ -1073,4 +1073,4 @@ Internal references:
   ``.claude/agent-memory/literature-researcher/sood_fn_method_full_extraction.md``.
 * Closeout memo:
   ``.claude/agent-memory/method-implementer/fn_method_kinf_first_slice.md``.
-* :doc:`peierls_greens` — companion Variant α reference family.
+* :doc:`trajectory_resolvent` — companion Variant α reference family.

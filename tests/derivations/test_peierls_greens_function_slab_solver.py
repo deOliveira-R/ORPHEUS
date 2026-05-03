@@ -3,8 +3,8 @@ Green's function reference (1G + MG, homogeneous slab, symmetric
 reflective specular BC :math:`\alpha_{\rm left} = \alpha_{\rm right} =
 \alpha`).
 
-Mirrors :mod:`.test_peierls_greens_function_solver` (sphere) and
-:mod:`.test_peierls_greens_function_cylinder_solver` (cylinder) with
+Mirrors :mod:`.test_trajectory_resolvent_solver` (sphere) and
+:mod:`.test_trajectory_resolvent_cylinder_solver` (cylinder) with
 slab geometry. The load-bearing claim:
 
 **Variant α gives the exact :math:`k_{\rm eff} = k_\infty` for the
@@ -63,10 +63,10 @@ V_α1_slab structurally independent of any other ORPHEUS solver.
 Predecessor / sibling tests
 ---------------------------
 
-- :mod:`.test_peierls_greens_function_slab_symbolic` — V_α1_slab,
+- :mod:`.test_trajectory_resolvent_slab_symbolic` — V_α1_slab,
   V_α2_slab, V_α3_slab SymPy gates.
-- :mod:`.test_peierls_greens_function_solver` — sphere V_α1.numerical.
-- :mod:`.test_peierls_greens_function_cylinder_solver` — cylinder
+- :mod:`.test_trajectory_resolvent_solver` — sphere V_α1.numerical.
+- :mod:`.test_trajectory_resolvent_cylinder_solver` — cylinder
   V_α1_cyl.numerical (the structural template this test file mirrors).
 
 References
@@ -89,7 +89,7 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
 from orpheus.derivations.continuous.peierls_nystrom.slab import (
     solve_peierls_eigenvalue,
 )
-from orpheus.derivations.continuous.peierls_greens_function.greens_function_slab import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab import (
     solve_greens_function_slab,
     solve_greens_function_slab_mg,
 )

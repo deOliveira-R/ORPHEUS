@@ -61,7 +61,7 @@ from orpheus.derivations.continuous.sood_registry import UA_1_0_SP_STUB
 from orpheus.derivations.continuous.fn_method.sphere import (
     solve_fn_sphere_bare_critical,
 )
-from orpheus.derivations.continuous.peierls_greens_function.greens_function import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
     solve_greens_function_sphere,
 )
 

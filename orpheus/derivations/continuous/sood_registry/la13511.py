@@ -2013,7 +2013,7 @@ existing slab/sphere F_N solvers (5)."""
 # ═══════════════════════════════════════════════════════════════════
 #
 # Bare-critical slab/sphere with linearly anisotropic scattering.
-# Verified by :mod:`...carlvik_galerkin`. CRITICAL convention: Sood's
+# Verified by :mod:`...galerkin_spectral`. CRITICAL convention: Sood's
 # Σ_s1 is the scattering-only anisotropy moment; Dahl-Sjostrand 1979
 # uses μ̄ = mean cosine of all secondaries (scattering + fission,
 # fission isotropic). Conversion: μ̄_eff = Σ_s1/(c·Σ_t).

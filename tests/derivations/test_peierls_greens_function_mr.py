@@ -30,7 +30,7 @@ This test gate pins:
 
 Predecessors:
 
-- :mod:`.test_peierls_greens_function_mg` (multi-group, single-region)
+- :mod:`.test_trajectory_resolvent_mg` (multi-group, single-region)
 - Issue #132 issue body and
   :file:`.claude/agent-memory/numerics-investigator/issue_100_class_b_mr_mg.md`
   for the Phase 4 catastrophe documentation.
@@ -41,7 +41,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_xs
-from orpheus.derivations.continuous.peierls_greens_function.greens_function import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
     solve_greens_function_sphere_mg,
     solve_greens_function_sphere_mr,
 )

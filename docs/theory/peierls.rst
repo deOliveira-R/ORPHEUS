@@ -26,7 +26,7 @@ two forward links:
   matrix :math:`K_{ij} = w_j\,g_d(r_j\to r_i)`; closes the BC via
   the tensor network :math:`K_{\rm bc} = G\cdot R\cdot P` with rank
   :math:`N` Marshak / F.4 / specular closures.
-- :ref:`theory-peierls-greens` — the research-grade **Green's
+- :ref:`theory-trajectory-resolvent` — the research-grade **Green's
   function (Variant α)** architecture (sphere homogeneous +
   multi-region, parametrised by reflectivity :math:`\alpha\in[0,1]`).
   Iterates the **angle-resolved** Green's function
@@ -278,7 +278,7 @@ derivations agreeing rules out reference contamination.
 The polar form for sphere with bare :math:`e^{-\Sigt{}\,R}` 3-D
 point kernel, used by both ORPHEUS implementations, is documented in
 detail at :ref:`theory-peierls-nystrom` Section 3 (the unified polar
-form) and at :ref:`theory-peierls-greens` (Variant α trajectory
+form) and at :ref:`theory-trajectory-resolvent` (Variant α trajectory
 geometry).
 
 
@@ -349,7 +349,7 @@ Five canonical BC choices fall out of :math:numref:`peierls-bc-general`:
      - any
      - Convex combination of vacuum / specular / diffuse. The
        :math:`\alpha`-parameter in
-       :func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere`
+       :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere`
        interpolates the full :math:`\alpha\in[0,1]` range.
    * - Periodic
      - n/a
@@ -369,7 +369,7 @@ parametrisation:
   separate ``boundary=`` strings. The :math:`(\alpha,\beta)`
   parametrisation is *not* exposed at the public API — instead each
   closure is hard-coded as a discrete kernel-builder.
-- **Green's function (Variant α)** (:ref:`theory-peierls-greens`):
+- **Green's function (Variant α)** (:ref:`theory-trajectory-resolvent`):
   vacuum and specular as the **two endpoints of a single
   :math:`\alpha`-parametrised solver**; partial-albedo
   :math:`\alpha\in(0,1)` is reachable without a separate code path.
@@ -384,9 +384,9 @@ The :math:`\beta`-branch (diffuse re-emission) is **not** shipped
 in either family. Sanchez 1986 Eq. (A6) carries the full
 :math:`(\alpha,\beta)` kernel, but the prototype Green's function
 solver in
-:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere`
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere`
 is restricted to :math:`\beta = 0`. Adding :math:`\beta`-support is
-flagged as future work in :ref:`theory-peierls-greens`.
+flagged as future work in :ref:`theory-trajectory-resolvent`.
 
 
 Two architectural choices for the discretisation
@@ -402,7 +402,7 @@ to follow:
 
    * - Property
      - :ref:`theory-peierls-nystrom` (Nyström)
-     - :ref:`theory-peierls-greens` (Green's function)
+     - :ref:`theory-trajectory-resolvent` (Green's function)
    * - Operator discretised
      - Angle-integrated kernel
        :math:`g_d(\rho'\to\rho)` — assembled as matrix
@@ -442,7 +442,7 @@ to follow:
        (Issue #104); shipped registry rows for slab + hollow
        cyl/sph 2G
      - Production via
-       :func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere_mg`
+       :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere_mg`
        (closed sphere reduces to
        :func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`
        transfer-matrix dominant eigenvalue)
@@ -566,7 +566,7 @@ F.4 closure (§3.8.4). [Stamm1983]_ Chapter 4 gives the same closure
 in a different notation (Stamm'ler Eq. 34 = Hébert 3.323). Variant α's
 V_α2 algebraic identity :math:`T_{00}^{\rm sphere} =
 P_{ss}^{\rm sphere}` (Eq. :math:numref:`peierls-greens-V-alpha-2` in
-:ref:`theory-peierls-greens`) explains *why* Variant α at rank-1
+:ref:`theory-trajectory-resolvent`) explains *why* Variant α at rank-1
 agrees bit-for-bit with the existing Phase 4
 ``boundary="specular_multibounce"`` at :math:`N=1` and with
 ``boundary="white_hebert"`` rank-1: all three reduce to the same
@@ -578,7 +578,7 @@ cross-group + fission source. The same form is implemented in
 both ORPHEUS families
 (:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_mg`
 for the Nyström family;
-:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere_mg`
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere_mg`
 for the Green's function family).
 
 The Garcia 2018 / 2020 / 2021 stable :math:`P_N` family
@@ -592,7 +592,7 @@ multi-region transport with reflective BC. Garcia 2021 specifically
 covers the multi-region sphere with internal sources and provides
 4-significant-figure converged scalar-flux profiles — the L1
 flux-shape reference for Variant α multi-region (Plan-(b) Option 1;
-documented at :ref:`theory-peierls-greens`). Garcia 2021 is
+documented at :ref:`theory-trajectory-resolvent`). Garcia 2021 is
 *subcritical-only*: criticality is explicitly out of scope of the
 2021 paper (§III.A); for k-eigenvalue cross-checks the chain extends
 through :func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`
@@ -679,13 +679,13 @@ Codebase pointers:
   family unified solver
   (:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`,
   :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_mg`).
-- :mod:`orpheus.derivations.continuous.peierls_greens_function.greens_function` —
+- :mod:`orpheus.derivations.continuous.trajectory_resolvent.greens_function` —
   Green's function family
-  (:func:`~orpheus.derivations.continuous.peierls_greens_function.greens_function.solve_greens_function_sphere`,
+  (:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere`,
   ``_mg``, ``_mr``, ``_mr_fixed_source``).
 - :mod:`orpheus.derivations.continuous.peierls_nystrom.ps1982_reference` —
   PS-1982 reference solver (vacuum sphere only).
-- :mod:`orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function`
+- :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function`
   — SymPy derivations V_α1, V_α2, V_α3 for the Green's function
   family.
 - :file:`docs/theory/_peierls_capability_matrix.inc.rst` —

@@ -8,7 +8,7 @@ degeneracy: spatial leakage produces a non-trivial fundamental mode
 trajectory machinery** that the closed-sphere tests do not exercise.
 
 Test strategy (L0 sanity checks; the L1 PS-1982 cross-check lives in
-``test_peierls_greens_function_xverif_ps1982.py``):
+``test_trajectory_resolvent_xverif_ps1982.py``):
 
 1. **Vacuum k_eff is strictly less than k_inf** (leakage exists).
 2. **Increasing R reduces leakage**: k_eff increases monotonically
@@ -24,8 +24,8 @@ Test strategy (L0 sanity checks; the L1 PS-1982 cross-check lives in
 
 Predecessor:
 
-- :mod:`.test_peierls_greens_function_solver` (closed-sphere V_α1.numerical)
-- :mod:`.test_peierls_greens_function_symbolic` (V_α1, V_α2, V_α3 SymPy)
+- :mod:`.test_trajectory_resolvent_solver` (closed-sphere V_α1.numerical)
+- :mod:`.test_trajectory_resolvent_symbolic` (V_α1, V_α2, V_α3 SymPy)
 
 References (see V_α3 SymPy for the algebraic foundation of α=0
 reduction; the bounce sum :math:`\alpha B/(1 - \alpha e^{-\Sigma_t L_p})`
@@ -37,7 +37,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.peierls_greens_function.greens_function import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
     solve_greens_function_sphere,
 )
 

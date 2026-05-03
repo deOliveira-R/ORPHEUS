@@ -10,8 +10,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.carlvik_galerkin.sphere import (
-    solve_carlvik_galerkin_sphere,
+from orpheus.derivations.continuous.galerkin_spectral.sphere import (
+    solve_galerkin_spectral_sphere,
 )
 
 
@@ -36,7 +36,7 @@ def test_l1_sphere_isotropic_fundamental_vs_DS_table_i(
     d: float, c_expected_DS_table_i: float
 ) -> None:
     """Sphere μ̄=0: dominant eigenvalue matches DS Table I to ≤ 1e-6 absolute."""
-    result = solve_carlvik_galerkin_sphere(
+    result = solve_galerkin_spectral_sphere(
         c=1.0, d=d, mu_bar=0.0, n_modes=9, n_quad=128
     )
     abs_err = abs(result.c_critical - c_expected_DS_table_i)
@@ -70,7 +70,7 @@ def test_l1_sphere_anisotropic_mu03_vs_DS_table_i(
     d: float, c_expected_DS_table_i: float
 ) -> None:
     """Sphere μ̄=0.30: dominant eigenvalue matches DS Table I to ≤ 1e-6 absolute."""
-    result = solve_carlvik_galerkin_sphere(
+    result = solve_galerkin_spectral_sphere(
         c=1.0, d=d, mu_bar=0.30, n_modes=9, n_quad=128
     )
     abs_err = abs(result.c_critical - c_expected_DS_table_i)
@@ -97,7 +97,7 @@ def test_l1_sphere_anisotropic_mu01_vs_DS_table_i(
     d: float, c_expected_DS_table_i: float
 ) -> None:
     """Sphere μ̄=0.10: dominant eigenvalue matches DS Table I to ≤ 1e-6 absolute."""
-    result = solve_carlvik_galerkin_sphere(
+    result = solve_galerkin_spectral_sphere(
         c=1.0, d=d, mu_bar=0.10, n_modes=9, n_quad=128
     )
     abs_err = abs(result.c_critical - c_expected_DS_table_i)
@@ -116,7 +116,7 @@ def test_l1_sphere_anisotropic_mu01_vs_DS_table_i(
 @pytest.mark.l1
 def test_l1_sphere_isotropic_first_three_modes_d2() -> None:
     """Sphere μ̄=0, d=2: first 3 eigenvalues match DS Table I to ≤ 1e-5."""
-    result = solve_carlvik_galerkin_sphere(
+    result = solve_galerkin_spectral_sphere(
         c=1.0, d=2.0, mu_bar=0.0, n_modes=9, n_quad=128
     )
     expected_first_3 = np.array([1.9883853, 3.818339, 5.763974])
@@ -136,7 +136,7 @@ def test_l1_sphere_isotropic_first_three_modes_d2() -> None:
 @pytest.mark.l1
 def test_l1_sphere_complex_eigenvalue_pair_d02_mu03() -> None:
     """Sphere d=0.2, μ̄=0.30: complex eigenvalue pairs at high modes."""
-    result = solve_carlvik_galerkin_sphere(
+    result = solve_galerkin_spectral_sphere(
         c=1.0, d=0.2, mu_bar=0.30, n_modes=9, n_quad=128
     )
     n_complex = int(np.sum(np.abs(result.eigenvalue_spectrum.imag) > 1e-6))

@@ -5,7 +5,7 @@ outer-only closure, independent :math:`\alpha_{\rm in}, \alpha_{\rm out}
 \in [0, 1]`, cylinder 3D angular phase-space).
 
 Math-origin pattern: the SymPy derivation in
-:mod:`orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function_annulus`
+:mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_annulus`
 is the source of truth for the operator-level identities of annulus
 Variant α. Mirrors the Phase-3C-1 hollow sphere symbolic test gates with
 the cylinder 3D angular-correction lift (the
@@ -43,10 +43,10 @@ References
 
 - :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 3C-2
   annulus plan.
-- :mod:`.test_peierls_greens_function_hollow_sphere_symbolic` —
+- :mod:`.test_trajectory_resolvent_hollow_sphere_symbolic` —
   Phase-3C-1 hollow sphere V_α (the rank-2 + impact-parameter template
   the annulus closure inherits at the operator-symbol level).
-- :mod:`.test_peierls_greens_function_cylinder_symbolic` — Phase-1
+- :mod:`.test_trajectory_resolvent_cylinder_symbolic` — Phase-1
   cylinder V_α (the cylinder 3D angular framework + outer-only rank-1
   template).
 """
@@ -54,7 +54,7 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.derivations.continuous.peierls_greens_function.origins.specular import (
+from orpheus.derivations.continuous.trajectory_resolvent.origins.specular import (
     derive_3d_chord_scaling_annulus,
     derive_alpha_zero_kernel_reduction_annulus,
     derive_operator_constant_trial_closed_annulus,

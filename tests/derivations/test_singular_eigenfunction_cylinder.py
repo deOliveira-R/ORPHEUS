@@ -61,7 +61,7 @@ Test breakdown
   Lagrangian-derivative diagonal handling reaches ~3e-7 in practice,
   comfortably exceeding the 1e-5 brief target. The Variant α cylinder
   cross-check (already shipped at 8.5e-6 in
-  :mod:`tests.derivations.test_peierls_greens_function_cylinder_xverif_sood2003`)
+  :mod:`tests.derivations.test_trajectory_resolvent_cylinder_xverif_sood2003`)
   is now joined by this WM-72 path as a **second, structurally-
   independent** anchor at the same precision.
 
@@ -299,7 +299,7 @@ def test_solver_matches_sood_ua_1_0_cy_to_1e5():
     relative in practice; the 1e-5 assertion has 30× slack to absorb
     platform variation. Together with the Variant α cylinder
     cross-check (already at 8.5e-6 in
-    :mod:`tests.derivations.test_peierls_greens_function_cylinder_xverif_sood2003`),
+    :mod:`tests.derivations.test_trajectory_resolvent_cylinder_xverif_sood2003`),
     Sood ``Ua-1-0-CY`` now has TWO structurally-independent anchors at
     the same precision:
 

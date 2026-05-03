@@ -73,9 +73,9 @@ References
 Adjacent tests
 --------------
 
-- :mod:`.test_peierls_greens_function_xverif_ps1982` — sphere
+- :mod:`.test_trajectory_resolvent_xverif_ps1982` — sphere
   Variant α external-reference cross-check (parallel structure).
-- :mod:`.test_peierls_greens_function_cylinder_solver` — cylinder
+- :mod:`.test_trajectory_resolvent_cylinder_solver` — cylinder
   V_α1_cyl k_inf-exactness invariants and the V_α2_cyl
   internal-primitive cross-check (T_00 ≡ P_ss).
 
@@ -87,7 +87,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.peierls_greens_function.greens_function_cylinder import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder import (
     solve_greens_function_cylinder,
 )
 

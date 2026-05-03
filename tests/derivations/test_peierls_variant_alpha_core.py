@@ -1,7 +1,7 @@
 """Foundation tests for the Phase-2 unified Variant α core primitives.
 
 This file pins ONE foundation-tagged test per primitive in
-:mod:`orpheus.derivations.continuous.peierls_greens_function.variant_alpha_core`,
+:mod:`orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core`,
 verifying the shared functions reproduce the inlined formulas that
 were previously duplicated in the sphere and cylinder solvers.
 
@@ -17,7 +17,7 @@ import math
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.peierls_greens_function.variant_alpha_core import (
+from orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core import (
     apply_variant_alpha_closure,
     compute_resolvent_T,
 )

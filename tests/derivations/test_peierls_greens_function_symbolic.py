@@ -2,7 +2,7 @@ r"""Paired symbolic-vs-textbook contract test for the Plan 2
 **Variant α** Green's function reference (sphere homogeneous specular).
 
 Math-origin pattern: the SymPy derivation in
-:mod:`orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function`
+:mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function`
 is the source of truth for the **operator-level** identities of
 Variant α. These verifications gate any Variant α prototype
 implementation (Plan 2 step B4).
@@ -53,7 +53,7 @@ from __future__ import annotations
 import pytest
 import sympy as sp
 
-from orpheus.derivations.continuous.peierls_greens_function.origins.specular import (
+from orpheus.derivations.continuous.trajectory_resolvent.origins.specular import (
     derive_T00_equals_P_ss_sphere,
     derive_alpha_zero_kernel_reduction,
     derive_operator_constant_trial_closed_sphere,

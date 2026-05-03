@@ -35,11 +35,11 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.derivations.continuous.carlvik_galerkin.slab import (
-    solve_carlvik_galerkin_slab,
+from orpheus.derivations.continuous.galerkin_spectral.slab import (
+    solve_galerkin_spectral_slab,
 )
-from orpheus.derivations.continuous.carlvik_galerkin.sphere import (
-    solve_carlvik_galerkin_sphere,
+from orpheus.derivations.continuous.galerkin_spectral.sphere import (
+    solve_galerkin_spectral_sphere,
 )
 from orpheus.derivations.continuous.sood_registry import (
     LA13511_CASES,
@@ -77,7 +77,7 @@ def _c_from_case(case) -> float:
 
 @pytest.mark.l1
 @pytest.mark.parametrize("case_id", ["PUa-1-1-SL", "PUb-1-1-SL"])
-def test_l1_carlvik_galerkin_sood_slab_p1(case_id: str) -> None:
+def test_l1_galerkin_spectral_sood_slab_p1(case_id: str) -> None:
     """Sood `*-1-1-SL` slab cases reproduce c at the published r_c."""
     case = LA13511_CASES[case_id]
     c_expected = _c_from_case(case)
@@ -85,7 +85,7 @@ def test_l1_carlvik_galerkin_sood_slab_p1(case_id: str) -> None:
     r_c_mfp = case.critical_dimension_mfp
     d_mfp = 2.0 * r_c_mfp
 
-    result = solve_carlvik_galerkin_slab(
+    result = solve_galerkin_spectral_slab(
         c=c_expected,
         d=d_mfp,
         mu_bar=mu_bar_eff,
@@ -111,7 +111,7 @@ def test_l1_carlvik_galerkin_sood_slab_p1(case_id: str) -> None:
     "case_id",
     ["UD2Oa-1-1-SP", "UD2Ob-1-1-SP", "UD2Oc-1-1-SP"],
 )
-def test_l1_carlvik_galerkin_sood_sphere_p1(case_id: str) -> None:
+def test_l1_galerkin_spectral_sood_sphere_p1(case_id: str) -> None:
     """Sood `*-1-1-SP` sphere cases reproduce c at the published r_c."""
     case = LA13511_CASES[case_id]
     c_expected = _c_from_case(case)
@@ -119,7 +119,7 @@ def test_l1_carlvik_galerkin_sood_sphere_p1(case_id: str) -> None:
     r_c_mfp = case.critical_dimension_mfp
     d_mfp = 2.0 * r_c_mfp
 
-    result = solve_carlvik_galerkin_sphere(
+    result = solve_galerkin_spectral_sphere(
         c=c_expected,
         d=d_mfp,
         mu_bar=mu_bar_eff,

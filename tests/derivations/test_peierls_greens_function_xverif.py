@@ -10,7 +10,7 @@ truncation error that converges as N grows.
 This module pins:
 
 1. **Variant α produces k_inf to machine precision** (V_α1.numerical
-   recap, also in :mod:`.test_peierls_greens_function_solver`).
+   recap, also in :mod:`.test_trajectory_resolvent_solver`).
 2. **Phase 4 specular_multibounce at rank-1 ≡ white_hebert** (already
    pinned by :func:`test_specular_multibounce_rank1_equals_hebert`,
    recapped here as part of the cross-check matrix).
@@ -28,7 +28,7 @@ R = 5):
 
 Predecessor:
 
-- :mod:`.test_peierls_greens_function_solver` (V_α1.numerical gates)
+- :mod:`.test_trajectory_resolvent_solver` (V_α1.numerical gates)
 - :mod:`.test_peierls_specular_bc` (Phase 4 closure tests)
 """
 from __future__ import annotations
@@ -42,7 +42,7 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     compute_T_specular_sphere,
     solve_peierls_1g,
 )
-from orpheus.derivations.continuous.peierls_greens_function.greens_function import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
     solve_greens_function_sphere,
 )
 

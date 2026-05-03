@@ -44,7 +44,7 @@ from orpheus.derivations.continuous.sood_registry import UA_1_0_SL_STUB
 from orpheus.derivations.continuous.fn_method.slab import (
     solve_fn_slab_bare_critical,
 )
-from orpheus.derivations.continuous.peierls_greens_function.greens_function_slab import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab import (
     solve_greens_function_slab,
 )
 

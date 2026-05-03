@@ -4,7 +4,7 @@ The Sood-family benchmark catalogue moved out of
 ``fn_method/benchmarks/`` and into the method-agnostic
 :mod:`orpheus.derivations.continuous.sood_registry` package. The new
 location keeps method-specific code (semi-analytical reference solvers
-in ``fn_method/``, Variant α in ``peierls_greens_function/``) separate
+in ``fn_method/``, Variant α in ``trajectory_resolvent/``) separate
 from method-agnostic case configurations (XS, geometry, truth).
 
 Historical importers (e.g.

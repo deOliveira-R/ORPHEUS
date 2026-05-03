@@ -3,7 +3,7 @@ Green's function reference (Phase 3A standalone, symmetric reflective
 specular BC).
 
 Math-origin pattern: the SymPy derivation in
-:mod:`orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function_slab`
+:mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_slab`
 is the source of truth for the operator-level identities of slab
 Variant α. Mirrors the sphere/cylinder symbolic test gates with slab-
 specific geometry and the **2-bounces-per-period** trajectory structure.
@@ -52,8 +52,8 @@ V_α3_slab. **Vacuum reduction at :math:`\alpha = 0`**. Surface fixed-
 
 Predecessor / sibling tests:
 
-- :mod:`.test_peierls_greens_function_symbolic` — sphere V_α1/V_α2/V_α3.
-- :mod:`.test_peierls_greens_function_cylinder_symbolic` — cylinder
+- :mod:`.test_trajectory_resolvent_symbolic` — sphere V_α1/V_α2/V_α3.
+- :mod:`.test_trajectory_resolvent_cylinder_symbolic` — cylinder
   V_α1_cyl/V_α2_cyl/V_α3_cyl.
 
 References
@@ -66,7 +66,7 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.derivations.continuous.peierls_greens_function.origins.specular import (
+from orpheus.derivations.continuous.trajectory_resolvent.origins.specular import (
     derive_T00_equals_P_ss_slab,
     derive_alpha_zero_kernel_reduction_slab,
     derive_operator_constant_trial_closed_slab,

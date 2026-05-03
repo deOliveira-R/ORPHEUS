@@ -1,7 +1,7 @@
 """Branch-1 SymPy foundation tests for the Carlvik-Galerkin method.
 
 Each test pins one ``derive_*()`` claim from
-:mod:`orpheus.derivations.continuous.carlvik_galerkin.origins.derivations`.
+:mod:`orpheus.derivations.continuous.galerkin_spectral.origins.derivations`.
 The full V_cg.N verification list:
 
 * V_cg.1 — Galerkin LHS = 2 F_m via Legendre orthogonality.
@@ -14,13 +14,13 @@ The full V_cg.N verification list:
 * V_cg.8 — μ̄ = 0 isotropic limit reduces to Carlvik 1968 isotropic eq.
 
 These are the algebra-of-record bedrock for the Branch-2 production
-solvers in :mod:`...carlvik_galerkin.slab` and :mod:`...carlvik_galerkin.sphere`.
+solvers in :mod:`...galerkin_spectral.slab` and :mod:`...galerkin_spectral.sphere`.
 """
 from __future__ import annotations
 
 import pytest
 
-from orpheus.derivations.continuous.carlvik_galerkin.origins.derivations import (
+from orpheus.derivations.continuous.galerkin_spectral.origins.derivations import (
     derive_B_mn_boundary_chord_form,
     derive_carlvik_eq4b_corrected_form,
     derive_eq3_matrix_eigenvalue,

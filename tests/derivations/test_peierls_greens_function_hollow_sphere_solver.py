@@ -4,7 +4,7 @@ INDEPENDENT specular reflectivities :math:`\alpha_{\rm in} \in [0, 1]`
 and :math:`\alpha_{\rm out} \in [0, 1]`, rank-2 boundary-to-boundary
 scattering resolvent on through-rays + rank-1 outer-only closure).
 
-Mirrors :mod:`.test_peierls_greens_function_slab_asymmetric_solver`
+Mirrors :mod:`.test_trajectory_resolvent_slab_asymmetric_solver`
 (Phase-3B asymmetric slab) with the curvilinear 2-surface generalisation
 (impact-parameter phase-space partition).
 
@@ -59,7 +59,7 @@ References
 
 - :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 3C-1
   hollow sphere plan.
-- :mod:`.test_peierls_greens_function_hollow_sphere_symbolic` —
+- :mod:`.test_trajectory_resolvent_hollow_sphere_symbolic` —
   V_α1_hollow_sph/V_α2_hollow_sph/V_α3_hollow_sph SymPy gates.
 """
 from __future__ import annotations
@@ -68,10 +68,10 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
-from orpheus.derivations.continuous.peierls_greens_function.greens_function import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
     solve_greens_function_sphere,
 )
-from orpheus.derivations.continuous.peierls_greens_function.greens_function_hollow_sphere import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function_hollow_sphere import (
     solve_greens_function_hollow_sphere,
     solve_greens_function_hollow_sphere_mg,
 )

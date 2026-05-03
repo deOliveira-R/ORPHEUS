@@ -4,7 +4,7 @@ INDEPENDENT specular reflectivities :math:`\alpha_L \in [0, 1]` and
 :math:`\alpha_R \in [0, 1]`, rank-2 boundary-to-boundary scattering
 resolvent).
 
-Mirrors :mod:`.test_peierls_greens_function_slab_solver` (Phase-3A
+Mirrors :mod:`.test_trajectory_resolvent_slab_solver` (Phase-3A
 symmetric) with the rank-2 generalisation. The load-bearing claim:
 
 **Method of images** — slab :math:`[0, 1]` with :math:`\alpha_L = 1,
@@ -60,7 +60,7 @@ References
 - Sanchez, R. (1986). *Transp. Theor. Stat. Phys.* 14.
 - :file:`/.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 3B
   asymmetric slab plan.
-- :mod:`.test_peierls_greens_function_slab_asymmetric_symbolic` —
+- :mod:`.test_trajectory_resolvent_slab_asymmetric_symbolic` —
   V_α1_slab_asym/V_α2_slab_asym/V_α3_slab_asym SymPy gates.
 """
 from __future__ import annotations
@@ -69,10 +69,10 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
-from orpheus.derivations.continuous.peierls_greens_function.greens_function_slab import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab import (
     solve_greens_function_slab,
 )
-from orpheus.derivations.continuous.peierls_greens_function.greens_function_slab_asymmetric import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab_asymmetric import (
     solve_greens_function_slab_asymmetric,
     solve_greens_function_slab_asymmetric_mg,
 )

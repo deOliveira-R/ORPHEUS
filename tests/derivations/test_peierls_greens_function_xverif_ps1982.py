@@ -29,8 +29,8 @@ identified by the audit at end of Plan 2 Part B):
 
 Predecessors:
 
-- :mod:`.test_peierls_greens_function_vacuum` (A1 vacuum BC L0 sanity)
-- :mod:`.test_peierls_greens_function_solver` (V_α1.numerical closed-sphere)
+- :mod:`.test_trajectory_resolvent_vacuum` (A1 vacuum BC L0 sanity)
+- :mod:`.test_trajectory_resolvent_solver` (V_α1.numerical closed-sphere)
 
 Memo: `.claude/agent-memory/literature-researcher/ps1982_and_garcia_extraction.md`
 """
@@ -39,7 +39,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.peierls_greens_function.greens_function import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
     solve_greens_function_sphere,
 )
 from orpheus.derivations.continuous.peierls_nystrom.ps1982_reference import (

@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1895**
+Total tests collected: **1988**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 585, 30.9%
-   L1, 574, 30.3%
-   L2, 36, 1.9%
+   L0, 585, 29.4%
+   L1, 636, 32.0%
+   L2, 36, 1.8%
    L3, 0, 0.0%
-   foundation, 689, 36.4%
-   unmarked, 11, 0.6%
+   foundation, 714, 35.9%
+   unmarked, 17, 0.9%
 
 Tagging source
 --------------
@@ -32,12 +32,12 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1805
+   explicit, 1892
    verify, 0
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 11
+   unmarked, 17
 
 Module × level grid
 -------------------
@@ -59,22 +59,32 @@ Module × level grid
    cp/test_verification, 1, 25, 5, 0, 0, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
+   derivations/test_atkinson_product_nystrom, 0, 5, 0, 0, 3, 3
    derivations/test_carlvik_galerkin_slab, 0, 18, 0, 0, 0, 0
    derivations/test_carlvik_galerkin_sood_registry, 0, 5, 0, 0, 2, 0
    derivations/test_carlvik_galerkin_sphere, 0, 18, 0, 0, 0, 0
    derivations/test_carlvik_galerkin_symbolic, 0, 0, 0, 0, 8, 0
    derivations/test_carlvik_galerkin_xverif_fn, 0, 10, 0, 0, 0, 0
+   derivations/test_case_method_slab, 0, 12, 0, 0, 1, 0
+   derivations/test_case_method_slab_sphere_parity_flip, 0, 4, 0, 0, 0, 0
+   derivations/test_case_method_sphere, 0, 4, 0, 0, 1, 0
+   derivations/test_case_method_symbolic, 0, 0, 0, 0, 9, 0
+   derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
    derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 17, 0
    derivations/test_fn_la13511_slab, 0, 0, 0, 0, 21, 0
    derivations/test_fn_la13511_slab_flux, 0, 10, 0, 0, 0, 0
    derivations/test_fn_la13511_slab_flux_symbolic, 0, 0, 0, 0, 6, 0
+   derivations/test_fn_la13511_slab_reflected, 0, 18, 0, 0, 4, 1
    derivations/test_fn_la13511_slab_xverif, 0, 2, 0, 0, 0, 0
    derivations/test_fn_la13511_sphere, 0, 0, 0, 0, 11, 0
    derivations/test_fn_la13511_sphere_flux, 0, 10, 0, 0, 0, 0
    derivations/test_fn_la13511_sphere_xverif, 0, 3, 0, 0, 0, 0
+   derivations/test_fn_projection_vs_kll_flux, 0, 4, 0, 0, 4, 2
+   derivations/test_fn_sood_table10_symmetric_pu_h2o, 0, 1, 0, 0, 2, 0
    derivations/test_kernels, 55, 0, 0, 0, 0, 0
    derivations/test_mu_weighted_basis, 0, 0, 0, 0, 1, 0
+   derivations/test_path_ai_legacy_plain_gl_signature, 0, 3, 0, 0, 1, 0
    derivations/test_peierls_assembly_drivers, 0, 0, 0, 0, 9, 0
    derivations/test_peierls_closure_operator, 0, 0, 0, 0, 48, 0
    derivations/test_peierls_convergence, 5, 0, 0, 0, 0, 0
@@ -267,6 +277,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``two-group-Ainv``, 11
    ``two-group-F``, 11
    ``two-group-M``, 11
+   ``atalay-eq42-extrapolated-endpoint``, 10
    ``kll-1974-slab-flux``, 10
    ``kll-1974-sphere-flux``, 10
    ``peierls-greens-cylinder-architecture``, 10
@@ -304,6 +315,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-greens-cylinder-T``, 5
    ``xs-interp``, 5
    ``absorption-xs``, 4
+   ``atalay-eq46-slab-eq54-sphere-parity``, 4
    ``dd-cartesian-2d``, 4
    ``en-kernel-integral``, 4
    ``fission-source``, 4
@@ -316,6 +328,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``transport-cartesian-2d``, 4
    ``two-group-charpoly``, 4
    ``two-group-roots``, 4
+   ``atalay-table2-slab-reflected-isotropic``, 3
+   ``atalay-table2-slab-vacuum-isotropic``, 3
+   ``atalay-table3-slab-vacuum-anisotropic``, 3
    ``cp-escape-from-p-cell``, 3
    ``delta-psi``, 3
    ``hetero-tolerance``, 3
@@ -326,6 +341,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``moc-wigner-seitz``, 3
    ``number-density``, 3
    ``sigma-zero``, 3
+   ``atalay-eq54-sphere-vacuum-isotropic``, 2
    ``cp-second-difference-operator``, 2
    ``peierls-greens-slab-asym-method-of-images``, 2
    ``peierls-slab-Gbc-mode``, 2
@@ -344,6 +360,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``branching``, 1
    ``collision-estimator``, 1
    ``majorant``, 1
+   ``nm-1980-reflected-slab-fn``, 1
    ``normalisation``, 1
    ``peierls-greens-annulus-3d-chord-scaling``, 1
    ``peierls-greens-annulus-impact-parameter-partition``, 1
@@ -373,9 +390,14 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **73** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **78** of the testable equations found on theory pages are orphan.
 
 - ``c-in-remapping``
+- ``case-method-eq40``
+- ``case-method-eq42``
+- ``case-method-eq46``
+- ``case-method-eq5``
+- ``case-method-eq54``
 - ``e1-decomposition``
 - ``mode-conservation-target``
 - ``peierls-3d``
@@ -554,11 +576,13 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-033``, 4
    ``ERR-034``, 1
    ``ERR-035``, 1
+   ``ERR-036``, 8
+   ``ERR-037``, 11
 
 Unmarked tests
 --------------
 
-**11 tests** have no V&V level marker.
+**17 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -571,4 +595,7 @@ equations. See ``docs/testing/architecture.rst``
    :widths: 60, 10
 
    ``tests/sn/test_boundary_conditions.py``, 11
+   ``tests/derivations/test_atkinson_product_nystrom.py``, 3
+   ``tests/derivations/test_fn_projection_vs_kll_flux.py``, 2
+   ``tests/derivations/test_fn_la13511_slab_reflected.py``, 1
 

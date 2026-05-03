@@ -19,7 +19,7 @@ transport equation, geometry reductions, BC parametrisation,
 common verification chain), see :ref:`theory-peierls`. That page is
 the index for the two ORPHEUS Peierls implementation families and
 contains the comparison table that decides when to use this Nyström
-path vs the Green's function path at :ref:`theory-peierls-greens`.
+path vs the Green's function path at :ref:`theory-trajectory-resolvent`.
 
 For "what references do we ship for problem X?" see
 :ref:`theory-peierls-capabilities` (the capability matrix is the
@@ -5245,7 +5245,7 @@ shipped a parallel research-grade reference that uses the
 Sanchez Eq. (A1) split with BC absorbed via Eq. (A5), bounce sum
 closed in :math:`T(\mu_{\rm surf}) = 1/(1 - e^{-\Sigt{}\,L_p})` —
 giving exact :math:`k_{\rm eff} = \kinf` for the closed homogeneous
-sphere. See :doc:`peierls_greens` for the architecture, V_α1 / V_α2
+sphere. See :doc:`trajectory_resolvent` for the architecture, V_α1 / V_α2
 / V_α3 algebraic identities, and the cross-verification matrix
 showing Phase 4 N=3 differs from Variant α by 0.12 % on a fuel-A-like
 sphere. **Variant α is a parallel reference, not a production

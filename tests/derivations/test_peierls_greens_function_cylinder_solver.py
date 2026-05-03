@@ -1,8 +1,8 @@
 r"""Phase-1 numerical-implementation gates for the cylinder Variant α
 Green's function reference (1G + MG, homogeneous infinite cylinder).
 
-Mirrors :mod:`.test_peierls_greens_function_solver` (sphere) and
-:mod:`.test_peierls_greens_function_xverif` (sphere cross-verification)
+Mirrors :mod:`.test_trajectory_resolvent_solver` (sphere) and
+:mod:`.test_trajectory_resolvent_xverif` (sphere cross-verification)
 with cylinder geometry. The load-bearing claim:
 
 **Variant α gives the exact :math:`k_{\rm eff} = k_\infty` for the closed
@@ -60,9 +60,9 @@ other ORPHEUS solver.
 Predecessor / sibling tests
 ---------------------------
 
-- :mod:`.test_peierls_greens_function_cylinder_symbolic` — V_α1_cyl,
+- :mod:`.test_trajectory_resolvent_cylinder_symbolic` — V_α1_cyl,
   V_α2_cyl, V_α3_cyl SymPy gates.
-- :mod:`.test_peierls_greens_function_solver` — sphere V_α1.numerical
+- :mod:`.test_trajectory_resolvent_solver` — sphere V_α1.numerical
   (the structural template this test file mirrors).
 
 References
@@ -82,7 +82,7 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     compute_P_ss_cylinder,
     compute_T_specular_cylinder_3d,
 )
-from orpheus.derivations.continuous.peierls_greens_function.greens_function_cylinder import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder import (
     solve_greens_function_cylinder,
     solve_greens_function_cylinder_mg,
 )
@@ -129,7 +129,7 @@ def test_v_alpha1_cyl_numerical_constant_initial_guess(
     machine precision.
 
     Cylinder analog of
-    :func:`tests.derivations.test_peierls_greens_function_solver.test_v_alpha1_numerical_constant_initial_guess`.
+    :func:`tests.derivations.test_trajectory_resolvent_solver.test_v_alpha1_numerical_constant_initial_guess`.
     """
     fix = fuelA_thin_cylinder
     k_inf = fix["nu_sigma_f"] / (fix["sigma_t"] - fix["sigma_s"])

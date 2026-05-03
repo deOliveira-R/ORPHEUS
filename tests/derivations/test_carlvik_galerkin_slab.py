@@ -28,8 +28,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.carlvik_galerkin.slab import (
-    solve_carlvik_galerkin_slab,
+from orpheus.derivations.continuous.galerkin_spectral.slab import (
+    solve_galerkin_spectral_slab,
 )
 
 
@@ -54,7 +54,7 @@ def test_l1_slab_isotropic_fundamental_vs_DS_table_ii(
     d: float, c_expected_DS_table_ii: float
 ) -> None:
     """Slab μ̄=0: dominant eigenvalue matches DS Table II to ≤ 1e-6 absolute."""
-    result = solve_carlvik_galerkin_slab(
+    result = solve_galerkin_spectral_slab(
         c=1.0, d=d, mu_bar=0.0, n_modes=9, n_quad=128
     )
     abs_err = abs(result.c_critical - c_expected_DS_table_ii)
@@ -85,7 +85,7 @@ def test_l1_slab_anisotropic_mu03_vs_DS_table_ii(
     d: float, c_expected_DS_table_ii: float
 ) -> None:
     """Slab μ̄=0.30: dominant eigenvalue matches DS Table II to ≤ 1e-6 absolute."""
-    result = solve_carlvik_galerkin_slab(
+    result = solve_galerkin_spectral_slab(
         c=1.0, d=d, mu_bar=0.30, n_modes=9, n_quad=128
     )
     abs_err = abs(result.c_critical - c_expected_DS_table_ii)
@@ -116,7 +116,7 @@ def test_l1_slab_anisotropic_mu01_vs_DS_table_ii(
     d: float, c_expected_DS_table_ii: float
 ) -> None:
     """Slab μ̄=0.10: dominant eigenvalue matches DS Table II to ≤ 1e-6 absolute."""
-    result = solve_carlvik_galerkin_slab(
+    result = solve_galerkin_spectral_slab(
         c=1.0, d=d, mu_bar=0.10, n_modes=9, n_quad=128
     )
     abs_err = abs(result.c_critical - c_expected_DS_table_ii)
@@ -135,7 +135,7 @@ def test_l1_slab_anisotropic_mu01_vs_DS_table_ii(
 @pytest.mark.l1
 def test_l1_slab_isotropic_first_three_modes_d2() -> None:
     """Slab μ̄=0, d=2: first 3 eigenvalues match DS Table II to ≤ 1e-5."""
-    result = solve_carlvik_galerkin_slab(
+    result = solve_galerkin_spectral_slab(
         c=1.0, d=2.0, mu_bar=0.0, n_modes=9, n_quad=128
     )
     # DS Table II d=2.0 μ̄=0.0:
@@ -164,7 +164,7 @@ def test_l1_slab_complex_eigenvalue_pair_d02_mu03() -> None:
     sensitive to n_quad and n_modes, but the QUALITATIVE appearance
     is robust.
     """
-    result = solve_carlvik_galerkin_slab(
+    result = solve_galerkin_spectral_slab(
         c=1.0, d=0.2, mu_bar=0.30, n_modes=9, n_quad=128
     )
     # Count eigenvalues with non-trivial imaginary part:

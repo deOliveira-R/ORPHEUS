@@ -10,11 +10,10 @@ ORPHEUS — Open Reactor Physics Educational University System
    theory/transport_methods
    theory/peierls
    theory/peierls_nystrom
-   theory/peierls_greens
+   theory/trajectory_resolvent
    theory/fn_method
    theory/singular_eigenfunction
-   theory/carlvik_galerkin
-   theory/case_method
+   theory/galerkin_spectral
    theory/sood_registry
    theory/diffusion_1d
    theory/fuel_behaviour

@@ -29,9 +29,9 @@ scattering matrix and tests:
 
 Predecessors:
 
-- :mod:`.test_peierls_greens_function_solver` (V_α1.numerical 1G)
-- :mod:`.test_peierls_greens_function_vacuum` (vacuum BC 1G)
-- :mod:`.test_peierls_greens_function_xverif_ps1982` (PS-1982 1G)
+- :mod:`.test_trajectory_resolvent_solver` (V_α1.numerical 1G)
+- :mod:`.test_trajectory_resolvent_vacuum` (vacuum BC 1G)
+- :mod:`.test_trajectory_resolvent_xverif_ps1982` (PS-1982 1G)
 
 Reference for closed sphere k_inf:
 :func:`orpheus.derivations.common.eigenvalue.kinf_homogeneous` and
@@ -47,7 +47,7 @@ from orpheus.derivations.common.eigenvalue import (
     kinf_and_spectrum_homogeneous,
 )
 from orpheus.derivations.common.xs_library import get_xs
-from orpheus.derivations.continuous.peierls_greens_function.greens_function import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
     solve_greens_function_sphere,
     solve_greens_function_sphere_mg,
 )

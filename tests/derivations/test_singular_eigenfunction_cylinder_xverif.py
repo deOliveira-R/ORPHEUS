@@ -10,7 +10,7 @@ two cylinder critical-radius solvers in ORPHEUS:
   equation (modified Bessel kernel
   :math:`K_0(\max/\mu)\,I_0(\min/\mu)/\mu^2`).
 
-* :func:`orpheus.derivations.continuous.peierls_greens_function.greens_function_cylinder.solve_greens_function_cylinder`
+* :func:`orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder`
   — angle-resolved Variant α Green's function integrated along
   bouncing characteristics (no Bickley-Naylor / :math:`\mathrm{Ki}_n`
   integrals; structurally distinct from the modified-Bessel kernel of
@@ -46,7 +46,7 @@ the published WM-72 Table II values. The cross-check now uses a
 V&V triangle for Sood ``Ua-1-0-CY``:
 
 * Variant α via bouncing characteristics: 8.5e-6 (already shipped at
-  :mod:`tests.derivations.test_peierls_greens_function_cylinder_xverif_sood2003`).
+  :mod:`tests.derivations.test_trajectory_resolvent_cylinder_xverif_sood2003`).
 * WM-72 via singular-eigenfunction Fredholm: ≤ 3e-7 (this module).
 * Cross-check WM-72 ↔ Variant α: ≤ 1e-5 (this test).
 
@@ -60,7 +60,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.peierls_greens_function.greens_function_cylinder import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder import (
     solve_greens_function_cylinder,
 )
 from orpheus.derivations.continuous.singular_eigenfunction import (
@@ -121,7 +121,7 @@ def test_wm72_vs_variant_alpha_at_sood_ua_1_0_cy():
 
     # Run Variant α with the WM-72-derived radius. Since WM-72's R agrees
     # with Sood truth to ≤ 1e-5, and Sood truth is also Variant α's
-    # convergence anchor (per test_peierls_greens_function_cylinder_xverif_sood2003
+    # convergence anchor (per test_trajectory_resolvent_cylinder_xverif_sood2003
     # at 8.5e-6), Variant α at WM-72's R should give k ≈ 1 to within
     # the combined uncertainty floor.
     res_va = solve_greens_function_cylinder(

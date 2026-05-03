@@ -11,11 +11,13 @@ References
 Tolerance discussion
 --------------------
 
-The sphere solver inherits the slab implementation accuracy. For
-vacuum (R = 0) the sphere reproduces Sood Ua-1-0-SP to ~0.5% relative
-(R_c = 2.4364 vs Sood R_c_ref = 2.4248). For reflected sphere with
-isotropic scattering, accuracy degrades to ~5% relative, similar to
-slab.
+After ERR-037 was fixed (z_0 quadrature endpoint regularised via
+:math:`\mu = \tanh(t)` substitution; 2026-05-03), the sphere solver
+inherits the slab z_0 fix and reproduces Sood Ua-1-0-SP at 1e-4
+relative (was 0.5% pre-fix). For reflected sphere with isotropic
+scattering, accuracy is similar to the slab and still bounded by
+the K_j moment quadrature gap, but the sphere benefits from the
+single-valued atan2 in Eq 54 (no ±π/2 ambiguity).
 
 Atalay Table 10 (f_1=0.10) is the **only** sphere anisotropic table;
 this test set exercises that limited range.
@@ -24,8 +26,8 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.derivations.continuous.case_method.core.half_range import clear_X_cache
-from orpheus.derivations.continuous.case_method.sphere import (
+from orpheus.derivations.continuous.singular_eigenfunction.core.half_range import clear_X_cache
+from orpheus.derivations.continuous.singular_eigenfunction.sphere import (
     solve_case_method_sphere_critical,
 )
 
@@ -38,14 +40,19 @@ from orpheus.derivations.continuous.case_method.sphere import (
 @pytest.mark.l1
 @pytest.mark.verifies("atalay-eq54-sphere-vacuum-isotropic")
 def test_sphere_vacuum_isotropic_sood_ua_1_0_sp():
-    """Sood ``Ua-1-0-SP`` cross-check at c=1.30, vacuum sphere."""
+    """Sood ``Ua-1-0-SP`` cross-check at c=1.30, vacuum sphere.
+
+    Tightened from 1e-2 → 1e-4 after ERR-037 fix (z_0 quadrature
+    endpoint regularised). Achieved post-fix: 0.001% (sphere goes
+    from 0.48% rel error to 0.001% rel error — 480× improvement).
+    """
     clear_X_cache()
     res = solve_case_method_sphere_critical(
         c=1.30, R_refl=0.0, f1=0.0, mode=1, n_bracket=80,
     )
     sood_ref = 2.4248249802  # Kaper-Lindeman-Leaf 1974 / Sood LA-13511
     err = abs(res.R_critical_mfp - sood_ref) / sood_ref
-    assert err < 1e-2, (
+    assert err < 1e-4, (
         f"Sphere R_c at c=1.30, R_refl=0, f_1=0: got {res.R_critical_mfp:.6f}, "
         f"Sood ref {sood_ref}, error {err*100:.3f}%"
     )

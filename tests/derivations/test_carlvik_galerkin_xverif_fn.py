@@ -3,7 +3,7 @@
 Two structurally-independent Pillar-2 methods solving the same physical
 problem: bare-critical multiplying slab/sphere with isotropic scattering.
 
-* :mod:`...carlvik_galerkin` — Galerkin spectral expansion of Carlvik's
+* :mod:`...galerkin_spectral` — Galerkin spectral expansion of Carlvik's
   integral equation (Dahl-Sjostrand 1979).
 * :mod:`...fn_method` — F_N boundary collocation in Case singular
   eigenfunctions (Siewert-Benoist 1979 / Grandjean-Siewert 1979 /
@@ -43,11 +43,11 @@ import warnings
 
 import pytest
 
-from orpheus.derivations.continuous.carlvik_galerkin.slab import (
-    solve_carlvik_galerkin_slab,
+from orpheus.derivations.continuous.galerkin_spectral.slab import (
+    solve_galerkin_spectral_slab,
 )
-from orpheus.derivations.continuous.carlvik_galerkin.sphere import (
-    solve_carlvik_galerkin_sphere,
+from orpheus.derivations.continuous.galerkin_spectral.sphere import (
+    solve_galerkin_spectral_sphere,
 )
 from orpheus.derivations.continuous.fn_method.slab.one_group import (
     solve_fn_slab_bare_critical,
@@ -64,7 +64,7 @@ from orpheus.derivations.continuous.fn_method.sphere.one_group import (
 
 @pytest.mark.l1
 @pytest.mark.parametrize("c_target", [1.05, 1.20, 1.30, 1.40, 1.50])
-def test_l1_slab_xverif_fn_vs_carlvik_galerkin(c_target: float) -> None:
+def test_l1_slab_xverif_fn_vs_galerkin_spectral(c_target: float) -> None:
     """Slab μ̄=0: F_N's a_c(c) ↔ Carlvik-Galerkin's c_crit(d=2a_c) agreement.
 
     Both methods solve the same physics. At isotropic limit, the
@@ -79,7 +79,7 @@ def test_l1_slab_xverif_fn_vs_carlvik_galerkin(c_target: float) -> None:
     a_c = fn_result.a_critical_mfp
     d_c = 2 * a_c
 
-    cg_result = solve_carlvik_galerkin_slab(
+    cg_result = solve_galerkin_spectral_slab(
         c=c_target, d=d_c, mu_bar=0.0, n_modes=9, n_quad=128
     )
 
@@ -97,7 +97,7 @@ def test_l1_slab_xverif_fn_vs_carlvik_galerkin(c_target: float) -> None:
 
 @pytest.mark.l1
 @pytest.mark.parametrize("c_target", [1.05, 1.20, 1.30, 1.40, 1.50])
-def test_l1_sphere_xverif_fn_vs_carlvik_galerkin(c_target: float) -> None:
+def test_l1_sphere_xverif_fn_vs_galerkin_spectral(c_target: float) -> None:
     """Sphere μ̄=0: F_N's R_c(c) ↔ Carlvik-Galerkin's c_crit(d=2R_c) agreement."""
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -105,7 +105,7 @@ def test_l1_sphere_xverif_fn_vs_carlvik_galerkin(c_target: float) -> None:
     R_c = fn_result.R_critical_mfp
     d_c = 2 * R_c
 
-    cg_result = solve_carlvik_galerkin_sphere(
+    cg_result = solve_galerkin_spectral_sphere(
         c=c_target, d=d_c, mu_bar=0.0, n_modes=9, n_quad=128
     )
 

@@ -4,7 +4,7 @@ V_α1 algebraically proves that for homogeneous sphere with perfect
 specular BC and isotropic scattering, the rank-1 isotropic mode is the
 unique eigenmode with :math:`k_{\rm eff} = k_\infty = \nu\Sigma_f /
 \Sigma_a`. These tests verify the **numerical implementation** in
-:mod:`orpheus.derivations.continuous.peierls_greens_function.greens_function` matches
+:mod:`orpheus.derivations.continuous.trajectory_resolvent.greens_function` matches
 that algebraic identity within quadrature error.
 
 Test strategy:
@@ -21,7 +21,7 @@ Test strategy:
    correctly across the τ_R range.
 
 Predecessor:
-:mod:`tests.derivations.test_peierls_greens_function_symbolic`
+:mod:`tests.derivations.test_trajectory_resolvent_symbolic`
 (V_α1, V_α2, V_α3 SymPy gates).
 """
 from __future__ import annotations
@@ -29,7 +29,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.peierls_greens_function.greens_function import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
     solve_greens_function_sphere,
 )
 

@@ -5,7 +5,7 @@ closure, independent :math:`\alpha_{\rm in}, \alpha_{\rm out} \in
 [0, 1]`).
 
 Math-origin pattern: the SymPy derivation in
-:mod:`orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function_hollow_sphere`
+:mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_hollow_sphere`
 is the source of truth for the operator-level identities of hollow-
 sphere Variant α. Mirrors the Phase-3B asymmetric-slab symbolic test
 gates with the curvilinear 2-surface generalisation (impact-parameter
@@ -43,12 +43,12 @@ V_α3_hollow_sph. **Vacuum reduction at**
 Predecessor / sibling tests
 ---------------------------
 
-- :mod:`.test_peierls_greens_function_slab_asymmetric_symbolic` —
+- :mod:`.test_trajectory_resolvent_slab_asymmetric_symbolic` —
   Phase-3B asymmetric slab V_α (the rank-2 template the hollow-sphere
   rank-2 closure is lifted from).
-- :mod:`.test_peierls_greens_function_symbolic` — sphere V_α1/V_α2/V_α3
+- :mod:`.test_trajectory_resolvent_symbolic` — sphere V_α1/V_α2/V_α3
   (the rank-1 template the outer-only branch reuses).
-- :mod:`.test_peierls_greens_function_cylinder_symbolic` — cylinder
+- :mod:`.test_trajectory_resolvent_cylinder_symbolic` — cylinder
   V_α1/V_α2/V_α3.
 
 References
@@ -63,7 +63,7 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.derivations.continuous.peierls_greens_function.origins.specular import (
+from orpheus.derivations.continuous.trajectory_resolvent.origins.specular import (
     derive_alpha_zero_kernel_reduction_hollow_sphere,
     derive_operator_constant_trial_closed_hollow_sphere,
     derive_rank2_resolvent_hollow_sphere,

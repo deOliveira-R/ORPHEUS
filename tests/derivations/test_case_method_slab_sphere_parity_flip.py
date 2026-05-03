@@ -18,11 +18,11 @@ import math
 
 import pytest
 
-from orpheus.derivations.continuous.case_method.core.dispersion import (
+from orpheus.derivations.continuous.singular_eigenfunction.core.dispersion import (
     case_atalay_u0,
     nu_bar_atalay,
 )
-from orpheus.derivations.continuous.case_method.core.half_range import (
+from orpheus.derivations.continuous.singular_eigenfunction.core.half_range import (
     T1_function,
     T_function,
     atalay_K_moments,

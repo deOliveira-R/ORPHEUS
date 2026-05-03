@@ -2,7 +2,7 @@ r"""Paired symbolic-vs-textbook contract test for the **cylinder**
 Variant α Green's function reference (Phase 1 standalone).
 
 Math-origin pattern: the SymPy derivation in
-:mod:`orpheus.derivations.continuous.peierls_greens_function.origins.specular.greens_function_cylinder`
+:mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder`
 is the source of truth for the operator-level identities of cylinder
 Variant α. Mirrors the sphere symbolic test gates with cylinder-specific
 geometry and the SAME bounce-sum closure algebra.
@@ -44,7 +44,7 @@ V_α3_cyl. **Vacuum reduction at :math:`\alpha = 0`**. Surface fixed-point
 
 Predecessor / sibling tests:
 
-- :mod:`.test_peierls_greens_function_symbolic` — sphere V_α1/V_α2/V_α3.
+- :mod:`.test_trajectory_resolvent_symbolic` — sphere V_α1/V_α2/V_α3.
 
 References
 ----------
@@ -57,7 +57,7 @@ from __future__ import annotations
 import pytest
 import sympy as sp
 
-from orpheus.derivations.continuous.peierls_greens_function.origins.specular import (
+from orpheus.derivations.continuous.trajectory_resolvent.origins.specular import (
     derive_T00_equals_P_ss_cylinder,
     derive_alpha_zero_kernel_reduction_cylinder,
     derive_bounce_period_chord_cylinder,

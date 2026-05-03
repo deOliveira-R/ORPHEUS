@@ -5,7 +5,7 @@ homogeneous shell, INDEPENDENT specular reflectivities :math:`\alpha_{
 scattering resolvent on through-rays + rank-1 outer-only closure with
 cylinder 3D angular phase-space).
 
-Mirrors :mod:`.test_peierls_greens_function_hollow_sphere_solver`
+Mirrors :mod:`.test_trajectory_resolvent_hollow_sphere_solver`
 (Phase-3C-1 hollow sphere) with the cylinder 3D angular-correction
 lift. Per Issue #129, this prototype stays **angle-resolved** —
 DO NOT cross-check via the planar slab limit (the cylinder Bickley-
@@ -56,11 +56,11 @@ References
 
 - :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 3C-2
   annulus plan.
-- :mod:`.test_peierls_greens_function_annulus_symbolic` — V_α1_annulus
+- :mod:`.test_trajectory_resolvent_annulus_symbolic` — V_α1_annulus
   / V_α2_annulus / V_α2_annulus.aux / V_α3_annulus SymPy gates.
-- :mod:`.test_peierls_greens_function_hollow_sphere_solver` — Phase-3C-1
+- :mod:`.test_trajectory_resolvent_hollow_sphere_solver` — Phase-3C-1
   hollow sphere numerical gates (the analog template).
-- :mod:`.test_peierls_greens_function_cylinder_solver` — Phase-1 solid
+- :mod:`.test_trajectory_resolvent_cylinder_solver` — Phase-1 solid
   cylinder numerical gates (the R_in → 0 reduction reference).
 """
 from __future__ import annotations
@@ -69,11 +69,11 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
-from orpheus.derivations.continuous.peierls_greens_function.greens_function_annulus import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function_annulus import (
     solve_greens_function_annulus,
     solve_greens_function_annulus_mg,
 )
-from orpheus.derivations.continuous.peierls_greens_function.greens_function_cylinder import (
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder import (
     solve_greens_function_cylinder,
 )
 

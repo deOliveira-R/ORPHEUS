@@ -1,7 +1,7 @@
 r"""Foundation tests for the Atalay 1997 Case singular-eigenfunction method.
 
 One ``@pytest.mark.foundation`` test per ``derive_*()`` function in
-:mod:`orpheus.derivations.continuous.case_method.origins.derivations`.
+:mod:`orpheus.derivations.continuous.singular_eigenfunction.origins.slab_sphere_derivations`.
 These pin the **algebra-of-record**: the published Atalay equations
 follow from the reduction chain documented in the paper.
 
@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.derivations.continuous.case_method.origins.derivations import (
+from orpheus.derivations.continuous.singular_eigenfunction.origins.slab_sphere_derivations import (
     derive_atalay_critical_slab_eq46,
     derive_atalay_critical_sphere_eq54_via_parity_flip,
     derive_atalay_dispersion_linear_anisotropic,

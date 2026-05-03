@@ -10,7 +10,7 @@ grid; they are the reference of choice for heterogeneous CP
 verification.
 
 The companion sub-package
-:mod:`orpheus.derivations.continuous.peierls_greens_function` hosts
+:mod:`orpheus.derivations.continuous.trajectory_resolvent` hosts
 the angle-resolved Variant α Green's-function references that share
 the Peierls integral ancestry but discretize the angle-resolved
 Green's function rather than the scalar-flux integral equation.
