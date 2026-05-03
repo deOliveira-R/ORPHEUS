@@ -528,3 +528,62 @@ def test_alpha_zero_convergence_floor():
         f"Convergence-floor: finest k_eff = {k_values[-1]} outside "
         f"expected physics band [0.117, 0.125]"
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Task-4 (V&V hardening) — cylinder grazing-ray stability
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Cylinder has TWO grazing-ray loci:
+#   - μ_axial → ±1 (axial-only ray, radial chord → 0).
+#   - |sin φ_az| → 0 (radial-aligned ray with finite chord).
+#
+# Both loci are grid-dependent: μ_axial via n_mu_axial, sin φ_az via
+# n_phi_az. We refine n_phi_az (the φ_az grid is open at 0 and 2π
+# already) and verify stability.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.verifies("peierls-greens-cylinder-architecture")
+def test_grazing_ray_stability_cylinder():
+    r"""L1 (slow) — cylinder grazing-ray stability under :math:`n_\phi`
+    refinement.
+
+    Refines :math:`n_\phi \in \{16, 24, 32\}` at fixed :math:`(n_r,
+    n_{\mu\,{\rm axial}}, n_{\rm traj})` and α = 0.5. Verifies
+    stability (no NaN, no oscillation, no blow-up).
+
+    Configuration: fuel-A τ_R = 2.5 (R=5, σ_t=0.5), α=0.5.
+    """
+    fix = {
+        "R": 5.0, "sigma_t": 0.5, "sigma_s": 0.38, "nu_sigma_f": 0.025,
+    }
+
+    n_phi_ladder = [16, 24, 32]
+    k_vals = []
+    for n_phi in n_phi_ladder:
+        res = solve_greens_function_cylinder(
+            **fix, alpha=0.5,
+            n_r=14, n_mu_axial=14, n_phi_az=n_phi, n_traj_quad=32,
+            max_iter=300, tol=1e-10,
+        )
+        assert res.converged, (
+            f"cylinder grazing-ray: n_phi={n_phi} did not converge"
+        )
+        assert np.isfinite(res.k_eff), (
+            f"cylinder grazing-ray: n_phi={n_phi} non-finite k_eff"
+        )
+        assert np.all(np.isfinite(res.psi)), (
+            f"cylinder grazing-ray: n_phi={n_phi} non-finite ψ"
+        )
+        k_vals.append(res.k_eff)
+
+    for i in range(len(n_phi_ladder) - 1):
+        rel = abs(k_vals[i + 1] - k_vals[i]) / k_vals[-1]
+        assert rel < 1e-3, (
+            f"cylinder grazing-ray: n_phi={n_phi_ladder[i]} → "
+            f"{n_phi_ladder[i+1]} differs by {rel:.3e}, exceeds "
+            f"1e-3 stability gate. k_vals = {k_vals}"
+        )

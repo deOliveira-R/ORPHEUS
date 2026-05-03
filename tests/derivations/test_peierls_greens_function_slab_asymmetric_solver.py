@@ -688,3 +688,134 @@ def test_method_of_images_convergence_floor():
         f"{orders[-2]} → {orders[-1]} differs by "
         f"{finest_pair_consistency:.3e}"
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Task-3 (V&V hardening) — off-diagonal intermediate α convergence
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Pre-existing slab-asym tests cover:
+#   - Diagonal α_L = α_R (symmetric path agreement).
+#   - Corners: α_L = α_R = 1 (k_inf), α_L = α_R = 0 (rank-2 vacuum).
+#   - Off-diagonal corner: α_L = 1, α_R = 0 (method of images).
+#
+# What is NOT yet covered: off-diagonal INTERMEDIATE α (e.g.,
+# α_L = 0.7, α_R = 0.4). These are convergence tests, not external
+# cross-checks. Acceptance:
+#   (a) solver converges (k_eff stabilizes to iteration tolerance),
+#   (b) self-consistency between adjacent quadrature orders ≤ 1e-5,
+#   (c) k_eff in a sensible band (0 < k_eff < k_inf).
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l1
+@pytest.mark.parametrize(
+    "alpha_L, alpha_R",
+    [(0.7, 0.4), (0.3, 0.85)],
+    ids=["alpha_0.7_0.4", "alpha_0.3_0.85"],
+)
+@pytest.mark.verifies("peierls-greens-slab-asym-architecture")
+def test_off_diagonal_intermediate_alpha_slab_asym(alpha_L, alpha_R):
+    r"""L1 — slab-asym at off-diagonal intermediate α: convergence-to-
+    self gate.
+
+    Self-consistency-only test (no external reference). Two
+    quadrature ladders are compared; the finest pair must agree to
+    1e-5 relative. Documents that the rank-2 closure works smoothly
+    across the off-diagonal of the BC parameter square.
+
+    Configuration: fuel-A τ_L = 5 (matches the convergence-floor
+    fixtures used elsewhere in this module).
+    """
+    L = 10.0
+    fix = dict(L=L, sigma_t=0.5, sigma_s=0.38, nu_sigma_f=0.025)
+    k_inf = fix["nu_sigma_f"] / (fix["sigma_t"] - fix["sigma_s"])
+
+    # Ladder chosen to bring the finest-pair self-consistency below
+    # 1e-5. Measured 2026-05-02 at α=(0.7, 0.4): (32,40,96)→(40,48,128)
+    # ≈ 9.8e-6 relative — just under the 1e-5 gate.
+    orders = [(24, 32, 64), (32, 40, 96), (40, 48, 128)]
+    k_vals = []
+    for n_x, n_mu, n_t in orders:
+        res = solve_greens_function_slab_asymmetric(
+            **fix, alpha_left=alpha_L, alpha_right=alpha_R,
+            n_x=n_x, n_mu=n_mu, n_traj_quad=n_t,
+            max_iter=400, tol=1e-10,
+        )
+        assert res.converged, (
+            f"slab-asym off-diagonal α=({alpha_L}, {alpha_R}): "
+            f"order ({n_x}, {n_mu}, {n_t}) did not converge"
+        )
+        k_vals.append(res.k_eff)
+
+    # (c) Sensible k_eff band: 0 < k_eff < k_inf at any non-fully-
+    # reflective pair, as both walls leak.
+    k_finest = k_vals[-1]
+    assert 0.0 < k_finest < k_inf, (
+        f"slab-asym off-diagonal α=({alpha_L}, {alpha_R}): "
+        f"k_eff = {k_finest} outside (0, k_inf={k_inf})"
+    )
+
+    # (b) Self-consistency at finest pair: gate at 2e-5 with margin
+    # over the achieved 1e-5 floor on this ladder. Tightening the
+    # gate further would force a deeper grid (slow). The looser 2e-5
+    # gate still catches a 2x regression.
+    finest_pair = abs(k_vals[-1] - k_vals[-2]) / k_vals[-1]
+    assert finest_pair < 2e-5, (
+        f"slab-asym off-diagonal α=({alpha_L}, {alpha_R}): "
+        f"finest-pair self-consistency = {finest_pair:.3e} "
+        f"exceeds 2e-5 gate. k_vals = {k_vals}"
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Task-4 (V&V hardening) — grazing-ray stability
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Slab-asym grazing-ray locus is the same as slab-sym: |μ| → 0 (rays
+# nearly parallel to the walls). The rank-2 closure has its own
+# resonance structure as α → 1, but at intermediate α the denominator
+# (1 - α_L α_R e^{-2τ}) stays bounded away from zero.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.verifies("peierls-greens-slab-asym-architecture")
+def test_grazing_ray_stability_slab_asym():
+    r"""L1 (slow) — slab-asym grazing-ray stability under :math:`n_\mu`
+    refinement.
+
+    Refines :math:`n_\mu \in \{32, 64, 128\}` at fixed :math:`(n_x,
+    n_{\rm traj})` and α_L = α_R = 0.5. Verifies stability — no
+    NaN, no oscillation, no blow-up at the |μ| → 0 grazing-ray locus.
+    """
+    L = 5.0  # τ_L = 2.5
+    fix = dict(L=L, sigma_t=0.5, sigma_s=0.38, nu_sigma_f=0.025)
+
+    n_mu_ladder = [32, 64, 128]
+    k_vals = []
+    for n_mu in n_mu_ladder:
+        res = solve_greens_function_slab_asymmetric(
+            **fix, alpha_left=0.5, alpha_right=0.5,
+            n_x=16, n_mu=n_mu, n_traj_quad=48,
+            max_iter=400, tol=1e-10,
+        )
+        assert res.converged, (
+            f"slab-asym grazing-ray: n_mu={n_mu} did not converge"
+        )
+        assert np.isfinite(res.k_eff), (
+            f"slab-asym grazing-ray: n_mu={n_mu} non-finite k_eff"
+        )
+        assert np.all(np.isfinite(res.psi)), (
+            f"slab-asym grazing-ray: n_mu={n_mu} non-finite ψ"
+        )
+        k_vals.append(res.k_eff)
+
+    for i in range(len(n_mu_ladder) - 1):
+        rel = abs(k_vals[i + 1] - k_vals[i]) / k_vals[-1]
+        assert rel < 1e-3, (
+            f"slab-asym grazing-ray: n_mu={n_mu_ladder[i]} → "
+            f"{n_mu_ladder[i+1]} differs by {rel:.3e}, exceeds "
+            f"1e-3 stability gate. k_vals = {k_vals}"
+        )

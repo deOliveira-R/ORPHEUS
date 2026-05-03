@@ -170,3 +170,57 @@ def test_v_alpha1_numerical_two_thicknesses(
                 f"≠ k_inf = {k_inf}"
             ),
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Task-4 (V&V hardening) — sphere grazing-ray stability
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Sphere grazing-ray locus: |μ_surf| → 0 (tangent ray at the surface).
+# At α=0 vacuum the closure contributes nothing so the grazing-ray
+# pathology is benign; at α=1 the closed-sphere V_α1 cancellation
+# removes the term. Intermediate α stresses the bounce-period
+# resolvent at the grazing-ray locus.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+def test_grazing_ray_stability_sphere():
+    r"""L1 (slow) — sphere grazing-ray (|μ_surf| → 0) stability under
+    :math:`n_\mu` refinement.
+
+    Refines :math:`n_\mu \in \{32, 64, 128\}` at fixed
+    :math:`(n_r, n_{\rm traj})` and α = 0.5. Verifies stability
+    (no NaN, no oscillation, no blow-up).
+
+    Configuration: fuel-A τ_R = 2.5 (R=5, σ_t=0.5), α=0.5.
+    """
+    fix = {"R": 5.0, "sigma_t": 0.5, "sigma_s": 0.38, "nu_sigma_f": 0.025}
+
+    n_mu_ladder = [32, 64, 128]
+    k_vals = []
+    for n_mu in n_mu_ladder:
+        res = solve_greens_function_sphere(
+            **fix, alpha=0.5,
+            n_r=16, n_mu=n_mu, n_traj_quad=48,
+            max_iter=300, tol=1e-10,
+        )
+        assert res.converged, (
+            f"sphere grazing-ray: n_mu={n_mu} did not converge"
+        )
+        assert np.isfinite(res.k_eff), (
+            f"sphere grazing-ray: n_mu={n_mu} non-finite k_eff"
+        )
+        assert np.all(np.isfinite(res.psi)), (
+            f"sphere grazing-ray: n_mu={n_mu} non-finite ψ"
+        )
+        k_vals.append(res.k_eff)
+
+    for i in range(len(n_mu_ladder) - 1):
+        rel = abs(k_vals[i + 1] - k_vals[i]) / k_vals[-1]
+        assert rel < 1e-3, (
+            f"sphere grazing-ray: n_mu={n_mu_ladder[i]} → "
+            f"{n_mu_ladder[i+1]} differs by {rel:.3e}, exceeds "
+            f"1e-3 stability gate. k_vals = {k_vals}"
+        )

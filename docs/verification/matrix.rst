@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1524**
+Total tests collected: **1536**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 585, 38.4%
-   L1, 456, 29.9%
-   L2, 36, 2.4%
+   L0, 585, 38.1%
+   L1, 468, 30.5%
+   L2, 36, 2.3%
    L3, 0, 0.0%
-   foundation, 436, 28.6%
+   foundation, 436, 28.4%
    unmarked, 11, 0.7%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1434
+   explicit, 1446
    verify, 0
    class-name, 46
    func-name, 0
@@ -73,20 +73,20 @@ Module × level grid
    derivations/test_peierls_cylinder_prefactor, 4, 0, 0, 0, 0, 0
    derivations/test_peierls_cylinder_white_bc, 4, 3, 0, 0, 4, 0
    derivations/test_peierls_geometry, 0, 0, 0, 0, 32, 0
-   derivations/test_peierls_greens_function_annulus_solver, 0, 11, 0, 0, 0, 0
+   derivations/test_peierls_greens_function_annulus_solver, 0, 13, 0, 0, 0, 0
    derivations/test_peierls_greens_function_annulus_symbolic, 0, 0, 0, 0, 22, 0
-   derivations/test_peierls_greens_function_cylinder_solver, 0, 12, 0, 0, 0, 0
+   derivations/test_peierls_greens_function_cylinder_solver, 0, 13, 0, 0, 0, 0
    derivations/test_peierls_greens_function_cylinder_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_peierls_greens_function_garcia2021, 0, 0, 0, 0, 17, 0
-   derivations/test_peierls_greens_function_hollow_sphere_solver, 0, 11, 0, 0, 0, 0
+   derivations/test_peierls_greens_function_hollow_sphere_solver, 0, 14, 0, 0, 0, 0
    derivations/test_peierls_greens_function_hollow_sphere_symbolic, 0, 0, 0, 0, 18, 0
    derivations/test_peierls_greens_function_mg, 0, 0, 0, 0, 7, 0
    derivations/test_peierls_greens_function_mr, 0, 0, 0, 0, 4, 0
-   derivations/test_peierls_greens_function_slab_asymmetric_solver, 0, 11, 0, 0, 0, 0
+   derivations/test_peierls_greens_function_slab_asymmetric_solver, 0, 14, 0, 0, 0, 0
    derivations/test_peierls_greens_function_slab_asymmetric_symbolic, 0, 0, 0, 0, 16, 0
-   derivations/test_peierls_greens_function_slab_solver, 0, 12, 0, 0, 0, 0
+   derivations/test_peierls_greens_function_slab_solver, 0, 14, 0, 0, 0, 0
    derivations/test_peierls_greens_function_slab_symbolic, 0, 0, 0, 0, 10, 0
-   derivations/test_peierls_greens_function_solver, 0, 0, 0, 0, 3, 0
+   derivations/test_peierls_greens_function_solver, 0, 1, 0, 0, 3, 0
    derivations/test_peierls_greens_function_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_peierls_greens_function_vacuum, 0, 0, 0, 0, 5, 0
    derivations/test_peierls_greens_function_xverif, 0, 5, 0, 0, 3, 0
@@ -229,12 +229,13 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``roulette-conservation``, 16
    ``roulette-prob``, 16
    ``transport-cartesian``, 16
+   ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
+   ``peierls-greens-annulus-architecture``, 14
+   ``peierls-greens-slab-asym-architecture``, 13
    ``complementarity``, 12
    ``kinf-1g``, 12
    ``kinf-mg``, 12
-   ``peierls-greens-annulus-architecture``, 12
-   ``peierls-greens-hollow-sph-architecture``, 12
    ``periodic-bc``, 12
    ``reciprocity``, 12
    ``ws-pitch``, 12
@@ -246,7 +247,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``two-group-Ainv``, 11
    ``two-group-F``, 11
    ``two-group-M``, 11
-   ``peierls-greens-slab-asym-architecture``, 10
+   ``peierls-greens-slab-architecture``, 10
    ``peierls-white-bc``, 10
    ``dd-recurrence``, 9
    ``tau-m``, 9
@@ -267,10 +268,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``diffusion-spurious-root-validation``, 8
    ``diffusion-transcendental``, 8
    ``diffusion-trigonometric-branch``, 8
-   ``peierls-greens-slab-architecture``, 8
+   ``peierls-greens-cylinder-architecture``, 8
    ``dd-solve``, 7
    ``gauss-legendre-visibility-cone``, 7
-   ``peierls-greens-cylinder-architecture``, 7
    ``bar-psi``, 6
    ``boyd-eq-45``, 6
    ``characteristic-ode``, 6
@@ -530,7 +530,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-031``, **0 (MISSING)**
    ``ERR-032``, 4
    ``ERR-033``, 4
-   ``ERR-034``, **0 (MISSING)**
+   ``ERR-034``, 1
    ``ERR-035``, 1
 
 Unmarked tests

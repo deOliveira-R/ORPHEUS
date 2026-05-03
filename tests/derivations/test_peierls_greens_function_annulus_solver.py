@@ -538,3 +538,166 @@ def test_reflective_inner_vacuum_outer_convergence_floor():
         f"{orders[-2]} → {orders[-1]} differs by "
         f"{finest_pair_consistency:.3e}"
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Task-3 (V&V hardening) — off-diagonal intermediate α convergence
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Annulus has 3D phase space (r, μ_axial, φ_az) so off-diagonal
+# convergence studies are expensive. One test case: α_in=0.4,
+# α_out=0.7 at fuel-A τ_R≈1.5.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.verifies("peierls-greens-annulus-architecture")
+def test_off_diagonal_intermediate_alpha_annulus():
+    r"""L1 (slow) — annulus at off-diagonal intermediate α: convergence
+    to-self gate.
+
+    Self-consistency-only test (no external reference). Single
+    parametrization: :math:`\alpha_{\rm in} = 0.4, \alpha_{\rm out}
+    = 0.7`, fuel-A τ_R≈1.5. The 3D phase space (r, μ_axial,
+    φ_az) makes a finer ladder expensive; the existing
+    :func:`test_reflective_inner_vacuum_outer_convergence_floor`
+    uses a (24, 24, 32, 48) cap and accepts a 1e-3 finest-pair gate.
+
+    This test mirrors that pattern at the off-diagonal interior point.
+    """
+    fix = dict(
+        R_in=1.0, R_out=3.0,
+        sigma_t=0.5, sigma_s=0.38, nu_sigma_f=0.025,
+    )
+    k_inf = fix["nu_sigma_f"] / (fix["sigma_t"] - fix["sigma_s"])
+
+    # Convergence is geometric-class noisy on annulus due to:
+    #   - 3D phase space (r, μ_axial, φ_az);
+    #   - impact-parameter partition surface b = R_in;
+    #   - cylinder-specific 3D chord lift τ_annulus / sqrt(1 - μ²).
+    # Measured 2026-05-02 at α=(0.4, 0.7), τ_R≈1.5:
+    #   (14,14,20,24) → (18,18,24,32): 6e-4 rel
+    #   (18,18,24,32) → (24,24,32,48): 2.9e-3 rel
+    #   (24,24,32,48) → (32,28,40,64): 1.9e-3 rel (k oscillating
+    #                                              about a mean)
+    orders = [
+        (18, 18, 24, 32),
+        (24, 24, 32, 48),
+        (32, 28, 40, 64),
+    ]
+    k_vals = []
+    for n_r, n_mu, n_phi, n_t in orders:
+        res = solve_greens_function_annulus(
+            **fix, alpha_in=0.4, alpha_out=0.7,
+            n_r=n_r, n_mu_axial=n_mu, n_phi_az=n_phi, n_traj_quad=n_t,
+            max_iter=500, tol=1e-10,
+        )
+        assert res.converged, (
+            f"annulus off-diagonal α=(0.4, 0.7): "
+            f"order {(n_r, n_mu, n_phi, n_t)} did not converge"
+        )
+        k_vals.append(res.k_eff)
+
+    # (c) Sensible band.
+    k_finest = k_vals[-1]
+    assert 0.0 < k_finest < k_inf, (
+        f"annulus off-diagonal: k_eff = {k_finest} outside (0, k_inf)"
+    )
+
+    # (b) Finest-pair self-consistency ≤ 5e-3. Looser than slab-asym
+    # (2e-5 achievable) and hollow sphere (1e-3 achievable) because
+    # the 3D phase-space + impact-parameter partition + axial chord
+    # lift compound the quadrature noise. Convergence appears
+    # oscillatory about a mean rather than monotone-asymptotic.
+    finest_pair = abs(k_vals[-1] - k_vals[-2]) / k_vals[-1]
+    assert finest_pair < 5e-3, (
+        f"annulus off-diagonal α=(0.4, 0.7): finest-pair "
+        f"self-consistency = {finest_pair:.3e} exceeds 5e-3 gate. "
+        f"k_vals = {k_vals}"
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Task-4 (V&V hardening) — grazing-ray stability
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Annulus grazing-ray loci:
+#   - b → R_in (impact parameter tangent to inner cylinder).
+#   - μ_axial → ±1 (axial-only ray, finite chord but with the
+#     τ_annulus = τ_hollow_sph / sqrt(1 - μ_axial²) chord lift).
+#
+# We refine n_phi_az (controls b-resolution near R_in) and verify
+# stability. The μ_axial ladder is fixed at a moderate value because
+# pre-existing tests already exercise μ_axial → ±1 indirectly via
+# the chord-lift formula in the closed-shell V_α1_annulus test.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.verifies("peierls-greens-annulus-architecture")
+def test_grazing_ray_stability_annulus():
+    r"""L1 (slow) — annulus grazing-ray (b → R_in and μ_axial → ±1)
+    stability under :math:`n_\phi` refinement.
+
+    Refines :math:`n_\phi \in \{16, 24, 32\}` at fixed
+    :math:`(n_r, n_{\mu\,{\rm axial}}, n_{\rm traj})` and α=0.5 on
+    both surfaces. Verify stability (no NaN, no oscillation,
+    no blow-up).
+
+    Configuration: fuel-A τ_R≈1.5 (R_in=1, R_out=3, σ_t=0.5),
+    α_in = α_out = 0.5.
+    """
+    fix = dict(
+        R_in=1.0, R_out=3.0,
+        sigma_t=0.5, sigma_s=0.38, nu_sigma_f=0.025,
+    )
+
+    n_phi_ladder = [16, 24, 32]
+    k_vals = []
+    for n_phi in n_phi_ladder:
+        res = solve_greens_function_annulus(
+            **fix, alpha_in=0.5, alpha_out=0.5,
+            n_r=14, n_mu_axial=14, n_phi_az=n_phi, n_traj_quad=32,
+            max_iter=500, tol=1e-10,
+        )
+        assert res.converged, (
+            f"annulus grazing-ray: n_phi={n_phi} did not converge"
+        )
+        assert np.isfinite(res.k_eff), (
+            f"annulus grazing-ray: n_phi={n_phi} non-finite k_eff"
+        )
+        assert np.all(np.isfinite(res.psi)), (
+            f"annulus grazing-ray: n_phi={n_phi} non-finite ψ"
+        )
+        k_vals.append(res.k_eff)
+
+    # 3D phase-space + impact-parameter partition + chord-lift =
+    # geometric-class quadrature error dominates. Achieved at
+    # α=(0.5, 0.5), τ_R≈1.5:
+    #   n_phi 16 → 24: ~4.9e-3 rel
+    #   n_phi 24 → 32: ~1.1e-3 rel
+    # k is monotone-converging across the ladder. The 6e-3 gate
+    # captures the 16→24 step plus margin and gates against actual
+    # blow-up (NaN, sign flips, large oscillations).
+    for i in range(len(n_phi_ladder) - 1):
+        rel = abs(k_vals[i + 1] - k_vals[i]) / k_vals[-1]
+        assert rel < 6e-3, (
+            f"annulus grazing-ray: n_phi={n_phi_ladder[i]} → "
+            f"{n_phi_ladder[i+1]} differs by {rel:.3e}, exceeds "
+            f"6e-3 stability gate. k_vals = {k_vals}"
+        )
+
+    # Monotonicity check: differences should shrink (convergence)
+    # OR sign-flip with shrinking magnitude (overshoot converging).
+    diffs = [k_vals[i + 1] - k_vals[i] for i in range(len(k_vals) - 1)]
+    diff_mags = [abs(d) for d in diffs]
+    # Either no sign flip (monotone) OR magnitude must shrink across
+    # the ladder.
+    sign_change = any(diffs[i] * diffs[i + 1] < 0 for i in range(len(diffs) - 1))
+    if sign_change:
+        assert diff_mags[-1] < diff_mags[0], (
+            f"annulus grazing-ray: k_eff oscillates without "
+            f"convergence. k_vals = {k_vals}"
+        )

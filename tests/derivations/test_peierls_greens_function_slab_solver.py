@@ -86,6 +86,9 @@ from orpheus.derivations.common.eigenvalue import kinf_homogeneous
 from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     compute_T_specular_slab,
 )
+from orpheus.derivations.continuous.peierls_nystrom.slab import (
+    solve_peierls_eigenvalue,
+)
 from orpheus.derivations.continuous.peierls_greens_function.greens_function_slab import (
     solve_greens_function_slab,
     solve_greens_function_slab_mg,
@@ -562,3 +565,172 @@ def test_alpha_zero_convergence_floor():
         f"Convergence-floor: k_eff/k_inf = {ratio} outside expected "
         f"band [0.45, 0.85]"
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Task-2 (V&V hardening) — structurally-independent secondary cross-check
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Context: the slab-sym Variant α path delegates internally to the
+# slab-asym rank-2 path (post-ERR-035 fix). The pre-existing rank-1↔
+# rank-2 agreement gate is therefore "same code via two API entries"
+# — NOT structurally independent.
+#
+# This test class adds the structurally-independent secondary check by
+# cross-checking the slab-sym Variant α solver against the
+# E_1-Nyström slab solver (`peierls_nystrom.slab`) at α = 0 (vacuum
+# BC). The two solvers exercise different mathematical reductions
+# above the trusted-library line:
+#
+#   - Variant α solves an angle-resolved Green's function on (x, μ)
+#     phase space with bouncing characteristics, then projects to
+#     scalar flux via 2π ∫ψ dμ.
+#   - Nyström solves the scalar-flux Peierls integral equation
+#       φ(x) = ½ ∫ E_1(τ(x,x')) q(x') dx'
+#     with adaptive mpmath quadrature handling the E_1 log singularity.
+#
+# The two paths share `mpmath.expint` / `scipy.special.exp1` BELOW the
+# trusted-library line — fine per `algebra-of-record` § "Structural
+# independence applies above the trusted-library line". The reductions
+# above the line are entirely independent.
+#
+# Caveat: the Nyström slab supports `boundary ∈ {"white", "vacuum"}`
+# only — it does NOT support α ∈ (0, 1). The cross-check therefore
+# pins the agreement at α = 0 only. Intermediate α coverage requires
+# a future α-aware Nyström-style reference (logged as an explicit
+# follow-up in the closeout memo).
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("peierls-greens-slab-architecture")
+def test_alpha_zero_vacuum_agrees_with_nystrom_slab():
+    r"""L1 — slab-sym Variant α at α=0 agrees with Nyström vacuum slab.
+
+    Structurally-independent secondary cross-check (Task 2 of the
+    V&V hardening pass). The two solvers descend from different
+    mathematical reductions of the slab Peierls equation:
+
+    * **Variant α** (this module): angle-resolved Green's function,
+      bouncing characteristics, GL on :math:`(x, \mu)` with trajectory
+      and bounce-period quadrature.
+    * **Nyström** (:mod:`orpheus.derivations.continuous.peierls_nystrom.slab`):
+      scalar-flux integral equation with the
+      :math:`E_1` log-singular kernel handled by adaptive
+      :func:`mpmath.quad`.
+
+    Both descend to the same equation but factor it through entirely
+    different operator structures above the trusted-library line.
+    The shared upstream is :func:`mpmath.expint` (and the integrator
+    in scipy / mpmath), both below the trusted-library line.
+
+    Caveat: the Nyström slab does NOT support :math:`\alpha \in (0, 1)`
+    — only ``boundary="vacuum"`` (α=0) and ``boundary="white"``. Hence
+    this gate covers α=0 only. Intermediate α coverage is logged as
+    a future enhancement (α-aware Nyström-class reference required).
+    """
+    L = 10.0
+    sigma_t = 0.5
+    sigma_s = 0.38
+    nu_sigma_f = 0.025
+
+    # Variant α solver at moderate-fine grid (matches the existing
+    # slow convergence-floor study's "research-grade" tier).
+    res_va = solve_greens_function_slab(
+        L=L, sigma_t=sigma_t, sigma_s=sigma_s, nu_sigma_f=nu_sigma_f,
+        alpha=0.0,
+        n_x=24, n_mu=40, n_traj_quad=96,
+        max_iter=400, tol=1e-10,
+    )
+    assert res_va.converged, "Variant α slab α=0 did not converge"
+
+    # Nyström solver at vacuum BC. n_panels_per_region=8, p_order=6
+    # at dps=20 is sufficient for ~1e-5 accuracy on this τ_L=5
+    # configuration (verified by 2026-05-02 convergence sweep).
+    sol_ny = solve_peierls_eigenvalue(
+        [np.array([sigma_t])],
+        [np.array([[sigma_s]])],
+        [np.array([nu_sigma_f])],
+        [np.array([1.0])],
+        [L],
+        n_panels_per_region=8,
+        p_order=6,
+        precision_digits=20,
+        boundary="vacuum",
+    )
+
+    rel_diff = abs(sol_ny.k_eff - res_va.k_eff) / sol_ny.k_eff
+    # Achieved 2026-05-02: ~1.4e-5 relative; gate at 5e-5 keeps a
+    # ~3.5x margin for grid-noise variation between the two paths.
+    assert rel_diff < 5e-5, (
+        f"Structural cross-check failed: Variant α k_eff = "
+        f"{res_va.k_eff:.10f}, Nyström k_eff = {sol_ny.k_eff:.10f}, "
+        f"relative difference = {rel_diff:.3e} exceeds 5e-5 gate."
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Task-4 (V&V hardening) — grazing-ray stability
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Slab grazing-ray locus: |μ| → 0 (rays nearly parallel to the walls).
+# At |μ| → 0 the transit chord L/|μ| → ∞; e^{-Σ_t L/|μ|} → 0; the rank-2
+# denominator (1 - α e^{-Σ_t L/|μ|}) → 1 (no resonance). Variant α
+# slab is structurally immune to the sphere's μ → 0 Hadamard
+# divergence — but we still must verify numerical stability under
+# grid refinement of n_mu near μ=0.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.verifies("peierls-greens-slab-architecture")
+def test_grazing_ray_stability_slab():
+    r"""L1 (slow) — slab grazing-ray (|μ| → 0) stability under
+    quadrature refinement.
+
+    Refines :math:`n_\mu \in \{32, 64, 128\}` at fixed :math:`(n_x,
+    n_{\rm traj})` and verifies :math:`k_{\rm eff}` converges (no
+    NaN, no oscillation, no divergence). The slab is structurally
+    immune to Hadamard divergence at :math:`\mu \to 0` — the goal
+    here is to catch quadrature-driven numerical noise regressions.
+
+    Configuration: fuel-A τ_L = 2.5 (moderately optically thick),
+    α = 0.5 (intermediate reflectivity exercises the rank-2 closure).
+
+    Tolerance: 1e-3 between adjacent grids — loose because grazing
+    rays at intermediate α intrinsically converge slowly with n_mu;
+    the goal is stability, not tight convergence.
+    """
+    L = 5.0  # τ_L = 2.5
+    fix = dict(L=L, sigma_t=0.5, sigma_s=0.38, nu_sigma_f=0.025)
+
+    n_mu_ladder = [32, 64, 128]
+    k_vals = []
+    for n_mu in n_mu_ladder:
+        res = solve_greens_function_slab(
+            **fix, alpha=0.5,
+            n_x=16, n_mu=n_mu, n_traj_quad=48,
+            max_iter=400, tol=1e-10,
+        )
+        assert res.converged, (
+            f"slab grazing-ray: n_mu={n_mu} did not converge — "
+            f"unstable in grazing-ray locus."
+        )
+        assert np.isfinite(res.k_eff), (
+            f"slab grazing-ray: n_mu={n_mu} gave non-finite "
+            f"k_eff = {res.k_eff}"
+        )
+        assert np.all(np.isfinite(res.phi)), (
+            f"slab grazing-ray: n_mu={n_mu} produced non-finite φ"
+        )
+        k_vals.append(res.k_eff)
+
+    # Stability (not convergence): adjacent grids must agree to 1e-3.
+    for i in range(len(n_mu_ladder) - 1):
+        rel = abs(k_vals[i + 1] - k_vals[i]) / k_vals[-1]
+        assert rel < 1e-3, (
+            f"slab grazing-ray: n_mu={n_mu_ladder[i]} → "
+            f"{n_mu_ladder[i+1]} differs by {rel:.3e}, exceeds "
+            f"1e-3 stability gate. k_vals = {k_vals}"
+        )
