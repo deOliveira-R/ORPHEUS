@@ -41,11 +41,18 @@ from .one_group import (
     fn_slab_flux_at_x_cosine_only,
     solve_fn_slab_bare_critical,
 )
+from .reflected import (
+    SlabReflectedFNResult,
+    solve_fn_slab_reflected_critical,
+)
 
 __all__ = [
     "SlabFNResult",
     "solve_fn_slab_bare_critical",
     "fn_slab_flux_at_x_cosine_only",
+    # Reflected-slab F_N (Neshat-Maiorino 1980).
+    "SlabReflectedFNResult",
+    "solve_fn_slab_reflected_critical",
     # Rich-machinery flux reconstruction (KLL Fredholm + characteristics).
     "KLLSlabFluxResult",
     "solve_kll_slab_continuum_coefficient",
