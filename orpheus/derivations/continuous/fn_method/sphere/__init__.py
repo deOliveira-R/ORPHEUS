@@ -1,23 +1,34 @@
-"""Sphere F_N benchmarks — placeholder.
+r"""Sphere bare-critical 1G F_N solver.
 
-Will house :func:`solve_critical_sphere_1g` (Kaper-Lindeman-Leaf 1974
-NSE 54, 94 — same paper as slab) and :func:`solve_critical_sphere_2g`
-(Siewert-Thomas 1986 NSE 94, 264).
+Public entry point:
 
-Targets:
-  * `Ua-1-0-SP` (problem 14) — :math:`r_c = 2.4248249802` mfp.
-  * `PUb-1-0-SP` (problem 8) — flux ratios at 4 sample points.
-  * `PU-2-0-SP` (problem 46) — 2G bare Pu sphere :math:`r_c = 1.15513` mfp.
+* :func:`solve_fn_sphere_bare_critical` — given the mean number of
+  secondaries per collision :math:`c > 1`, returns the bare-critical
+  sphere radius :math:`R_c` (mfp) via the F_N method (Siewert-Thomas
+  1986).
 
-The sphere F_N reference solver is the natural cross-check for the
-existing **Variant α** Green's-function family
-(:mod:`orpheus.derivations.continuous.peierls_greens_function`), which
-already cross-checks cylinder against Sood/Westfall-Metcalf at 8.5e-6.
-Once this is populated, the Variant α sphere prototype will have an
-independent published-method anchor that does NOT inherit any of
-ORPHEUS's Bickley-Naylor or rank-1/rank-2 closure machinery.
+The sphere F_N is the slab F_N with one sign flip on the boundary
+attenuation block (Siewert-Thomas Eq. 46 vs Siewert-Benoist Eq. 4).
+Both share the same moment-integral recursion, collocation grid,
+dispersion-root finder, and X-function machinery — the literature-
+researcher-validated structural fact verified symbolically in
+:mod:`..origins.fn_sphere_derivations`.
 
-TODO: populate after literature-researcher delivers KLL 1974 +
-Siewert-Thomas 1986.
+References
+----------
+
+* Siewert & Thomas 1986, *Nucl. Sci. Eng.* **94**, 264.
+* Sood, Forster & Parsons 1999, LA-13511 Table 6 (case ``Ua-1-0-SP``).
+* Kaper, Lindeman & Leaf 1974, *Nucl. Sci. Eng.* **54**, 94 (Table V).
 """
 from __future__ import annotations
+
+from .one_group import (
+    SphereFNResult,
+    solve_fn_sphere_bare_critical,
+)
+
+__all__ = [
+    "SphereFNResult",
+    "solve_fn_sphere_bare_critical",
+]
