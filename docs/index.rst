@@ -13,7 +13,11 @@ ORPHEUS — Open Reactor Physics Educational University System
    theory/peierls_greens
    theory/fn_method
    theory/singular_eigenfunction
+<<<<<<< HEAD
    theory/carlvik_galerkin
+=======
+   theory/case_method
+>>>>>>> 273976a (docs(case_method): Sphinx stub for Atalay 1997 case_method theory page)
    theory/sood_registry
    theory/diffusion_1d
    theory/fuel_behaviour
