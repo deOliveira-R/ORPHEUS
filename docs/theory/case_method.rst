@@ -69,7 +69,7 @@ The four new parallel half-range relations
 
    Brief: Atalay's load-bearing technical contribution is the
    four NEW half-range relations Eqs. 28-31. The McCormick-Kušcer
-   1965 bi-orthogonality relations (Atalay Eqs. 18-21) integrate the
+   1965 bi-orthogonality relations [McCormickKuscer1965]_ (Atalay Eqs. 18-21) integrate the
    weight :math:`[\phi_{0+}(\mu) + B c \nu_0/2] \gamma(\mu)
    (\nu_0 - \mu)` against the four half-range basis members. These
    suffice for the half-space Milne problem but **not** for the
@@ -236,7 +236,7 @@ Sood case coverage
    reflected+linearly-anisotropic cross-product cases that lie
    outside both the Sood/Forster/Parsons LA-13511 truth set
    (which focuses on bare configurations) and the
-   Burkart-Ishiguro-Siewert 1976 F_N reference (vacuum-only).
+   Burkart-Ishiguro-Siewert 1976 F_N reference [BurkartIshiguroSiewert1976]_ (vacuum-only).
    Specifically, Atalay tabulates :math:`(c, R, f_1)` triples for
    :math:`R \in \{0, 0.25, 0.50, 0.75, 0.99\}` and
    :math:`f_1 \in \{0, 0.10, 0.20, 0.30\}` (slab, even modes, Tables 2-5)
