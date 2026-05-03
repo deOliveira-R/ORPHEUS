@@ -592,7 +592,7 @@ UA_1_0_SL_STUB = La13511Case(
 UA_1_0_CY_STUB = La13511Case(
     case_id="Ua-1-0-CY",
     problem_number=13,
-    description="U-235 (a) bare infinite cylinder, 1G isotropic — STUB",
+    description="U-235 (a) bare infinite cylinder, 1G isotropic",
     materials={0: _mix_1g_isotropic(**_UA_1G_KW)},
     mesh_template=MeshTemplate(
         geometry="cylinder",
@@ -609,9 +609,14 @@ UA_1_0_CY_STUB = La13511Case(
     sood_table=5,
     primary_reference="Westfall-Metcalf 1973 NSE 52, 1",
     notes=(
-        "STUB: F_N cylinder solver not yet implemented (needs "
-        "Westfall-Metcalf 1973). Already cross-checked by Variant α "
-        "at 8.5e-6."
+        "WM-72 singular-eigenfunction cylinder solver shipped at ~1% "
+        "relative accuracy (single-cell product integration on the "
+        "log-singular kernel diagonal; see "
+        "orpheus.derivations.continuous.singular_eigenfunction.cylinder). "
+        "Variant α cylinder cross-check at 8.5e-6 holds the strict "
+        "1e-5 anchor. WM-72 prototype provides the second, "
+        "structurally-independent cross-check anchor (different "
+        "mathematical pillar than Variant α / Bickley-Naylor)."
     ),
 )
 
