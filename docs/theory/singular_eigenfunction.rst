@@ -206,7 +206,7 @@ Slab criticality (Eq 46)
 --------------------------------------------------------------------------------
 
 .. math::
-   :label: case-method-eq46
+   :label: singular-eigenfunction-eq46
 
    \pm\frac{\pi}{2} - \arctan\!\frac{R \sin[(d-z_0)/|\nu_0|] + \sin[(d+z_0)/|\nu_0|]}
                                        {R \cos[(d-z_0)/|\nu_0|] - \cos[(d+z_0)/|\nu_0|]}
@@ -241,7 +241,7 @@ Sphere criticality (Eq 54) via parity flip
 --------------------------------------------------------------------------------
 
 .. math::
-   :label: case-method-eq54
+   :label: singular-eigenfunction-eq54
 
    \arctan\!\frac{\sin[(d+z_0)/|\nu_0|] - R \sin[(d-z_0)/|\nu_0|]}
                 {\cos[(d+z_0)/|\nu_0|] + R \cos[(d-z_0)/|\nu_0|]}
@@ -485,7 +485,7 @@ X-function (Atalay Eq 40)
 --------------------------------------------------------------------------------
 
 .. math::
-   :label: case-method-eq40
+   :label: singular-eigenfunction-eq40
 
    X(\mu) = \exp\!\Bigg\{ -\frac{c}{2} \int_0^1 d\nu\, g_1(c,\nu)\,
        \Big[d^2(\nu^2)\Big(1 + \frac{c\nu^2}{1-\nu^2}\Big)
@@ -505,7 +505,7 @@ Extrapolated endpoint :math:`z_0` (Atalay Eq 42)
 --------------------------------------------------------------------------------
 
 .. math::
-   :label: case-method-eq42
+   :label: singular-eigenfunction-eq42
 
    z_0 = -\frac{\nu_0}{2} \ln\!\frac{d(-\nu_0\bar\nu)}{d(\nu_0\bar\nu)}
         + \frac{c\,\nu_0}{4} \int_0^1 d\mu\, g_1(c,\mu)\,
@@ -531,7 +531,7 @@ Validity bound (Atalay Eq 5)
 --------------------------------------------------------------------------------
 
 .. math::
-   :label: case-method-eq5
+   :label: singular-eigenfunction-eq5
 
    c \le 1 + \frac{1}{3 f_1}
 

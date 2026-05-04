@@ -396,11 +396,6 @@ Orphan equations
 Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **78** of the testable equations found on theory pages are orphan.
 
 - ``c-in-remapping``
-- ``case-method-eq40``
-- ``case-method-eq42``
-- ``case-method-eq46``
-- ``case-method-eq5``
-- ``case-method-eq54``
 - ``e1-decomposition``
 - ``mode-conservation-target``
 - ``peierls-3d``
@@ -472,6 +467,11 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``peierls-vacuum-bc-slab``
 - ``peierls-vacuum-bc-sphere``
 - ``peierls-white-bc-slab``
+- ``singular-eigenfunction-eq40``
+- ``singular-eigenfunction-eq42``
+- ``singular-eigenfunction-eq46``
+- ``singular-eigenfunction-eq5``
+- ``singular-eigenfunction-eq54``
 - ``vacuum-bc``
 
 Documented-only equations
