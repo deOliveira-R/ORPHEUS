@@ -27,4 +27,24 @@ Sub-modules:
 - :mod:`~orpheus.derivations.continuous.trajectory_resolvent.origins` —
   symbolic *origins* (SymPy V_α1..V_α3 operator-level identities) for
   sphere and cylinder.
+- :mod:`~orpheus.derivations.continuous.trajectory_resolvent.billiard` —
+  the :class:`Billiard` class (R2 hindsight refactor) — a math-rich
+  facade over every Variant α geometry that returns the SHARED
+  cross-method :class:`CriticalSolution` /
+  :class:`FluxSolution` result types from
+  :mod:`orpheus.derivations.common.solution_types`.
+
+Public API entry point: :class:`Billiard`. Construct via
+:meth:`Billiard.from_problem`, then call :meth:`Billiard.solve_critical`
+for *k*-eigenproblems or :meth:`Billiard.solve_fixed_source` for
+fixed-source problems. The legacy ``solve_greens_function_*`` entry
+points remain available for back-compat.
 """
+
+from orpheus.derivations.continuous.trajectory_resolvent.billiard import (
+    Billiard,
+    CriticalSolution,
+    FluxSolution,
+)
+
+__all__ = ["Billiard", "CriticalSolution", "FluxSolution"]

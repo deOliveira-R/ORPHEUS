@@ -2482,6 +2482,403 @@ chord algebra. The proofs are unified by their structural ancestor,
 not by code reuse.
 
 
+.. _billiards-and-the-variant-alpha-resolvent:
+
+Mathematical billiards and the Variant α resolvent
+===================================================
+
+This section names the structural object that runs through every
+solver in the family. The shared closure of the previous section is
+not just an algebraic happenstance: it is the analytic resolvent of a
+**Birkhoff transfer operator** on a **mathematical billiard**.
+Reading this section once gives a vocabulary that connects neutron
+transport, classical mechanics, semiclassical quantum chaos, and
+ergodic theory through a single discrete-dynamics object. Each later
+read should reinforce one more piece of that web.
+
+The :class:`~orpheus.derivations.continuous.trajectory_resolvent.billiard.Billiard`
+class in
+:mod:`~orpheus.derivations.continuous.trajectory_resolvent.billiard`
+is the code-side embodiment of this section. Its docstring
+compresses the load-bearing intuition; this section derives it.
+
+What is a billiard?
+-------------------
+
+A *mathematical billiard* (Birkhoff 1927 [#birkhoff_1927]_;
+Sinai 1970 [#sinai_1970]_; Chernov–Markarian 2006
+[#chernov_markarian_2006]_) is a dynamical system on
+a domain :math:`M \subset \mathbb R^d` (or, more generally, on a
+Riemannian manifold) determined by:
+
+1. **The "table"** :math:`M`. The interior is where free flight
+   happens; the boundary :math:`\partial M` is where collisions
+   happen. ORPHEUS billiards have :math:`M` equal to the spatial
+   geometry: a slab, a sphere, a cylinder, a hollow sphere, an
+   annulus, an asymmetric slab. The orbit-space M/G classification
+   (see :ref:`orbit-space-m-g-classification`) tells us the
+   topology of :math:`\partial M / G` — which determines the
+   *closure rank*.
+
+2. **The free-flight rule**. Particles move along geodesics of the
+   ambient metric (here Euclidean, so geodesics are straight lines)
+   between collisions. In transport language the streaming operator
+   :math:`\Omega \cdot \nabla + \Sigma_t` governs free flight; the
+   absorption rate :math:`\Sigma_t` is a *generalized* dissipation
+   that has no analog in classical billiards but that the resolvent
+   formalism handles uniformly via the substitution
+   :math:`e^{-\Sigma_t \cdot \mathrm{(arclength)}}`.
+
+3. **The reflection law** at :math:`\partial M`. Classical billiards
+   use *specular reflection*: the angle of incidence equals the
+   angle of reflection. ORPHEUS's Variant α generalises this to a
+   one-parameter family
+
+   .. math::
+      :label: billiard-reflection-law
+
+      \psi^+_{\rm out}(\Omega') = \alpha \cdot \psi^-_{\rm in}(\Omega),
+      \quad \Omega' = \Omega - 2(\Omega \cdot \hat n) \hat n,
+
+   where :math:`\hat n` is the outward normal and :math:`\alpha \in
+   [0, 1]` is the **albedo**:
+
+   - :math:`\alpha = 1`: pure specular billiard (closed table).
+   - :math:`\alpha = 0`: vacuum (open table — the particle leaves
+     forever on first contact).
+   - :math:`\alpha \in (0, 1)`: scattering billiard (energy / particle
+     loss at the boundary).
+
+4. **The phase space**. For a billiard on
+   :math:`M \subset \mathbb R^d`, phase space is the unit-tangent
+   bundle :math:`T_1 M \cong M \times S^{d-1}`. Liouville measure
+   on this bundle is invariant under the billiard flow; the
+   Poincaré section of the flow at :math:`\partial M`,
+
+   .. math::
+
+      \Sigma = \{(q, v) \in T_1 M : q \in \partial M,\,
+                                    v \cdot \hat n(q) > 0\},
+
+   inherits a measure from Liouville. The induced map :math:`\Sigma
+   \to \Sigma` is the **Poincaré–Birkhoff billiard map**.
+
+The Poincaré–Birkhoff billiard map and its transfer operator
+-------------------------------------------------------------
+
+A trajectory in the billiard alternates *streaming segments* (free
+flight from one boundary point to the next) and *boundary
+collisions*. The Poincaré–Birkhoff billiard map :math:`\Phi:
+\Sigma \to \Sigma` carries a boundary state to its next boundary
+state under exactly one full streaming + reflection cycle. Iterating
+:math:`\Phi^n` gives the boundary state after :math:`n` collisions.
+
+The associated **transfer operator** :math:`S` acts on functions
+on :math:`\Sigma`. For a function :math:`f(q, v)` on the section,
+the transferred function is
+
+.. math::
+   :label: billiard-transfer-operator
+
+   (Sf)(q, v) \;=\; \alpha \cdot e^{-\tau(q, v)} \cdot f(\Phi(q, v))
+
+where :math:`\tau(q, v) = \Sigma_t \cdot |\Phi(q, v) - q|` is the
+optical depth of the streaming segment from :math:`(q, v)` to
+:math:`\Phi(q, v)`. The :math:`\alpha` factor accounts for the
+boundary reflection; the :math:`e^{-\tau}` factor accounts for the
+streaming attenuation. Composition: :math:`S^n` carries information
+forward by :math:`n` collisions, picking up :math:`\alpha^n e^{-n
+\bar\tau}` along a typical trajectory of :math:`n` cycles with
+average optical depth :math:`\bar\tau`.
+
+The **Birkhoff–transfer-operator resolvent** is
+
+.. math::
+   :label: billiard-resolvent-neumann
+
+   T \;=\; (I - S)^{-1} \;=\; \sum_{n=0}^{\infty} S^n.
+
+Convergence of the Neumann series requires :math:`\|S\| < 1`. With
+the operator norm induced by the natural Banach space of bounded
+functions on :math:`\Sigma`, :math:`\|S\| \le \alpha \cdot
+\sup_{(q,v)} e^{-\tau(q,v)}`. For a strictly absorbing
+(:math:`\alpha < 1`) or sub-critical
+(:math:`\inf \tau > 0`) billiard, :math:`\|S\| < 1` and the series
+converges geometrically with rate :math:`\alpha`. At
+:math:`\alpha = 1` and :math:`\tau = 0` the series diverges — this
+is the *high-density ergodic limit* where the billiard fills phase
+space.
+
+The Variant α resolvent IS the billiard resolvent
+--------------------------------------------------
+
+The :func:`~orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core.compute_resolvent_T`
+formula
+
+.. math::
+   :label: billiard-variant-alpha-rank1
+
+   T(\alpha, \tau_{\rm period}) \;=\;
+       \frac{1}{1 - \alpha\,e^{-\tau_{\rm period}}}
+
+is exactly equation
+:eq:`billiard-resolvent-neumann` evaluated when the transfer operator
+:math:`S` is a **rank-1 multiplication operator**. The reduction of
+a generic :math:`(I - S)^{-1}` to a single scalar arises because of
+two structural facts that hold for the homogeneous closed
+billiards in our family:
+
+1. **One closed billiard orbit per impact-parameter slice.** For a
+   one-surface compact billiard (closed sphere, closed cylinder),
+   every interior phase-space point :math:`(r, \mu)` belongs to a
+   *unique* periodic orbit of the Poincaré–Birkhoff map at the
+   conserved impact parameter :math:`b(r, \mu)`. The orbit visits
+   the boundary infinitely often, but always with the same
+   :math:`\tau_{\rm period} = \Sigma_t \cdot L_{\rm period}(b)`.
+   :math:`S` acts on the 1-dimensional space of constant functions
+   along that orbit by multiplication: :math:`(Sf)(\rm orbit) =
+   \alpha\,e^{-\tau_{\rm period}}\,f(\rm orbit)`.
+
+2. **Constant-source ansatz.** When the volume source :math:`q(r)`
+   along the orbit is constant (the V_α1 closed-shape eigenmode of
+   isotropic scattering), :math:`f` is itself constant on the
+   orbit, and :math:`(I - S)^{-1}` collapses to scalar division.
+
+The resolvent of equation :eq:`billiard-variant-alpha-rank1` is
+therefore literally the geometric series of equation
+:eq:`billiard-resolvent-neumann`, summed in closed form because
+:math:`S` is rank-1. Sphere :math:`L_{\rm period} = 2 R \mu_{\rm
+surf}`; cylinder :math:`L_{\rm period} = 2 \sqrt{R^2 - b^2} /
+\sqrt{1 - \mu_{\rm axial}^2}` — different **chord algebra**, same
+**resolvent algebra**.
+
+Two-surface billiards: the rank-2 case
+---------------------------------------
+
+For two-surface billiards (slab, slab asymmetric, hollow sphere,
+annulus), every through-trajectory visits TWO walls per period,
+and the Poincaré–Birkhoff map is a 2-to-2 transfer between the
+two surfaces. The transfer operator is a :math:`2\times 2` matrix:
+
+.. math::
+   :label: billiard-rank2-S
+
+   S \;=\; \begin{pmatrix}
+       0                     & \alpha_L\,e^{-\tau} \\
+       \alpha_R\,e^{-\tau}   & 0
+   \end{pmatrix}
+
+— off-diagonal because one bounce never returns to the same wall.
+The resolvent
+
+.. math::
+   :label: billiard-rank2-T
+
+   T \;=\; (I - S)^{-1}
+       \;=\; \frac{1}{1 - \alpha_L \alpha_R e^{-2\tau}}
+             \begin{pmatrix}
+                 1                      & \alpha_L\,e^{-\tau} \\
+                 \alpha_R\,e^{-\tau}    & 1
+             \end{pmatrix}
+
+is the closed-form 2×2 inverse, summed exactly because the matrix
+is anti-diagonal — the eigenvalues of :math:`S` are
+:math:`\pm \sqrt{\alpha_L \alpha_R}\, e^{-\tau}` and the geometric
+series sums independently for each. This is exactly
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core.compute_resolvent_T_rank2`.
+
+The rank of the closure is the **bond dimension of the open MPO
+on the bounce-event lattice** (per the cross-domain memo at
+:file:`.claude/agent-memory/cross-domain-attacker/variant_alpha_2surface_bie_frame.md`).
+One endpoint → bond dimension 1 → scalar resolvent. Two endpoints →
+bond dimension 2 → matrix resolvent. Rank-:math:`N` would arise
+for a billiard with :math:`N` distinguishable surface classes
+(e.g., a 3-region asymmetric slab), but the algebra of
+:math:`(I - S)^{-1}` no longer admits a closed form for
+:math:`N \ge 5` (Abel–Ruffini): a rank-N abstraction would have
+to fall back on numerical matrix inversion. Variant α stops at
+rank-2 because the two practical orbit-space classes
+(one-endpoint and two-endpoint M/G) only exhibit ranks 1 and 2.
+
+Specular ↔ ergodic ↔ vacuum: the three regimes
+-----------------------------------------------
+
+The boundary albedo :math:`\alpha` parametrises three qualitatively
+different billiard regimes. Each has a clean signature in the
+resolvent:
+
+**Specular (:math:`\alpha = 1`) — closed billiard, ergodic at high
+density.**
+The boundary loses no particles. The Neumann series
+
+.. math::
+
+   T \;=\; \sum_n e^{-n\tau_{\rm period}}
+       \;=\; \frac{1}{1 - e^{-\tau_{\rm period}}}
+
+is the classical *partition function* of free particles in a box
+with periodic boundary conditions, with :math:`e^{-\tau_{\rm
+period}}` playing the role of a Boltzmann factor. As
+:math:`\tau_{\rm period} \to 0` (high density), :math:`T \to
+1/\tau_{\rm period} \to \infty` and the billiard is *ergodic* —
+trajectories fill phase space uniformly. In the transport context,
+the ergodic limit is the asymptotic infinite-medium balance, and
+:math:`k_{\rm eff} = k_\infty = \nu\Sigma_f / \Sigma_a` exactly:
+no information about the spatial geometry survives the ergodic
+average. This is the V_α1 identity expressed in dynamical-systems
+language.
+
+**Vacuum (:math:`\alpha = 0`) — open billiard, particles escape.**
+:math:`S = 0`, so :math:`T = I`. There is no multi-bounce
+contribution; only the first-leg streaming integral :math:`F`
+contributes. The closure equation
+:math:`\psi_{\rm new} = F + e^{-\tau_{\rm first}}\,\alpha B T`
+reduces to :math:`\psi_{\rm new} = F` exactly. The billiard is a
+*scattering process* in the QM sense: incoming particles arrive
+from the boundary, undergo at most one streaming segment in the
+interior (with possible volume scattering), and exit through the
+opposite boundary. Cross-section measurements in vacuum BC
+correspond to the *transmission probabilities* of this scattering
+problem — which is why the PS-1982 vacuum-BC reference solver is
+the ORPHEUS L1 anchor for sphere : it is the closed-form solution
+of the analogous scattering problem for the Peierls integral
+operator.
+
+**Partial-albedo (:math:`\alpha \in (0, 1)`) — scattering billiard.**
+:math:`\|S\| < 1` strictly, so the Neumann series converges with
+geometric rate :math:`\alpha`. Each pass loses a fraction
+:math:`1 - \alpha` of particles; the surviving fraction is
+:math:`\alpha^n` after :math:`n` bounces. The billiard is
+*dissipative*: ergodicity is broken on a finite timescale
+(approximately :math:`-1/\log \alpha` bounces), and trajectories
+*relax* to the fundamental eigenmode rather than fill phase space
+uniformly. Variant α captures this relaxation in closed form via
+the geometric resolvent. Power-iteration convergence rate is
+exactly :math:`\alpha`: the slower the absorbing boundary, the
+more iterations to converge.
+
+Why the Birkhoff transfer operator is the right frame
+------------------------------------------------------
+
+The frame change from "transport equation with reflective BC" to
+"billiard with transfer-operator resolvent" buys three structural
+advantages:
+
+1. **Closed-form bounce summation.** The infinite geometric series
+   :math:`\sum_n S^n` is summed *algebraically*, never iteratively.
+   This is the structural reason the Hadamard finite-part diagonal
+   singularity that killed Phase 5 (see :ref:`peierls-phase5-retreat`)
+   is bypassed in Variant α: we never assemble the angle-integrated
+   kernel that has the singularity. The bounce summation lives in
+   the transfer-operator algebra, not in any quadrature.
+
+2. **Geometry-independent algebra.** The resolvent algebra is the
+   same across slab / sphere / cylinder / hollow / annulus /
+   slab-asymmetric. Only the *chord algebra* (computing :math:`L_{\rm
+   period}` from :math:`b` and the geometry parameters) is
+   geometry-specific. This is why
+   :mod:`~orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core`
+   is byte-equal-shared across all six geometries.
+
+3. **Ergodic-limit predictions.** The ergodic limit :math:`\alpha
+   = 1, \tau \to 0` recovers the V_α1 identity *as a corollary of
+   the partition-function divergence*, not as a per-geometry
+   miracle. The same algebraic argument predicts the ergodic-limit
+   :math:`k_{\rm eff} = k_\infty` for any new closed billiard
+   geometry that joins the family.
+
+The frame is not native to transport physics — it is native to
+ergodic theory and dynamical systems. ORPHEUS imports it because
+the V_α1 identity, the rank-2 closure, and the bit-equal cross-
+geometry shared closure are all corollaries of the billiard
+viewpoint. Without the frame, they read as six unrelated proofs
+plus a coincidence at the symmetric corner. With the frame, they
+read as one identity restricted to six chord algebras — and any
+seventh closed billiard geometry will inherit the same identity
+without re-deriving it.
+
+The :class:`Billiard` class — code embodiment
+----------------------------------------------
+
+The :class:`~orpheus.derivations.continuous.trajectory_resolvent.billiard.Billiard`
+class names the billiard system at the call site. A user constructs
+one with:
+
+.. code-block:: python
+
+   from orpheus.derivations.continuous.trajectory_resolvent import Billiard
+
+   b = Billiard.from_problem(
+       geometry_kind="sphere",
+       materials={"sigma_t": 0.5, "sigma_s": 0.4, "nu_sigma_f": 0.1},
+       geometry={"R": 5.0},
+       alpha=1.0,
+       quadrature={"n_r": 24, "n_mu": 24, "n_traj_quad": 64},
+   )
+   sol = b.solve_critical()
+   print(sol.eigenvalue)               # = 1.0 (V_α1 identity)
+   print(sol.metadata["psi"].shape)    # = (24, 24)
+   print(sol.metadata["iterations"])   # = 1 (closed-shape exact)
+
+The class encapsulates the four ingredients of the billiard:
+
+- :attr:`Billiard.geometry_payload` ↔ the table :math:`M`.
+- :attr:`Billiard.materials` ↔ the streaming dissipation
+  (:math:`\Sigma_t`) + the *interior source* (:math:`\Sigma_s
+  \phi + \nu\Sigma_f \phi / k`).
+- :attr:`Billiard.alpha_payload` ↔ the boundary reflection law.
+- :attr:`Billiard.closure_rank` ↔ the bond dimension of the
+  Poincaré–Birkhoff transfer operator (1 for one-endpoint M/G,
+  2 for two-endpoint M/G).
+
+The :meth:`Billiard.solve_critical` method dispatches to the
+geometry-specific power-iteration entry point and re-packs the
+result as the SHARED cross-method
+:class:`~orpheus.derivations.common.solution_types.CriticalSolution`
+(introduced as the first cross-method shared vocabulary; consumed
+by :class:`MomentSpace` for fn_method as well). Bit-equality with
+the legacy ``solve_greens_function_*`` API is preserved exactly:
+the :class:`Billiard` is a *facade*, not a re-implementation.
+
+Cross-method analog
+-------------------
+
+Each method in the reference family has a *math-heart class* that
+names the load-bearing object:
+
+- :class:`Billiard` — :mod:`...trajectory_resolvent`. The transfer
+  operator on a billiard table.
+- ``MomentSpace`` (Wave 2-A) —
+  :mod:`...fn_method`. Galerkin half-range projection of the
+  Peierls integral equation onto Legendre moments.
+- ``Spectrum`` (planned) —
+  :mod:`...singular_eigenfunction`. Case singular eigenfunction
+  expansion of the angular flux on the operator's spectrum.
+- ``CPMesh`` —
+  :mod:`...flat_source_cp` (production CP solver).
+
+These are all method-specific computational specializations of
+the abstract
+:class:`~orpheus.derivations.common.geometry_spec.GeometrySpec`.
+A single problem can spawn multiple methods :math:`\to` multiple
+math-hearts :math:`\to` multiple solutions; the cross-method
+regression net (see :file:`tests/cross_method/`) compares them
+against each other and against the structurally-independent
+external references.
+
+.. rubric:: References for the billiard frame
+
+.. [#birkhoff_1927] Birkhoff, G.D. (1927). *Dynamical Systems*,
+   Ch. 6 (billiard flows). Reissued by AMS Colloquium Publications,
+   1966.
+.. [#sinai_1970] Sinai, Ya.G. (1970). "Dynamical systems with elastic
+   reflections and their applications." *Russ. Math. Surveys* **25**,
+   137–189. DOI: 10.1070/RM1970v025n02ABEH003794.
+.. [#chernov_markarian_2006] Chernov, N. and Markarian, R. (2006).
+   *Chaotic Billiards*. AMS Mathematical Surveys and Monographs
+   **127**.
+
+
 .. _peierls-greens-valpha2-strengthening:
 
 V_α2 strengthening across geometries (sphere, cylinder, slab)
