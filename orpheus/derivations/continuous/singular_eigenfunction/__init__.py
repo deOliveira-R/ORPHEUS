@@ -155,6 +155,7 @@ from .sphere import (
     CaseMethodSphereResult,
     solve_case_method_sphere_critical,
 )
+from .spectrum import Spectrum
 
 __all__ = [
     # cylinder (Westfall-Metcalf 1973)
@@ -166,4 +167,6 @@ __all__ = [
     # sphere (Atalay 1997)
     "CaseMethodSphereResult",
     "solve_case_method_sphere_critical",
+    # math-heart class (3rd instance of the pattern)
+    "Spectrum",
 ]
