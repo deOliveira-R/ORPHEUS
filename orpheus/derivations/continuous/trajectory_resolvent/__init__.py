@@ -33,6 +33,11 @@ Sub-modules:
   cross-method :class:`CriticalSolution` /
   :class:`FluxSolution` result types from
   :mod:`orpheus.derivations.common.solution_types`.
+- :mod:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle` —
+  the :class:`ChordOracle` Protocol + per-geometry implementations
+  (R3 hindsight refactor) — extracts the chord-arithmetic primitives
+  (the *base atlas* in the fiber-bundle frame) into one Protocol with
+  six concrete frozen-dataclass instances, one per geometry.
 
 Public API entry point: :class:`Billiard`. Construct via
 :meth:`Billiard.from_problem`, then call :meth:`Billiard.solve_critical`
@@ -46,5 +51,26 @@ from orpheus.derivations.continuous.trajectory_resolvent.billiard import (
     CriticalSolution,
     FluxSolution,
 )
+from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
+    AnnulusChordOracle,
+    ChordOracle,
+    CylinderChordOracle,
+    HollowSphereChordOracle,
+    MultiRegionSphereChordOracle,
+    SlabAsymmetricChordOracle,
+    SphereChordOracle,
+)
 
-__all__ = ["Billiard", "CriticalSolution", "FluxSolution"]
+__all__ = [
+    "Billiard",
+    "CriticalSolution",
+    "FluxSolution",
+    # R3 ChordOracle Protocol + per-geometry concrete implementations.
+    "ChordOracle",
+    "SphereChordOracle",
+    "MultiRegionSphereChordOracle",
+    "CylinderChordOracle",
+    "SlabAsymmetricChordOracle",
+    "HollowSphereChordOracle",
+    "AnnulusChordOracle",
+]

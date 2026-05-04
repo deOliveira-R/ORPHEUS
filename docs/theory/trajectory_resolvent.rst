@@ -2866,6 +2866,61 @@ regression net (see :file:`tests/cross_method/`) compares them
 against each other and against the structurally-independent
 external references.
 
+.. _trajectory-resolvent-chord-oracle:
+
+The chord oracle — base atlas of the fiber bundle
+--------------------------------------------------
+
+Each billiard's *base atlas* — the geometry-specific chord arithmetic
+that maps the abstract orbit space :math:`M/G` into ray-traversal data
+on the original manifold :math:`M` — is exposed as a first-class
+object in :mod:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle`.
+
+A :class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.ChordOracle`
+is a Protocol with a single method :meth:`apply_operator(source_profile,
+sigma_t, *, n_traj_quad)`. Each of the six geometries provides a
+concrete frozen-dataclass implementation:
+
+- :class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.SphereChordOracle`
+  — solid sphere; rank-1 closure with reflectivity :math:`\alpha`.
+- :class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.MultiRegionSphereChordOracle`
+  — piecewise-:math:`\Sigma_t` sphere; chord segmentation by region
+  boundaries.
+- :class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.CylinderChordOracle`
+  — solid cylinder; 3D angular phase space with :math:`s_{\rm 3D} =
+  s_{\rm 2D}/\sqrt{1 - \mu_{\rm axial}^2}` arclength lift.
+- :class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.SlabAsymmetricChordOracle`
+  — homogeneous slab with independent :math:`\alpha_L, \alpha_R`
+  reflectivities; rank-2 monodromy resolvent.
+- :class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.HollowSphereChordOracle`
+  — hollow sphere; impact-parameter partition routes to rank-1
+  (outer-only) or rank-2 (through-ray) closure.
+- :class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.AnnulusChordOracle`
+  — hollow cylinder; combines the cylinder's 3D angular structure
+  with the hollow-sphere :math:`b`-partition.
+
+Each oracle's :meth:`apply_operator` is a verbatim relocation of the
+pre-R3 ``_apply_operator_*`` body in its geometry module. Bit-equality
+is preserved at the IEEE-754 exact-bit level; the legacy facade
+functions in each ``greens_function_*.py`` module now construct the
+matching oracle and delegate to it. The 21-test foundation gate at
+:file:`tests/derivations/test_trajectory_resolvent_chord_oracle.py`
+pins this byte-equivalence using :func:`numpy.ndarray.view` against
+:class:`numpy.int64`.
+
+The chord oracle is the third unification step in the *hindsight
+refactor* (R3) of the Variant α family. R1 collapsed the 11 byte-
+identical power-iteration outer loops into
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.power_iteration.power_iterate_variant_alpha`;
+R2 unified the 12 result dataclasses behind the
+:class:`~orpheus.derivations.continuous.trajectory_resolvent.billiard.Billiard`
+math-rich facade; R3 extracts the chord-arithmetic primitives. After
+the abstraction beds in for one merge cycle, the oracle is scheduled
+to promote to :mod:`orpheus.derivations.common.chord_oracle` so that
+:mod:`~orpheus.derivations.continuous.peierls_nystrom` and a future
+MoC reference solver can consume it (see plan §R4 in
+:file:`.claude/plans/trajectory_resolvent_hindsight_refactor.md`).
+
 .. rubric:: References for the billiard frame
 
 .. [#birkhoff_1927] Birkhoff, G.D. (1927). *Dynamical Systems*,
