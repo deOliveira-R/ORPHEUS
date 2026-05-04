@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from orpheus.derivations.common.geometry_spec import GeometrySpec
+from orpheus.derivations.common.geometry_spec import GeometrySpec, Region
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.derivations.continuous.sood_registry import (
     PUA_1_0_SL,
@@ -293,109 +293,242 @@ BARE_CRITICAL_SPHERE_CASES: list[CrossMethodCase] = [
 # Pu r_c = 0.43014 mfp. NM 1980 Table 2 publishes 8 cases (c1, c2,
 # Δ) families; Sood Table 10 #4 is one of them. We populate the
 # four primary NM cases.
+#
+# Encoding convention (Step 3, 2026-05-04 input-cleanup):
+#
+# * Materials:
+#   - mat_id=0 → core: 1G isotropic with Σ_t=1, Σ_s=0, νΣ_f=c_core
+#     (pure-multiplying, c > 1). The XS construction is a unit-σ_t
+#     cross-section convention so cm ≡ mfp; the FN solver consumes
+#     ``Mixture.scattering_ratio[0]`` exclusively, which is invariant
+#     under any (Σ_s, νΣ_f) decomposition with a fixed c.
+#   - mat_id=1 → reflector: 1G isotropic with Σ_t=1, Σ_s=c_refl,
+#     νΣ_f=0 (pure scattering, c < 1).
+# * GeometrySpec:
+#   - ``regions`` is the ORDERED slab layout ``(reflector, core,
+#     reflector)`` — left-to-right with the symmetric Pu+H2O
+#     convention.
+#   - ``Region.outer_thickness_*`` for the reflector layers is the
+#     published Δ (mfp ≡ cm with σ_t=1). For the core layer the
+#     thickness is ``2 * truth_value`` (the FULL core, of which τ
+#     is the half-thickness).
+#   - ``critical_dimension_{mfp,cm}`` carries the published
+#     core-half-thickness τ_c — the truth scalar — for diagnostics.
+#     For multi-region specs ``domain_extent_cm`` is taken from the
+#     region stack, not from this field (see GeometrySpec docstring).
+#   - BCs are vacuum-vacuum at the outer edges of the slab.
+
+
+def _make_unit_sigma_t_one_group_mixture(c: float):
+    r"""Build a 1G isotropic :class:`Mixture` with :math:`\Sigma_t = 1`
+    that has scattering ratio :math:`c` exactly.
+
+    Decomposition convention:
+
+    * :math:`c \ge 1`: pure-multiplying (:math:`\Sigma_s = 0`,
+      :math:`\nu\Sigma_f = c`, :math:`\Sigma_c = 1 - c \ge 0` is
+      negative for c>1, so we set :math:`\Sigma_c = 0` and put the
+      mass on :math:`\nu`/:math:`\Sigma_f` decomposition;
+      ``make_mixture`` requires :math:`\Sigma_c \ge 0` so we
+      pick :math:`\Sigma_f = c, \nu = 1` and let
+      :math:`\Sigma_t = \Sigma_c + \Sigma_f + \Sigma_s = 0 + c + 0`).
+      That gives :math:`\Sigma_t = c` — but we want
+      :math:`\Sigma_t = 1`. We resolve by **renormalising**:
+      :math:`\Sigma_t \equiv 1`, :math:`\Sigma_s = 0`,
+      :math:`\Sigma_f = 1`, :math:`\nu = c`,
+      :math:`\Sigma_c = 1 - 1 = 0`. Then
+      :math:`c_{\rm Case-Zweifel} = (\Sigma_s + \nu\Sigma_f)/\Sigma_t
+      = (0 + c \cdot 1)/1 = c` — matches.
+    * :math:`c < 1`: pure-scattering (:math:`\Sigma_s = c`,
+      :math:`\nu\Sigma_f = 0`, :math:`\Sigma_c = 1 - c > 0`,
+      :math:`\Sigma_f = 0`).
+
+    The two decompositions yield the same ``Mixture.scattering_ratio``
+    — that is the only quantity the F_N reflected-slab solver
+    consumes from the materials. The (Σ_s, νΣ_f) split is a
+    cross-section labelling convention.
+
+    Parameters
+    ----------
+    c : float
+        Case–Zweifel scattering ratio. Must be ``> 0``.
+
+    Returns
+    -------
+    Mixture
+        1G isotropic mixture with ``Σ_t = 1`` and
+        ``Mixture.scattering_ratio[0] == c``.
+    """
+    if c <= 0.0:
+        raise ValueError(f"_make_unit_sigma_t_one_group_mixture: c must be > 0; got {c!r}")
+    sig_t = np.array([1.0])
+    chi = np.array([1.0])
+    if c >= 1.0:
+        # Pure-multiplying: Σ_s = 0, ν=c, Σ_f = 1, Σ_c = 0.
+        return make_mixture(
+            sig_t=sig_t,
+            sig_c=np.array([0.0]),
+            sig_f=np.array([1.0]),
+            nu=np.array([c]),
+            chi=chi,
+            sig_s=np.array([[0.0]]),
+        )
+    # Pure-scattering: Σ_s = c, ν=0, Σ_f = 0, Σ_c = 1 - c.
+    return make_mixture(
+        sig_t=sig_t,
+        sig_c=np.array([1.0 - c]),
+        sig_f=np.array([0.0]),
+        nu=np.array([0.0]),
+        chi=chi,
+        sig_s=np.array([[c]]),
+    )
+
+
+def _build_reflected_slab_case(
+    *,
+    case_id: str,
+    description: str,
+    c_core: float,
+    c_reflector: float,
+    reflector_half_thickness_mfp: float,
+    truth_value: float,
+    truth_source: str,
+    fn_tolerance: float,
+    notes: str = "",
+) -> CrossMethodCase:
+    r"""Construct a symmetric reflected-slab :class:`CrossMethodCase`.
+
+    Materials and geometry are encoded inline (Step 3 input-cleanup):
+
+    * ``materials = {0: core_mixture, 1: reflector_mixture}``
+      built via :func:`_make_unit_sigma_t_one_group_mixture`.
+    * ``geometry_spec.regions = (reflector, core, reflector)`` with
+      thicknesses ``(Δ, 2·τ, Δ)`` mfp (≡ cm under σ_t=1). The core
+      thickness uses the published critical τ as the half-thickness.
+
+    The FN reflected-slab adapter reads ``c_core``,
+    ``c_reflector``, and ``reflector_half_thickness_mfp`` directly
+    from these fields — no notes-string parsing.
+    """
+    core_mix = _make_unit_sigma_t_one_group_mixture(c_core)
+    refl_mix = _make_unit_sigma_t_one_group_mixture(c_reflector)
+    # Unit σ_t convention → cm ≡ mfp for these problems.
+    refl_thickness_cm = float(reflector_half_thickness_mfp)
+    core_thickness_cm = 2.0 * float(truth_value)
+    regions = (
+        Region(
+            mat_id=1,  # reflector layer (left)
+            outer_thickness_mfp=reflector_half_thickness_mfp,
+            outer_thickness_cm=refl_thickness_cm,
+        ),
+        Region(
+            mat_id=0,  # core layer (full thickness = 2·τ)
+            outer_thickness_mfp=2.0 * float(truth_value),
+            outer_thickness_cm=core_thickness_cm,
+        ),
+        Region(
+            mat_id=1,  # reflector layer (right)
+            outer_thickness_mfp=reflector_half_thickness_mfp,
+            outer_thickness_cm=refl_thickness_cm,
+        ),
+    )
+    spec = GeometrySpec(
+        geometry="slab",
+        critical_dimension_mfp=float(truth_value),  # τ_c half-thickness
+        critical_dimension_cm=float(truth_value),  # σ_t=1 → cm ≡ mfp
+        n_groups=1,
+        regions=regions,
+    )
+    return CrossMethodCase(
+        case_id=case_id,
+        description=description,
+        registry_case=None,
+        materials={0: core_mix, 1: refl_mix},
+        geometry_spec=spec,
+        geometry="reflected-slab",
+        truth_tag="tau_critical_mfp",
+        truth_value=truth_value,
+        truth_source=truth_source,
+        pillar="closed-form",
+        claim_layer="eigenvalue",
+        tolerances={"fn_reflected_slab": fn_tolerance},
+        notes=notes,
+    )
 
 
 REFLECTED_SLAB_CASES: list[CrossMethodCase] = [
-    CrossMethodCase(
+    _build_reflected_slab_case(
         case_id="Sood-Table10-4-PUa-H2O-symm-0.5mfp",
         description=(
             "Symmetric Pu+H2O reflected slab, Sood LA-13511 Table 10 "
             "problem 4: c_core=1.50, c_refl=0.90, Δ=0.5 mfp each "
             "side. Pu r_c = 0.43014 mfp."
         ),
-        registry_case=None,
-        geometry="reflected-slab",
-        truth_tag="tau_critical_mfp",
+        c_core=1.50,
+        c_reflector=0.90,
+        reflector_half_thickness_mfp=0.5,
         truth_value=0.43014,
         truth_source="Sood LA-13511 Table 10 problem 4 (1999)",
-        pillar="closed-form",
-        claim_layer="eigenvalue",
-        tolerances={
-            "fn_reflected_slab": 1e-3,
-        },
-        notes=(
-            "c_core=1.50 c_reflector=0.90 reflector_half_thickness_mfp=0.5"
-        ),
+        fn_tolerance=1e-3,
     ),
     # NM 1980 Table 1 Case 4 — c_core=1.30, c_reflector=0.90, Δ=1.0.
     # NM Table 2 reports F_7 matching Burkart 1976 "Exact" to all
     # published digits.
-    CrossMethodCase(
+    _build_reflected_slab_case(
         case_id="NM-1980-Case4-c130-c090-D10",
         description=(
             "NM 1980 Table 1 Case 4: c_core=1.30, c_reflector=0.90, "
             "Δ=1.0 mfp each side. τ_c = 0.6027 mfp per NM Table 2 "
             "(Burkart 1976 'Exact')."
         ),
-        registry_case=None,
-        geometry="reflected-slab",
-        truth_tag="tau_critical_mfp",
+        c_core=1.30,
+        c_reflector=0.90,
+        reflector_half_thickness_mfp=1.0,
         truth_value=0.6027,
         truth_source=(
             "Neshat-Maiorino 1980 Table 1 Case 4 / Table 2 Burkart "
             "1976 'Exact'"
         ),
-        pillar="closed-form",
-        claim_layer="eigenvalue",
-        tolerances={
-            # 4 published digits → 5e-4 absolute is the published-
-            # precision floor; F_7 reaches it.
-            "fn_reflected_slab": 1e-3,
-        },
-        notes=(
-            "c_core=1.30 c_reflector=0.90 reflector_half_thickness_mfp=1.0"
-        ),
+        # 4 published digits → 5e-4 absolute is the published-
+        # precision floor; F_7 reaches it.
+        fn_tolerance=1e-3,
     ),
     # NM 1980 Table 1 Case 6 — the canonical c_core=1.50, c_reflector=0.90,
     # Δ=1.0 cross-comparator (also referenced by
     # test_fn_sood_table10_symmetric_pu_h2o.py).
-    CrossMethodCase(
+    _build_reflected_slab_case(
         case_id="NM-1980-Case6-c150-c090-D10",
         description=(
             "NM 1980 Table 1 Case 6: c_core=1.50, c_reflector=0.90, "
             "Δ=1.0. τ_c = 0.3597 mfp per Burkart 1976 'Exact'."
         ),
-        registry_case=None,
-        geometry="reflected-slab",
-        truth_tag="tau_critical_mfp",
+        c_core=1.50,
+        c_reflector=0.90,
+        reflector_half_thickness_mfp=1.0,
         truth_value=0.3597,
         truth_source=(
             "Neshat-Maiorino 1980 Table 1 Case 6 / Table 2 Burkart "
             "1976 'Exact'"
         ),
-        pillar="closed-form",
-        claim_layer="eigenvalue",
-        tolerances={
-            "fn_reflected_slab": 1e-3,
-        },
-        notes=(
-            "c_core=1.50 c_reflector=0.90 reflector_half_thickness_mfp=1.0"
-        ),
+        fn_tolerance=1e-3,
     ),
     # NM 1980 Table 1 Case 1 — small-c endpoint (most loosely
     # multiplying core; thick critical slab). c_core=1.01,
     # c_reflector=0.09, Δ=0.5. τ_c = 8.3107.
-    CrossMethodCase(
+    _build_reflected_slab_case(
         case_id="NM-1980-Case1-c101-c009-D05",
         description=(
             "NM 1980 Table 1 Case 1 (small-c endpoint): c_core=1.01, "
             "c_reflector=0.09, Δ=0.5. τ_c = 8.3107 mfp."
         ),
-        registry_case=None,
-        geometry="reflected-slab",
-        truth_tag="tau_critical_mfp",
+        c_core=1.01,
+        c_reflector=0.09,
+        reflector_half_thickness_mfp=0.5,
         truth_value=8.3107,
         truth_source="Neshat-Maiorino 1980 Table 1 Case 1",
-        pillar="closed-form",
-        claim_layer="eigenvalue",
-        tolerances={
-            # 4 published digits + thick slab — F_7 reaches Burkart
-            # 'Exact' to all printed digits per NM Table 2 (~ 5e-4).
-            "fn_reflected_slab": 1e-2,
-        },
-        notes=(
-            "c_core=1.01 c_reflector=0.09 reflector_half_thickness_mfp=0.5"
-        ),
+        # 4 published digits + thick slab — F_7 reaches Burkart
+        # 'Exact' to all printed digits per NM Table 2 (~ 5e-4).
+        fn_tolerance=1e-2,
     ),
 ]
 
