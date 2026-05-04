@@ -1,6 +1,6 @@
 ---
 name: Annulus Variant α Phase 3C-2 closeout
-description: Phase-3C-2 annulus (hollow cylinder) Variant α Green's function reference solver shipped clean — last 2-BC topology in the Variant α plan. Cylinder analog of Phase-3C-1 hollow sphere; rank-2 closure operator byte-equal-shared via variant_alpha_core, only chord algebra lifts to cylinder 3D angular phase-space. Phase-3 family COMPLETE.
+description: Phase-3C-2 annulus (hollow cylinder) Variant α Green's function reference solver shipped clean — last two-surface orbit-space class instance in the Variant α plan (orbit-space M/G = R³ modulo R-trans × SO(2) with inner-radius cut; see Sphinx §`orbit-space-m-g-classification`). Cylinder analog of Phase-3C-1 hollow sphere; rank-2 closure operator byte-equal-shared via variant_alpha_core, only chord algebra lifts to cylinder 3D angular phase-space. Phase-3 family COMPLETE.
 type: project
 ---
 
@@ -328,7 +328,7 @@ The frame's structural prediction (rank-1 → rank-2 generalises
 1-surface → 2-surface geometry, regardless of curvature **or**
 angular phase-space dimensionality) holds across all four currently-
 implemented 2-BC instances. Phase-3C-2 closes the original 6-
-geometry × 2-topology family on the unified rank-1/rank-2 framework.
+geometry × 2-orbit-space-class family (one-surface-compact + two-surface M/G) on the unified rank-1/rank-2 framework.
 
 ## Lessons for future implementations
 

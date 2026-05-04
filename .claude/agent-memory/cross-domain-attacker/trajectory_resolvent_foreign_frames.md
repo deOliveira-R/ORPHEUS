@@ -1,6 +1,6 @@
 ---
 name: Trajectory resolvent foreign-frame attack
-description: Eleven-frame structural detection on `trajectory_resolvent/` (Variant α 6-geometry × 2-topology family). Confirmed tensor-network match (rank-N IS bond dimension); high-priority frames 1/4/6 (MPO, fiber bundle, Feynman-Kac PIMC); Frame 11 Wiener-Hopf rejected as wrong solver family.
+description: Eleven-frame structural detection on `trajectory_resolvent/` (Variant α 6-geometry × 2-orbit-space-class family — the "2 classes" are one-surface-compact and two-surface M/G; see Sphinx §`orbit-space-m-g-classification`). Confirmed tensor-network match (rank-N IS bond dimension); high-priority frames 1/4/6 (MPO, fiber bundle, Feynman-Kac PIMC); Frame 11 Wiener-Hopf rejected as wrong solver family.
 type: project
 ---
 

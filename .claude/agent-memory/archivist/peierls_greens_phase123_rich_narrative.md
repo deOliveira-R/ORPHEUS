@@ -51,12 +51,12 @@ no accidental regression.
 
 ## Honest verdict on the page's overall coherence
 
-**Does the 6-geometry × 2-topology family read as a unified
+**Does the 6-geometry × 2-orbit-space-class family read as a unified
 architecture?** Yes, with three structural threads tying it
 together that future readers can follow:
 
 1. **The family-overview table at the top** lists all 6 geometries
-   × 2 topologies × closure rank in one place, names the unifying
+   × 2 orbit-space classes × closure rank in one place, names the unifying
    axis (`variant_alpha_core`), and forward-references each
    per-geometry section.
 2. **The Phase 2 unification section** names the load-bearing
@@ -143,7 +143,7 @@ and annulus (Phase 3C-2) sections with full rich-narrative
 expansions. Add cross-cutting Phase-2 unification section
 (operator-theoretic frame, bit-equality preservation) and V_α2
 strengthening section (sphere/cylinder/slab three-state pattern)
-that together unify the 6-geometry × 2-topology family on the
+that together unify the 6-geometry × 2-orbit-space-class family on the
 shared `variant_alpha_core` resolvent + closure primitives.
 
 Per Cardinal Rule 3 (Sphinx is the LLM's brain): every per-geometry
@@ -157,7 +157,7 @@ production module, foundation tests, L1 tests, closeout memo, and
 cross-domain frame memo.
 
 Updates the family-overview at the top of the page (table of 6
-geometries × 2 topologies × closure rank), the page title (now
+geometries × 2 orbit-space classes × closure rank), the page title (now
 "family" rather than "sphere"), and the Key Facts to remove stale
 "sphere only / Phase 2 deferred" claims now that Phase 3 is closed.
 

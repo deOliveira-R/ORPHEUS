@@ -1,6 +1,6 @@
 ---
 name: Trajectory Resolvent hindsight architectural review
-description: 2026-05-03 hindsight review of trajectory_resolvent (6 geometries × 2 topologies on shared variant_alpha_core). Identifies B1-B2-B3 as top refactor candidates ranked by leverage × low-risk. Plan deliverable; gated on test-architect's cross-method regression net.
+description: 2026-05-03 hindsight review of trajectory_resolvent (6 geometries × 2 orbit-space classes on shared variant_alpha_core; the "2 classes" are one-surface-compact and two-surface M/G — see Sphinx §`orbit-space-m-g-classification`). Identifies B1-B2-B3 as top refactor candidates ranked by leverage × low-risk. Plan deliverable; gated on test-architect's cross-method regression net.
 type: project
 ---
 

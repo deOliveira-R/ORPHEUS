@@ -1,10 +1,10 @@
 ---
 name: Variant α 6-geometry family hindsight review
-description: Hindsight elegance review of the 6-geometry × 2-topology Variant α Green's-function family on variant_alpha_core. Identified 3 ready-now refactors and 2 wait-for-next-instance abstractions. Top frame: fiber bundle (BaseAtlas, AngularFiber, ChordOracle).
+description: Hindsight elegance review of the 6-geometry × 2-orbit-space-class Variant α Green's-function family on variant_alpha_core. Identified 3 ready-now refactors and 2 wait-for-next-instance abstractions. Top frame: fiber bundle (BaseAtlas, AngularFiber, ChordOracle).
 type: project
 ---
 
-Reviewed 2026-05-02 on branch `feature/peierls-greens-cylinder` HEAD `8ae1d37`. 178/178 tests pass. Sphinx clean. The 6-geometry × 2-topology family routes through `variant_alpha_core` (rank-1 + rank-2 closure primitives).
+Reviewed 2026-05-02 on branch `feature/peierls-greens-cylinder` HEAD `8ae1d37`. 178/178 tests pass. Sphinx clean. The 6-geometry × 2-orbit-space-class family (the "2 classes" are one-surface-compact and two-surface — see Sphinx §`orbit-space-m-g-classification`) routes through `variant_alpha_core` (rank-1 + rank-2 closure primitives).
 
 **Why:** User asked the meta-question — with hindsight, is THIS the most elegant formulation, or is there a foreign frame / shared structure / coordinate trick that would simplify the family further?
 
