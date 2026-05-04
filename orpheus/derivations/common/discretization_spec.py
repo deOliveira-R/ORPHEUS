@@ -110,18 +110,17 @@ class DiscretizationSpec:
             n_chord_quad=32,
         )
 
-    Pass to a discrete adapter::
+    Pass to a production discrete solver via its
+    ``from_problem`` Protocol entry point::
 
-        from tests.cross_method.discrete_adapters import (
-            CPMeshAdapter,
-        )
+        from orpheus.cp.solver import CPSolver
 
-        adapter = CPMeshAdapter.from_problem(
+        cp = CPSolver.from_problem(
             materials={0: pu_mixture},
             geometry_spec=GeometrySpec(geometry="sphere", ...),
             discretization=spec,
         )
-        sol = adapter.solve_critical()
+        sol = cp.solve_critical()
 
     Why a dedicated dataclass and not a dict
     -----------------------------------------

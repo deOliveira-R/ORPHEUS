@@ -9,8 +9,9 @@ Protocol is the structural unification of the project's
 **math-heart pattern** with its **production discrete-mesh
 solvers**. Both classes of object — the analytical reference
 solvers (``Billiard``, ``MomentSpace``, the parallel ``Spectrum``
-and ``BasisSpace``) and the production CP/SN adapters
-(``CPMeshAdapter``, ``SNMeshAdapter``) — answer the same question:
+and ``BasisSpace``) and the production CP/SN classes
+(:class:`~orpheus.cp.solver.CPSolver`,
+:class:`~orpheus.sn.solver.SNSolver`) — answer the same question:
 *given materials and a geometry, what is the critical configuration?*
 The Protocol gives them a shared attribute / method surface so
 cross-method comparators can substitute one for another without
@@ -87,9 +88,14 @@ reality:
 * ``Billiard`` and ``MomentSpace`` were designed independently
   before the Protocol; an ABC would have required retroactive
   subclassing.
-* Discrete-mesh adapters are thin facades over production
-  solvers (``solve_cp``, ``solve_sn``); the Protocol lets them
-  conform without modifying the production solver's API.
+* Production CP / SN classes (``CPSolver``, ``SNSolver``) take
+  on Protocol conformance through their ``from_problem``
+  factories without inheriting from any base — the legacy
+  ``__init__`` + function-level ``solve_cp`` / ``solve_sn`` API
+  remains intact for callers that don't need the cross-method
+  surface. (Step 4 of the input-cleanup track, 2026-05-04, retired
+  the test-only adapter scaffold that previously wrapped these
+  classes.)
 * The Protocol is :func:`runtime_checkable`, so
   ``isinstance(x, TransportSolver)`` works for the schema-gate
   tests in :mod:`tests.derivations.test_transport_solver_protocol`
@@ -160,14 +166,21 @@ Six Protocol-conforming classes / adapters ship today:
      - Dahl-Sjöstrand Legendre-Galerkin block-matrix linearisation
        (parallel agent — see
        :mod:`orpheus.derivations.continuous.galerkin_spectral`).
-   * - :class:`~tests.cross_method.discrete_adapters.CPMeshAdapter`
+   * - :class:`~orpheus.cp.solver.CPSolver`
      - cp
-     - Production CP solver behind the Protocol. ``solve_cp``
-       wraps + :class:`CPParams` parameterisation.
-   * - :class:`~tests.cross_method.discrete_adapters.SNMeshAdapter`
+     - Production CP solver. ``CPSolver.from_problem`` builds
+       :class:`Mesh1D` via :meth:`GeometrySpec.build`, constructs
+       the per-group :math:`P_\infty` matrices via :class:`CPMesh`,
+       and returns a Protocol-conforming instance.
+       :meth:`solve_critical` runs the existing CP power
+       iteration and re-packs into :class:`CriticalSolution`.
+   * - :class:`~orpheus.sn.solver.SNSolver`
      - sn
-     - Production SN solver behind the Protocol. 1-D
-       Gauss-Legendre only today.
+     - Production SN solver (1-D Gauss-Legendre).
+       ``SNSolver.from_problem`` builds :class:`Mesh1D`,
+       constructs :class:`GaussLegendre1D` at the requested
+       ordinate count, wraps mesh + quadrature in :class:`SNMesh`,
+       and returns a Protocol-conforming instance.
 
 The math-rich theory for the continuous-reference classes lives
 on each method's existing theory page; the
@@ -185,30 +198,31 @@ continuous-reference solvers don't: cell counts, angular
 quadrature orders, chord-integration orders. The
 :class:`~orpheus.derivations.common.discretization_spec.DiscretizationSpec`
 dataclass packs these into a single immutable object that
-``CPMeshAdapter.from_problem`` and ``SNMeshAdapter.from_problem``
-consume.
+``CPSolver.from_problem`` and ``SNSolver.from_problem`` consume.
 
 .. code-block:: python
 
-    from orpheus.derivations.common import (
-        DiscretizationSpec, GeometrySpec,
+    from orpheus.derivations.common.discretization_spec import (
+        DiscretizationSpec,
     )
-    from tests.cross_method.discrete_adapters import (
-        CPMeshAdapter, SNMeshAdapter,
+    from orpheus.derivations.common.geometry_spec import (
+        GeometrySpec,
     )
+    from orpheus.cp.solver import CPSolver
+    from orpheus.sn.solver import SNSolver
 
     spec = GeometrySpec(geometry="sphere",
         critical_dimension_mfp=2.5, critical_dimension_cm=5.0,
         n_groups=1)
 
-    cp_adapter = CPMeshAdapter.from_problem(
+    cp = CPSolver.from_problem(
         materials={0: pu_mixture},
         geometry_spec=spec,
         discretization=DiscretizationSpec(
             n_cells=50, n_chord_quad=64,
         ),
     )
-    sol = cp_adapter.solve_critical()  # CriticalSolution
+    sol = cp.solve_critical()  # CriticalSolution
 
 The fields of :class:`DiscretizationSpec`:
 
@@ -234,11 +248,12 @@ a physics claim. The L1 chains stay where they were
 :mod:`tests.cross_method.test_eigenvalue`). The Protocol unifies
 the *shape* those L1-verified components must expose.
 
-Foundation-tier tests in this scaffold:
+Foundation-tier tests:
 
-* :mod:`tests.derivations.test_transport_solver_protocol` — 8
+* :mod:`tests.derivations.test_transport_solver_protocol` — 14
   tests. Conformance + ``KNOWN_TRANSPORT_SOLVERS`` registry +
-  attribute-surface drift detection.
+  attribute-surface drift detection. Covers ``Billiard``,
+  ``MomentSpace``, ``CPSolver``, and ``SNSolver``.
 * :mod:`tests.derivations.test_trajectory_resolvent_billiard` —
   11 tests. Bit-equality between :meth:`Billiard.solve_critical`
   and the underlying ``solve_greens_function_*`` entry points
@@ -248,9 +263,12 @@ Foundation-tier tests in this scaffold:
   — 6 tests. Bit-equality with the function-level F_N API.
 * :mod:`tests.cross_method.test_polymorphism` — 6 tests.
   Adapter ↔ Protocol agreement on canonical cases.
-* :mod:`tests.cross_method.test_discrete_adapters_smoke` — 7
-  tests (1 skipped). Constructibility, non-crash solve,
-  Protocol conformance for ``CPMeshAdapter`` / ``SNMeshAdapter``.
+* :mod:`tests.cross_method.test_production_protocol_smoke` — 7
+  tests (1 skipped). Constructibility, non-crash solve, Protocol
+  conformance for ``CPSolver`` / ``SNSolver`` via
+  ``from_problem``. (Replaces the earlier
+  ``test_discrete_adapters_smoke`` that exercised the retired
+  test-only ``CPMeshAdapter`` / ``SNMeshAdapter`` scaffold.)
 
 The legacy↔new factory bit-equality test
 (``test_billiard_from_problem_unified``) was removed when the
@@ -274,10 +292,10 @@ independence applies above the trusted-library line":
   ``Spectrum``, ``BasisSpace``) consume scipy / numpy primitives
   but **do not share** any in-house module above the
   trusted-library line.
-* Discrete-mesh adapters (``CPMeshAdapter``, ``SNMeshAdapter``)
-  call into production CP / SN code paths which themselves do
-  not share in-house modules with the continuous-reference
-  family above the trusted-library line.
+* Production discrete-mesh solvers (``CPSolver``, ``SNSolver``)
+  consume their own scipy / numpy primitives via separate code
+  paths and do not share in-house modules with the
+  continuous-reference family above the trusted-library line.
 
 The Protocol is **above** the trusted-library line — but it
 carries only attribute / method shapes, not numerical primitives.

@@ -13,9 +13,13 @@ realised across the project:
   ``BasisSpace`` (Dahl–Sjöstrand Legendre-Galerkin block-matrix
   linearisation in
   :mod:`~orpheus.derivations.continuous.galerkin_spectral`).
-* The discrete-mesh adapters ``CPMeshAdapter`` and ``SNMeshAdapter`` in
-  :mod:`tests.cross_method.discrete_adapters`, which wrap the
-  production CP/SN solvers behind the same uniform contract.
+* The production discrete-mesh solvers
+  :class:`~orpheus.cp.solver.CPSolver` and
+  :class:`~orpheus.sn.solver.SNSolver`, which conform natively
+  via their ``from_problem`` factories (Step 4 of the input-cleanup
+  track, 2026-05-04). The earlier test-only adapter scaffold
+  (``CPMeshAdapter`` / ``SNMeshAdapter``) was retired when the
+  production classes took on the Protocol surface directly.
 
 Per the project's *unify-after-two-instances* discipline (see
 ``feedback_unify_after_two_instances.md``), the Protocol was *gated* on
@@ -41,7 +45,8 @@ three orthogonal axes (see :doc:`/theory/transport_solver_protocol`):
    discrete CP/SN commit to a discretisation. Each Protocol-conforming
    class owns its own method kwargs (``fn_order`` for ``MomentSpace``,
    ``quadrature`` for ``Billiard``, ``DiscretizationSpec`` for
-   ``CPMeshAdapter`` / ``SNMeshAdapter``); the Protocol does NOT
+   :class:`~orpheus.cp.solver.CPSolver` /
+   :class:`~orpheus.sn.solver.SNSolver`); the Protocol does NOT
    dictate them — that would couple unrelated methods.
 
 3. **What is asked** — :meth:`solve_critical` returns a
@@ -63,9 +68,12 @@ without inheriting from a base. This matches our reality:
 * ``Billiard`` and ``MomentSpace`` were designed independently before
   the Protocol existed; forcing them under a common ABC would have
   required retroactive subclassing.
-* Discrete-mesh adapters are thin facades over production solvers
-  authored by separate teams (CP / SN / MOC); the Protocol lets them
-  conform without modifying the production solver's API.
+* Production CP / SN classes (``CPSolver``, ``SNSolver``) take on
+  Protocol conformance through their ``from_problem`` factories
+  without inheriting from any base — the legacy
+  ``__init__`` + function-level ``solve_cp`` / ``solve_sn`` API
+  remains intact for callers that don't need the cross-method
+  surface.
 * The Protocol is :func:`runtime_checkable`, so ``isinstance(x,
   TransportSolver)`` works for the schema-gate tests in
   :mod:`tests.derivations.test_transport_solver_protocol` without a
@@ -137,20 +145,22 @@ class TransportSolver(Protocol):
     Billiard + MomentSpace already expose; if a Protocol field has no
     instance using it, drop it" was applied during design.
 
-    Discrete mesh adapters
-    ----------------------
+    Production discrete-mesh solvers
+    --------------------------------
 
     The Protocol covers BOTH continuous reference solvers (where the
-    L1 truth lives) AND production discrete solvers wrapped via the
-    :mod:`tests.cross_method.discrete_adapters` scaffold. The discrete
-    side does NOT replace continuous-reference verification — it
-    enables L4 *agreement* gates between production and reference
-    after each side has its own L1 chain. Per
+    L1 truth lives) AND production discrete solvers — the latter
+    via the ``CPSolver.from_problem`` / ``SNSolver.from_problem``
+    factories that mint the production classes onto the Protocol
+    natively (Step 4 of the input-cleanup track, 2026-05-04). The
+    discrete side does NOT replace continuous-reference verification
+    — it enables L4 *agreement* gates between production and
+    reference after each side has its own L1 chain. Per
     :doc:`/skills/algebra-of-record` § "Structural independence
-    applies above the trusted-library line", the discrete adapters
-    consume the production CP/SN solvers, which share NO in-house
-    primitive with the continuous reference family above the
-    trusted-library line.
+    applies above the trusted-library line", the production CP / SN
+    solvers consume their own scipy / numpy primitives via separate
+    code paths and share NO in-house primitive with the
+    continuous-reference family above the trusted-library line.
 
     Examples
     --------
