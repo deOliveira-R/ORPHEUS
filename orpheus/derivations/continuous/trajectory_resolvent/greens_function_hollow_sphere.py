@@ -108,6 +108,9 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.interpolate import CubicSpline
 
+from orpheus.derivations.continuous.trajectory_resolvent.power_iteration import (
+    power_iterate_variant_alpha,
+)
 from orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core import (
     apply_variant_alpha_closure,
     apply_variant_alpha_closure_rank2,
@@ -518,15 +521,11 @@ def solve_greens_function_hollow_sphere(
             * np.sum(phi_r * r_nodes ** 2 * r_weights)
         )
 
-    iterations = 0
-    converged = False
     inv_4pi = 1.0 / (4.0 * np.pi)
 
-    for it in range(max_iter):
-        iterations = it + 1
-
-        phi_r = _scalar_flux_from_psi(psi, mu_weights)
-        source_profile = inv_4pi * (sigma_s + nu_sigma_f / k_eff) * phi_r
+    def _step(psi_iter, k_iter):
+        phi_r = _scalar_flux_from_psi(psi_iter, mu_weights)
+        source_profile = inv_4pi * (sigma_s + nu_sigma_f / k_iter) * phi_r
 
         psi_new = _apply_operator_hollow_sphere(
             source_profile, r_nodes, mu_nodes, R_in, R_out,
@@ -536,23 +535,15 @@ def solve_greens_function_hollow_sphere(
 
         phi_new = _scalar_flux_from_psi(psi_new, mu_weights)
 
-        Frate_old = fission_rate(phi_r)
-        Frate_new = fission_rate(phi_new)
-        if Frate_old < 1e-30:
-            raise RuntimeError(
-                f"Fission rate vanished at iter {iterations}; "
-                "non-multiplying medium."
-            )
-        k_new = k_eff * Frate_new / Frate_old
-        psi_normed = psi_new / Frate_new
+        return psi_new, fission_rate(phi_r), fission_rate(phi_new)
 
-        rel_dk = abs(k_new - k_eff) / max(abs(k_eff), 1e-30)
-        psi = psi_normed
-        k_eff = k_new
-
-        if rel_dk < tol:
-            converged = True
-            break
+    pi_result = power_iterate_variant_alpha(
+        _step, psi, initial_k=k_eff, max_iter=max_iter, tol=tol,
+    )
+    psi = pi_result.psi
+    k_eff = pi_result.k_eff
+    iterations = pi_result.iterations
+    converged = pi_result.converged
 
     phi_r = _scalar_flux_from_psi(psi, mu_weights)
 
@@ -678,23 +669,19 @@ def solve_greens_function_hollow_sphere_mg(
             4.0 * np.pi * np.sum(F_r * r_nodes ** 2 * r_weights)
         )
 
-    iterations = 0
-    converged = False
     inv_4pi = 1.0 / (4.0 * np.pi)
 
-    for it in range(max_iter):
-        iterations = it + 1
-
+    def _step(psi_iter, k_iter):
         phi_g = 2.0 * np.pi * np.einsum(
-            'grm,m->gr', psi, mu_weights,
+            'grm,m->gr', psi_iter, mu_weights,
         )
 
         F_r = np.einsum('g,gr->r', nu_sigma_f, phi_g)
         scatter_source = np.einsum('sg,sr->gr', sigma_s, phi_g)
-        fission_source = (chi[:, None] / k_eff) * F_r[None, :]
+        fission_source = (chi[:, None] / k_iter) * F_r[None, :]
         source_profile_g = inv_4pi * (scatter_source + fission_source)
 
-        psi_new = np.zeros_like(psi)
+        psi_new = np.zeros_like(psi_iter)
         for g in range(G):
             psi_new[g] = _apply_operator_hollow_sphere(
                 source_profile_g[g], r_nodes, mu_nodes, R_in, R_out,
@@ -705,22 +692,15 @@ def solve_greens_function_hollow_sphere_mg(
         phi_g_new = 2.0 * np.pi * np.einsum(
             'grm,m->gr', psi_new, mu_weights,
         )
-        Frate_old = total_fission_rate(phi_g)
-        Frate_new = total_fission_rate(phi_g_new)
-        if Frate_old < 1e-30:
-            raise RuntimeError(
-                f"Fission rate vanished at iter {iterations}."
-            )
-        k_new = k_eff * Frate_new / Frate_old
-        psi_normed = psi_new / Frate_new
+        return psi_new, total_fission_rate(phi_g), total_fission_rate(phi_g_new)
 
-        rel_dk = abs(k_new - k_eff) / max(abs(k_eff), 1e-30)
-        psi = psi_normed
-        k_eff = k_new
-
-        if rel_dk < tol:
-            converged = True
-            break
+    pi_result = power_iterate_variant_alpha(
+        _step, psi, initial_k=k_eff, max_iter=max_iter, tol=tol,
+    )
+    psi = pi_result.psi
+    k_eff = pi_result.k_eff
+    iterations = pi_result.iterations
+    converged = pi_result.converged
 
     phi_g = 2.0 * np.pi * np.einsum('grm,m->gr', psi, mu_weights)
 

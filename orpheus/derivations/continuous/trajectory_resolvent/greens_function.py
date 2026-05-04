@@ -99,6 +99,9 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.interpolate import CubicSpline
 
+from orpheus.derivations.continuous.trajectory_resolvent.power_iteration import (
+    power_iterate_variant_alpha,
+)
 from orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core import (
     apply_variant_alpha_closure,
 )
@@ -411,42 +414,32 @@ def solve_greens_function_sphere(
             * np.sum(phi * r_nodes ** 2 * r_weights)
         )
 
-    iterations = 0
-    converged = False
-
-    for it in range(max_iter):
-        iterations = it + 1
+    def _step(psi_iter, k_iter):
         # Source coefficient: (σ_s + νσ_f/k) / 4π.
-        source_coeff = (sigma_s + nu_sigma_f / k_eff) / (4.0 * np.pi)
+        source_coeff = (sigma_s + nu_sigma_f / k_iter) / (4.0 * np.pi)
 
         psi_new = _apply_operator(
-            psi, r_nodes, mu_nodes, mu_weights, R, sigma_t,
+            psi_iter, r_nodes, mu_nodes, mu_weights, R, sigma_t,
             source_coeff, alpha, n_traj_quad=n_traj_quad,
         )
 
         # Scalar flux for Rayleigh quotient.
-        phi_old = 2.0 * np.pi * np.sum(psi * mu_weights[None, :], axis=1)
+        phi_old = 2.0 * np.pi * np.sum(
+            psi_iter * mu_weights[None, :], axis=1,
+        )
         phi_new = 2.0 * np.pi * np.sum(
             psi_new * mu_weights[None, :], axis=1
         )
 
-        # k_new = k * <νΣ_f, φ_new> / <νΣ_f, φ_old>.
-        # For homogeneous medium νΣ_f factors out.
-        k_new = k_eff * fission_rate(phi_new) / fission_rate(phi_old)
+        return psi_new, fission_rate(phi_old), fission_rate(phi_new)
 
-        # Normalisation: ψ → ψ_new / fission_rate(φ_new) (keeps the
-        # iterate from drifting in magnitude).
-        norm = fission_rate(phi_new)
-        psi_normed = psi_new / norm
-
-        # Convergence on k.
-        rel_dk = abs(k_new - k_eff) / max(abs(k_eff), 1e-30)
-        psi = psi_normed
-        k_eff = k_new
-
-        if rel_dk < tol:
-            converged = True
-            break
+    pi_result = power_iterate_variant_alpha(
+        _step, psi, initial_k=k_eff, max_iter=max_iter, tol=tol,
+    )
+    psi = pi_result.psi
+    k_eff = pi_result.k_eff
+    iterations = pi_result.iterations
+    converged = pi_result.converged
 
     phi = 2.0 * np.pi * np.sum(psi * mu_weights[None, :], axis=1)
 
@@ -626,16 +619,12 @@ def solve_greens_function_sphere_mg(
         F_r = np.einsum('g,gr->r', nu_sigma_f, phi_g)
         return float(4.0 * np.pi * np.sum(F_r * r_nodes ** 2 * r_weights))
 
-    iterations = 0
-    converged = False
     inv_4pi = 1.0 / (4.0 * np.pi)
 
-    for it in range(max_iter):
-        iterations = it + 1
-
+    def _step(psi_iter, k_iter):
         # Current scalar fluxes per group: (G, n_r).
         phi_g = 2.0 * np.pi * np.sum(
-            psi * mu_weights[None, None, :], axis=2,
+            psi_iter * mu_weights[None, None, :], axis=2,
         )
 
         # Fission rate F(r) = Σ_g' νΣ_f,g' · φ_g'(r). Shape (n_r,).
@@ -645,14 +634,14 @@ def solve_greens_function_sphere_mg(
         #   = inv_4pi · [Σ_g' σ_s[g',g] · φ_g'(r) + (χ_g/k) · F(r)]
         # Scatter contribution: einsum 'sg,sr->gr' over s=source group.
         scatter_source = np.einsum('sg,sr->gr', sigma_s, phi_g)
-        fission_source = (chi[:, None] / k_eff) * F_r[None, :]
+        fission_source = (chi[:, None] / k_iter) * F_r[None, :]
         source_profile_g = inv_4pi * (scatter_source + fission_source)
 
         # Apply per-group operator.
-        psi_new = np.zeros_like(psi)
+        psi_new = np.zeros_like(psi_iter)
         for g in range(G):
             psi_new[g] = _apply_operator_with_source_profile(
-                psi[g], source_profile_g[g], r_nodes, mu_nodes, R,
+                psi_iter[g], source_profile_g[g], r_nodes, mu_nodes, R,
                 float(sigma_t[g]), alpha, n_traj_quad=n_traj_quad,
             )
 
@@ -660,26 +649,15 @@ def solve_greens_function_sphere_mg(
         phi_g_new = 2.0 * np.pi * np.sum(
             psi_new * mu_weights[None, None, :], axis=2,
         )
-        Frate_old = total_fission_rate(phi_g)
-        Frate_new = total_fission_rate(phi_g_new)
-        if Frate_old < 1e-30:
-            raise RuntimeError(
-                f"Fission rate vanished at iter {iterations}; XS likely "
-                "non-multiplying."
-            )
-        k_new = k_eff * Frate_new / Frate_old
+        return psi_new, total_fission_rate(phi_g), total_fission_rate(phi_g_new)
 
-        # Normalise so the fission rate stays O(1) — prevents drift.
-        norm = Frate_new
-        psi_normed = psi_new / norm
-
-        rel_dk = abs(k_new - k_eff) / max(abs(k_eff), 1e-30)
-        psi = psi_normed
-        k_eff = k_new
-
-        if rel_dk < tol:
-            converged = True
-            break
+    pi_result = power_iterate_variant_alpha(
+        _step, psi, initial_k=k_eff, max_iter=max_iter, tol=tol,
+    )
+    psi = pi_result.psi
+    k_eff = pi_result.k_eff
+    iterations = pi_result.iterations
+    converged = pi_result.converged
 
     phi_g = 2.0 * np.pi * np.sum(
         psi * mu_weights[None, None, :], axis=2,
@@ -1074,14 +1052,9 @@ def solve_greens_function_sphere_mr(
             4.0 * np.pi * np.sum(F_r * r_nodes ** 2 * r_weights)
         )
 
-    iterations = 0
-    converged = False
-
-    for it in range(max_iter):
-        iterations = it + 1
-
+    def _step(psi_iter, k_iter):
         phi_g = 2.0 * np.pi * np.sum(
-            psi * mu_weights[None, None, :], axis=2,
+            psi_iter * mu_weights[None, None, :], axis=2,
         )  # (G, n_r)
 
         # Per-node: sigma_s[region, :, :] · phi at node = scatter source
@@ -1102,7 +1075,7 @@ def solve_greens_function_sphere_mr(
 
         # Fission source per group: χ_g(r) · F(r) / k
         fission_source = (
-            chi_nodes / k_eff * F_r[:, None]
+            chi_nodes / k_iter * F_r[:, None]
         )  # (n_r, G)
 
         # Per-group source profile: shape (G, n_r)
@@ -1111,7 +1084,7 @@ def solve_greens_function_sphere_mr(
         )
 
         # Apply per-group multi-region operator
-        psi_new = np.zeros_like(psi)
+        psi_new = np.zeros_like(psi_iter)
         for g in range(G):
             psi_new[g] = _apply_operator_mr(
                 source_profile_g[g], r_nodes, mu_nodes, R, radii,
@@ -1122,24 +1095,15 @@ def solve_greens_function_sphere_mr(
         phi_g_new = 2.0 * np.pi * np.sum(
             psi_new * mu_weights[None, None, :], axis=2,
         )
-        Frate_old = total_fission_rate(phi_g)
-        Frate_new = total_fission_rate(phi_g_new)
-        if Frate_old < 1e-30:
-            raise RuntimeError(
-                f"Fission rate vanished at iter {iterations}"
-            )
-        k_new = k_eff * Frate_new / Frate_old
+        return psi_new, total_fission_rate(phi_g), total_fission_rate(phi_g_new)
 
-        norm = Frate_new
-        psi_normed = psi_new / norm
-
-        rel_dk = abs(k_new - k_eff) / max(abs(k_eff), 1e-30)
-        psi = psi_normed
-        k_eff = k_new
-
-        if rel_dk < tol:
-            converged = True
-            break
+    pi_result = power_iterate_variant_alpha(
+        _step, psi, initial_k=k_eff, max_iter=max_iter, tol=tol,
+    )
+    psi = pi_result.psi
+    k_eff = pi_result.k_eff
+    iterations = pi_result.iterations
+    converged = pi_result.converged
 
     phi_g = 2.0 * np.pi * np.sum(
         psi * mu_weights[None, None, :], axis=2,
