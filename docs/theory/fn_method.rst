@@ -109,6 +109,543 @@ published-method anchor that exposes any structural bug Variant α
 might be hiding behind its own algebra (see
 :doc:`peierls_nystrom`).
 
+.. _fn-method-moment-space:
+
+Mathematical structure of the F_N moment space
+===============================================
+
+This section is a graduate-textbook-level exposition of the
+mathematical home of the F_N method: the **moment space**, a
+:math:`(N+1)`-dimensional vector space onto which the angular flux
+:math:`\psi(r, \mu)` is projected via Galerkin half-range
+quadrature. The class :class:`~orpheus.derivations.continuous.fn_method.moment_space.MomentSpace`
+is the computational realisation of this object — the data
+container that owns the geometry, the materials, the boundary
+condition, and the moment basis order :math:`N`, and exposes the
+critical-configuration and flux-reconstruction calls that close
+the loop from the moment space back to physical observables.
+
+Read this section before modifying any F_N solver: the
+:math:`L^2` projection structure, the half-range orthogonality
+condition, and the collocation closure together explain *why* the
+method works — and why slab and sphere are essentially the same
+method with one sign flipped, while cylinder is structurally
+different and out of pillar.
+
+The angular flux as an element of L²(domain × sphere)
+------------------------------------------------------
+
+The one-speed neutron transport equation in vacuum,
+
+.. math::
+
+   \mu \frac{\partial \psi}{\partial r} + \Sigma_t\, \psi
+   = \frac{\Sigma_s}{2} \int_{-1}^{1} \psi(r, \mu')\, d\mu'
+   + \frac{\nu \Sigma_f}{2 k}
+     \int_{-1}^{1} \psi(r, \mu')\, d\mu' ,
+
+is a balance equation for the **angular flux** :math:`\psi(r, \mu)`,
+the density of neutrons at spatial point :math:`r` moving with
+direction cosine :math:`\mu`. Mathematically, :math:`\psi` lives in
+the Hilbert space :math:`L^2([0, R] \times [-1, 1])` of
+square-integrable functions on the spatial domain :math:`\times`
+angular sphere, equipped with the inner product
+
+.. math::
+
+   \langle \psi_1, \psi_2 \rangle =
+       \int_0^R \int_{-1}^{1}
+       \psi_1(r, \mu)\, \psi_2(r, \mu)\, d\mu\, dr .
+
+Why :math:`L^2`? The transport operator (streaming + collision
+:math:`-` source) is a bounded linear operator from :math:`L^2` to
+itself for any homogeneous medium with bounded cross sections; the
+critical eigenvalue problem is the search for non-trivial
+:math:`\psi` such that the operator's null space is non-empty.
+Hilbert-space structure is what gives us the Riesz representation,
+the spectral theorem (in the appropriately self-adjoint
+formulation), and most importantly, **orthogonal projections** —
+the construction the F_N method exploits.
+
+For slab and sphere problems (the F_N pillar's coverage), the
+spatial geometry combined with axial / spherical symmetry collapses
+the angular variable to the single polar cosine
+:math:`\mu \in [-1, 1]`. Cylinder geometry retains an azimuthal
+dependence even after symmetry reduction — and this single
+structural difference is enough to break the F_N method (the
+Mitsis-style Wiener-Hopf reduction is non-convergent for the bare
+cylinder, see Westfall–Metcalf 1972). Cylinder critical dimensions
+ship instead via the Mitsis–Westfall–Metcalf Fredholm pillar in
+:doc:`singular_eigenfunction`.
+
+Half-range decomposition at the boundary
+-----------------------------------------
+
+The F_N method works in the **Case singular-eigenfunction
+representation** of the transport equation (Case 1960; Case &
+Zweifel 1967), where the angular flux on the boundary splits
+cleanly into its outgoing :math:`(\mu > 0)` and incoming
+:math:`(\mu < 0)` half-range projections. For a bare-critical
+slab :math:`x \in [-a, a]` with vacuum BC, the boundary angular
+flux at :math:`x = -a` is
+
+.. math::
+   :label: fn-method-moment-space-bc-vacuum
+
+   \psi(-a, -\mu) = 0 \quad\text{for}\quad \mu \in [0, 1] ,
+
+which says: no neutrons enter from outside. Symmetry of the bare
+critical slab gives the matching condition at :math:`x = +a`:
+:math:`\psi(a, \mu) = 0` for :math:`\mu \in [-1, 0]`. The remaining
+half of the boundary angular flux —
+:math:`\psi(-a, +\mu)` for :math:`\mu \in [0, 1]` and the
+matching :math:`\psi(a, -\mu)` — is the **unknown** the F_N
+method targets. The whole rest of the angular flux (interior +
+incoming halves) is determined by it via the integral form of the
+transport equation.
+
+The choice to expand :math:`\psi(-a, -\mu)` (the *incoming* half
+that vacuum BC nails to zero) is intentional: equation
+:eq:`fn-method-moment-space-bc-vacuum` becomes a constraint on the
+F_N coefficients rather than a degree of freedom. Specifically, we
+set
+
+.. math::
+   :label: fn-method-moment-space-fn-ansatz
+
+   \psi(-a, -\mu) = \sum_{\alpha=0}^{N} a_\alpha\, \mu^\alpha
+   \quad\text{for}\quad \mu \in [0, 1]
+
+— the boundary angular flux is approximated as a polynomial of
+degree :math:`N` in the half-range cosine. This is the **F_N
+ansatz**. The :math:`(N+1)` expansion coefficients
+:math:`(a_0, a_1, \ldots, a_N)` are the unknowns to be determined
+by the closure equations. The :math:`N \to \infty` limit is the
+*polynomial completeness* of :math:`\{1, \mu, \mu^2, \ldots\}` on
+:math:`[0, 1]` — the moment basis spans :math:`L^2([0, 1])` in the
+limit, so the truncation error decays as :math:`\psi(-a, -\mu)`
+becomes well-resolved by polynomials of finite degree.
+
+Galerkin projection: minimise the residual in the moment basis
+---------------------------------------------------------------
+
+The F_N method is a **Galerkin projection** of the angular flux
+onto the moment basis :math:`\{\mu^0, \mu^1, \ldots, \mu^N\}`.
+Galerkin projection is the variational principle that, given a
+trial space :math:`V_N \subset L^2`, picks the unique
+:math:`\psi_N \in V_N` such that the residual of the truncated
+trial against the original equation is **orthogonal to** :math:`V_N`:
+
+.. math::
+
+   \langle \mathcal{L}\, \psi_N - \mathrm{RHS},\, v \rangle = 0
+   \quad\forall v \in V_N ,
+
+where :math:`\mathcal{L}` is the transport operator and
+:math:`\mathrm{RHS}` carries the source / scattering /
+fission terms. The Galerkin orthogonality condition has a
+canonical interpretation: the truncated solution :math:`\psi_N` is
+the **best approximation in** :math:`V_N` (in :math:`L^2` norm) to
+the true solution :math:`\psi`. This is the strongest convergence
+statement available for any finite-dimensional approximation —
+stronger than collocation alone, stronger than least-squares.
+
+For the F_N method, :math:`V_N = \mathrm{span}\{\mu^0, \ldots,
+\mu^N\}` on :math:`[0, 1]`, and the residual is the integral form
+of the transport equation evaluated at the boundary. The Galerkin
+projection of the integral identity (Siewert–Benoist 1979 Eq. 4
+for slab; Siewert–Thomas 1986 Eq. 46 for sphere) onto the moment
+basis produces the linear system
+
+.. math::
+   :label: fn-method-moment-space-galerkin-system
+
+   \sum_{\alpha=0}^{N} a_\alpha\,
+   \big[B_\alpha(\xi_\beta) + s\, e^{-2\tau/\xi_\beta}\,
+   A_\alpha(\xi_\beta)\big] = 0 ,
+   \quad \beta = 0, 1, \ldots, N ,
+
+where:
+
+* :math:`s = +1` for slab (the boundary attenuation
+  :math:`e^{-2a/\xi}` enters with a positive sign),
+* :math:`s = -1` for sphere (the geometry-sign flip from
+  Siewert–Thomas 1986 — boundary attenuation enters with a
+  negative sign because the spherical Mitsis substitution
+  :math:`r \Phi(r) \to \Psi(x, \mu)` introduces an opposite-sign
+  reflection at the centre),
+* :math:`\tau \equiv a` (slab half-thickness) or :math:`\tau \equiv R`
+  (sphere radius), in mean free paths,
+* :math:`B_\alpha(\xi)` and :math:`A_\alpha(\xi)` are the **F_N
+  moment integrals**
+
+  .. math::
+     :label: fn-method-moment-space-AB-defs
+
+     B_\alpha(\xi) = \int_0^1 \frac{\mu^\alpha}{\mu - \xi}\, d\mu ,
+     \quad
+     A_\alpha(\xi) = \int_0^1 \frac{\mu^\alpha\, e^{-2\tau/\mu}}
+                                        {\mu + \xi}\, d\mu .
+
+  These integrals satisfy a clean recursion in :math:`\alpha` with
+  closed-form base case (the :math:`B_0` integral is the
+  Cauchy-principal-value log; the :math:`A_0` integral involves the
+  exponential integral :math:`E_1`). Both are computed in
+  :mod:`...core.moments`.
+
+The system :eq:`fn-method-moment-space-galerkin-system` is a
+:math:`(N+1) \times (N+1)` linear system in the unknown coefficients
+:math:`(a_0, \ldots, a_N)`. The :math:`(N+1)` rows come from
+**collocation** (next subsection); the orthogonality of the residual
+to the moment basis, formally a Galerkin condition, is what
+distinguishes the F_N method from a pure collocation scheme — the
+truncation error has the optimal :math:`L^2` decay rate, not just the
+pointwise rate at the collocation points.
+
+Collocation closure: N+1 equations from N+1 evaluation points
+--------------------------------------------------------------
+
+The Galerkin orthogonality condition determines the residual class
+but does not specify the points :math:`\xi_\beta` at which to
+evaluate. The F_N method picks them by **collocation**: the
+boundary integral identity is required to hold at :math:`(N+1)`
+discrete :math:`\xi`-values, producing :math:`(N+1)` rows of the
+matrix in :eq:`fn-method-moment-space-galerkin-system`.
+
+Different collocation prescriptions converge to the same limit
+but with different rates. The two natural choices in this codebase:
+
+**Slab — Grandjean–Siewert prescription** (Grandjean & Siewert
+1979 Section III):
+
+* :math:`\xi_0 = \nu_0` — the **discrete Case eigenvalue**, the
+  positive real root of the dispersion relation
+  :math:`1 - c\, \xi\, \mathrm{atanh}(1/\xi) = 0` for :math:`c < 1`,
+  or :math:`\xi_0 = i u_0` (purely imaginary) with :math:`u_0` the
+  positive real root of :math:`1 - c\, u\, \mathrm{atan}(1/u) = 0`
+  for the multiplying-medium case :math:`c > 1`. The discrete
+  eigenvalue locates the **fundamental mode** of the homogeneous
+  transport equation — the single eigenfunction whose contribution
+  dominates far from boundaries.
+* :math:`\xi_1 = 0` — the half-range origin. The :math:`\xi = 0`
+  row exposes the :math:`B_\alpha(0)` limits separately:
+  :math:`B_0(0) = 2/c - 1`, :math:`B_\alpha(0) = -1/(\alpha+1)` for
+  :math:`\alpha \ge 1`.
+* :math:`\xi_2 = 1` — the half-range maximum.
+* :math:`\xi_\beta` for :math:`\beta = 3, \ldots, N` — equally
+  spaced strictly inside :math:`(0, 1)`.
+
+The slab grid uses both endpoints (:math:`\xi = 0` and :math:`\xi = 1`)
+plus the discrete eigenvalue and interior points. This works
+because the slab boundary attenuation :math:`e^{-2a/\xi}` is bounded
+on the closed interval :math:`[0, 1]` (at :math:`\xi = 0` the
+attenuation goes to zero; at :math:`\xi = 1` it equals
+:math:`e^{-2a}`).
+
+**Sphere — Siewert–Thomas prescription** (Siewert & Thomas 1986
+Eq. 38a):
+
+* :math:`\xi_0 = \nu_0 = i u_0` — same discrete eigenvalue as slab,
+  always imaginary because sphere F_N as shipped requires
+  :math:`c > 1`.
+* :math:`\xi_k = \cos\big((2k-1)\pi/(2N+2)\big)` for
+  :math:`k = 1, \ldots, N` — the **Chebyshev-interior** grid.
+
+The sphere grid is **strictly interior**: it does *not* include
+:math:`\xi = 0` or :math:`\xi = 1`. The sphere geometry-sign flip
+(:math:`s = -1`) creates a degeneracy at the boundary points that
+makes the slab Grandjean–Siewert grid produce a rank-deficient
+matrix. The Chebyshev-interior grid is the **structurally correct**
+collocation grid for the sphere — see
+:func:`...origins.fn_sphere_derivations.derive_x_function_geometry_independence`
+for the symbolic justification.
+
+The architectural insight: **slab and sphere are the same method,
+parameterised by** :math:`s = \pm 1`. The :math:`(B_\alpha,
+A_\alpha)` moment integrals, the dispersion relation, the X-function
+machinery, and the recursion structure are all geometry-independent.
+Only two things differ:
+
+1. The sign :math:`s` on the boundary attenuation block in
+   :eq:`fn-method-moment-space-galerkin-system`.
+2. The collocation grid (slab Grandjean–Siewert vs sphere
+   Chebyshev-interior).
+
+The shared assembler at :func:`...core.fn_matrix.assemble_fn_matrix`
+takes :math:`s` as a parameter — slab passes :math:`s = +1`,
+sphere passes :math:`s = -1` — and the recipe is identical
+otherwise. ``MomentSpace`` exposes this duality cleanly: a slab
+and a sphere :class:`~orpheus.derivations.common.geometry_spec.GeometrySpec`
+selects which of the two solver families is dispatched, but the
+underlying mathematical object is the same.
+
+The critical condition: det M = 0
+----------------------------------
+
+The collocation system :eq:`fn-method-moment-space-galerkin-system`
+is *homogeneous* — every row equals zero on the right-hand side.
+Non-trivial solutions :math:`(a_0, \ldots, a_N) \neq 0` exist if
+and only if the system matrix :math:`M` has zero determinant:
+
+.. math::
+
+   \det M(\tau) = 0 .
+
+This is the F_N **critical condition**. The configuration parameter
+:math:`\tau` (slab :math:`a` or sphere :math:`R`) is the unknown;
+the F_N method solves the critical-configuration problem by
+root-finding on :math:`\det M(\tau) = 0`. Once the root is located,
+the eigenvector :math:`(a_0, \ldots, a_N)` is recovered as the null
+vector of :math:`M` (numerically, the right singular vector of
+:math:`M` corresponding to its smallest singular value).
+
+Because :math:`\xi_0 = \nu_0 = i u_0` is purely imaginary for
+multiplying media, the matrix :math:`M` has at least one row with
+genuinely complex entries, so :math:`\det M(\tau)` is a complex-
+valued function of the real configuration parameter :math:`\tau`.
+For slab geometry, the Hermitian symmetry of the problem keeps
+:math:`\Im \det M(\tau)` small at the converged
+:math:`\tau`, so bisection on :math:`\Re \det M(\tau) = 0` works
+robustly. For sphere geometry the geometry-sign flip breaks the
+Hermitian symmetry and bisection on the real part can miss
+genuine zero crossings; the implementation in
+:func:`...sphere.one_group.solve_fn_sphere_bare_critical` instead
+locates the first prominent local minimum of
+:math:`\log_{10}|\det M(R)|` and refines via Brent minimisation.
+
+Truncation error analysis: O(N⁻ᵖ) with smoothness-dependent p
+--------------------------------------------------------------
+
+The Galerkin projection error in :math:`L^2` decays as
+
+.. math::
+
+   \|\psi - \psi_N\|_{L^2} = O(N^{-p})
+
+where :math:`p` depends on the smoothness of the true angular flux
+:math:`\psi(-a, -\mu)` on the half-range :math:`[0, 1]`. Three
+regimes:
+
+* **:math:`\psi \in C^p` (smooth in** :math:`\mu`):
+  :math:`p`-th-order convergence (algebraic).
+* **:math:`\psi` analytic** in a complex neighbourhood of
+  :math:`[0, 1]`: super-algebraic convergence — faster than any
+  polynomial rate, approaching exponential as the neighbourhood
+  widens.
+* **:math:`\psi` has an endpoint singularity** (e.g.,
+  :math:`\psi \sim \mu^{1/2}` at :math:`\mu = 0`): degraded
+  convergence dependent on the endpoint exponent. This is the
+  generic situation for grazing-ray problems — the boundary
+  angular flux has a weak cusp at :math:`\mu = 0` because the
+  trajectory of a grazing neutron is qualitatively different from
+  the interior trajectory.
+
+Empirical evidence from Grandjean–Siewert 1979 Table XI:
+
+* :math:`N = 5` (F_5): 4–5 sig figs on the slab critical
+  half-thickness across the :math:`c \in [1.10, 1.90]` sweep.
+* :math:`N = 8` (F_8): :math:`10^{-5}` to :math:`10^{-6}` absolute
+  on :math:`a_c`.
+* :math:`N = 10` (F_{10}): :math:`10^{-6}` to :math:`10^{-7}`.
+* :math:`N \ge 16`: precision saturates due to ill-conditioning
+  (the Chebyshev columns become near-linearly-dependent in
+  finite precision).
+
+The convergence is super-algebraic without quite reaching
+exponential — consistent with analyticity off the half-range cusp
+plus the :math:`\mu \to 0` weak singularity. The default
+``fn_order = 9`` in :class:`~orpheus.derivations.continuous.fn_method.moment_space.MomentSpace`
+sits in the sweet spot: small enough to assemble in microseconds,
+large enough to give 6-digit agreement with the Sood LA-13511 truth
+values.
+
+Multi-region extension: block transfer matrices
+------------------------------------------------
+
+Linearity of the moment projection extends the F_N method to
+multi-region problems by **block transfer matrices**. For a 2-region
+slab (core + reflector) with vacuum BC on the outer reflector face:
+
+* **Region 1 (core)**: F_N coefficients :math:`(a_0^{(1)}, \ldots,
+  a_N^{(1)})` characterise :math:`\psi(\pm a_1, \pm\mu)` on the
+  inner boundaries.
+* **Region 2 (reflector)**: F_N coefficients :math:`(a_0^{(2)},
+  \ldots, a_N^{(2)})` characterise :math:`\psi(\pm a_2, \pm\mu)`
+  on the outer boundaries.
+* **Interface continuity**: :math:`\psi(a_1, \mu) = \psi_{\rm core}
+  (a_1, \mu) = \psi_{\rm refl}(a_1, \mu)` for :math:`\mu \in [-1, 1]`,
+  enforced via the Neshat–Maiorino 1980 iteration on the 4-block
+  matrix coupling the four sets of coefficients.
+
+The Neshat–Maiorino implementation lives in
+:func:`...slab.reflected.solve_fn_slab_reflected_critical` and
+realises this block structure as an iterative scheme — one
+:math:`(N+1) \times (N+1)` block solve per region, alternated until
+the interface continuity converges. The same block structure
+extends to multi-group via tensor products (group-coupling matrix
+:math:`\otimes` moment basis); the multi-group F_N spatial
+extension is documented in the Siewert–Thomas 1986 2G machinery and
+ships under the ``MomentSpace`` umbrella when the corresponding
+solver families are wired through the class facade.
+
+Connection to flux reconstruction
+----------------------------------
+
+The F_N coefficients :math:`(a_0, \ldots, a_N)` define the boundary
+angular flux :math:`\psi(\pm a, \mu)` as a polynomial in
+:math:`\mu`. Reconstructing the *interior* scalar flux
+:math:`\phi(z)` requires evaluating the Peierls integral
+
+.. math::
+
+   \phi(z) = \frac{c}{2} \int_{-a}^{a} E_1(|z - z'|)\, \phi(z')\, dz'
+              + \text{boundary terms} ,
+
+a Fredholm equation of the second kind with a log-singular kernel
+:math:`E_1(\tau)`. The choice of quadrature for the singular kernel
+sets the achievable accuracy, and this is where the
+:class:`~orpheus.derivations.continuous.fn_method.moment_space.MomentSpace`
+``flux_reconstruction`` strategy parameter enters:
+
+* ``"atkinson_nystrom"`` (the default; **recommended**) — Atkinson
+  1972/1997 §4.2 product-Simpson rule, integrating the log-singular
+  kernel piece :math:`\int \log|t - s|\, P_2(s)\, ds` analytically
+  against the piecewise-quadratic Lagrange basis. Achieves
+  :math:`O(h^4 \log h)` superconvergence (de Hoog & Weiss 1973).
+  This is the ERR-036 fix; see
+  :ref:`fn-method-atkinson-product-nystrom` for the full
+  derivation.
+* ``"legacy_gl"`` — plain Gauss–Legendre on the (z, μ) tensor
+  product. **Diagnostic only** — saturates at 1–7\,\% accuracy due
+  to silent diagonal truncation of :math:`E_1(0) = +\infty`. The
+  fingerprint is :math:`\mathrm{err} \cdot n / \log n \approx
+  \mathrm{const}` (numerical-bug-signatures § Signature 6).
+* ``"none"`` — :meth:`reconstruct_flux` raises. Use when only the
+  critical-configuration call is needed; skips the
+  flux-reconstruction machinery.
+
+For sphere geometry the flux reconstruction takes an additional
+structural advantage: the **KLL Fredholm path** (Kaper–Lindeman–Leaf
+1974) iterates the scalar-flux integral equation with the F_N
+boundary angular flux as the source, providing a structurally
+independent cross-check on the F_N method itself — KLL works in
+the Wiener–Hopf representation, F_N works in the Case singular-
+eigenfunction representation, and they should agree to the F_N
+moment floor. They do, to better than :math:`10^{-7}` absolute on
+the KLL Table VII flux ratios. See
+:func:`...sphere.flux_reconstruction.solve_kll_sphere_continuum_coefficient`.
+
+Relationship to ``Billiard`` (trajectory_resolvent)
+----------------------------------------------------
+
+The F_N method (``MomentSpace``) and the trajectory_resolvent method
+(``Billiard``) solve the **same boundary-value problem on the same
+physical configuration**. They are structurally independent reference
+solvers above the trusted-library line, and their cross-method gates
+anchor the verification chain for the Sood LA-13511 truth set.
+
+But they attack different *mathematical structures*:
+
+* **The F_N method works in the Case eigenfunction spectrum.** The
+  angular flux is projected onto a finite-dimensional moment basis;
+  the eigenvalue is extracted from the determinant condition of a
+  small dense collocation matrix. The natural variable is
+  :math:`\xi`, the Case spectral parameter — a complex-valued
+  quantity that includes the discrete eigenvalue :math:`\nu_0`
+  (locating the fundamental mode) and a continuum
+  :math:`\xi \in [0, 1]` (locating the boundary-layer modes). The
+  F_N method "sees" the angular flux through the lens of its
+  spectral decomposition.
+
+* **Trajectory_resolvent (``Billiard``) works in phase space.** The
+  angular flux is carried along bouncing characteristics — discrete
+  trajectories in the :math:`(r, \mu)` plane that reflect at the
+  boundary — and the eigenvalue is extracted from power iteration
+  on the discretised resolvent operator. The natural variables are
+  :math:`(r, \mu)` directly. The trajectory_resolvent method "sees"
+  the angular flux as a phase-space density evolving by streaming
+  + collision along the bouncing rays.
+
+The Sanchez–Chandrasekhar **three meanings of the Green's function**
+taxonomy (see :doc:`reference_solvers`) locates both methods within
+the same Green's-function landscape. The F_N method is the
+**spectral** realisation of the resolvent: an eigenfunction
+expansion in the Case spectrum that converges to the Green's
+function as :math:`N \to \infty`. Trajectory_resolvent is the
+**path-integral** realisation: a sum over bouncing characteristics
+weighted by attenuation that converges to the same Green's
+function as the trajectory quadrature is refined. The two
+realisations agree on every shared observable to machine precision
+in the limit of complete refinement.
+
+Why does the cross-check matter? **Structural independence above
+the trusted-library line.** Both methods consume ``numpy`` and
+``scipy`` (trusted upstream); neither shares any in-house primitive
+above that line. A bug in the F_N method's moment integrals
+(``B_α``, ``A_α``) would NOT be reflected in the trajectory_resolvent
+power-iteration's bouncing-trajectory integral. A bug in the
+trajectory_resolvent's bounce-period accumulator would NOT be
+reflected in the F_N method's collocation matrix. The two methods
+agreeing to :math:`10^{-5}` absolute on the Sood ``Ua-1-0-SP``
+critical radius — with one route through Case eigenfunctions and
+one through phase-space rays — is **structural** evidence the
+common physical answer is correct.
+
+This is the precise sense in which ``MomentSpace`` and ``Billiard``
+are **the same method twice over**: they answer the same question
+through different mathematics, and only the joint agreement
+provides correctness evidence at the L1 verification level (see
+``.claude/skills/vv-principles/SKILL.md`` § "The three pillars of
+verification").
+
+The architectural payoff
+-------------------------
+
+The :class:`~orpheus.derivations.continuous.fn_method.moment_space.MomentSpace`
+class is a thin facade — the load-bearing implementation lives in
+the function-level API (:func:`...slab.one_group.solve_fn_slab_bare_critical`,
+:func:`...sphere.one_group.solve_fn_sphere_bare_critical`,
+:func:`...multi_group.k_inf.compute_kinf_*`,
+:func:`...slab.flux_reconstruction.slab_scalar_flux_fn_projection_atkinson`,
+etc.). What the class adds:
+
+1. **Production-protocol input acceptance**. ``MomentSpace.from_problem``
+   consumes ``dict[int, Mixture]`` + ``GeometrySpec`` — the same
+   pair the production CP/SN/MOC solvers consume. A single problem
+   definition serves both production machinery and the F_N
+   reference without re-deriving cross sections.
+2. **Cross-method shared result types**.
+   :meth:`MomentSpace.solve_critical` returns
+   :class:`~orpheus.derivations.common.solution_types.CriticalSolution`,
+   :meth:`MomentSpace.reconstruct_flux` returns
+   :class:`~orpheus.derivations.common.solution_types.FluxSolution`,
+   and ``Billiard`` populates the same types. Cross-method
+   consumers (e.g., :mod:`tests.cross_method.adapters`) can hold a
+   ``CriticalSolution`` without knowing which pillar produced it.
+3. **Math-rich documentation locality**. The class docstring +
+   this theory section make the F_N moment space the single place
+   where "what does F_N actually mean mathematically?" is answered.
+   No drift between stale comments and live narrative; both
+   materialise from the algebra-of-record bifurcation discipline
+   (see ``.claude/skills/algebra-of-record/SKILL.md``).
+4. **Bit-equality with the function-level API**. The class facade
+   produces IDENTICAL float results to direct function calls —
+   verified by 14 foundation-tagged tests in
+   :mod:`tests.derivations.test_fn_method_moment_space` via
+   ``float.hex()`` exact-bit comparison. No accuracy drift from
+   the wrapper layer.
+
+The class is the 2nd concrete instance of the math-heart pattern
+across the project. The 1st (``Billiard``) lands in parallel.
+The unifying Protocol over the math-heart classes themselves —
+``MomentSpace``, ``Billiard``, the upcoming ``Spectrum`` for
+singular_eigenfunction, ``LegendreBlock`` for carlvik_galerkin,
+``CPMesh`` for production CP — is **deferred until both instances
+are working and patterns of variation are empirically observed**
+(per the project's "unify after two instances" memory). The shared
+result types are the eager unification; the behavioural Protocol
+is the deferred one.
+
 The five-case complexity ramp
 ==============================
 
