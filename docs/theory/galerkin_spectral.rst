@@ -732,7 +732,7 @@ of one-speed neutron transport:
 
 All three are different angles of attack on the same Boltzmann
 equation; the algebra-of-record discipline (see
-:doc:`/skills/algebra-of-record`) ensures that the Branch-2
+:file:`.claude/skills/algebra-of-record/SKILL.md`) ensures that the Branch-2
 implementations of each share NO in-house code primitives above
 the trusted-library line. Their cross-checks anchor the Sood
 ``*-1-0-SL/SP`` and ``*-1-1-SL/SP`` truth values from three
