@@ -359,6 +359,12 @@ class MomentSpace:
     materials: dict[int, Mixture]
     fn_order: int = 9
     flux_reconstruction: FluxReconstructionStrategy = "atkinson_nystrom"
+    # Stable pillar tag for the TransportSolver Protocol. The class
+    # already exposes ``materials: dict[int, Mixture]`` and
+    # ``geometry: GeometrySpec`` (the latter is aliased as
+    # ``geometry_spec`` via the property below to match the Protocol's
+    # attribute name).
+    method_name: str = "fn_method"
 
     # ------------------------------------------------------------------
     # Construction
@@ -452,6 +458,23 @@ class MomentSpace:
             fn_order=fn_order,
             flux_reconstruction=flux_reconstruction,
         )
+
+    # ------------------------------------------------------------------
+    # TransportSolver Protocol — geometry_spec alias for ``self.geometry``
+    # ------------------------------------------------------------------
+
+    @property
+    def geometry_spec(self) -> GeometrySpec:
+        r"""Return the GeometrySpec for the TransportSolver Protocol.
+
+        Aliased onto :attr:`geometry` (the dataclass field) so the
+        class conforms to
+        :class:`~orpheus.derivations.common.solver_protocol.TransportSolver`.
+        Both names refer to the same instance — ``self.geometry`` is
+        the historical fn_method name, ``self.geometry_spec`` is the
+        Protocol surface.
+        """
+        return self.geometry
 
     # ------------------------------------------------------------------
     # Derived primary parameter
