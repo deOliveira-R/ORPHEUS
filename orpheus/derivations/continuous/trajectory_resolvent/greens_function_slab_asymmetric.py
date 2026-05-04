@@ -134,13 +134,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.interpolate import CubicSpline
 
+from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
+    SlabAsymmetricChordOracle,
+)
 from orpheus.derivations.continuous.trajectory_resolvent.power_iteration import (
     power_iterate_variant_alpha,
-)
-from orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core import (
-    apply_variant_alpha_closure_rank2,
 )
 
 
@@ -190,118 +189,22 @@ def _apply_operator_slab_asymmetric(
 ) -> np.ndarray:
     r"""Per-group asymmetric-slab Variant α operator with rank-2 resolvent.
 
-    For each :math:`(x_i, \mu_q)` evaluates:
+    Thin facade over :class:`SlabAsymmetricChordOracle.apply_operator`
+    (the R3 ChordOracle Protocol). The chord arithmetic + rank-2
+    closure live in the oracle; this function preserves the legacy
+    call signature for back-compatibility of the public solver API.
 
-    1. The first-leg :math:`F` integral along the backward chord to
-       the first surface arrival.
-    2. The two single-transit :math:`B` integrals: :math:`B_{LR}` from
-       :math:`x = 0` to :math:`x = L` and :math:`B_{RL}` from :math:`x =
-       L` to :math:`x = 0`, both at conserved :math:`|\mu|`.
-    3. The rank-2 surface closure
-       :func:`apply_variant_alpha_closure_rank2` selecting the
-       appropriate surface flux component (:math:`\psi_L^+` for
-       :math:`\mu > 0`, :math:`\psi_R^-` for :math:`\mu < 0`).
-    4. The interior reconstruction :math:`F + e^{-\tau_{\rm first\,leg}}
-       \,\psi_{\rm surface}`.
-
-    Parameters
-    ----------
-    source_profile : (n_x,) ndarray
-        :math:`q_g(x_i)/(4\pi)` — already-divided isotropic source.
-    x_nodes : (n_x,) ndarray
-    mu_nodes : (n_mu,) ndarray
-    L, sigma_t : float
-    alpha_left, alpha_right : float
-        Per-wall reflectivities in :math:`[0, 1]`.
-    n_traj_quad : int
-        Trajectory + single-transit quadrature order.
-
-    Returns
-    -------
-    (n_x, n_mu) ndarray
+    Bit-equal with the pre-R3 inlined body — the oracle was extracted
+    verbatim and this facade preserves every FP operation in the same
+    order.
     """
-    source_interp = CubicSpline(x_nodes, source_profile, extrapolate=True)
-
-    s_quad_raw, w_quad_raw = np.polynomial.legendre.leggauss(n_traj_quad)
-    s_unit = 0.5 * (s_quad_raw + 1.0)
-    w_unit = 0.5 * w_quad_raw
-
-    n_x = len(x_nodes)
-    n_mu = len(mu_nodes)
-    psi_new = np.zeros((n_x, n_mu))
-
-    for i in range(n_x):
-        x = x_nodes[i]
-        for q_idx in range(n_mu):
-            mu = mu_nodes[q_idx]
-            abs_mu = abs(mu)
-
-            # First-leg backward chord. The trajectory direction is +μ,
-            # so the backward chord goes in -μ direction. Per the
-            # transport equation's formal solution along characteristics,
-            # at arclength s back from (x, μ), the position is
-            # x'(s) = x - μ·s (with the appropriate sign of μ for the
-            # 1D slab — μ > 0 case has x' = x - μ·s; μ < 0 case has
-            # x' = x - μ·s = x + |μ|·s).
-            if mu > 0:
-                L_first = x / mu
-                s_pts_first = s_unit * L_first
-                x_traj = x - mu * s_pts_first
-                surface = "left"
-            else:
-                # mu < 0
-                L_first = (L - x) / abs_mu
-                s_pts_first = s_unit * L_first
-                x_traj = x + abs_mu * s_pts_first
-                surface = "right"
-
-            x_traj = np.clip(x_traj, 0.0, L)
-
-            # Single-transit chord arclength.
-            L_transit = L / abs_mu
-            s_pts_transit = s_unit * L_transit
-
-            # B_LR: chord from x = 0 to x = L in the +x direction at
-            # conserved |mu|. Position along chord:
-            #   x_chord(s) = 0 + |mu|·s, s ∈ [0, L_transit].
-            x_chord_LR = np.clip(abs_mu * s_pts_transit, 0.0, L)
-
-            # B_RL: chord from x = L to x = 0 in the -x direction.
-            #   x_chord(s) = L - |mu|·s, s ∈ [0, L_transit].
-            x_chord_RL = np.clip(L - abs_mu * s_pts_transit, 0.0, L)
-
-            # First-leg integral: F = ∫_0^{L_first} q(x'(s)) e^{-Σ_t s} ds.
-            integrand_F = (
-                source_interp(x_traj) * np.exp(-sigma_t * s_pts_first)
-            )
-            F = L_first * np.sum(w_unit * integrand_F)
-
-            # Vacuum-vacuum branch — both walls absorbing, ψ_surf = 0.
-            if alpha_left == 0.0 and alpha_right == 0.0:
-                psi_new[i, q_idx] = F
-                continue
-
-            # Single-transit B integrals.
-            integrand_B_LR = (
-                source_interp(x_chord_LR) * np.exp(-sigma_t * s_pts_transit)
-            )
-            B_LR = L_transit * np.sum(w_unit * integrand_B_LR)
-
-            integrand_B_RL = (
-                source_interp(x_chord_RL) * np.exp(-sigma_t * s_pts_transit)
-            )
-            B_RL = L_transit * np.sum(w_unit * integrand_B_RL)
-
-            psi_new[i, q_idx] = apply_variant_alpha_closure_rank2(
-                F=F, B_RL=B_RL, B_LR=B_LR,
-                tau_first_leg=sigma_t * L_first,
-                tau_single_transit=sigma_t * L_transit,
-                alpha_left=alpha_left,
-                alpha_right=alpha_right,
-                surface=surface,
-            )
-
-    return psi_new
+    oracle = SlabAsymmetricChordOracle(
+        x_nodes=x_nodes, mu_nodes=mu_nodes, L=L,
+        alpha_left=alpha_left, alpha_right=alpha_right,
+    )
+    return oracle.apply_operator(
+        source_profile, sigma_t=sigma_t, n_traj_quad=n_traj_quad,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════

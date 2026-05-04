@@ -97,13 +97,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.interpolate import CubicSpline
 
+from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
+    MultiRegionSphereChordOracle,
+    SphereChordOracle,
+)
 from orpheus.derivations.continuous.trajectory_resolvent.power_iteration import (
     power_iterate_variant_alpha,
-)
-from orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core import (
-    apply_variant_alpha_closure,
 )
 
 
@@ -132,93 +132,26 @@ def _apply_operator_with_source_profile(
     *,
     n_traj_quad: int,
 ) -> np.ndarray:
-    r"""Per-group Variant α operator.
+    r"""Per-group sphere Variant α operator.
 
-    Evaluates :math:`\psi_g^{(n+1)}(r,\mu) = \int_0^{L_{\rm back}}
-    q_g(|r(s)|)\,e^{-\Sigma_{t,g} s}\,\mathrm d s + \alpha\,
-    e^{-\Sigma_{t,g} L_{\rm back}}\,T_\alpha(\mu_{\rm surf})\,B_g`
-    along bouncing characteristics, taking the source profile
-    :math:`q_g(r_i)` (per steradian per unit volume) as input rather
-    than computing it from a scalar coefficient times the in-group
-    flux. Multi-group friendly: the caller supplies whatever cross-
-    group + fission terms apply.
+    Thin facade over :class:`SphereChordOracle.apply_operator` (the R3
+    ChordOracle Protocol). The chord arithmetic + rank-1 closure live
+    in the oracle; this function preserves the legacy call signature
+    for back-compatibility of every existing caller.
 
-    Parameters
-    ----------
-    psi : (n_r, n_mu) ndarray
-        Current group's angular flux iterate (used only in vacuum
-        branch where ``psi`` doesn't enter — kept for shape/symmetry).
-    source_profile : (n_r,) ndarray
-        :math:`q_g(r_i) / (4\pi)` — already-divided isotropic source
-        per steradian per unit volume. Cubic-spline-interpolated for
-        evaluation along trajectory points.
-    r_nodes, mu_nodes : ndarray
-        Radial GL grid on :math:`(0, R)`, angular GL grid on
-        :math:`[-1, 1]`.
-    R, sigma_t : float
-        Outer radius and per-group total cross section.
-    alpha : float
-        Surface reflectivity in :math:`[0, 1]`.
-    n_traj_quad : int
-        Trajectory + bounce-period quadrature order.
+    The ``psi`` argument is unused — kept for shape/symmetry of the
+    legacy MG call sites that pass it in.
 
-    Returns
-    -------
-    (n_r, n_mu) ndarray
-        Updated angular flux for this group.
+    Bit-equal with the pre-R3 inlined body — the oracle was extracted
+    verbatim and this facade preserves every FP operation in the same
+    order.
     """
-    source_interp = CubicSpline(r_nodes, source_profile, extrapolate=True)
-
-    # Gauss-Legendre on s ∈ [0, 1] (rescaled per integral).
-    s_quad_raw, w_quad_raw = np.polynomial.legendre.leggauss(n_traj_quad)
-    s_unit = 0.5 * (s_quad_raw + 1.0)
-    w_unit = 0.5 * w_quad_raw
-
-    n_r = len(r_nodes)
-    n_mu = len(mu_nodes)
-    psi_new = np.zeros((n_r, n_mu))
-
-    for i in range(n_r):
-        r = r_nodes[i]
-        for q_idx in range(n_mu):
-            mu = mu_nodes[q_idx]
-
-            # Backward-leg geometry (see _apply_operator docstring).
-            disc = R * R - r * r * (1.0 - mu * mu)
-            sqrt_disc = np.sqrt(max(disc, 0.0))
-            L_back = r * mu + sqrt_disc
-            mu_surf = sqrt_disc / R
-            L_p = 2.0 * R * mu_surf
-
-            # First-leg trajectory integral.
-            s_pts = s_unit * L_back
-            r_traj_sq = r * r - 2.0 * r * mu * s_pts + s_pts * s_pts
-            r_traj = np.sqrt(np.clip(r_traj_sq, 0.0, R * R))
-            integrand_F = source_interp(r_traj) * np.exp(-sigma_t * s_pts)
-            F = L_back * np.sum(w_unit * integrand_F)
-
-            # Vacuum branch — short-circuit before computing B.
-            if alpha == 0.0:
-                psi_new[i, q_idx] = F
-                continue
-
-            # Bounce-period integral on antipodal chord.
-            s_pts_p = s_unit * L_p
-            h_sq = R * R * (1.0 - mu_surf * mu_surf)
-            r_chord_sq = h_sq + (s_pts_p - 0.5 * L_p) ** 2
-            r_chord = np.sqrt(np.clip(r_chord_sq, 0.0, R * R))
-            integrand_B = source_interp(r_chord) * np.exp(-sigma_t * s_pts_p)
-            B = L_p * np.sum(w_unit * integrand_B)
-
-            # Shared Variant α closure: ψ_new = F + e^{-τ_first}·αBT.
-            psi_new[i, q_idx] = apply_variant_alpha_closure(
-                F=F, B=B,
-                tau_first_leg=sigma_t * L_back,
-                tau_period=sigma_t * L_p,
-                alpha=alpha,
-            )
-
-    return psi_new
+    oracle = SphereChordOracle(
+        r_nodes=r_nodes, mu_nodes=mu_nodes, R=R, alpha=alpha,
+    )
+    return oracle.apply_operator(
+        source_profile, sigma_t=sigma_t, n_traj_quad=n_traj_quad,
+    )
 
 
 def _apply_operator(
@@ -783,95 +716,25 @@ def _apply_operator_mr(
     *,
     n_traj_quad: int,
 ) -> np.ndarray:
-    r"""Multi-region per-group Variant α operator.
+    r"""Multi-region per-group sphere Variant α operator.
 
-    Same architecture as :func:`_apply_operator_with_source_profile`
-    but with **piecewise** :math:`\Sigma_t(r)` along the trajectory.
-    Each trajectory and bounce-period chord is split into segments
-    by region boundaries; per-segment Gauss-Legendre quadrature is
-    composed to give the full integral with correct piecewise
-    attenuation.
+    Thin facade over :class:`MultiRegionSphereChordOracle.apply_operator`
+    (the R3 ChordOracle Protocol). The piecewise-:math:`\Sigma_t`
+    segmentation + rank-1 closure live in the oracle; this function
+    preserves the legacy call signature.
 
-    Parameters
-    ----------
-    source_profile : (n_r,) ndarray
-        :math:`q_g(r_i)/(4\pi)` at radial nodes.
-    sigma_t_per_region : (n_regions,) ndarray
-        Per-region :math:`\Sigma_{t,g}` for **this** group.
-    radii : (n_regions,) ndarray
-        Region outer radii (ascending; ``radii[-1] = R``).
+    Bit-equal with the pre-R3 inlined body.
     """
-    source_interp = CubicSpline(r_nodes, source_profile, extrapolate=True)
-    s_quad_raw, w_quad_raw = np.polynomial.legendre.leggauss(n_traj_quad)
-    s_unit = 0.5 * (s_quad_raw + 1.0)
-    w_unit = 0.5 * w_quad_raw
-
-    n_r = len(r_nodes)
-    n_mu = len(mu_nodes)
-    psi_new = np.zeros((n_r, n_mu))
-
-    for i in range(n_r):
-        r = r_nodes[i]
-        for q_idx in range(n_mu):
-            mu = mu_nodes[q_idx]
-
-            # First-leg trajectory with piecewise σ_t.
-            traj_segs, L_back = _trajectory_segments(r, mu, R, radii)
-            F = 0.0
-            tau_back = 0.0
-            for s_a, s_b, region_idx in traj_segs:
-                sigma_t_k = float(sigma_t_per_region[region_idx])
-                seg_len = s_b - s_a
-                s_pts = s_a + s_unit * seg_len
-                tau_at_pts = tau_back + sigma_t_k * (s_pts - s_a)
-                r_traj_sq = (
-                    r * r - 2.0 * r * s_pts * mu + s_pts * s_pts
-                )
-                r_traj = np.sqrt(np.clip(r_traj_sq, 0.0, R * R))
-                source_at_pts = source_interp(r_traj)
-                integrand = source_at_pts * np.exp(-tau_at_pts)
-                F += seg_len * np.sum(w_unit * integrand)
-                tau_back += sigma_t_k * seg_len
-
-            tau_first_leg = tau_back  # cumulative τ at s = L_back
-
-            # Vacuum branch — short-circuit before computing B.
-            if alpha == 0.0:
-                psi_new[i, q_idx] = F
-                continue
-
-            # Bounce-period chord: same impact parameter as first leg.
-            disc = R * R - r * r * (1.0 - mu * mu)
-            sqrt_disc = np.sqrt(max(disc, 0.0))
-            mu_surf = sqrt_disc / R
-            h = R * np.sqrt(max(0.0, 1.0 - mu_surf * mu_surf))
-            chord_segs, L_p = _chord_segments(h, R, radii)
-
-            B = 0.0
-            tau_p_partial = 0.0
-            for s_a, s_b, region_idx in chord_segs:
-                sigma_t_k = float(sigma_t_per_region[region_idx])
-                seg_len = s_b - s_a
-                s_pts = s_a + s_unit * seg_len
-                tau_at_pts = tau_p_partial + sigma_t_k * (s_pts - s_a)
-                r_chord_sq = h * h + (s_pts - L_p / 2.0) ** 2
-                r_chord = np.sqrt(np.clip(r_chord_sq, 0.0, R * R))
-                source_at_pts = source_interp(r_chord)
-                integrand = source_at_pts * np.exp(-tau_at_pts)
-                B += seg_len * np.sum(w_unit * integrand)
-                tau_p_partial += sigma_t_k * seg_len
-
-            tau_p = tau_p_partial  # total chord optical depth
-
-            # Shared Variant α closure with piecewise-σ_t optical depths.
-            psi_new[i, q_idx] = apply_variant_alpha_closure(
-                F=F, B=B,
-                tau_first_leg=tau_first_leg,
-                tau_period=tau_p,
-                alpha=alpha,
-            )
-
-    return psi_new
+    oracle = MultiRegionSphereChordOracle(
+        r_nodes=r_nodes, mu_nodes=mu_nodes, R=R,
+        radii=radii, sigma_t_per_region=sigma_t_per_region,
+        alpha=alpha,
+    )
+    # sigma_t kwarg unused by MR oracle (per-region σ_t carried by
+    # sigma_t_per_region attribute); pass sentinel.
+    return oracle.apply_operator(
+        source_profile, sigma_t=0.0, n_traj_quad=n_traj_quad,
+    )
 
 
 @dataclass(frozen=True)

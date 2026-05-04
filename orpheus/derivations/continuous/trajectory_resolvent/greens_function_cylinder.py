@@ -120,13 +120,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.interpolate import CubicSpline
 
+from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
+    CylinderChordOracle,
+)
 from orpheus.derivations.continuous.trajectory_resolvent.power_iteration import (
     power_iterate_variant_alpha,
-)
-from orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core import (
-    apply_variant_alpha_closure,
 )
 
 
@@ -230,124 +229,23 @@ def _apply_operator_cylinder(
 ) -> np.ndarray:
     r"""Per-group cylinder Variant α operator.
 
-    Evaluates :math:`\psi^{(n+1)}_g(r, \mu_{\rm axial}, \varphi_{\rm az})`
-    by:
+    Thin facade over :class:`CylinderChordOracle.apply_operator` (the
+    R3 ChordOracle Protocol). The 2D chord arithmetic + 3D arclength
+    lift + rank-1 closure live in the oracle; this function preserves
+    the legacy call signature for back-compatibility.
 
-    1. Computing the in-plane backward chord :math:`L_{\rm 2D, first}`
-       to first surface arrival.
-    2. Doing the first-leg integral with 3D attenuation
-       :math:`e^{-\Sigma_t s_{\rm 3D}} = e^{-\Sigma_t s_{\rm 2D}/s_{\rm
-       in\!-\!plane}}`.
-    3. Computing the bounce-period chord at conserved impact parameter
-       :math:`b = r\,|\sin\varphi_{\rm az}|`.
-    4. Doing the bounce-period integral.
-    5. Applying the closed-form geometric series :math:`\psi_{\rm surf}
-       = \alpha B / (1 - \alpha e^{-\Sigma_t L_{\rm period}})`.
-
-    Parameters
-    ----------
-    source_profile : (n_r,) ndarray
-        :math:`q_g(r_i)/(4\pi)` — already-divided isotropic source
-        per steradian per unit volume.
-    r_nodes : (n_r,) ndarray
-        Radial Gauss-Legendre nodes on :math:`(0, R)`.
-    mu_axial_nodes : (n_mu,) ndarray
-        Axial-cosine Gauss-Legendre nodes on :math:`[-1, 1]`.
-    phi_az_nodes : (n_phi,) ndarray
-        Azimuthal Gauss-Legendre nodes on :math:`[0, 2\pi)`.
-    R, sigma_t : float
-        Outer radius and per-group total cross section.
-    alpha : float
-        Surface reflectivity in :math:`[0, 1]`.
-    n_traj_quad : int
-        Trajectory + bounce-period quadrature order (in
-        :math:`s_{\rm 2D}` arclength).
-
-    Returns
-    -------
-    (n_r, n_mu, n_phi) ndarray
-        Updated angular flux for this group.
+    Bit-equal with the pre-R3 inlined body — every FP operation runs
+    in the same order.
     """
-    source_interp = CubicSpline(r_nodes, source_profile, extrapolate=True)
-
-    # Gauss-Legendre on s ∈ [0, 1] (rescaled per integral).
-    s_quad_raw, w_quad_raw = np.polynomial.legendre.leggauss(n_traj_quad)
-    s_unit = 0.5 * (s_quad_raw + 1.0)
-    w_unit = 0.5 * w_quad_raw
-
-    n_r = len(r_nodes)
-    n_mu = len(mu_axial_nodes)
-    n_phi = len(phi_az_nodes)
-    psi_new = np.zeros((n_r, n_mu, n_phi))
-
-    for i in range(n_r):
-        r = r_nodes[i]
-        for q_idx in range(n_mu):
-            mu_axial = mu_axial_nodes[q_idx]
-            # In-plane velocity fraction: sin(θ_axis) = √(1-μ_axial²).
-            s_in_plane = np.sqrt(max(1.0 - mu_axial * mu_axial, 1e-300))
-            inv_s_in_plane = 1.0 / s_in_plane
-
-            for p_idx in range(n_phi):
-                phi_az = phi_az_nodes[p_idx]
-
-                # 2D backward chord and 3D first-leg path length.
-                L_2D_first = _first_leg_2d_chord(r, phi_az, R)
-                L_first_3D = L_2D_first * inv_s_in_plane
-
-                # First-leg integral parametrised by s_2D.
-                # ∫ q(r'(s_2D)) e^{-σ_t s_2D/s_ip} ds_2D · (1/s_ip)
-                # The 1/s_ip factor converts ds_2D → ds_3D (since
-                # ds_3D = ds_2D / s_ip and integrand is in 3D arclength).
-                # Equivalently: keep the s_2D parametrisation and put
-                # the 3D Jacobian into the integrand.
-                s_pts_2D = s_unit * L_2D_first
-                # In-plane backward trajectory: r'(s_2D)² = r² - 2·r·s_2D·cos(φ) + s_2D²
-                cos_phi = np.cos(phi_az)
-                r_traj_sq = (
-                    r * r - 2.0 * r * cos_phi * s_pts_2D + s_pts_2D * s_pts_2D
-                )
-                r_traj = np.sqrt(np.clip(r_traj_sq, 0.0, R * R))
-                tau_3D = sigma_t * s_pts_2D * inv_s_in_plane
-                integrand_F = source_interp(r_traj) * np.exp(-tau_3D)
-                # Integrate in 3D arclength: ds_3D = ds_2D / s_ip.
-                # Total integral = (L_2D_first / s_ip) · Σ w · integrand
-                F = L_first_3D * np.sum(w_unit * integrand_F)
-
-                # Vacuum branch — short-circuit before computing B.
-                if alpha == 0.0:
-                    psi_new[i, q_idx, p_idx] = F
-                    continue
-
-                # Bounce-period integral on antipodal in-plane chord.
-                b = _impact_parameter(r, phi_az)
-                L_2D_period = _bounce_period_2d_chord(b, R)
-
-                if L_2D_period <= 0.0:
-                    # Degenerate trajectory — no surface re-entry.
-                    psi_new[i, q_idx, p_idx] = F
-                    continue
-
-                L_period_3D = L_2D_period * inv_s_in_plane
-                s_pts_2D_p = s_unit * L_2D_period
-                # Radial position along antipodal chord:
-                # r_chord² = b² + (s_2D - L_2D_period/2)²
-                shifted = s_pts_2D_p - 0.5 * L_2D_period
-                r_chord_sq = b * b + shifted * shifted
-                r_chord = np.sqrt(np.clip(r_chord_sq, 0.0, R * R))
-                tau_3D_p = sigma_t * s_pts_2D_p * inv_s_in_plane
-                integrand_B = source_interp(r_chord) * np.exp(-tau_3D_p)
-                B = L_period_3D * np.sum(w_unit * integrand_B)
-
-                # Shared Variant α closure: ψ_new = F + e^{-τ_first}·αBT.
-                psi_new[i, q_idx, p_idx] = apply_variant_alpha_closure(
-                    F=F, B=B,
-                    tau_first_leg=sigma_t * L_first_3D,
-                    tau_period=sigma_t * L_period_3D,
-                    alpha=alpha,
-                )
-
-    return psi_new
+    oracle = CylinderChordOracle(
+        r_nodes=r_nodes,
+        mu_axial_nodes=mu_axial_nodes,
+        phi_az_nodes=phi_az_nodes,
+        R=R, alpha=alpha,
+    )
+    return oracle.apply_operator(
+        source_profile, sigma_t=sigma_t, n_traj_quad=n_traj_quad,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════

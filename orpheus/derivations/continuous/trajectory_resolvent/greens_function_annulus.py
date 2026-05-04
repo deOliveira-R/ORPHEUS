@@ -161,14 +161,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.interpolate import CubicSpline
 
+from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
+    AnnulusChordOracle,
+)
 from orpheus.derivations.continuous.trajectory_resolvent.power_iteration import (
     power_iterate_variant_alpha,
-)
-from orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core import (
-    apply_variant_alpha_closure,
-    apply_variant_alpha_closure_rank2,
 )
 
 
@@ -225,225 +223,24 @@ def _apply_operator_annulus(
     r"""Per-group annulus Variant α operator with rank-2 + rank-1
     closure on the cylinder 3D angular phase-space.
 
-    For each :math:`(r_i, \mu_{\rm axial}, \varphi_{\rm az})`:
+    Thin facade over :class:`AnnulusChordOracle.apply_operator` (the
+    R3 ChordOracle Protocol). The :math:`b`-partition + 3D arclength
+    lift + dual rank-1 (outer-only) / rank-2 (through-ray) closure
+    routing live in the oracle; this function preserves the legacy
+    call signature.
 
-    1. Compute :math:`b = r_i\,|\sin\varphi_{\rm az}|`. Partition:
-       outer-only (:math:`b > R_{\rm in}`) or through-ray (:math:`b
-       \le R_{\rm in}`).
-
-    2. Outer-only: identical to solid-cylinder algebra. Rank-1 closure
-       with :math:`\alpha = \alpha_{\rm out}` and 3D-lifted bounce-
-       period chord :math:`L_{\rm period}^{\rm 3D} = 2\sqrt{R_{\rm
-       out}^2 - b^2} / \sqrt{1 - \mu_{\rm axial}^2}`.
-
-    3. Through-ray: rank-2 closure with single-transit shell-traversal
-       :math:`\tau_{\rm step} = \Sigma_t\,(\sqrt{R_{\rm out}^2 - b^2} -
-       \sqrt{R_{\rm in}^2 - b^2}) / \sqrt{1 - \mu_{\rm axial}^2}`.
-       First-leg backward goes to inner surface for :math:`\cos\varphi_{
-       \rm az} > 0` and outer surface for :math:`\cos\varphi_{\rm az}
-       \le 0`.
-
-    Parameters
-    ----------
-    source_profile : (n_r,) ndarray
-        :math:`q_g(r_i)/(4\pi)` — already-divided isotropic source
-        per steradian per unit volume. Cubic-spline-interpolated for
-        evaluation along trajectory points.
-    r_nodes : (n_r,) ndarray
-        Radial nodes on :math:`[R_{\rm in}, R_{\rm out}]`.
-    mu_axial_nodes : (n_mu,) ndarray
-        Axial-cosine nodes on :math:`[-1, 1]`.
-    phi_az_nodes : (n_phi,) ndarray
-        Azimuthal nodes on :math:`[0, 2\pi)`.
-    R_in, R_out : float
-        Inner cavity radius and outer cylinder radius.
-    sigma_t : float
-        Per-group total cross section in the shell.
-    alpha_in, alpha_out : float
-        Per-surface reflectivities in :math:`[0, 1]`.
-    n_traj_quad : int
-        Trajectory + bounce-chord quadrature order (in 2D arclength).
-
-    Returns
-    -------
-    (n_r, n_mu, n_phi) ndarray
+    Bit-equal with the pre-R3 inlined body.
     """
-    source_interp = CubicSpline(r_nodes, source_profile, extrapolate=True)
-
-    s_quad_raw, w_quad_raw = np.polynomial.legendre.leggauss(n_traj_quad)
-    s_unit = 0.5 * (s_quad_raw + 1.0)
-    w_unit = 0.5 * w_quad_raw
-
-    n_r = len(r_nodes)
-    n_mu = len(mu_axial_nodes)
-    n_phi = len(phi_az_nodes)
-    psi_new = np.zeros((n_r, n_mu, n_phi))
-
-    R_out_sq = R_out * R_out
-    R_in_sq = R_in * R_in
-
-    for i in range(n_r):
-        r = r_nodes[i]
-        for q_idx in range(n_mu):
-            mu_axial = mu_axial_nodes[q_idx]
-            # In-plane velocity fraction: sqrt(1 - μ_axial²).
-            s_in_plane = np.sqrt(max(1.0 - mu_axial * mu_axial, 1e-300))
-            inv_s_in_plane = 1.0 / s_in_plane
-
-            for p_idx in range(n_phi):
-                phi_az = phi_az_nodes[p_idx]
-                cos_phi = np.cos(phi_az)
-                sin_phi = np.sin(phi_az)
-
-                # In-plane impact parameter b = r·|sin(φ)|.
-                b = r * abs(sin_phi)
-                b_sq = b * b
-
-                # Outer-cylinder discriminant (always real).
-                disc_out = R_out_sq - b_sq
-                sqrt_disc_out = np.sqrt(max(disc_out, 0.0))
-
-                if b > R_in:
-                    # ───────── Outer-only branch (rank-1) ─────────
-                    # First-leg 2D backward chord to outer cylinder.
-                    L_2D_first = r * cos_phi + sqrt_disc_out
-                    L_first_3D = L_2D_first * inv_s_in_plane
-
-                    # First-leg integral parametrised by 2D arclength.
-                    s_pts_2D = s_unit * L_2D_first
-                    r_traj_sq = (
-                        r * r - 2.0 * r * cos_phi * s_pts_2D
-                        + s_pts_2D * s_pts_2D
-                    )
-                    r_traj = np.sqrt(np.clip(r_traj_sq, R_in_sq, R_out_sq))
-                    tau_3D = sigma_t * s_pts_2D * inv_s_in_plane
-                    integrand_F = source_interp(r_traj) * np.exp(-tau_3D)
-                    F = L_first_3D * np.sum(w_unit * integrand_F)
-
-                    if alpha_out == 0.0:
-                        psi_new[i, q_idx, p_idx] = F
-                        continue
-
-                    # Bounce-period 2D in-plane chord (full antipodal).
-                    L_2D_period = 2.0 * sqrt_disc_out
-                    if L_2D_period <= 0.0:
-                        psi_new[i, q_idx, p_idx] = F
-                        continue
-                    L_period_3D = L_2D_period * inv_s_in_plane
-
-                    s_pts_2D_p = s_unit * L_2D_period
-                    shifted = s_pts_2D_p - 0.5 * L_2D_period
-                    r_chord_sq = b_sq + shifted * shifted
-                    r_chord = np.sqrt(
-                        np.clip(r_chord_sq, R_in_sq, R_out_sq)
-                    )
-                    tau_3D_p = sigma_t * s_pts_2D_p * inv_s_in_plane
-                    integrand_B = source_interp(r_chord) * np.exp(-tau_3D_p)
-                    B = L_period_3D * np.sum(w_unit * integrand_B)
-
-                    psi_new[i, q_idx, p_idx] = apply_variant_alpha_closure(
-                        F=F, B=B,
-                        tau_first_leg=sigma_t * L_first_3D,
-                        tau_period=sigma_t * L_period_3D,
-                        alpha=alpha_out,
-                    )
-                    continue
-
-                # ───────── Through-ray branch (rank-2) ─────────
-                disc_in = R_in_sq - b_sq
-                sqrt_disc_in = np.sqrt(max(disc_in, 0.0))
-
-                # Single-transit 2D shell-traversal length:
-                #   L_step_2D = sqrt(R_out² - b²) - sqrt(R_in² - b²).
-                # 3D-lifted: L_step_3D = L_step_2D / s_in_plane.
-                L_step_2D = sqrt_disc_out - sqrt_disc_in
-                L_step_3D = L_step_2D * inv_s_in_plane
-
-                # First-leg backward depending on sign of cos(φ).
-                if cos_phi > 0.0:
-                    # Backward goes INWARD; first arrival is INNER surface.
-                    # 2D arclength: L = r·cos(φ) - sqrt(R_in² - b²).
-                    L_2D_first = r * cos_phi - sqrt_disc_in
-                    surface = "inner"
-                else:
-                    # cos_phi <= 0: backward goes OUTWARD;
-                    # first arrival is OUTER surface.
-                    # 2D arclength: L = r·cos(φ) + sqrt(R_out² - b²).
-                    L_2D_first = r * cos_phi + sqrt_disc_out
-                    surface = "outer"
-
-                # Numerical guard for tangent rays.
-                L_2D_first = max(L_2D_first, 0.0)
-                L_first_3D = L_2D_first * inv_s_in_plane
-
-                # First-leg trajectory points along the 2D backward
-                # chord; r²(s) = r² - 2·r·s·cos(φ) + s².
-                s_pts_2D = s_unit * L_2D_first
-                r_traj_sq = (
-                    r * r - 2.0 * r * cos_phi * s_pts_2D
-                    + s_pts_2D * s_pts_2D
-                )
-                r_traj = np.sqrt(np.clip(r_traj_sq, R_in_sq, R_out_sq))
-                tau_3D = sigma_t * s_pts_2D * inv_s_in_plane
-                integrand_F = source_interp(r_traj) * np.exp(-tau_3D)
-                F = L_first_3D * np.sum(w_unit * integrand_F)
-
-                # Vacuum-vacuum branch — both surfaces absorbing.
-                if alpha_in == 0.0 and alpha_out == 0.0:
-                    psi_new[i, q_idx, p_idx] = F
-                    continue
-
-                # Single-transit B integrals.
-                #
-                # B_out: shell chord from INNER → OUTER at conserved b.
-                # 2D parametrisation: u ∈ [0, L_step_2D], position along
-                # trailing shell segment of the outer-cylinder antipodal
-                # chord:  r²(u) = b² + (sqrt_disc_in + u)².
-                # 3D arclength weight: integrand uses 3D attenuation
-                # exp(-Σ_t · u / s_ip) and total is L_step_3D · Σ w · ig.
-                #
-                # B_in: shell chord from OUTER → INNER (reversal).
-                # 2D parametrisation: r²(u) = b² + (sqrt_disc_out - u)².
-                s_pts_2D_step = s_unit * L_step_2D
-
-                # B_out integrand: r²(u) = b² + (sqrt_disc_in + u)².
-                r_chord_out_sq = b_sq + (sqrt_disc_in + s_pts_2D_step) ** 2
-                r_chord_out = np.sqrt(
-                    np.clip(r_chord_out_sq, R_in_sq, R_out_sq)
-                )
-                tau_3D_step = sigma_t * s_pts_2D_step * inv_s_in_plane
-                integrand_B_out = (
-                    source_interp(r_chord_out) * np.exp(-tau_3D_step)
-                )
-                B_out = L_step_3D * np.sum(w_unit * integrand_B_out)
-
-                # B_in integrand: r²(u) = b² + (sqrt_disc_out - u)².
-                r_chord_in_sq = b_sq + (sqrt_disc_out - s_pts_2D_step) ** 2
-                r_chord_in = np.sqrt(
-                    np.clip(r_chord_in_sq, R_in_sq, R_out_sq)
-                )
-                integrand_B_in = (
-                    source_interp(r_chord_in) * np.exp(-tau_3D_step)
-                )
-                B_in = L_step_3D * np.sum(w_unit * integrand_B_in)
-
-                # Rank-2 closure. Mapping (slab-asym → annulus):
-                #   α_L → α_in, α_R → α_out
-                #   ψ_L^+ → ψ_in^out (outgoing from inner)
-                #   ψ_R^- → ψ_out^in (outgoing from outer)
-                #   B_LR  → B_out  (inner-toward-outer shell chord)
-                #   B_RL  → B_in   (outer-toward-inner shell chord)
-                #   surface='left' for inner first, 'right' for outer first.
-                psi_new[i, q_idx, p_idx] = apply_variant_alpha_closure_rank2(
-                    F=F, B_RL=B_in, B_LR=B_out,
-                    tau_first_leg=sigma_t * L_first_3D,
-                    tau_single_transit=sigma_t * L_step_3D,
-                    alpha_left=alpha_in,
-                    alpha_right=alpha_out,
-                    surface=("left" if surface == "inner" else "right"),
-                )
-
-    return psi_new
+    oracle = AnnulusChordOracle(
+        r_nodes=r_nodes,
+        mu_axial_nodes=mu_axial_nodes,
+        phi_az_nodes=phi_az_nodes,
+        R_in=R_in, R_out=R_out,
+        alpha_in=alpha_in, alpha_out=alpha_out,
+    )
+    return oracle.apply_operator(
+        source_profile, sigma_t=sigma_t, n_traj_quad=n_traj_quad,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════

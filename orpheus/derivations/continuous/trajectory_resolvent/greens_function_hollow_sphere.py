@@ -113,14 +113,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.interpolate import CubicSpline
 
+from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
+    HollowSphereChordOracle,
+)
 from orpheus.derivations.continuous.trajectory_resolvent.power_iteration import (
     power_iterate_variant_alpha,
-)
-from orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core import (
-    apply_variant_alpha_closure,
-    apply_variant_alpha_closure_rank2,
 )
 
 
@@ -174,242 +172,21 @@ def _apply_operator_hollow_sphere(
     r"""Per-group hollow-sphere Variant α operator with rank-2 + rank-1
     closure.
 
-    For each :math:`(r_i, \mu_q)` with :math:`r_i \in [R_{\rm in},
-    R_{\rm out}]`:
+    Thin facade over :class:`HollowSphereChordOracle.apply_operator`
+    (the R3 ChordOracle Protocol). The :math:`b`-partition + dual
+    rank-1 (outer-only) / rank-2 (through-ray) closure routing live in
+    the oracle; this function preserves the legacy call signature.
 
-    1. Compute :math:`b = r_i\sqrt{1-\mu_q^2}`. Partition: outer-only
-       (:math:`b > R_{\rm in}`) or through-ray (:math:`b \le R_{\rm
-       in}`).
-
-    2. Outer-only: identical to solid-sphere algebra. Rank-1 closure
-       with :math:`\alpha = \alpha_{\rm out}`.
-
-    3. Through-ray: rank-2 closure with single-transit shell-traversal
-       :math:`\tau_{\rm step}`. First-leg backward goes to inner
-       surface for :math:`\mu > 0` and outer surface for :math:`\mu <
-       0`.
-
-    Parameters
-    ----------
-    source_profile : (n_r,) ndarray
-        :math:`q_g(r_i)/(4\pi)` — already-divided isotropic source
-        per steradian per unit volume. Cubic-spline-interpolated for
-        evaluation along trajectory points.
-    r_nodes : (n_r,) ndarray
-        Radial nodes on :math:`[R_{\rm in}, R_{\rm out}]`.
-    mu_nodes : (n_mu,) ndarray
-        Direction-cosine nodes on :math:`[-1, 1]`.
-    R_in, R_out : float
-        Inner cavity radius and outer surface radius.
-    sigma_t : float
-        Per-group total cross section in the shell.
-    alpha_in, alpha_out : float
-        Per-surface reflectivities in :math:`[0, 1]`.
-    n_traj_quad : int
-        Trajectory + bounce-chord quadrature order.
-
-    Returns
-    -------
-    (n_r, n_mu) ndarray
+    Bit-equal with the pre-R3 inlined body.
     """
-    # Cubic-spline interpolant on the shell. Source defined on r ∈
-    # [R_in, R_out]; clip evaluations to keep within domain.
-    source_interp = CubicSpline(r_nodes, source_profile, extrapolate=True)
-
-    s_quad_raw, w_quad_raw = np.polynomial.legendre.leggauss(n_traj_quad)
-    s_unit = 0.5 * (s_quad_raw + 1.0)
-    w_unit = 0.5 * w_quad_raw
-
-    n_r = len(r_nodes)
-    n_mu = len(mu_nodes)
-    psi_new = np.zeros((n_r, n_mu))
-
-    R_out_sq = R_out * R_out
-    R_in_sq = R_in * R_in
-
-    for i in range(n_r):
-        r = r_nodes[i]
-        for q_idx in range(n_mu):
-            mu = mu_nodes[q_idx]
-
-            # Impact parameter b = r·sqrt(1 - μ²).
-            b_sq = r * r * (1.0 - mu * mu)
-            b = np.sqrt(max(b_sq, 0.0))
-
-            # Outer-surface chord parameters (always defined).
-            disc_out = R_out_sq - b_sq
-            sqrt_disc_out = np.sqrt(max(disc_out, 0.0))
-
-            if b > R_in:
-                # ───────── Outer-only branch (rank-1) ─────────
-                # First-leg backward: same as solid sphere.
-                L_first = r * mu + sqrt_disc_out
-                # Bounce-period chord across outer sphere.
-                L_p = 2.0 * sqrt_disc_out
-
-                # First-leg trajectory points.
-                s_pts = s_unit * L_first
-                r_traj_sq = r * r - 2.0 * r * mu * s_pts + s_pts * s_pts
-                r_traj = np.sqrt(np.clip(r_traj_sq, R_in_sq, R_out_sq))
-                integrand_F = (
-                    source_interp(r_traj) * np.exp(-sigma_t * s_pts)
-                )
-                F = L_first * np.sum(w_unit * integrand_F)
-
-                if alpha_out == 0.0:
-                    psi_new[i, q_idx] = F
-                    continue
-
-                # Bounce-period chord (antipodal at conserved b).
-                # Position: r_chord(s)² = b² + (s - L_p/2)².
-                s_pts_p = s_unit * L_p
-                r_chord_sq = b_sq + (s_pts_p - 0.5 * L_p) ** 2
-                r_chord = np.sqrt(np.clip(r_chord_sq, R_in_sq, R_out_sq))
-                integrand_B = (
-                    source_interp(r_chord) * np.exp(-sigma_t * s_pts_p)
-                )
-                B = L_p * np.sum(w_unit * integrand_B)
-
-                psi_new[i, q_idx] = apply_variant_alpha_closure(
-                    F=F, B=B,
-                    tau_first_leg=sigma_t * L_first,
-                    tau_period=sigma_t * L_p,
-                    alpha=alpha_out,
-                )
-                continue
-
-            # ───────── Through-ray branch (rank-2) ─────────
-            disc_in = R_in_sq - b_sq
-            sqrt_disc_in = np.sqrt(max(disc_in, 0.0))
-
-            # Single-transit shell-traversal length:
-            #   L_step = sqrt(R_out² - b²) - sqrt(R_in² - b²).
-            # τ_step = Σ_t · L_step.
-            L_step = sqrt_disc_out - sqrt_disc_in
-
-            # First-leg backward depending on sign of μ.
-            if mu > 0:
-                # Backward goes INWARD; first arrival is INNER surface.
-                # s_arrival = r·μ - sqrt(R_in² - b²).
-                L_first = r * mu - sqrt_disc_in
-                # Surface label: outgoing-from-INNER (ψ_in^out).
-                surface = "inner"
-            else:
-                # mu < 0 (or zero, treated as outward): backward goes
-                # OUTWARD; first arrival is OUTER surface.
-                # s_arrival = r·μ + sqrt(R_out² - b²).
-                L_first = r * mu + sqrt_disc_out
-                surface = "outer"
-
-            # Numerical guard for tangent rays (μ exactly such that
-            # b → R_in from below, sqrt_disc_in → 0). L_first remains
-            # well-defined; just ensure non-negative.
-            L_first = max(L_first, 0.0)
-
-            # First-leg trajectory points along the backward chord.
-            s_pts = s_unit * L_first
-            r_traj_sq = r * r - 2.0 * r * mu * s_pts + s_pts * s_pts
-            r_traj = np.sqrt(np.clip(r_traj_sq, R_in_sq, R_out_sq))
-            integrand_F = (
-                source_interp(r_traj) * np.exp(-sigma_t * s_pts)
-            )
-            F = L_first * np.sum(w_unit * integrand_F)
-
-            # Vacuum-vacuum branch — both surfaces absorbing.
-            if alpha_in == 0.0 and alpha_out == 0.0:
-                psi_new[i, q_idx] = F
-                continue
-
-            # Single-transit B integrals.
-            #
-            # B_out: shell chord from INNER surface to OUTER surface
-            # at conserved b. Length L_step. The chord starts at the
-            # inner-surface intersection and ends at the outer-surface
-            # intersection.
-            #
-            # Position along inner→outer chord: parametrise by
-            # arclength s ∈ [0, L_step]. The chord is the half of the
-            # full antipodal chord on the OUTER sphere that lies
-            # between r = R_in (start) and r = R_out (end).
-            #
-            # Using the antipodal-chord parametrisation of the outer
-            # sphere where r²(s_p) = b² + (s_p - L_p_outer/2)² with
-            # L_p_outer = 2·sqrt(R_out² - b²), the inner surface is
-            # crossed at s_p = L_p_outer/2 ± sqrt(R_in² - b²) =
-            # sqrt_disc_out ± sqrt_disc_in. The two crossings define
-            # the cavity transit; the TWO shell segments are
-            # (0, L_step) and (L_step + 2·sqrt_disc_in, L_p_outer).
-            #
-            # For B_out (inner → outer) we use the TRAILING shell
-            # segment: s_p ∈ [L_step + 2·sqrt_disc_in, L_p_outer],
-            # which has length L_step. Reparametrise as u ∈ [0, L_step]:
-            #   s_p(u) = L_step + 2·sqrt_disc_in + u
-            #   r²(u) = b² + (s_p(u) - L_p_outer/2)²
-            #         = b² + (sqrt_disc_in + u)²    [shell traversal
-            #                                        going outward]
-            # Source-line integral with chord-arclength s = u:
-            #   B_out(b; q) = ∫_0^{L_step} q(r(u)) · e^{-Σ_t u} du
-            #
-            # For B_in (outer → inner), by reversal symmetry the
-            # source-line integral has the same r(u) shape (outward
-            # from inner means r increases — same chord, traversed in
-            # opposite direction), but parametrised so the source
-            # contribution AT the inner surface comes from points that
-            # are FARTHER along: r²(u) = b² + (sqrt_disc_out - u)².
-            s_pts_step = s_unit * L_step
-
-            # B_out integrand: r²(u) = b² + (sqrt_disc_in + u)².
-            r_chord_out_sq = b_sq + (sqrt_disc_in + s_pts_step) ** 2
-            r_chord_out = np.sqrt(
-                np.clip(r_chord_out_sq, R_in_sq, R_out_sq)
-            )
-            integrand_B_out = (
-                source_interp(r_chord_out)
-                * np.exp(-sigma_t * s_pts_step)
-            )
-            B_out = L_step * np.sum(w_unit * integrand_B_out)
-
-            # B_in integrand: r²(u) = b² + (sqrt_disc_out - u)².
-            r_chord_in_sq = b_sq + (sqrt_disc_out - s_pts_step) ** 2
-            r_chord_in = np.sqrt(
-                np.clip(r_chord_in_sq, R_in_sq, R_out_sq)
-            )
-            integrand_B_in = (
-                source_interp(r_chord_in)
-                * np.exp(-sigma_t * s_pts_step)
-            )
-            B_in = L_step * np.sum(w_unit * integrand_B_in)
-
-            # Rank-2 closure. The slab-asymmetric primitive expects
-            # surface ∈ {'left', 'right'} — map:
-            #   inner ↔ left  (outgoing from inner toward outer = ψ_L^+)
-            #   outer ↔ right (outgoing from outer toward inner = ψ_R^-)
-            #
-            # The slab closure equations:
-            #   ψ_L^+ = α_L · B_LR + α_L · e^{-τ} · α_R · B_RL ...
-            #   ψ_R^- = α_R · e^{-τ} · α_L · B_LR + α_R · B_RL ...
-            # Mapping:
-            #   α_L → α_in, α_R → α_out
-            #   ψ_L^+ → ψ_in^out (outgoing from inner)
-            #   ψ_R^- → ψ_out^in (outgoing from outer)
-            #   B_LR (chord from x=0 going +x = "from left wall")
-            #        ↔ B_out (chord from inner going outward — emitted
-            #          at inner, integrated outward toward outer);
-            #          this feeds ψ_in^out (the "left" surface).
-            #   B_RL (chord from x=L going -x = "from right wall")
-            #        ↔ B_in (chord from outer going inward — emitted
-            #          at outer, integrated inward toward inner);
-            #          this feeds ψ_out^in (the "right" surface).
-            psi_new[i, q_idx] = apply_variant_alpha_closure_rank2(
-                F=F, B_RL=B_in, B_LR=B_out,
-                tau_first_leg=sigma_t * L_first,
-                tau_single_transit=sigma_t * L_step,
-                alpha_left=alpha_in,
-                alpha_right=alpha_out,
-                surface=("left" if surface == "inner" else "right"),
-            )
-
-    return psi_new
+    oracle = HollowSphereChordOracle(
+        r_nodes=r_nodes, mu_nodes=mu_nodes,
+        R_in=R_in, R_out=R_out,
+        alpha_in=alpha_in, alpha_out=alpha_out,
+    )
+    return oracle.apply_operator(
+        source_profile, sigma_t=sigma_t, n_traj_quad=n_traj_quad,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
