@@ -1,3 +1,4 @@
 - [Peierls rank-N / rank-2 closure conventions](project_peierls_rank_n.md) — rank-N angular (Marshak/DP_N) and rank-2 per-face (Phase F) Peierls BC; bit-exact regime-A recovery, dual-route §9.1 discipline, Phase F.1+F.2 test file layout.
 - [V&V tagging idioms](feedback_vv_tagging.md) — Module-level `pytestmark`, explicit per-test `verifies()`, xfail for API-dependent tests, strict=False convention.
 - [Diagnostic-to-test promotion patterns](feedback_diagnostic_promotion.md) — Verify diag runs first, reproduce pins via public API, three foundation classes (invariant / negative-regression / math-origin), warning suppression, delete-after-pass ordering.
+- [Cross-method test protocol design](feedback_cross_method_protocol.md) — Reuse registry schema; CrossMethodCase + SolverAdapter Protocol; max(tol_a,tol_b) for pairwise agreement; L1 (not L4) for cross-method gates; verify truth values against literature memos before writing.
