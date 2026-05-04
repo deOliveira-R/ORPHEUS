@@ -395,30 +395,29 @@ cases = continuous_cases
 # for the Sphinx §theory-peierls-capabilities matrix. Keep this list
 # synchronised with the ``_class_{a,b}_cases()`` loops above — any
 # new shipped reference must appear in both. See
-# ``tools/verification/generate_peierls_nystrom_matrix.py`` for the consumer.
+# ``tools/verification/generate_capability_matrices.py`` for the
+# consumer (the meta-generator that auto-discovers ``cases.py`` across
+# every ``orpheus.derivations.continuous`` package).
 # ---------------------------------------------------------------------
 
 
 def capability_rows() -> list[dict[str, object]]:
     """Static metadata for every shipped Peierls continuous reference.
 
-    Returns one dict per registered reference with keys:
-
-    - ``name`` — registry name (matches ``ContinuousReferenceSolution.name``)
-    - ``geometry`` — ``"slab" | "cylinder-1d" | "sphere-1d"``
-    - ``n_groups`` — energy-group count
-    - ``n_regions`` — spatial-region count
-    - ``r0_over_R`` — :math:`r_0/R` for hollow curvilinear, ``None`` for slab
-    - ``closure`` — human-readable closure label (RST-ready)
-    - ``accuracy`` — accuracy-class string shown in the capability matrix
-    - ``topology_class`` — ``"A"`` (two-surface) or ``"B"`` (one-surface compact)
+    Returns one dict per registered reference. The schema contract is
+    documented in
+    :mod:`tools.verification.generate_capability_matrices` (required:
+    ``name``, ``geometry``, ``n_groups``, ``n_regions``, ``bc``,
+    ``status``; optional auto-detected: ``r0_over_R``, ``closure``,
+    ``accuracy``, ``scattering_order``, ``multiplying``,
+    ``topology_class``).
 
     This function does **not** call any eigenvalue solver. It is safe
     to invoke at Sphinx build time without paying the O(minutes) cost
-    of :func:`continuous_cases`. The authoritative cross-check is
-    :func:`tests.derivations.test_peierls_capability_matrix.test_matrix_matches_registry`
-    (when landed), which asserts this list agrees with
-    :func:`continuous_cases` row-for-row on the shared keys.
+    of :func:`continuous_cases`. The capability-matrix infrastructure
+    test
+    :func:`tests.derivations.test_capability_matrices.test_check_mode_exits_zero_when_in_sync`
+    pins the rendered include file against this registry.
     """
     # Lazy imports of per-shape tolerance tables so that this module
     # is still importable from doc-build contexts that may not have
@@ -428,6 +427,12 @@ def capability_rows() -> list[dict[str, object]]:
 
     f4_label = r":math:`{\rm F.4}` (Stamm'ler Eq. 34)"
     rank2_label = r"white rank-2 per-face (E\ :sub:`2`/E\ :sub:`3`)"
+    # Slab rank-2 closure imposes WHITE BC at the outer face (see
+    # ``slab/__init__.py``); F.4 imposes the curvilinear analogue
+    # closing the cavity face.
+    bc_white = "white (rank-2 per-face)"
+    bc_f4 = "vacuum + F.4 cavity closure"
+    shipped_status = "shipped (registry-anchored)"
 
     rows: list[dict[str, object]] = []
 
@@ -435,7 +440,7 @@ def capability_rows() -> list[dict[str, object]]:
     # path OR unified-adaptive depending on ``_SLAB_VIA_UNIFIED``; the
     # closure class and matrix column are identical either way).
     rows.append({
-        "name": "peierls_slab_2eg_2rg",
+        "name": "``peierls_slab_2eg_2rg``",
         "geometry": "slab",
         "n_groups": 2,
         "n_regions": 2,
@@ -443,6 +448,8 @@ def capability_rows() -> list[dict[str, object]]:
         "closure": rank2_label,
         "accuracy": "O(h²), Wigner-Seitz exact",
         "topology_class": "A",
+        "bc": bc_white,
+        "status": shipped_status,
     })
 
     # Class A — hollow cylinder F.4 at r_0/R ∈ {0.1, 0.2, 0.3} × {1G, 2G}.
@@ -450,7 +457,7 @@ def capability_rows() -> list[dict[str, object]]:
         r0_tag = f"{int(round(r0 * 100)):02d}"
         tol_1g = _F4_CYL_TOL[r0]
         rows.append({
-            "name": f"peierls_cyl1D_hollow_1eg_1rg_r0_{r0_tag}",
+            "name": f"``peierls_cyl1D_hollow_1eg_1rg_r0_{r0_tag}``",
             "geometry": "cylinder-1d",
             "n_groups": 1,
             "n_regions": 1,
@@ -458,9 +465,11 @@ def capability_rows() -> list[dict[str, object]]:
             "closure": f4_label,
             "accuracy": f"~{tol_1g} structural (scalar mode)",
             "topology_class": "A",
+            "bc": bc_f4,
+            "status": shipped_status,
         })
         rows.append({
-            "name": f"peierls_cyl1D_hollow_2eg_1rg_r0_{r0_tag}",
+            "name": f"``peierls_cyl1D_hollow_2eg_1rg_r0_{r0_tag}``",
             "geometry": "cylinder-1d",
             "n_groups": 2,
             "n_regions": 1,
@@ -473,6 +482,8 @@ def capability_rows() -> list[dict[str, object]]:
                 f"unverified) — Issue #104 AC"
             ),
             "topology_class": "A",
+            "bc": bc_f4,
+            "status": "shipped (k_eff gate pending — Issue #104)",
         })
 
     # Class A — hollow sphere F.4 at r_0/R ∈ {0.1, 0.2, 0.3} × {1G, 2G}.
@@ -480,7 +491,7 @@ def capability_rows() -> list[dict[str, object]]:
         r0_tag = f"{int(round(r0 * 100)):02d}"
         tol_1g = _F4_SPH_TOL[r0]
         rows.append({
-            "name": f"peierls_sph1D_hollow_1eg_1rg_r0_{r0_tag}",
+            "name": f"``peierls_sph1D_hollow_1eg_1rg_r0_{r0_tag}``",
             "geometry": "sphere-1d",
             "n_groups": 1,
             "n_regions": 1,
@@ -488,9 +499,11 @@ def capability_rows() -> list[dict[str, object]]:
             "closure": f4_label,
             "accuracy": f"~{tol_1g} structural (scalar mode)",
             "topology_class": "A",
+            "bc": bc_f4,
+            "status": shipped_status,
         })
         rows.append({
-            "name": f"peierls_sph1D_hollow_2eg_1rg_r0_{r0_tag}",
+            "name": f"``peierls_sph1D_hollow_2eg_1rg_r0_{r0_tag}``",
             "geometry": "sphere-1d",
             "n_groups": 2,
             "n_regions": 1,
@@ -503,6 +516,8 @@ def capability_rows() -> list[dict[str, object]]:
                 f"unverified) — Issue #104 AC"
             ),
             "topology_class": "A",
+            "bc": bc_f4,
+            "status": "shipped (k_eff gate pending — Issue #104)",
         })
 
     # Class B — one-surface compact. No shipped references today

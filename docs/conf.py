@@ -89,20 +89,21 @@ def _regenerate_verification_matrix(app):
         )
 
 
-# -- Auto-generate Peierls-Nyström capability matrix ------------------
+# -- Auto-generate per-package capability matrices --------------------
 #
-# Runs `python -m tools.verification.generate_peierls_nystrom_matrix`
-# before Sphinx collects sources so the capability table in
-# `docs/theory/peierls_nystrom.rst` (§theory-peierls-capabilities)
-# cannot drift from the registry function
-# `orpheus.derivations.continuous.peierls_nystrom.cases.capability_rows()`.
-# Consolidation task T2.1.
+# Runs `python -m tools.verification.generate_capability_matrices`
+# before Sphinx collects sources. The meta-generator auto-discovers
+# every package in `orpheus.derivations.continuous` that exposes
+# `cases.py:capability_rows()` and emits one
+# `docs/theory/_<package_name>_capability_matrix.inc.rst` per
+# discovered package. Replaces the per-method hooks for
+# peierls_nystrom and fn_method (and any future method).
 
-def _regenerate_peierls_nystrom_matrix(app):
+def _regenerate_capability_matrices(app):
     import subprocess
     try:
         subprocess.run(
-            [sys.executable, "-m", "tools.verification.generate_peierls_nystrom_matrix"],
+            [sys.executable, "-m", "tools.verification.generate_capability_matrices"],
             cwd=project_root,
             check=True,
             capture_output=True,
@@ -110,39 +111,13 @@ def _regenerate_peierls_nystrom_matrix(app):
         )
     except subprocess.CalledProcessError as e:
         app.warn(
-            f"peierls-nystrom capability matrix regeneration failed: {e.stderr}"
-        )
-
-
-# -- Auto-generate F_N method capability matrix -----------------------
-#
-# Runs `python -m tools.verification.generate_fn_method_matrix` before
-# Sphinx collects sources so the capability table in
-# `docs/theory/fn_method.rst` cannot drift from the registry function
-# `orpheus.derivations.continuous.fn_method.cases.capability_rows()`.
-# Interim per-method hook — superseded by a meta-generator in the
-# same series of changes.
-
-def _regenerate_fn_method_matrix(app):
-    import subprocess
-    try:
-        subprocess.run(
-            [sys.executable, "-m", "tools.verification.generate_fn_method_matrix"],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except subprocess.CalledProcessError as e:
-        app.warn(
-            f"fn_method capability matrix regeneration failed: {e.stderr}"
+            f"capability matrices regeneration failed: {e.stderr}"
         )
 
 
 def setup(app):
     app.connect("builder-inited", _regenerate_verification_matrix)
-    app.connect("builder-inited", _regenerate_peierls_nystrom_matrix)
-    app.connect("builder-inited", _regenerate_fn_method_matrix)
+    app.connect("builder-inited", _regenerate_capability_matrices)
 
 # -- Options for mathjax -----------------------------------------------
 
