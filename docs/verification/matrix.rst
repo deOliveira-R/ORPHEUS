@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2091**
+Total tests collected: **2141**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 587, 28.1%
-   L1, 675, 32.3%
+   L0, 587, 27.4%
+   L1, 675, 31.5%
    L2, 36, 1.7%
    L3, 0, 0.0%
-   foundation, 776, 37.1%
+   foundation, 826, 38.6%
    unmarked, 17, 0.8%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1995
+   explicit, 2045
    verify, 0
    class-name, 46
    func-name, 0
@@ -83,6 +83,7 @@ Module × level grid
    derivations/test_fn_la13511_sphere, 0, 0, 0, 0, 11, 0
    derivations/test_fn_la13511_sphere_flux, 0, 10, 0, 0, 0, 0
    derivations/test_fn_la13511_sphere_xverif, 0, 3, 0, 0, 0, 0
+   derivations/test_fn_method_moment_space, 0, 0, 0, 0, 14, 0
    derivations/test_fn_projection_vs_kll_flux, 0, 4, 0, 0, 4, 2
    derivations/test_fn_sood_table10_symmetric_pu_h2o, 0, 1, 0, 0, 2, 0
    derivations/test_kernels, 55, 0, 0, 0, 0, 0
@@ -143,6 +144,8 @@ Module × level grid
    derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 108, 0
    derivations/test_sood_registry_wide_bare_critical, 0, 17, 0, 0, 2, 0
    derivations/test_sood_registry_wide_kinf, 0, 0, 0, 0, 49, 0
+   derivations/test_trajectory_resolvent_billiard, 0, 0, 0, 0, 15, 0
+   derivations/test_trajectory_resolvent_chord_oracle, 0, 0, 0, 0, 21, 0
    derivations/test_trajectory_resolvent_power_iterate, 0, 0, 0, 0, 6, 0
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
@@ -415,9 +418,18 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **0** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **10** of the testable equations found on theory pages are orphan.
 
-*(none — every testable theory equation has at least one verifying test)*
+- ``billiard-rank2-S``
+- ``billiard-rank2-T``
+- ``billiard-reflection-law``
+- ``billiard-resolvent-neumann``
+- ``billiard-transfer-operator``
+- ``billiard-variant-alpha-rank1``
+- ``fn-method-moment-space-AB-defs``
+- ``fn-method-moment-space-bc-vacuum``
+- ``fn-method-moment-space-fn-ansatz``
+- ``fn-method-moment-space-galerkin-system``
 
 Documented-only equations
 -------------------------
