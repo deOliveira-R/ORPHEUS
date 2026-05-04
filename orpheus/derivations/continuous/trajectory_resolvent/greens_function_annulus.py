@@ -6,10 +6,13 @@ reference (homogeneous shell :math:`r \in [R_{\rm in}, R_{\rm out}]`,
 
 Standalone module, parallel to :mod:`.greens_function_cylinder` (solid
 cylinder) and :mod:`.greens_function_hollow_sphere` (hollow sphere).
-This is the **last 2-BC topology** in the Variant α plan; once it
-ships, the 6-geometry × 2-topology family (sphere, cylinder, slab,
-slab-asym, hollow sphere, annulus) is complete on the unified
-rank-1 / rank-2 framework via :mod:`.variant_alpha_core`.
+This is the **last two-surface orbit-space class instance** in the
+Variant α plan; once it ships, the 6-geometry × 2-orbit-space-class
+family (sphere, cylinder, slab, slab-asym, hollow sphere, annulus)
+is complete on the unified rank-1 / rank-2 framework via
+:mod:`.variant_alpha_core`. See Sphinx
+§\ ``orbit-space-m-g-classification`` for the structural signature
+that determines closure rank from M/G endpoint count.
 
 Architecture
 ------------
@@ -41,14 +44,17 @@ Two cases:
 
 - :math:`b > R_{\rm in}` — outer-only ray. The 2D in-plane projection
   ray does not intersect the inner-radius circle; the particle bounces
-  between two points on the OUTER cylinder only. **Topologically
-  rank-1**, structurally identical to a solid-cylinder ray at the
-  same outer radius and impact parameter (with axial correction).
+  between two points on the OUTER cylinder only. **Closure rank-1**
+  (orbit-space class: one-surface-compact), structurally identical
+  to a solid-cylinder ray at the same outer radius and impact
+  parameter (with axial correction).
 - :math:`b \le R_{\rm in}` — through-ray. The 2D in-plane ray crosses
   the inner cavity circle. Under interpretation (A) — the inner
   surface is a specular reflector with reflectivity :math:`\alpha_{\rm
   in}` — the particle bounces alternately inner ↔ outer.
-  **Topologically rank-2**.
+  **Closure rank-2** (orbit-space class: two-surface — M/G interval
+  with two distinct BC endpoints under :math:`\mathbb{R} \times
+  SO(2)` action with inner-radius cut).
 
 Trajectory case analysis (first-leg backward)
 ---------------------------------------------

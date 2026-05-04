@@ -7,11 +7,12 @@ cavity surface :math:`r = R_{\rm in}` and :math:`\alpha_{\rm out} \in
 
 Phase-3C-2 extension of the Phase-3C-1 hollow sphere (see
 :mod:`.greens_function_hollow_sphere`) and Phase-1 cylinder (see
-:mod:`.greens_function_cylinder`). This is the **last 2-BC topology**
-in the Variant α plan; once it ships, the 6-geometry × 2-topology
-family (sphere, cylinder, slab, slab-asym, hollow sphere, annulus) is
-complete on the unified rank-1 / rank-2 framework
-(:mod:`..variant_alpha_core`).
+:mod:`.greens_function_cylinder`). This is the **last two-surface
+orbit-space class instance** in the Variant α plan; once it ships,
+the 6-geometry × 2-orbit-space-class family (sphere, cylinder, slab,
+slab-asym, hollow sphere, annulus) is complete on the unified
+rank-1 / rank-2 framework (:mod:`..variant_alpha_core`). See Sphinx
+§\ ``orbit-space-m-g-classification`` for the structural signature.
 
 What is new vs hollow sphere
 ----------------------------
@@ -52,13 +53,15 @@ the **conserved in-plane impact parameter** is
 - :math:`b > R_{\rm in}` — outer-only rays. The 2D in-plane
   projection ray does NOT intersect the inner-radius circle; the
   particle bounces between two points on the OUTER cylinder only.
-  Topologically rank-1, structurally identical to a solid-cylinder
-  ray at the same outer radius and impact parameter.
+  Closure rank-1 (orbit-space class: one-surface-compact),
+  structurally identical to a solid-cylinder ray at the same outer
+  radius and impact parameter.
 - :math:`b \le R_{\rm in}` — through-rays. The 2D in-plane ray
   crosses the inner cavity circle. Under interpretation (A) (inner
   surface as specular reflector with reflectivity :math:`\alpha_{\rm
   in}`), the particle bounces alternately inner ↔ outer.
-  Topologically rank-2.
+  Closure rank-2 (orbit-space class: two-surface — M/G interval
+  with two distinct BC endpoints).
 
 Through-ray rank-2 monodromy
 ----------------------------

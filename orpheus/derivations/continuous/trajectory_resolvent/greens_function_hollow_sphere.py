@@ -21,19 +21,26 @@ Two cases:
 
 - :math:`b > R_{\rm in}` — outer-only rays. The trajectory line does not
   intersect the inner sphere; the particle bounces between two points
-  on the OUTER surface only. **Topologically rank-1**, structurally
-  identical to a solid-sphere ray at the same outer radius.
+  on the OUTER surface only. **Closure rank-1** (orbit-space class:
+  one-surface-compact), structurally identical to a solid-sphere
+  ray at the same outer radius.
 - :math:`b \le R_{\rm in}` — through-rays. The trajectory line crosses
   the inner cavity. Under interpretation (A) — see plan §"Hollow
   sphere geometry" — the inner surface is a specular reflector with
   reflectivity :math:`\alpha_{\rm in}`, so the particle bounces
-  alternately inner ↔ outer. **Topologically rank-2**, structurally
-  identical to the asymmetric slab with curvilinear chord algebra.
+  alternately inner ↔ outer. **Closure rank-2** (orbit-space class:
+  two-surface), structurally identical to the asymmetric slab with
+  curvilinear chord algebra: both have an M/G interval with two
+  distinct BC endpoints.
 
 Interpretation (A): :math:`\alpha_{\rm in} = 0` means "particle is
 lost to the cavity" (perfect inner absorber); :math:`\alpha_{\rm in}
 = 1` means "perfect inner reflector". This makes the hollow sphere a
-clean topological analog of the asymmetric slab.
+clean **orbit-space M/G analog** of the asymmetric slab — the
+through-ray subset of phase-space carries the same 1-D-interval-with-
+two-distinct-BC-endpoints orbit-space structure as slab asymmetric,
+only the chord algebra and the G-equivariant lift back to the
+higher-dim M differ.
 
 Architecture
 ------------

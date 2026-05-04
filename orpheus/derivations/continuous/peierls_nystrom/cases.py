@@ -1,17 +1,26 @@
 r"""Unified continuous-reference registry for Peierls Nyström solvers,
-organized by **topological class** instead of shape.
+organized by **orbit-space M/G class** instead of shape.
 
 See :file:`.claude/plans/topology-based-consolidation.md` and Sphinx
-§\ ``theory-peierls-capabilities`` / §\ ``theory-peierls-naming``.
+§\ ``orbit-space-m-g-classification`` (the structural signature),
+§\ ``theory-peierls-capabilities``, and §\ ``theory-peierls-naming``.
 
-The two topological classes are:
+The two orbit-space classes are determined by the number of physical
+boundary endpoints of the 1-D orbit space M/G (where M is the 3-D
+problem domain and G is the symmetry group acting by isometries):
 
-- **Class A — two-surface** (F.4 applies). Members: slab (two parallel
-  faces), hollow annular cylinder (inner + outer ring), hollow sphere
-  (inner + outer shell). Shared closure class: Stamm'ler IV Eq. 34 =
-  Hébert 2009 Eq. 3.323 (scalar rank-2 per-face).
-- **Class B — one-surface compact** (rank-1 Mark only). Members:
-  solid cylinder, solid sphere. F.4 structurally collapses.
+- **Class A — two-surface** (F.4 applies). M/G is a 1-D interval with
+  two physical BC endpoints. Members: slab (two parallel faces, M/G
+  = R³ modulo R²-translation), hollow annular cylinder (inner +
+  outer ring, M/G = R³ modulo R-translation × SO(2) with inner-radius
+  cut), hollow sphere (inner + outer shell, M/G = R³ modulo SO(3)
+  with inner-radius cut). Shared closure class: Stamm'ler IV Eq. 34
+  = Hébert 2009 Eq. 3.323 (scalar rank-2 per-face).
+- **Class B — one-surface compact** (rank-1 Mark only). M/G is a 1-D
+  interval with one physical BC endpoint (the inner :math:`r=0` is a
+  coordinate singularity, not a physical surface). Members: solid
+  cylinder (M/G = R³ modulo R-translation × SO(2)), solid sphere
+  (M/G = R³ modulo SO(3)). F.4 structurally collapses.
 
 This module is the canonical entry point for continuous-reference
 registration via :func:`cases`. The per-geometry modules

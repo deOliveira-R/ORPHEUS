@@ -356,24 +356,39 @@ class CurvilinearGeometry:
 
     @property
     def topology(self) -> str:
-        r"""Topological class for Peierls closure dispatch.
+        r"""Orbit-space M/G class for Peierls closure dispatch.
+
+        The label is the human-readable count of physical boundary
+        endpoints of the 1-D orbit space :math:`M/G` (where :math:`M`
+        is the 3-D problem domain and :math:`G` is the symmetry group
+        acting by isometries). See Sphinx
+        §\ ``orbit-space-m-g-classification`` for the structural
+        signature.
 
         Returns one of:
 
-        - ``"two_surface"`` — the cell has two boundary surfaces that
-          carry re-entry data. Members: slab (two parallel faces),
-          hollow annular cylinder (inner + outer ring), hollow sphere
-          (inner + outer shell). **F.4 scalar rank-2 per-face closure
-          (Stamm'ler Eq. 34 = Hébert 2009 Eq. 3.323) applies to this
-          class.** All members share the same L19 stability-protocol
-          coverage and the L21 structural residual class.
+        - ``"two_surface"`` — the cell's M/G is a 1-D interval with
+          two physical BC endpoints. Members: slab
+          (:math:`M/G = \mathbb{R}^3 / \mathbb{R}^2_{\rm trans}`,
+          two parallel faces), hollow annular cylinder
+          (:math:`M/G = \mathbb{R}^3 / (\mathbb{R}_{\rm trans} \times
+          SO(2))` with inner-radius cut, inner + outer ring), hollow
+          sphere (:math:`M/G = \mathbb{R}^3 / SO(3)` with inner-radius
+          cut, inner + outer shell). **F.4 scalar rank-2 per-face
+          closure (Stamm'ler Eq. 34 = Hébert 2009 Eq. 3.323) applies
+          to this class.** All members share the same L19
+          stability-protocol coverage and the L21 structural residual
+          class.
 
-        - ``"one_surface_compact"`` — the cell has a single boundary
-          surface (compact convex body). Members: solid cylinder
-          (``inner_radius == 0``), solid sphere (``inner_radius == 0``).
-          **F.4 is structurally unavailable** on this class because
-          there is no second face to couple to; the only shipped
-          closure is rank-1 Mark.
+        - ``"one_surface_compact"`` — the cell's M/G is a 1-D interval
+          with one physical BC endpoint (the inner :math:`r=0` is a
+          coordinate singularity, not a physical surface). Members:
+          solid cylinder (``inner_radius == 0``,
+          :math:`M/G = \mathbb{R}^3 / (\mathbb{R}_{\rm trans} \times
+          SO(2))`), solid sphere (``inner_radius == 0``,
+          :math:`M/G = \mathbb{R}^3 / SO(3)`). **F.4 is structurally
+          unavailable** on this class because there is no second face
+          to couple to; the only shipped closure is rank-1 Mark.
 
         This is the **primary organizing principle** for Peierls
         reference cases (see
@@ -384,9 +399,9 @@ class CurvilinearGeometry:
 
         Semantically equivalent to ``n_surfaces`` (2 ↔ ``"two_surface"``,
         1 ↔ ``"one_surface_compact"``), but named for its role rather
-        than its arity. Code that cares about the topology *label* —
-        dispatching case builders, filtering tests, gating closure
-        applicability — should prefer this property.
+        than its arity. Code that cares about the orbit-space M/G
+        *label* — dispatching case builders, filtering tests, gating
+        closure applicability — should prefer this property.
         """
         return "two_surface" if self.n_surfaces == 2 else "one_surface_compact"
 

@@ -53,10 +53,14 @@ from .geometry import (
     map_gl_to,
 )
 
-# Topological class — slab has two parallel boundary faces at x=0 and
-# x=L, so it belongs to the same F.4-applicable topology class as
-# hollow cylinder and hollow sphere. See
-# :ref:`theory-peierls-capabilities` (Class A) and
+# Orbit-space M/G class — slab has two parallel boundary faces at x=0
+# and x=L, so M/G (the 1-D quotient under R²-translation) is an
+# interval [0, L] with two distinct BC endpoints. Slab therefore
+# belongs to the same F.4-applicable orbit-space class as hollow
+# cylinder and hollow sphere (all "two-surface": M/G interval with
+# two physical endpoints). See Sphinx
+# §\ `orbit-space-m-g-classification` for the structural signature,
+# :ref:`theory-peierls-capabilities` (Class A), and
 # :file:`.claude/plans/topology-based-consolidation.md`. The native
 # E_1 Nyström machinery in this module is distinct from the curvilinear
 # CurvilinearGeometry machinery (slab's log singularity does not factor

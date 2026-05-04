@@ -15,12 +15,16 @@ Key Facts
 **Read this before modifying any solver in
 :mod:`orpheus.derivations.continuous.trajectory_resolvent`.**
 
-- **What this is**: a 6-geometry × 2-topology family of angle-
-  resolved Green's-function reference solvers, all mounted on a
-  single shared resolvent + closure primitive
+- **What this is**: a 6-geometry × 2-orbit-space-class family of
+  angle-resolved Green's-function reference solvers, all mounted on
+  a single shared resolvent + closure primitive
   (:mod:`...trajectory_resolvent.variant_alpha_core`). The family
   closed 2026-05-02 with: sphere, cylinder, slab (symmetric +
-  asymmetric), hollow sphere, annulus.
+  asymmetric), hollow sphere, annulus. The "2 orbit-space classes"
+  are one-surface-compact (1 physical endpoint of M/G) and
+  two-surface (2 physical endpoints of M/G); see
+  :ref:`orbit-space-m-g-classification` for the structural
+  signature.
 - **Pillar classification**: semi-analytical (ray-traced quadratures
   + geometric multi-bounce series). The **β-sister** pillar
   (closed-form spectral μ-integration) is reserved at
@@ -119,10 +123,14 @@ admitting that the OUTPUT is mathematically a Green's function.
 
 .. note::
 
-   **Scope of this page.** Variant α is now a **6-geometry × 2-topology
-   family** of angle-resolved Green's-function reference solvers, all
-   mounted on a single shared resolvent + closure primitive
+   **Scope of this page.** Variant α is now a **6-geometry ×
+   2-orbit-space-class family** of angle-resolved Green's-function
+   reference solvers, all mounted on a single shared resolvent +
+   closure primitive
    (:mod:`orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core`).
+   The two orbit-space classes are one-surface-compact and
+   two-surface — see :ref:`orbit-space-m-g-classification` for the
+   M/G signature that determines closure rank.
    The family is closed as of 2026-05-02. The legacy page title and
    sections continue to refer to "sphere" because the sphere prototype
    was historically the first instance and carries the deepest
@@ -151,12 +159,12 @@ geometry-specific code is confined to chord arithmetic and
 phase-space discretisation; the algebraic closure is shared
 byte-for-byte across the entire family.
 
-.. list-table:: Variant α 6-geometry × 2-topology grid (all closed 2026-05-02)
+.. list-table:: Variant α 6-geometry × 2-orbit-space-class grid (all closed 2026-05-02)
    :header-rows: 1
    :widths: 22 20 18 22 18
 
    * - Geometry
-     - Topology
+     - Orbit-space class (M/G endpoints)
      - Closure rank
      - Phase-space
      - Phase
@@ -2396,7 +2404,8 @@ matrix inverse exposed by
 :func:`~orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core.compute_resolvent_T_rank2`.
 
 Three structural predictions of the frame have been validated across
-the 6-geometry × 2-topology family:
+the 6-geometry × 2-orbit-space-class family (see
+:ref:`orbit-space-m-g-classification` for the M/G signature):
 
 1. **Rank-1 covers 1-surface compact geometries** (sphere, cylinder)
    — confirmed at Phase 1.
@@ -3465,7 +3474,10 @@ Hollow sphere Variant α (Phase 3C-1 — rank-2 + impact-parameter partition)
 
 Phase-3C-1 hollow sphere Variant α extends the rank-2 BIE block
 resolvent (validated in Phase 3B for asymmetric slab) to the first
-**curvilinear 2-surface topology**. Two new geometric features are
+**curvilinear 2-surface orbit-space class** (M/G interval with two
+distinct BC endpoints under :math:`SO(3)` action with inner-radius
+cut; see :ref:`orbit-space-m-g-classification`). Two new geometric
+features are
 introduced compared to slab:
 
 1. **Impact-parameter phase-space partition** — trajectories split
@@ -4164,9 +4176,9 @@ existing framework:
   segmentation along trajectory + B integrals).
 - Anisotropic scattering on annulus (orthogonal axis to Variant α).
 - Multi-region hollow sphere (deferred from Phase 3C-1).
-- Capping the cylinder/annulus axially (3-surface topology — would
-  require rank-3 monodromy; algebraically a block-circulant
-  resolvent generalisation).
+- Capping the cylinder/annulus axially (3-surface orbit-space class
+  — three physical M/G endpoints; would require rank-3 monodromy;
+  algebraically a block-circulant resolvent generalisation).
 
 Future extensions where the framework prediction is **less certain**:
 

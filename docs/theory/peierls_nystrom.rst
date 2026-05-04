@@ -32,34 +32,44 @@ and moment-form), see :ref:`theory-peierls-slab-polar`. For the
 :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_mg` and
 reduced :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
 to a thin wrapper, see :ref:`theory-peierls-multigroup`. For the
-**rank-:math:`N` falsifications on both topology classes** —
-Class A (hollow) closed by L21 and Class B (solid) under Issue #132
-re-derivation — see :ref:`peierls-rank-n-per-face-closeout` and
+**rank-:math:`N` falsifications on both orbit-space classes** —
+Class A (two-surface M/G, hollow) closed by L21 and Class B
+(one-surface-compact M/G, solid) under Issue #132 re-derivation —
+see :ref:`peierls-rank-n-per-face-closeout` and
 :ref:`peierls-rank-n-class-b-mr-mg-falsification`.
 
-- **Primary organizing principle (2026-04-23): topology, not shape.**
-  The cases this module ships partition into two **topological
-  classes**, each with a distinct set of applicable closures:
+- **Primary organizing principle (2026-04-23): orbit-space topology,
+  not shape.** The cases this module ships partition into two
+  **orbit-space M/G classes** — see
+  :ref:`orbit-space-m-g-classification` for the structural signature
+  (number of physical endpoints of the 1-D orbit space M/G
+  determines the closure rank). Each class has a distinct set of
+  applicable closures:
 
   - **Class A — two-surface (F.4 applies).** Members: slab
     (two parallel faces), hollow annular cylinder (inner + outer
-    ring), hollow sphere (inner + outer shell). Shared closure
-    class: F.4 scalar rank-2 per-face (Stamm'ler Eq. 34 =
+    ring), hollow sphere (inner + outer shell). M/G is a 1-D
+    interval with two physical BC endpoints. Shared closure class:
+    F.4 scalar rank-2 per-face (Stamm'ler Eq. 34 =
     Hébert 2009 Eq. 3.323 = :math:numref:`hebert-3-323`).
   - **Class B — one-surface compact (rank-1 Mark only).** Members:
-    solid cylinder, solid sphere. F.4 structurally collapses here
-    (no second face to couple to); only rank-1 Mark is shipped.
-    Rank-:math:`N` Marshak (``n_bc_modes ≥ 2``) is callable but
-    **unsafe in MR** — :ref:`peierls-rank-n-class-b-mr-mg-falsification`
+    solid cylinder, solid sphere. M/G is a 1-D interval with one
+    physical BC endpoint (the inner :math:`r=0` is a coordinate
+    singularity, not a physical surface). F.4 structurally
+    collapses here (no second face to couple to); only rank-1 Mark
+    is shipped. Rank-:math:`N` Marshak (``n_bc_modes ≥ 2``) is
+    callable but **unsafe in MR** —
+    :ref:`peierls-rank-n-class-b-mr-mg-falsification`
     (Issue #132) documents the +57 % sphere 1G/2R sign-flip
     catastrophe and the mode-0 / mode-:math:`n \ge 1` normalisation
     mismatch in :func:`build_closure_operator`.
 
   The ``CurvilinearGeometry.topology`` property returns
   ``"two_surface"`` or ``"one_surface_compact"`` and is the canonical
-  runtime discriminator. This supersedes shape-keyed dispatch
+  runtime discriminator. The string is the M/G endpoint count made
+  human-readable. This supersedes shape-keyed dispatch
   (``kind="cylinder-1d"``) as the primary axis of organization —
-  shape is a sub-axis *within* a topology class.
+  shape is a sub-axis *within* an orbit-space class.
 
 - All three 1-D Peierls integral equations (slab, cylinder, sphere)
   are *instances of one equation*
@@ -360,11 +370,16 @@ Terminology glossary — unambiguous names, despite the history
 Several names in this module have historical collisions. A fresh
 reader must disambiguate them before reading any dispatch code.
 
-**Topology** is the primary organizing principle (see Key Facts
+**Topology** in this module is the **orbit-space M/G classification**
+(see :ref:`orbit-space-m-g-classification` for the structural
+signature). It is the primary organizing principle (see Key Facts
 above). Two classes:
 
-- ``"two_surface"``: slab, hollow cylinder, hollow sphere. F.4 applies.
-- ``"one_surface_compact"``: solid cylinder, solid sphere. Only
+- ``"two_surface"``: slab, hollow cylinder, hollow sphere. The 1-D
+  orbit space M/G has two physical BC endpoints. F.4 applies.
+- ``"one_surface_compact"``: solid cylinder, solid sphere. The 1-D
+  orbit space M/G has one physical BC endpoint (the inner
+  :math:`r=0` is a coordinate singularity, not a surface). Only
   rank-1 Mark shipped.
 
 Queryable at runtime as
@@ -374,7 +389,8 @@ module-level constant ``orpheus.derivations.continuous.peierls_nystrom.slab.TOPO
 carries the same label. This property **supersedes**
 :attr:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.n_surfaces`
 as the user-facing identifier: ``n_surfaces`` remains an internal
-integer count, ``topology`` is the semantic label for dispatch +
+integer count, ``topology`` is the semantic label (an M/G
+endpoint-count tag made human-readable) for dispatch +
 documentation + test filtering. The plan that introduced this
 concept lives at
 :file:`.claude/plans/topology-based-consolidation.md`.
@@ -3547,9 +3563,10 @@ uniformly worse without fixing MR.
 
 This is the Class B sibling of the Class A
 :ref:`peierls-rank-n-per-face-closeout`: **rank-N has now been
-falsified on both topological classes** — Class A by the
-:eq:`c-in-remapping` Legendre-basis non-diagonalisation (CLOSED
-under L21); Class B by the mode-0 / mode-:math:`n \ge 1`
+falsified on both orbit-space classes** — Class A
+(two-surface M/G) by the :eq:`c-in-remapping` Legendre-basis
+non-diagonalisation (CLOSED under L21); Class B
+(one-surface-compact M/G) by the mode-0 / mode-:math:`n \ge 1`
 normalisation mismatch (OPEN, conditional on re-derivation per
 Issue #132). The active resolution path is the Hébert
 :math:`(1 - P_{ss})^{-1}` partial fix shipped as
@@ -4354,7 +4371,7 @@ Citation
 
 Together with the Issue #131 slab-polar resolution and the F.4
 hollow-cyl/sph closures, the integral-transport verification
-infrastructure now covers the four-corner topology
+infrastructure now covers the four-corner orbit-space grid
 (slab/cyl/sph × hollow/solid) for L1 verification of the Peierls
 solver against the analytical white-BC k_inf, with the documented
 1G/2R sphere limitation as the only remaining open

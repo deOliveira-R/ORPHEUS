@@ -36,7 +36,8 @@ Modules
   through-rays + rank-1 outer-only with the cylinder 3D angular
   phase-space :math:`(r, \\mu_{\\rm axial}, \\varphi_{\\rm az})` and
   axial-cosine corrected chord algebra (Issue #129 angle-resolved
-  discipline). Last 2-BC topology in the Variant α plan.
+  discipline). Last two-surface orbit-space class instance in the
+  Variant α plan (see Sphinx §\\ ``orbit-space-m-g-classification``).
 """
 
 from .greens_function import (

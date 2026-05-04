@@ -44,6 +44,108 @@ therefore the production solvers) trust.
   cross-reference graph.
 
 
+.. _orbit-space-m-g-classification:
+
+Orbit-space M/G classification — the structural signature
+==========================================================
+
+Several reference-solver families partition by **topology, not by
+shape** — most prominently :ref:`theory-trajectory-resolvent` and
+:ref:`theory-peierls-nystrom`. The precise mathematical signature
+that organises this partition is the **orbit-space M/G
+classification**.
+
+Given a manifold :math:`M` (the physical 3-D problem domain) and a
+symmetry group :math:`G` acting on :math:`M` by isometries, the
+**orbit space** :math:`M/G` is the quotient — equivalence classes
+of points related by a group element. ORPHEUS reference solvers
+exploit the symmetry by reducing the transport problem from
+:math:`M` to its 1-D orbit space.
+
+.. list-table:: Orbit-space M/G reductions for ORPHEUS reference solvers
+   :header-rows: 1
+   :widths: 18 25 18 25 14
+
+   * - Geometry (M)
+     - Symmetry group G
+     - M/G dimension
+     - M/G shape
+     - Endpoints
+   * - Slab (infinite in :math:`y, z`)
+     - :math:`\mathbb{R}^2` translation
+     - 1
+     - Interval :math:`[-L/2, L/2]`
+     - 2
+   * - Slab asymmetric
+     - :math:`\mathbb{R}^2` translation (BCs distinguish endpoints)
+     - 1
+     - Interval :math:`[0, L]`
+     - 2 (distinct BCs)
+   * - Sphere (solid)
+     - :math:`SO(3)`
+     - 1
+     - Interval :math:`[0, R]`
+     - 1 (origin + outer)
+   * - Hollow sphere
+     - :math:`SO(3)` (with inner cut)
+     - 1
+     - Interval :math:`[R_{\rm in}, R_{\rm out}]`
+     - 2
+   * - Cylinder (solid, infinite axis)
+     - :math:`\mathbb{R}` translation × :math:`SO(2)`
+     - 1
+     - Interval :math:`[0, R]`
+     - 1 (axis + outer)
+   * - Annulus (hollow cylinder, infinite axis)
+     - :math:`\mathbb{R}` translation × :math:`SO(2)` (with inner cut)
+     - 1
+     - Interval :math:`[R_{\rm in}, R_{\rm out}]`
+     - 2
+
+The **number of distinct boundary endpoints** of M/G is the structural
+invariant that determines the boundary-closure rank:
+
+- **One-surface compact** (sphere, cylinder solid) — the M/G interval
+  has one outer endpoint (the inner endpoint at :math:`r = 0` is a
+  *coordinate* singularity, not a *physical* surface; nothing reflects
+  off the origin). Boundary-closure rank is **1**: a single scalar
+  resolvent :math:`T = (1 - \alpha\,e^{-\tau_{\rm period}})^{-1}` closes
+  the multi-bounce sum.
+- **Two-surface** (slab asymmetric, hollow sphere, annulus) — the
+  M/G interval has two physical endpoints, each carrying its own BC.
+  Boundary-closure rank is **2**: the resolvent
+  :math:`T = (I - S)^{-1}` is a :math:`2 \times 2` block on the
+  surface state vector.
+
+This is **why** :mod:`orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core`
+treats the slab asymmetric, hollow sphere, and annulus as a single
+**rank-2 family** despite their entirely different curvatures:
+their orbit-space M/G classification is identical (1-D interval with
+two distinct BC endpoints). Only the chord algebra and the
+G-equivariant lift back to :math:`M` (the higher-dim Jacobian) differ
+between the three.
+
+Where this page (and downstream pages) say "topology" or
+"topological class", read **orbit-space M/G classification**. The
+``CurvilinearGeometry.topology`` property's two values
+(``"one_surface_compact"``, ``"two_surface"``) name the two
+endpoint counts that ORPHEUS currently supports. Future extensions
+to more endpoints (rank-:math:`N` for :math:`N \ge 3`, e.g.
+axially-capped cylinder) would correspond to richer orbit-space
+boundary structure (1-D interval with three or more endpoints
+under :math:`SO(2) \times` reflection-axis-truncation, etc.).
+
+The orbit-space framing also clarifies what the rank-N falsifications
+documented at :ref:`peierls-rank-n-per-face-closeout` and
+:ref:`peierls-rank-n-class-b-mr-mg-falsification` are saying: the
+rank-:math:`N \ge 2` Marshak / DP\ :sub:`N` closures attempted on
+**one-surface-compact** orbit spaces (Class B: solid cylinder /
+sphere) failed because there is only one physical endpoint to host
+the higher-rank moments, not because the higher-order Legendre
+expansion is structurally wrong on multi-endpoint geometries
+(Class A: slab, hollow cyl/sph, annulus, where multi-mode per-face
+closures are fine).
+
 .. _reference-solvers-three-meanings:
 
 The three meanings of "Green's function"

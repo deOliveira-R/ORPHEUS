@@ -21,21 +21,26 @@ with at most ONE OR TWO of them depending on its **impact parameter**
 
 - :math:`b > R_{\rm in}` — outer-only rays. The straight-line
   trajectory does not intersect the inner sphere; the particle
-  bounces between two points on the OUTER surface only. Topologically
-  rank-1, structurally identical to a solid sphere ray at the same
-  outer radius and impact parameter.
+  bounces between two points on the OUTER surface only. Closure
+  rank-1 (orbit-space class: one-surface-compact), structurally
+  identical to a solid sphere ray at the same outer radius and
+  impact parameter.
 - :math:`b \le R_{\rm in}` — through-rays. The trajectory line
   crosses the inner cavity. Under interpretation (A) — see plan §
   "Hollow sphere geometry" — the inner surface is a specular reflector
   with reflectivity :math:`\alpha_{\rm in}`, so the particle bounces
-  alternately between the inner and outer surfaces. Topologically
-  rank-2, structurally identical to the asymmetric slab with curved
-  chord algebra.
+  alternately between the inner and outer surfaces. Closure rank-2
+  (orbit-space class: two-surface), structurally identical to the
+  asymmetric slab with curved chord algebra: both have an M/G
+  interval with two distinct BC endpoints, only the chord algebra
+  and the G-equivariant lift back to the higher-dim M differ.
 
 Interpretation (A) treats :math:`\alpha_{\rm in} = 0` as
 "particle is lost to the cavity" (perfect inner absorber) and
 :math:`\alpha_{\rm in} = 1` as "perfect inner reflector." This makes
-the hollow sphere a clean topological analog of the asymmetric slab.
+the hollow sphere a clean **orbit-space M/G analog** of the
+asymmetric slab. See Sphinx §\ ``orbit-space-m-g-classification``
+for the structural signature that drives this analog.
 
 Through-ray rank-2 monodromy
 ----------------------------
