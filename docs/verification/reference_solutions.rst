@@ -110,6 +110,50 @@ the one exception: they are degenerate in space and can be consumed
 by any solver as a sanity check on the multigroup matrix algebra.
 
 
+.. _verification-greens-three-meanings:
+
+Three meanings of "Green's function" in this verification suite
+----------------------------------------------------------------
+
+When a reference is described as "Green's-function-based" in the V&V
+matrix, the description is ambiguous: three structurally-independent
+mathematical objects all carry that name in the transport literature,
+and this suite consumes all three. The taxonomy is documented in
+detail at :ref:`reference-solvers-three-meanings`. In V&V terms:
+
+* **Meaning (α) — trajectory resolvent.** Constructs the scalar
+  Green's kernel :math:`G(\rho \to \rho')` by tracing characteristic
+  rays and closing multi-bounce trajectories with the resolvent
+  :math:`T = (I - S)^{-1}`. Realised in
+  :mod:`orpheus.derivations.continuous.trajectory_resolvent`. Pillar:
+  semi-analytical (ray-traced quadratures + geometric series).
+
+* **Meaning (β) — spectral resolvent.** Constructs the *same* scalar
+  kernel via closed-form spectral μ-integration of the within-medium
+  angular Green's function (Sanchez 1986 Eq. A6 / PS-1982 Eq. 21).
+  Reserved at
+  :mod:`orpheus.derivations.continuous.spectral_resolvent`; the direct
+  evaluator is the headline implementation gap. Pillar:
+  semi-analytical (closed-form integrand + 1-D quadrature).
+
+* **Meaning (γ) — singular-eigenfunction angular Green's.**
+  Constructs the angular Green's function
+  :math:`G(\tau, \tau'; \mu, \mu')` directly via Case ν-spectrum +
+  X-function half-range completeness. Realised in
+  :mod:`orpheus.derivations.continuous.singular_eigenfunction` and
+  :mod:`orpheus.derivations.continuous.fn_method`. Pillar:
+  closed-form (criticality determinant) / semi-analytical (interior
+  flux reconstruction via KLL 1974 Fredholm iteration).
+
+The verification claim of highest confidence in this suite is the
+**triple match** (α) ≈ (β) ≈ (γ) — agreement at the same problem
+across three structurally-distinct integrands. This is L1-grade
+evidence per the structural-independence rule of the
+``vv-principles`` skill. The matrix in :doc:`matrix` indicates which
+problems currently realise the triple match (today: vacuum-BC sphere
+isotropic; spectrum will widen as Meaning β is implemented).
+
+
 .. _continuous-reference-contract:
 
 The ContinuousReferenceSolution contract
@@ -330,6 +374,59 @@ The legacy-convention regression guards
 naming during Phase 0 through Phase B.3 were deleted alongside the
 class in commit 6badbe5; they are listed here only as a pointer for
 readers tracing through older commits in ``git log``.
+
+
+.. _verification-pillar-2-hardening:
+
+Pillar-2 reference hardening — Atkinson product Nyström as canonical
+---------------------------------------------------------------------
+
+Reference solvers in this project are continuously **hardened** —
+their evaluation precision is improved to push the L1 cross-check
+floor downward — even after a reference is "shipped" and consumed
+by tests. The canonical hardening pattern, established by the
+Atkinson product Nyström + tanh-substitution work in commit
+``4c83e09`` (ERR-036 + ERR-037), is the load-bearing example a future
+session should follow when extending or improving any Pillar-2
+reference.
+
+The pattern has three steps:
+
+1. **Identify the precision-limiting structure.** The Peierls
+   integral kernel :math:`E_1(|\rho - \rho'|)` is log-singular at the
+   diagonal. A naïve Gauss-Legendre Nyström quadrature converges
+   slowly because the singularity is uniformly bounded but
+   non-smooth. ERR-036 captures the fingerprint of the resulting
+   precision floor in the verification matrix.
+2. **Apply a structurally-justified transformation.** Atkinson's
+   product Nyström rule uses pre-computed weights for the singular
+   factor, leaving a smooth kernel for standard quadrature. The
+   tanh substitution :math:`\mu = \tanh(t)` (ERR-037) further
+   smooths the BC-edge integrands by mapping the boundary singularity
+   to :math:`t \to \infty`, where Gauss-Hermite-like exponential
+   convergence applies.
+3. **Pin the hardening with a regression test.** Each ERR entry
+   carries ``@pytest.mark.catches("ERR-NNN")`` on the test that
+   exercises the failure mode. The matrix in :doc:`matrix` flags
+   any catalog entry without a catcher as a publication-blocker.
+
+This is distinct from a *code-bug fix* (ERR catalog entries 1–35
+mostly fall in that class). A hardening entry like ERR-036/037
+records that the math was right but the *quadrature* was a precision
+floor; the fix is in the numerical method, not the algebra.
+
+ERR-038 (Atalay 1997 paper-precision floor, characterised in the
+same commit) is a third evidence-class still distinct from the first
+two: the *published reference numbers themselves* are at a precision
+floor that a higher-precision cross-check cannot improve. The
+mitigation is to swap in a structurally-independent reference
+(Atkinson-hardened Pillar-2 evaluation of the same problem), which
+is what ERR-036 enables.
+
+The three classes — code bug, quadrature floor, paper-precision
+floor — populate the error catalog with different lessons and
+require different fixes. A future session reading the catalog must
+attend to which class an ERR belongs to before trying to "fix" it.
 
 
 .. _verification-campaign-migration:
