@@ -5,25 +5,11 @@ ORPHEUS — Open Reactor Physics Educational University System
    :maxdepth: 2
    :caption: Theory & Derivations
 
-   theory/cross_section_data
-   theory/homogeneous
-   theory/transport_methods
-   theory/peierls
-   theory/peierls_nystrom
-   theory/trajectory_resolvent
-   theory/fn_method
-   theory/singular_eigenfunction
-   theory/galerkin_spectral
-   theory/sood_registry
-   theory/diffusion_1d
-   theory/fuel_behaviour
-   theory/thermal_hydraulics
-   theory/reactor_kinetics
-   theory/verification
+   theory/index
 
 .. toctree::
    :maxdepth: 2
-   :caption: Testing
+   :caption: Testing & Verification
 
    testing/index
    verification/index
