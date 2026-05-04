@@ -35,3 +35,72 @@ under the two-quadrature stability check. Use
 `assert_rank_n_structural_win` in
 `tests/cp/test_peierls_rank_n_protocol.py` as the gate before
 shipping any new closure.
+
+## L4: Convergence-rate fingerprints discriminate failure modes
+
+A solver stalled at 1–10 % vs reference is not enough information.
+Run an n-doubling sweep and check three discriminating products
+of (error × n^p):
+
+| Empirical pattern              | Failure mode                            |
+| ------------------------------ | --------------------------------------- |
+| `err·sqrt(n) ≈ const`          | Schneider C^(0,1) endpoint singularity  |
+|                                | in the *solution* (graded mesh repairs) |
+| `err·n/log(n) ≈ const`         | Log-singular kernel diagonal truncation |
+|                                | in the discrete operator (product-      |
+|                                | Nyström repairs)                        |
+| `err·n² ≈ const`               | Smooth-integrand quadrature undersam-   |
+|                                | pling (just bump n)                     |
+| `err·n^p, 2 < p < 4`           | Simpson on a piecewise-quadratic        |
+|                                | trial; rate limited by solution         |
+|                                | regularity                              |
+| `err`-ratio not monotone in n  | Eigenvalue-iteration tolerance, not     |
+|                                | the discretisation; tighten the         |
+|                                | iteration test                          |
+
+ERR-036 (Wave 2-A Path A.i, 2026-05-03) was misclassified by the
+literature memo as a Schneider endpoint-singularity problem
+(`err·sqrt(n)`); the empirical fingerprint was `err·n/log(n)`,
+pointing to log-singular kernel diagonal truncation. The
+methodology recommendation (Atkinson product-Nyström) was right
+but the *justification* was wrong — graded mesh would have been
+secondary, not primary. Always run the three-way fingerprint
+attribution before committing to a fix; a wrong attribution
+chooses the wrong fix even when both fixes happen to be
+beneficial.
+
+## L5: Read the paper's stated approximation level before assuming a code bug
+
+When a small numerical disagreement (1-10%) with a published reference
+appears, **read the paper's own caveats explicitly before assuming the
+gap is a code bug**. ERR-038 (Wave 2 Front-3, 2026-05-03) was investigated
+as a "singular limit at R→1 needing multi-day asymptotic analysis" when
+in fact Atalay 1997 explicitly states (p.236, p.246) that the published
+Tables 2-5 are **first-order Fredholm approximations** with degraded
+precision at small slab thicknesses. The 5% R=0.99 gap is the paper's
+own precision floor.
+
+The discriminator that resolves "code bug vs paper floor":
+
+| Observation                                  | Likely cause                       |
+| -------------------------------------------- | ---------------------------------- |
+| Uniform offset across all parameters         | Code bug (constant, sign, factor)  |
+| Scales with a physical parameter (1/d, 1/τ)  | Paper floor (omitted higher-order) |
+| Scales with a numerical parameter (n, dps)   | Quadrature or precision bound      |
+| Insensitive to all numerical knobs but exact | Paper floor or fixed approximation |
+| at one structural limit                      | level                              |
+
+Always include a "moderate-parameter consistency check": at a parameter
+value where the paper's stated approximation is tight, the solver MUST
+agree to machine precision. This is the structurally-independent ground
+that supports the verdict "paper floor, not code bug" — without it, the
+case stays open (per V&V principles §1).
+
+Also caught the X-function-precision false-positive: an upstream
+Signature 7 (1.2% rel-diff between legacy mpmath maxdegree=14 and
+tanh-substituted mpmath at ν=0.99) does NOT automatically propagate to
+every downstream quantity at the same magnitude. Sensitivity analysis
+(X→K_j→2d_crit: 1.2% → 0.3% → <0.1%) is mandatory before claiming the
+upstream fix solves the downstream gap. Plain magnitude propagation is
+NOT the default — many integrals are insensitive to upstream-spline
+small shifts when the cancellation structure absorbs them.

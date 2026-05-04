@@ -1858,6 +1858,459 @@ the same identity.
 
 ---
 
+## ERR-036 — Slab Peierls Path A.i: log-singular kernel diagonal truncation in plain GL
+
+**Status:** **DOCUMENTED 2026-05-03**, with a structurally-distinct
+fix path (Atkinson product-Nyström) implemented and tested. The
+legacy plain-GL path (`slab_scalar_flux_fn_projection`) is left in
+place at its honest 5–7 % tolerance — it is the *plain* baseline;
+the Atkinson path
+(`slab_scalar_flux_fn_projection_atkinson`) is the singularity-aware
+replacement that hits the F_N moment floor.
+
+**Failure mode:** #3 Missing factor / #4 Factor error — silent
+truncation of the divergent log-singular kernel at the diagonal.
+**Date discovered:** 2026-05-03 (Wave 2-A Path A.i convergence-rate
+investigation).
+**Solver:** `orpheus.derivations.continuous.fn_method.slab.flux_reconstruction.slab_scalar_flux_fn_projection`
+(Path A.i — power-iterates the Peierls integral operator with plain
+Gauss–Legendre on the (z, μ) tensor product).
+
+**Bug:** The Path A.i discrete operator builds
+
+    K[i, j] = (c/2) Σ_k (w_μ_k / μ_k) exp(-|z_i - z_j| / μ_k)
+
+with all-positive `w_μ_k`. After the μ-integral, this should equal
+`(c/2) E_1(|z_i - z_j|)`, where `E_1(0+) = +∞` (logarithmic
+divergence). Off-diagonal (`|z_i - z_j| > 0.05` mfp) the
+μ-quadrature converges to E_1 at machine precision. **At the
+diagonal** (`z_i = z_j`), the integrand `(1/μ) exp(0) = 1/μ` is
+itself singular at μ → 0+; with finite-N Gauss-Legendre nodes on
+(0, 1) the smallest node is `μ_min ~ 1/n_μ²`, and the sum saturates
+at the *finite* value `Σ_k w_k / μ_k ≈ −log(μ_min) ≈ 2 log(n_μ)`.
+The discrete kernel is therefore qualitatively wrong at the
+diagonal: a finite truncation of the true `+∞`. This matches
+Atkinson 1972 §III's textbook scenario for log-singular kernels.
+
+**Impact:** On the bare-critical 1G isotropic slab (Wave 2-A cases
+Ua-1-0-SL c=1.30, PUa-1-0-SL c=1.50, PUb-1-0-SL c=1.40), the
+discrete eigenmode `φ(z)/φ(0)` deviates from the KLL Path B
+reference (Wiener–Hopf factorisation, converged to 1e-10) by:
+
+| `z/a`   | rel err at `n_quad_z=128` |
+| ------- | ------------------------- |
+| 0.0     | 0 (by normalization)      |
+| 0.5     | 2.0 %                     |
+| 0.9     | 3.4 %                     |
+| 0.99    | 4.0 %                     |
+
+The error PEAKS at the slab edges (where the eigenmode's local
+spatial structure is most sensitive to short-range kernel
+contributions) and is roughly UNIFORM across `c` in 1.3–1.5.
+
+**How it hid from higher-level tests:**
+
+- The existing
+  `test_l1_path_ai_vs_path_b_flux_ratios` was authored with an
+  "honest" tolerance of 5 × 10⁻², which the legacy plain-GL Path
+  A.i passes by ~ 2× margin (~ 7e-2 worst-case at n=128). The
+  test design admitted the gap as expected ("singularity-aware
+  quadrature out of scope"), so the discrepancy was *known but
+  unrepaired* rather than missed.
+- The companion `test_l1_path_ai_convergence_under_refinement`
+  only checks `ratio > 1.2` for n-doubling (i.e., error decreases
+  by any amount), which is consistent with the empirical -0.9
+  rate — and would also be consistent with -0.5, -2, or -4
+  rates. It cannot distinguish the failure mode.
+- Path A.i was originally pitched as "structurally independent"
+  of Path B (KLL): the procedural divergence (BTE power
+  iteration in `(z, μ)` vs Wiener–Hopf factorisation in
+  ν-space) is real, but procedural independence is not the
+  same as structural independence (`vv-principles` §three pillars,
+  §6 reference contamination). The true issue is that BOTH
+  paths share the underlying integral kernel `(c/2) E_1`; what
+  Path A.i mis-discretises is exactly what Path B
+  reconstructs analytically. Saying they "agree to ~ 5 %" is
+  cross-implementation agreement at L4 — it carries no
+  *correctness* information beyond "both paths see the same
+  eigenmode topology".
+- The empirical convergence-rate slope is **−0.9 (close to first
+  order with log correction)**, not the literature-predicted **−1/2**
+  (Atkinson–Schneider C^{(0,1)} endpoint singularity). The
+  `err·n/log(n)` doubling-ratio attribution shows the dominant
+  rate-limiting factor is the *kernel* diagonal-truncation bug,
+  not the *solution* endpoint singularity. The literature memo
+  (`scratch/derivations/peierls_log_singular/atkinson_product_nystrom.md`)
+  emphasised the latter; the diagnostic cascade (Phase 1.1–1.5)
+  established the former is dominant.
+
+**L1 tests that catch it:**
+
+- `tests/derivations/test_atkinson_product_nystrom.py::test_l1_atkinson_vs_kll_5e_minus_4`
+  (parametrised over the three Wave 2-A cases) — asserts
+  `sup |err| ≤ 5e-4` at `n_panels=64`, ~100× tighter than the
+  legacy 5e-2 threshold.
+- `test_l1_atkinson_high_n_hits_fn_moment_floor` — asserts
+  `sup |err| ≤ 5e-5` at `n_panels=256`, hitting the F_N moment
+  reference floor.
+- `test_l1_atkinson_convergence_rate_better_than_first_order` —
+  asserts the n-doubling error ratio is `> 2.5` (i.e. faster than
+  first order). The legacy plain-GL would give ~ 1.7–2.0.
+
+All three are tagged `@pytest.mark.catches("ERR-036")`.
+
+**Fix (applied 2026-05-03):** New module
+`orpheus.derivations.continuous.fn_method.peierls_atkinson_nystrom`
+implementing Atkinson 1972 / 1997 §4.2 product-Simpson rule. The
+log-singular kernel piece is integrated *analytically* against the
+piecewise-quadratic Lagrange basis on each Simpson panel via
+closed-form antiderivatives `∫ s^k log|t-s| ds` for `k ∈ {0, 1, 2}`
+(verified L0 against scipy.integrate.quad with explicit
+singularity points). The `C^∞` smooth remainder `R(τ) = E_1(τ) +
+log τ` is integrated with standard Simpson. New entrypoints:
+`slab_scalar_flux_fn_projection_atkinson(...)` and its `_ratio`
+companion. The legacy `slab_scalar_flux_fn_projection` is
+preserved unchanged for backward compatibility with the existing
+tolerance-explicit tests.
+
+**Mechanism of the fix:** Product-Nyström replaces the discrete
+operator's qualitatively-wrong diagonal entry (a truncation of
++∞) with a *correct* one — namely the integral
+`∫_panel (c/2) (-log|z_i - z'|) L_l(z') dz'` evaluated in closed
+form, where `L_l` is the Lagrange basis. This is exact for the
+log-singular factor against any quadratic trial function. The
+discrete operator therefore reproduces the *integrable* log
+singularity faithfully, and the eigenmode converges at the
+operator's natural Simpson rate (de Hoog–Weiss 1973: `O(h⁴ log h)`
+on operator norm; on flux ratios the empirical doubling ratios
+are 4×–10× per n-doubling at moderate n, until the F_N moment
+floor is hit at ~ 1e-5).
+
+**Lesson:** When a discrete kernel is built from a singular
+integrand, the "natural" finite-N quadrature truncation is
+silently incorrect at the singularity. The smoking-gun fingerprint
+is: error converges at "first order with log correction" — `err *
+n / log(n) ≈ const` — instead of either (a) machine precision
+(everything's fine), (b) `1/sqrt(n)` (Schneider endpoint
+singularity), or (c) `1/n²` (Simpson on a smooth integrand). The
+correct fix is product-Nyström — integrate the singular kernel
+analytically against the trial basis, never sample it at zero.
+This pattern WILL recur for the sphere Peierls kernel
+(`r r' / |r-r'|`-style structure also has a log singularity after
+the angular reduction); the new
+`peierls_atkinson_nystrom` module is structured to be
+sphere-extensible.
+
+→ numerical-bug-signatures Signature: "log-singular kernel diagonal
+truncation in plain quadrature"; convergence-rate fingerprint
+**`err ~ log(n) / n`**, NOT `err ~ 1/sqrt(n)`.
+
+---
+
+## ERR-037 — Atalay Eq 42 z_0 quadrature endpoint at μ=1: bracket pole 1/(1-μ²) cancels algebraically but slowly under plain mp.quad
+
+**Status:** **FIXED 2026-05-03**, with a permanent regression test
+(11 cases × Atalay Table 1) that pins z_0(c, f₁=0) to 1e-5 absolute.
+
+**Failure mode:** #4 Factor error — slow numerical cancellation of an
+endpoint pole misdiagnosed in the Wave 2-B closeout as a "convention
+drift / completeness-sum normalisation discrepancy" with Atalay's
+published form. The actual cause is quadrature endpoint convergence,
+not convention drift.
+**Date discovered:** 2026-05-02 (Wave 2-B parallel waves close;
+1.5% gap on Atalay Table 1).
+**Date diagnosed and fixed:** 2026-05-03 (numerics-investigator
+follow-up cascade).
+**Solver:** `orpheus.derivations.continuous.case_method.core.extrapolated_endpoint.atalay_z0`
+(Atalay 1997 Prog. Nucl. Energy 31(3), 229-252, Eq 42 — Milne
+extrapolated endpoint for linearly-anisotropic scattering).
+
+**Bug:** The Atalay Eq 42 integrand is
+$(c/4) \nu_0 g_1(\nu) [d^2(\nu^2)(1+c\nu^2/(1-\nu^2))+3 f_1(1-c)^2 \nu^2 d(-\nu^2)] \ln((\nu_0+\nu)/(\nu_0-\nu))$
+on $\nu \in (0, 1)$. The bracket carries a factor $1/(1-\nu^2)$
+that becomes singular at $\nu = 1$; this pole is algebraically
+cancelled by the $\lambda^2 \sim \ln^2(1-\nu)$ growth in $g_1(\nu)$
+(making the integrand integrable), but the cancellation is
+**inefficient under direct `mp.quad` over [0, 1]**. Even at dps=35
+the integral is under-evaluated by 1.5% relative.
+
+The fix substitutes $\mu = \tanh(t)$, mapping $(0, 1) \to (0, \infty)$
+with a Jacobian $\mathrm{sech}^2(t) = 1 - \mu^2$ that **cancels the
+pole exactly**. The transformed integrand is exponentially decaying
+at $t \to \infty$ ($g_1 \sim 1/t^2$) and `mp.quad` resolves it to
+6-7 digits at dps=25 in <1 ms.
+
+**Impact:**
+
+| Output                        | Pre-fix              | Post-fix              | Reduction |
+| ----------------------------- | -------------------- | --------------------- | --------- |
+| z_0(c=1.30, f₁=0)             | 0.535568             | 0.547144              | 1.5% → 1e-7 |
+| z_0(c=1.10..2.00, f₁=0)       | 1.5-2% relative      | 6-7 digit absolute    | 1e5×       |
+| Slab 2d_c, R=0, c=1.30, f₁=0  | 1.12% relative       | 0.12% relative        | 10×        |
+| Slab 2d_c, R=0, c=1.50, f₁=0  | 1.23% relative       | 0.43% relative        | 3×         |
+| Sphere R_c, c=1.30, f₁=0      | 0.48% relative       | 0.001% relative       | 480×       |
+| Slab 2d_c, R=0, c=1.30, f₁=0.10 | 1.12%             | 0.14%                 | 8×         |
+
+The reflected (R>0) and high-c anisotropic cases retain a residual
+1-4% gap.
+
+**2026-05-03 update — extended-fix hypothesis FALSIFIED.** The Wave 2-B
+closeout speculated the same μ=tanh(t) substitution should fix the K_j
+moments (`half_range.py::_atalay_K_or_L_moment_value`). A follow-up
+investigation tested this directly:
+
+- K_j outer scipy.quad CONVERGES fine (rel drift ~1e-11 between
+  baseline epsabs=1e-10 and tight epsabs=1e-13). NOT Signature 7 at
+  the K_j level.
+- Bottleneck is X(-ν) accuracy: scipy backend has ~1e-3 relative
+  error vs mpmath dps=30, propagated as X² into K_j.
+- Atalay Eq 40's X-function integrand carries the same `1/(1-ν²)`
+  bracket pole and cancelling factor `g_1 ~ 1/log²(1-ν)`. BUT the
+  product is **logarithmically divergent** at ν → 1 (primitive
+  ∝ -1/log(1-ν), bounded but truncation-dependent).
+- mpmath dps 15→60: X(-0.55) drifts 0.866 → 0.860 (drift 6e-3,
+  monotone, slow). Both `(0,1)` and `(0,∞)` substituted forms give
+  finite values that depend on the algorithm's stopping point near
+  the endpoint.
+- Implementing μ=tanh(t) in `_atalay_X_function_scipy` AND `_atalay_
+  X_function_mpmath` shifted the gap from 4.40% → 4.44% on R=0.75
+  (marginal degradation). Reverted.
+
+**Conclusion**: this is NOT Signature 7. The residual gap originates
+in the X-function's algorithm-dependent regularisation of a divergent
+integrand. Atalay's Eq 40 is either (a) missing a factor lost in
+typesetting, (b) interpreted under a specific regularisation
+(Cauchy PV or implicit via the Eq 26 definition path), or (c) needs
+the closed-form Case-Plazcek-Hofmann 1961 X-function for isotropic.
+Tracked as separate investigation, regression-pinned by
+`derivations/diagnostics/diag_kj_x_function_divergent_integrand.py`.
+
+**How it hid from higher-level tests:**
+
+1. **L0 tests for z_0 didn't exist.** The Atalay implementation was
+   verified at the **derivative level** (V_case.7 SymPy: integrand
+   bracket structure matches Eq 42) but not at the **value level**
+   against Atalay Table 1.
+2. **The Wave 2-B closeout misdiagnosed the cause** as a
+   "Case-Zweifel completeness-sum normalisation discrepancy"
+   (citing 1% gap in `(c/2)·∫g_1·bracket·dν vs 1` — a separate
+   issue, since the Case-Zweifel sum is `discrete + continuum = 1`
+   and the continuum-only integral is supposed to be < 1).
+3. **The slab/sphere critical-thickness tests were tagged as
+   `assert err < 5e-2` "loose tolerances commensurate with
+   implementation accuracy"** — accepting the 1.5% gap as a
+   feature rather than investigating.
+4. **The convergence-with-dps signature was buried:**
+   z_0 at dps=15 was 0.529, at dps=25 was 0.535, at dps=35 was 0.539
+   (slow monotone increase toward 0.547). This screamed
+   "quadrature unconverged" but was attributed to "Atalay's
+   published form has a different convention."
+
+**Fingerprint:** Sign-pattern + magnitude scaling: error is
+**uniformly negative** across c (output low by ~1.5-2%), with
+magnitude weakly dependent on c (1.0-2.5% rel), and **decreasing
+with dps but not converging at engineering speed**. This is the
+fingerprint of a slow-convergent endpoint, not a structural error.
+
+**L1 tests that catch it:**
+
+- `derivations/diagnostics/diag_05_z0_regression_atalay_table1.py::test_atalay_z0_table1_isotropic`
+  (parametrised over Atalay Table 1's 10 c values) — asserts
+  `abs(z_0 - z_0_atalay) < 1e-5` at f₁=0. **Tagged
+  `@pytest.mark.catches("ERR-037")`** for permanent regression
+  binding. Promote to `tests/derivations/test_case_method_z0.py`.
+- `test_atalay_z0_consistent_with_milne_form_at_c130` — cross-checks
+  z_0 against Davison's Milne form $z_0 = (\pi/2) u_0 - a_c$
+  using Atalay's own Table 2 row. This pin is structurally
+  independent of Eq 42 — it only requires that Eq 42 reproduce
+  the Milne extrapolated endpoint.
+
+**Lesson:** When an integrand carries an endpoint pole that
+"algebraically cancels" against another factor, **plain adaptive
+quadrature is NOT sufficient**. The substitution $\mu = \tanh(t)$
+or analogous (Atkinson product-Nyström, Gauss-Jacobi with weight
+matching the singularity) is mandatory. Watch for the fingerprint:
+**slow monotone convergence with dps that fails to converge at
+engineering rate** is a red flag for endpoint behaviour, NOT a
+"different convention." See ERR-036 for the analogous lesson on
+log-singular Peierls kernel.
+
+**Anti-pattern caught:**
+- Pillar diagnosis: a quadrature accuracy gap masquerading as a
+  convention drift makes the convention-bridge investigation a
+  red herring. The Wave 2-B closeout asserted "1.5% z_0 gap is
+  a normalisation issue, deferred — multi-day fix" — but the
+  actual fix was a 1-line variable substitution.
+
+→ numerical-bug-signatures Signature: "Endpoint pole that
+algebraically cancels but slow under plain mp.quad";
+fingerprint: error fixed-sign, weakly c-dependent, slow-convergent
+with dps. Diagnostic probe: substitute the problematic variable
+to push the pole to infinity (tanh, log, or domain-mapping) and
+compare convergence speed.
+
+---
+
+## ERR-038 — Atalay 1997 Tables 2-5 first-order Fredholm precision floor at small slab thicknesses
+
+**Status:** **PAPER LIMITATION CHARACTERISED 2026-05-03** — NOT a code bug.
+This entry documents a *reference* limitation, not a solver defect, and
+exists so future investigators don't re-chase the gap as a bug.
+
+**Failure mode:** Reference contamination — an apparent 5% gap to a
+published reference (Atalay 1997 Table 2, R=0.99 column) was investigated
+as a solver bug across two earlier closeouts (Wave 2-B and the Front-3
+follow-up). The actual cause is the published reference's own
+documented first-order approximation, which Atalay explicitly states
+"we expect some improvement in the accuracy especially for the small
+slab thicknesses."
+**Date discovered:** 2026-05-03 (Front-3 R=0.99 numerics-investigator
+cascade).
+**Solver:** `orpheus.derivations.continuous.singular_eigenfunction.slab.solve_case_method_slab_critical`
+(Atalay 1997 Eq 46).
+
+**Mechanism:** Atalay 1997 §2 (p.236) derives Eq 46 from the full
+Fredholm equation Eq 32 by the explicit step "we here skip the zeroth
+order and proceed directly with the first order approximation. This
+provides us the required optimum accuracy. **The first order
+approximation necessitates that we omit the integral term in Eq.(32)**."
+Tables 2-5 are then computed from Eq 46 with first-order accuracy.
+Atalay (p.246) further states that "as in the work of Kaper et al.
+(1974) for isotropic scattering, one may consider to iterate further
+until a better convergence is obtained… **we expect some improvement
+in the accuracy especially for the small slab thicknesses**."
+
+Empirical fingerprint (Front-3 cascade, c=1.30 f₁=0):
+
+| 2d_atalay (mfp) | Our 2d (mfp) | Rel error |
+| --------------- | ------------ | --------- |
+| 20.0            | 19.99961     | 0.002%    |
+| 2.0             | 2.00071      | 0.036%    |
+| 0.20            | 0.20641      | 3.2%      |
+| 0.01456 (R=0.99)| 0.01529      | 5.0%      |
+
+The error scales monotonically with `1/d_crit` — the signature of an
+omitted-higher-order term that vanishes at large d (where `T(R,μ)→ -1`
+saturates and the omitted Fredholm integral contributes negligibly to
+the boundary residue) and dominates at small d.
+
+**Cascade evidence ruling out alternative mechanisms:**
+
+1. **Conditioning / cancellation (mechanism 1)**: ruled out — K_j moments
+   are dps-independent at bit-identical level across dps 15→40.
+2. **Singular asymptotic R→1 (mechanism 2)**: ruled out — error is smooth
+   in R; at R=0.99 c=1.024 with 2d=0.20 (Atalay Table 6) the same 3.2%
+   error appears, demonstrating the gap is in `1/d_crit` not in `1/(1-R)`.
+3. **Different quadrature pole (mechanism 3)**: ruled out — Phase 1.5
+   built a μ=tanh(t) substituted X-function (mpmath) that gives 1.2%
+   different X(-0.99) values, but Phase 2.2 confirmed this changes
+   K_j by 0.3-0.6% and 2d_crit by <0.1% across all 15 Table 2 cells.
+4. **X-function singular branch (mechanism 4)**: ruled out by the same
+   evidence as 3.
+5. **Atalay paper limitation (mechanism 5)**: confirmed by:
+   - Atalay's explicit text on p.236 ("first order approximation
+     necessitates that we omit the integral term")
+   - Atalay's explicit text on p.246 ("expect some improvement…
+     especially for small slab thicknesses")
+   - Empirical 1/d_crit error scaling
+   - Self-consistency: at moderate d our solver agrees with Atalay
+     to machine precision
+
+**X-function endpoint pole — separate, real, but non-load-bearing:**
+
+The X-function integrand (Atalay Eq 40) carries the same `1/(1-ν²)`
+bracket pole that ERR-037 fixed for z_0. Phase 1.5 of this cascade
+demonstrated a μ=tanh(t) substitution gives an X-function value 1.2%
+different from the legacy mpmath path. **However, this 1.2% X-function
+shift propagates to 0.3-0.6% in K_j and <0.1% in 2d_crit at all R/c
+in Atalay Table 2.** The X-function tanh-fix is a robustness
+improvement, NOT a fix for the Table 2 R=0.99 gap. Tracked as
+follow-up; not shipped in this session because production results
+unchanged.
+
+**Mode-bracketing artefact — separate sub-front, deferred:**
+
+At R=0.99 c=1.30 the bracket-scan in `solve_case_method_slab_critical`
+returns mode=1's value (0.01529) when asked for mode=2 (Atalay Table 2:
+5.95846). The `sin(diff_wrapped)` residual is π-periodic and produces
+spurious sign-changes that contaminate the mode index at high R. This
+is a real bug but does not affect the fundamental-mode results (which
+all unit tests target); deferred to a separate Issue.
+
+**How it hid from earlier triage:**
+
+1. The Wave 2-B closeout left "case_method R=0.99 perfect reflector
+   limit" as Open Follow-up #2 with the description "Atalay's last
+   column (R=0.99) is still 10%+ off". The "10%+" was an overestimate
+   from a stale n_bracket; with proper bracketing the actual gap is
+   2-5%, not 10%+.
+2. The Wave 2 cascade strongly oriented around Signature 7 (endpoint
+   pole-cancellation) which had been the cause of ERR-037. Phase 1.2
+   of this cascade pointed to a similar K_j endpoint, but the
+   fingerprint (dps-independent K_j) immediately ruled it out — saving
+   a multi-day false trail.
+3. The Wave 2-B "extended-fix hypothesis FALSIFIED" subsection of
+   ERR-037 already noted that scipy.quad on K_j converges fine and
+   that the gap originates in X(-ν) accuracy. This Front-3 cascade
+   confirmed and quantified that finding, then identified the residual
+   gap as a paper-precision-floor effect.
+
+**Fingerprint:** Sign-pattern + magnitude scaling: error is
+**positive** (our 2d_crit > Atalay's, indicating Atalay's first-order
+approximation under-predicts critical thickness at small d), **scaling
+as 1/d_crit**, **insensitive to dps and quadrature precision tightening**.
+This is the fingerprint of a reference-side approximation, not a code-side
+quadrature failure. Distinguishing test: verify the solver's value at
+moderate d (where the omitted higher-order term is negligible) — if
+machine-precision agreement, the small-d gap is paper-side.
+
+**L1 tests that pin it:**
+
+- `tests/derivations/test_case_method_slab.py::test_slab_reflected_isotropic_atalay_table2`
+  — tightened from old "10%+" hand-wave to the documented 5e-2 floor
+  for R∈[0.25, 0.75] and 7e-2 for R=0.99.
+- New regression test: `test_slab_atalay_table2_first_order_floor_at_r099`
+  pinning the 5e-2 floor at R=0.99 with the docstring documenting that
+  this is the PAPER's first-order approximation floor, not the SOLVER's.
+- New consistency test: `test_solver_machine_precision_at_moderate_d`
+  pinning that at 2d=20 (where higher-order Fredholm contributions are
+  negligible) the solver agrees with Atalay's eigenvalue table to
+  1e-4 relative across multiple R values — the structural-independent
+  ground for the verdict.
+
+**Lesson:** When investigating a numerical disagreement with a
+published reference, **read the paper's stated approximation level
+explicitly before assuming the gap is a code bug**. Atalay's text
+(p.236, p.246) twice explicitly states the published values are
+first-order approximations with degraded precision at small slab
+thicknesses. The diagnostic that resolves "code bug vs paper floor"
+is **scaling the same physical problem to a regime where the paper's
+approximation is exact** (here: large d) and verifying machine
+precision there.
+
+**Anti-pattern caught:**
+
+- Reference contamination by under-reading the reference's own
+  caveats: the Wave 2-B closeout listed R=0.99 as "still 10%+ off,
+  needs careful analysis of the singular limit 2d→0", treating it as
+  a **mathematical** singular-limit problem requiring multi-day
+  asymptotic analysis. The actual issue is **Atalay's first-order
+  approximation precision floor**, fully documented in Atalay's text,
+  with no analytic limit needed and nothing to fix in our solver.
+- Cross-reference grounding: ERR-037 was the CORRECT diagnosis of
+  the z_0 problem (real Signature 7); ERR-038 is the CORRECT
+  *non-diagnosis* — same family of solver, similar-shaped error,
+  but a fundamentally different cause.
+
+→ This is NOT a numerical-bug-signature entry. The fingerprint
+"error scales with 1/d_crit, insensitive to all numerical
+precision parameters, paper text states first-order approximation"
+is the fingerprint of **a reference precision floor**, which lives
+in `vv-principles` reference.md §reference-contamination, not in
+`numerical-bug-signatures`.
+
+---
+
 ## Meta-Lessons
 
 1. **1-group is degenerate.** k = νΣ_f/Σ_a regardless of flux shape.

@@ -238,6 +238,124 @@ the offending factor.
 
 ---
 
+## Signature 6: Log-singular kernel diagonal truncation
+
+- **Symptom:** A semi-analytical reference solver built from a
+  log-singular Fredholm kernel (Peierls / Bickley-Naylor / `E_1`
+  family) stalls at 1–10 % accuracy under uniform Gauss-Legendre
+  quadrature, instead of reaching the moment-floor accuracy of its
+  upstream pieces. Refining the quadrature improves the answer
+  *slowly* — but the convergence-rate fingerprint is **not** the
+  classical `n^{-1/2}` Schneider endpoint signature.
+- **Mechanism:** When the angular integral is pre-integrated
+  analytically (as in F_N Path A.i), the residual kernel is
+  `E_1(τ) = -γ_E - log(τ) + R(τ)` — log-singular at τ = 0. A
+  μ-quadrature `Σ w_k/μ_k · exp(-τ/μ_k)` evaluates `E_1(τ)` to
+  machine precision off-diagonal, but **silently saturates at finite
+  `~ 2·log(n_μ)` at the diagonal** instead of diverging like
+  `E_1(0+) = +∞`. The diagonal entries of the discretized kernel
+  matrix are therefore **finite-but-wrong by an `n_μ`-dependent
+  amount** that does not vanish with refinement. The system error
+  signature is `||φ - φ_n||_∞ ~ log(n) / n` — first-order with a
+  logarithmic correction, NOT `n^{-1/2}`.
+- **Discriminator (the 2-D fingerprint):**
+  - **`err · n / log(n)` is constant** (slow drift across 4× n range).
+  - **`err · sqrt(n)` decays by ~3×** across the same range.
+  - The first invariant is the textbook signature of log-singular
+    kernel diagonal truncation. The second rules out Schneider
+    endpoint singularity in the *solution*.
+  - The discriminator is essential because both bug classes look
+    similar at low-`n` (1–10 % error, slowly improving) — the
+    rate fingerprint is the only cheap distinction.
+- **Diagnostic probe:** Run the suspect reconstruction at
+  n = 16, 32, 64, 128, 256, plot `||err||_∞ · n / log(n)` and
+  `||err||_∞ · sqrt(n)`. The first ≈ constant + the second
+  decaying → confirms Signature 6.
+- **Catching test:**
+  - `tests/derivations/test_path_ai_legacy_plain_gl_signature.py`
+    (4 tests pinning the failure-mode signature: log-decomposition
+    foundation, diagonal-truncation `2·log(n_μ)` scaling,
+    off-diagonal machine-precision convergence, first-order-with-log
+    rate). Tagged `@pytest.mark.catches("ERR-036")`.
+  - `tests/derivations/test_atkinson_product_nystrom.py` — pinned
+    fix verification (n_panels=64 → 3.5e-4; 256 → 1.1e-5).
+- **Catalog entry:** ERR-036.
+- **Why it hides:** Plain Gauss-Legendre integrates *smooth*
+  functions with spectral accuracy. The diagonal saturation is a
+  *one-point* defect that contributes O(`log(n)/n`) to the system
+  norm — barely worse than first-order, easy to dismiss as
+  "expected for a reasonable but uninformed quadrature." Off-
+  diagonal machine-precision agreement at `τ > 0` further hides
+  the bug by making the kernel matrix look correct elsewhere.
+- **Fix family:** Atkinson product-Nyström. Decompose the kernel
+  as `K(t,s) = L(t,s)·log|t-s| + smooth(t,s)`; integrate the
+  log-singular subkernel via closed-form weights
+  `F_k(s;t) = ∫sᵏ log|t-s| ds` for k = 0, 1, 2 (product-Simpson);
+  Gauss-Legendre handles the smooth remainder. With graded mesh
+  `t_j = (j/n)^q, q = 4`, recovers full O(h⁴ log h) convergence.
+  See `docs/theory/fn_method.rst` and Atkinson 1976 / 1997.
+
+---
+
+## Signature 7: Quadrature endpoint pole-cancellation slow convergence
+
+- **Symptom:** A semi-analytical evaluation involving an integrand
+  with an algebraic pole (typically at `μ = 1`) algebraically
+  cancelled by an opposing factor (typically `(c·tanh⁻¹μ)² ∼
+  log²(1−μ)` growth) returns a 1–2 % wrong answer that **slowly
+  improves with `mp.dps` but never reaches expected precision**.
+  The error decay is monotone (3.3% at dps=15 → 1.6% at dps=35) —
+  hallmark of a *quadrature* problem, not a *precision* problem.
+- **Mechanism:** `mp.quad` (and `scipy.integrate.quad`) handle
+  bounded integrands with smooth derivatives spectacularly well,
+  but algebraic pole cancellation is *not* in the smooth class
+  even when the integrand is mathematically bounded. The library
+  cancels the pole *via local refinement around the singularity*,
+  paying a polynomial cost in `dps` per digit recovered. The
+  asymptote is the wrong value because the local refinement
+  underestimates the contribution of the cancelled neighbourhood.
+- **Discriminator (the convergence-with-dps fingerprint):**
+  - Run the same solver at increasing `mp.dps` (15 → 25 → 35 → 50).
+  - **Log-error decays monotonically** with dps.
+  - **The decay rate is sub-linear** — adding 10 dps does NOT add
+    10 digits of accuracy.
+  - **The asymptote is finite, not zero** (extrapolated `lim_{dps→∞}
+    err > 0`) — the smoking gun.
+  - Contrast: a pure precision problem reaches machine-zero error
+    at finite `dps`. A pure quadrature endpoint bug saturates at
+    a non-zero asymptote.
+- **Diagnostic probe:** Drop `dps ∈ {15, 25, 35, 50, 100}` into the
+  same call; tabulate the log-error. If the slope of
+  `log(err) vs dps` is shallow and the values plateau, you have
+  Signature 7.
+- **Catching test:**
+  - `tests/derivations/test_case_method_z0.py::test_atalay_z0_table1_isotropic[*]`
+    — 11 cases parametrised over c ∈ [0.1, 0.99]. Pre-fix: 1.5–2 %
+    error at dps=15. Post-fix: 6–7 digits agreement.
+    Tagged `@pytest.mark.catches("ERR-037")`.
+- **Catalog entry:** ERR-037.
+- **Why it hides:** "It converges with more precision" looks like
+  the system is doing the right thing — it's just slow. The bug is
+  invisible at low precision (looks like normal discretization
+  error) and the user typically stops increasing dps once the
+  *change* per step gets small (declaring "converged"), without
+  comparing against an external reference. Without an external
+  truth value, the wrong asymptote looks correct.
+- **Fix family:** Substitution-based pole cancellation. For a pole
+  at μ = 1 with `1/(1−μ²)` factor, substitute `μ = tanh(t)` mapping
+  `(0, 1) → (0, ∞)` with Jacobian `sech²(t) = 1 − μ²` that cancels
+  the pole *exactly* under change-of-variables. After substitution,
+  the integrand is smooth at the new endpoint t → ∞ and the
+  exponential decay makes the integral converge spectrally.
+  Single-line code change; `mp.dps = 15` then suffices for 6–7
+  digits.
+- **Generalisation:** any algebraic-pole-cancellation integrand
+  benefits from change-of-variables that builds the cancelling
+  factor into the Jacobian. The integrand becomes "no pole" rather
+  than "cancelled pole", and standard quadrature works.
+
+---
+
 ## Signature 5: Curvilinear α-dome non-positivity
 
 - **Symptom:** Curvilinear SN solver produces NaN after first
@@ -361,3 +479,5 @@ canon; signatures here are a derived view.
 | 4         | ERR-004        | #4           | `tests/sn/test_quadrature.py::TestWeightSums::test_gl_weights_sum_to_2` + streaming-equilibrium      |
 | 4         | ERR-025        | #3 + #4      | `tests/sn/test_cartesian.py::test_heterogeneous_absolute_keff`                                       |
 | 5         | (uncatalogued) | —            | `tests/sn/test_quadrature.py::TestAlphaRedistribution::test_alpha_dome_non_negative`                 |
+| 6         | ERR-036        | #3 + #4      | `tests/derivations/test_path_ai_legacy_plain_gl_signature.py` + `test_atkinson_product_nystrom.py`   |
+| 7         | ERR-037        | #4           | `tests/derivations/test_case_method_z0.py::test_atalay_z0_table1_isotropic`                          |

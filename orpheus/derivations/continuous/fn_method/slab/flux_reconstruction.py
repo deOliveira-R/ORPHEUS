@@ -907,6 +907,179 @@ def slab_scalar_flux_fn_projection_ratio(
     return phi_at_z / phi_at_0
 
 
+# ─────────────────────────────────────────────────────────────────────
+# Path A.i (Atkinson product-Nyström) — singularity-aware reconstruction
+# ─────────────────────────────────────────────────────────────────────
+
+
+def slab_scalar_flux_fn_projection_atkinson(
+    fn_result,  # SlabFNResult — circular import dodge
+    z: float | np.ndarray,
+    *,
+    n_panels: int = 64,
+    tol: float = 1e-13,
+    max_iter: int = 2000,
+) -> float | np.ndarray:
+    r"""**Path A.i (Atkinson product-Nyström)** — bare-critical slab
+    scalar flux :math:`\phi(z)` via Atkinson product-Simpson
+    discretisation of the slab Peierls integral operator, with
+    closed-form treatment of the diagonal log-singularity.
+
+    Solves the same homogeneous eigenproblem as
+    :func:`slab_scalar_flux_kll` (Path B) and
+    :func:`slab_scalar_flux_fn_projection` (Path A.i, plain GL),
+    but uses Atkinson 1972/1997 §4.2 product-Simpson rule on the
+    log-singular kernel piece, integrating
+
+    .. math::
+
+       \int \log|t - s|\, P_2(s)\, ds
+
+    analytically against the piecewise-quadratic Lagrange basis,
+    where :math:`P_2` is the unique quadratic on each Simpson
+    panel. The smooth remainder
+    :math:`R(\tau) = E_1(\tau) + \log\tau` is integrated with
+    standard Simpson.
+
+    Why product-Nyström
+    -------------------
+
+    Plain Gauss–Legendre applied to
+    :math:`(c/2) \int E_1(|z-z'|)\,\phi(z')\,dz'` produces a finite
+    truncation of the divergent diagonal :math:`E_1(0) = +\infty`.
+    The :math:`\mu`-quadrature Sum_k :math:`(w_k/\mu_k)\,\exp(-\tau/\mu_k)`
+    converges to :math:`E_1(\tau)` exponentially OFF the diagonal
+    but truncates to ~ :math:`2\log(n_\mu)` AT the diagonal. The
+    discrete kernel is thus qualitatively wrong on the diagonal,
+    producing a 1–7 % systematic bias on the eigenmode whose
+    accuracy floor (under uniform refinement) is ~
+    :math:`\log(n_z) / n_z` — first-order with logarithmic
+    correction.
+
+    Atkinson product-Nyström sidesteps this by integrating the
+    log singularity **analytically** against the trial-function
+    basis. The discrete operator never evaluates :math:`E_1(0)`;
+    it consumes the integral
+    :math:`\int_a^b \log|t - s|\, s^k\, ds` in closed form
+    (:func:`...peierls_atkinson_nystrom._F_k_log_primitives`).
+
+    Convergence
+    -----------
+
+    de Hoog & Weiss (1973) — cited as Eq. 4.2.83 in Atkinson 1997
+    — give :math:`O(h^4 \log h)` superconvergence on the operator
+    :math:`\mathcal{K}_n` for log kernels with :math:`C^4` solutions.
+    For the slab eigenfunction the natural rate is
+    :math:`O(n^{-2}\text{–}n^{-4})` depending on solution
+    regularity at the endpoints; in practice we hit the F_N-moment
+    floor (~ 1e-5 on flux ratios) at :math:`n_\text{panels} \sim
+    128` for the bare-critical Wave 2-A cases.
+
+    Parameters
+    ----------
+    fn_result : SlabFNResult
+        Output of :func:`solve_fn_slab_bare_critical`. Provides
+        :math:`a_\text{crit}` (critical half-thickness) which is
+        the fixed parameter of the Peierls operator.
+    z : float or ndarray
+        Position(s) in :math:`[-a, a]` mfp.
+    n_panels : int, default 64
+        Number of Simpson panels covering :math:`[-a, a]`. Total
+        node count is :math:`2 n_\text{panels} + 1`. Empirically
+        :math:`n_\text{panels} = 64` reaches ~ 5e-4 on flux ratios;
+        :math:`n_\text{panels} = 128` reaches ~ 5e-5 (F_N moment
+        floor).
+    tol : float, default 1e-13
+        Power-iteration convergence tolerance on the Rayleigh
+        quotient.
+    max_iter : int, default 2000
+        Maximum power-iteration steps.
+
+    Returns
+    -------
+    Same shape as ``z``. Flux is normalised so that
+    :math:`\phi(0) = 1`, matching the
+    :func:`slab_scalar_flux_kll` and
+    :func:`slab_scalar_flux_fn_projection` conventions.
+
+    Notes
+    -----
+    The dominant eigenvalue of the discrete operator should be
+    ``1.0`` to within the F_N-coefficient floor (typically
+    :math:`\sim 10^{-5}`). A deviation larger than ~ 1e-4 indicates
+    the F_N solver did not fully converge or the operator was built
+    on the wrong slab parameters.
+    """
+    from ..peierls_atkinson_nystrom import (
+        build_peierls_operator,
+        power_iterate_dominant_eigenmode,
+    )
+    from scipy.interpolate import CubicSpline
+
+    z_arr = np.asarray(z, dtype=float)
+    a = fn_result.a_critical_mfp
+    c = fn_result.c
+
+    if np.any(np.abs(z_arr) > a + 1e-12):
+        raise ValueError(
+            f"max |z| = {np.max(np.abs(z_arr))} exceeds slab half-thickness "
+            f"a = {a}"
+        )
+
+    K_op, z_nodes = build_peierls_operator(c, a, n_panels)
+    eig, phi_nodes = power_iterate_dominant_eigenmode(
+        K_op, symmetric_about_index=True, tol=tol, max_iter=max_iter
+    )
+
+    # The dominant eigenvalue should be ~ 1 (criticality). If it is
+    # noticeably off, the F_N solve was incomplete OR the slab is not
+    # critical at this c, a pair. We do NOT renormalise away this
+    # discrepancy — it is informational and should propagate.
+
+    # Normalize phi so that phi(0) = 1.
+    spline_phi = CubicSpline(z_nodes, phi_nodes)
+    phi_at_0 = float(spline_phi(0.0))
+    if abs(phi_at_0) < 1e-30:
+        raise RuntimeError(
+            "Atkinson Nystrom power iteration produced phi(0) ~ 0; "
+            "eigenmode extraction failed."
+        )
+    phi_normed = phi_nodes / phi_at_0
+    spline_phi = CubicSpline(z_nodes, phi_normed)
+
+    if z_arr.ndim == 0:
+        return float(spline_phi(float(z_arr)))
+    return spline_phi(z_arr)
+
+
+def slab_scalar_flux_fn_projection_atkinson_ratio(
+    fn_result,
+    z_over_a: float | np.ndarray,
+    *,
+    n_panels: int = 64,
+) -> float | np.ndarray:
+    r"""Path A.i (Atkinson product-Nyström) :math:`\phi(z)/\phi(0)`
+    ratio at fractional position :math:`z/a`.
+
+    Same as :func:`slab_scalar_flux_fn_projection_atkinson` but
+    returns the normalization-free ratio for direct comparison
+    against KLL Table III + Sood Table 14 + the
+    :func:`slab_scalar_flux_ratio` Path B result.
+
+    With :math:`n_\text{panels} = 64` the agreement vs Path B
+    reaches ~ 5e-4 (vs the legacy plain-GL Path A.i which floors at
+    ~ 5 % at any practical :math:`n_z`).
+    """
+    z_arr = np.asarray(z_over_a, dtype=float) * fn_result.a_critical_mfp
+    phi_at_z = slab_scalar_flux_fn_projection_atkinson(
+        fn_result, z_arr, n_panels=n_panels
+    )
+    phi_at_0 = slab_scalar_flux_fn_projection_atkinson(
+        fn_result, 0.0, n_panels=n_panels
+    )
+    return phi_at_z / phi_at_0
+
+
 def slab_surface_angular_flux_fn(
     coefficients_a: np.ndarray,
     mu: float | np.ndarray,

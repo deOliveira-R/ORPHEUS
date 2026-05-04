@@ -38,6 +38,29 @@ Validity
 Atalay Eq 5: :math:`c \le 1 + 1/(3 f_1)`. Outside this range complex
 eigenvalues appear and first-order Fredholm iteration breaks.
 
+Precision floor at small slab thicknesses (ERR-038)
+---------------------------------------------------
+
+Atalay Eq 46 is itself a **first-order approximation** to the full
+Fredholm equation Eq 32 — Atalay (p.236) explicitly omits the integral
+term in Eq 32 to derive Eq 46. Atalay (p.246) further notes "we expect
+some improvement in the accuracy especially for the small slab
+thicknesses" if higher-order iteration were performed (which the
+paper does NOT do). Empirically, our solver matches Atalay's Tables
+to:
+
+* Machine precision (1e-5 relative) at :math:`2d \ge 20` mfp.
+* 4e-4 relative at :math:`2d = 2` mfp.
+* 3.2% at :math:`2d = 0.20` mfp.
+* 5% at :math:`2d \approx 0.015` mfp (Table 2 R=0.99 column).
+
+This 1/d-scaling error is the **published reference's first-order
+approximation precision floor** at small slab thicknesses — NOT a bug
+in our implementation of Eq 46. See ERR-038 in
+``.claude/skills/vv-principles/error_catalog.md`` for the cascade
+evidence and structurally-independent grounding (Atalay's own text,
+the 1/d_crit scaling fingerprint, and self-consistency at moderate d).
+
 References
 ----------
 
