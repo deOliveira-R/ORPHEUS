@@ -43,6 +43,10 @@ References
 """
 from __future__ import annotations
 
+import numpy as np
+
+from orpheus.derivations.common.geometry_template import MeshTemplate
+from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.derivations.continuous.sood_registry import (
     PUA_1_0_SL,
     PUB_1_0_SL,
@@ -52,6 +56,7 @@ from orpheus.derivations.continuous.sood_registry import (
     UD2O_1_0_SL,
     UD2O_1_0_SP,
 )
+from orpheus.geometry.mesh import BC
 
 from .protocol import CrossMethodCase
 
@@ -410,8 +415,25 @@ _KINF_TOL_FN = 1e-12
 _KINF_TOL_TRAJECTORY = 1e-10
 
 
+# 1G — fuel-A-like (canonical V_α1 fixture).
+#
+# XS factoring: σ_t = 0.5, σ_s = 0.38, νσ_f = 0.025.
+# σ_a = σ_t - σ_s = 0.12. Pick ν = 1.0, σ_f = 0.025; then
+# σ_c = σ_a - σ_f = 0.095. The closed-sphere adapter consumes
+# (σ_t, σ_s_p0, νσ_f) extracted via mixture_to_fn_arrays — only
+# those three quantities reach the solver, so the (ν, σ_f)
+# decomposition above is a labelling convenience.
+_FUEL_A_LIKE_MIX = make_mixture(
+    sig_t=np.array([0.5]),
+    sig_c=np.array([0.095]),
+    sig_f=np.array([0.025]),
+    nu=np.array([1.0]),
+    chi=np.array([1.0]),
+    sig_s=np.array([[0.38]]),
+)
+
+
 CLOSED_SPHERE_KINF_CASES: list[CrossMethodCase] = [
-    # 1G — fuel-A-like (canonical V_α1 fixture).
     CrossMethodCase(
         case_id="closed-sphere-1G-fuelA-tauR2.5",
         description=(
@@ -420,6 +442,19 @@ CLOSED_SPHERE_KINF_CASES: list[CrossMethodCase] = [
             "k_eff = k_inf = 0.025/0.12 = 0.2083̄."
         ),
         registry_case=None,
+        materials={0: _FUEL_A_LIKE_MIX},
+        # Closed sphere: BC.reflective on BOTH sides (centreline +
+        # outer surface at α=1). The trajectory_resolvent solver
+        # consumes the radius via mesh_template.critical_dimension_cm
+        # and translates BC.reflective to its α=1 albedo.
+        mesh_template=MeshTemplate(
+            geometry="sphere",
+            critical_dimension_mfp=2.5,  # τ_R = σ_t · R_cm = 0.5 · 5.0
+            critical_dimension_cm=5.0,
+            n_groups=1,
+            bc_left=BC.reflective,
+            bc_right=BC.reflective,
+        ),
         geometry="closed-sphere-1d",
         truth_tag="k_inf",
         truth_value=0.025 / 0.12,  # 0.20833...
@@ -437,10 +472,9 @@ CLOSED_SPHERE_KINF_CASES: list[CrossMethodCase] = [
             "trajectory_resolvent_sphere_closed": 1e-10,
         },
         notes=(
-            "sigma_t=0.5 sigma_s=0.38 nu_sigma_f=0.025 R_cm=5.0 "
-            "alpha=1.0 (Used by closed-sphere k_inf adapter; "
+            "Used by closed-sphere k_inf adapter; "
             "trajectory_resolvent must converge to k_inf to "
-            "machine precision via V_α1.)"
+            "machine precision via V_α1."
         ),
     ),
 ]

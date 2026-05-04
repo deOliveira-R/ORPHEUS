@@ -336,12 +336,20 @@ class TrajectoryResolventSphereClosedAdapter:
             solve_greens_function_sphere,
         )
 
-        params = _closed_sphere_params(case)
+        # Closed-sphere cases use the inline-materials path
+        # (registry_case is None; materials + mesh_template are set).
+        sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs_inline(case)
+        R_cm = case.mesh_template.critical_dimension_cm  # type: ignore[union-attr]
+        if R_cm is None:
+            raise ValueError(
+                f"Closed-sphere case {case.case_id!r} has no "
+                f"critical_dimension_cm in its mesh_template"
+            )
         res = solve_greens_function_sphere(
-            R=params["R_cm"],
-            sigma_t=params["sigma_t"],
-            sigma_s=params["sigma_s"],
-            nu_sigma_f=params["nu_sigma_f"],
+            R=float(R_cm),
+            sigma_t=sigma_t,
+            sigma_s=sigma_s,
+            nu_sigma_f=nu_sigma_f,
             alpha=self.alpha,
             n_r=self.n_r,
             n_mu=self.n_mu,
@@ -359,7 +367,10 @@ class TrajectoryResolventSphereClosedAdapter:
                 "n_traj_quad": self.n_traj_quad,
                 "iterations": int(res.iterations),
                 "converged": bool(res.converged),
-                **params,
+                "sigma_t": sigma_t,
+                "sigma_s": sigma_s,
+                "nu_sigma_f": nu_sigma_f,
+                "R_cm": float(R_cm),
                 "alpha": self.alpha,
             },
         )
@@ -371,29 +382,53 @@ class TrajectoryResolventSphereClosedAdapter:
 
 
 def _extract_1g_xs(case: CrossMethodCase) -> tuple[float, float, float]:
-    r"""Extract :math:`(\Sigma_t, \Sigma_s, \nu\Sigma_f)` for a 1G case.
+    r"""Extract :math:`(\Sigma_t, \Sigma_s, \nu\Sigma_f)` for a 1G case
+    from a registry-backed case.
 
     Pulls from ``case.registry_case.materials[0]`` via
     :func:`mixture_to_fn_arrays`. Raises if the case is multi-group
-    (1G adapters can't consume those).
+    (1G adapters can't consume those) or if the case carries no
+    registry case (use :func:`_extract_1g_xs_inline` for that path).
     """
     if case.registry_case is None:
-        # Inline-XS case (e.g. NM 1980 reflected slab uses unit XS
-        # and c-only parametrisation). Such cases use specialised
-        # adapters that don't go through this helper.
         raise ValueError(
             f"CrossMethodCase {case.case_id!r} has registry_case=None; "
-            f"the XS extractor needs a registry case. Use a "
-            f"specialised adapter for inline-XS cases."
+            f"the registry-backed XS extractor cannot serve this case. "
+            f"Use _extract_1g_xs_inline for inline-materials cases."
         )
-    case_obj = case.registry_case
-    primary = case_obj.materials[0]
+    return _xs_from_materials_dict(
+        case.registry_case.materials, case.case_id
+    )
+
+
+def _extract_1g_xs_inline(case: CrossMethodCase) -> tuple[float, float, float]:
+    r"""Extract :math:`(\Sigma_t, \Sigma_s, \nu\Sigma_f)` for a 1G case
+    from inline ``case.materials``.
+
+    Used by adapters whose case carries inline materials + mesh_template
+    (the no-registry path — closed-sphere k_inf, MMS, custom
+    configurations).
+    """
+    if case.materials is None:
+        raise ValueError(
+            f"CrossMethodCase {case.case_id!r} has materials=None; "
+            f"_extract_1g_xs_inline requires inline materials. Use "
+            f"_extract_1g_xs for registry-backed cases."
+        )
+    return _xs_from_materials_dict(case.materials, case.case_id)
+
+
+def _xs_from_materials_dict(
+    materials: dict, case_id: str,
+) -> tuple[float, float, float]:
+    """Common backend: pull 1G ``(σ_t, σ_s, νσ_f)`` from a materials dict."""
+    primary = materials[0]
     sigma_t_arr, sigma_s_arr, nu_sigma_f_arr, _chi = mixture_to_fn_arrays(
         primary
     )
     if sigma_t_arr.shape[0] != 1:
         raise ValueError(
-            f"_extract_1g_xs: case {case.case_id!r} is "
+            f"_xs_from_materials_dict: case {case_id!r} is "
             f"{sigma_t_arr.shape[0]}G; expected 1G"
         )
     return (
@@ -474,24 +509,6 @@ def _reflected_slab_params(case: CrossMethodCase) -> dict[str, float]:
     if missing:
         raise ValueError(
             f"_reflected_slab_params: case {case.case_id!r} missing "
-            f"keys in notes: {missing}. Got: {dict(tokens)}"
-        )
-    return {k: float(tokens[k]) for k in required}
-
-
-def _closed_sphere_params(case: CrossMethodCase) -> dict[str, float]:
-    r"""Extract closed-sphere inline XS + radius from ``case.notes``.
-
-    Required tokens: ``sigma_t``, ``sigma_s``, ``nu_sigma_f``,
-    ``R_cm``. Other tokens (e.g. ``alpha=1.0``) are tolerated but
-    ignored — the adapter sets α from its own field.
-    """
-    tokens = _parse_notes_kv(case)
-    required = {"sigma_t", "sigma_s", "nu_sigma_f", "R_cm"}
-    missing = required - set(tokens)
-    if missing:
-        raise ValueError(
-            f"_closed_sphere_params: case {case.case_id!r} missing "
             f"keys in notes: {missing}. Got: {dict(tokens)}"
         )
     return {k: float(tokens[k]) for k in required}
