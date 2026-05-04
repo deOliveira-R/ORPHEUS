@@ -41,8 +41,50 @@ from dataclasses import dataclass
 from orpheus.derivations.continuous.sood_registry.extractors import (
     mixture_to_fn_arrays,
 )
+from orpheus.geometry.mesh import BC
 
 from .protocol import CrossMethodCase, ScalarResult
+
+
+def alpha_from_bc(bc: BC) -> float:
+    r"""Map a production :class:`BC` tag to a trajectory_resolvent
+    continuous-albedo ``alpha ∈ [0, 1]``.
+
+    The trajectory_resolvent family parametrises specular boundary
+    conditions on a continuous albedo ``α``: ``α = 0`` is vacuum,
+    ``α = 1`` is perfect specular, ``α ∈ (0, 1)`` is partial
+    reflection. Production ``BC`` is a tag system; this helper
+    translates the corner cases that map cleanly:
+
+    * ``BC.vacuum`` → ``α = 0.0``
+    * ``BC.reflective`` → ``α = 1.0``
+    * ``BC("partial", {"albedo": x})`` → ``α = x``
+
+    Other tags (``"white"``, Marshak diffuse, etc.) raise
+    ``NotImplementedError`` — they require a different closure
+    structure that trajectory_resolvent does not support today.
+
+    See the geometry-handling unification audit
+    (``.claude/scratch/geometry_handling_unification_audit.md``
+    §"Q3.a Adopt-as-is") for the design discussion.
+    """
+    if bc.kind == "vacuum":
+        return 0.0
+    if bc.kind == "reflective":
+        return 1.0
+    if bc.kind == "partial":
+        try:
+            return float(bc.params["albedo"])
+        except KeyError as exc:
+            raise ValueError(
+                f"alpha_from_bc: BC('partial', ...) is missing the "
+                f"'albedo' parameter; got params={bc.params!r}"
+            ) from exc
+    raise NotImplementedError(
+        f"alpha_from_bc: BC kind {bc.kind!r} is not yet bridged to "
+        f"trajectory_resolvent's continuous-albedo parametrisation. "
+        f"Production BCs supported today: vacuum, reflective, partial."
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -175,8 +217,7 @@ class FNReflectedSlabAdapter:
 
 @dataclass(frozen=True)
 class TrajectoryResolventSlabAdapter:
-    r"""Adapter for :func:`...trajectory_resolvent.greens_function_slab.solve_greens_function_slab`
-    at vacuum BC (``alpha = 0``).
+    r"""Adapter for :func:`...trajectory_resolvent.greens_function_slab.solve_greens_function_slab`.
 
     Trajectory_resolvent solves the k-eigenvalue problem on the slab at a
     given full-width ``L``; the cross-method gate evaluates ``k_eff``
@@ -185,10 +226,11 @@ class TrajectoryResolventSlabAdapter:
     adapter therefore reports ``k_eff`` (which should be 1.0 at the
     truth thickness).
 
-    To use this adapter the case MUST be parametrised on
-    ``a_critical_mfp`` truth (or carry the F_N predicted thickness
-    as a separate input). This is the canonical pattern in
-    ``test_fn_la13511_slab_xverif.py``.
+    The continuous-albedo ``alpha`` is derived from
+    ``case.mesh_template.bc_right`` (or ``bc_left`` — slab cases use
+    symmetric BCs by convention) via :func:`alpha_from_bc`; bare-
+    critical slab registry cases are vacuum-on-vacuum (``α = 0``),
+    closed slab is reflective-on-reflective (``α = 1``).
 
     Default quadrature: ``(n_x, n_mu, n_traj_quad) = (48, 128, 96)``.
     Slab vacuum has a near-cusp at μ=0 that needs ~128 angular nodes
@@ -198,7 +240,6 @@ class TrajectoryResolventSlabAdapter:
     name: str = "trajectory_resolvent_slab"
     method: str = "trajectory_resolvent"
     geometry: str = "slab"
-    alpha: float = 0.0
     n_x: int = 48
     n_mu: int = 128
     n_traj_quad: int = 96
@@ -218,13 +259,14 @@ class TrajectoryResolventSlabAdapter:
         # case (or inline mesh_template) directly; no truth-vs-cm
         # re-derivation needed.
         L_full_cm = _slab_L_full_cm(case)
+        alpha = alpha_from_bc(_mesh_template_for(case).bc_right)
 
         res = solve_greens_function_slab(
             L=L_full_cm,
             sigma_t=sigma_t,
             sigma_s=sigma_s,
             nu_sigma_f=nu_sigma_f,
-            alpha=self.alpha,
+            alpha=alpha,
             n_x=self.n_x,
             n_mu=self.n_mu,
             n_traj_quad=self.n_traj_quad,
@@ -242,6 +284,7 @@ class TrajectoryResolventSlabAdapter:
                 "iterations": int(res.iterations),
                 "converged": bool(res.converged),
                 "L_full_cm": L_full_cm,
+                "alpha": alpha,
             },
         )
 
@@ -249,13 +292,19 @@ class TrajectoryResolventSlabAdapter:
 @dataclass(frozen=True)
 class TrajectoryResolventSphereAdapter:
     r"""Adapter for :func:`...trajectory_resolvent.greens_function.solve_greens_function_sphere`
-    at vacuum BC (``alpha = 0``) for bare-critical sphere cases.
+    for bare-critical sphere cases.
 
     Reports ``k_eff`` at the **independently-known critical radius**
-    (typically F_N's ``R_critical_mfp``). At α=0 and the truth
+    (typically F_N's ``R_critical_mfp``). At ``α = 0`` and the truth
     radius, ``k_eff`` should be 1.0.
 
-    Closed-sphere α=1 cases (``k_eff = k_inf`` exactly) use
+    The continuous-albedo ``alpha`` is derived from
+    ``case.mesh_template.bc_right`` (the outer-surface BC) via
+    :func:`alpha_from_bc`. The inner BC at ``r = 0`` is the natural
+    centreline reflective and is not parametrically relevant to the
+    trajectory_resolvent operator.
+
+    Closed-sphere ``α = 1`` cases (``k_eff = k_inf`` exactly) use
     :class:`TrajectoryResolventSphereClosedAdapter` instead — the
     parameter sets and convergence behaviour are different enough
     that two adapters keep the protocol clean.
@@ -264,7 +313,6 @@ class TrajectoryResolventSphereAdapter:
     name: str = "trajectory_resolvent_sphere"
     method: str = "trajectory_resolvent"
     geometry: str = "sphere-1d"
-    alpha: float = 0.0
     n_r: int = 32
     n_mu: int = 32
     n_traj_quad: int = 64
@@ -281,13 +329,14 @@ class TrajectoryResolventSphereAdapter:
         # Sphere convention: ``mesh_template.critical_dimension_cm``
         # IS R_cm (no halving / doubling).
         R_cm = _sphere_R_cm(case)
+        alpha = alpha_from_bc(_mesh_template_for(case).bc_right)
 
         res = solve_greens_function_sphere(
             R=R_cm,
             sigma_t=sigma_t,
             sigma_s=sigma_s,
             nu_sigma_f=nu_sigma_f,
-            alpha=self.alpha,
+            alpha=alpha,
             n_r=self.n_r,
             n_mu=self.n_mu,
             n_traj_quad=self.n_traj_quad,
@@ -305,29 +354,31 @@ class TrajectoryResolventSphereAdapter:
                 "iterations": int(res.iterations),
                 "converged": bool(res.converged),
                 "R_cm": R_cm,
-                "alpha": self.alpha,
+                "alpha": alpha,
             },
         )
 
 
 @dataclass(frozen=True)
 class TrajectoryResolventSphereClosedAdapter:
-    r"""Adapter for closed-sphere (α=1) k_inf cases.
+    r"""Adapter for closed-sphere (``α = 1``) k_inf cases.
 
     The closed sphere with perfect specular BC has rank-1 isotropic
     eigenmode and ``k_eff = k_inf = νΣ_f / Σ_a`` to machine
     precision (V_α1 algebraic identity). Useful as a multi-group
     cross-method gate where the bare-critical pillar is missing.
 
-    Geometry XS and radius come from the case ``notes`` field
-    (``sigma_t=A.AA sigma_s=B.BB nu_sigma_f=C.CC R_cm=D.DD``).
-    Defaults to fuel-A-like fixture.
+    Geometry, XS, and radius come from the case's inline
+    ``materials`` + ``mesh_template`` (the registry-less path).
+    The continuous-albedo ``alpha`` is derived from
+    ``mesh_template.bc_right`` via :func:`alpha_from_bc`; closed
+    sphere is :attr:`BC.reflective` on both surfaces, so
+    ``α = 1.0``.
     """
 
     name: str = "trajectory_resolvent_sphere_closed"
     method: str = "trajectory_resolvent"
     geometry: str = "closed-sphere-1d"
-    alpha: float = 1.0
     n_r: int = 12
     n_mu: int = 12
     n_traj_quad: int = 24
@@ -342,18 +393,14 @@ class TrajectoryResolventSphereClosedAdapter:
         # Closed-sphere cases use the inline-materials path
         # (registry_case is None; materials + mesh_template are set).
         sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs_inline(case)
-        R_cm = case.mesh_template.critical_dimension_cm  # type: ignore[union-attr]
-        if R_cm is None:
-            raise ValueError(
-                f"Closed-sphere case {case.case_id!r} has no "
-                f"critical_dimension_cm in its mesh_template"
-            )
+        R_cm = _sphere_R_cm(case)
+        alpha = alpha_from_bc(_mesh_template_for(case).bc_right)
         res = solve_greens_function_sphere(
-            R=float(R_cm),
+            R=R_cm,
             sigma_t=sigma_t,
             sigma_s=sigma_s,
             nu_sigma_f=nu_sigma_f,
-            alpha=self.alpha,
+            alpha=alpha,
             n_r=self.n_r,
             n_mu=self.n_mu,
             n_traj_quad=self.n_traj_quad,
@@ -373,8 +420,8 @@ class TrajectoryResolventSphereClosedAdapter:
                 "sigma_t": sigma_t,
                 "sigma_s": sigma_s,
                 "nu_sigma_f": nu_sigma_f,
-                "R_cm": float(R_cm),
-                "alpha": self.alpha,
+                "R_cm": R_cm,
+                "alpha": alpha,
             },
         )
 
