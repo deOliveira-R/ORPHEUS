@@ -420,12 +420,14 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **134** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **144** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
+- ``bessel-wronskian``
 - ``bickley-integral``
 - ``boltzmann``
 - ``burst-criterion``
 - ``c-in-remapping``
+- ``case-dispersion-function``
 - ``clad-heat``
 - ``conservative-form``
 - ``convergence-rate``
@@ -547,6 +549,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``power-equation``
 - ``precursor-equation``
 - ``sigs-convention``
+- ``singular-eigenfunction-eq5``
 - ``sood-eq18-1g-balance``
 - ``sood-eq19-kinf-1g``
 - ``sood-eq20-kinf-1g-c-form``
@@ -556,6 +559,13 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sood-eq76-kinf-mg``
 - ``transport-equation``
 - ``vacuum-bc``
+- ``wm72-coupled-linear-system``
+- ``wm72-eq30-bare``
+- ``wm72-eq31``
+- ``wm72-eq32``
+- ``wm72-q-formula``
+- ``wm72-rho-bare-cylinder``
+- ``wm72-singular-subtraction``
 
 L0 error-catalog coverage
 -------------------------

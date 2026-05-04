@@ -15,58 +15,57 @@ Key Facts
 **Read this before modifying any solver in
 :mod:`orpheus.derivations.continuous.singular_eigenfunction`.**
 
-- **What this is**: a Pillar-2 reference family realising
-  Meaning (γ) in the :ref:`reference-solvers-three-meanings`
-  taxonomy — the angular Green's function
-  :math:`G(\tau, \tau'; \mu, \mu')` constructed via Case
-  ν-spectrum + half-range completeness.
-- **Pillar classification**: closed-form (criticality determinant) /
-  semi-analytical (interior flux reconstruction via KLL 1974
-  Fredholm iteration; the latter is currently in
-  :mod:`orpheus.derivations.continuous.fn_method` while interior
-  reconstruction is in production for slab + sphere via KLL 1974;
-  cylinder reconstruction is the open extension).
+- **What this is**: a Pillar-2 reference family realising the angular
+  Green's function :math:`G(\tau, \tau'; \mu, \mu')` constructed via
+  Case ν-spectrum + half-range completeness. Built originally by
+  K.M. Case 1960 [Case1960]_; extended to spheres by Mitsis 1963
+  [Mitsis1963]_; extended to cylinders by Westfall–Metcalf 1973
+  [WestfallMetcalf1973]_; extended to linearly-anisotropic
+  reflected slabs and spheres by Atalay 1997 [Atalay1997]_.
+- **Pillar classification**:
+
+  * **Closed-form** for the criticality determinants (Atalay Eqs 46
+    / 54 reduce to scalar arctan-equation roots in :math:`d`).
+  * **Semi-analytical** for the cylinder Mitsis-WM Fredholm
+    coupling (WM-72 Eqs 30-32 with mpmath/scipy quadrature) and
+    for the linear-anisotropy machinery (X-function Eq 40,
+    extrapolated endpoint Eq 42, K_j moments).
+
+  See ``vv-principles`` § "The three pillars of verification" for
+  what each pillar can and cannot prove. **MMS does not enter this
+  family** — every reference here is an analytical / semi-analytical
+  claim about the Boltzmann eigenvalue or eigenmode.
 - **Geometry × anisotropy coverage**: cylinder isotropic
   (Westfall-Metcalf 1973); slab + sphere linearly anisotropic with
-  Atalay 1997 parity flip; foundational primitives
-  (X-function, ν₀ dispersion root, half-range projections) shared
-  across geometries via :mod:`...singular_eigenfunction.core`.
-- **Status**: Stub-grade theory page. The TODO markers below
-  are expansion targets for the archivist; the production code +
-  V&V-pinned tests already pass against the Sood LA-13511 truth
-  set and the Atalay 1997 Tables 2 + 3 reference values.
+  Atalay 1997 parity flip; foundational primitives (X-function, ν₀
+  dispersion root, half-range projections) shared across geometries
+  via :mod:`...singular_eigenfunction.core`.
+- **Critical numerical facts** (see :ref:`theory-se-errata` and
+  :ref:`theory-se-precision-floor`):
+
+  * **ERR-037** (μ = tanh(t) endpoint substitution, fixed
+    2026-05-03): Atalay Eq 42 :math:`z_0` evaluator went from 1.5–2 %
+    error to 6–7 digits via a 1-line variable substitution. Pinned
+    by :func:`tests.derivations.test_case_method_z0`.
+  * **ERR-038** (Atalay paper precision floor, characterised
+    2026-05-03): the R=0.99 perfect-reflector cases stall at ~5 %
+    because Atalay's Eq 46 is itself a *first-order* Fredholm
+    approximation. This is documented in Atalay's text but was
+    misdiagnosed twice as a bug. Honest tolerance: 7e-2 at
+    R=0.99.
+  * **WM-72 Eq 17 + q-formula corrections** (2026-05-03): the
+    SymPy algebra-of-record discipline caught two errata in the
+    primary literature transcription that survived three solver
+    iterations.
 - **Cross-references**: :ref:`theory-fn-method` is the structurally-
   independent collocation cross-check; :ref:`theory-galerkin-spectral`
   is the matrix-Galerkin cross-check; :ref:`theory-trajectory-resolvent`
-  realises Meaning (α) on the same Sood family.
+  realises the same physics on the same Sood family via bouncing
+  characteristics. :ref:`theory-sood-registry` is the truth-value
+  catalogue.
 
 
-.. note::
-
-   **Stub-grade page (consolidated 2026-05-03).** This page consolidates
-   the previous ``case_method`` page (Atalay 1997 reflected slab + sphere
-   with linear anisotropy) and the previous ``singular_eigenfunction``
-   page (Westfall–Metcalf 1973 bare radially-reflected cylinder, isotropic
-   scattering). The archivist agent will expand each TODO marker into the
-   full narrative + numerical evidence + literature backstory.
-
-   Scope of this page:
-
-   * **Bare-critical infinite cylinder, 1G isotropic scattering** via
-     Westfall-Metcalf 1973 (Case ``Ua-1-0-CY`` of the Sood LA-13511
-     benchmark family).
-   * **Reflected slab + linearly anisotropic scattering** — Atalay
-     1997 [Atalay1997]_ Eq. 46 (even modes).
-   * **Reflected sphere + linearly anisotropic scattering** — Atalay
-     1997 Eq. 54 (odd modes; parity-flip of slab Eq. 46).
-   * Foundation: Case singular-eigenfunction expansion + first-order
-     Fredholm iteration + four NEW parallel half-range relations
-     (Atalay Eqs. 28-31) that close the deficit blocking previous
-     reflected-slab attempts.
-
-.. _theory-singular-eigenfunction-consolidation:
-
-Why this consolidation
+Why one consolidated package
 ================================================================================
 
 This page (and the underlying
@@ -102,29 +101,39 @@ The two ORPHEUS folders represented **two parametric variations on the
 same method**, not two methods:
 
 * :mod:`...singular_eigenfunction.cylinder` (Westfall–Metcalf 1973
-  family): cylinder, **isotropic scattering**, modified-Bessel-K radial
-  kernels via the addition theorem + full-range completeness theorem.
+  family): cylinder, **isotropic scattering**, modified-Bessel-K
+  radial kernels via the addition theorem + full-range completeness
+  theorem.
 * :mod:`...singular_eigenfunction.slab` and
-  :mod:`...singular_eigenfunction.sphere` (Atalay 1997 family): slab +
-  sphere, **linear anisotropy**, half-range bi-orthogonality + first-
-  order Fredholm iteration.
+  :mod:`...singular_eigenfunction.sphere` (Atalay 1997 family): slab
+  + sphere, **linear anisotropy**, half-range bi-orthogonality +
+  first-order Fredholm iteration.
 
 Different geometry, different scattering anisotropy, different kernel
-reduction (exponential :math:`E_n`'s vs Bessel :math:`K_0`'s), but
+reduction (exponential :math:`E_n` 's vs Bessel :math:`K_0` 's), but
 **identical mathematical machinery** above the trusted-library line:
-discrete eigenvalue :math:`\nu_0` (same dispersion function),
+the discrete Case eigenvalue :math:`\nu_0` (same dispersion function),
 continuum modes on :math:`(-1, 1)`, half-range orthogonality, Fredholm
 reduction of the boundary condition. The consolidation also cures the
 previous ``case_method/`` folder's violation of the project no-author-
 folders rule.
 
 The dispersion function
-:math:`\Lambda(\nu) = 1 - c\nu\,\mathrm{atanh}(1/\nu)` is shared with
-:mod:`...fn_method` via :func:`...fn_method.core.dispersion.case_nu0` —
-a *medium* property, acceptable cross-package reuse below the trusted-
-library line. Above that line, the F_N method and this package are
-structurally independent (see "Why a separate package from the F_N
-method" below).
+
+.. math::
+   :label: case-dispersion-function
+
+   \Lambda(\nu) = 1 - c\nu\,\mathrm{atanh}(1/\nu) ,
+   \qquad \nu \in \mathbb{C}
+
+is shared with :mod:`...fn_method` via
+:func:`...fn_method.core.dispersion.case_nu0` — a *medium* property,
+acceptable cross-package reuse below the trusted-library line. Above
+that line the F_N method and this package are structurally independent
+(see :ref:`theory-se-vs-fn`).
+
+.. (vv-status rationale) governing: Case dispersion function — defines the discrete eigenvalue ν_0 of the Boltzmann operator at multiplying media (c > 1). Verified by V_se-cyl.1 (test_v_se_cyl_1_dispersion_function) and re-derived inside both fn_method and singular_eigenfunction packages.
+.. vv-status: case-dispersion-function documented
 
 .. _theory-se-vs-fn:
 .. _theory-case-vs-fn-method:
@@ -132,78 +141,565 @@ method" below).
 Why a separate package from the F_N method
 ================================================================================
 
-.. note:: TODO — Archivist expansion needed.
+The F_N method (Siewert–Benoist 1979 + Grandjean–Siewert 1979 for
+slab; Siewert–Thomas 1986 for sphere; ``fn_method/``) and this
+package's singular-eigenfunction methods (Atalay 1997 slab/sphere;
+WM-72 cylinder) belong to the same broad "Case 1960 / Mitsis 1963 /
+McCormick–Kušcer 1965" family, but the structural mathematics is
+fundamentally different.
 
-   The SymPy modules live at
-   :mod:`orpheus.derivations.continuous.singular_eigenfunction.origins.cylinder_derivations`
-   (cylinder)
-   and
-   :mod:`orpheus.derivations.continuous.singular_eigenfunction.origins.slab_sphere_derivations`
-   (slab + sphere, Atalay).
+* **F_N (slab/sphere).** Imposes the exact half-space exit-distribution
+  equation at :math:`(N+1)` collocation points and solves a
+  determinantal equation :math:`\det M(R) = 0`. Slab and sphere are
+  unified by a geometry sign :math:`s = \pm 1`; the scalar flux is
+  recovered post-hoc via the KLL 1974 Fredholm iteration on
+  :math:`A(\nu)` (see :ref:`theory-fn-method`).
 
-   Brief: the F_N method (Siewert–Benoist 1979 + Grandjean–Siewert
-   1979 for slab; Siewert–Thomas 1986 for sphere) and this package's
-   singular-eigenfunction methods (Atalay 1997 slab/sphere; WM-72
-   cylinder) belong to the same broad "Case 1960 / Mitsis 1963 /
-   McCormick–Kušcer 1965" family, but the structural mathematics
-   is fundamentally different.
+* **Atalay (slab/sphere).** Uses the **full normal-mode expansion**
+  (discrete + continuum) and reduces the boundary-condition closure
+  to an arctan-equation criticality condition (Eqs 46 / 54). The two
+  methods access the same Wiener-Hopf X-function but exercise it
+  differently: F_N uses :math:`X(\xi_\beta)` at collocation points
+  :math:`\xi_\beta`; Atalay uses :math:`X(\pm\nu_0)` and
+  :math:`X(-\nu)` for :math:`\nu \in (0, 1)` integrated against
+  half-range moments (the K_j / L_j integrals).
 
-   * **F_N (slab/sphere).** Imposes the exact half-space exit-
-     distribution equation at :math:`(N+1)` collocation points and
-     solves a determinantal equation. Slab and sphere are unified by
-     a geometry sign :math:`s = \pm 1`.
+* **Westfall–Metcalf (cylinder).** WM 1973 explicitly notes:
+  *"we found that the solution as formulated by Mitsis is not
+  convergent"* for the bare cylinder. WM-72's reformulation uses
+  Bessel-kernel expansion + iterative Fredholm scheme — different
+  mathematical machinery again. The F_N method is **not applicable**
+  to the cylinder geometry without major modification, and Mitsis-
+  style Wiener-Hopf is documented as non-convergent there. Hence
+  cylinder lives in singular_eigenfunction; the F_N cylinder slot
+  in :ref:`theory-fn-method` is a permanent stub flagging the
+  out-of-pillar status.
 
-   * **Atalay (slab/sphere).** Uses the **full normal-mode expansion**
-     (discrete + continuum) and reduces the boundary-condition closure
-     to a Fredholm integral equation iterated to first order. The two
-     methods access the same Wiener-Hopf X-function but exercise it
-     differently: F_N uses :math:`X(\xi_\beta)` at collocation points
-     :math:`\xi_\beta`; Atalay uses :math:`X(\pm \nu_0)` and
-     :math:`X(-\nu)` for :math:`\nu \in (0, 1)` integrated against
-     half-range moments.
+The two packages are **structurally independent** above the trusted-
+library line (sharing only ``numpy``, ``scipy.integrate.quad``,
+``mpmath``).
 
-   * **Westfall–Metcalf (cylinder).** Westfall–Metcalf 1973 explicitly
-     notes: *"we found that the solution as formulated by Mitsis is
-     not convergent"* for the bare cylinder. WM-72's reformulation
-     uses Bessel-kernel expansion + iterative Fredholm scheme —
-     different mathematical machinery again. The F_N method is not
-     applicable to the cylinder geometry without major modification.
+Cylinder — Westfall–Metcalf 1973, bare radially-reflected, isotropic
+================================================================================
 
-   The two packages are **structurally independent** above the trusted-
-   library line (sharing only ``numpy``, ``scipy.integrate.quad``,
-   ``mpmath``).
+.. _theory-se-wm72-derivation:
+
+Bare-critical cylinder via WM-72 — overview
+--------------------------------------------------------------------------------
+
+For a bare infinite cylinder with monoenergetic, isotropic scattering
+and :math:`c > 1` (multiplying medium so :math:`\nu_0 = i u_0` is
+purely imaginary), the WM-72 derivation reduces the problem to the
+coupled Fredholm system (WM-72 Eqs 30-32, **bare-cylinder limit**
+:math:`a_0 = b_0 = 1`, :math:`d_0 = 0`, :math:`D(\nu) = 0`,
+:math:`A(\nu) = B(\nu)`):
+
+.. math::
+   :label: wm72-eq30-bare
+
+   \Phi'(\mu) = \Phi'_0(\mu)
+              - c \int_0^1 \frac{A'(\nu)\,\nu^2\,H(\nu, \mu)}{\nu + \mu}\,d\nu
+
+.. math::
+   :label: wm72-eq31
+
+   A'(\nu) = \frac{1}{N_2(\nu)}
+             \int_0^1 \mu^2\,\eta_{2\nu}(\mu)\,\Phi'(\mu)\,d\mu
+
+.. math::
+   :label: wm72-eq32
+
+   g(R) := c \int_0^1 \frac{\mu^2\,\Phi'(\mu)}{\mu^2 + u_0^2}\,d\mu = 0
+
+.. (vv-status rationale) governing: WM-72 Eq 30 in the bare-cylinder reduction (a_0=b_0=1, d_0=0, D=0); the entire Mitsis-WM Fredholm iteration is the verification (test_singular_eigenfunction_cylinder + test_wm72_table_ii_six_configurations).
+.. vv-status: wm72-eq30-bare documented
+
+.. (vv-status rationale) governing: WM-72 Eq 31 — Mitsis-Zweifel singular-subtraction recovery of A'(ν) from Φ'(μ); verified by V_se-cyl.8 (test_v_se_cyl_8_singular_subtraction_eq31).
+.. vv-status: wm72-eq31 documented
+
+.. (vv-status rationale) governing: WM-72 Eq 32 — the bare-cylinder criticality condition; root-find on g(R) = 0 gives the critical radius. Verified at L1 against Sood Ua-1-0-CY (3e-7 relative).
+.. vv-status: wm72-eq32 documented
+
+where:
+
+* :math:`\Phi'(\mu)` is the angular-flux-related profile;
+  :math:`\Phi'_0(\mu) = -I_0(R/\mu)\,q(\nu_0, \mu)\,\eta_0(\mu)` is
+  the inhomogeneous source term derived from the discrete Case mode.
+* :math:`A'(\nu)` is the continuum amplitude.
+* :math:`N_2(\nu) = \int_0^1 \mu^2 \eta_{2\nu}^2(\mu)\,d\mu` is the
+  WM-72 Eq 21d normalisation integral.
+* :math:`\eta_0(\mu) = c\nu_0^2/(\nu_0^2 - \mu^2)` is the
+  discrete-mode pseudo-eigenfunction (V_se-cyl.2 — *with* the typo
+  correction).
+* :math:`\eta_{2\nu}(\mu)` is the continuum mode.
+* :math:`q(\nu, \mu) = (R/\nu)\,K_0(R/\mu)\,I_1(R/\nu)
+  + (R/\mu)\,K_1(R/\mu)\,I_0(R/\nu)` is the kernel function
+  (V_se-cyl.5, *with* the q-formula correction).
+* :math:`H(\nu, \mu) = (\nu - \mu)^{-1}\,
+  [I_0(R/\mu)\,q(\nu, \mu)/I_0(R/\nu) - 1]` is the non-singular
+  function appearing in Eq 30.
+
+The criticality condition Eq 32 is one scalar nonlinear equation in
+one scalar unknown :math:`R`; Brent root-find gives :math:`R_c`.
+
+Production solver — full Mitsis-WM Fredholm method
+--------------------------------------------------------------------------------
+
+.. _theory-se-wm72-numerics:
+
+The Branch-2 production solver
+(:func:`orpheus.derivations.continuous.singular_eigenfunction.cylinder.solve_singular_eigenfunction_cylinder_bare_critical`)
+implements the full Mitsis-WM method-of-record. Two algorithmic
+choices distinguish it from the original 1973 implementation:
+
+**1. Linear system instead of Jacobi iteration.** Substituting the
+discretised Eq 31 (mapping :math:`\Phi' \to A'`) into discretised
+Eq 30 gives
+
+.. math::
+   :label: wm72-coupled-linear-system
+
+   (\mathbb{I} + c\,M_{A\phi}\,M_{\phi A})\,\mathbf{A}'
+   = M_{A\phi}\,\boldsymbol{\Phi}'_0
+
+.. (vv-status rationale) derivation: Combined linear system for the WM-72 bare-cylinder Fredholm coupling — substitutes Eq 31 into Eq 30 and lets numpy.linalg.solve replace WM-72's 1973-era Jacobi iteration. Verified by the L1 critical-radius gate at all six WM-72 Table II configurations.
+.. vv-status: wm72-coupled-linear-system documented
+
+where :math:`M_{A\phi}` and :math:`M_{\phi A}` are the discretised
+integral operators. Solving by ``numpy.linalg.solve`` is faster and
+more accurate than Jacobi iteration; WM-72 themselves used iteration
+in 1973, but the equivalent linear-system formulation is what the
+modern API permits.
+
+**2. Mitsis-Zweifel singular subtraction** for :math:`M_{A\phi}`. The
+:math:`\eta_{2\nu}(\mu)` continuum mode has a Cauchy P.V. + a
+:math:`\lambda(\nu)\delta(\nu-\mu)` from the dispersion relation
+(WM-72 Eq 19). The singular subtraction trick is
+
+.. math::
+   :label: wm72-singular-subtraction
+
+   \int_0^1 \mu^2\,\eta_{2\nu}(\mu)\,\Phi'(\mu)\,d\mu
+   = \int_0^1 \frac{c\,\nu^2\,[\mu^2 \Phi'(\mu) - \nu^2 \Phi'(\nu)]}
+                    {\nu^2 - \mu^2}\,d\mu + \nu^2\,\Phi'(\nu) ,
+
+.. (vv-status rationale) derivation: Mitsis-Zweifel singular-subtraction identity — collapses the Cauchy P.V. + λδ continuum-mode kernel into a regular GL-quadrable integrand plus a single residue. Verified by V_se-cyl.8 (test_v_se_cyl_8_singular_subtraction_eq31).
+.. vv-status: wm72-singular-subtraction documented
+
+absorbing both the Cauchy P.V. of the regular-η₂ν part and the
+:math:`\lambda(\nu)\,\delta` from Eq 19 into a single regular integral
+plus a residue. The diagonal point :math:`\mu_j = \nu_i` of the
+regular integrand is evaluated by **Lagrangian-interpolation
+differentiation matrix** on the GL nodes — exactly the technique
+WM-72 cite on p. 7: *"evaluating the derivative term by Lagrangian
+interpolation over all points."*
+
+**3. Scaled Bessel functions** (``i0e``, ``i1e``, ``k0e``, ``k1e``)
+throughout to avoid overflow at large :math:`R/\mu`. The exponential
+factors in :math:`I_0(R/\mu)\,K_n(R/\mu)` cancel pairwise; the
+:math:`I_n(R/\nu)\,K_n(R/\mu)` products with :math:`\nu \neq \mu`
+carry exponential :math:`e^{R/\nu - R/\mu}` factors that we keep in
+scaled form.
+
+Convergence achieved
+~~~~~~~~~~~~~~~~~~~~~
+
+At :math:`n_{\rm grid} = 24` (matching WM-72's original 24-GL
+quadrature order), the solver reproduces every WM-72 Table II
+configuration to better than 5e-7 relative:
+
+.. list-table:: WM-72 Table II benchmark agreement
+   :header-rows: 1
+   :widths: 15 30 30 25
+
+   * - ``c``
+     - ``R_c`` (mfp) truth
+     - Solver result
+     - Relative error
+   * - 1.05
+     - 5.411288 (WM-72)
+     - 5.4112891
+     - 4e-7
+   * - 1.10
+     - 3.577391 (WM-72)
+     - 3.5773921
+     - 3e-7
+   * - 1.20
+     - 2.287209 (WM-72)
+     - 2.2872099
+     - 4e-7
+   * - 1.30
+     - 1.72500292 (Sood)
+     - 1.72500349
+     - 3e-7
+   * - 1.40
+     - 1.396979 (WM-72)
+     - 1.39697910
+     - 5e-8
+   * - 2.00
+     - 0.668613 (WM-72)
+     - 0.66861305
+     - 8e-8
+
+Wall-clock time per solve: ≤ 0.1 s on a typical container CPU.
+
+Convergence rate is **near-spectral** for smooth integrands (the GL
+quadrature + barycentric differentiation give the expected
+exponential-rate convergence on smooth analytic functions).
+Empirical: error at :math:`n=12` is ≤ 1e-5; at :math:`n=24` ≤ 1e-6;
+at :math:`n=48` ≤ 1e-7. This is **4-6 orders of magnitude better**
+than the original Phase B1 prototype (which used direct Nyström on
+WM-72 Eq 6a + single-cell product integration on the log-singular
+kernel diagonal, achieving only :math:`O(1/n)` algebraic convergence
+with a 1e-3 floor at :math:`n=128`).
+
+Test gates: :mod:`tests.derivations.test_singular_eigenfunction_cylinder`
+(one foundation test per ``derive_*()`` in the cylinder origins
+module, plus production-solver sanity tests, an L1 Sood
+``Ua-1-0-CY`` reference-value gate at 1e-5, and a parametrized L1
+gate over all six WM-72 Table II configurations).
+
+V_se-cyl — eight SymPy verifications
+-------------------------------------
+
+The cylinder Branch-1 SymPy module
+(:mod:`...origins.cylinder_derivations`) ships eight foundation-tagged
+``derive_*()`` functions that pin the WM-72 algebra letter-for-letter.
+Each is one verifiable structural identity. Together they form the
+**fully-verified algebra-of-record** for the WM-72 derivation.
+
+.. _theory-se-V-se-cyl-1:
+
+V_se-cyl.1 — Dispersion function
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**SymPy derivation:**
+:func:`orpheus.derivations.continuous.singular_eigenfunction.origins.cylinder_derivations.derive_dispersion_function`.
+**Test gate:**
+:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_1_dispersion_function`.
+
+The dispersion function :eq:`case-dispersion-function` is identical
+to slab/sphere — reflecting the *medium-property nature* of the
+Case singular eigenfunctions. A discrete eigenvalue :math:`\nu_0`
+satisfies :math:`\Lambda(\nu_0) = 0`; for :math:`c > 1` the root is
+purely imaginary, :math:`\nu_0 = i u_0` with :math:`u_0 > 0`. SymPy
+verifies the dispersion-function form against WM-72 Eq 18 and against
+the Case 1960 form (relabeling :math:`c` ↔ Case's notation).
+
+.. _theory-se-V-se-cyl-2:
+
+V_se-cyl.2 — Discrete pseudo-eigenfunction (catches WM-72 Eq 17 typo)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**SymPy derivation:**
+:func:`...origins.cylinder_derivations.derive_discrete_pseudo_eigenfunction`.
+**Test gate:**
+:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_2_discrete_pseudo_eigenfunction`.
+
+The discrete pseudo-eigenfunction is
+
+.. math::
+
+   \eta_0(\mu) = \frac{c\,\nu_0^2}{\nu_0^2 - \mu^2} ,
+
+which satisfies WM-72 Eq 15 directly. **SymPy V_se-cyl.2 caught a
+typo in the printed WM-72 Eq 17 on first run.** As printed,
+Eq 17 reads :math:`\eta_{0l}(\mu) = c_l\,\nu_{0l}/(\nu_{0l}^2 -
+\mu^2)` (single :math:`\nu_0` in numerator). Direct substitution
+into Eq 15 gives:
+
+* LHS reduces to :math:`c\nu_0\mu^2`;
+* RHS evaluates to :math:`c\nu_0^2\mu^2`.
+
+The mismatch is one power of :math:`\nu_0`. The corrected form
+:math:`\eta_{0l}(\mu) = c_l\,\nu_{0l}^2/(\nu_{0l}^2 - \mu^2)`:
+
+* Satisfies Eq 15 exactly.
+* Reproduces Eq 21d's :math:`\nu_0^4` factor on
+  :math:`N_0 = \int_0^1 \mu^2 \eta_0^2\,d\mu`.
+* Closes the half-range normalisation Eq 14 under dispersion.
+
+This is the canonical case for "re-derive every published equation
+in SymPy" as a publication-grade discipline (see the
+algebra-of-record skill).
+
+.. _theory-se-V-se-cyl-3:
+
+V_se-cyl.3 — Bessel-Wronskian identity
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**SymPy derivation:**
+:func:`...origins.cylinder_derivations.derive_bessel_wronskian_identity`.
+**Test gate:**
+:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_3_bessel_wronskian_identity`.
+
+The Bessel-Wronskian identity
+
+.. math::
+   :label: bessel-wronskian
+
+   K_1(z)\,I_0(z) + I_1(z)\,K_0(z) = 1/z
+
+is used in the WM-72 Eq 9 integrodifferential reduction. SymPy
+verifies the identity by direct expansion (it is a textbook result
+following from
+:math:`I_0(z)\,K_0'(z) - I_0'(z)\,K_0(z) = -1/z` plus
+:math:`I_0' = I_1`, :math:`K_0' = -K_1`).
+
+.. (vv-status rationale) derivation: Bessel-Wronskian identity — standard mathematical identity used in WM-72 Eq 9 reduction; verified at L0 by V_se-cyl.3.
+.. vv-status: bessel-wronskian documented
+
+.. _theory-se-V-se-cyl-4:
+
+V_se-cyl.4 — Bare-cylinder reduction (a_0 = b_0 = 1, d_0 = 0)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**SymPy derivation:**
+:func:`...origins.cylinder_derivations.derive_bare_cylinder_reduction`.
+**Test gate:**
+:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_4_bare_cylinder_reduction`.
+
+For the bare cylinder (:math:`c_1 = c_2 = c`, no reflector) WM-72
+Eq 27's source-prefactor term :math:`(c_2 - c_1) \to 0` cancels the
+inhomogeneous part of the discrete amplitude :math:`d_0`, leaving:
+
+* :math:`a_0 = b_0 = 1` (discrete-mode normalisation; one degree
+  of freedom remains).
+* :math:`d_0 = 0` (continuum-mode discrete amplitude vanishes).
+* :math:`D(\nu) = 0` (continuum source vanishes).
+* :math:`A(\nu) = B(\nu)` — **NOT zero**, but the two continuum
+  amplitudes equal each other from Eq 33's middle-term reduction.
+
+This last point is a **correction vs the original Phase B1 stylized
+SymPy**, which assumed :math:`A = B = 0` for the bare cylinder. The
+correct reduction preserves :math:`A(\nu) = B(\nu)` as the active
+Fredholm unknown; setting it to zero would over-constrain the system
+and give wrong critical radii.
+
+.. _theory-se-V-se-cyl-5:
+
+V_se-cyl.5 — Bare-cylinder criticality structure (catches q-formula typo)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**SymPy derivation:**
+:func:`...origins.cylinder_derivations.derive_bare_cylinder_criticality_condition`.
+**Test gate:**
+:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_5_bare_cylinder_criticality_condition`.
+
+The corrected q-formula is
+
+.. math::
+   :label: wm72-q-formula
+
+   q(\nu, \mu) = \frac{R}{\nu}\,K_0(R/\mu)\,I_1(R/\nu)
+              + \frac{R}{\mu}\,K_1(R/\mu)\,I_0(R/\nu) .
+
+.. (vv-status rationale) derivation: WM-72 q-formula — the second-term denominator must be μ (not R) to satisfy the Wronskian identity q(μ, μ) = 1; corrected from original Phase B1 SymPy. Verified by V_se-cyl.5 (test_v_se_cyl_5_bare_cylinder_criticality_condition).
+.. vv-status: wm72-q-formula documented
+
+The :math:`(R/\mu)` denominator in the second term is *forced* by
+the Wronskian identity :math:`q(\mu, \mu) = 1` — which is itself
+structurally required by Eq 29b's :math:`\nu \to \mu` limit. The
+original Phase B1 SymPy module wrote :math:`q(\nu, \mu) =
+(R/\nu)\,K_0\,I_1 + R\,K_1\,I_0` (no :math:`\mu` denominator on the
+second term), giving :math:`q(\mu, \mu) \approx 0.72` numerically
+— inconsistent with Eq 29b. The corrected form (now in V_se-cyl.5)
+closes the Wronskian identity exactly:
+
+.. math::
+
+   q(\mu, \mu) = \frac{R}{\mu}\,[K_0(R/\mu)\,I_1(R/\mu)
+                                 + K_1(R/\mu)\,I_0(R/\mu)]
+              = \frac{R}{\mu}\cdot\frac{1}{R/\mu}
+              = 1 .
+
+This was caught by the post-hardening cross-check between V_se-cyl.5's
+algebraic claim and the Wronskian identity V_se-cyl.3 — exactly the
+discipline the algebra-of-record skill recommends.
+
+.. _theory-se-V-se-cyl-6:
+
+V_se-cyl.6 — Discrete eigenfunction normalisation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**SymPy derivation:**
+:func:`...origins.cylinder_derivations.derive_discrete_eigenfunction_normalization`.
+**Test gate:**
+:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_6_discrete_eigenfunction_normalization`.
+
+The discrete normalisation :math:`N_0 = \int_0^1 \mu^2 \eta_0^2(\mu)
+\,d\mu` matches WM-72 Eq 21d. With the corrected V_se-cyl.2
+:math:`\eta_0(\mu) = c\nu_0^2/(\nu_0^2 - \mu^2)`, the integral
+evaluates to
+
+.. math::
+
+   N_0 = \frac{c^2\,\nu_0^4}{2}\!\left[\frac{1}{1 - \nu_0^2}
+                                       + \frac{1 - 2\nu_0^2}{2\nu_0^2}\,
+                                         \log\!\frac{1 + \nu_0}{\nu_0 - 1}
+                                       \right]
+
+(WM-72 Eq 21d, verbatim) — and the :math:`\nu_0^4` prefactor is
+the cross-check that V_se-cyl.2 carries the right power of
+:math:`\nu_0`.
+
+.. _theory-se-V-se-cyl-7:
+
+V_se-cyl.7 — Bare-cylinder flux reconstruction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**SymPy derivation:**
+:func:`...origins.cylinder_derivations.derive_flux_reconstruction_bare_cylinder`.
+**Test gate:**
+:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_7_flux_reconstruction_bare_cylinder`.
+
+The bare-cylinder neutron density profile is
+
+.. math::
+   :label: wm72-rho-bare-cylinder
+
+   \rho(r) = b_0\,J_0(r/u_0)
+
+.. (vv-status rationale) governing: Bare-cylinder neutron density profile — the dominant Case eigenfunction with imaginary ν_0 = i u_0 for c > 1; verified by V_se-cyl.7 (test_v_se_cyl_7_flux_reconstruction_bare_cylinder).
+.. vv-status: wm72-rho-bare-cylinder documented
+
+with :math:`b_0 = 1` per the bare-cylinder normalisation. SymPy
+verifies that with :math:`\nu_0 = i u_0` (purely imaginary for
+:math:`c > 1`), the modified-Bessel form :math:`I_0(r/(i u_0))`
+reduces to the ordinary-Bessel form :math:`J_0(r/u_0)` — the
+canonical "imaginary argument" Bessel-function relation.
+
+.. _theory-se-V-se-cyl-8:
+
+V_se-cyl.8 — Mitsis-Zweifel singular-subtraction structural identity
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**SymPy derivation:**
+:func:`...origins.cylinder_derivations.derive_singular_subtraction_eq31`.
+**Test gate:**
+:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_8_singular_subtraction_eq31`.
+
+V_se-cyl.8 is the load-bearing algebra behind the Branch-2 production
+solver's diagonal handling. The Mitsis-Zweifel identity
+:eq:`wm72-singular-subtraction` collapses the PV residue and
+:math:`\lambda \delta` continuum-mode kernel via the dispersion
+identity :math:`(1-\lambda) + \lambda = 1`. SymPy verifies the
+identity by expanding both sides on a worked
+:math:`\eta_{2\nu}(\mu) = c\nu/(\mu - \nu) + \lambda(\nu)\delta(\mu -
+\nu)` decomposition.
+
+This identity is what makes the Branch-2 production solver's diagonal
+treatment work cleanly: the regular integrand
+:math:`c\,\nu^2\,[\mu^2 \Phi'(\mu) - \nu^2 \Phi'(\nu)]/(\nu^2 - \mu^2)`
+is finite and smooth at :math:`\mu = \nu` (L'Hôpital limit), and the
+:math:`\nu^2 \Phi'(\nu)` residue is evaluated exactly. Without
+V_se-cyl.8, the diagonal entry would have to be approximated by
+some ad-hoc nearest-neighbour rule, which would degrade the
+near-spectral convergence rate.
+
+.. _theory-se-wm72-xverif:
+
+Cross-check vs Variant α at Sood ``Ua-1-0-CY``
+--------------------------------------------------------------------------------
+
+The hardened WM-72 solver agrees with the Variant α cylinder solver
+at the Sood ``Ua-1-0-CY`` configuration to ≤ 1e-5 relative. Both
+solvers reproduce the published Sood :math:`r_c = 1.72500292` mfp:
+
+* **Variant α** at 8.5e-6 (already shipped at
+  :func:`tests.derivations.test_trajectory_resolvent_cylinder_xverif_sood2003`,
+  via bouncing-characteristic integration with analytical
+  bounce-period summation).
+* **WM-72** at ≤ 3e-7 (this module, via singular-eigenfunction
+  Fredholm coupling with Mitsis-Zweifel subtraction).
+
+Both methods share **only** the dispersion-root primitive
+(``case_nu0``) — a medium property independent of geometry. Above
+the trusted-library line, the methods are entirely disjoint:
+
+* **Variant α**: angle-resolved scalar transport in
+  :math:`(r, \mu, \phi)` phase space, with bouncing characteristics
+  and analytical bounce-period summation.
+* **WM-72**: scalar-density integral transport equation reduced via
+  singular-eigenfunction expansion, with Bessel-kernel matrix
+  Fredholm coupling between :math:`\Phi'(\mu)` and :math:`A'(\nu)`.
+
+Per ``algebra-of-record`` § "Structural independence applies above
+the trusted-library line", the cross-check at the same precision
+level (1e-5) is a true structurally-independent L1 anchor for the
+Sood reference value. A third leg via ``peierls_nystrom``
+(Bickley-Naylor :math:`\mathrm{Ki}_3` integrals) is available for
+future expansion.
+
+Test gate:
+:mod:`tests.derivations.test_singular_eigenfunction_cylinder_xverif`.
 
 Slab — Atalay 1997 reflected, linearly anisotropic
 ================================================================================
+
+Atalay's 1997 paper extends the singular-eigenfunction expansion to
+linearly anisotropic scattering with reflective BC. The paper's
+**load-bearing technical contribution** is the four NEW parallel
+half-range relations Eqs 28-31 that close the deficit blocking
+previous reflected-slab attempts.
 
 .. _theory-case-half-range:
 
 The four new parallel half-range relations
 --------------------------------------------------------------------------------
 
-.. note:: TODO — Archivist expansion needed.
+The McCormick–Kušcer 1965 bi-orthogonality relations
+[McCormickKuscer1965]_ (Atalay Eqs 18-21) integrate the weight
 
-   Brief: Atalay's load-bearing technical contribution is the
-   four NEW half-range relations Eqs. 28-31. The McCormick–Kušcer
-   1965 bi-orthogonality relations [McCormickKuscer1965]_ (Atalay
-   Eqs. 18-21) integrate the weight :math:`[\phi_{0+}(\mu) + B c
-   \nu_0/2] \gamma(\mu) (\nu_0 - \mu)` against the four half-range
-   basis members. These suffice for the half-space Milne problem but
-   **not** for the reflected-slab boundary condition Atalay Eq. 16,
-   which requires a second weight :math:`[\phi_\nu(\mu) + c \nu/(2
-   \bar\nu)] \gamma(\mu)`. Eqs. 28-31 close the deficit by integrating
-   this parallel weight against the same four basis members.
+.. math::
 
-   The structural parallelism is verified in
-   :func:`...origins.slab_sphere_derivations.derive_atalay_half_range_eqs28_to_31`
-   (V_case.3): Eqs. 28-31 share the Wiener-Hopf X-function factor
-   structure (:math:`X(\pm\nu_0)`, :math:`X(\pm\nu')`, :math:`N(\nu)`)
-   of the McCormick–Kušcer set.
+   [\phi_{0+}(\mu) + B c\nu_0/2]\,\gamma(\mu)\,(\nu_0 - \mu)
+
+against the four half-range basis members
+:math:`\{1, \mu, \mu^2, \mu^3\}`. These relations suffice for the
+half-space Milne problem but **NOT** for the reflected-slab
+boundary condition Atalay Eq 16, which requires a second weight
+
+.. math::
+
+   [\phi_\nu(\mu) + c\nu/(2\bar\nu)]\,\gamma(\mu) ,
+
+evaluated against the same four basis members. Atalay's Eqs 28-31
+fill the gap.
+
+The structural parallelism is verified in
+:func:`...origins.slab_sphere_derivations.derive_atalay_half_range_eqs28_to_31`
+(V_case.3): Eqs 28-31 share the Wiener-Hopf X-function factor
+structure (:math:`X(\pm\nu_0)`, :math:`X(\pm\nu')`, :math:`N(\nu)`)
+of the McCormick–Kušcer set. The closing identity is:
+
+.. list-table:: Half-range bi-orthogonality completion
+   :header-rows: 1
+   :widths: 30 35 35
+
+   * - Weight × basis
+     - McCormick-Kušcer set
+     - Atalay parallel set
+   * - Weight type
+     - :math:`[\phi_{0+}(\mu) + Bc\nu_0/2]\gamma(\mu)(\nu_0 - \mu)`
+     - :math:`[\phi_\nu(\mu) + c\nu/(2\bar\nu)]\gamma(\mu)`
+   * - Atalay Eqs
+     - 18, 19, 20, 21
+     - 28, 29, 30, 31
+   * - Closes
+     - Half-space Milne
+     - Reflected slab/sphere
+
+V_case.3 verifies the structural parallelism — both sets reduce to
+linear combinations of the same X-function evaluations.
 
 .. _theory-case-slab-eq46:
 
 Slab criticality (Eq 46)
 --------------------------------------------------------------------------------
+
+The slab criticality condition is the closed-form arctan equation
+(**even-mode**, fundamental):
 
 .. math::
    :label: singular-eigenfunction-eq46
@@ -215,22 +711,70 @@ Slab criticality (Eq 46)
                   {(1+K_2) d(\nu_0 \bar\nu) d(-\nu_0 \bar\nu)
                    + K_1 \bar\nu d(\nu_0^2) - K_0 \nu_0^2 d(\bar\nu^2)}
 
-.. note:: TODO — Archivist expansion needed.
+**SymPy derivation:**
+:func:`...origins.slab_sphere_derivations.derive_atalay_critical_slab_eq46`.
+**Test gate:**
+:func:`tests.derivations.test_case_method_symbolic.test_v_case_5_critical_slab_eq46`.
 
-   The SymPy derivation lives in
-   :mod:`orpheus.derivations.continuous.singular_eigenfunction.origins.slab_sphere_derivations`
-   (function ``derive_atalay_critical_slab_eq46``).
-   Test gate:
-   :func:`tests.derivations.test_case_method_symbolic.test_v_case_5_critical_slab_eq46`.
-   Closeout memo:
-   ``.claude/agent-memory/method-implementer/wave_2b_atalay_case_method.md``.
+Eq 46 emerges from Atalay Eq 43 (the boundary-condition closure
+written in :math:`(R e^{\pm i a_1}, e^{\pm i a_2})` form) by
+observing that the numerator and denominator of the closure ratio
+are complex conjugates — the log of their ratio is :math:`2i \arg(z)`,
+which gives the arctan form.
 
-   Brief: Eq. 46 emerges from Eq. 43 (the boundary-condition closure
-   in :math:`(R e^{\pm i a_1}, e^{\pm i a_2})`-form) by observing the
-   numerator and denominator are complex conjugates — the log of
-   their ratio is :math:`2i \arg(z)`, which gives the arctan form.
-   The :math:`\pm \pi/2` ambiguity reflects multiple eigenvalue
-   modes; the fundamental mode is the smallest positive :math:`d`.
+The :math:`\pm \pi/2` ambiguity reflects multiple eigenvalue modes;
+the fundamental mode is the smallest positive :math:`d`. The Branch-2
+production solver brackets the mode-1 root via prominence-filtered
+zero-crossing of :math:`\sin(\theta_{LHS} - \theta_{RHS})` (which
+crosses zero smoothly at the critical thickness without :math:`\tan`
+blowing up).
+
+The :math:`K_j` symbols are half-range moments — see
+:ref:`theory-case-x-function-eq40` for the X-function and
+:ref:`theory-case-validity-eq5` for the validity bound. The
+:math:`d(x) \equiv 1 - 3 f_1\,x` shorthand is Atalay's
+linearly-anisotropic prefactor:
+
+.. math::
+
+   d(x) = 1 - 3 f_1\,x ,
+
+which reduces to :math:`d \equiv 1` for isotropic scattering
+(:math:`f_1 = 0`).
+
+Atalay's tabulated Eq 46 critical thicknesses:
+
+.. list-table:: Atalay 1997 Table 2 (vacuum + reflected slab,
+   :math:`f_1 = 0`)
+   :header-rows: 1
+   :widths: 12 22 22 22 22
+
+   * - :math:`c`
+     - :math:`R = 0` (mfp)
+     - :math:`R = 0.25` (mfp)
+     - :math:`R = 0.50` (mfp)
+     - :math:`R = 0.75` (mfp)
+   * - 1.30
+     - 1.87766
+     - 1.40621
+     - 0.89317
+     - 0.40758
+   * - 1.50
+     - 1.30528
+     - 0.97735
+     - 0.62094
+     - 0.28319
+   * - 2.00
+     - 0.66766
+     - 0.50049
+     - 0.31787
+     - 0.14491
+
+The Branch-2 solver
+(:func:`...slab.solve_case_method_slab_critical`) reproduces these
+to ≤ 5e-2 absolute, with the residual gap explained as a paper
+precision floor at small thicknesses (see
+:ref:`theory-se-precision-floor`).
 
 Sphere — Atalay 1997 reflected, linearly anisotropic, parity flip
 ================================================================================
@@ -239,6 +783,8 @@ Sphere — Atalay 1997 reflected, linearly anisotropic, parity flip
 
 Sphere criticality (Eq 54) via parity flip
 --------------------------------------------------------------------------------
+
+The sphere criticality condition is
 
 .. math::
    :label: singular-eigenfunction-eq54
@@ -250,234 +796,52 @@ Sphere criticality (Eq 54) via parity flip
                   {(1+L_2) d(\nu_0 \bar\nu) d(-\nu_0 \bar\nu)
                    + L_1 \bar\nu d(\nu_0^2) - L_0 \nu_0^2 d(\bar\nu^2)}
 
-.. note:: TODO — Archivist expansion needed.
+**SymPy derivation:**
+:func:`...origins.slab_sphere_derivations.derive_atalay_critical_sphere_eq54_via_parity_flip`.
+**Test gate:**
+:func:`tests.derivations.test_case_method_symbolic.test_v_case_6_critical_sphere_eq54_via_parity_flip`.
 
-   The SymPy derivation lives in
-   :mod:`orpheus.derivations.continuous.singular_eigenfunction.origins.slab_sphere_derivations`
-   (function ``derive_atalay_critical_sphere_eq54_via_parity_flip``).
-   Test gate:
-   :func:`tests.derivations.test_case_method_symbolic.test_v_case_6_critical_sphere_eq54_via_parity_flip`
-   plus the numerical parity-flip equivalence at vacuum BC
-   (:mod:`tests.derivations.test_case_method_slab_sphere_parity_flip`).
+The sphere problem is treated as the **odd-mode** of the slab
+problem on :math:`[-R, R]` via the antisymmetric BC
 
-   Brief: the sphere problem is treated as the **odd-mode** of the
-   slab problem on :math:`[-R, R]` via the antisymmetric BC
-   :math:`\psi(x, \mu) = -\psi(-x, -\mu)` (Atalay Eq. 47). The
-   structural change reduces to :math:`T \to T_1` (sign flip on
-   second exponential in the T-function), :math:`K_j \to L_j` (same
-   integrand structure with :math:`T \to T_1`), and a sin↔cos
-   shuffle in the LHS arctan argument. Numerically: at vacuum BC
-   :math:`R = 0`, both :math:`T(0,\mu) = T_1(0,\mu) = e^{-2d/\mu}`,
-   so :math:`K_j = L_j` bit-for-bit (verified in the parity-flip
-   test).
+.. math::
 
-Cylinder — Westfall–Metcalf 1973, bare radially-reflected, isotropic
-================================================================================
+   \psi(x, \mu) = -\psi(-x, -\mu)
 
-.. _theory-se-wm72-derivation:
+(Atalay Eq 47 — the :math:`r\Phi(r) \to \Psi(x, \mu)` substitution
+picks up an :math:`r`-sign factor, exactly as in the Mitsis 1963
+sphere-as-slab derivation that underlies the Siewert-Thomas 1986
+F_N sphere). The structural change reduces to:
 
-Bare-critical cylinder via WM-72
---------------------------------------------------------------------------------
+* :math:`T(R, \mu) \to T_1(R, \mu)` — sign flip on the second
+  exponential in the T-function.
+* :math:`K_j \to L_j` — same integrand structure with
+  :math:`T \to T_1`.
+* sin↔cos shuffle in the LHS arctan argument.
 
-.. note::
+**Numerical parity-flip equivalence at vacuum BC.** At :math:`R = 0`
+(vacuum BC), both :math:`T(0,\mu) = T_1(0,\mu) = e^{-2d/\mu}`, so
+:math:`K_j = L_j` bit-for-bit. Verified in the parity-flip test
+(:mod:`tests.derivations.test_case_method_slab_sphere_parity_flip`).
 
-   The Branch-1 SymPy verification (V_se-cyl.1 through V_se-cyl.8) is
-   the **fully verified algebra-of-record** for the WM-72 derivation.
-   It includes the discovery of one typo in the printed paper
-   (Eq. 17: single :math:`\nu_0` should be :math:`\nu_0^2` in
-   numerator) and the resolution of one structural-formula error in
-   the original Phase B1 SymPy (q-formula's second-term denominator
-   should be :math:`\mu`, not :math:`R`, forced by the Wronskian
-   identity :math:`q(\mu, \mu) = 1`).
+For non-zero :math:`R`, the :math:`T_1` sign flip on the second
+exponential makes :math:`L_j \neq K_j`; both Branch-1 (SymPy) and
+Branch-2 (numpy) implementations parameterise the kernel on
+:math:`{\rm geometry\_sign} \in \{+1, -1\}` exactly as F_N method's
+slab/sphere unification does.
 
-   The Branch-2 production solver implements the **full Mitsis-WM
-   Fredholm method** (WM-72 Eqs. 30-32) with Mitsis-Zweifel singular
-   subtraction + Lagrangian-derivative diagonal handling. It reproduces
-   Sood ``Ua-1-0-CY`` to ≤ 3e-7 relative at :math:`n_{\rm grid} = 24`
-   and matches all six WM-72 Table II configurations to the same
-   precision in ≤ 0.1 s per solve.
-
-.. note:: TODO — Archivist expansion needed.
-   The complete WM-72 derivation chain is captured in 8 SymPy
-   functions; expand each into its full narrative here.
-
-   * V_se-cyl.1 (:func:`...origins.cylinder_derivations.derive_dispersion_function`):
-     dispersion function :math:`\Lambda(\nu) = 1 - c\nu\,\mathrm{atanh}(1/\nu) = 0`
-     is identical to slab/sphere; reflects the medium-property nature
-     of Case singular eigenfunctions.
-   * V_se-cyl.2 (:func:`...origins.cylinder_derivations.derive_discrete_pseudo_eigenfunction`):
-     discrete pseudo-eigenfunction :math:`\eta_0(\mu) = c\nu_0^2/(\nu_0^2 - \mu^2)`
-     satisfies WM-72 Eq. 15. **Catches a typo in printed Eq. 17**
-     (single :math:`\nu_0` in numerator → should be :math:`\nu_0^2`).
-   * V_se-cyl.3 (:func:`...origins.cylinder_derivations.derive_bessel_wronskian_identity`):
-     Bessel-Wronskian identity :math:`K_1(z)\,I_0(z) + I_1(z)\,K_0(z) = 1/z`
-     used in the Eq. 9 integrodifferential reduction.
-   * V_se-cyl.4 (:func:`...origins.cylinder_derivations.derive_bare_cylinder_reduction`):
-     bare-cylinder reduction :math:`c_1 = c_2 \implies D(\nu) = 0`,
-     :math:`d_0 = 0`, :math:`A(\nu) = B(\nu)` (NOT zero — corrected
-     vs the original Phase B1 stylized SymPy).
-   * V_se-cyl.5 (:func:`...origins.cylinder_derivations.derive_bare_cylinder_criticality_condition`):
-     **(corrected)** bare-cylinder Fredholm criticality structure with
-     the corrected q-formula
-     :math:`q(\nu, \mu) = (R/\nu)\,K_0(R/\mu)\,I_1(R/\nu) +
-     (R/\mu)\,K_1(R/\mu)\,I_0(R/\nu)`. The :math:`(R/\mu)` denominator
-     in the second term is forced by the Wronskian identity
-     :math:`q(\mu, \mu) = 1`.
-   * V_se-cyl.6 (:func:`...origins.cylinder_derivations.derive_discrete_eigenfunction_normalization`):
-     discrete normalisation matches WM-72 Eq. 21d.
-   * V_se-cyl.7 (:func:`...origins.cylinder_derivations.derive_flux_reconstruction_bare_cylinder`):
-     bare-cylinder neutron density profile is :math:`\rho(r) = J_0(r/u_0)`
-     (the dominant Case eigenfunction with imaginary
-     :math:`\nu_0 = i u_0` for :math:`c > 1`).
-   * V_se-cyl.8 (:func:`...origins.cylinder_derivations.derive_singular_subtraction_eq31`):
-     **NEW** — Mitsis-Zweifel singular-subtraction structural identity
-     for Eq. 31. The load-bearing algebra behind the Branch-2
-     production solver's diagonal handling: PV residue and
-     :math:`\lambda \delta` collapse via the dispersion identity
-     :math:`(1-\lambda) + \lambda = 1`.
-
-   Test gates: :mod:`tests.derivations.test_singular_eigenfunction_cylinder`
-   (one foundation test per ``derive_*()``, plus production-solver
-   sanity tests, an L1 Sood ``Ua-1-0-CY`` reference-value gate at
-   1e-5, and a parametrized L1 gate over all six WM-72 Table II
-   configurations).
-
-.. _theory-se-wm72-numerics:
-
-Production solver — full Mitsis-WM Fredholm method
---------------------------------------------------------------------------------
-
-.. note:: TODO — Archivist expansion needed.
-   The Branch-2 solver lives at
-   :mod:`orpheus.derivations.continuous.singular_eigenfunction.cylinder.one_group`.
-
-   Brief: the production solver implements the full Mitsis-WM Fredholm
-   method-of-record (WM-72 Eqs. 30-32) at the bare-cylinder reduction
-   (:math:`a_0 = b_0 = 1, d_0 = 0, D(\nu) = 0, A(\nu) = B(\nu)` per
-   V_se-cyl.4). The coupled equations
-
-   .. math::
-
-      \Phi'(\mu) = -I_0(R/\mu)\,q(\nu_0,\mu)\,\eta_0(\mu)
-                - c \int_0^1 \frac{A'(\nu)\,\nu^2\,H(\nu, \mu)}{\nu + \mu}\,d\nu
-      \quad\text{(Eq. 30, bare limit)}
-
-   .. math::
-
-      A'(\nu) = \frac{1}{N_2(\nu)} \int_0^1 \mu^2\,\eta_{2\nu}(\mu)\,\Phi'(\mu)\,d\mu
-      \quad\text{(Eq. 31)}
-
-   .. math::
-
-      g(R) := c \int_0^1 \frac{\mu^2\,\Phi'(\mu)}{\mu^2 + u_0^2}\,d\mu = 0
-      \quad\text{(Eq. 32, criticality)}
-
-   are discretised on the same Gauss-Legendre grid for both
-   :math:`\mu` and :math:`\nu` (same nodes per WM-72 numerical
-   scheme). Discretisation transforms the inner Fredholm coupling
-   into the linear system
-
-   .. math::
-
-      (\mathbb{I} + c\,M_{A\phi}\,M_{\phi A})\,\mathbf{A}'
-      = M_{A\phi}\,\boldsymbol{\Phi}'_0,
-
-   solved by ``numpy.linalg.solve`` (replacing the 1973-era Jacobi
-   iteration with a faster + more accurate modern alternative).
-   Brent root-find on Eq. 32's residual gives :math:`R_c`.
-
-   **Mitsis-Zweifel singular subtraction** (V_se-cyl.8) handles the
-   Cauchy P.V. + :math:`\lambda \delta` of :math:`\eta_{2\nu}` in
-   Eq. 31:
-
-   .. math::
-
-      \int_0^1 \mu^2\,\eta_{2\nu}(\mu)\,\Phi'(\mu)\,d\mu
-      = \int_0^1 \frac{c\,\nu^2\,[\mu^2 \Phi'(\mu) - \nu^2 \Phi'(\nu)]}
-                       {\nu^2 - \mu^2}\,d\mu + \nu^2\,\Phi'(\nu),
-
-   collapsing the singular content into a regular GL-quadrable
-   integrand plus a single :math:`\nu^2 \Phi'(\nu)` residue. The
-   diagonal point :math:`\mu_j = \nu_i` of the regular integrand is
-   evaluated by Lagrangian-interpolation differentiation — exactly
-   the technique WM-72 cite on p. 7: "evaluating the derivative term
-   by Lagrangian interpolation over all points."
-
-   **Scaled Bessel functions** (``i0e``, ``i1e``, ``k0e``, ``k1e``)
-   throughout to avoid overflow at large :math:`R/\mu`. Exponential
-   factors in :math:`I_0(R/\mu)\,K_n(R/\mu)` cancel pairwise; the
-   :math:`I_n(R/\nu)\,K_n(R/\mu)` products with :math:`\nu \neq \mu`
-   carry exponential :math:`e^{R/\nu - R/\mu}` factors that we keep
-   in scaled form.
-
-   **Accuracy at :math:`n_{\rm grid} = 24`** (matching WM-72's
-   original quadrature order):
-
-   ===========   =====================   ===================   ==================
-   ``c``         ``R_c (mfp)`` truth     Solver result          Relative error
-   ===========   =====================   ===================   ==================
-   1.05          5.411288 (WM-72)        5.4112891              4e-7
-   1.10          3.577391 (WM-72)        3.5773921              3e-7
-   1.20          2.287209 (WM-72)        2.2872099              4e-7
-   1.30          1.72500292 (Sood)       1.72500349             3e-7
-   1.40          1.396979 (WM-72)        1.39697910             5e-8
-   2.00          0.668613 (WM-72)        0.66861305             8e-8
-   ===========   =====================   ===================   ==================
-
-   Wall-clock time per solve: ≤ 0.1 s on a typical container CPU.
-
-   Convergence rate is **near-spectral** for smooth integrands
-   (the GL quadrature + barycentric differentiation give the
-   expected exponential-rate convergence on smooth analytic
-   functions). Empirical: error at :math:`n=12` is ≤ 1e-5; at
-   :math:`n=24` ≤ 1e-6; at :math:`n=48` ≤ 1e-7. This is **4-6
-   orders of magnitude better** than the original Phase B1 prototype
-   (which used direct Nyström on Eq. 6a + single-cell product
-   integration on the log-singular kernel diagonal, achieving only
-   :math:`O(1/n)` algebraic convergence with a 1e-3 floor at
-   :math:`n=128`).
-
-.. _theory-se-wm72-xverif:
-
-Cross-check vs Variant α at Sood ``Ua-1-0-CY``
---------------------------------------------------------------------------------
-
-.. note:: TODO — Archivist expansion needed.
-   Test gate:
-   :mod:`tests.derivations.test_singular_eigenfunction_cylinder_xverif`.
-
-   Brief: the hardened WM-72 solver agrees with the Variant α cylinder
-   solver at the Sood ``Ua-1-0-CY`` configuration to ≤ 1e-5 relative.
-   Both solvers reproduce the published Sood :math:`r_c = 1.72500292`
-   mfp:
-
-   * **Variant α** at 8.5e-6 (already shipped at
-     :mod:`tests.derivations.test_trajectory_resolvent_cylinder_xverif_sood2003`,
-     via bouncing-characteristic integration with analytical
-     bounce-period summation).
-   * **WM-72** at ≤ 3e-7 (this module, via singular-eigenfunction
-     Fredholm coupling with Mitsis-Zweifel subtraction).
-
-   Both methods share **only** the dispersion-root primitive
-   (``case_nu0``) — a medium property independent of geometry. Above
-   the trusted-library line, the methods are entirely disjoint:
-
-   * **Variant α**: angle-resolved scalar transport in
-     :math:`(r, \mu, \phi)` phase space, with bouncing characteristics
-     and analytical bounce-period summation.
-   * **WM-72**: scalar-density integral transport equation reduced
-     via singular-eigenfunction expansion, with Bessel-kernel matrix
-     Fredholm coupling between :math:`\Phi'(\mu)` and :math:`A'(\nu)`.
-
-   Per ``algebra-of-record`` § "Structural independence applies above
-   the trusted-library line", the cross-check at the same precision
-   level (1e-5) is a true structurally-independent L1 anchor for the
-   Sood reference value. A third leg via ``peierls_nystrom``
-   (Bickley-Naylor :math:`\mathrm{Ki}_3` integrals) is available for
-   future expansion.
+Where :math:`d` here is the sphere **radius** (interpretation: the
+half-thickness of the equivalent slab equals the sphere radius),
+the parity-flip is a clean :math:`s = +1 \to s = -1` change with
+the corresponding :math:`L_j` rather than :math:`K_j` evaluations.
 
 Anisotropy — linearly anisotropic scattering primitives
 ================================================================================
+
+The Atalay framework is a rich apparatus of shared primitives — the
+X-function, the extrapolated endpoint, the validity bound. Each is a
+medium property (no geometry parameter) and is consumed by both
+slab Eq 46 and sphere Eq 54.
 
 .. _theory-case-x-function-eq40:
 
@@ -491,18 +855,65 @@ X-function (Atalay Eq 40)
        \Big[d^2(\nu^2)\Big(1 + \frac{c\nu^2}{1-\nu^2}\Big)
             + 3 f_1 (1-c)^2 \nu^2 d(-\nu^2)\Big]\,\ln(\nu - \mu) \Bigg\}
 
-.. note:: TODO — Archivist expansion needed.
+**SymPy derivation:**
+:func:`...origins.slab_sphere_derivations.derive_atalay_x_function_eq40`.
+**Test gate:**
+:func:`tests.derivations.test_case_method_symbolic.test_v_case_8_x_function_eq40`.
 
-   The SymPy derivation lives in
-   :mod:`orpheus.derivations.continuous.singular_eigenfunction.origins.slab_sphere_derivations`
-   (function ``derive_atalay_x_function_eq40``).
-   Test gate:
-   :func:`tests.derivations.test_case_method_symbolic.test_v_case_8_x_function_eq40`.
+The Wiener-Hopf X-function is a medium-only quantity (depends on
+:math:`c` and :math:`f_1`, no geometry parameter). SymPy verifies
+the integrand structure against Atalay Eq 40 and against the
+isotropic-limit closed form:
+
+.. math::
+
+   X^{\rm iso}(\mu) = \frac{1}{1 - \mu}\,
+                       \exp\!\left[\frac{1}{\pi}\int_0^1
+                            \arg \Lambda^{+}(\tau)\,
+                            \frac{d\tau}{\tau - \mu}\right] .
+
+For multi-line continued-Plemelj derivations connecting Eq 40 to
+Eq 26 (the implicit X-function definition via Plemelj-Sokhotski),
+see Case 1960 [Case1960]_ § IV and Case-Zweifel 1967 § 4.
+
+.. note:: **X-function divergent integrand** (open investigation).
+   Phase-2.2 of the ERR-038 cascade discovered that the Atalay Eq 40
+   integrand as transcribed appears to be **logarithmically
+   divergent** at :math:`\nu \to 1`. The bracket carries
+   :math:`1/(1-\nu^2)` (simple pole at :math:`\nu = 1`); the
+   supposed cancelling factor :math:`g_1(\nu)` only goes as
+   :math:`1/\log^2(1-\nu)`, so the product
+   :math:`g_1 \cdot \mathrm{bracket} \cdot \log(\nu - \mu)` decays
+   only as :math:`\log(\nu - \mu)/[(1-\nu)\,\log^2(1-\nu)]`, whose
+   primitive is :math:`\propto -1/\log(1-\nu)` — bounded but
+   non-zero as truncation point :math:`\to` endpoint.
+
+   Empirically, X-function values drift 6e-3 across
+   ``mp.dps`` 15→60 (:math:`X(-0.55) = 0.866` at dps=15; 0.860 at
+   dps=60). This is **not** convergence — it is the algorithm
+   sampling closer and closer to the divergent endpoint at higher
+   precision. Either:
+
+   (a) Atalay's Eq 40 has a missing :math:`(1-\nu^2)` factor
+       (typesetter loss),
+   (b) the integral is interpreted as a Cauchy principal value (and
+       Atalay's Tables are generated under that regularisation), or
+   (c) the closed-form Case–Plazcek–Hofmann 1961 X-function for
+       isotropic should be substituted.
+
+   Phase-2.2 also showed that switching the X-function evaluator to
+   a μ=tanh(t) substituted form shifts X(-0.99) by 1.2 % but only
+   shifts the K_j moments by 0.3-0.6 % and 2d_crit by ≤ 0.1 %. The
+   X-function tanh-fix is therefore **a robustness improvement, not
+   a correctness fix** — pinned by
+   :mod:`tests.derivations.test_case_method_x_function`. See
+   ``.claude/agent-memory/numerics-investigator/kj_residual_xfunction_divergent_2026_05_03.md``
+   for the full investigation.
 
 .. _theory-case-extrapolated-endpoint-eq42:
 
-Extrapolated endpoint :math:`z_0` (Atalay Eq 42)
---------------------------------------------------------------------------------
+Extrapolated endpoint :math:`z_0` (Atalay Eq 42) and the ERR-037 fix
+---------------------------------------------------------------------
 
 .. math::
    :label: singular-eigenfunction-eq42
@@ -513,17 +924,146 @@ Extrapolated endpoint :math:`z_0` (Atalay Eq 42)
                                      + 3 f_1 (1-c)^2 \mu^2 d(-\mu^2)\Big]\,
                                 \ln\!\frac{\nu_0 + \mu}{\nu_0 - \mu}
 
-.. note:: TODO — Archivist expansion needed.
+**SymPy derivation:**
+:func:`...origins.slab_sphere_derivations.derive_atalay_extrapolated_endpoint_eq42`.
+**Test gate:**
+:func:`tests.derivations.test_case_method_z0`.
 
-   The SymPy derivation lives in
-   :mod:`orpheus.derivations.continuous.singular_eigenfunction.origins.slab_sphere_derivations`
-   (function ``derive_atalay_extrapolated_endpoint_eq42``).
+Atalay Eq 42 is the **Milne extrapolated endpoint** for linearly-
+anisotropic scattering — the distance beyond the physical surface
+where the asymptotic-form scalar flux extrapolates to zero. Together
+with the Eq 46 / Eq 54 criticality conditions, :math:`z_0` is a
+load-bearing input.
 
-   Implementation note: reproduces Atalay Table 1 :math:`z_0(c, f_1=0)`
-   to ≤ 1e-12 absolute after the ERR-037 fix (μ = tanh(t) substitution
-   resolving the slowly-cancelling endpoint pole). See
-   :mod:`tests.derivations.test_case_method_z0` for the regression
-   gate.
+.. _theory-se-err037:
+
+ERR-037 — μ = tanh(t) endpoint substitution (fixed 2026-05-03)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Failure mode:** the Eq 42 integrand carries the bracket
+:math:`[1 + c\mu^2/(1-\mu^2)]` with a simple pole at :math:`\mu = 1`
+that is **algebraically cancelled** by the
+:math:`\lambda^2(\mu) \sim \log^2(1-\mu)` growth in :math:`g_1(\mu)`.
+The cancellation is mathematically exact, but **inefficient under
+direct mp.quad over (0, 1)**: at ``mp.dps = 15`` the gap to Atalay
+Table 1 is 3.3 %; at dps=25 it is 2.1 %; at dps=35 it is 1.6 %.
+Slow monotone convergence to the wrong asymptote — the canonical
+**Signature 7** fingerprint (see ``numerical-bug-signatures``
+§ Signature 7).
+
+**Fix:** the substitution :math:`\mu = \tanh(t)` maps
+:math:`(0, 1) \to (0, \infty)` with Jacobian
+
+.. math::
+
+   1 - \mu^2 = \mathrm{sech}^2(t),\quad
+   \frac{\mu^2}{1-\mu^2} = \sinh^2(t),\quad
+   \tanh^{-1}(\mu) = t,\quad
+   d\mu = \mathrm{sech}^2(t)\,dt ,
+
+so the :math:`\mathrm{sech}^2(t)` Jacobian **cancels the
+:math:`1/(1-\mu^2)` pole exactly**. The transformed integrand is
+exponentially decaying at :math:`t \to \infty`
+(:math:`g_1 \sim 1/t^2`) and ``mp.quad`` resolves it to **6-7 digits
+at dps=25** in sub-millisecond wall-clock.
+
+**Impact** (relative error on :math:`z_0`):
+
+.. list-table:: ERR-037 ``z_0`` accuracy improvement
+   :header-rows: 1
+   :widths: 15 30 30 25
+
+   * - :math:`c`
+     - :math:`z_0` pre-fix
+     - :math:`z_0` post-fix
+     - Atalay Table 1 truth
+   * - 1.10
+     - 0.6373
+     - 0.645971
+     - 0.645971 (4e-7 rel)
+   * - 1.30
+     - 0.5356
+     - 0.547144
+     - 0.547144 (1.3e-8 rel)
+   * - 1.50
+     - 0.4664
+     - 0.474869
+     - 0.474869 (1e-6 rel)
+   * - 2.00
+     - 0.3520
+     - 0.357551
+     - 0.357551 (1e-6 rel)
+
+Worst-case post-fix: **4e-7 relative** across all 10 Atalay Table 1
+entries. Pinned at 1e-5 absolute by
+:func:`tests.derivations.test_case_method_z0.test_atalay_z0_table1_isotropic`.
+
+The fix propagates downstream: at vacuum BC :math:`R = 0`, the slab
+critical thickness improves from ~1.1 % error to ~0.1 %; the sphere
+:math:`R_c` improves from 0.48 % to **0.001 %** at Sood
+``Ua-1-0-SP``.
+
+**Anti-pattern caught — convention drift hypothesis falsified.** The
+Wave 2-B closeout (2026-05-02) had misdiagnosed the gap as a
+"Case-Zweifel completeness-sum normalisation discrepancy" with
+Atalay's published form, framing the issue as a "multi-day fix"
+requiring a convention-bridge investigation. The actual fix was a
+1-line variable substitution. The diagnostic that resolves the
+ambiguity:
+
+* **Gap increases monotonically with dps but doesn't converge** →
+  endpoint quadrature problem.
+* **Gap is constant in dps** → structural / convention error.
+
+The gap going from 3.3 % at dps=15 → 1.6 % at dps=35 was the
+smoking gun pointing at the quadrature endpoint cause. See
+``.claude/agent-memory/numerics-investigator/wave2_convention_drift_falsified_2026_05_03.md``
+for the full investigation memo.
+
+ERR-037 K_j extended-fix FALSIFIED
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Wave 2-B closeout speculated that the same μ=tanh(t)
+substitution should fix the residual gap on K_j moments
+(:func:`...core.half_range._atalay_K_or_L_moment_value`).
+**Investigation tested directly: hypothesis FALSIFIED.**
+
+* K_j outer ``scipy.quad`` converges fine (rel drift ~1e-11 between
+  baseline ``epsabs=1e-10`` and tight ``epsabs=1e-13``). **NOT
+  Signature 7 at the K_j level.**
+* Bottleneck is X(-ν) accuracy: scipy backend has ~1e-3 relative
+  error vs mpmath dps=30, propagated as :math:`X^2` into K_j.
+* Atalay Eq 40's X-function integrand carries the same
+  :math:`1/(1-\nu^2)` bracket pole and cancelling factor
+  :math:`g_1 \sim 1/\log^2(1-\nu)`. BUT the product is
+  **logarithmically divergent** at :math:`\nu \to 1` (primitive
+  :math:`\propto -1/\log(1-\nu)`, bounded but truncation-dependent).
+* mpmath dps 15→60: X(-0.55) drifts 0.866 → 0.860 (drift 6e-3,
+  monotone, slow). Both the :math:`(0, 1)` and :math:`(0, \infty)`
+  substituted forms give finite values that depend on the
+  algorithm's stopping point near the endpoint.
+* Implementing μ=tanh(t) in :func:`_atalay_X_function_scipy` AND
+  :func:`_atalay_X_function_mpmath` shifted the gap from 4.40% →
+  4.44% on R=0.75 (marginal degradation). Reverted.
+
+**Conclusion:** this is **NOT** Signature 7. The residual gap
+originates in the X-function's algorithm-dependent regularisation
+of a divergent integrand. Atalay's Eq 40 is either (a) missing a
+factor lost in typesetting, (b) interpreted under a specific
+regularisation (Cauchy P.V. or implicit via the Eq 26 definition
+path), or (c) needs the closed-form Case-Plazcek-Hofmann 1961
+X-function for isotropic. Tracked as a separate investigation,
+regression-pinned by
+:mod:`tests.derivations.test_case_method_x_function`. See the
+investigation memo
+``.claude/agent-memory/numerics-investigator/kj_residual_xfunction_divergent_2026_05_03.md``.
+
+The lesson: **don't apply Signature 7's substitution recipe blindly
+to call sites that look similar without verifying the same pole
+structure exists.** Phase-1 verdict on convergence-with-tolerance
+fingerprint should be: "scipy.quad converges fine at the OUTER
+level → look INSIDE the integrand for sub-routines whose own
+convergence is the bottleneck."
 
 .. _theory-case-validity-eq5:
 
@@ -535,21 +1075,277 @@ Validity bound (Atalay Eq 5)
 
    c \le 1 + \frac{1}{3 f_1}
 
-.. note:: TODO — Archivist expansion needed.
+.. (vv-status rationale) governing: Atalay validity bound — for f_1 > 0, c must lie in a band; outside it, complex eigenvalue pairs appear (Dahl-Sjöstrand 1979) and Atalay's first-order Fredholm iteration breaks. Verified by V_case.9 (test_v_case_9_validity_bound_eq5).
+.. vv-status: singular-eigenfunction-eq5 documented
 
-   The SymPy derivation lives in
-   :mod:`orpheus.derivations.continuous.singular_eigenfunction.origins.slab_sphere_derivations`
-   (function ``derive_atalay_validity_bound_eq5``).
-   Test gate:
-   :func:`tests.derivations.test_case_method_symbolic.test_v_case_9_validity_bound_eq5`.
+**SymPy derivation:**
+:func:`...origins.slab_sphere_derivations.derive_atalay_validity_bound_eq5`.
+**Test gate:**
+:func:`tests.derivations.test_case_method_symbolic.test_v_case_9_validity_bound_eq5`.
 
-   Brief: Atalay Eq. 5 is the **one-pair-of-discrete-modes** range.
-   For :math:`f_1 = 0` the bound is trivial (all c); for
-   :math:`f_1 = 0.30` the upper limit is :math:`c \le 19/9 \approx 2.111`.
-   Outside this band complex eigenvalues appear (Dahl–Sjöstrand
-   1979; Kohut 1993) and Atalay's first-order Fredholm iteration
-   breaks. The slab/sphere solvers raise :class:`ValueError` if
-   :math:`c` violates the bound.
+Atalay Eq 5 is the **one-pair-of-discrete-modes** range. For
+:math:`f_1 = 0` (isotropic) the bound is trivial (all :math:`c`);
+for :math:`f_1 = 0.30` the upper limit is :math:`c \le 19/9 \approx
+2.111`. Outside this band complex-conjugate eigenvalue pairs appear
+(Dahl–Sjöstrand 1979; Kohut 1993) and Atalay's first-order Fredholm
+iteration breaks. The Branch-2 slab/sphere
+solvers raise :class:`ValueError` if :math:`c` violates the bound,
+via :func:`...anisotropy.linear.check_atalay_validity`.
+
+.. _theory-se-precision-floor:
+
+Atalay Eq 46 / Eq 54 first-order Fredholm precision floor (ERR-038)
+====================================================================
+
+**Status:** **PAPER LIMITATION CHARACTERISED 2026-05-03** — NOT a
+code bug. This entry documents a *reference* limitation, not a
+solver defect, and exists so future investigators don't re-chase
+the gap as a bug.
+
+**Mechanism:** Atalay 1997 § 2 (p. 236) derives Eq 46 from the full
+Fredholm equation Eq 32 by the explicit step
+
+   *"we here skip the zeroth order and proceed directly with the
+   first order approximation. This provides us the required optimum
+   accuracy. The first order approximation necessitates that we
+   omit the integral term in Eq.(32)."*
+
+Tables 2-5 are then computed from Eq 46 with first-order accuracy.
+Atalay (p. 246) further states:
+
+   *"as in the work of Kaper et al. (1974) for isotropic scattering,
+   one may consider to iterate further until a better convergence
+   is obtained… we expect some improvement in the accuracy
+   especially for the small slab thicknesses."*
+
+**Empirical fingerprint** (c=1.30 :math:`f_1 = 0`, cascade
+data):
+
+.. list-table:: ERR-038 — error scales with 1/d_crit
+   :header-rows: 1
+   :widths: 30 30 20 20
+
+   * - 2d_atalay (mfp)
+     - Our 2d (mfp)
+     - Rel error
+     - Regime
+   * - 20.0
+     - 19.99961
+     - 0.002 %
+     - Moderate-d
+   * - 2.0
+     - 2.00071
+     - 0.036 %
+     - Moderate-d
+   * - 0.20
+     - 0.20641
+     - 3.2 %
+     - Small-d
+   * - 0.01456 (R=0.99)
+     - 0.01529
+     - 5.0 %
+     - Small-d, perfect-reflector
+
+The error scales monotonically with :math:`1/d_{\rm crit}` — the
+signature of an omitted-higher-order term that vanishes at large
+:math:`d` (where :math:`T(R, \mu) \to -1` saturates and the omitted
+Fredholm integral contributes negligibly to the boundary residue)
+and dominates at small :math:`d`.
+
+**Cascade evidence ruling out alternative mechanisms:**
+
+1. **Conditioning / cancellation.** Ruled out — K_j moments are
+   dps-independent at bit-identical level across dps 15→40.
+2. **Singular asymptotic** :math:`R \to 1`. Ruled out — error is
+   smooth in :math:`R`; at :math:`R = 0.99`, :math:`c = 1.024` with
+   :math:`2d = 0.20` (Atalay Table 6) the same 3.2 % error appears,
+   demonstrating the gap is in :math:`1/d_{\rm crit}` not in
+   :math:`1/(1-R)`.
+3. **Different quadrature pole.** Ruled out — Phase 1.5 built a
+   :math:`\mu = \tanh(t)` substituted X-function (mpmath) that gives
+   1.2 % different X(-0.99) values, but Phase 2.2 confirmed this
+   changes K_j by 0.3-0.6 % and 2d_crit by < 0.1 % across all 15
+   Table 2 cells.
+4. **X-function singular branch.** Ruled out by the same evidence.
+5. **Atalay paper limitation.** Confirmed by Atalay's own text +
+   the :math:`1/d_{\rm crit}` error scaling fingerprint + the
+   moderate-d machine-precision self-consistency.
+
+The diagnostic that resolves "code bug vs paper floor" is **scaling
+the same physical problem to a regime where the paper's
+approximation is exact** (here: large :math:`d`) and verifying
+machine precision there. This is the structurally-independent
+ground that lets the investigation close as a paper limitation
+rather than open as a bug. Without this test, "uniform 5 % offset
+everywhere" (likely solver bug) cannot be distinguished from "5 %
+scaling with 1/d" (likely paper floor).
+
+**L1 tests that pin the floor:**
+
+* :func:`tests.derivations.test_case_method_slab.test_slab_atalay_table2_r099_first_order_floor`
+  — pins the 7e-2 paper precision floor at R=0.99, with
+  ``catches("ERR-038")`` so any future improvement (e.g. a
+  higher-order Fredholm iteration that closes the gap) signals as
+  an unexpected pass.
+* :func:`tests.derivations.test_case_method_slab.test_slab_atalay_table6_moderate_d_consistency`
+  — pins **1e-4 relative** agreement at :math:`2d \ge 2` mfp, the
+  structurally-independent moderate-d ground.
+
+**Lesson — reference contamination by under-reading the reference's
+own caveats.** When investigating a numerical disagreement with a
+published reference, **read the paper's stated approximation level
+explicitly before assuming the gap is a code bug.** Atalay's text
+twice explicitly states the published values are first-order
+approximations with degraded precision at small slab thicknesses.
+The Wave 2-B closeout had listed R=0.99 as "still 10%+ off, needs
+careful analysis of the singular limit 2d→0", treating it as a
+mathematical singular-limit problem requiring multi-day asymptotic
+analysis. The actual issue is fully documented in Atalay's own
+caveats. See
+``.claude/agent-memory/numerics-investigator/atalay_r099_paper_floor_2026_05_03.md``
+for the cascade memo.
+
+V_case — eight SymPy verifications (Atalay 1997)
+=================================================
+
+The slab/sphere Branch-1 SymPy module
+(:mod:`...origins.slab_sphere_derivations`) ships eight foundation-
+tagged ``derive_*()`` functions covering the Atalay derivation chain.
+
+.. _theory-se-V-case-1:
+
+V_case.1 — Linearly-anisotropic dispersion reduction (Atalay Eqs 11→12)
+------------------------------------------------------------------------
+
+**SymPy derivation:**
+:func:`...origins.slab_sphere_derivations.derive_atalay_dispersion_linear_anisotropic`.
+**Test gate:**
+:func:`tests.derivations.test_case_method_symbolic.test_v_case_1_atalay_dispersion`.
+
+The linearly-anisotropic dispersion relation Eq 11 reduces
+algebraically to Eq 12 — the 1-pair-of-modes form. SymPy verifies the
+reduction via direct expansion + ``simplify()``.
+
+.. _theory-se-V-case-2:
+
+V_case.2 — Symmetry conditions Eqs 13/14 + 47-49
+-------------------------------------------------
+
+**SymPy derivation:**
+:func:`...origins.slab_sphere_derivations.derive_atalay_symmetry_conditions_eq13_14_47_to_49`.
+**Test gate:**
+:func:`tests.derivations.test_case_method_symbolic.test_v_case_2_atalay_symmetry`.
+
+V_case.2 verifies the slab-even / sphere-odd symmetry conditions
+parametrising the parity flip. The slab problem on :math:`[-d, d]`
+admits the symmetric reflection :math:`\psi(x, \mu) = \psi(-x, -\mu)`
+(Atalay Eq 13/14); the sphere on :math:`[-R, R]` admits the
+antisymmetric :math:`\psi(x, \mu) = -\psi(-x, -\mu)` (Atalay Eq 47).
+Eqs 48-49 propagate the parity into the discrete + continuum mode
+decomposition. The structural identity SymPy proves: the boundary
+projection equations transform under the parity flip exactly by the
+T → T_1 substitution that the Branch-2 implementation uses.
+
+.. _theory-se-V-case-3:
+
+V_case.3 — Half-range relations Eqs 28-31 (the load-bearing extension)
+-----------------------------------------------------------------------
+
+**SymPy derivation:**
+:func:`...origins.slab_sphere_derivations.derive_atalay_half_range_eqs28_to_31`.
+**Test gate:**
+:func:`tests.derivations.test_case_method_symbolic.test_v_case_3_half_range`.
+
+V_case.3 is described in :ref:`theory-case-half-range`. Atalay's
+load-bearing technical contribution — the four parallel half-range
+relations that close the deficit blocking previous reflected-slab
+attempts. SymPy verifies the structural parallelism with the McCormick-
+Kušcer 1965 set: both reduce to linear combinations of the same
+X-function evaluations.
+
+.. _theory-se-V-case-4:
+
+V_case.4 — Fredholm form Eqs 27→32
+-----------------------------------
+
+**SymPy derivation:**
+:func:`...origins.slab_sphere_derivations.derive_atalay_fredholm_form_eq27_to_eq32`.
+**Test gate:**
+:func:`tests.derivations.test_case_method_symbolic.test_v_case_4_fredholm_form`.
+
+V_case.4 verifies the Fredholm-form prefactor reduction Eqs 27 →
+32. The prefactor algebra is a load-bearing step in the Atalay
+derivation: it converts the boundary projection (an integral
+equation in the continuum amplitude :math:`A(\nu)`) into the form
+that admits the first-order iteration that produces Eq 46.
+
+.. _theory-se-V-case-5:
+
+V_case.5 — Critical slab Eq 46
+-------------------------------
+
+**SymPy derivation:**
+:func:`...origins.slab_sphere_derivations.derive_atalay_critical_slab_eq46`.
+**Test gate:**
+:func:`tests.derivations.test_case_method_symbolic.test_v_case_5_critical_slab_eq46`.
+
+V_case.5 verifies the structural reduction of Atalay Eq 43 (the
+boundary-condition closure in :math:`(R e^{\pm i a_1}, e^{\pm i
+a_2})`-form) to the arctan form Eq 46. Numerator and denominator of
+the closure ratio are complex conjugates; the log of their ratio is
+:math:`2i \arg(z)`, which gives the arctan form. SymPy verifies the
+algebraic identity.
+
+.. _theory-se-V-case-6:
+
+V_case.6 — Critical sphere Eq 54 via parity flip
+-------------------------------------------------
+
+**SymPy derivation:**
+:func:`...origins.slab_sphere_derivations.derive_atalay_critical_sphere_eq54_via_parity_flip`.
+**Test gate:**
+:func:`tests.derivations.test_case_method_symbolic.test_v_case_6_critical_sphere_eq54_via_parity_flip`
+plus the numerical parity-flip equivalence test
+:mod:`tests.derivations.test_case_method_slab_sphere_parity_flip`.
+
+V_case.6 verifies that the sphere Eq 54 is the slab Eq 46 under the
+parity flip :math:`T \to T_1`, :math:`K_j \to L_j`, sin↔cos shuffle.
+The numerical complement at vacuum BC (where :math:`T = T_1` so
+:math:`K_j = L_j`) confirms bit-for-bit agreement between the slab
+solver at :math:`s=+1` and the sphere solver at :math:`s=-1`.
+
+.. _theory-se-V-case-7:
+
+V_case.7 — Extrapolated endpoint Eq 42 (post-fix)
+--------------------------------------------------
+
+**SymPy derivation:**
+:func:`...origins.slab_sphere_derivations.derive_atalay_extrapolated_endpoint_eq42`.
+**Test gate:** see :ref:`theory-case-extrapolated-endpoint-eq42`
+(the ERR-037 narrative).
+
+V_case.7 verifies the **integrand structure** of Eq 42 against
+Atalay's published form. The L1 numerical gate against Atalay Table
+1 lives at :func:`tests.derivations.test_case_method_z0`; after
+the ERR-037 fix the gate is at 1e-5 absolute. **V_case.7 alone was
+insufficient as L1 verification** — the integrand structure was
+correct but the quadrature evaluator was unconverged. This is the
+canonical case for "L0 derivative-level verification + L1
+value-level numerical verification" — both are needed.
+
+.. _theory-se-V-case-8:
+
+V_case.8 — X-function Eq 40
+----------------------------
+
+See :ref:`theory-case-x-function-eq40`.
+
+.. _theory-se-V-case-9:
+
+V_case.9 — Validity bound Eq 5
+-------------------------------
+
+See :ref:`theory-case-validity-eq5`.
 
 Origins — Branch-1 SymPy algebra-of-record
 ================================================================================
@@ -560,85 +1356,95 @@ SymPy modules:
 * :mod:`...singular_eigenfunction.origins.cylinder_derivations` —
   Westfall–Metcalf 1973 cylinder derivations: bare-cylinder integral-
   equation reduction, dispersion function (re-derivation matching
-  Case 1960 / WM-72 Eq. 18), Bessel-Wronskian identity used in the
-  integrodifferential reduction (Eq. 9), pseudo-eigenfunction
-  structure (Eq. 17 + 19), bare-cylinder closure (Eq. 32 + 30
-  simplification).
+  Case 1960 / WM-72 Eq 18), Bessel-Wronskian identity used in the
+  integrodifferential reduction (Eq 9), pseudo-eigenfunction
+  structure (Eq 17 + 19, **with typo correction**), bare-cylinder
+  closure (Eq 32 + 30 simplification, **with q-formula correction**),
+  Mitsis-Zweifel singular subtraction (Eq 31).
 
 * :mod:`...singular_eigenfunction.origins.slab_sphere_derivations` —
-  Atalay 1997 slab + sphere derivations: dispersion relation reduction
-  Eq. 11 → 12 (linearly anisotropic), parity flip Eqs. 47-49 mapping
-  slab-odd → sphere, half-range relations Eqs. 28-31, Fredholm-form
-  prefactor Eq. 32, criticality conditions Eqs. 46 (slab) / 54
-  (sphere), X-function Eq. 40, extrapolated endpoint Eq. 42, validity
-  bound Eq. 5.
+  Atalay 1997 slab + sphere derivations: dispersion relation
+  reduction Eq 11 → 12 (linearly anisotropic), parity flip Eqs 47-49
+  mapping slab-odd → sphere, half-range relations Eqs 28-31, Fredholm-
+  form prefactor Eq 32, criticality conditions Eqs 46 (slab) / 54
+  (sphere), X-function Eq 40, extrapolated endpoint Eq 42, validity
+  bound Eq 5.
 
 .. _theory-case-sood-coverage:
 
 Sood case coverage (Atalay)
 --------------------------------------------------------------------------------
 
-.. note:: TODO — Archivist expansion needed.
+The Atalay-anchored case catalogue lives in
+:mod:`orpheus.derivations.continuous.sood_registry.atalay1997` and
+covers the **reflected + linearly-anisotropic cross-product cases**
+that lie outside both the Sood/Forster/Parsons LA-13511 truth set
+(which focuses on bare configurations) and the Burkart-Ishiguro-
+Siewert 1976 F_N reference [BurkartIshiguroSiewert1976]_ (vacuum-only). Specifically, Atalay
+tabulates:
 
-   The Atalay-anchored case catalogue lives in
-   :mod:`orpheus.derivations.continuous.sood_registry.atalay1997`.
+* :math:`(c, R, f_1)` triples for :math:`R \in \{0, 0.25, 0.50,
+  0.75, 0.99\}` and :math:`f_1 \in \{0, 0.10, 0.20, 0.30\}` (slab,
+  even modes, Tables 2-5).
+* :math:`f_1 = 0.10` only (sphere, odd modes, Table 10).
 
-   Brief: Atalay 1997 is the **primary source** for the
-   reflected+linearly-anisotropic cross-product cases that lie
-   outside both the Sood/Forster/Parsons LA-13511 truth set
-   (which focuses on bare configurations) and the
-   Burkart–Ishiguro–Siewert 1976 F_N reference [BurkartIshiguroSiewert1976]_ (vacuum-only).
-   Specifically, Atalay tabulates :math:`(c, R, f_1)` triples for
-   :math:`R \in \{0, 0.25, 0.50, 0.75, 0.99\}` and
-   :math:`f_1 \in \{0, 0.10, 0.20, 0.30\}` (slab, even modes, Tables 2-5)
-   and :math:`f_1 = 0.10` only (sphere, odd modes, Table 10).
+The current ORPHEUS Atalay case catalogue ships 7 cases (6 slab + 1
+sphere); see :doc:`sood_registry` for the full list.
 
 .. _theory-se-errata:
 
 Errata caught (V&V publication artifacts)
 ================================================================================
 
-.. note:: TODO — Archivist expansion needed.
+This implementation slice caught **two errata in the primary
+literature**, both discovered by the algebra-of-record SymPy
+re-derivation discipline. Documenting them here as a publication
+artifact of the V&V process — both errata persisted across multiple
+prior solver iterations until the SymPy discipline caught them.
 
-   Brief: this implementation slice caught **two errata**, both
-   discovered by the algebra-of-record SymPy re-derivation
-   discipline:
+WM-72 Eq 17 — :math:`\nu_0` should be :math:`\nu_0^2`
+-------------------------------------------------------
 
-   * **WM-72 Eq. 17** (printed): :math:`\eta_{0l}(\mu) = c_l\,\nu_{0l}/
-     (\nu_{0l}^2 - \mu^2)`. **Direct substitution into Eq. 15 fails**:
-     the LHS reduces to :math:`c\nu_0\mu^2`, the RHS reads
-     :math:`c\nu_0^2\mu^2` — mismatched power of :math:`\nu_0`. The
-     correct form is :math:`\eta_{0l}(\mu) = c_l\,\nu_{0l}^2/
-     (\nu_{0l}^2 - \mu^2)`, which:
+WM-72 Eq 17 (printed): :math:`\eta_{0l}(\mu) = c_l\,\nu_{0l}/
+(\nu_{0l}^2 - \mu^2)`. Direct substitution into Eq 15 fails:
 
-     - Satisfies Eq. 15 exactly.
-     - Reproduces Eq. 21d's :math:`\nu_0^4` factor on
-       :math:`N_0 = \int_0^1 \mu^2\eta_0^2\,d\mu`.
-     - Closes the half-range normalisation Eq. 14 under dispersion.
+* LHS reduces to :math:`c\nu_0\mu^2`;
+* RHS reads :math:`c\nu_0^2\mu^2`.
 
-     SymPy V_se-cyl.2 caught this typo on first run.
+Mismatched power of :math:`\nu_0`. The correct form is
+:math:`\eta_{0l}(\mu) = c_l\,\nu_{0l}^2/(\nu_{0l}^2 - \mu^2)`,
+which:
 
-   * **q-formula in Phase B1 SymPy** (V_se-cyl.5, original): the
-     Phase B1 SymPy module wrote
-     :math:`q(\nu, \mu) = (R/\nu)\,K_0\,I_1 + R\,K_1\,I_0`, but the
-     WM-72 paper (Eq. 28 footnote) actually uses
-     :math:`(R/\mu)\,K_1\,I_0` — the :math:`R` in the second term
-     should be divided by :math:`\mu`. The Wronskian identity
-     :math:`q(\mu, \mu) = 1` (which is structurally required by
-     Eq. 29b's :math:`\nu \to \mu` limit) FORCES the :math:`(R/\mu)`
-     denominator. The original B1 form gave :math:`q(\mu, \mu) \approx
-     0.72`, inconsistent with Eq. 29b. The corrected form (now in
-     V_se-cyl.5) closes the Wronskian identity exactly.
+* Satisfies Eq 15 exactly.
+* Reproduces Eq 21d's :math:`\nu_0^4` factor on
+  :math:`N_0 = \int_0^1 \mu^2\eta_0^2\,d\mu`.
+* Closes the half-range normalisation Eq 14 under dispersion.
 
-     This was caught by the post-hardening cross-check between
-     V_se-cyl.5's algebraic claim and the Wronskian identity
-     V_se-cyl.3.
+V_se-cyl.2 caught the typo on first SymPy run.
 
-   The discipline of re-deriving every published equation in SymPy
-   and the discipline of cross-checking every derived identity
-   against the Wronskian (or any other independent structural
-   relation) are now both empirically validated as load-bearing for
-   V&V correctness.
+q-formula in Phase B1 SymPy — :math:`R` should be :math:`R/\mu`
+----------------------------------------------------------------
+
+The Phase B1 SymPy module wrote :math:`q(\nu, \mu) = (R/\nu)\,K_0\,
+I_1 + R\,K_1\,I_0`, but the WM-72 paper (Eq 28 footnote) actually
+uses :math:`(R/\mu)\,K_1\,I_0` — the :math:`R` in the second term
+should be divided by :math:`\mu`. The Wronskian identity
+:math:`q(\mu, \mu) = 1` (which is structurally required by
+Eq 29b's :math:`\nu \to \mu` limit) FORCES the :math:`(R/\mu)`
+denominator. The original B1 form gave :math:`q(\mu, \mu) \approx
+0.72`, inconsistent with Eq 29b. The corrected form (now in
+V_se-cyl.5) closes the Wronskian identity exactly.
+
+This was caught by the post-hardening cross-check between
+V_se-cyl.5's algebraic claim and the Wronskian identity V_se-cyl.3
+— a load-bearing demonstration that **cross-checking every derived
+identity against an independent structural relation is mandatory**,
+not optional.
+
+The discipline of re-deriving every published equation in SymPy
+and the discipline of cross-checking every derived identity against
+the Wronskian (or any other independent structural relation) are
+now both empirically validated as load-bearing for V&V correctness.
 
 References
 ==========
@@ -672,10 +1478,39 @@ References
    *Nuclear Science and Engineering* **61**, 72-81.
 
 * **Metcalf & Zweifel 1968** — *Nucl. Sci. Eng.* **33**, 318. — the
-  singular-subtraction technique used in WM-72 Eqs. 31 and 33.
+  singular-subtraction technique used in WM-72 Eqs 31 and 33.
 * **Atkinson 1976** — SIAM, *A Survey of Numerical Methods for the
   Solution of Fredholm Integral Equations of the Second Kind*,
   Chapter 6 (product integration).
 * **Berrut & Trefethen 2004** — *SIAM Review* **46**, 501-517,
   "Barycentric Lagrange Interpolation." — the differentiation
-  matrix used for the Eq. 31 diagonal handling.
+  matrix used for the Eq 31 diagonal handling.
+* **Kaper, Lindeman, Leaf 1974** — *NSE* **54**, 94. — the
+  Wiener-Hopf Fredholm iteration baseline; used in
+  :ref:`theory-fn-method` for slab + sphere interior flux
+  reconstruction.
+* **Dahl, E.B. & Sjöstrand, N.G. 1979** — *Nuclear Science and
+  Engineering* **69**, 114. — Eigenvalue spectrum of multiplying
+  slabs and spheres for monoenergetic neutrons with anisotropic
+  scattering. Identifies the regime outside Atalay Eq 5 where
+  complex-conjugate eigenvalue pairs appear.
+
+Internal references:
+
+* Method-implementer closeouts:
+  ``.claude/agent-memory/method-implementer/wave_2b_atalay_case_method.md``
+  (Atalay slab/sphere shipment),
+  ``.claude/agent-memory/method-implementer/wm72_cylinder_phase_b1.md``
+  (cylinder shipment).
+* Numerics-investigator memos:
+  ``.claude/agent-memory/numerics-investigator/wave2_convention_drift_falsified_2026_05_03.md``
+  (ERR-037),
+  ``.claude/agent-memory/numerics-investigator/atalay_r099_paper_floor_2026_05_03.md``
+  (ERR-038),
+  ``.claude/agent-memory/numerics-investigator/kj_residual_xfunction_divergent_2026_05_03.md``
+  (X-function divergent integrand).
+* :doc:`fn_method` — companion F_N collocation reference, sharing
+  the Wiener-Hopf X-function below the trusted-library line.
+* :doc:`trajectory_resolvent` — Variant α reference family on the
+  same Sood ``Ua-1-0-CY`` truth value (cylinder cross-check).
+* :doc:`sood_registry` — Sood + Atalay case catalogue.
