@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2141**
+Total tests collected: **2235**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 587, 27.4%
-   L1, 675, 31.5%
-   L2, 36, 1.7%
+   L0, 587, 26.3%
+   L1, 675, 30.2%
+   L2, 36, 1.6%
    L3, 0, 0.0%
-   foundation, 826, 38.6%
+   foundation, 920, 41.2%
    unmarked, 17, 0.8%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2045
+   explicit, 2139
    verify, 0
    class-name, 46
    func-name, 0
@@ -58,8 +58,11 @@ Module × level grid
    cp/test_sphere, 0, 9, 0, 0, 0, 0
    cp/test_verification, 1, 25, 5, 0, 0, 0
    cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
+   cross_method/test_polymorphism, 0, 0, 0, 0, 6, 0
+   cross_method/test_production_protocol_smoke, 0, 0, 0, 0, 7, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
+   data/test_mixture_scattering_ratio, 0, 0, 0, 0, 3, 0
    derivations/test_atkinson_product_nystrom, 0, 5, 0, 0, 3, 3
    derivations/test_capability_matrices, 0, 0, 0, 0, 3, 0
    derivations/test_carlvik_galerkin_slab, 0, 18, 0, 0, 0, 0
@@ -86,7 +89,10 @@ Module × level grid
    derivations/test_fn_method_moment_space, 0, 0, 0, 0, 14, 0
    derivations/test_fn_projection_vs_kll_flux, 0, 4, 0, 0, 4, 2
    derivations/test_fn_sood_table10_symmetric_pu_h2o, 0, 1, 0, 0, 2, 0
+   derivations/test_galerkin_spectral_basis_space, 0, 0, 0, 0, 23, 0
+   derivations/test_geometry_spec_multi_region, 0, 0, 0, 0, 15, 0
    derivations/test_kernels, 55, 0, 0, 0, 0, 0
+   derivations/test_moment_space_from_problem_unified, 0, 0, 0, 0, 6, 0
    derivations/test_mu_weighted_basis, 0, 0, 0, 0, 1, 0
    derivations/test_path_ai_legacy_plain_gl_signature, 0, 3, 0, 0, 1, 0
    derivations/test_peierls_assembly_drivers, 0, 0, 0, 0, 9, 0
@@ -140,17 +146,19 @@ Module × level grid
    derivations/test_quadrature, 7, 0, 0, 0, 44, 0
    derivations/test_singular_eigenfunction_cylinder, 0, 8, 0, 0, 14, 0
    derivations/test_singular_eigenfunction_cylinder_xverif, 0, 1, 0, 0, 0, 0
+   derivations/test_singular_eigenfunction_spectrum, 0, 0, 0, 0, 19, 0
    derivations/test_sood_registry_cache, 0, 0, 0, 0, 15, 0
    derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 108, 0
    derivations/test_sood_registry_wide_bare_critical, 0, 17, 0, 0, 2, 0
    derivations/test_sood_registry_wide_kinf, 0, 0, 0, 0, 49, 0
-   derivations/test_trajectory_resolvent_billiard, 0, 0, 0, 0, 15, 0
+   derivations/test_trajectory_resolvent_billiard, 0, 0, 0, 0, 11, 0
    derivations/test_trajectory_resolvent_chord_oracle, 0, 0, 0, 0, 21, 0
    derivations/test_trajectory_resolvent_power_iterate, 0, 0, 0, 0, 6, 0
+   derivations/test_transport_solver_protocol, 0, 0, 0, 0, 14, 0
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
-   geometry/test_geometry, 0, 0, 0, 0, 75, 0
+   geometry/test_geometry, 0, 0, 0, 0, 80, 0
    homogeneous/test_continuous_reference, 0, 7, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 4, 0, 0, 0, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
@@ -418,7 +426,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **10** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **22** of the testable equations found on theory pages are orphan.
 
 - ``billiard-rank2-S``
 - ``billiard-rank2-T``
@@ -430,6 +438,18 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``fn-method-moment-space-bc-vacuum``
 - ``fn-method-moment-space-fn-ansatz``
 - ``fn-method-moment-space-galerkin-system``
+- ``galerkin-spectral-bte``
+- ``galerkin-spectral-carlvik-integral``
+- ``galerkin-spectral-eq4``
+- ``galerkin-spectral-orthogonality``
+- ``spectrum-case-eigenfunction-equation``
+- ``spectrum-case-eigenfunction-explicit``
+- ``spectrum-continuum-eigenfunction``
+- ``spectrum-dispersion-relation``
+- ``spectrum-expansion-theorem``
+- ``spectrum-full-decomposition``
+- ``spectrum-transport-equation``
+- ``spectrum-x-function``
 
 Documented-only equations
 -------------------------
