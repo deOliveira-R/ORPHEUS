@@ -114,9 +114,35 @@ def _regenerate_peierls_nystrom_matrix(app):
         )
 
 
+# -- Auto-generate F_N method capability matrix -----------------------
+#
+# Runs `python -m tools.verification.generate_fn_method_matrix` before
+# Sphinx collects sources so the capability table in
+# `docs/theory/fn_method.rst` cannot drift from the registry function
+# `orpheus.derivations.continuous.fn_method.cases.capability_rows()`.
+# Interim per-method hook — superseded by a meta-generator in the
+# same series of changes.
+
+def _regenerate_fn_method_matrix(app):
+    import subprocess
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "tools.verification.generate_fn_method_matrix"],
+            cwd=project_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as e:
+        app.warn(
+            f"fn_method capability matrix regeneration failed: {e.stderr}"
+        )
+
+
 def setup(app):
     app.connect("builder-inited", _regenerate_verification_matrix)
     app.connect("builder-inited", _regenerate_peierls_nystrom_matrix)
+    app.connect("builder-inited", _regenerate_fn_method_matrix)
 
 # -- Options for mathjax -----------------------------------------------
 

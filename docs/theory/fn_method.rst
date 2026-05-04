@@ -50,6 +50,21 @@ Key Facts
    The archivist agent will expand each TODO marker into the full
    narrative.
 
+
+Capabilities at a glance — what references this module ships
+=============================================================
+
+**For readers trying to answer "what F_N method references do we have
+for problem class X?"** the table below is the canonical index. The
+table body is auto-generated at Sphinx build time by
+:mod:`tools.verification.generate_fn_method_matrix` from the registry
+function
+:func:`orpheus.derivations.continuous.fn_method.cases.capability_rows`
+— so the matrix cannot drift from the shipping registry.
+
+.. include:: _fn_method_capability_matrix.inc.rst
+
+
 Why F_N at all?
 ================
 
