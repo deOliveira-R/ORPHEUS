@@ -1190,6 +1190,10 @@ All incoming angular fluxes at the face are set to zero:
 
    \psi_n^{\rm in} = 0
 
+.. (vv-status rationale) definition: Definitional / notation introduction. Operational rule ψ_n^in = 0 for vacuum boundary; semantics exercised by every vacuum-BC test (test_boundary_conditions, MMS suite); no isolated identity to verify.
+.. vv-status: vacuum-bc documented
+
+
 In the 1-D cumprod path, this means the recurrence starts from zero
 instead of the reflected outgoing flux.  In the 2-D wavefront sweep,
 the reflective-partner copy is skipped, leaving incoming-face angular

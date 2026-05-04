@@ -45,6 +45,7 @@ import pytest
 
 
 @pytest.mark.l0
+@pytest.mark.verifies("singular-eigenfunction-eq40")
 @pytest.mark.parametrize("c, nu_eval", [(1.30, 0.55), (1.30, 0.85)])
 def test_x_integrand_logarithmic_divergence_fingerprint(c, nu_eval):
     """The Atalay Eq 40 integrand drifts >1e-4 across mpmath dps 15→60.
@@ -94,6 +95,7 @@ def test_x_integrand_logarithmic_divergence_fingerprint(c, nu_eval):
 
 
 @pytest.mark.l1
+@pytest.mark.verifies("singular-eigenfunction-eq40", "singular-eigenfunction-eq46")
 @pytest.mark.parametrize("c, R, d2_atalay_table2, expected_pct", [
     (1.30, 0.25, 1.40621, 1.13),  # 1.13% post-ERR-037 baseline
     (1.30, 0.50, 0.89317, 2.87),  # 2.87% post-ERR-037 baseline

@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1998**
+Total tests collected: **2001**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 587, 29.4%
+   L0, 587, 29.3%
    L1, 644, 32.2%
    L2, 36, 1.8%
    L3, 0, 0.0%
-   foundation, 714, 35.7%
-   unmarked, 17, 0.9%
+   foundation, 717, 35.8%
+   unmarked, 17, 0.8%
 
 Tagging source
 --------------
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1902
+   explicit, 1905
    verify, 0
    class-name, 46
    func-name, 0
@@ -60,6 +60,7 @@ Module × level grid
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
    derivations/test_atkinson_product_nystrom, 0, 5, 0, 0, 3, 3
+   derivations/test_capability_matrices, 0, 0, 0, 0, 3, 0
    derivations/test_carlvik_galerkin_slab, 0, 18, 0, 0, 0, 0
    derivations/test_carlvik_galerkin_sood_registry, 0, 5, 0, 0, 2, 0
    derivations/test_carlvik_galerkin_sphere, 0, 18, 0, 0, 0, 0
@@ -283,8 +284,12 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``kll-1974-sphere-flux``, 10
    ``peierls-greens-cylinder-architecture``, 10
    ``peierls-greens-slab-architecture``, 10
+   ``peierls-vacuum-bc-flux``, 10
+   ``peierls-vacuum-bc-row-sum-gate``, 10
    ``peierls-white-bc``, 10
+   ``singular-eigenfunction-eq42``, 10
    ``dd-recurrence``, 9
+   ``singular-eigenfunction-eq46``, 9
    ``tau-m``, 9
    ``tau-p``, 9
    ``bare-slab-buckling``, 8
@@ -314,6 +319,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``en-kernel-special-values``, 5
    ``peierls-cyl-Gbc-3d-final``, 5
    ``peierls-greens-cylinder-T``, 5
+   ``singular-eigenfunction-eq40``, 5
    ``xs-interp``, 5
    ``absorption-xs``, 4
    ``atalay-eq46-slab-eq54-sphere-parity``, 4
@@ -324,6 +330,10 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``hebert-3-323``, 4
    ``keff-update``, 4
    ``macro-sum``, 4
+   ``peierls-greens-V-alpha-1``, 4
+   ``peierls-greens-V-alpha-2``, 4
+   ``peierls-vacuum-bc-slab``, 4
+   ``peierls-white-bc-slab``, 4
    ``sn-mms-hetero-psi``, 4
    ``sn-mms-hetero-qext``, 4
    ``transport-cartesian-2d``, 4
@@ -342,6 +352,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``moc-mms-qext``, 3
    ``moc-wigner-seitz``, 3
    ``number-density``, 3
+   ``peierls-vacuum-bc-cylinder``, 3
+   ``peierls-vacuum-bc-sphere``, 3
    ``sigma-zero``, 3
    ``atalay-eq54-sphere-vacuum-isotropic``, 2
    ``atalay-table6-eigenvalue-moderate-d-consistency``, 2
@@ -351,6 +363,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-slab-Pesc-mode``, 2
    ``richardson-diffusion``, 2
    ``roulette-restore``, 2
+   ``singular-eigenfunction-eq54``, 2
    ``sn-case-back-substitution``, 2
    ``sn-case-matching-matrix``, 2
    ``sn-case-per-ordinate``, 2
@@ -362,9 +375,13 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-mms-p1-qext``, 2
    ``branching``, 1
    ``collision-estimator``, 1
+   ``e1-decomposition``, 1
    ``majorant``, 1
    ``nm-1980-reflected-slab-fn``, 1
    ``normalisation``, 1
+   ``peierls-class-b-Pss-homogeneous``, 1
+   ``peierls-greens-T00-integrand``, 1
+   ``peierls-greens-V-alpha-3``, 1
    ``peierls-greens-annulus-3d-chord-scaling``, 1
    ``peierls-greens-annulus-impact-parameter-partition``, 1
    ``peierls-greens-annulus-through-rank2``, 1
@@ -372,12 +389,15 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-greens-cylinder-impact-parameter``, 1
    ``peierls-greens-cylinder-in-plane-speed``, 1
    ``peierls-greens-cylinder-trajectory``, 1
+   ``peierls-greens-function-architecture``, 1
    ``peierls-greens-hollow-sph-impact-parameter-partition``, 1
    ``peierls-greens-hollow-sph-through-rank2``, 1
    ``peierls-greens-slab-asym-closure``, 1
    ``peierls-greens-slab-asym-resolvent``, 1
    ``peierls-greens-slab-trajectory``, 1
+   ``peierls-greens-surface-fixed-point``, 1
    ``sigT-computed``, 1
+   ``singular-eigenfunction-eq5``, 1
    ``sn-mms-2d-2g-qext``, 1
    ``sn-mms-2d-psi``, 1
    ``sn-mms-2d-qext``, 1
@@ -393,95 +413,19 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **78** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **0** of the testable equations found on theory pages are orphan.
 
-- ``c-in-remapping``
-- ``e1-decomposition``
-- ``mode-conservation-target``
-- ``peierls-3d``
-- ``peierls-M-rank-1``
-- ``peierls-M-rank-2``
-- ``peierls-WM-WL-asymmetric``
-- ``peierls-bc-general``
-- ``peierls-bc-operator``
-- ``peierls-boltzmann``
-- ``peierls-change-of-basis``
-- ``peierls-class-b-Jn-canonical``
-- ``peierls-class-b-Pss-homogeneous``
-- ``peierls-class-b-hebert-closure``
-- ``peierls-cyl-Pss-derivation``
-- ``peierls-cyl-foundations``
-- ``peierls-factored-kernel``
-- ``peierls-greens-A1-split``
-- ``peierls-greens-A5-specular``
-- ``peierls-greens-L0``
-- ``peierls-greens-Lp``
-- ``peierls-greens-T-alpha``
-- ``peierls-greens-T-mu-surf``
-- ``peierls-greens-T00-integrand``
-- ``peierls-greens-V-alpha-1``
-- ``peierls-greens-V-alpha-2``
-- ``peierls-greens-V-alpha-3``
-- ``peierls-greens-bounce-period-integral``
-- ``peierls-greens-bounce-sum-alpha``
-- ``peierls-greens-defining-bvp``
-- ``peierls-greens-fixed-source-iteration``
-- ``peierls-greens-function-architecture``
-- ``peierls-greens-garcia-convention``
-- ``peierls-greens-hollow-sph-outer-only-resolvent``
-- ``peierls-greens-k-inf``
-- ``peierls-greens-mg-source``
-- ``peierls-greens-mr-piecewise-tau``
-- ``peierls-greens-mr-trajectory-segments``
-- ``peierls-greens-mu-surf``
-- ``peierls-greens-sanchez-A6``
-- ``peierls-greens-slab-asym-monodromy``
-- ``peierls-greens-slab-bounce-period``
-- ``peierls-greens-surface-fixed-point``
-- ``peierls-greens-trajectory-integral``
-- ``peierls-greens-unification-resolvent``
-- ``peierls-half-range-inner-products``
-- ``peierls-integral-form``
-- ``peierls-mg-operator``
-- ``peierls-operator-factorisation``
-- ``peierls-operator-form``
-- ``peierls-rank-n-P-esc-moment``
-- ``peierls-rank-n-jacobian-derivation``
-- ``peierls-slab-foundations``
-- ``peierls-slab-polar``
-- ``peierls-specular-M-tridiagonal``
-- ``peierls-specular-R-formula``
-- ``peierls-specular-T-matrix``
-- ``peierls-specular-multibounce-formula``
-- ``peierls-sph-ps1982-foundations``
-- ``peierls-sphere-G-bc``
-- ``peierls-sphere-equation``
-- ``peierls-sphere-nystrom``
-- ``peierls-sphere-ray-optical-depth``
-- ``peierls-svd``
-- ``peierls-tensor-G-definition``
-- ``peierls-tensor-P-definition``
-- ``peierls-vacuum-bc-cylinder``
-- ``peierls-vacuum-bc-flux``
-- ``peierls-vacuum-bc-row-sum-gate``
-- ``peierls-vacuum-bc-slab``
-- ``peierls-vacuum-bc-sphere``
-- ``peierls-white-bc-slab``
-- ``singular-eigenfunction-eq40``
-- ``singular-eigenfunction-eq42``
-- ``singular-eigenfunction-eq46``
-- ``singular-eigenfunction-eq5``
-- ``singular-eigenfunction-eq54``
-- ``vacuum-bc``
+*(none — every testable theory equation has at least one verifying test)*
 
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **55** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **114** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bickley-integral``
 - ``boltzmann``
 - ``burst-criterion``
+- ``c-in-remapping``
 - ``clad-heat``
 - ``conservative-form``
 - ``convergence-rate``
@@ -503,7 +447,20 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``group-flux``
 - ``group-xs``
 - ``maxwellian``
+- ``mode-conservation-target``
 - ``one-over-E``
+- ``peierls-3d``
+- ``peierls-M-rank-1``
+- ``peierls-M-rank-2``
+- ``peierls-WM-WL-asymmetric``
+- ``peierls-bc-general``
+- ``peierls-bc-operator``
+- ``peierls-boltzmann``
+- ``peierls-change-of-basis``
+- ``peierls-class-b-Jn-canonical``
+- ``peierls-class-b-hebert-closure``
+- ``peierls-cyl-Pss-derivation``
+- ``peierls-cyl-foundations``
 - ``peierls-cylinder-equation``
 - ``peierls-cylinder-green-2d``
 - ``peierls-cylinder-nystrom``
@@ -516,24 +473,69 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-delta-tracking-equivalence``
 - ``peierls-e1-derivation``
 - ``peierls-exp-stretched-mu``
+- ``peierls-factored-kernel``
+- ``peierls-greens-A1-split``
+- ``peierls-greens-A5-specular``
+- ``peierls-greens-L0``
+- ``peierls-greens-Lp``
+- ``peierls-greens-T-alpha``
+- ``peierls-greens-T-mu-surf``
+- ``peierls-greens-bounce-period-integral``
+- ``peierls-greens-bounce-sum-alpha``
+- ``peierls-greens-defining-bvp``
+- ``peierls-greens-fixed-source-iteration``
+- ``peierls-greens-garcia-convention``
+- ``peierls-greens-hollow-sph-outer-only-resolvent``
+- ``peierls-greens-k-inf``
+- ``peierls-greens-mg-source``
+- ``peierls-greens-mr-piecewise-tau``
+- ``peierls-greens-mr-trajectory-segments``
+- ``peierls-greens-mu-surf``
+- ``peierls-greens-sanchez-A6``
+- ``peierls-greens-slab-asym-monodromy``
+- ``peierls-greens-slab-bounce-period``
+- ``peierls-greens-trajectory-integral``
+- ``peierls-greens-unification-resolvent``
+- ``peierls-half-range-inner-products``
+- ``peierls-integral-form``
 - ``peierls-ki1-derivation``
+- ``peierls-mg-operator``
+- ``peierls-operator-factorisation``
+- ``peierls-operator-form``
 - ``peierls-point-kernel-3d``
 - ``peierls-polar-jacobian-cancellation``
+- ``peierls-rank-n-P-esc-moment``
+- ``peierls-rank-n-jacobian-derivation``
 - ``peierls-scaled-chebyshev``
+- ``peierls-slab-foundations``
+- ``peierls-slab-polar``
+- ``peierls-specular-M-tridiagonal``
+- ``peierls-specular-R-formula``
+- ``peierls-specular-T-matrix``
+- ``peierls-specular-multibounce-formula``
+- ``peierls-sph-ps1982-foundations``
+- ``peierls-sphere-G-bc``
+- ``peierls-sphere-equation``
 - ``peierls-sphere-green-3d``
+- ``peierls-sphere-nystrom``
 - ``peierls-sphere-polar``
 - ``peierls-sphere-r-prime``
+- ``peierls-sphere-ray-optical-depth``
 - ``peierls-sphere-rho-max``
 - ``peierls-sphere-row-sum-identity``
 - ``peierls-surface-centred-chord-discriminant``
 - ``peierls-surface-centred-chord-quadratic``
 - ``peierls-surface-centred-tangent-angles``
+- ``peierls-svd``
 - ``peierls-tau-coordinate-transform``
+- ``peierls-tensor-G-definition``
+- ``peierls-tensor-P-definition``
 - ``peierls-unified``
 - ``power-equation``
 - ``precursor-equation``
 - ``sigs-convention``
 - ``transport-equation``
+- ``vacuum-bc``
 
 L0 error-catalog coverage
 -------------------------

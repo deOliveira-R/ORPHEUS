@@ -50,6 +50,7 @@ _GAMMA_EULER = 0.5772156649015328606
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies("e1-decomposition")
 def test_E1_log_decomposition_notation_bridge():
     """E_1(tau) = -gamma_E - log(tau) + R(tau), with R(tau) -> 0
     as tau -> 0+.

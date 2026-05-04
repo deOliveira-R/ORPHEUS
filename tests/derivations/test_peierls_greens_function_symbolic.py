@@ -66,6 +66,10 @@ from orpheus.derivations.continuous.trajectory_resolvent.origins.specular import
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies(
+    "peierls-greens-V-alpha-1",
+    "peierls-greens-surface-fixed-point",
+)
 def test_v_alpha1_surface_fixed_point_solves_to_q_over_sigma_t():
     r"""V_α1.a — surface fixed-point gives :math:`\psi_{\rm surf} = q/\Sigma_t`.
 
@@ -82,6 +86,10 @@ def test_v_alpha1_surface_fixed_point_solves_to_q_over_sigma_t():
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies(
+    "peierls-greens-V-alpha-1",
+    "peierls-greens-function-architecture",
+)
 def test_v_alpha1_total_psi_is_independent_of_first_leg():
     r"""V_α1.b — total :math:`\psi(r,\mu) = q/\Sigma_t` everywhere.
 
@@ -98,6 +106,7 @@ def test_v_alpha1_total_psi_is_independent_of_first_leg():
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies("peierls-greens-V-alpha-1")
 def test_v_alpha1_operator_on_constant_gives_omega_0():
     r"""V_α1.c — :math:`(K \cdot 1)(r,\mu) = \omega_0 = \Sigma_s/\Sigma_t`.
 
@@ -116,6 +125,7 @@ def test_v_alpha1_operator_on_constant_gives_omega_0():
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies("peierls-greens-V-alpha-1")
 def test_v_alpha1_overall_pass():
     """V_α1 — composite gate."""
     result = derive_operator_constant_trial_closed_sphere()
@@ -128,6 +138,10 @@ def test_v_alpha1_overall_pass():
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies(
+    "peierls-greens-V-alpha-2",
+    "peierls-greens-T00-integrand",
+)
 def test_v_alpha2_T00_matches_hebert_via_matrix_path():
     r"""V_α2.a — Path A: :math:`T_{00}` from the transfer-matrix
     definition reduces to the Hébert closed form.
@@ -147,6 +161,10 @@ def test_v_alpha2_T00_matches_hebert_via_matrix_path():
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies(
+    "peierls-greens-V-alpha-2",
+    "peierls-class-b-Pss-homogeneous",
+)
 def test_v_alpha2_Pss_matches_hebert_via_polar_path():
     r"""V_α2.b — Path B: :math:`P_{ss}` from the escape-probability
     polar integral reduces to the same Hébert closed form.
@@ -170,6 +188,7 @@ def test_v_alpha2_Pss_matches_hebert_via_polar_path():
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies("peierls-greens-V-alpha-2")
 def test_v_alpha2_T00_equals_Pss_closed_forms():
     r"""V_α2.c — closed-form match :math:`T_{00} = P_{ss}` after
     independent SymPy integration.
@@ -188,6 +207,7 @@ def test_v_alpha2_T00_equals_Pss_closed_forms():
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies("peierls-greens-V-alpha-2")
 def test_v_alpha2_overall_pass():
     """V_α2 — composite gate."""
     result = derive_T00_equals_P_ss_sphere()
@@ -200,6 +220,7 @@ def test_v_alpha2_overall_pass():
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies("peierls-greens-V-alpha-3")
 def test_v_alpha3_g_h_vanishes_at_alpha_zero():
     r"""V_α3 — Sanchez (A6) BC kernel :math:`g_h \to 0` at :math:`\alpha = 0`.
 

@@ -364,6 +364,10 @@ Eq. (A6) kernel
    g_h(\rho'\to\rho) = 2\alpha \int_{\mu_0}^{1} T(\mu_-)\,\mu_*^{-1}\,
        \cosh(\rho\mu)\,\cosh(\rho'\mu_*)\,e^{-2 a \mu_-}\,\mathrm d\mu
 
+.. (vv-status rationale) transcription: Verbatim transcription of a literature reference. Verbatim transcription of Sanchez 1986 Eq. (A6) — literature reference; the implementation is verified by V_α3 vacuum reduction (verifies peierls-greens-V-alpha-3) and the PS-1982 cross-check (peierls-unified).
+.. vv-status: peierls-greens-sanchez-A6 documented
+
+
 via Nyström sampling: assemble :math:`K_{ij} = g_h(\rho_j \to \rho_i)`
 on a radial Gauss-Legendre grid, factor :math:`(I - K)^{-1}` at every
 power-iteration step, extract :math:`k_{\rm eff}` from the dominant
@@ -422,6 +426,10 @@ homogeneous sphere is the unique solution of
         \quad |\rho| = a,\;\Omega \cdot n \le 0,
    \end{aligned}
 
+.. (vv-status rationale) definition: Definitional / notation introduction. Defining BVP for the Green's function t(r',Ω' → r,Ω) — specifies the problem; solved by the assembled trajectory-resolvent solver, verified by V_α1/V_α2/V_α3.
+.. vv-status: peierls-greens-defining-bvp documented
+
+
 where :math:`\Omega_R = \Omega + 2\mu n` is the specularly reflected
 direction at the surface and :math:`\alpha \in [0,1]` is the specular
 reflection coefficient (:math:`\alpha = 1` for perfect specular,
@@ -437,6 +445,10 @@ into a vacuum part and a BC-absorbed part:
 
    t(r',\Omega' \to r,\Omega) = \bar t(r',\Omega' \to r,\Omega) +
        t_h(r',\Omega' \to r,\Omega).
+
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Algebraic split t = t_bar + t_h of the Green's function — derivation step; the resulting t_h is verified by V_α2/V_α3.
+.. vv-status: peierls-greens-A1-split documented
+
 
 The vacuum kernel :math:`\bar t` is the Boltzmann-Green's-function
 in free space (no boundary). The "homogeneous-BC" kernel :math:`t_h`
@@ -455,6 +467,10 @@ Eq. (A5):
 
    t_h(r' \to r,\mu) = \frac{1}{2\pi A}\,e^{-\tau_+ - \tau_-}\,
        T(\mu_+) \cdot \frac{\delta(\mu_- - \mu_+)}{\mu_+}
+
+.. (vv-status rationale) transcription: Verbatim transcription of a literature reference. Sanchez (A6) homogeneous-BC kernel form — transcription; the implementation is V_α2/V_α3-verified.
+.. vv-status: peierls-greens-A5-specular documented
+
 
 where :math:`\tau_+ = a\mu_+ - \rho'\mu'` is the source-to-surface
 optical depth, :math:`\tau_- = a\mu_- + \rho\mu` is the
@@ -511,12 +527,20 @@ exits the sphere at the surface after a distance
 
    L_0(r_i, \mu_q) = \sqrt{R^2 - r_i^2 (1 - \mu_q^2)} - r_i \mu_q,
 
+.. (vv-status rationale) definition: Definitional / notation introduction. Definition of the first-leg chord length L_0(r_i, μ_q) = sqrt(R²-r²(1-μ²)) - r·μ — analytic-geometry primitive; consumed by the trajectory integral.
+.. vv-status: peierls-greens-L0 documented
+
+
 with the corresponding **surface direction cosine**
 
 .. math::
    :label: peierls-greens-mu-surf
 
    \mu_{\rm surf}(r_i, \mu_q) = \frac{1}{R}\sqrt{R^2 - r_i^2 (1 - \mu_q^2)}.
+
+.. (vv-status rationale) definition: Definitional / notation introduction. Definition of the surface-impact cosine μ_surf(r_i, μ_q) — analytic-geometry primitive.
+.. vv-status: peierls-greens-mu-surf documented
+
 
 The discriminant :math:`R^2 - r_i^2 (1 - \mu_q^2)` is positive for
 any interior point :math:`r_i < R`. The bounce-period chord (the
@@ -528,6 +552,10 @@ specular bounce) is the **antipodal chord** at impact parameter
    :label: peierls-greens-Lp
 
    L_p(\mu_{\rm surf}) = 2 R \mu_{\rm surf}.
+
+.. (vv-status rationale) definition: Definitional / notation introduction. Definition of the bounce-period length L_p = 2 R μ_surf — analytic-geometry primitive.
+.. vv-status: peierls-greens-Lp documented
+
 
 Two checks anchor this geometry.  At :math:`r_i = 0` (sphere centre)
 the first-leg distance reduces to :math:`L_0 = R` and
@@ -546,6 +574,10 @@ First-leg trajectory integral
    F(r_i, \mu_q) = \int_0^{L_0(r_i,\mu_q)}
        q\bigl(|r_i - s\,\Omega_\mu|\bigr)\,
        e^{-\Sigt{}\,s}\,\mathrm d s.
+
+.. (vv-status rationale) definition: Definitional / notation introduction. Definition of the first-leg trajectory integral F(r_i, μ_q) — consumed by the architecture closure ψ = F + e^{-Σt L_0} T B.
+.. vv-status: peierls-greens-trajectory-integral documented
+
 
 The path radius along the chord is parametrised by
 
@@ -571,6 +603,10 @@ Bounce-period integral
    B(\mu_{\rm surf}) = \int_0^{L_p(\mu_{\rm surf})}
        q\bigl(|r_{\rm chord}(s)|\bigr)\,
        e^{-\Sigt{}\,s}\,\mathrm d s,
+
+.. (vv-status rationale) definition: Definitional / notation introduction. Definition of the bounce-period integral B(μ_surf) — consumed by the bounce-sum closure.
+.. vv-status: peierls-greens-bounce-period-integral documented
+
 
 where the chord position at arc length :math:`s` is
 
@@ -608,6 +644,10 @@ surface flux from the previous bounce. Solving for
    \psi_{\rm surf}(\mu_{\rm surf}) = T(\mu_{\rm surf})\,B(\mu_{\rm surf}),
    \qquad
    T(\mu_{\rm surf}) = \frac{1}{1 - e^{-\Sigt{}\,L_p(\mu_{\rm surf})}}.
+
+.. (vv-status rationale) closed-form: Closed-form expression whose specialisation is tested elsewhere. Closed-form geometric-series sum T(μ_surf) = 1/(1 - exp(-Σt L_p)) — the closed-sphere fixed-point identity is V_α1.a (verifies peierls-greens-surface-fixed-point).
+.. vv-status: peierls-greens-T-mu-surf documented
+
 
 The geometric series :math:`\sum_{k=0}^\infty e^{-k \Sigt{} L_p} =
 1/(1 - e^{-\Sigt{} L_p})` converges absolutely for :math:`\Sigt{}\,
@@ -671,6 +711,10 @@ giving
 
    k_{\rm eff} = \kinf = \frac{\nSigf{}}{\Siga{}},
    \qquad \Siga{} = \Sigt{} - \Sigs{}.
+
+.. (vv-status rationale) definition: Definitional / notation introduction. k_eff = k_inf = νΣ_f / Σ_a textbook identity for the closed-sphere isotropic eigenmode — exercised by V_α1.c (verifies peierls-greens-V-alpha-1).
+.. vv-status: peierls-greens-k-inf documented
+
 
 This is the no-leakage k_inf of the closed sphere, derivable
 without any spatial transport machinery — but it must hold for the
@@ -1049,6 +1093,10 @@ coefficient :math:`\alpha` directly in the surface-flux update:
    \psi_{\rm surf}(\mu_{\rm surf})
    = B(\mu_{\rm surf}) + \alpha\,e^{-\Sigt{}\,L_p}\,\psi_{\rm surf},
 
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Bounce-sum recurrence ψ_surf = B + α exp(-Σt L_p) ψ_surf — derivation step; the closed-form solution is peierls-greens-T-alpha (also documented).
+.. vv-status: peierls-greens-bounce-sum-alpha documented
+
+
 with closed-form solution
 
 .. math::
@@ -1057,6 +1105,10 @@ with closed-form solution
    \psi_{\rm surf}(\mu_{\rm surf})
    = \frac{\alpha\,B(\mu_{\rm surf})}
           {1 - \alpha\,e^{-\Sigt{}\,L_p(\mu_{\rm surf})}}.
+
+.. (vv-status rationale) closed-form: Closed-form expression whose specialisation is tested elsewhere. Closed-form geometric-series sum ψ_surf = α B / (1 - α e^{-Σt L_p}); reduces at α=1 to the V_α1 closed-sphere identity.
+.. vv-status: peierls-greens-T-alpha documented
+
 
 At :math:`\alpha = 1` this reduces to
 :eq:`peierls-greens-T-mu-surf`. At :math:`\alpha = 0` the numerator
@@ -1206,6 +1258,10 @@ the per-group source split into scattering + fission terms:
    q_g(r) \;=\; \sum_{g'=1}^{G} \Sigs{g'\to g}\,\phi_{g'}(r) \;+\;
        \frac{\chi_g}{k_{\rm eff}}\,\sum_{g'=1}^{G}\nSigf{g'}\,\phi_{g'}(r),
 
+.. (vv-status rationale) definition: Definitional / notation introduction. Multi-group source definition q_g = Σ_g' Σ_s,g'→g φ_g' + (χ_g/k) Σ_g' νΣ_f,g' φ_g' — textbook identity; the multi-group solver is verified by test_peierls_greens_function_mg (foundation tests).
+.. vv-status: peierls-greens-mg-source documented
+
+
 with the convention ``sigma_s[g_from, g_to]`` —
 i.e. :math:`\Sigs{g'\to g}`. The first sum is **in-scatter** into
 group :math:`g`; the second sum is **fission emission** into
@@ -1326,6 +1382,10 @@ the chord crossings with each interior region boundary
    r(s)^2 \;=\; r_i^2 - 2 r_i \mu_q s + s^2,
    \qquad s \in [0, L_{\rm back}],
 
+.. (vv-status rationale) definition: Definitional / notation introduction. Analytic-geometry identity r(s)² = r_i² - 2 r_i μ_q s + s² for ray segments in spherical geometry — primitive for the multi-region trajectory walker.
+.. vv-status: peierls-greens-mr-trajectory-segments documented
+
+
 with :math:`r(s) = R_k` at
 :math:`s = r_i\mu_q \pm\sqrt{R_k^2 - r_i^2(1-\mu_q^2)}` (when the
 discriminant is positive — otherwise the chord misses the
@@ -1358,6 +1418,10 @@ optical depth accumulates segment-by-segment with the local
 
    \tau(s) \;=\; \sum_{(s_a, s_b, k)\,\subset\,[0,s]}
        \Sigt{,k}\,(\min(s, s_b) - s_a),
+
+.. (vv-status rationale) definition: Definitional / notation introduction. Definition of the piecewise optical depth τ(s) along a multi-region trajectory; consumed by the multi-region solver verified by Garcia 2021 cross-check (foundation tests in test_peierls_greens_function_garcia2021).
+.. vv-status: peierls-greens-mr-piecewise-tau documented
+
 
 so the per-region attenuation factor :math:`e^{-\tau(s)}` is
 exact within each segment and continuous at every interior boundary
@@ -1530,6 +1594,10 @@ Net for matching: passing
    \phi_{\rm mine}(r) \;=\; \frac{2\pi}{4\pi}\,\phi_{\rm Garcia}(r)
                        \;=\; \tfrac{1}{2}\,\phi_{\rm Garcia}(r).
 
+.. (vv-status rationale) convention: Convention / notation map (no operator content). Convention bridge φ_mine = (1/2) φ_Garcia — notation map for the Garcia 2021 cross-check; no operator content.
+.. vv-status: peierls-greens-garcia-convention documented
+
+
 This factor-of-:math:`\tfrac{1}{2}` is the **convention map**, not
 an error or a discretisation artefact. The factor is documented
 verbatim in
@@ -1551,6 +1619,10 @@ but iterates on the scattering source alone:
        \tfrac{1}{4\pi}\!\left(\,\sum_{g'}\Sigs{g'\to g,\,k(r)}\,
            \phi_{g'}^{(n)}(r) + Q_{{\rm ext},k(r),g}\right)\,
        \right] (r,\mu),
+
+.. (vv-status rationale) definition: Definitional / notation introduction. Iteration scheme for the multi-group fixed-source solver — algorithm description; convergence is exercised by the multi-group tests (foundation tests).
+.. vv-status: peierls-greens-fixed-source-iteration documented
+
 
 where :math:`k(r)` is the region containing radius :math:`r`. No
 fission, no eigenvalue iteration; convergence is on the relative
@@ -2301,6 +2373,10 @@ mathematical object:
    T \;=\; (I - S)^{-1}, \qquad
    S = \alpha \cdot R_{\rm chord},
 
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Cross-domain frame statement T = (I - S)^{-1} for the unified resolvent; abstract pattern, not a verifiable identity.
+.. vv-status: peierls-greens-unification-resolvent documented
+
+
 where :math:`S` is the **monodromy operator** advancing the surface
 state by one step of the bouncing trajectory, :math:`R_{\rm chord}` is
 the chord-attenuation operator on surface phase-space, and :math:`T`
@@ -2622,6 +2698,10 @@ transit at constant :math:`|\mu|`), totalling
    :label: peierls-greens-slab-bounce-period
 
    L_{\rm period}^{\rm slab}(\mu) = \frac{2 L}{|\mu|}.
+
+.. (vv-status rationale) definition: Definitional / notation introduction. Slab geometry identity L_period^slab = 2L/|μ| — analytic-geometry primitive consumed by the slab Green's-function tests (peierls-greens-slab-architecture).
+.. vv-status: peierls-greens-slab-bounce-period documented
+
 
 Two reflections per period, so the **per-period reflection product
 is** :math:`\alpha^2`, distinct from the single-reflection per-period
@@ -2951,6 +3031,10 @@ followed by reflection at the destination wall):
        \alpha_R\,e^{-\tau}            & 0
    \end{pmatrix}, \qquad
    \tau = \Sigma_t\,L /|\mu|
+
+.. (vv-status rationale) definition: Definitional / notation introduction. Definition of the rank-2 monodromy matrix S(α_L, α_R, τ) — consumed by the slab-asymmetric resolvent tests (peierls-greens-slab-asym-architecture, peierls-greens-slab-asym-resolvent, peierls-greens-slab-asym-closure).
+.. vv-status: peierls-greens-slab-asym-monodromy documented
+
 
 (single-transit optical depth — **NOT** the full out-and-back
 period; this is the load-bearing distinction between the heuristic
@@ -3469,6 +3553,10 @@ b^2}`. The closure is the rank-1 form
    \psi_{\rm surf}(b) = \frac{\alpha_{\rm out}\,B(b; q)}
                               {1 - \alpha_{\rm out}\,
                                e^{-\Sigma_t\,L_{\rm period}(b)}},
+
+.. (vv-status rationale) closed-form: Closed-form expression whose specialisation is tested elsewhere. Outer-only resolvent rank-1 form for the hollow sphere — definitional building block consumed by the hollow-sphere architecture tests (peierls-greens-hollow-sph-architecture).
+.. vv-status: peierls-greens-hollow-sph-outer-only-resolvent documented
+
 
 **identical to the solid-sphere closure** (sphere V_α surface
 fixed-point at :math:`r = R_{\rm out}`). The inner cavity is

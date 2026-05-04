@@ -57,7 +57,10 @@ from orpheus.derivations.continuous.singular_eigenfunction.slab import (
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("atalay-table2-slab-vacuum-isotropic")
+@pytest.mark.verifies(
+    "atalay-table2-slab-vacuum-isotropic",
+    "singular-eigenfunction-eq46",
+)
 @pytest.mark.parametrize("c, d2_atalay_table2", [
     (1.30, 1.87766),
     (1.50, 1.21523),
@@ -83,7 +86,10 @@ def test_slab_vacuum_isotropic_atalay_table2(c, d2_atalay_table2):
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("atalay-table2-slab-reflected-isotropic")
+@pytest.mark.verifies(
+    "atalay-table2-slab-reflected-isotropic",
+    "singular-eigenfunction-eq46",
+)
 @pytest.mark.parametrize("c, R, d2_atalay_table2", [
     (1.30, 0.25, 1.40621),
     (1.30, 0.50, 0.89317),
@@ -161,6 +167,7 @@ def test_slab_rejects_perfect_reflector():
 
 
 @pytest.mark.l1
+@pytest.mark.verifies("singular-eigenfunction-eq5")
 def test_slab_rejects_above_validity_bound():
     """c > 1 + 1/(3 f_1) must raise ValueError per Atalay Eq 5."""
     clear_X_cache()

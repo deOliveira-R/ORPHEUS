@@ -14,3 +14,57 @@ Signature: keff diverging under mesh refinement (1.15 -> 0.90 -> 0.52).
 **Rule**: When reviewing "all tests pass" for any solver, first ask:
 "Is there a heterogeneous mesh-refinement convergence test?"
 If not, the suite proves nothing about the transport operator.
+
+---
+
+## L-002 -- Orphan equation triage class-D before class-B
+
+When closing orphan equations on a Sphinx theory page, scan the
+**existing** test suite for evidence the equation is already verified
+under a different label BEFORE writing a new test or marking it
+documented. The Peierls/case-method/V_α suites have a long history of
+adding equations to a theory page and adding tests in a test file
+without wiring the `@pytest.mark.verifies("label")` connection. The
+audit interprets these as orphans, but the test exists — adding the
+label is a 1-line fix that closes the orphan with no new verification
+work.
+
+**Rule**: For a new orphan, the search order is D -> B -> A -> C:
+1. Class D (existing test, just needs the label) — most common in
+   ORPHEUS, scales to 25 percent or more of orphans on the trajectory-
+   resolvent / peierls-Nystrom pages.
+2. Class B (definitional / derivation step / governing equation) —
+   bulk of the rest; mark `.. vv-status: <label> documented` with a
+   rationale comment per Cardinal Rule 3.
+3. Class A (write a real test) — only when no test covers and the
+   equation is a verifiable claim.
+4. Class C (stale, remove) — rare; the test suite usually catches
+   stale labels via the audit's drop-into-orphan signal.
+
+---
+
+## L-003 -- The matrix.rst orphan list can lag the live RST
+
+`docs/verification/matrix.rst` is auto-generated from
+`tools/verification/generate_matrix.py` on every Sphinx build. Until
+the build runs after a label rename, the matrix snapshot lists the OLD
+labels. ALWAYS re-run `python -m tests._harness.audit --gaps` to get
+the live orphan list before classifying — do not trust the matrix.rst
+snapshot for label spelling. Observed during the 2026-05-03 78-orphan
+sweep with `case-method-eqXX` -> `singular-eigenfunction-eqXX` rename:
+the snapshot showed `case-method`, the audit showed `singular-
+eigenfunction`. Mass-applying labels from the snapshot would have
+created 5 self-inflicted orphans.
+
+---
+
+## L-004 -- vv-status rationale comments must NOT use [brackets]
+
+The `:vv-status: documented` directive lives in the same RST file as
+the labelled equation, conventionally as a top-level RST comment
+(`.. vv-status: <label> documented`). When attaching a rationale
+comment block with `..    [category] description` formatting,
+docutils parses each [xxx] as a citation reference, producing
+"duplicate citation" warnings under `-W`. Use (parens) instead of
+[brackets] in rationale comments, and prefer a single-line `..`
+comment over a multi-line `..  / .. / ..` continuation block.

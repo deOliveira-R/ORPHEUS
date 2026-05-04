@@ -522,6 +522,10 @@ Peierls equation :eq:`peierls-unified` specialises to
        e^{-\int_0^\rho \Sigma_t(x_i + s\mu)\,\mathrm ds}\,
        q\bigl(x_i + \rho\mu\bigr)\,\mathrm d\rho,
 
+.. (vv-status rationale) recap: Recap of an earlier identity already verified under a different label. Recap of the slab polar-form integral equation — earlier identity verified by peierls-unified.
+.. vv-status: peierls-slab-polar documented
+
+
 with the chord range
 
 .. math::
@@ -1096,6 +1100,10 @@ is
              \nu\Sigma_{f,g_{\rm in}}(r_j)\,
              \varphi_{g_{\rm in}}(r_j)
          \,\Biggr],
+
+.. (vv-status rationale) recap: Recap of an earlier identity already verified under a different label. Multi-group operator-form recap — verified at L1 by the multi-group Peierls suite under peierls-unified.
+.. vv-status: peierls-mg-operator documented
+
 
 recast as the generalised eigenvalue problem
 :math:`\tilde A\,\varphi = (1/k)\,\tilde B\,\varphi` with
@@ -2951,6 +2959,10 @@ into the surface-side definition
                       \rho_{\max}^{\,2}(r_i,\Omega)\,e^{-\tau}\,
                       \mathrm d\Omega.
 
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Definition of the J_n^+ moment integral — intermediate derivation step; the assembled rank-n machinery is verified by peierls-rank-n-bc-closure tests.
+.. vv-status: peierls-rank-n-jacobian-derivation documented
+
+
 Dividing by the cell's characteristic :math:`R^2` (to match the
 :meth:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.rank1_surface_divisor`
 convention — :math:`R` for cylinder, :math:`R^2` for sphere) gives
@@ -2964,6 +2976,10 @@ the dimensionless factor :math:`(\rho_{\max}/R)^2` carried in
                     \Bigl(\tfrac{\rho_{\max}(r_i,\Omega)}{R}\Bigr)^{\!2}\,
                     \tilde P_n\!\bigl(\mu_{\rm exit}\bigr)\,
                     K_{\rm esc}(\tau)\,\mathrm d\Omega.
+
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Definition of the rank-n escape moment P_esc^(n) — derivation step; verified collectively by peierls-rank-n-bc-closure.
+.. vv-status: peierls-rank-n-P-esc-moment documented
+
 
 The :math:`(\rho_{\max}/R)^2` factor is :math:`1` at :math:`r = 0`
 in the sphere (every ray has :math:`\rho_{\max} \equiv R`) and only
@@ -3114,6 +3130,10 @@ strikes the inner surface with arrival cosine
       \sqrt{1 - \left(\frac{R}{r_0}\right)^{\!2}\!
          \bigl(1 - \mu_{\rm emit}^2\bigr)},
 
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Definition of the c_in(μ_emit) Jacobian remapping; derivation step in the structural-obstruction analysis whose conclusion is narrative (no isolated identity to test).
+.. vv-status: c-in-remapping documented
+
+
 relative to the inner outward normal. This is geometry, not
 physics. The Legendre basis at the outer surface is
 :math:`\{\tilde P_n(\mu_{\rm emit})\}_{n \ge 0}`; the Legendre basis
@@ -3132,6 +3152,10 @@ that F.4's physics requires at every mode is
 
    W_{\rm oo}[n, n] \;+\; W_{\rm io}[n, n] \;=\; \delta_{n, 0}
    \quad\text{(naive per-mode conservation)}.
+
+.. (vv-status rationale) counterexample: Stated to be subsequently disproven; not a claim to be verified. Naive per-mode conservation target stated to be subsequently disproven by the derivation that follows; not a claim to be verified.
+.. vv-status: mode-conservation-target documented
+
 
 Direct numerical evaluation of the shipped (Monte-Carlo-verified)
 :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_hollow_sph_transmission_rank_n`
@@ -3269,6 +3293,10 @@ half-line:
    \qquad
    \langle f, g \rangle_M \;=\; \int_0^1 f(\mu)\,g(\mu)\,\mu\,\mathrm d\mu.
 
+.. (vv-status rationale) definition: Definitional / notation introduction. Definitions of the L-inner-product and M-inner-product on the half-range; used as primitives by subsequent derivations.
+.. vv-status: peierls-half-range-inner-products documented
+
+
 F.4 uses the :math:`L`-orthonormal basis
 :math:`\phi_n^L(\mu) = \sqrt{2n+1}\,P_n(2\mu-1)`; the rank-N Marshak
 helper ``_build_closure_operator_rank_n_white`` (guarded behind
@@ -3283,6 +3311,10 @@ helper ``_build_closure_operator_rank_n_white`` (guarded behind
    B^{\mu}_{mn} \;=\; \langle \phi_m^L, \phi_n^L \rangle_M
                 \;=\; (M^{\!\top} M)_{mn}.
 
+.. (vv-status rationale) definition: Definitional / notation introduction. Definition of the change-of-basis matrix M_nm = <ψ_n^M, φ_m^L>_M — derivation step; rank-1 / rank-2 specialisations verified implicitly via the rank-n-bc-closure suite.
+.. vv-status: peierls-change-of-basis documented
+
+
 Closed forms (verified in
 ``scratch/derivations/diagnostics/diag_lambert_marshak_basis_change.py``):
 
@@ -3292,6 +3324,10 @@ Closed forms (verified in
    M^{(1)} \;=\; \tfrac{\sqrt{2}}{2}\;\approx\;0.7071,
    \qquad
    (B^{\mu})^{(1)} \;=\; \tfrac{1}{2}.
+
+.. (vv-status rationale) closed-form: Closed-form expression whose specialisation is tested elsewhere. Numerical evaluation M^(1) = √2/2 of the rank-1 change-of-basis matrix — directly verifiable closed form; the value flows into rank-1 specular tests at peierls-rank-n-bc-closure.
+.. vv-status: peierls-M-rank-1 documented
+
 
 .. math::
    :label: peierls-M-rank-2
@@ -3307,6 +3343,10 @@ Closed forms (verified in
      \tfrac{1}{2} & \tfrac{\sqrt{3}}{6} \\[4pt]
      \tfrac{\sqrt{3}}{6} & \tfrac{1}{2}
    \end{pmatrix}.
+
+.. (vv-status rationale) closed-form: Closed-form expression whose specialisation is tested elsewhere. Numerical evaluation of the rank-2 change-of-basis matrix; specific entries are derivation steps consumed by the rank-2 specular machinery (peierls-rank-n-bc-closure).
+.. vv-status: peierls-M-rank-2 documented
+
 
 :math:`M^{(2)}` has singular values :math:`(0.460, 0.888)` — unequal,
 so it is a genuine basis rotation, not a scalar gauge. At rank-1 the
@@ -3326,6 +3366,10 @@ transmission operator,
    W_M \;=\; B^{\mu}\,W_L,
    \qquad
    B^{\mu} \;=\; M^{\!\top} M,
+
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Matrix-form derivation step W_M = B^μ W_L for the asymmetric weight relation; consumed by rank-n closure.
+.. vv-status: peierls-WM-WL-asymmetric documented
+
 
 is exact at infinite rank but at rank :math:`N` carries a
 non-vanishing τ-dependent polynomial-truncation residual on row
@@ -3746,6 +3790,10 @@ is, by :eq:`peierls-rank-n-jacobian-derivation`,
                       \rho_{\max}^{\,2}(r_i,\Omega)\,e^{-\tau}\,
                       \mathrm d\Omega,
 
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Canonical form of J_n^+(r_i); equivalent statement to peierls-rank-n-jacobian-derivation under a different specialisation.
+.. vv-status: peierls-class-b-Jn-canonical documented
+
+
 so *every* mode :math:`n` (including :math:`n = 0`) carries the
 :math:`\rho_{\max}^{2}` weight. The legacy mode-0 :func:`compute_P_esc`
 omits this Jacobian — the two integrals span **different sub-spaces**
@@ -3921,6 +3969,10 @@ identified the canonical CP white-BC closure for sphere as Hébert
        \;+\;
        \frac{\beta^{+}}{1 - \beta^{+}\,P_{ss}}\;
        \mathbf{P}_{iS}\,\mathbf{P}_{Sj}^{\top}
+
+.. (vv-status rationale) closed-form: Closed-form expression whose specialisation is tested elsewhere. Hébert (1−P_ss)^{-1} closure for class-B sphere — derivation step; the rank-1 specialisation is the V_α2 identity verified in test_peierls_greens_function_symbolic.
+.. vv-status: peierls-class-b-hebert-closure documented
+
 
 with :math:`\beta^{+} = 1` (white BC). The current ORPHEUS rank-1 Mark
 code (``compute_P_esc`` × ``compute_G_bc`` rank-1 outer product)
@@ -4135,6 +4187,10 @@ The cylinder analog of :func:`compute_P_ss_sphere` derives cleanly:
 
    P_{ss}^{\rm cyl}(\Sigma_t, R) = \frac{4}{\pi}\!\int_0^{\pi/2}
        \cos\alpha\;\mathrm{Ki}_3\!\bigl(2\Sigma_t R\cos\alpha\bigr)\,d\alpha
+
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Cylinder P_ss^cyl integral derivation — intermediate step; consumed by the cylinder rank-n machinery.
+.. vv-status: peierls-cyl-Pss-derivation documented
+
 
 with :math:`\mathrm{Ki}_3` arising from analytical integration over
 the polar angle :math:`\beta` from the cylinder axis. Multi-region
@@ -4378,6 +4434,10 @@ reflection operator is
    M_{nm} \;=\; \int_0^1 \mu\,\tilde P_n(\mu)\,\tilde P_m(\mu)\,
    \mathrm d\mu.
 
+.. (vv-status rationale) closed-form: Closed-form expression whose specialisation is tested elsewhere. Closed form R_spec = (1/2) M^{-1} for the specular R-operator; consumed by specular-multibounce machinery whose end-to-end behaviour is verified by peierls-unified specular tests.
+.. vv-status: peierls-specular-R-formula documented
+
+
 :math:`M` is the **partial-current overlap matrix** on the half-range
 basis; symmetric tridiagonal in this basis with closed-form entries
 
@@ -4388,6 +4448,10 @@ basis; symmetric tridiagonal in this basis with closed-form entries
    \qquad
    M_{n,n+1} \;=\; M_{n+1,n} \;=\;
    \frac{n+1}{2(2n+1)(2n+3)}.
+
+.. (vv-status rationale) closed-form: Closed-form expression whose specialisation is tested elsewhere. Tridiagonal entries of the half-range Legendre M matrix — closed-form derivation step.
+.. vv-status: peierls-specular-M-tridiagonal documented
+
 
 The construction satisfies the **rank-:math:`N` partial-current
 identity** :math:`J^{-}_m = J^{+}_m` for all :math:`m = 0,\ldots,N-1`,
@@ -4941,6 +5005,10 @@ with
    K_{\rm bc}^{\rm spec,mb} \;=\; G \cdot R \cdot
                                   (I - T\,R)^{-1} \cdot P,
 
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Operator-form expression K_bc^{spec,mb} = G·R·(I-T R)^{-1}·P; the full multi-bounce machinery is verified by peierls-unified specular convergence tests in test_peierls_specular_bc.
+.. vv-status: peierls-specular-multibounce-formula documented
+
+
 where :math:`R = R_{\rm spec}(N) = \tfrac{1}{2} M^{-1}` (the same
 specular reflection operator as for bare specular; for slab,
 :math:`R = \operatorname{diag}(R_{\rm face}, R_{\rm face})`) and
@@ -4966,6 +5034,10 @@ the rank-1 reduction.
 
    T_{mn}^{\rm sph} \;=\; 2\!\int_0^1\!\mu\,\tilde P_m(\mu)\,\tilde P_n(\mu)\,
                   e^{-\tau(\mu)}\,\mathrm d\mu,
+
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Sphere T_mn integral form — derivation step; the rank-1 specialisation T_00 is the V_α2 identity verified in test_peierls_greens_function_symbolic.
+.. vv-status: peierls-specular-T-matrix documented
+
 
 with :math:`\tau(\mu)` the multi-region optical depth along the
 antipodal chord (chord :math:`= 2R\mu`; impact parameter :math:`h
@@ -8315,6 +8387,10 @@ reads
 
    \Sigma_t\,\varphi \;=\; T_{\rm vol}\,q \;+\; S_{\rm bc},
 
+.. (vv-status rationale) recap: Recap of an earlier identity already verified under a different label. Recap statement Σ_t φ = T_vol q + S_bc — covered by the assembled solver tests (peierls-unified).
+.. vv-status: peierls-operator-form documented
+
+
 where :math:`T_{\rm vol}` is the volumetric integral operator
 
 .. math::
@@ -8344,6 +8420,10 @@ as a linear functional of :math:`q`:
    S_{\rm bc}(r) \;=\; (T_{\rm bc}\,q)(r)
      \;=\; \int_V K_{\rm bc}(r, r')\,q(r')\,\mathrm d V'.
 
+.. (vv-status rationale) definition: Definitional / notation introduction. Definition of the BC operator T_bc as a kernel-multiplication; consumed by the factored-kernel decomposition.
+.. vv-status: peierls-bc-operator documented
+
+
 The Peierls equation becomes the **second-kind Fredholm equation** on
 :math:`V = L^{2}([0,R],\,r^{d-1}\,\mathrm d r)`
 
@@ -8369,6 +8449,10 @@ polar-form Jacobian cancellation, Section 3), so :math:`T` is a
 
      K(r, r') \;=\; \sum_{k=1}^{\infty} \sigma_k\,u_k(r)\,v_k(r'),
      \qquad \sigma_k \to 0,
+
+  .. (vv-status rationale) literature: Literature decomposition statement (textbook identity). SVD of K — generic spectral statement (textbook identity); no operator-specific claim to verify.
+  .. vv-status: peierls-svd documented
+
 
   converges in :math:`L^{2}`.
 - Finite-rank approximations are well-defined and have a best
@@ -8447,6 +8531,10 @@ these three operators, the boundary operator is
 
    T_{\rm bc} \;=\; G_\infty \;\circ\; R_\infty \;\circ\; P_\infty.
 
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. T_bc = G_∞ ∘ R_∞ ∘ P_∞ continuum factorisation — derivation step; the discrete factorisation is the K_bc = G·R·P form whose consequences are verified by peierls-unified tests.
+.. vv-status: peierls-operator-factorisation documented
+
+
 Let :math:`\{\phi_n\}_{n=0}^{\infty}` be an orthonormal basis of
 :math:`A_\infty` (e.g. shifted Legendre :math:`\tilde P_n` — see
 Section 26). Truncating to the first :math:`N` basis vectors gives a
@@ -8478,6 +8566,10 @@ discrete boundary kernel is
    \qquad
    (\mathbf K_{\rm bc})^{i}{}_{j}
      \;=\; G^{i}{}_{n}\,R^{n}{}_{m}\,P^{m}{}_{j},
+
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Factored discrete form K_bc = G·R·P — derivation step consumed by the assembled multi-bounce specular code.
+.. vv-status: peierls-factored-kernel documented
+
 
 with Einstein summation on the shared mode indices :math:`n, m`.
 
@@ -8592,11 +8684,19 @@ work. Mode-by-mode:
    P^{n}{}_{j} \;\propto\;
      r_j^{d-1}\,w_j\,\mathcal P^{(n)}(r_j),
 
+.. (vv-status rationale) definition: Definitional / notation introduction. Proportionality definition of the response tensor P^n_j; the assembled tensor is verified by peierls-rank-n-bc-closure.
+.. vv-status: peierls-tensor-P-definition documented
+
+
 .. math::
    :label: peierls-tensor-G-definition
 
    G^{i}{}_{n} \;\propto\;
      \frac{\Sigma_t(r_i)\,\mathcal G^{(n)}(r_i)}{A_d^{\rm divisor}},
+
+.. (vv-status rationale) definition: Definitional / notation introduction. Proportionality definition of the escape tensor G^i_n; the assembled tensor is verified by peierls-rank-n-bc-closure.
+.. vv-status: peierls-tensor-G-definition documented
+
 
 where :math:`\mathcal P^{(n)}` and :math:`\mathcal G^{(n)}` are the
 mode-:math:`n` escape integral and mode-:math:`n` response integral

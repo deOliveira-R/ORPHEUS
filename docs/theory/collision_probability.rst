@@ -3453,6 +3453,10 @@ canonical spherical Peierls equation solved by this module is
          q\!\bigl(r'(r_i, \rho, \theta)\bigr)\,\mathrm d\rho
      \;+\; S_{\rm bc}(r_i).
 
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Observer-centred polar form of the Peierls sphere equation — intermediate derivation step before the Nyström assembly. The assembled system is verified by peierls-unified row-sum and elementwise tests in test_peierls_reference.py.
+.. vv-status: peierls-sphere-equation documented
+
+
 .. vv-status: peierls-sphere-equation tested
 
 The sphere test files carry
@@ -3618,6 +3622,10 @@ identity-LHS form
    \Sigma_t(r_i)\,\varphi_i
      \;=\; \sum_{j=1}^{N} K_{ij}\,q_j + S_{\rm bc}(r_i),
 
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Discretised Nyström assembly of the sphere equation — covered by peierls-unified L1 elementwise and row-sum tests against the slab/sphere uniform-source closed forms.
+.. vv-status: peierls-sphere-nystrom documented
+
+
 .. vv-status: peierls-sphere-nystrom tested
 
 with
@@ -3650,6 +3658,10 @@ The optical depth along the ray from :math:`r_i` in direction
    \tau(r_i, \rho, \theta)
      \;=\; \int_{0}^{\rho}\!
        \Sigma_t\!\bigl(r'(r_i, s, \theta)\bigr)\,\mathrm ds,
+
+.. (vv-status rationale) definition: Definitional / notation introduction. Definition of τ(r,ρ,θ) along a ray walker; used as a primitive by the assembled solver (no isolated identity to verify).
+.. vv-status: peierls-sphere-ray-optical-depth documented
+
 
 .. vv-status: peierls-sphere-ray-optical-depth tested
 
@@ -3796,6 +3808,10 @@ Dividing by :math:`J^{-}`:
    G_{\rm bc}^{\rm sph}(r_i)
      \;=\; 2\!\int_{0}^{\pi}\!\sin\theta\,
        e^{-\tau_{\rm surf}(r_i, \theta)}\,\mathrm d\theta.
+
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Surface-to-volume Green's function definition for the sphere; the assembled G-bc is verified by peierls-unified at L1 in TestSphereKernelRowSum and the per-face tests.
+.. vv-status: peierls-sphere-G-bc documented
+
 
 .. vv-status: peierls-sphere-G-bc tested
 

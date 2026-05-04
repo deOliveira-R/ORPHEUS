@@ -141,6 +141,10 @@ emission transport equation for the angular flux
    \Omega\cdot\nabla\psi(\mathbf r,\Omega) + \Sigt{}\,
        \psi(\mathbf r,\Omega) = \frac{1}{4\pi}\,Q(\mathbf r),
 
+.. (vv-status rationale) governing: Governing equation defining the problem class — the entire solver is the verification. Governing Boltzmann transport equation for the steady-state monoenergetic angular flux — the entire transport solver IS the verification (mirror of the documented `boltzmann` label).
+.. vv-status: peierls-boltzmann documented
+
+
 where :math:`Q(\mathbf r) = \Sigs{}\,\phi(\mathbf r) +
 (\nSigf{}/k)\,\phi(\mathbf r)` is the isotropic emission density
 (scattering + fission, k-eigenvalue normalisation), and
@@ -165,6 +169,10 @@ boundary on the upstream end (the BC is restored in
        \frac{Q(\mathbf r - s\Omega)}{4\pi}\,
        e^{-\Sigt{}\,s}\,\mathrm d s.
 
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Integral form of the transport equation along characteristics — derivation step toward the volume-integrated peierls forms; all downstream Peierls reductions are verified at L1 by peierls-unified.
+.. vv-status: peierls-integral-form documented
+
+
 The scalar flux :math:`\phi(\mathbf r) = \int\psi(\mathbf r,\Omega)\,
 \mathrm d\Omega` then satisfies
 
@@ -174,6 +182,10 @@ The scalar flux :math:`\phi(\mathbf r) = \int\psi(\mathbf r,\Omega)\,
    \phi(\mathbf r) = \int Q(\mathbf r')\,
        \frac{e^{-\Sigt{}\,|\mathbf r-\mathbf r'|}}
             {4\pi |\mathbf r-\mathbf r'|^2}\,\mathrm d^3\mathbf r',
+
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. 3D point-kernel form of the volume-integrated transport equation — definitional reduction of the integral form.
+.. vv-status: peierls-3d documented
+
 
 after recognising that :math:`\mathrm d^3\mathbf r' =
 s^2\,\mathrm d s\,\mathrm d\Omega` and the kernel
@@ -198,6 +210,10 @@ the **first exponential integral** :math:`E_1`,
    \Sigt{}\,\phi(x) = \frac{1}{2}\int_0^L
        Q(x')\,E_1(\Sigt{}\,|x-x'|)\,\mathrm d x',
 
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Slab Peierls reduction Σ_t φ(x) = (1/2) ∫ Q E_1 dx' — the specialised kernel is verified by TestSlabKernelRowSum at L1.
+.. vv-status: peierls-slab-foundations documented
+
+
 with :math:`E_n(\tau) = \int_1^\infty t^{-n}\,e^{-\tau t}\,\mathrm d t`.
 The slab kernel has a logarithmic singularity at :math:`x = x'`
 (:math:`E_1(\tau) \sim -\ln\tau` as :math:`\tau\to 0^+`), which is
@@ -219,6 +235,10 @@ the kernel to the **Bickley-Naylor function**
    \Sigt{}\,\phi(r) = \int_0^R Q(r')\,\frac{r'}{|r-r'|}\,
        \mathrm{Ki}_1(\Sigt{}\,|r-r'|)\,\mathrm d r'\,\cdots
        \;+\; \text{angular details},
+
+.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Cylinder Bickley-Naylor reduction with Ki_n machinery — the specialised kernel is verified by TestCylinderKernelRowSum at L1.
+.. vv-status: peierls-cyl-foundations documented
+
 
 with :math:`\mathrm{Ki}_n(\tau) = \int_0^{\pi/2} \cos^{n-1}\theta\,
 e^{-\tau/\cos\theta}\,\mathrm d\theta` (the equivalent of the slab
@@ -248,6 +268,10 @@ the literature:
      r\phi(r) = \int_0^R x\,Q(x)\,
          \bigl[\,E_1(\Sigt{}\,|r-x|) - E_1(\Sigt{}\,(r+x))\,\bigr]\,
          \mathrm d x,
+
+  .. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. PS-1982 sphere reduction r·φ(r) = ∫ x Q (E_1(|r-x|) - E_1(r+x)) — the specialised kernel is verified by TestSphereKernelRowSum at L1 and the PS-1982 cross-check.
+  .. vv-status: peierls-sph-ps1982-foundations documented
+
 
   derived in [PS1982]_ Eq. (21) (vacuum BC, isotropic source,
   homogeneous medium). The :math:`r\phi(r)` device makes the radial
@@ -300,6 +324,10 @@ transport equation, following Sanchez 1986 [SanchezTTSP1986]_ Eq.
        \beta\,\chi(\Omega)\!\int_{\Omega'\cdot n>0}
             \psi(\mathbf r_b,\Omega')\,(\Omega'\cdot n)\,\mathrm d\Omega',
        \qquad \Omega\cdot n \le 0,
+
+.. (vv-status rationale) transcription: Verbatim transcription of a literature reference. Sanchez 1986 (A3.a) general BC parametrisation (α + β + K) — transcription of the literature definition; no separate identity to verify (specific BCs are tested individually).
+.. vv-status: peierls-bc-general documented
+
 
 where :math:`\Omega_R = \Omega + 2\mu\,n` is the specularly-reflected
 direction, :math:`n` is the outward normal at the boundary point

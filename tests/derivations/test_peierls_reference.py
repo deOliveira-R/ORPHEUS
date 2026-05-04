@@ -104,7 +104,12 @@ def _build_slab_K_and_nodes(L, sig_t, n_panels=8, p_order=6, dps=30):
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("peierls-unified")
+@pytest.mark.verifies(
+    "peierls-unified",
+    "peierls-vacuum-bc-slab",
+    "peierls-vacuum-bc-flux",
+    "peierls-vacuum-bc-row-sum-gate",
+)
 @pytest.mark.catches("ERR-032")
 class TestSlabKernelRowSum:
     """ORPHEUS slab K-matrix row-sum equals closed-form flux from
@@ -588,7 +593,12 @@ class TestSlabPolarBuildVolumeKernel:
 # ═══════════════════════════════════════════════════════════════════════
 
 @pytest.mark.l1
-@pytest.mark.verifies("peierls-unified")
+@pytest.mark.verifies(
+    "peierls-unified",
+    "peierls-vacuum-bc-cylinder",
+    "peierls-vacuum-bc-flux",
+    "peierls-vacuum-bc-row-sum-gate",
+)
 class TestCylinderKernelRowSum:
     r"""Cylinder K-matrix row-sum equals the semi-analytical vacuum-BC
     uniform-source flux at machine precision.
@@ -648,7 +658,12 @@ class TestCylinderKernelRowSum:
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("peierls-unified")
+@pytest.mark.verifies(
+    "peierls-unified",
+    "peierls-vacuum-bc-sphere",
+    "peierls-vacuum-bc-flux",
+    "peierls-vacuum-bc-row-sum-gate",
+)
 class TestSphereKernelRowSum:
     r"""Sphere K-matrix row-sum equals the semi-analytical vacuum-BC
     uniform-source flux at machine precision.
@@ -928,7 +943,10 @@ class TestSlabKbcStructure:
 
 
 @pytest.mark.l0
-@pytest.mark.verifies("peierls-unified")
+@pytest.mark.verifies(
+    "peierls-unified",
+    "peierls-white-bc-slab",
+)
 class TestSlabWhiteBCInfiniteMediumIdentity:
     r"""The Wigner-Seitz identity for slab white BC with uniform
     source on a pure absorber:
