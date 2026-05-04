@@ -4,6 +4,34 @@
 F_N method — analytical benchmark family (Sood/Forster/Parsons LA-13511)
 ==========================================================================
 
+.. contents:: Contents
+   :local:
+   :depth: 2
+
+
+Key Facts
+=========
+
+**Read this before modifying the F_N reference solver.**
+
+- **What this is**: Pillar-2 reference family — Siewert-Benoist 1979
+  / Grandjean-Siewert 1979 / Siewert-Thomas 1986 — projecting the
+  Case singular-eigenfunction expansion onto a finite Legendre basis
+  via interior collocation. Pillar classification: semi-analytical.
+- **Position in the V&V stack**: structurally-independent
+  cross-check for :ref:`theory-singular-eigenfunction` and
+  :ref:`theory-trajectory-resolvent` on the Sood LA-13511 truth set.
+  The boundary-collocated sister method (B_N) is reserved at
+  :ref:`theory-bn-method`.
+- **Coverage**: slab + sphere via unified assembler (parametrised by
+  ``geometry_sign ∈ {+1, -1}``); k_inf cases (LA-13511 Eqs 18-32,
+  72-76). Cylinder is in :ref:`theory-singular-eigenfunction`
+  (Westfall-Metcalf 1973).
+- **Status**: Stub-grade theory page; production code + V&V-pinned
+  tests pass at the published precision. Archivist expansion of
+  TODO markers pending.
+
+
 .. note::
 
    **Scope of this page.** Stub-grade theory document covering:

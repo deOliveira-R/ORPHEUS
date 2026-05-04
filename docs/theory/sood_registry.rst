@@ -4,6 +4,38 @@
 Sood-family benchmark case registry — method-agnostic truth set
 ==========================================================================
 
+.. contents:: Contents
+   :local:
+   :depth: 2
+
+
+Key Facts
+=========
+
+**Read this before modifying the Sood case registry.**
+
+- **What this is**: a registry, not a method. It is the single
+  source of truth for benchmark case configurations from the
+  Sood-family literature. The folder name (``sood_registry/``)
+  preserves the author name because it identifies a *case
+  collection*, not a method — author-named registries are
+  explicitly allowed under the project's folder-naming rule
+  (see :ref:`reference-solvers-three-meanings` for the broader
+  taxonomy).
+- **Architectural intent**: decouple **case configurations**
+  (cross sections, geometry, published reference values) from
+  **solver methods**. Multiple methods consume the same case via
+  different adapters — see the **Purpose** section below for the
+  full design rationale.
+- **Coverage today**: LA-13511 first slice (k_inf cases, slab,
+  sphere, cylinder critical radii). LA-UR-03-1987 cylinder
+  benchmarks and KLL Tables queued for Phase B.
+- **Status**: Stub-grade theory page; the Python package is in
+  production and consumed by the F_N, Variant α, Galerkin spectral,
+  and singular-eigenfunction reference solvers. Archivist expansion
+  of TODO markers pending.
+
+
 .. note::
 
    **Stub-grade theory page.** This page documents the

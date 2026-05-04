@@ -1,16 +1,41 @@
 .. _theory-galerkin-spectral:
 
+==========================================================================
 Galerkin Spectral Method (slab + sphere, linearly anisotropic)
-===============================================================
+==========================================================================
 
-The :mod:`orpheus.derivations.continuous.galerkin_spectral` package
-implements a **Galerkin spectral expansion of Carlvik's integral
-equation** [Carlvik1968]_ for the criticality of a multiplying
-slab/sphere with linearly anisotropic scattering, following Dahl &
-Sjöstrand (1979) [DahlSjostrand1979]_. This is the third
-structurally-independent Pillar-2 verification method in the
-project, alongside :ref:`F_N collocation <theory-fn-method>` and
-:ref:`singular eigenfunction Fredholm <theory-singular-eigenfunction>`.
+.. contents:: Contents
+   :local:
+   :depth: 2
+
+
+Key Facts
+=========
+
+**Read this before modifying the Galerkin spectral reference solver.**
+
+- **What this implements**: Galerkin spectral expansion of Carlvik's
+  integral equation [Carlvik1968]_ for the criticality of a
+  multiplying slab/sphere with linearly anisotropic scattering,
+  following Dahl & Sjöstrand (1979) [DahlSjostrand1979]_.
+- **Position in the V&V stack**: third structurally-independent
+  Pillar-2 verification method, alongside
+  :ref:`F_N collocation <theory-fn-method>` and
+  :ref:`singular eigenfunction Fredholm <theory-singular-eigenfunction>`.
+  Pillar classification: closed-form (matrix eigenvalue).
+- **Folder-naming rationale**: ``galerkin_spectral/`` is
+  method-canonical (Legendre-Galerkin spectral expansion). The
+  Carlvik recurrences live inside as named-mathematical-primitive
+  filenames (``core/carlvik_recurrences.py``) — that's the literature
+  convention. See :ref:`theory-galerkin-spectral-carlvik-primitives`
+  below for the full rule.
+- **Cross-references**: Sood case registry consumes this method's
+  truth values via :ref:`theory-sood-registry`; F_N method serves as
+  the canonical structurally-independent cross-check via the
+  ``test_carlvik_galerkin_xverif_fn`` test family.
+
+The page below covers the Carlvik-recurrence primitive design
+discipline, the Galerkin assembly, and the V&V pillar position.
 
 .. _theory-galerkin-spectral-carlvik-primitives:
 

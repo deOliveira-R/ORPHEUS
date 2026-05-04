@@ -4,6 +4,43 @@
 Singular Eigenfunction Expansion (Case 1960 family)
 ================================================================================
 
+.. contents:: Contents
+   :local:
+   :depth: 2
+
+
+Key Facts
+=========
+
+**Read this before modifying any solver in
+:mod:`orpheus.derivations.continuous.singular_eigenfunction`.**
+
+- **What this is**: a Pillar-2 reference family realising
+  Meaning (γ) in the :ref:`reference-solvers-three-meanings`
+  taxonomy — the angular Green's function
+  :math:`G(\tau, \tau'; \mu, \mu')` constructed via Case
+  ν-spectrum + half-range completeness.
+- **Pillar classification**: closed-form (criticality determinant) /
+  semi-analytical (interior flux reconstruction via KLL 1974
+  Fredholm iteration; the latter is currently in
+  :mod:`orpheus.derivations.continuous.fn_method` while interior
+  reconstruction is in production for slab + sphere via KLL 1974;
+  cylinder reconstruction is the open extension).
+- **Geometry × anisotropy coverage**: cylinder isotropic
+  (Westfall-Metcalf 1973); slab + sphere linearly anisotropic with
+  Atalay 1997 parity flip; foundational primitives
+  (X-function, ν₀ dispersion root, half-range projections) shared
+  across geometries via :mod:`...singular_eigenfunction.core`.
+- **Status**: Stub-grade theory page. The TODO markers below
+  are expansion targets for the archivist; the production code +
+  V&V-pinned tests already pass against the Sood LA-13511 truth
+  set and the Atalay 1997 Tables 2 + 3 reference values.
+- **Cross-references**: :ref:`theory-fn-method` is the structurally-
+  independent collocation cross-check; :ref:`theory-galerkin-spectral`
+  is the matrix-Galerkin cross-check; :ref:`theory-trajectory-resolvent`
+  realises Meaning (α) on the same Sood family.
+
+
 .. note::
 
    **Stub-grade page (consolidated 2026-05-03).** This page consolidates

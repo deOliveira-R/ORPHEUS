@@ -4,6 +4,53 @@
 Trajectory-Resolvent Family — angle-resolved Green's function references
 ==========================================================================
 
+.. contents:: Contents
+   :local:
+   :depth: 2
+
+
+Key Facts
+=========
+
+**Read this before modifying any solver in
+:mod:`orpheus.derivations.continuous.trajectory_resolvent`.**
+
+- **What this is**: a 6-geometry × 2-topology family of angle-
+  resolved Green's-function reference solvers, all mounted on a
+  single shared resolvent + closure primitive
+  (:mod:`...trajectory_resolvent.variant_alpha_core`). The family
+  closed 2026-05-02 with: sphere, cylinder, slab (symmetric +
+  asymmetric), hollow sphere, annulus.
+- **Pillar classification**: semi-analytical (ray-traced quadratures
+  + geometric multi-bounce series). The **β-sister** pillar
+  (closed-form spectral μ-integration) is reserved at
+  :ref:`theory-spectral-resolvent` and constitutes the headline
+  implementation gap.
+- **Three-meanings position**: this folder realises Meaning (α) in
+  the :ref:`reference-solvers-three-meanings` taxonomy. The two
+  sisters are Meaning (β) — closed-form scalar kernel via spectral
+  μ-integration, reserved at ``spectral_resolvent/`` — and Meaning
+  (γ) — angular Green's function via Case ν-spectrum, in production
+  at :ref:`theory-singular-eigenfunction`.
+- **Folder-naming rationale**: ``trajectory_resolvent/`` is named
+  after *how* it builds the answer (tracing characteristic
+  trajectories + resolvent closure :math:`T = (I-S)^{-1}`), not
+  after what the answer *is* (a Green's function). This is the
+  Sanchez 2002 family vocabulary (*"trajectory-based deterministic
+  transport methods"*). See :ref:`theory-trajectory-resolvent-name`
+  below for the full rationale and the historical naming evidence.
+- **Variant α** is internal ORPHEUS jargon for the rank-1
+  specialisation. The folder avoids the jargon; internal APIs
+  (``compute_resolvent_T``, ``apply_variant_alpha_closure``) keep
+  it because it has been load-bearing vocabulary across the
+  multi-region / multi-group expansion.
+- **Cross-checks**: agreement with PS-1982 vacuum sphere reference
+  (state 1B; ``test_peierls_greens_function_xverif_ps1982.py``) and
+  with the Garcia 2021 multi-region sphere benchmark
+  (``test_peierls_greens_function_garcia2021.py``). These are the
+  load-bearing L1 evidence for the sphere family.
+
+
 .. _theory-trajectory-resolvent-name:
 
 Why the name "trajectory resolvent" (and what it produces)
