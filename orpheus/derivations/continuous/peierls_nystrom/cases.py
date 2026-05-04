@@ -395,7 +395,7 @@ cases = continuous_cases
 # for the Sphinx §theory-peierls-capabilities matrix. Keep this list
 # synchronised with the ``_class_{a,b}_cases()`` loops above — any
 # new shipped reference must appear in both. See
-# ``tools/verification/generate_peierls_matrix.py`` for the consumer.
+# ``tools/verification/generate_peierls_nystrom_matrix.py`` for the consumer.
 # ---------------------------------------------------------------------
 
 

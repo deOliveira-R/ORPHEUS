@@ -688,11 +688,11 @@ Codebase pointers:
 - :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function`
   — SymPy derivations V_α1, V_α2, V_α3 for the Green's function
   family.
-- :file:`docs/theory/_peierls_capability_matrix.inc.rst` —
+- :file:`docs/theory/_peierls_nystrom_capability_matrix.inc.rst` —
   auto-generated from
   :func:`orpheus.derivations.continuous.peierls_nystrom.cases.capability_rows`;
   rebuilt every Sphinx build by
-  :mod:`tools.verification.generate_peierls_matrix`.
+  :mod:`tools.verification.generate_peierls_nystrom_matrix`.
 
 
 Provenance: literature references

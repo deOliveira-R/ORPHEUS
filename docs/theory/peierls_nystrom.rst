@@ -203,14 +203,14 @@ The table below enumerates every shipped Peierls continuous reference
 case with its production status, accuracy class, and the test label
 that gates regressions. The table body is auto-generated at Sphinx
 build time by
-:mod:`tools.verification.generate_peierls_matrix` from the registry
-function
+:mod:`tools.verification.generate_peierls_nystrom_matrix` from the
+registry function
 :func:`orpheus.derivations.continuous.peierls_nystrom.cases.capability_rows` — if this
 table diverges from ``continuous_all()`` filtered to
 ``operator_form == "integral-peierls"``, the capability-matrix
 cross-check test will fail.
 
-.. include:: _peierls_capability_matrix.inc.rst
+.. include:: _peierls_nystrom_capability_matrix.inc.rst
 
 All rows carry ``vv_level = "L1"``, ``equation_labels`` include
 ``peierls-unified`` and — for F.4 cases —

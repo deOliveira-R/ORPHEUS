@@ -89,20 +89,20 @@ def _regenerate_verification_matrix(app):
         )
 
 
-# -- Auto-generate Peierls capability matrix --------------------------
+# -- Auto-generate Peierls-Nyström capability matrix ------------------
 #
-# Runs `python -m tools.verification.generate_peierls_matrix` before
-# Sphinx collects sources so the capability table in
+# Runs `python -m tools.verification.generate_peierls_nystrom_matrix`
+# before Sphinx collects sources so the capability table in
 # `docs/theory/peierls_nystrom.rst` (§theory-peierls-capabilities)
 # cannot drift from the registry function
-# `orpheus.derivations.peierls_cases.capability_rows()`. Consolidation
-# task T2.1.
+# `orpheus.derivations.continuous.peierls_nystrom.cases.capability_rows()`.
+# Consolidation task T2.1.
 
-def _regenerate_peierls_matrix(app):
+def _regenerate_peierls_nystrom_matrix(app):
     import subprocess
     try:
         subprocess.run(
-            [sys.executable, "-m", "tools.verification.generate_peierls_matrix"],
+            [sys.executable, "-m", "tools.verification.generate_peierls_nystrom_matrix"],
             cwd=project_root,
             check=True,
             capture_output=True,
@@ -110,13 +110,13 @@ def _regenerate_peierls_matrix(app):
         )
     except subprocess.CalledProcessError as e:
         app.warn(
-            f"peierls capability matrix regeneration failed: {e.stderr}"
+            f"peierls-nystrom capability matrix regeneration failed: {e.stderr}"
         )
 
 
 def setup(app):
     app.connect("builder-inited", _regenerate_verification_matrix)
-    app.connect("builder-inited", _regenerate_peierls_matrix)
+    app.connect("builder-inited", _regenerate_peierls_nystrom_matrix)
 
 # -- Options for mathjax -----------------------------------------------
 
