@@ -245,6 +245,8 @@ class TransportSolver(Protocol):
 KNOWN_TRANSPORT_SOLVERS: tuple[str, ...] = (
     "trajectory_resolvent",
     "fn_method",
+    "singular_eigenfunction",
+    "galerkin_spectral",
     "cp",
     "sn",
 )
