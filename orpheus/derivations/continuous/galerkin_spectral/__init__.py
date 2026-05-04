@@ -79,3 +79,9 @@ References
    DOI: 10.13182/NSE69-114.
 """
 from __future__ import annotations
+
+from orpheus.derivations.continuous.galerkin_spectral.basis_space import (
+    BasisSpace,
+)
+
+__all__ = ["BasisSpace"]
