@@ -43,7 +43,7 @@ from orpheus.derivations.continuous.sood_registry import (
     UA_1_0_SL_STUB,
     UA_1_0_SP_STUB,
     La13511Case,
-    MeshTemplate,
+    GeometrySpec,
     build_materials,
     build_mesh,
     mixture_to_fn_arrays,
@@ -77,14 +77,14 @@ def test_case_materials_is_dict_of_mixture(case_id: str) -> None:
 
 @pytest.mark.foundation
 @pytest.mark.parametrize("case_id", list(LA13511_CASES.keys()))
-def test_case_mesh_template_well_formed(case_id: str) -> None:
-    """Every registered case has a well-formed MeshTemplate."""
+def test_case_geometry_spec_well_formed(case_id: str) -> None:
+    """Every registered case has a well-formed GeometrySpec."""
     case = LA13511_CASES[case_id]
-    assert isinstance(case.mesh_template, MeshTemplate)
-    # n_groups consistent between mesh_template and the mixture.
+    assert isinstance(case.geometry_spec, GeometrySpec)
+    # n_groups consistent between geometry_spec and the mixture.
     primary = next(iter(case.materials.values()))
-    assert primary.ng == case.mesh_template.n_groups, (
-        f"{case_id}: n_groups mismatch (mesh={case.mesh_template.n_groups}, "
+    assert primary.ng == case.geometry_spec.n_groups, (
+        f"{case_id}: n_groups mismatch (mesh={case.geometry_spec.n_groups}, "
         f"mixture={primary.ng})"
     )
 
@@ -102,7 +102,7 @@ def test_case_mesh_template_well_formed(case_id: str) -> None:
 )
 def test_case_geometry_matches_expected(case_id: str, expected_geom: str) -> None:
     """Geometry kind matches the case-id suffix."""
-    assert LA13511_CASES[case_id].mesh_template.geometry == expected_geom
+    assert LA13511_CASES[case_id].geometry_spec.geometry == expected_geom
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -215,7 +215,7 @@ def test_cylinder_mesh_builds_radial_domain_with_reflective_axis() -> None:
 
 
 @pytest.mark.foundation
-def test_infinite_mesh_template_raises_on_build() -> None:
+def test_infinite_geometry_spec_raises_on_build() -> None:
     """build_mesh on infinite-medium case raises ValueError."""
     for case in (PUA_1_0_IN, PU_2_0_IN):
         with pytest.raises(ValueError, match="infinite"):

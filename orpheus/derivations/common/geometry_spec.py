@@ -1,18 +1,18 @@
-r"""Method-agnostic geometry recipe for cross-method case construction.
+r"""Method-agnostic geometry specification for cross-method case construction.
 
-:class:`MeshTemplate` is a recipe — a small, immutable description of
-``(geometry_kind, critical_dimension_{mfp,cm}, n_groups, mat_id,
+:class:`GeometrySpec` is a specification — a small, immutable description
+of ``(geometry_kind, critical_dimension_{mfp,cm}, n_groups, mat_id,
 bc_left, bc_right)`` — that BOTH production solvers AND continuous
 reference solvers can consume at the case-description boundary:
 
 * **Production solvers** (``solve_cp``, ``solve_sn``, etc.) consume
   the discretised :class:`~orpheus.geometry.mesh.Mesh1D` produced by
-  :meth:`MeshTemplate.build`.
+  :meth:`GeometrySpec.build`.
 * **Continuous reference solvers** (``solve_fn_*``,
   ``solve_greens_function_*``, etc.) consume the descriptor scalars
-  directly via :attr:`MeshTemplate.domain_extent_cm`,
-  :attr:`MeshTemplate.critical_dimension_cm`,
-  :attr:`MeshTemplate.bc_left`, :attr:`MeshTemplate.bc_right` —
+  directly via :attr:`GeometrySpec.domain_extent_cm`,
+  :attr:`GeometrySpec.critical_dimension_cm`,
+  :attr:`GeometrySpec.bc_left`, :attr:`GeometrySpec.bc_right` —
   with no need to discretise into cells.
 
 The class lived inside
@@ -25,20 +25,23 @@ Promote-and-unify"). The audit identified that:
    describe the SHAPE of the domain, not any particular solver.
 2. Both production-side (sood_registry → ``Mesh1D`` → ``solve_cp``)
    and reference-side (cross-method adapter → ``solve_fn_slab``)
-   call sites benefit from a single canonical recipe.
+   call sites benefit from a single canonical specification.
 3. The promotion is independent of the trajectory_resolvent
    R1/R2/R3 chord-oracle / power-iterate refactors.
 
-The legacy import path
-``from orpheus.derivations.continuous.sood_registry.la13511 import
-MeshTemplate`` is preserved as a re-export for backward
-compatibility — existing callers do not need to change.
+Originally named ``MeshTemplate`` (the name described what the class
+*produced* — a :class:`Mesh1D` for discrete consumers). Renamed to
+``GeometrySpec`` on 2026-05-03 to describe what the class *is* (a
+geometry specification — geometry kind, critical dimension, materials,
+BCs, group count) — the name now matches the abstraction's
+method-agnostic role and is symmetric across discrete and
+reference-method consumers.
 
 References
 ----------
 
 * :doc:`/skills/algebra-of-record` §"Branch 1 / Branch 2 separation"
-  — :class:`MeshTemplate` lives at the math layer, NOT inside any
+  — :class:`GeometrySpec` lives at the math layer, NOT inside any
   specific solver's algebra-of-record.
 * ``.claude/scratch/geometry_handling_unification_audit.md`` —
   the audit memo that identified the promotion opportunity.
@@ -60,8 +63,8 @@ _GEOMETRY_TO_COORD: dict[str, CoordSystem] = {
 
 
 @dataclass(frozen=True)
-class MeshTemplate:
-    """Geometry + critical-dimension recipe for a benchmark case.
+class GeometrySpec:
+    """Geometry + critical-dimension specification for a benchmark case.
 
     Method-agnostic: stores the shape of the domain (slab /
     sphere / cylinder / infinite / ISLC), the critical dimension as
@@ -167,7 +170,7 @@ class MeshTemplate:
         -------
         Mesh1D
             A 1-D mesh with ``n_cells`` cells, homogeneous material
-            ``mat_id``, and BCs from this template.
+            ``mat_id``, and BCs from this specification.
 
         Raises
         ------
@@ -202,4 +205,4 @@ class MeshTemplate:
         )
 
 
-__all__ = ["MeshTemplate"]
+__all__ = ["GeometrySpec"]

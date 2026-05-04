@@ -17,7 +17,7 @@ production discrete solvers (CP, SN, MOC), Monte Carlo, etc.
 Each :class:`La13511Case` carries:
 
 * **Production-protocol XS + geometry**: ``materials: dict[int, Mixture]``
-  + ``mesh_template: MeshTemplate``. The same objects production
+  + ``geometry_spec: GeometrySpec``. The same objects production
   solvers (:func:`orpheus.cp.solver.solve_cp`,
   :func:`orpheus.sn.solver.solve_sn`) consume directly.
 * **Tabulated truth values**: :math:`k_{\rm eff}` / :math:`k_\infty`,
@@ -54,7 +54,7 @@ from .la13511 import (
     # Core schema
     La13511Case,
     La13511Truth,
-    MeshTemplate,
+    GeometrySpec,
     # Phase A first slice (5)
     ALL_FIRST_SLICE,
     LA13511_CASES,
@@ -137,7 +137,7 @@ __all__ = [
     # Core schema
     "La13511Case",
     "La13511Truth",
-    "MeshTemplate",
+    "GeometrySpec",
     # Phase A first slice
     "PUA_1_0_IN",
     "PU_2_0_IN",

@@ -36,7 +36,7 @@ Key Facts
     linearly-anisotropic cases.
   * **Total: 49 cases shipped.**
 - **Production-protocol-aligned**: every case carries
-  ``materials: dict[int, Mixture]`` + ``mesh_template: MeshTemplate``
+  ``materials: dict[int, Mixture]`` + ``geometry_spec: GeometrySpec``
   + ``truth: La13511Truth`` — the same objects production solvers
   (:func:`orpheus.cp.solver.solve_cp`, :func:`orpheus.sn.solver.solve_sn`)
   consume directly.
@@ -47,7 +47,7 @@ Key Facts
     slab/sphere) — extract numpy arrays via
     :func:`mixture_to_fn_arrays`.
   * Production discrete solvers (CP, SN, MOC) — accept the
-    ``materials`` dict + ``mesh_template.build()`` directly.
+    ``materials`` dict + ``geometry_spec.build()`` directly.
 - **Cross-references**: :ref:`theory-fn-method` consumes
   ``LA13511_CASES`` for slab/sphere F_N pinning;
   :ref:`theory-singular-eigenfunction` consumes the Atalay catalogue;
@@ -130,8 +130,8 @@ The :class:`La13511Case` dataclass carries six load-bearing fields:
      - Macroscopic cross sections keyed by material ID.
        Single-region cases use ``{0: Mixture(...)}``; multi-region
        cases (none in the first slice yet) add more keys.
-   * - ``mesh_template``
-     - :class:`MeshTemplate`
+   * - ``geometry_spec``
+     - :class:`GeometrySpec`
      - Geometry kind + critical dimension (mfp + cm) + per-end
        boundary conditions. The ``build(n_cells)`` method produces
        a :class:`Mesh1D` at the requested refinement.
@@ -153,7 +153,7 @@ The :class:`La13511Case` dataclass carries six load-bearing fields:
      - ``str``
      - Free-form remarks (typo flags, conversion subtleties, …).
 
-The :class:`MeshTemplate` carries:
+The :class:`GeometrySpec` carries:
 
 * ``geometry`` — one of ``"infinite"``, ``"slab"``, ``"sphere"``,
   ``"cylinder"``, ``"ISLC"``.
@@ -241,16 +241,16 @@ modules use Sood's symbols verbatim so equations match the LA-13511
 report letter-for-letter; the conversion is purely a relabeling and
 the algebra is identical for either side.
 
-Mesh-template build conventions
+Geometry-spec build conventions
 ================================
 
 .. _sood-registry-mesh-conventions:
 
-The :meth:`MeshTemplate.build` method constructs a :class:`Mesh1D`
+The :meth:`GeometrySpec.build` method constructs a :class:`Mesh1D`
 matching the published critical configuration. Conventions per
 geometry:
 
-.. list-table:: MeshTemplate.build conventions per geometry
+.. list-table:: GeometrySpec.build conventions per geometry
    :header-rows: 1
    :widths: 14 30 28 28
 
@@ -495,7 +495,7 @@ The Atalay 1997 case catalogue lives in
 :mod:`orpheus.derivations.continuous.sood_registry.atalay1997`. It is
 **method-agnostic** in the same sense as the LA-13511 catalogue —
 the case dataclass is :class:`La13511Case` (re-used) carrying
-``materials`` + ``mesh_template`` + ``truth`` — but parametrises
+``materials`` + ``geometry_spec`` + ``truth`` — but parametrises
 over :math:`(c, R, f_1)` triples rather than material composition,
 mirroring how Atalay published the cases.
 
@@ -573,7 +573,7 @@ The structural-bridge gates live in
 * Legacy property accessors (``case.sigma_t``, ``case.sigma_s``,
   ``case.nu_sigma_f``, ``case.chi``) match the extractor — load-
   bearing back-compat with existing F_N tests (foundation).
-* :class:`MeshTemplate` build conventions hold for every geometry
+* :class:`GeometrySpec` build conventions hold for every geometry
   kind (foundation).
 * :func:`kinf_homogeneous` consumes the registry directly and
   reproduces Sood truth at both 1G and 2G cases to ≤ 1e-5
@@ -597,7 +597,7 @@ claims about the underlying physics. Examples:
   a software invariant of the extractor function — it must be
   bit-for-bit because consumers depend on the extractor not
   changing the values silently.
-* "MeshTemplate.build returns a Mesh1D with the right
+* "GeometrySpec.build returns a Mesh1D with the right
   geometry" is a software invariant of the build interface.
 
 These are all **foundation-tagged** because they don't claim

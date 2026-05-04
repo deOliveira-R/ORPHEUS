@@ -39,7 +39,7 @@ def build_mesh(case: "La13511Case", n_cells: int = 64) -> Mesh1D:
     infinite-medium cases have no spatial mesh and should be consumed
     via :func:`build_materials` alone.
     """
-    return case.mesh_template.build(n_cells=n_cells)
+    return case.geometry_spec.build(n_cells=n_cells)
 
 
 def build_cp_params(case: "La13511Case", **kwargs):  # type: ignore[no-untyped-def]

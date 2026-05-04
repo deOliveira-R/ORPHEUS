@@ -44,7 +44,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, Mapping, Protocol, runtime_checkable
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.geometry_template import MeshTemplate
+from orpheus.derivations.common.geometry_spec import GeometrySpec
 
 ClaimLayer = Literal["eigenvalue", "flux-shape", "convergence-order"]
 """The claim layer per :doc:`/skills/vv-principles` §"Hierarchical
@@ -172,7 +172,7 @@ class CrossMethodCase:
     A case provides its physical parameters either via a
     ``registry_case`` (the registry-backed path — typically a
     :class:`~orpheus.derivations.continuous.sood_registry.la13511.La13511Case`)
-    or via inline ``materials`` + ``mesh_template`` fields (for cases
+    or via inline ``materials`` + ``geometry_spec`` fields (for cases
     NOT in the registry — closed-sphere k_inf, MMS, custom
     configurations). Exactly ONE of these two paths must be populated;
     :meth:`__post_init__` enforces the invariant.
@@ -189,18 +189,18 @@ class CrossMethodCase:
         Reference into the upstream case registry (e.g. a
         :class:`~orpheus.derivations.continuous.sood_registry.la13511.La13511Case`).
         ``None`` for cases that don't yet have a registry entry —
-        those carry inline ``materials`` / ``mesh_template`` instead.
+        those carry inline ``materials`` / ``geometry_spec`` instead.
     materials : dict[int, Mixture] | None
         Optional inline cross sections for cases without a registry
         entry, keyed by integer material ID (matches the production-
         solver convention). MUST be paired with a non-None
-        :attr:`mesh_template`. Defaults to ``None`` for registry-
+        :attr:`geometry_spec`. Defaults to ``None`` for registry-
         backed cases.
-    mesh_template : MeshTemplate | None
-        Optional inline geometry recipe for cases without a registry
+    geometry_spec : GeometrySpec | None
+        Optional inline geometry specification for cases without a registry
         entry. MUST be paired with non-None :attr:`materials`.
         Defaults to ``None`` for registry-backed cases. The
-        :class:`~orpheus.derivations.common.geometry_template.MeshTemplate`
+        :class:`~orpheus.derivations.common.geometry_spec.GeometrySpec`
         carries ``(geometry_kind, critical_dimension_{mfp,cm},
         n_groups, mat_id, bc_left, bc_right)`` — enough for adapters
         to dispatch all three families uniformly.
@@ -252,7 +252,7 @@ class CrossMethodCase:
     tolerances: Mapping[str, float]
     notes: str = ""
     materials: dict[int, Mixture] | None = None
-    mesh_template: MeshTemplate | None = None
+    geometry_spec: GeometrySpec | None = None
 
     def __post_init__(self) -> None:
         """Validate the provisioning paths for materials + geometry.
@@ -261,41 +261,41 @@ class CrossMethodCase:
         depending on its kind:
 
         1. **Registry-backed**: ``registry_case`` is set, both
-           ``materials`` and ``mesh_template`` are ``None``. The
+           ``materials`` and ``geometry_spec`` are ``None``. The
            adapter reads XS + geometry off
            ``case.registry_case.materials`` /
-           ``case.registry_case.mesh_template``.
-        2. **Inline**: ``materials`` and ``mesh_template`` are both
+           ``case.registry_case.geometry_spec``.
+        2. **Inline**: ``materials`` and ``geometry_spec`` are both
            set, ``registry_case`` is ``None``. The adapter reads
            XS + geometry directly off the case.
         3. **Override** (registry XS + inline geometry): ``registry_case``
-           is set AND ``mesh_template`` is set (with ``materials=None``).
+           is set AND ``geometry_spec`` is set (with ``materials=None``).
            Used by cross-method agreement tests to substitute a
            predicted critical dimension without re-deriving XS. The
-           adapter prefers ``case.mesh_template`` over
-           ``case.registry_case.mesh_template`` when both are present.
+           adapter prefers ``case.geometry_spec`` over
+           ``case.registry_case.geometry_spec`` when both are present.
         4. **Notes-only** (legacy / awaiting Step 5): all three are
            ``None``; the adapter parses parameters from
            ``case.notes`` via ``_parse_notes_kv``. Today only the
            reflected-slab cases use this path; multi-region
-           ``MeshTemplate`` will retire it.
+           ``GeometrySpec`` will retire it.
 
         Validation rules:
 
-        * Inline ``materials`` MUST be paired with ``mesh_template``
+        * Inline ``materials`` MUST be paired with ``geometry_spec``
           (you can't supply XS without geometry).
         * Inline ``materials`` MUST NOT be combined with a
           ``registry_case`` (XS comes from one source per case).
         """
         has_registry = self.registry_case is not None
         has_inline_materials = self.materials is not None
-        has_inline_template = self.mesh_template is not None
+        has_inline_spec = self.geometry_spec is not None
 
-        if has_inline_materials and not has_inline_template:
+        if has_inline_materials and not has_inline_spec:
             raise ValueError(
                 f"CrossMethodCase {self.case_id!r}: 'materials' set but "
-                f"'mesh_template' is None — inline materials require "
-                f"an inline mesh_template."
+                f"'geometry_spec' is None — inline materials require "
+                f"an inline geometry_spec."
             )
         if has_inline_materials and has_registry:
             raise ValueError(

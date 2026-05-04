@@ -50,7 +50,7 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry.mesh import BC
 
-from .la13511 import La13511Case, La13511Truth, MeshTemplate
+from .la13511 import La13511Case, La13511Truth, GeometrySpec
 
 
 # ─── Common XS for c=1.30 isotropic (matches Sood U-235(a) Σ_t=0.32640) ───
@@ -111,7 +111,7 @@ ATALAY_SLAB_C130_R000_F0 = La13511Case(
         "Same c as Sood Ua-1-0-SL (U-235(a)); Atalay reports 2d=1.87766 mfp."
     ),
     materials={0: _mix_iso_at_c(1.30)},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=1.87766 / 2,
         critical_dimension_cm=(1.87766 / 2) / 0.32640,
@@ -131,7 +131,7 @@ ATALAY_SLAB_C130_R025_F0 = La13511Case(
     problem_number=1002,
     description="Atalay 1997 Table 2: c=1.30, R=0.25, f_1=0. Reports 2d=1.40621 mfp.",
     materials={0: _mix_iso_at_c(1.30)},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=1.40621 / 2,
         critical_dimension_cm=(1.40621 / 2) / 0.32640,
@@ -151,7 +151,7 @@ ATALAY_SLAB_C130_R050_F0 = La13511Case(
     problem_number=1003,
     description="Atalay 1997 Table 2: c=1.30, R=0.50, f_1=0. Reports 2d=0.89317 mfp.",
     materials={0: _mix_iso_at_c(1.30)},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=0.89317 / 2,
         critical_dimension_cm=(0.89317 / 2) / 0.32640,
@@ -171,7 +171,7 @@ ATALAY_SLAB_C130_R075_F0 = La13511Case(
     problem_number=1004,
     description="Atalay 1997 Table 2: c=1.30, R=0.75, f_1=0. Reports 2d=0.40758 mfp.",
     materials={0: _mix_iso_at_c(1.30)},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=0.40758 / 2,
         critical_dimension_cm=(0.40758 / 2) / 0.32640,
@@ -195,7 +195,7 @@ ATALAY_SLAB_C130_R000_F010 = La13511Case(
         "Reports 2d=1.94146 mfp."
     ),
     materials={0: _mix_iso_at_c(1.30)},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=1.94146 / 2,
         critical_dimension_cm=(1.94146 / 2) / 0.32640,
@@ -218,7 +218,7 @@ ATALAY_SLAB_C130_R050_F010 = La13511Case(
     problem_number=1006,
     description="Atalay 1997 Table 3: c=1.30, R=0.50, f_1=0.10. Reports 2d=0.89831 mfp.",
     materials={0: _mix_iso_at_c(1.30)},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=0.89831 / 2,
         critical_dimension_cm=(0.89831 / 2) / 0.32640,
@@ -248,7 +248,7 @@ ATALAY_SPHERE_C130_R000_F0 = La13511Case(
         "(R_c = 2.4248 mfp, KLL 1974)."
     ),
     materials={0: _mix_iso_at_c(1.30)},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="sphere",
         critical_dimension_mfp=2.4248249802,
         critical_dimension_cm=2.4248249802 / 0.32640,

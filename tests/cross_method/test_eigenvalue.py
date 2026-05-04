@@ -66,7 +66,7 @@ pytestmark = [
 
 from dataclasses import replace
 
-from orpheus.derivations.common.geometry_template import MeshTemplate
+from orpheus.derivations.common.geometry_spec import GeometrySpec
 
 from .adapters import (
     ADAPTERS_BY_NAME,
@@ -98,7 +98,7 @@ def _shadow_with_thickness_mfp(
     a_critical_mfp: float | None = None,
     R_critical_mfp: float | None = None,
 ) -> CrossMethodCase:
-    """Return a copy of ``case`` whose mesh_template encodes a different
+    """Return a copy of ``case`` whose geometry_spec encodes a different
     critical dimension (in mfp).
 
     Used by cross-method agreement tests to feed one method's
@@ -114,35 +114,35 @@ def _shadow_with_thickness_mfp(
             "Provide exactly one of a_critical_mfp or R_critical_mfp."
         )
     sigma_t, _, _ = _extract_1g_xs(case)
-    base_template = case.registry_case.mesh_template if (
+    base_spec = case.registry_case.geometry_spec if (
         case.registry_case is not None
-        and getattr(case.registry_case, "mesh_template", None) is not None
-    ) else case.mesh_template
-    if base_template is None:
+        and getattr(case.registry_case, "geometry_spec", None) is not None
+    ) else case.geometry_spec
+    if base_spec is None:
         raise ValueError(
-            f"Case {case.case_id!r} has no mesh_template to shadow."
+            f"Case {case.case_id!r} has no geometry_spec to shadow."
         )
     if a_critical_mfp is not None:
-        new_template = MeshTemplate(
-            geometry=base_template.geometry,
+        new_spec = GeometrySpec(
+            geometry=base_spec.geometry,
             critical_dimension_mfp=a_critical_mfp,
             critical_dimension_cm=a_critical_mfp / sigma_t,
-            n_groups=base_template.n_groups,
-            mat_id=base_template.mat_id,
-            bc_left=base_template.bc_left,
-            bc_right=base_template.bc_right,
+            n_groups=base_spec.n_groups,
+            mat_id=base_spec.mat_id,
+            bc_left=base_spec.bc_left,
+            bc_right=base_spec.bc_right,
         )
     else:
-        new_template = MeshTemplate(
-            geometry=base_template.geometry,
+        new_spec = GeometrySpec(
+            geometry=base_spec.geometry,
             critical_dimension_mfp=R_critical_mfp,
             critical_dimension_cm=R_critical_mfp / sigma_t,
-            n_groups=base_template.n_groups,
-            mat_id=base_template.mat_id,
-            bc_left=base_template.bc_left,
-            bc_right=base_template.bc_right,
+            n_groups=base_spec.n_groups,
+            mat_id=base_spec.mat_id,
+            bc_left=base_spec.bc_left,
+            bc_right=base_spec.bc_right,
         )
-    return replace(case, mesh_template=new_template)
+    return replace(case, geometry_spec=new_spec)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -497,7 +497,7 @@ def test_fn_slab_vs_trajectory_resolvent_slab(case: CrossMethodCase):
     # (NOT at the case's published truth, to test agreement of the
     # methods themselves rather than a triple agreement with truth).
     # The trajectory_resolvent slab adapter reads its width off
-    # mesh_template.domain_extent_cm; we shadow the registry case's
+    # geometry_spec.domain_extent_cm; we shadow the registry case's
     # template with an inline one whose critical_dimension_cm reflects
     # the F_N prediction.
     case_at_fn_thickness = _shadow_with_thickness_mfp(
@@ -541,7 +541,7 @@ def test_fn_sphere_vs_trajectory_resolvent_sphere(case: CrossMethodCase):
 
     res_fn = fn.solve(case)
     # The trajectory_resolvent sphere adapter reads its radius off
-    # mesh_template.critical_dimension_cm; shadow with a template at
+    # geometry_spec.critical_dimension_cm; shadow with a template at
     # F_N's predicted radius.
     case_at_fn_radius = _shadow_with_thickness_mfp(
         case, R_critical_mfp=float(res_fn.value)

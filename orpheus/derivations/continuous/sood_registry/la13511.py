@@ -9,8 +9,8 @@ Each case now carries:
   :func:`orpheus.sn.solver.solve_sn` consume. Built via
   :func:`orpheus.derivations.common.xs_library.make_mixture` from the
   raw Sood XS components (ν, Σ_f, Σ_c, Σ_s, χ).
-* **`mesh_template: MeshTemplate`** — encodes geometry kind +
-  critical-dimension; ``mesh_template.build(n_cells)`` produces a
+* **`geometry_spec: GeometrySpec`** — encodes geometry kind +
+  critical-dimension; ``geometry_spec.build(n_cells)`` produces a
   :class:`orpheus.geometry.mesh.Mesh1D` at the desired refinement.
 * **`truth: La13511Truth`** — all published reference values bundled
   in one struct. Different cases populate different subsets.
@@ -55,21 +55,21 @@ from typing import Mapping
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.geometry_template import MeshTemplate
+from orpheus.derivations.common.geometry_spec import GeometrySpec
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry.mesh import BC
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Mesh template + truth dataclasses
+# Geometry spec + truth dataclasses
 # ═══════════════════════════════════════════════════════════════════
 #
-# :class:`MeshTemplate` was promoted to
-# :mod:`orpheus.derivations.common.geometry_template` on 2026-05-03 (R0.5)
-# per the geometry-handling unification audit. It is re-exported here for
-# backward compatibility — existing
-# ``from orpheus.derivations.continuous.sood_registry.la13511 import
-# MeshTemplate`` imports continue to work unchanged.
+# :class:`GeometrySpec` was promoted to
+# :mod:`orpheus.derivations.common.geometry_spec` on 2026-05-03 (R0.5)
+# per the geometry-handling unification audit and renamed from
+# ``MeshTemplate`` (originally named for its discrete-mesh-builder role)
+# to ``GeometrySpec`` (descriptive of what it IS, not what it produces)
+# on 2026-05-03. Imported directly from the canonical location below.
 
 
 @dataclass(frozen=True)
@@ -114,7 +114,7 @@ class La13511Case:
 
     Production-protocol form: cross sections live in a
     :class:`Mixture` (the same object production solvers consume),
-    geometry lives in a :class:`MeshTemplate` (which builds a
+    geometry lives in a :class:`GeometrySpec` (which builds a
     :class:`Mesh1D` on demand), reference values live in a
     :class:`La13511Truth`.
 
@@ -131,9 +131,9 @@ class La13511Case:
         Macroscopic cross sections keyed by material ID. Single-region
         cases use ``{0: Mixture(...)}``; multi-region cases (none in
         the first slice) add more keys.
-    mesh_template : MeshTemplate
-        Geometry recipe + critical dimension. Use
-        :meth:`MeshTemplate.build` to obtain a concrete mesh.
+    geometry_spec : GeometrySpec
+        Geometry specification + critical dimension. Use
+        :meth:`GeometrySpec.build` to obtain a concrete mesh.
     scattering_order : int
         Legendre order of the scattering kernel (0 = isotropic,
         1 = P_1, 2 = P_2). All first-slice cases are isotropic
@@ -157,7 +157,7 @@ class La13511Case:
     ``case.k_eff_or_kinf``, ``case.flux_ratios``,
     ``case.flux_ratio_groupwise``) is exposed as **read-only
     properties** that delegate to ``materials[0]`` /
-    ``mesh_template`` / ``truth``. This keeps the F_N test suite
+    ``geometry_spec`` / ``truth``. This keeps the F_N test suite
     working unchanged.
     """
 
@@ -165,7 +165,7 @@ class La13511Case:
     problem_number: int
     description: str
     materials: dict[int, Mixture]
-    mesh_template: MeshTemplate
+    geometry_spec: GeometrySpec
     scattering_order: int
     truth: La13511Truth
     sood_table: int
@@ -177,22 +177,22 @@ class La13511Case:
     @property
     def n_groups(self) -> int:
         """Number of energy groups."""
-        return self.mesh_template.n_groups
+        return self.geometry_spec.n_groups
 
     @property
     def geometry(self) -> str:
         """Geometry kind (``"infinite"``, ``"slab"``, ...)."""
-        return self.mesh_template.geometry
+        return self.geometry_spec.geometry
 
     @property
     def critical_dimension_mfp(self) -> float | None:
         """Critical dimension in mean free paths (or None for infinite)."""
-        return self.mesh_template.critical_dimension_mfp
+        return self.geometry_spec.critical_dimension_mfp
 
     @property
     def critical_dimension_cm(self) -> float | None:
         """Critical dimension in cm (or None for infinite)."""
-        return self.mesh_template.critical_dimension_cm
+        return self.geometry_spec.critical_dimension_cm
 
     @property
     def k_eff_or_kinf(self) -> float:
@@ -302,7 +302,7 @@ PUA_1_0_IN = La13511Case(
         nu=3.24,
         sigma_s_self=0.225216,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -365,7 +365,7 @@ PU_2_0_IN = La13511Case(
             [0.0,     0.23616],  # from g=1 (slow):  → fast upscatter (none), → slow self
         ]),
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -416,7 +416,7 @@ UA_1_0_SL_STUB = La13511Case(
     problem_number=12,
     description="U-235 (a) bare slab, 1G isotropic",
     materials={0: _mix_1g_isotropic(**_UA_1G_KW)},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=0.93772556,
         critical_dimension_cm=2.872934,
@@ -452,7 +452,7 @@ UA_1_0_CY_STUB = La13511Case(
     problem_number=13,
     description="U-235 (a) bare infinite cylinder, 1G isotropic",
     materials={0: _mix_1g_isotropic(**_UA_1G_KW)},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="cylinder",
         critical_dimension_mfp=1.72500292,
         critical_dimension_cm=5.284935,
@@ -486,7 +486,7 @@ UA_1_0_SP_STUB = La13511Case(
     problem_number=14,
     description="U-235 (a) bare sphere, 1G isotropic",
     materials={0: _mix_1g_isotropic(**_UA_1G_KW)},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="sphere",
         critical_dimension_mfp=2.4248249802,
         critical_dimension_cm=7.428998,
@@ -612,7 +612,7 @@ PUB_1_0_IN = La13511Case(
         nu=2.84,
         sigma_s_self=0.225216,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -632,7 +632,7 @@ UA_1_0_IN = La13511Case(
     problem_number=11,
     description="U-235 (a) bare infinite medium, 1G isotropic, c=1.30",
     materials={0: _mix_1g_isotropic(**_UA_1G_KW)},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -658,7 +658,7 @@ UB_1_0_IN = La13511Case(
         nu=2.797101,
         sigma_s_self=0.248064,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -684,7 +684,7 @@ UC_1_0_IN = La13511Case(
         nu=2.707308,
         sigma_s_self=0.248064,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -710,7 +710,7 @@ UD_1_0_IN = La13511Case(
         nu=2.679198,
         sigma_s_self=0.248064,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -736,7 +736,7 @@ UD2O_1_0_IN = La13511Case(
         nu=1.70,
         sigma_s_self=0.464338,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -762,7 +762,7 @@ UE_1_0_IN = La13511Case(
         nu=2.50,
         sigma_s_self=0.328042,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -791,7 +791,7 @@ PU_1_1_IN = La13511Case(
         nu=2.5,
         sigma_s_self=0.733333,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -823,7 +823,7 @@ UD2OA_1_1_IN = La13511Case(
         nu=1.808381,
         sigma_s_self=0.464338,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -847,7 +847,7 @@ UD2OB_1_1_IN = La13511Case(
         nu=1.841086,
         sigma_s_self=0.464338,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -871,7 +871,7 @@ UD2OC_1_1_IN = La13511Case(
         nu=1.6964,
         sigma_s_self=0.464338,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -909,7 +909,7 @@ U_2_0_IN = La13511Case(
         sigma_22s=0.078240, sigma_11s=0.26304,
         sigma_12s=0.0720, sigma_21s=0.0,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -941,7 +941,7 @@ UAL_2_0_IN = La13511Case(
         sigma_22s=0.247516, sigma_11s=1.21313,
         sigma_12s=0.020432, sigma_21s=0.0,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -976,7 +976,7 @@ URRA_2_0_IN = La13511Case(
         sigma_22s=0.62568, sigma_11s=2.44383,
         sigma_12s=0.029227, sigma_21s=0.0,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -1007,7 +1007,7 @@ URRB_2_0_IN = La13511Case(
         sigma_22s=0.83892, sigma_11s=2.9183,
         sigma_12s=0.04635, sigma_21s=0.000767,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -1042,7 +1042,7 @@ URRC_2_0_IN = La13511Case(
         sigma_22s=0.83807, sigma_11s=2.8751,
         sigma_12s=0.04536, sigma_21s=0.00116,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -1073,7 +1073,7 @@ URRD_2_0_IN = La13511Case(
         sigma_22s=0.0, sigma_11s=2.06880,
         sigma_12s=0.0342008, sigma_21s=0.0,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -1108,7 +1108,7 @@ UD2O_2_0_IN = La13511Case(
         sigma_22s=0.31980, sigma_11s=0.42410,
         sigma_12s=0.004555, sigma_21s=0.0,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -1155,7 +1155,7 @@ URR_3_0_IN = La13511Case(
             [0.0,   0.0,   2.0  ],   # from slow: no upscatter, self
         ]),
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -1209,7 +1209,7 @@ URR_6_0_IN = La13511Case(
             [0.0,   0.0,   0.0,   0.033, 0.171, 0.024],   # from Sood 1 (up to Sood 3,2, self)
         ]),
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="infinite",
         critical_dimension_mfp=None,
         critical_dimension_cm=None,
@@ -1255,7 +1255,7 @@ PUA_1_0_SL = La13511Case(
         nu=3.24,
         sigma_s_self=0.225216,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=0.605055,
         critical_dimension_cm=1.853722,
@@ -1287,7 +1287,7 @@ PUB_1_0_SL = La13511Case(
         nu=2.84,
         sigma_s_self=0.225216,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=0.73660355,
         critical_dimension_cm=2.256751,
@@ -1323,7 +1323,7 @@ UD2O_1_0_SL = La13511Case(
         nu=1.70,
         sigma_s_self=0.464338,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=5.6655054562,
         critical_dimension_cm=10.371065,
@@ -1368,7 +1368,7 @@ PUB_1_0_SP = La13511Case(
         nu=2.84,
         sigma_s_self=0.225216,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="sphere",
         critical_dimension_mfp=1.9853434324,
         critical_dimension_cm=6.082547,
@@ -1404,7 +1404,7 @@ UD2O_1_0_SP = La13511Case(
         nu=1.70,
         sigma_s_self=0.464338,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="sphere",
         critical_dimension_mfp=12.0275320980,
         critical_dimension_cm=22.017156,
@@ -1450,7 +1450,7 @@ PUB_1_0_CY_STUB = La13511Case(
         nu=2.84,
         sigma_s_self=0.225216,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="cylinder",
         critical_dimension_mfp=1.396979,
         critical_dimension_cm=4.279960,
@@ -1488,7 +1488,7 @@ UD2O_1_0_CY_STUB = La13511Case(
         nu=1.70,
         sigma_s_self=0.464338,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="cylinder",
         critical_dimension_mfp=9.043255,
         critical_dimension_cm=16.554249,
@@ -1539,7 +1539,7 @@ PU_2_0_SL_STUB = La13511Case(
     problem_number=45,
     description="Pu-239 bare slab, 2G isotropic, no upscatter — STUB",
     materials={0: _mix_pu_2g_for_finite_geometry()},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=0.396469,
         critical_dimension_cm=1.795602,
@@ -1560,7 +1560,7 @@ PU_2_0_SP_STUB = La13511Case(
     problem_number=46,
     description="Pu-239 bare sphere, 2G isotropic, no upscatter — STUB",
     materials={0: _mix_pu_2g_for_finite_geometry()},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="sphere",
         critical_dimension_mfp=1.15513,
         critical_dimension_cm=5.231567,
@@ -1600,7 +1600,7 @@ U_2_0_SL_STUB = La13511Case(
     problem_number=48,
     description="U-235 bare slab, 2G isotropic, no upscatter — STUB",
     materials={0: _mix_u_2g_for_finite_geometry()},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=0.649377,
         critical_dimension_cm=3.006375,
@@ -1621,7 +1621,7 @@ U_2_0_SP_STUB = La13511Case(
     problem_number=49,
     description="U-235 bare sphere, 2G isotropic, no upscatter — STUB",
     materials={0: _mix_u_2g_for_finite_geometry()},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="sphere",
         critical_dimension_mfp=1.70844,
         critical_dimension_cm=7.909444,
@@ -1655,7 +1655,7 @@ UAL_2_0_SL_STUB = La13511Case(
     problem_number=51,
     description="U-Al-Water bare slab, 2G isotropic — STUB",
     materials={0: _mix_ual_2g_for_finite_geometry()},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=2.09994,
         critical_dimension_cm=7.830630,
@@ -1676,7 +1676,7 @@ UAL_2_0_SP_STUB = La13511Case(
     problem_number=52,
     description="U-Al-Water bare sphere, 2G isotropic — STUB",
     materials={0: _mix_ual_2g_for_finite_geometry()},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="sphere",
         critical_dimension_mfp=4.73786,
         critical_dimension_cm=17.66738,
@@ -1710,7 +1710,7 @@ URRA_2_0_SL_STUB = La13511Case(
     problem_number=54,
     description="URR (a) bare slab, 2G isotropic — STUB",
     materials={0: _mix_urra_2g_for_finite_geometry()},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=4.97112,
         critical_dimension_cm=7.566853,
@@ -1746,7 +1746,7 @@ URRA_2_0_SP_STUB = La13511Case(
     problem_number=55,
     description="URR (a) bare sphere, 2G isotropic — STUB",
     materials={0: _mix_urra_2g_for_finite_geometry()},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="sphere",
         critical_dimension_mfp=10.5441,
         critical_dimension_cm=16.049836,
@@ -1780,7 +1780,7 @@ UD2O_2_0_SL_STUB = La13511Case(
     problem_number=68,
     description="U-D2O reactor bare slab, 2G isotropic — STUB",
     materials={0: _mix_ud2o_2g_for_finite_geometry()},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=284.367,
         critical_dimension_cm=846.632726,
@@ -1805,7 +1805,7 @@ UD2O_2_0_SP_STUB = La13511Case(
     problem_number=69,
     description="U-D2O reactor bare sphere, 2G isotropic — STUB",
     materials={0: _mix_ud2o_2g_for_finite_geometry()},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="sphere",
         critical_dimension_mfp=569.430,
         critical_dimension_cm=1695.337621,
@@ -1901,7 +1901,7 @@ PUA_1_1_SL = La13511Case(
         sigma_t=1.0, sigma_c=0.0, sigma_f=0.266667, nu=2.5,
         sigma_s_self=0.733333, sigma_s1_self=0.20,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=0.77032,
         critical_dimension_cm=0.77032,
@@ -1923,7 +1923,7 @@ PUB_1_1_SL = La13511Case(
         sigma_t=1.0, sigma_c=0.0, sigma_f=0.266667, nu=2.5,
         sigma_s_self=0.733333, sigma_s1_self=0.333333,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="slab",
         critical_dimension_mfp=0.79606,
         critical_dimension_cm=0.79606,
@@ -1945,7 +1945,7 @@ UD2OA_1_1_SP = La13511Case(
         sigma_t=0.54628, sigma_c=0.027314, sigma_f=0.054628, nu=1.808381,
         sigma_s_self=0.464338, sigma_s1_self=0.056312624,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="sphere",
         critical_dimension_mfp=10.0,
         critical_dimension_cm=18.30563081,
@@ -1967,7 +1967,7 @@ UD2OB_1_1_SP = La13511Case(
         sigma_t=0.54628, sigma_c=0.027314, sigma_f=0.054628, nu=1.841086,
         sigma_s_self=0.464338, sigma_s1_self=0.112982569,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="sphere",
         critical_dimension_mfp=10.0,
         critical_dimension_cm=18.30563081,
@@ -1989,7 +1989,7 @@ UD2OC_1_1_SP = La13511Case(
         sigma_t=0.54628, sigma_c=0.027314, sigma_f=0.054628, nu=1.6964,
         sigma_s_self=0.464338, sigma_s1_self=-0.27850447,
     )},
-    mesh_template=MeshTemplate(
+    geometry_spec=GeometrySpec(
         geometry="sphere",
         critical_dimension_mfp=10.0,
         critical_dimension_cm=18.30563081,

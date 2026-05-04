@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from orpheus.derivations.common.geometry_template import MeshTemplate
+from orpheus.derivations.common.geometry_spec import GeometrySpec
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.derivations.continuous.sood_registry import (
     PUA_1_0_SL,
@@ -445,9 +445,9 @@ CLOSED_SPHERE_KINF_CASES: list[CrossMethodCase] = [
         materials={0: _FUEL_A_LIKE_MIX},
         # Closed sphere: BC.reflective on BOTH sides (centreline +
         # outer surface at α=1). The trajectory_resolvent solver
-        # consumes the radius via mesh_template.critical_dimension_cm
+        # consumes the radius via geometry_spec.critical_dimension_cm
         # and translates BC.reflective to its α=1 albedo.
-        mesh_template=MeshTemplate(
+        geometry_spec=GeometrySpec(
             geometry="sphere",
             critical_dimension_mfp=2.5,  # τ_R = σ_t · R_cm = 0.5 · 5.0
             critical_dimension_cm=5.0,

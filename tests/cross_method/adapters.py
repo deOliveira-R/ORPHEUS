@@ -227,7 +227,7 @@ class TrajectoryResolventSlabAdapter:
     truth thickness).
 
     The continuous-albedo ``alpha`` is derived from
-    ``case.mesh_template.bc_right`` (or ``bc_left`` — slab cases use
+    ``case.geometry_spec.bc_right`` (or ``bc_left`` — slab cases use
     symmetric BCs by convention) via :func:`alpha_from_bc`; bare-
     critical slab registry cases are vacuum-on-vacuum (``α = 0``),
     closed slab is reflective-on-reflective (``α = 1``).
@@ -253,13 +253,13 @@ class TrajectoryResolventSlabAdapter:
 
         sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs(case)
         # Trajectory_resolvent slab takes FULL width L (not the half-
-        # thickness). MeshTemplate.domain_extent_cm encodes
+        # thickness). GeometrySpec.domain_extent_cm encodes
         # ``2 * critical_dimension_cm`` for the slab convention — i.e.
         # exactly the FULL slab width in cm. Read it off the registry
-        # case (or inline mesh_template) directly; no truth-vs-cm
+        # case (or inline geometry_spec) directly; no truth-vs-cm
         # re-derivation needed.
         L_full_cm = _slab_L_full_cm(case)
-        alpha = alpha_from_bc(_mesh_template_for(case).bc_right)
+        alpha = alpha_from_bc(_geometry_spec_for(case).bc_right)
 
         res = solve_greens_function_slab(
             L=L_full_cm,
@@ -299,7 +299,7 @@ class TrajectoryResolventSphereAdapter:
     radius, ``k_eff`` should be 1.0.
 
     The continuous-albedo ``alpha`` is derived from
-    ``case.mesh_template.bc_right`` (the outer-surface BC) via
+    ``case.geometry_spec.bc_right`` (the outer-surface BC) via
     :func:`alpha_from_bc`. The inner BC at ``r = 0`` is the natural
     centreline reflective and is not parametrically relevant to the
     trajectory_resolvent operator.
@@ -325,11 +325,11 @@ class TrajectoryResolventSphereAdapter:
         )
 
         sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs(case)
-        # Read the radius in cm directly off the case's mesh_template.
-        # Sphere convention: ``mesh_template.critical_dimension_cm``
+        # Read the radius in cm directly off the case's geometry_spec.
+        # Sphere convention: ``geometry_spec.critical_dimension_cm``
         # IS R_cm (no halving / doubling).
         R_cm = _sphere_R_cm(case)
-        alpha = alpha_from_bc(_mesh_template_for(case).bc_right)
+        alpha = alpha_from_bc(_geometry_spec_for(case).bc_right)
 
         res = solve_greens_function_sphere(
             R=R_cm,
@@ -369,9 +369,9 @@ class TrajectoryResolventSphereClosedAdapter:
     cross-method gate where the bare-critical pillar is missing.
 
     Geometry, XS, and radius come from the case's inline
-    ``materials`` + ``mesh_template`` (the registry-less path).
+    ``materials`` + ``geometry_spec`` (the registry-less path).
     The continuous-albedo ``alpha`` is derived from
-    ``mesh_template.bc_right`` via :func:`alpha_from_bc`; closed
+    ``geometry_spec.bc_right`` via :func:`alpha_from_bc`; closed
     sphere is :attr:`BC.reflective` on both surfaces, so
     ``α = 1.0``.
     """
@@ -391,10 +391,10 @@ class TrajectoryResolventSphereClosedAdapter:
         )
 
         # Closed-sphere cases use the inline-materials path
-        # (registry_case is None; materials + mesh_template are set).
+        # (registry_case is None; materials + geometry_spec are set).
         sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs_inline(case)
         R_cm = _sphere_R_cm(case)
-        alpha = alpha_from_bc(_mesh_template_for(case).bc_right)
+        alpha = alpha_from_bc(_geometry_spec_for(case).bc_right)
         res = solve_greens_function_sphere(
             R=R_cm,
             sigma_t=sigma_t,
@@ -455,7 +455,7 @@ def _extract_1g_xs_inline(case: CrossMethodCase) -> tuple[float, float, float]:
     r"""Extract :math:`(\Sigma_t, \Sigma_s, \nu\Sigma_f)` for a 1G case
     from inline ``case.materials``.
 
-    Used by adapters whose case carries inline materials + mesh_template
+    Used by adapters whose case carries inline materials + geometry_spec
     (the no-registry path — closed-sphere k_inf, MMS, custom
     configurations).
     """
@@ -498,64 +498,64 @@ def _extract_c(case: CrossMethodCase) -> float:
     return (sigma_s + nu_sigma_f) / sigma_t
 
 
-def _mesh_template_for(case: CrossMethodCase):
-    r"""Resolve the ``MeshTemplate`` for a case.
+def _geometry_spec_for(case: CrossMethodCase):
+    r"""Resolve the ``GeometrySpec`` for a case.
 
-    Reads from ``case.mesh_template`` (inline path) or
-    ``case.registry_case.mesh_template`` (registry path), whichever is
+    Reads from ``case.geometry_spec`` (inline path) or
+    ``case.registry_case.geometry_spec`` (registry path), whichever is
     populated. Raises if neither is.
     """
-    if case.mesh_template is not None:
-        return case.mesh_template
+    if case.geometry_spec is not None:
+        return case.geometry_spec
     if case.registry_case is not None and getattr(
-        case.registry_case, "mesh_template", None
+        case.registry_case, "geometry_spec", None
     ) is not None:
-        return case.registry_case.mesh_template
+        return case.registry_case.geometry_spec
     raise ValueError(
-        f"_mesh_template_for: case {case.case_id!r} has neither "
-        f"inline mesh_template nor a registry_case carrying one. "
+        f"_geometry_spec_for: case {case.case_id!r} has neither "
+        f"inline geometry_spec nor a registry_case carrying one. "
         f"Notes-only cases (e.g. reflected slab) parse parameters "
         f"from notes via _parse_notes_kv instead."
     )
 
 
 def _sphere_R_cm(case: CrossMethodCase) -> float:
-    r"""Return the sphere radius in cm from the case's MeshTemplate.
+    r"""Return the sphere radius in cm from the case's GeometrySpec.
 
-    ``MeshTemplate.critical_dimension_cm`` IS R_cm for sphere geometry
+    ``GeometrySpec.critical_dimension_cm`` IS R_cm for sphere geometry
     (the published critical radius). No unit re-derivation through
     ``truth_value / sigma_t`` is needed — the registry already carries
     both forms in lockstep.
     """
-    template = _mesh_template_for(case)
-    if template.geometry != "sphere":
+    spec = _geometry_spec_for(case)
+    if spec.geometry != "sphere":
         raise ValueError(
-            f"_sphere_R_cm: case {case.case_id!r} mesh_template "
-            f"geometry is {template.geometry!r}, expected 'sphere'"
+            f"_sphere_R_cm: case {case.case_id!r} geometry_spec "
+            f"geometry is {spec.geometry!r}, expected 'sphere'"
         )
-    if template.critical_dimension_cm is None:
+    if spec.critical_dimension_cm is None:
         raise ValueError(
-            f"_sphere_R_cm: case {case.case_id!r} mesh_template has "
+            f"_sphere_R_cm: case {case.case_id!r} geometry_spec has "
             f"no critical_dimension_cm"
         )
-    return float(template.critical_dimension_cm)
+    return float(spec.critical_dimension_cm)
 
 
 def _slab_L_full_cm(case: CrossMethodCase) -> float:
-    r"""Return the slab full width in cm from the case's MeshTemplate.
+    r"""Return the slab full width in cm from the case's GeometrySpec.
 
-    Slab convention: ``MeshTemplate.domain_extent_cm`` returns
+    Slab convention: ``GeometrySpec.domain_extent_cm`` returns
     ``2 * critical_dimension_cm`` — the full slab width
     :math:`[0, 2a]`, which is exactly what
     :func:`solve_greens_function_slab` expects as its ``L`` argument.
     """
-    template = _mesh_template_for(case)
-    if template.geometry != "slab":
+    spec = _geometry_spec_for(case)
+    if spec.geometry != "slab":
         raise ValueError(
-            f"_slab_L_full_cm: case {case.case_id!r} mesh_template "
-            f"geometry is {template.geometry!r}, expected 'slab'"
+            f"_slab_L_full_cm: case {case.case_id!r} geometry_spec "
+            f"geometry is {spec.geometry!r}, expected 'slab'"
         )
-    return float(template.domain_extent_cm)
+    return float(spec.domain_extent_cm)
 
 
 def _parse_notes_kv(case: CrossMethodCase) -> dict[str, str]:

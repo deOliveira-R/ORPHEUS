@@ -7,11 +7,12 @@ helpers, verification-case dataclass) that no single path owns.
 
 The five utilities most consumers import directly:
 
-- :mod:`~orpheus.derivations.common.geometry_template` —
-  :class:`MeshTemplate`, the method-agnostic geometry recipe
-  consumed by both production solvers (via ``MeshTemplate.build()``)
+- :mod:`~orpheus.derivations.common.geometry_spec` —
+  :class:`GeometrySpec`, the method-agnostic geometry specification
+  consumed by both production solvers (via ``GeometrySpec.build()``)
   and continuous reference solvers (via the descriptor scalars
-  directly). Promoted from sood_registry on 2026-05-03 (R0.5).
+  directly). Promoted from sood_registry on 2026-05-03 (R0.5);
+  renamed from ``MeshTemplate`` to ``GeometrySpec`` on 2026-05-03.
 - :mod:`~orpheus.derivations.common.kernels` —
   :math:`E_n`, :math:`\\mathrm{Ki}_n`, chord primitives.
 - :mod:`~orpheus.derivations.common.quadrature` — 1-D quadrature
@@ -29,6 +30,6 @@ discretise.
 """
 from __future__ import annotations
 
-from .geometry_template import MeshTemplate
+from .geometry_spec import GeometrySpec
 
-__all__ = ["MeshTemplate"]
+__all__ = ["GeometrySpec"]

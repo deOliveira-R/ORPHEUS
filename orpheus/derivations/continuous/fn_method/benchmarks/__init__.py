@@ -10,9 +10,9 @@ from __future__ import annotations
 from .la13511 import (  # noqa: F401
     ALL_FIRST_SLICE,
     LA13511_CASES,
+    GeometrySpec,
     La13511Case,
     La13511Truth,
-    MeshTemplate,
     PU_2_0_IN,
     PUA_1_0_IN,
     UA_1_0_CY_STUB,
@@ -21,9 +21,9 @@ from .la13511 import (  # noqa: F401
 )
 
 __all__ = [
+    "GeometrySpec",
     "La13511Case",
     "La13511Truth",
-    "MeshTemplate",
     "PUA_1_0_IN",
     "PU_2_0_IN",
     "UA_1_0_SL_STUB",
