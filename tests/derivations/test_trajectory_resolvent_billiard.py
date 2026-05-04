@@ -224,24 +224,25 @@ def test_billiard_from_problem_slab_asymmetric_two_endpoint_rank_2():
 
 
 @pytest.mark.foundation
-def test_billiard_from_problem_scalar_alpha_normalized_for_two_endpoint():
-    """Scalar alpha gets normalized to two-endpoint payload for slab_asym.
+def test_billiard_from_problem_scalar_alpha_on_slab_stays_symmetric():
+    """A scalar alpha on a slab GeometrySpec stays in the symmetric
+    ``slab`` family — never silently promoted to ``slab_asymmetric``.
 
-    A scalar alpha cannot trigger the slab_asymmetric branch on its
-    own (the discriminator is the alpha-dict key set), so we pass an
-    empty alpha dict carrying only the left/right keys to land in the
-    asymmetric family, and confirm the scalar input is symmetrically
-    broadcast when the dict carries both keys with equal values.
+    The asymmetric family is selected ONLY by the alpha-dict shape
+    (presence of ``alpha_left`` / ``alpha_right`` keys). A scalar
+    alpha lands in the one-endpoint payload ``{"alpha": float}``
+    with ``closure_rank=1``, regardless of geometry. Pin this so a
+    future refactor cannot accidentally re-introduce the dead
+    "scalar → broadcast to slab_asymmetric" branch.
     """
-    # The asymmetric family is selected by the alpha-dict shape; a
-    # scalar alpha on a slab spec stays in the "slab" branch.
     b = Billiard.from_problem(
         materials={0: _mixture_from_xs(0.5, 0.4, 0.1)},
         geometry_spec=_slab_spec(5.0),
-        alpha={"alpha_left": 0.5, "alpha_right": 0.5},
+        alpha=0.5,
     )
-    assert b.geometry_kind == "slab_asymmetric"
-    assert b.alpha_payload == {"alpha_left": 0.5, "alpha_right": 0.5}
+    assert b.geometry_kind == "slab"
+    assert b.closure_rank == 1
+    assert b.alpha_payload == {"alpha": 0.5}
 
 
 @pytest.mark.foundation

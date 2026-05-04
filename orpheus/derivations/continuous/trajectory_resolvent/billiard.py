@@ -488,13 +488,16 @@ class Billiard:
             materials, geometry_kind
         )
 
-        # Normalize alpha into the per-geometry payload.
+        # Normalize alpha into the per-geometry payload. The
+        # slab_asymmetric branch is unreachable for a scalar alpha:
+        # it can only be selected via a dict carrying alpha_left /
+        # alpha_right, so the dict-input branch handles it directly.
         if isinstance(alpha, dict):
             alpha_payload: dict[str, float] = dict(alpha)
-        elif geometry_kind == "slab_asymmetric":
+        elif geometry_kind in ("hollow_sphere", "annulus"):
             alpha_payload = {
-                "alpha_left": float(alpha),
-                "alpha_right": float(alpha),
+                "alpha_in": float(alpha),
+                "alpha_out": float(alpha),
             }
         else:
             alpha_payload = {"alpha": float(alpha)}
