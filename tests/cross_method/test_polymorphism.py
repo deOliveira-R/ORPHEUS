@@ -75,11 +75,9 @@ from .adapters import (
     TrajectoryResolventSphereAdapter,
     TrajectoryResolventSphereClosedAdapter,
     _extract_1g_xs,
-    _extract_c,
     _geometry_spec_for,
     _slab_L_full_cm,
     _sphere_R_cm,
-    alpha_from_bc,
 )
 from .cases import (
     BARE_CRITICAL_SLAB_CASES,
@@ -121,7 +119,7 @@ def test_polymorphic_dispatch_protocol_conformance():
             "nu_sigma_f": nu_sigma_f,
         },
         geometry={"R": R_cm},
-        alpha=alpha_from_bc(spec.bc_right),
+        alpha=spec.bc_right.to_alpha(),
     )
     assert isinstance(billiard, TransportSolver), (
         "Billiard does not satisfy TransportSolver Protocol"
@@ -248,7 +246,7 @@ def test_polymorphic_dispatch_trajectory_resolvent_slab_matches_adapter():
     sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs(case)
     L_cm = _slab_L_full_cm(case)
     spec = _geometry_spec_for(case)
-    alpha = alpha_from_bc(spec.bc_right)
+    alpha = spec.bc_right.to_alpha()
 
     billiard = Billiard.from_problem(
         geometry_kind="slab",
@@ -290,7 +288,7 @@ def test_polymorphic_dispatch_trajectory_resolvent_sphere_matches_adapter():
     sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs(case)
     R_cm = _sphere_R_cm(case)
     spec = _geometry_spec_for(case)
-    alpha = alpha_from_bc(spec.bc_right)
+    alpha = spec.bc_right.to_alpha()
 
     billiard = Billiard.from_problem(
         geometry_kind="sphere",
@@ -340,7 +338,7 @@ def test_polymorphic_dispatch_closed_sphere_matches_adapter():
     sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs_inline(case)
     R_cm = _sphere_R_cm(case)
     spec = _geometry_spec_for(case)
-    alpha = alpha_from_bc(spec.bc_right)
+    alpha = spec.bc_right.to_alpha()
 
     billiard = Billiard.from_problem(
         geometry_kind="sphere",

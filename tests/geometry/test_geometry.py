@@ -535,6 +535,27 @@ class TestBC:
         with pytest.raises(TypeError, match="bc_left must be a BC instance"):
             Mesh1D(edges=[0, 1], mat_ids=[0], bc_left="vacuum")
 
+    # ── BC.to_alpha — production-tag → continuous-albedo bridge ─────
+
+    def test_bc_to_alpha_vacuum(self):
+        assert BC.vacuum.to_alpha() == 0.0
+
+    def test_bc_to_alpha_reflective(self):
+        assert BC.reflective.to_alpha() == 1.0
+
+    def test_bc_to_alpha_partial_albedo(self):
+        assert BC("partial", {"albedo": 0.7}).to_alpha() == 0.7
+        assert BC("partial", {"albedo": 0.0}).to_alpha() == 0.0
+        assert BC("partial", {"albedo": 1.0}).to_alpha() == 1.0
+
+    def test_bc_to_alpha_partial_missing_albedo_raises(self):
+        with pytest.raises(ValueError, match="missing the 'albedo' parameter"):
+            BC("partial").to_alpha()
+
+    def test_bc_to_alpha_unsupported_kind_raises(self):
+        with pytest.raises(NotImplementedError, match="no specular-albedo equivalent"):
+            BC.white.to_alpha()
+
     def test_mesh1d_backward_compat(self):
         """All existing Mesh1D constructors (no BC args) still work."""
         m1 = Mesh1D(edges=np.array([0.0, 1.0, 3.0, 6.0]),

@@ -41,50 +41,8 @@ from dataclasses import dataclass
 from orpheus.derivations.continuous.sood_registry.extractors import (
     mixture_to_fn_arrays,
 )
-from orpheus.geometry.mesh import BC
 
 from .protocol import CrossMethodCase, ScalarResult
-
-
-def alpha_from_bc(bc: BC) -> float:
-    r"""Map a production :class:`BC` tag to a trajectory_resolvent
-    continuous-albedo ``alpha ∈ [0, 1]``.
-
-    The trajectory_resolvent family parametrises specular boundary
-    conditions on a continuous albedo ``α``: ``α = 0`` is vacuum,
-    ``α = 1`` is perfect specular, ``α ∈ (0, 1)`` is partial
-    reflection. Production ``BC`` is a tag system; this helper
-    translates the corner cases that map cleanly:
-
-    * ``BC.vacuum`` → ``α = 0.0``
-    * ``BC.reflective`` → ``α = 1.0``
-    * ``BC("partial", {"albedo": x})`` → ``α = x``
-
-    Other tags (``"white"``, Marshak diffuse, etc.) raise
-    ``NotImplementedError`` — they require a different closure
-    structure that trajectory_resolvent does not support today.
-
-    See the geometry-handling unification audit
-    (``.claude/scratch/geometry_handling_unification_audit.md``
-    §"Q3.a Adopt-as-is") for the design discussion.
-    """
-    if bc.kind == "vacuum":
-        return 0.0
-    if bc.kind == "reflective":
-        return 1.0
-    if bc.kind == "partial":
-        try:
-            return float(bc.params["albedo"])
-        except KeyError as exc:
-            raise ValueError(
-                f"alpha_from_bc: BC('partial', ...) is missing the "
-                f"'albedo' parameter; got params={bc.params!r}"
-            ) from exc
-    raise NotImplementedError(
-        f"alpha_from_bc: BC kind {bc.kind!r} is not yet bridged to "
-        f"trajectory_resolvent's continuous-albedo parametrisation. "
-        f"Production BCs supported today: vacuum, reflective, partial."
-    )
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -113,7 +71,7 @@ class FNSlabAdapter:
             solve_fn_slab_bare_critical,
         )
 
-        c = _extract_c(case)
+        c = float(case.registry_case.materials[0].scattering_ratio[0])
         res = solve_fn_slab_bare_critical(c=c, n_modes=self.n_modes)
         return ScalarResult(
             tag="a_critical_mfp",
@@ -146,7 +104,7 @@ class FNSphereAdapter:
             solve_fn_sphere_bare_critical,
         )
 
-        c = _extract_c(case)
+        c = float(case.registry_case.materials[0].scattering_ratio[0])
         res = solve_fn_sphere_bare_critical(c=c, n_modes=self.n_modes)
         return ScalarResult(
             tag="R_critical_mfp",
@@ -228,7 +186,7 @@ class TrajectoryResolventSlabAdapter:
 
     The continuous-albedo ``alpha`` is derived from
     ``case.geometry_spec.bc_right`` (or ``bc_left`` — slab cases use
-    symmetric BCs by convention) via :func:`alpha_from_bc`; bare-
+    symmetric BCs by convention) via :meth:`BC.to_alpha`; bare-
     critical slab registry cases are vacuum-on-vacuum (``α = 0``),
     closed slab is reflective-on-reflective (``α = 1``).
 
@@ -259,7 +217,7 @@ class TrajectoryResolventSlabAdapter:
         # case (or inline geometry_spec) directly; no truth-vs-cm
         # re-derivation needed.
         L_full_cm = _slab_L_full_cm(case)
-        alpha = alpha_from_bc(_geometry_spec_for(case).bc_right)
+        alpha = _geometry_spec_for(case).bc_right.to_alpha()
 
         res = solve_greens_function_slab(
             L=L_full_cm,
@@ -300,7 +258,7 @@ class TrajectoryResolventSphereAdapter:
 
     The continuous-albedo ``alpha`` is derived from
     ``case.geometry_spec.bc_right`` (the outer-surface BC) via
-    :func:`alpha_from_bc`. The inner BC at ``r = 0`` is the natural
+    :meth:`BC.to_alpha`. The inner BC at ``r = 0`` is the natural
     centreline reflective and is not parametrically relevant to the
     trajectory_resolvent operator.
 
@@ -329,7 +287,7 @@ class TrajectoryResolventSphereAdapter:
         # Sphere convention: ``geometry_spec.critical_dimension_cm``
         # IS R_cm (no halving / doubling).
         R_cm = _sphere_R_cm(case)
-        alpha = alpha_from_bc(_geometry_spec_for(case).bc_right)
+        alpha = _geometry_spec_for(case).bc_right.to_alpha()
 
         res = solve_greens_function_sphere(
             R=R_cm,
@@ -371,7 +329,7 @@ class TrajectoryResolventSphereClosedAdapter:
     Geometry, XS, and radius come from the case's inline
     ``materials`` + ``geometry_spec`` (the registry-less path).
     The continuous-albedo ``alpha`` is derived from
-    ``geometry_spec.bc_right`` via :func:`alpha_from_bc`; closed
+    ``geometry_spec.bc_right`` via :meth:`BC.to_alpha`; closed
     sphere is :attr:`BC.reflective` on both surfaces, so
     ``α = 1.0``.
     """
@@ -394,7 +352,7 @@ class TrajectoryResolventSphereClosedAdapter:
         # (registry_case is None; materials + geometry_spec are set).
         sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs_inline(case)
         R_cm = _sphere_R_cm(case)
-        alpha = alpha_from_bc(_geometry_spec_for(case).bc_right)
+        alpha = _geometry_spec_for(case).bc_right.to_alpha()
         res = solve_greens_function_sphere(
             R=R_cm,
             sigma_t=sigma_t,
@@ -486,16 +444,6 @@ def _xs_from_materials_dict(
         float(sigma_s_arr[0, 0]),
         float(nu_sigma_f_arr[0]),
     )
-
-
-def _extract_c(case: CrossMethodCase) -> float:
-    r"""Compute :math:`c = (\Sigma_s + \nu\Sigma_f)/\Sigma_t` for a 1G case.
-
-    F_N method takes ``c`` as its primary input parameter; this is
-    the canonical extraction for 1G isotropic-scattering cases.
-    """
-    sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs(case)
-    return (sigma_s + nu_sigma_f) / sigma_t
 
 
 def _geometry_spec_for(case: CrossMethodCase):

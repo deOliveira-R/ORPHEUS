@@ -54,6 +54,57 @@ class BC:
             return f"BC({self.kind!r}, {self.params!r})"
         return f"BC({self.kind!r})"
 
+    def to_alpha(self) -> float:
+        r"""Map this BC tag to a continuous specular albedo
+        :math:`\alpha \in [0, 1]`.
+
+        The trajectory_resolvent / Birkhoff–Sinai billiard family
+        parametrises specular boundary conditions on a continuous
+        albedo: :math:`\alpha = 0` is vacuum (no return), :math:`\alpha
+        = 1` is perfect specular reflection, :math:`\alpha \in (0, 1)`
+        is partial reflection. This method translates the production
+        :class:`BC` tag-system to that scalar:
+
+        * :data:`BC.vacuum` → ``0.0``
+        * :data:`BC.reflective` → ``1.0``
+        * ``BC("partial", {"albedo": x})`` → ``x``
+
+        Other tags (``"white"``, Marshak diffuse, …) raise
+        :class:`NotImplementedError` — they require a different
+        closure structure that the specular-albedo parametrisation
+        does not represent.
+
+        Returns
+        -------
+        float
+            The continuous-albedo equivalent of this BC tag.
+
+        Raises
+        ------
+        ValueError
+            If the BC kind is ``"partial"`` and the ``"albedo"`` key
+            is missing from :attr:`params`.
+        NotImplementedError
+            If the BC kind has no specular-albedo equivalent
+            (e.g. ``"white"``).
+        """
+        if self.kind == "vacuum":
+            return 0.0
+        if self.kind == "reflective":
+            return 1.0
+        if self.kind == "partial":
+            try:
+                return float(self.params["albedo"])
+            except KeyError as exc:
+                raise ValueError(
+                    f"BC.to_alpha: BC('partial', ...) is missing the "
+                    f"'albedo' parameter; got params={self.params!r}"
+                ) from exc
+        raise NotImplementedError(
+            f"BC.to_alpha: BC kind {self.kind!r} has no specular-albedo "
+            f"equivalent. Tags supported today: vacuum, reflective, partial."
+        )
+
 
 # Convenience instances — tab-completable, zero-import overhead.
 BC.vacuum = BC("vacuum")  # type: ignore[attr-defined]

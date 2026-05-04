@@ -66,6 +66,35 @@ class Mixture:
         """(NG,) total scattering XS (P0 row sum = in + out)."""
         return np.array(self.SigS[0].sum(axis=1)).ravel()
 
+    @property
+    def scattering_ratio(self) -> np.ndarray:
+        r"""(NG,) Case–Zweifel secondaries-per-collision parameter.
+
+        Per-group :math:`c_g = (\Sigma_{s,g} + \nu\Sigma_{f,g}) / \Sigma_{t,g}`,
+        where :math:`\Sigma_{s,g}` is the *total* P0 scattering out of
+        group :math:`g` (in + out) and :math:`\nu\Sigma_{f,g}` is the
+        production XS already stored as :attr:`SigP`. This is the
+        Case–Zweifel ``c`` — the mean number of secondaries (scatter +
+        fission neutrons) emitted per collision in group :math:`g`.
+        For 1-group isotropic cases used by Sood/LA-13511 benchmarks,
+        ``scattering_ratio[0]`` is the canonical :math:`c` parameter
+        consumed by F_N and other analytical solvers.
+
+        For purely scattering media this reduces to
+        :math:`\Sigma_s/\Sigma_t \le 1`. For multiplying media
+        (:math:`\nu\Sigma_f > 0`) the ratio can exceed 1 (the F_N
+        c-sweep spans :math:`c \in [0.9, 1.1]` for sub-/super-critical
+        configurations).
+
+        Notes
+        -----
+        For multi-group, ``scattering_ratio[g]`` is a per-group
+        diagnostic — solvers use the full (``SigS``, ``SigP``)
+        operators rather than this scalar. The property exists for
+        the 1G analytical bridge and for diagnostic display.
+        """
+        return (self.total_scattering_xs + self.SigP) / self.SigT
+
 
 def compute_macro_xs(
     isotopes: list[Isotope],
