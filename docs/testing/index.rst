@@ -17,3 +17,4 @@ convention, and the audit workflow.
    :maxdepth: 2
 
    architecture
+   cross_method
