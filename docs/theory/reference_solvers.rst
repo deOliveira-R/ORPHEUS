@@ -314,6 +314,7 @@ Production reference solvers
    singular_eigenfunction
    galerkin_spectral
    sood_registry
+   transport_solver_protocol
 
 Reserved reference solvers (stubs)
 -----------------------------------
