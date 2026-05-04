@@ -420,7 +420,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **114** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **134** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bickley-integral``
 - ``boltzmann``
@@ -434,11 +434,19 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``coolant-rate``
 - ``creep-rate``
 - ``doppler-feedback``
+- ``e1-small-tau-expansion``
 - ``fb-bc4-displacement``
 - ``fb-clad-strain``
 - ``fb-fuel-heat``
 - ``fb-fuel-strain``
 - ``fb-swelling``
+- ``fn-Fk-closed-forms``
+- ``fn-Fk-integration-by-parts``
+- ``fn-product-simpson-weights``
+- ``fn-slab-B-long-division``
+- ``fn-slab-collocation``
+- ``fn-unified-matrix-entry``
+- ``fn-x-function``
 - ``fuel-heat``
 - ``fuel-rate``
 - ``gap-closure-event``
@@ -446,8 +454,11 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``gas-pressure``
 - ``group-flux``
 - ``group-xs``
+- ``kll-1974-slab-phi``
+- ``kll-1974-sphere-phi``
 - ``maxwellian``
 - ``mode-conservation-target``
+- ``nm1980-eq16-tau-zero``
 - ``one-over-E``
 - ``peierls-3d``
 - ``peierls-M-rank-1``
@@ -498,6 +509,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-greens-unification-resolvent``
 - ``peierls-half-range-inner-products``
 - ``peierls-integral-form``
+- ``peierls-kernel-decomposition``
 - ``peierls-ki1-derivation``
 - ``peierls-mg-operator``
 - ``peierls-operator-factorisation``
@@ -507,6 +519,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-rank-n-P-esc-moment``
 - ``peierls-rank-n-jacobian-derivation``
 - ``peierls-scaled-chebyshev``
+- ``peierls-slab-bare-critical``
 - ``peierls-slab-foundations``
 - ``peierls-slab-polar``
 - ``peierls-specular-M-tridiagonal``
@@ -534,6 +547,13 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``power-equation``
 - ``precursor-equation``
 - ``sigs-convention``
+- ``sood-eq18-1g-balance``
+- ``sood-eq19-kinf-1g``
+- ``sood-eq20-kinf-1g-c-form``
+- ``sood-eq25-2g-matrix``
+- ``sood-eq29-kinf-2g-no-upscatter``
+- ``sood-eq32-phi-ratio``
+- ``sood-eq76-kinf-mg``
 - ``transport-equation``
 - ``vacuum-bc``
 
