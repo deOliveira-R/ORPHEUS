@@ -124,10 +124,14 @@ class FNReflectedSlabAdapter:
 
     Reflected-slab F_N (Neshat-Maiorino 1980). Returns
     ``tau_critical_mfp`` — the core half-thickness at criticality
-    given the reflector configuration. Each case must carry
-    ``reflector_half_thickness_mfp`` and ``c_reflector`` in its
-    metadata; this adapter reads them off the case's notes /
-    attributes.
+    given the reflector configuration.
+
+    Each case must carry inline ``materials`` (mat_id 0 = core,
+    mat_id 1 = reflector) and a ``geometry_spec`` with three regions
+    in left-to-right order ``(reflector, core, reflector)``. The
+    Case–Zweifel ``c`` for each material is read off
+    :attr:`Mixture.scattering_ratio`; the reflector half-thickness
+    is read off ``geometry_spec.regions[0].outer_thickness_mfp``.
 
     There is currently no trajectory_resolvent counterpart for
     reflected slab — this adapter has no agreement partner. That
@@ -146,14 +150,49 @@ class FNReflectedSlabAdapter:
             solve_fn_slab_reflected_critical,
         )
 
-        # Reflected-slab cases carry their non-XS parameters in
-        # case.registry_case attribute is None; the case is fully
-        # described inline. Pull from a documented attribute path.
-        params = _reflected_slab_params(case)
+        # Read c values off the inline materials and the reflector
+        # half-thickness off geometry_spec.regions[0]. The expected
+        # region layout is (reflector, core, reflector); we cross-
+        # check that to fail loudly on accidental ordering bugs.
+        if case.materials is None or 0 not in case.materials or 1 not in case.materials:
+            raise ValueError(
+                f"FNReflectedSlabAdapter: case {case.case_id!r} must "
+                f"carry inline materials with mat_id=0 (core) and "
+                f"mat_id=1 (reflector); got "
+                f"{None if case.materials is None else sorted(case.materials)}"
+            )
+        spec = _geometry_spec_for(case)
+        regions = spec.regions
+        if regions is None or len(regions) != 3:
+            raise ValueError(
+                f"FNReflectedSlabAdapter: case {case.case_id!r} must "
+                f"carry a 3-region GeometrySpec "
+                f"(reflector, core, reflector); got "
+                f"regions={regions!r}"
+            )
+        if (regions[0].mat_id, regions[1].mat_id, regions[2].mat_id) != (1, 0, 1):
+            raise ValueError(
+                f"FNReflectedSlabAdapter: case {case.case_id!r} region "
+                f"layout must be (reflector=1, core=0, reflector=1); "
+                f"got mat_ids "
+                f"({regions[0].mat_id}, {regions[1].mat_id}, "
+                f"{regions[2].mat_id})"
+            )
+        refl_mfp = regions[0].outer_thickness_mfp
+        if refl_mfp is None:
+            raise ValueError(
+                f"FNReflectedSlabAdapter: case {case.case_id!r} "
+                f"reflector region (regions[0]) must carry "
+                f"outer_thickness_mfp."
+            )
+        c_core = float(case.materials[0].scattering_ratio[0])
+        c_reflector = float(case.materials[1].scattering_ratio[0])
+        reflector_half_thickness_mfp = float(refl_mfp)
+
         res = solve_fn_slab_reflected_critical(
-            c_core=params["c_core"],
-            c_reflector=params["c_reflector"],
-            reflector_half_thickness=params["reflector_half_thickness_mfp"],
+            c_core=c_core,
+            c_reflector=c_reflector,
+            reflector_half_thickness=reflector_half_thickness_mfp,
             n_modes=self.n_modes,
         )
         return ScalarResult(
@@ -162,7 +201,9 @@ class FNReflectedSlabAdapter:
             solver_name=self.name,
             metadata={
                 "n_modes": self.n_modes,
-                **params,
+                "c_core": c_core,
+                "c_reflector": c_reflector,
+                "reflector_half_thickness_mfp": reflector_half_thickness_mfp,
                 "converged": bool(res.converged),
             },
         )
@@ -461,9 +502,7 @@ def _geometry_spec_for(case: CrossMethodCase):
         return case.registry_case.geometry_spec
     raise ValueError(
         f"_geometry_spec_for: case {case.case_id!r} has neither "
-        f"inline geometry_spec nor a registry_case carrying one. "
-        f"Notes-only cases (e.g. reflected slab) parse parameters "
-        f"from notes via _parse_notes_kv instead."
+        f"inline geometry_spec nor a registry_case carrying one."
     )
 
 
@@ -504,47 +543,6 @@ def _slab_L_full_cm(case: CrossMethodCase) -> float:
             f"geometry is {spec.geometry!r}, expected 'slab'"
         )
     return float(spec.domain_extent_cm)
-
-
-def _parse_notes_kv(case: CrossMethodCase) -> dict[str, str]:
-    """Parse ``key=value`` tokens from ``case.notes``.
-
-    Convention: notes contains space-separated tokens of the form
-    ``"key=value"``. Tokens without ``=`` are skipped. Used by
-    inline-parametrised adapters (reflected slab, closed sphere)
-    to read their parameters off the case without needing a
-    registry entry.
-    """
-    return dict(
-        token.split("=", 1)
-        for token in case.notes.split()
-        if "=" in token
-    )
-
-
-def _reflected_slab_params(case: CrossMethodCase) -> dict[str, float]:
-    r"""Extract reflected-slab inline parameters from
-    ``CrossMethodCase.notes``.
-
-    NM 1980 / Sood Table 10 cases don't have ORPHEUS registry
-    entries — they're parametrised by ``(c_core, c_reflector,
-    reflector_half_thickness_mfp)`` directly. The required tokens
-    are listed in case.notes as ``c_core=X.XX c_reflector=Y.YY
-    reflector_half_thickness_mfp=Z.ZZ``.
-    """
-    tokens = _parse_notes_kv(case)
-    required = {
-        "c_core",
-        "c_reflector",
-        "reflector_half_thickness_mfp",
-    }
-    missing = required - set(tokens)
-    if missing:
-        raise ValueError(
-            f"_reflected_slab_params: case {case.case_id!r} missing "
-            f"keys in notes: {missing}. Got: {dict(tokens)}"
-        )
-    return {k: float(tokens[k]) for k in required}
 
 
 # ═══════════════════════════════════════════════════════════════════
