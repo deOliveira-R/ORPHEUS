@@ -49,169 +49,27 @@ verification is 1e-5 (i.e., 5 significant figures match), so the
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Mapping
 
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
+from orpheus.derivations.common.geometry_template import MeshTemplate
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry.factories import Zone, mesh1d_from_zones
-from orpheus.geometry.mesh import BC, Mesh1D
+from orpheus.geometry.mesh import BC
 
 
 # ═══════════════════════════════════════════════════════════════════
 # Mesh template + truth dataclasses
 # ═══════════════════════════════════════════════════════════════════
-
-
-_GEOMETRY_TO_COORD: dict[str, CoordSystem] = {
-    "slab": CoordSystem.CARTESIAN,
-    "sphere": CoordSystem.SPHERICAL,
-    "cylinder": CoordSystem.CYLINDRICAL,
-}
-
-
-@dataclass(frozen=True)
-class MeshTemplate:
-    """Geometry + critical-dimension recipe for a Sood case.
-
-    Method-agnostic: stores the shape of the domain (slab /
-    sphere / cylinder / infinite / ISLC), the critical dimension as
-    published, the group count, and the boundary conditions. The
-    :meth:`build` method constructs a concrete :class:`Mesh1D` at the
-    requested refinement using
-    :func:`orpheus.geometry.factories.mesh1d_from_zones`.
-
-    For ``geometry == "infinite"`` no mesh exists: :meth:`build`
-    raises :class:`ValueError`. Infinite-medium consumers should use
-    :func:`.builders.build_materials` and ignore the mesh entirely.
-
-    Parameters
-    ----------
-    geometry : str
-        One of ``"infinite"``, ``"slab"``, ``"sphere"``, ``"cylinder"``,
-        ``"ISLC"``.
-    critical_dimension_mfp : float | None
-        Critical radius (sphere/cylinder) or half-thickness (slab) in
-        mean free paths. ``None`` for infinite-medium cases.
-    critical_dimension_cm : float | None
-        Same as above but in cm.
-    n_groups : int
-        Number of energy groups (1, 2, 3, or 6).
-    mat_id : int
-        Material identifier used in the constructed mesh. The matching
-        :class:`Mixture` lives in ``case.materials[mat_id]``.
-    bc_left : BC
-        Inner / left boundary condition. For sphere/cylinder default
-        is :attr:`BC.reflective` (centreline); for slab default is
-        :attr:`BC.vacuum`.
-    bc_right : BC
-        Outer / right boundary condition. Default
-        :attr:`BC.vacuum`.
-    """
-
-    geometry: str
-    critical_dimension_mfp: float | None
-    critical_dimension_cm: float | None
-    n_groups: int
-    mat_id: int = 0
-    bc_left: BC = field(default_factory=lambda: BC.vacuum)
-    bc_right: BC = field(default_factory=lambda: BC.vacuum)
-
-    def __post_init__(self) -> None:
-        if self.geometry not in {"infinite", "slab", "sphere", "cylinder", "ISLC"}:
-            raise ValueError(f"Unknown geometry {self.geometry!r}")
-        if self.geometry == "infinite":
-            if self.critical_dimension_cm is not None:
-                raise ValueError(
-                    "infinite geometry must have critical_dimension_cm=None"
-                )
-        else:
-            if self.critical_dimension_cm is None:
-                raise ValueError(
-                    f"geometry={self.geometry!r} requires critical_dimension_cm"
-                )
-
-    @property
-    def domain_extent_cm(self) -> float:
-        """Total mesh extent in cm — what :meth:`build` actually constructs.
-
-        Conventions:
-
-        * **Slab**: ``2 * critical_dimension_cm`` (full symmetric slab
-          ``[0, 2a]`` with vacuum BCs at both ends — F_N convention).
-        * **Sphere / cylinder**: ``critical_dimension_cm`` (radius;
-          mesh is ``[0, R]`` with reflective BC at the centre and
-          vacuum at the outer surface unless overridden).
-        * **Infinite / ISLC**: undefined, raises.
-        """
-        if self.geometry == "infinite":
-            raise ValueError("infinite geometry has no domain_extent")
-        if self.geometry == "ISLC":
-            raise NotImplementedError("ISLC domain_extent not implemented")
-        assert self.critical_dimension_cm is not None  # narrowed above
-        if self.geometry == "slab":
-            return 2.0 * float(self.critical_dimension_cm)
-        return float(self.critical_dimension_cm)
-
-    def build(self, n_cells: int = 64) -> Mesh1D:
-        r"""Construct a :class:`Mesh1D` at the published critical dimension.
-
-        Conventions (see :attr:`domain_extent_cm`):
-
-        * **Slab** (``geometry == "slab"``): builds the FULL symmetric
-          slab ``[0, 2a]`` where ``a = critical_dimension_cm``. This is
-          the F_N method's natural domain — :math:`a` is the
-          half-thickness, the published critical configuration is the
-          full slab. Default BCs are vacuum at both ends.
-        * **Sphere / cylinder**: builds ``[0, R]`` where
-          ``R = critical_dimension_cm``. Default BCs: reflective at
-          ``r = 0`` (centreline / axis), vacuum at the outer surface.
-
-        Parameters
-        ----------
-        n_cells : int
-            Number of equal-volume sub-cells.
-
-        Returns
-        -------
-        Mesh1D
-            A 1-D mesh with ``n_cells`` cells, homogeneous material
-            ``mat_id``, and BCs from this template.
-
-        Raises
-        ------
-        ValueError
-            If ``geometry == "infinite"``.
-        NotImplementedError
-            If ``geometry == "ISLC"``.
-        """
-        if self.geometry == "infinite":
-            raise ValueError(
-                "infinite-medium cases have no mesh; consume materials directly"
-            )
-        if self.geometry == "ISLC":
-            raise NotImplementedError(
-                "ISLC mesh construction is not implemented in the first slice"
-            )
-        coord = _GEOMETRY_TO_COORD[self.geometry]
-        zones = [Zone(
-            outer_edge=self.domain_extent_cm,
-            mat_id=self.mat_id,
-            n_cells=n_cells,
-        )]
-        mesh = mesh1d_from_zones(zones, coord=coord)
-        # Re-stamp with BC fields (mesh1d_from_zones doesn't set BCs).
-        return Mesh1D(
-            edges=mesh.edges,
-            mat_ids=mesh.mat_ids,
-            coord=mesh.coord,
-            precomputed_volumes=mesh.precomputed_volumes,
-            bc_left=self.bc_left,
-            bc_right=self.bc_right,
-        )
+#
+# :class:`MeshTemplate` was promoted to
+# :mod:`orpheus.derivations.common.geometry_template` on 2026-05-03 (R0.5)
+# per the geometry-handling unification audit. It is re-exported here for
+# backward compatibility — existing
+# ``from orpheus.derivations.continuous.sood_registry.la13511 import
+# MeshTemplate`` imports continue to work unchanged.
 
 
 @dataclass(frozen=True)

@@ -5,8 +5,13 @@ This sub-package houses the **mathematical root** that both the
 utilities (kernels, quadrature, cross-section library, eigenvalue
 helpers, verification-case dataclass) that no single path owns.
 
-The four utilities most consumers import directly:
+The five utilities most consumers import directly:
 
+- :mod:`~orpheus.derivations.common.geometry_template` —
+  :class:`MeshTemplate`, the method-agnostic geometry recipe
+  consumed by both production solvers (via ``MeshTemplate.build()``)
+  and continuous reference solvers (via the descriptor scalars
+  directly). Promoted from sood_registry on 2026-05-03 (R0.5).
 - :mod:`~orpheus.derivations.common.kernels` —
   :math:`E_n`, :math:`\\mathrm{Ki}_n`, chord primitives.
 - :mod:`~orpheus.derivations.common.quadrature` — 1-D quadrature
@@ -22,3 +27,8 @@ out the symbolic transport equation that both Path 1 (discrete
 production solvers) and Path 2 (continuous reference derivations)
 discretise.
 """
+from __future__ import annotations
+
+from .geometry_template import MeshTemplate
+
+__all__ = ["MeshTemplate"]
