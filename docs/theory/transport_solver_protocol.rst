@@ -239,12 +239,11 @@ Foundation-tier tests in this scaffold:
 * :mod:`tests.derivations.test_transport_solver_protocol` — 8
   tests. Conformance + ``KNOWN_TRANSPORT_SOLVERS`` registry +
   attribute-surface drift detection.
-* :mod:`tests.derivations.test_billiard_from_problem_unified` —
-  11 tests. Bit-equality between legacy and new Billiard
-  factory paths via :func:`np.array_equal` (NEVER
-  :func:`np.allclose`). Asymmetric inputs catch numerical-bug
-  signatures Sig 3 (scattering transpose), Sig 4 (BC swap),
-  Sig 5 (factor-of-2).
+* :mod:`tests.derivations.test_trajectory_resolvent_billiard` —
+  11 tests. Bit-equality between :meth:`Billiard.solve_critical`
+  and the underlying ``solve_greens_function_*`` entry points
+  via :func:`np.array_equal` (NEVER :func:`np.allclose`). Covers
+  sphere/cylinder/slab/slab_asymmetric in 1G + sphere MG.
 * :mod:`tests.derivations.test_moment_space_from_problem_unified`
   — 6 tests. Bit-equality with the function-level F_N API.
 * :mod:`tests.cross_method.test_polymorphism` — 6 tests.
@@ -253,8 +252,15 @@ Foundation-tier tests in this scaffold:
   tests (1 skipped). Constructibility, non-crash solve,
   Protocol conformance for ``CPMeshAdapter`` / ``SNMeshAdapter``.
 
-Total: 38 foundation-tier tests + 1 skipped placeholder for
-the L4 cross-check.
+The legacy↔new factory bit-equality test
+(``test_billiard_from_problem_unified``) was removed when the
+input-cleanup track sunset the dual-factory dispatch on
+:meth:`Billiard.from_problem` — with one path remaining, the file
+became a self-comparison. The structural-independence coverage
+that remains lives in
+:mod:`tests.derivations.test_trajectory_resolvent_billiard` (facade
+vs underlying solver) and :mod:`tests.cross_method.test_polymorphism`
+(Protocol vs adapter layer).
 
 
 Structural-independence preservation
