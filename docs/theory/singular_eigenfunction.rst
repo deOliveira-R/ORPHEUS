@@ -179,6 +179,568 @@ The two packages are **structurally independent** above the trusted-
 library line (sharing only ``numpy``, ``scipy.integrate.quad``,
 ``mpmath``).
 
+.. _spectrum-and-cases-expansion-theorem:
+
+The Case spectrum and the expansion theorem
+================================================================================
+
+This section is the singular-eigenfunction pillar's math-rich centre.
+It walks the reader from the transport equation's eigenvalue problem
+to Case's expansion theorem, half-range completeness, and the
+geometry-specific reductions that the :class:`Spectrum` class
+encapsulates. The class
+(:class:`orpheus.derivations.continuous.singular_eigenfunction.Spectrum`)
+is the math-heart of this pillar — a single named *concept* that
+covers slab + sphere + cylinder, isotropic + linearly-anisotropic, on
+a unified factory contract. The exposition below ties the class's
+docstring to the literature line by line; reading them together is
+the intended workflow.
+
+The transport operator's eigenvalue problem
+--------------------------------------------------------------------------------
+
+For the homogeneous one-speed transport equation in a multiplying
+medium with isotropic scattering,
+
+.. math::
+   :label: spectrum-transport-equation
+
+   \mu\,\partial_x \psi(x, \mu)
+   + \Sigma_t \psi(x, \mu)
+   = c\,\Sigma_t\,\bar{\psi}(x),
+   \qquad
+   \bar{\psi}(x) = \frac{1}{2}\int_{-1}^{1} \psi(x, \mu')\,d\mu',
+
+seek separated solutions of the form
+:math:`\psi(x, \mu) = \phi_\nu(\mu)\,e^{-\Sigma_t x / \nu}` with
+unknown eigenvalue :math:`\nu`. Substituting and dividing by the
+exponential gives the **Case-eigenfunction equation**:
+
+.. math::
+   :label: spectrum-case-eigenfunction-equation
+
+   (\nu - \mu)\,\phi_\nu(\mu)
+   = c\,\nu \int_{-1}^{1} \phi_\nu(\mu')\,d\mu'.
+
+The function :math:`\phi_\nu(\mu)` is the **singular eigenfunction**
+of the transport operator at eigenvalue :math:`\nu`. The right-hand
+side has no :math:`\mu` dependence — only an integral that we
+normalise without loss of generality to unity, leaving
+
+.. math::
+   :label: spectrum-case-eigenfunction-explicit
+
+   \phi_\nu(\mu) = \frac{c\,\nu}{2 (\nu - \mu)}.
+
+This formula is *almost* well-defined: it has a pole at
+:math:`\mu = \nu`. For :math:`\nu \notin [-1, 1]` the pole is
+outside the integration domain and the formula is well-behaved
+everywhere. For :math:`\nu \in [-1, 1]` the pole is *inside* the
+domain and the formula is singular — hence the name *singular
+eigenfunction*. The correct interpretation in the singular case
+involves principal-value distributions and a delta-function residue,
+treated below.
+
+The discrete spectrum: dispersion relation
+--------------------------------------------------------------------------------
+
+Outside the continuum :math:`\nu \notin [-1, 1]`, the formula
+Eq. :eq:`spectrum-case-eigenfunction-explicit` integrates to
+
+.. math::
+
+   \int_{-1}^{1} \phi_\nu(\mu)\,d\mu
+   = \frac{c\,\nu}{2}\,\ln\!\left(\frac{\nu + 1}{\nu - 1}\right)
+   = c\,\nu\,\mathrm{atanh}(1/\nu).
+
+Imposing the normalisation
+:math:`\int_{-1}^{1} \phi_\nu(\mu')\,d\mu' = 1` (which our scaling
+of Eq. :eq:`spectrum-case-eigenfunction-explicit` already encoded)
+gives the **Case dispersion relation**:
+
+.. math::
+   :label: spectrum-dispersion-relation
+
+   \Lambda(\nu) := 1 - c\,\nu\,\mathrm{atanh}(1/\nu) = 0.
+
+This equation has solutions :math:`\nu = \pm\nu_0` (the
+**discrete eigenvalues** — a positive/negative pair by the symmetry
+of :math:`\Lambda`). The character of :math:`\nu_0` depends on
+:math:`c`:
+
+* **Sub-multiplying** (:math:`c < 1`): :math:`\nu_0 > 1` is
+  *real* and the modes :math:`\phi_{\pm\nu_0}(\mu)\,
+  e^{-x/\nu_0}` represent diffusing-and-decaying neutrons.
+* **Super-multiplying** (:math:`c > 1`): :math:`\nu_0 = i u_0`
+  is *purely imaginary* and the modes oscillate in
+  :math:`x` instead of decaying, capturing the criticality
+  configuration where neutron production balances leakage.
+* **Critical** (:math:`c = 1`): :math:`\nu_0` diverges to
+  :math:`\pm\infty`; the discrete pair coalesces with the
+  continuum's edge.
+
+The dispersion function
+:math:`\Lambda(\nu) = 1 - c\nu\,\mathrm{atanh}(1/\nu)` is a
+**medium property** — it depends on :math:`c` alone, not on the
+geometry. The same :math:`\nu_0` appears in the slab, sphere,
+and cylinder problems for the same medium. This is *the* load-bearing
+fact behind the cross-package shared dispersion-root primitive
+:func:`...fn_method.core.dispersion.case_nu0`: F_N and
+singular_eigenfunction read :math:`\nu_0` from the same numerical
+function below the trusted-library line because they are computing
+the same mathematical object. Above the trusted-library line, the
+two methods are structurally independent (different collocation /
+projection / iteration schemes), but the *spectrum itself* is
+shared. **The eigenvalue is a property of the medium, not the
+geometry.**
+
+V_se-cyl.1 verifies this geometry-independence claim algebraically
+in SymPy.
+
+The continuum spectrum: principal value plus delta
+--------------------------------------------------------------------------------
+
+For :math:`\nu \in (-1, 1)`, the formal expression
+:math:`\phi_\nu(\mu) = c\nu/(2(\nu - \mu))` has a pole inside the
+integration domain and the eigenfunction equation
+:eq:`spectrum-case-eigenfunction-equation` cannot be satisfied by a
+function — the formal solution is a **distribution**. The correct
+treatment, due to Case (1960) §3, is
+
+.. math::
+   :label: spectrum-continuum-eigenfunction
+
+   \phi_\nu(\mu) = \mathrm{P}\,\frac{c\,\nu}{2 (\nu - \mu)}
+                  + \lambda(\nu)\,\delta(\nu - \mu),
+
+where :math:`\mathrm{P}` denotes the Cauchy principal value (the
+distribution that integrates against test functions by deleting an
+:math:`\epsilon`-neighbourhood of the singularity and taking
+:math:`\epsilon \to 0`), and the dispersion function on the
+continuum,
+
+.. math::
+
+   \lambda(\nu) = 1 - c\,\nu\,\mathrm{atanh}(\nu),
+
+is the residue weight that makes the eigenfunction equation
+:eq:`spectrum-case-eigenfunction-equation` hold *as a
+distribution*. Both pieces are essential — neither the principal
+value alone nor the delta alone solves the equation; only the
+combination does.
+
+The continuum eigenvalues form a **continuous parameter family**
+indexed by :math:`\nu \in [-1, 1]`. The full spectrum of the
+transport operator is then
+
+.. math::
+   :label: spectrum-full-decomposition
+
+   \Sigma_{\rm transport} = \{\pm\nu_0\} \cup [-1, 1].
+
+This is *the spectrum*. Different geometries select different
+*subsets* of this spectrum at boundaries, but all three
+geometries (slab, sphere, cylinder) work on the *same* spectrum.
+This is what justifies the unified :class:`Spectrum` class — it
+encapsulates the spectrum :math:`\Sigma`, and dispatches to the
+geometry-specific projection that pins the expansion coefficients.
+
+The fact that the continuum mode has a non-zero weight
+:math:`\lambda(\nu)` at the diagonal :math:`\nu = \mu` is what
+makes naive Gauss-Legendre evaluation of the cylinder Fredholm
+kernel **silently saturate at the wrong value** (this is exactly
+the Numerical Bug Signatures §6 ERR-036 fingerprint applied to
+the singular-eigenfunction pillar). The Mitsis-Zweifel
+singular-subtraction identity (V_se-cyl.8, Eq.
+:eq:`wm72-singular-subtraction`) absorbs the principal-value +
+delta residue into a single regular integral plus a residue
+term — the load-bearing structural identity behind the
+cylinder's :func:`...cylinder.one_group._build_M_A_phi`
+diagonal evaluation.
+
+The expansion theorem (Case 1960; Mika 1961)
+--------------------------------------------------------------------------------
+
+The load-bearing claim that justifies *using* the Case spectrum is
+the **expansion theorem**:
+
+  **Theorem (Case 1960, Theorem 1; completeness in Mika 1961).**
+  Any admissible angular flux on the homogeneous transport
+  equation in a finite spatial domain admits a unique expansion
+
+  .. math::
+     :label: spectrum-expansion-theorem
+
+     \psi(x, \mu) = a_+ \phi_{\nu_0}(\mu)\,e^{-x/\nu_0}
+                  + a_- \phi_{-\nu_0}(\mu)\,e^{x/\nu_0}
+                  + \int_{-1}^{1} A(\nu)\,\phi_\nu(\mu)\,
+                    e^{-x/\nu}\,d\nu
+
+  with three sets of expansion coefficients:
+
+  * :math:`a_+` (dominant outgoing diffusion mode amplitude),
+  * :math:`a_-` (incoming diffusion mode amplitude — vanishes
+    on a half-space, non-zero on a finite slab),
+  * :math:`A(\nu)` (continuum density on :math:`[-1, 1]` —
+    the analog of a Fourier amplitude for the continuum
+    eigenfunctions).
+
+Mika 1961 proves the *completeness* claim — that no admissible
+:math:`\psi(x, \mu)` is missed by this expansion. The combined
+result (Case 1960 expansion + Mika 1961 completeness) gives:
+
+* **Existence**: every angular flux has at least one expansion.
+* **Uniqueness**: every angular flux has at most one expansion.
+
+The expansion is the singular-eigenfunction-pillar counterpart of
+the Galerkin / Legendre projection in the F_N method (and indeed
+the Galerkin projection IS a *truncation* of this expansion onto a
+finite Legendre basis). Truncation introduces an
+:math:`O(N^{-p})` error; the singular-eigenfunction expansion is
+*exact* (up to numerical evaluation of :math:`\nu_0` from the
+dispersion relation and the X-function from its integral
+definition).
+
+What the expansion theorem reduces the criticality problem to
+is: *given* that any :math:`\psi` admits the expansion
+:eq:`spectrum-expansion-theorem`, what conditions do the boundary
+constraints impose on the coefficients :math:`(a_+, a_-, A(\nu))`?
+The answer is a half-range completeness theorem (next), which
+provides the projection operator that pins the expansion
+coefficients from boundary data.
+
+Half-range completeness and the X-function (Inönü 1973)
+--------------------------------------------------------------------------------
+
+At a boundary surface, the angular flux's relevant function space
+splits into incoming (:math:`\mu > 0`) and outgoing (:math:`\mu < 0`)
+**half-ranges**. The half-range completeness theorem (Case-Zweifel
+1967 Ch. 4; Inönü 1973 for finite media) states that any half-range
+function admits a unique expansion onto
+
+.. math::
+
+   \{X(\mu)^{-1}\,\phi_{\nu_0}(\mu),\,
+     X(\mu)^{-1}\,\phi_\nu(\mu) : \nu \in (0, 1)\},
+
+where :math:`X(\mu)` is the **Wiener-Hopf X-function** of Inönü
+1973:
+
+.. math::
+   :label: spectrum-x-function
+
+   X(\mu) = \exp\!\left[
+       \frac{c\mu}{2}
+       \int_0^1 \frac{\mathrm{atanh}(\mu')\,d\mu'}
+                       {(\mu' - \mu)\,(c\mu'\,\mathrm{atanh}(\mu') - 1)}
+       \right].
+
+The X-function is the **projection operator** that completes the
+half-range basis: given boundary data on the half-range, the
+expansion coefficients :math:`(a_+, a_-, A(\nu))` are determined
+by a (linear) projection involving X. This is the structural
+counterpart of inverting a Gram matrix in a Galerkin scheme — the
+X-function is the singular-eigenfunction-pillar's Gram operator.
+
+ORPHEUS implements :math:`X(\mu)` in
+:func:`orpheus.derivations.continuous.fn_method.core.x_function.x_function_atalay`
+with a critical numerical detail: the integrand has an algebraic
+pole at :math:`\mu' = 1` cancelled by an opposing
+:math:`(c\mu'\,\mathrm{atanh}(\mu') - 1)` factor, but ``mp.quad``
+saturates at the wrong value if asked to compute the cancellation
+directly (Numerical Bug Signatures §7, ERR-037 — the canonical
+instance of the *quadrature endpoint pole-cancellation slow
+convergence* fingerprint). The fix is the substitution
+:math:`\mu' = \tanh(t)` mapping :math:`(0, 1) \to (0, \infty)` with
+Jacobian :math:`\mathrm{sech}^2(t)` that *exactly* cancels the
+pole under change-of-variables; the integrand becomes smooth at the
+new endpoint :math:`t \to \infty` and standard quadrature
+recovers 6-7 digits at ``mp.dps = 15``.
+
+The X-function carries the medium dependence (the integrand depends
+on :math:`c`); it does NOT depend on the geometry. Slab, sphere, and
+cylinder all use the same X-function — only the *projection*
+they apply at the boundary differs.
+
+Geometry reductions: slab, sphere, cylinder
+--------------------------------------------------------------------------------
+
+The expansion theorem + half-range completeness give the **machinery**;
+the geometry supplies the **boundary conditions** that pin the
+expansion coefficients :math:`(a_+, a_-, A(\nu))`. Each
+:class:`Spectrum` geometry instance is one such reduction. The
+*spectrum itself* is the same; the *projection* differs.
+
+**Slab** (Atalay 1997 Eq. 46). For a symmetric slab of half-thickness
+:math:`d` with linearly-anisotropic scattering :math:`f_1` and
+specular-style reflection :math:`R \in [0, 1)` at both faces, the
+even-mode criticality condition reduces to a scalar arctan-equation
+root in :math:`d`:
+
+.. math::
+
+   \tan\!\Big(\pm\frac{\pi}{2} - \theta_{\rm LHS}^{(46)}\Big)
+   = \theta_{\rm RHS}^{(46)}
+
+where :math:`\theta_{\rm LHS}^{(46)}` and :math:`\theta_{\rm RHS}^{(46)}`
+are explicit functions of :math:`(c, R, f_1, d, \nu_0, \bar\nu, z_0,
+K_0, K_1, K_2)` (see Eq. :eq:`atalay-eq46` for the full form).
+The K-moments :math:`K_j(c, R, d) = \int_0^1 \mu^j\,T(R, \mu, d)\,
+H(\mu)\,d\mu` are half-range integrals against the Atalay
+:math:`T(R, \mu, d)` kernel and the half-range projection
+:math:`H(\mu)`.
+
+**Sphere** (Atalay 1997 Eq. 54, derived via Mitsis 1963 parity flip).
+The antisymmetric BC :math:`\psi(x, \mu) = -\psi(-x, -\mu)` reduces
+the sphere problem to the *odd-mode* counterpart of the slab problem
+on :math:`[-R, R]`. The structural changes from slab to sphere are
+surgical:
+
+* Kernel :math:`T(R, \mu, d) \to T_1(R, \mu, d)` — a sign flip in the
+  second exponential of the T numerator and denominator.
+* K-moments :math:`K_j \to L_j` — same kernel structure with the
+  T → T_1 substitution.
+* LHS criticality term: :math:`\sin \leftrightarrow \cos` shuffle and
+  :math:`R \to -R` in the reflection-coefficient terms.
+
+**The discrete eigenvalue :math:`\nu_0` and the continuum on
+:math:`[-1, 1]` are identical** — the same :class:`Spectrum`
+instance applies, only the boundary projection differs.
+
+**Cylinder** (Westfall-Metcalf 1972, isotropic only). The cylindrical
+addition theorem brings Bessel-K kernels into play, introducing
+*additional* spectral structure beyond the basic Case eigenfunctions:
+the Bessel modes :math:`I_0(R/\nu)` couple radial and angular
+dimensions in a way slab/sphere geometries don't. Resolution needs
+the **Mitsis-WM Fredholm iteration** (Eqs.
+:eq:`wm72-eq30-bare` / :eq:`wm72-eq31` / :eq:`wm72-eq32`) with
+**Mitsis-Zweifel singular subtraction** (V_se-cyl.8) handling the
+principal-value + delta residue cleanly.
+
+Linear anisotropy (Atalay 1997)
+--------------------------------------------------------------------------------
+
+Replacing isotropic scattering :math:`c\,\bar{\psi}(x)` by linearly
+anisotropic :math:`c\int (1 + 3 f_1\,\mu\mu')\,\psi(x, \mu')\,d\mu'`
+adds a term to the dispersion relation but **preserves the
+spectrum's structure**: still one discrete pair :math:`\pm\nu_0`
+plus a continuum on :math:`[-1, 1]`. The new dispersion function
+includes :math:`f_1` corrections; the X-function picks up a
+:math:`f_1`-dependent integrand. Atalay's K_j and L_j moments
+integrate the new structure explicitly.
+
+The validity range :math:`c \le 1 + 1/(3 f_1)` (Atalay Eq 5)
+bounds the regime where the transport operator has *only one* pair
+of discrete modes. Outside that band, complex-conjugate eigenvalue
+pairs appear (Dahl-Sjöstrand 1979; Kohut 1993), and Atalay's
+first-order Fredholm iteration fails to detect them. This validity
+bound is the singular-eigenfunction pillar's structural envelope —
+:class:`Spectrum` does not check the bound at construction (the
+:math:`(c, f_1)` combination might be valid for slab but not
+sphere, etc.), but the underlying Atalay solver raises if asked to
+solve outside the bound.
+
+The cylinder pillar (WM-72) is **isotropic only**. Linearly-
+anisotropic cylinder is research-grade and not in the package.
+:class:`Spectrum.from_problem` rejects cylinder + non-zero
+:math:`f_1` at construction for this reason — surfacing the
+out-of-pillar status at the facade boundary so callers know the
+geometry/material combination is not shippable.
+
+Where Spectrum sits in the three-meanings taxonomy
+--------------------------------------------------------------------------------
+
+The Sanchez-Chandrasekhar three-meanings taxonomy
+(:ref:`reference-solvers-three-meanings`) classifies every
+reference solver by *which mathematical object* it constructs and
+*how* it constructs it. :class:`Spectrum` lives under meaning
+**(γ): singular-eigenfunction angular Green's function** —
+directly construct :math:`G(\tau, \tau'; \mu, \mu')` as a sum
+over ν-spectrum eigenfunctions weighted by X-function residues.
+It is the "spectrum-decomposing" attack on the same
+boundary-value problem.
+
+The other two meanings, on the same physical configuration,
+are:
+
+* **(α): trajectory resolvent** — :class:`Billiard` in
+  :mod:`...trajectory_resolvent`. Trace bouncing characteristics
+  through phase space, sum the multi-bounce series
+  :math:`T = (I - S)^{-1}` (Birkhoff transfer-operator
+  resolvent on the billiard table). The Green's function is the
+  *path-integral* sum.
+
+* **(β): spectral resolvent** — closed-form spectral
+  μ-integration of the within-medium angular Green's function
+  (Sanchez 1986 Eq. A1 / PS-1982 Eq. 21). Currently a stub in
+  ORPHEUS (``spectral_resolvent/`` reserved); the closed-form
+  spectral kernel is currently obtained indirectly through
+  :class:`Billiard` rather than via the direct PS-1982 evaluator.
+
+When all three constructions exist for the same problem,
+agreement at all three points is L1-grade evidence per the
+project's structural-independence rule: the three integrands are
+*structurally* distinct (ν-spectrum vs ray-traced phase space vs
+spectral μ-integration), so triple agreement is not coincidence.
+
+Where the F_N method sits in this picture
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:class:`MomentSpace` (in :mod:`...fn_method`) is *also* under (γ):
+it works in the Case eigenfunction representation but **truncates**
+the basis to a finite Legendre moment expansion. The F_N method
+projects boundary data onto :math:`(N+1)` collocation points and
+solves :math:`\det M = 0` for the critical configuration. The
+truncation is what makes F_N tractable at small N (typical
+operating point :math:`N = 8`-:math:`12`); it is also what makes
+F_N approximate (truncation error :math:`O(N^{-p})`) rather than
+exact.
+
+:class:`Spectrum` and :class:`MomentSpace` therefore live on the
+**same pillar (γ)** but with different closures: Spectrum carries
+the full :math:`(\pm\nu_0, [-1, 1])` spectrum; MomentSpace truncates
+to :math:`(N+1)` Legendre coefficients. They cross-check each
+other at the geometry boundary (slab and sphere — the cylinder is
+not in F_N's pillar; that's why the package separation exists),
+which is *meaningful* L1 evidence: Spectrum's full-expansion
+exactness combined with MomentSpace's spectral-convergence
+:math:`O(N^{-p})` agreement is a constructive proof that both
+pillars are correctly identifying the same critical configuration.
+
+The Sanchez-Chandrasekhar taxonomy is what tells us that
+:class:`Billiard` agreement (a different pillar) is *structurally*
+stronger than :class:`MomentSpace` agreement — Billiard exercises
+a different integrand (ray-traced phase space) than Spectrum's
+ν-spectrum integrand. In the verification matrix, the
+``Spectrum`` ↔ ``Billiard`` cross-check is the strongest L1
+gate; the ``Spectrum`` ↔ ``MomentSpace`` cross-check is L1 but
+*sibling* (same pillar).
+
+The Spectrum class as math-heart
+--------------------------------------------------------------------------------
+
+The :class:`Spectrum` class
+(:class:`orpheus.derivations.continuous.singular_eigenfunction.Spectrum`)
+encapsulates the geometry, the materials, the BC, and the
+quadrature size for a single instance of the singular-eigenfunction
+attack. It is the **3rd concrete instance of the math-heart pattern**
+in the project, alongside :class:`Billiard` (trajectory_resolvent;
+Birkhoff transfer-operator resolvent on a billiard) and
+:class:`MomentSpace` (fn_method; Galerkin half-range Legendre
+projection).
+
+All three classes:
+
+1. Are **frozen dataclasses** that own a :class:`GeometrySpec` plus
+   method-specific configuration (``fn_order`` for MomentSpace,
+   ``alpha_payload`` for Billiard, ``n_modes`` for Spectrum).
+2. Are constructed via a **factory** ``from_problem(materials:
+   dict[int, Mixture], geometry: GeometrySpec, ...)`` that accepts
+   the production-protocol input shape (the same shape the discrete
+   CP/SN/MOC solvers consume).
+3. Expose a **Protocol-conforming surface** — ``materials``,
+   ``geometry_spec``, ``method_name`` — that the unifying
+   :class:`TransportSolver` Protocol consumes for cross-method
+   dispatch.
+4. Return a **shared cross-method result type** —
+   :class:`CriticalSolution` from ``solve_critical``,
+   :class:`FluxSolution` from ``solve_fixed_source`` — making
+   results substitutable at the cross-method protocol boundary.
+
+The "≥3 instances" threshold is what *empirically validates* the
+unifying Protocol. With Spectrum landing the third sibling, the
+Protocol's structural design (factory shape, property surface,
+shared return types) is no longer a one-off pattern from
+trajectory_resolvent or a two-off from fn_method + trajectory_resolvent;
+it is a pattern that survived three independent mathematical
+instances. The Protocol is not posited; it is observed.
+
+Construction examples
+~~~~~~~~~~~~~~~~~~~~~
+
+Bare cylinder Sood ``Ua-1-0-CY`` benchmark (:math:`c = 1.30`,
+isotropic):
+
+.. code-block:: python
+
+   import numpy as np
+   from orpheus.derivations.common.geometry_spec import GeometrySpec
+   from orpheus.derivations.common.xs_library import make_mixture
+   from orpheus.derivations.continuous.singular_eigenfunction import (
+       Spectrum,
+   )
+   from orpheus.geometry.mesh import BC
+
+   mix = make_mixture(
+       sig_t=np.array([1.0]),
+       sig_c=np.array([0.0]),
+       sig_f=np.array([0.3]),
+       nu=np.array([2.0]),
+       chi=np.array([1.0]),
+       sig_s=np.array([[0.7]]),  # c = (0.7 + 0.6)/1.0 = 1.30
+   )
+   geom = GeometrySpec(
+       geometry="cylinder",
+       critical_dimension_mfp=1.72500292,
+       critical_dimension_cm=1.72500292,
+       n_groups=1,
+       bc_left=BC.reflective,
+       bc_right=BC.vacuum,
+   )
+   spec = Spectrum.from_problem(materials={0: mix}, geometry=geom, n_modes=24)
+   sol = spec.solve_critical()
+   # sol.parameter_value ≈ 1.7250035 mfp
+   # sol.eigenvalue == 1.0 (k_eff at criticality)
+
+Reflected slab with linear anisotropy (Atalay 1997 Table 2,
+:math:`R = 0.50`, :math:`f_1 = 0.20`):
+
+.. code-block:: python
+
+   mix = make_mixture(
+       sig_t=np.array([1.0]),
+       sig_c=np.array([0.0]),
+       sig_f=np.array([0.3]),
+       nu=np.array([2.0]),
+       chi=np.array([1.0]),
+       sig_s=np.array([[0.7]]),
+       sig_s1=np.array([[0.20 * 0.7]]),  # f1 = SigS[1]/SigS[0] = 0.20
+   )
+   geom = GeometrySpec(
+       geometry="slab",
+       critical_dimension_mfp=1.0,  # placeholder (solver finds the true value)
+       critical_dimension_cm=1.0,
+       n_groups=1,
+       bc_left=BC.vacuum,
+       bc_right=BC("partial", {"albedo": 0.50}),  # R = 0.50
+   )
+   spec = Spectrum.from_problem(materials={0: mix}, geometry=geom, n_modes=8)
+   sol = spec.solve_critical()
+   # sol.parameter_value: critical half-thickness in mfp
+
+Discipline boundary
+~~~~~~~~~~~~~~~~~~~
+
+:class:`Spectrum` is a **thin facade** over the existing
+function-level API in :mod:`...slab.one_group`,
+:mod:`...sphere.one_group`, and :mod:`...cylinder.one_group`. The
+load-bearing implementation lives at the function level; the
+class is the integration point for the cross-method protocol. The
+foundation tests pin **bit-equality** between the class API and
+the function API (verified via ``float.hex`` exact-bit comparison)
+so calling through the class introduces zero numerical drift.
+
+Above the trusted-library line, Spectrum and Billiard are
+**structurally independent** — they share only ``numpy`` /
+``scipy.special`` / ``mpmath``, and the dispersion-root primitive
+:func:`...fn_method.core.dispersion.case_nu0` (a medium property,
+not method machinery). The cross-check between
+``Spectrum.solve_critical()`` and ``Billiard.solve_critical()`` on
+the same Sood case is therefore L1-grade structurally-independent
+evidence per the
+:doc:`/skills/vv-principles` § "structural independence applies
+above the trusted-library line" rule.
+
 Cylinder — Westfall–Metcalf 1973, bare radially-reflected, isotropic
 ================================================================================
 
