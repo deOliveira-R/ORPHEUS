@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **1988**
+Total tests collected: **1998**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 585, 29.4%
-   L1, 636, 32.0%
+   L0, 587, 29.4%
+   L1, 644, 32.2%
    L2, 36, 1.8%
    L3, 0, 0.0%
-   foundation, 714, 35.9%
+   foundation, 714, 35.7%
    unmarked, 17, 0.9%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 1892
+   explicit, 1902
    verify, 0
    class-name, 46
    func-name, 0
@@ -65,10 +65,11 @@ Module × level grid
    derivations/test_carlvik_galerkin_sphere, 0, 18, 0, 0, 0, 0
    derivations/test_carlvik_galerkin_symbolic, 0, 0, 0, 0, 8, 0
    derivations/test_carlvik_galerkin_xverif_fn, 0, 10, 0, 0, 0, 0
-   derivations/test_case_method_slab, 0, 12, 0, 0, 1, 0
+   derivations/test_case_method_slab, 0, 17, 0, 0, 1, 0
    derivations/test_case_method_slab_sphere_parity_flip, 0, 4, 0, 0, 0, 0
    derivations/test_case_method_sphere, 0, 4, 0, 0, 1, 0
    derivations/test_case_method_symbolic, 0, 0, 0, 0, 9, 0
+   derivations/test_case_method_x_function, 2, 3, 0, 0, 0, 0
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
    derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 17, 0
@@ -329,6 +330,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``two-group-charpoly``, 4
    ``two-group-roots``, 4
    ``atalay-table2-slab-reflected-isotropic``, 3
+   ``atalay-table2-slab-reflected-r099-precision-floor``, 3
    ``atalay-table2-slab-vacuum-isotropic``, 3
    ``atalay-table3-slab-vacuum-anisotropic``, 3
    ``cp-escape-from-p-cell``, 3
@@ -342,6 +344,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``number-density``, 3
    ``sigma-zero``, 3
    ``atalay-eq54-sphere-vacuum-isotropic``, 2
+   ``atalay-table6-eigenvalue-moderate-d-consistency``, 2
    ``cp-second-difference-operator``, 2
    ``peierls-greens-slab-asym-method-of-images``, 2
    ``peierls-slab-Gbc-mode``, 2
@@ -578,6 +581,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-035``, 1
    ``ERR-036``, 8
    ``ERR-037``, 11
+   ``ERR-038``, 5
 
 Unmarked tests
 --------------
