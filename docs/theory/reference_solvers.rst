@@ -127,9 +127,9 @@ between the three.
 
 Where this page (and downstream pages) say "topology" or
 "topological class", read **orbit-space M/G classification**. The
-``CurvilinearGeometry.topology`` property's two values
-(``"one_surface_compact"``, ``"two_surface"``) name the two
-endpoint counts that ORPHEUS currently supports. Future extensions
+``CurvilinearGeometry.orbit_space_class`` property's two values
+(``"one-endpoint"``, ``"two-endpoint"``) name the two endpoint
+counts that ORPHEUS currently supports. Future extensions
 to more endpoints (rank-:math:`N` for :math:`N \ge 3`, e.g.
 axially-capped cylinder) would correspond to richer orbit-space
 boundary structure (1-D interval with three or more endpoints

@@ -14,7 +14,7 @@
      - n_g
      - n_reg
      - :math:`r_0 / R`
-     - Topology
+     - Orbit-space M/G
      - BC
      - Closure
      - Status

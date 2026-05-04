@@ -33,7 +33,11 @@ keys are:
 - ``accuracy`` — accuracy-class string.
 - ``scattering_order`` — Legendre order (``int``).
 - ``multiplying`` — ``True`` for ``c > 1`` cases (``bool``).
-- ``topology_class`` — ``"A"`` (two-surface) or ``"B"`` (one-surface).
+- ``orbit_space_class`` — orbit-space M/G class label. peierls_nystrom
+  uses ``"A"`` (two-endpoint) / ``"B"`` (one-endpoint); other methods
+  may use the values returned by
+  :attr:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.orbit_space_class`
+  (``"two-endpoint"`` / ``"one-endpoint"``).
 - ``extra`` — free-form ``dict`` of additional metadata; ignored by
   the renderer (carried for downstream consumers).
 
@@ -99,7 +103,7 @@ _OPTIONAL_KEYS: tuple[str, ...] = (
     "accuracy",
     "scattering_order",
     "multiplying",
-    "topology_class",
+    "orbit_space_class",
 )
 
 # Display order (left-to-right) for the rendered columns. Required
@@ -110,7 +114,7 @@ _COLUMN_ORDER: tuple[str, ...] = (
     "n_groups",
     "n_regions",
     "r0_over_R",
-    "topology_class",
+    "orbit_space_class",
     "bc",
     "closure",
     "scattering_order",
@@ -126,7 +130,7 @@ _HEADERS: dict[str, str] = {
     "n_groups": "n_g",
     "n_regions": "n_reg",
     "r0_over_R": r":math:`r_0 / R`",
-    "topology_class": "Topology",
+    "orbit_space_class": "Orbit-space M/G",
     "bc": "BC",
     "closure": "Closure",
     "scattering_order": "Scattering order",
@@ -142,7 +146,7 @@ _WIDTHS: dict[str, int] = {
     "n_groups": 6,
     "n_regions": 6,
     "r0_over_R": 8,
-    "topology_class": 8,
+    "orbit_space_class": 8,
     "bc": 14,
     "closure": 14,
     "scattering_order": 8,

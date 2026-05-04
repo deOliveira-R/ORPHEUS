@@ -65,10 +65,11 @@ from .geometry import (
 # E_1 Nyström machinery in this module is distinct from the curvilinear
 # CurvilinearGeometry machinery (slab's log singularity does not factor
 # through the polar reformulation); a future session will unify via
-# arbitrary-precision quadrature on the polar form. The TOPOLOGY label
-# below is what the case-builder uses to register slab alongside hollow
-# cyl / hollow sph, even while the implementation stays separate.
-TOPOLOGY: str = "two_surface"
+# arbitrary-precision quadrature on the polar form. The
+# ORBIT_SPACE_CLASS label below is what the case-builder uses to
+# register slab alongside hollow cyl / hollow sph, even while the
+# implementation stays separate.
+ORBIT_SPACE_CLASS: str = "two-endpoint"
 
 
 # ═══════════════════════════════════════════════════════════════════════

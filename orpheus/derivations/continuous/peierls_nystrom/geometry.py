@@ -355,7 +355,7 @@ class CurvilinearGeometry:
         return 2 if self.inner_radius > 0.0 else 1
 
     @property
-    def topology(self) -> str:
+    def orbit_space_class(self) -> str:
         r"""Orbit-space M/G class for Peierls closure dispatch.
 
         The label is the human-readable count of physical boundary
@@ -367,7 +367,7 @@ class CurvilinearGeometry:
 
         Returns one of:
 
-        - ``"two_surface"`` — the cell's M/G is a 1-D interval with
+        - ``"two-endpoint"`` — the cell's M/G is a 1-D interval with
           two physical BC endpoints. Members: slab
           (:math:`M/G = \mathbb{R}^3 / \mathbb{R}^2_{\rm trans}`,
           two parallel faces), hollow annular cylinder
@@ -380,8 +380,8 @@ class CurvilinearGeometry:
           stability-protocol coverage and the L21 structural residual
           class.
 
-        - ``"one_surface_compact"`` — the cell's M/G is a 1-D interval
-          with one physical BC endpoint (the inner :math:`r=0` is a
+        - ``"one-endpoint"`` — the cell's M/G is a 1-D interval with
+          one physical BC endpoint (the inner :math:`r=0` is a
           coordinate singularity, not a physical surface). Members:
           solid cylinder (``inner_radius == 0``,
           :math:`M/G = \mathbb{R}^3 / (\mathbb{R}_{\rm trans} \times
@@ -394,16 +394,16 @@ class CurvilinearGeometry:
         reference cases (see
         :ref:`theory-peierls-capabilities` and
         :file:`.claude/plans/topology-based-consolidation.md`). Tests
-        and case builders should dispatch on ``topology`` rather than
-        on ``kind`` + ``inner_radius`` gymnastics.
+        and case builders should dispatch on ``orbit_space_class``
+        rather than on ``kind`` + ``inner_radius`` gymnastics.
 
-        Semantically equivalent to ``n_surfaces`` (2 ↔ ``"two_surface"``,
-        1 ↔ ``"one_surface_compact"``), but named for its role rather
-        than its arity. Code that cares about the orbit-space M/G
-        *label* — dispatching case builders, filtering tests, gating
-        closure applicability — should prefer this property.
+        Semantically equivalent to ``n_surfaces`` (2 ↔ ``"two-endpoint"``,
+        1 ↔ ``"one-endpoint"``), but named for its role rather than
+        its arity. Code that cares about the orbit-space M/G *label*
+        — dispatching case builders, filtering tests, gating closure
+        applicability — should prefer this property.
         """
-        return "two_surface" if self.n_surfaces == 2 else "one_surface_compact"
+        return "two-endpoint" if self.n_surfaces == 2 else "one-endpoint"
 
     @property
     def is_planar(self) -> bool:

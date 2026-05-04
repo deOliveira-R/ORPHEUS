@@ -64,8 +64,8 @@ see :ref:`peierls-rank-n-per-face-closeout` and
     catastrophe and the mode-0 / mode-:math:`n \ge 1` normalisation
     mismatch in :func:`build_closure_operator`.
 
-  The ``CurvilinearGeometry.topology`` property returns
-  ``"two_surface"`` or ``"one_surface_compact"`` and is the canonical
+  The ``CurvilinearGeometry.orbit_space_class`` property returns
+  ``"two-endpoint"`` or ``"one-endpoint"`` and is the canonical
   runtime discriminator. The string is the M/G endpoint count made
   human-readable. This supersedes shape-keyed dispatch
   (``kind="cylinder-1d"``) as the primary axis of organization —
@@ -375,21 +375,22 @@ reader must disambiguate them before reading any dispatch code.
 signature). It is the primary organizing principle (see Key Facts
 above). Two classes:
 
-- ``"two_surface"``: slab, hollow cylinder, hollow sphere. The 1-D
+- ``"two-endpoint"``: slab, hollow cylinder, hollow sphere. The 1-D
   orbit space M/G has two physical BC endpoints. F.4 applies.
-- ``"one_surface_compact"``: solid cylinder, solid sphere. The 1-D
+- ``"one-endpoint"``: solid cylinder, solid sphere. The 1-D
   orbit space M/G has one physical BC endpoint (the inner
   :math:`r=0` is a coordinate singularity, not a surface). Only
   rank-1 Mark shipped.
 
 Queryable at runtime as
-:attr:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.topology`.
+:attr:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.orbit_space_class`.
 For slab (which does not use :class:`CurvilinearGeometry`) the
-module-level constant ``orpheus.derivations.continuous.peierls_nystrom.slab.TOPOLOGY``
+module-level constant
+``orpheus.derivations.continuous.peierls_nystrom.slab.ORBIT_SPACE_CLASS``
 carries the same label. This property **supersedes**
 :attr:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.n_surfaces`
 as the user-facing identifier: ``n_surfaces`` remains an internal
-integer count, ``topology`` is the semantic label (an M/G
+integer count, ``orbit_space_class`` is the semantic label (an M/G
 endpoint-count tag made human-readable) for dispatch +
 documentation + test filtering. The plan that introduced this
 concept lives at

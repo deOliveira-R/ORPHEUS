@@ -419,7 +419,7 @@ def capability_rows() -> list[dict[str, object]]:
     ``name``, ``geometry``, ``n_groups``, ``n_regions``, ``bc``,
     ``status``; optional auto-detected: ``r0_over_R``, ``closure``,
     ``accuracy``, ``scattering_order``, ``multiplying``,
-    ``topology_class``).
+    ``orbit_space_class``).
 
     This function does **not** call any eigenvalue solver. It is safe
     to invoke at Sphinx build time without paying the O(minutes) cost
@@ -456,7 +456,7 @@ def capability_rows() -> list[dict[str, object]]:
         "r0_over_R": None,
         "closure": rank2_label,
         "accuracy": "O(h²), Wigner-Seitz exact",
-        "topology_class": "A",
+        "orbit_space_class": "A",
         "bc": bc_white,
         "status": shipped_status,
     })
@@ -473,7 +473,7 @@ def capability_rows() -> list[dict[str, object]]:
             "r0_over_R": r0,
             "closure": f4_label,
             "accuracy": f"~{tol_1g} structural (scalar mode)",
-            "topology_class": "A",
+            "orbit_space_class": "A",
             "bc": bc_f4,
             "status": shipped_status,
         })
@@ -490,7 +490,7 @@ def capability_rows() -> list[dict[str, object]]:
                 f"structural residual expected ~{tol_1g} (group-local closure, "
                 f"unverified) — Issue #104 AC"
             ),
-            "topology_class": "A",
+            "orbit_space_class": "A",
             "bc": bc_f4,
             "status": "shipped (k_eff gate pending — Issue #104)",
         })
@@ -507,7 +507,7 @@ def capability_rows() -> list[dict[str, object]]:
             "r0_over_R": r0,
             "closure": f4_label,
             "accuracy": f"~{tol_1g} structural (scalar mode)",
-            "topology_class": "A",
+            "orbit_space_class": "A",
             "bc": bc_f4,
             "status": shipped_status,
         })
@@ -524,7 +524,7 @@ def capability_rows() -> list[dict[str, object]]:
                 f"structural residual expected ~{tol_1g} (group-local closure, "
                 f"unverified) — Issue #104 AC"
             ),
-            "topology_class": "A",
+            "orbit_space_class": "A",
             "bc": bc_f4,
             "status": "shipped (k_eff gate pending — Issue #104)",
         })
