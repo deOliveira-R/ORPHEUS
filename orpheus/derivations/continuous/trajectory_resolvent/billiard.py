@@ -112,10 +112,13 @@ References
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
+
+from orpheus.data.macro_xs.mixture import Mixture
+from orpheus.derivations.common.geometry_spec import GeometrySpec
 
 # Use the SHARED cross-method result types — these define the contract
 # every math-heart class (MomentSpace for fn_method, Billiard for
@@ -372,19 +375,23 @@ class Billiard:
     """
 
     geometry_kind: str
-    materials: dict[str, Any]
+    xs_payload: dict[str, Any]
     geometry_payload: dict[str, Any]
     alpha_payload: dict[str, float]
     quadrature: dict[str, int]
     closure_rank: int
+    materials: dict[int, Mixture] = field(default_factory=dict)
+    geometry_spec: GeometrySpec | None = None
+    method_name: str = "trajectory_resolvent"
 
     @classmethod
     def from_problem(
         cls,
         *,
-        geometry_kind: str,
-        materials: dict[str, Any],
-        geometry: dict[str, Any],
+        materials: dict[int, Mixture] | dict[str, Any] | None = None,
+        geometry_spec: GeometrySpec | None = None,
+        geometry_kind: str | None = None,
+        geometry: dict[str, Any] | None = None,
         alpha: float | dict[str, float] = 1.0,
         quadrature: dict[str, int] | None = None,
     ) -> "Billiard":
@@ -426,12 +433,76 @@ class Billiard:
             A frozen billiard instance ready for
             :meth:`solve_critical` / :meth:`solve_fixed_source`.
         """
-        if geometry_kind not in (
+        is_new_path = geometry_spec is not None or _is_mixture_dict(materials)
+
+        if is_new_path:
+            if geometry_spec is None:
+                raise ValueError(
+                    "Billiard.from_problem (new path): geometry_spec is "
+                    "required when materials is a dict[int, Mixture]."
+                )
+            if not _is_mixture_dict(materials):
+                raise ValueError(
+                    "Billiard.from_problem (new path): materials must be "
+                    "a dict[int, Mixture]; got keys "
+                    f"{list((materials or {}).keys())!r}."
+                )
+            inferred_kind = _infer_geometry_kind_from_spec(
+                geometry_spec, alpha
+            )
+            inferred_payload = _build_legacy_geometry_payload(
+                inferred_kind, geometry_spec
+            )
+            inferred_xs = _mixture_to_legacy_xs_payload(
+                materials, inferred_kind
+            )
+            geometry_kind_resolved = inferred_kind
+            geometry_payload_resolved: dict[str, Any] = inferred_payload
+            xs_payload_resolved: dict[str, Any] = inferred_xs
+            materials_resolved: dict[int, Mixture] = dict(materials)
+            geometry_spec_resolved: GeometrySpec = geometry_spec
+        else:
+            if geometry_kind is None:
+                raise ValueError(
+                    "Billiard.from_problem (legacy path): geometry_kind "
+                    "is required when materials is a raw XS dict."
+                )
+            if geometry is None:
+                raise ValueError(
+                    "Billiard.from_problem (legacy path): geometry is required."
+                )
+            if materials is None:
+                raise ValueError(
+                    "Billiard.from_problem (legacy path): materials is required."
+                )
+            if geometry_kind not in (
+                "sphere", "sphere_mr", "cylinder", "slab",
+                "slab_asymmetric", "hollow_sphere", "annulus",
+            ):
+                raise ValueError(
+                    f"unknown geometry_kind {geometry_kind!r}. "
+                    "Expected one of sphere, sphere_mr, cylinder, slab, "
+                    "slab_asymmetric, hollow_sphere, annulus."
+                )
+            geometry_kind_resolved = geometry_kind
+            geometry_payload_resolved = dict(geometry)
+            xs_payload_resolved = dict(materials)
+            materials_resolved = _legacy_xs_to_mixture_dict(
+                xs_payload_resolved, geometry_kind_resolved
+            )
+            geometry_spec_resolved = _legacy_geometry_to_spec(
+                geometry_kind_resolved,
+                geometry_payload_resolved,
+                xs_payload_resolved,
+                alpha,
+            )
+
+        if geometry_kind_resolved not in (
             "sphere", "sphere_mr", "cylinder", "slab",
             "slab_asymmetric", "hollow_sphere", "annulus",
         ):
             raise ValueError(
-                f"unknown geometry_kind {geometry_kind!r}. "
+                f"unknown geometry_kind {geometry_kind_resolved!r}. "
                 "Expected one of sphere, sphere_mr, cylinder, slab, "
                 "slab_asymmetric, hollow_sphere, annulus."
             )
@@ -439,12 +510,12 @@ class Billiard:
         # Normalize alpha into the per-geometry payload.
         if isinstance(alpha, dict):
             alpha_payload: dict[str, float] = dict(alpha)
-        elif geometry_kind in ("slab_asymmetric",):
+        elif geometry_kind_resolved in ("slab_asymmetric",):
             alpha_payload = {
                 "alpha_left": float(alpha),
                 "alpha_right": float(alpha),
             }
-        elif geometry_kind in ("hollow_sphere", "annulus"):
+        elif geometry_kind_resolved in ("hollow_sphere", "annulus"):
             alpha_payload = {
                 "alpha_in": float(alpha),
                 "alpha_out": float(alpha),
@@ -454,29 +525,28 @@ class Billiard:
 
         # Resolve closure rank from orbit-space class.
         closure_rank = (
-            2 if geometry_kind
+            2 if geometry_kind_resolved
             in ("slab_asymmetric", "hollow_sphere", "annulus")
             else 1
         )
 
         return cls(
-            geometry_kind=geometry_kind,
-            materials=dict(materials),
-            geometry_payload=dict(geometry),
+            geometry_kind=geometry_kind_resolved,
+            xs_payload=xs_payload_resolved,
+            geometry_payload=geometry_payload_resolved,
             alpha_payload=alpha_payload,
             quadrature=dict(quadrature or {}),
             closure_rank=closure_rank,
+            materials=materials_resolved,
+            geometry_spec=geometry_spec_resolved,
+            method_name="trajectory_resolvent",
         )
 
     def with_alpha(self, alpha: float | dict[str, float]) -> "Billiard":
-        """Return a copy with a different boundary reflectivity.
-
-        Useful for sweeping :math:`\\alpha` without re-validating
-        the materials / geometry payload.
-        """
+        """Return a copy with a different boundary reflectivity."""
         return Billiard.from_problem(
             geometry_kind=self.geometry_kind,
-            materials=self.materials,
+            materials=self.xs_payload,
             geometry=self.geometry_payload,
             alpha=alpha,
             quadrature=self.quadrature,
@@ -641,7 +711,7 @@ def _dispatch_critical(
     )
 
     g = billiard.geometry_kind
-    mats = billiard.materials
+    mats = billiard.xs_payload
     geom = billiard.geometry_payload
     a = billiard.alpha_payload
     q = billiard.quadrature
@@ -890,7 +960,7 @@ def _dispatch_fixed_source(
     )
 
     g = billiard.geometry_kind
-    mats = billiard.materials
+    mats = billiard.xs_payload
     geom = billiard.geometry_payload
     a = billiard.alpha_payload
     q = billiard.quadrature
@@ -1177,4 +1247,296 @@ def _wrap_slab_mg(
             "x_nodes": res.x_nodes,
             "mu_nodes": res.mu_nodes,
         },
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Dual-factory helpers
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _is_mixture_dict(materials: Any) -> bool:
+    """Return True iff *materials* looks like ``dict[int, Mixture]``."""
+    if not isinstance(materials, dict) or not materials:
+        return False
+    first_key = next(iter(materials))
+    if not isinstance(first_key, int):
+        return False
+    return isinstance(materials[first_key], Mixture)
+
+
+def _bc_from_alpha(alpha_value: float):
+    """Build a BC from a continuous albedo scalar."""
+    from orpheus.geometry.mesh import BC
+
+    if alpha_value == 0.0:
+        return BC.vacuum
+    if alpha_value == 1.0:
+        return BC.reflective
+    return BC("partial", {"albedo": float(alpha_value)})
+
+
+def _infer_geometry_kind_from_spec(
+    spec: GeometrySpec,
+    alpha: float | dict[str, float],
+) -> str:
+    """Infer Billiard's seven-valued geometry_kind from a GeometrySpec."""
+    g = spec.geometry
+    if g == "infinite" or g == "ISLC":
+        raise ValueError(
+            f"Billiard.from_problem cannot construct on geometry_spec "
+            f"{g!r}; supported: slab, sphere, cylinder."
+        )
+    if g == "slab":
+        if isinstance(alpha, dict):
+            keys = set(alpha.keys())
+            if "alpha_left" in keys or "alpha_right" in keys:
+                return "slab_asymmetric"
+        return "slab"
+    if g == "sphere":
+        return "sphere"
+    if g == "cylinder":
+        return "cylinder"
+    raise ValueError(f"Billiard cannot infer geometry_kind from {g!r}")
+
+
+def _build_legacy_geometry_payload(
+    geometry_kind: str,
+    spec: GeometrySpec,
+) -> dict[str, Any]:
+    """Build the per-geometry payload dispatchers consume."""
+    if spec.critical_dimension_cm is None:
+        raise ValueError(
+            f"Billiard requires geometry_spec.critical_dimension_cm "
+            f"to be set; got None for geometry {geometry_kind!r}."
+        )
+    L_or_R = float(spec.critical_dimension_cm)
+    if geometry_kind in ("sphere", "cylinder"):
+        return {"R": L_or_R}
+    if geometry_kind in ("slab", "slab_asymmetric"):
+        return {"L": float(spec.domain_extent_cm)}
+    if geometry_kind in ("hollow_sphere", "annulus"):
+        raise ValueError(
+            "Billiard.from_problem (new path) does not yet support "
+            "hollow_sphere/annulus; the GeometrySpec schema doesn't "
+            "carry R_in. Use the legacy signature."
+        )
+    if geometry_kind == "sphere_mr":
+        raise ValueError(
+            "Billiard.from_problem (new path) does not yet support "
+            "sphere_mr. Use the legacy signature with "
+            "geometry={'radii': ...}."
+        )
+    raise ValueError(
+        f"_build_legacy_geometry_payload: unknown {geometry_kind!r}"
+    )
+
+
+def _mixture_to_legacy_xs_payload(
+    materials: dict[int, Mixture],
+    geometry_kind: str,
+) -> dict[str, Any]:
+    """Translate a Mixture-keyed dict to the legacy raw-XS payload."""
+    if geometry_kind == "sphere_mr":
+        raise ValueError(
+            "Billiard.from_problem (new path) does not support sphere_mr."
+        )
+    if 0 not in materials:
+        raise ValueError(
+            f"Billiard.from_problem (new path): materials must contain "
+            f"key 0 (the active mat_id). Got keys "
+            f"{sorted(materials.keys())}."
+        )
+    mix = materials[0]
+    sig_t = np.asarray(mix.SigT)
+    sig_s_p0 = np.asarray(mix.SigS[0].todense())
+    nu_sigma_f = np.asarray(mix.SigP)
+    chi = np.asarray(mix.chi)
+    if sig_t.size == 1:
+        return {
+            "sigma_t": float(sig_t[0]),
+            "sigma_s": float(sig_s_p0[0, 0]),
+            "nu_sigma_f": float(nu_sigma_f[0]),
+        }
+    return {
+        "sigma_t": sig_t,
+        "sigma_s": sig_s_p0,
+        "nu_sigma_f": nu_sigma_f,
+        "chi": chi,
+    }
+
+
+def _legacy_xs_to_mixture_dict(
+    xs_payload: dict[str, Any],
+    geometry_kind: str,
+) -> dict[int, Mixture]:
+    """Synthesize ``dict[int, Mixture]`` from the legacy raw-XS dict.
+
+    Bit-equality: dispatchers consume xs_payload, never the synthesized
+    Mixture dict. Per-region indexing applies for sphere_mr.
+    """
+    sig_t_raw = np.asarray(xs_payload["sigma_t"])
+    sig_s_raw = np.asarray(xs_payload["sigma_s"])
+    if "nu_sigma_f" in xs_payload:
+        nu_sf_raw = np.asarray(xs_payload["nu_sigma_f"])
+    else:
+        nu_sf_raw = np.zeros_like(sig_t_raw)
+    chi_raw = xs_payload.get("chi")
+
+    if geometry_kind == "sphere_mr":
+        sig_t_arr = np.atleast_2d(sig_t_raw)
+        sig_s_arr = np.asarray(sig_s_raw)
+        nu_sf_arr = np.atleast_2d(nu_sf_raw)
+        n_regions = sig_t_arr.shape[0]
+        out: dict[int, Mixture] = {}
+        for r in range(n_regions):
+            sig_t_r = np.atleast_1d(sig_t_arr[r])
+            sig_s_r = (
+                np.atleast_2d(sig_s_arr[r])
+                if sig_s_arr.ndim == 3
+                else np.atleast_2d(np.diag(np.atleast_1d(sig_s_arr[r])))
+            )
+            nu_sf_r = np.atleast_1d(nu_sf_arr[r])
+            chi_r = (
+                np.atleast_1d(chi_raw[r]) if chi_raw is not None
+                else _default_chi(sig_t_r.size)
+            )
+            out[r] = _make_mixture_minimal(
+                sig_t_r, sig_s_r, nu_sf_r, chi_r,
+            )
+        return out
+
+    if sig_t_raw.ndim == 0 or sig_t_raw.size == 1:
+        sig_t = np.atleast_1d(sig_t_raw).astype(float)
+        sig_s = np.atleast_2d(sig_s_raw).astype(float)
+        if sig_s.shape != (1, 1):
+            sig_s = sig_s.reshape(1, 1)
+        nu_sf = np.atleast_1d(nu_sf_raw).astype(float)
+    else:
+        sig_t = sig_t_raw.astype(float)
+        sig_s = sig_s_raw.astype(float)
+        nu_sf = nu_sf_raw.astype(float)
+        if sig_s.shape != (sig_t.size, sig_t.size):
+            sig_s = sig_s.reshape(sig_t.size, sig_t.size)
+    chi = (
+        np.atleast_1d(np.asarray(chi_raw, dtype=float))
+        if chi_raw is not None
+        else _default_chi(sig_t.size)
+    )
+    return {0: _make_mixture_minimal(sig_t, sig_s, nu_sf, chi)}
+
+
+def _default_chi(ng: int) -> np.ndarray:
+    """Unit fast-group emission spectrum."""
+    chi = np.zeros(ng, dtype=float)
+    chi[0] = 1.0
+    return chi
+
+
+def _make_mixture_minimal(
+    sig_t: np.ndarray,
+    sig_s_p0: np.ndarray,
+    nu_sigma_f: np.ndarray,
+    chi: np.ndarray,
+) -> Mixture:
+    """Build a minimal Mixture from raw scalars (Protocol-only consumer)."""
+    from scipy.sparse import csr_matrix
+
+    ng = sig_t.size
+    eg = np.logspace(7, -3, ng + 1)
+    return Mixture(
+        SigC=np.zeros(ng),
+        SigL=np.zeros(ng),
+        SigF=np.zeros(ng),
+        SigP=nu_sigma_f.astype(float).copy(),
+        SigT=sig_t.astype(float).copy(),
+        SigS=[csr_matrix(sig_s_p0.astype(float))],
+        Sig2=csr_matrix((ng, ng)),
+        chi=chi.astype(float).copy(),
+        eg=eg,
+    )
+
+
+def _legacy_geometry_to_spec(
+    geometry_kind: str,
+    geometry_payload: dict[str, Any],
+    xs_payload: dict[str, Any],
+    alpha: float | dict[str, float],
+) -> GeometrySpec:
+    """Synthesize a GeometrySpec for Protocol consumers (legacy path)."""
+    sig_t_raw = np.asarray(xs_payload.get("sigma_t", 0.0))
+    sigma_t = (
+        float(sig_t_raw) if sig_t_raw.size == 1
+        else float(sig_t_raw.flat[0])
+    )
+
+    if geometry_kind in ("sphere", "cylinder"):
+        R_cm = float(geometry_payload["R"])
+        crit_cm = R_cm
+        crit_mfp = sigma_t * R_cm if sigma_t > 0 else None
+        spec_geometry = (
+            "sphere" if geometry_kind == "sphere" else "cylinder"
+        )
+    elif geometry_kind in ("slab", "slab_asymmetric"):
+        L_cm = float(geometry_payload["L"])
+        crit_cm = L_cm / 2.0
+        crit_mfp = sigma_t * crit_cm if sigma_t > 0 else None
+        spec_geometry = "slab"
+    elif geometry_kind == "hollow_sphere":
+        R_out = float(geometry_payload["R_out"])
+        crit_cm = R_out
+        crit_mfp = sigma_t * R_out if sigma_t > 0 else None
+        spec_geometry = "sphere"
+    elif geometry_kind == "annulus":
+        R_out = float(geometry_payload["R_out"])
+        crit_cm = R_out
+        crit_mfp = sigma_t * R_out if sigma_t > 0 else None
+        spec_geometry = "cylinder"
+    elif geometry_kind == "sphere_mr":
+        radii = np.asarray(geometry_payload["radii"], dtype=float)
+        crit_cm = float(radii[-1])
+        crit_mfp = None
+        spec_geometry = "sphere"
+    else:
+        raise ValueError(f"_legacy_geometry_to_spec: {geometry_kind!r}")
+
+    sig_t_shape_arr = np.asarray(xs_payload.get("sigma_t", [0.0]))
+    if sig_t_shape_arr.ndim <= 1:
+        n_groups = (
+            int(sig_t_shape_arr.size)
+            if sig_t_shape_arr.size >= 1 else 1
+        )
+    else:
+        n_groups = int(sig_t_shape_arr.shape[-1])
+    if n_groups < 1:
+        n_groups = 1
+
+    if isinstance(alpha, dict):
+        if "alpha_right" in alpha:
+            bc_right = _bc_from_alpha(float(alpha["alpha_right"]))
+            bc_left = _bc_from_alpha(float(alpha.get("alpha_left", 0.0)))
+        elif "alpha_out" in alpha:
+            bc_right = _bc_from_alpha(float(alpha["alpha_out"]))
+            bc_left = _bc_from_alpha(float(alpha.get("alpha_in", 0.0)))
+        else:
+            bc_right = _bc_from_alpha(float(alpha.get("alpha", 1.0)))
+            bc_left = (
+                _bc_from_alpha(0.0) if spec_geometry == "slab"
+                else _bc_from_alpha(1.0)
+            )
+    else:
+        bc_right = _bc_from_alpha(float(alpha))
+        bc_left = (
+            _bc_from_alpha(float(alpha)) if spec_geometry == "slab"
+            else _bc_from_alpha(1.0)
+        )
+
+    return GeometrySpec(
+        geometry=spec_geometry,
+        critical_dimension_mfp=crit_mfp,
+        critical_dimension_cm=crit_cm,
+        n_groups=n_groups,
+        mat_id=0,
+        bc_left=bc_left,
+        bc_right=bc_right,
     )

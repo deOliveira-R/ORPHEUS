@@ -164,7 +164,9 @@ def test_billiard_with_alpha_returns_modified_copy():
     assert b.alpha_payload == {"alpha": 1.0}
     assert b2.alpha_payload == {"alpha": 0.5}
     assert b.geometry_kind == b2.geometry_kind
-    assert b.materials == b2.materials
+    # The legacy raw-XS payload is preserved bit-for-bit on with_alpha;
+    # ``.materials`` is now the synthesized Mixture dict (Protocol).
+    assert b.xs_payload == b2.xs_payload
     assert b.geometry_payload == b2.geometry_payload
 
 
