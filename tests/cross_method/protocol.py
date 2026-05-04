@@ -268,7 +268,13 @@ class CrossMethodCase:
         2. **Inline**: ``materials`` and ``mesh_template`` are both
            set, ``registry_case`` is ``None``. The adapter reads
            XS + geometry directly off the case.
-        3. **Notes-only** (legacy / awaiting Step 5): all three are
+        3. **Override** (registry XS + inline geometry): ``registry_case``
+           is set AND ``mesh_template`` is set (with ``materials=None``).
+           Used by cross-method agreement tests to substitute a
+           predicted critical dimension without re-deriving XS. The
+           adapter prefers ``case.mesh_template`` over
+           ``case.registry_case.mesh_template`` when both are present.
+        4. **Notes-only** (legacy / awaiting Step 5): all three are
            ``None``; the adapter parses parameters from
            ``case.notes`` via ``_parse_notes_kv``. Today only the
            reflected-slab cases use this path; multi-region
@@ -276,30 +282,26 @@ class CrossMethodCase:
 
         Validation rules:
 
-        * ``materials`` and ``mesh_template`` MUST be set together
-          (a partial inline path is a programming error).
-        * ``registry_case`` and inline ``materials``/``mesh_template``
-          MUST NOT both be set (one provisioning path per case).
+        * Inline ``materials`` MUST be paired with ``mesh_template``
+          (you can't supply XS without geometry).
+        * Inline ``materials`` MUST NOT be combined with a
+          ``registry_case`` (XS comes from one source per case).
         """
         has_registry = self.registry_case is not None
-        has_inline = self.materials is not None and self.mesh_template is not None
-        partial_inline = (
-            (self.materials is None) ^ (self.mesh_template is None)
-        )
+        has_inline_materials = self.materials is not None
+        has_inline_template = self.mesh_template is not None
 
-        if partial_inline:
+        if has_inline_materials and not has_inline_template:
             raise ValueError(
-                f"CrossMethodCase {self.case_id!r}: 'materials' and "
-                f"'mesh_template' must be provided together "
-                f"(materials={'set' if self.materials else 'None'}, "
-                f"mesh_template="
-                f"{'set' if self.mesh_template else 'None'})."
+                f"CrossMethodCase {self.case_id!r}: 'materials' set but "
+                f"'mesh_template' is None — inline materials require "
+                f"an inline mesh_template."
             )
-        if has_registry and has_inline:
+        if has_inline_materials and has_registry:
             raise ValueError(
                 f"CrossMethodCase {self.case_id!r}: cannot have BOTH a "
-                f"registry_case and inline materials/mesh_template — "
-                f"pick one provisioning path."
+                f"registry_case and inline materials — XS comes from "
+                f"one source per case."
             )
 
     def tolerance_for(self, adapter: SolverAdapter | str) -> float:

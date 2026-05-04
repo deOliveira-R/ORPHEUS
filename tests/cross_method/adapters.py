@@ -211,11 +211,13 @@ class TrajectoryResolventSlabAdapter:
         )
 
         sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs(case)
-        # Trajectory_resolvent slab takes FULL width L (not the half-thickness).
-        # The caller supplies a_truth (mfp) on the case via
-        # case.notes / case.tolerances mapping; resolve via helper.
-        a_truth_mfp = _slab_a_truth_mfp(case)
-        L_full_cm = 2.0 * a_truth_mfp / sigma_t
+        # Trajectory_resolvent slab takes FULL width L (not the half-
+        # thickness). MeshTemplate.domain_extent_cm encodes
+        # ``2 * critical_dimension_cm`` for the slab convention — i.e.
+        # exactly the FULL slab width in cm. Read it off the registry
+        # case (or inline mesh_template) directly; no truth-vs-cm
+        # re-derivation needed.
+        L_full_cm = _slab_L_full_cm(case)
 
         res = solve_greens_function_slab(
             L=L_full_cm,
@@ -240,7 +242,6 @@ class TrajectoryResolventSlabAdapter:
                 "iterations": int(res.iterations),
                 "converged": bool(res.converged),
                 "L_full_cm": L_full_cm,
-                "a_truth_mfp": a_truth_mfp,
             },
         )
 
@@ -276,8 +277,10 @@ class TrajectoryResolventSphereAdapter:
         )
 
         sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs(case)
-        R_truth_mfp = _sphere_R_truth_mfp(case)
-        R_cm = R_truth_mfp / sigma_t
+        # Read the radius in cm directly off the case's mesh_template.
+        # Sphere convention: ``mesh_template.critical_dimension_cm``
+        # IS R_cm (no halving / doubling).
+        R_cm = _sphere_R_cm(case)
 
         res = solve_greens_function_sphere(
             R=R_cm,
@@ -448,29 +451,64 @@ def _extract_c(case: CrossMethodCase) -> float:
     return (sigma_s + nu_sigma_f) / sigma_t
 
 
-def _slab_a_truth_mfp(case: CrossMethodCase) -> float:
-    r"""Return the case's truth half-thickness in mean-free paths.
+def _mesh_template_for(case: CrossMethodCase):
+    r"""Resolve the ``MeshTemplate`` for a case.
 
-    For bare-critical slab cases the truth tag must be
-    ``"a_critical_mfp"`` and the value is the half-thickness in
-    mfp.
+    Reads from ``case.mesh_template`` (inline path) or
+    ``case.registry_case.mesh_template`` (registry path), whichever is
+    populated. Raises if neither is.
     """
-    if case.truth_tag != "a_critical_mfp":
-        raise ValueError(
-            f"_slab_a_truth_mfp: case {case.case_id!r} truth_tag is "
-            f"{case.truth_tag!r}, expected 'a_critical_mfp'"
-        )
-    return float(case.truth_value)
+    if case.mesh_template is not None:
+        return case.mesh_template
+    if case.registry_case is not None and getattr(
+        case.registry_case, "mesh_template", None
+    ) is not None:
+        return case.registry_case.mesh_template
+    raise ValueError(
+        f"_mesh_template_for: case {case.case_id!r} has neither "
+        f"inline mesh_template nor a registry_case carrying one. "
+        f"Notes-only cases (e.g. reflected slab) parse parameters "
+        f"from notes via _parse_notes_kv instead."
+    )
 
 
-def _sphere_R_truth_mfp(case: CrossMethodCase) -> float:
-    r"""Return the case's truth radius in mean-free paths."""
-    if case.truth_tag != "R_critical_mfp":
+def _sphere_R_cm(case: CrossMethodCase) -> float:
+    r"""Return the sphere radius in cm from the case's MeshTemplate.
+
+    ``MeshTemplate.critical_dimension_cm`` IS R_cm for sphere geometry
+    (the published critical radius). No unit re-derivation through
+    ``truth_value / sigma_t`` is needed — the registry already carries
+    both forms in lockstep.
+    """
+    template = _mesh_template_for(case)
+    if template.geometry != "sphere":
         raise ValueError(
-            f"_sphere_R_truth_mfp: case {case.case_id!r} truth_tag is "
-            f"{case.truth_tag!r}, expected 'R_critical_mfp'"
+            f"_sphere_R_cm: case {case.case_id!r} mesh_template "
+            f"geometry is {template.geometry!r}, expected 'sphere'"
         )
-    return float(case.truth_value)
+    if template.critical_dimension_cm is None:
+        raise ValueError(
+            f"_sphere_R_cm: case {case.case_id!r} mesh_template has "
+            f"no critical_dimension_cm"
+        )
+    return float(template.critical_dimension_cm)
+
+
+def _slab_L_full_cm(case: CrossMethodCase) -> float:
+    r"""Return the slab full width in cm from the case's MeshTemplate.
+
+    Slab convention: ``MeshTemplate.domain_extent_cm`` returns
+    ``2 * critical_dimension_cm`` — the full slab width
+    :math:`[0, 2a]`, which is exactly what
+    :func:`solve_greens_function_slab` expects as its ``L`` argument.
+    """
+    template = _mesh_template_for(case)
+    if template.geometry != "slab":
+        raise ValueError(
+            f"_slab_L_full_cm: case {case.case_id!r} mesh_template "
+            f"geometry is {template.geometry!r}, expected 'slab'"
+        )
+    return float(template.domain_extent_cm)
 
 
 def _parse_notes_kv(case: CrossMethodCase) -> dict[str, str]:
