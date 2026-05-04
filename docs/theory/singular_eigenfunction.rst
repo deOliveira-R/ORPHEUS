@@ -484,9 +484,9 @@ root in :math:`d`:
 
 where :math:`\theta_{\rm LHS}^{(46)}` and :math:`\theta_{\rm RHS}^{(46)}`
 are explicit functions of :math:`(c, R, f_1, d, \nu_0, \bar\nu, z_0,
-K_0, K_1, K_2)` (see Eq. :eq:`atalay-eq46` for the full form).
-The K-moments :math:`K_j(c, R, d) = \int_0^1 \mu^j\,T(R, \mu, d)\,
-H(\mu)\,d\mu` are half-range integrals against the Atalay
+K_0, K_1, K_2)` (see :ref:`theory-case-slab-eq46` below for the full
+form). The K-moments :math:`K_j(c, R, d) = \int_0^1 \mu^j\,T(R, \mu,
+d)\,H(\mu)\,d\mu` are half-range integrals against the Atalay
 :math:`T(R, \mu, d)` kernel and the half-range projection
 :math:`H(\mu)`.
 
@@ -737,9 +737,8 @@ Above the trusted-library line, Spectrum and Billiard are
 not method machinery). The cross-check between
 ``Spectrum.solve_critical()`` and ``Billiard.solve_critical()`` on
 the same Sood case is therefore L1-grade structurally-independent
-evidence per the
-:doc:`/skills/vv-principles` § "structural independence applies
-above the trusted-library line" rule.
+evidence per the project's ``vv-principles`` skill § "structural
+independence applies above the trusted-library line" rule.
 
 Cylinder — Westfall–Metcalf 1973, bare radially-reflected, isotropic
 ================================================================================
