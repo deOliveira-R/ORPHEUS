@@ -548,6 +548,88 @@ via a `DISPATCH_REQUEST` to the archivist (see
 
 ---
 
+## Capability matrices — auto-generated index for richly-populated packages
+
+When a package under `orpheus/derivations/continuous/<method>/` ships
+≥3 distinct continuous references (counting geometry × groups ×
+regions × hollow-ratio × ... as one entry each), it MUST expose a
+`capability_rows()` function in its `cases.py`. The meta-generator at
+`tools/verification/generate_capability_matrices.py` discovers it
+automatically and emits
+`docs/theory/_<method>_capability_matrix.inc.rst` on every Sphinx
+build. The method's theory page must `.. include::` that file under a
+`Capabilities at a glance` section.
+
+This is how Cardinal Rule 3 (Sphinx is the LLM's brain) applies to
+shipped reference inventories: the matrix is the durable, human- and
+LLM-readable index of "what continuous references do we have for
+geometry X at closure Y?" Without it, the package is a silo — the FN
+regression of session 2026-05 (no FN matrix existed because the
+peierls one wasn't surfaced anywhere development paths cross) is the
+canonical case for why this is mandatory.
+
+### Required schema
+
+`capability_rows()` returns `list[dict[str, object]]`. Required keys
+per row:
+
+- `name` — registry name (matches `ContinuousReferenceSolution.name`)
+- `geometry` — geometry tag matching the `GeometryType` literal
+- `n_groups`, `n_regions` — int
+- `bc` — boundary-condition tag (vacuum / reflective / white / ...)
+- `status` — human-readable verification status (the matrix's
+  payload column; the user reads this to decide whether the
+  reference is shippable for their purpose)
+
+Optional keys (renderer auto-detects and adds the column when any
+row uses it): `r0_over_R`, `closure`, `accuracy`, `scattering_order`,
+`multiplying`, `topology_class`, `extra` (dict for method-specific
+columns).
+
+### Cost discipline
+
+`capability_rows()` MUST NOT call any solver. It is invoked at every
+Sphinx build; running an eigenvalue solve per row would push build
+time to O(minutes). The function reads static loop structure
+(geometry × tolerances × groups) and emits row dicts with no compute.
+A separate test (`tests/derivations/test_capability_matrices.py`)
+asserts the metadata agrees with `continuous_cases()` row-for-row on
+shared keys, catching drift between metadata and shipped references.
+
+### When to add the matrix
+
+The threshold "≥3 distinct shipped references" is the rule of thumb;
+in practice, any method with parameter sweeps (geometries, group
+counts, hollow ratios) crosses it instantly. As of 2026-05-04,
+candidate methods are: `peierls_nystrom` (live), `fn_method` (in
+flight), `singular_eigenfunction`, `galerkin_spectral`,
+`trajectory_resolvent`, `flat_source_cp`. New methods should add
+`cases.py` with both `continuous_cases()` (data) and
+`capability_rows()` (metadata) at implementation time, not bolt them
+on later.
+
+### Discovery is automatic
+
+The meta-generator iterates `pkgutil.iter_modules` over
+`orpheus.derivations.continuous`. A new package with a
+`cases.py:capability_rows()` is picked up by the next Sphinx build
+without any conf.py edit, generator-script edit, or skill edit. The
+ONLY actions a method-implementer needs to take are:
+
+1. Add `capability_rows()` to the package's `cases.py`
+2. Add `.. include:: _<method>_capability_matrix.inc.rst` under a
+   `Capabilities at a glance` section in the method's theory page
+3. Run `python -m tools.verification.generate_capability_matrices`
+   once to verify the matrix renders, then `pytest
+   tests/derivations/test_capability_matrices.py` to verify the
+   `--check` gate is happy.
+
+The schema contract is enforced at meta-generator runtime — a row
+missing a required key crashes the build with a Sphinx warning
+naming the offending package + row index.
+
+---
+
 ## Anti-patterns
 
 ### For method-implementers
@@ -690,3 +772,12 @@ The discipline inherits this lesson: **for problems where 1A and
   `.claude/agent-memory/numerics-investigator/peierls_greens_phase1_closeout.md`
   — running closeout with the full A1-A3 + Plan-(b) pipeline as
   a case study.
+- **Capability-matrix meta-generator**:
+  `tools/verification/generate_capability_matrices.py` — discovers
+  `capability_rows()` per package, writes one
+  `_<method>_capability_matrix.inc.rst` per package. Schema and
+  invocation conventions in the "Capability matrices" section above.
+  Sphinx `builder-inited` hook in `docs/conf.py` runs it on every
+  build; foundation-tagged test gate at
+  `tests/derivations/test_capability_matrices.py` catches drift via
+  `--check` mode.
