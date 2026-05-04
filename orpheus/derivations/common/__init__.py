@@ -30,6 +30,13 @@ discretise.
 """
 from __future__ import annotations
 
+from .discretization_spec import DiscretizationSpec
 from .geometry_spec import GeometrySpec
+from .solver_protocol import KNOWN_TRANSPORT_SOLVERS, TransportSolver
 
-__all__ = ["GeometrySpec"]
+__all__ = [
+    "DiscretizationSpec",
+    "GeometrySpec",
+    "KNOWN_TRANSPORT_SOLVERS",
+    "TransportSolver",
+]
