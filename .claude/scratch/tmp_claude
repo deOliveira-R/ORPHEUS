@@ -1,0 +1,46 @@
+---
+
+## IMPORTANT Session Start Protocol
+
+### Unconditional (run on EVERY session, regardless of what user says)
+
+1. MUST Read `.claude/lessons.md` — behavioral corrections from past sessions
+2. MUST Run `mcp__nexus__session_briefing()` — graph stats, stale docs, coverage gaps, recent changes
+3. MUST read and follow the development guide at docs/development.rst
+4. MUST load vv-principles skill — provides the V&V framework (hierarchy, failure modes,
+   anti-patterns, three pillars, bug-logging directive) that all sub-agents preload via their
+   AGENT.md skills: list. Loading puts you at parity with the agents you'll dispatch.
+5. MUST load subagent-handoff-protocol skill — provides the agent table (who does what +
+   preloaded skills) AND the DISPATCH_REQUEST / DISPATCH_RESULT protocol that lets sub-agents
+   coordinate via you as the bridge (sub-agents cannot dispatch other sub-agents per Anthropic
+   constraint). You orchestrate; sub-agents have depth, you have breadth. Optional augmentation
+   block lets you append additional context-aware questions to a brief before dispatch without
+   modifying the requesting sub-agent's original brief.
+
+### On task identification (as soon as the user states what ORPHEUS module to work on)
+
+6. MUST check GitHub Issues: `gh issue list -l module:<name>`
+7. Dispatch the **explorer** agent on that module for a detailed picture
+
+
+
+---
+
+## SESSION START PROTOCOL — execute as your FIRST tool-call batch
+
+> Run these in parallel as the first response of any new session,
+> BEFORE addressing the user's first message. They are pre-load
+> equivalents — main-agent counterpart of sub-agent skill preloads.
+
+In a single message, dispatch these tool calls in parallel:
+
+1. `Skill: vv-principles`
+2. `Skill: subagent-handoff-protocol`
+3. `Read .claude/lessons.md`
+4. `mcp__nexus__session_briefing()`
+5. `Read docs/development.rst`
+
+Then respond to the user's first message. If their first message
+is trivially short (a greeting, a clarifying question), still
+execute the batch — its cost is < 5 seconds and it grounds
+EVERY subsequent action.

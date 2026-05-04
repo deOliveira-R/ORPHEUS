@@ -60,7 +60,7 @@ extensions without further library pulls:
 - ✓ **LOCAL** Carlvik 1967 — finite cylinder + cuboid CP, Bickley-Naylor primitives.
 - ✓ **LOCAL** Stammler 1983 Chapter 4 — cylinder CP with reflective BC.
 - ✓ **LOCAL** Sanchez 1977 NSE — 2-D heterogeneous integral transport (cylinder lattice in cross-section).
-- ◇ **WISH** Knyazev, B. A. & Selivanov, A. N. (2014). *Bickley-Naylor functions and their integrals*. Nauka, Moscow / English translation. Modern 3-D Bickley + Ki integral tables. **Critical for cylinder Variant α** (the 3-D Ki correction Knott already needs in ORPHEUS Issue #132 cylinder Hébert).
+- ✓ **CORRECTED 2026-05-03 — LOCAL** Knyazev, A. P. (1993). "Solution of the transport equation in integral form in a one-dimensional cylindrical geometry with linearly anisotropic scattering." *Atomic Energy* 74(5): 368-374, May 1993. **DOI [10.1007/BF00844623](https://doi.org/10.1007/BF00844623)**. Russian original: *Atomnaya Énergiya* 74(5): 403-410. **Sole author** (no Selivanov co-author exists). [The earlier draft of this memo cited a phantom "Knyazev, B. A. & Selivanov, A. N. (2014). *Bickley-Naylor functions and their integrals*. Nauka, Moscow" — that book does not exist in any bibliographic source. The hallucination propagated to `sanchez_chandrasekhar_three_meanings.md` and `sanchez_chandrasekhar_gap.md`; all three corrected. **Lesson**: AI memos can manufacture phantom citations; verify DOI before citing in any V&V chain.] Provides closed-form 1-D quadrature for the homogeneous linearly-anisotropic cylinder kernel in Bickley-Naylor functions of order 2+k — cylinder analog of Sanchez 1986 sphere Eq A6. **Critical for cylinder Variant α** (the 3-D Ki correction needed in ORPHEUS Issue #132 cylinder Hébert).
 - ◇ **WISH** Modak, R. S. & Gupta, A. (2003). "Use of the boundary element method in the integral transport equation". *Annals of Nuclear Energy* 30, 943-959. DOI `10.1016/S0306-4549(03)00009-4`. Cylinder IE with reflective BC, BEM formulation.
 
 #### 2-D Cartesian / Hexagonal / Triangular
@@ -227,7 +227,7 @@ extensions without further library pulls:
 #### Bickley-Naylor & E_n functions
 
 - ◇ **WISH** Abramowitz, M. & Stegun, I. (1964). *Handbook of Mathematical Functions*. NBS, §5 (exponential integrals). Freely available online.
-- ◇ **WISH** Knyazev & Selivanov 2014 (already wish-listed under cylinder).
+- ✓ Knyazev 1993 (corrected from phantom "Knyazev & Selivanov 2014" — see cylinder section above for full lesson on the hallucinated citation).
 
 #### Chandrasekhar H functions
 
@@ -255,7 +255,7 @@ If only a small batch can be pulled at once, recommended order:
 | 1 | Sood-Forster-Parsons 2003           | Standard analytic benchmark suite   |
 | 2 | ~~Garcia 2021 *J. Comp. Phys.* 433~~  | LOCAL — multi-region sphere ref     |
 | 3 | Davis-Rabinowitz 1984               | Singular-quadrature recipes         |
-| 4 | Knyazev-Selivanov 2014              | **Cylinder Variant α 3-D Ki**       |
+| 4 | Knyazev 1993 (DOI 10.1007/BF00844623) | **Cylinder Variant α 3-D Ki** [phantom "Knyazev-Selivanov 2014" corrected] |
 | 5 | Hébert 2009 full book (Ch. 6-9)     | MG resonance + production MG-CP     |
 | 6 | Sanchez-Mao 1993 *AnNE* 20          | 2-D heterogeneous CP foundational   |
 | 7 | Lewis & Miller 1984 book            | MG transport reference              |
@@ -282,7 +282,7 @@ If only a small batch can be pulled at once, recommended order:
 **Phase C — Cylinder Variant α** (deferred per user; this is plan (c)):
 
 - Local sufficient: Carlvik 1967, Stammler 1983 Chapter 4, Sanchez 1977 (2-D context).
-- Required pull: Knyazev-Selivanov 2014 (3-D Ki tables).
+- Required pull: Knyazev 1993 (DOI 10.1007/BF00844623) — LOCAL 2026-05-03. [Phantom citation "Knyazev-Selivanov 2014" was hallucinated in earlier drafts; corrected.]
 
 **Phase D — Multi-group / production extensions**:
 
