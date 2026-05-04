@@ -74,10 +74,7 @@ from .adapters import (
     TrajectoryResolventSlabAdapter,
     TrajectoryResolventSphereAdapter,
     TrajectoryResolventSphereClosedAdapter,
-    _extract_1g_xs,
     _geometry_spec_for,
-    _slab_L_full_cm,
-    _sphere_R_cm,
 )
 from .cases import (
     BARE_CRITICAL_SLAB_CASES,
@@ -106,19 +103,12 @@ def test_polymorphic_dispatch_protocol_conformance():
     case = next(
         c for c in BARE_CRITICAL_SPHERE_CASES if "Ua-1-0-SP" in c.case_id
     )
-    sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs(case)
     spec = _geometry_spec_for(case)
-    R_cm = _sphere_R_cm(case)
 
-    # Construct a Billiard via the new (Protocol) signature.
+    # Construct a Billiard via the production-protocol signature.
     billiard = Billiard.from_problem(
-        geometry_kind="sphere",
-        materials={
-            "sigma_t": sigma_t,
-            "sigma_s": sigma_s,
-            "nu_sigma_f": nu_sigma_f,
-        },
-        geometry={"R": R_cm},
+        materials=case.registry_case.materials,
+        geometry_spec=spec,
         alpha=spec.bc_right.to_alpha(),
     )
     assert isinstance(billiard, TransportSolver), (
@@ -243,19 +233,12 @@ def test_polymorphic_dispatch_trajectory_resolvent_slab_matches_adapter():
 
     # Direct Billiard via the production-protocol signature; thread
     # through the SAME quadrature so the two routes agree bit-equal.
-    sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs(case)
-    L_cm = _slab_L_full_cm(case)
     spec = _geometry_spec_for(case)
     alpha = spec.bc_right.to_alpha()
 
     billiard = Billiard.from_problem(
-        geometry_kind="slab",
-        materials={
-            "sigma_t": sigma_t,
-            "sigma_s": sigma_s,
-            "nu_sigma_f": nu_sigma_f,
-        },
-        geometry={"L": L_cm},
+        materials=case.registry_case.materials,
+        geometry_spec=spec,
         alpha=alpha,
         quadrature={"n_x": 8, "n_mu": 8, "n_traj_quad": 16},
     )
@@ -285,19 +268,12 @@ def test_polymorphic_dispatch_trajectory_resolvent_sphere_matches_adapter():
     )
     res_adapter = adapter.solve(case)
 
-    sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs(case)
-    R_cm = _sphere_R_cm(case)
     spec = _geometry_spec_for(case)
     alpha = spec.bc_right.to_alpha()
 
     billiard = Billiard.from_problem(
-        geometry_kind="sphere",
-        materials={
-            "sigma_t": sigma_t,
-            "sigma_s": sigma_s,
-            "nu_sigma_f": nu_sigma_f,
-        },
-        geometry={"R": R_cm},
+        materials=case.registry_case.materials,
+        geometry_spec=spec,
         alpha=alpha,
         quadrature={"n_r": 12, "n_mu": 12, "n_traj_quad": 24},
     )
@@ -321,9 +297,10 @@ def test_polymorphic_dispatch_closed_sphere_matches_adapter():
     r"""``TrajectoryResolventSphereClosedAdapter`` agrees with ``Billiard``.
 
     The closed-sphere case (α=1) carries inline materials and
-    geometry_spec (no registry case). The adapter reads via
-    ``_extract_1g_xs_inline``; the direct Billiard path threads
-    those same XS into the production-protocol signature.
+    geometry_spec (no registry case). Both the adapter and the
+    direct Billiard path consume the same ``case.materials``
+    (``dict[int, Mixture]``) and ``case.geometry_spec`` pair via
+    the production-protocol signature.
     """
     case = next(iter(CLOSED_SPHERE_KINF_CASES))
 
@@ -333,21 +310,12 @@ def test_polymorphic_dispatch_closed_sphere_matches_adapter():
     res_adapter = adapter.solve(case)
 
     # Closed-sphere uses inline materials (no registry case).
-    from .adapters import _extract_1g_xs_inline
-
-    sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs_inline(case)
-    R_cm = _sphere_R_cm(case)
     spec = _geometry_spec_for(case)
     alpha = spec.bc_right.to_alpha()
 
     billiard = Billiard.from_problem(
-        geometry_kind="sphere",
-        materials={
-            "sigma_t": sigma_t,
-            "sigma_s": sigma_s,
-            "nu_sigma_f": nu_sigma_f,
-        },
-        geometry={"R": R_cm},
+        materials=case.materials,
+        geometry_spec=spec,
         alpha=alpha,
         quadrature={"n_r": 12, "n_mu": 12, "n_traj_quad": 24},
     )
