@@ -227,9 +227,16 @@ Layer 4: Cross-Section Cache
         sig_s_dense: dict           # mat_id -> (ng, ng) dense P0 scattering
         chi_cum: np.ndarray         # cumulative fission spectrum
         ng: int
-        eg: np.ndarray              # energy group boundaries
-        eg_mid: np.ndarray          # mid-group energies
-        du: np.ndarray              # lethargy widths
+        eg: np.ndarray | None       # energy group boundaries; None for synthetic XS
+        eg_mid: np.ndarray | None   # mid-group energies; None for synthetic XS
+        du: np.ndarray | None       # lethargy widths; None for synthetic XS
+
+The ``eg`` / ``eg_mid`` / ``du`` fields are optional because synthetic
+verification mixtures (Sood-style abstract XS) carry no physical
+energy grid. The :class:`MCResult` flux-per-lethargy diagnostic is
+computed only when these fields are populated; otherwise it is
+``None`` and the raw ``tally`` field carries the per-group
+collision counts.
 
 Built by :func:`_precompute_xs`, which:
 
@@ -1021,13 +1028,20 @@ Solver Parameters and Results
    * - ``sigma_history``
      - ``(n_active,)``
      - Cumulative sigma at each active cycle
+   * - ``tally``
+     - ``(ng,)``
+     - Raw scattering-collision counts per group (always populated)
    * - ``flux_per_lethargy``
-     - ``(ng,)``
+     - ``(ng,)`` or None
      - Scattering detector / :math:`|\Delta u|` (non-negative; see
-       collision-estimator limitation above)
+       collision-estimator limitation above). ``None`` when the
+       mixture has no physical energy grid (synthetic XS).
    * - ``eg_mid``
-     - ``(ng,)``
-     - Mid-group energies (eV)
+     - ``(ng,)`` or None
+     - Mid-group energies (eV); ``None`` for synthetic XS.
+   * - ``eg``
+     - ``(ng+1,)`` or None
+     - Energy boundaries; ``None`` for synthetic XS.
    * - ``elapsed_seconds``
      - scalar
      - Wall-clock time
