@@ -5,14 +5,8 @@ This sub-package houses the **mathematical root** that both the
 utilities (kernels, quadrature, cross-section library, eigenvalue
 helpers, verification-case dataclass) that no single path owns.
 
-The five utilities most consumers import directly:
+The four utilities most consumers import directly:
 
-- :mod:`~orpheus.derivations.common.geometry_spec` —
-  :class:`GeometrySpec`, the method-agnostic geometry specification
-  consumed by both production solvers (via ``GeometrySpec.build()``)
-  and continuous reference solvers (via the descriptor scalars
-  directly). Promoted from sood_registry on 2026-05-03 (R0.5);
-  renamed from ``MeshTemplate`` to ``GeometrySpec`` on 2026-05-03.
 - :mod:`~orpheus.derivations.common.kernels` —
   :math:`E_n`, :math:`\\mathrm{Ki}_n`, chord primitives.
 - :mod:`~orpheus.derivations.common.quadrature` — 1-D quadrature
@@ -27,11 +21,13 @@ The entry point for the math root is
 out the symbolic transport equation that both Path 1 (discrete
 production solvers) and Path 2 (continuous reference derivations)
 discretise.
+
+The legacy :class:`GeometrySpec` carrier was retired in Phase F
+(2026-05-04). The geometry layer now lives in
+:mod:`orpheus.geometry.structured_geometry`; the registry-truth
+critical-dimension data lives on
+:class:`~orpheus.derivations.continuous.sood_registry.la13511.La13511Truth`.
 """
 from __future__ import annotations
 
-from .geometry_spec import GeometrySpec
-
-__all__ = [
-    "GeometrySpec",
-]
+__all__: list[str] = []

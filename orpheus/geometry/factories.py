@@ -1,24 +1,26 @@
-"""Mesh construction factories.
+"""Mesh construction factories — 2-D Cartesian only.
 
-Zone-based construction
------------------------
-A *zone* is a material region defined by its outer boundary.  The
-:func:`mesh1d_from_zones` function subdivides each zone into cells
-with a coordinate-system-aware strategy:
+Phase F retired the 1-D ``Zone`` / ``mesh1d_from_zones`` /
+``pwr_pin_equivalent`` / ``pwr_slab_half_cell`` / ``homogeneous_1d``
+/ ``slab_fuel_moderator`` factories. The 1-D path is now
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry` →
+:meth:`~orpheus.geometry.mesh.Mesh1D.from_geometry`, with
+:meth:`StructuredGeometry.wigner_seitz_pin_cell` and
+:meth:`StructuredGeometry.pwr_slab_half_cell` for the conventional
+PWR pin-cell shapes.
 
-* **Cartesian** -- equal-width cells.
-* **Cylindrical** -- equal-volume annuli.
-* **Spherical** -- equal-volume shells.
+What survives here:
 
-PWR convenience factories
--------------------------
-:func:`pwr_slab_half_cell` and :func:`pwr_pin_equivalent` build
-standard 3-zone (fuel | clad | coolant) meshes with sensible defaults.
+* :func:`pwr_pin_2d` — 2-D Cartesian factory. There is no 2-D
+  :class:`StructuredGeometry` yet, so this stays as a standalone
+  helper.
+* :func:`_subdivide_zone` — private equal-volume subdivision helper
+  used internally by :meth:`Mesh1D.from_geometry`. Kept as the single
+  algebraic invariant for "equal-volume cells" across all three
+  coordinate systems (catches ERR-020 round-trip drift).
 """
 
 from __future__ import annotations
-
-from dataclasses import dataclass
 
 import numpy as np
 
@@ -26,26 +28,7 @@ from .coord import CoordSystem
 from .mesh import Mesh1D, Mesh2D
 
 
-@dataclass
-class Zone:
-    """One material zone for mesh construction.
-
-    Parameters
-    ----------
-    outer_edge : float
-        Absolute position of the outer boundary of this zone.
-    mat_id : int
-        Material identifier for cells in this zone.
-    n_cells : int
-        Number of sub-cells to create within the zone.
-    """
-
-    outer_edge: float
-    mat_id: int
-    n_cells: int
-
-
-# ── Zone-based 1-D construction ──────────────────────────────────────
+# ── Equal-volume subdivision (private helper for Mesh1D.from_geometry) ─
 
 def _subdivide_zone(
     inner: float,
@@ -53,7 +36,7 @@ def _subdivide_zone(
     n: int,
     coord: CoordSystem,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Return *n + 1* edge positions AND *n* exact cell volumes for a zone.
+    """Return *n + 1* edge positions AND *n* exact cell volumes for a region.
 
     Subdivision guarantees equal-volume cells in each coordinate
     system — and this function returns volumes computed **directly
@@ -61,7 +44,7 @@ def _subdivide_zone(
     after the fact. Deriving from edges via
     :func:`~orpheus.geometry.coord.compute_volumes_1d` loses ~1 ULP
     per cell because ``cbrt(x)**3 != x`` exactly (and likewise
-    ``sqrt(x)**2``), which breaks the "equal-volume zone" property
+    ``sqrt(x)**2``), which breaks the "equal-volume region" property
     at ``rtol=1e-14``.
 
     * Cartesian:   ``x_k = inner + k/n * (outer - inner)``,
@@ -72,7 +55,7 @@ def _subdivide_zone(
       ``V_cell = (4/3) π (outer^3 - inner^3) / n``.
 
     Each cell gets the same ``V_cell`` (a scalar broadcast), so every
-    cell in the zone is **bit-identical** by construction.
+    cell in the region is **bit-identical** by construction.
     """
     fracs = np.linspace(0.0, 1.0, n + 1)
     match coord:
@@ -91,153 +74,7 @@ def _subdivide_zone(
     return edges, volumes
 
 
-def mesh1d_from_zones(
-    zones: list[Zone],
-    coord: CoordSystem = CoordSystem.CARTESIAN,
-    origin: float = 0.0,
-) -> Mesh1D:
-    """Build a :class:`~geometry.mesh.Mesh1D` from a list of zones.
-
-    Parameters
-    ----------
-    zones : list[Zone]
-        Zones ordered from inner to outer.  Each zone's
-        :attr:`~Zone.outer_edge` is the absolute position of its
-        outer boundary.
-    coord : CoordSystem
-        Coordinate system (determines subdivision strategy).
-    origin : float
-        Position of the inner-most edge (default 0).
-
-    Returns
-    -------
-    Mesh1D
-    """
-    if not zones:
-        raise ValueError("At least one zone is required")
-
-    edges_list: list[np.ndarray] = []
-    mat_ids_list: list[np.ndarray] = []
-    volumes_list: list[np.ndarray] = []
-    inner = origin
-
-    for zone in zones:
-        sub_edges, sub_volumes = _subdivide_zone(
-            inner, zone.outer_edge, zone.n_cells, coord
-        )
-        # Append sub-edges, skipping the first (== previous outer)
-        edges_list.append(sub_edges[1:])
-        mat_ids_list.append(np.full(zone.n_cells, zone.mat_id, dtype=int))
-        volumes_list.append(sub_volumes)
-        inner = zone.outer_edge
-
-    edges = np.concatenate([[origin], *edges_list])
-    mat_ids = np.concatenate(mat_ids_list)
-    volumes = np.concatenate(volumes_list)
-
-    return Mesh1D(
-        edges=edges,
-        mat_ids=mat_ids,
-        coord=coord,
-        precomputed_volumes=volumes,
-    )
-
-
-# ── PWR convenience factories ────────────────────────────────────────
-
-def pwr_slab_half_cell(
-    n_fuel: int = 10,
-    n_clad: int = 3,
-    n_cool: int = 7,
-    fuel_half: float = 0.9,
-    clad_thick: float = 0.2,
-    cool_thick: float = 0.7,
-) -> Mesh1D:
-    """Cartesian 1-D half-cell: fuel | clad | coolant.
-
-    The mesh starts at x = 0 (reflective symmetry plane at the fuel
-    centre) and extends to x = fuel_half + clad_thick + cool_thick.
-
-    Material IDs: 2 = fuel, 1 = clad, 0 = coolant.
-    """
-    x1 = fuel_half
-    x2 = x1 + clad_thick
-    x3 = x2 + cool_thick
-
-    zones = [
-        Zone(outer_edge=x1, mat_id=2, n_cells=n_fuel),
-        Zone(outer_edge=x2, mat_id=1, n_cells=n_clad),
-        Zone(outer_edge=x3, mat_id=0, n_cells=n_cool),
-    ]
-    return mesh1d_from_zones(zones, coord=CoordSystem.CARTESIAN)
-
-
-def pwr_pin_equivalent(
-    n_fuel: int = 10,
-    n_clad: int = 3,
-    n_cool: int = 7,
-    r_fuel: float = 0.9,
-    r_clad: float = 1.1,
-    pitch: float = 3.6,
-) -> Mesh1D:
-    """Cylindrical 1-D Wigner-Seitz equivalent pin cell.
-
-    The square unit cell (side = *pitch*) is replaced by a cylinder of
-    equal area: ``r_cell = pitch / sqrt(pi)``.
-
-    Material IDs: 2 = fuel, 1 = clad, 0 = coolant.
-    Sub-cells use equal-volume annuli.
-    """
-    r_cell = pitch / np.sqrt(np.pi)
-
-    zones = [
-        Zone(outer_edge=r_fuel, mat_id=2, n_cells=n_fuel),
-        Zone(outer_edge=r_clad, mat_id=1, n_cells=n_clad),
-        Zone(outer_edge=r_cell, mat_id=0, n_cells=n_cool),
-    ]
-    return mesh1d_from_zones(zones, coord=CoordSystem.CYLINDRICAL)
-
-
-def homogeneous_1d(
-    n_cells: int,
-    total_width: float,
-    mat_id: int = 0,
-    coord: CoordSystem = CoordSystem.CARTESIAN,
-) -> Mesh1D:
-    """Uniform 1-D mesh with a single material.
-
-    Parameters
-    ----------
-    n_cells : int
-        Number of cells.
-    total_width : float
-        Total extent (thickness for Cartesian, outer radius for
-        cylindrical/spherical).
-    mat_id : int
-        Material identifier for all cells.
-    coord : CoordSystem
-        Coordinate system (determines subdivision strategy).
-    """
-    zones = [Zone(outer_edge=total_width, mat_id=mat_id, n_cells=n_cells)]
-    return mesh1d_from_zones(zones, coord=coord)
-
-
-def slab_fuel_moderator(
-    n_fuel: int,
-    n_mod: int,
-    t_fuel: float,
-    t_mod: float,
-) -> Mesh1D:
-    """1-D Cartesian slab benchmark: fuel + moderator.
-
-    Material IDs: 2 = fuel (inner), 0 = moderator (outer).
-    """
-    zones = [
-        Zone(outer_edge=t_fuel, mat_id=2, n_cells=n_fuel),
-        Zone(outer_edge=t_fuel + t_mod, mat_id=0, n_cells=n_mod),
-    ]
-    return mesh1d_from_zones(zones, coord=CoordSystem.CARTESIAN)
-
+# ── 2-D Cartesian PWR pin factory ────────────────────────────────────
 
 def pwr_pin_2d(
     radii: list[float] | None = None,
@@ -284,3 +121,8 @@ def pwr_pin_2d(
         mat_map[r <= radii[k]] = mat_ids[k]
 
     return Mesh2D(edges_x=edges, edges_y=edges, mat_map=mat_map)
+
+
+__all__ = [
+    "pwr_pin_2d",
+]

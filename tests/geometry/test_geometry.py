@@ -2,11 +2,16 @@
 
 Tests cover:
 - Volume and surface formulas for all coordinate systems (1-D and 2-D)
-- Zone subdivision equal-volume property
-- Edge position formulas for all coordinate systems
-- PWR factory outputs match legacy geometry classes exactly
 - Mesh validation (monotonicity, shape, frozen immutability)
-- Solver guard patterns
+- :class:`BC` declaration dataclass and mesh integration
+- :func:`pwr_pin_2d` (2-D Cartesian factory — kept as a non-trivial
+  helper after Phase F retired the 1-D Zone/factories surface)
+
+The 1-D ``Zone`` / ``mesh1d_from_zones`` / ``pwr_*`` / ``homogeneous_1d``
+/ ``slab_fuel_moderator`` factories were retired in Phase F. Their
+equal-volume invariants and discretization correctness are now
+exercised by :mod:`tests.geometry.test_structured_geometry` via the
+:class:`StructuredGeometry` → :meth:`Mesh1D.from_geometry` flow.
 """
 
 from __future__ import annotations
@@ -19,16 +24,10 @@ from orpheus.geometry import (
     CoordSystem,
     Mesh1D,
     Mesh2D,
-    Zone,
     compute_surfaces_1d,
     compute_volumes_1d,
     compute_volumes_2d,
-    homogeneous_1d,
-    mesh1d_from_zones,
     pwr_pin_2d,
-    pwr_pin_equivalent,
-    pwr_slab_half_cell,
-    slab_fuel_moderator,
 )
 
 # Every test in this file is a FOUNDATION test — it verifies a
@@ -158,164 +157,11 @@ class TestVolumes2D:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Zone subdivision — equal-volume property
+# pwr_pin_2d — 2-D Cartesian PWR pin factory (post-Phase-F survivor)
 # ═══════════════════════════════════════════════════════════════════════
 
-class TestZoneSubdivision:
-    """Verify that zone subdivision produces equal-volume cells."""
-
-    @pytest.mark.catches("ERR-020")
-    @pytest.mark.parametrize("coord", list(CoordSystem))
-    def test_equal_volume_single_zone(self, coord):
-        """All sub-cells within a zone must have equal volume (bit-identical).
-
-        Guards ERR-020: the ``cbrt(x)**3 != x`` round trip in
-        ``compute_volumes_1d`` drifted each cell volume by ~1 ULP in the
-        spherical (and to a lesser extent cylindrical) case, breaking
-        the structural equal-volume invariant. Fix: compute ``V_cell``
-        from the algebraic invariant at subdivision time and broadcast.
-        """
-        n = 20
-        zones = [Zone(outer_edge=2.0, mat_id=0, n_cells=n)]
-        mesh = mesh1d_from_zones(zones, coord=coord)
-        vols = mesh.volumes
-        np.testing.assert_allclose(vols, vols[0], rtol=1e-14)
-
-    @pytest.mark.catches("ERR-020")
-    @pytest.mark.parametrize("coord", list(CoordSystem))
-    def test_equal_volume_multi_zone(self, coord):
-        """Equal-volume within each zone, but zones may differ.
-
-        Same invariant as :meth:`test_equal_volume_single_zone` but
-        across multiple zones. Catches the same ERR-020 round-trip bug
-        at zone boundaries as well as within a single zone.
-        """
-        zones = [
-            Zone(outer_edge=1.0, mat_id=0, n_cells=10),
-            Zone(outer_edge=3.0, mat_id=1, n_cells=15),
-        ]
-        mesh = mesh1d_from_zones(zones, coord=coord)
-        vols = mesh.volumes
-        # Zone 0: cells 0..9
-        np.testing.assert_allclose(vols[:10], vols[0], rtol=1e-14)
-        # Zone 1: cells 10..24
-        np.testing.assert_allclose(vols[10:], vols[10], rtol=1e-14)
-
-    def test_cartesian_equal_width(self):
-        """Cartesian subdivision gives equal-width cells."""
-        zones = [Zone(outer_edge=3.0, mat_id=0, n_cells=6)]
-        mesh = mesh1d_from_zones(zones, coord=CoordSystem.CARTESIAN)
-        np.testing.assert_allclose(mesh.widths, 0.5, rtol=1e-14)
-
-    def test_cylindrical_edge_positions(self):
-        """Cylindrical: r_k = sqrt(k/N * r_outer^2) for origin=0."""
-        n = 5
-        r_out = 2.0
-        zones = [Zone(outer_edge=r_out, mat_id=0, n_cells=n)]
-        mesh = mesh1d_from_zones(zones, coord=CoordSystem.CYLINDRICAL)
-        expected = r_out * np.sqrt(np.arange(n + 1) / n)
-        np.testing.assert_allclose(mesh.edges, expected, rtol=1e-14)
-
-    def test_spherical_edge_positions(self):
-        """Spherical: r_k = cbrt(k/N * r_outer^3) for origin=0."""
-        n = 5
-        r_out = 2.0
-        zones = [Zone(outer_edge=r_out, mat_id=0, n_cells=n)]
-        mesh = mesh1d_from_zones(zones, coord=CoordSystem.SPHERICAL)
-        expected = r_out * np.cbrt(np.arange(n + 1) / n)
-        np.testing.assert_allclose(mesh.edges, expected, rtol=1e-14)
-
-    def test_cylindrical_nonzero_inner(self):
-        """Cylindrical with nonzero inner radius."""
-        r_in, r_out, n = 1.0, 2.0, 8
-        zones = [Zone(outer_edge=r_out, mat_id=0, n_cells=n)]
-        mesh = mesh1d_from_zones(zones, coord=CoordSystem.CYLINDRICAL, origin=r_in)
-        fracs = np.linspace(0.0, 1.0, n + 1)
-        expected = np.sqrt(r_in**2 + fracs * (r_out**2 - r_in**2))
-        np.testing.assert_allclose(mesh.edges, expected, rtol=1e-14)
-        np.testing.assert_allclose(mesh.volumes, mesh.volumes[0], rtol=1e-14)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# PWR factories — match legacy geometry outputs
-# ═══════════════════════════════════════════════════════════════════════
-
-class TestPWRFactories:
-    """PWR factories produce meshes matching the old geometry classes."""
-
-    def test_slab_half_cell_volumes(self):
-        """pwr_slab_half_cell matches SlabGeometry.default_pwr volumes."""
-        mesh = pwr_slab_half_cell()
-        # SlabGeometry had: n_fuel=10, n_clad=3, n_cool=7
-        # thicknesses: fuel=0.9/10, clad=0.2/3, cool=0.7/7
-        assert mesh.N == 20
-        assert mesh.coord == CoordSystem.CARTESIAN
-        # Cartesian: volumes = widths = thicknesses
-        np.testing.assert_allclose(mesh.widths[:10], 0.09, rtol=1e-14)
-        np.testing.assert_allclose(mesh.widths[10:13], 0.2 / 3, rtol=1e-14)
-        np.testing.assert_allclose(mesh.widths[13:], 0.1, rtol=1e-14)
-
-    def test_slab_half_cell_mat_ids(self):
-        mesh = pwr_slab_half_cell()
-        assert np.all(mesh.mat_ids[:10] == 2)   # fuel
-        assert np.all(mesh.mat_ids[10:13] == 1)  # clad
-        assert np.all(mesh.mat_ids[13:] == 0)    # cool
-
-    def test_slab_half_cell_total_width(self):
-        mesh = pwr_slab_half_cell()
-        np.testing.assert_allclose(mesh.total_width, 0.9 + 0.2 + 0.7)
-
-    def test_pin_equivalent_n_cells(self):
-        mesh = pwr_pin_equivalent()
-        assert mesh.N == 20
-        assert mesh.coord == CoordSystem.CYLINDRICAL
-
-    def test_pin_equivalent_r_cell(self):
-        """Outer edge = pitch / sqrt(pi)."""
-        pitch = 3.6
-        mesh = pwr_pin_equivalent(pitch=pitch)
-        r_cell = pitch / np.sqrt(np.pi)
-        np.testing.assert_allclose(mesh.edges[-1], r_cell, rtol=1e-14)
-
-    def test_pin_equivalent_volumes_match_legacy(self):
-        """Volumes must match CPGeometry.default_pwr() exactly."""
-        mesh = pwr_pin_equivalent()
-
-        # Reproduce CPGeometry.default_pwr logic:
-        r_fuel, r_clad, pitch = 0.9, 1.1, 3.6
-        r_cell = pitch / np.sqrt(np.pi)
-        n_fuel, n_clad, n_cool = 10, 3, 7
-        N = 20
-        radii = np.empty(N)
-        for k in range(n_fuel):
-            radii[k] = r_fuel * np.sqrt((k + 1) / n_fuel)
-        for k in range(n_clad):
-            radii[n_fuel + k] = np.sqrt(
-                r_fuel**2 + (k + 1) / n_clad * (r_clad**2 - r_fuel**2)
-            )
-        for k in range(n_cool):
-            radii[n_fuel + n_clad + k] = np.sqrt(
-                r_clad**2 + (k + 1) / n_cool * (r_cell**2 - r_clad**2)
-            )
-        r_inner = np.zeros(N)
-        r_inner[1:] = radii[:-1]
-        legacy_volumes = np.pi * (radii**2 - r_inner**2)
-
-        np.testing.assert_allclose(mesh.volumes, legacy_volumes, rtol=1e-13)
-
-    def test_pin_equivalent_mat_ids(self):
-        mesh = pwr_pin_equivalent()
-        assert np.all(mesh.mat_ids[:10] == 2)   # fuel
-        assert np.all(mesh.mat_ids[10:13] == 1)  # clad
-        assert np.all(mesh.mat_ids[13:] == 0)    # cool
-
-    def test_pin_equivalent_surfaces(self):
-        """Outer surface = 2*pi*r_cell (cylindrical)."""
-        mesh = pwr_pin_equivalent()
-        r_cell = mesh.edges[-1]
-        np.testing.assert_allclose(
-            mesh.surfaces[-1], 2.0 * np.pi * r_cell, rtol=1e-14,
-        )
+class TestPWRPin2D:
+    """:func:`pwr_pin_2d` 2-D factory invariants."""
 
     def test_pin_2d_shape(self):
         mesh = pwr_pin_2d(n_cells=10)
@@ -594,59 +440,12 @@ class TestBC:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Factory edge cases
+# pwr_pin_2d edge cases
 # ═══════════════════════════════════════════════════════════════════════
 
-class TestFactoryEdgeCases:
-    """Edge cases for mesh1d_from_zones and PWR factories."""
-
-    def test_empty_zones_raises(self):
-        with pytest.raises(ValueError, match="At least one zone"):
-            mesh1d_from_zones([])
-
-    def test_single_cell_zone(self):
-        mesh = mesh1d_from_zones(
-            [Zone(outer_edge=1.0, mat_id=0, n_cells=1)],
-            coord=CoordSystem.CARTESIAN,
-        )
-        assert mesh.N == 1
-        np.testing.assert_allclose(mesh.edges, [0.0, 1.0])
-
-    def test_custom_origin(self):
-        mesh = mesh1d_from_zones(
-            [Zone(outer_edge=5.0, mat_id=0, n_cells=4)],
-            coord=CoordSystem.CARTESIAN,
-            origin=1.0,
-        )
-        np.testing.assert_allclose(mesh.edges[0], 1.0)
-        np.testing.assert_allclose(mesh.edges[-1], 5.0)
-
-    def test_pwr_slab_custom_params(self):
-        mesh = pwr_slab_half_cell(n_fuel=5, n_clad=2, n_cool=3,
-                                  fuel_half=1.0, clad_thick=0.1, cool_thick=0.5)
-        assert mesh.N == 10
-        np.testing.assert_allclose(mesh.total_width, 1.6)
+class TestPWRPin2DEdgeCases:
+    """Edge cases for :func:`pwr_pin_2d`."""
 
     def test_pin_2d_wrong_mat_ids_length_raises(self):
         with pytest.raises(ValueError, match="len\\(mat_ids\\)"):
             pwr_pin_2d(radii=[1.0], mat_ids=[0, 1, 2])
-
-    def test_homogeneous_1d_basic(self):
-        mesh = homogeneous_1d(10, 5.0, mat_id=3)
-        assert mesh.N == 10
-        np.testing.assert_allclose(mesh.total_width, 5.0)
-        assert np.all(mesh.mat_ids == 3)
-        np.testing.assert_allclose(mesh.widths, 0.5, rtol=1e-14)
-
-    def test_homogeneous_1d_cylindrical(self):
-        mesh = homogeneous_1d(5, 2.0, coord=CoordSystem.CYLINDRICAL)
-        # Equal-volume annuli
-        np.testing.assert_allclose(mesh.volumes, mesh.volumes[0], rtol=1e-14)
-
-    def test_slab_fuel_moderator(self):
-        mesh = slab_fuel_moderator(n_fuel=10, n_mod=10, t_fuel=0.5, t_mod=0.5)
-        assert mesh.N == 20
-        assert np.all(mesh.mat_ids[:10] == 2)   # fuel
-        assert np.all(mesh.mat_ids[10:] == 0)    # moderator
-        np.testing.assert_allclose(mesh.total_width, 1.0)
-        np.testing.assert_allclose(mesh.widths, 0.05, rtol=1e-14)
