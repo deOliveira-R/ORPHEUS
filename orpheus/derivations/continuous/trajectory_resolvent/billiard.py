@@ -29,6 +29,19 @@ law on :math:`\partial M`. The Variant α resolvent
 resolvent for that billiard, summed in closed form via the Neumann
 series :math:`\sum_n (\alpha\, e^{-\tau})^n`.
 
+Architectural role (Phase D)
+----------------------------
+
+Per the architectural reset, ``Billiard`` is a **reference solution
+generator** that consumes a :class:`StructuredGeometry` directly via
+its ``__init__``. It is *not* a production solver and does not share
+a Protocol with the discrete CP/SN/MOC family — those consume
+``(materials, mesh, params)`` via canonical free functions
+(``solve_cp`` / ``solve_sn`` / ``solve_moc``). The architectural split
+is now full: reference generators build the truth values; production
+solvers chew through 1000-group industrial data. Each pillar consumes
+its own geometry/mesh layer cleanly.
+
 Why "Billiard"
 --------------
 
@@ -43,51 +56,6 @@ ergodic theory (Sinai's dispersing billiards). The transport-physics
 specialization we ship here is one application of a much wider
 mathematical theory; naming the class :class:`Billiard` makes that
 visible at every call site.
-
-The full theory page section
-:ref:`billiards-and-the-variant-alpha-resolvent` derives the
-billiard ↔ Variant α correspondence formally. The class docstring
-below is a compressed walk-through so the reader who lands on the
-class definition first still gets the load-bearing intuition.
-
-Architectural role
-------------------
-
-:class:`Billiard` is to :mod:`~orpheus.derivations.continuous.trajectory_resolvent`
-what :class:`MomentSpace` (Galerkin half-range projection) is to
-:mod:`~orpheus.derivations.continuous.fn_method`, what
-:class:`Spectrum` (Case singular eigenfunction expansion) will be to
-:mod:`~orpheus.derivations.continuous.singular_eigenfunction`, and
-what ``CPMesh`` is to the production collision-probability solver.
-Each class is a method-specific computational specialization of the
-abstract :class:`~orpheus.derivations.common.geometry_spec.GeometrySpec`.
-The unifying picture lives at
-:ref:`billiards-and-the-variant-alpha-resolvent`.
-
-R2 hindsight refactor
----------------------
-
-This module lands the second hindsight refactor (R2 in
-``.claude/plans/trajectory_resolvent_hindsight_refactor.md``) for the
-Variant α family. R1 already collapsed the 11 byte-identical
-power-iteration outer loops into
-:func:`~orpheus.derivations.continuous.trajectory_resolvent.power_iteration.power_iterate_variant_alpha`.
-R2 unifies the 12 per-geometry result dataclasses behind the SHARED
-cross-method types
-:class:`~orpheus.derivations.common.solution_types.CriticalSolution`
-/
-:class:`~orpheus.derivations.common.solution_types.FluxSolution`
-(introduced by the parallel ``MomentSpace`` agent) and exposes the
-billiard concept as a first-class object the user can construct,
-introspect, and dispatch on.
-
-Bit-equality with R1 is preserved exactly: every
-``solve_critical()`` call delegates to the existing
-``solve_greens_function_*`` entry point and re-packs its result into
-a unified dataclass. No FP arithmetic moves; no quadrature changes;
-no closures rewire. The 84-test cross-method regression net + the
-205-test trajectory_resolvent suite must agree to IEEE-754 exact
-between pre- and post-refactor.
 
 References
 ----------
@@ -118,7 +86,7 @@ from typing import Any
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.geometry_spec import GeometrySpec
+from orpheus.geometry.structured_geometry import StructuredGeometry
 
 # Use the SHARED cross-method result types — these define the contract
 # every math-heart class (MomentSpace for fn_method, Billiard for
@@ -149,8 +117,7 @@ __all__ = ["Billiard", "CriticalSolution", "FluxSolution"]
 # parameter_value, parameter_kind, converged, metadata). Method-specific
 # rich data — the angular flux ``psi``, scalar flux ``phi``, iteration
 # count, and mesh metadata — lives in ``metadata`` under the canonical
-# keys consumed by the cross-method protocol
-# (``tests.cross_method.adapters``):
+# keys:
 #
 # - ``metadata["raw_result"]`` — the legacy per-geometry result
 #   dataclass (e.g. ``GreensFunctionResult``); preserves bit-equal
@@ -190,9 +157,7 @@ class Billiard:
     1. **A domain :math:`M`** (the "billiard table") — here the
        spatial geometry (slab, sphere, cylinder, hollow sphere,
        annulus, asymmetric slab; classified by the orbit-space M/G
-       structure — see
-       :ref:`orbit-space-m-g-classification` for the precise
-       taxonomy).
+       structure).
     2. **A boundary reflection law** at :math:`\partial M` — here
        the BC parametrized by :math:`\alpha`:
 
@@ -210,318 +175,136 @@ class Billiard:
        moments to boundary-flux moments under one full bounce
        period, and its resolvent :math:`T = (I - S)^{-1}`.
 
-    The closed-form multi-bounce summation
-    :math:`\sum_n \alpha^n e^{-n\tau}` that Variant α evaluates IS
-    the Birkhoff transfer-operator resolvent for the billiard with
-    absorption rate :math:`\alpha` and chord-length :math:`\tau`.
-    When :math:`\alpha = 1` (specular boundary) and :math:`\tau
-    \to 0` (high-density medium) the billiard becomes ergodic and
-    :math:`T` diverges; when :math:`\alpha < 1` (absorbing
-    boundary), :math:`S` is a contraction (:math:`\|S\| < 1`) and
-    the Neumann series for :math:`(I - S)^{-1}` converges
-    geometrically with rate :math:`\alpha`.
+    Construction (Phase D)
+    ----------------------
 
-    The orbit-space M/G classification (slab / sphere / cylinder /
-    hollow_sphere / annulus / slab_asymmetric) determines the
-    **rank** of the closure operator: rank-1 closure for
-    one-endpoint orbit spaces (closed sphere, closed cylinder),
-    rank-2 closure for two-endpoint orbit spaces (slab,
-    slab_asymmetric, hollow_sphere, annulus). The rank is the
-    bond dimension of the open MPO on the bounce-event lattice
-    (see the theory page
-    :ref:`billiards-and-the-variant-alpha-resolvent`).
+    Construct directly with a :class:`StructuredGeometry` plus the
+    materials dict::
 
-    The billiard ↔ resolvent correspondence in two lines
-    --------------------------------------------------------
+        from orpheus.geometry.structured_geometry import (
+            Region, StructuredGeometry,
+        )
+        from orpheus.geometry.mesh import BC
+        from orpheus.derivations.continuous.trajectory_resolvent import (
+            Billiard,
+        )
 
-    A trajectory in the billiard is an alternating sequence of
-    *streaming segments* (free flight along
-    :math:`\Omega \cdot \nabla \psi + \Sigma_t \psi = q`) and
-    *boundary reflections* (multiplication by :math:`\alpha`). The
-    *transfer operator* :math:`S` advances the trajectory by ONE
-    bounce period: streaming attenuation :math:`e^{-\tau_{\rm
-    period}}` followed by reflection :math:`\alpha`. The integrated
-    multi-bounce contribution at the entry point is the geometric
-    series
+        geom = StructuredGeometry(
+            geometry="SPH",
+            regions=(Region(mat_id=0, outer_thickness_cm=5.0),),
+            bcs=(BC.reflective,),
+        )
+        b = Billiard(
+            geometry=geom,
+            materials={0: pu_mixture},
+            alpha=1.0,
+            quadrature={"n_r": 24, "n_mu": 24, "n_traj_quad": 64},
+        )
+        sol = b.solve_critical()
 
-    .. math::
+    Geometry tag mapping
+    --------------------
 
-        \sum_{n=0}^{\infty} S^n = (I - S)^{-1} = T,
-
-    and the closed-form sum :math:`T = 1/(1 - \alpha\,e^{-\tau})`
-    is the reason Variant α can replace an iterative bounce
-    discretization with a single algebraic step. The full derivation
-    is at :ref:`billiards-and-the-variant-alpha-resolvent`.
-
-    Construction
-    ------------
-
-    Use the :meth:`Billiard.from_problem` factory. Direct
-    construction is supported but not recommended — the factory
-    validates the materials/geometry combination and resolves the
-    closure rank from the orbit-space class.
-
-    The class is *frozen* (immutable) so that a single billiard
-    instance can be safely cached and reused across multiple solves
-    with different ``alpha`` overrides via
-    :meth:`Billiard.with_alpha`.
-
-    Cross-method analog
-    -------------------
-
-    :class:`Billiard` is to ``trajectory_resolvent`` what:
-
-    - ``MomentSpace`` (Galerkin half-range projection on Legendre
-      moments) is to
-      :mod:`~orpheus.derivations.continuous.fn_method`. The fn_method
-      *projects* the Peierls integral equation onto Legendre moments
-      and solves a finite-dimensional moment system. The billiard's
-      discrete transfer operator is morally the same machinery seen
-      from the spatial side.
-    - ``Spectrum`` (Case singular eigenfunction expansion) will be
-      to :mod:`~orpheus.derivations.continuous.singular_eigenfunction`.
-      The Case method *expands* the angular flux on the operator's
-      eigenfunctions; the billiard's resolvent expansion
-      :math:`\sum_n S^n` is the time-domain counterpart of Case's
-      spectral expansion.
-    - ``CPMesh`` is to the production collision-probability solver
-      what :class:`Billiard` is to the reference family.
-
-    These siblings are all method-specific computational
-    specializations of the abstract
-    :class:`~orpheus.derivations.common.geometry_spec.GeometrySpec`.
-    See :ref:`billiards-and-the-variant-alpha-resolvent` for the
-    framing.
+    The class accepts uppercase :class:`StructuredGeometry` tags
+    (``"SLB"``, ``"SPH"``, ``"CYL"``) and dispatches internally to
+    the same per-geometry ``solve_greens_function_*`` entry points.
+    The asymmetric-slab branch is selected when ``alpha`` is a dict
+    carrying ``alpha_left`` / ``alpha_right`` keys.
 
     Attributes
     ----------
-    geometry_kind : str
-        One of ``"sphere"``, ``"cylinder"``, ``"slab"``,
-        ``"slab_asymmetric"``. Selected internally from the
-        :class:`GeometrySpec` and the alpha-dict shape; determines
-        which underlying solver is dispatched. (The internal
-        dispatcher additionally supports ``"sphere_mr"``,
-        ``"hollow_sphere"``, ``"annulus"`` for legacy callers, but
-        :meth:`from_problem` cannot construct those today — they
-        await Step 3's multi-region :class:`GeometrySpec` extension.)
+    geometry : StructuredGeometry
+        The pure-geometry layer object describing the billiard table.
     materials : dict[int, Mixture]
-        Production-protocol cross-section payload, keyed by
-        material ID. The Protocol-conformant view of the same
-        cross sections that the underlying solver consumes as a
-        flat numpy-array dict.
-    geometry_spec : GeometrySpec
-        Method-agnostic geometry + boundary specification. The
-        :class:`Billiard` derives :attr:`geometry_kind` and
-        :attr:`alpha_payload` from this spec plus the factory's
-        :paramref:`alpha` argument.
-    xs_payload : dict
-        Internal solver-facing cross-section payload (numpy arrays
-        / scalars). Format depends on :attr:`geometry_kind`:
-
-        - 1G case: ``{"sigma_t": float, "sigma_s": float,
-          "nu_sigma_f": float}``.
-        - MG case: ``{"sigma_t": (G,), "sigma_s": (G,G),
-          "nu_sigma_f": (G,), "chi": (G,) optional}``.
-
-        Synthesized from :attr:`materials` by
-        :func:`_mixture_to_solver_xs_payload`. End users should
-        prefer :attr:`materials` for the Protocol view.
-    geometry_payload : dict
-        Internal solver-facing geometry kwargs that pin the domain
-        :math:`M`:
-
-        - ``sphere``: ``{"R": float}``.
-        - ``cylinder``: ``{"R": float}``.
-        - ``slab``: ``{"L": float}``.
-        - ``slab_asymmetric``: ``{"L": float}``.
-
-        Synthesized from :attr:`geometry_spec` by
-        :func:`_geometry_payload_for_solver`. End users should
-        prefer :attr:`geometry_spec` for the Protocol view.
-    alpha_payload : dict
-        Reflection law on :math:`\partial M`:
-
-        - One-surface compact (sphere, cylinder, slab[symmetric]):
-          ``{"alpha": float}``.
-        - Two-surface (slab_asymmetric): ``{"alpha_left": float,
-          "alpha_right": float}``.
-    quadrature : dict
+        Production-protocol cross-section payload, keyed by material
+        ID. Today's :class:`Billiard` consumes only the active
+        material at key ``0`` for single-region geometries.
+    alpha : float | dict[str, float]
+        Boundary reflectivity. Float for symmetric / one-surface
+        billiards; dict for asymmetric two-surface billiards
+        (``{"alpha_left": ..., "alpha_right": ...}``).
+    quadrature : dict[str, int]
         Quadrature orders. Standard keys: ``n_r`` / ``n_x``,
         ``n_mu`` / ``n_mu_axial``, ``n_phi_az``, ``n_traj_quad``.
         Defaults are inherited from each geometry's solver if the
         key is absent.
+    geometry_kind : str
+        One of ``"sphere"``, ``"cylinder"``, ``"slab"``,
+        ``"slab_asymmetric"``. Auto-derived in :meth:`__post_init__`
+        from the :class:`StructuredGeometry` tag and the alpha-dict
+        shape; selects which underlying solver is dispatched.
     closure_rank : int
         ``1`` for one-endpoint orbit spaces, ``2`` for two-endpoint
-        orbit spaces. Auto-detected from :attr:`geometry_kind` by
-        :meth:`from_problem`.
+        orbit spaces. Auto-resolved from :attr:`geometry_kind`.
 
     Examples
     --------
-    >>> import numpy as np
-    >>> from orpheus.data.macro_xs.mixture import Mixture  # doctest: +SKIP
-    >>> from orpheus.derivations.common.geometry_spec import GeometrySpec
-    >>> from orpheus.derivations.continuous.trajectory_resolvent import (
-    ...     Billiard,
-    ... )
-    >>> from orpheus.geometry.mesh import BC
+    Closed homogeneous sphere with k_eff = k_inf::
 
-    Closed homogeneous sphere with k_eff = k_inf:
-
-    >>> spec = GeometrySpec(  # doctest: +SKIP
-    ...     geometry="sphere",
-    ...     critical_dimension_mfp=2.5,
-    ...     critical_dimension_cm=5.0,
-    ...     n_groups=1,
-    ...     bc_left=BC.reflective,
-    ...     bc_right=BC.reflective,
-    ... )
-    >>> b = Billiard.from_problem(  # doctest: +SKIP
-    ...     materials={0: pu_mixture},
-    ...     geometry_spec=spec,
-    ...     alpha=1.0,
-    ...     quadrature={"n_r": 24, "n_mu": 24, "n_traj_quad": 64},
-    ... )
-    >>> sol = b.solve_critical()  # doctest: +SKIP
-    >>> sol.eigenvalue            # doctest: +SKIP
-    1.0  # k_inf = nu_sigma_f / (sigma_t - sigma_s) = 0.1 / 0.1
-
-    Asymmetric slab with independent wall reflectivities (the
-    ``slab_asymmetric`` family is selected automatically when
-    :paramref:`alpha` is a dict containing ``alpha_left`` /
-    ``alpha_right``):
-
-    >>> slab_spec = GeometrySpec(  # doctest: +SKIP
-    ...     geometry="slab",
-    ...     critical_dimension_mfp=1.25,
-    ...     critical_dimension_cm=2.5,
-    ...     n_groups=1,
-    ...     bc_left=BC.vacuum,
-    ...     bc_right=BC.vacuum,
-    ... )
-    >>> b = Billiard.from_problem(  # doctest: +SKIP
-    ...     materials={0: pu_mixture},
-    ...     geometry_spec=slab_spec,
-    ...     alpha={"alpha_left": 0.7, "alpha_right": 0.9},
-    ... )
-    >>> sol = b.solve_critical()  # doctest: +SKIP
+        geom = StructuredGeometry(
+            geometry="SPH",
+            regions=(Region(mat_id=0, outer_thickness_cm=5.0),),
+            bcs=(BC.reflective,),
+        )
+        b = Billiard(geometry=geom, materials={0: pu_mixture}, alpha=1.0)
+        sol = b.solve_critical()
     """
 
-    geometry_kind: str
-    xs_payload: dict[str, Any]
-    geometry_payload: dict[str, Any]
-    alpha_payload: dict[str, float]
-    quadrature: dict[str, int]
-    closure_rank: int
-    materials: dict[int, Mixture] = field(default_factory=dict)
-    geometry_spec: GeometrySpec | None = None
-    method_name: str = "trajectory_resolvent"
+    geometry: StructuredGeometry
+    materials: dict[int, Mixture]
+    alpha: float | dict[str, float] = 1.0
+    quadrature: dict[str, int] = field(default_factory=dict)
 
-    @classmethod
-    def from_problem(
-        cls,
-        *,
-        materials: dict[int, Mixture],
-        geometry_spec: GeometrySpec,
-        alpha: float | dict[str, float] = 1.0,
-        quadrature: dict[str, int] | None = None,
-    ) -> "Billiard":
-        r"""Construct a billiard from problem-statement inputs.
+    # Derived fields populated in __post_init__. Marked as init=False so
+    # they're owned by the dataclass but not user-supplied.
+    geometry_kind: str = field(init=False)
+    closure_rank: int = field(init=False)
+    xs_payload: dict[str, Any] = field(init=False)
+    geometry_payload: dict[str, Any] = field(init=False)
+    alpha_payload: dict[str, float] = field(init=False)
 
-        This factory consumes the production-protocol pair
-        ``(materials: dict[int, Mixture], geometry_spec: GeometrySpec)``
-        — the same shape every TransportSolver-conformant class
-        accepts — and:
-
-        1. infers the internal :attr:`geometry_kind` from the spec
-           (and the alpha-dict shape, for the slab-asymmetric
-           branch);
-        2. builds the solver-facing :attr:`geometry_payload` and
-           :attr:`xs_payload` from the spec / mixture pair;
-        3. normalizes :paramref:`alpha` into the per-geometry
-           :attr:`alpha_payload`;
-        4. resolves :attr:`closure_rank` from the orbit-space class.
-
-        Parameters
-        ----------
-        materials : dict[int, Mixture]
-            Production-protocol cross sections, keyed by material
-            ID. Today's Billiard factory consumes only the active
-            material at key ``0``; multi-region (``sphere_mr``)
-            support is gated on Step 3's multi-region GeometrySpec
-            extension.
-        geometry_spec : GeometrySpec
-            Method-agnostic geometry + boundary specification.
-            Supported families: ``"slab"``, ``"sphere"``,
-            ``"cylinder"``. The ``slab_asymmetric`` family is
-            selected automatically when :paramref:`alpha` is a
-            dict carrying ``alpha_left`` / ``alpha_right`` keys.
-        alpha : float or dict, default 1.0
-            Boundary reflectivity. Float: applied symmetrically
-            (one-endpoint billiards) or as ``alpha_left =
-            alpha_right`` (two-endpoint billiards). Dict: passed
-            through verbatim. For asymmetric slabs use
-            ``{"alpha_left": ..., "alpha_right": ...}``.
-        quadrature : dict, optional
-            Quadrature orders. Keys depend on geometry. Defaults
-            are inherited from each geometry's solver.
-
-        Returns
-        -------
-        Billiard
-            A frozen billiard instance ready for
-            :meth:`solve_critical` / :meth:`solve_fixed_source`.
-        """
-        if not _is_mixture_dict(materials):
+    def __post_init__(self) -> None:
+        if not _is_mixture_dict(self.materials):
             raise ValueError(
-                "Billiard.from_problem: materials must be a "
-                "dict[int, Mixture]; got keys "
-                f"{list((materials or {}).keys())!r}."
+                "Billiard.materials must be a dict[int, Mixture]; got keys "
+                f"{list((self.materials or {}).keys())!r}."
             )
 
-        geometry_kind = _infer_geometry_kind_from_spec(
-            geometry_spec, alpha
-        )
+        geometry_kind = _infer_geometry_kind(self.geometry, self.alpha)
         geometry_payload = _geometry_payload_for_solver(
-            geometry_kind, geometry_spec
+            geometry_kind, self.geometry
         )
         xs_payload = _mixture_to_solver_xs_payload(
-            materials, geometry_kind
+            self.materials, geometry_kind
         )
 
-        # Normalize alpha into the per-geometry payload. The
-        # slab_asymmetric branch is unreachable for a scalar alpha:
-        # it can only be selected via a dict carrying alpha_left /
-        # alpha_right, so the dict-input branch handles it directly.
-        if isinstance(alpha, dict):
-            alpha_payload: dict[str, float] = dict(alpha)
+        # Normalize alpha into the per-geometry payload.
+        if isinstance(self.alpha, dict):
+            alpha_payload: dict[str, float] = dict(self.alpha)
         elif geometry_kind in ("hollow_sphere", "annulus"):
             alpha_payload = {
-                "alpha_in": float(alpha),
-                "alpha_out": float(alpha),
+                "alpha_in": float(self.alpha),
+                "alpha_out": float(self.alpha),
             }
         else:
-            alpha_payload = {"alpha": float(alpha)}
+            alpha_payload = {"alpha": float(self.alpha)}
 
         # Resolve closure rank from orbit-space class.
         closure_rank = 2 if geometry_kind == "slab_asymmetric" else 1
 
-        return cls(
-            geometry_kind=geometry_kind,
-            xs_payload=xs_payload,
-            geometry_payload=geometry_payload,
-            alpha_payload=alpha_payload,
-            quadrature=dict(quadrature or {}),
-            closure_rank=closure_rank,
-            materials=dict(materials),
-            geometry_spec=geometry_spec,
-            method_name="trajectory_resolvent",
-        )
+        # Frozen dataclass: use object.__setattr__ to populate derived
+        # fields.
+        object.__setattr__(self, "geometry_kind", geometry_kind)
+        object.__setattr__(self, "closure_rank", closure_rank)
+        object.__setattr__(self, "xs_payload", xs_payload)
+        object.__setattr__(self, "geometry_payload", geometry_payload)
+        object.__setattr__(self, "alpha_payload", alpha_payload)
 
     def with_alpha(self, alpha: float | dict[str, float]) -> "Billiard":
         """Return a copy with a different boundary reflectivity."""
-        return Billiard.from_problem(
+        return Billiard(
+            geometry=self.geometry,
             materials=self.materials,
-            geometry_spec=self.geometry_spec,
             alpha=alpha,
             quadrature=self.quadrature,
         )
@@ -544,37 +327,6 @@ class Billiard:
         ``solve_greens_function_*`` entry point and re-packs the
         result into the SHARED cross-method
         :class:`~orpheus.derivations.common.solution_types.CriticalSolution`.
-        Bit-equal with the underlying entry point's return value
-        (every FP operation runs in the same order).
-
-        Schema
-        ------
-
-        The returned :class:`CriticalSolution` carries:
-
-        - ``eigenvalue`` — the converged :math:`k_{\rm eff}`.
-        - ``eigenvalue_kind`` — always ``"k_eff"``.
-        - ``parameter_value`` — the geometry's characteristic length
-          (:math:`R` for sphere/cylinder/sphere_mr, :math:`L` for
-          slab/slab_asymmetric, :math:`R_{\rm out}` for hollow
-          geometries).
-        - ``parameter_kind`` — always ``"fixed_geometry"`` (Variant α
-          reports :math:`k_{\rm eff}` at a fixed configuration; no
-          critical root-find).
-        - ``converged`` — whether the power iteration met its
-          tolerance.
-        - ``metadata`` — a dict with the rich method-specific data:
-
-          * ``"raw_result"`` — the legacy per-geometry result
-            dataclass (preserved bit-for-bit).
-          * ``"psi"`` — angular flux array.
-          * ``"phi"`` — scalar flux array.
-          * ``"iterations"`` — power-iteration step count.
-          * ``"mesh"`` — dict of grid arrays (``r_nodes`` /
-            ``x_nodes``, ``mu_nodes``, ``mu_axial_nodes``,
-            ``phi_az_nodes``, ``region_at_node`` as applicable).
-          * ``"n_groups"`` — group count.
-          * ``"geometry_kind"`` — the Billiard's geometry tag.
 
         Parameters
         ----------
@@ -595,10 +347,6 @@ class Billiard:
         Returns
         -------
         CriticalSolution
-            The shared cross-method solution type — read
-            ``solution.eigenvalue`` for :math:`k_{\rm eff}` and
-            ``solution.metadata["psi"]`` /
-            ``solution.metadata["phi"]`` for the flux fields.
         """
         return _dispatch_critical(
             self,
@@ -620,31 +368,7 @@ class Billiard:
         Currently only supported for :attr:`geometry_kind` ==
         ``"sphere_mr"`` (the Garcia 2021 multi-region sphere
         benchmark family). Other geometries raise
-        :class:`NotImplementedError`. A future extension will mirror
-        the per-geometry power-iteration unification with a fixed-
-        source iteration driver.
-
-        Parameters
-        ----------
-        external_source : ndarray
-            Per-region per-group external source
-            :math:`Q^{\rm ext}` (per unit volume per second, NOT
-            per steradian — the operator divides by :math:`4\pi`
-            internally). Shape ``(n_regions, G)`` for
-            :paramref:`geometry_kind` ``"sphere_mr"``.
-        max_iter : int, optional
-            Maximum fixed-source iterations. Default 500.
-        tol : float, optional
-            Relative scalar-flux convergence tolerance. Default
-            ``1e-8``.
-
-        Returns
-        -------
-        FluxSolution
-            The shared cross-method solution type — read
-            ``solution.metadata["psi"]`` / ``solution.metadata["phi"]``
-            for the full flux fields and ``solution.scalar_flux``
-            for the leading-group scalar flux profile.
+        :class:`NotImplementedError`.
         """
         return _dispatch_fixed_source(
             self,
@@ -961,10 +685,7 @@ def _dispatch_fixed_source(
             else 1
         )
         # Collapse phi_g per group to a representative scalar flux for
-        # the shared FluxSolution `scalar_flux` field. For multi-group
-        # we expose phi_g[0] (the fast group, which carries the source
-        # in the Garcia 2021 benchmarks); the full per-group profile
-        # lives under metadata["phi_g"].
+        # the shared FluxSolution `scalar_flux` field.
         phi_for_shared = (
             res.phi_g if res.phi_g.ndim == 1 else res.phi_g[0]
         )
@@ -996,19 +717,12 @@ def _dispatch_fixed_source(
 
     raise NotImplementedError(
         f"solve_fixed_source not yet implemented for "
-        f"geometry_kind={g!r}. Currently only 'sphere_mr' is supported. "
-        "(R2 deferred broader fixed-source unification — see "
-        "trajectory_resolvent_hindsight_refactor.md R5.)"
+        f"geometry_kind={g!r}. Currently only 'sphere_mr' is supported."
     )
 
 
 # ─────────────────────────────────────────────────────────────────────
 # Result-shape adaptors — populate the SHARED CriticalSolution schema
-# (eigenvalue, eigenvalue_kind, parameter_value, parameter_kind,
-# converged, metadata) from each geometry-specific legacy dataclass.
-# Bit-equality is preserved end-to-end: every numerical value lands in
-# the unified result with the same FP bit pattern as in the legacy
-# return.
 # ─────────────────────────────────────────────────────────────────────
 
 
@@ -1023,13 +737,7 @@ def _build_critical(
     geometry_kind: str,
     mesh: dict[str, Any],
 ) -> CriticalSolution:
-    """Construct the shared CriticalSolution from a legacy result.
-
-    The legacy ``res`` is preserved in ``metadata["raw_result"]`` for
-    callers who want bit-equal access to every original field; the
-    canonical convenience handles ``psi``, ``phi``, ``iterations``,
-    ``mesh``, ``n_groups``, ``geometry_kind`` are also populated.
-    """
+    """Construct the shared CriticalSolution from a legacy result."""
     metadata = {
         "raw_result": res,
         "psi": psi,
@@ -1081,11 +789,7 @@ def _wrap_mg(
     parameter_kind: str,
     geometry_kind: str,
 ) -> CriticalSolution:
-    """Wrap an MG geometry-specific result with (r_nodes, mu_nodes).
-
-    Used by sphere MG and hollow_sphere MG (both share the
-    psi_g/phi_g/r_nodes/mu_nodes shape).
-    """
+    """Wrap an MG geometry-specific result."""
     return _build_critical(
         res,
         psi=res.psi_g,
@@ -1225,12 +929,8 @@ def _wrap_slab_mg(
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Factory helpers — translate Protocol inputs (Mixture + GeometrySpec)
-# into the solver-facing ``xs_payload`` / ``geometry_payload`` shapes
-# that the per-geometry ``solve_greens_function_*`` entry points
-# consume. The internal payload shapes are an implementation detail:
-# end users address Billiard via :attr:`materials` / :attr:`geometry_spec`
-# (the Protocol surface).
+# Internal helpers — translate StructuredGeometry + Mixture inputs
+# into the solver-facing payload shapes
 # ─────────────────────────────────────────────────────────────────────
 
 
@@ -1244,56 +944,66 @@ def _is_mixture_dict(materials: Any) -> bool:
     return isinstance(materials[first_key], Mixture)
 
 
-def _infer_geometry_kind_from_spec(
-    spec: GeometrySpec,
+# Map StructuredGeometry uppercase tag → Billiard's internal lowercase
+# geometry_kind. The asymmetric-slab branch is selected by alpha-dict
+# shape, not by the StructuredGeometry tag (slab is slab — asymmetry is
+# a BC concept, not a coordinate concept).
+_TAG_TO_KIND: dict[str, str] = {
+    "SLB": "slab",
+    "SPH": "sphere",
+    "CYL": "cylinder",
+}
+
+
+def _infer_geometry_kind(
+    geom: StructuredGeometry,
     alpha: float | dict[str, float],
 ) -> str:
-    """Infer Billiard's internal geometry_kind from a GeometrySpec.
+    """Infer Billiard's internal geometry_kind from a StructuredGeometry.
 
     Returned values are one of: ``"slab"``, ``"slab_asymmetric"``,
     ``"sphere"``, ``"cylinder"``. The asymmetric-slab branch is
     selected when *alpha* is a dict carrying ``alpha_left`` /
     ``alpha_right`` keys.
     """
-    g = spec.geometry
-    if g == "infinite" or g == "ISLC":
+    tag = geom.geometry
+    if tag not in _TAG_TO_KIND:
         raise ValueError(
-            f"Billiard.from_problem cannot construct on geometry_spec "
-            f"{g!r}; supported: slab, sphere, cylinder."
+            f"Billiard cannot construct on StructuredGeometry tag "
+            f"{tag!r}; supported: {sorted(_TAG_TO_KIND)}."
         )
-    if g == "slab":
-        if isinstance(alpha, dict):
-            keys = set(alpha.keys())
-            if "alpha_left" in keys or "alpha_right" in keys:
-                return "slab_asymmetric"
-        return "slab"
-    if g == "sphere":
-        return "sphere"
-    if g == "cylinder":
-        return "cylinder"
-    raise ValueError(f"Billiard cannot infer geometry_kind from {g!r}")
+    kind = _TAG_TO_KIND[tag]
+    if kind == "slab" and isinstance(alpha, dict):
+        keys = set(alpha.keys())
+        if "alpha_left" in keys or "alpha_right" in keys:
+            return "slab_asymmetric"
+    return kind
 
 
 def _geometry_payload_for_solver(
     geometry_kind: str,
-    spec: GeometrySpec,
+    geom: StructuredGeometry,
 ) -> dict[str, Any]:
     """Build the per-geometry payload the dispatchers consume.
 
-    Maps the method-agnostic :class:`GeometrySpec` onto the
+    Maps the :class:`StructuredGeometry` extent onto the
     geometry-specific kwargs of the underlying
-    ``solve_greens_function_*`` entry points (``R`` for curvilinear
-    one-endpoint billiards, ``L`` for slab and slab_asymmetric).
+    ``solve_greens_function_*`` entry points.
+
+    Slab convention reminder
+    ------------------------
+    :attr:`StructuredGeometry.domain_extent_cm` is the FULL slab width
+    (sum of region thicknesses). The underlying
+    :func:`solve_greens_function_slab` consumes ``L`` = full slab
+    width, so this is a direct pass-through (no halving / doubling).
+
+    For sphere / cylinder, ``domain_extent_cm`` is the outer radius.
     """
-    if spec.critical_dimension_cm is None:
-        raise ValueError(
-            f"Billiard requires geometry_spec.critical_dimension_cm "
-            f"to be set; got None for geometry {geometry_kind!r}."
-        )
+    extent = geom.domain_extent_cm
     if geometry_kind in ("sphere", "cylinder"):
-        return {"R": float(spec.critical_dimension_cm)}
+        return {"R": float(extent)}
     if geometry_kind in ("slab", "slab_asymmetric"):
-        return {"L": float(spec.domain_extent_cm)}
+        return {"L": float(extent)}
     raise ValueError(
         f"_geometry_payload_for_solver: unsupported {geometry_kind!r}"
     )
@@ -1308,14 +1018,11 @@ def _mixture_to_solver_xs_payload(
     The ``solve_greens_function_*`` entry points consume raw numpy
     arrays (``sigma_t``, ``sigma_s``, ``nu_sigma_f``, ``chi``); this
     helper extracts those from the production-protocol
-    :class:`Mixture` at ``materials[0]``. 1G payloads collapse to
-    Python floats (preserving the underlying solver's scalar entry
-    points); MG payloads carry the full ``(G,)`` and ``(G, G)``
-    arrays.
+    :class:`Mixture` at ``materials[0]``.
     """
     if 0 not in materials:
         raise ValueError(
-            f"Billiard.from_problem: materials must contain key 0 "
+            f"Billiard: materials must contain key 0 "
             f"(the active mat_id). Got keys {sorted(materials.keys())}."
         )
     mix = materials[0]

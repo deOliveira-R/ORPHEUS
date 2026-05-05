@@ -39,11 +39,12 @@ Sub-modules:
   (the *base atlas* in the fiber-bundle frame) into one Protocol with
   six concrete frozen-dataclass instances, one per geometry.
 
-Public API entry point: :class:`Billiard`. Construct via
-:meth:`Billiard.from_problem`, then call :meth:`Billiard.solve_critical`
-for *k*-eigenproblems or :meth:`Billiard.solve_fixed_source` for
-fixed-source problems. The legacy ``solve_greens_function_*`` entry
-points remain available for back-compat.
+Public API entry point: :class:`Billiard`. Construct directly via
+``Billiard(geometry=structured_geometry, materials={0: mix}, alpha=...)``,
+then call :meth:`Billiard.solve_critical` for *k*-eigenproblems or
+:meth:`Billiard.solve_fixed_source` for fixed-source problems. The
+legacy ``solve_greens_function_*`` entry points remain available for
+back-compat.
 """
 
 from orpheus.derivations.continuous.trajectory_resolvent.billiard import (
