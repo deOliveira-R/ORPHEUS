@@ -71,7 +71,21 @@ def plot_spectrum(
     output_dir: Path | str = ".",
     prefix: str = "spectrum",
 ) -> None:
-    """Generate flux-per-energy and flux-per-lethargy plots."""
+    """Generate flux-per-energy and flux-per-lethargy plots.
+
+    Skipped (with a warning) when the result has no physical energy
+    grid (``result.eg_mid is None``). Per-energy plotting is meaningless
+    for synthetic / Sood-style XS — consumers should plot only
+    ``result.flux`` directly in that case.
+    """
+    if result.eg_mid is None:
+        import warnings
+        warnings.warn(
+            "plot_spectrum: result has no energy grid (synthetic XS); "
+            "skipping per-energy and per-lethargy plots.",
+            stacklevel=2,
+        )
+        return
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -174,7 +188,20 @@ def plot_moc_spectra(
     result: MoCResult,
     output_dir: Path | str = ".",
 ) -> None:
-    """Plot neutron spectra per unit lethargy in fuel, cladding, coolant."""
+    """Plot neutron spectra per unit lethargy in fuel, cladding, coolant.
+
+    Skipped (with a warning) when the result has no physical energy
+    grid (``result.eg is None``).  Per-lethargy plotting requires a
+    real grid; synthetic Sood-style mixtures don't carry one.
+    """
+    if result.eg is None:
+        import warnings
+        warnings.warn(
+            "plot_moc_spectra: result has no energy grid (synthetic XS); "
+            "skipping per-lethargy plot.",
+            stacklevel=2,
+        )
+        return
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -265,7 +292,20 @@ def plot_mc_spectrum(
     result: MCResult,
     output_dir: Path | str = ".",
 ) -> None:
-    """Plot cell-averaged neutron flux per unit lethargy."""
+    """Plot cell-averaged neutron flux per unit lethargy.
+
+    Skipped (with a warning) when the result has no physical energy
+    grid (``result.eg_mid is None``).  Per-lethargy plotting is
+    undefined for synthetic / Sood-style XS.
+    """
+    if result.eg_mid is None or result.flux_per_lethargy is None:
+        import warnings
+        warnings.warn(
+            "plot_mc_spectrum: result has no energy grid (synthetic XS); "
+            "skipping per-lethargy plot.",
+            stacklevel=2,
+        )
+        return
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
