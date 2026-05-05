@@ -13,13 +13,17 @@ realised across the project:
   ``BasisSpace`` (Dahl–Sjöstrand Legendre-Galerkin block-matrix
   linearisation in
   :mod:`~orpheus.derivations.continuous.galerkin_spectral`).
-* The production discrete-mesh solvers
-  :class:`~orpheus.cp.solver.CPSolver` and
-  :class:`~orpheus.sn.solver.SNSolver`, which conform natively
-  via their ``from_problem`` factories (Step 4 of the input-cleanup
-  track, 2026-05-04). The earlier test-only adapter scaffold
-  (``CPMeshAdapter`` / ``SNMeshAdapter``) was retired when the
-  production classes took on the Protocol surface directly.
+
+The production discrete-mesh solvers (:class:`~orpheus.cp.solver.CPSolver`,
+:class:`~orpheus.sn.solver.SNSolver`) deliberately stay **off** the
+Protocol — they consume ``(materials, mesh, params)`` directly via the
+canonical :func:`~orpheus.cp.solver.solve_cp` /
+:func:`~orpheus.sn.solver.solve_sn` entry points. Production solvers
+chew through 1000-group industrial data; bundling their cross-cutting
+parameters behind a Protocol facade hid solver tuning and forced
+geometry management into the solver. The geometry → mesh transition
+(:meth:`~orpheus.geometry.mesh.Mesh1D.from_geometry`) is an explicit
+caller-side step.
 
 Per the project's *unify-after-two-instances* discipline (see
 ``feedback_unify_after_two_instances.md``), the Protocol was *gated* on
@@ -41,13 +45,11 @@ three orthogonal axes (see :doc:`/theory/transport_solver_protocol`):
 
 2. **How** — the method-specific computational specialisation. F_N
    commits to a moment basis order :math:`N`; trajectory_resolvent
-   commits to a billiard table classified by orbit-space rank;
-   discrete CP/SN commit to a discretisation. Each Protocol-conforming
-   class owns its own method kwargs (``fn_order`` for ``MomentSpace``,
-   ``quadrature`` for ``Billiard``, ``DiscretizationSpec`` for
-   :class:`~orpheus.cp.solver.CPSolver` /
-   :class:`~orpheus.sn.solver.SNSolver`); the Protocol does NOT
-   dictate them — that would couple unrelated methods.
+   commits to a billiard table classified by orbit-space rank.
+   Each Protocol-conforming class owns its own method kwargs
+   (``fn_order`` for ``MomentSpace``, ``quadrature`` for ``Billiard``);
+   the Protocol does NOT dictate them — that would couple unrelated
+   methods.
 
 3. **What is asked** — :meth:`solve_critical` returns a
    :class:`~orpheus.derivations.common.solution_types.CriticalSolution`;
@@ -68,12 +70,6 @@ without inheriting from a base. This matches our reality:
 * ``Billiard`` and ``MomentSpace`` were designed independently before
   the Protocol existed; forcing them under a common ABC would have
   required retroactive subclassing.
-* Production CP / SN classes (``CPSolver``, ``SNSolver``) take on
-  Protocol conformance through their ``from_problem`` factories
-  without inheriting from any base — the legacy
-  ``__init__`` + function-level ``solve_cp`` / ``solve_sn`` API
-  remains intact for callers that don't need the cross-method
-  surface.
 * The Protocol is :func:`runtime_checkable`, so ``isinstance(x,
   TransportSolver)`` works for the schema-gate tests in
   :mod:`tests.derivations.test_transport_solver_protocol` without a
@@ -126,9 +122,9 @@ class TransportSolver(Protocol):
       the *what* axis.
     * :attr:`method_name` — a stable string tag identifying the
       computational pillar (``"trajectory_resolvent"``, ``"fn_method"``,
-      ``"singular_eigenfunction"``, ``"galerkin_spectral"``, ``"cp"``,
-      ``"sn"``, ...). Used by cross-method comparators to group
-      results without case-by-case isinstance checks.
+      ``"singular_eigenfunction"``, ``"galerkin_spectral"``, ...).
+      Used by cross-method comparators to group results without
+      case-by-case isinstance checks.
     * :meth:`solve_critical` — returns a
       :class:`CriticalSolution`. The eigenvalue
       semantics (``k_eff`` vs ``k_inf``) is recorded in the result's
@@ -138,28 +134,29 @@ class TransportSolver(Protocol):
     Non-Protocol surface — kept on each conformant class
     -----------------------------------------------------
 
-    Method kwargs (``fn_order``, ``n_quad``, ``alpha``, ``DiscretizationSpec``,
+    Method kwargs (``fn_order``, ``n_quad``, ``alpha``,
     flux-reconstruction strategy, …) are NOT part of the Protocol.
     Each class owns its own construction surface; the Protocol is
     deliberately small. The discipline "match the Protocol to what
     Billiard + MomentSpace already expose; if a Protocol field has no
     instance using it, drop it" was applied during design.
 
-    Production discrete-mesh solvers
-    --------------------------------
+    Production discrete-mesh solvers stay off the Protocol
+    -------------------------------------------------------
 
-    The Protocol covers BOTH continuous reference solvers (where the
-    L1 truth lives) AND production discrete solvers — the latter
-    via the ``CPSolver.from_problem`` / ``SNSolver.from_problem``
-    factories that mint the production classes onto the Protocol
-    natively (Step 4 of the input-cleanup track, 2026-05-04). The
-    discrete side does NOT replace continuous-reference verification
-    — it enables L4 *agreement* gates between production and
-    reference after each side has its own L1 chain. Per
+    The Protocol covers continuous-reference solvers only. Production
+    discrete-mesh solvers (:class:`~orpheus.cp.solver.CPSolver`,
+    :class:`~orpheus.sn.solver.SNSolver`) deliberately consume
+    ``(materials, mesh, params)`` directly via the canonical
+    :func:`~orpheus.cp.solver.solve_cp` /
+    :func:`~orpheus.sn.solver.solve_sn` free-function entry points.
+    Production solvers handle 1000-group industrial data and want
+    direct control over solver tuning — folding their cross-cutting
+    parameters into a Protocol facade hides that tuning. Per
     :doc:`/skills/algebra-of-record` § "Structural independence
-    applies above the trusted-library line", the production CP / SN
-    solvers consume their own scipy / numpy primitives via separate
-    code paths and share NO in-house primitive with the
+    applies above the trusted-library line", the production solvers
+    consume their own scipy / numpy primitives via separate code
+    paths and share NO in-house primitive with the
     continuous-reference family above the trusted-library line.
 
     Examples
@@ -257,16 +254,19 @@ KNOWN_TRANSPORT_SOLVERS: tuple[str, ...] = (
     "fn_method",
     "singular_eigenfunction",
     "galerkin_spectral",
-    "cp",
-    "sn",
 )
 """Stable tag set covering today's TransportSolver-conformant classes.
 
 Used by ``test_solver_registry_is_complete`` to detect silent
-removal of ``method_name`` from a math-heart or discrete-mesh
-adapter. New pillars (singular_eigenfunction, galerkin_spectral,
-moc, mc) join this tuple as they land. The string tag is the same
-one each class returns from :attr:`TransportSolver.method_name`.
+removal of ``method_name`` from a math-heart class. New continuous-
+reference pillars (singular_eigenfunction, galerkin_spectral, ...)
+join this tuple as they land. The string tag is the same one each
+class returns from :attr:`TransportSolver.method_name`.
+
+Production discrete-mesh solvers (CP, SN) are NOT listed — they
+consume ``(materials, mesh, params)`` directly via the canonical
+``solve_cp`` / ``solve_sn`` entry points and do not conform to the
+Protocol surface.
 """
 
 

@@ -6,16 +6,25 @@ Transport Solver Protocol
 
 The :class:`~orpheus.derivations.common.solver_protocol.TransportSolver`
 Protocol is the structural unification of the project's
-**math-heart pattern** with its **production discrete-mesh
-solvers**. Both classes of object — the analytical reference
-solvers (``Billiard``, ``MomentSpace``, the parallel ``Spectrum``
-and ``BasisSpace``) and the production CP/SN classes
-(:class:`~orpheus.cp.solver.CPSolver`,
-:class:`~orpheus.sn.solver.SNSolver`) — answer the same question:
-*given materials and a geometry, what is the critical configuration?*
-The Protocol gives them a shared attribute / method surface so
+**math-heart pattern** for analytical reference solvers
+(``Billiard``, ``MomentSpace``, the parallel ``Spectrum`` and
+``BasisSpace``). They answer the same question — *given materials
+and a geometry, what is the critical configuration?* — and the
+Protocol gives them a shared attribute / method surface so
 cross-method comparators can substitute one for another without
 case-by-case ``isinstance`` branching.
+
+Production discrete-mesh solvers (:class:`~orpheus.cp.solver.CPSolver`,
+:class:`~orpheus.sn.solver.SNSolver`) deliberately stay **off** the
+Protocol. They consume ``(materials, mesh, params)`` directly via the
+canonical :func:`~orpheus.cp.solver.solve_cp` /
+:func:`~orpheus.sn.solver.solve_sn` entry points. Forcing them under
+the Protocol facade hid solver tuning behind a thin wrapper and
+bundled cross-cutting parameters into a redundant struct; production
+callers chew through 1000-group industrial data and need direct
+access to the solver-tuning surface. The geometry → mesh transition
+(:meth:`~orpheus.geometry.mesh.Mesh1D.from_geometry`) is an explicit
+caller-side step, not a hidden one inside the solver.
 
 .. contents:: On this page
    :local:
@@ -30,13 +39,11 @@ of the transport problem:
 
 1. **What** — the materials (``dict[int, Mixture]``) and the
    geometry (``GeometrySpec``). These are *method-agnostic* — the
-   same problem description is served to a CP solver, an SN solver,
-   and an F_N moment space.
+   same problem description is served to every Protocol-conformant
+   reference solver (F_N moment space, trajectory resolvent, ...).
 2. **How** — the method-specific computational specialisation. F_N
    commits to a moment basis order :math:`N`; trajectory_resolvent
-   commits to a billiard table classified by orbit-space rank;
-   discrete CP/SN commit to a discretisation
-   (:class:`~orpheus.derivations.common.discretization_spec.DiscretizationSpec`).
+   commits to a billiard table classified by orbit-space rank.
    Each Protocol-conforming class owns its own method kwargs;
    the Protocol does NOT dictate them.
 3. **What is asked** — :meth:`solve_critical` returns a
@@ -48,9 +55,8 @@ Why this carving matters: the *what* and *what-is-asked* axes
 are the **substrate** the Protocol lives on; the *how* axis
 is each class's private business. Forcing the *how* into a
 common surface would couple unrelated methods (F_N's ``n_modes``
-has no meaning for a CP solver; CP's ``n_chord_quad`` has no
-meaning for F_N). Keeping it private respects each method's
-mathematical structure.
+has no meaning for a billiard rank). Keeping it private respects
+each method's mathematical structure.
 
 
 Protocol surface (ABNF)
@@ -68,13 +74,12 @@ The full surface every conforming class must expose:
    solve_critical = "def solve_critical(self) -> CriticalSolution"
 
 That is the *entire* contract. Method-specific kwargs
-(``fn_order``, ``quadrature``, :class:`DiscretizationSpec`,
-``flux_reconstruction``) are carried on each class as their own
-fields; the Protocol does not see them. This deliberate
-minimalism follows from the *unify-after-two-instances* memory
-(``feedback_unify_after_two_instances.md``): the Protocol was
-designed only after both ``Billiard`` and ``MomentSpace`` had
-shipped, so its surface matches what they already exposed.
+(``fn_order``, ``quadrature``, ``flux_reconstruction``) are carried on
+each class as their own fields; the Protocol does not see them. This
+deliberate minimalism follows from the *unify-after-two-instances*
+memory (``feedback_unify_after_two_instances.md``): the Protocol was
+designed only after both ``Billiard`` and ``MomentSpace`` had shipped,
+so its surface matches what they already exposed.
 
 
 Why a Protocol, not an ABC
@@ -88,18 +93,14 @@ reality:
 * ``Billiard`` and ``MomentSpace`` were designed independently
   before the Protocol; an ABC would have required retroactive
   subclassing.
-* Production CP / SN classes (``CPSolver``, ``SNSolver``) take
-  on Protocol conformance through their ``from_problem``
-  factories without inheriting from any base — the legacy
-  ``__init__`` + function-level ``solve_cp`` / ``solve_sn`` API
-  remains intact for callers that don't need the cross-method
-  surface. (Step 4 of the input-cleanup track, 2026-05-04, retired
-  the test-only adapter scaffold that previously wrapped these
-  classes.)
 * The Protocol is :func:`runtime_checkable`, so
   ``isinstance(x, TransportSolver)`` works for the schema-gate
   tests in :mod:`tests.derivations.test_transport_solver_protocol`
   without a registration step.
+
+Production discrete-mesh solvers (CPSolver, SNSolver) deliberately
+stay off the Protocol — see § *Production solvers stay direct*
+below.
 
 
 Protocol vs adapter layer
@@ -138,7 +139,7 @@ function-level call and produce the same float result.
 Concrete realisations
 =====================
 
-Six Protocol-conforming classes / adapters ship today:
+Four Protocol-conforming continuous-reference classes ship today:
 
 .. list-table::
    :header-rows: 1
@@ -166,21 +167,6 @@ Six Protocol-conforming classes / adapters ship today:
      - Dahl-Sjöstrand Legendre-Galerkin block-matrix linearisation
        (parallel agent — see
        :mod:`orpheus.derivations.continuous.galerkin_spectral`).
-   * - :class:`~orpheus.cp.solver.CPSolver`
-     - cp
-     - Production CP solver. ``CPSolver.from_problem`` builds
-       :class:`Mesh1D` via :meth:`GeometrySpec.build`, constructs
-       the per-group :math:`P_\infty` matrices via :class:`CPMesh`,
-       and returns a Protocol-conforming instance.
-       :meth:`solve_critical` runs the existing CP power
-       iteration and re-packs into :class:`CriticalSolution`.
-   * - :class:`~orpheus.sn.solver.SNSolver`
-     - sn
-     - Production SN solver (1-D Gauss-Legendre).
-       ``SNSolver.from_problem`` builds :class:`Mesh1D`,
-       constructs :class:`GaussLegendre1D` at the requested
-       ordinate count, wraps mesh + quadrature in :class:`SNMesh`,
-       and returns a Protocol-conforming instance.
 
 The math-rich theory for the continuous-reference classes lives
 on each method's existing theory page; the
@@ -190,52 +176,51 @@ function" places ``Billiard`` (path-integral) and
 landscape.
 
 
-Discretisation parameters for discrete adapters
-=================================================
+Production solvers stay direct
+==============================
 
-Production solvers (CP, SN) need *additional* parameters that
-continuous-reference solvers don't: cell counts, angular
-quadrature orders, chord-integration orders. The
-:class:`~orpheus.derivations.common.discretization_spec.DiscretizationSpec`
-dataclass packs these into a single immutable object that
-``CPSolver.from_problem`` and ``SNSolver.from_problem`` consume.
+Production discrete-mesh solvers (:class:`~orpheus.cp.solver.CPSolver`,
+:class:`~orpheus.sn.solver.SNSolver`) deliberately stay **off** the
+Protocol. The canonical entry points are the free functions
+:func:`~orpheus.cp.solver.solve_cp` /
+:func:`~orpheus.sn.solver.solve_sn`, which consume
+``(materials, mesh, params)`` directly:
 
 .. code-block:: python
 
-    from orpheus.derivations.common.discretization_spec import (
-        DiscretizationSpec,
-    )
-    from orpheus.derivations.common.geometry_spec import (
-        GeometrySpec,
-    )
-    from orpheus.cp.solver import CPSolver
-    from orpheus.sn.solver import SNSolver
+    from orpheus.cp.solver import CPParams, solve_cp
+    from orpheus.geometry import Mesh1D
+    from orpheus.geometry.structured_geometry import StructuredGeometry
 
-    spec = GeometrySpec(geometry="sphere",
-        critical_dimension_mfp=2.5, critical_dimension_cm=5.0,
-        n_groups=1)
+    # Build the mesh explicitly. Production callers control
+    # cell counts per region — multi-region geometries via
+    # Mesh1D.from_geometry, single-region via the geometry
+    # factory helpers.
+    geom = StructuredGeometry.sphere(R_cm=5.0, mat_id=0, bc="white")
+    mesh = Mesh1D.from_geometry(geom, region_meshes=({"n_cells": 50},))
 
-    cp = CPSolver.from_problem(
-        materials={0: pu_mixture},
-        geometry_spec=spec,
-        discretization=DiscretizationSpec(
-            n_cells=50, n_chord_quad=64,
-        ),
-    )
-    sol = cp.solve_critical()  # CriticalSolution
+    # Solver tuning lives on the production-side params struct.
+    params = CPParams(n_quad_y=64, max_outer=500, keff_tol=1e-6)
 
-The fields of :class:`DiscretizationSpec`:
+    result = solve_cp({0: pu_mixture}, mesh=mesh, params=params)
+    # result.keff, result.flux, result.keff_history, ...
 
-* ``n_cells`` — production mesh refinement (passed to
-  :meth:`GeometrySpec.build`).
-* ``n_angular`` — angular quadrature order (SN only; CP
-  integrates analytically over angle).
-* ``n_chord_quad`` — chord integration order (CP curvilinear
-  only; slab CP is closed-form in :math:`E_3`).
+Why CP / SN stay off the Protocol:
 
-Defaults match production-side conventions
-(``CPParams.n_quad_y = 64``,
-``GaussLegendre1D.create(n_ordinates=16)``).
+* Production solvers chew through 1000-group industrial data;
+  bundling their cross-cutting parameters
+  (``n_cells``, ``n_quad_y``, ``max_outer``, ``keff_tol``,
+  ``solver_mode``) behind a Protocol facade hid solver tuning
+  behind a thin wrapper.
+* The geometry → mesh transition is an explicit caller-side
+  step (:meth:`~orpheus.geometry.mesh.Mesh1D.from_geometry`).
+  Production solvers stay focused on the solve, not on geometry
+  management.
+* Mismatches between geometry and angular quadrature
+  (e.g. cylindrical SN requires level-symmetric / product
+  quadrature, not 1-D Gauss-Legendre) are surfaced at the
+  caller — a Protocol facade silently picked Gauss-Legendre
+  regardless of geometry, masking the bug.
 
 
 Foundation-tier verification
@@ -250,10 +235,13 @@ the *shape* those L1-verified components must expose.
 
 Foundation-tier tests:
 
-* :mod:`tests.derivations.test_transport_solver_protocol` — 14
-  tests. Conformance + ``KNOWN_TRANSPORT_SOLVERS`` registry +
-  attribute-surface drift detection. Covers ``Billiard``,
-  ``MomentSpace``, ``CPSolver``, and ``SNSolver``.
+* :mod:`tests.derivations.test_transport_solver_protocol` —
+  conformance + ``KNOWN_TRANSPORT_SOLVERS`` registry +
+  attribute-surface drift detection. Covers ``Billiard`` and
+  ``MomentSpace`` (the four continuous-reference pillars). The
+  registry-completeness test also pins that production
+  ``cp`` / ``sn`` tags are NOT in the registry — production
+  solvers stay off the Protocol.
 * :mod:`tests.derivations.test_trajectory_resolvent_billiard` —
   11 tests. Bit-equality between :meth:`Billiard.solve_critical`
   and the underlying ``solve_greens_function_*`` entry points
@@ -263,12 +251,6 @@ Foundation-tier tests:
   — 6 tests. Bit-equality with the function-level F_N API.
 * :mod:`tests.cross_method.test_polymorphism` — 6 tests.
   Adapter ↔ Protocol agreement on canonical cases.
-* :mod:`tests.cross_method.test_production_protocol_smoke` — 7
-  tests (1 skipped). Constructibility, non-crash solve, Protocol
-  conformance for ``CPSolver`` / ``SNSolver`` via
-  ``from_problem``. (Replaces the earlier
-  ``test_discrete_adapters_smoke`` that exercised the retired
-  test-only ``CPMeshAdapter`` / ``SNMeshAdapter`` scaffold.)
 
 The legacy↔new factory bit-equality test
 (``test_billiard_from_problem_unified``) was removed when the
