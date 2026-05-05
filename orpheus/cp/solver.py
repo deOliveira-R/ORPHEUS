@@ -80,7 +80,7 @@ class CPResult:
     flux_clad: np.ndarray
     flux_cool: np.ndarray
     geometry: Mesh1D
-    eg: np.ndarray
+    eg: np.ndarray | None  # (ng+1,) energy boundaries, or None for synthetic XS
     elapsed_seconds: float
     residual_history: list[float] = field(default_factory=list)
     n_inner: np.ndarray | None = None  # (n_outer, ng) inner iteration counts

@@ -41,20 +41,25 @@ class MoCResult:
     flux_per_material: dict[int, np.ndarray]  # mat_id -> (ng,) volume-averaged flux
     scalar_flux: np.ndarray   # (n_regions, ng) scalar flux per FSR
     moc_mesh: MOCMesh
-    eg: np.ndarray            # (ng+1,) energy group boundaries
+    eg: np.ndarray | None     # (ng+1,) energy boundaries, or None for synthetic XS
     elapsed_seconds: float
 
     @property
+    def ng(self) -> int:
+        """Number of energy groups (derived from the flux array)."""
+        return self.scalar_flux.shape[1]
+
+    @property
     def flux_fuel(self) -> np.ndarray:
-        return self.flux_per_material.get(2, np.zeros(len(self.eg) - 1))
+        return self.flux_per_material.get(2, np.zeros(self.ng))
 
     @property
     def flux_clad(self) -> np.ndarray:
-        return self.flux_per_material.get(1, np.zeros(len(self.eg) - 1))
+        return self.flux_per_material.get(1, np.zeros(self.ng))
 
     @property
     def flux_cool(self) -> np.ndarray:
-        return self.flux_per_material.get(0, np.zeros(len(self.eg) - 1))
+        return self.flux_per_material.get(0, np.zeros(self.ng))
 
 
 # ---------------------------------------------------------------------------

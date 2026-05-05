@@ -66,6 +66,7 @@ class SNFixedSourceResult:
     n_inner: int               # source iterations used
     residual: float            # final ||Δφ||/||φ||
     elapsed_seconds: float
+    eg: np.ndarray | None = None  # (ng+1,) energy boundaries, or None for synthetic XS
 
 
 @dataclass
@@ -82,7 +83,7 @@ class SNResult:
     scalar_flux: np.ndarray    # (nx, ny, ng) = Σ w_n ψ_n
     geometry: Mesh1D | Mesh2D
     quadrature: AngularQuadrature
-    eg: np.ndarray             # (ng+1,) energy group boundaries
+    eg: np.ndarray | None      # (ng+1,) energy boundaries, or None for synthetic XS
     elapsed_seconds: float
 
 
@@ -696,6 +697,7 @@ def solve_sn_fixed_source(
         n_inner = max_inner - 1  # loop exhausted without break
 
     elapsed = time.perf_counter() - t_start
+    _any_mat = next(iter(materials.values()))
     return SNFixedSourceResult(
         angular_flux=angular,
         scalar_flux=phi,
@@ -704,4 +706,5 @@ def solve_sn_fixed_source(
         n_inner=n_inner + 1,
         residual=float(residual),
         elapsed_seconds=elapsed,
+        eg=_any_mat.eg,
     )

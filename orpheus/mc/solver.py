@@ -329,16 +329,22 @@ class NeutronBank:
 
 @dataclass
 class _PrecomputedXS:
-    """Cached cross-section data that doesn't change between cycles."""
+    """Cached cross-section data that doesn't change between cycles.
+
+    The energy-grid fields (``eg``, ``eg_mid``, ``du``) are ``None`` when
+    the underlying mixtures carry no physical grid (synthetic XS post
+    Phase E).  In that case the MC tally is still recorded; only the
+    flux-per-lethargy diagnostic is unavailable.
+    """
 
     sig_t_max: np.ndarray       # (ng,) majorant per group
     sig_s_dense: dict           # mat_id -> (ng, ng) dense scattering
     sig_2n_dense: dict          # mat_id -> (ng, ng) dense (n,2n) matrix
     chi_cum: np.ndarray         # cumulative fission spectrum
     ng: int
-    eg: np.ndarray              # energy group boundaries
-    eg_mid: np.ndarray          # mid-group energies
-    du: np.ndarray              # lethargy widths
+    eg: np.ndarray | None       # energy group boundaries; None for synthetic XS
+    eg_mid: np.ndarray | None   # mid-group energies; None for synthetic XS
+    du: np.ndarray | None       # lethargy widths; None for synthetic XS
 
 
 def _precompute_xs(materials: dict[int, Mixture]) -> _PrecomputedXS:
@@ -346,8 +352,12 @@ def _precompute_xs(materials: dict[int, Mixture]) -> _PrecomputedXS:
     _any_mat = next(iter(materials.values()))
     ng = _any_mat.ng
     eg = _any_mat.eg
-    eg_mid = 0.5 * (eg[:ng] + eg[1:ng + 1])
-    du = np.log(eg[1:ng + 1] / eg[:ng])
+    if eg is None:
+        eg_mid = None
+        du = None
+    else:
+        eg_mid = 0.5 * (eg[:ng] + eg[1:ng + 1])
+        du = np.log(eg[1:ng + 1] / eg[:ng])
 
     sig_t_max = np.zeros(ng)
     for mix in materials.values():
@@ -514,14 +524,22 @@ class MCParams:
 
 @dataclass
 class MCResult:
-    """Results of a Monte Carlo calculation."""
+    """Results of a Monte Carlo calculation.
+
+    The energy-grid fields (``eg``, ``eg_mid``, ``flux_per_lethargy``)
+    are ``None`` when the materials carry no physical grid (synthetic
+    Sood-style XS, post-Phase-E). The raw ``tally`` is always populated
+    so downstream tests can inspect the per-group counts directly.
+    """
 
     keff: float               # estimated k-effective
     sigma: float              # standard deviation of keff
     keff_history: np.ndarray  # (n_active,) cumulative mean keff
     sigma_history: np.ndarray  # (n_active,) cumulative sigma
-    flux_per_lethargy: np.ndarray  # (ng,) cell-averaged flux / du
-    eg_mid: np.ndarray        # (ng,) mid-group energies
+    tally: np.ndarray         # (ng,) raw scattering tally (always populated)
+    flux_per_lethargy: np.ndarray | None  # (ng,) tally / |du|; None if no grid
+    eg_mid: np.ndarray | None  # (ng,) mid-group energies; None if no grid
+    eg: np.ndarray | None     # (ng+1,) energy boundaries; None if no grid
     elapsed_seconds: float
 
 
@@ -607,12 +625,16 @@ def solve_monte_carlo(
     elapsed = time.perf_counter() - t_start
     print(f"  Elapsed: {elapsed:.1f}s")
 
+    flux_per_lethargy = tally / np.abs(xs.du) if xs.du is not None else None
+
     return MCResult(
         keff=keff_history[-1],
         sigma=sigma_history[-1],
         keff_history=keff_history,
         sigma_history=sigma_history,
-        flux_per_lethargy=tally / np.abs(xs.du),
+        tally=tally,
+        flux_per_lethargy=flux_per_lethargy,
         eg_mid=xs.eg_mid,
+        eg=xs.eg,
         elapsed_seconds=elapsed,
     )
