@@ -22,13 +22,10 @@ import numpy as np
 
 from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.discretization_spec import DiscretizationSpec
-from orpheus.derivations.common.geometry_spec import GeometrySpec
-from orpheus.derivations.common.solution_types import CriticalSolution
 from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.numerics.eigenvalue import power_iteration
 from .geometry import SNMesh
-from .quadrature import AngularQuadrature, GaussLegendre1D
+from .quadrature import AngularQuadrature
 from .sweep import transport_sweep
 
 
@@ -105,24 +102,7 @@ class SNSolver:
     scattering_order : int — Legendre order for scattering (0 = P0).
     keff_tol, flux_tol : outer iteration convergence.
     max_inner, inner_tol : inner iteration parameters.
-
-    TransportSolver Protocol conformance
-    ------------------------------------
-
-    Instances built via :meth:`SNSolver.from_problem` carry the three
-    Protocol attributes ``materials`` (``dict[int, Mixture]``),
-    ``geometry_spec`` (``GeometrySpec``), and ``method_name`` (always
-    ``"sn"``), plus the :meth:`solve_critical` method that returns a
-    :class:`~orpheus.derivations.common.solution_types.CriticalSolution`.
-    Direct ``__init__`` calls (the legacy path used by ``solve_sn``)
-    populate ``materials`` but leave ``geometry_spec`` as ``None`` —
-    the function-level ``solve_sn`` API consumes a ``Mesh1D`` /
-    ``Mesh2D`` directly.
     """
-
-    # Protocol tag — class-level so isinstance(x, TransportSolver)
-    # matches even before from_problem assigns the per-instance bits.
-    method_name: str = "sn"
 
     def __init__(
         self,
@@ -198,173 +178,6 @@ class SNSolver:
 
         # Volume array for keff computation
         self.volume = sn_mesh.volumes
-
-        # TransportSolver Protocol attributes — populated by
-        # :meth:`from_problem`. The legacy ``__init__`` path leaves
-        # ``geometry_spec`` as ``None`` because the function-level
-        # ``solve_sn`` API consumes a ``Mesh1D`` / ``Mesh2D`` directly.
-        self.materials: dict[int, Mixture] = dict(materials)
-        self.geometry_spec: GeometrySpec | None = None
-
-    @classmethod
-    def from_problem(
-        cls,
-        *,
-        materials: dict[int, Mixture],
-        geometry_spec: GeometrySpec,
-        discretization: DiscretizationSpec | None = None,
-    ) -> "SNSolver":
-        r"""Construct a Protocol-conforming :class:`SNSolver` from problem inputs.
-
-        This factory is the
-        :class:`~orpheus.derivations.common.solver_protocol.TransportSolver`
-        Protocol entry point for the production SN solver. It mirrors
-        :meth:`Billiard.from_problem` /
-        :meth:`MomentSpace.from_problem` /
-        :meth:`CPSolver.from_problem` — every conforming class accepts
-        the same ``(materials, geometry_spec)`` shape.
-
-        Internally:
-
-        1. Builds a :class:`~orpheus.geometry.mesh.Mesh1D` via
-           :meth:`GeometrySpec.build` at the requested cell count
-           (multi-region geometries are dispatched natively by the
-           spec).
-        2. Builds the :math:`S_N` angular quadrature
-           (:class:`GaussLegendre1D` for 1-D meshes) at the requested
-           ordinate count.
-        3. Wraps mesh + quadrature in :class:`SNMesh` (precomputes
-           streaming stencil + angular redistribution coefficients).
-        4. Returns an instance ready for :meth:`solve_critical`.
-
-        Parameters
-        ----------
-        materials : dict[int, Mixture]
-            Production-protocol cross sections keyed by material ID.
-        geometry_spec : GeometrySpec
-            Method-agnostic geometry + boundary specification.
-            Supported families: ``"slab"``, ``"sphere"``,
-            ``"cylinder"``. Boundary conditions on ``geometry_spec``
-            are passed through verbatim — this factory does NOT
-            silently rewrite user-requested BCs.
-        discretization : DiscretizationSpec, optional
-            Discretization parameters. Defaults to
-            :class:`DiscretizationSpec` defaults
-            (``n_cells=20``, ``n_angular=16``). Only ``n_cells`` and
-            ``n_angular`` are consumed by SN; ``n_chord_quad`` is
-            ignored (CP-only).
-
-        Returns
-        -------
-        SNSolver
-            A Protocol-conforming instance with ``materials``,
-            ``geometry_spec``, and ``method_name = "sn"`` populated.
-
-        Raises
-        ------
-        ValueError
-            If ``geometry_spec.geometry`` is not one of
-            ``"slab"`` / ``"sphere"`` / ``"cylinder"``, or if
-            ``discretization.n_angular`` is odd.
-        """
-        if geometry_spec.geometry not in ("slab", "sphere", "cylinder"):
-            raise ValueError(
-                f"SNSolver.from_problem cannot build on geometry "
-                f"{geometry_spec.geometry!r}; supported: "
-                f"slab, sphere, cylinder."
-            )
-        spec = discretization if discretization is not None else DiscretizationSpec()
-        if spec.n_angular % 2 != 0:
-            raise ValueError(
-                f"SNSolver.from_problem requires even n_angular; "
-                f"got {spec.n_angular}"
-            )
-        mesh = geometry_spec.build(n_cells=spec.n_cells)
-        quadrature = GaussLegendre1D.create(n_ordinates=spec.n_angular)
-        sn_mesh = SNMesh(mesh, quadrature)
-
-        instance = cls(materials, sn_mesh)
-        instance.geometry_spec = geometry_spec
-        instance._mesh = mesh
-        instance._quadrature = quadrature
-        instance._discretization = spec
-        # Default outer-iteration budget mirrors ``solve_sn``.
-        instance._max_outer = 500
-        return instance
-
-    def solve_critical(self) -> CriticalSolution:
-        r"""Run the SN power iteration and return a :class:`CriticalSolution`.
-
-        Requires the instance to have been built via
-        :meth:`from_problem` (so the Protocol attributes are
-        populated). Re-packs the converged
-        :math:`(k_{\rm eff}, \phi)` pair into the cross-method
-        :class:`CriticalSolution` shape, stashing the rich
-        :class:`SNResult` in ``metadata["raw_result"]`` for callers
-        that want both.
-
-        Returns
-        -------
-        CriticalSolution
-            With ``eigenvalue_kind = "k_eff"``,
-            ``parameter_kind = "domain_extent_cm"`` (the
-            ``GeometrySpec.domain_extent_cm`` of the configuration
-            the eigenvalue was computed at).
-
-        Raises
-        ------
-        RuntimeError
-            If the instance was constructed via the legacy
-            ``__init__`` path (no ``geometry_spec`` attached).
-        """
-        if self.geometry_spec is None:
-            raise RuntimeError(
-                "SNSolver.solve_critical requires the instance to have "
-                "been built via SNSolver.from_problem. The legacy "
-                "__init__ path is for the inner power-iteration object "
-                "consumed by solve_sn; it does not carry a "
-                "geometry_spec and so cannot answer the cross-method "
-                "TransportSolver Protocol surface."
-            )
-
-        t_start = time.perf_counter()
-        keff, keff_history, scalar_flux = power_iteration(
-            self, max_iter=self._max_outer
-        )
-        # Final sweep to recover the angular flux at the converged
-        # state. Mirrors the tail of ``solve_sn``.
-        Q_final = self.compute_fission_source(scalar_flux, keff)
-        self._add_scattering_source(Q_final, scalar_flux)
-        self._add_n2n_source(Q_final, scalar_flux)
-        angular_flux, _ = transport_sweep(
-            Q_final, self.sig_t, self.sn_mesh, self._psi_bc,
-        )
-        elapsed = time.perf_counter() - t_start
-        _any_mat = next(iter(self.materials.values()))
-        raw_result = SNResult(
-            keff=keff_history[-1],
-            keff_history=keff_history,
-            angular_flux=angular_flux,
-            scalar_flux=scalar_flux,
-            geometry=self._mesh,
-            quadrature=self._quadrature,
-            eg=_any_mat.eg,
-            elapsed_seconds=elapsed,
-        )
-
-        return CriticalSolution(
-            eigenvalue=float(keff),
-            eigenvalue_kind="k_eff",
-            parameter_value=float(self.geometry_spec.domain_extent_cm),
-            parameter_kind="domain_extent_cm",
-            converged=True,
-            metadata={
-                "method": "sn",
-                "n_cells": self._discretization.n_cells,
-                "n_angular": self._discretization.n_angular,
-                "raw_result": raw_result,
-            },
-        )
 
     def initial_flux_distribution(self) -> np.ndarray:
         """Initial scalar flux guess: ones(nx, ny, ng)."""
@@ -706,16 +519,42 @@ def solve_sn(
 ) -> SNResult:
     """Solve the multi-group SN eigenvalue problem.
 
+    This is the **canonical entry point** for the production SN solver.
+    Production callers consume ``(materials, mesh, quadrature, ...)``
+    directly: materials are :class:`~orpheus.data.macro_xs.mixture.Mixture`
+    objects keyed by material ID, ``mesh`` is a
+    :class:`~orpheus.geometry.Mesh1D` / :class:`~orpheus.geometry.Mesh2D`
+    (build via :meth:`Mesh1D.from_geometry` for multi-region 1-D cases),
+    and ``quadrature`` is an explicitly chosen
+    :class:`~orpheus.sn.quadrature.AngularQuadrature` — Gauss-Legendre
+    for slab, level-symmetric / product quadrature for curvilinear, or
+    Lebedev for 2-D.
+
+    The mesh's boundary conditions (``bc_left`` / ``bc_right`` for 1-D,
+    ``bc_xmin`` / ``bc_xmax`` / ``bc_ymin`` / ``bc_ymax`` for 2-D) are
+    honoured verbatim — the SN sweep handles ``vacuum`` and
+    ``reflective``.
+
     Parameters
     ----------
     materials : dict mapping material ID to Mixture.
     mesh : Mesh1D or Mesh2D (base geometry).
-    quadrature : AngularQuadrature (GaussLegendre1D or LebedevSphere).
+    quadrature : AngularQuadrature
+        Explicitly chosen by the caller — Gauss-Legendre for slab,
+        level-symmetric / product quadrature for curvilinear 1-D,
+        Lebedev for 2-D. Mismatches between geometry and quadrature
+        family are not silently coerced.
     inner_solver : "source_iteration" (default) or "bicgstab".
     scattering_order : Legendre order for scattering (0 = P0).
     max_outer : maximum outer (power) iterations.
     keff_tol, flux_tol : outer convergence.
     max_inner, inner_tol : inner solver parameters.
+
+    Returns
+    -------
+    SNResult
+        Eigenvalue, scalar + angular flux, geometry/quadrature handles,
+        and timing.
     """
     t_start = time.perf_counter()
 
