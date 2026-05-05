@@ -28,7 +28,25 @@ class Mixture:
     SigS : list of (NG, NG) sparse matrices, one per Legendre order.
     Sig2 : (NG, NG) sparse — macroscopic (n,2n) matrix.
     chi  : (NG,) — fission spectrum of the mixture.
-    eg   : (NG+1,) — energy group boundaries in eV.
+    eg   : (NG+1,) energy group boundaries in eV, *or* ``None``.
+
+        For real production cases (XS computed via :func:`compute_macro_xs`
+        from ENDF :class:`~orpheus.data.micro_xs.isotope.Isotope`), ``eg``
+        is populated from ``isotopes[0].eg`` — the energy grid is part of
+        the upstream nuclear-data library and is genuinely defined.
+
+        For synthetic / Sood-style abstract cross sections (built via
+        :func:`orpheus.derivations.common.xs_library.make_mixture` or
+        constructed directly in MMS / verification harnesses), ``eg`` is
+        ``None``: there is no real grid. Downstream consumers (lethargy
+        widths, per-energy plotting, spectrum-weighted condensation) MUST
+        guard for ``None`` and either skip the per-energy path or raise
+        a clear error. ``None`` is the intended representation when no
+        physical energy grid exists — *not* a placeholder to be filled in.
+
+        ``eg``'s production use is spectrum-weighted energy condensation
+        (Galerkin projection from fine to coarse groups). That step
+        depends on the grid; it cannot run on synthetic mixtures.
     """
 
     SigC: np.ndarray
@@ -39,7 +57,7 @@ class Mixture:
     SigS: list[csr_matrix]
     Sig2: csr_matrix
     chi: np.ndarray
-    eg: np.ndarray
+    eg: np.ndarray | None = None
 
     @property
     def ng(self) -> int:
