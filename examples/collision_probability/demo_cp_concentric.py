@@ -16,7 +16,7 @@ import argparse
 from pathlib import Path
 
 from orpheus.data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
-from orpheus.geometry import pwr_pin_equivalent
+from orpheus.geometry import Mesh1D, RegionMesh, StructuredGeometry
 from orpheus.cp.solver import CPParams, solve_cp
 from plotting import (
     plot_cp_convergence,
@@ -47,8 +47,17 @@ def main():
     cool = borated_water(temp_K=600, pressure_MPa=16.0, boron_ppm=4000)
     materials = {2: fuel, 1: clad, 0: cool}
 
-    # 2. Set up Wigner-Seitz cylindrical geometry
-    mesh = pwr_pin_equivalent(n_fuel=10, n_clad=3, n_cool=7)
+    # 2. Set up Wigner-Seitz cylindrical geometry, then discretize.
+    #    Geometry layer: shape + BCs only. Mesh layer: per-region cell
+    #    counts and discretization scheme.
+    geom = StructuredGeometry.wigner_seitz_pin_cell(
+        r_fuel=0.9, r_clad=1.1, pitch=3.6,
+    )
+    mesh = Mesh1D.from_geometry(geom, region_meshes=(
+        RegionMesh(n_cells=10),  # fuel — equal-volume default
+        RegionMesh(n_cells=3),   # clad
+        RegionMesh(n_cells=7),   # coolant
+    ))
     params = CPParams(solver_mode=solver_mode)
 
     n_fuel = (mesh.mat_ids == 2).sum()

@@ -7,11 +7,22 @@ solver-specific state on top of it.
 
 Both :class:`Mesh1D` and :class:`Mesh2D` are frozen dataclasses --
 once created, their fields cannot be reassigned.
+
+Mesh construction from geometry
+-------------------------------
+
+The canonical path from a :class:`StructuredGeometry` to a
+:class:`Mesh1D` is :meth:`Mesh1D.from_geometry`, which takes the
+per-region discretization description as a tuple of
+:class:`RegionMesh` instances. Discretization (cell counts, scheme)
+is a mesh-layer concern — the geometry itself doesn't know or care
+about cell counts.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
@@ -21,6 +32,9 @@ from .coord import (
     compute_volumes_1d,
     compute_volumes_2d,
 )
+
+if TYPE_CHECKING:
+    from .structured_geometry import StructuredGeometry
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -110,6 +124,83 @@ class BC:
 BC.vacuum = BC("vacuum")  # type: ignore[attr-defined]
 BC.reflective = BC("reflective")  # type: ignore[attr-defined]
 BC.white = BC("white")  # type: ignore[attr-defined]
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# RegionMesh — per-region discretization description (mesh-layer concern)
+# ═══════════════════════════════════════════════════════════════════════
+
+@dataclass(frozen=True)
+class RegionMesh:
+    r"""How to discretize one region of a :class:`StructuredGeometry`.
+
+    Lives at the **mesh layer** because discretization is a mesh
+    concern, not a geometry concern. The same
+    :class:`StructuredGeometry` can be meshed with different
+    :class:`RegionMesh` tuples for different studies (mesh refinement,
+    uniform-vs-equal-volume comparison, future temperature-aware
+    schemes).
+
+    Parameters
+    ----------
+    n_cells : int
+        Number of sub-cells inside this region. Must be ≥ 1.
+    method : str
+        Discretization scheme. Today's options:
+
+        * ``"equal-volume"`` (default) — cells of equal volume.
+          Yields uniform width for Cartesian; radially-graded width
+          for cylindrical (``r ∝ √k``) and spherical (``r ∝ k^(1/3)``)
+          per the equal-volume invariants in
+          :func:`~orpheus.geometry.factories._subdivide_zone`.
+        * ``"uniform"`` — cells of equal radial extent regardless of
+          coordinate system. Useful when a method's accuracy depends
+          on radial spacing rather than volume.
+
+        Future: ``"temperature-graded"`` for inhomogeneous-temperature
+        cases (Doppler-broadening grids), ``"adaptive"`` for output
+        of refinement studies.
+
+    Examples
+    --------
+
+    Default scheme (equal-volume), single region with 64 cells::
+
+        RegionMesh(n_cells=64)
+
+    Uniform discretization, fine outer mesh::
+
+        (
+            RegionMesh(n_cells=10),                          # equal-volume
+            RegionMesh(n_cells=20, method="uniform"),        # uniform
+        )
+
+    See Also
+    --------
+    Mesh1D.from_geometry : Construct a Mesh1D from a
+        :class:`StructuredGeometry` + tuple of :class:`RegionMesh`.
+    Region : The geometry-layer per-region descriptor that this
+        :class:`RegionMesh` pairs with at mesh-build time.
+    """
+
+    n_cells: int
+    method: Literal["equal-volume", "uniform"] = "equal-volume"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.n_cells, (int, np.integer)):
+            raise TypeError(
+                f"RegionMesh.n_cells must be int, "
+                f"got {type(self.n_cells).__name__}"
+            )
+        if self.n_cells < 1:
+            raise ValueError(
+                f"RegionMesh.n_cells must be ≥ 1; got {self.n_cells}"
+            )
+        if self.method not in ("equal-volume", "uniform"):
+            raise ValueError(
+                f"RegionMesh.method must be 'equal-volume' or 'uniform'; "
+                f"got {self.method!r}"
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -232,6 +323,148 @@ class Mesh1D:
     def total_width(self) -> float:
         """Total extent of the mesh (outer edge minus inner edge)."""
         return float(self.edges[-1] - self.edges[0])
+
+    # ─────────────────────────────────────────────────────────────────
+    # Construction from StructuredGeometry — the canonical entry point
+    # ─────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def from_geometry(
+        cls,
+        geometry: "StructuredGeometry",
+        *,
+        region_meshes: tuple[RegionMesh, ...],
+        origin: float = 0.0,
+    ) -> "Mesh1D":
+        r"""Build a :class:`Mesh1D` from a :class:`StructuredGeometry`
+        plus a per-region discretization description.
+
+        This is the canonical geometry → mesh transition. Production
+        solvers (CP, SN, MOC, MC) consume the resulting :class:`Mesh1D`
+        directly; reference solvers do not need a mesh and consume the
+        :class:`StructuredGeometry` instead.
+
+        Each region in :attr:`geometry.regions <StructuredGeometry.regions>`
+        is paired with the matching :class:`RegionMesh` at the same
+        index. The lengths must match. For each pair:
+
+        * The region's ``mat_id`` is broadcast across the resulting
+          cells.
+        * The region's ``outer_thickness_cm`` and the region-mesh's
+          ``n_cells`` and ``method`` determine the cell edges and
+          volumes.
+
+        Edges are accumulated across regions starting from
+        :paramref:`origin` (default 0). The first region starts at
+        ``origin``; the last region ends at ``origin +
+        geometry.domain_extent_cm``.
+
+        BCs from :attr:`geometry.bcs <StructuredGeometry.bcs>` are
+        propagated onto the resulting mesh's :attr:`bc_left` /
+        :attr:`bc_right` fields:
+
+        * ``"SLB"``: ``bcs[0] → bc_left``, ``bcs[1] → bc_right``.
+        * ``"CYL"`` / ``"SPH"``: ``bcs[0] → bc_right`` (outer surface);
+          ``bc_left`` is left ``None`` (the centreline is implicit
+          reflective at the coordinate origin and is interpreted by
+          each solver's augmented mesh).
+
+        Parameters
+        ----------
+        geometry : StructuredGeometry
+            The geometry to discretize.
+        region_meshes : tuple[RegionMesh, ...]
+            Per-region discretization descriptors. Length must equal
+            ``len(geometry.regions)``.
+        origin : float, optional
+            Position of the inner-most edge in cm. Default 0.0.
+
+        Returns
+        -------
+        Mesh1D
+            A frozen mesh with cells, mat_ids, exact precomputed
+            volumes, and BCs propagated from the geometry.
+
+        Raises
+        ------
+        ValueError
+            If ``len(region_meshes) != len(geometry.regions)``.
+
+        Examples
+        --------
+
+        Three-region pin cell::
+
+            geom = StructuredGeometry.wigner_seitz_pin_cell(
+                r_fuel=0.9, r_clad=1.1, pitch=3.6,
+            )
+            mesh = Mesh1D.from_geometry(geom, region_meshes=(
+                RegionMesh(n_cells=10),
+                RegionMesh(n_cells=3),
+                RegionMesh(n_cells=7),
+            ))
+        """
+        # Local imports to avoid circular: structured_geometry imports
+        # from this module (BC), and we import StructuredGeometry only
+        # for type checking above.
+        from .factories import _subdivide_zone
+
+        if len(region_meshes) != len(geometry.regions):
+            raise ValueError(
+                f"Mesh1D.from_geometry: len(region_meshes)="
+                f"{len(region_meshes)} must equal "
+                f"len(geometry.regions)={len(geometry.regions)}."
+            )
+
+        coord = geometry.coord
+        edges_list: list[np.ndarray] = []
+        mat_ids_list: list[np.ndarray] = []
+        volumes_list: list[np.ndarray] = []
+        inner = float(origin)
+
+        for region, region_mesh in zip(
+            geometry.regions, region_meshes, strict=True,
+        ):
+            outer = inner + float(region.outer_thickness_cm)
+
+            if region_mesh.method == "equal-volume":
+                sub_edges, sub_volumes = _subdivide_zone(
+                    inner, outer, region_mesh.n_cells, coord,
+                )
+            else:  # "uniform"
+                sub_edges = np.linspace(
+                    inner, outer, region_mesh.n_cells + 1,
+                )
+                sub_volumes = compute_volumes_1d(coord, sub_edges)
+
+            # Skip the first sub-edge (== previous region's outer edge)
+            # to avoid duplication at the inter-region boundary.
+            edges_list.append(sub_edges[1:])
+            mat_ids_list.append(
+                np.full(region_mesh.n_cells, region.mat_id, dtype=int)
+            )
+            volumes_list.append(sub_volumes)
+            inner = outer
+
+        edges = np.concatenate([[float(origin)], *edges_list])
+        mat_ids = np.concatenate(mat_ids_list)
+        volumes = np.concatenate(volumes_list)
+
+        # Map geometry BCs onto the mesh's bc_left / bc_right fields.
+        if geometry.geometry == "SLB":
+            bc_left, bc_right = geometry.bcs
+        else:  # CYL / SPH — single outer BC; centreline implicit
+            bc_left = None
+            bc_right = geometry.bcs[0]
+
+        return cls(
+            edges=edges,
+            mat_ids=mat_ids,
+            coord=coord,
+            precomputed_volumes=volumes,
+            bc_left=bc_left,
+            bc_right=bc_right,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
