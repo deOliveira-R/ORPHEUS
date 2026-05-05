@@ -95,12 +95,70 @@ class La13511Truth:
     angular_flux_at_surface : Mapping[float, Mapping[float, float]] | None
         Reserved for future cases that publish surface angular flux
         :math:`\\psi(\\mu, r=R)`. ``None`` for first-slice cases.
+    critical_dimension_mfp : float | None
+        Published critical dimension in mean free paths.
+
+        For ``"slab"``: the half-thickness :math:`a` (F_N convention).
+        For ``"sphere"`` / ``"cylinder"``: the radius :math:`R`.
+        For ``"infinite"``: ``None``.
+
+        Use case: registry-truth value (the published critical
+        configuration). Multiply by :math:`1 / \\Sigma_t` to convert to
+        cm; this is what :meth:`La13511Case.to_geometry` does internally.
+        Living on Truth and not on geometry mirrors the architectural
+        fact that this is a truth claim ("at this size, the configuration
+        is critical"), not a geometric description.
+    extrapolated_endpoint_mfp : float | None
+        Published extrapolated endpoint :math:`z_0` in mean free paths.
+
+        Standard transport-theory value used for diffusion-theory
+        boundary conditions. Optional metadata; not all cases publish it.
     """
 
     k_eff_or_kinf: float
     flux_ratios: Mapping[float, float] | None = None
     flux_ratio_groupwise: Mapping[int, float] | None = None
     angular_flux_at_surface: Mapping[float, Mapping[float, float]] | None = None
+    critical_dimension_mfp: float | None = None
+    extrapolated_endpoint_mfp: float | None = None
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Provenance — citation / publication metadata
+# ═══════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True)
+class Provenance:
+    """Citation / publication metadata for a registry case.
+
+    Separates *where the case came from* from *what the case is*.
+    Pure metadata; not used in any solve. Mirrors (with structure) the
+    legacy flat fields ``La13511Case.sood_table`` /
+    ``La13511Case.primary_reference`` / ``La13511Case.notes``.
+
+    Parameters
+    ----------
+    paper_id : str
+        Short identifier for the source paper (e.g. ``"LA-13511"``,
+        ``"Atalay-1997"``, ``"NM-1980"``).
+    paper_table : int | str
+        Table number (or compound table/case label) within the paper
+        where this case is tabulated. Integer for simple cases (e.g.
+        ``8``); string for compound labels (e.g. ``"Table 1 / Case 4"``).
+    primary_reference : str
+        Full bibliographic citation for the *primary* peer-reviewed
+        source — the paper Sood (or the case's own author) cites as
+        the source of the reference values.
+    notes : str
+        Any extra remarks (typo flags, convention drift, conversion
+        subtleties, known issues, cross-checks). Default empty string.
+    """
+
+    paper_id: str
+    paper_table: int | str
+    primary_reference: str
+    notes: str = ""
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -147,6 +205,12 @@ class La13511Case:
         reference values.
     notes : str
         Any extra remarks (typo flags, conversion subtleties, etc).
+    provenance : Provenance | None
+        Structured citation metadata mirroring ``sood_table`` /
+        ``primary_reference`` / ``notes``. Optional today (Phase B
+        adds the field; Phase C/D migrate consumers; Phase F removes
+        the flat fields). When None, no structured provenance has
+        been populated yet.
 
     Notes
     -----
@@ -171,6 +235,7 @@ class La13511Case:
     sood_table: int
     primary_reference: str
     notes: str = ""
+    provenance: Provenance | None = None
 
     # ── Legacy compatibility properties ────────────────────────────
 

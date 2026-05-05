@@ -54,6 +54,7 @@ from .la13511 import (
     # Core schema
     La13511Case,
     La13511Truth,
+    Provenance,
     GeometrySpec,
     # Phase A first slice (5)
     ALL_FIRST_SLICE,
@@ -137,6 +138,7 @@ __all__ = [
     # Core schema
     "La13511Case",
     "La13511Truth",
+    "Provenance",
     "GeometrySpec",
     # Phase A first slice
     "PUA_1_0_IN",
