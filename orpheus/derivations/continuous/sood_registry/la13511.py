@@ -518,6 +518,12 @@ PUA_1_0_IN = La13511Case(
         "'c' factor in Eq 20 cancels algebraically (verified in "
         "fn_method.origins.k_inf_derivations.derive_kinf_1g_eq_20_simplifies_to_eq_19)."
     ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=2,
+        primary_reference="LA-13511 Eq 20 (closed form)",
+        notes="1G infinite-medium k_inf reduces to nu·Sigma_f/Sigma_a; the 'c' factor in Eq 20 cancels algebraically (verified in fn_method.origins.k_inf_derivations.derive_kinf_1g_eq_20_simplifies_to_eq_19).",
+    ),
 )
 
 
@@ -586,6 +592,12 @@ PU_2_0_IN = La13511Case(
         "exposes the correct general form by computing det(M)=0 from "
         "Eq 25 directly, and verifies the published Eq 29 against it."
     ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=30,
+        primary_reference="LA-13511 Eq 28-29 (k_inf) + Eq 32 (flux ratio)",
+        notes="Sood Eq 28 has a typo: the chi_1 and chi_2 numerators have the wrong Sigma_g^rem factor — Eq 28 as printed reduces to 2.862 (not 2.684) when Sigma_21s = 0, while Eq 29 (printed separately) reduces correctly. The SymPy derivation in fn_method.origins.k_inf_derivations.derive_kinf_2g_general_from_matrix exposes the correct general form by computing det(M)=0 from Eq 25 directly, and verifies the published Eq 29 against it.",
+    ),
 )
 
 
@@ -631,6 +643,7 @@ UA_1_0_SL_STUB = La13511Case(
             0.75: 0.7055218,
             1.00: 0.4461912,
         },
+        critical_dimension_mfp=0.93772556,
     ),
     sood_table=4,
     primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94",
@@ -639,6 +652,12 @@ UA_1_0_SL_STUB = La13511Case(
         "fn_method.slab.solve_fn_slab_bare_critical). Critical "
         "dimension is the half-thickness; slab full width is "
         "2*critical_dimension_cm = 5.745868 cm."
+    ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=4,
+        primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94",
+        notes="Slab F_N solver shipped at ≤5e-6 absolute on a_c (see fn_method.slab.solve_fn_slab_bare_critical). Critical dimension is the half-thickness; slab full width is 2*critical_dimension_cm = 5.745868 cm.",
     ),
 )
 
@@ -661,6 +680,7 @@ UA_1_0_CY_STUB = La13511Case(
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.0,
+        critical_dimension_mfp=1.72500292,
     ),
     sood_table=5,
     primary_reference="Westfall-Metcalf 1973 NSE 52, 1",
@@ -673,6 +693,12 @@ UA_1_0_CY_STUB = La13511Case(
         "1e-5 anchor. WM-72 prototype provides the second, "
         "structurally-independent cross-check anchor (different "
         "mathematical pillar than Variant α / Bickley-Naylor)."
+    ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=5,
+        primary_reference="Westfall-Metcalf 1973 NSE 52, 1",
+        notes="WM-72 singular-eigenfunction cylinder solver shipped at ~1% relative accuracy (single-cell product integration on the log-singular kernel diagonal; see orpheus.derivations.continuous.singular_eigenfunction.cylinder). Variant α cylinder cross-check at 8.5e-6 holds the strict 1e-5 anchor. WM-72 prototype provides the second, structurally-independent cross-check anchor (different mathematical pillar than Variant α / Bickley-Naylor).",
     ),
 )
 
@@ -703,6 +729,7 @@ UA_1_0_SP_STUB = La13511Case(
             0.75: 0.48095413,
             1.00: 0.17177706,
         },
+        critical_dimension_mfp=2.4248249802,
     ),
     sood_table=6,
     primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94 (Table VII)",
@@ -713,6 +740,12 @@ UA_1_0_SP_STUB = La13511Case(
         "Flux ratios populated from KLL Table VII c=1.30 row — same "
         "XS as this case (cross-check via "
         "fn_method.sphere.flux_reconstruction)."
+    ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=6,
+        primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94 (Table VII)",
+        notes="Sphere F_N solver shipped at ≤1e-7 absolute on R_c (see fn_method.sphere.solve_fn_sphere_bare_critical). Used as the structurally-independent L1 reference for Variant α sphere. Flux ratios populated from KLL Table VII c=1.30 row — same XS as this case (cross-check via fn_method.sphere.flux_reconstruction).",
     ),
 )
 
@@ -821,6 +854,12 @@ PUB_1_0_IN = La13511Case(
     sood_table=5,
     primary_reference="LA-13511 Eq 19 / Table 5",
     notes="Same Σ_t / Σ_s as PUa, only ν changes (3.24 → 2.84). c=1.40.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=5,
+        primary_reference="LA-13511 Eq 19 / Table 5",
+        notes="Same Σ_t / Σ_s as PUa, only ν changes (3.24 → 2.84). c=1.40.",
+    ),
 )
 
 
@@ -841,6 +880,12 @@ UA_1_0_IN = La13511Case(
     sood_table=12,
     primary_reference="LA-13511 Eq 19 / Table 12",
     notes="Sood publishes 'k_inf = 2.25' (3 digits printed but algebraically exact).",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=12,
+        primary_reference="LA-13511 Eq 19 / Table 12",
+        notes="Sood publishes 'k_inf = 2.25' (3 digits printed but algebraically exact).",
+    ),
 )
 
 
@@ -867,6 +912,12 @@ UB_1_0_IN = La13511Case(
     sood_table=12,
     primary_reference="LA-13511 Eq 19 / Table 12",
     notes="Cross-section variant (b): same Σ_t/Σ_s as Ua, ν tuned to give c=1.3194202.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=12,
+        primary_reference="LA-13511 Eq 19 / Table 12",
+        notes="Cross-section variant (b): same Σ_t/Σ_s as Ua, ν tuned to give c=1.3194202.",
+    ),
 )
 
 
@@ -893,6 +944,12 @@ UC_1_0_IN = La13511Case(
     sood_table=12,
     primary_reference="LA-13511 Eq 19 / Table 12",
     notes="Cross-section variant (c): same Σ_t/Σ_s as Ua, ν=2.707308.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=12,
+        primary_reference="LA-13511 Eq 19 / Table 12",
+        notes="Cross-section variant (c): same Σ_t/Σ_s as Ua, ν=2.707308.",
+    ),
 )
 
 
@@ -919,6 +976,12 @@ UD_1_0_IN = La13511Case(
     sood_table=12,
     primary_reference="LA-13511 Eq 19 / Table 12",
     notes="Cross-section variant (d): same Σ_t/Σ_s as Ua, ν=2.679198.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=12,
+        primary_reference="LA-13511 Eq 19 / Table 12",
+        notes="Cross-section variant (d): same Σ_t/Σ_s as Ua, ν=2.679198.",
+    ),
 )
 
 
@@ -945,6 +1008,12 @@ UD2O_1_0_IN = La13511Case(
     sood_table=16,
     primary_reference="LA-13511 Eq 19 / Table 16",
     notes="Heavy-water-moderated low-enrichment U; lowest c in the bare 1G family (1.02).",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=16,
+        primary_reference="LA-13511 Eq 19 / Table 16",
+        notes="Heavy-water-moderated low-enrichment U; lowest c in the bare 1G family (1.02).",
+    ),
 )
 
 
@@ -973,6 +1042,12 @@ UE_1_0_IN = La13511Case(
     notes=(
         "U-235 (e) cross sections used in the Ue-Fe-Na multi-region "
         "case; the infinite-medium variant uses the U-235 (e) XS alone."
+    ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=20,
+        primary_reference="LA-13511 Eq 19 / Table 20",
+        notes="U-235 (e) cross sections used in the Ue-Fe-Na multi-region case; the infinite-medium variant uses the U-235 (e) XS alone.",
     ),
 )
 
@@ -1005,6 +1080,12 @@ PU_1_1_IN = La13511Case(
         "Σ_s = Σ_s0 since the P_1 moment is a no-op for infinite-medium "
         "k_inf. Anisotropic data lives in the slab cases 32-35."
     ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=24,
+        primary_reference="LA-13511 Eq 19 / Table 24",
+        notes="Sood: 'The anisotropic scattering cross sections do not change k_inf' (LA-13511 p. 22). Catalogued with scattering_order=0 + Σ_s = Σ_s0 since the P_1 moment is a no-op for infinite-medium k_inf. Anisotropic data lives in the slab cases 32-35.",
+    ),
 )
 
 
@@ -1032,6 +1113,12 @@ UD2OA_1_1_IN = La13511Case(
     sood_table=28,
     primary_reference="LA-13511 Eq 19 / Table 28",
     notes="P_1 anisotropy doesn't change k_inf; ν tuned for c=1.0308381.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=28,
+        primary_reference="LA-13511 Eq 19 / Table 28",
+        notes="P_1 anisotropy doesn't change k_inf; ν tuned for c=1.0308381.",
+    ),
 )
 
 UD2OB_1_1_IN = La13511Case(
@@ -1056,6 +1143,12 @@ UD2OB_1_1_IN = La13511Case(
     sood_table=28,
     primary_reference="LA-13511 Eq 19 / Table 28",
     notes="P_1 anisotropy doesn't change k_inf; ν tuned for c=1.0341086.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=28,
+        primary_reference="LA-13511 Eq 19 / Table 28",
+        notes="P_1 anisotropy doesn't change k_inf; ν tuned for c=1.0341086.",
+    ),
 )
 
 UD2OC_1_1_IN = La13511Case(
@@ -1083,6 +1176,12 @@ UD2OC_1_1_IN = La13511Case(
         "U-D2O (c) has *negative* P_1 scattering moment Σ_s1 = -0.27850447 "
         "(backward-peaked); k_inf still depends only on Σ_s0. Slab "
         "cases (39/41/43) inherit anisotropy."
+    ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=28,
+        primary_reference="LA-13511 Eq 19 / Table 28",
+        notes="U-D2O (c) has *negative* P_1 scattering moment Σ_s1 = -0.27850447 (backward-peaked); k_inf still depends only on Σ_s0. Slab cases (39/41/43) inherit anisotropy.",
     ),
 )
 
@@ -1121,6 +1220,12 @@ U_2_0_IN = La13511Case(
     sood_table=33,
     primary_reference="LA-13511 Eq 29 (k_inf) + Eq 32 (flux ratio) / Tables 33-34",
     notes="Sood publishes φ_2/φ_1 (fast/slow) = 0.474967.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=33,
+        primary_reference="LA-13511 Eq 29 (k_inf) + Eq 32 (flux ratio) / Tables 33-34",
+        notes="Sood publishes φ_2/φ_1 (fast/slow) = 0.474967.",
+    ),
 )
 
 
@@ -1157,6 +1262,12 @@ UAL_2_0_IN = La13511Case(
         "φ_2/φ_1 = 3.1250 — i.e. fast/slow > 1 because slow group is "
         "very absorbing (Σ_1 = 1.27698 mostly self-scatter)."
     ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=36,
+        primary_reference="LA-13511 Eq 29 + Eq 32 / Tables 36-37",
+        notes="Slow-only fission (ν_2 = 0, χ_1 = 0). Sood publishes φ_2/φ_1 = 3.1250 — i.e. fast/slow > 1 because slow group is very absorbing (Σ_1 = 1.27698 mostly self-scatter).",
+    ),
 )
 
 
@@ -1188,6 +1299,12 @@ URRA_2_0_IN = La13511Case(
     sood_table=39,
     primary_reference="LA-13511 Eq 29 + Eq 32 / Tables 39-40",
     notes="93%-enriched bare research reactor. χ_1=0 (all fission from fast group).",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=39,
+        primary_reference="LA-13511 Eq 29 + Eq 32 / Tables 39-40",
+        notes="93%-enriched bare research reactor. χ_1=0 (all fission from fast group).",
+    ),
 )
 
 
@@ -1223,6 +1340,12 @@ URRB_2_0_IN = La13511Case(
         "Eq-28 formula (compute_kinf_2g_general or compute_kinf_mg), NOT "
         "the no-upscatter Eq-29 specialisation."
     ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=43,
+        primary_reference="LA-13511 Eq 28 (general — with upscatter) / Tables 43-44",
+        notes="Has thermal upscatter (Σ_21s = 0.000767). MUST use the general Eq-28 formula (compute_kinf_2g_general or compute_kinf_mg), NOT the no-upscatter Eq-29 specialisation.",
+    ),
 )
 
 
@@ -1254,6 +1377,12 @@ URRC_2_0_IN = La13511Case(
     sood_table=43,
     primary_reference="LA-13511 Eq 28 (general — with upscatter) / Tables 43-44",
     notes="Larger Σ_1f / Σ_21s than URRb; same upscatter structure.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=43,
+        primary_reference="LA-13511 Eq 28 (general — with upscatter) / Tables 43-44",
+        notes="Larger Σ_1f / Σ_21s than URRb; same upscatter structure.",
+    ),
 )
 
 
@@ -1289,6 +1418,12 @@ URRD_2_0_IN = La13511Case(
         "'to stress code verification' (LA-13511 p. 25 — i.e. unphysical "
         "but algebraically valid). Σ_22s = 0 (no fast self-scatter)."
     ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=46,
+        primary_reference="LA-13511 Eq 29 + Eq 32 / Tables 46-47",
+        notes="ISLC (Infinite Slab Lattice Cell) base XS. Sood uses ν_fast=1.004 'to stress code verification' (LA-13511 p. 25 — i.e. unphysical but algebraically valid). Σ_22s = 0 (no fast self-scatter).",
+    ),
 )
 
 
@@ -1323,6 +1458,12 @@ UD2O_2_0_IN = La13511Case(
         "Heavy-water reactor; k_inf = 1.000196 is essentially at the "
         "infinite-medium critical threshold. φ_fast/φ_slow = 26.82 "
         "(very slow-flux dominated due to D2O moderation)."
+    ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=49,
+        primary_reference="LA-13511 Eq 29 + Eq 32 / Tables 49-50",
+        notes="Heavy-water reactor; k_inf = 1.000196 is essentially at the infinite-medium critical threshold. φ_fast/φ_slow = 26.82 (very slow-flux dominated due to D2O moderation).",
     ),
 )
 
@@ -1371,6 +1512,12 @@ URR_3_0_IN = La13511Case(
         "that f_23 = 4 and f_13 = 15 give k_inf = 1.60 exactly with "
         "φ_2/φ_3 = 0.480 and φ_1/φ_3 = 0.150 (Eqs 60-65). All match "
         "to machine precision."
+    ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=59,
+        primary_reference="LA-13511 Eq 59 / Tables 59-61 / Forster's worked example",
+        notes="Sood Tables 59/60/61 are constructed by Forster (Ref. 38) so that f_23 = 4 and f_13 = 15 give k_inf = 1.60 exactly with φ_2/φ_3 = 0.480 and φ_1/φ_3 = 0.150 (Eqs 60-65). All match to machine precision.",
     ),
 )
 
@@ -1433,6 +1580,12 @@ URR_6_0_IN = La13511Case(
         "Σ_31s=0.033, Σ_32s=0.275). compute_kinf_mg is the only Branch-2 "
         "entry that handles this case — Eq-29 specialisation cannot."
     ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=62,
+        primary_reference="LA-13511 Tables 62-67 / O'Dell (Ref. 39) private comm.",
+        notes="6G == 2 coupled URR-3-0-IN blocks. Same k_inf=1.60. Has thermal-upscatter pattern in the bottom 3 groups (Σ_21s=0.171, Σ_31s=0.033, Σ_32s=0.275). compute_kinf_mg is the only Branch-2 entry that handles this case — Eq-29 specialisation cannot.",
+    ),
 )
 
 
@@ -1462,13 +1615,19 @@ PUA_1_0_SL = La13511Case(
         bc_right=BC.vacuum,
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.605055),
     sood_table=6,
     primary_reference="Lathrop-Leonard 1965 NSE 22, 115 (Ref. 9)",
     notes=(
         "F_N solver at N=12 reaches err ≤ 2e-6 vs Sood truth (well "
         "within the 1e-5 tolerance). Highest c in the bare 1G slab "
         "family (c=1.50)."
+    ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=6,
+        primary_reference="Lathrop-Leonard 1965 NSE 22, 115 (Ref. 9)",
+        notes="F_N solver at N=12 reaches err ≤ 2e-6 vs Sood truth (well within the 1e-5 tolerance). Highest c in the bare 1G slab family (c=1.50).",
     ),
 )
 
@@ -1502,10 +1661,17 @@ PUB_1_0_SL = La13511Case(
             0.75: 0.7318131,
             1.00: 0.4902592,
         },
+        critical_dimension_mfp=0.73660355,
     ),
     sood_table=7,
     primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94 (Ref. 26)",
     notes="Slab F_N at N=12 reaches err ≤ 3e-6 on a_c.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=7,
+        primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94 (Ref. 26)",
+        notes="Slab F_N at N=12 reaches err ≤ 3e-6 on a_c.",
+    ),
 )
 
 
@@ -1538,6 +1704,7 @@ UD2O_1_0_SL = La13511Case(
             0.75: 0.49690627,
             1.00: 0.13893858,
         },
+        critical_dimension_mfp=5.6655054562,
     ),
     sood_table=17,
     primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94 (Ref. 26)",
@@ -1545,6 +1712,12 @@ UD2O_1_0_SL = La13511Case(
         "Lowest c in the bare 1G slab family. Slab F_N at N=12 reaches "
         "err ≤ 2e-6 on a_c. NOTE: F_N at N≥14 fails for low c "
         "(determinant scan loses bracket); use N=12 for this case."
+    ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=17,
+        primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94 (Ref. 26)",
+        notes="Lowest c in the bare 1G slab family. Slab F_N at N=12 reaches err ≤ 2e-6 on a_c. NOTE: F_N at N≥14 fails for low c (determinant scan loses bracket); use N=12 for this case.",
     ),
 )
 
@@ -1583,10 +1756,17 @@ PUB_1_0_SP = La13511Case(
             0.75: 0.49884364,
             1.00: 0.19222603,
         },
+        critical_dimension_mfp=1.9853434324,
     ),
     sood_table=7,
     primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94 (Ref. 26)",
     notes="Sphere F_N at N=10 reaches err ≤ 5e-8 on R_c (well within 1e-5).",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=7,
+        primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94 (Ref. 26)",
+        notes="Sphere F_N at N=10 reaches err ≤ 5e-8 on R_c (well within 1e-5).",
+    ),
 )
 
 
@@ -1619,10 +1799,17 @@ UD2O_1_0_SP = La13511Case(
             0.75: 0.35561622,
             1.00: 0.04678614,
         },
+        critical_dimension_mfp=12.027532098,
     ),
     sood_table=17,
     primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94 (Ref. 26)",
     notes="Sphere F_N at N=10 reaches err ≤ 4e-8 on R_c.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=17,
+        primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94 (Ref. 26)",
+        notes="Sphere F_N at N=10 reaches err ≤ 4e-8 on R_c.",
+    ),
 )
 
 
@@ -1663,6 +1850,7 @@ PUB_1_0_CY_STUB = La13511Case(
             0.50: 0.8093,
             1.00: 0.2926,
         },
+        critical_dimension_mfp=1.396979,
     ),
     sood_table=7,
     primary_reference="Westfall 1983 Trans. ANS 44, 281 / Westfall-Metcalf 1972 (Refs. 27,28)",
@@ -1670,6 +1858,12 @@ PUB_1_0_CY_STUB = La13511Case(
         "STUB: solver activated by B1 dispatch (Westfall-Metcalf 1973 "
         "cylinder F_N). Sood publishes flux ratios only at r/r_c = 0.5 "
         "and 1.0 (Table 8) to 4 digits. Truth values verified."
+    ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=7,
+        primary_reference="Westfall 1983 Trans. ANS 44, 281 / Westfall-Metcalf 1972 (Refs. 27,28)",
+        notes="STUB: solver activated by B1 dispatch (Westfall-Metcalf 1973 cylinder F_N). Sood publishes flux ratios only at r/r_c = 0.5 and 1.0 (Table 8) to 4 digits. Truth values verified.",
     ),
 )
 
@@ -1695,12 +1889,18 @@ UD2O_1_0_CY_STUB = La13511Case(
         bc_right=BC.vacuum,
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=9.043255),
     sood_table=17,
     primary_reference="Westfall-Metcalf 1972/1973 (Refs. 27,28)",
     notes=(
         "STUB: solver activated by B1 dispatch. No flux ratios published "
         "for this case in Sood's tables."
+    ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=17,
+        primary_reference="Westfall-Metcalf 1972/1973 (Refs. 27,28)",
+        notes="STUB: solver activated by B1 dispatch. No flux ratios published for this case in Sood's tables.",
     ),
 )
 
@@ -1746,10 +1946,16 @@ PU_2_0_SL_STUB = La13511Case(
         bc_right=BC.vacuum,
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.396469),
     sood_table=32,
     primary_reference="Siewert-Thomas 1986 NSE 94, 264 / Forster 1970 thesis (Refs. 8, 35, 36)",
     notes="STUB: needs Siewert-Thomas 1986 2G F_N slab machinery (not yet implemented).",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=32,
+        primary_reference="Siewert-Thomas 1986 NSE 94, 264 / Forster 1970 thesis (Refs. 8, 35, 36)",
+        notes="STUB: needs Siewert-Thomas 1986 2G F_N slab machinery (not yet implemented).",
+    ),
 )
 
 
@@ -1767,7 +1973,7 @@ PU_2_0_SP_STUB = La13511Case(
         bc_right=BC.vacuum,
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=1.15513),
     sood_table=32,
     primary_reference="Siewert-Thomas 1986 NSE 94, 264 (Ref. 8)",
     notes=(
@@ -1776,6 +1982,12 @@ PU_2_0_SP_STUB = La13511Case(
         "fn_method.core; extending to 2G requires the matrix dispersion "
         "law (Λ matrix; Case eigenvalues are 2x2 matrix roots not "
         "scalars). High priority follow-on after B1 cylinder lands."
+    ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=32,
+        primary_reference="Siewert-Thomas 1986 NSE 94, 264 (Ref. 8)",
+        notes="STUB: needs Siewert-Thomas 1986 2G F_N sphere machinery. The slab and sphere F_N share the geometry-sign abstraction in fn_method.core; extending to 2G requires the matrix dispersion law (Λ matrix; Case eigenvalues are 2x2 matrix roots not scalars). High priority follow-on after B1 cylinder lands.",
     ),
 )
 
@@ -1807,10 +2019,16 @@ U_2_0_SL_STUB = La13511Case(
         bc_right=BC.vacuum,
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.649377),
     sood_table=35,
     primary_reference="Siewert-Thomas 1986 / Forster 1970 thesis (Refs. 8, 35, 36)",
     notes="STUB: needs 2G F_N slab machinery.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=35,
+        primary_reference="Siewert-Thomas 1986 / Forster 1970 thesis (Refs. 8, 35, 36)",
+        notes="STUB: needs 2G F_N slab machinery.",
+    ),
 )
 
 
@@ -1828,10 +2046,16 @@ U_2_0_SP_STUB = La13511Case(
         bc_right=BC.vacuum,
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=1.70844),
     sood_table=35,
     primary_reference="Siewert-Thomas 1986 NSE 94, 264 (Ref. 8)",
     notes="STUB: needs 2G F_N sphere machinery.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=35,
+        primary_reference="Siewert-Thomas 1986 NSE 94, 264 (Ref. 8)",
+        notes="STUB: needs 2G F_N sphere machinery.",
+    ),
 )
 
 
@@ -1862,10 +2086,16 @@ UAL_2_0_SL_STUB = La13511Case(
         bc_right=BC.vacuum,
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=2.09994),
     sood_table=38,
     primary_reference="Siewert-Thomas 1986 / Forster 1970 thesis (Refs. 8, 35, 36)",
     notes="STUB: needs 2G F_N slab machinery.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=38,
+        primary_reference="Siewert-Thomas 1986 / Forster 1970 thesis (Refs. 8, 35, 36)",
+        notes="STUB: needs 2G F_N slab machinery.",
+    ),
 )
 
 
@@ -1883,10 +2113,16 @@ UAL_2_0_SP_STUB = La13511Case(
         bc_right=BC.vacuum,
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=4.73786),
     sood_table=38,
     primary_reference="Siewert-Thomas 1986 NSE 94, 264 (Ref. 8)",
     notes="STUB: needs 2G F_N sphere machinery.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=38,
+        primary_reference="Siewert-Thomas 1986 NSE 94, 264 (Ref. 8)",
+        notes="STUB: needs 2G F_N sphere machinery.",
+    ),
 )
 
 
@@ -1926,6 +2162,7 @@ URRA_2_0_SL_STUB = La13511Case(
             0.744300: 0.504012,
             1.0: 0.147598,
         },
+        critical_dimension_mfp=4.97112,
     ),
     sood_table=41,
     primary_reference="Siewert-Thomas 1986 / Forster 1970 / Stewart 1974 (Refs. 8, 35, 36)",
@@ -1935,6 +2172,12 @@ URRA_2_0_SL_STUB = La13511Case(
         "flux_ratios stored here is the FAST group; the slow-group "
         "ratio at the same points is (0.340124, 0.273056, 0.173845, "
         "0.0212324)."
+    ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=41,
+        primary_reference="Siewert-Thomas 1986 / Forster 1970 / Stewart 1974 (Refs. 8, 35, 36)",
+        notes="STUB: needs 2G F_N slab machinery. Sood Table 42 gives 2G flux ratios at four spatial points (fast + slow). flux_ratios stored here is the FAST group; the slow-group ratio at the same points is (0.340124, 0.273056, 0.173845, 0.0212324).",
     ),
 )
 
@@ -1953,10 +2196,16 @@ URRA_2_0_SP_STUB = La13511Case(
         bc_right=BC.vacuum,
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=10.5441),
     sood_table=41,
     primary_reference="Siewert-Thomas 1986 NSE 94, 264 (Ref. 8)",
     notes="STUB: needs 2G F_N sphere machinery.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=41,
+        primary_reference="Siewert-Thomas 1986 NSE 94, 264 (Ref. 8)",
+        notes="STUB: needs 2G F_N sphere machinery.",
+    ),
 )
 
 
@@ -1987,13 +2236,19 @@ UD2O_2_0_SL_STUB = La13511Case(
         bc_right=BC.vacuum,
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=284.367),
     sood_table=51,
     primary_reference="Siewert-Thomas 1986 / Forster 1970 / Stewart 1974 (Refs. 8, 35, 36)",
     notes=(
         "STUB: needs 2G F_N slab machinery. Critical dimension is "
         "VERY LARGE (284 mfp — barely-supercritical heavy-water "
         "reactor); high N_F may be needed."
+    ),
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=51,
+        primary_reference="Siewert-Thomas 1986 / Forster 1970 / Stewart 1974 (Refs. 8, 35, 36)",
+        notes="STUB: needs 2G F_N slab machinery. Critical dimension is VERY LARGE (284 mfp — barely-supercritical heavy-water reactor); high N_F may be needed.",
     ),
 )
 
@@ -2012,10 +2267,16 @@ UD2O_2_0_SP_STUB = La13511Case(
         bc_right=BC.vacuum,
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=569.43),
     sood_table=51,
     primary_reference="Siewert-Thomas 1986 NSE 94, 264 (Ref. 8)",
     notes="STUB: needs 2G F_N sphere machinery. Critical R ~ 1695 cm — heavy-water reactor.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=51,
+        primary_reference="Siewert-Thomas 1986 NSE 94, 264 (Ref. 8)",
+        notes="STUB: needs 2G F_N sphere machinery. Critical R ~ 1695 cm — heavy-water reactor.",
+    ),
 )
 
 
@@ -2107,10 +2368,16 @@ PUA_1_1_SL = La13511Case(
         bc_left=BC.vacuum, bc_right=BC.vacuum,
     ),
     scattering_order=1,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.77032),
     sood_table=25,
     primary_reference="Sood Table 25 / problem 32 / Sanchez 1976 (Ref. 30)",
     notes="Σ_s1=0.20. Carlvik-Galerkin uses μ̄_eff = 0.20/1.40 = 0.142857.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=25,
+        primary_reference="Sood Table 25 / problem 32 / Sanchez 1976 (Ref. 30)",
+        notes="Σ_s1=0.20. Carlvik-Galerkin uses μ̄_eff = 0.20/1.40 = 0.142857.",
+    ),
 )
 
 PUB_1_1_SL = La13511Case(
@@ -2129,10 +2396,16 @@ PUB_1_1_SL = La13511Case(
         bc_left=BC.vacuum, bc_right=BC.vacuum,
     ),
     scattering_order=1,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.79606),
     sood_table=25,
     primary_reference="Sood Table 25 / problem 34 / Sanchez 1976 (Ref. 30)",
     notes="Σ_s1=0.333333 (negative scattering for μ near -1). μ̄_eff = 0.238095.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=25,
+        primary_reference="Sood Table 25 / problem 34 / Sanchez 1976 (Ref. 30)",
+        notes="Σ_s1=0.333333 (negative scattering for μ near -1). μ̄_eff = 0.238095.",
+    ),
 )
 
 UD2OA_1_1_SP = La13511Case(
@@ -2151,10 +2424,16 @@ UD2OA_1_1_SP = La13511Case(
         bc_left=BC.reflective, bc_right=BC.vacuum,
     ),
     scattering_order=1,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=10.0),
     sood_table=29,
     primary_reference="Sood Table 29 / problem 39 / Mitsis 1963 (Ref. 15)",
     notes="μ̄_eff = 0.10 — matches DS Table I row d=20, μ̄=0.10.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=29,
+        primary_reference="Sood Table 29 / problem 39 / Mitsis 1963 (Ref. 15)",
+        notes="μ̄_eff = 0.10 — matches DS Table I row d=20, μ̄=0.10.",
+    ),
 )
 
 UD2OB_1_1_SP = La13511Case(
@@ -2173,10 +2452,16 @@ UD2OB_1_1_SP = La13511Case(
         bc_left=BC.reflective, bc_right=BC.vacuum,
     ),
     scattering_order=1,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=10.0),
     sood_table=29,
     primary_reference="Sood Table 29 / problem 41 / Mitsis 1963 (Ref. 15)",
     notes="μ̄_eff = 0.20 — matches DS Table I row d=20, μ̄=0.20.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=29,
+        primary_reference="Sood Table 29 / problem 41 / Mitsis 1963 (Ref. 15)",
+        notes="μ̄_eff = 0.20 — matches DS Table I row d=20, μ̄=0.20.",
+    ),
 )
 
 UD2OC_1_1_SP = La13511Case(
@@ -2195,10 +2480,16 @@ UD2OC_1_1_SP = La13511Case(
         bc_left=BC.reflective, bc_right=BC.vacuum,
     ),
     scattering_order=1,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=10.0),
     sood_table=29,
     primary_reference="Sood Table 29 / problem 43 / Boffi-Molinari-Spiga 1977 (Ref. 16)",
     notes="μ̄_eff = -0.50 (back-peaked). Outside Dahl-Sjostrand table coverage.",
+    provenance=Provenance(
+        paper_id="LA-13511",
+        paper_table=29,
+        primary_reference="Sood Table 29 / problem 43 / Boffi-Molinari-Spiga 1977 (Ref. 16)",
+        notes="μ̄_eff = -0.50 (back-peaked). Outside Dahl-Sjostrand table coverage.",
+    ),
 )
 
 
