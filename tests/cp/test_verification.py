@@ -40,9 +40,10 @@ _COORD_TO_TAG = {
 
 
 def _bcs_for(tag: str):
+    """Default white-BC tuple — CP only supports ``"vacuum"`` / ``"white"``."""
     if tag == "SLB":
-        return (BC.reflective, BC.reflective)
-    return (BC.reflective,)
+        return (BC.white, BC.white)
+    return (BC.white,)
 
 
 def _two_region_mesh(coord, *, outers=(0.5, 1.0), n_cells=(1, 1)):

@@ -46,10 +46,16 @@ _COORD_TO_GEOMETRY_TAG = {
 
 
 def _bcs_for(tag: str) -> tuple[BC, ...]:
-    """Default reflective BC tuple matching the geometry tag's endpoint count."""
+    """Default white-BC tuple matching the geometry tag's endpoint count.
+
+    The CP method only supports ``"vacuum"`` and ``"white"`` BCs;
+    the algebraic-invariant tests in this file were historically
+    written with the CP default (white at the outer surface), so
+    we keep that convention here.
+    """
     if tag == "SLB":
-        return (BC.reflective, BC.reflective)
-    return (BC.reflective,)
+        return (BC.white, BC.white)
+    return (BC.white,)
 
 
 def _build_pinf_1g(coord: CoordSystem, r_inner: float = 0.0, r_outer: float = 1.0):

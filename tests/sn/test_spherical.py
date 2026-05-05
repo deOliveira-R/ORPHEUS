@@ -31,10 +31,10 @@ _COORD_TO_TAG = {
 }
 
 
-def _bcs_for(tag: str):
+def _bcs_for(tag: str, bc: BC = BC.reflective):
     if tag == "SLB":
-        return (BC.reflective, BC.reflective)
-    return (BC.reflective,)
+        return (bc, bc)
+    return (bc,)
 
 
 def _homogeneous_mesh(
@@ -42,16 +42,19 @@ def _homogeneous_mesh(
     total_width: float,
     mat_id: int = 0,
     coord: CoordSystem = CoordSystem.CARTESIAN,
+    bc: BC = BC.reflective,
 ) -> Mesh1D:
     """Single-region uniform mesh in any coordinate system.
 
-    Replaces the legacy ``homogeneous_1d`` factory.
+    SN tests default to ``BC.reflective`` (the eigenvalue / lattice
+    convention). CP tests must override to ``BC.white`` because CP
+    only supports ``"vacuum"`` / ``"white"``.
     """
     tag = _COORD_TO_TAG[coord]
     geom = StructuredGeometry(
         geometry=tag,
         regions=(Region(mat_id=mat_id, outer_thickness_cm=total_width),),
-        bcs=_bcs_for(tag),
+        bcs=_bcs_for(tag, bc),
     )
     return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
 
@@ -61,12 +64,9 @@ def _two_region_mesh(
     mat_ids: tuple[int, int],
     n_cells: tuple[int, int],
     coord: CoordSystem,
+    bc: BC = BC.reflective,
 ) -> Mesh1D:
-    """Two-region mesh with absolute outer-edge convention.
-
-    Replaces ``mesh1d_from_zones([Zone(outer_edge=outers[0], ...),
-    Zone(outer_edge=outers[1], ...)], coord=coord)``.
-    """
+    """Two-region mesh with absolute outer-edge convention."""
     tag = _COORD_TO_TAG[coord]
     geom = StructuredGeometry(
         geometry=tag,
@@ -74,7 +74,7 @@ def _two_region_mesh(
             Region(mat_id=mat_ids[0], outer_thickness_cm=outers[0]),
             Region(mat_id=mat_ids[1], outer_thickness_cm=outers[1] - outers[0]),
         ),
-        bcs=_bcs_for(tag),
+        bcs=_bcs_for(tag, bc),
     )
     return Mesh1D.from_geometry(geom, region_meshes=(
         RegionMesh(n_cells=n_cells[0]),
@@ -301,7 +301,9 @@ def test_cross_check_with_cp_1g():
                          max_inner=500, inner_tol=1e-10)
 
     # CP: same geometry with white BC
-    mesh_cp = _homogeneous_mesh(1, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
+    mesh_cp = _homogeneous_mesh(
+        1, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL, bc=BC.white,
+    )
     result_cp = solve_cp(materials_cp, mesh_cp)
 
     # Both must give the same 1G homogeneous k_inf

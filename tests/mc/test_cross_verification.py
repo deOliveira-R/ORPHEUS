@@ -67,7 +67,7 @@ def test_mc_vs_cp_cylinder():
     geom = StructuredGeometry(
         geometry="CYL",
         regions=tuple(regions),
-        bcs=(BC.reflective,),
+        bcs=(BC.white,),  # CP supports vacuum/white only
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=tuple(
         RegionMesh(n_cells=5) for _ in regions
@@ -123,7 +123,7 @@ def test_mc_vs_cp_slab():
             Region(mat_id=2, outer_thickness_cm=t_fuel),
             Region(mat_id=0, outer_thickness_cm=t_mod),
         ),
-        bcs=(BC.reflective, BC.reflective),
+        bcs=(BC.white, BC.white),  # CP supports vacuum/white only
     )
     mesh = Mesh1D.from_geometry(geom_cp, region_meshes=(
         RegionMesh(n_cells=10),

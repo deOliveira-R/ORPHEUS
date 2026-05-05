@@ -31,10 +31,11 @@ _COORD_TO_TAG = {
 }
 
 
-def _bcs_for(tag: str):
+def _bcs_for(tag: str, bc: BC = BC.reflective):
+    """BC tuple matching the geometry tag's endpoint count."""
     if tag == "SLB":
-        return (BC.reflective, BC.reflective)
-    return (BC.reflective,)
+        return (bc, bc)
+    return (bc,)
 
 
 def _homogeneous_mesh(
@@ -42,13 +43,19 @@ def _homogeneous_mesh(
     total_width: float,
     mat_id: int = 0,
     coord: CoordSystem = CoordSystem.CARTESIAN,
+    bc: BC = BC.reflective,
 ) -> Mesh1D:
-    """Single-region uniform mesh in any coordinate system."""
+    """Single-region uniform mesh in any coordinate system.
+
+    SN tests default to ``BC.reflective`` (the eigenvalue / lattice
+    convention). CP tests must override to ``BC.white`` because CP
+    only supports ``"vacuum"`` / ``"white"``.
+    """
     tag = _COORD_TO_TAG[coord]
     geom = StructuredGeometry(
         geometry=tag,
         regions=(Region(mat_id=mat_id, outer_thickness_cm=total_width),),
-        bcs=_bcs_for(tag),
+        bcs=_bcs_for(tag, bc),
     )
     return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
 
@@ -58,6 +65,7 @@ def _two_region_mesh(
     mat_ids: tuple[int, int],
     n_cells: tuple[int, int],
     coord: CoordSystem,
+    bc: BC = BC.reflective,
 ) -> Mesh1D:
     """Two-region mesh with absolute outer-edge convention."""
     tag = _COORD_TO_TAG[coord]
@@ -67,7 +75,7 @@ def _two_region_mesh(
             Region(mat_id=mat_ids[0], outer_thickness_cm=outers[0]),
             Region(mat_id=mat_ids[1], outer_thickness_cm=outers[1] - outers[0]),
         ),
-        bcs=_bcs_for(tag),
+        bcs=_bcs_for(tag, bc),
     )
     return Mesh1D.from_geometry(geom, region_meshes=(
         RegionMesh(n_cells=n_cells[0]),
@@ -183,7 +191,9 @@ def test_cross_check_with_cp_1g():
     result_sn = solve_sn({0: mix}, mesh_sn, quad,
                          max_inner=500, inner_tol=1e-10)
 
-    mesh_cp = _homogeneous_mesh(1, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+    mesh_cp = _homogeneous_mesh(
+        1, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL, bc=BC.white,
+    )
     result_cp = solve_cp({0: mix}, mesh_cp)
 
     np.testing.assert_allclose(
@@ -617,6 +627,7 @@ class TestMultiGroupMultiRegion:
             mat_ids=(2, 0),
             n_cells=(10, 10),
             coord=CoordSystem.CYLINDRICAL,
+            bc=BC.white,  # CP supports vacuum/white only
         )
         result_cp = solve_cp(materials, mesh_cp)
 
