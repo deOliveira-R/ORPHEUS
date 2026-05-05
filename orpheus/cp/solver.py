@@ -40,11 +40,8 @@ from scipy.special import expn
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.macro_xs.cell_xs import CellXS, assemble_cell_xs
-from orpheus.derivations.common.discretization_spec import DiscretizationSpec
-from orpheus.derivations.common.geometry_spec import GeometrySpec
 from orpheus.derivations.common.kernels import chord_half_lengths
 from orpheus.derivations.common.quadrature import composite_gauss_legendre
-from orpheus.derivations.common.solution_types import CriticalSolution
 from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp as _ki3_kernel
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.eigenvalue import power_iteration
@@ -433,23 +430,7 @@ class CPSolver:
       iterations within each group converge the within-group scattering
       source.  Converges faster for thermal problems with strong
       self-scatter.
-
-    TransportSolver Protocol conformance
-    ------------------------------------
-
-    Instances built via :meth:`CPSolver.from_problem` carry the three
-    Protocol attributes ``materials`` (``dict[int, Mixture]``),
-    ``geometry_spec`` (``GeometrySpec``), and ``method_name`` (always
-    ``"cp"``), plus the :meth:`solve_critical` method that returns a
-    :class:`~orpheus.derivations.common.solution_types.CriticalSolution`.
-    Direct ``__init__`` calls (the legacy path used by ``solve_cp``)
-    do NOT populate the Protocol attributes — that path is for the
-    inner power-iteration object only and is not Protocol-conformant.
     """
-
-    # Protocol tag — class-level so isinstance(x, TransportSolver)
-    # matches even before from_problem assigns the per-instance bits.
-    method_name: str = "cp"
 
     def __init__(
         self,
@@ -483,181 +464,6 @@ class CPSolver:
         # Convergence diagnostics (populated during iteration)
         self.residual_history: list[float] = []
         self.n_inner_history: list[np.ndarray] = []  # list of (ng,) arrays
-
-        # TransportSolver Protocol attributes — populated by
-        # :meth:`from_problem`. The legacy ``__init__`` path leaves
-        # ``geometry_spec`` as ``None`` because the function-level
-        # ``solve_cp`` API consumes a ``Mesh1D`` directly.
-        self.materials: dict[int, Mixture] = dict(materials)
-        self.geometry_spec: GeometrySpec | None = None
-
-    @classmethod
-    def from_problem(
-        cls,
-        *,
-        materials: dict[int, Mixture],
-        geometry_spec: GeometrySpec,
-        discretization: DiscretizationSpec | None = None,
-    ) -> "CPSolver":
-        r"""Construct a Protocol-conforming :class:`CPSolver` from problem inputs.
-
-        This factory is the
-        :class:`~orpheus.derivations.common.solver_protocol.TransportSolver`
-        Protocol entry point for the production CP solver. It mirrors
-        :meth:`Billiard.from_problem` /
-        :meth:`MomentSpace.from_problem` — every conforming class
-        accepts the same ``(materials, geometry_spec)`` shape.
-
-        Internally:
-
-        1. Builds a :class:`~orpheus.geometry.mesh.Mesh1D` via
-           :meth:`GeometrySpec.build` at the requested cell count
-           (multi-region geometries are dispatched natively by the
-           spec).
-        2. Builds the augmented :class:`CPMesh` (kernel + chord
-           quadrature) at the requested ``n_chord_quad``.
-        3. Constructs the per-group infinite-lattice :math:`P_\infty`
-           matrices.
-        4. Returns an instance ready for :meth:`solve_critical`.
-
-        Parameters
-        ----------
-        materials : dict[int, Mixture]
-            Production-protocol cross sections keyed by material ID.
-            The keys must match every ``mat_id`` referenced by
-            ``geometry_spec`` (single ``mat_id`` field for
-            single-region; per-region ``Region.mat_id`` for
-            multi-region).
-        geometry_spec : GeometrySpec
-            Method-agnostic geometry + boundary specification.
-            Supported families: ``"slab"``, ``"sphere"``,
-            ``"cylinder"``. Boundary conditions on ``geometry_spec``
-            are passed through verbatim — this factory does NOT
-            silently rewrite user-requested BCs.
-        discretization : DiscretizationSpec, optional
-            Discretization parameters. Defaults to
-            :class:`DiscretizationSpec` defaults
-            (``n_cells=20``, ``n_chord_quad=32``). Only ``n_cells``
-            and ``n_chord_quad`` are consumed by CP; ``n_angular``
-            is ignored (CP integrates analytically over angle).
-
-        Returns
-        -------
-        CPSolver
-            A Protocol-conforming instance with ``materials``,
-            ``geometry_spec``, and ``method_name = "cp"`` populated.
-
-        Raises
-        ------
-        ValueError
-            If ``geometry_spec.geometry`` is not one of
-            ``"slab"`` / ``"sphere"`` / ``"cylinder"``.
-        """
-        if geometry_spec.geometry not in ("slab", "sphere", "cylinder"):
-            raise ValueError(
-                f"CPSolver.from_problem cannot build on geometry "
-                f"{geometry_spec.geometry!r}; supported: "
-                f"slab, sphere, cylinder."
-            )
-        spec = discretization if discretization is not None else DiscretizationSpec()
-        mesh = geometry_spec.build(n_cells=spec.n_cells)
-        params = CPParams(n_quad_y=spec.n_chord_quad)
-
-        # Build the augmented CP geometry + per-group P_inf matrices.
-        cp_mesh = CPMesh(mesh, params)
-        xs = assemble_cell_xs(materials, mesh.mat_ids)
-        ng = xs.sig_t.shape[1]
-        N = mesh.N
-        P_inf = np.empty((N, N, ng))
-        for g in range(ng):
-            P_inf[:, :, g] = cp_mesh.compute_pinf_group(xs.sig_t[:, g])
-
-        instance = cls(
-            P_inf, xs, mesh.volumes, mesh.mat_ids, materials,
-            keff_tol=params.keff_tol, flux_tol=params.flux_tol,
-            solver_mode=params.solver_mode,
-            inner_tol=params.inner_tol, max_inner=params.max_inner,
-        )
-        # Populate the Protocol-level attributes. ``materials`` was
-        # already set by ``__init__``; we re-stamp it for clarity and
-        # add ``geometry_spec`` + the discrete params used for the
-        # build (visible to :meth:`solve_critical` for metadata).
-        instance.geometry_spec = geometry_spec
-        instance._cp_mesh = cp_mesh
-        instance._mesh = mesh
-        instance._cp_params = params
-        instance._discretization = spec
-        instance._max_outer = params.max_outer
-        return instance
-
-    def solve_critical(self) -> CriticalSolution:
-        r"""Run the CP power iteration and return a :class:`CriticalSolution`.
-
-        Requires the instance to have been built via
-        :meth:`from_problem` (so the Protocol attributes are
-        populated). Re-packs the converged
-        :math:`(k_{\rm eff}, \phi)` pair into the cross-method
-        :class:`CriticalSolution` shape, stashing the rich
-        :class:`CPResult` in ``metadata["raw_result"]`` for callers
-        that want both.
-
-        Returns
-        -------
-        CriticalSolution
-            With ``eigenvalue_kind = "k_eff"``,
-            ``parameter_kind = "domain_extent_cm"`` (the
-            ``GeometrySpec.domain_extent_cm`` of the configuration
-            the eigenvalue was computed at).
-
-        Raises
-        ------
-        RuntimeError
-            If the instance was constructed via the legacy
-            ``__init__`` path (no ``geometry_spec`` attached).
-        """
-        if self.geometry_spec is None:
-            raise RuntimeError(
-                "CPSolver.solve_critical requires the instance to have "
-                "been built via CPSolver.from_problem. The legacy "
-                "__init__ path is for the inner power-iteration object "
-                "consumed by solve_cp; it does not carry a "
-                "geometry_spec and so cannot answer the cross-method "
-                "TransportSolver Protocol surface."
-            )
-
-        t_start = time.perf_counter()
-        keff, keff_history, phi = power_iteration(
-            self, max_iter=self._max_outer
-        )
-        flux_fuel, flux_clad, flux_cool = _volume_averaged_fluxes(
-            phi, self._mesh.volumes, self._mesh.mat_ids,
-        )
-        n_inner = (
-            np.array(self.n_inner_history) if self.n_inner_history else None
-        )
-        elapsed = time.perf_counter() - t_start
-        _any_mat = next(iter(self.materials.values()))
-        raw_result = CPResult(
-            keff=keff, keff_history=keff_history, flux=phi,
-            flux_fuel=flux_fuel, flux_clad=flux_clad, flux_cool=flux_cool,
-            geometry=self._mesh, eg=_any_mat.eg, elapsed_seconds=elapsed,
-            residual_history=list(self.residual_history),
-            n_inner=n_inner,
-        )
-
-        return CriticalSolution(
-            eigenvalue=float(keff),
-            eigenvalue_kind="k_eff",
-            parameter_value=float(self.geometry_spec.domain_extent_cm),
-            parameter_kind="domain_extent_cm",
-            converged=True,
-            metadata={
-                "method": "cp",
-                "n_cells": self._discretization.n_cells,
-                "n_chord_quad": self._discretization.n_chord_quad,
-                "raw_result": raw_result,
-            },
-        )
 
     def initial_flux_distribution(self) -> np.ndarray:
         return np.ones((self.N, self.ng))
@@ -902,22 +708,35 @@ def solve_cp(
 ) -> CPResult:
     """Solve the CP eigenvalue problem for any supported geometry.
 
+    This is the **canonical entry point** for the production CP solver.
+    Production callers consume ``(materials, mesh, params)`` directly:
+    materials are :class:`~orpheus.data.macro_xs.mixture.Mixture` objects
+    keyed by material ID, ``mesh`` is a :class:`~orpheus.geometry.Mesh1D`
+    (build via :meth:`Mesh1D.from_geometry` for multi-region cases or
+    via the geometry factory helpers), and ``params`` carries the solver
+    tolerances and chord-quadrature order.
+
     The kernel is selected automatically based on ``mesh.coord``:
     Cartesian (slab E₃), Cylindrical (Ki₄), or Spherical (exp).
 
     Parameters
     ----------
     materials : dict[int, Mixture]
-        Macroscopic cross sections keyed by material ID.
+        Macroscopic cross sections keyed by material ID. Keys must
+        match every ``mat_id`` referenced by the mesh.
     mesh : Mesh1D, optional
         1-D mesh.  Defaults to a cylindrical PWR pin cell via
-        :func:`geometry.factories.pwr_pin_equivalent`.
+        :func:`geometry.factories.pwr_pin_equivalent`. The mesh's
+        boundary conditions (``bc_left`` / ``bc_right``) are honoured
+        verbatim — the CP kernel registry handles ``white`` / ``vacuum``.
     params : CPParams, optional
-        Solver parameters (tolerances, Ki table size, quadrature order).
+        Solver parameters (tolerances, Ki table size, chord-quadrature
+        order via ``n_quad_y``, solver mode, inner-iteration limits).
 
     Returns
     -------
     CPResult
+        Eigenvalue, flux distribution, convergence history, and timing.
     """
     t_start = time.perf_counter()
 
