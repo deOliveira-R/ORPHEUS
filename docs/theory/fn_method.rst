@@ -609,11 +609,10 @@ the function-level API (:func:`...slab.one_group.solve_fn_slab_bare_critical`,
 :func:`...slab.flux_reconstruction.slab_scalar_flux_fn_projection_atkinson`,
 etc.). What the class adds:
 
-1. **Production-protocol input acceptance**. ``MomentSpace.from_problem``
-   consumes ``dict[int, Mixture]`` + ``GeometrySpec`` — the same
-   pair the production CP/SN/MOC solvers consume. A single problem
-   definition serves both production machinery and the F_N
-   reference without re-deriving cross sections.
+1. **Direct production-protocol input acceptance**. ``MomentSpace``
+   consumes ``dict[int, Mixture]`` + ``StructuredGeometry`` via its
+   frozen ``__init__``. Infinite-medium :math:`k_\infty` is split
+   out as ``MomentSpace.solve_kinf(mixture)`` — no geometry needed.
 2. **Cross-method shared result types**.
    :meth:`MomentSpace.solve_critical` returns
    :class:`~orpheus.derivations.common.solution_types.CriticalSolution`,

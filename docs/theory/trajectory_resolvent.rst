@@ -2810,23 +2810,23 @@ one with:
    from orpheus.derivations.common.xs_library import make_mixture
    from orpheus.derivations.continuous.trajectory_resolvent import Billiard
    from orpheus.geometry.mesh import BC
+   from orpheus.geometry.structured_geometry import (
+       Region, StructuredGeometry,
+   )
 
    mix = make_mixture(
        sig_t=np.array([0.5]), sig_c=np.array([0.05]),
        sig_f=np.array([0.05]), nu=np.array([2.0]),
        chi=np.array([1.0]), sig_s=np.array([[0.40]]),
    )
-   spec = GeometrySpec(
-       geometry="sphere",
-       critical_dimension_mfp=2.5,
-       critical_dimension_cm=5.0,
-       n_groups=1,
-       bc_left=BC.reflective,
-       bc_right=BC.reflective,
+   geom = StructuredGeometry(
+       geometry="SPH",
+       regions=(Region(mat_id=0, outer_thickness_cm=5.0),),
+       bcs=(BC.reflective,),
    )
-   b = Billiard.from_problem(
+   b = Billiard(
        materials={0: mix},
-       geometry_spec=spec,
+       geometry=geom,
        alpha=1.0,
        quadrature={"n_r": 24, "n_mu": 24, "n_traj_quad": 64},
    )

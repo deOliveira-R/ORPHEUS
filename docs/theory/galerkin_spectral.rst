@@ -738,16 +738,22 @@ the trusted-library line. Their cross-checks anchor the Sood
 ``*-1-0-SL/SP`` and ``*-1-1-SL/SP`` truth values from three
 structurally-independent directions.
 
-The shared cross-method result types
-(:class:`~orpheus.derivations.common.solution_types.CriticalSolution`)
-and the
-:class:`~orpheus.derivations.common.solver_protocol.TransportSolver`
-Protocol (where landed) are the load-bearing piece of the
-unification. Each math-heart class returns the same
-``CriticalSolution`` shape regardless of pillar; the
-``eigenvalue_kind`` field disambiguates ``"k_eff"`` (MomentSpace,
-Billiard) from ``"c_critical"`` (BasisSpace) so cross-method
-comparators read the right field before comparing.
+The shared cross-method result type
+:class:`~orpheus.derivations.common.solution_types.CriticalSolution`
+is the load-bearing piece of the unification. Each reference
+solver returns the same ``CriticalSolution`` shape regardless of
+pillar; the ``eigenvalue_kind`` field disambiguates ``"k_eff"``
+(MomentSpace, Billiard) from ``"c_critical"`` (BasisSpace) so
+cross-method comparators read the right field before comparing.
+
+The pre-Phase-D :class:`TransportSolver` Protocol (in
+``orpheus.derivations.common.solver_protocol``) was retired in the
+architectural reset — it conflated continuous reference generators
+with discrete production solvers, which have functionally different
+roles. The reference solvers now consume :class:`StructuredGeometry`
+directly via their frozen ``__init__``; the production solvers
+consume ``(materials, mesh, params)`` via the canonical free
+functions ``solve_cp`` / ``solve_sn`` / ``solve_moc``.
 
 References
 ----------
