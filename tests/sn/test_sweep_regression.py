@@ -19,8 +19,25 @@ Impact: scattering source iteration diverged for multi-group problems
 import numpy as np
 import pytest
 
-from orpheus.geometry import Mesh1D, Mesh2D, homogeneous_1d
+from orpheus.geometry import (
+    BC,
+    Mesh1D,
+    Mesh2D,
+    Region,
+    RegionMesh,
+    StructuredGeometry,
+)
 from orpheus.sn.geometry import SNMesh
+
+
+def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) -> Mesh1D:
+    """Single-region Cartesian mesh helper (replaces legacy ``homogeneous_1d``)."""
+    geom = StructuredGeometry(
+        geometry="SLB",
+        regions=(Region(mat_id=mat_id, outer_thickness_cm=total_width),),
+        bcs=(BC.reflective, BC.reflective),
+    )
+    return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
 from orpheus.sn.quadrature import GaussLegendre1D, LebedevSphere
 from orpheus.sn.sweep import _solve_recurrence, _outgoing, transport_sweep
 
@@ -99,7 +116,7 @@ class TestSolveRecurrence:
         from orpheus.sn.solver import SNSolver
 
         mix = get_mixture("A", "2g")
-        mesh = homogeneous_1d(20, 2.0, mat_id=0)
+        mesh = _homogeneous_slab_mesh(20, 2.0, mat_id=0)
         quad = GaussLegendre1D.create(8)
         sn_mesh = SNMesh(mesh, quad)
         solver = SNSolver({0: mix}, sn_mesh, max_inner=500, inner_tol=1e-10)
@@ -226,7 +243,7 @@ class TestSNMesh:
         mix = get_mixture("A", "1g")
 
         # 1D with GL
-        mesh_1d = homogeneous_1d(10, 1.0, mat_id=0)
+        mesh_1d = _homogeneous_slab_mesh(10, 1.0, mat_id=0)
         quad_gl = GaussLegendre1D.create(8)
         solver_1d = SNSolver({0: mix}, SNMesh(mesh_1d, quad_gl),
                              max_inner=500, inner_tol=1e-10)

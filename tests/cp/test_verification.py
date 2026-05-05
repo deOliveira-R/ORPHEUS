@@ -23,7 +23,49 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from orpheus.geometry import CoordSystem, Mesh1D, Zone, mesh1d_from_zones
+from orpheus.geometry import (
+    BC,
+    CoordSystem,
+    Mesh1D,
+    Region,
+    RegionMesh,
+    StructuredGeometry,
+)
+
+_COORD_TO_TAG = {
+    CoordSystem.CARTESIAN: "SLB",
+    CoordSystem.CYLINDRICAL: "CYL",
+    CoordSystem.SPHERICAL: "SPH",
+}
+
+
+def _bcs_for(tag: str):
+    if tag == "SLB":
+        return (BC.reflective, BC.reflective)
+    return (BC.reflective,)
+
+
+def _two_region_mesh(coord, *, outers=(0.5, 1.0), n_cells=(1, 1)):
+    """Two-region mesh helper for the L0/L1 properties tests.
+    Replaces the legacy ``mesh1d_from_zones([Zone(...), Zone(...)])``
+    pattern with the StructuredGeometry → Mesh1D.from_geometry flow.
+    Edges are absolute (cumulative), so region thicknesses are
+    derived as ``outers[0]`` and ``outers[1] - outers[0]``.
+    """
+    tag = _COORD_TO_TAG[coord]
+    geom = StructuredGeometry(
+        geometry=tag,
+        regions=(
+            Region(mat_id=0, outer_thickness_cm=outers[0]),
+            Region(mat_id=1, outer_thickness_cm=outers[1] - outers[0]),
+        ),
+        bcs=_bcs_for(tag),
+    )
+    return Mesh1D.from_geometry(geom, region_meshes=tuple(
+        RegionMesh(n_cells=n) for n in n_cells
+    ))
+
+
 from orpheus.cp.solver import CPMesh, CPParams, CPSolver, solve_cp
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.macro_xs.cell_xs import CellXS, assemble_cell_xs
@@ -313,10 +355,7 @@ class TestDirectPinfComparison:
         xs_a = get_xs("A", "2g")
         xs_b = get_xs("B", "2g")
 
-        mesh = mesh1d_from_zones([
-            Zone(outer_edge=0.5, mat_id=0, n_cells=1),
-            Zone(outer_edge=1.0, mat_id=1, n_cells=1),
-        ], coord=coord)
+        mesh = _two_region_mesh(coord)
         cp_mesh = CPMesh(mesh)
 
         for g in range(2):
@@ -371,10 +410,7 @@ class TestMultiGroupProperties:
         xs_b = get_xs("B", ng_key)
         ng = len(xs_a["sig_t"])
 
-        mesh = mesh1d_from_zones([
-            Zone(outer_edge=0.5, mat_id=0, n_cells=1),
-            Zone(outer_edge=1.0, mat_id=1, n_cells=1),
-        ], coord=coord)
+        mesh = _two_region_mesh(coord)
         cp_mesh = CPMesh(mesh)
 
         for g in range(ng):
@@ -402,10 +438,7 @@ class TestMultiGroupProperties:
         xs_b = get_xs("B", ng_key)
         ng = len(xs_a["sig_t"])
 
-        mesh = mesh1d_from_zones([
-            Zone(outer_edge=0.5, mat_id=0, n_cells=1),
-            Zone(outer_edge=1.0, mat_id=1, n_cells=1),
-        ], coord=coord)
+        mesh = _two_region_mesh(coord)
         cp_mesh = CPMesh(mesh)
         V = mesh.volumes
 
@@ -667,10 +700,7 @@ class TestOpticalLimits:
         if coord == CoordSystem.CARTESIAN:
             mesh = _slab_mesh_2region(2.0, 0.1)
         else:
-            mesh = mesh1d_from_zones([
-                Zone(outer_edge=2.0, mat_id=0, n_cells=1),
-                Zone(outer_edge=2.1, mat_id=1, n_cells=1),
-            ], coord=coord)
+            mesh = _two_region_mesh(coord, outers=(2.0, 2.1))
 
         # Should converge without numerical issues
         result = solve_cp(materials, mesh, CPParams(keff_tol=1e-6, flux_tol=1e-5))

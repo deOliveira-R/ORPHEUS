@@ -15,8 +15,14 @@ import pytest
 from orpheus.derivations import get
 from orpheus.mc.solver import MCParams, ConcentricPinCell, SlabPinCell, solve_monte_carlo
 from orpheus.cp.solver import solve_cp, CPParams
-from orpheus.geometry import CoordSystem
-from orpheus.geometry.factories import mesh1d_from_zones, Zone
+from orpheus.geometry import (
+    BC,
+    CoordSystem,
+    Mesh1D,
+    Region,
+    RegionMesh,
+    StructuredGeometry,
+)
 
 # L2 cross-code MC ↔ CP consistency.
 pytestmark = [
@@ -48,12 +54,24 @@ def test_mc_vs_cp_cylinder():
     mat_ids = gp["mat_ids"]
 
     # ── CP solve ──────────────────────────────────────────────────────
-    zones = []
+    # Build a multi-region cylinder via StructuredGeometry: each region
+    # carries the layer thickness (literal, not cumulative) plus its
+    # material ID; the mesh layer takes 5 cells per region.
+    regions = []
     inner = 0.0
-    for k, r_outer in enumerate(radii):
-        zones.append(Zone(outer_edge=r_outer, mat_id=mat_ids[k], n_cells=5))
+    for r_outer, m in zip(radii, mat_ids):
+        regions.append(
+            Region(mat_id=int(m), outer_thickness_cm=float(r_outer - inner)),
+        )
         inner = r_outer
-    mesh = mesh1d_from_zones(zones, coord=CoordSystem.CYLINDRICAL)
+    geom = StructuredGeometry(
+        geometry="CYL",
+        regions=tuple(regions),
+        bcs=(BC.reflective,),
+    )
+    mesh = Mesh1D.from_geometry(geom, region_meshes=tuple(
+        RegionMesh(n_cells=5) for _ in regions
+    ))
     cp_result = solve_cp(case.materials, mesh=mesh)
 
     # ── MC solve ──────────────────────────────────────────────────────
@@ -99,11 +117,18 @@ def test_mc_vs_cp_slab():
     # ── CP solve (slab half-cell: fuel | moderator) ──────────────────
     t_fuel = 0.9
     t_mod = 0.9
-    zones = [
-        Zone(outer_edge=t_fuel, mat_id=2, n_cells=10),
-        Zone(outer_edge=t_fuel + t_mod, mat_id=0, n_cells=10),
-    ]
-    mesh = mesh1d_from_zones(zones, coord=CoordSystem.CARTESIAN)
+    geom_cp = StructuredGeometry(
+        geometry="SLB",
+        regions=(
+            Region(mat_id=2, outer_thickness_cm=t_fuel),
+            Region(mat_id=0, outer_thickness_cm=t_mod),
+        ),
+        bcs=(BC.reflective, BC.reflective),
+    )
+    mesh = Mesh1D.from_geometry(geom_cp, region_meshes=(
+        RegionMesh(n_cells=10),
+        RegionMesh(n_cells=10),
+    ))
     cp_result = solve_cp(materials, mesh=mesh)
 
     # ── MC solve (full cell: mod|fuel|mod for periodic BCs) ──────────

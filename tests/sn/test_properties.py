@@ -11,9 +11,43 @@ import numpy as np
 import pytest
 
 from orpheus.derivations import get
-from orpheus.geometry import homogeneous_1d, slab_fuel_moderator
+from orpheus.geometry import (
+    BC,
+    Mesh1D,
+    Region,
+    RegionMesh,
+    StructuredGeometry,
+)
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.solver import solve_sn
+
+
+def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) -> Mesh1D:
+    """Single-region Cartesian mesh helper."""
+    geom = StructuredGeometry(
+        geometry="SLB",
+        regions=(Region(mat_id=mat_id, outer_thickness_cm=total_width),),
+        bcs=(BC.reflective, BC.reflective),
+    )
+    return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+
+
+def _slab_fuel_moderator_mesh(
+    n_fuel: int, n_mod: int, t_fuel: float, t_mod: float,
+) -> Mesh1D:
+    """Two-region fuel-moderator slab mesh."""
+    geom = StructuredGeometry(
+        geometry="SLB",
+        regions=(
+            Region(mat_id=2, outer_thickness_cm=t_fuel),
+            Region(mat_id=0, outer_thickness_cm=t_mod),
+        ),
+        bcs=(BC.reflective, BC.reflective),
+    )
+    return Mesh1D.from_geometry(geom, region_meshes=(
+        RegionMesh(n_cells=n_fuel),
+        RegionMesh(n_cells=n_mod),
+    ))
 
 pytestmark = pytest.mark.l0  # SN property checks (quadrature weights, symmetry, balance)
 
@@ -48,7 +82,7 @@ def test_flux_symmetry():
     materials = {2: fuel, 0: mod}
 
     # Symmetric layout: 10 fuel | 10 mod (half-cell with reflective BCs)
-    mesh = slab_fuel_moderator(
+    mesh = _slab_fuel_moderator_mesh(
         n_fuel=10, n_mod=10, t_fuel=0.5, t_mod=0.5,
     )
     quad = GaussLegendre1D.create(8)
@@ -60,7 +94,7 @@ def test_flux_symmetry():
     # Here fuel|mod is NOT symmetric about the center, but the flux
     # should still be smooth and monotonic from fuel to moderator.
     # A stronger test: a homogeneous slab must have exactly flat flux.
-    mesh_homo = homogeneous_1d(20, 2.0, mat_id=0)
+    mesh_homo = _homogeneous_slab_mesh(20, 2.0, mat_id=0)
     result_homo = solve_sn({0: mix}, mesh_homo, quad, max_outer=200,
                            max_inner=500, inner_tol=1e-10)
     flux = result_homo.scalar_flux[:, 0, 0]  # (nx,) for group 0
@@ -75,7 +109,7 @@ def test_particle_balance():
     case = get("sn_slab_2eg_1rg")
     mix = next(iter(case.materials.values()))
     materials = {0: mix}
-    mesh = homogeneous_1d(20, 2.0, mat_id=0)
+    mesh = _homogeneous_slab_mesh(20, 2.0, mat_id=0)
     quad = GaussLegendre1D.create(8)
     result = solve_sn(materials, mesh, quad,
                       max_inner=500, inner_tol=1e-10)

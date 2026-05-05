@@ -11,7 +11,7 @@ Reference results:
 from pathlib import Path
 
 from orpheus.data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
-from orpheus.geometry import pwr_slab_half_cell
+from orpheus.geometry import Mesh1D, RegionMesh, StructuredGeometry
 from orpheus.cp.solver import solve_cp
 
 OUTPUT = Path("results")
@@ -28,8 +28,16 @@ def main():
     cool = borated_water(temp_K=600, pressure_MPa=16.0, boron_ppm=4000)
     materials = {2: fuel, 1: clad, 0: cool}
 
-    # Match SN geometry: fuel 0.9 cm, clad 0.2 cm, coolant 0.7 cm
-    mesh = pwr_slab_half_cell(n_fuel=10, n_clad=3, n_cool=7)
+    # Match SN geometry: fuel 0.9 cm, clad 0.2 cm, coolant 0.7 cm.
+    # Geometry layer: shape + BCs only. Mesh layer: per-region cell counts.
+    geom = StructuredGeometry.pwr_slab_half_cell(
+        fuel_half=0.9, clad_thick=0.2, cool_thick=0.7,
+    )
+    mesh = Mesh1D.from_geometry(geom, region_meshes=(
+        RegionMesh(n_cells=10),  # fuel
+        RegionMesh(n_cells=3),   # clad
+        RegionMesh(n_cells=7),   # cool
+    ))
 
     n_fuel = (mesh.mat_ids == 2).sum()
     n_clad = (mesh.mat_ids == 1).sum()

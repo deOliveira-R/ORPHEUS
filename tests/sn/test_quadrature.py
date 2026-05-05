@@ -275,7 +275,14 @@ class TestL0TermVerification:
         The fundamental correctness criterion for curvilinear SN.
         The ΔA/w factor ensures exact per-ordinate cancellation.
         """
-        from orpheus.geometry import CoordSystem, homogeneous_1d
+        from orpheus.geometry import (
+            BC,
+            CoordSystem,
+            Mesh1D,
+            Region,
+            RegionMesh,
+            StructuredGeometry,
+        )
         from orpheus.sn.geometry import SNMesh
 
         if coord == CoordSystem.SPHERICAL:
@@ -283,7 +290,18 @@ class TestL0TermVerification:
         else:
             quad = ProductQuadrature.create(n_mu=4, n_phi=8)
 
-        mesh = homogeneous_1d(10, 1.0, mat_id=0, coord=coord)
+        tag = {
+            CoordSystem.SPHERICAL: "SPH",
+            CoordSystem.CYLINDRICAL: "CYL",
+        }[coord]
+        mesh = Mesh1D.from_geometry(
+            StructuredGeometry(
+                geometry=tag,
+                regions=(Region(mat_id=0, outer_thickness_cm=1.0),),
+                bcs=(BC.reflective,),
+            ),
+            region_meshes=(RegionMesh(n_cells=10),),
+        )
         sn = SNMesh(mesh, quad)
         dA = sn.delta_A
         psi0 = 1.0
@@ -317,10 +335,28 @@ class TestL0TermVerification:
     ])
     def test_delta_A_magnitude(self, coord):
         """L0-SN-004: ΔA = A[i+1] − A[i], hand-computed for known mesh."""
-        from orpheus.geometry import homogeneous_1d
+        from orpheus.geometry import (
+            BC,
+            CoordSystem,
+            Mesh1D,
+            Region,
+            RegionMesh,
+            StructuredGeometry,
+        )
         from orpheus.sn.geometry import SNMesh
 
-        mesh = homogeneous_1d(5, 1.0, mat_id=0, coord=coord)
+        tag = {
+            CoordSystem.SPHERICAL: "SPH",
+            CoordSystem.CYLINDRICAL: "CYL",
+        }[coord]
+        mesh = Mesh1D.from_geometry(
+            StructuredGeometry(
+                geometry=tag,
+                regions=(Region(mat_id=0, outer_thickness_cm=1.0),),
+                bcs=(BC.reflective,),
+            ),
+            region_meshes=(RegionMesh(n_cells=5),),
+        )
         if coord == CoordSystem.SPHERICAL:
             quad = GaussLegendre1D.create(4)
         else:

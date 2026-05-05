@@ -14,7 +14,14 @@ Cylindrical, and Spherical.
 import numpy as np
 import pytest
 
-from orpheus.geometry import CoordSystem, Mesh1D, Zone, mesh1d_from_zones
+from orpheus.geometry import (
+    BC,
+    CoordSystem,
+    Mesh1D,
+    Region,
+    RegionMesh,
+    StructuredGeometry,
+)
 from orpheus.cp.solver import CPMesh
 from orpheus.derivations.common.xs_library import get_xs
 
@@ -31,6 +38,20 @@ pytestmark = [pytest.mark.l0, pytest.mark.verifies(
 
 # ── Fixtures ──────────────────────────────────────────────────────────
 
+_COORD_TO_GEOMETRY_TAG = {
+    CoordSystem.CARTESIAN: "SLB",
+    CoordSystem.CYLINDRICAL: "CYL",
+    CoordSystem.SPHERICAL: "SPH",
+}
+
+
+def _bcs_for(tag: str) -> tuple[BC, ...]:
+    """Default reflective BC tuple matching the geometry tag's endpoint count."""
+    if tag == "SLB":
+        return (BC.reflective, BC.reflective)
+    return (BC.reflective,)
+
+
 def _build_pinf_1g(coord: CoordSystem, r_inner: float = 0.0, r_outer: float = 1.0):
     """Build P_inf for a 1G 2-region problem in any coordinate system.
 
@@ -40,18 +61,19 @@ def _build_pinf_1g(coord: CoordSystem, r_inner: float = 0.0, r_outer: float = 1.
     xs_b = get_xs("B", "1g")
     sig_t_g = np.array([xs_a["sig_t"][0], xs_b["sig_t"][0]])
 
-    mid = 0.5 * (r_inner + r_outer) if coord == CoordSystem.CARTESIAN else None
-    if coord == CoordSystem.CARTESIAN:
-        mesh = mesh1d_from_zones([
-            Zone(outer_edge=0.5, mat_id=0, n_cells=1),
-            Zone(outer_edge=1.0, mat_id=1, n_cells=1),
-        ], coord=coord)
-    else:
-        mesh = mesh1d_from_zones([
-            Zone(outer_edge=0.5, mat_id=0, n_cells=1),
-            Zone(outer_edge=1.0, mat_id=1, n_cells=1),
-        ], coord=coord)
-
+    tag = _COORD_TO_GEOMETRY_TAG[coord]
+    geom = StructuredGeometry(
+        geometry=tag,
+        regions=(
+            Region(mat_id=0, outer_thickness_cm=0.5),
+            Region(mat_id=1, outer_thickness_cm=0.5),
+        ),
+        bcs=_bcs_for(tag),
+    )
+    mesh = Mesh1D.from_geometry(geom, region_meshes=(
+        RegionMesh(n_cells=1),
+        RegionMesh(n_cells=1),
+    ))
     cp_mesh = CPMesh(mesh)
     P_inf = cp_mesh.compute_pinf_group(sig_t_g)
     return P_inf, sig_t_g, mesh.volumes
@@ -59,14 +81,14 @@ def _build_pinf_1g(coord: CoordSystem, r_inner: float = 0.0, r_outer: float = 1.
 
 def _build_pinf_1region(coord: CoordSystem):
     """Build P_inf for a 1G 1-region problem (homogeneous limit)."""
-    if coord == CoordSystem.CARTESIAN:
-        mesh = mesh1d_from_zones([
-            Zone(outer_edge=0.5, mat_id=0, n_cells=1),
-        ], coord=coord)
-    else:
-        mesh = mesh1d_from_zones([
-            Zone(outer_edge=1.0, mat_id=0, n_cells=1),
-        ], coord=coord)
+    tag = _COORD_TO_GEOMETRY_TAG[coord]
+    extent_cm = 0.5 if coord == CoordSystem.CARTESIAN else 1.0
+    geom = StructuredGeometry(
+        geometry=tag,
+        regions=(Region(mat_id=0, outer_thickness_cm=extent_cm),),
+        bcs=_bcs_for(tag),
+    )
+    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=1),))
 
     sig_t_g = np.array([1.0])
     cp_mesh = CPMesh(mesh)

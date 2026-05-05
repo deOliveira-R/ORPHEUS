@@ -13,8 +13,66 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import CoordSystem, Mesh1D, homogeneous_1d, mesh1d_from_zones, Zone
+from orpheus.geometry import (
+    BC,
+    CoordSystem,
+    Mesh1D,
+    Region,
+    RegionMesh,
+    StructuredGeometry,
+)
 from orpheus.sn.geometry import SNMesh
+
+
+_COORD_TO_TAG = {
+    CoordSystem.CARTESIAN: "SLB",
+    CoordSystem.CYLINDRICAL: "CYL",
+    CoordSystem.SPHERICAL: "SPH",
+}
+
+
+def _bcs_for(tag: str):
+    if tag == "SLB":
+        return (BC.reflective, BC.reflective)
+    return (BC.reflective,)
+
+
+def _homogeneous_mesh(
+    n_cells: int,
+    total_width: float,
+    mat_id: int = 0,
+    coord: CoordSystem = CoordSystem.CARTESIAN,
+) -> Mesh1D:
+    """Single-region uniform mesh in any coordinate system."""
+    tag = _COORD_TO_TAG[coord]
+    geom = StructuredGeometry(
+        geometry=tag,
+        regions=(Region(mat_id=mat_id, outer_thickness_cm=total_width),),
+        bcs=_bcs_for(tag),
+    )
+    return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+
+
+def _two_region_mesh(
+    outers: tuple[float, float],
+    mat_ids: tuple[int, int],
+    n_cells: tuple[int, int],
+    coord: CoordSystem,
+) -> Mesh1D:
+    """Two-region mesh with absolute outer-edge convention."""
+    tag = _COORD_TO_TAG[coord]
+    geom = StructuredGeometry(
+        geometry=tag,
+        regions=(
+            Region(mat_id=mat_ids[0], outer_thickness_cm=outers[0]),
+            Region(mat_id=mat_ids[1], outer_thickness_cm=outers[1] - outers[0]),
+        ),
+        bcs=_bcs_for(tag),
+    )
+    return Mesh1D.from_geometry(geom, region_meshes=(
+        RegionMesh(n_cells=n_cells[0]),
+        RegionMesh(n_cells=n_cells[1]),
+    ))
 from orpheus.sn.quadrature import LevelSymmetricSN, ProductQuadrature
 from orpheus.sn.solver import SNSolver, solve_sn
 
@@ -68,7 +126,7 @@ def test_homogeneous_exact(case_name, quad_factory):
     match the analytical infinite-medium eigenvalue."""
     case = get(case_name)
     mix = next(iter(case.materials.values()))
-    mesh = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+    mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
     quad = quad_factory()
     result = solve_sn({0: mix}, mesh, quad,
                       max_inner=500, inner_tol=1e-10)
@@ -91,7 +149,7 @@ def test_particle_balance(quad_factory):
     """For reflective BCs (no leakage), production / absorption = keff."""
     case = get("sn_slab_2eg_1rg")
     mix = next(iter(case.materials.values()))
-    mesh = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+    mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
     quad = quad_factory()
     result = solve_sn({0: mix}, mesh, quad,
                       max_inner=500, inner_tol=1e-10)
@@ -120,12 +178,12 @@ def test_cross_check_with_cp_1g():
 
     mix = get_mixture("A", "1g")
 
-    mesh_sn = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+    mesh_sn = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
     quad = ProductQuadrature.create(n_mu=4, n_phi=8)
     result_sn = solve_sn({0: mix}, mesh_sn, quad,
                          max_inner=500, inner_tol=1e-10)
 
-    mesh_cp = homogeneous_1d(1, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+    mesh_cp = _homogeneous_mesh(1, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
     result_cp = solve_cp({0: mix}, mesh_cp)
 
     np.testing.assert_allclose(
@@ -139,7 +197,7 @@ def test_cross_check_with_cp_1g():
 @pytest.mark.l1
 def test_flux_non_negative():
     mix = get_mixture("A", "1g")
-    mesh = homogeneous_1d(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+    mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
     quad = ProductQuadrature.create(n_mu=4, n_phi=8)
     result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
@@ -158,7 +216,7 @@ class TestCylindricalSweepRegression:
         """A single sweep must produce finite fluxes."""
         from orpheus.sn.sweep import _sweep_1d_cylindrical
 
-        mesh = homogeneous_1d(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+        mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad)
 
@@ -174,7 +232,7 @@ class TestCylindricalSweepRegression:
     def test_inner_loop_bounded_multigroup(self):
         """Inner loop must stay bounded for multi-group."""
         mix = get_mixture("A", "2g")
-        mesh = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+        mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad)
         solver = SNSolver({0: mix}, sn_mesh, max_inner=500, inner_tol=1e-10)
@@ -197,7 +255,7 @@ class TestCylindricalSweepRegression:
             ("product", ProductQuadrature.create(n_mu=4, n_phi=8)),
             ("level_sym", LevelSymmetricSN.create(4)),
         ]:
-            mesh = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+            mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
             result = solve_sn({0: mix}, mesh, quad,
                               max_inner=500, inner_tol=1e-10)
             keffs[label] = result.keff
@@ -209,7 +267,7 @@ class TestCylindricalSweepRegression:
 
     def test_requires_level_quadrature(self):
         """Cylindrical SNMesh with GL quadrature must raise ValueError."""
-        mesh = homogeneous_1d(5, 1.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+        mesh = _homogeneous_mesh(5, 1.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = GaussLegendre1D.create(4)
         with pytest.raises(ValueError, match="level structure"):
             SNMesh(mesh, quad)
@@ -245,11 +303,22 @@ class TestMultiGroupMultiRegion:
         mod = get_mixture("B", "2g")
         materials = {2: fuel, 0: mod}
 
-        zones = [
-            Zone(outer_edge=0.5, mat_id=2, n_cells=10),
-            Zone(outer_edge=1.0, mat_id=0, n_cells=10),
-        ]
-        mesh = mesh1d_from_zones(zones, coord=CoordSystem.CYLINDRICAL)
+        mesh = _two_region_mesh(
+
+
+            outers=(0.5, 1.0),
+
+
+            mat_ids=(2, 0),
+
+
+            n_cells=(10, 10),
+
+
+            coord=CoordSystem.CYLINDRICAL,
+
+
+        )
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
@@ -271,11 +340,17 @@ class TestMultiGroupMultiRegion:
             ("4×8", ProductQuadrature.create(n_mu=4, n_phi=8)),
             ("8×8", ProductQuadrature.create(n_mu=8, n_phi=8)),
         ]:
-            zones = [
-                Zone(outer_edge=0.5, mat_id=2, n_cells=10),
-                Zone(outer_edge=1.0, mat_id=0, n_cells=10),
-            ]
-            mesh = mesh1d_from_zones(zones, coord=CoordSystem.CYLINDRICAL)
+            mesh = _two_region_mesh(
+
+                outers=(0.5, 1.0),
+
+                mat_ids=(2, 0),
+
+                n_cells=(10, 10),
+
+                coord=CoordSystem.CYLINDRICAL,
+
+            )
             result = solve_sn(materials, mesh, quad,
                               max_inner=500, inner_tol=1e-10)
             keffs[label] = result.keff
@@ -292,7 +367,7 @@ class TestMultiGroupMultiRegion:
         and is the most sensitive to iteration divergence.
         """
         mix = get_mixture("A", "4g")
-        mesh = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+        mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad)
         solver = SNSolver({0: mix}, sn_mesh, max_inner=500, inner_tol=1e-10)
@@ -320,11 +395,22 @@ class TestMultiGroupMultiRegion:
         mod = get_mixture("B", "2g")
         materials = {2: fuel, 0: mod}
 
-        zones = [
-            Zone(outer_edge=0.5, mat_id=2, n_cells=10),
-            Zone(outer_edge=1.0, mat_id=0, n_cells=10),
-        ]
-        mesh = mesh1d_from_zones(zones, coord=CoordSystem.CYLINDRICAL)
+        mesh = _two_region_mesh(
+
+
+            outers=(0.5, 1.0),
+
+
+            mat_ids=(2, 0),
+
+
+            n_cells=(10, 10),
+
+
+            coord=CoordSystem.CYLINDRICAL,
+
+
+        )
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
@@ -353,11 +439,22 @@ class TestMultiGroupMultiRegion:
         mod = get_mixture("B", "2g")
         materials = {2: fuel, 0: mod}
 
-        zones = [
-            Zone(outer_edge=0.5, mat_id=2, n_cells=10),
-            Zone(outer_edge=1.0, mat_id=0, n_cells=10),
-        ]
-        mesh = mesh1d_from_zones(zones, coord=CoordSystem.CYLINDRICAL)
+        mesh = _two_region_mesh(
+
+
+            outers=(0.5, 1.0),
+
+
+            mat_ids=(2, 0),
+
+
+            n_cells=(10, 10),
+
+
+            coord=CoordSystem.CYLINDRICAL,
+
+
+        )
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad)
         solver = SNSolver(materials, sn_mesh, max_inner=500, inner_tol=1e-10)
@@ -404,7 +501,7 @@ class TestMultiGroupMultiRegion:
         directions at the centre where A=0.
         """
         mix = get_mixture("A", "1g")
-        mesh = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+        mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
         result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
@@ -422,7 +519,7 @@ class TestMultiGroupMultiRegion:
         from orpheus.sn.sweep import _sweep_1d_cylindrical
 
         mix = get_mixture("A", "1g")
-        mesh = homogeneous_1d(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+        mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad)
 
@@ -451,7 +548,7 @@ class TestMultiGroupMultiRegion:
         """Two-cell 1G pure absorber with uniform source → φ = Q/Σ_t."""
         from orpheus.sn.sweep import _sweep_1d_cylindrical
 
-        mesh = homogeneous_1d(2, 1.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
+        mesh = _homogeneous_mesh(2, 1.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad)
 
@@ -474,11 +571,17 @@ class TestMultiGroupMultiRegion:
 
         keffs = []
         for n_cells in [5, 10, 20]:
-            zones = [
-                Zone(outer_edge=0.5, mat_id=2, n_cells=n_cells),
-                Zone(outer_edge=1.0, mat_id=0, n_cells=n_cells),
-            ]
-            mesh = mesh1d_from_zones(zones, coord=CoordSystem.CYLINDRICAL)
+            mesh = _two_region_mesh(
+
+                outers=(0.5, 1.0),
+
+                mat_ids=(2, 0),
+
+                n_cells=(n_cells, n_cells),
+
+                coord=CoordSystem.CYLINDRICAL,
+
+            )
             result = solve_sn(materials, mesh, quad,
                               max_inner=500, inner_tol=1e-10)
             keffs.append(result.keff)
@@ -499,20 +602,22 @@ class TestMultiGroupMultiRegion:
         mix_mod = get_mixture("B", "1g")
         materials = {2: mix_fuel, 0: mix_mod}
 
-        zones_sn = [
-            Zone(outer_edge=0.5, mat_id=2, n_cells=20),
-            Zone(outer_edge=1.0, mat_id=0, n_cells=20),
-        ]
-        mesh_sn = mesh1d_from_zones(zones_sn, coord=CoordSystem.CYLINDRICAL)
+        mesh_sn = _two_region_mesh(
+            outers=(0.5, 1.0),
+            mat_ids=(2, 0),
+            n_cells=(20, 20),
+            coord=CoordSystem.CYLINDRICAL,
+        )
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
         result_sn = solve_sn(materials, mesh_sn, quad,
                              max_inner=500, inner_tol=1e-10)
 
-        zones_cp = [
-            Zone(outer_edge=0.5, mat_id=2, n_cells=10),
-            Zone(outer_edge=1.0, mat_id=0, n_cells=10),
-        ]
-        mesh_cp = mesh1d_from_zones(zones_cp, coord=CoordSystem.CYLINDRICAL)
+        mesh_cp = _two_region_mesh(
+            outers=(0.5, 1.0),
+            mat_ids=(2, 0),
+            n_cells=(10, 10),
+            coord=CoordSystem.CYLINDRICAL,
+        )
         result_cp = solve_cp(materials, mesh_cp)
 
         np.testing.assert_allclose(

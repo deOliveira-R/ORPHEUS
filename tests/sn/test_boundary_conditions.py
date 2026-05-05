@@ -129,7 +129,12 @@ class TestSNBCSweepBehavior:
     def test_vacuum_keff_lower_than_reflective(self, quad):
         """Vacuum BC loses neutrons → lower keff than reflective."""
         from orpheus.derivations.reference_values import get
-        from orpheus.geometry import homogeneous_1d
+        from orpheus.geometry import (
+            Mesh1D as _Mesh1D,
+            Region,
+            RegionMesh,
+            StructuredGeometry,
+        )
         from orpheus.sn.solver import solve_sn
 
         case = get("sn_slab_2eg_1rg")
@@ -137,7 +142,14 @@ class TestSNBCSweepBehavior:
         materials = {0: mix}
 
         # Reflective (default — no BCs on mesh)
-        mesh_refl = homogeneous_1d(20, 2.0, mat_id=0)
+        mesh_refl = _Mesh1D.from_geometry(
+            StructuredGeometry(
+                geometry="SLB",
+                regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
+                bcs=(BC.reflective, BC.reflective),
+            ),
+            region_meshes=(RegionMesh(n_cells=20),),
+        )
         result_refl = solve_sn(materials, mesh_refl, quad)
 
         # Vacuum — explicit BCs on mesh

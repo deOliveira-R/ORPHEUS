@@ -84,8 +84,11 @@ def solve_moc(
     materials : dict[int, Mixture]
         Macroscopic cross sections keyed by material ID.
     mesh : Mesh1D, optional
-        Cylindrical 1-D Wigner-Seitz mesh.  Defaults to the standard
-        PWR pin cell via ``pwr_pin_equivalent()``.
+        Cylindrical 1-D Wigner-Seitz mesh. Defaults to the standard PWR
+        pin cell built via
+        :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
+        →
+        :meth:`Mesh1D.from_geometry <orpheus.geometry.mesh.Mesh1D.from_geometry>`.
     n_azi : int
         Number of azimuthal angles in [0, pi).
     n_polar : int
@@ -102,8 +105,17 @@ def solve_moc(
     t_start = time.perf_counter()
 
     if mesh is None:
-        from orpheus.geometry import pwr_pin_equivalent
-        mesh = pwr_pin_equivalent()
+        from orpheus.geometry import (
+            Mesh1D as _M,
+            RegionMesh as _RM,
+            StructuredGeometry as _SG,
+        )
+        _geom = _SG.wigner_seitz_pin_cell()
+        mesh = _M.from_geometry(_geom, region_meshes=(
+            _RM(n_cells=10),  # fuel
+            _RM(n_cells=3),   # clad
+            _RM(n_cells=7),   # cool
+        ))
 
     _any_mat = next(iter(materials.values()))
     eg = _any_mat.eg

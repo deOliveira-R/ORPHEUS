@@ -5,11 +5,12 @@
 segments, reflective boundary links) for a pin-cell with concentric
 annuli inside a square lattice cell.
 
-**Inverse Wigner-Seitz**: the ``Mesh1D`` is built with
-:func:`geometry.factories.pwr_pin_equivalent`, whose outer edge is the
-Wigner-Seitz radius ``r_cell = pitch / sqrt(pi)``.  ``MOCMesh`` recovers
-the pitch and reinterprets the outermost annular region as the square
-border bounded by the cell walls.
+**Inverse Wigner-Seitz**: the ``Mesh1D`` is built via
+:meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
+→ :meth:`Mesh1D.from_geometry <orpheus.geometry.mesh.Mesh1D.from_geometry>`,
+whose outer edge is the Wigner-Seitz radius ``r_cell = pitch / sqrt(pi)``.
+``MOCMesh`` recovers the pitch and reinterprets the outermost annular
+region as the square border bounded by the cell walls.
 """
 
 from __future__ import annotations

@@ -13,8 +13,73 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import CoordSystem, Mesh1D, homogeneous_1d, mesh1d_from_zones, Zone
+from orpheus.geometry import (
+    BC,
+    CoordSystem,
+    Mesh1D,
+    Region,
+    RegionMesh,
+    StructuredGeometry,
+)
 from orpheus.sn.geometry import SNMesh
+
+
+_COORD_TO_TAG = {
+    CoordSystem.CARTESIAN: "SLB",
+    CoordSystem.CYLINDRICAL: "CYL",
+    CoordSystem.SPHERICAL: "SPH",
+}
+
+
+def _bcs_for(tag: str):
+    if tag == "SLB":
+        return (BC.reflective, BC.reflective)
+    return (BC.reflective,)
+
+
+def _homogeneous_mesh(
+    n_cells: int,
+    total_width: float,
+    mat_id: int = 0,
+    coord: CoordSystem = CoordSystem.CARTESIAN,
+) -> Mesh1D:
+    """Single-region uniform mesh in any coordinate system.
+
+    Replaces the legacy ``homogeneous_1d`` factory.
+    """
+    tag = _COORD_TO_TAG[coord]
+    geom = StructuredGeometry(
+        geometry=tag,
+        regions=(Region(mat_id=mat_id, outer_thickness_cm=total_width),),
+        bcs=_bcs_for(tag),
+    )
+    return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+
+
+def _two_region_mesh(
+    outers: tuple[float, float],
+    mat_ids: tuple[int, int],
+    n_cells: tuple[int, int],
+    coord: CoordSystem,
+) -> Mesh1D:
+    """Two-region mesh with absolute outer-edge convention.
+
+    Replaces ``mesh1d_from_zones([Zone(outer_edge=outers[0], ...),
+    Zone(outer_edge=outers[1], ...)], coord=coord)``.
+    """
+    tag = _COORD_TO_TAG[coord]
+    geom = StructuredGeometry(
+        geometry=tag,
+        regions=(
+            Region(mat_id=mat_ids[0], outer_thickness_cm=outers[0]),
+            Region(mat_id=mat_ids[1], outer_thickness_cm=outers[1] - outers[0]),
+        ),
+        bcs=_bcs_for(tag),
+    )
+    return Mesh1D.from_geometry(geom, region_meshes=(
+        RegionMesh(n_cells=n_cells[0]),
+        RegionMesh(n_cells=n_cells[1]),
+    ))
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.solver import SNSolver, solve_sn
 
@@ -67,7 +132,7 @@ def test_homogeneous_exact(case_name):
     case = get(case_name)
     mix = next(iter(case.materials.values()))
     materials = {0: mix}
-    mesh = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
+    mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
     quad = GaussLegendre1D.create(8)
     result = solve_sn(materials, mesh, quad,
                       max_inner=500, inner_tol=1e-10)
@@ -90,7 +155,7 @@ def test_particle_balance():
     case = get("sn_slab_2eg_1rg")
     mix = next(iter(case.materials.values()))
     materials = {0: mix}
-    mesh = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
+    mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
     quad = GaussLegendre1D.create(8)
     result = solve_sn(materials, mesh, quad,
                       max_inner=500, inner_tol=1e-10)
@@ -175,11 +240,17 @@ def test_spatial_convergence():
     keffs = []
     drs = []
     for n_per in [5, 10, 20, 40]:
-        zones = [
-            Zone(outer_edge=0.5, mat_id=2, n_cells=n_per),
-            Zone(outer_edge=1.0, mat_id=0, n_cells=n_per),
-        ]
-        mesh = mesh1d_from_zones(zones, coord=CoordSystem.SPHERICAL)
+        mesh = _two_region_mesh(
+
+            outers=(0.5, 1.0),
+
+            mat_ids=(2, 0),
+
+            n_cells=(n_per, n_per),
+
+            coord=CoordSystem.SPHERICAL,
+
+        )
         quad = GaussLegendre1D.create(16)
         result = solve_sn(
             materials, mesh, quad,
@@ -224,13 +295,13 @@ def test_cross_check_with_cp_1g():
     materials_cp = {0: mix}
 
     # SN: homogeneous sphere with reflective BC
-    mesh_sn = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
+    mesh_sn = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
     quad = GaussLegendre1D.create(8)
     result_sn = solve_sn(materials_sn, mesh_sn, quad,
                          max_inner=500, inner_tol=1e-10)
 
     # CP: same geometry with white BC
-    mesh_cp = homogeneous_1d(1, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
+    mesh_cp = _homogeneous_mesh(1, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
     result_cp = solve_cp(materials_cp, mesh_cp)
 
     # Both must give the same 1G homogeneous k_inf
@@ -246,7 +317,7 @@ def test_cross_check_with_cp_1g():
 def test_flux_non_negative():
     """Converged scalar flux must be non-negative everywhere."""
     mix = get_mixture("A", "1g")
-    mesh = homogeneous_1d(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
+    mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
     quad = GaussLegendre1D.create(8)
     result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
@@ -271,7 +342,7 @@ class TestSphericalSweepRegression:
         """
         from orpheus.sn.sweep import _sweep_1d_spherical
 
-        mesh = homogeneous_1d(10, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
+        mesh = _homogeneous_mesh(10, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
         sn_mesh = SNMesh(mesh, quad)
 
@@ -298,7 +369,7 @@ class TestSphericalSweepRegression:
         """
         from orpheus.sn.sweep import _sweep_1d_spherical
 
-        mesh = homogeneous_1d(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
+        mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
         sn_mesh = SNMesh(mesh, quad)
 
@@ -318,7 +389,7 @@ class TestSphericalSweepRegression:
         solve_fixed_source) must produce finite flux with bounded norm.
         """
         mix = get_mixture("A", "2g")
-        mesh = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
+        mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
         sn_mesh = SNMesh(mesh, quad)
         solver = SNSolver({0: mix}, sn_mesh, max_inner=500, inner_tol=1e-10)
@@ -341,7 +412,7 @@ class TestSphericalSweepRegression:
         would have zero flux at the centre.
         """
         mix = get_mixture("A", "1g")
-        mesh = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
+        mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
         result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
@@ -365,7 +436,7 @@ class TestSphericalBicgstab:
         """BiCGSTAB on 1G homogeneous sphere must match analytical k_inf."""
         case = get("sn_slab_1eg_1rg")
         mix = next(iter(case.materials.values()))
-        mesh = homogeneous_1d(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
+        mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
         result = solve_sn({0: mix}, mesh, quad,
                           inner_solver="bicgstab",
@@ -383,7 +454,7 @@ class TestSphericalBicgstab:
         keffs = {}
         for label, solver_type in [("SI", "source_iteration"),
                                     ("BC", "bicgstab")]:
-            mesh = homogeneous_1d(10, 2.0, mat_id=0,
+            mesh = _homogeneous_mesh(10, 2.0, mat_id=0,
                                   coord=CoordSystem.SPHERICAL)
             quad = GaussLegendre1D.create(8)
             result = solve_sn(
@@ -409,7 +480,7 @@ class TestSphericalBicgstab:
         """
         case = get("sn_slab_1eg_1rg")
         mix = next(iter(case.materials.values()))
-        mesh = homogeneous_1d(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
+        mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
         result = solve_sn({0: mix}, mesh, quad,
                           inner_solver="bicgstab",
@@ -437,11 +508,22 @@ class TestMultiGroupMultiRegionSpherical:
         mod = get_mixture("B", "2g")
         materials = {2: fuel, 0: mod}
 
-        zones = [
-            Zone(outer_edge=0.5, mat_id=2, n_cells=10),
-            Zone(outer_edge=1.0, mat_id=0, n_cells=10),
-        ]
-        mesh = mesh1d_from_zones(zones, coord=CoordSystem.SPHERICAL)
+        mesh = _two_region_mesh(
+
+
+            outers=(0.5, 1.0),
+
+
+            mat_ids=(2, 0),
+
+
+            n_cells=(10, 10),
+
+
+            coord=CoordSystem.SPHERICAL,
+
+
+        )
         quad = GaussLegendre1D.create(8)
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
@@ -453,7 +535,7 @@ class TestMultiGroupMultiRegionSpherical:
     def test_4g_scattering_convergence(self):
         """4G homogeneous must converge (richest scattering matrix)."""
         mix = get_mixture("A", "4g")
-        mesh = homogeneous_1d(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
+        mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
         sn_mesh = SNMesh(mesh, quad)
         solver = SNSolver({0: mix}, sn_mesh, max_inner=500, inner_tol=1e-10)
@@ -474,11 +556,22 @@ class TestMultiGroupMultiRegionSpherical:
         mod = get_mixture("B", "2g")
         materials = {2: fuel, 0: mod}
 
-        zones = [
-            Zone(outer_edge=0.5, mat_id=2, n_cells=10),
-            Zone(outer_edge=1.0, mat_id=0, n_cells=10),
-        ]
-        mesh = mesh1d_from_zones(zones, coord=CoordSystem.SPHERICAL)
+        mesh = _two_region_mesh(
+
+
+            outers=(0.5, 1.0),
+
+
+            mat_ids=(2, 0),
+
+
+            n_cells=(10, 10),
+
+
+            coord=CoordSystem.SPHERICAL,
+
+
+        )
         quad = GaussLegendre1D.create(8)
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
@@ -504,11 +597,22 @@ class TestMultiGroupMultiRegionSpherical:
         mod = get_mixture("B", "2g")
         materials = {2: fuel, 0: mod}
 
-        zones = [
-            Zone(outer_edge=0.5, mat_id=2, n_cells=10),
-            Zone(outer_edge=1.0, mat_id=0, n_cells=10),
-        ]
-        mesh = mesh1d_from_zones(zones, coord=CoordSystem.SPHERICAL)
+        mesh = _two_region_mesh(
+
+
+            outers=(0.5, 1.0),
+
+
+            mat_ids=(2, 0),
+
+
+            n_cells=(10, 10),
+
+
+            coord=CoordSystem.SPHERICAL,
+
+
+        )
         quad = GaussLegendre1D.create(8)
         sn_mesh = SNMesh(mesh, quad)
         solver = SNSolver(materials, sn_mesh, max_inner=500, inner_tol=1e-10)
@@ -538,7 +642,7 @@ class TestMultiGroupMultiRegionSpherical:
         """
         from orpheus.sn.sweep import _sweep_1d_spherical
 
-        mesh = homogeneous_1d(40, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
+        mesh = _homogeneous_mesh(40, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
         sn_mesh = SNMesh(mesh, quad)
 
@@ -564,11 +668,17 @@ class TestMultiGroupMultiRegionSpherical:
 
         keffs = []
         for n_cells in [5, 10, 20]:
-            zones = [
-                Zone(outer_edge=0.5, mat_id=2, n_cells=n_cells),
-                Zone(outer_edge=1.0, mat_id=0, n_cells=n_cells),
-            ]
-            mesh = mesh1d_from_zones(zones, coord=CoordSystem.SPHERICAL)
+            mesh = _two_region_mesh(
+
+                outers=(0.5, 1.0),
+
+                mat_ids=(2, 0),
+
+                n_cells=(n_cells, n_cells),
+
+                coord=CoordSystem.SPHERICAL,
+
+            )
             result = solve_sn(materials, mesh, quad,
                               max_inner=500, inner_tol=1e-10)
             keffs.append(result.keff)

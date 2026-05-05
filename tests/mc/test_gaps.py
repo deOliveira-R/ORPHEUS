@@ -667,8 +667,6 @@ def test_mcmesh_vs_concentric_keff():
     Same physics, same seed, different geometry implementation.
     Any difference reveals a bug in MCMesh.material_id_at.
     """
-    from orpheus.geometry.factories import pwr_pin_equivalent
-
     case = get("mc_cyl1D_2eg_2rg")
     gp = case.geom_params
     radii = gp["radii"]

@@ -20,9 +20,13 @@ from orpheus.mc.solver import (
     ConcentricPinCell, SlabPinCell, MCMesh, MCGeometry,
     MCParams, solve_monte_carlo,
 )
-from orpheus.geometry import CoordSystem, Mesh1D
-from orpheus.geometry.factories import (
-    pwr_pin_equivalent, pwr_slab_half_cell, mesh1d_from_zones, Zone,
+from orpheus.geometry import (
+    BC,
+    CoordSystem,
+    Mesh1D,
+    Region,
+    RegionMesh,
+    StructuredGeometry,
 )
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_xs, get_mixture
@@ -111,7 +115,12 @@ def test_1g_homogeneous_deterministic():
 
 def test_mcmesh_satisfies_protocol():
     """MCMesh must satisfy the MCGeometry runtime protocol."""
-    mesh = pwr_slab_half_cell()
+    geom = StructuredGeometry.pwr_slab_half_cell()
+    mesh = Mesh1D.from_geometry(geom, region_meshes=(
+        RegionMesh(n_cells=10),  # fuel
+        RegionMesh(n_cells=3),   # clad
+        RegionMesh(n_cells=7),   # cool
+    ))
     mc = MCMesh(mesh, pitch=3.6)
     assert isinstance(mc, MCGeometry)
 
@@ -168,7 +177,14 @@ def test_mcmesh_cylindrical_matches_concentric():
 
     10000 random points — zero mismatches expected.
     """
-    mesh = pwr_pin_equivalent(r_fuel=0.9, r_clad=1.1, pitch=3.6)
+    geom = StructuredGeometry.wigner_seitz_pin_cell(
+        r_fuel=0.9, r_clad=1.1, pitch=3.6,
+    )
+    mesh = Mesh1D.from_geometry(geom, region_meshes=(
+        RegionMesh(n_cells=10),  # fuel
+        RegionMesh(n_cells=3),   # clad
+        RegionMesh(n_cells=7),   # cool
+    ))
     mc = MCMesh(mesh, pitch=3.6)
     ref = ConcentricPinCell.default_pwr(pitch=3.6)
 

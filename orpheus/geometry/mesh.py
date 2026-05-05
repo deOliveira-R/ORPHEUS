@@ -227,10 +227,10 @@ class Mesh1D:
         equal-volume subdivisions (cylindrical / spherical) where
         recomputation from edges loses ~1 ULP per cell through the
         ``sqrt→**2`` or ``cbrt→**3`` round trip and breaks invariants
-        like "every cell in a zone has identical volume." Set by
-        :func:`~orpheus.geometry.factories.mesh1d_from_zones` and
-        friends; None for manually-constructed meshes with arbitrary
-        edges, which still derive volumes from edges as before.
+        like "every cell in a region has identical volume." Set by
+        :meth:`Mesh1D.from_geometry`; None for manually-constructed
+        meshes with arbitrary edges, which still derive volumes from
+        edges as before.
     """
 
     edges: np.ndarray
@@ -302,11 +302,11 @@ class Mesh1D:
         """Cell volumes, shape (N,).
 
         When ``precomputed_volumes`` was supplied at construction (the
-        normal path via :func:`~orpheus.geometry.factories.mesh1d_from_zones`),
-        those exact values are returned. Otherwise volumes are derived
-        from edges via :func:`~orpheus.geometry.coord.compute_volumes_1d`
-        — which is correct to ~1 ULP per cell but can break
-        "all cells in an equal-volume zone are bit-identical"
+        normal path via :meth:`Mesh1D.from_geometry`), those exact
+        values are returned. Otherwise volumes are derived from edges
+        via :func:`~orpheus.geometry.coord.compute_volumes_1d` — which
+        is correct to ~1 ULP per cell but can break
+        "all cells in an equal-volume region are bit-identical"
         assertions for the cylindrical/spherical cases where the
         ``sqrt→**2`` / ``cbrt→**3`` edge round trip loses precision.
         """

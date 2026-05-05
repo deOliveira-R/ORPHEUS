@@ -5,7 +5,47 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import homogeneous_1d, slab_fuel_moderator
+from orpheus.geometry import (
+    BC,
+    Mesh1D,
+    Region,
+    RegionMesh,
+    StructuredGeometry,
+)
+
+
+def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) -> Mesh1D:
+    """Single-region Cartesian mesh helper (replaces legacy ``homogeneous_1d``).
+
+    Reflective BCs on both ends — the eigenvalue / lattice convention.
+    """
+    geom = StructuredGeometry(
+        geometry="SLB",
+        regions=(Region(mat_id=mat_id, outer_thickness_cm=total_width),),
+        bcs=(BC.reflective, BC.reflective),
+    )
+    return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+
+
+def _slab_fuel_moderator_mesh(
+    n_fuel: int, n_mod: int, t_fuel: float, t_mod: float,
+) -> Mesh1D:
+    """Two-region fuel-moderator slab mesh (replaces legacy ``slab_fuel_moderator``).
+
+    Reflective BCs on both ends. Material IDs: 2 = fuel, 0 = moderator.
+    """
+    geom = StructuredGeometry(
+        geometry="SLB",
+        regions=(
+            Region(mat_id=2, outer_thickness_cm=t_fuel),
+            Region(mat_id=0, outer_thickness_cm=t_mod),
+        ),
+        bcs=(BC.reflective, BC.reflective),
+    )
+    return Mesh1D.from_geometry(geom, region_meshes=(
+        RegionMesh(n_cells=n_fuel),
+        RegionMesh(n_cells=n_mod),
+    ))
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.solver import solve_sn
 
@@ -35,7 +75,7 @@ def test_homogeneous_exact(case_name):
     case = get(case_name)
     mix = next(iter(case.materials.values()))
     materials = {0: mix}
-    mesh = homogeneous_1d(20, 2.0, mat_id=0)
+    mesh = _homogeneous_slab_mesh(20, 2.0, mat_id=0)
     quad = GaussLegendre1D.create(8)
     result = solve_sn(materials, mesh, quad,
                       max_inner=500, inner_tol=1e-10)
@@ -94,7 +134,7 @@ def test_spatial_convergence():
     keffs = []
     dxs = []
     for n_per in [5, 10, 20, 40]:
-        mesh = slab_fuel_moderator(
+        mesh = _slab_fuel_moderator_mesh(
             n_fuel=n_per, n_mod=n_per, t_fuel=t_fuel, t_mod=t_mod,
         )
         quad = GaussLegendre1D.create(16)
@@ -304,7 +344,7 @@ def test_angular_convergence():
     keffs = []
     n_ords = [4, 8, 16, 32]
     for N in n_ords:
-        mesh = slab_fuel_moderator(
+        mesh = _slab_fuel_moderator_mesh(
             n_fuel=40, n_mod=40, t_fuel=0.5, t_mod=0.5,
         )
         quad = GaussLegendre1D.create(N)

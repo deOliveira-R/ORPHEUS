@@ -4,7 +4,13 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import slab_fuel_moderator
+from orpheus.geometry import (
+    BC,
+    Mesh1D,
+    Region,
+    RegionMesh,
+    StructuredGeometry,
+)
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.solver import solve_sn
 
@@ -34,9 +40,18 @@ def test_sn_approaches_cp_reference():
     mod = get_mixture("B", "1g")
     materials = {2: fuel, 0: mod}
 
-    mesh = slab_fuel_moderator(
-        n_fuel=40, n_mod=40, t_fuel=0.5, t_mod=0.5,
+    geom = StructuredGeometry(
+        geometry="SLB",
+        regions=(
+            Region(mat_id=2, outer_thickness_cm=0.5),  # fuel
+            Region(mat_id=0, outer_thickness_cm=0.5),  # moderator
+        ),
+        bcs=(BC.reflective, BC.reflective),
     )
+    mesh = Mesh1D.from_geometry(geom, region_meshes=(
+        RegionMesh(n_cells=40),
+        RegionMesh(n_cells=40),
+    ))
     quad = GaussLegendre1D.create(32)
     result = solve_sn(
         materials, mesh, quad,

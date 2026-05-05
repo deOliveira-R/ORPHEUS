@@ -725,10 +725,13 @@ def solve_cp(
         Macroscopic cross sections keyed by material ID. Keys must
         match every ``mat_id`` referenced by the mesh.
     mesh : Mesh1D, optional
-        1-D mesh.  Defaults to a cylindrical PWR pin cell via
-        :func:`geometry.factories.pwr_pin_equivalent`. The mesh's
-        boundary conditions (``bc_left`` / ``bc_right``) are honoured
-        verbatim — the CP kernel registry handles ``white`` / ``vacuum``.
+        1-D mesh.  Defaults to a cylindrical PWR pin cell built via
+        :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
+        →
+        :meth:`Mesh1D.from_geometry <orpheus.geometry.mesh.Mesh1D.from_geometry>`.
+        The mesh's boundary conditions (``bc_left`` / ``bc_right``)
+        are honoured verbatim — the CP kernel registry handles
+        ``white`` / ``vacuum``.
     params : CPParams, optional
         Solver parameters (tolerances, Ki table size, chord-quadrature
         order via ``n_quad_y``, solver mode, inner-iteration limits).
@@ -741,8 +744,17 @@ def solve_cp(
     t_start = time.perf_counter()
 
     if mesh is None:
-        from orpheus.geometry import pwr_pin_equivalent
-        mesh = pwr_pin_equivalent()
+        from orpheus.geometry import (
+            Mesh1D as _M,
+            RegionMesh as _RM,
+            StructuredGeometry as _SG,
+        )
+        _geom = _SG.wigner_seitz_pin_cell()
+        mesh = _M.from_geometry(_geom, region_meshes=(
+            _RM(n_cells=10),  # fuel
+            _RM(n_cells=3),   # clad
+            _RM(n_cells=7),   # cool
+        ))
     if params is None:
         params = CPParams()
 

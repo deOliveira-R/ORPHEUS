@@ -427,6 +427,66 @@ class StructuredGeometry:
             bcs=bcs,
         )
 
+    @classmethod
+    def pwr_slab_half_cell(
+        cls,
+        *,
+        fuel_half: float = 0.9,
+        clad_thick: float = 0.2,
+        cool_thick: float = 0.7,
+        bcs: tuple[BC, ...] = (BC("reflective"), BC("reflective")),
+    ) -> "StructuredGeometry":
+        r"""Cartesian 1-D PWR half-cell geometry: fuel | clad | coolant.
+
+        Encodes the conceptual symmetry of a square PWR unit cell about
+        the fuel centreline. The geometry starts at ``x = 0`` (the
+        symmetry plane through the fuel centre) and extends outward
+        through ``fuel_half`` (half the fuel thickness), ``clad_thick``,
+        and ``cool_thick`` to the unit-cell boundary at the coolant
+        side.
+
+        Material IDs follow the project convention:
+        ``2`` = fuel, ``1`` = clad, ``0`` = coolant.
+
+        Default BCs are reflective on both ends — the standard infinite-
+        lattice eigenvalue convention. Override ``bcs`` to (reflective,
+        white) for an isolated unit cell with isotropic re-entry on
+        the coolant boundary, or to (reflective, vacuum) for a
+        right-vacuum boundary configuration.
+
+        Parameters
+        ----------
+        fuel_half : float
+            Half-thickness of the fuel slab (cm). Default 0.9.
+        clad_thick : float
+            Cladding thickness (cm). Default 0.2.
+        cool_thick : float
+            Coolant thickness (cm). Default 0.7.
+        bcs : tuple[BC, ...]
+            ``(bc_left, bc_right)`` BCs. Default
+            ``(BC("reflective"), BC("white"))``.
+
+        Returns
+        -------
+        StructuredGeometry
+            An SLB geometry with three regions in the conventional
+            (fuel, clad, coolant) ordering.
+
+        See Also
+        --------
+        Mesh1D.from_geometry : Discretize this geometry into a mesh.
+        wigner_seitz_pin_cell : The cylindrical equivalent.
+        """
+        return cls(
+            geometry="SLB",
+            regions=(
+                Region(mat_id=2, outer_thickness_cm=float(fuel_half)),
+                Region(mat_id=1, outer_thickness_cm=float(clad_thick)),
+                Region(mat_id=0, outer_thickness_cm=float(cool_thick)),
+            ),
+            bcs=bcs,
+        )
+
 
 __all__ = [
     "Region",
