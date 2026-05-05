@@ -152,6 +152,14 @@ The :class:`La13511Case` dataclass carries six load-bearing fields:
    * - ``notes``
      - ``str``
      - Free-form remarks (typo flags, conversion subtleties, …).
+   * - ``provenance``
+     - :class:`Provenance` ``| None``
+     - Phase B addition (2026-05-04). Structured citation metadata
+       bundling ``paper_id`` / ``paper_table`` / ``primary_reference``
+       / ``notes``. Mirrors the legacy flat ``sood_table`` /
+       ``primary_reference`` / ``notes`` triple — Phase B populates
+       both forms; Phase F drops the flat fields. ``None`` only on
+       cases not yet migrated.
 
 The :class:`GeometrySpec` carries:
 
@@ -179,6 +187,63 @@ The :class:`La13511Truth` carries:
 * ``angular_flux_at_surface`` — reserved for future cases that
   publish surface angular flux :math:`\psi(\mu, r=R)`. ``None`` for
   first-slice cases.
+* ``critical_dimension_mfp`` — Phase B addition. Published critical
+  dimension in mean free paths. For ``"slab"``: the half-thickness
+  :math:`a` (F_N convention). For ``"sphere"`` / ``"cylinder"``: the
+  radius :math:`R`. For ``"infinite"``: ``None``. This is a
+  registry-truth value (the published critical configuration);
+  living on ``Truth`` and not on ``geometry_spec`` mirrors the
+  architectural fact that the value is a *truth claim* ("at this
+  size, the configuration is critical"), not a geometric description.
+  Multiply by :math:`1 / \Sigma_t` to convert to cm — that is what
+  :meth:`La13511Case.to_geometry` does internally.
+* ``extrapolated_endpoint_mfp`` — Phase B addition. Published
+  extrapolated endpoint :math:`z_0` in mean free paths, used in
+  diffusion-theory boundary conditions. Optional metadata; not all
+  cases publish it. Currently ``None`` on every catalogue case.
+
+Phase B — case → StructuredGeometry adapter
+-------------------------------------------
+
+The ``geometry_spec`` field carries both the *structural*
+description (kind, regions, BCs) and the *truth* values
+(``critical_dimension_mfp`` / ``critical_dimension_cm``). The Phase
+B audit (``.claude/plans/dazzling-cuddling-boot.md``) identified
+that this entanglement should be split: the truth values move onto
+``La13511Truth`` (where they conceptually belong), and the geometry
+itself is built on demand from the truth value via
+:meth:`La13511Case.to_geometry`:
+
+.. code-block:: python
+
+   geom = case.to_geometry()
+   # Returns StructuredGeometry with cm = mfp / Σ_t,
+   # tag "SLB" / "SPH" / "CYL", and BCs:
+   #   slab    → (BC.vacuum, BC.vacuum) — full-width 2a
+   #   sphere  → (BC.vacuum,) — outer; centreline implicit reflective
+   #   cylinder→ (BC.vacuum,) — outer; centreline implicit reflective
+
+Slab convention: returns the FULL slab width (``2 *
+critical_dimension_mfp / Σ_t``) with vacuum-vacuum BCs — the
+production-natural convention. F_N's natural half-thickness is
+recovered inside :class:`MomentSpace` from
+``geom.domain_extent_cm / 2``. This wastes the slab's natural
+half-symmetry; a future improvement would encode Sood symmetric
+slabs as half-slabs with reflective+vacuum BCs (half the cells in
+production solves at the same accuracy).
+
+Infinite-medium cases (``geometry == "infinite"``) raise
+``ValueError`` from :meth:`La13511Case.to_geometry` with a directive
+message pointing the caller at :meth:`MomentSpace.solve_kinf` /
+:func:`solve_homogeneous_infinite` — those don't have a geometry
+to build.
+
+Phase B is *additive*: legacy consumers reading
+``case.geometry_spec.critical_dimension_mfp`` continue to work
+unchanged. Phase F (after Phases C/D migrate consumers) deletes the
+duplicate fields off ``GeometrySpec`` and the flat
+``sood_table`` / ``primary_reference`` / ``notes`` triple off
+``La13511Case``.
 
 Cross-method consumer pattern
 ------------------------------
