@@ -365,10 +365,11 @@ class MomentSpace:
     def solve_kinf(mixture: Mixture) -> CriticalSolution:
         r"""Compute infinite-medium :math:`k_\infty` for *mixture*.
 
-        Replaces the pre-Phase-D path
-        ``MomentSpace.from_problem(geometry_spec=GeometrySpec(geometry="infinite", ...))``
-        with a direct mixture-only entry point. No geometry needed —
-        :math:`k_\infty` is a material property of the medium.
+        Replaces the pre-Phase-D ``MomentSpace.from_problem`` path
+        (which used the now-retired ``GeometrySpec`` carrier with
+        ``geometry="infinite"``) with a direct mixture-only entry
+        point. No geometry needed — :math:`k_\infty` is a material
+        property of the medium.
 
         Dispatches to :func:`...multi_group.k_inf.compute_kinf_*`
         based on the mixture's group count (1G, 2G, multi-group).
