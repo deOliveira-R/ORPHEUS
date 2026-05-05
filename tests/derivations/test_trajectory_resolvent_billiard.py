@@ -90,6 +90,8 @@ def _mixture_from_xs(
     else:
         chi_arr = np.atleast_1d(np.asarray(chi, dtype=float))
     ng = sig_t_arr.size
+    # Synthetic XS for trajectory-resolvent billiard test (Phase E):
+    # no physical energy grid.
     return Mixture(
         SigC=np.zeros(ng),
         SigL=np.zeros(ng),
@@ -99,7 +101,6 @@ def _mixture_from_xs(
         SigS=[csr_matrix(sig_s_arr.copy())],
         Sig2=csr_matrix((ng, ng)),
         chi=chi_arr,
-        eg=np.logspace(7, -3, ng + 1),
     )
 
 

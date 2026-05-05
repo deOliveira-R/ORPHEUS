@@ -43,10 +43,11 @@ def test_scattering_ratio_one_group_isotropic():
     SigF = np.array([0.5])
     SigP = np.array([0.9])  # νσ_f
     SigS = csr_matrix(np.array([[0.4]]))
+    # Synthetic abstract XS — no physical energy grid (Phase E).
     mix = Mixture(
         SigC=SigC, SigL=SigL, SigF=SigF, SigP=SigP, SigT=SigT,
         SigS=[SigS], Sig2=csr_matrix((1, 1)),
-        chi=np.array([1.0]), eg=np.array([1e7, 1e-3]),
+        chi=np.array([1.0]),
     )
     c = mix.scattering_ratio
     assert c.shape == (1,)
@@ -63,10 +64,11 @@ def test_scattering_ratio_pure_scatter_below_unity():
     SigF = np.zeros(1)
     SigP = np.zeros(1)
     SigS = csr_matrix(np.array([[1.5]]))
+    # Synthetic abstract XS — no physical energy grid (Phase E).
     mix = Mixture(
         SigC=SigC, SigL=SigL, SigF=SigF, SigP=SigP, SigT=SigT,
         SigS=[SigS], Sig2=csr_matrix((1, 1)),
-        chi=np.array([0.0]), eg=np.array([1e7, 1e-3]),
+        chi=np.array([0.0]),
     )
     assert float(mix.scattering_ratio[0]) == 0.75
 
@@ -87,10 +89,11 @@ def test_scattering_ratio_two_group_per_group():
     SigT = (
         SigC + SigL + SigF + np.array(SigS.sum(axis=1)).ravel()
     )
+    # Synthetic abstract XS — no physical energy grid (Phase E).
     mix = Mixture(
         SigC=SigC, SigL=SigL, SigF=SigF, SigP=SigP, SigT=SigT,
         SigS=[SigS], Sig2=csr_matrix((2, 2)),
-        chi=np.array([1.0, 0.0]), eg=np.array([1e7, 1.0, 1e-3]),
+        chi=np.array([1.0, 0.0]),
     )
     c = mix.scattering_ratio
     expected_g0 = (0.40 + 0.25) / SigT[0]

@@ -354,13 +354,17 @@ def test_2g_flux_ratio_homogeneous():
     )
     result = solve_monte_carlo({0: mix}, params)
 
-    flux = result.flux_per_lethargy
+    # Phase E: synthetic mixtures carry no energy grid, so we work on
+    # the raw per-group tally directly (flux_per_lethargy is None when
+    # mix.eg is None). The tally is proportional to the per-group flux,
+    # which is exactly what this spectral-shape test needs.
+    tally = result.tally
 
-    assert flux[0] > 0, "Fast flux tally should be nonzero"
-    assert flux[1] > 0, "Thermal flux tally should be nonzero"
+    assert tally[0] > 0, "Fast flux tally should be nonzero"
+    assert tally[1] > 0, "Thermal flux tally should be nonzero"
 
     # The ratio should be finite (not NaN or inf)
-    ratio = flux[1] / flux[0]
+    ratio = tally[1] / tally[0]
     assert np.isfinite(ratio), f"Flux ratio is not finite: {ratio}"
 
     # Analytical infinite-medium flux spectrum from the same XS.
@@ -377,10 +381,11 @@ def test_2g_flux_ratio_homogeneous():
     idx = int(np.argmax(eigvals.real))
     phi_ref = np.abs(eigvecs[:, idx].real)
 
-    # Convert MC flux-per-lethargy back to per-group flux, then normalise.
-    du = np.abs(np.log(mix.eg[1:] / mix.eg[:-1]))
-    phi_mc = flux * du
-    phi_mc /= phi_mc.sum()
+    # Compare normalised per-group fluxes directly. The MC tally is the
+    # collision-rate per group; for the analytical test that's the same
+    # quantity as the eigenvector (modulo scaling, which we normalise
+    # out below).
+    phi_mc = tally / tally.sum()
     phi_ref /= phi_ref.sum()
 
     # Tolerance: flux-shape must match analytical eigenvector to
@@ -413,9 +418,20 @@ def test_flux_per_lethargy_nonnegative():
 
     The fix takes ``abs(du)`` at the point of definition in
     ``orpheus.mc.solver``; this test pins that invariant.
+
+    Phase E: this test is exactly the case where a real (descending)
+    energy grid is required to exercise the sign bug — the fixture
+    case has ``eg=None`` (synthetic XS), so we explicitly attach a
+    descending grid before passing the mixture to the solver.
     """
+    from dataclasses import replace
     case = get("mc_cyl1D_2eg_1rg")
     mix = next(iter(case.materials.values()))
+    # Explicit descending grid (fast → thermal): this is the exact
+    # ordering that makes raw ``log(eg[1:]/eg[:-1])`` negative and
+    # exposes ERR-022 if abs(du) is ever dropped.
+    eg = np.logspace(7, -3, mix.ng + 1)
+    mix = replace(mix, eg=eg)
 
     geom = SlabPinCell(boundaries=[], mat_ids=[0], pitch=3.6)
     params = MCParams(
@@ -424,6 +440,9 @@ def test_flux_per_lethargy_nonnegative():
     )
     result = solve_monte_carlo({0: mix}, params)
 
+    assert result.flux_per_lethargy is not None, (
+        "flux_per_lethargy must be populated when mix.eg is provided"
+    )
     assert np.all(np.isfinite(result.flux_per_lethargy)), (
         "flux_per_lethargy must be finite"
     )
@@ -722,7 +741,7 @@ def test_mc_n2n_keff_matches_analytical():
     sig2 = np.zeros((ng, ng))
     sig2[0, 0] = 0.01
     sig_t = xs["sig_c"] + xs["sig_f"] + sig_s.sum(axis=1) + sig2.sum(axis=1)
-    eg = np.logspace(7, -3, ng + 1)
+    # Synthetic XS for the n2n eigenvalue check — no physical grid (Phase E).
     mat_n2n = Mixture(
         SigC=xs["sig_c"].copy(),
         SigL=np.zeros(ng),
@@ -732,7 +751,6 @@ def test_mc_n2n_keff_matches_analytical():
         SigS=[csr_matrix(sig_s)],
         Sig2=csr_matrix(sig2),
         chi=xs["chi"].copy(),
-        eg=eg,
     )
 
     # Analytical k_inf: (SigT - SigS^T - 2 Sig2^T) phi = (1/k) chi nu_SigF^T phi

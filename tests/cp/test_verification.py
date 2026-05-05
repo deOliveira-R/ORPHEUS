@@ -132,7 +132,7 @@ def _make_mixture_with_n2n(ng_key: str = "2g") -> Mixture:
     sig2_out = sig2.sum(axis=1)
     sig_t = xs["sig_c"] + xs["sig_f"] + sig_s.sum(axis=1) + sig2_out
 
-    eg = np.logspace(7, -3, ng + 1)
+    # Synthetic XS for the (n,2n) consistency test — no physical grid (Phase E).
     sig_s_list = [csr_matrix(sig_s)]
     return Mixture(
         SigC=xs["sig_c"].copy(),
@@ -143,7 +143,6 @@ def _make_mixture_with_n2n(ng_key: str = "2g") -> Mixture:
         SigS=sig_s_list,
         Sig2=csr_matrix(sig2),
         chi=xs["chi"].copy(),
-        eg=eg,
     )
 
 

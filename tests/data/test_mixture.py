@@ -148,6 +148,7 @@ def test_macro_sum_mixture_roundtrip_preserves_values():
         + np.array(SigS.sum(axis=1)).ravel()
     )
 
+    # Synthetic abstract XS — no physical energy grid (Phase E).
     mix = Mixture(
         SigC=SigC,
         SigL=SigL,
@@ -157,7 +158,6 @@ def test_macro_sum_mixture_roundtrip_preserves_values():
         SigS=[SigS],
         Sig2=csr_matrix((ng, ng)),
         chi=np.array([1.0, 0.0]),
-        eg=np.array([1e7, 1.0, 1e-3]),
     )
 
     np.testing.assert_allclose(mix.SigC, SigC, rtol=1e-14)
