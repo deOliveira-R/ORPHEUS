@@ -38,8 +38,6 @@ Module layout
   (5 first-slice cases; more added as Phase B lands).
 * :mod:`.builders` — case → ``(materials, mesh, params)`` helpers
   for production-solver consumers.
-* :mod:`.extractors` — :class:`Mixture` → numpy-array extractors for
-  semi-analytical-reference consumers (F_N, etc.).
 
 References
 ----------
@@ -132,7 +130,6 @@ from .atalay1997 import (
 )
 from .builders import build_cp_params, build_materials, build_mesh
 from .cache import SoodResultCache, cache_info, clear_cache, sood_cache
-from .extractors import mixture_to_fn_arrays
 
 __all__ = [
     # Core schema
@@ -204,7 +201,6 @@ __all__ = [
     "build_materials",
     "build_mesh",
     "build_cp_params",
-    "mixture_to_fn_arrays",
     # Cache (Phase B4)
     "SoodResultCache",
     "sood_cache",

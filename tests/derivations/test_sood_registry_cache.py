@@ -301,16 +301,17 @@ def test_cache_with_real_kinf_homogeneous_solver(tmp_cache_dir: Path):
     where the speedup would be 1-2 orders of magnitude.
     """
     from orpheus.derivations.common.eigenvalue import kinf_homogeneous
-    from orpheus.derivations.continuous.sood_registry import mixture_to_fn_arrays
 
     counter = {"n": 0}
 
     @sood_cache(version="v1", cache_dir=tmp_cache_dir)
     def solve(*, case_id: str) -> float:
         counter["n"] += 1
-        st, ss, nsf, ch = mixture_to_fn_arrays(
-            PUA_1_0_IN.materials[0]
-        )
+        mix = PUA_1_0_IN.materials[0]
+        st = np.asarray(mix.SigT, dtype=float)
+        ss = mix.SigS[0].toarray().astype(float)
+        nsf = np.asarray(mix.SigP, dtype=float)
+        ch = np.asarray(mix.chi, dtype=float)
         return float(kinf_homogeneous(st, ss, nsf, ch))
 
     k1 = solve(case_id="PUa-1-0-IN")

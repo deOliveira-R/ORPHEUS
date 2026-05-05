@@ -16,10 +16,10 @@ Each case now carries:
   in one struct. Different cases populate different subsets.
 
 The legacy attributes (``case.sigma_t``, ``case.sigma_s`` etc.) are
-retained as **read-only properties** that delegate to the materials
-dict via :func:`.extractors.mixture_to_fn_arrays`. This keeps the F_N
-test suite working unmodified while migration consumers flip to the
-new shape one at a time.
+retained as **read-only properties** that read directly off
+``self._primary_mixture.SigT`` / ``SigS`` / ``SigP`` / ``chi``. They
+are slated for removal in Phase F; new consumers should use
+``case.materials[mat_id]`` directly.
 
 ORPHEUS convention vs Sood convention
 -------------------------------------
@@ -281,33 +281,37 @@ class La13511Case:
     def sigma_t(self) -> np.ndarray:
         """Total XS in ORPHEUS convention, shape ``(n_groups,)``.
 
-        Convenience accessor for legacy F_N consumers; pulls from
-        ``self.materials[0]``.
+        Convenience accessor for legacy F_N consumers; reads
+        ``self._primary_mixture.SigT`` directly. Slated for removal
+        in Phase F.
         """
-        from .extractors import mixture_to_fn_arrays
-        sigma_t, _, _, _ = mixture_to_fn_arrays(self._primary_mixture)
-        return sigma_t
+        return np.asarray(self._primary_mixture.SigT, dtype=float)
 
     @property
     def sigma_s(self) -> np.ndarray:
-        """P_0 scattering matrix in ``[from, to]`` convention, shape ``(n_groups, n_groups)``."""
-        from .extractors import mixture_to_fn_arrays
-        _, sigma_s, _, _ = mixture_to_fn_arrays(self._primary_mixture)
-        return sigma_s
+        """P_0 scattering matrix in ``[from, to]`` convention,
+        shape ``(n_groups, n_groups)``.
+
+        Reads ``self._primary_mixture.SigS[0]`` directly. Slated for
+        removal in Phase F.
+        """
+        return self._primary_mixture.SigS[0].toarray().astype(float)
 
     @property
     def nu_sigma_f(self) -> np.ndarray:
-        """Production XS :math:`\\nu \\Sigma_f`, shape ``(n_groups,)``."""
-        from .extractors import mixture_to_fn_arrays
-        _, _, nu_sigma_f, _ = mixture_to_fn_arrays(self._primary_mixture)
-        return nu_sigma_f
+        r"""Production XS :math:`\nu \Sigma_f`, shape ``(n_groups,)``.
+
+        Slated for removal in Phase F.
+        """
+        return np.asarray(self._primary_mixture.SigP, dtype=float)
 
     @property
     def chi(self) -> np.ndarray:
-        """Fission spectrum, shape ``(n_groups,)``."""
-        from .extractors import mixture_to_fn_arrays
-        _, _, _, chi = mixture_to_fn_arrays(self._primary_mixture)
-        return chi
+        """Fission spectrum, shape ``(n_groups,)``.
+
+        Slated for removal in Phase F.
+        """
+        return np.asarray(self._primary_mixture.chi, dtype=float)
 
     @property
     def _primary_mixture(self) -> Mixture:

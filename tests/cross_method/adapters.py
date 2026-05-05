@@ -4,43 +4,29 @@ Each adapter wraps a continuous-reference solver to the
 :class:`~tests.cross_method.protocol.SolverAdapter` shape. The
 adapter:
 
-* extracts the right cross sections from
-  ``case.registry_case.materials`` via
-  :func:`...sood_registry.extractors.mixture_to_fn_arrays`;
+* reads cross sections directly off ``case.registry_case.materials``
+  / ``case.materials`` (the production-protocol Mixture API);
 * selects internal numerical parameters (n_modes for fn_method,
   n_r/n_mu/n_traj_quad for trajectory_resolvent) based on the
-  requested case tolerance — looser tolerance → faster solve;
+  requested case tolerance;
 * performs unit conversions (mfp ↔ cm, half-thickness ↔ full
   slab);
 * returns a :class:`ScalarResult` with the right ``tag``.
 
-Adding a new solver
--------------------
+Phase D
+-------
 
-Subclass the appropriate base or write a fresh dataclass with
-``name``, ``method``, ``geometry`` fields and a ``solve`` method
-matching the :class:`SolverAdapter` Protocol. Register the new
-adapter in :data:`ADAPTERS_BY_NAME` so the agreement-matrix
-renderer can find it. The adapter classes are intentionally
-plain — no inheritance — so the protocol stays Protocol-typed
-rather than ABC-typed.
-
-References
-----------
-
-* :doc:`/skills/algebra-of-record` — structural-independence
-  ladder; adapters trust ``numpy``/``scipy`` (above the trusted-
-  library line) but not in-house primitives.
-* :doc:`/skills/vv-principles` — quadrature-floor anti-patterns
-  (don't pick tolerances tighter than the floor).
+The pre-Phase-D ``mixture_to_fn_arrays`` extractor was retired as
+part of the architectural reset; adapters now read
+``mixture.SigT`` / ``SigS`` / ``SigP`` directly (the same pattern
+the math-heart classes Billiard / MomentSpace / Spectrum / BasisSpace
+already use after their direct-__init__ migration).
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from orpheus.derivations.continuous.sood_registry.extractors import (
-    mixture_to_fn_arrays,
-)
+import numpy as np
 
 from .protocol import CrossMethodCase, ScalarResult
 
@@ -470,11 +456,15 @@ def _extract_1g_xs_inline(case: CrossMethodCase) -> tuple[float, float, float]:
 def _xs_from_materials_dict(
     materials: dict, case_id: str,
 ) -> tuple[float, float, float]:
-    """Common backend: pull 1G ``(σ_t, σ_s, νσ_f)`` from a materials dict."""
+    """Common backend: pull 1G ``(σ_t, σ_s, νσ_f)`` from a materials dict.
+
+    Reads directly off ``Mixture.SigT`` / ``SigS[0]`` / ``SigP``
+    (the production-protocol surface).
+    """
     primary = materials[0]
-    sigma_t_arr, sigma_s_arr, nu_sigma_f_arr, _chi = mixture_to_fn_arrays(
-        primary
-    )
+    sigma_t_arr = np.asarray(primary.SigT, dtype=float)
+    sigma_s_arr = primary.SigS[0].toarray().astype(float)
+    nu_sigma_f_arr = np.asarray(primary.SigP, dtype=float)
     if sigma_t_arr.shape[0] != 1:
         raise ValueError(
             f"_xs_from_materials_dict: case {case_id!r} is "

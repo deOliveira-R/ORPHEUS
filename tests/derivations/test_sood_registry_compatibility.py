@@ -46,10 +46,24 @@ from orpheus.derivations.continuous.sood_registry import (
     GeometrySpec,
     build_materials,
     build_mesh,
-    mixture_to_fn_arrays,
 )
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.mesh import BC, Mesh1D
+
+
+def _xs_from_mixture(mix: Mixture):
+    """Inline replacement for the retired ``mixture_to_fn_arrays``.
+
+    Returns ``(sigma_t, sigma_s_p0, nu_sigma_f, chi)`` from the
+    production-protocol Mixture surface. Phase D retired the shared
+    extractor; tests that historically used it now read the same
+    fields directly off the Mixture.
+    """
+    sigma_t = np.asarray(mix.SigT, dtype=float)
+    sigma_s = mix.SigS[0].toarray().astype(float)
+    nu_sigma_f = np.asarray(mix.SigP, dtype=float)
+    chi = np.asarray(mix.chi, dtype=float)
+    return sigma_t, sigma_s, nu_sigma_f, chi
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -117,7 +131,7 @@ def test_PUa_1_0_IN_extractor_matches_published_xs() -> None:
     Sood Table 2: :math:`\Sigma_t = 0.32640`, :math:`\Sigma_s = 0.225216`,
     :math:`\nu \Sigma_f = 3.24 \cdot 0.0816 = 0.264384`, :math:`\chi = 1.0`.
     """
-    sigma_t, sigma_s, nu_sigma_f, chi = mixture_to_fn_arrays(
+    sigma_t, sigma_s, nu_sigma_f, chi = _xs_from_mixture(
         PUA_1_0_IN.materials[0]
     )
     np.testing.assert_allclose(sigma_t, [0.32640], atol=0)
@@ -133,7 +147,7 @@ def test_PU_2_0_IN_extractor_matches_published_xs() -> None:
     Verifies the ORPHEUS-order conversion (Sood g=2 fast → ORPHEUS g=0
     fast) is preserved end-to-end through the Mixture round-trip.
     """
-    sigma_t, sigma_s, nu_sigma_f, chi = mixture_to_fn_arrays(
+    sigma_t, sigma_s, nu_sigma_f, chi = _xs_from_mixture(
         PU_2_0_IN.materials[0]
     )
     # ORPHEUS convention: g=0 fast, g=1 slow.
@@ -159,7 +173,7 @@ def test_legacy_property_accessors_match_extractor() -> None:
     produces. If this drifts, the F_N test suite breaks silently.
     """
     for case in LA13511_CASES.values():
-        sigma_t, sigma_s, nu_sigma_f, chi = mixture_to_fn_arrays(
+        sigma_t, sigma_s, nu_sigma_f, chi = _xs_from_mixture(
             case.materials[0]
         )
         np.testing.assert_array_equal(case.sigma_t, sigma_t)
@@ -242,7 +256,7 @@ def test_kinf_homogeneous_consumes_registry_case_directly(
     round-trip is wrong, this test catches it without booting the
     full CP / SN solvers.
     """
-    sigma_t, sigma_s, nu_sigma_f, chi = mixture_to_fn_arrays(
+    sigma_t, sigma_s, nu_sigma_f, chi = _xs_from_mixture(
         case.materials[0]
     )
     k = kinf_homogeneous(sigma_t, sigma_s, nu_sigma_f, chi)
