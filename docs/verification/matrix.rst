@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2235**
+Total tests collected: **2402**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 587, 26.3%
-   L1, 675, 30.2%
-   L2, 36, 1.6%
+   L0, 587, 24.4%
+   L1, 675, 28.1%
+   L2, 36, 1.5%
    L3, 0, 0.0%
-   foundation, 920, 41.2%
-   unmarked, 17, 0.8%
+   foundation, 1087, 45.3%
+   unmarked, 17, 0.7%
 
 Tagging source
 --------------
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2139
+   explicit, 2306
    verify, 0
    class-name, 46
    func-name, 0
@@ -92,6 +92,7 @@ Module × level grid
    derivations/test_galerkin_spectral_basis_space, 0, 0, 0, 0, 23, 0
    derivations/test_geometry_spec_multi_region, 0, 0, 0, 0, 15, 0
    derivations/test_kernels, 55, 0, 0, 0, 0, 0
+   derivations/test_la13511_to_geometry, 0, 0, 0, 0, 131, 0
    derivations/test_moment_space_from_problem_unified, 0, 0, 0, 0, 6, 0
    derivations/test_mu_weighted_basis, 0, 0, 0, 0, 1, 0
    derivations/test_path_ai_legacy_plain_gl_signature, 0, 3, 0, 0, 1, 0
@@ -159,6 +160,7 @@ Module × level grid
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
    geometry/test_geometry, 0, 0, 0, 0, 80, 0
+   geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
    homogeneous/test_continuous_reference, 0, 7, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 4, 0, 0, 0, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
