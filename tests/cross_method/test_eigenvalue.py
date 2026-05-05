@@ -4,24 +4,22 @@ Tests in this file exercise the
 :class:`~tests.cross_method.protocol.SolverAdapter` protocol over
 the populated case sets in :mod:`~tests.cross_method.cases`.
 
-Relationship to the TransportSolver Protocol
----------------------------------------------
+Relationship to direct math-heart-class construction (Phase D)
+--------------------------------------------------------------
 
-After the 2026-05 Protocol landing, the math-heart classes
+The math-heart classes
 (:class:`~orpheus.derivations.continuous.trajectory_resolvent.Billiard`,
 :class:`~orpheus.derivations.continuous.fn_method.moment_space.MomentSpace`)
-also conform to
-:class:`~orpheus.derivations.common.solver_protocol.TransportSolver`,
-which means a polymorphic body could replace the per-method test
-bodies below. **The 84 tests in this file deliberately keep their
-names + per-method bodies** — pytest collection IDs are preserved
-(CI / pytest-xdist contract) and the per-method adapter classes
-(``FNSlabAdapter``, ``TrajectoryResolventSphereAdapter``, ...) stay
-as the unit-conversion / extractor layer. The structural-typing
-substitution is exercised by
+are constructed directly with a :class:`StructuredGeometry` plus
+``materials: dict[int, Mixture]``. **The tests in this file
+deliberately keep their names + per-method bodies** — pytest
+collection IDs are preserved (CI / pytest-xdist contract) and the
+per-method adapter classes (``FNSlabAdapter``,
+``TrajectoryResolventSphereAdapter``, ...) stay as the
+unit-conversion layer. The agreement between the adapter route and
+the direct-construction route is exercised by
 :mod:`tests.cross_method.test_polymorphism` (foundation-tier
-regression net, 6 tests pinning that adapter ↔ Protocol routes
-agree).
+regression net, 5 tests).
 
 Three classes of test:
 
