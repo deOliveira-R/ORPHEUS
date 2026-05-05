@@ -528,6 +528,91 @@ class TestAnisotropicScattering:
             np.testing.assert_allclose(cross, 0, atol=1e-14,
                                        err_msg=f"Y_0^0 not orthogonal to Y_1^{m_idx-1}")
 
+    def test_spherical_harmonics_l1_unchanged_after_extension(self):
+        """Y[L<=1] must be bit-identical to the legacy hardcoded values.
+
+        Pre-flight regression for the L>=2 extension of
+        ``_build_spherical_harmonics``: existing P0/P1 paths must not
+        observe any numerical drift. ``assert_array_equal`` is bit-strict.
+        """
+        quad = LebedevSphere.create(order=17)
+        Y = quad.spherical_harmonics(1)
+        np.testing.assert_array_equal(Y[:, 0, 0], np.ones(quad.N))
+        np.testing.assert_array_equal(Y[:, 1, 0], quad.mu_z)  # m = -1
+        np.testing.assert_array_equal(Y[:, 1, 1], quad.mu_x)  # m =  0
+        np.testing.assert_array_equal(Y[:, 1, 2], quad.mu_y)  # m = +1
+
+    @pytest.mark.verifies("addition-theorem")
+    def test_spherical_harmonics_addition_theorem_L3(self):
+        r"""Addition theorem :math:`\sum_m Y_\ell^m(\Omega) Y_\ell^m(\Omega') = P_\ell(\Omega\cdot\Omega')`.
+
+        Closed-form L0 cross-check of the L>=2 extension. The two sides
+        are computed via structurally-independent code paths:
+
+        * **LHS** uses ``scipy.special.lpmv`` (associated Legendre)
+          inside ``_build_spherical_harmonics``.
+        * **RHS** uses ``numpy.polynomial.legendre.legval`` (Legendre
+          coefficient evaluation), a different identity.
+
+        This exercises the addition theorem at every (l, m) up to l=3 on
+        randomly-paired Lebedev ordinates. The identity is the load-bearing
+        property consumed by ``SNSolver._build_aniso_scattering``.
+        """
+        from numpy.polynomial.legendre import legval
+
+        quad = LebedevSphere.create(order=17)
+        L = 3
+        Y = quad.spherical_harmonics(L)
+        N = quad.N
+        rng = np.random.default_rng(seed=0)
+        pairs = rng.choice(N, size=(20, 2), replace=True)
+        for i, j in pairs:
+            cos_gamma = (quad.mu_x[i] * quad.mu_x[j]
+                         + quad.mu_y[i] * quad.mu_y[j]
+                         + quad.mu_z[i] * quad.mu_z[j])
+            for l in range(L + 1):
+                lhs = float(np.sum(Y[i, l, : 2 * l + 1] * Y[j, l, : 2 * l + 1]))
+                coef = np.zeros(l + 1)
+                coef[l] = 1.0
+                rhs = float(legval(cos_gamma, coef))  # P_l(cos γ)
+                np.testing.assert_allclose(
+                    lhs, rhs, rtol=1e-12, atol=1e-13,
+                    err_msg=f"addition theorem failed at l={l}, ordinates ({i},{j})",
+                )
+
+    @pytest.mark.verifies("real-spherical-harmonics")
+    def test_spherical_harmonics_orthogonality_L3(self):
+        r"""Discrete orthogonality of Y_l^m on Lebedev for l, l' <= 3.
+
+        The mass matrix
+        :math:`M_{(l,m),(l',m')} = \sum_n w_n Y_\ell^m(\Omega_n) Y_{\ell'}^{m'}(\Omega_n)`
+        must equal :math:`(4\pi / (2\ell+1))\,\delta_{\ell\ell'}\delta_{mm'}`.
+        Lebedev order 17 is exact for polynomials of degree <= 17, with
+        plenty of margin for products of harmonics up to l+l' = 6.
+        """
+        quad = LebedevSphere.create(order=17)
+        L = 3
+        Y = quad.spherical_harmonics(L)
+        w = quad.weights
+        four_pi = w.sum()
+
+        for l in range(L + 1):
+            for m in range(-l, l + 1):
+                for lp in range(L + 1):
+                    for mp in range(-lp, lp + 1):
+                        inner = np.sum(w * Y[:, l, l + m] * Y[:, lp, lp + mp])
+                        if l == lp and m == mp:
+                            expected = four_pi / (2 * l + 1)
+                            np.testing.assert_allclose(
+                                inner, expected, rtol=1e-10,
+                                err_msg=f"<Y_{l}^{m}|Y_{l}^{m}> != 4π/(2l+1)",
+                            )
+                        else:
+                            np.testing.assert_allclose(
+                                inner, 0.0, atol=1e-12,
+                                err_msg=f"<Y_{l}^{m}|Y_{lp}^{mp}> != 0",
+                            )
+
     def test_p1_changes_heterogeneous_keff(self):
         """P1 scattering must produce a different keff than P0 on a
         heterogeneous problem where anisotropy matters at interfaces."""

@@ -1313,9 +1313,67 @@ polynomial of degree :math:`\leq L`.
 
 1. **Compute spherical harmonics** at construction time:
    :math:`Y[n, \ell, \ell+m]` for all ordinates, stored as ``self._Y``
-   with shape ``(N, L+1, 2L+1)``.  The convention is
-   :math:`Y_0^0 = 1`, :math:`Y_1^{-1} = \mu_z`,
-   :math:`Y_1^0 = \mu_x`, :math:`Y_1^1 = \mu_y`.
+   with shape ``(N, L+1, 2L+1)``.
+
+   **Convention.** The polar axis is :math:`\mu_x`, so
+   :math:`\cos\theta = \mu_x` and
+   :math:`\sin\theta = \sqrt{1 - \mu_x^2}`.  Azimuth is measured in the
+   :math:`(\mu_y, \mu_z)` plane:
+   :math:`\cos\phi = \mu_y / \sin\theta`,
+   :math:`\sin\phi = \mu_z / \sin\theta`.  This matches the MATLAB
+   ``discreteOrdinatesPWR.m`` reference for :math:`\ell \le 1`:
+
+   .. math::
+
+      Y_0^0 &= 1 = P_0(\cos\theta)\\
+      Y_1^{-1} &= \sin\theta\,\sin\phi = \mu_z\\
+      Y_1^0    &= \cos\theta              = \mu_x\\
+      Y_1^{1}  &= \sin\theta\,\cos\phi   = \mu_y
+
+   For :math:`\ell \ge 2` the formula extends as standard real
+   spherical harmonics in this frame:
+
+   .. math::
+      :label: real-spherical-harmonics
+
+      Y_\ell^0(\hat{\Omega}) &= P_\ell(\mu_x)\\
+      Y_\ell^{m}(\hat{\Omega}) &= \sqrt{\frac{2(\ell-m)!}{(\ell+m)!}}\,
+                                 P_\ell^{m}(\mu_x)\,\cos(m\phi),
+                                 \quad m > 0\\
+      Y_\ell^{-m}(\hat{\Omega}) &= \sqrt{\frac{2(\ell-m)!}{(\ell+m)!}}\,
+                                  P_\ell^{m}(\mu_x)\,\sin(m\phi),
+                                  \quad m > 0
+
+   where :math:`P_\ell^m` is the unnormalised associated Legendre
+   function (the :math:`(-1)^m` Condon–Shortley phase included by
+   ``scipy.special.lpmv`` is removed at the call site).  The
+   normalisation is the **"no** :math:`4\pi/(2\ell+1)` **prefactor"**
+   convention under which the addition theorem reads
+
+   .. math::
+      :label: addition-theorem
+
+      \sum_{m=-\ell}^{\ell} Y_\ell^m(\hat{\Omega})\,Y_\ell^m(\hat{\Omega}')
+      = P_\ell(\hat{\Omega} \cdot \hat{\Omega}')
+
+   which is the identity used by Eq. :eq:`pn-scatter` to expand the
+   :math:`P_\ell` scattering kernel as a finite tensor product over
+   :math:`m`.  Equivalently the discrete orthogonality on a quadrature
+   exact for polynomials of degree :math:`\ge 2\ell` reads
+
+   .. math::
+
+      \sum_{n=1}^{N} w_n \, Y_\ell^m(\hat{\Omega}_n)\,
+                            Y_{\ell'}^{m'}(\hat{\Omega}_n)
+      = \frac{4\pi}{2\ell+1}\,\delta_{\ell\ell'}\,\delta_{mm'}.
+
+   Both identities are verified at :math:`\ell \le 3` by
+   ``test_spherical_harmonics_addition_theorem_L3`` and
+   ``test_spherical_harmonics_orthogonality_L3`` in
+   ``tests/sn/test_solver_components.py``.  The :math:`\ell \le 1`
+   branch is kept as bit-identical hardcoded values so existing
+   :math:`P_0/P_1` test outputs are preserved at any tolerance
+   (``test_spherical_harmonics_l1_unchanged_after_extension``).
 
 2. **Compute flux moments** via an ``einsum`` contraction over the
    ordinate index:

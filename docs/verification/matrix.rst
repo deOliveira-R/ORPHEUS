@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2366**
+Total tests collected: **2328**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 587, 24.8%
-   L1, 675, 28.5%
+   L0, 590, 25.3%
+   L1, 675, 29.0%
    L2, 36, 1.5%
    L3, 0, 0.0%
-   foundation, 1051, 44.4%
+   foundation, 1010, 43.4%
    unmarked, 17, 0.7%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2270
+   explicit, 2232
    verify, 0
    class-name, 46
    func-name, 0
@@ -89,7 +89,6 @@ Module × level grid
    derivations/test_fn_projection_vs_kll_flux, 0, 4, 0, 0, 4, 2
    derivations/test_fn_sood_table10_symmetric_pu_h2o, 0, 1, 0, 0, 2, 0
    derivations/test_galerkin_spectral_basis_space, 0, 0, 0, 0, 18, 0
-   derivations/test_geometry_spec_multi_region, 0, 0, 0, 0, 15, 0
    derivations/test_kernels, 55, 0, 0, 0, 0, 0
    derivations/test_la13511_to_geometry, 0, 0, 0, 0, 131, 0
    derivations/test_mu_weighted_basis, 0, 0, 0, 0, 1, 0
@@ -147,7 +146,7 @@ Module × level grid
    derivations/test_singular_eigenfunction_cylinder_xverif, 0, 1, 0, 0, 0, 0
    derivations/test_singular_eigenfunction_spectrum, 0, 0, 0, 0, 16, 0
    derivations/test_sood_registry_cache, 0, 0, 0, 0, 15, 0
-   derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 108, 0
+   derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 107, 0
    derivations/test_sood_registry_wide_bare_critical, 0, 17, 0, 0, 2, 0
    derivations/test_sood_registry_wide_kinf, 0, 0, 0, 0, 49, 0
    derivations/test_trajectory_resolvent_billiard, 0, 0, 0, 0, 11, 0
@@ -156,7 +155,7 @@ Module × level grid
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
-   geometry/test_geometry, 0, 0, 0, 0, 80, 0
+   geometry/test_geometry, 0, 0, 0, 0, 55, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
    homogeneous/test_continuous_reference, 0, 7, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 4, 0, 0, 0, 0
@@ -183,7 +182,7 @@ Module × level grid
    sn/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
    sn/test_properties, 4, 0, 0, 0, 0, 0
    sn/test_quadrature, 49, 0, 0, 0, 0, 0
-   sn/test_solver_components, 35, 0, 0, 0, 0, 0
+   sn/test_solver_components, 38, 0, 0, 0, 0, 0
    sn/test_spherical, 13, 7, 6, 0, 0, 0
    sn/test_sweep_operator_inconsistency, 0, 4, 0, 0, 0, 0
    sn/test_sweep_regression, 12, 0, 0, 0, 0, 0
@@ -276,6 +275,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
    ``peierls-greens-annulus-architecture``, 14
+   ``pn-scatter``, 14
    ``peierls-greens-slab-asym-architecture``, 13
    ``complementarity``, 12
    ``kinf-1g``, 12
@@ -285,7 +285,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``ws-pitch``, 12
    ``fission-matrix``, 11
    ``inf-hom-balance``, 11
-   ``pn-scatter``, 11
    ``removal-matrix``, 11
    ``two-group-A``, 11
    ``two-group-Ainv``, 11
@@ -425,8 +424,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **22** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **24** of the testable equations found on theory pages are orphan.
 
+- ``addition-theorem``
 - ``billiard-rank2-S``
 - ``billiard-rank2-T``
 - ``billiard-reflection-law``
@@ -441,6 +441,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``galerkin-spectral-carlvik-integral``
 - ``galerkin-spectral-eq4``
 - ``galerkin-spectral-orthogonality``
+- ``real-spherical-harmonics``
 - ``spectrum-case-eigenfunction-equation``
 - ``spectrum-case-eigenfunction-explicit``
 - ``spectrum-continuum-eigenfunction``
@@ -628,7 +629,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-017``, 3
    ``ERR-018``, 1
    ``ERR-019``, 1
-   ``ERR-020``, 6
+   ``ERR-020``, **0 (MISSING)**
    ``ERR-021``, 2
    ``ERR-022``, 1
    ``ERR-023``, 1

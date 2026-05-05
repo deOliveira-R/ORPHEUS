@@ -19,29 +19,80 @@ import numpy as np
 def _build_spherical_harmonics(
     L: int, mu_x: np.ndarray, mu_y: np.ndarray, mu_z: np.ndarray,
 ) -> np.ndarray:
-    """Compute real spherical harmonics Y_l^m for all ordinates.
+    r"""Compute real spherical harmonics :math:`Y_\ell^m` for all ordinates.
 
-    Convention (matching MATLAB ``discreteOrdinatesPWR.m``):
-        Y_0^0  = 1
-        Y_1^-1 = μ_z
-        Y_1^0  = μ_x
-        Y_1^+1 = μ_y
+    Convention (matching MATLAB ``discreteOrdinatesPWR.m`` for :math:`\ell\le 1`):
 
-    Returns shape (N, L+1, 2L+1) with Y[n, l, l+m].
+    .. math::
+
+        Y_0^0 &= 1 = P_0(\cos\theta)\\
+        Y_1^{-1} &= \sin\theta\,\sin\phi = \mu_z\\
+        Y_1^0 &= \cos\theta              = \mu_x\\
+        Y_1^{1} &= \sin\theta\,\cos\phi = \mu_y
+
+    Polar axis is :math:`\mu_x` so that :math:`\cos\theta = \mu_x`,
+    :math:`\sin\theta = \sqrt{1-\mu_x^2}`, and azimuth is measured in
+    the :math:`(\mu_y,\mu_z)` plane:
+    :math:`\cos\phi = \mu_y/\sin\theta`,
+    :math:`\sin\phi = \mu_z/\sin\theta`.
+
+    For :math:`\ell\ge 2` the formula extends as standard real spherical
+    harmonics in this frame, with the ``(-1)^m`` Condon–Shortley phase of
+    ``scipy.special.lpmv`` removed and norm
+    :math:`\sqrt{2(\ell-m)!/(\ell+m)!}` for :math:`m\neq 0`.  This is the
+    "no :math:`4\pi/(2\ell+1)` prefactor" normalisation under which the
+    addition theorem reads
+
+    .. math::
+
+        \sum_{m=-\ell}^{\ell} Y_\ell^m(\hat\Omega)\,Y_\ell^m(\hat\Omega')
+        = P_\ell(\hat\Omega\cdot\hat\Omega')
+
+    which is the identity consumed by
+    :meth:`SNSolver._build_aniso_scattering` to assemble the
+    :math:`P_\ell` scattering source.  See :ref:`pn-scattering`.
+
+    The :math:`\ell\le 1` branch is kept as bit-identical hardcoded values
+    so existing :math:`P_0/P_1` tests continue to pass at any tolerance.
+
+    Returns shape ``(N, L+1, 2L+1)`` with ``Y[n, l, l+m]``.
     """
     N = len(mu_x)
     Y = np.zeros((N, L + 1, 2 * L + 1))
-    for n in range(N):
-        for l in range(L + 1):
-            for m in range(-l, l + 1):
-                if l == 0 and m == 0:
-                    Y[n, l, l + m] = 1.0
-                elif l == 1 and m == -1:
-                    Y[n, l, l + m] = mu_z[n]
-                elif l == 1 and m == 0:
-                    Y[n, l, l + m] = mu_x[n]
-                elif l == 1 and m == 1:
-                    Y[n, l, l + m] = mu_y[n]
+    if L < 0:
+        return Y
+
+    Y[:, 0, 0] = 1.0
+    if L == 0:
+        return Y
+
+    Y[:, 1, 0] = mu_z   # m = -1
+    Y[:, 1, 1] = mu_x   # m =  0
+    Y[:, 1, 2] = mu_y   # m = +1
+    if L == 1:
+        return Y
+
+    from math import factorial, sqrt
+    from scipy.special import lpmv
+
+    cos_theta = mu_x
+    sin_theta = np.sqrt(np.maximum(1.0 - cos_theta * cos_theta, 0.0))
+    on_axis = sin_theta < 1e-15
+    safe_st = np.where(on_axis, 1.0, sin_theta)
+    cos_phi = np.where(on_axis, 1.0, mu_y / safe_st)
+    sin_phi = np.where(on_axis, 0.0, mu_z / safe_st)
+    phi = np.arctan2(sin_phi, cos_phi)
+
+    for l in range(2, L + 1):
+        Y[:, l, l] = lpmv(0, l, cos_theta)  # m = 0: P_l(μ_x)
+        for m in range(1, l + 1):
+            P_lm = lpmv(m, l, cos_theta)
+            sign = (-1.0) ** m   # remove Condon–Shortley phase
+            norm = sqrt(2.0 * factorial(l - m) / factorial(l + m))
+            cos_mphi = np.cos(m * phi)
+            sin_mphi = np.sin(m * phi)
+            Y[:, l, l + m] = sign * norm * P_lm * cos_mphi   # m > 0
+            Y[:, l, l - m] = sign * norm * P_lm * sin_mphi   # m < 0
     return Y
 
 
