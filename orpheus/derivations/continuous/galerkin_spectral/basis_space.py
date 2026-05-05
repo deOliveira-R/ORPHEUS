@@ -147,17 +147,14 @@ References
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Optional
 
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.geometry_spec import GeometrySpec
 from orpheus.derivations.common.solution_types import CriticalSolution
-from orpheus.derivations.continuous.sood_registry.extractors import (
-    mixture_to_fn_arrays,
-)
+from orpheus.geometry.structured_geometry import StructuredGeometry
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -464,88 +461,50 @@ class BasisSpace:
     and ``*-1-1-SL/SP`` truth values from three structurally-
     independent directions.
 
-    Construction
-    ------------
+    Construction (Phase D)
+    ----------------------
 
-    Use the factory :meth:`from_problem` for the canonical
-    construction path. Direct constructor calls are exposed for
-    diagnostic / advanced use but are not the recommended public
-    API.
+    Direct construction with a :class:`StructuredGeometry` and a
+    ``materials: dict[int, Mixture]`` payload::
+
+        from orpheus.geometry.structured_geometry import (
+            Region, StructuredGeometry,
+        )
+        from orpheus.geometry.mesh import BC
+
+        geom = StructuredGeometry(
+            geometry="SLB",
+            regions=(Region(mat_id=0, outer_thickness_cm=L_full),),
+            bcs=(BC.vacuum, BC.vacuum),
+        )
+        bs = BasisSpace(geometry=geom, materials={0: mix})
+        sol = bs.solve_critical(d=2.0)
+
+    The ``d`` parameter (Galerkin spectral spatial dimension in mfp)
+    is **passed explicitly to** :meth:`solve_critical`. The pre-Phase-D
+    GeometrySpec-based fallback was retired with the Protocol —
+    the geometry's role is now structural (tag + materials lookup),
+    not parametric.
 
     Parameters
     ----------
-    geometry_spec : :class:`GeometrySpec`
-        Method-agnostic geometry specification. The ``geometry``
-        attribute MUST be ``"slab"`` or ``"sphere"`` —
-        ``"cylinder"`` (out of pillar; Westfall–Metcalf 1972),
-        ``"infinite"`` (no spatial discretisation needed —
-        :math:`k_\infty` is a transfer-matrix property; use
-        :func:`...common.eigenvalue.kinf_homogeneous`), and
-        ``"ISLC"`` (not implemented) are rejected at construction
-        time.
+    geometry : :class:`StructuredGeometry`
+        Pure-geometry layer object. Tag MUST be ``"SLB"`` or
+        ``"SPH"``. ``"CYL"`` is out of pillar (Westfall–Metcalf 1972
+        — see :mod:`...singular_eigenfunction.cylinder`).
     materials : dict[int, Mixture]
         Production-protocol materials, keyed by material ID. The
-        :attr:`GeometrySpec.mat_id` field selects the active
-        mixture. The Galerkin spectral method as shipped is 1G
-        only; multi-group support is deferred follow-up.
+        Galerkin spectral method as shipped is 1G only.
     basis_order : int, default 9
-        Galerkin truncation :math:`N`. The block matrix has size
-        :math:`2N \times 2N`. Defaults to 9 (Dahl–Sjöstrand's
-        recommended saturating choice for 7-significant-figure
-        agreement against Tables I, II).
+        Galerkin truncation :math:`N`.
     n_quad : int, default 128
-        Outer Gauss-Legendre quadrature order for matrix-element
-        evaluation. Defaults to 128 (the value Dahl–Sjöstrand
-        used to reproduce their tables).
-    method_name : str
-        ``"galerkin_spectral"`` — the stable tag for the
-        :class:`~orpheus.derivations.common.solver_protocol.TransportSolver`
-        Protocol's ``method_name`` field. NOT a constructor
-        argument; auto-set on every instance.
-
-    Examples
-    --------
-
-    Bare-critical multiplying slab at :math:`\bar\mu = 0` (isotropic):
-
-    >>> from orpheus.derivations.common.geometry_spec import GeometrySpec
-    >>> from orpheus.derivations.common.xs_library import make_mixture
-    >>> from orpheus.derivations.continuous.galerkin_spectral import (
-    ...     BasisSpace,
-    ... )
-    >>> import numpy as np
-    >>> mix = make_mixture(
-    ...     sig_t=np.array([1.0]),
-    ...     sig_c=np.array([0.2]),
-    ...     sig_f=np.array([0.4]),
-    ...     nu=np.array([2.0]),
-    ...     chi=np.array([1.0]),
-    ...     sig_s=np.array([[0.0]]),
-    ... )
-    >>> geom = GeometrySpec(
-    ...     geometry="slab",
-    ...     critical_dimension_mfp=1.0,
-    ...     critical_dimension_cm=1.0,
-    ...     n_groups=1,
-    ... )
-    >>> bs = BasisSpace.from_problem(materials={0: mix}, geometry=geom)
-    >>> sol = bs.solve_critical(d=2.0)  # doctest: +SKIP
-    >>> sol.eigenvalue, sol.parameter_value  # doctest: +SKIP
-    (1.0, 1.2771018)
-
-    Full eigenvalue spectrum (the Galerkin spectral distinguishing
-    feature):
-
-    >>> result = bs.solve_full_spectrum(d=2.0, mu_bar=0.30)  # doctest: +SKIP
-    >>> result.eigenvalue_spectrum.shape  # doctest: +SKIP
-    (18,)  # 2 * basis_order = 2*9 for n_modes=9
+        Outer Gauss-Legendre quadrature order.
     """
 
-    geometry_spec: GeometrySpec
+    geometry: StructuredGeometry
     materials: dict[int, Mixture]
     basis_order: int = 9
     n_quad: int = 128
-    method_name: str = field(default="galerkin_spectral", init=False)
 
     # ------------------------------------------------------------------
     # Construction
@@ -555,13 +514,12 @@ class BasisSpace:
         """Validate the Galerkin spectral method's structural preconditions.
 
         The method ships for **slab** and **sphere** geometries with
-        **vacuum BCs** (bare-critical) and **1G linearly anisotropic
-        scattering**. Out-of-scope cases are rejected with explicit
-        error messages naming the alternative pillar to use.
+        **1G linearly anisotropic scattering**. Cylinder is out of
+        pillar (Westfall–Metcalf 1972).
         """
-        geom = self.geometry_spec.geometry
-        if geom not in {"slab", "sphere"}:
-            if geom == "cylinder":
+        tag = self.geometry.geometry
+        if tag not in {"SLB", "SPH"}:
+            if tag == "CYL":
                 raise ValueError(
                     "BasisSpace does not support cylinder geometry — "
                     "Westfall-Metcalf 1972 documents the Mitsis-style "
@@ -570,17 +528,10 @@ class BasisSpace:
                     "orpheus.derivations.continuous.singular_eigenfunction"
                     ".cylinder for the cylinder benchmark."
                 )
-            if geom == "infinite":
-                raise ValueError(
-                    "BasisSpace does not support infinite-medium cases — "
-                    "k_inf is a transfer-matrix property with no spatial "
-                    "Galerkin expansion. Use "
-                    "orpheus.derivations.common.eigenvalue.kinf_homogeneous "
-                    "or MomentSpace.solve_kinf for k_inf."
-                )
             raise ValueError(
-                f"BasisSpace supports geometry ∈ {{slab, sphere}}, "
-                f"got {geom!r}."
+                f"BasisSpace supports geometry ∈ {{SLB, SPH}}, "
+                f"got {tag!r}. For infinite-medium k_inf use "
+                f"MomentSpace.solve_kinf or the multi-group F_N machinery."
             )
         if self.basis_order < 1:
             raise ValueError(
@@ -588,14 +539,14 @@ class BasisSpace:
             )
         if self.n_quad < 1:
             raise ValueError(f"n_quad must be >= 1, got {self.n_quad}")
-        if self.geometry_spec.mat_id not in self.materials:
+        if self._mat_id not in self.materials:
             raise ValueError(
-                f"materials dict missing mat_id={self.geometry_spec.mat_id} "
-                f"required by geometry_spec; got keys "
+                f"materials dict missing mat_id={self._mat_id} "
+                f"required by geometry; got keys "
                 f"{sorted(self.materials.keys())}"
             )
         # Galerkin spectral as shipped is 1G only.
-        mixture = self.materials[self.geometry_spec.mat_id]
+        mixture = self._mixture
         if int(np.asarray(mixture.SigT).shape[0]) != 1:
             raise ValueError(
                 "BasisSpace as shipped supports only 1G linearly "
@@ -604,56 +555,24 @@ class BasisSpace:
                 "MomentSpace.solve_kinf or the multi-group F_N machinery."
             )
 
-    @classmethod
-    def from_problem(
-        cls,
-        materials: dict[int, Mixture],
-        geometry: GeometrySpec,
-        *,
-        basis_order: int = 9,
-        n_quad: int = 128,
-    ) -> "BasisSpace":
-        r"""Construct a :class:`BasisSpace` from production-protocol inputs.
+    # ------------------------------------------------------------------
+    # Material accessors
+    # ------------------------------------------------------------------
 
-        This is the recommended public construction path. It accepts
-        the same ``(materials: dict[int, Mixture], GeometrySpec)``
-        pair that the production CP/SN/MOC solvers consume, so a
-        single problem definition can be solved by both the
-        production machinery and the Galerkin spectral reference.
+    @property
+    def _mat_id(self) -> int:
+        """Active mat_id — the single region's material identifier."""
+        return self.geometry.regions[0].mat_id
 
-        Parameters
-        ----------
-        materials : dict[int, Mixture]
-            Production-protocol materials. Single-region cases use
-            one key (typically ``mat_id == 0``); multi-region is
-            deferred follow-up (the Galerkin spectral integral form
-            assumes homogeneous medium).
-        geometry : :class:`GeometrySpec`
-            Method-agnostic geometry. ``geometry.geometry`` must be
-            ``"slab"`` or ``"sphere"``.
-        basis_order : int, default 9
-            Galerkin truncation :math:`N`.
-        n_quad : int, default 128
-            Outer Gauss-Legendre quadrature order.
+    @property
+    def _mixture(self) -> Mixture:
+        """The active :class:`Mixture` for this geometry's mat_id."""
+        return self.materials[self._mat_id]
 
-        Returns
-        -------
-        :class:`BasisSpace`
-
-        Raises
-        ------
-        ValueError
-            If geometry is cylinder/infinite/ISLC,
-            ``basis_order < 1``, ``n_quad < 1``, the ``materials``
-            dict is missing ``geometry.mat_id``, or the active
-            mixture is not 1G.
-        """
-        return cls(
-            geometry_spec=geometry,
-            materials=materials,
-            basis_order=basis_order,
-            n_quad=n_quad,
-        )
+    @property
+    def method_name(self) -> str:
+        """Method tag (kept for diagnostic / metadata purposes)."""
+        return "galerkin_spectral"
 
     # ------------------------------------------------------------------
     # Derived primary parameters (c, mu_bar) — material-side scalars
@@ -664,41 +583,24 @@ class BasisSpace:
         r"""Mean number of secondaries per collision, :math:`c`.
 
         For 1G linearly anisotropic scattering,
-        :math:`c = (\Sigma_s + \nu\Sigma_f) / \Sigma_t`. This is the
-        Galerkin spectral method's primary multiplication parameter
-        — the entire Eq. (4) block matrix is parametrised by
-        :math:`c` (through the eigenvalue) and :math:`\bar\mu`
-        (through the matrix entries).
+        :math:`c = (\Sigma_s + \nu\Sigma_f) / \Sigma_t`.
         """
-        c, _ = _mixture_to_c_and_mubar(
-            self.materials[self.geometry_spec.mat_id]
-        )
+        c, _ = _mixture_to_c_and_mubar(self._mixture)
         return c
 
     @property
     def mu_bar(self) -> float:
         r"""Linearly anisotropic mean scattering cosine :math:`\bar\mu`.
 
-        Defined as :math:`\bar\mu = \Sigma_{s,1} / \Sigma_{s,0}` (the
-        :math:`P_1`-anisotropy ratio, scattering-only convention).
-        Returns ``0.0`` if the mixture has no :math:`P_1` moment
-        (purely isotropic scattering).
-
-        Note that Dahl–Sjöstrand's :math:`\bar\mu` is the
-        all-secondaries mean cosine, which differs from this
-        scattering-only convention when fission is anisotropic. For
-        isotropic fission (the canonical case) the two coincide.
+        Defined as :math:`\bar\mu = \Sigma_{s,1} / \Sigma_{s,0}`.
         """
-        _, mu_bar = _mixture_to_c_and_mubar(
-            self.materials[self.geometry_spec.mat_id]
-        )
+        _, mu_bar = _mixture_to_c_and_mubar(self._mixture)
         return mu_bar
 
     @property
     def n_groups(self) -> int:
         """Number of energy groups in the active mixture (always 1 here)."""
-        mixture = self.materials[self.geometry_spec.mat_id]
-        return int(np.asarray(mixture.SigT).shape[0])
+        return int(np.asarray(self._mixture.SigT).shape[0])
 
     # ------------------------------------------------------------------
     # solve_critical — Protocol-conforming interface
@@ -801,46 +703,25 @@ class BasisSpace:
         (the foundation gate that pins the bit-equality invariant).
         """
         if d is None:
-            d = self._d_from_geometry()
+            raise ValueError(
+                "BasisSpace.solve_critical requires an explicit `d=` "
+                "(Galerkin spectral spatial dimension in mfp). Phase D "
+                "retired the GeometrySpec-based fallback that read from "
+                "GeometrySpec.critical_dimension_mfp — pass d= directly."
+            )
         if mu_bar is None:
             mu_bar = self.mu_bar
 
         c_material = self.c
+        tag = self.geometry.geometry
 
-        if self.geometry_spec.geometry == "slab":
+        if tag == "SLB":
             return self._solve_critical_slab(c_material, d, mu_bar)
-        if self.geometry_spec.geometry == "sphere":
+        if tag == "SPH":
             return self._solve_critical_sphere(c_material, d, mu_bar)
         raise NotImplementedError(  # pragma: no cover (validated above)
-            f"unhandled geometry {self.geometry_spec.geometry!r}"
+            f"unhandled geometry {tag!r}"
         )
-
-    def _d_from_geometry(self) -> float:
-        r"""Infer the spatial dimension parameter ``d`` from the GeometrySpec.
-
-        For both slab and sphere, ``d`` in the Galerkin spectral
-        formulation is the **full extent in mfp**:
-
-        * Slab: ``d = 2 * a`` where :math:`a` is the half-thickness.
-          The :class:`GeometrySpec` for slab stores
-          :math:`a = \mathrm{critical\_dimension\_mfp}` (per the
-          F_N convention; see
-          :class:`GeometrySpec.domain_extent_cm`); we double it.
-        * Sphere: ``d = 2 * R`` where :math:`R` is the radius.
-          Same doubling rule.
-
-        The unit is mean free paths since the Galerkin matrix
-        eigenvalue depends only on the dimensionless :math:`d` (not
-        on cm).
-        """
-        crit_mfp = self.geometry_spec.critical_dimension_mfp
-        if crit_mfp is None:
-            raise ValueError(
-                "GeometrySpec.critical_dimension_mfp is None; either "
-                "set it on the GeometrySpec or pass d= explicitly to "
-                "solve_critical."
-            )
-        return 2.0 * float(crit_mfp)
 
     def _solve_critical_slab(
         self,
