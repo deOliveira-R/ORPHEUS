@@ -1,62 +1,28 @@
-r"""Foundation regression net for the TransportSolver Protocol.
+r"""Foundation regression net for direct math-heart-class construction.
 
-This file is the **safety net** required by the test-architect spec
-§ "File 4". It pins that polymorphic dispatch on the
-:class:`~orpheus.derivations.common.solver_protocol.TransportSolver`
-Protocol agrees with the per-method adapter dispatch in
-:mod:`tests.cross_method.adapters` for the canonical case set.
+Phase D
+-------
 
-Why a regression net
---------------------
-
-The cross-method gates in :mod:`tests.cross_method.test_eigenvalue`
-have exercised the per-method adapters (``FNSlabAdapter`` /
-``TrajectoryResolventSlabAdapter`` / ``FNSphereAdapter`` /
-``TrajectoryResolventSphereAdapter`` / ``TrajectoryResolventSphereClosedAdapter``)
-for years. The adapters do unit conversion (mfp ↔ cm, half-thickness
-↔ full slab) and parameter selection (n_modes for fn_method,
-n_r/n_mu for trajectory_resolvent). They are the load-bearing
-extraction layer and stay; what's new is the Protocol that lets a
-test body dispatch on either adapter or directly on ``Billiard`` /
-``MomentSpace``.
+The pre-Phase-D regression net verified that polymorphic dispatch on
+the ``TransportSolver`` Protocol agreed with the per-method adapter
+dispatch. The Protocol was retired in Phase D as part of the
+architectural reset (it conflated continuous reference generators
+with discrete production solvers, which have functionally different
+roles); the agreement contract still matters and lives here.
 
 The 5 tests in this file:
 
-1. ``test_polymorphic_dispatch_fn_slab_matches_adapter`` — running
-   ``MomentSpace.from_problem(...).solve_critical()`` produces the
-   same critical half-thickness as ``FNSlabAdapter().solve(case)``.
-2. ``test_polymorphic_dispatch_fn_sphere_matches_adapter`` — sphere
-   counterpart.
-3. ``test_polymorphic_dispatch_trajectory_resolvent_slab_matches_adapter``
-   — Billiard slab vs ``TrajectoryResolventSlabAdapter``.
-4. ``test_polymorphic_dispatch_trajectory_resolvent_sphere_matches_adapter``
-   — Billiard sphere vs ``TrajectoryResolventSphereAdapter``.
-5. ``test_polymorphic_dispatch_closed_sphere_matches_adapter`` —
-   Billiard closed-sphere vs ``TrajectoryResolventSphereClosedAdapter``.
-
-Foundation-tier
----------------
-
-Module-level ``pytestmark = [pytest.mark.foundation]`` (no
-``verifies(...)``); these are software invariants pinning that the
-adapter layer and the Protocol layer agree.
-
-Reduced quadrature
-------------------
-
-To keep the foundation suite under 5 s aggregate per
-:doc:`/skills/algebra-of-record` § "Cost discipline", the tests
-configure each solver at SMALL grid sizes (n_r=12, n_mu=12,
-n_traj_quad=24 for trajectory_resolvent; fn_order=8 for fn_method).
-The agreement check uses bit-equality where the math is determinate
-and a loose 1e-3 numerical floor where iteration / quadrature
-precision is at play.
-
-References
-----------
-
-* :doc:`/theory/transport_solver_protocol` § "Protocol vs adapter
-  layer" — why both layers coexist.
+1. ``test_dispatch_fn_slab_matches_adapter`` — running
+   ``MomentSpace(geometry=..., materials=...).solve_critical()``
+   produces the same critical half-thickness as
+   ``FNSlabAdapter().solve(case)``.
+2. ``test_dispatch_fn_sphere_matches_adapter`` — sphere counterpart.
+3. ``test_dispatch_trajectory_resolvent_slab_matches_adapter`` —
+   ``Billiard`` slab vs ``TrajectoryResolventSlabAdapter``.
+4. ``test_dispatch_trajectory_resolvent_sphere_matches_adapter`` —
+   ``Billiard`` sphere vs ``TrajectoryResolventSphereAdapter``.
+5. ``test_dispatch_closed_sphere_matches_adapter`` — ``Billiard``
+   closed-sphere vs ``TrajectoryResolventSphereClosedAdapter``.
 """
 from __future__ import annotations
 
@@ -64,9 +30,13 @@ import warnings
 
 import pytest
 
-from orpheus.derivations.common.solver_protocol import TransportSolver
 from orpheus.derivations.continuous.fn_method.moment_space import MomentSpace
 from orpheus.derivations.continuous.trajectory_resolvent import Billiard
+from orpheus.geometry.mesh import BC
+from orpheus.geometry.structured_geometry import (
+    Region,
+    StructuredGeometry,
+)
 
 from .adapters import (
     FNSlabAdapter,
@@ -87,61 +57,47 @@ pytestmark = [pytest.mark.foundation]
 
 
 # ----------------------------------------------------------------------
-# Foundation gate 1 — Protocol conformance of the math-heart classes
+# Helpers — bridge legacy GeometrySpec cases to StructuredGeometry
 # ----------------------------------------------------------------------
 
 
-def test_polymorphic_dispatch_protocol_conformance():
-    r"""Every Protocol-conforming class actually conforms.
+def _structured_geom_from_case(spec) -> StructuredGeometry:
+    """Build a StructuredGeometry equivalent to a registry case's GeometrySpec.
 
-    Sanity gate: catches a regression where someone removes
-    ``method_name`` or accidentally types ``materials`` / ``geometry_spec``
-    incorrectly. ``Billiard`` and ``MomentSpace`` MUST satisfy the
-    Protocol; cross-method tests rely on it.
+    The registry / cross_method cases still carry GeometrySpec
+    (Phase F territory). Translate to the new geometry layer so the
+    direct math-heart-class construction path can consume them.
     """
-    # Pick the canonical sphere case (Sood Ua-1-0-SP, c=1.30).
-    case = next(
-        c for c in BARE_CRITICAL_SPHERE_CASES if "Ua-1-0-SP" in c.case_id
+    tag_map = {"slab": "SLB", "sphere": "SPH", "cylinder": "CYL"}
+    tag = tag_map[spec.geometry]
+    if tag == "SLB":
+        # GeometrySpec.domain_extent_cm is the FULL slab width
+        # (2 * critical_dimension_cm), which is what
+        # StructuredGeometry stores end-to-end as well.
+        return StructuredGeometry(
+            geometry="SLB",
+            regions=(
+                Region(mat_id=0, outer_thickness_cm=spec.domain_extent_cm),
+            ),
+            bcs=(spec.bc_left, spec.bc_right),
+        )
+    # CYL / SPH: single-region radius, single outer BC.
+    return StructuredGeometry(
+        geometry=tag,
+        regions=(
+            Region(mat_id=0, outer_thickness_cm=spec.domain_extent_cm),
+        ),
+        bcs=(spec.bc_right,),
     )
-    spec = _geometry_spec_for(case)
-
-    # Construct a Billiard via the production-protocol signature.
-    billiard = Billiard.from_problem(
-        materials=case.registry_case.materials,
-        geometry_spec=spec,
-        alpha=spec.bc_right.to_alpha(),
-    )
-    assert isinstance(billiard, TransportSolver), (
-        "Billiard does not satisfy TransportSolver Protocol"
-    )
-    assert billiard.method_name == "trajectory_resolvent"
-
-    # Construct a MomentSpace via the production-protocol signature.
-    moment = MomentSpace.from_problem(
-        materials=case.registry_case.materials,
-        geometry=spec,
-        fn_order=8,
-    )
-    assert isinstance(moment, TransportSolver), (
-        "MomentSpace does not satisfy TransportSolver Protocol"
-    )
-    assert moment.method_name == "fn_method"
 
 
 # ----------------------------------------------------------------------
-# Foundation gate 2 — fn_slab adapter ↔ MomentSpace direct
+# Foundation gate 1 — fn_slab adapter ↔ MomentSpace direct
 # ----------------------------------------------------------------------
 
 
-def test_polymorphic_dispatch_fn_slab_matches_adapter():
-    r"""``FNSlabAdapter`` agrees with ``MomentSpace.solve_critical``.
-
-    Run the Sood Ua-1-0-SL c=1.30 case through both the adapter and
-    the direct ``MomentSpace`` Protocol path. Both routes converge on
-    the SAME function-level call (``solve_fn_slab_bare_critical``),
-    so the agreement is bit-equal modulo the route's own floating-
-    point operations on c (inputs are identical).
-    """
+def test_dispatch_fn_slab_matches_adapter():
+    r"""``FNSlabAdapter`` agrees with ``MomentSpace.solve_critical``."""
     case = next(
         c for c in BARE_CRITICAL_SLAB_CASES if "Ua-1-0-SL" in c.case_id
     )
@@ -149,24 +105,18 @@ def test_polymorphic_dispatch_fn_slab_matches_adapter():
     adapter = FNSlabAdapter(n_modes=8)
     res_adapter = adapter.solve(case)
 
-    # Direct path: build MomentSpace via production-protocol inputs.
-    moment = MomentSpace.from_problem(
+    geom = _structured_geom_from_case(_geometry_spec_for(case))
+    moment = MomentSpace(
+        geometry=geom,
         materials=case.registry_case.materials,
-        geometry=_geometry_spec_for(case),
         fn_order=adapter.n_modes,
     )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         sol_protocol = moment.solve_critical()
 
-    # The adapter returns ``a_critical_mfp``; the Protocol surface
-    # returns the same value via ``parameter_value`` with
-    # ``parameter_kind == "half_thickness_mfp"``.
     assert sol_protocol.parameter_kind == "half_thickness_mfp"
     diff = abs(sol_protocol.parameter_value - res_adapter.value)
-    # Both routes go through the same function-level API, so agreement
-    # should be bit-equal — loose 1e-12 floor leaves room for any
-    # incidental ULP drift.
     assert diff < 1e-12, (
         f"fn_slab adapter ({res_adapter.value}) vs MomentSpace direct "
         f"({sol_protocol.parameter_value}) drift {diff:.3e} > 1e-12"
@@ -174,11 +124,11 @@ def test_polymorphic_dispatch_fn_slab_matches_adapter():
 
 
 # ----------------------------------------------------------------------
-# Foundation gate 3 — fn_sphere adapter ↔ MomentSpace direct
+# Foundation gate 2 — fn_sphere adapter ↔ MomentSpace direct
 # ----------------------------------------------------------------------
 
 
-def test_polymorphic_dispatch_fn_sphere_matches_adapter():
+def test_dispatch_fn_sphere_matches_adapter():
     r"""``FNSphereAdapter`` agrees with ``MomentSpace.solve_critical``."""
     case = next(
         c for c in BARE_CRITICAL_SPHERE_CASES if "Ua-1-0-SP" in c.case_id
@@ -187,9 +137,10 @@ def test_polymorphic_dispatch_fn_sphere_matches_adapter():
     adapter = FNSphereAdapter(n_modes=8)
     res_adapter = adapter.solve(case)
 
-    moment = MomentSpace.from_problem(
+    geom = _structured_geom_from_case(_geometry_spec_for(case))
+    moment = MomentSpace(
+        geometry=geom,
         materials=case.registry_case.materials,
-        geometry=_geometry_spec_for(case),
         fn_order=adapter.n_modes,
     )
     with warnings.catch_warnings():
@@ -205,40 +156,28 @@ def test_polymorphic_dispatch_fn_sphere_matches_adapter():
 
 
 # ----------------------------------------------------------------------
-# Foundation gate 4 — trajectory_resolvent_slab ↔ Billiard direct
+# Foundation gate 3 — trajectory_resolvent_slab ↔ Billiard direct
 # ----------------------------------------------------------------------
 
 
-def test_polymorphic_dispatch_trajectory_resolvent_slab_matches_adapter():
-    r"""``TrajectoryResolventSlabAdapter`` agrees with ``Billiard.solve_critical``.
-
-    Both paths land at the same ``solve_greens_function_slab`` call
-    with the same arguments; ``k_eff`` agreement should be bit-equal.
-
-    Quadrature is reduced to (n_x=8, n_mu=8, n_traj_quad=16) to keep
-    the foundation suite fast (default would be n_x=48, n_mu=128,
-    n_traj_quad=96 ≈ 30 s). The agreement check is structural; we
-    don't assert against truth — that's the L1 truth gate's job in
-    ``test_eigenvalue.py``.
-    """
+def test_dispatch_trajectory_resolvent_slab_matches_adapter():
+    r"""``TrajectoryResolventSlabAdapter`` agrees with ``Billiard.solve_critical``."""
     case = next(
         c for c in BARE_CRITICAL_SLAB_CASES if "Ua-1-0-SL" in c.case_id
     )
 
-    # Reduced-quadrature adapter for foundation cost discipline.
     adapter = TrajectoryResolventSlabAdapter(
         n_x=8, n_mu=8, n_traj_quad=16, max_iter=100, tol=1e-7,
     )
     res_adapter = adapter.solve(case)
 
-    # Direct Billiard via the production-protocol signature; thread
-    # through the SAME quadrature so the two routes agree bit-equal.
     spec = _geometry_spec_for(case)
     alpha = spec.bc_right.to_alpha()
+    geom = _structured_geom_from_case(spec)
 
-    billiard = Billiard.from_problem(
+    billiard = Billiard(
+        geometry=geom,
         materials=case.registry_case.materials,
-        geometry_spec=spec,
         alpha=alpha,
         quadrature={"n_x": 8, "n_mu": 8, "n_traj_quad": 16},
     )
@@ -253,11 +192,11 @@ def test_polymorphic_dispatch_trajectory_resolvent_slab_matches_adapter():
 
 
 # ----------------------------------------------------------------------
-# Foundation gate 5 — trajectory_resolvent_sphere ↔ Billiard direct
+# Foundation gate 4 — trajectory_resolvent_sphere ↔ Billiard direct
 # ----------------------------------------------------------------------
 
 
-def test_polymorphic_dispatch_trajectory_resolvent_sphere_matches_adapter():
+def test_dispatch_trajectory_resolvent_sphere_matches_adapter():
     r"""``TrajectoryResolventSphereAdapter`` agrees with ``Billiard``."""
     case = next(
         c for c in BARE_CRITICAL_SPHERE_CASES if "Ua-1-0-SP" in c.case_id
@@ -270,10 +209,11 @@ def test_polymorphic_dispatch_trajectory_resolvent_sphere_matches_adapter():
 
     spec = _geometry_spec_for(case)
     alpha = spec.bc_right.to_alpha()
+    geom = _structured_geom_from_case(spec)
 
-    billiard = Billiard.from_problem(
+    billiard = Billiard(
+        geometry=geom,
         materials=case.registry_case.materials,
-        geometry_spec=spec,
         alpha=alpha,
         quadrature={"n_r": 12, "n_mu": 12, "n_traj_quad": 24},
     )
@@ -289,19 +229,12 @@ def test_polymorphic_dispatch_trajectory_resolvent_sphere_matches_adapter():
 
 
 # ----------------------------------------------------------------------
-# Foundation gate 6 — closed_sphere_kinf ↔ Billiard direct
+# Foundation gate 5 — closed_sphere_kinf ↔ Billiard direct
 # ----------------------------------------------------------------------
 
 
-def test_polymorphic_dispatch_closed_sphere_matches_adapter():
-    r"""``TrajectoryResolventSphereClosedAdapter`` agrees with ``Billiard``.
-
-    The closed-sphere case (α=1) carries inline materials and
-    geometry_spec (no registry case). Both the adapter and the
-    direct Billiard path consume the same ``case.materials``
-    (``dict[int, Mixture]``) and ``case.geometry_spec`` pair via
-    the production-protocol signature.
-    """
+def test_dispatch_closed_sphere_matches_adapter():
+    r"""``TrajectoryResolventSphereClosedAdapter`` agrees with ``Billiard``."""
     case = next(iter(CLOSED_SPHERE_KINF_CASES))
 
     adapter = TrajectoryResolventSphereClosedAdapter(
@@ -309,13 +242,23 @@ def test_polymorphic_dispatch_closed_sphere_matches_adapter():
     )
     res_adapter = adapter.solve(case)
 
-    # Closed-sphere uses inline materials (no registry case).
     spec = _geometry_spec_for(case)
     alpha = spec.bc_right.to_alpha()
+    geom = StructuredGeometry(
+        geometry="SPH",
+        regions=(
+            Region(mat_id=0, outer_thickness_cm=spec.domain_extent_cm),
+        ),
+        # Closed sphere → outer is reflective (the inline cases set
+        # bc_right=BC.reflective; the adapter routes alpha=1 from
+        # bc_right.to_alpha()). StructuredGeometry single-endpoint
+        # carries only the outer BC.
+        bcs=(BC.reflective,),
+    )
 
-    billiard = Billiard.from_problem(
+    billiard = Billiard(
+        geometry=geom,
         materials=case.materials,
-        geometry_spec=spec,
         alpha=alpha,
         quadrature={"n_r": 12, "n_mu": 12, "n_traj_quad": 24},
     )

@@ -31,10 +31,7 @@ discretise.
 from __future__ import annotations
 
 from .geometry_spec import GeometrySpec
-from .solver_protocol import KNOWN_TRANSPORT_SOLVERS, TransportSolver
 
 __all__ = [
     "GeometrySpec",
-    "KNOWN_TRANSPORT_SOLVERS",
-    "TransportSolver",
 ]
