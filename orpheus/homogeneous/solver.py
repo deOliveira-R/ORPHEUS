@@ -32,23 +32,43 @@ from orpheus.numerics.eigenvalue import power_iteration
 
 @dataclass
 class HomogeneousResult:
-    """Result of a homogeneous infinite reactor calculation."""
+    """Result of a homogeneous infinite reactor calculation.
+
+    The energy-grid fields (``eg_mid``, ``de``, ``du``) are ``None`` when
+    the underlying :class:`~orpheus.data.macro_xs.mixture.Mixture` has no
+    physical energy grid (synthetic / Sood-style XS, post-Phase-E). In
+    that case ``flux_per_energy`` / ``flux_per_lethargy`` raise — the
+    quantities are not defined without a grid.
+    """
 
     k_inf: float
     flux: np.ndarray  # (NG,) — group fluxes normalised to 100 n/cm³/s production
-    eg_mid: np.ndarray  # (NG,) — mid-group energies (eV)
-    de: np.ndarray  # (NG,) — energy bin widths (eV)
-    du: np.ndarray  # (NG,) — lethargy bin widths
+    eg_mid: np.ndarray | None  # (NG,) — mid-group energies (eV); None if no grid
+    de: np.ndarray | None  # (NG,) — energy bin widths (eV); None if no grid
+    du: np.ndarray | None  # (NG,) — lethargy bin widths; None if no grid
     sig_prod: float  # one-group production XS (1/cm)
     sig_abs: float  # one-group absorption XS (1/cm)
     mixture: Mixture
 
     @property
     def flux_per_energy(self) -> np.ndarray:
+        if self.de is None:
+            raise ValueError(
+                "flux_per_energy is undefined for synthetic XS without an "
+                "energy grid (mixture.eg is None). Build the Mixture from "
+                "an Isotope library or pass an explicit eg= to make_mixture."
+            )
         return self.flux / self.de
 
     @property
     def flux_per_lethargy(self) -> np.ndarray:
+        if self.du is None:
+            raise ValueError(
+                "flux_per_lethargy is undefined for synthetic XS without "
+                "an energy grid (mixture.eg is None). Build the Mixture "
+                "from an Isotope library or pass an explicit eg= to "
+                "make_mixture."
+            )
         return self.flux / self.du
 
 
@@ -141,10 +161,19 @@ def solve_homogeneous_infinite(
     total_flux = phi.sum()
 
     ng = mix.ng
-    eg = mix.eg
-    eg_mid = 0.5 * (eg[:ng] + eg[1:ng + 1])
-    de = np.abs(eg[1:ng + 1] - eg[:ng])
-    du = np.abs(np.log(eg[1:ng + 1] / eg[:ng]))
+    if mix.eg is None:
+        # Synthetic XS — no physical energy grid, so lethargy / per-energy
+        # diagnostics are not defined.  k_inf and the flux spectrum still
+        # carry meaningful information; only the per-energy plotting path
+        # is unavailable.
+        eg_mid = None
+        de = None
+        du = None
+    else:
+        eg = mix.eg
+        eg_mid = 0.5 * (eg[:ng] + eg[1:ng + 1])
+        de = np.abs(eg[1:ng + 1] - eg[:ng])
+        du = np.abs(np.log(eg[1:ng + 1] / eg[:ng]))
 
     return HomogeneousResult(
         k_inf=k_inf,
