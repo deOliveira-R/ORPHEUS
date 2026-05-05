@@ -108,15 +108,18 @@ class TestSNBCResolution:
         assert sn.bc_ymin == "reflective"
         assert sn.bc_ymax == "vacuum"
 
-    def test_curvilinear_vacuum_raises(self, quad):
-        """Spherical/cylindrical only support reflective; vacuum raises at resolution."""
+    def test_curvilinear_vacuum_resolves(self, quad):
+        """Spherical/cylindrical accept vacuum; sweep enforces zero-incoming
+        at the outer face. Vacuum support added in commits 655e3e5 / 37c5bbf
+        (the curvilinear-only-reflective gate was removed and the inward
+        sweep now branches on ``is_vacuum_outer``)."""
         mesh = Mesh1D(
             edges=np.linspace(0.1, 1.0, 6), mat_ids=np.zeros(5, dtype=int),
             coord=CoordSystem.SPHERICAL,
             bc_right=BC.vacuum,
         )
-        with pytest.raises(NotImplementedError, match="spherical.*reflective"):
-            SNMesh(mesh, quad)
+        sn = SNMesh(mesh, quad)
+        assert sn.bc_right == "vacuum"
 
 
 # ═══════════════════════════════════════════════════════════════════════
