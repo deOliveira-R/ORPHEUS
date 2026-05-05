@@ -70,6 +70,7 @@ that places each transport method in the V&V hierarchy.
 
    cross_section_data
    homogeneous
+   structured_geometry
    verification
 
 
