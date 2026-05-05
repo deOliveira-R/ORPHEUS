@@ -1,13 +1,15 @@
 r"""The F_N moment space — math-heart class for the F_N method.
 
-This module is the **2nd concrete instance of the math-heart pattern**
-across the project (the 1st is ``Billiard`` in
-:mod:`orpheus.derivations.continuous.trajectory_resolvent`). The two
-instances exist deliberately as the precondition for designing the
-unifying Protocol over math-heart classes — per the project's "unify
-after two instances" discipline, the Protocol is gated on two
-working instances, and ``MomentSpace`` makes ``Billiard`` no longer
-a one-off.
+Phase D
+-------
+
+``MomentSpace`` is a **reference solution generator**. It consumes a
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+directly via its ``__init__`` (no mesh, no cell counts). Infinite-
+medium :math:`k_\infty` is a separate static method
+:meth:`MomentSpace.solve_kinf` that takes a :class:`Mixture` only —
+no geometry needed. The architectural split between continuous
+references and discrete-mesh production solvers is now full.
 
 The single class :class:`MomentSpace` encapsulates everything the
 F_N method needs to commit to before computing a solution:
@@ -25,43 +27,20 @@ F_N method needs to commit to before computing a solution:
   Gauss–Legendre path (kept for diagnostic comparison).
 
 The class is intentionally a thin computational specialisation of
-:class:`~orpheus.derivations.common.geometry_spec.GeometrySpec` for
-the F_N method — it is the *F_N moment space*, not the *F_N solver*.
-The solve methods (:meth:`MomentSpace.solve_critical`,
-:meth:`MomentSpace.solve_fixed_source`) are thin wrappers around the
-existing function-level API in :mod:`...slab.one_group`,
-:mod:`...sphere.one_group`, :mod:`...multi_group.k_inf`,
+:class:`StructuredGeometry` for the F_N method — it is the *F_N
+moment space*, not the *F_N solver*. The solve methods are thin
+wrappers around the existing function-level API in
+:mod:`...slab.one_group`, :mod:`...sphere.one_group`,
 :mod:`...slab.flux_reconstruction`, and
-:mod:`...sphere.flux_reconstruction`. The function-level API stays
-as the load-bearing implementation; ``MomentSpace`` is the
-class-level facade that owns the math-rich documentation and
-populates the cross-method shared
-:class:`~orpheus.derivations.common.solution_types.CriticalSolution`
-/ :class:`~orpheus.derivations.common.solution_types.FluxSolution`
-result types.
+:mod:`...sphere.flux_reconstruction`.
 
-Architectural role and pattern
-==============================
+Slab convention reminder
+------------------------
 
-``MomentSpace`` is to F_N what ``Billiard`` is to
-trajectory_resolvent: a **method-specific computational space**
-mounted on a method-agnostic :class:`GeometrySpec`. Both classes
-answer the same triplet of questions:
-
-1. *"What is the critical configuration?"* —
-   :meth:`solve_critical` returns a
-   :class:`CriticalSolution` carrying the eigenvalue + the
-   parameter that locates criticality.
-2. *"Given a configuration, what is the flux shape?"* —
-   :meth:`reconstruct_flux` returns a :class:`FluxSolution`
-   carrying scalar and (optionally) angular flux.
-3. *"At a given fixed configuration, what is the eigenvalue?"* —
-   :meth:`solve_fixed_geometry_eigenvalue` reports
-   :math:`k_\text{eff}` at a non-critical configuration.
-
-The shared result types are the load-bearing piece of the
-unification. Behavioural Protocols across the math-heart classes
-remain deferred per the "unify after two instances" memo.
+:attr:`StructuredGeometry.domain_extent_cm` is the FULL slab width
+(production-natural convention). F_N's natural half-thickness
+:math:`a = L / 2` is computed inside
+:meth:`MomentSpace.solve_critical` from the geometry's full extent.
 
 References
 ----------
@@ -80,30 +59,21 @@ References
   Theory", *Nuclear Science and Engineering* **54**, 94–98.
 * Atkinson, K.E. (1997) *The Numerical Solution of Integral
   Equations of the Second Kind*. Cambridge University Press.
-* :doc:`/theory/fn_method` — the canonical theory exposition; the
-  "Mathematical structure of the F_N moment space" section is the
-  rich-narrative companion to this module's docstrings.
-* :doc:`/theory/reference_solvers` § "Three meanings of the
-  Green's function" — locates F_N (Galerkin moment projection) and
-  trajectory_resolvent (Billiard ray-tracing) within the same
-  Green's-function landscape.
+* :doc:`/theory/fn_method` — the canonical theory exposition.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Optional, cast
+from typing import Literal, Optional
 
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.geometry_spec import GeometrySpec
 from orpheus.derivations.common.solution_types import (
     CriticalSolution,
     FluxSolution,
 )
-from orpheus.derivations.continuous.sood_registry.extractors import (
-    mixture_to_fn_arrays,
-)
+from orpheus.geometry.structured_geometry import StructuredGeometry
 
 
 FluxReconstructionStrategy = Literal["none", "atkinson_nystrom", "legacy_gl"]
@@ -119,252 +89,55 @@ class MomentSpace:
     collocation on a discrete set of :math:`\mu` values to close the
     system. ``MomentSpace`` is the data class that owns the basis
     (the F_N order :math:`N`), the geometry (slab vs sphere — the two
-    differ by exactly one sign in the boundary attenuation term, see
-    :doc:`/theory/fn_method` § "geometry_sign duality"), the materials
-    (encoded as :math:`c = (\Sigma_s + \nu\Sigma_f)/\Sigma_t` for the
-    1G isotropic case), and the boundary condition (bare-critical
-    vacuum is the shipping configuration).
+    differ by exactly one sign in the boundary attenuation term), the
+    materials (encoded as :math:`c = (\Sigma_s + \nu\Sigma_f)/\Sigma_t`
+    for the 1G isotropic case), and the boundary condition
+    (bare-critical vacuum is the shipping configuration).
 
-    The mathematical setup
+    Construction (Phase D)
     ----------------------
 
-    1. **The angular flux** :math:`\psi(r, \mu)` lives in
-       :math:`L^2([0, R] \times [-1, 1])` — a Hilbert space of
-       square-integrable functions on the spatial domain :math:`\times`
-       angular sphere. For slab and sphere problems with axial /
-       spherical symmetry, the angular dependence collapses to a
-       single polar cosine :math:`\mu \in [-1, 1]`. Cylinder
-       geometry retains an azimuthal dependence and is **not in
-       the F_N pillar** — see
-       :mod:`orpheus.derivations.continuous.singular_eigenfunction.cylinder`
-       for the Mitsis–Westfall–Metcalf alternative pillar.
+    Direct construction with a :class:`StructuredGeometry` (slab or
+    sphere) and a ``materials: dict[int, Mixture]`` payload::
 
-    2. **Half-range decomposition.** The F_N method works in the
-       Case singular-eigenfunction representation
-       (Case–Zweifel 1967) where the angular flux on the boundary
-       splits cleanly into outgoing (:math:`\mu > 0`) and incoming
-       (:math:`\mu < 0`) half-range projections. The **Galerkin
-       moments** are the weighted half-range integrals that the
-       F_N basis spans:
+        from orpheus.geometry.structured_geometry import (
+            Region, StructuredGeometry,
+        )
+        from orpheus.geometry.mesh import BC
 
-       .. math::
+        geom = StructuredGeometry(
+            geometry="SLB",
+            regions=(Region(mat_id=0, outer_thickness_cm=L_full),),
+            bcs=(BC.vacuum, BC.vacuum),
+        )
+        ms = MomentSpace(geometry=geom, materials={0: mix})
+        sol = ms.solve_critical()
 
-           B_\alpha(\xi) = \int_0^1
-               \frac{\mu^\alpha}{\mu - \xi}\, d\mu
-           \quad,\quad
-           A_\alpha(\xi) = \int_0^1
-               \frac{\mu^\alpha\, e^{-2 a / \mu}}{\mu + \xi}\, d\mu
+    For infinite-medium :math:`k_\infty`, use
+    :meth:`MomentSpace.solve_kinf` — no geometry needed::
 
-       (Siewert–Benoist Eq. 5–6 for slab; Siewert–Thomas Eq. 47–48
-       for sphere). The **moment space** of order :math:`N` is the
-       :math:`(N+1)`-dimensional vector space of expansion
-       coefficients :math:`a_0, a_1, \ldots, a_N` such that
-
-       .. math::
-
-           \psi(-a, -\mu) = \sum_{\alpha=0}^{N} a_\alpha\, \mu^\alpha
-           \quad\text{for}\quad \mu \in [0, 1].
-
-       The boundary angular flux is approximated as a polynomial in
-       the half-range cosine :math:`\mu`, with the polynomial
-       degree :math:`N` setting the F_N truncation.
-
-    3. **Galerkin orthogonality.** Under projection of
-       Case–Zweifel's full-range completeness relation onto the
-       moment basis, the residual of the truncated angular flux is
-       constrained to be orthogonal to :math:`\{\mu^0, \ldots,
-       \mu^N\}` against the half-range weight. The orthogonality
-       condition is what enforces *consistency* of the
-       finite-dimensional approximation — the truncation error is
-       smaller in the moment basis than the trial-function class
-       would predict, because the residual is projected away on
-       every basis element.
-
-    4. **Collocation closure.** With :math:`N+1` unknowns
-       :math:`(a_0, \ldots, a_N)`, we need :math:`N+1` equations.
-       The F_N method evaluates the boundary integral identity at
-       :math:`N+1` collocation points :math:`\xi_\beta`. Different
-       choices give different convergence rates but converge to
-       the same limit:
-
-       * **Slab (Grandjean–Siewert prescription)**: :math:`\xi_0 =
-         \nu_0` (the Case discrete eigenvalue), :math:`\xi_1 = 0`
-         (the half-range origin), :math:`\xi_2 = 1` (the
-         half-range maximum), and :math:`N - 2` interior points
-         equally spaced in :math:`(0, 1)`.
-       * **Sphere (Siewert–Thomas Eq. 38a prescription)**:
-         :math:`\xi_0 = \nu_0`, with the remaining :math:`N`
-         points on the **Chebyshev-interior** grid
-         :math:`\xi_k = \cos((2k - 1)\pi / (2N + 2))` for
-         :math:`k = 1, \ldots, N`. The sphere needs the
-         Chebyshev grid because the slab Grandjean–Siewert grid
-         (with :math:`\xi = 0` and :math:`\xi = 1` endpoints)
-         creates a rank-deficient system under the sphere's
-         ``geometry_sign = -1`` matrix entries.
-
-       The collocation matrix is :math:`(N+1) \times (N+1)`
-       complex (the :math:`\xi_0 = \nu_0 = i u_0` row is genuinely
-       imaginary for multiplying media :math:`c > 1`), generally
-       dense, but small at the operating point :math:`N = 8`–:math:`12`.
-
-    5. **The critical condition.** Criticality is the existence of
-       a non-trivial null vector :math:`(a_0, \ldots, a_N)` of the
-       collocation matrix :math:`M`, which requires
-       :math:`\det M = 0`. The F_N method root-finds
-       :math:`\det M(a) = 0` (slab) or :math:`\det M(R) = 0`
-       (sphere) on the configuration parameter to locate the
-       critical configuration.
-
-    6. **Truncation error analysis.** The Galerkin projection
-       error in :math:`L^2` decays as :math:`O(N^{-p})` where
-       :math:`p` depends on the smoothness class of the true
-       angular flux on the half-range
-       :math:`\psi(-a, -\mu) \in C^p([0, 1])`. For the bare-critical
-       slab and sphere, the angular flux at the boundary is
-       analytic in :math:`\mu` away from :math:`\mu = 0` (the
-       grazing-ray limit), so the convergence is super-algebraic
-       — Grandjean–Siewert Table XI shows :math:`N = 5` reaches
-       4–5 sig figs and :math:`N = 8` reaches :math:`10^{-5}` to
-       :math:`10^{-6}` absolute accuracy on the critical
-       half-thickness across the :math:`c`-sweep.
-
-    7. **Why N = 8–12 is the typical operating point.** Empirical
-       experiment + the smoothness assumption: at :math:`N = 8`
-       the system is small enough to assemble in microseconds and
-       large enough to give 6-digit agreement with the Sood
-       LA-13511 truth values. Beyond :math:`N \approx 16` the
-       collocation matrix becomes ill-conditioned (the Chebyshev
-       columns become near-linearly-dependent in finite
-       precision), so refinement saturates at the precision floor
-       rather than continuing to gain digits.
-
-    8. **Multi-region / multi-group extensions.** Linearity of the
-       moment projection extends:
-
-       * **Multi-group** to a tensor product of (group-coupling
-         matrix) :math:`\otimes` (moment basis). Sood Eq. 76 and
-         the Siewert–Thomas 1986 2G machinery realise this; the
-         current ``MomentSpace`` exposes the 1G specialisation
-         and delegates the multi-group :math:`k_\infty` evaluation
-         to :func:`...multi_group.k_inf.compute_kinf_*`.
-       * **Multi-region** to a block transfer matrix between
-         region interfaces. Neshat–Maiorino 1980 implements this
-         for the 1G reflected slab; access via the
-         ``"reflected_slab"`` factory variant.
-
-    9. **Connection to flux reconstruction.** The F_N coefficients
-       :math:`a_\alpha` define :math:`\psi(\pm a, \mu)` on the
-       boundary; reconstructing :math:`\phi(z)` or :math:`\psi(z,
-       \mu)` in the interior requires either:
-
-       * **KLL Fredholm iteration** (Path B, Kaper–Lindeman–Leaf
-         1974) — structurally independent of F_N; iterates the
-         scalar-flux integral equation with the F_N boundary
-         angular flux as the source. Implemented in
-         :func:`...slab.flux_reconstruction.slab_scalar_flux_kll`
-         and the sphere analogue.
-       * **F_N projection iteration** (Path A.i) — uses the F_N
-         coefficients directly as the angular flux throughout the
-         domain. Requires the Atkinson product-Nyström treatment
-         of the log-singular Peierls kernel (ERR-036) to reach
-         :math:`10^{-5}` accuracy; the legacy plain Gauss–Legendre
-         path saturates at :math:`1`–:math:`7\,\%` due to silent
-         diagonal truncation of :math:`E_1(0) = +\infty`. See
-         :ref:`fn-method-atkinson-product-nystrom` and the
-         ``flux_reconstruction`` field of this class.
-
-    10. **The relationship to** ``Billiard`` **(trajectory_resolvent).**
-        Both methods solve the same boundary-value problem on the
-        same physical configuration, but attack different
-        mathematical structures:
-
-        * The F_N method works in the **Case eigenfunction
-          spectrum** — the angular flux is projected onto a
-          finite-dimensional moment basis and the eigenvalue
-          falls out of a small dense determinant condition.
-        * Trajectory_resolvent (``Billiard``) works in **phase
-          space** — the angular flux is carried along bouncing
-          characteristics and the eigenvalue is extracted from
-          power iteration on the discretised resolvent.
-
-        The Sanchez–Chandrasekhar three-meanings taxonomy (see
-        :doc:`/theory/reference_solvers` § three-meanings)
-        locates both methods within the same Green's-function
-        landscape: the F_N method is the *spectral* realisation
-        of the resolvent (eigenfunction expansion in the Case
-        spectrum), while trajectory_resolvent is the
-        *path-integral* realisation (sum over bouncing
-        characteristics weighted by attenuation). They cross-check
-        each other above the trusted-library line — both consume
-        ``numpy``/``scipy``, neither shares any in-house primitive
-        — and their cross-method gates anchor the verification
-        chain for the Sood LA-13511 truth set.
-
-    Cross-method analog
-    -------------------
-
-    ``MomentSpace`` is to fn_method what ``Billiard`` is to
-    trajectory_resolvent (a billiard system with multi-bounce
-    resolvent), what ``Spectrum`` will eventually be to
-    singular_eigenfunction (Case singular eigenfunction expansion),
-    what ``LegendreBlock`` will be to carlvik_galerkin
-    (Dahl–Sjöstrand block-matrix linearisation), and what
-    ``CPMesh`` is to the production collision-probability solver.
-    These siblings are method-specific computational
-    specialisations of the abstract ``GeometrySpec``; see
-    :doc:`/theory/reference_solvers` § "method-specific spaces"
-    for the unification design (gated on ≥2 instances, of which
-    ``MomentSpace`` and ``Billiard`` are the first two).
-
-    Construction
-    ------------
-
-    Use the factory :meth:`from_problem` for the canonical
-    construction path. A direct constructor call is exposed for
-    diagnostic / advanced use but is not the recommended public
-    API.
+        kinf = MomentSpace.solve_kinf(mix)
 
     Parameters
     ----------
-    geometry : :class:`GeometrySpec`
-        Method-agnostic geometry specification. The ``geometry``
-        attribute MUST be ``"slab"`` or ``"sphere"`` —
-        ``"infinite"`` (k_inf only), ``"cylinder"`` (out of pillar),
-        and ``"ISLC"`` (not implemented) are rejected at
-        construction time.
+    geometry : :class:`StructuredGeometry`
+        Pure-geometry layer object. Tag MUST be ``"SLB"`` (Cartesian
+        slab) or ``"SPH"`` (spherical). Cylinder (``"CYL"``) is out
+        of pillar (Westfall–Metcalf 1972 — see
+        :mod:`...singular_eigenfunction.cylinder`).
     materials : dict[int, Mixture]
-        Production-protocol materials, keyed by material ID. The
-        :attr:`GeometrySpec.mat_id` field selects the active
-        mixture for the F_N solve.
+        Production-protocol materials, keyed by material ID.
     fn_order : int
-        F_N truncation order :math:`N`. The collocation system has
-        size :math:`(N+1) \times (N+1)`. Defaults to 9 (the typical
-        operating point).
+        F_N truncation order :math:`N`. Defaults to 9.
     flux_reconstruction : :data:`FluxReconstructionStrategy`
-        Which flux-reconstruction path to use when
-        :meth:`reconstruct_flux` is called:
-
-        * ``"atkinson_nystrom"`` (default) — Atkinson 1972/1997
-          §4.2 product-Simpson rule on the log-singular kernel,
-          with closed-form treatment of the diagonal. Recommended;
-          fixes ERR-036.
-        * ``"legacy_gl"`` — plain Gauss–Legendre quadrature on
-          the (z, μ) tensor product. Diagnostic only; saturates
-          at 1–7\,\% accuracy due to silent diagonal truncation.
-        * ``"none"`` — :meth:`reconstruct_flux` raises; only
-          :meth:`solve_critical` is callable.
+        Which flux-reconstruction path to use. Default
+        ``"atkinson_nystrom"``.
     """
 
-    geometry: GeometrySpec
+    geometry: StructuredGeometry
     materials: dict[int, Mixture]
     fn_order: int = 9
     flux_reconstruction: FluxReconstructionStrategy = "atkinson_nystrom"
-    # Stable pillar tag for the TransportSolver Protocol. The class
-    # already exposes ``materials: dict[int, Mixture]`` and
-    # ``geometry: GeometrySpec`` (the latter is aliased as
-    # ``geometry_spec`` via the property below to match the Protocol's
-    # attribute name).
-    method_name: str = "fn_method"
 
     # ------------------------------------------------------------------
     # Construction
@@ -373,31 +146,28 @@ class MomentSpace:
     def __post_init__(self) -> None:
         """Validate the F_N method's structural preconditions.
 
-        The F_N method as shipped applies to:
-
-        * **Slab** (Siewert–Benoist 1979 / Grandjean–Siewert 1979).
-        * **Sphere** (Siewert–Thomas 1986).
-        * **Infinite medium** (Sood Eq. 19/28/29/76 — k_inf only).
-
-        It is **explicitly out of pillar** for cylinder geometry —
-        Westfall–Metcalf 1972 documents that the Mitsis-style
-        Wiener-Hopf reduction is non-convergent for the bare
-        cylinder. Cylinder critical dimensions ship via
-        :mod:`...singular_eigenfunction.cylinder` on the
-        Mitsis–Westfall–Metcalf Fredholm pillar.
+        The F_N method as shipped applies to **slab** (Siewert–Benoist
+        1979) and **sphere** (Siewert–Thomas 1986). It is **explicitly
+        out of pillar** for cylinder geometry — Westfall–Metcalf 1972
+        documents that the Mitsis-style Wiener–Hopf reduction is
+        non-convergent for the bare cylinder. Cylinder critical
+        dimensions ship via :mod:`...singular_eigenfunction.cylinder`.
         """
-        if self.geometry.geometry not in {"slab", "sphere", "infinite"}:
+        if self.geometry.geometry not in {"SLB", "SPH"}:
             raise ValueError(
-                f"MomentSpace supports geometry ∈ {{slab, sphere, infinite}}, "
-                f"got {self.geometry.geometry!r}. Cylinder is out of pillar "
-                f"(Westfall-Metcalf 1972 — see singular_eigenfunction.cylinder)."
+                f"MomentSpace supports geometry ∈ {{SLB, SPH}}, "
+                f"got {self.geometry.geometry!r}. Cylinder (CYL) is out "
+                f"of pillar (Westfall-Metcalf 1972 — see "
+                f"singular_eigenfunction.cylinder). For infinite-medium "
+                f"k_inf, use MomentSpace.solve_kinf(mixture) — no "
+                f"geometry needed."
             )
         if self.fn_order < 0:
             raise ValueError(f"fn_order must be ≥ 0, got {self.fn_order}")
-        if self.geometry.mat_id not in self.materials:
+        if self._mat_id not in self.materials:
             raise ValueError(
-                f"materials dict missing mat_id={self.geometry.mat_id} "
-                f"required by geometry_spec; got keys "
+                f"materials dict missing mat_id={self._mat_id} "
+                f"required by geometry; got keys "
                 f"{sorted(self.materials.keys())}"
             )
         if self.flux_reconstruction not in {"none", "atkinson_nystrom", "legacy_gl"}:
@@ -407,116 +177,48 @@ class MomentSpace:
                 f"{self.flux_reconstruction!r}"
             )
 
-    @classmethod
-    def from_problem(
-        cls,
-        materials: dict[int, Mixture],
-        geometry: GeometrySpec,
-        *,
-        fn_order: int = 9,
-        flux_reconstruction: FluxReconstructionStrategy = "atkinson_nystrom",
-    ) -> "MomentSpace":
-        r"""Construct a :class:`MomentSpace` from production-protocol inputs.
-
-        This is the recommended public construction path. It accepts
-        the same ``materials: dict[int, Mixture]`` + ``GeometrySpec``
-        pair that the production CP/SN/MOC solvers consume, so a
-        single problem definition can be solved by both production
-        machinery and the F_N reference without re-deriving any
-        cross sections.
-
-        Parameters
-        ----------
-        materials : dict[int, Mixture]
-            Production-protocol materials. Multi-region cases use
-            multiple keys (one per ``mat_id``); bare-critical
-            cases typically have a single key (``mat_id == 0``).
-        geometry : :class:`GeometrySpec`
-            Method-agnostic geometry. ``geometry.geometry`` must be
-            ``"slab"``, ``"sphere"``, or ``"infinite"``. Cylinder
-            is rejected (out of pillar).
-        fn_order : int, default 9
-            F_N order :math:`N`.
-        flux_reconstruction : :data:`FluxReconstructionStrategy`, default ``"atkinson_nystrom"``
-            Which flux-reconstruction path to use.
-
-        Returns
-        -------
-        :class:`MomentSpace`
-
-        Raises
-        ------
-        ValueError
-            If geometry is cylinder/ISLC, ``fn_order < 0``, the
-            ``materials`` dict is missing ``geometry.mat_id``, or
-            ``flux_reconstruction`` is not one of the supported
-            strategies.
-        """
-        return cls(
-            geometry=geometry,
-            materials=materials,
-            fn_order=fn_order,
-            flux_reconstruction=flux_reconstruction,
-        )
-
     # ------------------------------------------------------------------
-    # TransportSolver Protocol — geometry_spec alias for ``self.geometry``
+    # Material accessors — read directly from Mixture (no extractor)
     # ------------------------------------------------------------------
 
     @property
-    def geometry_spec(self) -> GeometrySpec:
-        r"""Return the GeometrySpec for the TransportSolver Protocol.
+    def _mat_id(self) -> int:
+        """Active mat_id — the single region's material identifier."""
+        return self.geometry.regions[0].mat_id
 
-        Aliased onto :attr:`geometry` (the dataclass field) so the
-        class conforms to
-        :class:`~orpheus.derivations.common.solver_protocol.TransportSolver`.
-        Both names refer to the same instance — ``self.geometry`` is
-        the historical fn_method name, ``self.geometry_spec`` is the
-        Protocol surface.
-        """
-        return self.geometry
-
-    # ------------------------------------------------------------------
-    # Derived primary parameter
-    # ------------------------------------------------------------------
+    @property
+    def _mixture(self) -> Mixture:
+        """The active :class:`Mixture` for this geometry's mat_id."""
+        return self.materials[self._mat_id]
 
     @property
     def c(self) -> float:
         r"""Mean number of secondaries per collision, :math:`c`.
 
         For 1G isotropic-scattering problems
-        :math:`c = (\Sigma_s + \nu\Sigma_f)/\Sigma_t`. This is the
-        F_N method's primary input parameter — the entire collocation
-        machinery (dispersion relation, X-function, moment integrals)
-        is parametrised by :math:`c` alone.
-
-        For multi-group problems (handled internally by
-        :func:`...multi_group.k_inf.compute_kinf_*`), the scalar
-        :math:`c` is not the right primitive — the multi-group
-        machinery consumes :math:`(\Sigma_t, \Sigma_s, \nu\Sigma_f,
-        \chi)` arrays directly. Multi-group ``MomentSpace`` instances
-        for which this property is accessed will raise.
+        :math:`c = (\Sigma_s + \nu\Sigma_f)/\Sigma_t`.
 
         Raises
         ------
         ValueError
             If the active mixture has more than one energy group.
         """
-        mixture = self.materials[self.geometry.mat_id]
-        sigma_t, sigma_s_p0, nu_sigma_f, _chi = mixture_to_fn_arrays(mixture)
-        if sigma_t.shape[0] != 1:
+        mixture = self._mixture
+        sig_t = np.asarray(mixture.SigT, dtype=float)
+        if sig_t.shape[0] != 1:
             raise ValueError(
                 f"MomentSpace.c requires a 1G mixture (got "
-                f"{sigma_t.shape[0]}G). Multi-group problems should call "
-                f"solve_kinf() directly."
+                f"{sig_t.shape[0]}G). Multi-group problems should call "
+                f"solve_kinf(mixture) directly."
             )
-        return float((sigma_s_p0[0, 0] + nu_sigma_f[0]) / sigma_t[0])
+        sig_s_p0 = mixture.SigS[0].toarray().astype(float)
+        nu_sig_f = np.asarray(mixture.SigP, dtype=float)
+        return float((sig_s_p0[0, 0] + nu_sig_f[0]) / sig_t[0])
 
     @property
     def n_groups(self) -> int:
         """Number of energy groups in the active mixture."""
-        mixture = self.materials[self.geometry.mat_id]
-        return int(np.asarray(mixture.SigT).shape[0])
+        return int(np.asarray(self._mixture.SigT).shape[0])
 
     # ------------------------------------------------------------------
     # solve_critical — the canonical critical-configuration call
@@ -531,47 +233,19 @@ class MomentSpace:
     ) -> CriticalSolution:
         r"""Solve the critical configuration for the F_N moment space.
 
-        For a **bare-critical slab** (``geometry == "slab"``,
-        ``bc_left == bc_right == BC.vacuum``) this returns the
-        critical half-thickness :math:`a` in mean free paths,
-        wrapped as a :class:`CriticalSolution` with
-        ``parameter_kind == "half_thickness_mfp"`` and
-        ``eigenvalue == 1.0`` (the eigenvalue at criticality).
+        For a **bare-critical slab** this returns the critical
+        half-thickness :math:`a` in mean free paths. F_N's natural
+        unit is the half-thickness, computed internally from the
+        geometry's full extent as :math:`a = L_{\rm cm} / 2 \cdot \Sigma_t`.
 
-        For a **bare-critical sphere** (``geometry == "sphere"``,
-        ``bc_right == BC.vacuum``) this returns the critical
-        radius :math:`R_c` in mean free paths,
-        ``parameter_kind == "radius_mfp"``.
-
-        For an **infinite-medium** problem (``geometry ==
-        "infinite"``) the "critical configuration" is just
-        :math:`k_\infty`; the result has ``parameter_kind ==
-        "k_inf_only"`` and ``parameter_value == 0.0`` (no spatial
-        configuration parameter).
-
-        The underlying solve delegates to:
-
-        * :func:`...slab.one_group.solve_fn_slab_bare_critical` for
-          slab,
-        * :func:`...sphere.one_group.solve_fn_sphere_bare_critical`
-          for sphere,
-        * :func:`...multi_group.k_inf.compute_kinf_1g` (and the 2G/mG
-          variants) for infinite medium.
-
-        The rich method-specific result (``SlabFNResult`` /
-        ``SphereFNResult`` / scalar :math:`k_\infty`) is preserved
-        in :attr:`CriticalSolution.metadata` under the key
-        ``"raw_result"`` for callers that need access to the F_N
-        expansion coefficients, the dispersion-relation root
-        :math:`u_0`, or the determinant residual.
+        For a **bare-critical sphere** this returns the critical
+        radius :math:`R_c` in mean free paths, computed as
+        :math:`R_c = R_{\rm cm} \cdot \Sigma_t`.
 
         Parameters
         ----------
         n_bracket : int | None, default None
-            Initial bracket-scan resolution. ``None`` means use the
-            geometry-specific default (slab: 400; sphere: 800), which
-            preserves bit-equality with the function-level API's
-            default behaviour. Pass an explicit value to override.
+            Initial bracket-scan resolution.
         bisect_tol : float, default 1e-12
             Bisection tolerance on the configuration parameter.
         max_bisect : int, default 80
@@ -580,112 +254,40 @@ class MomentSpace:
         Returns
         -------
         :class:`CriticalSolution`
-
-        Notes
-        -----
-        Bit-equality with the function-level API: this method
-        ``solve_critical()`` MUST produce the SAME float results
-        as a direct call to
-        :func:`solve_fn_slab_bare_critical(c=..., n_modes=fn_order, ...)`
-        / :func:`solve_fn_sphere_bare_critical(...)` etc. The
-        class-level call is a thin facade. Verified by
-        :mod:`tests.derivations.test_moment_space` (the foundation
-        gate that pins the bit-equality invariant).
         """
-        geom = self.geometry.geometry
-        mixture = self.materials[self.geometry.mat_id]
-        sigma_t, sigma_s_p0, nu_sigma_f, chi = mixture_to_fn_arrays(mixture)
-        n_groups = sigma_t.shape[0]
-
-        if geom == "infinite":
-            return self._solve_critical_infinite(
-                sigma_t, sigma_s_p0, nu_sigma_f, chi, n_groups
-            )
+        tag = self.geometry.geometry
+        mixture = self._mixture
+        sig_t = np.asarray(mixture.SigT, dtype=float)
+        n_groups = sig_t.shape[0]
 
         if n_groups != 1:
             raise NotImplementedError(
                 "MomentSpace.solve_critical for slab/sphere is currently "
                 "1G-only — the multi-group F_N spatial extension "
                 "(Siewert-Thomas 1986 2G machinery) is not yet wired "
-                "through this class facade. For 1G slab/sphere, this "
-                "produces SlabFNResult / SphereFNResult bit-for-bit; "
-                "for multi-group infinite medium use k_inf-only solves."
+                "through this class facade. For multi-group "
+                "infinite-medium k_inf, use "
+                "MomentSpace.solve_kinf(mixture)."
             )
 
-        c = float((sigma_s_p0[0, 0] + nu_sigma_f[0]) / sigma_t[0])
+        sig_s_p0 = mixture.SigS[0].toarray().astype(float)
+        nu_sig_f = np.asarray(mixture.SigP, dtype=float)
+        c = float((sig_s_p0[0, 0] + nu_sig_f[0]) / sig_t[0])
         if c <= 1.0:
             raise ValueError(
-                f"F_N bare-critical {geom} requires c > 1 "
+                f"F_N bare-critical {tag} requires c > 1 "
                 f"(multiplying medium); got c={c} from mixture "
-                f"sigma_s + nu_sigma_f = {sigma_s_p0[0, 0] + nu_sigma_f[0]}, "
-                f"sigma_t = {sigma_t[0]}."
+                f"sigma_s + nu_sigma_f = {sig_s_p0[0, 0] + nu_sig_f[0]}, "
+                f"sigma_t = {sig_t[0]}."
             )
 
-        if geom == "slab":
+        if tag == "SLB":
             return self._solve_critical_slab(c, n_bracket, bisect_tol, max_bisect)
-        if geom == "sphere":
+        if tag == "SPH":
             return self._solve_critical_sphere(c, n_bracket, bisect_tol, max_bisect)
 
-        raise NotImplementedError(
-            f"MomentSpace.solve_critical: unhandled geometry {geom!r}"
-        )
-
-    def _solve_critical_infinite(
-        self,
-        sigma_t: np.ndarray,
-        sigma_s_p0: np.ndarray,
-        nu_sigma_f: np.ndarray,
-        chi: np.ndarray,
-        n_groups: int,
-    ) -> CriticalSolution:
-        r"""Infinite-medium :math:`k_\infty` via the multi-group formulae.
-
-        Delegates to :func:`...multi_group.k_inf.compute_kinf_*`
-        based on group count. The group convention is the
-        ORPHEUS-ordered ``[from, to]`` scattering matrix; Sood
-        relabelling happens inside the multi-group functions.
-        """
-        from .multi_group.k_inf import (
-            compute_kinf_1g,
-            compute_kinf_2g_general,
-            compute_kinf_mg,
-        )
-
-        if n_groups == 1:
-            k_inf = compute_kinf_1g(
-                float(sigma_t[0]),
-                float(sigma_s_p0[0, 0]),
-                float(nu_sigma_f[0]),
-            )
-            metadata = {
-                "n_groups": 1,
-                "method": "compute_kinf_1g",
-                "raw_result": k_inf,
-            }
-        elif n_groups == 2:
-            # Use the general (Eq 28) formula — it reduces to Eq 29 when
-            # there's no upscatter, so it's the single source of truth.
-            k_inf = compute_kinf_2g_general(sigma_t, sigma_s_p0, nu_sigma_f, chi)
-            metadata = {
-                "n_groups": 2,
-                "method": "compute_kinf_2g_general",
-                "raw_result": k_inf,
-            }
-        else:
-            k_inf = compute_kinf_mg(sigma_t, sigma_s_p0, nu_sigma_f, chi)
-            metadata = {
-                "n_groups": n_groups,
-                "method": "compute_kinf_mg",
-                "raw_result": k_inf,
-            }
-
-        return CriticalSolution(
-            eigenvalue=k_inf,
-            eigenvalue_kind="k_inf",
-            parameter_value=0.0,
-            parameter_kind="k_inf_only",
-            converged=True,
-            metadata=metadata,
+        raise NotImplementedError(  # pragma: no cover (validated above)
+            f"MomentSpace.solve_critical: unhandled geometry {tag!r}"
         )
 
     def _solve_critical_slab(
@@ -756,37 +358,75 @@ class MomentSpace:
         )
 
     # ------------------------------------------------------------------
-    # solve_kinf — convenience for k_inf-only access
+    # solve_kinf — infinite-medium k_inf (no geometry needed)
     # ------------------------------------------------------------------
 
-    def solve_kinf(self) -> float:
-        r"""Return :math:`k_\infty` for the active mixture.
+    @staticmethod
+    def solve_kinf(mixture: Mixture) -> CriticalSolution:
+        r"""Compute infinite-medium :math:`k_\infty` for *mixture*.
 
-        Convenience wrapper: equivalent to
-        ``self.solve_critical().eigenvalue`` when ``geometry ==
-        "infinite"``, or the underlying mixture's :math:`k_\infty`
-        regardless of geometry (since :math:`k_\infty` is a material
-        property independent of configuration).
+        Replaces the pre-Phase-D path
+        ``MomentSpace.from_problem(geometry_spec=GeometrySpec(geometry="infinite", ...))``
+        with a direct mixture-only entry point. No geometry needed —
+        :math:`k_\infty` is a material property of the medium.
+
+        Dispatches to :func:`...multi_group.k_inf.compute_kinf_*`
+        based on the mixture's group count (1G, 2G, multi-group).
+
+        Parameters
+        ----------
+        mixture : :class:`Mixture`
+            Production-protocol mixture. Must have :math:`\Sigma_t`,
+            scattering matrices :math:`\Sigma_s`, fission production
+            :math:`\nu\Sigma_f`, fission spectrum :math:`\chi`.
+
+        Returns
+        -------
+        :class:`CriticalSolution`
+            With ``eigenvalue_kind="k_inf"``,
+            ``parameter_kind="k_inf_only"``, ``parameter_value=0.0``,
+            and method-specific diagnostics in :attr:`metadata`.
         """
-        mixture = self.materials[self.geometry.mat_id]
-        sigma_t, sigma_s_p0, nu_sigma_f, chi = mixture_to_fn_arrays(mixture)
-        n_groups = sigma_t.shape[0]
         from .multi_group.k_inf import (
             compute_kinf_1g,
             compute_kinf_2g_general,
             compute_kinf_mg,
         )
+
+        sig_t = np.asarray(mixture.SigT, dtype=float)
+        sig_s_p0 = mixture.SigS[0].toarray().astype(float)
+        nu_sig_f = np.asarray(mixture.SigP, dtype=float)
+        chi = np.asarray(mixture.chi, dtype=float)
+        n_groups = sig_t.shape[0]
+
         if n_groups == 1:
-            return compute_kinf_1g(
-                float(sigma_t[0]),
-                float(sigma_s_p0[0, 0]),
-                float(nu_sigma_f[0]),
+            k_inf = compute_kinf_1g(
+                float(sig_t[0]),
+                float(sig_s_p0[0, 0]),
+                float(nu_sig_f[0]),
             )
-        if n_groups == 2:
-            return compute_kinf_2g_general(
-                sigma_t, sigma_s_p0, nu_sigma_f, chi
-            )
-        return compute_kinf_mg(sigma_t, sigma_s_p0, nu_sigma_f, chi)
+            method = "compute_kinf_1g"
+        elif n_groups == 2:
+            # Use the general (Eq 28) formula — it reduces to Eq 29 when
+            # there's no upscatter, so it's the single source of truth.
+            k_inf = compute_kinf_2g_general(sig_t, sig_s_p0, nu_sig_f, chi)
+            method = "compute_kinf_2g_general"
+        else:
+            k_inf = compute_kinf_mg(sig_t, sig_s_p0, nu_sig_f, chi)
+            method = "compute_kinf_mg"
+
+        return CriticalSolution(
+            eigenvalue=k_inf,
+            eigenvalue_kind="k_inf",
+            parameter_value=0.0,
+            parameter_kind="k_inf_only",
+            converged=True,
+            metadata={
+                "n_groups": n_groups,
+                "method": method,
+                "raw_result": k_inf,
+            },
+        )
 
     # ------------------------------------------------------------------
     # Flux reconstruction
@@ -805,79 +445,30 @@ class MomentSpace:
         :meth:`solve_critical` define the boundary angular flux
         :math:`\psi(\pm a, \mu)` as a polynomial in :math:`\mu`.
         Reconstructing the interior scalar flux :math:`\phi(z)`
-        requires evaluating the Peierls integral
-
-        .. math::
-
-            \phi(z) = \frac{c}{2} \int_{-a}^{a}
-                E_1(|z - z'|)\, \phi(z')\, dz' + \text{boundary terms}
-
-        which is a Fredholm equation of the second kind with a
-        log-singular kernel :math:`E_1(\tau)`. The choice of
-        quadrature for the singular kernel sets the achievable
-        accuracy:
+        requires evaluating the Peierls integral with a log-singular
+        kernel :math:`E_1(\tau)`. The choice of quadrature for the
+        singular kernel sets the achievable accuracy:
 
         * ``"atkinson_nystrom"`` — Atkinson 1972/1997 §4.2 product-
-          Simpson rule. Integrates :math:`\int \log|t - s|\, P_2(s)\,
-          ds` analytically against the piecewise-quadratic Lagrange
-          basis on each Simpson panel; the smooth remainder
-          :math:`R(\tau) = E_1(\tau) + \log\tau` is integrated with
-          standard Simpson. Achieves :math:`O(h^4 \log h)`
-          convergence on the operator (de Hoog & Weiss 1973).
-          **Recommended; fixes ERR-036.**
+          Simpson rule. **Recommended; fixes ERR-036.**
 
         * ``"legacy_gl"`` — plain Gauss–Legendre on the (z, μ)
-          tensor product. Saturates at 1–7\,\% accuracy due to
-          silent diagonal truncation of :math:`E_1(0) = +\infty`
-          (the :math:`\mu`-quadrature collapses to a finite
-          :math:`\sim 2\log(n_\mu)` value at :math:`\tau = 0`).
-          See Numerical Bug Signatures § Signature 6 (the textbook
-          fingerprint :math:`\mathrm{err} \cdot n / \log n \approx
-          \mathrm{const}`). Diagnostic only — kept for comparison.
+          tensor product. Diagnostic only — saturates at 1–7\,\%.
 
-        * ``"none"`` — :meth:`reconstruct_flux` raises. Use this
-          when you only need :meth:`solve_critical` to skip the
-          flux-reconstruction machinery.
+        * ``"none"`` — :meth:`reconstruct_flux` raises.
 
         Parameters
         ----------
         n_panels : int, default 256
-            Number of Simpson panels for ``"atkinson_nystrom"``;
-            number of Gauss–Legendre nodes for ``"legacy_gl"``. The
-            two paths use different quadrature meanings; the
-            parameter name is unified to keep the API simple.
+            Number of Simpson panels (atkinson_nystrom) or GL nodes
+            (legacy_gl).
         z_eval : np.ndarray | None
-            Spatial nodes (in mfp) at which to evaluate the
-            reconstructed flux. If ``None``, defaults to a uniform
-            grid on :math:`[-a, a]` (slab) or :math:`[0, R]` (sphere)
-            with ``n_panels`` nodes.
-
-        Returns
-        -------
-        :class:`FluxSolution`
-
-        Raises
-        ------
-        RuntimeError
-            If :meth:`solve_critical` has not been called yet (the
-            F_N coefficients are needed for reconstruction).
-        ValueError
-            If ``flux_reconstruction == "none"``.
-
-        Notes
-        -----
-        Currently 1G slab and 1G sphere are implemented. Multi-group
-        flux reconstruction lives behind future work; the symbolic
-        framework for it is documented in
-        :func:`...origins.fn_flux_reconstruction_derivations.derive_*`
-        but the Branch-2 wiring is part of the multi-group F_N
-        spatial-extension follow-up.
+            Spatial nodes (in mfp) at which to evaluate.
         """
         if self.flux_reconstruction == "none":
             raise ValueError(
                 "MomentSpace was constructed with flux_reconstruction='none'; "
-                "reconstruct_flux is not callable. Reconstruct with a different "
-                "MomentSpace instance or change the flux_reconstruction strategy."
+                "reconstruct_flux is not callable."
             )
 
         # Solve criticality first to get the F_N expansion coefficients.
@@ -890,14 +481,13 @@ class MomentSpace:
                 "expansion coefficients."
             )
 
-        geom = self.geometry.geometry
-        if geom == "slab":
+        tag = self.geometry.geometry
+        if tag == "SLB":
             return self._reconstruct_slab(raw, n_panels, z_eval, critical)
-        if geom == "sphere":
+        if tag == "SPH":
             return self._reconstruct_sphere(raw, n_panels, z_eval, critical)
-        raise NotImplementedError(
-            f"MomentSpace.reconstruct_flux: unhandled geometry {geom!r}. "
-            f"Infinite-medium has no flux to reconstruct."
+        raise NotImplementedError(  # pragma: no cover
+            f"MomentSpace.reconstruct_flux: unhandled geometry {tag!r}."
         )
 
     def _reconstruct_slab(
@@ -926,7 +516,7 @@ class MomentSpace:
                 raw, z_eval_arr, n_quad_z=n_panels
             )
         else:
-            raise ValueError(
+            raise ValueError(  # pragma: no cover
                 f"unhandled flux_reconstruction strategy "
                 f"{self.flux_reconstruction!r}"
             )
@@ -968,13 +558,7 @@ class MomentSpace:
 
         # Sphere flux reconstruction uses the KLL Fredholm path
         # (Path B in the fn_method theory page) — Path A.i for sphere
-        # would require its own Atkinson product-Nyström treatment of
-        # the spherical Peierls kernel, which is not yet shipped.
-        # KLL is structurally independent of F_N; it iterates the
-        # Fredholm equation directly in (R, c) without consuming the
-        # F_N expansion coefficients (the F_N solve here only locates
-        # criticality — the KLL path then reconstructs the eigenmode
-        # at that critical radius from a different mathematical route).
+        # would require its own Atkinson product-Nyström treatment.
         c = float(critical.metadata.get("c", self.c))
         kll = solve_kll_sphere_continuum_coefficient(
             R, c, n_nodes=n_panels

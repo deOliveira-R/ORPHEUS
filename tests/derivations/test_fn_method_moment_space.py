@@ -1,38 +1,16 @@
-r"""Foundation tests for the F_N moment space (math-heart class).
+r"""Foundation tests for the F_N moment space (math-heart class, Phase D).
 
 These are software-invariant tests on the :class:`MomentSpace` facade
 — bit-equality preservation against the function-level API,
-production-protocol input acceptance, and result-type contract
+StructuredGeometry input acceptance, and result-type contract
 preservation. They are NOT verification claims about the F_N method's
 accuracy: those are owned by ``test_fn_la13511_*.py`` (which exercise
 the function-level API and are unchanged by this dispatch).
 
-The tests pin three invariants:
-
-1. **Bit-equality with the function-level API** — the class produces
-   IDENTICAL float results to direct calls of
-   ``solve_fn_slab_bare_critical`` / ``solve_fn_sphere_bare_critical``
-   / ``compute_kinf_*`` when given the same numerical inputs.
-   Verified via ``float.hex(...)`` exact-bit comparison.
-
-2. **Production-protocol input acceptance** — the class consumes the
-   same ``(materials: dict[int, Mixture], GeometrySpec)`` pair as
-   production CP/SN/MOC solvers, so a single problem definition
-   serves both. Verified by constructing from
-   :func:`orpheus.derivations.common.xs_library.make_mixture` +
-   :class:`GeometrySpec`.
-
-3. **Cross-method shared-result-type contract** — the class returns
-   :class:`CriticalSolution` / :class:`FluxSolution` from
-   :mod:`orpheus.derivations.common.solution_types`, with the
-   correct ``parameter_kind`` / ``eigenvalue_kind`` / ``spatial_units``
-   tags so cross-method consumers can compare results without method-
-   specific knowledge.
-
-Tests are foundation-tagged because they verify *structural* invariants
-on the class facade, not L0/L1/L2 claims about a solver's accuracy —
-the latter live in the LA-13511 test files that exercise the
-underlying functions.
+Phase D consumes :class:`StructuredGeometry` directly via
+``MomentSpace(geometry=..., materials=...)``; infinite-medium
+:math:`k_\infty` is a separate static method
+``MomentSpace.solve_kinf(mixture)`` (no geometry needed).
 """
 from __future__ import annotations
 
@@ -41,7 +19,6 @@ import warnings
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.geometry_spec import GeometrySpec
 from orpheus.derivations.common.solution_types import (
     CriticalSolution,
     FluxSolution,
@@ -51,7 +28,6 @@ from orpheus.derivations.continuous.fn_method.moment_space import MomentSpace
 from orpheus.derivations.continuous.fn_method.multi_group.k_inf import (
     compute_kinf_1g,
     compute_kinf_2g_general,
-    compute_kinf_mg,
 )
 from orpheus.derivations.continuous.fn_method.slab import (
     solve_fn_slab_bare_critical,
@@ -60,6 +36,10 @@ from orpheus.derivations.continuous.fn_method.sphere import (
     solve_fn_sphere_bare_critical,
 )
 from orpheus.geometry.mesh import BC
+from orpheus.geometry.structured_geometry import (
+    Region,
+    StructuredGeometry,
+)
 
 
 # ----------------------------------------------------------------------
@@ -79,37 +59,30 @@ def _make_1g_mixture(sigma_t: float, sigma_s: float, nu_sigma_f: float):
     )
 
 
-def _ua10sl_geometry() -> GeometrySpec:
-    """Sood Ua-1-0-SL slab geometry."""
-    return GeometrySpec(
-        geometry="slab",
-        critical_dimension_mfp=0.93772556,
-        critical_dimension_cm=0.93772556,
-        n_groups=1,
-        bc_left=BC.vacuum,
-        bc_right=BC.vacuum,
+def _ua10sl_geometry() -> StructuredGeometry:
+    """Sood Ua-1-0-SL slab geometry (full slab width = 2 × half-thickness)."""
+    return StructuredGeometry(
+        geometry="SLB",
+        regions=(Region(mat_id=0, outer_thickness_cm=2.0 * 0.93772556),),
+        bcs=(BC.vacuum, BC.vacuum),
     )
 
 
-def _ua10sp_geometry() -> GeometrySpec:
+def _ua10sp_geometry() -> StructuredGeometry:
     """Sood Ua-1-0-SP sphere geometry."""
-    return GeometrySpec(
-        geometry="sphere",
-        critical_dimension_mfp=2.4248249802,
-        critical_dimension_cm=2.4248249802,
-        n_groups=1,
-        bc_left=BC.reflective,
-        bc_right=BC.vacuum,
+    return StructuredGeometry(
+        geometry="SPH",
+        regions=(Region(mat_id=0, outer_thickness_cm=2.4248249802),),
+        bcs=(BC.vacuum,),
     )
 
 
-def _infinite_geometry() -> GeometrySpec:
-    """Infinite-medium k_inf-only geometry."""
-    return GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=1,
+def _cylinder_geometry() -> StructuredGeometry:
+    """Sood-style cylinder geometry (out-of-pillar for F_N)."""
+    return StructuredGeometry(
+        geometry="CYL",
+        regions=(Region(mat_id=0, outer_thickness_cm=1.72500292),),
+        bcs=(BC.vacuum,),
     )
 
 
@@ -119,12 +92,11 @@ def _infinite_geometry() -> GeometrySpec:
 
 
 @pytest.mark.foundation
-def test_moment_space_constructs_with_production_protocol_inputs() -> None:
-    r"""``MomentSpace.from_problem`` accepts ``dict[int, Mixture] +
-    GeometrySpec`` (the production-protocol input shape)."""
+def test_moment_space_constructs_with_structured_geometry() -> None:
+    r"""``MomentSpace`` accepts ``StructuredGeometry`` + ``dict[int, Mixture]``."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     geom = _ua10sl_geometry()
-    ms = MomentSpace.from_problem(materials={0: mix}, geometry=geom)
+    ms = MomentSpace(geometry=geom, materials={0: mix})
     assert isinstance(ms, MomentSpace)
     assert ms.geometry is geom
     assert ms.materials[0] is mix
@@ -137,16 +109,9 @@ def test_moment_space_rejects_cylinder_geometry() -> None:
     r"""Cylinder is out of pillar (Westfall-Metcalf 1972); the class
     rejects it at construction time with an explicit error message."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
-    cyl = GeometrySpec(
-        geometry="cylinder",
-        critical_dimension_mfp=1.72500292,
-        critical_dimension_cm=1.72500292,
-        n_groups=1,
-        bc_left=BC.reflective,
-        bc_right=BC.vacuum,
-    )
+    cyl = _cylinder_geometry()
     with pytest.raises(ValueError, match="out of pillar"):
-        MomentSpace.from_problem(materials={0: mix}, geometry=cyl)
+        MomentSpace(geometry=cyl, materials={0: mix})
 
 
 @pytest.mark.foundation
@@ -154,9 +119,9 @@ def test_moment_space_rejects_unknown_flux_strategy() -> None:
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     geom = _ua10sl_geometry()
     with pytest.raises(ValueError, match="flux_reconstruction"):
-        MomentSpace.from_problem(
-            materials={0: mix},
+        MomentSpace(
             geometry=geom,
+            materials={0: mix},
             flux_reconstruction="bogus",  # type: ignore[arg-type]
         )
 
@@ -166,7 +131,7 @@ def test_moment_space_c_property_matches_textbook_formula() -> None:
     r"""``MomentSpace.c`` returns
     :math:`(\Sigma_s + \nu\Sigma_f)/\Sigma_t` for 1G mixtures."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
-    ms = MomentSpace.from_problem(materials={0: mix}, geometry=_ua10sl_geometry())
+    ms = MomentSpace(geometry=_ua10sl_geometry(), materials={0: mix})
     expected = (0.7 + 0.6) / 1.0
     assert ms.c == expected
     assert ms.n_groups == 1
@@ -181,13 +146,10 @@ def test_moment_space_c_property_matches_textbook_formula() -> None:
 def test_slab_bit_equality_with_function_api() -> None:
     r"""Bit-equality: ``MomentSpace.solve_critical()`` returns the same
     ``a_critical_mfp`` as direct ``solve_fn_slab_bare_critical(c=ms.c)``.
-
-    Verified by ``float.hex`` exact-bit comparison — the floats must
-    be identical at the bit level, not merely close.
     """
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
-    ms = MomentSpace.from_problem(
-        materials={0: mix}, geometry=_ua10sl_geometry(), fn_order=10
+    ms = MomentSpace(
+        geometry=_ua10sl_geometry(), materials={0: mix}, fn_order=10
     )
     c_val = ms.c
 
@@ -196,7 +158,6 @@ def test_slab_bit_equality_with_function_api() -> None:
         warnings.simplefilter("ignore")
         res = solve_fn_slab_bare_critical(c=c_val, n_modes=10)
 
-    # Bit-equal float comparison via hex rep.
     assert sol.parameter_value.hex() == res.a_critical_mfp.hex(), (
         f"Bit-equality broken: class={sol.parameter_value!r} hex="
         f"{sol.parameter_value.hex()}; func={res.a_critical_mfp!r} "
@@ -206,8 +167,6 @@ def test_slab_bit_equality_with_function_api() -> None:
     assert sol.eigenvalue_kind == "k_eff"
     assert sol.eigenvalue == 1.0
     assert sol.metadata["raw_result"] is res or (
-        # Also accept structural equality (the class re-runs the solve;
-        # the SlabFNResult field-by-field equality is the load-bearing check).
         sol.metadata["raw_result"].a_critical_mfp == res.a_critical_mfp
     )
 
@@ -217,8 +176,8 @@ def test_sphere_bit_equality_with_function_api() -> None:
     r"""Bit-equality: ``MomentSpace.solve_critical()`` returns the same
     ``R_critical_mfp`` as direct ``solve_fn_sphere_bare_critical(c=ms.c)``."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
-    ms = MomentSpace.from_problem(
-        materials={0: mix}, geometry=_ua10sp_geometry(), fn_order=10
+    ms = MomentSpace(
+        geometry=_ua10sp_geometry(), materials={0: mix}, fn_order=10
     )
     c_val = ms.c
 
@@ -238,32 +197,29 @@ def test_sphere_bit_equality_with_function_api() -> None:
 
 @pytest.mark.foundation
 def test_kinf_1g_bit_equality_with_function_api() -> None:
-    r"""1G k_inf path: ``MomentSpace.solve_critical()`` returns the same
-    :math:`k_\infty` as direct ``compute_kinf_1g``."""
+    r"""1G k_inf path: ``MomentSpace.solve_kinf(mix)`` (no-geometry
+    static method) returns the same :math:`k_\infty` as direct
+    ``compute_kinf_1g``."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
-    ms = MomentSpace.from_problem(materials={0: mix}, geometry=_infinite_geometry())
-
-    sol = ms.solve_critical()
+    sol = MomentSpace.solve_kinf(mix)
     expected = compute_kinf_1g(1.0, 0.7, 0.6)
     assert sol.eigenvalue.hex() == expected.hex()
     assert sol.eigenvalue_kind == "k_inf"
     assert sol.parameter_kind == "k_inf_only"
     assert sol.parameter_value == 0.0
-    # solve_kinf shorthand returns the same value.
-    assert ms.solve_kinf() == sol.eigenvalue
 
 
 @pytest.mark.foundation
 def test_kinf_2g_general_bit_equality() -> None:
-    r"""2G k_inf with upscatter: ``MomentSpace.solve_critical()`` agrees
+    r"""2G k_inf with upscatter: ``MomentSpace.solve_kinf(mix)`` agrees
     bit-for-bit with ``compute_kinf_2g_general``.
 
     Uses Sood ``URRb-2-0-IN`` parameters (with-upscatter case).
     """
     sigma_t = np.array([0.65696, 1.52150])
     sigma_s = np.array([
-        [0.62568, 0.029227],   # fast → fast, fast → slow
-        [0.000767, 1.42710],   # slow → fast (upscatter), slow → slow
+        [0.62568, 0.029227],
+        [0.000767, 1.42710],
     ])
     nu_sigma_f = np.array([0.005305, 0.0976])
     chi = np.array([1.0, 0.0])
@@ -272,12 +228,7 @@ def test_kinf_2g_general_bit_equality() -> None:
         sig_f=nu_sigma_f / 2.0, nu=np.array([2.0, 2.0]),
         chi=chi, sig_s=sigma_s,
     )
-    geom_inf = GeometrySpec(
-        geometry="infinite", critical_dimension_mfp=None,
-        critical_dimension_cm=None, n_groups=2,
-    )
-    ms = MomentSpace.from_problem(materials={0: mix}, geometry=geom_inf)
-    sol = ms.solve_critical()
+    sol = MomentSpace.solve_kinf(mix)
     expected = compute_kinf_2g_general(sigma_t, sigma_s, nu_sigma_f, chi)
     assert sol.eigenvalue.hex() == expected.hex()
     assert sol.eigenvalue_kind == "k_inf"
@@ -295,8 +246,8 @@ def test_critical_solution_carries_correct_metadata_for_slab() -> None:
     """The :class:`CriticalSolution` returned by slab F_N populates the
     metadata fields that cross-method adapters consume."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
-    ms = MomentSpace.from_problem(
-        materials={0: mix}, geometry=_ua10sl_geometry(), fn_order=8
+    ms = MomentSpace(
+        geometry=_ua10sl_geometry(), materials={0: mix}, fn_order=8
     )
     sol = ms.solve_critical()
     assert isinstance(sol, CriticalSolution)
@@ -310,8 +261,8 @@ def test_critical_solution_carries_correct_metadata_for_slab() -> None:
 @pytest.mark.foundation
 def test_critical_solution_carries_correct_metadata_for_sphere() -> None:
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
-    ms = MomentSpace.from_problem(
-        materials={0: mix}, geometry=_ua10sp_geometry(), fn_order=8
+    ms = MomentSpace(
+        geometry=_ua10sp_geometry(), materials={0: mix}, fn_order=8
     )
     sol = ms.solve_critical()
     assert isinstance(sol, CriticalSolution)
@@ -331,13 +282,11 @@ def test_reconstruct_flux_none_strategy_raises() -> None:
     :meth:`reconstruct_flux` raise — :meth:`solve_critical` is the
     only callable in that mode."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
-    ms = MomentSpace.from_problem(
-        materials={0: mix}, geometry=_ua10sl_geometry(),
+    ms = MomentSpace(
+        geometry=_ua10sl_geometry(), materials={0: mix},
         flux_reconstruction="none",
     )
-    # solve_critical still works.
     ms.solve_critical()
-    # reconstruct_flux raises.
     with pytest.raises(ValueError, match="flux_reconstruction='none'"):
         ms.reconstruct_flux()
 
@@ -347,8 +296,8 @@ def test_reconstruct_flux_slab_returns_flux_solution() -> None:
     r"""End-to-end smoke: slab Atkinson reconstruction returns a
     :class:`FluxSolution` with the right shape and tags."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
-    ms = MomentSpace.from_problem(
-        materials={0: mix}, geometry=_ua10sl_geometry(), fn_order=8,
+    ms = MomentSpace(
+        geometry=_ua10sl_geometry(), materials={0: mix}, fn_order=8,
     )
     flux = ms.reconstruct_flux(n_panels=64)
     assert isinstance(flux, FluxSolution)
@@ -360,7 +309,6 @@ def test_reconstruct_flux_slab_returns_flux_solution() -> None:
     assert flux.spatial_units == "mfp"
     assert flux.metadata["geometry"] == "slab"
     assert flux.metadata["flux_reconstruction"] == "atkinson_nystrom"
-    # Scalar flux must be positive everywhere on the eigenmode.
     assert np.all(flux.scalar_flux > 0)
 
 
@@ -368,8 +316,8 @@ def test_reconstruct_flux_slab_returns_flux_solution() -> None:
 def test_reconstruct_flux_sphere_returns_flux_solution() -> None:
     """End-to-end smoke: sphere KLL reconstruction returns a FluxSolution."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
-    ms = MomentSpace.from_problem(
-        materials={0: mix}, geometry=_ua10sp_geometry(), fn_order=8,
+    ms = MomentSpace(
+        geometry=_ua10sp_geometry(), materials={0: mix}, fn_order=8,
     )
     flux = ms.reconstruct_flux(n_panels=32)
     assert isinstance(flux, FluxSolution)
@@ -379,10 +327,7 @@ def test_reconstruct_flux_sphere_returns_flux_solution() -> None:
     assert flux.spatial_units == "mfp"
     assert flux.metadata["geometry"] == "sphere"
     assert flux.metadata["flux_reconstruction"] == "kll_fredholm"
-    # Flux is positive everywhere; centerline value is the maximum (sphere).
     assert np.all(flux.scalar_flux > 0)
-    # Sphere flux is monotonically decreasing from r=0 outward (the
-    # natural shape of the bare-critical eigenmode).
     assert flux.scalar_flux[0] >= flux.scalar_flux[-1]
 
 
@@ -397,8 +342,8 @@ def test_subcritical_slab_raises() -> None:
     inputs are rejected at the boundary, not silently."""
     # c = (sigma_s + nu_sigma_f)/sigma_t = (0.5+0.4)/1.0 = 0.9 < 1
     mix = _make_1g_mixture(1.0, 0.5, 0.4)
-    ms = MomentSpace.from_problem(
-        materials={0: mix}, geometry=_ua10sl_geometry()
+    ms = MomentSpace(
+        geometry=_ua10sl_geometry(), materials={0: mix}
     )
     with pytest.raises(ValueError, match="multiplying medium"):
         ms.solve_critical()
