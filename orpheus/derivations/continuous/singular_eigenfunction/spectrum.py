@@ -143,14 +143,11 @@ from typing import Any, Optional
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.geometry_spec import GeometrySpec
 from orpheus.derivations.common.solution_types import (
     CriticalSolution,
     FluxSolution,
 )
-from orpheus.derivations.continuous.sood_registry.extractors import (
-    mixture_to_fn_arrays,
-)
+from orpheus.geometry.structured_geometry import StructuredGeometry
 
 
 __all__ = ["Spectrum"]
@@ -161,28 +158,27 @@ __all__ = ["Spectrum"]
 # ---------------------------------------------------------------------
 
 
-def _extract_R_refl(geom: GeometrySpec) -> float:
-    r"""Extract the reflection coefficient :math:`R` from the GeometrySpec BCs.
+def _extract_R_refl(geom: StructuredGeometry) -> float:
+    r"""Extract the reflection coefficient :math:`R` from the geometry's
+    outer BC.
+
+    Reads :attr:`StructuredGeometry.bcs` ``[-1]`` (the outer endpoint;
+    for SPH / CYL it is the only entry, for SLB it is the right-hand
+    surface).
 
     Convention:
 
     * ``BC.vacuum``  → :math:`R = 0` (bare).
-    * ``BC.reflective`` → :math:`R = 1` (the geometry-spec layer's
-      "reflective" tag), which the singular-eigenfunction solvers
-      reject (the slab thickness / sphere radius drops out of the
-      criticality condition under perfect reflection — Atalay omits
-      :math:`R = 1` columns from Tables 2-5 for this reason).
+    * ``BC.reflective`` → :math:`R = 1`, which the singular-
+      eigenfunction solvers reject (the slab thickness / sphere
+      radius drops out of the criticality condition under perfect
+      reflection — Atalay omits :math:`R = 1` columns from Tables
+      2-5 for this reason).
     * Any other ``BC`` with ``params={"albedo": R}`` → :math:`R` from
       params. The custom partial-reflection BC is the entry point
       for Atalay reflected-slab / reflected-sphere benchmarks.
-
-    The slab / sphere solvers REJECT :math:`R \ge 1` at solver entry,
-    so the geometry-spec reflective tag is preserved for production
-    SN/CP solvers but cannot be consumed by this pillar at full
-    reflection. Use ``BC("partial", {"albedo": 0.99})`` for the
-    Atalay R=0.99 column.
     """
-    bc = geom.bc_right  # outer boundary; sphere/slab convention
+    bc = geom.bcs[-1]  # outer boundary; SLB → right, SPH/CYL → only entry
     if bc.kind == "vacuum":
         return 0.0
     if bc.kind == "reflective":
@@ -192,7 +188,7 @@ def _extract_R_refl(geom: GeometrySpec) -> float:
         return float(bc.params["albedo"])
     raise ValueError(
         f"Spectrum: cannot extract reflection coefficient from "
-        f"bc_right={bc!r}. Use BC.vacuum (R=0), or "
+        f"outer BC={bc!r}. Use BC.vacuum (R=0), or "
         f'BC("partial", params={{"albedo": R}}) with R in [0, 1).'
     )
 
@@ -238,7 +234,7 @@ def _extract_f1(mixture: Mixture) -> float:
         # pillar is 1G only above the function level.
         if sig_s_p0.shape != (1, 1):
             raise NotImplementedError(
-                f"Spectrum.from_problem: linear-anisotropy extraction "
+                f"Spectrum: linear-anisotropy extraction "
                 f"is currently 1G-only (got {sig_s_p0.shape[0]}G mixture). "
                 f"Multi-group anisotropic singular-eigenfunction is not "
                 f"yet shipped."
@@ -248,7 +244,7 @@ def _extract_f1(mixture: Mixture) -> float:
             return 0.0
         return float(sig_s_p1[0, 0]) / sigma_s_0
     raise NotImplementedError(
-        f"Spectrum.from_problem: P_{len(mixture.SigS) - 1} scattering "
+        f"Spectrum: P_{len(mixture.SigS) - 1} scattering "
         f"is out of pillar (only P_0 isotropic and P_1 linearly-"
         f"anisotropic are in scope)."
     )
@@ -512,33 +508,41 @@ class Spectrum:
     ``Spectrum`` class itself does NOT inherit from any ABC or
     Protocol type. Conformance is structural, by design.
 
-    Construction
-    ------------
+    Construction (Phase D)
+    ----------------------
 
-    Use the factory :meth:`from_problem` for the canonical
-    construction path. A direct constructor call is exposed for
-    diagnostic / advanced use but is not the recommended public API.
+    Direct construction with a :class:`StructuredGeometry` and
+    a ``materials: dict[int, Mixture]`` payload::
+
+        from orpheus.geometry.structured_geometry import (
+            Region, StructuredGeometry,
+        )
+        from orpheus.geometry.mesh import BC
+
+        geom = StructuredGeometry(
+            geometry="SLB",
+            regions=(Region(mat_id=0, outer_thickness_cm=L_full),),
+            bcs=(BC.vacuum, BC.vacuum),
+        )
+        spec = Spectrum(geometry=geom, materials={0: mix})
+        sol = spec.solve_critical()
 
     Parameters
     ----------
-    geometry : :class:`GeometrySpec`
-        Method-agnostic geometry specification. The
-        ``geometry`` attribute MUST be ``"slab"``, ``"sphere"``,
-        or ``"cylinder"``. ``"infinite"`` (k_inf only) is rejected
-        — singular-eigenfunction criticality requires a finite
-        domain. ``"ISLC"`` is not implemented.
+    geometry : :class:`StructuredGeometry`
+        Pure-geometry layer object. Tag MUST be ``"SLB"`` / ``"SPH"``
+        / ``"CYL"``. Singular-eigenfunction criticality requires a
+        finite spatial domain (no infinite-medium tag).
     materials : dict[int, Mixture]
         Production-protocol materials, keyed by material ID. The
-        ``geometry.mat_id`` field selects the active mixture.
+        single-region geometry's mat_id selects the active mixture.
     n_modes : int
         Quadrature size for the half-range moments (Atalay slab /
         sphere) or the Mitsis-WM Fredholm grid (cylinder). Defaults
-        to 8 (the typical operating point for slab / sphere); the
-        cylinder pillar at :math:`n = 24` reaches WM-72 Table II's
-        7-significant-figure precision.
+        to 8.
     """
 
-    geometry: GeometrySpec
+    geometry: StructuredGeometry
     materials: dict[int, Mixture]
     n_modes: int = 8
 
@@ -556,118 +560,52 @@ class Spectrum:
         * **Sphere** (Atalay 1997 via parity flip).
         * **Cylinder** (Westfall–Metcalf 1972, isotropic only,
           bare-critical only).
-
-        ``"infinite"`` is rejected — k_inf is a multi-group transfer-
-        matrix property (handled by ``MomentSpace.solve_kinf``);
-        singular-eigenfunction criticality requires a finite spatial
-        domain.
         """
-        if self.geometry.geometry not in {"slab", "sphere", "cylinder"}:
+        if self.geometry.geometry not in {"SLB", "SPH", "CYL"}:
             raise ValueError(
-                f"Spectrum supports geometry ∈ {{slab, sphere, cylinder}}, "
-                f"got {self.geometry.geometry!r}. Infinite-medium k_inf is "
-                f"out of pillar — use MomentSpace for k_inf computations."
+                f"Spectrum supports geometry ∈ {{SLB, SPH, CYL}}, "
+                f"got {self.geometry.geometry!r}. Infinite-medium k_inf "
+                f"is out of pillar — use MomentSpace.solve_kinf for "
+                f"k_inf computations."
             )
         if self.n_modes < 2:
             raise ValueError(f"n_modes must be ≥ 2, got {self.n_modes}")
-        if self.geometry.mat_id not in self.materials:
+        if self._mat_id not in self.materials:
             raise ValueError(
-                f"materials dict missing mat_id={self.geometry.mat_id} "
+                f"materials dict missing mat_id={self._mat_id} "
                 f"required by geometry; got keys "
                 f"{sorted(self.materials.keys())}"
             )
-
-    @classmethod
-    def from_problem(
-        cls,
-        materials: dict[int, Mixture],
-        geometry: GeometrySpec,
-        *,
-        n_modes: int = 8,
-    ) -> "Spectrum":
-        r"""Construct a :class:`Spectrum` from production-protocol inputs.
-
-        This is the recommended public construction path. It accepts
-        the same ``materials: dict[int, Mixture]`` + ``GeometrySpec``
-        pair that production CP/SN/MOC solvers consume, so a single
-        problem definition can be solved by both production machinery
-        and the singular-eigenfunction reference without re-deriving
-        any cross sections.
-
-        Parameters
-        ----------
-        materials : dict[int, Mixture]
-            Production-protocol materials. The ``geometry.mat_id``
-            field selects the active mixture for the solve.
-        geometry : :class:`GeometrySpec`
-            Method-agnostic geometry. ``geometry.geometry`` must be
-            ``"slab"``, ``"sphere"``, or ``"cylinder"``.
-        n_modes : int, default 8
-            Quadrature size. See class docstring.
-
-        Returns
-        -------
-        :class:`Spectrum`
-
-        Raises
-        ------
-        ValueError
-            If the geometry is out of pillar, ``n_modes < 2``, or the
-            materials dict is missing the requested ``mat_id``.
-        NotImplementedError
-            If a cylinder mixture has non-zero linear anisotropy
-            (the WM-72 pillar is isotropic only).
-        """
         # Eager validation: cylinder + anisotropic mixture is a
         # construction-time error (the per-method solver would raise
         # at solve time, but we want the failure surfaced at the
         # facade boundary so callers know the geometry/material
         # combination is out of pillar).
-        if geometry.geometry == "cylinder":
-            mix = materials.get(geometry.mat_id)
+        if self.geometry.geometry == "CYL":
+            mix = self.materials.get(self._mat_id)
             if mix is not None and len(mix.SigS) > 1:
-                # Check whether P_1 is non-trivial.
                 sig_s_p1 = mix.SigS[1].toarray().astype(float)
                 if np.any(np.abs(sig_s_p1) > 0.0):
                     raise NotImplementedError(
-                        "Spectrum.from_problem: cylinder + linear "
+                        "Spectrum: cylinder + linear "
                         "anisotropy is out of pillar (Westfall-Metcalf "
                         "1972 covers isotropic only). Use slab or sphere "
                         "for anisotropic problems."
                     )
-        return cls(
-            geometry=geometry,
-            materials=materials,
-            n_modes=n_modes,
-        )
 
     # ------------------------------------------------------------------
-    # Protocol-conforming surface (TransportSolver)
+    # Material accessors
     # ------------------------------------------------------------------
 
     @property
-    def geometry_spec(self) -> GeometrySpec:
-        """The :class:`GeometrySpec` this spectrum is mounted on.
-
-        Protocol-conforming alias of :attr:`geometry`. The Protocol
-        contract names this property ``geometry_spec``; the dataclass
-        field is named ``geometry`` to match :class:`MomentSpace`'s
-        precedent. Both names refer to the same object.
-        """
-        return self.geometry
+    def _mat_id(self) -> int:
+        """Active mat_id — the single region's material identifier."""
+        return self.geometry.regions[0].mat_id
 
     @property
-    def method_name(self) -> str:
-        """The singular-eigenfunction pillar's canonical name.
-
-        Returns
-        -------
-        str
-            Always ``"singular_eigenfunction"``. Used by cross-method
-            adapters and the V&V audit harness to dispatch on method
-            type without an isinstance ladder.
-        """
-        return "singular_eigenfunction"
+    def _mixture(self) -> Mixture:
+        """The active :class:`Mixture` for this geometry's mat_id."""
+        return self.materials[self._mat_id]
 
     # ------------------------------------------------------------------
     # Derived primary parameters
@@ -678,46 +616,38 @@ class Spectrum:
         r"""Mean number of secondaries per collision, :math:`c`.
 
         For 1G isotropic-scattering problems
-        :math:`c = (\Sigma_s + \nu\Sigma_f)/\Sigma_t`. For
-        linearly-anisotropic problems (Atalay 1997 with non-zero
-        :math:`f_1`), :math:`c` is computed from :math:`\Sigma_{s,0}`
-        (the P_0 moment) — the linear anisotropy enters via the
-        separate :attr:`f1` channel, not via :math:`c`.
+        :math:`c = (\Sigma_s + \nu\Sigma_f)/\Sigma_t`.
 
         Raises
         ------
         ValueError
             If the active mixture has more than one energy group.
         """
-        mixture = self.materials[self.geometry.mat_id]
-        sigma_t, sigma_s_p0, nu_sigma_f, _chi = mixture_to_fn_arrays(mixture)
-        if sigma_t.shape[0] != 1:
+        mixture = self._mixture
+        sig_t = np.asarray(mixture.SigT, dtype=float)
+        if sig_t.shape[0] != 1:
             raise ValueError(
                 f"Spectrum.c requires a 1G mixture (got "
-                f"{sigma_t.shape[0]}G). Multi-group singular-eigenfunction "
+                f"{sig_t.shape[0]}G). Multi-group singular-eigenfunction "
                 f"is out of pillar."
             )
-        return float((sigma_s_p0[0, 0] + nu_sigma_f[0]) / sigma_t[0])
+        sig_s_p0 = mixture.SigS[0].toarray().astype(float)
+        nu_sig_f = np.asarray(mixture.SigP, dtype=float)
+        return float((sig_s_p0[0, 0] + nu_sig_f[0]) / sig_t[0])
 
     @property
     def f1(self) -> float:
         r"""Linear-anisotropy mean cosine :math:`f_1`.
 
         Extracted from :math:`\Sigma_{s,1} / \Sigma_{s,0}` of the active
-        mixture. Returns ``0.0`` for isotropic mixtures (no P_1
-        moment, or zero P_1 moment).
-
-        See Also
-        --------
-        :func:`_extract_f1` — the underlying extractor.
+        mixture.
         """
-        return _extract_f1(self.materials[self.geometry.mat_id])
+        return _extract_f1(self._mixture)
 
     @property
     def n_groups(self) -> int:
         """Number of energy groups in the active mixture."""
-        mixture = self.materials[self.geometry.mat_id]
-        return int(np.asarray(mixture.SigT).shape[0])
+        return int(np.asarray(self._mixture.SigT).shape[0])
 
     # ------------------------------------------------------------------
     # solve_critical
@@ -802,10 +732,10 @@ class Spectrum:
         :mod:`tests.derivations.test_singular_eigenfunction_spectrum`
         (the foundation gate that pins the bit-equality invariant).
         """
-        geom = self.geometry.geometry
-        mixture = self.materials[self.geometry.mat_id]
-        sigma_t, sigma_s_p0, nu_sigma_f, _chi = mixture_to_fn_arrays(mixture)
-        n_groups = sigma_t.shape[0]
+        tag = self.geometry.geometry
+        mixture = self._mixture
+        sig_t = np.asarray(mixture.SigT, dtype=float)
+        n_groups = sig_t.shape[0]
 
         if n_groups != 1:
             raise NotImplementedError(
@@ -814,27 +744,29 @@ class Spectrum:
                 "extension is not yet shipped."
             )
 
-        c = float((sigma_s_p0[0, 0] + nu_sigma_f[0]) / sigma_t[0])
+        sig_s_p0 = mixture.SigS[0].toarray().astype(float)
+        nu_sig_f = np.asarray(mixture.SigP, dtype=float)
+        c = float((sig_s_p0[0, 0] + nu_sig_f[0]) / sig_t[0])
         if c <= 1.0:
             raise ValueError(
-                f"Singular-eigenfunction bare-critical {geom} requires c > 1 "
+                f"Singular-eigenfunction bare-critical {tag} requires c > 1 "
                 f"(multiplying medium); got c={c}."
             )
 
-        if geom == "slab":
+        if tag == "SLB":
             return self._solve_critical_slab(
                 c, n_bracket, bisect_tol, max_bisect, mode
             )
-        if geom == "sphere":
+        if tag == "SPH":
             return self._solve_critical_sphere(
                 c, n_bracket, bisect_tol, max_bisect, mode, radius_min, radius_max
             )
-        if geom == "cylinder":
+        if tag == "CYL":
             return self._solve_critical_cylinder(
                 c, bisect_tol, radius_min, radius_max
             )
-        raise NotImplementedError(
-            f"Spectrum.solve_critical: unhandled geometry {geom!r}"
+        raise NotImplementedError(  # pragma: no cover
+            f"Spectrum.solve_critical: unhandled geometry {tag!r}"
         )
 
     def _solve_critical_slab(
@@ -1051,15 +983,14 @@ class Spectrum:
             :mod:`...fn_method.sphere.flux_reconstruction`).
         """
         del q  # reserved for future use
-        geom = self.geometry.geometry
-        if geom != "cylinder":
+        tag = self.geometry.geometry
+        if tag != "CYL":
             raise NotImplementedError(
                 f"Spectrum.solve_fixed_source: flux reconstruction for "
-                f"{geom!r} is owned by the F_N pillar "
-                f"(orpheus.derivations.continuous.fn_method.{geom}."
-                f"flux_reconstruction) — using it here would violate "
-                f"the structural-independence rule. Use "
-                f"MomentSpace.reconstruct_flux for slab / sphere."
+                f"{tag!r} is owned by the F_N pillar "
+                f"(orpheus.derivations.continuous.fn_method) — using it "
+                f"here would violate the structural-independence rule. "
+                f"Use MomentSpace.reconstruct_flux for slab / sphere."
             )
 
         # Cylinder: solve criticality first, then reconstruct.
