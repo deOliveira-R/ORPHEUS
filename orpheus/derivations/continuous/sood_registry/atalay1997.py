@@ -50,7 +50,7 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry.mesh import BC
 
-from .la13511 import La13511Case, La13511Truth, GeometrySpec
+from .la13511 import La13511Case, La13511Truth, Provenance, GeometrySpec
 
 
 # ─── Common XS for c=1.30 isotropic (matches Sood U-235(a) Σ_t=0.32640) ───
@@ -119,10 +119,16 @@ ATALAY_SLAB_C130_R000_F0 = La13511Case(
         bc_left=BC.vacuum, bc_right=BC.vacuum,
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.93883),
     sood_table=2,  # Atalay Table 2
     primary_reference="Atalay 1997 Table 2",
     notes="Atalay-anchored vacuum case; cross-check vs Sood Ua-1-0-SL gives 1.87545 (KLL 1974).",
+    provenance=Provenance(
+        paper_id="Atalay-1997",
+        paper_table=2,
+        primary_reference="Atalay 1997 Table 2",
+        notes="Atalay-anchored vacuum case; cross-check vs Sood Ua-1-0-SL gives 1.87545 (KLL 1974).",
+    ),
 )
 
 
@@ -139,10 +145,16 @@ ATALAY_SLAB_C130_R025_F0 = La13511Case(
         bc_left=BC.vacuum, bc_right=BC.vacuum,  # mesh BC; reflection is in case_method's R param.
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.703105),
     sood_table=2,
     primary_reference="Atalay 1997 Table 2",
     notes="Reflected-slab case (R=0.25). Atalay-unique primary; no Sood entry.",
+    provenance=Provenance(
+        paper_id="Atalay-1997",
+        paper_table=2,
+        primary_reference="Atalay 1997 Table 2",
+        notes="Reflected-slab case (R=0.25). Atalay-unique primary; no Sood entry.",
+    ),
 )
 
 
@@ -159,10 +171,16 @@ ATALAY_SLAB_C130_R050_F0 = La13511Case(
         bc_left=BC.vacuum, bc_right=BC.vacuum,
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.446585),
     sood_table=2,
     primary_reference="Atalay 1997 Table 2",
     notes="Reflected-slab case (R=0.50). Atalay-unique primary.",
+    provenance=Provenance(
+        paper_id="Atalay-1997",
+        paper_table=2,
+        primary_reference="Atalay 1997 Table 2",
+        notes="Reflected-slab case (R=0.50). Atalay-unique primary.",
+    ),
 )
 
 
@@ -179,10 +197,16 @@ ATALAY_SLAB_C130_R075_F0 = La13511Case(
         bc_left=BC.vacuum, bc_right=BC.vacuum,
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.20379),
     sood_table=2,
     primary_reference="Atalay 1997 Table 2",
     notes="Reflected-slab case (R=0.75). Atalay-unique primary.",
+    provenance=Provenance(
+        paper_id="Atalay-1997",
+        paper_table=2,
+        primary_reference="Atalay 1997 Table 2",
+        notes="Reflected-slab case (R=0.75). Atalay-unique primary.",
+    ),
 )
 
 
@@ -203,12 +227,18 @@ ATALAY_SLAB_C130_R000_F010 = La13511Case(
         bc_left=BC.vacuum, bc_right=BC.vacuum,
     ),
     scattering_order=1,  # P_1 anisotropic
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.97073),
     sood_table=3,
     primary_reference="Atalay 1997 Table 3",
     notes=(
         "Vacuum + linearly anisotropic slab — Atalay-unique primary. "
         "f_1=0.10 means scattering kernel Σ_s(1+0.30 μμ')/2."
+    ),
+    provenance=Provenance(
+        paper_id="Atalay-1997",
+        paper_table=3,
+        primary_reference="Atalay 1997 Table 3",
+        notes="Vacuum + linearly anisotropic slab — Atalay-unique primary. f_1=0.10 means scattering kernel Σ_s(1+0.30 μμ')/2.",
     ),
 )
 
@@ -226,10 +256,16 @@ ATALAY_SLAB_C130_R050_F010 = La13511Case(
         bc_left=BC.vacuum, bc_right=BC.vacuum,
     ),
     scattering_order=1,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.449155),
     sood_table=3,
     primary_reference="Atalay 1997 Table 3",
     notes="Reflected + linearly anisotropic CROSS-PRODUCT case — Atalay-unique primary.",
+    provenance=Provenance(
+        paper_id="Atalay-1997",
+        paper_table=3,
+        primary_reference="Atalay 1997 Table 3",
+        notes="Reflected + linearly anisotropic CROSS-PRODUCT case — Atalay-unique primary.",
+    ),
 )
 
 
@@ -256,10 +292,16 @@ ATALAY_SPHERE_C130_R000_F0 = La13511Case(
         bc_left=BC.reflective, bc_right=BC.vacuum,
     ),
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0),
+    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=2.4248249802),
     sood_table=14,  # Atalay refers; KLL 1974 is the truth source.
     primary_reference="Kaper-Lindeman-Leaf 1974 (Atalay c=1.30 reproduces).",
     notes="Cross-check baseline; case_method sphere reproduces at ~0.5%.",
+    provenance=Provenance(
+        paper_id="Atalay-1997",
+        paper_table=14,
+        primary_reference="Kaper-Lindeman-Leaf 1974 (Atalay c=1.30 reproduces).",
+        notes="Cross-check baseline; case_method sphere reproduces at ~0.5%.",
+    ),
 )
 
 
