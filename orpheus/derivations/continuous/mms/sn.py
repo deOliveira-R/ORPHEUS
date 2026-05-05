@@ -177,6 +177,7 @@ def _make_1g_mixture(sigma_t: float, sigma_s: float) -> Mixture:
     ng = 1
     SigS0 = csr_matrix(np.array([[sigma_s]], dtype=float))
     Sig2 = csr_matrix(np.zeros((ng, ng)))
+    # Synthetic 1G mixture: no physical energy grid (Phase E).
     return Mixture(
         SigC=np.array([sigma_t - sigma_s]),
         SigL=np.zeros(ng),
@@ -186,7 +187,6 @@ def _make_1g_mixture(sigma_t: float, sigma_s: float) -> Mixture:
         SigS=[SigS0],
         Sig2=Sig2,
         chi=np.zeros(ng),
-        eg=np.array([1e-5, 2e7]),
     )
 
 
@@ -430,6 +430,7 @@ class SNSlab2GHeterogeneousMMSCase:
                     f"Σ_s_total_out={sig_s_total_out}, Σ_a={sig_a}. "
                     "Need Σ_a > 0 everywhere for a physical mixture."
                 )
+            # Synthetic MMS mixture: no physical energy grid (Phase E).
             materials[i] = Mixture(
                 SigC=sig_a,                        # pure absorber capture
                 SigL=np.zeros(2),                  # no (n,α)
@@ -439,7 +440,6 @@ class SNSlab2GHeterogeneousMMSCase:
                 SigS=[csr_matrix(sig_s_row)],      # P0 only
                 Sig2=csr_matrix(np.zeros((2, 2))),  # no (n,2n)
                 chi=np.zeros(2),
-                eg=np.array([1e-5, 1e3, 2e7]),     # dummy energy boundaries
             )
         return materials
 
@@ -868,6 +868,7 @@ class SN2DCartesian2GHeterogeneousMMSCase:
                             self.sigma_s_fn(xa, ya, g_from, g_to)[0]
                         )
                 sig_a = sig_t - sig_s_row.sum(axis=1)
+                # Synthetic MMS mixture: no physical energy grid (Phase E).
                 materials[cell_id] = Mixture(
                     SigC=sig_a,
                     SigL=np.zeros(ng),
@@ -877,7 +878,6 @@ class SN2DCartesian2GHeterogeneousMMSCase:
                     SigS=[csr_matrix(sig_s_row)],
                     Sig2=csr_matrix(np.zeros((ng, ng))),
                     chi=np.zeros(ng),
-                    eg=np.array([1e-5, 1e3, 2e7]),
                 )
         return materials
 
@@ -1129,6 +1129,7 @@ def _make_1g_p1_mixture(
     SigS0 = csr_matrix(np.array([[sigma_s0]], dtype=float))
     SigS1 = csr_matrix(np.array([[sigma_s1]], dtype=float))
     Sig2 = csr_matrix(np.zeros((ng, ng)))
+    # Synthetic 1G P1 mixture: no physical energy grid (Phase E).
     return Mixture(
         SigC=np.array([sigma_t - sigma_s0]),
         SigL=np.zeros(ng),
@@ -1138,7 +1139,6 @@ def _make_1g_p1_mixture(
         SigS=[SigS0, SigS1],   # P0 and P1 scattering matrices
         Sig2=Sig2,
         chi=np.zeros(ng),
-        eg=np.array([1e-5, 2e7]),
     )
 
 

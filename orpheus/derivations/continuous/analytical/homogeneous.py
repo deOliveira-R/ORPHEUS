@@ -61,14 +61,18 @@ def _make_mixture(
     chi: np.ndarray,
     sig_s: np.ndarray,
 ) -> Mixture:
-    """Build a Mixture from N-group arrays."""
+    """Build a Mixture from N-group arrays.
+
+    The synthetic XS used by analytical-homogeneous derivations are
+    abstract — no physical energy grid exists, so ``eg`` is left as
+    ``None`` (Phase E of the architectural reset, 2026-05-04).
+    """
     ng = len(sig_t)
-    eg = np.logspace(7, -3, ng + 1)
     return Mixture(
         SigC=sig_c.copy(), SigL=np.zeros(ng),
         SigF=sig_f.copy(), SigP=(nu * sig_f).copy(),
         SigT=sig_t.copy(), SigS=[csr_matrix(sig_s)],
-        Sig2=csr_matrix((ng, ng)), chi=chi.copy(), eg=eg.copy(),
+        Sig2=csr_matrix((ng, ng)), chi=chi.copy(),
     )
 
 

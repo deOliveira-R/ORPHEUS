@@ -29,6 +29,7 @@ def make_mixture(
     sig_s: np.ndarray,
     sig_s1: np.ndarray | None = None,
     sig_2: np.ndarray | None = None,
+    eg: np.ndarray | None = None,
 ) -> Mixture:
     """Build a Mixture from N-group arrays.
 
@@ -37,9 +38,16 @@ def make_mixture(
     sig_s : (ng, ng) P0 scattering matrix.
     sig_s1 : (ng, ng) P1 scattering matrix (optional).
     sig_2 : (ng, ng) (n,2n) transfer matrix (optional, default zeros).
+    eg : (ng+1,) energy grid (eV boundaries), optional.
+        Defaults to ``None`` — the synthetic XS in this library are
+        abstract and have no physical energy grid. Callers that need
+        per-energy diagnostics (lethargy widths, flux-per-energy plots)
+        must pass an honest grid explicitly. The previous fabrication
+        (``np.logspace(7, -3, ng+1)``) was retired with Phase E of the
+        architectural reset because it implied a real grid where none
+        existed.
     """
     ng = len(sig_t)
-    eg = np.logspace(7, -3, ng + 1)
     sig_s_list = [csr_matrix(sig_s)]
     if sig_s1 is not None:
         sig_s_list.append(csr_matrix(sig_s1))
@@ -48,7 +56,8 @@ def make_mixture(
         SigC=sig_c.copy(), SigL=np.zeros(ng),
         SigF=sig_f.copy(), SigP=(nu * sig_f).copy(),
         SigT=sig_t.copy(), SigS=sig_s_list,
-        Sig2=sig_2_sparse, chi=chi.copy(), eg=eg.copy(),
+        Sig2=sig_2_sparse, chi=chi.copy(),
+        eg=eg.copy() if eg is not None else None,
     )
 
 
