@@ -80,7 +80,7 @@ def test_slab_to_geometry_full_width_with_vacuum_bcs() -> None:
     assert len(geom.regions) == 1
     region = geom.regions[0]
     assert isinstance(region, StructuredRegion)
-    assert region.mat_id == case.geometry_spec.mat_id
+    assert region.mat_id == 0  # registry convention: primary mixture at mat_id=0
     assert math.isclose(
         region.outer_thickness_cm, expected_full_width_cm, rel_tol=1e-12,
     )
@@ -120,7 +120,7 @@ def test_sphere_to_geometry_radius_with_vacuum_outer_bc() -> None:
     assert len(geom.regions) == 1
     region = geom.regions[0]
     assert isinstance(region, StructuredRegion)
-    assert region.mat_id == case.geometry_spec.mat_id
+    assert region.mat_id == 0  # registry convention: primary mixture at mat_id=0
     assert math.isclose(
         region.outer_thickness_cm, expected_R_cm, rel_tol=1e-12,
     )
@@ -157,7 +157,7 @@ def test_cylinder_to_geometry_radius_with_vacuum_outer_bc() -> None:
     assert len(geom.regions) == 1
     region = geom.regions[0]
     assert isinstance(region, StructuredRegion)
-    assert region.mat_id == case.geometry_spec.mat_id
+    assert region.mat_id == 0  # registry convention: primary mixture at mat_id=0
     assert math.isclose(
         region.outer_thickness_cm, expected_R_cm, rel_tol=1e-12,
     )
@@ -202,7 +202,7 @@ def test_infinite_2g_to_geometry_raises() -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Round-trip — new-API extent matches legacy GeometrySpec extent
+# Round-trip — new-API extent derives from truth.critical_dimension_mfp
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -212,25 +212,26 @@ def test_infinite_2g_to_geometry_raises() -> None:
     [
         c.case_id
         for c in _ALL_CASES
-        if c.geometry_spec.geometry != "infinite"
+        if c.geometry_kind != "infinite"
     ],
 )
-def test_to_geometry_extent_matches_geometry_spec(case_id: str) -> None:
-    r"""``geom.domain_extent_cm`` matches ``case.geometry_spec.domain_extent_cm``.
+def test_to_geometry_extent_matches_truth_mfp(case_id: str) -> None:
+    r"""``geom.domain_extent_cm`` derives from ``truth.critical_dimension_mfp``.
 
-    Both quantities are derived from the same published mfp value and
-    the same :math:`\Sigma_t`. Author transcription rounding (the
-    catalogue stores published-mfp and published-cm separately, both
-    transcribed verbatim from LA-13511) puts an upper bound on the
-    achievable agreement at ~3e-7 relative — well below the 1e-5
-    benchmark tolerance.
+    For ``"slab"``: the full slab width is :math:`2 \cdot
+    (\text{cd}_{\rm mfp} / \Sigma_t)`. For ``"sphere"`` /
+    ``"cylinder"``: the radius is :math:`\text{cd}_{\rm mfp} /
+    \Sigma_t`. The geometry produced by :meth:`to_geometry` MUST
+    match this derivation exactly (no second source of truth).
     """
     case = LA13511_CASES[case_id]
     geom = case.to_geometry()
-    expected_cm = case.geometry_spec.domain_extent_cm
-    actual_cm = geom.domain_extent_cm
-    assert math.isclose(actual_cm, expected_cm, rel_tol=1e-5), (
-        f"{case_id}: legacy extent={expected_cm}, new extent={actual_cm}"
+    sigma_t = float(case.materials[0].SigT[0])
+    cd_cm = float(case.truth.critical_dimension_mfp) / sigma_t
+    expected_cm = 2.0 * cd_cm if case.geometry_kind == "slab" else cd_cm
+    assert math.isclose(geom.domain_extent_cm, expected_cm, rel_tol=1e-12), (
+        f"{case_id}: truth-derived extent={expected_cm}, "
+        f"to_geometry()={geom.domain_extent_cm}"
     )
 
 
@@ -281,23 +282,41 @@ def test_atalay_case_has_provenance(case_id: str) -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("case_id", list(LA13511_CASES.keys()))
-def test_truth_critical_dimension_mfp_mirrors_geometry_spec(
-    case_id: str,
-) -> None:
-    """``truth.critical_dimension_mfp`` matches the legacy
-    ``geometry_spec.critical_dimension_mfp`` exactly.
+@pytest.mark.parametrize(
+    "case_id",
+    [
+        c.case_id
+        for c in _ALL_CASES
+        if c.geometry_kind != "infinite"
+    ],
+)
+def test_truth_critical_dimension_mfp_populated(case_id: str) -> None:
+    """``truth.critical_dimension_mfp`` is populated for every finite case.
 
-    Both fields are populated during Phase B (the lift). They will
-    diverge only if a post-Phase-F migration discovers a
-    transcription error — until then they must agree by construction.
+    Phase F dropped the legacy ``geometry_spec`` carrier — the published
+    critical dimension now lives ONLY on :class:`La13511Truth`. Every
+    finite case (slab / sphere / cylinder) MUST carry a non-None
+    ``truth.critical_dimension_mfp`` so :meth:`La13511Case.to_geometry`
+    can derive the geometry-cm extent.
     """
     case = LA13511_CASES[case_id]
-    assert case.truth.critical_dimension_mfp == (
-        case.geometry_spec.critical_dimension_mfp
-    ), (
-        f"{case_id}: truth.critical_dimension_mfp"
-        f"={case.truth.critical_dimension_mfp} disagrees with "
-        f"geometry_spec.critical_dimension_mfp"
-        f"={case.geometry_spec.critical_dimension_mfp}"
+    assert case.truth.critical_dimension_mfp is not None, (
+        f"{case_id}: truth.critical_dimension_mfp must be non-None for "
+        f"finite cases (geometry_kind={case.geometry_kind!r})"
     )
+    assert case.truth.critical_dimension_mfp > 0
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(
+    "case_id",
+    [
+        c.case_id
+        for c in _ALL_CASES
+        if c.geometry_kind == "infinite"
+    ],
+)
+def test_truth_critical_dimension_mfp_none_for_infinite(case_id: str) -> None:
+    """Infinite-medium cases have ``truth.critical_dimension_mfp = None``."""
+    case = LA13511_CASES[case_id]
+    assert case.truth.critical_dimension_mfp is None

@@ -84,7 +84,10 @@ pytestmark = [
 
 from dataclasses import replace
 
-from orpheus.derivations.common.geometry_spec import GeometrySpec
+from orpheus.geometry.structured_geometry import (
+    Region,
+    StructuredGeometry,
+)
 
 from .adapters import (
     ADAPTERS_BY_NAME,
@@ -116,8 +119,8 @@ def _shadow_with_thickness_mfp(
     a_critical_mfp: float | None = None,
     R_critical_mfp: float | None = None,
 ) -> CrossMethodCase:
-    """Return a copy of ``case`` whose geometry_spec encodes a different
-    critical dimension (in mfp).
+    """Return a copy of ``case`` whose ``structured_geometry`` encodes
+    a different critical dimension (in mfp).
 
     Used by cross-method agreement tests to feed one method's
     predicted critical dimension into another method's adapter
@@ -126,41 +129,48 @@ def _shadow_with_thickness_mfp(
     (sphere radius) must be provided. The cm value is derived via
     ``critical_dimension_mfp / sigma_t`` (mfp ↔ cm conversion using
     the case's own σ_t).
+
+    The shadow case sets only ``structured_geometry`` (not
+    ``materials``), so the registry-backed ``materials`` path is
+    preserved — this is the protocol's "Override" path
+    (registry_case + inline structured_geometry, materials=None).
     """
     if (a_critical_mfp is None) == (R_critical_mfp is None):
         raise ValueError(
             "Provide exactly one of a_critical_mfp or R_critical_mfp."
         )
     sigma_t, _, _ = _extract_1g_xs(case)
-    base_spec = case.registry_case.geometry_spec if (
-        case.registry_case is not None
-        and getattr(case.registry_case, "geometry_spec", None) is not None
-    ) else case.geometry_spec
-    if base_spec is None:
+    if case.registry_case is not None and hasattr(
+        case.registry_case, "to_geometry"
+    ):
+        base_geom = case.registry_case.to_geometry()
+    elif case.structured_geometry is not None:
+        base_geom = case.structured_geometry
+    else:
         raise ValueError(
-            f"Case {case.case_id!r} has no geometry_spec to shadow."
+            f"Case {case.case_id!r} has no geometry to shadow."
         )
-    if a_critical_mfp is not None:
-        new_spec = GeometrySpec(
-            geometry=base_spec.geometry,
-            critical_dimension_mfp=a_critical_mfp,
-            critical_dimension_cm=a_critical_mfp / sigma_t,
-            n_groups=base_spec.n_groups,
-            mat_id=base_spec.mat_id,
-            bc_left=base_spec.bc_left,
-            bc_right=base_spec.bc_right,
+
+    cd_mfp = a_critical_mfp if a_critical_mfp is not None else R_critical_mfp
+    cd_cm = float(cd_mfp) / sigma_t
+
+    if base_geom.geometry == "SLB":
+        # Slab: published critical dimension is the half-thickness;
+        # the structured-geometry extent is the FULL slab width.
+        full_width_cm = 2.0 * cd_cm
+        new_geom = StructuredGeometry(
+            geometry="SLB",
+            regions=(Region(mat_id=0, outer_thickness_cm=full_width_cm),),
+            bcs=base_geom.bcs,
         )
     else:
-        new_spec = GeometrySpec(
-            geometry=base_spec.geometry,
-            critical_dimension_mfp=R_critical_mfp,
-            critical_dimension_cm=R_critical_mfp / sigma_t,
-            n_groups=base_spec.n_groups,
-            mat_id=base_spec.mat_id,
-            bc_left=base_spec.bc_left,
-            bc_right=base_spec.bc_right,
+        # SPH / CYL: published critical dimension IS the radius.
+        new_geom = StructuredGeometry(
+            geometry=base_geom.geometry,
+            regions=(Region(mat_id=0, outer_thickness_cm=cd_cm),),
+            bcs=base_geom.bcs,
         )
-    return replace(case, geometry_spec=new_spec)
+    return replace(case, structured_geometry=new_geom)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -515,9 +525,9 @@ def test_fn_slab_vs_trajectory_resolvent_slab(case: CrossMethodCase):
     # (NOT at the case's published truth, to test agreement of the
     # methods themselves rather than a triple agreement with truth).
     # The trajectory_resolvent slab adapter reads its width off
-    # geometry_spec.domain_extent_cm; we shadow the registry case's
-    # template with an inline one whose critical_dimension_cm reflects
-    # the F_N prediction.
+    # structured_geometry.domain_extent_cm; we shadow the registry
+    # case with an inline structured_geometry whose extent reflects
+    # F_N's prediction (full slab = 2 × half-thickness).
     case_at_fn_thickness = _shadow_with_thickness_mfp(
         case, a_critical_mfp=float(res_fn.value)
     )
@@ -559,8 +569,8 @@ def test_fn_sphere_vs_trajectory_resolvent_sphere(case: CrossMethodCase):
 
     res_fn = fn.solve(case)
     # The trajectory_resolvent sphere adapter reads its radius off
-    # geometry_spec.critical_dimension_cm; shadow with a template at
-    # F_N's predicted radius.
+    # structured_geometry.domain_extent_cm; shadow with an inline
+    # geometry at F_N's predicted radius.
     case_at_fn_radius = _shadow_with_thickness_mfp(
         case, R_critical_mfp=float(res_fn.value)
     )

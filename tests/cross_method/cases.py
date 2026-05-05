@@ -45,7 +45,6 @@ from __future__ import annotations
 
 import numpy as np
 
-from orpheus.derivations.common.geometry_spec import GeometrySpec, Region
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.derivations.continuous.sood_registry import (
     PUA_1_0_SL,
@@ -57,6 +56,7 @@ from orpheus.derivations.continuous.sood_registry import (
     UD2O_1_0_SP,
 )
 from orpheus.geometry.mesh import BC
+from orpheus.geometry.structured_geometry import Region, StructuredGeometry
 
 from .protocol import CrossMethodCase
 
@@ -398,53 +398,41 @@ def _build_reflected_slab_case(
 ) -> CrossMethodCase:
     r"""Construct a symmetric reflected-slab :class:`CrossMethodCase`.
 
-    Materials and geometry are encoded inline (Step 3 input-cleanup):
+    Materials and geometry are encoded inline:
 
     * ``materials = {0: core_mixture, 1: reflector_mixture}``
       built via :func:`_make_unit_sigma_t_one_group_mixture`.
-    * ``geometry_spec.regions = (reflector, core, reflector)`` with
-      thicknesses ``(Δ, 2·τ, Δ)`` mfp (≡ cm under σ_t=1). The core
-      thickness uses the published critical τ as the half-thickness.
+    * ``structured_geometry.regions = (reflector, core, reflector)``
+      with cm thicknesses ``(Δ, 2·τ, Δ)`` (≡ mfp under σ_t=1). The
+      core thickness uses the published critical τ as the half-
+      thickness.
 
-    The FN reflected-slab adapter reads ``c_core``,
-    ``c_reflector``, and ``reflector_half_thickness_mfp`` directly
-    from these fields — no notes-string parsing.
+    The FN reflected-slab adapter reads ``c_core`` and
+    ``c_reflector`` from the materials' :attr:`scattering_ratio` and
+    the reflector half-thickness from ``regions[0].outer_thickness_cm``
+    (under the σ_t=1 convention this equals the half-thickness in
+    mfp directly).
     """
     core_mix = _make_unit_sigma_t_one_group_mixture(c_core)
     refl_mix = _make_unit_sigma_t_one_group_mixture(c_reflector)
     # Unit σ_t convention → cm ≡ mfp for these problems.
     refl_thickness_cm = float(reflector_half_thickness_mfp)
     core_thickness_cm = 2.0 * float(truth_value)
-    regions = (
-        Region(
-            mat_id=1,  # reflector layer (left)
-            outer_thickness_mfp=reflector_half_thickness_mfp,
-            outer_thickness_cm=refl_thickness_cm,
+    geom = StructuredGeometry(
+        geometry="SLB",
+        regions=(
+            Region(mat_id=1, outer_thickness_cm=refl_thickness_cm),  # left reflector
+            Region(mat_id=0, outer_thickness_cm=core_thickness_cm),  # core (2·τ)
+            Region(mat_id=1, outer_thickness_cm=refl_thickness_cm),  # right reflector
         ),
-        Region(
-            mat_id=0,  # core layer (full thickness = 2·τ)
-            outer_thickness_mfp=2.0 * float(truth_value),
-            outer_thickness_cm=core_thickness_cm,
-        ),
-        Region(
-            mat_id=1,  # reflector layer (right)
-            outer_thickness_mfp=reflector_half_thickness_mfp,
-            outer_thickness_cm=refl_thickness_cm,
-        ),
-    )
-    spec = GeometrySpec(
-        geometry="slab",
-        critical_dimension_mfp=float(truth_value),  # τ_c half-thickness
-        critical_dimension_cm=float(truth_value),  # σ_t=1 → cm ≡ mfp
-        n_groups=1,
-        regions=regions,
+        bcs=(BC.vacuum, BC.vacuum),
     )
     return CrossMethodCase(
         case_id=case_id,
         description=description,
         registry_case=None,
         materials={0: core_mix, 1: refl_mix},
-        geometry_spec=spec,
+        structured_geometry=geom,
         geometry="reflected-slab",
         truth_tag="tau_critical_mfp",
         truth_value=truth_value,
@@ -576,17 +564,15 @@ CLOSED_SPHERE_KINF_CASES: list[CrossMethodCase] = [
         ),
         registry_case=None,
         materials={0: _FUEL_A_LIKE_MIX},
-        # Closed sphere: BC.reflective on BOTH sides (centreline +
-        # outer surface at α=1). The trajectory_resolvent solver
-        # consumes the radius via geometry_spec.critical_dimension_cm
-        # and translates BC.reflective to its α=1 albedo.
-        geometry_spec=GeometrySpec(
-            geometry="sphere",
-            critical_dimension_mfp=2.5,  # τ_R = σ_t · R_cm = 0.5 · 5.0
-            critical_dimension_cm=5.0,
-            n_groups=1,
-            bc_left=BC.reflective,
-            bc_right=BC.reflective,
+        # Closed sphere: BC.reflective on the OUTER surface
+        # (centreline reflective is implicit for SPH geometry).
+        # The trajectory_resolvent solver translates BC.reflective
+        # to its α=1 albedo. R_cm = 5.0 (τ_R = σ_t · R_cm = 0.5 · 5.0
+        # = 2.5).
+        structured_geometry=StructuredGeometry(
+            geometry="SPH",
+            regions=(Region(mat_id=0, outer_thickness_cm=5.0),),
+            bcs=(BC.reflective,),
         ),
         geometry="closed-sphere-1d",
         truth_tag="k_inf",

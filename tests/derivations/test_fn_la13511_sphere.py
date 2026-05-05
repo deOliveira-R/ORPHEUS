@@ -168,7 +168,7 @@ def test_fn_sphere_sood_ua_1_0_sp_critical_radius():
     than the 1e-5 target. The implementation runs in <1 s.
     """
     res = solve_fn_sphere_bare_critical(c=1.30, n_modes=10)
-    truth = UA_1_0_SP_STUB.critical_dimension_mfp
+    truth = UA_1_0_SP_STUB.truth.critical_dimension_mfp
     err = abs(res.R_critical_mfp - truth)
     assert err < 1e-5, (
         f"Sood Ua-1-0-SP F_N sphere: R_c={res.R_critical_mfp:.10f}, "

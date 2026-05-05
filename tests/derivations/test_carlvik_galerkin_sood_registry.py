@@ -82,7 +82,7 @@ def test_l1_galerkin_spectral_sood_slab_p1(case_id: str) -> None:
     case = LA13511_CASES[case_id]
     c_expected = _c_from_case(case)
     mu_bar_eff = _mu_bar_eff_from_case(case)
-    r_c_mfp = case.critical_dimension_mfp
+    r_c_mfp = case.truth.critical_dimension_mfp
     d_mfp = 2.0 * r_c_mfp
 
     result = solve_galerkin_spectral_slab(
@@ -116,7 +116,7 @@ def test_l1_galerkin_spectral_sood_sphere_p1(case_id: str) -> None:
     case = LA13511_CASES[case_id]
     c_expected = _c_from_case(case)
     mu_bar_eff = _mu_bar_eff_from_case(case)
-    r_c_mfp = case.critical_dimension_mfp
+    r_c_mfp = case.truth.critical_dimension_mfp
     d_mfp = 2.0 * r_c_mfp
 
     result = solve_galerkin_spectral_sphere(

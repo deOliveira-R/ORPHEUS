@@ -113,11 +113,13 @@ class FNReflectedSlabAdapter:
     given the reflector configuration.
 
     Each case must carry inline ``materials`` (mat_id 0 = core,
-    mat_id 1 = reflector) and a ``geometry_spec`` with three regions
-    in left-to-right order ``(reflector, core, reflector)``. The
-    Case–Zweifel ``c`` for each material is read off
-    :attr:`Mixture.scattering_ratio`; the reflector half-thickness
-    is read off ``geometry_spec.regions[0].outer_thickness_mfp``.
+    mat_id 1 = reflector) and a ``structured_geometry`` with three
+    regions in left-to-right order ``(reflector, core, reflector)``.
+    The Case–Zweifel ``c`` for each material is read off
+    :attr:`Mixture.scattering_ratio`; the reflector half-thickness in
+    cm is read off ``structured_geometry.regions[0].outer_thickness_cm``
+    and converted to mfp via the reflector mixture's :math:`\Sigma_t`
+    (group 0).
 
     There is currently no trajectory_resolvent counterpart for
     reflected slab — this adapter has no agreement partner. That
@@ -137,7 +139,7 @@ class FNReflectedSlabAdapter:
         )
 
         # Read c values off the inline materials and the reflector
-        # half-thickness off geometry_spec.regions[0]. The expected
+        # half-thickness off structured_geometry.regions[0]. The expected
         # region layout is (reflector, core, reflector); we cross-
         # check that to fail loudly on accidental ordering bugs.
         if case.materials is None or 0 not in case.materials or 1 not in case.materials:
@@ -147,14 +149,14 @@ class FNReflectedSlabAdapter:
                 f"mat_id=1 (reflector); got "
                 f"{None if case.materials is None else sorted(case.materials)}"
             )
-        spec = _geometry_spec_for(case)
-        regions = spec.regions
-        if regions is None or len(regions) != 3:
+        geom = _structured_geometry_for(case)
+        regions = geom.regions
+        if len(regions) != 3:
             raise ValueError(
                 f"FNReflectedSlabAdapter: case {case.case_id!r} must "
-                f"carry a 3-region GeometrySpec "
+                f"carry a 3-region StructuredGeometry "
                 f"(reflector, core, reflector); got "
-                f"regions={regions!r}"
+                f"{len(regions)} regions"
             )
         if (regions[0].mat_id, regions[1].mat_id, regions[2].mat_id) != (1, 0, 1):
             raise ValueError(
@@ -164,16 +166,17 @@ class FNReflectedSlabAdapter:
                 f"({regions[0].mat_id}, {regions[1].mat_id}, "
                 f"{regions[2].mat_id})"
             )
-        refl_mfp = regions[0].outer_thickness_mfp
-        if refl_mfp is None:
-            raise ValueError(
-                f"FNReflectedSlabAdapter: case {case.case_id!r} "
-                f"reflector region (regions[0]) must carry "
-                f"outer_thickness_mfp."
-            )
         c_core = float(case.materials[0].scattering_ratio[0])
         c_reflector = float(case.materials[1].scattering_ratio[0])
-        reflector_half_thickness_mfp = float(refl_mfp)
+        # Convert the reflector cm thickness to mfp via the
+        # reflector mixture's Σ_t. Under the unit-σ_t convention used
+        # for Sood / NM 1980 reflected-slab cases this is the
+        # identity, but we compute it explicitly to remove the
+        # unit-equivalence assumption from the call site.
+        sigma_t_reflector = float(case.materials[1].SigT[0])
+        reflector_half_thickness_mfp = (
+            float(regions[0].outer_thickness_cm) * sigma_t_reflector
+        )
 
         res = solve_fn_slab_reflected_critical(
             c_core=c_core,
@@ -212,10 +215,10 @@ class TrajectoryResolventSlabAdapter:
     truth thickness).
 
     The continuous-albedo ``alpha`` is derived from
-    ``case.geometry_spec.bc_right`` (or ``bc_left`` — slab cases use
-    symmetric BCs by convention) via :meth:`BC.to_alpha`; bare-
-    critical slab registry cases are vacuum-on-vacuum (``α = 0``),
-    closed slab is reflective-on-reflective (``α = 1``).
+    ``structured_geometry.bcs[-1]`` (slab cases use symmetric BCs by
+    convention) via :meth:`BC.to_alpha`; bare-critical slab registry
+    cases are vacuum-on-vacuum (``α = 0``), closed slab is reflective-
+    on-reflective (``α = 1``).
 
     Default quadrature: ``(n_x, n_mu, n_traj_quad) = (48, 128, 96)``.
     Slab vacuum has a near-cusp at μ=0 that needs ~128 angular nodes
@@ -238,13 +241,10 @@ class TrajectoryResolventSlabAdapter:
 
         sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs(case)
         # Trajectory_resolvent slab takes FULL width L (not the half-
-        # thickness). GeometrySpec.domain_extent_cm encodes
-        # ``2 * critical_dimension_cm`` for the slab convention — i.e.
-        # exactly the FULL slab width in cm. Read it off the registry
-        # case (or inline geometry_spec) directly; no truth-vs-cm
-        # re-derivation needed.
+        # thickness). StructuredGeometry.domain_extent_cm IS the full
+        # slab width in cm — no truth-vs-cm re-derivation needed.
         L_full_cm = _slab_L_full_cm(case)
-        alpha = _geometry_spec_for(case).bc_right.to_alpha()
+        alpha = _outer_bc_for(case).to_alpha()
 
         res = solve_greens_function_slab(
             L=L_full_cm,
@@ -284,7 +284,7 @@ class TrajectoryResolventSphereAdapter:
     radius, ``k_eff`` should be 1.0.
 
     The continuous-albedo ``alpha`` is derived from
-    ``case.geometry_spec.bc_right`` (the outer-surface BC) via
+    ``structured_geometry.bcs[-1]`` (the outer-surface BC) via
     :meth:`BC.to_alpha`. The inner BC at ``r = 0`` is the natural
     centreline reflective and is not parametrically relevant to the
     trajectory_resolvent operator.
@@ -310,11 +310,11 @@ class TrajectoryResolventSphereAdapter:
         )
 
         sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs(case)
-        # Read the radius in cm directly off the case's geometry_spec.
-        # Sphere convention: ``geometry_spec.critical_dimension_cm``
-        # IS R_cm (no halving / doubling).
+        # Read the radius in cm directly off the case's
+        # StructuredGeometry. Sphere convention:
+        # ``StructuredGeometry.domain_extent_cm`` IS R_cm.
         R_cm = _sphere_R_cm(case)
-        alpha = _geometry_spec_for(case).bc_right.to_alpha()
+        alpha = _outer_bc_for(case).to_alpha()
 
         res = solve_greens_function_sphere(
             R=R_cm,
@@ -354,10 +354,10 @@ class TrajectoryResolventSphereClosedAdapter:
     cross-method gate where the bare-critical pillar is missing.
 
     Geometry, XS, and radius come from the case's inline
-    ``materials`` + ``geometry_spec`` (the registry-less path).
+    ``materials`` + ``structured_geometry`` (the registry-less path).
     The continuous-albedo ``alpha`` is derived from
-    ``geometry_spec.bc_right`` via :meth:`BC.to_alpha`; closed
-    sphere is :attr:`BC.reflective` on both surfaces, so
+    ``structured_geometry.bcs[-1]`` via :meth:`BC.to_alpha`; closed
+    sphere is :attr:`BC.reflective` on the outer surface, giving
     ``α = 1.0``.
     """
 
@@ -376,10 +376,10 @@ class TrajectoryResolventSphereClosedAdapter:
         )
 
         # Closed-sphere cases use the inline-materials path
-        # (registry_case is None; materials + geometry_spec are set).
+        # (registry_case is None; materials + structured_geometry are set).
         sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs_inline(case)
         R_cm = _sphere_R_cm(case)
-        alpha = _geometry_spec_for(case).bc_right.to_alpha()
+        alpha = _outer_bc_for(case).to_alpha()
         res = solve_greens_function_sphere(
             R=R_cm,
             sigma_t=sigma_t,
@@ -477,62 +477,70 @@ def _xs_from_materials_dict(
     )
 
 
-def _geometry_spec_for(case: CrossMethodCase):
-    r"""Resolve the ``GeometrySpec`` for a case.
+def _structured_geometry_for(case: CrossMethodCase):
+    r"""Resolve the :class:`StructuredGeometry` for a case.
 
-    Reads from ``case.geometry_spec`` (inline path) or
-    ``case.registry_case.geometry_spec`` (registry path), whichever is
-    populated. Raises if neither is.
+    Reads from ``case.structured_geometry`` (inline / override path)
+    or builds it via ``case.registry_case.to_geometry()`` (registry
+    path), whichever is populated. The override path takes precedence
+    when both are present (cross-method agreement gates substitute a
+    predicted critical dimension by setting an inline structured
+    geometry).
     """
-    if case.geometry_spec is not None:
-        return case.geometry_spec
-    if case.registry_case is not None and getattr(
-        case.registry_case, "geometry_spec", None
-    ) is not None:
-        return case.registry_case.geometry_spec
+    if case.structured_geometry is not None:
+        return case.structured_geometry
+    if case.registry_case is not None and hasattr(
+        case.registry_case, "to_geometry"
+    ):
+        return case.registry_case.to_geometry()
     raise ValueError(
-        f"_geometry_spec_for: case {case.case_id!r} has neither "
-        f"inline geometry_spec nor a registry_case carrying one."
+        f"_structured_geometry_for: case {case.case_id!r} has neither "
+        f"inline structured_geometry nor a registry_case carrying one."
     )
 
 
 def _sphere_R_cm(case: CrossMethodCase) -> float:
-    r"""Return the sphere radius in cm from the case's GeometrySpec.
+    r"""Return the sphere radius in cm from the case's StructuredGeometry.
 
-    ``GeometrySpec.critical_dimension_cm`` IS R_cm for sphere geometry
-    (the published critical radius). No unit re-derivation through
-    ``truth_value / sigma_t`` is needed — the registry already carries
-    both forms in lockstep.
+    For SPH geometry, ``domain_extent_cm`` IS R_cm (single-region
+    radius, sum trivially equals the radius).
     """
-    spec = _geometry_spec_for(case)
-    if spec.geometry != "sphere":
+    geom = _structured_geometry_for(case)
+    if geom.geometry != "SPH":
         raise ValueError(
-            f"_sphere_R_cm: case {case.case_id!r} geometry_spec "
-            f"geometry is {spec.geometry!r}, expected 'sphere'"
+            f"_sphere_R_cm: case {case.case_id!r} structured geometry "
+            f"is {geom.geometry!r}, expected 'SPH'"
         )
-    if spec.critical_dimension_cm is None:
-        raise ValueError(
-            f"_sphere_R_cm: case {case.case_id!r} geometry_spec has "
-            f"no critical_dimension_cm"
-        )
-    return float(spec.critical_dimension_cm)
+    return float(geom.domain_extent_cm)
 
 
 def _slab_L_full_cm(case: CrossMethodCase) -> float:
-    r"""Return the slab full width in cm from the case's GeometrySpec.
+    r"""Return the slab full width in cm from the case's StructuredGeometry.
 
-    Slab convention: ``GeometrySpec.domain_extent_cm`` returns
-    ``2 * critical_dimension_cm`` — the full slab width
-    :math:`[0, 2a]`, which is exactly what
+    Slab convention: ``StructuredGeometry.domain_extent_cm`` IS the
+    FULL slab width :math:`[0, L]`, which is exactly what
     :func:`solve_greens_function_slab` expects as its ``L`` argument.
     """
-    spec = _geometry_spec_for(case)
-    if spec.geometry != "slab":
+    geom = _structured_geometry_for(case)
+    if geom.geometry != "SLB":
         raise ValueError(
-            f"_slab_L_full_cm: case {case.case_id!r} geometry_spec "
-            f"geometry is {spec.geometry!r}, expected 'slab'"
+            f"_slab_L_full_cm: case {case.case_id!r} structured "
+            f"geometry is {geom.geometry!r}, expected 'SLB'"
         )
-    return float(spec.domain_extent_cm)
+    return float(geom.domain_extent_cm)
+
+
+def _outer_bc_for(case: CrossMethodCase):
+    """Return the outer-surface BC for a case.
+
+    For ``SLB`` geometry the slab is symmetric vacuum-vacuum (or
+    closed reflective-reflective); both endpoints share the same kind
+    in the cases this protocol covers, so we return ``bcs[1]``
+    (the right end). For ``SPH`` / ``CYL`` geometry the single endpoint
+    in :attr:`StructuredGeometry.bcs` IS the outer-surface BC.
+    """
+    geom = _structured_geometry_for(case)
+    return geom.bcs[-1]
 
 
 # ═══════════════════════════════════════════════════════════════════

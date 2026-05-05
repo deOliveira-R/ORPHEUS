@@ -32,11 +32,7 @@ import pytest
 
 from orpheus.derivations.continuous.fn_method.moment_space import MomentSpace
 from orpheus.derivations.continuous.trajectory_resolvent import Billiard
-from orpheus.geometry.mesh import BC
-from orpheus.geometry.structured_geometry import (
-    Region,
-    StructuredGeometry,
-)
+from orpheus.geometry.structured_geometry import StructuredGeometry
 
 from .adapters import (
     FNSlabAdapter,
@@ -44,7 +40,6 @@ from .adapters import (
     TrajectoryResolventSlabAdapter,
     TrajectoryResolventSphereAdapter,
     TrajectoryResolventSphereClosedAdapter,
-    _geometry_spec_for,
 )
 from .cases import (
     BARE_CRITICAL_SLAB_CASES,
@@ -57,38 +52,19 @@ pytestmark = [pytest.mark.foundation]
 
 
 # ----------------------------------------------------------------------
-# Helpers — bridge legacy GeometrySpec cases to StructuredGeometry
+# Helpers — resolve the StructuredGeometry for a CrossMethodCase
 # ----------------------------------------------------------------------
 
 
-def _structured_geom_from_case(spec) -> StructuredGeometry:
-    """Build a StructuredGeometry equivalent to a registry case's GeometrySpec.
+def _structured_geom_for(case) -> StructuredGeometry:
+    """Resolve the :class:`StructuredGeometry` for a CrossMethodCase.
 
-    The registry / cross_method cases still carry GeometrySpec
-    (Phase F territory). Translate to the new geometry layer so the
-    direct math-heart-class construction path can consume them.
+    Prefers the inline ``structured_geometry`` override (when set);
+    otherwise builds it from ``case.registry_case.to_geometry()``.
     """
-    tag_map = {"slab": "SLB", "sphere": "SPH", "cylinder": "CYL"}
-    tag = tag_map[spec.geometry]
-    if tag == "SLB":
-        # GeometrySpec.domain_extent_cm is the FULL slab width
-        # (2 * critical_dimension_cm), which is what
-        # StructuredGeometry stores end-to-end as well.
-        return StructuredGeometry(
-            geometry="SLB",
-            regions=(
-                Region(mat_id=0, outer_thickness_cm=spec.domain_extent_cm),
-            ),
-            bcs=(spec.bc_left, spec.bc_right),
-        )
-    # CYL / SPH: single-region radius, single outer BC.
-    return StructuredGeometry(
-        geometry=tag,
-        regions=(
-            Region(mat_id=0, outer_thickness_cm=spec.domain_extent_cm),
-        ),
-        bcs=(spec.bc_right,),
-    )
+    if case.structured_geometry is not None:
+        return case.structured_geometry
+    return case.registry_case.to_geometry()
 
 
 # ----------------------------------------------------------------------
@@ -105,7 +81,7 @@ def test_dispatch_fn_slab_matches_adapter():
     adapter = FNSlabAdapter(n_modes=8)
     res_adapter = adapter.solve(case)
 
-    geom = _structured_geom_from_case(_geometry_spec_for(case))
+    geom = _structured_geom_for(case)
     moment = MomentSpace(
         geometry=geom,
         materials=case.registry_case.materials,
@@ -137,7 +113,7 @@ def test_dispatch_fn_sphere_matches_adapter():
     adapter = FNSphereAdapter(n_modes=8)
     res_adapter = adapter.solve(case)
 
-    geom = _structured_geom_from_case(_geometry_spec_for(case))
+    geom = _structured_geom_for(case)
     moment = MomentSpace(
         geometry=geom,
         materials=case.registry_case.materials,
@@ -171,9 +147,8 @@ def test_dispatch_trajectory_resolvent_slab_matches_adapter():
     )
     res_adapter = adapter.solve(case)
 
-    spec = _geometry_spec_for(case)
-    alpha = spec.bc_right.to_alpha()
-    geom = _structured_geom_from_case(spec)
+    geom = _structured_geom_for(case)
+    alpha = geom.bcs[-1].to_alpha()
 
     billiard = Billiard(
         geometry=geom,
@@ -207,9 +182,8 @@ def test_dispatch_trajectory_resolvent_sphere_matches_adapter():
     )
     res_adapter = adapter.solve(case)
 
-    spec = _geometry_spec_for(case)
-    alpha = spec.bc_right.to_alpha()
-    geom = _structured_geom_from_case(spec)
+    geom = _structured_geom_for(case)
+    alpha = geom.bcs[-1].to_alpha()
 
     billiard = Billiard(
         geometry=geom,
@@ -242,19 +216,8 @@ def test_dispatch_closed_sphere_matches_adapter():
     )
     res_adapter = adapter.solve(case)
 
-    spec = _geometry_spec_for(case)
-    alpha = spec.bc_right.to_alpha()
-    geom = StructuredGeometry(
-        geometry="SPH",
-        regions=(
-            Region(mat_id=0, outer_thickness_cm=spec.domain_extent_cm),
-        ),
-        # Closed sphere → outer is reflective (the inline cases set
-        # bc_right=BC.reflective; the adapter routes alpha=1 from
-        # bc_right.to_alpha()). StructuredGeometry single-endpoint
-        # carries only the outer BC.
-        bcs=(BC.reflective,),
-    )
+    geom = _structured_geom_for(case)
+    alpha = geom.bcs[-1].to_alpha()
 
     billiard = Billiard(
         geometry=geom,

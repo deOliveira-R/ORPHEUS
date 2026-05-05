@@ -101,8 +101,8 @@ def test_wm72_vs_variant_alpha_at_sood_ua_1_0_cy():
     4. Assert WM-72 R_c agrees with Sood truth to ≤ 1e-5 (not 2%).
     """
     case = LA13511_CASES["Ua-1-0-CY"]
-    truth_mfp = case.critical_dimension_mfp  # 1.72500292
-    sigma_t = float(case.sigma_t[0])  # 0.32640 cm⁻¹
+    truth_mfp = case.truth.critical_dimension_mfp  # 1.72500292
+    sigma_t = float(case.materials[0].SigT[0])  # 0.32640 cm⁻¹
 
     # WM-72 hardened path.
     res_wm = solve_singular_eigenfunction_cylinder_bare_critical(
@@ -116,8 +116,8 @@ def test_wm72_vs_variant_alpha_at_sood_ua_1_0_cy():
 
     # Variant α at WM-72's R (in cm).
     R_cm = res_wm.r_c_cm
-    sigma_s = float(case.sigma_s[0, 0])  # 0.248064
-    nu_sigma_f = float(case.nu_sigma_f[0])  # 0.176256
+    sigma_s = float(case.materials[0].SigS[0][0, 0])  # 0.248064
+    nu_sigma_f = float(case.materials[0].SigP[0])  # 0.176256
 
     # Run Variant α with the WM-72-derived radius. Since WM-72's R agrees
     # with Sood truth to ≤ 1e-5, and Sood truth is also Variant α's

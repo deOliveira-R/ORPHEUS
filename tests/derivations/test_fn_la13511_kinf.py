@@ -174,15 +174,15 @@ def test_PUa_1_0_IN_matches_sood_table():
     r"""Case 1 — PUa-1-0-IN k_inf reproduces Sood Table reference to 6 digits."""
     case = PUA_1_0_IN
     k_inf = compute_kinf_1g(
-        float(case.sigma_t[0]),
-        float(case.sigma_s[0, 0]),
-        float(case.nu_sigma_f[0]),
+        float(case.materials[0].SigT[0]),
+        float(case.materials[0].SigS[0][0, 0]),
+        float(case.materials[0].SigP[0]),
     )
     # Sood publishes 2.612903 (6 digits + trailing 3); a 1e-5 absolute
     # tolerance is appropriate.
-    assert k_inf == pytest.approx(case.k_eff_or_kinf, abs=1e-5), (
-        f"PUa-1-0-IN: computed k_inf = {k_inf}, Sood = {case.k_eff_or_kinf}, "
-        f"diff = {abs(k_inf - case.k_eff_or_kinf):.3e}"
+    assert k_inf == pytest.approx(case.truth.k_eff_or_kinf, abs=1e-5), (
+        f"PUa-1-0-IN: computed k_inf = {k_inf}, Sood = {case.truth.k_eff_or_kinf}, "
+        f"diff = {abs(k_inf - case.truth.k_eff_or_kinf):.3e}"
     )
 
 
@@ -191,11 +191,11 @@ def test_PU_2_0_IN_kinf_matches_sood_table():
     r"""Case 5 — PU-2-0-IN k_inf reproduces Sood Table reference to 6 digits."""
     case = PU_2_0_IN
     k_inf = compute_kinf_2g_no_upscatter(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
-    assert k_inf == pytest.approx(case.k_eff_or_kinf, abs=1e-5), (
-        f"PU-2-0-IN: computed k_inf = {k_inf}, Sood = {case.k_eff_or_kinf}, "
-        f"diff = {abs(k_inf - case.k_eff_or_kinf):.3e}"
+    assert k_inf == pytest.approx(case.truth.k_eff_or_kinf, abs=1e-5), (
+        f"PU-2-0-IN: computed k_inf = {k_inf}, Sood = {case.truth.k_eff_or_kinf}, "
+        f"diff = {abs(k_inf - case.truth.k_eff_or_kinf):.3e}"
     )
 
 
@@ -207,7 +207,7 @@ def test_PU_2_0_IN_flux_ratio_matches_sood_table():
     # Cross-check with return_in_orpheus_order=False (Sood-style).
     sood_ratio_published = 0.675229
     fast_over_slow = compute_flux_ratio_2g_no_upscatter(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
         return_in_orpheus_order=False,
     )
     assert fast_over_slow == pytest.approx(sood_ratio_published, abs=1e-5), (
@@ -218,12 +218,12 @@ def test_PU_2_0_IN_flux_ratio_matches_sood_table():
 
     # And the catalogue-stored ORPHEUS-order ratio matches as well.
     slow_over_fast = compute_flux_ratio_2g_no_upscatter(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
         return_in_orpheus_order=True,
     )
-    assert case.flux_ratio_groupwise is not None
+    assert case.truth.flux_ratio_groupwise is not None
     assert slow_over_fast == pytest.approx(
-        case.flux_ratio_groupwise[1], abs=1e-5
+        case.truth.flux_ratio_groupwise[1], abs=1e-5
     )
 
 
@@ -250,14 +250,14 @@ def test_branch1_branch2_kinf_1g_agreement():
 
     case = PUA_1_0_IN
     k_branch1 = float(fn(
-        float(case.sigma_t[0]),
-        float(case.sigma_s[0, 0]),
-        float(case.nu_sigma_f[0]),
+        float(case.materials[0].SigT[0]),
+        float(case.materials[0].SigS[0][0, 0]),
+        float(case.materials[0].SigP[0]),
     ))
     k_branch2 = compute_kinf_1g(
-        float(case.sigma_t[0]),
-        float(case.sigma_s[0, 0]),
-        float(case.nu_sigma_f[0]),
+        float(case.materials[0].SigT[0]),
+        float(case.materials[0].SigS[0][0, 0]),
+        float(case.materials[0].SigP[0]),
     )
     assert k_branch1 == pytest.approx(k_branch2, abs=1e-12), (
         f"Branch-1 ({k_branch1}) vs Branch-2 ({k_branch2}) disagree at 1e-12"
@@ -298,18 +298,18 @@ def test_branch1_branch2_kinf_2g_agreement():
 
     # Sood ↔ ORPHEUS mapping: 2 = ORPHEUS 0 (fast), 1 = ORPHEUS 1 (slow).
     k_branch1 = float(fn(
-        float(case.sigma_t[1]),       # Sigma_1 (slow)
-        float(case.sigma_t[0]),       # Sigma_2 (fast)
-        float(case.sigma_s[1, 1]),    # Sigma_11s (slow self)
-        float(case.sigma_s[0, 0]),    # Sigma_22s (fast self)
-        float(case.sigma_s[0, 1]),    # Sigma_12s (from fast to slow)
-        float(case.nu_sigma_f[1]),    # nu_1·Sigma_1f
-        float(case.nu_sigma_f[0]),    # nu_2·Sigma_2f
-        float(case.chi[1]),           # chi_1 (slow)
-        float(case.chi[0]),           # chi_2 (fast)
+        float(case.materials[0].SigT[1]),       # Sigma_1 (slow)
+        float(case.materials[0].SigT[0]),       # Sigma_2 (fast)
+        float(case.materials[0].SigS[0][1, 1]),    # Sigma_11s (slow self)
+        float(case.materials[0].SigS[0][0, 0]),    # Sigma_22s (fast self)
+        float(case.materials[0].SigS[0][0, 1]),    # Sigma_12s (from fast to slow)
+        float(case.materials[0].SigP[1]),    # nu_1·Sigma_1f
+        float(case.materials[0].SigP[0]),    # nu_2·Sigma_2f
+        float(case.materials[0].chi[1]),           # chi_1 (slow)
+        float(case.materials[0].chi[0]),           # chi_2 (fast)
     ))
     k_branch2 = compute_kinf_2g_no_upscatter(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     assert k_branch1 == pytest.approx(k_branch2, abs=1e-12), (
         f"Branch-1 ({k_branch1}) vs Branch-2 ({k_branch2}) disagree at 1e-12"
@@ -321,12 +321,12 @@ def test_2g_general_equals_no_upscatter_when_sigma_21s_zero():
     """compute_kinf_2g_general (corrected Eq 28) agrees with
     compute_kinf_2g_no_upscatter (Eq 29) bit-equal when Σ_21s = 0."""
     case = PU_2_0_IN  # has sigma_s[1, 0] = 0
-    assert case.sigma_s[1, 0] == 0.0, "PU-2-0-IN should have no upscatter"
+    assert case.materials[0].SigS[0][1, 0] == 0.0, "PU-2-0-IN should have no upscatter"
     k_general = compute_kinf_2g_general(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     k_no_upscatter = compute_kinf_2g_no_upscatter(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     assert k_general == pytest.approx(k_no_upscatter, abs=1e-14)
 
@@ -341,12 +341,12 @@ def test_kinf_mg_reduces_to_kinf_1g_at_n_groups_1():
     """compute_kinf_mg with G=1 inputs reduces to compute_kinf_1g exactly."""
     case = PUA_1_0_IN
     k_mg = compute_kinf_mg(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     k_1g = compute_kinf_1g(
-        float(case.sigma_t[0]),
-        float(case.sigma_s[0, 0]),
-        float(case.nu_sigma_f[0]),
+        float(case.materials[0].SigT[0]),
+        float(case.materials[0].SigS[0][0, 0]),
+        float(case.materials[0].SigP[0]),
     )
     # G=1 reduction is pure scalar algebra — should be exactly bit-equal.
     assert k_mg == k_1g, (
@@ -370,10 +370,10 @@ def test_kinf_mg_agrees_with_existing_orpheus_kinf_homogeneous(case):
     or the other.
     """
     k_fn = compute_kinf_mg(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     k_orph = kinf_homogeneous(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     assert k_fn == pytest.approx(k_orph, abs=1e-12), (
         f"{case.case_id}: compute_kinf_mg ({k_fn}) vs "
@@ -394,12 +394,12 @@ def test_PU_2_0_IN_flux_spectrum_matches_kinf_and_spectrum_homogeneous():
     """
     case = PU_2_0_IN
     k_orph, phi_orph = kinf_and_spectrum_homogeneous(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     # phi_orph is L2-normalised non-negative; ratio is invariant under norm.
     fast_over_slow_eig = float(phi_orph[0] / phi_orph[1])
     fast_over_slow_eq32 = compute_flux_ratio_2g_no_upscatter(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
         return_in_orpheus_order=False,
     )
     assert fast_over_slow_eq32 == pytest.approx(fast_over_slow_eig, abs=1e-12)

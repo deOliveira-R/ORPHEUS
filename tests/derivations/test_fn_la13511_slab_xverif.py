@@ -73,9 +73,9 @@ def test_fn_slab_vs_variant_alpha_at_sood_ua_1_0_sl():
     the two floors.
     """
     case = UA_1_0_SL_STUB
-    sigma_t = float(case.sigma_t[0])
-    sigma_s = float(case.sigma_s[0, 0])
-    nu_sigma_f = float(case.nu_sigma_f[0])
+    sigma_t = float(case.materials[0].SigT[0])
+    sigma_s = float(case.materials[0].SigS[0][0, 0])
+    nu_sigma_f = float(case.materials[0].SigP[0])
 
     # F_N: returns a_c in mfp; convert to cm via /sigma_t.
     res_fn = solve_fn_slab_bare_critical(c=(sigma_s + nu_sigma_f) / sigma_t,
@@ -85,7 +85,7 @@ def test_fn_slab_vs_variant_alpha_at_sood_ua_1_0_sl():
     L_full_cm = 2.0 * a_fn_cm
 
     # F_N self-consistency: should match Sood truth.
-    truth_mfp = case.critical_dimension_mfp
+    truth_mfp = case.truth.critical_dimension_mfp
     err_fn = abs(a_fn_mfp - truth_mfp)
     assert err_fn < 5e-5, (
         f"F_N internal: a_c={a_fn_mfp:.10f} vs truth {truth_mfp}, "

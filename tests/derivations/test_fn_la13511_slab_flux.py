@@ -92,13 +92,13 @@ def test_l1_slab_flux_ratios_kll_table_III_at_c_1p30() -> None:
     case = LA13511_CASES["Ua-1-0-SL"]
     # Compute c = (Σ_s + νΣ_f) / Σ_t via the legacy property accessors
     # (which delegate to mixture_to_fn_arrays per sood_registry).
-    sigma_t = case.sigma_t[0]
-    sigma_s = case.sigma_s[0, 0]
-    nu_sigma_f = case.nu_sigma_f[0]
+    sigma_t = case.materials[0].SigT[0]
+    sigma_s = case.materials[0].SigS[0][0, 0]
+    nu_sigma_f = case.materials[0].SigP[0]
     c = float((sigma_s + nu_sigma_f) / sigma_t)
     assert abs(c - 1.30) < 1e-10, f"Expected c=1.30, got c={c}"
 
-    b_kll = case.critical_dimension_mfp
+    b_kll = case.truth.critical_dimension_mfp
     res = solve_kll_slab_continuum_coefficient(b_kll, c, n_nodes=64)
     assert res.converged, "KLL Fredholm iteration did not converge"
 

@@ -70,13 +70,13 @@ def test_l1_sphere_flux_ratios_kll_table_VII_at_c_1p30() -> None:
     +-------+--------------+
     """
     case = LA13511_CASES["Ua-1-0-SP"]
-    sigma_t = case.sigma_t[0]
-    sigma_s = case.sigma_s[0, 0]
-    nu_sigma_f = case.nu_sigma_f[0]
+    sigma_t = case.materials[0].SigT[0]
+    sigma_s = case.materials[0].SigS[0][0, 0]
+    nu_sigma_f = case.materials[0].SigP[0]
     c = float((sigma_s + nu_sigma_f) / sigma_t)
     assert abs(c - 1.30) < 1e-10, f"Expected c=1.30, got c={c}"
 
-    R_kll = case.critical_dimension_mfp
+    R_kll = case.truth.critical_dimension_mfp
     res = solve_kll_sphere_continuum_coefficient(R_kll, c, n_nodes=64)
     assert res.converged, "KLL Fredholm iteration did not converge"
 

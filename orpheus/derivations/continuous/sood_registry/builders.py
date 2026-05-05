@@ -35,11 +35,22 @@ def build_materials(case: "La13511Case") -> dict[int, Mixture]:
 def build_mesh(case: "La13511Case", n_cells: int = 64) -> Mesh1D:
     """Build a :class:`Mesh1D` for ``case`` at ``n_cells`` refinement.
 
-    For ``case.geometry == "infinite"`` raises :class:`ValueError` —
-    infinite-medium cases have no spatial mesh and should be consumed
-    via :func:`build_materials` alone.
+    Constructs the :class:`StructuredGeometry` via
+    :meth:`La13511Case.to_geometry` (raises for ``case.geometry_kind ==
+    "infinite"`` — infinite-medium cases have no spatial mesh and
+    should be consumed via :func:`build_materials` alone) and pairs
+    each region with a :class:`RegionMesh(n_cells, "equal-volume")`.
+    For first-slice (single-region) cases this puts all ``n_cells``
+    in the one region; for future multi-region cases callers should
+    bypass this helper and construct the mesh directly.
     """
-    return case.geometry_spec.build(n_cells=n_cells)
+    from orpheus.geometry.mesh import RegionMesh
+
+    geom = case.to_geometry()
+    region_meshes = tuple(
+        RegionMesh(n_cells=n_cells) for _ in geom.regions
+    )
+    return Mesh1D.from_geometry(geom, region_meshes=region_meshes)
 
 
 def build_cp_params(case: "La13511Case", **kwargs):  # type: ignore[no-untyped-def]

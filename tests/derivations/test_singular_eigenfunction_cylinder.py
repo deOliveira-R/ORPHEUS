@@ -311,10 +311,10 @@ def test_solver_matches_sood_ua_1_0_cy_to_1e5():
     Both close the Sood reference to ≤ 1e-5 — a strong V&V duo.
     """
     case = LA13511_CASES["Ua-1-0-CY"]
-    truth_mfp = case.critical_dimension_mfp
+    truth_mfp = case.truth.critical_dimension_mfp
 
     res = solve_singular_eigenfunction_cylinder_bare_critical(
-        c=1.30, n_grid=24, sigma_t=case.sigma_t[0],
+        c=1.30, n_grid=24, sigma_t=case.materials[0].SigT[0],
     )
     err_rel = abs(res.r_c_mfp - truth_mfp) / truth_mfp
     assert err_rel < 1.0e-5, (
@@ -323,7 +323,7 @@ def test_solver_matches_sood_ua_1_0_cy_to_1e5():
     )
     # Also check: r_c_cm derived correctly.
     assert res.r_c_cm is not None
-    expected_r_c_cm = res.r_c_mfp / case.sigma_t[0]
+    expected_r_c_cm = res.r_c_mfp / case.materials[0].SigT[0]
     np.testing.assert_allclose(res.r_c_cm, expected_r_c_cm, rtol=1e-12)
     # Eq. 32 residual at convergence should be small:
     assert res.criticality_residual < 1e-8, (

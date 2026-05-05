@@ -44,7 +44,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, Mapping, Protocol, runtime_checkable
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.geometry_spec import GeometrySpec
+from orpheus.geometry.structured_geometry import StructuredGeometry
 
 ClaimLayer = Literal["eigenvalue", "flux-shape", "convergence-order"]
 """The claim layer per :doc:`/skills/vv-principles` §"Hierarchical
@@ -172,10 +172,11 @@ class CrossMethodCase:
     A case provides its physical parameters either via a
     ``registry_case`` (the registry-backed path — typically a
     :class:`~orpheus.derivations.continuous.sood_registry.la13511.La13511Case`)
-    or via inline ``materials`` + ``geometry_spec`` fields (for cases
-    NOT in the registry — closed-sphere k_inf, MMS, custom
-    configurations). Exactly ONE of these two paths must be populated;
-    :meth:`__post_init__` enforces the invariant.
+    or via inline ``materials`` + ``structured_geometry`` fields (for
+    cases NOT in the registry — closed-sphere k_inf, MMS, custom
+    configurations, multi-region reflected-slab). Exactly ONE of these
+    two paths must be populated; :meth:`__post_init__` enforces the
+    invariant.
 
     Attributes
     ----------
@@ -189,21 +190,21 @@ class CrossMethodCase:
         Reference into the upstream case registry (e.g. a
         :class:`~orpheus.derivations.continuous.sood_registry.la13511.La13511Case`).
         ``None`` for cases that don't yet have a registry entry —
-        those carry inline ``materials`` / ``geometry_spec`` instead.
+        those carry inline ``materials`` / ``structured_geometry``
+        instead.
     materials : dict[int, Mixture] | None
         Optional inline cross sections for cases without a registry
         entry, keyed by integer material ID (matches the production-
         solver convention). MUST be paired with a non-None
-        :attr:`geometry_spec`. Defaults to ``None`` for registry-
+        :attr:`structured_geometry`. Defaults to ``None`` for registry-
         backed cases.
-    geometry_spec : GeometrySpec | None
-        Optional inline geometry specification for cases without a registry
+    structured_geometry : StructuredGeometry | None
+        Optional inline geometry for cases without a registry
         entry. MUST be paired with non-None :attr:`materials`.
         Defaults to ``None`` for registry-backed cases. The
-        :class:`~orpheus.derivations.common.geometry_spec.GeometrySpec`
-        carries ``(geometry_kind, critical_dimension_{mfp,cm},
-        n_groups, mat_id, bc_left, bc_right)`` — enough for adapters
-        to dispatch all three families uniformly.
+        :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+        carries ``(geometry, regions, bcs)`` — enough for adapters to
+        dispatch all three families uniformly.
     geometry : str
         Geometry tag matching the adapter's geometry field
         (``"slab"``, ``"sphere-1d"``, ``"reflected-slab"``, ...).
@@ -252,7 +253,7 @@ class CrossMethodCase:
     tolerances: Mapping[str, float]
     notes: str = ""
     materials: dict[int, Mixture] | None = None
-    geometry_spec: GeometrySpec | None = None
+    structured_geometry: StructuredGeometry | None = None
 
     def __post_init__(self) -> None:
         """Validate the provisioning paths for materials + geometry.
@@ -261,38 +262,40 @@ class CrossMethodCase:
         depending on its kind:
 
         1. **Registry-backed**: ``registry_case`` is set, both
-           ``materials`` and ``geometry_spec`` are ``None``. The
-           adapter reads XS + geometry off
+           ``materials`` and ``structured_geometry`` are ``None``.
+           The adapter reads XS + geometry off
            ``case.registry_case.materials`` /
-           ``case.registry_case.geometry_spec``.
-        2. **Inline**: ``materials`` and ``geometry_spec`` are both
-           set, ``registry_case`` is ``None``. The adapter reads
-           XS + geometry directly off the case. Multi-region
-           cases (NM 1980 reflected slab, layered reactors) live
-           here via :attr:`GeometrySpec.regions`.
+           ``case.registry_case.to_geometry()``.
+        2. **Inline**: ``materials`` and ``structured_geometry`` are
+           both set, ``registry_case`` is ``None``. The adapter reads
+           XS + geometry directly off the case. Multi-region cases
+           (NM 1980 reflected slab, layered reactors) live here via
+           :attr:`StructuredGeometry.regions`.
         3. **Override** (registry XS + inline geometry): ``registry_case``
-           is set AND ``geometry_spec`` is set (with ``materials=None``).
-           Used by cross-method agreement tests to substitute a
-           predicted critical dimension without re-deriving XS. The
-           adapter prefers ``case.geometry_spec`` over
-           ``case.registry_case.geometry_spec`` when both are present.
+           is set AND ``structured_geometry`` is set (with
+           ``materials=None``). Used by cross-method agreement tests
+           to substitute a predicted critical dimension without
+           re-deriving XS. The adapter prefers
+           ``case.structured_geometry`` over the registry-derived
+           geometry when both are present.
 
         Validation rules:
 
-        * Inline ``materials`` MUST be paired with ``geometry_spec``
-          (you can't supply XS without geometry).
+        * Inline ``materials`` MUST be paired with
+          ``structured_geometry`` (you can't supply XS without
+          geometry).
         * Inline ``materials`` MUST NOT be combined with a
           ``registry_case`` (XS comes from one source per case).
         """
         has_registry = self.registry_case is not None
         has_inline_materials = self.materials is not None
-        has_inline_spec = self.geometry_spec is not None
+        has_inline_geom = self.structured_geometry is not None
 
-        if has_inline_materials and not has_inline_spec:
+        if has_inline_materials and not has_inline_geom:
             raise ValueError(
                 f"CrossMethodCase {self.case_id!r}: 'materials' set but "
-                f"'geometry_spec' is None — inline materials require "
-                f"an inline geometry_spec."
+                f"'structured_geometry' is None — inline materials "
+                f"require an inline structured_geometry."
             )
         if has_inline_materials and has_registry:
             raise ValueError(

@@ -43,7 +43,6 @@ from orpheus.derivations.continuous.sood_registry import (
     UA_1_0_SL_STUB,
     UA_1_0_SP_STUB,
     La13511Case,
-    GeometrySpec,
     build_materials,
     build_mesh,
 )
@@ -91,16 +90,10 @@ def test_case_materials_is_dict_of_mixture(case_id: str) -> None:
 
 @pytest.mark.foundation
 @pytest.mark.parametrize("case_id", list(LA13511_CASES.keys()))
-def test_case_geometry_spec_well_formed(case_id: str) -> None:
-    """Every registered case has a well-formed GeometrySpec."""
+def test_case_geometry_kind_well_formed(case_id: str) -> None:
+    """Every registered case carries a valid geometry_kind tag."""
     case = LA13511_CASES[case_id]
-    assert isinstance(case.geometry_spec, GeometrySpec)
-    # n_groups consistent between geometry_spec and the mixture.
-    primary = next(iter(case.materials.values()))
-    assert primary.ng == case.geometry_spec.n_groups, (
-        f"{case_id}: n_groups mismatch (mesh={case.geometry_spec.n_groups}, "
-        f"mixture={primary.ng})"
-    )
+    assert case.geometry_kind in {"slab", "sphere", "cylinder", "infinite"}
 
 
 @pytest.mark.foundation
@@ -116,7 +109,7 @@ def test_case_geometry_spec_well_formed(case_id: str) -> None:
 )
 def test_case_geometry_matches_expected(case_id: str, expected_geom: str) -> None:
     """Geometry kind matches the case-id suffix."""
-    assert LA13511_CASES[case_id].geometry_spec.geometry == expected_geom
+    assert LA13511_CASES[case_id].geometry_kind == expected_geom
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -163,43 +156,34 @@ def test_PU_2_0_IN_extractor_matches_published_xs() -> None:
     np.testing.assert_allclose(chi, [0.575, 0.425], atol=0)
 
 
-@pytest.mark.foundation
-def test_legacy_property_accessors_match_extractor() -> None:
-    """Legacy case.sigma_t / sigma_s / nu_sigma_f / chi properties match
-    :func:`mixture_to_fn_arrays` exactly.
-
-    This is the load-bearing back-compat check: every fn_method test
-    that does ``case.sigma_t`` must see the same array the extractor
-    produces. If this drifts, the F_N test suite breaks silently.
-    """
-    for case in LA13511_CASES.values():
-        sigma_t, sigma_s, nu_sigma_f, chi = _xs_from_mixture(
-            case.materials[0]
-        )
-        np.testing.assert_array_equal(case.sigma_t, sigma_t)
-        np.testing.assert_array_equal(case.sigma_s, sigma_s)
-        np.testing.assert_array_equal(case.nu_sigma_f, nu_sigma_f)
-        np.testing.assert_array_equal(case.chi, chi)
-
-
 # ═══════════════════════════════════════════════════════════════════
 # Foundation: mesh template build conventions
 # ═══════════════════════════════════════════════════════════════════
+
+
+def _critical_dimension_cm(case: La13511Case) -> float:
+    """Derive the critical dimension in cm from the case.
+
+    ``cm = mfp / Σ_t``, with mfp from :attr:`La13511Truth.critical_dimension_mfp`
+    and Σ_t from the primary mixture's group-0 SigT.
+    """
+    return float(case.truth.critical_dimension_mfp) / float(case.materials[0].SigT[0])
 
 
 @pytest.mark.foundation
 def test_slab_mesh_builds_full_symmetric_domain() -> None:
     r"""Slab mesh covers the FULL symmetric slab :math:`[0, 2a]`.
 
-    F_N convention: ``critical_dimension_cm`` is the half-thickness
-    :math:`a`. The constructed mesh covers ``[0, 2a]`` with vacuum BCs
-    at both ends — matching the F_N vs Variant α slab xverif test
-    convention.
+    F_N convention: ``truth.critical_dimension_mfp`` corresponds to the
+    half-thickness :math:`a`; in cm this is
+    :math:`a_{\rm cm} = a_{\rm mfp} / \Sigma_t`. The constructed mesh
+    covers ``[0, 2a_{cm}]`` with vacuum BCs at both ends — matching
+    the F_N vs Variant α slab xverif test convention.
     """
     case = UA_1_0_SL_STUB
     mesh = build_mesh(case, n_cells=16)
     assert mesh.coord == CoordSystem.CARTESIAN
-    expected_total = 2.0 * case.critical_dimension_cm
+    expected_total = 2.0 * _critical_dimension_cm(case)
     assert mesh.total_width == pytest.approx(expected_total, abs=1e-12)
     assert mesh.bc_left == BC.vacuum
     assert mesh.bc_right == BC.vacuum
@@ -208,28 +192,34 @@ def test_slab_mesh_builds_full_symmetric_domain() -> None:
 
 @pytest.mark.foundation
 def test_sphere_mesh_builds_radial_domain_with_reflective_centre() -> None:
-    """Sphere mesh covers ``[0, R]`` with reflective at r=0, vacuum at R."""
+    """Sphere mesh covers ``[0, R]``; centreline reflective is implicit.
+
+    :meth:`Mesh1D.from_geometry` for SPH sets ``bc_left=None`` (the
+    centreline at the coordinate origin is implicit reflective and is
+    interpreted by each solver's augmented mesh, e.g. ``SNMesh``
+    defaults ``None`` → ``BC.reflective``).
+    """
     case = UA_1_0_SP_STUB
     mesh = build_mesh(case, n_cells=24)
     assert mesh.coord == CoordSystem.SPHERICAL
-    assert mesh.total_width == pytest.approx(case.critical_dimension_cm, abs=1e-12)
-    assert mesh.bc_left == BC.reflective
+    assert mesh.total_width == pytest.approx(_critical_dimension_cm(case), abs=1e-12)
+    assert mesh.bc_left is None  # centreline implicit reflective
     assert mesh.bc_right == BC.vacuum
 
 
 @pytest.mark.foundation
 def test_cylinder_mesh_builds_radial_domain_with_reflective_axis() -> None:
-    """Cylinder mesh covers ``[0, R]`` with reflective at r=0, vacuum at R."""
+    """Cylinder mesh covers ``[0, R]``; axis reflective is implicit."""
     case = LA13511_CASES["Ua-1-0-CY"]
     mesh = build_mesh(case, n_cells=20)
     assert mesh.coord == CoordSystem.CYLINDRICAL
-    assert mesh.total_width == pytest.approx(case.critical_dimension_cm, abs=1e-12)
-    assert mesh.bc_left == BC.reflective
+    assert mesh.total_width == pytest.approx(_critical_dimension_cm(case), abs=1e-12)
+    assert mesh.bc_left is None  # axis implicit reflective
     assert mesh.bc_right == BC.vacuum
 
 
 @pytest.mark.foundation
-def test_infinite_geometry_spec_raises_on_build() -> None:
+def test_infinite_geometry_kind_raises_on_build() -> None:
     """build_mesh on infinite-medium case raises ValueError."""
     for case in (PUA_1_0_IN, PU_2_0_IN):
         with pytest.raises(ValueError, match="infinite"):

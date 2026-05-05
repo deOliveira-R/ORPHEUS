@@ -9,17 +9,17 @@ Each case now carries:
   :func:`orpheus.sn.solver.solve_sn` consume. Built via
   :func:`orpheus.derivations.common.xs_library.make_mixture` from the
   raw Sood XS components (ν, Σ_f, Σ_c, Σ_s, χ).
-* **`geometry_spec: GeometrySpec`** — encodes geometry kind +
-  critical-dimension; ``geometry_spec.build(n_cells)`` produces a
-  :class:`orpheus.geometry.mesh.Mesh1D` at the desired refinement.
+* **`geometry_kind: str`** — one of ``"slab"``, ``"sphere"``,
+  ``"cylinder"`` (finite cases) or ``"infinite"`` (k_inf cases).
+  :meth:`La13511Case.to_geometry` materialises a
+  :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+  on demand (raises for the infinite kind). Discrete consumers
+  build a mesh via :meth:`Mesh1D.from_geometry`; reference solvers
+  consume the geometry directly.
 * **`truth: La13511Truth`** — all published reference values bundled
-  in one struct. Different cases populate different subsets.
-
-The legacy attributes (``case.sigma_t``, ``case.sigma_s`` etc.) are
-retained as **read-only properties** that read directly off
-``self._primary_mixture.SigT`` / ``SigS`` / ``SigP`` / ``chi``. They
-are slated for removal in Phase F; new consumers should use
-``case.materials[mat_id]`` directly.
+  in one struct. Different cases populate different subsets,
+  including the published ``critical_dimension_mfp`` (the registry-
+  truth artifact lifted off the legacy ``GeometrySpec`` in Phase B).
 
 ORPHEUS convention vs Sood convention
 -------------------------------------
@@ -55,7 +55,6 @@ from typing import TYPE_CHECKING, Mapping
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.geometry_spec import GeometrySpec
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry.mesh import BC
 
@@ -64,15 +63,15 @@ if TYPE_CHECKING:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Geometry spec + truth dataclasses
+# Truth dataclass
 # ═══════════════════════════════════════════════════════════════════
 #
-# :class:`GeometrySpec` was promoted to
-# :mod:`orpheus.derivations.common.geometry_spec` on 2026-05-03 (R0.5)
-# per the geometry-handling unification audit and renamed from
-# ``MeshTemplate`` (originally named for its discrete-mesh-builder role)
-# to ``GeometrySpec`` (descriptive of what it IS, not what it produces)
-# on 2026-05-03. Imported directly from the canonical location below.
+# Phase F (2026-05-04) retired the legacy ``GeometrySpec`` carrier.
+# Cases now hold the geometry kind (``"slab"`` / ``"sphere"`` /
+# ``"cylinder"`` / ``"infinite"``) directly as a string field; the
+# critical-dimension-in-mfp lives on :class:`La13511Truth`; the
+# coordinate system, BC defaults, and material-id default are folded
+# into :meth:`La13511Case.to_geometry`.
 
 
 @dataclass(frozen=True)
@@ -175,9 +174,10 @@ class La13511Case:
 
     Production-protocol form: cross sections live in a
     :class:`Mixture` (the same object production solvers consume),
-    geometry lives in a :class:`GeometrySpec` (which builds a
-    :class:`Mesh1D` on demand), reference values live in a
-    :class:`La13511Truth`.
+    geometry kind is a single string tag (``"slab"`` / ``"sphere"`` /
+    ``"cylinder"`` / ``"infinite"``), and reference values live in a
+    :class:`La13511Truth` (including the published critical dimension
+    in mean free paths).
 
     Parameters
     ----------
@@ -192,15 +192,18 @@ class La13511Case:
         Macroscopic cross sections keyed by material ID. Single-region
         cases use ``{0: Mixture(...)}``; multi-region cases (none in
         the first slice) add more keys.
-    geometry_spec : GeometrySpec
-        Geometry specification + critical dimension. Use
-        :meth:`GeometrySpec.build` to obtain a concrete mesh.
+    geometry_kind : str
+        One of ``"slab"``, ``"sphere"``, ``"cylinder"``, ``"infinite"``.
+        Use :meth:`to_geometry` to materialise a
+        :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+        for finite kinds (raises for ``"infinite"``).
     scattering_order : int
         Legendre order of the scattering kernel (0 = isotropic,
         1 = P_1, 2 = P_2). All first-slice cases are isotropic
         (``= 0``).
     truth : La13511Truth
-        All published reference values for this case.
+        All published reference values for this case (including
+        :attr:`La13511Truth.critical_dimension_mfp` for finite cases).
     sood_table : int
         LA-13511 table number where this case is tabulated.
     primary_reference : str
@@ -210,29 +213,14 @@ class La13511Case:
         Any extra remarks (typo flags, conversion subtleties, etc).
     provenance : Provenance | None
         Structured citation metadata mirroring ``sood_table`` /
-        ``primary_reference`` / ``notes``. Optional today (Phase B
-        adds the field; Phase C/D migrate consumers; Phase F removes
-        the flat fields). When None, no structured provenance has
-        been populated yet.
-
-    Notes
-    -----
-    The legacy F_N consumer interface (``case.sigma_t``,
-    ``case.sigma_s``, ``case.nu_sigma_f``, ``case.chi``,
-    ``case.geometry``, ``case.n_groups``,
-    ``case.critical_dimension_mfp``, ``case.critical_dimension_cm``,
-    ``case.k_eff_or_kinf``, ``case.flux_ratios``,
-    ``case.flux_ratio_groupwise``) is exposed as **read-only
-    properties** that delegate to ``materials[0]`` /
-    ``geometry_spec`` / ``truth``. This keeps the F_N test suite
-    working unchanged.
+        ``primary_reference`` / ``notes``.
     """
 
     case_id: str
     problem_number: int
     description: str
     materials: dict[int, Mixture]
-    geometry_spec: GeometrySpec
+    geometry_kind: str
     scattering_order: int
     truth: La13511Truth
     sood_table: int
@@ -240,89 +228,13 @@ class La13511Case:
     notes: str = ""
     provenance: Provenance | None = None
 
-    # ── Legacy compatibility properties ────────────────────────────
-
-    @property
-    def n_groups(self) -> int:
-        """Number of energy groups."""
-        return self.geometry_spec.n_groups
-
-    @property
-    def geometry(self) -> str:
-        """Geometry kind (``"infinite"``, ``"slab"``, ...)."""
-        return self.geometry_spec.geometry
-
-    @property
-    def critical_dimension_mfp(self) -> float | None:
-        """Critical dimension in mean free paths (or None for infinite)."""
-        return self.geometry_spec.critical_dimension_mfp
-
-    @property
-    def critical_dimension_cm(self) -> float | None:
-        """Critical dimension in cm (or None for infinite)."""
-        return self.geometry_spec.critical_dimension_cm
-
-    @property
-    def k_eff_or_kinf(self) -> float:
-        """Reference :math:`k_{\\rm eff}` (finite) or :math:`k_\\infty` (infinite)."""
-        return self.truth.k_eff_or_kinf
-
-    @property
-    def flux_ratios(self) -> Mapping[float, float] | None:
-        """Published flux ratio table, or None."""
-        return self.truth.flux_ratios
-
-    @property
-    def flux_ratio_groupwise(self) -> Mapping[int, float] | None:
-        """Published 2G groupwise flux ratio, or None."""
-        return self.truth.flux_ratio_groupwise
-
-    @property
-    def sigma_t(self) -> np.ndarray:
-        """Total XS in ORPHEUS convention, shape ``(n_groups,)``.
-
-        Convenience accessor for legacy F_N consumers; reads
-        ``self._primary_mixture.SigT`` directly. Slated for removal
-        in Phase F.
-        """
-        return np.asarray(self._primary_mixture.SigT, dtype=float)
-
-    @property
-    def sigma_s(self) -> np.ndarray:
-        """P_0 scattering matrix in ``[from, to]`` convention,
-        shape ``(n_groups, n_groups)``.
-
-        Reads ``self._primary_mixture.SigS[0]`` directly. Slated for
-        removal in Phase F.
-        """
-        return self._primary_mixture.SigS[0].toarray().astype(float)
-
-    @property
-    def nu_sigma_f(self) -> np.ndarray:
-        r"""Production XS :math:`\nu \Sigma_f`, shape ``(n_groups,)``.
-
-        Slated for removal in Phase F.
-        """
-        return np.asarray(self._primary_mixture.SigP, dtype=float)
-
-    @property
-    def chi(self) -> np.ndarray:
-        """Fission spectrum, shape ``(n_groups,)``.
-
-        Slated for removal in Phase F.
-        """
-        return np.asarray(self._primary_mixture.chi, dtype=float)
-
-    @property
-    def _primary_mixture(self) -> Mixture:
-        """The single mixture for first-slice (homogeneous) cases."""
-        if len(self.materials) != 1:
+    def __post_init__(self) -> None:
+        if self.geometry_kind not in {"slab", "sphere", "cylinder", "infinite"}:
             raise ValueError(
-                f"Legacy property accessor expects single-region case; "
-                f"case {self.case_id} has {len(self.materials)} materials. "
-                f"Use case.materials[mat_id] explicitly."
+                f"La13511Case.geometry_kind must be one of "
+                f"{{'slab', 'sphere', 'cylinder', 'infinite'}}; "
+                f"got {self.geometry_kind!r}"
             )
-        return next(iter(self.materials.values()))
 
     # ── New-API geometry adapter ───────────────────────────────────
 
@@ -390,7 +302,7 @@ class La13511Case:
             StructuredGeometry,
         )
 
-        kind = self.geometry_spec.geometry
+        kind = self.geometry_kind
 
         if kind == "infinite":
             raise ValueError(
@@ -415,7 +327,8 @@ class La13511Case:
         # the mfp scale). For multi-group cases the choice of group is
         # by convention; LA-13511 publishes mfp values in units of the
         # group-0 Σ_t throughout the catalogue.
-        sigma_t = float(self._primary_mixture.SigT[0])
+        primary_mixture = next(iter(self.materials.values()))
+        sigma_t = float(primary_mixture.SigT[0])
         cm = float(cd_mfp) / sigma_t
 
         # Map lowercase legacy tag → uppercase StructuredGeometry tag.
@@ -428,7 +341,9 @@ class La13511Case:
             )
         new_tag = _TAG_MAP[kind]
 
-        mat_id = self.geometry_spec.mat_id
+        # All first-slice cases are single-region with the primary
+        # mixture at mat_id=0 (the convention this registry uses).
+        mat_id = 0
 
         if new_tag == "SLB":
             # Full slab width (2 × half-thickness), vacuum-vacuum BCs.
@@ -504,12 +419,7 @@ PUA_1_0_IN = La13511Case(
         nu=3.24,
         sigma_s_self=0.225216,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=1,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=2.612903,
@@ -573,12 +483,7 @@ PU_2_0_IN = La13511Case(
             [0.0,     0.23616],  # from g=1 (slow):  → fast upscatter (none), → slow self
         ]),
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=2,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=2.683767,
@@ -630,14 +535,7 @@ UA_1_0_SL_STUB = La13511Case(
     problem_number=12,
     description="U-235 (a) bare slab, 1G isotropic",
     materials={0: _mix_1g_isotropic(**_UA_1G_KW)},
-    geometry_spec=GeometrySpec(
-        geometry="slab",
-        critical_dimension_mfp=0.93772556,
-        critical_dimension_cm=2.872934,
-        n_groups=1,
-        bc_left=BC.vacuum,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.0,
@@ -673,14 +571,7 @@ UA_1_0_CY_STUB = La13511Case(
     problem_number=13,
     description="U-235 (a) bare infinite cylinder, 1G isotropic",
     materials={0: _mix_1g_isotropic(**_UA_1G_KW)},
-    geometry_spec=GeometrySpec(
-        geometry="cylinder",
-        critical_dimension_mfp=1.72500292,
-        critical_dimension_cm=5.284935,
-        n_groups=1,
-        bc_left=BC.reflective,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="cylinder",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.0,
@@ -714,14 +605,7 @@ UA_1_0_SP_STUB = La13511Case(
     problem_number=14,
     description="U-235 (a) bare sphere, 1G isotropic",
     materials={0: _mix_1g_isotropic(**_UA_1G_KW)},
-    geometry_spec=GeometrySpec(
-        geometry="sphere",
-        critical_dimension_mfp=2.4248249802,
-        critical_dimension_cm=7.428998,
-        n_groups=1,
-        bc_left=BC.reflective,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="sphere",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.0,
@@ -847,12 +731,7 @@ PUB_1_0_IN = La13511Case(
         nu=2.84,
         sigma_s_self=0.225216,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=1,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=2.290323),
     sood_table=5,
@@ -873,12 +752,7 @@ UA_1_0_IN = La13511Case(
     problem_number=11,
     description="U-235 (a) bare infinite medium, 1G isotropic, c=1.30",
     materials={0: _mix_1g_isotropic(**_UA_1G_KW)},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=1,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=2.25),
     sood_table=12,
@@ -905,12 +779,7 @@ UB_1_0_IN = La13511Case(
         nu=2.797101,
         sigma_s_self=0.248064,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=1,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=2.330917),
     sood_table=12,
@@ -937,12 +806,7 @@ UC_1_0_IN = La13511Case(
         nu=2.707308,
         sigma_s_self=0.248064,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=1,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=2.256083),
     sood_table=12,
@@ -969,12 +833,7 @@ UD_1_0_IN = La13511Case(
         nu=2.679198,
         sigma_s_self=0.248064,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=1,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=2.232667),
     sood_table=12,
@@ -1001,12 +860,7 @@ UD2O_1_0_IN = La13511Case(
         nu=1.70,
         sigma_s_self=0.464338,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=1,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.133333),
     sood_table=16,
@@ -1033,12 +887,7 @@ UE_1_0_IN = La13511Case(
         nu=2.50,
         sigma_s_self=0.328042,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=1,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=2.1806667),
     sood_table=20,
@@ -1068,12 +917,7 @@ PU_1_1_IN = La13511Case(
         nu=2.5,
         sigma_s_self=0.733333,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=1,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,  # k_inf does not depend on anisotropy; isotropic XS suffice
     truth=La13511Truth(k_eff_or_kinf=2.5),
     sood_table=24,
@@ -1106,12 +950,7 @@ UD2OA_1_1_IN = La13511Case(
         nu=1.808381,
         sigma_s_self=0.464338,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=1,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.205587),
     sood_table=28,
@@ -1136,12 +975,7 @@ UD2OB_1_1_IN = La13511Case(
         nu=1.841086,
         sigma_s_self=0.464338,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=1,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.227391),
     sood_table=28,
@@ -1166,12 +1000,7 @@ UD2OC_1_1_IN = La13511Case(
         nu=1.6964,
         sigma_s_self=0.464338,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=1,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.130933),
     sood_table=28,
@@ -1210,12 +1039,7 @@ U_2_0_IN = La13511Case(
         sigma_22s=0.078240, sigma_11s=0.26304,
         sigma_12s=0.0720, sigma_21s=0.0,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=2,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=2.216349,
@@ -1248,12 +1072,7 @@ UAL_2_0_IN = La13511Case(
         sigma_22s=0.247516, sigma_11s=1.21313,
         sigma_12s=0.020432, sigma_21s=0.0,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=2,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=2.661745,
@@ -1289,12 +1108,7 @@ URRA_2_0_IN = La13511Case(
         sigma_22s=0.62568, sigma_11s=2.44383,
         sigma_12s=0.029227, sigma_21s=0.0,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=2,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.631452,
@@ -1326,12 +1140,7 @@ URRB_2_0_IN = La13511Case(
         sigma_22s=0.83892, sigma_11s=2.9183,
         sigma_12s=0.04635, sigma_21s=0.000767,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=2,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.365821,
@@ -1367,12 +1176,7 @@ URRC_2_0_IN = La13511Case(
         sigma_22s=0.83807, sigma_11s=2.8751,
         sigma_12s=0.04536, sigma_21s=0.00116,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=2,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.633380,
@@ -1404,12 +1208,7 @@ URRD_2_0_IN = La13511Case(
         sigma_22s=0.0, sigma_11s=2.06880,
         sigma_12s=0.0342008, sigma_21s=0.0,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=2,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.034970,
@@ -1445,12 +1244,7 @@ UD2O_2_0_IN = La13511Case(
         sigma_22s=0.31980, sigma_11s=0.42410,
         sigma_12s=0.004555, sigma_21s=0.0,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=2,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.000196,
@@ -1498,12 +1292,7 @@ URR_3_0_IN = La13511Case(
             [0.0,   0.0,   2.0  ],   # from slow: no upscatter, self
         ]),
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=3,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.60,
@@ -1558,12 +1347,7 @@ URR_6_0_IN = La13511Case(
             [0.0,   0.0,   0.0,   0.033, 0.171, 0.024],   # from Sood 1 (up to Sood 3,2, self)
         ]),
     )},
-    geometry_spec=GeometrySpec(
-        geometry="infinite",
-        critical_dimension_mfp=None,
-        critical_dimension_cm=None,
-        n_groups=6,
-    ),
+    geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.60,
@@ -1610,14 +1394,7 @@ PUA_1_0_SL = La13511Case(
         nu=3.24,
         sigma_s_self=0.225216,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="slab",
-        critical_dimension_mfp=0.605055,
-        critical_dimension_cm=1.853722,
-        n_groups=1,
-        bc_left=BC.vacuum,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.605055),
     sood_table=6,
@@ -1648,14 +1425,7 @@ PUB_1_0_SL = La13511Case(
         nu=2.84,
         sigma_s_self=0.225216,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="slab",
-        critical_dimension_mfp=0.73660355,
-        critical_dimension_cm=2.256751,
-        n_groups=1,
-        bc_left=BC.vacuum,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.0,
@@ -1691,14 +1461,7 @@ UD2O_1_0_SL = La13511Case(
         nu=1.70,
         sigma_s_self=0.464338,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="slab",
-        critical_dimension_mfp=5.6655054562,
-        critical_dimension_cm=10.371065,
-        n_groups=1,
-        bc_left=BC.vacuum,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.0,
@@ -1743,14 +1506,7 @@ PUB_1_0_SP = La13511Case(
         nu=2.84,
         sigma_s_self=0.225216,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="sphere",
-        critical_dimension_mfp=1.9853434324,
-        critical_dimension_cm=6.082547,
-        n_groups=1,
-        bc_left=BC.reflective,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="sphere",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.0,
@@ -1786,14 +1542,7 @@ UD2O_1_0_SP = La13511Case(
         nu=1.70,
         sigma_s_self=0.464338,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="sphere",
-        critical_dimension_mfp=12.0275320980,
-        critical_dimension_cm=22.017156,
-        n_groups=1,
-        bc_left=BC.reflective,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="sphere",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.0,
@@ -1839,14 +1588,7 @@ PUB_1_0_CY_STUB = La13511Case(
         nu=2.84,
         sigma_s_self=0.225216,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="cylinder",
-        critical_dimension_mfp=1.396979,
-        critical_dimension_cm=4.279960,
-        n_groups=1,
-        bc_left=BC.reflective,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="cylinder",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.0,
@@ -1884,14 +1626,7 @@ UD2O_1_0_CY_STUB = La13511Case(
         nu=1.70,
         sigma_s_self=0.464338,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="cylinder",
-        critical_dimension_mfp=9.043255,
-        critical_dimension_cm=16.554249,
-        n_groups=1,
-        bc_left=BC.reflective,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="cylinder",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=9.043255),
     sood_table=17,
@@ -1941,14 +1676,7 @@ PU_2_0_SL_STUB = La13511Case(
     problem_number=45,
     description="Pu-239 bare slab, 2G isotropic, no upscatter — STUB",
     materials={0: _mix_pu_2g_for_finite_geometry()},
-    geometry_spec=GeometrySpec(
-        geometry="slab",
-        critical_dimension_mfp=0.396469,
-        critical_dimension_cm=1.795602,
-        n_groups=2,
-        bc_left=BC.vacuum,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.396469),
     sood_table=32,
@@ -1968,14 +1696,7 @@ PU_2_0_SP_STUB = La13511Case(
     problem_number=46,
     description="Pu-239 bare sphere, 2G isotropic, no upscatter — STUB",
     materials={0: _mix_pu_2g_for_finite_geometry()},
-    geometry_spec=GeometrySpec(
-        geometry="sphere",
-        critical_dimension_mfp=1.15513,
-        critical_dimension_cm=5.231567,
-        n_groups=2,
-        bc_left=BC.reflective,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="sphere",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=1.15513),
     sood_table=32,
@@ -2014,14 +1735,7 @@ U_2_0_SL_STUB = La13511Case(
     problem_number=48,
     description="U-235 bare slab, 2G isotropic, no upscatter — STUB",
     materials={0: _mix_u_2g_for_finite_geometry()},
-    geometry_spec=GeometrySpec(
-        geometry="slab",
-        critical_dimension_mfp=0.649377,
-        critical_dimension_cm=3.006375,
-        n_groups=2,
-        bc_left=BC.vacuum,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.649377),
     sood_table=35,
@@ -2041,14 +1755,7 @@ U_2_0_SP_STUB = La13511Case(
     problem_number=49,
     description="U-235 bare sphere, 2G isotropic, no upscatter — STUB",
     materials={0: _mix_u_2g_for_finite_geometry()},
-    geometry_spec=GeometrySpec(
-        geometry="sphere",
-        critical_dimension_mfp=1.70844,
-        critical_dimension_cm=7.909444,
-        n_groups=2,
-        bc_left=BC.reflective,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="sphere",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=1.70844),
     sood_table=35,
@@ -2081,14 +1788,7 @@ UAL_2_0_SL_STUB = La13511Case(
     problem_number=51,
     description="U-Al-Water bare slab, 2G isotropic — STUB",
     materials={0: _mix_ual_2g_for_finite_geometry()},
-    geometry_spec=GeometrySpec(
-        geometry="slab",
-        critical_dimension_mfp=2.09994,
-        critical_dimension_cm=7.830630,
-        n_groups=2,
-        bc_left=BC.vacuum,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=2.09994),
     sood_table=38,
@@ -2108,14 +1808,7 @@ UAL_2_0_SP_STUB = La13511Case(
     problem_number=52,
     description="U-Al-Water bare sphere, 2G isotropic — STUB",
     materials={0: _mix_ual_2g_for_finite_geometry()},
-    geometry_spec=GeometrySpec(
-        geometry="sphere",
-        critical_dimension_mfp=4.73786,
-        critical_dimension_cm=17.66738,
-        n_groups=2,
-        bc_left=BC.reflective,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="sphere",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=4.73786),
     sood_table=38,
@@ -2148,14 +1841,7 @@ URRA_2_0_SL_STUB = La13511Case(
     problem_number=54,
     description="URR (a) bare slab, 2G isotropic — STUB",
     materials={0: _mix_urra_2g_for_finite_geometry()},
-    geometry_spec=GeometrySpec(
-        geometry="slab",
-        critical_dimension_mfp=4.97112,
-        critical_dimension_cm=7.566853,
-        n_groups=2,
-        bc_left=BC.vacuum,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.0,
@@ -2191,14 +1877,7 @@ URRA_2_0_SP_STUB = La13511Case(
     problem_number=55,
     description="URR (a) bare sphere, 2G isotropic — STUB",
     materials={0: _mix_urra_2g_for_finite_geometry()},
-    geometry_spec=GeometrySpec(
-        geometry="sphere",
-        critical_dimension_mfp=10.5441,
-        critical_dimension_cm=16.049836,
-        n_groups=2,
-        bc_left=BC.reflective,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="sphere",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=10.5441),
     sood_table=41,
@@ -2231,14 +1910,7 @@ UD2O_2_0_SL_STUB = La13511Case(
     problem_number=68,
     description="U-D2O reactor bare slab, 2G isotropic — STUB",
     materials={0: _mix_ud2o_2g_for_finite_geometry()},
-    geometry_spec=GeometrySpec(
-        geometry="slab",
-        critical_dimension_mfp=284.367,
-        critical_dimension_cm=846.632726,
-        n_groups=2,
-        bc_left=BC.vacuum,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=284.367),
     sood_table=51,
@@ -2262,14 +1934,7 @@ UD2O_2_0_SP_STUB = La13511Case(
     problem_number=69,
     description="U-D2O reactor bare sphere, 2G isotropic — STUB",
     materials={0: _mix_ud2o_2g_for_finite_geometry()},
-    geometry_spec=GeometrySpec(
-        geometry="sphere",
-        critical_dimension_mfp=569.430,
-        critical_dimension_cm=1695.337621,
-        n_groups=2,
-        bc_left=BC.reflective,
-        bc_right=BC.vacuum,
-    ),
+    geometry_kind="sphere",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=569.43),
     sood_table=51,
@@ -2364,13 +2029,7 @@ PUA_1_1_SL = La13511Case(
         sigma_t=1.0, sigma_c=0.0, sigma_f=0.266667, nu=2.5,
         sigma_s_self=0.733333, sigma_s1_self=0.20,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="slab",
-        critical_dimension_mfp=0.77032,
-        critical_dimension_cm=0.77032,
-        n_groups=1,
-        bc_left=BC.vacuum, bc_right=BC.vacuum,
-    ),
+    geometry_kind="slab",
     scattering_order=1,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.77032),
     sood_table=25,
@@ -2392,13 +2051,7 @@ PUB_1_1_SL = La13511Case(
         sigma_t=1.0, sigma_c=0.0, sigma_f=0.266667, nu=2.5,
         sigma_s_self=0.733333, sigma_s1_self=0.333333,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="slab",
-        critical_dimension_mfp=0.79606,
-        critical_dimension_cm=0.79606,
-        n_groups=1,
-        bc_left=BC.vacuum, bc_right=BC.vacuum,
-    ),
+    geometry_kind="slab",
     scattering_order=1,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.79606),
     sood_table=25,
@@ -2420,13 +2073,7 @@ UD2OA_1_1_SP = La13511Case(
         sigma_t=0.54628, sigma_c=0.027314, sigma_f=0.054628, nu=1.808381,
         sigma_s_self=0.464338, sigma_s1_self=0.056312624,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="sphere",
-        critical_dimension_mfp=10.0,
-        critical_dimension_cm=18.30563081,
-        n_groups=1,
-        bc_left=BC.reflective, bc_right=BC.vacuum,
-    ),
+    geometry_kind="sphere",
     scattering_order=1,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=10.0),
     sood_table=29,
@@ -2448,13 +2095,7 @@ UD2OB_1_1_SP = La13511Case(
         sigma_t=0.54628, sigma_c=0.027314, sigma_f=0.054628, nu=1.841086,
         sigma_s_self=0.464338, sigma_s1_self=0.112982569,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="sphere",
-        critical_dimension_mfp=10.0,
-        critical_dimension_cm=18.30563081,
-        n_groups=1,
-        bc_left=BC.reflective, bc_right=BC.vacuum,
-    ),
+    geometry_kind="sphere",
     scattering_order=1,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=10.0),
     sood_table=29,
@@ -2476,13 +2117,7 @@ UD2OC_1_1_SP = La13511Case(
         sigma_t=0.54628, sigma_c=0.027314, sigma_f=0.054628, nu=1.6964,
         sigma_s_self=0.464338, sigma_s1_self=-0.27850447,
     )},
-    geometry_spec=GeometrySpec(
-        geometry="sphere",
-        critical_dimension_mfp=10.0,
-        critical_dimension_cm=18.30563081,
-        n_groups=1,
-        bc_left=BC.reflective, bc_right=BC.vacuum,
-    ),
+    geometry_kind="sphere",
     scattering_order=1,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=10.0),
     sood_table=29,

@@ -224,7 +224,7 @@ def test_collocation_grid_grandjean_siewert():
 def test_fn_slab_sood_ua_1_0_sl_critical_radius():
     """Sood ``Ua-1-0-SL`` (c=1.30): F_N reproduces a_c = 0.93772556 mfp to ≤ 1e-5."""
     res = solve_fn_slab_bare_critical(c=1.30, n_modes=10)
-    truth = UA_1_0_SL_STUB.critical_dimension_mfp
+    truth = UA_1_0_SL_STUB.truth.critical_dimension_mfp
     assert abs(res.a_critical_mfp - truth) < 1e-5, (
         f"Sood Ua-1-0-SL F_N: a={res.a_critical_mfp}, truth={truth}, "
         f"err={abs(res.a_critical_mfp - truth):.2e}"

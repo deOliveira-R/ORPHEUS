@@ -66,20 +66,20 @@ from orpheus.derivations.continuous.sood_registry import (
 
 SLAB_CASE_IDS = [
     case.case_id for case in WIDE_SLICE_BARE_CRITICAL_1G
-    if case.geometry == "slab"
+    if case.geometry_kind == "slab"
 ]
 
 SPHERE_CASE_IDS = [
     case.case_id for case in WIDE_SLICE_BARE_CRITICAL_1G
-    if case.geometry == "sphere"
+    if case.geometry_kind == "sphere"
 ]
 
 
 def _compute_c(case) -> float:
     """Compute the secondaries ratio c = (Σ_s + νΣ_f)/Σ_t for a 1G case."""
-    sigma_t = float(case.sigma_t[0])
-    sigma_s = float(case.sigma_s[0, 0])
-    nu_sigma_f = float(case.nu_sigma_f[0])
+    sigma_t = float(case.materials[0].SigT[0])
+    sigma_s = float(case.materials[0].SigS[0][0, 0])
+    nu_sigma_f = float(case.materials[0].SigP[0])
     return (sigma_s + nu_sigma_f) / sigma_t
 
 
@@ -104,7 +104,7 @@ def test_slab_fn_critical_dimension_matches_sood(case_id: str) -> None:
     Reference: LA-13511 Tables 6, 7, 17 (slab cases 2, 6, 22).
     """
     case = LA13511_CASES[case_id]
-    truth = case.critical_dimension_mfp
+    truth = case.truth.critical_dimension_mfp
     c = _compute_c(case)
     res = solve_fn_slab_bare_critical(c=c, n_modes=SLAB_N_MODES)
     err = abs(res.a_critical_mfp - truth)
@@ -139,7 +139,7 @@ def test_sphere_fn_critical_dimension_matches_sood(case_id: str) -> None:
     Reference: LA-13511 Tables 7, 17 (sphere cases 8, 24).
     """
     case = LA13511_CASES[case_id]
-    truth = case.critical_dimension_mfp
+    truth = case.truth.critical_dimension_mfp
     c = _compute_c(case)
     res = solve_fn_sphere_bare_critical(c=c, n_modes=SPHERE_N_MODES)
     err = abs(res.R_critical_mfp - truth)
@@ -160,12 +160,12 @@ def test_sphere_fn_critical_dimension_matches_sood(case_id: str) -> None:
 
 CYLINDER_STUB_IDS = [
     case.case_id for case in WIDE_SLICE_STUBS
-    if case.geometry == "cylinder"
+    if case.geometry_kind == "cylinder"
 ]
 
 TWO_G_BARE_CRITICAL_STUB_IDS = [
     case.case_id for case in WIDE_SLICE_STUBS
-    if case.n_groups == 2 and case.geometry in ("slab", "sphere")
+    if case.materials[0].ng == 2 and case.geometry_kind in ("slab", "sphere")
 ]
 
 
@@ -174,8 +174,8 @@ TWO_G_BARE_CRITICAL_STUB_IDS = [
 def test_cylinder_stub_solver_pending_b1_dispatch(case_id: str) -> None:
     """STUB: B1 dispatch will activate this case once the cylinder F_N solver lands."""
     case = LA13511_CASES[case_id]
-    assert case.geometry == "cylinder"
-    assert case.critical_dimension_mfp is not None  # truth registered
+    assert case.geometry_kind == "cylinder"
+    assert case.truth.critical_dimension_mfp is not None  # truth registered
     pytest.skip(
         f"{case_id}: cylinder F_N solver pending — B1 dispatch will "
         f"activate (Westfall-Metcalf 1973 NSE 52, 1)"
@@ -187,9 +187,9 @@ def test_cylinder_stub_solver_pending_b1_dispatch(case_id: str) -> None:
 def test_2g_bare_critical_stub_solver_pending_2g_fn(case_id: str) -> None:
     """STUB: needs Siewert-Thomas 1986 2G F_N machinery (matrix dispersion law)."""
     case = LA13511_CASES[case_id]
-    assert case.n_groups == 2
-    assert case.geometry in ("slab", "sphere")
-    assert case.critical_dimension_mfp is not None  # truth registered
+    assert case.materials[0].ng == 2
+    assert case.geometry_kind in ("slab", "sphere")
+    assert case.truth.critical_dimension_mfp is not None  # truth registered
     pytest.skip(
         f"{case_id}: 2G bare-critical F_N solver pending — needs "
         f"Siewert-Thomas 1986 2G machinery (matrix Λ dispersion law, "

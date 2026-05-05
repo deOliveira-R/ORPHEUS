@@ -29,7 +29,6 @@ warnings.warn(
 from orpheus.derivations.continuous.sood_registry.la13511 import (  # noqa: E402, F401
     ALL_FIRST_SLICE,
     LA13511_CASES,
-    GeometrySpec,
     La13511Case,
     La13511Truth,
     PU_2_0_IN,
@@ -40,7 +39,6 @@ from orpheus.derivations.continuous.sood_registry.la13511 import (  # noqa: E402
 )
 
 __all__ = [
-    "GeometrySpec",
     "La13511Case",
     "La13511Truth",
     "PUA_1_0_IN",

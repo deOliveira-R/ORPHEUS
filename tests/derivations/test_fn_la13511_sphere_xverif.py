@@ -91,9 +91,9 @@ def test_fn_sphere_vs_variant_alpha_sphere_at_sood_ua_1_0_sp():
     # Variant α sphere at the F_N predicted radius. We expect k_eff = 1
     # to within 1e-5 (the structural-independence cross-check pillar).
     case = UA_1_0_SP_STUB
-    sigma_t = float(case.sigma_t[0])
-    sigma_s = float(case.sigma_s[0, 0])
-    nu_sigma_f = float(case.nu_sigma_f[0])
+    sigma_t = float(case.materials[0].SigT[0])
+    sigma_s = float(case.materials[0].SigS[0][0, 0])
+    nu_sigma_f = float(case.materials[0].SigP[0])
     # Convert F_N R_c (mfp) to cm using the case's σ_t.
     R_c_cm = R_c_fn / sigma_t
 
@@ -114,8 +114,8 @@ def test_fn_sphere_vs_variant_alpha_sphere_at_sood_ua_1_0_sp():
         f"F_N sphere R_c = {R_c_fn:.10f} mfp = {R_c_cm:.6f} cm; "
         f"Variant α at this R gives k_eff = {res_va.k_eff:.8f}, "
         f"|k - 1| = {err:.3e} (target 1e-5). "
-        f"F_N vs Sood Ua-1-0-SP truth ({case.critical_dimension_mfp}): "
-        f"err = {abs(R_c_fn - case.critical_dimension_mfp):.3e}"
+        f"F_N vs Sood Ua-1-0-SP truth ({case.truth.critical_dimension_mfp}): "
+        f"err = {abs(R_c_fn - case.truth.critical_dimension_mfp):.3e}"
     )
 
 
@@ -130,7 +130,7 @@ def test_fn_sphere_matches_sood_ua_1_0_sp_directly():
     which is the structurally-independent pillar.
     """
     res = solve_fn_sphere_bare_critical(c=1.30, n_modes=10)
-    truth = UA_1_0_SP_STUB.critical_dimension_mfp
+    truth = UA_1_0_SP_STUB.truth.critical_dimension_mfp
     err = abs(res.R_critical_mfp - truth)
     assert err < 1e-5, (
         f"F_N sphere vs Sood Ua-1-0-SP truth: err = {err:.3e}"
@@ -148,10 +148,12 @@ def test_variant_alpha_sphere_at_sood_truth_radius():
     upgrade applies to the reference, not the system-under-test.
     """
     case = UA_1_0_SP_STUB
-    sigma_t = float(case.sigma_t[0])
-    sigma_s = float(case.sigma_s[0, 0])
-    nu_sigma_f = float(case.nu_sigma_f[0])
-    R_truth_cm = case.critical_dimension_cm  # 7.428998
+    sigma_t = float(case.materials[0].SigT[0])
+    sigma_s = float(case.materials[0].SigS[0][0, 0])
+    nu_sigma_f = float(case.materials[0].SigP[0])
+    # Sphere truth radius in cm: R_cm = critical_dimension_mfp / Σ_t.
+    # For Ua-1-0-SP: 2.4248249802 / 0.32640 ≈ 7.428998.
+    R_truth_cm = float(case.truth.critical_dimension_mfp) / sigma_t
 
     res_va = solve_greens_function_sphere(
         R=R_truth_cm,

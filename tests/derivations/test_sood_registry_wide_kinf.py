@@ -51,21 +51,21 @@ from orpheus.derivations.continuous.sood_registry import (
 
 
 KINF_1G_CASE_IDS = [
-    case.case_id for case in WIDE_SLICE_KINF if case.n_groups == 1
+    case.case_id for case in WIDE_SLICE_KINF if case.materials[0].ng == 1
 ]
 
 KINF_2G_NO_UPSCATTER_CASE_IDS = [
     case.case_id for case in WIDE_SLICE_KINF
-    if case.n_groups == 2 and float(case.sigma_s[1, 0]) == 0.0
+    if case.materials[0].ng == 2 and float(case.materials[0].SigS[0][1, 0]) == 0.0
 ]
 
 KINF_2G_WITH_UPSCATTER_CASE_IDS = [
     case.case_id for case in WIDE_SLICE_KINF
-    if case.n_groups == 2 and float(case.sigma_s[1, 0]) > 0.0
+    if case.materials[0].ng == 2 and float(case.materials[0].SigS[0][1, 0]) > 0.0
 ]
 
 KINF_MG_CASE_IDS = [
-    case.case_id for case in WIDE_SLICE_KINF if case.n_groups >= 3
+    case.case_id for case in WIDE_SLICE_KINF if case.materials[0].ng >= 3
 ]
 
 ALL_KINF_CASE_IDS = [case.case_id for case in WIDE_SLICE_KINF]
@@ -84,9 +84,9 @@ def test_kinf_1g_matches_sood(case_id: str) -> None:
     case = LA13511_CASES[case_id]
     truth = case.truth.k_eff_or_kinf
     k = compute_kinf_1g(
-        float(case.sigma_t[0]),
-        float(case.sigma_s[0, 0]),
-        float(case.nu_sigma_f[0]),
+        float(case.materials[0].SigT[0]),
+        float(case.materials[0].SigS[0][0, 0]),
+        float(case.materials[0].SigP[0]),
     )
     assert k == pytest.approx(truth, abs=1e-5), (
         f"{case_id}: Eq 19 k_inf = {k}, Sood truth = {truth}, "
@@ -106,7 +106,7 @@ def test_kinf_2g_no_upscatter_matches_sood(case_id: str) -> None:
     case = LA13511_CASES[case_id]
     truth = case.truth.k_eff_or_kinf
     k = compute_kinf_2g_no_upscatter(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     assert k == pytest.approx(truth, abs=1e-5), (
         f"{case_id}: Eq 29 k_inf = {k}, Sood truth = {truth}, "
@@ -125,11 +125,11 @@ def test_kinf_2g_with_upscatter_matches_sood(case_id: str) -> None:
     """
     case = LA13511_CASES[case_id]
     truth = case.truth.k_eff_or_kinf
-    assert float(case.sigma_s[1, 0]) > 0.0, (
+    assert float(case.materials[0].SigS[0][1, 0]) > 0.0, (
         f"{case_id}: this fixture is for upscatter cases only"
     )
     k = compute_kinf_2g_general(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     assert k == pytest.approx(truth, abs=1e-5), (
         f"{case_id}: Eq 28 (general) k_inf = {k}, Sood truth = {truth}, "
@@ -149,7 +149,7 @@ def test_kinf_mg_matches_sood(case_id: str) -> None:
     case = LA13511_CASES[case_id]
     truth = case.truth.k_eff_or_kinf
     k = compute_kinf_mg(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     assert k == pytest.approx(truth, abs=1e-5), (
         f"{case_id}: Eq 76 k_inf = {k}, Sood truth = {truth}, "
@@ -181,10 +181,10 @@ def test_kinf_mg_agrees_with_kinf_homogeneous_eig(case_id: str) -> None:
     """
     case = LA13511_CASES[case_id]
     k_fn = compute_kinf_mg(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     k_orph = kinf_homogeneous(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     assert k_fn == pytest.approx(k_orph, abs=1e-12), (
         f"{case_id}: compute_kinf_mg ({k_fn}) vs "
@@ -210,12 +210,12 @@ def test_kinf_2g_general_equals_no_upscatter_when_sigma_21s_zero(case_id: str) -
     on every concrete no-upscatter 2G Sood case).
     """
     case = LA13511_CASES[case_id]
-    assert float(case.sigma_s[1, 0]) == 0.0
+    assert float(case.materials[0].SigS[0][1, 0]) == 0.0
     k_general = compute_kinf_2g_general(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     k_no_upscatter = compute_kinf_2g_no_upscatter(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     assert k_general == pytest.approx(k_no_upscatter, abs=1e-14), (
         f"{case_id}: general ({k_general}) ≠ no_upscatter ({k_no_upscatter})"
@@ -242,7 +242,7 @@ def test_URR_3_0_IN_flux_spectrum() -> None:
     """
     case = LA13511_CASES["URR-3-0-IN"]
     _, phi = kinf_and_spectrum_homogeneous(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     phi_normalized = phi / phi[0]   # normalise to fast = 1
     # phi_normalized[0] = 1.0 (fast, ORPHEUS 0 = Sood g3)
@@ -269,7 +269,7 @@ def test_URR_6_0_IN_flux_spectrum_mirror() -> None:
     """
     case = LA13511_CASES["URR-6-0-IN"]
     _, phi = kinf_and_spectrum_homogeneous(
-        case.sigma_t, case.sigma_s, case.nu_sigma_f, case.chi,
+        case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     # Mirror property: phi[i] == phi[5-i]
     for i in range(3):
