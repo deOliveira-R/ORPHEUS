@@ -50,7 +50,7 @@ verification is 1e-5 (i.e., 5 significant figures match), so the
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping
+from typing import TYPE_CHECKING, Mapping
 
 import numpy as np
 
@@ -58,6 +58,9 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.geometry_spec import GeometrySpec
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry.mesh import BC
+
+if TYPE_CHECKING:
+    from orpheus.geometry.structured_geometry import StructuredGeometry
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -316,6 +319,136 @@ class La13511Case:
                 f"Use case.materials[mat_id] explicitly."
             )
         return next(iter(self.materials.values()))
+
+    # ── New-API geometry adapter ───────────────────────────────────
+
+    def to_geometry(self) -> "StructuredGeometry":
+        r"""Convert this case's published mfp values to a cm-form
+        :class:`StructuredGeometry` (the new geometry-layer object).
+
+        Reads :attr:`La13511Truth.critical_dimension_mfp` and the
+        primary material's :math:`\Sigma_t` (group 0) from
+        ``self.materials[0].SigT[0]``. Computes the cm extent via
+        :math:`\text{cm} = \text{mfp} / \Sigma_t`. Builds the geometry
+        kind tag (uppercase ``"SLB"`` / ``"CYL"`` / ``"SPH"``), regions
+        tuple, and BCs.
+
+        Slab convention
+        ---------------
+        Returns the FULL slab width
+        (:math:`2 \cdot \text{critical\_dimension\_mfp} / \Sigma_t`)
+        with vacuum-vacuum BCs. This is the production-natural
+        convention — F_N's natural half-thickness is recovered inside
+        :class:`MomentSpace` from
+        :attr:`StructuredGeometry.domain_extent_cm` ``/ 2``.
+
+        Note: this encoding wastes the slab's natural half-symmetry —
+        a future improvement would encode Sood symmetric slabs as
+        half-slabs with reflective+vacuum BCs (half the cells in
+        production solves at the same accuracy).
+
+        Sphere / cylinder convention
+        ----------------------------
+        Single region of radius
+        :math:`R = \text{critical\_dimension\_mfp} / \Sigma_t`,
+        outer BC vacuum, centreline implicit reflective (the
+        :class:`StructuredGeometry` ``"CYL"`` / ``"SPH"`` tag carries
+        a single outer endpoint).
+
+        Multi-region cases
+        ------------------
+        Multi-region cases (e.g. NM-1980 reflected slab) are handled
+        by sibling registry builders; this method handles only the
+        homogeneous LA-13511 cases.
+
+        Returns
+        -------
+        StructuredGeometry
+            New-API geometry-layer object.
+
+        Raises
+        ------
+        ValueError
+            If :attr:`self.truth.critical_dimension_mfp` is None
+            (e.g. for infinite-medium ``k_inf`` cases — those don't
+            have a geometry; use :func:`solve_homogeneous_infinite` or
+            :meth:`MomentSpace.solve_kinf` for those).
+        ValueError
+            If the case's geometry kind is not one of ``"slab"`` /
+            ``"sphere"`` / ``"cylinder"`` (e.g. ``"infinite"``,
+            ``"ISLC"``, or any future tag without a corresponding
+            ``StructuredGeometry`` mapping).
+        """
+        # Local import to avoid a registry → geometry-layer import
+        # cycle (the geometry layer doesn't know about cases).
+        from orpheus.geometry.structured_geometry import (
+            Region as StructuredRegion,
+            StructuredGeometry,
+        )
+
+        kind = self.geometry_spec.geometry
+
+        if kind == "infinite":
+            raise ValueError(
+                f"Case {self.case_id!r} is infinite-medium ("
+                f"truth.k_eff_or_kinf = k_inf, no geometry). Use "
+                f"orpheus.derivations.common.eigenvalue.solve_homogeneous_infinite "
+                f"or MomentSpace.solve_kinf(mix) for k_inf cases — "
+                f"to_geometry() is only defined for finite cases."
+            )
+
+        cd_mfp = self.truth.critical_dimension_mfp
+        if cd_mfp is None:
+            raise ValueError(
+                f"Case {self.case_id!r}: truth.critical_dimension_mfp "
+                f"is None — to_geometry() requires a published critical "
+                f"dimension. (Multi-region cases without a single "
+                f"published scalar are handled by sibling registry "
+                f"builders, not by this method.)"
+            )
+
+        # cm = mfp / Σ_t (group 0 — the primary group's total XS sets
+        # the mfp scale). For multi-group cases the choice of group is
+        # by convention; LA-13511 publishes mfp values in units of the
+        # group-0 Σ_t throughout the catalogue.
+        sigma_t = float(self._primary_mixture.SigT[0])
+        cm = float(cd_mfp) / sigma_t
+
+        # Map lowercase legacy tag → uppercase StructuredGeometry tag.
+        _TAG_MAP = {"slab": "SLB", "cylinder": "CYL", "sphere": "SPH"}
+        if kind not in _TAG_MAP:
+            raise ValueError(
+                f"Case {self.case_id!r}: geometry kind {kind!r} has no "
+                f"StructuredGeometry mapping. Supported: "
+                f"{sorted(_TAG_MAP)}."
+            )
+        new_tag = _TAG_MAP[kind]
+
+        mat_id = self.geometry_spec.mat_id
+
+        if new_tag == "SLB":
+            # Full slab width (2 × half-thickness), vacuum-vacuum BCs.
+            full_width_cm = 2.0 * cm
+            return StructuredGeometry(
+                geometry="SLB",
+                regions=(
+                    StructuredRegion(
+                        mat_id=mat_id,
+                        outer_thickness_cm=full_width_cm,
+                    ),
+                ),
+                bcs=(BC.vacuum, BC.vacuum),
+            )
+
+        # CYL / SPH: single region of radius cm; outer BC vacuum;
+        # centreline reflective is implicit at the coordinate origin.
+        return StructuredGeometry(
+            geometry=new_tag,
+            regions=(
+                StructuredRegion(mat_id=mat_id, outer_thickness_cm=cm),
+            ),
+            bcs=(BC.vacuum,),
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════
