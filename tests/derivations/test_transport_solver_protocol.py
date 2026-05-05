@@ -2,9 +2,11 @@ r"""Foundation tests for the :class:`TransportSolver` Protocol.
 
 The Protocol is the structural unification of the math-heart pattern
 across the project: ``Billiard`` (trajectory_resolvent), ``MomentSpace``
-(fn_method), the forthcoming ``Spectrum`` / ``BasisSpace``, and the
-production discrete-mesh solvers ``CPSolver`` / ``SNSolver``. These
-tests verify the *software invariants* of conformance — they are NOT
+(fn_method), the forthcoming ``Spectrum`` / ``BasisSpace``. Production
+discrete-mesh solvers (``CPSolver`` / ``SNSolver``) deliberately stay
+off the Protocol — they consume ``(materials, mesh, params)`` directly
+via the canonical ``solve_cp`` / ``solve_sn`` entry points. These tests
+verify the *software invariants* of conformance — they are NOT
 verification claims about any solver's accuracy.
 
 What this file pins
@@ -329,163 +331,22 @@ def test_solver_registry_is_complete():
         f"KNOWN_TRANSPORT_SOLVERS = {KNOWN_TRANSPORT_SOLVERS}."
     )
 
-    # The CP / SN production solvers conform natively (Step 4 of
-    # the input-cleanup track). Assert they're in the registry so
-    # the lockstep test catches a silent removal of the
-    # ``method_name`` class attribute.
-    for expected in ("trajectory_resolvent", "fn_method", "cp", "sn"):
+    # Lockstep with the continuous-reference pillar tags. Production
+    # CP / SN deliberately stay off the Protocol (canonical entry
+    # points are ``solve_cp`` / ``solve_sn``, consuming
+    # ``(materials, mesh, params)`` directly).
+    for expected in ("trajectory_resolvent", "fn_method"):
         assert expected in KNOWN_TRANSPORT_SOLVERS, (
             f"Expected pillar tag {expected!r} missing from "
             f"KNOWN_TRANSPORT_SOLVERS = {KNOWN_TRANSPORT_SOLVERS}."
         )
 
-
-# ----------------------------------------------------------------------
-# Production CP / SN — Protocol conformance via from_problem
-# ----------------------------------------------------------------------
-#
-# Step 4 of the input-cleanup track promoted the production CP / SN
-# solvers onto the Protocol natively (no test-only adapter scaffold).
-# These tests pin that the production classes — built via
-# ``CPSolver.from_problem`` / ``SNSolver.from_problem`` — satisfy the
-# same shape contract as the continuous-reference math-heart classes
-# above.
-
-def _smoke_sphere_geometry_spec_cp() -> GeometrySpec:
-    """Sphere spec compatible with CP's outer-BC registry (white).
-
-    CPMesh supports outer BC ∈ {white, vacuum}; reflective is not in
-    its registry. The Protocol itself is BC-agnostic — what matters
-    is the structural surface — so we use a CP-supported BC pair.
-    """
-    return GeometrySpec(
-        geometry="sphere",
-        critical_dimension_mfp=2.5,
-        critical_dimension_cm=5.0,
-        n_groups=1,
-        mat_id=0,
-        bc_left=BC.reflective,
-        bc_right=BC("white"),
-    )
-
-
-def _smoke_slab_geometry_spec_sn() -> GeometrySpec:
-    """Slab spec compatible with SN's BC registry (vacuum / reflective).
-
-    SN supports {vacuum, reflective} on every face. The Protocol
-    itself is BC-agnostic, so we choose vacuum-vacuum to avoid the
-    closed-loop k_inf degeneracy on the conformance probe.
-    """
-    return GeometrySpec(
-        geometry="slab",
-        critical_dimension_mfp=0.93772556,
-        critical_dimension_cm=1.875,
-        n_groups=1,
-        mat_id=0,
-        bc_left=BC.vacuum,
-        bc_right=BC.vacuum,
-    )
-
-
-def test_protocol_runtime_checkable_cp_solver_conforms():
-    """CPSolver built via from_problem satisfies isinstance(c, TransportSolver)."""
-    from orpheus.cp.solver import CPSolver
-
-    c = CPSolver.from_problem(
-        materials={0: _make_1g_mixture()},
-        geometry_spec=_smoke_sphere_geometry_spec_cp(),
-    )
-    assert isinstance(c, TransportSolver), (
-        "CPSolver does not satisfy TransportSolver Protocol; check "
-        "that materials, geometry_spec, method_name, and "
-        "solve_critical are all exposed as the Protocol surface "
-        "declares."
-    )
-
-
-def test_protocol_runtime_checkable_sn_solver_conforms():
-    """SNSolver built via from_problem satisfies isinstance(s, TransportSolver)."""
-    from orpheus.sn.solver import SNSolver
-
-    s = SNSolver.from_problem(
-        materials={0: _make_1g_mixture()},
-        geometry_spec=_smoke_slab_geometry_spec_sn(),
-    )
-    assert isinstance(s, TransportSolver), (
-        "SNSolver does not satisfy TransportSolver Protocol; check "
-        "that materials, geometry_spec, method_name, and "
-        "solve_critical are all exposed as the Protocol surface "
-        "declares."
-    )
-
-
-def test_protocol_method_name_cp_solver():
-    """CPSolver.method_name == 'cp'."""
-    from orpheus.cp.solver import CPSolver
-
-    c = CPSolver.from_problem(
-        materials={0: _make_1g_mixture()},
-        geometry_spec=_smoke_sphere_geometry_spec_cp(),
-    )
-    assert c.method_name == "cp"
-
-
-def test_protocol_method_name_sn_solver():
-    """SNSolver.method_name == 'sn'."""
-    from orpheus.sn.solver import SNSolver
-
-    s = SNSolver.from_problem(
-        materials={0: _make_1g_mixture()},
-        geometry_spec=_smoke_slab_geometry_spec_sn(),
-    )
-    assert s.method_name == "sn"
-
-
-def test_protocol_geometry_spec_property_cp_sn_returns_geometry_spec():
-    """Production CP / SN expose ``.geometry_spec`` as a GeometrySpec."""
-    from orpheus.cp.solver import CPSolver
-    from orpheus.sn.solver import SNSolver
-
-    mix = _make_1g_mixture()
-    c = CPSolver.from_problem(
-        materials={0: mix},
-        geometry_spec=_smoke_sphere_geometry_spec_cp(),
-    )
-    assert isinstance(c.geometry_spec, GeometrySpec)
-    assert c.geometry_spec.geometry == "sphere"
-
-    s = SNSolver.from_problem(
-        materials={0: mix},
-        geometry_spec=_smoke_slab_geometry_spec_sn(),
-    )
-    assert isinstance(s.geometry_spec, GeometrySpec)
-    assert s.geometry_spec.geometry == "slab"
-
-
-def test_protocol_materials_property_cp_sn_returns_dict_int_mixture():
-    """Production CP / SN expose ``.materials`` as ``dict[int, Mixture]``.
-
-    Catches accidental regression where the production solver
-    leaks an internal cell-by-cell ``CellXS`` payload through
-    ``self.materials`` instead of the production-protocol Mixture
-    dict.
-    """
-    from orpheus.cp.solver import CPSolver
-    from orpheus.sn.solver import SNSolver
-
-    mix = _make_1g_mixture()
-    c = CPSolver.from_problem(
-        materials={0: mix},
-        geometry_spec=_smoke_sphere_geometry_spec_cp(),
-    )
-    assert isinstance(c.materials, dict)
-    assert set(c.materials.keys()) == {0}
-    assert isinstance(c.materials[0], Mixture)
-
-    s = SNSolver.from_problem(
-        materials={0: mix},
-        geometry_spec=_smoke_slab_geometry_spec_sn(),
-    )
-    assert isinstance(s.materials, dict)
-    assert set(s.materials.keys()) == {0}
-    assert isinstance(s.materials[0], Mixture)
+    # CP / SN are NOT in the registry — they consume the canonical
+    # legacy entry points directly.
+    for unexpected in ("cp", "sn"):
+        assert unexpected not in KNOWN_TRANSPORT_SOLVERS, (
+            f"Production solver tag {unexpected!r} unexpectedly "
+            f"present in KNOWN_TRANSPORT_SOLVERS = "
+            f"{KNOWN_TRANSPORT_SOLVERS}; production CP / SN are not "
+            f"Protocol-conformant."
+        )
