@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2340**
+Total tests collected: **2362**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 590, 25.2%
-   L1, 675, 28.8%
+   L0, 590, 25.0%
+   L1, 690, 29.2%
    L2, 36, 1.5%
    L3, 0, 0.0%
-   foundation, 1022, 43.7%
-   unmarked, 17, 0.7%
+   foundation, 1022, 43.3%
+   unmarked, 24, 1.0%
 
 Tagging source
 --------------
@@ -32,12 +32,12 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2244
+   explicit, 2259
    verify, 0
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 17
+   unmarked, 24
 
 Module × level grid
 -------------------
@@ -160,6 +160,7 @@ Module × level grid
    geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
    homogeneous/test_continuous_reference, 0, 7, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 4, 0, 0, 0, 0
+   l1_analytical/test_kinf_homogeneous, 0, 15, 0, 0, 0, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
    mc/test_cross_verification, 0, 0, 2, 0, 0, 0
    mc/test_gaps, 7, 9, 0, 0, 0, 0
@@ -171,6 +172,7 @@ Module × level grid
    moc/test_quadrature, 24, 0, 0, 0, 0, 0
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
+   regression/test_dd_regression, 0, 0, 0, 0, 0, 7
    sn/test_boundary_conditions, 0, 0, 0, 0, 0, 11
    sn/test_cartesian, 1, 6, 0, 0, 0, 0
    sn/test_cylindrical, 4, 10, 11, 0, 0, 0
@@ -200,8 +202,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    :header: Equation label, Tests
    :widths: 50, 10
 
+   ``matrix-eigenvalue``, 175
    ``mg-balance``, 165
-   ``matrix-eigenvalue``, 160
    ``peierls-unified``, 158
    ``one-group-kinf``, 132
    ``peierls-rank-n-bc-closure``, 124
@@ -254,6 +256,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``cp-flat-source-double-integral``, 27
    ``cp-unified-outer-integration``, 27
    ``transport-cylindrical``, 27
+   ``fission-matrix``, 26
+   ``removal-matrix``, 26
    ``azimuthal-angles``, 24
    ``dc-slab``, 24
    ``peierls-specular-bc-defn``, 24
@@ -284,9 +288,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``periodic-bc``, 12
    ``reciprocity``, 12
    ``ws-pitch``, 12
-   ``fission-matrix``, 11
    ``inf-hom-balance``, 11
-   ``removal-matrix``, 11
    ``two-group-A``, 11
    ``two-group-Ainv``, 11
    ``two-group-F``, 11
@@ -657,7 +659,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
 Unmarked tests
 --------------
 
-**17 tests** have no V&V level marker.
+**24 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -670,6 +672,7 @@ equations. See ``docs/testing/architecture.rst``
    :widths: 60, 10
 
    ``tests/sn/test_boundary_conditions.py``, 11
+   ``tests/sn/regression/test_dd_regression.py``, 7
    ``tests/derivations/test_atkinson_product_nystrom.py``, 3
    ``tests/derivations/test_fn_projection_vs_kll_flux.py``, 2
    ``tests/derivations/test_fn_la13511_slab_reflected.py``, 1
