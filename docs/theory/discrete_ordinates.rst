@@ -2179,6 +2179,173 @@ streaming of :math:`B(x)`.
   :meth:`orpheus.sn.solver.SNSolver._build_aniso_scattering`.
 
 
+.. _sn-mms-curvilinear-aniso-verification:
+
+Curvilinear anisotropic MMS — angular redistribution probe
+-----------------------------------------------------------
+
+Phase 3.6 closes the **angular-redistribution coverage gap** in the
+curvilinear MMS verification chain. The existing isotropic
+1D-spherical (:class:`SNSphericalMMSCase`) and 1D-cylindrical
+(:class:`SNCylindricalMMSCase`) MMS cases use the ansatz
+:math:`\psi_n(r) = A(r)/W` (no :math:`\mu`-dependence). For that
+ansatz, **the angular-redistribution operator is identically zero**:
+:math:`(1-\mu^2)/r \cdot \partial\psi/\partial\mu = 0` for the sphere,
+:math:`-(1/r)\,\partial(\xi\psi)/\partial\varphi = 0` for the
+cylinder. The hardest math the curvilinear sweep performs — where
+ERR-026 (curvilinear sweep WDD wrong fixed point) lives — is
+mathematically invisible to the isotropic MMS because it cancels by
+ansatz construction.
+
+This is the ``vv-principles`` failure mode #7 ("MMS simplification
+bias") — the MMS test cannot catch a bug class because the ansatz
+nulls it. The defence is **not**
+to replace the isotropic case (it remains the right probe for the
+non-redistribution paths) but to **pair** it with a companion case
+whose ansatz activates redistribution. The two cases together let a
+narrow-down diagnosis route a failing convergence rate to either
+the streaming/removal path (only isotropic fails) or the
+redistribution path (only anisotropic fails).
+
+**Spherical anisotropic ansatz**
+
+.. math::
+   :label: sn-mms-spherical-aniso-psi
+
+   \psi_n(r) = \frac{1}{W}\bigl(A(r) + B(r)\,\mu_n\bigr),
+   \qquad
+   A(r) = \sin\!\left(\frac{\pi r}{R}\right),
+   \qquad
+   B(r) = \frac{r}{R}\Bigl(1 - \frac{r}{R}\Bigr)
+            \cos\!\left(\frac{\pi r}{R}\right).
+
+Both :math:`A` and :math:`B` vanish at :math:`r \in \{0, R\}`, so
+**every** ordinate satisfies the symmetry BC at :math:`r=0` and the
+vacuum BC at :math:`r=R`, regardless of the sign of :math:`\mu_n`.
+The :math:`B(r)\,\mu_n` coefficient is non-trivial: ordinates with
+opposite sign of :math:`\mu_n` differ in sign of the
+angular-flux contribution, but both still vanish at the boundaries.
+
+The choice :math:`B(r) = (r/R)(1-r/R)\cos(\pi r/R)` is **not**
+algebraically reducible to a multiple of :math:`A(r)` — the
+:math:`(r/R)(1-r/R)` envelope and the :math:`\cos(\pi r/R)` factor
+produce a derivative :math:`B'(r)` whose extrema do not co-locate
+with :math:`A'(r)`'s extrema, so the redistribution term
+:math:`(1-\mu_n^2)\,B/r` cannot be absorbed into a renormalisation
+of the streaming term.
+
+The discrete scalar flux is :math:`\phi(r) = A(r)` because
+:math:`\sum_n w_n \mu_n = 0` for any symmetric Gauss-Legendre
+quadrature — the :math:`B \mu` term integrates to zero in the
+scalar moment.
+
+**Spherical manufactured source**
+
+Substituting :eq:`sn-mms-spherical-aniso-psi` into
+:eq:`transport-spherical` and solving for the residual:
+
+.. math::
+   :label: sn-mms-spherical-aniso-qext
+
+   Q^{\text{ext}}_n(r) =
+        \mu_n\,A'(r)
+      + \mu_n^2\,B'(r)
+      + (1 - \mu_n^2)\,\frac{B(r)}{r}
+      + (\Sigma_t - \Sigma_s)\,A(r)
+      + \Sigma_t\,\mu_n\,B(r).
+
+The first and fourth terms are the isotropic-MMS source from
+:eq:`sn-mms-qext` adapted to spherical. The **second term**
+(:math:`\mu_n^2 B'(r)` — :math:`\mu`-weighted streaming of the
+anisotropic profile) and the **third term**
+(:math:`(1-\mu_n^2)\,B/r` — angular redistribution) are
+load-bearing: they are precisely what the isotropic case lacks.
+The fifth (:math:`\Sigma_t\,\mu_n B`) comes from the removal
+operator acting on the :math:`B \mu` part of :math:`\psi_n`.
+
+**Cylindrical anisotropic ansatz**
+
+The radial direction cosine for cylindrical 1D is :math:`\eta_n =
+\sin\theta_n \cos\varphi_n`; the azimuthal partner that drives
+the redistribution is :math:`\xi_n = \sin\theta_n \sin\varphi_n`.
+Use:
+
+.. math::
+   :label: sn-mms-cylindrical-aniso-psi
+
+   \psi_n(r) = \frac{1}{W}\bigl(A(r) + B(r)\,\eta_n\bigr),
+
+with the same :math:`A(r),\,B(r)` shapes. Symmetric ProductQuadrature
+gives :math:`\sum_n w_n \eta_n = 0`, so :math:`\phi(r) = A(r)`.
+
+**Cylindrical manufactured source**
+
+Substituting :eq:`sn-mms-cylindrical-aniso-psi` into
+:eq:`transport-cylindrical` (treating :math:`\eta_n` and
+:math:`\xi_n` as the :math:`\varphi`-dependent functions
+:math:`\sin\theta\cos\varphi` and :math:`\sin\theta\sin\varphi`)
+and solving for the residual:
+
+.. math::
+   :label: sn-mms-cylindrical-aniso-qext
+
+   Q^{\text{ext}}_n(r) =
+        \eta_n\,A'(r)
+      + \eta_n^2\,B'(r)
+      + \xi_n^2\,\frac{B(r)}{r}
+      + (\Sigma_t - \Sigma_s)\,A(r)
+      + \Sigma_t\,\eta_n\,B(r).
+
+The :math:`\xi_n^2\,B/r` redistribution term is the cylindrical analog
+of the sphere's :math:`(1-\mu_n^2)\,B/r`. Both come from the
+same operator — angular redistribution of the linearly-:math:`\mu`
+(or linearly-:math:`\eta`) ansatz — and both vanish for any
+isotropic ansatz.
+
+**Verification chain (Branch 1 / Branch 2)**
+
+Per the ``algebra-of-record`` discipline (Branch-1 SymPy reference,
+Branch-2 numpy production, structurally-independent L1 cross-check):
+
+- **Branch 1 (SymPy)**:
+  :func:`orpheus.derivations.continuous.mms.sn.derive_spherical_anisotropic_mms`
+  and
+  :func:`orpheus.derivations.continuous.mms.sn.derive_cylindrical_anisotropic_mms`
+  substitute the ansatz into the transport operator symbolically and
+  prove ``simplify(LHS - RHS) == 0``. Foundation tests:
+  :file:`tests/derivations/test_sn_mms_anisotropic_symbolic.py` (one
+  ``@pytest.mark.foundation`` test per ``derive_*`` function).
+- **Branch 2 (vectorised numpy)**:
+  :class:`orpheus.derivations.continuous.mms.sn.SNSphericalAnisotropicMMSCase`
+  and
+  :class:`orpheus.derivations.continuous.mms.sn.SNCylindricalAnisotropicMMSCase`
+  evaluate :eq:`sn-mms-spherical-aniso-qext` and
+  :eq:`sn-mms-cylindrical-aniso-qext` per ordinate using vectorised
+  numpy.
+- **L1 cross-check (the gate)**: the Branch-2 numerical
+  :math:`Q^{\text{ext}}_n(r_i)` agrees with Branch-1 SymPy-evaluated
+  :math:`Q^{\text{ext}}_n(r_i)` (via :func:`sympy.lambdify`) to
+  :math:`\sim 10^{-16}` (max absolute) on a sample mesh in both
+  geometries. Tested in
+  :func:`tests.derivations.test_sn_mms_anisotropic_symbolic.test_spherical_aniso_numerical_qext_matches_sympy`
+  and the cylindrical sibling.
+
+**Code pointers**
+
+- Derivations: :class:`orpheus.derivations.continuous.mms.sn.SNSphericalAnisotropicMMSCase`,
+  :class:`orpheus.derivations.continuous.mms.sn.SNCylindricalAnisotropicMMSCase`,
+  :func:`orpheus.derivations.continuous.mms.sn.build_spherical_anisotropic_mms_case`,
+  :func:`orpheus.derivations.continuous.mms.sn.build_cylindrical_anisotropic_mms_case`.
+- Symbolic factory:
+  :func:`orpheus.derivations.continuous.mms.sn._spherical_anisotropic_symbolic`,
+  :func:`orpheus.derivations.continuous.mms.sn._cylindrical_anisotropic_symbolic`.
+- Foundation tests:
+  :file:`tests/derivations/test_sn_mms_anisotropic_symbolic.py`.
+- Consumer L1 convergence test (Phase-0 work, separate branch):
+  ``tests/sn/_l1/test_mms_spherical_anisotropic_dd_convergence_O_h2.py``
+  (planned).
+
+
 .. _sn-case-heterogeneous-verification:
 
 Heterogeneous eigenvalue — Case singular-eigenfunction method

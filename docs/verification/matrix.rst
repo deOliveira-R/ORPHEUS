@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2328**
+Total tests collected: **2340**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 590, 25.3%
-   L1, 675, 29.0%
+   L0, 590, 25.2%
+   L1, 675, 28.8%
    L2, 36, 1.5%
    L3, 0, 0.0%
-   foundation, 1010, 43.4%
+   foundation, 1022, 43.7%
    unmarked, 17, 0.7%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2232
+   explicit, 2244
    verify, 0
    class-name, 46
    func-name, 0
@@ -145,6 +145,7 @@ Module × level grid
    derivations/test_singular_eigenfunction_cylinder, 0, 8, 0, 0, 14, 0
    derivations/test_singular_eigenfunction_cylinder_xverif, 0, 1, 0, 0, 0, 0
    derivations/test_singular_eigenfunction_spectrum, 0, 0, 0, 0, 16, 0
+   derivations/test_sn_mms_anisotropic_symbolic, 0, 0, 0, 0, 12, 0
    derivations/test_sood_registry_cache, 0, 0, 0, 0, 15, 0
    derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 107, 0
    derivations/test_sood_registry_wide_bare_critical, 0, 17, 0, 0, 2, 0
@@ -248,11 +249,11 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``chi-sampling``, 28
    ``decompose``, 28
    ``scattering-cdf``, 28
+   ``transport-spherical``, 28
    ``cp-flat-source-derivation``, 27
    ``cp-flat-source-double-integral``, 27
    ``cp-unified-outer-integration``, 27
-   ``transport-spherical``, 27
-   ``transport-cylindrical``, 26
+   ``transport-cylindrical``, 27
    ``azimuthal-angles``, 24
    ``dc-slab``, 24
    ``peierls-specular-bc-defn``, 24
@@ -384,6 +385,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-case-spatial-modes``, 2
    ``sn-mms-2d-2g-psi``, 2
    ``sn-mms-p1-qext``, 2
+   ``addition-theorem``, 1
    ``branching``, 1
    ``collision-estimator``, 1
    ``e1-decomposition``, 1
@@ -407,16 +409,21 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-greens-slab-asym-resolvent``, 1
    ``peierls-greens-slab-trajectory``, 1
    ``peierls-greens-surface-fixed-point``, 1
+   ``real-spherical-harmonics``, 1
    ``sigT-computed``, 1
    ``singular-eigenfunction-eq5``, 1
    ``sn-mms-2d-2g-qext``, 1
    ``sn-mms-2d-psi``, 1
    ``sn-mms-2d-qext``, 1
+   ``sn-mms-cylindrical-aniso-psi``, 1
+   ``sn-mms-cylindrical-aniso-qext``, 1
    ``sn-mms-cylindrical-psi``, 1
    ``sn-mms-cylindrical-qext``, 1
    ``sn-mms-p1-psi``, 1
    ``sn-mms-psi``, 1
    ``sn-mms-qext``, 1
+   ``sn-mms-spherical-aniso-psi``, 1
+   ``sn-mms-spherical-aniso-qext``, 1
    ``sn-mms-spherical-psi``, 1
    ``sn-mms-spherical-qext``, 1
    ``splitting``, 1
@@ -424,9 +431,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **24** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **22** of the testable equations found on theory pages are orphan.
 
-- ``addition-theorem``
 - ``billiard-rank2-S``
 - ``billiard-rank2-T``
 - ``billiard-reflection-law``
@@ -441,7 +447,6 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``galerkin-spectral-carlvik-integral``
 - ``galerkin-spectral-eq4``
 - ``galerkin-spectral-orthogonality``
-- ``real-spherical-harmonics``
 - ``spectrum-case-eigenfunction-equation``
 - ``spectrum-case-eigenfunction-explicit``
 - ``spectrum-continuum-eigenfunction``
