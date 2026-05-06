@@ -77,6 +77,36 @@ The catalogued instances live in `error_catalog.md` (ERR-NNN entries).
 
 ---
 
+## Test-design failure modes — when the test cannot see the solver bug
+
+Modes 1–6 above are **solver bugs**: the code is wrong, the test must
+catch them. The modes below are **test-design failures**: the solver
+bug is real, but the test is structured so it cannot mathematically
+observe the bug. These are mechanically distinct from 1–6 and require
+a different defense (test review, not L0 verification).
+
+| #   | Mode             | Example                                | Detection (test-review strategy)                          |
+| --- | ---------------- | -------------------------------------- | --------------------------------------------------------- |
+| 7   | MMS simplification bias | Curvilinear ψ_chosen = sin(πr/R)/W chosen isotropic-in-μ "to isolate the radial closure" — the angular redistribution term IS the sweep's hardest math, but the test cannot see it because it cancels by ansatz design. ERR-026 (curvilinear sweep WDD) is invisible to this MMS. | Every multi-dim test must declare which terms its ansatz **activates** AND which it **nulls**. If the nulled set includes a term covered by an active ERR-NNN, redesign the ansatz. Add an angularly-non-trivial companion case (e.g., ψ = (A(r) + B(r)μ)/W) so the redistribution path is exercised. **NEVER** ship only the simpler case. |
+
+**The mechanism is non-tokenizer.** Modes 1–6 are observable signatures
+of sub-word tokenizer co-location (see `reference.md` §2). Mode 7 is
+human cognitive bias: the simplest trial function that satisfies the
+BCs is also the most error-resistant to derive, and so wins by default
+even when stronger trials would stress more of the solver. AI agents
+using SymPy have no derivation cost, so this defense is no longer
+needed — and yet the bias survives because the existing canonical MMS
+examples are isotropic-by-construction (Lewis & Miller §6.4 ansatz set,
+NIST MMS reference set). **Always** pair an isotropic ansatz with an
+angularly non-trivial companion in curvilinear / Pℓ contexts.
+
+This mode does not get its own ERR-NNN entry until a real solver bug
+is shown to have hidden behind an MMS ansatz in production. The
+abstract risk is documented here (skill table); a concrete instance
+becomes an ERR entry per the "Log every caught bug" directive below.
+
+---
+
 ## Hierarchical claim taxonomy — verify the lower layers first
 
 Claims are layered. Each layer adds dependencies. Verify lower layers
