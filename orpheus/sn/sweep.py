@@ -134,23 +134,69 @@ def _sweep_1d_cumprod(
     phi = np.zeros((nx, ng))
     bQ = source_coeff * Q_1d[None, :, :]
 
-    bc_left_kind = sn_mesh.bc_left    # resolved BC kind string
-    bc_right_kind = sn_mesh.bc_right
-    zero = np.zeros(ng)
+    # Tensor-decomposed BCs (R = Σ_α G_α ⊗ A_α). The factory in
+    # ``SNMesh.BC_REGISTRY`` resolved the geometry-declared BC into a
+    # :class:`ResolvedBC` whose ``apply_to_incoming`` we call below.
+    #
+    # Reassemble the full per-ordinate outgoing-flux face arrays from
+    # the persistent ``bc`` storage (which stores positive-half values
+    # using a *post-reflection* indexing convention: ``bc["left"][n]``
+    # is the outgoing flux at the partner ordinate
+    # :math:`N - 1 - (n_{\text{half}} + n) = n_{\text{half}} - 1 - n`).
+    # Calling ``apply_to_incoming`` then lets specular reflection reach
+    # back to its partner via ``reflection_index("x")``; vacuum returns
+    # zeros. Bit-equality with the previous string-kind dispatch is
+    # preserved because this is an algebraic re-expression of the same
+    # operation: ``SpecularBC(axis="x").apply_to_incoming(psi, quad)[k]``
+    # is ``psi[ref_x[k]]``, which for GL is ``psi[N-1-k]``.
+    bc_left_obj = sn_mesh.bc_left
+    bc_right_obj = sn_mesh.bc_right
+
+    # Per-ordinate outgoing-flux buffers at each face. The cumprod
+    # convention writes positive-half values into ``bc["left"]`` /
+    # ``bc["right"]`` indexed by the *positive* sweep counter ``n``;
+    # we mirror that into the full-N face buffers used by the BC
+    # protocol, taking care to lay each value at its outgoing-side
+    # index so :meth:`SpecularBC.apply_to_incoming` retrieves it via
+    # ``reflection_index("x")`` at the matching incoming ordinate.
+    psi_face_left_out = np.zeros((N, ng))
+    psi_face_right_out = np.zeros((N, ng))
+    for n in range(n_half):
+        # ``bc["left"][n]`` was written by the previous-iteration
+        # backward sweep — it is the outgoing flux at the *left*
+        # face for ordinate ``n_half - 1 - n`` (negative side).
+        psi_face_left_out[n_half - 1 - n] = bc["left"][n]
+        # ``bc["right"][n]`` was written by the previous-iteration
+        # forward sweep — it is the outgoing flux at the *right* face
+        # for ordinate ``n_half + n`` (positive side).
+        psi_face_right_out[n_half + n] = bc["right"][n]
+
+    psi_face_left_in = bc_left_obj.apply_to_incoming(psi_face_left_out, quad)
 
     for n in range(n_half):
         a = stream_coeff[n]  # (nx, ng)
         s = bQ[n]            # (nx, ng)
 
-        # Forward sweep (positive direction, left → right)
-        psi0_left = zero if bc_left_kind == "vacuum" else bc["left"][n]
+        # Forward sweep (positive direction, left → right):
+        # incoming at the *left* face for ordinate ``n_half + n``.
+        psi0_left = psi_face_left_in[n_half + n]
         psi_fwd = _solve_recurrence(a, s, psi0_left)
         bc["right"][n, :] = _outgoing(a, s, psi0_left)
+        # Update the right-face outgoing buffer in place: the backward
+        # sweep at this ``n`` consumes the just-written outgoing via
+        # the BC operator (matches the original in-iteration coupling
+        # where right-reflective backward read ``bc["right"][n]``
+        # immediately after the forward sweep wrote it).
+        psi_face_right_out[n_half + n] = bc["right"][n]
+        psi_face_right_in = bc_right_obj.apply_to_incoming(
+            psi_face_right_out, quad,
+        )
         phi += w_pos[n] * psi_fwd
         angular_flux[n_half + n, :, 0, :] = psi_fwd
 
-        # Backward sweep (negative direction via reversal, right → left)
-        psi0_right = zero if bc_right_kind == "vacuum" else bc["right"][n]
+        # Backward sweep (negative direction via reversal, right → left):
+        # incoming at the *right* face for ordinate ``n_half - 1 - n``.
+        psi0_right = psi_face_right_in[n_half - 1 - n]
         psi_bwd = _solve_recurrence(a[::-1], s[::-1], psi0_right)
         bc["left"][n, :] = _outgoing(a[::-1], s[::-1], psi0_right)
         phi += w_pos[n] * psi_bwd[::-1]
@@ -235,10 +281,22 @@ def _sweep_1d_spherical(
     dAw = sn_mesh.redist_dAw   # (nx, N) precomputed ΔA_i/w_n
     tau = sn_mesh.tau_mm       # (N,) Morel–Montry angular weights
 
-    # Boundary condition at the outer face (r = R)
-    is_vacuum_outer = sn_mesh.bc_right == "vacuum"
+    # Boundary condition at the outer face (r = R) is a tensor-
+    # decomposed :class:`~orpheus.geometry.boundary.ResolvedBC`. The
+    # spherical sweep stores the outgoing flux per ordinate in
+    # ``bc_outer`` (indexed by *outgoing* — positive μ — ordinate) and
+    # reads the incoming flux for negative μ via
+    # ``apply_to_incoming``. For ``VacuumBC`` this returns zeros; for
+    # ``SpecularBC(axis="x")`` it returns ``bc_outer[ref[n]]``,
+    # which is bit-identical to the previous ``bc_outer[ref[n]].copy()``
+    # call site. The incoming buffer is recomputed each iteration so
+    # the loop's own outgoing updates feed back through the BC operator.
+    bc_outer_obj = sn_mesh.bc_right
 
-    # Persistent boundary flux at the outer face (per ordinate)
+    # Persistent boundary flux at the outer face (per ordinate, indexed
+    # by the *outgoing* — positive-μ — ordinate). Negative-μ entries
+    # remain zero throughout the sweep; they are placeholders so the
+    # array can be passed whole into ``apply_to_incoming``.
     if "bc_sph" not in psi_bc:
         psi_bc["bc_sph"] = np.zeros((N, ng))
     bc_outer = psi_bc["bc_sph"]
@@ -276,11 +334,13 @@ def _sweep_1d_spherical(
             QV = QV_iso + Q_aniso_1d[n] * V[:, None]
 
         if mu_n < 0:
-            # Inward sweep: outer boundary → centre
-            if is_vacuum_outer:
-                psi_spatial_in = np.zeros(ng)
-            else:
-                psi_spatial_in = bc_outer[ref[n]].copy()
+            # Inward sweep: outer boundary → centre.
+            # Incoming flux at r=R for ordinate n via the BC operator.
+            # For ``VacuumBC`` this is zero; for ``SpecularBC(axis="x")``
+            # this is ``bc_outer[ref[n]]`` — bit-identical to the
+            # previous ``bc_outer[ref[n]].copy()`` indexing.
+            psi_in_full = bc_outer_obj.apply_to_incoming(bc_outer, quad)
+            psi_spatial_in = psi_in_full[n]
 
             for i in range(nx - 1, -1, -1):
                 A_in = A[i + 1]   # incoming face (outer)
@@ -387,8 +447,14 @@ def _sweep_1d_cylindrical(
     A = sn_mesh.face_areas     # (nx+1,) = 2πr at edges
     V = sn_mesh.volumes[:, 0]  # (nx,) cell volumes
 
-    # Boundary condition at the outer face (r = R)
-    is_vacuum_outer = sn_mesh.bc_right == "vacuum"
+    # Boundary condition at the outer face (r = R) is a tensor-
+    # decomposed :class:`~orpheus.geometry.boundary.ResolvedBC`. The
+    # cylindrical sweep stores per-ordinate outgoing flux in
+    # ``bc_outer`` (indexed by global ordinate) and reads incoming
+    # via ``apply_to_incoming``. For ``VacuumBC`` returns zeros; for
+    # ``SpecularBC(axis="x")`` returns ``bc_outer[ref[n]]`` — bit-
+    # identical to the previous ``bc_outer[ref[n]].copy()`` call site.
+    bc_outer_obj = sn_mesh.bc_right
 
     # Persistent boundary flux at the outer face (per ordinate)
     if "bc_cyl" not in psi_bc:
@@ -435,11 +501,12 @@ def _sweep_1d_cylindrical(
                 QV = QV_iso + Q_aniso_1d[n] * V[:, None]
 
             if eta_n < 0:
-                # Inward sweep: outer → centre
-                if is_vacuum_outer:
-                    psi_spatial_in = np.zeros(ng)
-                else:
-                    psi_spatial_in = bc_outer[ref[n]].copy()
+                # Inward sweep: outer → centre.
+                # Incoming flux at r=R for ordinate n via the BC
+                # operator. For ``VacuumBC`` this is zero; for
+                # ``SpecularBC(axis="x")`` this is ``bc_outer[ref[n]]``.
+                psi_in_full = bc_outer_obj.apply_to_incoming(bc_outer, quad)
+                psi_spatial_in = psi_in_full[n]
 
                 for i in range(nx - 1, -1, -1):
                     A_in = A[i + 1]
@@ -605,22 +672,30 @@ def _sweep_2d_wavefront(
         key = (1 if mx >= 0 else -1, 1 if my >= 0 else -1)
         ix_in, ix_out, iy_in, iy_out, diags = _diag_cache[key]
 
-        # Apply boundary conditions at incoming faces.
-        # Vacuum leaves incoming at zero (the arrays are zero-initialised
-        # and only written by this reflective copy).
+        # Apply boundary conditions at incoming faces via the tensor-
+        # decomposed :class:`ResolvedBC` Protocol on each face. For
+        # ``VacuumBC`` the result is zero (the buffers stay
+        # zero-initialised and the slice assignment is a no-op
+        # write); for ``SpecularBC(axis=...)`` the result is
+        # ``psi_face[ref_axis[n]]`` — bit-identical to the previous
+        # in-place ``psi_x[n, 0] = psi_x[ref_x[n], 0]`` copy.
         if mx >= 0:
-            if sn_mesh.bc_xmin == "reflective":
-                psi_x[n, 0, :, :] = psi_x[ref_x[n], 0, :, :]
+            psi_x[n, 0, :, :] = sn_mesh.bc_xmin.apply_to_incoming(
+                psi_x[:, 0, :, :], quad,
+            )[n]
         else:
-            if sn_mesh.bc_xmax == "reflective":
-                psi_x[n, nx, :, :] = psi_x[ref_x[n], nx, :, :]
+            psi_x[n, nx, :, :] = sn_mesh.bc_xmax.apply_to_incoming(
+                psi_x[:, nx, :, :], quad,
+            )[n]
 
         if my >= 0:
-            if sn_mesh.bc_ymin == "reflective":
-                psi_y[n, :, 0, :] = psi_y[ref_y[n], :, 0, :]
+            psi_y[n, :, 0, :] = sn_mesh.bc_ymin.apply_to_incoming(
+                psi_y[:, :, 0, :], quad,
+            )[n]
         else:
-            if sn_mesh.bc_ymax == "reflective":
-                psi_y[n, :, ny, :] = psi_y[ref_y[n], :, ny, :]
+            psi_y[n, :, ny, :] = sn_mesh.bc_ymax.apply_to_incoming(
+                psi_y[:, :, ny, :], quad,
+            )[n]
 
         # Precomputed streaming for this ordinate
         str_x_n = str_x[n]  # (nx,)

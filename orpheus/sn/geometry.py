@@ -17,21 +17,37 @@ from typing import Any, ClassVar
 import numpy as np
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
+from orpheus.geometry.boundary import (
+    ResolvedBC,
+    SpecularBC,
+    VacuumBC,
+)
 from .quadrature import AngularQuadrature
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # SN boundary condition factories
 # ═══════════════════════════════════════════════════════════════════════
+#
+# Factories take a solver-agnostic ``BC(kind, params)`` declaration and
+# return a concrete :class:`ResolvedBC` instance carrying the tensor
+# decomposition :math:`R = \\sum_\\alpha G_\\alpha \\otimes A_\\alpha`
+# the sweep needs (see :mod:`orpheus.geometry.boundary`).
+#
+# The 1-D faces (``left`` / ``xmin``, ``right`` / ``xmax``) reflect
+# across the radial / x-axis, so the SN factories always pin
+# ``axis="x"`` for ``SpecularBC``. 2-D faces dispatch by the y-axis
+# variants on ``ymin`` / ``ymax``.
 
-def _sn_bc_vacuum(sn_mesh: SNMesh, bc: BC, face: str) -> str:
+def _sn_bc_vacuum(sn_mesh: "SNMesh", bc: BC, face: str) -> ResolvedBC:
     """Zero incoming angular flux at this face."""
-    return "vacuum"
+    return VacuumBC()
 
 
-def _sn_bc_reflective(sn_mesh: SNMesh, bc: BC, face: str) -> str:
+def _sn_bc_reflective(sn_mesh: "SNMesh", bc: BC, face: str) -> ResolvedBC:
     """Specular reflection: ψ_in(Ω) = ψ_out(Ω_reflected)."""
-    return "reflective"
+    axis = "y" if face in ("ymin", "ymax") else "x"
+    return SpecularBC(axis=axis, albedo=1.0)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -79,6 +95,14 @@ class SNMesh:
         "vacuum": _sn_bc_vacuum,
         "reflective": _sn_bc_reflective,
     }
+    # The factories return :class:`ResolvedBC` instances carrying the
+    # tensor decomposition :math:`R = \sum_\alpha G_\alpha \otimes
+    # A_\alpha` (see :mod:`orpheus.geometry.boundary`); the sweep calls
+    # ``resolved_bc.apply_to_incoming(...)`` directly, so the dispatch
+    # is by object identity / Protocol method, not by string tag.
+    # Wave C/D will extend this registry with ``"white"`` / ``"periodic"``
+    # / ``"albedo"`` entries — the primitives already exist in
+    # :mod:`orpheus.geometry.boundary`; only the sweep plumbing remains.
 
     def __init__(
         self,
@@ -119,25 +143,31 @@ class SNMesh:
     # ── Boundary condition resolution ─────────────────────────────────
 
     def _resolve_bcs(self, mesh: Mesh1D | Mesh2D) -> None:
-        """Resolve geometry-declared BCs into validated kind strings.
+        """Resolve geometry-declared BCs into :class:`ResolvedBC` instances.
 
-        ``None`` on the mesh defaults to ``"reflective"`` (infinite
-        lattice / eigenvalue convention).
+        ``None`` on the mesh defaults to ``BC("reflective")`` (infinite
+        lattice / eigenvalue convention). Each face attribute carries
+        the concrete :class:`ResolvedBC` whose ``apply_to_incoming``
+        method the sweep invokes directly — no string-kind dispatch
+        downstream.
         """
         default = BC("reflective")
 
         if isinstance(mesh, Mesh1D):
-            self.bc_left: str = self._resolve_one(
+            self.bc_left: ResolvedBC = self._resolve_one(
                 mesh.bc_left or default, "left",
             )
-            self.bc_right: str = self._resolve_one(
+            self.bc_right: ResolvedBC = self._resolve_one(
                 mesh.bc_right or default, "right",
             )
-            # Expose 2-D-style attributes for uniform sweep access
-            self.bc_xmin: str = self.bc_left
-            self.bc_xmax: str = self.bc_right
-            self.bc_ymin: str = "reflective"
-            self.bc_ymax: str = "reflective"
+            # Expose 2-D-style attributes for uniform sweep access.
+            # The ``y`` faces of a 1-D mesh are degenerate; we tag them
+            # with a default reflective ``SpecularBC`` so 2-D-style
+            # consumers still get a Protocol-conformant object.
+            self.bc_xmin: ResolvedBC = self.bc_left
+            self.bc_xmax: ResolvedBC = self.bc_right
+            self.bc_ymin: ResolvedBC = SpecularBC(axis="y", albedo=1.0)
+            self.bc_ymax: ResolvedBC = SpecularBC(axis="y", albedo=1.0)
         else:
             self.bc_xmin = self._resolve_one(
                 mesh.bc_xmin or default, "xmin",
@@ -154,7 +184,7 @@ class SNMesh:
             self.bc_left = self.bc_xmin
             self.bc_right = self.bc_xmax
 
-    def _resolve_one(self, bc: BC, face: str) -> str:
+    def _resolve_one(self, bc: BC, face: str) -> ResolvedBC:
         """Look up a single BC in the registry; raise on unsupported kind."""
         factory = self.BC_REGISTRY.get(bc.kind)
         if factory is None:
@@ -163,9 +193,7 @@ class SNMesh:
                 f"SN solver does not support boundary condition '{bc.kind}' "
                 f"on face '{face}'. Supported: {supported}."
             )
-        kind = factory(self, bc, face)
-
-        return kind
+        return factory(self, bc, face)
 
     # ── Properties ────────────────────────────────────────────────────
 

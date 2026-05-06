@@ -1136,11 +1136,23 @@ mapping kind strings to factory callables::
 During ``SNMesh.__init__``, each face's :class:`~geometry.mesh.BC` is
 looked up in the registry.  If the kind is not found, a ``ValueError``
 lists the supported kinds.  For curvilinear geometries (spherical,
-cylindrical), only ``"reflective"`` is currently supported --- requesting
-any other kind on a curvilinear mesh raises ``NotImplementedError``.
-The resolved kind string (a plain ``str``) is stored as
-``sn_mesh.bc_left``, ``sn_mesh.bc_right``, ``sn_mesh.bc_xmin``, etc.,
-and the sweep reads these directly.
+cylindrical), only ``"reflective"`` and ``"vacuum"`` are currently
+supported --- requesting any other kind on a curvilinear mesh raises
+``ValueError``.
+
+As of Wave B Round 3 of the SN reshape campaign (Issue 7 of
+``.claude/plans/sn_reshape.md``), the registry factories return
+concrete :class:`~orpheus.geometry.boundary.ResolvedBC` instances
+rather than string tags. ``sn_mesh.bc_left``, ``sn_mesh.bc_right``,
+``sn_mesh.bc_xmin``, etc. carry tensor-decomposed BC objects whose
+``apply_to_incoming(angular_flux_outgoing, quadrature)`` method the
+sweep calls directly, with no string-kind branching at the call site.
+For backward compatibility with existing tests, the concrete BC
+classes still compare equal to their legacy string tag
+(``sn_mesh.bc_left == "vacuum"`` evaluates True iff
+``sn_mesh.bc_left`` is a ``VacuumBC``); see
+:ref:`bc-tensor-decompositions` for the full algebra and the list of
+implemented primitives.
 
 **Backward compatibility.**
 :func:`solve_sn_fixed_source` still accepts a ``boundary_condition: str``
@@ -1200,6 +1212,85 @@ the reflective-partner copy is skipped, leaving incoming-face angular
 fluxes at their zero initialisation.  Vacuum BCs are the natural
 choice for fixed-source MMS verification on finite slabs (see
 :ref:`sn-mms-verification`).
+
+.. _bc-tensor-decompositions:
+
+Boundary conditions as tensor decompositions
+---------------------------------------------
+
+The boundary conditions used by :class:`SNMesh` are concrete instances
+of a more general tensor-decomposed framing, defined in
+:mod:`orpheus.geometry.boundary`. A boundary condition is a linear
+operator :math:`R` mapping the outgoing angular flux at a face to the
+incoming angular flux:
+
+.. math::
+   :label: bc-tensor-decomposition
+
+   \psi_{\rm in}(\Omega)
+   = (R\,\psi_{\rm out})(\Omega)
+   = \sum_\alpha \bigl(G_\alpha\,\psi_{\rm out}\bigr)(\Omega) \cdot A_\alpha,
+
+where :math:`G_\alpha` is a **geometric operator** (permutation,
+pushforward, angular average, spatial wrap) and :math:`A_\alpha` is a
+**scalar amplitude** (typically an albedo :math:`\in [0, 1]`).
+
+This is the same algebra Lewis & Miller (1984) §3.4 use to introduce
+boundary conditions in transport: every BC of practical interest is
+either rank-1 (one :math:`G \otimes A` term) or a finite linear
+combination of rank-1 primitives (rank-N). The implemented primitives
+are:
+
+.. list-table:: Implemented :class:`ResolvedBC` primitives
+   :widths: 20 30 25 25
+   :header-rows: 1
+
+   * - Class
+     - :math:`G_\alpha`
+     - :math:`A_\alpha`
+     - Rank / wired into ``solve_sn``
+   * - :class:`~orpheus.geometry.boundary.VacuumBC`
+     - :math:`0` (no operator)
+     - 0
+     - 0 / yes
+   * - :class:`~orpheus.geometry.boundary.SpecularBC`
+     - permutation under reflection axis
+     - albedo (1 = perfect)
+     - 1 / yes
+   * - :class:`~orpheus.geometry.boundary.WhiteBC`
+     - cosine-weighted hemispheric average
+     - albedo
+     - 1 / no (Wave C)
+   * - :class:`~orpheus.geometry.boundary.PeriodicBC`
+     - spatial pushforward (caller-supplied)
+     - 1
+     - 1 / no (Wave C/D)
+   * - :class:`~orpheus.geometry.boundary.AlbedoBC`
+     - identity in angle
+     - albedo
+     - 1 / no (building block)
+   * - :class:`~orpheus.geometry.boundary.MixedBC`
+     - sum of components
+     - per-component
+     - N / no
+
+The Protocol :class:`~orpheus.geometry.boundary.ResolvedBC` exposes one
+method, ``apply_to_incoming(angular_flux_outgoing, quadrature)``, which
+the SN sweep calls instead of branching on a string kind. The
+:attr:`SNMesh.BC_REGISTRY` factories now return concrete
+:class:`ResolvedBC` instances; the registry pattern is unchanged from a
+caller's perspective. White, periodic, albedo, and mixed primitives
+ship as building blocks --- the sweep plumbing for them lands in a
+later wave of the SN reshape campaign (this issue is the algebra; the
+plumbing is the consumption).
+
+The tensor framing pays off architecturally because partial-current
+Marshak boundaries (:math:`R = c_1 \, G_{\rm refl} + c_2 \, G_{\rm
+diff}`, Bell & Glasstone 1970 §1.5) and multi-region interface
+couplings are all instances of the same algebra: pick the geometric
+operators, pick the amplitudes, sum. Once this shape is in place, new
+BCs are one ``ResolvedBC`` class and one
+``BC_REGISTRY`` entry away --- no sweep edits per BC.
 
 Inner Boundary (Curvilinear)
 -----------------------------
