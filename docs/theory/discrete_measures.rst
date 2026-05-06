@@ -316,6 +316,87 @@ re-stamped on tensor-product results via
 :meth:`~orpheus.numerics.measure.DiscreteMeasure.with_metadata`
 when the caller knows the result is invariant.
 
+Domain-specific adapters: AngularQuadrature
+===========================================
+
+The SN solver consumes angular quadratures through ~50
+attribute-access sites (``quad.mu_x``, ``quad.weights``,
+``quad.reflection_index('x')``, ``quad.spherical_harmonics(L)``, …)
+in sweeps, BiCGSTAB operators, mesh constructors, and solvers.
+Re-routing every site through
+:meth:`DiscreteMeasure.integrate` would impose a per-site method-call
+overhead on hot inner loops where the historical attribute access
+costs nothing, and would needlessly couple the entire SN module to
+the measure API.
+
+The Issue 4 design (see ``.claude/plans/sn_reshape.md``) preserves
+both worlds via a **bridge pattern**:
+
+* The publication-grade quadrature *rules* live in
+  :mod:`orpheus.numerics.quadrature` as free functions returning
+  :class:`DiscreteMeasure` instances tagged with
+  ``invariance_group`` and ``degree_of_exactness``:
+
+  - :func:`~orpheus.numerics.quadrature.gauss_legendre_on_mu` —
+    1-D rule on :math:`\mu \in [-1, 1]`,
+    :math:`SO(2)`-invariant, ``degree_of_exactness = 2n - 1``.
+  - :func:`~orpheus.numerics.quadrature.lebedev_sphere` —
+    Lebedev rule on :math:`S^2`, :math:`O_h`-invariant,
+    ``degree_of_exactness = order``.
+  - :func:`~orpheus.numerics.quadrature.level_symmetric_sn` —
+    Carlson-Lathrop level-symmetric :math:`S_N` rule on
+    :math:`S^2`, :math:`O_h`-invariant.
+  - :func:`~orpheus.numerics.quadrature.product_mu_phi` — the
+    polar-times-azimuthal product rule used by the cylindrical SN
+    sweep.
+
+* The SN-side adapters at :mod:`orpheus.sn.quadrature` —
+  :class:`~orpheus.sn.quadrature.GaussLegendre1D`,
+  :class:`~orpheus.sn.quadrature.LebedevSphere`,
+  :class:`~orpheus.sn.quadrature.LevelSymmetricSN`,
+  :class:`~orpheus.sn.quadrature.ProductQuadrature` — wrap those
+  rules and **cache numpy views** of the underlying measure's
+  ``nodes`` / ``weights`` arrays as the legacy ``mu_x`` / ``mu_y``
+  / ``mu_z`` / ``weights`` fields. The view aliasing is safe
+  because :class:`DiscreteMeasure` is ``frozen=True``; the cached
+  views never get out of sync with the measure.
+
+The cached-view layer means the existing SN consumers see no API
+change: ``quad.mu_x`` is still a numpy array, accessed at the same
+:math:`O(1)` cost. The underlying :class:`DiscreteMeasure` is
+exposed as ``adapter.measure`` for callers that want the
+structurally-richer object — composability via
+:meth:`~DiscreteMeasure.__mul__` /
+:meth:`~DiscreteMeasure.pushforward` /
+:meth:`~DiscreteMeasure.restrict`, plus the ``invariance_group``
+that the upcoming ``select_quadrature`` registry (Issue 5) will
+consume.
+
+The bit-identical contract
+--------------------------
+
+The four legacy classes have ~50 active call sites and 11 frozen
+regression snapshots at ``tests/sn/regression/snapshots/`` (one per
+canonical SN configuration: slab / sphere / cylinder × 1G / 2G ×
+homogeneous / multi-region × DD / aniso). The bridge refactor
+preserves both:
+
+* **Bit-identical foundation tests** at
+  ``tests/numerics/test_rules_*.py`` use :func:`numpy.array_equal`
+  (not :func:`numpy.allclose`) to verify that each rule function's
+  nodes/weights are exact-bit equal to the legacy adapter's
+  output.
+* **Regression snapshots** rerun every SN configuration end-to-end
+  through ``DDSweep`` / ``BiCGSTAB`` / power iteration and assert
+  match against the frozen ``.npz`` baselines at the iterative
+  solver's convergence floor (``rtol=1e-12``, ``atol=1e-13``).
+
+Both layers are required: the bit-identical match at the rule level
+guarantees no node-order or floating-point drift entered the
+discretisation pipeline; the snapshot match guarantees that the
+pipeline's downstream consumers (sweeps, operators, solvers) still
+produce the same answer they always did.
+
 Forward references
 ==================
 
@@ -329,19 +410,6 @@ in subsequent issues of the SN reshape campaign:
   drive geometry → quadrature selection. The named entries and the
   containment lattice in :eq:`subgroup-of-o3-containment` are the
   data the registry reads.
-- **Issue 4** (``module:sn``) will refactor
-  :class:`~orpheus.sn.quadrature.AngularQuadrature` so that
-  :class:`~orpheus.sn.quadrature.GaussLegendre1D`,
-  :class:`~orpheus.sn.quadrature.LebedevSphere`,
-  :class:`~orpheus.sn.quadrature.LevelSymmetricSN`, and
-  :class:`~orpheus.sn.quadrature.ProductQuadrature` are thin
-  adapters wrapping a
-  :class:`~orpheus.numerics.measure.DiscreteMeasure` rather than
-  carrying their own ``mu_x``/``mu_y``/``weights`` fields. This
-  hides the composition behind the existing SN API while exposing
-  it to consumers (such as the eigenvalue solver tests, the MOC
-  port, and Wave-3 sensitivity sweeps) that now want to reason
-  about quadratures as measures.
 - **Wave 2 (MoC migration)** will consume
   :class:`~orpheus.numerics.measure.BundleMeasure` for ray-bundle
   quadratures whose fibers (the parallel rays through the geometry)

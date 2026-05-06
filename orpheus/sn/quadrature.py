@@ -1,19 +1,68 @@
-"""Angular quadrature for SN transport.
+r"""Angular quadrature for SN transport — adapters over
+:class:`~orpheus.numerics.measure.DiscreteMeasure`.
 
-Provides a protocol and two implementations:
-- GaussLegendre1D: for 1D slab problems (mu on [-1,1], weights sum to 2)
-- LebedevSphere: for 2D/3D problems (directions on unit sphere, weights sum to 4π)
+Provides the :class:`AngularQuadrature` Protocol plus four concrete
+adapters:
 
-The solver uses ``1/sum(weights)`` as the isotropic normalization factor,
-making it quadrature-agnostic.
+* :class:`GaussLegendre1D` — for 1-D slab problems
+  (:math:`\mu \in [-1, 1]`, weights sum to 2).
+* :class:`LebedevSphere` — for 2-D / 3-D problems on
+  :math:`O_h`-invariant Lebedev grids (weights sum to :math:`4\pi`).
+* :class:`LevelSymmetricSN` — Carlson-Lathrop level-symmetric
+  :math:`S_N` on :math:`S^2` (weights sum to :math:`4\pi`).
+* :class:`ProductQuadrature` — product rule
+  :math:`\mu_{\text{GL}} \times \phi_{\text{equispaced}}` on
+  :math:`S^2`.
+
+Why adapters?
+-------------
+
+The four classes pre-date the
+:class:`~orpheus.numerics.measure.DiscreteMeasure` abstraction. SN
+solvers, sweeps, BiCGSTAB operators, and meshes consume them through
+~50 attribute-access sites in :mod:`orpheus.sn` (``quad.mu_x``,
+``quad.weights``, ``quad.reflection_index('x')``, …). Issue 4 of
+``.claude/plans/sn_reshape.md`` re-platforms each class as a *thin
+adapter* over a measure-returning rule function from
+:mod:`orpheus.numerics.quadrature`, caching numpy views on construction
+so the legacy attribute API stays bit-identical (verified by the 11
+regression snapshots at ``tests/sn/regression/snapshots/``).
+
+The adapter caches in ``__init__``:
+
+* ``mu_x`` / ``mu_y`` / ``mu_z`` — column views into
+  ``measure.nodes`` (no copy).
+* ``weights`` / ``N`` — view of ``measure.weights`` and
+  ``measure.n_points``.
+* ``_ref_x`` / ``_ref_y`` / ``_ref_z`` — reflection-index arrays via
+  :meth:`DiscreteMeasure.pushforward` plus nearest-neighbour matching.
+* ``level_indices`` / ``level_mu`` / ``n_levels`` — the
+  :class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`
+  side-channel, for the cylindrical SN sweep.
+
+The underlying :class:`DiscreteMeasure` is exposed as ``self.measure``
+for callers that want the structurally-richer object (composability,
+``invariance_group``, ``degree_of_exactness``).
+
+The solver uses ``1/sum(weights)`` as the isotropic normalisation
+factor, so it remains quadrature-agnostic.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 import numpy as np
+
+from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.quadrature import (
+    gauss_legendre_on_mu,
+    lebedev_sphere,
+    level_symmetric_sn,
+    product_mu_phi,
+)
+from orpheus.numerics.quadrature.rules_sphere import LevelStructure
 
 
 def _build_spherical_harmonics(
@@ -114,17 +163,54 @@ class AngularQuadrature(Protocol):
         ...
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# Utility: nearest-neighbour reflection-index lookup
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _find_reflections(
+    tx: np.ndarray, ty: np.ndarray, tz: np.ndarray,
+    rx: np.ndarray, ry: np.ndarray, rz: np.ndarray,
+) -> np.ndarray:
+    """Find index of closest match in (rx,ry,rz) for each (tx,ty,tz).
+
+    Used by Lebedev / level-symmetric / product adapters to precompute
+    reflection partners (``ref[n] = arg min_k |R x_n - x_k|`` for the
+    requested reflection ``R``). Conceptually the same operation as a
+    :meth:`DiscreteMeasure.pushforward` followed by a snapping step;
+    we keep the explicit nearest-neighbour search in the adapter
+    layer because the SN consumer requires *integer* indices into
+    the original node array, not a new measure with permuted nodes.
+    """
+    n = len(tx)
+    ref = np.empty(n, dtype=int)
+    for i in range(n):
+        dist = (rx - tx[i])**2 + (ry - ty[i])**2 + (rz - tz[i])**2
+        ref[i] = np.argmin(dist)
+    return ref
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Gauss-Legendre 1-D adapter
+# ═══════════════════════════════════════════════════════════════════════
+
+
 @dataclass
 class GaussLegendre1D:
     """Gauss-Legendre quadrature on [-1, 1] for 1D slab transport.
 
-    mu_x = GL points, mu_y = 0. Weights sum to 2.
+    Adapter over
+    :func:`orpheus.numerics.quadrature.gauss_legendre_on_mu`. Caches
+    ``mu_x`` (the GL nodes), ``mu_y`` (zeros), and ``weights`` as
+    array views of the underlying :class:`DiscreteMeasure`. ``N`` is
+    the node count. Weights sum to 2.
     """
 
     mu_x: np.ndarray
     mu_y: np.ndarray
     weights: np.ndarray
     N: int
+    measure: DiscreteMeasure | None = field(default=None, repr=False)
 
     @property
     def mu(self) -> np.ndarray:
@@ -134,12 +220,16 @@ class GaussLegendre1D:
     @classmethod
     def create(cls, n_ordinates: int = 16) -> GaussLegendre1D:
         """Build N-point GL quadrature (must be even for SN)."""
-        mu, w = np.polynomial.legendre.leggauss(n_ordinates)
+        measure = gauss_legendre_on_mu(n_ordinates)
+        # ``measure.nodes`` is shape (N,) — the polar cosine. We cache
+        # that as ``mu_x`` (slab convention: x is the streaming axis).
+        # ``mu_y`` is identically zero in 1-D.
         return cls(
-            mu_x=mu,
-            mu_y=np.zeros(n_ordinates),
-            weights=w,
-            N=n_ordinates,
+            mu_x=measure.nodes,
+            mu_y=np.zeros(measure.n_points),
+            weights=measure.weights,
+            N=measure.n_points,
+            measure=measure,
         )
 
     def reflection_index(self, axis: str) -> np.ndarray:
@@ -157,11 +247,19 @@ class GaussLegendre1D:
         )
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# Lebedev sphere adapter
+# ═══════════════════════════════════════════════════════════════════════
+
+
 @dataclass
 class LebedevSphere:
     """Lebedev quadrature on the unit sphere for 2D/3D transport.
 
-    Weights sum to 4π. Directions cover the full sphere.
+    Adapter over :func:`orpheus.numerics.quadrature.lebedev_sphere`.
+    Caches ``mu_x`` / ``mu_y`` / ``mu_z`` as column views of the
+    underlying :class:`DiscreteMeasure`'s ``nodes`` array (which is
+    shape ``(N, 3)``). Weights sum to :math:`4\\pi`.
     """
 
     mu_x: np.ndarray
@@ -172,14 +270,17 @@ class LebedevSphere:
     _ref_x: np.ndarray
     _ref_y: np.ndarray
     _ref_z: np.ndarray
+    measure: DiscreteMeasure | None = field(default=None, repr=False)
 
     @classmethod
     def create(cls, order: int = 17) -> LebedevSphere:
-        """Build Lebedev quadrature from scipy."""
-        from scipy.integrate import lebedev_rule
-        pts, w = lebedev_rule(order)
-        mu_x, mu_y, mu_z = pts[0], pts[1], pts[2]
-        n_pts = len(w)
+        """Build Lebedev quadrature of given polynomial-exact order."""
+        measure = lebedev_sphere(order)
+        nodes = measure.nodes  # (N, 3)
+        mu_x = nodes[:, 0]
+        mu_y = nodes[:, 1]
+        mu_z = nodes[:, 2]
+        n_pts = measure.n_points
 
         ref_x = _find_reflections(-mu_x, mu_y, mu_z, mu_x, mu_y, mu_z)
         ref_y = _find_reflections(mu_x, -mu_y, mu_z, mu_x, mu_y, mu_z)
@@ -187,8 +288,9 @@ class LebedevSphere:
 
         return cls(
             mu_x=mu_x, mu_y=mu_y, mu_z=mu_z,
-            weights=w, N=n_pts,
+            weights=measure.weights, N=n_pts,
             _ref_x=ref_x, _ref_y=ref_y, _ref_z=ref_z,
+            measure=measure,
         )
 
     def reflection_index(self, axis: str) -> np.ndarray:
@@ -206,130 +308,20 @@ class LebedevSphere:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Level-Symmetric S_N quadrature
+# Level-Symmetric S_N adapter
 # ═══════════════════════════════════════════════════════════════════════
-
-# Tabulated first direction cosine μ₁² and weights for S2–S16.
-# Source: Lewis & Miller, Table 4-1; also Carlson & Lathrop (1968).
-# All octant ordinates are generated from these by permuting (μ,η,ξ).
-_LEVEL_SYM_DATA: dict[int, dict] = {
-    2: {"mu2": [1 / 3], "weights": [1.0]},
-    4: {"mu2": [1 / 6, 1 / 6], "weights": [1 / 3, 1 / 3]},
-    # For S4 the standard single-weight form:
-    # one distinct direction cosine value μ₁² = 1/3 is used with 3 permutations per octant.
-}
-
-# For clean implementation, we use the closed-form construction
-# described in Lewis & Miller §4.2 for arbitrary even N.
-# The direction cosine values on each level satisfy:
-#   μ_p² = (2p - 1) / (N(N+2)/4 - 1) · (1 - 3μ₁²) + μ₁²  for p = 1..N/2
-# with μ₁² chosen to satisfy the moment conditions.
-
-
-def _build_level_symmetric(sn_order: int) -> tuple:
-    """Build level-symmetric S_N quadrature from first principles.
-
-    Uses the standard construction: N/2 μ-levels with equally-spaced
-    μ² values.  On each level p, there are (N/2 - p + 1) ordinates in
-    the first octant.  Weights are determined by the zeroth and second
-    moment conditions.
-
-    Returns
-    -------
-    mu_x, mu_y, mu_z, weights : flattened arrays for full sphere
-    level_info : dict with per-level structure
-    """
-    if sn_order % 2 != 0 or sn_order < 2:
-        raise ValueError(f"S_N order must be positive even, got {sn_order}")
-
-    n_half = sn_order // 2  # number of μ-levels per hemisphere
-
-    # Standard first direction cosine squared (Lewis & Miller convention)
-    # μ₁² is set so that moment conditions are satisfied.
-    # For the equal-weight level-symmetric set: μ₁² = 1/(N(N-1)/2 + 1) · 1
-    # Actually, the standard choice is μ₁² such that Σ w = 4π and Σ w μ² = 4π/3.
-    # For the simple equal-weight construction:
-    #   μ_p² = μ₁² + (p-1)·Δ,  Δ = (1 - 3μ₁²)/(n_half - 1) for n_half > 1
-    #   Δ chosen so that the set {μ_p} covers [μ₁, √(1-2μ₁²)] symmetrically.
-    # Standard: μ₁² = 1/(sn_order*(sn_order+2)/4)  [Carlson & Lathrop]
-
-    if n_half == 1:
-        # S2: single direction cosine, isotropic
-        mu2_levels = np.array([1.0 / 3.0])
-    else:
-        # Equal spacing in μ²: μ_p² = μ₁² + (p-1)·2(1-3μ₁²)/(N-2)
-        mu1_sq = 1.0 / (sn_order * (sn_order + 2) / 4)
-        delta = 2.0 * (1.0 - 3.0 * mu1_sq) / (sn_order - 2)
-        mu2_levels = mu1_sq + np.arange(n_half) * delta
-
-    mu_levels = np.sqrt(mu2_levels)
-
-    # Build octant ordinates: on level p (0-indexed), the direction cosines
-    # are all permutations of (μ_a, μ_b, μ_c) where μ_a² + μ_b² + μ_c² = 1
-    # and each comes from the set of level values.
-    # For level p: μ_z = mu_levels[p], and (η, ξ) are all pairs from
-    # mu_levels that satisfy η² + ξ² = 1 - μ_z².
-    octant_dirs = []  # list of (η, ξ, μ) tuples
-    for p in range(n_half):
-        mu_z = mu_levels[p]
-        sin_theta_sq = 1.0 - mu_z**2
-        # On this level, the η values come from the same set
-        # Number of azimuthal points on level p: n_half - p
-        n_azi = n_half - p
-        for k in range(n_azi):
-            eta = mu_levels[k]
-            xi_sq = sin_theta_sq - eta**2
-            if xi_sq < -1e-14:
-                continue
-            xi = np.sqrt(max(xi_sq, 0.0))
-            octant_dirs.append((eta, xi, mu_z))
-
-    n_octant = len(octant_dirs)
-
-    # Equal weights within the octant (simple level-symmetric)
-    w_octant = 4.0 * np.pi / (8.0 * n_octant)
-
-    # Reflect to full sphere (8 octants)
-    all_eta, all_xi, all_mu, all_w = [], [], [], []
-    # Level tracking: we'll rebuild after reflection
-    for eta, xi, mu_z in octant_dirs:
-        for s_eta in [-1, 1]:
-            for s_xi in [-1, 1]:
-                for s_mu in [-1, 1]:
-                    all_eta.append(s_eta * eta)
-                    all_xi.append(s_xi * xi)
-                    all_mu.append(s_mu * mu_z)
-                    all_w.append(w_octant)
-
-    mu_x = np.array(all_eta)   # η — radial for cylindrical
-    mu_y = np.array(all_xi)    # ξ — azimuthal for cylindrical
-    mu_z = np.array(all_mu)    # μ — axial
-    weights = np.array(all_w)
-
-    # Build level structure: group ordinates by |μ_z| value,
-    # sort within each level by increasing η (mu_x) for the
-    # cylindrical azimuthal sweep convention.
-    n_levels = n_half
-    level_mu_vals = mu_levels
-    level_indices = []
-    for p in range(n_levels):
-        tol = 1e-12
-        idx = np.where(np.abs(np.abs(mu_z) - level_mu_vals[p]) < tol)[0]
-        order = np.argsort(mu_x[idx])
-        level_indices.append(idx[order])
-
-    return mu_x, mu_y, mu_z, weights, n_levels, level_mu_vals, level_indices
 
 
 @dataclass
 class LevelSymmetricSN:
-    """Level-symmetric S_N quadrature on the unit sphere.
+    """Level-symmetric :math:`S_N` quadrature on the unit sphere.
 
-    Standard triangular quadrature with N/2 μ-levels per hemisphere.
-    Provides the ``level_indices`` structure required by the cylindrical
-    SN sweep for azimuthal redistribution.
-
-    Weights sum to 4π.
+    Adapter over
+    :func:`orpheus.numerics.quadrature.level_symmetric_sn`.
+    Standard triangular quadrature with :math:`N/2` :math:`\\mu`-levels
+    per hemisphere; provides the ``level_indices`` structure required
+    by the cylindrical SN sweep for azimuthal redistribution
+    (Bailey et al. 2009, Eq. 50). Weights sum to :math:`4\\pi`.
     """
 
     mu_x: np.ndarray       # η — radial direction cosines
@@ -345,13 +337,17 @@ class LevelSymmetricSN:
     n_levels: int
     level_indices: list[np.ndarray]
     level_mu: np.ndarray
+    measure: DiscreteMeasure | None = field(default=None, repr=False)
 
     @classmethod
     def create(cls, sn_order: int = 4) -> LevelSymmetricSN:
-        """Build S_N level-symmetric quadrature of given order."""
-        mu_x, mu_y, mu_z, w, n_levels, level_mu, level_indices = \
-            _build_level_symmetric(sn_order)
-        N = len(w)
+        """Build :math:`S_N` level-symmetric quadrature of given order."""
+        measure, structure = level_symmetric_sn(sn_order)
+        nodes = measure.nodes  # (N, 3)
+        mu_x = nodes[:, 0]
+        mu_y = nodes[:, 1]
+        mu_z = nodes[:, 2]
+        N = measure.n_points
 
         ref_x = _find_reflections(-mu_x, mu_y, mu_z, mu_x, mu_y, mu_z)
         ref_y = _find_reflections(mu_x, -mu_y, mu_z, mu_x, mu_y, mu_z)
@@ -359,11 +355,12 @@ class LevelSymmetricSN:
 
         return cls(
             mu_x=mu_x, mu_y=mu_y, mu_z=mu_z,
-            weights=w, N=N,
+            weights=measure.weights, N=N,
             _ref_x=ref_x, _ref_y=ref_y, _ref_z=ref_z,
-            n_levels=n_levels,
-            level_indices=level_indices,
-            level_mu=level_mu,
+            n_levels=structure.n_levels,
+            level_indices=structure.level_indices,
+            level_mu=structure.level_mu,
+            measure=measure,
         )
 
     def reflection_index(self, axis: str) -> np.ndarray:
@@ -380,22 +377,28 @@ class LevelSymmetricSN:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Product Quadrature (GL in μ × equispaced in φ)
+# Product Quadrature (GL in μ × equispaced in φ) adapter
 # ═══════════════════════════════════════════════════════════════════════
+
 
 @dataclass
 class ProductQuadrature:
-    """Product quadrature: Gauss-Legendre(μ) × equispaced(φ).
+    r"""Product quadrature: Gauss-Legendre :math:`(\mu)` :math:`\times`
+    equispaced :math:`(\phi)`.
 
-    The polar angle θ is discretised via Gauss-Legendre on μ = cos θ ∈ [-1, 1].
-    The azimuthal angle φ is discretised uniformly on [0, 2π).
+    Adapter over :func:`orpheus.numerics.quadrature.product_mu_phi`.
+    The polar angle :math:`\theta` is discretised via Gauss-Legendre
+    on :math:`\mu = \cos\theta \in [-1, 1]`; the azimuthal angle
+    :math:`\phi` is discretised uniformly on :math:`[0, 2\pi)`.
 
     Direction cosines:
-    - μ_z = μ (axial, = cos θ)
-    - μ_x = η = sin(θ) cos(φ) (radial for cylindrical)
-    - μ_y = ξ = sin(θ) sin(φ) (azimuthal for cylindrical)
 
-    Weights: ``w = w_GL(μ) · (2π / n_phi)`` — sum to 4π.
+    * :math:`\mu_z = \mu` (axial, :math:`= \cos\theta`)
+    * :math:`\mu_x = \eta = \sin\theta\cos\phi` (radial for cylindrical)
+    * :math:`\mu_y = \xi = \sin\theta\sin\phi` (azimuthal for cylindrical)
+
+    Weights: :math:`w = w_{\text{GL}}(\mu) \cdot (2\pi / n_\phi)` —
+    sum to :math:`4\pi`.
 
     Provides ``level_indices`` for the cylindrical sweep.
     """
@@ -413,51 +416,26 @@ class ProductQuadrature:
     n_levels: int
     level_indices: list[np.ndarray]
     level_mu: np.ndarray
+    measure: DiscreteMeasure | None = field(default=None, repr=False)
 
     @classmethod
     def create(cls, n_mu: int = 8, n_phi: int = 8) -> ProductQuadrature:
-        """Build product quadrature with n_mu GL points and n_phi azimuthal points.
+        """Build product quadrature with ``n_mu`` GL points and
+        ``n_phi`` azimuthal points.
 
         Parameters
         ----------
         n_mu : int
-            Number of Gauss-Legendre points in μ (polar).
+            Number of Gauss-Legendre points in :math:`\\mu` (polar).
         n_phi : int
-            Number of equispaced points in φ (azimuthal).
+            Number of equispaced points in :math:`\\phi` (azimuthal).
         """
-        # GL points in μ = cos(θ)
-        mu_gl, w_gl = np.polynomial.legendre.leggauss(n_mu)
-
-        # Equispaced φ in [0, 2π)
-        phi_pts = np.linspace(0, 2 * np.pi, n_phi, endpoint=False)
-        w_phi = 2.0 * np.pi / n_phi
-
-        N_total = n_mu * n_phi
-        mu_x = np.empty(N_total)
-        mu_y = np.empty(N_total)
-        mu_z = np.empty(N_total)
-        weights = np.empty(N_total)
-        level_indices = []
-
-        idx = 0
-        for p in range(n_mu):
-            mu_val = mu_gl[p]
-            sin_theta = np.sqrt(1.0 - mu_val**2)
-            level_idx = []
-            for m in range(n_phi):
-                mu_x[idx] = sin_theta * np.cos(phi_pts[m])
-                mu_y[idx] = sin_theta * np.sin(phi_pts[m])
-                mu_z[idx] = mu_val
-                weights[idx] = w_gl[p] * w_phi
-                level_idx.append(idx)
-                idx += 1
-            # Sort by increasing η (mu_x) for cylindrical azimuthal sweep.
-            # The sweep proceeds from most-inward (η = −sin θ) to
-            # most-outward (η = +sin θ), matching the α recursion
-            # convention from Bailey et al. (2009) Eq. 50.
-            level_arr = np.array(level_idx)
-            order = np.argsort(mu_x[level_arr])
-            level_indices.append(level_arr[order])
+        measure, structure = product_mu_phi(n_mu, n_phi)
+        nodes = measure.nodes  # (N_total, 3)
+        mu_x = nodes[:, 0]
+        mu_y = nodes[:, 1]
+        mu_z = nodes[:, 2]
+        n_total = measure.n_points
 
         ref_x = _find_reflections(-mu_x, mu_y, mu_z, mu_x, mu_y, mu_z)
         ref_y = _find_reflections(mu_x, -mu_y, mu_z, mu_x, mu_y, mu_z)
@@ -465,11 +443,12 @@ class ProductQuadrature:
 
         return cls(
             mu_x=mu_x, mu_y=mu_y, mu_z=mu_z,
-            weights=weights, N=N_total,
+            weights=measure.weights, N=n_total,
             _ref_x=ref_x, _ref_y=ref_y, _ref_z=ref_z,
-            n_levels=n_mu,
-            level_indices=level_indices,
-            level_mu=mu_gl,
+            n_levels=structure.n_levels,
+            level_indices=structure.level_indices,
+            level_mu=structure.level_mu,
+            measure=measure,
         )
 
     def reflection_index(self, axis: str) -> np.ndarray:
@@ -483,20 +462,3 @@ class ProductQuadrature:
 
     def spherical_harmonics(self, L: int) -> np.ndarray:
         return _build_spherical_harmonics(L, self.mu_x, self.mu_y, self.mu_z)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Utilities
-# ═══════════════════════════════════════════════════════════════════════
-
-def _find_reflections(
-    tx: np.ndarray, ty: np.ndarray, tz: np.ndarray,
-    rx: np.ndarray, ry: np.ndarray, rz: np.ndarray,
-) -> np.ndarray:
-    """Find index of closest match in (rx,ry,rz) for each (tx,ty,tz)."""
-    n = len(tx)
-    ref = np.empty(n, dtype=int)
-    for i in range(n):
-        dist = (rx - tx[i])**2 + (ry - ty[i])**2 + (rz - tz[i])**2
-        ref[i] = np.argmin(dist)
-    return ref

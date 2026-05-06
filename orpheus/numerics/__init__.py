@@ -22,6 +22,12 @@ from .operator import (
     ZeroOperator,
     as_scipy_linop,
 )
+from .quadrature import (
+    gauss_legendre_on_mu,
+    lebedev_sphere,
+    level_symmetric_sn,
+    product_mu_phi,
+)
 from .symmetry import SubgroupOfO3
 
 __all__ = [
@@ -44,5 +50,9 @@ __all__ = [
     "equispaced",
     "gauss_chebyshev",
     "gauss_legendre",
+    "gauss_legendre_on_mu",
+    "lebedev_sphere",
+    "level_symmetric_sn",
     "power_iteration",
+    "product_mu_phi",
 ]
