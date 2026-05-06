@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2619**
+Total tests collected: **2656**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 590, 22.5%
-   L1, 723, 27.6%
+   L0, 590, 22.2%
+   L1, 723, 27.2%
    L2, 36, 1.4%
    L3, 0, 0.0%
-   foundation, 1242, 47.4%
+   foundation, 1279, 48.2%
    unmarked, 28, 1.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2512
+   explicit, 2549
    verify, 0
    class-name, 46
    func-name, 0
@@ -176,6 +176,7 @@ Module × level grid
    moc/test_verification, 27, 15, 6, 0, 0, 0
    numerics/test_measure, 0, 16, 0, 0, 23, 0
    numerics/test_operator, 0, 0, 0, 0, 38, 0
+   numerics/test_registry, 0, 0, 0, 0, 37, 0
    numerics/test_rules_1d, 0, 5, 0, 0, 16, 0
    numerics/test_rules_product, 0, 3, 0, 0, 14, 0
    numerics/test_rules_sphere, 0, 7, 0, 0, 29, 0
@@ -470,7 +471,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **155** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **156** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bailey-dome-recursion``
 - ``bessel-wronskian``
@@ -608,6 +609,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-unified``
 - ``power-equation``
 - ``precursor-equation``
+- ``quadrature-selection-criterion``
 - ``sigs-convention``
 - ``singular-eigenfunction-eq5``
 - ``sood-eq18-1g-balance``

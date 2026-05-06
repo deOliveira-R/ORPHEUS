@@ -56,6 +56,14 @@ See Also
 metadata-propagation table, the bridge pattern documented here.
 """
 
+from .registry import (
+    GEOMETRY_GROUPS,
+    QuadratureSelectionError,
+    QuadratureSpec,
+    SelectionLog,
+    quadrature_registry,
+    select_quadrature,
+)
 from .rules_1d import gauss_legendre_on_mu
 from .rules_product import product_mu_phi
 from .rules_sphere import (
@@ -64,8 +72,14 @@ from .rules_sphere import (
 )
 
 __all__ = [
+    "GEOMETRY_GROUPS",
+    "QuadratureSelectionError",
+    "QuadratureSpec",
+    "SelectionLog",
     "gauss_legendre_on_mu",
     "lebedev_sphere",
     "level_symmetric_sn",
     "product_mu_phi",
+    "quadrature_registry",
+    "select_quadrature",
 ]

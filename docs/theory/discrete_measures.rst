@@ -316,6 +316,205 @@ re-stamped on tensor-product results via
 :meth:`~orpheus.numerics.measure.DiscreteMeasure.with_metadata`
 when the caller knows the result is invariant.
 
+Quadrature selection algorithm
+==============================
+
+Issue 5 of the SN reshape campaign installs a tagged registry on top of
+the four quadrature-rule primitives, plus a selector that picks the
+right :class:`~orpheus.numerics.measure.DiscreteMeasure` for a
+geometry-and-target-degree pair. The selector lives at
+:mod:`orpheus.numerics.quadrature.registry`.
+
+Selection is fundamentally a **four-stage filter** in priority order:
+
+1. **G compatibility (symmetry).** The rule's invariance group must
+   contain every symmetry of the geometry —
+   :math:`G_{\text{geom}} \subseteq G_Q`. A quadrature with **less**
+   symmetry than the geometry imprints spurious low-order asymmetry
+   on a symmetric problem (Lebedev 1976, §1; Stiefel & Fässler 1979
+   Ch. 5). A quadrature with **more** symmetry is harmless — the
+   extra symmetry is unused, never violated. The lattice
+   :eq:`subgroup-of-o3-containment` drives this filter; see
+   :class:`~orpheus.numerics.symmetry.SubgroupOfO3` for the
+   containment table.
+
+2. **V compatibility (polynomial exactness, Galerkin sense).** The
+   rule's degree of exactness must reach the target: :math:`\deg(Q)
+   \ge d`. Each rule's degree is parameter-dependent — :math:`2n - 1`
+   for Gauss-Legendre, :math:`N - 1` for level-symmetric :math:`S_N`
+   (conservative), ``order`` for Lebedev, :math:`\min(2 n_\mu - 1,
+   n_\phi - 1)` for the product rule. The selector inverts each rule's
+   formula and picks the smallest parameter set meeting the target.
+   Lebedev's gap structure (no rules at orders 33, 37, 39, 43, 45, 49)
+   is handled by rounding up to the next tabulated order; if the target
+   exceeds the table's top end (47 in scipy's tabulation), the rule is
+   rejected at this stage with a clear message.
+
+3. **Structural compatibility.** The consumer can request boolean
+   flags that the rule must satisfy:
+
+   - ``positive_weights`` — physics consumers reject negative-weight
+     rules (Newton-Cotes :math:`n \ge 9`) because they amplify
+     quadrature noise.
+   - ``axis_aligned`` — Cartesian-friendly: nodes lie on coordinate
+     axes (or include axis-aligned orbits, in the Lebedev case).
+   - ``level_structured`` — exposes per-:math:`\mu` polar levels for
+     the cylindrical SN sweep's azimuthal redistribution coefficients
+     (Bailey et al. 2009 Eq. 50).
+   - ``half_range_clean`` — ``measure.restrict(lambda x: x > 0)``
+     gives a valid quadrature without re-normalisation.
+
+   Only flags passed with value ``True`` constrain the search; ``False``
+   and missing keys are interpreted as "don't care."
+
+4. **Minimum points (cost).** Among candidates passing 1-3, pick the
+   smallest :math:`N`. Each ordinate is a sweep direction in the SN
+   solver, and sweeps dominate the runtime — the cheapest valid rule
+   wins.
+
+Formally, the selection criterion is
+
+.. math::
+   :label: quadrature-selection-criterion
+
+   Q^{\star} \;=\; \arg\min\Bigl\{\, n(Q) \;:\;\;
+   G_{\text{geom}} \subseteq G_Q
+   \;\wedge\; \deg(Q) \ge d
+   \;\wedge\; F_{\text{req}} \subseteq F_Q
+   \,\Bigr\},
+
+.. (vv-status rationale) quadrature-selection-criterion: Verified
+   transitively by the foundation tests in
+   :file:`tests/numerics/test_registry.py` — every stage of the
+   four-stage filter has a happy-path test
+   (``test_select_slab_returns_gauss_legendre``,
+   ``test_select_sphere_returns_gauss_legendre``,
+   ``test_select_cylinder_with_level_structured_returns_product``,
+   ``test_select_cartesian2d_prefers_lebedev_over_ls_sn``) and a
+   negative path (``test_no_rule_fits_raises_with_log``,
+   ``test_truly_incompatible_flags_raises``). Tagged ``foundation``
+   rather than carrying a verification ladder slot because the
+   selection chain is a software invariant (the predicate
+   :math:`G_{\text{geom}} \subseteq G_Q \wedge \deg(Q) \ge d \wedge
+   F_{\text{req}} \subseteq F_Q`), not a physics-equation claim with
+   an L0..L3 ladder slot — the ladder lives on the rules themselves
+   (``test_rules_*.py``).
+.. vv-status: quadrature-selection-criterion documented
+
+where :math:`n(Q)` is the number of nodes,
+:math:`G_Q \subseteq O(3)` is the invariance group,
+:math:`\deg(Q)` is the polynomial-exactness degree, and
+:math:`F_Q \subseteq \{\text{positive\_weights}, \text{axis\_aligned},
+\text{level\_structured}, \text{half\_range\_clean}\}` is the rule's
+structural-flag set.
+
+Geometry → group assignment
+---------------------------
+
+The selector's static geometry table
+(:data:`~orpheus.numerics.quadrature.registry.GEOMETRY_GROUPS`)
+encodes:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 14 64
+
+   * - Geometry
+     - :math:`G_{\text{geom}}`
+     - Rationale
+   * - ``"slab"``
+     - :math:`SO(2)`
+     - 1-D problem in :math:`z`; angular dependence reduces to
+       :math:`\mu = \cos\theta` only, with full azimuthal rotation
+       symmetry. The transverse :math:`Z_2` reflection is automatic
+       on a 1-D rule on :math:`[-1, 1]` with symmetric nodes
+       (Gauss-Legendre, Stoer-Bulirsch §3.6).
+   * - ``"sphere"``
+     - :math:`SO(2)`
+     - 1-D **radial** spherical SN reduces to GL on :math:`\mu_r`,
+       the cosine of the angle between ordinate and radial direction
+       (Lewis & Miller 1993 §4.4). The continuous problem is
+       :math:`O(3)`-symmetric, but the discrete radial reduction
+       collapses azimuthal dependence, leaving :math:`SO(2)`. When
+       2-D / 3-D spherical SN lands, the table will gain
+       ``"sphere2d"`` / ``"sphere3d"`` entries tagged
+       :math:`O_h` / :math:`O(3)`.
+   * - ``"cylinder"``
+     - :math:`SO(2)`
+     - Axisymmetric cylinder: :math:`\phi`-independence is
+       :math:`SO(2)`. The cylindrical SN sweep also requires per-:math:`\mu`
+       polar-level structure (Bailey et al. 2009 Eq. 50); request
+       this via the ``level_structured=True`` structural flag.
+   * - ``"cartesian2d"``
+     - :math:`O_h`
+     - 2-D Cartesian carries the full octahedral group. Conservatively
+       tagging :math:`O_h` (rather than :math:`D_{4h}`) accepts any
+       :math:`O_h`-invariant rule (Lebedev, level-symmetric :math:`S_N`).
+
+Worked examples
+---------------
+
+The four canonical happy-path selections:
+
+* ``select_quadrature("slab", target_degree=15)``: only :math:`SO(2)`-
+  tagged rules survive G; among those, GL1D (n=8 → degree 15, 8 nodes)
+  beats ProductQuadrature (n_mu=8, n_phi=16 → 128 nodes) on cost. The
+  log records both Lebedev and LS_N rejected at G ("geometry SO2 is
+  not a subgroup of rule's invariance group Oh").
+
+* ``select_quadrature("sphere", target_degree=15)``: same path as
+  slab — radial spherical SN is :math:`SO(2)` after the 1-D reduction.
+
+* ``select_quadrature("cylinder", target_degree=4,
+  level_structured=True)``: :math:`SO(2)` filter keeps GL1D and
+  Product; structural filter rejects GL1D (no level structure);
+  Product wins by default. Parameters: ``n_mu=3, n_phi=5`` (degree
+  :math:`\min(5, 4) = 4`).
+
+* ``select_quadrature("cartesian2d", target_degree=5)``: :math:`O_h`
+  filter keeps Lebedev and LS_N; both pass V (Lebedev order 5 → 14
+  nodes, LS_6 → 48 nodes); Lebedev wins on cost. The log explicitly
+  shows LS_N as a *valid candidate that lost on cost*, not a rejection
+  — its name is absent from ``log.rejected``.
+
+Explainability log
+------------------
+
+Every :func:`~orpheus.numerics.quadrature.registry.select_quadrature`
+call returns a
+:class:`~orpheus.numerics.quadrature.registry.SelectionLog` carrying
+the full decision provenance:
+
+.. code-block:: python
+
+   measure, log = select_quadrature("cartesian2d", target_degree=5)
+   print(log.summary())
+   # select_quadrature(geometry='cartesian2d', target_degree=5)
+   # -> LebedevSphere({'order': 5}) [2 rejected]
+
+   for name, reason in log.rejected:
+       print(f"  - {name}: {reason}")
+   # - GaussLegendre1D: G mismatch: geometry Oh is not a subgroup
+   #   of rule's invariance group SO2
+   # - ProductQuadrature: G mismatch: geometry Oh is not a subgroup
+   #   of rule's invariance group SO2
+
+When no rule fits the constraints, :func:`select_quadrature` raises
+:class:`~orpheus.numerics.quadrature.registry.QuadratureSelectionError`
+with a fully-populated ``exc.log`` so the caller can introspect the
+failure without re-running the search.
+
+Why a registry and not a hardcoded ladder
+------------------------------------------
+
+``solve_sn`` keeps explicit quadrature-passing as the canonical API:
+explicit is better than implicit, and a quadrature is a load-bearing
+modelling choice the user must own. The registry is **opt-in
+convenience** — a default for prototyping and a documentation
+artifact. The structural-flag tags double as Sphinx teaching content;
+each :class:`~orpheus.numerics.quadrature.registry.QuadratureSpec`
+docstring narrates the trade-off in the rule's design space.
+
 Domain-specific adapters: AngularQuadrature
 ===========================================
 
@@ -369,8 +568,10 @@ structurally-richer object — composability via
 :meth:`~DiscreteMeasure.__mul__` /
 :meth:`~DiscreteMeasure.pushforward` /
 :meth:`~DiscreteMeasure.restrict`, plus the ``invariance_group``
-that the upcoming ``select_quadrature`` registry (Issue 5) will
-consume.
+that the
+:func:`~orpheus.numerics.quadrature.registry.select_quadrature`
+registry (Issue 5; see "Quadrature selection algorithm" above)
+consumes for automated rule selection.
 
 The bit-identical contract
 --------------------------
@@ -404,18 +605,16 @@ This page is consumed progressively. The current stub installs the
 labels and the composition algebra; the following pieces will land
 in subsequent issues of the SN reshape campaign:
 
-- **Issue 5** (``module:numerics``) will install a
-  ``select_quadrature`` registry that consumes
-  :meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_subgroup_of` to
-  drive geometry → quadrature selection. The named entries and the
-  containment lattice in :eq:`subgroup-of-o3-containment` are the
-  data the registry reads.
 - **Wave 2 (MoC migration)** will consume
   :class:`~orpheus.numerics.measure.BundleMeasure` for ray-bundle
   quadratures whose fibers (the parallel rays through the geometry)
   vary with the base direction. The bundle abstraction is shipped
   in Phase 0 because retrofitting it later would force a rewrite
   of MoC's quadrature handling.
+
+Issue 5's ``select_quadrature`` registry has landed and is documented
+in the "Quadrature selection algorithm" section above
+(:eq:`quadrature-selection-criterion`).
 
 The narrative in :ref:`theory-reference-solvers` and
 :ref:`theory-discrete-ordinates` will progressively replace any
