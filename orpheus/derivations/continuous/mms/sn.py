@@ -1665,6 +1665,746 @@ def _build_p1_aniso_continuous_reference() -> ContinuousReferenceSolution:
     )
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# Phase 3.6 — Anisotropic curvilinear MMS (vv-principles failure mode #7)
+# ═══════════════════════════════════════════════════════════════════════
+r"""
+Anisotropic curvilinear MMS — activates the angular-redistribution term.
+
+**Why this case exists.** The ``vv-principles`` skill calls out
+test-design failure mode #7 (MMS simplification bias): the existing
+isotropic curvilinear MMS in :class:`SNSphericalMMSCase` /
+:class:`SNCylindricalMMSCase` uses ansatz
+:math:`\psi_n(r) = A(r)/W`. The angular redistribution term
+(:math:`(1-\mu^2)/r \cdot \partial\psi/\partial\mu` for the sphere,
+:math:`-(1/r)\partial(\xi\psi)/\partial\varphi` for the cylinder) is
+**identically zero** for that ansatz, so the MMS test mathematically
+cannot detect ERR-026-class bugs (curvilinear sweep WDD bug, where
+the wrong fixed point emerges from a redistribution miscoupling).
+This Phase 3.6 ansatz adds a :math:`\mu`-linear (sphere) or
+:math:`\eta`-linear (cylinder) term so the redistribution path is
+exercised under refinement.
+
+**Spherical ansatz.** On a vacuum-BC sphere of radius :math:`R`:
+
+.. math::
+
+    \psi_n(r) = \frac{1}{W}\bigl(A(r) + B(r)\,\mu_n\bigr),
+    \qquad
+    A(r) = \sin\!\left(\frac{\pi r}{R}\right),
+    \qquad
+    B(r) = \frac{r}{R}\Bigl(1 - \frac{r}{R}\Bigr)
+            \cos\!\left(\frac{\pi r}{R}\right).
+
+:math:`A(r)` vanishes at :math:`r = 0` (symmetry BC) and :math:`r = R`
+(vacuum BC). :math:`B(r)` vanishes at both endpoints by the
+:math:`r(R-r)` factor (symmetry: :math:`B(0) = 0` keeps the centre
+isotropic; vacuum: :math:`B(R) = 0` so every ordinate satisfies the
+vacuum BC). The :math:`\mu_n` coefficient is non-trivial: one
+ordinate's BC differs from another's by sign of :math:`\mu_n`, but
+both vanish at :math:`r \in \{0, R\}`. The scalar flux is
+:math:`\phi(r) = A(r)` because :math:`\sum_n w_n \mu_n = 0` for any
+symmetric quadrature.
+
+**Spherical manufactured source.** Substituting into
+
+.. math::
+
+    \mu_n\,\frac{\partial\psi_n}{\partial r}
+        + \frac{1 - \mu_n^2}{r}\,\frac{\partial\psi}{\partial \mu}
+        + \Sigma_t\,\psi_n
+    = \frac{1}{W}\bigl(\Sigma_s\,\phi + Q^{\text{ext}}_n\bigr)
+
+and solving for :math:`Q^{\text{ext}}_n`:
+
+.. math::
+
+    Q^{\text{ext}}_n(r) =
+        \mu_n\,A'(r)
+      + \mu_n^2\,B'(r)
+      + (1 - \mu_n^2)\,\frac{B(r)}{r}
+      + (\Sigma_t - \Sigma_s)\,A(r)
+      + \Sigma_t\,\mu_n\,B(r).
+
+The :math:`\mu_n^2 B'(r)` and :math:`(1-\mu_n^2)\,B/r` terms are the
+load-bearing pieces — neither is present in the isotropic MMS source.
+The redistribution term :math:`(1-\mu_n^2)\,B/r` is the angular
+analytic of the sphere; ERR-026 would alter this term's coupling and
+produce a flux that fails the :math:`\mathcal O(h^{2})` convergence
+test under refinement.
+
+**Cylindrical ansatz.** The radial direction cosine is :math:`\eta`;
+azimuthal partner is :math:`\xi` with :math:`\eta^2 + \xi^2 + \mu^2
+= 1`. Use:
+
+.. math::
+
+    \psi_n(r) = \frac{1}{W}\bigl(A(r) + B(r)\,\eta_n\bigr),
+
+with the same :math:`A(r)` / :math:`B(r)` shapes. :math:`\sum_n w_n
+\eta_n = 0` for ProductQuadrature, so :math:`\phi(r) = A(r)`.
+
+**Cylindrical manufactured source.** Substituting into
+
+.. math::
+
+    \frac{\eta}{r}\,\frac{\partial(r\psi)}{\partial r}
+        - \frac{1}{r}\,\frac{\partial(\xi\psi)}{\partial \varphi}
+        + \Sigma_t\,\psi
+    = \frac{1}{W}\bigl(\Sigma_s\,\phi + Q^{\text{ext}}\bigr)
+
+at fixed :math:`(\theta, \varphi)` per ordinate, with
+:math:`\eta = \sin\theta\cos\varphi`,
+:math:`\xi = \sin\theta\sin\varphi`, gives
+
+.. math::
+
+    Q^{\text{ext}}_n(r) =
+        \eta_n\,A'(r)
+      + \eta_n^2\,B'(r)
+      + \xi_n^2\,\frac{B(r)}{r}
+      + (\Sigma_t - \Sigma_s)\,A(r)
+      + \Sigma_t\,\eta_n\,B(r).
+
+The :math:`\xi_n^2\,B/r` term is the cylindrical analog of the
+sphere's :math:`(1-\mu_n^2)\,B/r`; both come from the angular
+redistribution operator and both vanish for any isotropic ansatz.
+
+**Verification chain.**
+
+- Branch-1 SymPy: :func:`derive_spherical_anisotropic_mms` and
+  :func:`derive_cylindrical_anisotropic_mms` substitute the
+  ansatz into the continuous transport equation and confirm
+  :math:`\mathrm{LHS} - \mathrm{RHS} = 0` algebraically — proves
+  the closed form for :math:`Q^{\text{ext}}_n` is the unique
+  source consistent with the ansatz.
+- Branch-2 numerical: :class:`SNSphericalAnisotropicMMSCase` and
+  :class:`SNCylindricalAnisotropicMMSCase` evaluate
+  :math:`Q^{\text{ext}}_n(r)` at cell centres using vectorised
+  numpy and feed the source to the SN solver.
+- L1 cross-check (the gate): the symbolic substitution residual
+  must be zero; the numerical :math:`Q^{\text{ext}}` (Branch 2)
+  must agree with the SymPy-evaluated :math:`Q^{\text{ext}}`
+  (Branch 1) to :math:`\sim 10^{-13}` on a sample mesh.
+
+.. seealso::
+
+   - ``.claude/skills/vv-principles/SKILL.md`` — failure mode #7
+     ("MMS simplification bias").
+   - :class:`SNSphericalMMSCase`, :class:`SNCylindricalMMSCase` —
+     isotropic siblings retained for narrow-down diagnostics.
+   - [Bailey2009]_ Eq. 7-10 (spherical) and 50-55 (cylindrical) for
+     the angular-redistribution operator structure.
+"""
+
+
+def _spherical_anisotropic_symbolic() -> "tuple[sp.Expr, ...]":
+    """Build the symbolic objects for spherical anisotropic MMS.
+
+    Returns ``(r, mu, R, Sigma_t, Sigma_s, W, A, B, psi, phi, Q)``:
+    the symbolic ansatz and the closed-form Q^ext expression.
+    Shared by the foundation test gate AND by the Branch-2 numerical
+    factory (via lambdify) so both branches descend from the same
+    SymPy ancestor.
+    """
+    import sympy as sp  # local import: keep the symbolic dependency lazy
+
+    r, mu, R = sp.symbols("r mu R", positive=True, real=True)
+    Sigma_t, Sigma_s, W = sp.symbols(
+        "Sigma_t Sigma_s W", positive=True, real=True,
+    )
+    A = sp.sin(sp.pi * r / R)
+    B = (r / R) * (1 - r / R) * sp.cos(sp.pi * r / R)
+    psi = (A + B * mu) / W
+    # Scalar flux: int_{-1}^{1} (A + B mu) dmu / 2 = A. For any
+    # symmetric quadrature, sum_n w_n mu_n = 0, so phi = A.
+    phi = A
+
+    # Closed-form Q^ext_n derived analytically; SymPy verifies in
+    # the foundation test (derive_spherical_anisotropic_mms).
+    Q_closed = (
+        mu * sp.diff(A, r)
+        + mu**2 * sp.diff(B, r)
+        + (1 - mu**2) * B / r
+        + (Sigma_t - Sigma_s) * A
+        + Sigma_t * mu * B
+    )
+    return (r, mu, R, Sigma_t, Sigma_s, W, A, B, psi, phi, Q_closed)
+
+
+def _cylindrical_anisotropic_symbolic() -> "tuple[sp.Expr, ...]":
+    """Build the symbolic objects for cylindrical anisotropic MMS.
+
+    Returns ``(r, theta, phi_az, R, Sigma_t, Sigma_s, W, A, B, eta,
+    xi, psi, phi_scalar, Q)``: ``phi_az`` is the azimuthal angle
+    :math:`\\varphi`; ``phi_scalar`` is the SymPy expression for the
+    scalar flux (which equals :math:`A(r)` because :math:`\\sum_n
+    w_n \\eta_n = 0` for ProductQuadrature).
+    """
+    import sympy as sp
+
+    r, theta, phi_az, R = sp.symbols(
+        "r theta phi_az R", positive=True, real=True,
+    )
+    Sigma_t, Sigma_s, W = sp.symbols(
+        "Sigma_t Sigma_s W", positive=True, real=True,
+    )
+    eta = sp.sin(theta) * sp.cos(phi_az)
+    xi = sp.sin(theta) * sp.sin(phi_az)
+
+    A = sp.sin(sp.pi * r / R)
+    B = (r / R) * (1 - r / R) * sp.cos(sp.pi * r / R)
+    psi = (A + B * eta) / W
+    phi_scalar = A  # symmetric quadrature => sum w_n eta_n = 0
+
+    Q_closed = (
+        eta * sp.diff(A, r)
+        + eta**2 * sp.diff(B, r)
+        + xi**2 * B / r
+        + (Sigma_t - Sigma_s) * A
+        + Sigma_t * eta * B
+    )
+    return (r, theta, phi_az, R, Sigma_t, Sigma_s, W, A, B,
+            eta, xi, psi, phi_scalar, Q_closed)
+
+
+def derive_spherical_anisotropic_mms() -> dict:
+    r"""V_sph-aniso — spherical anisotropic-MMS source identity.
+
+    Proves: substituting the ansatz
+    :math:`\psi_n(r) = (A(r) + B(r)\mu_n)/W` (with
+    :math:`A(r) = \sin(\pi r/R)`,
+    :math:`B(r) = (r/R)(1 - r/R)\cos(\pi r/R)`) into the continuous
+    spherical SN transport operator
+
+    .. math::
+
+       \mu \frac{\partial\psi}{\partial r}
+       + \frac{1-\mu^2}{r}\frac{\partial\psi}{\partial \mu}
+       + \Sigma_t\,\psi = \frac{1}{W}\bigl(\Sigma_s\,\phi + Q^{\rm ext}\bigr)
+
+    yields, after :math:`Q^{\rm ext}` is solved for, the closed
+    form
+
+    .. math::
+
+       Q^{\rm ext}_n(r) =
+            \mu_n A'(r)
+          + \mu_n^2 B'(r)
+          + (1-\mu_n^2)\,\frac{B(r)}{r}
+          + (\Sigma_t-\Sigma_s) A(r)
+          + \Sigma_t\,\mu_n B(r),
+
+    with the scalar flux :math:`\phi(r) = A(r)` (because
+    :math:`\sum_n w_n \mu_n = 0` for any symmetric quadrature).
+
+    The redistribution term :math:`(1-\mu^2)\,B/r` is what the
+    isotropic MMS misses by construction; this identity is the
+    foundation that makes :class:`SNSphericalAnisotropicMMSCase`
+    a non-trivial probe of the curvilinear sweep.
+    """
+    import sympy as sp
+
+    r, mu, R, Sigma_t, Sigma_s, W, A, B, psi, phi_, Q_closed = (
+        _spherical_anisotropic_symbolic()
+    )
+
+    LHS = (
+        mu * sp.diff(psi, r)
+        + (1 - mu**2) / r * sp.diff(psi, mu)
+        + Sigma_t * psi
+    )
+    Q_subst = sp.simplify(W * LHS - Sigma_s * phi_)
+    diff = sp.simplify(Q_subst - Q_closed)
+
+    return {
+        "name": "V_sph-aniso: spherical anisotropic MMS source identity",
+        "psi": psi,
+        "phi": phi_,
+        "Q_substituted": Q_subst,
+        "Q_closed": Q_closed,
+        "diff": diff,
+        "pass": diff == 0,
+    }
+
+
+def derive_cylindrical_anisotropic_mms() -> dict:
+    r"""V_cyl-aniso — cylindrical anisotropic-MMS source identity.
+
+    Proves: substituting the ansatz
+    :math:`\psi_n(r) = (A(r) + B(r)\eta_n)/W` (with
+    :math:`\eta = \sin\theta\cos\varphi`, same :math:`A,\,B` as the
+    sphere) into the continuous cylindrical SN transport operator
+
+    .. math::
+
+       \frac{\eta}{r}\frac{\partial(r\psi)}{\partial r}
+       - \frac{1}{r}\frac{\partial(\xi\psi)}{\partial\varphi}
+       + \Sigma_t\,\psi = \frac{1}{W}\bigl(\Sigma_s\,\phi + Q^{\rm ext}\bigr)
+
+    yields the closed form
+
+    .. math::
+
+       Q^{\rm ext}_n(r) =
+            \eta_n A'(r)
+          + \eta_n^2 B'(r)
+          + \xi_n^2 \frac{B(r)}{r}
+          + (\Sigma_t-\Sigma_s) A(r)
+          + \Sigma_t\,\eta_n B(r),
+
+    with :math:`\phi(r) = A(r)` (symmetric quadrature gives
+    :math:`\sum_n w_n \eta_n = 0`).
+
+    Note the :math:`\xi_n^2\,B/r` redistribution term: this is the
+    cylindrical analog of the sphere's :math:`(1-\mu_n^2)\,B/r`;
+    both originate from the angular-redistribution operator that
+    the isotropic ansatz nullifies by construction.
+    """
+    import sympy as sp
+
+    (
+        r, theta, phi_az, R, Sigma_t, Sigma_s, W,
+        A, B, eta, xi, psi, phi_scalar, Q_closed,
+    ) = _cylindrical_anisotropic_symbolic()
+
+    LHS = (
+        (eta / r) * sp.diff(r * psi, r)
+        - (1 / r) * sp.diff(xi * psi, phi_az)
+        + Sigma_t * psi
+    )
+    Q_subst = sp.simplify(W * LHS - Sigma_s * phi_scalar)
+    diff = sp.simplify(Q_subst - Q_closed)
+
+    return {
+        "name": "V_cyl-aniso: cylindrical anisotropic MMS source identity",
+        "psi": psi,
+        "phi": phi_scalar,
+        "Q_substituted": Q_subst,
+        "Q_closed": Q_closed,
+        "diff": diff,
+        "pass": diff == 0,
+    }
+
+
+@dataclass(frozen=True)
+class SNSphericalAnisotropicMMSCase:
+    r"""Anisotropic-ansatz MMS fixed-source problem for 1D spherical SN.
+
+    **Activates the angular-redistribution term** that the isotropic
+    sibling :class:`SNSphericalMMSCase` cancels by construction. See
+    the module docstring for the load-bearing math; the closed-form
+    :math:`Q^{\rm ext}_n(r)` is
+
+    .. math::
+
+        Q^{\rm ext}_n(r) =
+            \mu_n A'(r) + \mu_n^2 B'(r)
+          + (1-\mu_n^2)\,\frac{B(r)}{r}
+          + (\Sigma_t - \Sigma_s) A(r) + \Sigma_t\,\mu_n B(r),
+
+    with :math:`A(r) = \sin(\pi r/R)`,
+    :math:`B(r) = (r/R)(1-r/R)\cos(\pi r/R)`. Both :math:`A` and
+    :math:`B` vanish at :math:`r \in \{0, R\}`, so the symmetry +
+    vacuum BCs hold for every ordinate.
+
+    Optional P1 anisotropic-scattering coupling: when ``sigma_s1``
+    is non-zero, the same :math:`B(r)\mu_n` term enters the P1
+    scattering source; the field is reserved for a Phase-3.7
+    extension and is **not** wired in this dataclass (which keeps
+    P0 only, mirroring :class:`SNSphericalMMSCase`).
+    """
+
+    name: str
+    sigma_t: float
+    sigma_s: float
+    radius: float
+    materials: dict[int, "Mixture"]
+    mat_id: int
+    quadrature: GaussLegendre1D
+    tolerance: str = "O(h^2)"
+    equation_labels: tuple[str, ...] = (
+        "transport-spherical",
+        "sn-mms-spherical-aniso-psi",
+        "sn-mms-spherical-aniso-qext",
+    )
+
+    # ── Reference solution shapes ────────────────────────────────────
+
+    def A(self, r: np.ndarray) -> np.ndarray:
+        r"""Radial profile :math:`A(r) = \sin(\pi r/R)`."""
+        return np.sin(np.pi * np.asarray(r) / self.radius)
+
+    def Ap(self, r: np.ndarray) -> np.ndarray:
+        r"""Derivative :math:`A'(r) = (\pi/R)\cos(\pi r/R)`."""
+        R = self.radius
+        return (np.pi / R) * np.cos(np.pi * np.asarray(r) / R)
+
+    def B(self, r: np.ndarray) -> np.ndarray:
+        r"""Angular-coupling profile
+        :math:`B(r) = (r/R)(1 - r/R)\cos(\pi r/R)`. Vanishes at
+        :math:`r=0` (symmetry BC) and :math:`r=R` (vacuum BC)."""
+        R = self.radius
+        rr = np.asarray(r) / R
+        return rr * (1.0 - rr) * np.cos(np.pi * rr)
+
+    def Bp(self, r: np.ndarray) -> np.ndarray:
+        r"""Derivative :math:`B'(r)`. Computed analytically:
+
+        .. math::
+
+           B'(r) = \frac{1}{R}\Bigl(1 - \frac{2r}{R}\Bigr)
+                     \cos\!\left(\frac{\pi r}{R}\right)
+                 - \frac{\pi}{R}\,\frac{r}{R}\Bigl(1 - \frac{r}{R}\Bigr)
+                     \sin\!\left(\frac{\pi r}{R}\right).
+        """
+        R = self.radius
+        rr = np.asarray(r) / R
+        return (
+            (1.0 - 2.0 * rr) * np.cos(np.pi * rr) / R
+            - (np.pi / R) * rr * (1.0 - rr) * np.sin(np.pi * rr)
+        )
+
+    def phi_exact(self, r: np.ndarray) -> np.ndarray:
+        r"""Reference scalar flux :math:`\phi(r) = A(r)`.
+
+        For any symmetric quadrature on :math:`\mu \in [-1, 1]`
+        (Gauss-Legendre satisfies this), :math:`\sum_n w_n \mu_n = 0`,
+        so the :math:`\mu_n B(r)` term integrates to zero. The exact
+        scalar flux is therefore identical to the isotropic case's
+        :math:`\phi(r)`, but every individual angular flux
+        :math:`\psi_n(r)` is non-trivially :math:`\mu_n`-dependent.
+        """
+        return self.A(r)
+
+    def psi_exact(self, r: np.ndarray, mu_n: float) -> np.ndarray:
+        r"""Reference angular flux for a given ordinate
+        :math:`\psi_n(r) = (A(r) + B(r) \mu_n)/W`. Returned **without**
+        the :math:`1/W` factor for caller convenience; the test
+        consumer multiplies by :math:`1/W` if needed."""
+        return self.A(r) + self.B(r) * mu_n
+
+    # ── Mesh + source construction ───────────────────────────────────
+
+    def build_mesh(self, n_cells: int) -> Mesh1D:
+        edges = np.linspace(0.0, self.radius, n_cells + 1)
+        mat_ids = np.full(n_cells, self.mat_id, dtype=int)
+        return Mesh1D(
+            edges=edges, mat_ids=mat_ids,
+            coord=CoordSystem.SPHERICAL,
+            bc_left=BC("reflective"),   # r = 0: symmetry
+            bc_right=BC("vacuum"),      # r = R: vacuum
+        )
+
+    def external_source(self, mesh: Mesh1D) -> np.ndarray:
+        r"""Per-ordinate external source :math:`Q^{\rm ext}_n(r)` on
+        ``mesh``. Shape ``(N, nx, 1, 1)``.
+
+        Closed-form evaluation (Branch 2 — vectorised numpy):
+
+        .. math::
+
+           Q^{\rm ext}_n(r) =
+              \mu_n A'(r) + \mu_n^2 B'(r)
+            + (1 - \mu_n^2)\,B(r)/r
+            + (\Sigma_t - \Sigma_s) A(r) + \Sigma_t \mu_n B(r).
+
+        Bit-equal to the SymPy expression
+        :func:`derive_spherical_anisotropic_mms` returns (cross-checked
+        in :file:`tests/derivations/test_sn_mms_anisotropic_symbolic.py`).
+        """
+        r = mesh.centers                              # (nx,)
+        A_ = self.A(r)                                # (nx,)
+        Ap_ = self.Ap(r)                              # (nx,)
+        B_ = self.B(r)                                # (nx,)
+        Bp_ = self.Bp(r)                              # (nx,)
+        mu = self.quadrature.mu_x                     # (N,)
+
+        streaming_iso = mu[:, None] * Ap_[None, :]               # μ A'
+        streaming_aniso = (mu[:, None] ** 2) * Bp_[None, :]      # μ² B'
+        redistribution = (1.0 - mu[:, None] ** 2) * (B_ / r)[None, :]  # (1-μ²) B/r
+        removal_iso = (self.sigma_t - self.sigma_s) * A_[None, :]  # (Σ_t-Σ_s) A
+        removal_aniso = self.sigma_t * mu[:, None] * B_[None, :]   # Σ_t μ B
+
+        Q = (streaming_iso + streaming_aniso + redistribution
+             + removal_iso + removal_aniso)            # (N, nx)
+        return Q[:, :, None, None]                     # (N, nx, 1, 1)
+
+
+def build_spherical_anisotropic_mms_case(
+    sigma_t: float = 1.0,
+    sigma_s: float = 0.5,
+    radius: float = 5.0,
+    n_ordinates: int = 16,
+    mat_id: int = 1,
+    name: str = "sn_mms_spherical_aniso",
+) -> SNSphericalAnisotropicMMSCase:
+    r"""Build the canonical anisotropic 1D spherical MMS case.
+
+    Defaults match :func:`build_spherical_mms_case` so the two
+    cases are paired one-to-one for narrow-down diagnostics: if the
+    isotropic case passes :math:`\mathcal O(h^{2})` convergence and
+    this case fails, the bug is in the angular-redistribution or
+    P1-coupling code path.
+    """
+    materials = {mat_id: _make_1g_mixture(sigma_t, sigma_s)}
+    quadrature = GaussLegendre1D.create(n_ordinates=n_ordinates)
+    return SNSphericalAnisotropicMMSCase(
+        name=name,
+        sigma_t=sigma_t,
+        sigma_s=sigma_s,
+        radius=radius,
+        materials=materials,
+        mat_id=mat_id,
+        quadrature=quadrature,
+    )
+
+
+@dataclass(frozen=True)
+class SNCylindricalAnisotropicMMSCase:
+    r"""Anisotropic-ansatz MMS fixed-source problem for 1D cylindrical SN.
+
+    Activates the azimuthal redistribution term
+    :math:`-(1/r)\,\partial(\xi\psi)/\partial\varphi` that the
+    isotropic sibling :class:`SNCylindricalMMSCase` cancels. The
+    closed-form :math:`Q^{\rm ext}_n(r)` is
+
+    .. math::
+
+        Q^{\rm ext}_n(r) =
+            \eta_n A'(r) + \eta_n^2 B'(r)
+          + \xi_n^2\,\frac{B(r)}{r}
+          + (\Sigma_t - \Sigma_s) A(r) + \Sigma_t\,\eta_n B(r),
+
+    with the same :math:`A(r),\,B(r)` as the spherical case. The
+    radial direction cosine for cylindrical 1D is :math:`\eta_n =
+    \sin\theta_n\cos\varphi_n`; the partner :math:`\xi_n =
+    \sin\theta_n\sin\varphi_n` enters the redistribution term.
+    Both are stored on :class:`ProductQuadrature` as ``mu_x`` and
+    ``mu_y`` respectively.
+    """
+
+    name: str
+    sigma_t: float
+    sigma_s: float
+    radius: float
+    materials: dict[int, "Mixture"]
+    mat_id: int
+    quadrature: ProductQuadrature
+    tolerance: str = "O(h^2)"
+    equation_labels: tuple[str, ...] = (
+        "transport-cylindrical",
+        "sn-mms-cylindrical-aniso-psi",
+        "sn-mms-cylindrical-aniso-qext",
+    )
+
+    # ── Reference solution shapes ────────────────────────────────────
+
+    def A(self, r: np.ndarray) -> np.ndarray:
+        return np.sin(np.pi * np.asarray(r) / self.radius)
+
+    def Ap(self, r: np.ndarray) -> np.ndarray:
+        R = self.radius
+        return (np.pi / R) * np.cos(np.pi * np.asarray(r) / R)
+
+    def B(self, r: np.ndarray) -> np.ndarray:
+        R = self.radius
+        rr = np.asarray(r) / R
+        return rr * (1.0 - rr) * np.cos(np.pi * rr)
+
+    def Bp(self, r: np.ndarray) -> np.ndarray:
+        R = self.radius
+        rr = np.asarray(r) / R
+        return (
+            (1.0 - 2.0 * rr) * np.cos(np.pi * rr) / R
+            - (np.pi / R) * rr * (1.0 - rr) * np.sin(np.pi * rr)
+        )
+
+    def phi_exact(self, r: np.ndarray) -> np.ndarray:
+        r"""Reference scalar flux :math:`\phi(r) = A(r)` (symmetric
+        ProductQuadrature gives :math:`\sum_n w_n \eta_n = 0`)."""
+        return self.A(r)
+
+    def psi_exact(self, r: np.ndarray, eta_n: float) -> np.ndarray:
+        r"""Reference angular flux :math:`\psi_n(r) = A(r) + B(r)\,\eta_n`
+        (without the :math:`1/W` factor)."""
+        return self.A(r) + self.B(r) * eta_n
+
+    # ── Mesh + source construction ───────────────────────────────────
+
+    def build_mesh(self, n_cells: int) -> Mesh1D:
+        edges = np.linspace(0.0, self.radius, n_cells + 1)
+        mat_ids = np.full(n_cells, self.mat_id, dtype=int)
+        return Mesh1D(
+            edges=edges, mat_ids=mat_ids,
+            coord=CoordSystem.CYLINDRICAL,
+            bc_left=BC("reflective"),   # r = 0: symmetry
+            bc_right=BC("vacuum"),      # r = R: vacuum
+        )
+
+    def external_source(self, mesh: Mesh1D) -> np.ndarray:
+        r"""Per-ordinate external source on ``mesh``. Shape
+        ``(N, nx, 1, 1)``.
+
+        .. math::
+
+           Q^{\rm ext}_n(r) =
+              \eta_n A'(r) + \eta_n^2 B'(r)
+            + \xi_n^2\,B(r)/r
+            + (\Sigma_t - \Sigma_s) A(r) + \Sigma_t \eta_n B(r).
+
+        :math:`\eta_n` is the radial direction cosine
+        (``quadrature.mu_x``), :math:`\xi_n` is the azimuthal cosine
+        (``quadrature.mu_y``). Bit-equal to the SymPy form derived
+        in :func:`derive_cylindrical_anisotropic_mms`.
+        """
+        r = mesh.centers
+        A_ = self.A(r)
+        Ap_ = self.Ap(r)
+        B_ = self.B(r)
+        Bp_ = self.Bp(r)
+        eta = self.quadrature.mu_x       # (N,) — radial cosine
+        xi = self.quadrature.mu_y        # (N,) — azimuthal cosine
+
+        streaming_iso = eta[:, None] * Ap_[None, :]              # η A'
+        streaming_aniso = (eta[:, None] ** 2) * Bp_[None, :]     # η² B'
+        redistribution = (xi[:, None] ** 2) * (B_ / r)[None, :]  # ξ² B/r
+        removal_iso = (self.sigma_t - self.sigma_s) * A_[None, :]
+        removal_aniso = self.sigma_t * eta[:, None] * B_[None, :]
+
+        Q = (streaming_iso + streaming_aniso + redistribution
+             + removal_iso + removal_aniso)
+        return Q[:, :, None, None]
+
+
+def build_cylindrical_anisotropic_mms_case(
+    sigma_t: float = 1.0,
+    sigma_s: float = 0.5,
+    radius: float = 5.0,
+    n_mu: int = 4,
+    n_phi: int = 8,
+    mat_id: int = 1,
+    name: str = "sn_mms_cylindrical_aniso",
+) -> SNCylindricalAnisotropicMMSCase:
+    r"""Build the canonical anisotropic 1D cylindrical MMS case.
+
+    Defaults match :func:`build_cylindrical_mms_case`. Pairing both
+    cases narrows down failures: a passing isotropic + failing
+    anisotropic pinpoints the azimuthal redistribution path."""
+    materials = {mat_id: _make_1g_mixture(sigma_t, sigma_s)}
+    quadrature = ProductQuadrature.create(n_mu=n_mu, n_phi=n_phi)
+    return SNCylindricalAnisotropicMMSCase(
+        name=name,
+        sigma_t=sigma_t,
+        sigma_s=sigma_s,
+        radius=radius,
+        materials=materials,
+        mat_id=mat_id,
+        quadrature=quadrature,
+    )
+
+
+def _build_spherical_anisotropic_continuous_reference() -> ContinuousReferenceSolution:
+    """Phase-3.6 continuous reference for spherical anisotropic MMS."""
+    mms = build_spherical_anisotropic_mms_case()
+    return ContinuousReferenceSolution(
+        name=mms.name,
+        problem=ProblemSpec(
+            materials=mms.materials,
+            geometry_type="sphere",
+            geometry_params={"radius": mms.radius, "mms_case": mms},
+            boundary_conditions={"inner": "reflective", "outer": "vacuum"},
+            external_source=None, is_eigenvalue=False, n_groups=1,
+        ),
+        operator_form="differential-sn",
+        phi=lambda r: mms.phi_exact(r),
+        provenance=Provenance(
+            citation=(
+                "Bailey 2009 (curvilinear SN); Oberkampf & Roy 2010, "
+                "Ch. 6 (MMS fundamentals); vv-principles failure "
+                "mode #7 (MMS simplification bias)"
+            ),
+            derivation_notes=(
+                "1-group spherical SN MMS with anisotropic ansatz "
+                "ψ_n(r) = (A(r) + B(r) μ_n)/W, A(r)=sin(πr/R), "
+                "B(r)=(r/R)(1-r/R)cos(πr/R). Activates the angular "
+                "redistribution term (1-μ²)/r ∂ψ/∂μ that the "
+                "isotropic ansatz cancels by construction. "
+                "Manufactured source: Q_n = μ_n A' + μ_n² B' + "
+                "(1-μ_n²) B/r + (Σ_t-Σ_s) A + Σ_t μ_n B. "
+                "Detects ERR-026-class bugs (curvilinear sweep "
+                "WDD wrong fixed point) under O(h²) refinement."
+            ),
+            sympy_expression=(
+                r"Q^{\rm ext}_n(r) = \mu_n A'(r) + \mu_n^2 B'(r) "
+                r"+ (1 - \mu_n^2)\,B(r)/r "
+                r"+ (\Sigma_t - \Sigma_s) A(r) "
+                r"+ \Sigma_t\,\mu_n B(r)"
+            ),
+            precision_digits=None,
+        ),
+        k_eff=None, psi=None,
+        equation_labels=mms.equation_labels,
+        vv_level="L1",
+        description=(
+            "1-group spherical SN MMS with μ-linear anisotropic "
+            "ansatz — Phase 3.6 continuous reference. Activates "
+            "the angular redistribution term."
+        ),
+        tolerance="O(h^2)",
+    )
+
+
+def _build_cylindrical_anisotropic_continuous_reference() -> ContinuousReferenceSolution:
+    """Phase-3.6 continuous reference for cylindrical anisotropic MMS."""
+    mms = build_cylindrical_anisotropic_mms_case()
+    return ContinuousReferenceSolution(
+        name=mms.name,
+        problem=ProblemSpec(
+            materials=mms.materials,
+            geometry_type="cylinder",
+            geometry_params={"radius": mms.radius, "mms_case": mms},
+            boundary_conditions={"inner": "reflective", "outer": "vacuum"},
+            external_source=None, is_eigenvalue=False, n_groups=1,
+        ),
+        operator_form="differential-sn",
+        phi=lambda r: mms.phi_exact(r),
+        provenance=Provenance(
+            citation=(
+                "Bailey 2009 (curvilinear SN); Oberkampf & Roy 2010, "
+                "Ch. 6 (MMS fundamentals); vv-principles failure "
+                "mode #7 (MMS simplification bias)"
+            ),
+            derivation_notes=(
+                "1-group cylindrical SN MMS with anisotropic ansatz "
+                "ψ_n(r) = (A(r) + B(r) η_n)/W, η_n = sinθ_n cosφ_n. "
+                "Activates the azimuthal redistribution term "
+                "-(1/r) ∂(ξψ)/∂φ that the isotropic ansatz cancels. "
+                "Manufactured source: Q_n = η_n A' + η_n² B' + "
+                "ξ_n² B/r + (Σ_t-Σ_s) A + Σ_t η_n B. "
+                "Detects ERR-026-class bugs in the cylindrical "
+                "azimuthal sweep under O(h²) refinement."
+            ),
+            sympy_expression=(
+                r"Q^{\rm ext}_n(r) = \eta_n A'(r) + \eta_n^2 B'(r) "
+                r"+ \xi_n^2\,B(r)/r "
+                r"+ (\Sigma_t - \Sigma_s) A(r) "
+                r"+ \Sigma_t\,\eta_n B(r)"
+            ),
+            precision_digits=None,
+        ),
+        k_eff=None, psi=None,
+        equation_labels=mms.equation_labels,
+        vv_level="L1",
+        description=(
+            "1-group cylindrical SN MMS with η-linear anisotropic "
+            "ansatz — Phase 3.6 continuous reference. Activates "
+            "the azimuthal redistribution term."
+        ),
+        tolerance="O(h^2)",
+    )
+
+
 def continuous_cases() -> list[ContinuousReferenceSolution]:
     """Return the Phase-0 continuous references produced by this module."""
     return [
@@ -1674,4 +2414,6 @@ def continuous_cases() -> list[ContinuousReferenceSolution]:
         _build_spherical_continuous_reference(),
         _build_cylindrical_continuous_reference(),
         _build_p1_aniso_continuous_reference(),
+        _build_spherical_anisotropic_continuous_reference(),
+        _build_cylindrical_anisotropic_continuous_reference(),
     ]
