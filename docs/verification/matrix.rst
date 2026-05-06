@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2704**
+Total tests collected: **2715**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 590, 21.8%
-   L1, 723, 26.7%
+   L0, 590, 21.7%
+   L1, 723, 26.6%
    L2, 36, 1.3%
    L3, 0, 0.0%
-   foundation, 1327, 49.1%
+   foundation, 1338, 49.3%
    unmarked, 28, 1.0%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2597
+   explicit, 2608
    verify, 0
    class-name, 46
    func-name, 0
@@ -200,6 +200,7 @@ Module × level grid
    sn/test_sweep_operator_inconsistency, 0, 4, 0, 0, 0, 0
    sn/test_sweep_regression, 12, 0, 0, 0, 0, 0
    spatial/test_cell_update_protocol, 0, 0, 0, 0, 13, 0
+   spatial/test_diamond, 0, 0, 0, 0, 11, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -370,6 +371,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``atalay-table2-slab-vacuum-isotropic``, 3
    ``atalay-table3-slab-vacuum-anisotropic``, 3
    ``cp-escape-from-p-cell``, 3
+   ``dd-curvilinear-scalar``, 3
+   ``dd-mm-closure-constants``, 3
+   ``dd-slab-scalar``, 3
    ``delta-psi``, 3
    ``hetero-tolerance``, 3
    ``isotropic-source``, 3

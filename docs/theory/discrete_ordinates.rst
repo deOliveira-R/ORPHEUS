@@ -1013,6 +1013,133 @@ Miller §5.3 — preview), Exponential Characteristic, and Step
 strategies are deferred to a Wave C-extension session, each with its
 own MMS spatial-convergence verification.
 
+Diamond Difference
+------------------
+
+The first concrete strategy is
+:class:`~orpheus.sn.spatial.diamond.DiamondDifference`
+(:mod:`orpheus.sn.spatial.diamond`).  It implements the **same**
+algebra as the existing inlined sweep — Round 2 of Wave C is a
+bit-identical extraction, gated by ``np.array_equal`` hand-calc tests
+in ``tests/sn/spatial/test_diamond.py`` against the sweep's scalar
+formulas at :mod:`orpheus.sn.sweep`.
+
+Per Wave C decision **D5** (one geometry-polymorphic class), the
+strategy is a single :class:`DiamondDifference` that handles slab,
+sphere, and cylinder by branching on two
+:class:`~orpheus.geometry.reduced_operator.StreamingTerms` fields:
+``alpha_in is None`` (slab vs curvilinear) and ``abs_mu < 1e-15``
+(cylindrical pure-azimuthal degenerate vs not).
+
+**Slab branch** (``streaming_terms.alpha_in is None``).  The flat /
+Cartesian DD recurrence reduces to the per-cell scalar form of
+:eq:`dd-recurrence`:
+
+.. math::
+   :label: dd-slab-scalar
+
+   \overline{\psi}_i \;=\; \tfrac12\bigl(\psi_{i-1/2}
+                                         + \psi_{i+1/2}\bigr),
+   \qquad
+   \psi_{i+1/2} \;=\; \frac{2|\mu_n| - \Delta x_i\,\Sigma_t}
+                              {2|\mu_n| + \Delta x_i\,\Sigma_t}\,
+                       \psi_{i-1/2}
+                   \;+\; \frac{2\,Q_i\,\Delta x_i / W}
+                              {2|\mu_n| + \Delta x_i\,\Sigma_t},
+
+with ``W = Σ_n w_n`` the quadrature weight sum, mirroring the
+sweep's vectorised cumprod path
+(:func:`orpheus.sn.sweep._sweep_1d_cumprod` lines 117–123) and per-
+cell solver (:func:`orpheus.sn.sweep._solve_recurrence` lines 208–
+222) at the operation level.  Per the strategy contract, ``source``
+arrives at the cell update **already weight-normalised** by the
+sweep — for slab, ``source = Q · Δx / W`` (and slab cell volume is
+``V = Δx``).  For slab, the strategy sets
+:attr:`~orpheus.sn.spatial.cell_update.CellResult.outgoing_angular_state`
+to ``None`` — slab geometry has no angular redistribution.
+
+**Curvilinear branch** (``streaming_terms.alpha_in is not None`` and
+``abs_mu ≥ 1e-15``).  Sphere or cylinder, away from the cylindrical
+pure-azimuthal degenerate case.  The strategy couples the M-M
+angular closure :eq:`mm-weights` to the WDD spatial closure
+:eq:`wdd-closure`, with the redistribution constants
+
+.. math::
+   :label: dd-mm-closure-constants
+
+   c_{\rm out} \;=\; \alpha_{n+\tfrac12}/\tau_n,
+   \qquad
+   c_{\rm in}  \;=\; \frac{1 - \tau_n}{\tau_n}\,\alpha_{n+\tfrac12}
+                       + \alpha_{n-\tfrac12},
+
+built from the Bailey 2009 dome :eq:`alpha-recursion` and the
+Morel–Montry weight :eq:`mm-weights`.  The cell-update is then
+
+.. math::
+   :label: dd-curvilinear-scalar
+
+   \overline{\psi}_{n,i} \;=\;
+       \frac{Q_i\,V_i / W
+             + |\mu_n|\,(A_{i-1/2} + A_{i+1/2})\,\psi^s_{n,\,{\rm in}}
+             + (\Delta A_i / w_n)\,c_{\rm in}\,\psi_{n-\tfrac12,\,i}}
+            {2|\mu_n|\,A^s_{\rm out}
+             + (\Delta A_i / w_n)\,c_{\rm out}
+             + \Sigma_t\,V_i},
+
+mirroring :func:`orpheus.sn.sweep._sweep_1d_spherical` lines
+350–355 (and the structurally identical cylindrical branches at
+sweep.py:511–531 / sweep.py:548–575) verbatim, with closures
+
+.. math::
+
+   \psi^s_{\rm out} \;=\; 2\overline{\psi}_{n,i}
+                        - \psi^s_{n,\,{\rm in}},
+   \qquad
+   \psi_{n+\tfrac12,\,i} \;=\;
+       (\overline{\psi}_{n,i}
+         - (1 - \tau_n)\,\psi_{n-\tfrac12,\,i})/\tau_n.
+
+**Cylindrical pure-azimuthal degenerate branch**
+(``streaming_terms.alpha_in is not None`` and ``abs_mu < 1e-15``).
+For a level whose axial direction cosine :math:`|\mu_z| \to 1`, the
+radial direction cosine :math:`|\eta| \to 0` and the cell has no
+radial face flow — the :math:`2|\mu| A_{\rm out}` and
+:math:`|\mu|(A_{\rm in} + A_{\rm out})\,\psi^s_{\rm in}`
+contributions drop out:
+
+.. math::
+
+   \mathrm{denom} \;=\; (\Delta A / w)\,c_{\rm out} + \Sigma_t\,V_i,
+   \qquad
+   \mathrm{numer} \;=\; Q_i\,V_i / W
+                       + (\Delta A / w)\,c_{\rm in}\,
+                          \psi_{n-\tfrac12,\,i},
+
+mirroring :func:`orpheus.sn.sweep._sweep_1d_cylindrical` lines
+533–543 verbatim.  The strategy returns
+:attr:`~orpheus.sn.spatial.cell_update.CellResult.outgoing_spatial_flux`
+``= None`` to signal "no face-flux write" to the sweep driver; the
+M-M angular closure remains active.
+
+**Traits and forward references.**  Diamond Difference has
+
+* :attr:`~orpheus.sn.spatial.diamond.DiamondDifference.is_linear`
+  ``= True`` — the cell average and downstream states are affine
+  combinations of ``source`` and ``upstream_state``;
+* :attr:`~orpheus.sn.spatial.diamond.DiamondDifference.is_positivity_preserving`
+  ``= False`` — Lewis & Miller §5.3 exhibits the canonical thin-
+  cell / large-source counter-example where DD's
+  :math:`\psi_{\rm out} = 2\overline{\psi} - \psi_{\rm in}` produces
+  negative outgoing flux from positive inputs.
+
+Wave C-extension and Wave D will ship
+:class:`Step` (positivity-preserving, :math:`\mathcal{O}(\Delta x)`),
+:class:`LinearDiscontinuous` (:math:`\mathcal{O}(\Delta x^2)`,
+better robustness in optically-thick cells), and
+:class:`ExponentialCharacteristic` (positivity-preserving by
+construction) as alternatives, each with its own MMS spatial-
+convergence verification.
+
 References
 ----------
 
@@ -1031,6 +1158,9 @@ See also
 --------
 
 * :mod:`orpheus.sn.spatial.cell_update` — the contract module.
+* :mod:`orpheus.sn.spatial.diamond` — the
+  :class:`~orpheus.sn.spatial.diamond.DiamondDifference` concrete
+  strategy.
 * :doc:`structured_geometry`, "Connection coefficients (reduced
   streaming operator)" — the upstream side of the contract: where the
   per-cell, per-direction streaming-terms packet is built.

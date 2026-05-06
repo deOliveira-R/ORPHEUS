@@ -1,10 +1,10 @@
 """Per-cell spatial-update strategies for the SN sweep.
 
-This package hosts the strategy contract and (post-Round 2) the
-concrete strategies — Diamond Difference, Linear Discontinuous,
-Exponential Characteristic, Step — that a 1-D SN sweep uses to
-march through a cell and produce its average flux + outgoing
-states.
+This package hosts the strategy contract and the concrete
+strategies — Diamond Difference (here) and (Wave C-extension)
+Linear Discontinuous, Exponential Characteristic, Step — that a
+1-D SN sweep uses to march through a cell and produce its
+average flux + outgoing states.
 
 The contract itself lives in :mod:`orpheus.sn.spatial.cell_update`:
 
@@ -17,9 +17,12 @@ The contract itself lives in :mod:`orpheus.sn.spatial.cell_update`:
   output state (average flux, outgoing spatial flux, outgoing
   angular state).
 
-Round 1 (Issue #157, this file) ships only the contract.
-Round 2 (Issue #158) will add ``DiamondDifference`` and re-export
-it here.
+Round 1 (Issue #157) shipped the contract.
+Round 2 (Issue #158, this file's ``DiamondDifference`` re-export)
+ships the first concrete strategy as a bit-identical extraction of
+the existing inlined sweep math at :mod:`orpheus.sn.sweep`.  Wave
+C-extension will add Linear Discontinuous, Step, and Exponential
+Characteristic.
 
 See the SN reshape campaign plan at
 ``.claude/plans/sn_reshape.md`` and the Wave C plan at
@@ -27,9 +30,11 @@ See the SN reshape campaign plan at
 """
 
 from .cell_update import CellResult, CellUpdate, UpstreamState
+from .diamond import DiamondDifference
 
 __all__ = [
     "CellResult",
     "CellUpdate",
+    "DiamondDifference",
     "UpstreamState",
 ]
