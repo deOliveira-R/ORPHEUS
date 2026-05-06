@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2362**
+Total tests collected: **2368**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 590, 25.0%
-   L1, 690, 29.2%
+   L0, 590, 24.9%
+   L1, 692, 29.2%
    L2, 36, 1.5%
    L3, 0, 0.0%
-   foundation, 1022, 43.3%
-   unmarked, 24, 1.0%
+   foundation, 1022, 43.2%
+   unmarked, 28, 1.2%
 
 Tagging source
 --------------
@@ -32,12 +32,12 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2259
+   explicit, 2261
    verify, 0
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 24
+   unmarked, 28
 
 Module × level grid
 -------------------
@@ -161,6 +161,7 @@ Module × level grid
    homogeneous/test_continuous_reference, 0, 7, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 4, 0, 0, 0, 0
    l1_analytical/test_kinf_homogeneous, 0, 15, 0, 0, 0, 0
+   l1_analytical/test_mms_curvilinear_aniso_dd_convergence, 0, 2, 0, 0, 0, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
    mc/test_cross_verification, 0, 0, 2, 0, 0, 0
    mc/test_gaps, 7, 9, 0, 0, 0, 0
@@ -172,7 +173,7 @@ Module × level grid
    moc/test_quadrature, 24, 0, 0, 0, 0, 0
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
-   regression/test_dd_regression, 0, 0, 0, 0, 0, 7
+   regression/test_dd_regression, 0, 0, 0, 0, 0, 11
    sn/test_boundary_conditions, 0, 0, 0, 0, 0, 11
    sn/test_cartesian, 1, 6, 0, 0, 0, 0
    sn/test_cylindrical, 4, 10, 11, 0, 0, 0
@@ -248,14 +249,14 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``surface-to-region``, 31
    ``surface-to-surface``, 31
    ``dd-slab``, 30
+   ``transport-spherical``, 29
    ``chi-sampling``, 28
    ``decompose``, 28
    ``scattering-cdf``, 28
-   ``transport-spherical``, 28
+   ``transport-cylindrical``, 28
    ``cp-flat-source-derivation``, 27
    ``cp-flat-source-double-integral``, 27
    ``cp-unified-outer-integration``, 27
-   ``transport-cylindrical``, 27
    ``fission-matrix``, 26
    ``removal-matrix``, 26
    ``azimuthal-angles``, 24
@@ -386,7 +387,11 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-case-slope-matrix``, 2
    ``sn-case-spatial-modes``, 2
    ``sn-mms-2d-2g-psi``, 2
+   ``sn-mms-cylindrical-aniso-psi``, 2
+   ``sn-mms-cylindrical-aniso-qext``, 2
    ``sn-mms-p1-qext``, 2
+   ``sn-mms-spherical-aniso-psi``, 2
+   ``sn-mms-spherical-aniso-qext``, 2
    ``addition-theorem``, 1
    ``branching``, 1
    ``collision-estimator``, 1
@@ -417,15 +422,11 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-mms-2d-2g-qext``, 1
    ``sn-mms-2d-psi``, 1
    ``sn-mms-2d-qext``, 1
-   ``sn-mms-cylindrical-aniso-psi``, 1
-   ``sn-mms-cylindrical-aniso-qext``, 1
    ``sn-mms-cylindrical-psi``, 1
    ``sn-mms-cylindrical-qext``, 1
    ``sn-mms-p1-psi``, 1
    ``sn-mms-psi``, 1
    ``sn-mms-qext``, 1
-   ``sn-mms-spherical-aniso-psi``, 1
-   ``sn-mms-spherical-aniso-qext``, 1
    ``sn-mms-spherical-psi``, 1
    ``sn-mms-spherical-qext``, 1
    ``splitting``, 1
@@ -659,7 +660,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
 Unmarked tests
 --------------
 
-**24 tests** have no V&V level marker.
+**28 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -671,8 +672,8 @@ equations. See ``docs/testing/architecture.rst``
    :header: File, Unmarked tests
    :widths: 60, 10
 
+   ``tests/sn/regression/test_dd_regression.py``, 11
    ``tests/sn/test_boundary_conditions.py``, 11
-   ``tests/sn/regression/test_dd_regression.py``, 7
    ``tests/derivations/test_atkinson_product_nystrom.py``, 3
    ``tests/derivations/test_fn_projection_vs_kll_flux.py``, 2
    ``tests/derivations/test_fn_la13511_slab_reflected.py``, 1
