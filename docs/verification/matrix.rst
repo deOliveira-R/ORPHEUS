@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2656**
+Total tests collected: **2675**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 590, 22.2%
-   L1, 723, 27.2%
-   L2, 36, 1.4%
+   L0, 590, 22.1%
+   L1, 723, 27.0%
+   L2, 36, 1.3%
    L3, 0, 0.0%
-   foundation, 1279, 48.2%
-   unmarked, 28, 1.1%
+   foundation, 1298, 48.5%
+   unmarked, 28, 1.0%
 
 Tagging source
 --------------
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2549
+   explicit, 2568
    verify, 0
    class-name, 46
    func-name, 0
@@ -156,6 +156,7 @@ Module × level grid
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
+   geometry/test_boundary, 0, 0, 0, 0, 19, 0
    geometry/test_geometry, 0, 0, 0, 0, 55, 0
    geometry/test_reduced_operator, 0, 0, 0, 0, 29, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
@@ -443,8 +444,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **22** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **23** of the testable equations found on theory pages are orphan.
 
+- ``bc-tensor-decomposition``
 - ``billiard-rank2-S``
 - ``billiard-rank2-T``
 - ``billiard-reflection-law``
