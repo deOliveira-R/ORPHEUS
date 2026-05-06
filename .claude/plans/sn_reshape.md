@@ -1,10 +1,76 @@
 # SN Reshape — Operator Algebra Architectural Campaign
 
-**Date**: 2026-05-05
+**Date**: 2026-05-05 (updated 2026-05-06)
 **Branch**: `refactor/sn-operator-algebra`
 **Scope**: SN module + numerics primitives + geometry additions
 **Pilot for**: cross-solver migration sequence SN → MoC → CP → MC
-**Status**: planning → ready for issue creation
+**Status**: **Phase 0 + Phase 1 complete (Issues 1-7); Wave C (Phase 2) ready to start**
+
+---
+
+## Progress (as of 2026-05-06)
+
+Campaign branch `refactor/sn-operator-algebra` ahead of `main` by 10 commits.
+Bit-identical regression contract held throughout: 11/11 frozen snapshots at
+`tests/sn/regression/snapshots/` remain `np.array_equal`-bit-identical to
+the pre-reshape baseline.
+
+### Pre-reshape (already on `main` before campaign branch)
+
+- Issue 16 (regression suite, GH [#165](https://github.com/deOliveira-R/ORPHEUS/issues/165)) — 11 frozen snapshots installed at `tests/sn/regression/snapshots/`
+- Anisotropic curvilinear MMS infrastructure with 2 `xfail(strict=True)` ERR-026 tripwires at [tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py](../../tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py) — designed to flip to xpass when Issues 11/12 close ERR-026, forcing marker removal
+- vv-principles SKILL extended with failure mode #7 (MMS simplification bias) at [.claude/skills/vv-principles/SKILL.md](../skills/vv-principles/SKILL.md)
+- 15 L1 homogeneous + 12 anisotropic MMS foundation tests (~6.2s combined) per-commit gate
+- GH [#149](https://github.com/deOliveira-R/ORPHEUS/issues/149) — divide-warning at `solver.py:192` filed for Issue 13/15 owner during Wave H
+- 18 reshape issues filed at GH #150–167 on milestone "SN Reshape (Wave 1)"
+
+### Wave A — Phase 0 numerics primitives (DONE)
+
+| Plan # | GH # | Status | Commit | Summary |
+|---|---|---|---|---|
+| 1 | [#150](https://github.com/deOliveira-R/ORPHEUS/issues/150) | ✓ DONE | `60d3932` | `numerics/operator.py` — LinearOperator Protocol with capability tags; `LinearOperatorMixin` for dunder algebra; OperatorSum/Product/Scaled/Identity/Zero composers; `as_scipy_linop` adapter; **38 foundation tests** |
+| 2 | [#151](https://github.com/deOliveira-R/ORPHEUS/issues/151) | ✓ DONE | `2f67853` | `numerics/measure.py` — DiscreteMeasure with tensor product / pushforward / restrict / direct sum; BundleMeasure for MoC (Wave 2); `gauss_legendre`/`gauss_chebyshev`/`equispaced` 1D rules; **22 L1 + 17 foundation tests** |
+
+### Wave B — Phase 0 (Issues 3-5) + Phase 1 (Issues 6-7) (DONE)
+
+| Plan # | GH # | Status | Commit | Summary |
+|---|---|---|---|---|
+| 3 | [#152](https://github.com/deOliveira-R/ORPHEUS/issues/152) | ✓ DONE | `724547d` | `numerics/symmetry.py` — `SubgroupOfO3` enum + static containment lattice + `is_invariant`; orbit-closure check with O_h (48 elements) and I_h (120 elements) generator sets via Rodrigues + BFS closure; **71 foundation tests** |
+| 4 | [#153](https://github.com/deOliveira-R/ORPHEUS/issues/153) | ✓ DONE | `0a9aa94` | `numerics/quadrature/{rules_1d,rules_sphere,rules_product}.py` + thin-adapter refactor of `orpheus/sn/quadrature.py` (502 → 464 LOC). Hot-path attributes (`mu_x`, `mu_y`, `weights`, `level_indices`, `_ref_*`) cached as numpy views on construction; `reflection_index(axis)` reimplemented as cached pushforward. **First SN-touching change**, regression contract held: 11/11 bit-identical |
+| 5 | [#154](https://github.com/deOliveira-R/ORPHEUS/issues/154) | ✓ DONE | `60f9fb2` | `numerics/quadrature/registry.py` — `QuadratureSpec` dataclass with structural flags + populated registry + `select_quadrature(geometry, target_degree, **structural)` precedence-chain selector with `SelectionLog` explainability; **37 foundation tests** |
+| 6 | [#155](https://github.com/deOliveira-R/ORPHEUS/issues/155) | ✓ DONE | `e4276e1` | `geometry/reduced_operator.py` — Bailey 2009 connection-coefficient lift (α dome recursion, ΔA/w redistribution, M-M τ_mm clamp) into `ReducedStreamingOperator` + `StreamingTerms` + factories (slab/cylindrical/spherical). **Hash equality with `SNMesh._setup_*` outputs** verified via `np.array_equal`; 29 parametrized hash-equality tests across N ∈ {4, 8, 16, 32} (sphere) and (n_mu, n_phi) ∈ {(2,4), (4,4), (4,8)} (cylinder) |
+| 7 | [#156](https://github.com/deOliveira-R/ORPHEUS/issues/156) | ✓ DONE | `e93fe47` | `geometry/boundary.py` — `ResolvedBC` Protocol with tensor-decomposition framing `R = Σ_α G_α ⊗ A_α`; concrete `VacuumBC`, `SpecularBC`, `WhiteBC`, `PeriodicBC`, `AlbedoBC`, `MixedBC`. `SNMesh.BC_REGISTRY` factories return `ResolvedBC`; sweep at `orpheus/sn/sweep.py` calls `apply_to_incoming(...)`. WhiteBC/PeriodicBC ship as primitives only (not yet wired into `solve_sn`). Backward-compat `__eq__` shim on VacuumBC/SpecularBC accepts string comparisons (transitional). **19 primitive tests, regression contract held: 11/11 bit-identical** |
+
+Wave A + Wave B verification gates (end-of-session):
+
+- 398 numerics + geometry tests on integrated campaign HEAD
+- 11/11 regression snapshots bit-identical (629s)
+- 27 + 2 xfail safety net (L1 homogeneous + anisotropic MMS foundation + ERR-026 tripwires)
+- Sphinx clean (-W); audit clean (22 orphans, 36/38 ERR coverage — both unchanged from baseline)
+- Full L1 sweep exit 0
+
+### Operational notes (lessons from Wave A + Wave B)
+
+1. **Worktree-base bug** (discovered Wave B Round 1, mitigated for the rest): background-dispatched worktrees may come up at `main`'s HEAD (06b46f2) instead of the orchestrator's current branch HEAD. Mitigation: brief every method-implementer / general-purpose dispatch with explicit detection (`git status && git log --oneline -3 && ls orpheus/...`) and recovery (`git rebase refactor/sn-operator-algebra`) instructions. Issues 3, 4, 5, 7 all hit this and recovered cleanly via rebase.
+2. **Cherry-pick conflict pattern** (consistent across all 3 rounds): conflicts on `docs/verification/matrix.rst` (Sphinx auto-regenerates with different test-count totals per branch). Resolution: `git checkout --ours` on the conflicting file; complete the cherry-pick; re-run `sphinx-build`; commit the regenerated matrix as a `chore(matrix)` commit.
+3. **Bit-identical contract is the campaign's success criterion** — and held: every SN-touching commit (Issues 4 and 7) was gated by `pytest -m regression -q` (629–640s, 11/11 bit-identical) before merge. The agent verifications + post-merge orchestrator verifications agreed every time.
+4. **Sub-agent assignment heuristic**: `general-purpose` for software-only primitives without published-math content (Issues 1, 3, 5); `method-implementer` for issues with bit-identical contracts or published-math grounding (Issues 2, 4, 6, 7). Dispatching parallel pairs (one general-purpose + one method-implementer) per round avoided sequential bottlenecks.
+5. **`type:refactor` label does not exist** in the GitHub repo. Reshape issues marked `type:refactor` in the plan (#153, #156, #157, #159, #161, #162, #164) were filed with `type:improvement` instead. Acceptable substitution.
+
+### Remaining waves (next sessions)
+
+| Wave | Phase | Issues | Description |
+|---|---|---|---|
+| C | 2 | 8, 9 | `CellUpdate` ABC + concrete cell updates (DD, LD, ExponentialCharacteristic, Step) |
+| D | 3 | 10, 11, 12, 13 | SN core reshape: SNMesh refactor, SNStreamingOperator, unified sweep, ScatteringOperator + FissionOperator |
+| E | 4 | 14, 15 | Iteration as operator algebra (SourceIteration, KEigenvalue) + SNSolver migration. **Closes #96, #97 via Issue 15** |
+| F | 5 | 17, 18 | Symmetry-preservation + reciprocity invariant tests; Sphinx documentation campaign |
+
+ERR-026 closure is the implicit success criterion for Issues 11 + 12: the
+2 anisotropic MMS xfail-strict tripwires at
+`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
+will flip from xfail to xpass when the curvilinear sweep produces
+O(h²) convergence on the anisotropic ansatz, forcing marker removal.
 
 ---
 
