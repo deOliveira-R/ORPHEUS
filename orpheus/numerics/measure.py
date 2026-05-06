@@ -1,0 +1,820 @@
+r"""Discrete measures and quadrature composition primitives.
+
+A *quadrature rule* is mathematically a **discrete measure** on a
+measurable space :math:`(\mathcal{X}, \Sigma)` — a finite weighted
+sum of Dirac atoms,
+
+.. math::
+   :label: discrete-measure-definition
+
+   \mu = \sum_{i=1}^{N} w_i \, \delta_{x_i},
+   \qquad x_i \in \mathcal{X}, \quad w_i \in \mathbb{R}.
+
+The Lebesgue integral of an integrable test function :math:`f` against
+:math:`\mu` is the familiar quadrature sum,
+
+.. math::
+   :label: discrete-measure-integrate
+
+   \int_{\mathcal{X}} f \, d\mu \;=\; \sum_{i=1}^{N} w_i \, f(x_i).
+
+This module promotes that view to a first-class primitive. Today the
+project's quadrature classes (:class:`~orpheus.sn.quadrature.GaussLegendre1D`,
+:class:`~orpheus.sn.quadrature.LebedevSphere`, :class:`~orpheus.sn.quadrature.LevelSymmetricSN`,
+:class:`~orpheus.sn.quadrature.ProductQuadrature`) compose 1-D rules into
+2-D / S² rules **internally**, hiding the tensor-product structure
+behind ``ProductQuadrature.create(n_mu, n_phi)``. With
+:class:`DiscreteMeasure` the four canonical operations are exposed:
+
+- **Tensor product** ``μ * ν``. Product measure on
+  :math:`\mathcal{X} \times \mathcal{Y}` — Fubini-Tonelli on discrete
+  factors. Replaces the implicit product inside ``ProductQuadrature``.
+- **Direct sum** ``μ + ν``. Concatenation on a shared space — used
+  when a domain is partitioned into subintervals each carrying its
+  own rule.
+- **Pushforward** ``μ.pushforward(φ)``. Image measure
+  :math:`\varphi_* \mu` under a measurable map
+  :math:`\varphi : \mathcal{X} \to \mathcal{Y}`. The change-of-variables
+  identity holds verbatim:
+  :math:`\int g \, d(\varphi_* \mu) = \int g \circ \varphi \, d\mu`.
+- **Restriction** ``μ.restrict(E)``. Indicator-multiplication
+  :math:`\mathbf{1}_E \cdot \mu` — used for half-range SN sweeps and
+  for cutting bundles to a region.
+
+The :class:`BundleMeasure` class implements **disintegration**: a
+measure on a fibered space :math:`\pi : \mathcal{X} \to \mathcal{B}`
+is given by a base measure on :math:`\mathcal{B}` plus, for each base
+point, a fiber measure on :math:`\pi^{-1}(b)`. This is the structure
+MoC ray quadratures need (parallel ray bundles per polar angle), and
+is shipped here so the abstraction is correct from day one — the SN
+side of the campaign does not consume :class:`BundleMeasure` directly,
+but the MoC migration in Wave 2 does.
+
+References
+----------
+
+* Stoer, J. and Bulirsch, R. (2002). *Introduction to Numerical
+  Analysis*, 3rd ed. Springer. Chapter 3 (numerical integration);
+  Theorem 3.6.20 (Gauss-Legendre exactness for polynomials of
+  degree :math:`\le 2N-1`).
+* Trefethen, L.N. (2008). "Is Gauss quadrature better than
+  Clenshaw-Curtis?" *SIAM Review* **50**, 67-87. Measure-theoretic
+  perspective on spectral integration rules.
+* Bourbaki, N. (1969). *Éléments de mathématique. Intégration*,
+  Chapter VI §3 (disintegration of measures).
+
+See Also
+--------
+
+:ref:`discrete-measures` (theory page) — composition algebra,
+metadata-propagation table, structural connections to
+:class:`~orpheus.sn.quadrature.AngularQuadrature` and the upcoming
+``invariance_group`` tag from Issue 3.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field, replace
+from typing import Callable, Literal, Protocol, runtime_checkable
+
+import numpy as np
+
+# ---------------------------------------------------------------------------
+# Space tags
+# ---------------------------------------------------------------------------
+
+# String tags for measurable spaces. Treated as opaque labels at runtime —
+# composition operations stitch them together (e.g. ``"[-1,1]" * "[0,2π)"
+# → "[-1,1] × [0,2π)"``) but no type-level enforcement is attempted, in
+# line with the design note in `.claude/plans/sn_reshape.md` Issue 2
+# ("Don't try to enforce ``Space`` types via Python generics — not
+# expressive enough without runtime overhead").
+Space = str
+
+# Common aliases used across the project. These are recommendations, not
+# constraints; user code may pass arbitrary strings.
+SPACE_R = "R"
+SPACE_INTERVAL_M11 = "[-1,1]"
+SPACE_INTERVAL_01 = "[0,1]"
+SPACE_CIRCLE = "[0,2π)"
+SPACE_SPHERE = "S^2"
+
+
+# ---------------------------------------------------------------------------
+# Core primitive
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class DiscreteMeasure:
+    r"""A finite weighted point measure on a measurable space.
+
+    Algebraic shape: :math:`\mu = \sum_i w_i \, \delta_{x_i}`.
+    See :eq:`discrete-measure-definition`.
+
+    Parameters
+    ----------
+    nodes : np.ndarray
+        Array of node coordinates. Shape is one of:
+
+        - ``(N,)`` — 1-D measure (a 1-D node is a scalar).
+        - ``(N, d)`` — d-dimensional measure with ``N`` atoms in
+          :math:`\mathbb{R}^d`. ``d`` is the geometric dimension of
+          ``space``; tensor-product measures stack dimensions.
+
+        Conversion from ``(N,)`` to ``(N, 1)`` is at the user's
+        discretion — both shapes are accepted and routed correctly
+        in :meth:`integrate`. Composition operations preserve the
+        caller's choice.
+    weights : np.ndarray
+        Array of weights, shape ``(N,)``. Weights MAY be negative
+        (e.g. signed quadratures) but most rules in this codebase
+        produce non-negative weights.
+    space : Space
+        Opaque string tag for the measurable space. Used for sanity
+        checks (direct sum requires equal tags), composition
+        bookkeeping (tensor product concatenates tags), and
+        documentation. No runtime semantics beyond equality and
+        formatting.
+    invariance_group : str | None, optional
+        Reserved for Issue 3. Tag for the symmetry group under which
+        the measure is invariant (e.g. ``"O(3)"``, ``"D_4"``,
+        ``"S_n"``). ``None`` means "unspecified, do not assume any
+        invariance." Issue 3 will populate this field for the
+        symmetric quadrature families.
+    degree_of_exactness : int | None, optional
+        For polynomial-exact rules, the maximum degree :math:`p` such
+        that :math:`\int_\mathcal{X} q \, d\mu = \int_\mathcal{X} q \,
+        d\mu_{\text{exact}}` for every polynomial :math:`q` with
+        :math:`\deg q \le p`. ``None`` if the rule is not
+        polynomial-exact or the degree has not been computed.
+
+    Notes
+    -----
+
+    The class is **frozen** (immutable). Composition operations return
+    new instances; mutation is not supported. This matches the
+    mathematical convention that a measure is a fixed object, not a
+    state to be evolved.
+
+    Composition algebra (see :ref:`discrete-measures` for the full
+    propagation table):
+
+    - ``μ * ν`` — tensor product, returns a measure on
+      ``f"{μ.space} × {ν.space}"``.
+    - ``μ + ν`` — direct sum on a shared space; raises ``ValueError``
+      if ``μ.space != ν.space``.
+    - ``μ.pushforward(φ)`` — image measure under ``φ``. Weights are
+      preserved; nodes become ``φ(nodes)``. The Jacobian of ``φ`` is
+      the **caller's responsibility**: this is the φ-image semantics,
+      not a Radon-Nikodym derivative against a reference measure.
+    - ``μ.restrict(E)`` — keep atoms where ``E(x)`` is true; drop the
+      rest. Weights of kept atoms are preserved.
+    """
+
+    nodes: np.ndarray
+    weights: np.ndarray
+    space: Space
+    invariance_group: str | None = None
+    degree_of_exactness: int | None = None
+
+    def __post_init__(self) -> None:  # pragma: no cover - guard
+        # Invariants enforced at construction. Frozen dataclasses
+        # forbid attribute mutation, so we never re-check.
+        if self.weights.ndim != 1:
+            raise ValueError(
+                f"weights must be 1-D, got shape {self.weights.shape}"
+            )
+        if self.nodes.shape[0] != self.weights.shape[0]:
+            raise ValueError(
+                f"nodes and weights disagree on N: nodes.shape="
+                f"{self.nodes.shape}, weights.shape={self.weights.shape}"
+            )
+        if self.nodes.ndim not in (1, 2):
+            raise ValueError(
+                f"nodes must be 1-D (N,) or 2-D (N, d), got shape "
+                f"{self.nodes.shape}"
+            )
+
+    # ------------------------------------------------------------------
+    # Properties
+    # ------------------------------------------------------------------
+
+    @property
+    def n_points(self) -> int:
+        """Number of atoms (length of ``weights``)."""
+        return int(self.weights.shape[0])
+
+    @property
+    def dim(self) -> int:
+        """Geometric dimension :math:`d` of the node array.
+
+        Returns ``1`` for ``(N,)``-shaped nodes, otherwise ``nodes.shape[1]``.
+        """
+        if self.nodes.ndim == 1:
+            return 1
+        return int(self.nodes.shape[1])
+
+    # ------------------------------------------------------------------
+    # Lebesgue integral against the discrete measure
+    # ------------------------------------------------------------------
+
+    def integrate(self, f: Callable[[np.ndarray], np.ndarray]) -> np.ndarray:
+        r"""Compute :math:`\int f \, d\mu \;=\; \sum_i w_i \, f(x_i)`.
+
+        See :eq:`discrete-measure-integrate`.
+
+        Parameters
+        ----------
+        f : callable
+            Vectorised test function. Called once with the full
+            ``nodes`` array; must return an array of shape ``(N,)``
+            or ``(N, k)`` for vector-valued integrands. Accepts a
+            scalar at each node when ``dim == 1``.
+
+        Returns
+        -------
+        np.ndarray
+            ``Σ_i w_i f(x_i)``. Shape is ``()`` for scalar
+            integrands or ``(k,)`` for vector-valued integrands.
+
+        Notes
+        -----
+
+        ``f`` is called **once** with the full node array, not
+        per-node. Vectorise your integrand (use ``np.cos``, not
+        ``math.cos``) — the project's test suite assumes this.
+        """
+        values = f(self.nodes)
+        values_arr = np.asarray(values)
+        if values_arr.ndim == 1:
+            return np.dot(self.weights, values_arr)
+        # Vector-valued integrand: contract the leading axis.
+        return np.einsum("i,i...->...", self.weights, values_arr)
+
+    # ------------------------------------------------------------------
+    # Tensor product (Fubini-Tonelli on discrete factors)
+    # ------------------------------------------------------------------
+
+    def __mul__(self, other: DiscreteMeasure) -> DiscreteMeasure:
+        r"""Tensor product :math:`\mu \otimes \nu`.
+
+        Returns the product measure on
+        :math:`\mathcal{X} \times \mathcal{Y}`. With :math:`N_1 = |\mu|`
+        and :math:`N_2 = |\nu|`, the result has :math:`N_1 N_2` atoms.
+
+        Node convention:
+
+        - If both factors are 1-D (``dim == 1``), the result has
+          shape ``(N_1 N_2, 2)``, with column 0 carrying ``μ``-nodes
+          and column 1 carrying ``ν``-nodes (Cartesian-product order
+          — outer loop ``μ``, inner loop ``ν``, matching
+          ``np.meshgrid(..., indexing='ij')``).
+        - If either factor is multi-dimensional, both factors are
+          first promoted to ``(N, d)`` form via ``[:, None]`` and
+          then horizontally stacked; result shape ``(N_1 N_2, d_1
+          + d_2)``.
+
+        Weights are the outer product flattened in Cartesian order:
+        ``w_ij = μ.weights[i] * ν.weights[j]``.
+
+        Metadata propagation (see :ref:`discrete-measures` for the
+        full table):
+
+        - ``space`` becomes ``f"{μ.space} × {ν.space}"``.
+        - ``invariance_group`` becomes ``None`` unless both factors
+          carry compatible groups (Issue 3 will refine this).
+        - ``degree_of_exactness`` becomes ``min(p_μ, p_ν)`` if both
+          are set, else ``None``. (For separable polynomials of
+          degree :math:`p` per axis, both rules need to integrate
+          monomials up to :math:`p` exactly.)
+        """
+        # Promote 1-D nodes to column form so we can hstack uniformly.
+        a = self.nodes if self.nodes.ndim == 2 else self.nodes[:, None]
+        b = other.nodes if other.nodes.ndim == 2 else other.nodes[:, None]
+        n1, d1 = a.shape
+        n2, d2 = b.shape
+
+        # Cartesian product of nodes: outer loop μ, inner loop ν.
+        # Equivalent to np.meshgrid(a_idx, b_idx, indexing='ij'),
+        # but vectorised through tile/repeat to avoid creating
+        # explicit index grids.
+        a_rep = np.repeat(a, n2, axis=0)            # (n1*n2, d1)
+        b_tile = np.tile(b, (n1, 1))                # (n1*n2, d2)
+        new_nodes = np.hstack([a_rep, b_tile])      # (n1*n2, d1+d2)
+
+        # Outer product of weights, flattened in matching order.
+        new_weights = np.outer(self.weights, other.weights).reshape(-1)
+
+        # Metadata propagation.
+        new_space = f"{self.space} × {other.space}"
+        if (
+            self.degree_of_exactness is not None
+            and other.degree_of_exactness is not None
+        ):
+            new_dx = min(self.degree_of_exactness, other.degree_of_exactness)
+        else:
+            new_dx = None
+
+        return DiscreteMeasure(
+            nodes=new_nodes,
+            weights=new_weights,
+            space=new_space,
+            invariance_group=None,
+            degree_of_exactness=new_dx,
+        )
+
+    # ------------------------------------------------------------------
+    # Direct sum (concatenation on a shared space)
+    # ------------------------------------------------------------------
+
+    def __add__(self, other: DiscreteMeasure) -> DiscreteMeasure:
+        r"""Direct sum :math:`\mu \oplus \nu` on a shared space.
+
+        Concatenates atoms — useful when a domain is partitioned and
+        each piece carries its own quadrature rule (e.g. composite
+        Simpson, panelled Gauss-Legendre).
+
+        Requires ``self.space == other.space`` and matching node
+        dimensionality (``self.dim == other.dim``). Node arrays are
+        concatenated along axis 0; weights are concatenated.
+
+        Metadata propagation:
+
+        - ``space`` is preserved (must already match).
+        - ``invariance_group`` is set to ``None`` — concatenation
+          generally breaks any invariance the factors had.
+        - ``degree_of_exactness`` is set to
+          ``min(p_μ, p_ν)`` if both are set, else ``None`` — the
+          composite rule is at most as exact as its weakest piece
+          on the union domain.
+
+        Raises
+        ------
+        ValueError
+            If the two measures live on different spaces or have
+            different node dimensionality.
+        """
+        if self.space != other.space:
+            raise ValueError(
+                f"direct sum requires equal spaces, got "
+                f"{self.space!r} and {other.space!r}"
+            )
+        if self.dim != other.dim:
+            raise ValueError(
+                f"direct sum requires equal node dimensions, got "
+                f"dim={self.dim} and dim={other.dim}"
+            )
+
+        new_nodes = np.concatenate([self.nodes, other.nodes], axis=0)
+        new_weights = np.concatenate([self.weights, other.weights])
+
+        if (
+            self.degree_of_exactness is not None
+            and other.degree_of_exactness is not None
+        ):
+            new_dx = min(self.degree_of_exactness, other.degree_of_exactness)
+        else:
+            new_dx = None
+
+        return DiscreteMeasure(
+            nodes=new_nodes,
+            weights=new_weights,
+            space=self.space,
+            invariance_group=None,
+            degree_of_exactness=new_dx,
+        )
+
+    # ------------------------------------------------------------------
+    # Pushforward (image measure)
+    # ------------------------------------------------------------------
+
+    def pushforward(
+        self,
+        phi: Callable[[np.ndarray], np.ndarray],
+        *,
+        new_space: Space | None = None,
+    ) -> DiscreteMeasure:
+        r"""Image measure :math:`\varphi_* \mu` under :math:`\varphi`.
+
+        For any test function :math:`g` on the target space,
+
+        .. math::
+           :label: discrete-measure-pushforward
+
+           \int_{\mathcal{Y}} g \, d(\varphi_* \mu)
+           \;=\; \int_{\mathcal{X}} (g \circ \varphi) \, d\mu
+           \;=\; \sum_i w_i \, g(\varphi(x_i)).
+
+        Computationally this is "apply ``φ`` to the nodes, keep the
+        weights." Note the asymmetry: the **change-of-variables
+        Jacobian is NOT applied** — the pushforward is the φ-image
+        of the discrete measure, not a Radon-Nikodym derivative
+        against a target reference measure. If the user wants
+        ``g(y) dy = h(x) dx`` semantics on a smooth target measure,
+        they must pre-multiply the weights by the Jacobian
+        :math:`|\det D\varphi|^{-1}` themselves.
+
+        For a non-invertible ``φ``, :math:`\varphi_* \mu` may have
+        atoms collapsing onto the same target point — the caller's
+        ``g`` will then see those weights summed implicitly through
+        the integration step. Mathematically valid; numerically the
+        node array will contain duplicates with separate weights.
+
+        Parameters
+        ----------
+        phi : callable
+            Map :math:`\varphi : \mathcal{X} \to \mathcal{Y}`.
+            Called once with the full ``nodes`` array. Must return
+            an array of shape ``(N,)`` or ``(N, d')``.
+        new_space : Space, optional
+            Tag for the target space :math:`\mathcal{Y}`. Defaults
+            to ``f"φ_*({self.space})"`` if not provided — set this
+            explicitly when the target has a known canonical name
+            (e.g. ``"[0,1]"`` after a linear remap).
+
+        Returns
+        -------
+        DiscreteMeasure
+            A new measure with ``nodes = φ(nodes)`` and unchanged
+            weights. ``invariance_group`` is dropped (in general
+            ``φ`` does not preserve a group action), and
+            ``degree_of_exactness`` is dropped unless ``φ`` is the
+            identity (which we cannot statically determine —
+            caller's responsibility to set if desired).
+        """
+        new_nodes = np.asarray(phi(self.nodes))
+        if new_nodes.shape[0] != self.n_points:
+            raise ValueError(
+                f"pushforward map must preserve number of atoms, "
+                f"got {new_nodes.shape[0]} from N={self.n_points}"
+            )
+
+        target_space = (
+            new_space if new_space is not None else f"φ_*({self.space})"
+        )
+
+        return DiscreteMeasure(
+            nodes=new_nodes,
+            weights=self.weights.copy(),
+            space=target_space,
+            invariance_group=None,
+            degree_of_exactness=None,
+        )
+
+    # ------------------------------------------------------------------
+    # Restriction
+    # ------------------------------------------------------------------
+
+    def restrict(
+        self,
+        predicate: Callable[[np.ndarray], np.ndarray],
+    ) -> DiscreteMeasure:
+        r"""Restriction :math:`\mathbf{1}_E \cdot \mu` to the set
+        :math:`E = \{ x : \text{predicate}(x) \text{ is true} \}`.
+
+        Drops atoms outside :math:`E`; weights of kept atoms are
+        preserved. Used for half-range SN sweeps
+        (:math:`E = \{\mu > 0\}`), for cutting MoC bundles to a
+        region, and generally for any measure restricted to a
+        measurable subset.
+
+        Parameters
+        ----------
+        predicate : callable
+            Vectorised mask function. Called once with the full
+            ``nodes`` array; must return a boolean array of shape
+            ``(N,)``.
+
+        Returns
+        -------
+        DiscreteMeasure
+            A new measure with the kept subset of nodes/weights.
+            ``space`` is unchanged (the restriction lives on the
+            same space, with support a subset). ``invariance_group``
+            is dropped (a restriction typically breaks any invariance
+            the original carried, unless ``E`` is invariant — caller
+            may re-tag).  ``degree_of_exactness`` is dropped (the
+            restricted rule is no longer exact for the original
+            polynomial class).
+        """
+        mask = np.asarray(predicate(self.nodes), dtype=bool)
+        if mask.shape != (self.n_points,):
+            raise ValueError(
+                f"predicate must return a boolean array of shape "
+                f"({self.n_points},), got shape {mask.shape}"
+            )
+        return DiscreteMeasure(
+            nodes=self.nodes[mask],
+            weights=self.weights[mask],
+            space=self.space,
+            invariance_group=None,
+            degree_of_exactness=None,
+        )
+
+    # ------------------------------------------------------------------
+    # Convenience
+    # ------------------------------------------------------------------
+
+    def with_metadata(
+        self,
+        *,
+        invariance_group: str | None = None,
+        degree_of_exactness: int | None = None,
+    ) -> DiscreteMeasure:
+        """Return a copy with optional metadata fields populated.
+
+        Used by Issue 3 (symmetry tagging) and by quadrature-rule
+        constructors that want to set ``degree_of_exactness`` after
+        the fact (e.g. when the measure has been built by a
+        composition that drops the field, but the caller knows the
+        rule is still polynomial-exact to a particular degree).
+        """
+        return replace(
+            self,
+            invariance_group=(
+                invariance_group
+                if invariance_group is not None
+                else self.invariance_group
+            ),
+            degree_of_exactness=(
+                degree_of_exactness
+                if degree_of_exactness is not None
+                else self.degree_of_exactness
+            ),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Bundle measures (disintegration)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class BundleMeasure:
+    r"""Disintegrated measure on a fibered space.
+
+    A fibered space is a measurable space :math:`\mathcal{X}` equipped
+    with a projection :math:`\pi : \mathcal{X} \to \mathcal{B}` to a
+    base space :math:`\mathcal{B}`. By the disintegration theorem
+    (Bourbaki 1969, Integration VI §3), under mild regularity any
+    measure :math:`\mu` on :math:`\mathcal{X}` decomposes as
+
+    .. math::
+       :label: bundle-measure-disintegration
+
+       \int_\mathcal{X} f \, d\mu
+       \;=\; \int_\mathcal{B} \! \left[
+           \int_{\pi^{-1}(b)} f \, d\mu_b
+       \right] d\mu_\mathcal{B}(b),
+
+    i.e. a base measure :math:`\mu_\mathcal{B}` on :math:`\mathcal{B}`
+    plus, for each base point :math:`b`, a fiber measure :math:`\mu_b`
+    on the fiber :math:`\pi^{-1}(b)`.
+
+    For MoC ray-bundle quadratures (Wave 2 of the SN-reshape campaign)
+    the base is the angular sphere (or a half-range thereof) and the
+    fiber over each direction is the set of parallel rays through the
+    geometry — a set whose discretisation depends on the direction.
+    The fiber measures cannot be hoisted into a single product
+    measure because their support varies with the base point.
+
+    SN does not consume :class:`BundleMeasure` directly in the SN
+    reshape campaign, but the abstraction is shipped in Phase 0 so
+    MoC migration in Wave 2 does not have to revisit the primitives
+    layer (per the design note in
+    ``.claude/plans/sn_reshape.md`` Issue 2).
+
+    Parameters
+    ----------
+    base : DiscreteMeasure
+        Measure on the base space :math:`\mathcal{B}`.
+    fiber_factory : callable
+        Map sending each base node ``b`` (a single row of
+        ``base.nodes``) to the fiber measure :math:`\mu_b` on
+        :math:`\pi^{-1}(b)`. Called lazily — only when
+        :meth:`integrate` is invoked or when explicit fiber
+        materialisation is requested. Returns a
+        :class:`DiscreteMeasure`.
+
+    Notes
+    -----
+
+    The class is **frozen**. Composition operations (tensor product
+    of bundles, concatenation across bases, …) are not implemented
+    here — they are not needed by SN or MoC at Phase 0. Add them
+    incrementally when a consumer needs them.
+    """
+
+    base: DiscreteMeasure
+    fiber_factory: Callable[[np.ndarray], DiscreteMeasure]
+
+    def integrate(
+        self,
+        f: Callable[[np.ndarray, np.ndarray], np.ndarray],
+    ) -> np.ndarray:
+        r"""Iterated integral against the disintegrated measure.
+
+        Computes :math:`\int_\mathcal{B} \int_{\pi^{-1}(b)} f(b, x) \,
+        d\mu_b(x) \, d\mu_\mathcal{B}(b)`. See
+        :eq:`bundle-measure-disintegration`.
+
+        Parameters
+        ----------
+        f : callable
+            Two-argument test function ``f(base_node, fiber_node)``
+            returning a scalar (or array). The base node is a single
+            row of ``base.nodes`` (scalar if ``base.dim == 1``); the
+            fiber node argument is the **full fiber-node array** for
+            that base point — the function is expected to be
+            vectorised over the fiber axis.
+
+        Returns
+        -------
+        np.ndarray
+            The iterated sum :math:`\sum_i w_i^B \sum_j w_{ij}^F
+            f(b_i, x_{ij})`.
+        """
+        base_nodes = self.base.nodes
+        is_1d = base_nodes.ndim == 1
+
+        total: float | np.ndarray = 0.0
+        for i, w_b in enumerate(self.base.weights):
+            b = base_nodes[i] if is_1d else base_nodes[i]
+            fiber = self.fiber_factory(b)
+            inner = fiber.integrate(lambda x, b=b: f(b, x))
+            total = total + w_b * inner
+        return np.asarray(total)
+
+
+# ---------------------------------------------------------------------------
+# 1-D primitive constructors
+# ---------------------------------------------------------------------------
+
+
+def gauss_legendre(n: int) -> DiscreteMeasure:
+    r"""N-point Gauss-Legendre quadrature on :math:`[-1, 1]`.
+
+    Returns the discrete measure :math:`\mu = \sum_{i=1}^n w_i \,
+    \delta_{x_i}` whose nodes :math:`x_i` are the roots of the
+    Legendre polynomial :math:`P_n` and whose weights are the
+    Christoffel numbers
+    :math:`w_i = 2 \big/ \bigl[(1 - x_i^2) (P_n'(x_i))^2\bigr]`.
+
+    Polynomial exactness (Stoer & Bulirsch 2002, Theorem 3.6.20):
+    exact for every polynomial of degree :math:`\le 2n - 1`. The
+    returned measure carries ``degree_of_exactness = 2*n - 1`` so
+    downstream consumers can verify the claim.
+
+    Weight sum: :math:`\sum_i w_i = 2`.
+
+    Parameters
+    ----------
+    n : int
+        Number of quadrature nodes; must be :math:`\ge 1`.
+
+    Returns
+    -------
+    DiscreteMeasure
+        On ``space="[-1,1]"`` with ``degree_of_exactness=2n-1``.
+
+    See Also
+    --------
+    :class:`orpheus.sn.quadrature.GaussLegendre1D` — the SN-side
+    wrapper of this rule. The Issue 4 adapter will rebuild it on top
+    of this primitive in Wave B.
+    """
+    if n < 1:
+        raise ValueError(f"gauss_legendre requires n >= 1, got n={n}")
+    nodes, weights = np.polynomial.legendre.leggauss(n)
+    return DiscreteMeasure(
+        nodes=nodes,
+        weights=weights,
+        space=SPACE_INTERVAL_M11,
+        degree_of_exactness=2 * n - 1,
+    )
+
+
+def gauss_chebyshev(n: int) -> DiscreteMeasure:
+    r"""N-point Gauss-Chebyshev (first-kind) quadrature on
+    :math:`[-1, 1]` with weight :math:`(1 - x^2)^{-1/2}`.
+
+    The closed-form rule (Stoer & Bulirsch 2002, §3.6) is
+
+    .. math::
+       :label: discrete-measure-gauss-chebyshev
+
+       x_i = \cos\!\left( \frac{(2i - 1) \pi}{2n} \right),
+       \qquad w_i = \frac{\pi}{n}, \qquad i = 1, \ldots, n,
+
+    and the rule is exact in the weighted sense
+
+    .. math::
+
+       \sum_{i=1}^n w_i \, q(x_i)
+       \;=\; \int_{-1}^{1} \frac{q(x)}{\sqrt{1 - x^2}} \, dx
+
+    for every polynomial :math:`q` of degree :math:`\le 2n - 1`.
+
+    Note the **weight function is in the integral**, not in the
+    quadrature — :math:`\int q \, d\mu_{\text{GC}} = \int q(x) (1 -
+    x^2)^{-1/2} dx`, so an unweighted polynomial integration on
+    :math:`[-1, 1]` does **not** simplify to evaluating
+    :math:`\int q \, dx`. Callers wanting unweighted polynomial
+    integration should use :func:`gauss_legendre`.
+
+    Weight sum: :math:`\sum_i w_i = \pi`.
+
+    Parameters
+    ----------
+    n : int
+        Number of quadrature nodes; must be :math:`\ge 1`.
+
+    Returns
+    -------
+    DiscreteMeasure
+        On ``space="[-1,1]"`` with ``degree_of_exactness=2n-1``
+        (with respect to the weighted integral).
+    """
+    if n < 1:
+        raise ValueError(f"gauss_chebyshev requires n >= 1, got n={n}")
+    i = np.arange(1, n + 1)
+    nodes = np.cos((2.0 * i - 1.0) * np.pi / (2.0 * n))
+    weights = np.full(n, np.pi / n)
+    return DiscreteMeasure(
+        nodes=nodes,
+        weights=weights,
+        space=SPACE_INTERVAL_M11,
+        degree_of_exactness=2 * n - 1,
+    )
+
+
+def equispaced(a: float, b: float, n: int) -> DiscreteMeasure:
+    r"""Equispaced (midpoint-rule) measure on :math:`[a, b]`.
+
+    Returns the discrete measure with :math:`n` nodes at the midpoints
+    of an equal partition of :math:`[a, b]`, all carrying weight
+    :math:`(b - a) / n`:
+
+    .. math::
+
+       x_i = a + \left(i - \tfrac{1}{2}\right)\,\frac{b - a}{n},
+       \qquad w_i = \frac{b - a}{n}.
+
+    The midpoint rule has degree of exactness ``1`` (exact for
+    constants and linears, not for quadratics in general).
+
+    This primitive is provided for tensor-product azimuthal
+    quadrature (matching the convention in
+    :class:`orpheus.sn.quadrature.ProductQuadrature` for the φ-axis,
+    where ``np.linspace(0, 2π, n_phi, endpoint=False)`` gives
+    left-endpoints rather than midpoints; the project's existing
+    code uses left-endpoints, but this primitive offers midpoints
+    because they integrate constants exactly while preserving
+    symmetry under reflection through the centre of the interval).
+
+    Parameters
+    ----------
+    a, b : float
+        Endpoints of the interval; ``a < b`` is required.
+    n : int
+        Number of nodes; must be :math:`\ge 1`.
+
+    Returns
+    -------
+    DiscreteMeasure
+        On ``space=f"[{a},{b}]"`` with ``degree_of_exactness=1``.
+    """
+    if n < 1:
+        raise ValueError(f"equispaced requires n >= 1, got n={n}")
+    if not (a < b):
+        raise ValueError(f"equispaced requires a < b, got a={a}, b={b}")
+    h = (b - a) / n
+    nodes = a + (np.arange(n) + 0.5) * h
+    weights = np.full(n, h)
+    return DiscreteMeasure(
+        nodes=nodes,
+        weights=weights,
+        space=f"[{a},{b}]",
+        degree_of_exactness=1,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+
+__all__ = [
+    "BundleMeasure",
+    "DiscreteMeasure",
+    "Space",
+    "SPACE_R",
+    "SPACE_INTERVAL_M11",
+    "SPACE_INTERVAL_01",
+    "SPACE_CIRCLE",
+    "SPACE_SPHERE",
+    "equispaced",
+    "gauss_chebyshev",
+    "gauss_legendre",
+]

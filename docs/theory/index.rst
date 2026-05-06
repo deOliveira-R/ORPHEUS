@@ -69,6 +69,7 @@ that places each transport method in the V&V hierarchy.
    :maxdepth: 1
 
    cross_section_data
+   discrete_measures
    homogeneous
    operator_algebra
    structured_geometry
