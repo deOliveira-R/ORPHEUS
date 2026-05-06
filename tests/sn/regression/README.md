@@ -69,25 +69,37 @@ The frozen reference is a **gate against forgetting V&V**. It catches
 "oops, the output silently changed" — it does not, on its own,
 distinguish "good drift" from "bad drift". The audit is non-optional.
 
-## Case roster (current)
+## Case roster (current — 11 snapshots)
 
-| Snapshot name | Geometry | Groups | BC | Quadrature | Mesh |
-|---|---|---|---|---|---|
-| `slab_2g_homogeneous_dd_n20` | Slab | 2G | reflective/reflective | GL-1D N=8 | n=20 |
-| `slab_2g_3reg_dd_n40` | Slab fuel/mod/fuel | 2G | reflective/reflective | GL-1D N=8 | n=40 |
-| `sphere_2g_homogeneous_dd_n20` | Sphere | 2G | refl/refl (k_inf path) | GL-1D N=8 | n=20 |
-| `sphere_2g_3reg_dd_n40` | Sphere fuel/mod/fuel | 2G | refl/refl | GL-1D N=8 | n=40 |
-| `cyl_1g_homogeneous_LS4_dd_n20` | Cylinder | 1G | refl/refl | LS_4 (12 ord) | n=20 |
-| `cyl_1g_homogeneous_product_dd_n20` | Cylinder | 1G | refl/refl | ProductQuadrature(2x4) | n=20 |
-| `cyl_2g_3reg_LS4_dd_n40` | Cylinder fuel/mod/fuel | 2G | refl/refl | LS_4 | n=40 |
+| Snapshot name | Path | Geometry | Groups | Quadrature | Mesh | Pℓ |
+|---|---|---|---|---|---|---|
+| `slab_2g_homogeneous_dd_n20` | eigen | Slab | 2G | GL-1D N=8 | n=20 | P0 |
+| `slab_2g_3reg_dd_n40` | eigen | Slab fuel/mod/fuel | 2G | GL-1D N=8 | n=40 | P0 |
+| `sphere_2g_homogeneous_dd_n20` | eigen | Sphere | 2G | GL-1D N=8 | n=20 | P0 |
+| `sphere_2g_3reg_dd_n40` | eigen | Sphere fuel/mod/fuel | 2G | GL-1D N=8 | n=40 | P0 |
+| `cyl_1g_homogeneous_LS4_dd_n20` | eigen | Cylinder | 1G | LS_4 (12 ord) | n=20 | P0 |
+| `cyl_1g_homogeneous_product_dd_n20` | eigen | Cylinder | 1G | Product(2x4) | n=20 | P0 |
+| `cyl_2g_3reg_LS4_dd_n40` | eigen | Cylinder fuel/mod/fuel | 2G | LS_4 | n=40 | P0 |
+| `slab_2g_p1_aniso_dd_n20` | eigen | Slab (B mixture) | 2G | GL-1D N=8 | n=20 | **P1** |
+| `sphere_2g_p1_aniso_dd_n20` | eigen | Sphere (B mixture) | 2G | GL-1D N=8 | n=20 | **P1** |
+| `2d_1g_LS4_dd_15x15` | eigen | 2D Cartesian | 1G | LS_4 | 15×15 | P0 |
+| `slab_fixed_source_dd_n20` | **fixed_source** | Slab vacuum | 1G | GL-1D N=8 | n=20 | P0 |
+
+The two P1 cases pin the Pℓ Galerkin assembly path that the SN reshape
+Issue 13 (``ScatteringOperator``) refactors. The 2D case pins the
+wavefront sweep diagonal scheduling that Issue 12 (unified sweep)
+preserves. The fixed-source case pins the ``solve_sn_fixed_source``
+entry point that the operator-algebra reshape rewires.
+
+### Schema
+
+The eigenvalue cases store ``(case_kind="eigen", keff, scalar_flux)``;
+the fixed-source case stores ``(case_kind="fixed_source", scalar_flux)``
+only — there is no ``k_eff`` for the pure transport operator. The
+regression test dispatches on ``case_kind`` so both schemas coexist
+in the same ``snapshots/`` directory.
 
 ### Cases queued for follow-up
 
-- `slab_p1_aniso_dd_n20` / `sphere_p1_aniso_dd_n20` — Pℓ scattering
-  paths. Land after the SN reshape Pℓ-Galerkin Issue 13.
-- `2d_1g_LS4_dd_15x15` — 2D wavefront sweep. Land alongside the 2D
-  quadrature audit.
-- `slab_fixed_source_dd_n20` — fixed-source path via
-  `solve_sn_fixed_source`.
 - `cyl_white_bc_dd_n20` — white BC path. Lands after SN reshape
   Issue 7 (`ResolvedBC` tensor decomposition).

@@ -44,6 +44,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import (
     BC,
     Mesh1D,
+    Mesh2D,
     Region,
     RegionMesh,
     StructuredGeometry,
@@ -53,7 +54,7 @@ from orpheus.sn.quadrature import (
     LevelSymmetricSN,
     ProductQuadrature,
 )
-from orpheus.sn.solver import solve_sn
+from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
 
 
 SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
@@ -190,6 +191,89 @@ def _cylinder_3region(ng: str, n_cells: int, quad_kind: str) -> dict:
     )
 
 
+def _slab_p1_aniso(ng: str, n_cells: int) -> dict:
+    """Slab with B mixture (μ_bar=0.6, strongly anisotropic, P1 data)."""
+    mod = get_mixture("B", ng)
+    geom = StructuredGeometry(
+        geometry="SLB",
+        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
+        bcs=(BC.reflective, BC.reflective),
+    )
+    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    return dict(
+        materials={0: mod}, mesh=mesh,
+        quadrature=GaussLegendre1D.create(n_ordinates=8),
+        scattering_order=1,
+    )
+
+
+def _sphere_p1_aniso(ng: str, n_cells: int) -> dict:
+    """Sphere with B mixture; activates Pℓ Galerkin path on curvilinear sweep."""
+    mod = get_mixture("B", ng)
+    geom = StructuredGeometry(
+        geometry="SPH",
+        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
+        bcs=(BC.reflective,),
+    )
+    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    return dict(
+        materials={0: mod}, mesh=mesh,
+        quadrature=GaussLegendre1D.create(n_ordinates=8),
+        scattering_order=1,
+    )
+
+
+def _cartesian_2d(ng: str, n_per_side: int) -> dict:
+    """2D Cartesian homogeneous, LS_4 (12 ordinates), single material.
+
+    Pins the 2D wavefront sweep diagonal scheduling against any
+    refactor that touches ``orpheus/sn/sweep.py::_sweep_2d_wavefront``.
+    """
+    fuel = get_mixture("A", ng)
+    L = 2.0
+    mesh = Mesh2D(
+        edges_x=np.linspace(0.0, L, n_per_side + 1),
+        edges_y=np.linspace(0.0, L, n_per_side + 1),
+        mat_map=np.zeros((n_per_side, n_per_side), dtype=int),
+        bc_xmin=BC.reflective, bc_xmax=BC.reflective,
+        bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+    )
+    return dict(
+        materials={0: fuel}, mesh=mesh,
+        quadrature=LevelSymmetricSN.create(sn_order=4),
+        scattering_order=0,
+    )
+
+
+def _slab_fixed_source(ng: str, n_cells: int) -> dict:
+    """Slab vacuum-BC fixed-source with uniform isotropic external Q.
+
+    No fission. The reference output is :math:`\\phi`-only (no k_eff);
+    the ``kind="fixed_source"`` flag dispatches this case to
+    ``solve_sn_fixed_source``.
+    """
+    fuel = get_mixture("A", ng)
+    L = 2.0
+    n_ord = 8
+    n_groups = 1 if ng == "1g" else 2 if ng == "2g" else 4
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, L, n_cells + 1),
+        mat_ids=np.zeros(n_cells, dtype=int),
+        bc_left=BC.vacuum,
+        bc_right=BC.vacuum,
+    )
+    quadrature = GaussLegendre1D.create(n_ordinates=n_ord)
+    # Uniform isotropic source: 1.0 / (4π or 2 for 1D) per ordinate. Use 1.0
+    # raw — the solver applies the 1/W factor internally (see
+    # docstring of solve_sn_fixed_source).
+    external_source = np.ones((n_ord, n_cells, 1, n_groups))
+    return dict(
+        materials={0: fuel}, mesh=mesh, quadrature=quadrature,
+        scattering_order=0, kind="fixed_source",
+        external_source=external_source,
+    )
+
+
 # ─── snapshot case registry ──────────────────────────────────────────
 
 
@@ -242,13 +326,29 @@ CASES: tuple[SnapshotCase, ...] = (
         "DD cylinder fuel|moderator|fuel, 2G, LS_4, n=40",
         lambda: _cylinder_3region("2g", 40, "LS4"),
     ),
+    SnapshotCase(
+        "slab_2g_p1_aniso_dd_n20",
+        "DD slab 2G + B mixture P1 anisotropic scattering, GL-8, n=20",
+        lambda: _slab_p1_aniso("2g", 20),
+    ),
+    SnapshotCase(
+        "sphere_2g_p1_aniso_dd_n20",
+        "DD sphere 2G + B mixture P1 anisotropic scattering, GL-8, n=20",
+        lambda: _sphere_p1_aniso("2g", 20),
+    ),
+    SnapshotCase(
+        "2d_1g_LS4_dd_15x15",
+        "DD 2D Cartesian 1G homogeneous, LS_4 (12 ord), 15x15",
+        lambda: _cartesian_2d("1g", 15),
+    ),
+    SnapshotCase(
+        "slab_fixed_source_dd_n20",
+        "DD slab fixed-source 1G, vacuum BCs, uniform isotropic Q, GL-8, n=20",
+        lambda: _slab_fixed_source("1g", 20),
+    ),
 )
 
 # Cases queued for follow-up snapshot work (remain unimplemented here):
-#   - slab_p1_aniso_dd_n20      (P1 anisotropic — needs B-mixture P1 data path)
-#   - sphere_p1_aniso_dd_n20    (P1 anisotropic, sphere)
-#   - 2d_1g_LS4_dd_15x15        (2D Cartesian wavefront sweep)
-#   - slab_fixed_source_dd_n20  (fixed-source path via solve_sn_fixed_source)
 #   - cyl_white_bc_dd_n20       (post-Issue 7 — ResolvedBC tensor decomposition)
 
 
@@ -265,25 +365,48 @@ def _git_short_sha() -> str:
         return "unknown"
 
 
+def run_case(cfg: dict):
+    """Run the configured case (eigen or fixed-source) and return result.
+
+    Shared between snapshot generation and the regression test so the
+    two paths cannot drift in solver-tolerance configuration.
+    """
+    kind = cfg.get("kind", "eigen")
+    if kind == "fixed_source":
+        return solve_sn_fixed_source(
+            cfg["materials"], cfg["mesh"], cfg["quadrature"],
+            cfg["external_source"],
+            scattering_order=cfg.get("scattering_order", 0),
+            max_inner=500, inner_tol=1e-12,
+        )
+    if kind == "eigen":
+        return solve_sn(
+            cfg["materials"], cfg["mesh"], cfg["quadrature"],
+            scattering_order=cfg.get("scattering_order", 0),
+            max_outer=500, keff_tol=1e-12, flux_tol=1e-10,
+            max_inner=300, inner_tol=1e-10,
+        )
+    raise ValueError(f"unknown case kind: {kind!r}")
+
+
 def generate_one(case: SnapshotCase, *, sha: str | None = None) -> Path:
     """Run the case and write the snapshot .npz file."""
     cfg = case.builder()
-    result = solve_sn(
-        cfg["materials"], cfg["mesh"], cfg["quadrature"],
-        scattering_order=cfg.get("scattering_order", 0),
-        max_outer=500, keff_tol=1e-12, flux_tol=1e-10,
-        max_inner=300, inner_tol=1e-10,
-    )
+    result = run_case(cfg)
     SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
     out = SNAPSHOT_DIR / f"{case.name}.npz"
-    np.savez_compressed(
-        out,
-        keff=np.float64(result.keff),
+
+    payload: dict = dict(
         scalar_flux=np.asarray(result.scalar_flux, dtype=np.float64),
         case_name=np.array(case.name),
         case_description=np.array(case.description),
+        case_kind=np.array(cfg.get("kind", "eigen")),
         generator_commit=np.array(sha or _git_short_sha()),
     )
+    if cfg.get("kind", "eigen") == "eigen":
+        payload["keff"] = np.float64(result.keff)
+
+    np.savez_compressed(out, **payload)
     return out
 
 
