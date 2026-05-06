@@ -213,6 +213,109 @@ the standard polar-azimuthal split for transport on the unit
 sphere.
 
 
+Symmetry groups for quadrature invariance
+=========================================
+
+A discrete measure :math:`\mu = \sum_i w_i \, \delta_{x_i}` is
+**:math:`G`-invariant** under the action of a group :math:`G` iff
+every :math:`g \in G` permutes the support points among themselves
+in a weight-preserving way:
+
+.. math::
+
+   \forall g \in G,\;\;\;
+   \exists \text{ a permutation } \pi_g \in S_N
+   \text{ such that }\;
+   g(x_i) = x_{\pi_g(i)}
+   \;\text{ and }\;
+   w_i = w_{\pi_g(i)}.
+
+When this holds, integrating any :math:`G`-invariant integrand
+:math:`f` (i.e. :math:`f \circ g = f` for all :math:`g \in G`) against
+:math:`\mu` is automatically :math:`G`-symmetric in the result —
+no spurious low-order asymmetry leaks from the quadrature rule into
+moments where physics demands their absence.
+
+Quadrature selection in ORPHEUS therefore reduces to a containment
+check: given a geometry with natural symmetry group
+:math:`G_{\text{geom}}` (slab :math:`\to SO(2) \times Z_2`,
+sphere :math:`\to O(3)`, hexagonal lattice :math:`\to D_{6h}`, …)
+and a candidate quadrature with invariance group
+:math:`G_{\text{quad}}`, the rule is
+
+.. math::
+   :label: subgroup-of-o3-containment
+
+   G_{\text{geom}} \subseteq G_{\text{quad}}
+   \;\Longleftrightarrow\;
+   \forall g \in G_{\text{geom}},\; g \in G_{\text{quad}}.
+
+.. (vv-status rationale) subgroup-of-o3-containment: Verified
+   transitively by the foundation tests in
+   :file:`tests/numerics/test_symmetry.py` — every named relation in
+   the static lattice (``Trivial ⊂ Z_2 ⊂ O_h ⊂ O(3)``,
+   ``SO(2) ⊂ O(2) ⊂ O(3)``, the ``O_h \not\subset SO(3)`` improper-
+   rotation test, the parameterised ``C_n ⊂ C_m \iff n | m`` rule,
+   and reflexivity for every named entry) is asserted directly.
+   Tagged ``foundation`` rather than carrying a verification ladder
+   slot because the containment lattice is a software invariant
+   (Hamermesh 1962 §2.5; Stiefel & Fässler 1979 Ch. 4) — there is
+   no L0..L3 physics-equation claim to ladder against.
+.. vv-status: subgroup-of-o3-containment documented
+
+The "if and only if" is the standard set-theoretic definition of a
+subgroup; the value here is the *application* — guaranteeing that
+selecting a quadrature whose invariance group contains the geometry's
+symmetry group is sufficient to preserve every symmetry the geometry
+exhibits.
+
+ORPHEUS's relevant sub-lattice of :math:`O(3)` is **finite and
+small**. Slab, sphere, 1-D / 2-D Cartesian geometries combined with
+the four shipped quadrature families (Gauss-Legendre, Lebedev,
+level-symmetric, product) span exactly the eight named entries
+encoded in :class:`~orpheus.numerics.symmetry.SubgroupOfO3` —
+``Trivial``, ``Z_2``, ``SO(2)``, ``O(2)``, ``O_h``, ``I_h``,
+``SO(3)``, ``O(3)`` — plus the parameterised families :math:`C_n`
+and :math:`D_{nh}` reserved for forthcoming hex / triangular
+lattices. The subgroup-containment relation is therefore captured
+exhaustively by a static dict; no character-table or generator-based
+machinery is implemented because none is yet needed.
+
+Lebedev quadratures (Lebedev 1976) and level-symmetric :math:`S_N`
+quadratures (Carlson & Lathrop 1968) are :math:`O_h`-invariant *by
+construction*: their generating points are constrained to lie on
+the orbits of the octahedral group through the choice of
+free-parameter algebraic equations. The
+:meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_invariant` check
+in this module therefore *confirms* what the construction
+guarantees rather than *discovering* invariance — its job is to
+verify that the project's wrapper code preserves the property the
+literature establishes, and to reject accidental loss (e.g., a
+quadrature reshaped through a non-symmetric pushforward).
+
+The non-trivial design choice for ``is_invariant`` is the
+**fingerprint strategy**: rather than enumerating all 48 elements of
+:math:`O_h` or all 120 elements of :math:`I_h`, the check applies a
+generating set (8 sign flips × 6 coordinate permutations for
+:math:`O_h`; 60 proper rotations + inversion for :math:`I_h`) and
+verifies that every generator's image of the node array agrees with
+the input under nearest-neighbour matching. The 1-D case
+(:math:`SO(2)`-invariance of a measure on :math:`[-1, 1]`) is
+trivial — there is no azimuthal coordinate to rotate — and the
+:math:`Z_2` reflection :math:`x \to -x` is the only non-trivial
+1-D check.
+
+Tensor-product propagation of invariance is **deliberately dropped**
+to ``None`` (see the metadata-propagation table above):
+:math:`\mu \otimes \nu` is :math:`G_\mu \times G_\nu`-invariant, but
+the diagonal subgroup of :math:`G_\mu \times G_\nu` is the natural
+"join" only when both factors carry compatible group actions on a
+shared space. Encoding the joint-group construction is left for a
+later issue if and when a consumer needs it; today the field is
+re-stamped on tensor-product results via
+:meth:`~orpheus.numerics.measure.DiscreteMeasure.with_metadata`
+when the caller knows the result is invariant.
+
 Forward references
 ==================
 
@@ -220,13 +323,12 @@ This page is consumed progressively. The current stub installs the
 labels and the composition algebra; the following pieces will land
 in subsequent issues of the SN reshape campaign:
 
-- **Issue 3** (``module:numerics``) will populate the
-  ``invariance_group`` field with a tag for the symmetry group
-  under which a measure is invariant — :math:`O(3)`, finite
-  subgroups, the symmetric group, etc. — and document the
-  composition rule for invariance under tensor product. The
-  ``invariance_group`` field is reserved here for that integration
-  point.
+- **Issue 5** (``module:numerics``) will install a
+  ``select_quadrature`` registry that consumes
+  :meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_subgroup_of` to
+  drive geometry → quadrature selection. The named entries and the
+  containment lattice in :eq:`subgroup-of-o3-containment` are the
+  data the registry reads.
 - **Issue 4** (``module:sn``) will refactor
   :class:`~orpheus.sn.quadrature.AngularQuadrature` so that
   :class:`~orpheus.sn.quadrature.GaussLegendre1D`,
@@ -265,3 +367,18 @@ References
   perspective on spectral integration rules.
 * Bourbaki, N. (1969). *Éléments de mathématique. Intégration*,
   Chapter VI §3 (disintegration of measures).
+* Hamermesh, M. (1962). *Group Theory and Its Application to Physical
+  Problems*. Addison-Wesley. §2.5 (finite point groups), §9.4
+  (octahedral and icosahedral groups).
+* Stiefel, E. and Fässler, A. (1979). *Group Theoretical Methods and
+  Their Applications*. Birkhäuser. Chapters 4-5 (crystallographic
+  point groups, invariant theory of finite groups).
+* Lebedev, V.I. (1976). "Quadratures on a sphere." *USSR Computational
+  Mathematics and Mathematical Physics* **16**, no. 2, 10-24. The
+  octahedral-invariant construction validated by
+  :meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_invariant`.
+* Carlson, B.G. and Lathrop, K.D. (1968). "Transport theory: the
+  method of discrete ordinates." In *Computing Methods in Reactor
+  Physics*, Greenspan, Kelber, Okrent, eds., Gordon & Breach.
+  Level-symmetric :math:`S_N` quadratures, also :math:`O_h`-invariant
+  by construction.

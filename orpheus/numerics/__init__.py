@@ -22,6 +22,7 @@ from .operator import (
     ZeroOperator,
     as_scipy_linop,
 )
+from .symmetry import SubgroupOfO3
 
 __all__ = [
     "BundleMeasure",
@@ -37,6 +38,7 @@ __all__ = [
     "OperatorProduct",
     "OperatorSum",
     "ScaledOperator",
+    "SubgroupOfO3",
     "ZeroOperator",
     "as_scipy_linop",
     "equispaced",
