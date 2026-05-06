@@ -27,18 +27,32 @@ standard PWR-shaped 1-D geometries; for 2-D Cartesian pin meshes use
 from .coord import CoordSystem, compute_surfaces_1d, compute_volumes_1d, compute_volumes_2d
 from .factories import pwr_pin_2d
 from .mesh import BC, Mesh1D, Mesh2D, RegionMesh
+from .reduced_operator import (
+    AngularMeasure,
+    ReducedStreamingOperator,
+    StreamingTerms,
+    cylindrical_streaming,
+    slab_streaming,
+    spherical_streaming,
+)
 from .structured_geometry import Region, StructuredGeometry
 
 __all__ = [
     "BC",
+    "AngularMeasure",
     "CoordSystem",
     "Mesh1D",
     "Mesh2D",
+    "ReducedStreamingOperator",
     "Region",
     "RegionMesh",
+    "StreamingTerms",
     "StructuredGeometry",
     "compute_surfaces_1d",
     "compute_volumes_1d",
     "compute_volumes_2d",
+    "cylindrical_streaming",
     "pwr_pin_2d",
+    "slab_streaming",
+    "spherical_streaming",
 ]

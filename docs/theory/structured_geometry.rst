@@ -196,3 +196,139 @@ Phase F replaces the now-deleted ``transport_solver_protocol.rst`` (the
 Phase D casualty — that protocol conflated discrete and reference
 solver roles) as the documentation entry point for this architectural
 contract.
+
+
+Connection coefficients (reduced streaming operator)
+====================================================
+
+Connection coefficients are **differential-geometric data of the
+coordinate chart**, not solver-specific.  In SO(3)-charts language,
+the spherical redistribution term :math:`(1-\mu^2)/r\,\partial_\mu`
+and the cylindrical redistribution term
+:math:`-(1/r)\,\partial_\varphi(\xi\,\cdot)` are the **same
+connection-coefficient operator** viewed in two coordinate charts.
+SN, MoC, and CP curvilinear sweeps all march through the same data:
+
+* **chord lengths**: cell radial widths
+  (:attr:`~orpheus.geometry.mesh.Mesh1D.widths`),
+* **face areas**: :math:`A_{i+1/2} = 4\pi r_{i+1/2}^2` (sphere) or
+  :math:`2\pi r_{i+1/2}` (cylinder),
+* **the geometry factor** :math:`\Delta A_i / w_n` that ensures
+  per-ordinate flat-flux consistency,
+* **the Bailey 2009 dome recursion** for :math:`\alpha`, and
+* **the Morel--Montry angular closure** :math:`\tau_{mm}` clamped to
+  :math:`[1/2, 1]`.
+
+Per Cardinal Rule 2 (architecture is critical), the same data **MUST
+NOT** be duplicated across solvers.
+:class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
+in :mod:`orpheus.geometry.reduced_operator` lifts the math into a
+geometry-layer primitive that downstream consumers (SN, MoC, CP)
+share.
+
+The Bailey 2009 dome recursion (sphere):
+
+.. math::
+   :label: bailey-dome-recursion
+
+   \alpha_{n+\tfrac12} = \alpha_{n-\tfrac12} - w_n\,\mu_n,
+   \qquad \alpha_{\tfrac12} = 0.
+
+.. vv-status: bailey-dome-recursion documented
+
+For Gauss--Legendre quadrature with :math:`\mu` sorted ascending in
+:math:`[-1, 1]`, the recursion produces a non-negative dome
+(:math:`\alpha_{1/2} = 0 \to \text{peak} \to \alpha_{N+1/2} = 0`)
+that closes back to zero at the upper boundary by GL antisymmetry.
+The cylindrical analog runs **per-:math:`\mu`-level**: each level
+:math:`p` carries its own :math:`(M+1)`-tuple of
+:math:`\alpha^{(p)}_{m+1/2} = \alpha^{(p)}_{m-1/2} - w_m\,\eta_m`,
+where :math:`\eta` is the radial direction cosine and :math:`M` is the
+number of azimuthal ordinates on that level.
+
+The Morel--Montry closure (Lewis & Miller 1984, §4.5; Bailey
+et al. 2009 Eq. 74):
+
+.. math::
+   :label: morel-montry-clamp
+
+   \tau_m = \mathrm{clip}\!\left(
+       \frac{\mu_m - \mu_{m-1/2}}{\mu_{m+1/2} - \mu_{m-1/2}},
+       \;\tfrac12,\; 1
+   \right)
+
+.. vv-status: morel-montry-clamp documented
+
+clamps the M-M weighting to :math:`[1/2, 1]` so the closure remains
+positive (Lewis & Miller §4.5).  For spherical geometry the cell-edge
+direction cosines :math:`\mu_{m+1/2}` are the partial weight sums
+:math:`\sum_{n \le m} w_n` shifted by :math:`\mu_{1/2} = -1`; for
+cylindrical geometry the weights live in :math:`\varphi`-space rather
+than :math:`\eta`-space, so the cell edges are taken at the midpoints
+of consecutive :math:`\eta` values with endpoints at :math:`\pm\sin\theta`.
+
+API surface
+-----------
+
+The geometry-layer primitive is built by three factory functions, one
+per coordinate system:
+
+* :func:`~orpheus.geometry.reduced_operator.slab_streaming(mesh, ang)
+  <orpheus.geometry.reduced_operator.slab_streaming>` — Cartesian 1-D;
+  no curvature math.  ``requires_upstream_angular_state = False``,
+  ``angular_marching_axis = None``.  All ``alpha_*``, ``redist_dAw``,
+  ``tau_mm`` arrays remain ``None``.
+* :func:`~orpheus.geometry.reduced_operator.spherical_streaming(mesh, ang)
+  <orpheus.geometry.reduced_operator.spherical_streaming>` — 1-D spherical
+  with the dome recursion :eq:`bailey-dome-recursion` and Morel--Montry
+  closure :eq:`morel-montry-clamp`.  ``requires_upstream_angular_state =
+  True``, ``angular_marching_axis = "mu"``.
+* :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming(mesh, ang)
+  <orpheus.geometry.reduced_operator.cylindrical_streaming>` — 1-D
+  cylindrical with **per-:math:`\mu`-level** :math:`\alpha`,
+  :math:`\Delta A/w`, and :math:`\tau_{mm}` lists.  Requires the
+  angular measure to expose ``level_indices`` (e.g.,
+  :class:`~orpheus.sn.quadrature.LevelSymmetricSN`,
+  :class:`~orpheus.sn.quadrature.ProductQuadrature`).
+
+The per-cell, per-direction inputs needed by a sweep cell update are
+extracted via
+:meth:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.streaming_terms`,
+which returns a
+:class:`~orpheus.geometry.reduced_operator.StreamingTerms` namedtuple
+whose populated fields are geometry-dependent (slab is minimal;
+sphere/cylinder carry the full curvature-coefficient bundle).
+
+Bit-identical contract
+----------------------
+
+The factories produce arrays bit-identical to the historical inline
+implementations on
+:class:`~orpheus.sn.geometry.SNMesh._setup_spherical` and
+:class:`~orpheus.sn.geometry.SNMesh._setup_cylindrical`.  Hash
+equality is enforced at test time
+(``tests/geometry/test_reduced_operator.py``,
+``foundation``-tagged) using :func:`numpy.array_equal` (not
+``np.allclose``) — the two paths must share every floating-point bit.
+This is what makes the lift safe: today's consumers (the SN sweep
+and the BiCGSTAB curvilinear operator) are unaffected because the
+two paths compute the same data; tomorrow's consumers can bind to
+the geometry-layer primitive instead of duplicating the math.
+
+Migration roadmap
+-----------------
+
+This primitive is the foundation for several follow-on issues in the
+SN reshape campaign (``.claude/plans/sn_reshape.md``):
+
+* **Issue 10 (Wave G)** refactors :class:`SNMesh` to consume
+  :class:`ReducedStreamingOperator` rather than recomputing
+  connection coefficients in
+  :meth:`SNMesh._setup_spherical` /
+  :meth:`SNMesh._setup_cylindrical`.
+* **Issues 11/12 (Wave H)** make ``SNStreamingOperator.apply``
+  consume the primitive directly, eliminating the SN-specific
+  curvature attributes from :class:`SNMesh`.
+* **MoC and CP campaigns (post-Wave-1)** reuse the same primitive
+  with their own consumption patterns (track-segment chord march
+  for MoC; ray-traced chord-length integrals for CP).
