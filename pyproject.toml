@@ -51,6 +51,7 @@ markers = [
     "foundation: Foundation — software invariant (data structure / numerical primitive), not a physics equation",
     "verifies(*labels): Sphinx equation labels (:label: in docs/theory/*.rst) that this test exercises",
     "catches(*tags): failure-mode (FM-NN) or error-catalog (ERR-NNN) tags this test guards",
+    "regression: Frozen-reference snapshot tests gating numerical drift across refactors (NOT a verification reference — see tests/sn/regression/_generate_snapshots.py)",
 ]
 
 [tool.setuptools.packages.find]
