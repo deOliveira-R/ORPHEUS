@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2406**
+Total tests collected: **2445**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 590, 24.5%
-   L1, 692, 28.8%
+   L0, 590, 24.1%
+   L1, 708, 29.0%
    L2, 36, 1.5%
    L3, 0, 0.0%
-   foundation, 1060, 44.1%
-   unmarked, 28, 1.2%
+   foundation, 1083, 44.3%
+   unmarked, 28, 1.1%
 
 Tagging source
 --------------
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2299
+   explicit, 2338
    verify, 0
    class-name, 46
    func-name, 0
@@ -173,6 +173,7 @@ Module × level grid
    moc/test_quadrature, 24, 0, 0, 0, 0, 0
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
+   numerics/test_measure, 0, 16, 0, 0, 23, 0
    numerics/test_operator, 0, 0, 0, 0, 38, 0
    regression/test_dd_regression, 0, 0, 0, 0, 0, 11
    sn/test_boundary_conditions, 0, 0, 0, 0, 0, 11
@@ -274,6 +275,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-rank-n-stability``, 20
    ``dd-cartesian-1d``, 17
    ``direction-sampling``, 16
+   ``discrete-measure-integrate``, 16
    ``fission-weight``, 16
    ``keff-cycle``, 16
    ``roulette-conservation``, 16
@@ -463,11 +465,12 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **149** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **152** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bessel-wronskian``
 - ``bickley-integral``
 - ``boltzmann``
+- ``bundle-measure-disintegration``
 - ``burst-criterion``
 - ``c-in-remapping``
 - ``case-dispersion-function``
@@ -478,6 +481,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``coolant-feedback``
 - ``coolant-rate``
 - ``creep-rate``
+- ``discrete-measure-definition``
+- ``discrete-measure-pushforward``
 - ``doppler-feedback``
 - ``e1-small-tau-expansion``
 - ``fb-bc4-displacement``
