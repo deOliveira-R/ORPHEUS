@@ -4,13 +4,13 @@
 **Branch**: `refactor/sn-operator-algebra`
 **Scope**: SN module + numerics primitives + geometry additions
 **Pilot for**: cross-solver migration sequence SN → MoC → CP → MC
-**Status**: **Phase 0 + Phase 1 complete (Issues 1-7); Wave C (Phase 2) ready to start**
+**Status**: **Phase 0 + Phase 1 + Phase 2 (DD-only) complete (Issues 1-7 + 8 + 9-DD); Wave C-extension (LD/EC/Step) and Wave D (Phase 3) pending**
 
 ---
 
 ## Progress (as of 2026-05-06)
 
-Campaign branch `refactor/sn-operator-algebra` ahead of `main` by 10 commits.
+Campaign branch `refactor/sn-operator-algebra` ahead of `main` by 13 commits.
 Bit-identical regression contract held throughout: 11/11 frozen snapshots at
 `tests/sn/regression/snapshots/` remain `np.array_equal`-bit-identical to
 the pre-reshape baseline.
@@ -49,20 +49,37 @@ Wave A + Wave B verification gates (end-of-session):
 - Sphinx clean (-W); audit clean (22 orphans, 36/38 ERR coverage — both unchanged from baseline)
 - Full L1 sweep exit 0
 
-### Operational notes (lessons from Wave A + Wave B)
+### Wave C — Phase 2 cell-update strategy (Issue 8 + DD-portion of Issue 9) (DONE)
+
+| Plan # | GH # | Status | Commit | Summary |
+|---|---|---|---|---|
+| 8 | [#157](https://github.com/deOliveira-R/ORPHEUS/issues/157) | ✓ DONE | `e999c15` | `orpheus/sn/spatial/cell_update.py` — `CellUpdate` `@runtime_checkable Protocol` (slot-style traits `is_linear`/`is_positivity_preserving` + `update(streaming_terms, total_xs, source, upstream_state) → CellResult`). `UpstreamState` and `CellResult` `@dataclass(frozen=True, slots=True)` carry per-cell `(ng,)`-shaped state. `StreamingTerms` extended additively with `volume` and `abs_mu` fields populated by all 3 factories (slab/sphere/cylinder). Slab vs curvilinear discriminated via `streaming_terms.alpha_in is None`; cylindrical pure-azimuthal `|η|<1e-15` degenerate case via `outgoing_spatial_flux=None`. **13 protocol tests + 16 vol/abs_mu tests = 29 new foundation tests; existing 29 hash-equality tests preserved (45 total geometry tests on `test_reduced_operator.py`)** |
+| 9 (DD) | [#158](https://github.com/deOliveira-R/ORPHEUS/issues/158) | ✓ DONE (DD portion) | `3b1fc75` | `orpheus/sn/spatial/diamond.py` — `DiamondDifference` strategy as **bit-identical extraction** of existing inlined sweep math. Single geometry-polymorphic class with 3 branches: slab (`alpha_in is None`, `s = 2·source/denom` matching the cumprod path's `bQ = 2·source_coeff·Q_1d` semantics), curvilinear (`alpha_in is not None, abs_mu ≥ 1e-15`, mirrors `sweep.py:350-361` operation order verbatim), cyl-degenerate (`alpha_in is not None, abs_mu < 1e-15`, no spatial DD closure). `is_linear=True, is_positivity_preserving=False` (Lewis & Miller §5.3). **11 hand-calc bit-identical tests via `np.array_equal` against scalar formulas typed verbatim from sweep.py:117-123/350-361/533-546**. LD/EC/Step deferred to Wave C-extension |
+
+Wave C verification gates (end-of-session):
+
+- 69 spatial + geometry tests (13 protocol + 11 diamond + 45 geometry incl. 16 new vol/abs_mu)
+- 11/11 regression snapshots bit-identical — sweep is provably untouched in Wave C, so the contract holds by construction; verified twice (post-R1 worktree run 617s + post-R2 agent run 599s)
+- 27 + 2 xfail safety net intact (ERR-026 tripwires gated for Wave D, did NOT flip)
+- Sphinx clean (-W exit 0); audit unchanged from Wave-B baseline (23 orphans of 234 testable labels — denominator grew from 231 to 234 because Wave C added 3 new equation labels [`dd-slab-scalar`, `dd-mm-closure-constants`, `dd-curvilinear-scalar`]; all 3 covered by `@pytest.mark.verifies` in test_diamond.py so orphan count unchanged)
+- 36/38 ERR coverage preserved
+
+### Operational notes (lessons from Wave A + Wave B + Wave C)
 
 1. **Worktree-base bug** (discovered Wave B Round 1, mitigated for the rest): background-dispatched worktrees may come up at `main`'s HEAD (06b46f2) instead of the orchestrator's current branch HEAD. Mitigation: brief every method-implementer / general-purpose dispatch with explicit detection (`git status && git log --oneline -3 && ls orpheus/...`) and recovery (`git rebase refactor/sn-operator-algebra`) instructions. Issues 3, 4, 5, 7 all hit this and recovered cleanly via rebase.
 2. **Cherry-pick conflict pattern** (consistent across all 3 rounds): conflicts on `docs/verification/matrix.rst` (Sphinx auto-regenerates with different test-count totals per branch). Resolution: `git checkout --ours` on the conflicting file; complete the cherry-pick; re-run `sphinx-build`; commit the regenerated matrix as a `chore(matrix)` commit.
 3. **Bit-identical contract is the campaign's success criterion** — and held: every SN-touching commit (Issues 4 and 7) was gated by `pytest -m regression -q` (629–640s, 11/11 bit-identical) before merge. The agent verifications + post-merge orchestrator verifications agreed every time.
 4. **Sub-agent assignment heuristic**: `general-purpose` for software-only primitives without published-math content (Issues 1, 3, 5); `method-implementer` for issues with bit-identical contracts or published-math grounding (Issues 2, 4, 6, 7). Dispatching parallel pairs (one general-purpose + one method-implementer) per round avoided sequential bottlenecks.
 5. **`type:refactor` label does not exist** in the GitHub repo. Reshape issues marked `type:refactor` in the plan (#153, #156, #157, #159, #161, #162, #164) were filed with `type:improvement` instead. Acceptable substitution.
+6. **Wave C duplicate-edit side effect** (Round 1 only): the `general-purpose` agent's worktree-isolated dispatch landed file edits in BOTH the agent's worktree AND the main repo (probably a tooling oversight when the agent's CWD-tracker was reset between Bash calls). Mitigation: orchestrator stashed the duplicated main-repo edits before cherry-picking the agent's worktree commit; the cherry-pick was clean since the stash removed the working-tree conflict surface. Round 2 (`method-implementer`) did NOT exhibit this. Worth surveilling on future `general-purpose` worktree dispatches.
+7. **Wave C source-semantics confirmation** (Round 2 lesson): the `source` parameter passed to `CellUpdate.update(...)` follows the sweep's call-site convention — `source = Q · V · weight_norm` (already weight-normalized AND already volume-multiplied). The slab cumprod path bakes `2 · weight_norm · dx` into `source_coeff` so the per-cell scalar form becomes `s = 2 · source / denom`; the curvilinear path inserts `source` directly into the numerator as `QV[i]`. Both branches verified bit-identical via `np.array_equal` hand-calc tests typed verbatim from `sweep.py:117-123/350-361`.
 
 ### Remaining waves (next sessions)
 
 | Wave | Phase | Issues | Description |
 |---|---|---|---|
-| C | 2 | 8, 9 | `CellUpdate` ABC + concrete cell updates (DD, LD, ExponentialCharacteristic, Step) |
-| D | 3 | 10, 11, 12, 13 | SN core reshape: SNMesh refactor, SNStreamingOperator, unified sweep, ScatteringOperator + FissionOperator |
+| C-ext | 2 | 9 (LD, EC, Step) | Concrete cell updates beyond DD: `LinearDiscontinuous`, `ExponentialCharacteristic`, `Step` strategies. Each with its own MMS spatial-convergence test. Most natural to ship sequentially (one round per strategy) AFTER Wave D's unified sweep dispatches via `cell_update`, so the strategies can be verified end-to-end as production cell updates rather than shipped in isolation |
+| D | 3 | 10, 11, 12, 13 | SN core reshape: SNMesh refactor, SNStreamingOperator, unified sweep (consumes `DiamondDifference`), ScatteringOperator + FissionOperator. **Closes ERR-026** via Issues 11+12 (the 2 xfail-strict tripwires at `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` flip xpass when curvilinear sweep produces O(h²) on anisotropic ansatz) |
 | E | 4 | 14, 15 | Iteration as operator algebra (SourceIteration, KEigenvalue) + SNSolver migration. **Closes #96, #97 via Issue 15** |
 | F | 5 | 17, 18 | Symmetry-preservation + reciprocity invariant tests; Sphinx documentation campaign |
 
