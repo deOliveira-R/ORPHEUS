@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2675**
+Total tests collected: **2704**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 590, 22.1%
-   L1, 723, 27.0%
+   L0, 590, 21.8%
+   L1, 723, 26.7%
    L2, 36, 1.3%
    L3, 0, 0.0%
-   foundation, 1298, 48.5%
+   foundation, 1327, 49.1%
    unmarked, 28, 1.0%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2568
+   explicit, 2597
    verify, 0
    class-name, 46
    func-name, 0
@@ -158,7 +158,7 @@ Module × level grid
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
    geometry/test_boundary, 0, 0, 0, 0, 19, 0
    geometry/test_geometry, 0, 0, 0, 0, 55, 0
-   geometry/test_reduced_operator, 0, 0, 0, 0, 29, 0
+   geometry/test_reduced_operator, 0, 0, 0, 0, 45, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
    homogeneous/test_continuous_reference, 0, 7, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 4, 0, 0, 0, 0
@@ -199,6 +199,7 @@ Module × level grid
    sn/test_spherical, 13, 7, 6, 0, 0, 0
    sn/test_sweep_operator_inconsistency, 0, 4, 0, 0, 0, 0
    sn/test_sweep_regression, 12, 0, 0, 0, 0, 0
+   spatial/test_cell_update_protocol, 0, 0, 0, 0, 13, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0

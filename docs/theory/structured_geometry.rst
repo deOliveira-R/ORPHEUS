@@ -299,6 +299,19 @@ which returns a
 whose populated fields are geometry-dependent (slab is minimal;
 sphere/cylinder carry the full curvature-coefficient bundle).
 
+The two trailing fields ``volume`` and ``abs_mu`` carry the per-cell
+volume :math:`V_i` and the absolute primary direction cosine
+:math:`|\mu|` (sphere) / :math:`|\eta|` (cylinder, radial) /
+:math:`|\mu_x|` (slab).  They are populated by all three factories so
+a downstream sweep cell update — see :doc:`discrete_ordinates`,
+"Cell update strategies (the strategy contract)" — receives a
+self-contained per-cell, per-direction packet and need not reach back
+into ``SNMesh`` or the ``AngularQuadrature``.  The ``alpha_in is
+None`` test discriminates slab from curvilinear inside cell-update
+strategies; the cylindrical pure-azimuthal degenerate case
+(``abs_mu < 1e-15``) is the single runtime branch a strategy must
+handle for cylindrical sweeps.
+
 Bit-identical contract
 ----------------------
 

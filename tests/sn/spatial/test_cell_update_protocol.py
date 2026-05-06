@@ -1,0 +1,308 @@
+"""Software-contract tests for the CellUpdate protocol.
+
+These tests exercise the **strategy contract** shipped in Round 1 of
+Wave C of the SN reshape campaign — the
+:class:`~orpheus.sn.spatial.cell_update.CellUpdate` ``Protocol`` plus
+the :class:`~orpheus.sn.spatial.cell_update.UpstreamState` and
+:class:`~orpheus.sn.spatial.cell_update.CellResult` dataclasses.  The
+L1 transport math is verified transitively via the existing sweep
+MMS suite; these tests are software-contract claims (runtime
+checkability, immutability, slab vs curvilinear discrimination) and
+are tagged ``@pytest.mark.foundation``.
+
+No concrete strategies (e.g. ``DiamondDifference``) ship in Round 1
+— they appear in Round 2 (Issue #158).  The synthetic strategies in
+this file are minimal stand-ins to drive the protocol-conformance
+tests.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import ClassVar
+
+import numpy as np
+import pytest
+
+from orpheus.geometry import (
+    BC,
+    CoordSystem,
+    Mesh1D,
+    slab_streaming,
+    spherical_streaming,
+)
+from orpheus.geometry.reduced_operator import StreamingTerms
+from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.sn.spatial.cell_update import (
+    CellResult,
+    CellUpdate,
+    UpstreamState,
+)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Synthetic strategies — minimal stand-ins for protocol-conformance tests
+# ═══════════════════════════════════════════════════════════════════════
+
+@dataclass(frozen=True, slots=True)
+class IdentityCellUpdate:
+    """Synthetic strategy: trivial closure ``ψ_avg = source / Σ_t``.
+
+    Returns ``outgoing_spatial_flux=None`` and
+    ``outgoing_angular_state=None``.  Has no physical meaning — exists
+    purely to drive isinstance() and trait-attribute checks against the
+    Protocol.
+
+    Traits are declared as ``ClassVar`` so they are genuine
+    class-level constants (not turned into per-instance slots by
+    ``@dataclass(slots=True)``).
+    """
+
+    is_linear: ClassVar[bool] = True
+    is_positivity_preserving: ClassVar[bool] = True
+
+    def update(
+        self,
+        streaming_terms: StreamingTerms,
+        total_xs: np.ndarray,
+        source: np.ndarray,
+        upstream_state: UpstreamState,
+    ) -> CellResult:
+        del streaming_terms, upstream_state  # unused by IdentityCellUpdate
+        return CellResult(
+            cell_average_flux=source / total_xs,
+            outgoing_spatial_flux=None,
+            outgoing_angular_state=None,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class BadCellUpdate:
+    """Synthetic non-strategy: missing the ``update`` method.
+
+    Used to verify that the runtime-checkable Protocol correctly
+    rejects a class lacking the contract method.
+    """
+
+    is_linear: ClassVar[bool] = True
+    is_positivity_preserving: ClassVar[bool] = True
+
+
+@dataclass(frozen=True, slots=True)
+class FakeCurvilinearStrategy:
+    """Synthetic strategy that asserts a curvilinear-shaped input arrives.
+
+    Verifies the shape contract:
+    ``streaming_terms.alpha_in is not None``,
+    ``upstream_state.angular_upstream.shape == (ng,)``.  Returns
+    ``CellResult`` with all three fields populated (shape ``(ng,)``).
+    """
+
+    is_linear: ClassVar[bool] = True
+    is_positivity_preserving: ClassVar[bool] = False
+
+    def update(
+        self,
+        streaming_terms: StreamingTerms,
+        total_xs: np.ndarray,
+        source: np.ndarray,
+        upstream_state: UpstreamState,
+    ) -> CellResult:
+        # Curvilinear shape check
+        assert streaming_terms.alpha_in is not None, (
+            "FakeCurvilinearStrategy expects curvilinear streaming terms "
+            "(alpha_in must be populated)."
+        )
+        assert streaming_terms.alpha_out is not None
+        assert streaming_terms.delta_A_over_w is not None
+        assert streaming_terms.face_area_in is not None
+        assert streaming_terms.face_area_out is not None
+        assert streaming_terms.tau_mm is not None
+        assert streaming_terms.volume is not None
+        assert streaming_terms.abs_mu is not None
+
+        ng = total_xs.shape[0]
+        assert source.shape == (ng,)
+        assert upstream_state.spatial_upstream.shape == (ng,)
+        assert upstream_state.angular_upstream is not None, (
+            "Curvilinear cell update needs an upstream angular state."
+        )
+        assert upstream_state.angular_upstream.shape == (ng,)
+
+        # Stand-in math — not physically meaningful, just a shape-correct
+        # CellResult that exercises every output channel.
+        avg = source / total_xs
+        out_spatial = 2.0 * avg - upstream_state.spatial_upstream
+        tau = streaming_terms.tau_mm
+        out_angular = (
+            avg - (1.0 - tau) * upstream_state.angular_upstream
+        ) / tau
+        return CellResult(
+            cell_average_flux=avg,
+            outgoing_spatial_flux=out_spatial,
+            outgoing_angular_state=out_angular,
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Mesh fixtures (re-used from the geometry test suite pattern)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _slab_mesh() -> Mesh1D:
+    return Mesh1D(
+        edges=np.linspace(0.0, 1.0, 6),
+        mat_ids=np.zeros(5, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
+    )
+
+
+def _spherical_mesh() -> Mesh1D:
+    return Mesh1D(
+        edges=np.linspace(0.0, 1.0, 6),
+        mat_ids=np.zeros(5, dtype=int),
+        coord=CoordSystem.SPHERICAL,
+        bc_left=BC("reflective"),
+        bc_right=BC("vacuum"),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Tests
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestProtocolConformance:
+    """``isinstance`` runtime-checkable semantics on the CellUpdate Protocol."""
+
+    @pytest.mark.foundation
+    def test_identity_strategy_is_recognized(self):
+        strat = IdentityCellUpdate()
+        assert isinstance(strat, CellUpdate)
+
+    @pytest.mark.foundation
+    def test_bad_strategy_is_rejected(self):
+        bad = BadCellUpdate()
+        assert not isinstance(bad, CellUpdate)
+
+    @pytest.mark.foundation
+    def test_curvilinear_strategy_is_recognized(self):
+        strat = FakeCurvilinearStrategy()
+        assert isinstance(strat, CellUpdate)
+
+
+class TestTraitAttributes:
+    """Class-level traits ``is_linear`` / ``is_positivity_preserving``."""
+
+    @pytest.mark.foundation
+    def test_identity_traits(self):
+        assert IdentityCellUpdate.is_linear is True
+        assert IdentityCellUpdate.is_positivity_preserving is True
+        # Also accessible on the instance
+        s = IdentityCellUpdate()
+        assert s.is_linear is True
+        assert s.is_positivity_preserving is True
+
+    @pytest.mark.foundation
+    def test_curvilinear_strategy_traits(self):
+        assert FakeCurvilinearStrategy.is_linear is True
+        assert FakeCurvilinearStrategy.is_positivity_preserving is False
+
+
+class TestDataclassImmutability:
+    """``UpstreamState`` and ``CellResult`` are frozen dataclasses."""
+
+    @pytest.mark.foundation
+    def test_upstream_state_holds_reference(self):
+        spatial = np.array([1.0, 2.0])
+        angular = np.array([3.0, 4.0])
+        st = UpstreamState(
+            spatial_upstream=spatial, angular_upstream=angular,
+        )
+        assert st.spatial_upstream is spatial
+        assert st.angular_upstream is angular
+
+    @pytest.mark.foundation
+    def test_upstream_state_is_frozen(self):
+        st = UpstreamState(
+            spatial_upstream=np.array([1.0]),
+            angular_upstream=None,
+        )
+        with pytest.raises(AttributeError):
+            st.spatial_upstream = np.array([99.0])  # type: ignore[misc]
+
+    @pytest.mark.foundation
+    def test_upstream_state_slab_default(self):
+        """Slab UpstreamState has angular_upstream defaulting to None."""
+        st = UpstreamState(spatial_upstream=np.array([1.0]))
+        assert st.angular_upstream is None
+
+    @pytest.mark.foundation
+    def test_cell_result_is_frozen(self):
+        r = CellResult(cell_average_flux=np.array([1.0]))
+        with pytest.raises(AttributeError):
+            r.cell_average_flux = np.array([99.0])  # type: ignore[misc]
+
+    @pytest.mark.foundation
+    def test_cell_result_default_outputs_none(self):
+        r = CellResult(cell_average_flux=np.array([1.0]))
+        assert r.outgoing_spatial_flux is None
+        assert r.outgoing_angular_state is None
+
+
+class TestSlabVsCurvilinearDiscrimination:
+    """``streaming_terms.alpha_in is None`` discriminates slab from curvilinear.
+
+    Locks the protocol's slab vs curvilinear discrimination convention
+    in the test suite — concrete strategies in Round 2 read this same
+    field to dispatch.
+    """
+
+    @pytest.mark.foundation
+    def test_slab_streaming_terms_have_no_alpha_in(self):
+        mesh = _slab_mesh()
+        quad = GaussLegendre1D.create(8)
+        op = slab_streaming(mesh, quad)
+        st = op.streaming_terms(cell_idx=0, direction_idx=0)
+        assert st.alpha_in is None
+        assert st.alpha_out is None
+        assert st.delta_A_over_w is None
+        assert st.tau_mm is None
+
+    @pytest.mark.foundation
+    def test_spherical_streaming_terms_have_alpha_in(self):
+        mesh = _spherical_mesh()
+        quad = GaussLegendre1D.create(8)
+        op = spherical_streaming(mesh, quad)
+        st = op.streaming_terms(cell_idx=0, direction_idx=0)
+        assert st.alpha_in is not None
+        assert st.alpha_out is not None
+        assert st.delta_A_over_w is not None
+        assert st.tau_mm is not None
+
+
+class TestCurvilinearStrategyDriven:
+    """End-to-end shape check: real spherical streaming_terms feed a strategy."""
+
+    @pytest.mark.foundation
+    def test_spherical_streaming_terms_drive_strategy(self):
+        mesh = _spherical_mesh()
+        quad = GaussLegendre1D.create(8)
+        op = spherical_streaming(mesh, quad)
+        st = op.streaming_terms(cell_idx=2, direction_idx=4)
+        ng = 3
+        total_xs = np.full(ng, 1.5)
+        source = np.full(ng, 0.7)
+        upstream = UpstreamState(
+            spatial_upstream=np.full(ng, 0.4),
+            angular_upstream=np.full(ng, 0.3),
+        )
+        strat = FakeCurvilinearStrategy()
+        result = strat.update(st, total_xs, source, upstream)
+
+        assert isinstance(result, CellResult)
+        assert result.cell_average_flux.shape == (ng,)
+        assert result.outgoing_spatial_flux is not None
+        assert result.outgoing_spatial_flux.shape == (ng,)
+        assert result.outgoing_angular_state is not None
+        assert result.outgoing_angular_state.shape == (ng,)

@@ -873,6 +873,169 @@ Geometry Comparison
      - Product or Level-Sym
 
 
+.. _cell-update-strategies:
+
+Cell update strategies (the strategy contract)
+==============================================
+
+The discrete balance equation derived above (slab DD
+:eq:`dd-cartesian-1d`, the M-M-closed curvilinear update) yields, for
+each cell, a small algebraic system: combine the upstream face flux
+(and, for sphere/cylinder, the upstream angular half-flux) with a
+local source and the cell's total cross section to produce the
+cell-average flux plus the downstream states.  The closure relating
+:math:`\overline{\psi}_i` to :math:`\psi_{i-1/2}` and
+:math:`\psi_{i+1/2}` is **not unique** — Diamond Difference (DD),
+weighted DD, Linear Discontinuous (LD), Step, and Exponential
+Characteristic (EC) are all valid choices, each with different
+truncation error, positivity, and cost.  Per Cardinal Rule 2
+(architecture), the cell-update math is **the same algebra** in slab,
+sphere, and cylindrical 1-D — only the populated fields of the
+:class:`~orpheus.geometry.reduced_operator.StreamingTerms` packet
+change.  Lifting the closure into a strategy contract makes the
+sweep driver thin and lets each closure be unit-tested in isolation.
+
+The strategy contract is owned by
+:mod:`orpheus.sn.spatial.cell_update`.
+
+The Protocol
+------------
+
+The contract is a ``@runtime_checkable`` ``typing.Protocol`` —
+satisfied by structural typing, not inheritance — exposing two class-
+level traits and a single :meth:`update` method:
+
+* :class:`~orpheus.sn.spatial.cell_update.CellUpdate`
+
+  - ``is_linear: bool`` — whether the closure is linear in its inputs.
+    Diamond Difference is linear; Step's positivity-fixup, weighted-DD
+    with a flux-dependent weight, and EC with a clipped argument are
+    not.
+  - ``is_positivity_preserving: bool`` — whether non-negative inputs
+    guarantee non-negative outputs.  Diamond Difference is **not**
+    positivity preserving (Lewis & Miller §5.3, where DD's tendency
+    to produce negative cell-edge fluxes is exhibited and motivates
+    the choice of Step or weighted-DD in stiff cells); Step is.
+  - ``update(streaming_terms, total_xs, source, upstream_state) ->
+    CellResult`` — the cell update itself.
+
+The two helper dataclasses (frozen, slotted) carry the per-cell
+state:
+
+* :class:`~orpheus.sn.spatial.cell_update.UpstreamState`
+
+  - ``spatial_upstream: np.ndarray`` — shape ``(ng,)``.  Face flux
+    entering the cell from the upstream face (always populated).
+  - ``angular_upstream: np.ndarray | None`` — shape ``(ng,)`` for
+    sphere/cylinder; ``None`` for slab.  :math:`\psi_{n-1/2,\,i}`,
+    the half-flux at the upstream half-angle.
+
+* :class:`~orpheus.sn.spatial.cell_update.CellResult`
+
+  - ``cell_average_flux: np.ndarray`` — shape ``(ng,)``.  The cell-
+    average flux :math:`\overline{\psi}_i = \mathrm{numer}/\mathrm{denom}`
+    from the closure's algebraic solve.
+  - ``outgoing_spatial_flux: np.ndarray | None`` — shape ``(ng,)`` in
+    the typical case; ``None`` for the cylindrical pure-azimuthal
+    degenerate case where the cell has no radial face flow (see
+    below).
+  - ``outgoing_angular_state: np.ndarray | None`` — shape ``(ng,)``
+    for sphere/cylinder; ``None`` for slab.  :math:`\psi_{n+1/2,\,i}`
+    from the Morel--Montry closure.
+
+Slab vs curvilinear discrimination
+-----------------------------------
+
+A strategy distinguishes slab from curvilinear by a single field test
+on the streaming terms it receives:
+
+* **Slab** — ``streaming_terms.alpha_in is None`` (and the rest of
+  the curvature bundle, ``alpha_out``, ``delta_A_over_w``,
+  ``tau_mm``, ``face_area_*``, are all ``None``).
+  ``upstream_state.angular_upstream is None``.  The strategy returns
+  ``CellResult(outgoing_angular_state=None, ...)``.
+* **Sphere or cylinder** — ``streaming_terms.alpha_in is not None``;
+  the full curvature bundle is populated.
+  ``upstream_state.angular_upstream`` carries
+  :math:`\psi_{n-1/2,\,i}`.  The strategy returns the M-M-closed
+  ``outgoing_angular_state``.
+
+This single-field discrimination convention is locked in by
+foundation-tier protocol-conformance tests in
+``tests/sn/spatial/test_cell_update_protocol.py``; concrete
+strategies and the Wave D sweep rewrite read this same field to
+dispatch.
+
+Cylindrical pure-azimuthal degenerate case
+-------------------------------------------
+
+For cylindrical 1-D radial sweeps with a product or level-symmetric
+quadrature, ordinates with axial direction cosine
+:math:`|\mu_z| \to 1` have radial direction cosine
+:math:`|\eta| = \sqrt{1 - \mu_z^2} \to 0`.  In this limit the cell
+has **no radial face flow** — the streaming term
+:math:`\mu_x \cdot \partial_r` vanishes — and the cell-update
+algebra collapses to the redistribution-only form
+
+.. math::
+
+   \mathrm{denom} = (\Delta A / w)\,c_{\rm out} + \Sigma_t\,V_i,
+   \qquad
+   \mathrm{numer} = Q_i\,V_i + (\Delta A/w)\,c_{\rm in}\,\psi_{n-1/2,\,i},
+
+with no spatial-flux contribution.  The strategy contract signals
+this case by setting ``CellResult.outgoing_spatial_flux = None``: the
+sweep driver, on receiving ``None``, skips the face-flux update for
+that cell.  The angular M-M closure remains active — angular
+redistribution physics is still present.
+
+The numerical threshold is ``streaming_terms.abs_mu < 1e-15``, with
+``abs_mu`` populated from ``abs(quadrature.mu_x[direction_idx])`` on
+the streaming-terms packet (see :doc:`structured_geometry`,
+"Connection coefficients (reduced streaming operator)").
+
+The DD recurrence
+------------------
+
+For non-degenerate cells, the closure relation reduces — for slab
+geometry, the cell-update math is the DD recurrence
+:eq:`dd-recurrence` (see :ref:`sweep-cumprod` below); for curvilinear
+geometry, it is the curvilinear DD form combining the
+:math:`\Delta A/w` redistribution with the M-M angular closure.  The
+sweep driver inlines this math today; Wave D (Issue #159) will
+rewrite the driver to dispatch through a
+:class:`~orpheus.sn.spatial.cell_update.CellUpdate` strategy.
+
+The first concrete strategy — :class:`DiamondDifference` — is shipped
+in Round 2 of Wave C (Issue #158) as a bit-identical extraction of
+the existing inlined sweep math.  Linear Discontinuous (Lewis &
+Miller §5.3 — preview), Exponential Characteristic, and Step
+strategies are deferred to a Wave C-extension session, each with its
+own MMS spatial-convergence verification.
+
+References
+----------
+
+* Lewis, E. E., & Miller, W. F. (1984). *Computational Methods of
+  Neutron Transport*.  §5.3 covers Diamond Difference, weighted-DD,
+  Step, and Linear Discontinuous closures and their positivity /
+  truncation properties; §4.5 covers the Morel--Montry angular
+  closure used for :math:`\psi_{n+1/2,\,i}`.
+* Bailey, T. S., Adams, M. L., Yang, B., & Zika, M. R. (2009).
+  *A piecewise linear finite element discretization of the
+  diffusion equation for arbitrary polyhedral grids*.
+  JCP 227, 3738--3757.  Eq. 50 (dome recursion), Eq. 74
+  (Morel--Montry).
+
+See also
+--------
+
+* :mod:`orpheus.sn.spatial.cell_update` — the contract module.
+* :doc:`structured_geometry`, "Connection coefficients (reduced
+  streaming operator)" — the upstream side of the contract: where the
+  per-cell, per-direction streaming-terms packet is built.
+
+
 .. _sweep-algorithm:
 
 Sweep Algorithm

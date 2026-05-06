@@ -129,9 +129,11 @@ class StreamingTerms:
 
     The set of populated fields is **geometry-dependent**:
 
-    * **Slab**: ``chord_length``, ``mu``.  No curvature math.
+    * **Slab**: ``chord_length``, ``mu``, ``volume``, ``abs_mu``.
+      No curvature math.
     * **Sphere**: ``chord_length``, ``face_area_in``, ``face_area_out``,
-      ``delta_A_over_w``, ``alpha_in``, ``alpha_out``, ``tau_mm``.
+      ``delta_A_over_w``, ``alpha_in``, ``alpha_out``, ``tau_mm``,
+      ``volume``, ``abs_mu``.
     * **Cylinder**: same shape as sphere, with the per-level
       :math:`\\alpha` and :math:`\\tau_{mm}` indexed via
       ``mu_level_idx`` at the call site.
@@ -139,13 +141,26 @@ class StreamingTerms:
     Fields not used in a given geometry retain their default of
     ``None`` (object-typed) so a downstream ``StreamingTerms`` can be
     inspected with ``is None`` checks without raising.
+
+    The trailing ``volume`` and ``abs_mu`` fields are populated by
+    **all three factories** so that a downstream
+    :class:`~orpheus.sn.spatial.cell_update.CellUpdate` strategy
+    receives a self-contained per-cell, per-direction packet and need
+    not reach back into ``SNMesh`` or the ``AngularQuadrature``.  The
+    ``alpha_in is None`` test discriminates slab from curvilinear
+    geometry inside cell-update strategies.
     """
 
     chord_length: float
     """Cell radial width (slab/sphere/cylinder all use ``mesh.widths[i]``)."""
 
     mu: float | None = None
-    """Direction cosine in the primary axis (slab uses this directly)."""
+    """Direction cosine in the primary axis (slab uses this directly).
+
+    Signed; slab DD's flow direction reads off the sign of this field.
+    Cell-update strategies that need only the magnitude use
+    ``abs_mu`` instead.
+    """
 
     face_area_in: float | None = None
     """:math:`A_{i-1/2}` — area of the upstream radial face."""
@@ -157,13 +172,50 @@ class StreamingTerms:
     """:math:`\\Delta A_i / w_n` — the geometry-redistribution factor."""
 
     alpha_in: float | None = None
-    """:math:`\\alpha_{n-1/2}` — incoming half-angle redistribution."""
+    """:math:`\\alpha_{n-1/2}` — incoming half-angle redistribution.
+
+    ``None`` for slab; populated for sphere/cylinder.  Cell-update
+    strategies use ``alpha_in is None`` as the slab vs curvilinear
+    discriminator.
+    """
 
     alpha_out: float | None = None
     """:math:`\\alpha_{n+1/2}` — outgoing half-angle redistribution."""
 
     tau_mm: float | None = None
     """Morel--Montry angular closure weight on this ordinate."""
+
+    volume: float | None = None
+    """Cell volume :math:`V_i`.
+
+    Populated by all three factories from
+    :attr:`~orpheus.geometry.mesh.Mesh1D.volumes`: slab uses
+    ``mesh.volumes[i]`` (which equals ``widths[i]`` for unit
+    cross-section in 1-D Cartesian); sphere uses
+    :math:`\\tfrac{4}{3}\\pi(r_{i+1}^3 - r_i^3)`; cylinder uses
+    :math:`\\pi(r_{i+1}^2 - r_i^2)` (per unit axial length).  Carried
+    on the streaming-terms packet so that the
+    :class:`~orpheus.sn.spatial.cell_update.CellUpdate` cell-update
+    contract receives :math:`V_i` directly without needing access to
+    the underlying ``SNMesh``.
+    """
+
+    abs_mu: float | None = None
+    """Absolute primary direction cosine.
+
+    :math:`|\\mu|` for slab and sphere (axial direction cosine);
+    :math:`|\\eta|` for cylindrical 1-D radial sweeps (the radial
+    direction cosine).  All three factories compute this as
+    ``abs(quadrature.mu_x[direction_idx])`` — by ORPHEUS convention,
+    ``mu_x`` carries :math:`\\mu` for sphere and :math:`\\eta` for
+    cylinder, and both are real-valued, so the absolute value is
+    always well-defined.
+
+    The cylindrical pure-azimuthal degenerate case (``abs_mu <
+    1e-15``) is signalled by cell-update strategies via
+    :attr:`~orpheus.sn.spatial.cell_update.CellResult.outgoing_spatial_flux`
+    set to ``None`` (no radial face flow on the cell).
+    """
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -261,13 +313,20 @@ class ReducedStreamingOperator:
         is ignored.
         """
         chord = float(self.mesh.widths[cell_idx])
+        # Common per-(cell, direction) volume + |μ| (or |η|).
+        # mesh.volumes returns shape (N,) for 1-D meshes; abs() of
+        # the primary direction cosine is well-defined on the real line.
+        assert self._quadrature is not None
+        volume = float(self.mesh.volumes[cell_idx])
+        abs_mu = float(abs(self._quadrature.mu_x[direction_idx]))
 
         if self.coord is CoordSystem.CARTESIAN:
             # Slab — minimal content; mu carried for the consumer.
-            assert self._quadrature is not None
             return StreamingTerms(
                 chord_length=chord,
                 mu=float(self._quadrature.mu_x[direction_idx]),
+                volume=volume,
+                abs_mu=abs_mu,
             )
 
         if self.coord is CoordSystem.SPHERICAL:
@@ -285,6 +344,8 @@ class ReducedStreamingOperator:
                 alpha_in=float(self.alpha_half[direction_idx]),
                 alpha_out=float(self.alpha_half[direction_idx + 1]),
                 tau_mm=float(self.tau_mm[direction_idx]),
+                volume=volume,
+                abs_mu=abs_mu,
             )
 
         if self.coord is CoordSystem.CYLINDRICAL:
@@ -308,6 +369,8 @@ class ReducedStreamingOperator:
                 alpha_in=float(alpha_lv[direction_idx]),
                 alpha_out=float(alpha_lv[direction_idx + 1]),
                 tau_mm=float(tau_lv[direction_idx]),
+                volume=volume,
+                abs_mu=abs_mu,
             )
 
         raise ValueError(  # pragma: no cover — exhaustive match above

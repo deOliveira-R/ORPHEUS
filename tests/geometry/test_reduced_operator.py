@@ -317,6 +317,96 @@ class TestStreamingTermsExtraction:
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# Wave C Round 1: volume + abs_mu fields on StreamingTerms
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestStreamingTermsVolumeAndAbsMu:
+    """``volume`` and ``abs_mu`` are populated by all three factories.
+
+    These are the two new fields added in Wave C Round 1 (Issue #157)
+    so that downstream cell-update strategies receive a self-contained
+    per-cell, per-direction packet without reaching back into
+    ``SNMesh`` or the ``AngularQuadrature``.
+    """
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("cell_idx", [0, 4])
+    @pytest.mark.parametrize("direction_idx", [0, 5])
+    def test_slab_volume_matches_mesh(self, cell_idx, direction_idx):
+        mesh = _slab_mesh()
+        quad = GaussLegendre1D.create(8)
+        op = slab_streaming(mesh, quad)
+        st = op.streaming_terms(cell_idx=cell_idx, direction_idx=direction_idx)
+        assert st.volume == float(mesh.volumes[cell_idx])
+        assert st.volume is not None
+        assert st.volume > 0.0
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("cell_idx", [0, 4])
+    @pytest.mark.parametrize("direction_idx", [0, 5])
+    def test_slab_abs_mu_matches_quadrature(self, cell_idx, direction_idx):
+        mesh = _slab_mesh()
+        quad = GaussLegendre1D.create(8)
+        op = slab_streaming(mesh, quad)
+        st = op.streaming_terms(cell_idx=cell_idx, direction_idx=direction_idx)
+        assert st.abs_mu == float(abs(quad.mu_x[direction_idx]))
+        assert st.abs_mu is not None
+        assert st.abs_mu >= 0.0
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("N", [4, 8, 16, 32])
+    def test_spherical_volume_and_abs_mu_match(self, N):
+        mesh = _spherical_mesh()
+        quad = GaussLegendre1D.create(N)
+        op = spherical_streaming(mesh, quad)
+        for cell_idx in (0, mesh.N - 1):
+            for direction_idx in (0, N - 1):
+                st = op.streaming_terms(
+                    cell_idx=cell_idx, direction_idx=direction_idx,
+                )
+                assert st.volume == float(mesh.volumes[cell_idx])
+                assert st.volume > 0.0
+                assert st.abs_mu == float(abs(quad.mu_x[direction_idx]))
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("n_mu,n_phi", [(2, 4), (4, 4), (4, 8)])
+    def test_cylindrical_volume_and_abs_mu_match(self, n_mu, n_phi):
+        mesh = _cylindrical_mesh()
+        quad = ProductQuadrature.create(n_mu=n_mu, n_phi=n_phi)
+        op = cylindrical_streaming(mesh, quad)
+        # Pick a cell-idx pair and use level 0's first ordinate.
+        level = 0
+        m = 0
+        absolute_idx = quad.level_indices[level][m]
+        for cell_idx in (0, mesh.N - 1):
+            st = op.streaming_terms(
+                cell_idx=cell_idx, direction_idx=m, mu_level_idx=level,
+            )
+            assert st.volume == float(mesh.volumes[cell_idx])
+            assert st.volume > 0.0
+            assert st.abs_mu == float(abs(quad.mu_x[absolute_idx]))
+
+    @pytest.mark.foundation
+    def test_existing_curvilinear_fields_unchanged(self):
+        """Anchor: extending StreamingTerms didn't drift the existing fields.
+
+        Re-checks that ``alpha_in``, ``alpha_out``, ``delta_A_over_w``,
+        ``tau_mm`` still match the underlying arrays after the
+        ``volume`` / ``abs_mu`` extension.  Defense against accidental
+        reordering or drift.
+        """
+        mesh = _spherical_mesh()
+        quad = GaussLegendre1D.create(8)
+        op = spherical_streaming(mesh, quad)
+        i, n = 1, 5
+        st = op.streaming_terms(cell_idx=i, direction_idx=n)
+        assert st.alpha_in == float(op.alpha_half[n])
+        assert st.alpha_out == float(op.alpha_half[n + 1])
+        assert st.delta_A_over_w == float(op.redist_dAw[i, n])
+        assert st.tau_mm == float(op.tau_mm[n])
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # Misuse / coordinate-mismatch guards
 # ═══════════════════════════════════════════════════════════════════════
 
