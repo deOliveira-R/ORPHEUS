@@ -107,7 +107,7 @@ def _sphere_homogeneous(ng: str, n_cells: int) -> dict:
     geom = StructuredGeometry(
         geometry="SPH",
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC.reflective, BC.reflective),
+        bcs=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
     return dict(
@@ -127,7 +127,7 @@ def _sphere_3region(ng: str, n_cells: int) -> dict:
             Region(mat_id=1, outer_thickness_cm=1.0),
             Region(mat_id=0, outer_thickness_cm=0.5),
         ),
-        bcs=(BC.reflective, BC.reflective),
+        bcs=(BC.reflective,),
     )
     n_per_region = (n_cells // 4, n_cells // 2, n_cells // 4)
     mesh = Mesh1D.from_geometry(
@@ -146,7 +146,7 @@ def _cylinder_homogeneous(ng: str, n_cells: int, quad_kind: str) -> dict:
     geom = StructuredGeometry(
         geometry="CYL",
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC.reflective, BC.reflective),
+        bcs=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
     if quad_kind == "LS4":
@@ -171,7 +171,7 @@ def _cylinder_3region(ng: str, n_cells: int, quad_kind: str) -> dict:
             Region(mat_id=1, outer_thickness_cm=1.0),
             Region(mat_id=0, outer_thickness_cm=0.5),
         ),
-        bcs=(BC.reflective, BC.reflective),
+        bcs=(BC.reflective,),
     )
     n_per_region = (n_cells // 4, n_cells // 2, n_cells // 4)
     mesh = Mesh1D.from_geometry(

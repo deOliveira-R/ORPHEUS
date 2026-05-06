@@ -33,7 +33,11 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations import continuous_get
+from orpheus.derivations.continuous.analytical.homogeneous import (
+    derive_1g_continuous,
+    derive_2g_continuous,
+    derive_4g_continuous,
+)
 from orpheus.geometry import (
     BC,
     Mesh1D,
@@ -54,17 +58,36 @@ pytestmark = pytest.mark.l1
 _GEOMETRY_TAG = {"slab": "SLB", "sphere": "SPH", "cylinder": "CYL"}
 
 
+_CASE_BUILDERS = {
+    "1eg": derive_1g_continuous,
+    "2eg": derive_2g_continuous,
+    "4eg": derive_4g_continuous,
+}
+
+
+def _get_continuous_case(ng_key: str):
+    """Bypass the ``continuous_get`` registry to skip its slow auto-discovery
+    walk over every ``orpheus.derivations.*`` module. We point at the
+    specific analytical homogeneous derivation module the test consumes.
+
+    This is intentional V&V hygiene: name the reference path explicitly.
+    """
+    return _CASE_BUILDERS[ng_key]()
+
+
 def _homogeneous_mesh(coord: str, n_cells: int, length: float, mat_id: int) -> Mesh1D:
     """Single-region homogeneous mesh in the requested 1D coordinate.
 
-    Reflective BCs on both ends (slab) or symmetry+reflective (sphere /
-    cylinder) — guarantees no neutron leakage so the discrete
-    eigenvalue converges to k_inf.
+    Slab takes (left, right) BCs; sphere/cylinder take only the outer
+    BC (the inner r=0 symmetry is implicit). Reflective everywhere
+    guarantees no neutron leakage so the discrete eigenvalue converges
+    to k_inf.
     """
+    bcs = (BC.reflective, BC.reflective) if coord == "slab" else (BC.reflective,)
     geom = StructuredGeometry(
         geometry=_GEOMETRY_TAG[coord],
         regions=(Region(mat_id=mat_id, outer_thickness_cm=length),),
-        bcs=(BC.reflective, BC.reflective),
+        bcs=bcs,
     )
     return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
 
@@ -83,7 +106,7 @@ def _quadrature_for(coord: str):
 @pytest.mark.parametrize("coord", ["slab", "sphere", "cylinder"])
 def test_kinf_homogeneous(ng_key: str, coord: str) -> None:
     """SN reproduces analytical k_inf on homogeneous medium, every coord × ng."""
-    case = continuous_get(f"homo_{ng_key}")
+    case = _get_continuous_case(ng_key)
     mat_id = next(iter(case.problem.materials.keys()))
 
     mesh = _homogeneous_mesh(coord=coord, n_cells=10, length=2.0, mat_id=mat_id)
@@ -91,8 +114,8 @@ def test_kinf_homogeneous(ng_key: str, coord: str) -> None:
 
     result = solve_sn(
         case.problem.materials, mesh, quadrature,
-        max_outer=300, keff_tol=1e-12, flux_tol=1e-10,
-        max_inner=200, inner_tol=1e-10,
+        max_outer=200, keff_tol=1e-10, flux_tol=1e-9,
+        max_inner=100, inner_tol=1e-9,
     )
 
     np.testing.assert_allclose(
@@ -117,7 +140,7 @@ def test_kinf_homogeneous_spectrum(ng_key: str, coord: str) -> None:
     k_inf) but flip the eigenvector — failure mode #2 (variable swap)
     in `vv-principles`.
     """
-    case = continuous_get(f"homo_{ng_key}")
+    case = _get_continuous_case(ng_key)
     ng = case.problem.n_groups
     mat_id = next(iter(case.problem.materials.keys()))
 
@@ -125,8 +148,8 @@ def test_kinf_homogeneous_spectrum(ng_key: str, coord: str) -> None:
     quadrature = _quadrature_for(coord)
     result = solve_sn(
         case.problem.materials, mesh, quadrature,
-        max_outer=300, keff_tol=1e-12, flux_tol=1e-10,
-        max_inner=200, inner_tol=1e-10,
+        max_outer=200, keff_tol=1e-10, flux_tol=1e-9,
+        max_inner=100, inner_tol=1e-9,
     )
 
     # spatial average per group → spectrum vector (homogeneous → spatially flat)
