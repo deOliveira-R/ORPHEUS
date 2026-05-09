@@ -2483,6 +2483,240 @@ References
   §3.2 (matrix-free Krylov view).
 
 
+.. _sn-iteration-primitives:
+
+Iteration primitives (operator algebra)
+========================================
+
+Wave E Round 1 (Issue #163) lifts the iteration primitives out of
+:class:`~orpheus.sn.solver.SNSolver` into stand-alone operator-algebra
+consumers in :mod:`orpheus.numerics.iteration`.  They consume the
+Wave A :class:`~orpheus.numerics.operator.LinearOperator` Protocol
+triple :math:`(L, S, F)` directly — no transport-solver knowledge
+beyond the operator contract.
+
+The :math:`(L - S - F)\,\psi = q_{\rm ext}` framing
+----------------------------------------------------
+
+The Boltzmann transport equation in its operator-algebra form
+factors into three pieces (Lewis & Miller 1984 §6.4; Trefethen &
+Bau 1997 §3.2 frame the matrix-free Krylov view):
+
+.. math::
+
+    (L - S - F)\,\psi = q_{\rm ext}
+    \qquad\text{(within-group fixed source)}
+
+.. math::
+
+    (L - S)\,\psi = \tfrac{1}{k}\,F\,\psi
+    \qquad\text{(eigenvalue)}
+
+where :math:`L = \Omega\cdot\nabla + \Sigma_t` is the streaming-
+collision operator (see :ref:`sn-streaming-operator`),
+:math:`S` is the scattering source operator
+(see :class:`~orpheus.sn.scattering.ScatteringOperator`),
+:math:`F = \chi\otimes\nu\Sigma_f` is the rank-1-in-energy fission
+emission operator (see :class:`~orpheus.sn.fission.FissionOperator`),
+and :math:`q_{\rm ext}` is an external source.
+
+SourceIteration: discrete fixed-point realisation
+--------------------------------------------------
+
+:class:`~orpheus.numerics.iteration.SourceIteration` solves the
+fixed-source equation by classical fixed-point iteration:
+
+.. math::
+
+    \psi_{n+1} \;=\; L^{-1}\,(S\,\psi_n + F\,\psi_n + q_{\rm ext}).
+
+The convergence rate is bounded by the spectral radius
+:math:`\rho(L^{-1}(S+F))`.  For an SN sweep applied to a homogeneous
+infinite medium with isotropic scattering, this radius equals the
+scattering ratio :math:`c = \Sigma_s/\Sigma_t` — convergence is
+geometric at rate :math:`c` (Lewis & Miller §4.4).
+
+The convergence test mirrors the legacy
+:meth:`SNSolver._solve_source_iteration` exactly so Round 2's bit-
+identical wiring is straightforward:
+
+.. math::
+
+    {\rm res}_n \;=\; \frac{\|\psi_n - \psi_{n-1}\|_2}
+                            {\max(\|\psi_n\|_2,\,10^{-30})}
+
+with the iteration breaking when :math:`{\rm res}_n < {\rm tol}`.
+
+KEigenvalue: outer power iteration
+-----------------------------------
+
+:class:`~orpheus.numerics.iteration.KEigenvalue` solves the
+eigenvalue problem by classical power iteration on the outer
+:math:`k`-update, with :class:`SourceIteration` driving the inner
+fixed-source solve at each step:
+
+.. math::
+
+    \psi_{n+1} \;=\; (L - S)^{-1}\,F\,\psi_n / k_n
+
+.. math::
+
+    k_{n+1} \;=\; {\rm keff\_estimator}(L, S, F, \psi_{n+1})
+
+The dominance ratio :math:`|k_1/k_0|` governs outer-loop
+convergence (Trefethen & Bau §27).  The inner solve uses
+:class:`SourceIteration` with operator triple :math:`(L, S, 0)` —
+the fission contribution at the inner level is the **external
+source** :math:`F\psi_n/k_n`, NOT a within-group fixed-point term.
+Every outer iteration warms up its inner :class:`SourceIteration`
+from :math:`\psi_n` (the previous outer iterate); this is the same
+amortisation pattern :class:`SNSolver` uses today.
+
+The default ``keff_estimator`` is the generic Rayleigh quotient
+
+.. math::
+
+    k \;=\; \frac{\sum (F\,\psi)}{\sum (L\,\psi) - \sum (S\,\psi)}
+
+which holds for any operator triple where the action carries the
+volume measure.  SN consumers that need explicit volume weighting
+(matching :meth:`SNSolver.compute_keff`) supply a custom
+``keff_estimator`` callable; this is the load-bearing way Round 2
+preserves bit-identity with the legacy
+:func:`~orpheus.numerics.eigenvalue.power_iteration` path.
+
+The ``inverter`` parameter — closing ERR-026
+---------------------------------------------
+
+Both primitives accept an ``inverter: Callable[[ndarray], ndarray]``
+that supplies :math:`L^{-1}`.  When ``None``, the primitive routes
+through :meth:`L.solve`.  When supplied, the caller controls how
+:math:`L^{-1}` is realised — and this is the load-bearing design
+choice for closing ERR-026.
+
+* ``inverter = None`` (default):  :math:`L^{-1}\,q = L.solve(q)`.
+  For an SN sweep this is the WDD asymmetric closure — which has a
+  closure-bias-driven self-consistent fixed point on curvilinear
+  meshes that is **not** the fine-mesh-limit transport solution
+  (ERR-026).
+* ``inverter = lambda q: gmres(as_scipy_linop(L), q, M=...)``:
+  Krylov-on-:meth:`apply` (the symmetric closure of
+  :class:`~orpheus.sn.operator.SNStreamingOperator`), with the
+  sweep injected as a preconditioner :math:`M`.  This is the
+  Wave E Round 2 reconciliation that closes ERR-026 for
+  curvilinear SN: the converged solution comes from the symmetric
+  :meth:`apply` closure (the one that agrees with analytical
+  references) while the sweep accelerates the iteration as a
+  preconditioner only — its closure bias does not poison the
+  converged solution.
+
+By making :math:`L^{-1}` a caller-supplied hook, the iteration
+primitives do not need to be re-implemented when the inversion
+strategy changes.  The same :class:`SourceIteration` runs in the
+synthetic L0 case (where ``L`` is a plain dense matrix and
+``inverter`` defaults to a direct solve), in the L1 SN case (where
+``inverter`` defaults to the WDD sweep), and in the Wave E
+Krylov-on-:meth:`apply` SN case (where ``inverter`` is supplied
+explicitly by the caller).
+
+Capability requirements
+-----------------------
+
+The primitive constructors enforce the following at construction
+time, NEVER mid-iteration (the same Wave A philosophy that gates
+:class:`~orpheus.numerics.operator.OperatorSum` etc.):
+
+* ``L`` MUST advertise :pydata:`CAP_APPLY`.
+* ``L`` MUST advertise :pydata:`CAP_SOLVE` *or* the caller MUST
+  supply ``inverter``.  Without one of those, the iteration cannot
+  evaluate :math:`L^{-1}`.
+* ``S`` MUST advertise :pydata:`CAP_APPLY`.  Pass
+  :class:`~orpheus.numerics.operator.ZeroOperator` for the
+  scattering-free case.
+* ``F`` MUST advertise :pydata:`CAP_APPLY`.  For
+  :class:`SourceIteration` only, pass
+  :class:`~orpheus.numerics.operator.ZeroOperator` for the
+  fission-free case.
+
+Constructor failure raises
+:class:`~orpheus.numerics.operator.MissingCapability` with a message
+naming the missing capability and the operand that lacks it.
+
+Forward hook: FEAST and beyond
+-------------------------------
+
+:class:`KEigenvalue` accepts ``eigenvalue_method``, currently only
+``"power"``.  The hook reserves a path for FEAST-style contour-
+integral methods (Polizzi 2009) and Krylov-Schur deflation methods
+(Stewart 2001) when accuracy on closely-spaced eigenvalues becomes
+load-bearing.  Other values raise :class:`NotImplementedError` at
+construction time.
+
+Cross-references
+----------------
+
+* :class:`~orpheus.sn.operator.SNStreamingOperator` — the
+  :math:`L` operand the SN solver ships, with both ``apply``
+  (symmetric closure) and ``solve`` (WDD asymmetric closure).
+  See :ref:`sn-streaming-operator` for the design rationale.
+* :class:`~orpheus.sn.scattering.ScatteringOperator` — the
+  :math:`S` operand carrying P\ :sub:`ℓ` scattering plus (n,2n).
+* :class:`~orpheus.sn.fission.FissionOperator` — the rank-1-in-
+  energy :math:`F` operand.  Returns :math:`F\,\phi` without the
+  :math:`1/k` division (the eigenvalue scaling stays at the outer
+  level, see the FissionOperator module docstring for the
+  rationale).
+* "SNSolver as an operator-algebra coordinator" — Round 2 will
+  add this section once the SN solver is wired to consume the
+  primitives directly.
+
+.. _cross-solver-migration-sequence:
+
+Cross-solver migration sequence
+-------------------------------
+
+The legacy :func:`orpheus.numerics.eigenvalue.power_iteration`
+function and the :class:`EigenvalueSolver` Protocol are deprecated
+for new SN code (the deprecation warning fires once at module
+import).  They stay functional through the cross-solver migration
+sequence:
+
+* **CP** (collision-probability) — Issue TBD.  CP currently uses
+  :func:`power_iteration` with its own
+  ``EigenvalueSolver``-Protocol implementation.  Migration lifts
+  CP onto an :math:`L`-equivalent collision-probability matrix
+  operator + :class:`KEigenvalue`.
+* **Diffusion** — Issue TBD.  The diffusion solver's BiCGSTAB
+  inner loop is already a Krylov method; migration wraps it as an
+  :math:`L^{-1}` ``inverter`` callable.
+* **MoC** (method of characteristics) — Issue TBD.  MoC's track-
+  based inner sweep maps onto :math:`L^{-1}` via the same
+  facade pattern :class:`SNStreamingOperator.solve` uses.
+* **Homogeneous** — Issue TBD.  Already a direct linear solve;
+  migration is mostly cosmetic.
+
+Each consumer's wave will land separately to keep regressions
+isolated.  When the last consumer migrates, :func:`power_iteration`
+and :class:`EigenvalueSolver` retire.
+
+References for iteration primitives
+------------------------------------
+
+* Lewis, E. E., & Miller, W. F. (1984).  *Computational Methods of
+  Neutron Transport.*  §4.4 (source iteration analysis); §6.4
+  (operator-algebra view).
+* Trefethen, L. N., & Bau, D. (1997).  *Numerical Linear Algebra.*
+  §3.2 (matrix-free Krylov view); §27 (power iteration analysis).
+* Polizzi, E. (2009).  *Density-matrix-based algorithm for solving
+  eigenvalue problems.*  Phys. Rev. B 79, 115112.  The FEAST
+  algorithm — the forward-hook target for ``eigenvalue_method``.
+* Adams, M. L., & Larsen, E. W. (2002).  *Fast iterative methods
+  for discrete-ordinates particle transport calculations.*
+  Progress in Nuclear Energy 40 (1), 3–159.  Reviews
+  Krylov-on-apply with sweep preconditioning (the ``inverter``
+  hook's Round 2 use case).
+
+
 The Eigenvalue Problem
 ======================
 

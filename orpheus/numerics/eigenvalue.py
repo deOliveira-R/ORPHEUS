@@ -1,5 +1,20 @@
 """Generic eigenvalue solvers for neutron transport and diffusion.
 
+.. deprecated:: Wave E (Issue #163)
+
+    For new SN code, use
+    :class:`orpheus.numerics.iteration.KEigenvalue` and
+    :class:`orpheus.numerics.iteration.SourceIteration` — the
+    operator-algebra primitives that consume the Wave A
+    :class:`~orpheus.numerics.operator.LinearOperator` Protocol
+    triple :math:`(L, S, F)`.
+
+    :func:`power_iteration` and :class:`EigenvalueSolver` stay
+    functional through the cross-solver migration sequence (CP,
+    diffusion, MoC, homogeneous), each of which has its own wave
+    on the SN reshape backlog.  Importing either symbol triggers a
+    :class:`DeprecationWarning` advertising the migration path.
+
 The criticality eigenvalue problem A·φ = (1/k)·F·φ has a spectrum of
 eigenvalues k_0 > k_1 > k_2 > ...  The ``power_iteration`` function
 converges to the **dominant eigenvalue** k_0 (= k_eff) and its
@@ -20,6 +35,7 @@ Any deterministic solver that can express its physics in terms of the
 
 from __future__ import annotations
 
+import warnings
 from typing import Protocol
 
 import numpy as np
@@ -137,3 +153,22 @@ def power_iteration(
             break
 
     return keff, keff_history, flux_distribution
+
+
+# ── Deprecation notice ────────────────────────────────────────────────
+#
+# Fired ONCE at import (after the function definition so the warning
+# does NOT pollute every iteration).  Wave E Round 1 (Issue #163)
+# installs ``orpheus.numerics.iteration`` as the canonical primitives;
+# this module stays functional through the cross-solver migration
+# sequence (CP, diffusion, MoC, homogeneous) and retires when every
+# consumer has migrated.
+warnings.warn(
+    "orpheus.numerics.eigenvalue.power_iteration and EigenvalueSolver "
+    "are deprecated; use orpheus.numerics.iteration.KEigenvalue / "
+    "SourceIteration for new code.  power_iteration stays functional "
+    "through the cross-solver migration sequence (CP, diffusion, MoC, "
+    "homogeneous).",
+    DeprecationWarning,
+    stacklevel=2,
+)

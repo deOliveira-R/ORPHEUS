@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2801**
+Total tests collected: **2812**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 590, 21.1%
-   L1, 723, 25.8%
+   L0, 590, 21.0%
+   L1, 724, 25.7%
    L2, 36, 1.3%
    L3, 0, 0.0%
-   foundation, 1424, 50.8%
+   foundation, 1434, 51.0%
    unmarked, 28, 1.0%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2694
+   explicit, 2705
    verify, 0
    class-name, 46
    func-name, 0
@@ -175,6 +175,7 @@ Module × level grid
    moc/test_quadrature, 24, 0, 0, 0, 0, 0
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
+   numerics/test_iteration, 0, 1, 0, 0, 10, 0
    numerics/test_measure, 0, 16, 0, 0, 23, 0
    numerics/test_operator, 0, 0, 0, 0, 38, 0
    numerics/test_registry, 0, 0, 0, 0, 37, 0
@@ -231,7 +232,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``collision-rate``, 91
    ``alpha-cylindrical``, 74
    ``mm-weights``, 74
-   ``multigroup``, 65
+   ``multigroup``, 66
    ``ki3-def``, 61
    ``e3-def``, 58
    ``self-slab``, 52

@@ -1,6 +1,7 @@
 """Model-independent numerical methods for reactor physics."""
 
 from .eigenvalue import EigenvalueSolver, power_iteration
+from .iteration import KEigenvalue, SourceIteration
 from .measure import (
     BundleMeasure,
     DiscreteMeasure,
@@ -38,12 +39,14 @@ __all__ = [
     "DiscreteMeasure",
     "EigenvalueSolver",
     "IdentityOperator",
+    "KEigenvalue",
     "LinearOperator",
     "LinearOperatorMixin",
     "MissingCapability",
     "OperatorProduct",
     "OperatorSum",
     "ScaledOperator",
+    "SourceIteration",
     "SubgroupOfO3",
     "ZeroOperator",
     "as_scipy_linop",
