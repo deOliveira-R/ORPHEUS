@@ -1520,8 +1520,8 @@ the open design point for the rollout.  For Wave D, the inlined
 DD math is bit-identical to a per-cell
 :class:`DiamondDifference` call sequence by construction.
 
-ERR-026 deferred to Wave E
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+ERR-026 closure status (partial through Wave E)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The curvilinear sweep's one-directional WDD closure
 :math:`\psi_{n+1/2} = (\overline{\psi} - (1 - \tau_{mm})\,
@@ -1531,20 +1531,73 @@ inlined sweep verbatim).  ERR-026 (catalogued in
 :doc:`/development` and the V&V matrix at
 :doc:`/verification/matrix`) lives in this closure: the
 solver's source-iteration path converges to a non-flat
-fixed point even though the BiCGSTAB / matrix-free
-``apply`` path with the symmetric closure is exact.
+fixed point even though the matrix-free ``apply`` path with
+the symmetric closure is exact for **constant** sources.
 
-Wave D's gating contract is bit-identity for ``cell_update =
+Wave D's gating contract was bit-identity for ``cell_update =
 DiamondDifference`` — the bug is preserved by construction so
-the regression snapshots stay green.  Wave E (Issue #15) closes
-ERR-026 by routing
-:func:`~orpheus.sn.solver.solve_sn_fixed_source` for curvilinear
-geometries through Krylov-on-``apply`` (the symmetric closure)
-with the sweep-as-``solve`` as preconditioner — the closure
-flips at the solver layer, not at the cell-update layer.  The
-two ``xfail-strict`` tripwires at
+the regression snapshots stay green.  Wave E (Issues #98 #99 #164)
+took two passes at the closure:
+
+* **Wave E Round 2** wired
+  :func:`~orpheus.sn.solver.solve_sn_fixed_source` to route
+  through Krylov-on-:meth:`SNStreamingOperator.apply` (the
+  symmetric closure) with the sweep-as-``solve`` as preconditioner.
+  This closes ERR-026 on **constant-source reflective-BC
+  problems** — the canonical
+  :file:`tests/sn/test_sweep_operator_inconsistency.py` regression
+  suite confirms the krylov path gives the analytical flat flux
+  to round-off where the sweep does not.
+* **Wave E Round 3** (Issue #98 follow-up) closed the BC-faithfulness
+  gap that Round 2 identified: the FD operator's
+  :func:`~orpheus.sn.operator.solution_to_angular_flux*` and the
+  matvec helpers now consume the
+  :class:`~orpheus.geometry.boundary.ResolvedBC` instances on the
+  :class:`~orpheus.sn.geometry.SNMesh` (Wave B Issue 7
+  tensor-decomposed BC algebra), dispatching boundary fills via
+  :meth:`ResolvedBC.apply_to_incoming`.  Vacuum, reflective,
+  white, periodic, albedo, and mixed BCs are now plumbed
+  uniformly through the FD operator; bit-identity to the
+  pre-Round 3 hard-coded reflective fill is preserved for
+  :class:`SpecularBC` (the standard ``BC.reflective`` factory),
+  which is the load-bearing condition for the 11 frozen
+  regression snapshots to stay green.
+
+What is **still** open after Round 3: empirically the symmetric-
+closure FD operator at the curvilinear outer face uses cell-center
+as a face-flux approximation (``psi_right = fi[:, n, i, 0]`` at
+``i = nx-1`` for outgoing :math:`\mu > 0`).  This is exact for
+constant solutions but only first-order accurate on non-constant
+solutions like the manufactured ``A(r) = sin(πr/R)`` ansatz used
+by the curvilinear MMS test suite.  Switching the
+``solve_sn_fixed_source`` curvilinear default from
+``"source_iteration"`` to ``"krylov"`` would *regress* the MMS
+convergence rate from the WDD sweep's
+~:math:`\mathcal{O}(h^{1.3})` (ERR-026-affected, but a benign
+volumetric-error mode for these MMS) to
+~:math:`\mathcal{O}(h^{1})` (FD operator's boundary truncation).
+Round 3 therefore *keeps* ``inner_solver="source_iteration"`` as
+the default for all geometries; ``"krylov"`` is opt-in and
+correct for constant-source problems but not the right default
+for MMS.
+
+The two ``xfail-strict`` tripwires at
 ``tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py``
-remain ``xfail`` through Wave D.
+remain ``xfail`` through Round 3 with updated reason strings
+reflecting the partial closure.  Full ERR-026 closure on MMS
+depends on a follow-up that extrapolates the curvilinear
+outer-face flux at second order (DD diamond relation at the
+boundary, or analogous ghost-cell technique).
+
+Adams & Larsen 2002 §III.B's "preconditioner correctness vs
+operator correctness" frame is the right lens: the sweep's WDD
+fixed-point bias is the wrong answer for a *primary solve*, but
+as a *preconditioner* the same fixed point is just an effective
+scaling of the residual — it does not poison the converged
+solution determined by the operator.  The operator must be
+correct *and* second-order-accurate; Round 3 closed the
+correctness piece (BC-faithfulness), the second-order piece is
+the open follow-up.
 
 Starting Direction
 -------------------
@@ -2225,22 +2278,27 @@ giving it its own operator) because:
 3. Architecturally, both are *secondary-emission scalar-flux-driven*
    sources --- they belong to the same algebra slot.
 
-Forward references to Wave E
-----------------------------
+Backward references — Wave E status
+------------------------------------
 
-Wave E Issue 15 will wire the BiCGSTAB inner solver to consume
-:class:`~orpheus.sn.scattering.ScatteringOperator` and
-:class:`~orpheus.sn.fission.FissionOperator` directly via the
-operator algebra
-:math:`(L - S - F)\,\psi = q`. Today (Wave D), the BiCGSTAB
-``build_rhs_*`` helpers in :mod:`orpheus.sn.operator` retain their
-own inline scattering / (n,2n) computation; the source-iteration
-path consumes the new operators via the per-method delegators on
+Wave E Round 2 (Issue #164) wired the operator algebra
+:math:`(L, S, F)` into :class:`SNSolver` and replaced the legacy
+BiCGSTAB inner-solver path with Krylov-on-:meth:`L.apply` (GMRES
+with the sweep as preconditioner).  The
+``build_transport_linear_operator*`` and ``build_rhs*`` helpers
+were retired; the per-method delegators on
 :class:`SNSolver` (:meth:`_add_scattering_source`,
 :meth:`_build_aniso_scattering`, :meth:`_add_n2n_source`,
-:meth:`compute_fission_source`). The delegators will retire when
-Wave E lands. Until then, the operators carry the canonical math
-and the delegators preserve the existing API surface.
+:meth:`compute_fission_source`) remain as thin wrappers over the
+new operators for the EigenvalueSolver Protocol surface.
+
+Wave E Round 3 (Issue #98 follow-up) extended the FD operator's
+boundary handling to consume the
+:class:`~orpheus.geometry.boundary.ResolvedBC` infrastructure
+(Wave B Issue 7), so :func:`solution_to_angular_flux*` and the
+matvec helpers now dispatch boundary fills via
+:meth:`ResolvedBC.apply_to_incoming` — vacuum, reflective, white,
+albedo, periodic, and mixed BCs are honoured uniformly.
 
 
 .. _sn-streaming-operator:

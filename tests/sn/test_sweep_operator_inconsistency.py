@@ -1,26 +1,47 @@
-r"""Document and catch ERR-026: curvilinear sweep WDD angular closure
-converges to wrong fixed-source solution.
+r"""Evidence ledger for ERR-026 — the curvilinear sweep WDD-closure
+mis-solution and its closure via Krylov-on-``apply``.
 
-The spherical and cylindrical sweeps use a one-directional WDD angular
-face-flux closure that, combined with the zero-area face at r=0,
-converges to a non-flat solution for constant-source problems.  The
-symmetric-closure operator (now reached via ``inner_solver="krylov"``
-on :func:`solve_sn_fixed_source`) gives the correct answer.
+The spherical and cylindrical sweeps carry a one-directional
+**WDD asymmetric** angular face-flux closure that, combined with the
+zero-area face at r = 0, converges to a non-flat fixed point for
+constant-source problems.  The **symmetric closure** carried by
+:meth:`SNStreamingOperator.apply` gives the correct answer; the
+sweep's WDD closure does not.
 
-Wave E Round 2 (Issue #164) closes ERR-026 by routing curvilinear
-``solve_sn_fixed_source`` calls through Krylov-on-:meth:`L.apply`.
-Round 2 keeps the entire test file under :class:`pytest.mark.xfail`
-because the **assertions** here document the historical sweep-vs-
-operator divergence (i.e. they assert the sweep IS wrong by >= 20 %
-relative).  After Round 2 the krylov path lands the correct answer,
-so the gap shrinks and these assertions stop holding — exactly the
-"closure" condition Wave E set out to deliver.  Round 3 owns the
-full file rewrite into a positive ERR-026-closed regression.
+Wave E Round 2 (Issue #164) introduced the krylov inner solver:
+``inner_solver="krylov"`` routes through GMRES on
+:meth:`SNStreamingOperator.apply` with the sweep as preconditioner.
+On reflective-BC eigenvalue and constant-source problems the krylov
+path matches analytical references to round-off — the symmetric
+closure works as advertised.
+
+Wave E Round 3 (Issue #98 / #99 / #164 follow-up) closed the vacuum-BC
+gap: the FD operator's :func:`solution_to_angular_flux*` and matvec
+helpers now consume the :class:`~orpheus.geometry.boundary.ResolvedBC`
+instances on the :class:`~orpheus.sn.geometry.SNMesh`, so vacuum,
+reflective, white, periodic, albedo, and mixed BCs are all honoured
+uniformly via :meth:`ResolvedBC.apply_to_incoming` (Wave B Issue 7).
+The curvilinear default in :func:`solve_sn_fixed_source` flips to
+``"krylov"`` automatically — which closes the curvilinear-MMS
+convergence gap (formerly the xfail-strict markers in
+:file:`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`).
+
+This file is now an **ERR-026 closure evidence ledger**: the four
+tests below pin the historical sweep-vs-operator divergence
+(``test_spherical_sweep_vs_bicgstab_flat_flux``,
+``test_spherical_sweep_error_does_not_converge``,
+``test_spherical_sweep_conserves_globally``) that justifies the
+operator-algebra reconciliation, plus the Cartesian control
+(``test_cartesian_sweep_gives_exact_flat_flux``) confirming the bug
+is curvilinear-specific.  The ``@pytest.mark.catches("ERR-026")``
+tag remains so the V&V harness keeps the catch-tag link alive.
 
 See:
-- GitHub Issue #98 (sweep-operator inconsistency, closes in Wave E R2)
-- GitHub Issue #99 (Phase 3.3-3.4 MMS blocker)
-- ``.claude/skills/vv-principles/error_catalog.md`` ERR-026
+- GitHub Issue #98 (sweep-operator inconsistency — closed Wave E R3)
+- GitHub Issue #99 (Phase 3.3-3.4 MMS blocker — closed Wave E R3)
+- GitHub Issue #164 (Wave E Round 2 deliverable)
+- ``.claude/skills/vv-principles/error_catalog.md`` ERR-026 entry
+- :ref:`theory-discrete-ordinates` "ERR-026 closed in Wave E"
 """
 
 from __future__ import annotations
@@ -127,21 +148,18 @@ def _solve_via_krylov(sn_mesh, quad, sig_t, Q_iso):
 # Tests
 # ═══════════════════════════════════════════════════════════════════════
 
-# Wave E Round 2: the legacy ``_solve_bicgstab`` helper that this
-# file used to drive the symmetric-closure operator was retired
-# along with the rest of the BiCGSTAB FD-operator API surface.  The
-# replacement helper ``_solve_via_krylov`` routes through
-# :func:`solve_sn_fixed_source` with ``inner_solver="krylov"``, which
-# uses GMRES on :meth:`SNStreamingOperator.apply` — the same
-# symmetric-closure operator under a different driver.  All four
-# assertions in this file remain mechanically valid: the sweep still
-# carries the WDD asymmetric closure, so it still produces the
-# documented ERR-026 deviation against the symmetric-closure
-# reference.
+# Wave E Round 3: ERR-026 is closed by the curvilinear-default flip
+# in :func:`solve_sn_fixed_source` (now routes through
+# ``inner_solver="krylov"`` automatically) plus the BC-aware FD
+# operator (:func:`solution_to_angular_flux*` consume the mesh's
+# :class:`~orpheus.geometry.boundary.ResolvedBC` instances and dispatch
+# via :meth:`ResolvedBC.apply_to_incoming`).
 #
-# Round 3 owns the final rewrite of this file into a positive
-# ERR-026-closed regression (the test names will flip from
-# "sweep_vs_bicgstab" to "krylov_matches_analytical_flat_flux").
+# This file remains as the evidence ledger pinning the sweep's WDD
+# fixed-point bias — production users who explicitly pick
+# ``inner_solver="source_iteration"`` on a curvilinear mesh still
+# receive the documented deviation; the ``@pytest.mark.catches("ERR-026")``
+# tag keeps the catch-tag link alive in the V&V harness.
 pytestmark = [pytest.mark.l1, pytest.mark.catches("ERR-026")]
 
 
@@ -149,12 +167,16 @@ def test_spherical_sweep_vs_bicgstab_flat_flux():
     r"""Krylov gives exact flat flux; sweep deviates significantly.
 
     Constant isotropic source :math:`Q = \Sigma_t = 1`, reflective BCs.
-    Expected :math:`\phi = 1` everywhere. Krylov gets it; the sweep
-    converges to a stable but wrong profile with ~35% error at r=0.
+    Expected :math:`\phi = 1` everywhere. Krylov-on-:meth:`L.apply`
+    (the symmetric closure) gets it to round-off; the WDD-asymmetric
+    sweep converges to a stable but wrong profile with ~35% error at
+    r = 0 — the closure-bias-driven non-flat fixed point that motivated
+    the ERR-026 closure.
 
-    This test **documents** ERR-026 — it does NOT assert the sweep is
-    correct, because it isn't. It asserts Krylov IS correct and that
-    the sweep's deviation is at least as large as observed.
+    This is the **canonical evidence anchor** for ERR-026: the sweep
+    error is not truncation, it is structural; refining the mesh does
+    not fix it.  See ``test_spherical_sweep_error_does_not_converge``
+    below for the convergence-rate fingerprint.
     """
     sn_mesh, quad, sig_t, Q_iso = _make_spherical_problem(nx=20)
     phi_k = _solve_via_krylov(sn_mesh, quad, sig_t, Q_iso)

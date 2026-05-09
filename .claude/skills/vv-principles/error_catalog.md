@@ -1158,6 +1158,71 @@ is the same pattern repeated for SN. See GitHub issue #95 for the
 follow-up audit work checking every solver implementation against
 its derivation.
 
+**Status:** **PARTIAL CLOSURE** by Wave E Round 3 (SN reshape
+campaign; GitHub Issues #98, #99, #164).
+
+What Round 3 closed (BC infrastructure layer):
+
+The vacuum-BC equation-map gap that blocked Round 2 was closed by
+extending :func:`solution_to_angular_flux*` and
+:func:`transport_operator_matvec*` to consume the
+:class:`~orpheus.geometry.boundary.ResolvedBC` instances on the
+:class:`~orpheus.sn.geometry.SNMesh` (Wave B Issue 7 BC algebra).
+Each function now dispatches through ``bc.apply_to_incoming(out, quad)``
+so vacuum, reflective, white, periodic, albedo, and mixed BCs are all
+honoured uniformly. Bit-identity to the pre-Round-3 reflective-only
+fill is preserved for :class:`SpecularBC` (the standard
+``BC.reflective`` factory), which is the load-bearing condition for
+the 11 frozen regression snapshots to stay green.
+
+This BC plumbing is the load-bearing infrastructure for any future
+ERR-026 closure on fixed-source MMS: the
+:class:`SNStreamingOperator` now solves the *correct* operator
+equation for any BC family, so a Krylov-on-``apply`` solve can give
+the right answer if the operator's discretization is otherwise
+2nd-order accurate. The constant-source flat-flux test in
+:file:`tests/sn/test_sweep_operator_inconsistency.py` confirms this:
+``inner_solver="krylov"`` produces the analytical flat flux to
+round-off where the sweep produces the documented ERR-026 deviation.
+
+What Round 3 left open (FD operator boundary truncation):
+
+Empirically the symmetric-closure FD operator at the curvilinear
+outer face uses cell-center as a face-flux approximation
+(``psi_right = fi[:, n, i, 0]`` at ``i = nx-1`` for outgoing μ > 0).
+This is exact for *constant* solutions but only first-order accurate
+on non-constant solutions like the manufactured ``A(r) = sin(πr/R)``
+ansatz used by the curvilinear MMS test suite. Switching the
+``solve_sn_fixed_source`` curvilinear default from
+``"source_iteration"`` to ``"krylov"`` therefore *regresses* the
+MMS convergence rate from the WDD sweep's ~:math:`\mathcal{O}(h^{1.3})`
+(ERR-026-affected, but a benign volumetric-error mode for these MMS)
+to ~:math:`\mathcal{O}(h^{1})` (FD operator's boundary truncation).
+Round 3 therefore *keeps* ``inner_solver="source_iteration"`` as the
+default for all geometries; ``"krylov"`` is opt-in and correct for
+constant-source problems but not the right default for MMS.
+
+Full ERR-026 closure on MMS depends on a follow-up that extrapolates
+the curvilinear outer-face flux at second order (DD diamond relation
+at the boundary, or an analogous ghost-cell technique).
+
+The two MMS xfail-strict tripwires
+(:file:`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`,
+both anisotropic spherical and cylindrical cases) therefore stay
+xfail through Round 3 with updated reason strings reflecting the
+partial closure.
+
+Tests:
+
+- `tests/sn/test_sweep_operator_inconsistency.py` — pinned as the
+  ERR-026 evidence ledger; the sweep still produces the documented
+  WDD deviation when explicitly invoked, the krylov path gives the
+  correct answer for constant-source problems.
+- `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` —
+  xfail-strict, awaits the FD-operator boundary follow-up.
+- `tests/sn/test_mms_curvilinear.py` (legacy isotropic ansatz) —
+  fails with order ≈ 0 on the WDD sweep; awaits the same follow-up.
+
 ---
 
 ## ERR-027 — Peierls slab K-matrix: naive GL collocation for cross-panel entries

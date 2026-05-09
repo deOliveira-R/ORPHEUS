@@ -407,6 +407,10 @@ class SNSolver:
         ):
             angular_full = solution_to_angular_flux(
                 self._psi_solution, eq_map, self.quad, nx, ny, ng,
+                bc_xmin=self.sn_mesh.bc_xmin,
+                bc_xmax=self.sn_mesh.bc_xmax,
+                bc_ymin=self.sn_mesh.bc_ymin,
+                bc_ymax=self.sn_mesh.bc_ymax,
             )
         else:
             angular_full = None
@@ -472,15 +476,21 @@ class SNSolver:
         if curv == "spherical":
             fi = solution_to_angular_flux_spherical(
                 solution, eq_map, self.quad, nx, ng,
+                bc_outer=self.sn_mesh.bc_right,
             )
             return _scalar_flux_from_angular(fi, self.quad, nx, 1, ng)
         if curv == "cylindrical":
             fi = solution_to_angular_flux_cylindrical(
                 solution, eq_map, self.quad, nx, ng,
+                bc_outer=self.sn_mesh.bc_right,
             )
             return _scalar_flux_from_angular(fi, self.quad, nx, 1, ng)
         fi = solution_to_angular_flux(
             solution, eq_map, self.quad, nx, ny, ng,
+            bc_xmin=self.sn_mesh.bc_xmin,
+            bc_xmax=self.sn_mesh.bc_xmax,
+            bc_ymin=self.sn_mesh.bc_ymin,
+            bc_ymax=self.sn_mesh.bc_ymax,
         )
         return _scalar_flux_from_angular(fi, self.quad, nx, ny, ng)
 
@@ -519,14 +529,20 @@ class SNSolver:
             if curv == "spherical":
                 fi_op = solution_to_angular_flux_spherical(
                     q_packed, eq_map, self.quad, nx, ng,
+                    bc_outer=self.sn_mesh.bc_right,
                 )
             elif curv == "cylindrical":
                 fi_op = solution_to_angular_flux_cylindrical(
                     q_packed, eq_map, self.quad, nx, ng,
+                    bc_outer=self.sn_mesh.bc_right,
                 )
             else:
                 fi_op = solution_to_angular_flux(
                     q_packed, eq_map, self.quad, nx, ny, ng,
+                    bc_xmin=self.sn_mesh.bc_xmin,
+                    bc_xmax=self.sn_mesh.bc_xmax,
+                    bc_ymin=self.sn_mesh.bc_ymin,
+                    bc_ymax=self.sn_mesh.bc_ymax,
                 )
             # Re-shape (ng, N, nx, ny) → sweep's (N, nx, ny, ng).
             Q_aniso = np.transpose(fi_op, (1, 2, 3, 0)) * sum_w
@@ -893,31 +909,34 @@ def solve_sn_fixed_source(
     max_inner, inner_tol :
         Inner solver iteration limits.
     inner_solver : {"source_iteration", "krylov", None}
-        Inner-solve strategy.  When ``None`` (default), Wave E Round 2
-        keeps ``"source_iteration"`` — bit-identical to the Wave A-D
-        source iteration, ERR-026-affected for curvilinear vacuum-BC
-        fixed-source.
+        Inner-solve strategy.  When ``None`` (default), all geometries
+        use ``"source_iteration"`` — bit-identical to the Wave A-D
+        path.  Wave E Round 3 ships the BC-aware FD operator
+        (:func:`solution_to_angular_flux*` consume the mesh's
+        :class:`~orpheus.geometry.boundary.ResolvedBC` instances via
+        :meth:`apply_to_incoming`), which makes ``"krylov"`` available
+        as an opt-in for vacuum / reflective / white / albedo / mixed
+        BCs uniformly — but the curvilinear-default flip is **not**
+        enabled because empirically the symmetric-closure FD operator
+        at the curvilinear outer face uses cell-center as a face-flux
+        approximation, which is only first-order at the boundary on
+        non-constant solutions.  Switching the default to
+        ``"krylov"`` regresses the curvilinear MMS convergence rate
+        from the WDD sweep's :math:`\mathcal{O}(h^{1.3})` (still
+        ERR-026-affected, but volumetrically benign for MMS) to
+        :math:`\mathcal{O}(h^{1})` (the FD operator's boundary
+        truncation).  Round 3's BC plumbing is therefore the
+        infrastructure that *enables* a future full closure;
+        the closure itself depends on a follow-up that fixes the
+        FD operator's boundary face-flux treatment (DD diamond
+        relation at the outer boundary, or analogous extrapolation).
 
-        **Round 2 deviation from the campaign plan**: the campaign
-        plan called for an automatic ``"krylov"`` dispatch on
-        curvilinear meshes that would silently close ERR-026 on
-        fixed-source MMS.  Implementation surfaced an unforeseen
-        coupling: :meth:`SNStreamingOperator.apply` reuses the
-        :func:`build_equation_map_spherical` /
-        :func:`build_equation_map_cylindrical` packed-vector layout,
-        which was designed for **reflective** outer-boundary BCs only
-        — it has no slot for a vacuum-BC outer-incoming
-        :math:`\psi`.  Using the krylov path for a vacuum-BC MMS case
-        therefore solves a *different* operator equation than the
-        physical one.  Round 2 fixes the eigenvalue path (where
-        :func:`solve_sn` already worked with reflective BCs) and
-        defers the curvilinear vacuum-BC fixed-source closure to
-        Round 3 along with the test rewrite of
-        :file:`tests/sn/test_sweep_operator_inconsistency.py`.
-
-        ``"krylov"`` may still be specified explicitly for cases
-        where the user knows the FD operator's reflective-only
-        equation map is the right one (eigenvalue-style usage).
+        ``"krylov"`` is still the right choice for **constant-source**
+        problems (where the cell-center-as-face-value approximation
+        is exact), as evidenced by the
+        :file:`tests/sn/test_sweep_operator_inconsistency.py` regression
+        suite — krylov gives the analytical flat flux to round-off
+        while the sweep produces the documented ERR-026 deviation.
 
     Notes
     -----
@@ -933,9 +952,18 @@ def solve_sn_fixed_source(
     mesh = _apply_default_bcs(mesh, boundary_condition)
     sn_mesh = SNMesh(mesh, quadrature)
 
-    # Wave E Round 2: default-dispatch.  See the docstring section
-    # "Round 2 deviation from the campaign plan" for why the auto-flip
-    # to krylov on curvilinear is NOT enabled.
+    # Wave E Round 3: default dispatch is "source_iteration" for all
+    # geometries.  Round 3 ships the BC-aware FD operator (the Wave B
+    # Issue 7 ResolvedBC plumbing now reaches solution_to_angular_flux*
+    # and the matvec helpers); ``inner_solver="krylov"`` is therefore
+    # available as an opt-in for vacuum / reflective / white / albedo /
+    # mixed BCs uniformly.  The curvilinear-default flip to "krylov"
+    # is NOT enabled because the symmetric-closure FD operator's
+    # boundary face-flux treatment at the curvilinear outer face is
+    # only first-order accurate on non-constant solutions (it uses
+    # cell-center as a face-flux approximation), which regresses the
+    # curvilinear MMS convergence rate.  See the docstring for the
+    # full closure narrative.
     if inner_solver is None:
         inner_solver = "source_iteration"
 
@@ -1151,14 +1179,20 @@ def _solve_fixed_source_krylov(
         if curv == "spherical":
             fi = solution_to_angular_flux_spherical(
                 solution, eq_map, sn_mesh.quad, nx, ng,
+                bc_outer=sn_mesh.bc_right,
             )
         elif curv == "cylindrical":
             fi = solution_to_angular_flux_cylindrical(
                 solution, eq_map, sn_mesh.quad, nx, ng,
+                bc_outer=sn_mesh.bc_right,
             )
         else:
             fi = solution_to_angular_flux(
                 solution, eq_map, sn_mesh.quad, nx, ny, ng,
+                bc_xmin=sn_mesh.bc_xmin,
+                bc_xmax=sn_mesh.bc_xmax,
+                bc_ymin=sn_mesh.bc_ymin,
+                bc_ymax=sn_mesh.bc_ymax,
             )
         # fi has shape (ng, N, nx, ny); convert to sweep layout
         # (N, nx, ny, ng) for the SNFixedSourceResult contract.

@@ -173,7 +173,15 @@ def test_capabilities_is_frozenset():
 # regression.
 
 def test_apply_slab_bit_identical_to_legacy():
-    """SNStreamingOperator.apply == transport_operator_matvec on slab."""
+    """SNStreamingOperator.apply == transport_operator_matvec on slab.
+
+    Wave E Round 3 update: the legacy call now threads the mesh BCs
+    through to ``transport_operator_matvec`` so that
+    :class:`SNStreamingOperator.apply` (which always reads BCs from
+    the mesh) and the legacy call match.  Pre-Round 3 the legacy call
+    hard-coded specular reflective fills, which silently agreed with
+    ``apply`` only because the old ``apply`` also hard-coded them.
+    """
     sn_mesh = _slab_mesh()
     sig_t = _sig_t_uniform(sn_mesh, ng=2)
     op = SNStreamingOperator(sn_mesh, sig_t)
@@ -188,6 +196,8 @@ def test_apply_slab_bit_identical_to_legacy():
     legacy = transport_operator_matvec(
         psi, eq_map, sn_mesh.quad, sig_t,
         nx, ny, ng, sn_mesh.dx, sn_mesh.dy,
+        bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
+        bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
     )
     via_op = op.apply(psi)
 
@@ -198,7 +208,11 @@ def test_apply_slab_bit_identical_to_legacy():
 
 
 def test_apply_spherical_bit_identical_to_legacy():
-    """SNStreamingOperator.apply == transport_operator_matvec_spherical."""
+    """SNStreamingOperator.apply == transport_operator_matvec_spherical.
+
+    Wave E Round 3 update: legacy call threads ``sn_mesh.bc_right`` so
+    the test exercises the BC-faithful Round 3 plumbing.
+    """
     sn_mesh = _spherical_mesh()
     sig_t = _sig_t_uniform(sn_mesh, ng=2)
     op = SNStreamingOperator(sn_mesh, sig_t)
@@ -218,6 +232,7 @@ def test_apply_spherical_bit_identical_to_legacy():
         reduced.alpha_half,
         reduced.redist_dAw,
         reduced.tau_mm,
+        bc_outer=sn_mesh.bc_right,
     )
     via_op = op.apply(psi)
 
@@ -230,7 +245,10 @@ def test_apply_spherical_bit_identical_to_legacy():
 
 
 def test_apply_cylindrical_bit_identical_to_legacy():
-    """SNStreamingOperator.apply == transport_operator_matvec_cylindrical."""
+    """SNStreamingOperator.apply == transport_operator_matvec_cylindrical.
+
+    Wave E Round 3 update: legacy call threads ``sn_mesh.bc_right``.
+    """
     sn_mesh = _cylindrical_mesh()
     sig_t = _sig_t_uniform(sn_mesh, ng=2)
     op = SNStreamingOperator(sn_mesh, sig_t)
@@ -250,6 +268,7 @@ def test_apply_cylindrical_bit_identical_to_legacy():
         reduced.alpha_per_level,
         reduced.redist_dAw_per_level,
         reduced.tau_mm_per_level,
+        bc_outer=sn_mesh.bc_right,
     )
     via_op = op.apply(psi)
 
@@ -267,6 +286,8 @@ def test_apply_2d_cartesian_bit_identical_to_legacy():
     The 2-D Cartesian path exercises the full
     :func:`build_equation_map` filter (including z-hemisphere and
     y-axis reflective BCs) that 1-D slab does not.
+
+    Wave E Round 3 update: legacy call threads all 4 BCs from the mesh.
     """
     nx, ny = 3, 3
     mesh = Mesh2D(
@@ -294,6 +315,8 @@ def test_apply_2d_cartesian_bit_identical_to_legacy():
     legacy = transport_operator_matvec(
         psi, eq_map, quad, sig_t,
         nx, ny, ng, sn_mesh.dx, sn_mesh.dy,
+        bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
+        bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
     )
     via_op = op.apply(psi)
 

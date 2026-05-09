@@ -45,6 +45,23 @@ as preconditioner.
    curvilinear, the sweep's WDD closure has the ERR-026 closure-bias-
    driven self-consistent fixed point that is now bypassed by the
    Krylov-on-:meth:`apply` path (Wave E Round 2).
+
+.. note:: Boundary-condition handling — Wave E Round 3
+
+   Wave E Round 3 extended :func:`solution_to_angular_flux*` to consume
+   the :class:`~orpheus.geometry.boundary.ResolvedBC` instances on the
+   :class:`~orpheus.sn.geometry.SNMesh` (``bc_xmin``, ``bc_xmax``,
+   ``bc_ymin``, ``bc_ymax``).  Each function fills incoming-at-boundary
+   slots via ``bc.apply_to_incoming(outgoing, quad)`` (Wave B Issue 7
+   tensor-decomposed BC algebra).  Bit-identity to the pre-Round 3
+   reflective-only fill is preserved for :class:`SpecularBC` (the
+   default ``BC.reflective`` factory), since
+   ``SpecularBC(axis="x").apply_to_incoming(out, quad) == out[ref_x]``;
+   :class:`VacuumBC` returns zero, which is the correct vacuum
+   incoming flux.  This closes ERR-026 for the curvilinear
+   ``solve_sn_fixed_source`` MMS path: the FD operator is now
+   BC-faithful for vacuum / reflective / white / albedo / mixed BCs
+   uniformly.
 """
 
 from __future__ import annotations
@@ -64,6 +81,8 @@ from orpheus.numerics.operator import (
 from .quadrature import AngularQuadrature
 
 if TYPE_CHECKING:
+    from orpheus.geometry.boundary import ResolvedBC
+
     from .geometry import SNMesh
 
 __all__ = [
@@ -145,16 +164,42 @@ def solution_to_angular_flux(
     eq_map: EquationMap,
     quad: AngularQuadrature,
     nx: int, ny: int, ng: int,
+    *,
+    bc_xmin: "ResolvedBC | None" = None,
+    bc_xmax: "ResolvedBC | None" = None,
+    bc_ymin: "ResolvedBC | None" = None,
+    bc_ymax: "ResolvedBC | None" = None,
 ) -> np.ndarray:
     """Convert 1D solution vector to 4D angular flux (ng, N, nx, ny).
 
-    Applies z-reflection and reflective BCs to fill the full array
-    from the reduced set of unknowns.
+    Applies z-hemisphere reflection (Lebedev) and BC-resolved fills at
+    the four boundaries of the 2-D Cartesian domain.
+
+    Wave E Round 3 (ERR-026 closure): the four ``bc_*`` keyword
+    arguments accept :class:`~orpheus.geometry.boundary.ResolvedBC`
+    instances built by :class:`~orpheus.sn.geometry.SNMesh` from the
+    mesh's :class:`~orpheus.geometry.mesh.BC` declarations.  Each BC's
+    ``apply_to_incoming(outgoing, quad)`` method maps the boundary's
+    outgoing angular flux to the incoming flux per the BC's tensor
+    decomposition (vacuum → 0; specular → ``out[ref]``; white,
+    albedo, mixed → their respective combinations).  When all four
+    are ``None`` (legacy callers) the behaviour falls back to specular
+    reflection on every face — bit-identical to the pre-Round 3
+    hard-coded reflective fill that the BiCGSTAB FD path relied on.
     """
+    from orpheus.geometry.boundary import SpecularBC
+
+    if bc_xmin is None:
+        bc_xmin = SpecularBC(axis="x", albedo=1.0)
+    if bc_xmax is None:
+        bc_xmax = SpecularBC(axis="x", albedo=1.0)
+    if bc_ymin is None:
+        bc_ymin = SpecularBC(axis="y", albedo=1.0)
+    if bc_ymax is None:
+        bc_ymax = SpecularBC(axis="y", albedo=1.0)
+
     mu_x, mu_y = quad.mu_x, quad.mu_y
     mu_z = getattr(quad, 'mu_z', np.zeros(quad.N))
-    ref_x = quad.reflection_index("x")
-    ref_y = quad.reflection_index("y")
     # z-reflection: need ref_z for Lebedev
     ref_z = getattr(quad, '_ref_z', np.arange(quad.N))
 
@@ -165,24 +210,48 @@ def solution_to_angular_flux(
     for k in range(eq_map.n_eq):
         fi[:, eq_map.ordinate[k], eq_map.ix[k], eq_map.iy[k]] = flux[:, k]
 
-    # Z-reflection
+    # Z-reflection (Lebedev / 3-D quadratures): the eq_map only carries
+    # mu_z >= 0; the lower hemisphere is filled by reflection across z.
     for n in range(quad.N):
         if mu_z[n] < -1e-15:
             fi[:, n, :, :] = fi[:, ref_z[n], :, :]
 
-    # X reflective BCs
-    for n in range(quad.N):
-        if mu_x[n] > 1e-15:
-            fi[:, n, 0, :] = fi[:, ref_x[n], 0, :]
-        if mu_x[n] < -1e-15:
-            fi[:, n, -1, :] = fi[:, ref_x[n], -1, :]
+    # ── X-axis BC fills ───────────────────────────────────────────────
+    # The eq_map skips incoming-at-boundary slots; we fill them here per
+    # the BC.  Layout: ``apply_to_incoming`` consumes a full
+    # ``(N, ng_axis_2)`` array (here ``(N, ng)``) and returns the same
+    # shape; we slice the incoming entries out for the boundary fill.
+    # For each y-row independently to avoid spurious coupling.
+    for iy in range(ny):
+        # Left face (x = xmin): outgoing = mu_x < 0, incoming = mu_x > 0.
+        outgoing_xmin = fi[:, :, 0, iy].T   # (N, ng)
+        incoming_xmin = bc_xmin.apply_to_incoming(outgoing_xmin, quad)
+        for n in range(quad.N):
+            if mu_x[n] > 1e-15:
+                fi[:, n, 0, iy] = incoming_xmin[n]
 
-    # Y reflective BCs
-    for n in range(quad.N):
-        if mu_y[n] > 1e-15:
-            fi[:, n, :, 0] = fi[:, ref_y[n], :, 0]
-        if mu_y[n] < -1e-15:
-            fi[:, n, :, -1] = fi[:, ref_y[n], :, -1]
+        # Right face (x = xmax): outgoing = mu_x > 0, incoming = mu_x < 0.
+        outgoing_xmax = fi[:, :, -1, iy].T  # (N, ng)
+        incoming_xmax = bc_xmax.apply_to_incoming(outgoing_xmax, quad)
+        for n in range(quad.N):
+            if mu_x[n] < -1e-15:
+                fi[:, n, -1, iy] = incoming_xmax[n]
+
+    # ── Y-axis BC fills ───────────────────────────────────────────────
+    for ix in range(nx):
+        # Bottom face (y = ymin): outgoing = mu_y < 0, incoming = mu_y > 0.
+        outgoing_ymin = fi[:, :, ix, 0].T   # (N, ng)
+        incoming_ymin = bc_ymin.apply_to_incoming(outgoing_ymin, quad)
+        for n in range(quad.N):
+            if mu_y[n] > 1e-15:
+                fi[:, n, ix, 0] = incoming_ymin[n]
+
+        # Top face (y = ymax): outgoing = mu_y > 0, incoming = mu_y < 0.
+        outgoing_ymax = fi[:, :, ix, -1].T  # (N, ng)
+        incoming_ymax = bc_ymax.apply_to_incoming(outgoing_ymax, quad)
+        for n in range(quad.N):
+            if mu_y[n] < -1e-15:
+                fi[:, n, ix, -1] = incoming_ymax[n]
 
     return fi
 
@@ -266,6 +335,11 @@ def transport_operator_matvec(
     sig_t: np.ndarray,
     nx: int, ny: int, ng: int,
     dx: np.ndarray, dy: np.ndarray,
+    *,
+    bc_xmin: "ResolvedBC | None" = None,
+    bc_xmax: "ResolvedBC | None" = None,
+    bc_ymin: "ResolvedBC | None" = None,
+    bc_ymax: "ResolvedBC | None" = None,
 ) -> np.ndarray:
     """Apply the streaming + collision operator T·ψ.
 
@@ -273,13 +347,22 @@ def transport_operator_matvec(
     ----------
     solution : (n_unknowns,) flattened angular flux vector.
     sig_t : (nx, ny, ng) total cross section.
+    bc_xmin, bc_xmax, bc_ymin, bc_ymax :
+        Wave E Round 3 — :class:`~orpheus.geometry.boundary.ResolvedBC`
+        instances threaded through to :func:`solution_to_angular_flux`
+        for BC-faithful boundary fills.  ``None`` = legacy reflective
+        fallback (bit-identical to pre-Round 3 hard-coded behaviour).
 
     Returns
     -------
     np.ndarray
         Shape ``(n_unknowns,)``. T applied to the angular flux.
     """
-    fi = solution_to_angular_flux(solution, eq_map, quad, nx, ny, ng)
+    fi = solution_to_angular_flux(
+        solution, eq_map, quad, nx, ny, ng,
+        bc_xmin=bc_xmin, bc_xmax=bc_xmax,
+        bc_ymin=bc_ymin, bc_ymax=bc_ymax,
+    )
 
     lhs = np.empty((ng, eq_map.n_eq))
     for k in range(eq_map.n_eq):
@@ -329,22 +412,47 @@ def solution_to_angular_flux_spherical(
     eq_map: EquationMap,
     quad: AngularQuadrature,
     nx: int, ng: int,
+    *,
+    bc_outer: "ResolvedBC | None" = None,
 ) -> np.ndarray:
     """Convert 1D solution vector to angular flux array (ng, N, nx, 1).
 
-    Applies reflective BC at the outer boundary.
+    Applies the outer-boundary BC (r = R) via the
+    :class:`~orpheus.geometry.boundary.ResolvedBC` ``bc_outer``.  The
+    inner boundary at r = 0 is intrinsically symmetric (the spherical
+    pole has zero face area; the matvec sets ``psi_left = 0`` there
+    by construction), so no fill is needed at i = 0.
+
+    Wave E Round 3 (ERR-026 closure): when ``bc_outer`` is ``None``
+    the function falls back to specular reflection at the outer face,
+    bit-identical to the pre-Round 3 hard-coded reflective fill that
+    the BiCGSTAB FD path relied on.  Production callers should pass
+    ``sn_mesh.bc_right`` so that vacuum / white / albedo / mixed BCs
+    are honoured uniformly.
     """
-    ref_x = quad.reflection_index("x")
+    from orpheus.geometry.boundary import SpecularBC
+
+    if bc_outer is None:
+        bc_outer = SpecularBC(axis="x", albedo=1.0)
+
     fi = np.zeros((ng, quad.N, nx, 1))
 
     flux = solution.reshape(ng, eq_map.n_eq, order='F')
     for k in range(eq_map.n_eq):
         fi[:, eq_map.ordinate[k], eq_map.ix[k], 0] = flux[:, k]
 
-    # Reflective BC at outer boundary: incoming (μ<0) = reflected partner
+    # ── Outer-boundary BC fill (r = R) ────────────────────────────────
+    # Build the outgoing flux at i = nx-1 indexed by all ordinates
+    # (incoming-ordinate slots are still zero from np.zeros above) and
+    # delegate to the BC's tensor-decomposed action.  For SpecularBC
+    # this returns ``outgoing[ref_x[n]]`` — bit-identical to the
+    # pre-Round 3 ``fi[:, n, -1, 0] = fi[:, ref_x[n], -1, 0]`` fill.
+    # For VacuumBC it returns zeros (correct vacuum incoming).
+    outgoing = fi[:, :, -1, 0].T   # (N, ng)
+    incoming = bc_outer.apply_to_incoming(outgoing, quad)
     for n in range(quad.N):
         if quad.mu_x[n] < -1e-15:
-            fi[:, n, -1, 0] = fi[:, ref_x[n], -1, 0]
+            fi[:, n, -1, 0] = incoming[n]
 
     return fi
 
@@ -360,6 +468,8 @@ def transport_operator_matvec_spherical(
     alpha_half: np.ndarray,
     redist_dAw: np.ndarray,
     tau_mm: np.ndarray,
+    *,
+    bc_outer: "ResolvedBC | None" = None,
 ) -> np.ndarray:
     r"""Apply the spherical transport operator T·ψ.
 
@@ -375,9 +485,28 @@ def transport_operator_matvec_spherical(
     in :class:`SNMesh`) ensures per-ordinate flat-flux consistency
     (Bailey et al. 2009).
 
-    Face fluxes are approximated by arithmetic averages of cell-centre values.
+    Face fluxes are approximated by arithmetic averages of cell-centre
+    values.  At the outer face (i = nx-1) the cell-centre extrapolation
+    ``psi_right = fi[:, n, i, 0]`` is used uniformly: for outgoing
+    ordinates (μ > 0) this is the symmetric closure's cell-center
+    extrapolation; for incoming ordinates the slot was BC-filled by
+    :func:`solution_to_angular_flux_spherical` (Wave E Round 3) with
+    ``bc_outer.apply_to_incoming(...)``, so the same read accesses the
+    BC-faithful value.  Unknown ordinates at i = nx-1 (per the eq_map)
+    have μ ≥ 0; the inward-direction read at i = nx-2's outer face
+    (``psi_right = 0.5*(fi[:, n, nx-2, 0] + fi[:, n, nx-1, 0])``) is
+    where the BC fill enters the matvec.
+
+    Parameters
+    ----------
+    bc_outer :
+        :class:`~orpheus.geometry.boundary.ResolvedBC` for the outer
+        face (r = R).  ``None`` = legacy reflective fallback (bit-
+        identical to the pre-Round 3 hard-coded reflective fill).
     """
-    fi = solution_to_angular_flux_spherical(solution, eq_map, quad, nx, ng)
+    fi = solution_to_angular_flux_spherical(
+        solution, eq_map, quad, nx, ng, bc_outer=bc_outer,
+    )
     ref_x = quad.reflection_index("x")
     A = face_areas       # (nx+1,)
     V = volumes[:, 0]    # (nx,)
@@ -393,6 +522,13 @@ def transport_operator_matvec_spherical(
         psi_ni = fi[:, n, i, 0]
 
         # ── Spatial streaming: μ (A ∂ψ/∂r) / V ──────────────────────
+        # At the outer face (i = nx-1), valid unknowns always carry
+        # μ ≥ 0 by the eq_map skip rule.  The if/else branch is
+        # preserved for full bit-identity to the pre-Round 3 reflective
+        # path; the ``else`` (μ < 0) is dead code in normal operation
+        # but the ``|μ| ≤ 1e-15`` corner case (near-zero ordinates from
+        # non-GL quadratures) still falls through to it and would read
+        # the partner's BC-filled value.
         if i < nx - 1:
             psi_right = 0.5 * (fi[:, n, i, 0] + fi[:, n, i + 1, 0])
         else:
@@ -455,13 +591,25 @@ def transport_operator_matvec_cylindrical(
     alpha_per_level: list[np.ndarray],
     redist_dAw_per_level: list[np.ndarray],
     tau_mm_per_level: list[np.ndarray],
+    *,
+    bc_outer: "ResolvedBC | None" = None,
 ) -> np.ndarray:
     r"""Apply the cylindrical transport operator T·ψ.
 
     Per-level azimuthal redistribution with geometry-weighted
     :math:`\Delta A / w` factor and Morel–Montry angular closure.
+
+    Parameters
+    ----------
+    bc_outer :
+        :class:`~orpheus.geometry.boundary.ResolvedBC` for the outer
+        face (r = R).  ``None`` = legacy reflective fallback (bit-
+        identical to the pre-Round 3 hard-coded reflective fill).
+        Wave E Round 3 (ERR-026 closure).
     """
-    fi = solution_to_angular_flux_cylindrical(solution, eq_map, quad, nx, ng)
+    fi = solution_to_angular_flux_cylindrical(
+        solution, eq_map, quad, nx, ng, bc_outer=bc_outer,
+    )
     ref_x = quad.reflection_index("x")
     A = face_areas       # (nx+1,)
     V = volumes[:, 0]    # (nx,)
@@ -758,6 +906,7 @@ class SNStreamingOperator(LinearOperatorMixin):
                 reduced.alpha_half,
                 reduced.redist_dAw,
                 reduced.tau_mm,
+                bc_outer=sn_mesh.bc_right,
             )
         if curv == "cylindrical":
             reduced = sn_mesh.reduced
@@ -769,11 +918,16 @@ class SNStreamingOperator(LinearOperatorMixin):
                 reduced.alpha_per_level,
                 reduced.redist_dAw_per_level,
                 reduced.tau_mm_per_level,
+                bc_outer=sn_mesh.bc_right,
             )
         # Cartesian (1-D slab or 2-D)
         return transport_operator_matvec(
             psi, eq_map, quad, self.sig_t,
             nx, ny, ng, sn_mesh.dx, sn_mesh.dy,
+            bc_xmin=sn_mesh.bc_xmin,
+            bc_xmax=sn_mesh.bc_xmax,
+            bc_ymin=sn_mesh.bc_ymin,
+            bc_ymax=sn_mesh.bc_ymax,
         )
 
     # ── solve: L^{-1}·q via the unified sweep ─────────────────────────

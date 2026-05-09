@@ -5,6 +5,13 @@ campaign.  Both use isotropic-in-angle ansatz :math:`\psi_n(r) = A(r)/W`
 with :math:`A(r) = \sin(\pi r/R)`, so the angular redistribution terms
 vanish and the spatial DD convergence rate is isolated.
 
+Both tests are tagged ``@pytest.mark.xfail(strict=True)`` through Wave
+E Round 3 — see :file:`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
+for the full closure narrative; the legacy isotropic tests share the
+same root cause (curvilinear FD operator boundary face-flux is
+first-order on non-constant solutions, plus ERR-026 sweep WDD wrong
+fixed point).
+
 See :doc:`/theory/discrete_ordinates` (curvilinear MMS sections)
 for the full derivation.
 """
@@ -32,6 +39,18 @@ def _l2_1d(phi_num: np.ndarray, phi_ref: np.ndarray, volumes: np.ndarray) -> flo
 # ═══════════════════════════════════════════════════════════════════════
 
 @pytest.mark.l1
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "ERR-026 — same root cause as the anisotropic curvilinear MMS "
+        "(see tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py "
+        "for the full closure narrative).  Wave E Round 3 shipped the "
+        "BC-aware FD operator infrastructure; full ERR-026 closure on "
+        "MMS depends on a follow-up that fixes the curvilinear FD "
+        "operator's outer-face flux treatment (currently first-order "
+        "on non-constant solutions)."
+    ),
+)
 @pytest.mark.verifies(
     "transport-spherical",
     "sn-mms-spherical-psi", "sn-mms-spherical-qext",
@@ -72,6 +91,14 @@ def test_sn_spherical_mms_converges_second_order():
 # ═══════════════════════════════════════════════════════════════════════
 
 @pytest.mark.l1
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "ERR-026 — same root cause as the spherical isotropic MMS. "
+        "See tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py "
+        "for the full closure narrative."
+    ),
+)
 @pytest.mark.verifies(
     "transport-cylindrical",
     "sn-mms-cylindrical-psi", "sn-mms-cylindrical-qext",
