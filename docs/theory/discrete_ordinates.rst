@@ -2135,6 +2135,281 @@ Wave E lands. Until then, the operators carry the canonical math
 and the delegators preserve the existing API surface.
 
 
+.. _sn-streaming-operator:
+
+SNStreamingOperator: the streaming-collision operator algebra
+==============================================================
+
+Wave D Round 3 (Issue #160) installs
+:class:`~orpheus.sn.operator.SNStreamingOperator` as the unified
+:class:`~orpheus.numerics.operator.LinearOperator` for the
+streaming-collision operator
+:math:`L = \Omega\cdot\nabla + \Sigma_t`.  This is the Wave D
+**capstone**: with :math:`L`, :math:`S`, and :math:`F` all carrying
+the Wave A operator-algebra contract, the operator-form transport
+equation
+
+.. math::
+
+    (L - S - F)\,\psi = q
+    \qquad\text{(fixed source)}
+
+.. math::
+
+    (L - S)\,\psi = \tfrac{1}{k}\,F\,\psi
+    \qquad\text{(eigenvalue)}
+
+is now expressible in ORPHEUS as a single Python expression composed
+from three :class:`LinearOperator` objects.  The Wave A composers
+(:class:`~orpheus.numerics.operator.OperatorSum`,
+:class:`~orpheus.numerics.operator.OperatorProduct`,
+:class:`~orpheus.numerics.operator.ScaledOperator`) compute the
+composition's capability set from the constituents per the closure
+laws (see :ref:`operator-algebra`).
+
+Three capabilities
+------------------
+
+:class:`SNStreamingOperator` advertises ``{"apply", "solve",
+"apply_transpose"}`` — every member of the Wave A capability set:
+
+* :meth:`~orpheus.sn.operator.SNStreamingOperator.apply` —
+  matrix-free forward action :math:`L\,\psi`.  Reuses the
+  symmetric closure math from the existing
+  :func:`~orpheus.sn.operator.transport_operator_matvec`,
+  :func:`~orpheus.sn.operator.transport_operator_matvec_spherical`,
+  :func:`~orpheus.sn.operator.transport_operator_matvec_cylindrical`
+  functions (the historical BiCGSTAB FD operator).  The math is
+  **extracted verbatim**; the new class is a thin Protocol wrapper.
+
+* :meth:`~orpheus.sn.operator.SNStreamingOperator.solve` —
+  inverse action :math:`L^{-1}\,q` via the Wave D Round 2 unified
+  sweep (:func:`~orpheus.sn.sweep.transport_sweep`).  Bit-identical
+  to a direct :func:`transport_sweep` call on the same arguments.
+
+* :meth:`~orpheus.sn.operator.SNStreamingOperator.apply_transpose` —
+  adjoint action :math:`L^*\,\psi`.  Implemented via the explicit
+  transpose of the dense matrix assembled by probing
+  :meth:`apply` with each unit basis vector.  The construction is
+  exact by linear algebra and gates the reciprocity invariant
+  :math:`\langle L\,\psi,\,\varphi\rangle = \langle\psi,\,
+  L^*\,\varphi\rangle` (see "Reciprocity" subsection below).
+
+Apply and solve use **different** closures by design
+----------------------------------------------------
+
+This is the load-bearing architectural fact about
+:class:`SNStreamingOperator`, and the reason the operator's
+:meth:`apply` is **not** bit-identical to its :meth:`solve`.
+
+The historical SN dispatch in ORPHEUS ships **two distinct
+discretisations** of the same continuous operator
+:math:`L = \Omega\cdot\nabla + \Sigma_t`, built at different times
+for different consumers:
+
+* The **finite-difference operator**
+  (:func:`transport_operator_matvec_*` in
+  :mod:`orpheus.sn.operator`) was built for the BiCGSTAB inner
+  solver path (:meth:`SNSolver._solve_bicgstab_*`).  It uses
+  upwind cell-center FD on Cartesian and arithmetic face averages
+  with **τ-symmetric Morel-Montry angular interpolation** on
+  curvilinear (see the "Explicit Transport Operator" subsection of
+  the BiCGSTAB Alternative above and the warning at the head of
+  :mod:`orpheus.sn.operator`).
+
+* The **sweep operator**
+  (:func:`~orpheus.sn.sweep.transport_sweep`, dispatching through
+  the Wave D Round 2 :class:`~orpheus.sn.spatial.cell_update.CellUpdate`
+  Protocol with :class:`~orpheus.sn.spatial.diamond.DiamondDifference`
+  as the default strategy) uses the **WDD asymmetric closure**
+  :math:`\psi_{n+1/2} = (\overline\psi - (1-\tau)\,\psi_{n-1/2})/\tau`.
+  This is the historical SN sweep's closure: the upper-triangular
+  forward-substitution form that lets a sweep run in
+  :math:`O(N\cdot N_{\rm cells})` work.
+
+In the fine-mesh limit both discretisations converge to the same
+continuous operator.  On coarse meshes they differ:
+
+* For Cartesian the difference is :math:`O(h)` (upwind FD has
+  the same first-order consistency as DD on uniform meshes;
+  divergence appears on non-uniform meshes — see the warning at
+  the head of :mod:`orpheus.sn.operator`).
+* For curvilinear the WDD asymmetric closure has a closure-bias-
+  driven self-consistent fixed point that is **not** the
+  fine-mesh-limit transport solution (ERR-026).
+
+The reconciliation is **Wave E Issue 15**: the SN solver's inner
+loop migrates from "sweep with WDD closure" to "Krylov on apply,
+sweep as preconditioner".  Krylov on :meth:`apply` uses the
+symmetric closure (the one that agrees with analytical references)
+as the system to solve; the WDD sweep is invoked only as a
+preconditioner that accelerates the Krylov iteration without
+poisoning the converged solution with its closure bias.  ERR-026
+closes when Wave E lands; the 2 xfail-strict tripwires at
+:file:`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
+are the gating bug-catchers for that closure.
+
+Why ship :meth:`solve` at all if it carries the WDD closure?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Two reasons:
+
+1. **The Wave D Round 2 unified sweep is bit-identically used as a
+   preconditioner.**  Wave E's Krylov-on-apply needs an effective
+   preconditioner; the sweep's :math:`O(N\cdot N_{\rm cells})`
+   forward substitution is the canonical SN preconditioner (Lewis
+   & Miller §4.5; Adams & Larsen 2002 review).  Exposing
+   :meth:`solve` keeps that path discoverable through the
+   capability set.
+
+2. **The composers (Wave A) need a uniform contract.**  When a
+   downstream agent composes :math:`(L - S - F)`, the composition's
+   capability set is derived from each operand's capabilities.  If
+   :class:`SNStreamingOperator` shipped only :meth:`apply`, the
+   composition would lose ``solve`` and the Wave E Krylov-on-apply
+   path could not request a sweep-preconditioned matvec without
+   bypassing the algebra.
+
+Reciprocity invariant
+---------------------
+
+The reciprocity identity is the defining property of the operator-
+transpose pairing under the discrete L\ :sup:`2` inner product:
+
+.. math::
+    :label: sn-streaming-reciprocity
+
+    \langle L\,\psi,\,\varphi\rangle \;=\;
+    \langle\psi,\,L^*\,\varphi\rangle
+
+for any pair :math:`(\psi, \varphi)` in the discrete unknown space
+(packed solution vectors of length ``n_unknowns``).  Per Lewis &
+Miller §10 (adjoint transport), this identity links forward and
+adjoint sources / fluxes; it is the foundation on which detector
+sensitivity, perturbation theory, and adjoint-weighted kinetics
+all rest.
+
+In :class:`SNStreamingOperator`, :meth:`apply_transpose` is built
+from the explicit transpose of the dense matrix assembled by
+probing :meth:`apply`, so the reciprocity identity holds **by
+construction**: every linear operator has a transpose, and the
+transpose of the assembled matrix *is* the operator's transpose.
+The reciprocity test
+:func:`tests.sn.test_snstreamingoperator.test_reciprocity_round_off`
+gates this identity to round-off (``rtol=1e-12``, ``atol=1e-13``)
+across slab, spherical, and cylindrical geometries on synthetic
+:math:`(\psi, \varphi)` pairs.
+
+A reciprocity-test failure would indicate one of two catastrophic
+operator-correctness failures:
+
+(a) :meth:`apply` is non-linear (a sign-flip, an incorrectly
+    handled bias term, or a state-dependent operation such as
+    re-normalisation) — caught by the linearity gate
+    :func:`test_apply_is_linear`.
+(b) The dense-assembly probe in
+    :meth:`SNStreamingOperator._ensure_dense_matrix` does not
+    faithfully assemble the matrix of :meth:`apply` — caught by
+    the bit-identical extraction tests against
+    :func:`transport_operator_matvec_*`.
+
+Both gates are foundation-tagged in
+:file:`tests/sn/test_snstreamingoperator.py`.
+
+Vector layouts (``apply`` vs ``solve``)
+---------------------------------------
+
+:meth:`apply` and :meth:`apply_transpose` operate on the **packed
+1-D solution vector** used by the legacy BiCGSTAB FD operator
+path: an :class:`~orpheus.sn.operator.EquationMap` selects which
+``(ordinate, cell)`` combinations are unknowns (the rest are
+determined by reflective BCs and the z-hemisphere reduction); the
+vector is laid out group-major in Fortran order.  This is the
+natural input shape for :func:`scipy.sparse.linalg.bicgstab` and
+the canonical layout for the Wave E Krylov-on-apply path.
+
+:meth:`solve` operates on **structured arrays** matching
+:func:`transport_sweep`'s contract:
+
+* Source ``Q`` shape ``(nx, ny, ng)``.
+* Persistent boundary-flux dict ``psi_bc`` carrying state between
+  sweeps.
+* Optional anisotropic source ``Q_aniso`` shape
+  ``(N, nx, ny, ng)`` for P\ :sub:`ℓ` (:math:`\ell\ge 1`)
+  scattering.
+
+The shape mismatch reflects the historical layouts of the two
+consumers (BiCGSTAB on packed-vectors / sweep on structured
+arrays).  Wave E will normalise these via a single Krylov-on-apply
+path; until then, calling :meth:`apply` and :meth:`solve` requires
+the caller to be aware of the layout difference.
+
+Why not extract :meth:`apply_transpose` analytically?
+-----------------------------------------------------
+
+For a continuous operator :math:`L = \Omega\cdot\nabla + \Sigma_t`,
+the L\ :sup:`2`-adjoint is :math:`L^* = -\Omega\cdot\nabla +
+\Sigma_t` (the streaming term flips sign under integration by
+parts; the collision term is self-adjoint).  Discretising the
+adjoint analytically would require:
+
+* Reversing the upwind FD direction (:math:`\Omega \to -\Omega`)
+  for the Cartesian streaming term.
+* Transposing the τ-symmetric M-M angular interpolation closure.
+* Re-deriving the adjoint of the per-level azimuthal redistribution
+  for cylindrical.
+* Handling adjoint boundary conditions (vacuum and reflective BCs
+  are self-adjoint, so this term is benign in current ORPHEUS
+  configurations — but a future ``albedo`` or ``albedo_white`` BC
+  would need its own adjoint derivation).
+
+Each of these analytical steps is a chance to introduce a sign
+flip, a missing factor, or a transposed index — exactly the AI
+failure modes the V&V framework names (modes #1, #2, #3, #5 in
+``vv-principles``).  The dense-transpose path bypasses all of
+them: the transpose of the discrete operator's matrix *is* the
+operator's transpose, with no per-geometry derivation to verify.
+
+The cost is :math:`O(n_{\rm unknowns}^2)` time and space for the
+dense matrix, dominated by the :math:`n_{\rm unknowns}` calls to
+:meth:`apply`.  For verification problems
+(``n_unknowns ~ 30-1000``) the cost is negligible; for production-
+scale problems (``n_unknowns ~ 10^4-10^6``) the dense path is
+unsuitable.  Wave E will ship an :math:`O(n)` analytic-adjoint
+matvec when production reciprocity becomes performance-critical
+(currently it is not — :meth:`apply_transpose` is only consumed
+by adjoint-flux post-processing in the Wave A operator algebra).
+
+Forward references to Wave E and beyond
+---------------------------------------
+
+* **Wave E Issue 15** wires :class:`SNSolver` to
+  :class:`SNStreamingOperator`: the inner solve becomes Krylov on
+  :meth:`apply` with sweep as preconditioner, which closes
+  ERR-026 by removing the WDD asymmetric closure from the
+  converged-solution path.
+* **Wave E Issue 14** lifts the iteration primitives (power
+  iteration, source iteration) into stand-alone operator-algebra
+  consumers, decoupling them from :class:`SNSolver`.
+* When production reciprocity becomes performance-critical, an
+  :math:`O(n)` analytic-adjoint matvec replaces the dense-transpose
+  fallback; the new path is gated by the same reciprocity tests
+  in :file:`tests/sn/test_snstreamingoperator.py`.
+
+References
+----------
+
+* Lewis, E. E., & Miller, W. F. (1984).  *Computational Methods of
+  Neutron Transport.*  §10 (adjoint transport, reciprocity, and
+  perturbation theory).
+* Adams, M. L., & Larsen, E. W. (2002).  *Fast iterative methods
+  for discrete-ordinates particle transport calculations.*
+  Progress in Nuclear Energy 40 (1), 3–159.  Reviews
+  Krylov-on-apply with sweep preconditioning.
+* Trefethen, L. N., & Bau, D. (1997).  *Numerical Linear Algebra.*
+  §3.2 (matrix-free Krylov view).
+
+
 The Eigenvalue Problem
 ======================
 

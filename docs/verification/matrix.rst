@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2767**
+Total tests collected: **2789**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 590, 21.3%
-   L1, 723, 26.1%
+   L0, 590, 21.2%
+   L1, 723, 25.9%
    L2, 36, 1.3%
    L3, 0, 0.0%
-   foundation, 1390, 50.2%
+   foundation, 1412, 50.6%
    unmarked, 28, 1.0%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2660
+   explicit, 2682
    verify, 0
    class-name, 46
    func-name, 0
@@ -198,6 +198,7 @@ Module × level grid
    sn/test_quadrature, 49, 0, 0, 0, 0, 0
    sn/test_scattering_operator, 0, 0, 0, 0, 17, 0
    sn/test_snmesh_consumes_reduced, 0, 0, 0, 0, 16, 0
+   sn/test_snstreamingoperator, 0, 0, 0, 0, 22, 0
    sn/test_solver_components, 38, 0, 0, 0, 0, 0
    sn/test_spherical, 13, 7, 6, 0, 0, 0
    sn/test_sweep_operator_inconsistency, 0, 4, 0, 0, 0, 0
@@ -346,6 +347,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``characteristic-ode``, 6
    ``kin-kernel-special-values``, 6
    ``peierls-greens-slab-T``, 6
+   ``sn-streaming-reciprocity``, 6
    ``cp-outer-integral-antiderivative``, 5
    ``en-kernel-special-values``, 5
    ``peierls-cyl-Gbc-3d-final``, 5

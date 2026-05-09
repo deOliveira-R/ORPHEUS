@@ -1,4 +1,5 @@
 from .fission import FissionOperator
+from .operator import SNStreamingOperator
 from .scattering import ScatteringOperator
 from .solver import (
     SNFixedSourceResult,

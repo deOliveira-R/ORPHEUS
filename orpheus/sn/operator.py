@@ -54,12 +54,44 @@ scipy's Krylov solvers (BiCGSTAB, GMRES) can solve  T·ψ = b  directly.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.sparse.linalg import LinearOperator
 
+from orpheus.numerics.operator import (
+    CAP_APPLY,
+    CAP_APPLY_TRANSPOSE,
+    CAP_SOLVE,
+    LinearOperatorMixin,
+)
+
 from .quadrature import AngularQuadrature
+
+if TYPE_CHECKING:
+    from .geometry import SNMesh
+
+__all__ = [
+    "EquationMap",
+    "build_equation_map",
+    "build_equation_map_spherical",
+    "build_equation_map_cylindrical",
+    "solution_to_angular_flux",
+    "solution_to_angular_flux_spherical",
+    "solution_to_angular_flux_cylindrical",
+    "angular_flux_to_scalar",
+    "transport_operator_matvec",
+    "transport_operator_matvec_spherical",
+    "transport_operator_matvec_cylindrical",
+    "build_transport_linear_operator",
+    "build_transport_linear_operator_spherical",
+    "build_transport_linear_operator_cylindrical",
+    "build_rhs",
+    "build_rhs_spherical",
+    "build_rhs_cylindrical",
+    "SNStreamingOperator",
+]
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -735,3 +767,359 @@ def build_transport_linear_operator_cylindrical(
 
 # RHS builder reuses the spherical version (same 1D isotropic structure).
 build_rhs_cylindrical = build_rhs_spherical
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# SNStreamingOperator — unified LinearOperator for L = Ω·∇ + Σ_t
+# ═══════════════════════════════════════════════════════════════════════
+
+@dataclass
+class SNStreamingOperator(LinearOperatorMixin):
+    r"""Streaming-collision operator :math:`L = \Omega\cdot\nabla + \Sigma_t`
+    as a :class:`~orpheus.numerics.operator.LinearOperator`.
+
+    Wave D Round 3 capstone (Issue #160).  Implements the Wave A
+    :class:`~orpheus.numerics.operator.LinearOperator` Protocol with
+    three capabilities:
+
+    * **apply** — matrix-free forward action :math:`L\,\psi`.
+      Reuses the symmetric closure math from
+      :func:`transport_operator_matvec` (Cartesian upwind FD) /
+      :func:`transport_operator_matvec_spherical` (arithmetic face
+      averages + τ-weighted symmetric M-M angular interpolation) /
+      :func:`transport_operator_matvec_cylindrical` (per-level
+      azimuthal redistribution with M-M closure).  The math is
+      **extracted verbatim** from those functions; this class is a
+      thin LinearOperator-Protocol wrapper.
+
+    * **solve** — :math:`L^{-1}\,q` via the Wave D Round 2 unified
+      sweep (:func:`orpheus.sn.sweep.transport_sweep`).  This uses
+      the WDD asymmetric closure of
+      :class:`~orpheus.sn.spatial.diamond.DiamondDifference` (the
+      sweep's existing math, ERR-026 affected for curvilinear).
+
+    * **apply_transpose** — adjoint action :math:`L^*\,\psi`.
+      Constructed from the explicit transpose of the dense matrix
+      assembled by probing :meth:`apply` with each unit basis vector
+      (one-time cost cached in :attr:`_dense_matrix`).  This
+      construction is exact by linear algebra: every linear operator
+      has a transpose, and the transpose of the assembled matrix
+      *is* the operator's transpose.  Reciprocity
+      :math:`\langle L\psi, \varphi\rangle = \langle \psi, L^*\varphi\rangle`
+      holds to round-off by construction (see
+      ``tests/sn/test_snstreamingoperator.py`` for the gating tests).
+
+    Why ``apply`` and ``solve`` use **different** closures (by design)
+    -----------------------------------------------------------------
+
+    The historical sweep (:func:`transport_sweep`) and the historical
+    finite-difference operator (the ``transport_operator_matvec_*``
+    functions in this module) were built at different times for
+    different consumers (source iteration vs BiCGSTAB) and ship
+    **two distinct discretisations** of the same continuous operator.
+
+    * **apply** carries the **symmetric** discretisation: upwind
+      cell-center FD on Cartesian; arithmetic face averages with
+      τ-symmetric Morel-Montry angular interpolation on curvilinear.
+      This is the closure that makes the BiCGSTAB Krylov path agree
+      with analytical references (per ERR-026 evidence table — see
+      :ref:`sn-streaming-operator`).
+
+    * **solve** carries the **WDD asymmetric** closure
+      :math:`\psi_{n+1/2} = (\overline\psi - (1-\tau)\,\psi_{n-1/2})
+      /\tau`.  This is the historical SN sweep's closure (the
+      forward-substitution-friendly upper-triangular form that lets
+      a sweep run in :math:`O(N\cdot N_{\rm cells})` work).
+
+    On uniform meshes both closures converge to the same physics in
+    the fine-mesh limit; on coarse meshes they differ at
+    :math:`O(h)` (Cartesian) or have a closure-bias-driven
+    self-consistent fixed point on curvilinear (ERR-026, deferred to
+    Wave E).  The Wave E Issue 15 reconciliation is **Krylov-on-apply
+    with solve as preconditioner** — the Krylov outer iteration uses
+    the symmetric closure (correct discretisation) while the sweep
+    is invoked as a preconditioner only, so its closure bias does
+    not poison the converged solution.
+
+    Capability set
+    --------------
+
+    ``frozenset({"apply", "solve", "apply_transpose"})`` — the operator
+    is a full citizen of the Wave A operator algebra: it composes with
+    :class:`~orpheus.sn.scattering.ScatteringOperator` and
+    :class:`~orpheus.sn.fission.FissionOperator` under
+    :math:`(L - S - F)`; the composition's capability set falls out
+    of the Wave A closure laws (see :ref:`operator-algebra`).
+
+    Vector layout
+    -------------
+
+    :meth:`apply` and :meth:`apply_transpose` operate on the **packed
+    1-D solution vector** (shape ``(n_unknowns,)``) used by the
+    BiCGSTAB FD operator path: an :class:`EquationMap` selects
+    which ``(ordinate, cell)`` combinations are unknowns (the rest
+    are determined by reflective BCs and z-hemisphere reflection),
+    and the vector is laid out group-major in Fortran order.  This
+    is the natural input shape for
+    :func:`scipy.sparse.linalg.bicgstab`.
+
+    :meth:`solve` operates on **structured arrays**: source ``Q``
+    shape ``(nx, ny, ng)`` plus persistent boundary-flux dict
+    ``psi_bc`` and optional anisotropic source ``Q_aniso`` shape
+    ``(N, nx, ny, ng)``.  It returns a ``(angular_flux, scalar_flux)``
+    tuple matching :func:`transport_sweep`'s contract.  The shape
+    mismatch between the packed-vector ``apply`` and the
+    structured-array ``solve`` reflects the historical layouts of
+    the two consumers; Wave E will normalise these via a single
+    Krylov-on-apply path.
+
+    Attributes
+    ----------
+    sn_mesh : SNMesh
+        The augmented geometry carrying quadrature, materials, BCs,
+        cell-update strategy, and (for curvilinear) the precomputed
+        connection coefficients ``alpha_half``, ``redist_dAw``,
+        ``tau_mm`` (or per-level analogues for cylindrical).
+    sig_t : np.ndarray
+        Total cross-section, shape ``(nx, ny, ng)``.  Held as a
+        separate attribute (not derived from ``sn_mesh``) because
+        the existing solver passes it around explicitly.
+    capabilities : frozenset[str]
+        ``{"apply", "solve", "apply_transpose"}``.
+
+    Notes
+    -----
+    The bit-identical regression contract for the SN reshape
+    campaign holds because :class:`SNStreamingOperator` is an
+    **additive** code path: existing solver paths in
+    :mod:`orpheus.sn.solver` continue to use the legacy
+    ``transport_operator_matvec_*`` and ``transport_sweep`` APIs
+    directly; nothing in the existing solver paths changes when
+    this class is added.  Wave E Issue 15 wires the solver to the
+    operator algebra; that is where the campaign's closure
+    reconciliation actually happens.
+    """
+
+    sn_mesh: "SNMesh"
+    sig_t: np.ndarray
+
+    capabilities: frozenset[str] = field(
+        default_factory=lambda: frozenset(
+            {CAP_APPLY, CAP_SOLVE, CAP_APPLY_TRANSPOSE}
+        )
+    )
+
+    # Lazy caches (constructed on first call).
+    _eq_map: EquationMap | None = field(default=None, init=False, repr=False)
+    _dense_matrix: np.ndarray | None = field(
+        default=None, init=False, repr=False,
+    )
+    _dense_matrix_T: np.ndarray | None = field(
+        default=None, init=False, repr=False,
+    )
+
+    # ── EquationMap dispatch ──────────────────────────────────────────
+
+    def _ensure_eq_map(self) -> EquationMap:
+        """Lazily build the geometry-appropriate :class:`EquationMap`.
+
+        The same dispatch logic the legacy BiCGSTAB paths use
+        (:meth:`SNSolver._solve_bicgstab_*`).  Built once and cached
+        on first :meth:`apply` / :meth:`apply_transpose` call.
+        """
+        if self._eq_map is None:
+            nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.sig_t.shape[2]
+            quad = self.sn_mesh.quad
+            curv = getattr(self.sn_mesh, "curvature", None)
+            if curv == "spherical":
+                self._eq_map = build_equation_map_spherical(nx, quad, ng)
+            elif curv == "cylindrical":
+                self._eq_map = build_equation_map_cylindrical(nx, quad, ng)
+            else:
+                self._eq_map = build_equation_map(nx, ny, quad, ng)
+        return self._eq_map
+
+    @property
+    def n_unknowns(self) -> int:
+        """Total scalar unknowns ``n_eq * ng`` for the packed vector."""
+        return self._ensure_eq_map().n_unknowns
+
+    # ── apply: forward action L·ψ ─────────────────────────────────────
+
+    def apply(self, psi: np.ndarray) -> np.ndarray:
+        r"""Forward action :math:`L\,\psi` on the packed solution vector.
+
+        Dispatches by ``self.sn_mesh.curvature`` to the existing
+        finite-difference matvec routines:
+
+        * Cartesian (curvature ``None``):
+          :func:`transport_operator_matvec`.
+        * Spherical (curvature ``"spherical"``):
+          :func:`transport_operator_matvec_spherical`.
+        * Cylindrical (curvature ``"cylindrical"``):
+          :func:`transport_operator_matvec_cylindrical`.
+
+        The math is **extracted verbatim** from those functions; this
+        method is a thin protocol-conforming wrapper.
+
+        Parameters
+        ----------
+        psi : np.ndarray
+            Packed solution vector, shape ``(n_unknowns,)`` where
+            ``n_unknowns = eq_map.n_eq * ng`` is determined by
+            :meth:`_ensure_eq_map` for this geometry.
+
+        Returns
+        -------
+        np.ndarray
+            ``L\,\psi`` as a packed vector, same shape as ``psi``.
+        """
+        eq_map = self._ensure_eq_map()
+        sn_mesh = self.sn_mesh
+        nx, ny, ng = sn_mesh.nx, sn_mesh.ny, self.sig_t.shape[2]
+        quad = sn_mesh.quad
+        curv = getattr(sn_mesh, "curvature", None)
+
+        if curv == "spherical":
+            # Use ``self.reduced.{face_areas, alpha_half, redist_dAw,
+            # tau_mm}`` directly (Wave D R1 canonical accessor) to
+            # avoid the deprecated property's DeprecationWarning.
+            reduced = sn_mesh.reduced
+            return transport_operator_matvec_spherical(
+                psi, eq_map, quad, self.sig_t,
+                nx, ng,
+                reduced.face_areas,
+                sn_mesh.volumes,
+                reduced.alpha_half,
+                reduced.redist_dAw,
+                reduced.tau_mm,
+            )
+        if curv == "cylindrical":
+            reduced = sn_mesh.reduced
+            return transport_operator_matvec_cylindrical(
+                psi, eq_map, quad, self.sig_t,
+                nx, ng,
+                reduced.face_areas,
+                sn_mesh.volumes,
+                reduced.alpha_per_level,
+                reduced.redist_dAw_per_level,
+                reduced.tau_mm_per_level,
+            )
+        # Cartesian (1-D slab or 2-D)
+        return transport_operator_matvec(
+            psi, eq_map, quad, self.sig_t,
+            nx, ny, ng, sn_mesh.dx, sn_mesh.dy,
+        )
+
+    # ── solve: L^{-1}·q via the unified sweep ─────────────────────────
+
+    def solve(
+        self,
+        Q: np.ndarray,
+        psi_bc: dict | None = None,
+        Q_aniso: np.ndarray | None = None,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Inverse action :math:`L^{-1}\,q` via the Wave D Round 2 sweep.
+
+        Delegates to :func:`orpheus.sn.sweep.transport_sweep` with
+        ``self.sn_mesh.cell_update`` (defaulting to
+        :class:`DiamondDifference`).  Bit-identical to a direct
+        :func:`transport_sweep` call on the same arguments.
+
+        **The closure used by :meth:`solve` is asymmetric (WDD)**, which
+        differs from the symmetric closure :meth:`apply` carries.  See
+        the class docstring "Why ``apply`` and ``solve`` use different
+        closures (by design)" for the rationale.
+
+        Parameters
+        ----------
+        Q : np.ndarray
+            Isotropic source density, shape ``(nx, ny, ng)``.
+        psi_bc : dict or None
+            Persistent boundary-flux dict storing ψ on each face
+            between outer iterations.  If ``None``, a fresh empty
+            dict is supplied; the caller cannot then carry state
+            between sweeps.
+        Q_aniso : np.ndarray or None
+            Per-ordinate anisotropic source, shape ``(N, nx, ny, ng)``,
+            for P1+ scattering.  ``None`` for isotropic-only (P0).
+
+        Returns
+        -------
+        tuple
+            ``(angular_flux, scalar_flux)`` matching the
+            :func:`transport_sweep` contract:
+
+            * ``angular_flux`` shape ``(N, nx, ny, ng)``,
+            * ``scalar_flux`` shape ``(nx, ny, ng)``.
+        """
+        from .sweep import transport_sweep
+        if psi_bc is None:
+            psi_bc = {}
+        return transport_sweep(Q, self.sig_t, self.sn_mesh, psi_bc, Q_aniso)
+
+    # ── apply_transpose: adjoint action L*·ψ via dense transpose ──────
+
+    def _ensure_dense_matrix(self) -> np.ndarray:
+        """Assemble the dense matrix of :meth:`apply` by probing.
+
+        Calls :meth:`apply` with each of the ``n_unknowns`` unit basis
+        vectors, stacks the outputs as columns, and returns the
+        resulting ``(n_unknowns, n_unknowns)`` matrix.  Cost is
+        :math:`O(n_{\rm unknowns}^2)` time and space.
+
+        The dense assembly is a one-time cost on the first
+        :meth:`apply_transpose` call; the matrix is cached on
+        ``self._dense_matrix`` and its transpose on
+        ``self._dense_matrix_T``.
+
+        For the small reciprocity test problems (slab GL N=4,
+        nx=4 / sphere GL N=4, nx=4 — ``n_unknowns ~ 30-150``) the
+        cost is negligible.  For production-scale problems
+        (``n_unknowns ~ 10^4-10^6``) the dense path is unsuitable;
+        Wave E will ship an :math:`O(n)` analytic-adjoint matvec.
+        """
+        if self._dense_matrix is None:
+            n = self.n_unknowns
+            mat = np.empty((n, n), dtype=float)
+            basis = np.zeros(n, dtype=float)
+            for j in range(n):
+                basis[j] = 1.0
+                mat[:, j] = self.apply(basis)
+                basis[j] = 0.0
+            self._dense_matrix = mat
+            self._dense_matrix_T = mat.T.copy()
+        return self._dense_matrix
+
+    def apply_transpose(self, psi: np.ndarray) -> np.ndarray:
+        r"""Adjoint action :math:`L^*\,\psi` on the packed vector.
+
+        Implemented via the explicit transpose of the dense matrix
+        assembled by probing :meth:`apply`.  Reciprocity
+        :math:`\langle L\,\psi,\,\varphi\rangle = \langle\psi,\,
+        L^*\,\varphi\rangle` holds to round-off by construction:
+        every linear operator has a transpose, and the transpose of
+        the assembled dense matrix *is* the operator's transpose.
+
+        The reciprocity test in
+        ``tests/sn/test_snstreamingoperator.py`` verifies this
+        identity holds across slab, spherical, and cylindrical
+        geometries for synthetic ``(ψ, φ)`` pairs.  A failure of
+        that test would indicate :meth:`apply` is non-linear or
+        the dense-assembly probe code is wrong — both are
+        catastrophic operator-correctness failures.
+
+        Parameters
+        ----------
+        psi : np.ndarray
+            Packed solution vector, shape ``(n_unknowns,)``.
+
+        Returns
+        -------
+        np.ndarray
+            :math:`L^*\,\psi` as a packed vector.
+        """
+        self._ensure_dense_matrix()
+        assert self._dense_matrix_T is not None
+        return self._dense_matrix_T @ psi
+
