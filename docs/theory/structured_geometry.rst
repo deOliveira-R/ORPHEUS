@@ -328,20 +328,54 @@ and the BiCGSTAB curvilinear operator) are unaffected because the
 two paths compute the same data; tomorrow's consumers can bind to
 the geometry-layer primitive instead of duplicating the math.
 
+SNMesh as router (post-Round-1.1 of Wave D)
+--------------------------------------------
+
+After Round 1.1 of Wave D of the SN reshape campaign, :class:`SNMesh`
+**routes** to :class:`ReducedStreamingOperator` rather than computing
+the connection coefficients itself.  The :meth:`SNMesh.__init__`
+ladder calls :func:`slab_streaming` / :func:`spherical_streaming` /
+:func:`cylindrical_streaming` directly; the historical
+``SNMesh._setup_spherical`` and ``SNMesh._setup_cylindrical`` methods
+no longer exist.  ``self.reduced`` is the new canonical accessor
+every downstream consumer should bind to::
+
+    sn_mesh.reduced.streaming_terms(cell_idx, dir_idx, mu_level_idx)
+
+returns the per-(cell, direction) packet a sweep cell update needs —
+no more reaching into ``SNMesh`` for a half-dozen separate arrays.
+
+The legacy attribute names (``alpha_half``, ``redist_dAw``, ``tau_mm``,
+``alpha_per_level``, ``redist_dAw_per_level``, ``tau_mm_per_level``,
+``face_areas``, ``delta_A``) survive as ``@property`` accessors that
+emit :class:`DeprecationWarning` and route to the matching attribute
+on ``self.reduced``.  This preserves the 6 production read sites in
+``orpheus/sn/sweep.py`` and ``orpheus/sn/solver.py`` for the
+duration of Wave D Round 2 (Issue 12) and Wave E, which then migrate
+those call sites to ``streaming_terms(...)`` directly and remove the
+deprecated properties.
+
+The Cartesian path is unchanged: ``SNMesh._setup_cartesian`` still
+populates the :math:`2|\mu|/\Delta x` and :math:`2|\mu_y|/\Delta y`
+streaming stencils used by the DD-denominator precomputation in the
+Cartesian sweep (these are SN-specific and not represented in
+:class:`ReducedStreamingOperator`).  Slab geometry additionally gets
+a slab :class:`ReducedStreamingOperator` for completeness so
+``sn_mesh.reduced`` is always populated.
+
 Migration roadmap
 -----------------
 
 This primitive is the foundation for several follow-on issues in the
 SN reshape campaign (``.claude/plans/sn_reshape.md``):
 
-* **Issue 10 (Wave G)** refactors :class:`SNMesh` to consume
-  :class:`ReducedStreamingOperator` rather than recomputing
-  connection coefficients in
-  :meth:`SNMesh._setup_spherical` /
-  :meth:`SNMesh._setup_cylindrical`.
-* **Issues 11/12 (Wave H)** make ``SNStreamingOperator.apply``
+* **Issue 10 (Wave D Round 1.1) — DONE**: :class:`SNMesh` consumes
+  :class:`ReducedStreamingOperator` via the dispatch ladder above.
+  The connection-coefficient math no longer lives in :class:`SNMesh`.
+* **Issues 11/12 (Wave D Round 2/3)** make ``SNStreamingOperator.apply``
   consume the primitive directly, eliminating the SN-specific
-  curvature attributes from :class:`SNMesh`.
+  curvature attributes from :class:`SNMesh` (the deprecated
+  properties retire here).
 * **MoC and CP campaigns (post-Wave-1)** reuse the same primitive
   with their own consumption patterns (track-segment chord march
   for MoC; ray-traced chord-length integrals for CP).

@@ -12,6 +12,7 @@ redistribution coefficients (:math:`\alpha`), the geometry factor
 
 from __future__ import annotations
 
+import warnings
 from typing import Any, ClassVar
 
 import numpy as np
@@ -21,6 +22,12 @@ from orpheus.geometry.boundary import (
     ResolvedBC,
     SpecularBC,
     VacuumBC,
+)
+from orpheus.geometry.reduced_operator import (
+    ReducedStreamingOperator,
+    cylindrical_streaming,
+    slab_streaming,
+    spherical_streaming,
 )
 from .quadrature import AngularQuadrature
 
@@ -128,14 +135,49 @@ class SNMesh:
             self.mat_map = mesh.mat_map
             self._volumes = mesh.volumes
 
-        # Dispatch stencil setup by coordinate system
+        # Dispatch stencil setup by coordinate system.
+        #
+        # Curvilinear connection-coefficient math (sphere / cylinder) lives
+        # in :mod:`orpheus.geometry.reduced_operator` (Wave B Issue 6) so
+        # MoC and CP can consume the same primitive — Cardinal Rule 2
+        # forbids duplicating it on each solver-side mesh class.  Cartesian
+        # streaming_x / streaming_y stencils are SN-specific (DD denominator
+        # precomputation) and stay local to ``_setup_cartesian``.
+        #
+        # ``self.reduced`` is the canonical accessor every downstream
+        # consumer should bind to: ``sn_mesh.reduced.streaming_terms(
+        # cell_idx, dir_idx, mu_level_idx)`` returns the per-(cell,
+        # direction) packet a sweep cell update needs.  Wave D Round 2
+        # (Issue 12) and Wave E migrate the 6 production read sites
+        # (sweep.py + solver.py) to read through it.  Until then, the
+        # backward-compat ``@property`` accessors below preserve the
+        # legacy attribute names with a ``DeprecationWarning``.
         match mesh.coord:
             case CoordSystem.CARTESIAN:
                 self._setup_cartesian()
+                # Slab also gets a ``ReducedStreamingOperator`` for
+                # completeness so ``sn_mesh.reduced`` is always populated;
+                # the slab variant carries empty curvature arrays and
+                # ``requires_upstream_angular_state = False``.
+                if isinstance(mesh, Mesh1D):
+                    self.reduced: ReducedStreamingOperator = slab_streaming(
+                        mesh, quadrature,
+                    )
+                else:
+                    self.reduced = None  # type: ignore[assignment]
             case CoordSystem.CYLINDRICAL:
-                self._setup_cylindrical()
+                assert isinstance(mesh, Mesh1D)
+                self.reduced = cylindrical_streaming(mesh, quadrature)
+                self.curvature: str | None = "cylindrical"
+                # 2-D Cartesian-style streaming arrays not used here.
+                self.streaming_x: np.ndarray | None = None
+                self.streaming_y: np.ndarray | None = None
             case CoordSystem.SPHERICAL:
-                self._setup_spherical()
+                assert isinstance(mesh, Mesh1D)
+                self.reduced = spherical_streaming(mesh, quadrature)
+                self.curvature = "spherical"
+                self.streaming_x = None
+                self.streaming_y = None
 
         # Resolve boundary conditions from mesh declarations
         self._resolve_bcs(mesh)
@@ -237,181 +279,112 @@ class SNMesh:
         # Curvature terms (None for Cartesian — placeholder for curvilinear)
         self.curvature = None
 
-    def _setup_spherical(self) -> None:
-        r"""Precompute spherical streaming stencil and angular redistribution.
+    # ── Backward-compat property accessors ────────────────────────────
+    #
+    # These properties route to ``self.reduced`` (the
+    # :class:`ReducedStreamingOperator` instance built at construction).
+    # The 6 production read sites in ``sweep.py`` and ``solver.py``
+    # continue reading via these names; Wave D Round 2 (Issue 12) and
+    # Wave E migrate them to ``self.reduced.streaming_terms(...)`` and
+    # the deprecated properties are removed.
+    #
+    # Each property emits a ``DeprecationWarning`` on access so consumers
+    # surface the migration path during normal test runs.  No
+    # ``filterwarnings`` config in :file:`pyproject.toml` treats
+    # ``DeprecationWarning`` as an error, so existing tests are unaffected.
 
-        The 1-D spherical balance equation for ordinate *n*, cell *i* is
-        (Bailey et al. 2009, Eq. 7–10):
-
-        .. math::
-
-            \mu_n
-            \bigl[A_{i+\frac12}\psi_{i+\frac12}
-                - A_{i-\frac12}\psi_{i-\frac12}\bigr]
-            + \frac{\Delta A_i}{w_n}
-            \bigl[\alpha_{n+\frac12}\psi_{n+\frac12}
-                - \alpha_{n-\frac12}\psi_{n-\frac12}\bigr]
-            + \Sigma_t V_i \psi_{n,i} = Q_{n,i} V_i
-
-        The :math:`\Delta A / w` geometry factor ensures per-ordinate
-        flat-flux consistency.
-
-        Precomputed quantities:
-
-        * ``face_areas`` — :math:`A_{i+1/2} = 4\pi r_{i+1/2}^2`
-        * ``delta_A`` — :math:`\Delta A_i = A_{i+1/2} - A_{i-1/2}`
-        * ``alpha_half`` — :math:`\alpha_{n+1/2} = -\sum_{m=0}^{n} w_m \mu_m`
-
-        The :math:`\alpha` coefficients form a non-negative dome
-        (0 → peak → 0) when ordinates are μ-sorted.
-        """
-        mu = self.quad.mu_x
-        w = self.quad.weights
-        N = self.quad.N
-
-        # Cell face areas: A_{i+1/2} = 4πr² at each edge
-        self.face_areas: np.ndarray = self.mesh.surfaces  # (nx+1,)
-
-        # Cell face-area differences: ΔA_i = A_{i+1/2} − A_{i-1/2}
-        self.delta_A: np.ndarray = self.face_areas[1:] - self.face_areas[:-1]
-
-        # Angular redistribution coefficients
-        # α_{n+1/2} = α_{n-1/2} − w_n μ_n  (Bailey et al. Eq. 50 convention)
-        # For GL quadrature (μ sorted from −1 to +1), this gives a
-        # non-negative dome: α rises while μ < 0, peaks near μ = 0,
-        # falls back to 0 as μ → +1.
-        alpha = np.zeros(N + 1)
-        for n in range(N):
-            alpha[n + 1] = alpha[n] - w[n] * mu[n]
-        self.alpha_half: np.ndarray = alpha  # (N+1,)
-
-        # Verify GL antisymmetry: α_{N+1/2} ≈ 0
-        assert abs(alpha[N]) < 1e-12, (
-            f"GL antisymmetry violated: α_{{N+1/2}} = {alpha[N]:.2e}"
+    @property
+    def face_areas(self) -> np.ndarray:
+        """[Deprecated] Cell face areas. Use ``self.reduced.face_areas`` instead."""
+        warnings.warn(
+            "SNMesh.face_areas is deprecated; "
+            "use SNMesh.reduced.face_areas instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
+        assert self.reduced.face_areas is not None
+        return self.reduced.face_areas
 
-        # Precompute redistribution geometry factor ΔA_i / w_n.
-        # Shape (nx, N).  Both the DD sweep and the BiCGSTAB operator
-        # use this to weight the angular redistribution term.
-        self.redist_dAw: np.ndarray = (
-            self.delta_A[:, None] / w[None, :]
+    @property
+    def delta_A(self) -> np.ndarray:
+        """[Deprecated] Face-area differences. Use ``self.reduced.delta_A`` instead."""
+        warnings.warn(
+            "SNMesh.delta_A is deprecated; "
+            "use SNMesh.reduced.delta_A instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
+        assert self.reduced.delta_A is not None
+        return self.reduced.delta_A
 
-        # Morel–Montry angular closure weights (Bailey et al. Eq. 74).
-        # τ_m = (μ_m − μ_{m-1/2}) / (μ_{m+1/2} − μ_{m-1/2})
-        # where μ_{m+1/2} are cell-edge direction cosines.
-        # For spherical: μ_{1/2} = −1, μ_{N+1/2} = +1.
-        mu_edge = np.zeros(N + 1)
-        mu_edge[0] = -1.0
-        for n in range(N):
-            mu_edge[n + 1] = mu_edge[n] + w[n]
-        self.tau_mm: np.ndarray = np.empty(N)
-        for n in range(N):
-            dmu = mu_edge[n + 1] - mu_edge[n]
-            tau_raw = (mu[n] - mu_edge[n]) / dmu if abs(dmu) > 1e-15 else 0.5
-            self.tau_mm[n] = max(0.5, min(1.0, tau_raw))
+    @property
+    def alpha_half(self) -> np.ndarray:
+        """[Deprecated] α dome (sphere). Use ``self.reduced.alpha_half`` instead."""
+        warnings.warn(
+            "SNMesh.alpha_half is deprecated; "
+            "use SNMesh.reduced.alpha_half instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        assert self.reduced.alpha_half is not None
+        return self.reduced.alpha_half
 
-        # Cartesian stencil not used for spherical
-        self.streaming_x = None
-        self.streaming_y = None
-        self.curvature = "spherical"
+    @property
+    def redist_dAw(self) -> np.ndarray:
+        """[Deprecated] ΔA/w (sphere). Use ``self.reduced.redist_dAw`` instead."""
+        warnings.warn(
+            "SNMesh.redist_dAw is deprecated; "
+            "use SNMesh.reduced.redist_dAw instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        assert self.reduced.redist_dAw is not None
+        return self.reduced.redist_dAw
 
-    def _setup_cylindrical(self) -> None:
-        r"""Precompute cylindrical streaming stencil and per-level azimuthal redistribution.
+    @property
+    def tau_mm(self) -> np.ndarray:
+        """[Deprecated] Morel-Montry weights (sphere). Use ``self.reduced.tau_mm`` instead."""
+        warnings.warn(
+            "SNMesh.tau_mm is deprecated; "
+            "use SNMesh.reduced.tau_mm instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        assert self.reduced.tau_mm is not None
+        return self.reduced.tau_mm
 
-        The 1-D cylindrical balance equation for μ-level *p*, azimuthal
-        ordinate *m*, cell *i* is (Bailey et al. 2009, Eq. 50–55):
+    @property
+    def alpha_per_level(self) -> list[np.ndarray]:
+        """[Deprecated] α per μ-level (cylinder). Use ``self.reduced.alpha_per_level`` instead."""
+        warnings.warn(
+            "SNMesh.alpha_per_level is deprecated; "
+            "use SNMesh.reduced.alpha_per_level instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        assert self.reduced.alpha_per_level is not None
+        return self.reduced.alpha_per_level
 
-        .. math::
+    @property
+    def redist_dAw_per_level(self) -> list[np.ndarray]:
+        """[Deprecated] ΔA/w per μ-level (cylinder). Use ``self.reduced.redist_dAw_per_level`` instead."""
+        warnings.warn(
+            "SNMesh.redist_dAw_per_level is deprecated; "
+            "use SNMesh.reduced.redist_dAw_per_level instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        assert self.reduced.redist_dAw_per_level is not None
+        return self.reduced.redist_dAw_per_level
 
-            \eta_{p,m}
-            \bigl[A_{i+\frac12}\psi_{i+\frac12}
-                - A_{i-\frac12}\psi_{i-\frac12}\bigr]
-            + \frac{\Delta A_i}{w_m}
-            \bigl[\alpha_{p,m+\frac12}\psi_{m+\frac12}
-                - \alpha_{p,m-\frac12}\psi_{m-\frac12}\bigr]
-            + \Sigma_t V_i \psi_{p,m,i} = Q_{p,m,i} V_i
-
-        where :math:`\eta` is the radial direction cosine,
-        :math:`\Delta A_i = A_{i+1/2} - A_{i-1/2}` is the cell
-        face-area difference, and :math:`\alpha_{p,m+1/2}` is the
-        azimuthal redistribution coefficient on μ-level *p*.
-
-        The :math:`\Delta A / w` geometry factor ensures per-ordinate
-        flat-flux consistency: streaming and redistribution cancel
-        exactly for each ordinate when the angular flux is spatially
-        uniform.
-
-        Ordinates within each level are ordered by increasing
-        :math:`\eta` (most-inward to most-outward).
-
-        Requires a quadrature with ``level_indices`` attribute
-        (e.g., :class:`LevelSymmetricSN` or :class:`ProductQuadrature`).
-        """
-        if not hasattr(self.quad, 'level_indices'):
-            raise ValueError(
-                "Cylindrical SN requires a quadrature with level structure "
-                "(LevelSymmetricSN or ProductQuadrature), "
-                f"got {type(self.quad).__name__}"
-            )
-
-        # Cell face areas: A_{i+1/2} = 2πr at each edge
-        self.face_areas: np.ndarray = self.mesh.surfaces  # (nx+1,)
-
-        # Cell face-area differences: ΔA_i = A_{i+1/2} − A_{i-1/2}
-        self.delta_A: np.ndarray = self.face_areas[1:] - self.face_areas[:-1]
-
-        # Per-level azimuthal redistribution coefficients
-        # Bailey et al. (2009) Eq. 50: α_{m+1/2} = α_{m-1/2} − w_m · η_m
-        # Ordinates are ordered by increasing η within each level.
-        self.alpha_per_level: list[np.ndarray] = []
-        for level_idx in self.quad.level_indices:
-            eta = self.quad.mu_x[level_idx]   # η (radial cosine)
-            w = self.quad.weights[level_idx]
-            M = len(level_idx)
-            alpha = np.zeros(M + 1)
-            for m in range(M):
-                alpha[m + 1] = alpha[m] - w[m] * eta[m]
-            self.alpha_per_level.append(alpha)
-
-        # Precompute redistribution geometry factor ΔA_i / w_m per level.
-        # Each entry has shape (nx, M) for M ordinates on that level.
-        # Both the DD sweep and the BiCGSTAB cylindrical operator
-        # use this to weight the angular redistribution term.
-        self.redist_dAw_per_level: list[np.ndarray] = []
-        for level_idx in self.quad.level_indices:
-            w_level = self.quad.weights[level_idx]  # (M,)
-            self.redist_dAw_per_level.append(
-                self.delta_A[:, None] / w_level[None, :]  # (nx, M)
-            )
-
-        # Morel–Montry angular closure weights (Bailey et al. Eq. 74).
-        # τ_m = (η_m − η_{m-1/2}) / (η_{m+1/2} − η_{m-1/2})
-        #
-        # For cylindrical, ordinates are η-sorted but weights come from
-        # φ-space (not η-space), so the weight-sum edge approach is wrong.
-        # Instead, cell edges are at midpoints of consecutive η values
-        # with endpoints at ±sin θ.  This gives a proper η-partition.
-        #
-        # TODO: φ-based edge computation for distinct η (GitHub Issue #3)
-        # TODO: Gauss-type azimuthal quadrature for smooth τ (GitHub Issue #1)
-        self.tau_mm_per_level: list[np.ndarray] = []
-        for level_idx in self.quad.level_indices:
-            eta = self.quad.mu_x[level_idx]
-            M = len(level_idx)
-            sin_theta = np.sqrt(1.0 - self.quad.mu_z[level_idx[0]]**2)
-            eta_edge = np.zeros(M + 1)
-            eta_edge[0] = -sin_theta
-            for m in range(M - 1):
-                eta_edge[m + 1] = 0.5 * (eta[m] + eta[m + 1])
-            eta_edge[M] = sin_theta
-            tau = np.empty(M)
-            for m in range(M):
-                deta = eta_edge[m + 1] - eta_edge[m]
-                tau_raw = (eta[m] - eta_edge[m]) / deta if abs(deta) > 1e-15 else 0.5
-                tau[m] = max(0.5, min(1.0, tau_raw))
-            self.tau_mm_per_level.append(tau)
-
-        self.streaming_x = None
-        self.streaming_y = None
-        self.curvature = "cylindrical"
+    @property
+    def tau_mm_per_level(self) -> list[np.ndarray]:
+        """[Deprecated] Morel-Montry weights per μ-level (cylinder). Use ``self.reduced.tau_mm_per_level`` instead."""
+        warnings.warn(
+            "SNMesh.tau_mm_per_level is deprecated; "
+            "use SNMesh.reduced.tau_mm_per_level instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        assert self.reduced.tau_mm_per_level is not None
+        return self.reduced.tau_mm_per_level
