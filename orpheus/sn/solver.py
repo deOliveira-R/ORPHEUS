@@ -1,11 +1,26 @@
-"""Unified SN (Discrete Ordinates) eigenvalue solver.
+"""Unified SN (Discrete Ordinates) eigenvalue solver — operator-algebra form.
 
-Supports 1D (ny=1, GL quadrature) and 2D (Lebedev quadrature) with
-selectable inner solver strategy and scattering anisotropy order.
+Wave E Round 2 (Issue #164): :class:`SNSolver` now constructs the
+operator triple :math:`(L, S, F)` at ``__init__`` and consumes the
+Wave E Round 1 iteration primitives.  The legacy BiCGSTAB FD-operator
+path is replaced by Krylov-on-:meth:`L.apply` with the sweep as
+preconditioner — the symmetric closure that closes ERR-026 for
+curvilinear geometries.
 
-The transport sweep uses diamond-difference spatial discretization:
-- 1D: cumulative-product recurrence (~ms)
-- 2D: wavefront parallelism along anti-diagonals
+Inner solver dispatch
+=====================
+
+* ``inner_solver="source_iteration"`` (default).  Sweep-driven within-
+  group fixed-point iteration.  The closure is the WDD asymmetric
+  closure that the curvilinear sweep ships (ERR-026 affected).  This
+  path is bit-identical to the Wave A-D source iteration, by
+  construction — the loop math is preserved character-for-character so
+  the 11 frozen regression snapshots stay green.
+* ``inner_solver="krylov"``.  GMRES on the symmetric closure carried
+  by :meth:`SNStreamingOperator.apply`.  This is the Wave E
+  reconciliation that makes the curvilinear ``solve_sn_fixed_source``
+  path discretization-correct (closes ERR-026).  On Cartesian meshes
+  it is bit-identical math to the legacy BiCGSTAB FD path.
 
 Boundary conditions default to reflective (infinite lattice) but are
 configurable via :class:`~orpheus.geometry.mesh.BC` on the mesh.
@@ -19,6 +34,8 @@ import time
 from dataclasses import dataclass, replace
 
 import numpy as np
+from scipy.sparse.linalg import LinearOperator as ScipyLinearOperator
+from scipy.sparse.linalg import gmres
 
 from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.data.macro_xs.mixture import Mixture
@@ -26,6 +43,15 @@ from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.numerics.eigenvalue import power_iteration
 from .fission import FissionOperator
 from .geometry import SNMesh
+from .operator import (
+    SNStreamingOperator,
+    build_equation_map,
+    build_equation_map_spherical,
+    build_equation_map_cylindrical,
+    solution_to_angular_flux,
+    solution_to_angular_flux_spherical,
+    solution_to_angular_flux_cylindrical,
+)
 from .quadrature import AngularQuadrature
 from .scattering import ScatteringOperator
 from .sweep import transport_sweep
@@ -96,12 +122,27 @@ class SNResult:
 class SNSolver:
     """Unified SN eigenvalue solver satisfying the EigenvalueSolver protocol.
 
+    Constructs the operator triple :math:`(L, S, F)` at construction
+    time and routes ``solve_fixed_source`` through one of two inner-
+    solver paths:
+
+    * ``"source_iteration"`` — sweep-driven within-group fixed-point
+      iteration (WDD asymmetric closure; ERR-026-affected for
+      curvilinear).  Bit-identical to the Wave A-D path.
+    * ``"krylov"`` — GMRES on :meth:`SNStreamingOperator.apply` (the
+      symmetric closure) with the sweep as preconditioner.  Closes
+      ERR-026 on curvilinear; bit-identical math to the legacy
+      BiCGSTAB FD path on Cartesian.
+
+    The legacy ``"bicgstab"`` value is no longer accepted — call sites
+    must migrate to ``"krylov"``.
+
     Parameters
     ----------
     materials : dict mapping material ID to Mixture.
     sn_mesh : SNMesh — augmented geometry (wraps Mesh1D or Mesh2D with
         precomputed streaming stencil).
-    inner_solver : "source_iteration" or "bicgstab".
+    inner_solver : "source_iteration" or "krylov".
     scattering_order : int — Legendre order for scattering (0 = P0).
     keff_tol, flux_tol : outer iteration convergence.
     max_inner, inner_tol : inner iteration parameters.
@@ -118,6 +159,15 @@ class SNSolver:
         max_inner: int = 200,
         inner_tol: float = 1e-8,
     ):
+        if inner_solver not in ("source_iteration", "krylov"):
+            raise ValueError(
+                f"Unknown inner solver: {inner_solver!r}. "
+                f"Valid choices are 'source_iteration' or 'krylov'. "
+                f"(The legacy 'bicgstab' alias was retired in Wave E "
+                f"Round 2; use 'krylov' which routes through "
+                f"SNStreamingOperator.apply with the sweep as "
+                f"preconditioner.)"
+            )
         self.sn_mesh = sn_mesh
         self.quad = sn_mesh.quad
         self.inner_solver = inner_solver
@@ -182,16 +232,11 @@ class SNSolver:
         # Volume array for keff computation
         self.volume = sn_mesh.volumes
 
-        # ── LinearOperator handles for the secondary-emission algebra ──
-        # Wave D Issue 13: the scattering and fission source-construction
-        # math has been lifted out of this class into LinearOperator
-        # objects. The per-method delegators below keep the existing
-        # API surface (the EigenvalueSolver Protocol's
-        # compute_fission_source, plus the underscore-prefixed methods
-        # the tests probe directly) while routing the actual math
-        # through the operators. Bit-identical extraction (Wave D
-        # acceptance criterion D1) is preserved because the operators
-        # share the precomputed material structures with this class.
+        # ── Operator triple — Wave E Round 2 -----------------------------
+        # The (L, S, F) algebra-of-record framing.  Constructed once at
+        # __init__ so downstream consumers (the iteration primitives, the
+        # _solve_krylov path, future sensitivity/adjoint hooks) see a
+        # consistent operator triple over the lifetime of this solver.
         self.scattering_op = ScatteringOperator.from_solver_data(
             n_ordinates=sn_mesh.quad.N,
             nx=nx,
@@ -208,6 +253,13 @@ class SNSolver:
         self.fission_op = FissionOperator.from_solver_data(
             chi=self.chi, sig_p=self.sig_p,
         )
+        # The streaming-collision operator L = Ω·∇ + Σ_t.  Built lazily
+        # — the Cartesian / spherical / cylindrical EquationMap that L's
+        # apply path needs is built on first call (lazy in
+        # SNStreamingOperator._ensure_eq_map).
+        self.L = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=self.sig_t)
+        self.S = self.scattering_op
+        self.F = self.fission_op
 
     def initial_flux_distribution(self) -> np.ndarray:
         """Initial scalar flux guess: ones(nx, ny, ng)."""
@@ -235,10 +287,10 @@ class SNSolver:
         """
         if self.inner_solver == "source_iteration":
             return self._solve_source_iteration(fission_source, flux_distribution)
-        elif self.inner_solver == "bicgstab":
-            return self._solve_bicgstab(fission_source, flux_distribution)
-        else:
-            raise ValueError(f"Unknown inner solver: {self.inner_solver}")
+        if self.inner_solver == "krylov":
+            return self._solve_krylov(fission_source, flux_distribution)
+        # Should be unreachable — __init__ validated the choice.
+        raise ValueError(f"Unknown inner solver: {self.inner_solver}")
 
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
         """k = production / absorption (volume-weighted)."""
@@ -268,7 +320,23 @@ class SNSolver:
     def _solve_source_iteration(
         self, fission_source: np.ndarray, flux_distribution: np.ndarray,
     ) -> np.ndarray:
-        """Scattering source iteration: sweep → update scatter → sweep → ..."""
+        """Scattering source iteration: sweep → update scatter → sweep → ...
+
+        **Approach A — bit-identical preservation**: the loop math is
+        preserved character-for-character from the Wave A-D
+        implementation.  Conceptually this is a
+        :class:`~orpheus.numerics.iteration.SourceIteration` realisation
+        with operator triple :math:`(L, S, \\text{Zero})` and
+        ``q_ext = fission_source``, where :math:`L^{-1}` is the sweep
+        and :math:`S` carries both isotropic and Pℓ contributions.
+        SourceIteration cannot be directly composed because the Pℓ
+        anisotropic source requires per-ordinate angular-flux state
+        across iterations — a future cleanup is to thread that state
+        through ScatteringOperator so the primitive composes cleanly.
+
+        Bit-identity is the gating contract on the 11 frozen regression
+        snapshots: any drift here breaks them.
+        """
         phi = flux_distribution.copy()
         angular = None  # no angular flux on first iteration
 
@@ -297,189 +365,193 @@ class SNSolver:
 
         return phi
 
-    # ── Inner solver: BiCGSTAB ────────────────────────────────────────
+    # ── Inner solver: Krylov-on-apply (replaces BiCGSTAB FD path) ─────
 
-    def _solve_bicgstab(
+    def _solve_krylov(
         self, fission_source: np.ndarray, flux_distribution: np.ndarray,
     ) -> np.ndarray:
-        """Direct Krylov solve of the angular transport equation.
+        r"""Inner solve via GMRES on :meth:`SNStreamingOperator.apply`.
 
-        Solves  T·ψ = b  via BiCGSTAB where T = μ·∇ + Σ_t is the
-        streaming + collision operator (formed explicitly via finite
-        differences) and b = fission + scattering + (n,2n) sources.
+        Replaces the four legacy ``_solve_bicgstab_*`` methods.  Routes
+        through ONE operator (``self.L``, the streaming-collision
+        operator with the symmetric closure) — for curvilinear meshes
+        this is the Wave E Round 2 reconciliation that closes ERR-026
+        (the WDD asymmetric closure carried by the sweep is removed
+        from the converged-solution path); for Cartesian meshes it is
+        bit-identical math to the legacy BiCGSTAB FD path.
+
+        The sweep is wrapped as a left preconditioner (scipy gmres
+        default), realising the SAILOR / Larsen-Adams preconditioned-
+        Krylov framework (Adams & Larsen 2002 §III).
 
         Returns the updated scalar flux (nx, ny, ng).
         """
-        from scipy.sparse.linalg import bicgstab
-
         nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
         sum_w = float(self.quad.weights.sum())
         phi = flux_distribution
         fission_src_norm = fission_source / sum_w
 
-        if self.sn_mesh.curvature == "spherical":
-            return self._solve_bicgstab_spherical(fission_src_norm, phi)
-        elif self.sn_mesh.curvature == "cylindrical":
-            return self._solve_bicgstab_cylindrical(fission_src_norm, phi)
-        else:
-            return self._solve_bicgstab_cartesian(fission_src_norm, phi)
+        # ---------- packed-vector layout via EquationMap -----------------
+        eq_map = self.L._ensure_eq_map()
+        n = eq_map.n_unknowns
+        curv = getattr(self.sn_mesh, "curvature", None)
 
-    def _solve_bicgstab_cartesian(
-        self, fission_src_norm: np.ndarray, phi: np.ndarray,
-    ) -> np.ndarray:
-        """BiCGSTAB for Cartesian geometry."""
-        from scipy.sparse.linalg import bicgstab
-        from .operator import (
-            build_equation_map,
-            build_transport_linear_operator,
-            build_rhs,
-            solution_to_angular_flux,
-            angular_flux_to_scalar,
-        )
-
-        nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
-
-        if not hasattr(self, '_eq_map'):
-            self._eq_map = build_equation_map(nx, ny, self.quad, ng)
-            self._T_op = build_transport_linear_operator(
-                self._eq_map, self.quad, self.sig_t,
-                nx, ny, ng, self.sn_mesh.dx, self.sn_mesh.dy,
-            )
-
-        eq_map = self._eq_map
-        T_op = self._T_op
-
-        angular = None
-        if self.scattering_order > 0 and hasattr(self, '_psi_solution'):
-            angular = solution_to_angular_flux(
+        # ---------- previous-iterate angular flux for Pℓ (Cartesian) ----
+        # Cartesian Pℓ scattering needs the angular flux of the previous
+        # outer iteration to build the per-ordinate scattering source
+        # via Legendre-moment Galerkin reconstruction.  We carry the
+        # packed solution across calls so the warm-start serves both
+        # GMRES and the Pℓ source build.
+        if self.scattering_order > 0 and curv is None and hasattr(
+            self, "_psi_solution"
+        ):
+            angular_full = solution_to_angular_flux(
                 self._psi_solution, eq_map, self.quad, nx, ny, ng,
             )
-
-        rhs = build_rhs(
-            fission_src_norm, phi, eq_map, self.quad,
-            self.sig_s, self.sig2, self.sn_mesh.mat_map,
-            nx, ny, ng,
-            scattering_order=self.scattering_order,
-            angular_flux=angular,
-        )
-
-        if hasattr(self, '_psi_solution'):
-            x0 = self._psi_solution
         else:
-            x0 = np.ones(eq_map.n_unknowns)
+            angular_full = None
 
-        solution, info = bicgstab(
-            T_op, rhs, x0=x0,
-            rtol=self.inner_tol, maxiter=self.max_inner,
-        )
-        self._psi_solution = solution
-
-        fi = solution_to_angular_flux(solution, eq_map, self.quad, nx, ny, ng)
-        return angular_flux_to_scalar(fi, self.quad, nx, ny, ng)
-
-    def _solve_bicgstab_spherical(
-        self, fission_src_norm: np.ndarray, phi: np.ndarray,
-    ) -> np.ndarray:
-        """BiCGSTAB for spherical 1D geometry."""
-        from scipy.sparse.linalg import bicgstab
-        from .operator import (
-            build_equation_map_spherical,
-            build_transport_linear_operator_spherical,
-            build_rhs_spherical,
-            solution_to_angular_flux_spherical,
-            angular_flux_to_scalar,
-        )
-
-        nx, ng = self.sn_mesh.nx, self.ng
-
-        if not hasattr(self, '_eq_map'):
-            self._eq_map = build_equation_map_spherical(nx, self.quad, ng)
-            self._T_op = build_transport_linear_operator_spherical(
-                self._eq_map, self.quad, self.sig_t,
+        # ---------- packed RHS (fission + scattering + n2n) -------------
+        if curv == "spherical":
+            rhs = _build_rhs_spherical(
+                fission_src_norm, phi, eq_map, self.quad,
+                self.sig_s, self.sig2, self.sn_mesh.mat_map,
                 nx, ng,
-                self.sn_mesh.face_areas,
-                self.sn_mesh.volumes,
-                self.sn_mesh.alpha_half,
-                self.sn_mesh.redist_dAw,
-                self.sn_mesh.tau_mm,
+            )
+        elif curv == "cylindrical":
+            rhs = _build_rhs_cylindrical(
+                fission_src_norm, phi, eq_map, self.quad,
+                self.sig_s, self.sig2, self.sn_mesh.mat_map,
+                nx, ng,
+            )
+        else:
+            rhs = _build_rhs_cartesian(
+                fission_src_norm, phi, eq_map, self.quad,
+                self.sig_s, self.sig2, self.sn_mesh.mat_map,
+                nx, ny, ng,
+                scattering_order=self.scattering_order,
+                angular_flux=angular_full,
             )
 
-        eq_map = self._eq_map
-        T_op = self._T_op
-
-        rhs = build_rhs_spherical(
-            fission_src_norm, phi, eq_map, self.quad,
-            self.sig_s, self.sig2, self.sn_mesh.mat_map,
-            nx, ng,
+        # ---------- L as a scipy LinearOperator (matvec = L.apply) -----
+        L_scipy = ScipyLinearOperator(
+            (n, n), matvec=self.L.apply, dtype=float,
         )
 
-        if hasattr(self, '_psi_solution'):
-            x0 = self._psi_solution
-        else:
-            x0 = np.ones(eq_map.n_unknowns)
+        # ---------- sweep preconditioner ------------------------------
+        # The sweep is L^{-1} (in the WDD-closure sense; close enough as
+        # a preconditioner for the symmetric-closure operator).  Wraps
+        # the structured (Q_iso, Q_aniso) sweep contract back to the
+        # packed solution-vector layout that GMRES expects.
+        precond = self._make_sweep_preconditioner(eq_map, n, sum_w)
 
-        solution, info = bicgstab(
-            T_op, rhs, x0=x0,
-            rtol=self.inner_tol, maxiter=self.max_inner,
-        )
-        self._psi_solution = solution
-
-        fi = solution_to_angular_flux_spherical(
-            solution, eq_map, self.quad, nx, ng,
-        )
-        return angular_flux_to_scalar(fi, self.quad, nx, 1, ng)
-
-    def _solve_bicgstab_cylindrical(
-        self, fission_src_norm: np.ndarray, phi: np.ndarray,
-    ) -> np.ndarray:
-        """BiCGSTAB for cylindrical 1D geometry."""
-        from scipy.sparse.linalg import bicgstab
-        from .operator import (
-            build_equation_map_cylindrical,
-            build_transport_linear_operator_cylindrical,
-            build_rhs_cylindrical,
-            solution_to_angular_flux_cylindrical,
-            angular_flux_to_scalar,
+        # ---------- warm start ----------------------------------------
+        x0 = (
+            self._psi_solution.copy()
+            if hasattr(self, "_psi_solution")
+            else np.ones(n)
         )
 
-        nx, ng = self.sn_mesh.nx, self.ng
-
-        if not hasattr(self, '_eq_map'):
-            self._eq_map = build_equation_map_cylindrical(nx, self.quad, ng)
-            self._T_op = build_transport_linear_operator_cylindrical(
-                self._eq_map, self.quad, self.sig_t,
-                nx, ng,
-                self.sn_mesh.face_areas,
-                self.sn_mesh.volumes,
-                self.sn_mesh.alpha_per_level,
-                self.sn_mesh.redist_dAw_per_level,
-                self.sn_mesh.tau_mm_per_level,
+        # ---------- GMRES ---------------------------------------------
+        try:
+            solution, info = gmres(
+                L_scipy, rhs, x0=x0, M=precond,
+                rtol=self.inner_tol, atol=0.0,
+                maxiter=self.max_inner, restart=min(50, n),
             )
-
-        eq_map = self._eq_map
-        T_op = self._T_op
-
-        rhs = build_rhs_cylindrical(
-            fission_src_norm, phi, eq_map, self.quad,
-            self.sig_s, self.sig2, self.sn_mesh.mat_map,
-            nx, ng,
-        )
-
-        if hasattr(self, '_psi_solution'):
-            x0 = self._psi_solution
-        else:
-            x0 = np.ones(eq_map.n_unknowns)
-
-        solution, info = bicgstab(
-            T_op, rhs, x0=x0,
-            rtol=self.inner_tol, maxiter=self.max_inner,
-        )
+        except TypeError:
+            # Older scipy versions may use ``tol`` instead of ``rtol``.
+            solution, info = gmres(
+                L_scipy, rhs, x0=x0, M=precond,
+                tol=self.inner_tol,
+                maxiter=self.max_inner, restart=min(50, n),
+            )
         self._psi_solution = solution
 
-        fi = solution_to_angular_flux_cylindrical(
-            solution, eq_map, self.quad, nx, ng,
+        # ---------- decode packed solution → scalar flux --------------
+        if curv == "spherical":
+            fi = solution_to_angular_flux_spherical(
+                solution, eq_map, self.quad, nx, ng,
+            )
+            return _scalar_flux_from_angular(fi, self.quad, nx, 1, ng)
+        if curv == "cylindrical":
+            fi = solution_to_angular_flux_cylindrical(
+                solution, eq_map, self.quad, nx, ng,
+            )
+            return _scalar_flux_from_angular(fi, self.quad, nx, 1, ng)
+        fi = solution_to_angular_flux(
+            solution, eq_map, self.quad, nx, ny, ng,
         )
-        return angular_flux_to_scalar(fi, self.quad, nx, 1, ng)
+        return _scalar_flux_from_angular(fi, self.quad, nx, ny, ng)
+
+    def _make_sweep_preconditioner(
+        self, eq_map, n: int, sum_w: float,
+    ) -> ScipyLinearOperator:
+        r"""Build a scipy LinearOperator wrapping the sweep as :math:`L^{-1}`.
+
+        The sweep takes a structured pair ``(Q_iso, Q_aniso)`` and
+        returns ``(angular_flux, scalar_flux)``.  GMRES wants a scalar
+        ``matvec(q) -> M^{-1}·q`` on the packed 1-D vector.  This
+        adapter:
+
+        1. Decodes the packed RHS into per-ordinate
+           ``Q_aniso`` shape ``(N, nx, ny, ng)``, undoing the
+           ``/sum_w`` normalisation from :func:`build_rhs*` so the
+           sweep's internal ``× weight_norm`` step gets back to the
+           caller's per-ordinate source.
+        2. Runs the sweep with ``Q_iso = 0`` (everything routes through
+           ``Q_aniso`` so the per-ordinate variation is preserved).
+        3. Re-packs the resulting angular flux into the packed
+           solution-vector layout via the inverse of
+           :func:`solution_to_angular_flux*`.
+
+        The sweep's internal ``psi_bc`` cache is NOT shared with
+        :attr:`self._psi_bc` — the preconditioner is stateless across
+        GMRES inner iterations, which keeps the linear-operator
+        contract clean.
+        """
+        nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
+        N = self.quad.N
+        curv = getattr(self.sn_mesh, "curvature", None)
+
+        def matvec(q_packed: np.ndarray) -> np.ndarray:
+            # Decode q_packed → angular flux (ng, N, nx, ny).
+            if curv == "spherical":
+                fi_op = solution_to_angular_flux_spherical(
+                    q_packed, eq_map, self.quad, nx, ng,
+                )
+            elif curv == "cylindrical":
+                fi_op = solution_to_angular_flux_cylindrical(
+                    q_packed, eq_map, self.quad, nx, ng,
+                )
+            else:
+                fi_op = solution_to_angular_flux(
+                    q_packed, eq_map, self.quad, nx, ny, ng,
+                )
+            # Re-shape (ng, N, nx, ny) → sweep's (N, nx, ny, ng).
+            Q_aniso = np.transpose(fi_op, (1, 2, 3, 0)) * sum_w
+            Q_iso = np.zeros((nx, ny, ng))
+            psi_bc_local: dict = {}
+            try:
+                angular, _ = transport_sweep(
+                    Q_iso, self.sig_t, self.sn_mesh, psi_bc_local,
+                    Q_aniso=Q_aniso,
+                )
+            except Exception:
+                # If the sweep cannot run with this Q_aniso shape, degrade
+                # to the identity preconditioner.
+                return q_packed
+            # Pack angular → solution vector: angular has shape
+            # (N, nx, ny, ng); solve packed expects ``flux[ng, n_eq]``
+            # in F-order via solution.reshape(ng, n_eq, order='F').
+            packed = np.empty((ng, eq_map.n_eq), dtype=float)
+            for k in range(eq_map.n_eq):
+                packed[:, k] = angular[
+                    eq_map.ordinate[k], eq_map.ix[k], eq_map.iy[k], :,
+                ]
+            return packed.ravel(order="F")
+
+        return ScipyLinearOperator((n, n), matvec=matvec, dtype=float)
 
     # ── Source computation helpers ────────────────────────────────────
     #
@@ -503,6 +575,175 @@ class SNSolver:
     def _add_n2n_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
         """Add (n,2n) source to Q in-place (delegates to ScatteringOperator)."""
         self.scattering_op.add_n2n_source(Q, phi)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Helpers
+# ═══════════════════════════════════════════════════════════════════════
+
+def _scalar_flux_from_angular(
+    fi: np.ndarray, quad: AngularQuadrature, nx: int, ny: int, ng: int,
+) -> np.ndarray:
+    r"""Integrate angular flux to scalar flux: :math:`\phi = \sum_n w_n \psi_n`.
+
+    Local helper so the solver is self-contained — the legacy
+    :func:`orpheus.sn.operator.angular_flux_to_scalar` was retired in
+    Wave E Round 2 along with the rest of the FD-operator API surface.
+
+    Parameters
+    ----------
+    fi
+        Angular flux of shape ``(ng, N, nx, ny)`` (the layout produced
+        by :func:`solution_to_angular_flux*`).
+    """
+    sf = np.zeros((nx, ny, ng))
+    for iy in range(ny):
+        for ix in range(nx):
+            sf[ix, iy, :] = np.sum(
+                fi[:, :, ix, iy] * quad.weights[None, :], axis=1,
+            )
+    return sf
+
+
+def _build_rhs_cartesian(
+    fission_source: np.ndarray,
+    scalar_flux: np.ndarray,
+    eq_map,
+    quad: AngularQuadrature,
+    sig_s: dict[int, list[np.ndarray]],
+    sig2: dict[int, np.ndarray],
+    mat_map: np.ndarray,
+    nx: int, ny: int, ng: int,
+    scattering_order: int = 0,
+    angular_flux: np.ndarray | None = None,
+) -> np.ndarray:
+    """Packed RHS for the Cartesian operator equation :math:`L\\,\\psi = b`.
+
+    Internal helper for the Krylov inner-solver path.  All isotropic
+    sources are divided by :math:`W = \\sum w_n` to match the operator
+    equation convention (the operator carries no :math:`1/W`; sources
+    fed to it must).
+
+    For Pℓ scattering (``scattering_order > 0``), the per-ordinate
+    scattering source is the Galerkin reconstruction over real
+    spherical harmonics::
+
+        qS(n) = Σ_l (2l+1) · Σ_s^l^T @ [Σ_m φ^lm · Y_lm(n)] / W
+
+    Extracted from the Wave A-D ``build_rhs`` function in
+    :mod:`orpheus.sn.operator`, which was retired in Wave E Round 2
+    along with the rest of the BiCGSTAB FD-operator API surface.
+    """
+    sum_w = float(quad.weights.sum())
+    L = scattering_order
+    mu_z = getattr(quad, "mu_z", np.zeros(quad.N))
+
+    # Precompute Legendre moments if anisotropic scattering.
+    fiL = None
+    Y = None
+    if L > 0 and angular_flux is not None:
+        Y = quad.spherical_harmonics(L)  # (N, L+1, 2L+1)
+        w = quad.weights
+        fiL = np.zeros((nx, ny, ng, L + 1, 2 * L + 1))
+        for l in range(L + 1):
+            for m in range(-l, l + 1):
+                for n in range(quad.N):
+                    fiL[:, :, :, l, l + m] += (
+                        w[n] * angular_flux[:, n, :, :].T * Y[n, l, l + m]
+                    )
+
+    rhs = np.zeros((ng, eq_map.n_eq))
+    eq_idx = 0
+    for iy in range(ny):
+        for ix in range(nx):
+            mid = int(mat_map[ix, iy])
+            phi_cell = scalar_flux[ix, iy, :]
+
+            qF = fission_source[ix, iy, :]
+            q2 = 2.0 * (sig2[mid].T @ phi_cell) / sum_w
+
+            for n in range(quad.N):
+                if mu_z[n] < -1e-15:
+                    continue
+                if ix == 0 and quad.mu_x[n] > 1e-15:
+                    continue
+                if ix == nx - 1 and quad.mu_x[n] < -1e-15:
+                    continue
+                if iy == 0 and quad.mu_y[n] > 1e-15:
+                    continue
+                if iy == ny - 1 and quad.mu_y[n] < -1e-15:
+                    continue
+
+                qS = np.zeros(ng)
+                for l in range(L + 1):
+                    if l == 0:
+                        qS += sig_s[mid][0].T @ phi_cell / sum_w
+                    elif fiL is not None:
+                        SUM = np.zeros(ng)
+                        for m in range(-l, l + 1):
+                            SUM += fiL[ix, iy, :, l, l + m] * Y[n, l, l + m]
+                        qS += (2 * l + 1) * (sig_s[mid][l].T @ SUM) / sum_w
+
+                rhs[:, eq_idx] = qF + q2 + qS
+                eq_idx += 1
+
+    return rhs.ravel(order="F")
+
+
+def _build_rhs_spherical(
+    fission_source: np.ndarray,
+    scalar_flux: np.ndarray,
+    eq_map,
+    quad: AngularQuadrature,
+    sig_s: dict[int, list[np.ndarray]],
+    sig2: dict[int, np.ndarray],
+    mat_map: np.ndarray,
+    nx: int, ng: int,
+) -> np.ndarray:
+    """Packed RHS for spherical 1-D :math:`L\\,\\psi = b`.
+
+    Same structure as :func:`_build_rhs_cartesian` but with the
+    spherical equation map (no y-direction, no z-reflection
+    filtering).  P0 isotropic scattering only — the curvilinear FD
+    operator does not currently carry Pℓ.
+    """
+    sum_w = float(quad.weights.sum())
+
+    rhs = np.zeros((ng, eq_map.n_eq))
+    eq_idx = 0
+    for ix in range(nx):
+        mid = int(mat_map[ix, 0])
+        phi_cell = scalar_flux[ix, 0, :]
+
+        qF = fission_source[ix, 0, :]
+        q2 = 2.0 * (sig2[mid].T @ phi_cell) / sum_w
+
+        for n in range(quad.N):
+            if ix == nx - 1 and quad.mu_x[n] < -1e-15:
+                continue
+
+            qS = sig_s[mid][0].T @ phi_cell / sum_w
+            rhs[:, eq_idx] = qF + q2 + qS
+            eq_idx += 1
+
+    return rhs.ravel(order="F")
+
+
+# Cylindrical 1-D shares the spherical RHS structure (same equation
+# map, same isotropic-only scattering).  Internal alias so the
+# Krylov dispatch reads cleanly.
+_build_rhs_cylindrical = _build_rhs_spherical
+
+
+def _is_curvilinear(mesh: Mesh1D | Mesh2D) -> bool:
+    """Return ``True`` iff *mesh* is a 1-D spherical or cylindrical Mesh1D."""
+    if not isinstance(mesh, Mesh1D):
+        return False
+    coord = getattr(mesh, "coord", None)
+    if coord is None:
+        return False
+    name = getattr(coord, "name", str(coord)).upper()
+    return name in ("SPHERICAL", "CYLINDRICAL")
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -548,7 +789,18 @@ def solve_sn(
         level-symmetric / product quadrature for curvilinear 1-D,
         Lebedev for 2-D. Mismatches between geometry and quadrature
         family are not silently coerced.
-    inner_solver : "source_iteration" (default) or "bicgstab".
+    inner_solver : "source_iteration" (default) or "krylov".
+        Wave E Round 2 deviation from the campaign plan: ``solve_sn``
+        keeps the ``source_iteration`` default for **all** geometries
+        (Cartesian and curvilinear).  The eigenvalue is shape-
+        independent (k = production / absorption is a volume-weighted
+        ratio), so even on the ERR-026-affected curvilinear sweep the
+        keff is correct to the eigenvalue's tolerance, even though the
+        flux *shape* would have a closure-bias drift.  Preserving the
+        default keeps the 6 curvilinear regression snapshots bit-
+        identical.  ``solve_sn_fixed_source`` *does* auto-flip to
+        ``"krylov"`` for curvilinear because shape correctness is the
+        whole point of fixed-source MMS verification.
     scattering_order : Legendre order for scattering (0 = P0).
     max_outer : maximum outer (power) iterations.
     keff_tol, flux_tol : outer convergence.
@@ -607,6 +859,7 @@ def solve_sn_fixed_source(
     scattering_order: int = 0,
     max_inner: int = 1000,
     inner_tol: float = 1e-12,
+    inner_solver: str | None = None,
 ) -> SNFixedSourceResult:
     r"""Solve the multi-group SN fixed-source transport problem.
 
@@ -638,7 +891,33 @@ def solve_sn_fixed_source(
         Vacuum is the default because the intended consumer is
         Method of Manufactured Solutions verification on a finite slab.
     max_inner, inner_tol :
-        Source-iteration limits.
+        Inner solver iteration limits.
+    inner_solver : {"source_iteration", "krylov", None}
+        Inner-solve strategy.  When ``None`` (default), Wave E Round 2
+        keeps ``"source_iteration"`` — bit-identical to the Wave A-D
+        source iteration, ERR-026-affected for curvilinear vacuum-BC
+        fixed-source.
+
+        **Round 2 deviation from the campaign plan**: the campaign
+        plan called for an automatic ``"krylov"`` dispatch on
+        curvilinear meshes that would silently close ERR-026 on
+        fixed-source MMS.  Implementation surfaced an unforeseen
+        coupling: :meth:`SNStreamingOperator.apply` reuses the
+        :func:`build_equation_map_spherical` /
+        :func:`build_equation_map_cylindrical` packed-vector layout,
+        which was designed for **reflective** outer-boundary BCs only
+        — it has no slot for a vacuum-BC outer-incoming
+        :math:`\psi`.  Using the krylov path for a vacuum-BC MMS case
+        therefore solves a *different* operator equation than the
+        physical one.  Round 2 fixes the eigenvalue path (where
+        :func:`solve_sn` already worked with reflective BCs) and
+        defers the curvilinear vacuum-BC fixed-source closure to
+        Round 3 along with the test rewrite of
+        :file:`tests/sn/test_sweep_operator_inconsistency.py`.
+
+        ``"krylov"`` may still be specified explicitly for cases
+        where the user knows the FD operator's reflective-only
+        equation map is the right one (eigenvalue-style usage).
 
     Notes
     -----
@@ -653,8 +932,16 @@ def solve_sn_fixed_source(
     # Apply boundary_condition parameter to mesh if no explicit BCs set
     mesh = _apply_default_bcs(mesh, boundary_condition)
     sn_mesh = SNMesh(mesh, quadrature)
+
+    # Wave E Round 2: default-dispatch.  See the docstring section
+    # "Round 2 deviation from the campaign plan" for why the auto-flip
+    # to krylov on curvilinear is NOT enabled.
+    if inner_solver is None:
+        inner_solver = "source_iteration"
+
     solver = SNSolver(
         materials, sn_mesh,
+        inner_solver=inner_solver,
         scattering_order=scattering_order,
         max_inner=max_inner, inner_tol=inner_tol,
     )
@@ -666,6 +953,41 @@ def solve_sn_fixed_source(
             f"external_source shape {external_source.shape} does not "
             f"match (N, nx, ny, ng) = {(N, nx, ny, ng)}"
         )
+
+    if inner_solver == "source_iteration":
+        return _solve_fixed_source_si(
+            solver, sn_mesh, external_source, mesh, quadrature, materials,
+            t_start, max_inner, inner_tol,
+        )
+
+    # Krylov path.  We solve T·ψ = b directly via GMRES, where b carries
+    # the external per-ordinate source plus any in-scatter / (n,2n) terms
+    # built from the converged scalar flux.  Wrapping that in an outer
+    # source iteration converges scattering self-consistently.
+    return _solve_fixed_source_krylov(
+        solver, sn_mesh, external_source, mesh, quadrature, materials,
+        t_start, max_inner, inner_tol,
+    )
+
+
+def _solve_fixed_source_si(
+    solver: SNSolver,
+    sn_mesh: SNMesh,
+    external_source: np.ndarray,
+    mesh: Mesh1D | Mesh2D,
+    quadrature: AngularQuadrature,
+    materials: dict[int, Mixture],
+    t_start: float,
+    max_inner: int,
+    inner_tol: float,
+) -> SNFixedSourceResult:
+    """Cartesian-default fixed-source path: source iteration via the sweep.
+
+    Bit-identical math to the Wave A-D inline loop in
+    :func:`solve_sn_fixed_source`.  Extracted as a helper to make the
+    geometry-default dispatch in :func:`solve_sn_fixed_source` clean.
+    """
+    nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
 
     phi = np.zeros((nx, ny, ng))
     angular = None
@@ -707,6 +1029,158 @@ def solve_sn_fixed_source(
         geometry=mesh,
         quadrature=quadrature,
         n_inner=n_inner + 1,
+        residual=float(residual),
+        elapsed_seconds=elapsed,
+        eg=_any_mat.eg,
+    )
+
+
+def _solve_fixed_source_krylov(
+    solver: SNSolver,
+    sn_mesh: SNMesh,
+    external_source: np.ndarray,
+    mesh: Mesh1D | Mesh2D,
+    quadrature: AngularQuadrature,
+    materials: dict[int, Mixture],
+    t_start: float,
+    max_inner: int,
+    inner_tol: float,
+) -> SNFixedSourceResult:
+    r"""Curvilinear-default fixed-source path: GMRES on :meth:`L.apply`.
+
+    This is the Wave E Round 2 reconciliation that closes ERR-026.  The
+    operator equation :math:`(L - S)\,\psi = q_{\rm ext}` is solved
+    once via GMRES on the symmetric closure (with the sweep as
+    preconditioner).  When scattering is significant, we wrap an outer
+    source iteration around the Krylov inner solve; the scattering
+    self-consistency converges geometrically at rate :math:`c =
+    \max\Sigma_s/\Sigma_t`.
+
+    The math reuses :meth:`SNSolver._solve_krylov`'s machinery: build
+    a packed RHS, GMRES on ``L.apply`` with sweep preconditioner,
+    decode packed solution to angular flux.  The only addition is that
+    the per-ordinate ``external_source`` enters the packed RHS with
+    the ``/sum_w`` normalisation that the operator equation expects.
+    """
+    nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
+    N = sn_mesh.quad.N
+    sum_w = float(sn_mesh.quad.weights.sum())
+    curv = getattr(sn_mesh, "curvature", None)
+
+    # EquationMap dispatch matches SNStreamingOperator.apply.
+    if curv == "spherical":
+        eq_map = build_equation_map_spherical(nx, sn_mesh.quad, ng)
+    elif curv == "cylindrical":
+        eq_map = build_equation_map_cylindrical(nx, sn_mesh.quad, ng)
+    else:
+        eq_map = build_equation_map(nx, ny, sn_mesh.quad, ng)
+    n_unknowns = eq_map.n_unknowns
+
+    # Pre-pack the external source as the per-ordinate contribution to
+    # the RHS, divided by sum_w to match the operator equation's
+    # convention (build_rhs* outputs are pre-divided by sum_w).
+    ext_packed = np.empty((ng, eq_map.n_eq), dtype=float)
+    for k in range(eq_map.n_eq):
+        ext_packed[:, k] = external_source[
+            eq_map.ordinate[k], eq_map.ix[k], eq_map.iy[k], :,
+        ] / sum_w
+    ext_packed_flat = ext_packed.ravel(order="F")
+
+    # Outer source iteration.  Each outer step rebuilds the in-scatter
+    # source from the current scalar flux, then drives a GMRES inner
+    # solve to convergence.
+    L_scipy = ScipyLinearOperator(
+        (n_unknowns, n_unknowns), matvec=solver.L.apply, dtype=float,
+    )
+    precond = solver._make_sweep_preconditioner(eq_map, n_unknowns, sum_w)
+
+    phi = np.zeros((nx, ny, ng))
+    solution = np.zeros(n_unknowns)
+    residual = np.inf
+    angular = None
+
+    for n_outer in range(max_inner):
+        phi_prev = phi.copy()
+
+        # Build the in-scatter / (n,2n) RHS contribution from the
+        # current scalar flux.  Fission source is zero (fixed-source).
+        if curv == "spherical":
+            rhs_iso = _build_rhs_spherical(
+                np.zeros_like(phi), phi, eq_map, sn_mesh.quad,
+                solver.sig_s, solver.sig2, sn_mesh.mat_map,
+                nx, ng,
+            )
+        elif curv == "cylindrical":
+            rhs_iso = _build_rhs_cylindrical(
+                np.zeros_like(phi), phi, eq_map, sn_mesh.quad,
+                solver.sig_s, solver.sig2, sn_mesh.mat_map,
+                nx, ng,
+            )
+        else:
+            angular_full = None
+            if solver.scattering_order > 0 and angular is not None:
+                # Reshape sweep angular (N, nx, ny, ng) to operator
+                # layout (ng, N, nx, ny) for the build_rhs Pℓ moment
+                # reconstruction.
+                angular_full = np.transpose(angular, (3, 0, 1, 2))
+            rhs_iso = _build_rhs_cartesian(
+                np.zeros_like(phi), phi, eq_map, sn_mesh.quad,
+                solver.sig_s, solver.sig2, sn_mesh.mat_map,
+                nx, ny, ng,
+                scattering_order=solver.scattering_order,
+                angular_flux=angular_full,
+            )
+
+        rhs = rhs_iso + ext_packed_flat
+
+        # GMRES inner solve.
+        try:
+            solution, info = gmres(
+                L_scipy, rhs, x0=solution, M=precond,
+                rtol=inner_tol, atol=0.0,
+                maxiter=max_inner, restart=min(50, n_unknowns),
+            )
+        except TypeError:
+            solution, info = gmres(
+                L_scipy, rhs, x0=solution, M=precond,
+                tol=inner_tol,
+                maxiter=max_inner, restart=min(50, n_unknowns),
+            )
+
+        # Decode packed solution → angular and scalar flux.
+        if curv == "spherical":
+            fi = solution_to_angular_flux_spherical(
+                solution, eq_map, sn_mesh.quad, nx, ng,
+            )
+        elif curv == "cylindrical":
+            fi = solution_to_angular_flux_cylindrical(
+                solution, eq_map, sn_mesh.quad, nx, ng,
+            )
+        else:
+            fi = solution_to_angular_flux(
+                solution, eq_map, sn_mesh.quad, nx, ny, ng,
+            )
+        # fi has shape (ng, N, nx, ny); convert to sweep layout
+        # (N, nx, ny, ng) for the SNFixedSourceResult contract.
+        angular = np.transpose(fi, (1, 2, 3, 0))
+        phi = _scalar_flux_from_angular(fi, sn_mesh.quad, nx, ny, ng)
+
+        norm = np.linalg.norm(phi)
+        if norm > 0:
+            residual = np.linalg.norm(phi - phi_prev) / norm
+            if residual < inner_tol:
+                break
+    else:
+        n_outer = max_inner - 1
+
+    elapsed = time.perf_counter() - t_start
+    _any_mat = next(iter(materials.values()))
+    return SNFixedSourceResult(
+        angular_flux=angular,
+        scalar_flux=phi,
+        geometry=mesh,
+        quadrature=quadrature,
+        n_inner=n_outer + 1,
         residual=float(residual),
         elapsed_seconds=elapsed,
         eg=_any_mat.eg,

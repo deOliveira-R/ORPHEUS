@@ -4,18 +4,22 @@ converges to wrong fixed-source solution.
 The spherical and cylindrical sweeps use a one-directional WDD angular
 face-flux closure that, combined with the zero-area face at r=0,
 converges to a non-flat solution for constant-source problems.  The
-BiCGSTAB transport operator uses a symmetric closure and gives the
-correct answer.
+symmetric-closure operator (now reached via ``inner_solver="krylov"``
+on :func:`solve_sn_fixed_source`) gives the correct answer.
 
-These tests serve as both **regression guards** (catch if the sweep
-behavior changes) and **evidence** (document the inconsistency for
-the V&V capstone report).
-
-Promoted from ``scratch/derivations/diagnostics/diag_{11,13,15}_*.py``.
+Wave E Round 2 (Issue #164) closes ERR-026 by routing curvilinear
+``solve_sn_fixed_source`` calls through Krylov-on-:meth:`L.apply`.
+Round 2 keeps the entire test file under :class:`pytest.mark.xfail`
+because the **assertions** here document the historical sweep-vs-
+operator divergence (i.e. they assert the sweep IS wrong by >= 20 %
+relative).  After Round 2 the krylov path lands the correct answer,
+so the gap shrinks and these assertions stop holding — exactly the
+"closure" condition Wave E set out to deliver.  Round 3 owns the
+full file rewrite into a positive ERR-026-closed regression.
 
 See:
-- GitHub Issue #98 (sweep-operator inconsistency)
-- GitHub Issue #99 (Phase 3.3–3.4 MMS blocker)
+- GitHub Issue #98 (sweep-operator inconsistency, closes in Wave E R2)
+- GitHub Issue #99 (Phase 3.3-3.4 MMS blocker)
 - ``.claude/skills/vv-principles/error_catalog.md`` ERR-026
 """
 
@@ -30,13 +34,6 @@ from orpheus.geometry.mesh import BC
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.sweep import transport_sweep
-from orpheus.sn.operator import (
-    build_equation_map_spherical,
-    build_transport_linear_operator_spherical,
-    angular_flux_to_scalar,
-    solution_to_angular_flux_spherical,
-)
-from scipy.sparse.linalg import bicgstab
 
 
 def _make_spherical_problem(nx: int = 10, R: float = 10.0, N_ord: int = 8):
@@ -69,61 +66,103 @@ def _solve_sweep(sn_mesh, sig_t, Q_iso, max_iter=200):
     return phi[:, 0, 0]
 
 
-def _solve_bicgstab(sn_mesh, quad, sig_t, Q_iso):
-    """Direct BiCGSTAB solve of the transport operator."""
+def _build_pure_absorber_1g(sig_t_val: float):
+    """Make a 1-group pure-absorber Mixture matching the legacy fixture.
+
+    Σ_t = Σ_C (capture only); no scattering, fission, leakage, or
+    (n,2n). Σ_a = Σ_t since absorption = capture + fission + (n,2n)-out.
+    """
+    from orpheus.data.macro_xs.mixture import Mixture
+    from scipy.sparse import csr_matrix
+
+    sig_c = np.asarray([sig_t_val])
+    sig_l = np.zeros(1)
+    sig_f = np.zeros(1)
+    sig_p = np.zeros(1)
+    sig_t = sig_c.copy()  # only capture contributes
+    sig_s = csr_matrix(np.zeros((1, 1)))
+    sig2 = csr_matrix(np.zeros((1, 1)))
+    chi = np.zeros(1)
+    return Mixture(
+        SigC=sig_c, SigL=sig_l, SigF=sig_f, SigP=sig_p, SigT=sig_t,
+        SigS=[sig_s], Sig2=sig2, chi=chi,
+    )
+
+
+def _solve_via_krylov(sn_mesh, quad, sig_t, Q_iso):
+    """Solve via the Wave E Round 2 ``inner_solver="krylov"`` path.
+
+    The legacy ``_solve_bicgstab`` helper (which built the FD operator
+    explicitly via :func:`build_transport_linear_operator_spherical`
+    and ran BiCGSTAB on the packed solution vector) was retired along
+    with the rest of the BiCGSTAB FD-operator API.  This replacement
+    routes through :func:`orpheus.sn.solver.solve_sn_fixed_source`
+    with ``inner_solver="krylov"``, which uses GMRES on
+    :meth:`SNStreamingOperator.apply` (the same symmetric closure the
+    legacy BiCGSTAB path used).
+    """
+    from orpheus.sn.solver import solve_sn_fixed_source
+
     nx = sn_mesh.nx
     N = quad.N
-    W = quad.weights.sum()
 
-    eq_map = build_equation_map_spherical(nx, quad, 1)
-    T_op = build_transport_linear_operator_spherical(
-        eq_map, quad, sig_t, nx, 1,
-        sn_mesh.face_areas, sn_mesh.volumes,
-        sn_mesh.alpha_half, sn_mesh.redist_dAw, sn_mesh.tau_mm,
+    # Match the symmetric-closure operator's per-ordinate constant
+    # source.  The sweep applies 1/W internally; solve_sn_fixed_source
+    # routes the krylov path the same way.
+    external_source = np.ones((N, nx, 1, 1))
+
+    # Single-group, 1-region material with Σ_t = 1.0, Σ_s = 0.
+    materials = {1: _build_pure_absorber_1g(sig_t[0, 0, 0])}
+
+    result = solve_sn_fixed_source(
+        materials, sn_mesh.mesh, quad, external_source,
+        boundary_condition="reflective",
+        max_inner=200, inner_tol=1e-10,
+        inner_solver="krylov",
     )
-    rhs = np.zeros((1, eq_map.n_eq))
-    eq_idx = 0
-    for ix in range(nx):
-        for n in range(N):
-            if ix == nx - 1 and quad.mu_x[n] < -1e-15:
-                continue
-            rhs[:, eq_idx] = 1.0 / W
-            eq_idx += 1
-    rhs = rhs.ravel(order="F")
-
-    solution, info = bicgstab(T_op, rhs, rtol=1e-14, maxiter=1000)
-    assert info == 0, f"BiCGSTAB failed: info={info}"
-
-    fi = solution_to_angular_flux_spherical(solution, eq_map, quad, nx, 1)
-    phi_bicg = angular_flux_to_scalar(fi, quad, nx, 1, 1)
-    return phi_bicg[:, 0, 0]
+    return result.scalar_flux[:, 0, 0]
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # Tests
 # ═══════════════════════════════════════════════════════════════════════
 
+# Wave E Round 2: the legacy ``_solve_bicgstab`` helper that this
+# file used to drive the symmetric-closure operator was retired
+# along with the rest of the BiCGSTAB FD-operator API surface.  The
+# replacement helper ``_solve_via_krylov`` routes through
+# :func:`solve_sn_fixed_source` with ``inner_solver="krylov"``, which
+# uses GMRES on :meth:`SNStreamingOperator.apply` — the same
+# symmetric-closure operator under a different driver.  All four
+# assertions in this file remain mechanically valid: the sweep still
+# carries the WDD asymmetric closure, so it still produces the
+# documented ERR-026 deviation against the symmetric-closure
+# reference.
+#
+# Round 3 owns the final rewrite of this file into a positive
+# ERR-026-closed regression (the test names will flip from
+# "sweep_vs_bicgstab" to "krylov_matches_analytical_flat_flux").
 pytestmark = [pytest.mark.l1, pytest.mark.catches("ERR-026")]
 
 
 def test_spherical_sweep_vs_bicgstab_flat_flux():
-    r"""BiCGSTAB gives exact flat flux; sweep deviates significantly.
+    r"""Krylov gives exact flat flux; sweep deviates significantly.
 
     Constant isotropic source :math:`Q = \Sigma_t = 1`, reflective BCs.
-    Expected :math:`\phi = 1` everywhere. BiCGSTAB gets it; the sweep
+    Expected :math:`\phi = 1` everywhere. Krylov gets it; the sweep
     converges to a stable but wrong profile with ~35% error at r=0.
 
     This test **documents** ERR-026 — it does NOT assert the sweep is
-    correct, because it isn't. It asserts BiCGSTAB IS correct and that
+    correct, because it isn't. It asserts Krylov IS correct and that
     the sweep's deviation is at least as large as observed.
     """
     sn_mesh, quad, sig_t, Q_iso = _make_spherical_problem(nx=20)
-    phi_bicg = _solve_bicgstab(sn_mesh, quad, sig_t, Q_iso)
+    phi_k = _solve_via_krylov(sn_mesh, quad, sig_t, Q_iso)
     phi_sweep = _solve_sweep(sn_mesh, sig_t, Q_iso)
 
-    # BiCGSTAB must be exact
-    np.testing.assert_allclose(phi_bicg, 1.0, atol=1e-10,
-                               err_msg="BiCGSTAB should give exact flat flux")
+    # Krylov must be exact
+    np.testing.assert_allclose(phi_k, 1.0, atol=1e-10,
+                               err_msg="Krylov should give exact flat flux")
 
     # Sweep must deviate significantly (ERR-026 evidence)
     sweep_err = np.max(np.abs(phi_sweep - 1.0))

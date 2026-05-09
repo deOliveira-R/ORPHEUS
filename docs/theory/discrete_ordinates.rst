@@ -1559,46 +1559,81 @@ treatment of [LewisMiller1984]_ Section 4.5.4 (which tracks
 unnecessary when the :math:`\alpha` recursion is implemented correctly.
 
 
-BiCGSTAB Alternative
-====================
+Krylov inner solver
+===================
 
 Instead of sweep-based source iteration, the within-group transport
-problem can be solved directly using a Krylov method (BiCGSTAB).
+problem can be solved directly using a Krylov method.  Wave E Round 2
+(Issue #164) replaces the legacy BiCGSTAB FD-operator path with GMRES
+on :meth:`SNStreamingOperator.apply` (the symmetric closure carried
+by the operator algebra) with the sweep as a left preconditioner —
+the SAILOR / Larsen-Adams preconditioned-Krylov framework
+([AdamsLarsen2002]_ §III).
 
-Explicit Transport Operator
-----------------------------
+Operator equation
+-----------------
 
-The finite-difference transport operator :math:`T` is formed explicitly:
+The streaming-collision operator :math:`L` is formed explicitly via
+:class:`~orpheus.sn.operator.SNStreamingOperator`:
 
 .. math::
 
-   T\psi = \mu_n \nabla\psi + \Sigt{}\psi
+   L\psi = \mu_n \nabla\psi + \Sigt{}\psi
 
-For Cartesian geometry, this is a banded matrix with finite-difference
-gradients.  For curvilinear geometries, the operator includes the same
-:math:`\Delta A/w` geometry factor and Morel--Montry angular closure
-weights used by the sweep.  The system :math:`T\psi = b` is solved with
-``scipy.sparse.linalg.bicgstab``.
+For Cartesian geometry, this is a banded matrix with upwind cell-
+centre finite-difference gradients.  For curvilinear geometries, the
+operator includes the :math:`\Delta A/w` geometry factor and the
+**symmetric** Morel--Montry angular face-flux interpolation
+:math:`\psi_{n\pm 1/2} = \tau\,\psi_{\rm next} + (1-\tau)\,
+\psi_{\rm this}`, which is distinct from the WDD asymmetric closure
+:math:`\psi_{n+1/2} = (\overline{\psi} - (1-\tau)\,\psi_{n-1/2})/\tau`
+used by the sweep.
+
+The system :math:`L\,\psi = b` is solved with
+``scipy.sparse.linalg.gmres`` (replacing the legacy BiCGSTAB), with
+the sweep wrapped as a scipy ``LinearOperator`` preconditioner ``M``.
+On uniform meshes the symmetric and WDD closures converge to the
+same physics in the fine-mesh limit; on curvilinear meshes the
+sweep's WDD closure has the ERR-026 closure-bias-driven self-
+consistent fixed point that is now bypassed by the Krylov-on-
+:meth:`apply` path.
 
 Consistency with the Sweep
 ---------------------------
 
-Both the sweep and BiCGSTAB path must use the **same** spatial
+Both the sweep and the Krylov path must use the **same** spatial
 discretisation to produce identical eigenvalues.  In practice:
 
-- The sweep uses diamond-difference (DD): :math:`T^{-1}` is applied
-  implicitly.
-- BiCGSTAB forms :math:`T` explicitly using finite-difference (FD)
-  gradients.
+- The sweep uses diamond-difference (DD): :math:`L^{-1}` is applied
+  implicitly via forward substitution along sweep-direction visits.
+- The Krylov path forms :math:`L` explicitly via the symmetric-
+  closure FD operator and inverts it via GMRES.
 
-On coarse meshes, DD and FD have different truncation error constants,
-so the two paths may give slightly different :math:`\keff` values.  They
-converge to the same answer as :math:`h \to 0`.
+On coarse meshes, DD and FD have different truncation error
+constants, so the two paths may give slightly different :math:`\keff`
+values.  They converge to the same answer as :math:`h \to 0`.
 
-The curvilinear BiCGSTAB operators read ``redist_dAw`` (spherical) and
-``redist_dAw_per_level`` (cylindrical) from :class:`SNMesh`, along with the
-M-M weights ``tau_mm`` / ``tau_mm_per_level``.  This ensures both paths
-share exactly the same physics.
+The curvilinear FD operator reads ``alpha_half`` / ``redist_dAw`` /
+``tau_mm`` (spherical) and the per-level analogues (cylindrical)
+from ``SNMesh.reduced``.  This ensures both paths share exactly the
+same connection-coefficient infrastructure.
+
+Round 2 deviation
+-----------------
+
+The campaign plan called for an automatic ``"krylov"`` dispatch on
+curvilinear meshes in
+:func:`~orpheus.sn.solver.solve_sn_fixed_source` that would silently
+close ERR-026 on the curvilinear vacuum-BC MMS cases.
+Implementation surfaced an unforeseen coupling: the
+:func:`~orpheus.sn.operator.build_equation_map_spherical` /
+``build_equation_map_cylindrical`` packed-vector layout that
+:meth:`SNStreamingOperator.apply` reuses was designed for the
+**reflective** outer-boundary BC only — it has no slot for a vacuum-
+BC outer-incoming :math:`\psi`.  Wave E Round 3 owns the equation-map
+extension that closes the vacuum-BC path; Round 2 ships the krylov
+inner solver as an explicit opt-in for the reflective-BC eigenvalue
+case where it is bit-identical math to the legacy BiCGSTAB FD path.
 
 
 .. _boundary-conditions:
@@ -2453,21 +2488,24 @@ matvec when production reciprocity becomes performance-critical
 (currently it is not — :meth:`apply_transpose` is only consumed
 by adjoint-flux post-processing in the Wave A operator algebra).
 
-Forward references to Wave E and beyond
----------------------------------------
+Wave E and beyond — landed and forward
+--------------------------------------
 
-* **Wave E Issue 15** wires :class:`SNSolver` to
-  :class:`SNStreamingOperator`: the inner solve becomes Krylov on
-  :meth:`apply` with sweep as preconditioner, which closes
-  ERR-026 by removing the WDD asymmetric closure from the
-  converged-solution path.
-* **Wave E Issue 14** lifts the iteration primitives (power
+* **Wave E Issue 14 lifted** the iteration primitives (power
   iteration, source iteration) into stand-alone operator-algebra
-  consumers, decoupling them from :class:`SNSolver`.
-* When production reciprocity becomes performance-critical, an
-  :math:`O(n)` analytic-adjoint matvec replaces the dense-transpose
-  fallback; the new path is gated by the same reciprocity tests
-  in :file:`tests/sn/test_snstreamingoperator.py`.
+  consumers in :mod:`orpheus.numerics.iteration`, decoupling them
+  from :class:`SNSolver`.
+* **Wave E Issue 15 wired** :class:`SNSolver` to
+  :class:`SNStreamingOperator`: the inner solve becomes Krylov on
+  :meth:`apply` with sweep as preconditioner, which removes the WDD
+  asymmetric closure from the converged-solution path for the
+  reflective-BC eigenvalue case.  Wave E Round 3 will extend the
+  equation-map layout to the vacuum-BC path that closes ERR-026
+  for fixed-source curvilinear MMS.
+* **Forward**: when production reciprocity becomes performance-
+  critical, an :math:`O(n)` analytic-adjoint matvec replaces the
+  dense-transpose fallback; the new path is gated by the same
+  reciprocity tests in :file:`tests/sn/test_snstreamingoperator.py`.
 
 References
 ----------
@@ -2717,8 +2755,84 @@ References for iteration primitives
   hook's Round 2 use case).
 
 
-The Eigenvalue Problem
-======================
+.. _sn-solver-operator-algebra-coordinator:
+
+SNSolver as an operator-algebra coordinator
+============================================
+
+Wave E Round 2 (Issue #164) closes the campaign loop by rewriting
+:class:`~orpheus.sn.solver.SNSolver` to consume the operator triple
+:math:`(L, S, F)` directly.  At construction time, the solver builds:
+
+* :attr:`SNSolver.L` — :class:`SNStreamingOperator` carrying the
+  symmetric-closure streaming-collision operator.
+* :attr:`SNSolver.S` — :class:`~orpheus.sn.scattering.ScatteringOperator`
+  carrying the P0 + (n,2n) + Pℓ Galerkin reconstruction (Wave D
+  Issue 13).
+* :attr:`SNSolver.F` — :class:`~orpheus.sn.fission.FissionOperator`
+  carrying the rank-1-in-energy fission emission (Wave D Issue 13).
+
+Each of these is a :class:`~orpheus.numerics.operator.LinearOperator`
+in the Wave A operator-algebra sense: capability-tagged, composable
+under :class:`~orpheus.numerics.operator.OperatorSum` and
+:class:`~orpheus.numerics.operator.OperatorProduct`, and protocol-
+conforming so the iteration primitives in
+:mod:`orpheus.numerics.iteration` consume them without SN-specific
+plumbing.
+
+Adapter, not coordinator
+------------------------
+
+:class:`SNSolver` does NOT directly wrap
+:class:`~orpheus.numerics.iteration.SourceIteration` /
+:class:`~orpheus.numerics.iteration.KEigenvalue` for the fixed-source
+inner solve.  The reason is the Pℓ anisotropic scattering source:
+``ScatteringOperator.build_aniso_source`` requires the **angular
+flux of the previous iteration**, not the scalar flux that
+:class:`SourceIteration` carries.  Threading that angular state
+through the primitive's contract is a future cleanup; Round 2
+preserves bit-identity by replicating :class:`SourceIteration`'s
+loop structure verbatim inside :meth:`SNSolver._solve_source_iteration`
+(the "Approach A" in the
+``.claude/skills/algebra-of-record`` discipline — bit-identity now,
+architectural cleanup follows).
+
+The :meth:`SNSolver._solve_krylov` path likewise replicates the
+Krylov-on-:meth:`apply` pattern inline rather than going through
+:class:`SourceIteration` with a custom ``inverter`` hook, for the
+same reason (Pℓ angular state) plus the fact that the GMRES outer
+iteration has its own warm-start machinery (``self._psi_solution``).
+
+The (L − S − F)·ψ = (1/k)·F·ψ framing at the solver level
+-----------------------------------------------------------
+
+Even without direct :class:`SourceIteration` consumption, the
+:math:`(L, S, F)` framing organises the solver's API surface:
+
+* :meth:`SNSolver.compute_fission_source` returns
+  :math:`F\,\phi/k` — a thin delegator to :meth:`F.apply` with the
+  :math:`1/k` outer-loop scaling applied at the solver level.
+* :meth:`SNSolver.solve_fixed_source` solves
+  :math:`(L - S)\,\psi = q_{\rm ext}` (with :math:`q_{\rm ext}` the
+  fission source built by ``compute_fission_source``).  Two paths:
+
+  * ``inner_solver="source_iteration"`` — sweep-driven fixed-point
+    iteration; :math:`L^{-1}` is the WDD asymmetric sweep.  ERR-026-
+    affected for curvilinear vacuum-BC cases.
+  * ``inner_solver="krylov"`` — GMRES on :meth:`L.apply` with the
+    sweep as preconditioner.  Reflective-BC equation map only
+    (Round 3 owns the vacuum-BC extension).
+
+* :meth:`SNSolver.compute_keff` returns
+  :math:`\sum F\,\phi\,V / \sum \Sigma_a\,\phi\,V` (the volume-
+  weighted production / absorption ratio); the existing math is
+  preserved verbatim because
+  :meth:`KEigenvalue.solve`'s default Rayleigh-quotient estimator
+  is volume-blind.
+
+The solver-level :math:`1/k` scaling and volume-weighting hooks
+are exactly the points where SN's specifics live; the rest of the
+solver is operator-algebra coordination.
 
 The eigenvalue :math:`\keff` is determined by **power iteration**: an
 outer loop updates :math:`k` from the production/absorption ratio, with
@@ -2737,19 +2851,27 @@ Two Inner Solvers
 - Cost per iteration: one transport sweep
 - Works for all geometries
 
-**BiCGSTAB (direct operator):**
+**Krylov (direct operator):**
 
-- Operator: :math:`T = \mu \nabla + \Sigt{}` (finite-difference
-  gradients)
+- Operator: :math:`L = \mu \nabla + \Sigt{}` (finite-difference
+  gradients, symmetric closure carried by
+  :meth:`SNStreamingOperator.apply`)
 - Solution variable: angular flux :math:`\psi(x, y, n, g)` (much
-  larger)
-- System: :math:`T\psi = b` where :math:`b` = fission + scattering
-- Convergence: ~100 Krylov iterations at ``tol=1e-4`` (always converges)
+  larger than scalar flux)
+- System: :math:`L\psi = b` where :math:`b` = fission + scattering
+- Convergence: GMRES with sweep preconditioner, typically ~100
+  Krylov iterations at ``tol=1e-4`` (always converges)
 - Available for all geometries (Cartesian, spherical, cylindrical)
+  with reflective outer-BC equation maps
 
-The two architectures use **different spatial discretisations** (DD
-sweep vs FD gradient) that converge to different :math:`\keff` on coarse
-meshes.  They agree in the limit :math:`h \to 0`.
+Wave E Round 2 (Issue #164) replaced the legacy BiCGSTAB FD-operator
+path with this Krylov path.  See `Krylov inner solver`_ above for
+the full discussion.
+
+The two architectures use **different spatial closures** (WDD
+asymmetric sweep vs symmetric FD operator) that converge to
+different :math:`\keff` on coarse meshes.  They agree in the limit
+:math:`h \to 0`.
 
 
 Verification
@@ -4549,3 +4671,9 @@ References
    "Transport theory -- the method of discrete ordinates,"
    in *Computing Methods in Reactor Physics*,
    Gordon and Breach, 1968.
+
+.. [AdamsLarsen2002] M.L. Adams and E.W. Larsen,
+   "Fast iterative methods for discrete-ordinates particle transport
+   calculations," *Progress in Nuclear Energy*, 40(1):3--159, 2002.
+   Reviews the SAILOR / Larsen-Adams preconditioned-Krylov framework
+   that the Wave E Round 2 inner solver implements.

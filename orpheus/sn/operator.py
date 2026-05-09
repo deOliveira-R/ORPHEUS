@@ -1,23 +1,33 @@
 """Direct transport operator for Krylov inner solves.
 
-Provides the explicit operator T: ψ → T·ψ via finite differences, used
-by the ``bicgstab`` inner solver path in :class:`SNSolver`.
+Provides the explicit symmetric-closure transport operator
+:math:`L = \\Omega\\cdot\\nabla + \\Sigma_t` as
+:class:`SNStreamingOperator`, plus the packed-vector layout helpers
+(:class:`EquationMap`, :func:`solution_to_angular_flux*`,
+:func:`transport_operator_matvec*`) that the operator's
+:meth:`apply` path uses internally.
 
 Three geometries are supported:
 
-* **Cartesian 2D** — ``T = μ_x ∂/∂x + μ_y ∂/∂y + Σ_t``
-* **Spherical 1D** — ``T = μ (A ∂/∂r)/V + (α ∂/∂μ)/V + Σ_t``
+* **Cartesian 2D** — ``L = μ_x ∂/∂x + μ_y ∂/∂y + Σ_t``
+* **Spherical 1D** — ``L = μ (A ∂/∂r)/V + (α ∂/∂μ)/V + Σ_t``
 * **Cylindrical 1D** — per-level azimuthal redistribution
 
-The sweep-based solver (source iteration) inverts T implicitly via
-diamond-difference sweeps.  This module forms T explicitly so that
-scipy's Krylov solvers (BiCGSTAB, GMRES) can solve  T·ψ = b  directly.
+The sweep-based solver (source iteration) inverts :math:`L` implicitly
+via diamond-difference sweeps.  This module forms :math:`L` explicitly
+so that scipy's Krylov solvers (GMRES) can solve :math:`L\\,\\psi = b`
+directly via :class:`SNStreamingOperator.apply`.  Wave E Round 2
+retired the standalone ``build_rhs*`` and
+``build_transport_linear_operator*`` helpers along with the
+``angular_flux_to_scalar`` aggregator: the Krylov consumer in
+:mod:`orpheus.sn.solver` now wraps :meth:`SNStreamingOperator.apply`
+as a ``scipy.sparse.linalg.LinearOperator`` directly, with the sweep
+as preconditioner.
 
-.. warning:: Operator-sweep inconsistency
+.. note:: Symmetric-closure invariant
 
-   The operator T formed here does **not** use the same diamond-difference
-   (DD) or weighted-diamond-difference (WDD) closure as the sweep paths
-   in :mod:`orpheus.sn.sweep`. Instead it uses:
+   The operator :math:`L` formed here uses the **symmetric** closure
+   that makes the Krylov path agree with analytical references:
 
    * **Cartesian**: upwind cell-center finite differences for the
      streaming gradient — first-order accurate and consistent with DD
@@ -25,31 +35,16 @@ scipy's Krylov solvers (BiCGSTAB, GMRES) can solve  T·ψ = b  directly.
      non-uniform meshes (divides by the local ``dx[ix]`` rather than
      the cell-center distance ``(dx[ix]+dx[ix±1])/2``).
    * **Curvilinear**: arithmetic averages for spatial face fluxes and
-     τ-weighted interpolation for angular face fluxes, rather than the
-     DD closure ``ψ_out = 2·ψ_avg − ψ_in`` and the WDD closure
-     ``ψ_angle_out = (ψ − (1−τ)·ψ_angle_in)/τ`` used by the sweeps.
+     τ-weighted interpolation for angular face fluxes — the
+     symmetric form, distinct from the WDD asymmetric closure
+     :math:`\\psi_{\\rm out} = (\\overline{\\psi} - (1 - \\tau)\\,
+     \\psi_{\\rm in})/\\tau` used by the sweeps.
 
-   **Why not use DD face fluxes directly?** The DD/WDD closure turns
-   the operator into a triangular system whose condition number grows
-   exponentially with optical thickness. Forward-substitution (the
-   sweep) is the natural solver for such systems; applying them as a
-   matvec inside unpreconditioned BiCGSTAB produces catastrophically
-   growing face fluxes in the Krylov search directions, leading to
-   overflow. A DD-consistent Krylov solve would require a sweep-based
-   preconditioner (DSA/TSA), which is a future enhancement.
-
-   **Practical implication.** On uniform meshes, the BiCGSTAB and
-   source-iteration paths converge to the same physics in the fine-mesh
-   limit (both are first-order consistent with the transport equation).
-   On non-uniform meshes, the BiCGSTAB Cartesian path has an additional
-   O(h) inconsistency in the gradient stencil. On heterogeneous problems
-   at coarse meshes, the two paths can differ at O(h²) in the
-   eigenvalue. For verification work, **always use source iteration**
-   (the default).
-
-   See GitHub issues #96 (Cartesian) and #97 (curvilinear) for the
-   full audit trail. The inconsistency was surfaced during the
-   ERR-025 diagnosis (Phase 2.1b of the verification campaign).
+   On uniform meshes the symmetric-closure operator and the WDD
+   sweep converge to the same physics in the fine-mesh limit; on
+   curvilinear, the sweep's WDD closure has the ERR-026 closure-bias-
+   driven self-consistent fixed point that is now bypassed by the
+   Krylov-on-:meth:`apply` path (Wave E Round 2).
 """
 
 from __future__ import annotations
@@ -58,7 +53,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy.sparse.linalg import LinearOperator
 
 from orpheus.numerics.operator import (
     CAP_APPLY,
@@ -80,16 +74,9 @@ __all__ = [
     "solution_to_angular_flux",
     "solution_to_angular_flux_spherical",
     "solution_to_angular_flux_cylindrical",
-    "angular_flux_to_scalar",
     "transport_operator_matvec",
     "transport_operator_matvec_spherical",
     "transport_operator_matvec_cylindrical",
-    "build_transport_linear_operator",
-    "build_transport_linear_operator_spherical",
-    "build_transport_linear_operator_cylindrical",
-    "build_rhs",
-    "build_rhs_spherical",
-    "build_rhs_cylindrical",
     "SNStreamingOperator",
 ]
 
@@ -200,19 +187,6 @@ def solution_to_angular_flux(
     return fi
 
 
-def angular_flux_to_scalar(
-    fi: np.ndarray, quad: AngularQuadrature, nx: int, ny: int, ng: int,
-) -> np.ndarray:
-    """Integrate angular flux to scalar flux: φ = Σ w_n ψ_n."""
-    sf = np.zeros((nx, ny, ng))
-    for iy in range(ny):
-        for ix in range(nx):
-            sf[ix, iy, :] = np.sum(
-                fi[:, :, ix, iy] * quad.weights[None, :], axis=1,
-            )
-    return sf
-
-
 # ═══════════════════════════════════════════════════════════════════════
 # Finite-difference gradients (diamond scheme with reflective BCs)
 # ═══════════════════════════════════════════════════════════════════════
@@ -320,128 +294,8 @@ def transport_operator_matvec(
     return lhs.ravel(order='F')
 
 
-def build_transport_linear_operator(
-    eq_map: EquationMap,
-    quad: AngularQuadrature,
-    sig_t: np.ndarray,
-    nx: int, ny: int, ng: int,
-    dx: np.ndarray, dy: np.ndarray,
-) -> LinearOperator:
-    """Build scipy LinearOperator for T = μ·∇ + Σ_t."""
-    def matvec(x):
-        return transport_operator_matvec(
-            x, eq_map, quad, sig_t, nx, ny, ng, dx, dy,
-        )
-
-    n = eq_map.n_unknowns
-    return LinearOperator((n, n), matvec=matvec, dtype=float)
-
-
 # ═══════════════════════════════════════════════════════════════════════
-# RHS construction (fission + scattering + n2n, per ordinate)
-# ═══════════════════════════════════════════════════════════════════════
-
-def build_rhs(
-    fission_source: np.ndarray,
-    scalar_flux: np.ndarray,
-    eq_map: EquationMap,
-    quad: AngularQuadrature,
-    sig_s: dict[int, list[np.ndarray]],
-    sig2: dict[int, np.ndarray],
-    mat_map: np.ndarray,
-    nx: int, ny: int, ng: int,
-    scattering_order: int = 0,
-    angular_flux: np.ndarray | None = None,
-) -> np.ndarray:
-    """Build the RHS source vector for T·ψ = b.
-
-    All isotropic sources are divided by sum(weights) — the angular
-    normalization for the discrete angular flux equation.
-
-    For Pn scattering (scattering_order > 0), the scattering source
-    is per-ordinate using Legendre moments of the angular flux::
-
-        qS(n) = Σ_l (2l+1) · Σ_s^l^T @ [Σ_m fiL_lm · Y_lm(n)] / sum_w
-
-    Parameters
-    ----------
-    fission_source : (nx, ny, ng) — already divided by sum(w) by the caller.
-    scalar_flux : (nx, ny, ng) — current scalar flux for scattering.
-    sig_s : dict[mat_id → list of (ng, ng)] Legendre scattering matrices.
-    sig2 : dict[mat_id → (ng, ng)] (n,2n) matrices.
-    scattering_order : Legendre order L (0 = P0 isotropic).
-    angular_flux : (ng, N, nx, ny) angular flux for computing Legendre
-        moments. Required if scattering_order > 0.
-
-    Returns
-    -------
-    np.ndarray
-        Shape ``(n_unknowns,)``. The RHS source vector.
-    """
-    sum_w = float(quad.weights.sum())
-    L = scattering_order
-    mu_z = getattr(quad, 'mu_z', np.zeros(quad.N))
-
-    # Precompute Legendre moments if anisotropic scattering
-    fiL = None
-    Y = None
-    if L > 0 and angular_flux is not None:
-        Y = quad.spherical_harmonics(L)  # (N, L+1, 2L+1)
-        w = quad.weights
-        fiL = np.zeros((nx, ny, ng, L + 1, 2 * L + 1))
-        for l in range(L + 1):
-            for m in range(-l, l + 1):
-                for n in range(quad.N):
-                    fiL[:, :, :, l, l + m] += (
-                        w[n] * angular_flux[:, n, :, :].T * Y[n, l, l + m]
-                    )
-
-    rhs = np.zeros((ng, eq_map.n_eq))
-    eq_idx = 0
-    for iy in range(ny):
-        for ix in range(nx):
-            mid = int(mat_map[ix, iy])
-            phi_cell = scalar_flux[ix, iy, :]
-
-            # Fission (already normalized by caller)
-            qF = fission_source[ix, iy, :]
-
-            # (n,2n) — isotropic
-            q2 = 2.0 * (sig2[mid].T @ phi_cell) / sum_w
-
-            for n in range(quad.N):
-                if mu_z[n] < -1e-15:
-                    continue
-                if ix == 0 and quad.mu_x[n] > 1e-15:
-                    continue
-                if ix == nx - 1 and quad.mu_x[n] < -1e-15:
-                    continue
-                if iy == 0 and quad.mu_y[n] > 1e-15:
-                    continue
-                if iy == ny - 1 and quad.mu_y[n] < -1e-15:
-                    continue
-
-                # Scattering source (Pn expansion)
-                qS = np.zeros(ng)
-                for l in range(L + 1):
-                    if l == 0:
-                        # P0: isotropic, use scalar flux
-                        qS += sig_s[mid][0].T @ phi_cell / sum_w
-                    elif fiL is not None:
-                        # P1+: anisotropic, use Legendre moments
-                        SUM = np.zeros(ng)
-                        for m in range(-l, l + 1):
-                            SUM += fiL[ix, iy, :, l, l + m] * Y[n, l, l + m]
-                        qS += (2 * l + 1) * (sig_s[mid][l].T @ SUM) / sum_w
-
-                rhs[:, eq_idx] = qF + q2 + qS
-                eq_idx += 1
-
-    return rhs.ravel(order='F')
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Spherical 1D operator: T = μ(A∂/∂r)/V + (α∂/∂μ)/V + Σ_t
+# Spherical 1D operator: L = μ(A∂/∂r)/V + (α∂/∂μ)/V + Σ_t
 # ═══════════════════════════════════════════════════════════════════════
 
 def build_equation_map_spherical(
@@ -580,70 +434,8 @@ def transport_operator_matvec_spherical(
     return lhs.ravel(order='F')
 
 
-def build_transport_linear_operator_spherical(
-    eq_map: EquationMap,
-    quad: AngularQuadrature,
-    sig_t: np.ndarray,
-    nx: int, ng: int,
-    face_areas: np.ndarray,
-    volumes: np.ndarray,
-    alpha_half: np.ndarray,
-    redist_dAw: np.ndarray,
-    tau_mm: np.ndarray,
-) -> LinearOperator:
-    """Build scipy LinearOperator for spherical T."""
-    def matvec(x):
-        return transport_operator_matvec_spherical(
-            x, eq_map, quad, sig_t, nx, ng,
-            face_areas, volumes, alpha_half, redist_dAw, tau_mm,
-        )
-
-    n = eq_map.n_unknowns
-    return LinearOperator((n, n), matvec=matvec, dtype=float)
-
-
-def build_rhs_spherical(
-    fission_source: np.ndarray,
-    scalar_flux: np.ndarray,
-    eq_map: EquationMap,
-    quad: AngularQuadrature,
-    sig_s: dict[int, list[np.ndarray]],
-    sig2: dict[int, np.ndarray],
-    mat_map: np.ndarray,
-    nx: int, ng: int,
-    scattering_order: int = 0,
-    angular_flux: np.ndarray | None = None,
-) -> np.ndarray:
-    """Build the RHS source vector for spherical T·ψ = b.
-
-    Same structure as Cartesian ``build_rhs`` but with spherical
-    equation map (no y-direction, no z-reflection filtering).
-    """
-    sum_w = float(quad.weights.sum())
-    L = scattering_order
-
-    rhs = np.zeros((ng, eq_map.n_eq))
-    eq_idx = 0
-    for ix in range(nx):
-        mid = int(mat_map[ix, 0])
-        phi_cell = scalar_flux[ix, 0, :]
-
-        qF = fission_source[ix, 0, :]
-        q2 = 2.0 * (sig2[mid].T @ phi_cell) / sum_w
-
-        for n in range(quad.N):
-            if ix == nx - 1 and quad.mu_x[n] < -1e-15:
-                continue
-
-            qS = sig_s[mid][0].T @ phi_cell / sum_w
-            rhs[:, eq_idx] = qF + q2 + qS
-            eq_idx += 1
-
-    return rhs.ravel(order='F')
-
-
 # ═══════════════════════════════════════════════════════════════════════
-# Cylindrical 1D operator: T = η(A∂/∂r)/V + (ΔA/w)(α∂/∂φ)/V + Σ_t
+# Cylindrical 1D operator: L = η(A∂/∂r)/V + (ΔA/w)(α∂/∂φ)/V + Σ_t
 # ═══════════════════════════════════════════════════════════════════════
 
 # Equation map and solution-to-flux reuse the spherical versions
@@ -740,33 +532,6 @@ def transport_operator_matvec_cylindrical(
         lhs[:, k] = streaming + redistribution + collision
 
     return lhs.ravel(order='F')
-
-
-def build_transport_linear_operator_cylindrical(
-    eq_map: EquationMap,
-    quad: AngularQuadrature,
-    sig_t: np.ndarray,
-    nx: int, ng: int,
-    face_areas: np.ndarray,
-    volumes: np.ndarray,
-    alpha_per_level: list[np.ndarray],
-    redist_dAw_per_level: list[np.ndarray],
-    tau_mm_per_level: list[np.ndarray],
-) -> LinearOperator:
-    """Build scipy LinearOperator for cylindrical T."""
-    def matvec(x):
-        return transport_operator_matvec_cylindrical(
-            x, eq_map, quad, sig_t, nx, ng,
-            face_areas, volumes,
-            alpha_per_level, redist_dAw_per_level, tau_mm_per_level,
-        )
-
-    n = eq_map.n_unknowns
-    return LinearOperator((n, n), matvec=matvec, dtype=float)
-
-
-# RHS builder reuses the spherical version (same 1D isotropic structure).
-build_rhs_cylindrical = build_rhs_spherical
 
 
 # ═══════════════════════════════════════════════════════════════════════

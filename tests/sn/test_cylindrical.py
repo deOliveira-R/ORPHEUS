@@ -498,7 +498,7 @@ class TestMultiGroupMultiRegion:
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad)
 
-        for p, alpha in enumerate(sn_mesh.alpha_per_level):
+        for p, alpha in enumerate(sn_mesh.reduced.alpha_per_level):
             np.testing.assert_allclose(alpha[0], 0.0,
                                        err_msg=f"Level {p}: α[0] ≠ 0")
             np.testing.assert_allclose(alpha[-1], 0.0, atol=1e-13,
@@ -539,7 +539,7 @@ class TestMultiGroupMultiRegion:
         ang, _ = _sweep_1d_cylindrical(Q, sig_t, sn_mesh, psi_bc)
 
         for p, level_idx in enumerate(quad.level_indices):
-            alpha = sn_mesh.alpha_per_level[p]
+            alpha = sn_mesh.reduced.alpha_per_level[p]
             M = len(level_idx)
             # Reconstruct angular face fluxes from cell-average and DD
             psi_angle = np.zeros(10)

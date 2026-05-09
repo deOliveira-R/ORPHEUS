@@ -342,7 +342,7 @@ class TestBicgstabNormalization:
         mesh = Mesh1D(edges=np.linspace(0, 2, 5), mat_ids=np.zeros(4, dtype=int))
         gl = GaussLegendre1D.create(8)
         solver = SNSolver({0: mix}, SNMesh(mesh, gl),
-                          inner_solver="bicgstab",
+                          inner_solver="krylov",
                           max_inner=2000, inner_tol=1e-6)
 
         phi = solver.initial_flux_distribution()
@@ -367,7 +367,7 @@ class TestBicgstabNormalization:
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = LebedevSphere.create(order=17)
         solver = SNSolver({0: mix}, SNMesh(mesh, quad),
-                          inner_solver="bicgstab",
+                          inner_solver="krylov",
                           max_inner=2000, inner_tol=1e-6)
 
         phi = solver.initial_flux_distribution()
@@ -401,7 +401,7 @@ class TestBicgstabNormalization:
              LebedevSphere.create(order=17)),
         ]:
             solver = SNSolver({0: mix}, SNMesh(mesh, quad),
-                              inner_solver="bicgstab",
+                              inner_solver="krylov",
                               max_inner=2000, inner_tol=1e-6)
             phi = solver.initial_flux_distribution()
             keff = 1.0
@@ -688,7 +688,7 @@ class TestBicgstabPnScattering:
         quad = LebedevSphere.create(order=17)
 
         keffs = {}
-        for label, solver_type in [("SI", "source_iteration"), ("BC", "bicgstab")]:
+        for label, solver_type in [("SI", "source_iteration"), ("BC", "krylov")]:
             solver = SNSolver({0: mix}, SNMesh(mesh, quad),
                               inner_solver=solver_type, scattering_order=0,
                               max_inner=500 if solver_type == "source_iteration" else 2000,
@@ -717,7 +717,7 @@ class TestBicgstabPnScattering:
         keffs = {}
         for L in [0, 1]:
             solver = SNSolver({0: mix}, SNMesh(mesh, quad),
-                              inner_solver="bicgstab", scattering_order=L,
+                              inner_solver="krylov", scattering_order=L,
                               max_inner=2000, inner_tol=1e-6)
             phi = solver.initial_flux_distribution()
             keff = 1.0
@@ -742,7 +742,7 @@ class TestBicgstabPnScattering:
         quad = LebedevSphere.create(order=17)
 
         keffs = {}
-        for label, solver_type in [("SI", "source_iteration"), ("BC", "bicgstab")]:
+        for label, solver_type in [("SI", "source_iteration"), ("BC", "krylov")]:
             solver = SNSolver({0: mix}, SNMesh(mesh, quad),
                               inner_solver=solver_type, scattering_order=1,
                               max_inner=500 if solver_type == "source_iteration" else 2000,
@@ -874,7 +874,7 @@ class TestSolveFixedSource:
 
         # BiCGSTAB
         solver_bc = SNSolver({0: mix}, SNMesh(mesh, quad),
-                             inner_solver="bicgstab",
+                             inner_solver="krylov",
                              max_inner=2000, inner_tol=1e-6)
         phi = solver_bc.initial_flux_distribution()
         keff = 1.0

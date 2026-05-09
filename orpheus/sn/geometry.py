@@ -561,74 +561,9 @@ class SNMesh:
         assert self.reduced.delta_A is not None
         return self.reduced.delta_A
 
-    @property
-    def alpha_half(self) -> np.ndarray:
-        """[Deprecated] α dome (sphere). Use ``self.reduced.alpha_half`` instead."""
-        warnings.warn(
-            "SNMesh.alpha_half is deprecated; "
-            "use SNMesh.reduced.alpha_half instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        assert self.reduced.alpha_half is not None
-        return self.reduced.alpha_half
-
-    @property
-    def redist_dAw(self) -> np.ndarray:
-        """[Deprecated] ΔA/w (sphere). Use ``self.reduced.redist_dAw`` instead."""
-        warnings.warn(
-            "SNMesh.redist_dAw is deprecated; "
-            "use SNMesh.reduced.redist_dAw instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        assert self.reduced.redist_dAw is not None
-        return self.reduced.redist_dAw
-
-    @property
-    def tau_mm(self) -> np.ndarray:
-        """[Deprecated] Morel-Montry weights (sphere). Use ``self.reduced.tau_mm`` instead."""
-        warnings.warn(
-            "SNMesh.tau_mm is deprecated; "
-            "use SNMesh.reduced.tau_mm instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        assert self.reduced.tau_mm is not None
-        return self.reduced.tau_mm
-
-    @property
-    def alpha_per_level(self) -> list[np.ndarray]:
-        """[Deprecated] α per μ-level (cylinder). Use ``self.reduced.alpha_per_level`` instead."""
-        warnings.warn(
-            "SNMesh.alpha_per_level is deprecated; "
-            "use SNMesh.reduced.alpha_per_level instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        assert self.reduced.alpha_per_level is not None
-        return self.reduced.alpha_per_level
-
-    @property
-    def redist_dAw_per_level(self) -> list[np.ndarray]:
-        """[Deprecated] ΔA/w per μ-level (cylinder). Use ``self.reduced.redist_dAw_per_level`` instead."""
-        warnings.warn(
-            "SNMesh.redist_dAw_per_level is deprecated; "
-            "use SNMesh.reduced.redist_dAw_per_level instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        assert self.reduced.redist_dAw_per_level is not None
-        return self.reduced.redist_dAw_per_level
-
-    @property
-    def tau_mm_per_level(self) -> list[np.ndarray]:
-        """[Deprecated] Morel-Montry weights per μ-level (cylinder). Use ``self.reduced.tau_mm_per_level`` instead."""
-        warnings.warn(
-            "SNMesh.tau_mm_per_level is deprecated; "
-            "use SNMesh.reduced.tau_mm_per_level instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        assert self.reduced.tau_mm_per_level is not None
-        return self.reduced.tau_mm_per_level
+    # The six curvature-specific accessors (``alpha_half``,
+    # ``redist_dAw``, ``tau_mm``, and the cylindrical per-level
+    # analogues) added in Wave D Round 1.1 as DeprecationWarning
+    # shims were retired in Wave E Round 2 (Issue #164) along with
+    # the BiCGSTAB FD-operator API surface that was their only
+    # consumer.  Use ``self.reduced.<name>`` directly.

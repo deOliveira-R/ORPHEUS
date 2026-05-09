@@ -83,7 +83,7 @@ def main():
     # 4. Solve
     result = solve_sn(
         materials, mesh, quad,
-        inner_solver="bicgstab",
+        inner_solver="krylov",
         max_outer=500,
         max_inner=2000,
         inner_tol=1e-4,

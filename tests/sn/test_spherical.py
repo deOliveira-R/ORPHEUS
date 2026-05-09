@@ -190,8 +190,8 @@ class TestAlphaCoefficients:
         quad = GaussLegendre1D.create(N)
         sn_mesh = SNMesh(mesh, quad)
 
-        np.testing.assert_allclose(sn_mesh.alpha_half[0], 0.0)
-        np.testing.assert_allclose(sn_mesh.alpha_half[-1], 0.0, atol=1e-14)
+        np.testing.assert_allclose(sn_mesh.reduced.alpha_half[0], 0.0)
+        np.testing.assert_allclose(sn_mesh.reduced.alpha_half[-1], 0.0, atol=1e-14)
 
     def test_alpha_recursion(self):
         """α_{n+1/2} = α_{n-1/2} − w_n μ_n (Bailey et al. 2009 Eq. 50)."""
@@ -200,7 +200,7 @@ class TestAlphaCoefficients:
         quad = GaussLegendre1D.create(8)
         sn_mesh = SNMesh(mesh, quad)
 
-        alpha = sn_mesh.alpha_half
+        alpha = sn_mesh.reduced.alpha_half
         for n in range(quad.N):
             expected = alpha[n] - quad.weights[n] * quad.mu_x[n]
             np.testing.assert_allclose(alpha[n + 1], expected, rtol=1e-14)
@@ -218,7 +218,7 @@ class TestAlphaCoefficients:
         quad = GaussLegendre1D.create(8)
         sn_mesh = SNMesh(mesh, quad)
 
-        alpha = sn_mesh.alpha_half
+        alpha = sn_mesh.reduced.alpha_half
         N = quad.N
         for k in range(N + 1):
             np.testing.assert_allclose(
@@ -441,7 +441,7 @@ class TestSphericalBicgstab:
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
         result = solve_sn({0: mix}, mesh, quad,
-                          inner_solver="bicgstab",
+                          inner_solver="krylov",
                           max_inner=2000, inner_tol=1e-6)
 
         assert abs(result.keff - case.k_inf) < 1e-4, (
@@ -455,7 +455,7 @@ class TestSphericalBicgstab:
 
         keffs = {}
         for label, solver_type in [("SI", "source_iteration"),
-                                    ("BC", "bicgstab")]:
+                                    ("BC", "krylov")]:
             mesh = _homogeneous_mesh(10, 2.0, mat_id=0,
                                   coord=CoordSystem.SPHERICAL)
             quad = GaussLegendre1D.create(8)
@@ -485,7 +485,7 @@ class TestSphericalBicgstab:
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
         result = solve_sn({0: mix}, mesh, quad,
-                          inner_solver="bicgstab",
+                          inner_solver="krylov",
                           max_inner=2000, inner_tol=1e-6)
 
         assert np.isfinite(result.keff), f"keff is not finite: {result.keff}"

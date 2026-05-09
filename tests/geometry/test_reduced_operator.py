@@ -102,19 +102,19 @@ class TestHashEqualitySpherical:
     def test_alpha_half_bit_identical(self, pair):
         sn_mesh, reduced = pair
         assert reduced.alpha_half is not None
-        assert np.array_equal(reduced.alpha_half, sn_mesh.alpha_half)
+        assert np.array_equal(reduced.alpha_half, sn_mesh.reduced.alpha_half)
 
     @pytest.mark.foundation
     def test_redist_dAw_bit_identical(self, pair):
         sn_mesh, reduced = pair
         assert reduced.redist_dAw is not None
-        assert np.array_equal(reduced.redist_dAw, sn_mesh.redist_dAw)
+        assert np.array_equal(reduced.redist_dAw, sn_mesh.reduced.redist_dAw)
 
     @pytest.mark.foundation
     def test_tau_mm_bit_identical(self, pair):
         sn_mesh, reduced = pair
         assert reduced.tau_mm is not None
-        assert np.array_equal(reduced.tau_mm, sn_mesh.tau_mm)
+        assert np.array_equal(reduced.tau_mm, sn_mesh.reduced.tau_mm)
 
     @pytest.mark.foundation
     @pytest.mark.parametrize("N", [4, 8, 16, 32])
@@ -124,9 +124,9 @@ class TestHashEqualitySpherical:
         quad = GaussLegendre1D.create(N)
         sn_mesh = SNMesh(mesh, quad)
         reduced = spherical_streaming(mesh, quad)
-        assert np.array_equal(reduced.alpha_half, sn_mesh.alpha_half)
-        assert np.array_equal(reduced.tau_mm, sn_mesh.tau_mm)
-        assert np.array_equal(reduced.redist_dAw, sn_mesh.redist_dAw)
+        assert np.array_equal(reduced.alpha_half, sn_mesh.reduced.alpha_half)
+        assert np.array_equal(reduced.tau_mm, sn_mesh.reduced.tau_mm)
+        assert np.array_equal(reduced.redist_dAw, sn_mesh.reduced.redist_dAw)
 
 
 class TestHashEqualityCylindrical:
@@ -154,9 +154,9 @@ class TestHashEqualityCylindrical:
     def test_alpha_per_level_bit_identical(self, pair):
         sn_mesh, reduced = pair
         assert reduced.alpha_per_level is not None
-        assert len(reduced.alpha_per_level) == len(sn_mesh.alpha_per_level)
+        assert len(reduced.alpha_per_level) == len(sn_mesh.reduced.alpha_per_level)
         for lvl, (rdc, snm) in enumerate(
-            zip(reduced.alpha_per_level, sn_mesh.alpha_per_level)
+            zip(reduced.alpha_per_level, sn_mesh.reduced.alpha_per_level)
         ):
             assert np.array_equal(rdc, snm), f"level {lvl} mismatch"
 
@@ -165,7 +165,7 @@ class TestHashEqualityCylindrical:
         sn_mesh, reduced = pair
         assert reduced.redist_dAw_per_level is not None
         for lvl, (rdc, snm) in enumerate(
-            zip(reduced.redist_dAw_per_level, sn_mesh.redist_dAw_per_level)
+            zip(reduced.redist_dAw_per_level, sn_mesh.reduced.redist_dAw_per_level)
         ):
             assert np.array_equal(rdc, snm), f"level {lvl} mismatch"
 
@@ -174,7 +174,7 @@ class TestHashEqualityCylindrical:
         sn_mesh, reduced = pair
         assert reduced.tau_mm_per_level is not None
         for lvl, (rdc, snm) in enumerate(
-            zip(reduced.tau_mm_per_level, sn_mesh.tau_mm_per_level)
+            zip(reduced.tau_mm_per_level, sn_mesh.reduced.tau_mm_per_level)
         ):
             assert np.array_equal(rdc, snm), f"level {lvl} mismatch"
 
@@ -187,15 +187,15 @@ class TestHashEqualityCylindrical:
         sn_mesh = SNMesh(mesh, quad)
         reduced = cylindrical_streaming(mesh, quad)
         for rdc, snm in zip(
-            reduced.alpha_per_level, sn_mesh.alpha_per_level
+            reduced.alpha_per_level, sn_mesh.reduced.alpha_per_level
         ):
             assert np.array_equal(rdc, snm)
         for rdc, snm in zip(
-            reduced.redist_dAw_per_level, sn_mesh.redist_dAw_per_level
+            reduced.redist_dAw_per_level, sn_mesh.reduced.redist_dAw_per_level
         ):
             assert np.array_equal(rdc, snm)
         for rdc, snm in zip(
-            reduced.tau_mm_per_level, sn_mesh.tau_mm_per_level
+            reduced.tau_mm_per_level, sn_mesh.reduced.tau_mm_per_level
         ):
             assert np.array_equal(rdc, snm)
 

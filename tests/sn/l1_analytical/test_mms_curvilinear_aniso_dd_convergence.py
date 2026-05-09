@@ -58,8 +58,11 @@ def _l2_1d(phi_num: np.ndarray, phi_ref: np.ndarray, volumes: np.ndarray) -> flo
         "ERR-026 — curvilinear sweep WDD wrong fixed point. The legacy "
         "isotropic spherical MMS test in tests/sn/test_mms_curvilinear.py "
         "currently fails on main with order ≈ 0 instead of O(h²); the "
-        "anisotropic ansatz inherits the same bug class. Closes when the "
-        "SN reshape Issues 11/12 reconcile sweep and operator."
+        "anisotropic ansatz inherits the same bug class. Wave E Round 2 "
+        "discovered the SNStreamingOperator.apply path uses the "
+        "reflective-BC equation map, so it cannot close ERR-026 on the "
+        "vacuum-BC MMS case without an equation-map extension. Round 3 "
+        "owns the closure mechanism."
     ),
 )
 @pytest.mark.verifies(
@@ -111,7 +114,8 @@ def test_sn_spherical_aniso_mms_converges_second_order():
     reason=(
         "ERR-026 — same root cause as the spherical anisotropic case; "
         "cylindrical sweep also produces order ≈ 0 on the legacy "
-        "isotropic test. Closes when SN reshape Issues 11/12 land."
+        "isotropic test. Wave E Round 2 discovered the FD operator's "
+        "equation map is reflective-BC only — Round 3 owns the closure."
     ),
 )
 @pytest.mark.verifies(

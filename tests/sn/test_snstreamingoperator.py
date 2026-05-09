@@ -55,7 +55,6 @@ from orpheus.numerics.operator import (
 from orpheus.sn import SNStreamingOperator
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import (
-    angular_flux_to_scalar,
     build_equation_map,
     build_equation_map_spherical,
     build_equation_map_cylindrical,

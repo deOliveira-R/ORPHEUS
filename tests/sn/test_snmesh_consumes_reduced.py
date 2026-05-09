@@ -1,14 +1,19 @@
 """Foundation tests — SNMesh consumes ReducedStreamingOperator.
 
 Round 1.1 of Wave D of the SN reshape campaign (Issue #159).
+Updated for Wave E Round 2 (Issue #164): the six curvature-specific
+deprecated accessors (``alpha_half`` / ``redist_dAw`` / ``tau_mm``
+sphere; ``alpha_per_level`` / ``redist_dAw_per_level`` /
+``tau_mm_per_level`` cylinder) were retired along with the BiCGSTAB
+FD-operator API surface they were the only consumer of.  Only
+``face_areas`` and ``delta_A`` retain a transitional deprecation-
+warning surface.
 
 Pins three software invariants on the post-refactor :class:`SNMesh`:
 
 1. ``self.reduced`` is a :class:`ReducedStreamingOperator` instance with
    the matching :class:`CoordSystem` for slab / sphere / cylinder.
-2. The deprecated ``@property`` accessors (``alpha_half``,
-   ``redist_dAw``, ``tau_mm``, ``alpha_per_level``,
-   ``redist_dAw_per_level``, ``tau_mm_per_level``, ``face_areas``,
+2. The remaining transitional ``@property`` accessors (``face_areas``,
    ``delta_A``) emit :class:`DeprecationWarning` and route to the
    matching attribute on ``self.reduced``.
 3. The values returned via the deprecated properties are the *same
@@ -115,10 +120,7 @@ def test_cylinder_reduced_is_reduced_streaming_operator() -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize(
-    "attr",
-    ["face_areas", "delta_A", "alpha_half", "redist_dAw", "tau_mm"],
-)
+@pytest.mark.parametrize("attr", ["face_areas", "delta_A"])
 def test_sphere_deprecated_properties_warn(attr: str) -> None:
     sn = _sphere_mesh()
     with pytest.warns(DeprecationWarning, match=f"SNMesh.{attr} is deprecated"):
@@ -126,16 +128,7 @@ def test_sphere_deprecated_properties_warn(attr: str) -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize(
-    "attr",
-    [
-        "face_areas",
-        "delta_A",
-        "alpha_per_level",
-        "redist_dAw_per_level",
-        "tau_mm_per_level",
-    ],
-)
+@pytest.mark.parametrize("attr", ["face_areas", "delta_A"])
 def test_cylinder_deprecated_properties_warn(attr: str) -> None:
     sn = _cylinder_mesh()
     with pytest.warns(DeprecationWarning, match=f"SNMesh.{attr} is deprecated"):
@@ -156,9 +149,6 @@ def test_sphere_deprecated_properties_route_to_reduced() -> None:
         # exact array held by ``self.reduced``, not a copy.
         assert sn.face_areas is sn.reduced.face_areas
         assert sn.delta_A is sn.reduced.delta_A
-        assert sn.alpha_half is sn.reduced.alpha_half
-        assert sn.redist_dAw is sn.reduced.redist_dAw
-        assert sn.tau_mm is sn.reduced.tau_mm
 
 
 @pytest.mark.foundation
@@ -168,9 +158,6 @@ def test_cylinder_deprecated_properties_route_to_reduced() -> None:
         warnings.simplefilter("ignore", DeprecationWarning)
         assert sn.face_areas is sn.reduced.face_areas
         assert sn.delta_A is sn.reduced.delta_A
-        assert sn.alpha_per_level is sn.reduced.alpha_per_level
-        assert sn.redist_dAw_per_level is sn.reduced.redist_dAw_per_level
-        assert sn.tau_mm_per_level is sn.reduced.tau_mm_per_level
 
 
 # ---------------------------------------------------------------------------
