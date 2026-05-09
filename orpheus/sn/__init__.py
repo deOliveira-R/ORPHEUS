@@ -1,3 +1,5 @@
+from .fission import FissionOperator
+from .scattering import ScatteringOperator
 from .solver import (
     SNFixedSourceResult,
     SNResult,

@@ -1860,6 +1860,138 @@ operator) must divide sources by :math:`W` itself, since it solves
 :math:`T\psi = b` without the sweep.
 
 
+.. _sn-scattering-fission-operators:
+
+Scattering and fission as LinearOperators
+==========================================
+
+Wave A Issue 1 of the SN reshape campaign installed the
+:class:`~orpheus.numerics.operator.LinearOperator` Protocol --- a
+capability-tagged matrix-free operator algebra (see :ref:`operator-algebra`).
+The neutron transport eigenvalue
+problem written in operator form is
+
+.. math::
+
+    (L - S - F)\,\psi = q
+    \qquad\text{(fixed source)}
+
+.. math::
+
+    (L - S)\,\psi = \tfrac{1}{k}\,F\,\psi
+    \qquad\text{(eigenvalue)}
+
+where :math:`L` is the streaming + collision operator, :math:`S` is
+the scattering source operator, and :math:`F` is the fission source
+operator. Wave D Issue 13 lifts :math:`S` and :math:`F` out of
+:class:`~orpheus.sn.solver.SNSolver` and into
+:class:`~orpheus.sn.scattering.ScatteringOperator` and
+:class:`~orpheus.sn.fission.FissionOperator` respectively. The math is
+**moved verbatim** --- the regression contract on the 11 frozen
+snapshots at ``tests/sn/regression/snapshots/`` gates the extraction.
+
+Why ``apply``-only
+------------------
+
+Both operators advertise a single capability: ``{"apply"}`` only.
+
+* **Scattering (:math:`S`)** is rank-:math:`O(N_{\text{cells}}\cdot
+  N_{\text{groups}})`. There is no efficient inverse --- the operator
+  is *applied*, never *inverted*. The upper-triangular structure that
+  would make a sweep-based ``solve`` tractable does not survive the
+  Pℓ Galerkin reconstruction. Any algebraic consumer that asks for
+  :math:`S^{-1}` will get a :class:`MissingCapability` at composition
+  time, never silently wrong results at call time --- this is the
+  load-bearing payoff of the capability-set design (see
+  :ref:`operator-algebra`).
+
+* **Fission (:math:`F`)** has rank-1-in-energy structure: the action
+  factorises as :math:`(F\phi)_g = \chi_g\,\sum_{g'}\nu\Sigma_{f,g'}
+  \phi_{g'}`, an outer product of the emission spectrum with a scalar
+  per-cell rate. This rank-1 structure forbids a useful inverse on
+  the energy axis (the rate has lost direction information). The
+  :math:`1/k` eigenvalue division stays at the **solver** level ---
+  :meth:`~orpheus.sn.fission.FissionOperator.apply` returns
+  :math:`F\,\phi`; the EigenvalueSolver Protocol's
+  ``compute_fission_source`` divides by :math:`k`. This separation
+  preserves linearity of the operator (Wave A Protocol contract: an
+  operator's ``apply`` is independent of solver state).
+
+Pℓ Galerkin projection on :math:`Y_\ell^m`
+-------------------------------------------
+
+The :math:`\ell\ge 1` contribution to :math:`S` is the
+:eq:`pn-scatter` Galerkin reconstruction in real spherical
+harmonics :math:`Y_\ell^m`, expanded with the discrete-orthogonality
+identity :eq:`addition-theorem` (the Lebedev-quadrature L0
+verification of the addition theorem lives at
+``tests/sn/test_solver_components.py::TestAnisotropicScattering
+::test_spherical_harmonics_addition_theorem_L3``).
+
+Per-cell flux moments :eq:`flux-moments` are computed by the
+discrete projection
+
+.. math::
+
+    \phi^{\ell m}_g(\vec r)
+    \;\approx\; \sum_n w_n\,\psi_{n,g}(\vec r)\,Y_\ell^m(\hat\Omega_n).
+
+The reconstruction back to per-ordinate scattering source uses the
+addition theorem:
+
+.. math::
+
+    Q^{(\ell\ge 1)}_{n,g}(\vec r)
+    = \sum_{\ell=1}^{L}\,(2\ell+1)\,\sum_m Y_\ell^m(\hat\Omega_n)\,
+      \sum_{g'}\Sigma_{s,\ell}^m(g'\to g)\,\phi^{\ell m}_{g'}(\vec r).
+
+The :math:`(2\ell+1)` factor is the discrete-orthogonality
+normalisation
+:math:`\langle Y_\ell^m | Y_{\ell'}^{m'}\rangle =
+(4\pi/(2\ell+1))\,\delta_{\ell\ell'}\delta_{mm'}` working out across
+both projection and reconstruction. The Galerkin frame is **real**
+spherical harmonics (the
+:meth:`~orpheus.sn.quadrature.AngularQuadrature.spherical_harmonics`
+implementation), not complex --- this is the convention native to
+the Lebedev tabulation and avoids carrying complex arithmetic
+through the source-iteration inner loop.
+
+(n,2n) doubling
+---------------
+
+The (n,2n) reaction emits **two** neutrons per absorption, producing
+a secondary source :math:`2\,\Sigma_{2n}^m(g'\to g)\,\phi_{g'}`. ORPHEUS
+folds this into the **scattering** side of the algebra (rather than
+giving it its own operator) because:
+
+1. The bookkeeping is identical to in-scatter (vectorise-by-material,
+   add-into-:math:`Q`).
+2. The legacy code placement
+   (:meth:`SNSolver._add_n2n_source`) is inside the same source-
+   construction block as scattering. Wave D Issue 13's bit-identical
+   extraction needed to preserve that placement to keep the regression
+   snapshots bit-identical.
+3. Architecturally, both are *secondary-emission scalar-flux-driven*
+   sources --- they belong to the same algebra slot.
+
+Forward references to Wave E
+----------------------------
+
+Wave E Issue 15 will wire the BiCGSTAB inner solver to consume
+:class:`~orpheus.sn.scattering.ScatteringOperator` and
+:class:`~orpheus.sn.fission.FissionOperator` directly via the
+operator algebra
+:math:`(L - S - F)\,\psi = q`. Today (Wave D), the BiCGSTAB
+``build_rhs_*`` helpers in :mod:`orpheus.sn.operator` retain their
+own inline scattering / (n,2n) computation; the source-iteration
+path consumes the new operators via the per-method delegators on
+:class:`SNSolver` (:meth:`_add_scattering_source`,
+:meth:`_build_aniso_scattering`, :meth:`_add_n2n_source`,
+:meth:`compute_fission_source`). The delegators will retire when
+Wave E lands. Until then, the operators carry the canonical math
+and the delegators preserve the existing API surface.
+
+
 The Eigenvalue Problem
 ======================
 

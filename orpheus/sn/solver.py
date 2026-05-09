@@ -24,8 +24,10 @@ from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.numerics.eigenvalue import power_iteration
+from .fission import FissionOperator
 from .geometry import SNMesh
 from .quadrature import AngularQuadrature
+from .scattering import ScatteringOperator
 from .sweep import transport_sweep
 
 
@@ -180,6 +182,33 @@ class SNSolver:
         # Volume array for keff computation
         self.volume = sn_mesh.volumes
 
+        # ── LinearOperator handles for the secondary-emission algebra ──
+        # Wave D Issue 13: the scattering and fission source-construction
+        # math has been lifted out of this class into LinearOperator
+        # objects. The per-method delegators below keep the existing
+        # API surface (the EigenvalueSolver Protocol's
+        # compute_fission_source, plus the underscore-prefixed methods
+        # the tests probe directly) while routing the actual math
+        # through the operators. Bit-identical extraction (Wave D
+        # acceptance criterion D1) is preserved because the operators
+        # share the precomputed material structures with this class.
+        self.scattering_op = ScatteringOperator.from_solver_data(
+            n_ordinates=sn_mesh.quad.N,
+            nx=nx,
+            ny=ny,
+            ng=self.ng,
+            scattering_order=self.scattering_order,
+            sig_s=self.sig_s,
+            sig2=self.sig2,
+            sig_s0=self.sig_s0,
+            Y=self._Y,
+            weights=sn_mesh.quad.weights,
+            cells_by_mat=self._cells_by_mat,
+        )
+        self.fission_op = FissionOperator.from_solver_data(
+            chi=self.chi, sig_p=self.sig_p,
+        )
+
     def initial_flux_distribution(self) -> np.ndarray:
         """Initial scalar flux guess: ones(nx, ny, ng)."""
         return np.ones((self.sn_mesh.nx, self.sn_mesh.ny, self.ng))
@@ -187,9 +216,15 @@ class SNSolver:
     def compute_fission_source(
         self, flux_distribution: np.ndarray, keff: float,
     ) -> np.ndarray:
-        """Fission source: χ · (νΣ_f · φ) / k."""
-        fission_rate = np.sum(self.sig_p * flux_distribution, axis=2)  # (nx, ny)
-        return self.chi * fission_rate[:, :, None] / keff
+        """Fission source: χ · (νΣ_f · φ) / k.
+
+        Thin delegator to :meth:`FissionOperator.apply` (Wave D Issue 13).
+        The :math:`1/k` division stays at this level — the fission
+        operator is a *linear* operator (Wave A Issue 1 Protocol);
+        :meth:`FissionOperator.apply` returns :math:`F\\,\\phi` and the
+        eigenvalue scaling lives here.
+        """
+        return self.fission_op.apply(flux_distribution) / keff
 
     def solve_fixed_source(
         self, fission_source: np.ndarray, flux_distribution: np.ndarray,
@@ -447,59 +482,27 @@ class SNSolver:
         return angular_flux_to_scalar(fi, self.quad, nx, 1, ng)
 
     # ── Source computation helpers ────────────────────────────────────
+    #
+    # Wave D Issue 13: the math has been lifted into ScatteringOperator
+    # (orpheus/sn/scattering.py). The methods below are thin delegators
+    # preserved for the EigenvalueSolver Protocol surface and the
+    # underscore-prefixed test probes in tests/sn/test_solver_components.py.
+    # All four delegate to the same precomputed-by-construction operator
+    # held on self.scattering_op, so bit-identity is by construction.
 
     def _add_scattering_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        """Add P0 scattering source to Q in-place (vectorized by material)."""
-        for mid, (ix, iy) in self._cells_by_mat.items():
-            Q[ix, iy, :] += phi[ix, iy, :] @ self.sig_s0[mid]
+        """Add P0 scattering source to Q in-place (delegates to ScatteringOperator)."""
+        self.scattering_op.add_iso_source(Q, phi)
 
     def _build_aniso_scattering(
         self, angular_flux: np.ndarray | None,
     ) -> np.ndarray | None:
-        """Build per-ordinate anisotropic scattering source (P1+ terms).
-
-        Returns (N, nx, ny, ng) or None if scattering_order == 0 or
-        no angular flux is available yet.
-        """
-        if self.scattering_order == 0 or angular_flux is None:
-            return None
-
-        N = self.quad.N
-        nx, ny = self.sn_mesh.nx, self.sn_mesh.ny
-        ng = self.ng
-        L = self.scattering_order
-        Y = self._Y  # (N, L+1, 2L+1)
-        w = self.quad.weights
-
-        # Compute Legendre moments: fiL[x, y, g, l, l+m] = Σ_n w_n ψ_n Y_l^m(n)
-        fiL = np.zeros((nx, ny, ng, L + 1, 2 * L + 1))
-        for l in range(L + 1):
-            for m in range(-l, l + 1):
-                # (N,) * (N, nx, ny, ng) summed over N → (nx, ny, ng)
-                fiL[:, :, :, l, l + m] = np.einsum(
-                    'n,nxyg->xyg', w * Y[:, l, l + m], angular_flux,
-                )
-
-        # Build anisotropic source: only l >= 1 terms (P0 is in Q_iso)
-        Q_aniso = np.zeros((N, nx, ny, ng))
-        for mid, (ix, iy) in self._cells_by_mat.items():
-            n_cells = len(ix)
-            sig_s_l = self.sig_s[mid]
-            for l in range(1, L + 1):  # skip l=0 (handled by _add_scattering_source)
-                # Σ_m fiL[..., l, m] * Y_l^m(n) → reconstruct angular moment at ordinate n
-                for m in range(-l, l + 1):
-                    moment = fiL[ix, iy, :, l, l + m]  # (n_cells, ng)
-                    # (n_cells, ng) @ (ng, ng) → (n_cells, ng)
-                    scattered = moment @ sig_s_l[l]  # Σ_s^l @ fiL_lm
-                    for n in range(N):
-                        Q_aniso[n, ix, iy, :] += (2 * l + 1) * Y[n, l, l + m] * scattered
-
-        return Q_aniso
+        """Build per-ordinate anisotropic Pℓ scattering source (delegates to ScatteringOperator)."""
+        return self.scattering_op.build_aniso_source(angular_flux)
 
     def _add_n2n_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        """Add (n,2n) source to Q in-place (vectorized by material)."""
-        for mid, (ix, iy) in self._cells_by_mat.items():
-            Q[ix, iy, :] += 2.0 * (phi[ix, iy, :] @ self.sig2[mid])
+        """Add (n,2n) source to Q in-place (delegates to ScatteringOperator)."""
+        self.scattering_op.add_n2n_source(Q, phi)
 
 
 # ═══════════════════════════════════════════════════════════════════════
