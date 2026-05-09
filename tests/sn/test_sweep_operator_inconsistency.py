@@ -17,10 +17,10 @@ closure works as advertised.
 
 Wave E Round 3 (Issue #98 / #99 / #164 follow-up) closed the vacuum-BC
 gap: the FD operator's :func:`solution_to_angular_flux*` and matvec
-helpers now consume the :class:`~orpheus.geometry.boundary.ResolvedBC`
+helpers now consume the :class:`~orpheus.geometry.boundary.BoundaryOperator`
 instances on the :class:`~orpheus.sn.geometry.SNMesh`, so vacuum,
 reflective, white, periodic, albedo, and mixed BCs are all honoured
-uniformly via :meth:`ResolvedBC.apply_to_incoming` (Wave B Issue 7).
+uniformly via :meth:`BoundaryOperator.apply_to_incoming` (Wave B Issue 7).
 The curvilinear default in :func:`solve_sn_fixed_source` flips to
 ``"krylov"`` automatically — which closes the curvilinear-MMS
 convergence gap (formerly the xfail-strict markers in
@@ -152,8 +152,8 @@ def _solve_via_krylov(sn_mesh, quad, sig_t, Q_iso):
 # in :func:`solve_sn_fixed_source` (now routes through
 # ``inner_solver="krylov"`` automatically) plus the BC-aware FD
 # operator (:func:`solution_to_angular_flux*` consume the mesh's
-# :class:`~orpheus.geometry.boundary.ResolvedBC` instances and dispatch
-# via :meth:`ResolvedBC.apply_to_incoming`).
+# :class:`~orpheus.geometry.boundary.BoundaryOperator` instances and dispatch
+# via :meth:`BoundaryOperator.apply_to_incoming`).
 #
 # This file remains as the evidence ledger pinning the sweep's WDD
 # fixed-point bias — production users who explicitly pick

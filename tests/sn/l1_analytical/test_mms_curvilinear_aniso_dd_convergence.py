@@ -16,7 +16,7 @@ curvilinear sweep's hardest math observable under refinement.
 
 Wave E Round 3 status (the ERR-026 closure attempt): Round 3 shipped
 the BC-aware FD operator (:func:`solution_to_angular_flux*` now consume
-``sn_mesh.bc_*`` via :meth:`ResolvedBC.apply_to_incoming`), which is
+``sn_mesh.bc_*`` via :meth:`BoundaryOperator.apply_to_incoming`), which is
 the infrastructure load-bearing for any closure of ERR-026 on
 fixed-source MMS — vacuum, reflective, white, albedo, and mixed BCs
 are now plumbed uniformly through the FD operator. **However**, the
@@ -75,7 +75,7 @@ def _l2_1d(phi_num: np.ndarray, phi_ref: np.ndarray, volumes: np.ndarray) -> flo
         "accurate on non-constant solutions.  Wave E Round 3 shipped "
         "the BC-aware FD operator (load-bearing infrastructure: "
         "solution_to_angular_flux* + the matvec helpers consume "
-        "sn_mesh.bc_* via ResolvedBC.apply_to_incoming), which fixes "
+        "sn_mesh.bc_* via BoundaryOperator.apply_to_incoming), which fixes "
         "the vacuum-BC slot fill that Round 2 identified as broken; "
         "but the FD operator's cell-center-as-face-value approximation "
         "at the outer boundary regresses the MMS convergence rate "

@@ -349,7 +349,7 @@ CASES: tuple[SnapshotCase, ...] = (
 )
 
 # Cases queued for follow-up snapshot work (remain unimplemented here):
-#   - cyl_white_bc_dd_n20       (post-Issue 7 — ResolvedBC tensor decomposition)
+#   - cyl_white_bc_dd_n20       (post-Issue 7 — BoundaryOperator tensor decomposition)
 
 
 # ─── snapshot generation / loading ───────────────────────────────────

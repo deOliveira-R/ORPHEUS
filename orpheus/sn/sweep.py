@@ -293,8 +293,8 @@ def _sweep_1d_cumprod(
     bQ = source_coeff * Q_1d[None, :, :]
 
     # Tensor-decomposed BCs (R = Σ_α G_α ⊗ A_α). The factory in
-    # ``SNMesh.BC_REGISTRY`` resolved the geometry-declared BC into a
-    # :class:`ResolvedBC` whose ``apply_to_incoming`` we call below.
+    # ``SNMesh.BOUNDARY_OPERATOR_REGISTRY`` resolved the geometry-declared BC into a
+    # :class:`BoundaryOperator` whose ``apply_to_incoming`` we call below.
     #
     # Reassemble the full per-ordinate outgoing-flux face arrays from
     # the persistent ``bc`` storage (which stores positive-half values
@@ -305,7 +305,7 @@ def _sweep_1d_cumprod(
     # back to its partner via ``reflection_index("x")``; vacuum returns
     # zeros. Bit-equality with the previous string-kind dispatch is
     # preserved because this is an algebraic re-expression of the same
-    # operation: ``SpecularBC(axis="x").apply_to_incoming(psi, quad)[k]``
+    # operation: ``SpecularBoundaryOperator(axis="x").apply_to_incoming(psi, quad)[k]``
     # is ``psi[ref_x[k]]``, which for GL is ``psi[N-1-k]``.
     bc_left_obj = sn_mesh.bc_left
     bc_right_obj = sn_mesh.bc_right
@@ -315,7 +315,7 @@ def _sweep_1d_cumprod(
     # ``bc["right"]`` indexed by the *positive* sweep counter ``n``;
     # we mirror that into the full-N face buffers used by the BC
     # protocol, taking care to lay each value at its outgoing-side
-    # index so :meth:`SpecularBC.apply_to_incoming` retrieves it via
+    # index so :meth:`SpecularBoundaryOperator.apply_to_incoming` retrieves it via
     # ``reflection_index("x")`` at the matching incoming ordinate.
     psi_face_left_out = np.zeros((N, ng))
     psi_face_right_out = np.zeros((N, ng))
@@ -450,12 +450,12 @@ def _sweep_1d_spherical(
     cell_update = sn_mesh.cell_update
 
     # Boundary condition at the outer face (r = R) is a tensor-
-    # decomposed :class:`~orpheus.geometry.boundary.ResolvedBC`. The
+    # decomposed :class:`~orpheus.geometry.boundary.BoundaryOperator`. The
     # spherical sweep stores the outgoing flux per ordinate in
     # ``bc_outer`` (indexed by *outgoing* — positive μ — ordinate) and
     # reads the incoming flux for negative μ via
-    # ``apply_to_incoming``. For ``VacuumBC`` this returns zeros; for
-    # ``SpecularBC(axis="x")`` it returns ``bc_outer[ref[n]]``,
+    # ``apply_to_incoming``. For ``VacuumBoundaryOperator`` this returns zeros; for
+    # ``SpecularBoundaryOperator(axis="x")`` it returns ``bc_outer[ref[n]]``,
     # which is bit-identical to the previous ``bc_outer[ref[n]].copy()``
     # call site. The incoming buffer is recomputed each iteration so
     # the loop's own outgoing updates feed back through the BC operator.
@@ -501,8 +501,8 @@ def _sweep_1d_spherical(
         # have A[0] = 4π(0)² = 0, so no spatial incoming flux.
         if mu_n < 0:
             # ``apply_to_incoming`` is bit-identical to the previous
-            # ``bc_outer[ref[n]].copy()`` indexing for SpecularBC and
-            # zeros for VacuumBC.
+            # ``bc_outer[ref[n]].copy()`` indexing for SpecularBoundaryOperator and
+            # zeros for VacuumBoundaryOperator.
             psi_in_full = bc_outer_obj.apply_to_incoming(bc_outer, quad)
             psi_spatial_in = psi_in_full[n]
         else:
@@ -600,11 +600,11 @@ def _sweep_1d_cylindrical(
     cell_update = sn_mesh.cell_update
 
     # Boundary condition at the outer face (r = R) is a tensor-
-    # decomposed :class:`~orpheus.geometry.boundary.ResolvedBC`. The
+    # decomposed :class:`~orpheus.geometry.boundary.BoundaryOperator`. The
     # cylindrical sweep stores per-ordinate outgoing flux in
     # ``bc_outer`` (indexed by global ordinate) and reads incoming
-    # via ``apply_to_incoming``. For ``VacuumBC`` returns zeros; for
-    # ``SpecularBC(axis="x")`` returns ``bc_outer[ref[n]]`` — bit-
+    # via ``apply_to_incoming``. For ``VacuumBoundaryOperator`` returns zeros; for
+    # ``SpecularBoundaryOperator(axis="x")`` returns ``bc_outer[ref[n]]`` — bit-
     # identical to the previous ``bc_outer[ref[n]].copy()`` call site.
     bc_outer_obj = sn_mesh.bc_right
 
@@ -815,10 +815,10 @@ def _sweep_2d_wavefront(
         ix_in, ix_out, iy_in, iy_out, diags = _diag_cache[key]
 
         # Apply boundary conditions at incoming faces via the tensor-
-        # decomposed :class:`ResolvedBC` Protocol on each face. For
-        # ``VacuumBC`` the result is zero (the buffers stay
+        # decomposed :class:`BoundaryOperator` Protocol on each face. For
+        # ``VacuumBoundaryOperator`` the result is zero (the buffers stay
         # zero-initialised and the slice assignment is a no-op
-        # write); for ``SpecularBC(axis=...)`` the result is
+        # write); for ``SpecularBoundaryOperator(axis=...)`` the result is
         # ``psi_face[ref_axis[n]]`` — bit-identical to the previous
         # in-place ``psi_x[n, 0] = psi_x[ref_x[n], 0]`` copy.
         if mx >= 0:

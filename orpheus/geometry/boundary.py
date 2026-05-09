@@ -20,37 +20,37 @@ pushforward, an angular average, a spatial wrap-around, …) with a
 
 Most boundary conditions of practical interest are **rank-1**:
 
-* :class:`VacuumBC` — :math:`R = 0` (the empty sum, rank 0; algebraically
+* :class:`VacuumBoundaryOperator` — :math:`R = 0` (the empty sum, rank 0; algebraically
   the trivial case of the decomposition).
-* :class:`SpecularBC` — :math:`R = G_{\text{refl}} \cdot \alpha` where
+* :class:`SpecularBoundaryOperator` — :math:`R = G_{\text{refl}} \cdot \alpha` where
   :math:`G_{\text{refl}}` is the angular-permutation operator that maps
   ordinate :math:`\Omega_n` to its reflected partner
   :math:`(\Omega_n \cdot \hat{n})` and :math:`\alpha \in [0, 1]` is the
   specular albedo. Equivalent to a
   :meth:`~orpheus.numerics.measure.DiscreteMeasure.pushforward` under the
   reflection map.
-* :class:`WhiteBC` — :math:`R = G_{\text{diff}} \cdot \alpha` where
+* :class:`WhiteBoundaryOperator` — :math:`R = G_{\text{diff}} \cdot \alpha` where
   :math:`G_{\text{diff}}` is the cosine-weighted angular average over the
   outgoing hemisphere, broadcast isotropically over the incoming
   hemisphere (Lambertian reflection). Rank-1 in *angle* even though the
   geometric operator is an integral, not a permutation.
-* :class:`PeriodicBC` — :math:`R` is a *spatial* pushforward (wrap-around
+* :class:`PeriodicBoundaryOperator` — :math:`R` is a *spatial* pushforward (wrap-around
   to the opposite face) with :math:`\alpha = 1`. Rank-1 in space; the
   angular structure is identity.
-* :class:`AlbedoBC` — :math:`R = I \cdot \alpha` where :math:`I` is the
+* :class:`AlbedoBoundaryOperator` — :math:`R = I \cdot \alpha` where :math:`I` is the
   angular identity. Rank-1; the geometric operator is trivial.
 
 Mixed and partial-current boundaries are **rank-N** sums of the above
 primitives:
 
-* :class:`MixedBC` — a list of ``(weight, ResolvedBC)`` pairs whose
+* :class:`MixedBoundaryOperator` — a list of ``(weight, BoundaryOperator)`` pairs whose
   ``apply_to_incoming`` is the linear combination of the components.
-  ``MixedBC([(0.3, SpecularBC), (0.7, WhiteBC)])`` realises the standard
+  ``MixedBoundaryOperator([(0.3, SpecularBoundaryOperator), (0.7, WhiteBoundaryOperator)])`` realises the standard
   Marshak mixed boundary (Bell & Glasstone 1970, §1.5).
 
-The protocol :class:`ResolvedBC` is what production solvers consume.
+The protocol :class:`BoundaryOperator` is what production solvers consume.
 Each solver's ``BC_REGISTRY`` factory returns a concrete
-:class:`ResolvedBC` instance from a solver-agnostic
+:class:`BoundaryOperator` instance from a solver-agnostic
 :class:`~orpheus.geometry.mesh.BC` declaration; the sweep then calls
 ``resolved.apply_to_incoming(angular_flux_outgoing, quadrature)`` with
 no string-kind branching at the call site.
@@ -90,10 +90,10 @@ if TYPE_CHECKING:
 
 
 @runtime_checkable
-class ResolvedBC(Protocol):
+class BoundaryOperator(Protocol):
     r"""Protocol for a tensor-decomposed boundary condition.
 
-    A :class:`ResolvedBC` is the runtime representation of the operator
+    A :class:`BoundaryOperator` is the runtime representation of the operator
 
     .. math::
 
@@ -102,7 +102,7 @@ class ResolvedBC(Protocol):
     that consumes the outgoing angular flux at a face and produces the
     incoming angular flux. Concrete implementations may be **rank-1**
     (a single :math:`G \otimes A` term: vacuum, specular, white,
-    periodic, albedo) or **rank-N** (:class:`MixedBC` — a sum of the
+    periodic, albedo) or **rank-N** (:class:`MixedBoundaryOperator` — a sum of the
     rank-1 primitives).
 
     The :class:`~orpheus.sn.quadrature.AngularQuadrature` argument lets
@@ -148,7 +148,7 @@ class ResolvedBC(Protocol):
 
 
 @dataclass(frozen=True)
-class VacuumBC:
+class VacuumBoundaryOperator:
     r"""Vacuum boundary: :math:`R = 0`.
 
     The empty sum in the tensor decomposition: no incoming flux,
@@ -166,12 +166,12 @@ class VacuumBC:
     def __eq__(self, other: object) -> bool:
         if isinstance(other, str):
             return other == self.kind
-        if isinstance(other, VacuumBC):
+        if isinstance(other, VacuumBoundaryOperator):
             return True
         return NotImplemented
 
     def __hash__(self) -> int:
-        return hash(("VacuumBC",))
+        return hash(("VacuumBoundaryOperator",))
 
     def apply_to_incoming(
         self,
@@ -182,7 +182,7 @@ class VacuumBC:
 
 
 @dataclass(frozen=True)
-class SpecularBC:
+class SpecularBoundaryOperator:
     r"""Specular reflection with optional albedo.
 
     Tensor decomposition :math:`(G_{\text{refl}}, \alpha)` where
@@ -210,9 +210,9 @@ class SpecularBC:
     albedo: float = 1.0
 
     #: String tag for legacy string-kind comparisons. The default
-    #: ``albedo == 1.0`` SpecularBC (the standard ``BC.reflective``
+    #: ``albedo == 1.0`` SpecularBoundaryOperator (the standard ``BC.reflective``
     #: case) compares equal to the string ``"reflective"``; tagged
-    #: SpecularBC instances with ``albedo != 1`` compare equal to
+    #: SpecularBoundaryOperator instances with ``albedo != 1`` compare equal to
     #: ``"partial"`` instead.
     @property
     def kind(self) -> str:
@@ -221,14 +221,14 @@ class SpecularBC:
     def __eq__(self, other: object) -> bool:
         if isinstance(other, str):
             return other == self.kind
-        if isinstance(other, SpecularBC):
+        if isinstance(other, SpecularBoundaryOperator):
             return (
                 self.axis == other.axis and self.albedo == other.albedo
             )
         return NotImplemented
 
     def __hash__(self) -> int:
-        return hash(("SpecularBC", self.axis, self.albedo))
+        return hash(("SpecularBoundaryOperator", self.axis, self.albedo))
 
     def apply_to_incoming(
         self,
@@ -240,7 +240,7 @@ class SpecularBC:
 
 
 @dataclass(frozen=True)
-class WhiteBC:
+class WhiteBoundaryOperator:
     r"""White (Lambertian) boundary with optional albedo.
 
     Tensor decomposition :math:`(G_{\text{diff}}, \alpha)` where
@@ -295,7 +295,7 @@ class WhiteBC:
             mu_n = getattr(quadrature, "mu_z", None)
             if mu_n is None:
                 raise ValueError(
-                    "WhiteBC(axis='z') requires a quadrature with mu_z "
+                    "WhiteBoundaryOperator(axis='z') requires a quadrature with mu_z "
                     "(2-D / 3-D adapters: Lebedev, level-symmetric, "
                     "product). The 1-D Gauss-Legendre adapter has no "
                     "mu_z attribute."
@@ -336,7 +336,7 @@ class WhiteBC:
 
 
 @dataclass(frozen=True)
-class PeriodicBC:
+class PeriodicBoundaryOperator:
     r"""Periodic boundary: spatial pushforward to the partner face.
 
     Tensor decomposition :math:`(G_{\text{wrap}}, 1)` where
@@ -353,11 +353,11 @@ class PeriodicBC:
     Realising periodicity at the *sweep* level requires coupling the
     two faces' boundary-flux buffers — which is a sweep-orchestration
     concern not modelled by ``apply_to_incoming`` alone (the
-    :class:`ResolvedBC` Protocol consumes one face's outgoing flux at
+    :class:`BoundaryOperator` Protocol consumes one face's outgoing flux at
     a time). The primitive here therefore returns ``angular_flux_outgoing``
     unchanged: the contract is "the incoming side equals the outgoing
     flux you pass in", and the *spatial* coupling is handled by whoever
-    instantiates :class:`PeriodicBC` and orchestrates the two-face
+    instantiates :class:`PeriodicBoundaryOperator` and orchestrates the two-face
     plumbing. This is why periodic-BC support in :func:`solve_sn` is a
     downstream wave (it requires sweep changes); this primitive ships
     so that downstream code has the algebraic object to depend on.
@@ -377,7 +377,7 @@ class PeriodicBC:
 
 
 @dataclass(frozen=True)
-class AlbedoBC:
+class AlbedoBoundaryOperator:
     r"""Pure albedo boundary: scalar multiple of the outgoing flux.
 
     Tensor decomposition :math:`(I, \alpha)` where :math:`I` is the
@@ -388,7 +388,7 @@ class AlbedoBC:
         \psi_{\text{in}}(\Omega) = \alpha \, \psi_{\text{out}}(\Omega).
 
     No angular redistribution. Useful as a *building block* for
-    :class:`MixedBC` (where albedo and specular shares are independent
+    :class:`MixedBoundaryOperator` (where albedo and specular shares are independent
     parameters), and as a stand-alone primitive when the boundary is
     a pure attenuator with no angular structure.
 
@@ -410,7 +410,7 @@ class AlbedoBC:
 
 
 @dataclass(frozen=True)
-class MixedBC:
+class MixedBoundaryOperator:
     r"""Linear combination of rank-1 BC primitives.
 
     Realises a rank-N tensor decomposition
@@ -423,24 +423,24 @@ class MixedBC:
     summing ``coefficient * primitive.apply_to_incoming(...)``. The
     coefficients :math:`c_\alpha` are typically convex (sum to 1) for
     a partial-current Marshak boundary
-    (Bell & Glasstone 1970 §1.5: ``MixedBC([(0.3, SpecularBC()),
-    (0.7, WhiteBC())])`` is "30% specular, 70% diffuse"); the linear-
+    (Bell & Glasstone 1970 §1.5: ``MixedBoundaryOperator([(0.3, SpecularBoundaryOperator()),
+    (0.7, WhiteBoundaryOperator())])`` is "30% specular, 70% diffuse"); the linear-
     combination interface does not enforce this so other use cases
     (asymmetric weights, gain media) can also be expressed.
 
     Parameters
     ----------
-    components : sequence of (coefficient, ResolvedBC)
+    components : sequence of (coefficient, BoundaryOperator)
         The rank-N decomposition. Each component contributes
         ``coefficient * primitive.apply_to_incoming(...)`` to the
         incoming flux.
     """
 
-    components: tuple[tuple[float, ResolvedBC], ...] = field(default_factory=tuple)
+    components: tuple[tuple[float, BoundaryOperator], ...] = field(default_factory=tuple)
 
     def __init__(
         self,
-        components: Sequence[tuple[float, ResolvedBC]],
+        components: Sequence[tuple[float, BoundaryOperator]],
     ) -> None:
         # Frozen-dataclass-with-Sequence-arg pattern: take a Sequence,
         # store as a tuple. ``object.__setattr__`` to bypass the frozen
@@ -461,11 +461,11 @@ class MixedBC:
 
 
 __all__ = [
-    "ResolvedBC",
-    "VacuumBC",
-    "SpecularBC",
-    "WhiteBC",
-    "PeriodicBC",
-    "AlbedoBC",
-    "MixedBC",
+    "BoundaryOperator",
+    "VacuumBoundaryOperator",
+    "SpecularBoundaryOperator",
+    "WhiteBoundaryOperator",
+    "PeriodicBoundaryOperator",
+    "AlbedoBoundaryOperator",
+    "MixedBoundaryOperator",
 ]

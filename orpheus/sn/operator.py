@@ -49,15 +49,15 @@ as preconditioner.
 .. note:: Boundary-condition handling — Wave E Round 3
 
    Wave E Round 3 extended :func:`solution_to_angular_flux*` to consume
-   the :class:`~orpheus.geometry.boundary.ResolvedBC` instances on the
+   the :class:`~orpheus.geometry.boundary.BoundaryOperator` instances on the
    :class:`~orpheus.sn.geometry.SNMesh` (``bc_xmin``, ``bc_xmax``,
    ``bc_ymin``, ``bc_ymax``).  Each function fills incoming-at-boundary
    slots via ``bc.apply_to_incoming(outgoing, quad)`` (Wave B Issue 7
    tensor-decomposed BC algebra).  Bit-identity to the pre-Round 3
-   reflective-only fill is preserved for :class:`SpecularBC` (the
+   reflective-only fill is preserved for :class:`SpecularBoundaryOperator` (the
    default ``BC.reflective`` factory), since
-   ``SpecularBC(axis="x").apply_to_incoming(out, quad) == out[ref_x]``;
-   :class:`VacuumBC` returns zero, which is the correct vacuum
+   ``SpecularBoundaryOperator(axis="x").apply_to_incoming(out, quad) == out[ref_x]``;
+   :class:`VacuumBoundaryOperator` returns zero, which is the correct vacuum
    incoming flux.  This closes ERR-026 for the curvilinear
    ``solve_sn_fixed_source`` MMS path: the FD operator is now
    BC-faithful for vacuum / reflective / white / albedo / mixed BCs
@@ -81,7 +81,7 @@ from orpheus.numerics.operator import (
 from .quadrature import AngularQuadrature
 
 if TYPE_CHECKING:
-    from orpheus.geometry.boundary import ResolvedBC
+    from orpheus.geometry.boundary import BoundaryOperator
 
     from .geometry import SNMesh
 
@@ -165,10 +165,10 @@ def solution_to_angular_flux(
     quad: AngularQuadrature,
     nx: int, ny: int, ng: int,
     *,
-    bc_xmin: "ResolvedBC | None" = None,
-    bc_xmax: "ResolvedBC | None" = None,
-    bc_ymin: "ResolvedBC | None" = None,
-    bc_ymax: "ResolvedBC | None" = None,
+    bc_xmin: "BoundaryOperator | None" = None,
+    bc_xmax: "BoundaryOperator | None" = None,
+    bc_ymin: "BoundaryOperator | None" = None,
+    bc_ymax: "BoundaryOperator | None" = None,
 ) -> np.ndarray:
     """Convert 1D solution vector to 4D angular flux (ng, N, nx, ny).
 
@@ -176,7 +176,7 @@ def solution_to_angular_flux(
     the four boundaries of the 2-D Cartesian domain.
 
     Wave E Round 3 (ERR-026 closure): the four ``bc_*`` keyword
-    arguments accept :class:`~orpheus.geometry.boundary.ResolvedBC`
+    arguments accept :class:`~orpheus.geometry.boundary.BoundaryOperator`
     instances built by :class:`~orpheus.sn.geometry.SNMesh` from the
     mesh's :class:`~orpheus.geometry.mesh.BC` declarations.  Each BC's
     ``apply_to_incoming(outgoing, quad)`` method maps the boundary's
@@ -187,16 +187,16 @@ def solution_to_angular_flux(
     reflection on every face — bit-identical to the pre-Round 3
     hard-coded reflective fill that the BiCGSTAB FD path relied on.
     """
-    from orpheus.geometry.boundary import SpecularBC
+    from orpheus.geometry.boundary import SpecularBoundaryOperator
 
     if bc_xmin is None:
-        bc_xmin = SpecularBC(axis="x", albedo=1.0)
+        bc_xmin = SpecularBoundaryOperator(axis="x", albedo=1.0)
     if bc_xmax is None:
-        bc_xmax = SpecularBC(axis="x", albedo=1.0)
+        bc_xmax = SpecularBoundaryOperator(axis="x", albedo=1.0)
     if bc_ymin is None:
-        bc_ymin = SpecularBC(axis="y", albedo=1.0)
+        bc_ymin = SpecularBoundaryOperator(axis="y", albedo=1.0)
     if bc_ymax is None:
-        bc_ymax = SpecularBC(axis="y", albedo=1.0)
+        bc_ymax = SpecularBoundaryOperator(axis="y", albedo=1.0)
 
     mu_x, mu_y = quad.mu_x, quad.mu_y
     mu_z = getattr(quad, 'mu_z', np.zeros(quad.N))
@@ -336,10 +336,10 @@ def transport_operator_matvec(
     nx: int, ny: int, ng: int,
     dx: np.ndarray, dy: np.ndarray,
     *,
-    bc_xmin: "ResolvedBC | None" = None,
-    bc_xmax: "ResolvedBC | None" = None,
-    bc_ymin: "ResolvedBC | None" = None,
-    bc_ymax: "ResolvedBC | None" = None,
+    bc_xmin: "BoundaryOperator | None" = None,
+    bc_xmax: "BoundaryOperator | None" = None,
+    bc_ymin: "BoundaryOperator | None" = None,
+    bc_ymax: "BoundaryOperator | None" = None,
 ) -> np.ndarray:
     """Apply the streaming + collision operator T·ψ.
 
@@ -348,7 +348,7 @@ def transport_operator_matvec(
     solution : (n_unknowns,) flattened angular flux vector.
     sig_t : (nx, ny, ng) total cross section.
     bc_xmin, bc_xmax, bc_ymin, bc_ymax :
-        Wave E Round 3 — :class:`~orpheus.geometry.boundary.ResolvedBC`
+        Wave E Round 3 — :class:`~orpheus.geometry.boundary.BoundaryOperator`
         instances threaded through to :func:`solution_to_angular_flux`
         for BC-faithful boundary fills.  ``None`` = legacy reflective
         fallback (bit-identical to pre-Round 3 hard-coded behaviour).
@@ -413,12 +413,12 @@ def solution_to_angular_flux_spherical(
     quad: AngularQuadrature,
     nx: int, ng: int,
     *,
-    bc_outer: "ResolvedBC | None" = None,
+    bc_outer: "BoundaryOperator | None" = None,
 ) -> np.ndarray:
     """Convert 1D solution vector to angular flux array (ng, N, nx, 1).
 
     Applies the outer-boundary BC (r = R) via the
-    :class:`~orpheus.geometry.boundary.ResolvedBC` ``bc_outer``.  The
+    :class:`~orpheus.geometry.boundary.BoundaryOperator` ``bc_outer``.  The
     inner boundary at r = 0 is intrinsically symmetric (the spherical
     pole has zero face area; the matvec sets ``psi_left = 0`` there
     by construction), so no fill is needed at i = 0.
@@ -430,10 +430,10 @@ def solution_to_angular_flux_spherical(
     ``sn_mesh.bc_right`` so that vacuum / white / albedo / mixed BCs
     are honoured uniformly.
     """
-    from orpheus.geometry.boundary import SpecularBC
+    from orpheus.geometry.boundary import SpecularBoundaryOperator
 
     if bc_outer is None:
-        bc_outer = SpecularBC(axis="x", albedo=1.0)
+        bc_outer = SpecularBoundaryOperator(axis="x", albedo=1.0)
 
     fi = np.zeros((ng, quad.N, nx, 1))
 
@@ -444,10 +444,10 @@ def solution_to_angular_flux_spherical(
     # ── Outer-boundary BC fill (r = R) ────────────────────────────────
     # Build the outgoing flux at i = nx-1 indexed by all ordinates
     # (incoming-ordinate slots are still zero from np.zeros above) and
-    # delegate to the BC's tensor-decomposed action.  For SpecularBC
+    # delegate to the BC's tensor-decomposed action.  For SpecularBoundaryOperator
     # this returns ``outgoing[ref_x[n]]`` — bit-identical to the
     # pre-Round 3 ``fi[:, n, -1, 0] = fi[:, ref_x[n], -1, 0]`` fill.
-    # For VacuumBC it returns zeros (correct vacuum incoming).
+    # For VacuumBoundaryOperator it returns zeros (correct vacuum incoming).
     outgoing = fi[:, :, -1, 0].T   # (N, ng)
     incoming = bc_outer.apply_to_incoming(outgoing, quad)
     for n in range(quad.N):
@@ -469,7 +469,7 @@ def transport_operator_matvec_spherical(
     redist_dAw: np.ndarray,
     tau_mm: np.ndarray,
     *,
-    bc_outer: "ResolvedBC | None" = None,
+    bc_outer: "BoundaryOperator | None" = None,
 ) -> np.ndarray:
     r"""Apply the spherical transport operator T·ψ.
 
@@ -500,7 +500,7 @@ def transport_operator_matvec_spherical(
     Parameters
     ----------
     bc_outer :
-        :class:`~orpheus.geometry.boundary.ResolvedBC` for the outer
+        :class:`~orpheus.geometry.boundary.BoundaryOperator` for the outer
         face (r = R).  ``None`` = legacy reflective fallback (bit-
         identical to the pre-Round 3 hard-coded reflective fill).
     """
@@ -592,7 +592,7 @@ def transport_operator_matvec_cylindrical(
     redist_dAw_per_level: list[np.ndarray],
     tau_mm_per_level: list[np.ndarray],
     *,
-    bc_outer: "ResolvedBC | None" = None,
+    bc_outer: "BoundaryOperator | None" = None,
 ) -> np.ndarray:
     r"""Apply the cylindrical transport operator T·ψ.
 
@@ -602,7 +602,7 @@ def transport_operator_matvec_cylindrical(
     Parameters
     ----------
     bc_outer :
-        :class:`~orpheus.geometry.boundary.ResolvedBC` for the outer
+        :class:`~orpheus.geometry.boundary.BoundaryOperator` for the outer
         face (r = R).  ``None`` = legacy reflective fallback (bit-
         identical to the pre-Round 3 hard-coded reflective fill).
         Wave E Round 3 (ERR-026 closure).

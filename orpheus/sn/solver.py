@@ -913,7 +913,7 @@ def solve_sn_fixed_source(
         use ``"source_iteration"`` — bit-identical to the Wave A-D
         path.  Wave E Round 3 ships the BC-aware FD operator
         (:func:`solution_to_angular_flux*` consume the mesh's
-        :class:`~orpheus.geometry.boundary.ResolvedBC` instances via
+        :class:`~orpheus.geometry.boundary.BoundaryOperator` instances via
         :meth:`apply_to_incoming`), which makes ``"krylov"`` available
         as an opt-in for vacuum / reflective / white / albedo / mixed
         BCs uniformly — but the curvilinear-default flip is **not**
@@ -954,7 +954,7 @@ def solve_sn_fixed_source(
 
     # Wave E Round 3: default dispatch is "source_iteration" for all
     # geometries.  Round 3 ships the BC-aware FD operator (the Wave B
-    # Issue 7 ResolvedBC plumbing now reaches solution_to_angular_flux*
+    # Issue 7 BoundaryOperator plumbing now reaches solution_to_angular_flux*
     # and the matvec helpers); ``inner_solver="krylov"`` is therefore
     # available as an opt-in for vacuum / reflective / white / albedo /
     # mixed BCs uniformly.  The curvilinear-default flip to "krylov"

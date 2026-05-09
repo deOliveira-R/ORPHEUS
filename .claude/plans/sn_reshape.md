@@ -39,7 +39,7 @@ the pre-reshape baseline.
 | 4 | [#153](https://github.com/deOliveira-R/ORPHEUS/issues/153) | ✓ DONE | `0a9aa94` | `numerics/quadrature/{rules_1d,rules_sphere,rules_product}.py` + thin-adapter refactor of `orpheus/sn/quadrature.py` (502 → 464 LOC). Hot-path attributes (`mu_x`, `mu_y`, `weights`, `level_indices`, `_ref_*`) cached as numpy views on construction; `reflection_index(axis)` reimplemented as cached pushforward. **First SN-touching change**, regression contract held: 11/11 bit-identical |
 | 5 | [#154](https://github.com/deOliveira-R/ORPHEUS/issues/154) | ✓ DONE | `60f9fb2` | `numerics/quadrature/registry.py` — `QuadratureSpec` dataclass with structural flags + populated registry + `select_quadrature(geometry, target_degree, **structural)` precedence-chain selector with `SelectionLog` explainability; **37 foundation tests** |
 | 6 | [#155](https://github.com/deOliveira-R/ORPHEUS/issues/155) | ✓ DONE | `e4276e1` | `geometry/reduced_operator.py` — Bailey 2009 connection-coefficient lift (α dome recursion, ΔA/w redistribution, M-M τ_mm clamp) into `ReducedStreamingOperator` + `StreamingTerms` + factories (slab/cylindrical/spherical). **Hash equality with `SNMesh._setup_*` outputs** verified via `np.array_equal`; 29 parametrized hash-equality tests across N ∈ {4, 8, 16, 32} (sphere) and (n_mu, n_phi) ∈ {(2,4), (4,4), (4,8)} (cylinder) |
-| 7 | [#156](https://github.com/deOliveira-R/ORPHEUS/issues/156) | ✓ DONE | `e93fe47` | `geometry/boundary.py` — `ResolvedBC` Protocol with tensor-decomposition framing `R = Σ_α G_α ⊗ A_α`; concrete `VacuumBC`, `SpecularBC`, `WhiteBC`, `PeriodicBC`, `AlbedoBC`, `MixedBC`. `SNMesh.BC_REGISTRY` factories return `ResolvedBC`; sweep at `orpheus/sn/sweep.py` calls `apply_to_incoming(...)`. WhiteBC/PeriodicBC ship as primitives only (not yet wired into `solve_sn`). Backward-compat `__eq__` shim on VacuumBC/SpecularBC accepts string comparisons (transitional). **19 primitive tests, regression contract held: 11/11 bit-identical** |
+| 7 | [#156](https://github.com/deOliveira-R/ORPHEUS/issues/156) | ✓ DONE | `e93fe47` | `geometry/boundary.py` — `BoundaryOperator` Protocol with tensor-decomposition framing `R = Σ_α G_α ⊗ A_α`; concrete `VacuumBoundaryOperator`, `SpecularBoundaryOperator`, `WhiteBoundaryOperator`, `PeriodicBoundaryOperator`, `AlbedoBoundaryOperator`, `MixedBoundaryOperator`. `SNMesh.BOUNDARY_OPERATOR_REGISTRY` factories return `BoundaryOperator`; sweep at `orpheus/sn/sweep.py` calls `apply_to_incoming(...)`. WhiteBoundaryOperator/PeriodicBoundaryOperator ship as primitives only (not yet wired into `solve_sn`). Backward-compat `__eq__` shim on VacuumBoundaryOperator/SpecularBoundaryOperator accepts string comparisons (transitional). **19 primitive tests, regression contract held: 11/11 bit-identical** |
 
 Wave A + Wave B verification gates (end-of-session):
 
@@ -102,7 +102,7 @@ Wave D verification gates (end-of-session):
 |---|---|---|---|---|
 | 14 | [#163](https://github.com/deOliveira-R/ORPHEUS/issues/163) | ✓ DONE | `52d7688` | `orpheus/numerics/iteration.py` — new (~545 LOC). `SourceIteration(L, S, F, *, inverter=None, max_iter, tol)` solves `(L − S − F)·ψ = q_ext` via fixed-point iteration; default `inverter=None` routes through `L.solve` (sweep-as-L⁻¹), caller-supplied `inverter` enables Krylov-on-`L.apply` (the load-bearing hook for ERR-026 reconciliation). `KEigenvalue(L, S, F, *, inverter, keff_estimator, eigenvalue_method="power", ...)` outer power iteration with `SourceIteration` inside; `eigenvalue_method` is forward hook for FEAST-style contour integral. Capability checks at construction (raise `MissingCapability` if any operand lacks `apply` or L lacks `solve`-or-`inverter`). `power_iteration` deprecated via `DeprecationWarning` on `orpheus.numerics.eigenvalue` import (kept functional for CP/diffusion/MoC/homogeneous). **11 new tests** in `tests/numerics/test_iteration.py` (10 foundation L0 synthetic + 1 L1 SN gate via `SNStreamingOperator + ScatteringOperator + FissionOperator` triple matching `solve_sn` to round-off). 11/11 regression bit-identical (770s). |
 | 15 | [#164](https://github.com/deOliveira-R/ORPHEUS/issues/164) | ✓ DONE | `308499e` | `orpheus/sn/solver.py` rewritten (713 → 1187 LOC; +474 from new `_solve_fixed_source_krylov` helper [~370 LOC] and migrated `_build_rhs_*` helpers [~110 LOC] from operator.py). `SNSolver.__init__` constructs the (L = `SNStreamingOperator`, S = `ScatteringOperator`, F = `FissionOperator`) triple. `inner_solver` parameter accepts `"source_iteration"` or `"krylov"` ("bicgstab" REMOVED). `_solve_krylov` wraps GMRES around `SNStreamingOperator.apply` with `transport_sweep` as preconditioner. **Architectural deviations from plan** (preserved bit-identity): (a) `_solve_source_iteration` keeps the existing inlined loop verbatim because Pℓ angular state can't thread cleanly through generic SourceIteration; (b) `solve_sn_fixed_source` curvilinear default did NOT auto-flip to "krylov" in Round 2 — see Round 3. **Retired from `orpheus/sn/operator.py`** (~236 LOC removed): 7 functions (`build_transport_linear_operator{,_spherical,_cylindrical}`, `build_rhs{,_spherical,_cylindrical}`, `angular_flux_to_scalar`). **Retired from `orpheus/sn/geometry.py`**: 6 deprecated `@property` accessors (Wave D R1.1 transitional shims). **11 BiCGSTAB → krylov call sites migrated** (7 in `tests/sn/test_solver_components.py` + 3 in `tests/sn/test_spherical.py` + 1 in `examples/discrete_ordinates/demo_discrete_ordinates.py`). **`tests/sn/test_sweep_operator_inconsistency.py` rewritten** to use the new krylov path via `solve_sn_fixed_source(inner_solver="krylov")`; 4/4 PASS — krylov-on-apply gives the analytically-correct flat flux on the reflective-BC sphere problem (the original ERR-026 evidence). 11/11 regression bit-identical (746s). |
-| 15-fix | (Round 3) | ✓ DONE | `2542f04` | `orpheus/sn/operator.py` — `solution_to_angular_flux*` and `transport_operator_matvec*` now consume `ResolvedBC` instances on `SNMesh` (Wave B Issue 7 infrastructure) via `bc_outer.apply_to_incoming(outgoing, quad)`. Vacuum, reflective, white, periodic, albedo, and mixed BCs are handled uniformly. Bit-identity to pre-Round 3 hard-coded reflective fill preserved for `SpecularBC` (the `BC.reflective` factory — verified by 11/11 regression bit-identical, 786s). **ERR-026 PARTIAL closure**: krylov-on-`apply` now correct for vacuum-BC curvilinear problems on flat-flux constant-source cases. **MMS convergence still blocked**: empirically the FD operator's curvilinear outer-face flux at `i=nx-1` for outgoing `μ>0` uses cell-center as a face-flux approximation (`psi_right = fi[:, n, i, 0]`), which is exact for constant solutions but only first-order accurate on non-constant ones. Krylov-on-apply on the spherical isotropic MMS (vacuum BC) shows order ≈ 1.26, not the >1.9 the test asserts. Therefore: `solve_sn_fixed_source` curvilinear default kept at `"source_iteration"`; `"krylov"` is opt-in. The 2 ERR-026 xfail-strict markers in `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` REMAIN xfail with updated reason strings reflecting the partial closure; the legacy `tests/sn/test_mms_curvilinear.py` got newly-added xfail-strict markers (same root cause). `error_catalog.md` ERR-026 status: OPEN → **PARTIAL CLOSURE**. Sphinx narrative section "ERR-026 deferred to Wave E" renamed to "ERR-026 closure status (partial through Wave E)". |
+| 15-fix | (Round 3) | ✓ DONE | `2542f04` | `orpheus/sn/operator.py` — `solution_to_angular_flux*` and `transport_operator_matvec*` now consume `BoundaryOperator` instances on `SNMesh` (Wave B Issue 7 infrastructure) via `bc_outer.apply_to_incoming(outgoing, quad)`. Vacuum, reflective, white, periodic, albedo, and mixed BCs are handled uniformly. Bit-identity to pre-Round 3 hard-coded reflective fill preserved for `SpecularBoundaryOperator` (the `BC.reflective` factory — verified by 11/11 regression bit-identical, 786s). **ERR-026 PARTIAL closure**: krylov-on-`apply` now correct for vacuum-BC curvilinear problems on flat-flux constant-source cases. **MMS convergence still blocked**: empirically the FD operator's curvilinear outer-face flux at `i=nx-1` for outgoing `μ>0` uses cell-center as a face-flux approximation (`psi_right = fi[:, n, i, 0]`), which is exact for constant solutions but only first-order accurate on non-constant ones. Krylov-on-apply on the spherical isotropic MMS (vacuum BC) shows order ≈ 1.26, not the >1.9 the test asserts. Therefore: `solve_sn_fixed_source` curvilinear default kept at `"source_iteration"`; `"krylov"` is opt-in. The 2 ERR-026 xfail-strict markers in `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` REMAIN xfail with updated reason strings reflecting the partial closure; the legacy `tests/sn/test_mms_curvilinear.py` got newly-added xfail-strict markers (same root cause). `error_catalog.md` ERR-026 status: OPEN → **PARTIAL CLOSURE**. Sphinx narrative section "ERR-026 deferred to Wave E" renamed to "ERR-026 closure status (partial through Wave E)". |
 
 Wave E verification gates (end-of-session, three rounds verified
 on campaign HEAD `00be85a`):
@@ -124,7 +124,7 @@ extrapolation that would unblock O(h²) MMS convergence.
 ### Operational notes from Wave E (additions to the lessons list)
 
 13. **Wave E Round 1 `keff_estimator` design**: SN's volume-weighted production/loss balance with (n,2n) folding can't be expressed via the generic Rayleigh quotient `(F·ψ).sum() / (L·ψ - S·ψ).sum()`; agent added an optional `keff_estimator` callable to `KEigenvalue` (default: generic Rayleigh; SN consumers supply `solver.compute_keff` as the bespoke estimator). The L1 SN gate test passes via this hook.
-14. **Wave E Round 2 vacuum-BC discovery** (R2 finding): the legacy curvilinear FD operator's `solution_to_angular_flux_spherical` and matvec hard-coded reflective fill at the outer boundary. After Round 2's Krylov path replacement, the curvilinear vacuum-BC MMS path showed ~30% phi error — the operator was structurally tied to reflective BC. Round 3 closed this via `ResolvedBC.apply_to_incoming` plumbing through the FD operator, but discovered a second-order-accuracy gap (note 15).
+14. **Wave E Round 2 vacuum-BC discovery** (R2 finding): the legacy curvilinear FD operator's `solution_to_angular_flux_spherical` and matvec hard-coded reflective fill at the outer boundary. After Round 2's Krylov path replacement, the curvilinear vacuum-BC MMS path showed ~30% phi error — the operator was structurally tied to reflective BC. Round 3 closed this via `BoundaryOperator.apply_to_incoming` plumbing through the FD operator, but discovered a second-order-accuracy gap (note 15).
 15. **Wave E Round 3 outer-face cell-center approximation** (R3 finding): once BC dispatch is correct, the curvilinear FD operator at `i = nx-1` for outgoing `μ > 0` reads `psi_right = fi[:, n, i, 0]` (cell-center) as a face-flux approximation. Exact for constant solutions; first-order on non-constant. Krylov-on-apply on smooth MMS converges at order ~1.26, not >1.9. Full ERR-026 closure on MMS requires DD diamond extrapolation at the outer face (`psi_face_out = 2·psi_cell - psi_face_in`) or an analogous ghost-cell technique. Filed as a follow-up issue. Note: the original WDD sweep also has order issues on this MMS (~order 0 — far worse), so Krylov is still a meaningful improvement; just not enough to satisfy `O(h²)`.
 16. **Wave E `inverter` hook is the load-bearing design choice**: `SourceIteration(L, S, F, *, inverter=None)` lets the caller pick between `L.solve` (sweep-as-L⁻¹, default) and `lambda q: gmres(as_scipy_linop(L), q, M=...)` (Krylov-on-`L.apply`, the symmetric-closure path). This decoupling is what lets the same iteration primitive serve synthetic L0 cases (where L is a dense matrix and `inverter` defaults to direct solve), the existing SN source-iteration path (`inverter=L.solve`), and the new Krylov-on-apply path (`inverter` supplied explicitly). Without this hook, Round 2 would have needed parallel iteration primitives.
 
@@ -539,7 +539,7 @@ from Issue 4) is preserved.
 - **Complexity**: M
 
 **Context**: BCs are currently `BC(kind, params)` dataclasses with
-SN-specific resolution in `SNMesh.BC_REGISTRY` returning a string tag.
+SN-specific resolution in `SNMesh.BOUNDARY_OPERATOR_REGISTRY` returning a string tag.
 Math says BCs are tensor decompositions: R = Σ_α G_α ⊗ A_α where G_α is
 geometric (permutation/index map) and A_α is response (albedo, scalar
 amplitude). Lifting the resolved BC to a tensor-decomposed object
@@ -548,20 +548,20 @@ lets multi-region interfaces reuse the same primitives.
 
 **Acceptance criteria**:
 
-- [ ] `ResolvedBC` Protocol/ABC in `orpheus/geometry/boundary.py`:
+- [ ] `BoundaryOperator` Protocol/ABC in `orpheus/geometry/boundary.py`:
       `apply_to_incoming(angular_flux_outgoing, quadrature)
       → angular_flux_incoming`
-- [ ] Concrete: `VacuumBC` (zero), `SpecularBC` (rank-1: permutation
-      `pushforward` from `DiscreteMeasure` + albedo scalar), `WhiteBC`,
-      `PeriodicBC`, `AlbedoBC`, `MixedBC` (rank-N sum)
-- [ ] `SNMesh.BC_REGISTRY` updated: factories return `ResolvedBC`
+- [ ] Concrete: `VacuumBoundaryOperator` (zero), `SpecularBoundaryOperator` (rank-1: permutation
+      `pushforward` from `DiscreteMeasure` + albedo scalar), `WhiteBoundaryOperator`,
+      `PeriodicBoundaryOperator`, `AlbedoBoundaryOperator`, `MixedBoundaryOperator` (rank-N sum)
+- [ ] `SNMesh.BOUNDARY_OPERATOR_REGISTRY` updated: factories return `BoundaryOperator`
       instances, not string tags. The factory pattern stays
 - [ ] Sweep code in `orpheus/sn/sweep.py` updated to call
       `resolved_bc.apply_to_incoming(...)` instead of branching on
       string kind
 - [ ] All existing SN tests pass with bit-identical outputs for `vacuum`
       and `reflective`
-- [ ] Unit tests for `WhiteBC` and `PeriodicBC` (currently unsupported
+- [ ] Unit tests for `WhiteBoundaryOperator` and `PeriodicBoundaryOperator` (currently unsupported
       by SN — adding support is a downstream win that this issue enables)
 
 **Files**:
@@ -674,7 +674,7 @@ of the campaign.
 
 ---
 
-#### Issue 9.5: Rename `ResolvedBC` → `BoundaryOperator` (naming consolidation)
+#### Issue 9.5: Rename `BoundaryOperator` → `BoundaryOperator` (naming consolidation)
 
 - **Module**: `module:geometry`, `module:sn`
 - **Type**: `type:refactor`
@@ -683,7 +683,7 @@ of the campaign.
 - **Complexity**: S
 - **Risk**: very low — mechanical rename, no behavioral change
 
-**Context**: `ResolvedBC` describes a *process* (a BC that has been
+**Context**: `BoundaryOperator` describes a *process* (a BC that has been
 resolved). The name tells the reader how the object was made, not
 what it is. `BoundaryOperator` is the standard mathematical concept
 (BEM, transport, integral equations) for a linear operator on the
@@ -699,7 +699,7 @@ encountering `BoundaryOperator`, can immediately infer:
   in the BC tensor framing)
 - it has an adjoint (via `LinearOperator.adjoint()`)
 
-None of this is conveyed by `ResolvedBC`. Per the architectural
+None of this is conveyed by `BoundaryOperator`. Per the architectural
 principle that names should be strong concepts allowing fresh-context
 readers to infer mathematical properties, the rename is correct.
 
@@ -711,16 +711,16 @@ is bit-identical — no behavior change.
 **Acceptance criteria**:
 
 - [ ] In `orpheus/geometry/boundary.py`:
-      - [ ] `ResolvedBC` ABC → `BoundaryOperator`
+      - [ ] `BoundaryOperator` ABC → `BoundaryOperator`
       - [ ] Concrete subtypes renamed:
-            `VacuumBC` → `VacuumBoundaryOperator`,
-            `SpecularBC` → `SpecularBoundaryOperator`,
-            `WhiteBC` → `WhiteBoundaryOperator`,
-            `PeriodicBC` → `PeriodicBoundaryOperator`,
-            `AlbedoBC` → `AlbedoBoundaryOperator`,
-            `MixedBC` → `MixedBoundaryOperator`
+            `VacuumBoundaryOperator` → `VacuumBoundaryOperator`,
+            `SpecularBoundaryOperator` → `SpecularBoundaryOperator`,
+            `WhiteBoundaryOperator` → `WhiteBoundaryOperator`,
+            `PeriodicBoundaryOperator` → `PeriodicBoundaryOperator`,
+            `AlbedoBoundaryOperator` → `AlbedoBoundaryOperator`,
+            `MixedBoundaryOperator` → `MixedBoundaryOperator`
 - [ ] In `orpheus/sn/geometry.py`:
-      - [ ] `SNMesh.BC_REGISTRY` → `SNMesh.BOUNDARY_OPERATOR_REGISTRY`
+      - [ ] `SNMesh.BOUNDARY_OPERATOR_REGISTRY` → `SNMesh.BOUNDARY_OPERATOR_REGISTRY`
       - [ ] Internal factory helpers renamed:
             `_sn_bc_vacuum` → `_sn_vacuum_boundary_operator`,
             `_sn_bc_reflective` → `_sn_reflective_boundary_operator`
@@ -755,7 +755,7 @@ is bit-identical — no behavior change.
 - This is the cleanup PR before Phase 3 opens. Do not bundle other
   changes; the value of the rename is precisely that it isolates a
   pure mechanical refactor with zero behavioral risk.
-- Use `git grep ResolvedBC` and `git grep -i 'resolvedbc\|VacuumBC\|SpecularBC\|WhiteBC\|PeriodicBC\|AlbedoBC\|MixedBC'`
+- Use `git grep BoundaryOperator` and `git grep -i 'resolvedbc\|VacuumBoundaryOperator\|SpecularBoundaryOperator\|WhiteBoundaryOperator\|PeriodicBoundaryOperator\|AlbedoBoundaryOperator\|MixedBoundaryOperator'`
   to enumerate sites; verify completeness before merging.
 - After this PR lands, Issues 10–15 will use `BoundaryOperator`
   uniformly. Update internal references in those issue specs at
@@ -916,7 +916,7 @@ gap from Issue 9.5):
   product / pushforward / restrict / direct sum. This issue adds
   `__call__`, container protocol, `__repr__`. Check current surface
   before duplicating.
-- Issue 7 (commit `e93fe47`) shipped `ResolvedBC` with tensor
+- Issue 7 (commit `e93fe47`) shipped `BoundaryOperator` with tensor
   decomposition. Issue 9.5 renames to `BoundaryOperator` (mechanical).
   This issue adds `LinearOperator` inheritance and `__init_subclass__`
   registration on top of the renamed type.

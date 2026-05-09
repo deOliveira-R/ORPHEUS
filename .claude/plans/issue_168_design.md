@@ -145,7 +145,7 @@ This is necessary but **not sufficient** — see Defects 2 and 3.
 
 `solution_to_angular_flux_spherical` (Wave E Round 3 BC plumbing)
 overwrites `fi[N-1, n_inward, 0]` with the BC-determined incoming
-face value (=0 for vacuum). For VacuumBC this is `fi[N-1, n_inward,
+face value (=0 for vacuum). For VacuumBoundaryOperator this is `fi[N-1, n_inward,
 0] = 0`.
 
 The matvec at cell `i = N-2` for inward direction `n_inward` then computes:
@@ -183,8 +183,8 @@ This is non-trivial because the inward direction at i=N-1 is not a
 solver unknown (the eq_map skips it; the unknowns at i=N-1 are only
 the outgoing μ ≥ 0 ordinates). The "cell-center value at i=N-1, μ <
 0" doesn't exist in the unknown vector — it has to be inferred from
-the OUTGOING values via some relation. For SpecularBC, this is `ψ_out =
-ψ_in_partner` and works. For VacuumBC, there's no such relation: the
+the OUTGOING values via some relation. For SpecularBoundaryOperator, this is `ψ_out =
+ψ_in_partner` and works. For VacuumBoundaryOperator, there's no such relation: the
 problem's symmetry just doesn't say what `ψ(R-h/2, μ < 0)` is.
 
 **The actual fix is conceptual**: the matvec equation at cell i=N-2
@@ -361,7 +361,7 @@ class BoundaryFaceFlux(Protocol):
         ord_idx: int,
         cell_idx: int,            # 0 or nx-1
         side: str,                # "inner" or "outer"
-        bc: ResolvedBC,
+        bc: BoundaryOperator,
     ) -> np.ndarray:               # (ng,) face-flux value
         ...
 ```

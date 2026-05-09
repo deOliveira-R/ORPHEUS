@@ -19,9 +19,9 @@ import numpy as np
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.geometry.boundary import (
-    ResolvedBC,
-    SpecularBC,
-    VacuumBC,
+    BoundaryOperator,
+    SpecularBoundaryOperator,
+    VacuumBoundaryOperator,
 )
 from orpheus.geometry.reduced_operator import (
     ReducedStreamingOperator,
@@ -39,24 +39,24 @@ from .spatial.diamond import DiamondDifference
 # ═══════════════════════════════════════════════════════════════════════
 #
 # Factories take a solver-agnostic ``BC(kind, params)`` declaration and
-# return a concrete :class:`ResolvedBC` instance carrying the tensor
+# return a concrete :class:`BoundaryOperator` instance carrying the tensor
 # decomposition :math:`R = \\sum_\\alpha G_\\alpha \\otimes A_\\alpha`
 # the sweep needs (see :mod:`orpheus.geometry.boundary`).
 #
 # The 1-D faces (``left`` / ``xmin``, ``right`` / ``xmax``) reflect
 # across the radial / x-axis, so the SN factories always pin
-# ``axis="x"`` for ``SpecularBC``. 2-D faces dispatch by the y-axis
+# ``axis="x"`` for ``SpecularBoundaryOperator``. 2-D faces dispatch by the y-axis
 # variants on ``ymin`` / ``ymax``.
 
-def _sn_bc_vacuum(sn_mesh: "SNMesh", bc: BC, face: str) -> ResolvedBC:
+def _sn_vacuum_boundary_operator(sn_mesh: "SNMesh", bc: BC, face: str) -> BoundaryOperator:
     """Zero incoming angular flux at this face."""
-    return VacuumBC()
+    return VacuumBoundaryOperator()
 
 
-def _sn_bc_reflective(sn_mesh: "SNMesh", bc: BC, face: str) -> ResolvedBC:
+def _sn_reflective_boundary_operator(sn_mesh: "SNMesh", bc: BC, face: str) -> BoundaryOperator:
     """Specular reflection: ψ_in(Ω) = ψ_out(Ω_reflected)."""
     axis = "y" if face in ("ymin", "ymax") else "x"
-    return SpecularBC(axis=axis, albedo=1.0)
+    return SpecularBoundaryOperator(axis=axis, albedo=1.0)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -88,23 +88,23 @@ class SNMesh:
 
     Attributes
     ----------
-    BC_REGISTRY : dict[str, Callable]
+    BOUNDARY_OPERATOR_REGISTRY : dict[str, Callable]
         Supported boundary condition kinds. Each value is a factory
         ``(sn_mesh, bc, face) -> resolved_kind``.  Docstrings on
         the factories serve as descriptions for programmatic query::
 
-            >>> {k: v.__doc__ for k, v in SNMesh.BC_REGISTRY.items()}
+            >>> {k: v.__doc__ for k, v in SNMesh.BOUNDARY_OPERATOR_REGISTRY.items()}
     bc_left, bc_right : str
         Resolved BC kind for the left/right (1-D) boundaries.
     bc_xmin, bc_xmax, bc_ymin, bc_ymax : str
         Resolved BC kinds for the four faces of a 2-D mesh.
     """
 
-    BC_REGISTRY: ClassVar[dict[str, Any]] = {
-        "vacuum": _sn_bc_vacuum,
-        "reflective": _sn_bc_reflective,
+    BOUNDARY_OPERATOR_REGISTRY: ClassVar[dict[str, Any]] = {
+        "vacuum": _sn_vacuum_boundary_operator,
+        "reflective": _sn_reflective_boundary_operator,
     }
-    # The factories return :class:`ResolvedBC` instances carrying the
+    # The factories return :class:`BoundaryOperator` instances carrying the
     # tensor decomposition :math:`R = \sum_\alpha G_\alpha \otimes
     # A_\alpha` (see :mod:`orpheus.geometry.boundary`); the sweep calls
     # ``resolved_bc.apply_to_incoming(...)`` directly, so the dispatch
@@ -199,31 +199,31 @@ class SNMesh:
     # ── Boundary condition resolution ─────────────────────────────────
 
     def _resolve_bcs(self, mesh: Mesh1D | Mesh2D) -> None:
-        """Resolve geometry-declared BCs into :class:`ResolvedBC` instances.
+        """Resolve geometry-declared BCs into :class:`BoundaryOperator` instances.
 
         ``None`` on the mesh defaults to ``BC("reflective")`` (infinite
         lattice / eigenvalue convention). Each face attribute carries
-        the concrete :class:`ResolvedBC` whose ``apply_to_incoming``
+        the concrete :class:`BoundaryOperator` whose ``apply_to_incoming``
         method the sweep invokes directly — no string-kind dispatch
         downstream.
         """
         default = BC("reflective")
 
         if isinstance(mesh, Mesh1D):
-            self.bc_left: ResolvedBC = self._resolve_one(
+            self.bc_left: BoundaryOperator = self._resolve_one(
                 mesh.bc_left or default, "left",
             )
-            self.bc_right: ResolvedBC = self._resolve_one(
+            self.bc_right: BoundaryOperator = self._resolve_one(
                 mesh.bc_right or default, "right",
             )
             # Expose 2-D-style attributes for uniform sweep access.
             # The ``y`` faces of a 1-D mesh are degenerate; we tag them
-            # with a default reflective ``SpecularBC`` so 2-D-style
+            # with a default reflective ``SpecularBoundaryOperator`` so 2-D-style
             # consumers still get a Protocol-conformant object.
-            self.bc_xmin: ResolvedBC = self.bc_left
-            self.bc_xmax: ResolvedBC = self.bc_right
-            self.bc_ymin: ResolvedBC = SpecularBC(axis="y", albedo=1.0)
-            self.bc_ymax: ResolvedBC = SpecularBC(axis="y", albedo=1.0)
+            self.bc_xmin: BoundaryOperator = self.bc_left
+            self.bc_xmax: BoundaryOperator = self.bc_right
+            self.bc_ymin: BoundaryOperator = SpecularBoundaryOperator(axis="y", albedo=1.0)
+            self.bc_ymax: BoundaryOperator = SpecularBoundaryOperator(axis="y", albedo=1.0)
         else:
             self.bc_xmin = self._resolve_one(
                 mesh.bc_xmin or default, "xmin",
@@ -240,11 +240,11 @@ class SNMesh:
             self.bc_left = self.bc_xmin
             self.bc_right = self.bc_xmax
 
-    def _resolve_one(self, bc: BC, face: str) -> ResolvedBC:
+    def _resolve_one(self, bc: BC, face: str) -> BoundaryOperator:
         """Look up a single BC in the registry; raise on unsupported kind."""
-        factory = self.BC_REGISTRY.get(bc.kind)
+        factory = self.BOUNDARY_OPERATOR_REGISTRY.get(bc.kind)
         if factory is None:
-            supported = ", ".join(f"'{k}'" for k in sorted(self.BC_REGISTRY))
+            supported = ", ".join(f"'{k}'" for k in sorted(self.BOUNDARY_OPERATOR_REGISTRY))
             raise ValueError(
                 f"SN solver does not support boundary condition '{bc.kind}' "
                 f"on face '{face}'. Supported: {supported}."

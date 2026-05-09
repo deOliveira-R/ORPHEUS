@@ -1,6 +1,6 @@
 """Tests for the SN boundary condition infrastructure.
 
-Verifies the BC_REGISTRY pattern: declaration on geometry, resolution at
+Verifies the BOUNDARY_OPERATOR_REGISTRY pattern: declaration on geometry, resolution at
 SNMesh construction, and correct behavior in sweeps.
 """
 
@@ -29,20 +29,20 @@ def slab_mesh():
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestSNBCRegistry:
-    """BC_REGISTRY is the single source of truth: resolves, validates, advertises."""
+    """BOUNDARY_OPERATOR_REGISTRY is the single source of truth: resolves, validates, advertises."""
 
     def test_registry_keys(self):
-        assert "vacuum" in SNMesh.BC_REGISTRY
-        assert "reflective" in SNMesh.BC_REGISTRY
+        assert "vacuum" in SNMesh.BOUNDARY_OPERATOR_REGISTRY
+        assert "reflective" in SNMesh.BOUNDARY_OPERATOR_REGISTRY
 
     def test_registry_docstrings(self):
         """Every factory has a docstring (used as description for UI query)."""
-        for kind, factory in SNMesh.BC_REGISTRY.items():
+        for kind, factory in SNMesh.BOUNDARY_OPERATOR_REGISTRY.items():
             assert factory.__doc__ is not None, f"BC factory '{kind}' has no docstring"
 
     def test_registry_programmatic_query(self):
         """Descriptions are queryable via factory docstrings."""
-        descriptions = {k: v.__doc__ for k, v in SNMesh.BC_REGISTRY.items()}
+        descriptions = {k: v.__doc__ for k, v in SNMesh.BOUNDARY_OPERATOR_REGISTRY.items()}
         assert "vacuum" in descriptions
         assert "reflective" in descriptions
 

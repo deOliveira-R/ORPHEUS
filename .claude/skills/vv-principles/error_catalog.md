@@ -1166,12 +1166,12 @@ What Round 3 closed (BC infrastructure layer):
 The vacuum-BC equation-map gap that blocked Round 2 was closed by
 extending :func:`solution_to_angular_flux*` and
 :func:`transport_operator_matvec*` to consume the
-:class:`~orpheus.geometry.boundary.ResolvedBC` instances on the
+:class:`~orpheus.geometry.boundary.BoundaryOperator` instances on the
 :class:`~orpheus.sn.geometry.SNMesh` (Wave B Issue 7 BC algebra).
 Each function now dispatches through ``bc.apply_to_incoming(out, quad)``
 so vacuum, reflective, white, periodic, albedo, and mixed BCs are all
 honoured uniformly. Bit-identity to the pre-Round-3 reflective-only
-fill is preserved for :class:`SpecularBC` (the standard
+fill is preserved for :class:`SpecularBoundaryOperator` (the standard
 ``BC.reflective`` factory), which is the load-bearing condition for
 the 11 frozen regression snapshots to stay green.
 

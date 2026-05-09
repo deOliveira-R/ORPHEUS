@@ -102,4 +102,4 @@ in the same ``snapshots/`` directory.
 ### Cases queued for follow-up
 
 - `cyl_white_bc_dd_n20` — white BC path. Lands after SN reshape
-  Issue 7 (`ResolvedBC` tensor decomposition).
+  Issue 7 (`BoundaryOperator` tensor decomposition).

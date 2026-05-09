@@ -26,11 +26,11 @@ convergence rate from the WDD sweep's ~O(h^1.3) to ~O(h^1).
 ### BC infrastructure layer (load-bearing)
 
 `solution_to_angular_flux*` and `transport_operator_matvec*` now consume
-the `ResolvedBC` instances on `SNMesh` (Wave B Issue 7 tensor-decomposed
+the `BoundaryOperator` instances on `SNMesh` (Wave B Issue 7 tensor-decomposed
 BC algebra) via `bc.apply_to_incoming(outgoing, quad)`. Vacuum,
 reflective, white, periodic, albedo, and mixed BCs are honoured uniformly.
 Bit-identity to the pre-Round 3 hard-coded reflective fill is preserved
-for `SpecularBC` (the standard `BC.reflective` factory) — verified by the
+for `SpecularBoundaryOperator` (the standard `BC.reflective` factory) — verified by the
 11 frozen regression snapshots staying bit-identical (`-m regression`
 tests pass; spot-checked 8/11 + the slow P1 anisotropic).
 
@@ -199,7 +199,7 @@ new code (per-iy / per-ix BC fill loops in `solution_to_angular_flux`).
 ## Lessons for `algebra-of-record` skill
 
 The brief's framing was algebra-of-record disciplined: BC dispatch
-should go through the existing `ResolvedBC.apply_to_incoming` API.
+should go through the existing `BoundaryOperator.apply_to_incoming` API.
 The infrastructure piece is now done correctly.
 
 What the brief missed (and `algebra-of-record` could codify): when the

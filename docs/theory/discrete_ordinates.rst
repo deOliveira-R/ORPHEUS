@@ -100,7 +100,7 @@ mesh) is shared with :ref:`theory-collision-probability` and
 2. **Augmented geometry** --- :class:`SNMesh` wraps the base mesh and
    an angular quadrature, precomputing the coordinate-specific streaming
    stencil.  It also **resolves boundary conditions**: each ``BC`` tag
-   on the mesh is looked up in :attr:`SNMesh.BC_REGISTRY` and converted
+   on the mesh is looked up in :attr:`SNMesh.BOUNDARY_OPERATOR_REGISTRY` and converted
    to a validated kind string (``"vacuum"`` or ``"reflective"``)
    stored as ``sn_mesh.bc_left``, ``sn_mesh.bc_right``, etc.
    The sweep reads these resolved strings directly --- it never
@@ -1552,14 +1552,14 @@ took two passes at the closure:
   gap that Round 2 identified: the FD operator's
   :func:`~orpheus.sn.operator.solution_to_angular_flux*` and the
   matvec helpers now consume the
-  :class:`~orpheus.geometry.boundary.ResolvedBC` instances on the
+  :class:`~orpheus.geometry.boundary.BoundaryOperator` instances on the
   :class:`~orpheus.sn.geometry.SNMesh` (Wave B Issue 7
   tensor-decomposed BC algebra), dispatching boundary fills via
-  :meth:`ResolvedBC.apply_to_incoming`.  Vacuum, reflective,
+  :meth:`BoundaryOperator.apply_to_incoming`.  Vacuum, reflective,
   white, periodic, albedo, and mixed BCs are now plumbed
   uniformly through the FD operator; bit-identity to the
   pre-Round 3 hard-coded reflective fill is preserved for
-  :class:`SpecularBC` (the standard ``BC.reflective`` factory),
+  :class:`SpecularBoundaryOperator` (the standard ``BC.reflective`` factory),
   which is the load-bearing condition for the 11 frozen
   regression snapshots to stay green.
 
@@ -1722,12 +1722,12 @@ When a face is left as ``None``, the solver applies its own default
 eigenvalue convention).
 
 **Stage 2 --- Solver resolution.**
-:class:`SNMesh` owns a class-level :attr:`~SNMesh.BC_REGISTRY` dictionary
+:class:`SNMesh` owns a class-level :attr:`~SNMesh.BOUNDARY_OPERATOR_REGISTRY` dictionary
 mapping kind strings to factory callables::
 
-    BC_REGISTRY = {
-        "vacuum":     _sn_bc_vacuum,
-        "reflective": _sn_bc_reflective,
+    BOUNDARY_OPERATOR_REGISTRY = {
+        "vacuum":     _sn_vacuum_boundary_operator,
+        "reflective": _sn_reflective_boundary_operator,
     }
 
 During ``SNMesh.__init__``, each face's :class:`~geometry.mesh.BC` is
@@ -1739,7 +1739,7 @@ supported --- requesting any other kind on a curvilinear mesh raises
 
 As of Wave B Round 3 of the SN reshape campaign (Issue 7 of
 ``.claude/plans/sn_reshape.md``), the registry factories return
-concrete :class:`~orpheus.geometry.boundary.ResolvedBC` instances
+concrete :class:`~orpheus.geometry.boundary.BoundaryOperator` instances
 rather than string tags. ``sn_mesh.bc_left``, ``sn_mesh.bc_right``,
 ``sn_mesh.bc_xmin``, etc. carry tensor-decomposed BC objects whose
 ``apply_to_incoming(angular_flux_outgoing, quadrature)`` method the
@@ -1747,7 +1747,7 @@ sweep calls directly, with no string-kind branching at the call site.
 For backward compatibility with existing tests, the concrete BC
 classes still compare equal to their legacy string tag
 (``sn_mesh.bc_left == "vacuum"`` evaluates True iff
-``sn_mesh.bc_left`` is a ``VacuumBC``); see
+``sn_mesh.bc_left`` is a ``VacuumBoundaryOperator``); see
 :ref:`bc-tensor-decompositions` for the full algebra and the list of
 implemented primitives.
 
@@ -1838,7 +1838,7 @@ either rank-1 (one :math:`G \otimes A` term) or a finite linear
 combination of rank-1 primitives (rank-N). The implemented primitives
 are:
 
-.. list-table:: Implemented :class:`ResolvedBC` primitives
+.. list-table:: Implemented :class:`BoundaryOperator` primitives
    :widths: 20 30 25 25
    :header-rows: 1
 
@@ -1846,36 +1846,36 @@ are:
      - :math:`G_\alpha`
      - :math:`A_\alpha`
      - Rank / wired into ``solve_sn``
-   * - :class:`~orpheus.geometry.boundary.VacuumBC`
+   * - :class:`~orpheus.geometry.boundary.VacuumBoundaryOperator`
      - :math:`0` (no operator)
      - 0
      - 0 / yes
-   * - :class:`~orpheus.geometry.boundary.SpecularBC`
+   * - :class:`~orpheus.geometry.boundary.SpecularBoundaryOperator`
      - permutation under reflection axis
      - albedo (1 = perfect)
      - 1 / yes
-   * - :class:`~orpheus.geometry.boundary.WhiteBC`
+   * - :class:`~orpheus.geometry.boundary.WhiteBoundaryOperator`
      - cosine-weighted hemispheric average
      - albedo
      - 1 / no (Wave C)
-   * - :class:`~orpheus.geometry.boundary.PeriodicBC`
+   * - :class:`~orpheus.geometry.boundary.PeriodicBoundaryOperator`
      - spatial pushforward (caller-supplied)
      - 1
      - 1 / no (Wave C/D)
-   * - :class:`~orpheus.geometry.boundary.AlbedoBC`
+   * - :class:`~orpheus.geometry.boundary.AlbedoBoundaryOperator`
      - identity in angle
      - albedo
      - 1 / no (building block)
-   * - :class:`~orpheus.geometry.boundary.MixedBC`
+   * - :class:`~orpheus.geometry.boundary.MixedBoundaryOperator`
      - sum of components
      - per-component
      - N / no
 
-The Protocol :class:`~orpheus.geometry.boundary.ResolvedBC` exposes one
+The Protocol :class:`~orpheus.geometry.boundary.BoundaryOperator` exposes one
 method, ``apply_to_incoming(angular_flux_outgoing, quadrature)``, which
 the SN sweep calls instead of branching on a string kind. The
-:attr:`SNMesh.BC_REGISTRY` factories now return concrete
-:class:`ResolvedBC` instances; the registry pattern is unchanged from a
+:attr:`SNMesh.BOUNDARY_OPERATOR_REGISTRY` factories now return concrete
+:class:`BoundaryOperator` instances; the registry pattern is unchanged from a
 caller's perspective. White, periodic, albedo, and mixed primitives
 ship as building blocks --- the sweep plumbing for them lands in a
 later wave of the SN reshape campaign (this issue is the algebra; the
@@ -1886,8 +1886,8 @@ Marshak boundaries (:math:`R = c_1 \, G_{\rm refl} + c_2 \, G_{\rm
 diff}`, Bell & Glasstone 1970 §1.5) and multi-region interface
 couplings are all instances of the same algebra: pick the geometric
 operators, pick the amplitudes, sum. Once this shape is in place, new
-BCs are one ``ResolvedBC`` class and one
-``BC_REGISTRY`` entry away --- no sweep edits per BC.
+BCs are one ``BoundaryOperator`` class and one
+``BOUNDARY_OPERATOR_REGISTRY`` entry away --- no sweep edits per BC.
 
 Inner Boundary (Curvilinear)
 -----------------------------
@@ -2294,10 +2294,10 @@ new operators for the EigenvalueSolver Protocol surface.
 
 Wave E Round 3 (Issue #98 follow-up) extended the FD operator's
 boundary handling to consume the
-:class:`~orpheus.geometry.boundary.ResolvedBC` infrastructure
+:class:`~orpheus.geometry.boundary.BoundaryOperator` infrastructure
 (Wave B Issue 7), so :func:`solution_to_angular_flux*` and the
 matvec helpers now dispatch boundary fills via
-:meth:`ResolvedBC.apply_to_incoming` — vacuum, reflective, white,
+:meth:`BoundaryOperator.apply_to_incoming` — vacuum, reflective, white,
 albedo, periodic, and mixed BCs are honoured uniformly.
 
 
