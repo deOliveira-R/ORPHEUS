@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2731**
+Total tests collected: **2758**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 590, 21.6%
-   L1, 723, 26.5%
+   L0, 590, 21.4%
+   L1, 723, 26.2%
    L2, 36, 1.3%
    L3, 0, 0.0%
-   foundation, 1354, 49.6%
+   foundation, 1381, 50.1%
    unmarked, 28, 1.0%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2624
+   explicit, 2651
    verify, 0
    class-name, 46
    func-name, 0
@@ -187,6 +187,7 @@ Module × level grid
    sn/test_cartesian, 1, 6, 0, 0, 0, 0
    sn/test_cylindrical, 4, 10, 11, 0, 0, 0
    sn/test_discrete_ordinates_2d, 0, 0, 2, 0, 0, 0
+   sn/test_fission_operator, 0, 0, 0, 0, 10, 0
    sn/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    sn/test_mms, 0, 2, 0, 0, 0, 0
    sn/test_mms_2d, 0, 3, 0, 0, 0, 0
@@ -195,6 +196,7 @@ Module × level grid
    sn/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
    sn/test_properties, 4, 0, 0, 0, 0, 0
    sn/test_quadrature, 49, 0, 0, 0, 0, 0
+   sn/test_scattering_operator, 0, 0, 0, 0, 17, 0
    sn/test_snmesh_consumes_reduced, 0, 0, 0, 0, 16, 0
    sn/test_solver_components, 38, 0, 0, 0, 0, 0
    sn/test_spherical, 13, 7, 6, 0, 0, 0
