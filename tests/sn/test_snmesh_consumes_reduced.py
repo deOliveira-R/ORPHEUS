@@ -187,3 +187,114 @@ def test_slab_keeps_cartesian_streaming_arrays() -> None:
     assert sn.streaming_y is not None
     # No curvature on Cartesian.
     assert sn.curvature is None
+
+
+# ---------------------------------------------------------------------------
+# 5. iter_cell_visits — DAG-topological traversal
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.foundation
+def test_sphere_iter_cell_visits_outward_order() -> None:
+    """Outward sweep (μ ≥ 0): cell 0 → nx-1, downstream = outer face."""
+    sn = _sphere_mesh()
+    quad = sn.quad
+    # Pick a positive-μ ordinate.
+    n = quad.N - 1
+    assert quad.mu_x[n] > 0
+    visits = list(sn.iter_cell_visits(ordinate_idx=n))
+    assert [v.cell_idx for v in visits] == list(range(sn.nx))
+    # Each visit's downstream face is the OUTER face of the cell.
+    for v in visits:
+        assert v.face_area_downstream == v.streaming_terms.face_area_outer
+        # Geometric labels are direction-independent — anchor.
+        assert v.streaming_terms.face_area_inner < v.streaming_terms.face_area_outer
+
+
+@pytest.mark.foundation
+def test_sphere_iter_cell_visits_inward_order() -> None:
+    """Inward sweep (μ < 0): cell nx-1 → 0, downstream = inner face."""
+    sn = _sphere_mesh()
+    quad = sn.quad
+    # Pick a negative-μ ordinate.
+    n = 0
+    assert quad.mu_x[n] < 0
+    visits = list(sn.iter_cell_visits(ordinate_idx=n))
+    assert [v.cell_idx for v in visits] == list(range(sn.nx - 1, -1, -1))
+    # Each visit's downstream face is the INNER face.
+    for v in visits:
+        assert v.face_area_downstream == v.streaming_terms.face_area_inner
+
+
+@pytest.mark.foundation
+def test_slab_iter_cell_visits_no_face_areas() -> None:
+    """Slab: forward / backward iteration with face_area_downstream = None."""
+    sn = _slab_mesh()
+    quad = sn.quad
+    # Forward (μ > 0).
+    n_pos = quad.N - 1
+    visits_pos = list(sn.iter_cell_visits(ordinate_idx=n_pos))
+    assert [v.cell_idx for v in visits_pos] == list(range(sn.nx))
+    for v in visits_pos:
+        assert v.face_area_downstream is None
+    # Backward (μ < 0).
+    n_neg = 0
+    visits_neg = list(sn.iter_cell_visits(ordinate_idx=n_neg))
+    assert [v.cell_idx for v in visits_neg] == list(range(sn.nx - 1, -1, -1))
+
+
+@pytest.mark.foundation
+def test_cylinder_iter_cell_visits_per_level() -> None:
+    """Cylindrical: per-level traversal; downstream face follows η sign."""
+    sn = _cylinder_mesh()
+    quad = sn.quad
+    # Pick a level with both signs of η represented.
+    for p, level_idx in enumerate(quad.level_indices):
+        eta_signs = [np.sign(quad.mu_x[g]) for g in level_idx]
+        if 1 in eta_signs and -1 in eta_signs:
+            chosen_level = p
+            break
+    else:  # pragma: no cover — safety
+        pytest.skip("No level has both signs of eta")
+
+    level_idx = quad.level_indices[chosen_level]
+    for m_local in range(len(level_idx)):
+        global_n = int(level_idx[m_local])
+        eta_n = quad.mu_x[global_n]
+        visits = list(
+            sn.iter_cell_visits(
+                ordinate_idx=m_local, mu_level_idx=chosen_level,
+            )
+        )
+        # Each visit carries the GLOBAL ordinate's |η| in abs_mu —
+        # bug 2 fix anchor.
+        for v in visits:
+            assert v.streaming_terms.abs_mu == abs(eta_n)
+        if abs(eta_n) < 1e-15:
+            # Degenerate: no spatial flow, forward order.
+            assert all(v.face_area_downstream is None for v in visits)
+            assert [v.cell_idx for v in visits] == list(range(sn.nx))
+        elif eta_n >= 0:
+            # Outward: forward, downstream = outer.
+            assert [v.cell_idx for v in visits] == list(range(sn.nx))
+            for v in visits:
+                assert v.face_area_downstream == (
+                    v.streaming_terms.face_area_outer
+                )
+        else:
+            # Inward: backward, downstream = inner.
+            assert [v.cell_idx for v in visits] == list(
+                range(sn.nx - 1, -1, -1)
+            )
+            for v in visits:
+                assert v.face_area_downstream == (
+                    v.streaming_terms.face_area_inner
+                )
+
+
+@pytest.mark.foundation
+def test_cylinder_iter_cell_visits_requires_level_idx() -> None:
+    """Cylindrical iter_cell_visits without mu_level_idx raises."""
+    sn = _cylinder_mesh()
+    with pytest.raises(ValueError, match="mu_level_idx"):
+        list(sn.iter_cell_visits(ordinate_idx=0))

@@ -60,6 +60,7 @@ from orpheus.geometry import (
 from orpheus.geometry.reduced_operator import StreamingTerms
 from orpheus.sn.quadrature import GaussLegendre1D, ProductQuadrature
 from orpheus.sn.spatial import DiamondDifference, UpstreamState
+from orpheus.sn.spatial.cell_update import CellVisit
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -196,8 +197,12 @@ class TestBitIdenticalSlab:
         ref_psi_out = ref_a * psi_in + ref_s
         ref_psi_avg = 0.5 * (psi_in + ref_psi_out)
 
+        # Slab visit: face_area_downstream is None — slab DD does not
+        # read face areas (the recurrence is built around chord /
+        # |μ| only).
+        visit = CellVisit(cell_idx=cell_idx, streaming_terms=st)
         strat = DiamondDifference()
-        result = strat.update(st, total_xs, source, upstream)
+        result = strat.update(visit, total_xs, source, upstream)
 
         # Bit-identical: np.array_equal, not np.allclose.
         assert np.array_equal(result.cell_average_flux, ref_psi_avg)
@@ -245,8 +250,9 @@ class TestBitIdenticalSlab:
         ref_psi_out = ref_a * psi_in + ref_s
         ref_psi_avg = 0.5 * (psi_in + ref_psi_out)
 
+        visit = CellVisit(cell_idx=cell_idx, streaming_terms=st)
         strat = DiamondDifference()
-        result = strat.update(st, total_xs, source, upstream)
+        result = strat.update(visit, total_xs, source, upstream)
 
         assert np.array_equal(result.cell_average_flux, ref_psi_avg)
         assert np.array_equal(result.outgoing_spatial_flux, ref_psi_out)
@@ -294,8 +300,9 @@ class TestBitIdenticalSlab:
         ref_psi_out = ref_a * psi_in + ref_s
         ref_psi_avg = 0.5 * (psi_in + ref_psi_out)
 
+        visit = CellVisit(cell_idx=cell_idx, streaming_terms=st)
         strat = DiamondDifference()
-        result = strat.update(st, total_xs, source, upstream)
+        result = strat.update(visit, total_xs, source, upstream)
 
         assert np.array_equal(result.cell_average_flux, ref_psi_avg)
         assert np.array_equal(result.outgoing_spatial_flux, ref_psi_out)
@@ -349,9 +356,11 @@ class TestBitIdenticalCurvilinear:
         )
 
         # Reference scalar form — mirrors sweep.py:328-329 + 350-361.
+        # Outward (μ > 0): downstream face is the OUTER face.
         abs_mu = st.abs_mu
-        A_in = st.face_area_in
-        A_out = st.face_area_out
+        A_inner = st.face_area_inner
+        A_outer = st.face_area_outer
+        A_downstream = A_outer  # outward sweep
         dA_w = st.delta_A_over_w
         alpha_in = st.alpha_in
         alpha_out = st.alpha_out
@@ -360,19 +369,25 @@ class TestBitIdenticalCurvilinear:
         ref_c_out = alpha_out / tau
         ref_c_in = (1.0 - tau) / tau * alpha_out + alpha_in
         ref_denom = (
-            2.0 * abs_mu * A_out + dA_w * ref_c_out + total_xs * V
+            2.0 * abs_mu * A_downstream + dA_w * ref_c_out + total_xs * V
         )
         ref_numer = (
             source
-            + abs_mu * (A_in + A_out) * psi_spat_in
+            + abs_mu * (A_inner + A_outer) * psi_spat_in
             + dA_w * ref_c_in * psi_angle_in
         )
         ref_psi_avg = ref_numer / ref_denom
         ref_psi_spat_out = 2.0 * ref_psi_avg - psi_spat_in
         ref_psi_angle_out = (ref_psi_avg - (1.0 - tau) * psi_angle_in) / tau
 
+        # Outward visit: face_area_downstream = outer face.
+        visit = CellVisit(
+            cell_idx=cell_idx,
+            streaming_terms=st,
+            face_area_downstream=A_outer,
+        )
         strat = DiamondDifference()
-        result = strat.update(st, total_xs, source, upstream)
+        result = strat.update(visit, total_xs, source, upstream)
 
         # Bit-identical: np.array_equal, not np.allclose.
         assert np.array_equal(result.cell_average_flux, ref_psi_avg)
@@ -385,9 +400,12 @@ class TestBitIdenticalCurvilinear:
         """Inward-sweep cell (negative μ, marching outer → inner).
 
         Mirrors sweep.py:336-366 — the inward branch differs only in
-        which face is "in" vs "out" (``A_in = A[i+1]`` for inward,
-        ``A[i]`` for outward), which streaming_terms() already
-        encodes.  The cell-update algebra is identical.
+        which face is "downstream" (the inner face for inward, the
+        outer face for outward).  The cell-update algebra is
+        identical; the sweep orchestrator (now via
+        :meth:`SNMesh.iter_cell_visits`) resolves the downstream face
+        before issuing the visit, so the strategy sees no
+        sign-of-:math:`\\mu` branching.
         """
         mesh = _spherical_mesh(nx=5, radius=1.0)
         quad = GaussLegendre1D.create(8)
@@ -398,6 +416,12 @@ class TestBitIdenticalCurvilinear:
         direction_idx = 1  # negative μ, second-most-negative
         st = op.streaming_terms(cell_idx, direction_idx)
         assert st.abs_mu >= 1e-15
+        # Confirm the streaming terms are direction-independent
+        # (geometric labels): inner == A[i], outer == A[i+1].
+        assert st.face_area_inner == float(op.face_areas[cell_idx])
+        assert st.face_area_outer == float(op.face_areas[cell_idx + 1])
+        # Signed mu is the direction discriminator.
+        assert st.mu < 0
 
         total_xs = np.array([0.8, 1.4])
         weight_norm = 1.0 / quad.weights.sum()
@@ -411,16 +435,18 @@ class TestBitIdenticalCurvilinear:
         )
 
         abs_mu = st.abs_mu
+        # Inward (μ < 0): downstream face is the INNER face.
+        A_downstream = st.face_area_inner
         ref_c_out = st.alpha_out / st.tau_mm
         ref_c_in = (1.0 - st.tau_mm) / st.tau_mm * st.alpha_out + st.alpha_in
         ref_denom = (
-            2.0 * abs_mu * st.face_area_out
+            2.0 * abs_mu * A_downstream
             + st.delta_A_over_w * ref_c_out
             + total_xs * st.volume
         )
         ref_numer = (
             source
-            + abs_mu * (st.face_area_in + st.face_area_out) * psi_spat_in
+            + abs_mu * (st.face_area_inner + st.face_area_outer) * psi_spat_in
             + st.delta_A_over_w * ref_c_in * psi_angle_in
         )
         ref_psi_avg = ref_numer / ref_denom
@@ -429,8 +455,14 @@ class TestBitIdenticalCurvilinear:
             (ref_psi_avg - (1.0 - st.tau_mm) * psi_angle_in) / st.tau_mm
         )
 
+        # Inward visit: face_area_downstream = inner face.
+        visit = CellVisit(
+            cell_idx=cell_idx,
+            streaming_terms=st,
+            face_area_downstream=st.face_area_inner,
+        )
         strat = DiamondDifference()
-        result = strat.update(st, total_xs, source, upstream)
+        result = strat.update(visit, total_xs, source, upstream)
 
         assert np.array_equal(result.cell_average_flux, ref_psi_avg)
         assert np.array_equal(result.outgoing_spatial_flux, ref_psi_spat_out)
@@ -486,8 +518,8 @@ class TestCylindricalDegenerate:
         st = StreamingTerms(
             chord_length=st_real.chord_length,
             mu=0.0,
-            face_area_in=st_real.face_area_in,
-            face_area_out=st_real.face_area_out,
+            face_area_inner=st_real.face_area_inner,
+            face_area_outer=st_real.face_area_outer,
             delta_A_over_w=st_real.delta_A_over_w,
             alpha_in=st_real.alpha_in,
             alpha_out=st_real.alpha_out,
@@ -518,8 +550,15 @@ class TestCylindricalDegenerate:
             (ref_psi_avg - (1.0 - st.tau_mm) * psi_angle_in) / st.tau_mm
         )
 
+        # Degenerate visit: no spatial face flow ⇒
+        # face_area_downstream is None.
+        visit = CellVisit(
+            cell_idx=1,
+            streaming_terms=st,
+            face_area_downstream=None,
+        )
         strat = DiamondDifference()
-        result = strat.update(st, total_xs, source, upstream)
+        result = strat.update(visit, total_xs, source, upstream)
 
         # cell_average_flux bit-identical to the sweep's degenerate scalar.
         assert np.array_equal(result.cell_average_flux, ref_psi_avg)
@@ -551,8 +590,8 @@ class TestCylindricalDegenerate:
         st = StreamingTerms(
             chord_length=st_real.chord_length,
             mu=0.0,
-            face_area_in=st_real.face_area_in,
-            face_area_out=st_real.face_area_out,
+            face_area_inner=st_real.face_area_inner,
+            face_area_outer=st_real.face_area_outer,
             delta_A_over_w=st_real.delta_A_over_w,
             alpha_in=st_real.alpha_in,
             alpha_out=st_real.alpha_out,
@@ -574,9 +613,14 @@ class TestCylindricalDegenerate:
             angular_upstream=psi_angle_in,
         )
 
+        visit = CellVisit(
+            cell_idx=1,
+            streaming_terms=st,
+            face_area_downstream=None,
+        )
         strat = DiamondDifference()
-        result_a = strat.update(st, total_xs, source, upstream_a)
-        result_b = strat.update(st, total_xs, source, upstream_b)
+        result_a = strat.update(visit, total_xs, source, upstream_a)
+        result_b = strat.update(visit, total_xs, source, upstream_b)
 
         # cell_average_flux insensitive to spatial_upstream
         # (no radial face flow on this cell).
@@ -639,8 +683,9 @@ class TestPositivityFailure:
             angular_upstream=None,
         )
 
+        visit = CellVisit(cell_idx=0, streaming_terms=st)
         strat = DiamondDifference()
-        result = strat.update(st, total_xs, source, upstream)
+        result = strat.update(visit, total_xs, source, upstream)
 
         # The outgoing flux should be negative — DD's positivity
         # failure mode.  This is a pre-condition check that the

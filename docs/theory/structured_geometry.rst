@@ -312,6 +312,45 @@ strategies; the cylindrical pure-azimuthal degenerate case
 (``abs_mu < 1e-15``) is the single runtime branch a strategy must
 handle for cylindrical sweeps.
 
+Geometric labels, not flow-direction labels
+-------------------------------------------
+
+The two face-area fields on
+:class:`~orpheus.geometry.reduced_operator.StreamingTerms` are
+**purely geometric**: ``face_area_inner`` is :math:`A_{i-1/2}` (the
+face closer to :math:`r=0`), ``face_area_outer`` is
+:math:`A_{i+1/2}` (the face farther from :math:`r=0`).  These labels
+are independent of the sweep's marching direction.  For an outward
+sweep (centre :math:`\to` boundary) the inner face is upstream; for
+an inward sweep (boundary :math:`\to` centre) the outer face is
+upstream.  But that resolution is **SN-specific** — the SN sweep is
+a topological sort of a directed cell graph for a given ordinate,
+where edges are oriented by
+:math:`\mathrm{sign}(\Omega \cdot \hat n_{\text{face}})`.  MoC uses
+a different mathematical structure (fiber bundles + solution
+sheaves), CP / diffusion / MC do not have a sweep at all.
+
+Per Cardinal Rule 2, the geometry layer therefore stays geometric.
+Sweep-direction resolution lives in the SN module:
+:class:`~orpheus.sn.spatial.cell_update.CellVisit` is the
+SN-specific per-visit packet that composes the geometric
+:class:`StreamingTerms` together with the sweep-resolved
+``face_area_downstream``.  The SN sweep iterates
+:meth:`~orpheus.sn.geometry.SNMesh.iter_cell_visits`, which encodes
+the inward / outward branching, the cylindrical per-level
+traversal, and the pure-azimuthal degenerate handling — yielding
+one :class:`CellVisit` per cell in DAG-topological order.  The
+cell-update strategy then sees only resolved data; no
+sign-of-:math:`\mu` branching inside the strategy.
+
+Likewise, the signed primary direction cosine ``mu`` is read from
+the **global ordinate index** for all three coordinate systems:
+slab and sphere have ``direction_idx`` :math:`=` global ordinate;
+cylindrical resolves the global index through
+``level_indices[mu_level_idx][direction_idx]`` because cylindrical
+``direction_idx`` is the within-level azimuthal index
+:math:`m \in [0, M)`.  ``abs_mu`` follows the same convention.
+
 Bit-identical contract
 ----------------------
 

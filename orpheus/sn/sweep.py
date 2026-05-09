@@ -89,77 +89,17 @@ See also
 
 from __future__ import annotations
 
-import dataclasses
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from orpheus.geometry import CoordSystem
-from orpheus.geometry.reduced_operator import StreamingTerms
 
-from .quadrature import AngularQuadrature
 from .spatial.cell_update import UpstreamState
 from .spatial.diamond import DiamondDifference
 
 if TYPE_CHECKING:
     from .geometry import SNMesh
-
-
-def _streaming_terms_for_inward_sweep(st: StreamingTerms) -> StreamingTerms:
-    """Swap ``face_area_in`` and ``face_area_out`` for an inward (μ<0) sweep.
-
-    The :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
-    factories canonicalise ``face_area_in`` to the **inner** face of the
-    cell (``A[i]``) and ``face_area_out`` to the **outer** face
-    (``A[i+1]``).  This is the correct convention for an outward sweep
-    (centre → boundary), where the inner face is incoming and the outer
-    face is outgoing.
-
-    For an **inward** sweep (boundary → centre, μ < 0 in spherical or
-    η < 0 in cylindrical), the directionality flips: the **outer** face
-    is incoming and the **inner** face is outgoing.  The inlined sweep
-    historically encoded this by reading ``A_in = A[i+1]`` and
-    ``A_out = A[i]`` directly off the face-area array (sweep.py at
-    commit ``2665ea3`` lines 346-347 spherical, lines 512-513
-    cylindrical).
-
-    To preserve bit-identity when dispatching through the
-    :class:`~orpheus.sn.spatial.cell_update.CellUpdate` Protocol, this
-    helper returns a sibling ``StreamingTerms`` with the two face
-    fields swapped — the cell-update strategy then operates on the
-    directionally-correct face semantics without needing to know which
-    way the sweep is marching.
-    """
-    return dataclasses.replace(
-        st,
-        face_area_in=st.face_area_out,
-        face_area_out=st.face_area_in,
-    )
-
-
-def _streaming_terms_with_abs_mu(
-    st: StreamingTerms, abs_mu: float,
-) -> StreamingTerms:
-    """Override ``abs_mu`` on a cylindrical streaming-terms packet.
-
-    :meth:`ReducedStreamingOperator.streaming_terms` for cylindrical
-    geometry is called with ``direction_idx = m_local`` (the within-
-    level azimuthal index) but computes
-    ``abs_mu = abs(quadrature.mu_x[direction_idx])`` — which pulls the
-    wrong global ordinate's :math:`|\\eta|` because cylindrical
-    ``direction_idx`` is a within-level index, not a global ordinate
-    index.  The inlined sweep (sweep.py at commit ``2665ea3`` line
-    489) computed ``abs_eta = abs(quad.mu_x[n])`` correctly using the
-    **global** ordinate index ``n = level_idx[m_local]``.  This helper
-    overrides ``abs_mu`` with the correct global-ordinate value — the
-    remaining curvature fields (alpha, dAw, tau, faces) are already
-    correct because they index by ``(mu_level_idx, direction_idx)``.
-
-    The ``abs_mu`` extraction bug is documented for the geometry layer
-    to fix in a follow-up; the sweep-side override here is the
-    bit-identity-preserving workaround.
-    """
-    return dataclasses.replace(st, abs_mu=abs_mu)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -555,75 +495,51 @@ def _sweep_1d_spherical(
         if has_aniso:
             QV = QV_iso + Q_aniso_1d[n] * V[:, None]
 
+        # Set up incoming spatial flux at the start of the sweep.
+        # For inward sweeps (μ < 0), boundary → centre: read incoming
+        # from the outer-face BC.  For outward (μ ≥ 0), at r = 0 we
+        # have A[0] = 4π(0)² = 0, so no spatial incoming flux.
         if mu_n < 0:
-            # Inward sweep: outer boundary → centre.
-            # Incoming flux at r=R for ordinate n via the BC operator.
-            # For ``VacuumBC`` this is zero; for ``SpecularBC(axis="x")``
-            # this is ``bc_outer[ref[n]]`` — bit-identical to the
-            # previous ``bc_outer[ref[n]].copy()`` indexing.
+            # ``apply_to_incoming`` is bit-identical to the previous
+            # ``bc_outer[ref[n]].copy()`` indexing for SpecularBC and
+            # zeros for VacuumBC.
             psi_in_full = bc_outer_obj.apply_to_incoming(bc_outer, quad)
             psi_spatial_in = psi_in_full[n]
-
-            for i in range(nx - 1, -1, -1):
-                # Build the per-(cell, direction) streaming-terms packet
-                # via the canonical ReducedStreamingOperator extraction.
-                # For inward sweeps, swap face_area_in/out so the
-                # outer face is the incoming and the inner face is the
-                # outgoing — matching the inlined sweep's convention
-                # (sweep.py:346-347 at commit 2665ea3).
-                st = _streaming_terms_for_inward_sweep(
-                    reduced.streaming_terms(cell_idx=i, direction_idx=n)
-                )
-                upstream = UpstreamState(
-                    spatial_upstream=psi_spatial_in,
-                    angular_upstream=psi_angle[i],
-                )
-                result = cell_update.update(
-                    streaming_terms=st,
-                    total_xs=sig_t_1d[i],
-                    source=QV[i],
-                    upstream_state=upstream,
-                )
-
-                psi = result.cell_average_flux
-                psi_angle[i] = result.outgoing_angular_state
-
-                angular_flux[n, i, 0, :] = psi
-                scalar_flux[i] += w_n * psi
-
-                psi_spatial_in = result.outgoing_spatial_flux
-
         else:
-            # Outward sweep: centre → outer boundary
-            # At r=0, A[0] = 4π(0)² = 0, so no spatial incoming flux
             psi_spatial_in = np.zeros(ng)
 
-            for i in range(nx):
-                # Outward sweep: streaming_terms canonical convention
-                # (face_area_in = A[i] inner, face_area_out = A[i+1]
-                # outer) matches the inlined-sweep "outward branch"
-                # face semantics directly — no swap needed.
-                st = reduced.streaming_terms(cell_idx=i, direction_idx=n)
-                upstream = UpstreamState(
-                    spatial_upstream=psi_spatial_in,
-                    angular_upstream=psi_angle[i],
-                )
-                result = cell_update.update(
-                    streaming_terms=st,
-                    total_xs=sig_t_1d[i],
-                    source=QV[i],
-                    upstream_state=upstream,
-                )
+        # Iterate cells in topological-sort order for this ordinate.
+        # The CellVisit packet pre-resolves the sweep direction —
+        # face_area_downstream is the outgoing face (outer for
+        # outward, inner for inward); spatial_upstream below is the
+        # flux flowing INTO the cell.  No sign-of-μ branching here.
+        for visit in sn_mesh.iter_cell_visits(ordinate_idx=n):
+            i = visit.cell_idx
+            upstream = UpstreamState(
+                spatial_upstream=psi_spatial_in,
+                angular_upstream=psi_angle[i],
+            )
+            result = cell_update.update(
+                visit=visit,
+                total_xs=sig_t_1d[i],
+                source=QV[i],
+                upstream_state=upstream,
+            )
 
-                psi = result.cell_average_flux
-                psi_angle[i] = result.outgoing_angular_state
+            psi = result.cell_average_flux
+            psi_angle[i] = result.outgoing_angular_state
 
-                angular_flux[n, i, 0, :] = psi
-                scalar_flux[i] += w_n * psi
+            angular_flux[n, i, 0, :] = psi
+            scalar_flux[i] += w_n * psi
 
-                psi_spatial_in = result.outgoing_spatial_flux
+            # ``outgoing_spatial_flux`` is always populated for the
+            # spherical (non-degenerate) curvilinear branch.
+            psi_spatial_in = result.outgoing_spatial_flux
 
-            # Store outgoing flux at outer boundary for reflective BC
+        # Store outgoing flux at outer boundary for reflective BC,
+        # only on outward sweeps — this is the last visit's outgoing
+        # face flux on cell nx-1.
+        if mu_n >= 0:
             bc_outer[n] = psi_spatial_in
 
     return angular_flux, scalar_flux[:, None, :]  # restore ny=1 dim
@@ -728,130 +644,57 @@ def _sweep_1d_cylindrical(
             if has_aniso:
                 QV = QV_iso + Q_aniso_1d[n] * V[:, None]
 
+            # Set up incoming spatial flux at the start of the sweep
+            # for this ordinate.  Inward (η < 0): read from outer-face
+            # BC.  Outward (η > 0): zero at r = 0.  Degenerate
+            # (|η| < 1e-15): unused by the strategy; pass zeros.
             if eta_n < 0:
-                # Inward sweep: outer → centre.
-                # Incoming flux at r=R for ordinate n via the BC
-                # operator. For ``VacuumBC`` this is zero; for
-                # ``SpecularBC(axis="x")`` this is ``bc_outer[ref[n]]``.
                 psi_in_full = bc_outer_obj.apply_to_incoming(bc_outer, quad)
                 psi_spatial_in = psi_in_full[n]
-
-                for i in range(nx - 1, -1, -1):
-                    # Inward sweep: swap face_area_in/out so the outer
-                    # face is incoming, AND override abs_mu with the
-                    # global-ordinate :math:`|\eta|` (the cylindrical
-                    # streaming_terms() extraction uses the wrong
-                    # ordinate index for abs_mu — see
-                    # :func:`_streaming_terms_with_abs_mu`).  Bit-
-                    # identical to the inlined-sweep cylindrical
-                    # inward branch (sweep.py:489-490, 512-513 at
-                    # commit 2665ea3).
-                    st = _streaming_terms_for_inward_sweep(
-                        _streaming_terms_with_abs_mu(
-                            reduced.streaming_terms(
-                                cell_idx=i,
-                                direction_idx=m_local,
-                                mu_level_idx=p,
-                            ),
-                            abs_eta,
-                        )
-                    )
-                    upstream = UpstreamState(
-                        spatial_upstream=psi_spatial_in,
-                        angular_upstream=psi_angle[i],
-                    )
-                    result = cell_update.update(
-                        streaming_terms=st,
-                        total_xs=sig_t_1d[i],
-                        source=QV[i],
-                        upstream_state=upstream,
-                    )
-
-                    psi = result.cell_average_flux
-                    psi_angle[i] = result.outgoing_angular_state
-
-                    angular_flux[n, i, 0, :] = psi
-                    scalar_flux[i] += w_n * psi
-
-                    psi_spatial_in = result.outgoing_spatial_flux
-
-            elif abs_eta < 1e-15:
-                # Pure azimuthal ordinate (η≈0): no radial streaming.
-                # The cell-update strategy returns
-                # ``outgoing_spatial_flux=None`` here; skip the
-                # face-flux update accordingly.
-                for i in range(nx):
-                    # Override abs_mu with the global-ordinate
-                    # :math:`|\eta|` — see
-                    # :func:`_streaming_terms_with_abs_mu` for the
-                    # cylindrical streaming-terms abs_mu bug.
-                    st = _streaming_terms_with_abs_mu(
-                        reduced.streaming_terms(
-                            cell_idx=i,
-                            direction_idx=m_local,
-                            mu_level_idx=p,
-                        ),
-                        abs_eta,
-                    )
-                    # ``spatial_upstream`` is unused by the degenerate
-                    # branch (no |μ|·A·ψ_in term); pass a dummy zero
-                    # buffer of the right shape to honour the contract.
-                    upstream = UpstreamState(
-                        spatial_upstream=np.zeros(ng),
-                        angular_upstream=psi_angle[i],
-                    )
-                    result = cell_update.update(
-                        streaming_terms=st,
-                        total_xs=sig_t_1d[i],
-                        source=QV[i],
-                        upstream_state=upstream,
-                    )
-
-                    psi = result.cell_average_flux
-                    psi_angle[i] = result.outgoing_angular_state
-
-                    angular_flux[n, i, 0, :] = psi
-                    scalar_flux[i] += w_n * psi
-                    # No face-flux update — the strategy signals this via
-                    # ``result.outgoing_spatial_flux is None``.
-
             else:
-                # Outward sweep: centre → outer.  No face swap, but
-                # override abs_mu with the global-ordinate
-                # :math:`|\eta|` — see
-                # :func:`_streaming_terms_with_abs_mu` for the
-                # cylindrical streaming-terms abs_mu bug.
                 psi_spatial_in = np.zeros(ng)
 
-                for i in range(nx):
-                    st = _streaming_terms_with_abs_mu(
-                        reduced.streaming_terms(
-                            cell_idx=i,
-                            direction_idx=m_local,
-                            mu_level_idx=p,
-                        ),
-                        abs_eta,
-                    )
-                    upstream = UpstreamState(
-                        spatial_upstream=psi_spatial_in,
-                        angular_upstream=psi_angle[i],
-                    )
-                    result = cell_update.update(
-                        streaming_terms=st,
-                        total_xs=sig_t_1d[i],
-                        source=QV[i],
-                        upstream_state=upstream,
-                    )
+            # Iterate cells in DAG-topological order for this ordinate.
+            # iter_cell_visits resolves the cylindrical
+            # ``direction_idx = m_local`` + ``mu_level_idx = p`` to
+            # the correct global η, populates the geometric
+            # StreamingTerms (with the level-resolved global ordinate
+            # for abs_mu), and yields the sweep-direction-resolved
+            # face_area_downstream for each visit.
+            for visit in sn_mesh.iter_cell_visits(
+                ordinate_idx=m_local, mu_level_idx=p,
+            ):
+                i = visit.cell_idx
+                upstream = UpstreamState(
+                    spatial_upstream=psi_spatial_in,
+                    angular_upstream=psi_angle[i],
+                )
+                result = cell_update.update(
+                    visit=visit,
+                    total_xs=sig_t_1d[i],
+                    source=QV[i],
+                    upstream_state=upstream,
+                )
 
-                    psi = result.cell_average_flux
-                    psi_angle[i] = result.outgoing_angular_state
+                psi = result.cell_average_flux
+                psi_angle[i] = result.outgoing_angular_state
 
-                    angular_flux[n, i, 0, :] = psi
-                    scalar_flux[i] += w_n * psi
+                angular_flux[n, i, 0, :] = psi
+                scalar_flux[i] += w_n * psi
 
+                # For the cylindrical pure-azimuthal degenerate case,
+                # ``result.outgoing_spatial_flux`` is None — no
+                # face-flux update.  For non-degenerate sweeps it
+                # carries the next cell's incoming spatial flux.
+                if result.outgoing_spatial_flux is not None:
                     psi_spatial_in = result.outgoing_spatial_flux
 
-                # Store outgoing at outer boundary for reflective BC
+            # Store outgoing at outer boundary for reflective BC —
+            # only on outward (non-degenerate) sweeps.  Mirrors the
+            # original ``else`` branch (eta_n >= 0 and not degenerate).
+            # The inward branch returns above without writing
+            # ``bc_outer``; the degenerate case has no spatial flow.
+            if eta_n >= 0 and abs_eta >= 1e-15:
                 bc_outer[n] = psi_spatial_in
 
     return angular_flux, scalar_flux[:, None, :]  # restore ny=1 dim

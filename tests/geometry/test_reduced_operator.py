@@ -266,8 +266,8 @@ class TestStreamingTermsExtraction:
         assert st.chord_length == float(mesh.widths[2])
         assert st.mu == float(quad.mu_x[3])
         # Curvature fields stay None for slab
-        assert st.face_area_in is None
-        assert st.face_area_out is None
+        assert st.face_area_inner is None
+        assert st.face_area_outer is None
         assert st.delta_A_over_w is None
         assert st.alpha_in is None
         assert st.alpha_out is None
@@ -281,12 +281,16 @@ class TestStreamingTermsExtraction:
         i, n = 1, 5
         st = op.streaming_terms(cell_idx=i, direction_idx=n)
         assert st.chord_length == float(mesh.widths[i])
-        assert st.face_area_in == float(op.face_areas[i])
-        assert st.face_area_out == float(op.face_areas[i + 1])
+        # Geometric labels: inner = closer to r=0 (A[i]),
+        #                   outer = farther (A[i+1]).
+        assert st.face_area_inner == float(op.face_areas[i])
+        assert st.face_area_outer == float(op.face_areas[i + 1])
         assert st.delta_A_over_w == float(op.redist_dAw[i, n])
         assert st.alpha_in == float(op.alpha_half[n])
         assert st.alpha_out == float(op.alpha_half[n + 1])
         assert st.tau_mm == float(op.tau_mm[n])
+        # Sphere also exposes signed mu (global ordinate index == n).
+        assert st.mu == float(quad.mu_x[n])
 
     @pytest.mark.foundation
     def test_cylinder_streaming_terms_match_per_level(self):
@@ -298,14 +302,21 @@ class TestStreamingTermsExtraction:
             cell_idx=i, direction_idx=m, mu_level_idx=level,
         )
         assert st.chord_length == float(mesh.widths[i])
-        assert st.face_area_in == float(op.face_areas[i])
-        assert st.face_area_out == float(op.face_areas[i + 1])
+        # Geometric labels: inner / outer relative to r=0,
+        # independent of sweep direction.
+        assert st.face_area_inner == float(op.face_areas[i])
+        assert st.face_area_outer == float(op.face_areas[i + 1])
         assert st.delta_A_over_w == float(
             op.redist_dAw_per_level[level][i, m]
         )
         assert st.alpha_in == float(op.alpha_per_level[level][m])
         assert st.alpha_out == float(op.alpha_per_level[level][m + 1])
         assert st.tau_mm == float(op.tau_mm_per_level[level][m])
+        # Cylinder mu is signed eta from the GLOBAL ordinate index
+        # (resolved via level_indices) — bug 2 fix anchor.
+        global_n = int(quad.level_indices[level][m])
+        assert st.mu == float(quad.mu_x[global_n])
+        assert st.abs_mu == float(abs(quad.mu_x[global_n]))
 
     @pytest.mark.foundation
     def test_cylinder_streaming_terms_requires_level(self):
@@ -404,6 +415,133 @@ class TestStreamingTermsVolumeAndAbsMu:
         assert st.alpha_out == float(op.alpha_half[n + 1])
         assert st.delta_A_over_w == float(op.redist_dAw[i, n])
         assert st.tau_mm == float(op.tau_mm[n])
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Geometric labels: face_area_inner/outer are direction-independent
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestStreamingTermsGeometricLabels:
+    """``face_area_inner`` / ``face_area_outer`` are **purely geometric**.
+
+    The two face-area fields encode position relative to :math:`r=0`
+    (inner = closer, outer = farther) — they do NOT depend on the
+    sweep's marching direction.  The same cell yields the same
+    inner / outer values regardless of which ordinate is queried.
+    Sweep-direction resolution lives in the SN module
+    (:class:`orpheus.sn.spatial.cell_update.CellVisit`).
+    """
+
+    @pytest.mark.foundation
+    def test_sphere_faces_invariant_under_direction(self):
+        """Sphere: inner/outer faces are the same for ±μ ordinates."""
+        mesh = _spherical_mesh()
+        quad = GaussLegendre1D.create(8)  # μ ordered ascending
+        op = spherical_streaming(mesh, quad)
+        i = 2
+        # n_neg has μ < 0 (inward); n_pos has μ > 0 (outward).
+        n_neg, n_pos = 0, quad.N - 1
+        st_neg = op.streaming_terms(cell_idx=i, direction_idx=n_neg)
+        st_pos = op.streaming_terms(cell_idx=i, direction_idx=n_pos)
+        # Geometric labels — same for both directions.
+        assert st_neg.face_area_inner == st_pos.face_area_inner
+        assert st_neg.face_area_outer == st_pos.face_area_outer
+        # Anchor: inner is A[i], outer is A[i+1] regardless of μ.
+        assert st_neg.face_area_inner == float(op.face_areas[i])
+        assert st_neg.face_area_outer == float(op.face_areas[i + 1])
+        # Signed mu is direction-dependent — the discriminator.
+        assert st_neg.mu < 0
+        assert st_pos.mu > 0
+
+    @pytest.mark.foundation
+    def test_cylinder_faces_invariant_under_direction(self):
+        """Cylinder: inner/outer faces are direction-independent."""
+        mesh = _cylindrical_mesh()
+        quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+        op = cylindrical_streaming(mesh, quad)
+        i, level = 2, 1
+        # Find a within-level pair with η < 0 and η > 0 by scanning.
+        level_idx = quad.level_indices[level]
+        m_neg = next(
+            j for j in range(len(level_idx))
+            if quad.mu_x[level_idx[j]] < 0
+        )
+        m_pos = next(
+            j for j in range(len(level_idx))
+            if quad.mu_x[level_idx[j]] > 0
+        )
+        st_neg = op.streaming_terms(
+            cell_idx=i, direction_idx=m_neg, mu_level_idx=level,
+        )
+        st_pos = op.streaming_terms(
+            cell_idx=i, direction_idx=m_pos, mu_level_idx=level,
+        )
+        # Geometric labels — same.
+        assert st_neg.face_area_inner == st_pos.face_area_inner
+        assert st_neg.face_area_outer == st_pos.face_area_outer
+        assert st_neg.face_area_inner == float(op.face_areas[i])
+        assert st_neg.face_area_outer == float(op.face_areas[i + 1])
+        # Signed eta is direction-dependent.
+        assert st_neg.mu < 0
+        assert st_pos.mu > 0
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Cylindrical abs_mu uses the GLOBAL ordinate index (Bug 2 regression)
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestCylindricalAbsMuUsesGlobalOrdinate:
+    """``abs_mu`` for cylindrical reads :math:`|\\eta|` at the GLOBAL ordinate.
+
+    Pre-fix (Wave D), the cylindrical
+    :meth:`ReducedStreamingOperator.streaming_terms` computed
+    ``abs_mu = abs(quad.mu_x[direction_idx])`` where ``direction_idx``
+    is the **within-level** azimuthal index — pulling the wrong
+    global ordinate's :math:`|\\eta|`.  The fix resolves the global
+    ordinate via ``level_indices[mu_level_idx][direction_idx]``.
+
+    The Wave D Round 2 sweep had a workaround
+    ``_streaming_terms_with_abs_mu`` that overrode the wrong value;
+    this test pins the in-place fix so the workaround can be deleted.
+    """
+
+    @pytest.mark.foundation
+    def test_cylindrical_abs_mu_per_level(self):
+        """For every (level, m_local), abs_mu == |mu_x[level_idx[m_local]]|."""
+        mesh = _cylindrical_mesh()
+        quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+        op = cylindrical_streaming(mesh, quad)
+        for level, level_idx in enumerate(quad.level_indices):
+            for m_local in range(len(level_idx)):
+                global_n = int(level_idx[m_local])
+                st = op.streaming_terms(
+                    cell_idx=0,
+                    direction_idx=m_local,
+                    mu_level_idx=level,
+                )
+                # The fix: read from the GLOBAL ordinate index.
+                expected = float(abs(quad.mu_x[global_n]))
+                assert st.abs_mu == expected, (
+                    f"level={level} m_local={m_local} "
+                    f"global_n={global_n}: "
+                    f"abs_mu={st.abs_mu} != {expected}"
+                )
+
+    @pytest.mark.foundation
+    def test_cylindrical_signed_mu_per_level(self):
+        """Signed ``mu`` (= η) also reads from the GLOBAL ordinate."""
+        mesh = _cylindrical_mesh()
+        quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+        op = cylindrical_streaming(mesh, quad)
+        for level, level_idx in enumerate(quad.level_indices):
+            for m_local in range(len(level_idx)):
+                global_n = int(level_idx[m_local])
+                st = op.streaming_terms(
+                    cell_idx=0,
+                    direction_idx=m_local,
+                    mu_level_idx=level,
+                )
+                assert st.mu == float(quad.mu_x[global_n])
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -916,8 +916,12 @@ level traits and a single :meth:`update` method:
     positivity preserving (Lewis & Miller §5.3, where DD's tendency
     to produce negative cell-edge fluxes is exhibited and motivates
     the choice of Step or weighted-DD in stiff cells); Step is.
-  - ``update(streaming_terms, total_xs, source, upstream_state) ->
-    CellResult`` — the cell update itself.
+  - ``update(visit, total_xs, source, upstream_state) ->
+    CellResult`` — the cell update itself.  ``visit`` is a
+    :class:`~orpheus.sn.spatial.cell_update.CellVisit` packet (see
+    next subsection) that combines the geometric
+    :class:`~orpheus.geometry.reduced_operator.StreamingTerms` with
+    sweep-direction-resolved data.
 
 The two helper dataclasses (frozen, slotted) carry the per-cell
 state:
@@ -943,20 +947,83 @@ state:
     for sphere/cylinder; ``None`` for slab.  :math:`\psi_{n+1/2,\,i}`
     from the Morel--Montry closure.
 
+The SN sweep DAG and ``CellVisit``
+-----------------------------------
+
+The SN sweep is a **topological sort of a directed cell graph**.
+For a given ordinate :math:`\Omega_n`, every face :math:`f` of the
+mesh is oriented by the sign of :math:`\Omega_n \cdot \hat n_f` — an
+edge from cell :math:`A` to cell :math:`B` if :math:`\Omega_n` points
+from :math:`A` into :math:`B` across that face.  The sweep walks
+cells in a topological order over this DAG so that, when each cell is
+visited, all its upstream face fluxes are already known.  This is
+the SN-specific graph-theoretic concept; MoC uses a different
+mathematical structure (fiber bundles + solution sheaves over
+characteristic curves), and CP / diffusion / MC have no sweep at
+all.  Per Cardinal Rule 2 (architecture), no shared
+``SweepGraph`` Protocol is hoisted across solvers — the sweep DAG
+lives in :mod:`orpheus.sn`.
+
+The contract's :meth:`update` consumes a
+:class:`~orpheus.sn.spatial.cell_update.CellVisit` packet rather
+than a raw
+:class:`~orpheus.geometry.reduced_operator.StreamingTerms`.
+The :class:`CellVisit` composes:
+
+* ``cell_idx: int`` — the cell being visited.
+* ``streaming_terms: StreamingTerms`` — the **purely geometric**
+  primitive (``face_area_inner`` / ``face_area_outer`` are
+  geometric labels — inner = closer to :math:`r=0`, outer =
+  farther — independent of sweep direction).
+* ``face_area_downstream: float | None`` — **sweep-direction-
+  resolved**.  For an outward sphere or cylinder sweep
+  (:math:`\mu \ge 0`) it equals ``streaming_terms.face_area_outer``;
+  for an inward sweep (:math:`\mu < 0`) it equals
+  ``streaming_terms.face_area_inner``.  ``None`` for slab (slab DD
+  does not read face areas) and for the cylindrical pure-azimuthal
+  degenerate case (no spatial flow).
+
+The :class:`CellVisit` packets are produced by
+:meth:`SNMesh.iter_cell_visits(ordinate_idx, mu_level_idx=None)
+<orpheus.sn.geometry.SNMesh.iter_cell_visits>` — a generator that
+yields cells in DAG-topological order for the given ordinate.  The
+method encapsulates the inward / outward branching, the cylindrical
+per-:math:`\mu`-level traversal, and the pure-azimuthal degenerate
+handling.  The sweep at :mod:`orpheus.sn.sweep` consumes this
+generator::
+
+    for visit in sn_mesh.iter_cell_visits(ordinate_idx=n):
+        upstream = UpstreamState(
+            spatial_upstream=psi_face,
+            angular_upstream=psi_angle[visit.cell_idx],
+        )
+        result = cell_update.update(
+            visit, total_xs, source, upstream,
+        )
+        ...
+
+The cell-update strategy receives only **resolved** data — no
+sign-of-:math:`\mu` branching inside the strategy.  This pattern
+moves the graph-theoretic concept to where it belongs (the SN
+module) and keeps the geometry-layer
+:class:`~orpheus.geometry.reduced_operator.StreamingTerms`
+geometry-only and reusable by future MoC / CP / diffusion modules
+that have different mathematical structures.
+
 Slab vs curvilinear discrimination
 -----------------------------------
 
 A strategy distinguishes slab from curvilinear by a single field test
-on the streaming terms it receives:
+on the visit's streaming terms:
 
-* **Slab** — ``streaming_terms.alpha_in is None`` (and the rest of
-  the curvature bundle, ``alpha_out``, ``delta_A_over_w``,
-  ``tau_mm``, ``face_area_*``, are all ``None``).
-  ``upstream_state.angular_upstream is None``.  The strategy returns
-  ``CellResult(outgoing_angular_state=None, ...)``.
-* **Sphere or cylinder** — ``streaming_terms.alpha_in is not None``;
-  the full curvature bundle is populated.
-  ``upstream_state.angular_upstream`` carries
+* **Slab** — ``visit.streaming_terms.alpha_in is None`` (and the rest
+  of the curvature bundle, ``alpha_out``, ``delta_A_over_w``,
+  ``tau_mm``, ``face_area_inner`` / ``face_area_outer``, are all
+  ``None``).  ``upstream_state.angular_upstream is None``.  The
+  strategy returns ``CellResult(outgoing_angular_state=None, ...)``.
+* **Sphere or cylinder** —
+  ``visit.streaming_terms.alpha_in is not None``; the full curvature
+  bundle is populated.  ``upstream_state.angular_upstream`` carries
   :math:`\psi_{n-1/2,\,i}`.  The strategy returns the M-M-closed
   ``outgoing_angular_state``.
 
@@ -990,9 +1057,15 @@ that cell.  The angular M-M closure remains active — angular
 redistribution physics is still present.
 
 The numerical threshold is ``streaming_terms.abs_mu < 1e-15``, with
-``abs_mu`` populated from ``abs(quadrature.mu_x[direction_idx])`` on
-the streaming-terms packet (see :doc:`structured_geometry`,
-"Connection coefficients (reduced streaming operator)").
+``abs_mu`` populated from the **global ordinate**
+:math:`|\eta|` on the streaming-terms packet (resolved through
+``level_indices`` for cylindrical geometry — see
+:doc:`structured_geometry`, "Connection coefficients (reduced
+streaming operator)").  In this case
+:meth:`SNMesh.iter_cell_visits
+<orpheus.sn.geometry.SNMesh.iter_cell_visits>` yields visits with
+``face_area_downstream = None`` to signal "no spatial flow" to the
+strategy.
 
 The DD recurrence
 ------------------

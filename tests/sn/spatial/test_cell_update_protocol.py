@@ -31,11 +31,11 @@ from orpheus.geometry import (
     slab_streaming,
     spherical_streaming,
 )
-from orpheus.geometry.reduced_operator import StreamingTerms
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.spatial.cell_update import (
     CellResult,
     CellUpdate,
+    CellVisit,
     UpstreamState,
 )
 
@@ -63,12 +63,12 @@ class IdentityCellUpdate:
 
     def update(
         self,
-        streaming_terms: StreamingTerms,
+        visit: CellVisit,
         total_xs: np.ndarray,
         source: np.ndarray,
         upstream_state: UpstreamState,
     ) -> CellResult:
-        del streaming_terms, upstream_state  # unused by IdentityCellUpdate
+        del visit, upstream_state  # unused by IdentityCellUpdate
         return CellResult(
             cell_average_flux=source / total_xs,
             outgoing_spatial_flux=None,
@@ -93,7 +93,7 @@ class FakeCurvilinearStrategy:
     """Synthetic strategy that asserts a curvilinear-shaped input arrives.
 
     Verifies the shape contract:
-    ``streaming_terms.alpha_in is not None``,
+    ``visit.streaming_terms.alpha_in is not None``,
     ``upstream_state.angular_upstream.shape == (ng,)``.  Returns
     ``CellResult`` with all three fields populated (shape ``(ng,)``).
     """
@@ -103,23 +103,27 @@ class FakeCurvilinearStrategy:
 
     def update(
         self,
-        streaming_terms: StreamingTerms,
+        visit: CellVisit,
         total_xs: np.ndarray,
         source: np.ndarray,
         upstream_state: UpstreamState,
     ) -> CellResult:
+        st = visit.streaming_terms
         # Curvilinear shape check
-        assert streaming_terms.alpha_in is not None, (
+        assert st.alpha_in is not None, (
             "FakeCurvilinearStrategy expects curvilinear streaming terms "
             "(alpha_in must be populated)."
         )
-        assert streaming_terms.alpha_out is not None
-        assert streaming_terms.delta_A_over_w is not None
-        assert streaming_terms.face_area_in is not None
-        assert streaming_terms.face_area_out is not None
-        assert streaming_terms.tau_mm is not None
-        assert streaming_terms.volume is not None
-        assert streaming_terms.abs_mu is not None
+        assert st.alpha_out is not None
+        assert st.delta_A_over_w is not None
+        assert st.face_area_inner is not None
+        assert st.face_area_outer is not None
+        assert st.tau_mm is not None
+        assert st.volume is not None
+        assert st.abs_mu is not None
+        # Curvilinear non-degenerate visits carry a resolved
+        # downstream face area.
+        assert visit.face_area_downstream is not None
 
         ng = total_xs.shape[0]
         assert source.shape == (ng,)
@@ -133,7 +137,7 @@ class FakeCurvilinearStrategy:
         # CellResult that exercises every output channel.
         avg = source / total_xs
         out_spatial = 2.0 * avg - upstream_state.spatial_upstream
-        tau = streaming_terms.tau_mm
+        tau = st.tau_mm
         out_angular = (
             avg - (1.0 - tau) * upstream_state.angular_upstream
         ) / tau
@@ -254,8 +258,8 @@ class TestSlabVsCurvilinearDiscrimination:
     """``streaming_terms.alpha_in is None`` discriminates slab from curvilinear.
 
     Locks the protocol's slab vs curvilinear discrimination convention
-    in the test suite — concrete strategies in Round 2 read this same
-    field to dispatch.
+    in the test suite — concrete strategies read this same field to
+    dispatch.
     """
 
     @pytest.mark.foundation
@@ -289,7 +293,15 @@ class TestCurvilinearStrategyDriven:
         mesh = _spherical_mesh()
         quad = GaussLegendre1D.create(8)
         op = spherical_streaming(mesh, quad)
-        st = op.streaming_terms(cell_idx=2, direction_idx=4)
+        n = 4  # μ > 0 (outward sweep) for GL with n_half=4
+        st = op.streaming_terms(cell_idx=2, direction_idx=n)
+        # Wrap into a CellVisit packet with sweep-direction-resolved
+        # downstream face area (outward → outer face).
+        visit = CellVisit(
+            cell_idx=2,
+            streaming_terms=st,
+            face_area_downstream=st.face_area_outer,
+        )
         ng = 3
         total_xs = np.full(ng, 1.5)
         source = np.full(ng, 0.7)
@@ -298,7 +310,7 @@ class TestCurvilinearStrategyDriven:
             angular_upstream=np.full(ng, 0.3),
         )
         strat = FakeCurvilinearStrategy()
-        result = strat.update(st, total_xs, source, upstream)
+        result = strat.update(visit, total_xs, source, upstream)
 
         assert isinstance(result, CellResult)
         assert result.cell_average_flux.shape == (ng,)
@@ -306,3 +318,42 @@ class TestCurvilinearStrategyDriven:
         assert result.outgoing_spatial_flux.shape == (ng,)
         assert result.outgoing_angular_state is not None
         assert result.outgoing_angular_state.shape == (ng,)
+
+
+class TestCellVisitPacket:
+    """Foundation-level checks on the new :class:`CellVisit` dataclass."""
+
+    @pytest.mark.foundation
+    def test_cell_visit_is_frozen(self):
+        mesh = _slab_mesh()
+        quad = GaussLegendre1D.create(8)
+        op = slab_streaming(mesh, quad)
+        st = op.streaming_terms(cell_idx=0, direction_idx=0)
+        v = CellVisit(cell_idx=0, streaming_terms=st)
+        with pytest.raises(AttributeError):
+            v.cell_idx = 99  # type: ignore[misc]
+
+    @pytest.mark.foundation
+    def test_cell_visit_default_downstream_none(self):
+        mesh = _slab_mesh()
+        quad = GaussLegendre1D.create(8)
+        op = slab_streaming(mesh, quad)
+        st = op.streaming_terms(cell_idx=0, direction_idx=0)
+        v = CellVisit(cell_idx=0, streaming_terms=st)
+        assert v.face_area_downstream is None
+
+    @pytest.mark.foundation
+    def test_cell_visit_curvilinear_downstream(self):
+        """Outward sphere visit: downstream = outer face by convention."""
+        mesh = _spherical_mesh()
+        quad = GaussLegendre1D.create(8)
+        op = spherical_streaming(mesh, quad)
+        n = 4  # μ > 0 outward
+        st = op.streaming_terms(cell_idx=2, direction_idx=n)
+        v = CellVisit(
+            cell_idx=2,
+            streaming_terms=st,
+            face_area_downstream=st.face_area_outer,
+        )
+        assert v.face_area_downstream == st.face_area_outer
+        assert v.face_area_downstream != st.face_area_inner

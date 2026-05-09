@@ -13,7 +13,7 @@ redistribution coefficients (:math:`\alpha`), the geometry factor
 from __future__ import annotations
 
 import warnings
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Iterator
 
 import numpy as np
 
@@ -30,7 +30,7 @@ from orpheus.geometry.reduced_operator import (
     spherical_streaming,
 )
 from .quadrature import AngularQuadrature
-from .spatial.cell_update import CellUpdate
+from .spatial.cell_update import CellUpdate, CellVisit
 from .spatial.diamond import DiamondDifference
 
 
@@ -262,6 +262,236 @@ class SNMesh:
     def is_1d(self) -> bool:
         """True if this is a 1-D mesh (ny == 1)."""
         return self.ny == 1
+
+    # ── Sweep DAG traversal ───────────────────────────────────────────
+
+    _DEGENERATE_ABS_ETA_THRESHOLD: ClassVar[float] = 1e-15
+
+    def iter_cell_visits(
+        self,
+        ordinate_idx: int,
+        mu_level_idx: int | None = None,
+    ) -> Iterator[CellVisit]:
+        r"""Yield cells in DAG-topological order for one ordinate.
+
+        The SN sweep is a topological sort of the **directed cell
+        graph** where edges are oriented by
+        :math:`\mathrm{sign}(\Omega \cdot \hat n_{\text{face}})`.
+        This method encapsulates the sweep-direction resolution:
+        inward vs outward (1D curvilinear), per-level traversal
+        (cylindrical), and the cylindrical pure-azimuthal
+        degenerate case.
+
+        For each visit, the :class:`CellVisit` packet contains:
+
+        * The cell index (so the orchestrator knows which cell it
+          is working on).
+        * The pure-geometric :class:`StreamingTerms` (from
+          :meth:`ReducedStreamingOperator.streaming_terms`).
+        * The sweep-resolved :attr:`face_area_downstream` (which
+          face is outgoing for this visit) — ``None`` for slab and
+          for the cylindrical pure-azimuthal degenerate case.
+
+        SN-specific by design.  MoC will not consume this method —
+        its mathematical structure is fiber bundles + solution
+        sheaves, a different DAG shape.  Premature abstraction
+        avoided per Cardinal Rule 2.
+
+        Parameters
+        ----------
+        ordinate_idx : int
+            For slab and sphere: global ordinate index.  Sign of
+            ``mu_x[ordinate_idx]`` determines sweep direction
+            (outward for :math:`\mu \ge 0`, inward for
+            :math:`\mu < 0`).
+
+            For cylindrical: within-level azimuthal index
+            :math:`m \in [0, M)`.  The signed :math:`\eta` and the
+            global ordinate are resolved through
+            ``quad.level_indices[mu_level_idx][ordinate_idx]``.
+
+        mu_level_idx : int | None
+            For cylindrical geometry: which :math:`\mu`-level the
+            ordinate belongs to.  ``None`` for slab and sphere; a
+            ``ValueError`` is raised if missing for cylindrical.
+
+        Yields
+        ------
+        CellVisit
+            One per cell, in topological order for this ordinate.
+            For 1-D Cartesian (slab) the order is forward
+            (cell 0 → nx-1) for :math:`\mu \ge 0` and backward for
+            :math:`\mu < 0`.
+
+        Raises
+        ------
+        ValueError
+            If called on a 2-D Cartesian mesh (no
+            :class:`ReducedStreamingOperator`), or if a cylindrical
+            mesh is queried without ``mu_level_idx``.
+
+        Notes
+        -----
+        2-D Cartesian wavefront scheduling is intentionally not
+        encapsulated here — its anti-diagonal vectorisation
+        operates on cell slices, not per-cell visits.  Wave
+        C-extension's LD / EC / Step rollout will revisit this
+        when the per-cell ``CellUpdate`` Protocol grows a
+        slice-vectorised companion.
+        """
+        if self.reduced is None:
+            raise ValueError(
+                "iter_cell_visits is only defined for meshes with a "
+                "ReducedStreamingOperator (1-D Cartesian, spherical, "
+                "or cylindrical).  2-D Cartesian wavefront sweeps "
+                "use anti-diagonal scheduling, not per-cell visits."
+            )
+
+        coord = self.reduced.coord
+
+        if coord is CoordSystem.CARTESIAN:
+            yield from self._iter_cartesian_visits(ordinate_idx)
+            return
+
+        if coord is CoordSystem.SPHERICAL:
+            yield from self._iter_spherical_visits(ordinate_idx)
+            return
+
+        if coord is CoordSystem.CYLINDRICAL:
+            if mu_level_idx is None:
+                raise ValueError(
+                    "cylindrical iter_cell_visits requires "
+                    "mu_level_idx."
+                )
+            yield from self._iter_cylindrical_visits(
+                ordinate_idx, mu_level_idx,
+            )
+            return
+
+        raise ValueError(  # pragma: no cover — exhaustive match above
+            f"Unknown coord system: {coord!r}"
+        )
+
+    def _iter_cartesian_visits(
+        self,
+        ordinate_idx: int,
+    ) -> Iterator[CellVisit]:
+        """Yield slab (1-D Cartesian) visits in sweep direction.
+
+        Order: forward (cell 0 → nx-1) for :math:`\\mu \\ge 0`,
+        backward for :math:`\\mu < 0`.  Slab DD does not read face
+        areas, so ``face_area_downstream`` is ``None``.
+        """
+        assert self.reduced is not None
+        mu_n = float(self.quad.mu_x[ordinate_idx])
+        cell_indices = (
+            range(self.nx) if mu_n >= 0 else range(self.nx - 1, -1, -1)
+        )
+        for i in cell_indices:
+            st = self.reduced.streaming_terms(
+                cell_idx=i, direction_idx=ordinate_idx,
+            )
+            yield CellVisit(
+                cell_idx=i,
+                streaming_terms=st,
+                face_area_downstream=None,
+            )
+
+    def _iter_spherical_visits(
+        self,
+        ordinate_idx: int,
+    ) -> Iterator[CellVisit]:
+        """Yield spherical visits in sweep direction.
+
+        Outward (:math:`\\mu \\ge 0`): cell 0 → nx-1, downstream face
+        is the outer face ``A[i+1]``.  Inward (:math:`\\mu < 0`):
+        cell nx-1 → 0, downstream face is the inner face ``A[i]``.
+        """
+        assert self.reduced is not None
+        mu_n = float(self.quad.mu_x[ordinate_idx])
+        if mu_n >= 0:
+            cell_indices = range(self.nx)
+            select_outer = True
+        else:
+            cell_indices = range(self.nx - 1, -1, -1)
+            select_outer = False
+        for i in cell_indices:
+            st = self.reduced.streaming_terms(
+                cell_idx=i, direction_idx=ordinate_idx,
+            )
+            face_downstream = (
+                st.face_area_outer if select_outer else st.face_area_inner
+            )
+            yield CellVisit(
+                cell_idx=i,
+                streaming_terms=st,
+                face_area_downstream=face_downstream,
+            )
+
+    def _iter_cylindrical_visits(
+        self,
+        ordinate_idx: int,
+        mu_level_idx: int,
+    ) -> Iterator[CellVisit]:
+        """Yield cylindrical visits in sweep direction for one level.
+
+        ``ordinate_idx`` is the within-level azimuthal index
+        :math:`m \\in [0, M)`.  The global ordinate is resolved via
+        ``quad.level_indices[mu_level_idx][ordinate_idx]``.
+
+        * :math:`\\eta_n \\ge 0` outward: cell 0 → nx-1, downstream
+          face is the outer face.
+        * :math:`\\eta_n < 0` inward: cell nx-1 → 0, downstream
+          face is the inner face.
+        * :math:`|\\eta_n| < 10^{-15}` pure-azimuthal degenerate:
+          forward iteration (so the angular M-M closure runs in a
+          natural order) but ``face_area_downstream`` is ``None`` —
+          no spatial face flow.
+        """
+        assert self.reduced is not None
+        level_indices = self.quad.level_indices  # type: ignore[attr-defined]
+        global_n = int(level_indices[mu_level_idx][ordinate_idx])
+        eta_n = float(self.quad.mu_x[global_n])
+        abs_eta = abs(eta_n)
+
+        if abs_eta < self._DEGENERATE_ABS_ETA_THRESHOLD:
+            # Pure-azimuthal degenerate: no spatial flow.  Iterate
+            # forward so the angular M-M closure runs in a natural
+            # order; ``face_area_downstream = None`` signals "no
+            # spatial flow" to the strategy.
+            for i in range(self.nx):
+                st = self.reduced.streaming_terms(
+                    cell_idx=i,
+                    direction_idx=ordinate_idx,
+                    mu_level_idx=mu_level_idx,
+                )
+                yield CellVisit(
+                    cell_idx=i,
+                    streaming_terms=st,
+                    face_area_downstream=None,
+                )
+            return
+
+        if eta_n >= 0:
+            cell_indices = range(self.nx)
+            select_outer = True
+        else:
+            cell_indices = range(self.nx - 1, -1, -1)
+            select_outer = False
+        for i in cell_indices:
+            st = self.reduced.streaming_terms(
+                cell_idx=i,
+                direction_idx=ordinate_idx,
+                mu_level_idx=mu_level_idx,
+            )
+            face_downstream = (
+                st.face_area_outer if select_outer else st.face_area_inner
+            )
+            yield CellVisit(
+                cell_idx=i,
+                streaming_terms=st,
+                face_area_downstream=face_downstream,
+            )
 
     # ── Stencil setup ─────────────────────────────────────────────────
 

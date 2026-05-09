@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2789**
+Total tests collected: **2801**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 590, 21.2%
-   L1, 723, 25.9%
+   L0, 590, 21.1%
+   L1, 723, 25.8%
    L2, 36, 1.3%
    L3, 0, 0.0%
-   foundation, 1412, 50.6%
+   foundation, 1424, 50.8%
    unmarked, 28, 1.0%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2682
+   explicit, 2694
    verify, 0
    class-name, 46
    func-name, 0
@@ -158,7 +158,7 @@ Module × level grid
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
    geometry/test_boundary, 0, 0, 0, 0, 19, 0
    geometry/test_geometry, 0, 0, 0, 0, 55, 0
-   geometry/test_reduced_operator, 0, 0, 0, 0, 45, 0
+   geometry/test_reduced_operator, 0, 0, 0, 0, 49, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
    homogeneous/test_continuous_reference, 0, 7, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 4, 0, 0, 0, 0
@@ -197,14 +197,14 @@ Module × level grid
    sn/test_properties, 4, 0, 0, 0, 0, 0
    sn/test_quadrature, 49, 0, 0, 0, 0, 0
    sn/test_scattering_operator, 0, 0, 0, 0, 17, 0
-   sn/test_snmesh_consumes_reduced, 0, 0, 0, 0, 16, 0
+   sn/test_snmesh_consumes_reduced, 0, 0, 0, 0, 21, 0
    sn/test_snstreamingoperator, 0, 0, 0, 0, 22, 0
    sn/test_solver_components, 38, 0, 0, 0, 0, 0
    sn/test_spherical, 13, 7, 6, 0, 0, 0
    sn/test_sweep_operator_inconsistency, 0, 4, 0, 0, 0, 0
    sn/test_sweep_regression, 12, 0, 0, 0, 0, 0
    sn/test_unified_sweep_dispatch, 0, 0, 0, 0, 9, 0
-   spatial/test_cell_update_protocol, 0, 0, 0, 0, 13, 0
+   spatial/test_cell_update_protocol, 0, 0, 0, 0, 16, 0
    spatial/test_diamond, 0, 0, 0, 0, 11, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0

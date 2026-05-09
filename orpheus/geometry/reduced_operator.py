@@ -125,22 +125,55 @@ class AngularMeasure(Protocol):
 
 @dataclass(frozen=True, slots=True)
 class StreamingTerms:
-    """Per-(cell, direction) numerical inputs for a sweep cell update.
+    """Per-(cell, direction) **purely geometric** inputs for a sweep cell update.
 
     The set of populated fields is **geometry-dependent**:
 
     * **Slab**: ``chord_length``, ``mu``, ``volume``, ``abs_mu``.
       No curvature math.
-    * **Sphere**: ``chord_length``, ``face_area_in``, ``face_area_out``,
-      ``delta_A_over_w``, ``alpha_in``, ``alpha_out``, ``tau_mm``,
-      ``volume``, ``abs_mu``.
+    * **Sphere**: ``chord_length``, ``mu``, ``face_area_inner``,
+      ``face_area_outer``, ``delta_A_over_w``, ``alpha_in``,
+      ``alpha_out``, ``tau_mm``, ``volume``, ``abs_mu``.
+      ``mu`` and ``abs_mu`` are read from the global ordinate
+      ``mu_x[direction_idx]`` (sphere has ``direction_idx`` ==
+      global ordinate index).
     * **Cylinder**: same shape as sphere, with the per-level
       :math:`\\alpha` and :math:`\\tau_{mm}` indexed via
-      ``mu_level_idx`` at the call site.
+      ``mu_level_idx`` at the call site.  Cylindrical ``mu`` /
+      ``abs_mu`` are read from the global ordinate
+      ``mu_x[level_indices[mu_level_idx][direction_idx]]`` because
+      cylindrical ``direction_idx`` is the within-level azimuthal
+      index :math:`m \\in [0, M)`, not the global ordinate.
 
     Fields not used in a given geometry retain their default of
     ``None`` (object-typed) so a downstream ``StreamingTerms`` can be
     inspected with ``is None`` checks without raising.
+
+    Geometric, not direction-resolved
+    =================================
+
+    Per Cardinal Rule 2 (architecture), this primitive carries
+    **purely geometric** labels — labels that are independent of the
+    sweep's marching direction.  The two face-area fields are named
+    by their geometric position relative to :math:`r=0`:
+
+    * :attr:`face_area_inner` is :math:`A_{i-1/2}` — the face closer
+      to the centre of the geometry (smaller :math:`r`).
+    * :attr:`face_area_outer` is :math:`A_{i+1/2}` — the face farther
+      from the centre (larger :math:`r`).
+
+    These labels do **not** depend on which way the sweep is
+    marching.  For an outward sweep (centre → boundary,
+    :math:`\\mu > 0`) the inner face is the upstream / incoming face;
+    for an inward sweep (boundary → centre, :math:`\\mu < 0`) the
+    outer face is the upstream / incoming face.  The
+    sweep-direction resolution — *which* of the two faces is
+    "downstream" for a given visit — lives in the SN module
+    (:class:`~orpheus.sn.spatial.cell_update.CellVisit` packs the
+    geometric :class:`StreamingTerms` together with the
+    sweep-resolved :attr:`face_area_downstream`).  This module is
+    geometry-only and is reusable by future MoC / CP / diffusion,
+    none of which has SN's sweep-direction concept.
 
     The trailing ``volume`` and ``abs_mu`` fields are populated by
     **all three factories** so that a downstream
@@ -155,18 +188,33 @@ class StreamingTerms:
     """Cell radial width (slab/sphere/cylinder all use ``mesh.widths[i]``)."""
 
     mu: float | None = None
-    """Direction cosine in the primary axis (slab uses this directly).
+    """Signed primary direction cosine for this ordinate.
 
-    Signed; slab DD's flow direction reads off the sign of this field.
+    :math:`\\mu` for slab and sphere (axial); :math:`\\eta` for
+    cylindrical 1-D radial sweeps (the radial direction cosine,
+    with the global ordinate index resolved through
+    :attr:`AngularMeasure.level_indices`).  Signed.
+
+    Slab DD's flow direction reads off the sign of this field.
     Cell-update strategies that need only the magnitude use
     ``abs_mu`` instead.
     """
 
-    face_area_in: float | None = None
-    """:math:`A_{i-1/2}` — area of the upstream radial face."""
+    face_area_inner: float | None = None
+    """:math:`A_{i-1/2}` — area of the **inner** radial face
+    (closer to :math:`r=0`).
 
-    face_area_out: float | None = None
-    """:math:`A_{i+1/2}` — area of the downstream radial face."""
+    Geometric label, independent of sweep direction.  See class
+    docstring "Geometric, not direction-resolved".
+    """
+
+    face_area_outer: float | None = None
+    """:math:`A_{i+1/2}` — area of the **outer** radial face
+    (farther from :math:`r=0`).
+
+    Geometric label, independent of sweep direction.  See class
+    docstring "Geometric, not direction-resolved".
+    """
 
     delta_A_over_w: float | None = None
     """:math:`\\Delta A_i / w_n` — the geometry-redistribution factor."""
@@ -205,11 +253,16 @@ class StreamingTerms:
 
     :math:`|\\mu|` for slab and sphere (axial direction cosine);
     :math:`|\\eta|` for cylindrical 1-D radial sweeps (the radial
-    direction cosine).  All three factories compute this as
-    ``abs(quadrature.mu_x[direction_idx])`` — by ORPHEUS convention,
-    ``mu_x`` carries :math:`\\mu` for sphere and :math:`\\eta` for
-    cylinder, and both are real-valued, so the absolute value is
-    always well-defined.
+    direction cosine).  Slab and sphere factories compute this as
+    ``abs(quadrature.mu_x[direction_idx])`` — for those geometries
+    ``direction_idx`` is the global ordinate index.  The cylindrical
+    factory resolves the global ordinate through
+    :attr:`AngularMeasure.level_indices` because cylindrical
+    ``direction_idx`` is the within-level azimuthal index
+    :math:`m \\in [0, M)`, not the global ordinate index.  By
+    ORPHEUS convention, ``mu_x`` carries :math:`\\mu` for sphere and
+    :math:`\\eta` for cylinder, and both are real-valued, so the
+    absolute value is always well-defined.
 
     The cylindrical pure-azimuthal degenerate case (``abs_mu <
     1e-15``) is signalled by cell-update strategies via
@@ -304,29 +357,42 @@ class ReducedStreamingOperator:
         direction_idx: int,
         mu_level_idx: int | None = None,
     ) -> StreamingTerms:
-        """Pack the per-cell, per-direction streaming inputs.
+        """Pack the per-cell, per-direction **purely geometric** streaming inputs.
+
+        For slab and sphere, ``direction_idx`` is the global ordinate
+        index and the signed primary direction cosine is read directly
+        as ``quadrature.mu_x[direction_idx]``.
 
         For cylindrical geometry, ``mu_level_idx`` selects which
         :math:`\\mu`-level the ``direction_idx`` belongs to; the
         ``direction_idx`` is then the within-level azimuthal index
-        :math:`m \\in [0, M)`.  For slab and sphere, ``mu_level_idx``
-        is ignored.
+        :math:`m \\in [0, M)`.  The global ordinate index is resolved
+        as ``quadrature.level_indices[mu_level_idx][direction_idx]``;
+        the signed :math:`\\eta` and absolute :math:`|\\eta|` are read
+        from that global index.
+
+        The returned :class:`StreamingTerms` carries **purely
+        geometric** labels — :attr:`face_area_inner` /
+        :attr:`face_area_outer` are the inner / outer radial faces of
+        the cell relative to :math:`r = 0`.  Sweep-direction
+        resolution (which face is downstream for a given visit) lives
+        in the SN module — see
+        :class:`orpheus.sn.spatial.cell_update.CellVisit`.
         """
         chord = float(self.mesh.widths[cell_idx])
-        # Common per-(cell, direction) volume + |μ| (or |η|).
-        # mesh.volumes returns shape (N,) for 1-D meshes; abs() of
-        # the primary direction cosine is well-defined on the real line.
+        # Common per-(cell, direction) volume.
+        # mesh.volumes returns shape (N,) for 1-D meshes.
         assert self._quadrature is not None
         volume = float(self.mesh.volumes[cell_idx])
-        abs_mu = float(abs(self._quadrature.mu_x[direction_idx]))
 
         if self.coord is CoordSystem.CARTESIAN:
             # Slab — minimal content; mu carried for the consumer.
+            mu_n = float(self._quadrature.mu_x[direction_idx])
             return StreamingTerms(
                 chord_length=chord,
-                mu=float(self._quadrature.mu_x[direction_idx]),
+                mu=mu_n,
                 volume=volume,
-                abs_mu=abs_mu,
+                abs_mu=abs(mu_n),
             )
 
         if self.coord is CoordSystem.SPHERICAL:
@@ -334,10 +400,13 @@ class ReducedStreamingOperator:
             assert self.alpha_half is not None
             assert self.redist_dAw is not None
             assert self.tau_mm is not None
+            # Sphere: ``direction_idx`` IS the global ordinate index.
+            mu_n = float(self._quadrature.mu_x[direction_idx])
             return StreamingTerms(
                 chord_length=chord,
-                face_area_in=float(self.face_areas[cell_idx]),
-                face_area_out=float(self.face_areas[cell_idx + 1]),
+                mu=mu_n,
+                face_area_inner=float(self.face_areas[cell_idx]),
+                face_area_outer=float(self.face_areas[cell_idx + 1]),
                 delta_A_over_w=float(
                     self.redist_dAw[cell_idx, direction_idx]
                 ),
@@ -345,7 +414,7 @@ class ReducedStreamingOperator:
                 alpha_out=float(self.alpha_half[direction_idx + 1]),
                 tau_mm=float(self.tau_mm[direction_idx]),
                 volume=volume,
-                abs_mu=abs_mu,
+                abs_mu=abs(mu_n),
             )
 
         if self.coord is CoordSystem.CYLINDRICAL:
@@ -358,19 +427,27 @@ class ReducedStreamingOperator:
             assert self.alpha_per_level is not None
             assert self.redist_dAw_per_level is not None
             assert self.tau_mm_per_level is not None
+            # Cylinder: ``direction_idx`` is the within-level azimuthal
+            # index; the global ordinate is read through
+            # ``level_indices``.  ``mu_x[global_n]`` carries η (the
+            # radial direction cosine).
+            level_indices = self._quadrature.level_indices  # type: ignore[attr-defined]
+            global_n = int(level_indices[mu_level_idx][direction_idx])
+            eta_n = float(self._quadrature.mu_x[global_n])
             alpha_lv = self.alpha_per_level[mu_level_idx]
             dAw_lv = self.redist_dAw_per_level[mu_level_idx]
             tau_lv = self.tau_mm_per_level[mu_level_idx]
             return StreamingTerms(
                 chord_length=chord,
-                face_area_in=float(self.face_areas[cell_idx]),
-                face_area_out=float(self.face_areas[cell_idx + 1]),
+                mu=eta_n,
+                face_area_inner=float(self.face_areas[cell_idx]),
+                face_area_outer=float(self.face_areas[cell_idx + 1]),
                 delta_A_over_w=float(dAw_lv[cell_idx, direction_idx]),
                 alpha_in=float(alpha_lv[direction_idx]),
                 alpha_out=float(alpha_lv[direction_idx + 1]),
                 tau_mm=float(tau_lv[direction_idx]),
                 volume=volume,
-                abs_mu=abs_mu,
+                abs_mu=abs(eta_n),
             )
 
         raise ValueError(  # pragma: no cover — exhaustive match above

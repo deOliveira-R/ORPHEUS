@@ -105,16 +105,25 @@ sphere, and cylinder by branching on two
 
    .. math::
 
-      \mathrm{denom} = 2|\mu|\,A_{\rm out}
+      \mathrm{denom} = 2|\mu|\,A_{\rm downstream}
                        + (\Delta A / w)\,c_{\rm out}
                        + \Sigma_t\,V,
+
+   where :math:`A_{\rm downstream}` (= ``visit.face_area_downstream``)
+   is the sweep-direction-resolved outgoing face area — equal to
+   ``streaming_terms.face_area_outer`` for outward sweeps
+   (:math:`\mu \ge 0`) and ``streaming_terms.face_area_inner`` for
+   inward sweeps (:math:`\mu < 0`).  Then
 
    .. math::
 
       \mathrm{numer} = (Q\,V/W)
-                       + |\mu|\,(A_{\rm in} + A_{\rm out})\,
+                       + |\mu|\,(A_{\rm inner} + A_{\rm outer})\,
                           \psi^s_{\rm in}
                        + (\Delta A / w)\,c_{\rm in}\,\psi_{n-\tfrac12},
+
+   the symmetric sum :math:`A_{\rm inner} + A_{\rm outer}` being
+   invariant under sweep direction.
 
    .. math::
 
@@ -248,7 +257,7 @@ import numpy as np
 
 from orpheus.geometry.reduced_operator import StreamingTerms
 
-from .cell_update import CellResult, UpstreamState
+from .cell_update import CellResult, CellVisit, UpstreamState
 
 
 # Threshold for the cylindrical pure-azimuthal degenerate branch.
@@ -296,7 +305,7 @@ class DiamondDifference:
 
     def update(
         self,
-        streaming_terms: StreamingTerms,
+        visit: CellVisit,
         total_xs: np.ndarray,
         source: np.ndarray,
         upstream_state: UpstreamState,
@@ -304,43 +313,59 @@ class DiamondDifference:
         r"""Compute the cell-average flux + downstream states.
 
         Branches on
-        :attr:`~orpheus.geometry.reduced_operator.StreamingTerms.alpha_in`
+        :attr:`visit.streaming_terms.alpha_in <orpheus.geometry.reduced_operator.StreamingTerms.alpha_in>`
         (slab vs curvilinear) and on
-        :attr:`~orpheus.geometry.reduced_operator.StreamingTerms.abs_mu`
-        (curvilinear vs cylindrical-degenerate).  See the module
-        docstring for the per-branch algebra and the bit-identical
-        cross-reference into :mod:`orpheus.sn.sweep`.
+        :attr:`visit.streaming_terms.abs_mu <orpheus.geometry.reduced_operator.StreamingTerms.abs_mu>`
+        (curvilinear vs cylindrical-degenerate).  Sweep-direction
+        resolution is encapsulated in
+        :attr:`visit.face_area_downstream <orpheus.sn.spatial.cell_update.CellVisit.face_area_downstream>`
+        — no sign-of-:math:`\mu` branching inside this strategy.
+        See the module docstring for the per-branch algebra and the
+        bit-identical cross-reference into :mod:`orpheus.sn.sweep`.
         """
-        if streaming_terms.alpha_in is None:
+        st = visit.streaming_terms
+
+        if st.alpha_in is None:
             # Branch 1: slab (Cartesian) — no curvature math, no
             # angular redistribution.  Mirrors the per-cell scalar
             # form of :func:`orpheus.sn.sweep._sweep_1d_cumprod` /
             # :func:`orpheus.sn.sweep._solve_recurrence`
             # (sweep.py:117-123 + 208-222).
             return self._update_slab(
-                streaming_terms, total_xs, source, upstream_state,
+                st, total_xs, source, upstream_state,
             )
 
         # Below: curvilinear branches (sphere or cylinder).
         # ``alpha_in`` populated implies the full curvature bundle is
         # populated (StreamingTerms factory contract).
-        assert streaming_terms.abs_mu is not None  # populated by factory
+        assert st.abs_mu is not None  # populated by factory
 
-        if streaming_terms.abs_mu < _DEGENERATE_ABS_MU_THRESHOLD:
+        if st.abs_mu < _DEGENERATE_ABS_MU_THRESHOLD:
             # Branch 2: cylindrical pure-azimuthal degenerate.
             # No radial face flow on this cell.  Mirrors
             # :func:`orpheus.sn.sweep._sweep_1d_cylindrical`
-            # lines 533-546.
+            # lines 533-546.  ``visit.face_area_downstream`` is
+            # ``None`` here — the math doesn't read face areas.
             return self._update_cylindrical_degenerate(
-                streaming_terms, total_xs, source, upstream_state,
+                st, total_xs, source, upstream_state,
             )
 
         # Branch 3: curvilinear (sphere or cylinder, non-degenerate).
         # Mirrors :func:`orpheus.sn.sweep._sweep_1d_spherical`
         # lines 350-361 and the structurally identical cylindrical
         # inward / outward branches at sweep.py:511-531 / :548-575.
+        # ``visit.face_area_downstream`` is the sweep-direction-
+        # resolved outgoing face area.
+        assert visit.face_area_downstream is not None, (
+            "Curvilinear non-degenerate cell update requires a "
+            "resolved face_area_downstream on the CellVisit packet."
+        )
         return self._update_curvilinear(
-            streaming_terms, total_xs, source, upstream_state,
+            st,
+            visit.face_area_downstream,
+            total_xs,
+            source,
+            upstream_state,
         )
 
     # ── Slab ───────────────────────────────────────────────────────
@@ -406,6 +431,7 @@ class DiamondDifference:
     @staticmethod
     def _update_curvilinear(
         st: StreamingTerms,
+        A_downstream: float,
         total_xs: np.ndarray,
         source: np.ndarray,
         upstream_state: UpstreamState,
@@ -417,12 +443,28 @@ class DiamondDifference:
         inward / outward branches at sweep.py:511-531 / :548-575).
         ``c_out = α_out / τ`` and ``c_in = (1 - τ) / τ · α_out +
         α_in`` are the M-M closure constants.
+
+        Direction resolution
+        --------------------
+
+        Reads :attr:`StreamingTerms.face_area_inner` /
+        :attr:`StreamingTerms.face_area_outer` (geometric labels —
+        inner = closer to :math:`r=0`) and the sweep-direction-
+        resolved ``A_downstream`` (which face is downstream for this
+        visit).  The DD formula uses the symmetric sum
+        :math:`A_{\rm in} + A_{\rm out} \equiv A_{\rm inner} +
+        A_{\rm outer}` on the :math:`|\mu| \cdot \psi^s_{\rm in}`
+        term, and the asymmetric :math:`A_{\rm out}` (= downstream)
+        on the :math:`2|\mu|` term in the denominator.  No sign-of-
+        :math:`\mu` branching here — the sweep orchestrator already
+        resolved which face is downstream before issuing the
+        :class:`CellVisit`.
         """
         # Pull populated curvilinear fields off the streaming-terms
         # packet.  Asserts that the factory contract is honoured.
         assert st.abs_mu is not None
-        assert st.face_area_in is not None
-        assert st.face_area_out is not None
+        assert st.face_area_inner is not None
+        assert st.face_area_outer is not None
         assert st.delta_A_over_w is not None
         assert st.alpha_in is not None
         assert st.alpha_out is not None
@@ -433,8 +475,12 @@ class DiamondDifference:
         )
 
         abs_mu = st.abs_mu
-        A_in = st.face_area_in
-        A_out = st.face_area_out
+        A_inner = st.face_area_inner
+        A_outer = st.face_area_outer
+        # Symmetric sum is invariant under inner/outer swap, so the
+        # build order matches sweep.py:354 ``(A_in + A_out)``
+        # bit-identically regardless of sweep direction.
+        A_total = A_inner + A_outer
         dA_w = st.delta_A_over_w
         alpha_in = st.alpha_in
         alpha_out = st.alpha_out
@@ -450,17 +496,19 @@ class DiamondDifference:
         psi_spat_in = upstream_state.spatial_upstream
         psi_angle_in = upstream_state.angular_upstream
 
-        # Denominator build order matches sweep.py:350-352
+        # Denominator build order matches sweep.py:350-352 — the
+        # ``A_out`` here is the sweep-direction-resolved
+        # ``A_downstream`` (outgoing face area).
         # (``2.0 * abs_mu * A_out + dA_w * c_out + sig_t_1d[i] *
         # V[i]``).
-        denom = 2.0 * abs_mu * A_out + dA_w * c_out + total_xs * V
+        denom = 2.0 * abs_mu * A_downstream + dA_w * c_out + total_xs * V
 
         # Numerator build order matches sweep.py:353-355
         # (``QV[i] + abs_mu * (A_in + A_out) * psi_spatial_in +
         # dA_w * c_in * psi_angle[i]``).
         numer = (
             source
-            + abs_mu * (A_in + A_out) * psi_spat_in
+            + abs_mu * A_total * psi_spat_in
             + dA_w * c_in * psi_angle_in
         )
 

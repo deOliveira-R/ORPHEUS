@@ -102,27 +102,30 @@ sweep rewrite in Wave D) honour it.
 Where downstream consumers will call this
 =========================================
 
-In Wave D (Issue #159), the sweep at :mod:`orpheus.sn.sweep` will be
-rewritten to dispatch::
+In Wave D, the sweep at :mod:`orpheus.sn.sweep` dispatches via
+:meth:`SNMesh.iter_cell_visits` — the per-visit packets pre-resolve
+the sweep direction so the strategy sees no sign-of-:math:`\mu`
+branching::
 
-    for cell_idx in march_order:
-        st = reduced_op.streaming_terms(cell_idx, n, mu_level)
+    for visit in sn_mesh.iter_cell_visits(ordinate_idx=n,
+                                          mu_level_idx=p):
         upstream = UpstreamState(
             spatial_upstream=psi_face,
-            angular_upstream=psi_angle[cell_idx]
+            angular_upstream=psi_angle[visit.cell_idx]
                 if reduced_op.requires_upstream_angular_state
                 else None,
         )
-        result = cell_update.update(st, total_xs, source, upstream)
-        psi_avg[cell_idx] = result.cell_average_flux
+        result = cell_update.update(visit, total_xs, source, upstream)
+        psi_avg[visit.cell_idx] = result.cell_average_flux
         if result.outgoing_spatial_flux is not None:
             psi_face = result.outgoing_spatial_flux
         if result.outgoing_angular_state is not None:
-            psi_angle[cell_idx] = result.outgoing_angular_state
+            psi_angle[visit.cell_idx] = result.outgoing_angular_state
 
-Round 1 ships the contract only; Round 2 ships ``DiamondDifference``
-that satisfies it bit-identically with the existing inlined sweep
-math.
+Round 1 shipped the contract only; Round 2 shipped
+``DiamondDifference`` bit-identically; the SN-sweep-DAG refactor
+adds :class:`CellVisit` and migrates the strategy contract to
+consume it.
 
 References
 ==========
@@ -158,6 +161,82 @@ from typing import Protocol, runtime_checkable
 import numpy as np
 
 from orpheus.geometry.reduced_operator import StreamingTerms
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# CellVisit — one visit to one cell during an SN sweep
+# ═══════════════════════════════════════════════════════════════════════
+
+@dataclass(frozen=True, slots=True)
+class CellVisit:
+    r"""One visit to one cell during an SN sweep.
+
+    The SN sweep is a topological sort of the **directed cell graph**
+    for a given ordinate, where edges are oriented by
+    :math:`\mathrm{sign}(\Omega \cdot \hat n_{\text{face}})`.  This
+    dataclass is the per-visit packet a
+    :class:`CellUpdate` strategy receives — all sweep-direction data
+    is **pre-resolved** here.  The strategy sees only the
+    upstream/downstream view of this cell, never the geometric
+    inner/outer view.
+
+    SN-specific by design.  Produced by
+    :meth:`orpheus.sn.geometry.SNMesh.iter_cell_visits`.  MoC will
+    define its own analog (per-ray traversal) — different DAG shape,
+    different mathematical structure (fiber bundles + solution
+    sheaves rather than a topological sort over a cell graph).
+    Premature abstraction across SN/MoC is avoided per Cardinal Rule
+    2 — there is no shared ``SweepGraph`` Protocol because there is
+    no shared structure.
+
+    Attributes
+    ----------
+    cell_idx : int
+        Spatial cell index in the SNMesh.  The cell update reads
+        ``total_xs[cell_idx]`` and ``source[cell_idx]`` at the call
+        site (the strategy itself does not see ``cell_idx``).
+    streaming_terms : StreamingTerms
+        Pure geometric primitive from
+        :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`.
+        Carries cell volume, face areas (inner / outer — geometric
+        labels), connection coefficients (:math:`\alpha`,
+        :math:`\Delta A / w`, :math:`\tau_{mm}`), and signed +
+        absolute primary direction cosine.
+    face_area_downstream : float | None
+        **Sweep-direction-resolved**: which of the two cell faces
+        (inner or outer) is the downstream face for this visit.
+
+        * For slab / Cartesian, ``None`` — slab DD is built around
+          the chord-length / :math:`|\mu|` recurrence and does not
+          read face areas.
+        * For curvilinear with :math:`\mu \ge 0` (outward sweep,
+          centre → boundary): equals
+          ``streaming_terms.face_area_outer``.
+        * For curvilinear with :math:`\mu < 0` (inward sweep,
+          boundary → centre): equals
+          ``streaming_terms.face_area_inner``.
+        * For the cylindrical pure-azimuthal degenerate case
+          (``abs_mu < 1e-15``), ``None`` — the cell has no spatial
+          face flow.
+
+    Notes
+    -----
+    The companion :attr:`UpstreamState.spatial_upstream` is **also**
+    sweep-direction-resolved by the orchestrator (it is the flux
+    flowing INTO the cell from the previously-visited cell along
+    the topological ordering).  Together,
+    :attr:`face_area_downstream` and
+    :attr:`UpstreamState.spatial_upstream` give the cell-update
+    strategy a fully resolved view of "what flows into me, what
+    flows out of me" — no sign-of-:math:`\mu` branching inside the
+    strategy.
+
+    Frozen + slotted: instances are immutable and lightweight.
+    """
+
+    cell_idx: int
+    streaming_terms: StreamingTerms
+    face_area_downstream: float | None = None
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -269,7 +348,7 @@ class CellUpdate(Protocol):
 
     def update(
         self,
-        streaming_terms: StreamingTerms,
+        visit: CellVisit,
         total_xs: np.ndarray,
         source: np.ndarray,
         upstream_state: UpstreamState,
@@ -278,11 +357,15 @@ class CellUpdate(Protocol):
 
         Parameters
         ----------
-        streaming_terms :
-            Per-(cell, direction) streaming inputs.  ``alpha_in is
-            None`` discriminates slab from curvilinear geometry; for
-            cylindrical geometry, ``abs_mu < 1e-15`` flags the
-            pure-azimuthal degenerate case.
+        visit :
+            One visit to this cell during the sweep.  Contains the
+            pure-geometric :class:`StreamingTerms` packet plus the
+            sweep-direction-resolved :attr:`face_area_downstream`.
+            ``visit.streaming_terms.alpha_in is None`` discriminates
+            slab from curvilinear geometry; for cylindrical
+            geometry, ``visit.streaming_terms.abs_mu < 1e-15`` flags
+            the pure-azimuthal degenerate case (in which
+            ``visit.face_area_downstream is None``).
         total_xs :
             Shape ``(ng,)``.  Per-group total cross section
             :math:`\Sigma_t` on this cell.
@@ -295,6 +378,9 @@ class CellUpdate(Protocol):
             source ready to plug into the numerator).
         upstream_state :
             Per-cell input state.  See :class:`UpstreamState`.
+            ``upstream_state.spatial_upstream`` is the flux flowing
+            **into** this cell from the previously-visited cell —
+            already sweep-direction-resolved by the orchestrator.
 
         Returns
         -------
@@ -311,5 +397,6 @@ class CellUpdate(Protocol):
 __all__ = [
     "CellResult",
     "CellUpdate",
+    "CellVisit",
     "UpstreamState",
 ]
