@@ -4,13 +4,13 @@
 **Branch**: `refactor/sn-operator-algebra`
 **Scope**: SN module + numerics primitives + geometry additions
 **Pilot for**: cross-solver migration sequence SN → MoC → CP → MC
-**Status**: **Phase 0 + Phase 1 + Phase 2 (DD-only) complete (Issues 1-7 + 8 + 9-DD); Wave C-extension (LD/EC/Step) and Wave D (Phase 3) pending**
+**Status**: **Phase 0 + Phase 1 + Phase 2 (DD-only) + Phase 3 complete (Issues 1-7 + 8 + 9-DD + 10, 11, 12, 13); Wave C-extension (LD/EC/Step) and Wave E (Phase 4) pending. ERR-026 deferred to Wave E.**
 
 ---
 
-## Progress (as of 2026-05-06)
+## Progress (as of 2026-05-09)
 
-Campaign branch `refactor/sn-operator-algebra` ahead of `main` by 13 commits.
+Campaign branch `refactor/sn-operator-algebra` ahead of `main` by 18 commits.
 Bit-identical regression contract held throughout: 11/11 frozen snapshots at
 `tests/sn/regression/snapshots/` remain `np.array_equal`-bit-identical to
 the pre-reshape baseline.
@@ -64,7 +64,24 @@ Wave C verification gates (end-of-session):
 - Sphinx clean (-W exit 0); audit unchanged from Wave-B baseline (23 orphans of 234 testable labels — denominator grew from 231 to 234 because Wave C added 3 new equation labels [`dd-slab-scalar`, `dd-mm-closure-constants`, `dd-curvilinear-scalar`]; all 3 covered by `@pytest.mark.verifies` in test_diamond.py so orphan count unchanged)
 - 36/38 ERR coverage preserved
 
-### Operational notes (lessons from Wave A + Wave B + Wave C)
+### Wave D — Phase 3 SN core reshape (Issues 10, 11, 12, 13) (DONE)
+
+| Plan # | GH # | Status | Commit | Summary |
+|---|---|---|---|---|
+| 10 | [#159](https://github.com/deOliveira-R/ORPHEUS/issues/159) | ✓ DONE | `4183e22` | `orpheus/sn/geometry.py` — `SNMesh.__init__` now calls `slab_streaming` / `spherical_streaming` / `cylindrical_streaming` factories from Wave B Issue 6 instead of inlined `_setup_spherical` / `_setup_cylindrical` methods. Exposes `self.reduced: ReducedStreamingOperator` as canonical accessor. Backward-compat `@property` accessors (with `DeprecationWarning`) for `alpha_half`, `redist_dAw`, `tau_mm`, `alpha_per_level`, `redist_dAw_per_level`, `tau_mm_per_level`, `face_areas`, `delta_A` so the 6 production read sites in `sweep.py` and `solver.py` continue working. **16 new foundation tests; 11/11 regression bit-identical (668s)**. SNMesh shrunk by ~177 LOC (78 + 99 LOC removed) |
+| 13 | [#162](https://github.com/deOliveira-R/ORPHEUS/issues/162) | ✓ DONE | `b6eee83` | `orpheus/sn/scattering.py` (290 LOC) and `orpheus/sn/fission.py` (115 LOC) — new. `ScatteringOperator(LinearOperator)` carries the full P0 + Pℓ Galerkin + (n,2n) source construction (math from `_add_scattering_source` + `_build_aniso_scattering` + `_add_n2n_source` consolidated into one operator). `FissionOperator(LinearOperator)` implements `χ ⊗ νΣ_f · φ` rank-1-in-energy structure. `capabilities = {"apply"}` for both. **Architectural deviation from plan**: methods kept as thin delegators on `SNSolver` (instead of removed) because `EigenvalueSolver` Protocol surface and `TestAnisotropicScattering` need them; math now LIVES in operators per Cardinal Rule 2; Wave E retires delegators. **27 new foundation tests** (17 scattering + 10 fission); 11/11 regression bit-identical including Pℓ snapshots (`slab_2g_p1_aniso_dd_n20`, `sphere_2g_p1_aniso_dd_n20`). **Finding**: BiCGSTAB `build_rhs_*` helpers compute scattering inline, do NOT consume the new operators yet — Wave E Issue 15 will wire them |
+| 12 | [#161](https://github.com/deOliveira-R/ORPHEUS/issues/161) | ✓ DONE | `c4138e7` | `orpheus/sn/sweep.py` — rewritten as unified algorithm. `transport_sweep` dispatches on `sn_mesh.reduced.requires_upstream_angular_state` (boolean from `ReducedStreamingOperator`), NOT on string-comparing `curvature`. Two unified sub-sweeps: `_cartesian_sweep` (1D + 2D, 1D cumprod fast path preserved when `cell_update == DiamondDifference` AND GL1D AND isotropic) and `_curvilinear_sweep` (sphere + cyl μ-marching, per-cell math delegated to `L.cell_update.update(...)`). `SNMesh` got new `cell_update: CellUpdate` constructor argument (default `DiamondDifference()`). **9 new foundation tests** (dispatch routing + cumprod-fast-path preconditions). **2 documented deviations**: (a) 2D wavefront stays inlined-DD (per-cell `update(...)` accepts `(ng,)` slices but anti-diagonal vectorization works on `(n_diag, ng)` slices; pre-authorized by plan brief); (b) two latent geometry-layer convention bugs caught and worked around in sweep.py — `streaming_terms()` canonical face-area direction (`A[i]=in`) doesn't match inward-sweep semantics, and cylindrical `abs_mu` extraction reads wrong global ordinate; both worked around with helper functions. **11/11 regression bit-identical (777s)**, 27 + 2 xfail safety net intact |
+| 11 | [#160](https://github.com/deOliveira-R/ORPHEUS/issues/160) | ✓ DONE | `ea054b3` | `orpheus/sn/operator.py` — adds `SNStreamingOperator(LinearOperator)` (~390 LOC) with three capabilities: `apply` (matrix-free forward action; reuses existing `transport_operator_matvec_*` symmetric-closure math, bit-identical extraction), `solve` (invokes Wave D R2 `transport_sweep` with `DiamondDifference` WDD asymmetric closure), `apply_transpose` (adjoint via dense-matrix-probe approach: build matrix from `apply`, transpose, apply; mathematically rigorous and avoids per-geometry adjoint sign-flip risk). `apply` and `solve` use **different closures by design** — Wave E reconciles via Krylov-on-apply with sweep as preconditioner. **Reciprocity ⟨L·ψ, φ*⟩ = ⟨ψ, L*·φ*⟩ verified to round-off**: rel diff 1.25e-15 (slab), 4.47e-16 (sphere), 7.80e-16 (cyl) — 3 orders of magnitude below `rtol=1e-12` tolerance. Existing `transport_operator_matvec_*` legacy functions KEPT (Wave E retires). **22 new foundation tests** (3 capability + 4 bit-identical apply + 3 bit-identical solve + 6 reciprocity + 3 linearity-of-apply + 3 dispatch). **11/11 regression bit-identical (791s)** — additive code path; existing solver paths in solver.py unchanged. ERR-026 NOT closed (deferred to Wave E Issue 15) |
+
+Wave D verification gates (end-of-session):
+
+- 98 SN tests on integrated campaign HEAD (16 SNMesh + 27 scattering/fission + 9 dispatch + 22 SNStreamingOperator + 24 spatial)
+- 11/11 regression snapshots bit-identical across all 3 rounds (worktree runs 668s/777s/791s + orchestrator-side runs 643s/777s + final defensive run pending)
+- 27 + 2 xfail safety net intact (ERR-026 tripwires gated for Wave E, did NOT flip in any of 3 rounds)
+- Sphinx clean (-W exit 0); audit clean (orphan count net 0 — Wave D added equation labels including `sn-streaming-reciprocity`, all immediately covered by `@pytest.mark.verifies`)
+- 36/38 ERR coverage preserved
+
+### Operational notes (lessons from Wave A + Wave B + Wave C + Wave D)
 
 1. **Worktree-base bug** (discovered Wave B Round 1, mitigated for the rest): background-dispatched worktrees may come up at `main`'s HEAD (06b46f2) instead of the orchestrator's current branch HEAD. Mitigation: brief every method-implementer / general-purpose dispatch with explicit detection (`git status && git log --oneline -3 && ls orpheus/...`) and recovery (`git rebase refactor/sn-operator-algebra`) instructions. Issues 3, 4, 5, 7 all hit this and recovered cleanly via rebase.
 2. **Cherry-pick conflict pattern** (consistent across all 3 rounds): conflicts on `docs/verification/matrix.rst` (Sphinx auto-regenerates with different test-count totals per branch). Resolution: `git checkout --ours` on the conflicting file; complete the cherry-pick; re-run `sphinx-build`; commit the regenerated matrix as a `chore(matrix)` commit.
@@ -73,21 +90,26 @@ Wave C verification gates (end-of-session):
 5. **`type:refactor` label does not exist** in the GitHub repo. Reshape issues marked `type:refactor` in the plan (#153, #156, #157, #159, #161, #162, #164) were filed with `type:improvement` instead. Acceptable substitution.
 6. **Wave C duplicate-edit side effect** (Round 1 only): the `general-purpose` agent's worktree-isolated dispatch landed file edits in BOTH the agent's worktree AND the main repo (probably a tooling oversight when the agent's CWD-tracker was reset between Bash calls). Mitigation: orchestrator stashed the duplicated main-repo edits before cherry-picking the agent's worktree commit; the cherry-pick was clean since the stash removed the working-tree conflict surface. Round 2 (`method-implementer`) did NOT exhibit this. Worth surveilling on future `general-purpose` worktree dispatches.
 7. **Wave C source-semantics confirmation** (Round 2 lesson): the `source` parameter passed to `CellUpdate.update(...)` follows the sweep's call-site convention — `source = Q · V · weight_norm` (already weight-normalized AND already volume-multiplied). The slab cumprod path bakes `2 · weight_norm · dx` into `source_coeff` so the per-cell scalar form becomes `s = 2 · source / denom`; the curvilinear path inserts `source` directly into the numerator as `QV[i]`. Both branches verified bit-identical via `np.array_equal` hand-calc tests typed verbatim from `sweep.py:117-123/350-361`.
+8. **Wave D ERR-026 closure correction** (during planning): the campaign plan originally said Issues 11+12 close ERR-026, but analysis showed the bug lives in the curvilinear sweep's one-directional WDD line (`sweep.py:361`) which Wave C's `DiamondDifference` reproduces bit-identically. Wave D Issue 12's unified sweep with `cell_update=DD` therefore PRESERVES the bug. The actual closure mechanism (per `error_catalog.md` ERR-026 "Fix" section): route `solve_sn_fixed_source` through BiCGSTAB for curvilinear — that's an Issue 15 (Wave E) `SNSolver` change, NOT a sweep/operator change. Wave D builds the foundation (`SNStreamingOperator` with matrix-free symmetric-closure `apply`); Wave E flips the solver path. Plan's "Issues 11+12 close ERR-026" was approximate; the precise closure mechanism is Issue 15.
+9. **Wave D delegator pattern** (R1.2 deviation): Issue 13's plan said "REMOVE the four legacy methods" from `SNSolver`, but `EigenvalueSolver` Protocol surface (`compute_fission_source`) and `TestAnisotropicScattering` directly call `_build_aniso_scattering`. Removal would break both. Architecturally clean alternative: kept methods as **thin delegators routing to the new operators**. The math LIVES in operator classes (canonical algebra-of-record per Cardinal Rule 2); SNSolver just routes. Wave E Issue 15 retires the delegators when BiCGSTAB migrates to operator algebra.
+10. **Wave D 2D wavefront cell-update parameterization deferred** (R2 deviation): Issue 12's per-cell `cell_update.update(...)` accepts `(ng,)` slices, but the 2D wavefront sweep's anti-diagonal vectorization works on `(n_diag, ng)` slices. Extending the `CellUpdate` Protocol with a batch-shaped `update_batch(...)` is Wave C-extension's responsibility when LD/EC/Step land. Wave D's bit-identical contract is satisfied by retaining inlined DD math in the 2D wavefront path; the dispatch consolidation (single `transport_sweep` entry point) is the Wave D deliverable. Pre-authorized by the plan brief.
+11. **Wave D streaming_terms() convention bugs caught** (R2 finding): two latent bugs in `geometry/reduced_operator.py`'s `streaming_terms()` API surfaced during sweep integration: (a) face-area direction convention `A[i]=in, A[i+1]=out` matches outward-sweep semantics but not inward (which reads `A[i+1]=in, A[i]=out`); (b) cylindrical `abs_mu = abs(quadrature.mu_x[direction_idx])` reads the WRONG ordinate when called with `direction_idx=m_local` (within-level azimuthal index — the global ordinate is `level_idx[m_local]`). Worked around in sweep.py via `_streaming_terms_for_inward_sweep` and `_streaming_terms_with_abs_mu` helpers. Both should be retired when the geometry-layer API is extended (likely Wave C-extension or Wave E).
+12. **Wave D `apply_transpose` design** (R3 deviation): the plan brief offered analytic-adjoint or self-adjoint-shortcut paths for `SNStreamingOperator.apply_transpose`. Agent chose a third path: **build dense matrix from `apply` by probing with unit basis vectors (one-time `O(n²)`), transpose, apply**. Mathematically rigorous (every linear operator's transpose IS its matrix's transpose); avoids per-geometry adjoint code (a chance for sign-flip / missing-factor / transposed-index bugs — the V&V failure modes #1-#3, #5). Reciprocity holds **by construction**; the test still has teeth because it gates `apply` linearity and dense-assembly-probe correctness. `CellUpdate` Protocol does NOT need an `adjoint_update` extension. Wave E may revisit for performance if dense-probe `O(n²)` becomes a bottleneck on large meshes.
 
 ### Remaining waves (next sessions)
 
 | Wave | Phase | Issues | Description |
 |---|---|---|---|
-| C-ext | 2 | 9 (LD, EC, Step) | Concrete cell updates beyond DD: `LinearDiscontinuous`, `ExponentialCharacteristic`, `Step` strategies. Each with its own MMS spatial-convergence test. Most natural to ship sequentially (one round per strategy) AFTER Wave D's unified sweep dispatches via `cell_update`, so the strategies can be verified end-to-end as production cell updates rather than shipped in isolation |
-| D | 3 | 10, 11, 12, 13 | SN core reshape: SNMesh refactor, SNStreamingOperator, unified sweep (consumes `DiamondDifference`), ScatteringOperator + FissionOperator. **Closes ERR-026** via Issues 11+12 (the 2 xfail-strict tripwires at `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` flip xpass when curvilinear sweep produces O(h²) on anisotropic ansatz) |
-| E | 4 | 14, 15 | Iteration as operator algebra (SourceIteration, KEigenvalue) + SNSolver migration. **Closes #96, #97 via Issue 15** |
-| F | 5 | 17, 18 | Symmetry-preservation + reciprocity invariant tests; Sphinx documentation campaign |
+| C-ext | 2 | 9 (LD, EC, Step) | Concrete cell updates beyond DD: `LinearDiscontinuous`, `ExponentialCharacteristic`, `Step` strategies. Each with its own MMS spatial-convergence test. Sequential (one round per strategy). May also include geometry-layer cleanup of the `streaming_terms()` convention bugs (per Wave D operational note 11) and 2D-wavefront `update_batch(...)` Protocol extension (note 10). |
+| E | 4 | 14, 15 | Iteration as operator algebra (`SourceIteration`, `KEigenvalue` consuming `LinearOperator` triples) + `SNSolver` migration. **Closes ERR-026** via Issue 15 (route `solve_sn_fixed_source` through BiCGSTAB / Krylov-on-`SNStreamingOperator.apply` for curvilinear). **Closes #96, #97** by retiring `transport_operator_matvec_*` legacy functions. Removes the SNSolver delegators (Wave D operational note 9). Removes deprecated SNMesh attribute properties (Wave D R1.1 transitional). |
+| F | 5 | 17, 18 | Symmetry-preservation + reciprocity invariant tests; Sphinx documentation campaign (architectural narrative — operator algebra unifying SN/MoC/CP/diffusion). |
 
-ERR-026 closure is the implicit success criterion for Issues 11 + 12: the
-2 anisotropic MMS xfail-strict tripwires at
-`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
-will flip from xfail to xpass when the curvilinear sweep produces
-O(h²) convergence on the anisotropic ansatz, forcing marker removal.
+**ERR-026 closure is now scheduled for Wave E Issue 15** (corrected from
+the original plan note that placed it in Issues 11+12). The xfail-strict
+tripwires at `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
+remained xfail throughout Wave D and will flip xpass when Issue 15
+routes curvilinear `solve_sn_fixed_source` through `SNStreamingOperator.apply`
+(symmetric closure, the correct discretization).
 
 ---
 
@@ -626,6 +648,283 @@ of the campaign.
 
 ---
 
+#### Issue 9.5: Rename `ResolvedBC` → `BoundaryOperator` (naming consolidation)
+
+- **Module**: `module:geometry`, `module:sn`
+- **Type**: `type:refactor`
+- **Phase**: 2 (final, lands between Issue 9 and Issue 10)
+- **Depends on**: Issue 7
+- **Complexity**: S
+- **Risk**: very low — mechanical rename, no behavioral change
+
+**Context**: `ResolvedBC` describes a *process* (a BC that has been
+resolved). The name tells the reader how the object was made, not
+what it is. `BoundaryOperator` is the standard mathematical concept
+(BEM, transport, integral equations) for a linear operator on the
+boundary trace space. A reader unfamiliar with the codebase, on
+encountering `BoundaryOperator`, can immediately infer:
+
+- it is a linear operator (subtype of `LinearOperator`)
+- it acts on boundary trace spaces (its `domain` and `range` are
+  boundary `FunctionSpace`s)
+- it composes via operator algebra (multi-region BCs are operator
+  products; partial reflectors are operator sums)
+- it has rank-decomposition structure (specular = G ⊗ A as established
+  in the BC tensor framing)
+- it has an adjoint (via `LinearOperator.adjoint()`)
+
+None of this is conveyed by `ResolvedBC`. Per the architectural
+principle that names should be strong concepts allowing fresh-context
+readers to infer mathematical properties, the rename is correct.
+
+Lands BEFORE Issue 10 because Phase 3 (Issues 10–15) all touch this
+type and dependent types: writing the right name from the start avoids
+touch-twice churn across the rest of the campaign. Regression testing
+is bit-identical — no behavior change.
+
+**Acceptance criteria**:
+
+- [ ] In `orpheus/geometry/boundary.py`:
+      - [ ] `ResolvedBC` ABC → `BoundaryOperator`
+      - [ ] Concrete subtypes renamed:
+            `VacuumBC` → `VacuumBoundaryOperator`,
+            `SpecularBC` → `SpecularBoundaryOperator`,
+            `WhiteBC` → `WhiteBoundaryOperator`,
+            `PeriodicBC` → `PeriodicBoundaryOperator`,
+            `AlbedoBC` → `AlbedoBoundaryOperator`,
+            `MixedBC` → `MixedBoundaryOperator`
+- [ ] In `orpheus/sn/geometry.py`:
+      - [ ] `SNMesh.BC_REGISTRY` → `SNMesh.BOUNDARY_OPERATOR_REGISTRY`
+      - [ ] Internal factory helpers renamed:
+            `_sn_bc_vacuum` → `_sn_vacuum_boundary_operator`,
+            `_sn_bc_reflective` → `_sn_reflective_boundary_operator`
+      - [ ] `_resolve_one(bc, face)` return-type annotation updated to
+            `BoundaryOperator` (signature otherwise unchanged)
+- [ ] `BC` (declaration tag) name **unchanged** — user-facing concept,
+      short and declarative
+- [ ] All test references updated by mechanical search-and-replace
+- [ ] All Sphinx documentation references updated; cross-references
+      verified via Nexus rebuild
+- [ ] `apply_to_incoming(...)` method on the renamed `BoundaryOperator`
+      ABC: **decision point during implementation** — either keep as
+      domain-specific name OR rename to inherited `LinearOperator.apply`
+      with `apply_to_incoming` as alias. Recommend the latter (uniformity
+      with operator algebra; direction is encoded in `domain` / `range`
+      `FunctionSpace`s), but this is a judgement call at PR time
+- [ ] Behavioral regression suite (Issue 16) passes with bit-identical
+      results — the gating contract
+
+**Files affected**:
+
+- modify: `orpheus/geometry/boundary.py`
+- modify: `orpheus/sn/geometry.py`
+- modify: `orpheus/sn/sweep.py` (any sites that consume the renamed
+  types)
+- modify: tests under `tests/sn/`, `tests/geometry/`
+- modify: `docs/theory/discrete_ordinates.rst`,
+  `docs/theory/geometry.rst` (any references to the old names)
+
+**Design notes**:
+
+- This is the cleanup PR before Phase 3 opens. Do not bundle other
+  changes; the value of the rename is precisely that it isolates a
+  pure mechanical refactor with zero behavioral risk.
+- Use `git grep ResolvedBC` and `git grep -i 'resolvedbc\|VacuumBC\|SpecularBC\|WhiteBC\|PeriodicBC\|AlbedoBC\|MixedBC'`
+  to enumerate sites; verify completeness before merging.
+- After this PR lands, Issues 10–15 will use `BoundaryOperator`
+  uniformly. Update internal references in those issue specs at
+  PR time if they reference the old names.
+- The dunder amendments from the campaign refinement round
+  (`__init_subclass__` for auto-registration) compose naturally with
+  this rename: concrete `BoundaryOperator` subclasses can declare
+  `kind = "vacuum"` etc. and self-register into
+  `BOUNDARY_OPERATOR_REGISTRY`. The structural change (BoundaryOperator
+  inheriting LinearOperator) and `__init_subclass__` machinery land in
+  Issue 9.6, immediately after this rename. Keep this issue mechanical;
+  9.6 carries the structural lifting.
+
+---
+
+#### Issue 9.6: Architecture + dunder consolidation (retroactive amendments)
+
+- **Module**: `module:numerics`, `module:geometry`
+- **Type**: `type:refactor`
+- **Phase**: 2 (final, lands after Issue 9.5 and before Issue 10)
+- **Depends on**: Issues 1, 2, 7, 9.5
+- **Complexity**: M
+- **Risk**: low — pure additions, no behavioral change
+
+**Context**: Several architectural and ergonomic refinements were
+identified during planning conversations AFTER Issues 1–9-DD shipped.
+They consolidate cleanly here as a single PR before Phase 3 opens.
+The amendments are pure additions (no breaking changes); regression
+contract is bit-identical — the 11/11 frozen snapshots remain
+`np.array_equal`-bit-identical.
+
+The amendments cover three categories:
+
+1. **Architecture**: function-space typing on operators; adjoint as a
+   first-class operator construction; spatial integration via
+   `DiscreteMeasure`.
+2. **Dunders**: ergonomic and structural Python idioms that reflect
+   the underlying mathematics (operator as callable, measure as
+   functional, container protocol on measures).
+3. **Cross-cutting**: `BoundaryOperator` inherits `LinearOperator`
+   (closes the structural gap from Issue 9.5's mechanical rename);
+   auto-registration via `__init_subclass__` for `BoundaryOperator`
+   and `CellUpdate` subclass registries.
+
+Why now: every Phase 3 issue (10–15) builds operators on top of these
+primitives. Folding the affordances in before Phase 3 opens avoids
+retrofit churn across 5 downstream issues.
+
+**Acceptance criteria**:
+
+**A. `FunctionSpace` primitive** (in `numerics/operator.py` or new
+`numerics/space.py`):
+
+- [ ] `FunctionSpace` frozen dataclass: `name: str`,
+      `shape: tuple[int, ...]`,
+      `inner_product_weights: NDArray | None`
+- [ ] `inner_product(x, y) -> float` and `norm(x) -> float` methods
+      (default L² Euclidean when `inner_product_weights is None`)
+- [ ] `__eq__` based on `(name, shape)` identity — weights are metadata,
+      not identity. Two spaces with the same name+shape but different
+      weights compare equal but warn on construction
+- [ ] `__hash__` consistent with `__eq__`
+- [ ] `__repr__` showing `name` and `shape`
+- [ ] Pre-populated for common ORPHEUS spaces: `"angular_flux"`
+      (shape `(n_cells, n_ordinates, n_groups)`), `"scalar_flux"`
+      `(n_cells, n_groups)`, `"boundary_trace_in"`,
+      `"boundary_trace_out"`
+
+**B. `LinearOperator` extensions** (in `numerics/operator.py`):
+
+- [ ] `domain: FunctionSpace` and `range: FunctionSpace` properties on
+      the Protocol; concrete operators declare them at construction
+- [ ] `adjoint(self) -> LinearOperator` method returning the adjoint
+      as a new `LinearOperator` — wraps `apply_transpose`, swaps
+      domain↔range, transforms capabilities (`apply` ↔ `apply_transpose`
+      under adjoint)
+- [ ] Composition primitives (`OperatorSum`, `OperatorProduct`,
+      `ScaledOperator`) verify domain/range compatibility at
+      construction; raise `IncompatibleOperatorComposition` on mismatch
+- [ ] `__call__(x)` aliasing `apply(x)` for the `L(ψ)` math notation
+- [ ] `__pow__(n: int) -> LinearOperator` for operator powers via
+      repeated `__matmul__` (binary exponentiation acceptable)
+- [ ] `__repr__` showing `domain.name`, `range.name`, capabilities
+
+**C. `DiscreteMeasure` extensions** (in `numerics/measure.py`):
+
+- [ ] `__call__(f)` aliasing `integrate(f)` — a measure IS a functional
+- [ ] `__iter__` yielding `(node, weight)` tuples
+- [ ] `__len__` returning number of points
+- [ ] `__getitem__(i)` returning `(nodes[i], weights[i])`
+- [ ] `__repr__` showing `space`, `n_points`, `invariance_group` if known
+
+**D. `Mesh.volume_measure`** (in `orpheus/geometry/mesh.py`):
+
+- [ ] `Mesh1D.volume_measure` property returning a `DiscreteMeasure`
+      with `nodes=centers`, `weights=volumes`, `space="spatial_R1"`
+- [ ] `Mesh2D.volume_measure` similarly with `space="spatial_R2"`
+- [ ] Existing spatial-integration sites (e.g.
+      `np.sum(scalar_flux * volumes)` in solver code) are NOT yet
+      converted — that's downstream cleanup for natural touch points.
+      This issue installs the affordance only
+
+**E. `BoundaryOperator` inherits `LinearOperator`** (closes structural
+gap from Issue 9.5):
+
+- [ ] `BoundaryOperator` ABC inherits from `LinearOperator` with
+      `domain` = boundary trace outgoing FunctionSpace,
+      `range` = boundary trace incoming FunctionSpace
+- [ ] Concrete subtypes declare `capabilities = frozenset({"apply"})`
+      at minimum; `SpecularBoundaryOperator` adds `"apply_transpose"`
+      since it has a clean dual; `tensor_decomposition` property
+      stays exposed for inspection
+- [ ] `apply(psi_out)` is the canonical method (formerly
+      `apply_to_incoming` from Issue 7); `apply_to_incoming` retained
+      as alias for solver-code readability where directional clarity
+      helps
+- [ ] Composition `BoundaryOperator @ BoundaryOperator` works for
+      multi-region interfaces; `0.7 * SpecularBoundaryOperator + 0.3 *
+      WhiteBoundaryOperator` works for partial reflectors
+
+**F. `__init_subclass__` auto-registration**:
+
+- [ ] `BoundaryOperator` subclasses self-register into
+      `BOUNDARY_OPERATOR_REGISTRY` via `__init_subclass__` with a
+      `kind: ClassVar[str]` class attribute. Replaces manual factory
+      dispatch from Issue 7
+- [ ] `CellUpdate` subclasses similarly self-register into a
+      `CELL_UPDATE_REGISTRY`. The DD strategy from Issue 9-DD declares
+      `kind = "diamond_difference"` retroactively; LD/EC/Step from
+      Wave C-extension self-register on definition
+- [ ] Manual registry dict insertion still works as fallback
+
+**Files affected**:
+
+- modify: `orpheus/numerics/operator.py` (FunctionSpace, adjoint,
+  `__call__`, `__pow__`, `__repr__`, composition checks)
+- modify: `orpheus/numerics/measure.py` (`__call__`, container
+  protocol, `__repr__`)
+- modify: `orpheus/geometry/mesh.py` (`volume_measure` property on
+  `Mesh1D` and `Mesh2D`)
+- modify: `orpheus/geometry/boundary.py` (`BoundaryOperator` inherits
+  `LinearOperator`, `__init_subclass__` registry)
+- modify: `orpheus/sn/spatial/cell_update.py` (`__init_subclass__`
+  registry; DD strategy declares `kind`)
+- modify: existing tests to use new affordances where natural; add
+  unit tests for new methods (`adjoint`, `__call__`, `__pow__`,
+  composition compatibility, `volume_measure`)
+
+**Coordinating with done work**:
+
+- Issue 1 (commit `60d3932`) added `LinearOperatorMixin` for dunder
+  algebra (`__add__`, `__sub__`, `__mul__`, `__matmul__`). This issue
+  extends with `__call__`, `__pow__`, `adjoint()`, FunctionSpace
+  domain/range, `__repr__`. **Verify with
+  `git log -- orpheus/numerics/operator.py` what's already there before
+  adding duplicates.**
+- Issue 2 (commit `2f67853`) shipped `DiscreteMeasure` with tensor
+  product / pushforward / restrict / direct sum. This issue adds
+  `__call__`, container protocol, `__repr__`. Check current surface
+  before duplicating.
+- Issue 7 (commit `e93fe47`) shipped `ResolvedBC` with tensor
+  decomposition. Issue 9.5 renames to `BoundaryOperator` (mechanical).
+  This issue adds `LinearOperator` inheritance and `__init_subclass__`
+  registration on top of the renamed type.
+- Wave C-extension (LD/EC/Step) is sequenced after Wave D per the
+  operational notes. Those concrete cell updates will land into the
+  registry this issue installs.
+
+**Design notes**:
+
+- **Bit-identical regression contract**: all changes are pure
+  additions (new methods, new types, new properties, new aliases).
+  No existing call site changes. The 11/11 frozen snapshots and the
+  ERR-026 tripwires remain intact.
+- **`FunctionSpace` is intentionally lightweight**. Don't try to
+  enforce types via Python generics. `(name, shape)` identity with
+  weights as metadata is the right tradeoff for a teaching codebase.
+- **`adjoint()` is the architectural lever** for sensitivity analysis,
+  perturbation theory, and adjoint Monte Carlo (Wave 4). Issues 11,
+  13, 15 use it heavily. Without it, adjoint construction reaches
+  into operator internals manually — workable but error-prone.
+- **`__call__` on operators and measures matches mathematical notation**
+  (`L ψ`, `μ(f) = ∫ f dμ`). Standard in scipy / JAX / FEniCS.
+- **`__init_subclass__` is mostly drift-prevention**. Manual registries
+  work; auto-registration just makes "forgot to register" impossible.
+  Apply where it reads cleanly; don't force it where the subclass
+  declaration is awkward.
+- **Bundle this in one PR**, not split into 6 sub-PRs: the amendments
+  are interrelated (`FunctionSpace` is consumed by `LinearOperator`
+  domain/range, which is consumed by `adjoint()`, etc.). Splitting
+  creates intermediate states where the abstractions are partially
+  in place. One PR, one merge, regression-gated.
+
+---
+
 ### Phase 3 — SN core reshape
 
 #### Issue 10: Refactor `SNMesh` to consume `ReducedStreamingOperator`
@@ -633,7 +932,7 @@ of the campaign.
 - **Module**: `module:sn`
 - **Type**: `type:refactor`
 - **Phase**: 3
-- **Depends on**: Issue 6
+- **Depends on**: Issues 6, 9.6
 - **Complexity**: M
 
 **Context**: `SNMesh._setup_spherical` and `_setup_cylindrical` compute
@@ -693,7 +992,17 @@ inconsistency disappears by construction.
 - [ ] `apply_transpose(psi)` is the adjoint sweep: reversed Ω,
       transposed cell update
 - [ ] `capabilities = frozenset({"apply", "solve", "apply_transpose"})`
-- [ ] Reciprocity test: ⟨Lψ, φ*⟩ = ⟨ψ, L*φ*⟩ to round-off
+- [ ] Declares `domain` and `range` as `FunctionSpace("angular_flux", ...)`
+      from Issue 9.6; composition with `ScatteringOperator` and
+      `FissionOperator` from Issue 13 verified at construction time
+      via `OperatorSum`/`OperatorProduct` compatibility checks
+- [ ] Adjoint constructed via `L.adjoint()` (Issue 9.6 method) returning
+      a new `SNStreamingOperator` with reversed Ω ordering and
+      transposed cell update — not via standalone `apply_transpose`
+      calls in client code
+- [ ] Reciprocity test: ⟨Lψ, φ*⟩ = ⟨ψ, L*φ*⟩ to round-off, using
+      `domain.inner_product` (the angular-flux inner product weighted
+      by volumes ⊗ angular-quadrature weights)
 - [ ] Closes #96 and #97 (subject to Issue 15 landing)
 
 **Files**:
@@ -778,7 +1087,15 @@ solvers consume the pieces uniformly across solver methods.
 - [ ] `FissionOperator(LinearOperator)` in `orpheus/sn/fission.py`:
       holds materials; `apply(psi)` returns χ ⊗ νΣ_f acting on flux
       moments. The rank-1-in-energy tensor structure χ ⊗ νΣ_f is
-      reflected in the implementation
+      reflected in the implementation (e.g., factored as
+      `OuterProduct(chi, nu_sigma_f)` exposing the rank explicitly)
+- [ ] Both declare `domain` / `range` as
+      `FunctionSpace("angular_flux", ...)` from Issue 9.6 so composition
+      with `SNStreamingOperator` is type-checked
+- [ ] `ScatteringOperator.adjoint()` returns operator with transposed
+      scattering kernel in (E', E) and (Ω', Ω). `FissionOperator.adjoint()`
+      swaps roles of χ and νΣ_f. Both follow the
+      `LinearOperator.adjoint()` contract from Issue 9.6
 - [ ] (n,2n) folded into `ScatteringOperator` (consistent with existing
       `_add_n2n_source` placement in `SNSolver`)
 - [ ] All existing SN tests pass
@@ -1012,13 +1329,35 @@ Wave A (parallel, no deps): Issue 1, Issue 2, Issue 16
 Wave B (parallel after A): Issue 3, Issue 4 [needs 2,3], Issue 5 [needs 3,4]
                            Issue 6 [needs 1], Issue 7 [needs 4]
 Wave C (after B):          Issue 8 [needs 6]
-Wave D (parallel after C): Issue 9 [needs 8], Issue 10 [needs 6]
-Wave E (after D):          Issue 11 [needs 1,8,9,10], Issue 13 [needs 1]
-Wave F (after E):          Issue 12 [needs 6,8,10]
-Wave G (parallel after E): Issue 14 [needs 1]
-Wave H (after F+G):        Issue 15 [needs 11,13,14] — closes #96, #97
+Wave D (parallel after C): Issue 9 [needs 8] — 9-DD shipped; LD/EC/Step deferred to post-Wave-D
+Wave D' (after D):         Issue 9.5 [needs 7] — naming consolidation (mechanical rename)
+Wave D'' (after D'):       Issue 9.6 [needs 1,2,7,9.5] — architecture + dunder consolidation
+Wave E (after D''):        Issue 10 [needs 6, 9.6]
+Wave F (after E):          Issue 11 [needs 1,8,9,10,9.6], Issue 13 [needs 1, 9.6]
+Wave G (after F):          Issue 12 [needs 6,8,10]
+Wave H (parallel after F): Issue 14 [needs 1, 9.6]
+Wave I (after G+H):        Issue 15 [needs 11,13,14] — closes #96, #97
+Wave C-ext (after Wave I): Issue 9 LD/EC/Step — verified end-to-end through unified sweep
 Continuous:                Issue 17 [after 11,12], Issue 18 [progressive]
 ```
+
+**Note on Issue 9.5 + 9.6 placement**: 9.5 (rename) and 9.6
+(architecture + dunder consolidation) land back-to-back as the cleanup
+pair before Phase 3 opens. 9.5 is a mechanical rename with zero
+behavioral risk. 9.6 is pure-additive architecture that retroactively
+upgrades Issues 1, 2, 7 with `FunctionSpace`, `adjoint()`, dunders
+(`__call__`, `__pow__`, container protocol), `mesh.volume_measure`,
+and `BoundaryOperator` inheriting `LinearOperator` with
+`__init_subclass__` auto-registration. Both gated by the behavioral
+regression suite (11/11 bit-identical). After 9.6, every Phase 3
+issue (10–15) consumes the upgraded primitives without retrofit churn.
+
+**Note on Wave C-extension placement**: Issue 9's LD/EC/Step strategies
+landed post-Wave-I per the operational decision recorded in Wave C
+notes — they verify end-to-end through the unified sweep (Issue 12)
+rather than in isolation. Each ships sequentially with its own MMS
+spatial-convergence test; auto-registration into `CELL_UPDATE_REGISTRY`
+(Issue 9.6) is automatic at definition time.
 
 **Issue 16 lands on `main` BEFORE the campaign branch is created.**
 
