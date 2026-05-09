@@ -1330,6 +1330,149 @@ propagates to the next ordinate on the same cell.
 Implemented in :func:`_sweep_1d_spherical` and
 :func:`_sweep_1d_cylindrical`.
 
+.. _unified-sweep-dispatch:
+
+Unified sweep dispatch
+-----------------------
+
+Wave D Round 2 of the SN reshape campaign (Issue #161) consolidates
+the four pre-existing sweep paths (1-D cumprod / 2-D wavefront /
+spherical / cylindrical) under one
+:func:`~orpheus.sn.sweep.transport_sweep` entry point that branches
+on a single boolean from the
+:class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
+primitive (Wave B Issue #6 / Wave D Round 1):
+
+.. code-block:: python
+
+   def transport_sweep(Q, sig_t, sn_mesh, psi_bc, Q_aniso=None):
+       reduced = sn_mesh.reduced
+       if reduced is not None and reduced.requires_upstream_angular_state:
+           return _curvilinear_sweep(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
+       return _cartesian_sweep(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
+
+The pre-Wave-D dispatch did string-equality on
+``sn_mesh.curvature == "spherical"`` / ``"cylindrical"`` /
+``None``.  The new dispatch reads the canonical geometry-layer
+property
+:attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.requires_upstream_angular_state`
+— ``False`` for slab + 2-D Cartesian (no angular redistribution
+between successive half-angles), ``True`` for spherical +
+cylindrical.  Two-D Cartesian sets ``sn_mesh.reduced is None``
+(no curvilinear math is needed), and the dispatch falls through
+to the Cartesian path.  Why this matters:
+
+* The :class:`ReducedStreamingOperator` is the primitive that
+  already encodes "does this geometry need angular
+  redistribution to march the sweep?", so the dispatch reads its
+  property directly instead of round-tripping through a
+  string tag — Cardinal Rule 2 (architecture).  Consumers
+  outside the SN sweep (MoC, CP) read the same property when
+  they need the same dispatch.
+* The dispatch surface shrinks from four string-equality checks
+  to one boolean — a structural simplification that makes the
+  control flow easier to reason about and to extend with
+  additional cell-update strategies (Wave C-extension).
+
+Cell update strategy parameter
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The curvilinear sweep dispatches per-cell to
+:meth:`~orpheus.sn.spatial.cell_update.CellUpdate.update`:
+
+.. code-block:: python
+
+   for cell_idx in march_order:
+       st = reduced.streaming_terms(cell_idx, dir_idx, mu_level_idx=p)
+       upstream = UpstreamState(
+           spatial_upstream=psi_face,
+           angular_upstream=psi_angle[cell_idx],
+       )
+       result = sn_mesh.cell_update.update(
+           streaming_terms=st,
+           total_xs=sig_t[cell_idx],
+           source=QV[cell_idx],
+           upstream_state=upstream,
+       )
+       psi_face = result.outgoing_spatial_flux  # may be None for cylindrical degenerate
+       psi_angle[cell_idx] = result.outgoing_angular_state
+
+The cell-update strategy lives on
+:attr:`~orpheus.sn.geometry.SNMesh.cell_update` (introduced in
+this round as a constructor argument with default
+:class:`~orpheus.sn.spatial.diamond.DiamondDifference`).  The
+default reproduces the inlined sweep math bit-identically — every
+regression snapshot at ``tests/sn/regression/snapshots/`` was
+generated with DD and continues to match bit-for-bit when the
+unified sweep dispatches via ``cell_update.update(...)``.  See
+:ref:`cell-update-strategies` for the strategy contract and
+:class:`~orpheus.sn.spatial.diamond.DiamondDifference` for the
+DD scalar form.
+
+Wave C-extension will ship :class:`Step`, :class:`LinearDiscontinuous`,
+and :class:`ExponentialCharacteristic` as positivity-preserving /
+higher-order alternatives; the unified dispatch infrastructure is
+in place to receive them — users will pass
+``cell_update=LinearDiscontinuous()`` etc. at
+:class:`~orpheus.sn.geometry.SNMesh` construction.
+
+The 1-D cumprod fast path (DD-only)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Cartesian dispatch checks three preconditions before
+selecting the 1-D cumprod fast path:
+
+#. ``cell_update is DiamondDifference`` — the cumprod recurrence
+   :eq:`dd-recurrence` is a DD-specific algebraic identity
+   (Lewis & Miller §5.3); LD / EC / Step closures do not admit
+   the same recurrence.
+#. Quadrature is GL1D (``ny == 1`` and all ``mu_y`` vanish).
+#. Source is isotropic (``Q_aniso is None``).
+
+If any precondition fails, the Cartesian dispatch routes
+through the 2-D wavefront sweep (which handles 1-D as a
+special case).  Preserving the cumprod fast path inside the
+unified algorithm is required to keep the 1-D regression
+snapshots bit-identical and to retain the historical
+sub-millisecond sweep time for typical 1-D problems.
+
+The 2-D wavefront sweep retains its inlined DD math (rather
+than dispatching through ``cell_update.update``) because anti-
+diagonal vectorisation operates on ``(n_diag, ng)`` cell slices,
+a shape the per-cell ``CellUpdate`` Protocol does not currently
+accept.  Wave C-extension's introduction of LD / EC / Step
+strategies will require parameterising 2-D wavefront via the
+Protocol while preserving anti-diagonal vectorisation — that's
+the open design point for the rollout.  For Wave D, the inlined
+DD math is bit-identical to a per-cell
+:class:`DiamondDifference` call sequence by construction.
+
+ERR-026 deferred to Wave E
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The curvilinear sweep's one-directional WDD closure
+:math:`\psi_{n+1/2} = (\overline{\psi} - (1 - \tau_{mm})\,
+\psi_{n-1/2})/\tau_{mm}` is preserved bit-identically by
+:class:`DiamondDifference` (Wave C extracted it from the
+inlined sweep verbatim).  ERR-026 (catalogued in
+:doc:`/development` and the V&V matrix at
+:doc:`/verification/matrix`) lives in this closure: the
+solver's source-iteration path converges to a non-flat
+fixed point even though the BiCGSTAB / matrix-free
+``apply`` path with the symmetric closure is exact.
+
+Wave D's gating contract is bit-identity for ``cell_update =
+DiamondDifference`` — the bug is preserved by construction so
+the regression snapshots stay green.  Wave E (Issue #15) closes
+ERR-026 by routing
+:func:`~orpheus.sn.solver.solve_sn_fixed_source` for curvilinear
+geometries through Krylov-on-``apply`` (the symmetric closure)
+with the sweep-as-``solve`` as preconditioner — the closure
+flips at the solver layer, not at the cell-update layer.  The
+two ``xfail-strict`` tripwires at
+``tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py``
+remain ``xfail`` through Wave D.
+
 Starting Direction
 -------------------
 

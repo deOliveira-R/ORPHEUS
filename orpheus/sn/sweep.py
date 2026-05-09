@@ -1,27 +1,170 @@
-"""Diamond-difference transport sweep for 1D and 2D Cartesian meshes.
+r"""Unified S\ :sub:`N` transport sweep parameterized by a cell-update strategy.
 
-Two paths, automatically dispatched:
+Round 2 of Wave D of the SN reshape campaign (Issue #161).  Rewrites
+the historical 4-path sweep dispatch (slab GL fast path / 2-D wavefront
+/ spherical / cylindrical, each with its own inlined per-cell algebra)
+into a unified algorithm that branches on a single boolean
+(:attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.requires_upstream_angular_state`)
+exposed by :class:`~orpheus.sn.geometry.SNMesh.reduced` (the
+:class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
+the mesh consumes from Wave B Issue #6 / Wave D Round 1):
 
-- **1D cumprod**: for ny=1, mu_y=0 (Gauss-Legendre). Solves the
-  recurrence via cumulative products — O(nc) numpy ops, ~ms.
-- **2D wavefront**: for general 2D. Sweeps cells along anti-diagonals
-  (i+j=const), vectorized within each diagonal.
+* **Cartesian** (``requires_upstream_angular_state is False``)
+  — 1-D + 2-D Cartesian.  Preserves the historical 1-D cumprod fast
+  path (algebraic identity for Diamond Difference, gated by GL1D +
+  isotropic) inside the unified Cartesian sweep; falls back to the
+  2-D wavefront diagonal scheduling otherwise.
+* **Curvilinear** (``requires_upstream_angular_state is True``)
+  — spherical + cylindrical via the same μ-marching algorithm,
+  parameterized by ``sn_mesh.cell_update.update(streaming_terms,
+  total_xs, source, upstream_state)`` from the Wave C
+  :class:`~orpheus.sn.spatial.cell_update.CellUpdate` Protocol.  The
+  cylindrical per-level loop structure is preserved.
 
-Both paths use the precomputed streaming stencil from :class:`SNMesh`
-to avoid redundant per-ordinate per-cell divisions.
+The bit-identical contract — non-negotiable
+===========================================
+
+When ``sn_mesh.cell_update`` is :class:`DiamondDifference` (the
+default), the 11 frozen regression snapshots at
+``tests/sn/regression/snapshots/`` MUST stay ``np.array_equal``-bit-
+identical to the pre-rewrite baseline.  The contract is preserved
+because:
+
+* The 1-D cumprod fast path is reused **verbatim** as a vectorised
+  optimisation that is algebraically equivalent to a per-cell DD
+  call sequence — the algebra is preserved at the operation level
+  (same operands in the same order), so the per-cell average flux
+  matches the per-cell DD output to 1 ULP.
+* The 2-D wavefront path is reused **verbatim** with the inlined DD
+  math for now.  Wave C-extension's introduction of LD / EC / Step
+  strategies will require parameterising 2-D wavefront via
+  ``cell_update.update()`` while preserving anti-diagonal
+  vectorisation; that work is out of scope here per the
+  algebra-of-record discipline (no behaviour change beyond unified
+  dispatch for Wave D).
+* The curvilinear sweeps invoke ``sn_mesh.cell_update.update(...)``
+  per cell.  :class:`DiamondDifference` is a bit-identical
+  extraction of the inlined sweep math (Wave C verified via
+  hand-calc tests using ``np.array_equal``); the per-cell
+  orchestration here matches the pre-rewrite construction order
+  for ``streaming_terms``, ``total_xs``, ``source``, and
+  ``upstream_state`` so 1-ULP equality holds.
+
+ERR-026 stays open through Wave D
+=================================
+
+The curvilinear-sweep one-directional WDD closure
+:math:`\psi_{n+1/2} = (\overline{\psi} - (1-\tau_{mm})\,
+\psi_{n-1/2})/\tau_{mm}` is reproduced **bit-identically** by
+:class:`DiamondDifference` (extracted from the original sweep).
+The Wave-E migration of :func:`SNSolver.solve_sn_fixed_source` to
+Krylov-on-``apply`` is what closes ERR-026; the unified sweep
+preserves the bug bit-identically as the dispatch consolidation
+keeps backward compatibility intact.
+
+References
+==========
+
+* Bailey, T. S., Adams, M. L., Yang, B., & Zika, M. R. (2009).
+  *A piecewise linear finite element discretization of the diffusion
+  equation for arbitrary polyhedral grids.*  JCP 227, 3738–3757.
+  Eq. 50 (sphere/cylinder dome recursion); Eq. 74 (Morel–Montry
+  closure).
+* Lewis, E. E., & Miller, W. F. (1984).  *Computational Methods of
+  Neutron Transport.*  §4.5 (curvilinear DD); §5.3 (DD, weighted-DD,
+  Step, LD); §6.4 (sweep ordering).
+
+See also
+========
+
+* :class:`~orpheus.sn.spatial.cell_update.CellUpdate` — the
+  Wave C Protocol the curvilinear sweeps dispatch through.
+* :class:`~orpheus.sn.spatial.diamond.DiamondDifference` — the
+  default cell-update strategy; bit-identical extraction of the
+  inlined sweep math.
+* :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
+  — the geometry-layer primitive whose
+  ``requires_upstream_angular_state`` boolean drives the dispatch.
 """
 
 from __future__ import annotations
 
+import dataclasses
 from typing import TYPE_CHECKING
 
 import numpy as np
 
+from orpheus.geometry import CoordSystem
+from orpheus.geometry.reduced_operator import StreamingTerms
+
 from .quadrature import AngularQuadrature
+from .spatial.cell_update import UpstreamState
+from .spatial.diamond import DiamondDifference
 
 if TYPE_CHECKING:
     from .geometry import SNMesh
 
+
+def _streaming_terms_for_inward_sweep(st: StreamingTerms) -> StreamingTerms:
+    """Swap ``face_area_in`` and ``face_area_out`` for an inward (μ<0) sweep.
+
+    The :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
+    factories canonicalise ``face_area_in`` to the **inner** face of the
+    cell (``A[i]``) and ``face_area_out`` to the **outer** face
+    (``A[i+1]``).  This is the correct convention for an outward sweep
+    (centre → boundary), where the inner face is incoming and the outer
+    face is outgoing.
+
+    For an **inward** sweep (boundary → centre, μ < 0 in spherical or
+    η < 0 in cylindrical), the directionality flips: the **outer** face
+    is incoming and the **inner** face is outgoing.  The inlined sweep
+    historically encoded this by reading ``A_in = A[i+1]`` and
+    ``A_out = A[i]`` directly off the face-area array (sweep.py at
+    commit ``2665ea3`` lines 346-347 spherical, lines 512-513
+    cylindrical).
+
+    To preserve bit-identity when dispatching through the
+    :class:`~orpheus.sn.spatial.cell_update.CellUpdate` Protocol, this
+    helper returns a sibling ``StreamingTerms`` with the two face
+    fields swapped — the cell-update strategy then operates on the
+    directionally-correct face semantics without needing to know which
+    way the sweep is marching.
+    """
+    return dataclasses.replace(
+        st,
+        face_area_in=st.face_area_out,
+        face_area_out=st.face_area_in,
+    )
+
+
+def _streaming_terms_with_abs_mu(
+    st: StreamingTerms, abs_mu: float,
+) -> StreamingTerms:
+    """Override ``abs_mu`` on a cylindrical streaming-terms packet.
+
+    :meth:`ReducedStreamingOperator.streaming_terms` for cylindrical
+    geometry is called with ``direction_idx = m_local`` (the within-
+    level azimuthal index) but computes
+    ``abs_mu = abs(quadrature.mu_x[direction_idx])`` — which pulls the
+    wrong global ordinate's :math:`|\\eta|` because cylindrical
+    ``direction_idx`` is a within-level index, not a global ordinate
+    index.  The inlined sweep (sweep.py at commit ``2665ea3`` line
+    489) computed ``abs_eta = abs(quad.mu_x[n])`` correctly using the
+    **global** ordinate index ``n = level_idx[m_local]``.  This helper
+    overrides ``abs_mu`` with the correct global-ordinate value — the
+    remaining curvature fields (alpha, dAw, tau, faces) are already
+    correct because they index by ``(mu_level_idx, direction_idx)``.
+
+    The ``abs_mu`` extraction bug is documented for the geometry layer
+    to fix in a follow-up; the sweep-side override here is the
+    bit-identity-preserving workaround.
+    """
+    return dataclasses.replace(st, abs_mu=abs_mu)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Top-level dispatch
+# ═══════════════════════════════════════════════════════════════════════
 
 def transport_sweep(
     Q: np.ndarray,
@@ -30,49 +173,114 @@ def transport_sweep(
     psi_bc: dict,
     Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Perform one full diamond-difference transport sweep.
+    """Perform one full transport sweep.
 
     Boundary conditions are read from ``sn_mesh`` (resolved at
     construction time from the geometry mesh's :class:`BC` declarations).
+    The cell-update strategy is read from ``sn_mesh.cell_update``
+    (defaults to :class:`DiamondDifference`).
+
+    Dispatch is on
+    ``sn_mesh.reduced.requires_upstream_angular_state``: ``False`` for
+    slab / 2-D Cartesian (no angular redistribution between successive
+    half-angles), ``True`` for spherical / cylindrical (μ-marching with
+    angular redistribution).  For 2-D Cartesian where
+    ``sn_mesh.reduced is None`` the dispatch falls through to
+    Cartesian.
 
     Parameters
     ----------
     Q : (nx, ny, ng) isotropic source density.
     sig_t : (nx, ny, ng) total macroscopic cross section.
-    sn_mesh : SNMesh — augmented geometry with precomputed stencil
-        and resolved boundary conditions.
+    sn_mesh : SNMesh — augmented geometry with precomputed stencil,
+        resolved boundary conditions, and a ``cell_update`` strategy.
     psi_bc : mutable dict storing persistent boundary fluxes
         between outer iterations.
     Q_aniso : (N, nx, ny, ng) per-ordinate anisotropic source (P1+
-        scattering). None for isotropic-only (P0).
+        scattering).  ``None`` for isotropic-only (P0).
 
     Returns
     -------
     angular_flux : (N, nx, ny, ng) angular flux per ordinate.
     scalar_flux : (nx, ny, ng) = Σ_n w_n ψ_n.
     """
-    quad = sn_mesh.quad
-    ny = sn_mesh.ny
-
-    if sn_mesh.curvature == "spherical":
-        return _sweep_1d_spherical(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
-
-    if sn_mesh.curvature == "cylindrical":
-        return _sweep_1d_cylindrical(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
-
-    is_gl_1d = (ny == 1 and np.all(np.abs(quad.mu_y) < 1e-15)
-                and Q_aniso is None)
-
-    if is_gl_1d:
-        return _sweep_1d_cumprod(Q, sig_t, sn_mesh, psi_bc)
-    else:
-        return _sweep_2d_wavefront(
-            Q, sig_t, sn_mesh, psi_bc, Q_aniso,
-        )
+    reduced = sn_mesh.reduced
+    if reduced is not None and reduced.requires_upstream_angular_state:
+        return _curvilinear_sweep(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
+    return _cartesian_sweep(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 1D cumprod path (fast, for GL quadrature on slab)
+# Cartesian dispatch (1-D cumprod fast path or 2-D wavefront)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _cartesian_sweep(
+    Q: np.ndarray,
+    sig_t: np.ndarray,
+    sn_mesh: SNMesh,
+    psi_bc: dict,
+    Q_aniso: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Cartesian dispatch: 1-D cumprod fast path or 2-D wavefront.
+
+    The 1-D cumprod fast path is gated by three preconditions:
+
+    * ``sn_mesh.cell_update`` is :class:`DiamondDifference` — the fast
+      path is an algebraic identity that holds **only** for DD
+      (Lewis & Miller §5.3; the recurrence
+      :math:`\\psi_{\\rm out} = a\\psi_{\\rm in} + b Q` is DD-specific).
+    * Quadrature is 1-D Gauss–Legendre (``ny == 1`` and all ``mu_y``
+      vanish to machine precision).
+    * Source is isotropic (``Q_aniso is None``).
+
+    All three preconditions are needed for the cumprod identity to
+    hold; if any fails, the 2-D wavefront path runs (which handles 1-D
+    cases as a special case of 2-D).
+    """
+    quad = sn_mesh.quad
+    ny = sn_mesh.ny
+
+    is_gl_1d = (
+        ny == 1
+        and np.all(np.abs(quad.mu_y) < 1e-15)
+        and Q_aniso is None
+    )
+    cell_update_is_dd = isinstance(sn_mesh.cell_update, DiamondDifference)
+
+    if is_gl_1d and cell_update_is_dd:
+        return _sweep_1d_cumprod(Q, sig_t, sn_mesh, psi_bc)
+    return _sweep_2d_wavefront(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Curvilinear dispatch (spherical or cylindrical)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _curvilinear_sweep(
+    Q: np.ndarray,
+    sig_t: np.ndarray,
+    sn_mesh: SNMesh,
+    psi_bc: dict,
+    Q_aniso: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Curvilinear dispatch: spherical or cylindrical μ-marching.
+
+    Both branches dispatch per-cell to ``sn_mesh.cell_update.update(
+    streaming_terms, total_xs, source, upstream_state)``.  When
+    ``cell_update`` is :class:`DiamondDifference` (the default), the
+    output is bit-identical to the historical inlined sweep math
+    (Wave C verified).  Wave C-extension will swap in LD / EC / Step
+    strategies without rewriting these orchestration loops.
+    """
+    if sn_mesh.reduced.coord is CoordSystem.SPHERICAL:
+        return _sweep_1d_spherical(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
+    # ``requires_upstream_angular_state == True`` AND ``coord !=
+    # SPHERICAL`` ⇒ cylindrical.
+    return _sweep_1d_cylindrical(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 1D cumprod path (fast, for DD + GL quadrature on slab + isotropic)
 # ═══════════════════════════════════════════════════════════════════════
 
 def _sweep_1d_cumprod(
@@ -86,6 +294,16 @@ def _sweep_1d_cumprod(
 
     Uses the precomputed streaming stencil from SNMesh:
     streaming_x[n, i] = 2|μ_x[n]| / dx[i].
+
+    This path is an **algebraic identity** for Diamond Difference: the
+    cumprod-of-``a`` + cumsum-of-``s/cumprod_a`` evaluates the per-cell
+    DD recurrence over a whole row in vectorised numpy ops.  The
+    operation order matches :func:`_solve_recurrence` /
+    :func:`_outgoing` so the per-cell DD call sequence (Wave C
+    :class:`DiamondDifference`) and this fast path produce identical
+    bits.  The 1-D cumprod path is reused verbatim from the
+    pre-Wave-D sweep at the operation level — preserving 1 ULP
+    equality is the bit-identity contract for the campaign.
     """
     dx = sn_mesh.dx
     nx = len(dx)
@@ -245,8 +463,8 @@ def _sweep_1d_spherical(
     r"""Spherical 1-D sweep with geometry-weighted angular redistribution.
 
     Processes ordinates sequentially from most negative :math:`\mu` to
-    most positive, applying angular redistribution via the :math:`\alpha`
-    coefficients at each cell.
+    most positive, dispatching per-cell to
+    ``sn_mesh.cell_update.update(...)`` for the closure algebra.
 
     The balance equation includes a geometry factor
     :math:`\Delta A_i / w_n` on the redistribution term
@@ -263,6 +481,13 @@ def _sweep_1d_spherical(
     The :math:`\alpha` coefficients are computed as
     :math:`\alpha_{n+1/2} = \alpha_{n-1/2} - w_n \mu_n` and form a
     non-negative dome for μ-sorted ordinates.
+
+    The cell-update math itself lives in
+    ``sn_mesh.cell_update.update(...)`` — this orchestrator only
+    handles the sweep ordering, boundary conditions, and source
+    construction.  When ``cell_update`` is :class:`DiamondDifference`
+    (the default), the output is bit-identical to the pre-Wave-D
+    inlined math (Wave C verified).
     """
     nx = sn_mesh.nx
     ng = Q.shape[2]
@@ -270,16 +495,19 @@ def _sweep_1d_spherical(
     N = quad.N
     mu = quad.mu_x
     weights = quad.weights
-    ref = quad.reflection_index("x")
 
     Q_1d = Q[:, 0, :]          # (nx, ng)
     sig_t_1d = sig_t[:, 0, :]  # (nx, ng)
 
-    A = sn_mesh.face_areas     # (nx+1,) surface areas at cell faces
-    V = sn_mesh.volumes[:, 0]  # (nx,) cell volumes
-    alpha = sn_mesh.alpha_half  # (N+1,) non-negative dome
-    dAw = sn_mesh.redist_dAw   # (nx, N) precomputed ΔA_i/w_n
-    tau = sn_mesh.tau_mm       # (N,) Morel–Montry angular weights
+    # Read connection coefficients via the canonical ReducedStreamingOperator
+    # accessors (NOT the deprecated SNMesh.alpha_half / .redist_dAw / .tau_mm
+    # properties, which emit DeprecationWarning).  The arrays here are the
+    # same objects the deprecated properties would return — bit-identical
+    # numerical values.
+    reduced = sn_mesh.reduced
+    A = reduced.face_areas       # (nx+1,) surface areas at cell faces
+    V = sn_mesh.volumes[:, 0]    # (nx,) cell volumes
+    cell_update = sn_mesh.cell_update
 
     # Boundary condition at the outer face (r = R) is a tensor-
     # decomposed :class:`~orpheus.geometry.boundary.ResolvedBC`. The
@@ -320,13 +548,7 @@ def _sweep_1d_spherical(
 
     for n in range(N):
         mu_n = mu[n]
-        abs_mu = abs(mu_n)
         w_n = weights[n]
-        alpha_in = alpha[n]       # α_{n-1/2} ≥ 0 (dome)
-        alpha_out = alpha[n + 1]  # α_{n+1/2} ≥ 0 (dome)
-        tau_n = tau[n]            # M-M angular closure weight
-        c_out = alpha_out / tau_n               # denom coefficient
-        c_in = (1.0 - tau_n) / tau_n * alpha_out + alpha_in  # numer coefficient
 
         # Per-ordinate volumetric source
         QV = QV_iso
@@ -343,27 +565,33 @@ def _sweep_1d_spherical(
             psi_spatial_in = psi_in_full[n]
 
             for i in range(nx - 1, -1, -1):
-                A_in = A[i + 1]   # incoming face (outer)
-                A_out = A[i]      # outgoing face (inner)
-                dA_w = dAw[i, n]  # precomputed geometry factor
+                # Build the per-(cell, direction) streaming-terms packet
+                # via the canonical ReducedStreamingOperator extraction.
+                # For inward sweeps, swap face_area_in/out so the
+                # outer face is the incoming and the inner face is the
+                # outgoing — matching the inlined sweep's convention
+                # (sweep.py:346-347 at commit 2665ea3).
+                st = _streaming_terms_for_inward_sweep(
+                    reduced.streaming_terms(cell_idx=i, direction_idx=n)
+                )
+                upstream = UpstreamState(
+                    spatial_upstream=psi_spatial_in,
+                    angular_upstream=psi_angle[i],
+                )
+                result = cell_update.update(
+                    streaming_terms=st,
+                    total_xs=sig_t_1d[i],
+                    source=QV[i],
+                    upstream_state=upstream,
+                )
 
-                denom = (2.0 * abs_mu * A_out
-                         + dA_w * c_out
-                         + sig_t_1d[i] * V[i])
-                numer = (QV[i]
-                         + abs_mu * (A_in + A_out) * psi_spatial_in
-                         + dA_w * c_in * psi_angle[i])
-
-                psi = numer / denom
-
-                # WDD closures
-                psi_spatial_out = 2.0 * psi - psi_spatial_in
-                psi_angle[i] = (psi - (1.0 - tau_n) * psi_angle[i]) / tau_n
+                psi = result.cell_average_flux
+                psi_angle[i] = result.outgoing_angular_state
 
                 angular_flux[n, i, 0, :] = psi
                 scalar_flux[i] += w_n * psi
 
-                psi_spatial_in = psi_spatial_out
+                psi_spatial_in = result.outgoing_spatial_flux
 
         else:
             # Outward sweep: centre → outer boundary
@@ -371,30 +599,32 @@ def _sweep_1d_spherical(
             psi_spatial_in = np.zeros(ng)
 
             for i in range(nx):
-                A_in = A[i]       # incoming face (inner)
-                A_out = A[i + 1]  # outgoing face (outer)
-                dA_w = dAw[i, n]
+                # Outward sweep: streaming_terms canonical convention
+                # (face_area_in = A[i] inner, face_area_out = A[i+1]
+                # outer) matches the inlined-sweep "outward branch"
+                # face semantics directly — no swap needed.
+                st = reduced.streaming_terms(cell_idx=i, direction_idx=n)
+                upstream = UpstreamState(
+                    spatial_upstream=psi_spatial_in,
+                    angular_upstream=psi_angle[i],
+                )
+                result = cell_update.update(
+                    streaming_terms=st,
+                    total_xs=sig_t_1d[i],
+                    source=QV[i],
+                    upstream_state=upstream,
+                )
 
-                denom = (2.0 * abs_mu * A_out
-                         + dA_w * c_out
-                         + sig_t_1d[i] * V[i])
-                numer = (QV[i]
-                         + abs_mu * (A_in + A_out) * psi_spatial_in
-                         + dA_w * c_in * psi_angle[i])
-
-                psi = numer / denom
-
-                # WDD closures
-                psi_spatial_out = 2.0 * psi - psi_spatial_in
-                psi_angle[i] = (psi - (1.0 - tau_n) * psi_angle[i]) / tau_n
+                psi = result.cell_average_flux
+                psi_angle[i] = result.outgoing_angular_state
 
                 angular_flux[n, i, 0, :] = psi
                 scalar_flux[i] += w_n * psi
 
-                psi_spatial_in = psi_spatial_out
+                psi_spatial_in = result.outgoing_spatial_flux
 
             # Store outgoing flux at outer boundary for reflective BC
-            bc_outer[n] = psi_spatial_out
+            bc_outer[n] = psi_spatial_in
 
     return angular_flux, scalar_flux[:, None, :]  # restore ny=1 dim
 
@@ -414,9 +644,8 @@ def _sweep_1d_cylindrical(
 
     For each μ-level *p*, processes azimuthal ordinates sequentially
     from most-inward (:math:`\eta = -\sin\theta`) to most-outward
-    (:math:`\eta = +\sin\theta`), applying the redistribution
-    :math:`\alpha_{p,m+1/2}` which couples successive azimuthal
-    directions on that level.
+    (:math:`\eta = +\sin\theta`), dispatching per-cell to
+    ``sn_mesh.cell_update.update(...)`` for the closure algebra.
 
     The balance equation includes a geometry factor
     :math:`\Delta A_i / w_m` on the redistribution term
@@ -433,19 +662,26 @@ def _sweep_1d_cylindrical(
     The :math:`\alpha` coefficients are computed from the radial
     direction cosine :math:`\eta` (Bailey et al. Eq. 50) and form a
     non-negative dome, so the denominator is unconditionally positive.
+
+    The cell-update math itself lives in
+    ``sn_mesh.cell_update.update(...)``.  The pure-azimuthal degenerate
+    case (``abs_mu < 1e-15``) is signalled by the strategy via
+    ``CellResult.outgoing_spatial_flux is None`` — the orchestrator
+    skips the face-flux update accordingly.
     """
     nx = sn_mesh.nx
     ng = Q.shape[2]
     quad = sn_mesh.quad
     N = quad.N
     weights = quad.weights
-    ref = quad.reflection_index("x")
 
     Q_1d = Q[:, 0, :]          # (nx, ng)
     sig_t_1d = sig_t[:, 0, :]  # (nx, ng)
 
-    A = sn_mesh.face_areas     # (nx+1,) = 2πr at edges
-    V = sn_mesh.volumes[:, 0]  # (nx,) cell volumes
+    reduced = sn_mesh.reduced
+    A = reduced.face_areas       # (nx+1,) = 2πr at edges
+    V = sn_mesh.volumes[:, 0]    # (nx,) cell volumes
+    cell_update = sn_mesh.cell_update
 
     # Boundary condition at the outer face (r = R) is a tensor-
     # decomposed :class:`~orpheus.geometry.boundary.ResolvedBC`. The
@@ -475,9 +711,6 @@ def _sweep_1d_cylindrical(
 
     # Process each μ-level independently
     for p, level_idx in enumerate(quad.level_indices):
-        alpha = sn_mesh.alpha_per_level[p]  # (M+1,) non-negative dome
-        dAw = sn_mesh.redist_dAw_per_level[p]  # (nx, M) precomputed
-        tau_level = sn_mesh.tau_mm_per_level[p]  # (M,) M-M weights
         M = len(level_idx)
 
         # Azimuthal "face flux" between successive ordinates on this level.
@@ -489,11 +722,6 @@ def _sweep_1d_cylindrical(
             eta_n = quad.mu_x[n]    # radial direction cosine
             abs_eta = abs(eta_n)
             w_n = weights[n]
-            alpha_in = alpha[m_local]       # α_{m-1/2} ≥ 0
-            alpha_out = alpha[m_local + 1]  # α_{m+1/2} ≥ 0
-            tau_m = tau_level[m_local]       # M-M angular closure weight
-            c_out = alpha_out / tau_m
-            c_in = (1.0 - tau_m) / tau_m * alpha_out + alpha_in
 
             # Per-ordinate volumetric source
             QV = QV_iso
@@ -509,77 +737,139 @@ def _sweep_1d_cylindrical(
                 psi_spatial_in = psi_in_full[n]
 
                 for i in range(nx - 1, -1, -1):
-                    A_in = A[i + 1]
-                    A_out = A[i]
-                    dA_w = dAw[i, m_local]  # precomputed geometry factor
+                    # Inward sweep: swap face_area_in/out so the outer
+                    # face is incoming, AND override abs_mu with the
+                    # global-ordinate :math:`|\eta|` (the cylindrical
+                    # streaming_terms() extraction uses the wrong
+                    # ordinate index for abs_mu — see
+                    # :func:`_streaming_terms_with_abs_mu`).  Bit-
+                    # identical to the inlined-sweep cylindrical
+                    # inward branch (sweep.py:489-490, 512-513 at
+                    # commit 2665ea3).
+                    st = _streaming_terms_for_inward_sweep(
+                        _streaming_terms_with_abs_mu(
+                            reduced.streaming_terms(
+                                cell_idx=i,
+                                direction_idx=m_local,
+                                mu_level_idx=p,
+                            ),
+                            abs_eta,
+                        )
+                    )
+                    upstream = UpstreamState(
+                        spatial_upstream=psi_spatial_in,
+                        angular_upstream=psi_angle[i],
+                    )
+                    result = cell_update.update(
+                        streaming_terms=st,
+                        total_xs=sig_t_1d[i],
+                        source=QV[i],
+                        upstream_state=upstream,
+                    )
 
-                    denom = (2.0 * abs_eta * A_out
-                             + dA_w * c_out
-                             + sig_t_1d[i] * V[i])
-                    numer = (QV[i]
-                             + abs_eta * (A_in + A_out) * psi_spatial_in
-                             + dA_w * c_in * psi_angle[i])
-
-                    psi = numer / denom
-
-                    psi_spatial_out = 2.0 * psi - psi_spatial_in
-                    psi_angle[i] = (psi - (1.0 - tau_m) * psi_angle[i]) / tau_m
+                    psi = result.cell_average_flux
+                    psi_angle[i] = result.outgoing_angular_state
 
                     angular_flux[n, i, 0, :] = psi
                     scalar_flux[i] += w_n * psi
 
-                    psi_spatial_in = psi_spatial_out
+                    psi_spatial_in = result.outgoing_spatial_flux
 
             elif abs_eta < 1e-15:
                 # Pure azimuthal ordinate (η≈0): no radial streaming.
+                # The cell-update strategy returns
+                # ``outgoing_spatial_flux=None`` here; skip the
+                # face-flux update accordingly.
                 for i in range(nx):
-                    dA_w = dAw[i, m_local]
+                    # Override abs_mu with the global-ordinate
+                    # :math:`|\eta|` — see
+                    # :func:`_streaming_terms_with_abs_mu` for the
+                    # cylindrical streaming-terms abs_mu bug.
+                    st = _streaming_terms_with_abs_mu(
+                        reduced.streaming_terms(
+                            cell_idx=i,
+                            direction_idx=m_local,
+                            mu_level_idx=p,
+                        ),
+                        abs_eta,
+                    )
+                    # ``spatial_upstream`` is unused by the degenerate
+                    # branch (no |μ|·A·ψ_in term); pass a dummy zero
+                    # buffer of the right shape to honour the contract.
+                    upstream = UpstreamState(
+                        spatial_upstream=np.zeros(ng),
+                        angular_upstream=psi_angle[i],
+                    )
+                    result = cell_update.update(
+                        streaming_terms=st,
+                        total_xs=sig_t_1d[i],
+                        source=QV[i],
+                        upstream_state=upstream,
+                    )
 
-                    denom = dA_w * c_out + sig_t_1d[i] * V[i]
-                    numer = (QV[i]
-                             + dA_w * c_in * psi_angle[i])
-
-                    psi = numer / denom
-                    psi_angle[i] = (psi - (1.0 - tau_m) * psi_angle[i]) / tau_m
+                    psi = result.cell_average_flux
+                    psi_angle[i] = result.outgoing_angular_state
 
                     angular_flux[n, i, 0, :] = psi
                     scalar_flux[i] += w_n * psi
+                    # No face-flux update — the strategy signals this via
+                    # ``result.outgoing_spatial_flux is None``.
 
             else:
-                # Outward sweep: centre → outer
+                # Outward sweep: centre → outer.  No face swap, but
+                # override abs_mu with the global-ordinate
+                # :math:`|\eta|` — see
+                # :func:`_streaming_terms_with_abs_mu` for the
+                # cylindrical streaming-terms abs_mu bug.
                 psi_spatial_in = np.zeros(ng)
 
                 for i in range(nx):
-                    A_in = A[i]
-                    A_out = A[i + 1]
-                    dA_w = dAw[i, m_local]
+                    st = _streaming_terms_with_abs_mu(
+                        reduced.streaming_terms(
+                            cell_idx=i,
+                            direction_idx=m_local,
+                            mu_level_idx=p,
+                        ),
+                        abs_eta,
+                    )
+                    upstream = UpstreamState(
+                        spatial_upstream=psi_spatial_in,
+                        angular_upstream=psi_angle[i],
+                    )
+                    result = cell_update.update(
+                        streaming_terms=st,
+                        total_xs=sig_t_1d[i],
+                        source=QV[i],
+                        upstream_state=upstream,
+                    )
 
-                    denom = (2.0 * abs_eta * A_out
-                             + dA_w * c_out
-                             + sig_t_1d[i] * V[i])
-                    numer = (QV[i]
-                             + abs_eta * (A_in + A_out) * psi_spatial_in
-                             + dA_w * c_in * psi_angle[i])
-
-                    psi = numer / denom
-
-                    psi_spatial_out = 2.0 * psi - psi_spatial_in
-                    psi_angle[i] = (psi - (1.0 - tau_m) * psi_angle[i]) / tau_m
+                    psi = result.cell_average_flux
+                    psi_angle[i] = result.outgoing_angular_state
 
                     angular_flux[n, i, 0, :] = psi
                     scalar_flux[i] += w_n * psi
 
-                    psi_spatial_in = psi_spatial_out
+                    psi_spatial_in = result.outgoing_spatial_flux
 
                 # Store outgoing at outer boundary for reflective BC
-                bc_outer[n] = psi_spatial_out
+                bc_outer[n] = psi_spatial_in
 
     return angular_flux, scalar_flux[:, None, :]  # restore ny=1 dim
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 2D wavefront path (vectorized along anti-diagonals)
+# 2D wavefront path (vectorized along anti-diagonals; inlined DD math)
 # ═══════════════════════════════════════════════════════════════════════
+#
+# The 2-D wavefront sweep retains its inlined DD math.  Parameterising
+# anti-diagonal-vectorised cell updates by the
+# :class:`~orpheus.sn.spatial.cell_update.CellUpdate` Protocol while
+# preserving 1-ULP equality is the open architectural problem for
+# Wave C-extension's LD / EC / Step rollout — the per-cell call shape
+# would need to accept ``(n_diag, ng)`` slice arguments rather than
+# the contract's ``(ng,)`` per-cell shape.  Wave D's gating contract
+# is bit-identity for ``cell_update = DiamondDifference``; the inlined
+# DD math here meets that contract by construction.
 
 def _sweep_2d_wavefront(
     Q: np.ndarray,
@@ -595,6 +885,15 @@ def _sweep_2d_wavefront(
     streaming_y[n, j] = 2|μ_y[n]| / dy[j].
 
     Boundary conditions are read from ``sn_mesh.bc_xmin`` etc.
+
+    The per-cell DD math is inlined here (rather than dispatched via
+    ``sn_mesh.cell_update.update(...)``) because anti-diagonal
+    vectorisation operates on ``(n_diag, ng)`` cell slices, a shape
+    the per-cell ``CellUpdate`` Protocol does not currently accept.
+    Wave C-extension will resolve this when LD / EC / Step strategies
+    land — the Protocol's vectorisation contract is the open design
+    point.  For Wave D, the inlined DD math is bit-identical to a
+    per-cell :class:`DiamondDifference` call sequence by construction.
     """
     dx = sn_mesh.dx
     dy = sn_mesh.dy

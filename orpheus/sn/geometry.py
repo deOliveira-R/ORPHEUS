@@ -30,6 +30,8 @@ from orpheus.geometry.reduced_operator import (
     spherical_streaming,
 )
 from .quadrature import AngularQuadrature
+from .spatial.cell_update import CellUpdate
+from .spatial.diamond import DiamondDifference
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -115,9 +117,21 @@ class SNMesh:
         self,
         mesh: Mesh1D | Mesh2D,
         quadrature: AngularQuadrature,
+        cell_update: CellUpdate | None = None,
     ) -> None:
         self.mesh = mesh
         self.quad = quadrature
+        # Cell-update strategy (Wave D Round 2 Issue #161). Defaults to
+        # :class:`DiamondDifference`, which reproduces the existing
+        # inlined sweep math bit-identically — every regression snapshot
+        # at ``tests/sn/regression/snapshots/`` was generated with DD
+        # and continues to match bit-for-bit when the unified sweep
+        # dispatches via ``self.cell_update.update(...)``.  Wave C-extension
+        # will ship LD / EC / Step strategies; users will then pass
+        # ``cell_update=LinearDiscontinuous()`` etc. at construction time.
+        self.cell_update: CellUpdate = (
+            cell_update if cell_update is not None else DiamondDifference()
+        )
 
         # Normalise to (nx, ny) shaped arrays for both 1-D and 2-D
         if isinstance(mesh, Mesh1D):
