@@ -155,12 +155,14 @@ See also
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import ClassVar, Protocol, runtime_checkable
 
 import numpy as np
 
 from orpheus.geometry.reduced_operator import StreamingTerms
+from orpheus.numerics.registry import RegistryMixin
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -394,9 +396,75 @@ class CellUpdate(Protocol):
         ...
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# CellUpdateBase — concrete ABC carrying RegistryMixin
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class CellUpdateBase(RegistryMixin, ABC):
+    r"""Concrete abstract base for self-registering cell-update strategies.
+
+    Round 1 of Wave C shipped :class:`CellUpdate` as a
+    ``runtime_checkable`` Protocol so concrete strategies could be
+    matched by structural typing without inheritance. Issue 9.6 adds
+    :class:`CellUpdateBase` as a parallel **concrete ABC** layered on
+    top of :class:`RegistryMixin`: strategies that inherit it
+    self-register under their ``key=`` class-creation kwarg, gaining
+    name-keyed lookup via :meth:`create`. The Protocol stays — third-
+    party / synthetic strategies (e.g. test mocks) that do not want to
+    inherit can still satisfy the contract by providing the right
+    methods.
+
+    Subclasses MUST declare:
+
+    * ``is_linear: ClassVar[bool]`` — whether the closure is linear
+      in the inputs (Diamond Difference is linear; weighted-DD with a
+      flux-dependent weight is not).
+    * ``is_positivity_preserving: ClassVar[bool]`` — whether
+      non-negative inputs guarantee non-negative outputs (Step is
+      positivity-preserving; DD is not).
+    * :meth:`update` — the per-cell algorithm.
+
+    Notes
+    -----
+
+    Adding a new strategy is now a one-line edit::
+
+        class Step(CellUpdateBase, key="step"):
+            is_linear: ClassVar[bool] = True
+            is_positivity_preserving: ClassVar[bool] = True
+
+            def update(self, visit, total_xs, source, upstream_state):
+                ...
+
+    No registry insert; ``CellUpdateBase.create("step")`` is
+    immediately callable.
+    """
+
+    registry: ClassVar[dict[str, type["CellUpdateBase"]]] = {}
+
+    is_linear: ClassVar[bool]
+    is_positivity_preserving: ClassVar[bool]
+
+    @classmethod
+    def _registry_base(cls) -> type:
+        return CellUpdateBase
+
+    @abstractmethod
+    def update(
+        self,
+        visit: CellVisit,
+        total_xs: np.ndarray,
+        source: np.ndarray,
+        upstream_state: UpstreamState,
+    ) -> CellResult:
+        ...
+
+
 __all__ = [
     "CellResult",
     "CellUpdate",
+    "CellUpdateBase",
     "CellVisit",
     "UpstreamState",
 ]

@@ -44,25 +44,26 @@ Mixed and partial-current boundaries are **rank-N** sums of the above
 primitives:
 
 * :class:`MixedBoundaryOperator` — a list of ``(weight, BoundaryOperator)`` pairs whose
-  ``apply_to_incoming`` is the linear combination of the components.
+  ``apply`` is the linear combination of the components.
   ``MixedBoundaryOperator([(0.3, SpecularBoundaryOperator), (0.7, WhiteBoundaryOperator)])`` realises the standard
   Marshak mixed boundary (Bell & Glasstone 1970, §1.5).
 
-The protocol :class:`BoundaryOperator` is what production solvers consume.
-Each solver's ``BC_REGISTRY`` factory returns a concrete
-:class:`BoundaryOperator` instance from a solver-agnostic
-:class:`~orpheus.geometry.mesh.BC` declaration; the sweep then calls
-``resolved.apply_to_incoming(angular_flux_outgoing, quadrature)`` with
-no string-kind branching at the call site.
+The abstract base :class:`BoundaryOperator` is what production solvers
+consume. Issue 9.6 lifted it from a duck-typed ``Protocol`` into a
+concrete ``ABC`` inheriting :class:`LinearOperatorMixin` and
+:class:`RegistryMixin`: each concrete subtype self-registers under its
+``key=`` class-creation kwarg, gains the operator-algebra dunders
+(``+`` / ``-`` / ``*`` / ``@``), and can be looked up by string key
+via :meth:`BoundaryOperator.create`. The ``apply`` method (renamed
+from the directional ``apply_to_incoming`` it replaced) is the
+canonical entry point; sweeps and operators call ``bc.apply(outgoing,
+quadrature)`` with no string-kind branching at the call site.
 
-The decomposition framing pays off architecturally because
-multi-region interfaces, partial-current couplings, and asymmetric
-left/right boundaries are all instances of the *same* algebra: pick
-your geometric operator, pick your amplitude, sum. White, periodic,
-and albedo BCs are added in this module as primitives even though
-they are not yet wired into :func:`~orpheus.sn.solver.solve_sn` —
-they ship as building blocks that downstream waves of the SN reshape
-campaign can plumb into the sweep without further protocol work.
+Specular reflection ships a load-bearing :meth:`apply_transpose` —
+the index-permutation it realises is its own inverse for clean axis
+reflections, so the transpose acts as the same permutation scaled by
+``albedo``. The other concrete subtypes ship ``apply`` only; their
+transposes can be added when a consumer demands them.
 
 References
 ----------
@@ -75,23 +76,31 @@ References
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol, Sequence, runtime_checkable
+from typing import TYPE_CHECKING, ClassVar, Optional, Sequence
 
 import numpy as np
 
+from orpheus.numerics.operator import (
+    CAP_APPLY,
+    CAP_APPLY_TRANSPOSE,
+    LinearOperatorMixin,
+)
+from orpheus.numerics.registry import RegistryMixin
+
 if TYPE_CHECKING:
+    from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.quadrature import AngularQuadrature
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Protocol
+# Abstract base
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@runtime_checkable
-class BoundaryOperator(Protocol):
-    r"""Protocol for a tensor-decomposed boundary condition.
+class BoundaryOperator(LinearOperatorMixin, RegistryMixin, ABC):
+    r"""Abstract base for a tensor-decomposed boundary condition.
 
     A :class:`BoundaryOperator` is the runtime representation of the operator
 
@@ -102,27 +111,77 @@ class BoundaryOperator(Protocol):
     that consumes the outgoing angular flux at a face and produces the
     incoming angular flux. Concrete implementations may be **rank-1**
     (a single :math:`G \otimes A` term: vacuum, specular, white,
-    periodic, albedo) or **rank-N** (:class:`MixedBoundaryOperator` — a sum of the
-    rank-1 primitives).
+    periodic, albedo) or **rank-N** (:class:`MixedBoundaryOperator` —
+    a sum of the rank-1 primitives).
 
-    The :class:`~orpheus.sn.quadrature.AngularQuadrature` argument lets
-    each concrete BC reach into the quadrature's structural metadata
-    (``reflection_index(axis)``, weights, level structure) without the
-    Protocol exposing those as required attributes — the responsibility
-    for being able to query the quadrature lives in the BC, not in
-    every consumer.
+    The :class:`~orpheus.sn.quadrature.AngularQuadrature` argument
+    lets each concrete BC reach into the quadrature's structural
+    metadata (``reflection_index(axis)``, weights, level structure)
+    without the contract exposing those as required attributes — the
+    responsibility for being able to query the quadrature lives in
+    the BC, not in every consumer.
+
+    Issue 9.6 lift
+    ==============
+
+    The earlier ``BoundaryOperator(Protocol)`` declaration was
+    duck-typed; Issue 9.6 lifted it into a concrete ABC that:
+
+    * inherits :class:`LinearOperatorMixin` so concrete BCs
+      participate in the operator algebra (``+`` / ``*`` / ``@``);
+    * inherits :class:`RegistryMixin` so concrete BCs self-register
+      under a string ``key=`` class-creation kwarg, accessible via
+      :meth:`create`;
+    * canonicalises the application method as :meth:`apply` (the
+      Issue 9.5 rename retained the old ``apply_to_incoming`` name;
+      Issue 9.6 dropped it in favour of the operator-algebra
+      vocabulary).
+
+    Each concrete subtype declares its :pydata:`capabilities`
+    frozenset. The minimum contract is ``frozenset({"apply"})``;
+    :class:`SpecularBoundaryOperator` ships ``apply_transpose`` in
+    addition (load-bearing for sensitivity-analysis adjoint pipelines).
     """
 
-    def apply_to_incoming(
+    registry: ClassVar[dict[str, type["BoundaryOperator"]]] = {}
+    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
+
+    @classmethod
+    def _registry_base(cls) -> type:
+        return BoundaryOperator
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        """Boundary-trace space the BC consumes (outgoing flux).
+
+        Returns ``None`` on the abstract base — concrete subtypes
+        whose trace dimensions are determined at construction time
+        may override to expose them. The Issue 9.6 ship-state leaves
+        this as ``None`` for backward compatibility; the function
+        spaces become non-trivial when an SN solver explicitly
+        constructs them with the live ordinate / group counts.
+        """
+        return None
+
+    @property
+    def range(self) -> Optional["FunctionSpace"]:
+        """Boundary-trace space the BC produces (incoming flux).
+
+        See :attr:`domain` for the ``None`` semantics.
+        """
+        return None
+
+    @abstractmethod
+    def apply(
         self,
-        angular_flux_outgoing: np.ndarray,
+        psi_out: np.ndarray,
         quadrature: "AngularQuadrature",
     ) -> np.ndarray:
         r"""Compute the incoming angular flux from the outgoing.
 
         Parameters
         ----------
-        angular_flux_outgoing : np.ndarray
+        psi_out : np.ndarray
             Angular flux at the boundary face, indexed over all
             ordinates of ``quadrature``. Shape ``(N_ord, ...)`` where
             the trailing axes are typically energy groups.
@@ -133,9 +192,9 @@ class BoundaryOperator(Protocol):
         Returns
         -------
         np.ndarray
-            Incoming angular flux at the boundary face, same shape as
-            ``angular_flux_outgoing``. For ordinates whose direction
-            cosine is *outgoing* at this face (and thus do not have an
+            Incoming angular flux at the boundary face, same shape
+            as ``psi_out``. For ordinates whose direction cosine is
+            *outgoing* at this face (and thus do not have an
             incoming value), the returned entries are zero — sweeps
             consume only the incoming entries.
         """
@@ -148,7 +207,7 @@ class BoundaryOperator(Protocol):
 
 
 @dataclass(frozen=True)
-class VacuumBoundaryOperator:
+class VacuumBoundaryOperator(BoundaryOperator, key="vacuum"):
     r"""Vacuum boundary: :math:`R = 0`.
 
     The empty sum in the tensor decomposition: no incoming flux,
@@ -156,11 +215,13 @@ class VacuumBoundaryOperator:
     :eq:`bc-tensor-decomposition`.
     """
 
+    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
+
     #: String tag for legacy string-kind comparisons. The Wave B
     #: refactor preserves the existing BC-resolution test contract
     #: (``sn_mesh.bc_right == "vacuum"`` continues to evaluate True)
     #: while consumers transition to direct
-    #: :meth:`apply_to_incoming` calls. Wave C/D may drop this.
+    #: :meth:`apply` calls.
     kind: str = "vacuum"
 
     def __eq__(self, other: object) -> bool:
@@ -173,16 +234,16 @@ class VacuumBoundaryOperator:
     def __hash__(self) -> int:
         return hash(("VacuumBoundaryOperator",))
 
-    def apply_to_incoming(
+    def apply(
         self,
-        angular_flux_outgoing: np.ndarray,
+        psi_out: np.ndarray,
         quadrature: "AngularQuadrature",
     ) -> np.ndarray:
-        return np.zeros_like(angular_flux_outgoing)
+        return np.zeros_like(psi_out)
 
 
 @dataclass(frozen=True)
-class SpecularBoundaryOperator:
+class SpecularBoundaryOperator(BoundaryOperator, key="reflective"):
     r"""Specular reflection with optional albedo.
 
     Tensor decomposition :math:`(G_{\text{refl}}, \alpha)` where
@@ -195,6 +256,18 @@ class SpecularBoundaryOperator:
     the angular measure under the reflection map, with the Jacobian
     convention ``|R| = 1`` since reflections are isometries.
 
+    Transpose
+    ---------
+
+    For axis reflections, the index permutation is its own inverse:
+    applying the reflection twice returns each ordinate to itself.
+    This makes :math:`G_{\text{refl}}^T = G_{\text{refl}}` and so the
+    transpose action is identical to :meth:`apply`. The
+    :pydata:`capabilities` set advertises ``apply_transpose`` —
+    consumed by the sensitivity-analysis adjoint pipeline (which
+    needs to assemble :math:`A^* \, y` for an operator whose
+    boundary slot is reflective).
+
     Parameters
     ----------
     axis : str
@@ -206,14 +279,18 @@ class SpecularBoundaryOperator:
         Specular albedo. Defaults to 1 (perfect reflection).
     """
 
+    capabilities: ClassVar[frozenset[str]] = frozenset(
+        {CAP_APPLY, CAP_APPLY_TRANSPOSE}
+    )
+
     axis: str = "x"
     albedo: float = 1.0
 
     #: String tag for legacy string-kind comparisons. The default
-    #: ``albedo == 1.0`` SpecularBoundaryOperator (the standard ``BC.reflective``
-    #: case) compares equal to the string ``"reflective"``; tagged
-    #: SpecularBoundaryOperator instances with ``albedo != 1`` compare equal to
-    #: ``"partial"`` instead.
+    #: ``albedo == 1.0`` SpecularBoundaryOperator (the standard
+    #: ``BC.reflective`` case) compares equal to the string
+    #: ``"reflective"``; tagged SpecularBoundaryOperator instances
+    #: with ``albedo != 1`` compare equal to ``"partial"`` instead.
     @property
     def kind(self) -> str:
         return "reflective" if self.albedo == 1.0 else "partial"
@@ -230,17 +307,45 @@ class SpecularBoundaryOperator:
     def __hash__(self) -> int:
         return hash(("SpecularBoundaryOperator", self.axis, self.albedo))
 
-    def apply_to_incoming(
+    def apply(
         self,
-        angular_flux_outgoing: np.ndarray,
+        psi_out: np.ndarray,
         quadrature: "AngularQuadrature",
     ) -> np.ndarray:
         ref = quadrature.reflection_index(self.axis)
-        return self.albedo * angular_flux_outgoing[ref]
+        return self.albedo * psi_out[ref]
+
+    def apply_transpose(
+        self,
+        psi_in: np.ndarray,
+        quadrature: "AngularQuadrature",
+    ) -> np.ndarray:
+        r"""Transpose action of specular reflection.
+
+        Index permutations under axis reflection are involutions:
+        applying the reflection twice maps each ordinate back to
+        itself. Hence :math:`G_{\text{refl}}^T = G_{\text{refl}}`
+        and the transpose acts as the same permutation scaled by
+        :math:`\alpha`. Verified by the reciprocity test in
+        ``tests/geometry/test_boundary.py``:
+
+        .. math::
+
+           \langle B(\psi_{\text{out}}), \varphi_{\text{in}} \rangle
+           \;=\; \langle \psi_{\text{out}}, B^T(\varphi_{\text{in}}) \rangle.
+
+        The reciprocity holds for the Euclidean inner product on
+        the trace space (and, with quadrature-weight metadata on the
+        :class:`FunctionSpace`, for the cosine-weighted inner
+        product too — the permutation commutes with diagonal
+        reweighting along the ordinate axis).
+        """
+        perm = quadrature.reflection_index(self.axis)
+        return self.albedo * psi_in[perm]
 
 
 @dataclass(frozen=True)
-class WhiteBoundaryOperator:
+class WhiteBoundaryOperator(BoundaryOperator, key="white"):
     r"""White (Lambertian) boundary with optional albedo.
 
     Tensor decomposition :math:`(G_{\text{diff}}, \alpha)` where
@@ -277,13 +382,15 @@ class WhiteBoundaryOperator:
         Diffuse albedo. Defaults to 1 (perfectly reflecting).
     """
 
+    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
+
     axis: str = "x"
     outward_sign: int = +1
     albedo: float = 1.0
 
-    def apply_to_incoming(
+    def apply(
         self,
-        angular_flux_outgoing: np.ndarray,
+        psi_out: np.ndarray,
         quadrature: "AngularQuadrature",
     ) -> np.ndarray:
         # Direction cosine along the boundary normal axis.
@@ -316,13 +423,13 @@ class WhiteBoundaryOperator:
         if norm <= 0.0:
             # Degenerate quadrature — no outgoing ordinates. Return
             # zero rather than producing a NaN.
-            return np.zeros_like(angular_flux_outgoing)
+            return np.zeros_like(psi_out)
 
         # Cosine-weighted average of the outgoing flux.
         # Shape (N_ord, ...) → broadcast (..., ) average.
         psi_avg = (
-            cos_w.reshape((-1,) + (1,) * (angular_flux_outgoing.ndim - 1))
-            * angular_flux_outgoing
+            cos_w.reshape((-1,) + (1,) * (psi_out.ndim - 1))
+            * psi_out
         ).sum(axis=0) / norm
 
         # Broadcast over all ordinates; sweeps consume only entries
@@ -330,13 +437,13 @@ class WhiteBoundaryOperator:
         # and conventional to fill the whole array uniformly.
         result = np.broadcast_to(
             psi_avg[None, ...] * self.albedo,
-            angular_flux_outgoing.shape,
+            psi_out.shape,
         ).copy()
         return result
 
 
 @dataclass(frozen=True)
-class PeriodicBoundaryOperator:
+class PeriodicBoundaryOperator(BoundaryOperator, key="periodic"):
     r"""Periodic boundary: spatial pushforward to the partner face.
 
     Tensor decomposition :math:`(G_{\text{wrap}}, 1)` where
@@ -352,9 +459,9 @@ class PeriodicBoundaryOperator:
 
     Realising periodicity at the *sweep* level requires coupling the
     two faces' boundary-flux buffers — which is a sweep-orchestration
-    concern not modelled by ``apply_to_incoming`` alone (the
-    :class:`BoundaryOperator` Protocol consumes one face's outgoing flux at
-    a time). The primitive here therefore returns ``angular_flux_outgoing``
+    concern not modelled by ``apply`` alone (the
+    :class:`BoundaryOperator` consumes one face's outgoing flux at
+    a time). The primitive here therefore returns ``psi_out``
     unchanged: the contract is "the incoming side equals the outgoing
     flux you pass in", and the *spatial* coupling is handled by whoever
     instantiates :class:`PeriodicBoundaryOperator` and orchestrates the two-face
@@ -363,21 +470,23 @@ class PeriodicBoundaryOperator:
     so that downstream code has the algebraic object to depend on.
     """
 
-    def apply_to_incoming(
+    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
+
+    def apply(
         self,
-        angular_flux_outgoing: np.ndarray,
+        psi_out: np.ndarray,
         quadrature: "AngularQuadrature",
     ) -> np.ndarray:
         # Per the docstring above: the *partner-face* outgoing flux is
         # what this BC needs; the caller passes that array in via the
-        # ``angular_flux_outgoing`` argument and we return it unchanged.
+        # ``psi_out`` argument and we return it unchanged.
         # Angular structure is identity; spatial pushforward is the
         # caller's responsibility.
-        return angular_flux_outgoing.copy()
+        return psi_out.copy()
 
 
 @dataclass(frozen=True)
-class AlbedoBoundaryOperator:
+class AlbedoBoundaryOperator(BoundaryOperator, key="albedo"):
     r"""Pure albedo boundary: scalar multiple of the outgoing flux.
 
     Tensor decomposition :math:`(I, \alpha)` where :math:`I` is the
@@ -399,18 +508,20 @@ class AlbedoBoundaryOperator:
         same-direction return.
     """
 
+    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
+
     albedo: float = 0.0
 
-    def apply_to_incoming(
+    def apply(
         self,
-        angular_flux_outgoing: np.ndarray,
+        psi_out: np.ndarray,
         quadrature: "AngularQuadrature",
     ) -> np.ndarray:
-        return self.albedo * angular_flux_outgoing
+        return self.albedo * psi_out
 
 
 @dataclass(frozen=True)
-class MixedBoundaryOperator:
+class MixedBoundaryOperator(BoundaryOperator, key="mixed"):
     r"""Linear combination of rank-1 BC primitives.
 
     Realises a rank-N tensor decomposition
@@ -420,7 +531,7 @@ class MixedBoundaryOperator:
         R = \sum_\alpha c_\alpha \, G_\alpha \otimes A_\alpha
 
     by storing a list of ``(coefficient, primitive)`` pairs and
-    summing ``coefficient * primitive.apply_to_incoming(...)``. The
+    summing ``coefficient * primitive.apply(...)``. The
     coefficients :math:`c_\alpha` are typically convex (sum to 1) for
     a partial-current Marshak boundary
     (Bell & Glasstone 1970 §1.5: ``MixedBoundaryOperator([(0.3, SpecularBoundaryOperator()),
@@ -432,9 +543,11 @@ class MixedBoundaryOperator:
     ----------
     components : sequence of (coefficient, BoundaryOperator)
         The rank-N decomposition. Each component contributes
-        ``coefficient * primitive.apply_to_incoming(...)`` to the
+        ``coefficient * primitive.apply(...)`` to the
         incoming flux.
     """
+
+    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
 
     components: tuple[tuple[float, BoundaryOperator], ...] = field(default_factory=tuple)
 
@@ -447,16 +560,14 @@ class MixedBoundaryOperator:
         # guard during construction.
         object.__setattr__(self, "components", tuple(components))
 
-    def apply_to_incoming(
+    def apply(
         self,
-        angular_flux_outgoing: np.ndarray,
+        psi_out: np.ndarray,
         quadrature: "AngularQuadrature",
     ) -> np.ndarray:
-        result = np.zeros_like(angular_flux_outgoing)
+        result = np.zeros_like(psi_out)
         for coeff, primitive in self.components:
-            result = result + coeff * primitive.apply_to_incoming(
-                angular_flux_outgoing, quadrature,
-            )
+            result = result + coeff * primitive.apply(psi_out, quadrature)
         return result
 
 

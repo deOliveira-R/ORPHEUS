@@ -52,11 +52,11 @@ as preconditioner.
    the :class:`~orpheus.geometry.boundary.BoundaryOperator` instances on the
    :class:`~orpheus.sn.geometry.SNMesh` (``bc_xmin``, ``bc_xmax``,
    ``bc_ymin``, ``bc_ymax``).  Each function fills incoming-at-boundary
-   slots via ``bc.apply_to_incoming(outgoing, quad)`` (Wave B Issue 7
+   slots via ``bc.apply(outgoing, quad)`` (Wave B Issue 7
    tensor-decomposed BC algebra).  Bit-identity to the pre-Round 3
    reflective-only fill is preserved for :class:`SpecularBoundaryOperator` (the
    default ``BC.reflective`` factory), since
-   ``SpecularBoundaryOperator(axis="x").apply_to_incoming(out, quad) == out[ref_x]``;
+   ``SpecularBoundaryOperator(axis="x").apply(out, quad) == out[ref_x]``;
    :class:`VacuumBoundaryOperator` returns zero, which is the correct vacuum
    incoming flux.  This closes ERR-026 for the curvilinear
    ``solve_sn_fixed_source`` MMS path: the FD operator is now
@@ -179,7 +179,7 @@ def solution_to_angular_flux(
     arguments accept :class:`~orpheus.geometry.boundary.BoundaryOperator`
     instances built by :class:`~orpheus.sn.geometry.SNMesh` from the
     mesh's :class:`~orpheus.geometry.mesh.BC` declarations.  Each BC's
-    ``apply_to_incoming(outgoing, quad)`` method maps the boundary's
+    ``apply(outgoing, quad)`` method maps the boundary's
     outgoing angular flux to the incoming flux per the BC's tensor
     decomposition (vacuum → 0; specular → ``out[ref]``; white,
     albedo, mixed → their respective combinations).  When all four
@@ -218,21 +218,21 @@ def solution_to_angular_flux(
 
     # ── X-axis BC fills ───────────────────────────────────────────────
     # The eq_map skips incoming-at-boundary slots; we fill them here per
-    # the BC.  Layout: ``apply_to_incoming`` consumes a full
+    # the BC.  Layout: ``apply`` consumes a full
     # ``(N, ng_axis_2)`` array (here ``(N, ng)``) and returns the same
     # shape; we slice the incoming entries out for the boundary fill.
     # For each y-row independently to avoid spurious coupling.
     for iy in range(ny):
         # Left face (x = xmin): outgoing = mu_x < 0, incoming = mu_x > 0.
         outgoing_xmin = fi[:, :, 0, iy].T   # (N, ng)
-        incoming_xmin = bc_xmin.apply_to_incoming(outgoing_xmin, quad)
+        incoming_xmin = bc_xmin.apply(outgoing_xmin, quad)
         for n in range(quad.N):
             if mu_x[n] > 1e-15:
                 fi[:, n, 0, iy] = incoming_xmin[n]
 
         # Right face (x = xmax): outgoing = mu_x > 0, incoming = mu_x < 0.
         outgoing_xmax = fi[:, :, -1, iy].T  # (N, ng)
-        incoming_xmax = bc_xmax.apply_to_incoming(outgoing_xmax, quad)
+        incoming_xmax = bc_xmax.apply(outgoing_xmax, quad)
         for n in range(quad.N):
             if mu_x[n] < -1e-15:
                 fi[:, n, -1, iy] = incoming_xmax[n]
@@ -241,14 +241,14 @@ def solution_to_angular_flux(
     for ix in range(nx):
         # Bottom face (y = ymin): outgoing = mu_y < 0, incoming = mu_y > 0.
         outgoing_ymin = fi[:, :, ix, 0].T   # (N, ng)
-        incoming_ymin = bc_ymin.apply_to_incoming(outgoing_ymin, quad)
+        incoming_ymin = bc_ymin.apply(outgoing_ymin, quad)
         for n in range(quad.N):
             if mu_y[n] > 1e-15:
                 fi[:, n, ix, 0] = incoming_ymin[n]
 
         # Top face (y = ymax): outgoing = mu_y > 0, incoming = mu_y < 0.
         outgoing_ymax = fi[:, :, ix, -1].T  # (N, ng)
-        incoming_ymax = bc_ymax.apply_to_incoming(outgoing_ymax, quad)
+        incoming_ymax = bc_ymax.apply(outgoing_ymax, quad)
         for n in range(quad.N):
             if mu_y[n] < -1e-15:
                 fi[:, n, ix, -1] = incoming_ymax[n]
@@ -449,7 +449,7 @@ def solution_to_angular_flux_spherical(
     # pre-Round 3 ``fi[:, n, -1, 0] = fi[:, ref_x[n], -1, 0]`` fill.
     # For VacuumBoundaryOperator it returns zeros (correct vacuum incoming).
     outgoing = fi[:, :, -1, 0].T   # (N, ng)
-    incoming = bc_outer.apply_to_incoming(outgoing, quad)
+    incoming = bc_outer.apply(outgoing, quad)
     for n in range(quad.N):
         if quad.mu_x[n] < -1e-15:
             fi[:, n, -1, 0] = incoming[n]
@@ -491,7 +491,7 @@ def transport_operator_matvec_spherical(
     ordinates (μ > 0) this is the symmetric closure's cell-center
     extrapolation; for incoming ordinates the slot was BC-filled by
     :func:`solution_to_angular_flux_spherical` (Wave E Round 3) with
-    ``bc_outer.apply_to_incoming(...)``, so the same read accesses the
+    ``bc_outer.apply(...)``, so the same read accesses the
     BC-faithful value.  Unknown ordinates at i = nx-1 (per the eq_map)
     have μ ≥ 0; the inward-direction read at i = nx-2's outer face
     (``psi_right = 0.5*(fi[:, n, nx-2, 0] + fi[:, n, nx-1, 0])``) is

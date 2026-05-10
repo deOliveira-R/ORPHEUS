@@ -294,18 +294,18 @@ def _sweep_1d_cumprod(
 
     # Tensor-decomposed BCs (R = Σ_α G_α ⊗ A_α). The factory in
     # ``SNMesh.BOUNDARY_OPERATOR_REGISTRY`` resolved the geometry-declared BC into a
-    # :class:`BoundaryOperator` whose ``apply_to_incoming`` we call below.
+    # :class:`BoundaryOperator` whose ``apply`` we call below.
     #
     # Reassemble the full per-ordinate outgoing-flux face arrays from
     # the persistent ``bc`` storage (which stores positive-half values
     # using a *post-reflection* indexing convention: ``bc["left"][n]``
     # is the outgoing flux at the partner ordinate
     # :math:`N - 1 - (n_{\text{half}} + n) = n_{\text{half}} - 1 - n`).
-    # Calling ``apply_to_incoming`` then lets specular reflection reach
+    # Calling ``apply`` then lets specular reflection reach
     # back to its partner via ``reflection_index("x")``; vacuum returns
     # zeros. Bit-equality with the previous string-kind dispatch is
     # preserved because this is an algebraic re-expression of the same
-    # operation: ``SpecularBoundaryOperator(axis="x").apply_to_incoming(psi, quad)[k]``
+    # operation: ``SpecularBoundaryOperator(axis="x").apply(psi, quad)[k]``
     # is ``psi[ref_x[k]]``, which for GL is ``psi[N-1-k]``.
     bc_left_obj = sn_mesh.bc_left
     bc_right_obj = sn_mesh.bc_right
@@ -315,7 +315,7 @@ def _sweep_1d_cumprod(
     # ``bc["right"]`` indexed by the *positive* sweep counter ``n``;
     # we mirror that into the full-N face buffers used by the BC
     # protocol, taking care to lay each value at its outgoing-side
-    # index so :meth:`SpecularBoundaryOperator.apply_to_incoming` retrieves it via
+    # index so :meth:`SpecularBoundaryOperator.apply` retrieves it via
     # ``reflection_index("x")`` at the matching incoming ordinate.
     psi_face_left_out = np.zeros((N, ng))
     psi_face_right_out = np.zeros((N, ng))
@@ -329,7 +329,7 @@ def _sweep_1d_cumprod(
         # for ordinate ``n_half + n`` (positive side).
         psi_face_right_out[n_half + n] = bc["right"][n]
 
-    psi_face_left_in = bc_left_obj.apply_to_incoming(psi_face_left_out, quad)
+    psi_face_left_in = bc_left_obj.apply(psi_face_left_out, quad)
 
     for n in range(n_half):
         a = stream_coeff[n]  # (nx, ng)
@@ -346,7 +346,7 @@ def _sweep_1d_cumprod(
         # where right-reflective backward read ``bc["right"][n]``
         # immediately after the forward sweep wrote it).
         psi_face_right_out[n_half + n] = bc["right"][n]
-        psi_face_right_in = bc_right_obj.apply_to_incoming(
+        psi_face_right_in = bc_right_obj.apply(
             psi_face_right_out, quad,
         )
         phi += w_pos[n] * psi_fwd
@@ -454,7 +454,7 @@ def _sweep_1d_spherical(
     # spherical sweep stores the outgoing flux per ordinate in
     # ``bc_outer`` (indexed by *outgoing* — positive μ — ordinate) and
     # reads the incoming flux for negative μ via
-    # ``apply_to_incoming``. For ``VacuumBoundaryOperator`` this returns zeros; for
+    # ``apply``. For ``VacuumBoundaryOperator`` this returns zeros; for
     # ``SpecularBoundaryOperator(axis="x")`` it returns ``bc_outer[ref[n]]``,
     # which is bit-identical to the previous ``bc_outer[ref[n]].copy()``
     # call site. The incoming buffer is recomputed each iteration so
@@ -464,7 +464,7 @@ def _sweep_1d_spherical(
     # Persistent boundary flux at the outer face (per ordinate, indexed
     # by the *outgoing* — positive-μ — ordinate). Negative-μ entries
     # remain zero throughout the sweep; they are placeholders so the
-    # array can be passed whole into ``apply_to_incoming``.
+    # array can be passed whole into ``apply``.
     if "bc_sph" not in psi_bc:
         psi_bc["bc_sph"] = np.zeros((N, ng))
     bc_outer = psi_bc["bc_sph"]
@@ -500,10 +500,10 @@ def _sweep_1d_spherical(
         # from the outer-face BC.  For outward (μ ≥ 0), at r = 0 we
         # have A[0] = 4π(0)² = 0, so no spatial incoming flux.
         if mu_n < 0:
-            # ``apply_to_incoming`` is bit-identical to the previous
+            # ``apply`` is bit-identical to the previous
             # ``bc_outer[ref[n]].copy()`` indexing for SpecularBoundaryOperator and
             # zeros for VacuumBoundaryOperator.
-            psi_in_full = bc_outer_obj.apply_to_incoming(bc_outer, quad)
+            psi_in_full = bc_outer_obj.apply(bc_outer, quad)
             psi_spatial_in = psi_in_full[n]
         else:
             psi_spatial_in = np.zeros(ng)
@@ -603,7 +603,7 @@ def _sweep_1d_cylindrical(
     # decomposed :class:`~orpheus.geometry.boundary.BoundaryOperator`. The
     # cylindrical sweep stores per-ordinate outgoing flux in
     # ``bc_outer`` (indexed by global ordinate) and reads incoming
-    # via ``apply_to_incoming``. For ``VacuumBoundaryOperator`` returns zeros; for
+    # via ``apply``. For ``VacuumBoundaryOperator`` returns zeros; for
     # ``SpecularBoundaryOperator(axis="x")`` returns ``bc_outer[ref[n]]`` — bit-
     # identical to the previous ``bc_outer[ref[n]].copy()`` call site.
     bc_outer_obj = sn_mesh.bc_right
@@ -649,7 +649,7 @@ def _sweep_1d_cylindrical(
             # BC.  Outward (η > 0): zero at r = 0.  Degenerate
             # (|η| < 1e-15): unused by the strategy; pass zeros.
             if eta_n < 0:
-                psi_in_full = bc_outer_obj.apply_to_incoming(bc_outer, quad)
+                psi_in_full = bc_outer_obj.apply(bc_outer, quad)
                 psi_spatial_in = psi_in_full[n]
             else:
                 psi_spatial_in = np.zeros(ng)
@@ -822,20 +822,20 @@ def _sweep_2d_wavefront(
         # ``psi_face[ref_axis[n]]`` — bit-identical to the previous
         # in-place ``psi_x[n, 0] = psi_x[ref_x[n], 0]`` copy.
         if mx >= 0:
-            psi_x[n, 0, :, :] = sn_mesh.bc_xmin.apply_to_incoming(
+            psi_x[n, 0, :, :] = sn_mesh.bc_xmin.apply(
                 psi_x[:, 0, :, :], quad,
             )[n]
         else:
-            psi_x[n, nx, :, :] = sn_mesh.bc_xmax.apply_to_incoming(
+            psi_x[n, nx, :, :] = sn_mesh.bc_xmax.apply(
                 psi_x[:, nx, :, :], quad,
             )[n]
 
         if my >= 0:
-            psi_y[n, :, 0, :] = sn_mesh.bc_ymin.apply_to_incoming(
+            psi_y[n, :, 0, :] = sn_mesh.bc_ymin.apply(
                 psi_y[:, :, 0, :], quad,
             )[n]
         else:
-            psi_y[n, :, ny, :] = sn_mesh.bc_ymax.apply_to_incoming(
+            psi_y[n, :, ny, :] = sn_mesh.bc_ymax.apply(
                 psi_y[:, :, ny, :], quad,
             )[n]
 

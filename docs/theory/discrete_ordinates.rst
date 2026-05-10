@@ -1555,7 +1555,7 @@ took two passes at the closure:
   :class:`~orpheus.geometry.boundary.BoundaryOperator` instances on the
   :class:`~orpheus.sn.geometry.SNMesh` (Wave B Issue 7
   tensor-decomposed BC algebra), dispatching boundary fills via
-  :meth:`BoundaryOperator.apply_to_incoming`.  Vacuum, reflective,
+  :meth:`BoundaryOperator.apply`.  Vacuum, reflective,
   white, periodic, albedo, and mixed BCs are now plumbed
   uniformly through the FD operator; bit-identity to the
   pre-Round 3 hard-coded reflective fill is preserved for
@@ -1742,7 +1742,7 @@ As of Wave B Round 3 of the SN reshape campaign (Issue 7 of
 concrete :class:`~orpheus.geometry.boundary.BoundaryOperator` instances
 rather than string tags. ``sn_mesh.bc_left``, ``sn_mesh.bc_right``,
 ``sn_mesh.bc_xmin``, etc. carry tensor-decomposed BC objects whose
-``apply_to_incoming(angular_flux_outgoing, quadrature)`` method the
+``apply(angular_flux_outgoing, quadrature)`` method the
 sweep calls directly, with no string-kind branching at the call site.
 For backward compatibility with existing tests, the concrete BC
 classes still compare equal to their legacy string tag
@@ -1872,7 +1872,7 @@ are:
      - N / no
 
 The Protocol :class:`~orpheus.geometry.boundary.BoundaryOperator` exposes one
-method, ``apply_to_incoming(angular_flux_outgoing, quadrature)``, which
+method, ``apply(angular_flux_outgoing, quadrature)``, which
 the SN sweep calls instead of branching on a string kind. The
 :attr:`SNMesh.BOUNDARY_OPERATOR_REGISTRY` factories now return concrete
 :class:`BoundaryOperator` instances; the registry pattern is unchanged from a
@@ -2297,7 +2297,7 @@ boundary handling to consume the
 :class:`~orpheus.geometry.boundary.BoundaryOperator` infrastructure
 (Wave B Issue 7), so :func:`solution_to_angular_flux*` and the
 matvec helpers now dispatch boundary fills via
-:meth:`BoundaryOperator.apply_to_incoming` — vacuum, reflective, white,
+:meth:`BoundaryOperator.apply` — vacuum, reflective, white,
 albedo, periodic, and mixed BCs are honoured uniformly.
 
 

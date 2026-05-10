@@ -52,15 +52,19 @@ operators built from this module without rewriting their inner loops.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Optional, Protocol, runtime_checkable
 
 import numpy as np
 import scipy.sparse.linalg as spla
+
+if TYPE_CHECKING:
+    from orpheus.numerics.space import FunctionSpace
 
 __all__ = [
     "LinearOperator",
     "LinearOperatorMixin",
     "MissingCapability",
+    "IncompatibleOperatorComposition",
     "OperatorSum",
     "OperatorProduct",
     "ScaledOperator",
@@ -86,6 +90,19 @@ class MissingCapability(TypeError):
     Raised at composition time so that downstream Krylov / power-iteration
     consumers never hit a broken stub at call time. The exception message
     names the missing capability and the operand that lacks it.
+    """
+
+
+class IncompatibleOperatorComposition(ValueError):
+    """A composition's operands carry incompatible function spaces.
+
+    Raised at composition time when two operators with declared
+    :attr:`domain`/:attr:`range` carry shapes that cannot be combined
+    (Sum: ``a.domain != b.domain`` or ``a.range != b.range``;
+    Product ``A @ B``: ``A.domain != B.range``). The check is
+    skipped when either operand has ``None`` for its domain or range
+    — backward-compatible with operators predating Issue 9.6 that
+    carry no function-space metadata.
     """
 
 
@@ -129,6 +146,27 @@ class LinearOperator(Protocol):
 
     capabilities: frozenset[str]
 
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        """The function space this operator consumes, or ``None``.
+
+        Operators that pre-date Issue 9.6 (and any operator that has
+        no canonical function-space tagging) return ``None``. When
+        either operand of a composition has ``None`` for ``domain``
+        or ``range``, the composability check is skipped — preserving
+        the legacy duck-typed behaviour for code paths that do not
+        track spaces.
+        """
+        ...
+
+    @property
+    def range(self) -> Optional["FunctionSpace"]:
+        """The function space this operator produces, or ``None``.
+
+        See :attr:`domain` for the ``None`` semantics.
+        """
+        ...
+
     def apply(self, x: np.ndarray) -> np.ndarray:
         r"""Return :math:`L\,x`.
 
@@ -171,9 +209,41 @@ class LinearOperatorMixin:
     satisfy the :class:`LinearOperator` Protocol. The ``+``/``-``/``*``/
     ``@`` dunders simply delegate to the composer constructors, which
     enforce the capability closure laws.
+
+    Issue 9.6 additions:
+
+    * :meth:`__call__` — alias for :meth:`apply`, matching :math:`A(x)`
+      math notation.
+    * :meth:`__pow__` — repeated composition for non-negative integer
+      powers (``A**0`` is the identity, ``A**n`` for ``n>=1`` is
+      ``A @ A @ ... @ A``).
+    * :meth:`adjoint` — weight-aware Hilbert adjoint for operators
+      whose domain and range carry inner products.
+    * :attr:`H` — property alias for ``adjoint()`` matching the Grand
+      Report v3 §6.3 vocabulary.
+    * Default :attr:`domain` / :attr:`range` return ``None`` —
+      backward-compatible with operators predating Issue 9.6.
+    * :meth:`__repr__` — uniform default reporting class name,
+      domain/range, and capabilities.
     """
 
     capabilities: frozenset[str]
+
+    # ------------------------------------------------------------------
+    # Function-space tagging (defaults — concrete operators may override)
+    # ------------------------------------------------------------------
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        return None
+
+    @property
+    def range(self) -> Optional["FunctionSpace"]:
+        return None
+
+    # ------------------------------------------------------------------
+    # Algebra dunders
+    # ------------------------------------------------------------------
 
     def __add__(self, other: "LinearOperator") -> "OperatorSum":
         return OperatorSum(self, other)  # type: ignore[arg-type]
@@ -197,6 +267,168 @@ class LinearOperatorMixin:
 
     def __matmul__(self, other: "LinearOperator") -> "OperatorProduct":
         return OperatorProduct(self, other)  # type: ignore[arg-type]
+
+    def __call__(self, *args, **kwargs):
+        """Alias for :meth:`apply`. Lets user code write ``A(x)``.
+
+        Accepts ``*args, **kwargs`` so multi-argument applies (e.g.
+        :meth:`BoundaryOperator.apply` taking ``(psi_out, quadrature)``)
+        compose ergonomically: ``bc(psi_out, quad)`` reads as math.
+        """
+        return self.apply(*args, **kwargs)  # type: ignore[attr-defined]
+
+    def __pow__(self, n: int) -> "LinearOperator":
+        r"""Return :math:`A^n` for non-negative integer ``n``.
+
+        ``n == 0`` returns :class:`IdentityOperator`. ``n == 1``
+        returns ``self`` unchanged. ``n >= 2`` builds the composition
+        ``A @ A @ ... @ A`` via repeated :meth:`__matmul__`. Negative
+        powers raise :class:`ValueError` — operator inverse construction
+        is not part of this API; use the operator's :meth:`solve`
+        capability directly when an inverse is needed.
+        """
+        if not isinstance(n, (int, np.integer)):
+            return NotImplemented
+        if n < 0:
+            raise ValueError(
+                "operator inverse not constructed via __pow__; "
+                "consult the operator's solve() capability for inverse "
+                "actions."
+            )
+        if n == 0:
+            return IdentityOperator()
+        if n == 1:
+            return self  # type: ignore[return-value]
+        result: "LinearOperator" = self  # type: ignore[assignment]
+        for _ in range(n - 1):
+            result = result @ self  # type: ignore[operator]
+        return result
+
+    # ------------------------------------------------------------------
+    # Adjoint
+    # ------------------------------------------------------------------
+
+    def adjoint(self) -> "LinearOperator":
+        r"""Return the Hilbert adjoint :math:`A^*`.
+
+        For an operator :math:`A : V \to W` with diagonal inner-product
+        weights :math:`w_V` (on the domain) and :math:`w_W` (on the
+        range), the Hilbert adjoint satisfies
+
+        .. math::
+
+           \langle A x, y \rangle_W \;=\; \langle x, A^* y \rangle_V
+
+        which gives :math:`A^* y = (1/w_V) \odot
+        \mathrm{apply\_transpose}(w_W \odot y)`. When both weight
+        arrays are ``None`` (Euclidean inner product on both sides)
+        the adjoint reduces to the representation transpose.
+
+        The returned wrapper preserves :meth:`apply` (= adjoint
+        action) and swaps :attr:`domain` ↔ :attr:`range`. The
+        :pydata:`capabilities` set advertises ``apply`` whenever the
+        underlying operator advertises :pydata:`CAP_APPLY_TRANSPOSE`;
+        otherwise the call to :meth:`apply` will raise at call time.
+        """
+        return _AdjointOperator(self)  # type: ignore[arg-type]
+
+    @property
+    def H(self) -> "LinearOperator":
+        """Alias for :meth:`adjoint`. Matches the Grand Report v3 §6.3
+        Hilbert-adjoint vocabulary (``A.H`` reads as "A dagger")."""
+        return self.adjoint()
+
+    # ------------------------------------------------------------------
+    # Repr
+    # ------------------------------------------------------------------
+
+    def __repr__(self) -> str:
+        cls = type(self).__name__
+        d = getattr(self, "domain", None)
+        r = getattr(self, "range", None)
+        d_name = repr(d.name) if d is not None else "'?'"
+        r_name = repr(r.name) if r is not None else "'?'"
+        caps = sorted(getattr(self, "capabilities", frozenset()))
+        return f"<{cls} domain={d_name} range={r_name} caps={caps}>"
+
+
+# ---------------------------------------------------------------------------
+# Adjoint wrapper
+# ---------------------------------------------------------------------------
+
+
+class _AdjointOperator(LinearOperatorMixin):
+    """Hilbert-adjoint wrapper around a :class:`LinearOperator`.
+
+    Constructed by :meth:`LinearOperatorMixin.adjoint` (and its alias
+    ``A.H``). Domain/range are swapped relative to the inner operator;
+    :meth:`apply` performs the weight-aware adjoint action.
+
+    The capability set is derived from the inner operator: ``apply``
+    on the adjoint maps to ``apply_transpose`` on the inner, so the
+    adjoint advertises :pydata:`CAP_APPLY` iff the inner advertises
+    :pydata:`CAP_APPLY_TRANSPOSE`. The reverse direction
+    (apply_transpose on the adjoint = apply on the inner) is not
+    needed by any current consumer in 9.6 and is deferred —
+    :meth:`apply_transpose` raises :class:`NotImplementedError`
+    until a consumer demands it.
+    """
+
+    def __init__(self, inner: "LinearOperator") -> None:
+        self.inner = inner
+        # Capability swap: adjoint can apply iff inner can apply_transpose.
+        caps: set[str] = set()
+        if _has(inner, CAP_APPLY_TRANSPOSE):
+            caps.add(CAP_APPLY)
+        # Adjoint can apply_transpose iff inner can apply — but defer
+        # the reverse direction until a consumer requires it.
+        # Solve generally does NOT propagate (the adjoint of A^{-1}
+        # would need A.H.solve = (A.solve).H, additional algebra).
+        self.capabilities = frozenset(caps)
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        # Adjoint of A: V → W is A.H: W → V — domain swaps with inner.range.
+        return getattr(self.inner, "range", None)
+
+    @property
+    def range(self) -> Optional["FunctionSpace"]:
+        return getattr(self.inner, "domain", None)
+
+    def apply(self, y: np.ndarray) -> np.ndarray:
+        if not _has(self.inner, CAP_APPLY_TRANSPOSE):
+            raise MissingCapability(
+                f"adjoint application requires {CAP_APPLY_TRANSPOSE!r} on "
+                f"the inner operator; {type(self.inner).__name__} "
+                f"advertises {getattr(self.inner, 'capabilities', frozenset())}."
+            )
+        # Hilbert-adjoint action:
+        #   (A^* y)_V = (1/w_V) ⊙ apply_transpose(w_W ⊙ y)
+        # On the adjoint wrapper, ``range`` is the inner operator's
+        # domain (V) — so ``range.inner_product_weights`` is w_V; and
+        # ``domain`` is the inner operator's range (W) — so
+        # ``domain.inner_product_weights`` is w_W. Read with care.
+        w_W = None
+        w_V = None
+        inner_range = getattr(self.inner, "range", None)
+        inner_domain = getattr(self.inner, "domain", None)
+        if inner_range is not None:
+            w_W = inner_range.inner_product_weights
+        if inner_domain is not None:
+            w_V = inner_domain.inner_product_weights
+
+        z = y if w_W is None else (w_W * y)
+        result = self.inner.apply_transpose(z)  # type: ignore[attr-defined]
+        if w_V is not None:
+            result = result / w_V
+        return result
+
+    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+        raise NotImplementedError(
+            "apply_transpose on an _AdjointOperator wrapper is not "
+            "supported in 9.6; if a consumer needs it, take the adjoint "
+            "of the original inner operator's transpose directly."
+        )
 
 
 class OperatorSum(LinearOperatorMixin):
@@ -233,6 +465,25 @@ class OperatorSum(LinearOperatorMixin):
                 f"OperatorSum requires apply on both operands; right "
                 f"operand {type(b).__name__} lacks {CAP_APPLY!r}."
             )
+        # Domain/range compatibility check (skipped when either
+        # operand lacks function-space metadata — backward-compatible
+        # with operators that pre-date Issue 9.6).
+        a_dom, a_rng = getattr(a, "domain", None), getattr(a, "range", None)
+        b_dom, b_rng = getattr(b, "domain", None), getattr(b, "range", None)
+        if (
+            a_dom is not None and b_dom is not None and a_dom != b_dom
+        ):
+            raise IncompatibleOperatorComposition(
+                f"OperatorSum requires equal domains; got {a_dom!r} and "
+                f"{b_dom!r}."
+            )
+        if (
+            a_rng is not None and b_rng is not None and a_rng != b_rng
+        ):
+            raise IncompatibleOperatorComposition(
+                f"OperatorSum requires equal ranges; got {a_rng!r} and "
+                f"{b_rng!r}."
+            )
         self.a = a
         self.b = b
 
@@ -242,11 +493,28 @@ class OperatorSum(LinearOperatorMixin):
         # solve does NOT propagate — see docstring.
         self.capabilities = frozenset(caps)
 
-    def apply(self, x: np.ndarray) -> np.ndarray:
-        return self.a.apply(x) + self.b.apply(x)
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        a_dom = getattr(self.a, "domain", None)
+        return a_dom if a_dom is not None else getattr(self.b, "domain", None)
 
-    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
-        return self.a.apply_transpose(x) + self.b.apply_transpose(x)  # type: ignore[attr-defined]
+    @property
+    def range(self) -> Optional["FunctionSpace"]:
+        a_rng = getattr(self.a, "range", None)
+        return a_rng if a_rng is not None else getattr(self.b, "range", None)
+
+    def apply(self, x, *extra, **kwextra):
+        # Forward extra positional/keyword args so BoundaryOperator-style
+        # multi-argument apply signatures (e.g.
+        # ``apply(psi_out, quadrature)``) compose under sums.
+        return self.a.apply(x, *extra, **kwextra) + self.b.apply(
+            x, *extra, **kwextra
+        )
+
+    def apply_transpose(self, x, *extra, **kwextra):
+        return self.a.apply_transpose(x, *extra, **kwextra) + self.b.apply_transpose(  # type: ignore[attr-defined]
+            x, *extra, **kwextra,
+        )
 
 
 class OperatorProduct(LinearOperatorMixin):
@@ -279,6 +547,17 @@ class OperatorProduct(LinearOperatorMixin):
                 f"OperatorProduct requires apply on both operands; "
                 f"right operand {type(b).__name__} lacks {CAP_APPLY!r}."
             )
+        # Domain/range compatibility check for ``A @ B``: A.domain
+        # must equal B.range. Skipped when either is None.
+        a_dom = getattr(a, "domain", None)
+        b_rng = getattr(b, "range", None)
+        if (
+            a_dom is not None and b_rng is not None and a_dom != b_rng
+        ):
+            raise IncompatibleOperatorComposition(
+                f"OperatorProduct A @ B requires A.domain == B.range; "
+                f"got A.domain={a_dom!r}, B.range={b_rng!r}."
+            )
         self.a = a
         self.b = b
 
@@ -288,6 +567,16 @@ class OperatorProduct(LinearOperatorMixin):
         if _has(a, CAP_APPLY_TRANSPOSE) and _has(b, CAP_APPLY_TRANSPOSE):
             caps.add(CAP_APPLY_TRANSPOSE)
         self.capabilities = frozenset(caps)
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        # A @ B: input space is B.domain.
+        return getattr(self.b, "domain", None)
+
+    @property
+    def range(self) -> Optional["FunctionSpace"]:
+        # A @ B: output space is A.range.
+        return getattr(self.a, "range", None)
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         return self.a.apply(self.b.apply(x))
@@ -338,15 +627,23 @@ class ScaledOperator(LinearOperatorMixin):
             survivors.add(CAP_APPLY_TRANSPOSE)
         self.capabilities = frozenset(survivors)
 
-    def apply(self, x: np.ndarray) -> np.ndarray:
-        return self.scalar * self.op.apply(x)
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        return getattr(self.op, "domain", None)
+
+    @property
+    def range(self) -> Optional["FunctionSpace"]:
+        return getattr(self.op, "range", None)
+
+    def apply(self, x, *extra, **kwextra):
+        return self.scalar * self.op.apply(x, *extra, **kwextra)
 
     def solve(self, b_vec: np.ndarray) -> np.ndarray:
         # (αL)^{-1} = (1/α) L^{-1}
         return (1.0 / self.scalar) * self.op.solve(b_vec)  # type: ignore[attr-defined]
 
-    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
-        return self.scalar * self.op.apply_transpose(x)  # type: ignore[attr-defined]
+    def apply_transpose(self, x, *extra, **kwextra):
+        return self.scalar * self.op.apply_transpose(x, *extra, **kwextra)  # type: ignore[attr-defined]
 
 
 class IdentityOperator(LinearOperatorMixin):

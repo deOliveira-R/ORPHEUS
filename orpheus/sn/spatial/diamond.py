@@ -257,7 +257,7 @@ import numpy as np
 
 from orpheus.geometry.reduced_operator import StreamingTerms
 
-from .cell_update import CellResult, CellVisit, UpstreamState
+from .cell_update import CellResult, CellUpdateBase, CellVisit, UpstreamState
 
 
 # Threshold for the cylindrical pure-azimuthal degenerate branch.
@@ -269,7 +269,7 @@ _DEGENERATE_ABS_MU_THRESHOLD: float = 1e-15
 
 
 @dataclass(frozen=True, slots=True)
-class DiamondDifference:
+class DiamondDifference(CellUpdateBase, key="diamond_difference"):
     r"""Diamond-Difference (DD) cell-update strategy.
 
     A **single** geometry-polymorphic strategy that handles slab,

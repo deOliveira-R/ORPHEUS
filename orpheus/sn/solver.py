@@ -914,7 +914,7 @@ def solve_sn_fixed_source(
         path.  Wave E Round 3 ships the BC-aware FD operator
         (:func:`solution_to_angular_flux*` consume the mesh's
         :class:`~orpheus.geometry.boundary.BoundaryOperator` instances via
-        :meth:`apply_to_incoming`), which makes ``"krylov"`` available
+        :meth:`apply`), which makes ``"krylov"`` available
         as an opt-in for vacuum / reflective / white / albedo / mixed
         BCs uniformly — but the curvilinear-default flip is **not**
         enabled because empirically the symmetric-closure FD operator

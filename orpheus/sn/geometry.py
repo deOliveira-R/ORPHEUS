@@ -107,7 +107,7 @@ class SNMesh:
     # The factories return :class:`BoundaryOperator` instances carrying the
     # tensor decomposition :math:`R = \sum_\alpha G_\alpha \otimes
     # A_\alpha` (see :mod:`orpheus.geometry.boundary`); the sweep calls
-    # ``resolved_bc.apply_to_incoming(...)`` directly, so the dispatch
+    # ``resolved_bc.apply(...)`` directly, so the dispatch
     # is by object identity / Protocol method, not by string tag.
     # Wave C/D will extend this registry with ``"white"`` / ``"periodic"``
     # / ``"albedo"`` entries — the primitives already exist in
@@ -203,7 +203,7 @@ class SNMesh:
 
         ``None`` on the mesh defaults to ``BC("reflective")`` (infinite
         lattice / eigenvalue convention). Each face attribute carries
-        the concrete :class:`BoundaryOperator` whose ``apply_to_incoming``
+        the concrete :class:`BoundaryOperator` whose ``apply``
         method the sweep invokes directly — no string-kind dispatch
         downstream.
         """

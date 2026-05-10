@@ -413,3 +413,242 @@ def test_as_scipy_linop_works_with_composite(matrix_full, matrix_apply_only):
     x = np.ones(n)
     expected = matrix_full.matrix @ x - matrix_apply_only.matrix @ x
     np.testing.assert_allclose(sp.matvec(x), expected, rtol=1e-12)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Issue 9.6 dunder + adjoint additions
+# ═══════════════════════════════════════════════════════════════════════
+#
+# These tests cover the new affordances shipped in Phase B:
+#   * ``A(x)`` aliases ``A.apply(x)``.
+#   * ``A**n`` for non-negative ``n`` builds repeated composition.
+#   * ``A.H`` aliases ``A.adjoint()``.
+#   * Hilbert-adjoint identity ``<A x, y> = <x, A.H y>`` for both
+#     Euclidean and quadrature-weight-aware inner products.
+#   * ``IncompatibleOperatorComposition`` raised on
+#     domain/range mismatch in the composers.
+#   * ``__repr__`` smoke tests.
+
+from orpheus.numerics.operator import IncompatibleOperatorComposition
+from orpheus.numerics.space import FunctionSpace
+
+
+def test_call_aliases_apply(matrix_full, vector):
+    """``A(x)`` reads as math; should equal ``A.apply(x)``."""
+    np.testing.assert_array_equal(
+        matrix_full(vector), matrix_full.apply(vector),
+    )
+
+
+def test_pow_zero_returns_identity(matrix_full, vector):
+    """``A**0`` is the identity operator."""
+    I = matrix_full ** 0
+    np.testing.assert_allclose(I.apply(vector), vector)
+
+
+def test_pow_one_returns_self(matrix_full):
+    """``A**1`` is ``self`` exactly."""
+    assert matrix_full ** 1 is matrix_full
+
+
+def test_pow_three_matches_repeated_apply(matrix_full, vector):
+    """``(A**3)(x)`` equals ``A(A(A(x)))`` to round-off."""
+    Acubed = matrix_full ** 3
+    expected = matrix_full.apply(
+        matrix_full.apply(matrix_full.apply(vector))
+    )
+    np.testing.assert_allclose(Acubed.apply(vector), expected, rtol=1e-12)
+
+
+def test_pow_negative_rejected(matrix_full):
+    """Negative powers raise — operator inverse is not auto-constructed."""
+    with pytest.raises(ValueError, match="inverse"):
+        _ = matrix_full ** -1
+
+
+def test_pow_non_integer_returns_notimplemented(matrix_full):
+    """Non-integer exponent is rejected by the dunder protocol."""
+    with pytest.raises(TypeError):
+        _ = matrix_full ** 1.5
+
+
+def test_H_aliases_adjoint(matrix_full):
+    """``A.H`` returns an adjoint wrapper just like ``A.adjoint()``."""
+    H1 = matrix_full.H
+    H2 = matrix_full.adjoint()
+    # Both wrap the same inner.
+    assert getattr(H1, "inner", None) is matrix_full
+    assert getattr(H2, "inner", None) is matrix_full
+
+
+def test_adjoint_euclidean_identity(matrix_full, rng, n_dim):
+    """For Euclidean inner products, ``<A u, v> == <u, A.H v>``."""
+    u = rng.standard_normal(n_dim)
+    v = rng.standard_normal(n_dim)
+    Au = matrix_full.apply(u)
+    Hv = matrix_full.H.apply(v)
+    lhs = float(np.dot(Au, v))
+    rhs = float(np.dot(u, Hv))
+    assert np.isclose(lhs, rhs, rtol=1e-12)
+
+
+class _SpacedMatrixOperator(LinearOperatorMixin):
+    """MatrixOperator carrying explicit domain / range function spaces.
+
+    Used for the weight-aware Hilbert-adjoint identity tests, where the
+    inner product on the range carries non-trivial weights and the
+    adjoint must invert them. Mirrors ``MatrixOperator`` but exposes
+    the function-space metadata shipped in Phase B.
+    """
+
+    def __init__(
+        self,
+        matrix: np.ndarray,
+        domain_space: FunctionSpace,
+        range_space: FunctionSpace,
+    ) -> None:
+        self.matrix = np.asarray(matrix, dtype=float)
+        self._domain = domain_space
+        self._range = range_space
+        self.capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
+
+    @property
+    def domain(self) -> FunctionSpace:
+        return self._domain
+
+    @property
+    def range(self) -> FunctionSpace:
+        return self._range
+
+    def apply(self, x: np.ndarray) -> np.ndarray:
+        return self.matrix @ x
+
+    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+        return self.matrix.T @ x
+
+
+def test_adjoint_weighted_identity(rng):
+    """Hilbert-adjoint identity holds with quadrature-weight metadata.
+
+    Range inner product carries non-trivial diagonal weights ``w_W``;
+    the adjoint must produce an output that, evaluated under the
+    domain inner product, balances ``<A u, v>_W``.
+    """
+    n_dom = 4
+    n_rng = 4
+    M = rng.standard_normal((n_rng, n_dom))
+    w_W = np.array([1.0, 2.0, 3.0, 4.0])  # range weights (non-trivial)
+    domain = FunctionSpace(name="V", shape=(n_dom,))  # Euclidean
+    range_ = FunctionSpace(
+        name="W", shape=(n_rng,), inner_product_weights=w_W,
+    )
+    A = _SpacedMatrixOperator(M, domain, range_)
+    u = rng.standard_normal(n_dom)
+    v = rng.standard_normal(n_rng)
+
+    Au = A.apply(u)                     # in W
+    Hv = A.H.apply(v)                   # in V
+    lhs = range_.inner_product(Au, v)
+    rhs = domain.inner_product(u, Hv)
+    assert np.isclose(lhs, rhs, rtol=1e-12)
+
+
+def test_adjoint_swaps_domain_and_range():
+    """``A.H.domain`` is ``A.range`` and vice versa."""
+    n_dom = 3
+    n_rng = 4
+    M = np.random.default_rng(0).standard_normal((n_rng, n_dom))
+    domain = FunctionSpace(name="V", shape=(n_dom,))
+    range_ = FunctionSpace(name="W", shape=(n_rng,))
+    A = _SpacedMatrixOperator(M, domain, range_)
+    assert A.H.domain == range_
+    assert A.H.range == domain
+
+
+def test_sum_rejects_incompatible_domains():
+    """OperatorSum with mismatched domains raises IncompatibleOperatorComposition."""
+    n = 3
+    M = np.eye(n)
+    V1 = FunctionSpace(name="V1", shape=(n,))
+    V2 = FunctionSpace(name="V2", shape=(n,))
+    W = FunctionSpace(name="W", shape=(n,))
+    A = _SpacedMatrixOperator(M, V1, W)
+    B = _SpacedMatrixOperator(M, V2, W)
+    with pytest.raises(IncompatibleOperatorComposition, match="domain"):
+        _ = A + B
+
+
+def test_sum_rejects_incompatible_ranges():
+    n = 3
+    M = np.eye(n)
+    V = FunctionSpace(name="V", shape=(n,))
+    W1 = FunctionSpace(name="W1", shape=(n,))
+    W2 = FunctionSpace(name="W2", shape=(n,))
+    A = _SpacedMatrixOperator(M, V, W1)
+    B = _SpacedMatrixOperator(M, V, W2)
+    with pytest.raises(IncompatibleOperatorComposition, match="range"):
+        _ = A + B
+
+
+def test_product_rejects_incompatible_inner_space():
+    """``A @ B`` requires ``A.domain == B.range``."""
+    n = 3
+    M = np.eye(n)
+    V = FunctionSpace(name="V", shape=(n,))
+    W = FunctionSpace(name="W", shape=(n,))
+    Z = FunctionSpace(name="Z", shape=(n,))
+    A = _SpacedMatrixOperator(M, W, V)  # A: W → V
+    B = _SpacedMatrixOperator(M, V, Z)  # B: V → Z; range Z != A.domain W
+    with pytest.raises(
+        IncompatibleOperatorComposition, match="A @ B|domain|range",
+    ):
+        _ = A @ B
+
+
+def test_compatible_composition_succeeds_with_spaces():
+    """Sum / product where the spaces match is accepted."""
+    n = 3
+    M = np.eye(n)
+    V = FunctionSpace(name="V", shape=(n,))
+    W = FunctionSpace(name="W", shape=(n,))
+    A = _SpacedMatrixOperator(M, V, W)
+    B = _SpacedMatrixOperator(M, V, W)
+    s = A + B  # same domain V, same range W: OK
+    assert s.domain == V
+    assert s.range == W
+
+
+def test_composition_skips_check_when_either_is_none(matrix_full):
+    """Backward-compat: operators without function spaces pass freely.
+
+    ``MatrixOperator`` (the existing fixture) returns ``None`` for
+    domain and range. Sums and products against another ``None``
+    operator must not raise — the composition compatibility check
+    only fires when BOTH operators carry function spaces.
+    """
+    sum_ok = matrix_full + matrix_full
+    assert sum_ok is not None
+    prod_ok = matrix_full @ matrix_full
+    assert prod_ok is not None
+
+
+def test_repr_format(matrix_full):
+    """``repr(op)`` carries the class name, domain/range, and caps."""
+    r = repr(matrix_full)
+    assert "MatrixOperator" in r
+    # MatrixOperator has no function-space tagging; expect '?' placeholders.
+    assert "domain='?'" in r
+    assert "range='?'" in r
+    # Capabilities list.
+    assert "apply" in r
+
+
+def test_repr_with_function_spaces_shows_names():
+    n = 3
+    M = np.eye(n)
+    V = FunctionSpace(name="phi", shape=(n,))
+    W = FunctionSpace(name="psi", shape=(n,))
+    A = _SpacedMatrixOperator(M, V, W)
+    r = repr(A)
+    assert "'phi'" in r
+    assert "'psi'" in r

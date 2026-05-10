@@ -324,6 +324,38 @@ class Mesh1D:
         """Total extent of the mesh (outer edge minus inner edge)."""
         return float(self.edges[-1] - self.edges[0])
 
+    @property
+    def volume_measure(self):
+        r"""Cell-volume :class:`~orpheus.numerics.measure.DiscreteMeasure`.
+
+        The natural integration measure :math:`\mu_V = \sum_i V_i \,
+        \delta_{c_i}` whose atoms are the cell centres :math:`c_i =
+        \tfrac12(x_{i-1/2} + x_{i+1/2})` carrying weight equal to the
+        cell volume :math:`V_i`. Used at production integration
+        sites where the historic ``np.sum(values * mesh.volumes)``
+        idiom expresses an integral against the cell-volume measure
+        — calling ``mesh.volume_measure(values)`` makes the integral
+        structurally explicit and removes the manual ``np.sum`` /
+        broadcasting boilerplate.
+
+        See Also
+        --------
+        :meth:`orpheus.numerics.measure.DiscreteMeasure.integrate` —
+        the array overload accepts the pre-evaluated value array
+        directly (Issue 9.6 B4 extension).
+        """
+        # Local import to avoid a circular dependency at module
+        # import time — :mod:`orpheus.numerics.measure` does not
+        # import :mod:`orpheus.geometry.mesh`, but the inverse
+        # direction would force every consumer of mesh.py to bring
+        # in the measure module.
+        from orpheus.numerics.measure import DiscreteMeasure
+        return DiscreteMeasure(
+            nodes=self.centers,
+            weights=self.volumes,
+            space="spatial_R1",
+        )
+
     # ─────────────────────────────────────────────────────────────────
     # Construction from StructuredGeometry — the canonical entry point
     # ─────────────────────────────────────────────────────────────────
@@ -569,6 +601,32 @@ class Mesh2D:
     def volumes(self) -> np.ndarray:
         """Cell volumes, shape (Nx, Ny).  Formula depends on *coord*."""
         return compute_volumes_2d(self.coord, self.edges_x, self.edges_y)
+
+    @property
+    def volume_measure(self):
+        r"""2-D cell-volume :class:`~orpheus.numerics.measure.DiscreteMeasure`.
+
+        Atoms are the ``(x_i, y_j)`` cell-centre pairs ordered with
+        ``np.meshgrid(..., indexing='ij')`` — the same layout the
+        ``volumes.ravel()`` exposes — and weights are the
+        flattened cell volumes. Shape ``(Nx*Ny, 2)`` for the node
+        array, ``(Nx*Ny,)`` for the weights.
+
+        See Also
+        --------
+        :meth:`Mesh1D.volume_measure` — the 1-D analogue.
+        """
+        from orpheus.numerics.measure import DiscreteMeasure
+        cx = self.centers_x
+        cy = self.centers_y
+        X, Y = np.meshgrid(cx, cy, indexing="ij")
+        nodes = np.stack([X.ravel(), Y.ravel()], axis=-1)  # (Nx*Ny, 2)
+        weights = self.volumes.ravel()                     # (Nx*Ny,)
+        return DiscreteMeasure(
+            nodes=nodes,
+            weights=weights,
+            space="spatial_R2",
+        )
 
     @property
     def mat_ids(self) -> np.ndarray:

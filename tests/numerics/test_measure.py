@@ -506,3 +506,93 @@ def test_constructor_invalid_args_raise() -> None:
         gauss_legendre(0)
     with pytest.raises(ValueError, match="n >= 1"):
         gauss_chebyshev(0)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Issue 9.6 dunder ergonomics + array-overload integrate
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.foundation
+def test_call_aliases_integrate() -> None:
+    """``mu(f)`` is the same as ``mu.integrate(f)`` for callables."""
+    rule = gauss_legendre(8)
+    result_call = rule(lambda x: x ** 2)
+    result_int = rule.integrate(lambda x: x ** 2)
+    assert np.isclose(result_call, result_int, atol=1e-14)
+
+
+@pytest.mark.foundation
+def test_integrate_accepts_array_overload() -> None:
+    """``mu.integrate(values)`` returns ``np.dot(weights, values)``.
+
+    Load-bearing for ``mesh.volume_measure(scalar_flux)`` at
+    production integration sites where the values are pre-computed.
+    """
+    rule = gauss_legendre(8)
+    values = np.cos(rule.nodes)
+    result = rule.integrate(values)
+    expected = np.dot(rule.weights, values)
+    assert np.isclose(result, expected, atol=1e-14)
+
+
+@pytest.mark.foundation
+def test_integrate_array_overload_matches_callable() -> None:
+    """Array overload returns the same value as the callable form."""
+    rule = gauss_legendre(8)
+    f = lambda x: np.cos(x)
+    result_callable = rule.integrate(f)
+    result_array = rule.integrate(f(rule.nodes))
+    assert np.isclose(result_callable, result_array, atol=1e-14)
+
+
+@pytest.mark.foundation
+def test_call_accepts_array() -> None:
+    """``mu(values)`` (call) also accepts pre-evaluated arrays."""
+    rule = gauss_legendre(8)
+    values = np.cos(rule.nodes)
+    result = rule(values)
+    expected = np.dot(rule.weights, values)
+    assert np.isclose(result, expected, atol=1e-14)
+
+
+@pytest.mark.foundation
+def test_iter_yields_node_weight_pairs() -> None:
+    """``iter(mu)`` yields (node, weight) tuples in order."""
+    rule = gauss_legendre(4)
+    pairs = list(iter(rule))
+    assert len(pairs) == 4
+    for i, (node, weight) in enumerate(pairs):
+        assert node == rule.nodes[i]
+        assert weight == rule.weights[i]
+
+
+@pytest.mark.foundation
+def test_len_equals_n_points() -> None:
+    rule = gauss_legendre(7)
+    assert len(rule) == rule.n_points == 7
+
+
+@pytest.mark.foundation
+def test_getitem_returns_node_weight_tuple() -> None:
+    rule = gauss_legendre(5)
+    node, weight = rule[2]
+    assert node == rule.nodes[2]
+    assert weight == rule.weights[2]
+
+
+@pytest.mark.foundation
+def test_repr_smoke() -> None:
+    rule = gauss_legendre(8)
+    r = repr(rule)
+    assert "DiscreteMeasure" in r
+    assert "n_points=8" in r
+
+
+@pytest.mark.foundation
+def test_repr_with_invariance_group() -> None:
+    """repr surfaces invariance_group when set."""
+    rule = gauss_legendre(8).with_metadata(invariance_group="Z2")
+    r = repr(rule)
+    assert "invariance_group" in r
+    assert "'Z2'" in r

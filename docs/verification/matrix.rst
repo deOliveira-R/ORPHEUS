@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2806**
+Total tests collected: **2879**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 590, 21.0%
-   L1, 724, 25.8%
+   L0, 590, 20.5%
+   L1, 724, 25.1%
    L2, 36, 1.3%
    L3, 0, 0.0%
-   foundation, 1428, 50.9%
+   foundation, 1501, 52.1%
    unmarked, 28, 1.0%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2699
+   explicit, 2772
    verify, 0
    class-name, 46
    func-name, 0
@@ -156,8 +156,9 @@ Module × level grid
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
-   geometry/test_boundary, 0, 0, 0, 0, 19, 0
+   geometry/test_boundary, 0, 0, 0, 0, 27, 0
    geometry/test_geometry, 0, 0, 0, 0, 55, 0
+   geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_reduced_operator, 0, 0, 0, 0, 49, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
    homogeneous/test_continuous_reference, 0, 7, 0, 0, 0, 0
@@ -176,12 +177,14 @@ Module × level grid
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
    numerics/test_iteration, 0, 1, 0, 0, 10, 0
-   numerics/test_measure, 0, 16, 0, 0, 23, 0
-   numerics/test_operator, 0, 0, 0, 0, 38, 0
+   numerics/test_measure, 0, 16, 0, 0, 32, 0
+   numerics/test_operator, 0, 0, 0, 0, 55, 0
    numerics/test_registry, 0, 0, 0, 0, 37, 0
+   numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
    numerics/test_rules_1d, 0, 5, 0, 0, 16, 0
    numerics/test_rules_product, 0, 3, 0, 0, 14, 0
    numerics/test_rules_sphere, 0, 7, 0, 0, 29, 0
+   numerics/test_space, 0, 0, 0, 0, 17, 0
    numerics/test_symmetry, 0, 0, 0, 0, 71, 0
    regression/test_dd_regression, 0, 0, 0, 0, 0, 11
    sn/test_boundary_conditions, 0, 0, 0, 0, 0, 11
@@ -206,7 +209,7 @@ Module × level grid
    sn/test_sweep_regression, 12, 0, 0, 0, 0, 0
    sn/test_unified_sweep_dispatch, 0, 0, 0, 0, 9, 0
    spatial/test_cell_update_protocol, 0, 0, 0, 0, 16, 0
-   spatial/test_diamond, 0, 0, 0, 0, 11, 0
+   spatial/test_diamond, 0, 0, 0, 0, 13, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0

@@ -219,18 +219,27 @@ class DiscreteMeasure:
     # Lebesgue integral against the discrete measure
     # ------------------------------------------------------------------
 
-    def integrate(self, f: Callable[[np.ndarray], np.ndarray]) -> np.ndarray:
+    def integrate(
+        self,
+        f: Callable[[np.ndarray], np.ndarray] | np.ndarray,
+    ) -> np.ndarray:
         r"""Compute :math:`\int f \, d\mu \;=\; \sum_i w_i \, f(x_i)`.
 
         See :eq:`discrete-measure-integrate`.
 
         Parameters
         ----------
-        f : callable
-            Vectorised test function. Called once with the full
-            ``nodes`` array; must return an array of shape ``(N,)``
-            or ``(N, k)`` for vector-valued integrands. Accepts a
-            scalar at each node when ``dim == 1``.
+        f : callable | np.ndarray
+            Either a vectorised test function called once with the
+            full ``nodes`` array (returning an array of shape ``(N,)``
+            or ``(N, k)`` for vector-valued integrands), OR a
+            pre-evaluated value array of shape ``(N,)`` or ``(N, k)``.
+            The array overload is the load-bearing affordance for
+            ``mesh.volume_measure(scalar_flux)`` — at production
+            integration sites where ``f(nodes)`` would be redundant
+            (the values are already in hand), passing the array
+            directly avoids the round-trip through a ``lambda x:
+            values`` wrapper.
 
         Returns
         -------
@@ -241,16 +250,56 @@ class DiscreteMeasure:
         Notes
         -----
 
-        ``f`` is called **once** with the full node array, not
-        per-node. Vectorise your integrand (use ``np.cos``, not
-        ``math.cos``) — the project's test suite assumes this.
+        When ``f`` is callable, it is called **once** with the full
+        node array, not per-node. Vectorise your integrand (use
+        ``np.cos``, not ``math.cos``) — the project's test suite
+        assumes this.
         """
-        values = f(self.nodes)
+        if callable(f):
+            values = f(self.nodes)
+        else:
+            values = f
         values_arr = np.asarray(values)
         if values_arr.ndim == 1:
             return np.dot(self.weights, values_arr)
         # Vector-valued integrand: contract the leading axis.
         return np.einsum("i,i...->...", self.weights, values_arr)
+
+    # ------------------------------------------------------------------
+    # Dunder ergonomics — measure as functional, iterable, indexed
+    # ------------------------------------------------------------------
+
+    def __call__(
+        self,
+        f: Callable[[np.ndarray], np.ndarray] | np.ndarray,
+    ) -> np.ndarray:
+        """Alias for :meth:`integrate`. Lets ``mu(f)`` read as math."""
+        return self.integrate(f)
+
+    def __iter__(self):
+        """Iterate over ``(node, weight)`` pairs."""
+        for i in range(self.n_points):
+            yield (self.nodes[i], self.weights[i])
+
+    def __len__(self) -> int:
+        """Return :attr:`n_points`."""
+        return self.n_points
+
+    def __getitem__(self, i: int) -> tuple[np.ndarray, float]:
+        """Return the ``i``-th ``(node, weight)`` pair."""
+        return (self.nodes[i], self.weights[i])
+
+    def __repr__(self) -> str:
+        if self.invariance_group is None:
+            return (
+                f"DiscreteMeasure(space={self.space!r}, "
+                f"n_points={self.n_points})"
+            )
+        return (
+            f"DiscreteMeasure(space={self.space!r}, "
+            f"n_points={self.n_points}, "
+            f"invariance_group={self.invariance_group!r})"
+        )
 
     # ------------------------------------------------------------------
     # Tensor product (Fubini-Tonelli on discrete factors)

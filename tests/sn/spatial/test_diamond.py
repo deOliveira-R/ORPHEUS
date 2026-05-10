@@ -697,3 +697,30 @@ class TestPositivityFailure:
             "the failure mode.  Increase optical thickness "
             "(total_xs * chord_length) or decrease source / |mu|."
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Issue 9.6 — CellUpdateBase registry membership
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestCellUpdateBaseRegistry:
+    """``DiamondDifference`` self-registers under ``key="diamond_difference"``."""
+
+    @pytest.mark.foundation
+    def test_diamond_difference_registered(self) -> None:
+        from orpheus.sn.spatial.cell_update import CellUpdateBase
+        from orpheus.sn.spatial.diamond import DiamondDifference
+
+        assert "diamond_difference" in CellUpdateBase.registry
+        assert (
+            CellUpdateBase.registry["diamond_difference"] is DiamondDifference
+        )
+
+    @pytest.mark.foundation
+    def test_diamond_difference_factory_returns_concrete(self) -> None:
+        from orpheus.sn.spatial.cell_update import CellUpdateBase
+        from orpheus.sn.spatial.diamond import DiamondDifference
+
+        instance = CellUpdateBase.create("diamond_difference")
+        assert isinstance(instance, DiamondDifference)
