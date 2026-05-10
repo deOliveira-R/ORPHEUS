@@ -2445,6 +2445,28 @@ verification of the addition theorem lives at
 ``tests/sn/test_solver_components.py::TestAnisotropicScattering
 ::test_spherical_harmonics_addition_theorem_L3``).
 
+.. note::
+
+   The Pℓ Galerkin reconstruction has named primitives in
+   :mod:`orpheus.numerics.projection` (Wave 0 of the SN
+   performance plan):
+   :class:`~orpheus.numerics.projection.HarmonicMomentProjection`
+   (the :math:`\Pi = Y^* W` operator on the angular axis) and
+   :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`
+   (the addition-theorem reconstruction with the
+   :math:`(2\ell+1)` factor). The full-space projector is the
+   tensor product :math:`\Pi \otimes I_x \otimes I_y \otimes I_g`,
+   built via the ``&`` dunder of
+   :class:`~orpheus.numerics.operator.TensorProductOperator`. See
+   :ref:`galerkin-projection` for the cross-method consumer table
+   (PN solver, energy condensation, MC adjoint moments) and
+   :ref:`spherical-harmonics` for the convention and addition
+   theorem. The :math:`Y_\ell^m` evaluator
+   :func:`~orpheus.numerics.spherical_harmonics.evaluate_real_sh`
+   is the canonical generic infrastructure consumed here; the
+   SN-side ``orpheus.sn.quadrature._build_spherical_harmonics``
+   is now a thin re-export.
+
 Per-cell flux moments :eq:`flux-moments` are computed by the
 discrete projection
 

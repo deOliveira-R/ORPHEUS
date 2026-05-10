@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2947**
+Total tests collected: **3028**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 596, 20.2%
-   L1, 729, 24.7%
+   L0, 664, 21.9%
+   L1, 742, 24.5%
    L2, 36, 1.2%
    L3, 0, 0.0%
-   foundation, 1558, 52.9%
-   unmarked, 28, 1.0%
+   foundation, 1558, 51.5%
+   unmarked, 28, 0.9%
 
 Tagging source
 --------------
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2840
+   explicit, 2921
    verify, 0
    class-name, 46
    func-name, 0
@@ -177,16 +177,21 @@ Module × level grid
    moc/test_quadrature, 24, 0, 0, 0, 0, 0
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
+   numerics/test_diagonal_operator, 17, 0, 0, 0, 0, 0
    numerics/test_iteration, 0, 1, 0, 0, 10, 0
    numerics/test_measure, 0, 16, 0, 0, 32, 0
+   numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_operator, 0, 0, 0, 0, 55, 0
+   numerics/test_projection_operators, 16, 6, 0, 0, 0, 0
    numerics/test_registry, 0, 0, 0, 0, 37, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
    numerics/test_rules_1d, 0, 5, 0, 0, 16, 0
    numerics/test_rules_product, 0, 3, 0, 0, 14, 0
    numerics/test_rules_sphere, 0, 7, 0, 0, 29, 0
    numerics/test_space, 0, 0, 0, 0, 17, 0
+   numerics/test_spherical_harmonics, 5, 7, 0, 0, 0, 0
    numerics/test_symmetry, 0, 0, 0, 0, 71, 0
+   numerics/test_tensor_product_operator, 18, 0, 0, 0, 0, 0
    regression/test_dd_regression, 0, 0, 0, 0, 0, 11
    sn/test_boundary_conditions, 0, 0, 0, 0, 0, 11
    sn/test_cartesian, 1, 6, 0, 0, 0, 0
@@ -492,7 +497,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **156** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **178** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bailey-dome-recursion``
 - ``bessel-wronskian``
@@ -509,7 +514,9 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``coolant-feedback``
 - ``coolant-rate``
 - ``creep-rate``
+- ``diagonal-operator-action``
 - ``discrete-measure-definition``
+- ``discrete-measure-partition``
 - ``discrete-measure-pushforward``
 - ``doppler-feedback``
 - ``e1-small-tau-expansion``
@@ -527,6 +534,9 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``fn-x-function``
 - ``fuel-heat``
 - ``fuel-rate``
+- ``galerkin-construction``
+- ``galerkin-pair``
+- ``galerkin-self-adjoint``
 - ``gap-closure-event``
 - ``gap-conductance``
 - ``gas-pressure``
@@ -538,12 +548,15 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``mode-conservation-target``
 - ``morel-montry-clamp``
 - ``nm1980-eq16-tau-zero``
+- ``octant-direct-sum-tensor-product``
+- ``octant-sign-predicate``
 - ``one-over-E``
 - ``operator-apply``
 - ``operator-apply-transpose``
 - ``operator-eigenvalue``
 - ``operator-fixed-source``
 - ``operator-solve``
+- ``partition-round-trip``
 - ``peierls-3d``
 - ``peierls-M-rank-1``
 - ``peierls-M-rank-2``
@@ -628,9 +641,17 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-tensor-G-definition``
 - ``peierls-tensor-P-definition``
 - ``peierls-unified``
+- ``petrov-galerkin-construction``
+- ``pi-r-equals-4pi-i``
 - ``power-equation``
 - ``precursor-equation``
 - ``quadrature-selection-criterion``
+- ``real-sh-addition-theorem``
+- ``real-sh-discrete-orthogonality``
+- ``real-sh-l0``
+- ``real-sh-l1``
+- ``real-sh-l2plus``
+- ``scattering-as-tensor-product-sum``
 - ``sigs-convention``
 - ``singular-eigenfunction-eq5``
 - ``sood-eq18-1g-balance``
@@ -640,7 +661,13 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sood-eq29-kinf-2g-no-upscatter``
 - ``sood-eq32-phi-ratio``
 - ``sood-eq76-kinf-mg``
+- ``streaming-as-tensor-product-sum``
 - ``subgroup-of-o3-containment``
+- ``sum-of-tensor-products``
+- ``tensor-product-action``
+- ``tensor-product-adjoint-distributivity``
+- ``tensor-product-axis-wise-composition``
+- ``tensor-product-inverse``
 - ``transport-equation``
 - ``vacuum-bc``
 - ``wm72-coupled-linear-system``
@@ -698,6 +725,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-036``, 8
    ``ERR-037``, 11
    ``ERR-038``, 5
+   ``ERR-039``, 2
 
 Unmarked tests
 --------------

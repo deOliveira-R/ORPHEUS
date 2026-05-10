@@ -70,8 +70,10 @@ that places each transport method in the V&V hierarchy.
 
    cross_section_data
    discrete_measures
+   galerkin_projection
    homogeneous
    operator_algebra
+   spherical_harmonics
    structured_geometry
    verification
 

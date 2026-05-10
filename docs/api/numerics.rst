@@ -94,6 +94,72 @@ glue):
   homogeneous medium.
 
 
+Operator Algebra (Wave A)
+-------------------------
+
+The :mod:`orpheus.numerics.operator` module installs the matrix-free
+operator-algebra primitives consumed by every solver. See
+:ref:`operator-algebra` for the design rationale, capability-set
+semantics, and tensor-product algebra.
+
+Tensor-product primitives (Wave 0 of SN performance plan):
+
+* :class:`~orpheus.numerics.operator.DiagonalOperator` — diagonal
+  multiplication on a tagged tensor axis. The ``AngularWeightMatrix``
+  :math:`W` of Grand Report v3 §9 is
+  ``DiagonalOperator.from_measure(quad.measure, axis=0)``.
+* :class:`~orpheus.numerics.operator.TensorProductOperator` —
+  per-axis tensor product :math:`A \otimes B \otimes \cdots`. Built
+  via the ``&`` dunder; carries axis tags and the closure laws
+  :math:`(A \otimes B)^* = A^* \otimes B^*`,
+  :math:`(A \otimes B) \circ (C \otimes D) = (A \circ C) \otimes
+  (B \circ D)`. See :ref:`tensorial-framing`.
+* :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
+  — :math:`\sum_k A_k \otimes B_k \otimes \cdots`; the §15.2
+  canonical scattering / streaming form.
+
+Discrete measures and partition (Wave 0 of SN performance plan):
+
+* :class:`~orpheus.numerics.measure.DiscreteMeasure` — atomic
+  measure :math:`\mu = \sum_i w_i\,\delta_{x_i}` on a measurable
+  space; carries integration, tensor product, direct sum,
+  pushforward, restriction, and the new
+  :meth:`~orpheus.numerics.measure.DiscreteMeasure.partition_by`
+  primitive (the inverse of direct sum). See
+  :ref:`discrete-measure-partition`.
+* :class:`~orpheus.numerics.measure.DiscreteMeasurePartition` —
+  a partition entry returned by
+  :meth:`partition_by`. Carries label, indices into the parent,
+  and the restricted measure.
+
+Galerkin / Petrov-Galerkin projection (Wave 0 of SN performance plan):
+
+* :class:`~orpheus.numerics.projection.ProjectionOperator` —
+  most-general projection ABC.
+* :class:`~orpheus.numerics.projection.GalerkinProjection` —
+  Galerkin discipline (test space = trial space) ABC.
+* :class:`~orpheus.numerics.projection.PetrovGalerkinProjection`
+  — Petrov-Galerkin discipline (test space ≠ trial space)
+  ABC. Sibling of Galerkin; concrete subclasses land with energy
+  condensation (§17).
+* :class:`~orpheus.numerics.projection.HarmonicMomentProjection`
+  — concrete Galerkin projection on real spherical harmonics.
+* :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`
+  — paired reconstruction with the addition-theorem
+  :math:`(2\ell+1)` factor.
+
+See :ref:`galerkin-projection` for the discipline narrative,
+cross-method consumer table, and the naming-hierarchy rationale.
+
+Real spherical harmonics:
+
+* :func:`~orpheus.numerics.spherical_harmonics.evaluate_real_sh`
+  — :math:`Y_\ell^m(\hat\Omega_n)` evaluator; uses the
+  no-:math:`4\pi/(2\ell+1)`-prefactor convention so the addition
+  theorem reads :math:`\sum_m Y_\ell^m Y_\ell^m = P_\ell(\Omega
+  \cdot \Omega')`. See :ref:`spherical-harmonics`.
+
+
 API Reference
 -------------
 
@@ -101,3 +167,18 @@ API Reference
    :members:
    :undoc-members:
    :show-inheritance:
+
+The :class:`~orpheus.numerics.operator.LinearOperator` Protocol,
+its capability-set semantics, and the composition / tensor-product
+primitives are documented at :ref:`operator-algebra` (theory page).
+The Galerkin / Petrov-Galerkin projection ABCs and the concrete
+:class:`HarmonicMomentProjection` / :class:`HarmonicMomentReconstruction`
+pair are documented at :ref:`galerkin-projection`. The
+:math:`Y_\ell^m` evaluator and the no-:math:`4\pi/(2\ell+1)`-prefactor
+convention are documented at :ref:`spherical-harmonics`. The
+:meth:`partition_by` primitive on
+:class:`~orpheus.numerics.measure.DiscreteMeasure` is documented at
+:ref:`discrete-measure-partition`. The theory pages contain the full
+mathematical narrative; per-symbol API docstrings live in the
+modules themselves and are accessible via the standard
+``orpheus.numerics`` import path.

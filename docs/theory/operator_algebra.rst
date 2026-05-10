@@ -237,3 +237,322 @@ this module. The :func:`as_scipy_linop` adapter exists so that when
 those call sites migrate to the ORPHEUS protocol (Issue 15), the
 scipy interop continues to work without rewriting BiCGSTAB / GMRES
 inner loops.
+
+
+.. _diagonal-operator:
+
+Diagonal operator on a tagged axis
+==================================
+
+The simplest non-trivial operator beyond the composition primitives
+is the **diagonal-on-an-axis** operator
+:class:`~orpheus.numerics.operator.DiagonalOperator`. For a 1-D
+weight vector :math:`w \in \mathbb{R}^N` and target axis ``axis``,
+its action on a multi-axis tensor :math:`x` is elementwise
+multiplication along ``axis``:
+
+.. (vv-status rationale) Verified by
+   ``tests/numerics/test_diagonal_operator.py`` — apply against
+   ``np.einsum`` reference on randomised tensors, self-adjointness,
+   and round-trip ``apply ↔ solve`` bit-identity.
+.. vv-status: diagonal-operator-action documented
+
+.. math::
+   :label: diagonal-operator-action
+
+   (D x)_{\ldots,\,n,\,\ldots}
+   \;=\; w_n \, x_{\ldots,\,n,\,\ldots}.
+
+All other axes broadcast through unchanged. This is the canonical
+"diagonal in some basis" operator — the abstraction Grand Report v3
+§9 names :math:`W` (``AngularWeightMatrix``) when the basis is the
+discrete-ordinate set of an angular cubature, and the same primitive
+any method needs for "multiply-by-weights along one axis":
+
+.. list-table:: Cross-method consumers of DiagonalOperator
+   :header-rows: 1
+   :widths: 24 38 38
+
+   * - Consumer
+     - Role of the diagonal
+     - Source
+   * - **SN** (:math:`Y^* W` projection)
+     - :math:`W` = the angular cubature weights
+       :math:`w_n`; the operator multiplies the angular axis of
+       :math:`\psi`.
+     - This work, Wave 1 (used inside
+       :class:`HarmonicMomentProjection`).
+   * - **MoC**
+     - Track-weight diagonal :math:`w_t` on the track axis of an
+       angular flux defined per-track.
+     - Future MoC consumer.
+   * - **CP**
+     - Region-volume diagonal :math:`V_i` on the cell axis of a
+       collision-probability matrix.
+     - Future CP consumer.
+   * - **MC**
+     - Importance-weighting diagonal on the source / track axis of
+       a tally.
+     - Future MC consumer.
+
+Self-adjointness is automatic for real-valued weights:
+:meth:`apply_transpose` is the same code path as :meth:`apply`.
+Invertibility is by-element: if every weight is non-zero, the
+operator advertises :pydata:`CAP_SOLVE` and its :meth:`solve`
+divides by :math:`w_n` along ``axis``. If any weight is zero,
+``solve`` is dropped from the capability set at construction time
+— a zero weight has no inverse, and the harmful-stub anti-pattern
+the capability-set design exists to prevent (a downstream Krylov
+consumer silently dividing by zero) is caught upfront.
+
+The implementation does NOT eagerly materialise an
+:math:`N \times N` diagonal matrix. The action is a single
+broadcast-multiply
+(``w.reshape((1, ..., -1, ..., 1)) * x``) so memory cost is
+:math:`O(N)` regardless of the input tensor's shape. For the SN
+angular axis this matters: an :math:`(N, n_x, n_y, n_g)` field with
+:math:`N = O(10^2)` and :math:`n_x \cdot n_y \cdot n_g = O(10^7)`
+does NOT need a :math:`(10^7, 10^7)` materialised diagonal.
+
+
+.. _tensorial-framing:
+
+Tensor product algebra
+======================
+
+Streaming, scattering, and any operator on a multi-axis flux
+factor naturally as a **tensor product** of per-axis operators:
+
+* **Streaming** (Grand Report v3 §15.1, line 2044):
+
+  .. math::
+     :label: streaming-as-tensor-product-sum
+
+     L \;=\; D_x \otimes \Omega_x \otimes I_g
+            + D_y \otimes \Omega_y \otimes I_g.
+
+* **Pℓ moment scattering** (§15.2):
+
+  .. math::
+     :label: scattering-as-tensor-product-sum
+
+     S \;=\; \sum_{\ell} P_\ell \otimes \Sigma_{s,\ell},
+
+  where :math:`P_\ell` selects the :math:`\ell`-block on the
+  harmonic-coefficient axis and :math:`\Sigma_{s,\ell}` is the
+  per-:math:`\ell` group-to-group transfer matrix.
+
+.. vv-status: streaming-as-tensor-product-sum documented
+.. vv-status: scattering-as-tensor-product-sum documented
+
+These canonical forms motivate the
+:class:`~orpheus.numerics.operator.TensorProductOperator` and
+:class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
+types. The user's architectural correction that drove their
+introduction:
+
+  *"Is there any tensorial machinery to be brought in support of
+  this?"*
+
+The answer is yes, and the cost of NOT having it is that
+:math:`M`, :math:`R`, :math:`\Lambda` would be three named
+operators that *happen* to be expressible via
+:func:`numpy.einsum`, with the axis structure implicit inside each
+op. With the tensor-product types, the §9 literal statement
+:math:`S_{\text{SN}} = R \Lambda M` becomes the operator-algebra
+type signature, and the multi-axis structure is **structural**
+rather than buried in einsum subscripts.
+
+
+Definition
+----------
+
+For operators :math:`A_1, A_2, \ldots, A_k` acting on
+**independent** tensor axes (each carries an ``axis`` attribute and
+broadcasts on the rest), the tensor-product operator's action is
+the sequential per-axis application
+
+.. (vv-status rationale) Verified by
+   ``tests/numerics/test_tensor_product_operator.py`` — Kronecker-
+   product reference on small concrete factors, capability-
+   intersection, and the algebraic laws below.
+.. vv-status: tensor-product-action documented
+
+.. math::
+   :label: tensor-product-action
+
+   (A_1 \otimes A_2 \otimes \cdots \otimes A_k)\,x
+   \;=\; A_k\bigl(\cdots A_2(A_1\,x) \cdots\bigr).
+
+Because the constituents act on disjoint axes, the order does not
+matter — the operators commute on the joint tensor. The
+:pydata:`capabilities` set is the **intersection** of the
+constituents' capabilities: the tensor product can apply iff every
+factor can apply, can apply_transpose iff every factor can, can
+solve iff every factor can.
+
+
+Algebraic laws
+--------------
+
+The
+:class:`~orpheus.numerics.operator.TensorProductOperator` carries
+three algebraic laws verified by tests
+(:file:`tests/numerics/test_tensor_product_operator.py`):
+
+.. math::
+   :label: tensor-product-adjoint-distributivity
+
+   (A \otimes B)^*
+   \;=\; A^* \otimes B^*.
+
+.. math::
+   :label: tensor-product-axis-wise-composition
+
+   (A \otimes B) \circ (C \otimes D)
+   \;=\; (A \circ C) \otimes (B \circ D)
+   \quad
+   \text{when } A, C \text{ share an axis and } B, D \text{ share
+   an axis}.
+
+.. math::
+   :label: tensor-product-inverse
+
+   (A \otimes B)^{-1}
+   \;=\; A^{-1} \otimes B^{-1}
+   \quad
+   \text{when both factors are invertible}.
+
+.. vv-status: tensor-product-adjoint-distributivity documented
+.. vv-status: tensor-product-axis-wise-composition documented
+.. vv-status: tensor-product-inverse documented
+
+
+Relation to numpy primitives
+-----------------------------
+
+This is the load-bearing distinction the user explicitly asked
+about:
+:func:`numpy.kron`, :func:`numpy.tensordot`, and
+:func:`numpy.einsum` are **array primitives** — the
+*implementation* layer.
+:class:`TensorProductOperator` is the **operator-algebra type** —
+a layer above.
+
+.. list-table:: Two abstraction layers
+   :header-rows: 1
+   :widths: 26 36 38
+
+   * - Layer
+     - Carrier
+     - Examples
+   * - **Implementation** (numpy)
+     - Untyped multi-axis arrays; subscript strings encode axis
+       structure; algebra is in the programmer's head.
+     - ``np.einsum("nlm,n,n...->lm...", Y, w, psi)`` — the axes
+       ``n``, ``l``, ``m``, and ``...`` are conventions only;
+       nothing in the type system prevents passing a wrong-shaped
+       ``Y`` or a wrong-axis ``w``.
+   * - **Operator algebra** (this module)
+     - Typed operators; ``axis`` attribute on each factor; capability
+       intersection; algebraic laws checked at composition.
+     - ``HarmonicMomentProjection(weights=w, Y=Y, L=L) &
+       IdentityOperator()`` — the type signal carries the axis
+       structure; mismatched axes raise at composition; the
+       :meth:`apply` routes through ``np.einsum`` internally with
+       the correct subscripts.
+
+The two layers are **complementary**, not competitive. The
+operator-algebra layer routes through the array layer for
+performance — every :meth:`apply` call eventually calls
+``np.einsum`` or a broadcast-multiply, because numpy's einsum
+backend is more optimised than anything Python-level the project
+could write. The advantage of the operator-algebra layer is in the
+**composition language**:
+
+* ``A & B & C`` reads as :math:`A \otimes B \otimes C`.
+* ``(A & B) @ (C & D)`` automatically reduces to
+  ``(A @ C) & (B @ D)`` (the axis-wise composition law).
+* ``(A & B).H`` is ``A.H & B.H`` (adjoint distributivity).
+* The capability set is computed automatically; a missing
+  capability raises at composition, not at the first
+  :func:`numpy.einsum` call mid-iteration.
+
+.. note::
+
+   :func:`numpy.kron` constructs a **dense** Kronecker product
+   matrix — the explicit :math:`(N_A N_B) \times (N_A N_B)` entry
+   table. This is the wrong abstraction for transport: an SN
+   sweep's effective tensor-product operator
+   :math:`L = D_x \otimes \Omega_x \otimes I_g` would be a
+   :math:`(N N_x N_y N_g)^2` matrix — never materialised in
+   practice because the action is matrix-free. The
+   :class:`TensorProductOperator` carries the algebra without
+   the materialisation, just as
+   :class:`scipy.sparse.linalg.LinearOperator` carries dense-matrix
+   algebra without the dense matrix.
+
+
+SumOfTensorProductsOperator
+---------------------------
+
+When several tensor products are summed,
+:class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
+provides the §15.2 canonical scattering / streaming form's named
+type:
+
+.. math::
+   :label: sum-of-tensor-products
+
+   T \;=\; \sum_{k=1}^{K} A_k \otimes B_k \otimes C_k.
+
+.. vv-status: sum-of-tensor-products documented
+
+Algebraically just :class:`OperatorSum` over
+:class:`TensorProductOperator` summands, but exposed as a named
+class so the §15.2 invariants
+(:meth:`assert_separable` — every summand is a tensor product;
+shared-axis-factor refactoring; future TT-compression entry point
+per §15.3) carry a load-bearing type signal. The
+:meth:`assert_separable` method is currently a contract-validator
+(separability is enforced at construction); it is a hook for
+future invariant checks.
+
+
+Tensor product as the inverse of partition
+-------------------------------------------
+
+The :class:`~orpheus.numerics.measure.DiscreteMeasure`'s
+:meth:`partition_by` method (see :ref:`discrete-measures`) realises
+the **direct sum**
+:math:`\mu_{S^2} = \bigoplus_\lambda \mu_\lambda`. When the
+predicate is the octant-sign label
+:math:`\lambda(\hat\Omega) =
+(\mathrm{sign}\,\mu_x, \mathrm{sign}\,\mu_y, \mathrm{sign}\,\mu_z)`,
+the partition recovers the eight octants of :math:`S^2` (or four
+in 2-D where :math:`\mu_z = 0` is a degenerate case).
+
+For per-octant operators (e.g. the SN sweep's :math:`L_{oct}^{-1}`
+acting on
+:math:`(\text{octant\_ordinates} \times \text{cells} \times
+\text{groups})`), the **tensor product** factors the per-axis
+structure within an octant while the **direct sum** assembles the
+octants into the global angular cubature:
+
+.. math::
+   :label: octant-direct-sum-tensor-product
+
+   L^{-1} \;=\; \bigoplus_{\text{oct}}\,
+                L_{oct}^{-1}, \qquad
+   L_{oct}^{-1} \;=\; \text{(per-axis tensor product within an octant)}.
+
+.. vv-status: octant-direct-sum-tensor-product documented
+
+This is the operator-algebra type signature behind Wave 2 of the
+SN performance plan: the 2-D Cartesian sweep iterates
+:math:`\bigoplus_{oct}` (4 octants — structural) and per-octant
+anti-diagonals (sweep-DAG topology — structural), with no Python
+loop over the ordinate axis (which is **internal** to every
+:meth:`apply` call within an octant, vectorised by the tensor-
+product structure).
+

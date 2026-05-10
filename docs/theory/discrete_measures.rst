@@ -189,6 +189,149 @@ needs the field, it must re-establish the claim and stamp it back
 with :meth:`~orpheus.numerics.measure.DiscreteMeasure.with_metadata`.
 
 
+.. _discrete-measure-partition:
+
+Partition by labelling predicate
+================================
+
+The fifth composition operation (added in Wave 0 of the SN
+performance plan, step C0.4) realises the **inverse** of direct sum:
+given a measure :math:`\mu` and a labelling map
+:math:`\ell : \mathcal{X} \to L` on the support points, recover the
+disjoint decomposition
+
+.. (vv-status rationale) Verified by
+   ``tests/numerics/test_measure_partition.py`` — disjoint-union
+   coverage, weight conservation, generic-S² octant predicate on
+   Lebedev orders 5/9/17, and the round-trip identity
+   :math:`\mu = \bigoplus_\lambda \mu_\lambda`.
+.. vv-status: discrete-measure-partition documented
+
+.. math::
+   :label: discrete-measure-partition
+
+   \mu \;=\; \bigoplus_{\lambda \in L} \mu_\lambda,
+   \qquad
+   \mu_\lambda
+   \;=\; \sum_{i : \ell(x_i) = \lambda} w_i \, \delta_{x_i}.
+
+The decomposition is **disjoint** by construction (every node
+appears in exactly one partition entry) and **preserves total
+mass** (sum of partition weights equals total mass of :math:`\mu`).
+The
+:meth:`~orpheus.numerics.measure.DiscreteMeasure.partition_by`
+method returns a tuple of
+:class:`~orpheus.numerics.measure.DiscreteMeasurePartition` entries,
+each carrying the partition label, the indices into the parent
+measure, and the restricted measure :math:`\mu_\lambda` on the same
+space as :math:`\mu`.
+
+Round-trip identity
+-------------------
+
+For any partition predicate :math:`\ell`, the direct sum of
+partition measures equals the parent modulo ordering:
+
+.. math::
+   :label: partition-round-trip
+
+   \mu \;=\; \mu_{\lambda_1} \oplus \mu_{\lambda_2}
+              \oplus \cdots \oplus \mu_{\lambda_K}.
+
+.. vv-status: partition-round-trip documented
+
+This is the **inverse-of-direct-sum** identity, verified by
+``tests/numerics/test_measure_partition.py`` on a Lebedev grid
+under the octant-sign predicate. The ``invariance_group`` and
+``degree_of_exactness`` fields are dropped on each partition entry
+— a partition typically breaks any global invariance, and the
+polynomial-exactness of the parent rule does not survive
+restriction.
+
+Octant partition — the canonical use
+------------------------------------
+
+The motivating use is the **angular octant partition** of a
+spherical cubature: with the predicate
+
+.. math::
+   :label: octant-sign-predicate
+
+   \ell(\hat\Omega)
+   \;=\; \bigl(\mathrm{sign}\,\mu_x,\;
+                \mathrm{sign}\,\mu_y,\;
+                \mathrm{sign}\,\mu_z\bigr),
+
+.. vv-status: octant-sign-predicate documented
+
+the partition produces the eight octants of :math:`S^2` (or four
+in 2-D, where :math:`\mu_z = 0` is degenerate and contributes a
+separate ``sign=0`` entry). The four
+:class:`~orpheus.sn.quadrature.AngularQuadrature` adapters expose
+``octants`` as a cached property delegating to ``partition_by`` —
+the SN sweep then iterates **octants** (4 in 2-D — structural)
+and **anti-diagonals per octant** (sweep-DAG topology —
+structural), with the ordinate axis (:math:`N_{\text{oct}}`)
+**internal** to every :meth:`apply` call within an octant.
+
+This is the operator-algebra-level realisation of the SN
+performance plan's central principle: *the metric should know its
+iterative structure*. The Python ``for n in range(N)`` over
+ordinates that exists in the legacy 2-D wavefront sweep is
+replaced by a tensor-product action vectorised across the
+octant-restricted ordinate axis.
+
+Cross-method consumers
+----------------------
+
+The partition primitive is **infrastructure** — it is consumed by
+multiple solvers wherever a measure is naturally split by a
+discrete labelling predicate (per :ref:`tensorial-framing`):
+
+.. list-table:: Cross-method consumers of partition_by
+   :header-rows: 1
+   :widths: 24 38 38
+
+   * - Solver
+     - Predicate
+     - Source
+   * - **SN 2-D sweep**
+     - Octant-sign predicate
+       :eq:`octant-sign-predicate` — partitions the angular
+       cubature into the 4 (2-D) or 8 (3-D) sweep octants.
+     - Wave 2 of SN performance plan; closes Issue #4.
+   * - **MoC track-bundle direction grouping**
+     - Polar-angle bin predicate — partitions tracks by polar
+       angle :math:`\theta`.
+     - Future MoC consumer.
+   * - **MC boundary-current scoring by hemisphere**
+     - Sign-of-outward-normal predicate — partitions track-
+       boundary intersections into incoming / outgoing.
+     - Future MC consumer.
+   * - **SN boundary realiser** (§16A.5)
+     - Per-boundary-face incoming-ordinate predicate —
+       partitions ordinates by which face they enter.
+     - Future SN boundary-condition consumer.
+
+Test invariants
+---------------
+
+The partition primitive carries three :math:`\mathrm{L0}` invariants
+verified by
+``tests/numerics/test_measure_partition.py``:
+
+1. **Disjoint union**: every parent index appears in exactly one
+   partition entry's ``indices`` array.
+2. **Weight conservation**: the sum of restricted measure weights
+   over all partitions equals the parent's total mass.
+3. **Per-partition well-formedness**: every partition's
+   ``measure`` carries the same ``space`` tag as the parent and
+   has consistent ``nodes.shape[0] == weights.shape[0]``.
+
+The tests run on Lebedev orders 5, 9, and 17 under the octant-sign
+predicate and on a randomised generic predicate.
+
+
 1-D primitive constructors
 ==========================
 
