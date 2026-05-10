@@ -199,16 +199,43 @@ sufficiently-exact angular cubature:
    \Pi \, R \;=\; 4\pi \, I_{\text{coefficient space}},
 
 where :math:`\Pi` is :class:`HarmonicMomentProjection`, :math:`R` is
-:class:`HarmonicMomentReconstruction`, and the :math:`4\pi` factor
-comes from the no-prefactor convention summing the
-:math:`4\pi/(2\ell+1)` orthogonality with the
-:math:`(2\ell+1)` reconstruction weight. The identity is verified at
-:math:`L=2,\,3,\,4` against Lebedev quadratures of order :math:`7,\,
-13,\,17` by the L1 test
+:class:`HarmonicMomentReconstruction` (with the
+:math:`(2\ell+1)` factor), and the :math:`4\pi` factor comes from
+the no-prefactor convention summing the :math:`4\pi/(2\ell+1)`
+orthogonality with the :math:`(2\ell+1)` reconstruction weight. The
+identity is verified at :math:`L=2,\,3,\,4` against Lebedev
+quadratures of order :math:`7,\,13,\,17` by the L1 test
 ``tests/numerics/test_projection_operators.py::
 TestGalerkinIdempotencyOnLebedev::test_pi_R_is_identity_on_band_limited``.
 
 .. vv-status: pi-r-equals-4pi-i documented
+
+.. note::
+
+   The strict Hilbert adjoint :math:`\Pi^*` (returned by
+   :meth:`HarmonicMomentProjection.apply_transpose`) is **not** the
+   same operator as :math:`R` (returned by
+   :meth:`HarmonicMomentReconstruction.apply`):
+
+   .. math::
+
+      \Pi^* \ne R, \qquad
+      (R \cdot c)_n
+        \;=\; \sum_\ell (2\ell+1) \sum_m Y_\ell^m c_\ell^m, \qquad
+      (\Pi^* c)_n
+        \;=\; \sum_{\ell, m} Y_\ell^m c_\ell^m.
+
+   :math:`R` carries the :math:`(2\ell+1)` factor — the
+   addition-theorem weight needed by the Pℓ scattering
+   reconstruction — while :math:`\Pi^*` is the naked sum (the
+   :math:`W` weight of :math:`\Pi = Y^* W` is on the inner-product
+   side, not the operator). Composing :math:`\Pi^* \cdot \Pi`
+   yields :math:`4\pi/(2\ell+1)\,\delta_{\ell\ell'}\delta_{mm'}` —
+   the Galerkin discipline's diagonal-in-:math:`\ell` adjoint
+   composition — while :math:`\Pi R = 4\pi I` (the addition-theorem
+   composition) is exactly identity-up-to-:math:`4\pi`. See
+   :ref:`galerkin-projection` for the full discipline-level
+   explanation.
 
 The numerical evidence:
 

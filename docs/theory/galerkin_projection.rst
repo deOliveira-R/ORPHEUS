@@ -136,7 +136,7 @@ trial space**. The defining identity is
    :label: galerkin-self-adjoint
 
    \Pi^* \;=\; R
-   \quad \text{(under the } V \text{ inner product)}.
+   \quad \text{(under the } V \text{ inner product, orthonormal basis)}.
 
 .. vv-status: galerkin-self-adjoint documented
 
@@ -151,6 +151,40 @@ why a single basis :math:`\{e_k\}` produces both :math:`\Pi` and
    R \, c     &\;=\; \sum_k c_k\,e_k.
 
 .. vv-status: galerkin-construction documented
+
+.. warning::
+
+   The identity :math:`\Pi^* = R` holds when the basis
+   :math:`\{e_k\}` is orthonormal in :math:`V`. When the basis is
+   only orthogonal — the case for the no-:math:`4\pi/(2\ell+1)`-
+   prefactor real spherical harmonics ORPHEUS uses — the strict
+   Hilbert adjoint :math:`\Pi^*` and the addition-theorem
+   reconstruction :math:`R` differ by a **diagonal-in-:math:`\ell`
+   scaling**. Specifically the strict adjoint is the *naked*
+   reconstruction (no :math:`(2\ell+1)` factor), while
+   :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`
+   carries the :math:`(2\ell+1)` factor that the Pℓ scattering
+   reconstruction needs:
+
+   .. math::
+
+      (\Pi^* c)_n
+      &\;=\; \sum_{\ell, m} Y_\ell^m(\hat\Omega_n)\,c_\ell^m
+        \quad\text{(no factor — strict adjoint)}, \\
+      (R c)_n
+      &\;=\; \sum_\ell (2\ell+1)\,\sum_m Y_\ell^m(\hat\Omega_n)\,
+             c_\ell^m
+        \quad\text{(with factor — addition-theorem)}.
+
+   :meth:`HarmonicMomentProjection.apply_transpose` returns
+   :math:`\Pi^*` (the naked form);
+   :meth:`HarmonicMomentReconstruction.apply` returns :math:`R`
+   (with factor). The capability dishonesty that conflated the two
+   was caught by QA review and corrected as ERR-039 (see the
+   project's L0 error catalog) — both primitives are useful and
+   coexist; the type system does not (cannot) tell them apart on
+   structure alone, so the docstring and this page name them
+   explicitly.
 
 The Galerkin invariant :eq:`galerkin-pair` is then a consequence of
 the basis being orthogonal in :math:`V`-inner-product. Concretely,
@@ -397,8 +431,7 @@ pair:
    Lebedev orders :math:`7,\,13,\,17`. See
    :eq:`pi-r-equals-4pi-i` in :ref:`spherical-harmonics`.
 2. **Adjoint pairing**:
-   :math:`\langle \Pi \psi, c \rangle =
-    \langle \psi, R_{\text{no-factor}} c \rangle_W`,
+   :math:`\langle \Pi \psi, c \rangle = \langle \psi, R_{\text{no-factor}} c \rangle_W`,
    verified to ``rtol=1e-12`` on a Lebedev order-13 grid at
    :math:`L = 3`.
 

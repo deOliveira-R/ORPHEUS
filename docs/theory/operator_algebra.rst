@@ -298,7 +298,7 @@ any method needs for "multiply-by-weights along one axis":
 Self-adjointness is automatic for real-valued weights:
 :meth:`apply_transpose` is the same code path as :meth:`apply`.
 Invertibility is by-element: if every weight is non-zero, the
-operator advertises :pydata:`CAP_SOLVE` and its :meth:`solve`
+operator advertises ``CAP_SOLVE`` and its :meth:`solve`
 divides by :math:`w_n` along ``axis``. If any weight is zero,
 ``solve`` is dropped from the capability set at construction time
 — a zero weight has no inverse, and the harmful-stub anti-pattern
@@ -386,7 +386,7 @@ the sequential per-axis application
 
 Because the constituents act on disjoint axes, the order does not
 matter — the operators commute on the joint tensor. The
-:pydata:`capabilities` set is the **intersection** of the
+``capabilities`` set is the **intersection** of the
 constituents' capabilities: the tensor product can apply iff every
 factor can apply, can apply_transpose iff every factor can, can
 solve iff every factor can.

@@ -381,7 +381,7 @@ class HarmonicMomentProjection(GalerkinProjection):
 
 @dataclass(frozen=True)
 class HarmonicMomentReconstruction(LinearOperatorMixin):
-    r"""Adjoint reconstruction :math:`R` paired with
+    r"""Addition-theorem reconstruction :math:`R` paired with
     :class:`HarmonicMomentProjection`.
 
     Maps moment-space coefficients to a per-ordinate angular field
@@ -399,11 +399,27 @@ class HarmonicMomentReconstruction(LinearOperatorMixin):
     angular field :math:`q : (N, \ldots)`. The remaining axes
     broadcast through unchanged.
 
-    Adjoint of :class:`HarmonicMomentProjection` under the
-    W-weighted :math:`L^2(S^2)` inner product — the Galerkin
-    discipline's :math:`\Pi^* = R` identity. This relationship is the
-    structural content the no-:math:`4\pi/(2\ell+1)`-prefactor
-    convention is designed to make literal.
+    .. warning::
+
+       :math:`R` is **not** the strict Hilbert adjoint of
+       :class:`HarmonicMomentProjection` — see ERR-039. The
+       addition-theorem reconstruction carries the
+       :math:`(2\ell+1)` factor that the Pℓ scattering
+       reconstruction needs (Bell & Glasstone 1970, §1.6); the
+       strict W-weighted Hilbert adjoint :math:`\Pi^*` is the
+       *naked* reconstruction without the :math:`(2\ell+1)` factor
+       and is returned by :meth:`HarmonicMomentProjection.apply_transpose`,
+       NOT by this class. The two operators differ by a
+       diagonal-in-:math:`\ell` scaling :math:`(2\ell+1)`. Both are
+       useful primitives:
+
+       * :math:`R` (this class) for the SN scattering source build
+         — the addition-theorem composition :math:`\Pi R = 4\pi I`
+         is the identity used by the Pℓ Galerkin reconstruction.
+       * :math:`\Pi^*` (the projection's apply_transpose) for the
+         W-weighted Hilbert adjoint — the discipline's
+         :math:`\langle \Pi \psi, c \rangle_C =
+         \langle \psi, \Pi^* c \rangle_V` identity.
 
     Parameters
     ----------
