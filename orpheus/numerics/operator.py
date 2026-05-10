@@ -70,6 +70,7 @@ __all__ = [
     "ScaledOperator",
     "IdentityOperator",
     "ZeroOperator",
+    "DiagonalOperator",
     "as_scipy_linop",
     "CAP_APPLY",
     "CAP_SOLVE",
@@ -686,6 +687,124 @@ class ZeroOperator(LinearOperatorMixin):
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         return np.zeros_like(x)
+
+
+class DiagonalOperator(LinearOperatorMixin):
+    r"""Diagonal multiplication on a tagged tensor axis.
+
+    For a 1-D weight vector :math:`w \in \mathbb{R}^N` and target axis
+    ``axis``, the operator acts on a multi-axis tensor :math:`x` by
+    elementwise multiplication along ``axis``:
+
+    .. math::
+
+        (D x)_{\ldots,\,n,\,\ldots} \;=\; w_n \, x_{\ldots,\,n,\,\ldots}
+
+    All other axes broadcast through unchanged. This is the canonical
+    "diagonal in some basis" operator — the abstraction the Grand Report
+    v3 §9 names :math:`W` (``AngularWeightMatrix``) when the basis is
+    the discrete-ordinate set of an angular cubature, and the same
+    primitive any method needs for "multiply-by-weights along one axis"
+    (MoC track-weight diagonal, CP region-volume weighting, MC
+    importance weighting).
+
+    Self-adjoint by construction (real-valued weights), so
+    :meth:`apply_transpose` is the same code path as :meth:`apply`.
+    Invertible iff all weights are non-zero, in which case
+    :pydata:`CAP_SOLVE` is advertised and :meth:`solve` divides by the
+    weights along ``axis``.
+
+    Parameters
+    ----------
+    weights : np.ndarray
+        1-D weight vector :math:`w`, shape ``(N,)``.
+    axis : int, default 0
+        Tensor axis on which to multiply. The operator broadcasts on
+        every other axis.
+
+    Notes
+    -----
+
+    Construction does NOT eagerly materialise an :math:`N \times N`
+    diagonal matrix; the action is implemented as a single
+    broadcast-multiply (``self._reshape() * x``) so memory cost is
+    :math:`O(N)` regardless of the input tensor's shape.
+
+    Use :meth:`from_measure` when the weights live on a
+    :class:`~orpheus.numerics.measure.DiscreteMeasure` — common for the
+    angular axis of an SN field, where the operator is built from
+    ``quad.weights``.
+    """
+
+    def __init__(self, weights: np.ndarray, axis: int = 0) -> None:
+        weights_arr = np.asarray(weights, dtype=float)
+        if weights_arr.ndim != 1:
+            raise ValueError(
+                f"DiagonalOperator weights must be 1-D, got shape "
+                f"{weights_arr.shape}"
+            )
+        self.weights = weights_arr
+        self.axis = int(axis)
+
+        # Solve is supported iff every weight is non-zero. We check
+        # eagerly at construction so the capability is honest.
+        invertible = bool(np.all(weights_arr != 0.0))
+        caps = {CAP_APPLY, CAP_APPLY_TRANSPOSE}
+        if invertible:
+            caps.add(CAP_SOLVE)
+        self.capabilities = frozenset(caps)
+
+    @classmethod
+    def from_measure(
+        cls, measure, axis: int = 0,
+    ) -> "DiagonalOperator":
+        """Construct from the weights of a :class:`DiscreteMeasure`.
+
+        Convenience constructor for the canonical case where the
+        diagonal IS the discrete measure's weights — e.g.
+        ``DiagonalOperator.from_measure(quad.measure, axis=0)`` is the
+        Grand Report v3 §9 ``AngularWeightMatrix``.
+        """
+        return cls(measure.weights, axis=axis)
+
+    def _reshape(self, ndim: int) -> np.ndarray:
+        """Reshape ``self.weights`` to broadcast over an ``ndim``-tensor.
+
+        Returns a view of shape ``(1, ..., 1, N, 1, ..., 1)`` with
+        ``N`` at position ``self.axis``.
+        """
+        shape = [1] * ndim
+        shape[self.axis] = -1
+        return self.weights.reshape(shape)
+
+    def apply(self, x: np.ndarray) -> np.ndarray:
+        x_arr = np.asarray(x)
+        if x_arr.shape[self.axis] != self.weights.shape[0]:
+            raise ValueError(
+                f"DiagonalOperator(axis={self.axis}) expects axis size "
+                f"{self.weights.shape[0]}; got {x_arr.shape[self.axis]} "
+                f"in input of shape {x_arr.shape}."
+            )
+        return self._reshape(x_arr.ndim) * x_arr
+
+    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+        # Real-valued diagonal is self-adjoint.
+        return self.apply(x)
+
+    def solve(self, b_vec: np.ndarray) -> np.ndarray:
+        if CAP_SOLVE not in self.capabilities:
+            raise MissingCapability(
+                "DiagonalOperator.solve requires non-zero weights; "
+                "this operator has at least one zero weight."
+            )
+        b_arr = np.asarray(b_vec)
+        if b_arr.shape[self.axis] != self.weights.shape[0]:
+            raise ValueError(
+                f"DiagonalOperator(axis={self.axis}) expects axis size "
+                f"{self.weights.shape[0]}; got {b_arr.shape[self.axis]} "
+                f"in input of shape {b_arr.shape}."
+            )
+        return b_arr / self._reshape(b_arr.ndim)
 
 
 # ───────────────────────────────────────────────────────────────────────
