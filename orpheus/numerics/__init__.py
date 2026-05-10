@@ -29,6 +29,7 @@ from .quadrature import (
     level_symmetric_sn,
     product_mu_phi,
 )
+from .spherical_harmonics import evaluate_real_sh
 from .symmetry import SubgroupOfO3
 
 __all__ = [
@@ -51,6 +52,7 @@ __all__ = [
     "ZeroOperator",
     "as_scipy_linop",
     "equispaced",
+    "evaluate_real_sh",
     "gauss_chebyshev",
     "gauss_legendre",
     "gauss_legendre_on_mu",
