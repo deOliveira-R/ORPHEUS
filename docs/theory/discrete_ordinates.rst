@@ -2957,14 +2957,14 @@ The primitive constructors enforce the following at construction
 time, NEVER mid-iteration (the same Wave A philosophy that gates
 :class:`~orpheus.numerics.operator.OperatorSum` etc.):
 
-* ``L`` MUST advertise :pydata:`CAP_APPLY`.
-* ``L`` MUST advertise :pydata:`CAP_SOLVE` *or* the caller MUST
+* ``L`` MUST advertise :py:data:`CAP_APPLY`.
+* ``L`` MUST advertise :py:data:`CAP_SOLVE` *or* the caller MUST
   supply ``inverter``.  Without one of those, the iteration cannot
   evaluate :math:`L^{-1}`.
-* ``S`` MUST advertise :pydata:`CAP_APPLY`.  Pass
+* ``S`` MUST advertise :py:data:`CAP_APPLY`.  Pass
   :class:`~orpheus.numerics.operator.ZeroOperator` for the
   scattering-free case.
-* ``F`` MUST advertise :pydata:`CAP_APPLY`.  For
+* ``F`` MUST advertise :py:data:`CAP_APPLY`.  For
   :class:`SourceIteration` only, pass
   :class:`~orpheus.numerics.operator.ZeroOperator` for the
   fission-free case.
