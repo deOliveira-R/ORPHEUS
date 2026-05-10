@@ -39,6 +39,7 @@ from .spatial.pole_angular_closure import (
     MorelMontryAngularSweep,
     PoleAngularClosure,
 )
+from .sweep_graph import OctantLabel, SweepDependencyGraph
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -248,12 +249,18 @@ class SNMesh:
                 # 2-D Cartesian-style streaming arrays not used here.
                 self.streaming_x: np.ndarray | None = None
                 self.streaming_y: np.ndarray | None = None
+                # Wave 2 sweep-DAG precompute is 2-D Cartesian only;
+                # curvilinear sweeps walk the cell graph differently
+                # (see ``iter_cell_visits``). MoC will define its own
+                # primitive (fiber bundles + solution sheaves).
+                self.sweep_graphs: dict[OctantLabel, SweepDependencyGraph] | None = None
             case CoordSystem.SPHERICAL:
                 assert isinstance(mesh, Mesh1D)
                 self.reduced = spherical_streaming(mesh, quadrature)
                 self.curvature = "spherical"
                 self.streaming_x = None
                 self.streaming_y = None
+                self.sweep_graphs = None
 
         # Resolve boundary conditions from mesh declarations
         self._resolve_bcs(mesh)
@@ -584,6 +591,23 @@ class SNMesh:
 
         # Curvature terms (None for Cartesian — placeholder for curvilinear)
         self.curvature = None
+
+        # Per-octant sweep dependency graphs (Wave 2 / C2.4) — one
+        # ``SweepDependencyGraph`` per in-plane octant ``(sign_x,
+        # sign_y) ∈ {-1, +1}²`` (the four streaming octants).
+        # Pure-z ordinates with ``sign_x == 0 == sign_y`` are handled
+        # by the wavefront sweep's ``Q/Σ_t`` short-circuit and have
+        # no entry here. The graphs depend only on cell topology +
+        # octant sign convention — independent of fluxes / sources /
+        # iteration state — so they are precomputed once at mesh
+        # construction and reused across every sweep call.
+        self.sweep_graphs: dict[OctantLabel, SweepDependencyGraph] = {
+            OctantLabel(sx, sy): SweepDependencyGraph.from_cartesian_2d(
+                nx=self.nx, ny=self.ny, label=OctantLabel(sx, sy),
+            )
+            for sx in (-1, +1)
+            for sy in (-1, +1)
+        }
 
     # ── Backward-compat property accessors ────────────────────────────
     #
