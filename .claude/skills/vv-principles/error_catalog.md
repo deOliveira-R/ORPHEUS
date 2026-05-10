@@ -1212,16 +1212,124 @@ both anisotropic spherical and cylindrical cases) therefore stay
 xfail through Round 3 with updated reason strings reflecting the
 partial closure.
 
-Tests:
+What Wave H Phase A added (commit ``d73ef68``, GH #168 Phase A):
+
+The cell-center / BC-face storage conflation in
+:func:`solution_to_angular_flux*` (Defect 2 of GH #168) was closed by
+a structural rewrite — :func:`solution_to_angular_flux*` now returns
+``(fi, boundary_face_flux)`` with separate storage for cell-centre
+values and BC face values, and the matvec uses the new
+:class:`BoundaryFaceFlux` Protocol
+(:mod:`orpheus.sn.spatial.boundary_face_flux`) for the outgoing outer
+face flux. The default strategy
+:class:`DDExtrapolation` uses
+``psi_face_out = 1.5·psi[N-1] − 0.5·psi[N-2]`` (one-sided
+second-order; closes Defect 1 of GH #168).
+:class:`CellCenter` reproduces the legacy first-order substitution
+for ablation tests. Phase A regenerated the regression snapshot
+contract: the 5 Cartesian snapshots stay bit-identical, the 6
+curvilinear snapshots were intentionally invalidated and now skip
+gracefully via ``if not snapshot_file.exists(): pytest.skip(...)``
+pending the Wave H Phase C regeneration.
+
+What Wave H Phase B added (Architecture only, GH #168 Phase B):
+
+The angular-redistribution closure was lifted from inlined matvec
+math to a new :class:`PoleAngularClosure` Protocol
+(:mod:`orpheus.sn.spatial.pole_angular_closure`) with three concrete
+strategies:
+
+- :class:`LegacyTauSymmetricInterpolation` (default) — bit-for-bit
+  reproduction of the pre-Phase-B inlined τ-symmetric form on
+  arbitrary input. Preserves the regression contract under Phase B.
+- :class:`BaileyFlatFluxRedist` — algebraic flat-flux collapse
+  ``redist = -μ_n·ΔA_i·ψ_n,i / V_i``. Equivalent to the legacy form
+  on flat ψ; differs per-ordinate on angularly-varying ψ
+  (the Defect 3 disagreement).
+- :class:`MorelMontryAngularSweep` (opt-in) — canonical Hébert §3.9.4
+  per-cell M-M weighted DD recurrence (Eqs. 3.428, 3.432–3.439). The
+  per-ordinate redistribution is
+  ``(α_{n+1/2}·ψ_{n+1/2} − α_{n-1/2}·ψ_{n-1/2}) · ΔS_i / (2·𝒲_n·V_i)``
+  with starting condition ``ψ_{1/2}=0`` and DD closure
+  ``ψ_{n+1/2} = 2·ψ_n − ψ_{n-1/2}``.
+
+The α-recursion normalisation between ORPHEUS and Hébert was pinned
+explicitly: ORPHEUS uses ``α^O[n+1] = α^O[n] − 𝒲_n·μ_n`` with
+divisor ``ΔA_i / 𝒲_n``; Hébert uses ``α^H_{n+1/2} = α^H_{n-1/2} −
+2·𝒲_n·μ_n`` with divisor ``ΔS_i / (2·𝒲_n)``. The factor of 2 is
+absorbed into the recurrence normalisation: ``α^O = α^H / 2``. Both
+forms are mathematically equivalent. Documented in
+:mod:`orpheus.geometry.reduced_operator`,
+:mod:`orpheus.sn.spatial.pole_angular_closure`, and
+:doc:`docs/theory/discrete_ordinates`.
+
+Phase B did NOT close ERR-026. The empirical finding pinned in
+:func:`tests.sn.test_snstreamingoperator.test_apply_spherical_constant_flux_under_morel_montry_canonical_form`
+is that pairing :class:`MorelMontryAngularSweep` with the apply
+matvec's existing **spatial** closure (interior arithmetic average
+``0.5·(ψ_i + ψ_{i+1})`` + outer DD extrapolation) gives a *worse*
+operator than the legacy form on flat ψ:
+``test_spherical_sweep_vs_bicgstab_flat_flux`` regresses (φ ranges
+0.6–1.004 instead of analytical 1.0); MMS probes diverge to
+~10^14 at nc=10. The DD angular recurrence on flat ψ produces
+oscillating half-angle face fluxes ``0, 2c, 0, 2c, …``, which
+combined with the symmetric spatial average gives garbage.
+Mechanically: the apply matvec must use the same WDD spatial closure
+the sweep uses (``ψ_face_out = 2·ψ_avg − ψ_face_in``) for the
+canonical angular closure to be consistent. That's Phase C scope.
+
+Phase B citation correction:
+:mod:`orpheus.geometry.reduced_operator` previously cited Bailey,
+Adams, Yang & Zika (2009) JCP 227 — a piecewise-linear FE diffusion
+paper unrelated to curvilinear S\ :sub:`N`. Corrected to **Bailey,
+Morel & Chang (2010), NSE 165(2):149-169** (LLNL-JRNL-420356, OA at
+https://www.osti.gov/servlets/purl/1020346). Hébert (2009) §3.9.4
+is the primary source; Bailey-Morel-Chang 2010 is the auxiliary
+asymptotic-diffusion-limit τ-clamp justification. Citations updated
+in :mod:`orpheus.geometry.reduced_operator`,
+:mod:`orpheus.sn.sweep`, :mod:`orpheus.sn.spatial.diamond`.
+
+Phase C scope (full ERR-026 closure):
+
+1. **Spatial-closure alignment**: rewrite the apply matvec's
+   interior face-flux closure from arithmetic average
+   ``0.5·(ψ_i + ψ_{i+1})`` to the sweep's WDD form
+   ``ψ_face_out = 2·ψ_avg − ψ_face_in`` (design memo §6.4 / §11).
+   The Phase A :class:`BoundaryFaceFlux` Protocol stays; the
+   interior face closure receives a parallel reformulation.
+2. **Default flips**: once spatial closures are aligned, flip
+   :attr:`SNMesh.pole_angular_closure` default
+   :class:`LegacyTauSymmetricInterpolation` →
+   :class:`MorelMontryAngularSweep`; flip curvilinear
+   ``solve_sn_fixed_source`` default ``"source_iteration"`` →
+   ``"krylov"``.
+3. **Snapshot regeneration**: regenerate the 6 deleted curvilinear
+   regression snapshots with the Phase-C-corrected operator AND
+   verify each via FN-method cross-check on the closest Sood
+   La13511 case (per :mod:`orpheus.derivations.continuous.sood_registry`).
+4. **Marker removal**: the four xfail-strict ERR-026 tripwires
+   (the two anisotropic + two isotropic curvilinear MMS tests)
+   come off. ERR-026 status: PARTIAL CLOSURE → CLOSED.
+
+Tests (current state through Phase B):
 
 - `tests/sn/test_sweep_operator_inconsistency.py` — pinned as the
   ERR-026 evidence ledger; the sweep still produces the documented
   WDD deviation when explicitly invoked, the krylov path gives the
-  correct answer for constant-source problems.
+  correct answer for constant-source problems under the Phase B
+  default :class:`LegacyTauSymmetricInterpolation`.
+- `tests/sn/spatial/test_pole_angular_closure.py` (NEW) — 28
+  foundation tests pinning Protocol contract, α-recursion identity
+  (Hébert Eqs. 3.423-3.424), 2-ordinate hand-calcs, and the
+  BFF↔MMS Defect-3 disagreement on angularly-varying ψ.
+- `tests/sn/l1_analytical/test_pole_closure_flat_flux_identity.py` (NEW) —
+  5 L1 tests pinning flat-flux invariants (Legacy↔BFF bit-for-bit
+  on flat ψ; MMS preserves angular-integrated invariant by
+  α-telescoping).
 - `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` —
-  xfail-strict, awaits the FD-operator boundary follow-up.
+  xfail-strict, awaits Phase C spatial-closure alignment.
 - `tests/sn/test_mms_curvilinear.py` (legacy isotropic ansatz) —
-  fails with order ≈ 0 on the WDD sweep; awaits the same follow-up.
+  fails with order ≈ 0 on the WDD sweep; awaits Phase C.
 
 ---
 
