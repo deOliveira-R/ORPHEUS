@@ -21,6 +21,8 @@ from .operator import (
     OperatorProduct,
     OperatorSum,
     ScaledOperator,
+    SumOfTensorProductsOperator,
+    TensorProductOperator,
     ZeroOperator,
     as_scipy_linop,
 )
@@ -51,6 +53,8 @@ __all__ = [
     "ScaledOperator",
     "SourceIteration",
     "SubgroupOfO3",
+    "SumOfTensorProductsOperator",
+    "TensorProductOperator",
     "ZeroOperator",
     "as_scipy_linop",
     "equispaced",

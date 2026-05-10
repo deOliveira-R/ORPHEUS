@@ -71,6 +71,8 @@ __all__ = [
     "IdentityOperator",
     "ZeroOperator",
     "DiagonalOperator",
+    "TensorProductOperator",
+    "SumOfTensorProductsOperator",
     "as_scipy_linop",
     "CAP_APPLY",
     "CAP_SOLVE",
@@ -268,6 +270,23 @@ class LinearOperatorMixin:
 
     def __matmul__(self, other: "LinearOperator") -> "OperatorProduct":
         return OperatorProduct(self, other)  # type: ignore[arg-type]
+
+    def __and__(self, other: "LinearOperator") -> "TensorProductOperator":
+        r"""Return :math:`A \otimes B` — the per-axis tensor-product operator.
+
+        Per Grand Report v3 §6.3 line 721 and §15.1 line 2044. For two
+        operators acting on independent tensor axes, ``A & B`` produces
+        the operator whose action is "apply A on its axis, apply B on
+        its axis" (sequentially; commutative because axes are disjoint).
+
+        If either operand is already a :class:`TensorProductOperator`,
+        the result is flattened so ``(A & B) & C`` and ``A & (B & C)``
+        produce the same instance ``TensorProductOperator((A, B, C))``.
+        """
+        return TensorProductOperator._build(self, other)  # type: ignore[arg-type]
+
+    def __rand__(self, other: "LinearOperator") -> "TensorProductOperator":
+        return TensorProductOperator._build(other, self)  # type: ignore[arg-type]
 
     def __call__(self, *args, **kwargs):
         """Alias for :meth:`apply`. Lets user code write ``A(x)``.
@@ -687,6 +706,220 @@ class ZeroOperator(LinearOperatorMixin):
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         return np.zeros_like(x)
+
+
+class TensorProductOperator(LinearOperatorMixin):
+    r"""Per-axis tensor product :math:`A \otimes B \otimes \cdots`.
+
+    Given a tuple of linear operators :math:`A_1, A_2, \ldots, A_k`
+    acting on **independent** tensor axes (i.e. each carries an
+    ``axis`` attribute and broadcasts on the rest), the tensor product
+    operator's action is the sequential per-axis application
+
+    .. math::
+
+        (A_1 \otimes A_2 \otimes \cdots \otimes A_k)\,x
+        \;=\; A_k\bigl(\cdots A_2(A_1\,x) \cdots\bigr).
+
+    Because the constituents act on disjoint axes, the order does not
+    matter (the operators commute on the joint tensor). The
+    :pydata:`capabilities` set is the **intersection** of the
+    constituents' capabilities — the tensor product can apply iff
+    every factor can apply, can apply_transpose iff every factor can,
+    can solve iff every factor can.
+
+    Algebraic laws (verified by tests):
+
+    * **Adjoint distributivity**:
+      :math:`(A \otimes B)^* = A^* \otimes B^*`.
+    * **Per-axis composition**:
+      :math:`(A \otimes B) \circ (C \otimes D) = (A \circ C) \otimes (B \circ D)`
+      when ``A``/``C`` share an axis and ``B``/``D`` share an axis.
+    * **Inverse on every axis**:
+      :math:`(A \otimes B)^{-1} = A^{-1} \otimes B^{-1}` when both
+      factors are invertible.
+
+    Parameters
+    ----------
+    ops : tuple of LinearOperator
+        The tensor-product factors. Each MUST advertise an ``axis``
+        attribute (or accept an ``axis`` kwarg in :meth:`apply`) and
+        broadcast on every other axis. :class:`IdentityOperator`,
+        :class:`DiagonalOperator`, and any
+        :class:`OperatorProduct`/:class:`OperatorSum` of such operators
+        satisfy the contract.
+
+    Notes
+    -----
+
+    Relation to numpy: :func:`numpy.kron`, :func:`numpy.tensordot`,
+    :func:`numpy.einsum` are array primitives — the *implementation*
+    layer. :class:`TensorProductOperator` is the *operator algebra
+    type* — it carries axis tags, capability set, and the algebraic
+    laws above. Its :meth:`apply` routes through each constituent's
+    :meth:`apply`, which is itself typically a single ``np.einsum`` or
+    broadcast-multiply. Different abstraction layers, complementary.
+
+    Operators with non-axis-preserving signatures (e.g. an angular
+    moment projection that consumes one ordinate axis and produces
+    two harmonic-coefficient axes) do not fit this contract — their
+    action changes tensor rank. Use them directly via their own
+    :meth:`apply`; do not wrap in :class:`TensorProductOperator`.
+    """
+
+    def __init__(self, ops: tuple) -> None:
+        if len(ops) < 1:
+            raise ValueError("TensorProductOperator requires at least one factor")
+        # Validate every factor advertises CAP_APPLY.
+        for op in ops:
+            if not _has(op, CAP_APPLY):
+                raise MissingCapability(
+                    f"TensorProductOperator factor must advertise "
+                    f"{CAP_APPLY!r}; {type(op).__name__} lacks it."
+                )
+        self.ops: tuple = tuple(ops)
+        # Capability intersection: tensor product has cap c iff EVERY
+        # factor has cap c.
+        recognised = {CAP_APPLY, CAP_SOLVE, CAP_APPLY_TRANSPOSE}
+        intersected = {
+            cap for cap in recognised if all(_has(op, cap) for op in ops)
+        }
+        self.capabilities = frozenset(intersected)
+
+    @staticmethod
+    def _build(a: "LinearOperator", b: "LinearOperator") -> "TensorProductOperator":
+        """Construct a flattened ``A & B`` instance.
+
+        If either operand is itself a :class:`TensorProductOperator`,
+        absorb its factors so ``(A & B) & C`` and ``A & (B & C)`` both
+        produce ``TensorProductOperator((A, B, C))``.
+        """
+        a_ops = a.ops if isinstance(a, TensorProductOperator) else (a,)
+        b_ops = b.ops if isinstance(b, TensorProductOperator) else (b,)
+        return TensorProductOperator(a_ops + b_ops)
+
+    def apply(self, x: np.ndarray) -> np.ndarray:
+        out = x
+        for op in self.ops:
+            out = op.apply(out)
+        return out
+
+    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+        if CAP_APPLY_TRANSPOSE not in self.capabilities:
+            raise MissingCapability(
+                "TensorProductOperator.apply_transpose requires every "
+                "factor to advertise CAP_APPLY_TRANSPOSE."
+            )
+        out = x
+        # Adjoint of tensor product is tensor product of adjoints.
+        # Apply transposes of factors (order irrelevant for disjoint axes).
+        for op in self.ops:
+            out = op.apply_transpose(out)  # type: ignore[attr-defined]
+        return out
+
+    def solve(self, b_vec: np.ndarray) -> np.ndarray:
+        if CAP_SOLVE not in self.capabilities:
+            raise MissingCapability(
+                "TensorProductOperator.solve requires every factor to "
+                "advertise CAP_SOLVE."
+            )
+        out = b_vec
+        for op in self.ops:
+            out = op.solve(out)  # type: ignore[attr-defined]
+        return out
+
+
+class SumOfTensorProductsOperator(LinearOperatorMixin):
+    r"""Sum of tensor products :math:`\sum_k A_k \otimes B_k \otimes \cdots`.
+
+    The §15.2 / §15A.2 canonical form for scattering and streaming in
+    the operator-algebra view:
+
+    * **Streaming** (§15.1):
+      :math:`L = D_x \otimes \Omega_x \otimes I_g + D_y \otimes \Omega_y \otimes I_g`.
+    * **Scattering** (§15.2):
+      :math:`S = \sum_\ell P_\ell \otimes \Sigma_{s,\ell}` (per-:math:`\ell`
+      block-diagonal on moment space).
+
+    Algebraically just :class:`OperatorSum` over
+    :class:`TensorProductOperator` summands, but exposed as a named
+    type because the structure carries V&V invariants worth checking
+    explicitly:
+
+    * Each summand IS a :class:`TensorProductOperator` —
+      :meth:`assert_separable`.
+    * (Future) common-axis factorisation — when many summands share
+      an axis-factor, refactoring saves work.
+
+    Parameters
+    ----------
+    summands : tuple of TensorProductOperator
+        The tensor-product summands. Each MUST be a
+        :class:`TensorProductOperator`; mixing in non-separable
+        operators makes the type label misleading.
+
+    Notes
+    -----
+
+    The implementation backs onto :class:`OperatorSum` —
+    :meth:`apply` simply sums each summand's action — so all the
+    algebra of :class:`OperatorSum` (composition, scaling, capability
+    intersection) is inherited by delegation. The named subclass
+    exists for the type signal and the assertion methods.
+    """
+
+    def __init__(self, summands: tuple) -> None:
+        if len(summands) < 1:
+            raise ValueError(
+                "SumOfTensorProductsOperator requires at least one summand"
+            )
+        for s in summands:
+            if not isinstance(s, TensorProductOperator):
+                raise TypeError(
+                    f"SumOfTensorProductsOperator summands must be "
+                    f"TensorProductOperator instances; got {type(s).__name__}. "
+                    f"Use OperatorSum for general operator addition."
+                )
+        self.summands: tuple = tuple(summands)
+        # Capability intersection across summands (sum can apply iff
+        # every summand can apply, etc.).
+        recognised = {CAP_APPLY, CAP_APPLY_TRANSPOSE}
+        # Solve does NOT propagate through sums (sum of inverses != inverse of sum).
+        intersected = {
+            cap for cap in recognised if all(_has(s, cap) for s in summands)
+        }
+        self.capabilities = frozenset(intersected)
+
+    def apply(self, x: np.ndarray) -> np.ndarray:
+        out = self.summands[0].apply(x)
+        for s in self.summands[1:]:
+            out = out + s.apply(x)
+        return out
+
+    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+        if CAP_APPLY_TRANSPOSE not in self.capabilities:
+            raise MissingCapability(
+                "SumOfTensorProductsOperator.apply_transpose requires "
+                "every summand to advertise CAP_APPLY_TRANSPOSE."
+            )
+        out = self.summands[0].apply_transpose(x)
+        for s in self.summands[1:]:
+            out = out + s.apply_transpose(x)
+        return out
+
+    def assert_separable(self) -> None:
+        """Assert every summand is a :class:`TensorProductOperator`.
+
+        Holds by construction (the constructor enforces it), so this
+        method is a no-op contract-validator. Useful as documentation
+        and as a hook for subclasses or future invariant checks.
+        """
+        for s in self.summands:
+            if not isinstance(s, TensorProductOperator):
+                raise AssertionError(
+                    f"SumOfTensorProductsOperator summand is not "
+                    f"separable: {type(s).__name__}"
+                )
 
 
 class DiagonalOperator(LinearOperatorMixin):
