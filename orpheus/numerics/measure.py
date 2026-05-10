@@ -1035,6 +1035,7 @@ def equispaced(a: float, b: float, n: int) -> DiscreteMeasure:
 __all__ = [
     "BundleMeasure",
     "DiscreteMeasure",
+    "DiscreteMeasurePartition",
     "Space",
     "SPACE_R",
     "SPACE_INTERVAL_M11",

@@ -224,6 +224,77 @@ class TestGalerkinIdempotencyOnLebedev:
 
 
 @pytest.mark.l1
+@pytest.mark.catches("ERR-039")
+class TestApplyTransposeIsWWeightedAdjoint:
+    r"""L1: HarmonicMomentProjection.apply_transpose is the W-weighted adjoint.
+
+    Direct test of the production ``apply_transpose`` against the
+    defining identity :math:`\langle \Pi \psi, c \rangle_C =
+    \langle \psi, \Pi^* c \rangle_V`.
+
+    Closes the gap qa flagged: previous tests hand-coded the einsum
+    for the right side but never crossed the boundary into the
+    production ``apply_transpose`` path. This test does.
+    """
+
+    def test_adjoint_identity_matches_production(self):
+        measure = lebedev_sphere(13)
+        L = 3
+        rng = np.random.default_rng(seed=1234)
+        M = HarmonicMomentProjection.from_measure(measure, L=L)
+
+        psi = rng.standard_normal(measure.n_points)
+        c = rng.standard_normal((L + 1, 2 * L + 1))
+        # Mask non-existent (l, m) entries (only |m| <= l survive)
+        c_masked = np.zeros_like(c)
+        for l_idx in range(L + 1):
+            for m_off in range(2 * l_idx + 1):
+                c_masked[l_idx, m_off] = c[l_idx, m_off]
+
+        # ⟨Π ψ, c⟩_C — Euclidean inner product on coefficient space
+        Mpsi = M.apply(psi)
+        lhs = float(np.sum(Mpsi * c_masked))
+
+        # ⟨ψ, Π* c⟩_V — W-weighted inner product on trial space
+        # Π* c via the production apply_transpose:
+        Pi_star_c = M.apply_transpose(c_masked)
+        rhs = float(np.sum(psi * measure.weights * Pi_star_c))
+
+        np.testing.assert_allclose(lhs, rhs, rtol=1e-12, atol=1e-14)
+
+    def test_apply_transpose_no_2l_plus_1_factor(self):
+        """The W-weighted adjoint has NO (2l+1) factor — distinguishes
+        Π* from R (the addition-theorem reconstruction)."""
+        measure = lebedev_sphere(7)
+        L = 2
+        rng = np.random.default_rng(seed=5678)
+        M = HarmonicMomentProjection.from_measure(measure, L=L)
+        R = HarmonicMomentReconstruction.from_Y(M.Y)
+
+        c = rng.standard_normal((L + 1, 2 * L + 1))
+        c_masked = np.zeros_like(c)
+        for l_idx in range(L + 1):
+            for m_off in range(2 * l_idx + 1):
+                c_masked[l_idx, m_off] = c[l_idx, m_off]
+
+        # Π* c (no factor) vs R c (with (2l+1) factor) — must NOT be equal.
+        Pi_star_c = M.apply_transpose(c_masked)
+        Rc = R.apply(c_masked)
+        # They differ by a (2l+1) per-l weighting; not equal in general.
+        # Specifically, R c = einsum("nlm,l,lm->n", Y, two_l_plus_one, c).
+        two_l_plus_one = 2.0 * np.arange(L + 1) + 1.0
+        Rc_expected = np.einsum(
+            "nlm,l,lm->n", M.Y, two_l_plus_one, c_masked,
+        )
+        np.testing.assert_allclose(Rc, Rc_expected, rtol=1e-15)
+        # Π* c without factor:
+        Pi_star_expected = np.einsum("nlm,lm->n", M.Y, c_masked)
+        np.testing.assert_allclose(Pi_star_c, Pi_star_expected, rtol=1e-15)
+        # Confirm the two are NOT bit-identical (random non-trivial input).
+        assert not np.allclose(Pi_star_c, Rc, atol=1e-3)
+
+
+@pytest.mark.l1
 class TestGalerkinAdjointPairing:
     r"""L1: :math:`\langle \Pi \psi, c \rangle = \langle \psi, R c \rangle_W`.
 

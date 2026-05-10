@@ -339,22 +339,44 @@ class HarmonicMomentProjection(GalerkinProjection):
         """
         return np.einsum("n,nlm,n...->lm...", self.weights, self.Y, psi)
 
-    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
-        r"""Apply :math:`\Pi^*` (the W-weighted adjoint).
+    def apply_transpose(self, c: np.ndarray) -> np.ndarray:
+        r"""Apply the W-weighted Hilbert adjoint :math:`\Pi^*`.
 
-        Under the :math:`L^2(S^2, dW)` inner product on the trial
-        space, :math:`\Pi^* = R` (the addition-theorem reconstruction
-        with the :math:`(2\ell+1)` factor). This method builds a
-        transient :class:`HarmonicMomentReconstruction` and delegates
-        to its :meth:`apply` — the Galerkin invariant
-        :math:`\Pi^* = R` becomes the implementation.
+        Under the :math:`W`-weighted inner product on the trial space
+        (:math:`\langle \psi, \phi \rangle_V = \sum_n w_n \psi_n \phi_n`)
+        and the Euclidean inner product on the coefficient space, the
+        adjoint of :math:`\Pi = Y^* W` is **not** the addition-theorem
+        reconstruction :math:`R` (which carries the :math:`(2\ell+1)`
+        factor). The adjoint identity
+        :math:`\langle \Pi \psi, c \rangle_C = \langle \psi, \Pi^* c \rangle_V`
+        gives
+
+        .. math::
+
+            (\Pi^* c)_n \;=\; \sum_{\ell, m} Y_\ell^m(\hat\Omega_n)\, c_\ell^m,
+
+        i.e., the **naked** reconstruction with NO :math:`(2\ell+1)`
+        factor. The :math:`W` weight on the trial-space side already
+        absorbs the quadrature weights (it is part of the inner
+        product, not the operator).
+
+        Distinguishing :math:`\Pi^*` from :math:`R`: the project's
+        :class:`HarmonicMomentReconstruction` carries the
+        :math:`(2\ell+1)` factor because it is the **addition-theorem
+        reconstruction** used by the SN scattering Pℓ source build,
+        not the strict adjoint. Both are useful primitives; they
+        differ by the diagonal :math:`(2\ell+1)`-scaling.
+
+        Numerical relationship:
+
+        .. math::
+
+            \Pi \, R \;=\; 4\pi \cdot I \quad \text{(Galerkin idempotency, with factor)}
+
+            \Pi \, \Pi^* \;=\; \frac{4\pi}{2\ell+1} \cdot I_\ell
+              \quad \text{(adjoint composition, diagonal in } \ell\text{)}.
         """
-        two_l_plus_one = np.arange(2 * self.L + 1, step=2) + 1.0
-        # arange(0, 2L+1, step=2) = [0, 2, 4, ..., 2L] — that's NOT (2l+1).
-        # Build (2l+1) for l = 0, 1, ..., L:
-        two_l_plus_one = (2.0 * np.arange(self.L + 1) + 1.0)
-        R = HarmonicMomentReconstruction(Y=self.Y, two_l_plus_one=two_l_plus_one)
-        return R.apply(x)
+        return np.einsum("nlm,lm...->n...", self.Y, c)
 
 
 @dataclass(frozen=True)

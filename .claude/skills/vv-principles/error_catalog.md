@@ -2535,3 +2535,80 @@ in `vv-principles` reference.md §reference-contamination, not in
    for uniform media.  Derive the weight formula from first principles
    and verify against a heterogeneous problem BEFORE trusting the
    homogeneous result.
+
+
+---
+
+## ERR-039 — HarmonicMomentProjection.apply_transpose claimed Π* = R but used the addition-theorem reconstruction (with (2ℓ+1) factor)
+
+**Status:** **CAUGHT IN QA REVIEW 2026-05-10**, fixed in same commit as
+introduction (Wave 0 / C0.5 of SN performance plan).
+
+**Failure mode:** **#6 (convention drift)** — definition site (docstring
+claiming "Π* = R, the addition-theorem reconstruction") and the
+mathematical adjoint identity ⟨Πψ, c⟩_C = ⟨ψ, Π* c⟩_V disagreed by
+the factor (2ℓ+1) summed over ℓ. The author drafted apply_transpose
+as a delegation to HarmonicMomentReconstruction.apply, which is the
+addition-theorem reconstruction used by the SN scattering source —
+not the W-weighted Hilbert adjoint.
+
+**Date discovered:** 2026-05-10 (Wave 0 V&V audit by qa agent).
+**Module:** `orpheus.numerics.projection.HarmonicMomentProjection`.
+
+**Mechanism:** Under the V-inner-product
+⟨ψ, φ⟩_V = Σ_n w_n ψ_n φ_n (which absorbs the quadrature weights as
+part of the inner product, NOT as part of the operator), the adjoint
+of Π = Y* W satisfies
+
+    ⟨Π ψ, c⟩_C  =  Σ_n ψ_n w_n (Σ_lm Y_lm(n) c_lm)  =  ⟨ψ, Π* c⟩_V
+
+so (Π* c)_n = Σ_lm Y_lm(n) c_lm — the **naked** reconstruction with
+NO (2ℓ+1) factor. The original implementation built a transient
+HarmonicMomentReconstruction (with (2ℓ+1) factor for the addition
+theorem) and called its apply, returning a vector that is (2ℓ+1)·Π*c
+on each ℓ-block. Numerical fingerprint:
+
+| L | quadrature | ⟨Π ψ, c⟩_C | ⟨ψ, R c⟩_V (with factor) | ⟨ψ, Π*c⟩_V (no factor, correct) |
+|---|---|---|---|---|
+| 3 | Lebedev 13 | 4.7488 | 27.6468 | 4.7488 |
+
+The factor-of-(sum over ℓ of (2ℓ+1)) discrepancy is exactly the
+fingerprint of the (2ℓ+1) addition-theorem factor wrongly applied to
+the adjoint side.
+
+**How it hid:** The capability set advertised CAP_APPLY_TRANSPOSE, but
+the only test of apply_transpose was `test_projection_advertises_apply_and_apply_transpose`
+which checked the capability set is non-empty — NOT that the method
+works. The Galerkin adjoint-pairing test `TestGalerkinAdjointPairing`
+hand-coded the einsum reference but never crossed the boundary into
+the production apply_transpose path. The bug was hidden by missing
+test coverage of the production code path, not by an algorithmic
+near-cancellation.
+
+**How caught:** `qa` agent's V&V review of Wave 0 detected the
+capability dishonesty by reading the implementation against the
+docstring claim, then numerically checked ⟨Πψ, c⟩_C vs
+⟨ψ, R c⟩_V (with factor) on a Lebedev-13 / L=3 instance — found
+the (2ℓ+1)-summed discrepancy.
+
+**Fix:** apply_transpose now computes
+    Π* c = Σ_lm Y_lm(n) c_lm   (single np.einsum, no factor)
+matching the true W-weighted adjoint identity. Direct test
+`TestApplyTransposeIsWWeightedAdjoint` added to gate the production
+code path against the adjoint identity (lhs == rhs to 1e-12) AND
+against the distinction Π* ≠ R (the (2ℓ+1) factor must NOT appear on
+the adjoint side).
+
+**Lesson:** **Every capability that an operator advertises MUST be
+tested by a check that crosses the production boundary, not by a
+hand-coded reference of the same math.** Capability-set advertisement
+is a contract; the contract is hollow if the only test is "caps is
+non-empty." The Wave 0 V&V audit caught this by reading for
+discipline-vs-implementation drift, but only because qa specifically
+looked at apply_transpose. Going forward, every new LinearOperator
+that advertises CAP_APPLY_TRANSPOSE or CAP_SOLVE MUST ship with a
+direct test of that method against an independent reference (the
+adjoint identity, or the solve round-trip on a non-trivial input).
+
+**Test reference:** `tests/numerics/test_projection_operators.py::TestApplyTransposeIsWWeightedAdjoint::test_adjoint_identity_matches_production` and `::test_apply_transpose_no_2l_plus_1_factor`. Tagged `@pytest.mark.l1` and `@pytest.mark.catches("ERR-039")`.
+
