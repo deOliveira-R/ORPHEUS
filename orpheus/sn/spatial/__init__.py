@@ -29,12 +29,22 @@ See the SN reshape campaign plan at
 ``.claude/plans/mossy-mapping-pine.md`` for context.
 """
 
+from .boundary_face_flux import (
+    BoundaryFaceFlux,
+    BoundaryFaceFluxBase,
+    CellCenter,
+    DDExtrapolation,
+)
 from .cell_update import CellResult, CellUpdate, UpstreamState
 from .diamond import DiamondDifference
 
 __all__ = [
+    "BoundaryFaceFlux",
+    "BoundaryFaceFluxBase",
+    "CellCenter",
     "CellResult",
     "CellUpdate",
+    "DDExtrapolation",
     "DiamondDifference",
     "UpstreamState",
 ]

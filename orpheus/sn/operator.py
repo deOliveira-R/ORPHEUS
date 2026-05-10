@@ -84,6 +84,7 @@ if TYPE_CHECKING:
     from orpheus.geometry.boundary import BoundaryOperator
 
     from .geometry import SNMesh
+    from .spatial.boundary_face_flux import BoundaryFaceFlux
 
 __all__ = [
     "EquationMap",
@@ -414,26 +415,80 @@ def solution_to_angular_flux_spherical(
     nx: int, ng: int,
     *,
     bc_outer: "BoundaryOperator | None" = None,
-) -> np.ndarray:
-    """Convert 1D solution vector to angular flux array (ng, N, nx, 1).
+) -> tuple[np.ndarray, np.ndarray]:
+    """Convert 1D solution vector to angular flux array + boundary face fluxes.
 
-    Applies the outer-boundary BC (r = R) via the
-    :class:`~orpheus.geometry.boundary.BoundaryOperator` ``bc_outer``.  The
-    inner boundary at r = 0 is intrinsically symmetric (the spherical
-    pole has zero face area; the matvec sets ``psi_left = 0`` there
-    by construction), so no fill is needed at i = 0.
+    Returns ``(fi, boundary_face_flux)`` where:
 
-    Wave E Round 3 (ERR-026 closure): when ``bc_outer`` is ``None``
-    the function falls back to specular reflection at the outer face,
-    bit-identical to the pre-Round 3 hard-coded reflective fill that
-    the BiCGSTAB FD path relied on.  Production callers should pass
-    ``sn_mesh.bc_right`` so that vacuum / white / albedo / mixed BCs
-    are honoured uniformly.
+    * ``fi`` shape ``(ng, N, nx, 1)`` is the **pure cell-centre**
+      angular flux — DOFs scattered from ``solution`` at their
+      ``(ordinate, cell)`` slots, plus reflected-partner cell-centre
+      values written into the inward-direction slots at ``i = nx-1``
+      (a faithful cell-centre fill, not the BC face value).
+    * ``boundary_face_flux`` shape ``(ng, N, 2)`` is the per-(group,
+      ordinate) **boundary face flux** at ``[..., 0]`` (inner pole)
+      and ``[..., 1]`` (outer face = r = R).  Inward-direction
+      entries at index ``1`` carry the BC-resolved incoming face
+      flux (zero for vacuum, reflected for specular, etc.); the
+      pole entries at index ``0`` carry the cell-centre at ``i = 0``
+      as a placeholder consistent with the Phase-A pole closure.
+
+    Why two outputs (Issue #168 Defect 2 fix)
+    -----------------------------------------
+
+    The historical signature returned only ``fi`` and **conflated**
+    cell-centre storage with BC face-value storage at
+    ``fi[..., -1, 0]``: the BC fill overwrote the cell-centre slot
+    at ``i = nx-1`` for inward ordinates with the BC face value,
+    which the matvec at ``i = nx-2`` then read back through the
+    interior arithmetic-average stencil
+    ``0.5 * (fi[..., nx-2, 0] + fi[..., nx-1, 0])`` — corrupting
+    the interior face flux at the boundary-adjacent cell with a
+    boundary-face-evaluated quantity.  Vacuum BC exposed the
+    conflation (zero clobbered the cell-centre); specular BC
+    accidentally hid it because ``out[ref]`` happened to be a
+    faithful cell-centre.  Issue #168 Phase A separates the two
+    storages: ``fi`` is now uncontaminated cell-centre throughout,
+    and the BC face flux lives in its own ``boundary_face_flux``
+    array that the matvec reads when (and only when) it needs the
+    boundary face value.
+
+    The cell-centre slots at ``fi[:, n_inward, -1, 0]`` are filled
+    with the **reflected-partner** cell-centre value
+    ``fi[:, ref_x[n], -1, 0]`` (which is solved as an unknown for
+    the outgoing partner ordinate).  This gives the inward direction
+    at the boundary cell a physically-meaningful cell-centre value
+    independent of the BC kind — for reflective BC the reflected
+    partner IS the inward trajectory and the cell-centre IS exact;
+    for vacuum BC it is a faithful cell-centre estimate and at worst
+    introduces an O(h) error on the inward direction's i=N-1
+    cell-centre, which only enters the interior-face stencil at
+    i=N-2 (giving overall O(h²) at that face for any smooth ψ).
+
+    Phase A scope: this addresses Defect 2 (storage conflation).
+    Defect 1 (outer-face flux for outgoing μ > 0) is handled by the
+    :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
+    strategy threaded into the matvec.  Defect 3 (sphere-pole
+    redistribution stencil) is preserved-as-is pending Phase B.
+
+    Parameters
+    ----------
+    bc_outer :
+        :class:`~orpheus.geometry.boundary.BoundaryOperator` for the
+        outer face (r = R).  ``None`` falls back to specular
+        reflection — bit-identical to the pre-Round 3 hard-coded
+        reflective fill for the cell-centre slots, and the BC face
+        flux for ``boundary_face_flux[..., 1]`` is the reflected
+        cell-centre value (which equals the reflected-partner's
+        cell-centre because specular reflection ``out[ref]`` IS
+        the reflected ordinate's outgoing flux at the boundary).
     """
     from orpheus.geometry.boundary import SpecularBoundaryOperator
 
     if bc_outer is None:
         bc_outer = SpecularBoundaryOperator(axis="x", albedo=1.0)
+
+    ref_x = quad.reflection_index("x")
 
     fi = np.zeros((ng, quad.N, nx, 1))
 
@@ -441,20 +496,58 @@ def solution_to_angular_flux_spherical(
     for k in range(eq_map.n_eq):
         fi[:, eq_map.ordinate[k], eq_map.ix[k], 0] = flux[:, k]
 
-    # ── Outer-boundary BC fill (r = R) ────────────────────────────────
-    # Build the outgoing flux at i = nx-1 indexed by all ordinates
-    # (incoming-ordinate slots are still zero from np.zeros above) and
-    # delegate to the BC's tensor-decomposed action.  For SpecularBoundaryOperator
-    # this returns ``outgoing[ref_x[n]]`` — bit-identical to the
-    # pre-Round 3 ``fi[:, n, -1, 0] = fi[:, ref_x[n], -1, 0]`` fill.
-    # For VacuumBoundaryOperator it returns zeros (correct vacuum incoming).
-    outgoing = fi[:, :, -1, 0].T   # (N, ng)
+    # ── Outer-boundary BC fills (r = R) ───────────────────────────────
+    # Defect-2 fix: separate cell-centre storage from BC face-value
+    # storage.  Two writes happen here, each into a different array:
+    #
+    # 1. ``boundary_face_flux[..., 1]`` = ``bc_outer.apply(outgoing, quad)``
+    #    — the BC-resolved incoming face flux at r = R.  This is what
+    #    the matvec reads when it needs the boundary face value
+    #    (interior μ > 0 outgoing reads it via the BoundaryFaceFlux
+    #    strategy; inward μ < 0 reads it directly from this array).
+    #
+    # 2. ``fi[:, n_inward, -1, 0]`` = ``fi[:, ref_x[n], -1, 0]``
+    #    — the reflected-partner cell-centre value, written into the
+    #    inward-direction cell-centre slot at i = nx-1.  This is
+    #    INDEPENDENT of the BC kind: it gives the inward direction a
+    #    faithful cell-centre at the boundary cell, ensuring the
+    #    interior arithmetic-average stencil at i = nx-2 reads
+    #    cell-centre-vs-cell-centre without contamination from
+    #    boundary face values.
+    #
+    # The outgoing-flux source for the BC is ``fi[:, :, -1, 0].T``
+    # (the cell-centre values at i=N-1 for all ordinates) — for
+    # outgoing μ > 0 ordinates this is the solved DOF; for inward
+    # μ < 0 ordinates the slot is currently zero (the upstream
+    # reflected-partner write happens AFTER the BC apply, so the BC
+    # sees zero in the inward slots, which is the correct semantic
+    # since the BC consumes ONLY outgoing entries).
+
+    boundary_face_flux = np.zeros((ng, quad.N, 2))
+
+    outgoing = fi[:, :, -1, 0].T   # (N, ng) — cell-centres at i=N-1
     incoming = bc_outer.apply(outgoing, quad)
     for n in range(quad.N):
         if quad.mu_x[n] < -1e-15:
-            fi[:, n, -1, 0] = incoming[n]
+            # Outer-face BC value for inward ordinate n.
+            boundary_face_flux[:, n, 1] = incoming[n]
+            # Reflected-partner cell-centre fill for inward ordinate n.
+            # This is INDEPENDENT of bc_outer — it ensures the cell-
+            # centre storage is faithful (not BC-face-corrupted) for
+            # any BC kind.  For specular BC this is bit-identical to
+            # the pre-Phase-A behaviour because the BC's apply
+            # returns the reflected partner's outgoing cell-centre.
+            fi[:, n, -1, 0] = fi[:, ref_x[n], -1, 0]
 
-    return fi
+    # The pole face flux at index 0 is the cell-centre at i=0 for now
+    # (Phase-A pole closure).  Stored in ``boundary_face_flux[..., 0]``
+    # for symmetry of the data structure; the matvec ignores it
+    # because the spherical pole has ``A[0] = 0`` (the spatial flux
+    # at r=0 is multiplied by zero).  Defect 3 will re-design this
+    # in Phase B.
+    boundary_face_flux[:, :, 0] = fi[:, :, 0, 0]
+
+    return fi, boundary_face_flux
 
 
 def transport_operator_matvec_spherical(
@@ -470,6 +563,7 @@ def transport_operator_matvec_spherical(
     tau_mm: np.ndarray,
     *,
     bc_outer: "BoundaryOperator | None" = None,
+    boundary_face_flux_closure: "BoundaryFaceFlux | None" = None,
 ) -> np.ndarray:
     r"""Apply the spherical transport operator T·ψ.
 
@@ -485,29 +579,55 @@ def transport_operator_matvec_spherical(
     in :class:`SNMesh`) ensures per-ordinate flat-flux consistency
     (Bailey et al. 2009).
 
-    Face fluxes are approximated by arithmetic averages of cell-centre
-    values.  At the outer face (i = nx-1) the cell-centre extrapolation
-    ``psi_right = fi[:, n, i, 0]`` is used uniformly: for outgoing
-    ordinates (μ > 0) this is the symmetric closure's cell-center
-    extrapolation; for incoming ordinates the slot was BC-filled by
-    :func:`solution_to_angular_flux_spherical` (Wave E Round 3) with
-    ``bc_outer.apply(...)``, so the same read accesses the
-    BC-faithful value.  Unknown ordinates at i = nx-1 (per the eq_map)
-    have μ ≥ 0; the inward-direction read at i = nx-2's outer face
-    (``psi_right = 0.5*(fi[:, n, nx-2, 0] + fi[:, n, nx-1, 0])``) is
-    where the BC fill enters the matvec.
+    Phase A boundary closures (Issue #168 Defects 1 + 2)
+    ----------------------------------------------------
+
+    * **Outer face for outgoing μ > 0** (Defect 1): ``psi_right`` is
+      computed by the
+      :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
+      strategy ``boundary_face_flux_closure``.  Default
+      :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`
+      gives :math:`\mathcal{O}(h^2)` accuracy via
+      :math:`\psi^{\rm face}_{N-1/2} = 1.5\,\psi_{N-1} -
+      0.5\,\psi_{N-2}`.  The pre-Phase-A operator used the
+      cell-centre (``psi_right = fi[:, n, i, 0]``), only
+      :math:`\mathcal{O}(h)` accurate.
+
+    * **Outer face for inward μ < 0** (Defect 2 storage fix):
+      ``psi_right`` is read from the
+      :func:`solution_to_angular_flux_spherical` ``boundary_face_flux``
+      array — the BC-resolved incoming face flux at r = R, NOT the
+      cell-centre slot at ``fi[..., -1, 0]`` (which now holds the
+      faithful reflected-partner cell-centre, uncontaminated by BC
+      face values).  The interior-face stencil at i = nx-2 then
+      reads cell-centre vs cell-centre, restoring O(h²) at the
+      boundary-adjacent cell.
+
+    * **Inner pole (i = 0)**: ``psi_left = 0`` by construction
+      (``A[0] = 0``); Phase A preserves the historical Bailey
+      treatment.  Defect 3 (sphere-pole redistribution-term
+      mismatch) is the subject of Phase B and is **not** addressed
+      here — the ERR-026 PARTIAL-CLOSURE flag stays in place.
 
     Parameters
     ----------
     bc_outer :
         :class:`~orpheus.geometry.boundary.BoundaryOperator` for the outer
-        face (r = R).  ``None`` = legacy reflective fallback (bit-
-        identical to the pre-Round 3 hard-coded reflective fill).
+        face (r = R).  ``None`` = legacy reflective fallback.
+    boundary_face_flux_closure :
+        :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
+        strategy for closing the outer-face flux at outgoing μ > 0.
+        ``None`` defaults to
+        :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`.
     """
-    fi = solution_to_angular_flux_spherical(
+    from .spatial.boundary_face_flux import DDExtrapolation
+
+    if boundary_face_flux_closure is None:
+        boundary_face_flux_closure = DDExtrapolation()
+
+    fi, bf_flux = solution_to_angular_flux_spherical(
         solution, eq_map, quad, nx, ng, bc_outer=bc_outer,
     )
-    ref_x = quad.reflection_index("x")
     A = face_areas       # (nx+1,)
     V = volumes[:, 0]    # (nx,)
     dAw = redist_dAw     # (nx, N) precomputed ΔA_i/w_n
@@ -522,20 +642,28 @@ def transport_operator_matvec_spherical(
         psi_ni = fi[:, n, i, 0]
 
         # ── Spatial streaming: μ (A ∂ψ/∂r) / V ──────────────────────
-        # At the outer face (i = nx-1), valid unknowns always carry
-        # μ ≥ 0 by the eq_map skip rule.  The if/else branch is
-        # preserved for full bit-identity to the pre-Round 3 reflective
-        # path; the ``else`` (μ < 0) is dead code in normal operation
-        # but the ``|μ| ≤ 1e-15`` corner case (near-zero ordinates from
-        # non-GL quadratures) still falls through to it and would read
-        # the partner's BC-filled value.
+        # Phase A (Issue #168) face-flux closures:
+        #   - interior i < nx-1: symmetric arithmetic average (O(h²))
+        #   - outer i = nx-1, μ > 0 (outgoing): BoundaryFaceFlux
+        #     strategy (DD extrapolation by default — Defect 1 fix)
+        #   - outer i = nx-1, μ < 0 (incoming, dead under default
+        #     eq_map but kept for the |μ| ≤ 1e-15 corner case):
+        #     BC-resolved value from boundary_face_flux array
+        #     (Defect 2 storage fix)
         if i < nx - 1:
             psi_right = 0.5 * (fi[:, n, i, 0] + fi[:, n, i + 1, 0])
         else:
             if mu[n] > 1e-15:
-                psi_right = fi[:, n, i, 0]
+                # Defect 1: DD extrapolation through two cell centres.
+                psi_right = boundary_face_flux_closure(
+                    fi[:, n, :, 0], i,
+                )
             else:
-                psi_right = fi[:, ref_x[n], i, 0]
+                # Inward μ < 0: read the BC face value directly from
+                # the separate boundary_face_flux storage (NOT from
+                # fi[..., -1, 0], which now carries the faithful
+                # cell-centre fill, not the BC face value).
+                psi_right = bf_flux[:, n, 1]
 
         if i > 0:
             psi_left = 0.5 * (fi[:, n, i - 1, 0] + fi[:, n, i, 0])
@@ -593,24 +721,39 @@ def transport_operator_matvec_cylindrical(
     tau_mm_per_level: list[np.ndarray],
     *,
     bc_outer: "BoundaryOperator | None" = None,
+    boundary_face_flux_closure: "BoundaryFaceFlux | None" = None,
 ) -> np.ndarray:
     r"""Apply the cylindrical transport operator T·ψ.
 
     Per-level azimuthal redistribution with geometry-weighted
     :math:`\Delta A / w` factor and Morel–Montry angular closure.
 
+    Phase A boundary closures (Issue #168 Defects 1 + 2)
+    ----------------------------------------------------
+
+    Same closure conventions as
+    :func:`transport_operator_matvec_spherical` — see that function's
+    docstring for the full Defect 1 / Defect 2 narrative.
+
     Parameters
     ----------
     bc_outer :
         :class:`~orpheus.geometry.boundary.BoundaryOperator` for the outer
-        face (r = R).  ``None`` = legacy reflective fallback (bit-
-        identical to the pre-Round 3 hard-coded reflective fill).
-        Wave E Round 3 (ERR-026 closure).
+        face (r = R).  ``None`` = legacy reflective fallback.
+    boundary_face_flux_closure :
+        :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
+        strategy for closing the outer-face flux at outgoing μ > 0.
+        ``None`` defaults to
+        :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`.
     """
-    fi = solution_to_angular_flux_cylindrical(
+    from .spatial.boundary_face_flux import DDExtrapolation
+
+    if boundary_face_flux_closure is None:
+        boundary_face_flux_closure = DDExtrapolation()
+
+    fi, bf_flux = solution_to_angular_flux_cylindrical(
         solution, eq_map, quad, nx, ng, bc_outer=bc_outer,
     )
-    ref_x = quad.reflection_index("x")
     A = face_areas       # (nx+1,)
     V = volumes[:, 0]    # (nx,)
     N = quad.N
@@ -639,13 +782,19 @@ def transport_operator_matvec_cylindrical(
         M = len(level_idx)
 
         # ── Spatial streaming: η (A ∂ψ/∂r) / V ─────────────────────
+        # Phase A boundary closures — see spherical matvec docstring.
         if i < nx - 1:
             psi_right = 0.5 * (fi[:, n, i, 0] + fi[:, n, i + 1, 0])
         else:
             if mu[n] > 1e-15:
-                psi_right = fi[:, n, i, 0]
+                # Defect 1: DD extrapolation through two cell centres.
+                psi_right = boundary_face_flux_closure(
+                    fi[:, n, :, 0], i,
+                )
             else:
-                psi_right = fi[:, ref_x[n], i, 0]
+                # Inward μ < 0: BC-resolved face flux from the
+                # separate boundary_face_flux storage (Defect 2 fix).
+                psi_right = bf_flux[:, n, 1]
 
         if i > 0:
             psi_left = 0.5 * (fi[:, n, i - 1, 0] + fi[:, n, i, 0])
@@ -907,6 +1056,7 @@ class SNStreamingOperator(LinearOperatorMixin):
                 reduced.redist_dAw,
                 reduced.tau_mm,
                 bc_outer=sn_mesh.bc_right,
+                boundary_face_flux_closure=sn_mesh.boundary_face_flux,
             )
         if curv == "cylindrical":
             reduced = sn_mesh.reduced
@@ -919,6 +1069,7 @@ class SNStreamingOperator(LinearOperatorMixin):
                 reduced.redist_dAw_per_level,
                 reduced.tau_mm_per_level,
                 bc_outer=sn_mesh.bc_right,
+                boundary_face_flux_closure=sn_mesh.boundary_face_flux,
             )
         # Cartesian (1-D slab or 2-D)
         return transport_operator_matvec(

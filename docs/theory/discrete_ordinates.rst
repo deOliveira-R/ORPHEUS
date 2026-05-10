@@ -1599,6 +1599,97 @@ correct *and* second-order-accurate; Round 3 closed the
 correctness piece (BC-faithfulness), the second-order piece is
 the open follow-up.
 
+.. _sn-boundary-face-flux-protocol:
+
+Boundary face-flux strategies (Issue #168 Phase A)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Issue #168 empirical investigation (recorded at
+``.claude/agent-memory/numerics-investigator/issue_168_three_defects.md``)
+found **three independent O(1) boundary truncation defects** in the
+historical curvilinear FD operator.  The single-defect framing of
+the original issue was empirically refuted: fixing only the outer-face
+extrapolation produces a temporary improvement at fixed mesh count
+but the order *degrades* with refinement because the storage
+conflation and the sphere-pole stencil dominate as ``h → 0``.
+
+Phase A (this session) addresses **Defects 1 + 2** via a new
+:class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
+strategy Protocol — analogous to the Wave C
+:class:`~orpheus.sn.spatial.cell_update.CellUpdate` Protocol — and
+a structural decoupling of cell-centre storage from BC face-value
+storage in
+:func:`~orpheus.sn.operator.solution_to_angular_flux_spherical`
+(and the cylindrical alias).
+
+* **Defect 1 — outer-face cell-centre truncation.** The pre-Phase-A
+  operator used :math:`\psi^{\rm face}_{N-1/2} = \psi_{N-1}`
+  (cell-centre as face value), which is :math:`\mathcal{O}(h)`
+  accurate on non-constant solutions.  Phase A's
+  :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`
+  strategy uses the one-sided second-order DD diamond extrapolation
+
+  .. math::
+
+     \psi^{\rm face}_{N-1/2} \;=\; \tfrac{3}{2}\,\psi_{N-1}
+                                  \;-\; \tfrac{1}{2}\,\psi_{N-2}
+
+  which restores :math:`\mathcal{O}(h^2)` truncation at the outer face.
+
+* **Defect 2 — cell-centre / BC-face-value storage conflation.** The
+  pre-Phase-A
+  :func:`~orpheus.sn.operator.solution_to_angular_flux_spherical`
+  wrote the BC face value into ``fi[..., -1, 0]`` for inward μ < 0
+  ordinates — the same slot the matvec at i=N-2 read as a
+  *cell-centre* in the symmetric arithmetic-average stencil
+  ``0.5·(fi[..., N-2, 0] + fi[..., N-1, 0])``.  Vacuum BC exposed
+  the conflation; specular BC accidentally hid it.  Phase A returns
+  ``(fi, boundary_face_flux)`` from the decoder — ``fi`` is now
+  pure cell-centre storage (the inward slots at i=N-1 are filled
+  with the reflected-partner cell-centre, a faithful O(1) value
+  independent of BC kind), and the BC face flux lives in its own
+  ``boundary_face_flux`` array threaded into the matvec for the
+  outer-face read on inward ordinates.
+
+* **Defect 3 — sphere-pole redistribution stencil.** Bailey 2009's
+  :math:`\Delta A / w` redistribution at i=0 cancels the streaming
+  for *flat* :math:`\psi` but overcorrects for :math:`\psi` varying
+  linearly near r=0.  Phase A **preserves the historical Bailey
+  treatment** (the
+  :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`
+  strategy returns the cell-centre value at ``cell_idx = 0`` as a
+  pass-through).  Defect 3 remains the subject of Phase B with
+  literature consultation (Lewis & Miller §4.5; Carlson starting-
+  direction; Lathrop pole stencil).  Empirically, Phase A alone
+  yields :math:`\mathcal{O}(h^{1.5}\text{--}h^{1.7})` — better than
+  the pre-Phase-A :math:`\mathcal{O}(h^{1.25})`, but not yet the
+  :math:`\mathcal{O}(h^2)` bar that the four ``xfail-strict``
+  tripwires require.  ERR-026 stays at PARTIAL CLOSURE pending
+  Phase B.
+
+The Phase A
+:class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
+Protocol mirrors the
+:class:`~orpheus.sn.spatial.cell_update.CellUpdate` shape — a
+``@runtime_checkable Protocol`` plus a parallel concrete ABC
+(:class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFluxBase`)
+layered on
+:class:`~orpheus.numerics.registry.RegistryMixin` so concrete
+strategies self-register under a ``key=`` class-creation kwarg.
+The ablation/back-bisection counterpart
+:class:`~orpheus.sn.spatial.boundary_face_flux.CellCenter` ships
+alongside :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`
+to reproduce the pre-Phase-A Defect-1 behaviour on demand.  See
+:mod:`orpheus.sn.spatial.boundary_face_flux` for the full module
+docstring and references.
+
+The default boundary face-flux strategy is set on the
+:class:`~orpheus.sn.geometry.SNMesh` instance (parallel to the
+cell-update strategy):
+``SNMesh(mesh, quad, boundary_face_flux=DDExtrapolation())``.  The
+Cartesian path is unaffected — the upwind FD stencil there has no
+symmetric closure to break — and ignores this attribute.
+
 Starting Direction
 -------------------
 

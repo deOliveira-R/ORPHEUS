@@ -565,3 +565,318 @@ def test_n_unknowns_matches_eq_map_cylindrical():
         sn_mesh.nx, sn_mesh.quad, 2,
     ).n_unknowns
     assert op.n_unknowns == expected
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Issue #168 Phase A — Defect 1 + Defect 2 fixes
+# ═══════════════════════════════════════════════════════════════════════
+#
+# These tests pin the Phase-A boundary-closure behaviour:
+#
+# * Defect 1 (outer-face cell-centre truncation): ``apply`` at the
+#   outer boundary cell uses :class:`DDExtrapolation` (default)
+#   producing :math:`1.5 \\psi_{N-1} - 0.5 \\psi_{N-2}` rather than
+#   the cell-centre value :math:`\\psi_{N-1}`.
+# * Defect 2 (storage-conflation between cell-centre and BC face
+#   value): the new ``solution_to_angular_flux_spherical`` returns
+#   ``(fi, boundary_face_flux)`` with ``fi`` as PURE cell-centre
+#   storage (no BC face values clobbering ``fi[..., -1, 0]``).  The
+#   matvec at i=N-2 reads cell-centre vs cell-centre on the
+#   interior-face stencil ``0.5*(fi[..., N-2, 0] + fi[..., N-1, 0])``,
+#   uncontaminated by BC face values.
+
+
+def test_solution_to_angular_flux_spherical_returns_tuple():
+    """Phase A signature: returns ``(fi, boundary_face_flux)``."""
+    from orpheus.sn.operator import solution_to_angular_flux_spherical
+
+    sn_mesh = _spherical_mesh()
+    nx, ng = sn_mesh.nx, 2
+    eq_map = build_equation_map_spherical(nx, sn_mesh.quad, ng)
+    psi = np.ones(eq_map.n_unknowns)
+
+    result = solution_to_angular_flux_spherical(
+        psi, eq_map, sn_mesh.quad, nx, ng,
+        bc_outer=sn_mesh.bc_right,
+    )
+    assert isinstance(result, tuple)
+    assert len(result) == 2
+    fi, bf_flux = result
+    assert fi.shape == (ng, sn_mesh.quad.N, nx, 1)
+    assert bf_flux.shape == (ng, sn_mesh.quad.N, 2)
+
+
+def test_solution_to_angular_flux_spherical_fi_is_pure_cell_center_vacuum():
+    """Defect 2 fix: with vacuum BC, ``fi[..., -1, 0]`` is NOT
+    clobbered by the BC's zero face value.
+
+    For each inward μ < 0 ordinate, ``fi[..., n_inward, -1, 0]``
+    holds the reflected-partner cell-centre value (faithful), NOT
+    the vacuum BC's zero (which was the pre-Phase-A bug).
+    """
+    from orpheus.geometry.boundary import VacuumBoundaryOperator
+    from orpheus.sn.operator import solution_to_angular_flux_spherical
+
+    sn_mesh = _spherical_mesh()
+    nx, ng = sn_mesh.nx, 2
+    eq_map = build_equation_map_spherical(nx, sn_mesh.quad, ng)
+
+    # Use a non-trivial DOF vector so the reflected-partner value at
+    # i=N-1 is non-zero (a constant 1 would be fine but a varying
+    # value makes the test sharper).
+    rng = np.random.default_rng(seed=911)
+    psi = rng.standard_normal(eq_map.n_unknowns)
+
+    fi, bf_flux = solution_to_angular_flux_spherical(
+        psi, eq_map, sn_mesh.quad, nx, ng,
+        bc_outer=VacuumBoundaryOperator(),
+    )
+
+    # Vacuum BC: bf_flux[..., 1] for inward ordinates is zero by
+    # construction.
+    ref_x = sn_mesh.quad.reflection_index("x")
+    for n in range(sn_mesh.quad.N):
+        if sn_mesh.quad.mu_x[n] < -1e-15:
+            np.testing.assert_array_equal(
+                bf_flux[:, n, 1], np.zeros(ng),
+                err_msg="Vacuum BC face flux must be zero at "
+                        f"ordinate {n}",
+            )
+            # The CRITICAL Defect-2 invariant: fi[..., -1, 0] for
+            # inward μ < 0 is the REFLECTED PARTNER's cell-centre
+            # — NOT zero (which would be the BC face value
+            # contaminating cell-centre storage, the pre-Phase-A
+            # bug).
+            np.testing.assert_array_equal(
+                fi[:, n, nx - 1, 0],
+                fi[:, ref_x[n], nx - 1, 0],
+                err_msg="Defect 2: cell-centre at i=N-1 for inward "
+                        f"ordinate {n} must equal the reflected "
+                        f"partner's cell-centre, not the BC value.",
+            )
+
+
+def test_apply_spherical_outer_face_uses_dd_extrapolation():
+    """Defect 1 fix: ``apply`` reads ``psi_right`` at the outer cell
+    via ``DDExtrapolation`` for outgoing μ > 0.
+
+    Construct a smooth non-constant input where the ``CellCenter``
+    closure and ``DDExtrapolation`` give measurably different
+    results.  The default operator (DDExtrapolation) MUST agree with
+    the explicit DDExtrapolation, NOT the CellCenter reproducer.
+    """
+    from orpheus.sn.operator import transport_operator_matvec_spherical
+    from orpheus.sn.spatial.boundary_face_flux import (
+        CellCenter,
+        DDExtrapolation,
+    )
+
+    sn_mesh = _spherical_mesh()
+    sig_t = _sig_t_uniform(sn_mesh, ng=2)
+    op = SNStreamingOperator(sn_mesh, sig_t)
+    nx, ng = sn_mesh.nx, 2
+    eq_map = build_equation_map_spherical(nx, sn_mesh.quad, ng)
+
+    rng = np.random.default_rng(seed=611)
+    psi = rng.standard_normal(eq_map.n_unknowns)
+
+    # Default ``apply`` uses ``DDExtrapolation`` (the Phase-A default
+    # set on SNMesh).
+    via_op = op.apply(psi)
+
+    # Explicit DD extrapolation — must match.
+    reduced = sn_mesh.reduced
+    via_dd = transport_operator_matvec_spherical(
+        psi, eq_map, sn_mesh.quad, sig_t,
+        nx, ng,
+        reduced.face_areas, sn_mesh.volumes,
+        reduced.alpha_half, reduced.redist_dAw, reduced.tau_mm,
+        bc_outer=sn_mesh.bc_right,
+        boundary_face_flux_closure=DDExtrapolation(),
+    )
+    np.testing.assert_array_equal(via_op, via_dd)
+
+    # Legacy CellCenter reproducer — MUST NOT match (would mean
+    # Defect 1 has not been fixed).
+    via_cc = transport_operator_matvec_spherical(
+        psi, eq_map, sn_mesh.quad, sig_t,
+        nx, ng,
+        reduced.face_areas, sn_mesh.volumes,
+        reduced.alpha_half, reduced.redist_dAw, reduced.tau_mm,
+        bc_outer=sn_mesh.bc_right,
+        boundary_face_flux_closure=CellCenter(),
+    )
+    assert not np.array_equal(via_op, via_cc), (
+        "Phase A regression: SNStreamingOperator.apply matches the "
+        "CellCenter reproducer — Defect 1 (outer-face truncation) "
+        "is back."
+    )
+
+
+def test_apply_spherical_constant_flux_yields_zero_collisionless():
+    """Constant ψ + zero Σ_t: streaming + redistribution sum to zero
+    cell-by-cell on the spherical mesh, even with vacuum BC.
+
+    This is the per-ordinate flat-flux consistency invariant
+    (Bailey 2009; ``vv-principles`` Sig 1).  Pre-Phase-A, this held
+    by construction because the cell-centre face closure trivially
+    cancelled the streaming for constant ψ.  Phase A's DD
+    extrapolation also gives ``1.5·c - 0.5·c = c`` for constant input,
+    so the invariant continues to hold — this test pins it as a
+    foundational regression gate.
+    """
+    sn_mesh = _spherical_mesh()
+    nx, ng = sn_mesh.nx, 2
+    sig_t = np.zeros((nx, sn_mesh.ny, ng))  # collisionless
+    op = SNStreamingOperator(sn_mesh, sig_t)
+    eq_map = build_equation_map_spherical(nx, sn_mesh.quad, ng)
+
+    # Constant DOF vector — every (ordinate, cell) slot is the same value.
+    psi = np.full(eq_map.n_unknowns, 3.14159)
+
+    result = op.apply(psi)
+    # For collisionless transport + constant ψ the streaming and
+    # redistribution must sum to zero; the result is allowed to drift
+    # by FP non-associativity but must be at the rounding floor.
+    np.testing.assert_allclose(
+        result, np.zeros_like(result),
+        atol=1e-12,
+        err_msg="Per-ordinate flat-flux invariant violated under "
+                "Phase A boundary closures.",
+    )
+
+
+def test_apply_spherical_vacuum_bc_constant_flux_no_corruption():
+    """Defect 2 reproducer: with vacuum BC and a constant non-zero
+    cell-flux, the matvec at i=N-2 must read cell-centre vs
+    cell-centre on the interior-face stencil — uncontaminated by
+    the BC face value.
+
+    Pre-Phase-A: ``fi[..., n_inward, -1, 0]`` was clobbered with
+    the vacuum BC's zero, contaminating ``0.5*(fi[..., N-2, 0] +
+    fi[..., N-1, 0])`` at i=N-2.  Combined with collisionless +
+    constant ψ this manifested as a non-zero interior streaming
+    residual at the boundary-adjacent cell.
+
+    Post-Phase-A: ``fi[..., n_inward, -1, 0]`` holds the reflected-
+    partner cell-centre = constant; the symmetric face average is
+    constant; streaming residual at i=N-2 is zero.
+    """
+    from orpheus.geometry import BC, CoordSystem, Mesh1D
+    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.quadrature import GaussLegendre1D
+
+    nx = 4
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 1.0, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.SPHERICAL,
+        bc_left=BC("reflective"),
+        bc_right=BC("vacuum"),  # vacuum on the outer face
+    )
+    quad = GaussLegendre1D.create(n_ordinates=4)
+    sn_mesh = SNMesh(mesh, quad)
+    ng = 2
+    sig_t = np.zeros((nx, sn_mesh.ny, ng))
+    op = SNStreamingOperator(sn_mesh, sig_t)
+    eq_map = build_equation_map_spherical(nx, quad, ng)
+
+    # Constant non-zero DOF.
+    psi = np.full(eq_map.n_unknowns, 1.0)
+    result = op.apply(psi)
+    # With Phase A's separated cell-centre / boundary-face-flux
+    # storage, the constant ψ plus collisionless transport gives
+    # zero streaming + redistribution residual everywhere — INCLUDING
+    # the boundary-adjacent cell at i=N-2 where the Defect-2
+    # contamination used to manifest.
+    np.testing.assert_allclose(
+        result, np.zeros_like(result),
+        atol=1e-12,
+        err_msg="Defect 2 regression: cell-centre / BC-face-value "
+                "storage conflation has resurfaced.",
+    )
+
+
+def test_apply_cylindrical_outer_face_uses_dd_extrapolation():
+    """Cylindrical analogue of
+    :func:`test_apply_spherical_outer_face_uses_dd_extrapolation`."""
+    from orpheus.sn.operator import transport_operator_matvec_cylindrical
+    from orpheus.sn.spatial.boundary_face_flux import (
+        CellCenter,
+        DDExtrapolation,
+    )
+
+    sn_mesh = _cylindrical_mesh()
+    sig_t = _sig_t_uniform(sn_mesh, ng=2)
+    op = SNStreamingOperator(sn_mesh, sig_t)
+    nx, ng = sn_mesh.nx, 2
+    eq_map = build_equation_map_cylindrical(nx, sn_mesh.quad, ng)
+
+    rng = np.random.default_rng(seed=612)
+    psi = rng.standard_normal(eq_map.n_unknowns)
+
+    via_op = op.apply(psi)
+    reduced = sn_mesh.reduced
+    via_dd = transport_operator_matvec_cylindrical(
+        psi, eq_map, sn_mesh.quad, sig_t,
+        nx, ng,
+        reduced.face_areas, sn_mesh.volumes,
+        reduced.alpha_per_level, reduced.redist_dAw_per_level,
+        reduced.tau_mm_per_level,
+        bc_outer=sn_mesh.bc_right,
+        boundary_face_flux_closure=DDExtrapolation(),
+    )
+    np.testing.assert_array_equal(via_op, via_dd)
+
+    via_cc = transport_operator_matvec_cylindrical(
+        psi, eq_map, sn_mesh.quad, sig_t,
+        nx, ng,
+        reduced.face_areas, sn_mesh.volumes,
+        reduced.alpha_per_level, reduced.redist_dAw_per_level,
+        reduced.tau_mm_per_level,
+        bc_outer=sn_mesh.bc_right,
+        boundary_face_flux_closure=CellCenter(),
+    )
+    assert not np.array_equal(via_op, via_cc), (
+        "Cylindrical Phase A regression: Defect 1 has resurfaced."
+    )
+
+
+def test_snmesh_accepts_boundary_face_flux_kwarg():
+    """SNMesh constructor accepts ``boundary_face_flux=...`` kwarg
+    and threads it through to ``op.apply``."""
+    from orpheus.geometry import BC, CoordSystem, Mesh1D
+    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.quadrature import GaussLegendre1D
+    from orpheus.sn.spatial.boundary_face_flux import (
+        CellCenter,
+        DDExtrapolation,
+    )
+
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 1.0, 5),
+        mat_ids=np.zeros(4, dtype=int),
+        coord=CoordSystem.SPHERICAL,
+        bc_left=BC("reflective"),
+        bc_right=BC("vacuum"),
+    )
+    quad = GaussLegendre1D.create(n_ordinates=4)
+
+    # Default — DDExtrapolation
+    sn_default = SNMesh(mesh, quad)
+    assert isinstance(sn_default.boundary_face_flux, DDExtrapolation)
+
+    # Explicit override
+    sn_cc = SNMesh(mesh, quad, boundary_face_flux=CellCenter())
+    assert isinstance(sn_cc.boundary_face_flux, CellCenter)
+
+    # The two operators give different ``apply`` outputs on a
+    # non-constant input — confirms the kwarg actually reaches the
+    # matvec.
+    sig_t = 0.5 * np.ones((4, 1, 2))
+    op_default = SNStreamingOperator(sn_default, sig_t)
+    op_cc = SNStreamingOperator(sn_cc, sig_t)
+    eq_map = build_equation_map_spherical(4, quad, 2)
+    rng = np.random.default_rng(seed=7)
+    psi = rng.standard_normal(eq_map.n_unknowns)
+    assert not np.array_equal(op_default.apply(psi), op_cc.apply(psi))

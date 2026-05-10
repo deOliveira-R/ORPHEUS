@@ -30,6 +30,7 @@ from orpheus.geometry.reduced_operator import (
     spherical_streaming,
 )
 from .quadrature import AngularQuadrature
+from .spatial.boundary_face_flux import BoundaryFaceFlux, DDExtrapolation
 from .spatial.cell_update import CellUpdate, CellVisit
 from .spatial.diamond import DiamondDifference
 
@@ -118,6 +119,7 @@ class SNMesh:
         mesh: Mesh1D | Mesh2D,
         quadrature: AngularQuadrature,
         cell_update: CellUpdate | None = None,
+        boundary_face_flux: BoundaryFaceFlux | None = None,
     ) -> None:
         self.mesh = mesh
         self.quad = quadrature
@@ -131,6 +133,19 @@ class SNMesh:
         # ``cell_update=LinearDiscontinuous()`` etc. at construction time.
         self.cell_update: CellUpdate = (
             cell_update if cell_update is not None else DiamondDifference()
+        )
+        # Boundary face-flux strategy (Issue #168 Phase A). Defaults to
+        # :class:`DDExtrapolation`, the one-sided second-order DD diamond
+        # extrapolation that addresses Defect 1 of Issue #168 (the
+        # cell-centre-as-outer-face-flux truncation in the curvilinear
+        # FD operator). Used by the spherical / cylindrical
+        # ``transport_operator_matvec_*`` paths via
+        # :meth:`SNStreamingOperator.apply`. Cartesian path is unaffected
+        # — the upwind FD stencil there has no symmetric closure to
+        # break — and ignores this attribute.
+        self.boundary_face_flux: BoundaryFaceFlux = (
+            boundary_face_flux if boundary_face_flux is not None
+            else DDExtrapolation()
         )
 
         # Normalise to (nx, ny) shaped arrays for both 1-D and 2-D
