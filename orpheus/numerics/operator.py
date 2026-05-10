@@ -71,6 +71,7 @@ __all__ = [
     "IdentityOperator",
     "ZeroOperator",
     "PermutationOperator",
+    "IncomingOrdinateMaskTensor",
     "DiagonalOperator",
     "TensorProductOperator",
     "SumOfTensorProductsOperator",
@@ -796,6 +797,96 @@ class PermutationOperator(LinearOperatorMixin):
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         return np.take(x, self.inverse_perm, axis=self.axis)
+
+
+class IncomingOrdinateMaskTensor(LinearOperatorMixin):
+    r"""Sparse inflow-ordinate mask: zeroes selected entries along an axis.
+
+    For SN vacuum BCs at face :math:`f`, the inflow ordinate set is
+    :math:`\{n : \mathrm{sign}(\Omega_n \cdot \hat n_f) < 0\}`. The
+    canonical vacuum-trace representation (Grand Report v3 §16A.10
+    line 3165) is the operator that ZEROES those inflow entries while
+    leaving the outflow entries untouched:
+
+    .. math::
+
+        (M\,\psi)_n \;=\;
+        \begin{cases}
+            0      & n \in \mathcal{I}_{\text{in}} \\
+            \psi_n & \text{otherwise}
+        \end{cases}
+
+    Distinct from :class:`ZeroOperator` (which zeroes ALL entries):
+    the sparse mask preserves the outflow trace, which downstream
+    consumers (sensitivity adjoints, post-BC field readers) require.
+
+    Self-adjoint (:math:`M = M^T = M^* = M^{1/2}`). Idempotent
+    (:math:`M^2 = M`) — projection onto the outflow subspace. The
+    apply action returns a copy; original input is unmodified.
+
+    Capability set: ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}``. ``solve`` is
+    NOT advertised — the mask is rank-deficient (it projects), so it
+    is non-invertible. Forcing a ``solve`` stub would be the
+    harmful-stub anti-pattern this module is designed against.
+
+    Parameters
+    ----------
+    inflow_indices
+        1-D integer array of ordinate indices to zero. May be empty
+        (then the operator is identity on the chosen axis).
+        Duplicates and out-of-range entries are rejected at
+        construction.
+    n_ordinates
+        Length of the masked axis. Indices must satisfy
+        ``0 <= idx < n_ordinates``.
+    axis
+        Tensor axis along which the mask acts.
+    """
+
+    capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
+
+    def __init__(
+        self,
+        inflow_indices: np.ndarray,
+        n_ordinates: int,
+        axis: int = 0,
+    ) -> None:
+        inflow_indices = np.asarray(inflow_indices, dtype=np.intp)
+        if inflow_indices.ndim != 1:
+            raise ValueError(
+                f"IncomingOrdinateMaskTensor inflow_indices must be 1-D; "
+                f"got shape {inflow_indices.shape}"
+            )
+        if inflow_indices.size > 0:
+            if inflow_indices.min() < 0 or inflow_indices.max() >= n_ordinates:
+                raise ValueError(
+                    f"IncomingOrdinateMaskTensor inflow_indices out of range "
+                    f"[0, {n_ordinates}); got min={int(inflow_indices.min())}, "
+                    f"max={int(inflow_indices.max())}"
+                )
+            if np.unique(inflow_indices).size != inflow_indices.size:
+                raise ValueError(
+                    "IncomingOrdinateMaskTensor inflow_indices contains duplicates"
+                )
+        self.inflow_indices = inflow_indices
+        self.n_ordinates = int(n_ordinates)
+        self.axis = int(axis)
+
+    def apply(self, x: np.ndarray) -> np.ndarray:
+        out = np.asarray(x).copy()
+        if self.inflow_indices.size == 0:
+            return out
+        if self.axis == 0:
+            out[self.inflow_indices] = 0.0
+        else:
+            idx: list = [slice(None)] * out.ndim
+            idx[self.axis] = self.inflow_indices
+            out[tuple(idx)] = 0.0
+        return out
+
+    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+        # Self-adjoint: same code path.
+        return self.apply(x)
 
 
 class TensorProductOperator(LinearOperatorMixin):
