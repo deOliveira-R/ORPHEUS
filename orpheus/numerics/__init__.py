@@ -5,6 +5,7 @@ from .iteration import KEigenvalue, SourceIteration
 from .measure import (
     BundleMeasure,
     DiscreteMeasure,
+    DiscreteMeasurePartition,
     equispaced,
     gauss_chebyshev,
     gauss_legendre,
@@ -42,6 +43,7 @@ __all__ = [
     "CAP_SOLVE",
     "DiagonalOperator",
     "DiscreteMeasure",
+    "DiscreteMeasurePartition",
     "EigenvalueSolver",
     "IdentityOperator",
     "KEigenvalue",

@@ -562,6 +562,131 @@ class DiscreteMeasure:
         )
 
     # ------------------------------------------------------------------
+    # Partition (disjoint decomposition by labelling predicate)
+    # ------------------------------------------------------------------
+
+    def partition_by(
+        self,
+        predicate: Callable[[np.ndarray], np.ndarray],
+    ) -> tuple["DiscreteMeasurePartition", ...]:
+        r"""Disjoint partition by node-label predicate.
+
+        Realises the inverse of :meth:`__add__`: from a measure
+        :math:`\mu` and a labelling map :math:`\ell : \mathcal{X} \to L`
+        on the nodes, returns the disjoint decomposition
+
+        .. math::
+           :label: discrete-measure-partition
+
+           \mu \;=\; \bigoplus_{\lambda \in L} \mu_\lambda,
+           \qquad
+           \mu_\lambda
+           \;=\; \sum_{i : \ell(x_i) = \lambda} w_i \, \delta_{x_i}.
+
+        Each output entry carries the partition label, the indices
+        into the parent measure, and the restricted measure
+        :math:`\mu_\lambda`. The decomposition is **disjoint** by
+        construction (every node appears in exactly one partition
+        entry) and **preserves total mass** (sum of partition weights
+        equals total mass of :math:`\mu`).
+
+        The canonical use is the **angular octant partition** of a
+        spherical cubature: the predicate
+        :math:`\ell(\Omega) = (\mathrm{sign}\,\mu_x, \mathrm{sign}\,\mu_y,
+        \mathrm{sign}\,\mu_z)` produces the eight octants of :math:`S^2`
+        (or four for a 2-D cubature where :math:`\mu_z = 0` is degenerate
+        and contributes a separate ``sign=0`` entry).
+
+        Other consumers (per :ref:`tensorial-framing`):
+
+        * MoC track-bundle direction grouping (per polar angle).
+        * MC boundary-current scoring by hemisphere.
+        * SN boundary-realiser incoming-ordinate masking
+          (Grand Report v3 §16A.5).
+
+        Parameters
+        ----------
+        predicate : callable
+            Vectorised labelling map. Called once with the full
+            ``nodes`` array (shape ``(N,)`` for 1-D nodes or
+            ``(N, d)`` for multi-dimensional). Must return either:
+
+            - A 1-D array of shape ``(N,)`` of scalar labels (e.g.
+              integer octant indices), OR
+            - A 2-D array of shape ``(N, k)`` of compound labels
+              (e.g. octant signs ``(sign_x, sign_y, sign_z)``).
+
+        Returns
+        -------
+        tuple of DiscreteMeasurePartition
+            One entry per unique label, in lexicographic order of
+            labels. Each entry carries:
+
+            - ``label`` — the predicate output, as a tuple (always a
+              tuple even for scalar labels, so keys round-trip cleanly).
+            - ``indices`` — 1-D ``int`` array of indices into
+              ``self.nodes`` / ``self.weights``.
+            - ``measure`` — the restricted :class:`DiscreteMeasure`
+              on the same space as ``self``.
+
+        Notes
+        -----
+
+        Inverse-of-direct-sum identity: for any partition predicate
+        :math:`\ell`, the direct sum of partition measures equals
+        ``self`` modulo ordering and metadata,
+
+        .. math::
+
+           \mu \;=\; \mu_{\lambda_1} \oplus \mu_{\lambda_2}
+                     \oplus \cdots \oplus \mu_{\lambda_K}.
+
+        ``invariance_group`` and ``degree_of_exactness`` are dropped
+        on each partition entry — a partition typically breaks any
+        global invariance, and the polynomial-exactness of the parent
+        rule does not survive restriction.
+        """
+        labels = np.asarray(predicate(self.nodes))
+        if labels.shape[0] != self.n_points:
+            raise ValueError(
+                f"predicate must return labels for all {self.n_points} "
+                f"nodes; got leading dimension {labels.shape[0]}."
+            )
+        if labels.ndim == 1:
+            unique_labels = np.unique(labels)
+            label_tuples = [(_to_python_scalar(u),) for u in unique_labels]
+            masks = [labels == u for u in unique_labels]
+        elif labels.ndim == 2:
+            # Compound label: group by row equality.
+            unique_rows = np.unique(labels, axis=0)
+            label_tuples = [
+                tuple(_to_python_scalar(v) for v in row) for row in unique_rows
+            ]
+            masks = [np.all(labels == row, axis=1) for row in unique_rows]
+        else:
+            raise ValueError(
+                f"predicate output must be 1-D or 2-D, got shape "
+                f"{labels.shape}"
+            )
+
+        result = []
+        for label, mask in zip(label_tuples, masks):
+            indices = np.where(mask)[0]
+            measure = DiscreteMeasure(
+                nodes=self.nodes[indices],
+                weights=self.weights[indices],
+                space=self.space,
+                invariance_group=None,
+                degree_of_exactness=None,
+            )
+            result.append(
+                DiscreteMeasurePartition(
+                    label=label, indices=indices, measure=measure,
+                )
+            )
+        return tuple(result)
+
+    # ------------------------------------------------------------------
     # Convenience
     # ------------------------------------------------------------------
 
@@ -592,6 +717,59 @@ class DiscreteMeasure:
                 else self.degree_of_exactness
             ),
         )
+
+
+# ---------------------------------------------------------------------------
+# Partition entry (return type of DiscreteMeasure.partition_by)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class DiscreteMeasurePartition:
+    r"""One entry of a :meth:`DiscreteMeasure.partition_by` decomposition.
+
+    Carries a partition label, the indices into the parent measure,
+    and the restricted measure :math:`\mu_\lambda` on the same space.
+
+    The label is a Python tuple — even for scalar labels it is wrapped
+    as a length-1 tuple so partition-keyed dicts (e.g.
+    ``Mapping[OctantLabel, SweepDependencyGraph]`` in the SN sweep)
+    have uniform key shape regardless of label dimensionality.
+
+    Attributes
+    ----------
+    label : tuple
+        The predicate output for this partition. For a scalar-label
+        predicate (e.g. integer index), a length-1 tuple
+        ``(idx,)``. For a compound-label predicate (e.g. octant signs
+        ``(sign_x, sign_y, sign_z)``), the full tuple.
+    indices : np.ndarray
+        Indices into the parent measure's ``nodes`` / ``weights``.
+        Shape ``(N_part,)``, dtype ``int``.
+    measure : DiscreteMeasure
+        Restricted measure :math:`\mu_\lambda` on the same space as
+        the parent. ``invariance_group`` and ``degree_of_exactness``
+        are dropped (a partition typically breaks any invariance the
+        parent had).
+    """
+
+    label: tuple
+    indices: np.ndarray
+    measure: DiscreteMeasure
+
+
+def _to_python_scalar(v):
+    """Convert a numpy scalar to a built-in int/float for tuple labels.
+
+    Used internally by :meth:`DiscreteMeasure.partition_by` so the
+    returned ``label`` tuples have stable Python types (suitable for
+    dict keys).
+    """
+    if isinstance(v, np.integer):
+        return int(v)
+    if isinstance(v, np.floating):
+        return float(v)
+    return v
 
 
 # ---------------------------------------------------------------------------
