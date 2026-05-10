@@ -1,0 +1,267 @@
+r"""Tests for :class:`LegendreMomentScattering`.
+
+The §15.2 / §10 sum-of-tensor-products form
+:math:`\Lambda = \sum_\ell \mathbf{P}_\ell \otimes \Sigma_{s,\ell}` on
+moment space. The contract verified here:
+
+* **Per-ℓ block-diagonal action**: scattering at order ℓ acts only on
+  the ℓ-block of the moment tensor; off-block entries pass through
+  unchanged (or, with skip_l0=True, zero out the ℓ=0 block).
+* **Per-material partition**: only cells of material ``mid`` get
+  scattered with ``sig_s[mid]``; cells of other materials are zero.
+* **Energy contraction direction**: the operator contracts ``g_from``
+  (matching the existing ``moment @ sig_s_l[l]`` convention used by
+  :meth:`ScatteringOperator.build_aniso_source`).
+* **Bit-identical against the legacy inlined math** for the case the
+  legacy code computed (ℓ ≥ 1 only).
+* **Capability set**: ``{CAP_APPLY}`` only; no solve / no transpose
+  for now.
+"""
+from __future__ import annotations
+
+import numpy as np
+import pytest
+
+from orpheus.numerics.operator import (
+    CAP_APPLY,
+    CAP_APPLY_TRANSPOSE,
+    CAP_SOLVE,
+)
+from orpheus.sn.scattering import LegendreMomentScattering
+
+
+def _make_simple_lambda(
+    L: int = 2,
+    nx: int = 3,
+    ny: int = 1,
+    ng: int = 2,
+    n_materials: int = 2,
+    seed: int = 0,
+    skip_l0: bool = True,
+) -> tuple[LegendreMomentScattering, dict, dict]:
+    """Build a small LegendreMomentScattering instance for tests."""
+    rng = np.random.default_rng(seed)
+    # Per-material per-ℓ cross sections
+    sig_s: dict[int, list[np.ndarray]] = {}
+    for mid in range(n_materials):
+        sig_s[mid] = [
+            rng.uniform(0.0, 0.5, size=(ng, ng)) for _ in range(L + 1)
+        ]
+    # Cell partition: alternate cells by material
+    ix_arr = np.arange(nx)
+    iy_arr = np.zeros(nx, dtype=int)
+    cells_by_mat: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+    for mid in range(n_materials):
+        mask = (ix_arr % n_materials) == mid
+        cells_by_mat[mid] = (ix_arr[mask], iy_arr[mask])
+    Lam = LegendreMomentScattering(
+        sig_s=sig_s,
+        cells_by_mat=cells_by_mat,
+        L=L,
+        skip_l0=skip_l0,
+    )
+    return Lam, sig_s, cells_by_mat
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Capability set
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l0
+class TestCapabilities:
+    def test_apply_only(self):
+        Lam, _, _ = _make_simple_lambda()
+        assert CAP_APPLY in Lam.capabilities
+        assert CAP_APPLY_TRANSPOSE not in Lam.capabilities
+        assert CAP_SOLVE not in Lam.capabilities
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Per-ℓ block-diagonal action
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l0
+class TestPerEllBlockDiagonal:
+    def test_skip_l0_zeroes_l0_block(self):
+        Lam, _, _ = _make_simple_lambda(skip_l0=True)
+        L = Lam.L
+        rng = np.random.default_rng(seed=42)
+        moments = rng.standard_normal((L + 1, 2 * L + 1, 3, 1, 2))
+        out = Lam.apply(moments)
+        np.testing.assert_array_equal(out[0, ...], 0.0)
+
+    def test_no_skip_l0_includes_l0_block(self):
+        Lam, sig_s, cells_by_mat = _make_simple_lambda(skip_l0=False)
+        L = Lam.L
+        rng = np.random.default_rng(seed=43)
+        moments = rng.standard_normal((L + 1, 2 * L + 1, 3, 1, 2))
+        out = Lam.apply(moments)
+        # ℓ=0 block must be non-zero (random input, non-zero sig_s[0])
+        assert not np.array_equal(out[0, ...], np.zeros_like(out[0, ...]))
+
+    def test_each_ell_acts_on_its_own_block(self):
+        """Setting one ℓ-block to zero in input → corresponding ℓ-block in output is zero."""
+        Lam, _, _ = _make_simple_lambda(skip_l0=True)
+        L = Lam.L
+        rng = np.random.default_rng(seed=44)
+        moments = rng.standard_normal((L + 1, 2 * L + 1, 3, 1, 2))
+        # Zero out the ℓ=2 input block
+        moments_modified = moments.copy()
+        moments_modified[2, ...] = 0.0
+        out_full = Lam.apply(moments)
+        out_modified = Lam.apply(moments_modified)
+        # ℓ=2 output block must differ; ℓ=1 must be unchanged.
+        assert not np.array_equal(out_full[2, ...], out_modified[2, ...])
+        np.testing.assert_array_equal(out_full[1, ...], out_modified[1, ...])
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Per-material partition
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l0
+class TestPerMaterialPartition:
+    def test_only_mat0_cells_scattered_with_sig_s_mat0(self):
+        Lam, sig_s, cells_by_mat = _make_simple_lambda(
+            n_materials=2, nx=4, skip_l0=True,
+        )
+        L = Lam.L
+        rng = np.random.default_rng(seed=45)
+        # Set ℓ=1 input to a constant for ALL cells
+        moments = np.zeros((L + 1, 2 * L + 1, 4, 1, 2))
+        moments[1, 1, :, 0, :] = 1.0  # ℓ=1, m=0, all cells, both groups
+        out = Lam.apply(moments)
+        # Cells 0, 2 belong to material 0; cells 1, 3 to material 1.
+        ix_mat0, iy_mat0 = cells_by_mat[0]
+        ix_mat1, iy_mat1 = cells_by_mat[1]
+        # Output for mat-0 cells must equal sig_s[0][1].sum(axis=0)
+        # (column-sum: out[g_to] = Σ_g_from sig_s[g_from, g_to] · 1.0)
+        expected_mat0 = sig_s[0][1].sum(axis=0)
+        expected_mat1 = sig_s[1][1].sum(axis=0)
+        out_mat0 = out[1, 1, ix_mat0, iy_mat0, :]   # (n_cells_mat0, ng)
+        out_mat1 = out[1, 1, ix_mat1, iy_mat1, :]   # (n_cells_mat1, ng)
+        # Every row equals the expected per-material vector
+        for row in out_mat0:
+            np.testing.assert_allclose(row, expected_mat0, rtol=1e-15)
+        for row in out_mat1:
+            np.testing.assert_allclose(row, expected_mat1, rtol=1e-15)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Energy contraction direction (g_from contracted)
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l0
+class TestEnergyContractionDirection:
+    def test_contracts_g_from_axis(self):
+        """Verify out[g_to] = Σ_g_from moments[g_from] · sig_s[g_from, g_to].
+
+        Given a moments tensor with only g_from = 0 nonzero, output
+        must be sig_s[0, :] (the row).
+        """
+        L = 1
+        ng = 3
+        sig_s_l1 = np.array([
+            [0.1, 0.2, 0.3],
+            [0.4, 0.5, 0.6],
+            [0.7, 0.8, 0.9],
+        ])
+        sig_s_l0 = np.zeros((ng, ng))
+        Lam = LegendreMomentScattering(
+            sig_s={0: [sig_s_l0, sig_s_l1]},
+            cells_by_mat={0: (np.array([0]), np.array([0]))},
+            L=L,
+            skip_l0=True,
+        )
+        # ℓ=1, m=0, single cell, only g_from=0 nonzero
+        moments = np.zeros((L + 1, 2 * L + 1, 1, 1, ng))
+        moments[1, 1, 0, 0, 0] = 1.0
+        out = Lam.apply(moments)
+        # Expected: out[1, 1, 0, 0, :] = sig_s_l1[0, :]
+        np.testing.assert_allclose(
+            out[1, 1, 0, 0, :], sig_s_l1[0, :], rtol=1e-15,
+        )
+
+    def test_two_groups_full_matrix(self):
+        """Full 2-group cross-check on a (1, 0, 0, 0) input excitation."""
+        ng = 2
+        sig_s_l1 = np.array([[1.0, 2.0], [3.0, 4.0]])
+        Lam = LegendreMomentScattering(
+            sig_s={0: [np.zeros((ng, ng)), sig_s_l1]},
+            cells_by_mat={0: (np.array([0]), np.array([0]))},
+            L=1,
+            skip_l0=True,
+        )
+        # All groups equal 1.0 in the (ℓ=1, m=0) slot
+        moments = np.zeros((2, 3, 1, 1, ng))
+        moments[1, 1, 0, 0, :] = np.array([1.0, 1.0])
+        out = Lam.apply(moments)
+        # out_g_to = Σ_g_from sig_s[g_from, g_to]
+        # = column sums of sig_s_l1
+        expected = sig_s_l1.sum(axis=0)  # = [4.0, 6.0]
+        np.testing.assert_allclose(
+            out[1, 1, 0, 0, :], expected, rtol=1e-15,
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Bit-identical to legacy build_aniso_source per-ℓ math
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l0
+@pytest.mark.regression
+class TestBitIdenticalToLegacyInlinedMath:
+    """L0: Λ.apply matches the legacy inline ``moment @ sig_s_l[l]`` step."""
+
+    def test_legacy_inline_per_ell_per_mat_matches_lambda(self):
+        L = 3
+        nx, ny, ng = 4, 1, 3
+        n_mat = 2
+        rng = np.random.default_rng(seed=2026)
+        sig_s = {
+            mid: [rng.uniform(0, 0.5, size=(ng, ng)) for _ in range(L + 1)]
+            for mid in range(n_mat)
+        }
+        ix_arr = np.arange(nx)
+        cells_by_mat = {
+            mid: (ix_arr[ix_arr % n_mat == mid], np.zeros(2, dtype=int))
+            for mid in range(n_mat)
+        }
+        Lam = LegendreMomentScattering(
+            sig_s=sig_s, cells_by_mat=cells_by_mat, L=L, skip_l0=True,
+        )
+        moments = rng.standard_normal((L + 1, 2 * L + 1, nx, ny, ng))
+
+        # Legacy reference: inline ``moment @ sig_s_l[l]`` per (mid, l, m)
+        legacy = np.zeros_like(moments)
+        for mid, (ix, iy) in cells_by_mat.items():
+            sig_s_l = sig_s[mid]
+            for l in range(1, L + 1):
+                for m in range(-l, l + 1):
+                    moment = moments[l, l + m, ix, iy, :]  # (n_cells, ng)
+                    scattered = moment @ sig_s_l[l]
+                    legacy[l, l + m, ix, iy, :] = scattered
+
+        out = Lam.apply(moments)
+        np.testing.assert_allclose(out, legacy, rtol=1e-15, atol=0.0)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Composition (operator algebra)
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l0
+class TestComposesUnderOperatorAlgebra:
+    def test_lambda_advertises_apply_for_operator_product(self):
+        """Λ should compose correctly with other LinearOperators via `@`."""
+        from orpheus.numerics.operator import IdentityOperator
+        Lam, _, _ = _make_simple_lambda()
+        # Λ @ I  — composition machinery
+        composed = Lam @ IdentityOperator()
+        assert CAP_APPLY in composed.capabilities

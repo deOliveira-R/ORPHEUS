@@ -122,7 +122,129 @@ from orpheus.numerics.operator import (
 )
 
 
-__all__ = ["ScatteringOperator"]
+__all__ = ["LegendreMomentScattering", "ScatteringOperator"]
+
+
+@dataclass(frozen=True)
+class LegendreMomentScattering(LinearOperatorMixin):
+    r"""Per-ℓ block-diagonal scattering on harmonic-moment space.
+
+    The §15.2 / §10 sum-of-tensor-products form
+
+    .. math::
+
+        \Lambda \;=\; \sum_{\ell=1}^{L}\, \mathbf{P}_\ell \otimes \Sigma_{s,\ell}
+
+    where :math:`\mathbf{P}_\ell` selects the :math:`\ell`-th harmonic
+    block and :math:`\Sigma_{s,\ell}` is the per-material per-ℓ
+    Legendre cross-section matmul on the energy-group axis.
+
+    For an input moment field
+    :math:`\phi_\ell^m(\vec r) \in \mathbb{R}^{(L+1) \times (2L+1) \times N_x \times N_y \times N_g}`,
+    the action is
+
+    .. math::
+
+        (\Lambda \phi)_\ell^m(\vec r)\bigg|_{g}
+        \;=\; \sum_{g'} \Sigma_{s,\ell}^{m(\vec r)}(g' \to g)\,
+              \phi_\ell^m(\vec r)\bigg|_{g'},
+
+    where :math:`m(\vec r)` is the material id at cell :math:`\vec r`
+    (the per-material structure is folded into the cell axis via
+    ``cells_by_mat``).
+
+    The :math:`\ell = 0` block is **skipped by default** because the
+    project's P0 isotropic in-scatter is handled by the separate
+    :meth:`ScatteringOperator.add_iso_source` fast path (a reaction-rate
+    formulation that does not go through the moment tensor). Setting
+    ``skip_l0 = False`` includes the :math:`\ell = 0` block (used by
+    the LinearOperator-surface :meth:`ScatteringOperator.apply` when a
+    full :math:`R \Lambda M \psi` composition is required).
+
+    Implementation
+    --------------
+
+    The two outer Python loops are over **materials** (1-10 typically)
+    and **Legendre order ℓ** (0-3 typically) — both small structural
+    dimensions, NOT smoking guns. Inside each ``(mid, ℓ)`` pair, ONE
+    :func:`numpy.einsum` handles all :math:`m`, cells, and groups in
+    a single contraction. The total flop count is identical to the
+    legacy hand-rolled version inside
+    :meth:`ScatteringOperator.build_aniso_source`; the iteration over
+    ordinates that *was* there is no longer needed because moment-space
+    scattering does not couple ordinates.
+
+    Capability set: :pydata:`{"apply"}`. There is no efficient
+    :meth:`solve` (the moment-space scattering matrix is rank-deficient
+    on the :math:`\ell = 0` block by design); :meth:`apply_transpose`
+    is not currently consumed by any ORPHEUS solver and is deferred.
+
+    Parameters
+    ----------
+    sig_s : dict[int, list[np.ndarray]]
+        Per-material list of ``(ng, ng)`` Legendre scattering matrices,
+        one per Legendre order ``[0..L]``. ``sig_s[mid][l][g_from, g_to]``
+        is the scattering cross-section at order :math:`\ell` from
+        ``g_from`` to ``g_to``.
+    cells_by_mat : dict[int, tuple[np.ndarray, np.ndarray]]
+        Per-material ``(ix, iy)`` index arrays for vectorised assembly
+        into the cell axis.
+    L : int
+        Maximum Legendre order :math:`L` retained.
+    skip_l0 : bool, default ``True``
+        Skip the :math:`\ell = 0` block (handled separately by P0
+        in-scatter). Set to ``False`` for the full LinearOperator
+        composition :math:`R \Lambda M \psi`.
+    """
+
+    sig_s: dict[int, list[np.ndarray]]
+    cells_by_mat: dict[int, tuple[np.ndarray, np.ndarray]]
+    L: int
+    skip_l0: bool = True
+    capabilities: frozenset = field(
+        default_factory=lambda: frozenset({CAP_APPLY})
+    )
+
+    def apply(self, moments: np.ndarray) -> np.ndarray:
+        r"""Apply :math:`\Lambda` to a moment field.
+
+        Parameters
+        ----------
+        moments : np.ndarray
+            Moment field of shape ``(L+1, 2L+1, nx, ny, ng)``. The
+            :math:`m`-axis is the addition-theorem-shifted index where
+            slot ``l + m`` holds the :math:`(\ell, m)` entry; entries
+            outside :math:`|m| \le \ell` are conventionally zero.
+
+        Returns
+        -------
+        np.ndarray
+            Same shape as ``moments``. The :math:`\ell = 0` block is
+            zero when ``skip_l0`` is ``True``; otherwise the P0 in-scatter
+            contribution is included.
+        """
+        out = np.zeros_like(moments)
+        l_start = 1 if self.skip_l0 else 0
+        for mid, (ix, iy) in self.cells_by_mat.items():
+            sig_s_mid = self.sig_s[mid]
+            for l in range(l_start, self.L + 1):
+                # Only the 2ℓ+1 valid m-slots are physical at order ℓ;
+                # the remaining slots (2ℓ+1..2L) are zero by convention
+                # in the moment tensor produced by HarmonicMomentProjection.
+                # Restricting the einsum to the valid range matches the
+                # legacy ``for m in range(-l, l+1)`` iteration in
+                # `build_aniso_source` and avoids scattering out-of-band
+                # garbage when the operator is fed a synthetic random input.
+                n_m = 2 * l + 1
+                # moments[l, :n_m, ix, iy, :]  shape (2ℓ+1, n_cells, ng)
+                # sig_s_mid[l]                 shape (ng, ng), [g_from, g_to]
+                # einsum: out_g_to = Σ_g_from moments_g_from * sig_s[g_from, g_to]
+                out[l, :n_m, ix, iy, :] += np.einsum(
+                    "mcf,fg->mcg",
+                    moments[l, :n_m, ix, iy, :],
+                    sig_s_mid[l],
+                )
+        return out
 
 
 @dataclass
