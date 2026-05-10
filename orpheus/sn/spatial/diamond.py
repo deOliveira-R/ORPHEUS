@@ -259,7 +259,13 @@ import numpy as np
 
 from orpheus.geometry.reduced_operator import StreamingTerms
 
-from .cell_update import CellResult, CellUpdateBase, CellVisit, UpstreamState
+from .cell_update import (
+    CellResult,
+    CellUpdateBase,
+    CellVisit,
+    SweepCellSlice,
+    UpstreamState,
+)
 
 
 # Threshold for the cylindrical pure-azimuthal degenerate branch.
@@ -369,6 +375,95 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
             source,
             upstream_state,
         )
+
+    # ── 2-D Cartesian batched update (Wave 2 / C2.2) ───────────────
+
+    def update_batch(self, slice_args: SweepCellSlice) -> np.ndarray:
+        r"""Vectorised DD update for one anti-diagonal level.
+
+        Reproduces the inlined wavefront DD math at
+        ``orpheus.sn.sweep._sweep_2d_wavefront`` lines 847-871
+        bit-for-bit, with the ordinate axis (``N_oct``) and the
+        anti-diagonal axis (``n_diag``) folded into a single batched
+        call. The math is the **balance form** of WDD on a 2-D
+        Cartesian cell:
+
+        .. math::
+
+           \overline{\psi}_{i,j}
+           \;=\; \frac{Q_{i,j}
+                       + s_{x,i}\,\psi^{\rm in}_{x,i,j}
+                       + s_{y,j}\,\psi^{\rm in}_{y,i,j}}
+                      {\Sigma_{t,i,j} + s_{x,i} + s_{y,j}},
+
+           \qquad
+           s_{x,i} = 2|\mu_x|/\Delta x_i,
+           \quad s_{y,j} = 2|\mu_y|/\Delta y_j,
+
+        with the spatial closure
+        :math:`\psi^{\rm out}_x = 2\overline{\psi} - \psi^{\rm in}_x`
+        (and analogously on :math:`y`). The closure values are
+        scattered back into :attr:`SweepCellSlice.psi_x` /
+        :attr:`SweepCellSlice.psi_y` at the outgoing-face indices in
+        place — those buffers are persistent across levels.
+
+        Bit-identity contract
+        ---------------------
+
+        The operation order of ``denom = sig_t + sx + sy``,
+        ``psi_avg = (Q + sx*psi_in_x + sy*psi_in_y) / denom``, and
+        ``psi_out = 2*psi_avg - psi_in`` matches the legacy inlined
+        sweep (sweep.py:847-871) exactly. Per the module docstring
+        on bit-identity, algebraically-equivalent rearrangements
+        break the 1-ULP regression contract — do NOT refactor for
+        "clarity".
+
+        Note: this is the **2-D Cartesian DD balance form**, NOT the
+        slab cumprod-style recurrence used by :meth:`_update_slab`
+        (which solves :math:`\psi_{\rm out} = a\psi_{\rm in} + s`
+        with ``a = (2|μ| - Δx·Σ_t)/denom``). The two are
+        algebraically equivalent in 1-D but **NOT bit-identical**
+        at IEEE-754 ULP — different operation orders.
+        """
+        s = slice_args
+        ii, jj = s.ii, s.jj
+
+        # Gather incoming face fluxes — fancy indexing with advanced
+        # indices contiguous-in-the-middle gives result shape
+        # (N_oct, n_diag, ng). All four `psi_*[:, advanced, advanced, :]`
+        # patterns are the same numpy idiom.
+        psi_in_x = s.psi_x[:, s.face_in_x_idx, jj, :]    # (N_oct, n_diag, ng)
+        psi_in_y = s.psi_y[:, ii, s.face_in_y_idx, :]    # (N_oct, n_diag, ng)
+
+        # Per-octant per-cell streaming coefficients, broadcast to
+        # (N_oct, n_diag, 1) so they multiply across the group axis.
+        sx = s.str_x[:, ii][:, :, None]                  # (N_oct, n_diag, 1)
+        sy = s.str_y[:, jj][:, :, None]                  # (N_oct, n_diag, 1)
+
+        # Total-xs slice on this level. Shape (n_diag, ng); broadcasts
+        # to (N_oct, n_diag, ng) against sx + sy.
+        sigt_cells = s.sig_t[ii, jj, :]                  # (n_diag, ng)
+
+        # Operation order matches sweep.py:858 — denom builds as
+        # sig_t + sx + sy (NOT sx + sy + sig_t).
+        denom = sigt_cells + sx + sy                     # (N_oct, n_diag, ng)
+
+        # Q[:, ii, jj, :] is (N_oct, n_diag, ng) for aniso-broadcast Q
+        # OR (1, n_diag, ng) for an isotropic-only sweep where Q has
+        # leading dim 1; both broadcast against the rest.
+        # Operation order matches sweep.py:860-864.
+        psi_avg = (
+            s.Q[:, ii, jj, :]
+            + sx * psi_in_x
+            + sy * psi_in_y
+        ) / denom                                         # (N_oct, n_diag, ng)
+
+        # Spatial closure — scatter outgoing face fluxes back into the
+        # persistent buffers. Operation order matches sweep.py:866-867.
+        s.psi_x[:, s.face_out_x_idx, jj, :] = 2.0 * psi_avg - psi_in_x
+        s.psi_y[:, ii, s.face_out_y_idx, :] = 2.0 * psi_avg - psi_in_y
+
+        return psi_avg
 
     # ── Slab ───────────────────────────────────────────────────────
 

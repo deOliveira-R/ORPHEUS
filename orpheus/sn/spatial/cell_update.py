@@ -166,6 +166,112 @@ from orpheus.numerics.registry import RegistryMixin
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# SweepCellSlice — per-level batched-update packet (2-D Cartesian)
+# ═══════════════════════════════════════════════════════════════════════
+
+@dataclass(frozen=True, slots=True)
+class SweepCellSlice:
+    r"""Per-topological-level batched-update packet for the 2-D sweep.
+
+    The 2-D wavefront sweep visits cells in topological levels (the
+    anti-diagonals of the Cartesian grid under a given octant sign
+    convention). Within one level, all cells are mutually independent
+    (no upstream/downstream relation between them), so the per-cell
+    DD math vectorises across both the **ordinate axis** (size
+    ``N_oct`` — every ordinate in the current octant) and the
+    **anti-diagonal axis** (size ``n_diag`` — number of cells on
+    this level) simultaneously. ``SweepCellSlice`` is the input
+    packet :meth:`CellUpdateBase.update_batch` consumes.
+
+    Shape contract
+    --------------
+
+    Let ``N_oct`` be the number of ordinates in the active octant,
+    ``n_diag`` the number of cells on this level, and ``ng`` the
+    number of energy groups.
+
+    +------------------------+-----------------------------+--------------------------------+
+    | Field                  | Shape                       | Role                           |
+    +========================+=============================+================================+
+    | ``ii``                 | ``(n_diag,)`` int           | Cell-i indices on this level   |
+    +------------------------+-----------------------------+--------------------------------+
+    | ``jj``                 | ``(n_diag,)`` int           | Cell-j indices on this level   |
+    +------------------------+-----------------------------+--------------------------------+
+    | ``face_in_x_idx``      | ``(n_diag,)`` int           | x-face index of incoming flux  |
+    |                        |                             | (= ``ii + 0`` if μ_x ≥ 0       |
+    |                        |                             | else ``ii + 1``)               |
+    +------------------------+-----------------------------+--------------------------------+
+    | ``face_out_x_idx``     | ``(n_diag,)`` int           | x-face index of outgoing flux  |
+    |                        |                             | (= ``ii + 1`` if μ_x ≥ 0       |
+    |                        |                             | else ``ii + 0``)               |
+    +------------------------+-----------------------------+--------------------------------+
+    | ``face_in_y_idx``      | ``(n_diag,)`` int           | y-face index of incoming flux  |
+    +------------------------+-----------------------------+--------------------------------+
+    | ``face_out_y_idx``     | ``(n_diag,)`` int           | y-face index of outgoing flux  |
+    +------------------------+-----------------------------+--------------------------------+
+    | ``psi_x``              | ``(N_oct, nx+1, ny, ng)``   | Octant-restricted face-x       |
+    |                        |                             | buffer; mutated in place       |
+    |                        |                             | (outgoing fluxes scattered     |
+    |                        |                             | back at ``face_out_x_idx``)    |
+    +------------------------+-----------------------------+--------------------------------+
+    | ``psi_y``              | ``(N_oct, nx, ny+1, ng)``   | Octant-restricted face-y       |
+    |                        |                             | buffer; mutated in place       |
+    +------------------------+-----------------------------+--------------------------------+
+    | ``Q``                  | ``(N_oct, nx, ny, ng)`` or  | Per-octant per-cell volumetric |
+    |                        | ``(1, nx, ny, ng)``         | source, **already weight-      |
+    |                        |                             | normalised**. The leading      |
+    |                        |                             | axis is ``1`` for isotropic-   |
+    |                        |                             | only sweeps and ``N_oct`` when |
+    |                        |                             | a per-ordinate aniso source is |
+    |                        |                             | folded in.                     |
+    +------------------------+-----------------------------+--------------------------------+
+    | ``sig_t``              | ``(nx, ny, ng)``            | Per-cell per-group total XS    |
+    +------------------------+-----------------------------+--------------------------------+
+    | ``str_x``              | ``(N_oct, nx)``             | Octant-restricted streaming    |
+    |                        |                             | coefficient ``2|μ_x|/Δx``      |
+    +------------------------+-----------------------------+--------------------------------+
+    | ``str_y``              | ``(N_oct, ny)``             | Octant-restricted streaming    |
+    |                        |                             | coefficient ``2|μ_y|/Δy``      |
+    +------------------------+-----------------------------+--------------------------------+
+
+    Mutation semantics
+    ------------------
+
+    ``psi_x`` and ``psi_y`` are mutated **in place** by
+    :meth:`update_batch` at indices ``face_out_x_idx`` /
+    ``face_out_y_idx`` (the outgoing-face indices for this level).
+    The caller (the
+    :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` orchestrator
+    in Wave 2) keeps these buffers as persistent state across levels
+    and across iterations; mutating them in place is the canonical way
+    to propagate face fluxes from one level to the next.
+
+    Frozen + slotted: the dataclass itself is immutable (no rebinding
+    of attributes) but the numpy arrays it points at are mutable —
+    that is the desired separation of concerns.
+
+    See also
+    --------
+    * :meth:`CellUpdateBase.update_batch` — the consumer.
+    * :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` — the
+      producer (Wave 2 / C2.3).
+    """
+
+    ii: np.ndarray
+    jj: np.ndarray
+    face_in_x_idx: np.ndarray
+    face_out_x_idx: np.ndarray
+    face_in_y_idx: np.ndarray
+    face_out_y_idx: np.ndarray
+    psi_x: np.ndarray
+    psi_y: np.ndarray
+    Q: np.ndarray
+    sig_t: np.ndarray
+    str_x: np.ndarray
+    str_y: np.ndarray
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # CellVisit — one visit to one cell during an SN sweep
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -460,11 +566,46 @@ class CellUpdateBase(RegistryMixin, ABC):
     ) -> CellResult:
         ...
 
+    def update_batch(self, slice_args: SweepCellSlice) -> np.ndarray:
+        r"""Vectorised per-level update for the 2-D Cartesian wavefront sweep.
+
+        Default implementation raises :exc:`NotImplementedError`.
+        Strategies that want to participate in the batched 2-D
+        wavefront sweep (Wave 2 / C2.3) override this method. The
+        per-cell :meth:`update` method remains the canonical contract;
+        ``update_batch`` is an additive capability for closures whose
+        per-cell algebra also vectorises over an ``(N_oct, n_diag,
+        ng)`` slice without per-cell branching.
+
+        Parameters
+        ----------
+        slice_args :
+            One topological-level packet — see :class:`SweepCellSlice`
+            for the shape contract.
+
+        Returns
+        -------
+        psi_avg :
+            Cell-average flux on this level, shape
+            ``(N_oct, n_diag, ng)``. The caller writes ``psi_avg``
+            into the angular-flux buffer and accumulates into the
+            scalar-flux buffer; outgoing face fluxes are scattered
+            back into ``slice_args.psi_x`` / ``slice_args.psi_y``
+            in place by ``update_batch`` itself (since the spatial
+            closure is part of the strategy's algebra).
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement update_batch. "
+            "Override this method to enable the batched 2-D Cartesian "
+            "wavefront sweep (Wave 2 / C2.3)."
+        )
+
 
 __all__ = [
     "CellResult",
     "CellUpdate",
     "CellUpdateBase",
     "CellVisit",
+    "SweepCellSlice",
     "UpstreamState",
 ]
