@@ -72,6 +72,7 @@ __all__ = [
     "ZeroOperator",
     "PermutationOperator",
     "IncomingOrdinateMaskTensor",
+    "PeriodicWrapOperator",
     "DiagonalOperator",
     "TensorProductOperator",
     "SumOfTensorProductsOperator",
@@ -887,6 +888,39 @@ class IncomingOrdinateMaskTensor(LinearOperatorMixin):
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         # Self-adjoint: same code path.
         return self.apply(x)
+
+
+class PeriodicWrapOperator(LinearOperatorMixin):
+    r"""Spatial-pushforward operator for periodic boundaries.
+
+    Represents the angular trace map that connects opposite faces of
+    a periodic mesh. Currently the body is angular identity — this
+    matches the legacy
+    :class:`~orpheus.geometry.boundary.PeriodicBoundaryOperator`
+    semantics, where the SN sweep handles the spatial wrap via its
+    own face-pair indexing and the BC operator only needs to pass
+    the angular trace through unchanged.
+
+    The type is reserved for a future spatial-pushforward extension
+    when the periodic map needs to act on a per-cell flux field
+    rather than a per-face angular trace (e.g. for coupling periodic
+    BCs into a curvilinear Krylov solve where spatial wrap is not
+    handled by sweep indexing). See follow-up issue
+    "BC: PeriodicWrapOperator spatial-pushforward implementation".
+
+    Capability set: ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}``. The
+    identity body is self-adjoint. The input is returned by
+    reference (NOT copied) to match the legacy zero-cost angular
+    pass-through semantics.
+    """
+
+    capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
+
+    def apply(self, x: np.ndarray) -> np.ndarray:
+        return x
+
+    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+        return x
 
 
 class TensorProductOperator(LinearOperatorMixin):
