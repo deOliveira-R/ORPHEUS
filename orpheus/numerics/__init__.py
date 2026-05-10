@@ -33,6 +33,13 @@ from .quadrature import (
     level_symmetric_sn,
     product_mu_phi,
 )
+from .projection import (
+    GalerkinProjection,
+    HarmonicMomentProjection,
+    HarmonicMomentReconstruction,
+    PetrovGalerkinProjection,
+    ProjectionOperator,
+)
 from .spherical_harmonics import evaluate_real_sh
 from .symmetry import SubgroupOfO3
 
@@ -45,6 +52,9 @@ __all__ = [
     "DiscreteMeasure",
     "DiscreteMeasurePartition",
     "EigenvalueSolver",
+    "GalerkinProjection",
+    "HarmonicMomentProjection",
+    "HarmonicMomentReconstruction",
     "IdentityOperator",
     "KEigenvalue",
     "LinearOperator",
@@ -52,6 +62,8 @@ __all__ = [
     "MissingCapability",
     "OperatorProduct",
     "OperatorSum",
+    "PetrovGalerkinProjection",
+    "ProjectionOperator",
     "ScaledOperator",
     "SourceIteration",
     "SubgroupOfO3",
