@@ -1,0 +1,346 @@
+r"""Tests for :mod:`orpheus.sn.sweep_graph` (Wave 2 / C2.3).
+
+The §15A.2 "upwind trace complex / causal transport DAG / direction
+sweep ordering" primitive (Grand Report v3 lines 2137-2171). This
+file pins the invariants the plan named:
+
+* :ref:`assert_upwind_orientation` — face_in / face_out indices match
+  the octant sign convention.
+* :ref:`assert_topologically_sorted` — every level's cells depend
+  only on cells in strictly earlier levels.
+* :ref:`assert_cell_coverage` — every cell appears in exactly one
+  level.
+* :ref:`assert_face_pairing_consistent` — within an octant, the
+  outgoing face of cell ``(i, j)`` matches the incoming face of
+  ``(i + sx, j)`` (and analogous for y).
+* :ref:`apply_invariants` — running ``SweepDependencyGraph.apply``
+  matches a per-cell hand calculation on a tiny grid (1×1, 2×2)
+  and matches the legacy inlined wavefront math on a 3×3 grid.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+import pytest
+
+from orpheus.sn.spatial.diamond import DiamondDifference
+from orpheus.sn.sweep_graph import OctantLabel, SweepDependencyGraph
+
+
+# ─────────────────────────────────────────────────────────────────────
+# OctantLabel
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l0
+class TestOctantLabel:
+    def test_valid_signs(self):
+        for sx in (-1, 0, +1):
+            for sy in (-1, 0, +1):
+                lab = OctantLabel(sign_x=sx, sign_y=sy)
+                assert lab.sign_x == sx
+                assert lab.sign_y == sy
+
+    def test_invalid_sign_raises(self):
+        with pytest.raises(ValueError, match="sign_x"):
+            OctantLabel(sign_x=2, sign_y=+1)
+        with pytest.raises(ValueError, match="sign_y"):
+            OctantLabel(sign_x=+1, sign_y=-2)
+
+    def test_streams_in_2d(self):
+        assert OctantLabel(+1, +1).streams_in_2d
+        assert OctantLabel(-1, +1).streams_in_2d
+        assert OctantLabel(+1, 0).streams_in_2d   # y-axis-aligned still streams in x
+        assert OctantLabel(0, -1).streams_in_2d
+        assert not OctantLabel(0, 0).streams_in_2d  # pure-z degenerate
+
+    def test_hashable_for_dict_keys(self):
+        d = {OctantLabel(+1, -1): "x"}
+        assert d[OctantLabel(+1, -1)] == "x"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Construction — face-index conventions and degenerate guard
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l0
+class TestFromCartesian2D:
+    @pytest.mark.parametrize("sx,sy,fix,fox,fiy,foy", [
+        (+1, +1, 0, 1, 0, 1),
+        (+1, -1, 0, 1, 1, 0),
+        (-1, +1, 1, 0, 0, 1),
+        (-1, -1, 1, 0, 1, 0),
+    ])
+    def test_face_indices_match_octant_signs(
+        self, sx, sy, fix, fox, fiy, foy,
+    ):
+        """assert_upwind_orientation: face_in/out indices match sign conv."""
+        g = SweepDependencyGraph.from_cartesian_2d(
+            nx=4, ny=4, label=OctantLabel(sx, sy),
+        )
+        assert g.face_in_x == fix
+        assert g.face_out_x == fox
+        assert g.face_in_y == fiy
+        assert g.face_out_y == foy
+
+    def test_pure_z_label_raises(self):
+        with pytest.raises(ValueError, match="pure-z"):
+            SweepDependencyGraph.from_cartesian_2d(
+                nx=3, ny=3, label=OctantLabel(0, 0),
+            )
+
+    def test_levels_is_tuple_of_ndarrays(self):
+        g = SweepDependencyGraph.from_cartesian_2d(
+            nx=3, ny=4, label=OctantLabel(+1, +1),
+        )
+        assert isinstance(g.levels, tuple)
+        for ii, jj in g.levels:
+            assert isinstance(ii, np.ndarray)
+            assert isinstance(jj, np.ndarray)
+            assert ii.shape == jj.shape
+
+
+# ─────────────────────────────────────────────────────────────────────
+# §15A.2 invariants — cell coverage + topological soundness
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l0
+class TestAssertCellCoverage:
+    """Every cell of the nx × ny grid appears in exactly one level."""
+
+    @pytest.mark.parametrize("nx,ny", [(1, 1), (2, 3), (3, 3), (4, 5), (5, 4)])
+    @pytest.mark.parametrize("sx,sy", [
+        (+1, +1), (+1, -1), (-1, +1), (-1, -1),
+    ])
+    def test_every_cell_visited_once(self, nx, ny, sx, sy):
+        g = SweepDependencyGraph.from_cartesian_2d(
+            nx=nx, ny=ny, label=OctantLabel(sx, sy),
+        )
+        all_cells = set()
+        for ii, jj in g.levels:
+            for i, j in zip(ii, jj):
+                cell = (int(i), int(j))
+                assert cell not in all_cells, f"Cell {cell} visited twice"
+                all_cells.add(cell)
+        assert len(all_cells) == nx * ny
+
+
+@pytest.mark.l0
+class TestAssertTopologicallySorted:
+    """Every level's cells depend only on cells in strictly earlier levels."""
+
+    @pytest.mark.parametrize("nx,ny", [(2, 3), (3, 3), (4, 4)])
+    @pytest.mark.parametrize("sx,sy", [
+        (+1, +1), (+1, -1), (-1, +1), (-1, -1),
+    ])
+    def test_upstream_cell_in_earlier_level(self, nx, ny, sx, sy):
+        """Cell (i, j) at level k has upstream (i - sx, j) and (i, j - sy)
+        at level < k (or off-grid → BC)."""
+        g = SweepDependencyGraph.from_cartesian_2d(
+            nx=nx, ny=ny, label=OctantLabel(sx, sy),
+        )
+        cell_to_level = {}
+        for k, (ii, jj) in enumerate(g.levels):
+            for i, j in zip(ii, jj):
+                cell_to_level[(int(i), int(j))] = k
+        # For each cell, its upstream cells must be in earlier levels.
+        for (i, j), k in cell_to_level.items():
+            upstream_x = (i - sx, j)
+            upstream_y = (i, j - sy)
+            if 0 <= upstream_x[0] < nx:
+                assert cell_to_level[upstream_x] < k, (
+                    f"cell {(i, j)} at level {k} has upstream-x "
+                    f"{upstream_x} at level {cell_to_level[upstream_x]} "
+                    f"(must be < {k})"
+                )
+            if 0 <= upstream_y[1] < ny:
+                assert cell_to_level[upstream_y] < k, (
+                    f"cell {(i, j)} at level {k} has upstream-y "
+                    f"{upstream_y} at level {cell_to_level[upstream_y]} "
+                    f"(must be < {k})"
+                )
+
+
+@pytest.mark.l0
+class TestAssertFacePairingConsistent:
+    r"""Within an octant: outgoing face of ``(i, j)`` matches the
+    incoming face of the next cell along the streaming direction."""
+
+    @pytest.mark.parametrize("sx,sy", [
+        (+1, +1), (+1, -1), (-1, +1), (-1, -1),
+    ])
+    def test_face_indices_are_neighbors(self, sx, sy):
+        """For sign_x = +1: out_x of (i, j) is i+1 == in_x of (i+1, j)."""
+        g = SweepDependencyGraph.from_cartesian_2d(
+            nx=3, ny=3, label=OctantLabel(sx, sy),
+        )
+        # face_out_x[i] - face_in_x[i+sx*1] = ?
+        # For sx=+1: face_out=1, so cell (i, j) outgoing face is i+1;
+        #            cell (i+1, j) incoming face is (i+1)+0 = i+1. ✓
+        # For sx=-1: face_out=0, so cell (i, j) outgoing face is i;
+        #            cell (i-1, j) incoming face is (i-1)+1 = i. ✓
+        # The invariant is: face_out_x == 1 + face_in_x - sx (always -1+sx-?)
+        # Simplest check: face_out_x + face_in_x == 1 (one is 0, the other is 1).
+        assert g.face_in_x + g.face_out_x == 1
+        assert g.face_in_y + g.face_out_y == 1
+
+
+# ─────────────────────────────────────────────────────────────────────
+# apply — equivalence with per-cell hand calculation
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _hand_run_legacy_inlined(
+    *,
+    nx: int, ny: int, ng: int, N_oct: int,
+    psi_x: np.ndarray, psi_y: np.ndarray,
+    Q: np.ndarray,                 # (N_oct or 1, nx, ny, ng)
+    sig_t: np.ndarray,             # (nx, ny, ng)
+    str_x: np.ndarray,             # (N_oct, nx)
+    str_y: np.ndarray,             # (N_oct, ny)
+    weights: np.ndarray,           # (N_oct,)
+    sx_sign: int, sy_sign: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Run the legacy inlined ``_sweep_2d_wavefront`` math one ordinate
+    at a time, on octant-restricted buffers.
+
+    Returns ``(angular_flux, scalar_flux, psi_x_post, psi_y_post)``.
+    """
+    angular_flux = np.zeros((N_oct, nx, ny, ng))
+    scalar_flux = np.zeros((nx, ny, ng))
+    psi_x = psi_x.copy()
+    psi_y = psi_y.copy()
+
+    ix_in = 0 if sx_sign >= 0 else 1
+    ix_out = 1 if sx_sign >= 0 else 0
+    iy_in = 0 if sy_sign >= 0 else 1
+    iy_out = 1 if sy_sign >= 0 else 0
+    ix_arr = np.arange(nx) if sx_sign >= 0 else np.arange(nx)[::-1]
+    iy_arr = np.arange(ny) if sy_sign >= 0 else np.arange(ny)[::-1]
+
+    for n in range(N_oct):
+        for k in range(nx + ny - 1):
+            i_start = max(0, k - ny + 1)
+            i_end = min(nx - 1, k)
+            local_i = np.arange(i_start, i_end + 1)
+            local_j = k - local_i
+            ii = ix_arr[local_i]
+            jj = iy_arr[local_j]
+            psi_in_x = psi_x[n, ii + ix_in, jj, :]
+            psi_in_y = psi_y[n, ii, jj + iy_in, :]
+            sx = str_x[n, ii][:, None]
+            sy = str_y[n, jj][:, None]
+            denom = sig_t[ii, jj, :] + sx + sy
+            Qn = Q[n if Q.shape[0] > 1 else 0, ii, jj, :]
+            psi_avg = (Qn + sx * psi_in_x + sy * psi_in_y) / denom
+            psi_x[n, ii + ix_out, jj, :] = 2.0 * psi_avg - psi_in_x
+            psi_y[n, ii, jj + iy_out, :] = 2.0 * psi_avg - psi_in_y
+            angular_flux[n, ii, jj, :] = psi_avg
+            scalar_flux[ii, jj, :] += weights[n] * psi_avg
+    return angular_flux, scalar_flux, psi_x, psi_y
+
+
+@pytest.mark.l0
+@pytest.mark.regression
+class TestApplyMatchesLegacyInlined:
+    @pytest.mark.parametrize("sx,sy", [
+        (+1, +1), (+1, -1), (-1, +1), (-1, -1),
+    ])
+    @pytest.mark.parametrize("nx,ny,ng,N_oct", [
+        (1, 1, 1, 1),
+        (2, 2, 2, 3),
+        (3, 4, 2, 4),
+        (4, 3, 3, 6),
+    ])
+    def test_per_cell_loop_equivalence(self, sx, sy, nx, ny, ng, N_oct):
+        rng = np.random.default_rng(seed=2026 * (10 * sx + sy + 100) + nx * ny + ng + N_oct)
+        psi_x = rng.standard_normal((N_oct, nx + 1, ny, ng))
+        psi_y = rng.standard_normal((N_oct, nx, ny + 1, ng))
+        Q = rng.standard_normal((N_oct, nx, ny, ng))
+        sig_t = rng.uniform(0.1, 0.5, size=(nx, ny, ng))
+        str_x = rng.uniform(0.1, 1.0, size=(N_oct, nx))
+        str_y = rng.uniform(0.1, 1.0, size=(N_oct, ny))
+        weights = rng.uniform(0.5, 1.5, size=N_oct)
+
+        # Legacy reference (per-ordinate Python loop).
+        ref_ang, ref_scal, ref_px, ref_py = _hand_run_legacy_inlined(
+            nx=nx, ny=ny, ng=ng, N_oct=N_oct,
+            psi_x=psi_x, psi_y=psi_y, Q=Q, sig_t=sig_t,
+            str_x=str_x, str_y=str_y, weights=weights,
+            sx_sign=sx, sy_sign=sy,
+        )
+
+        # New code (vectorised graph apply).
+        graph = SweepDependencyGraph.from_cartesian_2d(
+            nx=nx, ny=ny, label=OctantLabel(sx, sy),
+        )
+        angular_flux = np.zeros((N_oct, nx, ny, ng))
+        scalar_flux = np.zeros((nx, ny, ng))
+        psi_x_oct = psi_x.copy()
+        psi_y_oct = psi_y.copy()
+        graph.apply(
+            cell_update=DiamondDifference(),
+            psi_x_octant=psi_x_oct, psi_y_octant=psi_y_oct,
+            Q_octant=Q, sig_t=sig_t,
+            str_x_octant=str_x, str_y_octant=str_y,
+            weights_octant=weights,
+            angular_flux_octant=angular_flux,
+            scalar_flux_buf=scalar_flux,
+        )
+
+        # Bit-identity on angular flux (operation order matches per
+        # update_batch's bit-identity gate from C2.2).
+        np.testing.assert_array_equal(angular_flux, ref_ang)
+        # Face buffers also bit-identical.
+        np.testing.assert_array_equal(psi_x_oct, ref_px)
+        np.testing.assert_array_equal(psi_y_oct, ref_py)
+        # Scalar flux: weighted-sum reduction order differs (einsum
+        # vs Python loop), so principled-equivalent via ULP. Per
+        # vv-principles bit-identity vs principled-equivalence:
+        # scalar_flux is a sum-over-ordinates reduction;
+        # ``np.einsum("ndg,n->dg", ...)`` vs ``+= w[n] * psi[n]`` over
+        # the Python loop. Drift bounded by ``N_oct × ULP × max_term``.
+        np.testing.assert_array_almost_equal_nulp(
+            scalar_flux, ref_scal, nulp=64,
+        )
+
+    def test_isotropic_Q_broadcasts(self):
+        rng = np.random.default_rng(seed=999)
+        nx, ny, ng, N_oct = 3, 3, 2, 4
+        psi_x = rng.standard_normal((N_oct, nx + 1, ny, ng))
+        psi_y = rng.standard_normal((N_oct, nx, ny + 1, ng))
+        Q = rng.standard_normal((1, nx, ny, ng))   # isotropic-only
+        sig_t = rng.uniform(0.1, 0.5, size=(nx, ny, ng))
+        str_x = rng.uniform(0.1, 1.0, size=(N_oct, nx))
+        str_y = rng.uniform(0.1, 1.0, size=(N_oct, ny))
+        weights = rng.uniform(0.5, 1.5, size=N_oct)
+        ref_ang, ref_scal, ref_px, ref_py = _hand_run_legacy_inlined(
+            nx=nx, ny=ny, ng=ng, N_oct=N_oct,
+            psi_x=psi_x, psi_y=psi_y, Q=Q, sig_t=sig_t,
+            str_x=str_x, str_y=str_y, weights=weights,
+            sx_sign=+1, sy_sign=+1,
+        )
+        graph = SweepDependencyGraph.from_cartesian_2d(
+            nx=nx, ny=ny, label=OctantLabel(+1, +1),
+        )
+        angular_flux = np.zeros((N_oct, nx, ny, ng))
+        scalar_flux = np.zeros((nx, ny, ng))
+        psi_x_oct = psi_x.copy()
+        psi_y_oct = psi_y.copy()
+        graph.apply(
+            cell_update=DiamondDifference(),
+            psi_x_octant=psi_x_oct, psi_y_octant=psi_y_oct,
+            Q_octant=Q, sig_t=sig_t,
+            str_x_octant=str_x, str_y_octant=str_y,
+            weights_octant=weights,
+            angular_flux_octant=angular_flux,
+            scalar_flux_buf=scalar_flux,
+        )
+        np.testing.assert_array_equal(angular_flux, ref_ang)
+        np.testing.assert_array_equal(psi_x_oct, ref_px)
+        np.testing.assert_array_equal(psi_y_oct, ref_py)
+        np.testing.assert_array_almost_equal_nulp(
+            scalar_flux, ref_scal, nulp=64,
+        )
