@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2913**
+Total tests collected: **2947**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 596, 20.5%
-   L1, 724, 24.9%
+   L0, 596, 20.2%
+   L1, 729, 24.7%
    L2, 36, 1.2%
    L3, 0, 0.0%
-   foundation, 1529, 52.5%
+   foundation, 1558, 52.9%
    unmarked, 28, 1.0%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2806
+   explicit, 2840
    verify, 0
    class-name, 46
    func-name, 0
@@ -165,6 +165,7 @@ Module × level grid
    homogeneous/test_homogeneous, 0, 4, 0, 0, 0, 0
    l1_analytical/test_kinf_homogeneous, 0, 15, 0, 0, 0, 0
    l1_analytical/test_mms_curvilinear_aniso_dd_convergence, 0, 2, 0, 0, 0, 0
+   l1_analytical/test_pole_closure_flat_flux_identity, 0, 5, 0, 0, 0, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
    mc/test_cross_verification, 0, 0, 2, 0, 0, 0
    mc/test_gaps, 7, 9, 0, 0, 0, 0
@@ -202,7 +203,7 @@ Module × level grid
    sn/test_quadrature, 49, 0, 0, 0, 0, 0
    sn/test_scattering_operator, 0, 0, 0, 0, 17, 0
    sn/test_snmesh_consumes_reduced, 0, 0, 0, 0, 15, 0
-   sn/test_snstreamingoperator, 0, 0, 0, 0, 29, 0
+   sn/test_snstreamingoperator, 0, 0, 0, 0, 30, 0
    sn/test_solver_components, 41, 0, 0, 0, 0, 0
    sn/test_spherical, 13, 7, 6, 0, 0, 0
    sn/test_sweep_operator_inconsistency, 0, 4, 0, 0, 0, 0
@@ -211,6 +212,7 @@ Module × level grid
    spatial/test_boundary_face_flux, 0, 0, 0, 0, 21, 0
    spatial/test_cell_update_protocol, 0, 0, 0, 0, 16, 0
    spatial/test_diamond, 0, 0, 0, 0, 13, 0
+   spatial/test_pole_angular_closure, 0, 0, 0, 0, 28, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -460,7 +462,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **23** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **24** of the testable equations found on theory pages are orphan.
 
 - ``bc-tensor-decomposition``
 - ``billiard-rank2-S``
@@ -477,6 +479,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``galerkin-spectral-carlvik-integral``
 - ``galerkin-spectral-eq4``
 - ``galerkin-spectral-orthogonality``
+- ``pole-mm-recurrence``
 - ``spectrum-case-eigenfunction-equation``
 - ``spectrum-case-eigenfunction-explicit``
 - ``spectrum-continuum-eigenfunction``

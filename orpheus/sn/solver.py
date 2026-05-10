@@ -1012,18 +1012,23 @@ def solve_sn_fixed_source(
     mesh = _apply_default_bcs(mesh, boundary_condition)
     sn_mesh = SNMesh(mesh, quadrature)
 
-    # Wave E Round 3: default dispatch is "source_iteration" for all
-    # geometries.  Round 3 ships the BC-aware FD operator (the Wave B
-    # Issue 7 BoundaryOperator plumbing now reaches solution_to_angular_flux*
-    # and the matvec helpers); ``inner_solver="krylov"`` is therefore
-    # available as an opt-in for vacuum / reflective / white / albedo /
-    # mixed BCs uniformly.  The curvilinear-default flip to "krylov"
-    # is NOT enabled because the symmetric-closure FD operator's
-    # boundary face-flux treatment at the curvilinear outer face is
-    # only first-order accurate on non-constant solutions (it uses
-    # cell-center as a face-flux approximation), which regresses the
-    # curvilinear MMS convergence rate.  See the docstring for the
-    # full closure narrative.
+    # Issue #168 status (Phase A + Phase B partial):
+    #
+    # * Phase A (Defects 1 + 2): ``BoundaryFaceFlux`` Protocol with
+    #   :class:`DDExtrapolation` default — fixes the outer-face
+    #   cell-centre truncation and the cell-centre / BC-face-value
+    #   storage conflation.
+    # * Phase B (Defect 3): :class:`PoleAngularClosure` Protocol with
+    #   :class:`BaileyFlatFluxRedist` default (the legacy flat-flux
+    #   collapse, bit-for-bit Phase A semantics).
+    #   :class:`MorelMontryAngularSweep` ships the canonical Hébert
+    #   §3.9.4 form as **opt-in only** — its full integration with
+    #   the apply matvec requires the spatial closure also to be
+    #   aligned with the sweep's WDD form (design memo §6.4 / §11),
+    #   which is a deeper architectural change beyond Phase B's
+    #   scope.  Until that lands, the curvilinear default stays
+    #   ``"source_iteration"`` and the curvilinear MMS xfail-strict
+    #   markers stay xfail (ERR-026 PARTIAL CLOSURE).
     if inner_solver is None:
         inner_solver = "source_iteration"
 

@@ -28,13 +28,23 @@ and CP can share it.
 Mathematical content
 ====================
 
-The Bailey 2009 dome recursion (sphere):
+The :math:`\alpha`-dome recursion (sphere) — Hébert (2009)
+§3.9.4 Eqs. 3.423-3.424, in the ORPHEUS factor-of-2-absorbed
+normalization:
 
 .. math::
    :label: bailey-dome-recursion
 
    \alpha_{n+\tfrac12} = \alpha_{n-\tfrac12} - w_n\,\mu_n,
    \qquad \alpha_{\tfrac12} = 0.
+
+(Hébert's Eq. 3.424 reads
+:math:`\alpha^{H}_{n+1/2} = \alpha^{H}_{n-1/2} - 2\mathcal{W}_n\,\mu_n`
+with the corresponding redistribution divisor :math:`\Delta S_i /
+(2\,\mathcal{W}_n)` in Eq. 3.428; the ORPHEUS arrays carry
+:math:`\alpha^{O} = \alpha^{H}/2` so the factor of 2 is absorbed
+into the recurrence and the redistribution divisor reads
+:math:`\Delta A_i / w_n`.  Both forms are mathematically equivalent.)
 
 For Gauss--Legendre quadrature with :math:`\mu` sorted ascending in
 :math:`[-1, 1]`, the recursion produces a non-negative dome that closes
@@ -46,7 +56,7 @@ carries its own :math:`(M+1)`-tuple of :math:`\alpha` with
 where :math:`\eta` is the radial direction cosine.
 
 The Morel--Montry angular closure
-(Lewis & Miller 1984, §4.5; Bailey et al. 2009 Eq. 74):
+(Lewis & Miller 1984 §4.5; Bailey-Morel-Chang 2010 Eq. 5):
 
 .. math::
    :label: morel-montry-clamp
@@ -61,11 +71,26 @@ with the :math:`[1/2, 1]` clamp keeping the M-M weighting positive.
 References
 ==========
 
-* Bailey, T. S., Adams, M. L., Yang, B., & Zika, M. R. (2009).
-  *A piecewise linear finite element discretization of the diffusion
-  equation for arbitrary polyhedral grids*. JCP 227, 3738–3757.
-  Equations 50 (sphere/cylinder dome recursion) and 74 (Morel--Montry
-  closure).
+* Hébert, A. (2009). *Applied Reactor Physics*.  Ch. 3 §3.9.4 (pp.
+  141-144), Eqs. 3.418-3.439.  **Primary source** for the curvilinear
+  S\ :sub:`N` discretization (cell balance + DD difference relations
+  + Carlson starting-direction).  Local copy:
+  ``scratch/literature/Hebert(2009)Chapter3.pdf``.
+* Bailey, T. S., Morel, J. E., & Chang, J. H. (2010).  *Asymptotic
+  Diffusion-Limit Accuracy of Sn Angular Differencing Schemes*.
+  NSE 165(2):149-169 (LLNL preprint LLNL-JRNL-420356; OA at
+  https://www.osti.gov/servlets/purl/1020346).  Auxiliary
+  justification for the M-M clamp via formal-:math:`\varepsilon`
+  asymptotic-diffusion-limit analysis.
+
+  *Citation correction (Issue #168 Phase B)*: this module's
+  pre-Phase-B docstring cited "Bailey, T. S., Adams, M. L., Yang, B.,
+  & Zika, M. R. (2009).  *A piecewise linear finite element
+  discretization of the diffusion equation for arbitrary polyhedral
+  grids*. JCP 227, 3738-3757", which is the **wrong** Bailey paper —
+  Bailey-Adams-Yang-Zika is a piecewise-linear FE diffusion paper
+  unrelated to curvilinear S\ :sub:`N` :math:`\alpha`-recursion.  The
+  intended reference is Bailey-Morel-Chang 2010 (above).
 * Lewis, E. E., & Miller, W. F. (1984). *Computational Methods of
   Neutron Transport*.  §4.5 — angular redistribution closure;
   the :math:`\tau_{mm}` clamp keeps the closure stable.
@@ -503,9 +528,11 @@ def spherical_streaming(
 ) -> ReducedStreamingOperator:
     r"""Build the spherical :class:`ReducedStreamingOperator`.
 
-    Implements Bailey et al. (2009) Eq. 50 (dome recursion) +
-    Eq. 74 (Morel--Montry closure) verbatim, producing arrays
-    bit-identical to :class:`SNMesh._setup_spherical`.
+    Implements Hébert (2009) §3.9.4 Eqs. 3.423-3.424 (α-dome
+    recursion, in the ORPHEUS factor-of-2-absorbed normalization) +
+    Bailey-Morel-Chang (2010) Eq. 5 (Morel--Montry :math:`\tau`
+    clamp), producing arrays bit-identical to
+    :class:`SNMesh._setup_spherical`.
 
     The :math:`\Delta A/w` geometry factor (Cardinal Rule 2 — the
     connection-coefficient data, common to SN/MoC/CP) is precomputed
@@ -535,7 +562,8 @@ def spherical_streaming(
     # Cell face-area differences: ΔA_i = A_{i+1/2} − A_{i-1/2}
     delta_A = face_areas[1:] - face_areas[:-1]
 
-    # Bailey et al. (2009) Eq. 50 dome recursion
+    # Hébert (2009) §3.9.4 Eqs. 3.423-3.424 α-dome recursion (ORPHEUS
+    # factor-of-2-absorbed normalization):
     # α_{n+1/2} = α_{n-1/2} − w_n μ_n
     # For GL quadrature, this gives a non-negative dome closing to 0
     # at α_{N+1/2} by GL antisymmetry.
@@ -551,9 +579,9 @@ def spherical_streaming(
     # ΔA_i / w_n — the geometry redistribution factor (nx, N).
     redist_dAw = delta_A[:, None] / w[None, :]
 
-    # Morel–Montry closure (Bailey Eq. 74) with [1/2, 1] clamp
-    # keeping the M-M weighting positive (Lewis & Miller §4.5).
-    # μ_{1/2} = -1, μ_{N+1/2} = +1.
+    # Morel–Montry closure (Bailey-Morel-Chang 2010 Eq. 5) with
+    # [1/2, 1] clamp keeping the M-M weighting positive (Lewis &
+    # Miller §4.5).  μ_{1/2} = -1, μ_{N+1/2} = +1.
     mu_edge = np.zeros(N + 1)
     mu_edge[0] = -1.0
     for n in range(N):
@@ -627,7 +655,7 @@ def cylindrical_streaming(
     delta_A = face_areas[1:] - face_areas[:-1]
 
     # Per-level azimuthal redistribution coefficients
-    # Bailey et al. (2009) Eq. 50: α_{m+1/2} = α_{m-1/2} − w_m · η_m
+    # Hébert §3.9.4 (cylindrical analog): α_{m+1/2} = α_{m-1/2} − w_m · η_m
     # Ordinates are ordered by increasing η within each level.
     alpha_per_level: list[np.ndarray] = []
     for level_idx in angular_measure.level_indices:
@@ -648,7 +676,7 @@ def cylindrical_streaming(
             delta_A[:, None] / w_level[None, :]  # (nx, M)
         )
 
-    # Morel–Montry closure (Bailey Eq. 74) per μ-level.
+    # Morel–Montry closure (Bailey-Morel-Chang 2010 Eq. 5) per μ-level.
     # For cylindrical, ordinates are η-sorted but weights come from
     # φ-space (not η-space), so the weight-sum edge approach is wrong.
     # Instead, cell edges are at midpoints of consecutive η values

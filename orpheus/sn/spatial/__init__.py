@@ -37,8 +37,16 @@ from .boundary_face_flux import (
 )
 from .cell_update import CellResult, CellUpdate, UpstreamState
 from .diamond import DiamondDifference
+from .pole_angular_closure import (
+    BaileyFlatFluxRedist,
+    LegacyTauSymmetricInterpolation,
+    MorelMontryAngularSweep,
+    PoleAngularClosure,
+    PoleAngularClosureBase,
+)
 
 __all__ = [
+    "BaileyFlatFluxRedist",
     "BoundaryFaceFlux",
     "BoundaryFaceFluxBase",
     "CellCenter",
@@ -46,5 +54,9 @@ __all__ = [
     "CellUpdate",
     "DDExtrapolation",
     "DiamondDifference",
+    "LegacyTauSymmetricInterpolation",
+    "MorelMontryAngularSweep",
+    "PoleAngularClosure",
+    "PoleAngularClosureBase",
     "UpstreamState",
 ]

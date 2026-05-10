@@ -221,16 +221,18 @@ spatial-convergence verification:
 References
 ==========
 
+* Hébert, A. (2009). *Applied Reactor Physics*.  Ch. 3 §3.9.4 —
+  primary source for the curvilinear S\ :sub:`N` cell-balance + DD
+  difference relations.
 * Lewis, E. E., & Miller, W. F. (1984).  *Computational Methods of
   Neutron Transport*.  §4.5 (Morel–Montry angular closure feeding
   the curvilinear DD update); §5.3 (Diamond Difference, weighted-DD,
   Step, Linear Discontinuous; the negative-flux failure mode).
-* Bailey, T. S., Adams, M. L., Yang, B., & Zika, M. R. (2009).
-  *A piecewise linear finite element discretization of the
-  diffusion equation for arbitrary polyhedral grids*.
-  JCP 227, 3738–3757.  Eq. 50 (sphere/cylinder dome recursion
-  feeding the redistribution constants ``alpha_in`` / ``alpha_out``)
-  and Eq. 74 (Morel–Montry closure feeding ``tau_mm``).
+* Bailey, T. S., Morel, J. E., & Chang, J. H. (2010).  *Asymptotic
+  Diffusion-Limit Accuracy of Sn Angular Differencing Schemes*.
+  NSE 165(2):149-169 (LLNL preprint LLNL-JRNL-420356).  Auxiliary
+  justification for the M-M weighted-diamond :math:`\tau` clamp via
+  formal-:math:`\varepsilon` asymptotic-diffusion-limit analysis.
 
 See also
 ========

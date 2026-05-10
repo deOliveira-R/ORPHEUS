@@ -65,11 +65,12 @@ keeps backward compatibility intact.
 References
 ==========
 
-* Bailey, T. S., Adams, M. L., Yang, B., & Zika, M. R. (2009).
-  *A piecewise linear finite element discretization of the diffusion
-  equation for arbitrary polyhedral grids.*  JCP 227, 3738–3757.
-  Eq. 50 (sphere/cylinder dome recursion); Eq. 74 (Morel–Montry
-  closure).
+* Hébert, A. (2009). *Applied Reactor Physics*.  Ch. 3 §3.9.4
+  (pp. 141-144) — primary source for the curvilinear S\ :sub:`N`
+  cell-balance + DD difference relations the sweep implements.
+* Bailey, T. S., Morel, J. E., & Chang, J. H. (2010).  *Asymptotic
+  Diffusion-Limit Accuracy of Sn Angular Differencing Schemes*.
+  NSE 165(2):149-169.  Auxiliary justification for the M-M clamp.
 * Lewis, E. E., & Miller, W. F. (1984).  *Computational Methods of
   Neutron Transport.*  §4.5 (curvilinear DD); §5.3 (DD, weighted-DD,
   Step, LD); §6.4 (sweep ordering).

@@ -33,6 +33,12 @@ from .quadrature import AngularQuadrature
 from .spatial.boundary_face_flux import BoundaryFaceFlux, DDExtrapolation
 from .spatial.cell_update import CellUpdate, CellVisit
 from .spatial.diamond import DiamondDifference
+from .spatial.pole_angular_closure import (
+    BaileyFlatFluxRedist,
+    LegacyTauSymmetricInterpolation,
+    MorelMontryAngularSweep,
+    PoleAngularClosure,
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -120,6 +126,7 @@ class SNMesh:
         quadrature: AngularQuadrature,
         cell_update: CellUpdate | None = None,
         boundary_face_flux: BoundaryFaceFlux | None = None,
+        pole_angular_closure: PoleAngularClosure | None = None,
     ) -> None:
         self.mesh = mesh
         self.quad = quadrature
@@ -146,6 +153,46 @@ class SNMesh:
         self.boundary_face_flux: BoundaryFaceFlux = (
             boundary_face_flux if boundary_face_flux is not None
             else DDExtrapolation()
+        )
+        # Angular-redistribution closure (Issue #168 Phase B). Defaults
+        # to :class:`LegacyTauSymmetricInterpolation`, the bit-for-bit
+        # reproduction of the pre-Phase-B inlined τ-symmetric form —
+        # preserves the curvilinear regression-snapshot bit-identity
+        # contract and the per-ordinate flat-flux invariant that the
+        # ERR-026 evidence test
+        # (``tests/sn/test_sweep_operator_inconsistency.py``) and the
+        # Phase A flat-flux invariants depend on.
+        #
+        # Phase B ships three strategies (mirror of Phase A's two
+        # boundary-face-flux strategies):
+        #
+        # * :class:`LegacyTauSymmetricInterpolation` (default) —
+        #   pre-Phase-B inlined math, bit-identical regression
+        #   preservation.  Carries Defect 3 by design — the
+        #   factor-of-two angular truncation gap on angularly-varying
+        #   :math:`\\psi` survives so future verification probes can
+        #   cross-check against the documented behaviour.
+        # * :class:`BaileyFlatFluxRedist` — the algebraic flat-flux
+        #   collapse equivalent (only on flat ψ).  Used by the L1
+        #   flat-flux-identity test.
+        # * :class:`MorelMontryAngularSweep` — canonical Hébert §3.9.4
+        #   per-cell M-M weighted DD angular recurrence.  Closes
+        #   Defect 3 on angularly-varying :math:`\\psi` but breaks
+        #   per-ordinate flat-flux balance and does NOT yet pair with
+        #   the apply matvec's spatial closure to give a clean
+        #   :math:`\\mathcal{O}(h^2)` MMS rate.  The full ERR-026
+        #   closure requires a follow-up that aligns the apply
+        #   matvec's spatial closure with the sweep's WDD form
+        #   (design memo §6.4 / §11).
+        #
+        # Used by the spherical / cylindrical
+        # ``transport_operator_matvec_*`` paths via
+        # :meth:`SNStreamingOperator.apply`. Cartesian path is unaffected
+        # — there is no angular redistribution on slab — and ignores
+        # this attribute.
+        self.pole_angular_closure: PoleAngularClosure = (
+            pole_angular_closure if pole_angular_closure is not None
+            else LegacyTauSymmetricInterpolation()
         )
 
         # Normalise to (nx, ny) shaped arrays for both 1-D and 2-D

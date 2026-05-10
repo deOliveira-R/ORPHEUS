@@ -718,12 +718,20 @@ def test_apply_spherical_constant_flux_yields_zero_collisionless():
     cell-by-cell on the spherical mesh, even with vacuum BC.
 
     This is the per-ordinate flat-flux consistency invariant
-    (Bailey 2009; ``vv-principles`` Sig 1).  Pre-Phase-A, this held
-    by construction because the cell-centre face closure trivially
-    cancelled the streaming for constant ψ.  Phase A's DD
-    extrapolation also gives ``1.5·c - 0.5·c = c`` for constant input,
-    so the invariant continues to hold — this test pins it as a
-    foundational regression gate.
+    (Bailey 2009; ``vv-principles`` Sig 1).  Phase A's DD
+    extrapolation gives ``1.5·c - 0.5·c = c`` for constant input,
+    and Phase B's default
+    :class:`~orpheus.sn.spatial.pole_angular_closure.BaileyFlatFluxRedist`
+    preserves the per-ordinate flat-flux invariant — so the
+    invariant continues to hold under the Phase-A + Phase-B-default
+    operator semantics.
+
+    Phase B's opt-in
+    :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+    canonical Hébert §3.9.4 form does NOT preserve this per-ordinate
+    invariant by design — see
+    :func:`test_apply_spherical_constant_flux_under_morel_montry_canonical_form`
+    for that strategy's structurally distinct invariant.
     """
     sn_mesh = _spherical_mesh()
     nx, ng = sn_mesh.nx, 2
@@ -731,18 +739,13 @@ def test_apply_spherical_constant_flux_yields_zero_collisionless():
     op = SNStreamingOperator(sn_mesh, sig_t)
     eq_map = build_equation_map_spherical(nx, sn_mesh.quad, ng)
 
-    # Constant DOF vector — every (ordinate, cell) slot is the same value.
     psi = np.full(eq_map.n_unknowns, 3.14159)
-
     result = op.apply(psi)
-    # For collisionless transport + constant ψ the streaming and
-    # redistribution must sum to zero; the result is allowed to drift
-    # by FP non-associativity but must be at the rounding floor.
     np.testing.assert_allclose(
         result, np.zeros_like(result),
         atol=1e-12,
         err_msg="Per-ordinate flat-flux invariant violated under "
-                "Phase A boundary closures.",
+                "Phase A + Phase B default closures.",
     )
 
 
@@ -781,19 +784,69 @@ def test_apply_spherical_vacuum_bc_constant_flux_no_corruption():
     op = SNStreamingOperator(sn_mesh, sig_t)
     eq_map = build_equation_map_spherical(nx, quad, ng)
 
-    # Constant non-zero DOF.
     psi = np.full(eq_map.n_unknowns, 1.0)
     result = op.apply(psi)
-    # With Phase A's separated cell-centre / boundary-face-flux
-    # storage, the constant ψ plus collisionless transport gives
-    # zero streaming + redistribution residual everywhere — INCLUDING
-    # the boundary-adjacent cell at i=N-2 where the Defect-2
-    # contamination used to manifest.
     np.testing.assert_allclose(
         result, np.zeros_like(result),
         atol=1e-12,
         err_msg="Defect 2 regression: cell-centre / BC-face-value "
                 "storage conflation has resurfaced.",
+    )
+
+
+def test_apply_spherical_constant_flux_under_morel_montry_canonical_form():
+    """Phase B canonical Hébert §3.9.4 form: per-ordinate flat-flux
+    balance is **deliberately broken** in exchange for asymptotic
+    :math:`\\mathcal{O}(h^2)` accuracy on angularly-varying ψ.  The
+    surviving invariant is **angular-integrated**: :math:`\\sum_n
+    w_n \\cdot R_{n,i,g} = 0` by α-telescoping (Hébert Eq. 3.420).
+    """
+    from orpheus.sn.spatial.pole_angular_closure import (
+        MorelMontryAngularSweep,
+    )
+
+    sn_mesh = _spherical_mesh()
+    # Override the default with the canonical M-M angular sweep —
+    # the structurally correct Hébert §3.9.4 form (Phase B opt-in).
+    sn_mesh.pole_angular_closure = MorelMontryAngularSweep()
+    nx, ng = sn_mesh.nx, 2
+    sig_t = np.zeros((nx, sn_mesh.ny, ng))
+    op = SNStreamingOperator(sn_mesh, sig_t)
+    eq_map = build_equation_map_spherical(nx, sn_mesh.quad, ng)
+
+    psi = np.full(eq_map.n_unknowns, 3.14159)
+    result_packed = op.apply(psi)
+    result = result_packed.reshape(ng, eq_map.n_eq, order='F')
+    weights = sn_mesh.quad.weights
+
+    # ── Per-ordinate balance: NOT preserved (deliberately) ────────
+    # On constant ψ + zero Σ_t, the Hébert canonical recurrence makes
+    # the half-angle face fluxes oscillate (0, 2c, 0, 2c, ...), so
+    # the per-ordinate redistribution does NOT cancel the per-ordinate
+    # streaming.  This is the canonical Hébert form's structural
+    # signature.
+    assert np.max(np.abs(result)) > 1.0, (
+        "MorelMontryAngularSweep should produce non-zero per-ordinate "
+        "residuals on constant ψ (the canonical Hébert form does NOT "
+        "preserve per-ordinate flat-flux balance — see Issue #168 "
+        "Phase B closeout)."
+    )
+
+    # ── Angular-integrated balance: preserved by α-telescoping ────
+    # Σ_n w_n × R_{n,i,g} should vanish at INTERIOR cells (where all
+    # ordinates are unknowns).  The outer boundary cell under vacuum
+    # BC carries only outgoing ordinates in the eq_map and the partial
+    # sum doesn't telescope — so the invariant is interior-only.
+    integrated = np.zeros((ng, nx))
+    for k in range(eq_map.n_eq):
+        n = eq_map.ordinate[k]
+        i = eq_map.ix[k]
+        integrated[:, i] += weights[n] * result[:, k]
+    np.testing.assert_allclose(
+        integrated[:, :-1], np.zeros((ng, nx - 1)),
+        atol=1e-12,
+        err_msg="Angular-integrated flat-flux invariant violated at "
+                "interior cells under MorelMontryAngularSweep.",
     )
 
 

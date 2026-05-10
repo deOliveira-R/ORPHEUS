@@ -1690,6 +1690,128 @@ cell-update strategy):
 Cartesian path is unaffected — the upwind FD stencil there has no
 symmetric closure to break — and ignores this attribute.
 
+.. _sn-pole-angular-closure-protocol:
+
+PoleAngularClosure (Issue #168 Phase B)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Phase B addresses **Defect 3** of Issue #168 — the angular-redistribution
+truncation gap on angularly-varying :math:`\psi`.  The pre-Phase-B
+operator carried inline τ-symmetric interpolation
+:math:`\psi_{n+1/2} \approx \tau_n\,\psi_{n+1} + (1-\tau_n)\,\psi_n`,
+which is the **flat-flux collapse** of Hébert (2009) §3.9.4
+Eqs. 3.428 + 3.437/3.439 — exact when :math:`\psi` is constant in
+:math:`\mu`, but only :math:`\mathcal{O}(1)` accurate on
+angularly-varying :math:`\psi`.  Phase B lifts this evaluation into
+a :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+strategy Protocol — analogous to Phase A's
+:class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux` —
+and ships **three concrete strategies** trading off bit-identity,
+flat-flux invariance, and asymptotic accuracy:
+
+* :class:`~orpheus.sn.spatial.pole_angular_closure.LegacyTauSymmetricInterpolation`
+  — bit-for-bit reproduction of the pre-Phase-B inlined math
+  (the :math:`\tau`-symmetric form).  **Default**, preserving the
+  curvilinear regression-snapshot bit-identity contract and the
+  per-ordinate flat-flux invariant the ERR-026 evidence test
+  (:file:`tests/sn/test_sweep_operator_inconsistency.py`) relies on.
+  Carries Defect 3 by design — the truncation gap is *reproducible*
+  so future verification probes can cross-check against the
+  documented behaviour.
+
+* :class:`~orpheus.sn.spatial.pole_angular_closure.BaileyFlatFluxRedist`
+  — the algebraic flat-flux collapse
+  :math:`R_{n,i,g} = (\Delta A/w)\,(\alpha_{n+1/2} - \alpha_{n-1/2})\,
+  \psi_{n,i,g} / V_i = -\mu_n\,\Delta A_i\,\psi_{n,i,g} / V_i`
+  (using :eq:`bailey-dome-recursion`).  Equivalent to the legacy form
+  on flat :math:`\psi` (the
+  :func:`tests.sn.l1_analytical.test_pole_closure_flat_flux_identity.test_spherical_flat_flux_legacy_matches_bailey_collapse`
+  test pins this), and used as a structurally simpler bridge to the
+  flat-flux invariant in unit tests.
+
+* :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+  — the canonical Hébert §3.9.4 per-cell M-M weighted DD angular
+  recurrence:
+
+  .. math::
+     :label: pole-mm-recurrence
+
+     \phi_{1/2,i,g} &= 0, \\
+     \phi_{n+1/2,i,g} &= \frac{\phi_{n,i,g}
+                              \;-\; (1 - \tau_n)\,\phi_{n-1/2,i,g}}{\tau_n},
+     \qquad n = 1, \ldots, N.
+
+  At :math:`\tau_n = 1/2` (the M-M clamp's lower bound) the recurrence
+  reduces to pure DD angular :math:`\phi_{n+1/2,i,g} = 2\,\phi_{n,i,g}
+  - \phi_{n-1/2,i,g}` (Hébert Eqs. 3.437 / 3.439).  The
+  :math:`\tau \in (1/2, 1]` clamp gives weighted-DD with positive M-M
+  weighting per Bailey-Morel-Chang 2010.  The same recurrence runs
+  inside :class:`~orpheus.sn.spatial.diamond.DiamondDifference` (the
+  sweep's cell update); applying this strategy in the apply matvec
+  brings the apply and sweep to the same angular closure, but the
+  **spatial** closures still differ (apply uses arithmetic averages
+  + DD extrapolation; sweep uses WDD).  Full ERR-026 closure on the
+  apply matvec requires aligning the spatial closure also (a
+  follow-up beyond Phase B's scope — design memo §6.4 / §11).
+  :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+  is therefore **opt-in** in Phase B; the default stays
+  :class:`~orpheus.sn.spatial.pole_angular_closure.LegacyTauSymmetricInterpolation`.
+
+α-recursion normalisation
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Hébert Eq. 3.424 reads :math:`\alpha^{H}_{n+1/2} = \alpha^{H}_{n-1/2}
+- 2\,\mathcal{W}_n\,\mu_n` with the corresponding redistribution
+divisor :math:`\Delta S_i / (2\,\mathcal{W}_n)` in Eq. 3.428.  The
+ORPHEUS arrays carry :math:`\alpha^{O} = \alpha^{H}/2`, absorbing the
+factor of 2 into the recurrence; the redistribution divisor reads
+:math:`\Delta A_i / w_n` correspondingly.  Both forms are
+mathematically equivalent.  This normalisation is documented in
+:mod:`orpheus.geometry.reduced_operator` and re-stated explicitly in
+:mod:`orpheus.sn.spatial.pole_angular_closure` so the Hébert canonical
+form's connection to the ORPHEUS arrays is transparent.
+
+Citation correction
+^^^^^^^^^^^^^^^^^^^
+
+Pre-Phase-B the codebase cited "Bailey, T. S., Adams, M. L., Yang,
+B., & Zika, M. R. (2009). *A piecewise linear finite element
+discretization of the diffusion equation for arbitrary polyhedral
+grids*. JCP 227, 3738-3757" for the curvilinear S\ :sub:`N`
+:math:`\alpha`-recursion.  This is the **wrong Bailey paper** —
+Bailey-Adams-Yang-Zika is a piecewise-linear FE diffusion paper
+unrelated to S\ :sub:`N`.  The intended reference is **Bailey,
+Morel & Chang (2010)**, NSE 165(2):149-169, "Asymptotic
+Diffusion-Limit Accuracy of Sn Angular Differencing Schemes"
+(LLNL preprint LLNL-JRNL-420356; OA at
+https://www.osti.gov/servlets/purl/1020346).  Phase B corrects the
+citations in :mod:`orpheus.geometry.reduced_operator`,
+:mod:`orpheus.sn.sweep`, :mod:`orpheus.sn.spatial.diamond`, and the
+new :mod:`orpheus.sn.spatial.pole_angular_closure` module.  Hébert
+(2009) §3.9.4 is the **primary source** for the curvilinear S\ :sub:`N`
+discretization in this codebase; Bailey-Morel-Chang 2010 is the
+auxiliary justification for the M-M weighted-diamond :math:`\tau`
+clamp.
+
+ERR-026 closure status (Phase B partial)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Phase B ships the architectural infrastructure for closing Defect 3
+(the :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+Protocol + canonical
+:class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`)
+without flipping the default — the canonical form in isolation does
+not produce an :math:`\mathcal{O}(h^2)` MMS rate because the apply
+matvec's spatial closure still differs from the sweep's WDD form.
+The four ``xfail-strict`` curvilinear MMS tripwires therefore stay
+xfail through Phase B; ERR-026 stays at **PARTIAL CLOSURE** (Phase A
+closed Defects 1+2 spatial, Phase B ships Defect 3 architectural
+scaffolding).  The full closure requires a Phase C follow-up that
+aligns the apply matvec's spatial closure with the sweep's WDD
+form, at which point
+:class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+becomes the natural default.
+
 Starting Direction
 -------------------
 

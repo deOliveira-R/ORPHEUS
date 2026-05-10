@@ -85,6 +85,7 @@ if TYPE_CHECKING:
 
     from .geometry import SNMesh
     from .spatial.boundary_face_flux import BoundaryFaceFlux
+    from .spatial.pole_angular_closure import PoleAngularClosure
 
 __all__ = [
     "EquationMap",
@@ -564,6 +565,7 @@ def transport_operator_matvec_spherical(
     *,
     bc_outer: "BoundaryOperator | None" = None,
     boundary_face_flux_closure: "BoundaryFaceFlux | None" = None,
+    pole_angular_closure: "PoleAngularClosure | None" = None,
 ) -> np.ndarray:
     r"""Apply the spherical transport operator T·ψ.
 
@@ -576,8 +578,8 @@ def transport_operator_matvec_spherical(
         + \Sigma_t \psi_{n,i}
 
     The :math:`\Delta A / w` geometry factor (``redist_dAw``, precomputed
-    in :class:`SNMesh`) ensures per-ordinate flat-flux consistency
-    (Bailey et al. 2009).
+    in :class:`SNMesh`) carries the geometry-redistribution coefficient
+    per Hébert (2009) §3.9.4 Eq. 3.428.
 
     Phase A boundary closures (Issue #168 Defects 1 + 2)
     ----------------------------------------------------
@@ -589,25 +591,35 @@ def transport_operator_matvec_spherical(
       :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`
       gives :math:`\mathcal{O}(h^2)` accuracy via
       :math:`\psi^{\rm face}_{N-1/2} = 1.5\,\psi_{N-1} -
-      0.5\,\psi_{N-2}`.  The pre-Phase-A operator used the
-      cell-centre (``psi_right = fi[:, n, i, 0]``), only
-      :math:`\mathcal{O}(h)` accurate.
+      0.5\,\psi_{N-2}`.
 
     * **Outer face for inward μ < 0** (Defect 2 storage fix):
       ``psi_right`` is read from the
       :func:`solution_to_angular_flux_spherical` ``boundary_face_flux``
       array — the BC-resolved incoming face flux at r = R, NOT the
-      cell-centre slot at ``fi[..., -1, 0]`` (which now holds the
-      faithful reflected-partner cell-centre, uncontaminated by BC
-      face values).  The interior-face stencil at i = nx-2 then
-      reads cell-centre vs cell-centre, restoring O(h²) at the
-      boundary-adjacent cell.
+      cell-centre slot at ``fi[..., -1, 0]``.
 
     * **Inner pole (i = 0)**: ``psi_left = 0`` by construction
-      (``A[0] = 0``); Phase A preserves the historical Bailey
-      treatment.  Defect 3 (sphere-pole redistribution-term
-      mismatch) is the subject of Phase B and is **not** addressed
-      here — the ERR-026 PARTIAL-CLOSURE flag stays in place.
+      (``A[0] = 0``); the spatial flux at the pole multiplies by zero.
+
+    Phase B angular closure (Issue #168 Defect 3)
+    ---------------------------------------------
+
+    The half-angle face fluxes :math:`\psi_{n\pm 1/2,i,g}` are
+    evaluated by the
+    :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+    strategy ``pole_angular_closure``.  Default
+    :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+    runs the Hébert §3.9.4 per-cell M-M weighted DD recurrence, the
+    same closure the sweep uses inside its
+    :class:`~orpheus.sn.spatial.diamond.DiamondDifference` cell update
+    — apply and sweep then solve the **same** discrete fixed point.
+    The pre-Phase-B inlined :math:`\tau`-symmetric interpolation
+    :math:`\psi_{n+1/2} \approx \tau\,\psi_{n+1} + (1-\tau)\,\psi_n`
+    was the **flat-flux collapse** of this recurrence — exact when
+    :math:`\psi` is angle-flat but only :math:`\mathcal{O}(1)`
+    accurate on angularly-varying :math:`\psi`, the Issue #168
+    Defect-3 truncation gap.
 
     Parameters
     ----------
@@ -619,21 +631,49 @@ def transport_operator_matvec_spherical(
         strategy for closing the outer-face flux at outgoing μ > 0.
         ``None`` defaults to
         :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`.
+    pole_angular_closure :
+        :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+        strategy for evaluating the angular redistribution term.
+        ``None`` defaults to
+        :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`.
     """
     from .spatial.boundary_face_flux import DDExtrapolation
+    from .spatial.pole_angular_closure import (
+        LegacyTauSymmetricInterpolation,
+    )
 
     if boundary_face_flux_closure is None:
         boundary_face_flux_closure = DDExtrapolation()
+    if pole_angular_closure is None:
+        # Phase B default = LegacyTauSymmetricInterpolation (bit-for-bit
+        # reproduction of the pre-Phase-B inlined τ-symmetric form).
+        # See SNMesh constructor for the three-strategy rationale and
+        # the closeout memo
+        # ``.claude/agent-memory/method-implementer/issue_168_phase_b_closeout.md``
+        # for the partial-closure narrative.
+        pole_angular_closure = LegacyTauSymmetricInterpolation()
 
     fi, bf_flux = solution_to_angular_flux_spherical(
         solution, eq_map, quad, nx, ng, bc_outer=bc_outer,
     )
     A = face_areas       # (nx+1,)
     V = volumes[:, 0]    # (nx,)
-    dAw = redist_dAw     # (nx, N) precomputed ΔA_i/w_n
-    alpha = alpha_half   # (N+1,) non-negative dome
     N = quad.N
     mu = quad.mu_x
+
+    # ── Phase B angular redistribution (precompute per (g, n, i)) ──
+    # The pole closure evaluates the angular redistribution term per
+    # cell.  ``LegacyTauSymmetricInterpolation`` (default) reproduces
+    # the pre-Phase-B inlined math bit-for-bit;
+    # ``BaileyFlatFluxRedist`` is the algebraic flat-flux collapse;
+    # ``MorelMontryAngularSweep`` is the canonical Hébert §3.9.4
+    # per-cell M-M weighted DD recurrence.  ``fi[..., 0]`` strips the
+    # trailing ny=1 axis so the closure sees a clean (ng, N, nx)
+    # cell-centre array.
+    redist_full = pole_angular_closure(
+        fi[..., 0], alpha_half, redist_dAw, tau_mm, V,
+        level_indices=None,  # spherical = single level
+    )
 
     lhs = np.empty((ng, eq_map.n_eq))
     for k in range(eq_map.n_eq):
@@ -672,23 +712,9 @@ def transport_operator_matvec_spherical(
 
         streaming = mu[n] * (A[i + 1] * psi_right - A[i] * psi_left) / V[i]
 
-        # ── Angular redistribution: (ΔA/w) (α ∂ψ/∂μ) / V ──────────
-        # Angular face flux uses M-M weighted interpolation (τ).
-        dA_w = dAw[i, n]  # precomputed geometry factor
-        tau_n = tau_mm[n]
-
-        if n < N - 1:
-            psi_angle_right = tau_n * fi[:, n + 1, i, 0] + (1.0 - tau_n) * fi[:, n, i, 0]
-        else:
-            psi_angle_right = fi[:, n, i, 0]
-
-        if n > 0:
-            psi_angle_left = tau_mm[n - 1] * fi[:, n, i, 0] + (1.0 - tau_mm[n - 1]) * fi[:, n - 1, i, 0]
-        else:
-            psi_angle_left = fi[:, n, i, 0]
-
-        redistribution = dA_w * (alpha[n + 1] * psi_angle_right
-                                 - alpha[n] * psi_angle_left) / V[i]
+        # ── Phase B angular redistribution ───────────────────────────
+        # Read the precomputed PoleAngularClosure output at this (n, i).
+        redistribution = redist_full[:, n, i]
 
         # ── Collision ────────────────────────────────────────────────
         collision = sig_t[i, 0, :] * psi_ni
@@ -722,6 +748,7 @@ def transport_operator_matvec_cylindrical(
     *,
     bc_outer: "BoundaryOperator | None" = None,
     boundary_face_flux_closure: "BoundaryFaceFlux | None" = None,
+    pole_angular_closure: "PoleAngularClosure | None" = None,
 ) -> np.ndarray:
     r"""Apply the cylindrical transport operator T·ψ.
 
@@ -735,6 +762,18 @@ def transport_operator_matvec_cylindrical(
     :func:`transport_operator_matvec_spherical` — see that function's
     docstring for the full Defect 1 / Defect 2 narrative.
 
+    Phase B angular closure (Issue #168 Defect 3)
+    ---------------------------------------------
+
+    The cylindrical analogue of the spherical pole-angular closure.
+    The strategy loops over :math:`\mu`-levels (each level has its
+    own :math:`\alpha`-dome, :math:`\Delta A/w` geometry factor, and
+    :math:`\tau` clamp) and runs the M-M weighted DD recurrence
+    independently per level — each level treats the azimuthal
+    redistribution as a sphere-style angular sub-problem.  See
+    :func:`transport_operator_matvec_spherical` for the full Defect-3
+    narrative.
+
     Parameters
     ----------
     bc_outer :
@@ -745,11 +784,25 @@ def transport_operator_matvec_cylindrical(
         strategy for closing the outer-face flux at outgoing μ > 0.
         ``None`` defaults to
         :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`.
+    pole_angular_closure :
+        :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+        strategy for evaluating the per-level azimuthal redistribution.
+        ``None`` defaults to
+        :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`.
     """
     from .spatial.boundary_face_flux import DDExtrapolation
+    from .spatial.pole_angular_closure import (
+        LegacyTauSymmetricInterpolation,
+    )
 
     if boundary_face_flux_closure is None:
         boundary_face_flux_closure = DDExtrapolation()
+    if pole_angular_closure is None:
+        # Phase B default = LegacyTauSymmetricInterpolation (bit-for-bit
+        # reproduction of the pre-Phase-B inlined τ-symmetric form).
+        # See SNMesh constructor for the three-strategy rationale and
+        # the closeout memo for the Phase B partial-closure narrative.
+        pole_angular_closure = LegacyTauSymmetricInterpolation()
 
     fi, bf_flux = solution_to_angular_flux_cylindrical(
         solution, eq_map, quad, nx, ng, bc_outer=bc_outer,
@@ -759,27 +812,24 @@ def transport_operator_matvec_cylindrical(
     N = quad.N
     mu = quad.mu_x
 
-    # Build reverse map: global ordinate → (level, local index)
-    ord_to_level = np.empty(N, dtype=int)
-    ord_to_local = np.empty(N, dtype=int)
-    for p, level_idx in enumerate(quad.level_indices):
-        for m_local, n in enumerate(level_idx):
-            ord_to_level[n] = p
-            ord_to_local[n] = m_local
+    # ── Phase B angular redistribution (per-level via PoleAngularClosure) ──
+    # The closure dispatches via ``level_indices`` to per-level M-M
+    # weighted DD recurrence, returning the (g, n, i) redistribution
+    # array indexed by GLOBAL ordinate index.
+    redist_full = pole_angular_closure(
+        fi[..., 0],
+        alpha_per_level,
+        redist_dAw_per_level,
+        tau_mm_per_level,
+        V,
+        level_indices=quad.level_indices,
+    )
 
     lhs = np.empty((ng, eq_map.n_eq))
     for k in range(eq_map.n_eq):
         n = eq_map.ordinate[k]
         i = eq_map.ix[k]
         psi_ni = fi[:, n, i, 0]
-
-        p = ord_to_level[n]
-        m_local = ord_to_local[n]
-        alpha = alpha_per_level[p]
-        dAw = redist_dAw_per_level[p]
-        tau_level = tau_mm_per_level[p]
-        level_idx = quad.level_indices[p]
-        M = len(level_idx)
 
         # ── Spatial streaming: η (A ∂ψ/∂r) / V ─────────────────────
         # Phase A boundary closures — see spherical matvec docstring.
@@ -803,25 +853,9 @@ def transport_operator_matvec_cylindrical(
 
         streaming = mu[n] * (A[i + 1] * psi_right - A[i] * psi_left) / V[i]
 
-        # ── Angular redistribution: (ΔA/w)(α ∂ψ/∂φ) / V ───────────
-        dA_w = dAw[i, m_local]
-        tau_m = tau_level[m_local]
-
-        if m_local < M - 1:
-            n_next = level_idx[m_local + 1]
-            psi_angle_right = tau_m * fi[:, n_next, i, 0] + (1.0 - tau_m) * fi[:, n, i, 0]
-        else:
-            psi_angle_right = fi[:, n, i, 0]
-
-        if m_local > 0:
-            n_prev = level_idx[m_local - 1]
-            tau_prev = tau_level[m_local - 1]
-            psi_angle_left = tau_prev * fi[:, n, i, 0] + (1.0 - tau_prev) * fi[:, n_prev, i, 0]
-        else:
-            psi_angle_left = fi[:, n, i, 0]
-
-        redistribution = dA_w * (alpha[m_local + 1] * psi_angle_right
-                                 - alpha[m_local] * psi_angle_left) / V[i]
+        # ── Phase B per-level angular redistribution ─────────────────
+        # Read the precomputed PoleAngularClosure output at this (n, i).
+        redistribution = redist_full[:, n, i]
 
         # ── Collision ────────────────────────────────────────────────
         collision = sig_t[i, 0, :] * psi_ni
@@ -1057,6 +1091,7 @@ class SNStreamingOperator(LinearOperatorMixin):
                 reduced.tau_mm,
                 bc_outer=sn_mesh.bc_right,
                 boundary_face_flux_closure=sn_mesh.boundary_face_flux,
+                pole_angular_closure=sn_mesh.pole_angular_closure,
             )
         if curv == "cylindrical":
             reduced = sn_mesh.reduced
@@ -1070,6 +1105,7 @@ class SNStreamingOperator(LinearOperatorMixin):
                 reduced.tau_mm_per_level,
                 bc_outer=sn_mesh.bc_right,
                 boundary_face_flux_closure=sn_mesh.boundary_face_flux,
+                pole_angular_closure=sn_mesh.pole_angular_closure,
             )
         # Cartesian (1-D slab or 2-D)
         return transport_operator_matvec(
