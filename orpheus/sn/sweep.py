@@ -98,6 +98,7 @@ from orpheus.geometry import CoordSystem
 
 from .spatial.cell_update import UpstreamState
 from .spatial.diamond import DiamondDifference
+from .sweep_graph import OctantLabel
 
 if TYPE_CHECKING:
     from .geometry import SNMesh
@@ -722,152 +723,165 @@ def _sweep_2d_wavefront(
     psi_bc: dict,
     Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """2D sweep using wavefront parallelism along anti-diagonals.
+    r"""2-D wavefront sweep — per-octant batched (Wave 2 / C2.6).
 
-    Uses the precomputed streaming stencil from SNMesh:
-    streaming_x[n, i] = 2|μ_x[n]| / dx[i],
-    streaming_y[n, j] = 2|μ_y[n]| / dy[j].
+    Iterates over angular **octants** (lexicographic order from
+    :attr:`AngularQuadrature.octants`). For each in-plane octant
+    :math:`\sigma = (\mathrm{sign}\,\mu_x, \mathrm{sign}\,\mu_y)`:
 
-    Boundary conditions are read from ``sn_mesh.bc_xmin`` etc.
+    1. **BC apply once** on the octant-incoming face(s) — replaces
+       the per-ordinate ``bc.apply(...)[n]`` calls of the legacy
+       implementation (saves ``N`` invocations per sweep).
+    2. **Dispatch to ``SNMesh.sweep_graphs[OctantLabel(σ)]``** —
+       the per-octant ``SweepDependencyGraph`` precomputed once at
+       mesh construction (Wave 2 / C2.4).
+    3. The graph's ``apply`` walks topological levels (anti-diagonals)
+       and dispatches each level to
+       ``sn_mesh.cell_update.update_batch(slice_args)`` — vectorised
+       over ``(N_oct, n_diag, ng)`` simultaneously.
 
-    The per-cell DD math is inlined here (rather than dispatched via
-    ``sn_mesh.cell_update.update(...)``) because anti-diagonal
-    vectorisation operates on ``(n_diag, ng)`` cell slices, a shape
-    the per-cell ``CellUpdate`` Protocol does not currently accept.
-    Wave C-extension will resolve this when LD / EC / Step strategies
-    land — the Protocol's vectorisation contract is the open design
-    point.  For Wave D, the inlined DD math is bit-identical to a
-    per-cell :class:`DiamondDifference` call sequence by construction.
+    The smoking gun ``for n in range(N)`` is gone: the outer loop is
+    now ``for octant in quad.octants`` (4-8 iterations, structural),
+    and within each octant the work is one BC apply + one
+    ``SweepDependencyGraph.apply`` call. The ordinate axis is
+    INTERNAL to every numpy operation.
+
+    Bit-identity to legacy
+    ----------------------
+
+    For LS-family quadratures whose ordinate ordering is
+    octant-grouped in lexicographic order (``LevelSymmetricSN``,
+    ``ProductQuadrature``), this implementation is bit-identical to
+    the legacy per-ordinate loop on every snapshot — verified by
+    ``tests/sn/test_2d_octant_sweep_equivalence.py`` (the C2.5
+    TESTS-FIRST harness). The argument:
+
+    * BC apply for octant σ reads partners (in the x-reflected
+      octant). For LS4, lex order matches legacy n-order at the
+      partner-state granularity, so the same iteration's value is
+      observed at the same point.
+    * Within an octant, the per-ordinate cell sweeps are independent
+      (different rows of ``psi_x`` / ``psi_y``); batching is
+      bit-identical to any per-ordinate sequencing of the same set.
+
+    For quadratures whose ordering is NOT lex (e.g. Lebedev), the
+    converged answer is the same Gauss-Seidel fixed point but the
+    iter-to-iter values may differ. Per ``vv-principles`` Bit-identity
+    vs principled-equivalence: principled at every step (octant-batched
+    BC apply IS the §15A.2 form), structurally-independent grounding
+    (closed-form L1 anchor + MMS regression suite both pass),
+    convergence to the same answer (verified empirically on regression
+    snapshots).
     """
-    dx = sn_mesh.dx
-    dy = sn_mesh.dy
     nx, ny, ng = Q.shape
     quad = sn_mesh.quad
     N = quad.N
-    mu_x = quad.mu_x
-    mu_y = quad.mu_y
     weights = quad.weights
-    ref_x = quad.reflection_index("x")
-    ref_y = quad.reflection_index("y")
 
     angular_flux = np.zeros((N, nx, ny, ng))
     scalar_flux = np.zeros((nx, ny, ng))
 
-    # Persistent boundary flux arrays for reflective BCs
+    # Persistent boundary-flux buffers for reflective BCs (mutated in
+    # place across sweep calls — partner reads need the previous
+    # iteration's outgoing-face writes).
     if "bc_2d_x" not in psi_bc:
         psi_bc["bc_2d_x"] = np.zeros((N, nx + 1, ny, ng))
         psi_bc["bc_2d_y"] = np.zeros((N, nx, ny + 1, ng))
+    psi_x = psi_bc["bc_2d_x"]   # (N, nx+1, ny, ng)
+    psi_y = psi_bc["bc_2d_y"]   # (N, nx, ny+1, ng)
 
-    psi_x = psi_bc["bc_2d_x"]  # (N, nx+1, ny, ng) face fluxes in x
-    psi_y = psi_bc["bc_2d_y"]  # (N, nx, ny+1, ng) face fluxes in y
-
+    # Source pre-scale once (was inside the ordinate loop in legacy
+    # for a no-op O(1) load — kept here for clarity).
     weight_norm = 1.0 / weights.sum()
-
-    # Precompute diagonal indices per sweep direction (4 directions).
-    _diag_cache: dict[tuple[int, int], tuple] = {}
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            ix_arr = np.arange(nx) if sx >= 0 else np.arange(nx - 1, -1, -1)
-            iy_arr = np.arange(ny) if sy >= 0 else np.arange(ny - 1, -1, -1)
-            diags = []
-            for k in range(nx + ny - 1):
-                i_start = max(0, k - ny + 1)
-                i_end = min(nx - 1, k)
-                local_i = np.arange(i_start, i_end + 1)
-                local_j = k - local_i
-                diags.append((ix_arr[local_i], iy_arr[local_j]))
-            _diag_cache[(sx, sy)] = (
-                0 if sx >= 0 else 1,   # ix_in
-                1 if sx >= 0 else 0,   # ix_out
-                0 if sy >= 0 else 1,   # iy_in
-                1 if sy >= 0 else 0,   # iy_out
-                diags,
-            )
-
-    # Precompute scaled source (avoids recomputing per diagonal)
     Q_scaled = Q * weight_norm
     has_aniso = Q_aniso is not None
     if has_aniso:
         Q_aniso_scaled = Q_aniso * weight_norm  # (N, nx, ny, ng)
 
-    # Precomputed streaming stencil
-    str_x = sn_mesh.streaming_x  # (N_ord, nx)
-    str_y = sn_mesh.streaming_y  # (N_ord, ny)
+    str_x = sn_mesh.streaming_x   # (N, nx)
+    str_y = sn_mesh.streaming_y   # (N, ny)
+    cell_update = sn_mesh.cell_update
 
-    for n in range(N):
-        mx = mu_x[n]
-        my = mu_y[n]
-        w = weights[n]
-
-        # Per-ordinate source: isotropic + anisotropic (if present)
-        Q_n = Q_scaled
-        if has_aniso:
-            Q_n = Q_scaled + Q_aniso_scaled[n]  # (nx, ny, ng)
-
-        if abs(mx) < 1e-15 and abs(my) < 1e-15:
-            # Pure z-directed ordinate: no streaming in x or y.
-            psi_avg = Q_n / sig_t  # (nx, ny, ng)
-            angular_flux[n, :, :, :] = psi_avg
-            scalar_flux += w * psi_avg
+    for octant in quad.octants:
+        label_tuple = octant.label   # e.g. (-1, +1, +1) or (-1,) for 1-D
+        oct_idx = octant.indices     # (N_oct,) int into N
+        N_oct = oct_idx.size
+        # In-plane signs — drop sign_z if the label is 3-D.
+        sx = label_tuple[0] if len(label_tuple) >= 1 else +1
+        sy = label_tuple[1] if len(label_tuple) >= 2 else 0
+        # Pure-z degenerate octant: no in-plane streaming. The
+        # angular flux is the volumetric balance ψ = Q_n / Σ_t and
+        # the scalar flux gets a weighted contribution.
+        if sx == 0 and sy == 0:
+            Q_pure_z = Q_scaled[None, :, :, :]    # (1, nx, ny, ng)
+            if has_aniso:
+                Q_pure_z = Q_pure_z + Q_aniso_scaled[oct_idx]
+            psi_avg_pure_z = Q_pure_z / sig_t     # broadcasts to (N_oct, nx, ny, ng)
+            angular_flux[oct_idx] = psi_avg_pure_z
+            scalar_flux += np.einsum(
+                "nijg,n->ijg", psi_avg_pure_z, weights[oct_idx],
+            )
             continue
 
-        # Look up precomputed diagonal indices for this sweep direction
-        key = (1 if mx >= 0 else -1, 1 if my >= 0 else -1)
-        ix_in, ix_out, iy_in, iy_out, diags = _diag_cache[key]
+        # Effective in-plane sign for sweep-graph lookup. Match
+        # legacy's ``key = (1 if mx >= 0 else -1, ...)`` mapping:
+        # ordinates with ``mx == 0`` are treated as ``+1`` (the BC
+        # apply uses xmin, the streaming coefficient is zero, and
+        # the WDD result is identical regardless of sign choice).
+        sx_eff = +1 if sx == 0 else sx
+        sy_eff = +1 if sy == 0 else sy
+        sweep_graph = sn_mesh.sweep_graphs[OctantLabel(sx_eff, sy_eff)]
 
-        # Apply boundary conditions at incoming faces via the tensor-
-        # decomposed :class:`BoundaryOperator` Protocol on each face. For
-        # ``VacuumBoundaryOperator`` the result is zero (the buffers stay
-        # zero-initialised and the slice assignment is a no-op
-        # write); for ``SpecularBoundaryOperator(axis=...)`` the result is
-        # ``psi_face[ref_axis[n]]`` — bit-identical to the previous
-        # in-place ``psi_x[n, 0] = psi_x[ref_x[n], 0]`` copy.
-        if mx >= 0:
-            psi_x[n, 0, :, :] = sn_mesh.bc_xmin.apply(
-                psi_x[:, 0, :, :], quad,
-            )[n]
+        # ── BC apply once per octant ───────────────────────────────
+        #
+        # The octant's incoming-x face is index 0 if sx >= 0 else nx.
+        # Boundary operators take the FULL (N, ny, ng) face buffer
+        # (so reflective BCs can read partner-octant rows) and return
+        # an updated full buffer; we scatter only this octant's rows
+        # back into psi_x / psi_y.
+        if sx_eff >= 0:
+            full_face_x = sn_mesh.bc_xmin.apply(psi_x[:, 0, :, :], quad)
+            psi_x[oct_idx, 0, :, :] = full_face_x[oct_idx]
         else:
-            psi_x[n, nx, :, :] = sn_mesh.bc_xmax.apply(
-                psi_x[:, nx, :, :], quad,
-            )[n]
+            full_face_x = sn_mesh.bc_xmax.apply(psi_x[:, nx, :, :], quad)
+            psi_x[oct_idx, nx, :, :] = full_face_x[oct_idx]
 
-        if my >= 0:
-            psi_y[n, :, 0, :] = sn_mesh.bc_ymin.apply(
-                psi_y[:, :, 0, :], quad,
-            )[n]
+        if sy_eff >= 0:
+            full_face_y = sn_mesh.bc_ymin.apply(psi_y[:, :, 0, :], quad)
+            psi_y[oct_idx, :, 0, :] = full_face_y[oct_idx]
         else:
-            psi_y[n, :, ny, :] = sn_mesh.bc_ymax.apply(
-                psi_y[:, :, ny, :], quad,
-            )[n]
+            full_face_y = sn_mesh.bc_ymax.apply(psi_y[:, :, ny, :], quad)
+            psi_y[oct_idx, :, ny, :] = full_face_y[oct_idx]
 
-        # Precomputed streaming for this ordinate
-        str_x_n = str_x[n]  # (nx,)
-        str_y_n = str_y[n]  # (ny,)
+        # ── Per-octant buffers for the graph apply ────────────────
+        #
+        # Fancy indexing creates copies (not views), so we extract
+        # mutable per-octant buffers, run the graph, and scatter back.
+        # The cost (~2 × N_oct × nx × ny × ng × 8 bytes per octant)
+        # is negligible vs the loop savings.
+        psi_x_oct = psi_x[oct_idx].copy()    # (N_oct, nx+1, ny, ng)
+        psi_y_oct = psi_y[oct_idx].copy()    # (N_oct, nx, ny+1, ng)
+        Q_octant = Q_scaled[None, :, :, :]   # (1, nx, ny, ng) broadcastable
+        if has_aniso:
+            Q_octant = Q_octant + Q_aniso_scaled[oct_idx]   # (N_oct, nx, ny, ng)
+        angular_flux_oct = np.zeros((N_oct, nx, ny, ng))
 
-        for ii, jj in diags:
-            # Gather incoming face fluxes
-            psi_in_x = psi_x[n, ii + ix_in, jj, :]   # (n_diag, ng)
-            psi_in_y = psi_y[n, ii, jj + iy_in, :]    # (n_diag, ng)
+        sweep_graph.apply(
+            cell_update=cell_update,
+            psi_x_octant=psi_x_oct,
+            psi_y_octant=psi_y_oct,
+            Q_octant=Q_octant,
+            sig_t=sig_t,
+            str_x_octant=str_x[oct_idx],
+            str_y_octant=str_y[oct_idx],
+            weights_octant=weights[oct_idx],
+            angular_flux_octant=angular_flux_oct,
+            scalar_flux_buf=scalar_flux,
+        )
 
-            # Precomputed streaming coefficients for these cells
-            sx_ii = str_x_n[ii, None]  # (n_diag, 1)
-            sy_jj = str_y_n[jj, None]  # (n_diag, 1)
-
-            # Diamond-difference equation using precomputed stencil
-            denom = sig_t[ii, jj, :] + sx_ii + sy_jj
-
-            psi_avg = (
-                Q_n[ii, jj, :]
-                + sx_ii * psi_in_x
-                + sy_jj * psi_in_y
-            ) / denom
-
-            # Store outgoing face fluxes for next diagonal
-            psi_x[n, ii + ix_out, jj, :] = 2.0 * psi_avg - psi_in_x
-            psi_y[n, ii, jj + iy_out, :] = 2.0 * psi_avg - psi_in_y
-
-            # Accumulate angular and scalar flux
-            angular_flux[n, ii, jj, :] = psi_avg
-            scalar_flux[ii, jj, :] += w * psi_avg
+        # Scatter back the persistent BC buffers + angular flux.
+        psi_x[oct_idx] = psi_x_oct
+        psi_y[oct_idx] = psi_y_oct
+        angular_flux[oct_idx] = angular_flux_oct
 
     return angular_flux, scalar_flux
