@@ -120,6 +120,10 @@ from orpheus.numerics.operator import (
     CAP_APPLY,
     LinearOperatorMixin,
 )
+from orpheus.numerics.projection import (
+    HarmonicMomentProjection,
+    HarmonicMomentReconstruction,
+)
 
 
 __all__ = ["LegendreMomentScattering", "ScatteringOperator"]
@@ -397,7 +401,37 @@ class ScatteringOperator(LinearOperatorMixin):
 
         Implements the Galerkin reconstruction :eq:`pn-scatter` from
         the angular-flux moments :eq:`flux-moments` (declared in
-        :ref:`theory-discrete-ordinates`).
+        :ref:`theory-discrete-ordinates`) as the **literal operator
+        composition**
+
+        .. math::
+
+            Q^{\rm aniso}_n(\vec r) \;=\; (R \, \Lambda \, M \, \psi)_n(\vec r)
+
+        of the three primitives shipped in
+        :mod:`orpheus.numerics.projection` and
+        :class:`LegendreMomentScattering` (Wave 1 / C1.1):
+
+        * :math:`M` :class:`~orpheus.numerics.projection.HarmonicMomentProjection`:
+          :math:`\psi(N, \cdot) \mapsto \phi^{\ell m}(L+1, 2L+1, \cdot)`
+          via :math:`\phi_\ell^m = \sum_n w_n Y_\ell^m(\Omega_n) \psi_n`.
+        * :math:`\Lambda` :class:`LegendreMomentScattering`: per-ℓ
+          block-diagonal cross-section action on moment space (skip ℓ=0,
+          handled by P0 in-scatter).
+        * :math:`R` :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`:
+          :math:`\phi^{\ell m} \mapsto q_n` via the addition-theorem
+          reconstruction :math:`q_n = \sum_\ell (2\ell+1) \sum_m
+          Y_\ell^m(\Omega_n) \phi_\ell^m`.
+
+        The :math:`(2\ell+1)` factor in :math:`R` is the addition-theorem
+        scaling (cf. Wave 0 ERR-039: :math:`R` is the addition-theorem
+        reconstruction, NOT the W-weighted Hilbert adjoint of :math:`M`,
+        which differs by exactly this factor).
+
+        Total flop count is identical to the legacy hand-rolled
+        ``for n in range(N)`` triple loop; the iteration over ordinates
+        is now internal to :func:`numpy.einsum` inside :math:`R` and
+        :math:`M`, **not** a Python loop.
 
         Parameters
         ----------
@@ -415,36 +449,19 @@ class ScatteringOperator(LinearOperatorMixin):
         """
         if self.scattering_order == 0 or angular_flux is None:
             return None
-
-        N = self.n_ordinates
-        nx, ny, ng = self.nx, self.ny, self.ng
         L = self.scattering_order
-        Y = self.Y  # (N, L+1, 2L+1)
-        w = self.weights
-
-        # Compute Legendre moments: fiL[x, y, g, l, l+m] = Σ_n w_n ψ_n Y_l^m(n)
-        fiL = np.zeros((nx, ny, ng, L + 1, 2 * L + 1))
-        for l in range(L + 1):
-            for m in range(-l, l + 1):
-                # (N,) * (N, nx, ny, ng) summed over N → (nx, ny, ng)
-                fiL[:, :, :, l, l + m] = np.einsum(
-                    'n,nxyg->xyg', w * Y[:, l, l + m], angular_flux,
-                )
-
-        # Build anisotropic source: only l >= 1 terms (P0 is in Q_iso)
-        Q_aniso = np.zeros((N, nx, ny, ng))
-        for mid, (ix, iy) in self.cells_by_mat.items():
-            sig_s_l = self.sig_s[mid]
-            for l in range(1, L + 1):  # skip l=0 (handled by add_iso_source)
-                # Σ_m fiL[..., l, m] * Y_l^m(n) → reconstruct angular moment at ordinate n
-                for m in range(-l, l + 1):
-                    moment = fiL[ix, iy, :, l, l + m]  # (n_cells, ng)
-                    # (n_cells, ng) @ (ng, ng) → (n_cells, ng)
-                    scattered = moment @ sig_s_l[l]  # Σ_s^l @ fiL_lm
-                    for n in range(N):
-                        Q_aniso[n, ix, iy, :] += (2 * l + 1) * Y[n, l, l + m] * scattered
-
-        return Q_aniso
+        # Build the §9 "S = R Λ M" pipeline. The constituent primitives
+        # are cheap dataclass instantiations; the actual work is in the
+        # three np.einsum calls inside their .apply methods.
+        M = HarmonicMomentProjection(weights=self.weights, Y=self.Y, L=L)
+        Lam = LegendreMomentScattering(
+            sig_s=self.sig_s,
+            cells_by_mat=self.cells_by_mat,
+            L=L,
+            skip_l0=True,
+        )
+        R = HarmonicMomentReconstruction.from_Y(self.Y)
+        return R.apply(Lam.apply(M.apply(angular_flux)))
 
     # ── LinearOperator surface ─────────────────────────────────────────
 
