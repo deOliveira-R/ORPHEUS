@@ -2467,6 +2467,28 @@ verification of the addition theorem lives at
    SN-side ``orpheus.sn.quadrature._build_spherical_harmonics``
    is now a thin re-export.
 
+   **Wave 1 (commit ff454f2)**:
+   :meth:`~orpheus.sn.scattering.ScatteringOperator.build_aniso_source`
+   is now the literal §9 line 1230 operator-algebra composition
+
+   .. math::
+
+      Q^{\rm aniso}_n(\vec r) \;=\; R\,\Lambda\,M\,\psi
+
+   where :math:`\Lambda` is :class:`~orpheus.sn.scattering.LegendreMomentScattering`
+   --- the per-ℓ block-diagonal scattering on moment space (the §15.2
+   sum-of-tensor-products form
+   :math:`\Lambda = \sum_\ell P_\ell \otimes \Sigma_{s,\ell}`).
+   The previous ``for n in range(N)`` Python loop over ordinates is
+   gone *by construction*: each constituent's :meth:`apply` carries
+   the ordinate iteration internally via :func:`numpy.einsum`, not
+   via a Python loop. Total flop count is unchanged; the iteration
+   is structural rather than buried in a triple-nested loop. The
+   refactor is gated by the
+   ``slab_2g_p1_aniso_dd_n20`` regression snapshot (rtol=1e-12,
+   atol=1e-13) and the full
+   :file:`tests/sn/test_mms_aniso.py` Pℓ MMS convergence suite.
+
 Per-cell flux moments :eq:`flux-moments` are computed by the
 discrete projection
 
