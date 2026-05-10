@@ -70,6 +70,7 @@ __all__ = [
     "ScaledOperator",
     "IdentityOperator",
     "ZeroOperator",
+    "PermutationOperator",
     "DiagonalOperator",
     "TensorProductOperator",
     "SumOfTensorProductsOperator",
@@ -706,6 +707,95 @@ class ZeroOperator(LinearOperatorMixin):
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         return np.zeros_like(x)
+
+
+class PermutationOperator(LinearOperatorMixin):
+    r"""Index permutation along a configurable axis: :math:`(P x)_i = x_{\pi(i)}`.
+
+    For a permutation :math:`\pi : \{0, \ldots, N-1\} \to \{0, \ldots, N-1\}`
+    represented as an integer array ``perm`` of length :math:`N`, the
+    apply action gathers entries along ``axis`` according to ``perm``:
+
+    .. math::
+
+        (P\,x)_{i_0 \ldots i_{a-1}\,j\,i_{a+1} \ldots} \;=\;
+        x_{i_0 \ldots i_{a-1}\,\pi(j)\,i_{a+1} \ldots}
+
+    The transpose is the inverse permutation :math:`\pi^{-1}`, computed
+    once at construction via ``np.argsort(perm)``. When
+    ``perm[perm] == np.arange(N)`` the permutation is an involution
+    (:math:`\pi \circ \pi = \mathrm{id}`) — detected at construction
+    and exposed as :attr:`is_involution` for downstream consumers that
+    benefit from knowing self-adjointness in the unweighted inner
+    product. In particular, SN specular reflection through
+    :func:`~orpheus.sn.quadrature.Quadrature.reflection_index` is an
+    involution; periodic shifts and rotational reorderings are not.
+
+    Capability set: ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}``. ``solve`` is
+    NOT advertised even though permutations are invertible — the
+    standard solve idiom is :meth:`apply_transpose` (since
+    :math:`P^{-1} = P^T` for permutations); a user who wants ``solve``
+    semantics should compose with the explicit inverse.
+
+    Parameters
+    ----------
+    perm
+        1-D integer array of length :math:`N` whose entries are a
+        permutation of :math:`\{0, \ldots, N-1\}`. Validated at
+        construction; rejecting duplicates and out-of-range entries
+        with :class:`ValueError`.
+    axis
+        Tensor axis along which the permutation acts. The operator
+        broadcasts on every other axis.
+
+    Attributes
+    ----------
+    perm : np.ndarray
+        Forward permutation :math:`\pi`, as 1-D ``intp`` array.
+    inverse_perm : np.ndarray
+        Inverse permutation :math:`\pi^{-1}`, precomputed via
+        :func:`numpy.argsort`.
+    axis : int
+        The tagged tensor axis.
+    n : int
+        Length of the permuted axis.
+    is_involution : bool
+        ``True`` iff :math:`\pi \circ \pi = \mathrm{id}`.
+    """
+
+    capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
+
+    def __init__(self, perm: np.ndarray, axis: int = 0) -> None:
+        perm = np.asarray(perm, dtype=np.intp)
+        if perm.ndim != 1:
+            raise ValueError(
+                f"PermutationOperator perm must be 1-D; got shape {perm.shape}"
+            )
+        n = perm.size
+        # Validate: perm is a true permutation of {0, ..., n-1}.
+        if n == 0 or not (
+            perm.min() == 0
+            and perm.max() == n - 1
+            and np.unique(perm).size == n
+        ):
+            raise ValueError(
+                "PermutationOperator perm must be a permutation of "
+                f"{{0, ..., {n - 1}}}; got {perm!r}."
+            )
+        self.perm = perm
+        self.inverse_perm = np.argsort(perm)
+        self.axis = int(axis)
+        self.n = n
+        # Involution detection: perm[perm] == arange(n).
+        self.is_involution: bool = bool(
+            np.array_equal(perm[perm], np.arange(n))
+        )
+
+    def apply(self, x: np.ndarray) -> np.ndarray:
+        return np.take(x, self.perm, axis=self.axis)
+
+    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+        return np.take(x, self.inverse_perm, axis=self.axis)
 
 
 class TensorProductOperator(LinearOperatorMixin):
