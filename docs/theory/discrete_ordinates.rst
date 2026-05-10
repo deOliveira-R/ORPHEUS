@@ -26,6 +26,11 @@ Key Facts
 - Fixed-source flat-flux diagnostic (Q/Σ_t) is the most powerful curvilinear bug detector
 - Key reference: Bailey, Morel & Chang (2009) — Eq. 50 (α recursion), Eq. 74 (M-M weights)
 - Verification uses :ref:`synthetic cross sections <synthetic-xs-library>`, not real nuclear data
+- 2-D wavefront sweep (Wave 2): per-octant batched dispatch via
+  :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` →
+  ``cell_update.update_batch``; mesh-time precompute of the per-
+  octant DAG; BC apply once per octant per axis (the L7-trap fix).
+  See :ref:`sweep-octant-dependency-graph`.
 
 .. admonition:: Conventions
 
@@ -1316,9 +1321,62 @@ neighbours in both :math:`x` and :math:`y`.  Cells along an
 **anti-diagonal** :math:`i + j = k` are mutually independent because
 they share no incoming faces, so they can be solved simultaneously.
 
-**The four quadrant sweeps.**  Each ordinate has a sign pair
-:math:`(\text{sgn}(\mu_x), \text{sgn}(\mu_y))` that determines the
-sweep direction.  The four combinations define four sweep patterns:
+The wavefront sweep is implemented as a **per-octant batched
+forward-substitution** over a precomputed causal cell DAG (Wave 2 of
+the SN performance plan, closing Issue #4).  This subsection states
+the algebraic framing; the primitives that realise it
+(:class:`~orpheus.sn.sweep_graph.OctantLabel`,
+:class:`~orpheus.sn.sweep_graph.SweepDependencyGraph`,
+:class:`~orpheus.sn.spatial.cell_update.SweepCellSlice`,
+:meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.update_batch`)
+are documented in detail at
+:ref:`sweep-octant-dependency-graph` immediately below.
+
+The §15A.2 sum-of-tensor-products framing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Following Grand Report v3 §15A.2 (lines 2137–2171), the streaming
+inverse :math:`L^{-1}` on the 2-D Cartesian SN field space decomposes
+as a **direct sum over angular octants**:
+
+.. math::
+   :label: streaming-inverse-direct-sum
+
+   L^{-1} \;=\; \bigoplus_{\sigma \in \mathcal{O}} L^{-1}_{\sigma},
+   \qquad
+   \mathcal{O} \;=\; \{\sigma = (\mathrm{sgn}\,\mu_x,\,
+                                  \mathrm{sgn}\,\mu_y) :
+                       \sigma \neq (0,0)\}
+                  \,\cup\, \{(0,0)\},
+
+.. vv-status: streaming-inverse-direct-sum documented
+
+acting on the octant-restricted tensor space :math:`(N_\sigma,\,n_x,\,n_y,\,n_g)`.
+The direction-cosine partition (Eq. :eq:`octant-sign-predicate`) is
+the predicate the four
+:class:`~orpheus.sn.quadrature.AngularQuadrature` adapters expose as
+their cached :attr:`~orpheus.sn.quadrature.AngularQuadrature.octants`
+property — a tuple of
+:class:`~orpheus.numerics.measure.DiscreteMeasurePartition`
+entries realised by
+:meth:`~orpheus.numerics.measure.DiscreteMeasure.partition_by`
+(see :ref:`tensorial-framing` and the
+:doc:`discrete_measures` consumer table).
+
+For each non-degenerate octant :math:`\sigma`, the action of
+:math:`L^{-1}_\sigma` is a **forward substitution along a per-octant
+causal cell DAG** — the topological order is structural (anti-diagonal
+sweep on the Cartesian grid), the per-level cell update is one
+vectorised einsum.  The pure-:math:`z` degenerate octant
+:math:`\sigma = (0,0)` (ordinates with :math:`\mu_x = \mu_y = 0`,
+which appear in 3-D angular cubatures projected to the in-plane
+2-D problem) has no spatial streaming and reduces to a per-cell
+balance :math:`\psi = Q / \Sigma_t` — the wavefront sweep handles
+it via a short-circuit and skips the dependency graph.
+
+**The four quadrant sweeps.**  Each non-degenerate octant
+:math:`\sigma = (\mathrm{sgn}\,\mu_x, \mathrm{sgn}\,\mu_y) \in \{-1,+1\}^2`
+determines a sweep direction:
 
 .. list-table::
    :header-rows: 1
@@ -1345,27 +1403,526 @@ sweep direction.  The four combinations define four sweep patterns:
      - right :math:`\to` left
      - top :math:`\to` bottom
 
-For each direction pair, the sweep visits anti-diagonals
-:math:`k = 0, 1, \ldots, n_x + n_y - 2`.  On diagonal :math:`k`, the
-cells :math:`(i, j)` satisfying :math:`i + j = k` (in the swept index
-space) are gathered into a numpy batch and solved with a single vectorised
-evaluation of :eq:`dd-cartesian-2d`.
+For each octant, the sweep visits topological levels
+(anti-diagonals) :math:`k = 0, 1, \ldots, n_x + n_y - 2`.  On level
+:math:`k`, the cells :math:`(i, j)` satisfying :math:`i + j = k`
+(in the per-octant traversal index space) are gathered into a numpy
+batch and solved with a single vectorised evaluation of
+:eq:`dd-cartesian-2d` — vectorised across the **ordinate axis**
+(:math:`N_\sigma` — every ordinate in the octant), the
+**anti-diagonal axis** (:math:`n_{\rm diag}` — number of cells on
+this level), and the **group axis** (:math:`n_g`) simultaneously.
 
-**Vectorisation within each diagonal.**  Each diagonal contains up to
-:math:`\min(n_x, n_y)` cells.  The incoming face fluxes ``psi_in_x``
-and ``psi_in_y`` are gathered by advanced indexing; the DD equation is
-evaluated as one numpy operation; and the outgoing face fluxes are
-scattered back.  There is no Python-level cell loop within a diagonal.
+**Vectorisation within each level.**  Each level contains up to
+:math:`\min(n_x, n_y)` cells.  The incoming face fluxes
+``psi_in_x`` and ``psi_in_y`` are gathered by advanced indexing;
+the DD equation is evaluated as one numpy operation; and the
+outgoing face fluxes are scattered back into the persistent face-
+flux buffers.  There is **no Python-level cell loop within a level**
+and **no Python-level ordinate loop within an octant** — both axes
+are internal to the einsum.
 
-**Reflective BCs in 2D.**  At each boundary face, the incoming flux for
-ordinate :math:`n` is set to the outgoing flux of its reflected partner.
-For the left/right boundaries (*x*-reflection), the partner is
-``ref_x[n]`` (negating :math:`\mu_x`); for the top/bottom boundaries
+**Reflective BCs in 2D.**  At each boundary face, the incoming flux
+for ordinate :math:`n` is set to the outgoing flux of its reflected
+partner.  For the left/right boundaries (*x*-reflection), the partner
+is ``ref_x[n]`` (negating :math:`\mu_x`); for the top/bottom boundaries
 (*y*-reflection), the partner is ``ref_y[n]`` (negating :math:`\mu_y`).
 The reflection indices are precomputed by the quadrature's
-:meth:`reflection_index` method.
+:meth:`reflection_index` method.  Crucially, the BC apply happens
+**once per octant per axis** (not once per ordinate per axis) —
+see :ref:`sweep-octant-dependency-graph-l7-trap` for the rationale.
 
-Implemented in :func:`_sweep_2d_wavefront`.
+Implemented in :func:`~orpheus.sn.sweep._sweep_2d_wavefront`, which
+is a thin orchestrator over the
+:class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` primitives
+described next.
+
+.. _sweep-octant-dependency-graph:
+
+Cartesian 2D: Octant Dependency Graph (Wave 2)
+-----------------------------------------------
+
+This section documents the **§15A.2 "upwind trace complex / causal
+transport DAG / direction sweep ordering" primitive** as it lives in
+:mod:`orpheus.sn.sweep_graph` after Wave 2 of the SN performance plan
+(branch ``feature/sn-octant-sweep-graph``, closes Issue #4).  The
+shipped architecture replaces the legacy per-ordinate ``for n in
+range(N)`` loop in :func:`~orpheus.sn.sweep._sweep_2d_wavefront` with
+a per-octant batched dispatch, lifting the per-call ``_diag_cache``
+build to mesh-time work, and isolating the DD per-cell algebra in a
+strategy method
+(:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update_batch`)
+that LD / EC / Step closures can override later.
+
+The four primitives
+~~~~~~~~~~~~~~~~~~~
+
+The Wave-2 architecture introduces four small primitives plus a
+mesh-time precompute step.  Each is small, frozen, and unit-tested in
+isolation.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 16 56
+
+   * - Primitive
+     - Lives in
+     - Role
+   * - :class:`~orpheus.sn.sweep_graph.OctantLabel`
+     - :mod:`orpheus.sn.sweep_graph`
+     - Frozen + slotted dataclass carrying the in-plane direction
+       signs ``(sign_x, sign_y) ∈ {-1, 0, +1}²``.  Hashable; used as
+       the key in
+       :attr:`~orpheus.sn.geometry.SNMesh.sweep_graphs`.  The pair
+       ``(0, 0)`` denotes the pure-:math:`z` degenerate octant — no
+       graph is built for it.  The 3-D ``sign_z`` is dropped: the
+       2-D Cartesian sweep is invariant under the out-of-plane axis,
+       so multiple ordinates with the same ``(sign_x, sign_y)`` but
+       different ``sign_z`` share a single graph instance.
+   * - :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph`
+     - :mod:`orpheus.sn.sweep_graph`
+     - Frozen dataclass holding the per-octant topological levels
+       (anti-diagonals) and the per-axis face-index offsets.  Built
+       once per ``(SNMesh, octant)`` pair at mesh construction;
+       reused across every source iteration / Krylov matvec / outer
+       iteration.  Its :meth:`apply` walks the levels and dispatches
+       each level to ``cell_update.update_batch(slice_args)``.
+   * - :class:`~orpheus.sn.spatial.cell_update.SweepCellSlice`
+     - :mod:`orpheus.sn.spatial.cell_update`
+     - Frozen + slotted dataclass — the **per-level packet** that
+       :meth:`update_batch` consumes.  Carries the cell indices
+       ``(ii, jj)``, the per-axis face-index arrays, and views into
+       the persistent ``psi_x`` / ``psi_y`` buffers, the source
+       ``Q``, the cross section ``sig_t``, and the per-octant
+       streaming coefficients ``str_x`` / ``str_y``.  See its
+       docstring for the full shape contract.
+   * - :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.update_batch`
+     - :mod:`orpheus.sn.spatial.cell_update`
+     - New method on the
+       :class:`~orpheus.sn.spatial.cell_update.CellUpdateBase` ABC.
+       Default implementation raises :exc:`NotImplementedError` —
+       additive capability, not a contract change.
+       :class:`~orpheus.sn.spatial.diamond.DiamondDifference`
+       overrides it; LD / EC / Step do not yet, and fall back to
+       per-cell :meth:`update` if dispatched through the wavefront
+       sweep (in practice the dispatch routes to
+       :meth:`update_batch` only when the strategy advertises it).
+
+Mesh-time precompute pattern
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The dependency graph is a **derived object** — the
+``(mesh × octant)`` joint property.  It depends only on cell topology
+(``Mesh2D``) and the octant sign convention; it does **not** depend on
+fluxes, sources, BCs, or iteration state.  So the graph build is paid
+once at :class:`~orpheus.sn.geometry.SNMesh` construction:
+
+.. code-block:: python
+
+   class SNMesh:
+       ...
+       sweep_graphs: dict[OctantLabel, SweepDependencyGraph] | None
+
+       # populated for 2-D Cartesian; ``None`` for curvilinear
+       def _setup_cartesian(self, ...):
+           ...
+           self.sweep_graphs = {
+               OctantLabel(sx, sy): SweepDependencyGraph.from_cartesian_2d(
+                   nx=self.nx, ny=self.ny, label=OctantLabel(sx, sy),
+               )
+               for sx in (-1, +1)
+               for sy in (-1, +1)
+           }
+
+This lifts the per-call ``_diag_cache`` build that previously lived
+inside :func:`_sweep_2d_wavefront` (the legacy code rebuilt the
+anti-diagonal index arrays once per sweep call, on the assumption
+they were sweep-local state) to mesh-time work, amortised across all
+source iterations / Krylov matvecs / outer iterations.  For the
+421-group benchmark this is a measurable but second-order saving;
+the structurally important effect is that the graph build is now
+**named, inspectable state** on the mesh rather than a private
+sweep-local cache.
+
+The closed-form precompute lives in
+:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.from_cartesian_2d`
+and never appears in the sweep loop.  This is structural, not
+hand-rolled — the "library version" (a generic topological-sort over
+an explicit DAG) would be over-engineering for a regular pattern that
+collapses to ~5 lines of ``arange`` + diagonal extraction.  Curvilinear
+geometries (sphere / cylinder) set ``self.sweep_graphs = None`` —
+they walk the cell graph differently (per-ordinate march; see
+:meth:`~orpheus.sn.geometry.SNMesh.iter_cell_visits`) and Wave 2 is
+2-D Cartesian only.
+
+The §15A.2 invariant set
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Grand Report v3 §15A.2 (lines 2165–2171) prescribes a fixed set
+of L0 invariants every ``SweepDependencyGraph`` instance must satisfy.
+These are pinned by ``tests/sn/test_sweep_graph.py`` (63 L0 tests):
+
+* **Upwind orientation** — for each octant
+  :math:`\sigma = (\mathrm{sgn}\,\mu_x, \mathrm{sgn}\,\mu_y)`, the
+  ``face_in_x`` and ``face_out_x`` offsets satisfy
+  ``face_in_x + face_out_x == 1`` and
+  ``face_in_x = 0`` iff :math:`\mathrm{sgn}\,\mu_x \ge 0` (and
+  analogously on :math:`y`).  Asserted by
+  ``test_face_pairing_consistent`` and ``test_upwind_orientation``.
+* **Topological sort** — every level's cells depend only on cells in
+  strictly earlier levels (under the per-octant orientation).  No
+  intra-level dependencies; no back-edges.  Asserted by
+  ``test_topologically_sorted``.
+* **Cell coverage** — every cell :math:`(i, j) \in [0, n_x) \times
+  [0, n_y)` appears in **exactly one** level.  Disjoint union over
+  the topological levels reconstructs the full grid.  Asserted by
+  ``test_cell_coverage``.
+* **Face-pairing consistency** — the incoming-face index of cell
+  :math:`(i, j)` on level :math:`k` matches the outgoing-face index
+  of its upwind neighbour on level :math:`k - 1` (under the per-
+  octant orientation).  Asserted by
+  ``test_face_pairing_consistent``.
+
+These four invariants are the **load-bearing correctness floor** of
+the wavefront sweep.  Any future closure (LD, EC, Step) plugged in
+via :meth:`update_batch` consumes the same invariants — they describe
+the topology, not the algebra, so the strategy contract is orthogonal
+to the graph correctness.
+
+The dispatch boundary: graph (scheduler) vs cell update (closure)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A central architectural decision in Wave 2 is the **separation
+between the scheduler and the closure** — the
+:class:`SweepDependencyGraph` is the SCHEDULER (walks topological
+levels), and ``cell_update.update_batch`` is the CLOSURE (DD-specific
+algebra).  The graph's :meth:`apply` does NOT inline any DD-specific
+math; it builds a :class:`SweepCellSlice` and dispatches.
+
+This means: **DD is the only shipping closure today**, but Step / LD
+/ EC override :meth:`update_batch` later without rewriting the
+sweep driver.  The Wave C-extension rollout (Issues #157 / #158)
+ships the per-cell :meth:`update` method first; Wave 2 adds the
+parallel batched :meth:`update_batch` capability for closures whose
+per-cell algebra also vectorises across an
+``(N_oct, n_diag, ng)`` slice without per-cell branching.
+
+The DD ``update_batch`` reproduces the legacy 2-D wavefront DD math
+**bit-identically** (operation order matters; see
+:class:`~orpheus.sn.spatial.diamond.DiamondDifference` Wave-2
+docstring on bit-identity).  The math is the **balance form** of WDD
+on a 2-D Cartesian cell:
+
+.. math::
+   :label: dd-2d-balance-form
+
+   \overline{\psi}_{i,j}
+   \;=\; \frac{Q_{i,j}
+               + s_{x,i}\,\psi^{\rm in}_{x,i,j}
+               + s_{y,j}\,\psi^{\rm in}_{y,i,j}}
+              {\Sigma_{t,i,j} + s_{x,i} + s_{y,j}},
+   \qquad
+   s_{x,i} = \frac{2|\mu_x|}{\Delta x_i},
+   \quad s_{y,j} = \frac{2|\mu_y|}{\Delta y_j},
+
+.. vv-status: dd-2d-balance-form documented
+
+with the spatial closure
+:math:`\psi^{\rm out}_x = 2\overline{\psi} - \psi^{\rm in}_x`
+(and analogously on :math:`y`).  The operation order is fixed at:
+
+.. code-block:: text
+
+   denom    = sig_t + sx + sy
+   psi_avg  = (Q + sx * psi_in_x + sy * psi_in_y) / denom
+   psi_out  = 2 * psi_avg - psi_in
+
+Algebraically equivalent rearrangements (e.g., reordering
+``sig_t + sx + sy`` to ``sx + sy + sig_t``) break the 1-ULP regression
+contract even though the math is identical.  This is the canonical
+**bit-identity vs principled-equivalence** instance from the
+``vv-principles`` skill — the regression contract is bit-identity
+gated on the existing snapshots; deviations are admissible only when
+backed by a structurally-independent reference (e.g., :math:`k_\infty`
+analytical limit on a homogeneous reflective problem).
+
+.. _sweep-octant-dependency-graph-l7-trap:
+
+The L7-trap fix: BC apply once per octant
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Wave 2 closes a class of bugs that the test-architect dispatch
+identified as the **L7 trap** — the design pattern where a sweep
+driver re-applies a boundary operator at each ordinate iteration.
+The legacy ``_sweep_2d_wavefront`` had this shape:
+
+.. code-block:: python
+
+   # legacy — the L7 trap
+   for n in range(N):
+       psi_x = sn_mesh.bc_xmin.apply(psi_x, quad)[n]   # per-ordinate apply
+       psi_y = sn_mesh.bc_ymin.apply(psi_y, quad)[n]   # per-ordinate apply
+       # ... walk cells, sweep, etc. ...
+
+Each ``bc.apply`` call sees the FULL ``(N, ny, ng)`` face buffer (so
+reflective partners can read across rows) and returns an updated full
+buffer.  Calling this :math:`N` times per sweep is wrong on two
+counts:
+
+1. **Cost** — :math:`N` redundant invocations of the same boundary
+   operator on the same buffer.  For a 2-D ``LS-N`` quadrature with
+   :math:`N \sim 30`–:math:`80`, this is the dominant per-sweep cost
+   on small meshes.
+2. **Correctness** — when reflective BCs interact with mid-sweep
+   reflective-buffer state, **the order of BC apply vs ordinate
+   sweep matters**.  The legacy code's behaviour is sensitive to
+   ordinate iteration order; reorderings that algebraically should
+   be no-ops (e.g., octant batching, parallel ordinate evaluation)
+   silently change the converged solution.
+
+The Wave-2 form applies each boundary operator **once per octant per
+axis** — :math:`O(\text{octants}) = 4` calls, not :math:`O(N)`:
+
+.. code-block:: python
+
+   # Wave 2 — L7-trap closed by construction
+   for octant in quad.octants:                    # 4 iterations, structural
+       sx, sy = octant.label
+       ...
+       # Apply BC once for this octant on each axis
+       if sx_eff >= 0:
+           full_face_x = sn_mesh.bc_xmin.apply(psi_x[:, 0, :, :], quad)
+           psi_x[oct_idx, 0, :, :] = full_face_x[oct_idx]
+       else:
+           full_face_x = sn_mesh.bc_xmax.apply(psi_x[:, nx, :, :], quad)
+           psi_x[oct_idx, nx, :, :] = full_face_x[oct_idx]
+       # ... analogously on y ...
+       sweep_graph.apply(...)   # all N_oct ordinates batched
+
+The architectural argument: the boundary operator's *semantics* are
+"map outgoing partner-octant fluxes to incoming this-octant fluxes".
+That mapping is per-octant by construction — applying it once per
+ordinate within an octant is redundant; applying it once per octant
+is structurally correct.
+
+The L7-trap detector test
+``tests/sn/test_2d_octant_sweep_equivalence.py::case-3`` is the
+load-bearing regression gate — a TESTS-FIRST harness (case 3 with
+mixed reflective + vacuum BCs, 2G heterogeneous, ``n_sweeps=2``)
+designed to fail if any future refactor reintroduces the per-ordinate
+BC apply pattern.  The case-3 design uses the post-sweep ``psi_x`` /
+``psi_y`` buffer state as bit-identity oracles (rather than the
+converged scalar flux), because the L7-trap is invisible in
+single-iteration tests: the FIRST iteration's reflective-buffer state
+is zero, so per-ordinate vs once-per-octant give the same answer; the
+trap surfaces only on the SECOND iteration when the first iteration's
+outgoing-face writes feed the second iteration's BC apply.  The case
+also explicitly tags ``@pytest.mark.catches("ERR-003")``: ERR-003 is
+the catalogued instance where reflective-BC ordering coupled with
+ordinate batching produced a converged-but-wrong solution.
+
+Bit-identity to the legacy implementation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For LS-family quadratures (``LevelSymmetricSN``,
+``ProductQuadrature``) whose ordinate ordering is octant-grouped in
+lexicographic order, the Wave-2 implementation is **bit-identical**
+to the legacy per-ordinate loop on every regression snapshot — the
+existing
+``tests/sn/regression/snapshots/2d_1g_LS4_dd_15x15.npz``,
+``test_apply_2d_cartesian_bit_identical_to_legacy``, and
+``test_unified_sweep_dispatch`` snapshots all pass with
+``np.array_equal``.  The argument has three parts:
+
+1. **BC apply equivalence.**  The boundary operator for octant
+   :math:`\sigma` reads partner-octant rows of the persistent
+   ``psi_x`` / ``psi_y`` buffer.  For LS, the lex order of
+   ``quad.octants`` matches the legacy n-order at the
+   partner-state granularity, so the same iteration's value is
+   observed at the same point.  Per-octant BC apply produces the
+   same ``psi_x`` / ``psi_y`` octant-row contents as :math:`N_\sigma`
+   copies of the legacy per-ordinate apply.
+2. **Per-cell sweep equivalence.**  Within an octant, per-ordinate
+   cell sweeps are independent — different rows of ``psi_x`` /
+   ``psi_y``, different rows of ``angular_flux``.  Batching is
+   therefore bit-identical to any per-ordinate sequencing of the
+   same set, modulo the per-cell DD operation order which is
+   pinned (see :ref:`sweep-octant-dependency-graph` dispatch
+   boundary above).
+3. **Lebedev (octant ordering not lex).**  For Lebedev quadrature
+   (case 6 in the C2.5 harness) the converged scalar flux matches
+   the legacy code, but the iter-to-iter values differ on the
+   inner iteration (different traversal order ⇒ different
+   Gauss-Seidel updates).  Case 6 uses **vacuum BCs**, where the
+   partner-state semantics don't matter; this is a deliberate
+   choice in the harness — Lebedev with reflective BCs would
+   require redesign of the bit-identity gate, but the converged
+   answer is still verified at the snapshot level via
+   ``test_unified_sweep_dispatch``.
+
+This taxonomy follows the ``vv-principles`` skill's
+**bit-identity vs principled-equivalence** discipline: bit-identity
+where structurally trivial (LS-family, octant-grouped lex order);
+principled equivalence (closed-form L1 anchor + MMS regression suite)
+where bit-identity would require more work than the engineering value
+returns.
+
+.. _sweep-octant-architecture-cardinal-rule-2:
+
+Architectural framing (Cardinal Rule 2)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Per the project memory note ``project_moc_structure.md`` and the
+:ref:`cell-update-strategies` discussion above,
+:class:`SweepDependencyGraph` is **SN-specific by design**.  MoC
+will define its own analog (per-ray traversal) — different DAG
+shape, different mathematical structure (fiber bundles + solution
+sheaves over characteristic curves rather than a topological sort
+over a cell graph).  There is **no shared SweepGraph Protocol**
+because there is no shared mathematical structure.  Cardinal Rule 2
+(architecture) prefers **late unification** ("unify after two
+instances" — see ``feedback_unify_after_two_instances`` in agent
+memory) to premature abstraction; the sweep DAG lives in
+:mod:`orpheus.sn` and stays there until a second mathematically-
+similar consumer arrives, which by current understanding is **never**
+for MoC and only conjectural for any other deterministic transport
+solver.
+
+By contrast, the **angular octant partition** primitive
+(:meth:`~orpheus.numerics.measure.DiscreteMeasure.partition_by`) is
+genuinely shared infrastructure — see the cross-method consumer
+table at :doc:`discrete_measures` (octant partition consumed by SN
+2-D, MoC track-bundle direction grouping, MC boundary-current
+hemisphere scoring, future SN boundary realiser).  The split is
+**measure-level primitives are shared, sweep-level orchestration
+is SN-specific**.
+
+Performance
+~~~~~~~~~~~
+
+The Wave-2 plan target for Issue #4 closure was 3–10× speedup on
+the 421-group benchmark (the canonical ``test_profile_421g``
+smoking-gun probe).  The shipped speedups:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 35 20 15 30
+
+   * - Configuration
+     - Speedup
+     - Target?
+     - Comment
+   * - 421-group LS4 ``31×31``
+     - 1.7×
+     - Below
+     - numpy-dispatch-overhead-dominated regime
+   * - 2-group LS4 ``31×31``
+     - 2.78×
+     - At lower bound
+     - per-octant batching wins more for small ``ng``
+   * - 1-group LS4 ``15×15`` (regression snapshot)
+     - bit-identical
+     - n/a
+     - regression contract preserved
+
+The headline 421-group speedup is below the 3-10× target.  The
+honest analysis: the Wave-2 implementation eliminates the
+:math:`N`-fold ordinate loop overhead but the per-octant
+:meth:`update_batch` calls still number :math:`O(\text{levels} \times
+\text{octants}) \approx (n_x + n_y - 1) \times 4 \approx 88` per
+sweep on a ``31 × 31`` mesh, each carrying its own numpy dispatch
+cost.  At 421 groups, the per-call work scales linearly so the
+ratio of useful work to dispatch overhead remains modest.  The
+**follow-up direction** (out of scope for Issue #4): change the
+:class:`SweepCellSlice` contract to carry full-:math:`N` buffers
+plus an ``octant_indices`` field, so the ``update_batch`` calls
+are level-only (~ 60 calls / sweep) rather than
+``levels × octants`` (~ 240 calls / sweep), eliminating the
+per-octant copy round-trip.  The expected speedup would push the
+421-group result back into the 3-10× range; this is a tractable
+follow-up issue once the Wave 2 architecture is shipped.
+
+Closing the smoking gun by construction is itself a load-bearing
+result: the legacy ``for n in range(N)`` is gone, the metric
+(angular-flux tensor over ``(N, nx, ny, ng)``) now knows its
+iterative structure, and any future numpy-dispatch-cost reduction
+benefits all closures uniformly through the strategy contract.
+
+Verification
+~~~~~~~~~~~~
+
+The Wave-2 verification chain (per the ``algebra-of-record`` skill
+discipline):
+
+* **L0 unit tests** — 60 + 10 + 63 + 13 = 146 tests on the four new
+  primitives:
+
+  - ``tests/sn/test_octants_property.py`` (60 tests across 8
+    quadrature factories) — disjoint union, weight conservation,
+    sign-signature correctness, pure-axis ordinates labelled
+    ``sign=0``.
+  - ``tests/sn/test_cell_update_batch.py`` (10 tests) — bit-identity
+    against per-cell :meth:`update` on a single-cell-per-batch
+    reduction; standalone tests against analytical DD recurrence on
+    a 1×3 strip; 4-octant bit-identity vs the per-ordinate Python
+    loop.
+  - ``tests/sn/test_sweep_graph.py`` (63 tests) — the §15A.2
+    invariant set above; anti-diagonal cell coverage; topo-order
+    acyclicity per octant sign; BC face conventions.
+  - ``tests/sn/test_snmesh_sweep_graphs.py`` (13 tests) — graph
+    contents agree with hand-derived schedule on a 3×3 mesh; dict
+    keys equal ``quad.octants`` labels; cache invalidates when mesh
+    changes.
+
+* **L1 closed-form anchor + L7-trap detector** — the C2.5 TESTS-
+  FIRST harness ``tests/sn/test_2d_octant_sweep_equivalence.py``
+  (7/7 pass), tagged ``@pytest.mark.l1`` and
+  ``@pytest.mark.catches("ERR-003")``.  Includes:
+
+  - **case 3 (L7 trap)** — mixed BC + 2G heterogeneous +
+    ``n_sweeps=2``, the primary L7-trap detector.
+  - **case 7 (closed-form)** — 1G homogeneous reflective with
+    :math:`k_\infty = \nu\Sigma_f / \Sigma_a`, the structural-
+    independence anchor.
+  - cases 1–6 covering BC mixes, ordinate batching corners, and
+    Lebedev (vacuum-BC variant).
+
+* **L2 regression** — existing ``tests/sn/test_mms_2d.py``,
+  ``test_discrete_ordinates_2d.py``, ``test_snstreamingoperator.py``,
+  ``test_unified_sweep_dispatch.py``, ``tests/sn/regression/``: 56/56
+  pass, 6 slow-marked skipped.
+
+The verification chain is the canonical
+**L0 (primitive invariants) → L1 (closed-form anchor + bug catcher)
+→ L2 (integration regression)** ladder from the ``vv-principles``
+skill.
+
+References and pointers
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* Grand Report v3 §15A.2 (lines 2137–2171) — the "upwind trace
+  complex / causal transport DAG / direction sweep ordering"
+  primitive description with the ``assert_*`` invariant set this
+  module's tests pin.  Plan file at
+  ``.claude/plans/neutron_transport_grand_report_v3.md``.
+* Wave 2 plan at ``.claude/plans/transient-giggling-cake.md`` (C2.1
+  through C2.8) — the architectural primitives plan, sequencing,
+  verification-first harness design.
+* Wave 0 :meth:`~orpheus.numerics.measure.DiscreteMeasure.partition_by`
+  primitive — the measure-level partition that the SN ``octants``
+  property delegates to.  See :doc:`discrete_measures`.
+* Wave 1 :math:`R \circ \Lambda \circ M` Galerkin scattering
+  composition — the parallel "metric knows its iterative structure"
+  refactor for the scattering source build.  See
+  :ref:`sn-scattering-fission-operators`.
+* :class:`~orpheus.sn.spatial.cell_update.CellUpdateBase` — the
+  strategy ABC carrying the per-cell :meth:`update` and per-level
+  :meth:`update_batch` contracts.
+* :class:`~orpheus.sn.spatial.diamond.DiamondDifference` — the only
+  shipping closure that overrides :meth:`update_batch`; the
+  reference for the bit-identity contract.
+* C2.5 TESTS-FIRST harness:
+  ``tests/sn/test_2d_octant_sweep_equivalence.py``.
 
 Curvilinear 1D: Sequential Ordinate Sweep
 ------------------------------------------
@@ -1509,16 +2066,26 @@ unified algorithm is required to keep the 1-D regression
 snapshots bit-identical and to retain the historical
 sub-millisecond sweep time for typical 1-D problems.
 
-The 2-D wavefront sweep retains its inlined DD math (rather
-than dispatching through ``cell_update.update``) because anti-
-diagonal vectorisation operates on ``(n_diag, ng)`` cell slices,
-a shape the per-cell ``CellUpdate`` Protocol does not currently
-accept.  Wave C-extension's introduction of LD / EC / Step
-strategies will require parameterising 2-D wavefront via the
-Protocol while preserving anti-diagonal vectorisation — that's
-the open design point for the rollout.  For Wave D, the inlined
-DD math is bit-identical to a per-cell
-:class:`DiamondDifference` call sequence by construction.
+The 2-D wavefront sweep dispatches its DD per-cell algebra
+through
+:meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.update_batch`
+on the strategy attached to the
+:class:`~orpheus.sn.geometry.SNMesh` (Wave 2 of the SN
+performance plan; closes Issue #4 — see
+:ref:`sweep-octant-dependency-graph` for the full architecture).
+The "inlined DD math" formerly carried inside
+:func:`~orpheus.sn.sweep._sweep_2d_wavefront` was lifted into
+:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update_batch`
+as a single bit-identical extraction, vectorised across the
+``(N_oct, n_diag, ng)`` slice — the ordinate axis, anti-diagonal
+axis, and group axis simultaneously.  Wave C-extension's LD / EC
+/ Step closures override :meth:`update_batch` and become drop-in
+alternatives at SNMesh construction time:
+``SNMesh(mesh, quad, cell_update=LinearDiscontinuous())``.  The
+open design point of "how to parameterise the 2-D wavefront
+without breaking anti-diagonal vectorisation" is now closed: the
+graph is the scheduler, ``update_batch`` is the closure, the
+contract is per-level batched evaluation.
 
 ERR-026 closure status (partial through Wave E)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

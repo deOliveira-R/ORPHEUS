@@ -299,7 +299,12 @@ discrete labelling predicate (per :ref:`tensorial-framing`):
      - Octant-sign predicate
        :eq:`octant-sign-predicate` — partitions the angular
        cubature into the 4 (2-D) or 8 (3-D) sweep octants.
-     - Wave 2 of SN performance plan; closes Issue #4.
+     - Wave 2 of SN performance plan (closed Issue #4); the SN
+       sweep then iterates octants and dispatches each octant to a
+       per-octant
+       :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` —
+       see :ref:`sweep-octant-dependency-graph` for the full
+       architecture.
    * - **MoC track-bundle direction grouping**
      - Polar-angle bin predicate — partitions tracks by polar
        angle :math:`\theta`.
