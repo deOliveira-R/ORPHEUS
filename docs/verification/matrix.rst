@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **2879**
+Total tests collected: **2885**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 590, 20.5%
+   L0, 596, 20.7%
    L1, 724, 25.1%
-   L2, 36, 1.3%
+   L2, 36, 1.2%
    L3, 0, 0.0%
-   foundation, 1501, 52.1%
+   foundation, 1501, 52.0%
    unmarked, 28, 1.0%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 2772
+   explicit, 2778
    verify, 0
    class-name, 46
    func-name, 0
@@ -56,7 +56,7 @@ Module × level grid
    cp/test_properties, 12, 0, 0, 0, 0, 0
    cp/test_slab, 0, 9, 0, 0, 0, 0
    cp/test_sphere, 0, 9, 0, 0, 0, 0
-   cp/test_verification, 1, 25, 5, 0, 0, 0
+   cp/test_verification, 4, 25, 5, 0, 0, 0
    cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 5, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
@@ -203,7 +203,7 @@ Module × level grid
    sn/test_scattering_operator, 0, 0, 0, 0, 17, 0
    sn/test_snmesh_consumes_reduced, 0, 0, 0, 0, 15, 0
    sn/test_snstreamingoperator, 0, 0, 0, 0, 22, 0
-   sn/test_solver_components, 38, 0, 0, 0, 0, 0
+   sn/test_solver_components, 41, 0, 0, 0, 0, 0
    sn/test_spherical, 13, 7, 6, 0, 0, 0
    sn/test_sweep_operator_inconsistency, 0, 4, 0, 0, 0, 0
    sn/test_sweep_regression, 12, 0, 0, 0, 0, 0
@@ -223,8 +223,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    :header: Equation label, Tests
    :widths: 50, 10
 
-   ``matrix-eigenvalue``, 175
-   ``mg-balance``, 165
+   ``matrix-eigenvalue``, 178
+   ``mg-balance``, 168
    ``peierls-unified``, 158
    ``one-group-kinf``, 132
    ``peierls-rank-n-bc-closure``, 124
@@ -232,42 +232,42 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``alpha-recursion``, 100
    ``wdd-closure``, 100
    ``wdd-face``, 100
-   ``collision-rate``, 91
+   ``collision-rate``, 94
    ``alpha-cylindrical``, 74
    ``mm-weights``, 74
    ``multigroup``, 66
-   ``ki3-def``, 61
-   ``e3-def``, 58
-   ``self-slab``, 52
+   ``ki3-def``, 64
+   ``e3-def``, 61
+   ``self-slab``, 55
+   ``self-cyl``, 54
+   ``p-inf``, 53
+   ``self-sph``, 52
    ``balance-general``, 51
    ``chord-length``, 51
-   ``self-cyl``, 51
-   ``p-inf``, 50
    ``flux-moments``, 49
-   ``self-sph``, 49
+   ``wigner-seitz``, 49
    ``attenuation``, 48
    ``optical-thickness``, 48
    ``scalar-flux-integral``, 48
-   ``wigner-seitz``, 46
    ``cp-kernel-differential-identities``, 36
+   ``flat-source``, 35
+   ``cp-keff-update``, 34
+   ``first-flight-kernel``, 34
+   ``matrix-A-def``, 34
+   ``matrix-B-def``, 34
+   ``neutron-balance``, 34
+   ``optical-path``, 34
+   ``pcell-from-smat``, 34
+   ``pin-from-reciprocity``, 34
+   ``rcp-from-double-antideriv``, 34
+   ``s-integral``, 34
+   ``self-double-integral``, 34
+   ``surface-to-region``, 34
+   ``surface-to-surface``, 34
    ``keff-mean``, 33
    ``peierls-equation``, 33
    ``sigma-keff``, 33
-   ``flat-source``, 32
-   ``cp-keff-update``, 31
-   ``first-flight-kernel``, 31
    ``free-flight``, 31
-   ``matrix-A-def``, 31
-   ``matrix-B-def``, 31
-   ``neutron-balance``, 31
-   ``optical-path``, 31
-   ``pcell-from-smat``, 31
-   ``pin-from-reciprocity``, 31
-   ``rcp-from-double-antideriv``, 31
-   ``s-integral``, 31
-   ``self-double-integral``, 31
-   ``surface-to-region``, 31
-   ``surface-to-surface``, 31
    ``dd-slab``, 30
    ``transport-spherical``, 29
    ``chi-sampling``, 28

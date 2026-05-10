@@ -622,6 +622,97 @@ class TestN2N:
         )
 
 
+@pytest.mark.l0
+class TestComputeGroupRates:
+    """Per-group production / total rate methods on CPSolver.
+
+    Issue 9.6 wiring (closes GH #169) — the methods route through
+    ``mesh.volume_measure`` and expose ``(ng,)`` per-group rate vectors.
+    ``compute_keff`` consumes ``.sum()`` of these vectors.  Tested here
+    for shape, sum-equivalence to the legacy flat-sum reference, and
+    the homogeneous-medium analytical limit.
+    """
+
+    def _solver_2g_homogeneous(self):
+        """Build a CPSolver wired for compute_group_*_rate testing.
+
+        The CPSolver constructor takes precomputed cell XS + P_inf rather
+        than a `(materials, mesh)` pair, so we run a quick `solve_cp` to
+        get the converged flux + the precomputed XS, then construct a
+        bare CPSolver pointing at the same mesh for the per-group
+        method calls.
+        """
+        from orpheus.cp.solver import CPMesh, CellXS, CPSolver
+        mat = get_mixture("A", "2g")
+        mesh = _slab_mesh_homogeneous(thickness=2.0)
+
+        # Run the standard solve to get converged flux
+        result = solve_cp({0: mat}, mesh,
+                          CPParams(keff_tol=1e-7, flux_tol=1e-6))
+
+        # Build a parallel CPSolver instance the way solve_cp does, so we
+        # can call compute_group_*_rate and compute_keff directly.
+        cp_mesh = CPMesh(mesh, CPParams())
+        ng = mat.ng
+        sig_t = np.tile(np.asarray(mat.SigT), (mesh.N, 1))
+        sig_p = np.tile(np.asarray(mat.SigP), (mesh.N, 1))
+        sig_a = np.tile(np.asarray(mat.absorption_xs), (mesh.N, 1))
+        chi = np.tile(np.asarray(mat.chi), (mesh.N, 1))
+        xs = CellXS(sig_t=sig_t, sig_p=sig_p, sig_a=sig_a, chi=chi)
+        P_inf = np.zeros((mesh.N, mesh.N, ng))
+        for g in range(ng):
+            P_inf[:, :, g] = cp_mesh.compute_pinf_group(sig_t[:, g])
+        solver = CPSolver(P_inf, xs, mesh.volumes, mesh.mat_ids, {0: mat},
+                          mesh=mesh)
+        return solver, mat, result.flux, result.keff
+
+    def test_production_rate_shape_and_sum(self):
+        solver, mat, flux, _ = self._solver_2g_homogeneous()
+        rate_g = solver.compute_group_production_rate(flux)
+        assert rate_g.shape == (mat.ng,), "per-group rate must be (ng,)"
+
+        # Sum over groups must reproduce the legacy flat-sum production
+        # numerator (FP-non-associativity tolerance).
+        v = solver.volumes[:, np.newaxis]
+        ref_production = float(np.sum(mat.SigP * flux * v))
+        np.testing.assert_allclose(float(rate_g.sum()), ref_production,
+                                   rtol=1e-13)
+
+    def test_total_rate_shape_and_sum(self):
+        solver, mat, flux, _ = self._solver_2g_homogeneous()
+        rate_g = solver.compute_group_total_rate(flux)
+        assert rate_g.shape == (mat.ng,)
+
+        v = solver.volumes[:, np.newaxis]
+        ref_total = float(np.sum(mat.SigT * flux * v))
+        np.testing.assert_allclose(float(rate_g.sum()), ref_total,
+                                   rtol=1e-13)
+
+    def test_homogeneous_keff_matches_kinf(self):
+        """Independent reference: homogeneous reflective slab keff = k_inf.
+
+        For a homogeneous medium the eigenvalue-iteration converged
+        spectrum φ_g satisfies the infinite-medium balance
+        ``(Σ_t - Σ_s - 2Σ_2) · φ = (1/k) · χ · (νΣ_f · φ)`` per group;
+        summing over groups gives
+        ``k_inf = sum(νΣ_f · φ_g) / sum((Σ_a - 2Σ_2) · φ_g)``
+        since the within-group / inter-group scattering ``Σ_s`` rows
+        sum to ``Σ_t - Σ_a`` and cancel by group-balance.  Mixture A
+        has ``Σ_2 = 0`` so ``k_inf = sum(νΣ_f · φ_g) / sum(Σ_a · φ_g)``.
+        """
+        _, mat, flux, keff = self._solver_2g_homogeneous()
+        phi_g = flux.mean(axis=0)
+        sig_p = np.asarray(mat.SigP)
+        sig_a = np.asarray(mat.absorption_xs)
+        sig_2_dense = np.array(mat.Sig2.todense())
+        # Mixture A has Σ_2 = 0, so k_inf reduces to fission/absorption.
+        prod_per_g = sig_p * phi_g + 2.0 * (sig_2_dense.sum(axis=1) * phi_g)
+        loss_per_g = sig_a * phi_g - 2.0 * (sig_2_dense.sum(axis=1) * phi_g)
+        k_inf = float(prod_per_g.sum() / loss_per_g.sum())
+        np.testing.assert_allclose(keff, k_inf, rtol=1e-6,
+                                   err_msg="keff != k_inf for homogeneous")
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Section 5 — Optically thick / thin stress tests (G-4, G-7)
 # ═══════════════════════════════════════════════════════════════════════

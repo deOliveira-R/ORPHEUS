@@ -292,6 +292,78 @@ ORTHOGONAL TO THE LADDER
 
 ---
 
+## CRITICAL: Bit-identity vs principled-equivalence
+
+**Bit-identity is an implementation property, not a math property.** A
+regression contract that demands `np.array_equal` on numerical outputs
+is a strong gate when the implementation is unchanged — you get free
+verification by inheritance from a previously-verified reference.
+That same gate becomes the WRONG gate when a refactor deliberately
+changes the floating-point reduction tree (a wiring through a new
+primitive, a vectorization, a measure-based integration replacing a
+broadcast-multiply-then-flat-sum). The two implementations compute
+the same value in real arithmetic and disagree at IEEE-754 ULP because
+addition is not associative.
+
+**MUST** accept a non-bit-exact change ONLY when ALL THREE of the
+following hold. Reject if any fails.
+
+1. **The new formulation is principled at every step**, meaning each
+   intermediate is a named, inspectable quantity — not "whatever the
+   reduction order happened to produce". Per-group integrated
+   reaction rate `r_g = ∫ Σ_g φ_g dV` is principled (a reactor-physics
+   quantity); the per-cell-per-group product field `V_i Σ_(i,g)
+   φ_(i,g)` summed across all axes by `np.sum` is unprincipled (the
+   intermediate is a `(N, ng)` array no consumer ever names). Refactors
+   that move from unnamed-intermediate to named-intermediate are
+   principled even if they cost bit-identity.
+2. **The new value is verified against a structurally-independent
+   reference.** Old-vs-new ULP-distance is necessary but **NEVER**
+   sufficient — proving "the new value is close to the old value"
+   does not prove the new value is correct (both could be wrong by
+   the same systematic offset). The reference must come from a
+   different structural angle: closed-form analytical (e.g. `k_∞ =
+   νΣ_f / Σ_a` for homogeneous reflective), higher-precision
+   recomputation (`mpmath`, `float128`), MMS, or any of the three
+   pillars. If no structurally-independent reference is reachable,
+   the change is REJECTED.
+3. **The drift is FP-non-associativity, dimensionally explainable.**
+   For an iterative solver: drift bounded by `(iteration count) ×
+   (condition number) × ULP`. For a single-step computation: drift
+   bounded by `(reduction depth) × ULP`. Drift that exceeds these
+   bounds signals an algorithmic change masquerading as FP noise —
+   investigate.
+
+When all three hold, **MUST** narrow the regression contract for the
+specific touched primitive (e.g. relax `np.array_equal` →
+`assert_array_almost_equal_nulp(nulp=K)` for the affected outputs);
+preserve bit-identity elsewhere. The contract narrows in scope, gains
+a documented relaxation justified by the three criteria above, and
+stays principled. **NEVER** silently relax the contract without
+documenting all three.
+
+**Worked example (issue #169)**: `compute_keff` rewired from
+`np.sum(Σ_p · φ · V[:, None])` (single flat reduction over `(N, ng)`,
+unnamed intermediate) to `compute_group_production_rate(φ).sum()`
+(per-group rate vector intermediate, then sum over groups). The
+intermediate IS the per-group production rate — a reactor-physics
+diagnostic quantity. Verified against `k_∞ = νΣ_f/Σ_a` for the
+homogeneous reflective snapshots (analytical limit), bit-identical
+agreement at the cell-averaged-flux test. Drift on heterogeneous
+snapshots: ≤ `iteration_count × ULP`, well under the existing
+`rtol=1e-12` regression tolerance — no contract relaxation needed in
+that case. The principled refactor passed all three criteria.
+
+**Anti-pattern to flag**: an API method whose only purpose is to
+reproduce a specific legacy FP reduction tree (e.g. a `mu.total(M)`
+verb that exists because `mu(M).sum()` doesn't bit-match
+`np.sum(M * V[:, None])`). The legacy FP order is an arbitrary
+historical choice; encoding it in the API is reverse-engineering the
+abstraction to fit the implementation. Prefer composing the
+principled chain `mu(M).sum()` and accepting the FP order it produces.
+
+---
+
 ## CRITICAL: 1-group degeneracy — canonical statement
 
 **k = νΣ_f / Σ_a is flux-shape independent.** A 1-group eigenvalue

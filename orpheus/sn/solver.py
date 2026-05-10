@@ -292,16 +292,70 @@ class SNSolver:
         # Should be unreachable — __init__ validated the choice.
         raise ValueError(f"Unknown inner solver: {self.inner_solver}")
 
-    def compute_keff(self, flux_distribution: np.ndarray) -> float:
-        """k = production / absorption (volume-weighted)."""
-        vol = self.volume[:, :, None]
-        production = np.sum(self.sig_p * flux_distribution * vol)
-        # Add (n,2n) contribution — vectorized by material
+    def compute_group_production_rate(
+        self, flux_distribution: np.ndarray,
+    ) -> np.ndarray:
+        r"""Per-group volume-integrated neutron production rate, shape ``(ng,)``.
+
+        Component :math:`r_g` is
+
+        .. math::
+
+            r_g \;=\; \int_V \nu \Sigma_{f,g}(\mathbf{r})\,\phi_g(\mathbf{r})\,dV
+                       \;+\; 2 \int_V \sum_{g' } \Sigma_{2,g'\to g}(\mathbf{r})
+                                                 \,\phi_{g'}(\mathbf{r})\,dV
+
+        i.e. the per-group fission-neutron production plus the per-group
+        ``(n, 2n)`` contribution (the factor of 2 accounts for the
+        two-neutron-out yield).  Fission is integrated against
+        ``mesh.volume_measure`` (Issue 9.6 wiring); ``(n, 2n)`` runs the
+        existing per-material loop because the ``sig2`` matrices are
+        keyed on material rather than cell.
+
+        The output is the natural diagnostic intermediate for spectral
+        analysis (per-group production rates are reactor-physics-meaningful
+        quantities).  ``compute_keff`` consumes it via ``.sum()``.
+        """
+        nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
+        mu = self.sn_mesh.mesh.volume_measure
+
+        # Fission production: ∫ νΣ_f · φ dV, vectorised over groups
+        rate = mu((self.sig_p * flux_distribution).reshape(nx * ny, ng))
+
+        # (n,2n) contribution — per-material loop over sig2[mid] @ flux,
+        # tracking per outgoing group rather than collapsing as before.
         for mid, (ix, iy) in self._cells_by_mat.items():
-            n2n = flux_distribution[ix, iy, :] @ self._sig2_sum[mid]
-            production += 2.0 * np.dot(n2n, self.volume[ix, iy])
-        absorption = np.sum(self.sig_a * flux_distribution * vol)
-        return float(production / absorption)
+            n2n_cell_g = 2.0 * (flux_distribution[ix, iy, :] @ self.sig2[mid])
+            rate += np.einsum("c,cg->g", self.volume[ix, iy], n2n_cell_g)
+
+        return rate
+
+    def compute_group_absorption_rate(
+        self, flux_distribution: np.ndarray,
+    ) -> np.ndarray:
+        r"""Per-group volume-integrated absorption rate, shape ``(ng,)``.
+
+        Component :math:`a_g = \int_V \Sigma_{a,g}(\mathbf{r})\,\phi_g(\mathbf{r})\,dV`.
+
+        Volume-integrated via ``mesh.volume_measure`` (Issue 9.6 wiring).
+        The denominator of ``compute_keff`` is ``.sum()`` of this vector.
+        """
+        nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
+        mu = self.sn_mesh.mesh.volume_measure
+        return mu((self.sig_a * flux_distribution).reshape(nx * ny, ng))
+
+    def compute_keff(self, flux_distribution: np.ndarray) -> float:
+        """k = production / absorption (volume-weighted).
+
+        Composed from the per-group production and absorption rate
+        vectors so the intermediates are individually meaningful and
+        reusable (e.g. spectral diagnostics).  See
+        :meth:`compute_group_production_rate` and
+        :meth:`compute_group_absorption_rate`.
+        """
+        production = float(self.compute_group_production_rate(flux_distribution).sum())
+        absorption = float(self.compute_group_absorption_rate(flux_distribution).sum())
+        return production / absorption
 
     def converged(
         self, keff: float, keff_old: float,

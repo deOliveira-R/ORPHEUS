@@ -142,6 +142,91 @@ class TestComputeKeff:
                                    err_msg="compute_keff mismatch")
 
 
+class TestComputeGroupRates:
+    """Per-group rate methods (Issue 9.6 wiring; closes GH #169).
+
+    The methods expose principled intermediates that ``compute_keff``
+    consumes via ``.sum()``.  Tested here for shape, sum-equivalence to
+    the legacy flat-sum reference (within ``rtol=1e-13``), and the
+    homogeneous-medium analytical limit ``k_∞ = (Σ_p · φ).sum() /
+    (Σ_a · φ).sum()`` (independent reference).
+    """
+
+    def test_production_rate_shape_and_sum(self, solver_2g):
+        solver, *_ = solver_2g
+        np.random.seed(99)
+        flux = np.random.rand(solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng) + 0.1
+
+        rate_g = solver.compute_group_production_rate(flux)
+        assert rate_g.shape == (solver.ng,), "per-group rate must be (ng,)"
+
+        # Sum over groups must reproduce the legacy flat-sum production
+        # numerator (within FP-non-associativity tolerance).
+        vol = solver.volume[:, :, None]
+        ref_production = float(np.sum(solver.sig_p * flux * vol))
+        for ix in range(solver.sn_mesh.nx):
+            for iy in range(solver.sn_mesh.ny):
+                mid = int(solver.sn_mesh.mat_map[ix, iy])
+                sig2_sum = np.array(solver.sig2[mid].sum(axis=1)).ravel()
+                ref_production += 2.0 * np.dot(sig2_sum, flux[ix, iy, :]) * solver.volume[ix, iy]
+
+        np.testing.assert_allclose(float(rate_g.sum()), ref_production,
+                                   rtol=1e-13,
+                                   err_msg="group production rate sum")
+
+    def test_absorption_rate_shape_and_sum(self, solver_2g):
+        solver, *_ = solver_2g
+        np.random.seed(101)
+        flux = np.random.rand(solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng) + 0.1
+
+        rate_g = solver.compute_group_absorption_rate(flux)
+        assert rate_g.shape == (solver.ng,)
+
+        vol = solver.volume[:, :, None]
+        ref_absorption = float(np.sum(solver.sig_a * flux * vol))
+        np.testing.assert_allclose(float(rate_g.sum()), ref_absorption,
+                                   rtol=1e-13,
+                                   err_msg="group absorption rate sum")
+
+    def test_homogeneous_keff_matches_analytical_kinf(self):
+        """Independent reference: homogeneous reflective slab has k_eff = k_inf
+        regardless of FP reduction order, mesh resolution, or quadrature.
+        """
+        from orpheus.derivations.common.xs_library import get_mixture
+        from orpheus.geometry import (
+            BC, Mesh1D, Region, RegionMesh, StructuredGeometry,
+        )
+        from orpheus.sn.quadrature import GaussLegendre1D
+
+        fuel = get_mixture("A", "2g")
+        geom = StructuredGeometry(
+            geometry="SLB",
+            regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
+            bcs=(BC.reflective, BC.reflective),
+        )
+        mesh = Mesh1D.from_geometry(
+            geom, region_meshes=(RegionMesh(n_cells=20),)
+        )
+        result = solve_sn(
+            materials={0: fuel}, mesh=mesh,
+            quadrature=GaussLegendre1D.create(n_ordinates=8),
+            scattering_order=0,
+        )
+
+        # Analytical k_∞ = (Σ_p · φ_g) / (Σ_a · φ_g) — flux-shape
+        # independent in 1G but not in multi-G; here we use the
+        # iteration-converged per-group flux as the spectrum.
+        phi_g = result.scalar_flux.mean(axis=(0, 1))
+        sig_p = np.asarray(fuel.SigP)
+        sig_a = np.asarray(fuel.absorption_xs)
+        if sig_p.ndim == 2:
+            sig_p = np.diag(sig_p)
+        k_inf = float((sig_p * phi_g).sum() / (sig_a * phi_g).sum())
+
+        np.testing.assert_allclose(result.keff, k_inf, rtol=1e-12,
+                                   err_msg="homogeneous keff != k_inf")
+
+
 class TestTransportSweep:
     def test_deterministic_output(self, solver_2g):
         """Sweep with same input must produce same output."""

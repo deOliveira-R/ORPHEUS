@@ -444,11 +444,18 @@ class CPSolver:
         solver_mode: str = "jacobi",
         inner_tol: float = 1e-8,
         max_inner: int = 100,
+        *,
+        mesh: Mesh1D | None = None,
     ) -> None:
         self.P_inf = P_inf        # (N, N, ng)
         self.xs = xs
         self.volumes = volumes    # (N,)
         self.mat_ids = mat_ids
+        # Optional: full mesh for the per-group rate methods that wire
+        # through ``mesh.volume_measure`` (Issue 9.6).  When ``mesh`` is
+        # ``None``, the per-group rate methods build a DiscreteMeasure
+        # ad-hoc from ``self.volumes``.
+        self._mesh: Mesh1D | None = mesh
         self.ng = xs.sig_t.shape[1]
         self.N = xs.sig_t.shape[0]
         self.keff_tol = keff_tol
@@ -607,14 +614,74 @@ class CPSolver:
 
         return float(np.linalg.norm(collision - transported))
 
-    def compute_keff(self, flux_distribution: np.ndarray) -> float:
-        v = self.volumes[:, np.newaxis]
-        production = np.sum(self.xs.sig_p * flux_distribution * v)
+    def _volume_measure(self):
+        """Volume measure for per-group rate methods.
 
-        # Net removal = total - scattering - 2*(n,2n)
-        # This is the denominator of the eigenvalue balance:
-        #   (Σt - Σs - 2Σ₂)φV = (1/k) χ(νΣf·φ)V
-        total = np.sum(self.xs.sig_t * flux_distribution * v)
+        Prefers ``self._mesh.volume_measure`` (set when the solver is
+        constructed with the mesh, the typical path through ``solve_cp``).
+        Falls back to an ad-hoc ``DiscreteMeasure`` built from
+        ``self.volumes`` for legacy callers that constructed CPSolver
+        directly without passing the mesh.
+        """
+        if self._mesh is not None:
+            return self._mesh.volume_measure
+        from orpheus.numerics.measure import DiscreteMeasure
+        # Ad-hoc: nodes = cell indices (placeholder — only weights are used
+        # in the integration).  ``space="cells"`` flags this as a non-spatial
+        # measure built from the volumes alone.
+        return DiscreteMeasure(
+            nodes=np.arange(self.N, dtype=np.float64),
+            weights=self.volumes,
+            space="cells",
+        )
+
+    def compute_group_production_rate(
+        self, flux_distribution: np.ndarray,
+    ) -> np.ndarray:
+        r"""Per-group volume-integrated fission-neutron production rate, shape ``(ng,)``.
+
+        Component :math:`p_g = \int_V \nu \Sigma_{f,g}(\mathbf{r})\,\phi_g(\mathbf{r})\,dV`.
+
+        Volume-integrated via ``mesh.volume_measure`` (Issue 9.6 wiring).
+        Returned as the per-group rate vector — the natural diagnostic
+        intermediate (spectral production analysis, group-collapse
+        weights).  ``compute_keff`` consumes ``.sum()`` of this vector
+        as the production numerator.
+        """
+        return self._volume_measure()(self.xs.sig_p * flux_distribution)
+
+    def compute_group_total_rate(
+        self, flux_distribution: np.ndarray,
+    ) -> np.ndarray:
+        r"""Per-group volume-integrated total-collision rate, shape ``(ng,)``.
+
+        Component :math:`t_g = \int_V \Sigma_{t,g}(\mathbf{r})\,\phi_g(\mathbf{r})\,dV`.
+
+        Volume-integrated via ``mesh.volume_measure`` (Issue 9.6 wiring).
+        The eigenvalue denominator (net removal) subtracts the scattering
+        and ``(n, 2n)`` rates from this; see :meth:`compute_keff`.
+        """
+        return self._volume_measure()(self.xs.sig_t * flux_distribution)
+
+    def compute_keff(self, flux_distribution: np.ndarray) -> float:
+        r"""Eigenvalue from the volume-weighted balance.
+
+        .. math::
+
+            k = \frac{\sum_g \int \nu \Sigma_{f,g}\,\phi_g \,dV}
+                     {\sum_g \int (\Sigma_{t,g} - \Sigma_{s,g} - 2\Sigma_{2,g})\,\phi_g \,dV}
+
+        Composed from per-group rate vectors so the intermediates are
+        named, inspectable physical quantities.  See
+        :meth:`compute_group_production_rate` and
+        :meth:`compute_group_total_rate`.  Scattering and ``(n, 2n)`` are
+        kept as scalar accumulators because the per-material loop runs
+        ``self._scat_mats[mid].T @ flux[k, :]`` cell-by-cell and the
+        material-keyed structure isn't naturally a measure operation.
+        """
+        production = float(self.compute_group_production_rate(flux_distribution).sum())
+        total = float(self.compute_group_total_rate(flux_distribution).sum())
+
         scatter = 0.0
         n2n = 0.0
         for k in range(self.N):
@@ -785,6 +852,7 @@ def solve_cp(
         keff_tol=params.keff_tol, flux_tol=params.flux_tol,
         solver_mode=params.solver_mode,
         inner_tol=params.inner_tol, max_inner=params.max_inner,
+        mesh=mesh,
     )
     keff, keff_history, phi = power_iteration(solver, max_iter=params.max_outer)
 
