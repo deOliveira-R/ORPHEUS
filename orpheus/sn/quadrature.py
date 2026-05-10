@@ -51,11 +51,12 @@ factor, so it remains quadrature-agnostic.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import Protocol, runtime_checkable
 
 import numpy as np
 
-from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.measure import DiscreteMeasure, DiscreteMeasurePartition
 from orpheus.numerics.quadrature import (
     gauss_legendre_on_mu,
     lebedev_sphere,
@@ -64,6 +65,81 @@ from orpheus.numerics.quadrature import (
 )
 from orpheus.numerics.quadrature.rules_sphere import LevelStructure
 from orpheus.numerics.spherical_harmonics import evaluate_real_sh as _build_spherical_harmonics
+
+
+# Threshold below which a direction-cosine component is treated as
+# zero for octant labelling. Matches the pure-z degenerate-ordinate
+# threshold in ``orpheus.sn.sweep`` and ``orpheus.sn.spatial.diamond``
+# (``_DEGENERATE_ABS_MU_THRESHOLD``); keep in lockstep.
+_OCTANT_SIGN_EPS = 1e-15
+
+
+def _octant_sign_predicate(nodes: np.ndarray) -> np.ndarray:
+    r"""Sign-of-direction labelling predicate for octant partitioning.
+
+    Returns ``+1`` for components ``> +eps``, ``-1`` for components
+    ``< -eps``, and ``0`` for ``|component| <= eps``. The result has
+    the same shape as ``nodes`` (``(N,)`` for 1-D slab quadratures,
+    ``(N, 3)`` for spherical cubatures), so it is consumed by both
+    branches of :meth:`DiscreteMeasure.partition_by`.
+
+    Pure-axis ordinates (e.g. Lebedev's :math:`(0, 0, \pm 1)`) get a
+    partition label with one or more zero components, separating them
+    from the eight full octants — this is exactly the structure the
+    2-D wavefront sweep relies on to short-circuit the streaming step
+    for ordinates with :math:`|\mu_x| < \epsilon \wedge |\mu_y| <
+    \epsilon`.
+    """
+    out = np.zeros(nodes.shape, dtype=int)
+    out[nodes > _OCTANT_SIGN_EPS] = 1
+    out[nodes < -_OCTANT_SIGN_EPS] = -1
+    return out
+
+
+class _OctantsMixin:
+    """Mixin providing the cached :attr:`octants` partition.
+
+    Any class with a ``measure`` attribute that holds a populated
+    :class:`DiscreteMeasure` over directions inherits the lazy
+    octant-partition property. The :attr:`octants` value is cached
+    per instance — partitioning is mesh-time work, paid once.
+
+    The mixin deliberately omits a class-level ``measure: ...``
+    annotation so that ``@dataclass`` introspection on subclasses
+    does not promote it to a field.
+    """
+
+    @cached_property
+    def octants(self) -> tuple[DiscreteMeasurePartition, ...]:
+        r"""Disjoint partition of this quadrature by sign-of-direction.
+
+        Realises the direct-sum decomposition
+
+        .. math::
+
+            \mu_{S^2} \;=\; \bigoplus_{\sigma} \mu_\sigma,
+            \qquad \sigma = (\mathrm{sign}\,\mu_x,
+                              \mathrm{sign}\,\mu_y,
+                              \mathrm{sign}\,\mu_z)
+
+        on the angular cubature held in :attr:`measure`. Pure-axis
+        ordinates with ``|μ_axis| < 1e-15`` carry a ``0`` component
+        in their octant label and form their own partition entry.
+
+        Used by the 2-D wavefront sweep to lift the per-ordinate
+        loop into a per-octant outer loop with the ordinate axis
+        vectorised inside each ``apply``. See the Wave-2 plan in
+        ``.claude/plans/transient-giggling-cake.md`` and Grand Report
+        v3 §15A.2.
+        """
+        measure: DiscreteMeasure | None = self.measure  # type: ignore[attr-defined]
+        if measure is None:
+            raise RuntimeError(
+                f"Cannot partition {type(self).__name__} by octant: "
+                "this instance has no underlying DiscreteMeasure. "
+                f"Build via {type(self).__name__}.create(...) instead."
+            )
+        return measure.partition_by(_octant_sign_predicate)
 
 
 @runtime_checkable
@@ -81,6 +157,11 @@ class AngularQuadrature(Protocol):
 
     def spherical_harmonics(self, L: int) -> np.ndarray:
         """(N, L+1, 2L+1) real spherical harmonics Y[n, l, l+m]."""
+        ...
+
+    @property
+    def octants(self) -> tuple[DiscreteMeasurePartition, ...]:
+        """Disjoint partition by sign-of-direction (octant decomposition)."""
         ...
 
 
@@ -117,7 +198,7 @@ def _find_reflections(
 
 
 @dataclass
-class GaussLegendre1D:
+class GaussLegendre1D(_OctantsMixin):
     """Gauss-Legendre quadrature on [-1, 1] for 1D slab transport.
 
     Adapter over
@@ -174,7 +255,7 @@ class GaussLegendre1D:
 
 
 @dataclass
-class LebedevSphere:
+class LebedevSphere(_OctantsMixin):
     """Lebedev quadrature on the unit sphere for 2D/3D transport.
 
     Adapter over :func:`orpheus.numerics.quadrature.lebedev_sphere`.
@@ -234,7 +315,7 @@ class LebedevSphere:
 
 
 @dataclass
-class LevelSymmetricSN:
+class LevelSymmetricSN(_OctantsMixin):
     """Level-symmetric :math:`S_N` quadrature on the unit sphere.
 
     Adapter over
@@ -303,7 +384,7 @@ class LevelSymmetricSN:
 
 
 @dataclass
-class ProductQuadrature:
+class ProductQuadrature(_OctantsMixin):
     r"""Product quadrature: Gauss-Legendre :math:`(\mu)` :math:`\times`
     equispaced :math:`(\phi)`.
 
