@@ -56,9 +56,8 @@ def _realize_for_sn(bc, quad):
     Used by tests that previously called ``bc.apply(psi, quad)`` directly.
     Returns a 1-arg :class:`LinearOperator` whose ``apply(psi)`` matches
     the legacy 2-arg ``bc.apply(psi, quad)`` semantics for all rank-1
-    BCs **except** vacuum (which requires per-face inflow indices; see
-    the vacuum-equivalent special cases below that retain the legacy
-    2-arg form intentionally).
+    BCs **except** vacuum (which requires per-face inflow indices —
+    use :func:`_realize_vacuum_for_face_right` for that).
 
     Realizer-path output is bit-equivalent (or ``nulp <= 4`` at worst)
     to the legacy ``bc.apply(psi, quad)`` for non-vacuum BCs. Verified
@@ -69,27 +68,62 @@ def _realize_for_sn(bc, quad):
     return realizer.realize(bc, method_space)
 
 
+def _realize_vacuum_for_face_right(bc, quad):
+    """Realize a vacuum BC for the right face (outward normal +x).
+
+    Issue #176 / C176.2: the bare :class:`VacuumBoundaryOperator.apply`
+    returns ``np.zeros_like(psi)`` (legacy zeros-all, per Wave 7
+    Option a). The §16A.5-correct path returns
+    :class:`IncomingOrdinateMaskTensor` that zeros ONLY the inflow
+    rows. This helper supplies the per-face inflow indices a vacuum
+    realizer needs.
+
+    For a 1-D-style "right" face (outward normal :math:`+\\hat x`),
+    inflow ordinates are those with :math:`\\mu_x < -\\epsilon`
+    (:math:`\\Omega \\cdot \\hat n_{\\text{right}} = +\\mu_x < 0`).
+    """
+    inflow_indices = np.flatnonzero(quad.mu_x < -1e-12)
+    method_space = SNMethodSpace(
+        quadrature=quad, face="right", inflow_indices=inflow_indices,
+    )
+    return SNBoundaryRealizer().realize(bc, method_space)
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Foundation tests — protocol semantics on synthetic data
 # ═══════════════════════════════════════════════════════════════════════
 
 
 @pytest.mark.foundation
-def test_vacuum_bc_returns_zero() -> None:
-    """``VacuumBoundaryOperator.apply`` returns zeros exactly."""
+def test_vacuum_bc_realizer_zeros_only_inflow_per_section_16A5() -> None:
+    """Vacuum BC via the realizer zeros ONLY the inflow rows.
+
+    Issue #176 / C176.2: migrated from the legacy zeros-all
+    ``bc.apply(psi, quad)`` contract to the §16A.5-correct
+    inflow-only-mask semantics. The realizer's vacuum branch
+    returns an :class:`IncomingOrdinateMaskTensor` that zeros
+    inflow rows (where :math:`\\Omega \\cdot \\hat n < 0`) and
+    passes outflow rows through unchanged. This is the
+    production contract used by every SN sweep after Issue #188
+    (curvilinear) was wired through the realizer.
+
+    The bare :class:`VacuumBoundaryOperator.apply(psi, quad)`
+    direct call still returns the legacy zeros-all output as a
+    backward-compat fallback (documented in the BC docstring).
+    """
     quad = GaussLegendre1D.create(n_ordinates=8)
     psi_out = np.random.default_rng(0).standard_normal((quad.N, 3))
     bc = VacuumBoundaryOperator()
 
-    # Wave 10 deviation: legacy 2-arg form retained — vacuum's
-    # standalone apply tests the zeros-all contract per Wave 7
-    # (Option a); realizer path is tested separately in
-    # test_bc_equivalence_snapshot.py::TestVacuumLebedev17Snapshot::
-    # test_realizer_zeroes_only_inflow_per_section_16A5.
-    psi_in = bc.apply(psi_out, quad)
+    psi_in = _realize_vacuum_for_face_right(bc, quad).apply(psi_out)
 
     assert psi_in.shape == psi_out.shape
-    np.testing.assert_array_equal(psi_in, 0.0)
+    # Inflow rows (mu_x < 0 at the right face) zeroed.
+    inflow = np.flatnonzero(quad.mu_x < -1e-12)
+    np.testing.assert_array_equal(psi_in[inflow], 0.0)
+    # Outflow rows passed through unchanged.
+    outflow = np.flatnonzero(quad.mu_x > 1e-12)
+    np.testing.assert_array_equal(psi_in[outflow], psi_out[outflow])
 
 
 @pytest.mark.foundation
@@ -268,20 +302,34 @@ def test_albedo_bc_scales_outgoing() -> None:
 
 
 @pytest.mark.foundation
-def test_albedo_bc_zero_is_vacuum_equivalent() -> None:
-    """``AlbedoBoundaryOperator(0)`` is equivalent to ``VacuumBoundaryOperator`` value-wise."""
+def test_albedo_zero_and_vacuum_agree_on_inflow_rows() -> None:
+    """``AlbedoBoundaryOperator(0)`` and vacuum agree on inflow rows.
+
+    Issue #176 / C176.2: migrated from the legacy zeros-all
+    equivalence (both BCs returned ``np.zeros_like(psi)`` via the
+    2-arg ``apply(psi, quad)`` direct call) to the §16A.5-correct
+    inflow-rows equivalence. The realizer's ``AlbedoBoundary(0)``
+    branch returns :class:`ZeroOperator` (zeros all rows); the
+    vacuum branch returns :class:`IncomingOrdinateMaskTensor`
+    (zeros only inflow rows). The two agree on the inflow rows
+    (both zero them) — that's the production-relevant
+    equivalence for SN sweeps that read inflow only.
+    """
     quad = GaussLegendre1D.create(n_ordinates=4)
     psi_out = np.random.default_rng(7).standard_normal((quad.N, 2))
 
-    # Wave 10 deviation: legacy 2-arg form retained — vacuum's
-    # standalone apply tests the zeros-all contract per Wave 7
-    # (Option a). The realizer path returns IncomingOrdinateMaskTensor
-    # which zeroes ONLY inflow rows (§16A.5); legacy returns all-zero.
-    # Equivalence-on-inflow is tested in
-    # test_bc_equivalence_snapshot.py.
+    albedo_zero = _realize_for_sn(
+        AlbedoBoundaryOperator(albedo=0.0), quad,
+    ).apply(psi_out)
+    vacuum_realized = _realize_vacuum_for_face_right(
+        VacuumBoundaryOperator(), quad,
+    ).apply(psi_out)
+
+    inflow = np.flatnonzero(quad.mu_x < -1e-12)
+    np.testing.assert_array_equal(albedo_zero[inflow], 0.0)
+    np.testing.assert_array_equal(vacuum_realized[inflow], 0.0)
     np.testing.assert_array_equal(
-        AlbedoBoundaryOperator(albedo=0.0).apply(psi_out, quad),
-        VacuumBoundaryOperator().apply(psi_out, quad),
+        albedo_zero[inflow], vacuum_realized[inflow],
     )
 
 
