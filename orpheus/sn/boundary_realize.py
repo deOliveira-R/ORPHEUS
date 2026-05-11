@@ -1,9 +1,10 @@
-r"""Tree-walking realisation for Wave-0-composed boundary laws.
+r"""Tree-walking realisation for descriptor-tree-composed boundary laws.
 
 The :meth:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`
 method dispatches by ``isinstance(law, BoundaryTraceLaw)`` and returns
 a 1-arg :class:`~orpheus.numerics.operator.LinearOperator`. But users
-may build a boundary law by composing multiple BCs via Wave-0 algebra:
+may build a boundary law by composing multiple BCs via the
+descriptor-tree algebra:
 
 .. code-block:: python
 
@@ -12,51 +13,70 @@ may build a boundary law by composing multiple BCs via Wave-0 algebra:
         + 0.7 * WhiteBoundary(axis="x", outward_sign=+1)
     )
 
-Here ``law`` is an :class:`~orpheus.numerics.operator.OperatorSum`
-containing :class:`~orpheus.numerics.operator.ScaledOperator` wrappers
-around the leaf :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`
-instances. Passing this directly to
-:meth:`SNBoundaryRealizer.realize` raises
-:class:`~orpheus.geometry.boundary.BoundaryError` because the realiser
-does NOT dispatch on Wave-0 composers — they are not
-``BoundaryTraceLaw`` subclasses.
+Here ``law`` is a
+:class:`~orpheus.geometry.boundary._composition.LawSum` containing
+:class:`~orpheus.geometry.boundary._composition.LawScaled` wrappers
+around the leaf
+:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` instances.
+Passing this directly to :meth:`SNBoundaryRealizer.realize` raises
+because the realiser does NOT dispatch on
+:class:`LawSum` / :class:`LawScaled` — those are descriptor-tree
+composers, not laws.
 
-:func:`realize_recursively` walks the expression tree, realising each
-leaf ``BoundaryTraceLaw`` against the method space, then re-assembling
-the result through the same Wave-0 composers:
+:func:`realize_recursively` is the **type-transformer**: it walks
+the descriptor tree (whose nodes are
+``BoundaryTraceLaw | LawSum | LawScaled``) and returns an operator
+tree whose nodes are Wave-0
+:class:`~orpheus.numerics.operator.OperatorSum` /
+:class:`~orpheus.numerics.operator.ScaledOperator` composers around
+1-arg realised
+:class:`~orpheus.numerics.operator.LinearOperator` leaves:
 
 .. code-block:: python
 
     realised = realize_recursively(law, method_space)
     # realised is OperatorSum(ScaledOperator(0.3, realised_spec),
-    #                        ScaledOperator(0.7, realised_white))
+    #                         ScaledOperator(0.7, realised_white))
     # where realised_spec and realised_white are 1-arg Wave-0
     # primitives consumable by the SN sweep / Krylov path.
+
+This is the **only** place a descriptor becomes an operator. The
+§16A.3 three-layer architecture (descriptor / realizer / operator)
+is enforced by the type system: the input lives in the descriptor
+type family, the output in the operator type family, and the
+function name advertises the transformation.
 
 Wave-11 background
 ==================
 
-Pre-Wave-11, the rank-N composition was handled by a dedicated
-:class:`MixedBoundaryOperator` class whose ``apply`` delegated to the
-realiser's ``isinstance(law, MixedBoundaryOperator)`` branch (itself a
-loop computing
-``sum(coeff * realize(prim, method_space) for coeff, prim in components)``
-and reassembling via ``OperatorSum``). Wave 11 deleted that composer:
-Wave-0's :class:`~orpheus.numerics.operator.OperatorSum` /
-:class:`~orpheus.numerics.operator.ScaledOperator` algebra is sufficient,
-and the per-BC class added no value over the algebra dunders inherited
-by every :class:`BoundaryTraceLaw` via
-:class:`~orpheus.numerics.operator.LinearOperatorMixin`. This module
-houses the tree-walker that replaces the deleted recursive realiser
-branch.
+Pre-Wave-11, rank-N composition was handled by a dedicated
+``MixedBoundaryOperator`` class whose ``apply`` delegated to a
+realiser branch. Wave 11 deleted that composer, briefly replacing
+it with raw Wave-0 ``OperatorSum`` / ``ScaledOperator`` over BC
+descriptors. Issue #186 (B3 + β2) then formalised the composition
+tree as its own type family
+(:class:`~orpheus.geometry.boundary._composition.LawSum` /
+:class:`~orpheus.geometry.boundary._composition.LawScaled`) so that
+"this is a law, that is an operator" is checkable by inspection
+rather than convention.
 
-The walker recognises the Wave-0 composers in
-:mod:`orpheus.numerics.operator` (``ScaledOperator``, ``OperatorSum``,
-``OperatorProduct``, ``TensorProductOperator``,
-``SumOfTensorProductsOperator``); leaves MUST be
-:class:`BoundaryTraceLaw` instances. Unknown node types raise
-:class:`~orpheus.geometry.boundary.BoundaryError` naming the offending
-type.
+The walker dispatches on three node types only:
+
+* :class:`BoundaryTraceLaw` — leaf, dispatches to
+  :class:`SNBoundaryRealizer.realize`.
+* :class:`LawScaled` — recurse on ``inner``, wrap with
+  :class:`ScaledOperator`.
+* :class:`LawSum` — recurse on ``a`` and ``b``, reassemble with
+  :class:`OperatorSum`.
+
+Any other node raises :class:`TypeError`. In particular, Wave-0
+operator-tree composers (:class:`OperatorProduct`,
+:class:`TensorProductOperator`,
+:class:`SumOfTensorProductsOperator`) are NOT valid inputs — those
+are *operator*-tree composers, not *law*-tree composers, and they
+cannot appear in the descriptor side. Tests that previously walked
+an operator-tree with BC leaves are migrated to the new descriptor
+form in C-B3.12.
 
 Placement note
 ==============
@@ -68,33 +88,34 @@ because the only shipped functional realiser is
 generalisation (a method-agnostic walker that resolves the realiser
 via :class:`~orpheus.geometry.boundary.BoundaryRealizerRegistry`) is
 deferred until the second functional realiser (MoC, MC, CP, or
-diffusion) ships. When that happens, the walker will move to
-``orpheus.geometry.boundary.realize`` or similar.
+diffusion) ships.
 
 References
 ----------
 
-* ``.claude/plans/transient-giggling-cake.md`` Wave 11 — C11.2.
+* ``.claude/plans/bc-trace-law-descriptor-cleanup.md`` Issue #186
+  (B3 + β2) — this rewrite.
+* ``.claude/plans/transient-giggling-cake.md`` Wave 11 — C11.2
+  (the predecessor walker over Wave-0 composers).
 * Grand Report v3 §16A.3 lines 2841–2860 (realiser-as-third-layer
   motivation), §16A.10 (boundary-trace decomposition).
-* The Wave-0 operator algebra: :mod:`orpheus.numerics.operator`.
+* The Wave-0 operator algebra:
+  :mod:`orpheus.numerics.operator`.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from orpheus.geometry.boundary import BoundaryError, BoundaryTraceLaw
+from orpheus.geometry.boundary import BoundaryTraceLaw, LawScaled, LawSum
 from orpheus.numerics.operator import (
     LinearOperator,
-    OperatorProduct,
     OperatorSum,
     ScaledOperator,
-    SumOfTensorProductsOperator,
-    TensorProductOperator,
 )
 
 if TYPE_CHECKING:
+    from orpheus.geometry.boundary import LawNode
     from orpheus.sn.method_space import SNMethodSpace
 
 
@@ -102,34 +123,35 @@ __all__ = ["realize_recursively"]
 
 
 def realize_recursively(
-    op: LinearOperator | BoundaryTraceLaw,
+    node: "LawNode",
     method_space: "SNMethodSpace",
 ) -> LinearOperator:
-    r"""Realise a tree of :class:`BoundaryTraceLaw` leaves + Wave-0 composers.
+    r"""Walk a descriptor tree and realise it as a Wave-0 operator tree.
 
-    Walks the expression tree, realising every
-    :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` leaf via the
-    :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` and
-    reassembling the result through the same Wave-0 composers
-    (preserving the tree shape). Pure tree-walking — no math; the
-    structurally-independent reference for tests is the leaf
-    realisation (``SNBoundaryRealizer().realize(leaf, method_space)``)
-    plus the Wave-0 algebra of the composers, neither of which this
-    function touches.
+    The descriptor tree's leaves are
+    :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` instances;
+    internal nodes are
+    :class:`~orpheus.geometry.boundary._composition.LawSum` /
+    :class:`~orpheus.geometry.boundary._composition.LawScaled`. The
+    output tree has the same shape with
+    :class:`~orpheus.numerics.operator.OperatorSum` /
+    :class:`~orpheus.numerics.operator.ScaledOperator` composers and
+    1-arg :class:`~orpheus.numerics.operator.LinearOperator` leaves
+    (realised by
+    :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`).
+
+    This is the ONLY function that transforms a descriptor into an
+    operator. The §16A.3 three-layer split is type-checkable through
+    this signature: input in the law-type family, output in the
+    operator-type family.
 
     Parameters
     ----------
-    op : :class:`LinearOperator` or :class:`BoundaryTraceLaw`
-        The expression tree. Leaves MUST be
-        :class:`BoundaryTraceLaw` instances. Internal nodes are
-        recognised Wave-0 composers:
-        :class:`~orpheus.numerics.operator.OperatorSum`,
-        :class:`~orpheus.numerics.operator.OperatorProduct`,
-        :class:`~orpheus.numerics.operator.ScaledOperator`,
-        :class:`~orpheus.numerics.operator.TensorProductOperator`,
-        :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`.
-
-    method_space : :class:`SNMethodSpace`
+    node
+        Descriptor-tree root. Must be a
+        :class:`BoundaryTraceLaw` leaf or a :class:`LawSum` /
+        :class:`LawScaled` composer.
+    method_space
         Method space passed verbatim to
         :meth:`SNBoundaryRealizer.realize` at every leaf.
 
@@ -137,18 +159,18 @@ def realize_recursively(
     -------
     :class:`LinearOperator`
         The realised 1-arg operator with the composer structure of
-        ``op`` preserved (every leaf replaced by its realisation).
+        ``node`` preserved (every leaf replaced by its realisation).
 
     Raises
     ------
-    :class:`BoundaryError`
-        If a tree node is neither a :class:`BoundaryTraceLaw` nor one
-        of the five recognised Wave-0 composers. The error's ``law``
-        field carries the offending type's name.
+    TypeError
+        If a node is not a :class:`BoundaryTraceLaw`,
+        :class:`LawSum`, or :class:`LawScaled`. The error names the
+        offending type.
 
     Examples
     --------
-    Realise a Wave-0 ``ScaledOperator``-around-leaf::
+    Realise a scaled-leaf descriptor::
 
         >>> from orpheus.geometry.boundary import ReflectiveBoundary
         >>> from orpheus.sn.boundary_realizer import (
@@ -177,51 +199,26 @@ def realize_recursively(
     # of ``SNMethodSpace`` and the walker is itself SN-specific today.
     from orpheus.sn.boundary_realizer import SNBoundaryRealizer
 
-    if isinstance(op, BoundaryTraceLaw):
+    if isinstance(node, BoundaryTraceLaw):
         # Leaf: dispatch through the SN realiser.
-        return SNBoundaryRealizer().realize(op, method_space)
+        return SNBoundaryRealizer().realize(node, method_space)
 
-    if isinstance(op, ScaledOperator):
-        # ScaledOperator exposes ``scalar`` + ``op``. Recurse on the
-        # inner operator and wrap the result with the same scalar.
-        inner = realize_recursively(op.op, method_space)
-        return ScaledOperator(op.scalar, inner)
+    if isinstance(node, LawScaled):
+        # Recurse on the inner descriptor, wrap with ScaledOperator.
+        inner_op = realize_recursively(node.inner, method_space)
+        return ScaledOperator(node.scalar, inner_op)
 
-    if isinstance(op, OperatorSum):
-        # OperatorSum is binary: exposes ``a`` and ``b``. Recurse on
-        # each operand and reassemble via the same binary composer.
-        a = realize_recursively(op.a, method_space)
-        b = realize_recursively(op.b, method_space)
-        return OperatorSum(a, b)
+    if isinstance(node, LawSum):
+        # Recurse on both operands, reassemble via OperatorSum.
+        a_op = realize_recursively(node.a, method_space)
+        b_op = realize_recursively(node.b, method_space)
+        return OperatorSum(a_op, b_op)
 
-    if isinstance(op, OperatorProduct):
-        # OperatorProduct is binary: exposes ``a`` and ``b``.
-        a = realize_recursively(op.a, method_space)
-        b = realize_recursively(op.b, method_space)
-        return OperatorProduct(a, b)
-
-    if isinstance(op, TensorProductOperator):
-        # TensorProductOperator exposes ``ops`` (tuple of factors).
-        ops = tuple(realize_recursively(o, method_space) for o in op.ops)
-        return TensorProductOperator(ops)
-
-    if isinstance(op, SumOfTensorProductsOperator):
-        # SumOfTensorProductsOperator exposes ``summands`` (tuple of
-        # TensorProductOperator instances). Each summand IS a
-        # TensorProductOperator (constructor enforces this); recursive
-        # realisation of a TensorProductOperator returns a
-        # TensorProductOperator (per the branch above), so the result
-        # remains a valid SumOfTensorProductsOperator.
-        summands = tuple(
-            realize_recursively(s, method_space) for s in op.summands
-        )
-        return SumOfTensorProductsOperator(summands)
-
-    raise BoundaryError(
-        f"realize_recursively cannot handle node of type "
-        f"{type(op).__name__}. Expected BoundaryTraceLaw (leaf) or a "
-        f"recognised Wave-0 composer (OperatorSum, OperatorProduct, "
-        f"ScaledOperator, TensorProductOperator, "
-        f"SumOfTensorProductsOperator).",
-        law=type(op).__name__,
+    raise TypeError(
+        f"realize_recursively expected BoundaryTraceLaw | LawSum | "
+        f"LawScaled (the descriptor-tree type family), got "
+        f"{type(node).__name__}. Operator-tree composers (e.g. "
+        f"OperatorProduct, TensorProductOperator) are not valid "
+        f"inputs — realize each descriptor first, then compose the "
+        f"results via Wave-0 operator algebra."
     )
