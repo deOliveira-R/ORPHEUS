@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **3402**
+Total tests collected: **3406**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 900, 26.5%
-   L1, 837, 24.6%
+   L0, 899, 26.4%
+   L1, 830, 24.4%
    L2, 36, 1.1%
    L3, 0, 0.0%
-   foundation, 1601, 47.1%
+   foundation, 1613, 47.4%
    unmarked, 28, 0.8%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 3295
+   explicit, 3299
    verify, 0
    class-name, 46
    func-name, 0
@@ -158,13 +158,14 @@ Module × level grid
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
-   geometry/test_bc_equivalence_snapshot, 0, 15, 0, 0, 0, 0
+   geometry/test_bc_equivalence_snapshot, 0, 8, 0, 0, 0, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 30, 0, 0, 11, 0
    geometry/test_bound_compat, 10, 0, 0, 0, 0, 0
    geometry/test_boundary, 0, 0, 0, 0, 24, 0
-   geometry/test_boundary_trace_law, 0, 0, 0, 0, 16, 0
+   geometry/test_boundary_trace_law, 0, 0, 0, 0, 15, 0
    geometry/test_geometry, 0, 0, 0, 0, 55, 0
+   geometry/test_law_composition, 0, 2, 0, 0, 16, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_reduced_operator, 0, 0, 0, 0, 49, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
@@ -191,9 +192,9 @@ Module × level grid
    numerics/test_iteration, 0, 1, 0, 0, 10, 0
    numerics/test_measure, 0, 16, 0, 0, 32, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
-   numerics/test_operator, 0, 0, 0, 0, 55, 0
+   numerics/test_operator, 0, 0, 0, 0, 60, 0
    numerics/test_periodic_wrap_operator, 5, 0, 0, 0, 0, 0
-   numerics/test_permutation_operator, 9, 1, 0, 0, 0, 0
+   numerics/test_permutation_operator, 9, 2, 0, 0, 0, 0
    numerics/test_projection_operators, 16, 6, 0, 0, 0, 0
    numerics/test_registry, 0, 0, 0, 0, 37, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
@@ -207,9 +208,8 @@ Module × level grid
    numerics/test_trace_space, 13, 7, 0, 0, 0, 0
    regression/test_dd_regression, 0, 0, 0, 0, 0, 11
    sn/test_2d_octant_sweep_equivalence, 0, 7, 0, 0, 0, 0
-   sn/test_angular_average_operator, 13, 4, 0, 0, 0, 0
+   sn/test_angular_average_operator, 12, 4, 0, 0, 0, 0
    sn/test_boundary_conditions, 0, 0, 0, 0, 0, 11
-   sn/test_boundary_realize, 0, 3, 0, 0, 8, 0
    sn/test_cartesian, 1, 6, 0, 0, 0, 0
    sn/test_cell_update_batch, 10, 0, 0, 0, 0, 0
    sn/test_cylindrical, 4, 10, 11, 0, 0, 0
@@ -491,9 +491,10 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **29** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **30** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
+- ``bc-rank-n-tensor-decomposition``
 - ``bc-tensor-decomposition``
 - ``billiard-rank2-S``
 - ``billiard-rank2-T``

@@ -41,11 +41,21 @@ Key Facts
   +-------+-----------------------+---------------------------------------------+
 
 - Rank-N boundary conditions (Marshak, partial-current mixes) are
-  expressed via Wave-0 operator algebra over realized leaves:
-  ``0.3 * spec_realized + 0.7 * white_realized`` produces an
-  :class:`~orpheus.numerics.operator.OperatorSum` of
-  :class:`~orpheus.numerics.operator.ScaledOperator` wrappers. There
-  is no dedicated ``MixedBoundaryOperator`` class (retired Wave 11).
+  expressed via a **descriptor-tree algebra** on the unrealised laws
+  themselves. The :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`
+  algebra dunders (``+``, ``-``, ``*``, ``/``, unary ``-``) return
+  :class:`~orpheus.geometry.boundary.LawSum` /
+  :class:`~orpheus.geometry.boundary.LawScaled` nodes — a closed
+  algebra over ``BoundaryTraceLaw | LawSum | LawScaled``. The tree is
+  a **pure descriptor** with no ``apply`` method; the
+  :func:`~orpheus.sn.boundary_realize.realize_recursively` type
+  transformer walks it once per face and emits an operator tree of
+  :class:`~orpheus.numerics.operator.OperatorSum` /
+  :class:`~orpheus.numerics.operator.ScaledOperator` composers around
+  realised 1-arg leaves. See :ref:`bc-trace-law-descriptor-model` and
+  :ref:`bc-rank-n-algebra`. There is no dedicated
+  ``MixedBoundaryOperator`` class (retired Wave 11); there is also no
+  ``apply`` method on the raw law (retired Issue #186, B3 + β2).
 - The :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` is the
   **only** functional realizer today. ``MoCBoundaryRealizer``,
   ``MCBoundaryRealizer``, ``CPBoundaryRealizer``, and
@@ -68,22 +78,21 @@ Key Facts
   pre-refactor generic :class:`ValueError` raises; every one is
   pinned by a ``@pytest.mark.catches("ERR-NNN")`` decorator on the
   test that fires it.
-- **Vacuum semantic correction (§16A.5).** ``VacuumInflow`` realizes
+- **Vacuum semantic correction (§16A.5).** ``VacuumInflow`` realises
   to :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`,
-  which zeros **only the inflow ordinates** and preserves the
+  which zeroes **only the inflow ordinates** and preserves the
   outflow trace. The pre-refactor ``VacuumBoundaryOperator.apply``
-  used ``np.zeros_like(psi_out)`` and zeroed everything. Both are
-  consistent at every existing production call site (audit in
-  Wave 8 closeout — all 13 reads inflow rows only), but the
-  §16A.10 inflow-only mask is the trace-correct representation.
-  **Post Issue #188 + #176 (2026-05-11)** the realizer-routed
-  inflow-only mask is uniform across every supported mesh (1-D
-  Cartesian / spherical / cylindrical + 2-D Cartesian); the legacy
-  zeros-all body survives only as the backward-compat fallback on
-  the direct ``VacuumInflow.apply(psi_out)`` call path (no
-  per-face inflow indices available without a realizer pass).
-  The two paths agree on the inflow rows (the production-relevant
-  subset for SN sweeps); they diverge on the outflow rows.
+  used ``np.zeros_like(psi_out)`` and zeroed everything; the §16A.10
+  inflow-only mask is the trace-correct representation.
+  **Post Issue #186 (2026-05-11)** the realizer-routed
+  inflow-only mask is the **sole** path to vacuum action — the
+  zeros-all body has been deleted along with every other
+  :meth:`apply` method on every concrete BC. The §16A.5
+  two-paths-divergence is therefore eliminated by design (no
+  second path remains). The realizer-routed mask is uniform across
+  every supported mesh (1-D Cartesian / spherical / cylindrical +
+  2-D Cartesian) since Issue #188 lifted the curvilinear
+  :class:`InflowTraceSpace` deferral.
 
 .. admonition:: V&V status
 
@@ -96,11 +105,17 @@ Key Facts
      (:mod:`tests.numerics`,
      :mod:`tests.geometry.test_boundary_trace_law`,
      :mod:`tests.geometry.test_bc_errors`).
-   - L1 equivalence-snapshot tests (the Wave-6 harness at
-     :mod:`tests.geometry.test_bc_equivalence_snapshot`) that pin
-     realizer-vs-legacy bit-equivalence (``nulp ≤ 4`` for non-vacuum
-     BCs; intentional semantic divergence for vacuum per §16A.5
-     above).
+   - L1 realiser-output snapshot tests (the Wave-6 harness at
+     :mod:`tests.geometry.test_bc_equivalence_snapshot`, with the
+     legacy halves dropped post Issue #186 / C-B3.7). The
+     surviving ``test_realizer_*`` halves pin the realised-operator
+     output against committed ``.npz`` snapshots at ``nulp ≤ 4``
+     for non-vacuum BCs (intentional semantic capture of the
+     §16A.5 inflow-only mask for vacuum).
+   - L1 descriptor-tree algebra tests
+     (:mod:`tests.geometry.test_law_composition`) pinning the
+     :class:`LawSum` / :class:`LawScaled` closed-algebra contract
+     (18 tests: foundation + L1 coverage).
    - L1 universal-invariant tests
      (:mod:`tests.geometry.test_bc_universal_invariants`) that fire
      ERR-043 / ERR-044 / ERR-046 under fault-injection.
@@ -383,17 +398,21 @@ The ABC ships:
 4. A :meth:`realize` hook that defers to the
    :class:`~orpheus.geometry.boundary.BoundaryRealizerRegistry` —
    see :ref:`bc-realizer-layer-detail`.
-5. An abstract :meth:`apply` whose canonical signature is strict
-   1-arg ``apply(self, psi_out) -> np.ndarray`` (Issue #176 /
-   C176.4). The pre-#176 ``(psi_out, *args, **kwargs)`` form was a
-   transitional contract that bridged the curvilinear bypass; the
-   bypass is gone after Issue #188 so the abstract is now strict.
-   The six concrete laws adopt **Option A**: an additional
-   ``quadrature: AngularQuadrature | None = None`` parameter,
-   keyword- and positionally-optional. Liskov substitutability
-   holds because the optional parameter has a default; see
-   :ref:`bc-option-a-signatures` for the design rationale and the
-   per-BC behaviour table.
+5. **No ``apply`` method at all** (Issue #186 / B3 + β2,
+   2026-05-11). The descriptor model that survived the C176.3
+   Option A interim was retired in favour of a pure-descriptor
+   contract: :class:`BoundaryTraceLaw` is no longer a
+   :class:`~orpheus.numerics.operator.LinearOperatorMixin` subclass,
+   no concrete law carries ``apply`` / ``apply_transpose``
+   methods, and no ``capabilities`` ``ClassVar`` is defined.
+   The §16A.3 three-layer split (descriptor / realizer / operator)
+   is now enforced by the **type system**, not by convention —
+   ``law.apply(psi)`` on a raw law is an ``AttributeError`` at
+   runtime and a static-type error at the linter level. The
+   :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` is the
+   sole bridge from descriptor to callable; see
+   :ref:`bc-trace-law-descriptor-model` for the design rationale
+   and the predecessor approaches that were tried and rejected.
 
 The six concrete laws ship under :mod:`orpheus.geometry.boundary`,
 one per submodule. The Grand Report v3 vocabulary is used verbatim
@@ -450,8 +469,12 @@ aliases in the package ``__init__`` (see :ref:`bc-naming-audit`).
 Two are rank-1 in space (periodic), four are rank-1 in angle
 (reflective, white, albedo) and write the same incoming flux to
 every inflow ordinate; one is rank-0 (vacuum / prescribed inflow);
-and Marshak / partial-current boundaries are rank-N via Wave-0
-algebra over realized leaves — see :ref:`bc-rank-n-algebra` below.
+and Marshak / partial-current boundaries are rank-N via the
+**descriptor-tree algebra** on the unrealised laws (:class:`LawSum`
+/ :class:`LawScaled` over :class:`BoundaryTraceLaw` leaves) —
+realised once per face by
+:func:`~orpheus.sn.boundary_realize.realize_recursively`. See
+:ref:`bc-rank-n-algebra` below.
 
 
 .. _bc-naming-audit:
@@ -501,9 +524,11 @@ during the deprecation window:
      - Same rationale.
    * - ``MixedBoundaryOperator``
      - **retired Wave 11** — see :ref:`bc-rank-n-algebra`.
-     - Replaced by Wave-0 ``OperatorSum`` algebra over realized
-       leaves; the dedicated class added no value over the
-       inherited dunders.
+     - Replaced by the descriptor-tree algebra
+       (:class:`LawSum` / :class:`LawScaled` over
+       :class:`BoundaryTraceLaw` leaves; Issue #186 / B3 + β2);
+       the dedicated class added no value over the inherited
+       algebra dunders.
 
 
 .. _bc-sweep-cycle:
@@ -886,9 +911,9 @@ Step 5 — wrap with a kind tag
 
 Every ``SNMesh.bc_*`` attribute carries a uniform 1-arg
 ``apply(psi)`` contract (Wave 9 migrated 13 production sites from
-2-arg to 1-arg). Post Issue #176 / C176.1 the
+2-arg to 1-arg). Post Issue #186 / C-B3.4 the
 :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
-shim is a thin **1-arg passthrough** that adds three pieces of
+shim is a **strict 1-arg passthrough** that adds two pieces of
 metadata to the realized operator:
 
 * a free-form ``kind`` string tag carrying the originating
@@ -897,14 +922,17 @@ metadata to the realized operator:
   ``sn_mesh.bc_left == "vacuum"`` string-equality surface that
   several legacy SN tests and the BC-resolution diagnostic rely
   on;
-* a silent-ignore of any extra positional / keyword args passed
-  to ``apply`` / ``apply_transpose`` — accommodates the small
-  number of legacy ``bc.apply(psi, quad)`` test sites that have
-  not migrated to the realizer-routed 1-arg form (production
-  consumers were all migrated in Waves 8–9);
 * :meth:`capabilities` delegation to the wrapped inner operator
   so consumers composing the shim with other Wave-0 primitives
   inherit the right feature set.
+
+The shim's ``apply`` / ``apply_transpose`` signatures are strict
+1-arg ``(self, psi)`` — extra positional or keyword arguments
+raise :class:`TypeError`. The pre-Issue-#186 affordance that
+swallowed ``*_extra, **_kw`` was the last remnant of the 2-arg
+legacy era; it was dropped in C-B3.4 alongside the descriptor
+cleanup because every production and test call site is now
+strict 1-arg.
 
 .. code-block:: python
 
@@ -915,18 +943,23 @@ metadata to the realized operator:
 The shim is **internal** to the package (not in :attr:`__all__`)
 — a test pins its private status.
 
-**Historical note (pre Issue #176).** The Wave-8/9 implementation
-carried an optional ``quadrature=`` kwarg that, when non-``None``,
-bound an :class:`~orpheus.sn.quadrature.AngularQuadrature` and
-forwarded ``inner.apply(psi, bound_quad)`` to a legacy 2-arg
+**Historical note (pre Issue #176 / #186).** The Wave-8/9
+implementation carried an optional ``quadrature=`` kwarg that,
+when non-``None``, bound an
+:class:`~orpheus.sn.quadrature.AngularQuadrature` and forwarded
+``inner.apply(psi, bound_quad)`` to a legacy 2-arg
 :class:`BoundaryTraceLaw` body. That dual-mode existed ONLY
 because :meth:`InflowTraceSpace.from_mesh_and_quadrature` raised
 :class:`NotImplementedError` for curvilinear ``Mesh1D``, which
 forced :meth:`SNMesh._resolve_one` to bypass the realizer for
 spherical / cylindrical meshes. Issue #188 lifted that
-deferral; Issue #176 then dropped the bound-quadrature mode here
-because no production-issued shim carried
-``_quadrature is not None`` after C188.3.
+deferral; Issue #176 (C176.1) dropped the bound-quadrature mode
+here because no production-issued shim carried
+``_quadrature is not None`` after C188.3. Issue #186 (C-B3.4)
+then dropped the residual ``*_extra, **_kw`` argument-swallow
+because, with concrete-BC ``apply`` methods retired and all
+production / test sites strict 1-arg, the defensive net was
+dead code.
 
 Step 6 — consumption by the sweep
 ---------------------------------
@@ -1115,16 +1148,35 @@ typed subclass to recover the offending law name from
 
 .. _bc-rank-n-algebra:
 
-Wave-0 algebra for rank-N boundaries
-====================================
+Descriptor-tree algebra for rank-N boundaries
+=============================================
 
 Rank-N (Marshak, partial-current) boundary conditions are
-**not** a special class. They are expressed via the
-:class:`~orpheus.numerics.operator.OperatorSum` /
-:class:`~orpheus.numerics.operator.ScaledOperator` algebra
-that :class:`~orpheus.numerics.operator.LinearOperatorMixin`
-provides to every :class:`BoundaryTraceLaw` subclass through
-operator dunders (``+``, ``-``, ``*``).
+**not** a special class. They are expressed via a closed
+**descriptor-tree algebra** over
+``BoundaryTraceLaw | LawSum | LawScaled`` nodes — pure
+declarative structure with **no** ``apply`` method on any node.
+The :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` algebra
+dunders (``+``, ``-``, ``*``, ``/``, unary ``-``) return
+:class:`~orpheus.geometry.boundary.LawSum` /
+:class:`~orpheus.geometry.boundary.LawScaled` instances, never
+operators. The :func:`~orpheus.sn.boundary_realize.realize_recursively`
+type transformer is the **sole** path from descriptor tree to
+operator tree.
+
+The §15.2 sum-of-tensor-products form
+
+.. math::
+   :label: bc-rank-n-tensor-decomposition
+
+   R \;=\; \sum_{\alpha} c_{\alpha}\, G_{\alpha},
+   \qquad c_{\alpha} \in \mathbb{R},
+   \quad G_{\alpha} \in
+   \{\text{permutation, average, mask, wrap, identity, source}\},
+
+maps onto the LawXxx algebra as ``c1 * law_1 + c2 * law_2 + ...``,
+where each ``c_i * law_i`` term is a :class:`LawScaled` node and
+the sum is a :class:`LawSum` node.
 
 The standard Marshak boundary (Bell & Glasstone 1970 §1.5) — a
 mix of specular reflection (weight :math:`c_1`) and diffuse
@@ -1133,128 +1185,238 @@ white reflection (weight :math:`c_2`) — is:
 .. code-block:: python
 
    from orpheus.geometry.boundary import (
+       LawScaled, LawSum,
        ReflectiveBoundary, WhiteBoundary,
    )
-   from orpheus.sn.boundary_realizer import (
-       SNBoundaryRealizer, SNMethodSpace,
-   )
+   from orpheus.sn.boundary_realize import realize_recursively
+   from orpheus.sn.boundary_realizer import SNMethodSpace
 
-   # Realize each leaf against the SN method space.
+   # Build the descriptor tree — no realization yet.
+   spec = ReflectiveBoundary(axis="x", albedo=1.0)
+   white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
+   marshak_law = 0.3 * spec + 0.7 * white
+   # marshak_law is:
+   #   LawSum(
+   #       LawScaled(0.3, ReflectiveBoundary(axis="x", albedo=1.0)),
+   #       LawScaled(0.7, WhiteBoundary(axis="x", outward_sign=+1,
+   #                                    albedo=1.0)),
+   #   )
+   # NOT callable — no .apply method on LawSum or its children.
+   assert not hasattr(marshak_law, "apply")
+
+   # Realize the tree at one face. realize_recursively walks
+   # LawSum / LawScaled / leaf-law nodes and emits the matching
+   # Wave-0 operator-tree composers around realized 1-arg leaves.
    ms = SNMethodSpace.for_face(...)
-   spec_realized = SNBoundaryRealizer().realize(
-       ReflectiveBoundary(axis="x"), ms,
-   )
-   white_realized = SNBoundaryRealizer().realize(
-       WhiteBoundary(axis="x", outward_sign=+1), ms,
-   )
+   marshak_op = realize_recursively(marshak_law, ms)
+   # marshak_op is:
+   #   OperatorSum(
+   #       ScaledOperator(0.3, PermutationOperator(...)),
+   #       ScaledOperator(0.7, AngularAverageOperator(...))
+   #   )
+   psi_in = marshak_op.apply(psi_out)   # 1-arg LinearOperator
 
-   # Wave-0 algebra over realized leaves.
-   marshak = 0.3 * spec_realized + 0.7 * white_realized
-   # marshak is OperatorSum(
-   #     ScaledOperator(0.3, PermutationOperator(...)),
-   #     ScaledOperator(0.7, AngularAverageOperator(...))
-   # )
-
-The result is a Wave-0
+The output is a Wave-0
 :class:`~orpheus.numerics.operator.OperatorSum` of
 :class:`~orpheus.numerics.operator.ScaledOperator`-wrapped Wave-0
-primitives, consumable directly by the SN sweep / Krylov path
-via its 1-arg :meth:`apply`.
+primitives, consumable by the SN sweep / Krylov path via the
+uniform 1-arg :meth:`apply`. The descriptor-tree algebra and the
+operator-tree algebra are **separate type families**: the
+descriptor tree is built with ``LawXxx`` nodes that have **no**
+``apply``; the operator tree is built with ``OperatorXxx`` nodes
+that **do** have ``apply``. The two families never inter-compose —
+mixing a :class:`LawNode` with an already-realized
+:class:`~orpheus.numerics.operator.LinearOperator` via ``+`` is a
+type error; the user MUST call :func:`realize_recursively` first.
 
-The pre-refactor implementation
----------------------------------
+Closed-algebra guarantees
+-------------------------
 
-The pre-Wave-11 code carried a dedicated
-``MixedBoundaryOperator(components: list[tuple[float,
-BoundaryOperator]])`` class whose :meth:`apply` body looped over
-``components`` and summed ``coeff * primitive.apply(psi, quad)``.
-The SN realizer dispatched on it via an
-``isinstance(law, MixedBoundaryOperator)`` branch that ran the same
-loop with ``coeff * realize(primitive, ms)`` summed via
-:class:`OperatorSum`.
+* **Constant folding on scalars.**
+  ``LawScaled(α, LawScaled(β, x))`` collapses to
+  ``LawScaled(α * β, x)`` at construction time. The intermediate
+  ``LawScaled`` nesting never appears at rest, which keeps the tree
+  shallow under repeated scalar multiplication.
+* **No associativity flattening on sums.** ``(a + b) + c`` is
+  :class:`LawSum(LawSum(a, b), c)`, distinct from
+  :class:`LawSum(a, LawSum(b, c))`. The walker treats both shapes
+  identically — the realized output is the same Wave-0 operator
+  algebra value up to floating-point non-associativity in the
+  final sum.
+* **Subtraction rewrites via :class:`LawScaled(-1, ...)`.** The
+  unary ``-`` operator and the binary ``-`` operator both produce
+  trees containing only :class:`LawSum` / :class:`LawScaled`
+  nodes — there is no dedicated ``LawDifference`` type.
+* **Division rewrites via :class:`LawScaled(1/α, ...)`.** Pure
+  syntactic sugar for ``LawScaled(α, ...).__truediv__``.
 
-Wave 11 deleted this code because:
+The pre-refactor implementations
+--------------------------------
 
-1. **Closure-by-inheritance.** Every
-   :class:`BoundaryTraceLaw` already inherits ``+`` /
-   ``__rmul__`` from
-   :class:`~orpheus.numerics.operator.LinearOperatorMixin`. Writing
-   ``0.3 * spec + 0.7 * white`` directly produces the same
-   :class:`OperatorSum` shape — no extra class needed.
-2. **The class added no semantic value.** The pre-refactor
-   ``MixedBoundaryOperator`` was a *container* that delayed the
-   realization until ``apply`` time. After the realizer split
-   that delay no longer fit: every BC must be realized *before*
-   the SN sweep starts (the resolved operator carries the
-   per-face inflow indices, which the bare law has no access to).
-3. **Structural simplicity.** The pre-refactor mixed-BC class
-   carried its own ``apply`` body, ``apply_transpose`` body,
-   registry entry, and the SN realizer's special branch. Wave 11
-   deleted ~340 lines (the class + the dispatch branch + four
-   class-specific tests) and added ~210 lines for the
-   :func:`~orpheus.sn.boundary_realize.realize_recursively`
-   walker that handles the **general** case of any Wave-0
-   composer tree (not just rank-N sums).
+Two prior approaches converged on the present descriptor-tree
+design through empirical falsification:
 
-The Wave 6 snapshot harness verified that the bit-identity of the
-Marshak case (``0.3 * specular + 0.7 * white``) is **preserved** by
-the Wave 11 transition: the realized
-``OperatorSum(ScaledOperator, ScaledOperator)`` produces the same
-floating-point output as the deleted ``MixedBoundaryOperator.apply``
-because the reduction tree is identical.
+**Wave 11 (~2026-03)** — ``MixedBoundaryOperator(components:
+list[tuple[float, BoundaryOperator]])`` class whose
+:meth:`apply` body looped over ``components`` and summed
+``coeff * primitive.apply(psi, quad)``. The SN realizer
+dispatched on it via an ``isinstance(law, MixedBoundaryOperator)``
+branch that ran the same loop with
+``coeff * realize(primitive, ms)`` summed via
+:class:`OperatorSum`. Wave 11 deleted this code because the
+delayed-realization-by-container pattern broke down once vacuum
+needed per-face inflow indices that the bare-law container had
+no access to.
+
+**β1 interim landing (Issue #186 / B3, ~2026-04)** — every
+:class:`BoundaryTraceLaw` inherited the Wave-0 operator-algebra
+dunders from :class:`~orpheus.numerics.operator.LinearOperatorMixin`,
+so writing ``0.3 * spec + 0.7 * white`` directly produced an
+:class:`OperatorSum` of :class:`ScaledOperator`-wrapped raw
+:class:`BoundaryTraceLaw` leaves (NOT realized). The
+:func:`realize_recursively` walker then traversed the Wave-0
+composer tree, realized each leaf, and emitted a parallel
+operator tree. This achieved the right algebraic shape but
+**violated the type system**: the resulting tree was an
+:class:`OperatorSum` instance (a :class:`LinearOperator`!) whose
+:meth:`apply` could not actually be called before realization —
+calling it raised :class:`BoundaryError` at apply-time because the
+leaves were laws, not operators. The convention "you must realize
+this OperatorSum before calling apply" was a runtime contract that
+the type system did nothing to enforce. β1 retained the
+ergonomic of "the same ``+`` operator before and after
+realization" but at the cost of conflating two type families.
+
+**β2 (this scope, Issue #186 / B3 + β2)** — separates the two
+type families explicitly: :class:`LawSum` / :class:`LawScaled` for
+the descriptor tree (no :meth:`apply`); :class:`OperatorSum` /
+:class:`ScaledOperator` for the operator tree (with
+:meth:`apply`). The static type system enforces "you cannot call
+this until it's realized" — :class:`LawSum` has no :meth:`apply`
+method on the class, so the linter flags ``tree.apply(...)``
+without running the program. The ergonomic of "the same ``+``"
+survives because both the law-tree and the operator-tree use the
+same Python ``+`` syntax; the runtime dispatch on type tells the
+reader (and the type checker) which algebra is in effect.
+
+The Wave 6 snapshot harness verifies that the bit-identity of the
+Marshak case ``0.3 * spec + 0.7 * white`` is **preserved** by the
+β2 transition: the realized
+``OperatorSum(ScaledOperator, ScaledOperator)`` reduction tree
+matches the β1-era output to the same ULP tolerance, because the
+operator-tree shape after :func:`realize_recursively` is
+algebraically identical.
 
 
 .. _bc-realize-recursively:
 
-The ``realize_recursively`` walker
-==================================
+The ``realize_recursively`` walker — a descriptor → operator type transformer
+=============================================================================
 
-Users may want to build a boundary law as an expression tree:
+:func:`~orpheus.sn.boundary_realize.realize_recursively` is the
+**type transformer** from the descriptor-tree algebra
+(``BoundaryTraceLaw | LawSum | LawScaled``) to the operator-tree
+algebra (``LinearOperator`` with
+:class:`~orpheus.numerics.operator.OperatorSum` /
+:class:`~orpheus.numerics.operator.ScaledOperator` composers
+around realized 1-arg leaves). Calling it is the **only** path
+from a non-callable descriptor to a callable operator.
+
+The dispatch is exhaustive on the descriptor-tree node types:
 
 .. code-block:: python
 
+   def realize_recursively(
+       node: BoundaryTraceLaw | LawSum | LawScaled,
+       method_space: SNMethodSpace,
+   ) -> LinearOperator:
+       if isinstance(node, BoundaryTraceLaw):
+           # Leaf: realize via the SN realizer registry.
+           return SNBoundaryRealizer().realize(node, method_space)
+       if isinstance(node, LawScaled):
+           # Scalar-times-law: wrap the realized inner in ScaledOperator.
+           inner_op = realize_recursively(node.inner, method_space)
+           return ScaledOperator(node.scalar, inner_op)
+       if isinstance(node, LawSum):
+           # Sum: realize each side, wrap in OperatorSum.
+           a_op = realize_recursively(node.a, method_space)
+           b_op = realize_recursively(node.b, method_space)
+           return OperatorSum(a_op, b_op)
+       raise TypeError(
+           f"realize_recursively expected BoundaryTraceLaw | LawSum | "
+           f"LawScaled, got {type(node).__name__}."
+       )
+
+Usage on the descriptor tree:
+
+.. code-block:: python
+
+   from orpheus.geometry.boundary import (
+       ReflectiveBoundary, WhiteBoundary,
+   )
+   from orpheus.sn.boundary_realize import realize_recursively
+
+   # Build the descriptor tree.
    law = (
        0.3 * ReflectiveBoundary(axis="x")
        + 0.7 * WhiteBoundary(axis="x", outward_sign=+1)
    )
+   # law is LawSum(LawScaled(0.3, ...), LawScaled(0.7, ...)).
 
-Note: the multiplication is *before* realization. ``law`` is an
-:class:`OperatorSum` containing :class:`ScaledOperator` wrappers
-around the **leaf** :class:`BoundaryTraceLaw` instances — neither
-of those is itself a :class:`BoundaryTraceLaw`, so passing this
-``law`` directly to :meth:`SNBoundaryRealizer.realize` would raise
-:class:`BoundaryError`.
-
-:func:`~orpheus.sn.boundary_realize.realize_recursively` walks the
-expression tree, realizing every :class:`BoundaryTraceLaw` leaf
-via the SN realizer and reassembling the result through the same
-Wave-0 composers:
-
-.. code-block:: python
-
-   from orpheus.sn.boundary_realize import realize_recursively
-
+   # Realize once, at face resolution time.
    realized = realize_recursively(law, method_space)
    # realized is:
    #   OperatorSum(
    #       ScaledOperator(0.3, PermutationOperator(...)),
    #       ScaledOperator(0.7, AngularAverageOperator(...)),
    #   )
+   psi_in = realized.apply(psi_out)   # 1-arg LinearOperator
 
-The walker recognizes the five Wave-0 composers
-(:class:`OperatorSum`, :class:`OperatorProduct`,
-:class:`ScaledOperator`, :class:`TensorProductOperator`,
-:class:`SumOfTensorProductsOperator`); leaves must be
-:class:`BoundaryTraceLaw` instances. Unknown node types raise
-:class:`BoundaryError` with the offending type in
-:attr:`law` so the failure is debuggable.
+Type-system contract
+--------------------
+
+The walker's input is intentionally narrow:
+
+* :class:`BoundaryTraceLaw` instances and the two descriptor-tree
+  composer dataclasses (:class:`LawSum`, :class:`LawScaled`) are
+  the only valid node shapes.
+* Wave-0 operator-tree composers
+  (:class:`~orpheus.numerics.operator.OperatorProduct`,
+  :class:`~orpheus.numerics.operator.TensorProductOperator`,
+  :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`,
+  :class:`~orpheus.numerics.operator.OperatorSum`,
+  :class:`~orpheus.numerics.operator.ScaledOperator`) are **not**
+  recognized — they belong to the operator tree, not the
+  descriptor tree, so they should never appear in the realizer's
+  input.
+* Unknown nodes raise :class:`TypeError` (not
+  :class:`BoundaryError`) with the offending type name in the
+  message, because this is a **typing** failure (caller passed
+  the wrong kind of object), not a BC-domain failure.
+
+The β1 → β2 transition (see :ref:`bc-rank-n-algebra`) sharpened
+the walker's type signature from "any Wave-0 composer tree with
+:class:`BoundaryTraceLaw` leaves" to "any descriptor-tree node".
+The dispatch table shrank from five Wave-0 composers + leaf to
+three descriptor types + leaf (counting the leaf as the same
+:class:`BoundaryTraceLaw` branch). The eliminated branches
+(:class:`OperatorProduct`, :class:`TensorProductOperator`,
+:class:`SumOfTensorProductsOperator`) handle operator composition
+patterns that have no descriptor-tree analog — they were dead
+dispatch paths once :class:`LawSum` / :class:`LawScaled` replaced
+the in-tree Wave-0 algebra. Removing them clarified the walker's
+role: it is **exactly** the type transformer between the two
+algebras, nothing more.
 
 Per the "Unify after two instances" architectural rule, the walker
 currently lives at :mod:`orpheus.sn.boundary_realize` —
 SN-specific. When a second functional realizer ships, the walker
 will move to ``orpheus.geometry.boundary.realize`` and become
 method-agnostic via
-:meth:`BoundaryRealizerRegistry.get(method_name)` lookup.
+:meth:`BoundaryRealizerRegistry.get(method_name)` lookup. The leaf
+dispatch (:class:`BoundaryTraceLaw` → realized op) changes; the
+composer dispatch (:class:`LawSum` / :class:`LawScaled` → operator
+composers) is method-agnostic and stays as-is.
 
 
 .. _bc-vacuum-semantic-correction:
@@ -1387,156 +1549,228 @@ The Wave 6 snapshot harness gates this explicitly: the
 documenting the intentional semantic divergence in a comment
 adjacent to the test case.
 
-Why "Option a" (Wave 7) over the alternatives
----------------------------------------------
+"Option a" (Wave 7) — historical context, retired Issue #186
+-------------------------------------------------------------
 
 The Wave 7 brief considered three migration strategies for the
-2-arg legacy path:
+2-arg legacy path. **Option (a)** ("vacuum-stays-legacy") landed:
+:class:`VacuumInflow` carried a standalone
+:meth:`apply(psi_out, quad)` whose body was
+``np.zeros_like(psi_out)`` (the pre-§16A.5 zeros-all form), and
+the realizer path produced the inflow-only-mask form via
+:class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`.
+The two paths agreed on inflow rows (the production-relevant
+subset) and diverged on outflow rows.
 
-* **(a) Vacuum-stays-legacy.** Vacuum's standalone
-  :meth:`apply(psi_out, quad)` preserves the pre-refactor
-  zeros-all body until the §16A.5 inflow-only mask activates
-  via the realizer path. ``VacuumInflow.apply`` body keeps the
-  legacy ``np.zeros_like(psi_out)`` form for backward
-  compatibility with tests that pin standalone-apply behavior.
-* **(b) Face-aware BC.** Add a ``face`` constructor argument
-  to ``VacuumInflow`` so the standalone apply knows which
-  ordinates to mask. Would require every existing test that
-  instantiates ``VacuumBoundaryOperator()`` to pass a face
-  argument.
-* **(c) Combined ABC merge.** Move the apply body into a
-  shared base class so both rank-1 vacuum and rank-N mixed BCs
-  share one code path. Would not address the face-awareness
-  question (no face → still zeros-all).
+Options (b) ("face-aware BC" — add ``face`` to the constructor)
+and (c) ("combined ABC merge") were rejected because they would
+have distorted the law's interface to better serve a transitional
+path the refactor was retiring anyway.
 
-Option (a) was chosen because:
+**Status after Issue #186 (2026-05-11):** Option (a)'s standalone
+``apply`` body has been **deleted**. :class:`VacuumInflow` (like
+every other concrete BC) is a pure descriptor with no ``apply``
+method; the only path to vacuum action is
+:func:`realize_recursively` or :class:`SNBoundaryRealizer`
+producing :class:`IncomingOrdinateMaskTensor` output. The
+**two-paths-divergence is therefore eliminated by design** — there
+is no longer a "second path" that could disagree with the realizer
+path. The §16A.5 inflow-only-mask body is the **unique** vacuum
+semantics in the post-#186 codebase.
 
-* The realizer path is the architecturally correct one; the
-  standalone-apply path is a transitional artifact. Distorting
-  the law's interface (Option b) to better serve the
-  transitional path would inflate every user-facing test
-  signature for one wave's duration.
-* The compatibility audit above confirmed no production
-  consumer reads outflow rows, so the legacy zeros-all on the
-  standalone path produces identical results to the inflow-only
-  mask on the realizer path **at every observable point**.
-* The Wave 6 snapshot harness already excluded vacuum from the
-  bit-identity contract (intentional documented semantic
-  divergence). No new test failures.
-
-Option (a) is documented in the
-:class:`VacuumInflow` docstring and the Wave 7 close-out memo;
-the corresponding test sites at
-``tests/geometry/test_boundary.py:87,281,282`` carry inline
-comments marking the retained legacy semantics.
+This is the load-bearing architectural payoff of B3 + β2: the
+documentation no longer needs to caveat which path you're on,
+because there is only one path. See
+:ref:`bc-trace-law-descriptor-model` for the design rationale.
 
 
-.. _bc-option-a-signatures:
+.. _bc-trace-law-descriptor-model:
 
-Concrete BC ``apply`` signatures — Option A (Issue #176 / C176.3)
-=================================================================
+The trace-law descriptor model (Issue #186 / B3 + β2)
+=====================================================
 
-Issue #176 / C176.3 settled the post-cleanup concrete-BC ``apply``
-contract on **Option A**: keyword-optional ``quadrature=None``
-with defensive errors. Every concrete law in
-:mod:`orpheus.geometry.boundary` now has the same signature shape:
+Issue #186 / Scope B3 + β2 (landed 2026-05-11 on branch
+``feature/bc-curvilinear-realizer-cleanup``) is the architectural
+**closure** of the BC trace-law refactor. It collapses the
+remaining 2-arg ``apply`` affordance from the Wave-8/9 era into a
+**pure-descriptor** contract:
+
+* :class:`BoundaryTraceLaw` no longer inherits
+  :class:`~orpheus.numerics.operator.LinearOperatorMixin`.
+* The abstract :meth:`apply` method that the mixin used to provide
+  is gone. So is ``apply_transpose``. So is the
+  ``capabilities: ClassVar[frozenset[str]]`` advertisement.
+* Every concrete BC (vacuum / reflective / white / albedo /
+  periodic / prescribed-inflow) is now a **frozen dataclass**
+  carrying only its parameters (axis, albedo, source, ...), its
+  :attr:`kind` tag, its :attr:`creates_sweep_cycle` ``ClassVar``,
+  its :attr:`geometry_map` / :attr:`response_kernel` /
+  :attr:`source` property overrides, and the relevant
+  :meth:`assert_*` invariants. **No** ``apply`` method on any
+  concrete BC.
+* The base class :class:`BoundaryTraceLaw` carries a **minimal
+  algebra** that returns :class:`LawSum` / :class:`LawScaled`
+  nodes — the descriptor-tree composition algebra documented at
+  :ref:`bc-rank-n-algebra`. The dunders are: ``+``, ``-``, ``*``,
+  ``/``, unary ``-``, plus their reflected variants. Each returns
+  a new descriptor-tree node; none returns an operator.
+* :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` is the
+  **sole** bridge from descriptor to callable. There is no
+  alternative path. Calling ``law.apply(psi)`` raises
+  :class:`AttributeError` at runtime; a static type checker flags
+  the call without running it.
+
+The §16A.3 three-layer architecture (descriptor / realizer /
+operator) is now **enforced by the type system**, not by convention.
+
+What was tried and rejected before B3 + β2 landed
+-------------------------------------------------
+
+This subsection preserves the design history because the rejected
+paths are the load-bearing intellectual content of the close-out
+— future sessions asking "why does the realizer exist?" need to
+see why every alternative failed.
+
+**Option A** (Issue #176 / C176.3, ~2026-04). Concrete BC
+:meth:`apply` methods kept a keyword-optional
+``quadrature: AngularQuadrature | None = None`` parameter with
+defensive errors:
+
+* :class:`ReflectiveBoundary.apply` / :class:`WhiteBoundary.apply`
+  raised :class:`BoundaryError` when ``quadrature is None``
+  because their geometric / response operators needed the
+  quadrature to construct themselves.
+* :class:`VacuumInflow` / :class:`AlbedoBoundary` /
+  :class:`PeriodicBoundary` / :class:`PrescribedInflow` accepted
+  and ignored the ``quadrature`` parameter.
+
+Option A was the **interim** landing — it preserved the
+direct-call convenience pattern ("sketching code can write
+``ReflectiveBoundary(axis='x').apply(psi, quad)``") while routing
+production through the realizer. The C176.3 audit identified
+three architectural costs that made Option A unsustainable:
+
+1. **Asymmetric semantics on ``quadrature=None``.** Two BCs
+   raised; four accepted-and-ignored. The behaviour was
+   inconsistent across the law family and required per-BC
+   documentation of "when is this method usable".
+2. **Vacuum two-paths-divergence.** Direct ``VacuumInflow.apply(psi)``
+   returned ``np.zeros_like(psi)`` (the pre-§16A.5 zeros-all body).
+   The realizer-routed path returned
+   :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
+   output (the §16A.5 inflow-only mask). The two paths agreed on
+   inflow rows (the production-relevant subset; see
+   :ref:`bc-vacuum-semantic-correction`) but diverged on outflow
+   rows. The divergence was harmless at every existing production
+   call site but was a documentation-burden landmine for future
+   adjoint-sensitivity consumers that read outflow rows.
+3. **Liskov violation.** The abstract
+   :meth:`BoundaryTraceLaw.apply(self, psi_out)` was strict 1-arg
+   (post Issue #176 / C176.4). The concrete
+   :meth:`apply(self, psi_out, quadrature=None)` was technically
+   Liskov-substitutable (the optional parameter has a default), but
+   calling ``bc.apply(psi)`` polymorphically on a
+   :class:`BoundaryTraceLaw`-typed parameter could fail at runtime
+   for Reflective/White — the type signature said "this works" but
+   the runtime behaviour said "this raises". The static type
+   system could not catch the failure because the contract was
+   carried only in the docstring.
+
+The B3 audit cataloged every remaining 2-arg ``bc.apply(psi,
+quad)`` call site in production AND tests; none was load-bearing
+for correctness. The Wave-6 snapshot regression carried legacy
+halves (regenerated through the realizer path), the
+:class:`PrescribedInflow` invariant tests ignored the
+``quadrature`` argument anyway, and the realizer-vs-legacy
+equivalence assertions could be replaced by hand-computed
+expressions strictly stronger than legacy-agreement. The B3 sweep
+rewrote every such site in one commit cycle (C-B3.7 through
+C-B3.12) and deleted the ``apply`` methods.
+
+**β1 interim** (sub-option within Issue #186 B3, considered but
+not landed as a final state). Keep
+:class:`LinearOperatorMixin` inheritance on
+:class:`BoundaryTraceLaw` and drop only the abstract
+:meth:`apply`. Rank-N composition would then build an
+:class:`OperatorSum` of :class:`ScaledOperator`-wrapped *unrealized*
+laws, and :func:`realize_recursively` would walk the resulting
+Wave-0 composer tree. This β1 form was **algebraically equivalent**
+to β2 but conflated two type families: the
+:class:`OperatorSum` instance representing a not-yet-realized
+descriptor tree was structurally identical to the
+:class:`OperatorSum` representing an actual operator composition,
+and only runtime inspection of the leaves could tell which was
+which. β2 was preferred because the type system can then enforce
+"this is a law, that is an operator" by static inspection — a
+type checker rejects ``law_tree.apply(...)`` at the linter level
+without ever running the code. β2 is more verbose (two new
+dataclasses) but is the architecturally-checkable form.
+
+**The vacuum two-paths-divergence is eliminated by design.** Under
+B3 + β2 there is no "direct path" any more — every consumer must
+realize the law before applying it, and realize-then-apply goes
+through the inflow-only-mask path. The Wave-6 snapshot harness's
+``vacuum_lebedev17`` case still pins inflow rows only (the
+intentional §16A.5 divergence is still there in the algebra), but
+no caller can accidentally invoke the pre-§16A.5 zeros-all path
+because that path no longer exists in the code.
+
+Empirical justification
+-----------------------
+
+The 18-test :mod:`tests.geometry.test_law_composition` suite pins
+the descriptor-tree contract (foundation + L1 tests):
+
+* Algebra closure on every dunder for every node-type pairing
+  (laws × LawSum × LawScaled).
+* :class:`LawScaled` constant folding
+  (``2 * (3 * spec) == LawScaled(6, spec)``).
+* The walker's exhaustive dispatch on the three node types and
+  its :class:`TypeError` on unknown nodes.
+* Walker value-correctness against hand-composed expectation
+  (``realize_recursively(law_tree).apply(psi)``
+  ``== 0.3 * realize(spec).apply(psi) + 0.7 * realize(white).apply(psi)``).
+* The absence of ``apply`` on any descriptor-tree node
+  (``not hasattr(tree, "apply")``).
+
+The Wave-6 snapshot harness (now realizer-only — the legacy
+halves are gone) verifies that the realized output is
+bit-identical to the pre-B3 realizer-path output on every
+non-mixed case, and identical up to the documented ULP tolerance
+on the Marshak mixed case (the operator tree is structurally the
+same; only the route to it changed).
+
+Call-site contract
+------------------
+
+There is **one** way to call a boundary law's ``apply``:
 
 .. code-block:: python
 
-   def apply(
-       self,
-       psi_out: np.ndarray,
-       quadrature: "AngularQuadrature | None" = None,
-   ) -> np.ndarray:
-       ...
+   from orpheus.geometry.boundary import ReflectiveBoundary
+   from orpheus.sn.boundary_realizer import (
+       SNBoundaryRealizer, SNMethodSpace,
+   )
 
-The body of each law differs in how it treats the ``quadrature``
-parameter; the six laws split into three behavioural classes by
-whether the geometric / response operator NEEDS a quadrature to
-construct itself:
+   law = ReflectiveBoundary(axis="x", albedo=0.5)
+   ms = SNMethodSpace.minimal(quad)   # or .for_face(...) in production
+   op = SNBoundaryRealizer().realize(law, ms)
+   psi_in = op.apply(psi_out)
 
-.. list-table:: Per-BC ``apply`` semantics under Option A
-   :header-rows: 1
-   :widths: 22 18 60
+For descriptor-tree composition:
 
-   * - Law
-     - ``quadrature``
-     - Body
-   * - :class:`~orpheus.geometry.boundary.VacuumInflow`
-     - accepted-and-ignored
-     - ``return np.zeros_like(psi_out)`` — legacy zeros-all
-       fallback (the §16A.5 inflow-only mask needs per-face
-       inflow indices which the direct-apply signature cannot
-       deliver).
-   * - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
-     - **required**
-     - Raises :class:`BoundaryError` if ``None``. Body delegates
-       to ``SNBoundaryRealizer().realize(self,
-       SNMethodSpace.minimal(quadrature))`` because
-       ``reflection_index(axis)`` is load-bearing.
-   * - :class:`~orpheus.geometry.boundary.WhiteBoundary`
-     - **required**
-     - Raises :class:`BoundaryError` if ``None``. Body
-       delegates via the realizer; the cosine-weighted average
-       needs ``mu`` / weight arrays.
-   * - :class:`~orpheus.geometry.boundary.AlbedoBoundary`
-     - accepted-and-ignored
-     - ``return self.albedo * psi_out`` — scalar multiplication
-       needs no angular information.
-   * - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
-     - accepted-and-ignored
-     - ``return psi_out.copy()`` — spatial-pushforward semantics
-       are sweep-orchestrator concerns, not per-face apply.
-   * - :class:`~orpheus.geometry.boundary.PrescribedInflow`
-     - accepted-and-ignored
-     - Synthesises a probe
-       :class:`~orpheus.numerics.trace_space.InflowTraceSpace`
-       from ``psi_out.shape`` and returns
-       ``self.source.evaluate(probe)``. No angular information
-       needed for the rank-0 affine BC.
+.. code-block:: python
 
-The defensive errors on the two "required" cases trade silent
-incorrectness (the pre-#176 ``*args, **kwargs`` form let a caller
-omit the quadrature and receive an identity-permutation /
-zero-average without warning) for an explicit
-:class:`BoundaryError` naming the offending law. **The realizer
-path is always the production-correct route**; direct-apply
-callers who hit the defensive error should route through
-:meth:`SNBoundaryRealizer.realize` with an
-:class:`~orpheus.sn.boundary_realizer.SNMethodSpace`.
+   from orpheus.sn.boundary_realize import realize_recursively
 
-Option A was preferred over the alternative Option B (strict 1-arg
-``apply(self, psi_out)`` with NO ``quadrature`` parameter at all)
-because:
+   tree = 0.3 * ReflectiveBoundary(axis="x") + 0.7 * WhiteBoundary(
+       axis="x", outward_sign=+1,
+   )
+   op_tree = realize_recursively(tree, ms)
+   psi_in = op_tree.apply(psi_out)
 
-1. **Direct-call convenience pattern preserved.** Test and
-   sketching code that wants to "see what this BC does" with a
-   quadrature in hand can still write
-   ``ReflectiveBoundary(axis="x").apply(psi, quad)`` — Option B
-   would force every such site to instantiate an
-   :class:`SNMethodSpace` and a realizer first, even when the
-   sketching context wanted nothing more than a quick check.
-2. **Liskov compatibility holds.** The abstract
-   :meth:`BoundaryTraceLaw.apply(self, psi_out)` is strict 1-arg;
-   the concrete ``apply(self, psi_out, quadrature=None)``
-   substitutes cleanly because the additional parameter is
-   defaulted and keyword-optional. A 1-arg call site reaches
-   the concrete body unchanged.
-3. **Clear errors when misused.** ``Reflective.apply(psi)``
-   (without quadrature) raises :class:`BoundaryError` naming
-   the law and pointing at the realizer path — far better than
-   silently returning the identity. Option B would have made
-   this case unreachable but at the cost of point 1.
-4. **Backward-compat for the small set of remaining 2-arg test
-   sites** that did not migrate to the realizer in Waves 8–9.
-   The extra ``quadrature=`` parameter accommodates them without
-   forcing a third migration sweep.
-
-The cost of Option A is the small structural asymmetry between
-the abstract (1-arg) and the concretes (1-arg-with-optional-2nd).
-Liskov-substitutable but visually asymmetric. The asymmetry is
-documented in the :class:`BoundaryTraceLaw.apply` docstring; the
-trade-off was judged worth it for the direct-call ergonomics.
+No call site routes through a putative ``law.apply(psi)`` — that
+method does not exist.
 
 
 .. _bc-numerical-evidence:
@@ -1668,8 +1902,11 @@ to a single path: every supported mesh (1-D Cartesian / spherical
 ``quadrature=`` kwarg from the shim because no
 production-issued shim carried ``_quadrature is not None`` after
 C188.3. Issue #176 / C176.3+C176.4 then trimmed the concrete BC
-``apply`` signatures (see :ref:`bc-option-a-signatures`) and made
-the abstract :meth:`BoundaryTraceLaw.apply` strict 1-arg.
+``apply`` signatures to the Option-A interim (keyword-optional
+``quadrature=None`` with defensive errors). Issue #186 / B3 + β2
+then retired Option A entirely — every concrete BC ``apply``
+method was deleted; see
+:ref:`bc-trace-law-descriptor-model` for the retrospective.
 
 The architectural sequence is therefore:
 
@@ -1677,6 +1914,13 @@ The architectural sequence is therefore:
   ONLY because curvilinear :class:`InflowTraceSpace` could not be
   constructed. Once #188 lifted that, #176's "drop the 2-arg form"
   cleanup became possible without breaking curvilinear sweeps.
+* **Issue #176 unblocks Issue #186.** The Option-A interim was
+  necessary because dropping ``apply`` outright before the
+  curvilinear sweeps consumed realizer output (#188) and the test
+  fleet migrated to the realizer-routed contract (#176 / C176.5
+  cleanup commits) would have broken curvilinear regression.
+  Once those landed, the descriptor cleanup (#186 / B3 + β2)
+  became the next step on the architectural ladder.
 
 .. _bc-1d-y-placeholder-design:
 
@@ -1717,16 +1961,36 @@ Closure
 -------
 
 Closed by branch ``feature/bc-curvilinear-realizer-cleanup``
-(2026-05-11): Issue #188 (curvilinear ``InflowTraceSpace``
-support, commits ``9cf2b0a`` + ``17067d5``) and Issue #176 (drop
-2-arg ``apply`` + simplify shim, commits ``cf29ce4`` +
-``a4a43c2`` + ``913e501``). The :class:`_BoundBoundaryOperator`
-shim survives because the ``kind``-string tag is load-bearing for
-the BC-resolution diagnostic and several legacy
-``sn_mesh.bc_left == "vacuum"``-style test sites; the
-dual-mode bound-quadrature backing is gone. Every supported mesh
-now consumes a 1-arg :class:`LinearOperator` produced by
-:class:`SNBoundaryRealizer`.
+(2026-05-11). Three GitHub issues converged on this branch:
+
+* **Issue #188** — curvilinear :class:`InflowTraceSpace` support
+  (commits ``9cf2b0a`` + ``17067d5``). Lifted the
+  :class:`NotImplementedError` guard on spherical / cylindrical
+  Mesh1D so every supported mesh can build a per-face inflow mask.
+* **Issue #176** — drop 2-arg ``apply`` + simplify shim (commits
+  ``cf29ce4`` + ``a4a43c2`` + ``913e501`` + ``188bf9a``). Collapsed
+  the dual-mode shim into a strict 1-arg passthrough; landed the
+  Option-A interim with keyword-optional ``quadrature=None`` on
+  the concrete laws.
+* **Issue #186 (B3 + β2)** — pure-descriptor cleanup (commits
+  ``f71a32c`` + ``da414eb`` + ``89d09a4`` + ``633cc69`` +
+  ``bb674da`` + the test-migration trail). Retired the Option-A
+  ``apply`` methods, dropped :class:`LinearOperatorMixin`
+  inheritance from :class:`BoundaryTraceLaw`, and formalised the
+  descriptor-tree composition algebra via the new
+  :class:`LawSum` / :class:`LawScaled` types. The architectural
+  sequence is therefore Issue #188 → #176 → #186: each step
+  unblocked the next.
+
+The :class:`_BoundBoundaryOperator` shim survives because the
+``kind``-string tag is load-bearing for the BC-resolution
+diagnostic and several legacy ``sn_mesh.bc_left ==
+"vacuum"``-style test sites; the dual-mode bound-quadrature
+backing is gone (#176), and the ``*_extra, **_kw`` swallow is
+gone (#186 / C-B3.4). Every supported mesh consumes a strict
+1-arg :class:`LinearOperator` produced by
+:class:`SNBoundaryRealizer` for single BCs, or by
+:func:`realize_recursively` for rank-N descriptor trees.
 
 Plan documents:
 
@@ -1734,11 +1998,15 @@ Plan documents:
   12-wave BC trace-law refactor plan (Waves 0–12 close-out
   documented at :ref:`theory-boundary-conditions`).
 * ``.claude/plans/curvilinear-realizer-and-2arg-cleanup.md`` —
-  the present #188 + #176 cleanup plan.
+  the #188 + #176 cleanup plan (Option-A landing).
+* ``.claude/plans/bc-trace-law-descriptor-cleanup.md`` — the
+  Issue #186 B3 + β2 cleanup plan (descriptor-model landing).
 
-Grand Report v3 §16A.5 (the trace-correct vacuum representation)
-documents the trace-half decomposition this cleanup makes uniform
-across coord systems.
+Grand Report v3 §16A.3 (the three-layer architecture) is now
+**enforced by the type system** — descriptors have no ``apply``,
+operators do. Grand Report v3 §16A.5 (the trace-correct vacuum
+representation) is uniform across coord systems and the legacy
+zeros-all path no longer exists.
 
 
 Anti-pattern catalog
@@ -1797,12 +2065,41 @@ re-attempt them:
    curvilinear deferral lifts. The right move is to delete the
    bypass and consolidate on one path — see
    :ref:`bc-curvilinear-realizer-unification`.
-7. **Option B (strict 1-arg concrete ``apply`` signatures).**
-   Considered Issue #176 / C176.3. Rejected in favour of Option A
-   (keyword-optional ``quadrature=None``) per the rationale at
-   :ref:`bc-option-a-signatures` — Option B would have forced
-   every direct-apply sketching call site to construct an
-   :class:`SNMethodSpace` first.
+7. **Option A (keyword-optional ``quadrature=None`` on the
+   concrete laws).** Landed Issue #176 / C176.3 as the interim
+   form; **retired Issue #186 / B3 + β2** in favour of the
+   pure-descriptor model (no ``apply`` on any law). The
+   architectural costs of Option A (asymmetric semantics on
+   ``quadrature=None``, vacuum two-paths-divergence, Liskov
+   violation under polymorphic typing) made it unsustainable as
+   the long-term contract; the interim was kept only long enough
+   to land curvilinear realizer unification (Issue #188 first)
+   before the descriptor cleanup could ship. See
+   :ref:`bc-trace-law-descriptor-model` for the full retrospective.
+8. **Calling ``apply`` on a raw BC descriptor.** Under the
+   pre-#186 contract this either worked (with surprising
+   semantics — see Option A entry above) or raised
+   :class:`BoundaryError`. Under post-#186 it's a **static type
+   error** — :class:`BoundaryTraceLaw` has no :meth:`apply`
+   method on the class, and neither do :class:`LawSum` /
+   :class:`LawScaled`. The correct contract is
+   ``SNBoundaryRealizer().realize(law, ms).apply(psi)`` for a
+   single BC, or ``realize_recursively(tree, ms).apply(psi)`` for
+   a descriptor tree. The realizer is the **sole** bridge; the
+   §16A.3 three-layer split is enforced by the type system.
+9. **In-tree Wave-0 operator algebra over unrealized
+   :class:`BoundaryTraceLaw` instances (β1 form).** Considered as
+   the rank-N composition mechanism during Issue #186 B3
+   exploration. Rejected in favour of the separate-type-family
+   approach (β2 / :class:`LawSum` / :class:`LawScaled`). β1
+   produced :class:`OperatorSum` trees whose leaves were laws,
+   not operators — the type checker could not distinguish a
+   not-yet-realized "operator" from a real operator, and calling
+   :meth:`apply` on the β1 tree raised at the leaf realization
+   step. β2 makes the law-vs-operator distinction inspectable
+   statically: :class:`LawSum` has no :meth:`apply` method, full
+   stop. See :ref:`bc-rank-n-algebra` for the detailed
+   comparison.
 
 
 References

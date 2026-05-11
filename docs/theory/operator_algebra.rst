@@ -564,16 +564,31 @@ Boundary conditions as Wave-0 / Wave-1 primitives
 
 The boundary trace-law refactor (12-wave effort,
 ``.claude/plans/transient-giggling-cake.md``, archival narrative
-in :ref:`theory-boundary-conditions`) lifted boundary conditions
-from a dedicated layer of code into the same operator algebra
-documented in this page: every realized BC IS a Wave-0
+in :ref:`theory-boundary-conditions`) lifted boundary-condition
+**realisation** into the same operator algebra documented in this
+page: every *realised* BC IS a Wave-0
 :class:`~orpheus.numerics.operator.LinearOperator`, composable
 with the streaming / scattering / fission operators through the
 same algebra dunders.
 
+.. note::
+
+   **A boundary law is NOT itself a Wave-0 operator.** Post Issue
+   #186 / B3 + β2 (2026-05-11), the
+   :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` ABC is a
+   **pure descriptor** carrying no :meth:`apply` method (the
+   :class:`LinearOperatorMixin` inheritance was dropped). The
+   table below lists the **realised** output produced by
+   :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` — that
+   output IS a Wave-0 :class:`LinearOperator`. The law-to-operator
+   transition is the §16A.3 three-layer architecture's realiser
+   bridge, enforced statically by the type system rather than by
+   convention. See :ref:`bc-trace-law-descriptor-model` for the
+   design rationale.
+
 Three new primitives in :mod:`orpheus.numerics.operator`
 (Wave 0 of the BC refactor) plus one SN-specific primitive in
-:mod:`orpheus.sn.angular_operator` (Wave 1) form the realization
+:mod:`orpheus.sn.angular_operator` (Wave 1) form the realisation
 target set:
 
 .. list-table:: BC realization primitives — the §15.2 G_α geometric operators
@@ -624,7 +639,7 @@ through the algebra dunders:
 
 .. vv-status: bc-rank-n-as-sum-of-products documented
 
-For the SN realization, the tensor product :math:`G_\alpha \otimes
+For the SN realisation, the tensor product :math:`G_\alpha \otimes
 A_\alpha` collapses to a scalar amplification:
 :class:`~orpheus.numerics.operator.ScaledOperator` ``(α, G)``. The
 canonical Marshak BC
@@ -639,19 +654,71 @@ becomes the Wave-0 expression
 ``c1 * PermutationOperator(perm) + c2 * AngularAverageOperator(...)``
 — an :class:`~orpheus.numerics.operator.OperatorSum` of
 :class:`~orpheus.numerics.operator.ScaledOperator`-wrapped
-primitives.
+primitives — **after** the descriptor tree has been realised.
 
-The pre-refactor implementation had a dedicated
-``MixedBoundaryOperator(components: list[tuple[float, BC]])``
-class that delayed the realization until ``apply`` time. Wave 11
-of the refactor deleted it: the Wave-0 algebra dunders already
-produce the right shape from the realized leaves, and the
-delayed-realization pattern broke down once vacuum needed per-face
-inflow indices (which the dedicated class had no access to). The
-tree-walking realization for ``BoundaryTraceLaw``-rooted
-expressions is provided by
-:func:`orpheus.sn.boundary_realize.realize_recursively` — see
-:ref:`bc-realize-recursively` for the walker semantics and
+.. _bc-descriptor-tree-vs-operator-tree:
+
+The descriptor-tree algebra is a separate type family
+-----------------------------------------------------
+
+The rank-N composition is **not** built directly on the operator
+tree. Two distinct algebras are layered:
+
+.. list-table:: Two algebras, two type families
+   :header-rows: 1
+   :widths: 22 30 24 24
+
+   * - Layer
+     - Node types
+     - Has ``apply``?
+     - When it's built
+   * - Descriptor tree
+     - :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` leaves;
+       :class:`~orpheus.geometry.boundary.LawSum` /
+       :class:`~orpheus.geometry.boundary.LawScaled` composers
+     - **No** (static type error to call)
+     - User code at law-declaration time
+   * - Operator tree
+     - :class:`~orpheus.numerics.operator.LinearOperator` leaves;
+       :class:`~orpheus.numerics.operator.OperatorSum` /
+       :class:`~orpheus.numerics.operator.ScaledOperator` composers
+     - **Yes** (1-arg :meth:`apply`)
+     - Realiser code at face-resolution time
+
+The user writes ``0.3 * spec + 0.7 * white`` — a descriptor tree.
+:func:`~orpheus.sn.boundary_realize.realize_recursively` walks the
+tree, realises each leaf via
+:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`, and
+re-assembles the result through the matching Wave-0 composers
+(:class:`OperatorSum` ↔ :class:`LawSum`,
+:class:`ScaledOperator` ↔ :class:`LawScaled`). The output is the
+operator tree.
+
+**Mixing the two algebras is a type error.** ``LawSum + OperatorSum``
+or ``LinearOperator + LawScaled`` are rejected statically (no
+matching dunder) — callers MUST realise the descriptor tree first
+before composing with the operator algebra. This separation is
+the load-bearing payoff of the Issue #186 / B3 + β2 cleanup:
+"this is a law, that is an operator" becomes a type-system claim
+rather than a convention.
+
+The pre-refactor implementations had two predecessors that
+converged on this design:
+
+* **Wave 11** retired the dedicated
+  ``MixedBoundaryOperator(components: list[tuple[float, BC]])``
+  class — its delayed-realisation pattern broke down once vacuum
+  needed per-face inflow indices that the bare-law container
+  could not deliver.
+* **β1 interim** (Issue #186 / B3, pre-cleanup) kept
+  :class:`LinearOperatorMixin` on :class:`BoundaryTraceLaw`, so
+  ``0.3 * spec + 0.7 * white`` produced an :class:`OperatorSum`
+  with raw-law leaves. β1 was algebraically equivalent to β2 but
+  conflated the two type families — the type checker could not
+  distinguish a not-yet-realised "operator" from a real operator.
+  β2 separates them explicitly (the present design).
+
+See :ref:`bc-realize-recursively` for the walker semantics and
 :ref:`bc-rank-n-algebra` for the rank-N algebra in detail.
 
 

@@ -2119,16 +2119,24 @@ took two passes at the closure:
   gap that Round 2 identified: the FD operator's
   :func:`~orpheus.sn.operator.solution_to_angular_flux*` and the
   matvec helpers now consume the
-  :class:`~orpheus.geometry.boundary.BoundaryOperator` instances on the
-  :class:`~orpheus.sn.geometry.SNMesh` (Wave B Issue 7
-  tensor-decomposed BC algebra), dispatching boundary fills via
-  :meth:`BoundaryOperator.apply`.  Vacuum, reflective,
-  white, periodic, albedo, and mixed BCs are now plumbed
-  uniformly through the FD operator; bit-identity to the
+  :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` instances on
+  the :class:`~orpheus.sn.geometry.SNMesh` (Wave B Issue 7
+  tensor-decomposed BC algebra), dispatching boundary fills via the
+  realiser-routed 1-arg :meth:`apply` on the resolved
+  :class:`~orpheus.numerics.operator.LinearOperator`. Vacuum,
+  reflective, white, periodic, albedo, and mixed BCs are now
+  plumbed uniformly through the FD operator; bit-identity to the
   pre-Round 3 hard-coded reflective fill is preserved for
-  :class:`SpecularBoundaryOperator` (the standard ``BC.reflective`` factory),
-  which is the load-bearing condition for the 11 frozen
-  regression snapshots to stay green.
+  :class:`ReflectiveBoundary(axis=…, albedo=1.0)` (the standard
+  ``BC.reflective`` case), which is the load-bearing condition for
+  the 11 frozen regression snapshots to stay green. (Note:
+  post Issue #186 / B3 + β2 the law itself is a pure descriptor;
+  ``BoundaryTraceLaw.apply`` no longer exists. The realiser
+  produces the 1-arg :class:`LinearOperator` whose :meth:`apply`
+  the matvec calls; the Wave-E Round-3 prose describes the
+  contract as it existed at the time, but the architectural
+  conclusion — uniform BC consumption through a 1-arg
+  ``apply`` — is the same.)
 
 What is **still** open after Round 3: empirically the symmetric-
 closure FD operator at the curvilinear outer face uses cell-center
@@ -2534,27 +2542,30 @@ geometries (spherical, cylindrical), only ``"reflective"`` and
 on a curvilinear mesh raises ``ValueError``.
 
 The two-arg legacy interface ``bc.apply(angular_flux_outgoing,
-quadrature)`` is retired for production call sites (Wave 9
-migrated 13 sites from 2-arg to 1-arg ``bc.apply(psi)``); Issue
-#176 / C176.3+C176.4 then settled the concrete-BC ``apply``
-signatures on **Option A** (keyword-optional ``quadrature=None``
-with defensive errors on the laws that need it — Reflective and
-White raise :class:`BoundaryError`, the others
-accept-and-ignore). See :ref:`bc-option-a-signatures` for the
-per-BC behaviour table.
+quadrature)`` is **retired entirely** post Issue #186 / B3 + β2
+(2026-05-11). Concrete BC :meth:`apply` methods no longer exist;
+:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` is a **pure
+descriptor** with no callable interface. Rank-N composition uses
+the descriptor-tree algebra
+(:class:`~orpheus.geometry.boundary.LawSum` /
+:class:`~orpheus.geometry.boundary.LawScaled`) with
+:func:`~orpheus.sn.boundary_realize.realize_recursively` as the
+sole descriptor→operator type transformer. See
+:ref:`bc-trace-law-descriptor-model` for the design rationale.
 
 The resolved BCs at ``sn_mesh.bc_left`` etc. expose the uniform
 1-arg contract through the
 :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
 shim — internal to the package, not in
-:attr:`orpheus.geometry.boundary.__all__`. Post Issue #176 the
-shim is a thin 1-arg passthrough; it carries the originating
-``BC.kind`` string so the legacy
-``sn_mesh.bc_left == "vacuum"`` diagnostic comparison continues
-to evaluate True iff the underlying law is :class:`VacuumInflow`.
-See :ref:`bc-tensor-decompositions` below for the
-operator-algebra view and :ref:`theory-boundary-conditions` for
-the full trace-law / realizer architecture.
+:attr:`orpheus.geometry.boundary.__all__`. Post Issue #186 the
+shim is a **strict 1-arg passthrough** (extra args raise
+:class:`TypeError`); it carries the originating ``BC.kind`` string
+so the legacy ``sn_mesh.bc_left == "vacuum"`` diagnostic
+comparison continues to evaluate True iff the underlying law is
+:class:`VacuumInflow`. See :ref:`bc-tensor-decompositions` below
+for the operator-algebra view and
+:ref:`theory-boundary-conditions` for the full trace-law /
+realizer architecture.
 
 **Backward compatibility.**
 :func:`solve_sn_fixed_source` still accepts a ``boundary_condition: str``
@@ -2681,27 +2692,33 @@ The pre-Wave-7 names ``VacuumBoundaryOperator`` /
 ``PeriodicBoundaryOperator`` / ``AlbedoBoundaryOperator`` are kept as
 **deprecated aliases** in :mod:`orpheus.geometry.boundary` for
 backward compatibility. ``MixedBoundaryOperator`` was **retired in
-Wave 11** — rank-N (Marshak, partial-current) boundaries are now
-expressed via Wave-0 operator algebra over realized leaves:
-``0.3 * spec_realized + 0.7 * white_realized``. See
-:ref:`bc-rank-n-algebra` for the algebraic identity and the
-:ref:`bc-realize-recursively` walker that realizes a
-``BoundaryTraceLaw``-rooted Wave-0 expression tree.
+Wave 11**; rank-N (Marshak, partial-current) boundaries are now
+expressed via the **descriptor-tree algebra**
+(:class:`~orpheus.geometry.boundary.LawSum` /
+:class:`~orpheus.geometry.boundary.LawScaled`) on the unrealised
+laws:
+
+.. code-block:: python
+
+   tree = 0.3 * spec + 0.7 * white            # LawSum of LawScaled
+   op = realize_recursively(tree, method_space)  # OperatorSum of ScaledOperator
+   psi_in = op.apply(psi_out)
+
+See :ref:`bc-rank-n-algebra` for the closed algebra and the
+:ref:`bc-realize-recursively` walker that lowers a descriptor
+tree to a Wave-0 operator tree.
 
 The abstract base :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`
-exposes :meth:`apply` with a strict 1-arg ``(self, psi_out)``
-signature (Issue #176 / C176.4). The six concrete laws adopt
-**Option A**: an additional keyword-optional
-``quadrature: AngularQuadrature | None = None`` parameter,
-defaulting to ``None``. Liskov substitutability holds because the
-additional parameter has a default and is positionally /
-keyword-optional. Reflective and White raise
-:class:`BoundaryError` when ``quadrature is None`` (their
-geometric / response operators need the quadrature to construct
-themselves); Vacuum / Albedo / Periodic / PrescribedInflow accept
-and ignore. The full law / realizer split is documented at
-:ref:`theory-boundary-conditions`, and the per-BC behaviour
-table at :ref:`bc-option-a-signatures`.
+is a **pure descriptor** post Issue #186 / B3 + β2 (2026-05-11)
+— it has **no** :meth:`apply` method. The :class:`LinearOperatorMixin`
+inheritance that historically supplied ``apply`` was removed; the
+concrete laws likewise carry no ``apply`` / ``apply_transpose``
+methods. The §16A.3 three-layer architecture (descriptor /
+realizer / operator) is now enforced by the type system: a static
+type checker rejects ``law.apply(...)`` at the linter level
+without running the program. The full retrospective on the
+predecessor Option A and β1 forms (and why each was rejected) is
+at :ref:`bc-trace-law-descriptor-model`.
 
 The tensor framing pays off architecturally because partial-current
 Marshak boundaries (:math:`R = c_1 \, G_{\rm refl} + c_2 \, G_{\rm
@@ -3273,11 +3290,15 @@ new operators for the EigenvalueSolver Protocol surface.
 
 Wave E Round 3 (Issue #98 follow-up) extended the FD operator's
 boundary handling to consume the
-:class:`~orpheus.geometry.boundary.BoundaryOperator` infrastructure
+:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` infrastructure
 (Wave B Issue 7), so :func:`solution_to_angular_flux*` and the
-matvec helpers now dispatch boundary fills via
-:meth:`BoundaryOperator.apply` — vacuum, reflective, white,
-albedo, periodic, and mixed BCs are honoured uniformly.
+matvec helpers now dispatch boundary fills via the realiser-routed
+1-arg :meth:`apply` on the resolved
+:class:`~orpheus.numerics.operator.LinearOperator` — vacuum,
+reflective, white, albedo, periodic, and mixed BCs are honoured
+uniformly. (Post Issue #186 / B3 + β2, the law itself is a pure
+descriptor; the SN realiser produces the callable. See
+:ref:`bc-trace-law-descriptor-model`.)
 
 
 .. _sn-streaming-operator:
