@@ -1,19 +1,35 @@
-r"""Backward-compat wrapper around a realized 1-arg LinearOperator.
+r"""Backward-compat wrapper around realized 1-arg / legacy 2-arg ops.
 
 During the Waves 8-10 transition, SN-side ``bc_*`` attributes on
-:class:`~orpheus.sn.geometry.SNMesh` are realized via
-:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` into 1-arg
-:class:`~orpheus.numerics.operator.LinearOperator` instances. The 13
-production call sites at :mod:`orpheus.sn.sweep` +
-:mod:`orpheus.sn.operator` still pass the 2-arg ``(psi, quad)``
-signature through ``bc.apply(...)``. Wave 9 migrates those to 1-arg;
-Wave 10 drops this shim. Until then, every realized BC at SNMesh
-construction time is wrapped in :class:`_BoundBoundaryOperator` whose
-``apply(psi, *_extra, **_kw)`` swallows the extra quadrature arg and
-delegates to the realized op's 1-arg ``apply(psi)``.
+:class:`~orpheus.sn.geometry.SNMesh` present a UNIFORM 1-arg
+``bc.apply(psi)`` contract to the production call sites at
+:mod:`orpheus.sn.sweep` + :mod:`orpheus.sn.operator`. Two concrete
+backings hide behind that contract, both wrapped in this shim:
 
-The shim is intentionally minimal: it forwards :meth:`apply`,
-:meth:`apply_transpose`, :attr:`capabilities`, and the standard
+* **Cartesian path (Wave 8 / C8.3):** ``inner`` is a 1-arg realized
+  :class:`~orpheus.numerics.operator.LinearOperator` produced by
+  :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`. The shim
+  forwards ``apply(psi, *_extra, **_kw) → inner.apply(psi)`` and
+  swallows any extra args.
+
+* **Curvilinear path (Wave 9 / C9.0):** :class:`InflowTraceSpace` does
+  not yet support spherical / cylindrical meshes (Wave 2 deferral), so
+  the SN realizer skips and ``_resolve_one`` returns the raw legacy
+  :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` subclass
+  instance whose ``apply`` is 2-arg. To keep the 1-arg contract uniform
+  across ALL ``bc_*`` attributes, the shim is built with a
+  ``quadrature=`` kwarg that binds the AngularQuadrature once; the
+  shim then forwards ``apply(psi) → inner.apply(psi, bound_quad)``.
+  The bound quadrature is bit-identical to the legacy direct call
+  because it is the SAME object the call sites used to pass.
+
+Wave 9 migrates the 13 call sites from ``bc.apply(psi, quad)`` to
+``bc.apply(psi)``; Wave 10 drops this shim entirely once
+:class:`InflowTraceSpace` covers curvilinear geometry and the
+:class:`BoundaryTraceLaw` ``apply`` bodies are dropped to 1-arg.
+
+The shim forwards :meth:`apply`, :meth:`apply_transpose`,
+:attr:`capabilities`, and the standard
 :class:`~orpheus.numerics.operator.LinearOperatorMixin` dunders.
 
 Internal — not re-exported
@@ -44,23 +60,34 @@ from orpheus.numerics.operator import LinearOperatorMixin
 
 if TYPE_CHECKING:
     from orpheus.numerics.operator import LinearOperator
+    from orpheus.sn.quadrature import AngularQuadrature
 
 
 __all__ = ["_BoundBoundaryOperator"]
 
 
 class _BoundBoundaryOperator(LinearOperatorMixin):
-    r"""Transitional 2-arg shim around a 1-arg realized operator.
+    r"""Transitional shim presenting a uniform 1-arg ``apply`` contract.
 
-    Forwards every ``apply(psi, *extra, **kw)`` call to
-    ``inner.apply(psi)``, ignoring extra positional/keyword args
-    (typically the legacy ``quadrature`` argument that Waves 9-10
-    will remove). Same shape for :meth:`apply_transpose`.
+    Two backings (see module docstring):
+
+    * ``quadrature=None`` (Cartesian path): ``inner`` is a 1-arg
+      realized :class:`LinearOperator`; ``apply(psi) → inner.apply(psi)``.
+    * ``quadrature=<AngularQuadrature>`` (curvilinear path): ``inner``
+      is a legacy 2-arg :class:`BoundaryTraceLaw` instance; the bound
+      quadrature is forwarded as the 2nd positional arg so the call
+      site sees a uniform 1-arg signature ``apply(psi)``.
+
+    In both modes the shim's ``apply(psi, *_extra, **_kw)`` accepts
+    extra positional / keyword args and ignores them — Wave 9
+    intermediate states where some call sites still pass ``quad`` keep
+    working while the migration is mid-flight. Same shape for
+    :meth:`apply_transpose`.
 
     The :attr:`capabilities` property delegates to the wrapped
     operator, so a consumer composing this with other linear
     operators inherits whatever the realized op advertises (e.g. a
-    :class:`PermutationOperator` brings ``apply_transpose``, a
+    :class:`PermutationOperator` brings ``apply_transpose``, an
     :class:`IncomingOrdinateMaskTensor` brings only ``apply``).
 
     The shim ALSO carries an optional ``kind`` tag (a free-form
@@ -74,8 +101,14 @@ class _BoundBoundaryOperator(LinearOperatorMixin):
     Parameters
     ----------
     inner
-        The realized :class:`LinearOperator` to wrap. Must support
-        at least the :attr:`CAP_APPLY` capability.
+        The wrapped operator. For the Cartesian path: a 1-arg
+        realized :class:`LinearOperator`. For the curvilinear path:
+        a 2-arg :class:`BoundaryTraceLaw` instance.
+    quadrature
+        Optional :class:`AngularQuadrature` bound to the shim. When
+        non-``None`` the shim's :meth:`apply` forwards
+        ``inner.apply(psi, quadrature)``; when ``None`` it forwards
+        ``inner.apply(psi)``.
     kind
         Optional free-form string tag carrying the originating
         :class:`BC` kind (``"vacuum"`` / ``"reflective"`` /
@@ -84,9 +117,13 @@ class _BoundBoundaryOperator(LinearOperatorMixin):
     """
 
     def __init__(
-        self, inner: "LinearOperator", kind: str | None = None,
+        self,
+        inner: "LinearOperator",
+        quadrature: "AngularQuadrature | None" = None,
+        kind: str | None = None,
     ) -> None:
         self.inner = inner
+        self._quadrature = quadrature
         self.kind = kind
 
     @property
@@ -94,12 +131,16 @@ class _BoundBoundaryOperator(LinearOperatorMixin):
         return self.inner.capabilities
 
     def apply(self, psi: np.ndarray, *_extra: Any, **_kw: Any) -> np.ndarray:
-        return self.inner.apply(psi)
+        if self._quadrature is None:
+            return self.inner.apply(psi)
+        return self.inner.apply(psi, self._quadrature)
 
     def apply_transpose(
         self, psi: np.ndarray, *_extra: Any, **_kw: Any,
     ) -> np.ndarray:
-        return self.inner.apply_transpose(psi)
+        if self._quadrature is None:
+            return self.inner.apply_transpose(psi)
+        return self.inner.apply_transpose(psi, self._quadrature)
 
     def __eq__(self, other: object) -> bool:
         # Legacy string-kind comparison surface — preserves

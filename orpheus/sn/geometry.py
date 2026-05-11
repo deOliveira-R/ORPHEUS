@@ -314,16 +314,30 @@ class SNMesh:
             self.bc_right = self._resolve_one(mesh.bc_right or default, "right")
             # Expose 2-D-style attributes for uniform sweep access.
             # The ``y`` faces of a 1-D mesh are degenerate (no y
-            # dimension); 1-D sweeps don't consume them. Keep bare
-            # :class:`ReflectiveBoundary` placeholders — routing
+            # dimension); 1-D sweeps don't consume them. Routing
             # through the realizer would require an
             # ``inflow_indices_for_face("ymin")`` lookup that the
-            # 1-D trace space cannot service. This is consistent with
-            # the pre-Wave-8 behaviour.
+            # 1-D trace space cannot service, so we wrap bare
+            # :class:`ReflectiveBoundary` placeholders in the
+            # :class:`_BoundBoundaryOperator` shim with the bound
+            # quadrature. Wave 9 (C9.0): the wrap is required so that
+            # the uniform 1-arg ``bc.apply(psi)`` contract holds
+            # across ALL ``bc_*`` attributes — even though 1-D sweeps
+            # never call apply on the y-face placeholders, any future
+            # consumer that does will see the same contract as the
+            # other bc_* attrs.
             self.bc_xmin = self.bc_left
             self.bc_xmax = self.bc_right
-            self.bc_ymin = ReflectiveBoundary(axis="y", albedo=1.0)
-            self.bc_ymax = ReflectiveBoundary(axis="y", albedo=1.0)
+            self.bc_ymin = _BoundBoundaryOperator(
+                ReflectiveBoundary(axis="y", albedo=1.0),
+                quadrature=self.quad,
+                kind="reflective",
+            )
+            self.bc_ymax = _BoundBoundaryOperator(
+                ReflectiveBoundary(axis="y", albedo=1.0),
+                quadrature=self.quad,
+                kind="reflective",
+            )
         else:
             self.bc_xmin = self._resolve_one(mesh.bc_xmin or default, "xmin")
             self.bc_xmax = self._resolve_one(mesh.bc_xmax or default, "xmax")
@@ -345,12 +359,18 @@ class SNMesh:
         Cartesian path: build an :class:`SNMethodSpace` carrying the
         precomputed inflow / outflow traces, hand it to
         :class:`SNBoundaryRealizer.realize`, wrap the 1-arg result in
-        :class:`_BoundBoundaryOperator` so the legacy 2-arg sweep
+        :class:`_BoundBoundaryOperator` so the uniform 1-arg sweep
         call sites keep working.
 
-        Curvilinear path: instantiate the law directly (no realizer,
-        no shim). The 2-arg ``bc.apply(psi, quad)`` call sites then
-        hit the law's legacy body which is unchanged.
+        Curvilinear path: skip the realizer (the SN realizer needs an
+        :class:`InflowTraceSpace` which Wave 2 left unimplemented for
+        spherical / cylindrical meshes). Wrap the raw 2-arg
+        :class:`BoundaryTraceLaw` in :class:`_BoundBoundaryOperator`
+        with a bound quadrature so the uniform 1-arg
+        ``bc.apply(psi)`` contract holds; the shim then forwards
+        ``inner.apply(psi, bound_quad)`` to the legacy body, which is
+        bit-identical to the pre-Wave-9 direct ``bc.apply(psi, quad)``
+        call.
         """
         law_cls = self.BOUNDARY_OPERATOR_REGISTRY.get(bc.kind)
         if law_cls is None:
@@ -369,10 +389,14 @@ class SNMesh:
         else:
             law = law_cls()
 
-        # Curvilinear path: skip the realizer; the legacy law-instance
-        # apply preserves bit-identity for the curvilinear sweep.
+        # Curvilinear path: skip the realizer; wrap the raw 2-arg law
+        # in the shim with a bound quadrature so the call sites see
+        # the uniform 1-arg apply contract. Bit-identical to the
+        # pre-Wave-9 ``bc.apply(psi, quad)`` direct call.
         if self._inflow_trace is None:
-            return law
+            return _BoundBoundaryOperator(
+                law, quadrature=self.quad, kind=bc.kind,
+            )
 
         method_space = SNMethodSpace.for_face(
             mesh=self.mesh,
