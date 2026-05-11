@@ -134,6 +134,16 @@ from ._errors import (
 from ._source import BoundarySource, ConstantInflowSource, NoSource
 
 # ---------------------------------------------------------------------------
+# Wave 5 -- BoundaryRealizer Protocol + per-method registry.
+# ---------------------------------------------------------------------------
+
+from ._realizer import (
+    BoundaryRealizer,
+    BoundaryRealizerRegistry,
+    BoundaryRealizerRegistryError,
+)
+
+# ---------------------------------------------------------------------------
 # Legacy concrete BCs -- split into per-BC submodules in Wave 4.
 # ---------------------------------------------------------------------------
 
@@ -163,6 +173,10 @@ __all__ = [
     "BoundarySource",
     "ConstantInflowSource",
     "NoSource",
+    # Wave 5 -- realizer Protocol + registry
+    "BoundaryRealizer",
+    "BoundaryRealizerRegistry",
+    "BoundaryRealizerRegistryError",
     # Legacy concretes
     "AlbedoBoundaryOperator",
     "MixedBoundaryOperator",
