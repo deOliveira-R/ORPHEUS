@@ -80,11 +80,16 @@ def test_apply_transpose_forwards_when_inner_supports_it():
 
 def test_capabilities_delegate_to_inner():
     """:attr:`capabilities` returns whatever the wrapped operator
-    advertises — a permutation brings both apply + apply_transpose; a
-    mask-only operator brings only apply.
+    advertises — a permutation brings apply + apply_transpose + solve
+    (post Issue #150 closeout); a mask-only operator brings only apply.
+
+    The shim's contract is delegation; the exact inner capability set
+    is the inner operator's concern.
     """
-    perm_shim = _BoundBoundaryOperator(PermutationOperator(np.array([1, 0]), axis=0))
-    assert perm_shim.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
+    inner_perm = PermutationOperator(np.array([1, 0]), axis=0)
+    perm_shim = _BoundBoundaryOperator(inner_perm)
+    # Delegation: shim advertises exactly what inner advertises.
+    assert perm_shim.capabilities == inner_perm.capabilities
 
     zero_shim = _BoundBoundaryOperator(ZeroOperator())
     # ZeroOperator advertises {CAP_APPLY, CAP_APPLY_TRANSPOSE}

@@ -271,6 +271,38 @@ class LinearOperatorMixin:
     def __rmul__(self, other: float) -> "ScaledOperator":
         return self.__mul__(other)
 
+    def __neg__(self) -> "ScaledOperator":
+        r"""Unary minus: return :math:`-A` as ``ScaledOperator(-1.0, A)``.
+
+        Pythonic completion of the ``__sub__`` family — when ``A - B``
+        works (which ``__sub__`` already provides via the ``A +
+        ScaledOperator(-1.0, B)`` rewrite) Python's arithmetic
+        convention is that ``-A`` should also work. Useful for
+        adjoint-flux sensitivity rewrites (the streaming term flips
+        sign under the adjoint), source-iteration residual
+        corrections (``correction = -L @ delta``), and Jacobi-style
+        splitting (``A = D - (L + U)``, where ``-(L + U)`` is the
+        off-diagonal coupling).
+        """
+        return ScaledOperator(-1.0, self)  # type: ignore[arg-type]
+
+    def __truediv__(self, scalar: float) -> "ScaledOperator":
+        r"""Scalar division: ``A / α`` is ``(1/α) * A``.
+
+        Used for normalisation in eigenvalue / Krylov iterations
+        (``fission_normalised = F / k_eff``), homogenisation
+        averages (``avg_streaming = sum_streaming / N``), and any
+        consumer that reads more naturally with ``/`` than with the
+        reciprocal-multiply form ``(1.0 / α) * A``.
+
+        Raises :class:`TypeError` if ``scalar`` is not numeric.
+        Division by zero raises :class:`ZeroDivisionError` per the
+        standard Python convention (handled by ``1.0 / scalar``).
+        """
+        if not isinstance(scalar, (int, float, np.floating, np.integer)):
+            return NotImplemented
+        return ScaledOperator(1.0 / float(scalar), self)  # type: ignore[arg-type]
+
     def __matmul__(self, other: "LinearOperator") -> "OperatorProduct":
         return OperatorProduct(self, other)  # type: ignore[arg-type]
 
@@ -765,7 +797,9 @@ class PermutationOperator(LinearOperatorMixin):
         ``True`` iff :math:`\pi \circ \pi = \mathrm{id}`.
     """
 
-    capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
+    capabilities: frozenset[str] = frozenset(
+        {CAP_APPLY, CAP_APPLY_TRANSPOSE, CAP_SOLVE}
+    )
 
     def __init__(self, perm: np.ndarray, axis: int = 0) -> None:
         perm = np.asarray(perm, dtype=np.intp)
@@ -798,6 +832,19 @@ class PermutationOperator(LinearOperatorMixin):
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         return np.take(x, self.inverse_perm, axis=self.axis)
+
+    def solve(self, b: np.ndarray) -> np.ndarray:
+        r"""Inverse permutation action: :math:`P^{-1} b`.
+
+        For a permutation matrix, :math:`P^{-1} = P^{T}` — the
+        inverse equals the transpose. Both :meth:`solve` and
+        :meth:`apply_transpose` therefore route through the same
+        ``np.take(b, inverse_perm, axis=axis)`` call. The pair is
+        provided separately because they advertise different
+        capabilities (``CAP_SOLVE`` vs ``CAP_APPLY_TRANSPOSE``)
+        and consumers may filter by either.
+        """
+        return np.take(b, self.inverse_perm, axis=self.axis)
 
 
 class IncomingOrdinateMaskTensor(LinearOperatorMixin):

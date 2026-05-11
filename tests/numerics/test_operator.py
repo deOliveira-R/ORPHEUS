@@ -346,6 +346,51 @@ def test_dunder_matmul_returns_product(matrix_full):
     assert isinstance(p, OperatorProduct)
 
 
+def test_dunder_neg_returns_scaled_minus_one(matrix_full, vector):
+    """``-A`` returns ``ScaledOperator(-1.0, A)``. Issue #185."""
+    neg = -matrix_full
+    assert isinstance(neg, ScaledOperator)
+    assert neg.scalar == -1.0
+    # Value check: ``(-A) x == -(A x)``.
+    np.testing.assert_allclose(
+        neg.apply(vector), -matrix_full.apply(vector), atol=1e-12,
+    )
+
+
+def test_dunder_neg_composes_with_subtraction(matrix_full, vector):
+    """``A + (-B)`` is value-equivalent to ``A - B``. Issue #185."""
+    a_plus_neg_b = matrix_full + (-matrix_full)
+    a_minus_b = matrix_full - matrix_full
+    np.testing.assert_allclose(
+        a_plus_neg_b.apply(vector),
+        a_minus_b.apply(vector),
+        atol=1e-12,
+    )
+
+
+def test_dunder_truediv_returns_scaled_reciprocal(matrix_full, vector):
+    """``A / α`` returns ``ScaledOperator(1/α, A)``. Issue #185."""
+    halved = matrix_full / 2.0
+    assert isinstance(halved, ScaledOperator)
+    assert halved.scalar == 0.5
+    # Value check: ``(A / α) x == (A x) / α``.
+    np.testing.assert_allclose(
+        halved.apply(vector), matrix_full.apply(vector) / 2.0, atol=1e-12,
+    )
+
+
+def test_dunder_truediv_by_zero_raises(matrix_full):
+    """``A / 0`` raises ``ZeroDivisionError`` per Python convention."""
+    with pytest.raises(ZeroDivisionError):
+        matrix_full / 0.0
+
+
+def test_dunder_truediv_rejects_non_numeric(matrix_full):
+    """``A / 'string'`` returns ``NotImplemented`` → ``TypeError``."""
+    with pytest.raises(TypeError):
+        matrix_full / "two"  # type: ignore[operator]
+
+
 def test_transport_eigenvalue_algebra_smoke(matrix_full, matrix_apply_only):
     """Smoke test the (L - S - F) ψ algebra without dispatching it.
 
