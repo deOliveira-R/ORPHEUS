@@ -327,48 +327,68 @@ class TestPrescribedInflowConstruction:
 
 @pytest.mark.l1
 class TestPrescribedInflowApply:
-    """:meth:`PrescribedInflow.apply` semantics."""
+    """:class:`PrescribedInflow` realised-op semantics.
 
-    def test_apply_with_no_source_returns_zeros(self) -> None:
-        """Default ``NoSource``: ``apply`` returns zeros of the input shape."""
+    Issue #186 (B3 + β2): descriptors are no longer callable.
+    Realisation through
+    :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` produces
+    an :class:`~orpheus.sn.angular_operator.IncomingSourceOperator`
+    whose :meth:`apply` carries the rank-0 contract: input is ignored,
+    output depends only on the source.
+    """
+
+    def test_realized_apply_with_no_source_returns_zeros(self) -> None:
+        """Default ``NoSource``: realized ``apply`` returns zeros."""
         from orpheus.geometry.boundary import PrescribedInflow
+        from orpheus.sn.boundary_realizer import (
+            SNBoundaryRealizer, SNMethodSpace,
+        )
 
         bc = PrescribedInflow()
         quad = LebedevSphere.create(17)
+        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         psi_out = np.random.default_rng(0).standard_normal((quad.N, 3))
-        psi_in = bc.apply(psi_out, quad)
+        psi_in = op.apply(psi_out)
         assert psi_in.shape == psi_out.shape
         np.testing.assert_array_equal(psi_in, np.zeros_like(psi_out))
 
-    def test_apply_with_constant_source_returns_constant(self) -> None:
-        """``ConstantInflowSource(v)``: ``apply`` returns ``v`` everywhere."""
+    def test_realized_apply_with_constant_source_returns_constant(self) -> None:
+        """``ConstantInflowSource(v)``: realized ``apply`` returns ``v``."""
         from orpheus.geometry.boundary import (
             ConstantInflowSource,
             PrescribedInflow,
         )
+        from orpheus.sn.boundary_realizer import (
+            SNBoundaryRealizer, SNMethodSpace,
+        )
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=3.7))
         quad = LebedevSphere.create(17)
+        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         psi_out = np.random.default_rng(1).standard_normal((quad.N, 2))
-        psi_in = bc.apply(psi_out, quad)
+        psi_in = op.apply(psi_out)
         assert psi_in.shape == psi_out.shape
         np.testing.assert_array_equal(psi_in, np.full_like(psi_out, 3.7))
 
-    def test_apply_ignores_psi_out(self) -> None:
+    def test_realized_apply_ignores_psi_out(self) -> None:
         """The rank-0 contract: input is ignored, output depends only on source."""
         from orpheus.geometry.boundary import (
             ConstantInflowSource,
             PrescribedInflow,
         )
+        from orpheus.sn.boundary_realizer import (
+            SNBoundaryRealizer, SNMethodSpace,
+        )
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=1.0))
         quad = LebedevSphere.create(17)
+        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         psi_out_a = np.random.default_rng(2).standard_normal((quad.N, 2))
         psi_out_b = 1000.0 * np.ones((quad.N, 2))
         # Same source → same output, regardless of psi_out.
         np.testing.assert_array_equal(
-            bc.apply(psi_out_a, quad),
-            bc.apply(psi_out_b, quad),
+            op.apply(psi_out_a),
+            op.apply(psi_out_b),
         )
 
 
