@@ -101,8 +101,26 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
         psi_out: np.ndarray,
         quadrature: "AngularQuadrature",
     ) -> np.ndarray:
-        ref = quadrature.reflection_index(self.axis)
-        return self.albedo * psi_out[ref]
+        # Wave 7 (C7.3): delegate to the Wave-5 SNBoundaryRealizer.
+        # The realizer dispatches on isinstance(self, ReflectiveBoundary)
+        # and returns a Wave-0 ``PermutationOperator`` (scaled by
+        # albedo when ``albedo != 1.0``; the bare permutation for the
+        # ``albedo == 1.0`` fast path, preserving bit-identity with
+        # the pre-Wave-7 legacy body). Wave 8 hoists this delegation
+        # up to ``SNMesh._resolve_bcs`` so the realizer is built once
+        # per face and reused; this method becomes dead code in the
+        # 1-arg-apply Wave 10/11.
+        #
+        # Local imports break the cycle ``orpheus.geometry.boundary``
+        # → ``orpheus.sn.boundary_realizer`` → ``orpheus.geometry.boundary``.
+        from orpheus.sn.boundary_realizer import (
+            SNBoundaryRealizer,
+            SNMethodSpace,
+        )
+        op = SNBoundaryRealizer().realize(
+            self, SNMethodSpace.minimal(quadrature),
+        )
+        return op.apply(psi_out)
 
     def apply_transpose(
         self,
@@ -128,6 +146,17 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
         :class:`FunctionSpace`, for the cosine-weighted inner
         product too -- the permutation commutes with diagonal
         reweighting along the ordinate axis).
+
+        Wave 7 (C7.3): delegates to the realizer's
+        :class:`PermutationOperator` (which advertises
+        ``apply_transpose`` natively, scaled by albedo via the same
+        ``ScaledOperator`` wrap as the forward apply).
         """
-        perm = quadrature.reflection_index(self.axis)
-        return self.albedo * psi_in[perm]
+        from orpheus.sn.boundary_realizer import (
+            SNBoundaryRealizer,
+            SNMethodSpace,
+        )
+        op = SNBoundaryRealizer().realize(
+            self, SNMethodSpace.minimal(quadrature),
+        )
+        return op.apply_transpose(psi_in)

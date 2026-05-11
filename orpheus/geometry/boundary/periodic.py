@@ -64,9 +64,19 @@ class PeriodicBoundary(BoundaryTraceLaw, key="periodic"):
         psi_out: np.ndarray,
         quadrature: "AngularQuadrature",
     ) -> np.ndarray:
-        # Per the docstring above: the *partner-face* outgoing flux is
-        # what this BC needs; the caller passes that array in via the
-        # ``psi_out`` argument and we return it unchanged.
-        # Angular structure is identity; spatial pushforward is the
-        # caller's responsibility.
-        return psi_out.copy()
+        # Wave 7 (C7.3): delegate to the Wave-5 SNBoundaryRealizer.
+        # The realizer dispatches on isinstance(self, PeriodicBoundary)
+        # and returns the Wave-0 ``PeriodicWrapOperator``, whose
+        # apply body is ``psi_out.copy()`` (bit-equivalent to the
+        # pre-Wave-7 legacy body).
+        #
+        # Local imports break the cycle ``orpheus.geometry.boundary``
+        # → ``orpheus.sn.boundary_realizer`` → ``orpheus.geometry.boundary``.
+        from orpheus.sn.boundary_realizer import (
+            SNBoundaryRealizer,
+            SNMethodSpace,
+        )
+        op = SNBoundaryRealizer().realize(
+            self, SNMethodSpace.minimal(quadrature),
+        )
+        return op.apply(psi_out)

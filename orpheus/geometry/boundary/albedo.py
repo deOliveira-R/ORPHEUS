@@ -62,4 +62,29 @@ class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
         psi_out: np.ndarray,
         quadrature: "AngularQuadrature",
     ) -> np.ndarray:
-        return self.albedo * psi_out
+        # Wave 7 (C7.3): delegate to the Wave-5 SNBoundaryRealizer.
+        # The realizer dispatches on isinstance(self, AlbedoBoundary)
+        # and returns one of:
+        #
+        # * ``ZeroOperator()`` if ``albedo == 0.0`` (vacuum-equivalent
+        #   in the bare-attenuator algebra, but distinct from the
+        #   §16A.5 inflow-only-mask of ``VacuumInflow``).
+        # * ``IdentityOperator()`` if ``albedo == 1.0``.
+        # * ``ScaledOperator(albedo, IdentityOperator())`` for
+        #   ``albedo`` in (0, 1).
+        #
+        # The output is bit-equivalent to the pre-Wave-7 body
+        # ``self.albedo * psi_out`` (legacy multiplies on input;
+        # ScaledOperator multiplies the identity-passed-through input
+        # — same single multiplication).
+        #
+        # Local imports break the cycle ``orpheus.geometry.boundary``
+        # → ``orpheus.sn.boundary_realizer`` → ``orpheus.geometry.boundary``.
+        from orpheus.sn.boundary_realizer import (
+            SNBoundaryRealizer,
+            SNMethodSpace,
+        )
+        op = SNBoundaryRealizer().realize(
+            self, SNMethodSpace.minimal(quadrature),
+        )
+        return op.apply(psi_out)

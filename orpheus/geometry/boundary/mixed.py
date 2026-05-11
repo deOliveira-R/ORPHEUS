@@ -69,7 +69,24 @@ class MixedBoundaryOperator(BoundaryTraceLaw, key="mixed"):
         psi_out: np.ndarray,
         quadrature: "AngularQuadrature",
     ) -> np.ndarray:
-        result = np.zeros_like(psi_out)
-        for coeff, primitive in self.components:
-            result = result + coeff * primitive.apply(psi_out, quadrature)
-        return result
+        # Wave 7 (C7.3): delegate to the Wave-5 SNBoundaryRealizer.
+        # The realizer recursively realizes each ``(coeff,
+        # primitive)`` component to a Wave-0 ``LinearOperator`` and
+        # composes the rank-N decomposition via the
+        # ``LinearOperatorMixin.__add__`` algebra (returning an
+        # ``OperatorSum`` when there are ≥ 2 components). The result
+        # is structurally equivalent to the pre-Wave-7 legacy body
+        # ``zeros + Σ coeff * primitive.apply(...)``; the Wave-5
+        # snapshot harness pins the bit-equivalence at nulp=64 (Wave
+        # 6 / Case 8 mixed-BC reduction-tree margin).
+        #
+        # Local imports break the cycle ``orpheus.geometry.boundary``
+        # → ``orpheus.sn.boundary_realizer`` → ``orpheus.geometry.boundary``.
+        from orpheus.sn.boundary_realizer import (
+            SNBoundaryRealizer,
+            SNMethodSpace,
+        )
+        op = SNBoundaryRealizer().realize(
+            self, SNMethodSpace.minimal(quadrature),
+        )
+        return op.apply(psi_out)

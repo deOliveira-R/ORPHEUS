@@ -62,13 +62,28 @@ def test_compose_with_identity():
 
 
 @pytest.mark.l0
-def test_apply_returns_same_reference():
-    """L0: ``apply`` returns the input by reference (no copy).
+def test_apply_returns_fresh_copy():
+    """L0: ``apply`` returns a fresh copy of the input.
 
-    The legacy ``PeriodicBoundaryOperator.apply`` returns ``psi_out``
-    unchanged at zero cost; this primitive preserves that semantics.
+    The legacy ``PeriodicBoundary.apply`` body is ``psi_out.copy()``;
+    this primitive matches the safe-aliasing contract so that
+    callers may freely mutate the returned array without affecting
+    the caller's ``psi_out`` buffer. Wave 7 updated this primitive
+    to perform the copy (originally returned by reference, which
+    silently violated the legacy semantics — exposed when Wave 7
+    delegation routed
+    ``tests/geometry/test_boundary.py::test_periodic_bc_returns_input_unchanged``
+    through this operator).
     """
     P = PeriodicWrapOperator()
     x = np.array([1.0, 2.0, 3.0])
-    assert P.apply(x) is x
-    assert P.apply_transpose(x) is x
+    # Output is a distinct ndarray.
+    assert P.apply(x) is not x
+    assert P.apply_transpose(x) is not x
+    # Values agree.
+    np.testing.assert_array_equal(P.apply(x), x)
+    np.testing.assert_array_equal(P.apply_transpose(x), x)
+    # Mutating the output does not affect the input.
+    out = P.apply(x)
+    out[0] = 999.0
+    assert x[0] == 1.0

@@ -909,18 +909,33 @@ class PeriodicWrapOperator(LinearOperatorMixin):
     "BC: PeriodicWrapOperator spatial-pushforward implementation".
 
     Capability set: ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}``. The
-    identity body is self-adjoint. The input is returned by
-    reference (NOT copied) to match the legacy zero-cost angular
-    pass-through semantics.
+    identity body is self-adjoint. The output is a fresh copy of
+    the input — matching the legacy
+    :class:`~orpheus.geometry.boundary.periodic.PeriodicBoundary.apply`
+    aliasing-safety contract (``psi_out.copy()``) and the project-
+    wide convention that ``op.apply(psi)`` may be mutated freely by
+    the caller without affecting ``psi``.
+
+    Wave 7 update: pre-Wave-7 this operator returned ``x`` by
+    reference; the Wave 7 delegation of
+    :class:`~orpheus.geometry.boundary.PeriodicBoundary` to this
+    operator exposed the aliasing-safety mismatch via
+    ``tests/geometry/test_boundary.py::test_periodic_bc_returns_input_unchanged``.
+    The copy is now performed here so every consumer inherits the
+    safe-aliasing contract uniformly.
     """
 
     capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
     def apply(self, x: np.ndarray) -> np.ndarray:
-        return x
+        # Wave 7: return a fresh copy. The legacy
+        # ``PeriodicBoundary.apply`` body was ``psi_out.copy()``;
+        # delegating through this operator must preserve the
+        # caller-mutates-output safe-aliasing contract.
+        return np.asarray(x).copy()
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
-        return x
+        return np.asarray(x).copy()
 
 
 class TensorProductOperator(LinearOperatorMixin):

@@ -78,50 +78,21 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
         psi_out: np.ndarray,
         quadrature: "AngularQuadrature",
     ) -> np.ndarray:
-        # Direction cosine along the boundary normal axis.
-        if self.axis == "x":
-            mu_n = quadrature.mu_x
-        elif self.axis == "y":
-            mu_n = quadrature.mu_y
-        elif self.axis == "z":
-            mu_n = getattr(quadrature, "mu_z", None)
-            if mu_n is None:
-                raise ValueError(
-                    "WhiteBoundary(axis='z') requires a quadrature with mu_z "
-                    "(2-D / 3-D adapters: Lebedev, level-symmetric, "
-                    "product). The 1-D Gauss-Legendre adapter has no "
-                    "mu_z attribute."
-                )
-        else:
-            raise ValueError(f"Unknown axis: {self.axis!r}")
-
-        weights = quadrature.weights
-        # Outgoing ordinates at this face: those whose direction cosine
-        # along the outward normal is positive.
-        outgoing_mask = (self.outward_sign * mu_n) > 0.0
-        cos_w = weights * (self.outward_sign * mu_n)
-        # Cosine-weighted outgoing-current normalisation. ``np.where``
-        # zeroes contributions from non-outgoing ordinates.
-        cos_w = np.where(outgoing_mask, cos_w, 0.0)
-
-        norm = cos_w.sum()
-        if norm <= 0.0:
-            # Degenerate quadrature -- no outgoing ordinates. Return
-            # zero rather than producing a NaN.
-            return np.zeros_like(psi_out)
-
-        # Cosine-weighted average of the outgoing flux.
-        # Shape (N_ord, ...) -> broadcast (..., ) average.
-        psi_avg = (
-            cos_w.reshape((-1,) + (1,) * (psi_out.ndim - 1))
-            * psi_out
-        ).sum(axis=0) / norm
-
-        # Broadcast over all ordinates; sweeps consume only entries
-        # whose direction is *incoming* at the face, but it is cheap
-        # and conventional to fill the whole array uniformly.
-        result = np.broadcast_to(
-            psi_avg[None, ...] * self.albedo,
-            psi_out.shape,
-        ).copy()
-        return result
+        # Wave 7 (C7.3): delegate to the Wave-5 SNBoundaryRealizer.
+        # The realizer dispatches on isinstance(self, WhiteBoundary)
+        # and returns the Wave-1 ``AngularAverageOperator`` (scaled by
+        # albedo when ``albedo != 1.0``; the bare operator for the
+        # ``albedo == 1.0`` fast path). Bit-equivalence with the
+        # pre-Wave-7 legacy body is pinned by Wave 1's
+        # ``TestLegacyBitEquivalence`` and the Wave 6 snapshot harness.
+        #
+        # Local imports break the cycle ``orpheus.geometry.boundary``
+        # → ``orpheus.sn.boundary_realizer`` → ``orpheus.geometry.boundary``.
+        from orpheus.sn.boundary_realizer import (
+            SNBoundaryRealizer,
+            SNMethodSpace,
+        )
+        op = SNBoundaryRealizer().realize(
+            self, SNMethodSpace.minimal(quadrature),
+        )
+        return op.apply(psi_out)
