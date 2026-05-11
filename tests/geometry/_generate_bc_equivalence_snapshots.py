@@ -306,40 +306,59 @@ def _build_mixed_realized_apply(
 
 
 def _build_payload(case: BCEquivalenceCase) -> dict:
-    """Compute the snapshot payload (legacy ``bc.apply`` output + metadata).
+    """Compute the snapshot payload (realised ``apply`` output + metadata).
 
-    Per Wave 6 design:
+    Post-Issue-#186 design:
 
     * ``psi_out`` — the deterministic input array.
-    * ``psi_in`` — the LEGACY ``bc.apply(psi_out, quad)`` output for
-      single-rank-1 cases. For vacuum this is ``np.zeros_like(psi_out)``;
-      the test harness uses it as the ship-state (TESTS-FIRST) assertion
-      target.  Wave 8 relaxed the vacuum-specific assertion to the
-      §16A.5 inflow-only-masking semantics. Wave 11 redefined the
-      ``mixed_30spec_70white_LS4`` case: ``psi_in`` is now the
-      ``apply(psi)`` of the Wave-0 ``OperatorSum`` composition of the
-      realised leaves (the ``MixedBoundaryOperator`` composer was
-      deleted; see :func:`_build_mixed_realized_apply`).
+    * ``psi_in`` — the REALISER ``op.apply(psi_out)`` output. For
+      single-rank-1 cases the realiser is obtained via
+      ``SNBoundaryRealizer().realize(law, method_space)``. For the
+      vacuum case the method space carries the xmin-face inflow
+      indices (so the §16A.5 mask correctly identifies the inflow
+      rows). For the mixed case ``psi_in`` is the
+      ``apply(psi)`` of the Wave-0 ``OperatorSum`` composition of
+      realised leaves (see :func:`_build_mixed_realized_apply`).
     * ``inflow_indices_xmin`` — (vacuum case only) the xmin-face inflow
-      ordinate indices, so the harness can express the Wave-8-equivalent
-      assertion without re-deriving the index set.
+      ordinate indices, so the harness can encode the §16A.5
+      mask-and-pass-through assertion without re-deriving the set.
     * ``case_id`` / ``description`` — for traceability.
+
+    Issue #186 (B3 + β2) note
+    -------------------------
+    Pre-#186 ``psi_in`` was generated via the legacy 2-arg
+    ``bc.apply(psi_out, quad)`` path. That path is gone (descriptors
+    are no longer callable); the realiser path produces the same
+    numerical values on the existing snapshots, so regeneration is
+    not strictly necessary, but the generator now uses the realiser
+    path directly for future-proofing.
     """
     quad = case.build_quadrature()
     psi_out = _generate_psi(quad, case.case_id)
 
     if case.build_bc is None:
-        # Wave-11 special case: the snapshot's ``psi_in`` is the
+        # Issue #186 special case: the snapshot's ``psi_in`` is the
         # Wave-0 ``OperatorSum``-composition of realised leaves
         # (currently only ``mixed_30spec_70white_LS4`` uses this path).
         assert case.case_id == "mixed_30spec_70white_LS4", (
-            f"build_bc=None marker reserved for the Wave-11 mixed case; "
+            f"build_bc=None marker reserved for the mixed case; "
             f"got case_id={case.case_id!r}."
         )
         psi_in = _build_mixed_realized_apply(quad, psi_out)
     else:
         bc = case.build_bc()
-        psi_in = bc.apply(psi_out, quad)
+        # Vacuum needs an SNMethodSpace carrying the xmin inflow indices
+        # to drive the §16A.5 mask; every other case uses ``minimal``.
+        if case.case_id == "vacuum_lebedev17":
+            method_space = SNMethodSpace(
+                quadrature=quad,
+                face="xmin",
+                inflow_indices=_xmin_inflow_indices(quad),
+            )
+        else:
+            method_space = SNMethodSpace.minimal(quad)
+        op = SNBoundaryRealizer().realize(bc, method_space)
+        psi_in = op.apply(psi_out)
 
     payload: dict = dict(
         psi_out=np.asarray(psi_out, dtype=np.float64),
