@@ -44,11 +44,28 @@ def _mesh1d_cartesian(n: int = 4) -> Mesh1D:
 
 
 def _mesh1d_spherical(n: int = 4) -> Mesh1D:
-    """Tiny spherical mesh for the non-Cartesian-error test."""
+    """Tiny spherical Mesh1D — radial direction along the x-axis.
+
+    Issue #188 lifted the curvilinear-Mesh1D deferral; this mesh
+    feeds the same per-face inflow-mask predicate as the slab.
+    """
     return Mesh1D(
         edges=np.linspace(0.0, 1.0, n + 1),
         mat_ids=np.zeros(n, dtype=int),
         coord=CoordSystem.SPHERICAL,
+    )
+
+
+def _mesh1d_cylindrical(n: int = 4) -> Mesh1D:
+    """Tiny cylindrical Mesh1D — radial direction along the x-axis.
+
+    Shares the ("left", "right") face structure with slab and
+    spherical Mesh1D; the inflow predicate is identical.
+    """
+    return Mesh1D(
+        edges=np.linspace(0.0, 1.0, n + 1),
+        mat_ids=np.zeros(n, dtype=int),
+        coord=CoordSystem.CYLINDRICAL,
     )
 
 
@@ -59,6 +76,21 @@ def _mesh2d_cartesian(nx: int = 3, ny: int = 3) -> Mesh2D:
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
         coord=CoordSystem.CARTESIAN,
+    )
+
+
+def _mesh2d_cylindrical(nr: int = 3, nz: int = 3) -> Mesh2D:
+    """Tiny 2-D cylindrical (r, z) mesh — for the "still raises" test.
+
+    ORPHEUS has no 2-D cylindrical sweep today; the trace-space
+    mask construction continues to raise :class:`NotImplementedError`
+    until that solver lands and the azimuthal averaging is wired in.
+    """
+    return Mesh2D(
+        edges_x=np.linspace(0.0, 1.0, nr + 1),
+        edges_y=np.linspace(0.0, 1.0, nz + 1),
+        mat_map=np.zeros((nr, nz), dtype=int),
+        coord=CoordSystem.CYLINDRICAL,
     )
 
 
@@ -232,16 +264,118 @@ def test_inflow_outflow_sums_bounded_by_n_ordinates():
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Test 8 — L0: non-Cartesian Mesh1D raises NotImplementedError
+# Test 8 — L1: curvilinear Mesh1D inflow / outflow masks (Issue #188)
 # ─────────────────────────────────────────────────────────────────────
 
 
+class TestCurvilinear1DTraceMask:
+    r"""Curvilinear :class:`Mesh1D` + :class:`GaussLegendre1D` trace-space
+    construction.
+
+    1-D spherical and 1-D cylindrical meshes share the
+    ``("left", "right")`` face structure with 1-D Cartesian; only
+    the geometric interpretation of the outward normal differs (the
+    radial :math:`\pm \hat r` vs the Cartesian :math:`\pm \hat x`).
+    The quadrature's :attr:`mu_x` IS the direction cosine along the
+    radial axis for both curvilinear coords (the GaussLegendre1D
+    adapter is shared); the predicate :math:`\mathrm{sign}(\Omega \cdot
+    \hat n_f) < -\epsilon` applies unchanged.
+
+    Issue #188 lifted the earlier NotImplementedError guard that
+    rejected curvilinear Mesh1D outright. These tests pin the
+    contract: same predicate, same shape, same indices.
+    """
+
+    @pytest.mark.l1
+    def test_1d_spherical_inflow_mask(self):
+        """L1: spherical Mesh1D + GL produces the same predicate as slab."""
+        mesh = _mesh1d_spherical()
+        quad = GaussLegendre1D.create(n_ordinates=8)
+        space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
+        # Shape: (2 faces, N).
+        assert space.inflow_mask.shape == (2, quad.N)
+        # bc_left: outward normal -r̂ → inflow iff mu_x > eps (Ω · n = -mu_x < 0).
+        np.testing.assert_array_equal(
+            space.inflow_mask[0], quad.mu_x > 1e-12,
+        )
+        # bc_right: outward normal +r̂ → inflow iff mu_x < -eps.
+        np.testing.assert_array_equal(
+            space.inflow_mask[1], quad.mu_x < -1e-12,
+        )
+
+    @pytest.mark.l1
+    def test_1d_cylindrical_inflow_mask(self):
+        """L1: cylindrical Mesh1D matches spherical (same face structure)."""
+        mesh_sph = _mesh1d_spherical()
+        mesh_cyl = _mesh1d_cylindrical()
+        quad = GaussLegendre1D.create(n_ordinates=8)
+        sph = InflowTraceSpace.from_mesh_and_quadrature(mesh_sph, quad, ng=1)
+        cyl = InflowTraceSpace.from_mesh_and_quadrature(mesh_cyl, quad, ng=1)
+        # Pure-geometry: face_names and inflow_mask coincide.
+        assert sph.face_names == cyl.face_names == ("left", "right")
+        np.testing.assert_array_equal(sph.inflow_mask, cyl.inflow_mask)
+
+    @pytest.mark.l1
+    def test_1d_spherical_outflow_mask_complementary(self):
+        """L1: at each face, outflow is complement of inflow on GL
+        (which has no mu_x = 0 ordinate, so no tangential)."""
+        mesh = _mesh1d_spherical()
+        quad = GaussLegendre1D.create(n_ordinates=8)
+        inflow = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
+        outflow = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
+        for f_idx in range(2):
+            complement = inflow.inflow_mask[f_idx] ^ outflow.outflow_mask[f_idx]
+            assert complement.all(), (
+                f"face {f_idx} fails XOR-complementarity on spherical Mesh1D"
+            )
+
+    @pytest.mark.l1
+    def test_1d_cylindrical_inflow_indices_for_face(self):
+        """L1: inflow_indices_for_face works identically on curvilinear."""
+        mesh = _mesh1d_cylindrical()
+        quad = GaussLegendre1D.create(n_ordinates=8)
+        space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
+        left_idx = space.inflow_indices_for_face("left")
+        # Should be exactly the indices where mu_x > 0 (Ω · (-r̂) < 0).
+        np.testing.assert_array_equal(left_idx, np.flatnonzero(quad.mu_x > 1e-12))
+        right_idx = space.inflow_indices_for_face("right")
+        np.testing.assert_array_equal(right_idx, np.flatnonzero(quad.mu_x < -1e-12))
+
+    @pytest.mark.l1
+    def test_curvilinear_inflow_matches_cartesian_with_same_quadrature(self):
+        """L1: slab / spherical / cylindrical Mesh1D produce IDENTICAL
+        inflow masks given the same quadrature.
+
+        This is the geometric content of Issue #188: the per-face inflow
+        predicate is a property of the quadrature's mu_x and the face's
+        outward normal, both of which are identical across the three
+        1-D coord systems.
+        """
+        quad = GaussLegendre1D.create(n_ordinates=8)
+        cart = InflowTraceSpace.from_mesh_and_quadrature(
+            _mesh1d_cartesian(), quad, ng=1,
+        )
+        sph = InflowTraceSpace.from_mesh_and_quadrature(
+            _mesh1d_spherical(), quad, ng=1,
+        )
+        cyl = InflowTraceSpace.from_mesh_and_quadrature(
+            _mesh1d_cylindrical(), quad, ng=1,
+        )
+        np.testing.assert_array_equal(cart.inflow_mask, sph.inflow_mask)
+        np.testing.assert_array_equal(cart.inflow_mask, cyl.inflow_mask)
+
+
 @pytest.mark.l0
-def test_non_cartesian_mesh1d_raises_notimplemented():
-    """L0: spherical Mesh1D raises NotImplementedError with a
-    grep-able deferral message."""
-    mesh = _mesh1d_spherical()
-    quad = GaussLegendre1D.create(n_ordinates=4)
+def test_mesh2d_cylindrical_still_raises():
+    """L0: 2-D cylindrical Mesh2D still raises NotImplementedError.
+
+    No 2-D cylindrical SN sweep exists in ORPHEUS today; the
+    azimuthal-averaging machinery the (r, z) face normals would
+    require has not been wired into the predicate. The Issue #188
+    change scope was Mesh1D only; the Mesh2D guard stays.
+    """
+    mesh = _mesh2d_cylindrical()
+    quad = LebedevSphere.create(11)
     with pytest.raises(NotImplementedError, match="curvilinear"):
         InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     with pytest.raises(NotImplementedError, match="curvilinear"):

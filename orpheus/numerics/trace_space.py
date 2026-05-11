@@ -72,11 +72,20 @@ For each face with outward unit normal :math:`\hat n_f`, an ordinate
   (default ``1e-12``) accounting for floating-point round-off in
   quadrature nodes that are nominally axis-aligned.
 
-Implementation note: this skill files Cartesian + 1-D slab.
-Curvilinear ``Mesh1D`` (``coord=SPHERICAL`` or ``CYLINDRICAL``)
-raises :class:`NotImplementedError` — the curvilinear sweep does
-not yet consume the trace mask; the deferral is grep-able for the
-future consumer.
+Coord-system coverage
+=====================
+
+* **Mesh1D** — supported for Cartesian (slab), spherical, and
+  cylindrical. All three share the same ``("left", "right")`` face
+  structure; the outward normal is the unit vector along the radial
+  / Cartesian-x axis, and :class:`GaussLegendre1D` is the shared
+  quadrature with ``mu_x`` as the direction cosine along that axis.
+* **Mesh2D** — Cartesian only. 2-D cylindrical (axisymmetric
+  ``(r, z)``) is not implemented in ORPHEUS today and continues to
+  raise :class:`NotImplementedError`; when a 2-D cylindrical sweep
+  ships, the face-normal table will need a ``rmin`` / ``rmax`` /
+  ``zmin`` / ``zmax`` entry set and the mask predicate will need to
+  handle azimuthal averaging.
 
 References
 ----------
@@ -181,13 +190,14 @@ def _build_per_face_mask(
     from orpheus.geometry.mesh import Mesh1D, Mesh2D
 
     if isinstance(mesh, Mesh1D):
-        if mesh.coord != CoordSystem.CARTESIAN:
-            raise NotImplementedError(
-                "InflowTraceSpace.from_mesh_and_quadrature for curvilinear "
-                "Mesh1D (coord=SPHERICAL/CYLINDRICAL) is deferred until a "
-                "curvilinear Krylov consumer arrives. "
-                "See plan Wave 2 (transient-giggling-cake.md)."
-            )
+        # All 1-D coord systems share the ("left", "right") face
+        # structure with outward normals along the chosen axis
+        # (Cartesian-x for slab; radial for spherical / cylindrical).
+        # The quadrature's mu_x is the direction cosine along that
+        # axis for both — the GaussLegendre1D adapter is shared.
+        # The predicate sign(Ω·n) < -eps therefore applies identically
+        # to all three coord systems. Issue #188 (curvilinear realizer
+        # enablement) lifted the earlier NotImplementedError guard.
         face_table = _MESH1D_FACE_NORMALS
     elif isinstance(mesh, Mesh2D):
         if mesh.coord != CoordSystem.CARTESIAN:
@@ -322,8 +332,11 @@ class InflowTraceSpace(TraceSpace):
         Raises
         ------
         NotImplementedError
-            If ``mesh`` is curvilinear (``coord=SPHERICAL`` or
-            ``CYLINDRICAL``).
+            If ``mesh`` is a curvilinear :class:`Mesh2D`
+            (``coord=CYLINDRICAL``); 2-D cylindrical sweeps are not
+            implemented in ORPHEUS today. All :class:`Mesh1D`
+            coord systems (Cartesian / spherical / cylindrical)
+            are supported.
         """
         # Local import.
         from orpheus.geometry.mesh import Mesh1D, Mesh2D
