@@ -12,7 +12,7 @@ import numpy as np
 
 from orpheus.numerics.operator import CAP_APPLY
 
-from ._base import BoundaryOperator
+from ._base import BoundaryTraceLaw
 
 if TYPE_CHECKING:
     from orpheus.sn.quadrature import AngularQuadrature
@@ -22,7 +22,7 @@ __all__ = ["VacuumBoundaryOperator"]
 
 
 @dataclass(frozen=True)
-class VacuumBoundaryOperator(BoundaryOperator, key="vacuum"):
+class VacuumBoundaryOperator(BoundaryTraceLaw, key="vacuum"):
     r"""Vacuum boundary: :math:`R = 0`.
 
     The empty sum in the tensor decomposition: no incoming flux,

@@ -14,7 +14,7 @@ import numpy as np
 
 from orpheus.numerics.operator import CAP_APPLY
 
-from ._base import BoundaryOperator
+from ._base import BoundaryTraceLaw
 
 if TYPE_CHECKING:
     from orpheus.sn.quadrature import AngularQuadrature
@@ -24,7 +24,7 @@ __all__ = ["MixedBoundaryOperator"]
 
 
 @dataclass(frozen=True)
-class MixedBoundaryOperator(BoundaryOperator, key="mixed"):
+class MixedBoundaryOperator(BoundaryTraceLaw, key="mixed"):
     r"""Linear combination of rank-1 BC primitives.
 
     Realises a rank-N tensor decomposition
@@ -51,13 +51,13 @@ class MixedBoundaryOperator(BoundaryOperator, key="mixed"):
 
     capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
 
-    components: tuple[tuple[float, BoundaryOperator], ...] = field(
+    components: tuple[tuple[float, BoundaryTraceLaw], ...] = field(
         default_factory=tuple
     )
 
     def __init__(
         self,
-        components: Sequence[tuple[float, BoundaryOperator]],
+        components: Sequence[tuple[float, BoundaryTraceLaw]],
     ) -> None:
         # Frozen-dataclass-with-Sequence-arg pattern: take a Sequence,
         # store as a tuple. ``object.__setattr__`` to bypass the frozen

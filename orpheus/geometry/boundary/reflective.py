@@ -12,7 +12,7 @@ import numpy as np
 
 from orpheus.numerics.operator import CAP_APPLY, CAP_APPLY_TRANSPOSE
 
-from ._base import BoundaryOperator
+from ._base import BoundaryTraceLaw
 
 if TYPE_CHECKING:
     from orpheus.sn.quadrature import AngularQuadrature
@@ -22,7 +22,7 @@ __all__ = ["SpecularBoundaryOperator"]
 
 
 @dataclass(frozen=True)
-class SpecularBoundaryOperator(BoundaryOperator, key="reflective"):
+class SpecularBoundaryOperator(BoundaryTraceLaw, key="reflective"):
     r"""Specular reflection with optional albedo.
 
     Tensor decomposition :math:`(G_{\text{refl}}, \alpha)` where

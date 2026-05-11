@@ -329,11 +329,18 @@ def test_all_primitives_are_resolved_bc() -> None:
 
 @pytest.mark.foundation
 def test_registry_contains_all_primitives() -> None:
-    """All six concrete BC subtypes self-register under their key."""
+    """All six concrete BC subtypes self-register under their key.
+
+    Wave 7 merged the legacy ``BoundaryOperator`` ABC into
+    :class:`BoundaryTraceLaw`, so the registry now also holds test
+    stubs from :mod:`tests.geometry.test_boundary_trace_law` and the
+    Wave-7 additions (``prescribed_inflow``). Assert ``>=`` rather
+    than equality.
+    """
     expected_keys = {
         "vacuum", "reflective", "white", "periodic", "albedo", "mixed",
     }
-    assert set(BoundaryOperator.registry.keys()) == expected_keys
+    assert expected_keys <= set(BoundaryOperator.registry.keys())
 
 
 @pytest.mark.foundation

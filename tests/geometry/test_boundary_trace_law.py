@@ -14,14 +14,14 @@ This file pins the ABC contract shipped in Wave 3:
 * :attr:`geometry_map` and :attr:`response_kernel` default to
   ``None``.
 
-The TIGHTEST contract in this file is registry-isolation:
-:class:`BoundaryTraceLaw` and the legacy
-:class:`~orpheus.geometry.boundary.BoundaryOperator` MUST hold
-SEPARATE class-level dicts. Without this guarantee, Wave 7's
-rename of legacy concretes (``VacuumBoundaryOperator`` →
-``VacuumInflow`` on the new hierarchy) would silently clobber the
-legacy entries because :class:`~orpheus.numerics.registry.RegistryMixin`
-keys by string, not by type.
+Wave 7 update: the legacy ``BoundaryOperator`` ABC has been merged
+into :class:`BoundaryTraceLaw`. The pre-Wave-7 registry-disjointness
+tests were replaced with a UNIFIED-registry assertion — all 6 concrete
+BCs (``vacuum`` / ``reflective`` / ``white`` / ``periodic`` /
+``albedo`` / ``mixed``) now live in :pyattr:`BoundaryTraceLaw.registry`.
+The legacy ``BoundaryOperator`` symbol is an alias of
+:class:`BoundaryTraceLaw` (so ``BoundaryOperator.registry is
+BoundaryTraceLaw.registry`` is now True).
 
 Tagged ``@pytest.mark.foundation`` per :mod:`tests._harness`.
 """
@@ -205,48 +205,37 @@ def test_stub_law_self_registers_under_its_key() -> None:
 
 
 @pytest.mark.foundation
-def test_legacy_and_new_registries_are_disjoint() -> None:
-    """The ``BoundaryOperator.registry`` (legacy) and
-    ``BoundaryTraceLaw.registry`` (Wave 3) are separate dicts.
+def test_unified_registry_holds_all_concretes() -> None:
+    """Post-Wave-7, the ONE registry on :class:`BoundaryTraceLaw`
+    holds every concrete BC.
 
-    This is the load-bearing assertion for Wave 7: when concrete
-    BCs migrate onto :class:`BoundaryTraceLaw`, they MUST NOT
-    leak into the legacy ``BoundaryOperator.registry`` (or vice
-    versa), even though both hierarchies share
-    :class:`~orpheus.numerics.registry.RegistryMixin` and could
-    in principle clash on string keys (e.g. ``"vacuum"``).
+    Before Wave 7 the legacy ``BoundaryOperator`` ABC and
+    :class:`BoundaryTraceLaw` held two disjoint registry dicts. Wave
+    7 merged the ABCs (``BoundaryOperator`` is now an alias of
+    :class:`BoundaryTraceLaw`), and the registry split with them —
+    one dict containing all 6 legacy concretes plus the test stub
+    plus any Wave-7 additions (``prescribed_inflow``).
     """
-    # Distinct dict objects.
-    assert (
-        BoundaryOperator.registry is not BoundaryTraceLaw.registry
-    )
-    # Legacy registry still has its 6 concrete BCs.
-    legacy_keys = set(BoundaryOperator.registry.keys())
-    assert {
+    # The two symbols are now the same class — registry IS the same dict.
+    assert BoundaryOperator is BoundaryTraceLaw
+    assert BoundaryOperator.registry is BoundaryTraceLaw.registry
+
+    # Every Wave-4 concrete BC lives in the unified registry.
+    keys = set(BoundaryTraceLaw.registry.keys())
+    expected_concretes = {
         "vacuum",
         "reflective",
         "white",
         "periodic",
         "albedo",
         "mixed",
-    } <= legacy_keys
-    # The new registry only has the test stub (and any future
-    # subclasses we'll register in this test file). It does NOT
-    # contain the legacy keys.
-    new_keys = set(BoundaryTraceLaw.registry.keys())
-    for legacy_key in ("vacuum", "reflective", "white", "periodic", "albedo", "mixed"):
-        assert legacy_key not in new_keys
-    # And the legacy registry has none of the new stub's key.
-    assert "_stub_for_test" not in legacy_keys
-
-
-@pytest.mark.foundation
-def test_legacy_concrete_not_in_new_registry_values() -> None:
-    """For maximum paranoia: no class registered against the
-    legacy root is ALSO registered against the new root."""
-    legacy_classes = set(BoundaryOperator.registry.values())
-    new_classes = set(BoundaryTraceLaw.registry.values())
-    assert legacy_classes.isdisjoint(new_classes)
+    }
+    assert expected_concretes <= keys, (
+        f"missing concretes in unified registry: "
+        f"{expected_concretes - keys}"
+    )
+    # The test stub registered in this module is also present.
+    assert "_stub_for_test" in keys
 
 
 # ─────────────────────────────────────────────────────────────────────

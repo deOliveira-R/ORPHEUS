@@ -12,7 +12,7 @@ import numpy as np
 
 from orpheus.numerics.operator import CAP_APPLY
 
-from ._base import BoundaryOperator
+from ._base import BoundaryTraceLaw
 
 if TYPE_CHECKING:
     from orpheus.sn.quadrature import AngularQuadrature
@@ -22,7 +22,7 @@ __all__ = ["AlbedoBoundaryOperator"]
 
 
 @dataclass(frozen=True)
-class AlbedoBoundaryOperator(BoundaryOperator, key="albedo"):
+class AlbedoBoundaryOperator(BoundaryTraceLaw, key="albedo"):
     r"""Pure albedo boundary: scalar multiple of the outgoing flux.
 
     Tensor decomposition :math:`(I, \alpha)` where :math:`I` is the

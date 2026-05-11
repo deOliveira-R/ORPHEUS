@@ -1,34 +1,28 @@
-r"""Abstract bases for boundary conditions: legacy + trace-law.
+r"""Abstract base for boundary conditions: :class:`BoundaryTraceLaw`.
 
-This module hosts **two** abstract bases that coexist during the
-Wave 3-Wave 11 transition:
+Wave 7 of the boundary-operator refactor merged the legacy
+``BoundaryOperator`` ABC (originally defined in this file alongside
+:class:`BoundaryTraceLaw`) into :class:`BoundaryTraceLaw`. The legacy
+ABC's separate registry, separate ``apply(psi_out, quadrature)``
+contract, and separate ``_registry_base`` override are gone; the new
+ABC's ``apply(psi_out, *args, **kwargs)`` accommodates both the legacy
+2-arg call from production sweeps and the Wave 10 1-arg call once
+consumers route through the realizer.
 
-1. :class:`BoundaryOperator` -- the legacy ABC, 2-arg
-   ``apply(psi_out, quadrature)`` signature. The five concrete
-   subclasses (:class:`~orpheus.geometry.boundary.vacuum.VacuumBoundaryOperator`,
-   :class:`~orpheus.geometry.boundary.reflective.SpecularBoundaryOperator`,
-   :class:`~orpheus.geometry.boundary.white.WhiteBoundaryOperator`,
-   :class:`~orpheus.geometry.boundary.periodic.PeriodicBoundaryOperator`,
-   :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundaryOperator`)
-   plus the rank-N composer
-   (:class:`~orpheus.geometry.boundary.mixed.MixedBoundaryOperator`)
-   all inherit from this base today.
+The :pyattr:`__init__.py` of the package re-exports ``BoundaryOperator
+= BoundaryTraceLaw`` as a deprecated alias so the 8 production import
+sites and the existing tests that ``from orpheus.geometry.boundary
+import BoundaryOperator`` keep working unchanged. The alias is
+scheduled for removal in a future cleanup wave (see Wave 11).
 
-2. :class:`BoundaryTraceLaw` -- the new method-agnostic ABC for the
-   §16A.3 three-layer decomposition. Concrete BCs will be rebased
-   onto this ABC in Wave 7 (rename + internal delegation).
-
-The two ABCs maintain SEPARATE registries: each declares its own
-``registry: ClassVar[dict]`` and overrides
-:meth:`_registry_base` to return itself. This isolation is
-load-bearing for Wave 7: new concretes can register under
-:class:`BoundaryTraceLaw` without colliding with the legacy
-:attr:`BoundaryOperator.registry` entries.
-
-Wave 3 added :class:`BoundaryTraceLaw`. Wave 4 (this file's
-expansion) moved :class:`BoundaryOperator` here from the package
-``__init__.py`` as part of the source-layout split. The per-BC
-concretes moved into per-BC submodules in the same wave.
+The remaining content of this module is :class:`BoundaryTraceLaw`
+itself — the method-agnostic affine boundary law in
+:math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q` form, with its three
+first-class properties (``geometry_map``, ``response_kernel``,
+``source``), its five ``assert_*`` universal invariants (per Grand
+Report v3 §16A.12), its :pydata:`creates_sweep_cycle` ClassVar, its
+``realize`` hook into the Wave-5 :class:`BoundaryRealizerRegistry`,
+and its abstract ``apply`` contract.
 
 References
 ----------
@@ -36,8 +30,8 @@ References
 * Grand Report v3 §16A.1-3 (affine boundary form + three-layer
   decomposition), §16A.12 (universal invariants), §15A.2
   (sweep-cycle detection).
-* ``.claude/plans/transient-giggling-cake.md`` -- Wave 3 / Wave 4
-  briefs.
+* ``.claude/plans/transient-giggling-cake.md`` -- Wave 3 / Wave 4 /
+  Wave 7 briefs.
 """
 
 from __future__ import annotations
@@ -58,122 +52,11 @@ if TYPE_CHECKING:
     from orpheus.sn.quadrature import AngularQuadrature
 
 
-__all__ = ["BoundaryOperator", "BoundaryTraceLaw"]
+__all__ = ["BoundaryTraceLaw"]
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Legacy ABC (will be deprecated in Wave 7 when concretes rebase onto
-# BoundaryTraceLaw).
-# ═══════════════════════════════════════════════════════════════════════
-
-
-class BoundaryOperator(LinearOperatorMixin, RegistryMixin, ABC):
-    r"""Abstract base for a tensor-decomposed boundary condition.
-
-    A :class:`BoundaryOperator` is the runtime representation of the operator
-
-    .. math::
-
-        R = \sum_\alpha G_\alpha \otimes A_\alpha
-
-    that consumes the outgoing angular flux at a face and produces the
-    incoming angular flux. Concrete implementations may be **rank-1**
-    (a single :math:`G \otimes A` term: vacuum, specular, white,
-    periodic, albedo) or **rank-N**
-    (:class:`~orpheus.geometry.boundary.mixed.MixedBoundaryOperator` --
-    a sum of the rank-1 primitives).
-
-    The :class:`~orpheus.sn.quadrature.AngularQuadrature` argument
-    lets each concrete BC reach into the quadrature's structural
-    metadata (``reflection_index(axis)``, weights, level structure)
-    without the contract exposing those as required attributes -- the
-    responsibility for being able to query the quadrature lives in
-    the BC, not in every consumer.
-
-    Issue 9.6 lift
-    ==============
-
-    The earlier ``BoundaryOperator(Protocol)`` declaration was
-    duck-typed; Issue 9.6 lifted it into a concrete ABC that:
-
-    * inherits :class:`~orpheus.numerics.operator.LinearOperatorMixin`
-      so concrete BCs participate in the operator algebra
-      (``+`` / ``*`` / ``@``);
-    * inherits :class:`~orpheus.numerics.registry.RegistryMixin` so
-      concrete BCs self-register under a string ``key=`` class-creation
-      kwarg, accessible via :meth:`create`;
-    * canonicalises the application method as :meth:`apply` (the
-      Issue 9.5 rename retained the old ``apply_to_incoming`` name;
-      Issue 9.6 dropped it in favour of the operator-algebra
-      vocabulary).
-
-    Each concrete subtype declares its :pydata:`capabilities`
-    frozenset. The minimum contract is ``frozenset({"apply"})``;
-    :class:`~orpheus.geometry.boundary.reflective.SpecularBoundaryOperator`
-    ships ``apply_transpose`` in addition (load-bearing for
-    sensitivity-analysis adjoint pipelines).
-    """
-
-    registry: ClassVar[dict[str, type["BoundaryOperator"]]] = {}
-    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
-
-    @classmethod
-    def _registry_base(cls) -> type:
-        return BoundaryOperator
-
-    @property
-    def domain(self) -> Optional["FunctionSpace"]:
-        """Boundary-trace space the BC consumes (outgoing flux).
-
-        Returns ``None`` on the abstract base -- concrete subtypes
-        whose trace dimensions are determined at construction time
-        may override to expose them. The Issue 9.6 ship-state leaves
-        this as ``None`` for backward compatibility; the function
-        spaces become non-trivial when an SN solver explicitly
-        constructs them with the live ordinate / group counts.
-        """
-        return None
-
-    @property
-    def range(self) -> Optional["FunctionSpace"]:
-        """Boundary-trace space the BC produces (incoming flux).
-
-        See :attr:`domain` for the ``None`` semantics.
-        """
-        return None
-
-    @abstractmethod
-    def apply(
-        self,
-        psi_out: np.ndarray,
-        quadrature: "AngularQuadrature",
-    ) -> np.ndarray:
-        r"""Compute the incoming angular flux from the outgoing.
-
-        Parameters
-        ----------
-        psi_out : np.ndarray
-            Angular flux at the boundary face, indexed over all
-            ordinates of ``quadrature``. Shape ``(N_ord, ...)`` where
-            the trailing axes are typically energy groups.
-        quadrature : AngularQuadrature
-            The angular quadrature; lets the BC query reflection
-            partners, weights, and level structure.
-
-        Returns
-        -------
-        np.ndarray
-            Incoming angular flux at the boundary face, same shape
-            as ``psi_out``. For ordinates whose direction cosine is
-            *outgoing* at this face (and thus do not have an
-            incoming value), the returned entries are zero -- sweeps
-            consume only the incoming entries.
-        """
-        ...
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Wave-3 ABC -- BoundaryTraceLaw (method-agnostic affine boundary law).
+# BoundaryTraceLaw — the ONE ABC (post Wave 7 ABC-merge).
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -198,23 +81,23 @@ class BoundaryTraceLaw(LinearOperatorMixin, RegistryMixin, ABC):
 
     Notes
     -----
-    The :meth:`apply` signature in this wave still carries the
-    legacy multi-arg ``(psi_out, ...)`` form so concretes can
-    delegate to the existing
-    :class:`~orpheus.geometry.boundary.BoundaryOperator` body
-    during Wave 7. Wave 10 drops the trailing ``quadrature``
-    argument once all consumers go through the realiser path.
+    The :meth:`apply` signature carries ``(psi_out, *args, **kwargs)``
+    so concretes can accept the legacy 2-arg form
+    ``(psi_out, quadrature)`` (consumed by production sweeps in
+    Waves 7-9) or the 1-arg form ``(psi)`` post-Wave 10 (once the
+    realiser captures the quadrature at construction).
 
     Registry
     --------
-    :class:`BoundaryTraceLaw` and :class:`BoundaryOperator`
-    maintain SEPARATE registries -- each registry root re-declares
-    its own ``registry: ClassVar[dict]`` and overrides
-    :meth:`_registry_base` to return itself. This isolation is
-    load-bearing for Wave 7's rename of concrete BCs onto the
-    :class:`BoundaryTraceLaw` hierarchy: new concretes register
-    under the new root without colliding with the legacy
-    ``BoundaryOperator.registry`` entries.
+    :class:`BoundaryTraceLaw` IS the single registry root for all
+    boundary conditions. The pre-Wave-7 separate ``BoundaryOperator``
+    registry has been merged — there is now ONE
+    :pyattr:`BoundaryTraceLaw.registry` dict containing every
+    concrete BC (``vacuum`` / ``reflective`` / ``white`` /
+    ``periodic`` / ``albedo`` / ``mixed`` / ``prescribed_inflow``).
+    The legacy ``BoundaryOperator`` symbol is now an alias of this
+    class via the package ``__init__.py`` (deprecated; remove in a
+    future cleanup wave).
     """
 
     registry: ClassVar[dict[str, type["BoundaryTraceLaw"]]] = {}
@@ -344,12 +227,11 @@ class BoundaryTraceLaw(LinearOperatorMixin, RegistryMixin, ABC):
     ) -> np.ndarray:
         r"""Boundary-law application.
 
-        Concrete signature defined by subclasses. During the Wave
-        7 transition, concrete BCs match the legacy 2-arg form
-        ``(psi_out, quadrature)`` so they can delegate to the
-        existing
-        :class:`~orpheus.geometry.boundary.BoundaryOperator` body.
-        Wave 10 collapses the signature to 1-arg ``(psi)`` once
-        the realiser captures the quadrature at construction.
+        Concrete signature defined by subclasses. During Waves 7-9
+        concrete BCs match the legacy 2-arg form
+        ``(psi_out, quadrature)`` so they integrate with existing
+        production sweeps. Wave 10 collapses the signature to 1-arg
+        ``(psi)`` once the realiser captures the quadrature at
+        construction.
         """
         ...

@@ -106,10 +106,17 @@ References
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
-# Abstract bases.
+# Abstract base — Wave 7 merged the legacy ``BoundaryOperator`` ABC into
+# :class:`BoundaryTraceLaw`. The legacy symbol is kept as a deprecated
+# alias for backward compatibility with the 8 production import sites
+# (``orpheus.sn.geometry``, ``orpheus.sn.operator``, ...) and the tests
+# that import it. Remove in a future cleanup wave.
 # ---------------------------------------------------------------------------
 
-from ._base import BoundaryOperator, BoundaryTraceLaw
+from ._base import BoundaryTraceLaw
+
+# Deprecated alias for backward compat; remove in a future cleanup wave.
+BoundaryOperator = BoundaryTraceLaw
 
 # ---------------------------------------------------------------------------
 # Wave 3 -- typed error catalog (ERR-040..ERR-047).

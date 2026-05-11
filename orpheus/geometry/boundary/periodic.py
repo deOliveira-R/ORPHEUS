@@ -12,7 +12,7 @@ import numpy as np
 
 from orpheus.numerics.operator import CAP_APPLY
 
-from ._base import BoundaryOperator
+from ._base import BoundaryTraceLaw
 
 if TYPE_CHECKING:
     from orpheus.sn.quadrature import AngularQuadrature
@@ -22,7 +22,7 @@ __all__ = ["PeriodicBoundaryOperator"]
 
 
 @dataclass(frozen=True)
-class PeriodicBoundaryOperator(BoundaryOperator, key="periodic"):
+class PeriodicBoundaryOperator(BoundaryTraceLaw, key="periodic"):
     r"""Periodic boundary: spatial pushforward to the partner face.
 
     Tensor decomposition :math:`(G_{\text{wrap}}, 1)` where

@@ -12,7 +12,7 @@ import numpy as np
 
 from orpheus.numerics.operator import CAP_APPLY
 
-from ._base import BoundaryOperator
+from ._base import BoundaryTraceLaw
 
 if TYPE_CHECKING:
     from orpheus.sn.quadrature import AngularQuadrature
@@ -22,7 +22,7 @@ __all__ = ["WhiteBoundaryOperator"]
 
 
 @dataclass(frozen=True)
-class WhiteBoundaryOperator(BoundaryOperator, key="white"):
+class WhiteBoundaryOperator(BoundaryTraceLaw, key="white"):
     r"""White (Lambertian) boundary with optional albedo.
 
     Tensor decomposition :math:`(G_{\text{diff}}, \alpha)` where
