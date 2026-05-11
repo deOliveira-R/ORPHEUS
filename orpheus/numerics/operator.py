@@ -558,18 +558,11 @@ class OperatorSum(LinearOperatorMixin):
         a_rng = getattr(self.a, "range", None)
         return a_rng if a_rng is not None else getattr(self.b, "range", None)
 
-    def apply(self, x, *extra, **kwextra):
-        # Forward extra positional/keyword args so BoundaryOperator-style
-        # multi-argument apply signatures (e.g.
-        # ``apply(psi_out, quadrature)``) compose under sums.
-        return self.a.apply(x, *extra, **kwextra) + self.b.apply(
-            x, *extra, **kwextra
-        )
+    def apply(self, x: np.ndarray) -> np.ndarray:
+        return self.a.apply(x) + self.b.apply(x)
 
-    def apply_transpose(self, x, *extra, **kwextra):
-        return self.a.apply_transpose(x, *extra, **kwextra) + self.b.apply_transpose(  # type: ignore[attr-defined]
-            x, *extra, **kwextra,
-        )
+    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+        return self.a.apply_transpose(x) + self.b.apply_transpose(x)  # type: ignore[attr-defined]
 
 
 class OperatorProduct(LinearOperatorMixin):
