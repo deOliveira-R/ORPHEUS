@@ -20,35 +20,41 @@ pushforward, an angular average, a spatial wrap-around, …) with a
 
 Most boundary conditions of practical interest are **rank-1**:
 
-* :class:`VacuumBoundaryOperator` -- :math:`R = 0` (the empty sum,
-  rank 0; algebraically the trivial case of the decomposition).
-* :class:`SpecularBoundaryOperator` -- :math:`R = G_{\text{refl}} \cdot \alpha`
-  where :math:`G_{\text{refl}}` is the angular-permutation operator
-  that maps ordinate :math:`\Omega_n` to its reflected partner
-  :math:`(\Omega_n \cdot \hat{n})` and :math:`\alpha \in [0, 1]` is the
-  specular albedo. Equivalent to a
+* :class:`VacuumInflow` (deprecated alias: ``VacuumBoundaryOperator``)
+  -- :math:`R = 0`, :math:`q = 0` (the empty sum, rank 0;
+  algebraically the trivial case of the decomposition).
+* :class:`ReflectiveBoundary` (deprecated alias:
+  ``SpecularBoundaryOperator``) -- :math:`R = G_{\text{refl}} \cdot
+  \alpha` where :math:`G_{\text{refl}}` is the angular-permutation
+  operator that maps ordinate :math:`\Omega_n` to its reflected
+  partner :math:`(\Omega_n \cdot \hat{n})` and :math:`\alpha \in [0,
+  1]` is the specular albedo. Equivalent to a
   :meth:`~orpheus.numerics.measure.DiscreteMeasure.pushforward` under
   the reflection map.
-* :class:`WhiteBoundaryOperator` -- :math:`R = G_{\text{diff}} \cdot \alpha`
-  where :math:`G_{\text{diff}}` is the cosine-weighted angular average
-  over the outgoing hemisphere, broadcast isotropically over the
-  incoming hemisphere (Lambertian reflection). Rank-1 in *angle* even
-  though the geometric operator is an integral, not a permutation.
-* :class:`PeriodicBoundaryOperator` -- :math:`R` is a *spatial*
-  pushforward (wrap-around to the opposite face) with :math:`\alpha = 1`.
-  Rank-1 in space; the angular structure is identity.
-* :class:`AlbedoBoundaryOperator` -- :math:`R = I \cdot \alpha` where
-  :math:`I` is the angular identity. Rank-1; the geometric operator is
-  trivial.
+* :class:`WhiteBoundary` (deprecated alias: ``WhiteBoundaryOperator``)
+  -- :math:`R = G_{\text{diff}} \cdot \alpha` where
+  :math:`G_{\text{diff}}` is the cosine-weighted angular average over
+  the outgoing hemisphere, broadcast isotropically over the incoming
+  hemisphere (Lambertian reflection). Rank-1 in *angle* even though
+  the geometric operator is an integral, not a permutation.
+* :class:`PeriodicBoundary` (deprecated alias:
+  ``PeriodicBoundaryOperator``) -- :math:`R` is a *spatial*
+  pushforward (wrap-around to the opposite face) with
+  :math:`\alpha = 1`. Rank-1 in space; the angular structure is
+  identity.
+* :class:`AlbedoBoundary` (deprecated alias:
+  ``AlbedoBoundaryOperator``) -- :math:`R = I \cdot \alpha` where
+  :math:`I` is the angular identity. Rank-1; the geometric operator
+  is trivial.
 
 Mixed and partial-current boundaries are **rank-N** sums of the above
 primitives:
 
 * :class:`MixedBoundaryOperator` -- a list of
-  ``(weight, BoundaryOperator)`` pairs whose ``apply`` is the linear
+  ``(weight, BoundaryTraceLaw)`` pairs whose ``apply`` is the linear
   combination of the components.
-  ``MixedBoundaryOperator([(0.3, SpecularBoundaryOperator), (0.7, WhiteBoundaryOperator)])``
-  realises the standard Marshak mixed boundary
+  ``MixedBoundaryOperator([(0.3, ReflectiveBoundary()), (0.7,
+  WhiteBoundary())])`` realises the standard Marshak mixed boundary
   (Bell & Glasstone 1970, §1.5).
 
 The abstract base :class:`BoundaryOperator` is what production solvers
@@ -82,11 +88,16 @@ trace-law refactor (plan: ``.claude/plans/transient-giggling-cake.md``):
   (named-error catalog, Wave 3 / ERR-040..ERR-047).
 * :mod:`_source` -- :class:`BoundarySource` Protocol +
   :class:`NoSource` + :class:`ConstantInflowSource` (Wave 3).
-* :mod:`vacuum` -- :class:`VacuumBoundaryOperator`.
-* :mod:`reflective` -- :class:`SpecularBoundaryOperator`.
-* :mod:`white` -- :class:`WhiteBoundaryOperator`.
-* :mod:`periodic` -- :class:`PeriodicBoundaryOperator`.
-* :mod:`albedo` -- :class:`AlbedoBoundaryOperator`.
+* :mod:`vacuum` -- :class:`VacuumInflow` (Wave-7 rename;
+  ``VacuumBoundaryOperator`` retained as deprecated alias).
+* :mod:`reflective` -- :class:`ReflectiveBoundary` (Wave-7 rename;
+  ``SpecularBoundaryOperator`` retained as deprecated alias).
+* :mod:`white` -- :class:`WhiteBoundary` (Wave-7 rename;
+  ``WhiteBoundaryOperator`` retained as deprecated alias).
+* :mod:`periodic` -- :class:`PeriodicBoundary` (Wave-7 rename;
+  ``PeriodicBoundaryOperator`` retained as deprecated alias).
+* :mod:`albedo` -- :class:`AlbedoBoundary` (Wave-7 rename;
+  ``AlbedoBoundaryOperator`` retained as deprecated alias).
 * :mod:`mixed` -- :class:`MixedBoundaryOperator` (scheduled for
   removal in Wave 11 -- replaced by Wave-0 ``OperatorSum`` algebra).
 
@@ -151,20 +162,32 @@ from ._realizer import (
 )
 
 # ---------------------------------------------------------------------------
-# Legacy concrete BCs -- split into per-BC submodules in Wave 4.
+# Concrete BCs -- split into per-BC submodules in Wave 4, renamed to
+# Grand Report v3 vocabulary in Wave 7. The legacy
+# ``*BoundaryOperator`` names are kept as deprecated aliases below for
+# backward compatibility with the production import sites and tests
+# that ``from orpheus.geometry.boundary import VacuumBoundaryOperator``.
+# Remove the aliases in a future cleanup wave.
 # ---------------------------------------------------------------------------
 
-from .albedo import AlbedoBoundaryOperator
+from .albedo import AlbedoBoundary
 from .mixed import MixedBoundaryOperator
-from .periodic import PeriodicBoundaryOperator
-from .reflective import SpecularBoundaryOperator
-from .vacuum import VacuumBoundaryOperator
-from .white import WhiteBoundaryOperator
+from .periodic import PeriodicBoundary
+from .reflective import ReflectiveBoundary
+from .vacuum import VacuumInflow
+from .white import WhiteBoundary
+
+# Deprecated aliases for backward compat (Wave 7 → cleanup wave).
+AlbedoBoundaryOperator = AlbedoBoundary
+PeriodicBoundaryOperator = PeriodicBoundary
+SpecularBoundaryOperator = ReflectiveBoundary
+VacuumBoundaryOperator = VacuumInflow
+WhiteBoundaryOperator = WhiteBoundary
 
 
 __all__ = [
     # Abstract bases
-    "BoundaryOperator",
+    "BoundaryOperator",  # deprecated alias for BoundaryTraceLaw
     "BoundaryTraceLaw",
     # Errors
     "BoundaryError",
@@ -184,9 +207,15 @@ __all__ = [
     "BoundaryRealizer",
     "BoundaryRealizerRegistry",
     "BoundaryRealizerRegistryError",
-    # Legacy concretes
-    "AlbedoBoundaryOperator",
+    # Concrete BCs (Wave 7 canonical names)
+    "AlbedoBoundary",
     "MixedBoundaryOperator",
+    "PeriodicBoundary",
+    "ReflectiveBoundary",
+    "VacuumInflow",
+    "WhiteBoundary",
+    # Deprecated aliases (Wave 7 → cleanup wave)
+    "AlbedoBoundaryOperator",
     "PeriodicBoundaryOperator",
     "SpecularBoundaryOperator",
     "VacuumBoundaryOperator",

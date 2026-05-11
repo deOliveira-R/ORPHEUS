@@ -1,6 +1,9 @@
 r"""White (Lambertian) boundary condition.
 
-See :class:`WhiteBoundaryOperator` for the algebraic definition.
+See :class:`WhiteBoundary` for the algebraic definition. The legacy
+``WhiteBoundaryOperator`` name is re-exported as a deprecated alias
+from the package ``__init__.py`` (Wave 7 rename per Grand Report v3
+vocabulary).
 """
 
 from __future__ import annotations
@@ -18,11 +21,11 @@ if TYPE_CHECKING:
     from orpheus.sn.quadrature import AngularQuadrature
 
 
-__all__ = ["WhiteBoundaryOperator"]
+__all__ = ["WhiteBoundary"]
 
 
 @dataclass(frozen=True)
-class WhiteBoundaryOperator(BoundaryTraceLaw, key="white"):
+class WhiteBoundary(BoundaryTraceLaw, key="white"):
     r"""White (Lambertian) boundary with optional albedo.
 
     Tensor decomposition :math:`(G_{\text{diff}}, \alpha)` where
@@ -45,6 +48,11 @@ class WhiteBoundaryOperator(BoundaryTraceLaw, key="white"):
     quadrature: the total returned current equals the incoming
     current (times :math:`\alpha`), which is the property the consumer
     actually needs -- see Bell & Glasstone 1970 §1.5.
+
+    Wave-7 rename note
+    ------------------
+    Previously named ``WhiteBoundaryOperator``. The legacy name is
+    preserved as a deprecated alias.
 
     Parameters
     ----------
@@ -79,7 +87,7 @@ class WhiteBoundaryOperator(BoundaryTraceLaw, key="white"):
             mu_n = getattr(quadrature, "mu_z", None)
             if mu_n is None:
                 raise ValueError(
-                    "WhiteBoundaryOperator(axis='z') requires a quadrature with mu_z "
+                    "WhiteBoundary(axis='z') requires a quadrature with mu_z "
                     "(2-D / 3-D adapters: Lebedev, level-symmetric, "
                     "product). The 1-D Gauss-Legendre adapter has no "
                     "mu_z attribute."

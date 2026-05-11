@@ -1,6 +1,9 @@
 r"""Pure albedo boundary condition.
 
-See :class:`AlbedoBoundaryOperator` for the algebraic definition.
+See :class:`AlbedoBoundary` for the algebraic definition. The legacy
+``AlbedoBoundaryOperator`` name is re-exported as a deprecated alias
+from the package ``__init__.py`` (Wave 7 rename per Grand Report v3
+vocabulary).
 """
 
 from __future__ import annotations
@@ -18,11 +21,11 @@ if TYPE_CHECKING:
     from orpheus.sn.quadrature import AngularQuadrature
 
 
-__all__ = ["AlbedoBoundaryOperator"]
+__all__ = ["AlbedoBoundary"]
 
 
 @dataclass(frozen=True)
-class AlbedoBoundaryOperator(BoundaryTraceLaw, key="albedo"):
+class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
     r"""Pure albedo boundary: scalar multiple of the outgoing flux.
 
     Tensor decomposition :math:`(I, \alpha)` where :math:`I` is the
@@ -37,6 +40,11 @@ class AlbedoBoundaryOperator(BoundaryTraceLaw, key="albedo"):
     (where albedo and specular shares are independent parameters),
     and as a stand-alone primitive when the boundary is a pure
     attenuator with no angular structure.
+
+    Wave-7 rename note
+    ------------------
+    Previously named ``AlbedoBoundaryOperator``. The legacy name is
+    preserved as a deprecated alias.
 
     Parameters
     ----------

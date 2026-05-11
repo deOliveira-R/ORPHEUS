@@ -1,6 +1,9 @@
 r"""Specular (reflective) boundary condition.
 
-See :class:`SpecularBoundaryOperator` for the algebraic definition.
+See :class:`ReflectiveBoundary` for the algebraic definition. The
+legacy ``SpecularBoundaryOperator`` name is re-exported as a
+deprecated alias from the package ``__init__.py`` (Wave 7 rename per
+Grand Report v3 vocabulary).
 """
 
 from __future__ import annotations
@@ -18,11 +21,11 @@ if TYPE_CHECKING:
     from orpheus.sn.quadrature import AngularQuadrature
 
 
-__all__ = ["SpecularBoundaryOperator"]
+__all__ = ["ReflectiveBoundary"]
 
 
 @dataclass(frozen=True)
-class SpecularBoundaryOperator(BoundaryTraceLaw, key="reflective"):
+class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
     r"""Specular reflection with optional albedo.
 
     Tensor decomposition :math:`(G_{\text{refl}}, \alpha)` where
@@ -34,6 +37,12 @@ class SpecularBoundaryOperator(BoundaryTraceLaw, key="reflective"):
     :meth:`~orpheus.numerics.measure.DiscreteMeasure.pushforward` of
     the angular measure under the reflection map, with the Jacobian
     convention ``|R| = 1`` since reflections are isometries.
+
+    Wave-7 rename note
+    ------------------
+    Previously named ``SpecularBoundaryOperator``. The legacy name is
+    preserved as a deprecated alias in
+    ``orpheus.geometry.boundary``.
 
     Transpose
     ---------
@@ -66,9 +75,9 @@ class SpecularBoundaryOperator(BoundaryTraceLaw, key="reflective"):
     albedo: float = 1.0
 
     #: String tag for legacy string-kind comparisons. The default
-    #: ``albedo == 1.0`` SpecularBoundaryOperator (the standard
+    #: ``albedo == 1.0`` ReflectiveBoundary (the standard
     #: ``BC.reflective`` case) compares equal to the string
-    #: ``"reflective"``; tagged SpecularBoundaryOperator instances
+    #: ``"reflective"``; tagged ReflectiveBoundary instances
     #: with ``albedo != 1`` compare equal to ``"partial"`` instead.
     @property
     def kind(self) -> str:
@@ -77,14 +86,15 @@ class SpecularBoundaryOperator(BoundaryTraceLaw, key="reflective"):
     def __eq__(self, other: object) -> bool:
         if isinstance(other, str):
             return other == self.kind
-        if isinstance(other, SpecularBoundaryOperator):
+        if isinstance(other, ReflectiveBoundary):
             return (
                 self.axis == other.axis and self.albedo == other.albedo
             )
         return NotImplemented
 
     def __hash__(self) -> int:
-        return hash(("SpecularBoundaryOperator", self.axis, self.albedo))
+        # Hash on the canonical (post-rename) class name.
+        return hash(("ReflectiveBoundary", self.axis, self.albedo))
 
     def apply(
         self,
