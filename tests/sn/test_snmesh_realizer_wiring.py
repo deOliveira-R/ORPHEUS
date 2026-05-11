@@ -86,7 +86,7 @@ def test_2d_cartesian_vacuum_xmin_masks_only_inflow(quad_2d):
 
     rng = np.random.default_rng(42)
     psi = rng.uniform(0.5, 2.0, size=(quad_2d.N, 3, 2))
-    out = sn.bc_xmin.apply(psi, quad_2d)
+    out = sn.bc_xmin.apply(psi)
     inflow = np.flatnonzero(quad_2d.mu_x > 1e-12)
     non_inflow = np.setdiff1d(np.arange(quad_2d.N), inflow)
     np.testing.assert_array_equal(out[inflow], 0.0)
@@ -112,7 +112,7 @@ def test_2d_cartesian_reflective_ymax_returns_permutation(quad_2d):
     psi = rng.standard_normal(size=(quad_2d.N, 4, 2))
     ref = quad_2d.reflection_index("y")
     expected = psi[ref]
-    np.testing.assert_array_equal(sn.bc_ymax.apply(psi, quad_2d), expected)
+    np.testing.assert_array_equal(sn.bc_ymax.apply(psi), expected)
 
 
 def test_2d_cartesian_construction_populates_traces(quad_2d):
@@ -154,7 +154,7 @@ def test_1d_cartesian_vacuum_right_masks_only_inflow(quad_1d):
     assert sn.bc_right == "vacuum"
 
     psi = np.arange(quad_1d.N * 2, dtype=float).reshape(quad_1d.N, 2)
-    out = sn.bc_right.apply(psi, quad_1d)
+    out = sn.bc_right.apply(psi)
     inflow = np.flatnonzero(quad_1d.mu_x < -1e-12)
     non_inflow = np.setdiff1d(np.arange(quad_1d.N), inflow)
     np.testing.assert_array_equal(out[inflow], 0.0)

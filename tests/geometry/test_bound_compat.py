@@ -1,25 +1,30 @@
-r"""Tests for the post-Issue-#176 1-arg passthrough shim.
+r"""Tests for the post-Issue-#186 strict-1-arg shim.
 
 The :class:`_BoundBoundaryOperator` shim wraps a realized 1-arg
 :class:`LinearOperator` produced by
 :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` and adds
-three thin surfaces:
+two thin surfaces:
 
-* :meth:`apply(psi, *_extra, **_kw)` — forwards to
-  ``inner.apply(psi)`` and ignores any extra positional / keyword
-  args (preserves backward-compat with any test still calling
-  ``bc.apply(psi, quad)``).
+* :meth:`apply(psi)` and :meth:`apply_transpose(psi)` — strict 1-arg
+  passthroughs to the inner operator. The pre-#186 ``*_extra, **_kw``
+  swallow affordance is gone; any test still calling
+  ``bc.apply(psi, quad)`` would fail with ``TypeError``.
 * :attr:`capabilities` — delegates to the wrapped operator so the
   shim composes cleanly with other Wave-0 primitives.
 * :attr:`kind` + ``__eq__`` against strings — preserves the legacy
   ``sn_mesh.bc_xmin == "reflective"`` comparison surface.
 
-The original Wave-8/9 implementation also carried an optional
-``quadrature=`` kwarg that bound an :class:`AngularQuadrature` and
-forwarded ``inner.apply(psi, bound_quad)`` to a legacy 2-arg
+History
+=======
+
+The Wave-8/9 implementation carried an optional ``quadrature=``
+kwarg that bound an :class:`AngularQuadrature` and forwarded
+``inner.apply(psi, bound_quad)`` to a legacy 2-arg
 :class:`BoundaryTraceLaw` body. Issue #176 dropped that mode after
 Issue #188 (curvilinear :class:`InflowTraceSpace` support) eliminated
-the curvilinear-bypass code path that required it.
+the curvilinear-bypass code path. Issue #186 (B3 + β2) then dropped
+the ``*_extra, **_kw`` swallow on :meth:`apply` since every remaining
+caller is strict 1-arg.
 """
 from __future__ import annotations
 
@@ -39,29 +44,30 @@ from orpheus.numerics.operator import (
 pytestmark = pytest.mark.l0
 
 
-def test_apply_forwards_and_swallows_extra_args():
-    """``apply(psi, *_extra, **_kw)`` delegates to ``inner.apply(psi)`` and
-    ignores any positional / keyword extras (typically a quadrature
-    argument passed by a legacy 2-arg call site).
+def test_apply_is_strict_1_arg():
+    """``apply(psi)`` delegates to ``inner.apply(psi)``. Issue #186
+    (B3 + β2) dropped the ``*_extra, **_kw`` swallow — extras now
+    raise ``TypeError`` at the call site (matching the modernized
+    1-arg :class:`LinearOperator` contract).
     """
     inner = IdentityOperator()
     shim = _BoundBoundaryOperator(inner)
     psi = np.arange(12.0).reshape(4, 3)
-    # 1-arg
+    # 1-arg works
     np.testing.assert_array_equal(shim.apply(psi), psi)
-    # 2-arg — extra "quadrature-like" sentinel is swallowed
-    sentinel = object()
-    np.testing.assert_array_equal(shim.apply(psi, sentinel), psi)
-    # kwargs swallowed too
-    np.testing.assert_array_equal(
-        shim.apply(psi, quad=sentinel, extra=42), psi,
-    )
+    # 2-arg raises
+    with pytest.raises(TypeError):
+        shim.apply(psi, object())
+    # extra kwargs raise
+    with pytest.raises(TypeError):
+        shim.apply(psi, quad=object())
 
 
 def test_apply_transpose_forwards_when_inner_supports_it():
     """For an inner operator with ``apply_transpose`` (e.g. a
     permutation), the shim's :meth:`apply_transpose` returns the
-    same result as ``inner.apply_transpose``.
+    same result as ``inner.apply_transpose``. Issue #186 cleanup:
+    strict 1-arg; extras raise ``TypeError``.
     """
     perm = np.array([2, 0, 1, 3])
     inner = PermutationOperator(perm, axis=0)
@@ -71,11 +77,9 @@ def test_apply_transpose_forwards_when_inner_supports_it():
         shim.apply_transpose(psi),
         inner.apply_transpose(psi),
     )
-    # And again ignoring extra args
-    np.testing.assert_array_equal(
-        shim.apply_transpose(psi, "ignored", k=1),
-        inner.apply_transpose(psi),
-    )
+    # Strict 1-arg: extras raise.
+    with pytest.raises(TypeError):
+        shim.apply_transpose(psi, "extra", k=1)
 
 
 def test_capabilities_delegate_to_inner():
