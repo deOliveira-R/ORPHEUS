@@ -222,16 +222,42 @@ class BoundaryTraceLaw(LinearOperatorMixin, RegistryMixin, ABC):
     # ------------------------------------------------------------------
 
     @abstractmethod
-    def apply(
-        self, psi_out: np.ndarray, *args: Any, **kwargs: Any,
-    ) -> np.ndarray:
-        r"""Boundary-law application.
+    def apply(self, psi_out: np.ndarray) -> np.ndarray:
+        r"""Apply the boundary law to the outgoing flux trace.
 
-        Concrete signature defined by subclasses. During Waves 7-9
-        concrete BCs match the legacy 2-arg form
-        ``(psi_out, quadrature)`` so they integrate with existing
-        production sweeps. Wave 10 collapses the signature to 1-arg
-        ``(psi)`` once the realiser captures the quadrature at
-        construction.
+        Concrete subclasses MAY accept additional positional /
+        keyword arguments in their signature — typically
+        ``quadrature: AngularQuadrature | None = None`` for laws
+        whose geometric operator is quadrature-dependent (see
+        :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary`
+        and
+        :class:`~orpheus.geometry.boundary.white.WhiteBoundary`).
+        The abstract signature is intentionally strict 1-arg to
+        signal the modernized contract: the canonical application
+        path is through
+        :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`,
+        which captures any required method-specific metadata
+        (quadrature, mesh face, inflow trace) at realization time
+        and returns a 1-arg
+        :class:`~orpheus.numerics.operator.LinearOperator`.
+
+        Liskov substitutability: a concrete
+        ``apply(self, psi_out, quadrature=None)`` is compatible
+        with the abstract ``apply(self, psi_out)`` because the
+        additional parameter has a default and is positionally /
+        keyword optional. Direct callers that want the realized
+        :math:`\Omega \cdot \hat n < 0`-correct semantics should
+        go through :meth:`SNBoundaryRealizer.realize`; the bare
+        :meth:`apply` body of each concrete BC documents whether
+        the direct-call path is exact (e.g.
+        :class:`AlbedoBoundary`) or a backward-compat fallback
+        (e.g. :class:`VacuumInflow` returning legacy zeros-all in
+        the absence of per-face inflow indices).
+
+        Issue #176 / C176.4: previous Wave-3 signature carried
+        ``*args, **kwargs`` to accommodate the legacy 2-arg form
+        during the Waves 7-10 migration; that flexibility is no
+        longer needed now that the realizer-or-direct contract is
+        fully shipped.
         """
         ...

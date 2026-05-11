@@ -129,16 +129,29 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
     def apply(
         self,
         psi_out: np.ndarray,
-        quadrature: "AngularQuadrature",
+        quadrature: "AngularQuadrature | None" = None,
     ) -> np.ndarray:
-        # Wave 7 (C7.5): delegate to the realizer's IncomingSourceOperator.
-        # The realizer dispatches on isinstance(self, PrescribedInflow)
-        # and returns IncomingSourceOperator(self.source).
-        from orpheus.sn.boundary_realizer import (
-            SNBoundaryRealizer,
-            SNMethodSpace,
+        r"""Return the source evaluated on a probe inflow trace.
+
+        Ignores ``psi_out`` (the outgoing flux). The rank-0 affine
+        law has no geometric / response operator, so ``quadrature``
+        carries no information the source needs; the argument is
+        accepted for backward-compat with the legacy 2-arg form
+        and for Liskov compatibility with the abstract
+        :meth:`BoundaryTraceLaw.apply` signature.
+
+        Body inlines :class:`IncomingSourceOperator.apply`'s logic
+        (build a probe :class:`InflowTraceSpace` from
+        ``psi_out.shape`` and delegate to
+        :meth:`BoundarySource.evaluate`) — avoids the realizer
+        roundtrip that would otherwise need a quadrature.
+
+        Issue #176 / C176.3: ``quadrature`` is now optional and
+        ignored.
+        """
+        from orpheus.numerics.trace_space import InflowTraceSpace
+        probe = InflowTraceSpace(
+            name="trace_inflow",
+            shape=tuple(int(s) for s in psi_out.shape),
         )
-        op = SNBoundaryRealizer().realize(
-            self, SNMethodSpace.minimal(quadrature),
-        )
-        return op.apply(psi_out)
+        return self.source.evaluate(probe)

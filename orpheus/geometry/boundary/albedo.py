@@ -95,31 +95,22 @@ class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
     def apply(
         self,
         psi_out: np.ndarray,
-        quadrature: "AngularQuadrature",
+        quadrature: "AngularQuadrature | None" = None,
     ) -> np.ndarray:
-        # Wave 7 (C7.3): delegate to the Wave-5 SNBoundaryRealizer.
-        # The realizer dispatches on isinstance(self, AlbedoBoundary)
-        # and returns one of:
-        #
-        # * ``ZeroOperator()`` if ``albedo == 0.0`` (vacuum-equivalent
-        #   in the bare-attenuator algebra, but distinct from the
-        #   §16A.5 inflow-only-mask of ``VacuumInflow``).
-        # * ``IdentityOperator()`` if ``albedo == 1.0``.
-        # * ``ScaledOperator(albedo, IdentityOperator())`` for
-        #   ``albedo`` in (0, 1).
-        #
-        # The output is bit-equivalent to the pre-Wave-7 body
-        # ``self.albedo * psi_out`` (legacy multiplies on input;
-        # ScaledOperator multiplies the identity-passed-through input
-        # — same single multiplication).
-        #
-        # Local imports break the cycle ``orpheus.geometry.boundary``
-        # → ``orpheus.sn.boundary_realizer`` → ``orpheus.geometry.boundary``.
-        from orpheus.sn.boundary_realizer import (
-            SNBoundaryRealizer,
-            SNMethodSpace,
-        )
-        op = SNBoundaryRealizer().realize(
-            self, SNMethodSpace.minimal(quadrature),
-        )
-        return op.apply(psi_out)
+        r"""Scale the outgoing flux by :attr:`albedo`.
+
+        No angular structure — :math:`\psi_{\text{in}}(\Omega) =
+        \alpha \, \psi_{\text{out}}(\Omega)` for every ordinate. The
+        ``quadrature`` argument is accepted for backward-compat with
+        the legacy 2-arg form but is unused; the scalar
+        multiplication needs no angular information.
+
+        Issue #176 / C176.3: ``quadrature`` is now optional and
+        ignored. The body is implemented inline (rather than
+        delegating to the realizer) because the Albedo branch's
+        realized output is just ``ScaledOperator(albedo,
+        IdentityOperator())`` whose ``apply(psi)`` is ``albedo *
+        psi`` — identical to inlining here, and avoids an import
+        cycle in test paths that exercise direct-call.
+        """
+        return self.albedo * psi_out

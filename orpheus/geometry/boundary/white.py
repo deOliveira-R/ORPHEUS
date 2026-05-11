@@ -111,18 +111,37 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
     def apply(
         self,
         psi_out: np.ndarray,
-        quadrature: "AngularQuadrature",
+        quadrature: "AngularQuadrature | None" = None,
     ) -> np.ndarray:
-        # Wave 7 (C7.3): delegate to the Wave-5 SNBoundaryRealizer.
-        # The realizer dispatches on isinstance(self, WhiteBoundary)
-        # and returns the Wave-1 ``AngularAverageOperator`` (scaled by
-        # albedo when ``albedo != 1.0``; the bare operator for the
-        # ``albedo == 1.0`` fast path). Bit-equivalence with the
-        # pre-Wave-7 legacy body is pinned by Wave 1's
-        # ``TestLegacyBitEquivalence`` and the Wave 6 snapshot harness.
-        #
-        # Local imports break the cycle ``orpheus.geometry.boundary``
-        # → ``orpheus.sn.boundary_realizer`` → ``orpheus.geometry.boundary``.
+        r"""Apply Lambertian average. ``quadrature`` is **required**.
+
+        The cosine-weighted angular average needs the quadrature's
+        ``mu`` array and weights — without them there is no way to
+        construct the operator. Issue #176 / C176.3 makes
+        ``quadrature`` keyword-optional for Liskov compatibility with
+        the abstract :meth:`BoundaryTraceLaw.apply` (1-arg), but
+        ``None`` raises a :class:`BoundaryError`.
+
+        For modern usage, route through
+        :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`
+        which captures the quadrature at realization time and
+        produces a 1-arg :class:`AngularAverageOperator`.
+
+        Raises
+        ------
+        BoundaryError
+            If ``quadrature`` is ``None``.
+        """
+        if quadrature is None:
+            from ._errors import BoundaryError
+            raise BoundaryError(
+                "WhiteBoundary.apply requires a quadrature argument "
+                "(the cosine-weighted average is built from the "
+                "quadrature's mu / weight arrays). Modern usage: "
+                "route through SNBoundaryRealizer.realize() which "
+                "captures the quadrature at construction time.",
+                law="white",
+            )
         from orpheus.sn.boundary_realizer import (
             SNBoundaryRealizer,
             SNMethodSpace,

@@ -70,18 +70,33 @@ class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
     def apply(
         self,
         psi_out: np.ndarray,
-        quadrature: "AngularQuadrature",
+        quadrature: "AngularQuadrature | None" = None,
     ) -> np.ndarray:
-        # Wave 7 design note: the 2-arg legacy path keeps zeros-all
-        # for backward compat — production sweeps still call
-        # ``bc.apply(psi_out, quadrature)`` and the §16A.5
-        # inflow-only-mask requires per-face inflow indices that this
-        # signature can't deliver. The §16A.5 trace-correct
-        # behaviour activates when consumers route through
-        # :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`
-        # (which receives an :class:`SNMethodSpace` carrying the
-        # inflow indices) — see the realizer's vacuum dispatch
-        # branch. Wave 8's SNMesh wiring will hoist this delegation
-        # to the realizer, at which point this 2-arg body becomes
-        # dead code and is dropped in Wave 11.
+        r"""Return zeros (backward-compat fallback).
+
+        Issue #176 / C176.3: ``quadrature`` is now optional. The
+        §16A.5-correct inflow-only-mask requires per-face inflow
+        indices that this signature cannot deliver — for the
+        production-correct path, route through
+        :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`
+        with an :class:`~orpheus.sn.method_space.SNMethodSpace`
+        carrying the face's inflow indices:
+
+        .. code-block:: python
+
+            from orpheus.sn.boundary_realizer import SNBoundaryRealizer
+            from orpheus.sn.method_space import SNMethodSpace
+            method_space = SNMethodSpace(
+                quadrature=quad, face="right",
+                inflow_indices=np.flatnonzero(quad.mu_x < 0),
+            )
+            op = SNBoundaryRealizer().realize(VacuumInflow(), method_space)
+            psi_in = op.apply(psi_out)
+
+        Direct calls keep the legacy zeros-all body. The two paths
+        agree on the inflow rows (production-relevant subset for SN
+        sweeps); they diverge on the outflow rows. ``quadrature`` is
+        accepted for backward-compat with the legacy 2-arg form but
+        is unused — the zeros-all body needs no angular information.
+        """
         return np.zeros_like(psi_out)

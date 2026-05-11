@@ -68,21 +68,20 @@ class PeriodicBoundary(BoundaryTraceLaw, key="periodic"):
     def apply(
         self,
         psi_out: np.ndarray,
-        quadrature: "AngularQuadrature",
+        quadrature: "AngularQuadrature | None" = None,
     ) -> np.ndarray:
-        # Wave 7 (C7.3): delegate to the Wave-5 SNBoundaryRealizer.
-        # The realizer dispatches on isinstance(self, PeriodicBoundary)
-        # and returns the Wave-0 ``PeriodicWrapOperator``, whose
-        # apply body is ``psi_out.copy()`` (bit-equivalent to the
-        # pre-Wave-7 legacy body).
-        #
-        # Local imports break the cycle ``orpheus.geometry.boundary``
-        # → ``orpheus.sn.boundary_realizer`` → ``orpheus.geometry.boundary``.
-        from orpheus.sn.boundary_realizer import (
-            SNBoundaryRealizer,
-            SNMethodSpace,
-        )
-        op = SNBoundaryRealizer().realize(
-            self, SNMethodSpace.minimal(quadrature),
-        )
-        return op.apply(psi_out)
+        r"""Identity pass-through at the per-face apply level.
+
+        The angular structure is identity (periodic wrap is a
+        *spatial* pushforward; the angular components of
+        :math:`\psi` are unchanged). The ``quadrature`` argument is
+        accepted for backward-compat with the legacy 2-arg form but
+        is unused; the spatial-pushforward semantics are handled by
+        the sweep orchestrator that couples opposite faces (see the
+        class docstring).
+
+        Issue #176 / C176.3: ``quadrature`` is now optional and
+        ignored. Body inlined as ``psi_out.copy()`` (matches the
+        realizer's :class:`PeriodicWrapOperator.apply`).
+        """
+        return psi_out.copy()
