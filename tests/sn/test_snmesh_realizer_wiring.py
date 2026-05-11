@@ -1,19 +1,22 @@
-r"""Tests for ``SNMesh._resolve_bcs`` Wave-8 realizer wiring (C8.3).
+r"""Tests for ``SNMesh._resolve_bcs`` Wave-8 + C188.3 realizer wiring.
 
 The Wave-8 SNMesh routes BC resolution through
-:class:`SNBoundaryRealizer` for Cartesian meshes. Each face attribute
-(``bc_xmin`` / ``bc_xmax`` / ``bc_ymin`` / ``bc_ymax`` / ``bc_left`` /
-``bc_right``) becomes a :class:`_BoundBoundaryOperator` shim wrapping
-the 1-arg realized :class:`LinearOperator`. The shim's
+:class:`SNBoundaryRealizer` for every supported mesh. Each face
+attribute (``bc_xmin`` / ``bc_xmax`` / ``bc_ymin`` / ``bc_ymax`` /
+``bc_left`` / ``bc_right``) becomes a :class:`_BoundBoundaryOperator`
+shim wrapping the 1-arg realized :class:`LinearOperator`. The shim's
 ``apply(psi, *_extra, **_kw)`` forwards to the realized op's 1-arg
 ``apply(psi)`` for backward-compat with the 13 production call sites
 that still pass ``(psi, quad)``. Wave 9 migrates those.
 
-Curvilinear meshes (spherical / cylindrical) skip the realizer
-because :class:`InflowTraceSpace` is Cartesian-only today (Wave 2
-deferred curvilinear). The legacy 2-arg ``BoundaryTraceLaw.apply``
-path runs unchanged, preserving bit-identity for the curvilinear
-regression snapshots.
+Issue #188 / C188.3 (this revision): the curvilinear bypass branch
+in ``_resolve_one`` is gone. With C188.1+C188.2's curvilinear
+:class:`InflowTraceSpace` support, 1-D spherical and 1-D cylindrical
+meshes route through the SAME realizer-then-shim path as Cartesian
+meshes. The 1-D y-face placeholders now use a minimal method space
+(no inflow_trace; the realizer's :class:`ReflectiveBoundary` branch
+does not consume inflow_indices). For GL1D the y-reflection
+permutation is the identity, so the realized op is a no-op.
 
 V&V tags
 --------
@@ -27,11 +30,11 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
-from orpheus.geometry.boundary import (
-    ReflectiveBoundary,
-    VacuumInflow,
-)
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
+from orpheus.numerics.operator import (
+    IncomingOrdinateMaskTensor,
+    PermutationOperator,
+)
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import (
     GaussLegendre1D,
@@ -158,15 +161,21 @@ def test_1d_cartesian_vacuum_right_masks_only_inflow(quad_1d):
     np.testing.assert_array_equal(out[non_inflow], psi[non_inflow])
 
 
-def test_1d_cartesian_y_face_placeholders_shim_wrapped_with_bound_quad(quad_1d):
-    """Wave 9 (C9.0): 1-D meshes carry shim-wrapped
-    :class:`ReflectiveBoundary` placeholders on the degenerate y faces
-    — no realizer routing (the 1-D trace space cannot service
-    ``inflow_indices_for_face('ymin')``) but the bare law IS wrapped in
-    :class:`_BoundBoundaryOperator` with a bound quadrature so the
-    uniform 1-arg ``bc.apply(psi)`` contract holds across ALL ``bc_*``
-    attributes. These placeholders are never consumed by 1-D sweeps;
-    the invariant pins the uniform shim wrapping.
+def test_1d_cartesian_y_face_placeholders_realized_through_minimal_space(quad_1d):
+    """Issue #188 / C188.3: 1-D meshes route the degenerate y-face
+    :class:`ReflectiveBoundary` placeholders through
+    :class:`SNBoundaryRealizer` with :meth:`SNMethodSpace.minimal` —
+    the 1-D trace space cannot service
+    ``inflow_indices_for_face('ymin')`` (its face_names are
+    ``("left", "right")`` only) but the realizer's
+    :class:`ReflectiveBoundary` branch does NOT read inflow_indices,
+    only ``law.axis`` and ``quad.reflection_index``. For
+    :class:`GaussLegendre1D`, ``reflection_index("y")`` returns the
+    identity permutation (every ordinate is its own partner because
+    ``mu_y == 0``), so the realized op is an identity
+    :class:`PermutationOperator` — a no-op 1-arg
+    :class:`LinearOperator`. The shim carries no bound quadrature
+    (``_quadrature is None``) since the realized op is already 1-arg.
     """
     mesh = Mesh1D(
         edges=np.linspace(0, 1, 5),
@@ -175,32 +184,45 @@ def test_1d_cartesian_y_face_placeholders_shim_wrapped_with_bound_quad(quad_1d):
     sn = SNMesh(mesh, quad_1d)
     assert isinstance(sn.bc_ymin, _BoundBoundaryOperator)
     assert isinstance(sn.bc_ymax, _BoundBoundaryOperator)
-    # Inner is the bare ReflectiveBoundary on the y axis
-    assert isinstance(sn.bc_ymin.inner, ReflectiveBoundary)
-    assert sn.bc_ymin.inner.axis == "y"
-    assert sn.bc_ymax.inner.axis == "y"
-    # Bound quadrature wired through
-    assert sn.bc_ymin._quadrature is quad_1d
-    assert sn.bc_ymax._quadrature is quad_1d
-    # Kind preserved for the legacy string-compare surface
+    # Inner is the REALIZED PermutationOperator (NOT the raw law).
+    assert isinstance(sn.bc_ymin.inner, PermutationOperator)
+    assert isinstance(sn.bc_ymax.inner, PermutationOperator)
+    # The permutation is the identity for GL1D y-reflection.
+    np.testing.assert_array_equal(
+        sn.bc_ymin.inner.perm, np.arange(quad_1d.N),
+    )
+    np.testing.assert_array_equal(
+        sn.bc_ymax.inner.perm, np.arange(quad_1d.N),
+    )
+    # No bound quadrature — the realized op is already 1-arg.
+    assert sn.bc_ymin._quadrature is None
+    assert sn.bc_ymax._quadrature is None
+    # Kind preserved for the legacy string-compare surface.
     assert sn.bc_ymin == "reflective"
     assert sn.bc_ymax == "reflective"
+    # No-op identity apply: any psi goes through unchanged.
+    psi = np.arange(quad_1d.N * 3, dtype=float).reshape(quad_1d.N, 3)
+    np.testing.assert_array_equal(sn.bc_ymin.apply(psi), psi)
+    np.testing.assert_array_equal(sn.bc_ymax.apply(psi), psi)
 
 
 # ─────────────────────────────────────────────────────────────────────
-# 1-D curvilinear: legacy path (no realizer)
+# 1-D curvilinear: realizer path (Issue #188 / C188.3)
 # ─────────────────────────────────────────────────────────────────────
 
 
-def test_1d_spherical_vacuum_uses_shim_wrapped_legacy_path(quad_1d):
-    """Wave 9 (C9.0): Spherical vacuum: ``InflowTraceSpace`` raises
-    NotImplementedError on curvilinear, so ``_resolve_one`` skips the
-    realizer and wraps the bare :class:`VacuumInflow` legacy law in
-    :class:`_BoundBoundaryOperator` with the mesh's quadrature bound
-    so the uniform 1-arg ``bc.apply(psi)`` contract holds. The shim's
-    ``apply(psi)`` forwards ``inner.apply(psi, bound_quad)``, which is
-    bit-identical to the pre-Wave-9 direct ``inner.apply(psi, quad)``
-    legacy ``np.zeros_like`` body.
+def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
+    """Issue #188 / C188.3: Spherical vacuum now routes through
+    :class:`SNBoundaryRealizer` — :class:`InflowTraceSpace` was
+    extended to all 1-D coord systems in C188.1+C188.2 (Cartesian /
+    spherical / cylindrical all share the ``("left", "right")`` face
+    structure with outward normals along the radial / x axis). The
+    realizer's vacuum branch returns an
+    :class:`IncomingOrdinateMaskTensor` over the per-face inflow
+    indices (mu_x < 0 at the right face). The shim wraps it with no
+    bound quadrature (the realized op is already 1-arg). Per §16A.5
+    the mask zeros ONLY the inflow rows, leaving outflow rows
+    untouched.
     """
     mesh = Mesh1D(
         edges=np.linspace(0.1, 1.0, 6),
@@ -209,29 +231,40 @@ def test_1d_spherical_vacuum_uses_shim_wrapped_legacy_path(quad_1d):
         bc_right=BC("vacuum"),
     )
     sn = SNMesh(mesh, quad_1d)
-    # Wave 9: shim-wrapped, NOT bare
+    # Realizer path: shim wraps a realized 1-arg op.
     assert isinstance(sn.bc_right, _BoundBoundaryOperator)
-    assert isinstance(sn.bc_right.inner, VacuumInflow)
-    assert sn.bc_right._quadrature is quad_1d
+    assert isinstance(sn.bc_right.inner, IncomingOrdinateMaskTensor)
+    assert sn.bc_right._quadrature is None
     assert sn.bc_right == "vacuum"
-    # No trace spaces are built for curvilinear.
-    assert sn._inflow_trace is None
-    assert sn._outflow_trace is None
+    # Curvilinear trace spaces ARE now built (C188.1+C188.2 lifted
+    # the Mesh1D guard).
+    assert sn._inflow_trace is not None
+    assert sn._outflow_trace is not None
+    assert sn._inflow_trace.face_names == ("left", "right")
+    # The right-face inflow indices on a 1-D mesh are the mu_x < 0
+    # ordinates (Ω · n_right = +mu_x; inflow iff Ω · n < 0).
+    expected_inflow = np.flatnonzero(quad_1d.mu_x < -1e-12)
+    np.testing.assert_array_equal(
+        sn._inflow_trace.inflow_indices_for_face("right"),
+        expected_inflow,
+    )
 
-    # 1-arg apply through the shim delivers the legacy zero body.
-    psi = np.random.default_rng(2).standard_normal(size=(quad_1d.N, 2))
+    # §16A.5 inflow-only mask: zeros inflow rows, preserves outflow.
+    psi = np.arange(quad_1d.N * 2, dtype=float).reshape(quad_1d.N, 2) + 1.0
     out = sn.bc_right.apply(psi)
-    np.testing.assert_array_equal(out, np.zeros_like(psi))
+    non_inflow = np.setdiff1d(np.arange(quad_1d.N), expected_inflow)
+    np.testing.assert_array_equal(out[expected_inflow], 0.0)
+    np.testing.assert_array_equal(out[non_inflow], psi[non_inflow])
 
 
-def test_1d_cylindrical_reflective_uses_shim_wrapped_legacy_path():
-    """Wave 9 (C9.0): Cylindrical reflective: same as spherical — the
-    raw :class:`ReflectiveBoundary` instance is shim-wrapped with a
-    bound quadrature so the uniform 1-arg contract holds. The realizer
-    is skipped because the 1-D curvilinear trace space cannot service
-    ``inflow_indices_for_face``. Cylindrical needs a level-structured
-    quadrature (LevelSymmetricSN or ProductQuadrature); the legacy
-    path is used regardless of quadrature family.
+def test_1d_cylindrical_reflective_routes_through_realizer():
+    """Issue #188 / C188.3: Cylindrical reflective now routes through
+    the realizer. The :class:`ReflectiveBoundary` branch produces a
+    :class:`PermutationOperator` over ``quad.reflection_index("x")``.
+    For :class:`LevelSymmetricSN` (the cylindrical-compatible
+    quadrature) the x-reflection partners every ordinate with the one
+    of opposite ``mu_x``; the permutation is a non-trivial pairing,
+    not the identity. The shim wraps it with no bound quadrature.
     """
     mesh = Mesh1D(
         edges=np.linspace(0.1, 1.0, 6),
@@ -241,13 +274,27 @@ def test_1d_cylindrical_reflective_uses_shim_wrapped_legacy_path():
     )
     quad = LevelSymmetricSN.create(sn_order=4)
     sn = SNMesh(mesh, quad)
-    # Wave 9: shim-wrapped, NOT bare
+    # Realizer path: shim wraps a realized 1-arg PermutationOperator.
     assert isinstance(sn.bc_left, _BoundBoundaryOperator)
-    assert isinstance(sn.bc_left.inner, ReflectiveBoundary)
-    assert sn.bc_left.inner.axis == "x"
-    assert sn.bc_left._quadrature is quad
+    assert isinstance(sn.bc_left.inner, PermutationOperator)
+    assert sn.bc_left._quadrature is None
     assert sn.bc_left == "reflective"
-    assert sn._inflow_trace is None
+    # The permutation matches quad.reflection_index("x") exactly.
+    np.testing.assert_array_equal(
+        sn.bc_left.inner.perm, quad.reflection_index("x"),
+    )
+    # Curvilinear trace spaces ARE now built.
+    assert sn._inflow_trace is not None
+    assert sn._outflow_trace is not None
+
+    # Bit-equivalence: the shim's 1-arg apply matches the legacy
+    # ReflectiveBoundary semantics — psi[reflection_index].
+    rng = np.random.default_rng(7)
+    psi = rng.standard_normal(size=(quad.N, 2))
+    np.testing.assert_array_equal(
+        sn.bc_left.apply(psi),
+        psi[quad.reflection_index("x")],
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────
