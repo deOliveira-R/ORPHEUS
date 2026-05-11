@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **3278**
+Total tests collected: **3402**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 872, 26.6%
-   L1, 756, 23.1%
+   L0, 900, 26.5%
+   L1, 837, 24.6%
    L2, 36, 1.1%
    L3, 0, 0.0%
-   foundation, 1586, 48.4%
-   unmarked, 28, 0.9%
+   foundation, 1601, 47.1%
+   unmarked, 28, 0.8%
 
 Tagging source
 --------------
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 3171
+   explicit, 3295
    verify, 0
    class-name, 46
    func-name, 0
@@ -46,6 +46,7 @@ Module × level grid
    :header: Module, L0, L1, L2, L3, FD, ??
    :widths: 40, 6, 6, 6, 6, 6, 6
 
+   cp/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    cp/test_cylinder, 0, 9, 0, 0, 0, 0
    cp/test_cylinder_pss, 0, 0, 0, 0, 16, 0
    cp/test_diagnostics, 8, 28, 0, 0, 0, 0
@@ -153,12 +154,16 @@ Module × level grid
    derivations/test_trajectory_resolvent_billiard, 0, 0, 0, 0, 11, 0
    derivations/test_trajectory_resolvent_chord_oracle, 0, 0, 0, 0, 21, 0
    derivations/test_trajectory_resolvent_power_iterate, 0, 0, 0, 0, 6, 0
+   diffusion/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
+   geometry/test_bc_equivalence_snapshot, 0, 15, 0, 0, 0, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
-   geometry/test_boundary, 0, 0, 0, 0, 27, 0
-   geometry/test_boundary_trace_law, 0, 0, 0, 0, 17, 0
+   geometry/test_bc_universal_invariants, 0, 30, 0, 0, 11, 0
+   geometry/test_bound_compat, 10, 0, 0, 0, 0, 0
+   geometry/test_boundary, 0, 0, 0, 0, 24, 0
+   geometry/test_boundary_trace_law, 0, 0, 0, 0, 16, 0
    geometry/test_geometry, 0, 0, 0, 0, 55, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_reduced_operator, 0, 0, 0, 0, 49, 0
@@ -168,11 +173,13 @@ Module × level grid
    l1_analytical/test_kinf_homogeneous, 0, 15, 0, 0, 0, 0
    l1_analytical/test_mms_curvilinear_aniso_dd_convergence, 0, 2, 0, 0, 0, 0
    l1_analytical/test_pole_closure_flat_flux_identity, 0, 5, 0, 0, 0, 0
+   mc/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
    mc/test_cross_verification, 0, 0, 2, 0, 0, 0
    mc/test_gaps, 7, 9, 0, 0, 0, 0
    mc/test_monte_carlo, 0, 12, 0, 0, 0, 0
    mc/test_properties, 24, 0, 0, 0, 0, 0
+   moc/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    moc/test_mms, 0, 3, 0, 0, 0, 0
    moc/test_moc, 0, 3, 0, 0, 0, 0
    moc/test_properties, 4, 0, 0, 0, 0, 0
@@ -197,11 +204,12 @@ Module × level grid
    numerics/test_spherical_harmonics, 5, 7, 0, 0, 0, 0
    numerics/test_symmetry, 0, 0, 0, 0, 71, 0
    numerics/test_tensor_product_operator, 18, 0, 0, 0, 0, 0
-   numerics/test_trace_space, 13, 2, 0, 0, 0, 0
+   numerics/test_trace_space, 13, 7, 0, 0, 0, 0
    regression/test_dd_regression, 0, 0, 0, 0, 0, 11
    sn/test_2d_octant_sweep_equivalence, 0, 7, 0, 0, 0, 0
    sn/test_angular_average_operator, 13, 4, 0, 0, 0, 0
    sn/test_boundary_conditions, 0, 0, 0, 0, 0, 11
+   sn/test_boundary_realize, 0, 3, 0, 0, 8, 0
    sn/test_cartesian, 1, 6, 0, 0, 0, 0
    sn/test_cell_update_batch, 10, 0, 0, 0, 0, 0
    sn/test_cylindrical, 4, 10, 11, 0, 0, 0
@@ -209,6 +217,7 @@ Module × level grid
    sn/test_fission_operator, 0, 0, 0, 0, 10, 0
    sn/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    sn/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
+   sn/test_method_space, 6, 0, 0, 0, 0, 0
    sn/test_mms, 0, 2, 0, 0, 0, 0
    sn/test_mms_2d, 0, 3, 0, 0, 0, 0
    sn/test_mms_aniso, 0, 2, 0, 0, 0, 0
@@ -218,7 +227,9 @@ Module × level grid
    sn/test_properties, 4, 0, 0, 0, 0, 0
    sn/test_quadrature, 49, 0, 0, 0, 0, 0
    sn/test_scattering_operator, 0, 0, 0, 0, 17, 0
+   sn/test_sn_boundary_realizer, 0, 19, 0, 0, 0, 0
    sn/test_snmesh_consumes_reduced, 0, 0, 0, 0, 15, 0
+   sn/test_snmesh_realizer_wiring, 0, 9, 0, 0, 0, 0
    sn/test_snmesh_sweep_graphs, 13, 0, 0, 0, 0, 0
    sn/test_snstreamingoperator, 0, 0, 0, 0, 30, 0
    sn/test_solver_components, 41, 0, 0, 0, 0, 0
@@ -480,8 +491,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **24** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **29** of the testable equations found on theory pages are orphan.
 
+- ``affine-bc-form``
 - ``bc-tensor-decomposition``
 - ``billiard-rank2-S``
 - ``billiard-rank2-T``
@@ -497,6 +509,8 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``galerkin-spectral-carlvik-integral``
 - ``galerkin-spectral-eq4``
 - ``galerkin-spectral-orthogonality``
+- ``inflow-mask-discrete``
+- ``ordinate-partition-inflow-outflow``
 - ``pole-mm-recurrence``
 - ``spectrum-case-eigenfunction-equation``
 - ``spectrum-case-eigenfunction-explicit``
@@ -506,13 +520,16 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``spectrum-full-decomposition``
 - ``spectrum-transport-equation``
 - ``spectrum-x-function``
+- ``trace-sign-predicate``
+- ``vacuum-legacy-vs-trace-correct``
 
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **180** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **183** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bailey-dome-recursion``
+- ``bc-rank-n-as-sum-of-products``
 - ``bessel-wronskian``
 - ``bickley-integral``
 - ``boltzmann``
@@ -655,6 +672,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-tensor-G-definition``
 - ``peierls-tensor-P-definition``
 - ``peierls-unified``
+- ``per-face-inflow-mask``
 - ``petrov-galerkin-construction``
 - ``pi-r-equals-4pi-i``
 - ``power-equation``
@@ -683,6 +701,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``tensor-product-adjoint-distributivity``
 - ``tensor-product-axis-wise-composition``
 - ``tensor-product-inverse``
+- ``trace-half-decomposition``
 - ``transport-equation``
 - ``vacuum-bc``
 - ``wm72-coupled-linear-system``
@@ -744,10 +763,10 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-040``, **0 (MISSING)**
    ``ERR-041``, **0 (MISSING)**
    ``ERR-042``, **0 (MISSING)**
-   ``ERR-043``, **0 (MISSING)**
-   ``ERR-044``, **0 (MISSING)**
+   ``ERR-043``, 8
+   ``ERR-044``, 4
    ``ERR-045``, **0 (MISSING)**
-   ``ERR-046``, **0 (MISSING)**
+   ``ERR-046``, 8
    ``ERR-047``, **0 (MISSING)**
 
 Unmarked tests

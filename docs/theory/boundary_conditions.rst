@@ -30,7 +30,8 @@ Key Facts
   | Layer | What                  | Where                                       |
   +=======+=======================+=============================================+
   | 1     | Trace structure       | :mod:`orpheus.numerics.trace_space`         |
-  |       | (Γ\_-, Γ\_+ + mask)   | (Cartesian only; curvilinear deferred)      |
+  |       | (Γ\_-, Γ\_+ + mask)   | (all Mesh1D coord systems + 2-D Cartesian;  |
+  |       |                       | 2-D cylindrical Mesh2D deferred)            |
   +-------+-----------------------+---------------------------------------------+
   | 2     | Boundary law          | :mod:`orpheus.geometry.boundary` (ABC +     |
   |       | (method-agnostic)     | 6 concrete laws, dual-registry: kind-keyed) |
@@ -72,12 +73,17 @@ Key Facts
   which zeros **only the inflow ordinates** and preserves the
   outflow trace. The pre-refactor ``VacuumBoundaryOperator.apply``
   used ``np.zeros_like(psi_out)`` and zeroed everything. Both are
-  consistent at every existing 2-arg ``bc.apply(psi, quad)`` call
-  site (all 13 read inflow rows only — audit in Wave 8 closeout),
-  but the §16A.10 inflow-only mask is the trace-correct
-  representation. The new behavior is the right one; the old
-  behavior is preserved only on the curvilinear path until
-  Issue #176 lands the curvilinear realizer.
+  consistent at every existing production call site (audit in
+  Wave 8 closeout — all 13 reads inflow rows only), but the
+  §16A.10 inflow-only mask is the trace-correct representation.
+  **Post Issue #188 + #176 (2026-05-11)** the realizer-routed
+  inflow-only mask is uniform across every supported mesh (1-D
+  Cartesian / spherical / cylindrical + 2-D Cartesian); the legacy
+  zeros-all body survives only as the backward-compat fallback on
+  the direct ``VacuumInflow.apply(psi_out)`` call path (no
+  per-face inflow indices available without a realizer pass).
+  The two paths agree on the inflow rows (the production-relevant
+  subset for SN sweeps); they diverge on the outflow rows.
 
 .. admonition:: V&V status
 
@@ -320,10 +326,12 @@ the load-bearing primitive that downstream consumers need:
   entries on outflow ordinates (per
   :class:`~orpheus.geometry.boundary.BoundarySourceNotOnIncomingTraceError`,
   ERR-047).
-* Future curvilinear Krylov solvers (deferred — see Issue #176)
-  will read the inflow mask to construct the boundary-condition
-  projection matrix-free, instead of routing through the legacy
-  2-arg ``law.apply(psi, quad)`` shim.
+* The SN curvilinear sweep (1-D spherical / cylindrical) consumes
+  the same realizer-routed mask as the Cartesian path — Issue #188
+  (C188.1+C188.2 in :mod:`orpheus.numerics.trace_space`, C188.3 in
+  :mod:`orpheus.sn.geometry`) lifted the curvilinear deferral and
+  Issue #176 then dropped the legacy 2-arg shim that existed only
+  to bridge that deferral.
 
 The class :class:`~orpheus.numerics.trace_space.InflowTraceSpace`
 carries the mask as an ``Optional[np.ndarray]`` field excluded from
@@ -334,13 +342,19 @@ factory :meth:`InflowTraceSpace.from_mesh_and_quadrature`; the bare
 dataclass constructor is reserved for trace spaces whose mask will
 be populated later (or never).
 
-**Curvilinear support is deferred.** The factory raises
-:class:`NotImplementedError` for ``Mesh1D`` and ``Mesh2D`` with
-``coord ∈ {SPHERICAL, CYLINDRICAL}`` because no curvilinear-Krylov
-consumer needs the mask yet. The deferral is grep-able for the
-future consumer; see Issue #176 and the
-"BC: curvilinear InflowTraceSpace.from_mesh_and_quadrature
-implementation" follow-up tracked under ``module:geometry``.
+**Coord-system coverage (post Issue #188).** The factory supports
+every :class:`~orpheus.geometry.mesh.Mesh1D` coord system
+(``CARTESIAN`` / ``SPHERICAL`` / ``CYLINDRICAL``) because they all
+share the same ``("left", "right")`` face structure and the
+:class:`~orpheus.sn.quadrature.GaussLegendre1D` adapter's
+:math:`\mu_x` is the direction cosine along the chosen axis (the
+Cartesian-x axis for slab; the radial axis for curvilinear). The
+:class:`~orpheus.geometry.mesh.Mesh2D` factory supports
+``coord=CARTESIAN`` only — 2-D cylindrical (axisymmetric
+:math:`(r, z)`) ``Mesh2D`` raises :class:`NotImplementedError` and
+will continue to do so until ORPHEUS gains a 2-D cylindrical SN
+sweep (a face-normal table and azimuthal-averaging mask predicate
+will then be needed).
 
 
 .. _bc-law-layer:
@@ -369,13 +383,17 @@ The ABC ships:
 4. A :meth:`realize` hook that defers to the
    :class:`~orpheus.geometry.boundary.BoundaryRealizerRegistry` —
    see :ref:`bc-realizer-layer-detail`.
-5. An abstract :meth:`apply` that accepts
-   ``(psi_out, *args, **kwargs)`` — transitional contract
-   accommodating both the legacy 2-arg
-   ``apply(psi_out, quadrature)`` from the curvilinear path and
-   the 1-arg ``apply(psi)`` that resolved realizer output uses.
-   The two paths converge once Issue #176 ships the curvilinear
-   realizer.
+5. An abstract :meth:`apply` whose canonical signature is strict
+   1-arg ``apply(self, psi_out) -> np.ndarray`` (Issue #176 /
+   C176.4). The pre-#176 ``(psi_out, *args, **kwargs)`` form was a
+   transitional contract that bridged the curvilinear bypass; the
+   bypass is gone after Issue #188 so the abstract is now strict.
+   The six concrete laws adopt **Option A**: an additional
+   ``quadrature: AngularQuadrature | None = None`` parameter,
+   keyword- and positionally-optional. Liskov substitutability
+   holds because the optional parameter has a default; see
+   :ref:`bc-option-a-signatures` for the design rationale and the
+   per-BC behaviour table.
 
 The six concrete laws ship under :mod:`orpheus.geometry.boundary`,
 one per submodule. The Grand Report v3 vocabulary is used verbatim
@@ -863,31 +881,52 @@ The returned ``realized`` is a
 which is a self-adjoint, idempotent Wave-0 primitive with
 ``capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})``.
 
-Step 5 — bind for the legacy contract
--------------------------------------
+Step 5 — wrap with a kind tag
+-----------------------------
 
-Until Issue #176 lands the curvilinear realizer, the
-``SNMesh.bc_*`` attributes must respond to both the 1-arg
-``bc.apply(psi)`` contract (post-Wave-9 production call sites) and
-the 2-arg legacy ``bc.apply(psi, quad)`` contract (a small number
-of test sites and the curvilinear sweep where the realizer cannot
-yet ship). The
+Every ``SNMesh.bc_*`` attribute carries a uniform 1-arg
+``apply(psi)`` contract (Wave 9 migrated 13 production sites from
+2-arg to 1-arg). Post Issue #176 / C176.1 the
 :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
-shim is the bridge:
+shim is a thin **1-arg passthrough** that adds three pieces of
+metadata to the realized operator:
+
+* a free-form ``kind`` string tag carrying the originating
+  :class:`~orpheus.geometry.mesh.BC` kind (``"vacuum"`` /
+  ``"reflective"`` / ...) — load-bearing for the
+  ``sn_mesh.bc_left == "vacuum"`` string-equality surface that
+  several legacy SN tests and the BC-resolution diagnostic rely
+  on;
+* a silent-ignore of any extra positional / keyword args passed
+  to ``apply`` / ``apply_transpose`` — accommodates the small
+  number of legacy ``bc.apply(psi, quad)`` test sites that have
+  not migrated to the realizer-routed 1-arg form (production
+  consumers were all migrated in Waves 8–9);
+* :meth:`capabilities` delegation to the wrapped inner operator
+  so consumers composing the shim with other Wave-0 primitives
+  inherit the right feature set.
 
 .. code-block:: python
 
    from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 
    return _BoundBoundaryOperator(realized, kind=bc.kind)
-   # In curvilinear (no inflow_trace) the shim wraps the bare law
-   # with a bound quadrature so the 2-arg apply body still runs:
-   # _BoundBoundaryOperator(law, quadrature=self.quad, kind=bc.kind)
 
-The shim is **internal** to the package (not in
-:attr:`__all__`) — a test pins its private status. Issue #176
-will delete the shim once the curvilinear realizer ships and every
-consumer routes through the 1-arg contract.
+The shim is **internal** to the package (not in :attr:`__all__`)
+— a test pins its private status.
+
+**Historical note (pre Issue #176).** The Wave-8/9 implementation
+carried an optional ``quadrature=`` kwarg that, when non-``None``,
+bound an :class:`~orpheus.sn.quadrature.AngularQuadrature` and
+forwarded ``inner.apply(psi, bound_quad)`` to a legacy 2-arg
+:class:`BoundaryTraceLaw` body. That dual-mode existed ONLY
+because :meth:`InflowTraceSpace.from_mesh_and_quadrature` raised
+:class:`NotImplementedError` for curvilinear ``Mesh1D``, which
+forced :meth:`SNMesh._resolve_one` to bypass the realizer for
+spherical / cylindrical meshes. Issue #188 lifted that
+deferral; Issue #176 then dropped the bound-quadrature mode here
+because no production-issued shim carried
+``_quadrature is not None`` after C188.3.
 
 Step 6 — consumption by the sweep
 ---------------------------------
@@ -1265,13 +1304,48 @@ contract:
    the asymmetric special case; the post-Wave-8 vacuum joins
    the family.
 
-The §16A.5 compatibility audit
-------------------------------
+The algebra: where the two semantics agree and where they diverge
+-------------------------------------------------------------------
 
-The semantic correction is **observably equivalent** at every
-existing production call site because every site reads inflow
-rows only. The Wave 8 close-out audited all 13 ``bc.apply(...)``
-sites in :mod:`orpheus.sn.sweep` and :mod:`orpheus.sn.operator`:
+Decompose the angular ordinate set at a given face :math:`f` as
+
+.. math::
+   :label: ordinate-partition-inflow-outflow
+
+   \{1, \ldots, N\} \;=\; I_f \,\sqcup\, O_f \,\sqcup\, T_f,
+
+with :math:`I_f = \{n : \Omega_n \cdot \hat n_f < -\epsilon\}` the
+inflow set, :math:`O_f = \{n : \Omega_n \cdot \hat n_f > +\epsilon\}`
+the outflow set, and :math:`T_f` the (measure-zero in the continuum,
+:math:`\epsilon`-band in the discretisation) tangential set. For
+:math:`\psi_{\text{out}} \in \mathbb{R}^N` representing the trace
+ordinate values at face :math:`f`, the two vacuum representations
+are:
+
+.. math::
+   :label: vacuum-legacy-vs-trace-correct
+
+   \mathrm{zeros\_all}(\psi_{\text{out}})[n] &= 0
+       \qquad \forall\, n \in \{1, \ldots, N\}, \\[2pt]
+   \mathrm{inflow\_mask}(\psi_{\text{out}})[n] &=
+       \begin{cases}
+           0 & n \in I_f, \\[2pt]
+           \psi_{\text{out}}[n] & n \in O_f \cup T_f.
+       \end{cases}
+
+The two functions agree **on** :math:`I_f` (both give 0) and
+**diverge** on :math:`O_f` (legacy gives 0, trace-correct gives
+:math:`\psi_{\text{out}}[n]`). They diverge on :math:`T_f` too
+in principle, but ORPHEUS's quadrature adapters carry every
+tangential ordinate at :math:`\mu = 0` so :math:`\psi_{\text{out}}[n] = 0`
+on :math:`T_f` for a properly-initialised flux — making the
+divergence physically restricted to :math:`O_f`.
+
+The §16A.5 production-relevant subset is **the inflow rows**.
+Every SN sweep call site reads :math:`\psi_{\text{in}}[n]` only for
+:math:`n \in I_f` — outflow rows are never consumed downstream.
+The Wave 8 close-out audited all 13 ``bc.apply(...)`` sites in
+:mod:`orpheus.sn.sweep` and :mod:`orpheus.sn.operator`:
 
 * ``sweep.py:334,351`` (1-D slab) read
   ``psi_face_left_in[n_half + n]`` for positive-μ ordinates
@@ -1286,8 +1360,28 @@ sites in :mod:`orpheus.sn.sweep` and :mod:`orpheus.sn.operator`:
 * ``operator.py:530`` (spherical FD matvec) gates on
   ``quad.mu_x[n] < -1e-15``.
 
-No call site reads the outflow rows of the BC result, so the
-semantic correction has no observable effect on existing tests.
+No call site reads :math:`\psi_{\text{in}}[n]` for
+:math:`n \in O_f`, so the two semantics produce **bit-identical
+observable output** for every existing production consumer.
+This is what makes the §16A.5 trace-correct representation a
+safe semantic upgrade: it strictly extends the correctness
+boundary (outflow rows are now correct under the new algebra
+where they were ill-defined under the old one) without changing
+any observable downstream value.
+
+Post Issue #188 + #176 (2026-05-11) the **realizer path is
+uniform** across every supported mesh — 1-D Cartesian, 1-D
+spherical, 1-D cylindrical, and 2-D Cartesian. The curvilinear
+sweeps now consume the realizer-routed
+:class:`IncomingOrdinateMaskTensor` exactly like the slab sweep
+does. **Empirical confirmation**: spherical 26/26 + cylindrical
+25/25 + MMS curvilinear 2/2 xfail (pre-existing ERR-026) green
+on C188.3 — the curvilinear sweeps were previously consuming the
+zeros-all legacy body via the bound-quadrature shim, and now
+consume the inflow-only-mask realizer output. Production result
+is bit-identical on inflow rows (the only rows the sweep reads),
+confirming the Wave 8 call-site audit empirically.
+
 The Wave 6 snapshot harness gates this explicitly: the
 ``vacuum_lebedev17`` case compares **inflow-row outputs only**,
 documenting the intentional semantic divergence in a comment
@@ -1335,6 +1429,114 @@ Option (a) is documented in the
 the corresponding test sites at
 ``tests/geometry/test_boundary.py:87,281,282`` carry inline
 comments marking the retained legacy semantics.
+
+
+.. _bc-option-a-signatures:
+
+Concrete BC ``apply`` signatures — Option A (Issue #176 / C176.3)
+=================================================================
+
+Issue #176 / C176.3 settled the post-cleanup concrete-BC ``apply``
+contract on **Option A**: keyword-optional ``quadrature=None``
+with defensive errors. Every concrete law in
+:mod:`orpheus.geometry.boundary` now has the same signature shape:
+
+.. code-block:: python
+
+   def apply(
+       self,
+       psi_out: np.ndarray,
+       quadrature: "AngularQuadrature | None" = None,
+   ) -> np.ndarray:
+       ...
+
+The body of each law differs in how it treats the ``quadrature``
+parameter; the six laws split into three behavioural classes by
+whether the geometric / response operator NEEDS a quadrature to
+construct itself:
+
+.. list-table:: Per-BC ``apply`` semantics under Option A
+   :header-rows: 1
+   :widths: 22 18 60
+
+   * - Law
+     - ``quadrature``
+     - Body
+   * - :class:`~orpheus.geometry.boundary.VacuumInflow`
+     - accepted-and-ignored
+     - ``return np.zeros_like(psi_out)`` — legacy zeros-all
+       fallback (the §16A.5 inflow-only mask needs per-face
+       inflow indices which the direct-apply signature cannot
+       deliver).
+   * - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
+     - **required**
+     - Raises :class:`BoundaryError` if ``None``. Body delegates
+       to ``SNBoundaryRealizer().realize(self,
+       SNMethodSpace.minimal(quadrature))`` because
+       ``reflection_index(axis)`` is load-bearing.
+   * - :class:`~orpheus.geometry.boundary.WhiteBoundary`
+     - **required**
+     - Raises :class:`BoundaryError` if ``None``. Body
+       delegates via the realizer; the cosine-weighted average
+       needs ``mu`` / weight arrays.
+   * - :class:`~orpheus.geometry.boundary.AlbedoBoundary`
+     - accepted-and-ignored
+     - ``return self.albedo * psi_out`` — scalar multiplication
+       needs no angular information.
+   * - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
+     - accepted-and-ignored
+     - ``return psi_out.copy()`` — spatial-pushforward semantics
+       are sweep-orchestrator concerns, not per-face apply.
+   * - :class:`~orpheus.geometry.boundary.PrescribedInflow`
+     - accepted-and-ignored
+     - Synthesises a probe
+       :class:`~orpheus.numerics.trace_space.InflowTraceSpace`
+       from ``psi_out.shape`` and returns
+       ``self.source.evaluate(probe)``. No angular information
+       needed for the rank-0 affine BC.
+
+The defensive errors on the two "required" cases trade silent
+incorrectness (the pre-#176 ``*args, **kwargs`` form let a caller
+omit the quadrature and receive an identity-permutation /
+zero-average without warning) for an explicit
+:class:`BoundaryError` naming the offending law. **The realizer
+path is always the production-correct route**; direct-apply
+callers who hit the defensive error should route through
+:meth:`SNBoundaryRealizer.realize` with an
+:class:`~orpheus.sn.boundary_realizer.SNMethodSpace`.
+
+Option A was preferred over the alternative Option B (strict 1-arg
+``apply(self, psi_out)`` with NO ``quadrature`` parameter at all)
+because:
+
+1. **Direct-call convenience pattern preserved.** Test and
+   sketching code that wants to "see what this BC does" with a
+   quadrature in hand can still write
+   ``ReflectiveBoundary(axis="x").apply(psi, quad)`` — Option B
+   would force every such site to instantiate an
+   :class:`SNMethodSpace` and a realizer first, even when the
+   sketching context wanted nothing more than a quick check.
+2. **Liskov compatibility holds.** The abstract
+   :meth:`BoundaryTraceLaw.apply(self, psi_out)` is strict 1-arg;
+   the concrete ``apply(self, psi_out, quadrature=None)``
+   substitutes cleanly because the additional parameter is
+   defaulted and keyword-optional. A 1-arg call site reaches
+   the concrete body unchanged.
+3. **Clear errors when misused.** ``Reflective.apply(psi)``
+   (without quadrature) raises :class:`BoundaryError` naming
+   the law and pointing at the realizer path — far better than
+   silently returning the identity. Option B would have made
+   this case unreachable but at the cost of point 1.
+4. **Backward-compat for the small set of remaining 2-arg test
+   sites** that did not migrate to the realizer in Waves 8–9.
+   The extra ``quadrature=`` parameter accommodates them without
+   forcing a third migration sweep.
+
+The cost of Option A is the small structural asymmetry between
+the abstract (1-arg) and the concretes (1-arg-with-optional-2nd).
+Liskov-substitutable but visually asymmetric. The asymmetry is
+documented in the :class:`BoundaryTraceLaw.apply` docstring; the
+trade-off was judged worth it for the direct-call ergonomics.
 
 
 .. _bc-numerical-evidence:
@@ -1420,65 +1622,123 @@ deleted internal mixed-BC path was already composing via
 ``OperatorSum``-of-``ScaledOperator``.
 
 
-.. _bc-cartesian-curvilinear-split:
+.. _bc-curvilinear-realizer-unification:
 
-Cartesian / curvilinear split
-=============================
+Curvilinear realizer unification (Issue #188 + #176 close-out)
+==============================================================
 
-For technical reasons :class:`~orpheus.numerics.trace_space.InflowTraceSpace`
-is implemented for **Cartesian** meshes only (Mesh1D with
-``coord=CARTESIAN`` and Mesh2D with ``coord=CARTESIAN``). The
-curvilinear case (Mesh1D ``SPHERICAL`` / ``CYLINDRICAL``, Mesh2D
-``CYLINDRICAL``) raises :class:`NotImplementedError` from the
-:meth:`InflowTraceSpace.from_mesh_and_quadrature` factory.
+The pre-cleanup architecture carried a **Cartesian / curvilinear
+split** at :meth:`SNMesh._resolve_one`: the slab and 2-D Cartesian
+paths constructed an :class:`InflowTraceSpace` and routed the BC
+through :class:`SNBoundaryRealizer`, while spherical and
+cylindrical ``Mesh1D`` bypassed the realizer entirely because
+:meth:`InflowTraceSpace.from_mesh_and_quadrature` raised
+:class:`NotImplementedError` on those coord systems. The bypass
+wrapped the bare law instance in
+:class:`_BoundBoundaryOperator(law, quadrature=self.quad)`, a
+dual-mode shim whose ``apply(psi)`` forwarded
+``law.apply(psi, bound_quad)`` to the legacy 2-arg body.
 
-Why? Because no current curvilinear-Krylov consumer needs the
-per-face inflow mask — the curvilinear sweep paths compute the
-inflow / outflow predicate on the fly inside the inner loop. The
-deferral is grep-able for the future consumer that does need the
-sparse representation.
+**Why the split existed.** The Wave 2 ``InflowTraceSpace``
+factory deferred curvilinear support because no curvilinear-Krylov
+consumer at the time needed the per-face mask — the curvilinear
+sweep paths computed the inflow / outflow predicate on the fly
+inside the inner loop. The deferral was load-bearing for the
+shim's dual-mode design: ``quadrature=None`` (Cartesian, wraps a
+realized 1-arg op) and ``quadrature=<set>`` (curvilinear, wraps a
+legacy 2-arg BC).
 
-This forces :meth:`SNMesh._resolve_one` to take two branches:
+**Why the split has been removed.** Issue #188 / C188.1+C188.2
+discovered that all three :class:`Mesh1D` coord systems
+(``CARTESIAN`` / ``SPHERICAL`` / ``CYLINDRICAL``) share the same
+``("left", "right")`` face structure with the radial axis as the
+outward normal and the :class:`~orpheus.sn.quadrature.GaussLegendre1D`
+adapter's :math:`\mu_x` as the direction cosine along that axis —
+identically to the slab case. The mask predicate
+:math:`\Omega \cdot \hat n < -\epsilon` therefore applies
+unchanged. The factory's curvilinear guard was lifted; only 2-D
+cylindrical :class:`Mesh2D` (which has no SN sweep in ORPHEUS
+today) continues to raise :class:`NotImplementedError`.
 
-.. list-table:: Resolution path by mesh coord
-   :header-rows: 1
-   :widths: 28 36 36
+Issue #188 / C188.3 then collapsed :meth:`SNMesh._resolve_one`
+to a single path: every supported mesh (1-D Cartesian / spherical
+/ cylindrical + 2-D Cartesian) builds an
+:class:`SNMethodSpace.for_face` and routes through
+:class:`SNBoundaryRealizer`. Issue #176 / C176.1 then dropped the
+``quadrature=`` kwarg from the shim because no
+production-issued shim carried ``_quadrature is not None`` after
+C188.3. Issue #176 / C176.3+C176.4 then trimmed the concrete BC
+``apply`` signatures (see :ref:`bc-option-a-signatures`) and made
+the abstract :meth:`BoundaryTraceLaw.apply` strict 1-arg.
 
-   * - Mesh coord
-     - Path
-     - Resolved BC type
-   * - ``CARTESIAN`` (1-D slab + 2-D Cartesian)
-     - ``SNBoundaryRealizer().realize(law, method_space)``
-       wrapped in
-       :class:`_BoundBoundaryOperator(realized, kind=bc.kind)`
-     - 1-arg Wave-0 ``LinearOperator``
-   * - ``SPHERICAL`` / ``CYLINDRICAL``
-     - bare law (e.g. ``ReflectiveBoundary(axis="x")``) wrapped in
-       :class:`_BoundBoundaryOperator(law, quadrature=self.quad, kind=bc.kind)`
-     - 2-arg legacy law; shim's ``apply(psi)`` forwards
-       ``inner.apply(psi, bound_quad)``
+The architectural sequence is therefore:
 
-Both paths present a uniform 1-arg ``apply(psi)`` contract to the
-sweep call sites (Wave 9 migrated 13 sites from 2-arg to 1-arg);
-they differ only in what the shim wraps internally.
+* **Issue #188 unblocks Issue #176.** The shim's dual mode existed
+  ONLY because curvilinear :class:`InflowTraceSpace` could not be
+  constructed. Once #188 lifted that, #176's "drop the 2-arg form"
+  cleanup became possible without breaking curvilinear sweeps.
 
-The curvilinear path is **bit-identical** to the pre-Wave-9 direct
-``bc.apply(psi, quad)`` because the shim's bound quadrature is the
-same :class:`~orpheus.sn.quadrature.AngularQuadrature` object the
-call sites used to pass. Same object, same FP reduction tree, same
-output.
+.. _bc-1d-y-placeholder-design:
 
-The deferred work is tracked at:
+1-D y-face placeholders
+-----------------------
 
-* Issue #176 — "BC refactor: drop 2-arg apply + delete
-  ``_BoundBoundaryOperator`` once curvilinear realizer ships"
-  (``module:sn, module:geometry, type:improvement``).
-* "BC: curvilinear InflowTraceSpace.from_mesh_and_quadrature
-  implementation" follow-up (``module:geometry, type:feature``).
+A :class:`Mesh1D` mesh has no physical ``y`` faces, but
+:class:`SNMesh` exposes ``bc_ymin`` / ``bc_ymax`` attributes
+uniformly with the 2-D path so cross-dimensional code can read
+them without coord-system gating. After Issue #188, those
+placeholders route through the realizer with
+:meth:`SNMethodSpace.minimal(quad)` and a
+:class:`ReflectiveBoundary(axis="y")` law. Three pre-investigated
+facts make this safe:
 
-When both ship, the curvilinear path will route through the
-realizer, the shim is deleted, and every consumer becomes
-``LinearOperator``-only.
+1. **``GaussLegendre1D.reflection_index("y")`` returns the
+   identity permutation.** Every ordinate is its own ``y``-reflected
+   partner because :math:`\mu_y \equiv 0` on the 1-D quadrature
+   (only ``mu_x`` is populated). The realized
+   :class:`PermutationOperator` is therefore a no-op.
+2. **The SN realizer's reflective branch reads only ``law.axis``
+   and ``quad.reflection_index(axis)``** — never the per-face
+   :attr:`inflow_indices`. The minimal method space carries the
+   quadrature only; the absence of an :class:`InflowTraceSpace`
+   for the ``y`` faces is not a problem for this branch.
+3. **The 1-D trace space has
+   ``face_names == ("left", "right")``** — calling
+   :meth:`SNMethodSpace.for_face(face="ymin", inflow_trace=...)`
+   would raise. ``.minimal(quad)`` is therefore required.
+
+Production consumers in
+:meth:`solution_to_angular_flux` only invoke ``bc_ymin.apply(...)``
+on 1-D meshes when ``curvature is None`` (the slab case), and the
+inner ``if mu_y[n] > 1e-15`` filter discards every ordinate on
+GL1D — so the no-op behaviour is observably correct.
+
+Closure
+-------
+
+Closed by branch ``feature/bc-curvilinear-realizer-cleanup``
+(2026-05-11): Issue #188 (curvilinear ``InflowTraceSpace``
+support, commits ``9cf2b0a`` + ``17067d5``) and Issue #176 (drop
+2-arg ``apply`` + simplify shim, commits ``cf29ce4`` +
+``a4a43c2`` + ``913e501``). The :class:`_BoundBoundaryOperator`
+shim survives because the ``kind``-string tag is load-bearing for
+the BC-resolution diagnostic and several legacy
+``sn_mesh.bc_left == "vacuum"``-style test sites; the
+dual-mode bound-quadrature backing is gone. Every supported mesh
+now consumes a 1-arg :class:`LinearOperator` produced by
+:class:`SNBoundaryRealizer`.
+
+Plan documents:
+
+* ``.claude/plans/transient-giggling-cake.md`` — the foundational
+  12-wave BC trace-law refactor plan (Waves 0–12 close-out
+  documented at :ref:`theory-boundary-conditions`).
+* ``.claude/plans/curvilinear-realizer-and-2arg-cleanup.md`` —
+  the present #188 + #176 cleanup plan.
+
+Grand Report v3 §16A.5 (the trace-correct vacuum representation)
+documents the trace-half decomposition this cleanup makes uniform
+across coord systems.
 
 
 Anti-pattern catalog
@@ -1525,6 +1785,24 @@ re-attempt them:
    (each method's :mod:`__init__.py` imports its own realizer; the
    SN realizer is imported explicitly by
    :class:`SNMesh.__init__`) is the right cost-localization.
+6. **Cartesian-vs-curvilinear bypass in
+   :meth:`SNMesh._resolve_one` + dual-mode shim.** Pre Issue #188
+   shape: curvilinear ``Mesh1D`` bypassed the realizer and wrapped
+   the bare 2-arg law in
+   ``_BoundBoundaryOperator(law, quadrature=self.quad)``, while
+   Cartesian routed through the realizer with
+   ``_BoundBoundaryOperator(realized)``. **Retired Issue #188 +
+   #176**; documented here because the seductive trap is to
+   "preserve flexibility" by keeping the dual mode after the
+   curvilinear deferral lifts. The right move is to delete the
+   bypass and consolidate on one path — see
+   :ref:`bc-curvilinear-realizer-unification`.
+7. **Option B (strict 1-arg concrete ``apply`` signatures).**
+   Considered Issue #176 / C176.3. Rejected in favour of Option A
+   (keyword-optional ``quadrature=None``) per the rationale at
+   :ref:`bc-option-a-signatures` — Option B would have forced
+   every direct-apply sketching call site to construct an
+   :class:`SNMethodSpace` first.
 
 
 References
@@ -1536,6 +1814,8 @@ References
   (named-error catalog). Source: ``.claude/plans/neutron_transport_grand_report_v3.md``.
 * The 12-wave refactor plan:
   ``.claude/plans/transient-giggling-cake.md``.
+* The post-Wave-12 cleanup plan (Issue #188 + #176):
+  ``.claude/plans/curvilinear-realizer-and-2arg-cleanup.md``.
 * Lewis, E. E. & Miller, W. F. (1984). *Computational Methods of
   Neutron Transport*. American Nuclear Society. §3.4 (boundary
   conditions in transport).

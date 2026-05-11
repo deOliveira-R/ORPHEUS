@@ -4,10 +4,22 @@ Wave 7 of the boundary-operator refactor merged the legacy
 ``BoundaryOperator`` ABC (originally defined in this file alongside
 :class:`BoundaryTraceLaw`) into :class:`BoundaryTraceLaw`. The legacy
 ABC's separate registry, separate ``apply(psi_out, quadrature)``
-contract, and separate ``_registry_base`` override are gone; the new
-ABC's ``apply(psi_out, *args, **kwargs)`` accommodates both the legacy
-2-arg call from production sweeps and the Wave 10 1-arg call once
-consumers route through the realizer.
+contract, and separate ``_registry_base`` override are gone.
+
+Issue #176 / C176.4 then made the abstract :meth:`apply` strict 1-arg
+``(self, psi_out) -> np.ndarray``. The pre-#176 ``(psi_out, *args,
+**kwargs)`` form was a transitional contract that bridged the
+curvilinear bypass that existed in :meth:`SNMesh._resolve_one`
+because :meth:`InflowTraceSpace.from_mesh_and_quadrature` raised
+:class:`NotImplementedError` on curvilinear ``Mesh1D``. Issue #188
+(C188.1+C188.2+C188.3) lifted that bypass; the abstract is now strict.
+Concrete BC bodies adopt **Option A**: keyword-optional
+``quadrature: AngularQuadrature | None = None``, defensive
+:class:`BoundaryError` on the two laws (Reflective, White) whose
+geometric / response operators need the quadrature to construct.
+See ``docs/theory/boundary_conditions.rst`` (sections
+``bc-option-a-signatures`` and ``bc-curvilinear-realizer-unification``)
+for the design rationale and the per-BC behaviour table.
 
 The :pyattr:`__init__.py` of the package re-exports ``BoundaryOperator
 = BoundaryTraceLaw`` as a deprecated alias so the 8 production import
@@ -28,10 +40,13 @@ References
 ----------
 
 * Grand Report v3 §16A.1-3 (affine boundary form + three-layer
-  decomposition), §16A.12 (universal invariants), §15A.2
-  (sweep-cycle detection).
+  decomposition), §16A.5 (trace-correct vacuum), §16A.12 (universal
+  invariants), §15A.2 (sweep-cycle detection).
 * ``.claude/plans/transient-giggling-cake.md`` -- Wave 3 / Wave 4 /
-  Wave 7 briefs.
+  Wave 7 briefs (the 12-wave refactor).
+* ``.claude/plans/curvilinear-realizer-and-2arg-cleanup.md`` --
+  the Issue #188 + #176 cleanup plan (this commit lifts the
+  abstract ``apply`` to strict 1-arg).
 """
 
 from __future__ import annotations
@@ -81,11 +96,18 @@ class BoundaryTraceLaw(LinearOperatorMixin, RegistryMixin, ABC):
 
     Notes
     -----
-    The :meth:`apply` signature carries ``(psi_out, *args, **kwargs)``
-    so concretes can accept the legacy 2-arg form
-    ``(psi_out, quadrature)`` (consumed by production sweeps in
-    Waves 7-9) or the 1-arg form ``(psi)`` post-Wave 10 (once the
-    realiser captures the quadrature at construction).
+    The abstract :meth:`apply` is strict 1-arg ``(self, psi_out)``
+    post Issue #176 / C176.4. Concrete subclasses adopt **Option A**:
+    they take an additional keyword-optional
+    ``quadrature: AngularQuadrature | None = None`` parameter.
+    Liskov substitutability holds because the additional parameter is
+    defaulted. The two laws whose geometric / response operators need
+    a quadrature to construct themselves (:class:`ReflectiveBoundary`,
+    :class:`WhiteBoundary`) raise :class:`BoundaryError` when
+    ``quadrature is None``; the others (:class:`VacuumInflow`,
+    :class:`AlbedoBoundary`, :class:`PeriodicBoundary`,
+    :class:`PrescribedInflow`) accept-and-ignore. See the abstract
+    :meth:`apply` docstring for the per-BC behaviour table.
 
     Registry
     --------

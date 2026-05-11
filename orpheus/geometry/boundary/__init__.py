@@ -33,7 +33,10 @@ The §16A.3 decomposition splits this map into three concrete layers:
 1. **Trace structure** — typed
    :class:`~orpheus.numerics.trace_space.InflowTraceSpace` and
    :class:`~orpheus.numerics.trace_space.OutflowTraceSpace`
-   (Cartesian-only at Wave 12; curvilinear deferred to Issue #176).
+   (every supported mesh — 1-D Cartesian / spherical / cylindrical
+   + 2-D Cartesian — post Issue #188; 2-D cylindrical
+   :class:`Mesh2D` is the only mesh that still raises, deferred
+   until a 2-D cylindrical SN sweep ships).
    These carry the per-face directional mask discretising the
    sign predicate :math:`\mathrm{sign}(\Omega_n \cdot \hat n_f)`.
 2. **Boundary law** — :class:`BoundaryTraceLaw` ABC + six concrete

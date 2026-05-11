@@ -91,7 +91,12 @@ References
 ----------
 
 * See ``.claude/plans/transient-giggling-cake.md`` "Wave 2 — Trace
-  spaces with per-face inflow mask" for the multi-wave context.
+  spaces with per-face inflow mask" for the multi-wave context
+  (Cartesian-only ship-state) and
+  ``.claude/plans/curvilinear-realizer-and-2arg-cleanup.md`` for
+  the Issue #188 / C188.1+C188.2 curvilinear extension that
+  lifted the original ``NotImplementedError`` on ``Mesh1D``
+  with ``coord ∈ {SPHERICAL, CYLINDRICAL}``.
 * Lewis, E.E. & Miller, W.F. (1993). *Computational Methods of
   Neutron Transport*. American Nuclear Society. §3.7 — boundary
   trace operators in the discrete-ordinates setting.

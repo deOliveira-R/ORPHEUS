@@ -704,16 +704,22 @@ Three consumers read the mask today:
   :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
   uses the inflow mask to validate a
   :class:`~orpheus.geometry.boundary.BoundarySource` (ERR-047).
-* Future curvilinear Krylov solvers that need a sparse inflow
-  projection (deferred per Issue #176 and the
-  "BC: curvilinear InflowTraceSpace" follow-up).
+* The SN curvilinear sweep (1-D spherical / cylindrical) consumes
+  the same realizer-routed mask as the slab and 2-D Cartesian
+  paths (Issue #188 + #176, closed 2026-05-11).
 
 Construction goes through the classmethod factory
 :meth:`InflowTraceSpace.from_mesh_and_quadrature`, which builds
 the mask from the spatial mesh's face-normal table and the
-quadrature's direction-cosine arrays. Curvilinear meshes raise
-:class:`NotImplementedError` from the factory — the deferral is
-grep-able for the curvilinear consumer.
+quadrature's direction-cosine arrays. Every :class:`Mesh1D` coord
+system (``CARTESIAN`` / ``SPHERICAL`` / ``CYLINDRICAL``) shares the
+same ``("left", "right")`` face structure with the radial axis as
+the outward normal — :class:`GaussLegendre1D` is the shared
+quadrature, with ``mu_x`` as the direction cosine along that axis.
+The :class:`Mesh2D` factory supports ``coord=CARTESIAN`` only;
+2-D cylindrical (axisymmetric :math:`(r, z)`) raises
+:class:`NotImplementedError` and will until a 2-D cylindrical SN
+sweep ships in ORPHEUS (none exists today).
 
 The two trace spaces and the
 :class:`~orpheus.geometry.boundary.BoundarySource` Protocol
