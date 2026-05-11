@@ -337,6 +337,16 @@ from ._base import BoundaryTraceLaw
 BoundaryOperator = BoundaryTraceLaw
 
 # ---------------------------------------------------------------------------
+# Issue #186 (B3 + β2) -- descriptor-tree composition. LawSum / LawScaled
+# form a closed algebra over BoundaryTraceLaw | LawSum | LawScaled, used
+# for rank-N boundary composition (e.g. ``0.3 * spec + 0.7 * white``).
+# Realised to a Wave-0 operator tree via
+# :func:`orpheus.sn.boundary_realize.realize_recursively`.
+# ---------------------------------------------------------------------------
+
+from ._composition import LawNode, LawScaled, LawSum
+
+# ---------------------------------------------------------------------------
 # Wave 3 -- typed error catalog (ERR-040..ERR-047).
 # ---------------------------------------------------------------------------
 
@@ -396,6 +406,10 @@ __all__ = [
     # Abstract bases
     "BoundaryOperator",  # deprecated alias for BoundaryTraceLaw
     "BoundaryTraceLaw",
+    # Descriptor-tree composition (Issue #186)
+    "LawNode",
+    "LawScaled",
+    "LawSum",
     # Errors
     "BoundaryError",
     "BoundaryGeometryMapNotMeasurePreservingError",

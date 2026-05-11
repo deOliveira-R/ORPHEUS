@@ -1,27 +1,34 @@
 r"""Foundation tests for the :class:`BoundaryTraceLaw` ABC.
 
-This file pins the ABC contract shipped in Wave 3:
+This file pins the Issue-#186 (B3 + β2) descriptor-model contract:
 
-* The ABC is non-instantiable (``apply`` is abstract).
-* A minimal concrete subclass with ``apply`` constructs and acts.
+* :class:`BoundaryTraceLaw` is a **pure descriptor** — no
+  ``apply`` method, no :class:`LinearOperatorMixin` inheritance.
+* Concrete subclasses MAY add their own ``apply`` for unit-test
+  convenience, but the canonical realisation path is via
+  :class:`SNBoundaryRealizer.realize`.
 * The five ``assert_*`` invariants default to no-ops.
 * The :pydata:`creates_sweep_cycle` ClassVar defaults to ``False``.
 * :meth:`source` returns a :class:`NoSource` sentinel by default.
-* :meth:`realize` raises :class:`NotImplementedError` (Wave 5 will
-  wire the realiser registry).
+* :meth:`realize` raises :class:`NotImplementedError` directing
+  callers to a method-specific realizer.
 * The :class:`BoundaryTraceLaw` registry self-populates via
   ``__init_subclass__(key=...)``.
 * :attr:`geometry_map` and :attr:`response_kernel` default to
   ``None``.
+* Descriptor-tree algebra (``+``, ``-``, ``*``, ``/``, ``-``)
+  returns :class:`LawSum` / :class:`LawScaled` nodes (Issue #186).
+  Composition assertions are pinned in
+  :mod:`tests.geometry.test_law_composition`.
 
 Wave 7 update: the legacy ``BoundaryOperator`` ABC has been merged
 into :class:`BoundaryTraceLaw`. The pre-Wave-7 registry-disjointness
-tests were replaced with a UNIFIED-registry assertion — all 6 concrete
+tests were replaced with a UNIFIED-registry assertion — all rank-1
 BCs (``vacuum`` / ``reflective`` / ``white`` / ``periodic`` /
-``albedo`` / ``mixed``) now live in :pyattr:`BoundaryTraceLaw.registry`.
-The legacy ``BoundaryOperator`` symbol is an alias of
-:class:`BoundaryTraceLaw` (so ``BoundaryOperator.registry is
-BoundaryTraceLaw.registry`` is now True).
+``albedo`` / ``prescribed_inflow``) now live in
+:pyattr:`BoundaryTraceLaw.registry`. The legacy ``BoundaryOperator``
+symbol is an alias of :class:`BoundaryTraceLaw` (so
+``BoundaryOperator.registry is BoundaryTraceLaw.registry`` is True).
 
 Tagged ``@pytest.mark.foundation`` per :mod:`tests._harness`.
 """
@@ -48,18 +55,13 @@ from orpheus.geometry.boundary import (
 
 
 class _StubLaw(BoundaryTraceLaw, key="_stub_for_test"):
-    """Minimal concrete law: scales the input by 0.5.
+    """Minimal concrete law.
 
-    The ``*args, **kwargs`` signature on ``apply`` matches the
-    transition-period contract -- subclasses may carry the legacy
-    2-arg form ``(psi_out, quadrature)`` during Waves 7-9 or the
-    1-arg form ``(psi)`` post-Wave 10 with the same definition.
+    Used to exercise the registry, the default property surface
+    (``geometry_map``, ``response_kernel``, ``source``), and the
+    descriptor-tree algebra. The descriptor itself is not callable —
+    realisation happens through a method-specific realizer.
     """
-
-    def apply(
-        self, psi_out: np.ndarray, *args: Any, **kwargs: Any
-    ) -> np.ndarray:
-        return psi_out * 0.5
 
 
 class _MockTrace:
@@ -72,32 +74,29 @@ class _MockTrace:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# ABC instantiability
+# Descriptor surface (Issue #186 / B3 + β2)
 # ─────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.foundation
-def test_abc_cannot_be_instantiated_directly() -> None:
-    """The abstract ``apply`` blocks direct instantiation."""
-    with pytest.raises(TypeError):
-        BoundaryTraceLaw()  # type: ignore[abstract]
+def test_descriptor_has_no_apply_method() -> None:
+    """The ABC ships no ``apply`` and no :class:`LinearOperatorMixin`.
+
+    Issue #186 / B3 + β2: descriptors are not callable operators.
+    Realisation is the sole bridge — route through
+    ``SNBoundaryRealizer().realize(law, method_space)`` or
+    ``realize_recursively`` for rank-N composition.
+    """
+    assert not hasattr(BoundaryTraceLaw, "apply")
+    # _StubLaw inherits — no apply method present.
+    assert not hasattr(_StubLaw(), "apply")
 
 
 @pytest.mark.foundation
-def test_minimal_concrete_subclass_works() -> None:
-    """A subclass overriding ``apply`` constructs and acts."""
+def test_minimal_concrete_subclass_constructs() -> None:
+    """A trivial subclass under the descriptor model constructs."""
     law = _StubLaw()
-    out = law.apply(np.ones(4))
-    assert out.shape == (4,)
-    np.testing.assert_array_equal(out, np.full(4, 0.5))
-
-
-@pytest.mark.foundation
-def test_concrete_subclass_callable_via_dunder() -> None:
-    """``LinearOperatorMixin.__call__`` delegates to ``apply``."""
-    law = _StubLaw()
-    out = law(np.ones(4))
-    np.testing.assert_array_equal(out, np.full(4, 0.5))
+    assert isinstance(law, BoundaryTraceLaw)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -135,19 +134,21 @@ def test_creates_sweep_cycle_default_is_false() -> None:
 
 
 @pytest.mark.foundation
-def test_capabilities_default_includes_apply() -> None:
-    """The base ClassVar advertises ``CAP_APPLY``; concrete BCs
-    may extend (e.g. specular adds ``CAP_APPLY_TRANSPOSE``)."""
-    assert "apply" in _StubLaw.capabilities
+def test_descriptor_has_no_capabilities_attribute() -> None:
+    """Capabilities are an operator-tree concept; descriptors don't
+    advertise them. Realised operators (from
+    :class:`SNBoundaryRealizer`) carry the capability set."""
+    assert not hasattr(_StubLaw, "capabilities")
+    assert not hasattr(BoundaryTraceLaw, "capabilities")
 
 
 @pytest.mark.foundation
-def test_domain_and_range_default_to_none() -> None:
-    """Defaults match :class:`LinearOperatorMixin` contract --
-    operators predating function-space tagging return ``None``."""
+def test_descriptor_has_no_domain_or_range() -> None:
+    """``domain`` / ``range`` are :class:`LinearOperatorMixin`
+    attributes; descriptors drop the mixin in B3 + β2."""
     law = _StubLaw()
-    assert law.domain is None
-    assert law.range is None
+    assert not hasattr(law, "domain")
+    assert not hasattr(law, "range")
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -180,12 +181,13 @@ def test_assert_invariants_default_to_no_ops() -> None:
 
 
 @pytest.mark.foundation
-def test_realize_raises_not_implemented_in_wave_3() -> None:
-    """The realiser registry ships in Wave 5; for Wave 3 the
-    hook raises :class:`NotImplementedError` with a pointer to the
-    plan."""
+def test_realize_default_raises_not_implemented() -> None:
+    """The base ``realize`` default raises :class:`NotImplementedError`,
+    directing callers to a method-specific realizer
+    (e.g. :class:`SNBoundaryRealizer.realize`) or
+    :func:`realize_recursively` for descriptor trees."""
     law = _StubLaw()
-    with pytest.raises(NotImplementedError, match="Wave 5"):
+    with pytest.raises(NotImplementedError, match="method-specific realizer"):
         law.realize(method_space=None)
 
 

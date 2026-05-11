@@ -1,81 +1,77 @@
 r"""Abstract base for boundary conditions: :class:`BoundaryTraceLaw`.
 
-Wave 7 of the boundary-operator refactor merged the legacy
-``BoundaryOperator`` ABC (originally defined in this file alongside
-:class:`BoundaryTraceLaw`) into :class:`BoundaryTraceLaw`. The legacy
-ABC's separate registry, separate ``apply(psi_out, quadrature)``
-contract, and separate ``_registry_base`` override are gone.
+A :class:`BoundaryTraceLaw` is a **pure descriptor** for an affine
+boundary law in the form
 
-Issue #176 / C176.4 then made the abstract :meth:`apply` strict 1-arg
-``(self, psi_out) -> np.ndarray``. The pre-#176 ``(psi_out, *args,
-**kwargs)`` form was a transitional contract that bridged the
-curvilinear bypass that existed in :meth:`SNMesh._resolve_one`
-because :meth:`InflowTraceSpace.from_mesh_and_quadrature` raised
-:class:`NotImplementedError` on curvilinear ``Mesh1D``. Issue #188
-(C188.1+C188.2+C188.3) lifted that bypass; the abstract is now strict.
-Concrete BC bodies adopt **Option A**: keyword-optional
-``quadrature: AngularQuadrature | None = None``, defensive
-:class:`BoundaryError` on the two laws (Reflective, White) whose
-geometric / response operators need the quadrature to construct.
-See ``docs/theory/boundary_conditions.rst`` (sections
-``bc-option-a-signatures`` and ``bc-curvilinear-realizer-unification``)
-for the design rationale and the per-BC behaviour table.
+.. math::
 
-The :pyattr:`__init__.py` of the package re-exports ``BoundaryOperator
-= BoundaryTraceLaw`` as a deprecated alias so the 8 production import
-sites and the existing tests that ``from orpheus.geometry.boundary
-import BoundaryOperator`` keep working unchanged. The alias is
-scheduled for removal in a future cleanup wave (see Wave 11).
+    \gamma_- \psi \;=\; R\,G\,\gamma_+ \psi \;+\; q.
 
-The remaining content of this module is :class:`BoundaryTraceLaw`
-itself — the method-agnostic affine boundary law in
-:math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q` form, with its three
-first-class properties (``geometry_map``, ``response_kernel``,
-``source``), its five ``assert_*`` universal invariants (per Grand
-Report v3 §16A.12), its :pydata:`creates_sweep_cycle` ClassVar, its
-``realize`` hook into the Wave-5 :class:`BoundaryRealizerRegistry`,
-and its abstract ``apply`` contract.
+It carries the law's parameters (``axis``, ``albedo``, ``source``,
+…), the five universal ``assert_*`` invariants (per Grand Report v3
+§16A.12), the :attr:`creates_sweep_cycle` ``ClassVar`` (per
+§15A.2), the registry plumbing (via
+:class:`~orpheus.numerics.registry.RegistryMixin`), and a minimal
+algebra (``+``, ``-``, ``*``, ``/``, ``-``) that returns
+:class:`~orpheus.geometry.boundary._composition.LawSum` /
+:class:`~orpheus.geometry.boundary._composition.LawScaled` nodes.
+It is **NOT** a callable operator — there is no ``apply`` method
+and no :class:`~orpheus.numerics.operator.LinearOperatorMixin`
+inheritance. The realizer is the **sole** bridge from descriptor to
+operator (see
+:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`).
+
+This is the post-Issue-#186 (Scope B3 + β2) architecture: the §16A.3
+three-layer split (descriptor / realizer / operator) is enforced by
+the type system rather than by convention. Direct
+``law.apply(psi)`` calls fail at the type-checker / linter level —
+the only way to get a callable from a :class:`BoundaryTraceLaw` is to
+realize it.
+
+Wave 7 of the original 12-wave refactor merged the legacy
+``BoundaryOperator`` ABC into :class:`BoundaryTraceLaw`. The
+package's ``__init__.py`` keeps ``BoundaryOperator = BoundaryTraceLaw``
+as a deprecated alias so the 8 production import sites continue to
+work unchanged.
 
 References
 ----------
 
-* Grand Report v3 §16A.1-3 (affine boundary form + three-layer
+* Grand Report v3 §16A.1–3 (affine boundary form + three-layer
   decomposition), §16A.5 (trace-correct vacuum), §16A.12 (universal
   invariants), §15A.2 (sweep-cycle detection).
 * ``.claude/plans/transient-giggling-cake.md`` -- Wave 3 / Wave 4 /
   Wave 7 briefs (the 12-wave refactor).
-* ``.claude/plans/curvilinear-realizer-and-2arg-cleanup.md`` --
-  the Issue #188 + #176 cleanup plan (this commit lifts the
-  abstract ``apply`` to strict 1-arg).
+* ``.claude/plans/bc-trace-law-descriptor-cleanup.md`` -- this scope
+  (Issue #186 B3 + β2: drop ``apply`` from descriptors, ship
+  :class:`LawSum` / :class:`LawScaled`).
 """
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar, Optional
+from abc import ABC
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import numpy as np
-
-from orpheus.numerics.operator import CAP_APPLY, LinearOperatorMixin
 from orpheus.numerics.registry import RegistryMixin
 
 from ._source import BoundarySource, NoSource
 
 if TYPE_CHECKING:
     from orpheus.numerics.operator import LinearOperator
-    from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.quadrature import AngularQuadrature
+
+    from ._composition import LawNode, LawScaled, LawSum
 
 
 __all__ = ["BoundaryTraceLaw"]
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# BoundaryTraceLaw — the ONE ABC (post Wave 7 ABC-merge).
+# BoundaryTraceLaw — pure descriptor for an affine boundary law.
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class BoundaryTraceLaw(LinearOperatorMixin, RegistryMixin, ABC):
+class BoundaryTraceLaw(RegistryMixin, ABC):
     r"""Method-agnostic boundary law in the affine form
     :math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q`.
 
@@ -88,68 +84,78 @@ class BoundaryTraceLaw(LinearOperatorMixin, RegistryMixin, ABC):
     * :attr:`source` -- the prescribed inflow :math:`q`, defaulting
       to :class:`NoSource` (the homogeneous case).
 
-    Concrete subclasses (Wave 7) populate these. This ABC ships the
-    universal ``assert_*`` invariants (per §16A.12) and a
-    :attr:`creates_sweep_cycle` ClassVar signal used by the SN
-    sweep planner to detect reflective / periodic faces that create
-    cycles in the dependency graph.
+    Concrete subclasses (``VacuumInflow``, ``ReflectiveBoundary``,
+    ``WhiteBoundary``, ``AlbedoBoundary``, ``PeriodicBoundary``,
+    ``PrescribedInflow``) populate these. This ABC ships the
+    universal ``assert_*`` invariants (per §16A.12), the
+    :attr:`creates_sweep_cycle` ``ClassVar`` signal used by the SN
+    sweep planner, the registry plumbing, and a minimal algebra that
+    composes laws into :class:`LawSum` / :class:`LawScaled` nodes.
 
-    Notes
-    -----
-    The abstract :meth:`apply` is strict 1-arg ``(self, psi_out)``
-    post Issue #176 / C176.4. Concrete subclasses adopt **Option A**:
-    they take an additional keyword-optional
-    ``quadrature: AngularQuadrature | None = None`` parameter.
-    Liskov substitutability holds because the additional parameter is
-    defaulted. The two laws whose geometric / response operators need
-    a quadrature to construct themselves (:class:`ReflectiveBoundary`,
-    :class:`WhiteBoundary`) raise :class:`BoundaryError` when
-    ``quadrature is None``; the others (:class:`VacuumInflow`,
-    :class:`AlbedoBoundary`, :class:`PeriodicBoundary`,
-    :class:`PrescribedInflow`) accept-and-ignore. See the abstract
-    :meth:`apply` docstring for the per-BC behaviour table.
+    No ``apply``
+    ------------
+    Descriptors are **not** callable. The §16A.3 three-layer
+    architecture demands that operatorhood live in a separate layer
+    (realized via
+    :meth:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`),
+    and Issue #186 cleanup (B3 + β2) makes this a type-level
+    constraint: there is no abstract ``apply`` method to satisfy,
+    nor :class:`LinearOperatorMixin` inheritance to inherit one
+    from. Calling ``law.apply(psi)`` raises ``AttributeError`` at
+    runtime; type checkers flag it statically.
+
+    Realization is the only bridge:
+
+    .. code-block:: python
+
+        from orpheus.geometry.boundary import ReflectiveBoundary
+        from orpheus.sn.boundary_realizer import (
+            SNBoundaryRealizer, SNMethodSpace,
+        )
+
+        law = ReflectiveBoundary(axis="x", albedo=0.5)
+        ms = SNMethodSpace.minimal(quad)
+        op = SNBoundaryRealizer().realize(law, ms)
+        psi_in = op.apply(psi_out)   # 1-arg LinearOperator
+
+    Rank-N composition via :class:`LawSum` / :class:`LawScaled`:
+
+    .. code-block:: python
+
+        composed = 0.3 * ReflectiveBoundary(axis="x") + 0.7 * WhiteBoundary(...)
+        # composed is LawSum(LawScaled(0.3, ...), LawScaled(0.7, ...))
+        # Still NOT callable. Realize the tree:
+        op_tree = realize_recursively(composed, ms)
+        # op_tree is OperatorSum(ScaledOperator(0.3, ...), ...).
 
     Registry
     --------
     :class:`BoundaryTraceLaw` IS the single registry root for all
-    boundary conditions. The pre-Wave-7 separate ``BoundaryOperator``
-    registry has been merged — there is now ONE
-    :pyattr:`BoundaryTraceLaw.registry` dict containing every
-    concrete BC (``vacuum`` / ``reflective`` / ``white`` /
-    ``periodic`` / ``albedo`` / ``mixed`` / ``prescribed_inflow``).
-    The legacy ``BoundaryOperator`` symbol is now an alias of this
-    class via the package ``__init__.py`` (deprecated; remove in a
-    future cleanup wave).
+    boundary conditions. Concrete subclasses self-register via the
+    ``key=`` class-creation kwarg
+    (``class VacuumInflow(BoundaryTraceLaw, key="vacuum"): ...``).
+    The :attr:`registry` ``ClassVar`` is the dict mapping kind
+    strings to concrete classes.
     """
 
     registry: ClassVar[dict[str, type["BoundaryTraceLaw"]]] = {}
-    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
 
     creates_sweep_cycle: ClassVar[bool] = False
     r"""Whether the realised operator creates a cycle in the SN
     sweep DAG. ``True`` on ``ReflectiveBoundary`` and
-    ``PeriodicBoundary`` (Wave 7); ``False`` on all other laws.
-    Used by §15A.2 cycle detection (Grand Report v3 lines
-    2155-2160)."""
+    ``PeriodicBoundary``; ``False`` on all other laws. Used by
+    §15A.2 cycle detection (Grand Report v3 lines 2155–2160)."""
 
     @classmethod
     def _registry_base(cls) -> type:
         return BoundaryTraceLaw
 
     @property
-    def domain(self) -> Optional["FunctionSpace"]:
-        return None
-
-    @property
-    def range(self) -> Optional["FunctionSpace"]:
-        return None
-
-    @property
     def geometry_map(self) -> Any:
         r"""The geometric operator :math:`G` (permutation,
         pushforward, ...).
 
-        Default: ``None``. Concrete BCs (Wave 7) populate.
+        Default: ``None``. Concrete BCs populate.
         """
         return None
 
@@ -169,8 +175,47 @@ class BoundaryTraceLaw(LinearOperatorMixin, RegistryMixin, ABC):
         return NoSource()
 
     # ------------------------------------------------------------------
+    # Descriptor-tree algebra (Issue #186 / β2). Returns
+    # LawSum / LawScaled nodes; never returns an operator.
+    # ------------------------------------------------------------------
+
+    def __add__(self, other: "LawNode") -> "LawSum":
+        from ._composition import LawSum
+        return LawSum(self, other)
+
+    def __radd__(self, other: "LawNode") -> "LawSum":
+        from ._composition import LawSum
+        return LawSum(other, self)
+
+    def __sub__(self, other: "LawNode") -> "LawSum":
+        from ._composition import LawScaled, LawSum
+        return LawSum(self, LawScaled(-1.0, other))
+
+    def __rsub__(self, other: "LawNode") -> "LawSum":
+        from ._composition import LawScaled, LawSum
+        return LawSum(other, LawScaled(-1.0, self))
+
+    def __mul__(self, scalar: float) -> "LawScaled":
+        from ._composition import LawScaled
+        if not isinstance(scalar, (int, float)):
+            return NotImplemented
+        return LawScaled(float(scalar), self)
+
+    __rmul__ = __mul__
+
+    def __truediv__(self, scalar: float) -> "LawScaled":
+        from ._composition import LawScaled
+        if not isinstance(scalar, (int, float)):
+            return NotImplemented
+        return LawScaled(1.0 / float(scalar), self)
+
+    def __neg__(self) -> "LawScaled":
+        from ._composition import LawScaled
+        return LawScaled(-1.0, self)
+
+    # ------------------------------------------------------------------
     # Universal invariants (§16A.12, §27.6) -- no-op defaults; concrete
-    # BCs override the relevant ones in Wave 7.
+    # BCs override the relevant ones.
     # ------------------------------------------------------------------
 
     def assert_inflow_outflow_classification(
@@ -222,64 +267,32 @@ class BoundaryTraceLaw(LinearOperatorMixin, RegistryMixin, ABC):
         """
 
     # ------------------------------------------------------------------
-    # Method realisation hook (Wave 5 wires this through the registry).
+    # Method realisation hook -- delegates to BoundaryRealizerRegistry.
     # ------------------------------------------------------------------
 
     def realize(self, method_space: Any) -> "LinearOperator":
         r"""Realise this law against a method-specific space.
 
-        Defers to ``BoundaryRealizerRegistry`` in Wave 5; for Wave
-        3 this raises :class:`NotImplementedError` because the
-        realiser layer hasn't shipped yet.
+        The default body raises :class:`NotImplementedError`. The
+        canonical realisation path is via a method-specific realizer:
+
+        .. code-block:: python
+
+            from orpheus.sn.boundary_realizer import (
+                SNBoundaryRealizer, SNMethodSpace,
+            )
+            op = SNBoundaryRealizer().realize(law, SNMethodSpace.minimal(quad))
+            psi_in = op.apply(psi_out)   # 1-arg LinearOperator
+
+        Concrete laws MAY override to delegate to a specific
+        realizer when the method space's ``method_name`` is known,
+        but no current production caller routes through this hook —
+        callers invoke :meth:`SNBoundaryRealizer.realize` directly
+        (or :func:`realize_recursively` for rank-N composition).
         """
         raise NotImplementedError(
-            "BoundaryTraceLaw.realize: realiser registry ships in "
-            "Wave 5 (feature/boundary-realizer-protocol). See plan "
-            "transient-giggling-cake.md."
+            f"{type(self).__name__}.realize: route through a "
+            "method-specific realizer (e.g. "
+            "SNBoundaryRealizer().realize(law, method_space)) or "
+            "use realize_recursively for descriptor trees."
         )
-
-    # ------------------------------------------------------------------
-    # apply contract -- abstract in this wave (concrete BCs in Wave 7
-    # delegate to the realiser path).
-    # ------------------------------------------------------------------
-
-    @abstractmethod
-    def apply(self, psi_out: np.ndarray) -> np.ndarray:
-        r"""Apply the boundary law to the outgoing flux trace.
-
-        Concrete subclasses MAY accept additional positional /
-        keyword arguments in their signature — typically
-        ``quadrature: AngularQuadrature | None = None`` for laws
-        whose geometric operator is quadrature-dependent (see
-        :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary`
-        and
-        :class:`~orpheus.geometry.boundary.white.WhiteBoundary`).
-        The abstract signature is intentionally strict 1-arg to
-        signal the modernized contract: the canonical application
-        path is through
-        :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`,
-        which captures any required method-specific metadata
-        (quadrature, mesh face, inflow trace) at realization time
-        and returns a 1-arg
-        :class:`~orpheus.numerics.operator.LinearOperator`.
-
-        Liskov substitutability: a concrete
-        ``apply(self, psi_out, quadrature=None)`` is compatible
-        with the abstract ``apply(self, psi_out)`` because the
-        additional parameter has a default and is positionally /
-        keyword optional. Direct callers that want the realized
-        :math:`\Omega \cdot \hat n < 0`-correct semantics should
-        go through :meth:`SNBoundaryRealizer.realize`; the bare
-        :meth:`apply` body of each concrete BC documents whether
-        the direct-call path is exact (e.g.
-        :class:`AlbedoBoundary`) or a backward-compat fallback
-        (e.g. :class:`VacuumInflow` returning legacy zeros-all in
-        the absence of per-face inflow indices).
-
-        Issue #176 / C176.4: previous Wave-3 signature carried
-        ``*args, **kwargs`` to accommodate the legacy 2-arg form
-        during the Waves 7-10 migration; that flexibility is no
-        longer needed now that the realizer-or-direct contract is
-        fully shipped.
-        """
-        ...
