@@ -331,7 +331,7 @@ def _sweep_1d_cumprod(
         # for ordinate ``n_half + n`` (positive side).
         psi_face_right_out[n_half + n] = bc["right"][n]
 
-    psi_face_left_in = bc_left_obj.apply(psi_face_left_out, quad)
+    psi_face_left_in = bc_left_obj.apply(psi_face_left_out)
 
     for n in range(n_half):
         a = stream_coeff[n]  # (nx, ng)
@@ -348,9 +348,7 @@ def _sweep_1d_cumprod(
         # where right-reflective backward read ``bc["right"][n]``
         # immediately after the forward sweep wrote it).
         psi_face_right_out[n_half + n] = bc["right"][n]
-        psi_face_right_in = bc_right_obj.apply(
-            psi_face_right_out, quad,
-        )
+        psi_face_right_in = bc_right_obj.apply(psi_face_right_out)
         phi += w_pos[n] * psi_fwd
         angular_flux[n_half + n, :, 0, :] = psi_fwd
 
@@ -505,7 +503,7 @@ def _sweep_1d_spherical(
             # ``apply`` is bit-identical to the previous
             # ``bc_outer[ref[n]].copy()`` indexing for SpecularBoundaryOperator and
             # zeros for VacuumBoundaryOperator.
-            psi_in_full = bc_outer_obj.apply(bc_outer, quad)
+            psi_in_full = bc_outer_obj.apply(bc_outer)
             psi_spatial_in = psi_in_full[n]
         else:
             psi_spatial_in = np.zeros(ng)
@@ -651,7 +649,7 @@ def _sweep_1d_cylindrical(
             # BC.  Outward (η > 0): zero at r = 0.  Degenerate
             # (|η| < 1e-15): unused by the strategy; pass zeros.
             if eta_n < 0:
-                psi_in_full = bc_outer_obj.apply(bc_outer, quad)
+                psi_in_full = bc_outer_obj.apply(bc_outer)
                 psi_spatial_in = psi_in_full[n]
             else:
                 psi_spatial_in = np.zeros(ng)
@@ -840,17 +838,17 @@ def _sweep_2d_wavefront(
         # an updated full buffer; we scatter only this octant's rows
         # back into psi_x / psi_y.
         if sx_eff >= 0:
-            full_face_x = sn_mesh.bc_xmin.apply(psi_x[:, 0, :, :], quad)
+            full_face_x = sn_mesh.bc_xmin.apply(psi_x[:, 0, :, :])
             psi_x[oct_idx, 0, :, :] = full_face_x[oct_idx]
         else:
-            full_face_x = sn_mesh.bc_xmax.apply(psi_x[:, nx, :, :], quad)
+            full_face_x = sn_mesh.bc_xmax.apply(psi_x[:, nx, :, :])
             psi_x[oct_idx, nx, :, :] = full_face_x[oct_idx]
 
         if sy_eff >= 0:
-            full_face_y = sn_mesh.bc_ymin.apply(psi_y[:, :, 0, :], quad)
+            full_face_y = sn_mesh.bc_ymin.apply(psi_y[:, :, 0, :])
             psi_y[oct_idx, :, 0, :] = full_face_y[oct_idx]
         else:
-            full_face_y = sn_mesh.bc_ymax.apply(psi_y[:, :, ny, :], quad)
+            full_face_y = sn_mesh.bc_ymax.apply(psi_y[:, :, ny, :])
             psi_y[oct_idx, :, ny, :] = full_face_y[oct_idx]
 
         # ── Per-octant buffers for the graph apply ────────────────
