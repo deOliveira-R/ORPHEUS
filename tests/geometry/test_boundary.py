@@ -1,8 +1,8 @@
 r"""Unit tests for tensor-decomposed boundary conditions.
 
 The BCs in :mod:`orpheus.geometry.boundary` are rank-1 (vacuum,
-specular, white, periodic, albedo) or rank-N (mixed) realisations of
-the tensor decomposition
+specular, white, periodic, albedo) realisations of the tensor
+decomposition
 
 .. math::
 
@@ -13,8 +13,11 @@ pin the algebraic semantics of each primitive: vacuum is zero,
 specular is index-permutation by a chosen axis, white is the
 cosine-weighted average of the outgoing hemisphere broadcast over the
 incoming hemisphere, periodic is identity (the spatial pushforward
-lives outside the protocol), albedo is scalar multiplication, and
-mixed is linear in the components.
+lives outside the protocol), and albedo is scalar multiplication.
+Rank-N compositions are tested through the Wave-0 operator algebra
+acting on realised primitives (the Wave-11 replacement for the
+removed ``MixedBoundaryOperator`` composer); see
+``tests/sn/test_boundary_realize.py`` for the tree-walker tests.
 """
 
 from __future__ import annotations
@@ -24,7 +27,6 @@ import pytest
 
 from orpheus.geometry.boundary import (
     AlbedoBoundaryOperator,
-    MixedBoundaryOperator,
     PeriodicBoundaryOperator,
     BoundaryOperator,
     SpecularBoundaryOperator,
@@ -284,71 +286,31 @@ def test_albedo_bc_zero_is_vacuum_equivalent() -> None:
 
 
 @pytest.mark.foundation
-def test_mixed_bc_is_linear_combination() -> None:
-    """``MixedBoundaryOperator([(c1, A), (c2, B)]).apply == c1·A.apply + c2·B.apply``."""
+def test_wave0_sum_of_realized_bcs_acts_as_weighted_sum() -> None:
+    r"""Wave-11 replacement for ``MixedBoundaryOperator.apply`` linearity.
+
+    The rank-N composer was removed in Wave 11; rank-N compositions are
+    now expressed by realising each leaf BC against the method space
+    and composing the realised primitives with the Wave-0 algebra
+    dunders. The composed operator's ``apply(psi)`` equals the explicit
+    weighted sum of the leaves' realised ``apply(psi)`` outputs.
+    """
     quad = GaussLegendre1D.create(n_ordinates=8)
     psi_out = np.random.default_rng(8).standard_normal((quad.N, 2))
     spec = SpecularBoundaryOperator(axis="x", albedo=1.0)
     white = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
 
-    bc = MixedBoundaryOperator([(0.3, spec), (0.7, white)])
+    spec_realized = _realize_for_sn(spec, quad)
+    white_realized = _realize_for_sn(white, quad)
+    composed = 0.3 * spec_realized + 0.7 * white_realized
 
-    psi_mixed = _realize_for_sn(bc, quad).apply(psi_out)
+    psi_composed = composed.apply(psi_out)
     psi_expected = (
-        0.3 * _realize_for_sn(spec, quad).apply(psi_out)
-        + 0.7 * _realize_for_sn(white, quad).apply(psi_out)
+        0.3 * spec_realized.apply(psi_out)
+        + 0.7 * white_realized.apply(psi_out)
     )
 
-    np.testing.assert_allclose(psi_mixed, psi_expected, rtol=1e-14, atol=0.0)
-
-
-@pytest.mark.foundation
-def test_mixed_bc_empty_is_vacuum() -> None:
-    """``MixedBoundaryOperator([])`` returns zero (the empty sum)."""
-    quad = GaussLegendre1D.create(n_ordinates=4)
-    psi_out = np.random.default_rng(9).standard_normal((quad.N, 1))
-
-    bc = MixedBoundaryOperator([])
-    psi_in = _realize_for_sn(bc, quad).apply(psi_out)
-
-    np.testing.assert_array_equal(psi_in, 0.0)
-
-
-@pytest.mark.foundation
-def test_mixed_bc_singleton_matches_primitive() -> None:
-    """``MixedBoundaryOperator([(1.0, A)])`` is equivalent to A directly."""
-    quad = GaussLegendre1D.create(n_ordinates=4)
-    psi_out = np.random.default_rng(10).standard_normal((quad.N, 2))
-    primitive = SpecularBoundaryOperator(axis="x", albedo=0.8)
-    bc = MixedBoundaryOperator([(1.0, primitive)])
-
-    np.testing.assert_array_equal(
-        _realize_for_sn(bc, quad).apply(psi_out),
-        _realize_for_sn(primitive, quad).apply(psi_out),
-    )
-
-
-@pytest.mark.foundation
-def test_mixed_bc_coefficients_chain() -> None:
-    """``MixedBoundaryOperator`` coefficients distribute through linear primitives.
-
-    ``MixedBoundaryOperator([(c, MixedBoundaryOperator([(d, X)]))])`` = ``MixedBoundaryOperator([(c·d, X)])`` via
-    the apply method's linearity.
-    """
-    quad = GaussLegendre1D.create(n_ordinates=4)
-    psi_out = np.random.default_rng(11).standard_normal((quad.N, 1))
-    primitive = SpecularBoundaryOperator(axis="x", albedo=1.0)
-
-    inner = MixedBoundaryOperator([(0.5, primitive)])
-    outer = MixedBoundaryOperator([(0.4, inner)])
-    flat = MixedBoundaryOperator([(0.5 * 0.4, primitive)])
-
-    np.testing.assert_allclose(
-        _realize_for_sn(outer, quad).apply(psi_out),
-        _realize_for_sn(flat, quad).apply(psi_out),
-        rtol=1e-15,
-        atol=0.0,
-    )
+    np.testing.assert_allclose(psi_composed, psi_expected, rtol=1e-14, atol=0.0)
 
 
 @pytest.mark.foundation
@@ -360,8 +322,6 @@ def test_all_primitives_are_resolved_bc() -> None:
         WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0),
         PeriodicBoundaryOperator(),
         AlbedoBoundaryOperator(albedo=0.5),
-        MixedBoundaryOperator([]),
-        MixedBoundaryOperator([(0.3, SpecularBoundaryOperator(axis="x")), (0.7, WhiteBoundaryOperator(axis="x"))]),
     ]
     for bc in instances:
         assert isinstance(bc, BoundaryOperator), f"{type(bc).__name__} not BoundaryOperator"
@@ -374,18 +334,24 @@ def test_all_primitives_are_resolved_bc() -> None:
 
 @pytest.mark.foundation
 def test_registry_contains_all_primitives() -> None:
-    """All six concrete BC subtypes self-register under their key.
+    """All five rank-1 concrete BC subtypes self-register under their key.
 
     Wave 7 merged the legacy ``BoundaryOperator`` ABC into
     :class:`BoundaryTraceLaw`, so the registry now also holds test
     stubs from :mod:`tests.geometry.test_boundary_trace_law` and the
-    Wave-7 additions (``prescribed_inflow``). Assert ``>=`` rather
-    than equality.
+    Wave-7 additions (``prescribed_inflow``). Wave 11 removed the
+    ``"mixed"`` key alongside the ``MixedBoundaryOperator`` class —
+    the registry MUST no longer hold it.
     """
     expected_keys = {
-        "vacuum", "reflective", "white", "periodic", "albedo", "mixed",
+        "vacuum", "reflective", "white", "periodic", "albedo",
     }
-    assert expected_keys <= set(BoundaryOperator.registry.keys())
+    registry_keys = set(BoundaryOperator.registry.keys())
+    assert expected_keys <= registry_keys
+    assert "mixed" not in registry_keys, (
+        "Wave 11 removed MixedBoundaryOperator; the 'mixed' key "
+        "MUST no longer be in BoundaryTraceLaw.registry."
+    )
 
 
 @pytest.mark.foundation
@@ -452,13 +418,19 @@ def test_specular_self_inverse_identity() -> None:
 
 
 @pytest.mark.foundation
-def test_operator_sum_of_bcs_matches_mixed_baseline() -> None:
-    r"""``0.7 * Specular + 0.3 * White`` matches Mixed BC baseline.
+def test_operator_sum_of_bcs_acts_as_weighted_sum() -> None:
+    r"""``0.7 * Specular + 0.3 * White`` realises the explicit weighted sum.
 
-    With Issue 9.6, BCs participate in operator algebra: scalar
-    multiplication and operator addition produce composable
-    objects whose ``apply(psi_out, quad)`` reproduces the explicit
-    weighted sum that ``MixedBoundaryOperator`` already provided.
+    With Issue 9.6, realised BCs participate in operator algebra:
+    scalar multiplication and operator addition produce composable
+    objects whose ``apply(psi)`` reproduces the explicit weighted sum
+    of the leaves' ``apply`` outputs. Wave 11 removed the
+    ``MixedBoundaryOperator`` composer; this test pins the algebraic
+    identity that replaces the deleted "matches MixedBC baseline"
+    contract, comparing the composed operator's ``apply`` against the
+    pointwise weighted sum (the structurally-independent reference is
+    the linearity of ``LinearOperator.apply`` itself, not any other
+    composer).
     """
     quad = GaussLegendre1D.create(n_ordinates=8)
     rng = np.random.default_rng(99)
@@ -467,30 +439,25 @@ def test_operator_sum_of_bcs_matches_mixed_baseline() -> None:
     spec = SpecularBoundaryOperator(axis="x", albedo=1.0)
     white = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
 
-    # Build the composition on the REALIZED 1-arg LinearOperators so
-    # the Wave-0 OperatorSum algebra sees them as plain
-    # ``LinearOperator``s rather than legacy 2-arg BCs. The realized
-    # ``MixedBoundaryOperator`` path is recursive — the realizer
-    # decomposes the components and reassembles via ``OperatorSum``
-    # internally — so the two sides are structurally identical and
-    # remain bit-comparable.
-    composed = 0.7 * _realize_for_sn(spec, quad) + 0.3 * _realize_for_sn(white, quad)
-    baseline = MixedBoundaryOperator([(0.7, spec), (0.3, white)])
+    spec_realized = _realize_for_sn(spec, quad)
+    white_realized = _realize_for_sn(white, quad)
+    composed = 0.7 * spec_realized + 0.3 * white_realized
+    expected = 0.7 * spec_realized.apply(psi_out) + 0.3 * white_realized.apply(psi_out)
 
     np.testing.assert_allclose(
-        composed.apply(psi_out),
-        _realize_for_sn(baseline, quad).apply(psi_out),
-        rtol=1e-13,
-        atol=1e-14,
+        composed.apply(psi_out), expected, rtol=1e-13, atol=1e-14,
     )
 
 
 @pytest.mark.foundation
 def test_boundary_operator_keys_match_class_attribute() -> None:
-    """The ``key`` ClassVar must match the registry insertion key."""
+    """The ``key`` ClassVar must match the registry insertion key.
+
+    Wave 11 removed ``MixedBoundaryOperator``; only the rank-1
+    concretes are pinned here.
+    """
     assert VacuumBoundaryOperator.key == "vacuum"
     assert SpecularBoundaryOperator.key == "reflective"
     assert WhiteBoundaryOperator.key == "white"
     assert PeriodicBoundaryOperator.key == "periodic"
     assert AlbedoBoundaryOperator.key == "albedo"
-    assert MixedBoundaryOperator.key == "mixed"

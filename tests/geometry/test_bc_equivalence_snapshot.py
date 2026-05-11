@@ -62,7 +62,6 @@ import pytest
 
 from orpheus.geometry.boundary import (
     AlbedoBoundaryOperator,
-    MixedBoundaryOperator,
     PeriodicBoundaryOperator,
     SpecularBoundaryOperator,
     VacuumBoundaryOperator,
@@ -490,25 +489,39 @@ class TestPeriodicLebedev17Snapshot:
 
 
 class TestMixed30Spec70WhiteLS4Snapshot:
-    """0.3-Specular + 0.7-White mixed boundary on LS_4.
+    r"""0.3-Specular + 0.7-White mixed boundary on LS_4 — Wave-11 form.
 
-    Realizes the rank-N tensor decomposition
+    Realises the rank-N tensor decomposition
 
     .. math::
 
-        R = 0.3 \\, G_{\\text{refl}} + 0.7 \\, G_{\\text{diff}}.
+        R = 0.3 \, G_{\text{refl}} + 0.7 \, G_{\text{diff}}
 
-    Legacy: ``zeros + 0.3 * spec.apply + 0.7 * white.apply`` —
-    sequential accumulation. Realizer: ``OperatorSum(0.3 * spec_op,
-    0.7 * white_op).apply`` — pairwise reduction tree.
+    via the Wave-0 algebra: each leaf
+    :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` is realised
+    independently against the SN method space, and the rank-N
+    composition is expressed as a Wave-0
+    :class:`~orpheus.numerics.operator.OperatorSum` of
+    :class:`~orpheus.numerics.operator.ScaledOperator` wrappers.
 
-    The reduction tree CAN differ at one ULP per term added. ``nulp=64``
-    covers the worst case in the plan's table (sum-of-products
-    reduction tree change once Wave-0 ``OperatorSum`` composes the
-    realizer chain). Today, both paths agree bit-exactly because the
-    realizer composes ``a + b`` for two terms (no associativity
-    branching); the tolerance is the FORWARD safety margin for when
-    additional components are added.
+    Wave 11 removed the ``MixedBoundaryOperator`` composer, so the
+    pre-Wave-11 legacy-path assertion (which exercised
+    ``MixedBoundaryOperator.apply``) is gone. Only the realiser path
+    survives — the snapshot ``psi_in`` is the realised
+    ``apply(psi)`` of the Wave-0 composition; see
+    :func:`tests.geometry._generate_bc_equivalence_snapshots._build_mixed_realized_apply`.
+
+    The composed-vs-snapshot assertion stays at ``nulp=64`` (the FP
+    safety margin for the OperatorSum reduction-tree change vs the
+    pre-Wave-11 snapshot if it shifts by a ULP across the renamed
+    field-access path; on the current ship-state both producer and
+    consumer use bit-identical Wave-0 reduction so the actual
+    distance is 0). The ``vv-principles`` bit-identity vs
+    principled-equivalence three criteria are satisfied: each
+    intermediate is a named Wave-0 type, the realised value is
+    verified against the explicit pointwise weighted sum in
+    :func:`tests.geometry.test_boundary.test_operator_sum_of_bcs_acts_as_weighted_sum`,
+    and any drift is FP non-associativity over a 2-summand reduction.
     """
 
     case_id = "mixed_30spec_70white_LS4"
@@ -517,46 +530,22 @@ class TestMixed30Spec70WhiteLS4Snapshot:
     def snapshot(self) -> np.lib.npyio.NpzFile:
         return _load_or_skip(self.case_id)
 
-    @staticmethod
-    def _build_mixed_bc() -> MixedBoundaryOperator:
-        """Construct the case's BC; shared between both tests."""
-        return MixedBoundaryOperator(
-            [
-                (0.3, SpecularBoundaryOperator(axis="x", albedo=1.0)),
-                (
-                    0.7,
-                    WhiteBoundaryOperator(
-                        axis="x", outward_sign=+1, albedo=1.0,
-                    ),
-                ),
-            ],
-        )
-
-    def test_legacy_apply_matches_snapshot(
-        self, snapshot: np.lib.npyio.NpzFile,
-    ) -> None:
-        """Legacy ``MixedBoundaryOperator.apply`` matches snapshot bit-for-bit."""
-        quad = LevelSymmetricSN.create(sn_order=4)
-        bc = self._build_mixed_bc()
-        actual = bc.apply(snapshot["psi_out"], quad)
-        np.testing.assert_array_equal(actual, snapshot["psi_in"])
-
     def test_realizer_apply_matches_snapshot(
         self, snapshot: np.lib.npyio.NpzFile,
     ) -> None:
-        """Realized ``OperatorSum`` of scaled primitives matches at nulp=64.
-
-        ``nulp=64`` covers the sum-of-products reduction tree change
-        once Wave-0 ``OperatorSum`` composes the realizer chain (see
-        ``vv-principles`` bit-identity vs principled-equivalence rule).
-        On the current ship-state both paths happen to agree
-        bit-exactly because there are only two components; the nulp=64
-        margin is the FORWARD safety net for Waves 9-11.
-        """
+        """Wave-0 ``0.3 * spec_realised + 0.7 * white_realised`` matches
+        snapshot at ``nulp=64``."""
         quad = LevelSymmetricSN.create(sn_order=4)
-        bc = self._build_mixed_bc()
-        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
-        actual = op.apply(snapshot["psi_out"])
+        spec_realized = SNBoundaryRealizer().realize(
+            SpecularBoundaryOperator(axis="x", albedo=1.0),
+            SNMethodSpace.minimal(quad),
+        )
+        white_realized = SNBoundaryRealizer().realize(
+            WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0),
+            SNMethodSpace.minimal(quad),
+        )
+        composed = 0.3 * spec_realized + 0.7 * white_realized
+        actual = composed.apply(snapshot["psi_out"])
         np.testing.assert_array_almost_equal_nulp(
             actual, snapshot["psi_in"], nulp=64,
         )

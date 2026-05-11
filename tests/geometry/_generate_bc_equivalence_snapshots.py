@@ -71,12 +71,12 @@ import numpy as np
 from orpheus.geometry.boundary import (
     AlbedoBoundaryOperator,
     BoundaryOperator,
-    MixedBoundaryOperator,
     PeriodicBoundaryOperator,
     SpecularBoundaryOperator,
     VacuumBoundaryOperator,
     WhiteBoundaryOperator,
 )
+from orpheus.sn.boundary_realizer import SNBoundaryRealizer, SNMethodSpace
 from orpheus.sn.quadrature import (
     AngularQuadrature,
     GaussLegendre1D,
@@ -137,11 +137,17 @@ class BCEquivalenceCase:
     both snapshot-generation time AND harness time, ensuring the two
     sides of the equivalence cannot drift in BC or quadrature
     configuration.
+
+    ``build_bc=None`` is the Wave-11 marker for the
+    ``mixed_30spec_70white_LS4`` case (the only case for which the
+    snapshot pins the realised ``apply(psi)`` output of a Wave-0
+    ``OperatorSum`` composition — see the comment block on the
+    ``mixed_30spec_70white_LS4`` entry in ``CASES``).
     """
 
     case_id: str
     description: str
-    build_bc: Callable[[], BoundaryOperator]
+    build_bc: Callable[[], BoundaryOperator] | None
     build_quadrature: Callable[[], AngularQuadrature]
 
     @property
@@ -219,25 +225,28 @@ CASES: tuple[BCEquivalenceCase, ...] = (
         build_bc=lambda: PeriodicBoundaryOperator(),
         build_quadrature=lambda: LebedevSphere.create(17),
     ),
+    # Wave 11: the ``mixed_30spec_70white_LS4`` case is the special
+    # "rank-N composition" entry. Pre-Wave-11 it stored
+    # ``MixedBoundaryOperator([(0.3, Spec), (0.7, White)]).apply(psi, quad)``
+    # as the legacy reference; Wave 11 removed that composer and the
+    # equivalent rank-N composition is now expressed via Wave-0
+    # ``OperatorSum``-algebra over realised primitives. The case below
+    # carries ``build_bc=None`` as the marker for the special handling
+    # in :func:`_build_payload`: the snapshot output IS the realised
+    # ``0.3 * spec_realized + 0.7 * white_realized`` ``apply(psi)``,
+    # not a legacy 2-arg ``bc.apply(psi, quad)`` output.
     BCEquivalenceCase(
         case_id="mixed_30spec_70white_LS4",
         description=(
             "0.3 * SpecularBoundaryOperator(axis='x', albedo=1.0) + "
             "0.7 * WhiteBoundaryOperator(axis='x', outward_sign=+1, "
-            "albedo=1.0) + LevelSymmetricSN(4). Sum-of-products; "
-            "nulp=64 covers reduction-tree change."
+            "albedo=1.0) + LevelSymmetricSN(4). Wave-11 Wave-0 "
+            "OperatorSum-of-realised-primitives composition; the "
+            "snapshot pins the realised ``apply(psi)`` output (no "
+            "legacy 2-arg path — ``MixedBoundaryOperator`` was removed "
+            "in Wave 11)."
         ),
-        build_bc=lambda: MixedBoundaryOperator(
-            [
-                (0.3, SpecularBoundaryOperator(axis="x", albedo=1.0)),
-                (
-                    0.7,
-                    WhiteBoundaryOperator(
-                        axis="x", outward_sign=+1, albedo=1.0,
-                    ),
-                ),
-            ],
-        ),
+        build_bc=None,
         build_quadrature=lambda: LevelSymmetricSN.create(sn_order=4),
     ),
 )
@@ -261,26 +270,76 @@ def _xmin_inflow_indices(quad: AngularQuadrature) -> np.ndarray:
 # ─── snapshot writer ─────────────────────────────────────────────────
 
 
+def _build_mixed_realized_apply(
+    quad: AngularQuadrature, psi_out: np.ndarray,
+) -> np.ndarray:
+    """Wave-11 Wave-0 ``OperatorSum``-composition for the mixed case.
+
+    The pre-Wave-11 snapshot value was
+    ``MixedBoundaryOperator([(0.3, Spec), (0.7, White)]).apply(psi, quad)``.
+    With the composer removed, the equivalent rank-N composition is
+    expressed via Wave-0 ``ScaledOperator``/``OperatorSum`` algebra
+    over the realised leaves. The result is mathematically identical;
+    by ``vv-principles`` "bit-identity vs principled-equivalence", a
+    ULP shift relative to the pre-Wave-11 snapshot is acceptable
+    because (a) each intermediate is a named Wave-0 type, (b) the
+    composed output is verified against the explicit pointwise
+    weighted sum (the structurally-independent reference), and (c) any
+    drift is FP non-associativity over a 2-summand reduction.
+
+    The realizer's pre-Wave-11 internal mixed-BC path also composed
+    via ``OperatorSum`` of ``ScaledOperator`` (see the deleted
+    ``isinstance(law, MixedBoundaryOperator)`` branch in
+    ``orpheus.sn.boundary_realizer``), so on the current ship-state
+    the two reduction trees agree bit-exactly.
+    """
+    spec_realized = SNBoundaryRealizer().realize(
+        SpecularBoundaryOperator(axis="x", albedo=1.0),
+        SNMethodSpace.minimal(quad),
+    )
+    white_realized = SNBoundaryRealizer().realize(
+        WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0),
+        SNMethodSpace.minimal(quad),
+    )
+    composed = 0.3 * spec_realized + 0.7 * white_realized
+    return composed.apply(psi_out)
+
+
 def _build_payload(case: BCEquivalenceCase) -> dict:
     """Compute the snapshot payload (legacy ``bc.apply`` output + metadata).
 
     Per Wave 6 design:
 
     * ``psi_out`` — the deterministic input array.
-    * ``psi_in`` — the LEGACY ``bc.apply(psi_out, quad)`` output. For
-      vacuum this is ``np.zeros_like(psi_out)``; the test harness uses
-      it as the ship-state (TESTS-FIRST) assertion target. Wave 8 will
-      relax the vacuum-specific assertion to the §16A.5
-      inflow-only-masking semantics.
+    * ``psi_in`` — the LEGACY ``bc.apply(psi_out, quad)`` output for
+      single-rank-1 cases. For vacuum this is ``np.zeros_like(psi_out)``;
+      the test harness uses it as the ship-state (TESTS-FIRST) assertion
+      target.  Wave 8 relaxed the vacuum-specific assertion to the
+      §16A.5 inflow-only-masking semantics. Wave 11 redefined the
+      ``mixed_30spec_70white_LS4`` case: ``psi_in`` is now the
+      ``apply(psi)`` of the Wave-0 ``OperatorSum`` composition of the
+      realised leaves (the ``MixedBoundaryOperator`` composer was
+      deleted; see :func:`_build_mixed_realized_apply`).
     * ``inflow_indices_xmin`` — (vacuum case only) the xmin-face inflow
       ordinate indices, so the harness can express the Wave-8-equivalent
       assertion without re-deriving the index set.
     * ``case_id`` / ``description`` — for traceability.
     """
-    bc = case.build_bc()
     quad = case.build_quadrature()
     psi_out = _generate_psi(quad, case.case_id)
-    psi_in = bc.apply(psi_out, quad)
+
+    if case.build_bc is None:
+        # Wave-11 special case: the snapshot's ``psi_in`` is the
+        # Wave-0 ``OperatorSum``-composition of realised leaves
+        # (currently only ``mixed_30spec_70white_LS4`` uses this path).
+        assert case.case_id == "mixed_30spec_70white_LS4", (
+            f"build_bc=None marker reserved for the Wave-11 mixed case; "
+            f"got case_id={case.case_id!r}."
+        )
+        psi_in = _build_mixed_realized_apply(quad, psi_out)
+    else:
+        bc = case.build_bc()
+        psi_in = bc.apply(psi_out, quad)
 
     payload: dict = dict(
         psi_out=np.asarray(psi_out, dtype=np.float64),

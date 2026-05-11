@@ -27,7 +27,6 @@ standard PWR-shaped 1-D geometries; for 2-D Cartesian pin meshes use
 from .boundary import (
     AlbedoBoundaryOperator,
     BoundaryOperator,
-    MixedBoundaryOperator,
     PeriodicBoundaryOperator,
     SpecularBoundaryOperator,
     VacuumBoundaryOperator,
@@ -54,7 +53,6 @@ __all__ = [
     "CoordSystem",
     "Mesh1D",
     "Mesh2D",
-    "MixedBoundaryOperator",
     "PeriodicBoundaryOperator",
     "ReducedStreamingOperator",
     "Region",

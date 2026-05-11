@@ -32,7 +32,6 @@ from orpheus.geometry.boundary import (
     BoundaryError,
     BoundaryRealizerRegistry,
     BoundaryRealizerRegistryError,
-    MixedBoundaryOperator,
     PeriodicBoundaryOperator,
     SpecularBoundaryOperator,
     VacuumBoundaryOperator,
@@ -304,52 +303,17 @@ class TestRealizePeriodic:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# 6. Mixed (rank-N composition)
+# 6. Mixed (rank-N composition) — Wave 11 removal
+#
+# The ``MixedBoundaryOperator`` composer was removed in Wave 11; the
+# realizer no longer dispatches on a "mixed" type.  Rank-N compositions
+# are now built via Wave-0 ``OperatorSum``/``ScaledOperator`` algebra
+# over already-realised leaves; the tree-walking helper
+# :func:`orpheus.sn.boundary_realize.realize_recursively` realises a
+# ``BoundaryTraceLaw``-rooted expression by recursing through the
+# Wave-0 composers (its tests live in
+# ``tests/sn/test_boundary_realize.py``).
 # ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.l1
-class TestRealizeMixed:
-    """Mixed realizes recursively to a sum-of-scaled-primitives."""
-
-    def test_mixed_30_specular_70_white_matches_legacy(self):
-        """Standard Marshak mixed: 30% specular + 70% white."""
-        quad = LebedevSphere.create(17)
-        spec = SpecularBoundaryOperator(axis="x", albedo=1.0)
-        white = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
-        mixed = MixedBoundaryOperator([(0.3, spec), (0.7, white)])
-        op = SNBoundaryRealizer().realize(mixed, SNMethodSpace.minimal(quad))
-        rng = np.random.default_rng(17)
-        psi = rng.uniform(0.0, 2.0, size=(quad.N, 4))
-        legacy_out = mixed.apply(psi, quad)
-        # Reduction order: realizer composes via Wave-0 OperatorSum,
-        # while legacy accumulates result = result + coeff * primitive.apply.
-        # Both fold the same two summands; FP order may differ by one
-        # ULP. nulp=64 is the safe margin for nested-sum compositions.
-        np.testing.assert_array_almost_equal_nulp(
-            op.apply(psi), legacy_out, nulp=64,
-        )
-
-    def test_mixed_empty_realizes_to_zero_operator(self):
-        quad = GaussLegendre1D.create(8)
-        op = SNBoundaryRealizer().realize(
-            MixedBoundaryOperator([]), SNMethodSpace.minimal(quad),
-        )
-        assert isinstance(op, ZeroOperator)
-
-    def test_mixed_singleton_unit_coeff_matches_legacy(self):
-        """A singleton ``[(1.0, prim)]`` realizes to the primitive
-        directly (no extra wrap)."""
-        quad = LevelSymmetricSN.create(4)
-        spec = SpecularBoundaryOperator(axis="x", albedo=1.0)
-        mixed = MixedBoundaryOperator([(1.0, spec)])
-        op = SNBoundaryRealizer().realize(mixed, SNMethodSpace.minimal(quad))
-        # coeff == 1.0 short-circuits the ScaledOperator wrap, so the
-        # singleton-mixed realization equals the realization of the
-        # primitive alone.
-        rng = np.random.default_rng(5)
-        psi = rng.uniform(-1.0, 1.0, size=(quad.N, 3))
-        np.testing.assert_array_equal(op.apply(psi), spec.apply(psi, quad))
 
 
 # ─────────────────────────────────────────────────────────────────────

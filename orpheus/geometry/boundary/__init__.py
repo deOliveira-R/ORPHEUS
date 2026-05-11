@@ -48,14 +48,24 @@ Most boundary conditions of practical interest are **rank-1**:
   is trivial.
 
 Mixed and partial-current boundaries are **rank-N** sums of the above
-primitives:
+primitives. Wave 11 removed the specialised ``MixedBoundaryOperator``
+composer in favour of the Wave-0 operator algebra: the standard
+Marshak mixed boundary is now expressed by realising each leaf
+:class:`BoundaryTraceLaw` against the method space and composing the
+realised primitives with the algebra dunders
 
-* :class:`MixedBoundaryOperator` -- a list of
-  ``(weight, BoundaryTraceLaw)`` pairs whose ``apply`` is the linear
-  combination of the components.
-  ``MixedBoundaryOperator([(0.3, ReflectiveBoundary()), (0.7,
-  WhiteBoundary())])`` realises the standard Marshak mixed boundary
-  (Bell & Glasstone 1970, §1.5).
+.. code-block:: python
+
+    spec_realized = realizer.realize(ReflectiveBoundary(axis="x"), ms)
+    white_realized = realizer.realize(WhiteBoundary(axis="x", outward_sign=+1), ms)
+    bc = 0.3 * spec_realized + 0.7 * white_realized
+
+producing a Wave-0 :class:`~orpheus.numerics.operator.OperatorSum` of
+:class:`~orpheus.numerics.operator.ScaledOperator` wrappers around the
+realised leaves. Tree-walking realisation of a
+``BoundaryTraceLaw``-rooted expression is provided by
+:func:`orpheus.sn.boundary_realize.realize_recursively` (Wave 11 /
+C11.2). See Bell & Glasstone 1970 §1.5 for the physics.
 
 The abstract base :class:`BoundaryOperator` is what production solvers
 consume today. Issue 9.6 lifted it from a duck-typed ``Protocol`` into
@@ -98,10 +108,14 @@ trace-law refactor (plan: ``.claude/plans/transient-giggling-cake.md``):
   ``PeriodicBoundaryOperator`` retained as deprecated alias).
 * :mod:`albedo` -- :class:`AlbedoBoundary` (Wave-7 rename;
   ``AlbedoBoundaryOperator`` retained as deprecated alias).
-* :mod:`mixed` -- :class:`MixedBoundaryOperator` (scheduled for
-  removal in Wave 11 -- replaced by Wave-0 ``OperatorSum`` algebra).
 * :mod:`prescribed_inflow` -- :class:`PrescribedInflow` (Wave 7
   addition; the rank-0 source-only affine BC).
+
+The ``mixed`` submodule was removed in Wave 11: the rank-N
+composition is now Wave-0 ``OperatorSum``-algebra over realised
+leaves. See :func:`orpheus.sn.boundary_realize.realize_recursively`
+for tree-walking realisation of a ``BoundaryTraceLaw``-rooted
+expression.
 
 This ``__init__.py`` re-exports every public name so existing
 ``from orpheus.geometry.boundary import X`` import sites keep working
@@ -173,7 +187,6 @@ from ._realizer import (
 # ---------------------------------------------------------------------------
 
 from .albedo import AlbedoBoundary
-from .mixed import MixedBoundaryOperator
 from .periodic import PeriodicBoundary
 from .prescribed_inflow import PrescribedInflow
 from .reflective import ReflectiveBoundary
@@ -212,7 +225,6 @@ __all__ = [
     "BoundaryRealizerRegistryError",
     # Concrete BCs (Wave 7 canonical names)
     "AlbedoBoundary",
-    "MixedBoundaryOperator",
     "PeriodicBoundary",
     "PrescribedInflow",
     "ReflectiveBoundary",

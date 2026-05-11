@@ -36,8 +36,9 @@ class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
         \psi_{\text{in}}(\Omega) = \alpha \, \psi_{\text{out}}(\Omega).
 
     No angular redistribution. Useful as a *building block* for
-    :class:`~orpheus.geometry.boundary.mixed.MixedBoundaryOperator`
-    (where albedo and specular shares are independent parameters),
+    Wave-0 ``OperatorSum``-algebra mixed boundaries (e.g.
+    ``c1 * AlbedoBoundary(0.5).realize(ms) + c2 * other.realize(ms)``,
+    where albedo and specular shares are independent parameters),
     and as a stand-alone primitive when the boundary is a pure
     attenuator with no angular structure.
 

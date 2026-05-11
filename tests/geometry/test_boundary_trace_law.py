@@ -213,14 +213,17 @@ def test_unified_registry_holds_all_concretes() -> None:
     :class:`BoundaryTraceLaw` held two disjoint registry dicts. Wave
     7 merged the ABCs (``BoundaryOperator`` is now an alias of
     :class:`BoundaryTraceLaw`), and the registry split with them —
-    one dict containing all 6 legacy concretes plus the test stub
-    plus any Wave-7 additions (``prescribed_inflow``).
+    one dict containing the rank-1 concretes plus the test stub plus
+    any Wave-7 additions (``prescribed_inflow``). Wave 11 removed
+    ``MixedBoundaryOperator`` and its ``"mixed"`` registry key —
+    rank-N compositions are now Wave-0 ``OperatorSum``-algebra over
+    realised leaves, not a registered concrete BC.
     """
     # The two symbols are now the same class — registry IS the same dict.
     assert BoundaryOperator is BoundaryTraceLaw
     assert BoundaryOperator.registry is BoundaryTraceLaw.registry
 
-    # Every Wave-4 concrete BC lives in the unified registry.
+    # Every Wave-4 rank-1 concrete BC lives in the unified registry.
     keys = set(BoundaryTraceLaw.registry.keys())
     expected_concretes = {
         "vacuum",
@@ -228,11 +231,15 @@ def test_unified_registry_holds_all_concretes() -> None:
         "white",
         "periodic",
         "albedo",
-        "mixed",
     }
     assert expected_concretes <= keys, (
         f"missing concretes in unified registry: "
         f"{expected_concretes - keys}"
+    )
+    # Wave 11 — ``"mixed"`` MUST no longer be a registered key.
+    assert "mixed" not in keys, (
+        "Wave 11 removed MixedBoundaryOperator; the 'mixed' key MUST "
+        "no longer be in BoundaryTraceLaw.registry."
     )
     # The test stub registered in this module is also present.
     assert "_stub_for_test" in keys

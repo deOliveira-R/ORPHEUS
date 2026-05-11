@@ -38,18 +38,23 @@ The realisation map (legacy class → Wave-0 / Wave-1 primitive)
   ``α * IdentityOperator()``.
 * :class:`~orpheus.geometry.boundary.periodic.PeriodicBoundaryOperator` →
   :class:`~orpheus.numerics.operator.PeriodicWrapOperator`.
-* :class:`~orpheus.geometry.boundary.mixed.MixedBoundaryOperator(components)` →
-  recursive realization: ``sum(coeff * realize(prim, method_space) for coeff, prim in components)``.
 * :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow(source)` →
   :class:`~orpheus.sn.angular_operator.IncomingSourceOperator(source)`
   — apply returns ``source.evaluate(probe_inflow_trace)``, ignoring
   the outgoing flux. The rank-0 affine BC (Wave 7 / C7.5).
 
+Wave 11 removed the ``MixedBoundaryOperator`` composer from the
+dispatch table. Rank-N compositions are now expressed via Wave-0
+``OperatorSum``-algebra over already-realised leaves; the convenience
+walker for ``BoundaryTraceLaw``-rooted expression trees lives in
+:func:`orpheus.sn.boundary_realize.realize_recursively`.
+
 References
 ----------
 
 * ``.claude/plans/transient-giggling-cake.md`` Wave 5 — C5.3 (functional
-  realizer brief), §16A.5 (vacuum-trace semantic correction).
+  realizer brief), §16A.5 (vacuum-trace semantic correction), Wave 11
+  (mixed-BC removal + tree-walking realisation).
 * Grand Report v3 §16A.3 lines 2841–2860 (realizer-as-third-layer
   motivation), §16A.10 lines 3160-3175 (vacuum-trace correct
   representation).
@@ -57,13 +62,12 @@ References
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from orpheus.geometry.boundary import (
     AlbedoBoundaryOperator,
     BoundaryError,
     BoundaryRealizerRegistry,
-    MixedBoundaryOperator,
     PeriodicBoundaryOperator,
     PrescribedInflow,
     SpecularBoundaryOperator,
@@ -169,23 +173,6 @@ class SNBoundaryRealizer:
         if isinstance(law, PeriodicBoundaryOperator):
             return PeriodicWrapOperator()
 
-        if isinstance(law, MixedBoundaryOperator):
-            if not law.components:
-                # Degenerate: empty composition → zero operator.
-                return ZeroOperator()
-            # Recursively realize each component, then sum via
-            # the OperatorSum algebra (LinearOperatorMixin.__add__).
-            result: Optional[LinearOperator] = None
-            for coeff, primitive in law.components:
-                realized = self.realize(primitive, method_space)
-                if coeff == 1.0:
-                    term: LinearOperator = realized
-                else:
-                    term = ScaledOperator(float(coeff), realized)
-                result = term if result is None else (result + term)
-            assert result is not None  # guarded by ``if not law.components``
-            return result
-
         if isinstance(law, PrescribedInflow):
             # Wave-7 addition: rank-0 affine source. The operator's
             # apply ignores the outgoing flux and returns
@@ -200,6 +187,9 @@ class SNBoundaryRealizer:
             f"Available cases: VacuumBoundaryOperator, "
             f"SpecularBoundaryOperator, WhiteBoundaryOperator, "
             f"AlbedoBoundaryOperator, PeriodicBoundaryOperator, "
-            f"MixedBoundaryOperator, PrescribedInflow.",
+            f"PrescribedInflow. For rank-N compositions built via "
+            f"Wave-0 OperatorSum/ScaledOperator algebra over "
+            f"BoundaryTraceLaw leaves, use "
+            f"orpheus.sn.boundary_realize.realize_recursively.",
             law=type(law).__name__,
         )

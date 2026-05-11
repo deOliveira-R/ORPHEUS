@@ -110,8 +110,10 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
         # to the underlying ``_source`` field (named to avoid the
         # collision with the inherited ``BoundaryTraceLaw.source``
         # property). ``object.__setattr__`` bypasses the frozen
-        # guard during construction (same pattern as
-        # :class:`MixedBoundaryOperator`).
+        # guard during construction (the field-vs-property pattern
+        # adopted from the pre-Wave-11 ``MixedBoundaryOperator``
+        # composer, which was removed in Wave 11 in favour of
+        # Wave-0 ``OperatorSum``-algebra over realised leaves).
         if source is None:
             source = NoSource()
         object.__setattr__(self, "_source", source)
