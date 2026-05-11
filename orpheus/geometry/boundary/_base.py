@@ -1,36 +1,34 @@
-r"""The :class:`BoundaryTraceLaw` ABC -- method-agnostic boundary law.
+r"""Abstract bases for boundary conditions: legacy + trace-law.
 
-Per Grand Report v3 §16A.3 lines 2841-2860, the boundary condition
-splits into three layers:
+This module hosts **two** abstract bases that coexist during the
+Wave 3-Wave 11 transition:
 
-1. **Trace structure** -- :class:`~orpheus.numerics.trace_space.InflowTraceSpace`
-   / :class:`~orpheus.numerics.trace_space.OutflowTraceSpace` (Wave 2).
-2. **Physical law** -- this module's :class:`BoundaryTraceLaw`: the
-   method-agnostic affine map
+1. :class:`BoundaryOperator` -- the legacy ABC, 2-arg
+   ``apply(psi_out, quadrature)`` signature. The five concrete
+   subclasses (:class:`~orpheus.geometry.boundary.vacuum.VacuumBoundaryOperator`,
+   :class:`~orpheus.geometry.boundary.reflective.SpecularBoundaryOperator`,
+   :class:`~orpheus.geometry.boundary.white.WhiteBoundaryOperator`,
+   :class:`~orpheus.geometry.boundary.periodic.PeriodicBoundaryOperator`,
+   :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundaryOperator`)
+   plus the rank-N composer
+   (:class:`~orpheus.geometry.boundary.mixed.MixedBoundaryOperator`)
+   all inherit from this base today.
 
-   .. math::
+2. :class:`BoundaryTraceLaw` -- the new method-agnostic ABC for the
+   §16A.3 three-layer decomposition. Concrete BCs will be rebased
+   onto this ABC in Wave 7 (rename + internal delegation).
 
-       \gamma_- \psi \;=\; R\,G\,\gamma_+ \psi \;+\; q
+The two ABCs maintain SEPARATE registries: each declares its own
+``registry: ClassVar[dict]`` and overrides
+:meth:`_registry_base` to return itself. This isolation is
+load-bearing for Wave 7: new concretes can register under
+:class:`BoundaryTraceLaw` without colliding with the legacy
+:attr:`BoundaryOperator.registry` entries.
 
-   with three terms (geometry map :math:`G`, response kernel
-   :math:`R`, source :math:`q`).
-3. **Method realisation** -- ``BoundaryRealizer`` (Wave 5): one
-   concrete realiser per transport method (SN, MoC, MC, CP,
-   diffusion) that turns a :class:`BoundaryTraceLaw` into a
-   :class:`~orpheus.numerics.operator.LinearOperator` consumable by
-   that method's sweep / solver.
-
-This wave ships the ABC and the universal ``assert_*`` invariants
-(§16A.12 + §27.6). Concrete BCs ship in Wave 7 (rename / internal
-delegation of the legacy operators).
-
-The registry follows the same pattern as
-:class:`~orpheus.geometry.boundary.BoundaryOperator`: each concrete
-subclass declares ``key=`` in its class statement and self-registers
-via :class:`~orpheus.numerics.registry.RegistryMixin`. The two
-registries are kept independent by overriding :meth:`_registry_base`
-to return :class:`BoundaryTraceLaw` (vs. ``BoundaryOperator``) --
-verified by ``tests/geometry/test_boundary_trace_law.py``.
+Wave 3 added :class:`BoundaryTraceLaw`. Wave 4 (this file's
+expansion) moved :class:`BoundaryOperator` here from the package
+``__init__.py`` as part of the source-layout split. The per-BC
+concretes moved into per-BC submodules in the same wave.
 
 References
 ----------
@@ -38,7 +36,8 @@ References
 * Grand Report v3 §16A.1-3 (affine boundary form + three-layer
   decomposition), §16A.12 (universal invariants), §15A.2
   (sweep-cycle detection).
-* ``.claude/plans/transient-giggling-cake.md`` -- Wave 3 brief.
+* ``.claude/plans/transient-giggling-cake.md`` -- Wave 3 / Wave 4
+  briefs.
 """
 
 from __future__ import annotations
@@ -59,7 +58,123 @@ if TYPE_CHECKING:
     from orpheus.sn.quadrature import AngularQuadrature
 
 
-__all__ = ["BoundaryTraceLaw"]
+__all__ = ["BoundaryOperator", "BoundaryTraceLaw"]
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Legacy ABC (will be deprecated in Wave 7 when concretes rebase onto
+# BoundaryTraceLaw).
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class BoundaryOperator(LinearOperatorMixin, RegistryMixin, ABC):
+    r"""Abstract base for a tensor-decomposed boundary condition.
+
+    A :class:`BoundaryOperator` is the runtime representation of the operator
+
+    .. math::
+
+        R = \sum_\alpha G_\alpha \otimes A_\alpha
+
+    that consumes the outgoing angular flux at a face and produces the
+    incoming angular flux. Concrete implementations may be **rank-1**
+    (a single :math:`G \otimes A` term: vacuum, specular, white,
+    periodic, albedo) or **rank-N**
+    (:class:`~orpheus.geometry.boundary.mixed.MixedBoundaryOperator` --
+    a sum of the rank-1 primitives).
+
+    The :class:`~orpheus.sn.quadrature.AngularQuadrature` argument
+    lets each concrete BC reach into the quadrature's structural
+    metadata (``reflection_index(axis)``, weights, level structure)
+    without the contract exposing those as required attributes -- the
+    responsibility for being able to query the quadrature lives in
+    the BC, not in every consumer.
+
+    Issue 9.6 lift
+    ==============
+
+    The earlier ``BoundaryOperator(Protocol)`` declaration was
+    duck-typed; Issue 9.6 lifted it into a concrete ABC that:
+
+    * inherits :class:`~orpheus.numerics.operator.LinearOperatorMixin`
+      so concrete BCs participate in the operator algebra
+      (``+`` / ``*`` / ``@``);
+    * inherits :class:`~orpheus.numerics.registry.RegistryMixin` so
+      concrete BCs self-register under a string ``key=`` class-creation
+      kwarg, accessible via :meth:`create`;
+    * canonicalises the application method as :meth:`apply` (the
+      Issue 9.5 rename retained the old ``apply_to_incoming`` name;
+      Issue 9.6 dropped it in favour of the operator-algebra
+      vocabulary).
+
+    Each concrete subtype declares its :pydata:`capabilities`
+    frozenset. The minimum contract is ``frozenset({"apply"})``;
+    :class:`~orpheus.geometry.boundary.reflective.SpecularBoundaryOperator`
+    ships ``apply_transpose`` in addition (load-bearing for
+    sensitivity-analysis adjoint pipelines).
+    """
+
+    registry: ClassVar[dict[str, type["BoundaryOperator"]]] = {}
+    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
+
+    @classmethod
+    def _registry_base(cls) -> type:
+        return BoundaryOperator
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        """Boundary-trace space the BC consumes (outgoing flux).
+
+        Returns ``None`` on the abstract base -- concrete subtypes
+        whose trace dimensions are determined at construction time
+        may override to expose them. The Issue 9.6 ship-state leaves
+        this as ``None`` for backward compatibility; the function
+        spaces become non-trivial when an SN solver explicitly
+        constructs them with the live ordinate / group counts.
+        """
+        return None
+
+    @property
+    def range(self) -> Optional["FunctionSpace"]:
+        """Boundary-trace space the BC produces (incoming flux).
+
+        See :attr:`domain` for the ``None`` semantics.
+        """
+        return None
+
+    @abstractmethod
+    def apply(
+        self,
+        psi_out: np.ndarray,
+        quadrature: "AngularQuadrature",
+    ) -> np.ndarray:
+        r"""Compute the incoming angular flux from the outgoing.
+
+        Parameters
+        ----------
+        psi_out : np.ndarray
+            Angular flux at the boundary face, indexed over all
+            ordinates of ``quadrature``. Shape ``(N_ord, ...)`` where
+            the trailing axes are typically energy groups.
+        quadrature : AngularQuadrature
+            The angular quadrature; lets the BC query reflection
+            partners, weights, and level structure.
+
+        Returns
+        -------
+        np.ndarray
+            Incoming angular flux at the boundary face, same shape
+            as ``psi_out``. For ordinates whose direction cosine is
+            *outgoing* at this face (and thus do not have an
+            incoming value), the returned entries are zero -- sweeps
+            consume only the incoming entries.
+        """
+        ...
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Wave-3 ABC -- BoundaryTraceLaw (method-agnostic affine boundary law).
+# ═══════════════════════════════════════════════════════════════════════
 
 
 class BoundaryTraceLaw(LinearOperatorMixin, RegistryMixin, ABC):
