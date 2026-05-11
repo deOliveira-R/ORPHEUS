@@ -2501,35 +2501,48 @@ When a face is left as ``None``, the solver applies its own default
 (reflective for the SN solver, matching the infinite-lattice /
 eigenvalue convention).
 
-**Stage 2 --- Solver resolution.**
-:class:`SNMesh` owns a class-level :attr:`~SNMesh.BOUNDARY_OPERATOR_REGISTRY` dictionary
-mapping kind strings to factory callables::
+**Stage 2 --- Solver resolution via the BC realizer.**
+:class:`SNMesh` owns a class-level
+:attr:`~SNMesh.BOUNDARY_OPERATOR_REGISTRY` mapping kind strings to
+:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` **subclasses**
+(post Wave 8 of the trace-law refactor in
+``.claude/plans/transient-giggling-cake.md``)::
 
     BOUNDARY_OPERATOR_REGISTRY = {
-        "vacuum":     _sn_vacuum_boundary_operator,
-        "reflective": _sn_reflective_boundary_operator,
+        "vacuum":     VacuumInflow,
+        "reflective": ReflectiveBoundary,
     }
 
-During ``SNMesh.__init__``, each face's :class:`~geometry.mesh.BC` is
-looked up in the registry.  If the kind is not found, a ``ValueError``
-lists the supported kinds.  For curvilinear geometries (spherical,
-cylindrical), only ``"reflective"`` and ``"vacuum"`` are currently
-supported --- requesting any other kind on a curvilinear mesh raises
-``ValueError``.
+The registry values are the law classes themselves, not factory
+functions. The pre-refactor ``_sn_vacuum_boundary_operator`` /
+``_sn_reflective_boundary_operator`` factories were retired; their
+job is now done by :meth:`SNMesh._resolve_one`, which dispatches
+through :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`
+for Cartesian meshes and through the bare law instance for
+curvilinear meshes (see :ref:`bc-sn-resolution-table` below).
 
-As of Wave B Round 3 of the SN reshape campaign (Issue 7 of
-``.claude/plans/sn_reshape.md``), the registry factories return
-concrete :class:`~orpheus.geometry.boundary.BoundaryOperator` instances
-rather than string tags. ``sn_mesh.bc_left``, ``sn_mesh.bc_right``,
-``sn_mesh.bc_xmin``, etc. carry tensor-decomposed BC objects whose
-``apply(angular_flux_outgoing, quadrature)`` method the
-sweep calls directly, with no string-kind branching at the call site.
-For backward compatibility with existing tests, the concrete BC
-classes still compare equal to their legacy string tag
-(``sn_mesh.bc_left == "vacuum"`` evaluates True iff
-``sn_mesh.bc_left`` is a ``VacuumBoundaryOperator``); see
-:ref:`bc-tensor-decompositions` for the full algebra and the list of
-implemented primitives.
+During ``SNMesh.__init__``, each face's :class:`~geometry.mesh.BC`
+is looked up in the registry.  If the kind is not found, a
+``ValueError`` lists the supported kinds.  For curvilinear
+geometries (spherical, cylindrical), only ``"reflective"`` and
+``"vacuum"`` are currently supported --- requesting any other kind
+on a curvilinear mesh raises ``ValueError``.
+
+The two-arg legacy interface ``bc.apply(angular_flux_outgoing,
+quadrature)`` is retired for production call sites (Wave 9
+migrated 13 sites from 2-arg to 1-arg ``bc.apply(psi)``). The
+resolved BCs at ``sn_mesh.bc_left`` etc. expose the uniform
+1-arg contract through a transitional
+:class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
+shim — internal to the package, not in
+:attr:`orpheus.geometry.boundary.__all__`. The shim is deleted
+once the curvilinear realizer ships (Issue #176). For backward
+compatibility with diagnostic tests, the shim compares equal to
+its kind string (``sn_mesh.bc_left == "vacuum"`` evaluates True
+iff the underlying law is ``VacuumInflow``); see
+:ref:`bc-tensor-decompositions` below for the operator-algebra
+view and :ref:`theory-boundary-conditions` for the full
+trace-law / realizer architecture.
 
 **Backward compatibility.**
 :func:`solve_sn_fixed_source` still accepts a ``boundary_condition: str``
@@ -2618,7 +2631,7 @@ either rank-1 (one :math:`G \otimes A` term) or a finite linear
 combination of rank-1 primitives (rank-N). The implemented primitives
 are:
 
-.. list-table:: Implemented :class:`BoundaryOperator` primitives
+.. list-table:: Implemented :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` primitives (Wave 7 vocabulary)
    :widths: 20 30 25 25
    :header-rows: 1
 
@@ -2626,48 +2639,165 @@ are:
      - :math:`G_\alpha`
      - :math:`A_\alpha`
      - Rank / wired into ``solve_sn``
-   * - :class:`~orpheus.geometry.boundary.VacuumBoundaryOperator`
+   * - :class:`~orpheus.geometry.boundary.VacuumInflow`
      - :math:`0` (no operator)
      - 0
      - 0 / yes
-   * - :class:`~orpheus.geometry.boundary.SpecularBoundaryOperator`
+   * - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
      - permutation under reflection axis
      - albedo (1 = perfect)
      - 1 / yes
-   * - :class:`~orpheus.geometry.boundary.WhiteBoundaryOperator`
+   * - :class:`~orpheus.geometry.boundary.WhiteBoundary`
      - cosine-weighted hemispheric average
      - albedo
      - 1 / no (Wave C)
-   * - :class:`~orpheus.geometry.boundary.PeriodicBoundaryOperator`
+   * - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
      - spatial pushforward (caller-supplied)
      - 1
      - 1 / no (Wave C/D)
-   * - :class:`~orpheus.geometry.boundary.AlbedoBoundaryOperator`
+   * - :class:`~orpheus.geometry.boundary.AlbedoBoundary`
      - identity in angle
      - albedo
      - 1 / no (building block)
-   * - :class:`~orpheus.geometry.boundary.MixedBoundaryOperator`
-     - sum of components
-     - per-component
-     - N / no
+   * - :class:`~orpheus.geometry.boundary.PrescribedInflow`
+     - 0
+     - 0
+     - 0 with :math:`q \neq 0` / no (rank-0 source-only affine BC)
 
-The Protocol :class:`~orpheus.geometry.boundary.BoundaryOperator` exposes one
-method, ``apply(angular_flux_outgoing, quadrature)``, which
-the SN sweep calls instead of branching on a string kind. The
-:attr:`SNMesh.BOUNDARY_OPERATOR_REGISTRY` factories now return concrete
-:class:`BoundaryOperator` instances; the registry pattern is unchanged from a
-caller's perspective. White, periodic, albedo, and mixed primitives
-ship as building blocks --- the sweep plumbing for them lands in a
-later wave of the SN reshape campaign (this issue is the algebra; the
-plumbing is the consumption).
+The pre-Wave-7 names ``VacuumBoundaryOperator`` /
+``SpecularBoundaryOperator`` / ``WhiteBoundaryOperator`` /
+``PeriodicBoundaryOperator`` / ``AlbedoBoundaryOperator`` are kept as
+**deprecated aliases** in :mod:`orpheus.geometry.boundary` for
+backward compatibility. ``MixedBoundaryOperator`` was **retired in
+Wave 11** — rank-N (Marshak, partial-current) boundaries are now
+expressed via Wave-0 operator algebra over realized leaves:
+``0.3 * spec_realized + 0.7 * white_realized``. See
+:ref:`bc-rank-n-algebra` for the algebraic identity and the
+:ref:`bc-realize-recursively` walker that realizes a
+``BoundaryTraceLaw``-rooted Wave-0 expression tree.
+
+The abstract base :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`
+exposes :meth:`apply` with a transitional ``(psi_out, *args,
+**kwargs)`` signature that accommodates both the legacy 2-arg
+``(psi_out, quadrature)`` form (the curvilinear path that hasn't
+moved to the realizer yet) and the 1-arg ``(psi)`` form (the
+Cartesian realizer-resolved path). The full law / realizer split is
+documented at :ref:`theory-boundary-conditions`.
 
 The tensor framing pays off architecturally because partial-current
 Marshak boundaries (:math:`R = c_1 \, G_{\rm refl} + c_2 \, G_{\rm
 diff}`, Bell & Glasstone 1970 §1.5) and multi-region interface
 couplings are all instances of the same algebra: pick the geometric
-operators, pick the amplitudes, sum. Once this shape is in place, new
-BCs are one ``BoundaryOperator`` class and one
-``BOUNDARY_OPERATOR_REGISTRY`` entry away --- no sweep edits per BC.
+operators, pick the amplitudes, sum. New BCs are one
+:class:`BoundaryTraceLaw` subclass + one
+``BOUNDARY_OPERATOR_REGISTRY`` entry away — no sweep edits per BC.
+
+.. _bc-sn-resolution-table:
+
+SN BC resolution table (post-Wave-8 wiring)
+--------------------------------------------
+
+The :meth:`SNMesh._resolve_one` dispatch is summarized below.
+Each row maps the user-facing :class:`~orpheus.geometry.mesh.BC`
+kind string to (a) the resolved :class:`BoundaryTraceLaw`
+subclass, (b) the :class:`SNBoundaryRealizer.realize` output
+operator on the Cartesian path, and (c) the
+``creates_sweep_cycle`` flag used by §15A.2 sweep-cycle
+detection (see :ref:`bc-sweep-cycle`).
+
+.. list-table:: BC.kind → law class → realized SN operator
+   :header-rows: 1
+   :widths: 16 22 36 12 14
+
+   * - ``BC.kind``
+     - Law class
+     - Realized SN operator (Cartesian)
+     - α
+     - ``creates_sweep_cycle``
+   * - ``"vacuum"``
+     - :class:`~orpheus.geometry.boundary.VacuumInflow`
+     - :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
+       (per-face inflow indices)
+     - —
+     - ``False``
+   * - ``"reflective"``
+     - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
+     - :class:`~orpheus.numerics.operator.PermutationOperator`
+       (``quadrature.reflection_index(axis)``)
+     - 1 (fast path)
+     - **``True``**
+   * - ``"reflective"``
+     -
+     - ``α * PermutationOperator``
+       (:class:`~orpheus.numerics.operator.ScaledOperator`)
+     - α ≠ 1
+     - **``True``**
+   * - ``"white"``
+     - :class:`~orpheus.geometry.boundary.WhiteBoundary`
+     - :class:`~orpheus.sn.angular_operator.AngularAverageOperator`
+     - 1 (fast path)
+     - ``False``
+   * - ``"white"``
+     -
+     - ``α * AngularAverageOperator``
+     - α ≠ 1
+     - ``False``
+   * - ``"periodic"``
+     - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
+     - :class:`~orpheus.numerics.operator.PeriodicWrapOperator`
+     - 1
+     - **``True``**
+   * - ``"albedo"``
+     - :class:`~orpheus.geometry.boundary.AlbedoBoundary`
+     - :class:`~orpheus.numerics.operator.ZeroOperator`
+     - 0
+     - ``False``
+   * - ``"albedo"``
+     -
+     - :class:`~orpheus.numerics.operator.IdentityOperator`
+     - 1
+     - ``False``
+   * - ``"albedo"``
+     -
+     - ``α * IdentityOperator``
+     - α ∉ {0, 1}
+     - ``False``
+   * - ``"prescribed_inflow"``
+     - :class:`~orpheus.geometry.boundary.PrescribedInflow`
+     - :class:`~orpheus.sn.angular_operator.IncomingSourceOperator`
+       (source.evaluate; ignores outgoing flux)
+     - —
+     - ``False``
+
+The Cartesian path constructs the resolved operator via
+:meth:`SNBoundaryRealizer.realize(law, method_space)` where the
+``method_space`` is built by
+:meth:`SNMethodSpace.for_face` carrying the precomputed
+:class:`~orpheus.numerics.trace_space.InflowTraceSpace`. The
+:class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
+transitional shim wraps the result with a ``kind`` tag for the
+legacy ``sn_mesh.bc_xmin == "vacuum"`` string-equality surface.
+
+The **curvilinear path** (Mesh1D ``SPHERICAL`` / ``CYLINDRICAL``,
+Mesh2D ``CYLINDRICAL``) bypasses the realizer because
+:meth:`InflowTraceSpace.from_mesh_and_quadrature` raises
+:class:`NotImplementedError` on curvilinear meshes (no
+curvilinear-Krylov consumer needs the mask yet). The resolved
+``bc_*`` attribute is then a
+:class:`_BoundBoundaryOperator(bc, quadrature=self.quad,
+kind=bc.kind)` wrapping the bare 2-arg law; the shim's
+:meth:`apply(psi)` forwards ``inner.apply(psi, bound_quad)`` so
+the call sites see a uniform 1-arg signature. Bit-identical to
+the pre-Wave-9 direct ``bc.apply(psi, quad)`` because the bound
+quadrature is the same :class:`AngularQuadrature` object.
+
+This Cartesian / curvilinear split is the only Wave-12-era
+deviation from the unified architecture and is tracked under
+**Issue #176** ("BC refactor: drop 2-arg apply + delete
+``_BoundBoundaryOperator`` once curvilinear realizer ships"). When
+the curvilinear :class:`InflowTraceSpace` factory ships, the
+realizer becomes uniformly applicable, the shim is deleted, and
+every consumer sees a pure 1-arg ``LinearOperator``.
 
 Inner Boundary (Curvilinear)
 -----------------------------

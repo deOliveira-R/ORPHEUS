@@ -19,7 +19,8 @@ with a different audience, lifecycle, and V&V claim:
      - Audience
    * - :ref:`theory-infrastructure`
      - Cross-cutting foundations: cross-section pipeline, homogeneous
-       infinite-medium baseline, transport-method overview.
+       infinite-medium baseline, boundary-condition trace-law
+       architecture, operator algebra, transport-method overview.
      - Stable invariants
      - All sessions touching any solver.
    * - :ref:`theory-transport-methods`
@@ -68,6 +69,7 @@ that places each transport method in the V&V hierarchy.
 .. toctree::
    :maxdepth: 1
 
+   boundary_conditions
    cross_section_data
    discrete_measures
    galerkin_projection

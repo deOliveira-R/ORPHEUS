@@ -556,3 +556,168 @@ loop over the ordinate axis (which is **internal** to every
 :meth:`apply` call within an octant, vectorised by the tensor-
 product structure).
 
+
+.. _bc-tensor-primitives:
+
+Boundary conditions as Wave-0 / Wave-1 primitives
+=================================================
+
+The boundary trace-law refactor (12-wave effort,
+``.claude/plans/transient-giggling-cake.md``, archival narrative
+in :ref:`theory-boundary-conditions`) lifted boundary conditions
+from a dedicated layer of code into the same operator algebra
+documented in this page: every realized BC IS a Wave-0
+:class:`~orpheus.numerics.operator.LinearOperator`, composable
+with the streaming / scattering / fission operators through the
+same algebra dunders.
+
+Three new primitives in :mod:`orpheus.numerics.operator`
+(Wave 0 of the BC refactor) plus one SN-specific primitive in
+:mod:`orpheus.sn.angular_operator` (Wave 1) form the realization
+target set:
+
+.. list-table:: BC realization primitives — the §15.2 G_α geometric operators
+   :header-rows: 1
+   :widths: 26 36 38
+
+   * - Primitive
+     - Mathematical action
+     - Realizes which BC
+   * - :class:`~orpheus.numerics.operator.PermutationOperator`
+     - ``np.take(x, perm, axis=axis)`` with optional
+       involution-detection
+     - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
+       (specular reflection via
+       ``quadrature.reflection_index(axis)``)
+   * - :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
+     - Sparse mask zeroing only the inflow ordinates at one face;
+       preserves outflow rows. Self-adjoint + idempotent
+       (projector).
+     - :class:`~orpheus.geometry.boundary.VacuumInflow` (§16A.10
+       trace-correct vacuum)
+   * - :class:`~orpheus.numerics.operator.PeriodicWrapOperator`
+     - Today: angular identity (matches legacy
+       ``PeriodicBoundaryOperator.apply``). Reserved for future
+       spatial-pushforward extension.
+     - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
+   * - :class:`~orpheus.sn.angular_operator.AngularAverageOperator`
+     - Cosine-weighted Lambertian average over an outgoing
+       hemisphere: scalar-broadcasts to all inflow ordinates.
+       SN-specific (depends on
+       :class:`~orpheus.sn.quadrature.AngularQuadrature`).
+     - :class:`~orpheus.geometry.boundary.WhiteBoundary`
+   * - :class:`~orpheus.sn.angular_operator.IncomingSourceOperator`
+     - Ignores the outgoing flux; returns the prescribed source
+       value via :meth:`BoundarySource.evaluate`.
+     - :class:`~orpheus.geometry.boundary.PrescribedInflow`
+
+The rank-N case (Marshak / partial-current) is built directly
+through the algebra dunders:
+
+.. math::
+   :label: bc-rank-n-as-sum-of-products
+
+   R \;=\; \sum_\alpha G_\alpha \otimes A_\alpha,
+   \qquad
+   G_\alpha \in \{\text{permutation, mask, average, wrap, identity}\},
+   \quad A_\alpha \in [0, 1].
+
+.. vv-status: bc-rank-n-as-sum-of-products documented
+
+For the SN realization, the tensor product :math:`G_\alpha \otimes
+A_\alpha` collapses to a scalar amplification:
+:class:`~orpheus.numerics.operator.ScaledOperator` ``(α, G)``. The
+canonical Marshak BC
+
+.. math::
+
+   R_{\text{Marshak}}
+   \;=\; c_1 \, G_{\text{refl}} \;+\; c_2 \, G_{\text{diff}}
+   \qquad (c_1 + c_2 \leq 1)
+
+becomes the Wave-0 expression
+``c1 * PermutationOperator(perm) + c2 * AngularAverageOperator(...)``
+— an :class:`~orpheus.numerics.operator.OperatorSum` of
+:class:`~orpheus.numerics.operator.ScaledOperator`-wrapped
+primitives.
+
+The pre-refactor implementation had a dedicated
+``MixedBoundaryOperator(components: list[tuple[float, BC]])``
+class that delayed the realization until ``apply`` time. Wave 11
+of the refactor deleted it: the Wave-0 algebra dunders already
+produce the right shape from the realized leaves, and the
+delayed-realization pattern broke down once vacuum needed per-face
+inflow indices (which the dedicated class had no access to). The
+tree-walking realization for ``BoundaryTraceLaw``-rooted
+expressions is provided by
+:func:`orpheus.sn.boundary_realize.realize_recursively` — see
+:ref:`bc-realize-recursively` for the walker semantics and
+:ref:`bc-rank-n-algebra` for the rank-N algebra in detail.
+
+
+.. _trace-spaces-doc:
+
+Trace spaces — :math:`\Gamma_-` and :math:`\Gamma_+`
+====================================================
+
+Boundary conditions act on the **directional half** of the
+transport equation's boundary trace. Per Grand Report v3 §5.3 and
+§16A.5, the trace splits into two pieces by the sign of
+:math:`\Omega \cdot \hat n`:
+
+.. math::
+   :label: trace-half-decomposition
+
+   \Gamma_- \;=\; \{(\mathbf{r}, \Omega) \in \partial\Omega \times S^d
+                  : \Omega \cdot \hat n(\mathbf{r}) < 0\},
+   \qquad
+   \Gamma_+ \;=\; \{(\mathbf{r}, \Omega) : \Omega \cdot \hat n > 0\}.
+
+.. vv-status: trace-half-decomposition documented
+
+The two halves are represented by typed
+:class:`~orpheus.numerics.space.FunctionSpace` subclasses
+:class:`~orpheus.numerics.trace_space.InflowTraceSpace` and
+:class:`~orpheus.numerics.trace_space.OutflowTraceSpace`, which
+carry a **per-face directional mask**:
+
+.. math::
+   :label: per-face-inflow-mask
+
+   \mathrm{inflow\_mask}[f, n]
+   \;=\;
+   \bigl(\Omega_n \cdot \hat n_f < -\epsilon\bigr).
+
+.. vv-status: per-face-inflow-mask documented
+
+The mask has shape ``(n_faces, n_ordinates)`` boolean; the
+tangential band :math:`|\Omega_n \cdot \hat n_f| \leq \epsilon`
+(default ``ε = 1e-12``) is in neither half.
+
+Three consumers read the mask today:
+
+* The SN realizer's vacuum branch consumes
+  ``inflow_indices_for_face(face)`` to construct an
+  :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
+  with the per-face inflow indices.
+* The universal invariant
+  :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
+  uses the inflow mask to validate a
+  :class:`~orpheus.geometry.boundary.BoundarySource` (ERR-047).
+* Future curvilinear Krylov solvers that need a sparse inflow
+  projection (deferred per Issue #176 and the
+  "BC: curvilinear InflowTraceSpace" follow-up).
+
+Construction goes through the classmethod factory
+:meth:`InflowTraceSpace.from_mesh_and_quadrature`, which builds
+the mask from the spatial mesh's face-normal table and the
+quadrature's direction-cosine arrays. Curvilinear meshes raise
+:class:`NotImplementedError` from the factory — the deferral is
+grep-able for the curvilinear consumer.
+
+The two trace spaces and the
+:class:`~orpheus.geometry.boundary.BoundarySource` Protocol
+together close the §16A.1 affine boundary form
+:math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q` documented in
+detail at :ref:`affine-bc-form`.
+
