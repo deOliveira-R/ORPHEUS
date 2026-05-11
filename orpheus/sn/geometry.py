@@ -13,22 +13,25 @@ redistribution coefficients (:math:`\alpha`), the geometry factor
 from __future__ import annotations
 
 import warnings
-from typing import Any, ClassVar, Iterator
+from typing import ClassVar, Iterator
 
 import numpy as np
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.geometry.boundary import (
-    BoundaryOperator,
-    SpecularBoundaryOperator,
-    VacuumBoundaryOperator,
+    BoundaryTraceLaw,
+    ReflectiveBoundary,
+    VacuumInflow,
 )
+from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 from orpheus.geometry.reduced_operator import (
     ReducedStreamingOperator,
     cylindrical_streaming,
     slab_streaming,
     spherical_streaming,
 )
+from .boundary_realizer import SNBoundaryRealizer
+from .method_space import SNMethodSpace
 from .quadrature import AngularQuadrature
 from .spatial.boundary_face_flux import BoundaryFaceFlux, DDExtrapolation
 from .spatial.cell_update import CellUpdate, CellVisit
@@ -40,31 +43,6 @@ from .spatial.pole_angular_closure import (
     PoleAngularClosure,
 )
 from .sweep_graph import OctantLabel, SweepDependencyGraph
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# SN boundary condition factories
-# ═══════════════════════════════════════════════════════════════════════
-#
-# Factories take a solver-agnostic ``BC(kind, params)`` declaration and
-# return a concrete :class:`BoundaryOperator` instance carrying the tensor
-# decomposition :math:`R = \\sum_\\alpha G_\\alpha \\otimes A_\\alpha`
-# the sweep needs (see :mod:`orpheus.geometry.boundary`).
-#
-# The 1-D faces (``left`` / ``xmin``, ``right`` / ``xmax``) reflect
-# across the radial / x-axis, so the SN factories always pin
-# ``axis="x"`` for ``SpecularBoundaryOperator``. 2-D faces dispatch by the y-axis
-# variants on ``ymin`` / ``ymax``.
-
-def _sn_vacuum_boundary_operator(sn_mesh: "SNMesh", bc: BC, face: str) -> BoundaryOperator:
-    """Zero incoming angular flux at this face."""
-    return VacuumBoundaryOperator()
-
-
-def _sn_reflective_boundary_operator(sn_mesh: "SNMesh", bc: BC, face: str) -> BoundaryOperator:
-    """Specular reflection: ψ_in(Ω) = ψ_out(Ω_reflected)."""
-    axis = "y" if face in ("ymin", "ymax") else "x"
-    return SpecularBoundaryOperator(axis=axis, albedo=1.0)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -96,30 +74,50 @@ class SNMesh:
 
     Attributes
     ----------
-    BOUNDARY_OPERATOR_REGISTRY : dict[str, Callable]
-        Supported boundary condition kinds. Each value is a factory
-        ``(sn_mesh, bc, face) -> resolved_kind``.  Docstrings on
-        the factories serve as descriptions for programmatic query::
-
-            >>> {k: v.__doc__ for k, v in SNMesh.BOUNDARY_OPERATOR_REGISTRY.items()}
-    bc_left, bc_right : str
-        Resolved BC kind for the left/right (1-D) boundaries.
-    bc_xmin, bc_xmax, bc_ymin, bc_ymax : str
-        Resolved BC kinds for the four faces of a 2-D mesh.
+    BOUNDARY_OPERATOR_REGISTRY : dict[str, type[BoundaryTraceLaw]]
+        Supported boundary-condition kinds (Wave 8 / C8.3). Values
+        are :class:`BoundaryTraceLaw` subclasses (``VacuumInflow``,
+        ``ReflectiveBoundary``) realized at ``_resolve_one`` time via
+        :class:`SNBoundaryRealizer` for Cartesian meshes (wrapped in
+        :class:`_BoundBoundaryOperator` for backward-compat with the
+        2-arg sweep call sites) and used as bare law instances on the
+        curvilinear path.
+    bc_left, bc_right : LinearOperator | BoundaryTraceLaw
+        Resolved BC operator at the left/right (1-D) boundaries.
+        Cartesian path: a :class:`_BoundBoundaryOperator` shim
+        comparing equal to its kind string (``== "vacuum"`` /
+        ``"reflective"``). Curvilinear path: a bare
+        :class:`BoundaryTraceLaw` instance whose 2-arg ``apply`` body
+        is unchanged from pre-Wave-8.
+    bc_xmin, bc_xmax, bc_ymin, bc_ymax : LinearOperator | BoundaryTraceLaw
+        Same conventions for the 4 faces of a 2-D mesh. On 1-D
+        meshes ``bc_xmin`` / ``bc_xmax`` alias ``bc_left`` /
+        ``bc_right``, and ``bc_ymin`` / ``bc_ymax`` are bare
+        :class:`ReflectiveBoundary(axis="y")` placeholders (1-D
+        sweeps don't consume them; routing through the realizer
+        is not possible since the 1-D trace space lacks y-faces).
     """
 
-    BOUNDARY_OPERATOR_REGISTRY: ClassVar[dict[str, Any]] = {
-        "vacuum": _sn_vacuum_boundary_operator,
-        "reflective": _sn_reflective_boundary_operator,
+    BOUNDARY_OPERATOR_REGISTRY: ClassVar[dict[str, type[BoundaryTraceLaw]]] = {
+        "vacuum": VacuumInflow,
+        "reflective": ReflectiveBoundary,
     }
-    # The factories return :class:`BoundaryOperator` instances carrying the
-    # tensor decomposition :math:`R = \sum_\alpha G_\alpha \otimes
-    # A_\alpha` (see :mod:`orpheus.geometry.boundary`); the sweep calls
-    # ``resolved_bc.apply(...)`` directly, so the dispatch
-    # is by object identity / Protocol method, not by string tag.
-    # Wave C/D will extend this registry with ``"white"`` / ``"periodic"``
-    # / ``"albedo"`` entries — the primitives already exist in
-    # :mod:`orpheus.geometry.boundary`; only the sweep plumbing remains.
+    # Wave 8 (C8.3): values are the LAW CLASSES themselves (not factory
+    # functions), looked up at ``_resolve_one`` time. The pre-Wave-8
+    # factory functions (``_sn_vacuum_boundary_operator`` /
+    # ``_sn_reflective_boundary_operator``) are gone; their job is now
+    # done by ``_resolve_one`` directly, dispatching to
+    # :class:`SNBoundaryRealizer` for Cartesian meshes and to the
+    # bare law instance for curvilinear (where the
+    # :class:`InflowTraceSpace` is deferred per Wave 2).
+    #
+    # The 5 other kinds the realizer handles today (``white``,
+    # ``periodic``, ``albedo``, ``prescribed_inflow``, ``mixed``) are
+    # NOT registered here — adding them requires SN-sweep-side wiring
+    # (sweep cycles for periodic, etc.) that is out of scope for
+    # Wave 8. Future expansion is mechanical: add the law class as a
+    # value here, ensure the realizer dispatch handles it (it does),
+    # and add an SN-side test that the sweep behaves correctly.
 
     def __init__(
         self,
@@ -268,57 +266,123 @@ class SNMesh:
     # ── Boundary condition resolution ─────────────────────────────────
 
     def _resolve_bcs(self, mesh: Mesh1D | Mesh2D) -> None:
-        """Resolve geometry-declared BCs into :class:`BoundaryOperator` instances.
+        r"""Resolve geometry-declared BCs into Wave-8 realized operators.
 
         ``None`` on the mesh defaults to ``BC("reflective")`` (infinite
-        lattice / eigenvalue convention). Each face attribute carries
-        the concrete :class:`BoundaryOperator` whose ``apply``
-        method the sweep invokes directly — no string-kind dispatch
-        downstream.
+        lattice / eigenvalue convention).
+
+        Wave 8 (C8.3): each face attribute carries a
+        :class:`_BoundBoundaryOperator` shim wrapping the 1-arg
+        :class:`LinearOperator` produced by
+        :class:`SNBoundaryRealizer` for Cartesian meshes. The shim
+        forwards the legacy 2-arg ``bc.apply(psi, quad)`` call sites
+        to the realized op's 1-arg ``apply(psi)`` — those call
+        sites are migrated in Wave 9. Curvilinear meshes (spherical
+        / cylindrical) skip the realizer and keep the legacy
+        :class:`BoundaryTraceLaw` instance directly because
+        :class:`InflowTraceSpace` does not support curvilinear
+        geometry today (Wave 2 deferral); the legacy 2-arg
+        ``apply`` body is unchanged on those paths.
         """
         default = BC("reflective")
 
+        # Build the inflow / outflow trace spaces ONCE per SNMesh.
+        # Cartesian only — curvilinear meshes raise
+        # ``NotImplementedError`` from
+        # :meth:`InflowTraceSpace.from_mesh_and_quadrature` (Wave 2
+        # deferral). On those, ``_inflow_trace`` / ``_outflow_trace``
+        # stay ``None`` and ``_resolve_one`` falls back to the
+        # legacy law-instance path.
+        self._inflow_trace = None
+        self._outflow_trace = None
+        is_cartesian = mesh.coord == CoordSystem.CARTESIAN
+        if is_cartesian:
+            from orpheus.numerics.trace_space import (
+                InflowTraceSpace,
+                OutflowTraceSpace,
+            )
+            faces = self._face_names_for_mesh(mesh)
+            self._inflow_trace = InflowTraceSpace.from_mesh_and_quadrature(
+                mesh, self.quad, faces=faces,
+            )
+            self._outflow_trace = OutflowTraceSpace.from_mesh_and_quadrature(
+                mesh, self.quad, faces=faces,
+            )
+
         if isinstance(mesh, Mesh1D):
-            self.bc_left: BoundaryOperator = self._resolve_one(
-                mesh.bc_left or default, "left",
-            )
-            self.bc_right: BoundaryOperator = self._resolve_one(
-                mesh.bc_right or default, "right",
-            )
+            self.bc_left = self._resolve_one(mesh.bc_left or default, "left")
+            self.bc_right = self._resolve_one(mesh.bc_right or default, "right")
             # Expose 2-D-style attributes for uniform sweep access.
-            # The ``y`` faces of a 1-D mesh are degenerate; we tag them
-            # with a default reflective ``SpecularBoundaryOperator`` so 2-D-style
-            # consumers still get a Protocol-conformant object.
-            self.bc_xmin: BoundaryOperator = self.bc_left
-            self.bc_xmax: BoundaryOperator = self.bc_right
-            self.bc_ymin: BoundaryOperator = SpecularBoundaryOperator(axis="y", albedo=1.0)
-            self.bc_ymax: BoundaryOperator = SpecularBoundaryOperator(axis="y", albedo=1.0)
+            # The ``y`` faces of a 1-D mesh are degenerate (no y
+            # dimension); 1-D sweeps don't consume them. Keep bare
+            # :class:`ReflectiveBoundary` placeholders — routing
+            # through the realizer would require an
+            # ``inflow_indices_for_face("ymin")`` lookup that the
+            # 1-D trace space cannot service. This is consistent with
+            # the pre-Wave-8 behaviour.
+            self.bc_xmin = self.bc_left
+            self.bc_xmax = self.bc_right
+            self.bc_ymin = ReflectiveBoundary(axis="y", albedo=1.0)
+            self.bc_ymax = ReflectiveBoundary(axis="y", albedo=1.0)
         else:
-            self.bc_xmin = self._resolve_one(
-                mesh.bc_xmin or default, "xmin",
-            )
-            self.bc_xmax = self._resolve_one(
-                mesh.bc_xmax or default, "xmax",
-            )
-            self.bc_ymin = self._resolve_one(
-                mesh.bc_ymin or default, "ymin",
-            )
-            self.bc_ymax = self._resolve_one(
-                mesh.bc_ymax or default, "ymax",
-            )
+            self.bc_xmin = self._resolve_one(mesh.bc_xmin or default, "xmin")
+            self.bc_xmax = self._resolve_one(mesh.bc_xmax or default, "xmax")
+            self.bc_ymin = self._resolve_one(mesh.bc_ymin or default, "ymin")
+            self.bc_ymax = self._resolve_one(mesh.bc_ymax or default, "ymax")
             self.bc_left = self.bc_xmin
             self.bc_right = self.bc_xmax
 
-    def _resolve_one(self, bc: BC, face: str) -> BoundaryOperator:
-        """Look up a single BC in the registry; raise on unsupported kind."""
-        factory = self.BOUNDARY_OPERATOR_REGISTRY.get(bc.kind)
-        if factory is None:
-            supported = ", ".join(f"'{k}'" for k in sorted(self.BOUNDARY_OPERATOR_REGISTRY))
+    @staticmethod
+    def _face_names_for_mesh(mesh: Mesh1D | Mesh2D) -> tuple[str, ...]:
+        """Ordered face-name tuple matching the trace-space row order."""
+        if isinstance(mesh, Mesh1D):
+            return ("left", "right")
+        return ("xmin", "xmax", "ymin", "ymax")
+
+    def _resolve_one(self, bc: BC, face: str):
+        r"""Realize a BC on the given face.
+
+        Cartesian path: build an :class:`SNMethodSpace` carrying the
+        precomputed inflow / outflow traces, hand it to
+        :class:`SNBoundaryRealizer.realize`, wrap the 1-arg result in
+        :class:`_BoundBoundaryOperator` so the legacy 2-arg sweep
+        call sites keep working.
+
+        Curvilinear path: instantiate the law directly (no realizer,
+        no shim). The 2-arg ``bc.apply(psi, quad)`` call sites then
+        hit the law's legacy body which is unchanged.
+        """
+        law_cls = self.BOUNDARY_OPERATOR_REGISTRY.get(bc.kind)
+        if law_cls is None:
+            supported = ", ".join(
+                f"'{k}'" for k in sorted(self.BOUNDARY_OPERATOR_REGISTRY)
+            )
             raise ValueError(
                 f"SN solver does not support boundary condition '{bc.kind}' "
                 f"on face '{face}'. Supported: {supported}."
             )
-        return factory(self, bc, face)
+        # Construct the law instance with face-appropriate axis for
+        # reflective; the others take no kwargs.
+        if law_cls is ReflectiveBoundary:
+            axis = "y" if face in ("ymin", "ymax") else "x"
+            law = law_cls(axis=axis, albedo=1.0)
+        else:
+            law = law_cls()
+
+        # Curvilinear path: skip the realizer; the legacy law-instance
+        # apply preserves bit-identity for the curvilinear sweep.
+        if self._inflow_trace is None:
+            return law
+
+        method_space = SNMethodSpace.for_face(
+            mesh=self.mesh,
+            quadrature=self.quad,
+            face=face,
+            inflow_trace=self._inflow_trace,
+            outflow_trace=self._outflow_trace,
+        )
+        realized = SNBoundaryRealizer().realize(law, method_space)
+        return _BoundBoundaryOperator(realized, kind=bc.kind)
 
     # ── Properties ────────────────────────────────────────────────────
 

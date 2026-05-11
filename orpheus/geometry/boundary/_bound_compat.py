@@ -63,15 +63,31 @@ class _BoundBoundaryOperator(LinearOperatorMixin):
     :class:`PermutationOperator` brings ``apply_transpose``, a
     :class:`IncomingOrdinateMaskTensor` brings only ``apply``).
 
+    The shim ALSO carries an optional ``kind`` tag (a free-form
+    string like ``"vacuum"`` / ``"reflective"``) and implements
+    ``__eq__`` against strings — preserves the legacy SN-side
+    ``sn_mesh.bc_xmin == "reflective"`` comparison that several
+    tests + the BC-resolution diagnostic rely on. Wave 9-10 may
+    drop this string-comparison surface once those tests migrate
+    to direct kind queries.
+
     Parameters
     ----------
     inner
         The realized :class:`LinearOperator` to wrap. Must support
         at least the :attr:`CAP_APPLY` capability.
+    kind
+        Optional free-form string tag carrying the originating
+        :class:`BC` kind (``"vacuum"`` / ``"reflective"`` /
+        ``"partial"`` / ...). When non-``None`` the shim compares
+        equal to that string via :meth:`__eq__`.
     """
 
-    def __init__(self, inner: "LinearOperator") -> None:
+    def __init__(
+        self, inner: "LinearOperator", kind: str | None = None,
+    ) -> None:
         self.inner = inner
+        self.kind = kind
 
     @property
     def capabilities(self) -> frozenset[str]:  # type: ignore[override]
@@ -84,3 +100,16 @@ class _BoundBoundaryOperator(LinearOperatorMixin):
         self, psi: np.ndarray, *_extra: Any, **_kw: Any,
     ) -> np.ndarray:
         return self.inner.apply_transpose(psi)
+
+    def __eq__(self, other: object) -> bool:
+        # Legacy string-kind comparison surface — preserves
+        # ``sn_mesh.bc_xmin == "vacuum"`` style assertions.
+        if isinstance(other, str):
+            return self.kind == other
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        # Hashable by identity so it remains usable as a dict key /
+        # set element. Using ``id(self)`` keeps each instance
+        # distinct.
+        return id(self)

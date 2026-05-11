@@ -104,6 +104,39 @@ def test_composes_with_operator_algebra():
     np.testing.assert_array_equal(summed.apply(psi), 2.0 * psi)
 
 
+def test_kind_tag_supports_legacy_string_equality():
+    """The shim accepts an optional ``kind`` tag and implements
+    ``__eq__`` against strings — preserves the legacy SN-side
+    ``sn_mesh.bc_xmin == "reflective"`` comparison that test_boundary_conditions.py
+    + the BC-resolution diagnostic rely on. Without a kind tag the
+    comparison returns ``NotImplemented`` (so ``shim == "x"`` is False).
+    """
+    inner = IdentityOperator()
+    tagged = _BoundBoundaryOperator(inner, kind="vacuum")
+    assert tagged == "vacuum"
+    assert tagged != "reflective"
+
+    # Untagged shim: string compare is NotImplemented → False from ==
+    untagged = _BoundBoundaryOperator(inner)
+    assert (untagged == "vacuum") is False
+    assert (untagged == "anything") is False
+
+
+def test_shim_remains_hashable():
+    """``__hash__`` falls back to identity so the shim is usable as a
+    dict key / set element. Two shims wrapping the same inner are
+    distinct (different id), preserving the standard Python identity-
+    of-instance semantics.
+    """
+    inner = IdentityOperator()
+    a = _BoundBoundaryOperator(inner, kind="vacuum")
+    b = _BoundBoundaryOperator(inner, kind="vacuum")
+    assert hash(a) != hash(b)  # distinct instances
+    d = {a: 1, b: 2}
+    assert d[a] == 1
+    assert d[b] == 2
+
+
 def test_shim_is_not_re_exported_from_package():
     """The shim is internal to the SN-side wiring — it MUST NOT appear
     in :mod:`orpheus.geometry.boundary`'s public surface, since no
