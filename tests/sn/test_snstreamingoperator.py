@@ -614,7 +614,6 @@ def test_solution_to_angular_flux_spherical_fi_is_pure_cell_center_vacuum():
     holds the reflected-partner cell-centre value (faithful), NOT
     the vacuum BC's zero (which was the pre-Phase-A bug).
     """
-    from orpheus.geometry.boundary import VacuumBoundaryOperator
     from orpheus.sn.operator import solution_to_angular_flux_spherical
 
     sn_mesh = _spherical_mesh()
@@ -627,9 +626,13 @@ def test_solution_to_angular_flux_spherical_fi_is_pure_cell_center_vacuum():
     rng = np.random.default_rng(seed=911)
     psi = rng.standard_normal(eq_map.n_unknowns)
 
+    # ``sn_mesh.bc_right`` is the curvilinear-path shim wrapping a
+    # ``VacuumInflow`` law with the mesh's bound quadrature — Wave 9
+    # uniform 1-arg apply contract. Bit-identical to the pre-Wave-9
+    # ``VacuumBoundaryOperator()`` direct construction.
     fi, bf_flux = solution_to_angular_flux_spherical(
         psi, eq_map, sn_mesh.quad, nx, ng,
-        bc_outer=VacuumBoundaryOperator(),
+        bc_outer=sn_mesh.bc_right,
     )
 
     # Vacuum BC: bf_flux[..., 1] for inward ordinates is zero by

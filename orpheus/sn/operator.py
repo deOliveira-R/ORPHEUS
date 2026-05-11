@@ -52,11 +52,13 @@ as preconditioner.
    the :class:`~orpheus.geometry.boundary.BoundaryOperator` instances on the
    :class:`~orpheus.sn.geometry.SNMesh` (``bc_xmin``, ``bc_xmax``,
    ``bc_ymin``, ``bc_ymax``).  Each function fills incoming-at-boundary
-   slots via ``bc.apply(outgoing, quad)`` (Wave B Issue 7
-   tensor-decomposed BC algebra).  Bit-identity to the pre-Round 3
+   slots via ``bc.apply(outgoing)`` (Wave B Issue 7
+   tensor-decomposed BC algebra; Wave 9 migrated the call sites to the
+   uniform 1-arg contract — the quadrature is bound on the shim at
+   :meth:`SNMesh._resolve_one` time).  Bit-identity to the pre-Round 3
    reflective-only fill is preserved for :class:`SpecularBoundaryOperator` (the
    default ``BC.reflective`` factory), since
-   ``SpecularBoundaryOperator(axis="x").apply(out, quad) == out[ref_x]``;
+   ``SpecularBoundaryOperator(axis="x").apply(out) == out[ref_x]``;
    :class:`VacuumBoundaryOperator` returns zero, which is the correct vacuum
    incoming flux.  This closes ERR-026 for the curvilinear
    ``solve_sn_fixed_source`` MMS path: the FD operator is now
@@ -181,10 +183,11 @@ def solution_to_angular_flux(
     arguments accept :class:`~orpheus.geometry.boundary.BoundaryOperator`
     instances built by :class:`~orpheus.sn.geometry.SNMesh` from the
     mesh's :class:`~orpheus.geometry.mesh.BC` declarations.  Each BC's
-    ``apply(outgoing, quad)`` method maps the boundary's
-    outgoing angular flux to the incoming flux per the BC's tensor
-    decomposition (vacuum → 0; specular → ``out[ref]``; white,
-    albedo, mixed → their respective combinations).  When all four
+    ``apply(outgoing)`` method (Wave 9 1-arg contract — the quadrature
+    is bound on the SNMesh-side shim) maps the boundary's outgoing
+    angular flux to the incoming flux per the BC's tensor decomposition
+    (vacuum → 0; specular → ``out[ref]``; white, albedo, mixed → their
+    respective combinations).  When all four
     are ``None`` (legacy callers) the behaviour falls back to specular
     reflection on every face — bit-identical to the pre-Round 3
     hard-coded reflective fill that the BiCGSTAB FD path relied on.
@@ -227,14 +230,14 @@ def solution_to_angular_flux(
     for iy in range(ny):
         # Left face (x = xmin): outgoing = mu_x < 0, incoming = mu_x > 0.
         outgoing_xmin = fi[:, :, 0, iy].T   # (N, ng)
-        incoming_xmin = bc_xmin.apply(outgoing_xmin, quad)
+        incoming_xmin = bc_xmin.apply(outgoing_xmin)
         for n in range(quad.N):
             if mu_x[n] > 1e-15:
                 fi[:, n, 0, iy] = incoming_xmin[n]
 
         # Right face (x = xmax): outgoing = mu_x > 0, incoming = mu_x < 0.
         outgoing_xmax = fi[:, :, -1, iy].T  # (N, ng)
-        incoming_xmax = bc_xmax.apply(outgoing_xmax, quad)
+        incoming_xmax = bc_xmax.apply(outgoing_xmax)
         for n in range(quad.N):
             if mu_x[n] < -1e-15:
                 fi[:, n, -1, iy] = incoming_xmax[n]
@@ -243,14 +246,14 @@ def solution_to_angular_flux(
     for ix in range(nx):
         # Bottom face (y = ymin): outgoing = mu_y < 0, incoming = mu_y > 0.
         outgoing_ymin = fi[:, :, ix, 0].T   # (N, ng)
-        incoming_ymin = bc_ymin.apply(outgoing_ymin, quad)
+        incoming_ymin = bc_ymin.apply(outgoing_ymin)
         for n in range(quad.N):
             if mu_y[n] > 1e-15:
                 fi[:, n, ix, 0] = incoming_ymin[n]
 
         # Top face (y = ymax): outgoing = mu_y > 0, incoming = mu_y < 0.
         outgoing_ymax = fi[:, :, ix, -1].T  # (N, ng)
-        incoming_ymax = bc_ymax.apply(outgoing_ymax, quad)
+        incoming_ymax = bc_ymax.apply(outgoing_ymax)
         for n in range(quad.N):
             if mu_y[n] < -1e-15:
                 fi[:, n, ix, -1] = incoming_ymax[n]
@@ -501,7 +504,7 @@ def solution_to_angular_flux_spherical(
     # Defect-2 fix: separate cell-centre storage from BC face-value
     # storage.  Two writes happen here, each into a different array:
     #
-    # 1. ``boundary_face_flux[..., 1]`` = ``bc_outer.apply(outgoing, quad)``
+    # 1. ``boundary_face_flux[..., 1]`` = ``bc_outer.apply(outgoing)``
     #    — the BC-resolved incoming face flux at r = R.  This is what
     #    the matvec reads when it needs the boundary face value
     #    (interior μ > 0 outgoing reads it via the BoundaryFaceFlux
@@ -527,7 +530,7 @@ def solution_to_angular_flux_spherical(
     boundary_face_flux = np.zeros((ng, quad.N, 2))
 
     outgoing = fi[:, :, -1, 0].T   # (N, ng) — cell-centres at i=N-1
-    incoming = bc_outer.apply(outgoing, quad)
+    incoming = bc_outer.apply(outgoing)
     for n in range(quad.N):
         if quad.mu_x[n] < -1e-15:
             # Outer-face BC value for inward ordinate n.
