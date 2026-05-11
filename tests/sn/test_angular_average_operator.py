@@ -240,21 +240,14 @@ class TestInputShape:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Bit-equivalence vs legacy WhiteBoundaryOperator (L0)
+# Legacy-vs-realiser bit-equivalence test removed in Issue #186 (B3 + β2)
 # ─────────────────────────────────────────────────────────────────────
-
-@pytest.mark.l0
-class TestLegacyBitEquivalence:
-    """The body is lifted verbatim from WhiteBoundaryOperator.apply;
-    verify bit-identity on a non-trivial case so Wave 7 can confidently
-    delegate ``WhiteBoundary`` to ``AngularAverageOperator`` via the
-    SN realizer with no semantic drift."""
-
-    def test_matches_white_bc_lebedev17(self):
-        from orpheus.geometry.boundary import WhiteBoundaryOperator
-        quad = LebedevSphere.create(17)
-        bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
-        op = AngularAverageOperator.from_quadrature(quad, axis="x", outward_sign=+1)
-        rng = np.random.default_rng(123)
-        psi = rng.uniform(0, 2, size=(quad.N, 5, 3))
-        np.testing.assert_array_equal(op.apply(psi), bc.apply(psi, quad))
+#
+# The pre-#186 TestLegacyBitEquivalence class compared
+# ``AngularAverageOperator.apply(psi)`` to ``WhiteBoundary.apply(psi, quad)``.
+# That legacy method no longer exists; the comparison would now be
+# circular (the realiser-path test pins the same equivalence in
+# tests/sn/test_sn_boundary_realizer.py). The Wave-1 cosine-weighted
+# current conservation + self-adjointness tests above are the
+# structurally-independent references for AngularAverageOperator
+# correctness.

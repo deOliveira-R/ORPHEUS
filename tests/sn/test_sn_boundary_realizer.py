@@ -135,15 +135,25 @@ class TestRealizeVacuum:
 class TestRealizeReflective:
     """Specular realizes to ``albedo * PermutationOperator(perm)``."""
 
-    def test_specular_unit_albedo_lebedev_matches_legacy_bit_exact(self):
-        """At α=1 the realized op MUST bit-match legacy ``bc.apply``."""
+    def test_specular_unit_albedo_lebedev_matches_hand_computed(self):
+        """At α=1 the realized op MUST bit-match the hand-computed
+        ``psi[reflection_index]`` gather.
+
+        Issue #186 (B3 + β2) rewrite: descriptors are no longer
+        callable, so the previous ``bc.apply(psi, quad)`` half cannot
+        be evaluated. The hand-computed gather is strictly stronger:
+        we assert the realised op's output against the structural
+        definition of specular reflection, not against another
+        implementation.
+        """
         quad = LebedevSphere.create(17)
         bc = SpecularBoundaryOperator(axis="x", albedo=1.0)
         space = SNMethodSpace.minimal(quad)
         op = SNBoundaryRealizer().realize(bc, space)
         rng = np.random.default_rng(7)
         psi = rng.uniform(-1.0, 1.0, size=(quad.N, 5, 3))
-        np.testing.assert_array_equal(op.apply(psi), bc.apply(psi, quad))
+        expected = psi[quad.reflection_index("x")]
+        np.testing.assert_array_equal(op.apply(psi), expected)
 
     def test_specular_unit_albedo_returns_bare_permutation(self):
         """At α=1 the dispatch returns the bare PermutationOperator
@@ -153,20 +163,23 @@ class TestRealizeReflective:
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         assert isinstance(op, PermutationOperator)
 
-    def test_specular_partial_albedo_matches_legacy_within_nulp(self):
-        """At α=0.7 the order of multiplication may shift one ULP."""
+    def test_specular_partial_albedo_matches_hand_computed(self):
+        """At α=0.7 the realized op output equals ``0.7 * psi[reflection_index]``
+        bit-exactly.
+
+        Issue #186 (B3 + β2) rewrite: hand-computed RHS instead of
+        the legacy ``bc.apply``. ``ScaledOperator(0.7, P).apply(psi)``
+        first gathers ``psi[perm]`` (via the inner PermutationOperator)
+        then multiplies by 0.7 — identical to ``0.7 * psi[perm]``.
+        """
         quad = LebedevSphere.create(17)
         bc = SpecularBoundaryOperator(axis="x", albedo=0.7)
         space = SNMethodSpace.minimal(quad)
         op = SNBoundaryRealizer().realize(bc, space)
         rng = np.random.default_rng(9)
         psi = rng.uniform(-1.0, 1.0, size=(quad.N, 5))
-        # ScaledOperator(0.7, P).apply(psi) = 0.7 * psi[perm].
-        # Legacy bc.apply also does 0.7 * psi_out[ref]. SAME order,
-        # so bit-equivalence is expected; nulp=4 is a safety margin.
-        np.testing.assert_array_almost_equal_nulp(
-            op.apply(psi), bc.apply(psi, quad), nulp=4,
-        )
+        expected = 0.7 * psi[quad.reflection_index("x")]
+        np.testing.assert_array_equal(op.apply(psi), expected)
 
     def test_specular_partial_albedo_returns_scaled_operator(self):
         """At α!=1 the dispatch returns a ScaledOperator."""
@@ -194,14 +207,27 @@ class TestRealizeWhite:
     re-check that property here through the realizer's dispatch chain.
     """
 
-    def test_white_unit_albedo_lebedev_matches_legacy_bit_exact(self):
-        """At α=1 the realized op MUST bit-match legacy ``bc.apply``."""
+    def test_white_unit_albedo_lebedev_matches_angular_average_operator(self):
+        """At α=1 the realized op MUST bit-match a bare
+        :class:`AngularAverageOperator.from_quadrature` output.
+
+        Issue #186 (B3 + β2) rewrite: the realiser's fast path returns
+        the bare :class:`AngularAverageOperator` at α=1, so this test
+        pins the dispatch chain rather than legacy equivalence. The
+        :class:`AngularAverageOperator` body is itself verified by the
+        Wave-1 cosine-weighted-current and self-adjointness tests in
+        ``tests/sn/test_angular_average_operator.py`` — those are the
+        structurally-independent references.
+        """
         quad = LebedevSphere.create(17)
         bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        ref = AngularAverageOperator.from_quadrature(
+            quad, axis="x", outward_sign=+1,
+        )
         rng = np.random.default_rng(123)
         psi = rng.uniform(0.0, 2.0, size=(quad.N, 5, 3))
-        np.testing.assert_array_equal(op.apply(psi), bc.apply(psi, quad))
+        np.testing.assert_array_equal(op.apply(psi), ref.apply(psi))
 
     def test_white_unit_albedo_returns_bare_angular_average(self):
         """At α=1 the dispatch returns the bare AngularAverageOperator."""
@@ -210,24 +236,32 @@ class TestRealizeWhite:
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         assert isinstance(op, AngularAverageOperator)
 
-    def test_white_partial_albedo_matches_legacy_within_nulp(self):
-        """At α=0.3 the multiplication order may shift one ULP.
+    def test_white_partial_albedo_matches_albedo_times_angular_average(self):
+        """At α=0.3 the realized op output equals
+        ``0.3 * AngularAverageOperator(...).apply(psi)`` within
+        ``nulp=4``.
 
-        Legacy: the multiplication happens inside ``bc.apply`` via the
-        ``psi_avg[None, ...] * self.albedo`` broadcast. Realizer:
-        ``ScaledOperator(0.3, ...).apply`` multiplies the inner output
-        by 0.3 from the outside. The two orderings produce the same
-        value in real arithmetic but may differ by one ULP under
-        IEEE-754 (FP-non-associativity); nulp=4 is the safe floor per
-        the algebra-of-record bit-identity discipline.
+        Issue #186 (B3 + β2) rewrite: hand-computed RHS via the
+        Wave-1 :class:`AngularAverageOperator` primitive (the
+        structurally-independent reference; its body is verified in
+        ``tests/sn/test_angular_average_operator.py``).
+        ``ScaledOperator(0.3, ...).apply`` multiplies the inner
+        output by 0.3 from the outside; the hand-computed
+        ``0.3 * ref.apply(psi)`` may differ by one ULP under
+        IEEE-754 FP-non-associativity. ``nulp=4`` is the safe floor
+        per the ``algebra-of-record`` bit-identity discipline.
         """
         quad = LebedevSphere.create(17)
         bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=0.3)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        ref = AngularAverageOperator.from_quadrature(
+            quad, axis="x", outward_sign=+1,
+        )
         rng = np.random.default_rng(11)
         psi = rng.uniform(0.0, 2.0, size=(quad.N, 4))
+        expected = 0.3 * ref.apply(psi)
         np.testing.assert_array_almost_equal_nulp(
-            op.apply(psi), bc.apply(psi, quad), nulp=4,
+            op.apply(psi), expected, nulp=4,
         )
 
     def test_white_z_axis_on_gauss_legendre_raises(self):
