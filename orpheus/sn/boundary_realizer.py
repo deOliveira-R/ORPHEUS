@@ -57,10 +57,7 @@ References
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
-
-import numpy as np
 
 from orpheus.geometry.boundary import (
     AlbedoBoundaryOperator,
@@ -87,46 +84,18 @@ from orpheus.sn.angular_operator import (
     IncomingSourceOperator,
 )
 
+# Wave 8 (C8.1): SNMethodSpace moved to its own dedicated module
+# (orpheus.sn.method_space) so it can carry mesh + trace metadata
+# without cluttering the realizer file. Re-export here so existing
+# consumers ``from orpheus.sn.boundary_realizer import SNMethodSpace``
+# keep working unchanged.
+from orpheus.sn.method_space import SNMethodSpace
+
 if TYPE_CHECKING:
     from orpheus.geometry.boundary import BoundaryOperator
-    from orpheus.sn.quadrature import AngularQuadrature
 
 
 __all__ = ["SNBoundaryRealizer", "SNMethodSpace"]
-
-
-@dataclass(frozen=True)
-class SNMethodSpace:
-    """Minimal SN method space — carries ``quadrature`` + optional ``face`` + optional ``inflow_indices``.
-
-    Wave 8 will extend this with the full mesh + trace metadata
-    (``orpheus/sn/method_space.py``) and let :class:`SNMesh`
-    populate :attr:`inflow_indices` internally from its held
-    :class:`~orpheus.numerics.trace_space.InflowTraceSpace`. For
-    Wave 5, only the realizer's immediate needs are populated:
-
-    * :attr:`quadrature` — used by every realizer dispatch path
-      (reflection index, mu_n arrays, weights).
-    * :attr:`face` — the face label (``"left"``, ``"right"``,
-      ``"xmin"``, …) used for the vacuum-BC inflow-indices lookup.
-      Informational at Wave 5 (the realizer doesn't consult it
-      directly; ``inflow_indices`` is the load-bearing field).
-    * :attr:`inflow_indices` — per-face inflow indices (1-D int
-      array). Computed externally (typically from
-      :meth:`~orpheus.numerics.trace_space.InflowTraceSpace.inflow_indices_for_face`)
-      and passed in. Required for
-      :class:`VacuumBoundaryOperator` realisation; ``None`` for
-      laws that don't need it.
-    """
-
-    quadrature: "AngularQuadrature"
-    face: Optional[str] = None
-    inflow_indices: Optional[np.ndarray] = None
-
-    @classmethod
-    def minimal(cls, quadrature: "AngularQuadrature") -> "SNMethodSpace":
-        """Quadrature-only method space (for non-vacuum laws / tests)."""
-        return cls(quadrature=quadrature)
 
 
 @BoundaryRealizerRegistry.register("SN")
