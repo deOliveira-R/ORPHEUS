@@ -2612,3 +2612,337 @@ adjoint identity, or the solve round-trip on a non-trivial input).
 
 **Test reference:** `tests/numerics/test_projection_operators.py::TestApplyTransposeIsWWeightedAdjoint::test_adjoint_identity_matches_production` and `::test_apply_transpose_no_2l_plus_1_factor`. Tagged `@pytest.mark.l1` and `@pytest.mark.catches("ERR-039")`.
 
+
+---
+
+## ERR-040 — Tangential ordinate silently classified as inflow OR outflow at a face requiring strict partition
+
+**Status:** **TYPE SHIPPED Wave 3 2026-05-11** (refactor/sn-operator-algebra
+→ feature/bc-trace-law-abc). Concrete BC that fires the invariant lands
+in Wave 7. This entry pins the error TYPE; the catching test ships
+with the Wave 7 concrete that overrides
+`assert_inflow_outflow_classification` to raise.
+
+**Failure mode:** **#5 (index error)** — an ordinate with
+`|Ω · n_f| <= eps` (a quadrature node that grazes the face within
+floating-point tolerance) is inappropriately included in either the
+inflow or the outflow half. The Wave 2 `_TANGENTIAL_EPS=1e-12`
+already excludes such ordinates from BOTH masks in
+`InflowTraceSpace` / `OutflowTraceSpace`, but a downstream consumer
+that assumes the inflow + outflow partition is a strict cover of the
+ordinate set will silently miscount the tangential ordinate.
+
+**Module:** `orpheus.geometry.boundary._errors.IncomingOutgoingTraceClassificationError`.
+
+**Mechanism:** Reflective BCs require a clean inflow→outflow
+involution: every inflow ordinate at the face must have an outflow
+partner under reflection. If a tangential ordinate (Lebedev
+`(0, 0, ±1)` on the perpendicular face is the canonical case) is
+treated as either inflow or outflow, the reflection partnership is
+ill-defined — the partner is the tangential ordinate ITSELF. The
+``IncomingOutgoingTraceClassificationError`` is the typed signal
+that the face contract requires a strict cover and one is missing.
+
+**How it hides:** A flat-flux test with uniform ψ across all
+ordinates makes the tangential count irrelevant (its contribution
+cancels). The ERR fires only under non-trivial angular dependence
+AND a reflective BC contract. Caught by the Wave 7 invariant.
+
+**Catching test (Wave 7):** the concrete `ReflectiveBoundary`
+ships a test that constructs a Lebedev-13 quadrature against a
+face whose normal aligns with the tangential ordinate (i.e.,
+`mu_z` for a `zmin/zmax` face on a Lebedev quadrature without
+the `(0, 0, ±1)` node guard), then verifies
+`assert_inflow_outflow_classification` raises
+`IncomingOutgoingTraceClassificationError`. To be tagged
+`@pytest.mark.catches("ERR-040")` at Wave 7 ship.
+
+**Lesson:** A strict-partition contract is part of the BC's TYPE
+SIGNATURE. The trace-space layer (Wave 2) excludes tangential
+ordinates from both masks; the law layer (Wave 3) must raise when
+its contract requires a strict cover. The two layers' contracts
+COMPOSE — neither alone is sufficient.
+
+
+---
+
+## ERR-041 — Vacuum BC constructed against an outgoing trace (Γ_+ instead of Γ_-)
+
+**Status:** **TYPE SHIPPED Wave 3 2026-05-11.** Concrete realiser
+ships Wave 5.
+
+**Failure mode:** **#6 (convention drift)** — a vacuum BC defined as
+"set γ_- ψ = 0 on the INCOMING trace" gets constructed against an
+outgoing-trace metadata object (typically because a Wave 5 realiser
+swapped the face's `(inflow, outflow)` annotation by mistake). The
+resulting operator zeroes the outgoing flux — geometrically
+meaningless and provably wrong.
+
+**Module:** `orpheus.geometry.boundary._errors.VacuumAppliedToOutgoingTraceError`.
+
+**Mechanism:** Vacuum is the rank-0 case of the affine form
+`γ_- ψ = R G γ_+ ψ + q` with `R = 0`, `G = 0`, `q = 0`. The
+operator's DOMAIN is the outgoing-trace space `Γ_+`; the RANGE is
+the inflow-trace space `Γ_-`. Constructing the operator with
+domain = `Γ_-` would make the apply path zero the inflow we just
+computed.
+
+**How it hides:** Bit-identical legacy tests (`apply` returns
+`np.zeros_like(psi_out)` regardless of trace orientation) pass —
+the bug only surfaces when the trace metadata is consumed by
+Wave 5+ realiser logic that asserts `domain == outflow_trace`.
+
+**Catching test (Wave 7):** a constructor-level test that passes
+an `OutflowTraceSpace` to the Wave 7 `VacuumInflow` BC and asserts
+`VacuumAppliedToOutgoingTraceError` is raised. To be tagged
+`@pytest.mark.catches("ERR-041")` at Wave 7 ship.
+
+**Lesson:** Trace orientation is part of the BC's type signature.
+When the realiser layer (Wave 5) wires a BC to a trace, it MUST
+assert the orientation matches the BC's contract — silent
+misorientation produces a silent zero where flux belongs.
+
+
+---
+
+## ERR-042 — Reflection-index table inconsistent with quadrature weights (measure-non-preserving G)
+
+**Status:** **TYPE SHIPPED Wave 3 2026-05-11.** Catching test
+ships with `assert_geometry_map_measure_preserving` override in
+Wave 7 ReflectiveBoundary.
+
+**Failure mode:** **#5 (index error)** + **#6 (convention drift)**
+— a reflection table built against `mu_x` but applied to a
+quadrature whose ordering treats `mu_x = -mu_y` (or any other
+permutation drift) fails to preserve the direction-cosine measure
+`w(Ω) · |Ω · n|`.
+
+**Module:** `orpheus.geometry.boundary._errors.BoundaryGeometryMapNotMeasurePreservingError`.
+
+**Mechanism:** A reflection that does not preserve the measure
+means the reflected current at the face differs from the incident
+current — physically impossible for an isometry (specular reflection
+is an isometry). The bug shows up as a small but persistent net
+current at a face where there should be none (zero leakage from a
+purely reflective boundary).
+
+**How it hides:** A homogeneous problem with uniform Σ_t hides
+the measure mismatch because the imbalance is small (a few ULP per
+ordinate times the weight). Heterogeneous problems amplify the
+imbalance by the contrast in Σ_t.
+
+**Catching test (Wave 7):** the ReflectiveBoundary's
+`assert_geometry_map_measure_preserving` test constructs a
+quadrature, builds the reflection table, applies the map, and
+asserts `Σ_n w_n · |μ_n · n| · ψ_n` equals the same quantity on
+the reflected ψ. To be tagged
+`@pytest.mark.catches("ERR-042")` at Wave 7 ship.
+
+**Lesson:** Geometric maps `G` carry a measure-preservation
+contract. The contract must be CHECKED at construction, not only
+verified by downstream global-current balance — by then the
+miscount has propagated.
+
+
+---
+
+## ERR-043 — Boundary response kernel produces negative output (e.g. negative albedo via sign-flipped construction)
+
+**Status:** **TYPE SHIPPED Wave 3 2026-05-11.** Catching test ships
+with Wave 7 White / Albedo concretes.
+
+**Failure mode:** **#1 (sign flip)** — the response kernel `R` is
+constructed with a sign error (e.g. `-1.0 * G_diff` because of a
+wrong unit-conversion factor), producing negative reflected current
+from positive incident current.
+
+**Module:** `orpheus.geometry.boundary._errors.BoundaryResponseNotPositiveError`.
+
+**Mechanism:** Physically meaningful BCs (white, albedo) have
+non-negative response kernels — the reflected flux is a fraction
+(0 ≤ α ≤ 1) of the incident, never opposite-signed. A negative R
+produces negative ψ at the inflow trace, which propagates through
+the sweep as locally negative flux. The bug masquerades as
+"negative-flux artifact"; root cause is the sign of R.
+
+**How it hides:** Eigenvalue solves can mask sign errors by
+normalising the dominant eigenvector to be non-negative — the
+sweep's local negative-flux artifact looks like a "discretisation
+artifact" and is silently fixed.
+
+**Catching test (Wave 7):** White / Albedo BC tests that probe
+the response on a known positive incident flux and assert the
+output is element-wise non-negative; the `assert_response_positive_if_declared`
+invariant fires the error. To be tagged
+`@pytest.mark.catches("ERR-043")` at Wave 7 ship.
+
+**Lesson:** Sign invariants on response kernels MUST be asserted at
+construction. Downstream consumers (sweeps, Krylov) cannot
+distinguish a wrong-sign R from a discretisation artifact.
+
+
+---
+
+## ERR-044 — Reflection permutation is not an involution (perm ∘ perm ≠ id)
+
+**Status:** **TYPE SHIPPED Wave 3 2026-05-11.** Catching test
+ships with Wave 7 ReflectiveBoundary invariant override.
+
+**Failure mode:** **#5 (index error)** — the reflection-index
+construction produces a permutation that, applied twice, does NOT
+return every ordinate to itself. Typically a row-order vs
+column-order bug or a partial table (some ordinates missing from
+the reflection map).
+
+**Module:** `orpheus.geometry.boundary._errors.ReflectionNotInvolutiveError`.
+
+**Mechanism:** An axis reflection is its own inverse by
+definition (apply twice → identity). The
+`PermutationOperator.is_involution` flag (Wave 0) detects this at
+construction. If the involution check fails, the BC's
+`apply_transpose` returns a different permutation than `apply`,
+breaking the adjoint identity that sensitivity-analysis pipelines
+depend on.
+
+**How it hides:** Forward-only solves never exercise
+`apply_transpose`. A non-involutive reflection table passes every
+forward eigenvalue test and only fails when an adjoint pipeline
+(generalised perturbation theory, sensitivity coefficients) is
+introduced.
+
+**Catching test (Wave 7):** ReflectiveBoundary test that
+constructs a deliberately-broken reflection table (drop a row,
+swap two indices), passes it to the BC, and asserts
+`ReflectionNotInvolutiveError` fires from
+`assert_geometry_map_measure_preserving` or a dedicated involution
+assertion. To be tagged `@pytest.mark.catches("ERR-044")` at
+Wave 7 ship.
+
+**Lesson:** Involution is a constructional invariant on the
+reflection table. The Wave 0 `PermutationOperator.is_involution`
+flag exists for this purpose; the BC layer must consult it and
+raise on failure rather than silently allowing a non-involutive
+permutation.
+
+
+---
+
+## ERR-045 — Reflection maps an inflow ordinate to itself rather than to its outflow partner
+
+**Status:** **TYPE SHIPPED Wave 3 2026-05-11.** Catching test
+ships with Wave 7 ReflectiveBoundary invariant override.
+
+**Failure mode:** **#5 (index error)** — for a non-axis-aligned
+reflection (or an axis-aligned reflection on a quadrature node
+near the axis), an inflow ordinate at the face is mapped back to
+itself, not to its outflow partner.
+
+**Module:** `orpheus.geometry.boundary._errors.ReflectionDidNotMapInflowToOutflowError`.
+
+**Mechanism:** Specular reflection's geometric contract is
+"every inflow Ω_n at the face has a partner Ω_n' with
+Ω_n · n = -Ω_n' · n". A reflection that maps inflow to inflow
+sets up a self-loop in the sweep dependency graph that the
+`creates_sweep_cycle` flag was meant to flag — but the cycle is
+TRIVIAL (length 1) and degenerates the sweep convergence theory.
+
+**How it hides:** Self-loops at a tangential ordinate (or a
+nearly-tangential one) look like a benign quadrature artifact and
+don't surface until per-ordinate flat-flux residual tests stress
+the redistribution path (cf. ERR-006 / Signature 1).
+
+**Catching test (Wave 7):** ReflectiveBoundary test that probes
+the reflection table on an inflow ordinate set and asserts every
+image is in the outflow set. Failure raises
+`ReflectionDidNotMapInflowToOutflowError`. To be tagged
+`@pytest.mark.catches("ERR-045")` at Wave 7 ship.
+
+**Lesson:** Reflection contracts compose: the inflow partition,
+the involution property, and the inflow → outflow image are three
+independent invariants. All three must hold; checking only one or
+two leaves a hole.
+
+
+---
+
+## ERR-046 — Albedo / white kernel with α > 1 (sub-Markov violation)
+
+**Status:** **TYPE SHIPPED Wave 3 2026-05-11.** Catching test
+ships with Wave 7 Albedo / White concretes.
+
+**Failure mode:** **#4 (factor error)** — an albedo value
+greater than 1 is admitted by the constructor. A row-sum of the
+response kernel `R` strictly exceeds 1, violating the sub-Markov
+property that physically describes a non-amplifying boundary.
+
+**Module:** `orpheus.geometry.boundary._errors.SubmarkovViolationError`.
+
+**Mechanism:** `∫ R dy ≤ 1` is the canonical sub-Markov condition
+on a stochastic kernel (cf. Bell & Glasstone 1970 §1.5). An
+albedo greater than 1 implies a source on the boundary surface,
+which the BC framework does NOT model (sources live in `q`, not
+in `R`). Admitting α > 1 can drive the eigenvalue iteration to a
+spurious supercritical state where the source comes from the
+boundary, not the volumetric fission.
+
+**How it hides:** k-eigenvalue iteration rescales the flux to
+the dominant eigenvector regardless of where the "source" lives;
+the wrong-α run produces a higher k and a flux profile peaked
+near the boundary — both look physically plausible to anyone not
+checking the input data.
+
+**Catching test (Wave 7):** Albedo constructor test that passes
+`α=1.2` and asserts `SubmarkovViolationError` fires. White
+constructor test that uses a kernel construction known to row-sum
+to 1.5 and asserts the same error. To be tagged
+`@pytest.mark.catches("ERR-046")` at Wave 7 ship.
+
+**Lesson:** Range constraints on physical parameters MUST be
+enforced at construction. "α is a float" is not a contract; "α ∈
+[0, 1]" is. The typed error makes the contract grep-able and
+testable.
+
+
+---
+
+## ERR-047 — Boundary source q has nonzero entries on the outflow trace (q ∉ Γ_-)
+
+**Status:** **TYPE SHIPPED Wave 3 2026-05-11.** Catching test
+ships with Wave 7 prescribed-inflow BC.
+
+**Failure mode:** **#6 (convention drift)** — the source `q` in
+the affine form `γ_- ψ = R G γ_+ ψ + q` is constructed with
+nonzero entries on outflow-trace ordinates. The downstream
+realiser then writes a positive flux into outflow slots that the
+sweep will OVERWRITE — silently dropping the source contribution.
+
+**Module:** `orpheus.geometry.boundary._errors.BoundarySourceNotOnIncomingTraceError`.
+
+**Mechanism:** The affine form's `q` lives on `Γ_-` by definition.
+If the user passes an array shaped like the full ordinate set but
+populated uniformly (e.g. via `ConstantInflowSource(value=2.0)`
+without masking), the outflow ordinates get spurious `+2.0`
+entries that the sweep then discards. The total inflow current is
+SHORT by the masked-out fraction — a missing-source bug that
+masquerades as "boundary source is weaker than expected".
+
+**How it hides:** A test that imposes a uniform inflow on EVERY
+ordinate (including outflow) sums to the right total only because
+the sweep silently zeroes the outflow side. A finer test that
+sums per-ordinate inflow against the expected `q(Ω)` profile
+catches it.
+
+**Catching test (Wave 7):** prescribed-inflow BC test that
+constructs `ConstantInflowSource(2.0)` on a quadrature with
+mixed inflow / outflow ordinates, asserts the
+`assert_source_lives_on_incoming_trace` invariant raises
+`BoundarySourceNotOnIncomingTraceError` when the realiser is
+asked to apply the source without an outflow mask. To be tagged
+`@pytest.mark.catches("ERR-047")` at Wave 7 ship.
+
+**Lesson:** The affine form's three terms (`G`, `R`, `q`) each
+live on a SPECIFIC trace space. The trace-space type tag (Wave 2)
++ the typed error (Wave 3) together encode this; future Waves
+must respect the trace-space contracts rather than treating
+`q` as "just a float vector".
+

@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **3190**
+Total tests collected: **3278**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 819, 25.7%
-   L1, 749, 23.5%
+   L0, 872, 26.6%
+   L1, 756, 23.1%
    L2, 36, 1.1%
    L3, 0, 0.0%
-   foundation, 1558, 48.8%
+   foundation, 1586, 48.4%
    unmarked, 28, 0.9%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 3083
+   explicit, 3171
    verify, 0
    class-name, 46
    func-name, 0
@@ -156,7 +156,9 @@ Module × level grid
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
+   geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_boundary, 0, 0, 0, 0, 27, 0
+   geometry/test_boundary_trace_law, 0, 0, 0, 0, 17, 0
    geometry/test_geometry, 0, 0, 0, 0, 55, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_reduced_operator, 0, 0, 0, 0, 49, 0
@@ -178,10 +180,13 @@ Module × level grid
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
    numerics/test_diagonal_operator, 17, 0, 0, 0, 0, 0
+   numerics/test_incoming_ordinate_mask_tensor, 13, 0, 0, 0, 0, 0
    numerics/test_iteration, 0, 1, 0, 0, 10, 0
    numerics/test_measure, 0, 16, 0, 0, 32, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_operator, 0, 0, 0, 0, 55, 0
+   numerics/test_periodic_wrap_operator, 5, 0, 0, 0, 0, 0
+   numerics/test_permutation_operator, 9, 1, 0, 0, 0, 0
    numerics/test_projection_operators, 16, 6, 0, 0, 0, 0
    numerics/test_registry, 0, 0, 0, 0, 37, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
@@ -192,8 +197,10 @@ Module × level grid
    numerics/test_spherical_harmonics, 5, 7, 0, 0, 0, 0
    numerics/test_symmetry, 0, 0, 0, 0, 71, 0
    numerics/test_tensor_product_operator, 18, 0, 0, 0, 0, 0
+   numerics/test_trace_space, 13, 2, 0, 0, 0, 0
    regression/test_dd_regression, 0, 0, 0, 0, 0, 11
    sn/test_2d_octant_sweep_equivalence, 0, 7, 0, 0, 0, 0
+   sn/test_angular_average_operator, 13, 4, 0, 0, 0, 0
    sn/test_boundary_conditions, 0, 0, 0, 0, 0, 11
    sn/test_cartesian, 1, 6, 0, 0, 0, 0
    sn/test_cell_update_batch, 10, 0, 0, 0, 0, 0
@@ -734,6 +741,14 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-037``, 11
    ``ERR-038``, 5
    ``ERR-039``, 2
+   ``ERR-040``, **0 (MISSING)**
+   ``ERR-041``, **0 (MISSING)**
+   ``ERR-042``, **0 (MISSING)**
+   ``ERR-043``, **0 (MISSING)**
+   ``ERR-044``, **0 (MISSING)**
+   ``ERR-045``, **0 (MISSING)**
+   ``ERR-046``, **0 (MISSING)**
+   ``ERR-047``, **0 (MISSING)**
 
 Unmarked tests
 --------------

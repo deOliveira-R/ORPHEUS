@@ -580,3 +580,48 @@ __all__ = [
     "AlbedoBoundaryOperator",
     "MixedBoundaryOperator",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Wave 3 additions -- BoundaryTraceLaw ABC, named errors, BoundarySource.
+# Concretes (VacuumInflow, ReflectiveBoundary, ...) ship in Wave 7. The
+# imports live at the bottom of the package __init__ so the legacy
+# concretes above are fully constructed before the new ABC's registry
+# (which is a separate ``dict`` keyed under ``BoundaryTraceLaw``) is
+# initialised. See ``tests/geometry/test_boundary_trace_law.py`` for the
+# registry-disjointness contract.
+# ---------------------------------------------------------------------------
+
+from ._base import BoundaryTraceLaw
+from ._errors import (
+    BoundaryError,
+    BoundaryGeometryMapNotMeasurePreservingError,
+    BoundaryResponseNotPositiveError,
+    BoundarySourceNotOnIncomingTraceError,
+    IncomingOutgoingTraceClassificationError,
+    ReflectionDidNotMapInflowToOutflowError,
+    ReflectionNotInvolutiveError,
+    SubmarkovViolationError,
+    VacuumAppliedToOutgoingTraceError,
+)
+from ._source import BoundarySource, ConstantInflowSource, NoSource
+
+__all__ = [
+    *__all__,
+    # ABC
+    "BoundaryTraceLaw",
+    # Errors
+    "BoundaryError",
+    "BoundaryGeometryMapNotMeasurePreservingError",
+    "BoundaryResponseNotPositiveError",
+    "BoundarySourceNotOnIncomingTraceError",
+    "IncomingOutgoingTraceClassificationError",
+    "ReflectionDidNotMapInflowToOutflowError",
+    "ReflectionNotInvolutiveError",
+    "SubmarkovViolationError",
+    "VacuumAppliedToOutgoingTraceError",
+    # Source
+    "BoundarySource",
+    "ConstantInflowSource",
+    "NoSource",
+]
