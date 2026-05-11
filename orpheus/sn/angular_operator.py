@@ -12,7 +12,8 @@ Promotion criterion: when a second non-SN consumer arrives, an
 operator here should be promoted to ``orpheus/numerics/`` (per
 Cardinal Rule 2 — no shared abstraction with only one consumer).
 Today: ``AngularAverageOperator`` is SN-only (the white BC consumes
-it via the SN realizer).
+it via the SN realizer); :class:`IncomingSourceOperator` is SN-only
+(the prescribed-inflow BC consumes it via the SN realizer).
 """
 
 from __future__ import annotations
@@ -27,9 +28,10 @@ from orpheus.numerics.operator import (
 )
 
 if TYPE_CHECKING:
+    from orpheus.geometry.boundary._source import BoundarySource
     from orpheus.sn.quadrature import AngularQuadrature
 
-__all__ = ["AngularAverageOperator"]
+__all__ = ["AngularAverageOperator", "IncomingSourceOperator"]
 
 
 class AngularAverageOperator(LinearOperatorMixin):
@@ -223,3 +225,75 @@ class AngularAverageOperator(LinearOperatorMixin):
         return np.broadcast_to(
             psi_avg[None, ...], psi.shape,
         ).copy()
+
+
+class IncomingSourceOperator(LinearOperatorMixin):
+    r"""Prescribed inflow source — returns the source value, ignores input.
+
+    Realises the :math:`q` term in the §16A.1 affine BC form
+
+    .. math::
+
+        \gamma_- \psi \;=\; R\,G\,\gamma_+ \psi \;+\; q
+
+    for the rank-0 case where :math:`R = G = 0` and only the source
+    matters: :math:`\gamma_- \psi = q`. The :meth:`apply` IGNORES its
+    input and returns the source evaluated on a probe inflow trace
+    matching the input shape. Used by the SN realizer for
+    :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow`.
+
+    The operator stores only the
+    :class:`~orpheus.geometry.boundary._source.BoundarySource` —
+    no quadrature reference is retained. The probe trace built at
+    apply time carries just the shape information the source needs
+    to size its output; the source's :meth:`evaluate` is responsible
+    for filling values per its own contract.
+
+    Capability set: ``{CAP_APPLY}``. The operator is rank-0 in the
+    input (every input maps to the same source value); it is NOT
+    invertible and NOT naturally self-adjoint. ``solve`` and
+    ``apply_transpose`` are deliberately NOT advertised.
+
+    Parameters
+    ----------
+    source : BoundarySource
+        The :math:`q` source generator. Typically
+        :class:`~orpheus.geometry.boundary._source.NoSource` (no
+        inflow, equivalent to vacuum) or
+        :class:`~orpheus.geometry.boundary._source.ConstantInflowSource`
+        for a uniform inflow level. Custom
+        :class:`~orpheus.geometry.boundary._source.BoundarySource`
+        implementations may inject spatially / energy- / angularly-
+        varying inflow.
+    """
+
+    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
+
+    def __init__(self, source: "BoundarySource") -> None:
+        self.source = source
+
+    def apply(self, psi_out: np.ndarray) -> np.ndarray:
+        r"""Return the source evaluated on a probe inflow trace of
+        ``psi_out.shape``. ``psi_out`` itself is IGNORED.
+
+        The probe trace is a minimal :class:`InflowTraceSpace`
+        carrying just the ``shape`` field (``inflow_mask`` /
+        ``face_names`` default to empty). Sources that need richer
+        trace metadata (face-tagged inflow injection, per-ordinate
+        masks) require Wave 8's full
+        :class:`~orpheus.sn.method_space.SNMethodSpace` wiring; the
+        Wave-7 ship-state covers the
+        :class:`~orpheus.geometry.boundary._source.NoSource` /
+        :class:`~orpheus.geometry.boundary._source.ConstantInflowSource`
+        cases that only need ``shape``.
+        """
+        # Local import — :mod:`orpheus.numerics.trace_space` is a
+        # peer module; deferring to def-level keeps cold-import time
+        # off this module.
+        from orpheus.numerics.trace_space import InflowTraceSpace
+
+        probe = InflowTraceSpace(
+            name="trace_inflow",
+            shape=tuple(int(s) for s in psi_out.shape),
+        )
+        return self.source.evaluate(probe)

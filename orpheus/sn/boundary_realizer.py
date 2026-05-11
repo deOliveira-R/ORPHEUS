@@ -40,6 +40,10 @@ The realisation map (legacy class → Wave-0 / Wave-1 primitive)
   :class:`~orpheus.numerics.operator.PeriodicWrapOperator`.
 * :class:`~orpheus.geometry.boundary.mixed.MixedBoundaryOperator(components)` →
   recursive realization: ``sum(coeff * realize(prim, method_space) for coeff, prim in components)``.
+* :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow(source)` →
+  :class:`~orpheus.sn.angular_operator.IncomingSourceOperator(source)`
+  — apply returns ``source.evaluate(probe_inflow_trace)``, ignoring
+  the outgoing flux. The rank-0 affine BC (Wave 7 / C7.5).
 
 References
 ----------
@@ -64,6 +68,7 @@ from orpheus.geometry.boundary import (
     BoundaryRealizerRegistry,
     MixedBoundaryOperator,
     PeriodicBoundaryOperator,
+    PrescribedInflow,
     SpecularBoundaryOperator,
     VacuumBoundaryOperator,
     WhiteBoundaryOperator,
@@ -77,7 +82,10 @@ from orpheus.numerics.operator import (
     ScaledOperator,
     ZeroOperator,
 )
-from orpheus.sn.angular_operator import AngularAverageOperator
+from orpheus.sn.angular_operator import (
+    AngularAverageOperator,
+    IncomingSourceOperator,
+)
 
 if TYPE_CHECKING:
     from orpheus.geometry.boundary import BoundaryOperator
@@ -209,12 +217,20 @@ class SNBoundaryRealizer:
             assert result is not None  # guarded by ``if not law.components``
             return result
 
+        if isinstance(law, PrescribedInflow):
+            # Wave-7 addition: rank-0 affine source. The operator's
+            # apply ignores the outgoing flux and returns
+            # source.evaluate(probe_trace). Wave 8 will extend
+            # IncomingSourceOperator with face / inflow-indices
+            # plumbing once SNMethodSpace carries them.
+            return IncomingSourceOperator(law.source)
+
         raise BoundaryError(
             f"SNBoundaryRealizer cannot realize "
             f"{type(law).__name__} — no isinstance dispatch case. "
             f"Available cases: VacuumBoundaryOperator, "
             f"SpecularBoundaryOperator, WhiteBoundaryOperator, "
             f"AlbedoBoundaryOperator, PeriodicBoundaryOperator, "
-            f"MixedBoundaryOperator.",
+            f"MixedBoundaryOperator, PrescribedInflow.",
             law=type(law).__name__,
         )

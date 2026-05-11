@@ -100,6 +100,8 @@ trace-law refactor (plan: ``.claude/plans/transient-giggling-cake.md``):
   ``AlbedoBoundaryOperator`` retained as deprecated alias).
 * :mod:`mixed` -- :class:`MixedBoundaryOperator` (scheduled for
   removal in Wave 11 -- replaced by Wave-0 ``OperatorSum`` algebra).
+* :mod:`prescribed_inflow` -- :class:`PrescribedInflow` (Wave 7
+  addition; the rank-0 source-only affine BC).
 
 This ``__init__.py`` re-exports every public name so existing
 ``from orpheus.geometry.boundary import X`` import sites keep working
@@ -173,6 +175,7 @@ from ._realizer import (
 from .albedo import AlbedoBoundary
 from .mixed import MixedBoundaryOperator
 from .periodic import PeriodicBoundary
+from .prescribed_inflow import PrescribedInflow
 from .reflective import ReflectiveBoundary
 from .vacuum import VacuumInflow
 from .white import WhiteBoundary
@@ -211,6 +214,7 @@ __all__ = [
     "AlbedoBoundary",
     "MixedBoundaryOperator",
     "PeriodicBoundary",
+    "PrescribedInflow",
     "ReflectiveBoundary",
     "VacuumInflow",
     "WhiteBoundary",

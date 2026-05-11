@@ -267,3 +267,179 @@ class TestCreatesSweepCycleFlag:
 
     def test_albedo_does_not_create_sweep_cycle(self) -> None:
         assert AlbedoBoundary.creates_sweep_cycle is False
+
+
+# ─────────────────────────────────────────────────────────────────────
+# PrescribedInflow (Wave 7 / C7.5)
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.foundation
+class TestPrescribedInflowConstruction:
+    """:class:`PrescribedInflow` construction + registry + sweep-cycle
+    classification."""
+
+    def test_default_source_is_no_source(self) -> None:
+        from orpheus.geometry.boundary import NoSource, PrescribedInflow
+
+        bc = PrescribedInflow()
+        assert isinstance(bc.source, NoSource)
+
+    def test_constant_inflow_source_attaches(self) -> None:
+        from orpheus.geometry.boundary import (
+            ConstantInflowSource,
+            PrescribedInflow,
+        )
+
+        bc = PrescribedInflow(source=ConstantInflowSource(value=2.5))
+        assert isinstance(bc.source, ConstantInflowSource)
+        assert bc.source.value == 2.5
+
+    def test_kind_is_prescribed_inflow(self) -> None:
+        from orpheus.geometry.boundary import PrescribedInflow
+
+        assert PrescribedInflow().kind == "prescribed_inflow"
+
+    def test_does_not_create_sweep_cycle(self) -> None:
+        from orpheus.geometry.boundary import PrescribedInflow
+
+        assert PrescribedInflow.creates_sweep_cycle is False
+
+    def test_registered_under_prescribed_inflow_key(self) -> None:
+        from orpheus.geometry.boundary import (
+            BoundaryTraceLaw,
+            PrescribedInflow,
+        )
+
+        assert (
+            BoundaryTraceLaw.registry["prescribed_inflow"] is PrescribedInflow
+        )
+
+    def test_create_via_registry(self) -> None:
+        from orpheus.geometry.boundary import (
+            BoundaryTraceLaw,
+            PrescribedInflow,
+        )
+
+        bc = BoundaryTraceLaw.create("prescribed_inflow")
+        assert isinstance(bc, PrescribedInflow)
+
+
+@pytest.mark.l1
+class TestPrescribedInflowApply:
+    """:meth:`PrescribedInflow.apply` semantics."""
+
+    def test_apply_with_no_source_returns_zeros(self) -> None:
+        """Default ``NoSource``: ``apply`` returns zeros of the input shape."""
+        from orpheus.geometry.boundary import PrescribedInflow
+
+        bc = PrescribedInflow()
+        quad = LebedevSphere.create(17)
+        psi_out = np.random.default_rng(0).standard_normal((quad.N, 3))
+        psi_in = bc.apply(psi_out, quad)
+        assert psi_in.shape == psi_out.shape
+        np.testing.assert_array_equal(psi_in, np.zeros_like(psi_out))
+
+    def test_apply_with_constant_source_returns_constant(self) -> None:
+        """``ConstantInflowSource(v)``: ``apply`` returns ``v`` everywhere."""
+        from orpheus.geometry.boundary import (
+            ConstantInflowSource,
+            PrescribedInflow,
+        )
+
+        bc = PrescribedInflow(source=ConstantInflowSource(value=3.7))
+        quad = LebedevSphere.create(17)
+        psi_out = np.random.default_rng(1).standard_normal((quad.N, 2))
+        psi_in = bc.apply(psi_out, quad)
+        assert psi_in.shape == psi_out.shape
+        np.testing.assert_array_equal(psi_in, np.full_like(psi_out, 3.7))
+
+    def test_apply_ignores_psi_out(self) -> None:
+        """The rank-0 contract: input is ignored, output depends only on source."""
+        from orpheus.geometry.boundary import (
+            ConstantInflowSource,
+            PrescribedInflow,
+        )
+
+        bc = PrescribedInflow(source=ConstantInflowSource(value=1.0))
+        quad = LebedevSphere.create(17)
+        psi_out_a = np.random.default_rng(2).standard_normal((quad.N, 2))
+        psi_out_b = 1000.0 * np.ones((quad.N, 2))
+        # Same source → same output, regardless of psi_out.
+        np.testing.assert_array_equal(
+            bc.apply(psi_out_a, quad),
+            bc.apply(psi_out_b, quad),
+        )
+
+
+@pytest.mark.l1
+class TestIncomingSourceOperator:
+    """:class:`IncomingSourceOperator` standalone (independent of
+    :class:`PrescribedInflow`)."""
+
+    def test_apply_returns_source_evaluation(self) -> None:
+        from orpheus.geometry.boundary import ConstantInflowSource
+        from orpheus.sn.angular_operator import IncomingSourceOperator
+
+        op = IncomingSourceOperator(ConstantInflowSource(value=2.5))
+        psi_out = np.zeros((8, 3))
+        result = op.apply(psi_out)
+        assert result.shape == (8, 3)
+        np.testing.assert_array_equal(result, np.full((8, 3), 2.5))
+
+    def test_apply_ignores_input(self) -> None:
+        from orpheus.geometry.boundary import ConstantInflowSource
+        from orpheus.sn.angular_operator import IncomingSourceOperator
+
+        op = IncomingSourceOperator(ConstantInflowSource(value=1.0))
+        result_a = op.apply(np.zeros((6, 2)))
+        result_b = op.apply(99.0 * np.ones((6, 2)))
+        np.testing.assert_array_equal(result_a, result_b)
+
+    def test_capabilities_are_apply_only(self) -> None:
+        from orpheus.geometry.boundary import NoSource
+        from orpheus.sn.angular_operator import IncomingSourceOperator
+
+        op = IncomingSourceOperator(NoSource())
+        assert "apply" in op.capabilities
+        # rank-0 / non-invertible — solve / apply_transpose NOT advertised.
+        assert "solve" not in op.capabilities
+        assert "apply_transpose" not in op.capabilities
+
+
+@pytest.mark.l1
+class TestSNRealizerPrescribedInflowDispatch:
+    """:class:`SNBoundaryRealizer` dispatches
+    :class:`PrescribedInflow` to :class:`IncomingSourceOperator`."""
+
+    def test_realize_returns_incoming_source_operator(self) -> None:
+        from orpheus.geometry.boundary import (
+            ConstantInflowSource,
+            PrescribedInflow,
+        )
+        from orpheus.sn.angular_operator import IncomingSourceOperator
+        from orpheus.sn.boundary_realizer import (
+            SNBoundaryRealizer,
+            SNMethodSpace,
+        )
+
+        bc = PrescribedInflow(source=ConstantInflowSource(value=1.5))
+        quad = LebedevSphere.create(17)
+        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        assert isinstance(op, IncomingSourceOperator)
+        # The source is the same one we passed in.
+        assert op.source is bc.source
+
+    def test_realize_with_default_no_source(self) -> None:
+        from orpheus.geometry.boundary import NoSource, PrescribedInflow
+        from orpheus.sn.angular_operator import IncomingSourceOperator
+        from orpheus.sn.boundary_realizer import (
+            SNBoundaryRealizer,
+            SNMethodSpace,
+        )
+
+        bc = PrescribedInflow()
+        quad = LebedevSphere.create(17)
+        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        assert isinstance(op, IncomingSourceOperator)
+        assert isinstance(op.source, NoSource)
