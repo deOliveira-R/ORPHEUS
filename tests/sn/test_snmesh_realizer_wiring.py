@@ -195,8 +195,9 @@ def test_1d_cartesian_y_face_placeholders_realized_through_minimal_space(quad_1d
         sn.bc_ymax.inner.perm, np.arange(quad_1d.N),
     )
     # No bound quadrature — the realized op is already 1-arg.
-    assert sn.bc_ymin._quadrature is None
-    assert sn.bc_ymax._quadrature is None
+    # Issue #176 / C176.1 dropped the _quadrature attribute entirely.
+    assert not hasattr(sn.bc_ymin, "_quadrature")
+    assert not hasattr(sn.bc_ymax, "_quadrature")
     # Kind preserved for the legacy string-compare surface.
     assert sn.bc_ymin == "reflective"
     assert sn.bc_ymax == "reflective"
@@ -234,7 +235,8 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
     # Realizer path: shim wraps a realized 1-arg op.
     assert isinstance(sn.bc_right, _BoundBoundaryOperator)
     assert isinstance(sn.bc_right.inner, IncomingOrdinateMaskTensor)
-    assert sn.bc_right._quadrature is None
+    # Issue #176 / C176.1 dropped the _quadrature attribute entirely.
+    assert not hasattr(sn.bc_right, "_quadrature")
     assert sn.bc_right == "vacuum"
     # Curvilinear trace spaces ARE now built (C188.1+C188.2 lifted
     # the Mesh1D guard).
@@ -277,7 +279,8 @@ def test_1d_cylindrical_reflective_routes_through_realizer():
     # Realizer path: shim wraps a realized 1-arg PermutationOperator.
     assert isinstance(sn.bc_left, _BoundBoundaryOperator)
     assert isinstance(sn.bc_left.inner, PermutationOperator)
-    assert sn.bc_left._quadrature is None
+    # Issue #176 / C176.1 dropped the _quadrature attribute entirely.
+    assert not hasattr(sn.bc_left, "_quadrature")
     assert sn.bc_left == "reflective"
     # The permutation matches quad.reflection_index("x") exactly.
     np.testing.assert_array_equal(

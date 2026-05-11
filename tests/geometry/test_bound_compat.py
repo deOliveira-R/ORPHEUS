@@ -1,19 +1,25 @@
-r"""Tests for the Wave-8 transitional 2-arg shim (C8.2).
+r"""Tests for the post-Issue-#176 1-arg passthrough shim.
 
 The :class:`_BoundBoundaryOperator` shim wraps a realized 1-arg
-:class:`LinearOperator` so the 13 production call sites at
-:mod:`orpheus.sn.sweep` + :mod:`orpheus.sn.operator` (which still call
-``bc.apply(psi, quad)`` with 2 args) keep working through Wave 9.
+:class:`LinearOperator` produced by
+:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` and adds
+three thin surfaces:
 
-These tests pin:
+* :meth:`apply(psi, *_extra, **_kw)` — forwards to
+  ``inner.apply(psi)`` and ignores any extra positional / keyword
+  args (preserves backward-compat with any test still calling
+  ``bc.apply(psi, quad)``).
+* :attr:`capabilities` — delegates to the wrapped operator so the
+  shim composes cleanly with other Wave-0 primitives.
+* :attr:`kind` + ``__eq__`` against strings — preserves the legacy
+  ``sn_mesh.bc_xmin == "reflective"`` comparison surface.
 
-* ``apply(psi, *anything, **anything)`` forwards to ``inner.apply(psi)``
-  — extra args are swallowed.
-* ``apply_transpose`` symmetrical for inner ops that support it.
-* :attr:`capabilities` property delegates to the wrapped operator.
-* The shim composes cleanly with the operator-algebra dunders inherited
-  from :class:`LinearOperatorMixin` — proves it is a first-class
-  :class:`LinearOperator`.
+The original Wave-8/9 implementation also carried an optional
+``quadrature=`` kwarg that bound an :class:`AngularQuadrature` and
+forwarded ``inner.apply(psi, bound_quad)`` to a legacy 2-arg
+:class:`BoundaryTraceLaw` body. Issue #176 dropped that mode after
+Issue #188 (curvilinear :class:`InflowTraceSpace` support) eliminated
+the curvilinear-bypass code path that required it.
 """
 from __future__ import annotations
 
@@ -36,7 +42,7 @@ pytestmark = pytest.mark.l0
 def test_apply_forwards_and_swallows_extra_args():
     """``apply(psi, *_extra, **_kw)`` delegates to ``inner.apply(psi)`` and
     ignores any positional / keyword extras (typically a quadrature
-    argument passed by the legacy 2-arg call sites).
+    argument passed by a legacy 2-arg call site).
     """
     inner = IdentityOperator()
     shim = _BoundBoundaryOperator(inner)
@@ -89,9 +95,7 @@ def test_composes_with_operator_algebra():
     """The shim is a first-class :class:`LinearOperator` — it inherits
     the algebra dunders from :class:`LinearOperatorMixin`. ``shim + shim``
     builds an :class:`OperatorSum`; ``2.0 * shim`` builds a
-    :class:`ScaledOperator`. This is the load-bearing piece for the
-    realizer's mixed-BC recursive path (when MixedBoundaryOperator is
-    composed with a wrapped realized op).
+    :class:`ScaledOperator`.
     """
     inner = IdentityOperator()
     shim = _BoundBoundaryOperator(inner)
@@ -107,9 +111,10 @@ def test_composes_with_operator_algebra():
 def test_kind_tag_supports_legacy_string_equality():
     """The shim accepts an optional ``kind`` tag and implements
     ``__eq__`` against strings — preserves the legacy SN-side
-    ``sn_mesh.bc_xmin == "reflective"`` comparison that test_boundary_conditions.py
-    + the BC-resolution diagnostic rely on. Without a kind tag the
-    comparison returns ``NotImplemented`` (so ``shim == "x"`` is False).
+    ``sn_mesh.bc_xmin == "reflective"`` comparison that
+    test_boundary_conditions.py + the BC-resolution diagnostic rely
+    on. Without a kind tag the comparison returns ``NotImplemented``
+    (so ``shim == "x"`` is False).
     """
     inner = IdentityOperator()
     tagged = _BoundBoundaryOperator(inner, kind="vacuum")
@@ -150,126 +155,40 @@ def test_shim_is_not_re_exported_from_package():
     assert not hasattr(boundary_pkg, "_BoundBoundaryOperator")
 
 
+def test_shim_has_no_quadrature_attribute_after_176():
+    """Issue #176 / C176.1: the Wave-8/9 dual-mode shim's
+    ``quadrature=`` kwarg and ``_quadrature`` attribute are gone.
+    Pin the post-cleanup signature: ``__init__(inner, kind=None)``
+    has no quadrature parameter, and instances carry no
+    ``_quadrature`` attribute.
+    """
+    inner = IdentityOperator()
+    shim = _BoundBoundaryOperator(inner, kind="vacuum")
+    assert not hasattr(shim, "_quadrature")
+    with pytest.raises(TypeError):
+        _BoundBoundaryOperator(inner, quadrature="not_accepted")  # type: ignore[call-arg]
+
+
 # ═══════════════════════════════════════════════════════════════════════
-# Wave 9 (C9.0) — bound-quadrature mode for the curvilinear path
+# Issue #188 / C188.3 — curvilinear realizer wiring
 # ═══════════════════════════════════════════════════════════════════════
 #
-# When the shim wraps a LEGACY 2-arg :class:`BoundaryTraceLaw` instance
-# (curvilinear path in :meth:`SNMesh._resolve_one` — Wave 2 has not yet
-# implemented :class:`InflowTraceSpace` for spherical / cylindrical
-# meshes), the shim is built with ``quadrature=<bound quad>`` so that
-# the uniform 1-arg ``bc.apply(psi)`` contract holds across ALL ``bc_*``
-# attributes.  The shim then forwards
-# ``inner.apply(psi, self._quadrature)`` — bit-identical to the
-# pre-Wave-9 ``bc.apply(psi, quad)`` direct call.
+# These tests pin the SNMesh-side production behaviour: a 1-D curvilinear
+# mesh routes its BCs through SNBoundaryRealizer just like Cartesian, and
+# the 1-D y-face placeholders are realized through SNMethodSpace.minimal.
 
 
-class _Recording2ArgInner:
-    """Inner stub that records the (psi, quadrature) it was called with.
-
-    Mimics the legacy ``BoundaryTraceLaw.apply(psi, quadrature)`` 2-arg
-    signature so we can pin that the shim's bound-quadrature forwarding
-    delivers exactly what the legacy call sites used to pass.
-    """
-
-    def __init__(self) -> None:
-        self.apply_calls: list[tuple[object, object]] = []
-        self.transpose_calls: list[tuple[object, object]] = []
-        self.capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
-
-    def apply(self, psi, quadrature):
-        self.apply_calls.append((psi, quadrature))
-        return psi  # echo for assertions
-
-    def apply_transpose(self, psi, quadrature):
-        self.transpose_calls.append((psi, quadrature))
-        return psi
-
-
-class Test2ArgForwarding:
-    """Bound-quadrature mode for the curvilinear ``SNMesh._resolve_one`` path."""
-
-    def test_apply_forwards_bound_quadrature_to_inner(self):
-        """``apply(psi)`` forwards ``inner.apply(psi, self._quadrature)``
-        when the shim was built with a bound quadrature. Pins that the
-        bit-identical legacy call ``bc.apply(psi, quad)`` survives the
-        Wave 9 1-arg migration.
-        """
-        inner = _Recording2ArgInner()
-        sentinel_quad = object()  # identity-checked below
-        shim = _BoundBoundaryOperator(
-            inner, quadrature=sentinel_quad, kind="reflective",
-        )
-        psi = np.arange(6.0).reshape(3, 2)
-
-        # 1-arg call (Wave 9 target signature)
-        np.testing.assert_array_equal(shim.apply(psi), psi)
-        assert len(inner.apply_calls) == 1
-        psi_recv, quad_recv = inner.apply_calls[0]
-        np.testing.assert_array_equal(psi_recv, psi)
-        # Identity, not just equality — pins that the bound quadrature
-        # is the SAME object the realizer passed at construction time.
-        assert quad_recv is sentinel_quad
-
-    def test_apply_swallows_extra_legacy_quad_when_bound(self):
-        """During the mid-Wave-9 transition some call sites may still
-        pass ``quad`` as a 2nd positional; the shim swallows it and
-        STILL forwards its own bound quadrature, NOT the one the caller
-        passed. This keeps the bound-quadrature contract authoritative.
-        """
-        inner = _Recording2ArgInner()
-        bound_quad = object()
-        stale_quad = object()  # what a not-yet-migrated caller passes
-        shim = _BoundBoundaryOperator(inner, quadrature=bound_quad)
-        psi = np.ones((2, 2))
-
-        shim.apply(psi, stale_quad)
-        _, quad_recv = inner.apply_calls[-1]
-        assert quad_recv is bound_quad
-        assert quad_recv is not stale_quad
-
-        # kwargs swallowed too
-        shim.apply(psi, quad=stale_quad, extra=42)
-        _, quad_recv = inner.apply_calls[-1]
-        assert quad_recv is bound_quad
-
-    def test_apply_transpose_forwards_bound_quadrature(self):
-        """Symmetric to ``apply``: ``apply_transpose(psi)`` forwards
-        ``inner.apply_transpose(psi, self._quadrature)``.
-        """
-        inner = _Recording2ArgInner()
-        bound_quad = object()
-        shim = _BoundBoundaryOperator(inner, quadrature=bound_quad)
-        psi = np.arange(4.0).reshape(2, 2)
-
-        np.testing.assert_array_equal(shim.apply_transpose(psi), psi)
-        assert len(inner.transpose_calls) == 1
-        psi_recv, quad_recv = inner.transpose_calls[0]
-        np.testing.assert_array_equal(psi_recv, psi)
-        assert quad_recv is bound_quad
-
-    def test_quadrature_none_preserves_wave8_1arg_path(self):
-        """Default ``quadrature=None`` still forwards 1-arg
-        ``inner.apply(psi)`` — the Wave 8 Cartesian-path behaviour
-        MUST remain bit-identical. This is the regression contract
-        against the 7 pre-existing tests above.
-        """
-        inner = IdentityOperator()
-        shim = _BoundBoundaryOperator(inner)  # no quadrature kwarg
-        assert shim._quadrature is None
-        psi = np.arange(6.0).reshape(2, 3)
-        # Bit-identical to inner.apply(psi)
-        np.testing.assert_array_equal(shim.apply(psi), inner.apply(psi))
+class Test188WiringContracts:
+    """Curvilinear ``SNMesh._resolve_one`` + 1-D y-placeholder contracts."""
 
     def test_curvilinear_resolve_one_routes_through_realizer(self):
         """Issue #188 / C188.3: a 1-D spherical :class:`SNMesh`
         exposes ``bc_left`` / ``bc_right`` as
         :class:`_BoundBoundaryOperator` shims wrapping REALIZED
-        1-arg operators (no bound quadrature). C188.1+C188.2
-        extended :class:`InflowTraceSpace` to all 1-D coord
-        systems, so the realizer-then-shim path is now used
-        uniformly across Cartesian / spherical / cylindrical
-        meshes.
+        1-arg operators. C188.1+C188.2 extended
+        :class:`InflowTraceSpace` to all 1-D coord systems, so the
+        realizer-then-shim path is uniform across Cartesian /
+        spherical / cylindrical meshes.
 
         Compatibility against the pre-C188.3 bound-quadrature path
         is verified end-to-end by the curvilinear SN regression
@@ -296,11 +215,9 @@ class Test2ArgForwarding:
 
         # Curvilinear now builds traces (C188.1+C188.2 lifted guard).
         assert sn._inflow_trace is not None
-        # Realizer-path shims: no bound quadrature.
+        # Realizer-path shims wrap realized 1-arg primitives.
         assert isinstance(sn.bc_left, _BoundBoundaryOperator)
         assert isinstance(sn.bc_right, _BoundBoundaryOperator)
-        assert sn.bc_left._quadrature is None
-        assert sn.bc_right._quadrature is None
         # Inner is the realized primitive: PermutationOperator for
         # reflective; IncomingOrdinateMaskTensor for vacuum.
         assert isinstance(sn.bc_left.inner, _PO)
@@ -344,9 +261,6 @@ class Test2ArgForwarding:
         assert isinstance(sn.bc_ymax, _BoundBoundaryOperator)
         assert isinstance(sn.bc_ymin.inner, PermutationOperator)
         assert isinstance(sn.bc_ymax.inner, PermutationOperator)
-        # The realized op is 1-arg; no bound quadrature on the shim.
-        assert sn.bc_ymin._quadrature is None
-        assert sn.bc_ymax._quadrature is None
         # Kind preserved for the legacy string-compare surface.
         assert sn.bc_ymin == "reflective"
         assert sn.bc_ymax == "reflective"
