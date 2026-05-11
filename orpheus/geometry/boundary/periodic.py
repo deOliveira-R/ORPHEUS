@@ -59,6 +59,12 @@ class PeriodicBoundary(BoundaryTraceLaw, key="periodic"):
 
     capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
 
+    #: Wave-7 sweep-cycle signal (§15A.2). A periodic face couples
+    #: opposite ends of the spatial domain, creating a dependency
+    #: cycle in the SN sweep DAG that requires Krylov closure rather
+    #: than a single sweep.
+    creates_sweep_cycle: ClassVar[bool] = True
+
     def apply(
         self,
         psi_out: np.ndarray,

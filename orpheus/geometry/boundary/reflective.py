@@ -71,6 +71,13 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
         {CAP_APPLY, CAP_APPLY_TRANSPOSE}
     )
 
+    #: Wave-7 sweep-cycle signal (§15A.2). A reflective face maps
+    #: outgoing ordinates back into the domain as inflow ordinates,
+    #: creating a dependency cycle in the SN sweep DAG. The cycle
+    #: detector reads this ClassVar to identify which faces need
+    #: Krylov closure (rather than a single sweep).
+    creates_sweep_cycle: ClassVar[bool] = True
+
     axis: str = "x"
     albedo: float = 1.0
 
@@ -95,6 +102,45 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
     def __hash__(self) -> int:
         # Hash on the canonical (post-rename) class name.
         return hash(("ReflectiveBoundary", self.axis, self.albedo))
+
+    # ------------------------------------------------------------------
+    # §16A.12 universal invariants — Wave 7 / C7.6 overrides.
+    # ------------------------------------------------------------------
+
+    def assert_is_involutive(
+        self, quadrature: "AngularQuadrature"
+    ) -> None:
+        r"""Reflection permutation must be an involution
+        (:math:`\pi \circ \pi = \mathrm{id}`).
+
+        Raises
+        ------
+        ReflectionNotInvolutiveError
+            When ``reflection_index(self.axis)`` is not its own
+            inverse on the quadrature's ordinate set.
+        """
+        ref = quadrature.reflection_index(self.axis)
+        if not np.array_equal(ref[ref], np.arange(quadrature.N)):
+            from ._errors import ReflectionNotInvolutiveError
+            raise ReflectionNotInvolutiveError(
+                f"reflection_index({self.axis!r}) is not an involution",
+                law="reflective",
+            )
+
+    def assert_geometry_map_measure_preserving(
+        self, quadrature: "AngularQuadrature"
+    ) -> None:
+        r"""Reflection is an isometry; measure preservation follows
+        from involution-ness combined with per-ordinate weight
+        equality between reflected partners.
+
+        The involution check is the load-bearing piece; the
+        per-ordinate weight equality is implied by the quadrature's
+        construction (its weights array is symmetric under the
+        reflection-index permutation by construction in every
+        adapter).
+        """
+        self.assert_is_involutive(quadrature)
 
     def apply(
         self,

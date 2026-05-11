@@ -73,6 +73,41 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
     outward_sign: int = +1
     albedo: float = 1.0
 
+    # ------------------------------------------------------------------
+    # §16A.12 universal invariants — Wave 7 / C7.6 overrides.
+    # ------------------------------------------------------------------
+
+    def assert_response_positive_if_declared(self) -> None:
+        r"""White albedo must be non-negative.
+
+        Raises
+        ------
+        BoundaryResponseNotPositiveError
+            When ``self.albedo < 0``.
+        """
+        if self.albedo < 0.0:
+            from ._errors import BoundaryResponseNotPositiveError
+            raise BoundaryResponseNotPositiveError(
+                f"White BC albedo={self.albedo} < 0",
+                law="white",
+            )
+
+    def assert_submarkov(self) -> None:
+        r"""White albedo satisfies the sub-Markov bound
+        :math:`\alpha \le 1`.
+
+        Raises
+        ------
+        SubmarkovViolationError
+            When ``self.albedo > 1``.
+        """
+        if self.albedo > 1.0:
+            from ._errors import SubmarkovViolationError
+            raise SubmarkovViolationError(
+                f"White BC albedo={self.albedo} > 1",
+                law="white",
+            )
+
     def apply(
         self,
         psi_out: np.ndarray,
