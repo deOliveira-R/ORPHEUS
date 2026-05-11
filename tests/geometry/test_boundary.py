@@ -419,10 +419,18 @@ def test_registry_create_unknown_key_raises() -> None:
 
 
 @pytest.mark.foundation
-def test_specular_capabilities_include_transpose() -> None:
-    """SpecularBoundaryOperator advertises apply_transpose."""
+def test_specular_realized_op_advertises_apply_transpose() -> None:
+    """The realised specular op advertises apply_transpose.
+
+    Issue #186 (B3 + β2): capabilities are an operator-tree concept;
+    descriptors do not carry them. The realised
+    :class:`PermutationOperator` (α=1 fast path) carries the capability
+    set that consumers (sensitivity adjoints) inspect.
+    """
+    quad = GaussLegendre1D.create(n_ordinates=8)
     spec = SpecularBoundaryOperator(axis="x", albedo=1.0)
-    assert "apply_transpose" in spec.capabilities
+    realized = _realize_for_sn(spec, quad)
+    assert "apply_transpose" in realized.capabilities
 
 
 @pytest.mark.foundation

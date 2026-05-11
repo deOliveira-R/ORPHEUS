@@ -24,7 +24,7 @@ affine-form refactor (Wave 3+) lifts the source into a first-class
 prescribed-inflow law is the smallest concrete BC that exercises
 this slot.
 
-The realizer dispatch (Wave 7 / C7.5) maps an instance to
+The realizer dispatch maps an instance to
 :class:`~orpheus.sn.angular_operator.IncomingSourceOperator`, whose
 :meth:`apply` ignores the outgoing flux and returns the source
 evaluation.
@@ -33,17 +33,10 @@ evaluation.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar
-
-import numpy as np
-
-from orpheus.numerics.operator import CAP_APPLY
+from typing import ClassVar
 
 from ._base import BoundaryTraceLaw
 from ._source import BoundarySource, NoSource
-
-if TYPE_CHECKING:
-    from orpheus.sn.quadrature import AngularQuadrature
 
 
 __all__ = ["PrescribedInflow"]
@@ -54,9 +47,22 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
     r"""Prescribed inflow source on :math:`\Gamma_-`.
 
     The :attr:`source` is evaluated against an inflow trace to
-    produce the incoming flux; the outgoing trace is irrelevant (the
-    :meth:`apply` ignores ``psi_out``). The rank-0 case
-    :math:`R = G = 0` of the affine boundary law.
+    produce the incoming flux; the outgoing trace is irrelevant. The
+    rank-0 case :math:`R = G = 0` of the affine boundary law.
+
+    This is a **pure descriptor** (Issue #186 / B3 + β2) — it carries
+    no ``apply`` method. The SN realisation is
+    :class:`~orpheus.sn.angular_operator.IncomingSourceOperator(source)`.
+    Realise via:
+
+    .. code-block:: python
+
+        from orpheus.sn.boundary_realizer import (
+            SNBoundaryRealizer, SNMethodSpace,
+        )
+        law = PrescribedInflow(source=ConstantInflowSource(2.5))
+        op = SNBoundaryRealizer().realize(law, SNMethodSpace.minimal(quad))
+        psi_in = op.apply(psi_out)   # ignores psi_out; returns source
 
     Parameters
     ----------
@@ -75,19 +81,6 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
     sweep DAG remains acyclic for this BC. The §15A.2 cycle detector
     treats prescribed-inflow faces as plain Dirichlet faces.
 
-    Source evaluation
-    -----------------
-    The :meth:`apply` synthesises a probe
-    :class:`~orpheus.numerics.trace_space.InflowTraceSpace` carrying
-    the shape of the incoming-flux buffer (``psi_out.shape``) and
-    delegates to :meth:`BoundarySource.evaluate`. Sources that need
-    richer trace metadata (face-tagged inflow injection, per-ordinate
-    masks) require Wave 8's full
-    :class:`~orpheus.sn.method_space.SNMethodSpace` wiring; the
-    Wave-7 ship-state covers the :class:`NoSource` /
-    :class:`~orpheus.geometry.boundary._source.ConstantInflowSource`
-    cases that only need ``shape``.
-
     Implementation note: field-vs-property collision
     ------------------------------------------------
     :class:`BoundaryTraceLaw` declares ``source`` as a ``@property``
@@ -100,7 +93,6 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
     uniformly across all concrete BCs.
     """
 
-    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
     creates_sweep_cycle: ClassVar[bool] = False
 
     _source: BoundarySource = field(default_factory=NoSource)
@@ -110,10 +102,7 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
         # to the underlying ``_source`` field (named to avoid the
         # collision with the inherited ``BoundaryTraceLaw.source``
         # property). ``object.__setattr__`` bypasses the frozen
-        # guard during construction (the field-vs-property pattern
-        # adopted from the pre-Wave-11 ``MixedBoundaryOperator``
-        # composer, which was removed in Wave 11 in favour of
-        # Wave-0 ``OperatorSum``-algebra over realised leaves).
+        # guard during construction.
         if source is None:
             source = NoSource()
         object.__setattr__(self, "_source", source)
@@ -125,33 +114,3 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
     @property
     def kind(self) -> str:
         return "prescribed_inflow"
-
-    def apply(
-        self,
-        psi_out: np.ndarray,
-        quadrature: "AngularQuadrature | None" = None,
-    ) -> np.ndarray:
-        r"""Return the source evaluated on a probe inflow trace.
-
-        Ignores ``psi_out`` (the outgoing flux). The rank-0 affine
-        law has no geometric / response operator, so ``quadrature``
-        carries no information the source needs; the argument is
-        accepted for backward-compat with the legacy 2-arg form
-        and for Liskov compatibility with the abstract
-        :meth:`BoundaryTraceLaw.apply` signature.
-
-        Body inlines :class:`IncomingSourceOperator.apply`'s logic
-        (build a probe :class:`InflowTraceSpace` from
-        ``psi_out.shape`` and delegate to
-        :meth:`BoundarySource.evaluate`) — avoids the realizer
-        roundtrip that would otherwise need a quadrature.
-
-        Issue #176 / C176.3: ``quadrature`` is now optional and
-        ignored.
-        """
-        from orpheus.numerics.trace_space import InflowTraceSpace
-        probe = InflowTraceSpace(
-            name="trace_inflow",
-            shape=tuple(int(s) for s in psi_out.shape),
-        )
-        return self.source.evaluate(probe)

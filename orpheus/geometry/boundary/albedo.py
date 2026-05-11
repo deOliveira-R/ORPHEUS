@@ -9,16 +9,8 @@ vocabulary).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar
-
-import numpy as np
-
-from orpheus.numerics.operator import CAP_APPLY
 
 from ._base import BoundaryTraceLaw
-
-if TYPE_CHECKING:
-    from orpheus.sn.quadrature import AngularQuadrature
 
 
 __all__ = ["AlbedoBoundary"]
@@ -36,11 +28,17 @@ class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
         \psi_{\text{in}}(\Omega) = \alpha \, \psi_{\text{out}}(\Omega).
 
     No angular redistribution. Useful as a *building block* for
-    Wave-0 ``OperatorSum``-algebra mixed boundaries (e.g.
-    ``c1 * AlbedoBoundary(0.5).realize(ms) + c2 * other.realize(ms)``,
-    where albedo and specular shares are independent parameters),
+    descriptor-tree composition (e.g.
+    ``0.5 * AlbedoBoundary(1.0) + 0.5 * ReflectiveBoundary(axis="x")``)
     and as a stand-alone primitive when the boundary is a pure
     attenuator with no angular structure.
+
+    This is a **pure descriptor** (Issue #186 / B3 + β2) — it carries
+    no ``apply`` method. The SN realisation collapses to
+    :class:`~orpheus.numerics.operator.ZeroOperator` (α=0),
+    :class:`~orpheus.numerics.operator.IdentityOperator` (α=1), or
+    ``ScaledOperator(α, IdentityOperator)`` (α ∉ {0, 1}). Realise via
+    :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`.
 
     Wave-7 rename note
     ------------------
@@ -53,8 +51,6 @@ class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
         Albedo coefficient. ``0`` is vacuum, ``1`` is perfect
         same-direction return.
     """
-
-    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
 
     albedo: float = 0.0
 
@@ -91,26 +87,3 @@ class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
                 f"Albedo BC albedo={self.albedo} > 1",
                 law="albedo",
             )
-
-    def apply(
-        self,
-        psi_out: np.ndarray,
-        quadrature: "AngularQuadrature | None" = None,
-    ) -> np.ndarray:
-        r"""Scale the outgoing flux by :attr:`albedo`.
-
-        No angular structure — :math:`\psi_{\text{in}}(\Omega) =
-        \alpha \, \psi_{\text{out}}(\Omega)` for every ordinate. The
-        ``quadrature`` argument is accepted for backward-compat with
-        the legacy 2-arg form but is unused; the scalar
-        multiplication needs no angular information.
-
-        Issue #176 / C176.3: ``quadrature`` is now optional and
-        ignored. The body is implemented inline (rather than
-        delegating to the realizer) because the Albedo branch's
-        realized output is just ``ScaledOperator(albedo,
-        IdentityOperator())`` whose ``apply(psi)`` is ``albedo *
-        psi`` — identical to inlining here, and avoids an import
-        cycle in test paths that exercise direct-call.
-        """
-        return self.albedo * psi_out

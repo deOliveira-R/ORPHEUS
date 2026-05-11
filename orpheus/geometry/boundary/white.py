@@ -9,16 +9,8 @@ vocabulary).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar
-
-import numpy as np
-
-from orpheus.numerics.operator import CAP_APPLY
 
 from ._base import BoundaryTraceLaw
-
-if TYPE_CHECKING:
-    from orpheus.sn.quadrature import AngularQuadrature
 
 
 __all__ = ["WhiteBoundary"]
@@ -49,6 +41,21 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
     current (times :math:`\alpha`), which is the property the consumer
     actually needs -- see Bell & Glasstone 1970 §1.5.
 
+    This is a **pure descriptor** (Issue #186 / B3 + β2) — it carries
+    no ``apply`` method. The SN realisation is
+    :class:`~orpheus.sn.angular_operator.AngularAverageOperator`
+    (α=1 fast path) or ``ScaledOperator(α, AngularAverageOperator)``
+    (α ≠ 1). Realise via:
+
+    .. code-block:: python
+
+        from orpheus.sn.boundary_realizer import (
+            SNBoundaryRealizer, SNMethodSpace,
+        )
+        law = WhiteBoundary(axis="x", outward_sign=+1, albedo=0.8)
+        op = SNBoundaryRealizer().realize(law, SNMethodSpace.minimal(quad))
+        psi_in = op.apply(psi_out)
+
     Wave-7 rename note
     ------------------
     Previously named ``WhiteBoundaryOperator``. The legacy name is
@@ -66,8 +73,6 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
     albedo : float
         Diffuse albedo. Defaults to 1 (perfectly reflecting).
     """
-
-    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
 
     axis: str = "x"
     outward_sign: int = +1
@@ -107,46 +112,3 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
                 f"White BC albedo={self.albedo} > 1",
                 law="white",
             )
-
-    def apply(
-        self,
-        psi_out: np.ndarray,
-        quadrature: "AngularQuadrature | None" = None,
-    ) -> np.ndarray:
-        r"""Apply Lambertian average. ``quadrature`` is **required**.
-
-        The cosine-weighted angular average needs the quadrature's
-        ``mu`` array and weights — without them there is no way to
-        construct the operator. Issue #176 / C176.3 makes
-        ``quadrature`` keyword-optional for Liskov compatibility with
-        the abstract :meth:`BoundaryTraceLaw.apply` (1-arg), but
-        ``None`` raises a :class:`BoundaryError`.
-
-        For modern usage, route through
-        :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`
-        which captures the quadrature at realization time and
-        produces a 1-arg :class:`AngularAverageOperator`.
-
-        Raises
-        ------
-        BoundaryError
-            If ``quadrature`` is ``None``.
-        """
-        if quadrature is None:
-            from ._errors import BoundaryError
-            raise BoundaryError(
-                "WhiteBoundary.apply requires a quadrature argument "
-                "(the cosine-weighted average is built from the "
-                "quadrature's mu / weight arrays). Modern usage: "
-                "route through SNBoundaryRealizer.realize() which "
-                "captures the quadrature at construction time.",
-                law="white",
-            )
-        from orpheus.sn.boundary_realizer import (
-            SNBoundaryRealizer,
-            SNMethodSpace,
-        )
-        op = SNBoundaryRealizer().realize(
-            self, SNMethodSpace.minimal(quadrature),
-        )
-        return op.apply(psi_out)

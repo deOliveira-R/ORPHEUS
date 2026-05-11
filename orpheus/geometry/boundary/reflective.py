@@ -13,8 +13,6 @@ from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 
-from orpheus.numerics.operator import CAP_APPLY, CAP_APPLY_TRANSPOSE
-
 from ._base import BoundaryTraceLaw
 
 if TYPE_CHECKING:
@@ -38,23 +36,37 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
     the angular measure under the reflection map, with the Jacobian
     convention ``|R| = 1`` since reflections are isometries.
 
+    This is a **pure descriptor** (Issue #186 / B3 + β2) — it carries
+    no ``apply`` / ``apply_transpose`` methods. Realise via
+    :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` to obtain
+    the 1-arg :class:`~orpheus.numerics.operator.PermutationOperator`
+    (α=1 fast path) or ``ScaledOperator(α, PermutationOperator)``
+    (α ≠ 1):
+
+    .. code-block:: python
+
+        from orpheus.sn.boundary_realizer import (
+            SNBoundaryRealizer, SNMethodSpace,
+        )
+        law = ReflectiveBoundary(axis="x", albedo=0.7)
+        op = SNBoundaryRealizer().realize(
+            law, SNMethodSpace.minimal(quad),
+        )
+        psi_in = op.apply(psi_out)        # forward
+        # The realised operator advertises CAP_APPLY_TRANSPOSE as well,
+        # consumed by the sensitivity-analysis adjoint pipeline:
+        phi_out = op.apply_transpose(phi_in)
+
+    For axis reflections, the index permutation is its own inverse:
+    applying the reflection twice returns each ordinate to itself.
+    This makes :math:`G_{\text{refl}}^T = G_{\text{refl}}` and so the
+    transpose action is identical to the forward action.
+
     Wave-7 rename note
     ------------------
     Previously named ``SpecularBoundaryOperator``. The legacy name is
     preserved as a deprecated alias in
     ``orpheus.geometry.boundary``.
-
-    Transpose
-    ---------
-
-    For axis reflections, the index permutation is its own inverse:
-    applying the reflection twice returns each ordinate to itself.
-    This makes :math:`G_{\text{refl}}^T = G_{\text{refl}}` and so the
-    transpose action is identical to :meth:`apply`. The
-    :pydata:`capabilities` set advertises ``apply_transpose`` --
-    consumed by the sensitivity-analysis adjoint pipeline (which
-    needs to assemble :math:`A^* \, y` for an operator whose
-    boundary slot is reflective).
 
     Parameters
     ----------
@@ -66,10 +78,6 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
     albedo : float
         Specular albedo. Defaults to 1 (perfect reflection).
     """
-
-    capabilities: ClassVar[frozenset[str]] = frozenset(
-        {CAP_APPLY, CAP_APPLY_TRANSPOSE}
-    )
 
     #: Wave-7 sweep-cycle signal (§15A.2). A reflective face maps
     #: outgoing ordinates back into the domain as inflow ordinates,
@@ -141,100 +149,3 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
         adapter).
         """
         self.assert_is_involutive(quadrature)
-
-    def apply(
-        self,
-        psi_out: np.ndarray,
-        quadrature: "AngularQuadrature | None" = None,
-    ) -> np.ndarray:
-        r"""Apply specular reflection. ``quadrature`` is **required**.
-
-        The geometric operator is an index permutation built from
-        :meth:`~orpheus.sn.quadrature.AngularQuadrature.reflection_index`
-        — without the quadrature there is no way to construct the
-        permutation. Issue #176 / C176.3 makes ``quadrature``
-        keyword-optional for Liskov compatibility with the abstract
-        :meth:`BoundaryTraceLaw.apply` (1-arg), but ``None`` raises
-        a :class:`BoundaryError` rather than silently returning an
-        incorrect identity.
-
-        For modern usage, prefer routing through
-        :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`
-        which captures the quadrature at realization time and
-        produces a 1-arg :class:`PermutationOperator`.
-
-        Raises
-        ------
-        BoundaryError
-            If ``quadrature`` is ``None``.
-        """
-        if quadrature is None:
-            from ._errors import BoundaryError
-            raise BoundaryError(
-                "ReflectiveBoundary.apply requires a quadrature "
-                "argument (the reflection-index lookup is "
-                "load-bearing). Modern usage: route through "
-                "SNBoundaryRealizer.realize() with an "
-                "SNMethodSpace, which captures the quadrature at "
-                "construction time and produces a 1-arg "
-                "PermutationOperator.",
-                law="reflective",
-            )
-        from orpheus.sn.boundary_realizer import (
-            SNBoundaryRealizer,
-            SNMethodSpace,
-        )
-        op = SNBoundaryRealizer().realize(
-            self, SNMethodSpace.minimal(quadrature),
-        )
-        return op.apply(psi_out)
-
-    def apply_transpose(
-        self,
-        psi_in: np.ndarray,
-        quadrature: "AngularQuadrature | None" = None,
-    ) -> np.ndarray:
-        r"""Transpose action of specular reflection.
-
-        Index permutations under axis reflection are involutions:
-        applying the reflection twice maps each ordinate back to
-        itself. Hence :math:`G_{\text{refl}}^T = G_{\text{refl}}`
-        and the transpose acts as the same permutation scaled by
-        :math:`\alpha`. Verified by the reciprocity test in
-        ``tests/geometry/test_boundary.py``:
-
-        .. math::
-
-           \langle B(\psi_{\text{out}}), \varphi_{\text{in}} \rangle
-           \;=\; \langle \psi_{\text{out}}, B^T(\varphi_{\text{in}}) \rangle.
-
-        The reciprocity holds for the Euclidean inner product on
-        the trace space (and, with quadrature-weight metadata on the
-        :class:`FunctionSpace`, for the cosine-weighted inner
-        product too -- the permutation commutes with diagonal
-        reweighting along the ordinate axis).
-
-        Wave 7 (C7.3): delegates to the realizer's
-        :class:`PermutationOperator` (which advertises
-        ``apply_transpose`` natively, scaled by albedo via the same
-        ``ScaledOperator`` wrap as the forward apply).
-
-        Issue #176 / C176.3: ``quadrature`` keyword-optional for
-        Liskov compatibility; ``None`` raises :class:`BoundaryError`
-        as in :meth:`apply`.
-        """
-        if quadrature is None:
-            from ._errors import BoundaryError
-            raise BoundaryError(
-                "ReflectiveBoundary.apply_transpose requires a "
-                "quadrature argument.",
-                law="reflective",
-            )
-        from orpheus.sn.boundary_realizer import (
-            SNBoundaryRealizer,
-            SNMethodSpace,
-        )
-        op = SNBoundaryRealizer().realize(
-            self, SNMethodSpace.minimal(quadrature),
-        )
-        return op.apply_transpose(psi_in)

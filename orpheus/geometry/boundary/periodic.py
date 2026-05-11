@@ -9,16 +9,9 @@ vocabulary).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar
-
-import numpy as np
-
-from orpheus.numerics.operator import CAP_APPLY
+from typing import ClassVar
 
 from ._base import BoundaryTraceLaw
-
-if TYPE_CHECKING:
-    from orpheus.sn.quadrature import AngularQuadrature
 
 
 __all__ = ["PeriodicBoundary"]
@@ -41,15 +34,15 @@ class PeriodicBoundary(BoundaryTraceLaw, key="periodic"):
 
     Realising periodicity at the *sweep* level requires coupling the
     two faces' boundary-flux buffers -- which is a sweep-orchestration
-    concern not modelled by ``apply`` alone (the
-    :class:`BoundaryTraceLaw` consumes one face's outgoing flux at
-    a time). The primitive here therefore returns ``psi_out``
-    unchanged: the contract is "the incoming side equals the outgoing
-    flux you pass in", and the *spatial* coupling is handled by whoever
-    instantiates :class:`PeriodicBoundary` and orchestrates the two-face
-    plumbing. This is why periodic-BC support in :func:`solve_sn` is a
-    downstream wave (it requires sweep changes); this primitive ships
-    so that downstream code has the algebraic object to depend on.
+    concern not modelled by ``apply`` alone. The SN realisation is
+    :class:`~orpheus.numerics.operator.PeriodicWrapOperator` (currently
+    an angular identity; the spatial-pushforward extension is tracked
+    as a follow-up under ``module:sn``).
+
+    This is a **pure descriptor** (Issue #186 / B3 + β2) — it carries
+    no ``apply`` method. The two-face plumbing is handled by whoever
+    instantiates :class:`PeriodicBoundary` and orchestrates the sweep.
+    Realise via :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`.
 
     Wave-7 rename note
     ------------------
@@ -57,31 +50,8 @@ class PeriodicBoundary(BoundaryTraceLaw, key="periodic"):
     preserved as a deprecated alias.
     """
 
-    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
-
     #: Wave-7 sweep-cycle signal (§15A.2). A periodic face couples
     #: opposite ends of the spatial domain, creating a dependency
     #: cycle in the SN sweep DAG that requires Krylov closure rather
     #: than a single sweep.
     creates_sweep_cycle: ClassVar[bool] = True
-
-    def apply(
-        self,
-        psi_out: np.ndarray,
-        quadrature: "AngularQuadrature | None" = None,
-    ) -> np.ndarray:
-        r"""Identity pass-through at the per-face apply level.
-
-        The angular structure is identity (periodic wrap is a
-        *spatial* pushforward; the angular components of
-        :math:`\psi` are unchanged). The ``quadrature`` argument is
-        accepted for backward-compat with the legacy 2-arg form but
-        is unused; the spatial-pushforward semantics are handled by
-        the sweep orchestrator that couples opposite faces (see the
-        class docstring).
-
-        Issue #176 / C176.3: ``quadrature`` is now optional and
-        ignored. Body inlined as ``psi_out.copy()`` (matches the
-        realizer's :class:`PeriodicWrapOperator.apply`).
-        """
-        return psi_out.copy()
