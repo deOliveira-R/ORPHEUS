@@ -170,7 +170,23 @@ def _flat_psi_for_geometry(sn_mesh: SNMesh, sig_t: np.ndarray, ng: int = 1) -> n
     [
         pytest.param(LegacyTauSymmetricInterpolation, id="legacy"),
         pytest.param(BaileyFlatFluxRedist, id="bff"),
-        pytest.param(MorelMontryAngularSweep, id="mms"),
+        pytest.param(
+            MorelMontryAngularSweep,
+            id="mms",
+            marks=pytest.mark.xfail(
+                strict=False,
+                reason=(
+                    "Empirical Gate 1.1 outcome (Phase C, 2026-05-12): "
+                    "MorelMontryAngularSweep does NOT preserve the "
+                    "per-ordinate flat-flux invariant by design. "
+                    "Cylindrical levels happen to telescope cleanly "
+                    "(α-dome cancellation across pure-azimuthal "
+                    "degenerate ordinates); spherical does NOT — "
+                    "see Phase B closeout for the structural rationale. "
+                    "Per user constraint 7, default flip deferred."
+                ),
+            ),
+        ),
     ],
 )
 @pytest.mark.parametrize(
