@@ -1331,6 +1331,88 @@ Tests (current state through Phase B):
 - `tests/sn/test_mms_curvilinear.py` (legacy isotropic ansatz) —
   fails with order ≈ 0 on the WDD sweep; awaits Phase C.
 
+What Wave H Phase C added (commits `eae6f05`..., GH #168 Phase C):
+
+Phase C (2026-05-12) shipped the **sweep-frame apply matvec rewrite**
+that aligns the apply matvec's spatial closure with the sweep's WDD
+form. The architectural changes:
+
+1. `transport_operator_matvec_spherical` and `_cylindrical`
+   rewritten as one sweep iteration semantically — WDD diamond
+   `psi_face_out = 2*psi_cell - psi_face_in` cell-by-cell along
+   the DAG-ordered cell sequence
+   (`SNMesh.iter_cells_by_direction(±1)`, added in Phase C); BC
+   trace law applied ONCE at the boundary edge on the
+   WDD-propagated outflow face values (the §16A.3 contract).
+   Vectorised across ordinates via outgoing_mask / incoming_mask.
+
+2. `solution_to_angular_flux_spherical` (+ cylindrical alias)
+   simplified to return only `fi` (the Phase A
+   `(fi, boundary_face_flux)` companion array retires).
+
+3. Phase A's `BoundaryFaceFlux` Protocol RETIRED entirely:
+   `orpheus/sn/spatial/boundary_face_flux.py` deleted, the 21
+   foundation tests at `tests/sn/spatial/test_boundary_face_flux.py`
+   deleted, `SNMesh.boundary_face_flux` field removed,
+   `boundary_face_flux_closure` kwarg removed from the matvec
+   signatures.
+
+Empirical Gate 1.1 outcome (the load-bearing decision point):
+
+Phase C's Gate 1.1 probe (per-ordinate flat-flux residual on
+reflective curvilinear) with `MorelMontryAngularSweep` as the
+candidate default FAILED on sphere. Cylindrical-MMS passes
+(per-level α-telescoping happens to align with the WDD pole-face
+initial condition `ψ_face_in(pole) = ψ_cell[0]` used in the
+sweep-frame rewrite); spherical-MMS does NOT (the pole-face
+initial condition interacts with the canonical Hébert §3.9.4
+angular recurrence in a way that breaks the per-ordinate flat-flux
+invariant). Per user constraint 7, the curvilinear default stays
+`LegacyTauSymmetricInterpolation`; the default flip is **DEFERRED
+to Phase D**.
+
+What Phase C ships (architectural):
+
+- Sweep-frame matvec rewrite with WDD spatial closure
+  cell-by-cell across the DAG-ordered cell sequence.
+- BC trace law applied at the boundary edge on the WDD-propagated
+  outflow face — honours the §16A.3 contract structurally.
+- Phase A BoundaryFaceFlux Protocol retired entirely.
+- 5 of 6 curvilinear regression snapshots regenerated against the
+  Phase C operator (the 6th, sphere_2g_p1_aniso, is awaiting
+  separate generation outside this commit's window).
+
+What Phase C leaves open (Phase D scope):
+
+The four `xfail-strict` curvilinear MMS tripwires STAY xfail:
+
+- `tests/sn/test_mms_curvilinear.py::test_sn_spherical_mms_converges_second_order`
+- `tests/sn/test_mms_curvilinear.py::test_sn_cylindrical_mms_converges_second_order`
+- `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py::test_sn_spherical_aniso_mms_converges_second_order`
+- `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py::test_sn_cylindrical_aniso_mms_converges_second_order`
+
+These will close in Phase D once the pole-face spatial closure
+refinement lets MorelMontryAngularSweep become the natural default.
+
+Tests added in Phase C (`tests/sn/test_phase_c_*.py`):
+
+- `test_phase_c_gates.py` — Gate 1.1 (parametrised over 3 pole
+  closures × 2 Σ_t × 2 geometries; sphere-MMS marked xfail per
+  the empirical finding), Gate 1.2 (apply determinism via
+  `np.array_equal`), Gate 1.3 (apply ↔ apply_transpose
+  reciprocity), Gate 1.4 (linearity), Gate 1.5 (BC trace
+  contract).
+- `test_phase_c_mms.py` — Gate 3.1 / 3.2 (spatial MMS, both
+  marked xfail with ERR-026 PARTIAL CLOSURE rationale) + Gate 3.3
+  (angular convergence at fixed nx — passes).
+- `test_phase_c_crosscheck.py` — Gate 4.1 (k_∞ recovery PASSES)
+  and Gate 4.2 placeholder (SKIP for Phase D follow-up).
+
+Phase C ships ERR-026 status: still **PARTIAL CLOSURE** (the
+sweep-frame matvec aligns the spatial-closure architecture — the
+Phase B load-bearing precondition — but the angular default flip
++ pole-face spatial closure refinement is Phase D's scope).
+
 ---
 
 ## ERR-027 — Peierls slab K-matrix: naive GL collocation for cross-panel entries

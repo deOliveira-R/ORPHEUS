@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **3420**
+Total tests collected: **3434**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 899, 26.3%
-   L1, 836, 24.4%
-   L2, 36, 1.1%
+   L0, 911, 26.5%
+   L1, 841, 24.5%
+   L2, 36, 1.0%
    L3, 0, 0.0%
-   foundation, 1621, 47.4%
+   foundation, 1618, 47.1%
    unmarked, 28, 0.8%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 3313
+   explicit, 3327
    verify, 0
    class-name, 46
    func-name, 0
@@ -218,6 +218,7 @@ Module × level grid
    sn/test_discrete_ordinates_2d, 0, 0, 2, 0, 0, 0
    sn/test_fission_operator, 0, 0, 0, 0, 10, 0
    sn/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
+   sn/test_iter_cells_by_direction, 0, 0, 0, 0, 11, 0
    sn/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    sn/test_method_space, 6, 0, 0, 0, 0, 0
    sn/test_mms, 0, 2, 0, 0, 0, 0
@@ -226,6 +227,9 @@ Module × level grid
    sn/test_mms_curvilinear, 0, 2, 0, 0, 0, 0
    sn/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
    sn/test_octants_property, 60, 0, 0, 0, 0, 0
+   sn/test_phase_c_crosscheck, 0, 2, 0, 0, 0, 0
+   sn/test_phase_c_gates, 12, 0, 0, 0, 7, 0
+   sn/test_phase_c_mms, 0, 3, 0, 0, 0, 0
    sn/test_properties, 4, 0, 0, 0, 0, 0
    sn/test_quadrature, 49, 0, 0, 0, 0, 0
    sn/test_scattering_operator, 0, 0, 0, 0, 17, 0
@@ -240,7 +244,6 @@ Module × level grid
    sn/test_sweep_operator_inconsistency, 0, 4, 0, 0, 0, 0
    sn/test_sweep_regression, 12, 0, 0, 0, 0, 0
    sn/test_unified_sweep_dispatch, 0, 0, 0, 0, 9, 0
-   spatial/test_boundary_face_flux, 0, 0, 0, 0, 21, 0
    spatial/test_cell_update_protocol, 0, 0, 0, 0, 16, 0
    spatial/test_diamond, 0, 0, 0, 0, 13, 0
    spatial/test_pole_angular_closure, 0, 0, 0, 0, 28, 0
@@ -333,6 +336,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``roulette-conservation``, 16
    ``roulette-prob``, 16
    ``transport-cartesian``, 16
+   ``dd-curvilinear-scalar``, 15
    ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
    ``peierls-greens-annulus-architecture``, 14
@@ -416,7 +420,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``atalay-table2-slab-vacuum-isotropic``, 3
    ``atalay-table3-slab-vacuum-anisotropic``, 3
    ``cp-escape-from-p-cell``, 3
-   ``dd-curvilinear-scalar``, 3
    ``dd-mm-closure-constants``, 3
    ``dd-slab-scalar``, 3
    ``delta-psi``, 3
@@ -486,14 +489,18 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``real-spherical-harmonics``, 1
    ``sigT-computed``, 1
    ``singular-eigenfunction-eq5``, 1
+   ``sn-curvilinear-homogeneous-kinf-recovery``, 1
+   ``sn-curvilinear-trajectory-resolvent-crosscheck``, 1
    ``sn-mms-2d-2g-qext``, 1
    ``sn-mms-2d-psi``, 1
    ``sn-mms-2d-qext``, 1
+   ``sn-mms-cylindrical-aniso-spatial-convergence``, 1
    ``sn-mms-cylindrical-psi``, 1
    ``sn-mms-cylindrical-qext``, 1
    ``sn-mms-p1-psi``, 1
    ``sn-mms-psi``, 1
    ``sn-mms-qext``, 1
+   ``sn-mms-spherical-aniso-spatial-convergence``, 1
    ``sn-mms-spherical-psi``, 1
    ``sn-mms-spherical-qext``, 1
    ``splitting``, 1
@@ -760,7 +767,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-023``, 1
    ``ERR-024``, 1
    ``ERR-025``, 4
-   ``ERR-026``, 4
+   ``ERR-026``, 18
    ``ERR-027``, 5
    ``ERR-028``, 1
    ``ERR-029``, 6

@@ -2176,94 +2176,41 @@ the open follow-up.
 
 .. _sn-boundary-face-flux-protocol:
 
-Boundary face-flux strategies (Issue #168 Phase A)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Boundary face-flux strategies — Phase A (RETIRED in Phase C)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Issue #168 empirical investigation (recorded at
 ``.claude/agent-memory/numerics-investigator/issue_168_three_defects.md``)
 found **three independent O(1) boundary truncation defects** in the
-historical curvilinear FD operator.  The single-defect framing of
-the original issue was empirically refuted: fixing only the outer-face
-extrapolation produces a temporary improvement at fixed mesh count
-but the order *degrades* with refinement because the storage
-conflation and the sphere-pole stencil dominate as ``h → 0``.
-
-Phase A (this session) addresses **Defects 1 + 2** via a new
-:class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
-strategy Protocol — analogous to the Wave C
-:class:`~orpheus.sn.spatial.cell_update.CellUpdate` Protocol — and
-a structural decoupling of cell-centre storage from BC face-value
-storage in
+historical curvilinear FD operator.  Phase A (2026-05-10) addressed
+**Defects 1 + 2** via a ``BoundaryFaceFlux`` strategy Protocol — a
+one-sided second-order DD diamond extrapolation
+:math:`\psi^{\text{face}}_{N-1/2} = \tfrac{3}{2}\,\psi_{N-1} -
+\tfrac{1}{2}\,\psi_{N-2}` plus a structural decoupling of
+cell-centre storage from BC face-value storage in
 :func:`~orpheus.sn.operator.solution_to_angular_flux_spherical`
-(and the cylindrical alias).
+(returning a ``(fi, boundary_face_flux)`` tuple where ``fi`` was
+pure cell-centre storage and the BC face flux lived in its own
+companion array).
 
-* **Defect 1 — outer-face cell-centre truncation.** The pre-Phase-A
-  operator used :math:`\psi^{\rm face}_{N-1/2} = \psi_{N-1}`
-  (cell-centre as face value), which is :math:`\mathcal{O}(h)`
-  accurate on non-constant solutions.  Phase A's
-  :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`
-  strategy uses the one-sided second-order DD diamond extrapolation
+**Phase C retired the Phase A Protocol entirely.** The sweep-frame
+apply matvec subsumes the boundary-face closure into the WDD
+propagation chain — the BC trace law owns the boundary edge per
+the §16A.3 contract, no separate algebraic extrapolation is needed.
+The retired symbols are:
 
-  .. math::
+* ``orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`` (Protocol)
+* ``orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`` (default)
+* ``orpheus.sn.spatial.boundary_face_flux.CellCenter`` (ablation)
+* ``orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFluxBase`` (ABC)
+* The ``boundary_face_flux`` field on
+  :class:`~orpheus.sn.geometry.SNMesh`
+* The 21 foundation tests at
+  :file:`tests/sn/spatial/test_boundary_face_flux.py`
 
-     \psi^{\rm face}_{N-1/2} \;=\; \tfrac{3}{2}\,\psi_{N-1}
-                                  \;-\; \tfrac{1}{2}\,\psi_{N-2}
-
-  which restores :math:`\mathcal{O}(h^2)` truncation at the outer face.
-
-* **Defect 2 — cell-centre / BC-face-value storage conflation.** The
-  pre-Phase-A
-  :func:`~orpheus.sn.operator.solution_to_angular_flux_spherical`
-  wrote the BC face value into ``fi[..., -1, 0]`` for inward μ < 0
-  ordinates — the same slot the matvec at i=N-2 read as a
-  *cell-centre* in the symmetric arithmetic-average stencil
-  ``0.5·(fi[..., N-2, 0] + fi[..., N-1, 0])``.  Vacuum BC exposed
-  the conflation; specular BC accidentally hid it.  Phase A returns
-  ``(fi, boundary_face_flux)`` from the decoder — ``fi`` is now
-  pure cell-centre storage (the inward slots at i=N-1 are filled
-  with the reflected-partner cell-centre, a faithful O(1) value
-  independent of BC kind), and the BC face flux lives in its own
-  ``boundary_face_flux`` array threaded into the matvec for the
-  outer-face read on inward ordinates.
-
-* **Defect 3 — sphere-pole redistribution stencil.** Bailey 2009's
-  :math:`\Delta A / w` redistribution at i=0 cancels the streaming
-  for *flat* :math:`\psi` but overcorrects for :math:`\psi` varying
-  linearly near r=0.  Phase A **preserves the historical Bailey
-  treatment** (the
-  :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`
-  strategy returns the cell-centre value at ``cell_idx = 0`` as a
-  pass-through).  Defect 3 remains the subject of Phase B with
-  literature consultation (Lewis & Miller §4.5; Carlson starting-
-  direction; Lathrop pole stencil).  Empirically, Phase A alone
-  yields :math:`\mathcal{O}(h^{1.5}\text{--}h^{1.7})` — better than
-  the pre-Phase-A :math:`\mathcal{O}(h^{1.25})`, but not yet the
-  :math:`\mathcal{O}(h^2)` bar that the four ``xfail-strict``
-  tripwires require.  ERR-026 stays at PARTIAL CLOSURE pending
-  Phase B.
-
-The Phase A
-:class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
-Protocol mirrors the
-:class:`~orpheus.sn.spatial.cell_update.CellUpdate` shape — a
-``@runtime_checkable Protocol`` plus a parallel concrete ABC
-(:class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFluxBase`)
-layered on
-:class:`~orpheus.numerics.registry.RegistryMixin` so concrete
-strategies self-register under a ``key=`` class-creation kwarg.
-The ablation/back-bisection counterpart
-:class:`~orpheus.sn.spatial.boundary_face_flux.CellCenter` ships
-alongside :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`
-to reproduce the pre-Phase-A Defect-1 behaviour on demand.  See
-:mod:`orpheus.sn.spatial.boundary_face_flux` for the full module
-docstring and references.
-
-The default boundary face-flux strategy is set on the
-:class:`~orpheus.sn.geometry.SNMesh` instance (parallel to the
-cell-update strategy):
-``SNMesh(mesh, quad, boundary_face_flux=DDExtrapolation())``.  The
-Cartesian path is unaffected — the upwind FD stencil there has no
-symmetric closure to break — and ignores this attribute.
+See :ref:`phase-c-sweep-frame-matvec` for the replacement
+architecture. The Phase A subsection is preserved as historical
+context for the empirical-defects-investigation reasoning chain.
 
 .. _sn-pole-angular-closure-protocol:
 
@@ -2386,6 +2333,160 @@ aligns the apply matvec's spatial closure with the sweep's WDD
 form, at which point
 :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
 becomes the natural default.
+
+.. _phase-c-sweep-frame-matvec:
+
+Sweep-frame apply matvec (Issue #168 Phase C)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Phase C resumes the spatial-closure alignment that Phase B identified
+as the load-bearing precondition for the curvilinear-default flip.
+The :func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
+and ``_cylindrical`` matvecs are rewritten as **one sweep iteration
+semantically**:
+
+#. For each bulk direction (outward :math:`\mu \ge 0` then inward
+   :math:`\mu < 0`), the WDD diamond closure
+   :math:`\psi^{\text{face}}_{\text{out}} = 2\,\psi^{\text{cell}}
+   - \psi^{\text{face}}_{\text{in}}` propagates the face flux
+   cell-by-cell along the direction's DAG order
+   (:meth:`~orpheus.sn.geometry.SNMesh.iter_cells_by_direction`,
+   added in Phase C).
+#. The BC trace law owns the boundary edge:
+   ``bc_outer.apply(outflow_face)`` is called once per matvec on the
+   WDD-propagated outflow face values — honouring the §16A.3
+   contract that the inflow trace equals the BC operator applied to
+   the outflow trace.
+#. The angular redistribution stays via the Phase B
+   :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+   strategy.
+
+Three additional architectural changes ship with the rewrite:
+
+* :func:`~orpheus.sn.operator.solution_to_angular_flux_spherical`
+  returns a single ``fi`` array (the Phase A
+  ``(fi, boundary_face_flux)`` companion array retires).
+* Phase A's
+  :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
+  Protocol **retires entirely** — the boundary-face closure is now
+  inside the sweep-frame WDD propagation chain. The 21 foundation
+  tests under :file:`tests/sn/spatial/test_boundary_face_flux.py`
+  retire with the Protocol.
+* :class:`~orpheus.sn.geometry.SNMesh` no longer accepts the
+  ``boundary_face_flux=`` constructor field.
+
+.. _phase-c-apply-sweep-equivalence:
+
+apply ↔ sweep structural equivalence
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Under the sweep-frame architecture the apply matvec and the sweep
+consume the same primitives (WDD diamond + ``iter_cells_by_direction``
++ BC trace law applied at the boundary edge). The face-flux
+propagation identity therefore holds by construction; foundation
+tests pin it via ``np.array_equal`` on repeated apply calls and on
+the dispatcher-vs-direct paths
+(:file:`tests/sn/test_phase_c_gates.py`).
+
+.. _bc-trace-contract-respected-by-matvec:
+
+BC trace contract respected by matvec
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The :doc:`boundary_conditions` §16A.3 affine BC form
+:math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q` requires the BC
+operator to consume the boundary face TRACE
+(:math:`\gamma_+ \psi`), not interior cell-centre approximations.
+The Phase C matvec honours this contract: the realised BC operator
+``bc_outer.apply(outflow_at_boundary)`` consumes the WDD-propagated
+outflow face vector and produces the inflow face vector that the
+inward sweep consumes. Pinned by foundation tests confirming
+``apply(0) = 0`` under vacuum + reflective BCs and confirming that
+under vacuum BC a flat cell-centre :math:`\psi` produces a
+non-zero residual (the BC physically removes the inflow).
+
+.. _sn-mms-spherical-aniso-spatial-convergence:
+
+Spherical anisotropic-ansatz MMS convergence (Phase C)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Gate 3.1 (plan §5) verifies the spatial convergence rate on the
+:math:`\psi_{\text{chosen}} = (A(r) + B(r)\,\mu)/W` ansatz that
+activates the angular redistribution term (avoiding Mode 7 of
+``vv-principles``: an isotropic-by-construction MMS that would
+null the curvilinear sweep's hardest math). With the curvilinear
+default
+:class:`~orpheus.sn.spatial.pole_angular_closure.LegacyTauSymmetricInterpolation`
+the rate stays at the pre-Phase-C ~:math:`\mathcal{O}(h^{1.3})`
+profile (the underlying ERR-026 flux-shape drift survives Phase C's
+spatial-closure alignment when the angular default is not flipped).
+Gate 3.1 is therefore marked ``xfail`` pending Phase D's
+pole-spatial-closure refinement.
+
+.. _sn-mms-cylindrical-aniso-spatial-convergence:
+
+Cylindrical anisotropic-ansatz MMS convergence (Phase C)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Gate 3.2 — cylindrical analogue of Gate 3.1. Same xfail rationale:
+the spatial-closure alignment is necessary but not sufficient for
+:math:`\mathcal{O}(h^2)` convergence until the angular default
+flips to MorelMontryAngularSweep.
+
+.. _sn-curvilinear-homogeneous-kinf-recovery:
+
+Homogeneous-reflective k\ :sub:`∞` recovery (Phase C)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Gate 4.1 (plan §5) — 2G homogeneous reflective sphere recovers the
+analytical :math:`k_\infty = \nu\Sigma_f / \Sigma_a` from
+:func:`~orpheus.derivations.common.eigenvalue.kinf_homogeneous` to
+rtol :math:`\le 5 \times 10^{-4}`. The eigenvalue is shape-
+independent (a material-property ratio of two volume-weighted
+integrals), so even on the ERR-026-affected curvilinear sweep the
+:math:`k_\infty` converges cleanly. Passes under Phase C's
+sweep-frame matvec; pinned at
+:func:`tests.sn.test_phase_c_crosscheck.test_sn_spherical_homogeneous_kinf_recovery_2g`.
+
+.. _sn-curvilinear-trajectory-resolvent-crosscheck:
+
+Trajectory-resolvent cross-check (Phase C → Phase D)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Gate 4.2 (plan §5) — fixed-source SN flux shape vs the
+structurally-independent trajectory_resolvent Green's-function
+reference. The bare function entry points
+(:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder`,
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere_mr`,
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder_mr`)
+cover 5 of the 6 deleted curvilinear regression snapshots at
+machine-precision-class precision per plan §1; the test placeholder
+at
+:func:`tests.sn.test_phase_c_crosscheck.test_sn_cylinder_homogeneous_vs_trajectory_resolvent_1g`
+is marked SKIP pending Phase D's pole-spatial-closure alignment
+that closes ERR-026 fully — at which point SN flux shape converges
+cleanly to the trajectory_resolvent reference at rtol :math:`\le
+5 \times 10^{-4}`.
+
+ERR-026 closure status (Phase C — sweep-frame matvec aligned)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Phase C ships the architectural alignment — sweep-frame matvec
+with WDD spatial closure + BC trace law at the boundary edge +
+retired Phase A BoundaryFaceFlux Protocol. The empirical Gate 1.1
+probe with
+:class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+FAILED on sphere (the pole-face WDD initial condition interacts
+with the canonical Hébert §3.9.4 angular recurrence in a way that
+breaks the per-ordinate flat-flux invariant; cylindrical levels
+happen to telescope cleanly). Per user constraint 7, the
+curvilinear default stays
+:class:`~orpheus.sn.spatial.pole_angular_closure.LegacyTauSymmetricInterpolation`
+and the four ``xfail-strict`` curvilinear MMS tripwires STAY xfail.
+ERR-026 remains at **PARTIAL CLOSURE** through Phase C — the
+spatial-closure architecture is aligned (the load-bearing Phase B
+precondition); the pole-face spatial closure refinement is the
+Phase D scope.
 
 Starting Direction
 -------------------

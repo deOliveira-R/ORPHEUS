@@ -208,6 +208,21 @@ Three remarks make this form load-bearing:
    weak-form realizer might dispatch on the geometry / response /
    source independently.
 
+.. note::
+
+   **SN apply matvec honours the affine BC contract (Issue #168
+   Phase C, 2026-05-12).** The
+   :func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
+   and ``_cylindrical`` matvecs were rewritten as one sweep
+   iteration semantically: the BC trace law is applied ONCE per
+   matvec at the boundary edge on the **WDD-propagated outflow
+   face values** (:math:`\gamma_+ \psi`), not on cell-centre
+   approximations. The pre-Phase-C cell-centre-as-face-value
+   contamination — and the Phase A ``BoundaryFaceFlux`` Protocol
+   that patched it — both retire in Phase C. See
+   :ref:`bc-trace-contract-respected-by-matvec` for the
+   verification gate that pins this contract.
+
 
 Layer 1 — trace structure
 -------------------------
