@@ -67,11 +67,18 @@ ordinates :math:`n = 1, \ldots, N` — the same algebra the
 runs inside the sweep, lifted up to operator level so the apply
 matvec and the sweep solve the **same** discrete fixed point.
 
-Architectural mirror of BoundaryFaceFlux (Phase A)
-==================================================
+Architectural mirror of BoundaryFaceFlux (Phase A, retired in Phase C)
+======================================================================
 
-This module mirrors :mod:`orpheus.sn.spatial.boundary_face_flux`
-(Issue #168 Phase A) at the architectural level:
+This module's Protocol shape was modelled after the Phase A
+``BoundaryFaceFlux`` Protocol (which has since been **retired** by
+Issue #168 Phase C — see commit ``3fd1302``).  ``PoleAngularClosure``
+stays because the sphere centre is **intrinsic geometry** (a
+coordinate-system singularity), not an external boundary; the
+Phase C sweep-frame matvec subsumed ``BoundaryFaceFlux`` but the
+pole-angular closure is a separate concern that remains
+strategy-parametrised.  The Phase A architectural mirror at the
+time of writing was:
 
 * ``@runtime_checkable Protocol`` for the strategy contract;
 * concrete ABC :class:`PoleAngularClosureBase` layered on
@@ -134,9 +141,11 @@ References
 See also
 ========
 
-* :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux` —
-  the Phase A boundary-flux Protocol whose architecture this module
-  mirrors.
+* ``orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`` —
+  **RETIRED Phase C** (Issue #168, commit ``3fd1302``).  The Phase A
+  boundary-flux Protocol whose architecture this module mirrors; the
+  sweep-frame matvec rewrite subsumed it.  Retained as a
+  cross-reference for the architectural-mirror pattern only.
 * :class:`~orpheus.sn.spatial.cell_update.CellUpdate` —
   per-cell-update strategy contract; the curvilinear sweep also runs
   the DD angular recurrence inside its

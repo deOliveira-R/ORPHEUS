@@ -70,22 +70,27 @@ def _l2_1d(phi_num: np.ndarray, phi_ref: np.ndarray, volumes: np.ndarray) -> flo
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "ERR-026 — curvilinear sweep WDD wrong fixed point + curvilinear "
-        "FD operator boundary face-flux approximation is first-order "
-        "accurate on non-constant solutions.  Wave E Round 3 shipped "
-        "the BC-aware FD operator (load-bearing infrastructure: "
-        "solution_to_angular_flux* + the matvec helpers consume "
-        "sn_mesh.bc_* via BoundaryOperator.apply), which fixes "
-        "the vacuum-BC slot fill that Round 2 identified as broken; "
-        "but the FD operator's cell-center-as-face-value approximation "
-        "at the outer boundary regresses the MMS convergence rate "
-        "from the sweep's ~O(h^1.3) (ERR-026 benign mode) to ~O(h^1) "
-        "if used as the default.  Round 3 therefore keeps "
-        "``inner_solver=\"source_iteration\"`` as the default for all "
-        "geometries; ``\"krylov\"`` is opt-in and correct for "
-        "constant-source problems but not the right default for MMS. "
-        "Full ERR-026 closure on MMS depends on a follow-up that "
-        "extrapolates the curvilinear outer-face flux at second order."
+        "ERR-026 — curvilinear flux-shape MMS convergence rate. "
+        "Wave H Phase A/B shipped the BC-aware FD operator + 3-strategy "
+        "PoleAngularClosure Protocol; Wave H Phase C (commits eae6f05.."
+        "814a895) shipped the sweep-frame matvec rewrite that retires "
+        "the Phase A BoundaryFaceFlux Protocol entirely and routes the "
+        "BC trace law to the boundary edge on WDD-propagated outflow "
+        "face values (honouring the §16A.3 affine BC contract). The "
+        "spatial-closure architecture is now aligned. However, the "
+        "spherical pole-face WDD initial condition with the canonical "
+        "Hébert §3.9.4 angular recurrence still breaks Gate 1.1 "
+        "per-ordinate flat-flux invariant on sphere MMS — cylindrical "
+        "Gate 1.1 PASSES (the per-level α-dome telescoping absorbs "
+        "the discrepancy that the spherical case lacks at r=0). Per "
+        "the user's 2026-05-10 sequencing decision, the angular "
+        "default flip to MorelMontryAngularSweep + curvilinear Krylov "
+        "default + this marker removal are coordinated as a single "
+        "Phase D change. Full ERR-026 closure on MMS depends on Issue "
+        "#192 Phase D — the Carlson coupled-pole sweep (Hébert §3.9.4 "
+        "Eqs. 3.432-3.435) where the outward-ordinate pole-face "
+        "initial condition is determined by the inward-ordinate pole-"
+        "face propagation (the continuous symmetry condition at r=0)."
     ),
 )
 @pytest.mark.verifies(
@@ -136,9 +141,15 @@ def test_sn_spherical_aniso_mms_converges_second_order():
     strict=True,
     reason=(
         "ERR-026 — same root cause as the spherical anisotropic case. "
-        "Wave E Round 3 shipped the BC-aware FD operator infrastructure; "
-        "full ERR-026 MMS closure depends on a follow-up that "
-        "extrapolates the curvilinear outer-face flux at second order."
+        "Wave H Phase A/B + Phase C (commits eae6f05..814a895, "
+        "2026-05-12) shipped the spatial-closure architectural "
+        "alignment (sweep-frame matvec + §16A.3 trace contract + "
+        "BoundaryFaceFlux Protocol retirement). Cylindrical Gate 1.1 "
+        "passes under canonical M-M angular closure; this xfail "
+        "stays coupled to the spherical case's Phase D outcome "
+        "because the default flip is a coordinated change. Full "
+        "ERR-026 MMS closure depends on Issue #192 Phase D — Carlson "
+        "coupled-pole sweep at r=0 (Hébert §3.9.4 Eqs. 3.432-3.435)."
     ),
 )
 @pytest.mark.verifies(

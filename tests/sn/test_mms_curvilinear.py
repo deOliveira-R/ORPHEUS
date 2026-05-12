@@ -44,11 +44,21 @@ def _l2_1d(phi_num: np.ndarray, phi_ref: np.ndarray, volumes: np.ndarray) -> flo
     reason=(
         "ERR-026 — same root cause as the anisotropic curvilinear MMS "
         "(see tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py "
-        "for the full closure narrative).  Wave E Round 3 shipped the "
-        "BC-aware FD operator infrastructure; full ERR-026 closure on "
-        "MMS depends on a follow-up that fixes the curvilinear FD "
-        "operator's outer-face flux treatment (currently first-order "
-        "on non-constant solutions)."
+        "for the full closure narrative).  Wave H Phase A/B shipped the "
+        "BC-aware FD operator infrastructure; Wave H Phase C "
+        "(commits eae6f05..814a895) shipped the sweep-frame matvec "
+        "rewrite + retired Phase A's BoundaryFaceFlux Protocol + "
+        "honored the §16A.3 BC trace contract — but the spherical "
+        "pole-face WDD initial condition interacts with the canonical "
+        "Hébert §3.9.4 angular recurrence in a way that still breaks "
+        "Gate 1.1 per-ordinate flat-flux invariant on sphere MMS "
+        "(cylindrical Gate 1.1 PASSES; the cylindrical per-level "
+        "α-dome telescoping happens to absorb the discrepancy).  "
+        "Full ERR-026 closure on MMS depends on Issue #192 Phase D — "
+        "the Carlson coupled-pole sweep where the outward-ordinate "
+        "pole-face initial condition is determined by the inward-"
+        "ordinate pole-face propagation (the continuous symmetry "
+        "condition at r=0)."
     ),
 )
 @pytest.mark.verifies(
@@ -95,6 +105,14 @@ def test_sn_spherical_mms_converges_second_order():
     strict=True,
     reason=(
         "ERR-026 — same root cause as the spherical isotropic MMS. "
+        "Cylindrical Gate 1.1 PASSES under canonical M-M angular "
+        "closure (the per-level α-dome telescoping absorbs the "
+        "pole-recurrence discrepancy that breaks sphere); this test "
+        "stays xfail because the underlying spherical-pole flux-"
+        "shape ERR-026 bug is what governs the default flip decision "
+        "for both geometries. Issue #192 Phase D ships the pole-face "
+        "spatial closure refinement + the default flip + this test's "
+        "marker removal as a single coordinated change. "
         "See tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py "
         "for the full closure narrative."
     ),

@@ -1378,9 +1378,10 @@ What Phase C ships (architectural):
 - BC trace law applied at the boundary edge on the WDD-propagated
   outflow face — honours the §16A.3 contract structurally.
 - Phase A BoundaryFaceFlux Protocol retired entirely.
-- 5 of 6 curvilinear regression snapshots regenerated against the
-  Phase C operator (the 6th, sphere_2g_p1_aniso, is awaiting
-  separate generation outside this commit's window).
+- All 6 curvilinear regression snapshots regenerated against the
+  Phase C operator (commit `7497cec` completed the
+  `sphere_2g_p1_aniso` regen after the catalog narrative landed in
+  `d445a8f`).
 
 What Phase C leaves open (Phase D scope):
 
