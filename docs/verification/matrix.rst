@@ -414,6 +414,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-greens-V-alpha-2``, 4
    ``peierls-vacuum-bc-slab``, 4
    ``peierls-white-bc-slab``, 4
+   ``phase-f-carlson-seed-source-driven``, 4
+   ``phase-f-q-bar-twin-forms``, 4
    ``sn-mms-hetero-psi``, 4
    ``sn-mms-hetero-qext``, 4
    ``two-group-charpoly``, 4
@@ -510,7 +512,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **38** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **40** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``bc-rank-n-tensor-decomposition``
@@ -539,6 +541,8 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``phase-c-streaming-spherical``
 - ``phase-c-wdd-oscillation``
 - ``phase-c-wdd-recurrence``
+- ``phase-f-q-1d-decomposition``
+- ``phase-f-source-eq-sigt-phi0``
 - ``pole-mm-recurrence``
 - ``spectrum-case-eigenfunction-equation``
 - ``spectrum-case-eigenfunction-explicit``

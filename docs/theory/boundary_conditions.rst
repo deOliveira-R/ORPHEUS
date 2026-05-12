@@ -1996,6 +1996,126 @@ is the outer cell-centre value which is **not** zero on a non-trivial
 matching, not just shape matching.
 
 
+.. _bc-phase-f-three-bc-applies-per-sweep-iteration:
+
+Phase F extension — BC applies in the SI sweep path
+====================================================
+
+Phase D (Issue #168 Phase D, :ref:`bc-phase-d-two-bc-applies-per-matvec`
+above) instituted the *two BC apply calls per curvilinear matvec*
+contract on the apply-matvec path
+(:meth:`~orpheus.sn.operator.SNStreamingOperator.apply`).  Phase F
+(Issue #168 Phase F, 2026-05-12, also landed on
+``refactor/sn-operator-algebra``) propagates the same pattern to the
+**SI/sweep path** (:func:`~orpheus.sn.sweep.transport_sweep` →
+:func:`~orpheus.sn.sweep._sweep_1d_spherical` /
+``_sweep_1d_cylindrical``).  See
+:ref:`sn-phase-f-carlson-sweep-path-backport` in
+:doc:`discrete_ordinates` for the math and the
+twin-path-fix-incompleteness anti-pattern that motivated the
+backport.
+
+The post-Phase-F SI sweep iteration applies the BC operator in
+**three** distinct invocations per sweep call — one for the Phase F
+Carlson seed, plus :math:`N_{\text{inward ordinates}}` legacy inflow
+applications inside the per-ordinate loop (which are not
+fundamentally new — they predated Phase D and Phase F).  The
+load-bearing addition is the **Phase F seed call**:
+
+.. list-table:: BC apply call sequence inside one SI sphere sweep
+   :header-rows: 1
+   :widths: 12 28 30 30
+
+   * - Order
+     - Caller / purpose
+     - Input shape & meaning
+     - Output use
+   * - **#1**
+     - Phase F Carlson seed
+       (:func:`~orpheus.sn.sweep._sweep_1d_spherical` early in
+       the call, before the per-ordinate loop)
+     - ``(N, ng)`` — persistent outer-face outflow buffer
+       ``bc_outer`` carrying the previous outward sweep's
+       outgoing flux per ordinate (zero on the first SI
+       iteration)
+     - Extract the most-inward-ordinate row; scalar feeds into
+       :func:`carlson_inward_sweep_from_source` as
+       ``bc_outer_value`` (the seed for Hébert (3.434)–(3.435)
+       at the outer face)
+   * - **#2 … #N₋**
+     - Per-inward-ordinate inflow read inside the
+       per-ordinate sweep loop
+     - ``(N, ng)`` — same ``bc_outer`` buffer (re-read each
+       iteration, since intervening outward ordinates may have
+       updated it)
+     - Read the inflow row ``psi_in_full[n]`` for the current
+       inward ordinate :math:`\mu_n < 0` as the spatial
+       sweep's incoming flux
+
+**Comparison with the apply-matvec twin** (per
+:ref:`bc-phase-d-two-bc-applies-per-matvec`):
+
+* The apply matvec consolidates its inflow logic into the **single
+  Phase C trace law call** at the boundary edge — the BC operator
+  is invoked once on the WDD-propagated outflow trace, producing
+  the inflow trace per the §16A.3 affine-bc-form contract for ALL
+  ordinates simultaneously.
+* The SI sweep, by contrast, processes ordinates **sequentially**;
+  each inward ordinate independently reads its inflow row from
+  the persistent ``bc_outer`` buffer.  The per-ordinate apply
+  calls are **not** a §16A.3 trace-law application of the same
+  semantic kind — they are *consumer reads* of an already-updated
+  buffer.  The Phase F seed call (Call #1) is the only call that
+  semantically mirrors Phase D's apply-matvec Call #1 (a
+  Phase-specific use of the BC operator as a linear-in-:math:`\psi`
+  construction of the inward-zero-weight ordinate's outer-face
+  flux).
+
+The Phase F seed call's role is exactly analogous to the
+apply-matvec's Phase D Call #1 (per the
+:ref:`bc-phase-d-two-bc-applies-per-matvec` table): a
+linear-in-:math:`\psi` extraction of the inward-zero-weight
+ordinate's outer-face flux.  Vacuum BC zeros it; reflective BC
+yields the most-inward ordinate's mirrored outflow.  In both
+contexts the BC operator's **linearity** is the load-bearing
+contract — the Phase F helper
+:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
+must remain linear in the input to preserve the SI loop's
+fixed-point convergence properties.
+
+The cylindrical path has the analogous structure with a
+**per-:math:`\mu`-level** seed call: one BC apply per level,
+each invocation extracting the level-specific most-inward
+ordinate's row from the same persistent ``bc_outer_cyl``
+buffer.  The
+:func:`~orpheus.sn.sweep._sweep_1d_cylindrical` body invokes
+the BC operator ``len(quad.level_indices) + N_inward`` times
+total per sweep — once per :math:`\mu`-level for the Phase F
+seed, plus once per inward ordinate inside each level's
+azimuthal loop.
+
+Phase F leaves the §16A.3 BC trace contract semantics
+**unchanged**: the SI sweep path does not call the §16A.3 trace
+law application that the apply matvec uses at the boundary
+edge — the SI sweep updates ``bc_outer`` directly from each
+outward ordinate's last visit (line ~593 of
+:file:`orpheus/sn/sweep.py`), then the next inward ordinate
+reads it via ``apply``.  The semantic contract is the same
+(BC operator maps outflow trace :math:`\gamma_+\psi` to inflow
+trace :math:`\gamma_-\psi`), but the *invocation pattern* is
+per-ordinate sequential rather than once-per-matvec
+collective.
+
+No new Gate 1.5 test variant is needed for the Phase F seed
+call.  The Phase F bit-identity test
+:func:`tests.sn.spatial.test_sweep_vs_apply_consistency`
+(57 foundation tests) pins that the sweep-path's
+``bc_outer_value`` extraction matches the apply-path's Phase D
+Call #1 result on every test configuration — the structural
+invariant that the two paths' Carlson seeds agree on matching
+inputs subsumes the BC-apply-input pinning.
+
+
 .. _bc-curvilinear-realizer-unification:
 
 Curvilinear realizer unification (Issue #188 + #176 close-out)

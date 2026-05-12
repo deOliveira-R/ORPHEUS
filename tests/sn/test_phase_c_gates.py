@@ -563,6 +563,8 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
 
 @pytest.mark.l0
 @pytest.mark.verifies("dd-curvilinear-scalar")
+@pytest.mark.verifies("phase-f-carlson-seed-source-driven")
+@pytest.mark.verifies("phase-f-q-bar-twin-forms")
 @pytest.mark.catches("ERR-026")
 @pytest.mark.parametrize("sigma_t_value", [0.5, 1.5])
 @pytest.mark.parametrize(
