@@ -55,7 +55,10 @@ from .greens_function_cylinder import (
     derive_T00_equals_P_ss_cylinder,
     derive_alpha_zero_kernel_reduction_cylinder,
     derive_bounce_period_chord_cylinder,
+    derive_homogeneous_limit_reducibility_cylinder_mr,
     derive_operator_constant_trial_closed_cylinder,
+    derive_piecewise_3d_optical_depth_cylinder_mr,
+    derive_two_region_constant_source_consistency_cylinder_mr,
 )
 from .greens_function_hollow_sphere import (
     derive_alpha_zero_kernel_reduction_hollow_sphere,
@@ -83,6 +86,10 @@ __all__ = [
     "derive_alpha_zero_kernel_reduction_cylinder",
     "derive_bounce_period_chord_cylinder",
     "derive_operator_constant_trial_closed_cylinder",
+    # Phase 1b MR extensions
+    "derive_homogeneous_limit_reducibility_cylinder_mr",
+    "derive_piecewise_3d_optical_depth_cylinder_mr",
+    "derive_two_region_constant_source_consistency_cylinder_mr",
     # greens_function_slab
     "derive_T00_equals_P_ss_slab",
     "derive_alpha_zero_kernel_reduction_slab",

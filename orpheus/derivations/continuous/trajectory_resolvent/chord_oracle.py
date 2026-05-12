@@ -127,6 +127,7 @@ __all__ = [
     "SphereChordOracle",
     "MultiRegionSphereChordOracle",
     "CylinderChordOracle",
+    "MultiRegionCylinderChordOracle",
     "SlabAsymmetricChordOracle",
     "HollowSphereChordOracle",
     "AnnulusChordOracle",
@@ -663,6 +664,317 @@ class CylinderChordOracle:
                         F=F, B=B,
                         tau_first_leg=sigma_t * L_first_3D,
                         tau_period=sigma_t * L_period_3D,
+                        alpha=alpha,
+                    )
+
+        return psi_new
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Multi-region cylinder oracle — piecewise-Σ_t decomposition in 2D
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _region_at_radius_cyl(r: float, radii: np.ndarray) -> int:
+    """Return region index containing radius :math:`r` for cylinder MR.
+
+    Convention: region :math:`k` occupies :math:`(\\text{radii}[k-1],
+    \\text{radii}[k]]` for :math:`k \\ge 1` and :math:`(0,
+    \\text{radii}[0]]` for :math:`k = 0`. Returns the outermost region
+    at :math:`r \\ge \\text{radii}[-1]` (clipped) so the function is
+    well-defined at the surface.
+    """
+    idx = int(np.searchsorted(radii, r, side="left"))
+    return min(idx, len(radii) - 1)
+
+
+def _cylinder_trajectory_segments_2d(
+    r_start: float, phi_az: float, R: float, radii: np.ndarray,
+) -> tuple[list[tuple[float, float, int]], float]:
+    r"""First-leg 2D chord segments crossing region boundaries (cylinder MR).
+
+    The 2D in-plane trajectory parametrised by 2D arclength
+    :math:`s_{\rm 2D}`:
+
+    .. math::
+
+        r(s_{\rm 2D})^{2} = r_{\rm start}^{2}
+                          - 2\,r_{\rm start}\,\cos\varphi_{\rm az}\,s_{\rm 2D}
+                          + s_{\rm 2D}^{2}.
+
+    Crosses interior :math:`R_k` at
+    :math:`s_{\rm 2D} = r_{\rm start}\cos\varphi_{\rm az}
+    \pm \sqrt{R_k^{2} - r_{\rm start}^{2}\sin^{2}\varphi_{\rm az}}`
+    (real iff :math:`R_k^{2} \ge r_{\rm start}^{2}\sin^{2}\varphi_{\rm az}`,
+    i.e. iff :math:`R_k \ge b` with :math:`b = r_{\rm start}|\sin
+    \varphi_{\rm az}|`).
+
+    Returns the per-segment list ``[(s_a, s_b, region_idx)]`` in 2D
+    arclength units plus the total 2D first-leg length
+    :math:`L_{\rm 2D, first}`.
+    """
+    sin_phi = np.sin(phi_az)
+    cos_phi = np.cos(phi_az)
+    disc = R * R - r_start * r_start * sin_phi * sin_phi
+    L_2D_first = r_start * cos_phi + np.sqrt(max(disc, 0.0))
+    crossings = {0.0, L_2D_first}
+    # Interior boundaries
+    b_sq = r_start * r_start * sin_phi * sin_phi
+    for R_k in radii[:-1]:
+        disc_k = R_k * R_k - b_sq
+        if disc_k <= 0:
+            continue
+        sqrt_disc_k = np.sqrt(disc_k)
+        for s in (
+            r_start * cos_phi + sqrt_disc_k,
+            r_start * cos_phi - sqrt_disc_k,
+        ):
+            if 1e-12 < s < L_2D_first - 1e-12:
+                crossings.add(s)
+    crossings = sorted(crossings)
+
+    segments: list[tuple[float, float, int]] = []
+    for i in range(len(crossings) - 1):
+        s_a, s_b = crossings[i], crossings[i + 1]
+        s_mid = 0.5 * (s_a + s_b)
+        r_mid_sq = (
+            r_start * r_start
+            - 2.0 * r_start * cos_phi * s_mid
+            + s_mid * s_mid
+        )
+        r_mid = np.sqrt(max(0.0, r_mid_sq))
+        region_idx = _region_at_radius_cyl(r_mid, radii)
+        segments.append((s_a, s_b, region_idx))
+    return segments, L_2D_first
+
+
+def _cylinder_chord_segments_2d(
+    b: float, R: float, radii: np.ndarray,
+) -> tuple[list[tuple[float, float, int]], float]:
+    r"""Bounce-period 2D chord segments at impact parameter :math:`b`.
+
+    Parametrisation:
+    :math:`r_{\rm chord}(s_{\rm 2D})^{2} = b^{2} + (s_{\rm 2D} -
+    L_{\rm 2D, period}/2)^{2}` for :math:`s_{\rm 2D}\in[0, L_{\rm 2D,
+    period}]`, with :math:`L_{\rm 2D, period} = 2\sqrt{R^{2} - b^{2}}`.
+
+    Crosses :math:`R_k` (for :math:`R_k > b`) at
+    :math:`s_{\rm 2D} = L_{\rm 2D, period}/2 \pm \sqrt{R_k^{2} - b^{2}}`.
+    Returns the per-segment list and :math:`L_{\rm 2D, period}` (zero
+    if :math:`b \ge R`).
+    """
+    if b >= R:
+        return [], 0.0
+    L_p = 2.0 * np.sqrt(R * R - b * b)
+    crossings = {0.0, L_p}
+    for R_k in radii[:-1]:
+        if R_k <= b:
+            continue
+        sqrt_disc = np.sqrt(R_k * R_k - b * b)
+        for s in (L_p / 2.0 - sqrt_disc, L_p / 2.0 + sqrt_disc):
+            if 1e-12 < s < L_p - 1e-12:
+                crossings.add(s)
+    crossings = sorted(crossings)
+    segments: list[tuple[float, float, int]] = []
+    for i in range(len(crossings) - 1):
+        s_a, s_b = crossings[i], crossings[i + 1]
+        s_mid = 0.5 * (s_a + s_b)
+        r_mid_sq = b * b + (s_mid - L_p / 2.0) ** 2
+        r_mid = np.sqrt(max(0.0, r_mid_sq))
+        region_idx = _region_at_radius_cyl(r_mid, radii)
+        segments.append((s_a, s_b, region_idx))
+    return segments, L_p
+
+
+@dataclass(frozen=True)
+class MultiRegionCylinderChordOracle:
+    r"""Chord oracle for a piecewise-homogeneous cylinder with concentric
+    annular regions (Phase 1b extension of :class:`CylinderChordOracle`).
+
+    Mirrors :class:`MultiRegionSphereChordOracle` for cylinder geometry
+    while preserving the cylinder's 3D phase-space :math:`(r, \mu_{\rm
+    axial}, \varphi_{\rm az})`. Each chord (first-leg and bounce-period)
+    is decomposed in 2D arclength :math:`s_{\rm 2D}` against the interior
+    region circles; per-region :math:`\Sigma_{t,k}` is applied to each
+    segment's contribution to the **3D** optical-depth + source-line
+    integrals via the universal lift :math:`s_{\rm 3D} = s_{\rm 2D}/
+    \sqrt{1 - \mu_{\rm axial}^{2}}`.
+
+    The shared :func:`apply_variant_alpha_closure` then sees the cumulative
+    **3D** optical depths as if the medium were homogeneous — only the
+    rank-1 closure algebra matters, not the per-region structure.
+
+    Why 2D segmentation: the cylinder's impact parameter
+    :math:`b = r\,|\sin\varphi_{\rm az}|` and the interior region radii
+    :math:`R_k` live in the in-plane (2D) geometry; the axial cosine
+    :math:`\mu_{\rm axial}` is a multiplicative rescaling
+    (`inv_s_in_plane`) applied after segmentation, not before. This
+    matches the homogeneous :class:`CylinderChordOracle` exactly when
+    all :math:`\Sigma_{t,k}` are equal.
+
+    Tangential grazing-ray closure: as :math:`\varphi_{\rm az} \to
+    \pm\pi/2`, the 2D bounce-period chord :math:`L_{\rm 2D, period}
+    \to 0` so every segment length :math:`\to 0` and both :math:`B \to
+    0` and :math:`\tau_{\rm period} \to 0`. The rank-1 closure
+    :math:`\alpha B/(1 - \alpha e^{-\tau_{\rm period}})` reduces to a
+    region-weighted average — the V_α1_cyl algebraic-cancellation
+    invariant generalises piecewise without NaN.
+
+    Attributes
+    ----------
+    r_nodes : (n_r,) ndarray
+        Radial Gauss-Legendre nodes on :math:`(0, R)`.
+    mu_axial_nodes : (n_mu,) ndarray
+    phi_az_nodes : (n_phi,) ndarray
+    R : float
+        Outer radius (= ``radii[-1]``).
+    radii : (n_regions,) ndarray
+        Region outer radii, ascending; ``radii[-1] = R``.
+    sigma_t_per_region : (n_regions,) ndarray
+        Per-region :math:`\Sigma_{t,g}` for THIS group. Mirrors the
+        sphere MR oracle's signature.
+    alpha : float
+        Surface specular reflectivity at :math:`r = R`.
+    """
+
+    r_nodes: np.ndarray
+    mu_axial_nodes: np.ndarray
+    phi_az_nodes: np.ndarray
+    R: float
+    radii: np.ndarray
+    sigma_t_per_region: np.ndarray
+    alpha: float
+
+    def apply_operator(
+        self,
+        source_profile: np.ndarray,
+        sigma_t: float,
+        *,
+        n_traj_quad: int,
+    ) -> np.ndarray:
+        r"""MR-cylinder Variant α operator. See
+        :meth:`ChordOracle.apply_operator`.
+
+        The ``sigma_t`` argument is IGNORED for MR (mirroring the sphere
+        MR oracle) — the per-region :math:`\Sigma_{t,k}` carried by
+        :attr:`sigma_t_per_region` is used instead. Argument is present
+        for Protocol conformance.
+
+        Structurally equivalent body to :meth:`CylinderChordOracle.
+        apply_operator` with the addition of per-region segment loops
+        for both the first-leg and bounce-period optical-depth +
+        source-line integrals. The 3D arclength lift
+        :math:`s_{\rm 3D} = s_{\rm 2D}/\sqrt{1 - \mu_{\rm axial}^{2}}`
+        is the same as the homogeneous cylinder oracle — segmentation
+        happens in 2D before the axial lift.
+        """
+        r_nodes = self.r_nodes
+        mu_axial_nodes = self.mu_axial_nodes
+        phi_az_nodes = self.phi_az_nodes
+        R = self.R
+        radii = self.radii
+        sigma_t_per_region = self.sigma_t_per_region
+        alpha = self.alpha
+
+        source_interp = CubicSpline(r_nodes, source_profile, extrapolate=True)
+
+        s_quad_raw, w_quad_raw = np.polynomial.legendre.leggauss(n_traj_quad)
+        s_unit = 0.5 * (s_quad_raw + 1.0)
+        w_unit = 0.5 * w_quad_raw
+
+        n_r = len(r_nodes)
+        n_mu = len(mu_axial_nodes)
+        n_phi = len(phi_az_nodes)
+        psi_new = np.zeros((n_r, n_mu, n_phi))
+
+        for i in range(n_r):
+            r = r_nodes[i]
+            for q_idx in range(n_mu):
+                mu_axial = mu_axial_nodes[q_idx]
+                s_in_plane = np.sqrt(max(1.0 - mu_axial * mu_axial, 1e-300))
+                inv_s_in_plane = 1.0 / s_in_plane
+
+                for p_idx in range(n_phi):
+                    phi_az = phi_az_nodes[p_idx]
+                    cos_phi = np.cos(phi_az)
+                    sin_phi = np.sin(phi_az)
+
+                    # ─── First-leg piecewise integration ───────────
+                    traj_segs, L_2D_first = (
+                        _cylinder_trajectory_segments_2d(
+                            r, phi_az, R, radii,
+                        )
+                    )
+                    F = 0.0
+                    tau_back = 0.0  # cumulative 3D optical depth
+                    for s_a, s_b, region_idx in traj_segs:
+                        sigma_t_k = float(sigma_t_per_region[region_idx])
+                        seg_len_2D = s_b - s_a
+                        seg_len_3D = seg_len_2D * inv_s_in_plane
+                        s_pts_2D = s_a + s_unit * seg_len_2D
+                        # 3D optical depth at each quadrature point
+                        tau_at_pts = (
+                            tau_back
+                            + sigma_t_k * (s_pts_2D - s_a) * inv_s_in_plane
+                        )
+                        r_traj_sq = (
+                            r * r - 2.0 * r * cos_phi * s_pts_2D
+                            + s_pts_2D * s_pts_2D
+                        )
+                        r_traj = np.sqrt(np.clip(r_traj_sq, 0.0, R * R))
+                        integrand = (
+                            source_interp(r_traj) * np.exp(-tau_at_pts)
+                        )
+                        # F is a 3D path-length-weighted integral:
+                        #   F = ∫ source(r(s_2D)) e^{-τ(s_3D)}
+                        #         · (ds_3D/ds_2D) ds_2D
+                        # ds_3D/ds_2D = inv_s_in_plane (constant per ray)
+                        # which factors out — bring it into seg_len_3D.
+                        F += seg_len_3D * np.sum(w_unit * integrand)
+                        tau_back += sigma_t_k * seg_len_3D
+
+                    tau_first_leg = tau_back
+
+                    if alpha == 0.0:
+                        psi_new[i, q_idx, p_idx] = F
+                        continue
+
+                    # ─── Bounce-period piecewise integration ─────────
+                    b = r * abs(sin_phi)
+                    chord_segs, L_2D_period = (
+                        _cylinder_chord_segments_2d(b, R, radii)
+                    )
+                    if L_2D_period <= 0.0:
+                        psi_new[i, q_idx, p_idx] = F
+                        continue
+
+                    B = 0.0
+                    tau_p_partial = 0.0
+                    for s_a, s_b, region_idx in chord_segs:
+                        sigma_t_k = float(sigma_t_per_region[region_idx])
+                        seg_len_2D = s_b - s_a
+                        seg_len_3D = seg_len_2D * inv_s_in_plane
+                        s_pts_2D = s_a + s_unit * seg_len_2D
+                        tau_at_pts = (
+                            tau_p_partial
+                            + sigma_t_k * (s_pts_2D - s_a) * inv_s_in_plane
+                        )
+                        r_chord_sq = (
+                            b * b + (s_pts_2D - L_2D_period / 2.0) ** 2
+                        )
+                        r_chord = np.sqrt(np.clip(r_chord_sq, 0.0, R * R))
+                        integrand = (
+                            source_interp(r_chord) * np.exp(-tau_at_pts)
+                        )
+                        B += seg_len_3D * np.sum(w_unit * integrand)
+                        tau_p_partial += sigma_t_k * seg_len_3D
+
+                    tau_period = tau_p_partial
+
+                    psi_new[i, q_idx, p_idx] = apply_variant_alpha_closure(
+                        F=F, B=B,
+                        tau_first_leg=tau_first_leg,
+                        tau_period=tau_period,
                         alpha=alpha,
                     )
 

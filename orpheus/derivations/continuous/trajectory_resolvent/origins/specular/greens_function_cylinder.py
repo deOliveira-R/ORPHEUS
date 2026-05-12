@@ -534,3 +534,289 @@ def derive_alpha_zero_kernel_reduction_cylinder() -> dict:
         "pass_limit": pass_limit,
         "pass": pass_v_alpha3 and pass_limit,
     }
+
+
+# ───────────────────────────────────────────────────────────────────────
+# Phase 1b extensions — multi-region cylinder Variant α
+#
+# These three SymPy identities ground the MR cylinder lift:
+#
+#   V_α1_cyl_mr   : closed-cylinder MR bounce-sum invariance under
+#                   chord-length partitioning (homogeneous-limit
+#                   reducibility — Gate 1 algebraic ancestor).
+#   V_α1_cyl_mr.b : piecewise-3D optical depth partitioning identity
+#                   :math:`\tau_{\rm period} = \sum_k \Sigma_{t,k}
+#                   \Delta s_{3D,k}` with :math:`s_{3D} = s_{2D}/
+#                   \sqrt{1-\mu_a^2}`.
+#   V_α1_cyl_mr.q : piecewise-source-line integral partitioning identity
+#                   B = Σ_k ∫_{seg_k} q(r(s)) e^{-τ(s)} ds.
+#
+# All three reduce to algebra on the rank-1 closure form and the
+# universal lift inv_s_in_plane = 1/sqrt(1-μ_axial^2).
+# ───────────────────────────────────────────────────────────────────────
+
+
+def derive_homogeneous_limit_reducibility_cylinder_mr() -> dict:
+    r"""V_α1_cyl_mr — multi-region homogeneous-limit reducibility
+    (Gate 1 algebraic ancestor).
+
+    When all per-region :math:`\Sigma_{t,k} = \Sigma_t` are equal, the
+    piecewise-:math:`\tau` accumulator collapses exactly to the
+    homogeneous form regardless of how the chord is partitioned. This
+    identity grounds the MR Gate 1 reducibility claim symbolically: the
+    cylinder MR oracle's per-segment loop is algebraically equivalent
+    to the homogeneous cylinder oracle's single-segment integral when
+    materials are uniform.
+
+    Two SymPy expressions are constructed and shown equal symbolically:
+
+    1. **Piecewise τ sum**: :math:`\tau_{\rm period}^{\rm MR} = \sum_k
+       \Sigma_{t,k} \Delta\ell_{3D,k}` with three segments
+       :math:`(\Delta\ell_1, \Delta\ell_2, \Delta\ell_3)` summing to
+       :math:`L_{\rm period}`.
+    2. **Homogeneous τ**: :math:`\tau_{\rm period}^{\rm MG} = \Sigma_t
+       L_{\rm period}`.
+
+    Under the substitution :math:`\Sigma_{t,1} = \Sigma_{t,2} =
+    \Sigma_{t,3} = \Sigma_t`, both expressions reduce to the same
+    closed form. The simplification is exact (SymPy ``simplify`` resolves
+    to zero difference).
+
+    The same reduction holds for the source-line integral :math:`B`:
+    a piecewise integral over per-segment quadratures collapses to a
+    single integral when the integrand parameters are uniform across
+    segments. The constant-source case (:math:`q` independent of
+    position) is the symbolic strongest test — both sides equal
+    :math:`q L_{\rm period}` after the constant factor is pulled
+    outside the integral.
+
+    Returns dict with the SymPy expressions and PASS flags.
+    """
+    Sigma_t = sp.symbols("Sigma_t", positive=True, real=True)
+    Sigma_t_1, Sigma_t_2, Sigma_t_3 = sp.symbols(
+        "Sigma_t_1 Sigma_t_2 Sigma_t_3", positive=True, real=True,
+    )
+    L_p_1, L_p_2, L_p_3 = sp.symbols(
+        "L_p_1 L_p_2 L_p_3", positive=True, real=True,
+    )
+    L_period = L_p_1 + L_p_2 + L_p_3
+
+    # Piecewise τ_period (MR form): Σ_k Σ_t,k · ΔL_k
+    tau_mr = (
+        Sigma_t_1 * L_p_1 + Sigma_t_2 * L_p_2 + Sigma_t_3 * L_p_3
+    )
+    # Homogeneous τ_period (MG form): Σ_t · L_period
+    tau_mg = Sigma_t * L_period
+
+    # Substitute uniform material into MR form
+    tau_mr_uniform = tau_mr.subs([
+        (Sigma_t_1, Sigma_t),
+        (Sigma_t_2, Sigma_t),
+        (Sigma_t_3, Sigma_t),
+    ])
+    diff_tau = sp.simplify(tau_mr_uniform - tau_mg)
+    pass_tau_reducibility = (diff_tau == 0)
+
+    # Source-line integral B reducibility — constant source q
+    q = sp.symbols("q", positive=True, real=True)
+    # MR: piecewise integrals with per-segment τ accumulating
+    # The per-segment integral ∫_{seg_k} q e^{-τ(s)} ds with τ(s) being
+    # cumulative is exact; for a constant integrand q over uniform
+    # material, the cumulative τ is τ_back + Σ_t · (s - s_a) inside
+    # each segment, and ∫_{seg_k} q e^{-Σ_t s} ds = (q/Σ_t)·
+    # [e^{-Σ_t s_a} - e^{-Σ_t s_b}] which telescopes across segments.
+    # The sum over k segments equals (q/Σ_t)·(1 - e^{-Σ_t L_period}).
+    # Verify via SymPy:
+    s = sp.symbols("s", positive=True, real=True)
+    integrand_uniform = q * sp.exp(-Sigma_t * s)
+    # Three-segment piecewise sum
+    seg1 = sp.integrate(integrand_uniform, (s, 0, L_p_1))
+    seg2 = (
+        sp.exp(-Sigma_t * L_p_1)
+        * sp.integrate(integrand_uniform, (s, 0, L_p_2))
+    )
+    seg3 = (
+        sp.exp(-Sigma_t * (L_p_1 + L_p_2))
+        * sp.integrate(integrand_uniform, (s, 0, L_p_3))
+    )
+    B_mr = sp.simplify(seg1 + seg2 + seg3)
+    # Single-segment integral over full L_period
+    B_mg = sp.integrate(integrand_uniform, (s, 0, L_period))
+    diff_B = sp.simplify(B_mr - B_mg)
+    pass_B_reducibility = (diff_B == 0)
+
+    return {
+        "name": (
+            "V_α1_cyl_mr: multi-region homogeneous-limit reducibility "
+            "(τ + B accumulator collapse to MG)"
+        ),
+        "tau_mr": tau_mr,
+        "tau_mr_uniform": tau_mr_uniform,
+        "tau_mg": tau_mg,
+        "diff_tau": diff_tau,
+        "B_mr_uniform": B_mr,
+        "B_mg": B_mg,
+        "diff_B": diff_B,
+        "pass_tau_reducibility": pass_tau_reducibility,
+        "pass_B_reducibility": pass_B_reducibility,
+        "pass": pass_tau_reducibility and pass_B_reducibility,
+    }
+
+
+def derive_piecewise_3d_optical_depth_cylinder_mr() -> dict:
+    r"""V_α1_cyl_mr.b — piecewise 3D optical depth via universal axial
+    Jacobian.
+
+    For each 2D chord segment :math:`(s_{2D,a}, s_{2D,b}, k)`, the 3D
+    arclength contribution is :math:`\Delta s_{3D,k} = (s_{2D,b} -
+    s_{2D,a})/\sqrt{1 - \mu_{\rm axial}^{2}}`. The 3D optical-depth
+    increment is :math:`\Delta\tau_k = \Sigma_{t,k} \Delta s_{3D,k}
+    = \Sigma_{t,k}\,(s_{2D,b} - s_{2D,a})/\sqrt{1 - \mu_{\rm axial}^{2}}`.
+
+    The TOTAL 3D optical depth along the bounce-period chord is
+
+    .. math::
+
+        \tau_{\rm period}(b, \mu_{\rm axial}) =
+            \frac{1}{\sqrt{1 - \mu_{\rm axial}^{2}}}\,
+            \sum_k \Sigma_{t,k}\,\Delta s_{2D,k}.
+
+    The axial Jacobian :math:`1/\sqrt{1 - \mu_{\rm axial}^{2}}` factors
+    out of the sum (it does not depend on segment index :math:`k`),
+    confirming the algorithm's structure: segmentation happens in 2D,
+    Jacobian-lift happens once globally.
+
+    This identity prevents a class of mistakes where the axial lift is
+    applied per-segment in different orders — they would all give the
+    same answer when properly factored, but bug-detectable when only
+    one segment receives the lift.
+
+    Returns dict with SymPy expressions and PASS flag.
+    """
+    mu_axial = sp.symbols("mu_axial", real=True)
+    s_in_plane = sp.sqrt(1 - mu_axial ** 2)
+    Sigma_t_1, Sigma_t_2 = sp.symbols(
+        "Sigma_t_1 Sigma_t_2", positive=True, real=True,
+    )
+    dl_2D_1, dl_2D_2 = sp.symbols(
+        "dl_2D_1 dl_2D_2", positive=True, real=True,
+    )
+
+    # Per-segment 3D-lifted τ accumulation:
+    #   Δτ_k = Σ_t,k · Δs_2D,k / s_in_plane
+    dtau_1 = Sigma_t_1 * dl_2D_1 / s_in_plane
+    dtau_2 = Sigma_t_2 * dl_2D_2 / s_in_plane
+    tau_per_segment_sum = dtau_1 + dtau_2
+
+    # Equivalent: factor out the Jacobian
+    tau_factored = (Sigma_t_1 * dl_2D_1 + Sigma_t_2 * dl_2D_2) / s_in_plane
+
+    diff = sp.simplify(tau_per_segment_sum - tau_factored)
+    pass_factoring = (diff == 0)
+
+    return {
+        "name": "V_α1_cyl_mr.b: piecewise 3D optical depth = axial-Jacobian factor of 2D sum",
+        "tau_per_segment_sum": tau_per_segment_sum,
+        "tau_factored": tau_factored,
+        "diff": diff,
+        "pass": pass_factoring,
+    }
+
+
+def derive_two_region_constant_source_consistency_cylinder_mr() -> dict:
+    r"""V_α1_cyl_mr.q — 2-region constant-source self-consistency.
+
+    The strongest symbolic L1 check that the MR machinery preserves the
+    constant-trial identity. Setup: a two-region cylinder where each
+    region has its own :math:`\Sigma_{t,1}, \Sigma_{t,2}` but the
+    isotropic source is *spatially* constant :math:`q`. The
+    constant-trial V_α1_cyl_mr generalisation:
+
+    .. math::
+
+       \psi(r, \mu_{\rm axial}, \varphi_{\rm az}) \;=\;
+            F + e^{-\tau_{\rm first}}\,\psi_{\rm surf}, \qquad
+       \psi_{\rm surf} = \frac{\alpha B}{1 - \alpha e^{-\tau_{\rm period}}}.
+
+    For constant :math:`q`, with the source-line integrals reducing to
+
+    .. math::
+
+       F = \int_0^{L_0} q\,e^{-\tau(s)}\,\mathrm d s, \quad
+       B = \int_0^{L_p} q\,e^{-\tau(s)}\,\mathrm d s,
+
+    we apply the explicit two-segment expansion (interior segment
+    :math:`(0, \ell_1)` with :math:`\Sigma_{t,1}`, then second segment
+    :math:`(\ell_1, L)` with :math:`\Sigma_{t,2}`) and verify that the
+    constant trial :math:`\psi = q/\Sigma_t` is no longer a single
+    fixed point — instead, the answer depends on the region structure.
+    However, V_α1_cyl_mr.q asserts that **at the homogeneous limit
+    :math:`\Sigma_{t,1} = \Sigma_{t,2} = \Sigma_t`**, the closed-form
+    collapses to the V_α1_cyl identity :math:`\psi_{\rm surf} = q/
+    \Sigma_t`.
+
+    This caps Branch 1 — Branch 2 must produce numerically identical
+    output when the 2-region cylinder is set up with uniform material
+    (Gate 1 of the verification plan). The L1 cross-check between this
+    SymPy identity and the production code is exact at the
+    homogeneous limit.
+
+    Returns dict with the SymPy expressions and PASS flag.
+    """
+    Sigma_t, Sigma_t_1, Sigma_t_2 = sp.symbols(
+        "Sigma_t Sigma_t_1 Sigma_t_2", positive=True, real=True,
+    )
+    L_1, L_2, alpha_, q = sp.symbols(
+        "ell_1 ell_2 alpha q", positive=True, real=True,
+    )
+    s = sp.symbols("s", real=True)
+
+    # Piecewise τ_period: τ(s) = Σ_t,1 s for s ∈ [0, L_1],
+    #                    τ(s) = Σ_t,1 L_1 + Σ_t,2 (s - L_1) for s ∈ [L_1, L_1+L_2]
+    L_period = L_1 + L_2
+
+    # Source-line integral B with constant q and piecewise τ:
+    B_seg1 = sp.integrate(
+        q * sp.exp(-Sigma_t_1 * s), (s, 0, L_1),
+    )
+    # Segment 2: τ at s is τ_1 + Σ_t,2 (s - L_1), parametrise by u = s - L_1
+    u = sp.symbols("u", real=True, positive=True)
+    tau_at_L1 = Sigma_t_1 * L_1
+    B_seg2 = sp.integrate(
+        q * sp.exp(-(tau_at_L1 + Sigma_t_2 * u)), (u, 0, L_2),
+    )
+    B_total = sp.simplify(B_seg1 + B_seg2)
+
+    # τ_period
+    tau_period = Sigma_t_1 * L_1 + Sigma_t_2 * L_2
+
+    # Surface fixed-point closure
+    psi_surf_mr = (alpha_ * B_total) / (1 - alpha_ * sp.exp(-tau_period))
+
+    # Homogeneous limit: substitute Σ_t,1 = Σ_t,2 = Σ_t, α=1
+    psi_surf_homog = psi_surf_mr.subs(
+        [(Sigma_t_1, Sigma_t), (Sigma_t_2, Sigma_t), (alpha_, 1)],
+    )
+    psi_surf_homog_simplified = sp.simplify(psi_surf_homog)
+
+    # Per V_α1_cyl, the homogeneous closed-cylinder constant-source
+    # surface flux is q/Σ_t.
+    expected = q / Sigma_t
+    diff = sp.simplify(psi_surf_homog_simplified - expected)
+    pass_homog_reduction = (diff == 0)
+
+    return {
+        "name": (
+            "V_α1_cyl_mr.q: 2-region constant-source surface flux "
+            "reduces to V_α1_cyl at homogeneous limit"
+        ),
+        "B_seg1": B_seg1,
+        "B_seg2": B_seg2,
+        "B_total": B_total,
+        "tau_period_mr": tau_period,
+        "psi_surf_mr": psi_surf_mr,
+        "psi_surf_homog": psi_surf_homog_simplified,
+        "expected": expected,
+        "diff": diff,
+        "pass": pass_homog_reduction,
+    }
