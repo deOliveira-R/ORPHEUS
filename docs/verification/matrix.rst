@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **3460**
+Total tests collected: **3527**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 915, 26.4%
-   L1, 842, 24.3%
+   L0, 919, 26.1%
+   L1, 848, 24.0%
    L2, 36, 1.0%
    L3, 0, 0.0%
-   foundation, 1639, 47.4%
+   foundation, 1696, 48.1%
    unmarked, 28, 0.8%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 3353
+   explicit, 3420
    verify, 0
    class-name, 46
    func-name, 0
@@ -227,8 +227,8 @@ Module × level grid
    sn/test_mms_curvilinear, 0, 2, 0, 0, 0, 0
    sn/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
    sn/test_octants_property, 60, 0, 0, 0, 0, 0
-   sn/test_phase_c_crosscheck, 0, 2, 0, 0, 0, 0
-   sn/test_phase_c_gates, 12, 0, 0, 0, 9, 0
+   sn/test_phase_c_crosscheck, 0, 8, 0, 0, 0, 0
+   sn/test_phase_c_gates, 16, 0, 0, 0, 9, 0
    sn/test_phase_c_mms, 0, 3, 0, 0, 0, 0
    sn/test_properties, 4, 0, 0, 0, 0, 0
    sn/test_quadrature, 49, 0, 0, 0, 0, 0
@@ -248,6 +248,7 @@ Module × level grid
    spatial/test_diamond, 0, 0, 0, 0, 13, 0
    spatial/test_pole_angular_closure, 0, 0, 0, 0, 28, 0
    spatial/test_psi_half_angle_seed, 4, 1, 0, 0, 19, 0
+   spatial/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 57, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -319,6 +320,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``removal-matrix``, 26
    ``azimuthal-angles``, 24
    ``dc-slab``, 24
+   ``dd-curvilinear-scalar``, 24
    ``peierls-specular-bc-defn``, 24
    ``second-diff-cyl``, 24
    ``second-diff-sph``, 24
@@ -326,7 +328,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-cyl-3d-mode-formula``, 22
    ``pitch-recovery``, 22
    ``ray-circle``, 22
-   ``dd-curvilinear-scalar``, 20
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
    ``peierls-rank-n-stability``, 20
@@ -385,6 +386,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``diffusion-trigonometric-branch``, 8
    ``dd-solve``, 7
    ``gauss-legendre-visibility-cone``, 7
+   ``sn-curvilinear-trajectory-resolvent-crosscheck``, 7
    ``bar-psi``, 6
    ``boyd-eq-45``, 6
    ``characteristic-ode``, 6
@@ -491,7 +493,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sigT-computed``, 1
    ``singular-eigenfunction-eq5``, 1
    ``sn-curvilinear-homogeneous-kinf-recovery``, 1
-   ``sn-curvilinear-trajectory-resolvent-crosscheck``, 1
    ``sn-mms-2d-2g-qext``, 1
    ``sn-mms-2d-psi``, 1
    ``sn-mms-2d-qext``, 1
@@ -776,7 +777,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-023``, 1
    ``ERR-024``, 1
    ``ERR-025``, 4
-   ``ERR-026``, 23
+   ``ERR-026``, 84
    ``ERR-027``, 5
    ``ERR-028``, 1
    ``ERR-029``, 6
