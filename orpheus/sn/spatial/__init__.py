@@ -38,13 +38,27 @@ from .pole_angular_closure import (
     PoleAngularClosure,
     PoleAngularClosureBase,
 )
+from .psi_half_angle_seed import (
+    CarlsonInwardSweep,
+    CarlsonSweepContext,
+    PsiHalfAngleSeed,
+    PsiHalfAngleSeedBase,
+    ZeroSeed,
+)
 
 # Issue #168 Phase C retired the BoundaryFaceFlux Protocol entirely;
 # the sweep-frame apply matvec subsumed the boundary closure into
 # the WDD propagation chain.
+#
+# Issue #168 Phase D shipped the PsiHalfAngleSeed strategy family —
+# composed into MorelMontryAngularSweep via Option α (composition,
+# not sibling Protocol).  CarlsonInwardSweep is the canonical Phase D
+# default, closing ERR-026 on sphere Gate 1.1 MMS.
 
 __all__ = [
     "BaileyFlatFluxRedist",
+    "CarlsonInwardSweep",
+    "CarlsonSweepContext",
     "CellResult",
     "CellUpdate",
     "DiamondDifference",
@@ -52,5 +66,8 @@ __all__ = [
     "MorelMontryAngularSweep",
     "PoleAngularClosure",
     "PoleAngularClosureBase",
+    "PsiHalfAngleSeed",
+    "PsiHalfAngleSeedBase",
     "UpstreamState",
+    "ZeroSeed",
 ]
