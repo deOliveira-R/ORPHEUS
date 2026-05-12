@@ -61,7 +61,10 @@ from orpheus.derivations.continuous.trajectory_resolvent.origins.specular import
     derive_T00_equals_P_ss_cylinder,
     derive_alpha_zero_kernel_reduction_cylinder,
     derive_bounce_period_chord_cylinder,
+    derive_homogeneous_limit_reducibility_cylinder_mr,
     derive_operator_constant_trial_closed_cylinder,
+    derive_piecewise_3d_optical_depth_cylinder_mr,
+    derive_two_region_constant_source_consistency_cylinder_mr,
 )
 
 
@@ -248,4 +251,85 @@ def test_v_alpha3_cyl_psi_surf_vanishes_at_alpha_zero():
         f"V_α3_cyl failed: psi_surf at α=0 = "
         f"{result['psi_surf_at_alpha_zero']}, limit = "
         f"{result['psi_surf_limit']}"
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Phase 1b — multi-region cylinder Variant α SymPy identities
+# (Branch-1 algebra-of-record backing the Phase 1b numpy solver)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.foundation
+@pytest.mark.verifies("peierls-greens-cylinder-mr-piecewise-tau")
+def test_v_alpha1_cyl_mr_homogeneous_reducibility():
+    r"""V_α1_cyl_mr — piecewise τ + B accumulator reduces to MG at the
+    uniform-material limit.
+
+    SymPy-symbolic ground for Gate 1 of the cylinder MR verification
+    plan: with all per-region :math:`\Sigma_{t,k} = \Sigma_t` equal,
+    the piecewise sum :math:`\sum_k \Sigma_{t,k} \Delta\ell_k`
+    collapses exactly to :math:`\Sigma_t L_{\rm period}`. Likewise the
+    piecewise source-line integral telescopes to a single integral
+    over :math:`[0, L_{\rm period}]`. Both identities are algebraic
+    necessities of the MR machinery; failing either would prevent
+    Gate 1's numerical bit-identity from holding.
+    """
+    result = derive_homogeneous_limit_reducibility_cylinder_mr()
+    assert result["pass_tau_reducibility"], (
+        f"V_α1_cyl_mr τ reducibility failed: diff = {result['diff_tau']}"
+    )
+    assert result["pass_B_reducibility"], (
+        f"V_α1_cyl_mr B reducibility failed: diff = {result['diff_B']}"
+    )
+    assert result["pass"], f"V_α1_cyl_mr composite failed: {result}"
+
+
+@pytest.mark.foundation
+@pytest.mark.verifies("peierls-greens-cylinder-mr-piecewise-tau")
+def test_v_alpha1_cyl_mr_piecewise_3d_optical_depth():
+    r"""V_α1_cyl_mr.b — piecewise 3D optical depth factors the axial
+    Jacobian out of the segment sum.
+
+    :math:`\sum_k \Sigma_{t,k}\,\Delta\ell_{2D,k}/\sqrt{1-\mu_{\rm
+    axial}^2}` = :math:`\bigl(\sum_k \Sigma_{t,k}\,\Delta\ell_{2D,k}
+    \bigr)/\sqrt{1-\mu_{\rm axial}^2}` is symbolically exact: the
+    axial-Jacobian factor :math:`1/\sqrt{1-\mu_{\rm axial}^2}` is
+    independent of segment index :math:`k` so it factors out of the
+    sum. This identity prevents a class of bugs where the lift is
+    applied per-segment differently — they would all give the same
+    answer when properly factored, but bug-detectable when only one
+    segment receives the lift.
+    """
+    result = derive_piecewise_3d_optical_depth_cylinder_mr()
+    assert result["pass"], (
+        f"V_α1_cyl_mr.b 3D-Jacobian factoring failed: diff = "
+        f"{result['diff']}"
+    )
+
+
+@pytest.mark.foundation
+@pytest.mark.verifies(
+    "peierls-greens-cylinder-mr-homogeneous-reduction",
+    "peierls-greens-cylinder-mr-bounce-sum-piecewise",
+)
+def test_v_alpha1_cyl_mr_two_region_constant_source_homogeneous_limit():
+    r"""V_α1_cyl_mr.q — 2-region piecewise τ surface fixed-point reduces
+    to V_α1_cyl at uniform-material limit.
+
+    The strongest Branch-1 algebraic identity backing Gate 1 + Gate 7
+    of the MR verification plan: a 2-region cylinder with
+    constant-source :math:`q` has surface-flux closure
+    :math:`\psi_{\rm surf} = \alpha B / (1 - \alpha e^{-\tau_{\rm
+    period}})` where :math:`\tau_{\rm period} = \Sigma_{t,1}\ell_1
+    + \Sigma_{t,2}\ell_2` is the piecewise period optical depth. At
+    :math:`\Sigma_{t,1} = \Sigma_{t,2} = \Sigma_t` and :math:`\alpha
+    = 1`, SymPy proves :math:`\psi_{\rm surf} = q/\Sigma_t` exactly —
+    the V_α1_cyl identity lifts verbatim into MR.
+    """
+    result = derive_two_region_constant_source_consistency_cylinder_mr()
+    assert result["pass"], (
+        f"V_α1_cyl_mr.q failed: ψ_surf at homog limit = "
+        f"{result['psi_surf_homog']}, expected = {result['expected']}, "
+        f"diff = {result['diff']}"
     )
