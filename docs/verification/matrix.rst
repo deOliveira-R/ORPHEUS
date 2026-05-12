@@ -508,7 +508,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **30** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **34** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``bc-rank-n-tensor-decomposition``
@@ -529,6 +529,10 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``galerkin-spectral-orthogonality``
 - ``inflow-mask-discrete``
 - ``ordinate-partition-inflow-outflow``
+- ``phase-c-cell-update``
+- ``phase-c-streaming-spherical``
+- ``phase-c-wdd-oscillation``
+- ``phase-c-wdd-recurrence``
 - ``pole-mm-recurrence``
 - ``spectrum-case-eigenfunction-equation``
 - ``spectrum-case-eigenfunction-explicit``

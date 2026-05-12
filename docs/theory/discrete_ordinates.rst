@@ -2339,154 +2339,962 @@ becomes the natural default.
 Sweep-frame apply matvec (Issue #168 Phase C)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Phase C resumes the spatial-closure alignment that Phase B identified
-as the load-bearing precondition for the curvilinear-default flip.
-The :func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
-and ``_cylindrical`` matvecs are rewritten as **one sweep iteration
-semantically**:
+.. admonition:: Key Facts
+   :class: important
 
-#. For each bulk direction (outward :math:`\mu \ge 0` then inward
-   :math:`\mu < 0`), the WDD diamond closure
-   :math:`\psi^{\text{face}}_{\text{out}} = 2\,\psi^{\text{cell}}
-   - \psi^{\text{face}}_{\text{in}}` propagates the face flux
-   cell-by-cell along the direction's DAG order
-   (:meth:`~orpheus.sn.geometry.SNMesh.iter_cells_by_direction`,
-   added in Phase C).
-#. The BC trace law owns the boundary edge:
-   ``bc_outer.apply(outflow_face)`` is called once per matvec on the
-   WDD-propagated outflow face values — honouring the §16A.3
-   contract that the inflow trace equals the BC operator applied to
-   the outflow trace.
-#. The angular redistribution stays via the Phase B
-   :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
-   strategy.
+   * Phase C (commits ``eae6f05`` → ``d445a8f``, 2026-05-12) rewrites
+     :func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
+     and ``_cylindrical`` as **one sweep iteration semantically**.
+     The WDD diamond closure
+     :math:`\psi^{\text{face}}_{\text{out}} = 2\,\psi^{\text{cell}}
+     - \psi^{\text{face}}_{\text{in}}` propagates the face flux
+     cell-by-cell along the direction's DAG; the BC trace law owns
+     the boundary edge per :ref:`affine-bc-form`.
+   * The pole-face initial condition is
+     :math:`\psi^{\text{face}}_{\text{in}}(\text{pole}) =
+     \psi^{\text{cell}}[0]` (Lewis–Miller §4.5 Carlson seed), **not**
+     :math:`0`. The Carlson seed is the unique anchor that preserves
+     the per-ordinate flat-flux invariant under the WDD recurrence.
+   * Phase A's
+     :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
+     Protocol (415 LOC + 21 foundation tests) **retires entirely**
+     — the boundary-face closure is now inside the WDD propagation
+     chain, owned by the BC trace law at the boundary edge.
+   * Empirical Gate 1.1 (per-ordinate flat-flux residual on
+     reflective curvilinear) finds **spherical** MMS with
+     ``MorelMontryAngularSweep`` FAILS, **cylindrical** MMS PASSES.
+     The default flip to ``MorelMontryAngularSweep`` is therefore
+     DEFERRED to Phase D (`Issue #192
+     <https://github.com/deOliveira-R/ORPHEUS/issues/192>`_); the
+     four ERR-026 ``xfail-strict`` curvilinear MMS tripwires stay
+     xfail; ERR-026 remains at PARTIAL CLOSURE.
+   * The structural-frame name for the rewrite is the **sweep /
+     wavefront frame** (cross-domain-attacker 2026-05-12 analysis):
+     the "ghost cell" idiom is realised as a typed
+     :class:`~orpheus.numerics.trace_space.InflowTraceSpace` vector
+     defined by the realised BC operator, not extrapolated from
+     interior cell centres.
 
-Three additional architectural changes ship with the rewrite:
+Phase C resumes the spatial-closure alignment that Phase B
+identified as the load-bearing precondition for the
+curvilinear-default flip (see
+:ref:`sn-pole-angular-closure-protocol` for Phase B's full
+:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+Protocol narrative; this subsection picks up at the point Phase B
+left for follow-up). Three unblockers landed before Phase C
+resumed:
+
+1. The trajectory_resolvent (Peierls Variant α Green's-function)
+   campaign shipped cylinder MR Phase 1b (commits ``37e3e29``,
+   ``cf662a6``, ``604f380``, ``e10c33c``), explicitly built to close
+   the cylinder-2G ERR-026 gap. trajectory_resolvent now covers
+   5 of the 6 deleted curvilinear regression snapshots at
+   machine-precision-class precision; the 6th (P1 anisotropic)
+   routes to a shape-independent :math:`k_\infty` closed form.
+2. The cross-domain-attacker analysis on 2026-05-12 identified a
+   **structural inconsistency** between the pre-Phase-C apply
+   matvec's boundary closure and the :ref:`affine-bc-form` (§16A.3).
+   The apply matvec was passing **cell-centre** values to
+   :meth:`bc_outer.apply`, whereas §16A.3 requires the boundary
+   face TRACE :math:`\gamma_+ \psi`. The cross-domain-attacker's
+   "sweep / wavefront frame" naming gave the rewrite its
+   architectural shape: the apply matvec is one sweep iteration
+   over the cell-visit DAG, with the BC trace law at the boundary
+   edge owning the inflow trace.
+3. The Phase A
+   :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
+   Protocol — built to second-order-accuratise the curvilinear
+   outer face — was re-classified as **a patch on top of the wrong
+   architecture**. Phase A's
+   :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`
+   produces a face-flux extrapolant
+   :math:`\psi^{\text{face}}_{N-1/2} = \tfrac{3}{2}\,\psi_{N-1} -
+   \tfrac{1}{2}\,\psi_{N-2}` that ignores the BC entirely; Phase B's
+   :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+   produces angular closure that is inconsistent with the apply
+   matvec's spatial closure (arithmetic interior average + DD
+   extrapolation outer face). The fix at all three sites is the
+   **same** — make every face closure consume the WDD-propagated
+   face value, and let the BC trace law own the boundary edge.
+   "Two paths to the same discrete operator over different storage
+   conventions" (cross-domain-attacker Smell 16) is the trigger for
+   the unification.
+
+The pre-Phase-C arithmetic spatial closure
+'''''''''''''''''''''''''''''''''''''''''''
+
+Pre-Phase-C, the matvec interior face values were computed as the
+arithmetic average of cell-centre values
+:math:`\psi^{\text{face}}_{i+1/2} = \tfrac{1}{2}(\psi^{\text{cell}}_i
++ \psi^{\text{cell}}_{i+1})`. This is **second-order accurate** on
+smooth fields when the cell-centre values are themselves the
+analytical values, but it does **NOT** match the sweep's WDD
+recurrence which evaluates
+:math:`\psi^{\text{face}}_{i+1/2} = 2\,\psi^{\text{cell}}_i -
+\psi^{\text{face}}_{i-1/2}`. The two are equivalent only when
+:math:`\psi` is constant on a cell; for any angular or spatial
+variation the two values diverge by an :math:`\mathcal{O}(\Delta r)`
+amount, and the operators are **not the same operator**.
+
+This is the empirical content of Phase B's diagnosis (see
+:ref:`sn-pole-angular-closure-protocol` "ERR-026 closure status"):
+pairing the canonical
+:class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+angular closure with arithmetic-average spatial closure produces a
+**worse** operator on flat :math:`\psi` than the legacy
+:math:`\tau`-symmetric interpolation. The canonical M–M form
+produces half-angle face fluxes oscillating as
+:math:`0, 2c, 0, 2c, \ldots` on flat :math:`\psi` (this is the
+correct DD-angular behaviour when seeded with the Carlson starting
+direction :math:`\psi_{1/2} = 0`), and the arithmetic spatial
+average then combines these oscillating angular face fluxes with
+interior-averaged spatial face fluxes into garbage. Phase B's
+empirical test ``test_apply_spherical_constant_flux_under_morel_montry_canonical_form``
+saw :math:`\phi` range across [0.6, 1.004] on a flat-:math:`\psi`
+input that analytical balance demands give exactly :math:`1.0`.
+
+The fix is to align the spatial closure with the sweep: use the
+WDD recurrence
+:math:`\psi^{\text{face}}_{\text{out}} = 2\,\psi^{\text{cell}}
+- \psi^{\text{face}}_{\text{in}}` per cell, propagating face flux
+in DAG order. Phase C ships this alignment.
+
+The sweep-frame matvec algebra
+'''''''''''''''''''''''''''''''
+
+The rewritten matvec is **one sweep iteration semantically**.
+For each bulk direction :math:`d \in \{+1, -1\}`, the per-cell
+WDD recurrence walks the face flux along the DAG:
+
+.. math::
+   :label: phase-c-wdd-recurrence
+
+   \psi^{\text{face}}_{\text{out}}(i) \;=\; 2\,\psi^{\text{cell}}(i)
+   \;-\; \psi^{\text{face}}_{\text{in}}(i),
+   \qquad
+   \psi^{\text{face}}_{\text{in}}(i+1) \;=\;
+   \psi^{\text{face}}_{\text{out}}(i),
+
+evaluated cell-by-cell across the direction's DAG order yielded by
+:meth:`~orpheus.sn.geometry.SNMesh.iter_cells_by_direction`. The
+per-cell streaming term consumes both the inflow and outflow face
+values along with the cell volume and face areas (Hébert §3.9.4
+balance, ORPHEUS-normalised):
+
+.. math::
+   :label: phase-c-streaming-spherical
+
+   S_{n,i,g} \;=\; \frac{\mu_n}{V_i}\,
+   \bigl[ A_{i+1/2}\,\psi^{\text{face}}_{n,i+1/2,g}
+        - A_{i-1/2}\,\psi^{\text{face}}_{n,i-1/2,g} \bigr],
+
+with the redistribution term provided by the Phase B
+:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+strategy and the collision term :math:`\Sigma_t \psi^{\text{cell}}_{n,i,g}`
+unchanged. The full per-cell update is
+
+.. math::
+   :label: phase-c-cell-update
+
+   (T\psi)_{n,i,g} \;=\; S_{n,i,g} \;+\; R_{n,i,g} \;+\;
+   \Sigma_t(i,g)\,\psi^{\text{cell}}_{n,i,g},
+
+where :math:`R_{n,i,g}` is the
+:meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.__call__`
+output (Bailey :math:`\Delta A_i / w_n` redistribution factor with
+the strategy-specific :math:`\alpha_{n+1/2}\psi_{n+1/2} -
+\alpha_{n-1/2}\psi_{n-1/2}` evaluation). See
+:eq:`bailey-dome-recursion` for the :math:`\alpha` recurrence and
+:eq:`pole-mm-recurrence` for the M–M angular DD form.
+
+Ordinate vectorisation
+''''''''''''''''''''''
+
+Per the user's hard architectural directive (and the precedent at
+``orpheus/sn/angular_operator.py:183``), the rewritten matvec
+carries **no** ``for n in range(quad.N)`` loop. The per-cell update
+operates on whole ordinate subsets via boolean masks:
+
+.. code-block:: python
+
+   eps = 1e-15
+   outgoing_mask = quad.mu_x > +eps   # μ > 0 ordinates
+   incoming_mask = quad.mu_x < -eps   # μ < 0 ordinates
+   mu_out = quad.mu_x[outgoing_mask]
+   mu_in  = quad.mu_x[incoming_mask]
+
+A single per-cell statement updates the full outward ordinate
+subset:
+
+.. code-block:: python
+
+   psi_cell = fi[:, outgoing_mask, i, 0]               # (ng, n_out)
+   psi_face_out = 2.0 * psi_cell - psi_face_in         # WDD diamond
+   streaming = (
+       mu_out[None, :]
+       * (A[i + 1] * psi_face_out - A[i] * psi_face_in)
+       / V[i]
+   )
+
+This is the canonical "vectorise across ordinates" pattern that
+the cross-method ordinate-anti-pattern audit
+(`Issue #191 <https://github.com/deOliveira-R/ORPHEUS/issues/191>`_)
+tracks systemically. Phase C's contribution is to introduce no new
+per-ordinate loop inside any new code; the 14 existing sites stay
+untouched as separate work.
+
+The cylindrical case adds an outer loop over the :math:`\mu`-levels
+(the per-level azimuthal-DAG topology is intrinsic to cylindrical's
+structure), but each level still operates on whole within-level
+ordinate subsets via the same masking pattern. A third pass handles
+pure-azimuthal degenerate ordinates (:math:`|\eta_n| < 10^{-15}`)
+whose streaming term is zero by construction but whose
+redistribution + collision contributions still must be scattered to
+the equation map.
+
+The new APIs
+''''''''''''
+
+Two new APIs surface what the existing infrastructure already knew:
+
+* :meth:`~orpheus.sn.geometry.SNMesh.iter_cells_by_direction(direction_sign[, mu_level_idx])`
+  — companion to
+  :meth:`~orpheus.sn.geometry.SNMesh.iter_cell_visits` that yields
+  cells in DAG-topological order keyed by the **bulk sweep
+  direction sign**, not by a specific ordinate. The existing
+  cell-visit graph's per-quadrant ``_diag_cache`` is already keyed
+  by :math:`(\mathrm{sign}(\mu_x), \mathrm{sign}(\mu_y))`; the new
+  method surfaces that direction-sign-only view as a first-class
+  API. A foundation test
+  (:file:`tests/sn/test_iter_cells_by_direction.py`) pins
+  bit-identity to ``iter_cell_visits(ordinate_idx=
+  representative_n)`` across sphere / slab / cylindrical for every
+  representative ordinate. For cylindrical the per-level
+  ``mu_level_idx`` is required (the within-level DAG topology
+  differs per level).
+
+* :meth:`~orpheus.sn.operator.EquationMap.unknowns_at_cell_for_mask(cell_idx, ordinate_mask)`
+  — a precomputed inverse lookup ``(cell, ordinate) → k``. Lazily
+  builds an ``(nx, N) int`` table with :math:`-1` sentinels for
+  absent ``(ordinate, cell)`` slots; subsequent calls are O(1) per
+  ``(cell, mask)`` pair. Replaces the per-equation O(n_eq) linear
+  scan the legacy scatter pattern used. The eq_map still iterates
+  ``(spatial outer, ordinate inner)`` at construction time; the
+  helper just precomputes the inverse for the sweep-frame matvec.
+
+What retires
+''''''''''''
+
+Phase A's
+:class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
+Protocol — five symbols, the
+:class:`~orpheus.sn.geometry.SNMesh` field, and the 21 foundation
+tests — retires entirely. The architectural reasoning is "two paths
+to the same operator → unify after the second instance" (per the
+:doc:`/development` agent memory ``Unify after two instances``
+directive). Phase A was the first instance of a face-closure
+strategy; Phase B was the second (angular closure). With Phase C
+the **third** instance (the BC at the boundary edge) the unification
+has cleaner shape: every face value comes from the WDD recurrence
+or the BC trace law applied at the boundary edge, never from an
+algebraic extrapolation of cell centres. The retired symbols are:
+
+* ``orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`` (Protocol)
+* ``orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFluxBase`` (ABC)
+* ``orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`` (default strategy)
+* ``orpheus.sn.spatial.boundary_face_flux.CellCenter`` (ablation strategy)
+* The ``boundary_face_flux`` constructor field +
+  :class:`~orpheus.sn.geometry.SNMesh` attribute
+* The ``boundary_face_flux_closure`` keyword argument from
+  :func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
+  and ``_cylindrical``
+* :file:`tests/sn/spatial/test_boundary_face_flux.py` (232 LOC,
+  21 foundation tests)
+
+Three additional simplifications ship with the rewrite:
 
 * :func:`~orpheus.sn.operator.solution_to_angular_flux_spherical`
-  returns a single ``fi`` array (the Phase A
-  ``(fi, boundary_face_flux)`` companion array retires).
-* Phase A's
-  :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
-  Protocol **retires entirely** — the boundary-face closure is now
-  inside the sweep-frame WDD propagation chain. The 21 foundation
-  tests under :file:`tests/sn/spatial/test_boundary_face_flux.py`
-  retire with the Protocol.
+  (and its cylindrical alias) returns a single ``fi`` array
+  ``(ng, N, nx, 1)`` instead of the Phase A
+  ``(fi, boundary_face_flux)`` tuple. Inward-at-boundary cell-centre
+  slots ``fi[:, n_inward, -1, 0]`` are filled with the
+  **reflected-partner cell-centre value** as an analytical
+  extension: the equation map excludes these from unknowns (the BC
+  determines them), but the WDD recurrence on flat :math:`\psi`
+  requires the cell-centre to be consistent so the per-ordinate
+  flat-flux invariant holds.
 * :class:`~orpheus.sn.geometry.SNMesh` no longer accepts the
-  ``boundary_face_flux=`` constructor field.
+  ``boundary_face_flux=`` keyword (a regression test pins the
+  field retirement).
+* :class:`~orpheus.sn.operator.SNStreamingOperator.apply` dispatch
+  drops the ``boundary_face_flux_closure`` plumbing.
+
+What stays
+''''''''''
+
+* The Phase B
+  :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+  Protocol stays. The sphere centre / cylinder axis is **intrinsic
+  geometry** (a coordinate-system singularity, not an external BC),
+  so the three-strategy Phase B Protocol is the right shape; only
+  the **default** is under question, and that is the Phase D
+  decision point.
+* The :meth:`~orpheus.sn.operator.SNStreamingOperator.apply_transpose`
+  machinery via dense-probe construction stays. Linearity of the
+  rewritten :meth:`~orpheus.sn.operator.SNStreamingOperator.apply`
+  (Gate 1.4, pinned to ``rtol=1e-13``) guarantees the transpose is
+  correctly tracked.
+* The
+  :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` +
+  :class:`~orpheus.sn.boundary_realizer.SNMethodSpace` +
+  :class:`~orpheus.numerics.operator.LinearOperator`-1-arg
+  ``apply`` substrate (Issues #186 + #176 + #188, Waves 0–12) — the
+  BC trace law's realised 1-arg ``apply(outflow) → inflow``
+  contract is exactly what the matvec consumes at the boundary
+  edge.
+
+The pole-face Carlson starting direction
+'''''''''''''''''''''''''''''''''''''''''
+
+The single largest architectural deviation between the Phase C plan
+and the shipped code is the **pole-face initial condition** for the
+outward WDD sweep. The plan's pseudocode wrote
+
+.. code-block:: python
+
+   psi_face_in = np.zeros((ng, n_out))   # plan's pseudocode
+
+with the comment "Pole face: :math:`\psi^{\text{face}} = 0` by
+symmetry (also multiplied by :math:`A_0 = 0`)". The first claim
+(symmetry) is wrong; the second (annihilation by zero face area) is
+correct but does not help propagation. Empirically, this initial
+condition combined with the WDD recurrence on flat :math:`\psi`
+produces oscillating face fluxes
+:math:`0, 2c, 0, 2c, \ldots` that break the per-ordinate flat-flux
+invariant on **all three** Phase B pole-closure strategies:
+
+.. math::
+   :label: phase-c-wdd-oscillation
+
+   \psi^{\text{face}}_0 = 0, \quad
+   \psi^{\text{cell}}_0 = c \;\Longrightarrow\;
+   \psi^{\text{face}}_1 = 2c - 0 = 2c,
+
+   \psi^{\text{cell}}_1 = c \;\Longrightarrow\;
+   \psi^{\text{face}}_2 = 2c - 2c = 0,
+
+   \psi^{\text{cell}}_2 = c \;\Longrightarrow\;
+   \psi^{\text{face}}_3 = 2c - 0 = 2c, \ldots
+
+The correct initial condition is the **Carlson starting-direction
+seed** of [LewisMiller1984]_ §4.5 (paraphrased in Hébert §3.9.4
+Eqs. 3.432–3.435 for the angular analogue):
+:math:`\psi^{\text{face}}_{\text{in}}(\text{pole}) =
+\psi^{\text{cell}}(\text{first cell})`. For true flat :math:`\psi`
+this yields
+
+.. math::
+
+   \psi^{\text{face}}_0 = c, \quad
+   \psi^{\text{face}}_1 = 2c - c = c, \quad
+   \psi^{\text{face}}_2 = 2c - c = c, \quad \ldots
+
+at every cell, so the streaming term
+:math:`\mu_n (A_{i+1}\psi^{\text{face}}_{i+1} -
+A_i\psi^{\text{face}}_i)/V_i` cancels the redistribution term per
+ordinate on flat :math:`\psi` and the per-ordinate flat-flux
+invariant holds. The pole-face streaming contribution is still
+multiplied by :math:`A_0 = 0` (the pole face has zero area in both
+spherical and cylindrical 1-D), so the Carlson seed introduces no
+spurious source there; it only **anchors the recurrence** for the
+cell-by-cell WDD propagation across the interior.
+
+Why Lewis–Miller §4.5 is the canonical reference: at the spherical
+centre :math:`r=0` and the cylindrical axis the angular dependence
+of :math:`\psi` becomes **structurally singular** in the
+transport-theory sense (Pomraning, *Linear Kinetic Theory and
+Particle Transport in Stochastic Mixtures*, 1991, and earlier
+treatments in [LewisMiller1984]_ §4.5) — the angular flux is not a
+separable function of
+:math:`(\mu, r)` in any neighbourhood of the singular point because
+the inward and outward ordinate cones meet there. Lewis–Miller's
+"starting direction" handles this by introducing a half-step inward
+sweep at :math:`\mu = -1` that initialises the
+:math:`\alpha`-cascade and propagates to the outward sweep; the
+Carlson seed is the natural anchor for that half-step in the
+cell-by-cell WDD formulation. The same logic applies to the
+cylindrical axis: the per-level azimuthal-DAG topology has a
+half-step inward-zero-weight ordinate at :math:`\mu_x = -1` that
+anchors each level's :math:`\alpha`-cascade.
+
+The cylindrical analogue uses the identical Carlson seed per level:
+:math:`\psi^{\text{face}}_{\text{in,level}}(\text{pole}) =
+\psi^{\text{cell}}(\text{first cell at level})`. The cylindrical
+per-level :math:`\alpha`-dome telescoping then absorbs the
+half-angle face flux discrepancy in a way the spherical case does
+not — see the Gate 1.1 finding below.
 
 .. _phase-c-apply-sweep-equivalence:
 
 apply ↔ sweep structural equivalence
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Under the sweep-frame architecture the apply matvec and the sweep
-consume the same primitives (WDD diamond + ``iter_cells_by_direction``
-+ BC trace law applied at the boundary edge). The face-flux
-propagation identity therefore holds by construction; foundation
-tests pin it via ``np.array_equal`` on repeated apply calls and on
-the dispatcher-vs-direct paths
-(:file:`tests/sn/test_phase_c_gates.py`).
+Pre-Phase-C, the matvec's :meth:`apply` and the sweep's :meth:`solve`
+were structurally distinct paths to the **same** discrete operator
+:math:`L`: :meth:`apply` walked cell-centre storage with arithmetic
+face averages, :meth:`solve` walked face storage with WDD
+asymmetric propagation. The cross-domain-attacker frame analysis
+(Smell 16, ``.claude/agent-memory/cross-domain-attacker/issue_168_phase_c_sweep_frame.md``)
+flagged this as the elegance-smell trigger that Phase C resolves:
+
+   *Two paths to the same discrete operator over different storage
+   conventions, with order-degradation at boundaries on one path.
+   FRAME: Sweep / wavefront — recover the boundary as a DAG edge
+   consumed via the trace law, not as a cell-centre algebraic
+   closure.*
+
+Under the sweep-frame architecture both paths consume the **same
+three primitives**:
+
+#. The WDD diamond closure :eq:`phase-c-wdd-recurrence` per cell.
+#. The direction-keyed cell-visit DAG via
+   :meth:`~orpheus.sn.geometry.SNMesh.iter_cells_by_direction`.
+#. The BC trace law applied **once** at the boundary edge per
+   :ref:`affine-bc-form`.
+
+The face-flux propagation identity therefore holds **by
+construction** post-Phase-C: extracting the implicit face fluxes
+from ``apply`` (by inverting the cell-balance equation) recovers
+the same WDD recurrence the sweep walks. The structural-frame
+identity is the load-bearing acceptance criterion for
+preconditioned-Krylov stability — when ``apply`` is the operator
+:math:`L` and the sweep is :math:`L^{-1}` (approximately), they
+must agree on what :math:`L` **is**. Foundation tests in
+:file:`tests/sn/test_phase_c_gates.py` pin this via
+``np.array_equal`` on:
+
+* **Gate 1.2** (apply determinism) — repeat-call invariance
+  ``apply(ψ) == apply(ψ)`` bit-identical across two invocations.
+* **Gate 1.3** (apply ↔ apply_transpose reciprocity)
+  :math:`\langle L\psi, \phi \rangle = \langle \psi, L^T\phi \rangle`
+  to ``rtol=1e-12, atol=1e-13``. Free if Gate 1.4 (linearity)
+  passes.
+* **Gate 1.4** (apply linearity) :math:`L(\alpha\psi + \beta\phi)
+  = \alpha L\psi + \beta L\phi` to ``rtol=1e-13``.
+  **Precondition** for Gates 1.2 + 1.3 + the dense-probe
+  ``apply_transpose`` construction.
 
 .. _bc-trace-contract-respected-by-matvec:
 
 BC trace contract respected by matvec
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The :doc:`boundary_conditions` §16A.3 affine BC form
-:math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q` requires the BC
-operator to consume the boundary face TRACE
-(:math:`\gamma_+ \psi`), not interior cell-centre approximations.
-The Phase C matvec honours this contract: the realised BC operator
-``bc_outer.apply(outflow_at_boundary)`` consumes the WDD-propagated
-outflow face vector and produces the inflow face vector that the
-inward sweep consumes. Pinned by foundation tests confirming
-``apply(0) = 0`` under vacuum + reflective BCs and confirming that
-under vacuum BC a flat cell-centre :math:`\psi` produces a
-non-zero residual (the BC physically removes the inflow).
+The :doc:`boundary_conditions` :ref:`affine-bc-form` (§16A.3) reads
+
+.. math::
+
+   \gamma_- \psi \;=\; R\,G\,\gamma_+\psi \;+\; q,
+
+requiring the BC operator to consume the **boundary face trace**
+:math:`\gamma_+\psi`, not an interior cell-centre approximation
+of the trace. The pre-Phase-C ``operator.py:533`` site read
+
+.. code-block:: python
+
+   outgoing = fi[:, :, -1, 0].T              # ← cell-centres
+   incoming = bc_outer.apply(outgoing)
+
+silently violating the contract. The contamination was invisible
+for **specular reflection at** :math:`\alpha=1` because the
+reflection permutation commutes with cell-centre fills (the same
+permutation pattern applies to whatever value sits at the boundary
+slot), but it surfaces for every other BC: vacuum (:math:`\alpha=0`),
+albedo (:math:`0 < \alpha < 1`), prescribed inflow (any nonzero
+:math:`q`), and white BC. Each of these is a regime where
+higher-order spatial accuracy should appear — and where the
+cell-centre approximation degrades the operator to first-order
+boundary truncation.
+
+The Phase C matvec honours the contract by construction: the BC
+operator's input is the **WDD-propagated outflow face vector**, not
+cell centres. The boundary-edge sequence is:
+
+.. code-block:: python
+
+   # ── Phase 1: outward sweep (μ > 0), i = 0 → nx-1 ─────────────
+   # Carlson seed at pole: ψ_face_in = ψ_cell[0].
+   for visit in sn_mesh.iter_cells_by_direction(+1):
+       i = visit.cell_idx
+       psi_cell = fi[:, outgoing_mask, i, 0]
+       psi_face_out = 2.0 * psi_cell - psi_face_in          # WDD
+       # ... streaming + redistribution + collision scatter ...
+       psi_face_in = psi_face_out                            # walk
+   # The last cell's ψ_face_out is the boundary outflow face.
+   outflow_at_boundary[:, outgoing_mask] = psi_face_out
+
+   # ── BC trace law at boundary edge ────────────────────────────
+   # bc_outer is the realised BoundaryOperator from SNMethodSpace
+   # via SNBoundaryRealizer.realize() — a 1-arg LinearOperator
+   # whose apply maps Γ_+ → Γ_-, per the affine-bc-form contract.
+   inflow_full = bc_outer.apply(outflow_at_boundary.T)
+
+   # ── Phase 2: inward sweep (μ < 0), i = nx-1 → 0 ──────────────
+   psi_face_in = inflow_full[incoming_mask, :].T            # BC-set
+   for visit in sn_mesh.iter_cells_by_direction(-1):
+       i = visit.cell_idx
+       psi_cell = fi[:, incoming_mask, i, 0]
+       psi_face_out = 2.0 * psi_cell - psi_face_in          # WDD
+       # ... walk ...
+
+The :class:`~orpheus.numerics.operator.LinearOperator` returned by
+:meth:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`
+internally consumes its
+:class:`~orpheus.numerics.trace_space.OutflowTraceSpace` mask
+(the ordinate slots with :math:`\mu \cdot \hat n > 0` at the face)
+and writes only the inflow slots; the outflow slots in the output
+are unspecified by the §16A.3 contract and the matvec reads back
+only ``inflow_full[incoming_mask, :]``. This is the user's "ghost
+cell for higher-order boundary closure" idiom realised as a typed
+:class:`~orpheus.numerics.trace_space.InflowTraceSpace` vector
+defined by the realised BC operator — not extrapolated from
+interior cell centres.
+
+**Gate 1.5** (foundation,
+:func:`tests.sn.test_phase_c_gates.test_bc_trace_contract_respected_by_matvec`)
+pins this contract: for each
+:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` concrete kind
+(``VacuumInflow`` / ``ReflectiveBoundary`` / ``WhiteBoundary`` /
+``AlbedoBoundary`` / ``PrescribedInflow``), the apply matvec's BC
+integration consumes the WDD-propagated outflow face value (not
+cell centres) and produces the inflow face value consistent with
+``bc.realize().apply(outflow_at_boundary)``. The assertion is
+bit-identical across 5 random :math:`\psi^{\text{cell}}` inputs per
+BC kind × geometry × ordinate count. ``apply(0) = 0`` is pinned
+separately under vacuum + reflective BCs; under vacuum BC a flat
+cell-centre :math:`\psi` produces a **non-zero** residual (the BC
+physically removes the inflow), and that asymmetry is itself a
+load-bearing acceptance criterion: a vacuum BC that left flat-flux
+residual at zero would be the pre-Phase-C cell-centre contamination
+returning silently.
 
 .. _sn-mms-spherical-aniso-spatial-convergence:
 
 Spherical anisotropic-ansatz MMS convergence (Phase C)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Gate 3.1 (plan §5) verifies the spatial convergence rate on the
-:math:`\psi_{\text{chosen}} = (A(r) + B(r)\,\mu)/W` ansatz that
-activates the angular redistribution term (avoiding Mode 7 of
-``vv-principles``: an isotropic-by-construction MMS that would
-null the curvilinear sweep's hardest math). With the curvilinear
-default
+Gate 3.1 (plan §5) is the L1 MMS verification of the spatial
+convergence rate on the angularly-non-trivial ansatz
+
+.. math::
+
+   \psi_{\text{chosen}}(r, \mu) \;=\; \frac{A(r) + B(r)\,\mu}{W},
+   \qquad
+   A(r) = \cos(\pi r / (2R)), \quad B(r) = r/R,
+
+with :math:`W` a normalisation constant. The ansatz **activates**
+the angular redistribution term (the linear-:math:`\mu` content
+:math:`B(r)\,\mu/W` is the curvilinear sweep's hardest math), in
+explicit avoidance of Mode 7 of the ``vv-principles`` skill — an
+isotropic-by-construction MMS that would null the redistribution
+path by ansatz design and silently miss ERR-026. The companion
+isotropic ansatz :math:`\psi = A(r)/W` would still test the
+spatial closure but is **insufficient** in isolation; Phase C
+ships both as separate test cases (per the Phase B closeout's
+"every multi-dim MMS must declare which terms it activates AND
+which it nulls" rule).
+
+With the curvilinear default
 :class:`~orpheus.sn.spatial.pole_angular_closure.LegacyTauSymmetricInterpolation`
-the rate stays at the pre-Phase-C ~:math:`\mathcal{O}(h^{1.3})`
-profile (the underlying ERR-026 flux-shape drift survives Phase C's
-spatial-closure alignment when the angular default is not flipped).
-Gate 3.1 is therefore marked ``xfail`` pending Phase D's
-pole-spatial-closure refinement.
+the rate stays at the pre-Phase-C
+:math:`\mathcal{O}(h^{1.3})` profile. This is the diagnostic that
+**the spatial-closure alignment is necessary but not sufficient**
+for :math:`\mathcal{O}(h^2)` convergence; the underlying ERR-026
+flux-shape drift survives Phase C's WDD sweep-frame alignment
+when the angular closure default does not flip to the canonical
+M–M form. Gate 3.1 is therefore marked
+``@pytest.mark.xfail(strict=False)`` pending Phase D's pole-face
+spatial-closure refinement (see
+:ref:`sn-curvilinear-trajectory-resolvent-crosscheck` for the
+Phase D scope summary).
+
+The xfail is intentionally **not strict** at this gate (in
+contrast to the four pre-existing ERR-026 ``xfail(strict=True)``
+tripwires at the same labels). The non-strict marker reflects an
+**empirical** test of an architectural prediction: if Phase C's
+sweep-frame matvec accidentally moved the convergence rate past
+1.9 on the legacy default (which would be the unexpected outcome
+that demands a fresh investigation), the marker would flip to
+``xpass`` rather than fail strictly. The strict markers stay on
+the four canonical ERR-026 tripwires
+(:file:`tests/sn/test_mms_curvilinear.py` and the L1 aniso file)
+because those tests cover the closure status that Phase D will
+actually close.
 
 .. _sn-mms-cylindrical-aniso-spatial-convergence:
 
 Cylindrical anisotropic-ansatz MMS convergence (Phase C)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Gate 3.2 — cylindrical analogue of Gate 3.1. Same xfail rationale:
-the spatial-closure alignment is necessary but not sufficient for
+Gate 3.2 is the cylindrical analogue of Gate 3.1 — same ansatz
+structure (linear :math:`\mu_x` content + cosine radial profile)
+adapted to the cylindrical level-DAG, parametrised across LS-4 and
+Product 2×4 quadratures to surface any quadrature-family-dependent
+constants (Signature 4 / ERR-004). Same xfail rationale:
+spatial-closure alignment is necessary but not sufficient for
 :math:`\mathcal{O}(h^2)` convergence until the angular default
-flips to MorelMontryAngularSweep.
+flips to ``MorelMontryAngularSweep``. Cylindrical Gate 1.1
+**passes** under the canonical M–M angular closure (see the
+Empirical Gate 1.1 finding below), so the Phase D fix is expected
+to produce a clean :math:`\mathcal{O}(h^2)` cylindrical MMS rate
+without requiring the spherical pole-face refinement — but the
+default must flip in unison across both geometries for the
+``catches("ERR-026")`` story to be coherent. Phase D will ship
+both.
+
+Gate 3.3 (angular convergence at fixed ``nx=80``, varying
+``n_ordinates``) **passes** under Phase C — the spatial closure
+alignment is sufficient to expose the angular discretisation as
+the limiting error when the spatial discretisation is held fine.
+This is the inverse signature of Gate 3.1: holding the angular
+closure fixed and refining spatially saturates at the angular
+discretisation floor; holding the spatial closure fixed and
+refining angularly saturates at the spatial discretisation floor;
+the legacy default does not produce :math:`\mathcal{O}(h^2)`
+spatial because the legacy angular closure leaks
+:math:`\mathcal{O}(h^{1.3})` shape errors that the spatial
+discretisation cannot resolve away.
 
 .. _sn-curvilinear-homogeneous-kinf-recovery:
 
 Homogeneous-reflective k\ :sub:`∞` recovery (Phase C)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Gate 4.1 (plan §5) — 2G homogeneous reflective sphere recovers the
-analytical :math:`k_\infty = \nu\Sigma_f / \Sigma_a` from
+Gate 4.1 verifies the eigenvalue claim using a closed-form
+reference: the 2-group homogeneous reflective sphere recovers the
+analytical :math:`\kinf = \nSigf / \Sigma_a` from
 :func:`~orpheus.derivations.common.eigenvalue.kinf_homogeneous` to
-rtol :math:`\le 5 \times 10^{-4}`. The eigenvalue is shape-
-independent (a material-property ratio of two volume-weighted
-integrals), so even on the ERR-026-affected curvilinear sweep the
-:math:`k_\infty` converges cleanly. Passes under Phase C's
-sweep-frame matvec; pinned at
+``rtol ≤ 5e-4``. The reference is the **transfer-matrix
+eigenvalue** for a homogeneous infinite medium (Lewis–Miller §3.2),
+computable in closed form without any spatial or angular
+discretisation choice; it is the State 1A closed-form pillar in the
+``algebra-of-record`` taxonomy. PASSES under Phase C's sweep-frame
+matvec; pinned at
 :func:`tests.sn.test_phase_c_crosscheck.test_sn_spherical_homogeneous_kinf_recovery_2g`.
+
+The clean :math:`k_\infty` recovery is **not** a contradiction of
+ERR-026 staying at PARTIAL CLOSURE. The eigenvalue is shape-
+independent: for a homogeneous reflective problem,
+:math:`\kinf` is a material-property ratio
+(:math:`\nSigf / \Sigma_a` over the volume-weighted average flux),
+and the same ratio falls out of any discretisation that preserves
+volume-weighted particle balance. Phase C's WDD spatial closure
+preserves balance by construction (the streaming term telescopes
+to surface area times average flux on a uniform mesh, and the
+redistribution term integrates to zero against the volume weights
+across an :math:`\mathcal{R}^4` cell). The shape-dependent ERR-026
+flux-shape bug therefore drops out of the eigenvalue but persists
+in the **flux shape** — exactly what
+:ref:`sn-curvilinear-trajectory-resolvent-crosscheck` will measure
+in Phase D. Gate 4.1 is therefore the **necessary** but **not
+sufficient** evidence chain (per ``vv-principles`` 1-group
+degeneracy rule); the sufficient chain requires structurally-
+independent flux-shape evidence from Phase D.
 
 .. _sn-curvilinear-trajectory-resolvent-crosscheck:
 
 Trajectory-resolvent cross-check (Phase C → Phase D)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Gate 4.2 (plan §5) — fixed-source SN flux shape vs the
+Gate 4.2 is the **flux-shape cross-check** against the
 structurally-independent trajectory_resolvent Green's-function
-reference. The bare function entry points
-(:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder`,
-:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere_mr`,
-:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder_mr`)
-cover 5 of the 6 deleted curvilinear regression snapshots at
-machine-precision-class precision per plan §1; the test placeholder
-at
+reference (the Peierls Variant α State 1B semi-analytical pillar
+in the ``algebra-of-record`` taxonomy). The bare function entry
+points cover the 5 P0 deleted curvilinear regression snapshots:
+
+.. list-table:: trajectory_resolvent reference coverage
+   :header-rows: 1
+   :widths: 35 50 15
+
+   * - Snapshot
+     - Bare entry point
+     - Precision
+   * - ``sphere_2g_homogeneous_dd_n20``
+     - :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere_mg`
+     - :math:`k_\infty` exact via V_α1 identity
+   * - ``sphere_2g_3reg_dd_n40``
+     - :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere_mr`
+     - MR↔MG reduction ``rtol=1e-9``
+   * - ``cyl_1g_homogeneous_LS4_dd_n20``
+     - :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder`
+     - V_α1_cyl exact; Sood Ua-1-O-CY vacuum ``8.5e-6``
+   * - ``cyl_1g_homogeneous_product_dd_n20``
+     - same as above (different SN quadrature)
+     - same
+   * - ``cyl_2g_3reg_LS4_dd_n40``
+     - :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder_mr`
+     - MR↔MG K=3 2G ``rtol=1e-9``
+
+The 6th snapshot (``sphere_2g_p1_aniso_dd_n20``) routes to Gate 4.1
+because :math:`P_1` anisotropic eigenvalue is still
+shape-independent for a homogeneous reflective problem.
+
+The test placeholder at
 :func:`tests.sn.test_phase_c_crosscheck.test_sn_cylinder_homogeneous_vs_trajectory_resolvent_1g`
-is marked SKIP pending Phase D's pole-spatial-closure alignment
-that closes ERR-026 fully — at which point SN flux shape converges
-cleanly to the trajectory_resolvent reference at rtol :math:`\le
-5 \times 10^{-4}`.
+is marked SKIP pending Phase D's pole-face spatial-closure
+refinement. The placeholder is **structurally important**: it pins
+the names of the bare entry points so the Phase D session knows
+exactly where the reference comes from. The structurally-
+independent cross-check is the load-bearing flux-shape evidence
+for ERR-026 → CLOSED — without it the closure narrative would rest
+on :math:`k_\infty` agreement alone, which is degenerate
+(``vv-principles`` 1-group degeneracy rule applied to homogeneous
+multi-group: any discretisation that preserves balance gets
+:math:`k_\infty` right, so :math:`k_\infty` alone is not flux-shape
+evidence). The Phase D L1 acceptance criterion is rtol :math:`\le
+5 \times 10^{-4}` against the trajectory_resolvent reference on
+each of the 5 P0 snapshots — relaxed from rtol :math:`\le 10^{-9}`
+because SN nx-discretisation dominates the error budget at the
+practical mesh refinement levels.
+
+Phase B's ``pole-mm-recurrence`` label (:eq:`pole-mm-recurrence`)
+**gains a tests edge transitively** through the Phase D fix: once
+``MorelMontryAngularSweep`` becomes the default and Gates 3.1 / 3.2
+xpass, the canonical Hébert §3.9.4 angular recurrence is exercised
+by the apply matvec and pinned by an L1 test chain. Through Phase C
+the label remains tested only via the Phase B foundation suite
+(:file:`tests/sn/spatial/test_pole_angular_closure.py`); the L1
+upgrade is Phase D's responsibility.
+
+Empirical Gate 1.1 finding: spherical-vs-cylindrical structural asymmetry
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Gate 1.1 (the canonical curvilinear bug-class L0 diagnostic) is
+the per-ordinate flat-flux residual probe: for :math:`\psi` constant
+in space and per-ordinate on a reflective-BC homogeneous curvilinear
+problem, the apply matvec must produce :math:`(T\psi)_{n,i,g} =
+\Sigma_t \cdot \psi_{n,i,g}` per ordinate to ``rtol=1e-12``
+(:math:`\Sigma_t = 0` reduces this to bit-zero to ``atol=1e-13``).
+Parametrisation: spherical + cylindrical × 4 quadrature variants ×
+2 group counts × 3 nx values × 2 :math:`\Sigma_t` values × 3
+pole-closure strategies — 288 combinations under the strict
+specification.
+
+The empirical outcome decides the **default flip** per the user's
+explicit constraint 7 (the "do not flip without empirical
+evidence" sequencing). The decisive subset is the (geometry,
+pole-closure) crosstab on the canonical Hébert M–M angular closure
+strategy
+(:class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`):
+
+.. list-table:: Empirical Gate 1.1 outcome (Phase C, 2026-05-12)
+   :header-rows: 1
+   :widths: 20 25 25 30
+
+   * - Geometry
+     - Pole closure
+     - :math:`\Sigma_t = 0`
+     - :math:`\Sigma_t = 0.5`
+   * - Sphere
+     - ``LegacyTauSymmetricInterpolation``
+     - PASS
+     - PASS
+   * - Sphere
+     - ``BaileyFlatFluxRedist``
+     - PASS
+     - PASS
+   * - Sphere
+     - ``MorelMontryAngularSweep``
+     - **FAIL**
+     - **FAIL**
+   * - Cylinder
+     - ``LegacyTauSymmetricInterpolation``
+     - PASS
+     - PASS
+   * - Cylinder
+     - ``BaileyFlatFluxRedist``
+     - PASS
+     - PASS
+   * - Cylinder
+     - ``MorelMontryAngularSweep``
+     - **PASS**
+     - **PASS**
+
+The asymmetry is **structural**: spherical-MMS fails;
+cylindrical-MMS passes. The mechanism is the interaction between
+the pole-face WDD initial condition (the Carlson seed
+:math:`\psi^{\text{face}}_{\text{in}}(\text{pole}) =
+\psi^{\text{cell}}[0]`) and the canonical Hébert §3.9.4 angular
+recurrence's half-angle face flux at the pole:
+
+* **Cylindrical case** has **per-level :math:`\alpha`-dome
+  telescoping**. Each :math:`\mu`-level has its own
+  :math:`\alpha_{n+1/2}` recurrence with its own pair of
+  starting-direction face fluxes (:math:`\mu_x = -1` inward zero
+  weight + :math:`\mu_x = +1` outward zero weight). The
+  half-angle face flux discrepancy from the M–M recurrence's
+  Carlson seed is absorbed by the level's own :math:`\alpha`-dome
+  closure across its azimuthal ordinates — the level integrates to
+  zero in the angular flux moment that drives the redistribution,
+  and the level-to-level coupling at the level boundaries is
+  through pole-azimuth-degenerate ordinates that carry no spatial
+  flow. The cancellation is automatic.
+
+* **Spherical case** has **no equivalent telescoping**. The
+  spherical pole-face is a single point (the centre :math:`r=0`),
+  not a level boundary, and the entire :math:`\alpha`-cascade
+  meets there. The half-angle face flux discrepancy from the M–M
+  recurrence accumulates across the full ordinate set rather than
+  cancelling per level. The Carlson seed at the pole-**face**
+  resolves the **outer** sweep direction; the M–M angular
+  recurrence's starting-direction face flux at :math:`\mu = -1` is
+  a separate seed that must be consistent with the spatial
+  closure. The two seeds are not jointly consistent under Phase C
+  alone — that is the Phase D scope.
+
+The structural asymmetry is one of the **load-bearing
+intellectual findings** of Phase C. The plan §1 had predicted
+"sweep-frame architecture more likely to make MMS angular closure
+viable (because spatial closure is now WDD throughout, matching
+what MMS expects)", but the empirical probe revealed that the
+spherical pole is **doubly singular** in a sense the cylindrical
+case is not: both the angular :math:`\alpha`-cascade and the
+spatial WDD recurrence converge to the same singular point, and
+both need consistent starting-direction seeds. The Phase D
+follow-up (a Carlson-style **coupled** pole sweep where the
+outward-ordinate pole-face initial condition is determined by the
+inward-ordinate pole-face propagation, not chosen independently)
+is the architectural prescription. This is the symmetry condition
+at :math:`r=0` written into the SN discretisation.
+
+Per the user's explicit constraint 7, the default flip to
+``MorelMontryAngularSweep`` is **DEFERRED to Phase D**
+(`Issue #192 <https://github.com/deOliveira-R/ORPHEUS/issues/192>`_).
+Cylindrical-MMS Gate 1.1 PASS is the strong positive signal for
+the Phase D fix: the cylindrical structure is already shape-
+correct under the canonical Hébert closure with Phase C's
+sweep-frame architecture; the Phase D additional refinement
+targets the spherical pole-face only and inherits cylindrical
+behaviour for free.
 
 ERR-026 closure status (Phase C — sweep-frame matvec aligned)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Phase C ships the architectural alignment — sweep-frame matvec
 with WDD spatial closure + BC trace law at the boundary edge +
-retired Phase A BoundaryFaceFlux Protocol. The empirical Gate 1.1
-probe with
-:class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
-FAILED on sphere (the pole-face WDD initial condition interacts
-with the canonical Hébert §3.9.4 angular recurrence in a way that
-breaks the per-ordinate flat-flux invariant; cylindrical levels
-happen to telescope cleanly). Per user constraint 7, the
+retired Phase A
+:class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
+Protocol — but per the empirical Gate 1.1 finding above the
 curvilinear default stays
 :class:`~orpheus.sn.spatial.pole_angular_closure.LegacyTauSymmetricInterpolation`
 and the four ``xfail-strict`` curvilinear MMS tripwires STAY xfail.
 ERR-026 remains at **PARTIAL CLOSURE** through Phase C — the
 spatial-closure architecture is aligned (the load-bearing Phase B
-precondition); the pole-face spatial closure refinement is the
+precondition); the pole-face spatial-closure refinement is the
 Phase D scope.
+
+Verification gate summary
+'''''''''''''''''''''''''
+
+.. list-table:: Phase C verification gates
+   :header-rows: 1
+   :widths: 8 50 22 20
+
+   * - Gate
+     - Description
+     - Status
+     - Pinned at
+   * - 1.1
+     - Per-ordinate flat-flux residual
+     - PASS (Legacy + BFF on both geometries); PASS (MMS on cyl); xfail (MMS on sphere)
+     - ``test_phase_c_gates.py``
+   * - 1.2
+     - apply determinism via ``np.array_equal``
+     - PASS
+     - ``test_phase_c_gates.py``
+   * - 1.3
+     - apply ↔ apply_transpose reciprocity
+     - PASS (``rtol=1e-12``)
+     - ``test_phase_c_gates.py``
+   * - 1.4
+     - apply linearity (precondition)
+     - PASS (``rtol=1e-13``)
+     - ``test_phase_c_gates.py``
+   * - 1.5
+     - BC trace contract honoured by matvec
+     - PASS
+     - ``test_phase_c_gates.py``
+   * - 2.1
+     - 5 Cartesian regression snapshots bit-identical
+     - PASS (``rtol=1e-12``)
+     - ``test_dd_regression.py``
+   * - 2.2
+     - Phase B 28 foundation tests
+     - PASS
+     - ``test_pole_angular_closure.py``
+   * - 2.3
+     - Phase B 5 L1 flat-flux-identity tests
+     - PASS
+     - ``test_pole_closure_flat_flux_identity.py``
+   * - 2.4
+     - 21 Phase A ``BoundaryFaceFlux`` tests retired
+     - DONE
+     - (file deleted)
+   * - 3.1
+     - Spherical anisotropic MMS spatial convergence
+     - xfail (ERR-026 PARTIAL)
+     - ``test_phase_c_mms.py``
+   * - 3.2
+     - Cylindrical anisotropic MMS spatial convergence
+     - xfail (ERR-026 PARTIAL)
+     - ``test_phase_c_mms.py``
+   * - 3.3
+     - Angular convergence at fixed nx
+     - PASS
+     - ``test_phase_c_mms.py``
+   * - 4.1
+     - :math:`k_\infty` recovery on 2G reflective sphere
+     - PASS (``rtol < 5e-4``)
+     - ``test_phase_c_crosscheck.py``
+   * - 4.2
+     - trajectory_resolvent flux-shape cross-check
+     - SKIP (Phase D)
+     - ``test_phase_c_crosscheck.py``
+
+Phase D scope
+'''''''''''''
+
+Tracked at `Issue #192
+<https://github.com/deOliveira-R/ORPHEUS/issues/192>`_. The
+deliverables flip ERR-026 PARTIAL → CLOSED:
+
+1. **Pole-face spatial-closure refinement.** Carlson-style
+   coupled-pole sweep where the outward-ordinate pole-face initial
+   condition is determined by the inward-ordinate pole-face
+   propagation, encoding the continuous symmetry condition at
+   :math:`r=0` (the spherical centre is a structurally-singular
+   point in the transport-theory sense; see [LewisMiller1984]_ §4.5
+   for the canonical treatment).
+2. **Default flip.** ``SNMesh.pole_angular_closure`` default
+   ``LegacyTauSymmetricInterpolation`` → ``MorelMontryAngularSweep``;
+   ``solve_sn_fixed_source`` curvilinear default
+   ``"source_iteration"`` → ``"krylov"``.
+3. **Marker removal.** The 4 ``xfail-strict`` ERR-026 tripwires
+   (sphere + cylinder × iso + aniso MMS) come off. ERR-026 status:
+   PARTIAL CLOSURE → CLOSED. Phase B's
+   :eq:`pole-mm-recurrence` label gains a tests edge transitively
+   through the upgraded MMS chain.
+4. **Snapshot regeneration.** Regenerate the 6 curvilinear
+   snapshots under the Phase D operator + cross-check each via
+   :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere_mg`
+   / ``_sphere_mr`` /
+   :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder`
+   / ``_mr`` at rtol :math:`\le 5 \times 10^{-4}`.
+5. **Gate 4.2 full implementation.** Replace the SKIP placeholder
+   with the actual SN-vs-trajectory_resolvent flux-shape agreement
+   test on snapshots 1, 2, 4, 5, 6.
+6. **Catalog update.** ``error_catalog.md`` ERR-026 status flip
+   PARTIAL → CLOSED + Verification section pointing to the L1 +
+   trajectory_resolvent cross-check evidence chain.
 
 Starting Direction
 -------------------
