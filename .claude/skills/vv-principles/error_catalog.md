@@ -1414,6 +1414,123 @@ sweep-frame matvec aligns the spatial-closure architecture — the
 Phase B load-bearing precondition — but the angular default flip
 + pole-face spatial closure refinement is Phase D's scope).
 
+What Wave H Phase D added (commits `9512459`..`c44fe9b`, GH #168 +
+#192, 2026-05-12):
+
+Phase D (2026-05-12) shipped the canonical Hébert §3.9.4 Eqs.
+(3.432)-(3.435) **Carlson coupled-pole inward μ=−1 sweep** as the
+half-angle face flux seed for the M-M angular recurrence. Architecture:
+
+1. New module `orpheus/sn/spatial/psi_half_angle_seed.py` introduces
+   the `PsiHalfAngleSeed` Protocol family with two strategies:
+   - `ZeroSeed` (key=`"zero"`): reproduces Phase B's hardcoded
+     `psi_half_left = 0` behaviour bit-identically (regression-safety
+     ablation knob).
+   - `CarlsonInwardSweep` (key=`"carlson_inward_sweep"`): canonical
+     Hébert §3.9.4 inward zero-weight sweep at μ=−1. Returns the
+     per-cell half-angle profile `(ng, nx)` the M-M α-cascade
+     consumes via the redistribution coefficient.
+
+2. `MorelMontryAngularSweep` gains a `psi_half_seed: PsiHalfAngleSeed
+   = field(default_factory=CarlsonInwardSweep)` dataclass field
+   (Option α — composition into the M-M closure rather than a
+   sibling Protocol on SNMesh; the seed is M-M-specific because
+   Legacy and Bailey closures have no `psi_half_left` variable).
+
+3. `transport_operator_matvec_spherical` and `_cylindrical` build a
+   `CarlsonSweepContext` bundling `(sigma_t, dr, mu_quad, weights,
+   bc_outer_value)` and pass it to `pole_angular_closure` via an
+   optional `carlson_context` kwarg. Legacy and BFF ignore the
+   kwarg; M-M consumes it via its `psi_half_seed` strategy.
+
+4. **Default flips**: `SNMesh.pole_angular_closure` default flipped
+   `LegacyTauSymmetricInterpolation` → `MorelMontryAngularSweep`
+   (which itself defaults to `CarlsonInwardSweep` for its seed).
+   `solve_sn_fixed_source` curvilinear default `inner_solver` flipped
+   `"source_iteration"` → `"krylov"`.
+
+5. Gate 1.5 strengthened: BC trace contract test upgraded from
+   `apply(0)=0` probe to capture-and-compare, asserting BOTH BC
+   apply calls per matvec (Phase D Carlson context + Phase C trace
+   law) match independently-reconstructed references at
+   `rtol=atol=1e-14`. Parametrised over vacuum + reflective BCs.
+
+The corrected injection-point (the load-bearing structural
+finding):
+
+Phase D's Step 2 diagnostic memo at
+`.claude/agent-memory/numerics-investigator/phase_d_gate_1_1_sphere_mms_diagnosis.md`
+empirically established that the Phase D plan's original Protocol
+injection point (`operator.py:734-740`'s `psi_face_in` for the WDD
+outward sweep) is a **no-op on flat ψ** — the spatial pole-face IC
+already coincides with the cell-centred value on flat ψ. The
+load-bearing site is the M-M angular recurrence at
+`orpheus/sn/spatial/pole_angular_closure.py:411`'s hardcoded
+`psi_half_left = np.zeros(...)`. Replacing the zero seed with the
+Carlson sweep's `φ̄_{1/2,i}` profile closes the per-ordinate
+residual to ≤ 1e-15 on the Gate 1.1 sphere MMS probe.
+
+Empirical evidence of partial closure:
+
+- **Gate 1.1 sphere MMS (per-ordinate identity)**: 4 parametrised
+  cases (sphere × Σ_t∈{0, 0.5} + cylinder × Σ_t∈{0, 0.5}) now
+  XPASS under `MorelMontryAngularSweep` — residual collapses from
+  O(10) (Phase C baseline, max |r| ≈ 18.88) to O(1e-15) (post-
+  Phase-D). Identity-manifestation of ERR-026 CLOSED.
+- **Convergence rate (L1 MMS magnitude)**: empirical probe on the
+  L1 sphere isotropic ansatz at nx ∈ {20, 40, 80} under
+  Krylov+Carlson gives L2 errors [6.39, 0.63, 0.11] with orders
+  [3.33, 2.46] — PASSES O(h²). Under SI+Carlson the errors
+  plateau at [0.083, 0.095, 0.098] with orders [-0.19, -0.04] —
+  PLATEAUS (Krylov-flip is the correct default). Rate-manifestation
+  of ERR-026 CLOSED.
+- **Convergence magnitude (L1 MMS absolute bound)**: the four
+  L1 MMS xfail-strict markers still XFAIL because the test's
+  absolute-magnitude check `errors[-1] < 1e-3` fails at nx≤160
+  (the Krylov+Carlson path's error at nx=80 is ~0.11; extrapolating
+  with order 2.46 to nx=160 gives ~0.02 — still > 1e-3).
+  Magnitude-manifestation of ERR-026 stays open: tracked as
+  Issue #195.
+
+Tests added or updated in Phase D (`tests/sn/spatial/test_psi_half_angle_seed.py`,
+`tests/sn/test_phase_c_gates.py`, `tests/sn/test_snstreamingoperator.py`):
+
+- `test_psi_half_angle_seed.py` (NEW) — 25 foundation + L0 + L1
+  tests covering Protocol conformance, registry, immutability,
+  shape contract, bit-identity for ZeroSeed, flat-ψ algebraic
+  identity (reflective + varying C + vacuum nx=3 hand-calc),
+  multi-region σ_t step, linearity for both seeds, structural
+  independence (Carlson vs ZeroSeed on vacuum-BC probe), M-M
+  default seed pinning.
+- `test_phase_c_gates.py` — Gate 1.5 strengthened to capture-and-
+  compare with positional discrimination of the two BC apply calls.
+- `test_snstreamingoperator.py` — 3 tests updated: 1 docstring +
+  threshold rewrite (now pins Phase D fix), 2 bit-identity tests
+  threaded with `sn_mesh.pole_angular_closure`, 1 linearity
+  tolerance relaxed `rtol=1e-13 → 1e-12` (principled per
+  vv-principles §"Bit-identity vs principled-equivalence": new
+  named intermediates, structurally-independent reference, drift
+  bounded by ~25 × ULP).
+
+Phase D status after Step 3 ships: ERR-026 **PARTIAL CLOSURE**
+(narrowed scope — the per-ordinate identity AND convergence rate
+manifestations are CLOSED; the L1 magnitude manifestation is
+deferred to Issue #195 which will investigate whether the pre-
+asymptotic transient is benign or hides a coefficient bug). Marker
+removal blocked on #195; the marker reason strings updated to
+attribute the failure to the magnitude check (not the rate or
+identity, which Phase D restored).
+
+Phase D follow-up issues:
+
+- **#193** — BC-realizer level-locality invariant test (forward-
+  looking risk for future tilted-BC kinds; cylindrical Carlson
+  context commutativity assumption).
+- **#194** — Wire `verifies('hebert-3-43X')` decorators on the L0
+  algebraic identity tests OR remove orphan label declarations.
+- **#195** — L1 curvilinear MMS magnitude check pre-asymptotic
+  transient investigation + marker removal trigger.
+
 ---
 
 ## ERR-027 — Peierls slab K-matrix: naive GL collocation for cross-panel entries

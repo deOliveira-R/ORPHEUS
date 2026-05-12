@@ -42,23 +42,22 @@ def _l2_1d(phi_num: np.ndarray, phi_ref: np.ndarray, volumes: np.ndarray) -> flo
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "ERR-026 — same root cause as the anisotropic curvilinear MMS "
-        "(see tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py "
-        "for the full closure narrative).  Wave H Phase A/B shipped the "
-        "BC-aware FD operator infrastructure; Wave H Phase C "
-        "(commits eae6f05..814a895) shipped the sweep-frame matvec "
-        "rewrite + retired Phase A's BoundaryFaceFlux Protocol + "
-        "honored the §16A.3 BC trace contract — but the spherical "
-        "pole-face WDD initial condition interacts with the canonical "
-        "Hébert §3.9.4 angular recurrence in a way that still breaks "
-        "Gate 1.1 per-ordinate flat-flux invariant on sphere MMS "
-        "(cylindrical Gate 1.1 PASSES; the cylindrical per-level "
-        "α-dome telescoping happens to absorb the discrepancy).  "
-        "Full ERR-026 closure on MMS depends on Issue #192 Phase D — "
-        "the Carlson coupled-pole sweep where the outward-ordinate "
-        "pole-face initial condition is determined by the inward-"
-        "ordinate pole-face propagation (the continuous symmetry "
-        "condition at r=0)."
+        "ERR-026 PARTIAL — Phase D (commits 9512459..c44fe9b, 2026-05-12) "
+        "shipped the canonical Hébert §3.9.4 Carlson coupled-pole "
+        "inward μ=−1 sweep as the M-M angular recurrence's half-angle "
+        "seed.  Per-ordinate flat-flux residual on Gate 1.1 sphere MMS "
+        "collapsed to machine precision (≤ 1e-15), AND the empirical "
+        "spatial convergence rate on this MMS ansatz under "
+        "Krylov+Carlson is O(h²) at nx ∈ {20, 40, 80} (orders [3.33, "
+        "2.46]).  However, the absolute-magnitude check at line ~96 "
+        "(`1e-8 < errors[-1] < 1e-3`) fails at nx=160 because the L2 "
+        "error is pre-asymptotic — at nx=80 the error is ~0.11 (probe), "
+        "extrapolating with order 2.46 gives ~0.02 at nx=160, falling "
+        "below 1e-3 only at nx ≥ 320-640.  This is either a benign "
+        "pre-asymptotic transient (fix: refine mesh or relax magnitude "
+        "bound) OR a coefficient bug (fix: investigate the MMS source "
+        "discretisation vs the operator).  Issue #195 tracks the "
+        "investigation + marker removal."
     ),
 )
 @pytest.mark.verifies(
@@ -104,17 +103,18 @@ def test_sn_spherical_mms_converges_second_order():
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "ERR-026 — same root cause as the spherical isotropic MMS. "
-        "Cylindrical Gate 1.1 PASSES under canonical M-M angular "
-        "closure (the per-level α-dome telescoping absorbs the "
-        "pole-recurrence discrepancy that breaks sphere); this test "
-        "stays xfail because the underlying spherical-pole flux-"
-        "shape ERR-026 bug is what governs the default flip decision "
-        "for both geometries. Issue #192 Phase D ships the pole-face "
-        "spatial closure refinement + the default flip + this test's "
-        "marker removal as a single coordinated change. "
-        "See tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py "
-        "for the full closure narrative."
+        "ERR-026 PARTIAL — coupled to the spherical isotropic case "
+        "(this file, sphere variant).  Phase D's Carlson coupled-pole "
+        "seed restored the canonical convergence rate (O(h²) under "
+        "Krylov+Carlson on the empirical probe), but the absolute-"
+        "magnitude check at nx=160 still fails because the L2 error "
+        "is pre-asymptotic.  Issue #195 tracks the investigation + "
+        "marker removal.  Cylindrical Gate 1.1 PASSES under canonical "
+        "M-M angular closure (the per-level α-dome telescoping "
+        "absorbed the wrong-seed discrepancy pre-Phase-D; the canonical "
+        "seed now ships for cylindrical too).  This test stays xfail "
+        "coupled to the sphere's #195 outcome — the convergence-magnitude "
+        "investigation applies to both geometries."
     ),
 )
 @pytest.mark.verifies(

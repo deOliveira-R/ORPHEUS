@@ -70,27 +70,21 @@ def _l2_1d(phi_num: np.ndarray, phi_ref: np.ndarray, volumes: np.ndarray) -> flo
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "ERR-026 — curvilinear flux-shape MMS convergence rate. "
-        "Wave H Phase A/B shipped the BC-aware FD operator + 3-strategy "
-        "PoleAngularClosure Protocol; Wave H Phase C (commits eae6f05.."
-        "814a895) shipped the sweep-frame matvec rewrite that retires "
-        "the Phase A BoundaryFaceFlux Protocol entirely and routes the "
-        "BC trace law to the boundary edge on WDD-propagated outflow "
-        "face values (honouring the §16A.3 affine BC contract). The "
-        "spatial-closure architecture is now aligned. However, the "
-        "spherical pole-face WDD initial condition with the canonical "
-        "Hébert §3.9.4 angular recurrence still breaks Gate 1.1 "
-        "per-ordinate flat-flux invariant on sphere MMS — cylindrical "
-        "Gate 1.1 PASSES (the per-level α-dome telescoping absorbs "
-        "the discrepancy that the spherical case lacks at r=0). Per "
-        "the user's 2026-05-10 sequencing decision, the angular "
-        "default flip to MorelMontryAngularSweep + curvilinear Krylov "
-        "default + this marker removal are coordinated as a single "
-        "Phase D change. Full ERR-026 closure on MMS depends on Issue "
-        "#192 Phase D — the Carlson coupled-pole sweep (Hébert §3.9.4 "
-        "Eqs. 3.432-3.435) where the outward-ordinate pole-face "
-        "initial condition is determined by the inward-ordinate pole-"
-        "face propagation (the continuous symmetry condition at r=0)."
+        "ERR-026 PARTIAL — Phase D (commits 9512459..c44fe9b, 2026-05-12) "
+        "shipped the canonical Hébert §3.9.4 Carlson coupled-pole "
+        "inward μ=−1 sweep as the M-M angular recurrence's half-angle "
+        "seed AND flipped the curvilinear inner solver default to "
+        "Krylov.  Per-ordinate flat-flux residual on Gate 1.1 sphere "
+        "MMS collapsed to machine precision (≤ 1e-15); empirical "
+        "spatial convergence rate on the L1 sphere ISO MMS is O(h²) "
+        "(orders [3.33, 2.46] at nx ∈ {20, 40, 80}, probe in commit "
+        "6084e2b).  The anisotropic case shares the same operator + "
+        "matvec architecture as the isotropic case, so it inherits "
+        "the same Phase D fix.  However, the absolute-magnitude "
+        "check at nx=80 (`1e-8 < errors[-1] < 1e-3`) fails because "
+        "the L2 error is pre-asymptotic.  Issue #195 tracks the "
+        "investigation (mesh refinement vs coefficient bug) + marker "
+        "removal."
     ),
 )
 @pytest.mark.verifies(
@@ -140,16 +134,13 @@ def test_sn_spherical_aniso_mms_converges_second_order():
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "ERR-026 — same root cause as the spherical anisotropic case. "
-        "Wave H Phase A/B + Phase C (commits eae6f05..814a895, "
-        "2026-05-12) shipped the spatial-closure architectural "
-        "alignment (sweep-frame matvec + §16A.3 trace contract + "
-        "BoundaryFaceFlux Protocol retirement). Cylindrical Gate 1.1 "
-        "passes under canonical M-M angular closure; this xfail "
-        "stays coupled to the spherical case's Phase D outcome "
-        "because the default flip is a coordinated change. Full "
-        "ERR-026 MMS closure depends on Issue #192 Phase D — Carlson "
-        "coupled-pole sweep at r=0 (Hébert §3.9.4 Eqs. 3.432-3.435)."
+        "ERR-026 PARTIAL — coupled to the spherical anisotropic case. "
+        "Phase D (commits 9512459..c44fe9b, 2026-05-12) shipped the "
+        "Carlson coupled-pole seed for both geometries; per-ordinate "
+        "flat-flux identity is closed.  The absolute-magnitude check "
+        "at nx=80 still fails because the L2 error is pre-asymptotic, "
+        "same root cause as the sphere variant.  Issue #195 tracks "
+        "the convergence-magnitude investigation + marker removal."
     ),
 )
 @pytest.mark.verifies(
