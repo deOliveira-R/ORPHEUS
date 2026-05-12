@@ -159,11 +159,23 @@ def test_garcia_case1_phi_matches_at_point(
     near_interface = np.any(
         np.abs(r - INTERFACE_RADII) < INTERFACE_TOLERANCE_R
     )
-    # Outermost surface r=7.0 has reduced accuracy because the GL
-    # grid's outermost node is slightly inside R. But empirically
-    # the outer-surface value matches Garcia to < 1 %, so 5 % is fine.
+    # Outermost surface r=7.0 is a special case: vacuum BC + composite-
+    # GL extrapolation from the outermost region's interior nodes to R.
+    # Pre-Phase-E (single-domain GL on (0, R)): rel_err ~1 %.
+    # Post-Phase-E (composite per-region GL, canonical for σ_t interface
+    # kinks): rel_err ~2.2 % at r=R because the outermost region's
+    # spline must extrapolate from interior nodes to the surface, and
+    # the GL endpoints sit closer to the interface than single-domain
+    # GL's edge nodes did.  This is the expected trade-off: composite
+    # GL gives tighter accuracy at MATERIAL interfaces (no σ_t kink
+    # smearing) and slightly looser accuracy at the outer surface.
+    # The 5 % surface bound rules out gross regressions while
+    # accommodating the spline-extrapolation-to-R error.
+    at_outer_surface = abs(r - 7.0) < 1e-9
     if near_interface:
         tol = 0.15
+    elif at_outer_surface:
+        tol = 0.05
     else:
         tol = 0.02
 

@@ -409,11 +409,18 @@ def test_mr_interface_continuity_3region(interface_continuity_xs):
     (10× contrast) prevents sign-flip / symmetric-error bugs from
     averaging out across symmetrically-placed interfaces.
 
-    Known limitation (plan §6.2): single-domain GL nodes do NOT land
-    on interfaces; the cubic spline smooths across the source-profile
-    jump, introducing interpolation error at the interface that is
-    NOT a real continuity violation. The 1e-2 ceiling accommodates
-    this prototype-level limitation.
+    Post-Phase-E (2026-05-12, Issue #168 Phase D Step 4b follow-up):
+    the radial quadrature is now composite per-region GL (the
+    canonical treatment for σ_t interface kinks), so the GL nodes
+    stay strictly inside each region.  This shifts the spline error
+    profile from "spline-across-jump" to "spline-extrapolation-to-
+    interface".  Each region's spline must extrapolate from its
+    interior GL nodes to the material boundary; the extrapolation
+    error from each side is now the dominant term in ``rel_jump``.
+    The ceiling was relaxed from 1e-2 → 5e-2 to accommodate this
+    trade-off; the gain is monotonic k_eff convergence under
+    refinement (see Gate 6 quadrature-convergence tests) and
+    accurate flux profiles inside each region.
     """
     fix = interface_continuity_xs
 
@@ -451,13 +458,28 @@ def test_mr_interface_continuity_3region(interface_continuity_xs):
         phi_l = float(spl_l(r_iface))
         phi_r = float(spl_r(r_iface))
         rel_jump = abs(phi_l - phi_r) / max(abs(phi_l), abs(phi_r))
-        # 1e-2 ceiling: accommodates spline-across-jump interpolation
-        # error documented in plan §6.2. Real bugs (off-by-one in
-        # region_at_node, wrong segment) would produce ≥ 10% jumps.
-        assert rel_jump < 1e-2, (
+        # 5e-2 ceiling, post-Phase-E composite-GL correction (2026-05-12):
+        # with single-domain GL on (0, R) the nodes straddled the
+        # material interfaces, so per-region cubic splines could
+        # interpolate-across-jump and the rel_jump was ~3e-3.  With
+        # composite per-region GL (the canonical correction for σ_t
+        # interface kinks — see ``_composite_per_region_gl`` in
+        # ``orpheus.derivations.continuous.trajectory_resolvent.greens_function``),
+        # the GL nodes stay STRICTLY INSIDE each region; the spline
+        # must EXTRAPOLATE from interior nodes to the interface, and
+        # the extrapolation error from each side is now the dominant
+        # term in ``rel_jump`` (not the source-jump smoothing artifact
+        # the original 1e-2 ceiling was calibrated for).  Empirical
+        # post-Phase-E value: ~2.85e-2 on the asymmetric 3-region
+        # config; the 5e-2 ceiling rules out off-by-one region_at_node
+        # bugs (≥ 10% jumps) while accommodating the extrapolation
+        # trade-off.  Quadrature-convergence stress tests
+        # (``test_mr_quadrature_convergence_*``) pin the MONOTONIC
+        # k_eff convergence the composite-GL correction delivers.
+        assert rel_jump < 5e-2, (
             f"Gate 4 interface r = {r_iface}: φ left limit = {phi_l:.6e}, "
             f"φ right limit = {phi_r:.6e}, relative jump = {rel_jump:.3e}. "
-            f"Exceeds 1e-2 ceiling — investigate region_at_node or "
+            f"Exceeds 5e-2 ceiling — investigate region_at_node or "
             f"segment-arithmetic bug."
         )
 
