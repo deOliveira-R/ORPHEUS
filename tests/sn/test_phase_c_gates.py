@@ -372,3 +372,174 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
     np.testing.assert_array_equal(
         op.apply(np.zeros(op.n_unknowns)), 0.0
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Gate 1.5 strengthened — capture-and-compare BC apply input (Phase D)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Per the Phase D plan §3f, the original Gate 1.5 `apply(0) = 0`
+# probe is replaced with a capture-and-compare structural test:
+# we instrument the matvec to capture the input vector passed to
+# the BC apply, then verify it bit-matches the independently-
+# reconstructed WDD-propagated outflow face value.
+#
+# Parametrised over BC kinds (Vacuum, Reflective) × geometries
+# (sphere, cylinder).  White / Albedo / PrescribedInflow are NOT
+# included in this parametrisation because their realizer output
+# structures differ (White returns AngularAverageOperator product;
+# Albedo is identity-scaled; PrescribedInflow has an inhomogeneous
+# affine component).  Those kinds are tested at unit level via
+# their own realizer-tests (`tests/sn/test_sn_boundary_realizer.py`).
+
+
+def _outflow_at_boundary_for_sphere(sn_mesh, sig_t, psi_input):
+    r"""Independently reconstruct the WDD-propagated outflow face value.
+
+    Runs the same WDD diamond closure as
+    ``transport_operator_matvec_spherical``'s outward sweep, in
+    isolation (no redistribution, no collision, no BC).  Returns the
+    outflow face vector at the outer boundary, shape ``(ng, N)``
+    with only the outgoing ordinates populated.
+
+    This is the "reference" the BC apply input must bit-match
+    in the capture-and-compare test below.
+    """
+    from orpheus.sn.operator import solution_to_angular_flux_spherical
+    op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
+    eq_map = op._ensure_eq_map()
+    nx = sn_mesh.nx
+    ng = sig_t.shape[2]
+    quad = sn_mesh.quad
+    eps = 1e-15
+    fi = solution_to_angular_flux_spherical(psi_input, eq_map, quad, nx, ng)
+    outgoing_mask = quad.mu_x > +eps
+    outflow_at_boundary = np.zeros((ng, quad.N))
+    if not np.any(outgoing_mask):
+        return outflow_at_boundary
+    # Lewis-Miller pole-face IC (matches transport_operator_matvec_spherical):
+    psi_face_in = fi[:, outgoing_mask, 0, 0].copy()
+    for i in range(nx):
+        psi_cell = fi[:, outgoing_mask, i, 0]
+        psi_face_out = 2.0 * psi_cell - psi_face_in
+        psi_face_in = psi_face_out
+    outflow_at_boundary[:, outgoing_mask] = psi_face_out
+    return outflow_at_boundary
+
+
+def _cell_centred_outer_psi_for_sphere(sn_mesh, sig_t, psi_input):
+    r"""Independently reconstruct the Phase D Carlson-context BC input.
+
+    The Phase D ``transport_operator_matvec_spherical`` builds the
+    Carlson sweep context's ``bc_outer_value`` by applying the BC to
+    the cell-centred angular flux at the outermost radial cell —
+    specifically ``fi[:, :, -1, 0].T``.  This helper reconstructs that
+    exact input independently, so the Gate 1.5 capture-and-compare
+    test can assert both BC apply calls.
+
+    Returns shape ``(N, ng)`` — the same layout the matvec passes
+    to ``bc_outer.apply``.
+    """
+    from orpheus.sn.operator import solution_to_angular_flux_spherical
+    op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
+    eq_map = op._ensure_eq_map()
+    nx = sn_mesh.nx
+    ng = sig_t.shape[2]
+    quad = sn_mesh.quad
+    fi = solution_to_angular_flux_spherical(psi_input, eq_map, quad, nx, ng)
+    return fi[:, :, -1, 0].T  # (N, ng)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(
+    "bc_kind",
+    [
+        pytest.param("vacuum", id="vacuum"),
+        pytest.param("reflective", id="reflective"),
+    ],
+)
+def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
+    r"""Gate 1.5 strengthened: capture-and-compare the BC apply input.
+
+    Instruments the matvec to capture the input vector passed to
+    ``bc_outer.apply(...)``, then asserts the captured input is
+    bit-identical to the independently-reconstructed WDD-propagated
+    outflow face value.  This pins the §16A.3 contract: the BC trace
+    law MUST consume the WDD-propagated outflow face values from the
+    matvec's outward sweep — NOT cell-centres, NOT a pre-staged
+    boundary array.
+
+    Phase D upgrade from the pre-existing ``apply(0) = 0`` probe.
+    """
+    from unittest.mock import patch
+    sn_mesh, sig_t = _make_spherical_sn_mesh(
+        nx=6, R=1.0, quad_name="gl4",
+        bc_outer=BC(bc_kind),
+    )
+    op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
+    rng = np.random.default_rng(seed=137)
+    psi_input = rng.standard_normal(op.n_unknowns)
+
+    # Independent reference: rebuild outflow face via isolated WDD.
+    expected_outflow = _outflow_at_boundary_for_sphere(
+        sn_mesh, sig_t, psi_input,
+    )
+
+    # Capture the BC apply input.
+    captured_inputs: list[np.ndarray] = []
+    original_apply = sn_mesh.bc_right.apply
+
+    def capture_apply(inp):
+        captured_inputs.append(np.array(inp, copy=True))
+        return original_apply(inp)
+
+    with patch.object(sn_mesh.bc_right, "apply", side_effect=capture_apply):
+        op.apply(psi_input)
+
+    # The matvec calls bc_outer.apply exactly TWICE per matvec:
+    #   call[0]: Carlson context's bc_outer_value (Phase D) — passes
+    #            cell-centred outer-cell ψ values, shape (N, ng).
+    #   call[1]: Phase C BC trace law on the WDD-propagated outflow
+    #            face vector, shape (N, ng).
+    # Both calls have shape (N, ng); they are distinguishable by
+    # CONTENT, not shape.  This test verifies BOTH calls explicitly:
+    #   - call[0] content == cell-centred outer ψ (the Phase D input).
+    #   - call[1] content == independently-reconstructed WDD outflow
+    #                        (the Phase C trace-contract assertion).
+    # Asserting both inputs (not just "find ANY match") prevents a
+    # silent future regression that reorders the calls or replaces
+    # one of them.
+    assert len(captured_inputs) == 2, (
+        f"Expected exactly 2 bc_outer.apply calls per matvec (Phase D"
+        f" Carlson context + Phase C BC trace law), got "
+        f"{len(captured_inputs)}.  If the matvec call-order changed,"
+        f" update this test."
+    )
+    # Phase D call: cell-centred outer-cell ψ at i = nx − 1.
+    # The matvec extracts fi[:, :, -1, 0] then passes .T, shape
+    # (N, ng).  fi is the reshaped ψ; fi[:, :, -1, 0] is the
+    # outermost-cell flux at ordinate axis 1, group axis 0.
+    expected_phase_d_input = _cell_centred_outer_psi_for_sphere(
+        sn_mesh, sig_t, psi_input
+    )
+    assert np.allclose(
+        captured_inputs[0], expected_phase_d_input,
+        rtol=1e-14, atol=1e-14,
+    ), (
+        f"Phase D call (captured_inputs[0]) does not match the "
+        f"cell-centred outer-cell ψ reference.  Max diff: "
+        f"{np.max(np.abs(captured_inputs[0] - expected_phase_d_input))}.  "
+        f"If the Carlson context's bc_outer_value derivation changed,"
+        f" update this test or the implementation."
+    )
+    # Phase C call: independently-reconstructed WDD-propagated outflow.
+    expected_phase_c_input = expected_outflow.T  # (N, ng)
+    assert np.allclose(
+        captured_inputs[1], expected_phase_c_input,
+        rtol=1e-14, atol=1e-14,
+    ), (
+        f"Phase C call (captured_inputs[1]) does not match the "
+        f"independently-reconstructed WDD-propagated outflow.  Max "
+        f"diff: {np.max(np.abs(captured_inputs[1] - expected_phase_c_input))}."
+        f"  This is the §16A.3 BC trace contract failure."
+    )
