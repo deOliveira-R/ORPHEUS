@@ -625,6 +625,101 @@ def _region_at_radius(r: float, radii: np.ndarray) -> int:
     return min(idx, len(radii) - 1)
 
 
+def _composite_per_region_gl(
+    radii: np.ndarray, n_r_total: int, min_per_region: int = 2,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    r"""Composite Gauss-Legendre quadrature on a piecewise-uniform radial domain.
+
+    Builds per-region GL nodes and weights for the multi-region radial
+    integration, ensuring that GL nodes land on each region's interior
+    only — never at a material interface.  This is the canonical
+    treatment for integrands with :math:`\Sigma_t` discontinuities at
+    region boundaries: a single-domain GL on :math:`(0, R)` smears the
+    interface kink across a polynomial fit and produces non-monotone
+    convergence under refinement.
+
+    Returns the concatenated ``(r_nodes, r_weights, region_at_node)``
+    arrays so existing call sites can drop in the composite quadrature
+    without changing downstream contract.  The total node count
+    ``len(r_nodes)`` is exactly ``n_r_total`` (subject to
+    ``min_per_region`` floor — if the floor causes the sum to exceed
+    ``n_r_total``, the floor wins and the function emits more nodes
+    than requested).
+
+    Parameters
+    ----------
+    radii : (n_regions,) ndarray
+        Outer radii of each region in ascending order.  ``radii[-1]``
+        is the outer boundary :math:`R`.
+    n_r_total : int
+        Target total node count, distributed across regions
+        proportionally to region thickness.
+    min_per_region : int, default 2
+        Minimum nodes per region.  GL with fewer than 2 nodes
+        degenerates to a midpoint rule; 2 is the smallest reasonable
+        choice.
+
+    Returns
+    -------
+    r_nodes : (sum_k n_per_region[k],) ndarray
+        Composite GL nodes, ordered by region (inner → outer).
+    r_weights : (sum_k n_per_region[k],) ndarray
+        Corresponding composite GL weights (each region's GL transformed
+        from the reference interval :math:`[-1, 1]` to its physical
+        radial interval).
+    region_at_node : (sum_k n_per_region[k],) ndarray of int
+        Region index per node (deterministic by construction; no
+        searchsorted required).
+
+    Notes
+    -----
+    The composite quadrature is exact for a polynomial of degree
+    :math:`2n_k - 1` on each region :math:`k` independently — it does
+    NOT recover the global :math:`2n_r - 1` exactness of a single-domain
+    GL, but for piecewise-smooth integrands with interface kinks this
+    is the correct trade-off (polynomial fits across the kink are
+    structurally inconsistent regardless of GL order).
+    """
+    radii = np.asarray(radii, dtype=float)
+    n_regions = len(radii)
+    inner_radii = np.concatenate([[0.0], radii[:-1]])
+    thicknesses = radii - inner_radii
+
+    # Proportional allocation; floor at min_per_region.
+    weights = thicknesses / thicknesses.sum()
+    raw = np.round(weights * n_r_total).astype(int)
+    raw = np.maximum(raw, min_per_region)
+    # Adjust so the sum matches n_r_total when possible.
+    diff = int(raw.sum() - n_r_total)
+    while diff > 0:
+        # Remove from the most-populated region that still exceeds the floor.
+        candidates = np.where(raw > min_per_region)[0]
+        if len(candidates) == 0:
+            break
+        idx = candidates[np.argmax(raw[candidates])]
+        raw[idx] -= 1
+        diff -= 1
+    while diff < 0:
+        # Add to the region with the highest thickness-per-node ratio.
+        density = thicknesses / raw
+        raw[int(np.argmax(density))] += 1
+        diff += 1
+
+    nodes_list, weights_list, regions_list = [], [], []
+    for k in range(n_regions):
+        a, b = float(inner_radii[k]), float(radii[k])
+        pts, wts = np.polynomial.legendre.leggauss(int(raw[k]))
+        nodes_list.append(0.5 * (b - a) * (pts + 1.0) + a)
+        weights_list.append(0.5 * (b - a) * wts)
+        regions_list.append(np.full(int(raw[k]), k, dtype=int))
+
+    return (
+        np.concatenate(nodes_list),
+        np.concatenate(weights_list),
+        np.concatenate(regions_list),
+    )
+
+
 def _trajectory_segments(
     r_start: float, mu: float, R: float, radii: np.ndarray,
 ) -> tuple[list[tuple[float, float, int]], float]:
@@ -847,18 +942,21 @@ def solve_greens_function_sphere_mr(
     if not (0.0 <= alpha <= 1.0):
         raise ValueError(f"alpha = {alpha} must lie in [0, 1]")
 
-    # Radial grid: composite Gauss-Legendre per region for accuracy
-    # near interfaces. For the prototype use a single GL on (0, R)
-    # but track which region each node is in. (Composite per-region
-    # quadrature is a follow-on improvement; single GL works for
-    # qualitative Issue #132 reproducer.)
-    r_quad_pts, r_quad_wts = np.polynomial.legendre.leggauss(n_r)
-    r_nodes = R * 0.5 * (r_quad_pts + 1.0)
-    r_weights = R * 0.5 * r_quad_wts
-    region_at_node = np.array(
-        [_region_at_radius(float(r), radii) for r in r_nodes],
-        dtype=int,
+    # Radial grid: composite Gauss-Legendre per region.  Single-domain
+    # GL on (0, R) smears the Σ_t interface kink across a polynomial
+    # fit and produces non-monotone convergence under refinement (the
+    # Phase E investigation following Issue #168 Phase D Step 4b's
+    # Gate 4.2 cross-check, 2026-05-12).  The composite quadrature
+    # places GL nodes within each region's interior independently —
+    # the canonical treatment for integrands with material-interface
+    # discontinuities.  ``n_r`` becomes the TARGET total node count;
+    # actual ``len(r_nodes)`` may exceed it slightly when the
+    # ``min_per_region=2`` floor binds (small numbers of regions on
+    # small ``n_r``).
+    r_nodes, r_weights, region_at_node = _composite_per_region_gl(
+        radii, n_r,
     )
+    n_r_actual = len(r_nodes)
 
     # Angular grid: full µ ∈ [-1, 1].
     mu_quad_pts, mu_quad_wts = np.polynomial.legendre.leggauss(n_mu)
@@ -868,12 +966,14 @@ def solve_greens_function_sphere_mr(
     # Initial guess
     if initial_psi is not None:
         psi = np.asarray(initial_psi, dtype=float).copy()
-        if psi.shape != (G, n_r, n_mu):
+        if psi.shape != (G, n_r_actual, n_mu):
             raise ValueError(
-                f"initial_psi shape must be ({G}, {n_r}, {n_mu})"
+                f"initial_psi shape must be ({G}, {n_r_actual}, {n_mu})"
+                f" — composite per-region GL yields n_r_actual={n_r_actual}"
+                f" nodes for radii={radii.tolist()} at n_r={n_r}"
             )
     else:
-        psi = np.ones((G, n_r, n_mu))
+        psi = np.ones((G, n_r_actual, n_mu))
 
     if initial_k is not None:
         k_eff = float(initial_k)
@@ -1068,13 +1168,12 @@ def solve_greens_function_sphere_mr_fixed_source(
     if not (0.0 <= alpha <= 1.0):
         raise ValueError(f"alpha = {alpha} must lie in [0, 1]")
 
-    # Radial grid
-    r_quad_pts, r_quad_wts = np.polynomial.legendre.leggauss(n_r)
-    r_nodes = R * 0.5 * (r_quad_pts + 1.0)
-    region_at_node = np.array(
-        [_region_at_radius(float(r), radii) for r in r_nodes],
-        dtype=int,
+    # Radial grid: composite per-region GL (Phase E correction, see
+    # sphere_mr above for rationale).
+    r_nodes, _r_weights, region_at_node = _composite_per_region_gl(
+        radii, n_r,
     )
+    n_r_actual = len(r_nodes)
 
     # Angular grid
     mu_quad_pts, mu_quad_wts = np.polynomial.legendre.leggauss(n_mu)
@@ -1082,12 +1181,12 @@ def solve_greens_function_sphere_mr_fixed_source(
     mu_weights = mu_quad_wts
 
     # Initial guess: uniform constant
-    psi = np.ones((G, n_r, n_mu))
+    psi = np.ones((G, n_r_actual, n_mu))
 
     inv_4pi = 1.0 / (4.0 * np.pi)
     iterations = 0
     converged = False
-    phi_g_prev = np.zeros((G, n_r))
+    phi_g_prev = np.zeros((G, n_r_actual))
 
     # External source profile per node: Q_ext(r) is constant within
     # each region, indexed by region_at_node.

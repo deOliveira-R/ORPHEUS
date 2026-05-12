@@ -121,6 +121,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
+    _composite_per_region_gl,
+)
 from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
     CylinderChordOracle,
     MultiRegionCylinderChordOracle,
@@ -802,14 +805,20 @@ def solve_greens_function_cylinder_mr(
     if not (0.0 <= alpha <= 1.0):
         raise ValueError(f"alpha = {alpha} must lie in [0, 1]")
 
-    # Composite radial GL on (0, R). Nodes do NOT land on interfaces.
-    r_quad_pts, r_quad_wts = np.polynomial.legendre.leggauss(n_r)
-    r_nodes = R * 0.5 * (r_quad_pts + 1.0)
-    r_weights = R * 0.5 * r_quad_wts
-    region_at_node = np.array(
-        [_region_at_radius_cyl(float(r), radii) for r in r_nodes],
-        dtype=int,
+    # Composite per-region GL on the radial axis.  Phase E correction
+    # (2026-05-12, Issue #168 Phase D Step 4b follow-up): single-domain
+    # GL on (0, R) produces non-monotone k_eff convergence under
+    # refinement on heterogeneous closed MR because the GL polynomial
+    # fit smears the Σ_t interface kinks.  Composite per-region GL
+    # places nodes within each region's interior independently —
+    # canonical treatment for piecewise-smooth integrands with
+    # material-interface discontinuities.  ``n_r`` is the TARGET total
+    # node count; ``len(r_nodes)`` may slightly exceed it when the
+    # ``min_per_region=2`` floor binds.
+    r_nodes, r_weights, region_at_node = _composite_per_region_gl(
+        radii, n_r,
     )
+    n_r_actual = len(r_nodes)
 
     # Axial-cosine grid: GL on [-1, 1].
     mu_quad_pts, mu_quad_wts = np.polynomial.legendre.leggauss(n_mu_axial)
@@ -825,13 +834,15 @@ def solve_greens_function_cylinder_mr(
     # Initial guess.
     if initial_psi is not None:
         psi = np.asarray(initial_psi, dtype=float).copy()
-        if psi.shape != (G, n_r, n_mu_axial, n_phi_az):
+        if psi.shape != (G, n_r_actual, n_mu_axial, n_phi_az):
             raise ValueError(
-                f"initial_psi shape must be ({G}, {n_r}, {n_mu_axial}, "
-                f"{n_phi_az}); got {psi.shape}"
+                f"initial_psi shape must be ({G}, {n_r_actual}, "
+                f"{n_mu_axial}, {n_phi_az}) — composite per-region GL "
+                f"yields n_r_actual={n_r_actual} for radii="
+                f"{radii.tolist()} at n_r={n_r}; got {psi.shape}"
             )
     else:
-        psi = np.ones((G, n_r, n_mu_axial, n_phi_az))
+        psi = np.ones((G, n_r_actual, n_mu_axial, n_phi_az))
 
     if initial_k is not None:
         k_eff = float(initial_k)
