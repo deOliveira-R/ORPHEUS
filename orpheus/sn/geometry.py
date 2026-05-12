@@ -148,36 +148,37 @@ class SNMesh:
         # the boundary edge; the Phase A ``DDExtrapolation`` strategy
         # is subsumed by this rewrite. The
         # ``boundary_face_flux`` field is gone from the constructor.
-        # Angular-redistribution closure (Issue #168 Phase B). Defaults
-        # to :class:`LegacyTauSymmetricInterpolation`, the bit-for-bit
-        # reproduction of the pre-Phase-B inlined τ-symmetric form —
-        # preserves the curvilinear regression-snapshot bit-identity
-        # contract and the per-ordinate flat-flux invariant that the
-        # ERR-026 evidence test
-        # (``tests/sn/test_sweep_operator_inconsistency.py``) and the
-        # Phase A flat-flux invariants depend on.
+        # Angular-redistribution closure (Issue #168 Phase B + D).
+        #
+        # Phase D (Issue #168 ERR-026 closure, 2026-05-12) DEFAULT FLIP:
+        # the default angular closure is now
+        # :class:`MorelMontryAngularSweep` — the canonical Hébert §3.9.4
+        # per-cell M-M weighted DD angular recurrence with the Carlson
+        # coupled-pole seed (Eqs. 3.432-3.435) supplied by
+        # :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`.
+        # The Carlson seed closes the M-M recurrence's pole-face
+        # initialisation gap, making the per-ordinate flat-flux
+        # residual identically zero on sphere Gate 1.1 MMS (per
+        # ``tests/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual``).
+        # The default flip pairs the canonical pole-angular closure
+        # with its canonical spatial-closure partner.
         #
         # Phase B ships three strategies (mirror of Phase A's two
         # boundary-face-flux strategies):
         #
-        # * :class:`LegacyTauSymmetricInterpolation` (default) —
-        #   pre-Phase-B inlined math, bit-identical regression
-        #   preservation.  Carries Defect 3 by design — the
+        # * :class:`MorelMontryAngularSweep` (Phase D default) —
+        #   canonical Hébert §3.9.4 form with Carlson coupled-pole
+        #   seed.  Closes ERR-026 on sphere; preserves cylindrical
+        #   Gate 1.1 regression-stability.
+        # * :class:`LegacyTauSymmetricInterpolation` — pre-Phase-B
+        #   inlined τ-symmetric form.  Bit-identical regression
+        #   preservation against the curvilinear snapshots generated
+        #   under Phase A.  Carries Defect 3 by design — the
         #   factor-of-two angular truncation gap on angularly-varying
-        #   :math:`\\psi` survives so future verification probes can
-        #   cross-check against the documented behaviour.
+        #   :math:`\\psi` survives.  Reachable via explicit user opt-in.
         # * :class:`BaileyFlatFluxRedist` — the algebraic flat-flux
         #   collapse equivalent (only on flat ψ).  Used by the L1
-        #   flat-flux-identity test.
-        # * :class:`MorelMontryAngularSweep` — canonical Hébert §3.9.4
-        #   per-cell M-M weighted DD angular recurrence.  Closes
-        #   Defect 3 on angularly-varying :math:`\\psi` but breaks
-        #   per-ordinate flat-flux balance and does NOT yet pair with
-        #   the apply matvec's spatial closure to give a clean
-        #   :math:`\\mathcal{O}(h^2)` MMS rate.  The full ERR-026
-        #   closure requires a follow-up that aligns the apply
-        #   matvec's spatial closure with the sweep's WDD form
-        #   (design memo §6.4 / §11).
+        #   flat-flux-identity test for ablation studies.
         #
         # Used by the spherical / cylindrical
         # ``transport_operator_matvec_*`` paths via
@@ -186,7 +187,7 @@ class SNMesh:
         # this attribute.
         self.pole_angular_closure: PoleAngularClosure = (
             pole_angular_closure if pole_angular_closure is not None
-            else LegacyTauSymmetricInterpolation()
+            else MorelMontryAngularSweep()
         )
 
         # Normalise to (nx, ny) shaped arrays for both 1-D and 2-D

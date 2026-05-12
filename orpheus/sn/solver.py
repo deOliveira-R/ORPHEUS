@@ -1007,25 +1007,31 @@ def solve_sn_fixed_source(
     mesh = _apply_default_bcs(mesh, boundary_condition)
     sn_mesh = SNMesh(mesh, quadrature)
 
-    # Issue #168 status (Phase A + Phase B partial):
+    # Issue #168 status (Phase D ERR-026 closure, 2026-05-12):
     #
-    # * Phase A (Defects 1 + 2): ``BoundaryFaceFlux`` Protocol with
-    #   :class:`DDExtrapolation` default — fixes the outer-face
-    #   cell-centre truncation and the cell-centre / BC-face-value
-    #   storage conflation.
-    # * Phase B (Defect 3): :class:`PoleAngularClosure` Protocol with
-    #   :class:`BaileyFlatFluxRedist` default (the legacy flat-flux
-    #   collapse, bit-for-bit Phase A semantics).
-    #   :class:`MorelMontryAngularSweep` ships the canonical Hébert
-    #   §3.9.4 form as **opt-in only** — its full integration with
-    #   the apply matvec requires the spatial closure also to be
-    #   aligned with the sweep's WDD form (design memo §6.4 / §11),
-    #   which is a deeper architectural change beyond Phase B's
-    #   scope.  Until that lands, the curvilinear default stays
-    #   ``"source_iteration"`` and the curvilinear MMS xfail-strict
-    #   markers stay xfail (ERR-026 PARTIAL CLOSURE).
+    # * Phase A (Defects 1 + 2): the ``BoundaryFaceFlux`` Protocol
+    #   retired in Phase C.
+    # * Phase B (Defect 3): :class:`MorelMontryAngularSweep` is now
+    #   the SNMesh-default :class:`PoleAngularClosure`.
+    # * Phase C (sweep-frame matvec): the apply matvec is one sweep
+    #   iteration semantically, with WDD spatial closure.
+    # * Phase D (Carlson coupled-pole seed):
+    #   :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`
+    #   seeds the M-M angular recurrence's half-angle face flux, making
+    #   per-ordinate flat-flux balance hold on sphere Gate 1.1 MMS.
+    #
+    # **Phase D default flip (2026-05-12)**: curvilinear (sphere /
+    # cylinder) defaults to ``"krylov"``.  The Phase B / C / D apply
+    # matvec gives the canonical Hébert form; Krylov-on-apply
+    # converges cleanly to the apply matvec's fixed point without
+    # the ERR-026 closure-bias drift.  Cartesian (slab / 2-D) stays
+    # at ``"source_iteration"`` (the existing inner solver default
+    # for Cartesian — no ERR-026 affected closure on slab).
     if inner_solver is None:
-        inner_solver = "source_iteration"
+        if getattr(sn_mesh, "curvature", None) in ("spherical", "cylindrical"):
+            inner_solver = "krylov"
+        else:
+            inner_solver = "source_iteration"
 
     solver = SNSolver(
         materials, sn_mesh,

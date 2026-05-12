@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **3434**
+Total tests collected: **3460**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 911, 26.5%
-   L1, 841, 24.5%
+   L0, 915, 26.4%
+   L1, 842, 24.3%
    L2, 36, 1.0%
    L3, 0, 0.0%
-   foundation, 1618, 47.1%
+   foundation, 1639, 47.4%
    unmarked, 28, 0.8%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 3327
+   explicit, 3353
    verify, 0
    class-name, 46
    func-name, 0
@@ -228,7 +228,7 @@ Module × level grid
    sn/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
    sn/test_octants_property, 60, 0, 0, 0, 0, 0
    sn/test_phase_c_crosscheck, 0, 2, 0, 0, 0, 0
-   sn/test_phase_c_gates, 12, 0, 0, 0, 7, 0
+   sn/test_phase_c_gates, 12, 0, 0, 0, 9, 0
    sn/test_phase_c_mms, 0, 3, 0, 0, 0, 0
    sn/test_properties, 4, 0, 0, 0, 0, 0
    sn/test_quadrature, 49, 0, 0, 0, 0, 0
@@ -247,6 +247,7 @@ Module × level grid
    spatial/test_cell_update_protocol, 0, 0, 0, 0, 16, 0
    spatial/test_diamond, 0, 0, 0, 0, 13, 0
    spatial/test_pole_angular_closure, 0, 0, 0, 0, 28, 0
+   spatial/test_psi_half_angle_seed, 4, 1, 0, 0, 19, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -325,6 +326,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-cyl-3d-mode-formula``, 22
    ``pitch-recovery``, 22
    ``ray-circle``, 22
+   ``dd-curvilinear-scalar``, 20
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
    ``peierls-rank-n-stability``, 20
@@ -336,7 +338,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``roulette-conservation``, 16
    ``roulette-prob``, 16
    ``transport-cartesian``, 16
-   ``dd-curvilinear-scalar``, 15
    ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
    ``peierls-greens-annulus-architecture``, 14
@@ -771,7 +772,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-023``, 1
    ``ERR-024``, 1
    ``ERR-025``, 4
-   ``ERR-026``, 18
+   ``ERR-026``, 23
    ``ERR-027``, 5
    ``ERR-028``, 1
    ``ERR-029``, 6
