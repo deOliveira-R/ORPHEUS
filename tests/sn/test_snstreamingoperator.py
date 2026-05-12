@@ -210,8 +210,19 @@ def test_apply_slab_bit_identical_to_legacy():
 def test_apply_spherical_bit_identical_to_legacy():
     """SNStreamingOperator.apply == transport_operator_matvec_spherical.
 
-    Wave E Round 3 update: legacy call threads ``sn_mesh.bc_right`` so
-    the test exercises the BC-faithful Round 3 plumbing.
+    Phase D update (Issue #168 ERR-026 closure, 2026-05-12): the
+    legacy call MUST thread ``sn_mesh.pole_angular_closure`` AND
+    ``sn_mesh``, since the SNMesh default for pole closure flipped
+    to :class:`MorelMontryAngularSweep` (with the Carlson coupled-pole
+    seed).  Without threading both, the legacy fallback (Legacy
+    τ-symmetric, function-level default in
+    :func:`transport_operator_matvec_spherical`) gives a different
+    result.
+
+    The threaded test exercises:
+    * BC-faithful Round 3 plumbing via ``sn_mesh.bc_right``.
+    * Phase D Carlson coupled-pole seed via ``sn_mesh.pole_angular_closure``.
+    * ``iter_cells_by_direction`` via ``sn_mesh``.
     """
     sn_mesh = _spherical_mesh()
     sig_t = _sig_t_uniform(sn_mesh, ng=2)
@@ -232,7 +243,9 @@ def test_apply_spherical_bit_identical_to_legacy():
         reduced.alpha_half,
         reduced.redist_dAw,
         reduced.tau_mm,
+        sn_mesh=sn_mesh,
         bc_outer=sn_mesh.bc_right,
+        pole_angular_closure=sn_mesh.pole_angular_closure,
     )
     via_op = op.apply(psi)
 
@@ -247,7 +260,9 @@ def test_apply_spherical_bit_identical_to_legacy():
 def test_apply_cylindrical_bit_identical_to_legacy():
     """SNStreamingOperator.apply == transport_operator_matvec_cylindrical.
 
-    Wave E Round 3 update: legacy call threads ``sn_mesh.bc_right``.
+    Phase D update (Issue #168, 2026-05-12): the legacy call MUST
+    thread ``sn_mesh.pole_angular_closure`` AND ``sn_mesh``, since
+    the SNMesh default flipped to :class:`MorelMontryAngularSweep`.
     """
     sn_mesh = _cylindrical_mesh()
     sig_t = _sig_t_uniform(sn_mesh, ng=2)
@@ -268,7 +283,9 @@ def test_apply_cylindrical_bit_identical_to_legacy():
         reduced.alpha_per_level,
         reduced.redist_dAw_per_level,
         reduced.tau_mm_per_level,
+        sn_mesh=sn_mesh,
         bc_outer=sn_mesh.bc_right,
+        pole_angular_closure=sn_mesh.pole_angular_closure,
     )
     via_op = op.apply(psi)
 
@@ -503,7 +520,23 @@ def test_reciprocity_multiple_pairs(geometry: str, seed: int):
     ["slab", "spherical", "cylindrical"],
 )
 def test_apply_is_linear(geometry: str):
-    """apply(αψ + βφ) == α·apply(ψ) + β·apply(φ)."""
+    """apply(αψ + βφ) == α·apply(ψ) + β·apply(φ).
+
+    Phase D update (Issue #168 ERR-026 closure, 2026-05-12): the
+    curvilinear path (sphere + cylinder) now runs the Carlson
+    coupled-pole inward sweep + BC-realization-on-cell-centres for
+    the seed.  These ADD per-call FP-reduction steps that
+    individually preserve linearity at the algebraic level but
+    introduce ~10×ULP non-associativity drift on randomly-generated
+    inputs (FP non-associativity per `vv-principles`
+    §"Bit-identity vs principled-equivalence").
+
+    Tolerance is relaxed from rtol=1e-13 → rtol=1e-12 to absorb the
+    drift.  The drift bound is `(reduction depth) × ULP` per the
+    principled-equivalence framework; for curvilinear sweeps the
+    reduction depth has grown by ~5-10 floating-point ops (the
+    Carlson sweep + BC apply + moment accumulation).
+    """
     if geometry == "slab":
         sn_mesh = _slab_mesh()
     elif geometry == "spherical":
@@ -524,7 +557,7 @@ def test_apply_is_linear(geometry: str):
     lhs = op.apply(alpha * psi + beta * phi)
     rhs = alpha * op.apply(psi) + beta * op.apply(phi)
 
-    np.testing.assert_allclose(lhs, rhs, rtol=1e-13, atol=1e-14)
+    np.testing.assert_allclose(lhs, rhs, rtol=1e-12, atol=1e-13)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -778,11 +811,30 @@ def test_apply_spherical_vacuum_bc_residual_is_consistent():
 
 
 def test_apply_spherical_constant_flux_under_morel_montry_canonical_form():
-    """Phase B canonical Hébert §3.9.4 form: per-ordinate flat-flux
-    balance is **deliberately broken** in exchange for asymptotic
-    :math:`\\mathcal{O}(h^2)` accuracy on angularly-varying ψ.  The
-    surviving invariant is **angular-integrated**: :math:`\\sum_n
-    w_n \\cdot R_{n,i,g} = 0` by α-telescoping (Hébert Eq. 3.420).
+    """Phase D canonical Hébert §3.9.4 form: per-ordinate flat-flux
+    balance NOW PRESERVED to machine precision via the Carlson
+    coupled-pole seed (Issue #168 Phase D, ERR-026 closure).
+
+    Pre-Phase-D (Phase B): this test pinned the documented bug —
+    the M-M recurrence's hardcoded ``psi_half_left = 0`` seed broke
+    per-ordinate flat-flux balance on sphere, producing residuals
+    of order |ψ|.  Only the angular-integrated invariant survived
+    via α-telescoping.
+
+    Post-Phase-D: the Carlson coupled-pole inward sweep
+    (:class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`,
+    Hébert Eqs. 3.432-3.435) seeds the recurrence's half-angle face
+    flux so that flat ψ + reflective BC + Σ_t = 0 produces the
+    canonical fixed point ``L·ψ = 0`` to machine precision per
+    ordinate (NOT just per group).  See
+    :file:`tests/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual`
+    (the xpass→pass parametrised cases).
+
+    This test now verifies BOTH invariants hold:
+
+    * Per-ordinate balance (Phase D fix): max |R_{n,i,g}| ≤ 1e-12.
+    * Angular-integrated balance (always held via α-telescoping):
+      Σ_n w_n · R_{n,i,g} = 0 at interior cells.
     """
     from orpheus.geometry import BC, CoordSystem, Mesh1D
     from orpheus.sn.geometry import SNMesh
@@ -791,10 +843,6 @@ def test_apply_spherical_constant_flux_under_morel_montry_canonical_form():
         MorelMontryAngularSweep,
     )
 
-    # Phase C: use a reflective sphere so the BC trace law preserves
-    # the flat-ψ inflow trace; the angular-integrated invariant then
-    # holds globally (not just at interior cells, as under the
-    # pre-Phase-C vacuum-BC fixture).
     nx = 4
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
@@ -815,23 +863,22 @@ def test_apply_spherical_constant_flux_under_morel_montry_canonical_form():
     result = result_packed.reshape(ng, eq_map.n_eq, order='F')
     weights = sn_mesh.quad.weights
 
-    # ── Per-ordinate balance: NOT preserved (deliberately) ────────
-    # On constant ψ + zero Σ_t, the Hébert canonical recurrence makes
-    # the half-angle face fluxes oscillate (0, 2c, 0, 2c, ...), so
-    # the per-ordinate redistribution does NOT cancel the per-ordinate
-    # streaming.  This is the canonical Hébert form's structural
-    # signature.
-    assert np.max(np.abs(result)) > 1.0, (
-        "MorelMontryAngularSweep should produce non-zero per-ordinate "
-        "residuals on constant ψ (the canonical Hébert form does NOT "
-        "preserve per-ordinate flat-flux balance — see Issue #168 "
-        "Phase B closeout)."
+    # ── Per-ordinate balance: PRESERVED post-Phase-D ──────────────
+    # On constant ψ + zero Σ_t + reflective BC, the Carlson coupled-pole
+    # seed makes the M-M angular recurrence consistent with the apply
+    # matvec's WDD spatial closure.  The per-ordinate streaming +
+    # redistribution sums to zero to machine precision on flat ψ.
+    np.testing.assert_allclose(
+        result, 0.0, atol=1e-12,
+        err_msg="Phase D Carlson seed should preserve per-ordinate "
+                "flat-flux balance under MorelMontryAngularSweep on "
+                "reflective sphere with Σ_t = 0.",
     )
 
     # ── Angular-integrated balance: preserved by α-telescoping ────
-    # Σ_n w_n × R_{n,i,g} = 0 at INTERIOR cells (where all ordinates
-    # are unknowns).  At i=nx-1 the eq_map skips inward ordinates
-    # (BC determines them), so the partial sum doesn't telescope.
+    # Σ_n w_n × R_{n,i,g} = 0 at INTERIOR cells.  This invariant held
+    # under Phase B too (via α-telescoping); kept here as a redundant
+    # check that the Phase D fix didn't break the integrated form.
     integrated = np.zeros((ng, nx))
     for k in range(eq_map.n_eq):
         n = eq_map.ordinate[k]

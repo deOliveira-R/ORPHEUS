@@ -688,10 +688,56 @@ def transport_operator_matvec_spherical(
     n_out = int(mu_out.size)
     n_in = int(mu_in.size)
 
+    # ── Phase D Carlson coupled-pole sweep context ───────────────────
+    # The M-M angular closure consumes this context (when supplied) to
+    # build the canonical Hébert §3.9.4 Eqs. (3.432)-(3.435) inward
+    # μ = −1 sweep seed for the recurrence's ``psi_half_left``.
+    # Legacy / Bailey closures ignore it (Protocol-shape compatibility).
+    #
+    # ``bc_outer_value``: angular flux at the outer face at μ = −1,
+    # derived from input ψ via the realized BC operator.  Applying the
+    # BC to the cell-centred ψ at the outer cell (a first-order proxy
+    # for the outflow face flux) gives the inward face flux per
+    # ordinate; we extract the value at the most-inward ordinate
+    # (μ closest to −1).  Linear in ψ — preserves operator linearity.
+    #
+    # For reflective BC + flat ψ = C: gives C ✓ (PermutationOperator
+    # swaps outgoing↔incoming, both = C).
+    # For vacuum BC: gives 0 ✓ (IncomingOrdinateMaskTensor zeroes
+    # inflow ordinates).
+    from .spatial.psi_half_angle_seed import CarlsonSweepContext
+    if n_in > 0:
+        # Apply BC realization to cell-centred outer-cell ψ (shape (N, ng))
+        # to obtain the outer-face inflow trace.  Read the value at the
+        # most-inward ordinate (μ closest to −1) per group.
+        outer_inflow_estimate = bc_outer.apply(fi[:, :, -1, 0].T)  # (N, ng)
+        # Most-inward ordinate index in the incoming-mask subset:
+        # ordinate with smallest μ_x.
+        most_inward_global_idx = int(np.argmin(quad.mu_x))
+        bc_outer_value = outer_inflow_estimate[most_inward_global_idx, :]  # (ng,)
+    else:
+        bc_outer_value = np.zeros((ng,))
+
+    # σ_t per (g, i): the matvec receives ``sig_t`` shape ``(nx, ny=1, ng)``.
+    # Reshape to ``(ng, nx)`` for the Carlson sweep.
+    sigma_t_gx = sig_t[:, 0, :].T  # (ng, nx)
+
+    # Radial widths for the inward sweep's denominator.
+    dr = sn_mesh.dx if sn_mesh is not None else np.diff(np.arange(nx + 1))
+
+    carlson_ctx = CarlsonSweepContext(
+        sigma_t=sigma_t_gx,
+        dr=dr,
+        mu_quad=quad.mu_x.copy(),
+        weights=quad.weights.copy(),
+        bc_outer_value=bc_outer_value,
+    )
+
     # ── Phase B angular redistribution (precompute per (g, n, i)) ──
     redist_full = pole_angular_closure(
         fi[..., 0], alpha_half, redist_dAw, tau_mm, V,
         level_indices=None,  # spherical = single level
+        carlson_context=carlson_ctx,
     )
 
     # Allocate output and the boundary-face buffer for the BC apply.
@@ -885,6 +931,48 @@ def transport_operator_matvec_cylindrical(
     mu = quad.mu_x
     eps = 1e-15
 
+    # ── Phase D Carlson coupled-pole sweep context (per μ-level) ────
+    # Cylindrical analog of the spherical Carlson context (see the
+    # spherical matvec for the architectural rationale).  Each
+    # μ-level has its own azimuthal subset of ordinates; the Carlson
+    # context is built per-level so the M-M recurrence's seed is the
+    # canonical Hébert form for each level's auxiliary inward
+    # direction.  Per the Phase D diagnosis memo §7 observation 3,
+    # cylindrical Gate 1.1 already passes empirically (per-level
+    # α-domes telescope) — applying the Carlson seed per-level aligns
+    # the architecture with the canonical form without regressing
+    # the empirical pass.
+    from .spatial.psi_half_angle_seed import CarlsonSweepContext
+
+    # σ_t per (g, i).
+    sigma_t_gx = sig_t[:, 0, :].T  # (ng, nx)
+    dr = sn_mesh.dx if sn_mesh is not None else np.diff(np.arange(nx + 1))
+
+    # Pre-compute outer-face inflow estimate (full ordinate vector)
+    # via the BC realization on cell-centred ψ at the outer cell.
+    # Shape ``(N, ng)``.
+    outer_inflow_estimate = bc_outer.apply(fi[:, :, -1, 0].T)
+
+    carlson_ctx_per_level: list[CarlsonSweepContext] = []
+    for level_idx in quad.level_indices:
+        level_idx_arr = np.asarray(level_idx)
+        mu_level = mu[level_idx_arr]
+        weights_level = quad.weights[level_idx_arr]
+        # Most-inward ordinate within the level (smallest μ).
+        # Within-level index of the most-inward ordinate.
+        within_idx_most_inward = int(np.argmin(mu_level))
+        global_idx_most_inward = int(level_idx_arr[within_idx_most_inward])
+        bc_outer_value_level = outer_inflow_estimate[global_idx_most_inward, :]  # (ng,)
+        carlson_ctx_per_level.append(
+            CarlsonSweepContext(
+                sigma_t=sigma_t_gx,
+                dr=dr,
+                mu_quad=mu_level.copy(),
+                weights=weights_level.copy(),
+                bc_outer_value=bc_outer_value_level,
+            )
+        )
+
     # ── Phase B per-level angular redistribution ──────────────────
     redist_full = pole_angular_closure(
         fi[..., 0],
@@ -893,6 +981,7 @@ def transport_operator_matvec_cylindrical(
         tau_mm_per_level,
         V,
         level_indices=quad.level_indices,
+        carlson_context=carlson_ctx_per_level,
     )
 
     lhs = np.empty((ng, eq_map.n_eq))

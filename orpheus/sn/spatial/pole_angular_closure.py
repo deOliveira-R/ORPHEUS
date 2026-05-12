@@ -157,12 +157,18 @@ See also
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, Protocol, runtime_checkable
 
 import numpy as np
 
 from orpheus.numerics.registry import RegistryMixin
+
+from .psi_half_angle_seed import (
+    CarlsonInwardSweep,
+    CarlsonSweepContext,
+    PsiHalfAngleSeed,
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -265,6 +271,7 @@ class PoleAngularClosure(Protocol):
         tau_mm: "np.ndarray | list[np.ndarray]",
         volume: np.ndarray,
         level_indices: "list[np.ndarray] | None" = None,
+        carlson_context: "CarlsonSweepContext | list[CarlsonSweepContext] | None" = None,
     ) -> np.ndarray:
         ...
 
@@ -320,6 +327,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         tau_mm: "np.ndarray | list[np.ndarray]",
         volume: np.ndarray,
         level_indices: "list[np.ndarray] | None" = None,
+        carlson_context: "CarlsonSweepContext | list[CarlsonSweepContext] | None" = None,
     ) -> np.ndarray:
         ...
 
@@ -335,6 +343,7 @@ def _mm_weighted_angular_recurrence_single_level(
     dAw_level: np.ndarray,           # (nx, M)
     tau_level: np.ndarray,           # (M,) — Morel-Montry τ clamp values
     volume: np.ndarray,              # (nx,)
+    psi_half_seed: np.ndarray | None = None,  # (ng, nx) — Phase D Carlson seed
 ) -> np.ndarray:
     r"""Run Hébert's per-cell M-M weighted DD angular recurrence on a single level.
 
@@ -388,6 +397,19 @@ def _mm_weighted_angular_recurrence_single_level(
         cell update, so apply and sweep stay consistent.
     volume :
         Shape ``(nx,)``: cell volumes :math:`V_i`.
+    psi_half_seed :
+        Optional shape ``(ng, nx)``: the M-M recurrence's
+        :math:`\phi_{1/2,i,g}` seed.  Phase D (Issue #168) closure:
+        when supplied (the canonical Carlson coupled-pole inward
+        sweep output from
+        :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`),
+        the recurrence is consistent with the Hébert §3.9.4
+        starting-direction equation (3.432) and the per-ordinate
+        flat-flux residual collapses to machine precision on the
+        sphere Gate 1.1 MMS probe.  When ``None`` (Phase B legacy
+        default), the recurrence falls back to ``psi_half_left = 0``
+        — the wrong term initialisation that ERR-026 diagnoses, kept
+        as the regression-safety :class:`ZeroSeed` ablation path.
 
     Returns
     -------
@@ -396,19 +418,26 @@ def _mm_weighted_angular_recurrence_single_level(
     """
     ng, M, nx = psi_level.shape
     redist = np.empty((ng, M, nx), dtype=psi_level.dtype)
-    # ψ_{1/2,i,g} = 0 — the canonical Carlson seed for the apply matvec.
-    # This corresponds to α_{1/2} = 0 in Hébert Eq. 3.423; the recurrence
-    # then runs forward across ordinates m = 1 ... M.
+    # Half-angle face flux seed ψ_{1/2,i,g}.
+    #
+    # Phase D (Issue #168): the canonical Hébert §3.9.4 form
+    # initialises ψ_{1/2,i,g} = φ̄_{1/2,i} — the cell-centred output
+    # of the inward μ = −1 "Carlson coupled-pole" sweep (Eqs.
+    # 3.432-3.435).  ``psi_half_seed``, when supplied, carries that
+    # value; when ``None`` we reproduce Phase B's hardcoded zero
+    # (regression-safety ablation; ERR-026 anti-pattern).
     #
     # NOTE on the α-recursion normalisation: ORPHEUS's α-recursion
     # (alpha_level[m+1] = alpha_level[m] - w[m]·μ[m]) absorbs Hébert's
     # factor-of-2 (his recurrence is α_{n+1/2} = α_{n-1/2} - 2·𝒲_n·μ_n,
     # his redistribution divisor is ΔS_i/(2·𝒲_n)).  α^O = α^H/2 ⟹
-    # (ΔA/w)·α^O = (ΔS/(2w))·α^H.  The Phase-B fix is therefore in the
-    # ANGULAR FACE FLUX evaluation (the M-M weighted DD recurrence,
-    # equivalent to Hébert Eqs. 3.437/3.439 at τ=1/2), not in the
-    # α-recursion or geometry factor.
-    psi_half_left = np.zeros((ng, nx), dtype=psi_level.dtype)
+    # (ΔA/w)·α^O = (ΔS/(2w))·α^H.  The Phase D fix is in the SEED of
+    # the M-M weighted DD recurrence (Hébert Eqs. 3.437/3.439 at
+    # τ=1/2), not in the α-recursion or geometry factor.
+    if psi_half_seed is None:
+        psi_half_left = np.zeros((ng, nx), dtype=psi_level.dtype)
+    else:
+        psi_half_left = psi_half_seed.copy()
     for m in range(M):
         tau_m = tau_level[m]
         # M-M weighted DD angular closure (Hébert Eqs. 3.437/3.439 at
@@ -437,7 +466,16 @@ def _mm_weighted_angular_recurrence_single_level(
 @dataclass(frozen=True, slots=True)
 class MorelMontryAngularSweep(
     PoleAngularClosureBase, key="morel_montry_angular_sweep",
-):
+):  # noqa: E501  (Phase D notes:)
+    # Phase D (Issue #168, ERR-026 closure): the M-M recurrence's
+    # half-angle seed ``ψ_{1/2,i,g}`` is now sourced from a
+    # :class:`~orpheus.sn.spatial.psi_half_angle_seed.PsiHalfAngleSeed`
+    # strategy field.  The Phase D default :class:`CarlsonInwardSweep`
+    # runs Hébert §3.9.4 Eqs. (3.432)-(3.435) inward μ = −1 sweep,
+    # giving the canonical Carlson coupled-pole seed that makes the
+    # M-M recurrence consistent with the apply matvec on sphere Gate
+    # 1.1 MMS.  See the module docstring of
+    # :mod:`orpheus.sn.spatial.psi_half_angle_seed` for the rationale.
     r"""Canonical Hébert §3.9.4 per-cell M-M weighted DD angular recurrence.
 
     Phase B default for the curvilinear FD operator's angular
@@ -493,6 +531,23 @@ class MorelMontryAngularSweep(
     of cell-centre values (constant α, ΔA/w, τ coefficients); the
     output is linear in ``psi_cells``."""
 
+    psi_half_seed: PsiHalfAngleSeed = field(default_factory=CarlsonInwardSweep)
+    """Strategy producing the half-angle face flux seed
+    :math:`\\phi_{1/2,i,g}` for the M-M recurrence.  Phase D default is
+    :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`
+    — the canonical Hébert §3.9.4 (3.432)-(3.435) inward μ = −1
+    sweep.  Set to
+    :class:`~orpheus.sn.spatial.psi_half_angle_seed.ZeroSeed` for the
+    regression-safety ablation reproducing Phase B's hardcoded zero
+    behaviour (ERR-026 anti-pattern).
+
+    The strategy field is opt-out only — production callers should
+    accept the Carlson default which closes ERR-026 on sphere Gate
+    1.1 MMS.  See the
+    :mod:`~orpheus.sn.spatial.psi_half_angle_seed` module docstring
+    for the architectural rationale (Option α — composition, not
+    sibling Protocol)."""
+
     def __call__(
         self,
         psi_cells: np.ndarray,
@@ -501,12 +556,27 @@ class MorelMontryAngularSweep(
         tau_mm: "np.ndarray | list[np.ndarray]",
         volume: np.ndarray,
         level_indices: "list[np.ndarray] | None" = None,
+        carlson_context: "CarlsonSweepContext | list[CarlsonSweepContext] | None" = None,
     ) -> np.ndarray:
         r"""Compute the Hébert §3.9.4 angular redistribution term.
 
         Dispatches by ``level_indices``: ``None`` → sphere (single
         level over all ordinates); populated → cylindrical (per-level
         loop).
+
+        Parameters
+        ----------
+        carlson_context :
+            Phase D Carlson coupled-pole sweep inputs (Σ_t, Δr,
+            μ_quad, weights, bc_outer_value).  See
+            :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonSweepContext`.
+            When supplied, the M-M recurrence's seed comes from
+            ``self.psi_half_seed(psi_level, carlson_context)``.  When
+            ``None``, the recurrence falls back to the Phase B
+            hardcoded zero seed — preserved for backward-compatible
+            paths and regression-safety ablations.  For cylindrical
+            geometry, a list of per-level contexts is expected; for
+            spherical, a single context.
         """
         if level_indices is None:
             # Spherical: ordinates ARE a single level.  alpha_half,
@@ -523,8 +593,21 @@ class MorelMontryAngularSweep(
                 "Spherical pole closure expects tau_mm to be an "
                 "ndarray; got list (cylindrical inputs)."
             )
+            # Phase D: build the Carlson coupled-pole seed if the
+            # caller supplied the necessary context.  Falls back to
+            # the Phase B hardcoded zero behaviour when ``None``.
+            psi_half_seed_arr: np.ndarray | None = None
+            if carlson_context is not None:
+                assert isinstance(carlson_context, CarlsonSweepContext), (
+                    "Spherical pole closure expects carlson_context "
+                    "to be a single CarlsonSweepContext (not a list)."
+                )
+                psi_half_seed_arr = self.psi_half_seed(
+                    psi_cells, carlson_context,
+                )
             return _mm_weighted_angular_recurrence_single_level(
                 psi_cells, alpha_half, redist_dAw, tau_mm, volume,
+                psi_half_seed=psi_half_seed_arr,
             )
 
         # Cylindrical: loop over μ-levels, each level runs its own
@@ -542,15 +625,33 @@ class MorelMontryAngularSweep(
             "Cylindrical pole closure expects tau_mm to be a list "
             "of per-level arrays."
         )
+        if carlson_context is not None:
+            assert isinstance(carlson_context, list), (
+                "Cylindrical pole closure expects carlson_context to "
+                "be a list of per-level CarlsonSweepContext."
+            )
+            assert len(carlson_context) == len(level_indices), (
+                "carlson_context length must match level_indices length"
+            )
         ng, N, nx = psi_cells.shape
         redist = np.zeros((ng, N, nx), dtype=psi_cells.dtype)
         for p, level_idx in enumerate(level_indices):
             # Gather the level's ordinates from the global array.
             # psi_level shape (ng, M_p, nx).
             psi_level = psi_cells[:, level_idx, :]
+            # Phase D per-level Carlson seed (cylindrical structural
+            # alignment — even though the per-level α-domes telescope
+            # and cylindrical Gate 1.1 passes empirically without the
+            # seed, the canonical Hébert form applies per-level too
+            # for architectural consistency with sphere).
+            psi_half_seed_arr = None
+            if carlson_context is not None:
+                psi_half_seed_arr = self.psi_half_seed(
+                    psi_level, carlson_context[p],
+                )
             redist_level = _mm_weighted_angular_recurrence_single_level(
                 psi_level, alpha_half[p], redist_dAw[p], tau_mm[p],
-                volume,
+                volume, psi_half_seed=psi_half_seed_arr,
             )
             # Scatter back into the global ordinate index slots.
             redist[:, level_idx, :] = redist_level
@@ -644,19 +745,22 @@ class BaileyFlatFluxRedist(
         tau_mm: "np.ndarray | list[np.ndarray]",  # accepted but unused
         volume: np.ndarray,
         level_indices: "list[np.ndarray] | None" = None,
+        carlson_context: "CarlsonSweepContext | list[CarlsonSweepContext] | None" = None,  # noqa: E501
     ) -> np.ndarray:
         r"""Reproduce the flat-flux-collapsed redistribution.
 
         :math:`R_{n,i,g} = (\Delta A_i / w_n) (\alpha_{n+1/2} -
         \alpha_{n-1/2}) \phi_{n,i,g} / V_i`.
 
-        ``tau_mm`` is accepted for Protocol-shape compatibility with
-        :class:`MorelMontryAngularSweep` but is **not read** —
+        ``tau_mm`` and ``carlson_context`` are accepted for
+        Protocol-shape compatibility with
+        :class:`MorelMontryAngularSweep` but are **not read** —
         :class:`BaileyFlatFluxRedist` collapses the half-angle face
         fluxes to cell centres unconditionally, independent of the
-        M-M clamp.
+        M-M clamp and the Phase D Carlson seed.
         """
         del tau_mm  # explicitly unused — Protocol-shape compatibility only
+        del carlson_context  # explicitly unused — Phase D compat only
         if level_indices is None:
             assert isinstance(alpha_half, np.ndarray)
             assert isinstance(redist_dAw, np.ndarray)
@@ -784,8 +888,17 @@ class LegacyTauSymmetricInterpolation(
         tau_mm: "np.ndarray | list[np.ndarray]",
         volume: np.ndarray,
         level_indices: "list[np.ndarray] | None" = None,
+        carlson_context: "CarlsonSweepContext | list[CarlsonSweepContext] | None" = None,  # noqa: E501
     ) -> np.ndarray:
-        r"""Reproduce the pre-Phase-B inlined τ-symmetric form."""
+        r"""Reproduce the pre-Phase-B inlined τ-symmetric form.
+
+        ``carlson_context`` is accepted for Protocol-shape
+        compatibility with :class:`MorelMontryAngularSweep` but is
+        **not read** — :class:`LegacyTauSymmetricInterpolation`
+        evaluates half-angle face fluxes via τ-symmetric interpolation
+        between cell centres, independent of any Carlson seed.
+        """
+        del carlson_context  # explicitly unused — Phase D compat only
         if level_indices is None:
             assert isinstance(alpha_half, np.ndarray)
             assert isinstance(redist_dAw, np.ndarray)
@@ -860,8 +973,11 @@ class LegacyTauSymmetricInterpolation(
 
 __all__ = [
     "BaileyFlatFluxRedist",
+    "CarlsonInwardSweep",
+    "CarlsonSweepContext",
     "LegacyTauSymmetricInterpolation",
     "MorelMontryAngularSweep",
     "PoleAngularClosure",
     "PoleAngularClosureBase",
+    "PsiHalfAngleSeed",
 ]
