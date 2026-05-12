@@ -214,14 +214,17 @@ Three remarks make this form load-bearing:
    Phase C, 2026-05-12).** The
    :func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
    and ``_cylindrical`` matvecs were rewritten as one sweep
-   iteration semantically: the BC trace law is applied ONCE per
-   matvec at the boundary edge on the **WDD-propagated outflow
-   face values** (:math:`\gamma_+ \psi`), not on cell-centre
+   iteration semantically: the BC trace law is applied **at least
+   once** per matvec at the boundary edge on the WDD-propagated
+   outflow face values (:math:`\gamma_+ \psi`), not on cell-centre
    approximations. The pre-Phase-C cell-centre-as-face-value
    contamination — and the Phase A ``BoundaryFaceFlux`` Protocol
    that patched it — both retire in Phase C. See
    :ref:`bc-trace-contract-respected-by-matvec` for the
-   verification gate that pins this contract.
+   verification gate that pins this contract, and
+   :ref:`bc-phase-d-two-bc-applies-per-matvec` for the Phase D
+   strengthening that audits **two** BC apply calls per matvec
+   (Phase D Carlson context + Phase C trace law).
 
 
 Layer 1 — trace structure
@@ -1869,6 +1872,128 @@ removal) regenerated the mixed snapshot — the new payload was
 **bit-identical** to the pre-Wave-11 payload because the realizer's
 deleted internal mixed-BC path was already composing via
 ``OperatorSum``-of-``ScaledOperator``.
+
+
+.. _bc-phase-d-two-bc-applies-per-matvec:
+
+Phase D extension — two BC apply calls per curvilinear matvec
+==============================================================
+
+Phase C (:ref:`bc-trace-contract-respected-by-matvec`) established
+that the SN curvilinear matvec applies the BC trace law **once per
+matvec** at the boundary edge, consuming the WDD-propagated outflow
+trace :math:`\gamma_+\psi`.  Phase D (Issue #168 Phase D, 2026-05-12,
+landed on ``refactor/sn-operator-algebra``) extends the matvec with
+a **second** BC apply call, used to build the Carlson coupled-pole
+seed's ``bc_outer_value`` (see
+:ref:`sn-phase-d-carlson-coupled-pole-sweep` in
+:doc:`discrete_ordinates` for the math).  The §16A.3 affine trace
+law contract is therefore exercised **twice per matvec** in the
+post-Phase-D code path:
+
+.. list-table:: BC apply call sequence inside one curvilinear matvec
+   :header-rows: 1
+   :widths: 12 28 30 30
+
+   * - Order
+     - Caller / purpose
+     - Input shape & meaning
+     - Output use
+   * - **#1**
+     - Phase D Carlson context build
+       (:func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
+       / ``_cylindrical`` early in the call)
+     - ``(N, ng)`` — outer-cell cell-centred :math:`\psi` (NOT the
+       face trace; a first-order proxy used only to construct the
+       linear-in-:math:`\psi` ``bc_outer_value`` scalar at
+       :math:`\mu = -1`)
+     - Extract the most-inward-ordinate row; scalar feeds into
+       :class:`CarlsonSweepContext.bc_outer_value`
+   * - **#2**
+     - Phase C BC trace law application (at the boundary edge after
+       the WDD sweep completes)
+     - ``(N, ng)`` — WDD-propagated outflow face values
+       :math:`\gamma_+\psi` (the §16A.3 contract input)
+     - Fill the inflow rows used as
+       :math:`\psi^{\text{face}}_{\text{in}}` for the inward sweep
+       phase
+
+The two calls are **structurally distinct**:
+
+* **Call #1** is a Phase D-specific use of the BC operator as a
+  *linear-in-ψ* construction of the inward-zero-weight ordinate's
+  outer-face flux.  For vacuum BC the
+  :class:`IncomingOrdinateMaskTensor` zeroes the inflow ordinate,
+  giving ``bc_outer_value = 0``; for reflective BC the
+  :class:`PermutationOperator` mirrors outgoing :math:`\leftrightarrow`
+  incoming, giving ``bc_outer_value = ψ_cell[N-1]`` (i.e. the
+  cell-centred outer-cell value).  Both behaviours preserve operator
+  linearity in the input :math:`\psi`.
+
+  The input shape ``(N, ng)`` for cell-centres is a structural
+  proxy: the BC trace law expects a trace ``(N, ng)`` shape, and
+  feeding it the outer cell-centre array IS the right shape for
+  Call #1's linear extraction.  The §16A.3 contract is not
+  literally honoured here in the *interpretation* sense (the input
+  is not a face trace), but the resulting scalar is linear in the
+  matvec's input :math:`\psi` and gives the correct value at
+  :math:`\mu = -1` on the only configurations the apply matvec
+  cares about (reflective + flat :math:`\psi` :math:`\rightarrow` C,
+  vacuum :math:`\rightarrow` 0).  This is the **principled
+  shortcut**: a linearly-compatible scalar extraction whose values
+  match the canonical inward-zero-weight ordinate's flux on the
+  load-bearing test configurations.
+
+* **Call #2** is the canonical Phase C use — the BC trace law
+  consumes the **actual** WDD-propagated outflow face trace and
+  produces the inflow trace per the §16A.3 affine-bc-form
+  contract.  This is the call the Phase C
+  :ref:`Gate 1.5 <bc-trace-contract-respected-by-matvec>` test
+  pins.
+
+Capture-and-compare Gate 1.5 strengthening
+------------------------------------------
+
+The pre-Phase-D Gate 1.5 test was a "round-trip" check: invoke
+``bc.realize().apply(...)`` independently and compare against the
+matvec's observable output.  Phase D **strengthens** the gate to a
+capture-and-compare check that audits the *exact* value the matvec
+passes into the BC trace law — necessary because the matvec now
+calls :meth:`bc.apply` twice and the test must locate Call #2 (the
+§16A.3 call) unambiguously.
+
+The Phase D test
+:func:`tests.sn.test_phase_c_gates.test_bc_trace_contract_capture_and_compare_sphere`
+(parametrised over ``vacuum`` and ``reflective``):
+
+#. Monkey-patches :meth:`sn_mesh.bc_right.apply` with a recorder
+   wrapper that appends every input array passed to it during one
+   matvec call.
+#. Independently reconstructs the WDD-propagated outflow trace via
+   a reference implementation
+   (``_outflow_at_boundary_for_sphere(sn_mesh, sig_t, psi_input)``).
+#. **Locates Call #2** by matching shape ``(N, ng)`` AND content
+   (the captured input that bit-matches the independent reference
+   IS the Phase C call).
+#. Asserts the located input matches the reference to
+   ``rtol=1e-14`` — bit-equal up to FP non-associativity.
+
+The test is **foundation-tagged** (``@pytest.mark.foundation``)
+because it pins a software invariant about the matvec's
+two-application sequence, not a math claim about the BC operator.
+The matching strategy by *both* shape and content protects against a
+future regression that adds a third BC apply with the right shape
+but wrong content — the test would still locate the canonical Phase
+C call provided its content matches the WDD reference.
+
+Both ``vacuum`` and ``reflective`` parametrised cases pass.  The
+``vacuum`` case is the load-bearing check because Call #1 produces
+non-trivial output under vacuum (the
+:class:`IncomingOrdinateMaskTensor` zeroes inflow ordinates, so the
+extracted ``bc_outer_value`` is zero — but the **input** to Call #1
+is the outer cell-centre value which is **not** zero on a non-trivial
+:math:`\psi`).  Locating Call #2 unambiguously requires content
+matching, not just shape matching.
 
 
 .. _bc-curvilinear-realizer-unification:

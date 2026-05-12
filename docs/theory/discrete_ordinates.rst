@@ -2712,8 +2712,8 @@ cell-by-cell WDD propagation across the interior.
 Why Lewis–Miller §4.5 is the canonical reference: at the spherical
 centre :math:`r=0` and the cylindrical axis the angular dependence
 of :math:`\psi` becomes **structurally singular** in the
-transport-theory sense (Pomraning, *Linear Kinetic Theory and
-Particle Transport in Stochastic Mixtures*, 1991, and earlier
+transport-theory sense ([Pomraning1989]_ p. 339; see also
+:ref:`sn-phase-d-pomraning-structural-singularity` and earlier
 treatments in [LewisMiller1984]_ §4.5) — the angular flux is not a
 separable function of
 :math:`(\mu, r)` in any neighbourhood of the singular point because
@@ -3260,53 +3260,929 @@ Verification gate summary
      - SKIP (Phase D)
      - ``test_phase_c_crosscheck.py``
 
-Phase D scope
-'''''''''''''
+Phase D scope (shipped 2026-05-12 — Carlson coupled-pole seed)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Tracked at `Issue #192
-<https://github.com/deOliveira-R/ORPHEUS/issues/192>`_. The
-deliverables flip ERR-026 PARTIAL → CLOSED:
+<https://github.com/deOliveira-R/ORPHEUS/issues/192>`_; the
+Hébert §3.9.4 inward sweep implementation is `Issue #193
+<https://github.com/deOliveira-R/ORPHEUS/issues/193>`_; the
+``@pytest.mark.verifies(...)`` wiring for the new equation
+labels is `Issue #194
+<https://github.com/deOliveira-R/ORPHEUS/issues/194>`_; the
+remaining pre-asymptotic-magnitude open question is `Issue #195
+<https://github.com/deOliveira-R/ORPHEUS/issues/195>`_. The
+shipped deliverables flip ERR-026's **identity-and-rate** scope to
+CLOSED while keeping the **magnitude** scope open per
+:ref:`sn-phase-d-err-026-closure-narrative` below:
 
-1. **Pole-face spatial-closure refinement.** Carlson-style
-   coupled-pole sweep where the outward-ordinate pole-face initial
-   condition is determined by the inward-ordinate pole-face
-   propagation, encoding the continuous symmetry condition at
-   :math:`r=0` (the spherical centre is a structurally-singular
-   point in the transport-theory sense; see [LewisMiller1984]_ §4.5
-   for the canonical treatment).
-2. **Default flip.** ``SNMesh.pole_angular_closure`` default
-   ``LegacyTauSymmetricInterpolation`` → ``MorelMontryAngularSweep``;
-   ``solve_sn_fixed_source`` curvilinear default
-   ``"source_iteration"`` → ``"krylov"``.
-3. **Marker removal.** The 4 ``xfail-strict`` ERR-026 tripwires
-   (sphere + cylinder × iso + aniso MMS) come off. ERR-026 status:
-   PARTIAL CLOSURE → CLOSED. Phase B's
-   :eq:`pole-mm-recurrence` label gains a tests edge transitively
-   through the upgraded MMS chain.
-4. **Snapshot regeneration.** Regenerate the 6 curvilinear
-   snapshots under the Phase D operator + cross-check each via
-   :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere_mg`
-   / ``_sphere_mr`` /
-   :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder`
-   / ``_mr`` at rtol :math:`\le 5 \times 10^{-4}`.
-5. **Gate 4.2 full implementation.** Replace the SKIP placeholder
-   with the actual SN-vs-trajectory_resolvent flux-shape agreement
-   test on snapshots 1, 2, 4, 5, 6.
-6. **Catalog update.** ``error_catalog.md`` ERR-026 status flip
-   PARTIAL → CLOSED + Verification section pointing to the L1 +
-   trajectory_resolvent cross-check evidence chain.
+1. **M-M half-angle seed refinement.** A canonical Hébert §3.9.4
+   Eqs. (3.432)–(3.435) inward :math:`\mu = -1` sweep seeds the
+   M-M angular recurrence's ``psi_half_left`` — replacing the
+   hardcoded zero that Phase B had baked in. See
+   :ref:`sn-phase-d-carlson-coupled-pole-sweep` for the full
+   derivation, including the diagnostic finding that **the seed
+   lives in the M-M angular recurrence, not in the WDD spatial
+   pole-face IC**.
+2. **Default flip.** :attr:`SNMesh.pole_angular_closure` default
+   :class:`~orpheus.sn.spatial.pole_angular_closure.LegacyTauSymmetricInterpolation`
+   → :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`;
+   :class:`~orpheus.sn.solver.SNSolver` curvilinear default
+   ``"source_iteration"`` → ``"krylov"``. See
+   :ref:`sn-phase-d-default-flips`.
+3. **Gate 1.1 sphere MMS PASS.** All 4 ``MorelMontryAngularSweep``
+   parametrised cases (sphere × cylinder × :math:`\Sigma_t \in
+   \{0, 0.5\}`) **xpass** on the per-ordinate flat-flux residual
+   probe. See :ref:`sn-phase-d-gate-1-1-empirical`.
+4. **Snapshot regeneration deferred.** The 11 DD regression
+   snapshots remain bit-identical under Phase D — the SI/sweep
+   path is the snapshot generator, and the SI path uses the
+   sweep (not the apply matvec), so the Phase D default flip
+   does NOT disturb them. Regeneration under a Phase D
+   :meth:`SNStreamingOperator.apply`-driven Krylov path is
+   carried at Issue #195.
+5. **Gate 1.5 strengthened (capture-and-compare).** The §16A.3
+   BC trace contract now has a stricter parametrised test that
+   independently reconstructs the WDD-propagated outflow trace
+   and asserts the captured BC apply input matches to
+   ``rtol=1e-14``. See
+   :ref:`sn-phase-d-gate-1-5-capture-and-compare` and the BC
+   companion section :ref:`bc-phase-d-two-bc-applies-per-matvec`.
+6. **Marker partial removal — deferred.** The 4 ``xfail-strict``
+   ERR-026 tripwires stay through Phase D Step 3 — they will
+   ``xpass`` under the new default but require the Step 5
+   marker-removal commit. ERR-026 stays at PARTIAL CLOSURE
+   pending Issue #195 (pre-asymptotic-magnitude convergence).
 
-Starting Direction
--------------------
+.. _sn-phase-d-carlson-coupled-pole-sweep:
 
-Both curvilinear sweeps initialise the angular face flux
-:math:`\psi_{1/2}` to **zero** for each spatial cell.  This is valid
-because :math:`\alpha_{1/2} = 0` by construction, so the product
-:math:`\alpha_{1/2} \psi_{1/2}` in the balance equation vanishes
-regardless of the value of :math:`\psi_{1/2}`.  The starting-direction
-treatment of [LewisMiller1984]_ Section 4.5.4 (which tracks
-:math:`\alpha\psi` instead of :math:`\psi` alone) is therefore
-unnecessary when the :math:`\alpha` recursion is implemented correctly.
+Phase D Carlson coupled-pole sweep (Issue #168 Phase D)
+-------------------------------------------------------
+
+.. admonition:: Key Facts
+   :class: important
+
+   * Phase D (commit landed 2026-05-12 on
+     ``refactor/sn-operator-algebra``) closes the structural bug
+     in :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+     by replacing the hardcoded ``psi_half_left = 0`` seed with
+     the canonical Hébert §3.9.4 Eqs. (3.432)–(3.435) inward
+     :math:`\mu = -1` sweep output.
+   * The seed lives in the **M-M angular recurrence**
+     (``orpheus/sn/spatial/pole_angular_closure.py:411`` —
+     ``_mm_weighted_angular_recurrence_single_level``), **NOT**
+     in the WDD spatial pole-face initial condition the
+     :ref:`Phase C plan <sn-curvilinear-trajectory-resolvent-crosscheck>`
+     proposed.  The diagnostic memo at
+     ``.claude/agent-memory/numerics-investigator/phase_d_gate_1_1_sphere_mms_diagnosis.md``
+     empirically falsified intervention ``[A]`` (WDD pole-face
+     replacement) and confirmed intervention ``[B]`` (M-M
+     half-angle seed replacement).
+   * Architectural choice is **Option α (composition)**: the
+     seed lives as a
+     :class:`~orpheus.sn.spatial.psi_half_angle_seed.PsiHalfAngleSeed`
+     strategy field on :class:`MorelMontryAngularSweep`, not as a
+     sibling Protocol on :class:`SNMesh`. The Legacy / Bailey
+     closures have no ``psi_half_left`` variable to seed; a
+     sibling Protocol would force every consumer to handle an
+     irrelevant Protocol.
+   * The **L = 0 isotropic-only** assumption is load-bearing: the
+     apply matvec's :math:`L` operator currently carries only
+     :math:`\Sigma_t \psi` (scattering is composed externally
+     via a separate operator).  A future refactor that moves
+     scattering INTO :math:`L` MUST extend the moment-folded
+     source in :eq:`hebert-3-432-source` to include
+     :math:`\ell \ge 1` terms.
+
+The Hébert §3.9.4 equations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Hébert §3.9.4 (pp. 141–144 of [Hebert2009]_) opens the sphere
+difference relations at Eq. (3.418) (angularly-integrated
+divergence form), introduces the :math:`\alpha`-recursion
+:eq:`bailey-dome-recursion` and the cell-balance with
+redistribution divisor :math:`\Delta S_i / (2\,\mathcal{W}_n)` at
+Eq. (3.428), and then specialises to the auxiliary starting
+direction :math:`\mu = -1`.  At this direction the
+angular-redistribution coefficient :math:`(1 - \mu^2)` is
+**identically zero**, so the streaming–collision balance
+decouples from the :math:`\alpha`-cascade and reduces to a plain
+DD inward recurrence in radius.
+
+The continuous form at :math:`\mu = -1` (Hébert Eq. (3.432)) is
+
+.. math::
+   :label: hebert-3-432
+
+   -\frac{\partial}{\partial r}\,\phi_{-1/2}(r)
+   \;+\; \Sigma(r)\,\phi_{-1/2}(r)
+   \;=\; \sum_{\ell=0}^{L}
+         \frac{2\ell + 1}{2}\,Q_\ell(r)\,P_\ell(-1).
+
+The subscript :math:`-1/2` is Hébert's half-integer index for the
+auxiliary starting ordinate — it labels the **inward
+zero-weight** direction that sits one half-step above
+:math:`\mu = -1` in the :math:`\alpha`-cascade, not a physical
+ordinate at :math:`\mu = -0.5`.  The right-hand side is the
+Legendre expansion of the scattering source :math:`Q` evaluated
+at :math:`\mu = -1`, where :math:`P_\ell(-1) = (-1)^\ell`.
+
+For an **isotropic** operator (:math:`L = 0`, the current ORPHEUS
+apply matvec) the source collapses to
+
+.. math::
+   :label: hebert-3-432-source
+
+   \bar Q_i \;=\; \sum_\ell \frac{2\ell+1}{2}\,Q_\ell(r_i)\,(-1)^\ell
+   \;\;\xrightarrow{L=0}\;\;
+   \frac{1}{2}\,\Sigma_t(r_i)\,\phi_0(r_i),
+
+where :math:`\phi_0` is the scalar-flux Legendre :math:`\ell = 0`
+moment of the input :math:`\psi`.  See the **L = 0 isotropic-only**
+WARNING in the
+:class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`
+class docstring for the failure mode if scattering moves into the
+operator.
+
+Discretising Eq. :eq:`hebert-3-432` on a sub-mesh of cell width
+:math:`\Delta r_i` gives the DD cell-balance Hébert Eq. (3.433):
+
+.. math::
+
+   -\bigl(\bar\phi_{i+1/2} - \bar\phi_{i-1/2}\bigr)
+   \;+\; \Delta r_i \cdot \Sigma_i \cdot \bar\phi_i
+   \;=\; \Delta r_i \cdot \bar Q_i,
+
+with Hébert's typographic conventions
+
+.. math::
+
+   \bar\phi_i \;\equiv\; \phi_{1/2,\,i}, \qquad
+   \bar Q_i \;\equiv\; Q_{1/2,\,i}, \qquad
+   \Delta r_i \;=\; r_{i+1/2} - r_{i-1/2}.
+
+The negative sign on the streaming jump comes from
+:math:`\mu = -1 < 0` — particles travel **inward**, so the
+discrete jump is :math:`-(\phi_{i+1/2} - \phi_{i-1/2})`.
+**Critically**, no :math:`\alpha`-redistribution divisor appears
+in this balance because :math:`(1 - \mu^2) = 0` at the endpoint.
+This is the entire reason Hébert can solve the :math:`\mu = -1`
+sweep in closed form with a plain DD recurrence: the coupled
+angular cascade is decoupled at the starting direction.
+
+Combining the DD auxiliary relation
+:math:`\phi_{n,i} = \frac{1}{2}(\phi_{n,i-1/2} + \phi_{n,i+1/2})`
+specialised to the :math:`-1/2` ordinate with the balance and
+solving for :math:`\bar\phi_i` in terms of the known
+outgoing-face value :math:`\bar\phi_{i+1/2}` (further from the
+centre — known because we sweep **inward** from the outer BC)
+yields Hébert Eq. (3.434):
+
+.. math::
+   :label: hebert-3-434
+
+   \bar\phi_i \;=\; \frac{\Delta r_i \cdot \bar Q_i
+                            + 2 \cdot \bar\phi_{i+1/2}}
+                          {\Delta r_i \cdot \Sigma_i + 2}.
+
+Stepping inward to the next face uses the textbook DD auxiliary
+relation rearranged (Hébert Eq. (3.435)):
+
+.. math::
+   :label: hebert-3-435
+
+   \bar\phi_{i-1/2} \;=\; 2 \cdot \bar\phi_i - \bar\phi_{i+1/2}.
+
+The pair :eq:`hebert-3-434`–:eq:`hebert-3-435` IS the spatial
+recurrence.  Together they realise a tridiagonal-style inward
+sweep on the radial mesh: outer face :math:`\rightarrow` cell
+centre :math:`\rightarrow` inner face :math:`\rightarrow` next
+cell centre :math:`\rightarrow \ldots \rightarrow` pole face
+:math:`\bar\phi_{1/2}` at :math:`r = 0`.
+
+.. note::
+
+   The three labels :eq:`hebert-3-432-source`,
+   :eq:`hebert-3-434`, :eq:`hebert-3-435` are also declared in the
+   :mod:`~orpheus.sn.spatial.psi_half_angle_seed` module docstring
+   (the canonical algebra-of-record).  Each :math:`:label:` is
+   unique across the documentation graph; the Sphinx page is the
+   **presentation layer** for the equations the code module owns
+   as source-of-truth.  The
+   ``@pytest.mark.verifies("hebert-3-43X")`` wiring on the L0
+   algebraic-identity tests in
+   :file:`tests/sn/spatial/test_psi_half_angle_seed.py` is tracked
+   at Issue #194; without that wiring the labels appear in the V&V
+   audit as "documented but not tested" (orphan labels).
+
+Why :math:`\mu = -1` is the natural starting direction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The M-M angular closure on sphere is a per-cell
+:math:`\alpha`-cascade that **couples** the angular flux across
+ordinates within one spatial cell: ordinate :math:`n` reads
+:math:`\alpha_{n-1/2}` from the previous (more-inward-:math:`\mu`)
+ordinate.  To start the cascade at the smallest-:math:`\mu`
+ordinate, one needs a value for :math:`\alpha_{1/2}` AND for the
+angular-edge flux :math:`\phi_{1/2,i}` at that seed half-integer.
+
+The :math:`\alpha_{1/2} = 0` seed is **free**: it comes from
+:math:`1 - \mu^2` evaluated at :math:`\mu = -1`, i.e.,
+"The first value :math:`\alpha` is equal to :math:`1 - (-1)^2 = 0`"
+(text below Hébert Eq. (3.422)).  That handles the *angular*
+half of the problem.
+
+The flux value :math:`\phi_{1/2,i}`, however, is NOT free.  It
+is the **spatial flux profile** at the auxiliary starting
+direction, and it must be solved for as a function of position
+:math:`i` along the radial mesh.  Eqs. :eq:`hebert-3-432` through
+:eq:`hebert-3-435` provide exactly that spatial solve.
+
+At :math:`\mu = -1` the sphere streaming operator collapses to
+pure radial divergence **without** the angular-redistribution
+coupling.  As Hébert writes (p. 143):
+
+   *"We observe that these directions correspond to particles
+   entering the external surface and moving toward the central
+   axis with* :math:`\mu = -1`. *The angular redistribution term
+   vanishes on these points so that Eq. (3.164) simplifies to
+   [Eq. (3.432)]."*
+
+This is the **only** direction on the unit interval :math:`[-1, 1]`
+where the spatial 1D-sphere problem reduces to a closed-form
+linear recurrence in radius alone, without an inner angular
+solve.  Picking any intermediate :math:`\mu` would leave the
+coupling term active and re-introduce the cascade
+chicken-and-egg.  See also
+:ref:`sn-phase-d-pomraning-structural-singularity` for the
+deeper structural reason :math:`\mu = \pm 1` is the only
+admissible starting direction in any curvilinear geometry.
+
+Why "zero-weight"
+~~~~~~~~~~~~~~~~~
+
+In an :math:`N`-point Gauss–Legendre quadrature on :math:`[-1, 1]`
+the endpoints :math:`\mu = \pm 1` are **not** base points (the
+polynomial is approximated by interior nodes only).  They have no
+quadrature weight, hence "zero-weight" — the flux value at
+:math:`\mu = -1` does NOT contribute to any
+:math:`\sum_n \mathcal{W}_n \phi_n` integral that builds the scalar
+flux moments.
+
+The :math:`\mu = -1` ordinate is therefore a **purely auxiliary
+numerical construct**: its flux values exist for the sole purpose
+of seeding the :math:`\alpha`-cascade for the finite-weight
+ordinates that follow.  After the cascade is initialised, the
+angular-edge values :math:`\bar\phi_{i\pm 1/2}` are discarded;
+only the **cell-centred values** :math:`\bar\phi_i \equiv
+\phi_{1/2,i}` are kept (Hébert, p. 143, between Eqs. (3.435) and
+(3.436)).  Those cell-centred values feed the finite-weight
+ordinates' cell-balance Eq. (3.436) via the
+:math:`(\alpha_{n-1/2} + \alpha_{n+1/2})\,\phi_{n-1/2,i} /
+(2\,\mathcal{W}_n)` redistribution term, with
+:math:`\phi_{n-1/2,i} = \phi_{1/2,i}` at the first
+finite-weight ordinate :math:`n = 1`.
+
+The flat-:math:`\psi` algebraic verification trace
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Phase D hypothesis is: *for a flat angular flux*
+:math:`\psi_{\text{cell}} = C` *across all cells, the
+inward sweep returns* :math:`\bar\phi_{1/2} = C`.  The algebra
+verifies this in closed form.
+
+Take a homogeneous problem with constant :math:`\Sigma_t = \Sigma`
+and source :math:`\bar Q_i` constructed so the consistent fixed
+point is :math:`\bar\phi_i = C` everywhere.  Specialising
+Eq. :eq:`hebert-3-432-source` to :math:`L = 0` and applying the
+flat-:math:`\psi` ansatz gives the consistent source
+:math:`\bar Q = \frac{1}{2} \Sigma \cdot 2C = \Sigma \cdot C` (the
+:math:`\phi_0` integral over flat unit-:math:`\psi` against GL
+weights summing to 2 returns :math:`2C`; lumped into the discrete
+:math:`\bar Q_i = \Sigma \cdot C`).
+
+Substituting into Eq. :eq:`hebert-3-434` with inductive hypothesis
+:math:`\bar\phi_{i+1/2} = C`:
+
+.. math::
+
+   \bar\phi_i
+   \;=\; \frac{\Delta r \cdot \Sigma \cdot C + 2C}
+              {\Delta r \cdot \Sigma + 2}
+   \;=\; C \cdot \frac{\Delta r \cdot \Sigma + 2}
+                     {\Delta r \cdot \Sigma + 2}
+   \;=\; C.
+
+Eq. :eq:`hebert-3-435` then gives
+:math:`\bar\phi_{i-1/2} = 2C - C = C`.  The recurrence is
+self-similar: every face and cell value stays at :math:`C`.  Hence
+:math:`\bar\phi_{1/2}(r = 0) = C` for flat :math:`\psi` on the
+consistent flat source — **the hypothesis holds**.
+
+This trace establishes the Phase D fix as a **closed-form
+analytical reference** in the
+:doc:`algebra-of-record </development>` State-1A pillar sense: the
+identity :math:`(L \cdot \psi_{\text{flat}})_{n,i,g} = \Sigma_t
+\cdot \psi_{n,i,g}` is verifiable by exact algebra on the discrete
+operator, no numerical quadrature required.  The L0 foundation test
+:func:`tests.sn.spatial.test_psi_half_angle_seed.test_l0_flat_psi_reflective_identity_at_C_eq_1`
+pins this identity at machine precision (``rtol=1e-13``).
+
+The corrected injection-point story
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The single largest **architectural correction** of Phase D is
+where the canonical inward-sweep output is injected.  The Phase D
+plan (and the literature memo's §7 implementation note) routed
+the inward-sweep result :math:`\bar\phi_i` into the **WDD
+spatial pole-face initial condition** at
+:func:`~orpheus.sn.operator.transport_operator_matvec_spherical`'s
+``psi_face_in`` initialisation — the very same site the
+:ref:`sn-curvilinear-trajectory-resolvent-crosscheck` discussion
+identified as the Phase C Carlson seed location.
+
+The numerics-investigator diagnostic
+(:file:`tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py`)
+falsified that hypothesis empirically.  Four interventions tested
+against the M-M failing configuration on the flat-:math:`\psi`
+probe:
+
+.. list-table:: Phase D injection-point intervention sweep (Σ_t = 0.5)
+   :header-rows: 1
+   :widths: 8 40 30 22
+
+   * - Probe
+     - What it changes
+     - Site
+     - max\|residual\|
+   * - ``[A]``
+     - Carlson seed for WDD ``psi_face_in``
+     - ``operator.py:738``
+     - **1.89e+01 FAIL** (unchanged)
+   * - ``[B]``
+     - Carlson seed for M-M half-angle ``ψ_{1/2,i}``
+     - ``pole_angular_closure.py:411``
+     - **1.78e-15 PASS**
+   * - ``[C]``
+     - BOTH ``[A]`` + ``[B]``
+     - both
+     - **1.78e-15 PASS** (no extra effect)
+   * - ``[D]``
+     - M-M half-angle ``ψ_{1/2,i}`` = cell-centre value
+     - ``pole_angular_closure.py:411``
+     - **1.78e-15 PASS** (degenerate)
+
+Reading the table:
+
+* ``[A]`` confirms the WDD spatial pole-face IC is **not** what's
+  wrong.  The Phase C
+  ``psi_face_in = fi[:, outgoing_mask, 0, 0]`` Lewis–Miller
+  cell-centre seed is already structurally equivalent to the
+  Carlson inward-sweep output **on flat ψ** — both equal
+  :math:`\psi_{\text{cell}}[0]` in that limit.  Replacing the
+  WDD seed changes nothing.
+* ``[B]`` is the canonical Carlson intervention: feeding
+  :math:`\bar\phi_i` into the M-M recurrence's ``psi_half_left``
+  closes the residual to machine precision.
+* ``[D]`` is the **falsification check**: on the flat-:math:`\psi`
+  reflective probe ``[B]`` and ``[D]`` coincide because the
+  inward sweep returns :math:`\bar\phi_i \equiv \psi_{\text{cell}}`
+  exactly.  The probe **cannot distinguish** the two.
+
+To prove the Carlson seed is canonical (not merely coincidentally
+correct), the diagnostic includes a vacuum-BC structural
+independence cross-check.  On a vacuum-BC probe the inward sweep
+returns a non-trivial spatial profile
+
+.. math::
+
+   \bar\phi_i \;=\; (0.613, 0.572, 0.527, 0.478, 0.423, 0.362,
+                     0.295, 0.220, 0.138, 0.048),
+
+distinctly **not** equal to the cell-centred flat
+:math:`\psi_{\text{cell}} = \mathbf{1}`.  The two seeds differ by
+up to 0.95 in absolute value, and the resulting operator residuals
+differ by max-abs 7.31 — the Carlson seed ``[B]`` is mathematically
+distinct and quantitatively superior to the degenerate
+broadcast-cell-centre seed ``[D]``.  This is the
+**structural-independence evidence** that pins the Phase D fix as
+canonical, not as a coincidental match on a degenerate probe.
+
+The pinning test for this structural distinction is
+:func:`tests.sn.spatial.test_psi_half_angle_seed.test_l1_carlson_vs_zero_seed_differ_on_vacuum_bc_probe`
+— a max-abs difference :math:`> 0.05` between Carlson and Zero
+seed residuals on a vacuum-BC probe.  Without this test a future
+regression that replaced the Carlson sweep with a naive
+broadcast-cell-centre would pass every flat-:math:`\psi`
+reflective test silently.
+
+The bug Phase B baked in
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The pre-Phase-D production code at
+``orpheus/sn/spatial/pole_angular_closure.py:411`` carried the
+hardcoded zero seed:
+
+.. code-block:: python
+
+   psi_half_left = np.zeros((ng, nx), dtype=psi_level.dtype)
+   for m in range(M):
+       tau_m = tau_level[m]
+       psi_half_right = (
+           psi_level[:, m, :] - (1.0 - tau_m) * psi_half_left
+       ) / tau_m
+       redist[:, m, :] = (
+           dAw_level[:, m].reshape(1, nx)
+           * (alpha_level[m + 1] * psi_half_right
+              - alpha_level[m] * psi_half_left)
+           / volume.reshape(1, nx)
+       )
+       psi_half_left = psi_half_right
+
+The Phase B docstring justified the zero seed as: *"for the
+forward apply matvec we adopt* :math:`\phi_{1/2,i} = 0`, *the
+unique choice that makes the recursion's seed consistent with*
+:math:`\alpha_{1/2} = 0` *and that the sweep converges to under
+fixed-point iteration."*  This reasoning is wrong — the
+:math:`\alpha_{1/2} \psi_{1/2}` product vanishes regardless of
+:math:`\psi_{1/2}` because :math:`\alpha_{1/2} = 0`, but the seed
+ALSO enters the **denominator-propagation chain**: every
+subsequent half-angle face flux
+:math:`\psi_{m+1/2,i,g}` depends on :math:`\psi_{m-1/2,i,g}`
+recursively, and the chain inherits the seed through the M-M
+weighting :math:`(1 - \tau_m)`.  Setting the seed to zero when
+Hébert's structural form says :math:`\psi_{1/2,i,g} =
+\bar\phi_{1/2,i}` (the inward-sweep output) is a **wrong term
+initialisation** — Mode 3 in the
+``vv-principles`` 6-failure-mode taxonomy (see ``error_catalog.md``
+ERR-026 entry).
+
+How the wrong seed survived Phase B
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The zero seed survived Phase B's L1 flat-flux-identity test
+(:file:`tests/sn/l1_analytical/test_pole_closure_flat_flux_identity.py`)
+because that test compared the three closures (Legacy / BFF /
+M-M) **against each other on flat ψ**, NOT against the closed-form
+fixed-point identity :math:`L \cdot \psi = \Sigma_t \cdot \psi`.
+All three closures collapse to the same wrong-but-internally-
+consistent value on flat :math:`\psi`, so cross-comparison passes
+while the absolute closed-form check would have caught it
+immediately.
+
+The cylindrical case ALSO carries the zero seed in production but
+:ref:`Cylindrical Gate 1.1 <sn-phase-d-gate-1-1-empirical>`
+**passes** empirically.  The mechanism is per-:math:`\mu`-level
+:math:`\alpha`-dome telescoping: each level's
+:math:`\alpha`-cascade ends at :math:`\alpha = 0` by antisymmetry
+at the level edges, so the wrong ``psi_half_left = 0`` seed
+cancels cleanly per level via the level boundary closure.  The
+sphere cascade has no equivalent telescoping — a wrong seed
+propagates directly to a wrong fixed point.  Phase D's fix
+updates the cylindrical path too for **structural alignment with
+the canonical form** (architectural correctness), but cylindrical
+behaviour is empirically a regression-stability check, not a new
+PASS.
+
+.. _sn-phase-d-pomraning-structural-singularity:
+
+Pomraning structural-singularity cross-reference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Pomraning (1989) [Pomraning1989]_ frames the curvilinear pole
+problem as **geometric**: :math:`r = 0` is structurally singular
+in any curvilinear streaming operator because the
+angular-derivative coefficients in the streaming term (the
+:math:`(1 - \mu^2)/r` factor in the sphere streaming operator)
+contain :math:`1/r`.  At :math:`r = 0` the coefficient diverges;
+the natural discretisation must somehow handle this.  In his words
+(p. 339, right column):
+
+   *"It was pointed out that if the bounding surface of the
+   system is used as one of the coordinate surfaces and one
+   considers a family of nonintersecting surfaces that starts
+   with the bounding surface and progresses inward to fill the
+   system, then these surfaces will eventually shrink to a
+   surface with a zero area, namely a line or a point. ... A
+   special case of this elliptical example is a sphere, where
+   the innermost surface is simply a point.  Hence, in general
+   there will exist points on the innermost surface where the
+   coefficients of the angular derivatives in the streaming term
+   are infinite, since these coefficients contain the reciprocal
+   of the radii of curvature ... Prime examples of such singular
+   points are found in the usual spherical and cylindrical
+   geometry formulations where* :math:`1/r` *terms are extant and
+   the attendant difficulties are well known, particularly in
+   numerical treatments."*
+
+The naive engineering response would be **extrapolation**: pick
+:math:`\psi_{\text{face}}(r = 0)` by fitting a polynomial in
+:math:`r` through nearby interior cells.  This is what an
+incautious starting heuristic does; it is also what produces
+the M-M wrong fixed point ERR-026 diagnoses.
+
+The Carlson coupled-pole response is **canonical** because it
+sidesteps the singularity entirely: at the auxiliary direction
+:math:`\mu = -1` the singular :math:`(1 - \mu^2)/r` term is
+**identically zero** (the numerator vanishes), so the spatial
+sweep at this direction sees **no singularity at all**.  The
+equation tells the discretisation what
+:math:`\bar\phi_{1/2}(r = 0)` should be — there is no need to
+guess.  The cost is that the :math:`\mu = -1` sweep must be
+solved first, then its result used as the seed for the cascade
+at finite-weight ordinates (where :math:`(1 - \mu^2) > 0` and
+the singularity would otherwise be felt).  This is exactly the
+price Pomraning warns about: "difficulties must be dealt with".
+The Carlson construction deals with it by **exploiting** the
+singularity's vanishing at :math:`\mu = \pm 1` rather than
+trying to regularise it at intermediate :math:`\mu`.
+
+Option α: composition over sibling Protocol
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The seed is **M-M-specific**: only
+:class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+carries a ``psi_half_left`` variable to seed.  The Legacy and
+Bailey closures don't have one — their half-angle face flux
+evaluation collapses to cell-centre values unconditionally.  Two
+architectures were considered:
+
+* **Option α (composition, shipped)** — the seed strategy lives as
+  a :class:`~orpheus.sn.spatial.psi_half_angle_seed.PsiHalfAngleSeed`
+  field on
+  :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`.
+  The abstraction stays local to the closure that consumes it.
+
+* **Option B (sibling Protocol on SNMesh, rejected)** — the seed
+  would be a separate Protocol attribute on
+  :class:`~orpheus.sn.geometry.SNMesh`, applied by the matvec
+  before calling the pole closure.  This would force every
+  consumer (Legacy / BFF / M-M) to handle a Protocol that is a
+  **no-op** for the non-M-M strategies, violating the
+  single-responsibility principle and forcing unrelated tests to
+  thread the Protocol through call signatures.
+
+The
+:class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonSweepContext`
+dataclass bundles the four inputs the Carlson sweep needs that
+are NOT in the standard
+:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+``__call__`` signature (``sigma_t``, ``dr``, ``mu_quad``,
+``weights``, ``bc_outer_value``), keeping the call-signature
+expansion to a single new optional keyword — a minimal
+blast-radius extension that Legacy and Bailey closures ignore by
+documented Protocol contract.
+
+Linear-operator preservation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Both seed strategies — :class:`ZeroSeed` and
+:class:`CarlsonInwardSweep` — are **linear in the input** ``psi_cells``
+(verified by the ``is_linear: ClassVar[bool] = True`` trait, pinned
+by foundation tests).  Linearity is the load-bearing property:
+the apply matvec must be a linear operator, otherwise the
+operator-algebra capabilities of
+:class:`~orpheus.sn.operator.SNStreamingOperator`
+(apply, apply_transpose, dense matrix probing) break.  The
+:class:`CarlsonInwardSweep` is linear because:
+
+* The :math:`\phi_0` moment is a linear projection of input
+  :math:`\psi` (Legendre integration is linear).
+* :math:`\bar Q = \frac{1}{2} \Sigma_t \cdot \phi_0` is linear
+  in :math:`\psi` (:math:`\Sigma_t` is constant).
+* The recurrence Eqs. :eq:`hebert-3-434`–:eq:`hebert-3-435` is
+  an affine function of :math:`(\bar Q, \bar\phi_{i+1/2})` with
+  constant coefficients depending only on
+  :math:`(\Sigma_t, \Delta r)`.
+* The ``bc_outer_value`` is constructed in the matvec by applying
+  the realised BC operator to the cell-centred outer-cell
+  :math:`\psi`, then extracting the most-inward ordinate's value
+  — both operations are linear in the input :math:`\psi`.
+
+The foundation test
+:func:`tests.sn.spatial.test_psi_half_angle_seed.test_carlson_inward_sweep_is_linear_in_input`
+pins the linearity directly; the operator-level linearity gate
+:func:`tests.sn.test_snstreamingoperator.test_apply_is_linear`
+pins it transitively at the matvec boundary (``rtol=1e-12`` —
+relaxed from the pre-Phase-D ``rtol=1e-13`` to absorb ~10×ULP
+non-associativity drift, justified by the three principled-
+relaxation criteria of the ``vv-principles`` bit-identity-vs-
+principled-equivalence framework).
+
+The L = 0 isotropic-only limitation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The current
+:class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`
+evaluates only the :math:`\ell = 0` (isotropic) Legendre moment
+when building the moment-folded source in
+:eq:`hebert-3-432-source`.  This is **consistent with the apply
+matvec's structure**: the
+:class:`~orpheus.sn.operator.SNStreamingOperator` apply matvec
+carries only an isotropic collision term :math:`\Sigma_t \psi`;
+anisotropic scattering (P\ :sub:`1`\ +) is composed externally via
+a separate scattering operator, not included in :math:`L`.
+
+.. warning::
+
+   **The L = 0 isotropic-only assumption is load-bearing for the
+   Phase D fix.**  If a future refactor moves scattering INTO
+   :math:`L` (e.g., to enable a "monolithic" SN apply that
+   includes within-group scattering), the Carlson seed becomes
+   WRONG: the source at :math:`\mu = -1` (Eq. :eq:`hebert-3-432`)
+   needs the full Legendre-moment sum
+
+   .. math::
+
+      \bar Q_i \;=\; \sum_\ell \frac{2\ell+1}{2}\,Q_\ell(r)\,(-1)^\ell,
+
+   not just :math:`\Sigma_t \phi_0`.  This is a Mode-6
+   convention-drift risk per the ``vv-principles`` skill (the
+   definition-site assumption disagreeing with the usage-site
+   intention).  A foundation test pinning the isotropic-only
+   assumption (e.g., asserting the apply matvec does NOT couple
+   to ``self_scattering``) would catch a future drift; in its
+   absence, this WARNING block and the module docstring's
+   matching admonition are the only safeguards.  Track the
+   future-refactor case under a fresh GitHub issue when the
+   monolithic apply work is scheduled.
+
+.. _sn-phase-d-default-flips:
+
+Default flips
+~~~~~~~~~~~~~
+
+Phase D ships **two default flips** that activate the full
+canonical curvilinear closure path:
+
+#. :attr:`SNMesh.pole_angular_closure
+   <orpheus.sn.geometry.SNMesh.pole_angular_closure>` default
+   flipped from
+   :class:`~orpheus.sn.spatial.pole_angular_closure.LegacyTauSymmetricInterpolation`
+   to
+   :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`.
+   :class:`MorelMontryAngularSweep`'s own constructor default for
+   :attr:`psi_half_seed` is
+   :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`,
+   so the single :class:`SNMesh` flip activates the full Phase D
+   fix (canonical M-M closure + canonical Carlson seed) without
+   requiring downstream call sites to thread the new strategy
+   explicitly.
+
+#. :class:`~orpheus.sn.solver.SNSolver`'s ``inner_solver`` default
+   flipped from ``"source_iteration"`` to ``"krylov"`` for
+   **curvilinear geometries** (spherical, cylindrical); Cartesian
+   stays at ``"source_iteration"``.  The rationale: the Phase D
+   fix lives in the apply matvec, and the Krylov path is the one
+   that uses
+   :meth:`~orpheus.sn.operator.SNStreamingOperator.apply`.  The
+   sweep path (``"source_iteration"``) uses the spatial WDD
+   recurrence and is unaffected by the Phase D fix — leaving its
+   ERR-026-affected curvilinear behaviour in place would be wrong
+   for the production default.
+
+.. _sn-phase-d-gate-1-1-empirical:
+
+Empirical Gate 1.1 outcome (Phase D — full 12-cell crosstab)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Phase D acceptance gate is Gate 1.1 on **all three** pole
+closures across both curvilinear geometries and both :math:`\Sigma_t`
+values.  The parametrised test
+:func:`tests.sn.test_phase_c_gates.test_apply_curvilinear_per_ordinate_flat_flux_residual`
+produces the 12-cell crosstab:
+
+.. list-table:: Gate 1.1 outcome under Phase D Carlson seed (2026-05-12)
+   :header-rows: 1
+   :widths: 18 30 26 26
+
+   * - Geometry
+     - Pole closure
+     - :math:`\Sigma_t = 0`
+     - :math:`\Sigma_t = 0.5`
+   * - Sphere
+     - ``LegacyTauSymmetricInterpolation``
+     - PASS
+     - PASS
+   * - Sphere
+     - ``BaileyFlatFluxRedist``
+     - PASS
+     - PASS
+   * - Sphere
+     - ``MorelMontryAngularSweep``
+     - **XPASS**
+     - **XPASS**
+   * - Cylinder
+     - ``LegacyTauSymmetricInterpolation``
+     - PASS
+     - PASS
+   * - Cylinder
+     - ``BaileyFlatFluxRedist``
+     - PASS
+     - PASS
+   * - Cylinder
+     - ``MorelMontryAngularSweep``
+     - **XPASS**
+     - **XPASS**
+
+All 12 cells PASS or XPASS.  The 4 XPASS cells under M-M closure
+are the ERR-026 markers — they now flip from FAIL to XPASS on
+xfail-strict=False, unblocking the marker-removal commit that
+Phase D Step 5 will execute (deferred per the closeout memo's
+acceptance gate item 6).
+
+This is the load-bearing **empirical evidence** for the
+ERR-026 identity-and-rate scope closure.  The asymmetry between
+the Phase C (cylinder PASS / sphere FAIL) and Phase D
+(both PASS) crosstabs is the diagnostic mark of the Phase D
+intervention: the sphere case required the Carlson seed because
+its single-cascade structure has no telescoping; the cylinder case
+already passed under Phase C because per-:math:`\mu`-level
+:math:`\alpha`-dome telescoping absorbed the zero-seed
+inconsistency.
+
+.. _sn-phase-d-gate-1-5-capture-and-compare:
+
+Gate 1.5 strengthening — capture-and-compare BC apply input
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Phase C's Gate 1.5
+(:ref:`bc-trace-contract-respected-by-matvec`) was a "round-trip"
+check: invoke ``bc.realize().apply(...)`` independently and
+compare against the matvec's observable output.  Phase D
+strengthens this to a **capture-and-compare** check that pins the
+exact value the matvec passes into the BC trace law:
+
+#. Patch :meth:`sn_mesh.bc_right.apply` to capture every input
+   array passed to it during one matvec call.
+#. Independently reconstruct the WDD-propagated outflow trace via
+   a reference implementation (:func:`_outflow_at_boundary_for_sphere`).
+#. Assert the captured BC apply input matches the reference to
+   ``rtol=1e-14`` — exactly bit-equal up to FP non-associativity.
+
+The strengthening matters because the Phase D matvec now calls
+:meth:`bc_right.apply` **twice** per matvec:
+
+#. **Phase D Carlson context call** — applied to cell-centred
+   outer-cell :math:`\psi` to build ``bc_outer_value`` for the
+   :class:`CarlsonSweepContext`.  See the BC companion section
+   :ref:`bc-phase-d-two-bc-applies-per-matvec`.
+#. **Phase C BC trace law call** — applied to the WDD-propagated
+   outflow face value at the boundary edge, per the
+   :ref:`affine-bc-form` contract.
+
+The capture-and-compare test
+:func:`tests.sn.test_phase_c_gates.test_bc_trace_contract_capture_and_compare_sphere`
+(parametrised over ``vacuum`` and ``reflective``) **locates the
+Phase C call by shape and content matching**: of the two captured
+inputs, the one whose shape matches ``(N, ng)`` and whose values
+match the independent reference is the Phase C trace law call.
+Both vacuum and reflective parametrised cases pass; the test is
+foundation-tagged because it pins a software invariant (the
+matvec's two-application sequence) rather than a math claim.
+
+.. _sn-phase-d-err-026-closure-narrative:
+
+ERR-026 PARTIAL → PARTIAL (narrowed scope)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Phase D **narrows** ERR-026's open scope.  The bug ERR-026
+originally diagnosed — *"curvilinear sweep WDD angular closure
+converges to wrong fixed-source solution"* — had three
+sub-claims, each addressed by a different Wave:
+
+.. list-table:: ERR-026 sub-claim closure tracking
+   :header-rows: 1
+   :widths: 35 35 30
+
+   * - Sub-claim
+     - Status
+     - Closed by
+   * - Operator identity:
+       :math:`(L \cdot \psi_{\text{flat}})_{n,i,g} = \Sigma_t \cdot \psi_{n,i,g}`
+       on per-ordinate flat-flux probe
+     - **CLOSED**
+     - Phase D Carlson seed (Gate 1.1 XPASS)
+   * - Convergence rate:
+       :math:`\mathcal{O}(h^2)` MMS rate at fixed :math:`N`
+     - **CLOSED (rate)**
+     - Phase D Carlson seed (empirical rate [3.33, 2.46] across
+       refinements; both above the L1 acceptance floor of 1.9)
+   * - Convergence magnitude: pre-asymptotic absolute MMS error
+       below quadrature floor at practical ``nx`` (:math:`\le 160`)
+     - **OPEN**
+     - Tracked at `Issue #195
+       <https://github.com/deOliveira-R/ORPHEUS/issues/195>`_;
+       requires either finer ``nx`` or a higher-order spatial
+       closure refinement to fully close
+
+The convergence-rate evidence ``[3.33, 2.46]`` is the slope
+sequence measured at successive refinement levels; both values are
+above the L1 acceptance floor of 1.9 (second-order accuracy
+demonstrated robustly), satisfying the rate sub-claim.  However,
+the **absolute magnitude** at the largest tested ``nx`` (=160)
+remains above the L1 tolerance that the test architect specified
+for full closure on the pre-asymptotic regime.  This is **NOT** a
+violation of the Phase D fix — the rate is correct, the asymptotic
+regime is the right shape, but the **constant-coefficient** in
+front of the :math:`\mathcal{O}(h^2)` term is larger than the
+test's pre-asymptotic-magnitude budget at practical mesh
+resolutions.
+
+The pre-asymptotic regime is the consequence of the Carlson
+sweep's L0-truncated source: at coarse :math:`nx` the Legendre
+:math:`\phi_0` moment is computed from the cell-centred input
+:math:`\psi` against the GL quadrature — an integration whose own
+truncation contributes to the constant in
+:math:`\bar Q = \frac{1}{2} \Sigma_t \phi_0`.  Refining
+:math:`nx` reduces this contribution, but the rate at which it
+reduces is set by the WDD spatial closure's own truncation order,
+not by the Carlson sweep itself.  See Issue #195 for the candidate
+follow-up paths (higher-order pole-face spatial closure, or a
+:math:`\phi_0` recomputation that uses the M-M angular recurrence
+output rather than the cell-centred input).
+
+The 4 ``xfail-strict`` ERR-026 tripwires
+(:file:`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`,
+sphere + cylinder × isotropic + anisotropic ansatz) therefore
+**stay xfail** through Phase D Step 3.  They will ``xpass`` under
+the Phase D defaults (which is what triggers the deferred Step 5
+marker-removal commit); the pre-asymptotic-magnitude regression
+that prevents `strict=True` flipping is Issue #195's domain.  The
+narrative for ``error_catalog.md`` therefore reads:
+
+   ERR-026 status: **PARTIAL CLOSURE** (was PARTIAL through Phase
+   C, narrowed scope through Phase D).  The structural bug (M-M
+   recurrence hardcoded ψ\ :sub:`1/2,i` = 0 seed) is closed by the
+   Phase D Carlson coupled-pole sweep; Gate 1.1 sphere MMS PASS
+   confirms the operator identity and the second-order
+   convergence rate is recovered.  The pre-asymptotic-magnitude
+   open question (Issue #195) is what keeps the status at PARTIAL
+   rather than CLOSED.
+
+.. _sn-phase-d-files-touched:
+
+Files touched by Phase D
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The full Phase D footprint (per the closeout memo at
+``.claude/agent-memory/method-implementer/issue_168_phase_d_step3_closeout.md``):
+
+**New modules**
+
+* :mod:`orpheus.sn.spatial.psi_half_angle_seed` — Protocol family
+  + ABC + 2 strategies (:class:`ZeroSeed` + :class:`CarlsonInwardSweep`)
+  + :class:`CarlsonSweepContext` dataclass.
+* :file:`tests/sn/spatial/test_psi_half_angle_seed.py` — 25
+  foundation + L0 + L1 tests covering Protocol conformance,
+  registry/self-registration, immutability, shape contract,
+  bit-identity for :class:`ZeroSeed`, L0 algebraic identities
+  (flat-:math:`\psi` at varying C, vacuum-BC nx=3 hand
+  calculation, multi-region :math:`\Sigma_t` step), linearity, and
+  L1 structural-independence (Carlson vs Zero on vacuum-BC probe).
+
+**Modified files**
+
+* :mod:`orpheus.sn.spatial.pole_angular_closure` —
+  :class:`MorelMontryAngularSweep` gains a
+  :attr:`psi_half_seed: PsiHalfAngleSeed` field;
+  :func:`_mm_weighted_angular_recurrence_single_level` accepts an
+  optional ``psi_half_seed`` array; Protocol signatures extended
+  with an optional ``carlson_context`` kwarg (Legacy + Bailey
+  ignore it).
+* :mod:`orpheus.sn.spatial` ``__init__`` re-exports the new
+  symbols.
+* :mod:`orpheus.sn.operator` — spherical + cylindrical matvecs
+  build the
+  :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonSweepContext`
+  before calling ``pole_angular_closure``.
+* :mod:`orpheus.sn.geometry` — :class:`SNMesh` default flipped to
+  :class:`MorelMontryAngularSweep`.
+* :mod:`orpheus.sn.solver` — curvilinear default ``inner_solver``
+  flipped to ``"krylov"``.
+* :file:`tests/sn/test_phase_c_gates.py` — Gate 1.5 strengthened
+  with capture-and-compare.
+* :file:`tests/sn/test_snstreamingoperator.py` — 3 tests updated
+  (one test docstring rewritten to pin the Phase D fix; two
+  bit-identity tests threaded with ``sn_mesh.pole_angular_closure``;
+  one linearity tolerance relaxed ``rtol=1e-13 → 1e-12``).
+
+The agent-memory trail for Phase D session reproducibility:
+
+* Literature memo:
+  ``.claude/agent-memory/literature-researcher/phase_d_carlson_coupled_pole.md``
+  — Hébert §3.9.4 derivation + flat-:math:`\psi` algebra +
+  architecture-shape correction + open questions.
+* Diagnostic memo:
+  ``.claude/agent-memory/numerics-investigator/phase_d_gate_1_1_sphere_mms_diagnosis.md``
+  — empirical evidence + 4 plan corrections + structural-
+  independence cross-check.
+* Step 3 closeout:
+  ``.claude/agent-memory/method-implementer/issue_168_phase_d_step3_closeout.md``
+  — what shipped + 3 deviations + V&V evidence chain.
+* Diagnostic script:
+  :file:`tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py`
+  — self-contained CLI probe reproducing the diagnostic table.
 
 
 Krylov inner solver
@@ -6644,3 +7520,14 @@ References
    calculations," *Progress in Nuclear Energy*, 40(1):3--159, 2002.
    Reviews the SAILOR / Larsen-Adams preconditioned-Krylov framework
    that the Wave E Round 2 inner solver implements.
+
+.. [Pomraning1989] G.C. Pomraning,
+   "The transport equation in general geometry,"
+   *Nuclear Science and Engineering*, 101:330--340, 1989.
+   Page 339 frames the curvilinear pole singularity as **structural**:
+   :math:`r = 0` is intrinsically singular in any curvilinear streaming
+   operator because the angular-derivative coefficients contain
+   :math:`1/r`.  Cited at
+   :ref:`sn-phase-d-pomraning-structural-singularity` as the deeper
+   reason :math:`\mu = \pm 1` is the only admissible Carlson starting
+   direction.
