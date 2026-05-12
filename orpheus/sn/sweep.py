@@ -98,6 +98,7 @@ from orpheus.geometry import CoordSystem
 
 from .spatial.cell_update import UpstreamState
 from .spatial.diamond import DiamondDifference
+from .spatial.psi_half_angle_seed import carlson_inward_sweep_from_source
 from .sweep_graph import OctantLabel
 
 if TYPE_CHECKING:
@@ -469,17 +470,66 @@ def _sweep_1d_spherical(
         psi_bc["bc_sph"] = np.zeros((N, ng))
     bc_outer = psi_bc["bc_sph"]
 
-    # Angular "face flux" between successive ordinates: ψ_{n-1/2, i}
-    # Shape (nx, ng). Initialised to zero for the first ordinate (α_{1/2}=0).
-    psi_angle = np.zeros((nx, ng))
-
-    angular_flux = np.zeros((N, nx, 1, ng))
-    scalar_flux = np.zeros((nx, ng))
-
     # Isotropic source → angular source density by dividing by sum(w)
     # Then multiply by cell volume for the balance equation
     weight_norm = 1.0 / weights.sum()
     QV_iso = Q_1d * V[:, None] * weight_norm  # (nx, ng)
+
+    # ── Phase F (Issue #168) Carlson coupled-pole seed for ψ_{1/2,i,g} ──
+    # Mirror-image of the apply-matvec Phase D fix
+    # (operator.py::transport_operator_matvec_spherical).  Replaces the
+    # legacy ``psi_angle = np.zeros((nx, ng))`` Carlson-zero seed —
+    # diagnosed as the wrong term initialisation (ERR-026 manifestation
+    # #6, twin of the apply-path bug Phase D closed).
+    #
+    # Per Hébert §3.9.4 Eqs. (3.432)-(3.435), the canonical seed at
+    # μ = −1 is the cell-centred output of the inward DD sweep:
+    #
+    #     φ̄_i = (Δr_i · Q̄_i + 2 · φ̄_{i+1/2})
+    #            / (Δr_i · Σ_t,i + 2)
+    #     φ̄_{i-1/2} = 2 · φ̄_i - φ̄_{i+1/2}
+    #
+    # For an L = 0 isotropic operator (current SN scope), the
+    # cell-averaged source at μ = −1 reduces to
+    # ``Q̄_i = (1/2) · Q_iso(r_i)`` (Legendre fold at ℓ = 0:
+    # P_0(−1) = 1, factor (2·0 + 1)/2 = 1/2).  ``Q_1d`` is the
+    # within-group isotropic source the SI loop builds — on the
+    # fixed-point solution ``Σ_t · φ_0 = Q_1d``, so the sweep-path
+    # ``Q̄ = 0.5 · Q_1d`` matches the apply-matvec's
+    # ``Q̄ = 0.5 · Σ_t · φ_0`` (Phase D builds φ_0 from input ψ).
+    #
+    # ``bc_outer_value``: outer-face inflow at μ = −1.  Apply the BC
+    # operator to the persistent outflow buffer ``bc_outer`` (carries
+    # the previous outward sweep's outgoing flux per ordinate) and
+    # extract the value at the most-inward ordinate.  Linear in the
+    # current sweep state, BC-realised — vacuum → 0, reflective → the
+    # mirrored outflow at μ = +1.
+    most_inward_idx = int(np.argmin(mu))
+    inflow_full = bc_outer_obj.apply(bc_outer)            # (N, ng)
+    bc_outer_value = inflow_full[most_inward_idx, :]       # (ng,)
+
+    # Build ``Q̄[g, i] = 0.5 · Q_1d[i, g]`` and ``Σ_t[g, i]`` for the
+    # inward sweep helper.  ``Q_1d`` is ``(nx, ng)``; transpose for
+    # the helper's ``(ng, nx)`` convention.
+    Q_bar = 0.5 * Q_1d.T                                   # (ng, nx)
+    sigma_t_gx = sig_t_1d.T                                # (ng, nx)
+    dr = sn_mesh.dx
+
+    phi_aux = carlson_inward_sweep_from_source(
+        Q_bar=Q_bar,
+        sigma_t=sigma_t_gx,
+        dr=dr,
+        bc_outer_value=bc_outer_value,
+    )  # (ng, nx)
+
+    # Angular "face flux" between successive ordinates: ψ_{n-1/2, i}.
+    # Shape (nx, ng).  Carlson coupled-pole seed for the M-M
+    # recurrence — replaces Phase B's hardcoded zero.  Transpose
+    # ``(ng, nx) -> (nx, ng)`` to match the sweep's per-cell layout.
+    psi_angle = phi_aux.T.copy()                           # (nx, ng)
+
+    angular_flux = np.zeros((N, nx, 1, ng))
+    scalar_flux = np.zeros((nx, ng))
 
     # Per-ordinate anisotropic source (MMS external / P1+), if present
     has_aniso = Q_aniso is not None
@@ -625,13 +675,43 @@ def _sweep_1d_cylindrical(
     if has_aniso:
         Q_aniso_1d = Q_aniso[:, :, 0, :] * weight_norm  # (N, nx, ng)
 
+    # ── Phase F (Issue #168) per-level Carlson coupled-pole seed ────
+    # Cylindrical analog of the spherical sweep fix.  Each μ-level's
+    # azimuthal recurrence gets its own Hébert §3.9.4 seed.  Per the
+    # Phase F diagnostic memo §4.2, cylindrical Gate 1.1 was passing
+    # empirically (per-level α-domes telescope back to zero at the
+    # level's edges so the wrong zero seed self-cancels) — but
+    # Cardinal Rule 2 (architecture) requires the structural fix
+    # alongside the spherical one.
+    sigma_t_gx = sig_t_1d.T              # (ng, nx)
+    dr = sn_mesh.dx
+    Q_bar_iso = 0.5 * Q_1d.T             # (ng, nx) — L=0, P_0(−1)=1
+    mu_full = quad.mu_x                  # radial direction cosines
+    # Outer-face inflow trace via BC operator: bc_outer carries the
+    # outflow per ordinate from prior outward sweeps.  Apply once
+    # before the per-level loop (linear, commutes with per-level
+    # extraction).
+    inflow_full_cyl = bc_outer_obj.apply(bc_outer)  # (N, ng)
+
     # Process each μ-level independently
     for p, level_idx in enumerate(quad.level_indices):
         M = len(level_idx)
+        level_idx_arr = np.asarray(level_idx)
+        # Most-inward (smallest η) ordinate within this level.
+        within_idx_most_inward = int(np.argmin(mu_full[level_idx_arr]))
+        global_idx_most_inward = int(level_idx_arr[within_idx_most_inward])
+        bc_outer_value_level = inflow_full_cyl[global_idx_most_inward, :]  # (ng,)
+
+        phi_aux_level = carlson_inward_sweep_from_source(
+            Q_bar=Q_bar_iso,
+            sigma_t=sigma_t_gx,
+            dr=dr,
+            bc_outer_value=bc_outer_value_level,
+        )  # (ng, nx)
 
         # Azimuthal "face flux" between successive ordinates on this level.
-        # Initialised to zero: α_{1/2} = 0 so the product α·ψ vanishes.
-        psi_angle = np.zeros((nx, ng))
+        # Carlson coupled-pole seed (Phase F) replaces the legacy zero.
+        psi_angle = phi_aux_level.T.copy()  # (nx, ng)
 
         for m_local in range(M):
             n = level_idx[m_local]  # global ordinate index

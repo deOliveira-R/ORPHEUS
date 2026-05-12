@@ -360,6 +360,65 @@ class ZeroSeed(PsiHalfAngleSeedBase, key="zero"):
 # ═══════════════════════════════════════════════════════════════════════
 
 
+def carlson_inward_sweep_from_source(
+    Q_bar: np.ndarray,
+    sigma_t: np.ndarray,
+    dr: np.ndarray,
+    bc_outer_value: np.ndarray,
+) -> np.ndarray:
+    r"""Run the Hébert §3.9.4 (3.434)-(3.435) inward μ = −1 DD sweep.
+
+    Source-driven entry point for the Carlson coupled-pole sweep —
+    factored from :meth:`CarlsonInwardSweep.__call__` so the SI/sweep
+    path (Phase F) can invoke the same recurrence math without going
+    through the ψ-input Legendre-moment fold.  At the converged
+    eigenmode ``Σ_t·φ_0 = Q̄``, so the matvec path (which builds
+    ``Q̄`` from ``Σ_t·Σ_n w_n ψ_n``) and the sweep path (which uses
+    ``Q̄`` directly from the within-group source) produce the same
+    seed on the fixed point.
+
+    Parameters
+    ----------
+    Q_bar : np.ndarray, shape ``(ng, nx)``
+        Cell-averaged source at :math:`\mu = -1`.  For an L = 0
+        isotropic operator: ``Q_bar = (1/2) · Q̄_iso`` where ``Q̄_iso``
+        is the angle-averaged within-group source.  The factor ``1/2``
+        comes from the Hébert (3.432) Legendre fold at ``ℓ = 0``
+        (``(2·0 + 1)/2 = 1/2``) with ``P_0(-1) = 1``.
+    sigma_t : np.ndarray, shape ``(ng, nx)``
+        Cell-centred total cross-section, per-group, per-cell.
+    dr : np.ndarray, shape ``(nx,)``
+        Radial cell widths.
+    bc_outer_value : np.ndarray, shape ``(ng,)``
+        Outer-face angular flux at :math:`\mu = -1`.  Vacuum BC: 0.
+        Reflective BC: the outgoing-face flux at :math:`\mu = +1`
+        (mirrored), evaluated via the BC operator on the current
+        outflow estimate.
+
+    Returns
+    -------
+    np.ndarray, shape ``(ng, nx)``
+        Cell-centred half-angle face flux seed
+        :math:`\bar\phi_i \equiv \phi_{1/2,i}`.
+
+    Notes
+    -----
+    The recurrence is sequential in cells (each step depends on its
+    outer neighbour's face value) and vectorised across groups via
+    NumPy broadcasting.
+    """
+    ng, nx = Q_bar.shape
+    phi_aux = np.zeros((ng, nx), dtype=Q_bar.dtype)
+    phi_face = bc_outer_value.copy()  # (ng,) — outer face at i = nx
+    for k in range(nx - 1, -1, -1):
+        denom = dr[k] * sigma_t[:, k] + 2.0       # (ng,)
+        phi_cell = (dr[k] * Q_bar[:, k] + 2.0 * phi_face) / denom
+        phi_aux[:, k] = phi_cell
+        # Hébert (3.435): step inward to the next face.
+        phi_face = 2.0 * phi_cell - phi_face
+    return phi_aux
+
+
 @dataclass(frozen=True, slots=True)
 class CarlsonInwardSweep(
     PsiHalfAngleSeedBase, key="carlson_inward_sweep",
@@ -498,8 +557,6 @@ class CarlsonInwardSweep(
         weights = context.weights          # (M,)
         bc_outer = context.bc_outer_value  # (ng,)
 
-        ng, M, nx = psi_level.shape
-
         # ── Step 1: Legendre ℓ = 0 moment (scalar flux) ─────────────
         # φ_0[g, i] = Σ_n w_n · ψ[g, n, i]
         # einsum keeps the operation vectorised across (g, i); the
@@ -512,20 +569,14 @@ class CarlsonInwardSweep(
         Q_bar = 0.5 * sigma_t * phi_0  # (ng, nx)
 
         # ── Step 3: Hébert (3.434)-(3.435) inward DD recurrence ─────
-        # Sweep inward from i = nx - 1 down to i = 0; vectorised
-        # across the group axis.  The cell axis is genuinely
-        # sequential (each cell depends on its outer neighbour's
-        # face value), so a Python loop is unavoidable.
-        phi_aux = np.zeros((ng, nx), dtype=psi_level.dtype)
-        phi_face = bc_outer.copy()  # (ng,) — outer face at i = nx
-        for k in range(nx - 1, -1, -1):
-            denom = dr[k] * sigma_t[:, k] + 2.0       # (ng,)
-            phi_cell = (dr[k] * Q_bar[:, k] + 2.0 * phi_face) / denom
-            phi_aux[:, k] = phi_cell
-            # Hébert (3.435): step inward to the next face.
-            phi_face = 2.0 * phi_cell - phi_face
-
-        return phi_aux
+        # Delegated to :func:`carlson_inward_sweep_from_source` so the
+        # SI/sweep path (Phase F) can reuse the same recurrence.
+        return carlson_inward_sweep_from_source(
+            Q_bar=Q_bar,
+            sigma_t=sigma_t,
+            dr=dr,
+            bc_outer_value=bc_outer,
+        )
 
     def __repr__(self) -> str:
         return "CarlsonInwardSweep()"
@@ -537,4 +588,5 @@ __all__ = [
     "PsiHalfAngleSeed",
     "PsiHalfAngleSeedBase",
     "ZeroSeed",
+    "carlson_inward_sweep_from_source",
 ]
