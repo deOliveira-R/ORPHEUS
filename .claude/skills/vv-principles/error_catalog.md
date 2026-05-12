@@ -1531,6 +1531,121 @@ Phase D follow-up issues:
 - **#195** — L1 curvilinear MMS magnitude check pre-asymptotic
   transient investigation + marker removal trigger.
 
+What Wave H Phase E added (commits ``2d3e7f2``..``6708a4a``,
+GH #168 Phase E, 2026-05-12):
+
+Phase E focused on tightening the Gate 4.2 SN-vs-Variant-α cross-
+check on heterogeneous MR by fixing a documented prototype TODO in
+``orpheus/derivations/continuous/trajectory_resolvent/greens_function.py``.
+The Variant α MR solvers (sphere + cylinder) had been deployed with
+single-domain Gauss-Legendre quadrature on (0, R) — an inline
+``follow-on improvement`` comment flagged it. Single-domain GL on a
+piecewise-constant σ_t domain cannot resolve material kinks; this
+manifested as non-monotone k_eff convergence under refinement
+(n_r=24 → 7% off SN; n_r=32 → 22.7% off; n_r=64 → 14.7% off).
+
+Phase E shipped composite per-region GL (helper
+``_composite_per_region_gl``), wired into all three MR entry points.
+Each region's GL is exact for polynomials of degree 2·n_k − 1 on
+that region. Empirical post-Phase-E heterogeneous MR k_eff gap:
+**1.99e-4 (sphere) / 1.75e-2 (cylinder)** at production quadrature,
+down from 7–9%. Gate 4.2 rtol tightened 1e-1 → 2e-2 (sphere) /
+3e-2 (cylinder). The pre-Phase-E ceilings on
+``test_mr_interface_continuity_3region`` (cylinder) and
+``test_garcia_case1_phi_matches_at_point[r=7.0]`` (sphere outer
+surface) were re-calibrated since composite-GL nodes sit strictly
+INSIDE regions (the spline must now extrapolate to the boundary,
+trading interior accuracy for boundary artifact).
+
+Phase E ALSO built a flux-shape comparison sentinel
+(``test_phase_e_trajectory_resolvent_flux_shape_crosscheck``) which
+discovered a separate finding: SN and Variant α agree on the
+eigenVALUE (2e-4) but DISAGREE on the eigenVECTOR shape (65% per-
+cell on sphere). Xfailed-strict pending Phase F investigation.
+
+Phase E status: ERR-026 manifestation #4 (trajectory_resolvent
+MR quadrature instability) **CLOSED**. NEW manifestation surfaced:
+#6 (heterogeneous eigenvector shape) **OPEN** pending Phase F.
+
+What Wave H Phase F added (commits ``<TBD>``,
+GH #168 Phase F, 2026-05-12):
+
+Phase F closed the structural twin of the Phase D bug: ``CarlsonInwardSweep``
+(Hébert §3.9.4 Eqs. 3.432-3.435) was wired into the apply-matvec
+path by Phase D Step 3, but the SI/sweep path
+(``orpheus/sn/sweep.py::_sweep_1d_spherical`` and
+``_sweep_1d_cylindrical``) still initialized the M-M angular
+recurrence half-angle face flux to **zero**. That meant the snapshot
+generator (which uses SI by default) produced fixed points under
+the wrong seed, while the apply path (used by Krylov) produced
+the right seed. The two paths solved DIFFERENT equations on the
+same problem (n=40 sphere_2g_3reg: SI k_eff 1.38070, Krylov 1.38464,
+2% disagreement diverging under refinement on per-cell shape).
+
+Phase F factored a NEW helper
+``orpheus/sn/spatial/psi_half_angle_seed.carlson_inward_sweep_from_source``
+that runs the same Hébert inward sweep but driven by source
+(``Q̄_i = Q_1d[i]/Σw``) instead of by the apply-path's current
+``φ_0``. The SI/sweep dispatch sites at ``sweep.py:474`` (spherical,
+``psi_angle = np.zeros((nx, ng))``) and ``sweep.py:634`` (cylindrical
+per-level zero init) replaced with calls to this helper. The
+apply-path math is unchanged (refactor at the helper level).
+
+Empirical post-Phase-F:
+- ``sf[0]/sf[1]`` on ``sphere_2g_3reg`` n=40: 0.522 → **0.778**;
+  STABLE under refinement (was DIVERGING to 0.473 at n=320).
+- ``cv(ψ@i=0)``: 0.520 → **0.404**; max/min(ψ) 6.4× → 1.16× (per-
+  ordinate quasi-isotropy substantially restored, Pomraning 1989
+  prediction approached).
+- ``sf[-1]/sf[-2]`` (outer-reflective): 0.887 → **0.997** (outer-
+  cell defect essentially CLOSED).
+- SI-vs-Krylov k_eff gap converges **O(h)** (0.286% at n=40 →
+  0.065% at n=160); both methods now converge to the same value.
+
+NEW tests added:
+- ``tests/sn/test_phase_c_gates.py::test_sweep_curvilinear_per_ordinate_flat_flux_residual``
+  — Gate 1.6, the DUAL of Phase D Gate 1.1 for the SI/sweep path.
+- ``tests/sn/spatial/test_sweep_vs_apply_consistency.py`` — 57
+  foundation tests pinning apply-vs-sweep Carlson seed equivalence.
+
+Phase F status: ERR-026 manifestation #6 (heterogeneous eigenvector
+shape, structural pole-cell defect) **CLOSED**. The Phase E flux-
+shape sentinel still xfails due to residual O(h) WDD spatial-closure
+asymmetry between SI and Krylov paths; **reclassified as a new
+manifestation #7 (convergence-rate of SI-vs-Krylov per-cell agreement)
+PARTIAL** — tracked separately, the structural divergence is gone.
+
+Updated ERR-026 manifestation table:
+
+| # | Manifestation | Status |
+|---|---|---|
+| 1 | Spatial closure inconsistency | CLOSED by Phase C |
+| 2 | Per-ordinate identity (apply-path Gate 1.1) | CLOSED by Phase D |
+| 3 | Convergence rate (L1 MMS rate) | CLOSED by Phase D Krylov flip |
+| 4 | trajectory_resolvent MR quadrature instability | CLOSED by Phase E |
+| 5 | L1 absolute magnitude (errors[-1] < 1e-3) | OPEN via #195 |
+| 6 | Heterogeneous eigenvector shape (sweep-path Carlson seed) | **CLOSED by Phase F** |
+| 7 | SI-vs-Krylov per-cell agreement (residual O(h) WDD asymmetry) | **OPEN** (new follow-up) |
+
+Phase F follow-up: file a NEW issue tracking manifestation #7
+(SI-vs-Krylov WDD spatial-closure asymmetry, residual O(h) drift
+that does NOT block production but blocks ``xfail`` removal on
+``test_phase_e_trajectory_resolvent_flux_shape_crosscheck``).
+Two viable closures: (a) sweep WDD-closure refinement to make
+SI bit-identical to Krylov; (b) flip curvilinear ``inner_solver``
+default to ``krylov`` for the snapshot generator (already the
+default for ``solve_sn``).
+
+**Anti-pattern surfaced by Phase F (proposed addition to
+``vv-principles/SKILL.md``)**:
+
+> Whenever a fix is applied to one of two structurally-mirrored
+> production paths (apply-matvec vs SI/sweep, etc.), MUST audit
+> the OTHER path for the same defect. Mode 3 wrong-term-
+> initialization defects often appear in pairs; fixing one path
+> without auditing its sister is a Cardinal Rule 2 (architecture)
+> violation that ERR-026 instantiated twice.
+
 ---
 
 ## ERR-027 — Peierls slab K-matrix: naive GL collocation for cross-panel entries
