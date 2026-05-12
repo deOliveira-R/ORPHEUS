@@ -33,7 +33,6 @@ from orpheus.geometry.reduced_operator import (
 from .boundary_realizer import SNBoundaryRealizer
 from .method_space import SNMethodSpace
 from .quadrature import AngularQuadrature
-from .spatial.boundary_face_flux import BoundaryFaceFlux, DDExtrapolation
 from .spatial.cell_update import CellUpdate, CellVisit
 from .spatial.diamond import DiamondDifference
 from .spatial.pole_angular_closure import (
@@ -128,7 +127,6 @@ class SNMesh:
         mesh: Mesh1D | Mesh2D,
         quadrature: AngularQuadrature,
         cell_update: CellUpdate | None = None,
-        boundary_face_flux: BoundaryFaceFlux | None = None,
         pole_angular_closure: PoleAngularClosure | None = None,
     ) -> None:
         self.mesh = mesh
@@ -144,19 +142,12 @@ class SNMesh:
         self.cell_update: CellUpdate = (
             cell_update if cell_update is not None else DiamondDifference()
         )
-        # Boundary face-flux strategy (Issue #168 Phase A). Defaults to
-        # :class:`DDExtrapolation`, the one-sided second-order DD diamond
-        # extrapolation that addresses Defect 1 of Issue #168 (the
-        # cell-centre-as-outer-face-flux truncation in the curvilinear
-        # FD operator). Used by the spherical / cylindrical
-        # ``transport_operator_matvec_*`` paths via
-        # :meth:`SNStreamingOperator.apply`. Cartesian path is unaffected
-        # — the upwind FD stencil there has no symmetric closure to
-        # break — and ignores this attribute.
-        self.boundary_face_flux: BoundaryFaceFlux = (
-            boundary_face_flux if boundary_face_flux is not None
-            else DDExtrapolation()
-        )
+        # Issue #168 Phase C retired the Phase A ``BoundaryFaceFlux``
+        # Protocol entirely. The sweep-frame apply matvec now uses WDD
+        # propagation cell-by-cell with the BC trace law applied at
+        # the boundary edge; the Phase A ``DDExtrapolation`` strategy
+        # is subsumed by this rewrite. The
+        # ``boundary_face_flux`` field is gone from the constructor.
         # Angular-redistribution closure (Issue #168 Phase B). Defaults
         # to :class:`LegacyTauSymmetricInterpolation`, the bit-for-bit
         # reproduction of the pre-Phase-B inlined τ-symmetric form —

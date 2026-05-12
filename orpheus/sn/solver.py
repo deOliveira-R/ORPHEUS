@@ -528,19 +528,17 @@ class SNSolver:
 
         # ---------- decode packed solution → scalar flux --------------
         if curv == "spherical":
-            # Issue #168 Phase A: solution_to_angular_flux_spherical now
-            # returns (fi, boundary_face_flux); we drop the second
-            # output here because the scalar-flux extraction reads only
-            # cell-centre values from ``fi``.
-            fi, _ = solution_to_angular_flux_spherical(
+            # Issue #168 Phase C: solution_to_angular_flux_spherical now
+            # returns a single fi array (pure cell-centre angular flux);
+            # the Phase A boundary_face_flux companion array retired
+            # along with the BoundaryFaceFlux Protocol.
+            fi = solution_to_angular_flux_spherical(
                 solution, eq_map, self.quad, nx, ng,
-                bc_outer=self.sn_mesh.bc_right,
             )
             return _scalar_flux_from_angular(fi, self.quad, nx, 1, ng)
         if curv == "cylindrical":
-            fi, _ = solution_to_angular_flux_cylindrical(
+            fi = solution_to_angular_flux_cylindrical(
                 solution, eq_map, self.quad, nx, ng,
-                bc_outer=self.sn_mesh.bc_right,
             )
             return _scalar_flux_from_angular(fi, self.quad, nx, 1, ng)
         fi = solution_to_angular_flux(
@@ -585,16 +583,13 @@ class SNSolver:
         def matvec(q_packed: np.ndarray) -> np.ndarray:
             # Decode q_packed → angular flux (ng, N, nx, ny).
             if curv == "spherical":
-                # Issue #168 Phase A tuple unpack — see scalar-flux
-                # decode site for the rationale.
-                fi_op, _ = solution_to_angular_flux_spherical(
+                # Issue #168 Phase C: pure cell-centre return.
+                fi_op = solution_to_angular_flux_spherical(
                     q_packed, eq_map, self.quad, nx, ng,
-                    bc_outer=self.sn_mesh.bc_right,
                 )
             elif curv == "cylindrical":
-                fi_op, _ = solution_to_angular_flux_cylindrical(
+                fi_op = solution_to_angular_flux_cylindrical(
                     q_packed, eq_map, self.quad, nx, ng,
-                    bc_outer=self.sn_mesh.bc_right,
                 )
             else:
                 fi_op = solution_to_angular_flux(
@@ -1242,17 +1237,16 @@ def _solve_fixed_source_krylov(
 
         # Decode packed solution → angular and scalar flux.
         # Issue #168 Phase A: curvilinear decoders now return
-        # ``(fi, boundary_face_flux)``; the boundary face flux is not
-        # used downstream of the scalar-flux extraction.
+        # Issue #168 Phase C: pure cell-centre return; the Phase A
+        # boundary_face_flux companion retired with the
+        # BoundaryFaceFlux Protocol.
         if curv == "spherical":
-            fi, _ = solution_to_angular_flux_spherical(
+            fi = solution_to_angular_flux_spherical(
                 solution, eq_map, sn_mesh.quad, nx, ng,
-                bc_outer=sn_mesh.bc_right,
             )
         elif curv == "cylindrical":
-            fi, _ = solution_to_angular_flux_cylindrical(
+            fi = solution_to_angular_flux_cylindrical(
                 solution, eq_map, sn_mesh.quad, nx, ng,
-                bc_outer=sn_mesh.bc_right,
             )
         else:
             fi = solution_to_angular_flux(

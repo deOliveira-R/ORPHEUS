@@ -29,12 +29,6 @@ See the SN reshape campaign plan at
 ``.claude/plans/mossy-mapping-pine.md`` for context.
 """
 
-from .boundary_face_flux import (
-    BoundaryFaceFlux,
-    BoundaryFaceFluxBase,
-    CellCenter,
-    DDExtrapolation,
-)
 from .cell_update import CellResult, CellUpdate, UpstreamState
 from .diamond import DiamondDifference
 from .pole_angular_closure import (
@@ -45,14 +39,14 @@ from .pole_angular_closure import (
     PoleAngularClosureBase,
 )
 
+# Issue #168 Phase C retired the BoundaryFaceFlux Protocol entirely;
+# the sweep-frame apply matvec subsumed the boundary closure into
+# the WDD propagation chain.
+
 __all__ = [
     "BaileyFlatFluxRedist",
-    "BoundaryFaceFlux",
-    "BoundaryFaceFluxBase",
-    "CellCenter",
     "CellResult",
     "CellUpdate",
-    "DDExtrapolation",
     "DiamondDifference",
     "LegacyTauSymmetricInterpolation",
     "MorelMontryAngularSweep",

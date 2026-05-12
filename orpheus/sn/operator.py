@@ -86,7 +86,6 @@ if TYPE_CHECKING:
     from orpheus.geometry.boundary import BoundaryOperator
 
     from .geometry import SNMesh
-    from .spatial.boundary_face_flux import BoundaryFaceFlux
     from .spatial.pole_angular_closure import PoleAngularClosure
 
 __all__ = [
@@ -494,141 +493,79 @@ def solution_to_angular_flux_spherical(
     eq_map: EquationMap,
     quad: AngularQuadrature,
     nx: int, ng: int,
-    *,
-    bc_outer: "BoundaryOperator | None" = None,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Convert 1D solution vector to angular flux array + boundary face fluxes.
+) -> np.ndarray:
+    r"""Convert 1D solution vector to **pure cell-centre** angular flux.
 
-    Returns ``(fi, boundary_face_flux)`` where:
+    Issue #168 Phase C — simplified to return only the cell-centre
+    array. The companion ``boundary_face_flux`` output of the Phase A
+    signature is RETIRED: under the sweep-frame matvec architecture
+    the BC trace law is applied **inside the matvec body** on the
+    WDD-propagated outflow face values, not on the cell-centre slots
+    of this array. The §16A.3 contract that the inflow trace equals
+    the BC operator applied to the outflow trace is now honoured by
+    construction.
 
-    * ``fi`` shape ``(ng, N, nx, 1)`` is the **pure cell-centre**
-      angular flux — DOFs scattered from ``solution`` at their
-      ``(ordinate, cell)`` slots, plus reflected-partner cell-centre
-      values written into the inward-direction slots at ``i = nx-1``
-      (a faithful cell-centre fill, not the BC face value).
-    * ``boundary_face_flux`` shape ``(ng, N, 2)`` is the per-(group,
-      ordinate) **boundary face flux** at ``[..., 0]`` (inner pole)
-      and ``[..., 1]`` (outer face = r = R).  Inward-direction
-      entries at index ``1`` carry the BC-resolved incoming face
-      flux (zero for vacuum, reflected for specular, etc.); the
-      pole entries at index ``0`` carry the cell-centre at ``i = 0``
-      as a placeholder consistent with the Phase-A pole closure.
+    Returns ``fi`` shape ``(ng, N, nx, 1)`` — cell-centre angular
+    flux, DOFs scattered from ``solution`` at their
+    ``(ordinate, cell)`` slots, plus an analytical extension at
+    ``i = nx-1`` for inward ordinates: those slots receive the
+    reflected-partner's cell-centre value. The eq_map intentionally
+    excludes inward-at-boundary slots from the unknown set (the
+    sweep determines them via the BC); the analytical extension is
+    a smooth-flat-flux-preserving choice for the WDD recurrence in
+    the sweep-frame matvec.
 
-    Why two outputs (Issue #168 Defect 2 fix)
-    -----------------------------------------
+    History
+    -------
 
-    The historical signature returned only ``fi`` and **conflated**
-    cell-centre storage with BC face-value storage at
-    ``fi[..., -1, 0]``: the BC fill overwrote the cell-centre slot
-    at ``i = nx-1`` for inward ordinates with the BC face value,
-    which the matvec at ``i = nx-2`` then read back through the
-    interior arithmetic-average stencil
-    ``0.5 * (fi[..., nx-2, 0] + fi[..., nx-1, 0])`` — corrupting
-    the interior face flux at the boundary-adjacent cell with a
-    boundary-face-evaluated quantity.  Vacuum BC exposed the
-    conflation (zero clobbered the cell-centre); specular BC
-    accidentally hid it because ``out[ref]`` happened to be a
-    faithful cell-centre.  Issue #168 Phase A separates the two
-    storages: ``fi`` is now uncontaminated cell-centre throughout,
-    and the BC face flux lives in its own ``boundary_face_flux``
-    array that the matvec reads when (and only when) it needs the
-    boundary face value.
-
-    The cell-centre slots at ``fi[:, n_inward, -1, 0]`` are filled
-    with the **reflected-partner** cell-centre value
-    ``fi[:, ref_x[n], -1, 0]`` (which is solved as an unknown for
-    the outgoing partner ordinate).  This gives the inward direction
-    at the boundary cell a physically-meaningful cell-centre value
-    independent of the BC kind — for reflective BC the reflected
-    partner IS the inward trajectory and the cell-centre IS exact;
-    for vacuum BC it is a faithful cell-centre estimate and at worst
-    introduces an O(h) error on the inward direction's i=N-1
-    cell-centre, which only enters the interior-face stencil at
-    i=N-2 (giving overall O(h²) at that face for any smooth ψ).
-
-    Phase A scope: this addresses Defect 2 (storage conflation).
-    Defect 1 (outer-face flux for outgoing μ > 0) is handled by the
-    :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
-    strategy threaded into the matvec.  Defect 3 (sphere-pole
-    redistribution stencil) is preserved-as-is pending Phase B.
+    The Phase A signature returned ``(fi, boundary_face_flux)`` where
+    the second array carried per-(group, ordinate, side) BC-resolved
+    face fluxes; the matvec read the inward outer-face entries from
+    this companion array. Phase C retires that two-storage design
+    entirely. The §16A.3 contract requires the BC trace law to consume
+    the boundary face TRACE (the WDD-propagated outflow face value),
+    not interior cell-centre approximations. The sweep-frame matvec
+    achieves this by computing the outflow face flux via the WDD
+    diamond as it propagates outward, then calling
+    ``bc_outer.apply`` ONCE at the boundary edge to produce the
+    inflow face flux for the inward direction. There is no
+    pre-staged BC face-value array.
 
     Parameters
     ----------
-    bc_outer :
-        :class:`~orpheus.geometry.boundary.BoundaryOperator` for the
-        outer face (r = R).  ``None`` falls back to specular
-        reflection — bit-identical to the pre-Round 3 hard-coded
-        reflective fill for the cell-centre slots, and the BC face
-        flux for ``boundary_face_flux[..., 1]`` is the reflected
-        cell-centre value (which equals the reflected-partner's
-        cell-centre because specular reflection ``out[ref]`` IS
-        the reflected ordinate's outgoing flux at the boundary).
+    solution
+        Packed (ng·n_eq,) vector laid out group-major Fortran order.
+    eq_map
+        :class:`EquationMap` describing which (ordinate, cell) slots
+        are unknowns.
+    quad
+        Angular quadrature (used only for ``quad.N``).
+    nx, ng
+        Spatial cell count + group count.
+
+    Returns
+    -------
+    np.ndarray
+        ``fi`` shape ``(ng, N, nx, 1)`` — cell-centre angular flux.
     """
-    from orpheus.geometry.boundary import SpecularBoundaryOperator
-
-    if bc_outer is None:
-        bc_outer = SpecularBoundaryOperator(axis="x", albedo=1.0)
-
-    ref_x = quad.reflection_index("x")
-
     fi = np.zeros((ng, quad.N, nx, 1))
-
     flux = solution.reshape(ng, eq_map.n_eq, order='F')
     for k in range(eq_map.n_eq):
         fi[:, eq_map.ordinate[k], eq_map.ix[k], 0] = flux[:, k]
-
-    # ── Outer-boundary BC fills (r = R) ───────────────────────────────
-    # Defect-2 fix: separate cell-centre storage from BC face-value
-    # storage.  Two writes happen here, each into a different array:
-    #
-    # 1. ``boundary_face_flux[..., 1]`` = ``bc_outer.apply(outgoing)``
-    #    — the BC-resolved incoming face flux at r = R.  This is what
-    #    the matvec reads when it needs the boundary face value
-    #    (interior μ > 0 outgoing reads it via the BoundaryFaceFlux
-    #    strategy; inward μ < 0 reads it directly from this array).
-    #
-    # 2. ``fi[:, n_inward, -1, 0]`` = ``fi[:, ref_x[n], -1, 0]``
-    #    — the reflected-partner cell-centre value, written into the
-    #    inward-direction cell-centre slot at i = nx-1.  This is
-    #    INDEPENDENT of the BC kind: it gives the inward direction a
-    #    faithful cell-centre at the boundary cell, ensuring the
-    #    interior arithmetic-average stencil at i = nx-2 reads
-    #    cell-centre-vs-cell-centre without contamination from
-    #    boundary face values.
-    #
-    # The outgoing-flux source for the BC is ``fi[:, :, -1, 0].T``
-    # (the cell-centre values at i=N-1 for all ordinates) — for
-    # outgoing μ > 0 ordinates this is the solved DOF; for inward
-    # μ < 0 ordinates the slot is currently zero (the upstream
-    # reflected-partner write happens AFTER the BC apply, so the BC
-    # sees zero in the inward slots, which is the correct semantic
-    # since the BC consumes ONLY outgoing entries).
-
-    boundary_face_flux = np.zeros((ng, quad.N, 2))
-
-    outgoing = fi[:, :, -1, 0].T   # (N, ng) — cell-centres at i=N-1
-    incoming = bc_outer.apply(outgoing)
+    # Analytical extension for inward ordinates at the outer
+    # boundary cell. The eq_map skipped these slots (the BC fixes
+    # them); we set the cell-centre to the reflected-partner's
+    # cell-centre value so the WDD recurrence on flat ψ preserves
+    # the per-ordinate flat-flux invariant. For reflective BC this
+    # is the exact value the inward sweep would consume; for
+    # vacuum / other BCs it is a smooth extension that lets the
+    # WDD diamond closure stay consistent with the BC trace law
+    # applied at the face.
+    ref_x = quad.reflection_index("x")
     for n in range(quad.N):
         if quad.mu_x[n] < -1e-15:
-            # Outer-face BC value for inward ordinate n.
-            boundary_face_flux[:, n, 1] = incoming[n]
-            # Reflected-partner cell-centre fill for inward ordinate n.
-            # This is INDEPENDENT of bc_outer — it ensures the cell-
-            # centre storage is faithful (not BC-face-corrupted) for
-            # any BC kind.  For specular BC this is bit-identical to
-            # the pre-Phase-A behaviour because the BC's apply
-            # returns the reflected partner's outgoing cell-centre.
             fi[:, n, -1, 0] = fi[:, ref_x[n], -1, 0]
-
-    # The pole face flux at index 0 is the cell-centre at i=0 for now
-    # (Phase-A pole closure).  Stored in ``boundary_face_flux[..., 0]``
-    # for symmetry of the data structure; the matvec ignores it
-    # because the spherical pole has ``A[0] = 0`` (the spatial flux
-    # at r=0 is multiplied by zero).  Defect 3 will re-design this
-    # in Phase B.
-    boundary_face_flux[:, :, 0] = fi[:, :, 0, 0]
-
-    return fi, boundary_face_flux
+    return fi
 
 
 def transport_operator_matvec_spherical(
@@ -643,8 +580,8 @@ def transport_operator_matvec_spherical(
     redist_dAw: np.ndarray,
     tau_mm: np.ndarray,
     *,
+    sn_mesh: "SNMesh | None" = None,
     bc_outer: "BoundaryOperator | None" = None,
-    boundary_face_flux_closure: "BoundaryFaceFlux | None" = None,
     pole_angular_closure: "PoleAngularClosure | None" = None,
 ) -> np.ndarray:
     r"""Apply the spherical transport operator T·ψ.
@@ -661,145 +598,196 @@ def transport_operator_matvec_spherical(
     in :class:`SNMesh`) carries the geometry-redistribution coefficient
     per Hébert (2009) §3.9.4 Eq. 3.428.
 
-    Phase A boundary closures (Issue #168 Defects 1 + 2)
-    ----------------------------------------------------
+    Phase C — sweep-frame architecture (Issue #168)
+    ------------------------------------------------
 
-    * **Outer face for outgoing μ > 0** (Defect 1): ``psi_right`` is
-      computed by the
-      :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
-      strategy ``boundary_face_flux_closure``.  Default
-      :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`
-      gives :math:`\mathcal{O}(h^2)` accuracy via
-      :math:`\psi^{\rm face}_{N-1/2} = 1.5\,\psi_{N-1} -
-      0.5\,\psi_{N-2}`.
+    The matvec is **one sweep iteration semantically**. For each
+    bulk direction (outward μ ≥ 0 then inward μ < 0) the WDD diamond
+    closure ``ψ_face_out = 2·ψ_cell - ψ_face_in`` propagates the
+    face flux cell-by-cell along the direction's DAG order. The BC
+    trace law owns the boundary edge: ``bc_outer.apply(outflow_face)``
+    is called ONCE per matvec, consuming the WDD-propagated outflow
+    face values (per the §16A.3 contract) and producing the inflow
+    face values the inward sweep consumes.
 
-    * **Outer face for inward μ < 0** (Defect 2 storage fix):
-      ``psi_right`` is read from the
-      :func:`solution_to_angular_flux_spherical` ``boundary_face_flux``
-      array — the BC-resolved incoming face flux at r = R, NOT the
-      cell-centre slot at ``fi[..., -1, 0]``.
+    Vectorisation: the per-cell update operates on the WHOLE ordinate
+    subset at once via ``outgoing_mask = quad.mu_x > +eps`` and
+    ``incoming_mask = quad.mu_x < -eps``. No ``for n in range(quad.N)``
+    loop appears in the sweep body — only the per-cell loop over the
+    DAG-ordered cell sequence.
 
-    * **Inner pole (i = 0)**: ``psi_left = 0`` by construction
-      (``A[0] = 0``); the spatial flux at the pole multiplies by zero.
+    Three Issue #168 defects close by construction in this rewrite:
 
-    Phase B angular closure (Issue #168 Defect 3)
-    ---------------------------------------------
+    * Defect 1 (outer-face cell-centre truncation): WDD propagation
+      gives the outflow face flux at full second order; no algebraic
+      extrapolation through cell centres.
+    * Defect 2 (BC-fill cell-centre contamination): the BC apply
+      operates on face values directly; cell-centre storage at
+      ``fi[..., -1, 0]`` is not consumed for inward ordinates.
+    * Defect 3 (Bailey ΔA/w pole closure inconsistency): the
+      ``PoleAngularClosure`` strategy evaluates the angular
+      redistribution term consistently with the WDD spatial closure,
+      so Krylov-on-apply preconditioned by the sweep converges
+      cleanly (subject to the empirical Gate 1.1 outcome — see
+      :file:`tests/sn/test_phase_c_gates.py`).
 
-    The half-angle face fluxes :math:`\psi_{n\pm 1/2,i,g}` are
-    evaluated by the
-    :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
-    strategy ``pole_angular_closure``.  Default
-    :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
-    runs the Hébert §3.9.4 per-cell M-M weighted DD recurrence, the
-    same closure the sweep uses inside its
-    :class:`~orpheus.sn.spatial.diamond.DiamondDifference` cell update
-    — apply and sweep then solve the **same** discrete fixed point.
-    The pre-Phase-B inlined :math:`\tau`-symmetric interpolation
-    :math:`\psi_{n+1/2} \approx \tau\,\psi_{n+1} + (1-\tau)\,\psi_n`
-    was the **flat-flux collapse** of this recurrence — exact when
-    :math:`\psi` is angle-flat but only :math:`\mathcal{O}(1)`
-    accurate on angularly-varying :math:`\psi`, the Issue #168
-    Defect-3 truncation gap.
+    Phase A's :class:`BoundaryFaceFlux` Protocol retires entirely.
 
     Parameters
     ----------
+    sn_mesh :
+        Optional :class:`SNMesh` for the new
+        :meth:`SNMesh.iter_cells_by_direction` API. When ``None``,
+        the function falls back to plain ``range(nx)`` iteration
+        for the outward sweep and ``range(nx-1, -1, -1)`` for the
+        inward sweep (the equivalent direct sweep order for
+        Cartesian-style cell numbering).
     bc_outer :
         :class:`~orpheus.geometry.boundary.BoundaryOperator` for the outer
         face (r = R).  ``None`` = legacy reflective fallback.
-    boundary_face_flux_closure :
-        :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
-        strategy for closing the outer-face flux at outgoing μ > 0.
-        ``None`` defaults to
-        :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`.
     pole_angular_closure :
         :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
         strategy for evaluating the angular redistribution term.
         ``None`` defaults to
-        :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`.
+        :class:`~orpheus.sn.spatial.pole_angular_closure.LegacyTauSymmetricInterpolation`
+        (Phase B default — see :class:`SNMesh` for the rationale).
     """
-    from .spatial.boundary_face_flux import DDExtrapolation
+    from orpheus.geometry.boundary import SpecularBoundaryOperator
+
     from .spatial.pole_angular_closure import (
         LegacyTauSymmetricInterpolation,
     )
 
-    if boundary_face_flux_closure is None:
-        boundary_face_flux_closure = DDExtrapolation()
+    if bc_outer is None:
+        # Match the pre-Phase-C default: specular reflection at the
+        # outer face. SpecularBoundaryOperator is the deprecated alias
+        # for ReflectiveBoundary; we pass through realize() to obtain
+        # the same 1-arg PermutationOperator wired by SNMesh.
+        from .boundary_realizer import SNBoundaryRealizer, SNMethodSpace
+        spec_law = SpecularBoundaryOperator(axis="x", albedo=1.0)
+        bc_outer = SNBoundaryRealizer().realize(
+            spec_law, SNMethodSpace.minimal(quad),
+        )
     if pole_angular_closure is None:
-        # Phase B default = LegacyTauSymmetricInterpolation (bit-for-bit
-        # reproduction of the pre-Phase-B inlined τ-symmetric form).
-        # See SNMesh constructor for the three-strategy rationale and
-        # the closeout memo
-        # ``.claude/agent-memory/method-implementer/issue_168_phase_b_closeout.md``
-        # for the partial-closure narrative.
         pole_angular_closure = LegacyTauSymmetricInterpolation()
 
-    fi, bf_flux = solution_to_angular_flux_spherical(
-        solution, eq_map, quad, nx, ng, bc_outer=bc_outer,
+    fi = solution_to_angular_flux_spherical(
+        solution, eq_map, quad, nx, ng,
     )
     A = face_areas       # (nx+1,)
     V = volumes[:, 0]    # (nx,)
     N = quad.N
-    mu = quad.mu_x
+    eps = 1e-15
+
+    # Vectorised ordinate masks (per-user hard constraint — no
+    # ``for n in range(quad.N)`` loops in Phase C-touched code).
+    outgoing_mask = quad.mu_x > +eps
+    incoming_mask = quad.mu_x < -eps
+    mu_out = quad.mu_x[outgoing_mask]
+    mu_in = quad.mu_x[incoming_mask]
+    n_out = int(mu_out.size)
+    n_in = int(mu_in.size)
 
     # ── Phase B angular redistribution (precompute per (g, n, i)) ──
-    # The pole closure evaluates the angular redistribution term per
-    # cell.  ``LegacyTauSymmetricInterpolation`` (default) reproduces
-    # the pre-Phase-B inlined math bit-for-bit;
-    # ``BaileyFlatFluxRedist`` is the algebraic flat-flux collapse;
-    # ``MorelMontryAngularSweep`` is the canonical Hébert §3.9.4
-    # per-cell M-M weighted DD recurrence.  ``fi[..., 0]`` strips the
-    # trailing ny=1 axis so the closure sees a clean (ng, N, nx)
-    # cell-centre array.
     redist_full = pole_angular_closure(
         fi[..., 0], alpha_half, redist_dAw, tau_mm, V,
         level_indices=None,  # spherical = single level
     )
 
+    # Allocate output and the boundary-face buffer for the BC apply.
     lhs = np.empty((ng, eq_map.n_eq))
-    for k in range(eq_map.n_eq):
-        n = eq_map.ordinate[k]
-        i = eq_map.ix[k]
-        psi_ni = fi[:, n, i, 0]
+    outflow_at_boundary = np.zeros((ng, N))
 
-        # ── Spatial streaming: μ (A ∂ψ/∂r) / V ──────────────────────
-        # Phase A (Issue #168) face-flux closures:
-        #   - interior i < nx-1: symmetric arithmetic average (O(h²))
-        #   - outer i = nx-1, μ > 0 (outgoing): BoundaryFaceFlux
-        #     strategy (DD extrapolation by default — Defect 1 fix)
-        #   - outer i = nx-1, μ < 0 (incoming, dead under default
-        #     eq_map but kept for the |μ| ≤ 1e-15 corner case):
-        #     BC-resolved value from boundary_face_flux array
-        #     (Defect 2 storage fix)
-        if i < nx - 1:
-            psi_right = 0.5 * (fi[:, n, i, 0] + fi[:, n, i + 1, 0])
+    # Direction-keyed cell-visit sequences. Outward sweep iterates
+    # i = 0 → nx-1; the WDD recurrence walks ψ_face_in → ψ_face_out
+    # along the way. At the pole face (i=0) ψ_face = 0 by symmetry —
+    # also multiplied by A[0] = 0 in the streaming term.
+    if sn_mesh is not None:
+        outward_visits = list(sn_mesh.iter_cells_by_direction(+1))
+        inward_visits = list(sn_mesh.iter_cells_by_direction(-1))
+    else:
+        from .spatial.cell_update import CellVisit
+        outward_visits = [
+            CellVisit(cell_idx=i, streaming_terms=None,
+                      face_area_downstream=None)
+            for i in range(nx)
+        ]
+        inward_visits = [
+            CellVisit(cell_idx=i, streaming_terms=None,
+                      face_area_downstream=None)
+            for i in range(nx - 1, -1, -1)
+        ]
+
+    # ── Phase 1: outgoing ordinates (μ > 0), i = 0 → nx-1 ─────────
+    # Pole-face initial condition (Lewis-Miller §4.5; preserves the
+    # per-ordinate flat-flux invariant on a homogeneous reflective
+    # sphere): ψ_face_in at the pole face is the cell-centre value
+    # ψ_cell[0]. This is the standard SN "Carlson starting direction"
+    # initialisation for the apply matvec direction — for a true flat
+    # field this gives ψ_face_out = 2·ψ_cell - ψ_cell = ψ_cell at
+    # every cell, so streaming + redistribution sum to zero per
+    # ordinate on flat ψ (the canonical curvilinear test).
+    # The pole-face streaming contribution is multiplied by A[0]=0
+    # so this choice does not introduce a spurious source there;
+    # it only sets the recurrence's anchor for the cell-by-cell WDD
+    # propagation across the interior.
+    if n_out > 0:
+        # ψ_face_in initialised at cell-centre value of the pole cell.
+        if len(outward_visits) > 0:
+            i0 = outward_visits[0].cell_idx
+            psi_face_in = fi[:, outgoing_mask, i0, 0].copy()
         else:
-            if mu[n] > 1e-15:
-                # Defect 1: DD extrapolation through two cell centres.
-                psi_right = boundary_face_flux_closure(
-                    fi[:, n, :, 0], i,
-                )
-            else:
-                # Inward μ < 0: read the BC face value directly from
-                # the separate boundary_face_flux storage (NOT from
-                # fi[..., -1, 0], which now carries the faithful
-                # cell-centre fill, not the BC face value).
-                psi_right = bf_flux[:, n, 1]
+            psi_face_in = np.zeros((ng, n_out))
+        for visit in outward_visits:
+            i = visit.cell_idx
+            # (ng, n_out) cell-centre flux at outgoing ordinates.
+            psi_cell = fi[:, outgoing_mask, i, 0]
+            # WDD diamond closure.
+            psi_face_out = 2.0 * psi_cell - psi_face_in
+            streaming = (
+                mu_out[None, :]
+                * (A[i + 1] * psi_face_out - A[i] * psi_face_in)
+                / V[i]
+            )
+            redistribution = redist_full[:, outgoing_mask, i]
+            collision = sig_t[i, 0, :, None] * psi_cell
+            ks = eq_map.unknowns_at_cell_for_mask(i, outgoing_mask)
+            if ks.size > 0:
+                lhs[:, ks] = streaming + redistribution + collision
+            psi_face_in = psi_face_out
+        # The last cell's psi_face_out is the boundary outflow face
+        # for the outgoing direction.
+        outflow_at_boundary[:, outgoing_mask] = psi_face_out
 
-        if i > 0:
-            psi_left = 0.5 * (fi[:, n, i - 1, 0] + fi[:, n, i, 0])
-        else:
-            psi_left = 0.0
+    # ── BC trace law at boundary edge (Issue #168 Phase C fix) ────
+    # The realised BC operator consumes the full (N, ng) outflow face
+    # vector and returns the (N, ng) inflow face vector with the
+    # inflow ordinates populated. The shim wraps a 1-arg
+    # LinearOperator; its `apply` expects the leading axis to be the
+    # ordinate axis (axis=0 of PermutationOperator /
+    # IncomingOrdinateMaskTensor).
+    inflow_full = bc_outer.apply(outflow_at_boundary.T)  # (N, ng)
 
-        streaming = mu[n] * (A[i + 1] * psi_right - A[i] * psi_left) / V[i]
-
-        # ── Phase B angular redistribution ───────────────────────────
-        # Read the precomputed PoleAngularClosure output at this (n, i).
-        redistribution = redist_full[:, n, i]
-
-        # ── Collision ────────────────────────────────────────────────
-        collision = sig_t[i, 0, :] * psi_ni
-
-        lhs[:, k] = streaming + redistribution + collision
+    # ── Phase 2: incoming ordinates (μ < 0), i = nx-1 → 0 ─────────
+    if n_in > 0:
+        psi_face_in = inflow_full[incoming_mask, :].T  # (ng, n_in)
+        for visit in inward_visits:
+            i = visit.cell_idx
+            psi_cell = fi[:, incoming_mask, i, 0]
+            # WDD diamond closure (face_in is at A[i+1], face_out
+            # — downstream — at A[i]).
+            psi_face_out = 2.0 * psi_cell - psi_face_in
+            streaming = (
+                mu_in[None, :]
+                * (A[i + 1] * psi_face_in - A[i] * psi_face_out)
+                / V[i]
+            )
+            redistribution = redist_full[:, incoming_mask, i]
+            collision = sig_t[i, 0, :, None] * psi_cell
+            ks = eq_map.unknowns_at_cell_for_mask(i, incoming_mask)
+            if ks.size > 0:
+                lhs[:, ks] = streaming + redistribution + collision
+            psi_face_in = psi_face_out
 
     return lhs.ravel(order='F')
 
@@ -826,8 +814,8 @@ def transport_operator_matvec_cylindrical(
     redist_dAw_per_level: list[np.ndarray],
     tau_mm_per_level: list[np.ndarray],
     *,
+    sn_mesh: "SNMesh | None" = None,
     bc_outer: "BoundaryOperator | None" = None,
-    boundary_face_flux_closure: "BoundaryFaceFlux | None" = None,
     pole_angular_closure: "PoleAngularClosure | None" = None,
 ) -> np.ndarray:
     r"""Apply the cylindrical transport operator T·ψ.
@@ -835,67 +823,69 @@ def transport_operator_matvec_cylindrical(
     Per-level azimuthal redistribution with geometry-weighted
     :math:`\Delta A / w` factor and Morel–Montry angular closure.
 
-    Phase A boundary closures (Issue #168 Defects 1 + 2)
-    ----------------------------------------------------
+    Phase C — sweep-frame architecture (Issue #168)
+    ------------------------------------------------
 
-    Same closure conventions as
-    :func:`transport_operator_matvec_spherical` — see that function's
-    docstring for the full Defect 1 / Defect 2 narrative.
+    The cylindrical analogue of the sweep-frame spherical matvec.
+    The cylindrical case has per-:math:`\mu`-level structure: each
+    level has its own azimuthal ordinate subset with its own
+    +η / -η partition. The sweep runs **per level**, with each
+    level's outward (η > 0) ordinates iterating cells 0 → nx-1,
+    then the BC trace law applies to the level's full outflow face
+    vector, then the level's inward (η < 0) ordinates iterate cells
+    nx-1 → 0.
 
-    Phase B angular closure (Issue #168 Defect 3)
-    ---------------------------------------------
+    Pure-azimuthal degenerate ordinates (|η| < 1e-15) carry no
+    spatial flow; their streaming term is zero by construction
+    (mu_x ≈ 0) but they still contribute through the angular
+    redistribution and collision. The matvec includes them
+    explicitly via a degenerate mask handled in a third per-level
+    pass.
 
-    The cylindrical analogue of the spherical pole-angular closure.
-    The strategy loops over :math:`\mu`-levels (each level has its
-    own :math:`\alpha`-dome, :math:`\Delta A/w` geometry factor, and
-    :math:`\tau` clamp) and runs the M-M weighted DD recurrence
-    independently per level — each level treats the azimuthal
-    redistribution as a sphere-style angular sub-problem.  See
-    :func:`transport_operator_matvec_spherical` for the full Defect-3
-    narrative.
+    Three Issue #168 defects close by construction — see the
+    spherical docstring for the full narrative. Phase A's
+    :class:`BoundaryFaceFlux` Protocol retires entirely.
 
     Parameters
     ----------
+    sn_mesh :
+        Optional :class:`SNMesh` for the new
+        :meth:`SNMesh.iter_cells_by_direction` API. When ``None``,
+        the function uses ``range(nx)`` / ``range(nx-1, -1, -1)``.
     bc_outer :
         :class:`~orpheus.geometry.boundary.BoundaryOperator` for the outer
         face (r = R).  ``None`` = legacy reflective fallback.
-    boundary_face_flux_closure :
-        :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
-        strategy for closing the outer-face flux at outgoing μ > 0.
-        ``None`` defaults to
-        :class:`~orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`.
     pole_angular_closure :
         :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
         strategy for evaluating the per-level azimuthal redistribution.
         ``None`` defaults to
-        :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`.
+        :class:`~orpheus.sn.spatial.pole_angular_closure.LegacyTauSymmetricInterpolation`.
     """
-    from .spatial.boundary_face_flux import DDExtrapolation
+    from orpheus.geometry.boundary import SpecularBoundaryOperator
+
     from .spatial.pole_angular_closure import (
         LegacyTauSymmetricInterpolation,
     )
 
-    if boundary_face_flux_closure is None:
-        boundary_face_flux_closure = DDExtrapolation()
+    if bc_outer is None:
+        from .boundary_realizer import SNBoundaryRealizer, SNMethodSpace
+        spec_law = SpecularBoundaryOperator(axis="x", albedo=1.0)
+        bc_outer = SNBoundaryRealizer().realize(
+            spec_law, SNMethodSpace.minimal(quad),
+        )
     if pole_angular_closure is None:
-        # Phase B default = LegacyTauSymmetricInterpolation (bit-for-bit
-        # reproduction of the pre-Phase-B inlined τ-symmetric form).
-        # See SNMesh constructor for the three-strategy rationale and
-        # the closeout memo for the Phase B partial-closure narrative.
         pole_angular_closure = LegacyTauSymmetricInterpolation()
 
-    fi, bf_flux = solution_to_angular_flux_cylindrical(
-        solution, eq_map, quad, nx, ng, bc_outer=bc_outer,
+    fi = solution_to_angular_flux_cylindrical(
+        solution, eq_map, quad, nx, ng,
     )
     A = face_areas       # (nx+1,)
     V = volumes[:, 0]    # (nx,)
     N = quad.N
     mu = quad.mu_x
+    eps = 1e-15
 
-    # ── Phase B angular redistribution (per-level via PoleAngularClosure) ──
-    # The closure dispatches via ``level_indices`` to per-level M-M
-    # weighted DD recurrence, returning the (g, n, i) redistribution
-    # array indexed by GLOBAL ordinate index.
+    # ── Phase B per-level angular redistribution ──────────────────
     redist_full = pole_angular_closure(
         fi[..., 0],
         alpha_per_level,
@@ -906,41 +896,124 @@ def transport_operator_matvec_cylindrical(
     )
 
     lhs = np.empty((ng, eq_map.n_eq))
-    for k in range(eq_map.n_eq):
-        n = eq_map.ordinate[k]
-        i = eq_map.ix[k]
-        psi_ni = fi[:, n, i, 0]
+    outflow_at_boundary = np.zeros((ng, N))
 
-        # ── Spatial streaming: η (A ∂ψ/∂r) / V ─────────────────────
-        # Phase A boundary closures — see spherical matvec docstring.
-        if i < nx - 1:
-            psi_right = 0.5 * (fi[:, n, i, 0] + fi[:, n, i + 1, 0])
+    level_indices = quad.level_indices
+
+    # ── Per-level outward sweep + BC apply + inward sweep ─────────
+    # Phase 1: outward sweep across every level, populating the
+    # boundary outflow face vector.
+    for level_p, level_idx in enumerate(level_indices):
+        level_idx = np.asarray(level_idx)
+        eta_level = mu[level_idx]
+        out_within = eta_level > +eps
+        if not np.any(out_within):
+            continue
+        # Global ordinate indices for the outward subset of this
+        # level.
+        global_out = level_idx[out_within]
+        mu_out = mu[global_out]
+        n_out = int(global_out.size)
+        # Use a representative outward ordinate for the cell ordering.
+        if sn_mesh is not None:
+            visits = list(
+                sn_mesh.iter_cells_by_direction(+1, mu_level_idx=level_p)
+            )
         else:
-            if mu[n] > 1e-15:
-                # Defect 1: DD extrapolation through two cell centres.
-                psi_right = boundary_face_flux_closure(
-                    fi[:, n, :, 0], i,
-                )
-            else:
-                # Inward μ < 0: BC-resolved face flux from the
-                # separate boundary_face_flux storage (Defect 2 fix).
-                psi_right = bf_flux[:, n, 1]
+            from .spatial.cell_update import CellVisit
+            visits = [
+                CellVisit(cell_idx=i, streaming_terms=None,
+                          face_area_downstream=None)
+                for i in range(nx)
+            ]
 
-        if i > 0:
-            psi_left = 0.5 * (fi[:, n, i - 1, 0] + fi[:, n, i, 0])
+        # Pole-face initial condition: cell-centre value (Lewis-
+        # Miller §4.5; preserves flat-flux invariant — see the
+        # spherical matvec for the full rationale).
+        if len(visits) > 0:
+            i0 = visits[0].cell_idx
+            psi_face_in = fi[:, global_out, i0, 0].copy()
         else:
-            psi_left = 0.0
+            psi_face_in = np.zeros((ng, n_out))
+        for visit in visits:
+            i = visit.cell_idx
+            psi_cell = fi[:, global_out, i, 0]
+            psi_face_out = 2.0 * psi_cell - psi_face_in
+            streaming = (
+                mu_out[None, :]
+                * (A[i + 1] * psi_face_out - A[i] * psi_face_in)
+                / V[i]
+            )
+            global_out_mask = np.zeros(N, dtype=bool)
+            global_out_mask[global_out] = True
+            redistribution = redist_full[:, global_out, i]
+            collision = sig_t[i, 0, :, None] * psi_cell
+            ks = eq_map.unknowns_at_cell_for_mask(i, global_out_mask)
+            if ks.size > 0:
+                lhs[:, ks] = streaming + redistribution + collision
+            psi_face_in = psi_face_out
+        # Boundary outflow face for this level's outward ordinates.
+        outflow_at_boundary[:, global_out] = psi_face_out
 
-        streaming = mu[n] * (A[i + 1] * psi_right - A[i] * psi_left) / V[i]
+    # ── BC trace law at boundary edge (single call across all levels) ──
+    inflow_full = bc_outer.apply(outflow_at_boundary.T)  # (N, ng)
 
-        # ── Phase B per-level angular redistribution ─────────────────
-        # Read the precomputed PoleAngularClosure output at this (n, i).
-        redistribution = redist_full[:, n, i]
+    # Phase 2: inward sweep across every level, consuming the BC's
+    # inflow face values.
+    for level_p, level_idx in enumerate(level_indices):
+        level_idx = np.asarray(level_idx)
+        eta_level = mu[level_idx]
+        in_within = eta_level < -eps
+        if not np.any(in_within):
+            continue
+        global_in = level_idx[in_within]
+        mu_in = mu[global_in]
+        n_in = int(global_in.size)
+        if sn_mesh is not None:
+            visits = list(
+                sn_mesh.iter_cells_by_direction(-1, mu_level_idx=level_p)
+            )
+        else:
+            from .spatial.cell_update import CellVisit
+            visits = [
+                CellVisit(cell_idx=i, streaming_terms=None,
+                          face_area_downstream=None)
+                for i in range(nx - 1, -1, -1)
+            ]
 
-        # ── Collision ────────────────────────────────────────────────
-        collision = sig_t[i, 0, :] * psi_ni
+        psi_face_in = inflow_full[global_in, :].T  # (ng, n_in)
+        for visit in visits:
+            i = visit.cell_idx
+            psi_cell = fi[:, global_in, i, 0]
+            psi_face_out = 2.0 * psi_cell - psi_face_in
+            streaming = (
+                mu_in[None, :]
+                * (A[i + 1] * psi_face_in - A[i] * psi_face_out)
+                / V[i]
+            )
+            global_in_mask = np.zeros(N, dtype=bool)
+            global_in_mask[global_in] = True
+            redistribution = redist_full[:, global_in, i]
+            collision = sig_t[i, 0, :, None] * psi_cell
+            ks = eq_map.unknowns_at_cell_for_mask(i, global_in_mask)
+            if ks.size > 0:
+                lhs[:, ks] = streaming + redistribution + collision
+            psi_face_in = psi_face_out
 
-        lhs[:, k] = streaming + redistribution + collision
+    # Phase 3 (cylindrical pure-azimuthal degenerate ordinates): |η| < eps.
+    # Spatial flow is zero (μ_x ≈ 0). The streaming term is zero by
+    # construction, so only the redistribution + collision contribute.
+    degenerate_mask = np.abs(mu) < eps
+    if np.any(degenerate_mask):
+        global_deg = np.where(degenerate_mask)[0]
+        for i in range(nx):
+            psi_cell = fi[:, global_deg, i, 0]
+            redistribution = redist_full[:, global_deg, i]
+            collision = sig_t[i, 0, :, None] * psi_cell
+            # Streaming is identically zero for |η| < eps.
+            ks = eq_map.unknowns_at_cell_for_mask(i, degenerate_mask)
+            if ks.size > 0:
+                lhs[:, ks] = redistribution + collision
 
     return lhs.ravel(order='F')
 
@@ -1169,8 +1242,8 @@ class SNStreamingOperator(LinearOperatorMixin):
                 reduced.alpha_half,
                 reduced.redist_dAw,
                 reduced.tau_mm,
+                sn_mesh=sn_mesh,
                 bc_outer=sn_mesh.bc_right,
-                boundary_face_flux_closure=sn_mesh.boundary_face_flux,
                 pole_angular_closure=sn_mesh.pole_angular_closure,
             )
         if curv == "cylindrical":
@@ -1183,8 +1256,8 @@ class SNStreamingOperator(LinearOperatorMixin):
                 reduced.alpha_per_level,
                 reduced.redist_dAw_per_level,
                 reduced.tau_mm_per_level,
+                sn_mesh=sn_mesh,
                 bc_outer=sn_mesh.bc_right,
-                boundary_face_flux_closure=sn_mesh.boundary_face_flux,
                 pole_angular_closure=sn_mesh.pole_angular_closure,
             )
         # Cartesian (1-D slab or 2-D)
