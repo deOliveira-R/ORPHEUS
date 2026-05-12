@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **3406**
+Total tests collected: **3420**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 899, 26.4%
-   L1, 830, 24.4%
+   L0, 899, 26.3%
+   L1, 836, 24.4%
    L2, 36, 1.1%
    L3, 0, 0.0%
-   foundation, 1613, 47.4%
+   foundation, 1621, 47.4%
    unmarked, 28, 0.8%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 3299
+   explicit, 3313
    verify, 0
    class-name, 46
    func-name, 0
@@ -107,8 +107,10 @@ Module × level grid
    derivations/test_peierls_geometry, 0, 0, 0, 0, 32, 0
    derivations/test_peierls_greens_function_annulus_solver, 0, 13, 0, 0, 0, 0
    derivations/test_peierls_greens_function_annulus_symbolic, 0, 0, 0, 0, 22, 0
+   derivations/test_peierls_greens_function_cylinder_mr, 0, 5, 0, 0, 5, 0
+   derivations/test_peierls_greens_function_cylinder_mr_xverif, 0, 1, 0, 0, 0, 0
    derivations/test_peierls_greens_function_cylinder_solver, 0, 13, 0, 0, 0, 0
-   derivations/test_peierls_greens_function_cylinder_symbolic, 0, 0, 0, 0, 9, 0
+   derivations/test_peierls_greens_function_cylinder_symbolic, 0, 0, 0, 0, 12, 0
    derivations/test_peierls_greens_function_cylinder_xverif_sood2003, 0, 2, 0, 0, 0, 0
    derivations/test_peierls_greens_function_garcia2021, 0, 0, 0, 0, 17, 0
    derivations/test_peierls_greens_function_hollow_sphere_solver, 0, 14, 0, 0, 0, 0
@@ -389,6 +391,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``en-kernel-special-values``, 5
    ``peierls-cyl-Gbc-3d-final``, 5
    ``peierls-greens-cylinder-T``, 5
+   ``peierls-greens-cylinder-mr-homogeneous-reduction``, 5
    ``singular-eigenfunction-eq40``, 5
    ``transport-cartesian-2d``, 5
    ``xs-interp``, 5
@@ -424,12 +427,15 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``moc-mms-qext``, 3
    ``moc-wigner-seitz``, 3
    ``number-density``, 3
+   ``peierls-greens-cylinder-mr-quadrature-convergence``, 3
    ``peierls-vacuum-bc-cylinder``, 3
    ``peierls-vacuum-bc-sphere``, 3
    ``sigma-zero``, 3
    ``atalay-eq54-sphere-vacuum-isotropic``, 2
    ``atalay-table6-eigenvalue-moderate-d-consistency``, 2
    ``cp-second-difference-operator``, 2
+   ``peierls-greens-cylinder-mr-kinf``, 2
+   ``peierls-greens-cylinder-mr-piecewise-tau``, 2
    ``peierls-greens-slab-asym-method-of-images``, 2
    ``peierls-slab-Gbc-mode``, 2
    ``peierls-slab-Pesc-mode``, 2
@@ -465,6 +471,10 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-greens-cylinder-bounce-period``, 1
    ``peierls-greens-cylinder-impact-parameter``, 1
    ``peierls-greens-cylinder-in-plane-speed``, 1
+   ``peierls-greens-cylinder-mr-bounce-sum-piecewise``, 1
+   ``peierls-greens-cylinder-mr-interface-continuity``, 1
+   ``peierls-greens-cylinder-mr-trajectory-segments``, 1
+   ``peierls-greens-cylinder-mr-wm72-vacuum``, 1
    ``peierls-greens-cylinder-trajectory``, 1
    ``peierls-greens-function-architecture``, 1
    ``peierls-greens-hollow-sph-impact-parameter-partition``, 1
@@ -527,7 +537,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **183** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **186** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bailey-dome-recursion``
 - ``bc-rank-n-as-sum-of-products``
@@ -622,6 +632,9 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-greens-T-mu-surf``
 - ``peierls-greens-bounce-period-integral``
 - ``peierls-greens-bounce-sum-alpha``
+- ``peierls-greens-cylinder-mr-bounce-sum-piecewise``
+- ``peierls-greens-cylinder-mr-piecewise-tau``
+- ``peierls-greens-cylinder-mr-trajectory-segments``
 - ``peierls-greens-defining-bvp``
 - ``peierls-greens-fixed-source-iteration``
 - ``peierls-greens-garcia-convention``

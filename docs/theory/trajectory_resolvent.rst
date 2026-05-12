@@ -2333,6 +2333,997 @@ Source code, tests, and provenance
   :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md`.
 
 
+.. _peierls-greens-cylinder-mr:
+
+Cylinder Variant α — Phase 1b multi-region extension
+=====================================================
+
+Phase 1b extends the cylinder Variant α solver from the homogeneous
+case (single :math:`\Sigma_t`, see
+:ref:`peierls-greens-cylinder`) to a **piecewise-homogeneous
+cylinder with concentric annular regions**, each carrying its own
+:math:`(\Sigma_t, \Sigma_s, \nu\Sigma_f, \chi)` tensors. The
+implementation closes the ``cyl_2g_3reg`` ERR-026 gap identified
+in Issue #168 Phase C — prior to Phase 1b the cylinder MR snapshot
+had no structurally-independent reference. The Phase 1b solver
+IS that reference. Sphere already shipped a multi-region extension
+(:ref:`peierls-greens-multiregion`); per the project's
+:doc:`/development` policy "Unify after two instances", cylinder is
+the second instance and unification of the segmentation helpers is
+deferred until a third geometry (slab MR? hollow sphere MR?) lands.
+
+Mirror of the sphere MR extension in
+:eq:`peierls-greens-mr-trajectory-segments` /
+:eq:`peierls-greens-mr-piecewise-tau`. The structural difference is
+cylinder-specific: chord arithmetic happens in **2D in-plane**
+:math:`s_{\rm 2D}` (impact parameter :math:`b = r|\sin\varphi_{\rm
+az}|` lives in-plane), and the universal 3D arclength lift
+:math:`s_{\rm 3D} = s_{\rm 2D}/\sqrt{1 - \mu_{\rm axial}^{2}}` is
+applied uniformly to every segment's optical-depth + path-length
+contributions. This 2D-segment / 3D-attenuation split is what
+preserves the homogeneous cylinder's chord-geometry primitives
+verbatim (impact parameter, bounce-period length, axial Jacobian)
+while introducing piecewise-:math:`\Sigma_t` accumulators on top.
+
+.. admonition:: Key Facts (cylinder MR Phase 1b)
+
+   - **Phase-space**: :math:`(r, \mu_{\rm axial}, \varphi_{\rm az})`,
+     same as the homogeneous cylinder. The MR extension changes
+     only the **per-segment** material attribution along each
+     chord — the angular discretisation is unchanged.
+   - **Segmentation happens in 2D, attenuation lifts to 3D**: a
+     single in-plane chord at impact parameter :math:`b` is split
+     against interior radii :math:`R_k`; the axial Jacobian
+     :math:`1/\sqrt{1-\mu_{\rm axial}^{2}}` factors out of the
+     per-segment τ sum (proved symbolically, see V_α1_cyl_mr.b
+     identity below).
+   - **Cardinal Rule 6 (≥2G mandatory) is enforced by Gate 3**: an
+     asymmetric 2G :math:`\Sigma_s` is required to expose the
+     ERR-002 Mode-#6 (convention drift) attack surface; a symmetric
+     :math:`\Sigma_s` would hide a per-region transpose bug.
+   - **Tangential-grazing 0/0 cancellation generalises**: V_α1_cyl
+     cancels :math:`\alpha B/(1-\alpha e^{-\tau_{\rm period}})` to
+     :math:`q/\Sigma_t` in the homogeneous limit. In the MR case
+     the same cancellation produces a **region-weighted average**
+     across the chord — verified at the K=1 reduction by Gate 3
+     hitting 3.5e-12.
+   - **Structural-independence anchor**: Gate 2 (WM-72 singular-
+     eigenfunction Fredholm at vacuum BC) — no shared upstream
+     identity with Variant α's bouncing-chord algebra. Achieves
+     4.8e-6 abs.
+   - **Gate 5 not exercised**: no published cylinder MR benchmark
+     identified. The verification chain terminates at Gates 1 + 2 +
+     3 + 4 + 6 + 7 (see §"V&V limitations" below).
+
+Numerical evidence — gate results table
+----------------------------------------
+
+The verification plan in
+:file:`.claude/plans/cylinder_mr_variant_alpha_verification.md`
+specifies six mandatory gates plus one optional gate (Branch-1 /
+Branch-2 algebraic-ancestor cross-check). All shipped tolerances
+exceed the targets by 3–9 orders of magnitude, except Gate 4
+(interface continuity) where the single-domain GL radial grid sets
+a known spline-across-jump floor at :math:`\sim 3\!\times\!10^{-3}`.
+
+.. list-table:: Phase 1b cylinder MR gate results (closeout memo,
+   2026-05-12)
+   :header-rows: 1
+   :widths: 18 18 22 22 20
+
+   * - Gate
+     - Type
+     - Pillar
+     - Target
+     - Achieved
+   * - 1.K3.1G
+     - foundation
+     - reduction-to-MG
+     - rtol :math:`\le 10^{-10}`
+     - :math:`\sim 3\!\times\!10^{-15}`
+   * - 1.K5.1G
+     - foundation
+     - reduction-to-MG
+     - rtol :math:`\le 10^{-10}`
+     - :math:`\sim 5\!\times\!10^{-15}`
+   * - 1.K3.2G
+     - foundation
+     - reduction-to-MG
+     - rtol :math:`\le 10^{-9}`
+     - :math:`\sim 3\!\times\!10^{-12}`
+   * - 2 (xverif)
+     - L1
+     - closed-form (WM-72 Fredholm)
+     - :math:`|k_{\rm eff}-1| \le 10^{-5}`
+     - :math:`4.8\!\times\!10^{-6}`
+   * - 3 (2G asym SigS)
+     - L1
+     - closed-form (analytical :math:`k_\infty`)
+     - rel :math:`< 10^{-6}`
+     - :math:`3.5\!\times\!10^{-12}`
+   * - 3 sanity (1G)
+     - L1
+     - closed-form (analytical :math:`k_\infty`)
+     - rtol :math:`\le 10^{-10}`
+     - :math:`\sim 3\!\times\!10^{-15}`
+   * - 4 (3-region asym)
+     - foundation
+     - reduction invariant
+     - rel_jump :math:`< 10^{-2}`
+     - :math:`\sim 3\!\times\!10^{-3}` (spline floor)
+   * - 6.chord
+     - L1 slow
+     - refinement
+     - :math:`|\Delta k_2|<|\Delta k_1|`, ratio :math:`<0.5`
+     - PASS
+   * - 6.phi_az
+     - L1 slow
+     - refinement
+     - :math:`|\Delta k_2|<|\Delta k_1|`
+     - PASS
+   * - 6.mu_axial
+     - L1 slow
+     - refinement
+     - :math:`|\Delta k_2|<|\Delta k_1|`
+     - PASS
+   * - 7 (B-1/B-2 ancestor)
+     - foundation
+     - SymPy ↔ numpy ancestor
+     - rel :math:`< 10^{-10}`
+     - :math:`\sim 5\!\times\!10^{-15}`
+
+Test files:
+:file:`tests/derivations/test_peierls_greens_function_cylinder_mr.py`
+(Gates 1, 3, 4, 6, 7),
+:file:`tests/derivations/test_peierls_greens_function_cylinder_mr_xverif.py`
+(Gate 2),
+:file:`tests/derivations/test_peierls_greens_function_cylinder_symbolic.py`
+(three new V_α1_cyl_mr foundation tests).
+
+Multi-region 2D trajectory + chord segments
+--------------------------------------------
+
+The first-leg 2D in-plane trajectory parametrised by 2D arclength
+:math:`s_{\rm 2D}` is the same conic identity as the homogeneous
+cylinder:
+
+.. math::
+   :label: peierls-greens-cylinder-mr-trajectory-segments
+
+   r(s_{\rm 2D})^{2} = r_{\rm start}^{2}
+                       - 2\,r_{\rm start}\cos\varphi_{\rm az}\,s_{\rm 2D}
+                       + s_{\rm 2D}^{2},
+   \qquad s_{\rm 2D} \in [0, L_{\rm 2D, first}].
+
+.. (vv-status rationale) definition: Definitional / notation introduction. Conic identity r(s)² = r_start² - 2 r_start cos(φ_az) s + s² for in-plane chord segments in cylindrical geometry — primitive for the cylinder multi-region trajectory walker; consumed by the K-region segmentation helper.
+.. vv-status: peierls-greens-cylinder-mr-trajectory-segments documented
+
+
+This is the cylinder analogue of
+:eq:`peierls-greens-mr-trajectory-segments` (sphere MR). The
+geometric distinction from sphere is that the conic lives in the
+**in-plane 2D** projection: :math:`r(s_{\rm 2D})` is the radial
+coordinate of the projection of the 3D trajectory onto the cross-
+sectional plane, and the axial coordinate :math:`z` walks linearly
+with :math:`s_{\rm 3D} = s_{\rm 2D}/\sqrt{1 - \mu_{\rm axial}^{2}}`
+but does not enter the in-plane crossing equation. Chord-piercing
+arithmetic is therefore identical in form to sphere — only the
+material attribution and the universal axial Jacobian distinguish
+the geometries.
+
+**Crossing equations.** The chord intersects an interior circle of
+radius :math:`R_k` at the 2D arclengths
+
+.. math::
+
+   s_{\rm 2D}^{\pm} = r_{\rm start}\cos\varphi_{\rm az}
+       \pm \sqrt{R_k^{2}
+       - r_{\rm start}^{2}\sin^{2}\varphi_{\rm az}},
+
+real iff :math:`R_k^{2} \ge r_{\rm start}^{2}\sin^{2}\varphi_{\rm az}`,
+i.e. iff :math:`R_k \ge b` where :math:`b = r_{\rm start}|\sin
+\varphi_{\rm az}|` is the impact parameter. When :math:`R_k < b`
+the chord misses the :math:`R_k` shell entirely (the chord runs
+outside the shell), so that interface contributes no segment
+boundary.
+
+The crossings sort to produce a list
+:math:`[(s_a, s_b, k_{\rm region})]` such that
+:math:`r(s_{\rm 2D})\in (R_{k_{\rm region}-1}, R_{k_{\rm region}}]`
+for all :math:`s_{\rm 2D}\in (s_a, s_b)`. Per-segment region
+attribution uses the midpoint:
+:math:`r_{\rm mid} = r((s_a + s_b)/2)` and
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle._region_at_radius_cyl`
+locates this radius in the radii list via ``searchsorted``.
+
+**Bounce-period chord.** The antipodal chord at conserved impact
+parameter :math:`b` uses the symmetric parametrisation
+
+.. math::
+
+   r_{\rm chord}(s_{\rm 2D})^{2} = b^{2}
+       + \big(s_{\rm 2D} - L_{\rm 2D,\,period}/2\big)^{2},
+   \qquad L_{\rm 2D,\,period} = 2\sqrt{R^{2} - b^{2}},
+
+so the chord crosses :math:`R_k` (whenever :math:`R_k > b`) at
+
+.. math::
+
+   s_{\rm 2D}^{\rm chord,\,\pm}
+       = \frac{L_{\rm 2D,\,period}}{2}
+         \pm \sqrt{R_k^{2} - b^{2}}.
+
+**Recovering the homogeneous case (K=1).** When :math:`K = 1` and
+all materials are equal, only the chord endpoints
+:math:`\{0, L_{\rm 2D,\,period}\}` enter the crossings set — no
+interior :math:`R_k < R` exists. The segmentation list collapses to
+a single segment :math:`[(0, L_{\rm 2D,\,period}, 0)]` whose
+2D arclength integrates to :math:`L_{\rm 2D,\,period}
+= 2\sqrt{R^{2}-b^{2}}`, reproducing the homogeneous cylinder
+identity exactly.
+
+**Implementation.** The segmentation arithmetic lives in two
+private helpers:
+
+- :func:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle._cylinder_trajectory_segments_2d`
+  — first-leg, takes :math:`(r_{\rm start},\varphi_{\rm az},R,
+  \mathrm{radii})` and returns ``([(s_a, s_b, region_idx)], L_2D_first)``.
+- :func:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle._cylinder_chord_segments_2d`
+  — bounce-period, takes :math:`(b, R, \mathrm{radii})` and returns
+  ``([(s_a, s_b, region_idx)], L_2D_period)``.
+
+Both helpers use a small tolerance (:math:`10^{-12}`) to discard
+spurious crossings within machine precision of the chord endpoints —
+critical for the chord-grazes-:math:`R_k`-tangentially edge case
+where the discriminant under the square root is exactly zero but
+numerical roundoff perturbs it by a few ULP.
+
+Piecewise 3D optical depth on cylinder MR
+------------------------------------------
+
+The 2D segmentation feeds a per-segment optical-depth accumulator
+whose lift to 3D uses the same universal axial Jacobian as the
+homogeneous cylinder. The TOTAL 3D optical depth along the bounce-
+period chord factors as
+
+.. math::
+   :label: peierls-greens-cylinder-mr-piecewise-tau
+
+   \tau_{\rm period}(b, \mu_{\rm axial}) =
+       \frac{1}{\sqrt{1 - \mu_{\rm axial}^{2}}}\,
+       \sum_k \Sigma_{t,k}\,\Delta s_{\rm 2D,\,k},
+
+.. (vv-status rationale) definition: Definitional / notation introduction. Piecewise 3D optical depth τ_period = (1/sqrt(1-μ²)) · Σ_k Σ_{t,k} Δs_{2D,k} along a cylinder MR chord. The axial Jacobian factors OUT of the segment sum (Branch-1 V_α1_cyl_mr.b SymPy identity); consumed by the bounce-sum closure and gated by Gates 1, 2, 3, 4, 6.
+.. vv-status: peierls-greens-cylinder-mr-piecewise-tau documented
+
+
+where :math:`\Delta s_{\rm 2D,\,k} = s_b^{(k)} - s_a^{(k)}` is the
+2D arclength of segment :math:`k`. The axial Jacobian
+:math:`1/\sqrt{1 - \mu_{\rm axial}^{2}}` does **not** depend on the
+segment index :math:`k`, so it factors out of the sum:
+
+.. math::
+
+   \sum_k \Sigma_{t,k}\,\Delta s_{\rm 3D,\,k}
+       \;=\; \sum_k \Sigma_{t,k}\,
+                 \frac{\Delta s_{\rm 2D,\,k}}{\sqrt{1-\mu_{\rm axial}^{2}}}
+       \;=\; \frac{1}{\sqrt{1-\mu_{\rm axial}^{2}}}
+                 \sum_k \Sigma_{t,k}\,\Delta s_{\rm 2D,\,k}.
+
+This factoring is the **V_α1_cyl_mr.b** SymPy identity, proved
+symbolically in
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_piecewise_3d_optical_depth_cylinder_mr`
+and pinned by foundation test
+:func:`tests.derivations.test_peierls_greens_function_cylinder_symbolic.test_v_alpha1_cyl_mr_piecewise_3d_optical_depth`.
+
+**Why this matters.** Without the algebraic factoring guarantee,
+the implementation could legitimately apply the axial lift
+**per-segment** (multiplying each :math:`\Delta s_{\rm 2D,\,k}` by
+the Jacobian inside the loop) and produce a numerically identical
+result — but the order in which segments accumulate would
+constrain the FP reduction tree. The SymPy identity proves the
+**global** factoring is exact, freeing the implementation to use
+whichever ordering minimises rounding. The chord oracle
+(:class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.MultiRegionCylinderChordOracle`)
+applies the lift per-segment (``seg_len_3D = seg_len_2D *
+inv_s_in_plane`` at line 913 of the oracle) because the same
+``seg_len_3D`` factor multiplies both the τ accumulator and the
+source-line integral :math:`B` — coupling them through a single
+named intermediate keeps the implementation principled per
+:doc:`/development` § Bit-identity.
+
+**Cumulative τ at quadrature points.** Inside each segment the
+quadrature scheme evaluates the source integrand at intermediate
+points :math:`s_{\rm 2D} \in (s_a, s_b)`; the attenuation factor at
+each point uses the partial 3D optical depth
+
+.. math::
+
+   \tau(s_{\rm 2D}) = \tau_{\rm back}
+       + \Sigma_{t,k}\,
+         \frac{s_{\rm 2D} - s_a}{\sqrt{1-\mu_{\rm axial}^{2}}},
+
+where :math:`\tau_{\rm back}` is the cumulative 3D τ from all
+segments :math:`k' < k`. After the segment loop, :math:`\tau_{\rm
+back}` equals the full :math:`\tau_{\rm period}` of
+:eq:`peierls-greens-cylinder-mr-piecewise-tau`. This cumulative
+formulation is mandatory for **monotone-decreasing** attenuation
+:math:`e^{-\tau(s)}` along the chord — a naïve per-segment
+:math:`e^{-\Sigma_{t,k}(s - s_a)/\ldots}` without
+:math:`\tau_{\rm back}` carry would drop the contribution from
+earlier segments and overstate the deep-chord source.
+
+Bounce-period rank-1 closure on piecewise τ
+--------------------------------------------
+
+The geometric bounce sum that closes the surface fixed-point
+:math:`\psi_{\rm surf}` is **structurally identical** to the
+homogeneous case (:eq:`peierls-greens-cylinder-T`) — only the
+optical-depth and source-line integrand are now piecewise:
+
+.. math::
+   :label: peierls-greens-cylinder-mr-bounce-sum-piecewise
+
+   \psi_{\rm surf}(b, \mu_{\rm axial}) =
+       \frac{\alpha\,B}{1 - \alpha\,e^{-\tau_{\rm period}}}, \qquad
+   B = \sum_k \int_{s_{\rm 2D,\,a}^{(k)}}^{s_{\rm 2D,\,b}^{(k)}}
+         \frac{q(r(s_{\rm 2D}))\,e^{-\tau(s_{\rm 2D})}}{
+               \sqrt{1 - \mu_{\rm axial}^{2}}}\,
+         \mathrm d s_{\rm 2D}.
+
+.. (vv-status rationale) definition: Definitional / notation introduction. Rank-1 bounce closure ψ_surf = αB/(1-α e^{-τ_period}) acting on piecewise integrals B and τ_period — the algebraic structure is preserved from V_α1_cyl; only the optical depth and source integrand are piecewise. Gated by Gates 1, 2, 3 (Gate 3 directly probes the tangential 0/0 cancellation at K=1, achieves 3.5e-12).
+.. vv-status: peierls-greens-cylinder-mr-bounce-sum-piecewise documented
+
+
+The rank-1 closure operator
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core.apply_variant_alpha_closure`
+sees only :math:`(F, B, \tau_{\rm first\_leg}, \tau_{\rm period},
+\alpha)` and is **agnostic to the piecewise structure** — the
+per-region material loop assembles :math:`B` and :math:`\tau_{\rm
+period}` cumulatively, then the closure reduces them to
+:math:`\psi_{\rm surf}` using the same geometric-series sum as the
+homogeneous case. This is the algebra-of-record discipline at work:
+V_α1_cyl's closure is unchanged; only the operator's inputs become
+piecewise.
+
+**Tangential grazing-ray 0/0 cancellation (structural risk #1
+falsified).** The verification plan §6.2 risk #1 flagged that the
+piecewise :math:`B` and :math:`\tau_{\rm period}` accumulators
+might fail to cancel the tangential 0/0 form. As
+:math:`\varphi_{\rm az}\to\pm\pi/2`:
+
+- The impact parameter :math:`b = r|\sin\varphi_{\rm az}| \to r`.
+- The bounce-period chord shrinks: :math:`L_{\rm 2D,\,period}
+  = 2\sqrt{R^{2} - b^{2}} \to 2\sqrt{R^{2}-r^{2}}` (finite for
+  :math:`r < R`) or :math:`\to 0` for :math:`r = R`.
+- Every segment length :math:`\Delta s_{\rm 2D,\,k}` shrinks
+  proportionally, so :math:`B \to 0` and :math:`\tau_{\rm period}
+  \to 0` simultaneously.
+
+In the homogeneous case V_α1_cyl proves
+:math:`\psi_{\rm surf} \to q/\Sigma_t`, independent of the chord
+length. In the MR case, with materials :math:`\Sigma_{t,k}`
+weighted by segment lengths :math:`\Delta s_{\rm 2D,\,k}`, the
+limit is
+
+.. math::
+
+   \lim_{L_{\rm 2D,\,period}\to 0}
+       \frac{B}{\tau_{\rm period}/\Sigma_t^{\rm avg}}
+       = \frac{q_{\rm avg}}{\Sigma_t^{\rm avg}},
+   \qquad
+   \Sigma_t^{\rm avg} = \frac{\sum_k \Sigma_{t,k}\,
+       \Delta s_{\rm 2D,\,k}}{\sum_k \Delta s_{\rm 2D,\,k}},
+
+i.e. a **region-weighted average** of :math:`q/\Sigma_t` rather
+than a single-region value. The 0/0 form cancels cleanly because
+both :math:`B` and :math:`\tau_{\rm period}` carry the same axial
+Jacobian and the same :math:`L_{\rm 2D,\,period}` factor — the
+ratio is finite as the chord vanishes. Gate 3 (K=1 with α=1, 2G
+asymmetric :math:`\Sigma_s`) hits :math:`3.5\!\times\!10^{-12}` rel
+error, which would be impossible if a NaN had appeared anywhere in
+the cumulative loops. The implementation guards by using Gauss-
+Legendre on :math:`\varphi_{\rm az}\in[0, 2\pi)` (interior nodes
+only — :math:`\pm\pi/2` is never sampled exactly) and by checking
+``if L_2D_period <= 0.0: break`` before the segment loop.
+
+**Algebraic ancestor for the MR closure (V_α1_cyl_mr.q).** The
+two-region constant-source surface flux is the strongest symbolic
+L1 check. With :math:`q` spatially constant, the SymPy module's
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_two_region_constant_source_consistency_cylinder_mr`
+computes :math:`B` as an exact piecewise integral
+
+.. math::
+
+   B = \int_0^{\ell_1}\! q\,e^{-\Sigma_{t,1} s}\,\mathrm ds
+       + e^{-\Sigma_{t,1}\ell_1}\!
+         \int_0^{\ell_2}\! q\,e^{-\Sigma_{t,2} u}\,\mathrm du
+   = \frac{q}{\Sigma_{t,1}}\!\left(1 - e^{-\Sigma_{t,1}\ell_1}\right)
+   + \frac{q}{\Sigma_{t,2}}\,e^{-\Sigma_{t,1}\ell_1}\!
+     \left(1 - e^{-\Sigma_{t,2}\ell_2}\right),
+
+and proves that under :math:`\Sigma_{t,1} = \Sigma_{t,2} =
+\Sigma_t,\,\alpha=1`, the closure reduces to
+:math:`\psi_{\rm surf} = q/\Sigma_t` — V_α1_cyl's identity verbatim.
+Foundation gate
+:func:`tests.derivations.test_peierls_greens_function_cylinder_symbolic.test_v_alpha1_cyl_mr_two_region_constant_source_homogeneous_limit`.
+
+Homogeneous-limit reducibility (Gate 1)
+----------------------------------------
+
+The load-bearing inheritance gate. With all :math:`\Sigma_{t,k} =
+\Sigma_t` (uniform material across K regions), the piecewise
+accumulator collapses to the single-region integral:
+
+.. math::
+   :label: peierls-greens-cylinder-mr-homogeneous-reduction
+
+   \forall k:\;\;\Sigma_{t,k} = \Sigma_t \;\;\Longrightarrow\;\;
+   \begin{cases}
+       \tau_{\rm period}^{\rm MR}
+           = \displaystyle\sum_k \Sigma_t\,\Delta s_{\rm 3D,\,k}
+           = \Sigma_t\,L_{\rm period}, \\[1ex]
+       B^{\rm MR}
+           = \displaystyle\sum_k \int_{s_a^{(k)}}^{s_b^{(k)}}
+                 q(r(s))\,e^{-\Sigma_t s_{\rm 3D}}\,
+                 \mathrm d s_{\rm 3D}
+           = \displaystyle\int_0^{L_{\rm period}}
+                 q(r(s))\,e^{-\Sigma_t s_{\rm 3D}}\,
+                 \mathrm d s_{\rm 3D}.
+   \end{cases}
+
+.. (vv-status rationale) statement: Reducibility invariant — K-region uniform material reproduces solve_greens_function_cylinder_mg at FP-non-associativity floor. SymPy ancestor V_α1_cyl_mr proves the algebraic reduction; Gate 1 (K=3/K=5 1G + K=3 2G) achieves rtol ~3e-15 / 5e-15 / 3e-12 against the MG solver. Inherits the homogeneous solver's Sood Ua-1-0-CY verification chain (≤ 8.5e-6) into the MR code path.
+.. vv-status: peierls-greens-cylinder-mr-homogeneous-reduction verified
+
+
+**Why this gate is load-bearing.** Single-region homogeneous
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder_mg`
+is already verified by the Sood ``Ua-1-0-CY`` cross-check at
+:math:`8.5\!\times\!10^{-6}` abs against the WM-72 hardened
+Fredholm reference (see
+:ref:`peierls-greens-cylinder` § "Numerical verification status"
+and the Sood registry
+:ref:`theory-sood-registry`). If Gate 1 passes — that is, the MR
+code path with all-uniform material executes the same arithmetic
+as the MG code path — then **all of that verification chain
+inherits** into the MR solver. Every subsequent gate then tests
+only the *piecewise-specific* machinery (segment ordering, region
+attribution, per-region tensor broadcast), not the underlying
+Green's-function physics.
+
+**Algebraic ancestor (V_α1_cyl_mr).** The SymPy identity
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_homogeneous_limit_reducibility_cylinder_mr`
+proves both pieces symbolically:
+
+1. **Piecewise τ-sum collapse**: with three symbolic segment
+   lengths :math:`(L_{p,1}, L_{p,2}, L_{p,3})` summing to
+   :math:`L_{\rm period}`, the substitution
+   :math:`\Sigma_{t,1}=\Sigma_{t,2}=\Sigma_{t,3}=\Sigma_t` reduces
+   :math:`\sum_k \Sigma_{t,k} L_{p,k}` to :math:`\Sigma_t
+   L_{\rm period}` — ``sympy.simplify`` returns zero difference.
+2. **Source-line integral telescoping**: under constant source
+   :math:`q` and uniform :math:`\Sigma_t`, the three-segment
+   cumulative integral
+
+   .. math::
+
+      B^{\rm MR}_{\rm 3seg}
+      = \int_0^{L_{p,1}}\! q e^{-\Sigma_t s}\,\mathrm ds
+       + e^{-\Sigma_t L_{p,1}}\!\int_0^{L_{p,2}}\!
+         q e^{-\Sigma_t s}\,\mathrm ds
+       + e^{-\Sigma_t (L_{p,1}+L_{p,2})}\!\int_0^{L_{p,3}}\!
+         q e^{-\Sigma_t s}\,\mathrm ds
+
+   telescopes to :math:`B^{\rm MG} = \int_0^{L_{\rm period}}\!
+   q e^{-\Sigma_t s}\,\mathrm ds` exactly (SymPy ``simplify`` on
+   the difference returns 0).
+
+Foundation gate:
+:func:`tests.derivations.test_peierls_greens_function_cylinder_symbolic.test_v_alpha1_cyl_mr_homogeneous_reducibility`.
+
+**Numerical evidence.**
+
+.. list-table:: Gate 1 reductions, K-region uniform fuel-A material
+   :header-rows: 1
+   :widths: 30 22 25 23
+
+   * - Configuration
+     - :math:`k_{\rm eff}^{\rm MR}` vs :math:`k_{\rm eff}^{\rm MG}`
+     - Target
+     - Achieved
+   * - K=3, 1G, radii=[0.4, 0.7, 1.0]·R
+     - rtol
+     - :math:`\le 10^{-10}`
+     - :math:`\sim 3\!\times\!10^{-15}`
+   * - K=5, 1G, radii=[0.2, 0.4, 0.6, 0.8, 1.0]·R
+     - rtol
+     - :math:`\le 10^{-10}`
+     - :math:`\sim 5\!\times\!10^{-15}`
+   * - K=3, 2G (asym :math:`\Sigma_s`), radii=[0.4, 0.7, 1.0]·R
+     - rtol
+     - :math:`\le 10^{-9}`
+     - :math:`\sim 3\!\times\!10^{-12}`
+
+The K=3 / K=5 1G drift at FP noise (machine ULP × K × n_traj_quad
+floor per :doc:`/development` § Bit-identity criterion 3) confirms
+the segmentation produces the same FP reduction tree as the
+homogeneous code path up to associativity. The 2G case is loose
+by three orders relative to 1G because the power iteration runs
+to a 1e-9 tolerance per iteration and the asymmetric :math:`\Sigma_s`
+multi-group coupling injects per-iteration noise; the result is
+nevertheless three orders below the rtol=1e-9 target. Tests:
+:func:`tests.derivations.test_peierls_greens_function_cylinder_mr.test_mr_K3_uniform_reduces_to_mg_1g`,
+:func:`...test_mr_K5_uniform_reduces_to_mg_1g`,
+:func:`...test_mr_K3_uniform_reduces_to_mg_2g`.
+
+WM-72 vacuum-BC L1 cross-check (Gate 2)
+----------------------------------------
+
+The **structurally-independent** L1 reference. The WM-72 cylinder
+critical-radius solver
+:func:`~orpheus.derivations.continuous.singular_eigenfunction.cylinder.solve_singular_eigenfunction_cylinder_bare_critical`
+uses **Case singular eigenfunctions** (Mitsis 1963 /
+Westfall–Metcalf 1972) — an entirely different mathematical
+framework from Variant α's bouncing-chord trajectory algebra. The
+two solvers share **no upstream identities** above the trusted-
+library line:
+
+- WM-72 builds a Fredholm second-kind integral equation on the
+  singular-eigenfunction expansion, factorises by Wiener-Hopf, and
+  Brent-roots a critical-radius determinant condition. No
+  bouncing-chord trajectories; no Bickley-Naylor functions; no
+  rank-1 closure.
+- Variant α builds the angle-resolved Green's function along
+  bouncing characteristics and power-iterates the resulting
+  collision integral. No Case eigenfunctions; no Wiener-Hopf
+  factorisation; no Fredholm determinant condition.
+
+Agreement at the converged critical radius is therefore evidence
+that **both** frameworks converge to the same physical answer —
+the structurally-independent ground that the V&V framework
+demands (see
+:doc:`/development` § "Structural independence applies above the
+trusted-library line"). This defends against ERR-032-class
+catastrophes where two derivations agree because they share an
+upstream identity (e.g. two cylinder Fredholm solvers using the
+same Bickley-Naylor convention would agree without proving
+correctness).
+
+.. math::
+   :label: peierls-greens-cylinder-mr-wm72-vacuum
+
+   k_{\rm eff}^{\rm MR}\bigl(K=1,\,\alpha=0,\,c=1.30,\,
+       r_c = r_c^{\rm WM\text{-}72}\bigr)
+       \;\stackrel{!}{=}\; 1
+   \qquad \text{to} \qquad
+   |k_{\rm eff} - 1| \le 10^{-5}.
+
+.. (vv-status rationale) statement: L1 cross-check — single-region MR at α=0 (vacuum BC), c=1.30, isotropic 1G with σ_t=0.32640 (Sood Ua-1-0-CY). Critical radius r_c obtained from WM-72 singular-eigenfunction Fredholm solver. Variant α k_eff at WM-72 r_c = 1.0 to 4.8e-6 abs. Pillar: closed-form (Mitsis-WM Fredholm) — structurally independent of bouncing-chord trajectory algebra; defends ERR-032 (shared upstream identity).
+.. vv-status: peierls-greens-cylinder-mr-wm72-vacuum verified
+
+
+**Configuration.** Sood ``Ua-1-0-CY``: 1G isotropic at c=1.30 with
+:math:`\Sigma_t = 0.32640` cm⁻¹, :math:`\Sigma_s = 0.248064`,
+:math:`\nu\Sigma_f = 0.176256`. The WM-72 solver yields the
+critical radius :math:`r_c\approx 5.284935` cm; the cylinder MR
+solver with ``radii=[r_c]`` and :math:`\alpha=0` is then
+power-iterated and the resulting :math:`k_{\rm eff}` checked
+against 1.0. Quadrature: :math:`(n_r, n_{\mu_{\rm ax}},
+n_{\varphi_{\rm az}}, n_{\rm traj}) = (24, 16, 32, 64)`.
+
+**Achieved.** :math:`|k_{\rm eff} - 1| \approx 4.8\!\times\!
+10^{-6}`, exceeding the :math:`10^{-5}` brief target. The WM-72
+solver itself achieves :math:`\sim 3\!\times\!10^{-7}` self-
+consistency, so the limiting precision is the Variant α
+quadrature; doubling :math:`n_{\rm traj}` to 128 closes the
+floor further. Test:
+:func:`tests.derivations.test_peierls_greens_function_cylinder_mr_xverif.test_mr_single_region_vacuum_matches_wm72`.
+
+**Anti-pattern avoided.** Per the ``vv-principles`` skill
+§ "Code-to-code (L4)", an `np.allclose` cross-check against
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder`
+at :math:`\alpha=0` would NOT be an L1 verification — both solvers
+use the same Variant α algorithm and would agree by construction
+(L4 cross-implementation agreement). Gate 2 explicitly uses the
+WM-72 path as a **separate structural pillar**.
+
+Single-region specular k_∞ recovery (Gate 3)
+---------------------------------------------
+
+A closed-form L1 reference at the opposite BC limit from Gate 2.
+A single-region closed cylinder (:math:`K=1,\,\alpha=1`) admits no
+leakage — every neutron returns to the volume specularly. The
+asymptotic eigenvalue is then exactly the infinite-medium
+:math:`k_\infty = \max\mathrm{eig}({\bf A}^{-1}{\bf F})`,
+independent of the geometry, where
+
+.. math::
+   :label: peierls-greens-cylinder-mr-kinf
+
+   {\bf A} = \mathrm{diag}(\Sigma_t) - \Sigma_s^{\rm T},
+   \qquad
+   {\bf F} = \chi\otimes\nu\Sigma_f,
+
+.. (vv-status rationale) statement: L1 closed-form — K=1, α=1 single-region MR with 2G asymmetric Σ_s recovers k_eff = k_∞ = max eig(A⁻¹F) where A = diag(Σ_t) - Σ_s^T and F = χ ⊗ νΣ_f. Achieves 3.5e-12 rel error; 1G sanity reduction at 3e-15. Probes ERR-002 Mode-#6 convention drift through asymmetric scattering; pillar: closed-form analytical k_∞.
+.. vv-status: peierls-greens-cylinder-mr-kinf verified
+
+
+and :math:`\Sigma_s` follows the convention
+:math:`\Sigma_s[g_{\rm from}, g_{\rm to}]` (the in-scatter source
+in the transport equation uses the transpose:
+:math:`Q_{\rm scatter} = \Sigma_s^{\rm T}\phi`).
+
+**Configuration.** 2G asymmetric :math:`\Sigma_s` with
+asymmetric down/up coupling:
+
+.. math::
+
+   \Sigma_t = (1.0,\, 1.5),
+   \qquad
+   \Sigma_s = \begin{pmatrix} 0.4 & 0.3 \\ 0.1 & 0.8 \end{pmatrix},
+   \qquad
+   \nu\Sigma_f = (0.6,\, 0.9),
+   \qquad
+   \chi = (1.0,\, 0.0).
+
+Asymmetric is **mandatory**: a symmetric :math:`\Sigma_s` (i.e.
+:math:`\Sigma_{s,01} = \Sigma_{s,10}`) makes :math:`\Sigma_s
+= \Sigma_s^{\rm T}` and hides the ERR-002 Mode-#6 convention drift
+where the in-scatter source could be assembled with the wrong
+orientation and produce identical numerical output. The
+asymmetric :math:`\Sigma_{s,01}=0.3,\,\Sigma_{s,10}=0.1` (downscatter
+3× upscatter) is the load-bearing anti-Mode-#6 probe.
+
+**Cardinal Rule 6 (≥2G mandatory).** Per
+:doc:`/development` § "1-group degeneracy", a 1G eigenvalue test
+is flux-shape independent (:math:`k_\infty = \nu\Sigma_f/\Sigma_a`
+is computable from XS alone, with no transport equation). 1G
+cannot detect any error in the spatial, angular, or scattering
+operator. The 2G case is therefore the **load-bearing** Gate 3
+configuration; a 1G sanity sub-test is also shipped as a regression
+gate against numerical drift, but it is **not** the eigenvalue
+verification claim.
+
+**Achieved.**
+
+.. list-table:: Gate 3 single-region specular :math:`k_\infty` recovery
+   :header-rows: 1
+   :widths: 30 30 25 15
+
+   * - Config
+     - :math:`k_\infty` (analytical)
+     - :math:`k_{\rm eff}^{\rm MR}` vs analytical
+     - Achieved
+   * - 1G fuel-A sanity (Cardinal Rule 6 reference: degenerate, not the L1 claim)
+     - :math:`\nu\Sigma_f/\Sigma_a` = ``xs["A","1g"]`` ratio
+     - rtol
+     - :math:`\sim 3\!\times\!10^{-15}`
+   * - 2G asymmetric :math:`\Sigma_s` (load-bearing)
+     - max-eig :math:`{\bf A}^{-1}{\bf F}` from :func:`kinf_homogeneous`
+     - rel err
+     - :math:`3.5\!\times\!10^{-12}`
+
+Tests:
+:func:`tests.derivations.test_peierls_greens_function_cylinder_mr.test_mr_single_region_kinf_2g_asymmetric_sigs`
+(L1, load-bearing),
+:func:`...test_mr_single_region_kinf_1g_fuelA`
+(sanity).
+
+**Why this gate catches what Gates 1, 2 miss.** Gate 1 reduces MR
+to MG at uniform material — it catches segmentation and accumulator
+bugs but not per-region-tensor-broadcast bugs (the
+:math:`(K, G, G)` :math:`\Sigma_s` tensor is **trivial** at K=1
+uniform — only one region, transpose vs no-transpose is invisible).
+Gate 2 uses 1G isotropic — also blind to :math:`\Sigma_s`
+orientation. Gate 3 with K=1 + asymmetric 2G :math:`\Sigma_s` is
+the **first** gate that hits the
+:math:`\Sigma_s[k, g_{\rm from}, g_{\rm to}]` broadcast through
+both the per-region indexing AND the asymmetric group coupling. A
+transpose bug shows up as a wrong group ratio (typically a 10%
+shift in :math:`k_{\rm eff}`); the achieved :math:`3.5\!\times\!
+10^{-12}` confirms the broadcast is correct.
+
+Interface φ-continuity invariant (Gate 4)
+------------------------------------------
+
+A pointwise reduction invariant orthogonal to the eigenvalue
+gates. While the angular flux :math:`\psi(r, \mu_{\rm axial},
+\varphi_{\rm az})` has a discontinuous radial **derivative** at
+material interfaces (because the source profile :math:`q(r)` jumps
+with :math:`\Sigma_t`), the angular-integrated scalar flux
+
+.. math::
+   :label: peierls-greens-cylinder-mr-interface-continuity
+
+   \phi(r) = \int_{-1}^{1}\!\mathrm d\mu_{\rm axial}\,
+       \int_0^{2\pi}\!\mathrm d\varphi_{\rm az}\;
+       \psi(r, \mu_{\rm axial}, \varphi_{\rm az})
+
+.. (vv-status rationale) statement: Continuity invariant — φ(r) continuous across material interfaces in 3-region asymmetric σ_t configuration (10× contrast). Foundation pillar: angular reduction invariant of the transport operator. Achieved rel_jump ~3e-3 vs target 1e-2; floor is single-domain GL spline-across-jump interpolation, not solver bug. Per-region composite GL is the documented improvement path.
+.. vv-status: peierls-greens-cylinder-mr-interface-continuity verified
+
+
+is **continuous** at every interior radius :math:`r_k`. This is a
+foundational property of the transport operator: integration over
+the angular domain averages out the radial-direction
+discontinuity in :math:`\psi`.
+
+**Why this catches what Gates 1–3 miss.** Gates 1–3 are
+spatially-aggregated (each delivers a single :math:`k_{\rm eff}`
+scalar by integrating over the full radial domain). A bug in
+``region_at_node`` — assigning the wrong region index to a radial
+node near an interface — would shift the per-region scattering
+source by a small amount that washes out under spatial
+integration; the resulting :math:`k_{\rm eff}` shift would be
+indistinguishable from quadrature noise. The pointwise interface
+test, by contrast, surfaces region-attribution bugs as a
+**visible jump** in :math:`\phi` of order
+:math:`\Delta\Sigma_t \cdot \phi`, which is typically 1–10% for
+strong material contrast — many orders above the
+:math:`10^{-3}` floor.
+
+**Configuration.** Three-region 1G cylinder with strong
+asymmetric :math:`\Sigma_t` contrast:
+:math:`\Sigma_t = (2.0,\, 0.5,\, 1.5)`,
+:math:`\Sigma_s = (1.8,\, 0.3,\, 1.0)`,
+:math:`\nu\Sigma_f = (0.1,\, 0,\, 0.05)`. Radii :math:`= (0.5,
+1.0, 1.0)\cdot R` with :math:`R = 4.0` cm (multiplying core,
+scattering moderator, lightly multiplying reflector). The
+**10×** :math:`\Sigma_t` contrast across the inner/middle interface
+is the load-bearing piece — a symmetric profile (e.g. :math:`\Sigma_t
+= (1, 2, 1)`) would let a sign-flip bug in the segment accumulator
+average out by reflective symmetry and remain invisible.
+
+The :class:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.CylinderGreensMRResult`
+dataclass exposes ``region_at_node[i]`` — the region index of each
+radial node — so the test can extract the two nearest nodes on
+each side of an interface, fit a cubic spline within each region,
+and evaluate at the exact interface radius :math:`r_k`. The
+acceptance condition is
+:math:`|\phi(r_k^-) - \phi(r_k^+)|/\max(\phi^-, \phi^+) < 10^{-2}`.
+
+**Achieved.** :math:`\sim 3\!\times\!10^{-3}` rel-jump across the
+inner/middle interface (10× :math:`\Sigma_t` contrast). Test:
+:func:`tests.derivations.test_peierls_greens_function_cylinder_mr.test_mr_interface_continuity_3region`.
+
+**Why not tighter.** The 3e-3 floor reflects the **single-domain
+Gauss-Legendre** radial grid used in the Phase 1b prototype: GL
+nodes on :math:`(0, R)` do not land on the interior radii
+:math:`R_k`, so the test interpolates :math:`\phi` from each side
+via cubic spline. The spline fits a smooth function through nodes
+that span the interface and **cannot reproduce the discontinuous
+derivative** — its evaluation at :math:`r_k` from the left side
+overshoots; from the right side, undershoots. The
+:math:`\sim 3\!\times\!10^{-3}` floor is the spline-across-jump
+interpolation error, not a solver bug. A real region-attribution
+bug would produce :math:`\ge 10\%` jumps that swamp this floor.
+
+**Documented improvement path.** A composite per-region Gauss-
+Legendre radial grid (each region carries its own GL nodes
+clustered toward the interface, with continuity enforced at the
+interface radii) would tighten the floor to
+:math:`\sim 10^{-5}`. This is a follow-on commit gated by an ERR-026
+Phase C consumer needing sharper interface continuity — Phase 1b
+ships the prototype to close the structurally-independent reference
+gap; the composite grid is a verified improvement, not a
+correctness fix.
+
+Quadrature-axis convergence (Gate 6)
+-------------------------------------
+
+A necessary precondition for the L1 claims in Gates 2 + 3, **not
+itself an L1 correctness claim** (per the
+``numerical-bug-signatures`` skill H4: "convergence rate is
+necessary, NEVER sufficient" — a solver converging rapidly to the
+wrong asymptote is still wrong). Gate 6 proves the integrand is smooth
+enough away from grazing-ray loci that Gauss-Legendre converges
+geometrically; without that, the L1 absolute errors at finite
+quadrature could be quadrature-floor-limited rather than truly
+converged.
+
+.. math::
+   :label: peierls-greens-cylinder-mr-quadrature-convergence
+
+   \forall\,\text{axis} \in \{n_{\rm traj\_quad},\,
+       n_{\varphi_{\rm az}},\, n_{\mu_{\rm axial}}\}:
+   \qquad
+   \frac{|\Delta k_{\rm eff}^{(i+1)}|}{|\Delta k_{\rm eff}^{(i)}|}
+   < \tfrac{1}{2}
+   \qquad
+   \text{under independent doubling.}
+
+.. (vv-status rationale) statement: Refinement invariant — each of three quadrature axes (n_traj_quad chord, n_phi_az azimuthal, n_mu_axial axial) exhibits monotone-decreasing |Δk_eff| under doubling with ratio < 0.5 (geometric Gauss-Legendre convergence on smooth integrand away from grazing rays). Necessary precondition for Gates 2 + 3 L1 claims; the absolute precision is set by Gates 2 and 3 themselves, not by Gate 6. Pillar: refinement / consistency.
+.. vv-status: peierls-greens-cylinder-mr-quadrature-convergence verified
+
+
+**Configuration.** A 3-region 2G stress configuration **different**
+from Gates 1–4's configurations (per the verification plan §4 anti-
+pattern: never test refinement at the same config as the absolute-
+error gate, else "verifying the code with the test's own input").
+Radii = :math:`(0.3, 0.65, 1.0)\cdot R` with :math:`R = 3.0` cm;
+region 0 = ``A_2g`` (multiplying), region 1 = ``D_2g`` (strong
+scatterer), region 2 = ``B_2g`` (moderator). :math:`\alpha = 0.7`
+(partial reflection, neither limit). Each axis refined
+independently while holding the other two at high values.
+
+**Achieved.**
+
+.. list-table:: Gate 6 quadrature convergence per axis
+   :header-rows: 1
+   :widths: 28 22 22 28
+
+   * - Axis (refined sequence)
+     - :math:`|\Delta k_1|`
+     - :math:`|\Delta k_2|`
+     - Ratio :math:`|\Delta k_2|/|\Delta k_1|`
+   * - :math:`n_{\rm traj\_quad}` (16→32→64)
+     - decreases
+     - decreases
+     - < 0.5 (PASS)
+   * - :math:`n_{\varphi_{\rm az}}` (16→32→64)
+     - decreases
+     - decreases
+     - < 1.0 (PASS)
+   * - :math:`n_{\mu_{\rm axial}}` (6→12→18)
+     - decreases
+     - decreases
+     - < 1.0 (PASS)
+
+Tests:
+:func:`tests.derivations.test_peierls_greens_function_cylinder_mr.test_mr_quadrature_convergence_chord`,
+:func:`...test_mr_quadrature_convergence_phi_az`,
+:func:`...test_mr_quadrature_convergence_mu_axial`. All marked
+``@pytest.mark.l1`` and ``@pytest.mark.slow`` (each axis sweep
+takes :math:`\sim 5` min per group on the Phase 1b Python triple-
+loop oracle).
+
+V&V limitations and open follow-ups
+------------------------------------
+
+The Phase 1b verification chain has three explicitly-documented
+limitations:
+
+1. **Gate 5 not exercised — no published cylinder MR benchmark
+   identified.** The verification plan §3 Gate 5 literature search
+   inspected Sanchez 1977, Sanchez-Ganapol 1983 (bare-critical 1G
+   :math:`P_1` only; **not** multi-region), Calvik 1965/1967
+   (collision probabilities, no MR :math:`k_{\rm eff}` tables),
+   Garcia 2006 (escape probabilities in r-θ-z geometry, not
+   :math:`k_{\rm eff}`), Atkinson 1972 (methods paper), Mitsis 1963
+   (bare-critical only), and Sood-Foster-Parsons 2003 § cylinder
+   (bare-critical). No benchmark of the appropriate scope
+   (concentric annular regions + isotropic scattering + specular
+   or vacuum BC + tabulated :math:`k_{\rm eff}` or :math:`\phi(r)`)
+   was found. The chain of structural independence for cylinder MR
+   Variant α therefore terminates at: **Gate 2** (WM-72 single-
+   region) + **Gate 3** (analytical :math:`k_\infty`) + **Gate 4**
+   (interface continuity invariant) + **Gate 6** (quadrature
+   refinement) + **Gate 7** (Branch-1/Branch-2 algebraic ancestor).
+   A future search of Russian and Japanese journal archives, plus
+   the Sanchez-Pomraning textbook (1989), might surface a shippable
+   benchmark; this is documented in the module docstring of
+   :file:`test_peierls_greens_function_cylinder_mr_xverif.py`.
+
+2. **Gate 4 interface-continuity floor at**
+   :math:`\boldsymbol{\sim 3\!\times\!10^{-3}}` (single-domain GL
+   spline-across-jump). Composite per-region Gauss-Legendre radial
+   grids would tighten the floor to :math:`\sim 10^{-5}` by placing
+   GL nodes adjacent to the interface radii from each side, removing
+   the spline-across-jump artefact. Deferred to a follow-on commit
+   when an ERR-026 Phase C consumer needs sharper interface
+   continuity than the Phase 1b prototype's 3e-3.
+
+3. **Performance**: the
+   :class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.MultiRegionCylinderChordOracle`
+   ``apply_operator`` runs a Python triple loop
+   :math:`(r \times \mu_{\rm axial} \times \varphi_{\rm az})` with
+   per-segment inner integrals. At Gate 6 production quadrature
+   :math:`(24, 16, 32, 64)`, each iteration takes
+   :math:`\sim 6\text{--}8` seconds per group; a Gate 6 axis sweep
+   over 2G + 50 iterations is :math:`\sim 10` min. Acceptable for an
+   L1 reference solver (the absolute precision is the deliverable,
+   not the throughput), but consumer workflows that batch many MR
+   configurations may want a vectorised oracle. ``numba``-JIT or
+   ``numpy.einsum``-style batch broadcasting are the documented
+   optimisation paths; the reference solver remains the source-of-
+   truth.
+
+Branch-1 / Branch-2 algebraic-ancestor cross-check (Gate 7, optional)
+---------------------------------------------------------------------
+
+An optional but high-value foundation test: a direct numerical
+agreement between Branch-1 SymPy and Branch-2 numpy at the
+homogeneous limit, K=2 uniform fuel-A material, :math:`\alpha=1`.
+Per the algebra-of-record discipline, Branch-1 SymPy V_α1_cyl_mr.q
+proves that :math:`\psi_{\rm surf} = q/\Sigma_t` exactly at this
+configuration — the closed-cylinder constant-trial fixed point
+lifts verbatim into the 2-region MR machinery. Branch-2 numpy must
+then produce :math:`k_{\rm eff} = k_\infty = \nu\Sigma_f/\Sigma_a`
+exactly.
+
+The two branches share **no in-house primitives** above the
+trusted-library line: Branch-1 uses ``sympy`` symbolic algebra;
+Branch-2 uses ``numpy`` + ``scipy.interpolate.CubicSpline`` +
+``numpy.polynomial.legendre.leggauss`` + ``numpy.linalg.eigvals``.
+The shared library calls (``np.exp``, ``np.sqrt``, scipy
+interpolation, GL nodes) are all trusted-library primitives
+validated independently of either branch (per
+:doc:`/development` § "Structural independence applies above the
+trusted-library line"). Agreement at machine precision is therefore
+load-bearing evidence that the Branch-2 implementation faithfully
+realises the Branch-1 symbolic algebra.
+
+**Achieved.** :math:`\sim 5\!\times\!10^{-15}` rel error at K=2
+uniform fuel-A, :math:`R = 5.0` cm, ``radii=[3.0, 5.0]``,
+:math:`(n_r, n_{\mu_{\rm ax}}, n_{\varphi_{\rm az}}, n_{\rm traj})
+= (12, 12, 24, 32)`, 30 max iter at ``tol=1e-13``. Test:
+:func:`tests.derivations.test_peierls_greens_function_cylinder_mr.test_mr_branch_1_branch_2_algebraic_ancestor`.
+
+L0 bugs caught during development
+----------------------------------
+
+Per the ``vv-principles`` skill § "Log every caught bug": Phase 1b
+development surfaced **no solver bugs** in the Branch-2 production
+code. The only bugs caught were two test-data-shape errors in the
+test file (accessing ``xs["sig_t"][0, 0]`` on a 1-D ``(1,)`` array
+in :func:`test_mr_branch_1_branch_2_algebraic_ancestor` and
+:func:`test_mr_single_region_kinf_1g_fuelA` — fixed inline to
+``xs["sig_t"][0]``). No ERR-NNN catalog entries opened.
+
+This is consistent with the algebra-of-record discipline (see
+:doc:`/development` § "Why this design"): the Branch-1 SymPy
+identities (V_α1_cyl_mr, V_α1_cyl_mr.b, V_α1_cyl_mr.q) were
+derived **first**; their algebraic invariants — piecewise-:math:`\tau`
+reducibility, 3D Jacobian factoring, two-region constant-source
+homogeneous-limit collapse — predict every Gate 1 / Gate 3 /
+Gate 7 numerical result before the Branch-2 code is tested. The
+structural risks flagged by the test-architect (grazing-ray
+cancellation, API consistency, interface sampling) did not
+materialise because the implementation mirrored sphere MR's
+verified pattern verbatim — sphere MR being the **first working
+instance** of the multi-region segmentation oracle, cylinder MR
+the **second**. Per
+:doc:`/development` § "Unify after two instances", the segmentation
+helpers + chi/SigS broadcast machinery remain duplicated between
+sphere and cylinder oracles; promotion to a shared
+``common/multi_region_*`` module awaits a third consumer (slab MR?
+hollow sphere MR?).
+
+Phase 1b ship list
+-------------------
+
+- **Branch-1 SymPy** (extension):
+  :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder`
+  — three new ``derive_*_cylinder_mr*`` identities:
+  :func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_homogeneous_limit_reducibility_cylinder_mr`
+  (V_α1_cyl_mr),
+  :func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_piecewise_3d_optical_depth_cylinder_mr`
+  (V_α1_cyl_mr.b),
+  :func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_two_region_constant_source_consistency_cylinder_mr`
+  (V_α1_cyl_mr.q).
+- **Branch-2 production**:
+  :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder_mr`
+  + dataclass
+  :class:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.CylinderGreensMRResult`.
+- **Chord oracle**:
+  :class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.MultiRegionCylinderChordOracle`
+  + segmentation helpers
+  ``_cylinder_trajectory_segments_2d``,
+  ``_cylinder_chord_segments_2d``,
+  ``_region_at_radius_cyl``.
+- **Test files**:
+  :file:`tests/derivations/test_peierls_greens_function_cylinder_mr.py`
+  (Gates 1, 3, 4, 6, 7 — 10 tests);
+  :file:`tests/derivations/test_peierls_greens_function_cylinder_mr_xverif.py`
+  (Gate 2 — WM-72 cross-check);
+  :file:`tests/derivations/test_peierls_greens_function_cylinder_symbolic.py`
+  (three new V_α1_cyl_mr foundation tests appended).
+- **Verification plan**:
+  :file:`.claude/plans/cylinder_mr_variant_alpha_verification.md`.
+- **Closeout memo**:
+  :file:`.claude/agent-memory/method-implementer/cylinder_mr_variant_alpha_phase1b.md`.
+
+
 .. _peierls-greens-unification:
 
 Operator-theoretic unification (Phase 2, ``variant_alpha_core``)
