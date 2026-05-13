@@ -259,6 +259,7 @@ import numpy as np
 
 from orpheus.geometry.reduced_operator import StreamingTerms
 
+from .cell_balance import cell_balance_terms, cell_balance_terms_degenerate
 from .cell_update import (
     CellResult,
     CellUpdateBase,
@@ -371,6 +372,78 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         return self._update_curvilinear(
             st,
             visit.face_area_downstream,
+            total_xs,
+            source,
+            upstream_state,
+        )
+
+    # ── Apply-direction residual (Issue #196 Phase G Step 1 replan) ──
+
+    def residual(
+        self,
+        cell_avg: np.ndarray,
+        visit: CellVisit,
+        total_xs: np.ndarray,
+        source: np.ndarray,
+        upstream_state: UpstreamState,
+    ) -> np.ndarray:
+        r"""Per-cell operator residual :math:`L_{\rm cell}\,\bar\psi - q`.
+
+        Companion to :meth:`update` — the **apply direction** of the
+        same per-cell linear system.  At the converged cell average
+        (i.e. when ``cell_avg == update(visit, total_xs, source,
+        upstream_state).cell_average_flux``), the residual is zero to
+        floating-point rounding.  See
+        :meth:`CellUpdate.residual` for the full contract.
+
+        Three branches mirror the three :meth:`update` branches:
+
+        * **Slab** (``alpha_in is None``) — closed-form
+          :math:`2|\mu|\,(\bar\psi - \psi_{\rm in})
+          + \mathrm{chord}\,\Sigma_t\,\bar\psi - q`.
+        * **Cylindrical pure-azimuthal degenerate**
+          (``abs_mu < 1e-15``) — consume
+          :func:`cell_balance_terms_degenerate`; residual is
+          ``denom · cell_avg − (source + numer_upstream)``.
+        * **Curvilinear non-degenerate** — consume
+          :func:`cell_balance_terms`; residual is
+          ``denom · cell_avg − (source + numer_upstream)``.
+
+        Round-trip with :meth:`update`
+        ------------------------------
+
+        Both branches share their algebra with :meth:`update` via the
+        same helpers (:func:`cell_balance_terms` for both curvilinear
+        cases; the slab residual is the closed-form rearrangement of
+        :meth:`_update_slab`'s recurrence).  At the converged
+        ``cell_avg = update(...).cell_average_flux``, the residual is
+        the per-group zero residual of the cell-balance equation that
+        ``update`` solved — Pattern 2 (no twin paths) is satisfied by
+        construction.
+        """
+        st = visit.streaming_terms
+
+        if st.alpha_in is None:
+            return self._residual_slab(
+                st, cell_avg, total_xs, source, upstream_state,
+            )
+
+        # Curvilinear branches require the populated curvature bundle.
+        assert st.abs_mu is not None  # populated by curvilinear factory
+
+        if st.abs_mu < _DEGENERATE_ABS_MU_THRESHOLD:
+            return self._residual_cylindrical_degenerate(
+                st, cell_avg, total_xs, source, upstream_state,
+            )
+
+        assert visit.face_area_downstream is not None, (
+            "Curvilinear non-degenerate cell residual requires a "
+            "resolved face_area_downstream on the CellVisit packet."
+        )
+        return self._residual_curvilinear(
+            st,
+            visit.face_area_downstream,
+            cell_avg,
             total_xs,
             source,
             upstream_state,
@@ -556,61 +629,33 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         :math:`\mu` branching here — the sweep orchestrator already
         resolved which face is downstream before issuing the
         :class:`CellVisit`.
+
+        Algebra delegated to :func:`cell_balance_terms` (Pattern 2 —
+        single source of truth shared with :meth:`residual`'s apply
+        branch).  Operation order at
+        :func:`cell_balance_terms` mirrors :mod:`orpheus.sn.sweep`
+        lines 328-355 line-for-line; bit-identity vs the pre-helper
+        inlined math is preserved by construction.
         """
         # Pull populated curvilinear fields off the streaming-terms
-        # packet.  Asserts that the factory contract is honoured.
-        assert st.abs_mu is not None
-        assert st.face_area_inner is not None
-        assert st.face_area_outer is not None
-        assert st.delta_A_over_w is not None
-        assert st.alpha_in is not None
-        assert st.alpha_out is not None
+        # packet.  Asserts that the factory contract is honoured;
+        # ``cell_balance_terms`` re-asserts the same set so the
+        # contract is pinned at the helper call site too.
         assert st.tau_mm is not None
-        assert st.volume is not None
+        assert upstream_state.spatial_upstream is not None
         assert upstream_state.angular_upstream is not None, (
             "Curvilinear cell update requires an upstream angular state."
         )
 
-        abs_mu = st.abs_mu
-        A_inner = st.face_area_inner
-        A_outer = st.face_area_outer
-        # Symmetric sum is invariant under inner/outer swap, so the
-        # build order matches sweep.py:354 ``(A_in + A_out)``
-        # bit-identically regardless of sweep direction.
-        A_total = A_inner + A_outer
-        dA_w = st.delta_A_over_w
-        alpha_in = st.alpha_in
-        alpha_out = st.alpha_out
+        # Build the shared algebraic intermediates.  Operation order
+        # at the helper mirrors sweep.py:350-355 verbatim.
+        terms = cell_balance_terms(st, A_downstream, total_xs, upstream_state)
         tau = st.tau_mm
-        V = st.volume
-
-        # Closure-prefactor combinations.  Operation order matches
-        # sweep.py:328-329 (``c_out = alpha_out / tau_n``;
-        # ``c_in = (1.0 - tau_n) / tau_n * alpha_out + alpha_in``).
-        c_out = alpha_out / tau
-        c_in = (1.0 - tau) / tau * alpha_out + alpha_in
-
         psi_spat_in = upstream_state.spatial_upstream
         psi_angle_in = upstream_state.angular_upstream
 
-        # Denominator build order matches sweep.py:350-352 — the
-        # ``A_out`` here is the sweep-direction-resolved
-        # ``A_downstream`` (outgoing face area).
-        # (``2.0 * abs_mu * A_out + dA_w * c_out + sig_t_1d[i] *
-        # V[i]``).
-        denom = 2.0 * abs_mu * A_downstream + dA_w * c_out + total_xs * V
-
-        # Numerator build order matches sweep.py:353-355
-        # (``QV[i] + abs_mu * (A_in + A_out) * psi_spatial_in +
-        # dA_w * c_in * psi_angle[i]``).
-        numer = (
-            source
-            + abs_mu * A_total * psi_spat_in
-            + dA_w * c_in * psi_angle_in
-        )
-
         # Cell-average solve (sweep.py:357 / :385 / :523 / :564).
-        psi_avg = numer / denom
+        psi_avg = (source + terms.numer_upstream) / terms.denom
 
         # WDD spatial closure (sweep.py:360 / :388 / :525 / :566).
         psi_spat_out = 2.0 * psi_avg - psi_spat_in
@@ -640,41 +685,23 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         :func:`orpheus.sn.sweep._sweep_1d_cylindrical` lines
         533-546.  ``outgoing_spatial_flux`` is set to ``None`` to
         signal "no face-flux write" to the sweep driver.
+
+        Algebra delegated to :func:`cell_balance_terms_degenerate`
+        (Pattern 2 — single source of truth shared with
+        :meth:`_residual_cylindrical_degenerate`).
         """
-        assert st.delta_A_over_w is not None
-        assert st.alpha_in is not None
-        assert st.alpha_out is not None
         assert st.tau_mm is not None
-        assert st.volume is not None
         assert upstream_state.angular_upstream is not None, (
             "Cylindrical-degenerate cell update requires an upstream "
             "angular state."
         )
 
-        dA_w = st.delta_A_over_w
-        alpha_in = st.alpha_in
-        alpha_out = st.alpha_out
+        terms = cell_balance_terms_degenerate(st, total_xs, upstream_state)
         tau = st.tau_mm
-        V = st.volume
-
-        # Same M-M closure constants as the curvilinear branch
-        # (sweep.py:328-329).
-        c_out = alpha_out / tau
-        c_in = (1.0 - tau) / tau * alpha_out + alpha_in
-
         psi_angle_in = upstream_state.angular_upstream
 
-        # Denominator (sweep.py:538:  ``denom = dA_w * c_out +
-        # sig_t_1d[i] * V[i]``).  No 2|μ| A_out term — no radial
-        # face flow.
-        denom = dA_w * c_out + total_xs * V
-
-        # Numerator (sweep.py:539-540: ``numer = QV[i] + dA_w *
-        # c_in * psi_angle[i]``).  No |μ|(A_in+A_out)·ψ_spatial_in
-        # term — no radial face flow.
-        numer = source + dA_w * c_in * psi_angle_in
-
-        psi_avg = numer / denom
+        # Cell-average solve (sweep.py:541).
+        psi_avg = (source + terms.numer_upstream) / terms.denom
 
         # M-M angular closure remains active (sweep.py:543).
         psi_angle_out = (psi_avg - (1.0 - tau) * psi_angle_in) / tau
@@ -687,6 +714,105 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
             outgoing_spatial_flux=None,
             outgoing_angular_state=psi_angle_out,
         )
+
+    # ── Residual branches (Issue #196 Phase G Step 1 replan) ───────
+
+    @staticmethod
+    def _residual_slab(
+        st: StreamingTerms,
+        cell_avg: np.ndarray,
+        total_xs: np.ndarray,
+        source: np.ndarray,
+        upstream_state: UpstreamState,
+    ) -> np.ndarray:
+        r"""Slab DD per-cell balance residual (closed form).
+
+        The slab DD recurrence solved by :meth:`_update_slab` can be
+        rewritten as a per-cell balance equation in :math:`\bar\psi`
+        and :math:`\psi_{\rm in}`.  Multiplying the recurrence by
+        :math:`\mathrm{denom} = 2|\mu| + \mathrm{chord}\,\Sigma_t`
+        and using the WDD spatial closure
+        :math:`\psi_{\rm out} = 2\bar\psi - \psi_{\rm in}` yields the
+        closed-form per-cell residual
+
+        .. math::
+
+            r(\bar\psi)
+              \;=\; 2|\mu|\,(\bar\psi - \psi_{\rm in})
+                  \;+\; \mathrm{chord}\,\Sigma_t\,\bar\psi
+                  \;-\; q,
+
+        with :math:`q = \mathrm{source}` on the strategy's already-
+        weight-normalised convention (slab volume :math:`V =
+        \mathrm{chord}`).  At the solved value
+        ``cell_avg = update(...).cell_average_flux``, :math:`r = 0`
+        to FP rounding.
+        """
+        assert st.abs_mu is not None  # populated by slab factory
+        abs_mu = st.abs_mu
+        chord = st.chord_length
+        psi_in = upstream_state.spatial_upstream
+        # Slab residual — closed form.  Equivalent to the algebraic
+        # rearrangement of ``denom * cell_avg - 2*source - a*denom*psi_in``;
+        # see the WDD-closure derivation in the docstring above.
+        return (
+            2.0 * abs_mu * (cell_avg - psi_in)
+            + chord * total_xs * cell_avg
+            - source
+        )
+
+    @staticmethod
+    def _residual_curvilinear(
+        st: StreamingTerms,
+        A_downstream: float,
+        cell_avg: np.ndarray,
+        total_xs: np.ndarray,
+        source: np.ndarray,
+        upstream_state: UpstreamState,
+    ) -> np.ndarray:
+        r"""Curvilinear non-degenerate per-cell balance residual.
+
+        Consumes :func:`cell_balance_terms` so the algebra is shared
+        with :meth:`_update_curvilinear` (Pattern 2 — no twin path).
+        The per-cell discrete operator residual is
+
+        .. math::
+
+            r(\bar\psi) \;=\; \mathrm{denom}\,\bar\psi
+                              \;-\; (q + \mathrm{numer\_upstream}),
+
+        where the algebraic intermediates come from the shared
+        :class:`CellBalanceTerms` packet.  Multiplying
+        :meth:`_update_curvilinear`'s solve ``psi_avg = (source +
+        numer_upstream) / denom`` through by ``denom`` shows the
+        residual is identically zero at the solved value.
+        """
+        terms = cell_balance_terms(st, A_downstream, total_xs, upstream_state)
+        return terms.denom * cell_avg - (source + terms.numer_upstream)
+
+    @staticmethod
+    def _residual_cylindrical_degenerate(
+        st: StreamingTerms,
+        cell_avg: np.ndarray,
+        total_xs: np.ndarray,
+        source: np.ndarray,
+        upstream_state: UpstreamState,
+    ) -> np.ndarray:
+        r"""Cylindrical pure-azimuthal degenerate per-cell residual.
+
+        ``|\mu| < 10^{-15}`` — no radial face flow.  Consumes
+        :func:`cell_balance_terms_degenerate` (Pattern 2 — shared
+        algebra with :meth:`_update_cylindrical_degenerate`).
+
+        .. math::
+
+            r(\bar\psi) \;=\; \mathrm{denom}\,\bar\psi
+                              \;-\; (q + \mathrm{numer\_upstream}),
+
+        with ``denom``, ``numer_upstream`` from the degenerate helper.
+        """
+        terms = cell_balance_terms_degenerate(st, total_xs, upstream_state)
+        return terms.denom * cell_avg - (source + terms.numer_upstream)
 
 
 __all__ = ["DiamondDifference"]

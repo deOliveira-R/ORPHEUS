@@ -501,6 +501,83 @@ class CellUpdate(Protocol):
         """
         ...
 
+    def residual(
+        self,
+        cell_avg: np.ndarray,
+        visit: CellVisit,
+        total_xs: np.ndarray,
+        source: np.ndarray,
+        upstream_state: UpstreamState,
+    ) -> np.ndarray:
+        r"""Per-cell operator residual :math:`L_{\text{cell}}\,\bar\psi - q`.
+
+        Companion to :meth:`update`: where ``update`` answers the
+        **solve direction** ("given the source and upstream state,
+        find the cell-average flux that satisfies the cell balance"),
+        :meth:`residual` answers the **apply direction** ("given a
+        probe value for the cell-average flux, evaluate the discrete
+        per-cell operator action minus the right-hand side").
+
+        Round-trip invariant
+        --------------------
+
+        For any ``visit``, ``total_xs``, ``source``, ``upstream_state``::
+
+            result   = strategy.update(visit, total_xs, source,
+                                       upstream_state)
+            residual = strategy.residual(result.cell_average_flux,
+                                         visit, total_xs, source,
+                                         upstream_state)
+            assert np.allclose(residual, 0.0, atol=1e-13)
+
+        i.e. evaluating the operator residual at the cell-average
+        flux returned by ``update`` yields zero to floating-point
+        rounding.  This is the strategy-layer apply-vs-solve
+        consistency contract.
+
+        Use case
+        --------
+
+        The residual is the discrete per-cell operator action used by
+        the matvec form ``(L + C).apply(\psi)`` — needed for explicit
+        Krylov inner solvers, GMRES preconditioning, and operator-
+        algebra composition above the cell-update layer.  At any
+        probe point ``cell_avg`` (not necessarily the solved value),
+        the residual is the per-group residual of the discretised
+        cell-balance equation.
+
+        Parameters
+        ----------
+        cell_avg :
+            Shape ``(ng,)``.  Per-group cell-average flux probe
+            point at which the operator residual is evaluated.
+        visit :
+            Same as :meth:`update` — pre-resolved sweep-direction
+            view of the cell.
+        total_xs :
+            Shape ``(ng,)``.  Per-group total cross section
+            :math:`\Sigma_t` on this cell.
+        source :
+            Shape ``(ng,)``.  Per-group volumetric source on this
+            cell, **on the same already-weight-normalised convention
+            that** :meth:`update` **consumes**.  The residual is
+            affine in this argument (a shift ``source += δ`` shifts
+            the residual by ``-δ``).
+        upstream_state :
+            Per-cell upstream state — same convention as
+            :meth:`update`.
+
+        Returns
+        -------
+        np.ndarray
+            Shape ``(ng,)``.  Per-group residual
+            :math:`L_{\text{cell}}\,\bar\psi - q`.  Linear in
+            ``cell_avg`` (the cell-update closures shipped today are
+            all linear; non-linear closures may shadow this with a
+            non-linear ``residual``).
+        """
+        ...
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # CellUpdateBase — concrete ABC carrying RegistryMixin
@@ -564,6 +641,25 @@ class CellUpdateBase(RegistryMixin, ABC):
         source: np.ndarray,
         upstream_state: UpstreamState,
     ) -> CellResult:
+        ...
+
+    @abstractmethod
+    def residual(
+        self,
+        cell_avg: np.ndarray,
+        visit: CellVisit,
+        total_xs: np.ndarray,
+        source: np.ndarray,
+        upstream_state: UpstreamState,
+    ) -> np.ndarray:
+        r"""Per-cell operator residual :math:`L_{\text{cell}}\,\bar\psi - q`.
+
+        See :meth:`CellUpdate.residual` for the full contract.
+        Subclasses MUST implement this in lockstep with :meth:`update`
+        — the two methods describe the same per-cell linear system
+        in solve direction (``update``) and apply direction
+        (``residual``).
+        """
         ...
 
     def update_batch(self, slice_args: SweepCellSlice) -> np.ndarray:
