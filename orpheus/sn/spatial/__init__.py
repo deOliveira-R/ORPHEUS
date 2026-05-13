@@ -31,7 +31,6 @@ See the SN reshape campaign plan at
 
 from .cell_update import CellResult, CellUpdate, UpstreamState
 from .diamond import DiamondDifference
-from .operators import AngularRedistribution, SNCellOperator
 from .pole_angular_closure import (
     BaileyFlatFluxRedist,
     LegacyTauSymmetricInterpolation,
@@ -57,7 +56,6 @@ from .psi_half_angle_seed import (
 # default, closing ERR-026 on sphere Gate 1.1 MMS.
 
 __all__ = [
-    "AngularRedistribution",
     "BaileyFlatFluxRedist",
     "CarlsonInwardSweep",
     "CarlsonSweepContext",
@@ -70,7 +68,6 @@ __all__ = [
     "PoleAngularClosureBase",
     "PsiHalfAngleSeed",
     "PsiHalfAngleSeedBase",
-    "SNCellOperator",
     "UpstreamState",
     "ZeroSeed",
 ]
