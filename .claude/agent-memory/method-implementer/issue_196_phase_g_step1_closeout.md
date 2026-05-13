@@ -1,12 +1,35 @@
 ---
 name: issue-196-phase-g-step1-closeout
-description: Phase G Step 1 (Issue #196) closeout — type-system promotion of DiamondDifference → SNCellOperator(LinearOperator) and MorelMontryAngularSweep → AngularRedistribution(LinearOperator). Wrapper-only; bit-identical regression snapshots; sets up Step 2's call-site unification.
+description: Phase G Step 1 (Issue #196) — SUPERSEDED. Original work promoted DiamondDifference + MorelMontryAngularSweep to LinearOperator subclasses. The architecture was wrong (they are strategies, not operators); commits reverted at 31abf4a/4ec8d31. Replan at .claude/plans/crystalline-wondering-token.md ports the salvageable residual math to CellUpdate.residual on the strategy layer.
 metadata:
   type: project
   branch: refactor/sn-operator-algebra
   step: Phase G Step 1
   date: 2026-05-12
+  status: superseded
+  superseded_by: .claude/plans/crystalline-wondering-token.md
+  reverted_in: 31abf4a, 4ec8d31
 ---
+
+# Phase G Step 1 — Closeout (SUPERSEDED)
+
+> **SUPERSEDED 2026-05-13.** The architectural decisions documented
+> below are wrong. `DiamondDifference` and `MorelMontryAngularSweep`
+> are **strategies** (consumed by a LinearOperator), not LinearOperators
+> themselves. A `CellUpdate` Protocol already exists at
+> `orpheus/sn/spatial/cell_update.py:418`; the right home for the
+> per-cell residual is a new `CellUpdate.residual` method, not a
+> wrapper class. Commits `6eeff94` and `2b73e6e` were reverted at
+> `31abf4a` and `4ec8d31` respectively. The replan at
+> `.claude/plans/crystalline-wondering-token.md` ports the salvageable
+> residual math (preserved in
+> `.claude/scratch/phase_g_replan_step1_residual_math.md`) and the
+> `cell_balance_terms` helper into the strategy layer correctly.
+>
+> The empirical findings below (168 tests pass, bit-identity preserved,
+> 5 open-question decisions) describe correct **execution**, not correct
+> **architecture**. Future Phase G work follows the replan, not this
+> memo.
 
 # Phase G Step 1 — Closeout
 
