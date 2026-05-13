@@ -537,14 +537,22 @@ def _sweep_1d_spherical(
 
     # Build ``Q̄[g, i]`` per the apply-matvec convention when a previous
     # scalar flux is cached; fall back to the Phase F legacy form
-    # ``0.5 · Q_1d`` on the first outer iteration (cold start).
+    # ``Q_1d / Σw`` on the first outer iteration (cold start).
+    #
+    # Phase G Step 2 (Issue #196): the previous form ``0.5 · …`` was
+    # the sphere-specific encoding of ``1/Σw`` (Σw = 2 for GL on
+    # [−1, 1]).  Replaced with the geometry-general ``/ weights.sum()``
+    # — bit-identical for sphere; correct for any 3D quadrature.
+    # See :mod:`orpheus.sn.spatial.psi_half_angle_seed` for the full
+    # Pomraning / Hébert §3.9.4 derivation.
     sigma_t_gx = sig_t_1d.T                                # (ng, nx)
     dr = sn_mesh.dx
+    Sw = weights.sum()
     if "phi_0_prev" in psi_bc:
         phi_0_prev = psi_bc["phi_0_prev"]                  # (nx, ng)
-        Q_bar = 0.5 * sigma_t_gx * phi_0_prev.T            # (ng, nx)
+        Q_bar = sigma_t_gx * phi_0_prev.T / Sw             # (ng, nx)
     else:
-        Q_bar = 0.5 * Q_1d.T                               # (ng, nx) cold start
+        Q_bar = Q_1d.T / Sw                                # (ng, nx) cold start
 
     phi_aux = carlson_inward_sweep_from_source(
         Q_bar=Q_bar,
@@ -747,13 +755,21 @@ def _sweep_1d_cylindrical(
     # IC for outward sweeps) + previous-iter φ_0 (Carlson seed source)
     # both cached in ``psi_bc``.  Cold-start: keys absent → fall back
     # to Phase F legacy values.
+    # Phase G Step 2 (Issue #196): geometry-general ``1/Σw_full``
+    # normalisation replaces the sphere-only literal ``0.5``.  ``phi_0_prev``
+    # is the FULL scalar flux (sum over all ordinates), so the full
+    # quadrature weight sum ``Sw_full = weights.sum()`` is the matching
+    # normalisation.  Sphere: ``Sw_full = 2``, bit-identical to the old
+    # form; cylinder ProductQuadrature: ``Sw_full = 4π`` and the old
+    # ``0.5`` was wrong by factor ``2π`` (ERR-048 manifestation #3).
     sigma_t_gx = sig_t_1d.T              # (ng, nx)
     dr = sn_mesh.dx
+    Sw_full = weights.sum()
     if "phi_0_prev_cyl" in psi_bc:
         phi_0_prev = psi_bc["phi_0_prev_cyl"]            # (nx, ng)
-        Q_bar_iso = 0.5 * sigma_t_gx * phi_0_prev.T      # (ng, nx)
+        Q_bar_iso = sigma_t_gx * phi_0_prev.T / Sw_full  # (ng, nx)
     else:
-        Q_bar_iso = 0.5 * Q_1d.T         # (ng, nx) — L=0, P_0(−1)=1 cold start
+        Q_bar_iso = Q_1d.T / Sw_full     # (ng, nx) — L=0, P_0(−1)=1 cold start
     mu_full = quad.mu_x                  # radial direction cosines
     # Outer-face inflow trace via BC operator: bc_outer carries the
     # outflow per ordinate from prior outward sweeps.  Apply once

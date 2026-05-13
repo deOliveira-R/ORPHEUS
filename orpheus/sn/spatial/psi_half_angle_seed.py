@@ -564,9 +564,32 @@ class CarlsonInwardSweep(
         phi_0 = np.einsum("m,gmx->gx", weights, psi_level)  # (ng, nx)
 
         # ── Step 2: cell-averaged source at μ = −1 ──────────────────
-        # Q̄[g, i] = (1/2) · Σ_t[g, i] · φ_0[g, i] · P_0(−1)
-        # P_0(−1) = 1; the factor (2ℓ+1)/2 = 1/2 for ℓ = 0.
-        Q_bar = 0.5 * sigma_t * phi_0  # (ng, nx)
+        # Q̄[g, i] = (1/Σw_level) · Σ_t[g, i] · φ_0[g, i] · P_0(−1)
+        #
+        # P_0(−1) = 1; the normalisation factor is the *per-level
+        # quadrature weight sum* ``weights.sum() = Σw_level`` so that
+        # the isotropic Carlson seed reproduces ``ψ_flat = φ_0 / Σw``
+        # under Pomraning structural-singularity isotropy.
+        #
+        # Phase G Step 2 (Issue #196): the previous form ``0.5 · Σ_t
+        # · φ_0`` hardcoded the sphere quadrature convention `Σw = 2`
+        # (Hébert §3.9.4's `(2ℓ+1)/2 = 1/2` for ℓ = 0 on the
+        # sphere-1D angular measure `dμ` on [−1, 1]).  For 3D
+        # quadratures (ProductQuadrature, LevelSymmetric, Lebedev)
+        # the per-level weight sum is `2π` and the factor `0.5` is
+        # wrong by `2π`, producing a 580% L0 error on the cylinder
+        # homogeneous streaming-equilibrium gauntlet (ERR-048
+        # manifestation #3).
+        #
+        # ``1.0 / weights.sum()`` reduces bit-identically to ``0.5``
+        # for sphere (single level over `(−1, 1)`, GL-N weights sum
+        # to 2) and to ``1/(2π)`` for cylinder ProductQuadrature
+        # azimuthal levels — the geometry-general normalisation that
+        # restores Pomraning isotropy on flat ψ for any quadrature
+        # family.  Per ``coding-elegance`` Pattern 7 (normalise at
+        # the definition site, not at every consumer) the literal
+        # is replaced with the typed source ``context.weights``.
+        Q_bar = sigma_t * phi_0 / weights.sum()  # (ng, nx)
 
         # ── Step 3: Hébert (3.434)-(3.435) inward DD recurrence ─────
         # Delegated to :func:`carlson_inward_sweep_from_source` so the
