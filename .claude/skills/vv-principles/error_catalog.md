@@ -3383,3 +3383,136 @@ divergence under refinement) catalogues the manifestation
 fingerprint family; ERR-026 (the original Phase D fix on the
 apply-matvec) is this defect's twin.
 
+### Manifestation #3 — cylinder per-level Carlson seed Q_bar normalisation hardcoded for sphere Σw=2
+
+**Date:** 2026-05-13 (Issue #196 Phase G Step 2 cylinder fix).
+
+**Failure mode:** **#6 (convention drift)** — sphere quadrature
+normalisation `Σw_sphere = 2` was hardcoded as the literal `0.5`
+into the Carlson seed kernel ``Q_bar = 0.5 · Σ_t · φ_0``.  For
+sphere this literal happens to equal ``1/Σw_full`` and produces
+the correct seed; for any 3D quadrature (ProductQuadrature,
+LevelSymmetric, Lebedev — all with ``Σw_full = 4π``) the literal
+is wrong by factor ``2π``, producing a divergent residual.
+
+**Module:** `orpheus.sn.spatial.psi_half_angle_seed` (apply-matvec
+path), `orpheus.sn.sweep` (SI sphere + cylinder paths).
+
+**Mechanism:** The Hébert §3.9.4 (3.432)-(3.435) coupled-pole
+inward μ = −1 sweep computes the half-angle seed from a cell-
+averaged source ``Q̄ = (2ℓ+1)/2 · Σ_t · φ_0 · P_0(−1)`` for the
+``ℓ = 0`` (isotropic) Legendre moment.  The factor ``(2ℓ+1)/2``
+is the sphere-1D angular measure ``∫P_0² dμ / 2 = 1/2`` valid
+on ``dμ`` over ``[−1, 1]``.  For 3D quadratures the
+normalisation that preserves Pomraning isotropy is
+``1/Σw_level`` (apply-matvec, where ``φ_0`` is the per-level
+moment) or ``1/Σw_full`` (SI sweep, where ``phi_0_prev`` is the
+full scalar flux); for sphere these coincide at ``1/2`` and the
+sphere-only literal is bit-identical to either.  For cylinder
+ProductQuadrature the per-level azimuthal weight sum is
+``2π`` ≠ ``2``, and the literal ``0.5`` produces a seed
+overshooting by ``2π × 0.5 = π``.
+
+**Empirical pre-fix evidence:** ``L · ψ_flat − Σ_t · ψ_flat`` on
+homogeneous reflective cylinder mixture B 1G:
+
+```
+n_mu=2, n_phi=2:  n_cells=20: ||res|| = 6.03   → n_cells=160: 17.2 (GROWS)
+n_mu=4, n_phi=4:  n_cells=20: ||res|| = 3.40   → n_cells=160: 9.71 (GROWS)
+```
+
+End-to-end fixed-source error: 580 % at ``[source_iteration-4-20]``
+gauntlet case.  Signature 1 (curvilinear sweep divergence under
+refinement) fingerprint.
+
+**How it hid:**
+
+- The Phase D Carlson seed was developed on sphere first; the
+  literal ``0.5`` was correct for sphere's GL-N quadrature and
+  the implementation was carried forward to cylinder unchanged.
+- The cylinder per-level loop introduced
+  ``CarlsonSweepContext.weights = weights_level`` (per-level
+  weight sub-array) — but ``CarlsonInwardSweep.__call__`` kept
+  the sphere literal instead of consuming
+  ``1/context.weights.sum()``.  The defect lived on a single
+  shared file:line (``psi_half_angle_seed.py:569``).
+- Phase G Step 2 Path C **claimed** "12/12 cylinder PASS"
+  in its closeout memo without running the cylinder test; the
+  empirical run (this manifestation's catching test) shows
+  12/12 FAILURE with up to 580 % rel error at the smallest case.
+
+**Empirical post-fix evidence:**
+
+```
+Cylinder L0 streaming-equilibrium gauntlet (12 cases):
+  source_iteration, n_mu=4/8, n_cells=20/40/80:  all PASS at rtol=1e-9
+  krylov,           n_mu=4/8, n_cells=20/40/80:  all PASS at rtol=1e-9
+
+Convergence under refinement (post-fix, production solver):
+  n_cells=20→160, n_mu=2/4, n_phi=2/4:  err ~ 1.5e-11 (mesh-INDEPENDENT)
+  Krylov ≡ SI ≡ analytical to ~2e-12 on every grid
+
+Sphere streaming-equilibrium gauntlet (12 cases):  all PASS  (no regression)
+Apply-matvec invariant ``L·ψ_flat = Σ_t·ψ_flat`` (12 cases):  PASS at FP-noise
+Phase E flux-shape sentinel (2 heterogeneous MR cases):  PASS
+SN regression suite (11 snapshots, including regen'd cylinder):  all PASS
+```
+
+**Which test catches it:**
+
+- `tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder`
+  — the canonical L0 streaming-equilibrium gauntlet (12 cases).
+- `tests/sn/spatial/test_apply_matvec_cylinder_invariants.py`
+  — NEW.  Promoted from the numerics-investigator's diagnostic
+  ``derivations/diagnostics/diag_phase_g_step2_cyl_residual_pytest.py``.
+  Covers (a) the apply-matvec flat-flux invariant (12 cases) +
+  (b) the 4-leg 3-way standoff (12 cases): Krylov vs analytical,
+  SI vs analytical, Krylov ≡ SI at machine precision.
+
+**Defect sites (now fixed):**
+
+- `orpheus/sn/spatial/psi_half_angle_seed.py:569` (apply-matvec
+  Carlson seed kernel): ``0.5 · Σ_t · φ_0`` →
+  ``Σ_t · φ_0 / weights.sum()``.
+- `orpheus/sn/sweep.py:543/547` (sphere SI sweep): ``0.5 · …`` →
+  ``… / weights.sum()`` (bit-identical for sphere; hygiene fix
+  per ``coding-elegance`` Pattern 7).
+- `orpheus/sn/sweep.py:754/756` (cylinder SI sweep): same form.
+
+**Three-pillar attestation for regenerated cylinder snapshot
+(``cyl_1g_homogeneous_product_dd_n20``):**
+
+1. **L0 streaming-equilibrium**: regenerated keff = 1.5 (exact
+   k_∞ = νΣ_f/Σ_a for mixture A 1G), scalar_flux = 1.5 flat
+   (std = 1.6e-11, cv = 1.0e-11) — Pomraning isotropy + reflective
+   symmetry on homogeneous infinite medium.
+2. **Pomraning pole isotropy**: cv(ψ@i=0) ≪ 0.01 (gate by ~9
+   orders of magnitude).
+3. **Variant α cross-check (structurally independent reference)**:
+   ``test_phase_e_trajectory_resolvent_flux_shape_crosscheck`` 2/2
+   PASS at Phase E rtols (``cyl_2g_3reg_LS4_dd_n40`` heterogeneous
+   MR cylinder geometry passes — the new SI fixed point matches
+   the bouncing-characteristic Variant α reference shape).
+
+**Lesson:** Numerical literals that LOOK like ``0.5`` may be
+encoding a quadrature-dependent normalisation
+``1/Σw_quadrature``.  Replace all such literals with
+``1.0/weights.sum()`` from the quadrature-in-scope per
+``coding-elegance`` Pattern 7 (normalise at the definition site,
+not at every consumer).  The literal worked for sphere by
+coincidence (Σw=2) and broke silently on cylinder
+(Σw_level=2π).  This is a Pattern 7 failure that the original
+Phase D implementation should have avoided by construction.
+
+**Operating principle reaffirmed:** verification claims **MUST**
+be backed by VERBATIM paste-back from a real test run.  The
+prior Phase G Step 2 Path C closeout's "12/12 cylinder PASS"
+claim was unverified; the cylinder test was never actually run
+during that step.  Hallucinated test results are a session
+failure per Cardinal Rule 1 (correctness is CRITICAL).
+
+→ `numerical-bug-signatures` Signature 1 (curvilinear sweep
+divergence under refinement) catalogues this fingerprint;
+ERR-026 manifestations #6 + #7 are this defect's twins on
+sphere (closed by Phase F+Phase G Step 2 Path C).
+
