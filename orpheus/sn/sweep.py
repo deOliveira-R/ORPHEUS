@@ -475,6 +475,30 @@ def _sweep_1d_spherical(
     weight_norm = 1.0 / weights.sum()
     QV_iso = Q_1d * V[:, None] * weight_norm  # (nx, ng)
 
+    # ── Phase G Step 2 Path C (Issue #196) two surgical SI-vs-apply
+    # convention fixes —— DOMINANT defect (pole-face WDD IC) + sub-
+    # dominant (Carlson seed source).  See
+    # ``.claude/agent-memory/numerics-investigator/
+    # issue_196_phase_g_step2_minimal_reproducer.md`` for the
+    # algebraic walkthrough.  Without these the SI Picard fixed point
+    # disagrees with the apply-matvec fixed point by ~22% L0 on the
+    # homogeneous reflective sphere streaming-equilibrium test.
+    #
+    # Both fixes read previous-Picard-iter state cached in ``psi_bc``:
+    #
+    # - ``psi_bc["psi_pole"]``: (N, ng) cell-centre ψ at i=0 from the
+    #   previous outer iteration; carries the Lewis-Miller §4.5
+    #   Carlson starting-direction pole-face IC for μ ≥ 0.
+    # - ``psi_bc["phi_0_prev"]``: (nx, ng) scalar flux φ_0 from the
+    #   previous outer iteration; carries the apply-matvec's
+    #   ``Q̄ = 0.5 · Σ_t · φ_0`` Carlson seed source convention.
+    #
+    # On the FIRST outer iteration neither key exists — both fixes
+    # degrade gracefully to the legacy Phase F values (zero pole IC;
+    # ``Q̄ = 0.5 · Q_1d``).  Subsequent iterations use the apply-matvec
+    # convention; Picard converges geometrically to the apply-matvec
+    # fixed point.
+
     # ── Phase F (Issue #168) Carlson coupled-pole seed for ψ_{1/2,i,g} ──
     # Mirror-image of the apply-matvec Phase D fix
     # (operator.py::transport_operator_matvec_spherical).  Replaces the
@@ -489,14 +513,17 @@ def _sweep_1d_spherical(
     #            / (Δr_i · Σ_t,i + 2)
     #     φ̄_{i-1/2} = 2 · φ̄_i - φ̄_{i+1/2}
     #
-    # For an L = 0 isotropic operator (current SN scope), the
-    # cell-averaged source at μ = −1 reduces to
-    # ``Q̄_i = (1/2) · Q_iso(r_i)`` (Legendre fold at ℓ = 0:
-    # P_0(−1) = 1, factor (2·0 + 1)/2 = 1/2).  ``Q_1d`` is the
-    # within-group isotropic source the SI loop builds — on the
-    # fixed-point solution ``Σ_t · φ_0 = Q_1d``, so the sweep-path
-    # ``Q̄ = 0.5 · Q_1d`` matches the apply-matvec's
-    # ``Q̄ = 0.5 · Σ_t · φ_0`` (Phase D builds φ_0 from input ψ).
+    # ── Phase G Step 2 Path C Carlson seed source fix (Issue #196) ──
+    # Apply-matvec convention (psi_half_angle_seed.py:569):
+    # ``Q̄ = 0.5 · Σ_t · φ_0`` where φ_0 is built from the *input* ψ.
+    # The SI's previous-iter scalar flux φ_0 plays the same role for
+    # the Picard recursion.  At the within-group fixed point
+    # ``Σ_t · φ_0 = Q_within`` exactly, so the two conventions agree
+    # there; off the FP they differ.  Driving the Carlson seed from
+    # ``Σ_t · φ_0_prev`` makes SI Picard consume the same seed as the
+    # apply-matvec's matvec, so the two converge to the same fixed
+    # point.  ERR-048 manifestation #2 (sub-dominant; ~3% rel
+    # residual after the pole-face IC fix alone).
     #
     # ``bc_outer_value``: outer-face inflow at μ = −1.  Apply the BC
     # operator to the persistent outflow buffer ``bc_outer`` (carries
@@ -508,12 +535,16 @@ def _sweep_1d_spherical(
     inflow_full = bc_outer_obj.apply(bc_outer)            # (N, ng)
     bc_outer_value = inflow_full[most_inward_idx, :]       # (ng,)
 
-    # Build ``Q̄[g, i] = 0.5 · Q_1d[i, g]`` and ``Σ_t[g, i]`` for the
-    # inward sweep helper.  ``Q_1d`` is ``(nx, ng)``; transpose for
-    # the helper's ``(ng, nx)`` convention.
-    Q_bar = 0.5 * Q_1d.T                                   # (ng, nx)
+    # Build ``Q̄[g, i]`` per the apply-matvec convention when a previous
+    # scalar flux is cached; fall back to the Phase F legacy form
+    # ``0.5 · Q_1d`` on the first outer iteration (cold start).
     sigma_t_gx = sig_t_1d.T                                # (ng, nx)
     dr = sn_mesh.dx
+    if "phi_0_prev" in psi_bc:
+        phi_0_prev = psi_bc["phi_0_prev"]                  # (nx, ng)
+        Q_bar = 0.5 * sigma_t_gx * phi_0_prev.T            # (ng, nx)
+    else:
+        Q_bar = 0.5 * Q_1d.T                               # (ng, nx) cold start
 
     phi_aux = carlson_inward_sweep_from_source(
         Q_bar=Q_bar,
@@ -547,8 +578,9 @@ def _sweep_1d_spherical(
 
         # Set up incoming spatial flux at the start of the sweep.
         # For inward sweeps (μ < 0), boundary → centre: read incoming
-        # from the outer-face BC.  For outward (μ ≥ 0), at r = 0 we
-        # have A[0] = 4π(0)² = 0, so no spatial incoming flux.
+        # from the outer-face BC.  For outward (μ ≥ 0), the pole-face
+        # IC at i=0 follows Lewis-Miller §4.5 Carlson starting-
+        # direction convention.
         if mu_n < 0:
             # ``apply`` is bit-identical to the previous
             # ``bc_outer[ref[n]].copy()`` indexing for SpecularBoundaryOperator and
@@ -556,7 +588,26 @@ def _sweep_1d_spherical(
             psi_in_full = bc_outer_obj.apply(bc_outer)
             psi_spatial_in = psi_in_full[n]
         else:
-            psi_spatial_in = np.zeros(ng)
+            # ── Phase G Step 2 Path C (Issue #196) pole-face IC fix ──
+            # Lewis-Miller §4.5 Carlson starting-direction convention,
+            # mirroring operator.py::transport_operator_matvec_spherical
+            # lines 781-786.  At i=0 the face area A[0] = 4π·0² = 0, so
+            # the streaming-IN term |μ|·A[0]·ψ_face_in is identically
+            # zero regardless of ψ_face_in.  But the WDD diamond
+            # recurrence ``ψ_face_out = 2·ψ_cell - ψ_face_in``
+            # propagates the choice downstream: setting
+            # ψ_face_in = ψ_cell[i=0] gives ψ_face_out = ψ_cell on a
+            # flat ψ field, preserving Pomraning isotropy at r=0.
+            # Legacy ψ_face_in = 0 yields ψ_face_out = 2·ψ_cell which
+            # destroys flat-field invariance.  See
+            # ``.claude/agent-memory/numerics-investigator/
+            # issue_196_phase_g_step2_minimal_reproducer.md``.
+            # Cold-start: pre-iter-1 there is no ψ_pole cache; fall
+            # back to the legacy zero (matches Phase F behaviour).
+            if "psi_pole" in psi_bc:
+                psi_spatial_in = psi_bc["psi_pole"][n]      # (ng,)
+            else:
+                psi_spatial_in = np.zeros(ng)
 
         # Iterate cells in topological-sort order for this ordinate.
         # The CellVisit packet pre-resolves the sweep direction —
@@ -591,6 +642,13 @@ def _sweep_1d_spherical(
         # face flux on cell nx-1.
         if mu_n >= 0:
             bc_outer[n] = psi_spatial_in
+
+    # ── Phase G Step 2 Path C (Issue #196) cache previous-iter state
+    # for the next sweep's Carlson seed source + pole-face IC fixes.
+    # Both keys must be supplied by the SAME outer Picard iteration so
+    # they consistently descend from one converged sweep result.
+    psi_bc["psi_pole"] = angular_flux[:, 0, 0, :].copy()      # (N, ng)
+    psi_bc["phi_0_prev"] = scalar_flux.copy()                 # (nx, ng)
 
     return angular_flux, scalar_flux[:, None, :]  # restore ny=1 dim
 
@@ -683,9 +741,19 @@ def _sweep_1d_cylindrical(
     # level's edges so the wrong zero seed self-cancels) — but
     # Cardinal Rule 2 (architecture) requires the structural fix
     # alongside the spherical one.
+    #
+    # ── Phase G Step 2 Path C (Issue #196) two-fix backport ──
+    # Mirrors the spherical sweep: previous-iter ψ at i=0 (pole-face
+    # IC for outward sweeps) + previous-iter φ_0 (Carlson seed source)
+    # both cached in ``psi_bc``.  Cold-start: keys absent → fall back
+    # to Phase F legacy values.
     sigma_t_gx = sig_t_1d.T              # (ng, nx)
     dr = sn_mesh.dx
-    Q_bar_iso = 0.5 * Q_1d.T             # (ng, nx) — L=0, P_0(−1)=1
+    if "phi_0_prev_cyl" in psi_bc:
+        phi_0_prev = psi_bc["phi_0_prev_cyl"]            # (nx, ng)
+        Q_bar_iso = 0.5 * sigma_t_gx * phi_0_prev.T      # (ng, nx)
+    else:
+        Q_bar_iso = 0.5 * Q_1d.T         # (ng, nx) — L=0, P_0(−1)=1 cold start
     mu_full = quad.mu_x                  # radial direction cosines
     # Outer-face inflow trace via BC operator: bc_outer carries the
     # outflow per ordinate from prior outward sweeps.  Apply once
@@ -726,13 +794,24 @@ def _sweep_1d_cylindrical(
 
             # Set up incoming spatial flux at the start of the sweep
             # for this ordinate.  Inward (η < 0): read from outer-face
-            # BC.  Outward (η > 0): zero at r = 0.  Degenerate
+            # BC.  Outward (η > 0): pole-face IC at i=0 per Lewis-Miller
+            # §4.5 Carlson starting-direction convention.  Degenerate
             # (|η| < 1e-15): unused by the strategy; pass zeros.
             if eta_n < 0:
                 psi_in_full = bc_outer_obj.apply(bc_outer)
                 psi_spatial_in = psi_in_full[n]
             else:
-                psi_spatial_in = np.zeros(ng)
+                # ── Phase G Step 2 Path C pole-face IC fix (cylindrical) ──
+                # Mirror of the spherical fix above; see that branch for
+                # the algebraic justification.  At i=0 (axis) the inner
+                # face area A[0] = 2π·0 = 0, so the streaming-IN term is
+                # identically zero — but the WDD recurrence propagates
+                # ψ_face_in downstream.  ψ_face_in = ψ_cell[i=0]
+                # preserves Pomraning isotropy at the axis.
+                if "psi_pole_cyl" in psi_bc:
+                    psi_spatial_in = psi_bc["psi_pole_cyl"][n]   # (ng,)
+                else:
+                    psi_spatial_in = np.zeros(ng)
 
             # Iterate cells in DAG-topological order for this ordinate.
             # iter_cell_visits resolves the cylindrical
@@ -776,6 +855,11 @@ def _sweep_1d_cylindrical(
             # ``bc_outer``; the degenerate case has no spatial flow.
             if eta_n >= 0 and abs_eta >= 1e-15:
                 bc_outer[n] = psi_spatial_in
+
+    # ── Phase G Step 2 Path C (Issue #196) cache previous-iter state
+    # for the next sweep's Carlson seed source + pole-face IC fixes.
+    psi_bc["psi_pole_cyl"] = angular_flux[:, 0, 0, :].copy()  # (N, ng)
+    psi_bc["phi_0_prev_cyl"] = scalar_flux.copy()             # (nx, ng)
 
     return angular_flux, scalar_flux[:, None, :]  # restore ny=1 dim
 
