@@ -608,34 +608,6 @@ _GATE_4_2_FLUX_SHAPE_CASES: tuple[
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.verifies("sn-curvilinear-trajectory-resolvent-crosscheck")
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Phase F (Issue #168, 2026-05-12) substantially closed but did "
-        "NOT fully resolve the SN heterogeneous-MR eigenvector defect "
-        "this sentinel pins.  The Phase F Carlson coupled-pole seed "
-        "backport into the SI/sweep path (sweep.py::_sweep_1d_spherical "
-        "and _sweep_1d_cylindrical via "
-        "carlson_inward_sweep_from_source) eliminated the gross "
-        "9× sphere pole rise: pre-Phase-F sf[0]/sf[1] = 0.522 (DIVERGED "
-        "under refinement, 0.473 at n=320); post-Phase-F = 0.778 "
-        "(STABLE under refinement, 0.777 at n=320).  cv(ψ@i=0) dropped "
-        "from 0.520 to 0.404.  SI-vs-Krylov k_eff gap is now O(h) — "
-        "0.286% at n=40, 0.135% at n=80, 0.065% at n=160. "
-        "\n\nWhat remains open: the SI sweep's WDD spatial closure and "
-        "the apply-matvec's WDD have a residual O(h) numerical "
-        "difference (the SI fixed point at n=40 is sf[0]/sf[1]≈0.778 "
-        "while Krylov gives 1.029; both converge to ~1 under "
-        "refinement but the n=40 snapshot still has ~22% boundary-cell "
-        "drift relative to Variant α).  Phase F's structural fix is "
-        "REGRESSION-SAFE (closed gross divergence) but per-cell shape "
-        "agreement at production quadrature awaits either (a) further "
-        "sweep-side WDD-closure refinement OR (b) flipping the SN "
-        "snapshot default to inner_solver='krylov' (would invalidate "
-        "all 6 curvilinear snapshots a second time).  Investigation "
-        "deferred to a hypothetical Phase F-extension."
-    ),
-)
 @pytest.mark.parametrize(
     "snapshot_id, runner_full, tol_per_cell, rationale",
     _GATE_4_2_FLUX_SHAPE_CASES,
