@@ -139,23 +139,36 @@ This is a function named `solve_adjoint`. Adding F (fission) requires a new func
 
 **What**: every value that crosses a function boundary, lives across iterations, or appears in a return type gets a name that means something in the domain. Flat reductions over anonymous dimensions are anti-patterns.
 
-**Why**: an unnamed intermediate is opaque to verification. A named intermediate becomes inspectable, testable, and reusable. The Wave G `compute_keff` migration: `np.sum(Σ_p · φ · V[:, None])` (single flat reduction over `(N, ng)`, unnamed intermediate `(N, ng)` array no one ever names) became `compute_group_production_rate(φ).sum()` (per-group rate vector — a reactor-physics diagnostic, named, inspectable, reusable for downstream analysis). Bit-identity broke at FP-non-associativity ULP level; principled per `vv-principles` §"Bit-identity vs principled-equivalence" because the intermediate IS the per-group production rate.
+**The sharpened physics statement (load-bearing)**: **in physics, an unnamed quantity is evidence that the physics is wrong**. Every physical quantity has units; every unit-bearing combination of physical quantities has a physical meaning (and therefore a name in the literature); the only intermediates that lack a name are deliberately-constructed dimensionless quantities — and even those are named (`k_eff`, optical thickness `τ`, Reynolds number `Re`, albedo `c`, scattering ratio `c = Σ_s / Σ_t`, ...) because the dimensionless reduction is itself the result you sought (for scaling, for input to a function with dimensionless argument, for stability analysis). The exception proves the rule: dimensionless quantities are computed DELIBERATELY and are themselves named.
 
-**Trigger**: you are about to write `np.sum(...)` or `.reduce(...)` or `for ... +=` over a quantity that has a name in the domain. The trigger fires the moment the intermediate is not just FP-noise but a domain object.
+This generalises: any unnamed value in physics code is one of (a) a value that crossed a function boundary and lost its identity, (b) a value the implementer didn't think to name because they didn't track its units, or (c) a value with no physical meaning because the formula is wrong. In all three cases, the absence-of-name is diagnostic. **If you compute it, name it; if you can't name it, the physics is wrong.**
+
+**Why**: an unnamed intermediate is opaque to verification, opaque to dimensional analysis, opaque to literature cross-reference, and opaque to per-component testing. A named intermediate is inspectable (you can print it), testable (you can write a unit test against its expected magnitude in known regimes), reusable (downstream code can consume it), AND dimensionally checkable (its units are part of its identity).
+
+The Wave G `compute_keff` migration: `np.sum(Σ_p · φ · V[:, None])` (a single flat reduction over `(N, ng)`, an unnamed intermediate `(N, ng)` array no one ever named) became `compute_group_production_rate(φ).sum()`. The named intermediate `production_rate_per_group` has units of `1/s` per group (reaction rate density × volume × group structure), is the per-group fission source produced, IS a reactor-physics diagnostic quantity that engineers plot at design reviews. Bit-identity broke at FP-non-associativity ULP level; principled per `vv-principles` §"Bit-identity vs principled-equivalence" because the intermediate IS the per-group production rate.
+
+**Trigger**: you are about to write `np.sum(...)` or `.reduce(...)` or `for ... +=` or any inline multi-term arithmetic. The trigger fires the moment the operation has a definite physical-units result — which in physics code is always. Ask: "what is this quantity? What are its units? What does it represent?" If you cannot answer in domain language in under five seconds, the code is wrong (not just inelegant).
 
 **Example**:
 
 ```python
-# Anti-elegant: anonymous flat reduction
+# Anti-elegant: anonymous flat reduction.  The intermediate
+# `(nu_sigma_f * phi * V[:, None])` has units [1/s] per cell per group.
+# That IS a name: per-cell-per-group fission source production rate.
+# The code's failure to name it is a failure to track units.
 keff = np.sum(nu_sigma_f * phi * V[:, None]) / np.sum(sigma_a * phi * V[:, None])
 
-# Elegant: named domain quantities, then ratio
-production_rate_per_group = compute_group_production_rate(phi)   # (ng,) — reactor physics
-absorption_rate_per_group = compute_group_absorption_rate(phi)   # (ng,) — reactor physics
-keff = production_rate_per_group.sum() / absorption_rate_per_group.sum()
+# Elegant: every intermediate is named, dimensioned, and verifiable.
+production_rate_per_group = compute_group_production_rate(phi)   # (ng,) [1/s]
+absorption_rate_per_group = compute_group_absorption_rate(phi)   # (ng,) [1/s]
+keff = production_rate_per_group.sum() / absorption_rate_per_group.sum()  # [dimensionless]
 ```
 
-The second form is verifiable: `production_rate_per_group` can be checked against an analytic limit, against a benchmark, against per-group diagnostic plots. The first form is `keff` and nothing else.
+The second form admits dimensional analysis. The total production rate has units `[1/s]`. The total absorption rate has units `[1/s]`. Their ratio is dimensionless — and that dimensionless ratio IS the named quantity `k_eff` (the reactor multiplication factor). Each step is verifiable against analytic limits (e.g., for a homogeneous reflective system, `k_eff → k_∞ = νΣ_f / Σ_a`, and both `production_rate_per_group` and `absorption_rate_per_group` should agree with closed-form independently).
+
+**Implication for code review**: when reading scientific code, every line should support the question "what is this quantity, in physical units?" A line that does not (a magic constant, a flat reduction over unnamed dimensions, an inline multi-factor formula without a left-hand side that names the result) is a code-review blocker — not because the code is ugly, but because the physics is opaque. Demand the name. If the author cannot supply one, the math is suspect.
+
+**Beyond physics**: the same argument applies to any domain with semantic types. In finance: every value has a currency + a time + an entity; an unnamed value lost one of those. In cryptography: every value has a bit-width and a security context; an unnamed value broke an invariant. The physics argument is the sharpest statement because physical units are the most rigorously enforced semantics, but the principle is general — domains with semantics have no unnamed values that aren't bugs.
 
 ### Pattern 4 — Make illegal states unrepresentable
 
@@ -257,7 +270,7 @@ Each line below is a redirect: **NEVER** do X — **instead** do Y. Flag these w
 
 4. **NEVER** pass a stringly-typed dispatch parameter — **instead** use a singleton, an enum, or a class. `inner_solver="krylov"` should be `inner_solver=Krylov()` or `inner_solver=Krylov`. The string is a value that can be typo'd; the type is a name the IDE auto-completes and the type-checker validates.
 
-5. **NEVER** reduce over an anonymous intermediate that has a domain name — **instead** name the intermediate and reduce over it. `np.sum(Σ_p · φ · V)` is anonymous; `compute_group_production_rate(phi).sum()` is named.
+5. **NEVER** reduce over an anonymous intermediate, period — **instead** name the intermediate. In physics code there is no such thing as an unnamed quantity: every multi-factor product has units, and every unit-bearing quantity has a physical meaning (and therefore a name in the literature). If you cannot answer "what is this quantity?" in domain language in under five seconds, the physics is wrong, not just the code. `np.sum(Σ_p · φ · V)` is opaque; `compute_group_production_rate(phi).sum()` exposes the per-group fission production rate (`[1/s]`) as a named, verifiable, plottable intermediate. The exception that proves the rule: dimensionless intermediates are computed DELIBERATELY (`τ = Σ_t · r`, `k_eff = P/A`, `c = Σ_s/Σ_t`) and ARE themselves named — because the dimensionless reduction is the result you sought.
 
 6. **NEVER** transcribe MATLAB/Fortran code line-by-line — **instead** read the math the legacy code claims to encode, then write Pythonic code from the math. 1:1 transcription inherits the legacy code's architectural debt (1-indexed loops, magic constants, FORTRAN-style ALL_CAPS_VARS) and produces an artefact that is neither MATLAB-elegant nor Python-elegant.
 
@@ -299,7 +312,7 @@ Elegance prevents these modes by making the wrong token sequence un-typeable:
 
 - **Variable swap**: a positional `solve(materials, mesh, quadrature)` invites `solve(mesh, materials, quadrature)` — same types, no error. A keyword-only `solve(*, V: PhaseSpace, materials: Materials)` or a single-object `solve(SolverSetup(...))` does not.
 
-- **Missing factor**: `compute_group_production_rate(phi)` has the volume measure absorbed into its body; the consumer can't forget it. The flat `np.sum(nu_sigma_f * phi)` puts the responsibility for the volume factor on the consumer, who may or may not remember it.
+- **Missing factor**: `compute_group_production_rate(phi)` has the volume measure absorbed into its body; the consumer can't forget it. The flat `np.sum(nu_sigma_f * phi)` puts the responsibility for the volume factor on the consumer, who may or may not remember it. The deeper defense is **dimensional analysis**: if every named intermediate carries its units, then a missing factor produces a dimensional inconsistency at the line where the next intermediate is constructed. `production_rate = sigma_f * phi` has units `[1/cm · 1/(cm²·s)] = [1/(cm³·s)]` — a rate density, not a rate. If the consumer was supposed to multiply by `V` to get a rate `[1/s]` and forgot, the named-variable mismatch (`production_rate` should be a rate, not a density) is visible at code-write time. The bug class becomes detectable by inspection rather than only by failing tests.
 
 - **Wrong recursion**: an explicit `for n in range(N): psi_half = (1 - alpha[n]) * psi_half + alpha[n] * psi[n]` is a four-line loop with three indices (n, n-1/2, n+1/2 implicit in psi/psi_half), each a candidate for off-by-one. The operator-algebra `AngularRedistribution.apply(psi)` makes the recurrence body the operator's body; the recurrence cannot be miscoded at the consumer.
 
@@ -384,7 +397,7 @@ Before committing code, walk this checklist. If any answer is NO, return to the 
 
 2. **No twin paths?** Is there a second piece of code in the codebase that computes the same mathematical quantity by a different procedure? If yes, NO — factor into a primitive.
 
-3. **All intermediates named?** Every value that crosses a function boundary, lives across iterations, or appears in a return type — does it have a name from the domain's vocabulary? If any anonymous intermediate has domain meaning, NO.
+3. **All intermediates named, with units?** Every value — every product, every reduction, every function return — should answer "what is this quantity, in physical units?" in under five seconds. In physics code, unnamed-and-unit-less is a category that does not exist; every combination of physical quantities has units, and every unit-bearing combination has a name. If any line of arithmetic does not pass the "name + units" challenge, NO. Dimensionless intermediates are permitted IFF they are deliberately constructed (`τ`, `k_eff`, `c`, `Re`, ...) and themselves named — the dimensionless reduction is the result you sought.
 
 4. **Illegal states unrepresentable?** Every runtime assertion of an invariant — could the type system have expressed it instead? If yes, NO.
 
@@ -435,6 +448,21 @@ This principle is the bridge from elegance to verification: elegant code makes t
 When the same concern appears at multiple call sites (BC application; convention normalisation; capability declaration), the typed object that carries the concern is the architectural fix. Coding discipline ("remember to apply the BC at every sweep entry point") is fragile to refactor, parallelisation, and new contributors. A typed object that carries the concern (`L = StreamingOperator(V, boundary=B)`) makes the concern unforgettable — the type system enforces it.
 
 The ERR-040..ERR-047 series (BC typed-error suite from Wave 3) is the canonical example: BCs went from "remember to apply this" (cross-cutting discipline) to "construct the operator with the BC as a parameter" (typed object). Eight bug-class openings closed by one architectural pattern.
+
+### Dimensional analysis is a free verification tool — use it
+
+Physics has a built-in correctness check that costs nothing to apply: **units must agree on both sides of every equation, at every line of arithmetic**. If `production_rate` has units `[1/s]` and the next line assigns it to a quantity that should be `[1/(cm³·s)]`, the equation is wrong by inspection. No test needs to fire, no benchmark needs to disagree — the dimensional inconsistency IS the bug signal.
+
+This is the deep reason Pattern 3 (named intermediates) is load-bearing rather than aesthetic: a named intermediate carries its units (whether in a comment, a docstring, a NewType, or a `pint.Quantity`), and the units catch the missing-factor failure mode (#3 of the six AI failure modes) at code-write time. **The bug class becomes detectable by inspection, not by test execution.**
+
+For ORPHEUS specifically, the project doesn't yet use a units library like `pint`. The discipline substitute is:
+
+- Every variable declaration in physics code carries a units comment: `phi: np.ndarray  # (nx, ng) [1/(cm²·s)]`.
+- Every function returning a physical quantity names that quantity AND states its units in the docstring's `Returns:` section.
+- Every cross-section variable uses the canonical name (`sigma_t`, `sigma_s`, `nu_sigma_f`, `chi`) so the conventions are pinned.
+- When two quantities of different units are about to be combined, the operator (`*`, `/`, `@`) is the visible point where the units update — and the result IS a quantity with a name.
+
+Future Wave: consider promoting physical quantities to `NewType` or to a `pint`-style units-aware wrapper. The 13-bug bare-numpy cluster (ERR-002, ERR-009, ERR-011, ERR-022, ERR-031, ERR-034, ERR-040..ERR-047) would have been caught by units alone — each of those bugs is a quantity passed to a function expecting a quantity of different units / different convention.
 
 ---
 
