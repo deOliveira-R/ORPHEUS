@@ -1,4 +1,5 @@
 - [Method-canonical naming evidence](method_canonical_naming_evidence.md) — verbatim quotes from local PDFs pinning "singular eigenfunction expansion" (Mitsis/WM-72/Atalay/Sanchez-1977) and "trajectory-based / resolvent" (Sanchez 2002/1986, PS-1982). Cite when the user asks the canonical method name for an ORPHEUS folder.
+- [Morel 1989 SI sweep vs DO system equivalence](morel_1989_si_vs_apply_equivalence.md) — p.75 explicit quote: SI sweep equivalent to discrete-ordinates linear system iff angular leakage matrix is lower-triangular; full matrix forces Jacobi-on-RHS with "spectral radius approaches unity in certain limits". Canonical literature anchor for Issue #196 Phase G SI-vs-apply discrepancy.
 - [Zotero MCP flakiness diagnosis](reference_zotero_flakiness.md) — recognize a broken Zotero server (0-hit + conn-refused pattern) and fail over to Tier 2.
 - [Phase 4.2 cylinder Peierls reference](phase4_cylinder_peierls.md) — Ki1 vs Ki3, 1/π prefactor, chord branches, rank-N_y white BC, benchmark radii.
 - [DP_N is slab-only](dpn_curvilinear_nonexistence.md) — no Stepanek-style DP_N k_eff tables exist for cylinder/sphere; Sood 2003 F_N is the correct truth set.
