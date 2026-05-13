@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **3527**
+Total tests collected: **3701**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 919, 26.1%
-   L1, 848, 24.0%
+   L0, 920, 24.9%
+   L1, 848, 22.9%
    L2, 36, 1.0%
    L3, 0, 0.0%
-   foundation, 1696, 48.1%
+   foundation, 1869, 50.5%
    unmarked, 28, 0.8%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 3420
+   explicit, 3594
    verify, 0
    class-name, 46
    func-name, 0
@@ -244,11 +244,13 @@ Module × level grid
    sn/test_sweep_operator_inconsistency, 0, 4, 0, 0, 0, 0
    sn/test_sweep_regression, 12, 0, 0, 0, 0, 0
    sn/test_unified_sweep_dispatch, 0, 0, 0, 0, 9, 0
+   spatial/test_angular_redistribution, 0, 0, 0, 0, 89, 0
    spatial/test_cell_update_protocol, 0, 0, 0, 0, 16, 0
    spatial/test_diamond, 0, 0, 0, 0, 13, 0
    spatial/test_pole_angular_closure, 0, 0, 0, 0, 28, 0
    spatial/test_psi_half_angle_seed, 4, 1, 0, 0, 19, 0
-   spatial/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 57, 0
+   spatial/test_sncell_operator, 0, 0, 0, 0, 83, 0
+   spatial/test_sweep_vs_apply_consistency, 1, 0, 0, 0, 58, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -272,11 +274,13 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``wdd-closure``, 100
    ``wdd-face``, 100
    ``collision-rate``, 94
+   ``mm-weights``, 90
+   ``phase-f-carlson-seed-source-driven``, 75
    ``alpha-cylindrical``, 74
-   ``mm-weights``, 74
    ``multigroup``, 67
    ``ki3-def``, 64
    ``e3-def``, 61
+   ``dd-curvilinear-scalar``, 59
    ``self-slab``, 55
    ``self-cyl``, 54
    ``p-inf``, 53
@@ -320,7 +324,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``removal-matrix``, 26
    ``azimuthal-angles``, 24
    ``dc-slab``, 24
-   ``dd-curvilinear-scalar``, 24
    ``peierls-specular-bc-defn``, 24
    ``second-diff-cyl``, 24
    ``second-diff-sph``, 24
@@ -331,6 +334,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
    ``peierls-rank-n-stability``, 20
+   ``phase-f-q-bar-twin-forms``, 20
+   ``dd-mm-closure-constants``, 19
    ``dd-cartesian-1d``, 17
    ``direction-sampling``, 16
    ``discrete-measure-integrate``, 16
@@ -348,8 +353,10 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``kinf-1g``, 12
    ``kinf-mg``, 12
    ``periodic-bc``, 12
+   ``pole-mm-recurrence``, 12
    ``reciprocity``, 12
    ``ws-pitch``, 12
+   ``dd-slab-scalar``, 11
    ``inf-hom-balance``, 11
    ``two-group-A``, 11
    ``two-group-Ainv``, 11
@@ -414,8 +421,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-greens-V-alpha-2``, 4
    ``peierls-vacuum-bc-slab``, 4
    ``peierls-white-bc-slab``, 4
-   ``phase-f-carlson-seed-source-driven``, 4
-   ``phase-f-q-bar-twin-forms``, 4
    ``sn-mms-hetero-psi``, 4
    ``sn-mms-hetero-qext``, 4
    ``two-group-charpoly``, 4
@@ -425,8 +430,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``atalay-table2-slab-vacuum-isotropic``, 3
    ``atalay-table3-slab-vacuum-anisotropic``, 3
    ``cp-escape-from-p-cell``, 3
-   ``dd-mm-closure-constants``, 3
-   ``dd-slab-scalar``, 3
    ``delta-psi``, 3
    ``hetero-tolerance``, 3
    ``isotropic-source``, 3
@@ -512,7 +515,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **40** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **39** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``bc-rank-n-tensor-decomposition``
@@ -543,7 +546,6 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``phase-c-wdd-recurrence``
 - ``phase-f-q-1d-decomposition``
 - ``phase-f-source-eq-sigt-phi0``
-- ``pole-mm-recurrence``
 - ``spectrum-case-eigenfunction-equation``
 - ``spectrum-case-eigenfunction-explicit``
 - ``spectrum-continuum-eigenfunction``
@@ -781,7 +783,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-023``, 1
    ``ERR-024``, 1
    ``ERR-025``, 4
-   ``ERR-026``, 84
+   ``ERR-026``, 156
    ``ERR-027``, 5
    ``ERR-028``, 1
    ``ERR-029``, 6
