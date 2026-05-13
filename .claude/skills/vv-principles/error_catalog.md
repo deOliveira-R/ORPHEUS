@@ -1624,8 +1624,8 @@ Updated ERR-026 manifestation table:
 | 3 | Convergence rate (L1 MMS rate) | CLOSED by Phase D Krylov flip |
 | 4 | trajectory_resolvent MR quadrature instability | CLOSED by Phase E |
 | 5 | L1 absolute magnitude (errors[-1] < 1e-3) | OPEN via #195 |
-| 6 | Heterogeneous eigenvector shape (sweep-path Carlson seed) | **CLOSED by Phase F** |
-| 7 | SI-vs-Krylov per-cell agreement (residual O(h) WDD asymmetry) | **OPEN** (new follow-up) |
+| 6 | Heterogeneous eigenvector shape (sweep-path Carlson seed) | **CLOSED by Phase F** (full closure via Phase G Step 2 ERR-048 pole-face IC + Carlson seed source fixes) |
+| 7 | SI-vs-Krylov per-cell agreement (residual O(h) WDD asymmetry) | **CLOSED by Phase G Step 2 Path C (ERR-048)** — the residual O(h) drift was the manifestation of TWO surgical convention defects (pole-face WDD IC + Carlson seed source); fixing both reduces SI-vs-Krylov gap from O(h) to machine precision on the L0 streaming-equilibrium gauntlet |
 
 Phase F follow-up: file a NEW issue tracking manifestation #7
 (SI-vs-Krylov WDD spatial-closure asymmetry, residual O(h) drift
@@ -3260,4 +3260,126 @@ live on a SPECIFIC trace space. The trace-space type tag (Wave 2)
 + the typed error (Wave 3) together encode this; future Waves
 must respect the trace-space contracts rather than treating
 `q` as "just a float vector".
+
+---
+
+## ERR-048 — Curvilinear SI sweep: pole-face WDD IC + Carlson seed source convention drift between SI and apply-matvec paths
+
+**Date:** 2026-05-13 (Issue #196 Phase G Step 2 Path C).
+
+**Status:** **CLOSED.** Two surgical patches landed in
+`orpheus/sn/sweep.py::_sweep_1d_spherical` and `_sweep_1d_cylindrical`;
+catching test `tests/sn/spatial/test_streaming_equilibrium_curvilinear.py`
+(L0 streaming-equilibrium gauntlet, sphere + cylinder) ships
+green; 5 curvilinear regression snapshots regenerated under the
+corrected SI with three-pillar attestation; Phase E flux-shape
+sentinel xfail-strict marker removed.
+
+**Failure mode:** **#6 (convention drift)** — TWO simultaneous
+convention disagreements between the SI sweep
+(`_sweep_1d_spherical/cylindrical`) and the apply-matvec
+(`transport_operator_matvec_spherical/cylindrical`).  Both
+production paths converged to *their own* fixed point to machine
+precision; the two fixed points differed by ~22% L0 on the
+homogeneous reflective sphere streaming-equilibrium test.
+
+**Module:** `orpheus.sn.sweep`.
+
+**Mechanism:**
+
+1. **Pole-face WDD IC (DOMINANT, ~95% of the L0 error).**
+   For outward sweeps (μ ≥ 0) starting at the pole/axis cell
+   i=0, the SI sweep initialised `ψ_face_in = 0` (`sweep.py:559`
+   pre-fix).  The apply-matvec uses `ψ_face_in = ψ_cell[i=0]`
+   per Lewis-Miller §4.5 Carlson starting-direction convention
+   (`operator.py:781-786`).  At the pole face A[0] = 4π·0² = 0,
+   so the streaming-IN term `|μ|·A[0]·ψ_face_in` is identically
+   zero either choice — but the WDD diamond recurrence
+   `ψ_face_out = 2·ψ_cell − ψ_face_in` propagates the choice
+   downstream.  Setting `ψ_face_in = ψ_cell` preserves
+   `ψ_face_out = ψ_cell` on a flat ψ field, hence Pomraning
+   isotropy at the pole.  The SI choice `ψ_face_in = 0` produces
+   `ψ_face_out = 2·ψ_cell` which destroys flat-field invariance
+   from cell 0 onward.
+
+2. **Carlson seed `Q_bar` source (sub-dominant, ~3% rel residual
+   after fix 1 alone).**  The SI sweep built the Carlson coupled-
+   pole seed source as `Q̄ = 0.5 · Q_within_group`
+   (`sweep.py:514` pre-fix, where `Q_within_group` is scattering
+   + fission/k + external).  The apply-matvec builds
+   `Q̄ = 0.5 · Σ_t · φ_0(ψ_input)` (`psi_half_angle_seed.py:569`).
+   At the within-group fixed point `Σ_t · φ_0 = Q_within_group`
+   exactly, so the two conventions AGREE there; off the fixed
+   point during Picard iteration they DIFFER.  Driving the SI's
+   Carlson seed from the previous-iter scalar flux makes the SI
+   Picard recursion consume the same seed as the apply-matvec.
+
+**Both fixes carry previous-Picard-iter state through the
+`psi_bc` dict** (existing infrastructure):
+
+- `psi_bc["psi_pole"]` (sphere) / `psi_bc["psi_pole_cyl"]`
+  (cylinder): `(N, ng)` cell-centre ψ at i=0 from the previous
+  outer iteration; carries the pole-face IC.
+- `psi_bc["phi_0_prev"]` (sphere) / `psi_bc["phi_0_prev_cyl"]`
+  (cylinder): `(nx, ng)` scalar flux from the previous outer
+  iteration; carries the Carlson seed source.
+
+**Cold-start safety net:** on the first outer iteration neither
+key exists, so both fixes degrade gracefully to the legacy
+Phase F values (zero pole IC, `Q̄ = 0.5 · Q_within_group`).
+Subsequent iterations use the apply-matvec conventions and
+Picard converges to the apply-matvec fixed point.
+
+**How it hid:**
+
+- **Phase F's diagnostic compared SI-vs-Krylov k_eff** (agreed to
+  0.286% at n=40, decaying as O(h)); the absolute magnitude of
+  the convergence gap looked like "discretisation error
+  approaching zero" rather than a convention bug.
+- **Phase F regression snapshots were generated by the buggy SI**
+  (`_generate_snapshots.py` uses default `inner_solver`); bit-
+  identity preserved the wrong fixed point as the "regression
+  truth" for 6 curvilinear snapshots.
+- **L0 streaming-equilibrium was not tested**; the canonical
+  Pomraning isotropy test `ψ_n(r=0) = Q/(Σ_t·Σw·(1−c))` was
+  missing from the SN suite for the SI/sweep path.  The L1
+  Gate 1.1 sphere MMS test had been adapted in Phase D for an
+  isotropic-flat trial that masks the redistribution path
+  (`vv-principles` §"Mode 7 — MMS simplification bias").
+- **The legacy SI SOURCE iterates** (the Picard loop is on the
+  scattering source, not the angular flux), so the Picard
+  residual norm reaches machine precision on the wrong fixed
+  point with no observable divergence.
+
+**Which test catches it:**
+`tests/sn/spatial/test_streaming_equilibrium_curvilinear.py` —
+26 parametrised cases (sphere/cylinder × {20,40,80} cells ×
+{4,8 or 8,16} ordinates × `{source_iteration, krylov}`) +
+Pomraning pole isotropy gate (cv < 0.01).  Tagged
+`@pytest.mark.l0 @pytest.mark.catches("ERR-048")
+@pytest.mark.verifies("hebert-3-432")`.
+
+**Lesson:** In curvilinear SN with pole/axis geometry, the
+pole-face WDD initial condition for outward sweeps at i=0 MUST
+mirror the cell-centre value (Lewis-Miller §4.5 Carlson
+starting-direction); the Carlson coupled-pole seed `Q̄` MUST be
+built as `0.5 · Σ_t · φ_0(ψ_prev)`, not `0.5 · Q_within_group`.
+The apply-matvec used the correct conventions since Phase D
+(Issue #168); the SI sweep used different conventions for both,
+and the discrepancy manifested as mesh-independent 22% L0 pole
+error.
+
+**This is also a Pattern 2 (single source of truth) anti-pattern
+instance:** the SI sweep and apply-matvec are TWO implementations
+of the SAME continuous operator.  Twin paths drift; Phase D's
+Carlson backport into the apply-matvec produced the
+manifestation #6 pair that Phase F partially closed and Phase G
+Step 2 surgically completes.  The architectural fix — one
+shared per-cell operator (`SNCellOperator`) composed in both
+call sites — lands in Phase G Steps 3+.
+
+→ `numerical-bug-signatures` Signature 1 (curvilinear sweep
+divergence under refinement) catalogues the manifestation
+fingerprint family; ERR-026 (the original Phase D fix on the
+apply-matvec) is this defect's twin.
 
