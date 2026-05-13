@@ -724,3 +724,625 @@ class TestCellUpdateBaseRegistry:
 
         instance = CellUpdateBase.create("diamond_difference")
         assert isinstance(instance, DiamondDifference)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Issue #196 Phase G Step 1 replan — TestResidual
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _slab_visit_inputs(
+    nx: int = 5,
+    cell_idx: int = 2,
+    direction_idx: int | None = None,
+    n_groups: int = 2,
+    *,
+    total_xs: np.ndarray | None = None,
+    Q: np.ndarray | None = None,
+    psi_in: np.ndarray | None = None,
+) -> tuple[
+    CellVisit, np.ndarray, np.ndarray, UpstreamState,
+]:
+    """Slab visit + inputs for residual round-trip / linearity tests.
+
+    Returns ``(visit, total_xs, source, upstream)``.  ``source`` is
+    already weight-normalised (``Q · chord · weight_norm``) per the
+    :class:`CellUpdate` contract — the helper does the bookkeeping
+    here so tests stay focused on the residual contract.
+    """
+    mesh = _slab_mesh(nx=nx, length=1.0)
+    quad = GaussLegendre1D.create(4)
+    op = slab_streaming(mesh, quad)
+    if direction_idx is None:
+        direction_idx = quad.N - 1
+    st = op.streaming_terms(cell_idx, direction_idx)
+    if total_xs is None:
+        total_xs = np.linspace(0.6, 1.5, n_groups)
+    if Q is None:
+        Q = np.linspace(0.2, 2.4, n_groups)
+    if psi_in is None:
+        psi_in = np.linspace(0.05, 0.35, n_groups)
+    weight_norm = 1.0 / quad.weights.sum()
+    source = Q * st.chord_length * weight_norm
+    upstream = UpstreamState(spatial_upstream=psi_in, angular_upstream=None)
+    visit = CellVisit(cell_idx=cell_idx, streaming_terms=st)
+    return visit, total_xs, source, upstream
+
+
+def _sphere_visit_inputs(
+    nx: int = 5,
+    cell_idx: int = 2,
+    direction_idx: int | None = None,
+    n_groups: int = 2,
+    *,
+    outward: bool = True,
+    total_xs: np.ndarray | None = None,
+    Q: np.ndarray | None = None,
+    psi_spat_in: np.ndarray | None = None,
+    psi_angle_in: np.ndarray | None = None,
+) -> tuple[
+    CellVisit, np.ndarray, np.ndarray, UpstreamState,
+]:
+    """Sphere visit + inputs for residual contract tests."""
+    mesh = _spherical_mesh(nx=nx, radius=1.0)
+    quad = GaussLegendre1D.create(8)
+    op = spherical_streaming(mesh, quad)
+    if direction_idx is None:
+        direction_idx = quad.N - 2 if outward else 1
+    st = op.streaming_terms(cell_idx, direction_idx)
+    if total_xs is None:
+        total_xs = np.linspace(0.7, 1.4, n_groups)
+    if Q is None:
+        Q = np.linspace(0.3, 2.1, n_groups)
+    if psi_spat_in is None:
+        psi_spat_in = np.linspace(0.05, 0.27, n_groups)
+    if psi_angle_in is None:
+        psi_angle_in = np.linspace(0.02, 0.11, n_groups)
+    weight_norm = 1.0 / quad.weights.sum()
+    source = Q * st.volume * weight_norm
+    upstream = UpstreamState(
+        spatial_upstream=psi_spat_in,
+        angular_upstream=psi_angle_in,
+    )
+    A_down = st.face_area_outer if outward else st.face_area_inner
+    visit = CellVisit(
+        cell_idx=cell_idx, streaming_terms=st, face_area_downstream=A_down,
+    )
+    return visit, total_xs, source, upstream
+
+
+def _cylinder_visit_inputs(
+    nx: int = 4,
+    cell_idx: int = 1,
+    direction_idx: int = 0,
+    mu_level_idx: int = 0,
+    n_groups: int = 2,
+    *,
+    total_xs: np.ndarray | None = None,
+    Q: np.ndarray | None = None,
+    psi_spat_in: np.ndarray | None = None,
+    psi_angle_in: np.ndarray | None = None,
+) -> tuple[
+    CellVisit, np.ndarray, np.ndarray, UpstreamState,
+]:
+    """Cylinder (non-degenerate) visit + inputs for residual contract tests."""
+    mesh = _cylindrical_mesh(nx=nx, radius=1.0)
+    quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+    op = cylindrical_streaming(mesh, quad)
+    st = op.streaming_terms(
+        cell_idx=cell_idx,
+        direction_idx=direction_idx,
+        mu_level_idx=mu_level_idx,
+    )
+    if total_xs is None:
+        total_xs = np.linspace(0.55, 1.25, n_groups)
+    if Q is None:
+        Q = np.linspace(0.2, 1.8, n_groups)
+    if psi_spat_in is None:
+        psi_spat_in = np.linspace(0.04, 0.18, n_groups)
+    if psi_angle_in is None:
+        psi_angle_in = np.linspace(0.03, 0.13, n_groups)
+    weight_norm = 1.0 / quad.weights.sum()
+    source = Q * st.volume * weight_norm
+    upstream = UpstreamState(
+        spatial_upstream=psi_spat_in,
+        angular_upstream=psi_angle_in,
+    )
+    # Determine sweep direction from signed μ.
+    A_down = (
+        st.face_area_outer if (st.mu is not None and st.mu >= 0.0)
+        else st.face_area_inner
+    )
+    visit = CellVisit(
+        cell_idx=cell_idx, streaming_terms=st, face_area_downstream=A_down,
+    )
+    return visit, total_xs, source, upstream
+
+
+def _cylinder_degenerate_visit_inputs(
+    nx: int = 4,
+    cell_idx: int = 1,
+    n_groups: int = 2,
+    *,
+    total_xs: np.ndarray | None = None,
+    source: np.ndarray | None = None,
+    psi_angle_in: np.ndarray | None = None,
+) -> tuple[
+    CellVisit, np.ndarray, np.ndarray, UpstreamState,
+]:
+    """Cylindrical pure-azimuthal degenerate visit + inputs.
+
+    Constructed by hand from a real streaming_terms instance with
+    ``abs_mu`` overridden to ``1e-16`` — the canonical pattern from
+    :class:`TestCylindricalDegenerate` above.
+    """
+    mesh = _cylindrical_mesh(nx=nx, radius=1.0)
+    quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+    op = cylindrical_streaming(mesh, quad)
+    st_real = op.streaming_terms(
+        cell_idx=cell_idx, direction_idx=0, mu_level_idx=0,
+    )
+    st = StreamingTerms(
+        chord_length=st_real.chord_length,
+        mu=0.0,
+        face_area_inner=st_real.face_area_inner,
+        face_area_outer=st_real.face_area_outer,
+        delta_A_over_w=st_real.delta_A_over_w,
+        alpha_in=st_real.alpha_in,
+        alpha_out=st_real.alpha_out,
+        tau_mm=st_real.tau_mm,
+        volume=st_real.volume,
+        abs_mu=1e-16,
+    )
+    if total_xs is None:
+        total_xs = np.linspace(0.5, 1.2, n_groups)
+    if source is None:
+        source = np.linspace(0.02, 0.07, n_groups)
+    if psi_angle_in is None:
+        psi_angle_in = np.linspace(0.03, 0.13, n_groups)
+    upstream = UpstreamState(
+        spatial_upstream=np.zeros(n_groups),
+        angular_upstream=psi_angle_in,
+    )
+    visit = CellVisit(
+        cell_idx=cell_idx, streaming_terms=st, face_area_downstream=None,
+    )
+    return visit, total_xs, source, upstream
+
+
+# Geometry-keyed visit factory for parametrized tests.
+_GEOMETRY_FACTORIES = {
+    "slab": _slab_visit_inputs,
+    "sphere_outward": lambda **kw: _sphere_visit_inputs(outward=True, **kw),
+    "sphere_inward": lambda **kw: _sphere_visit_inputs(outward=False, **kw),
+    "cylinder": _cylinder_visit_inputs,
+    "cylinder_degenerate": _cylinder_degenerate_visit_inputs,
+}
+
+
+class TestResidual:
+    r""":class:`DiamondDifference` apply-direction contract.
+
+    Issue #196 Phase G Step 1 replan — pins the contract on
+    :meth:`DiamondDifference.residual` (the strategy-layer apply
+    direction).  These tests are the salvageable invariants from the
+    reverted ``test_sncell_operator.py``, ported to test the strategy
+    directly per the corrected architecture (Pattern 6 — defer
+    abstraction; the per-cell strategy is not a LinearOperator).
+
+    Coverage matrix
+    ---------------
+
+    Five geometry classes × varied multi-group bias × varied source
+    activation × heterogeneous total_xs:
+
+    * **slab** — Cartesian DD, closed-form residual.
+    * **sphere_outward** — curvilinear non-degenerate, outward sweep.
+    * **sphere_inward** — curvilinear non-degenerate, inward sweep
+      (downstream face = inner).
+    * **cylinder** — curvilinear non-degenerate (1-D radial product
+      quadrature, μ-level 0).
+    * **cylinder_degenerate** — ``abs_mu < 1e-15`` branch (axial
+      cosine :math:`|\mu_z| \to 1`).
+
+    Mode 7 (`vv-principles` MMS simplification bias): each test
+    declares which terms are activated AND which are nulled, so
+    ansatz-driven cancellation is visible by inspection.
+    """
+
+    GEOMETRIES = list(_GEOMETRY_FACTORIES.keys())
+
+    # ── 1. Round-trip: residual at solved cell_avg is zero ─────────
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("geometry", GEOMETRIES)
+    def test_residual_zero_at_solved_cell_avg(self, geometry: str) -> None:
+        r"""Apply-vs-solve round-trip: ``residual(update(q).cell_avg, q) ≡ 0``.
+
+        Strategy-layer Pattern 2 contract — :meth:`update` and
+        :meth:`residual` describe the same per-cell linear system;
+        evaluating the residual at the solved cell-average flux must
+        return zero to FP rounding.  Tolerance ``atol=1e-13`` reflects
+        the principled-equivalence band of a single division ULP.
+
+        Term activation: every active solver term in each branch is
+        exercised — slab has streaming + collision; sphere /
+        cylinder have streaming + collision + Bailey
+        :math:`\Delta A / w` + M-M (via ``c_in``, ``c_out``);
+        cylindrical-degenerate has collision + Bailey + M-M only
+        (no radial streaming).  No term is nulled by ansatz.
+        """
+        visit, total_xs, source, upstream = _GEOMETRY_FACTORIES[geometry]()
+        strat = DiamondDifference()
+
+        result = strat.update(visit, total_xs, source, upstream)
+        residual = strat.residual(
+            result.cell_average_flux,
+            visit, total_xs, source, upstream,
+        )
+
+        # Round-trip identity to FP rounding — one division ULP band.
+        np.testing.assert_allclose(residual, 0.0, atol=1e-13)
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("geometry", GEOMETRIES)
+    @pytest.mark.parametrize("n_groups", [1, 2, 4])
+    def test_residual_zero_multi_group_heterogeneous(
+        self, geometry: str, n_groups: int,
+    ) -> None:
+        """Round-trip holds across 1G / 2G / 4G with heterogeneous XS.
+
+        Per `vv-principles` hygiene rule H1, 1-group is a degenerate
+        regime; H2 forbids accepting homogeneous-only verification.
+        This test exercises both axes: parametrised over n_groups
+        and constructs *heterogeneous* per-group total_xs (varying
+        magnitudes 0.6 → 1.5) so the multi-group bias is non-trivial.
+        """
+        total_xs = np.linspace(0.6, 1.5, n_groups)
+        Q = np.linspace(0.2, 2.4, n_groups)
+        if geometry == "slab":
+            visit, total_xs, source, upstream = _slab_visit_inputs(
+                n_groups=n_groups, total_xs=total_xs, Q=Q,
+                psi_in=np.linspace(0.05, 0.35, n_groups),
+            )
+        elif geometry == "sphere_outward":
+            visit, total_xs, source, upstream = _sphere_visit_inputs(
+                n_groups=n_groups, outward=True,
+                total_xs=total_xs, Q=Q,
+                psi_spat_in=np.linspace(0.05, 0.27, n_groups),
+                psi_angle_in=np.linspace(0.02, 0.11, n_groups),
+            )
+        elif geometry == "sphere_inward":
+            visit, total_xs, source, upstream = _sphere_visit_inputs(
+                n_groups=n_groups, outward=False,
+                total_xs=total_xs, Q=Q,
+                psi_spat_in=np.linspace(0.05, 0.27, n_groups),
+                psi_angle_in=np.linspace(0.02, 0.11, n_groups),
+            )
+        elif geometry == "cylinder":
+            visit, total_xs, source, upstream = _cylinder_visit_inputs(
+                n_groups=n_groups,
+                total_xs=total_xs, Q=Q,
+                psi_spat_in=np.linspace(0.04, 0.18, n_groups),
+                psi_angle_in=np.linspace(0.03, 0.13, n_groups),
+            )
+        elif geometry == "cylinder_degenerate":
+            visit, total_xs, source, upstream = (
+                _cylinder_degenerate_visit_inputs(
+                    n_groups=n_groups, total_xs=total_xs,
+                    source=np.linspace(0.02, 0.07, n_groups),
+                    psi_angle_in=np.linspace(0.03, 0.13, n_groups),
+                )
+            )
+        else:  # pragma: no cover — exhaustive parametrize
+            raise ValueError(geometry)
+
+        strat = DiamondDifference()
+        result = strat.update(visit, total_xs, source, upstream)
+        residual = strat.residual(
+            result.cell_average_flux,
+            visit, total_xs, source, upstream,
+        )
+
+        np.testing.assert_allclose(residual, 0.0, atol=1e-13)
+
+    # ── 2. Linearity in cell_avg ───────────────────────────────────
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("geometry", GEOMETRIES)
+    def test_residual_linear_in_cell_avg(self, geometry: str) -> None:
+        r"""Residual is linear in ``cell_avg`` (Diamond Difference closure
+        is linear; M-M and Bailey terms enter only through fixed
+        upstream-state contributions, not through ``cell_avg``).
+
+        Mathematical identity (DD ``is_linear = True``):
+
+        .. math::
+
+            r(\lambda a + (1-\lambda) b)
+              \;=\; \lambda\,r(a) + (1-\lambda)\,r(b).
+
+        Failure here signals an accidental non-linearity in the
+        residual implementation (e.g. wrong dependence on
+        ``upstream_state``, mistaken ``cell_avg`` usage in a
+        denominator).
+        """
+        visit, total_xs, source, upstream = _GEOMETRY_FACTORIES[geometry]()
+        strat = DiamondDifference()
+
+        rng = np.random.default_rng(seed=42)
+        n_groups = source.shape[0]
+        probe_a = rng.normal(loc=1.0, scale=0.5, size=n_groups)
+        probe_b = rng.normal(loc=2.0, scale=0.5, size=n_groups)
+
+        lam = 0.37
+        probe_mix = lam * probe_a + (1.0 - lam) * probe_b
+
+        r_a = strat.residual(probe_a, visit, total_xs, source, upstream)
+        r_b = strat.residual(probe_b, visit, total_xs, source, upstream)
+        r_mix = strat.residual(
+            probe_mix, visit, total_xs, source, upstream,
+        )
+
+        np.testing.assert_allclose(
+            r_mix, lam * r_a + (1.0 - lam) * r_b, rtol=1e-12, atol=1e-13,
+        )
+
+    # ── 3. Affine in source ────────────────────────────────────────
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("geometry", GEOMETRIES)
+    def test_residual_affine_in_source(self, geometry: str) -> None:
+        r"""Residual is affine in ``source`` — ``∂r/∂q = -1``.
+
+        Mathematical identity:
+
+        .. math::
+
+            r(\bar\psi;\, q + \delta q) \;=\;
+                r(\bar\psi;\, q) \;-\; \delta q.
+
+        The cell residual carries the source on the RHS of the cell
+        balance.  Shifting the source shifts the residual by minus
+        the shift — a property that holds in all three branches
+        because :func:`cell_balance_terms` and the slab closed form
+        both treat the source as an affine term added on the outside.
+        """
+        visit, total_xs, source, upstream = _GEOMETRY_FACTORIES[geometry]()
+        strat = DiamondDifference()
+
+        rng = np.random.default_rng(seed=7)
+        n_groups = source.shape[0]
+        probe = rng.normal(loc=1.0, scale=0.5, size=n_groups)
+        ds = rng.normal(loc=0.0, scale=0.3, size=n_groups)
+
+        r0 = strat.residual(probe, visit, total_xs, source, upstream)
+        r1 = strat.residual(probe, visit, total_xs, source + ds, upstream)
+
+        np.testing.assert_allclose(r1, r0 - ds, rtol=1e-12, atol=1e-13)
+
+    # ── 4. Bit-identity vs analytic zero at zero source ────────────
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("geometry", GEOMETRIES)
+    def test_residual_bit_identity_at_zero_source(
+        self, geometry: str,
+    ) -> None:
+        r"""At ``source = 0`` and ``cell_avg = update(q=0).cell_avg``,
+        the residual is zero to a tight FP band.
+
+        This is the strongest round-trip variant — null the volumetric
+        source so the only non-zero RHS contribution is
+        ``numer_upstream`` (curvilinear) or ``2|μ| psi_in`` (slab).
+        :meth:`update` solves the homogeneous-source balance; the
+        round-trip ``residual(update(q=0).cell_avg, q=0)`` returns
+        zero to a single division ULP.
+
+        Term activation: streaming + collision + redistribution
+        (curvilinear) — all active except ``source`` itself.  Tests
+        that the residual algebra correctly handles the
+        source-nulled limit (the historical homogeneous-only fallacy
+        the brief warns about — see ``vv-principles`` hygiene rule
+        H2).
+        """
+        visit, total_xs, _, upstream = _GEOMETRY_FACTORIES[geometry]()
+        n_groups = total_xs.shape[0]
+        source = np.zeros(n_groups)
+        strat = DiamondDifference()
+
+        result = strat.update(visit, total_xs, source, upstream)
+        residual = strat.residual(
+            result.cell_average_flux,
+            visit, total_xs, source, upstream,
+        )
+
+        # Single-division ULP band.
+        np.testing.assert_allclose(residual, 0.0, atol=1e-13)
+
+    # ── 5. Slab residual matches closed-form analytic ──────────────
+
+    @pytest.mark.foundation
+    @pytest.mark.verifies("dd-slab-scalar")
+    def test_slab_residual_closed_form(self) -> None:
+        r"""Slab residual is exactly
+        :math:`2|\mu|(\bar\psi - \psi_{\rm in})
+        + \mathrm{chord}\,\Sigma_t\,\bar\psi - q`.
+
+        Hand-calc cross-check against the closed-form expression,
+        bit-identical (``np.array_equal``) — the slab branch has no
+        helper indirection so the operation order matches the
+        reference verbatim.
+        """
+        visit, total_xs, source, upstream = _slab_visit_inputs()
+        strat = DiamondDifference()
+
+        # Probe at a non-converged cell_avg so the residual is non-trivial.
+        rng = np.random.default_rng(seed=2026)
+        n_groups = source.shape[0]
+        cell_avg = rng.normal(loc=1.0, scale=0.5, size=n_groups)
+
+        # Closed-form reference.
+        st = visit.streaming_terms
+        psi_in = upstream.spatial_upstream
+        ref = (
+            2.0 * st.abs_mu * (cell_avg - psi_in)
+            + st.chord_length * total_xs * cell_avg
+            - source
+        )
+
+        computed = strat.residual(
+            cell_avg, visit, total_xs, source, upstream,
+        )
+
+        # Slab residual: no helper indirection — bit-identical.
+        assert np.array_equal(computed, ref)
+
+    # ── 6. Curvilinear residual matches CellBalanceTerms by composition
+
+    @pytest.mark.foundation
+    @pytest.mark.verifies("dd-curvilinear-scalar")
+    def test_curvilinear_residual_matches_cell_balance(self) -> None:
+        r"""Sphere curvilinear residual equals
+        ``denom · cell_avg - (source + numer_upstream)`` from the
+        shared :func:`cell_balance_terms` helper — bit-identical.
+
+        Verifies the Pattern 2 contract directly: both
+        :meth:`_update_curvilinear` and :meth:`_residual_curvilinear`
+        consume the same helper, so the residual at any probe point
+        is the closed-form rearrangement of the balance equation the
+        helper produces.
+        """
+        from orpheus.sn.spatial.cell_balance import cell_balance_terms
+
+        visit, total_xs, source, upstream = _sphere_visit_inputs()
+        strat = DiamondDifference()
+
+        rng = np.random.default_rng(seed=11)
+        n_groups = source.shape[0]
+        cell_avg = rng.normal(loc=1.0, scale=0.5, size=n_groups)
+
+        terms = cell_balance_terms(
+            visit.streaming_terms,
+            visit.face_area_downstream,
+            total_xs,
+            upstream,
+        )
+        ref = terms.denom * cell_avg - (source + terms.numer_upstream)
+
+        computed = strat.residual(
+            cell_avg, visit, total_xs, source, upstream,
+        )
+
+        # Bit-identical via shared-helper composition.
+        assert np.array_equal(computed, ref)
+
+    # ── 7. Cylindrical degenerate residual matches degenerate helper
+
+    @pytest.mark.foundation
+    @pytest.mark.verifies("dd-curvilinear-scalar")
+    def test_cylindrical_degenerate_residual_matches_cell_balance(
+        self,
+    ) -> None:
+        r"""Cylindrical degenerate residual equals
+        ``denom · cell_avg - (source + numer_upstream)`` from
+        :func:`cell_balance_terms_degenerate`.
+        """
+        from orpheus.sn.spatial.cell_balance import (
+            cell_balance_terms_degenerate,
+        )
+
+        visit, total_xs, source, upstream = (
+            _cylinder_degenerate_visit_inputs()
+        )
+        strat = DiamondDifference()
+
+        rng = np.random.default_rng(seed=29)
+        n_groups = source.shape[0]
+        cell_avg = rng.normal(loc=1.0, scale=0.5, size=n_groups)
+
+        terms = cell_balance_terms_degenerate(
+            visit.streaming_terms, total_xs, upstream,
+        )
+        ref = terms.denom * cell_avg - (source + terms.numer_upstream)
+
+        computed = strat.residual(
+            cell_avg, visit, total_xs, source, upstream,
+        )
+
+        assert np.array_equal(computed, ref)
+
+    # ── 8. Negative-μ ordinate (sphere inward) ─────────────────────
+
+    @pytest.mark.foundation
+    def test_residual_inward_sweep_uses_inner_face(self) -> None:
+        r"""Inward-sphere residual differs from outward-sphere on the
+        same streaming_terms (only ``face_area_downstream`` changes).
+
+        Negative-μ guard: the residual must consume
+        ``visit.face_area_downstream`` (= inner face on inward sweeps)
+        and NOT the outer face.  Two calls on the same underlying
+        streaming_terms but with different ``face_area_downstream``
+        must produce different ``denom`` and thus a different residual.
+        """
+        # Use a cell with non-trivial geometric asymmetry between
+        # inner and outer face areas.
+        mesh = _spherical_mesh(nx=8, radius=1.0)
+        quad = GaussLegendre1D.create(8)
+        op = spherical_streaming(mesh, quad)
+        st = op.streaming_terms(cell_idx=3, direction_idx=1)  # μ<0
+        total_xs = np.array([1.0, 0.5])
+        source = np.array([0.1, 0.05])
+        upstream = UpstreamState(
+            spatial_upstream=np.array([0.2, 0.1]),
+            angular_upstream=np.array([0.05, 0.02]),
+        )
+        cell_avg = np.array([0.7, 0.3])
+
+        visit_inward = CellVisit(
+            cell_idx=3, streaming_terms=st,
+            face_area_downstream=st.face_area_inner,
+        )
+        visit_outward = CellVisit(
+            cell_idx=3, streaming_terms=st,
+            face_area_downstream=st.face_area_outer,
+        )
+
+        strat = DiamondDifference()
+        r_in = strat.residual(
+            cell_avg, visit_inward, total_xs, source, upstream,
+        )
+        r_out = strat.residual(
+            cell_avg, visit_outward, total_xs, source, upstream,
+        )
+
+        # Different downstream face areas ⇒ different residuals.
+        assert not np.allclose(r_in, r_out)
+
+    # ── 9. Cylindrical-degenerate residual independent of psi_spat_in
+
+    @pytest.mark.foundation
+    def test_degenerate_residual_independent_of_spatial_upstream(self) -> None:
+        """The degenerate branch has no radial face flow — the residual
+        must not depend on ``upstream_state.spatial_upstream``.
+
+        Mirror of :class:`TestCylindricalDegenerate`'s
+        ``test_degenerate_does_not_consume_psi_spatial_in`` but on
+        :meth:`residual` instead of :meth:`update`.  Two probes with
+        wildly different ``spatial_upstream`` must produce the same
+        residual.
+        """
+        visit, total_xs, source, upstream_a = (
+            _cylinder_degenerate_visit_inputs()
+        )
+        psi_angle_in = upstream_a.angular_upstream
+        upstream_b = UpstreamState(
+            spatial_upstream=np.array([99.0, -42.0]),
+            angular_upstream=psi_angle_in,
+        )
+        cell_avg = np.array([0.7, 0.3])
+        strat = DiamondDifference()
+
+        r_a = strat.residual(cell_avg, visit, total_xs, source, upstream_a)
+        r_b = strat.residual(cell_avg, visit, total_xs, source, upstream_b)
+
+        assert np.array_equal(r_a, r_b)

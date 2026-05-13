@@ -320,7 +320,7 @@ class TestFaceFluxScatter:
 
 
 class _NoBatchStrategy(CellUpdateBase, key="_no_batch_strategy_test"):
-    """Test stub: only overrides ``update``, not ``update_batch``."""
+    """Test stub: only overrides ``update`` and ``residual``, not ``update_batch``."""
 
     is_linear: ClassVar[bool] = True
     is_positivity_preserving: ClassVar[bool] = False
@@ -333,6 +333,17 @@ class _NoBatchStrategy(CellUpdateBase, key="_no_batch_strategy_test"):
         upstream_state: UpstreamState,
     ) -> CellResult:
         return CellResult(cell_average_flux=source / total_xs)
+
+    def residual(
+        self,
+        cell_avg: np.ndarray,
+        visit: CellVisit,
+        total_xs: np.ndarray,
+        source: np.ndarray,
+        upstream_state: UpstreamState,
+    ) -> np.ndarray:
+        del visit, upstream_state
+        return total_xs * cell_avg - source
 
 
 @pytest.mark.l0

@@ -75,6 +75,23 @@ class IdentityCellUpdate:
             outgoing_angular_state=None,
         )
 
+    def residual(
+        self,
+        cell_avg: np.ndarray,
+        visit: CellVisit,
+        total_xs: np.ndarray,
+        source: np.ndarray,
+        upstream_state: UpstreamState,
+    ) -> np.ndarray:
+        """Apply-direction companion to :meth:`update`.
+
+        ``IdentityCellUpdate`` solves ``Σ_t · ψ = q``, so the residual
+        is ``Σ_t · cell_avg − source``.  At ``cell_avg = source / Σ_t``
+        the residual is zero by construction.
+        """
+        del visit, upstream_state  # unused by IdentityCellUpdate
+        return total_xs * cell_avg - source
+
 
 @dataclass(frozen=True, slots=True)
 class BadCellUpdate:
@@ -146,6 +163,23 @@ class FakeCurvilinearStrategy:
             outgoing_spatial_flux=out_spatial,
             outgoing_angular_state=out_angular,
         )
+
+    def residual(
+        self,
+        cell_avg: np.ndarray,
+        visit: CellVisit,
+        total_xs: np.ndarray,
+        source: np.ndarray,
+        upstream_state: UpstreamState,
+    ) -> np.ndarray:
+        """Apply-direction companion to :meth:`update`.
+
+        Matches the stand-in math: ``Σ_t · cell_avg − source``.
+        Not physically meaningful — exists purely to satisfy the
+        Protocol contract for protocol-conformance tests.
+        """
+        del visit, upstream_state  # unused by FakeCurvilinearStrategy
+        return total_xs * cell_avg - source
 
 
 # ═══════════════════════════════════════════════════════════════════════
