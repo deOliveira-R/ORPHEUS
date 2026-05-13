@@ -23,6 +23,7 @@ skills:
   - probe-cascade
   - vv-principles
   - numerical-bug-signatures
+  - coding-elegance
   - subagent-handoff-protocol
 memory: project
 model: opus

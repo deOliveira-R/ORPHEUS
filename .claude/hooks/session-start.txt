@@ -5,9 +5,10 @@ execute these tool calls as a single parallel batch:
 
   1. Skill: vv-principles
   2. Skill: subagent-handoff-protocol
-  3. Read .claude/lessons.md
-  4. mcp__nexus__session_briefing()
-  5. Read docs/development.rst
+  3. Skill: coding-elegance
+  4. Read .claude/lessons.md
+  5. mcp__nexus__session_briefing()
+  6. Read docs/development.rst
 
 These are your pre-loaded skills + project-state grounding. They are
 the main-agent equivalent of what sub-agents get via their AGENT.md

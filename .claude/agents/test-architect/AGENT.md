@@ -20,6 +20,7 @@ skills:
   - nexus-impact
   - vv-principles
   - numerical-bug-signatures
+  - coding-elegance
   - subagent-handoff-protocol
   - algebra-of-record
 memory: project

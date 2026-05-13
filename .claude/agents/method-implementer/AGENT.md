@@ -27,6 +27,7 @@ skills:
   - numerical-bug-signatures
   - cross-domain-frames
   - algebra-of-record
+  - coding-elegance
   - subagent-handoff-protocol
 memory: project
 model: opus

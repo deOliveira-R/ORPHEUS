@@ -21,6 +21,17 @@ overhaul because going further will result in duplications in the codebase.
 Architecture is always more important than immediate gains in implementation,
 because it sets the compounding foundation.
 
+**The operational guide for this rule is the `coding-elegance` skill**
+(`.claude/skills/coding-elegance/SKILL.md`). It codifies what "elegance in
+coding" means in this project — the patterns that prevent bugs by
+construction (operator overloading, single source of truth, named
+intermediates, illegal-states-unrepresentable, build primitives not
+products), the anti-patterns to flag (twin paths, procedural transcription,
+stringly-typed dispatch, boolean flag parameters), and the master standard
+"code should read like the math/domain". **Load `coding-elegance` before
+writing or reviewing any production code.** All code-producing sub-agents
+(method-implementer, numerics-investigator, qa, test-architect) preload it.
+
 ### 3. Sphinx IS the LLM's brain
 
 Sphinx documentation is NOT a concise summary. It is the **specialized
