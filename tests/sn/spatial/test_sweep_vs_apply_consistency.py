@@ -218,3 +218,180 @@ def test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere():
         f"SI keff = {res_si.keff:.10f}, Krylov keff = {res_kr.keff:.10f}, "
         f"diff = {res_si.keff - res_kr.keff:.3e}"
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Phase G Step 1 — Phase F twin-path defense at the operator level
+# ═══════════════════════════════════════════════════════════════════════
+#
+# These tests are the STRONG form of apply-vs-sweep consistency that
+# the existing :func:`test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere`
+# above marks as "Note: WEAK form".  Pre-Phase-F the strong form would
+# have caught ERR-026 manifestation #6 by construction; Step 1 ships
+# them as xfail (call-site unification is Step 2) and they transition
+# to xpass at Step 2.
+#
+# Design memo:
+# .claude/agent-memory/test-architect/issue_196_phase_g_step1_verification_gates.md
+# §"Gate 5 — Phase F twin-path defense"
+
+
+@pytest.mark.l0
+@pytest.mark.verifies("dd-curvilinear-scalar")
+@pytest.mark.catches("ERR-026")
+@pytest.mark.xfail(
+    reason=(
+        "Phase G Step 1 ships the type-system promotion only; the "
+        "call-site unification of transport_operator_matvec_spherical "
+        "+ _sweep_1d_spherical onto a single SNCellOperator is Step 2. "
+        "This test transitions xfail → xpass at Step 2 by construction "
+        "(both call sites consume the same SNCellOperator with the same "
+        "closure config). If it XPASSES at Step 1, the call-site "
+        "unification was bundled into Step 1 — investigate before "
+        "removing the marker."
+    ),
+    strict=False,
+)
+def test_apply_path_and_sweep_path_consume_same_sncell_operator():
+    r"""Phase F twin-path defense — apply-matvec and SI-sweep agree at
+    the per-cell, per-ordinate level on the canonical Phase F probe
+    ``sphere_2g_3reg`` n=40.
+
+    Pre-Phase-F empirical signature (Phase F closeout memo
+    §"Empirical evidence"):
+
+      * SI:     sf[0]/sf[1] = 0.522   (diverged under refinement to 0.473)
+      * Krylov: sf[0]/sf[1] = 1.029   (converged O(h²))
+
+    Post-Phase-F (Carlson seed backport):
+
+      * SI:     sf[0]/sf[1] = 0.778   (STABLE under refinement)
+      * Krylov: sf[0]/sf[1] = 1.029   (unchanged)
+
+      → residual O(h) drift between the two paths (Phase F manifestation #7).
+
+    Post-Phase-G Step 2 (call-site unification onto single SNCellOperator):
+
+      * SI:     sf[0]/sf[1] = same as Krylov  (dissolves by construction)
+      * Krylov: sf[0]/sf[1] = same as SI
+
+      → ratio_si ≡ ratio_kr at machine precision.
+
+    Step 1 (this test under xfail) only promotes the TYPE-SYSTEM —
+    the call sites still live in twin functions; the per-cell ψ at
+    i=0 still differs by Phase F's residual O(h) drift. The test
+    transitions xfail → xpass at Step 2 when both call sites route
+    through the same operator.
+
+    **Test design rationale (Mode 7 antidote):** sphere_2g_3reg is
+    the canonical heterogeneous-MR-multi-group probe. The angularly-
+    non-trivial fixed point makes the M-M angular redistribution +
+    Carlson seed + WDD spatial closure all visibly contribute. This
+    probe is the angularly-non-trivial companion to the flat-ψ
+    closure gates in :mod:`tests.sn.spatial.test_angular_redistribution`.
+    """
+    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.geometry import (
+        BC, Mesh1D, Region, RegionMesh, StructuredGeometry,
+    )
+    from orpheus.sn.quadrature import GaussLegendre1D
+    from orpheus.sn.solver import solve_sn
+
+    # sphere_2g_3reg n=40 — aligned with the snapshot generator at
+    # tests/sn/regression/_generate_snapshots.py::_sphere_3region.
+    # Three regions of differing materials so the eigenmode is
+    # angularly + spatially non-trivial; outer reflective BC drives
+    # the Phase F outer-cell defect; pole at r=0 drives the Phase F
+    # manifestation #6 pole-cell defect.
+    fuel = get_mixture("A", "2g")
+    mod = get_mixture("B", "2g")
+    geom = StructuredGeometry(
+        geometry="SPH",
+        regions=(
+            Region(mat_id=0, outer_thickness_cm=0.5),
+            Region(mat_id=1, outer_thickness_cm=1.0),
+            Region(mat_id=0, outer_thickness_cm=0.5),
+        ),
+        bcs=(BC.reflective,),
+    )
+    n_per_region = (10, 20, 10)  # n=40 total
+    mesh = Mesh1D.from_geometry(
+        geom,
+        region_meshes=tuple(RegionMesh(n_cells=n) for n in n_per_region),
+    )
+    quad = GaussLegendre1D.create(n_ordinates=8)
+
+    res_si = solve_sn(
+        materials={0: fuel, 1: mod}, mesh=mesh, quadrature=quad,
+        inner_solver="source_iteration",
+        keff_tol=1e-10, flux_tol=1e-10,
+    )
+    res_kr = solve_sn(
+        materials={0: fuel, 1: mod}, mesh=mesh, quadrature=quad,
+        inner_solver="krylov",
+        keff_tol=1e-10, flux_tol=1e-10,
+    )
+
+    # The per-cell, per-ordinate ψ at cell 0 (the Phase F defect site)
+    # MUST agree at rtol=1e-10 post-Step-2.  At Step 1 this is xfail
+    # because the call sites still live in twin functions and the
+    # Phase F residual O(h) drift persists.
+    # angular_flux shape is (N, nx, ny, ng); slice cell i=0 / y=0.
+    np.testing.assert_allclose(
+        res_si.angular_flux[:, 0, 0, :],  # (N, ng) at i=0
+        res_kr.angular_flux[:, 0, 0, :],
+        rtol=1e-10,
+        err_msg=(
+            "Phase F twin-path bug regression: apply-path and "
+            "SI-path produce different per-cell ψ at i=0 of "
+            "sphere_2g_3reg. Step 2's call-site unification onto "
+            "SNCellOperator should have closed this by construction."
+        ),
+    )
+
+
+@pytest.mark.foundation
+@pytest.mark.verifies("phase-f-carlson-seed-source-driven")
+@pytest.mark.catches("ERR-026")
+@pytest.mark.skip(
+    reason=(
+        "Step 2 acceptance gate: requires StreamingOperator(L) wiring "
+        "that doesn't exist at Step 1.  Re-enable at Step 2 closeout."
+    ),
+)
+def test_sncell_operator_consumed_by_both_call_sites_at_step_2():
+    r"""Step 2 acceptance gate: both call sites compose the same
+    SNCellOperator INSTANCE (not just structurally equal).
+
+    A "same-class" check (``isinstance``) is necessary but NOT
+    sufficient.  At Step 2 the call sites MUST share the SAME
+    ``SNCellOperator`` instance configured with the SAME closure
+    strategy — this is what dissolves manifestation #7 by
+    construction.
+
+    The mechanism: a single ``StreamingOperator(L)`` constructor at
+    the public API level owns one ``SNCellOperator`` instance; both
+    ``L.apply`` and ``L.solve`` (called from the Krylov path and SI
+    path respectively) delegate to the SAME instance.
+
+    **Why a same-class check is insufficient**: two SNCellOperator
+    instances configured with different closures (e.g. WDD vs
+    symmetric) are structurally type-equal but algebraically
+    distinct.  The Phase E reconciliation noted that ``apply`` had
+    drifted to use a different closure than ``solve``; the same-
+    class check would have passed while the algebra disagreed.
+
+    This test is xfail at Step 1 (the call-site unification doesn't
+    happen until Step 2) and xpass at Step 2 closeout.
+    """
+    # TODO(method-implementer Step 2): construct a StreamingOperator
+    # L = StreamingOperator(V_sn, sigma_t, boundary=B); confirm
+    # L.apply and L.solve internally route through the SAME
+    # SNCellOperator instance (object identity, not just same type).
+    #
+    # The check is purposely INSTANCE-level (id()), not class-level
+    # (isinstance), so a future regression where two SNCellOperator
+    # instances with different closure configs are constructed
+    # silently breaks this test loud.
+
+    pytest.fail("STUB — method-implementer fills body in Step 2")
