@@ -336,7 +336,7 @@ Sweep-direction resolution lives in the SN module:
 SN-specific per-visit packet that composes the geometric
 :class:`StreamingTerms` together with the sweep-resolved
 ``face_area_downstream``.  The SN sweep iterates
-:meth:`~orpheus.sn.geometry.SNMesh.iter_cell_visits`, which encodes
+:meth:`~orpheus.sn.geometry.SNMesh.dag_walk`, which encodes
 the inward / outward branching, the cylindrical per-level
 traversal, and the pure-azimuthal degenerate handling — yielding
 one :class:`CellVisit` per cell in DAG-topological order.  The

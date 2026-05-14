@@ -989,15 +989,19 @@ The :class:`CellVisit` composes:
   degenerate case (no spatial flow).
 
 The :class:`CellVisit` packets are produced by
-:meth:`SNMesh.iter_cell_visits(ordinate_idx, mu_level_idx=None)
-<orpheus.sn.geometry.SNMesh.iter_cell_visits>` — a generator that
-yields cells in DAG-topological order for the given ordinate.  The
-method encapsulates the inward / outward branching, the cylindrical
+:meth:`SNMesh.dag_walk(*, ordinate_idx=..., direction_sign=...,
+mu_level_idx=None)
+<orpheus.sn.geometry.SNMesh.dag_walk>` — a generator that
+yields cells in DAG-topological order.  The method takes EXACTLY ONE
+of ``ordinate_idx`` (single-ordinate visits, used by the sweep
+driver) or ``direction_sign`` (direction-keyed visits, used by the
+apply matvec) as a keyword-only argument.  Both invocation modes
+encapsulate the inward / outward branching, the cylindrical
 per-:math:`\mu`-level traversal, and the pure-azimuthal degenerate
 handling.  The sweep at :mod:`orpheus.sn.sweep` consumes this
 generator::
 
-    for visit in sn_mesh.iter_cell_visits(ordinate_idx=n):
+    for visit in sn_mesh.dag_walk(ordinate_idx=n):
         upstream = UpstreamState(
             spatial_upstream=psi_face,
             angular_upstream=psi_angle[visit.cell_idx],
@@ -1067,10 +1071,12 @@ The numerical threshold is ``streaming_terms.abs_mu < 1e-15``, with
 ``level_indices`` for cylindrical geometry — see
 :doc:`structured_geometry`, "Connection coefficients (reduced
 streaming operator)").  In this case
-:meth:`SNMesh.iter_cell_visits
-<orpheus.sn.geometry.SNMesh.iter_cell_visits>` yields visits with
-``face_area_downstream = None`` to signal "no spatial flow" to the
-strategy.
+:meth:`SNMesh.dag_walk
+<orpheus.sn.geometry.SNMesh.dag_walk>` yields visits with
+``face_area_downstream = 0.0`` to signal "no spatial flow" to the
+strategy (Issue #196 Step 2.5 retired the ``None`` sentinel — the
+slab carries ``1.0`` and degenerate cylindrical carries ``0.0`` so
+the cell-balance helper consumes one geometry-blind number).
 
 The DD recurrence
 ------------------
@@ -1552,7 +1558,7 @@ an explicit DAG) would be over-engineering for a regular pattern that
 collapses to ~5 lines of ``arange`` + diagonal extraction.  Curvilinear
 geometries (sphere / cylinder) set ``self.sweep_graphs = None`` —
 they walk the cell graph differently (per-ordinate march; see
-:meth:`~orpheus.sn.geometry.SNMesh.iter_cell_visits`) and Wave 2 is
+:meth:`~orpheus.sn.geometry.SNMesh.dag_walk`) and Wave 2 is
 2-D Cartesian only.
 
 The §15A.2 invariant set
@@ -2476,7 +2482,8 @@ WDD recurrence walks the face flux along the DAG:
    \psi^{\text{face}}_{\text{out}}(i),
 
 evaluated cell-by-cell across the direction's DAG order yielded by
-:meth:`~orpheus.sn.geometry.SNMesh.iter_cells_by_direction`. The
+:meth:`~orpheus.sn.geometry.SNMesh.dag_walk` invoked with
+``direction_sign``. The
 per-cell streaming term consumes both the inflow and outflow face
 values along with the cell volume and face areas (Hébert §3.9.4
 balance, ORPHEUS-normalised):
@@ -2557,19 +2564,23 @@ The new APIs
 
 Two new APIs surface what the existing infrastructure already knew:
 
-* :meth:`~orpheus.sn.geometry.SNMesh.iter_cells_by_direction(direction_sign[, mu_level_idx])`
-  — companion to
-  :meth:`~orpheus.sn.geometry.SNMesh.iter_cell_visits` that yields
-  cells in DAG-topological order keyed by the **bulk sweep
-  direction sign**, not by a specific ordinate. The existing
+* :meth:`~orpheus.sn.geometry.SNMesh.dag_walk(*, ordinate_idx=...,
+  direction_sign=..., mu_level_idx=None)` — Issue #196 Phase G
+  Step 2.6 (Q3) canonicalised this as the **single iteration
+  primitive** for 1-D sweeps, replacing the legacy pair of
+  ordinate-keyed / direction-keyed methods.  Exactly one of
+  ``ordinate_idx`` or ``direction_sign`` is supplied (XOR):
+  ``ordinate_idx=n`` for the sweep driver's per-ordinate march,
+  ``direction_sign=±1`` for the apply matvec's whole-subset walk
+  keyed by the **bulk sweep direction sign**. The existing
   cell-visit graph's per-quadrant ``_diag_cache`` is already keyed
-  by :math:`(\mathrm{sign}(\mu_x), \mathrm{sign}(\mu_y))`; the new
-  method surfaces that direction-sign-only view as a first-class
-  API. A foundation test
-  (:file:`tests/sn/test_iter_cells_by_direction.py`) pins
-  bit-identity to ``iter_cell_visits(ordinate_idx=
-  representative_n)`` across sphere / slab / cylindrical for every
-  representative ordinate. For cylindrical the per-level
+  by :math:`(\mathrm{sign}(\mu_x), \mathrm{sign}(\mu_y))`; the
+  direction-keyed branch surfaces that sign-only view as a
+  first-class API. A foundation test
+  (:file:`tests/sn/test_dag_walk.py`) pins
+  bit-identity between the two invocation modes across sphere /
+  slab / cylindrical for every representative ordinate. For
+  cylindrical the per-level
   ``mu_level_idx`` is required (the within-level DAG topology
   differs per level).
 
@@ -2758,7 +2769,8 @@ three primitives**:
 
 #. The WDD diamond closure :eq:`phase-c-wdd-recurrence` per cell.
 #. The direction-keyed cell-visit DAG via
-   :meth:`~orpheus.sn.geometry.SNMesh.iter_cells_by_direction`.
+   :meth:`~orpheus.sn.geometry.SNMesh.dag_walk` invoked with
+   ``direction_sign=±1``.
 #. The BC trace law applied **once** at the boundary edge per
    :ref:`affine-bc-form`.
 
@@ -2823,7 +2835,7 @@ cell centres. The boundary-edge sequence is:
 
    # ── Phase 1: outward sweep (μ > 0), i = 0 → nx-1 ─────────────
    # Carlson seed at pole: ψ_face_in = ψ_cell[0].
-   for visit in sn_mesh.iter_cells_by_direction(+1):
+   for visit in sn_mesh.dag_walk(direction_sign=+1):
        i = visit.cell_idx
        psi_cell = fi[:, outgoing_mask, i, 0]
        psi_face_out = 2.0 * psi_cell - psi_face_in          # WDD
@@ -2840,7 +2852,7 @@ cell centres. The boundary-edge sequence is:
 
    # ── Phase 2: inward sweep (μ < 0), i = nx-1 → 0 ──────────────
    psi_face_in = inflow_full[incoming_mask, :].T            # BC-set
-   for visit in sn_mesh.iter_cells_by_direction(-1):
+   for visit in sn_mesh.dag_walk(direction_sign=-1):
        i = visit.cell_idx
        psi_cell = fi[:, incoming_mask, i, 0]
        psi_face_out = 2.0 * psi_cell - psi_face_in          # WDD
