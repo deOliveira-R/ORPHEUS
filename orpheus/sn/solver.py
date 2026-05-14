@@ -43,6 +43,7 @@ from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.numerics.eigenvalue import power_iteration
 from .fission import FissionOperator
 from .geometry import SNMesh
+from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from .operator import (
     SNStreamingOperator,
     build_equation_map,
@@ -260,6 +261,44 @@ class SNSolver:
         self.L = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=self.sig_t)
         self.S = self.scattering_op
         self.F = self.fission_op
+
+        # ── Sweep cache (Issue #196 Phase G Step 2.5c) ───────────────
+        # Two-stratum cache: GeometryCoefficients built once at __init__
+        # (geometry × quadrature only); CollisionCache built once after
+        # σ_t binding.  Hot path consumes (geom, coll) without per-cell
+        # StreamingTerms allocation.  Only applicable to 1-D meshes with
+        # ReducedStreamingOperator — 2-D Cartesian uses the wavefront path.
+        self.geom_cache: GeometryCoefficients | None = None
+        self.coll_cache: CollisionCache | None = None
+        if sn_mesh.reduced is not None:
+            self.geom_cache = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
+            # 1-D meshes: sig_t shape (nx, 1, ng) → (nx, ng) for the cache.
+            sig_t_1d = self.sig_t[:, 0, :]
+            self.coll_cache = CollisionCache.from_geometry(
+                self.geom_cache, sig_t_1d,
+            )
+            # Stash the caches on the SNMesh so the sweep can find them
+            # without threading a solver reference through ``transport_sweep``.
+            sn_mesh._geom_cache = self.geom_cache  # type: ignore[attr-defined]
+            sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
+
+    def rebind_cross_sections(self, new_sig_t: np.ndarray) -> None:
+        """Rebind :attr:`sig_t` and rebuild only :class:`CollisionCache`.
+
+        :class:`GeometryCoefficients` survives — Stratum 1 is geometry-only.
+        Only the σ_t-dependent Stratum 2 rebuilds.  Used by depletion /
+        thermal-feedback consumers (the API surface lives here at Step 2.5c;
+        downstream multi-physics consumers wire up in later steps).
+        """
+        self.sig_t = new_sig_t
+        # Mirror onto the L operator so its apply path stays consistent.
+        self.L = SNStreamingOperator(sn_mesh=self.sn_mesh, sig_t=self.sig_t)
+        if self.geom_cache is not None:
+            sig_t_1d = self.sig_t[:, 0, :]
+            self.coll_cache = CollisionCache.from_geometry(
+                self.geom_cache, sig_t_1d,
+            )
+            self.sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
 
     def initial_flux_distribution(self) -> np.ndarray:
         """Initial scalar flux guess: ones(nx, ny, ng)."""
