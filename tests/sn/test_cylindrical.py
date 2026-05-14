@@ -224,7 +224,7 @@ class TestCylindricalSweepRegression:
 
     def test_single_sweep_all_finite(self):
         """A single sweep must produce finite fluxes."""
-        from orpheus.sn.sweep import _sweep_1d_cylindrical
+        from orpheus.sn.sweep import _sweep_1d_curvilinear  # Issue #196 Step 2.5
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
@@ -234,7 +234,7 @@ class TestCylindricalSweepRegression:
         Q = np.ones((10, 1, 1))
 
         psi_bc = {}
-        ang, phi = _sweep_1d_cylindrical(Q, sig_t, sn_mesh, psi_bc)
+        ang, phi = _sweep_1d_curvilinear(Q, sig_t, sn_mesh, psi_bc)
 
         assert np.all(np.isfinite(ang)), "Non-finite angular flux"
         assert np.all(np.isfinite(phi)), "Non-finite scalar flux"
@@ -526,7 +526,7 @@ class TestMultiGroupMultiRegion:
         The redistribution sum Σ_m (α_{m+1/2}ψ_{m+1/2} − α_{m-1/2}ψ_{m-1/2})
         must vanish for each cell because α[0] = α[M] = 0.
         """
-        from orpheus.sn.sweep import _sweep_1d_cylindrical
+        from orpheus.sn.sweep import _sweep_1d_curvilinear  # Issue #196 Step 2.5
 
         mix = get_mixture("A", "1g")
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
@@ -536,7 +536,7 @@ class TestMultiGroupMultiRegion:
         sig_t = np.full((10, 1, 1), mix.SigT[0])
         Q = np.ones((10, 1, 1))
         psi_bc = {}
-        ang, _ = _sweep_1d_cylindrical(Q, sig_t, sn_mesh, psi_bc)
+        ang, _ = _sweep_1d_curvilinear(Q, sig_t, sn_mesh, psi_bc)
 
         for p, level_idx in enumerate(quad.level_indices):
             alpha = sn_mesh.reduced.alpha_per_level[p]
@@ -556,7 +556,7 @@ class TestMultiGroupMultiRegion:
 
     def test_single_cell_uniform_source_equilibrium(self):
         """Two-cell 1G pure absorber with uniform source → φ = Q/Σ_t."""
-        from orpheus.sn.sweep import _sweep_1d_cylindrical
+        from orpheus.sn.sweep import _sweep_1d_curvilinear  # Issue #196 Step 2.5
 
         mesh = _homogeneous_mesh(2, 1.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
@@ -566,7 +566,7 @@ class TestMultiGroupMultiRegion:
         sig_t = np.ones((2, 1, 1))
         psi_bc = {}
         for _ in range(100):
-            _, phi = _sweep_1d_cylindrical(Q, sig_t, sn_mesh, psi_bc)
+            _, phi = _sweep_1d_curvilinear(Q, sig_t, sn_mesh, psi_bc)
 
         phi_avg = np.average(phi[:, 0, 0], weights=mesh.volumes)
         np.testing.assert_allclose(phi_avg, 1.0, rtol=0.01,

@@ -342,7 +342,10 @@ class TestSphericalSweepRegression:
         This caught the missing weight_norm (1/sum_w) normalization in
         the spherical sweep source term.
         """
-        from orpheus.sn.sweep import _sweep_1d_spherical
+        # Issue #196 Step 2.5: _sweep_1d_spherical retired; use the
+        # unified _sweep_1d_curvilinear which dispatches sphere /
+        # cylinder via sn_mesh.reduced.coord.
+        from orpheus.sn.sweep import _sweep_1d_curvilinear
 
         mesh = _homogeneous_mesh(10, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
@@ -353,7 +356,7 @@ class TestSphericalSweepRegression:
 
         psi_bc = {}
         for _ in range(200):
-            _, phi = _sweep_1d_spherical(Q, sig_t, sn_mesh, psi_bc)
+            _, phi = _sweep_1d_curvilinear(Q, sig_t, sn_mesh, psi_bc)
 
         # Volume-weighted average must converge to Q/Σ_t = 1.0.
         # Individual cells near r=0 have large DD error due to extreme
@@ -369,7 +372,10 @@ class TestSphericalSweepRegression:
         This catches the negative-denominator bug from using signed α
         instead of |α| at the innermost cell where A=0.
         """
-        from orpheus.sn.sweep import _sweep_1d_spherical
+        # Issue #196 Step 2.5: _sweep_1d_spherical retired; use the
+        # unified _sweep_1d_curvilinear which dispatches sphere /
+        # cylinder via sn_mesh.reduced.coord.
+        from orpheus.sn.sweep import _sweep_1d_curvilinear
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
@@ -379,7 +385,7 @@ class TestSphericalSweepRegression:
         Q = np.ones((10, 1, 1))
 
         psi_bc = {}
-        ang, phi = _sweep_1d_spherical(Q, sig_t, sn_mesh, psi_bc)
+        ang, phi = _sweep_1d_curvilinear(Q, sig_t, sn_mesh, psi_bc)
 
         assert np.all(np.isfinite(ang)), "Non-finite angular flux in first sweep"
         assert np.all(np.isfinite(phi)), "Non-finite scalar flux in first sweep"
@@ -642,7 +648,10 @@ class TestMultiGroupMultiRegionSpherical:
         Without the ΔA/w geometry factor, the flux spikes to ~5x at
         the origin.  With the fix, the range should be bounded.
         """
-        from orpheus.sn.sweep import _sweep_1d_spherical
+        # Issue #196 Step 2.5: _sweep_1d_spherical retired; use the
+        # unified _sweep_1d_curvilinear which dispatches sphere /
+        # cylinder via sn_mesh.reduced.coord.
+        from orpheus.sn.sweep import _sweep_1d_curvilinear
 
         mesh = _homogeneous_mesh(40, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
@@ -652,7 +661,7 @@ class TestMultiGroupMultiRegionSpherical:
         sig_t = np.ones((40, 1, 1))
         psi_bc = {}
         for _ in range(50):
-            _, phi = _sweep_1d_spherical(Q, sig_t, sn_mesh, psi_bc)
+            _, phi = _sweep_1d_curvilinear(Q, sig_t, sn_mesh, psi_bc)
 
         phi_avg = np.average(phi[:, 0, 0], weights=mesh.volumes)
         np.testing.assert_allclose(phi_avg, 1.0, rtol=0.01,

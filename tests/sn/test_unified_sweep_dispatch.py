@@ -42,9 +42,8 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
 from orpheus.sn.spatial.diamond import DiamondDifference
 from orpheus.sn.sweep import (
-    _cartesian_sweep,
-    _curvilinear_sweep,
-    _sweep_1d_cumprod,
+    _sweep_1d_cartesian,
+    _sweep_1d_curvilinear,
     _sweep_2d_wavefront,
     transport_sweep,
 )
@@ -126,9 +125,9 @@ class TestDispatchByReducedProperty:
     """
 
     @pytest.mark.foundation
-    def test_slab_routes_to_cartesian_sweep(self, monkeypatch):
+    def test_slab_routes_to_sweep_1d_cartesian(self, monkeypatch):
         """Slab (``requires_upstream_angular_state == False``) routes
-        through ``_cartesian_sweep``.
+        through ``_sweep_1d_cartesian``.
         """
         sn_mesh = _slab_sn_mesh()
         assert sn_mesh.reduced.requires_upstream_angular_state is False
@@ -144,8 +143,8 @@ class TestDispatchByReducedProperty:
             called["curvilinear"] += 1
             return np.zeros((1,)), np.zeros((1,))
 
-        monkeypatch.setattr(sweep_module, "_cartesian_sweep", fake_cartesian)
-        monkeypatch.setattr(sweep_module, "_curvilinear_sweep", fake_curvilinear)
+        monkeypatch.setattr(sweep_module, "_sweep_1d_cartesian", fake_cartesian)
+        monkeypatch.setattr(sweep_module, "_sweep_1d_curvilinear", fake_curvilinear)
 
         nx, ng = 8, 1
         Q = np.zeros((nx, 1, ng))
@@ -156,9 +155,9 @@ class TestDispatchByReducedProperty:
         assert called["curvilinear"] == 0
 
     @pytest.mark.foundation
-    def test_spherical_routes_to_curvilinear_sweep(self, monkeypatch):
+    def test_spherical_routes_to_sweep_1d_curvilinear(self, monkeypatch):
         """Spherical (``requires_upstream_angular_state == True``)
-        routes through ``_curvilinear_sweep``.
+        routes through ``_sweep_1d_curvilinear``.
         """
         sn_mesh = _spherical_sn_mesh()
         assert sn_mesh.reduced.requires_upstream_angular_state is True
@@ -174,8 +173,8 @@ class TestDispatchByReducedProperty:
             called["curvilinear"] += 1
             return np.zeros((1,)), np.zeros((1,))
 
-        monkeypatch.setattr(sweep_module, "_cartesian_sweep", fake_cartesian)
-        monkeypatch.setattr(sweep_module, "_curvilinear_sweep", fake_curvilinear)
+        monkeypatch.setattr(sweep_module, "_sweep_1d_cartesian", fake_cartesian)
+        monkeypatch.setattr(sweep_module, "_sweep_1d_curvilinear", fake_curvilinear)
 
         nx, ng = 8, 1
         Q = np.zeros((nx, 1, ng))
@@ -186,9 +185,9 @@ class TestDispatchByReducedProperty:
         assert called["curvilinear"] == 1
 
     @pytest.mark.foundation
-    def test_cylindrical_routes_to_curvilinear_sweep(self, monkeypatch):
+    def test_cylindrical_routes_to_sweep_1d_curvilinear(self, monkeypatch):
         """Cylindrical (``requires_upstream_angular_state == True``)
-        routes through ``_curvilinear_sweep``.
+        routes through ``_sweep_1d_curvilinear``.
         """
         sn_mesh = _cylindrical_sn_mesh()
         assert sn_mesh.reduced.requires_upstream_angular_state is True
@@ -204,8 +203,8 @@ class TestDispatchByReducedProperty:
             called["curvilinear"] += 1
             return np.zeros((1,)), np.zeros((1,))
 
-        monkeypatch.setattr(sweep_module, "_cartesian_sweep", fake_cartesian)
-        monkeypatch.setattr(sweep_module, "_curvilinear_sweep", fake_curvilinear)
+        monkeypatch.setattr(sweep_module, "_sweep_1d_cartesian", fake_cartesian)
+        monkeypatch.setattr(sweep_module, "_sweep_1d_curvilinear", fake_curvilinear)
 
         nx, ng = 8, 1
         Q = np.zeros((nx, 1, ng))
@@ -216,72 +215,80 @@ class TestDispatchByReducedProperty:
         assert called["curvilinear"] == 1
 
     @pytest.mark.foundation
-    def test_2d_cartesian_routes_to_cartesian_sweep(self, monkeypatch):
-        """2-D Cartesian (``sn_mesh.reduced is None``) routes through
-        ``_cartesian_sweep``.
+    def test_2d_cartesian_routes_to_sweep_2d_wavefront(self, monkeypatch):
+        """2-D Cartesian (``sn_mesh.reduced is None``, ``ny > 1``) routes
+        through ``_sweep_2d_wavefront``.
 
-        2-D Cartesian SNMesh has ``self.reduced = None`` because the
-        ReducedStreamingOperator factories cover only 1-D cases (slab,
-        sphere, cylinder).  The dispatch falls through to the
-        Cartesian path for any non-curvilinear mesh.
+        Issue #196 Step 2.5: the top-level dispatch now separates 1-D
+        from 2-D Cartesian directly (``sn_mesh.ny == 1`` →
+        :func:`_sweep_1d_cartesian`; ``ny > 1`` →
+        :func:`_sweep_2d_wavefront`).  Pre-Step-2.5 these were both
+        called through a ``_cartesian_sweep`` indirection that did
+        the 1D-vs-2D split internally.
         """
         sn_mesh = _2d_sn_mesh()
         assert sn_mesh.reduced is None
+        assert sn_mesh.ny > 1
 
-        called = {"cartesian": 0, "curvilinear": 0}
+        called = {"cartesian": 0, "wavefront": 0, "curvilinear": 0}
         from orpheus.sn import sweep as sweep_module
 
         def fake_cartesian(*args, **kwargs):
             called["cartesian"] += 1
             return np.zeros((1,)), np.zeros((1,))
 
+        def fake_wavefront(*args, **kwargs):
+            called["wavefront"] += 1
+            return np.zeros((1,)), np.zeros((1,))
+
         def fake_curvilinear(*args, **kwargs):
             called["curvilinear"] += 1
             return np.zeros((1,)), np.zeros((1,))
 
-        monkeypatch.setattr(sweep_module, "_cartesian_sweep", fake_cartesian)
-        monkeypatch.setattr(sweep_module, "_curvilinear_sweep", fake_curvilinear)
+        monkeypatch.setattr(sweep_module, "_sweep_1d_cartesian", fake_cartesian)
+        monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
+        monkeypatch.setattr(sweep_module, "_sweep_1d_curvilinear", fake_curvilinear)
 
         nx, ny, ng = 4, 4, 1
         Q = np.zeros((nx, ny, ng))
         sig_t = np.ones((nx, ny, ng))
         transport_sweep(Q, sig_t, sn_mesh, {})
 
-        assert called["cartesian"] == 1
+        assert called["cartesian"] == 0
+        assert called["wavefront"] == 1
         assert called["curvilinear"] == 0
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# TestCumprodFastPathPreconditions
+# TestCartesianDispatch1Dvs2D — Issue #196 Step 2.5
 # ═══════════════════════════════════════════════════════════════════════
 
-class TestCumprodFastPathPreconditions:
-    """The 1-D cumprod fast path activates only under three
-    preconditions simultaneously:
+class TestCartesianDispatch1Dvs2D:
+    """Cartesian dispatch separates 1-D from 2-D (Issue #196 Step 2.5).
 
-    1. ``cell_update is DiamondDifference`` — the cumprod recurrence is
-       a DD-specific algebraic identity (Lewis & Miller §5.3).
-    2. Quadrature is GL1D — ``ny == 1`` and all ``mu_y`` vanish.
-    3. Source is isotropic — ``Q_aniso is None``.
-
-    Any precondition failure routes through the 2-D wavefront sweep
-    (which handles 1-D as a special case of 2-D).
+    Pre-Step-2.5 the dispatch had a 1-D cumprod fast path gated by
+    three preconditions (DD strategy, GL1D quadrature, isotropic
+    source).  Step 2.5 retired the cumprod path and the gating logic
+    along with it: 1-D Cartesian (``sn_mesh.ny == 1``) routes
+    unconditionally through :func:`_sweep_1d_cartesian` (the unified
+    fold-over-DAG-visits skeleton); 2-D Cartesian routes through
+    :func:`_sweep_2d_wavefront`.  Cell-update strategy, quadrature
+    shape, and source anisotropy are all handled INSIDE the chosen
+    sweep — they no longer affect dispatch.
     """
 
     @pytest.mark.foundation
-    def test_fast_path_activates_under_all_preconditions(self, monkeypatch):
-        """All three preconditions met → fast path runs."""
+    def test_1d_cartesian_routes_to_sweep_1d_cartesian(self, monkeypatch):
+        """1-D Cartesian (``sn_mesh.ny == 1``) → ``_sweep_1d_cartesian``."""
         sn_mesh = _slab_sn_mesh()
-        # Verify SN mesh meets preconditions:
-        assert isinstance(sn_mesh.cell_update, DiamondDifference)
         assert sn_mesh.ny == 1
-        assert np.all(np.abs(sn_mesh.quad.mu_y) < 1e-15)
+        assert sn_mesh.reduced.requires_upstream_angular_state is False
 
-        called = {"cumprod": 0, "wavefront": 0}
+        called = {"cartesian": 0, "wavefront": 0}
         from orpheus.sn import sweep as sweep_module
 
-        def fake_cumprod(*args, **kwargs):
-            called["cumprod"] += 1
+        def fake_cartesian(*args, **kwargs):
+            called["cartesian"] += 1
             quad_N = sn_mesh.quad.N
             return (np.zeros((quad_N, sn_mesh.nx, 1, 1)),
                     np.zeros((sn_mesh.nx, 1, 1)))
@@ -290,63 +297,68 @@ class TestCumprodFastPathPreconditions:
             called["wavefront"] += 1
             return (np.zeros((1,)), np.zeros((1,)))
 
-        monkeypatch.setattr(sweep_module, "_sweep_1d_cumprod", fake_cumprod)
+        monkeypatch.setattr(sweep_module, "_sweep_1d_cartesian", fake_cartesian)
         monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
 
         nx, ng = 8, 1
         Q = np.zeros((nx, 1, ng))
         sig_t = np.ones((nx, 1, ng))
-        # No Q_aniso ⇒ isotropic ⇒ fast path activates.
-        _cartesian_sweep(Q, sig_t, sn_mesh, {})
+        transport_sweep(Q, sig_t, sn_mesh, {})
 
-        assert called["cumprod"] == 1
+        assert called["cartesian"] == 1
         assert called["wavefront"] == 0
 
     @pytest.mark.foundation
-    def test_fast_path_skipped_for_anisotropic_source(self, monkeypatch):
-        """Anisotropic source (``Q_aniso is not None``) → wavefront."""
-        sn_mesh = _slab_sn_mesh()
-        # Other preconditions met:
-        assert isinstance(sn_mesh.cell_update, DiamondDifference)
+    def test_1d_cartesian_anisotropic_routes_to_sweep_1d_cartesian(
+        self, monkeypatch,
+    ):
+        """1-D + anisotropic source still routes to ``_sweep_1d_cartesian``.
 
-        called = {"cumprod": 0, "wavefront": 0}
+        Step 2.5 retired the fast-path gating: the unified
+        ``_sweep_1d_cartesian`` body handles ``Q_aniso`` natively
+        (per-ordinate anisotropic source folded into ``QV`` inside
+        the per-ordinate loop).
+        """
+        sn_mesh = _slab_sn_mesh()
+        assert sn_mesh.ny == 1
+
+        called = {"cartesian": 0, "wavefront": 0}
         from orpheus.sn import sweep as sweep_module
 
-        def fake_cumprod(*args, **kwargs):
-            called["cumprod"] += 1
-            return (np.zeros((1,)), np.zeros((1,)))
-
-        def fake_wavefront(*args, **kwargs):
-            called["wavefront"] += 1
+        def fake_cartesian(*args, **kwargs):
+            called["cartesian"] += 1
             quad_N = sn_mesh.quad.N
             return (np.zeros((quad_N, sn_mesh.nx, 1, 1)),
                     np.zeros((sn_mesh.nx, 1, 1)))
 
-        monkeypatch.setattr(sweep_module, "_sweep_1d_cumprod", fake_cumprod)
+        def fake_wavefront(*args, **kwargs):
+            called["wavefront"] += 1
+            return (np.zeros((1,)), np.zeros((1,)))
+
+        monkeypatch.setattr(sweep_module, "_sweep_1d_cartesian", fake_cartesian)
         monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
 
         nx, ng = 8, 1
         Q = np.zeros((nx, 1, ng))
         sig_t = np.ones((nx, 1, ng))
         Q_aniso = np.zeros((sn_mesh.quad.N, nx, 1, ng))  # NOT None
-        _cartesian_sweep(Q, sig_t, sn_mesh, {}, Q_aniso=Q_aniso)
+        transport_sweep(Q, sig_t, sn_mesh, {}, Q_aniso=Q_aniso)
 
-        assert called["cumprod"] == 0
-        assert called["wavefront"] == 1
+        assert called["cartesian"] == 1
+        assert called["wavefront"] == 0
 
     @pytest.mark.foundation
-    def test_fast_path_skipped_for_2d_quadrature(self, monkeypatch):
-        """2-D quadrature (``mu_y`` not all zero) → wavefront."""
+    def test_2d_cartesian_routes_to_sweep_2d_wavefront(self, monkeypatch):
+        """2-D Cartesian (``sn_mesh.ny > 1``) → ``_sweep_2d_wavefront``."""
         sn_mesh = _2d_sn_mesh()
-        # Verify cell_update default + mu_y nonzero:
-        assert isinstance(sn_mesh.cell_update, DiamondDifference)
-        assert not np.all(np.abs(sn_mesh.quad.mu_y) < 1e-15)
+        assert sn_mesh.ny > 1
+        assert sn_mesh.reduced is None
 
-        called = {"cumprod": 0, "wavefront": 0}
+        called = {"cartesian": 0, "wavefront": 0}
         from orpheus.sn import sweep as sweep_module
 
-        def fake_cumprod(*args, **kwargs):
-            called["cumprod"] += 1
+        def fake_cartesian(*args, **kwargs):
+            called["cartesian"] += 1
             return (np.zeros((1,)), np.zeros((1,)))
 
         def fake_wavefront(*args, **kwargs):
@@ -355,15 +367,15 @@ class TestCumprodFastPathPreconditions:
             return (np.zeros((quad_N, sn_mesh.nx, sn_mesh.ny, 1)),
                     np.zeros((sn_mesh.nx, sn_mesh.ny, 1)))
 
-        monkeypatch.setattr(sweep_module, "_sweep_1d_cumprod", fake_cumprod)
+        monkeypatch.setattr(sweep_module, "_sweep_1d_cartesian", fake_cartesian)
         monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
 
         nx, ny, ng = 4, 4, 1
         Q = np.zeros((nx, ny, ng))
         sig_t = np.ones((nx, ny, ng))
-        _cartesian_sweep(Q, sig_t, sn_mesh, {})
+        transport_sweep(Q, sig_t, sn_mesh, {})
 
-        assert called["cumprod"] == 0
+        assert called["cartesian"] == 0
         assert called["wavefront"] == 1
 
 

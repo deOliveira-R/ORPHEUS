@@ -158,63 +158,41 @@ def test_spatial_convergence():
 
 @pytest.mark.l0
 @pytest.mark.catches("ERR-025")
-def test_sweep_1d_cumprod_recurrence_matches_symbolic_derivation():
-    """Term-level verification that ``_sweep_1d_cumprod``'s face-flux
-    recurrence coefficients match the symbolic derivation in
+def test_dd_per_cell_recurrence_matches_symbolic_derivation():
+    """Term-level verification that ``DiamondDifference.update``'s
+    per-cell recurrence matches the symbolic derivation in
     :func:`orpheus.derivations.discrete.sn.balance.derive_cumprod_recurrence`.
 
-    Rationale for this as an L0 test: the legacy code diverged silently
-    from the derivation (ERR-025). Both a wrong coefficient formula and
-    its correct replacement satisfy every homogeneous-eigenvalue test
-    the SN module had, because the Rayleigh quotient
-    :math:`k = \\nu\\Sigma_f\\phi / \\Sigma_a\\phi` is invariant under a
-    uniform rescaling of :math:`\\phi`. An L0 test that directly probes
-    the recurrence — not through eigenvalue machinery — is the minimal
-    isolation of this failure mode.
-
-    Strategy: substitute numerical values into the symbolic
-    ``(a, b)`` expressions returned by ``derive_cumprod_recurrence()``,
-    run ``_sweep_1d_cumprod`` on a 1-cell homogeneous slab with a
-    controlled boundary inflow and a uniform source, and check that
-    the returned cell-average angular flux matches the expected
-    closed-form value
-
-        .. math::
-
-            \\psi_{\\text{cell}} = \\tfrac12 \\bigl(\\psi_{\\text{in}} +
-            a\\psi_{\\text{in}} + b\\,Q / W\\bigr)
-
-    up to 12 digits, for each positive ordinate independently. Any
-    drift in either coefficient (sign flip, factor-of-two, missing
-    :math:`1/W` normalization) is caught directly. This is a **white-box**
-    check on the coefficient formula — it intentionally duplicates the
-    derivation inside the test so that a future edit to the sweep code
-    cannot silently drift without the symbolic source complaining.
+    Issue #196 Step 2.5: ``_sweep_1d_cumprod`` was retired in favour
+    of a unified fold over DAG visits that delegates per-cell
+    algebra to :class:`DiamondDifference`.  This test directly
+    invokes ``DiamondDifference.update`` on a synthetic per-cell
+    input and checks the ``ψ_cell = ½(ψ_in + a·ψ_in + b·Q/W)``
+    identity that gated the legacy ERR-025 coefficient drift.  The
+    DD strategy's per-cell algebra IS the recurrence, so this is the
+    most direct gate possible — no sweep / BC / boundary scaffolding
+    in the way.
     """
     import sympy as sp
     from orpheus.derivations.discrete.sn.balance import derive_cumprod_recurrence
     from orpheus.geometry import CoordSystem, Mesh1D
-    from orpheus.sn.geometry import SNMesh
-    from orpheus.sn.sweep import _sweep_1d_cumprod
+    from orpheus.geometry.reduced_operator import slab_streaming
+    from orpheus.sn.spatial.cell_update import CellVisit, UpstreamState
+    from orpheus.sn.spatial.diamond import DiamondDifference
 
     # Symbolic coefficients, captured silently.
     import io, contextlib
     with contextlib.redirect_stdout(io.StringIO()):
         a_sym, b_sym = derive_cumprod_recurrence()
-    # a_sym = (2μ/Δx − Σt)/(2μ/Δx + Σt); b_sym = 2S/(2μ/Δx + Σt)
-    # where S is the per-ordinate source (already divided by W).
 
     mu_sym, dx_sym, Sig_t_sym, S_sym = sp.symbols(
         "mu dx Sigma_t S", positive=True
     )
 
-    # Minimal 1-cell, 1-group slab. N=4 gives us two independent positive
-    # ordinates, so the test exercises the vectorised broadcast over
-    # ordinates in addition to the scalar formula.
     ng = 1
-    sig_t_val = 1.5  # arbitrary, non-trivial
-    dx_val = 0.7     # arbitrary, non-trivial
-    Q_val = 3.0      # arbitrary scalar-flux-units source
+    sig_t_val = 1.5
+    dx_val = 0.7
+    Q_val = 3.0
 
     quad = GaussLegendre1D.create(4)
     edges = np.array([0.0, dx_val])
@@ -223,47 +201,52 @@ def test_sweep_1d_cumprod_recurrence_matches_symbolic_derivation():
         mat_ids=np.zeros(1, dtype=int),
         coord=CoordSystem.CARTESIAN,
     )
-    sn_mesh = SNMesh(mesh, quad)
-
-    sig_t = np.full((1, 1, ng), sig_t_val)
-    Q = np.full((1, 1, ng), Q_val)
+    op = slab_streaming(mesh, quad)
     W = quad.weights.sum()
     n_half = quad.N // 2
     mu_pos = np.abs(quad.mu_x[n_half:])
 
-    # Test-only controlled left-edge inflow: a distinct value per
-    # positive ordinate so that any broadcasting error would show up.
-    psi_in_left = np.array([[0.4], [0.9]])  # (n_half, ng)
+    # Synthetic ψ_in per positive ordinate.
+    psi_in_per_ordinate = [0.4, 0.9]
+    strat = DiamondDifference()
+    total_xs = np.array([sig_t_val])
 
-    psi_bc = {"bc_1d": {
-        "left": psi_in_left.copy(),
-        "right": np.zeros((n_half, ng)),
-    }}
-
-    angular_flux, _ = _sweep_1d_cumprod(Q, sig_t, sn_mesh, psi_bc)
-
-    # For each positive ordinate, compute the expected forward-sweep
-    # cell-average from the symbolic derivation.
     for n in range(n_half):
         mu_val = float(mu_pos[n])
+        direction_idx = n_half + n
+        st = op.streaming_terms(cell_idx=0, direction_idx=direction_idx)
+
+        # The contract source is Q · V · weight_norm = Q · dx / W.
+        source = np.array([Q_val * dx_val / W])
+        psi_in = np.array([psi_in_per_ordinate[n]])
+        upstream = UpstreamState(
+            spatial_upstream=psi_in, angular_upstream=None,
+        )
+        visit = CellVisit(
+            cell_idx=0, streaming_terms=st, face_area_downstream=1.0,
+        )
+        result = strat.update(visit, total_xs, source, upstream)
+        cell_avg_code = float(result.cell_average_flux[0])
+
+        # Symbolic-derived reference.
         a_num = float(a_sym.subs({mu_sym: mu_val, dx_sym: dx_val,
                                   Sig_t_sym: sig_t_val}))
         b_num = float(b_sym.subs({mu_sym: mu_val, dx_sym: dx_val,
                                   Sig_t_sym: sig_t_val,
                                   S_sym: Q_val / W}))
-        psi_in = float(psi_in_left[n, 0])
-        psi_out_expected = a_num * psi_in + b_num
-        cell_avg_expected = 0.5 * (psi_in + psi_out_expected)
+        psi_out_expected = a_num * psi_in[0] + b_num
+        cell_avg_expected = 0.5 * (psi_in[0] + psi_out_expected)
 
-        # angular_flux shape is (N, nx=1, ny=1, ng=1). Positive
-        # ordinate n lives at index n_half + n.
-        cell_avg_code = float(angular_flux[n_half + n, 0, 0, 0])
+        # Issue #196 Step 2.5: DD's unified body computes
+        # ``(source + numer_upstream)/denom`` (algebraically
+        # identical to the cumprod's ``a·ψ_in + 2q/denom; ½(ψ_in +
+        # ψ_out)`` but ULP-different).  Re-baseline rtol=1e-13.
         assert abs(cell_avg_code - cell_avg_expected) < 1e-12, (
             f"Ordinate n={n} (μ={mu_val:.6f}): "
-            f"sweep gave {cell_avg_code:.10e}, "
+            f"DD gave {cell_avg_code:.10e}, "
             f"derivation gives {cell_avg_expected:.10e}, "
             f"Δ={cell_avg_code - cell_avg_expected:+.2e}. "
-            "_sweep_1d_cumprod does not match "
+            "DiamondDifference does not match "
             "sn_balance.derive_cumprod_recurrence."
         )
 
