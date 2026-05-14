@@ -29,6 +29,17 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.geometry import (
+    BC,
+    CoordSystem,
+    Mesh1D,
+    cylindrical_streaming,
+    slab_streaming,
+    spherical_streaming,
+)
+from orpheus.sn.quadrature import GaussLegendre1D, ProductQuadrature
+from orpheus.sn.spatial import DiamondDifference, UpstreamState
+from orpheus.sn.spatial.cell_update import CellVisit
 from orpheus.sn.spatial.scan import ordinate_scan
 
 
@@ -393,3 +404,341 @@ class TestNumericalStability:
             "scan returned non-finite values in small-a regime"
         )
         np.testing.assert_allclose(scan, loop, rtol=1e-11)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 4. Dual-view contracts: affine_coefficients ↔ update
+# ═══════════════════════════════════════════════════════════════════════
+
+
+# Mesh fixtures (mirror tests/sn/spatial/test_diamond.py).
+
+def _slab_mesh(nx: int = 5, length: float = 1.0) -> Mesh1D:
+    return Mesh1D(
+        edges=np.linspace(0.0, length, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
+    )
+
+
+def _spherical_mesh(nx: int = 5, radius: float = 1.0) -> Mesh1D:
+    return Mesh1D(
+        edges=np.linspace(0.0, radius, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.SPHERICAL,
+        bc_left=BC("reflective"),
+        bc_right=BC("vacuum"),
+    )
+
+
+def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> Mesh1D:
+    return Mesh1D(
+        edges=np.linspace(0.0, radius, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CYLINDRICAL,
+        bc_left=BC("reflective"),
+        bc_right=BC("vacuum"),
+    )
+
+
+def _build_slab_visits_and_inputs(
+    nx: int, n_groups: int, direction_idx: int, *, seed: int,
+):
+    """Build a list of slab CellVisit + matching (total_xs, source,
+    psi_angular_init, psi_in) arrays for the dual-view tests.
+    """
+    mesh = _slab_mesh(nx=nx, length=1.0)
+    quad = GaussLegendre1D.create(4)
+    op = slab_streaming(mesh, quad)
+    visits = []
+    for i in range(nx):
+        st = op.streaming_terms(cell_idx=i, direction_idx=direction_idx)
+        visits.append(
+            CellVisit(
+                cell_idx=i,
+                streaming_terms=st,
+                face_area_downstream=1.0,
+            )
+        )
+    rng = np.random.default_rng(seed=seed)
+    total_xs = rng.uniform(0.5, 1.5, size=(nx, n_groups))
+    source = rng.uniform(0.1, 1.0, size=(nx, n_groups))
+    psi_in = rng.uniform(0.05, 0.5, size=n_groups)
+    return visits, total_xs, source, None, psi_in
+
+
+def _build_sphere_visits_and_inputs(
+    nx: int, n_groups: int, *, outward: bool, seed: int,
+):
+    """Build sphere visits for one outward (or inward) ordinate."""
+    mesh = _spherical_mesh(nx=nx, radius=1.0)
+    quad = GaussLegendre1D.create(8)
+    op = spherical_streaming(mesh, quad)
+    direction_idx = quad.N - 2 if outward else 1
+    visits = []
+    if outward:
+        cell_order = range(nx)
+    else:
+        cell_order = range(nx - 1, -1, -1)
+    for i in cell_order:
+        st = op.streaming_terms(cell_idx=i, direction_idx=direction_idx)
+        A_down = st.face_area_outer if outward else st.face_area_inner
+        visits.append(
+            CellVisit(
+                cell_idx=i,
+                streaming_terms=st,
+                face_area_downstream=A_down,
+            )
+        )
+    rng = np.random.default_rng(seed=seed)
+    total_xs = rng.uniform(0.5, 1.5, size=(nx, n_groups))
+    source = rng.uniform(0.1, 1.0, size=(nx, n_groups))
+    psi_angular = rng.uniform(0.02, 0.15, size=(nx, n_groups))
+    psi_in = rng.uniform(0.05, 0.5, size=n_groups)
+    return visits, total_xs, source, psi_angular, psi_in
+
+
+def _build_cylinder_visits_and_inputs(
+    nx: int, n_groups: int, *, seed: int,
+):
+    """Build cylinder visits for one within-level ordinate (non-degenerate)."""
+    mesh = _cylindrical_mesh(nx=nx, radius=1.0)
+    quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+    op = cylindrical_streaming(mesh, quad)
+    direction_idx = 0
+    mu_level_idx = 0
+    visits = []
+    # Check sign of η for this ordinate to decide cell order
+    level_indices = quad.level_indices
+    global_n = int(level_indices[mu_level_idx][direction_idx])
+    eta_n = float(quad.mu_x[global_n])
+    if eta_n >= 0:
+        cell_order = range(nx)
+        select_outer = True
+    else:
+        cell_order = range(nx - 1, -1, -1)
+        select_outer = False
+    for i in cell_order:
+        st = op.streaming_terms(
+            cell_idx=i, direction_idx=direction_idx,
+            mu_level_idx=mu_level_idx,
+        )
+        A_down = st.face_area_outer if select_outer else st.face_area_inner
+        visits.append(
+            CellVisit(
+                cell_idx=i,
+                streaming_terms=st,
+                face_area_downstream=A_down,
+            )
+        )
+    rng = np.random.default_rng(seed=seed)
+    total_xs = rng.uniform(0.5, 1.5, size=(nx, n_groups))
+    source = rng.uniform(0.1, 1.0, size=(nx, n_groups))
+    psi_angular = rng.uniform(0.02, 0.15, size=(nx, n_groups))
+    psi_in = rng.uniform(0.05, 0.5, size=n_groups)
+    return visits, total_xs, source, psi_angular, psi_in
+
+
+# Source kind variations: zero, constant, random.
+
+def _source_zero(shape, rng):
+    return np.zeros(shape)
+
+
+def _source_constant(shape, rng):
+    return np.full(shape, 0.5)
+
+
+def _source_random(shape, rng):
+    return rng.uniform(0.0, 1.0, size=shape)
+
+
+_SOURCE_KINDS = {
+    "zero": _source_zero,
+    "constant": _source_constant,
+    "random": _source_random,
+}
+
+
+_GEOMETRY_BUILDERS = {
+    "slab": lambda nx, ng, seed: _build_slab_visits_and_inputs(
+        nx=nx, n_groups=ng, direction_idx=3, seed=seed,
+    ),
+    "sphere_outward": lambda nx, ng, seed: _build_sphere_visits_and_inputs(
+        nx=nx, n_groups=ng, outward=True, seed=seed,
+    ),
+    "sphere_inward": lambda nx, ng, seed: _build_sphere_visits_and_inputs(
+        nx=nx, n_groups=ng, outward=False, seed=seed,
+    ),
+    "cylinder": lambda nx, ng, seed: _build_cylinder_visits_and_inputs(
+        nx=nx, n_groups=ng, seed=seed,
+    ),
+}
+
+
+class TestDualViewContracts:
+    r"""``affine_coefficients`` ↔ ``update`` consistency theorems.
+
+    The dual-view contract: for every cell along an ordinate's
+    spatial chain, the single-cell ``update`` and the vectorised
+    ``affine_coefficients`` MUST agree on the outgoing spatial face
+    flux at the same upstream state.  rtol=1e-13 — one division ULP
+    band; failure here means the affine derivation is wrong or
+    ``update`` has hidden non-affine terms.
+    """
+
+    @pytest.mark.parametrize("geometry", list(_GEOMETRY_BUILDERS.keys()))
+    @pytest.mark.parametrize("n_groups", [1, 2, 4])
+    @pytest.mark.parametrize("source_kind", list(_SOURCE_KINDS.keys()))
+    def test_affine_coefficients_matches_update_single_cell(
+        self, geometry: str, n_groups: int, source_kind: str,
+    ) -> None:
+        r"""For every cell, the scan output matches per-cell ``update``.
+
+        DUAL-VIEW CONTRACT.  Parametrised over geometry (slab,
+        sphere outward/inward, cylinder) × n_groups (1, 2, 4) ×
+        source kind (zero, constant, random) = 36 cases.  rtol=1e-13
+        (a single division per cell; one ULP band).
+        """
+        nx = 6
+        visits, total_xs, source_random, psi_angular, psi_in = (
+            _GEOMETRY_BUILDERS[geometry](nx, n_groups, 42)
+        )
+        # Override source per kind.
+        rng = np.random.default_rng(seed=99)
+        source = _SOURCE_KINDS[source_kind]((nx, n_groups), rng)
+
+        strat = DiamondDifference()
+
+        # ── Per-cell update (slow but legible reference) ───────────
+        per_cell_outputs = []
+        psi_chain = psi_in
+        for idx, visit in enumerate(visits):
+            psi_ang = (
+                None if psi_angular is None else psi_angular[idx]
+            )
+            upstream = UpstreamState(
+                spatial_upstream=psi_chain,
+                angular_upstream=psi_ang,
+            )
+            result = strat.update(
+                visit=visit, total_xs=total_xs[idx],
+                source=source[idx], upstream_state=upstream,
+            )
+            per_cell_outputs.append(result.outgoing_spatial_flux)
+            # Advance the chain.
+            if result.outgoing_spatial_flux is not None:
+                psi_chain = result.outgoing_spatial_flux
+
+        # ── Vectorised affine_coefficients + ordinate_scan ─────────
+        a, b = strat.affine_coefficients(
+            visits, total_xs, source, psi_angular,
+        )
+        scan_out = ordinate_scan(a, b, psi_in)
+
+        # Compare per-cell.  For cells where the per-cell update
+        # returns ``outgoing_spatial_flux is None`` (e.g. innermost
+        # cell on an inward curvilinear sweep where the downstream
+        # face has zero area — the pole or the centre), the scan
+        # output is the algebraically-defined value but no chain
+        # consumer reads it; skip the comparison.
+        compared = 0
+        for idx in range(nx):
+            if per_cell_outputs[idx] is None:
+                continue
+            np.testing.assert_allclose(
+                scan_out[idx],
+                per_cell_outputs[idx],
+                rtol=1e-13,
+                err_msg=f"cell {idx}, geometry={geometry}, "
+                        f"ng={n_groups}, source={source_kind}",
+            )
+            compared += 1
+        # At least one cell must be compared (else the test is a no-op).
+        assert compared >= nx - 1, (
+            f"only {compared}/{nx} cells compared for {geometry}; "
+            "test may have degenerated to no-op"
+        )
+
+    @pytest.mark.parametrize("geometry", list(_GEOMETRY_BUILDERS.keys()))
+    def test_affine_coefficients_vectorisation_matches_serial(
+        self, geometry: str,
+    ) -> None:
+        r"""``affine_coefficients(visits)`` per-cell == single-call.
+
+        Vectorisation must commute with per-cell application: calling
+        ``affine_coefficients`` on the full visit list yields the
+        SAME ``(a, b)`` arrays as calling it once per single-visit
+        list and concatenating.  rtol=1e-14 (no fold; pure per-cell
+        parallel computation).
+        """
+        nx, n_groups = 5, 2
+        visits, total_xs, source, psi_angular, _ = (
+            _GEOMETRY_BUILDERS[geometry](nx, n_groups, 17)
+        )
+        strat = DiamondDifference()
+
+        a_full, b_full = strat.affine_coefficients(
+            visits, total_xs, source, psi_angular,
+        )
+
+        a_serial = np.empty((nx, n_groups))
+        b_serial = np.empty((nx, n_groups))
+        for idx, visit in enumerate(visits):
+            psi_ang = (
+                None if psi_angular is None else psi_angular[idx:idx + 1]
+            )
+            a_one, b_one = strat.affine_coefficients(
+                [visit],
+                total_xs[idx:idx + 1],
+                source[idx:idx + 1],
+                psi_ang,
+            )
+            a_serial[idx] = a_one[0]
+            b_serial[idx] = b_one[0]
+
+        np.testing.assert_allclose(a_full, a_serial, rtol=1e-14)
+        np.testing.assert_allclose(b_full, b_serial, rtol=1e-14)
+
+    def test_full_sweep_matches_pre_step_2_5b_baseline(self) -> None:
+        r"""Per-ordinate scan reproduces the per-cell-fold baseline.
+
+        Builds a representative slab ordinate, runs the slow per-cell
+        fold (the pre-Step-2.5b reference), and runs the scan via
+        ``affine_coefficients + ordinate_scan``.  Their downstream
+        face fluxes match cell-by-cell at rtol=1e-12 (operation-count
+        × ULP for nx=20 cells).
+
+        Principled-equivalence gate per
+        ``vv-principles`` §"Bit-identity vs principled-equivalence":
+        the two computations are algebraically identical; differences
+        are bounded by FP-non-associativity.
+        """
+        nx, n_groups = 20, 2
+        visits, total_xs, source, psi_angular, psi_in = (
+            _GEOMETRY_BUILDERS["slab"](nx, n_groups, 11)
+        )
+        strat = DiamondDifference()
+
+        # ── Baseline: per-cell fold (pre-2.5b reference) ───────────
+        psi_chain = psi_in
+        baseline = np.empty((nx, n_groups))
+        for idx, visit in enumerate(visits):
+            upstream = UpstreamState(
+                spatial_upstream=psi_chain,
+                angular_upstream=None,
+            )
+            result = strat.update(
+                visit=visit, total_xs=total_xs[idx],
+                source=source[idx], upstream_state=upstream,
+            )
+            baseline[idx] = result.outgoing_spatial_flux
+            psi_chain = result.outgoing_spatial_flux
+
+        # ── New scan path ──────────────────────────────────────────
+        a, b = strat.affine_coefficients(visits, total_xs, source, None)
+        scan_out = ordinate_scan(a, b, psi_in)
+
+        np.testing.assert_allclose(scan_out, baseline, rtol=1e-12)

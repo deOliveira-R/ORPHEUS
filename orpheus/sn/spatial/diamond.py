@@ -77,6 +77,7 @@ See also
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import ClassVar
 
@@ -173,6 +174,109 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
             outgoing_spatial_flux=psi_spat_out,
             outgoing_angular_state=psi_angle_out,
         )
+
+    # ── Vectorised dual view (Issue #196 Phase G Step 2.5b) ─────────
+
+    def affine_coefficients(
+        self,
+        visits: Sequence[CellVisit],
+        total_xs: np.ndarray,
+        source: np.ndarray,
+        angular_state: np.ndarray | None,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Vectorised per-cell DD coefficients ``(a, b)``.
+
+        Dual view of :meth:`update` — produces the per-cell affine
+        chain coefficients in one vectorised pass.  Consumed by
+        :func:`orpheus.sn.spatial.scan.ordinate_scan`.  Closed-form
+        derivation (Pattern 2 — same algebra as :meth:`update`, via
+        :func:`cell_balance_terms`):
+
+        .. math::
+
+            \psi_{\rm avg} &= \frac{q + |\mu|\,(A_{\rm in}+A_{\rm out})\,
+                                    \psi^s_{\rm in} + (\Delta A/w)\,c_{\rm in}\,
+                                    \psi^a_{\rm in}}{\rm denom},\\
+            \psi^s_{\rm out} &= 2\,\psi_{\rm avg} - \psi^s_{\rm in}
+                              \;=\; a\,\psi^s_{\rm in} + b,\\
+            a &= \frac{2|\mu|\,A_{\rm total}}{\rm denom} - 1,\\
+            b &= \frac{2\,(q + (\Delta A/w)\,c_{\rm in}\,\psi^a_{\rm in})}{\rm denom}.
+
+        See :meth:`CellUpdate.affine_coefficients` for the full
+        Protocol contract.
+        """
+        # Gather per-cell streaming terms.  Vectorisation across nx
+        # via numpy arrays of per-cell scalars from each visit's
+        # StreamingTerms.
+        nx = len(visits)
+        abs_mu = np.fromiter(
+            (v.streaming_terms.abs_mu for v in visits),
+            dtype=np.float64, count=nx,
+        )
+        A_inner = np.fromiter(
+            (v.streaming_terms.face_area_inner for v in visits),
+            dtype=np.float64, count=nx,
+        )
+        A_outer = np.fromiter(
+            (v.streaming_terms.face_area_outer for v in visits),
+            dtype=np.float64, count=nx,
+        )
+        A_down = np.fromiter(
+            (v.face_area_downstream for v in visits),
+            dtype=np.float64, count=nx,
+        )
+        dA_w = np.fromiter(
+            (v.streaming_terms.delta_A_over_w for v in visits),
+            dtype=np.float64, count=nx,
+        )
+        alpha_in = np.fromiter(
+            (v.streaming_terms.alpha_in for v in visits),
+            dtype=np.float64, count=nx,
+        )
+        alpha_out = np.fromiter(
+            (v.streaming_terms.alpha_out for v in visits),
+            dtype=np.float64, count=nx,
+        )
+        tau = np.fromiter(
+            (v.streaming_terms.tau_mm for v in visits),
+            dtype=np.float64, count=nx,
+        )
+        V = np.fromiter(
+            (v.streaming_terms.volume for v in visits),
+            dtype=np.float64, count=nx,
+        )
+
+        # M-M closure constants (slab carries neutral α=0, τ=1, so
+        # c_in = c_out = 0 — degenerates correctly).
+        c_out = alpha_out / tau
+        c_in = (1.0 - tau) / tau * alpha_out + alpha_in
+
+        # Denominator: 2|μ|·A_down (vanishes for cyl-degenerate via
+        # A_down = 0) + curvature redistribution (vanishes for slab
+        # via dA_w = 0) + collision.  Broadcast (nx,) × (nx, ng).
+        denom = (
+            2.0 * abs_mu[:, None] * A_down[:, None]
+            + dA_w[:, None] * c_out[:, None]
+            + total_xs * V[:, None]
+        )  # (nx, ng)
+
+        # Angular-redistribution contribution: zero for slab via
+        # angular_state=None branch.
+        if angular_state is None:
+            ang_contrib = 0.0
+        else:
+            ang_contrib = dA_w[:, None] * c_in[:, None] * angular_state
+
+        # a[i] = 2|μ|·A_total/denom − 1; b[i] = 2·(q + ang)/denom.
+        # Pattern 3 — these are the affine chain coefficients (units:
+        # ``a`` is dimensionless transmission; ``b`` has the units of
+        # ψ and represents the per-cell additive contribution to the
+        # downstream face flux).
+        A_total = A_inner + A_outer
+        a = 2.0 * abs_mu[:, None] * A_total[:, None] / denom - 1.0
+        b = 2.0 * (source + ang_contrib) / denom
+
+        return a, b
 
     # ── Apply-direction residual (Issue #196 Phase G Step 1 replan) ──
 

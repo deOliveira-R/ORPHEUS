@@ -45,6 +45,7 @@ from .psi_half_angle_seed import (
     PsiHalfAngleSeedBase,
     ZeroSeed,
 )
+from .scan import ordinate_scan
 
 # Issue #168 Phase C retired the BoundaryFaceFlux Protocol entirely;
 # the sweep-frame apply matvec subsumed the boundary closure into
@@ -70,4 +71,5 @@ __all__ = [
     "PsiHalfAngleSeedBase",
     "UpstreamState",
     "ZeroSeed",
+    "ordinate_scan",
 ]

@@ -164,6 +164,7 @@ See also
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import ClassVar, Protocol, runtime_checkable
 
@@ -515,6 +516,84 @@ class CellUpdate(Protocol):
         """
         ...
 
+    def affine_coefficients(
+        self,
+        visits: Sequence[CellVisit],
+        total_xs: np.ndarray,
+        source: np.ndarray,
+        angular_state: np.ndarray | None,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Vectorised per-cell affine coefficients ``(a, b)``.
+
+        Issue #196 Phase G Step 2.5b — the **dual view** of
+        :meth:`update`.  Where :meth:`update` answers one cell at a
+        time ("given the upstream state, solve for cell-average and
+        downstream face"), :meth:`affine_coefficients` answers the
+        whole ordinate's spatial sweep in one vectorised pass:
+        produce per-cell coefficients ``(a, b)`` such that
+
+        .. math::
+
+            \psi^s_{\rm out}[i] \;=\; a[i] \cdot \psi^s_{\rm in}[i]
+                                     \;+\; b[i].
+
+        The per-ordinate spatial chain is then a first-order linear
+        recurrence consumed by
+        :func:`orpheus.sn.spatial.scan.ordinate_scan`.
+
+        Dual-view contract
+        ------------------
+
+        For ANY ``(visit, total_xs, source, upstream_state)`` whose
+        ``upstream_state.spatial_upstream = psi_in`` and
+        ``upstream_state.angular_upstream = psi_angular``, the
+        single-cell coefficients ``a, b`` returned here MUST satisfy
+
+        .. code-block:: python
+
+            result = strategy.update(visit, total_xs, source,
+                                      upstream_state)
+            a, b = strategy.affine_coefficients(
+                [visit], total_xs[None, :], source[None, :],
+                None if psi_angular is None else psi_angular[None, :],
+            )
+            assert np.allclose(a[0] * psi_in + b[0],
+                               result.outgoing_spatial_flux, rtol=1e-13)
+
+        for every cell with ``visit.face_area_downstream > 0.0``
+        (i.e. cells with a downstream spatial face).  Cylindrical
+        pure-azimuthal degenerate cells
+        (``face_area_downstream == 0.0``) carry no spatial chain
+        and the per-cell ``(a, b)`` is irrelevant — callers MUST
+        skip the scan for those ordinates.
+
+        Parameters
+        ----------
+        visits :
+            Sequence of :class:`CellVisit` packets in chain
+            (sweep-direction-resolved cell-traversal) order.  All
+            visits MUST belong to one ordinate's spatial sweep.
+        total_xs :
+            Shape ``(nx, ng)``.  Per-cell per-group total cross
+            section, indexed in the same order as ``visits``.
+        source :
+            Shape ``(nx, ng)``.  Per-cell per-group volumetric
+            source, **already weight-normalised** (same convention
+            as :meth:`update`).
+        angular_state :
+            Shape ``(nx, ng)`` for curvilinear (the upstream
+            angular half-flux :math:`\psi^a_{\rm in}[i]` at each
+            cell); ``None`` for slab.
+
+        Returns
+        -------
+        a : ndarray, shape ``(nx, ng)``.
+            Per-cell multiplier coefficient.
+        b : ndarray, shape ``(nx, ng)``.
+            Per-cell additive coefficient.
+        """
+        ...
+
     def residual(
         self,
         cell_avg: np.ndarray,
@@ -655,6 +734,26 @@ class CellUpdateBase(RegistryMixin, ABC):
         source: np.ndarray,
         upstream_state: UpstreamState,
     ) -> CellResult:
+        ...
+
+    @abstractmethod
+    def affine_coefficients(
+        self,
+        visits: Sequence[CellVisit],
+        total_xs: np.ndarray,
+        source: np.ndarray,
+        angular_state: np.ndarray | None,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Vectorised per-cell affine coefficients ``(a, b)``.
+
+        See :meth:`CellUpdate.affine_coefficients` for the full
+        contract (dual view of :meth:`update`).  Subclasses MUST
+        implement this in lockstep with :meth:`update` — the two
+        methods describe the same per-cell linear system in
+        single-cell scalar view (``update``) and per-ordinate
+        vectorised view (``affine_coefficients``).  Issue #196
+        Phase G Step 2.5b.
+        """
         ...
 
     @abstractmethod
