@@ -105,6 +105,7 @@ from orpheus.geometry import CoordSystem
 from .spatial.cell_update import UpstreamState
 from .spatial.diamond import DiamondDifference
 from .spatial.psi_half_angle_seed import carlson_inward_sweep_from_source
+from .spatial.scan import ordinate_scan
 from .sweep_graph import OctantLabel
 
 if TYPE_CHECKING:
@@ -175,27 +176,40 @@ def _sweep_1d_cartesian(
     psi_bc: dict,
     Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    r"""Slab 1-D sweep — fold over :meth:`SNMesh.dag_walk` (Step 2.5).
+    r"""Slab 1-D sweep — vectorised per-ordinate via ``ordinate_scan`` (Step 2.5b).
 
-    Replaces ``_sweep_1d_cumprod`` (retired in Issue #196 Phase G
-    Step 2.5) with the same fold-over-DAG-visits skeleton that the
-    curvilinear sweep uses.  Slab has no angular redistribution
-    (``upstream_state.angular_upstream = None``) so the M-M closure
-    in :class:`DiamondDifference` returns ``outgoing_angular_state =
-    None`` and the angular-state thread does not run.
+    Issue #196 Phase G Step 2.5b restores slab vectorisation by
+    consuming the canonical first-order linear-recurrence scan
+    primitive :func:`~orpheus.sn.spatial.scan.ordinate_scan` and
+    the dual-view
+    :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.affine_coefficients`.
+    The per-cell Python fold is gone; each ordinate's spatial chain
+    is computed in three numpy ops (cumprod + cumsum + multiply).
+
+    Per-ordinate structure
+    ----------------------
+
+    1.  Build the visit list once (cached per direction sign — the
+        slab visit order depends only on the sign of :math:`\mu`).
+    2.  Compute per-cell affine coefficients ``(a, b)`` via
+        ``cell_update.affine_coefficients(visits, sig_t, QV, None)``
+        — vectorised across ``nx``.
+    3.  Run ``ordinate_scan(a, b, psi_in)`` to get the outgoing-face
+        flux at every cell.
+    4.  Cell-average flux per DD closure
+        :math:`\bar\psi_i = (\psi^s_{i-1/2} + \psi^s_{i+1/2})/2`,
+        vectorised.
 
     Bit-identity caveat
     -------------------
 
-    The pre-Step-2.5 cumprod path vectorised the per-cell DD
-    recurrence as a single cumulative product across all cells in a
-    row.  The Step-2.5 fold computes one cell at a time via
-    :meth:`DiamondDifference.update`, which uses the unified
-    ``(source + numer_upstream)/denom`` operation order (not the
-    cumprod's ``a·ψ_in + 2q/denom`` order).  The two are
-    algebraically identical but ULP-different at IEEE-754; slab
-    regression snapshots may drift by ``iteration_count × ULP``
-    (well within the existing ``rtol=1e-12`` contract).
+    The Step 2.5b vectorised path uses ``cumprod_a · (psi_0 +
+    cumsum(b / cumprod_a))`` (Blelloch §1.5) where the Step 2.5
+    per-cell fold used ``(source + numer_upstream)/denom`` then
+    ``2·psi_avg − psi_in`` cell-by-cell.  The two are algebraically
+    identical but differ at IEEE-754 ULP × N; slab regression
+    snapshots may drift by ``iteration_count × N × ULP`` (well
+    within the existing ``rtol=1e-12`` contract).
     """
     quad = sn_mesh.quad
     N = quad.N
@@ -248,43 +262,55 @@ def _sweep_1d_cartesian(
             QV = QV_iso + Q_aniso_1d[n] * V[:, None]
 
         # Initial spatial-upstream face flux for this ordinate's
-        # sweep.  Outward: read left BC.  Inward: read right BC.
+        # sweep.  Outward: read left BC; inward: read right BC.
         if direction_sign == +1:
             psi_spatial_in = inflow_left[n]
         else:
             psi_spatial_in = inflow_right[n]
 
-        # Fold over the DAG-ordered cell visits.  Slab has no angular
-        # redistribution, so we pass ``angular_upstream = None``.
-        # ``iter_cell_visits(ordinate_idx=n)`` (NOT ``dag_walk``) is
-        # required because slab DD reads per-ordinate quantities from
-        # ``streaming_terms`` (``abs_mu``, ``mu``) that depend on the
-        # specific ordinate, not just the direction sign.
-        for visit in sn_mesh.iter_cell_visits(ordinate_idx=n):
-            i = visit.cell_idx
-            upstream = UpstreamState(
-                spatial_upstream=psi_spatial_in,
-                angular_upstream=None,
-            )
-            result = cell_update.update(
-                visit=visit,
-                total_xs=sig_t_1d[i],
-                source=QV[i],
-                upstream_state=upstream,
-            )
-            psi = result.cell_average_flux
-            angular_flux[n, i, 0, :] = psi
-            scalar_flux[i] += w_n * psi
-            # Spatial closure always populated for slab
-            # (visit.face_area_downstream == 1.0).
-            psi_spatial_in = result.outgoing_spatial_flux
-
-        # Store the outgoing flux at the downstream boundary face for
-        # reflective BCs to read on the next iteration.
+        # Visit sequence in chain (sweep-direction-resolved) order
+        # — for inward sweeps this is cell nx-1 → 0, so QV / sig_t
+        # are re-indexed to match.
+        visits = list(sn_mesh.iter_cell_visits(ordinate_idx=n))
         if direction_sign == +1:
-            bc_right_face[n] = psi_spatial_in
+            QV_chain = QV
+            sig_t_chain = sig_t_1d
         else:
-            bc_left_face[n] = psi_spatial_in
+            QV_chain = QV[::-1]
+            sig_t_chain = sig_t_1d[::-1]
+
+        # Vectorised affine coefficients + scan.  Slab has no angular
+        # redistribution (angular_state=None).
+        a, b = cell_update.affine_coefficients(
+            visits, sig_t_chain, QV_chain, None,
+        )
+        # psi_face[i] is the downstream face flux of cell i in chain order.
+        psi_face_chain = ordinate_scan(a, b, psi_spatial_in)  # (nx, ng)
+
+        # Cell-average via DD closure ψ̄ = (ψ_in + ψ_out)/2,
+        # vectorised.  Chain-order upstream face: psi_spatial_in for
+        # cell 0, psi_face_chain[i-1] for i ≥ 1.
+        psi_face_in_chain = np.empty_like(psi_face_chain)
+        psi_face_in_chain[0] = psi_spatial_in
+        psi_face_in_chain[1:] = psi_face_chain[:-1]
+        psi_avg_chain = 0.5 * (psi_face_in_chain + psi_face_chain)
+
+        # Scatter back to cell-index order for angular_flux /
+        # scalar_flux accumulation.
+        if direction_sign == +1:
+            psi_avg = psi_avg_chain
+        else:
+            psi_avg = psi_avg_chain[::-1]
+
+        angular_flux[n, :, 0, :] = psi_avg
+        scalar_flux += w_n * psi_avg
+
+        # Store outflow at the downstream boundary face (last in
+        # chain order) for reflective BCs to read next iteration.
+        if direction_sign == +1:
+            bc_right_face[n] = psi_face_chain[-1]
+        else:
+            bc_left_face[n] = psi_face_chain[-1]
 
     return angular_flux, scalar_flux[:, None, :]
 
@@ -462,58 +488,97 @@ def _sweep_1d_curvilinear(
                 else:
                     psi_spatial_in = np.zeros(ng)
 
-            # Fold over the DAG-ordered cell visits.  We use
-            # ``iter_cell_visits(ordinate_idx=...)`` (NOT
-            # ``dag_walk``) because the per-cell ``streaming_terms``
-            # bundle is direction-IDX-specific: ``alpha_in``,
-            # ``alpha_out``, ``tau_mm`` are per-ordinate (sphere) or
-            # per-(level, within-level-idx) (cylinder), and ``abs_mu``
-            # depends on the exact ordinate.  ``dag_walk`` picks a
-            # representative ordinate for the direction sign and is
-            # appropriate only when the consumer recomputes its own
-            # per-ordinate quantities (the sweep-frame matvec at
-            # operator.py).
-            #
-            # For sphere: ordinate_idx == global ordinate index;
-            # mu_level_idx is None.
-            # For cylinder: ordinate_idx is the within-level index;
+            # Build visit list once in chain (sweep-direction-resolved)
+            # order.  For sphere: ordinate_idx == global ordinate; for
+            # cylinder: ordinate_idx is the within-level index +
             # mu_level_idx selects the level.
-            mu_level_idx = level   # None for sphere; p for cylinder
+            mu_level_idx = level
             ordinate_idx = global_n if is_sphere else m_local
-            for visit in sn_mesh.iter_cell_visits(
+            visits = list(sn_mesh.iter_cell_visits(
                 ordinate_idx=ordinate_idx,
                 mu_level_idx=mu_level_idx,
-            ):
-                i = visit.cell_idx
-                upstream = UpstreamState(
-                    spatial_upstream=psi_spatial_in,
-                    angular_upstream=psi_angle[i],
-                )
-                result = cell_update.update(
-                    visit=visit,
-                    total_xs=sig_t_1d[i],
-                    source=QV[i],
-                    upstream_state=upstream,
-                )
-                psi = result.cell_average_flux
-                # M-M angular state threads orthogonally across
-                # ordinates within the level.
-                psi_angle[i] = result.outgoing_angular_state
-                angular_flux[global_n, i, 0, :] = psi
-                scalar_flux[i] += w_n * psi
-                # Spatial closure: ``None`` for cylindrical pure-
-                # azimuthal degenerate (visit.face_area_downstream
-                # == 0.0); skip the face-flux thread on that ordinate.
-                if result.outgoing_spatial_flux is not None:
-                    psi_spatial_in = result.outgoing_spatial_flux
+            ))
+            chain_cell_idx = np.fromiter(
+                (v.cell_idx for v in visits),
+                dtype=np.int64, count=len(visits),
+            )
 
-            # Store outflow at the outer boundary for reflective BC
-            # — only on non-degenerate outward sweeps.  Inward sweeps
-            # don't write to the outer boundary (they READ from it);
-            # degenerate ordinates have no spatial face flow.
+            # Detect cylindrical pure-azimuthal degenerate ordinate
+            # (all visits carry face_area_downstream == 0.0 — no
+            # radial face flow on this ordinate).  Fall back to the
+            # per-cell loop for the rare degenerate case; the scan
+            # is meaningless without a spatial chain.
+            is_degenerate = (
+                visits[0].face_area_downstream == 0.0
+                and abs(float(mu_n)) < sn_mesh._DEGENERATE_ABS_ETA_THRESHOLD
+            )
+            if is_degenerate:
+                # Per-cell update — no spatial chain.
+                for visit in visits:
+                    i = visit.cell_idx
+                    upstream = UpstreamState(
+                        spatial_upstream=psi_spatial_in,
+                        angular_upstream=psi_angle[i],
+                    )
+                    result = cell_update.update(
+                        visit=visit,
+                        total_xs=sig_t_1d[i],
+                        source=QV[i],
+                        upstream_state=upstream,
+                    )
+                    psi = result.cell_average_flux
+                    psi_angle[i] = result.outgoing_angular_state
+                    angular_flux[global_n, i, 0, :] = psi
+                    scalar_flux[i] += w_n * psi
+                continue
+
+            # ── Vectorised non-degenerate path ──────────────────
+            #
+            # Reorder source / sig_t / psi_angle to chain order.
+            QV_chain = QV[chain_cell_idx]              # (nx, ng)
+            sig_t_chain = sig_t_1d[chain_cell_idx]     # (nx, ng)
+            psi_angle_in_chain = psi_angle[chain_cell_idx].copy()  # (nx, ng)
+
+            # Affine coefficients + scan.
+            a, b = cell_update.affine_coefficients(
+                visits, sig_t_chain, QV_chain, psi_angle_in_chain,
+            )
+            psi_face_chain = ordinate_scan(a, b, psi_spatial_in)  # (nx, ng)
+
+            # Cell-average via DD closure: ψ̄ = (ψ_in + ψ_out)/2.
+            psi_face_in_chain = np.empty_like(psi_face_chain)
+            psi_face_in_chain[0] = psi_spatial_in
+            psi_face_in_chain[1:] = psi_face_chain[:-1]
+            psi_avg_chain = 0.5 * (psi_face_in_chain + psi_face_chain)
+
+            # Per-cell M-M outgoing angular state — vectorised across
+            # cells: ψ_a_out[i] = (ψ_avg[i] − (1−τ_i)·ψ_a_in[i]) / τ_i.
+            tau_chain = np.fromiter(
+                (v.streaming_terms.tau_mm for v in visits),
+                dtype=np.float64, count=len(visits),
+            )[:, None]
+            psi_angle_out_chain = (
+                psi_avg_chain - (1.0 - tau_chain) * psi_angle_in_chain
+            ) / tau_chain
+
+            # Scatter back to cell-index order.  Update psi_angle in
+            # place (next ordinate within this level reads it).
+            psi_angle[chain_cell_idx] = psi_angle_out_chain
+            angular_flux[global_n, chain_cell_idx, 0, :] = psi_avg_chain
+            # Scalar-flux accumulation: need to apply in cell-index
+            # order; chain reordering uses ``np.add.at`` for safety
+            # (chain_cell_idx is a permutation so direct indexing
+            # also works — both are equivalent here).
+            scalar_flux[chain_cell_idx] += w_n * psi_avg_chain
+
+            # Store outflow at the outer boundary for reflective BC —
+            # only on non-degenerate outward sweeps.  Inward sweeps
+            # read from but don't write to the outer boundary.
             abs_mu_n = abs(mu_n)
             if mu_n >= 0 and abs_mu_n >= sn_mesh._DEGENERATE_ABS_ETA_THRESHOLD:
-                bc_outer[global_n] = psi_spatial_in
+                # Outward sweep's last chain-output IS the outflow
+                # at the outer face.
+                bc_outer[global_n] = psi_face_chain[-1]
 
     # Cache previous-iter state for next sweep's Carlson seed source
     # + pole-face IC fixes.  Phase G Step 2 Path C.
