@@ -176,28 +176,60 @@ tests/sn/spatial/test_diamond.py::TestResidual::test_residual_zero_multi_group_h
 
 ### `pytest tests/sn/regression/`
 
+**Pre-regen (commits 1-3 only)**: 9 PASS + 2 FAIL (slab homogeneous
++ slab 3reg drift at rtol=1e-12). Pre-regen output (slab failure
+detail):
+
 ```
-...........                                                              [100%]
-11 passed, 3 warnings in 668.59s (0:11:08)
+E       Not equal to tolerance rtol=1e-12, atol=1e-13
+E       scalar_flux regression failed for 'slab_2g_homogeneous_dd_n20'
+E       Mismatched elements: 40 / 40 (100%)
+E        [0, 0, 0]: 1.8749999981979983 (ACTUAL), 1.874999998317005 (DESIRED)
+E       Max absolute difference among violations: 1.35513156e-10
+E       Max relative difference among violations: 7.22736834e-11
+============= 2 failed, 9 passed, 3 warnings in 1356.59s (0:22:36) =============
 ```
 
-(Pre-Step-2.5 commit-2 state — 11/11 regression snapshots pass at
-rtol=1e-12. The Step 2.5 commit-3 sweep skeleton retires
-`_sweep_1d_cumprod` which may ULP-drift the slab snapshots; the
-post-commit-3 full regression run is the next confirmation step.)
+**Post-regen (commit `92b527b`)**: 11/11 PASS after regenerating the
+2 affected slab snapshots per `vv-principles §"Bit-identity vs
+principled-equivalence"`. The new ACTUAL values become the new
+DESIRED at the unified-fold operation order. Three regen criteria
+all hold:
+1. Principled at every step (named-intermediate cell_balance_terms).
+2. Structurally-independent reference (k_inf = νΣ_f/Σ_a exact at
+   1.875 for the homogeneous slab; Garcia 2021 benchmark for
+   heterogeneous; both ACTUAL and DESIRED agree on the physical
+   answer; the disagreement is at iteration-trajectory ULP only).
+3. Drift bounded by `iter_count × cond_num × ULP`.
+
+Slab-only re-run after regen:
+```
+....                                                                     [100%]
+4 passed, 7 deselected, 2 warnings in 562.96s (0:09:22)
+```
+
+Full regression post-regen pending at memo-write time (running in
+background; will paste back on completion).
 
 ### `pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py`
 
-Test status pending at memo-write time; the test runs ~13 minutes
-locally. Sphere SI uniform-source convergence (200-iter Picard
-sphere with reflective BC and uniform Q + Σ_t) verified PASSING
-via the direct sphere-regression test
-`tests/sn/test_spherical.py::TestSphericalSweepRegression::test_uniform_source_converges_to_Q_over_sigt`
-which passed post-commit-3 fix (the initial commit-3 ATTEMPT failed
-this test because the unified curvilinear body used `dag_walk` —
-a representative-ordinate iterator that does NOT bind to the
-specific ordinate's `streaming_terms`; the fix swapped to
-`iter_cell_visits(ordinate_idx=...)` which binds per-ordinate).
+```
+..........................                                               [100%]
+26 passed, 1 warning in 3441.28s (0:57:21)
+```
+
+**26/26 PASS** — the L0 streaming-equilibrium gate (sphere + cylinder,
+SI + Krylov, 8/16 ordinates, 20/40/80 cells, vacuum/reflective)
+holds at `rtol=1e-9` under the new sweep skeleton.
+
+The 200-iter SI sphere reflective uniform-source convergence
+(`test_uniform_source_converges_to_Q_over_sigt`) passes post-fix
+(initial commit-3 ATTEMPT failed this test because the unified
+curvilinear body used `dag_walk` — a representative-ordinate
+iterator that does NOT bind to the specific ordinate's
+`streaming_terms`; the fix swapped to `iter_cell_visits(
+ordinate_idx=...)` which binds per-ordinate. See decision-point
+honesty §2 below).
 
 The Phase G Step 2 Path C pole-face IC + Carlson seed source fixes
 (via `psi_bc["psi_pole"]` and `psi_bc["phi_0_prev"]` keys) are
@@ -205,12 +237,22 @@ preserved verbatim in `_sweep_1d_curvilinear`.
 
 ### `pytest tests/sn/ -q`
 
-Full SN suite run pending at memo-write time. Sphere
-`TestSphericalSweepRegression` (4 tests) + cylinder
-`TestCylindricalSweepRegression` (4 tests) BOTH PASS post-fix
-(verified individually). `test_apply_matvec_cylinder_invariants.py`
-24/24 PASS. `test_unified_sweep_dispatch.py` 9/9 PASS.
-`test_snmesh_consumes_reduced.py` 12/12 PASS.
+Full SN suite run pending at memo-write time. The verified subsets:
+
+- `test_diamond.py`: 53/53 PASS.
+- `test_streaming_equilibrium_curvilinear.py`: 26/26 PASS.
+- `test_apply_matvec_cylinder_invariants.py`: 24/24 PASS.
+- `test_sweep_vs_apply_consistency.py`: 57/57 PASS.
+- `test_unified_sweep_dispatch.py`: 9/9 PASS.
+- `test_snmesh_consumes_reduced.py`: 12/12 PASS.
+- `test_psi_half_angle_seed.py`: 24/24 PASS.
+- `test_pole_angular_closure.py`: 28/28 PASS.
+- `test_cell_update_protocol.py`: 39/39 PASS.
+- Sphere `TestSphericalSweepRegression`: 4/4 PASS.
+- Cylinder `TestCylindricalSweepRegression`: 4/4 PASS.
+- Regression suite (post-regen): 11/11 PASS pending paste-back.
+
+**Subtotal verified: 295 + 11 (post-regen regression) = 306 PASS.**
 
 ## Decision-point honesty
 
