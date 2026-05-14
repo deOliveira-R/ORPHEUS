@@ -1,19 +1,22 @@
-"""Regression tests for the SN sweep recurrence and SNMesh stencil.
+"""Regression tests for the SN sweep + SNMesh stencil.
 
 These tests cover bugs and edge cases found during the geometry
 migration (2026-04-04).  Each test targets a specific failure mode.
 
-Gotcha #5: _solve_recurrence formula rewrite
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Historical context — Gotcha #5 (resolved by Issue #196 Phase G Step 2.5)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 An algebraically-equivalent rewrite of the DD recurrence
 (``0.5*(psi_in + psi_out)`` → ``2*(psi_in*(1-a)/(1-a+eps) + s) - psi_in``)
-produced different numerical results because the cell-average formula
-must be ``0.5*(psi_in + psi_out)`` where ``psi_out = a*psi_in + s``.
-The rewritten form lost the ``psi0[None, :]`` broadcasting in the
-cumulative product and was numerically unstable near ``a → 1``.
-
-Impact: scattering source iteration diverged for multi-group problems
-(flux grew by ~1e34 per outer iteration), while 1-group was unaffected.
+once produced divergent multi-group scattering source iteration
+(flux grew by ~1e34 per outer iteration); 1-group was unaffected.
+The recurrence-formulation helpers (``_solve_recurrence``,
+``_outgoing``) were retired in Phase G Step 2.5 along with the slab
+cumprod sweep path, so the original unit-level regressions for those
+helpers are no longer applicable.  The end-to-end multi-group
+scattering convergence regression (catches ERR-005) is preserved at
+:class:`TestScatteringConvergence` below — it exercises the same
+failure mode via :class:`~orpheus.sn.solver.SNSolver`, which is the
+right level for a structural-bug guard now that the helpers are gone.
 """
 
 import numpy as np
@@ -39,78 +42,33 @@ def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) ->
     )
     return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
 from orpheus.sn.quadrature import GaussLegendre1D, LebedevSphere
-from orpheus.sn.sweep import _solve_recurrence, _outgoing, transport_sweep
+from orpheus.sn.sweep import transport_sweep
 
-pytestmark = pytest.mark.l0  # SN sweep recurrence + SNMesh stencil regressions (gotcha #5)
+pytestmark = pytest.mark.l0  # SN sweep + SNMesh stencil regressions
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# _solve_recurrence unit tests
+# Multi-group scattering convergence regression (ERR-005)
 # ═══════════════════════════════════════════════════════════════════════
 
-class TestSolveRecurrence:
-    """Unit tests for the DD recurrence solver."""
+class TestScatteringConvergence:
+    """End-to-end regression for multi-group scattering convergence.
 
-    def test_single_cell_zero_bc(self):
-        """Single cell: psi_avg = 0.5*(0 + a*0 + s) = 0.5*s."""
-        a = np.array([[0.8, 0.6]])
-        s = np.array([[0.1, 0.2]])
-        psi0 = np.zeros(2)
-        result = _solve_recurrence(a, s, psi0)
-        # psi_in = 0, psi_out = a*0 + s = s
-        expected = 0.5 * (0 + s)
-        np.testing.assert_allclose(result, expected, rtol=1e-14)
-
-    def test_single_cell_nonzero_bc(self):
-        """Single cell with nonzero boundary: psi_out = a*psi0 + s."""
-        a = np.array([[0.5, 0.7]])
-        s = np.array([[0.2, 0.3]])
-        psi0 = np.array([1.0, 2.0])
-        result = _solve_recurrence(a, s, psi0)
-        psi_out = a[0] * psi0 + s[0]
-        expected = 0.5 * (psi0[None, :] + psi_out[None, :])
-        np.testing.assert_allclose(result, expected, rtol=1e-14)
-
-    def test_multi_cell_dd_relation(self):
-        """Cell-average = 0.5*(psi_in + psi_out) for every cell."""
-        a = np.array([[0.9, 0.8], [0.7, 0.6], [0.5, 0.4]])
-        s = np.array([[0.1, 0.2], [0.15, 0.25], [0.2, 0.3]])
-        psi0 = np.array([0.5, 1.0])
-        psi_avg = _solve_recurrence(a, s, psi0)
-
-        # Reconstruct psi_in and psi_out cell by cell
-        psi_in = psi0.copy()
-        for i in range(3):
-            psi_out = a[i] * psi_in + s[i]
-            expected_avg = 0.5 * (psi_in + psi_out)
-            np.testing.assert_allclose(
-                psi_avg[i], expected_avg, rtol=1e-13,
-                err_msg=f"Cell {i} DD relation violated",
-            )
-            psi_in = psi_out
-
-    def test_outgoing_matches_last_cell(self):
-        """_outgoing must return the outgoing flux of the last cell."""
-        a = np.array([[0.9, 0.8], [0.7, 0.6], [0.5, 0.4]])
-        s = np.array([[0.1, 0.2], [0.15, 0.25], [0.2, 0.3]])
-        psi0 = np.array([0.5, 1.0])
-
-        # Walk the recurrence manually
-        psi_in = psi0.copy()
-        for i in range(3):
-            psi_out = a[i] * psi_in + s[i]
-            psi_in = psi_out
-        expected_outgoing = psi_out
-
-        actual = _outgoing(a, s, psi0)
-        np.testing.assert_allclose(actual, expected_outgoing, rtol=1e-13)
+    Phase G Step 2.5 retired the slab cumprod recurrence (``_solve_recurrence``,
+    ``_outgoing``); the unit-level tests that imported those helpers are gone.
+    This class preserves the structural regression for ERR-005 at the
+    :class:`~orpheus.sn.solver.SNSolver` level — the right level once the
+    helper functions no longer exist.
+    """
 
     @pytest.mark.catches("ERR-005")
     def test_regression_multigroup_scattering_convergence(self):
         """Scattering source iteration must converge for multi-group.
 
-        Gotcha #5: an algebraically-equivalent rewrite of _solve_recurrence
-        caused the inner loop to diverge for 2+ groups while 1-group worked.
+        Gotcha #5 (historical, see module docstring): an algebraically-
+        equivalent rewrite of the slab DD recurrence caused multi-group
+        scattering iteration to diverge while 1-group was unaffected.
+        Catches that failure mode at the SNSolver end-to-end level.
         """
         from orpheus.derivations.common.xs_library import get_mixture
         from orpheus.sn.solver import SNSolver
@@ -129,7 +87,7 @@ class TestSolveRecurrence:
         assert np.all(np.isfinite(phi_new)), "Non-finite flux after one outer iteration"
         assert phi_new.max() < 100, (
             f"Flux blew up to {phi_new.max():.2e} — "
-            f"_solve_recurrence may have changed"
+            f"scattering iteration may have regressed"
         )
 
 

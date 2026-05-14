@@ -156,7 +156,10 @@ def transport_sweep(
     reduced = sn_mesh.reduced
     if reduced is not None and reduced.requires_upstream_angular_state:
         return _sweep_1d_curvilinear(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
-    if sn_mesh.ny == 1:
+    # 1-D Cartesian sweep requires ``reduced`` populated (slab_streaming).
+    # ``Mesh2D`` with ``ny == 1`` is genuinely 2-D (no ``reduced``) and
+    # must take the wavefront path — its ``iter_cell_visits`` is unavailable.
+    if reduced is not None:
         return _sweep_1d_cartesian(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
     return _sweep_2d_wavefront(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
 
