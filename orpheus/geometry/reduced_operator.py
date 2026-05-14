@@ -152,27 +152,32 @@ class AngularMeasure(Protocol):
 class StreamingTerms:
     """Per-(cell, direction) **purely geometric** inputs for a sweep cell update.
 
-    The set of populated fields is **geometry-dependent**:
+    All curvature fields are populated for **every** geometry
+    (Issue #196 Phase G Step 2.5):
 
-    * **Slab**: ``chord_length``, ``mu``, ``volume``, ``abs_mu``.
-      No curvature math.
-    * **Sphere**: ``chord_length``, ``mu``, ``face_area_inner``,
-      ``face_area_outer``, ``delta_A_over_w``, ``alpha_in``,
-      ``alpha_out``, ``tau_mm``, ``volume``, ``abs_mu``.
-      ``mu`` and ``abs_mu`` are read from the global ordinate
-      ``mu_x[direction_idx]`` (sphere has ``direction_idx`` ==
-      global ordinate index).
-    * **Cylinder**: same shape as sphere, with the per-level
-      :math:`\\alpha` and :math:`\\tau_{mm}` indexed via
-      ``mu_level_idx`` at the call site.  Cylindrical ``mu`` /
-      ``abs_mu`` are read from the global ordinate
-      ``mu_x[level_indices[mu_level_idx][direction_idx]]`` because
-      cylindrical ``direction_idx`` is the within-level azimuthal
-      index :math:`m \\in [0, M)`, not the global ordinate.
+    * **Slab**: neutral-curvature values — ``face_area_inner =
+      face_area_outer = 1.0``, ``delta_A_over_w = 0.0``,
+      ``alpha_in = alpha_out = 0.0``, ``tau_mm = 1.0`` (synthetic
+      neutral element of the M-M angular closure — slab has no
+      half-angles; the closure would be the identity if ever
+      evaluated, but ``upstream_state.angular_upstream`` is ``None``
+      for slab so it never is).  Plus the always-populated
+      ``chord_length``, ``mu``, ``volume``, ``abs_mu``.
+    * **Sphere / cylinder**: physically-populated curvature fields
+      from the dome recursion + M-M clamp.
 
-    Fields not used in a given geometry retain their default of
-    ``None`` (object-typed) so a downstream ``StreamingTerms`` can be
-    inspected with ``is None`` checks without raising.
+    Cylindrical ``mu`` / ``abs_mu`` are read from the global ordinate
+    ``mu_x[level_indices[mu_level_idx][direction_idx]]`` because
+    cylindrical ``direction_idx`` is the within-level azimuthal index
+    :math:`m \\in [0, M)`, not the global ordinate.
+
+    Before Step 2.5, slab left the curvature fields as ``None`` and
+    cell-update strategies branched on ``alpha_in is None`` to
+    discriminate slab from curvilinear.  Step 2.5 retires that
+    branch — slab carries neutral curvature so the unified
+    cell-balance helper consumes the same packet regardless of
+    geometry.  Geometry is data, not control-flow (Cardinal Rule 2
+    + Pattern 4: make illegal states unrepresentable).
 
     Geometric, not direction-resolved
     =================================
@@ -247,9 +252,10 @@ class StreamingTerms:
     alpha_in: float | None = None
     """:math:`\\alpha_{n-1/2}` — incoming half-angle redistribution.
 
-    ``None`` for slab; populated for sphere/cylinder.  Cell-update
-    strategies use ``alpha_in is None`` as the slab vs curvilinear
-    discriminator.
+    Step 2.5 (Issue #196 Phase G): always populated.  Slab carries
+    ``0.0`` (neutral); sphere/cylinder carry the dome value.  The
+    historical ``alpha_in is None`` slab-vs-curvilinear branch is
+    retired in favour of geometry-as-data via the neutral values.
     """
 
     alpha_out: float | None = None
@@ -411,11 +417,30 @@ class ReducedStreamingOperator:
         volume = float(self.mesh.volumes[cell_idx])
 
         if self.coord is CoordSystem.CARTESIAN:
-            # Slab — minimal content; mu carried for the consumer.
+            # Slab — neutral curvature values populate the curvilinear
+            # fields so cell_balance_terms_unified can consume the
+            # packet without geometry dispatch (Issue #196 Phase G
+            # Step 2.5).  Slab carries:
+            #   face_area_inner = face_area_outer = 1.0  (so A_total =
+            #       A_inner + A_outer = 2, and 2*|μ|*A_down = 2|μ|·1
+            #       reproduces the slab denominator's "2|μ|" term);
+            #   delta_A_over_w = 0.0  (no curvature redistribution);
+            #   alpha_in = alpha_out = 0.0  (no half-angle dome);
+            #   tau_mm = 1.0  (closure is the identity for slab —
+            #       the synthetic neutral element of M-M; documented
+            #       in dd_polymorphism.md §5.3).
+            # ``volume == chord`` is already true for slab (unit
+            # cross-section in 1-D Cartesian).
             mu_n = float(self._quadrature.mu_x[direction_idx])
             return StreamingTerms(
                 chord_length=chord,
                 mu=mu_n,
+                face_area_inner=1.0,
+                face_area_outer=1.0,
+                delta_A_over_w=0.0,
+                alpha_in=0.0,
+                alpha_out=0.0,
+                tau_mm=1.0,
                 volume=volume,
                 abs_mu=abs(mu_n),
             )

@@ -215,7 +215,12 @@ def test_sphere_iter_cell_visits_inward_order() -> None:
 
 @pytest.mark.foundation
 def test_slab_iter_cell_visits_no_face_areas() -> None:
-    """Slab: forward / backward iteration with face_area_downstream = None."""
+    """Slab: forward / backward iteration with face_area_downstream = 1.0.
+
+    Issue #196 Step 2.5: slab carries ``face_area_downstream = 1.0``
+    (neutral curvature) so the unified cell-balance helper consumes
+    one geometry-blind number.  Pre-Step-2.5 slab carried ``None``.
+    """
     sn = _slab_mesh()
     quad = sn.quad
     # Forward (μ > 0).
@@ -223,7 +228,7 @@ def test_slab_iter_cell_visits_no_face_areas() -> None:
     visits_pos = list(sn.iter_cell_visits(ordinate_idx=n_pos))
     assert [v.cell_idx for v in visits_pos] == list(range(sn.nx))
     for v in visits_pos:
-        assert v.face_area_downstream is None
+        assert v.face_area_downstream == 1.0
     # Backward (μ < 0).
     n_neg = 0
     visits_neg = list(sn.iter_cell_visits(ordinate_idx=n_neg))
@@ -258,8 +263,10 @@ def test_cylinder_iter_cell_visits_per_level() -> None:
         for v in visits:
             assert v.streaming_terms.abs_mu == abs(eta_n)
         if abs(eta_n) < 1e-15:
-            # Degenerate: no spatial flow, forward order.
-            assert all(v.face_area_downstream is None for v in visits)
+            # Degenerate: no spatial flow, forward order.  Issue #196
+            # Step 2.5: ``face_area_downstream == 0.0`` (geometric
+            # truth) replaces the ``None`` sentinel.
+            assert all(v.face_area_downstream == 0.0 for v in visits)
             assert [v.cell_idx for v in visits] == list(range(sn.nx))
         elif eta_n >= 0:
             # Outward: forward, downstream = outer.

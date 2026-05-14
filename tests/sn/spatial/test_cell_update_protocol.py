@@ -138,9 +138,10 @@ class FakeCurvilinearStrategy:
         assert st.tau_mm is not None
         assert st.volume is not None
         assert st.abs_mu is not None
-        # Curvilinear non-degenerate visits carry a resolved
-        # downstream face area.
-        assert visit.face_area_downstream is not None
+        # Curvilinear non-degenerate visits carry a positive
+        # resolved downstream face area (Issue #196 Step 2.5:
+        # float-always; "> 0.0" replaces "is not None").
+        assert visit.face_area_downstream > 0.0
 
         ng = total_xs.shape[0]
         assert source.shape == (ng,)
@@ -289,23 +290,29 @@ class TestDataclassImmutability:
 
 
 class TestSlabVsCurvilinearDiscrimination:
-    """``streaming_terms.alpha_in is None`` discriminates slab from curvilinear.
+    """Geometry-as-data — slab carries neutral curvature (Issue #196 Step 2.5).
 
-    Locks the protocol's slab vs curvilinear discrimination convention
-    in the test suite — concrete strategies read this same field to
-    dispatch.
+    Pre-Step-2.5 the protocol's strategies branched on ``alpha_in is
+    None`` to discriminate slab from curvilinear.  Step 2.5 retires
+    that branch: slab populates neutral values
+    (``alpha_in = alpha_out = 0``, ``tau_mm = 1``,
+    ``delta_A_over_w = 0``, ``face_area_inner = face_area_outer = 1``)
+    so the unified cell-balance helper consumes one packet for all
+    geometries.  This test pins the neutral-value contract.
     """
 
     @pytest.mark.foundation
-    def test_slab_streaming_terms_have_no_alpha_in(self):
+    def test_slab_streaming_terms_neutral_curvature(self):
         mesh = _slab_mesh()
         quad = GaussLegendre1D.create(8)
         op = slab_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=0, direction_idx=0)
-        assert st.alpha_in is None
-        assert st.alpha_out is None
-        assert st.delta_A_over_w is None
-        assert st.tau_mm is None
+        assert st.alpha_in == 0.0
+        assert st.alpha_out == 0.0
+        assert st.delta_A_over_w == 0.0
+        assert st.tau_mm == 1.0
+        assert st.face_area_inner == 1.0
+        assert st.face_area_outer == 1.0
 
     @pytest.mark.foundation
     def test_spherical_streaming_terms_have_alpha_in(self):
@@ -368,13 +375,23 @@ class TestCellVisitPacket:
             v.cell_idx = 99  # type: ignore[misc]
 
     @pytest.mark.foundation
-    def test_cell_visit_default_downstream_none(self):
+    def test_cell_visit_default_downstream_zero(self):
+        """Default face_area_downstream is 0.0 (Issue #196 Step 2.5).
+
+        Pre-Step-2.5 the default was ``None``; Step 2.5 flipped to
+        float-always with default ``0.0`` (signalling "no downstream
+        face" via geometric truth, not by sentinel value).  The
+        cell-update strategies test ``> 0.0`` rather than ``is not
+        None`` to decide whether the spatial closure produces an
+        output.
+        """
         mesh = _slab_mesh()
         quad = GaussLegendre1D.create(8)
         op = slab_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=0, direction_idx=0)
         v = CellVisit(cell_idx=0, streaming_terms=st)
-        assert v.face_area_downstream is None
+        assert v.face_area_downstream == 0.0
+        assert isinstance(v.face_area_downstream, float)
 
     @pytest.mark.foundation
     def test_cell_visit_curvilinear_downstream(self):

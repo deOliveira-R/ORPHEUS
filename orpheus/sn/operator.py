@@ -755,12 +755,12 @@ def transport_operator_matvec_spherical(
         from .spatial.cell_update import CellVisit
         outward_visits = [
             CellVisit(cell_idx=i, streaming_terms=None,
-                      face_area_downstream=None)
+                      face_area_downstream=0.0)
             for i in range(nx)
         ]
         inward_visits = [
             CellVisit(cell_idx=i, streaming_terms=None,
-                      face_area_downstream=None)
+                      face_area_downstream=0.0)
             for i in range(nx - 1, -1, -1)
         ]
 

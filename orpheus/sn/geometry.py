@@ -422,6 +422,49 @@ class SNMesh:
 
     _DEGENERATE_ABS_ETA_THRESHOLD: ClassVar[float] = 1e-15
 
+    def dag_walk(
+        self,
+        direction_sign: int,
+        mu_level_idx: int | None = None,
+    ) -> Iterator[CellVisit]:
+        r"""Walk the per-ordinate cell DAG in topological order.
+
+        Issue #196 Phase G Step 2.5: the unified iteration primitive
+        for 1-D sweeps.  Subsumes :meth:`iter_cells_by_direction` and
+        :meth:`iter_cell_visits` — both stay as thin aliases for the
+        migration window.
+
+        The SN sweep on a given ordinate is forward substitution on
+        the block-triangular streaming + collision operator under the
+        ordinate's DAG ordering.  This method yields the per-cell
+        visit packets in that DAG order; the consumer folds over the
+        packets, threading the spatial-upstream face flux through the
+        accumulator and writing the per-cell angular state into a
+        persistent array.
+
+        Parameters
+        ----------
+        direction_sign : int
+            ``+1`` for outward (:math:`\mu \ge 0`); ``-1`` for inward
+            (:math:`\mu < 0`).
+        mu_level_idx : int | None
+            For cylindrical geometry: which :math:`\mu`-level the
+            ordinate subset belongs to.  ``None`` for slab and
+            sphere; required for cylindrical.
+
+        Yields
+        ------
+        CellVisit
+            One per cell, in topological order.  The packet's
+            :attr:`face_area_downstream` is float (Issue #196 Step
+            2.5 retired ``None``): ``1.0`` for slab, ``0.0`` for
+            cylindrical pure-azimuthal degenerate, physical face
+            area for sphere / non-degenerate cylinder.
+        """
+        return self.iter_cells_by_direction(
+            direction_sign, mu_level_idx=mu_level_idx,
+        )
+
     def iter_cell_visits(
         self,
         ordinate_idx: int,
@@ -534,8 +577,10 @@ class SNMesh:
         """Yield slab (1-D Cartesian) visits in sweep direction.
 
         Order: forward (cell 0 → nx-1) for :math:`\\mu \\ge 0`,
-        backward for :math:`\\mu < 0`.  Slab DD does not read face
-        areas, so ``face_area_downstream`` is ``None``.
+        backward for :math:`\\mu < 0`.  Slab carries
+        ``face_area_downstream = 1.0`` (neutral curvature; Issue
+        #196 Phase G Step 2.5) so the unified cell-balance helper
+        consumes one geometry-blind number.
         """
         assert self.reduced is not None
         mu_n = float(self.quad.mu_x[ordinate_idx])
@@ -549,7 +594,7 @@ class SNMesh:
             yield CellVisit(
                 cell_idx=i,
                 streaming_terms=st,
-                face_area_downstream=None,
+                face_area_downstream=1.0,
             )
 
     def _iter_spherical_visits(
@@ -739,8 +784,11 @@ class SNMesh:
         if abs_eta < self._DEGENERATE_ABS_ETA_THRESHOLD:
             # Pure-azimuthal degenerate: no spatial flow.  Iterate
             # forward so the angular M-M closure runs in a natural
-            # order; ``face_area_downstream = None`` signals "no
-            # spatial flow" to the strategy.
+            # order; ``face_area_downstream = 0.0`` signals "no
+            # spatial flow" to the strategy (geometric truth — the
+            # cell has no radial face on this ordinate).  Issue #196
+            # Phase G Step 2.5: replaced ``None`` with the
+            # geometrically-correct float ``0.0``.
             for i in range(self.nx):
                 st = self.reduced.streaming_terms(
                     cell_idx=i,
@@ -750,7 +798,7 @@ class SNMesh:
                 yield CellVisit(
                     cell_idx=i,
                     streaming_terms=st,
-                    face_area_downstream=None,
+                    face_area_downstream=0.0,
                 )
             return
 

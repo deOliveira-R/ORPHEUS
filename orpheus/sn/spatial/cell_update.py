@@ -71,33 +71,41 @@ What each dataclass holds
                               for slab — slab geometry has no
                               angular redistribution.
 
-Slab vs curvilinear discrimination
-==================================
+Geometry-as-data — single cell-balance algebra (Step 2.5)
+========================================================
 
-A strategy distinguishes slab from curvilinear geometry by inspecting
-the :class:`~orpheus.geometry.reduced_operator.StreamingTerms`
-instance that arrives:
+Issue #196 Phase G Step 2.5 retired the historical
+``alpha_in is None`` / ``abs_mu < 1e-15`` runtime branches in
+favour of geometry-blind data populated by the
+:class:`StreamingTerms` factories:
 
-* **Slab / Cartesian** — ``streaming_terms.alpha_in is None``
-  (and ``alpha_out``, ``delta_A_over_w``, ``tau_mm``, ``face_area_*``
-  are all ``None`` too).  ``upstream_state.angular_upstream`` is
-  ``None``.  The strategy returns
+* **Slab / Cartesian** — ``StreamingTerms`` carries neutral
+  curvature: ``face_area_inner = face_area_outer = 1.0``,
+  ``delta_A_over_w = 0.0``, ``alpha_in = alpha_out = 0.0``,
+  ``tau_mm = 1.0`` (synthetic neutral element of the M-M
+  closure — the closure is the identity for slab).  The
+  ``CellVisit`` carries ``face_area_downstream = 1.0``.
+  ``upstream_state.angular_upstream`` is ``None`` (slab has no
+  half-angles); the strategy returns
   ``CellResult(outgoing_angular_state=None, ...)``.
-* **Sphere / cylinder** — ``streaming_terms.alpha_in is not None``
-  (and the full curvature bundle is populated).
+* **Sphere / cylinder** — curvature fields physically populated.
+  ``CellVisit.face_area_downstream`` is the sweep-direction-
+  resolved outgoing face area (outer for outward, inner for inward).
   ``upstream_state.angular_upstream`` carries
   :math:`\psi_{n-1/2,\,i}`.  The strategy returns the M-M-closed
   ``outgoing_angular_state``.
-* **Cylindrical pure-azimuthal degenerate** — when
-  ``streaming_terms.abs_mu < 1e-15`` (the level has axial direction
-  cosine :math:`|\eta| \to 0`), the cell has no radial face flow.
-  The strategy must return ``outgoing_spatial_flux=None`` while still
-  applying the M-M angular closure (the redistribution physics
-  remains active).
+* **Cylindrical pure-azimuthal degenerate** — the cell has no
+  radial face flow on this ordinate; the iterator emits
+  ``CellVisit.face_area_downstream = 0.0`` (geometric truth).
+  The strategy's spatial closure outputs ``None`` when
+  ``face_area_downstream == 0.0`` (no downstream face exists),
+  while the M-M angular closure remains active.
 
-The discrimination convention is locked into Round 1 by the
-contract's protocol tests — concrete strategies in Round 2 (and the
-sweep rewrite in Wave D) honour it.
+The "is this output exists" checks remaining inside the strategy
+(``face_area_downstream > 0.0`` for the spatial closure;
+``angular_upstream is not None`` for the angular closure) are NOT
+geometry dispatch — they test the structural presence of a
+direction, not the geometry kind.
 
 Where downstream consumers will call this
 =========================================
@@ -310,13 +318,16 @@ class CellVisit:
         labels), connection coefficients (:math:`\alpha`,
         :math:`\Delta A / w`, :math:`\tau_{mm}`), and signed +
         absolute primary direction cosine.
-    face_area_downstream : float | None
+    face_area_downstream : float
         **Sweep-direction-resolved**: which of the two cell faces
         (inner or outer) is the downstream face for this visit.
+        Issue #196 Phase G Step 2.5 made this float-always (was
+        ``float | None``) so the unified cell-balance helper can
+        consume one number regardless of geometry.
 
-        * For slab / Cartesian, ``None`` — slab DD is built around
-          the chord-length / :math:`|\mu|` recurrence and does not
-          read face areas.
+        * For slab / Cartesian: ``1.0`` — neutral value; the slab
+          denominator's ``2|\mu|`` term reads ``2 * abs_mu *
+          face_area_downstream = 2|μ|·1``.
         * For curvilinear with :math:`\mu \ge 0` (outward sweep,
           centre → boundary): equals
           ``streaming_terms.face_area_outer``.
@@ -324,8 +335,10 @@ class CellVisit:
           boundary → centre): equals
           ``streaming_terms.face_area_inner``.
         * For the cylindrical pure-azimuthal degenerate case
-          (``abs_mu < 1e-15``), ``None`` — the cell has no spatial
-          face flow.
+          (``abs_mu < 1e-15``): ``0.0`` — the cell has no spatial
+          face flow, so the ``2|\mu| A_{\rm down}`` term vanishes
+          via ``A_down = 0`` (geometric truth) rather than via the
+          numerical threshold ``abs_mu < 1e-15``.
 
     Notes
     -----
@@ -344,7 +357,7 @@ class CellVisit:
 
     cell_idx: int
     streaming_terms: StreamingTerms
-    face_area_downstream: float | None = None
+    face_area_downstream: float = 0.0
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -469,11 +482,12 @@ class CellUpdate(Protocol):
             One visit to this cell during the sweep.  Contains the
             pure-geometric :class:`StreamingTerms` packet plus the
             sweep-direction-resolved :attr:`face_area_downstream`.
-            ``visit.streaming_terms.alpha_in is None`` discriminates
-            slab from curvilinear geometry; for cylindrical
-            geometry, ``visit.streaming_terms.abs_mu < 1e-15`` flags
-            the pure-azimuthal degenerate case (in which
-            ``visit.face_area_downstream is None``).
+            Geometry is data, not control-flow (Issue #196 Phase G
+            Step 2.5): ``visit.face_area_downstream > 0.0`` signals
+            "this cell has a downstream spatial face" (any geometry);
+            ``visit.face_area_downstream == 0.0`` signals "no
+            spatial face flow" (cylindrical pure-azimuthal
+            degenerate).
         total_xs :
             Shape ``(ng,)``.  Per-group total cross section
             :math:`\Sigma_t` on this cell.

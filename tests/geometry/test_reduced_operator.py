@@ -257,7 +257,19 @@ class TestStreamingTermsExtraction:
     """streaming_terms() returns the right per-cell-per-direction subset."""
 
     @pytest.mark.foundation
-    def test_slab_streaming_terms_minimal(self):
+    def test_slab_streaming_terms_neutral_curvature(self):
+        """Slab carries neutral curvature values (Issue #196 Step 2.5).
+
+        Pre-Step-2.5 the curvature fields were ``None`` and the
+        cell-update strategies branched on ``alpha_in is None``.
+        Step 2.5 retires that branch by populating neutral values:
+        ``face_area_inner = face_area_outer = 1.0``,
+        ``delta_A_over_w = 0.0``, ``alpha_in = alpha_out = 0.0``,
+        ``tau_mm = 1.0`` (synthetic neutral element of the M-M
+        closure — slab has no half-angles).  These values make the
+        unified cell-balance helper consume the same packet for
+        slab and curvilinear without geometry dispatch.
+        """
         mesh = _slab_mesh()
         quad = GaussLegendre1D.create(8)
         op = slab_streaming(mesh, quad)
@@ -265,13 +277,14 @@ class TestStreamingTermsExtraction:
         assert isinstance(st, StreamingTerms)
         assert st.chord_length == float(mesh.widths[2])
         assert st.mu == float(quad.mu_x[3])
-        # Curvature fields stay None for slab
-        assert st.face_area_inner is None
-        assert st.face_area_outer is None
-        assert st.delta_A_over_w is None
-        assert st.alpha_in is None
-        assert st.alpha_out is None
-        assert st.tau_mm is None
+        # Neutral curvature: slab carries the values that make the
+        # unified cell-balance algebra collapse to the slab form.
+        assert st.face_area_inner == 1.0
+        assert st.face_area_outer == 1.0
+        assert st.delta_A_over_w == 0.0
+        assert st.alpha_in == 0.0
+        assert st.alpha_out == 0.0
+        assert st.tau_mm == 1.0
 
     @pytest.mark.foundation
     def test_sphere_streaming_terms_match_arrays(self):
