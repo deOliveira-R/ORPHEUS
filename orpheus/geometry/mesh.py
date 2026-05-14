@@ -22,6 +22,7 @@ about cell counts.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import TYPE_CHECKING, Literal
 
 import numpy as np
@@ -287,14 +288,22 @@ class Mesh1D:
         """Number of cells."""
         return len(self.edges) - 1
 
-    @property
+    @cached_property
     def widths(self) -> np.ndarray:
-        """Cell widths (edge-to-edge distance), shape (N,)."""
+        """Cell widths (edge-to-edge distance), shape (N,).
+
+        Cached at first access — ``Mesh1D`` is frozen, so ``edges`` is
+        immutable.  Per-call ``np.diff(self.edges)`` recomputation was
+        51,200 calls per ordinate sweep in profiling of the Step 2.5b
+        unified-fold path (Issue #196).  Step 2.5c subsumes this call
+        chain via the precomputed sweep cache; the @cached_property here
+        is a free interim win that survives the larger refactor.
+        """
         return np.diff(self.edges)
 
-    @property
+    @cached_property
     def centers(self) -> np.ndarray:
-        """Cell centre positions, shape (N,)."""
+        """Cell centre positions, shape (N,).  Cached (frozen mesh)."""
         return 0.5 * (self.edges[:-1] + self.edges[1:])
 
     @property
