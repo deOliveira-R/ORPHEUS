@@ -185,8 +185,12 @@ def _sweep_1d_unified(
     ---------------------
 
     The cache-driven path produces algebraically the SAME values as the
-    Step 2.5b ``cell_update.affine_coefficients`` + ``ordinate_scan``
-    composition (and the same as the per-cell ``update`` reference).
+    per-cell ``cell_update.update`` reference iteration (the Pattern 2
+    dual-view contract).  The cache's ``a_attenuation`` field IS the
+    per-ordinate sequence of transmission coefficients that
+    Step 2.5b's ``affine_coefficients`` builder produced — but
+    precomputed once at solver construction rather than rebuilt every
+    sweep.
     The Pattern 2 dual-view test
     (``tests/sn/spatial/test_sweep_cache.py``) pins this at
     ``rtol=1e-13`` across the parametrised geometry × ng × source

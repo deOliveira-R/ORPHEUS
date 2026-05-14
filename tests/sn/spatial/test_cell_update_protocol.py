@@ -92,24 +92,6 @@ class IdentityCellUpdate:
         del visit, upstream_state  # unused by IdentityCellUpdate
         return total_xs * cell_avg - source
 
-    def affine_coefficients(
-        self,
-        visits,
-        total_xs: np.ndarray,
-        source: np.ndarray,
-        angular_state,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Stub dual-view for protocol-conformance only.
-
-        ``IdentityCellUpdate`` has no spatial chain (it returns
-        ``outgoing_spatial_flux=None``).  This method exists to satisfy
-        the Protocol; its outputs are not load-bearing.
-        """
-        del visits, source, angular_state
-        zeros = np.zeros_like(total_xs)
-        return zeros, zeros
-
-
 @dataclass(frozen=True, slots=True)
 class BadCellUpdate:
     """Synthetic non-strategy: missing the ``update`` method.
@@ -198,23 +180,6 @@ class FakeCurvilinearStrategy:
         """
         del visit, upstream_state  # unused by FakeCurvilinearStrategy
         return total_xs * cell_avg - source
-
-    def affine_coefficients(
-        self,
-        visits,
-        total_xs: np.ndarray,
-        source: np.ndarray,
-        angular_state,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Stub dual-view for protocol-conformance only.
-
-        Not physically meaningful — exists to satisfy the Protocol
-        contract.
-        """
-        del visits, source, angular_state
-        zeros = np.zeros_like(total_xs)
-        return zeros, zeros
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # Mesh fixtures (re-used from the geometry test suite pattern)

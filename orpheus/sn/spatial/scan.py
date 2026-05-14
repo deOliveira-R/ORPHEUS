@@ -37,9 +37,10 @@ numpy: ``cumprod_a · (psi_0 + cumsum(b / cumprod_a))`` — three numpy
 ops.  No Python loop over cells.
 
 The function is a **free function**, not a method on a class or on
-the :class:`CellUpdate` Protocol.  Cell-update strategies CONSUME
-``ordinate_scan`` from their :meth:`affine_coefficients` builders;
-they do not expose it.
+the :class:`CellUpdate` Protocol.  The 1-D sweep
+(:func:`~orpheus.sn.sweep._sweep_1d_unified`) CONSUMES ``ordinate_scan``
+on the cache's ``a_attenuation`` + the per-iteration ``b`` vector
+(Step 2.5c).
 
 Pair-monoid contract
 ====================

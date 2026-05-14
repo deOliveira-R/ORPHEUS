@@ -39,8 +39,62 @@ from orpheus.geometry import (
 )
 from orpheus.sn.quadrature import GaussLegendre1D, ProductQuadrature
 from orpheus.sn.spatial import DiamondDifference, UpstreamState
+from orpheus.sn.spatial.cell_balance import cell_balance_terms
 from orpheus.sn.spatial.cell_update import CellVisit
 from orpheus.sn.spatial.scan import ordinate_scan
+
+
+def _affine_coefficients_from_visits(
+    visits: list[CellVisit],
+    total_xs: np.ndarray,
+    source: np.ndarray,
+    angular_state: np.ndarray | None,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Test-side adapter: per-cell ``(a, b)`` from a visit list.
+
+    Step 2.5c retired ``DiamondDifference.affine_coefficients`` —
+    the cache populator subsumes it.  These dual-view tests retain
+    their algebraic structure by computing ``(a, b)`` per cell via
+    :func:`cell_balance_terms` (the Pattern 2 anchor that both
+    ``update`` and the cache populator derive from):
+
+    .. math::
+
+        a[i, g] = 2|\mu|\,A_{\rm total}[i] / \mathrm{denom}[i, g] - 1,
+        \\
+        b[i, g] = 2 \cdot (\mathrm{source}[i, g]
+                            + \mathrm{ang\_contrib}[i, g])
+                  / \mathrm{denom}[i, g].
+    """
+    nx = len(visits)
+    ng = total_xs.shape[1]
+    a_out = np.empty((nx, ng))
+    b_out = np.empty((nx, ng))
+    for idx, visit in enumerate(visits):
+        psi_ang = (
+            np.zeros(ng) if angular_state is None else angular_state[idx]
+        )
+        upstream = UpstreamState(
+            spatial_upstream=np.zeros(ng),
+            angular_upstream=(
+                None if angular_state is None else psi_ang
+            ),
+        )
+        terms = cell_balance_terms(
+            visit.streaming_terms,
+            visit.face_area_downstream,
+            total_xs[idx],
+            upstream,
+        )
+        st = visit.streaming_terms
+        A_total = st.face_area_inner + st.face_area_outer
+        a_out[idx] = 2.0 * st.abs_mu * A_total / terms.denom - 1.0
+        ang_contrib = (
+            0.0 if angular_state is None
+            else st.delta_A_over_w * terms.c_in * angular_state[idx]
+        )
+        b_out[idx] = 2.0 * (source[idx] + ang_contrib) / terms.denom
+    return a_out, b_out
 
 
 pytestmark = [
@@ -632,8 +686,8 @@ class TestDualViewContracts:
             if result.outgoing_spatial_flux is not None:
                 psi_chain = result.outgoing_spatial_flux
 
-        # ── Vectorised affine_coefficients + ordinate_scan ─────────
-        a, b = strat.affine_coefficients(
+        # ── Vectorised (a, b) builder + ordinate_scan ──────────────
+        a, b = _affine_coefficients_from_visits(
             visits, total_xs, source, psi_angular,
         )
         scan_out = ordinate_scan(a, b, psi_in)
@@ -680,7 +734,7 @@ class TestDualViewContracts:
         )
         strat = DiamondDifference()
 
-        a_full, b_full = strat.affine_coefficients(
+        a_full, b_full = _affine_coefficients_from_visits(
             visits, total_xs, source, psi_angular,
         )
 
@@ -690,7 +744,7 @@ class TestDualViewContracts:
             psi_ang = (
                 None if psi_angular is None else psi_angular[idx:idx + 1]
             )
-            a_one, b_one = strat.affine_coefficients(
+            a_one, b_one = _affine_coefficients_from_visits(
                 [visit],
                 total_xs[idx:idx + 1],
                 source[idx:idx + 1],
@@ -738,7 +792,7 @@ class TestDualViewContracts:
             psi_chain = result.outgoing_spatial_flux
 
         # ── New scan path ──────────────────────────────────────────
-        a, b = strat.affine_coefficients(visits, total_xs, source, None)
+        a, b = _affine_coefficients_from_visits(visits, total_xs, source, None)
         scan_out = ordinate_scan(a, b, psi_in)
 
         np.testing.assert_allclose(scan_out, baseline, rtol=1e-12)
