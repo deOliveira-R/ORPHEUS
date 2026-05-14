@@ -197,16 +197,29 @@ class TestBitIdenticalSlab:
         ref_psi_out = ref_a * psi_in + ref_s
         ref_psi_avg = 0.5 * (psi_in + ref_psi_out)
 
-        # Slab visit: face_area_downstream is None — slab DD does not
-        # read face areas (the recurrence is built around chord /
-        # |μ| only).
-        visit = CellVisit(cell_idx=cell_idx, streaming_terms=st)
+        # Slab visit: face_area_downstream = 1.0 (Issue #196 Phase G
+        # Step 2.5 — neutral curvature; slab and curvilinear share the
+        # unified cell-balance helper).
+        visit = CellVisit(
+            cell_idx=cell_idx, streaming_terms=st,
+            face_area_downstream=1.0,
+        )
         strat = DiamondDifference()
         result = strat.update(visit, total_xs, source, upstream)
 
-        # Bit-identical: np.array_equal, not np.allclose.
-        assert np.array_equal(result.cell_average_flux, ref_psi_avg)
-        assert np.array_equal(result.outgoing_spatial_flux, ref_psi_out)
+        # Algebraically-identical to the cumprod recurrence
+        # ``a·ψ_in + 2q/denom; ½(ψ_in + ψ_out)`` — different IEEE-754
+        # operation order than the unified ``(q + 2|μ|·ψ_in)/denom;
+        # 2·ψ_avg − ψ_in``.  Re-baselined to ``np.allclose(rtol=1e-13)``
+        # per the migration-endpoint clause documented in the
+        # pre-Step-2.5 diamond.py module docstring and the plan
+        # ``.claude/plans/issue_196_phase_g_replan.md`` §"Step 2.5".
+        np.testing.assert_allclose(
+            result.cell_average_flux, ref_psi_avg, rtol=1e-13,
+        )
+        np.testing.assert_allclose(
+            result.outgoing_spatial_flux, ref_psi_out, rtol=1e-13,
+        )
         # Slab has no angular redistribution.
         assert result.outgoing_angular_state is None
 
@@ -250,12 +263,21 @@ class TestBitIdenticalSlab:
         ref_psi_out = ref_a * psi_in + ref_s
         ref_psi_avg = 0.5 * (psi_in + ref_psi_out)
 
-        visit = CellVisit(cell_idx=cell_idx, streaming_terms=st)
+        visit = CellVisit(
+            cell_idx=cell_idx, streaming_terms=st,
+            face_area_downstream=1.0,
+        )
         strat = DiamondDifference()
         result = strat.update(visit, total_xs, source, upstream)
 
-        assert np.array_equal(result.cell_average_flux, ref_psi_avg)
-        assert np.array_equal(result.outgoing_spatial_flux, ref_psi_out)
+        # Issue #196 Step 2.5: re-baseline to np.allclose(rtol=1e-13)
+        # per migration-endpoint clause; see test 1 docstring.
+        np.testing.assert_allclose(
+            result.cell_average_flux, ref_psi_avg, rtol=1e-13,
+        )
+        np.testing.assert_allclose(
+            result.outgoing_spatial_flux, ref_psi_out, rtol=1e-13,
+        )
         assert result.outgoing_angular_state is None
 
     @pytest.mark.foundation
@@ -300,12 +322,20 @@ class TestBitIdenticalSlab:
         ref_psi_out = ref_a * psi_in + ref_s
         ref_psi_avg = 0.5 * (psi_in + ref_psi_out)
 
-        visit = CellVisit(cell_idx=cell_idx, streaming_terms=st)
+        visit = CellVisit(
+            cell_idx=cell_idx, streaming_terms=st,
+            face_area_downstream=1.0,
+        )
         strat = DiamondDifference()
         result = strat.update(visit, total_xs, source, upstream)
 
-        assert np.array_equal(result.cell_average_flux, ref_psi_avg)
-        assert np.array_equal(result.outgoing_spatial_flux, ref_psi_out)
+        # Issue #196 Step 2.5: re-baseline to np.allclose(rtol=1e-13).
+        np.testing.assert_allclose(
+            result.cell_average_flux, ref_psi_avg, rtol=1e-13,
+        )
+        np.testing.assert_allclose(
+            result.outgoing_spatial_flux, ref_psi_out, rtol=1e-13,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -551,35 +581,47 @@ class TestCylindricalDegenerate:
         )
 
         # Degenerate visit: no spatial face flow ⇒
-        # face_area_downstream is None.
+        # face_area_downstream = 0.0 (geometric truth; Issue #196
+        # Step 2.5 replaced the ``None`` sentinel with float 0.0).
         visit = CellVisit(
             cell_idx=1,
             streaming_terms=st,
-            face_area_downstream=None,
+            face_area_downstream=0.0,
         )
         strat = DiamondDifference()
         result = strat.update(visit, total_xs, source, upstream)
 
-        # cell_average_flux bit-identical to the sweep's degenerate scalar.
-        assert np.array_equal(result.cell_average_flux, ref_psi_avg)
+        # Issue #196 Step 2.5: the unified cell-balance helper retains
+        # the ``|μ|·A_total·ψ^s_in`` term naturally — it vanishes as
+        # ``|μ| → 0`` rather than via an explicit-drop branch.  For
+        # synthetic ``abs_mu = 1e-16``, the residual drift is
+        # ``1e-16 * O(A_total) * O(ψ^s_in) ≈ 1e-17``, well within
+        # FP-non-associativity per ``vv-principles`` §"Bit-identity vs
+        # principled-equivalence".
+        np.testing.assert_allclose(
+            result.cell_average_flux, ref_psi_avg, rtol=1e-13, atol=1e-15,
+        )
         # outgoing_spatial_flux signals "no face flow" via None.
         assert result.outgoing_spatial_flux is None
         # outgoing_angular_state still produced via the M-M closure.
         assert result.outgoing_angular_state is not None
-        assert np.array_equal(
-            result.outgoing_angular_state, ref_psi_angle_out
+        np.testing.assert_allclose(
+            result.outgoing_angular_state, ref_psi_angle_out,
+            rtol=1e-13, atol=1e-15,
         )
 
     @pytest.mark.foundation
     def test_degenerate_does_not_consume_psi_spatial_in(self):
-        """Verify the degenerate branch ignores
-        ``upstream_state.spatial_upstream``.
+        """Verify the degenerate branch's spatial-upstream sensitivity
+        is FP-noise level (Issue #196 Step 2.5).
 
-        Per sweep.py:533-546, the degenerate cell has no radial face
-        flow — the ``|μ| (A_in + A_out) ψ^s_in`` term drops out.  We
-        gate this by re-running the cell update with two distinct
-        ``psi_spatial_in`` values; the cell-average flux must be
-        identical.
+        Pre-Step-2.5 the degenerate helper explicitly dropped the
+        ``|μ|·A_total·ψ^s_in`` term so the cell-average flux was
+        BIT-identical for any ``psi_spatial_in``.  Step 2.5's unified
+        helper keeps the term but it vanishes as ``|μ|→0`` — for
+        ``abs_mu = 1e-16`` the spatial-upstream sensitivity is bounded
+        by ``1e-16 · A_total · |ψ^s_in|`` ≈ ``1e-14`` for the wildly-
+        scaled probe.  Principled-equivalence per ``vv-principles``.
         """
         mesh = _cylindrical_mesh(nx=4, radius=1.0)
         quad = ProductQuadrature.create(n_mu=4, n_phi=4)
@@ -616,16 +658,18 @@ class TestCylindricalDegenerate:
         visit = CellVisit(
             cell_idx=1,
             streaming_terms=st,
-            face_area_downstream=None,
+            face_area_downstream=0.0,
         )
         strat = DiamondDifference()
         result_a = strat.update(visit, total_xs, source, upstream_a)
         result_b = strat.update(visit, total_xs, source, upstream_b)
 
-        # cell_average_flux insensitive to spatial_upstream
-        # (no radial face flow on this cell).
-        assert np.array_equal(
+        # cell_average_flux insensitive to spatial_upstream to
+        # FP-noise level (no radial face flow on this cell; the
+        # |μ|·A_total·ψ^s_in term vanishes as |μ|→0).
+        np.testing.assert_allclose(
             result_a.cell_average_flux, result_b.cell_average_flux,
+            rtol=0, atol=1e-13,
         )
         # Both signal None for outgoing_spatial_flux.
         assert result_a.outgoing_spatial_flux is None
@@ -683,7 +727,9 @@ class TestPositivityFailure:
             angular_upstream=None,
         )
 
-        visit = CellVisit(cell_idx=0, streaming_terms=st)
+        visit = CellVisit(
+            cell_idx=0, streaming_terms=st, face_area_downstream=1.0,
+        )
         strat = DiamondDifference()
         result = strat.update(visit, total_xs, source, upstream)
 
@@ -765,7 +811,12 @@ def _slab_visit_inputs(
     weight_norm = 1.0 / quad.weights.sum()
     source = Q * st.chord_length * weight_norm
     upstream = UpstreamState(spatial_upstream=psi_in, angular_upstream=None)
-    visit = CellVisit(cell_idx=cell_idx, streaming_terms=st)
+    # Slab visit: face_area_downstream = 1.0 (Issue #196 Step 2.5
+    # neutral curvature) so the unified DD body's spatial-closure
+    # branch runs (slab DOES have a downstream face — the cell-edge).
+    visit = CellVisit(
+        cell_idx=cell_idx, streaming_terms=st, face_area_downstream=1.0,
+    )
     return visit, total_xs, source, upstream
 
 
@@ -905,7 +956,7 @@ def _cylinder_degenerate_visit_inputs(
         angular_upstream=psi_angle_in,
     )
     visit = CellVisit(
-        cell_idx=cell_idx, streaming_terms=st, face_area_downstream=None,
+        cell_idx=cell_idx, streaming_terms=st, face_area_downstream=0.0,
     )
     return visit, total_xs, source, upstream
 
@@ -1168,10 +1219,14 @@ class TestResidual:
         :math:`2|\mu|(\bar\psi - \psi_{\rm in})
         + \mathrm{chord}\,\Sigma_t\,\bar\psi - q`.
 
-        Hand-calc cross-check against the closed-form expression,
-        bit-identical (``np.array_equal``) — the slab branch has no
-        helper indirection so the operation order matches the
-        reference verbatim.
+        Hand-calc cross-check against the closed-form expression.
+        Issue #196 Step 2.5: re-baselined to ``np.allclose(rtol=1e-13)``
+        because the unified residual builds via
+        ``denom·cell_avg − (source + numer_upstream)`` (operation
+        order in the unified helper) instead of the explicit
+        ``2|μ|(cell_avg − ψ_in) + chord·Σ_t·cell_avg − source``
+        closed form below.  The two forms are algebraically identical
+        but ULP-different at IEEE-754.
         """
         visit, total_xs, source, upstream = _slab_visit_inputs()
         strat = DiamondDifference()
@@ -1194,8 +1249,9 @@ class TestResidual:
             cell_avg, visit, total_xs, source, upstream,
         )
 
-        # Slab residual: no helper indirection — bit-identical.
-        assert np.array_equal(computed, ref)
+        # Issue #196 Step 2.5: re-baselined per migration-endpoint
+        # clause; see test docstring.
+        np.testing.assert_allclose(computed, ref, rtol=1e-13)
 
     # ── 6. Curvilinear residual matches CellBalanceTerms by composition
 
@@ -1207,10 +1263,11 @@ class TestResidual:
         shared :func:`cell_balance_terms` helper — bit-identical.
 
         Verifies the Pattern 2 contract directly: both
-        :meth:`_update_curvilinear` and :meth:`_residual_curvilinear`
-        consume the same helper, so the residual at any probe point
-        is the closed-form rearrangement of the balance equation the
-        helper produces.
+        :meth:`update` and :meth:`residual` consume the same
+        :func:`cell_balance_terms` helper (Issue #196 Step 2.5
+        unified body — no geometry dispatch), so the residual at
+        any probe point is the closed-form rearrangement of the
+        balance equation the helper produces.
         """
         from orpheus.sn.spatial.cell_balance import cell_balance_terms
 
@@ -1245,11 +1302,12 @@ class TestResidual:
     ) -> None:
         r"""Cylindrical degenerate residual equals
         ``denom · cell_avg - (source + numer_upstream)`` from
-        :func:`cell_balance_terms_degenerate`.
+        the unified :func:`cell_balance_terms` (Issue #196 Step 2.5:
+        the degenerate helper was retired in favour of the unified
+        helper, which handles ``2|μ|·A_down = 0`` via
+        ``visit.face_area_downstream = 0.0``).
         """
-        from orpheus.sn.spatial.cell_balance import (
-            cell_balance_terms_degenerate,
-        )
+        from orpheus.sn.spatial.cell_balance import cell_balance_terms
 
         visit, total_xs, source, upstream = (
             _cylinder_degenerate_visit_inputs()
@@ -1260,8 +1318,11 @@ class TestResidual:
         n_groups = source.shape[0]
         cell_avg = rng.normal(loc=1.0, scale=0.5, size=n_groups)
 
-        terms = cell_balance_terms_degenerate(
-            visit.streaming_terms, total_xs, upstream,
+        terms = cell_balance_terms(
+            visit.streaming_terms,
+            visit.face_area_downstream,
+            total_xs,
+            upstream,
         )
         ref = terms.denom * cell_avg - (source + terms.numer_upstream)
 
@@ -1322,14 +1383,15 @@ class TestResidual:
 
     @pytest.mark.foundation
     def test_degenerate_residual_independent_of_spatial_upstream(self) -> None:
-        """The degenerate branch has no radial face flow — the residual
-        must not depend on ``upstream_state.spatial_upstream``.
+        """Degenerate residual's spatial-upstream sensitivity is FP-noise.
 
-        Mirror of :class:`TestCylindricalDegenerate`'s
-        ``test_degenerate_does_not_consume_psi_spatial_in`` but on
-        :meth:`residual` instead of :meth:`update`.  Two probes with
-        wildly different ``spatial_upstream`` must produce the same
-        residual.
+        Issue #196 Step 2.5: the unified cell-balance helper retains
+        the ``|μ|·A_total·ψ^s_in`` term naturally (no explicit-drop
+        branch); for cyl-degenerate ``abs_mu ≈ 1e-16`` it vanishes
+        physically as ``|μ|→0``.  Two probes with wildly different
+        ``spatial_upstream`` produce the same residual to FP-noise
+        bound ``|μ|·A_total·|ψ^s_in| ≈ 1e-14`` for the test's wild
+        probe.
         """
         visit, total_xs, source, upstream_a = (
             _cylinder_degenerate_visit_inputs()
@@ -1345,4 +1407,4 @@ class TestResidual:
         r_a = strat.residual(cell_avg, visit, total_xs, source, upstream_a)
         r_b = strat.residual(cell_avg, visit, total_xs, source, upstream_b)
 
-        assert np.array_equal(r_a, r_b)
+        np.testing.assert_allclose(r_a, r_b, rtol=0, atol=1e-13)

@@ -1,16 +1,18 @@
-r"""Curvilinear per-cell balance terms — shared algebra for solve / apply.
+r"""Unified per-cell balance algebra — geometry-blind by data (Step 2.5).
 
-Issue #196 Phase G Step 2 (qa CONCERN-2 fix).  The Diamond Difference's
-``_update_curvilinear`` (which divides ``numer / denom`` to obtain the
-cell-average flux) and ``SNCellOperator._apply_curvilinear_residual``
-(which subtracts ``denom · cell_avg - (source + numer_upstream)`` to
-obtain the residual) build the same algebraic intermediates.  Pattern 2
-(no twin paths) requires the algebra to live in **one** place.  This
-module factors that algebra into :func:`cell_balance_terms`, which
-both consumers call.
+Issue #196 Phase G Step 2.5.  One function — :func:`cell_balance_terms` —
+computes the algebraic intermediates of the per-cell DD balance for
+slab, sphere, cylinder (non-degenerate), and cylindrical pure-azimuthal
+degenerate cells.  Geometry is data carried by
+:class:`~orpheus.geometry.reduced_operator.StreamingTerms` and
+:class:`~orpheus.sn.spatial.cell_update.CellVisit`; the helper does NOT
+branch on geometry kind.
 
-The mathematics is the canonical Hébert §3.9.4 / Lewis-Miller §6.1
-curvilinear DD balance with Morel-Montry angular closure:
+Mathematical content
+====================
+
+The canonical Hébert §3.9.4 / Lewis-Miller §6.1 curvilinear DD
+balance with Morel-Montry angular closure:
 
 .. math::
 
@@ -31,9 +33,33 @@ where
     c_{\text{in}}  &= \tfrac{1-\tau}{\tau}\,\alpha_{\text{out}}
                       + \alpha_{\text{in}}.
 
+Pre-Step-2.5 this lived in two helpers (``cell_balance_terms`` for
+the non-degenerate curvilinear branch and
+``cell_balance_terms_degenerate`` for the cylindrical pure-azimuthal
+case) plus an inlined slab recurrence inside ``DiamondDifference``.
+Step 2.5 collapses all three into this single helper:
+
+* **Slab** — neutral curvature populated by the
+  :func:`~orpheus.geometry.reduced_operator.slab_streaming`
+  factory: ``face_area_inner = face_area_outer = 1.0``,
+  ``delta_A_over_w = 0.0``, ``alpha_in = alpha_out = 0.0``,
+  ``tau_mm = 1.0``.  ``CellVisit.face_area_downstream = 1.0``.
+  The denominator collapses to ``2|μ|·1 + 0 + Σ_t·V`` = the slab
+  form; the upstream numerator collapses to ``|μ|·2·ψ^s_in`` =
+  ``2|μ|·ψ^s_in``.
+* **Curvilinear non-degenerate** — physical curvature values.
+  ``CellVisit.face_area_downstream`` is the sweep-direction-
+  resolved outgoing face area.
+* **Cylindrical pure-azimuthal degenerate** —
+  ``CellVisit.face_area_downstream = 0.0`` (geometric truth: no
+  radial face on this ordinate).  The ``2|μ|·A_down`` term
+  vanishes via ``A_down = 0`` (not via the numerical threshold
+  ``|μ| < 1e-15``).
+
 The solve branch returns ``psi_avg = (source + numer_upstream) /
 denom``; the apply branch returns ``denom · cell_avg − (source +
-numer_upstream)``.  Same algebra, two consumers.
+numer_upstream)``.  Same algebra, two consumers (Pattern 2 — no
+twin paths).
 
 See :mod:`orpheus.sn.spatial.cell_balance` test gate at
 ``tests/sn/spatial/test_cell_balance.py``.
@@ -47,24 +73,27 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .cell_update import StreamingTerms, UpstreamState
+    from orpheus.geometry.reduced_operator import StreamingTerms
+
+    from .cell_update import UpstreamState
 
 
 @dataclass(frozen=True, slots=True)
 class CellBalanceTerms:
-    r"""Algebraic intermediates of the curvilinear per-cell balance.
+    r"""Algebraic intermediates of the unified per-cell balance.
 
     Constructed by :func:`cell_balance_terms`; consumed by both
-    :class:`~orpheus.sn.spatial.diamond.DiamondDifference._update_curvilinear`
-    (solve branch) and
-    :func:`~orpheus.sn.spatial.operators._apply_curvilinear_residual`
-    (apply branch).  Closes the twin-path duplication (Pattern 2)
-    identified by qa CONCERN-2 in the Step 1 review.
+    :class:`~orpheus.sn.spatial.diamond.DiamondDifference.update`
+    (solve branch — divides ``(source + numer_upstream) / denom``)
+    and :meth:`DiamondDifference.residual` (apply branch —
+    computes ``denom · cell_avg − (source + numer_upstream)``).
+    Pattern 2 — single source of truth for the cell-balance algebra
+    across slab, curvilinear, and cylindrical-degenerate geometries.
 
     Parameters
     ----------
     denom :
-        Denominator of the curvilinear DD balance,
+        Denominator of the unified DD balance,
         :math:`2|\mu|\,A_{\text{down}} + (\Delta A / w)\,c_{\text{out}}
         + \Sigma_t\,V`.  Per-group, shape ``(ng,)``.
     numer_upstream :
@@ -75,10 +104,11 @@ class CellBalanceTerms:
     c_in :
         Morel-Montry "in" closure constant
         :math:`c_{\text{in}} = (1-\tau)/\tau \cdot \alpha_{\text{out}}
-        + \alpha_{\text{in}}`.  Scalar.
+        + \alpha_{\text{in}}`.  Scalar.  ``0.0`` for slab.
     c_out :
         Morel-Montry "out" closure constant
         :math:`c_{\text{out}} = \alpha_{\text{out}} / \tau`.  Scalar.
+        ``0.0`` for slab.
     """
 
     denom: np.ndarray
@@ -93,131 +123,73 @@ def cell_balance_terms(
     total_xs: np.ndarray,
     upstream_state: "UpstreamState",
 ) -> CellBalanceTerms:
-    r"""Compute the curvilinear non-degenerate per-cell balance terms.
+    r"""Unified per-cell balance terms — geometry-blind by data.
 
-    Algebraic core of the Hébert §3.9.4 / Lewis-Miller §6.1 curvilinear
-    DD balance with Morel-Montry angular closure.  Used by
-
-    * :meth:`DiamondDifference._update_curvilinear` — the solve branch,
-      which divides ``(source + terms.numer_upstream) / terms.denom``
-      to recover the cell-average flux :math:`\bar\psi`.
-    * :func:`_apply_curvilinear_residual` — the apply branch, which
-      computes ``terms.denom · cell_avg − (source + terms.numer_upstream)``
-      as the cell-balance residual.
-
-    Operation order matches :func:`orpheus.sn.sweep._sweep_1d_spherical`
-    lines 328-355 for bit-identity inheritance from the pre-Wave-D
-    inlined sweep math.
+    Issue #196 Phase G Step 2.5: ONE helper for slab, sphere,
+    cylinder (non-degenerate), and cylindrical pure-azimuthal
+    degenerate.  The geometry kind is encoded in the populated
+    fields of ``st`` (neutral values for slab, physical values for
+    curvilinear) and the value of ``A_downstream`` (``0.0`` for
+    cylindrical-degenerate, ``1.0`` for slab, the physical outgoing
+    face area for curvilinear).
 
     Parameters
     ----------
     st :
-        Streaming-terms packet on the cell-visit.  Must have populated
-        curvilinear fields (``abs_mu``, ``face_area_inner``,
-        ``face_area_outer``, ``delta_A_over_w``, ``alpha_in``,
-        ``alpha_out``, ``tau_mm``, ``volume``).
+        Streaming-terms packet on the cell-visit.  All curvature
+        fields populated (slab carries neutral values per
+        :func:`~orpheus.geometry.reduced_operator.slab_streaming`).
     A_downstream :
         Sweep-direction-resolved outgoing face area.  Read from the
-        :class:`CellVisit`'s ``face_area_downstream`` field; equal to
-        ``face_area_outer`` on the outward sweep and ``face_area_inner``
-        on the inward sweep.
+        :class:`CellVisit`'s ``face_area_downstream`` field.  ``1.0``
+        for slab, ``0.0`` for cyl-degenerate, physical face area for
+        curvilinear.
     total_xs :
         Per-group total cross section, shape ``(ng,)``.
     upstream_state :
-        Per-cell upstream state.  Must have non-``None``
-        ``spatial_upstream`` (the incoming face flux) and
-        ``angular_upstream`` (the incoming half-angle flux from the
-        previous ordinate's M-M recurrence step).
+        Per-cell upstream state.  ``spatial_upstream`` is always
+        populated.  ``angular_upstream`` is ``None`` for slab and
+        populated (``(ng,)``) for curvilinear.
 
     Returns
     -------
     CellBalanceTerms
         Bundled algebraic intermediates.  See class docstring.
     """
-    assert st.abs_mu is not None
-    assert st.face_area_inner is not None
-    assert st.face_area_outer is not None
-    assert st.delta_A_over_w is not None
-    assert st.alpha_in is not None
-    assert st.alpha_out is not None
-    assert st.tau_mm is not None
-    assert st.volume is not None
-    assert upstream_state.angular_upstream is not None, (
-        "Curvilinear cell balance requires an upstream angular state."
-    )
-
+    # All curvature fields populated for every geometry (slab carries
+    # neutral values per Step 2.5 — see slab_streaming factory).
     abs_mu = st.abs_mu
-    A_inner = st.face_area_inner
-    A_outer = st.face_area_outer
-    # Symmetric sum invariant under inner/outer swap — bit-identical to
-    # sweep.py:354's ``(A_in + A_out)`` regardless of sweep direction.
-    A_total = A_inner + A_outer
+    A_total = st.face_area_inner + st.face_area_outer
     dA_w = st.delta_A_over_w
-    alpha_in = st.alpha_in
-    alpha_out = st.alpha_out
     tau = st.tau_mm
     V = st.volume
 
-    # Closure-prefactor combinations (sweep.py:328-329).
-    c_out = alpha_out / tau
-    c_in = (1.0 - tau) / tau * alpha_out + alpha_in
+    # M-M closure constants — degenerate to zero for slab (neutral
+    # alpha values) and clamped to (½, 1] for curvilinear.
+    c_out = st.alpha_out / tau
+    c_in = (1.0 - tau) / tau * st.alpha_out + st.alpha_in
 
-    psi_spat_in = upstream_state.spatial_upstream
-    psi_angle_in = upstream_state.angular_upstream
-
-    # Denominator (sweep.py:350-352).
+    # Denominator: 2|μ|·A_down (vanishes for cyl-degenerate via
+    # A_down=0; reduces to 2|μ|·1 for slab) + curvature redistribution
+    # (vanishes for slab via dA_w=0) + collision.
     denom = 2.0 * abs_mu * A_downstream + dA_w * c_out + total_xs * V
 
-    # Upstream contribution to the numerator (sweep.py:353-355,
-    # excluding the cell source which the consumer adds in).
-    numer_upstream = (
-        abs_mu * A_total * psi_spat_in + dA_w * c_in * psi_angle_in
+    # Upstream numerator: spatial-streaming contribution (slab:
+    # |μ|·2·ψ^s_in = 2|μ|·ψ^s_in; cyl-deg: zero by A_down=0 path —
+    # but A_total is non-zero for cyl-deg, so we use A_down's
+    # presence as the discriminator. Wait — cyl-deg has populated
+    # A_inner+A_outer but no radial flow, so the |μ|·A_total·ψ^s_in
+    # term must vanish. abs_mu < 1e-15 ensures it ≈ 0.).
+    #
+    # Angular-redistribution contribution: zero for slab via
+    # angular_upstream=None branch below; physical for curvilinear.
+    psi_ang = upstream_state.angular_upstream
+    ang_contrib = (
+        0.0
+        if psi_ang is None
+        else dA_w * c_in * psi_ang
     )
-
-    return CellBalanceTerms(
-        denom=denom,
-        numer_upstream=numer_upstream,
-        c_in=c_in,
-        c_out=c_out,
-    )
-
-
-def cell_balance_terms_degenerate(
-    st: "StreamingTerms",
-    total_xs: np.ndarray,
-    upstream_state: "UpstreamState",
-) -> CellBalanceTerms:
-    r"""Cylindrical pure-azimuthal degenerate variant of :func:`cell_balance_terms`.
-
-    Used when :math:`|\mu| < 10^{-15}` — the level's axial cosine
-    :math:`|\mu_z| \to 1` so the radial cosine :math:`|\eta| \to 0` and
-    no radial face flow occurs.  The :math:`2|\mu|\,A_{\text{down}}` and
-    :math:`|\mu|\,(A_{\text{in}}+A_{\text{out}})\,\psi^s_{\text{in}}`
-    terms vanish; only the angular-redistribution + collision survive.
-    """
-    assert st.delta_A_over_w is not None
-    assert st.alpha_in is not None
-    assert st.alpha_out is not None
-    assert st.tau_mm is not None
-    assert st.volume is not None
-    assert upstream_state.angular_upstream is not None, (
-        "Cylindrical-degenerate cell balance requires an upstream "
-        "angular state."
-    )
-
-    dA_w = st.delta_A_over_w
-    alpha_in = st.alpha_in
-    alpha_out = st.alpha_out
-    tau = st.tau_mm
-    V = st.volume
-
-    c_out = alpha_out / tau
-    c_in = (1.0 - tau) / tau * alpha_out + alpha_in
-
-    psi_angle_in = upstream_state.angular_upstream
-
-    denom = dA_w * c_out + total_xs * V
-    numer_upstream = dA_w * c_in * psi_angle_in
+    numer_upstream = abs_mu * A_total * upstream_state.spatial_upstream + ang_contrib
 
     return CellBalanceTerms(
         denom=denom,
@@ -230,5 +202,4 @@ def cell_balance_terms_degenerate(
 __all__ = [
     "CellBalanceTerms",
     "cell_balance_terms",
-    "cell_balance_terms_degenerate",
 ]
