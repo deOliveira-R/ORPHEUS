@@ -265,8 +265,8 @@ def matvec_spherical_replica(
     lhs = np.empty((ng, eq_map.n_eq))
     outflow_at_boundary = np.zeros((ng, N))
 
-    outward_visits = list(sn_mesh.iter_cells_by_direction(+1))
-    inward_visits = list(sn_mesh.iter_cells_by_direction(-1))
+    outward_visits = list(sn_mesh.dag_walk(direction_sign=+1))
+    inward_visits = list(sn_mesh.dag_walk(direction_sign=-1))
 
     # ── Phase 1: outgoing ordinates (μ > 0), i = 0 → nx-1 ─────────
     if n_out > 0:

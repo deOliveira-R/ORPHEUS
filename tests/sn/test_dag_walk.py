@@ -1,14 +1,16 @@
-r"""Foundation tests for ``SNMesh.iter_cells_by_direction`` + ``EquationMap.unknowns_at_cell_for_mask``.
+r"""Foundation tests for ``SNMesh.dag_walk`` + ``EquationMap.unknowns_at_cell_for_mask``.
 
-Issue #168 Phase C — API helpers underpinning the sweep-frame apply
-matvec rewrite. The matvec operates on whole ordinate subsets
-simultaneously using ``outgoing_mask`` / ``incoming_mask`` and consumes
-the direction-only cell ordering exposed by
-:meth:`SNMesh.iter_cells_by_direction`.
+Issue #196 Phase G Step 2.6 (Q3) — the single canonical iteration
+primitive for 1-D sweeps.  ``dag_walk`` takes EXACTLY ONE of
+``ordinate_idx`` (per-ordinate visits) or ``direction_sign``
+(direction-keyed visits, used by the apply matvec) as a
+keyword-only argument; ``mu_level_idx`` selects a cylindrical
+:math:`\mu`-level when present.
 
-These foundation tests pin the equivalence to existing iteration
-patterns at bit precision so the sweep-frame matvec has a stable
-substrate to build on.
+These foundation tests pin the equivalence between the two
+invocation modes at bit precision: the direction-keyed branch must
+yield the same cell sequence as every non-degenerate ordinate in
+the matching sign class.
 """
 from __future__ import annotations
 
@@ -30,12 +32,12 @@ from orpheus.sn.quadrature import (
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SNMesh.iter_cells_by_direction — equivalence to iter_cell_visits
+# SNMesh.dag_walk — equivalence between direction-keyed and ordinate-keyed
 # ═══════════════════════════════════════════════════════════════════════
 
 
 @pytest.mark.foundation
-def test_iter_cells_by_direction_spherical_outward_matches_iter_cell_visits():
+def test_dag_walk_spherical_outward_matches_per_ordinate():
     """Spherical +1 direction yields same cell sequence as any μ ≥ 0 ordinate."""
     mesh = Mesh1D(
         edges=np.linspace(0.0, 2.0, 11),
@@ -46,13 +48,13 @@ def test_iter_cells_by_direction_spherical_outward_matches_iter_cell_visits():
     sn_mesh = SNMesh(mesh, quad)
 
     seq_by_dir = [
-        v.cell_idx for v in sn_mesh.iter_cells_by_direction(+1)
+        v.cell_idx for v in sn_mesh.dag_walk(direction_sign=+1)
     ]
     # Every μ ≥ 0 ordinate must produce the same cell sequence.
     for n in range(quad.N):
         if quad.mu_x[n] >= 0:
             seq_by_ord = [
-                v.cell_idx for v in sn_mesh.iter_cell_visits(ordinate_idx=n)
+                v.cell_idx for v in sn_mesh.dag_walk(ordinate_idx=n)
             ]
             assert np.array_equal(seq_by_dir, seq_by_ord), (
                 f"Spherical +1: direction-keyed sequence != "
@@ -61,7 +63,7 @@ def test_iter_cells_by_direction_spherical_outward_matches_iter_cell_visits():
 
 
 @pytest.mark.foundation
-def test_iter_cells_by_direction_spherical_inward_matches_iter_cell_visits():
+def test_dag_walk_spherical_inward_matches_per_ordinate():
     """Spherical -1 direction yields same cell sequence as any μ < 0 ordinate."""
     mesh = Mesh1D(
         edges=np.linspace(0.0, 2.0, 11),
@@ -72,12 +74,12 @@ def test_iter_cells_by_direction_spherical_inward_matches_iter_cell_visits():
     sn_mesh = SNMesh(mesh, quad)
 
     seq_by_dir = [
-        v.cell_idx for v in sn_mesh.iter_cells_by_direction(-1)
+        v.cell_idx for v in sn_mesh.dag_walk(direction_sign=-1)
     ]
     for n in range(quad.N):
         if quad.mu_x[n] < 0:
             seq_by_ord = [
-                v.cell_idx for v in sn_mesh.iter_cell_visits(ordinate_idx=n)
+                v.cell_idx for v in sn_mesh.dag_walk(ordinate_idx=n)
             ]
             assert np.array_equal(seq_by_dir, seq_by_ord), (
                 f"Spherical -1: direction-keyed sequence != "
@@ -86,7 +88,7 @@ def test_iter_cells_by_direction_spherical_inward_matches_iter_cell_visits():
 
 
 @pytest.mark.foundation
-def test_iter_cells_by_direction_slab_matches_iter_cell_visits():
+def test_dag_walk_slab_matches_per_ordinate():
     """Slab (1-D Cartesian) sweep direction yields the same cell sequence."""
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, 13),
@@ -98,7 +100,7 @@ def test_iter_cells_by_direction_slab_matches_iter_cell_visits():
 
     for sign in (+1, -1):
         seq_by_dir = [
-            v.cell_idx for v in sn_mesh.iter_cells_by_direction(sign)
+            v.cell_idx for v in sn_mesh.dag_walk(direction_sign=sign)
         ]
         for n in range(quad.N):
             if (sign == +1 and quad.mu_x[n] >= 0) or (
@@ -106,13 +108,13 @@ def test_iter_cells_by_direction_slab_matches_iter_cell_visits():
             ):
                 seq_by_ord = [
                     v.cell_idx
-                    for v in sn_mesh.iter_cell_visits(ordinate_idx=n)
+                    for v in sn_mesh.dag_walk(ordinate_idx=n)
                 ]
                 assert np.array_equal(seq_by_dir, seq_by_ord)
 
 
 @pytest.mark.foundation
-def test_iter_cells_by_direction_cylindrical_per_level_matches():
+def test_dag_walk_cylindrical_per_level_matches():
     """Cylindrical per-level direction yields same cell sequence as level ordinates."""
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.5, 9),
@@ -128,7 +130,7 @@ def test_iter_cells_by_direction_cylindrical_per_level_matches():
         eta_at_level = quad.mu_x[level_ords]
         for sign in (+1, -1):
             # Exclude pure-azimuthal degenerate ordinates: their
-            # iter_cell_visits path always iterates forward (no
+            # ordinate-keyed dag_walk path always iterates forward (no
             # signed direction), which would NOT match the
             # direction-keyed sweep. The degenerate branch is the
             # special case |η| < 1e-15.
@@ -140,12 +142,14 @@ def test_iter_cells_by_direction_cylindrical_per_level_matches():
                 continue
             seq_by_dir = [
                 v.cell_idx
-                for v in sn_mesh.iter_cells_by_direction(sign, level_p)
+                for v in sn_mesh.dag_walk(
+                    direction_sign=sign, mu_level_idx=level_p,
+                )
             ]
             for within in matches:
                 seq_by_ord = [
                     v.cell_idx
-                    for v in sn_mesh.iter_cell_visits(
+                    for v in sn_mesh.dag_walk(
                         ordinate_idx=int(within),
                         mu_level_idx=level_p,
                     )
@@ -157,7 +161,7 @@ def test_iter_cells_by_direction_cylindrical_per_level_matches():
 
 
 @pytest.mark.foundation
-def test_iter_cells_by_direction_invalid_sign_raises():
+def test_dag_walk_invalid_sign_raises():
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, 5),
         mat_ids=np.zeros(4, dtype=int),
@@ -166,13 +170,13 @@ def test_iter_cells_by_direction_invalid_sign_raises():
     quad = GaussLegendre1D.create(4)
     sn_mesh = SNMesh(mesh, quad)
     with pytest.raises(ValueError, match="direction_sign"):
-        list(sn_mesh.iter_cells_by_direction(0))
+        list(sn_mesh.dag_walk(direction_sign=0))
     with pytest.raises(ValueError, match="direction_sign"):
-        list(sn_mesh.iter_cells_by_direction(2))
+        list(sn_mesh.dag_walk(direction_sign=2))
 
 
 @pytest.mark.foundation
-def test_iter_cells_by_direction_cylindrical_requires_level():
+def test_dag_walk_cylindrical_requires_level():
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, 5),
         mat_ids=np.zeros(4, dtype=int),
@@ -181,7 +185,25 @@ def test_iter_cells_by_direction_cylindrical_requires_level():
     quad = ProductQuadrature.create(n_mu=2, n_phi=4)
     sn_mesh = SNMesh(mesh, quad)
     with pytest.raises(ValueError, match="mu_level_idx"):
-        list(sn_mesh.iter_cells_by_direction(+1))
+        list(sn_mesh.dag_walk(direction_sign=+1))
+
+
+@pytest.mark.foundation
+def test_dag_walk_xor_signature_enforced():
+    """``dag_walk`` rejects both / neither of (ordinate_idx, direction_sign)."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 1.0, 5),
+        mat_ids=np.zeros(4, dtype=int),
+        coord=CoordSystem.SPHERICAL,
+    )
+    quad = GaussLegendre1D.create(4)
+    sn_mesh = SNMesh(mesh, quad)
+    # Neither supplied → ValueError.
+    with pytest.raises(ValueError, match="exactly one"):
+        list(sn_mesh.dag_walk())
+    # Both supplied → ValueError.
+    with pytest.raises(ValueError, match="exactly one"):
+        list(sn_mesh.dag_walk(ordinate_idx=0, direction_sign=+1))
 
 
 # ═══════════════════════════════════════════════════════════════════════

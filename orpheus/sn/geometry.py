@@ -245,7 +245,7 @@ class SNMesh:
                 self.streaming_y: np.ndarray | None = None
                 # Wave 2 sweep-DAG precompute is 2-D Cartesian only;
                 # curvilinear sweeps walk the cell graph differently
-                # (see ``iter_cell_visits``). MoC will define its own
+                # (see ``dag_walk``). MoC will define its own
                 # primitive (fiber bundles + solution sheaves).
                 self.sweep_graphs: dict[OctantLabel, SweepDependencyGraph] | None = None
             case CoordSystem.SPHERICAL:
@@ -424,15 +424,17 @@ class SNMesh:
 
     def dag_walk(
         self,
-        direction_sign: int,
+        *,
+        ordinate_idx: int | None = None,
+        direction_sign: int | None = None,
         mu_level_idx: int | None = None,
     ) -> Iterator[CellVisit]:
         r"""Walk the per-ordinate cell DAG in topological order.
 
-        Issue #196 Phase G Step 2.5: the unified iteration primitive
-        for 1-D sweeps.  Subsumes :meth:`iter_cells_by_direction` and
-        :meth:`iter_cell_visits` — both stay as thin aliases for the
-        migration window.
+        Issue #196 Phase G Step 2.6 (Q3): the single canonical iteration
+        primitive for 1-D sweeps.  Yields visits either for a single
+        ordinate or for all ordinates of a sweep direction under one
+        XOR signature.
 
         The SN sweep on a given ordinate is forward substitution on
         the block-triangular streaming + collision operator under the
@@ -442,53 +444,21 @@ class SNMesh:
         accumulator and writing the per-cell angular state into a
         persistent array.
 
-        Parameters
-        ----------
-        direction_sign : int
-            ``+1`` for outward (:math:`\mu \ge 0`); ``-1`` for inward
-            (:math:`\mu < 0`).
-        mu_level_idx : int | None
-            For cylindrical geometry: which :math:`\mu`-level the
-            ordinate subset belongs to.  ``None`` for slab and
-            sphere; required for cylindrical.
+        Exactly one of ``ordinate_idx`` or ``direction_sign`` must be
+        supplied (XOR):
 
-        Yields
-        ------
-        CellVisit
-            One per cell, in topological order.  The packet's
-            :attr:`face_area_downstream` is float (Issue #196 Step
-            2.5 retired ``None``): ``1.0`` for slab, ``0.0`` for
-            cylindrical pure-azimuthal degenerate, physical face
-            area for sphere / non-degenerate cylinder.
-        """
-        return self.iter_cells_by_direction(
-            direction_sign, mu_level_idx=mu_level_idx,
-        )
-
-    def iter_cell_visits(
-        self,
-        ordinate_idx: int,
-        mu_level_idx: int | None = None,
-    ) -> Iterator[CellVisit]:
-        r"""Yield cells in DAG-topological order for one ordinate.
-
-        The SN sweep is a topological sort of the **directed cell
-        graph** where edges are oriented by
-        :math:`\mathrm{sign}(\Omega \cdot \hat n_{\text{face}})`.
-        This method encapsulates the sweep-direction resolution:
-        inward vs outward (1D curvilinear), per-level traversal
-        (cylindrical), and the cylindrical pure-azimuthal
-        degenerate case.
-
-        For each visit, the :class:`CellVisit` packet contains:
-
-        * The cell index (so the orchestrator knows which cell it
-          is working on).
-        * The pure-geometric :class:`StreamingTerms` (from
-          :meth:`ReducedStreamingOperator.streaming_terms`).
-        * The sweep-resolved :attr:`face_area_downstream` (which
-          face is outgoing for this visit) — ``None`` for slab and
-          for the cylindrical pure-azimuthal degenerate case.
+        * ``ordinate_idx=n`` — yields visits for a single ordinate.
+          For slab/sphere: ``n`` is the global ordinate index.  For
+          cylindrical: ``n`` is the within-level azimuthal index
+          :math:`m \in [0, M)` and ``mu_level_idx`` MUST also be
+          supplied; the signed :math:`\eta` resolves through
+          ``quad.level_indices[mu_level_idx][n]``.
+        * ``direction_sign=±1`` — yields visits for the sweep
+          direction (``+1`` outward, ``-1`` inward).  Cell ordering
+          depends ONLY on the direction sign (and level for
+          cylindrical), so any ordinate in the correct sign class
+          yields the same cell sequence; this branch picks a
+          non-degenerate representative.
 
         SN-specific by design.  MoC will not consume this method —
         its mathematical structure is fiber bundles + solution
@@ -497,78 +467,131 @@ class SNMesh:
 
         Parameters
         ----------
-        ordinate_idx : int
-            For slab and sphere: global ordinate index.  Sign of
-            ``mu_x[ordinate_idx]`` determines sweep direction
-            (outward for :math:`\mu \ge 0`, inward for
-            :math:`\mu < 0`).
-
-            For cylindrical: within-level azimuthal index
-            :math:`m \in [0, M)`.  The signed :math:`\eta` and the
-            global ordinate are resolved through
-            ``quad.level_indices[mu_level_idx][ordinate_idx]``.
-
+        ordinate_idx : int | None
+            See above; mutually exclusive with ``direction_sign``.
+        direction_sign : int | None
+            See above; mutually exclusive with ``ordinate_idx``.
         mu_level_idx : int | None
             For cylindrical geometry: which :math:`\mu`-level the
-            ordinate belongs to.  ``None`` for slab and sphere; a
-            ``ValueError`` is raised if missing for cylindrical.
+            ordinate (subset) belongs to.  ``None`` for slab/sphere;
+            required for cylindrical.
 
         Yields
         ------
         CellVisit
-            One per cell, in topological order for this ordinate.
-            For 1-D Cartesian (slab) the order is forward
-            (cell 0 → nx-1) for :math:`\mu \ge 0` and backward for
-            :math:`\mu < 0`.
+            One per cell, in topological order.  The packet's
+            :attr:`face_area_downstream` is float: ``1.0`` for slab,
+            ``0.0`` for cylindrical pure-azimuthal degenerate,
+            physical face area for sphere / non-degenerate cylinder.
 
         Raises
         ------
         ValueError
-            If called on a 2-D Cartesian mesh (no
-            :class:`ReducedStreamingOperator`), or if a cylindrical
-            mesh is queried without ``mu_level_idx``.
+            If neither or both of ``ordinate_idx`` / ``direction_sign``
+            are supplied; if ``direction_sign not in (+1, -1)``; if
+            called on a 2-D Cartesian mesh (no
+            :class:`ReducedStreamingOperator`); if a cylindrical
+            mesh is queried without ``mu_level_idx``; or if no
+            non-degenerate representative ordinate exists for
+            ``direction_sign``.
 
         Notes
         -----
         2-D Cartesian wavefront scheduling is intentionally not
         encapsulated here — its anti-diagonal vectorisation
-        operates on cell slices, not per-cell visits.  Wave
-        C-extension's LD / EC / Step rollout will revisit this
-        when the per-cell ``CellUpdate`` Protocol grows a
-        slice-vectorised companion.
+        operates on cell slices, not per-cell visits.
         """
+        if (ordinate_idx is None) == (direction_sign is None):
+            raise ValueError(
+                "dag_walk requires exactly one of `ordinate_idx` or "
+                "`direction_sign`."
+            )
         if self.reduced is None:
             raise ValueError(
-                "iter_cell_visits is only defined for meshes with a "
+                "dag_walk is only defined for meshes with a "
                 "ReducedStreamingOperator (1-D Cartesian, spherical, "
                 "or cylindrical).  2-D Cartesian wavefront sweeps "
                 "use anti-diagonal scheduling, not per-cell visits."
             )
-
         coord = self.reduced.coord
+        if coord is CoordSystem.CYLINDRICAL and mu_level_idx is None:
+            raise ValueError(
+                "cylindrical dag_walk requires mu_level_idx."
+            )
 
+        # Direction-keyed branch: resolve a non-degenerate
+        # representative ordinate, then delegate to the
+        # ordinate-keyed branch (single source of truth — Pattern 2).
+        if direction_sign is not None:
+            if direction_sign not in (+1, -1):
+                raise ValueError(
+                    f"direction_sign must be +1 or -1; got "
+                    f"{direction_sign}"
+                )
+            ordinate_idx = self._representative_ordinate(
+                direction_sign, mu_level_idx,
+            )
+
+        # Ordinate-keyed branch.
         if coord is CoordSystem.CARTESIAN:
             yield from self._iter_cartesian_visits(ordinate_idx)
             return
-
         if coord is CoordSystem.SPHERICAL:
             yield from self._iter_spherical_visits(ordinate_idx)
             return
-
         if coord is CoordSystem.CYLINDRICAL:
-            if mu_level_idx is None:
-                raise ValueError(
-                    "cylindrical iter_cell_visits requires "
-                    "mu_level_idx."
-                )
             yield from self._iter_cylindrical_visits(
                 ordinate_idx, mu_level_idx,
             )
             return
-
         raise ValueError(  # pragma: no cover — exhaustive match above
             f"Unknown coord system: {coord!r}"
         )
+
+    def _representative_ordinate(
+        self,
+        direction_sign: int,
+        mu_level_idx: int | None,
+    ) -> int:
+        """Pick a non-degenerate ordinate matching the direction sign.
+
+        Cell ordering in :meth:`dag_walk` depends only on
+        ``direction_sign`` (and the level for cylindrical), so any
+        non-degenerate ordinate in the correct sign class produces
+        the same cell sequence.  The degenerate :math:`|\\eta| <
+        10^{-15}` ordinates are excluded because they iterate forward
+        regardless of sign and would not match the bulk direction's
+        signed iteration.
+        """
+        assert self.reduced is not None
+        coord = self.reduced.coord
+        eps = self._DEGENERATE_ABS_ETA_THRESHOLD
+        if coord is CoordSystem.CYLINDRICAL:
+            level_indices = self.quad.level_indices  # type: ignore[attr-defined]
+            level_ords = np.asarray(level_indices[mu_level_idx])
+            eta_at_level = self.quad.mu_x[level_ords]
+            if direction_sign == +1:
+                cand = np.where(eta_at_level > +eps)[0]
+            else:
+                cand = np.where(eta_at_level < -eps)[0]
+            if cand.size == 0:
+                raise ValueError(
+                    f"No non-degenerate ordinate in cylindrical level "
+                    f"{mu_level_idx} satisfies "
+                    f"direction_sign={direction_sign}."
+                )
+            return int(cand[0])
+        mu_x = self.quad.mu_x
+        if direction_sign == +1:
+            cand = np.where(mu_x > +eps)[0]
+        else:
+            cand = np.where(mu_x < -eps)[0]
+        if cand.size == 0:
+            raise ValueError(
+                f"No non-degenerate ordinate satisfies "
+                f"direction_sign={direction_sign} in this quadrature."
+            )
+        return int(cand[0])
 
     def _iter_cartesian_visits(
         self,
@@ -627,133 +650,6 @@ class SNMesh:
                 streaming_terms=st,
                 face_area_downstream=face_downstream,
             )
-
-    def iter_cells_by_direction(
-        self,
-        direction_sign: int,
-        mu_level_idx: int | None = None,
-    ) -> Iterator[CellVisit]:
-        r"""Yield cells in DAG-topological order for a sweep direction.
-
-        Issue #168 Phase C — companion to :meth:`iter_cell_visits`
-        that surfaces what the cell-visit graph already encodes via
-        direction sign **without committing to a specific ordinate**.
-        The sweep-frame matvec rewrite (per :doc:`/theory/discrete_ordinates`
-        ``phase-c-apply-sweep-equivalence`` subsection) operates on
-        whole ordinate subsets simultaneously using
-        ``outgoing_mask = quad.mu_x > +eps`` and
-        ``incoming_mask = quad.mu_x < -eps``; the cell ordering only
-        depends on the direction sign, not on the specific ordinate
-        within a sign class.
-
-        For Cartesian / spherical 1D the cell ordering is fully
-        determined by ``direction_sign`` — every ordinate with
-        :math:`\mu \ge 0` visits cells ``0 → nx-1`` and every ordinate
-        with :math:`\mu < 0` visits cells ``nx-1 → 0``.
-
-        For cylindrical, the within-level azimuthal-DAG topology means
-        ``mu_level_idx`` MUST be supplied — different :math:`\mu`-levels
-        have different per-level cell-graph traversal patterns at the
-        pure-azimuthal degenerate :math:`|\eta_n| < 10^{-15}` boundary.
-
-        Foundation test (``tests/sn/test_iter_cells_by_direction.py``)
-        pins bit-equivalence to ``iter_cell_visits(ordinate_idx=n)``
-        for every representative ordinate ``n`` of the chosen direction.
-
-        Parameters
-        ----------
-        direction_sign : int
-            ``+1`` for outward (:math:`\mu \ge 0`) sweep direction;
-            ``-1`` for inward (:math:`\mu < 0`).
-        mu_level_idx : int | None
-            For cylindrical geometry: which :math:`\mu`-level the
-            ordinate subset belongs to.  ``None`` for slab and sphere;
-            a :class:`ValueError` is raised if missing for cylindrical.
-
-        Yields
-        ------
-        CellVisit
-            One per cell, in topological order for the direction. The
-            packet's :attr:`cell_idx` is the only field the
-            sweep-frame matvec consumes; ``streaming_terms`` and
-            ``face_area_downstream`` are populated from a
-            representative ordinate for backward-compatibility with
-            other consumers but the sweep-frame matvec recomputes
-            streaming from intrinsic cell geometry directly.
-
-        Raises
-        ------
-        ValueError
-            If ``direction_sign not in (+1, -1)``, or if called on a
-            2-D Cartesian mesh (no :class:`ReducedStreamingOperator`),
-            or if a cylindrical mesh is queried without
-            ``mu_level_idx``, or if no representative ordinate exists
-            for ``direction_sign`` in this quadrature.
-        """
-        if direction_sign not in (+1, -1):
-            raise ValueError(
-                f"direction_sign must be +1 or -1; got {direction_sign}"
-            )
-        if self.reduced is None:
-            raise ValueError(
-                "iter_cells_by_direction is only defined for meshes "
-                "with a ReducedStreamingOperator (1-D Cartesian, "
-                "spherical, or cylindrical)."
-            )
-        coord = self.reduced.coord
-        if coord is CoordSystem.CYLINDRICAL and mu_level_idx is None:
-            raise ValueError(
-                "cylindrical iter_cells_by_direction requires "
-                "mu_level_idx."
-            )
-
-        # Pick a representative ordinate matching the direction sign.
-        # The cell-visit graph's cell ordering depends ONLY on the
-        # direction sign (and the level for cylindrical), so any
-        # ordinate in the correct sign class yields the same cell
-        # sequence. We delegate to ``iter_cell_visits`` to keep the
-        # implementation a single source of truth.
-        # Pick a representative ordinate strictly in the requested
-        # sign class — exclude degenerate |η| < 10⁻¹⁵ ordinates because
-        # the cylindrical pure-azimuthal degenerate path iterates
-        # forward independent of sign (see :meth:`_iter_cylindrical_visits`)
-        # and would yield a sequence that disagrees with the bulk
-        # direction's signed iteration.
-        eps = self._DEGENERATE_ABS_ETA_THRESHOLD
-
-        if coord is CoordSystem.CYLINDRICAL:
-            level_indices = self.quad.level_indices  # type: ignore[attr-defined]
-            level_ords = np.asarray(level_indices[mu_level_idx])
-            eta_at_level = self.quad.mu_x[level_ords]
-            if direction_sign == +1:
-                cand = np.where(eta_at_level > +eps)[0]
-            else:
-                cand = np.where(eta_at_level < -eps)[0]
-            if cand.size == 0:
-                raise ValueError(
-                    f"No non-degenerate ordinate in cylindrical level "
-                    f"{mu_level_idx} satisfies "
-                    f"direction_sign={direction_sign}."
-                )
-            # ``ordinate_idx`` for cylindrical ``iter_cell_visits`` is
-            # the within-level azimuthal index, not the global index.
-            yield from self.iter_cell_visits(
-                ordinate_idx=int(cand[0]),
-                mu_level_idx=mu_level_idx,
-            )
-            return
-
-        mu_x = self.quad.mu_x
-        if direction_sign == +1:
-            cand = np.where(mu_x > +eps)[0]
-        else:
-            cand = np.where(mu_x < -eps)[0]
-        if cand.size == 0:
-            raise ValueError(
-                f"No non-degenerate ordinate satisfies "
-                f"direction_sign={direction_sign} in this quadrature."
-            )
-        yield from self.iter_cell_visits(ordinate_idx=int(cand[0]))
 
     def _iter_cylindrical_visits(
         self,

@@ -280,7 +280,7 @@ def test_apply_face_fluxes_match_sweep_recurrence_spherical():
     matvec and the sweep consume:
 
     * The same per-direction cell ordering
-      (``SNMesh.iter_cells_by_direction``).
+      (``SNMesh.dag_walk(direction_sign=...)``).
     * The same WDD diamond closure ``ψ_face_out = 2·ψ_cell -
       ψ_face_in`` per cell.
     * The same BC trace law at the boundary.

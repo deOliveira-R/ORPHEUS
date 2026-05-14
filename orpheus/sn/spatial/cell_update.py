@@ -111,12 +111,12 @@ Where downstream consumers will call this
 =========================================
 
 In Wave D, the sweep at :mod:`orpheus.sn.sweep` dispatches via
-:meth:`SNMesh.iter_cell_visits` — the per-visit packets pre-resolve
+:meth:`SNMesh.dag_walk` — the per-visit packets pre-resolve
 the sweep direction so the strategy sees no sign-of-:math:`\mu`
 branching::
 
-    for visit in sn_mesh.iter_cell_visits(ordinate_idx=n,
-                                          mu_level_idx=p):
+    for visit in sn_mesh.dag_walk(ordinate_idx=n,
+                                  mu_level_idx=p):
         upstream = UpstreamState(
             spatial_upstream=psi_face,
             angular_upstream=psi_angle[visit.cell_idx]
@@ -297,7 +297,7 @@ class CellVisit:
     inner/outer view.
 
     SN-specific by design.  Produced by
-    :meth:`orpheus.sn.geometry.SNMesh.iter_cell_visits`.  MoC will
+    :meth:`orpheus.sn.geometry.SNMesh.dag_walk`.  MoC will
     define its own analog (per-ray traversal) — different DAG shape,
     different mathematical structure (fiber bundles + solution
     sheaves rather than a topological sort over a cell graph).

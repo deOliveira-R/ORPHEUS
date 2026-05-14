@@ -636,8 +636,8 @@ def transport_operator_matvec_spherical(
     Parameters
     ----------
     sn_mesh :
-        Optional :class:`SNMesh` for the new
-        :meth:`SNMesh.iter_cells_by_direction` API. When ``None``,
+        Optional :class:`SNMesh` for the
+        :meth:`SNMesh.dag_walk` API. When ``None``,
         the function falls back to plain ``range(nx)`` iteration
         for the outward sweep and ``range(nx-1, -1, -1)`` for the
         inward sweep (the equivalent direct sweep order for
@@ -749,8 +749,8 @@ def transport_operator_matvec_spherical(
     # along the way. At the pole face (i=0) ψ_face = 0 by symmetry —
     # also multiplied by A[0] = 0 in the streaming term.
     if sn_mesh is not None:
-        outward_visits = list(sn_mesh.iter_cells_by_direction(+1))
-        inward_visits = list(sn_mesh.iter_cells_by_direction(-1))
+        outward_visits = list(sn_mesh.dag_walk(direction_sign=+1))
+        inward_visits = list(sn_mesh.dag_walk(direction_sign=-1))
     else:
         from .spatial.cell_update import CellVisit
         outward_visits = [
@@ -895,8 +895,8 @@ def transport_operator_matvec_cylindrical(
     Parameters
     ----------
     sn_mesh :
-        Optional :class:`SNMesh` for the new
-        :meth:`SNMesh.iter_cells_by_direction` API. When ``None``,
+        Optional :class:`SNMesh` for the
+        :meth:`SNMesh.dag_walk` API. When ``None``,
         the function uses ``range(nx)`` / ``range(nx-1, -1, -1)``.
     bc_outer :
         :class:`~orpheus.geometry.boundary.BoundaryOperator` for the outer
@@ -1006,7 +1006,9 @@ def transport_operator_matvec_cylindrical(
         # Use a representative outward ordinate for the cell ordering.
         if sn_mesh is not None:
             visits = list(
-                sn_mesh.iter_cells_by_direction(+1, mu_level_idx=level_p)
+                sn_mesh.dag_walk(
+                    direction_sign=+1, mu_level_idx=level_p,
+                )
             )
         else:
             from .spatial.cell_update import CellVisit
@@ -1060,7 +1062,9 @@ def transport_operator_matvec_cylindrical(
         n_in = int(global_in.size)
         if sn_mesh is not None:
             visits = list(
-                sn_mesh.iter_cells_by_direction(-1, mu_level_idx=level_p)
+                sn_mesh.dag_walk(
+                    direction_sign=-1, mu_level_idx=level_p,
+                )
             )
         else:
             from .spatial.cell_update import CellVisit

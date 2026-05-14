@@ -356,7 +356,7 @@ def test_cache_driven_sweep_matches_per_cell_update(
     psi_face_chain_ref = np.full_like(psi_face_chain_fast, np.nan)
     has_downstream = np.zeros(nx, dtype=bool)
     psi_face_in = psi_in
-    visits_full = list(sn_mesh.iter_cell_visits(ordinate_idx=n))
+    visits_full = list(sn_mesh.dag_walk(ordinate_idx=n))
     for k_chain in range(nx):
         cell_i = int(chain[k_chain])
         visit = visits_full[k_chain]
@@ -415,7 +415,7 @@ def test_cache_populator_matches_cell_balance_terms() -> None:
     # Sample two ordinates × two cells (chain positions).
     quad = sn_mesh.quad
     for n in (int(np.argmin(quad.mu_x)), int(np.argmax(quad.mu_x))):
-        visits = list(sn_mesh.iter_cell_visits(ordinate_idx=n))
+        visits = list(sn_mesh.dag_walk(ordinate_idx=n))
         chain = geom.chain_idx[n]
         for k_chain in (0, 3, 7):
             visit = visits[k_chain]

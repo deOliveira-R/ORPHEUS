@@ -222,7 +222,7 @@ def test_apply_spherical_bit_identical_to_legacy():
     The threaded test exercises:
     * BC-faithful Round 3 plumbing via ``sn_mesh.bc_right``.
     * Phase D Carlson coupled-pole seed via ``sn_mesh.pole_angular_closure``.
-    * ``iter_cells_by_direction`` via ``sn_mesh``.
+    * ``dag_walk(direction_sign=...)`` via ``sn_mesh``.
     """
     sn_mesh = _spherical_mesh()
     sig_t = _sig_t_uniform(sn_mesh, ng=2)

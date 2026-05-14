@@ -177,19 +177,19 @@ def test_slab_keeps_cartesian_streaming_arrays() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 5. iter_cell_visits — DAG-topological traversal
+# 5. dag_walk — DAG-topological traversal
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.foundation
-def test_sphere_iter_cell_visits_outward_order() -> None:
+def test_sphere_dag_walk_outward_order() -> None:
     """Outward sweep (μ ≥ 0): cell 0 → nx-1, downstream = outer face."""
     sn = _sphere_mesh()
     quad = sn.quad
     # Pick a positive-μ ordinate.
     n = quad.N - 1
     assert quad.mu_x[n] > 0
-    visits = list(sn.iter_cell_visits(ordinate_idx=n))
+    visits = list(sn.dag_walk(ordinate_idx=n))
     assert [v.cell_idx for v in visits] == list(range(sn.nx))
     # Each visit's downstream face is the OUTER face of the cell.
     for v in visits:
@@ -199,14 +199,14 @@ def test_sphere_iter_cell_visits_outward_order() -> None:
 
 
 @pytest.mark.foundation
-def test_sphere_iter_cell_visits_inward_order() -> None:
+def test_sphere_dag_walk_inward_order() -> None:
     """Inward sweep (μ < 0): cell nx-1 → 0, downstream = inner face."""
     sn = _sphere_mesh()
     quad = sn.quad
     # Pick a negative-μ ordinate.
     n = 0
     assert quad.mu_x[n] < 0
-    visits = list(sn.iter_cell_visits(ordinate_idx=n))
+    visits = list(sn.dag_walk(ordinate_idx=n))
     assert [v.cell_idx for v in visits] == list(range(sn.nx - 1, -1, -1))
     # Each visit's downstream face is the INNER face.
     for v in visits:
@@ -214,7 +214,7 @@ def test_sphere_iter_cell_visits_inward_order() -> None:
 
 
 @pytest.mark.foundation
-def test_slab_iter_cell_visits_no_face_areas() -> None:
+def test_slab_dag_walk_no_face_areas() -> None:
     """Slab: forward / backward iteration with face_area_downstream = 1.0.
 
     Issue #196 Step 2.5: slab carries ``face_area_downstream = 1.0``
@@ -225,18 +225,18 @@ def test_slab_iter_cell_visits_no_face_areas() -> None:
     quad = sn.quad
     # Forward (μ > 0).
     n_pos = quad.N - 1
-    visits_pos = list(sn.iter_cell_visits(ordinate_idx=n_pos))
+    visits_pos = list(sn.dag_walk(ordinate_idx=n_pos))
     assert [v.cell_idx for v in visits_pos] == list(range(sn.nx))
     for v in visits_pos:
         assert v.face_area_downstream == 1.0
     # Backward (μ < 0).
     n_neg = 0
-    visits_neg = list(sn.iter_cell_visits(ordinate_idx=n_neg))
+    visits_neg = list(sn.dag_walk(ordinate_idx=n_neg))
     assert [v.cell_idx for v in visits_neg] == list(range(sn.nx - 1, -1, -1))
 
 
 @pytest.mark.foundation
-def test_cylinder_iter_cell_visits_per_level() -> None:
+def test_cylinder_dag_walk_per_level() -> None:
     """Cylindrical: per-level traversal; downstream face follows η sign."""
     sn = _cylinder_mesh()
     quad = sn.quad
@@ -254,7 +254,7 @@ def test_cylinder_iter_cell_visits_per_level() -> None:
         global_n = int(level_idx[m_local])
         eta_n = quad.mu_x[global_n]
         visits = list(
-            sn.iter_cell_visits(
+            sn.dag_walk(
                 ordinate_idx=m_local, mu_level_idx=chosen_level,
             )
         )
@@ -287,8 +287,8 @@ def test_cylinder_iter_cell_visits_per_level() -> None:
 
 
 @pytest.mark.foundation
-def test_cylinder_iter_cell_visits_requires_level_idx() -> None:
-    """Cylindrical iter_cell_visits without mu_level_idx raises."""
+def test_cylinder_dag_walk_requires_level_idx() -> None:
+    """Cylindrical dag_walk without mu_level_idx raises."""
     sn = _cylinder_mesh()
     with pytest.raises(ValueError, match="mu_level_idx"):
-        list(sn.iter_cell_visits(ordinate_idx=0))
+        list(sn.dag_walk(ordinate_idx=0))

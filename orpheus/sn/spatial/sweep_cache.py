@@ -200,9 +200,10 @@ class GeometryCoefficients:
     def from_mesh_and_quad(cls, sn_mesh: "SNMesh") -> "GeometryCoefficients":
         r"""Populate Stratum 1 from one :class:`SNMesh` + its quadrature.
 
-        Iterates ``sn_mesh.iter_cell_visits`` (slow Python path — but ONLY
-        ONCE per solver lifetime; cost amortised across every subsequent
-        sweep).  The per-cell :class:`~orpheus.geometry.reduced_operator.StreamingTerms`
+        Iterates ``sn_mesh.dag_walk(ordinate_idx=...)`` (slow Python path —
+        but ONLY ONCE per solver lifetime; cost amortised across every
+        subsequent sweep).  The per-cell
+        :class:`~orpheus.geometry.reduced_operator.StreamingTerms`
         dataclass is unpacked into chain-ordered numpy arrays once and never
         rematerialised.
         """
@@ -256,7 +257,7 @@ class GeometryCoefficients:
             )
 
         for mu_level_idx, ordinate_idx, global_n in level_visits_iter:
-            visits = list(sn_mesh.iter_cell_visits(
+            visits = list(sn_mesh.dag_walk(
                 ordinate_idx=ordinate_idx,
                 mu_level_idx=mu_level_idx,
             ))

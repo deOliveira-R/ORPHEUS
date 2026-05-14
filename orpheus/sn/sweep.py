@@ -379,7 +379,7 @@ def _run_1d_sweep(
             if geom.is_degenerate[global_n]:
                 # Per-cell update — no spatial chain.
                 ordinate_idx = global_n if is_sphere else m_local
-                visits = list(sn_mesh.iter_cell_visits(
+                visits = list(sn_mesh.dag_walk(
                     ordinate_idx=ordinate_idx,
                     mu_level_idx=level,
                 ))

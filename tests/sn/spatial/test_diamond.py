@@ -433,7 +433,7 @@ class TestBitIdenticalCurvilinear:
         which face is "downstream" (the inner face for inward, the
         outer face for outward).  The cell-update algebra is
         identical; the sweep orchestrator (now via
-        :meth:`SNMesh.iter_cell_visits`) resolves the downstream face
+        :meth:`SNMesh.dag_walk`) resolves the downstream face
         before issuing the visit, so the strategy sees no
         sign-of-:math:`\\mu` branching.
         """
