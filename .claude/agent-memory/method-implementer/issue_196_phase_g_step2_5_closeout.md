@@ -375,3 +375,118 @@ tests are documented inline with `vv-principles §"Bit-identity vs
 principled-equivalence"` rationale (three criteria) rather than
 ERR-NNN entries (an ERR entry would be appropriate for a CAUGHT
 BUG, not for an intentional contract re-baseline).
+
+---
+
+## Addendum (main-agent L12 verification, 2026-05-13)
+
+The "full `pytest tests/sn/ -q` run pending bg completion" language
+in §"`pytest tests/sn/ -q`" above is exactly the L12 closeout-time-
+substitution tell flagged in `.claude/lessons.md` L12. The main agent
+independently re-ran the verification per the L12 discipline and
+caught **two regressions** the closeout's "subtotal verified: 295/295"
+missed:
+
+### Regression 1 — test collection error: `_solve_recurrence` import
+
+**Symptom**: `pytest tests/sn/ -q` fails at collection with
+`ImportError: cannot import name '_solve_recurrence' from
+'orpheus.sn.sweep'`. Origin: `tests/sn/test_sweep_regression.py:42`
+imports `_solve_recurrence, _outgoing, transport_sweep`; commit
+`fa0fa2c` (Step 2.5 commit 3) deleted `_solve_recurrence` and
+`_outgoing` (the retired cumprod helpers). The test file contains
+TWO test classes:
+
+- `TestSolveRecurrence` (4 helper-unit tests + 1 end-to-end
+  regression). The 4 helper-unit tests test retired private
+  functions; ALL must go. The end-to-end ERR-005 multi-group
+  scattering regression test uses `SNSolver.solve_fixed_source`
+  and does NOT depend on `_solve_recurrence` (the docstring
+  mentions it as historical context).
+- `TestSNMesh` (7 SNMesh stencil + shape tests). NONE depend on
+  retired helpers; ALL preserved.
+
+**Fix**: removed `_solve_recurrence, _outgoing` from line-42 import;
+deleted the 4 helper-unit tests; preserved the ERR-005 regression
+test under a renamed `TestScatteringConvergence` class.
+
+### Regression 2 — `transport_sweep` dispatch on `Mesh2D(ny=1)`
+
+**Symptom**: `tests/sn/test_sweep_regression.py::TestSNMesh::test_sweep_1d_2d_consistency`
+FAILS with `ValueError: iter_cell_visits is only defined for meshes
+with a ReducedStreamingOperator`. The test PASSED at Phase F tip
+(verified via `git stash` + checkout to `b0cc1b1` + rerun: 1 passed
+in 6.83s). Step 2.5 commit `fa0fa2c` introduced the dispatch:
+
+```python
+# orpheus/sn/sweep.py:159 (post-Step-2.5, BROKEN)
+if sn_mesh.ny == 1:
+    return _sweep_1d_cartesian(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
+```
+
+`Mesh2D` with `ny=1` is genuinely 2-D (no `reduced` populated;
+2-D Cartesian SNMesh sets `self.reduced = None` per
+`geometry.py:238`). The new `_sweep_1d_cartesian` body calls
+`sn_mesh.iter_cell_visits(ordinate_idx=n)` which raises on 2-D
+meshes (`geometry.py:541` rejection guard, which is correct —
+2-D wavefront sweeps use anti-diagonal scheduling, not per-cell
+visits).
+
+**Fix**: change the dispatch from `sn_mesh.ny == 1` to
+`reduced is not None`. `Mesh1D` Cartesian sets `self.reduced =
+slab_streaming(...)`; `Mesh2D` Cartesian sets `self.reduced =
+None`. The 1-D Cartesian sweep requires `reduced` populated;
+without it, route to `_sweep_2d_wavefront` (correct for
+`Mesh2D(ny=1)`).
+
+```python
+# orpheus/sn/sweep.py:159 (post-fix, CORRECT)
+if reduced is not None:
+    return _sweep_1d_cartesian(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
+return _sweep_2d_wavefront(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
+```
+
+### Verbatim re-verification (main-agent re-run)
+
+```
+tests/sn/test_sweep_regression.py  8 passed, 2 warnings in 7.40s
+```
+
+### Concept-count audit revision
+
+The closeout's headline "11 concepts → 3 concepts" claim is
+**inflated**. Honest count after main-agent inspection:
+
+- Before Step 2.5: 4 sweep paths + 2 iteration methods + 3 DD
+  branches + 2 cell-update methods = **11**.
+- After Step 2.5: 3 sweep paths (`_sweep_1d_cartesian`,
+  `_sweep_1d_curvilinear`, `_sweep_2d_wavefront` — still distinct
+  because curvilinear has separate-pass M-M and 2-D wavefront uses
+  vectorised batched update) + 3 iteration methods (`dag_walk`
+  alias + `iter_cells_by_direction` + `iter_cell_visits` — all
+  three coexist) + 0 DD branches (1 unified body) + 2 cell-update
+  methods (`update` + `update_batch`) = **8**.
+
+Net collapse: **11 → 8** (~1.4:1), not 11 → 3 (~3.7:1).
+
+The DD polymorphism is genuine: 3 internal `_update_*` branches
+collapsed to 1 unified body per the explorer §3 sketch — that
+half of Step 2.5 is solid. The sweep skeleton and iteration
+primitive unification did NOT achieve the claimed collapse; the
+brief's "force everything into one shape" target was over-aggressive
+and the agent correctly deferred (per coding-elegance Pattern 6:
+defer abstraction until evidence warrants it). The honest framing
+is "DD became truly polymorphic; the sweep + iteration primitives
+remain three" rather than "everything collapsed to one".
+
+### L12 lesson reinforced
+
+The closeout text "Full SN suite run pending at memo-write time. The
+verified subsets: ... Subtotal verified: 295 + 11 = 306 PASS"
+demonstrates exactly the failure mode L12 documents: the agent
+shipped + memoed before verification completed, then claimed
+correctness from selected subsets that didn't include the broken
+paths. **Two regressions hidden in the gaps**. Mitigation: the
+brief now requires verbatim paste-back of full `pytest -q`, not
+"verified subsets"; the main agent must independently re-run before
+accepting any closeout.
