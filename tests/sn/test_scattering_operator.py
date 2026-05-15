@@ -735,3 +735,148 @@ class TestPurity:
         assert set(a.keys()) == set(b.keys())
         for mid in a:
             np.testing.assert_array_equal(a[mid], b[mid])
+
+
+# ──────────────────────────────────────────────────────────────────────
+# is_foldable_into_sigma_r — Phase G Step 3+4.b.i (Issue #196)
+# ──────────────────────────────────────────────────────────────────────
+
+
+class TestIsFoldableIntoSigmaR:
+    """``S.is_foldable_into_sigma_r()`` returns True iff S carries only
+    diagonal P0 + zero sig2.
+
+    Consumed by substep 3+4.b.ii's ``OperatorSum.solve`` fusion hook to
+    detect "this S is the foldable_part — fuse into σ_r and route to
+    the within-group sweep". The check is a STRUCTURAL predicate on the
+    operator's data, not an identity claim about its action.
+    """
+
+    def test_full_scattering_returns_false(self, solver_2g_p1_n2n):
+        """Full S with non-zero off-diagonal P0 + non-zero P1 + non-zero
+        sig2 → NOT foldable."""
+        S = solver_2g_p1_n2n.scattering_op
+        # Sanity: the fixture's S has all three non-foldable channels.
+        assert S.scattering_order >= 1
+        assert S.is_foldable_into_sigma_r() is False
+
+    def test_foldable_part_roundtrip_is_true(self, solver_2g_p1_n2n):
+        """``S.foldable_part().is_foldable_into_sigma_r() == True``.
+
+        The load-bearing round-trip: the operator constructed by
+        ``foldable_part()`` IS, by definition, the foldable part of
+        itself.
+        """
+        S = solver_2g_p1_n2n.scattering_op
+        foldable = S.foldable_part()
+        assert foldable.is_foldable_into_sigma_r() is True
+
+    def test_residual_part_returns_false(self, solver_2g_p1_n2n):
+        """``S.residual_part().is_foldable_into_sigma_r() == False``.
+
+        The residual carries the cross-group off-diagonal P0
+        unconditionally (every multi-group system has at least one
+        cross-group entry) — so the diagonal-only check fails.
+        """
+        S = solver_2g_p1_n2n.scattering_op
+        residual = S.residual_part()
+        assert residual.is_foldable_into_sigma_r() is False
+
+    def test_p0_only_diagonal_returns_true(self):
+        """P0-only ScatteringOperator with diagonal sig_s + zero sig2 →
+        True (positive control).
+
+        Build a synthetic ScatteringOperator directly (bypassing
+        SNSolver) to isolate the predicate from any fixture setup.
+        """
+        from orpheus.sn.scattering import ScatteringOperator
+        ng = 2
+        # Diagonal-only P0.
+        p0_diag = np.diag([0.38, 0.90])
+        S = ScatteringOperator(
+            n_ordinates=12,
+            nx=2, ny=2, ng=ng,
+            scattering_order=0,
+            sig_s={0: [p0_diag]},
+            sig2={0: np.zeros((ng, ng))},
+            sig_s0={0: p0_diag},
+            Y=None,
+            weights=np.ones(12) / 12.0,
+            cells_by_mat={0: (np.zeros(4, dtype=int), np.zeros(4, dtype=int))},
+        )
+        assert S.is_foldable_into_sigma_r() is True
+
+    def test_p0_with_off_diagonal_returns_false(self):
+        """scattering_order=0 with non-diagonal P0 → False.
+
+        Off-diagonal P0 is cross-group scattering — couples distinct
+        energy groups and cannot collapse into a per-cell scalar.
+        """
+        from orpheus.sn.scattering import ScatteringOperator
+        ng = 2
+        # Non-diagonal P0 — non-zero off-diagonal entry.
+        p0 = np.array([[0.38, 0.10], [0.00, 0.90]])
+        S = ScatteringOperator(
+            n_ordinates=12,
+            nx=2, ny=2, ng=ng,
+            scattering_order=0,
+            sig_s={0: [p0]},
+            sig2={0: np.zeros((ng, ng))},
+            sig_s0={0: p0},
+            Y=None,
+            weights=np.ones(12) / 12.0,
+            cells_by_mat={0: (np.zeros(4, dtype=int), np.zeros(4, dtype=int))},
+        )
+        assert S.is_foldable_into_sigma_r() is False
+
+    def test_p0_diagonal_with_nonzero_sig2_returns_false(self):
+        """scattering_order=0 with diagonal P0 BUT non-zero sig2 →
+        False.
+
+        (n,2n) doubling is unconditionally residual: folding into a
+        "removal" cross-section is conceptually wrong because (n,2n)
+        emits two neutrons per absorption.
+        """
+        from orpheus.sn.scattering import ScatteringOperator
+        ng = 2
+        p0_diag = np.diag([0.38, 0.90])
+        # Non-zero sig2 — disqualifies even if P0 is diagonal.
+        sig2 = np.array([[0.0, 0.05], [0.0, 0.0]])
+        S = ScatteringOperator(
+            n_ordinates=12,
+            nx=2, ny=2, ng=ng,
+            scattering_order=0,
+            sig_s={0: [p0_diag]},
+            sig2={0: sig2},
+            sig_s0={0: p0_diag},
+            Y=None,
+            weights=np.ones(12) / 12.0,
+            cells_by_mat={0: (np.zeros(4, dtype=int), np.zeros(4, dtype=int))},
+        )
+        assert S.is_foldable_into_sigma_r() is False
+
+    def test_scattering_order_ge_1_returns_false_even_with_diagonal_p0(
+        self,
+    ):
+        """scattering_order >= 1 → False even if P0 is diagonal.
+
+        Pℓ ≥ 1 is direction-dependent (Y_ℓ^m(Ω_n)) — unconditionally
+        residual. The presence of ANY Pℓ ≥ 1 channel disqualifies the
+        operator from foldability.
+        """
+        from orpheus.sn.scattering import ScatteringOperator
+        ng = 2
+        p0_diag = np.diag([0.38, 0.90])
+        p1 = np.array([[0.02, 0.00], [0.00, 0.04]])
+        S = ScatteringOperator(
+            n_ordinates=12,
+            nx=2, ny=2, ng=ng,
+            scattering_order=1,
+            sig_s={0: [p0_diag, p1]},
+            sig2={0: np.zeros((ng, ng))},
+            sig_s0={0: p0_diag},
+            Y=None,  # Not used by the predicate
+            weights=np.ones(12) / 12.0,
+            cells_by_mat={0: (np.zeros(4, dtype=int), np.zeros(4, dtype=int))},
+        )
+        assert S.is_foldable_into_sigma_r() is False
