@@ -498,7 +498,7 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     quad = GaussLegendre1D.create(16)
     sn_mesh = SNMesh(mesh, quad)
     Q = np.ones((160, 1, 4))
-    sig_t = np.ones((160, 1, 4))
+    sig_t = np.ones((4, 160, 1))  # (ng, nx, ny) — PR-INDEX-3
     psi_bc: dict = {}
 
     # Warm-up — first call also caches inside SNMesh.

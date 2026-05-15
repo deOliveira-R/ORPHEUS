@@ -91,7 +91,7 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
     sn_mesh = SNMesh(mesh, quad)
     nx = n_cells
     ng = 1
-    sig_t = np.full((nx, 1, ng), 2.0)
+    sig_t = np.full((ng, nx, 1), 2.0)  # (ng, nx, ny) — PR-INDEX-3
     psi_flat = 10.0 / quad.weights.sum()
     eq_map = build_equation_map_cylindrical(nx, quad, ng)
     sol_flat = np.full(eq_map.n_unknowns, psi_flat)

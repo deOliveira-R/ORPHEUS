@@ -62,7 +62,7 @@ def _make_spherical_sn_mesh(
 ) -> tuple[SNMesh, np.ndarray]:
     """Build a homogeneous-material spherical SNMesh + sig_t array.
 
-    Returns (sn_mesh, sig_t).  sig_t shape (nx, 1, ng=1).
+    Returns (sn_mesh, sig_t).  sig_t shape (ng=1, nx, ny=1) under PR-INDEX-3.
     """
     if quad_name == "gl4":
         quad = GaussLegendre1D.create(4)
@@ -78,7 +78,7 @@ def _make_spherical_sn_mesh(
         bc_right=bc_outer or BC("reflective"),
     )
     sn_mesh = SNMesh(mesh, quad, pole_angular_closure=pole_closure)
-    sig_t = np.full((nx, 1, 1), 0.5)
+    sig_t = np.full((1, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     return sn_mesh, sig_t
 
 
@@ -104,7 +104,7 @@ def _make_cylindrical_sn_mesh(
         bc_right=bc_outer or BC("reflective"),
     )
     sn_mesh = SNMesh(mesh, quad, pole_angular_closure=pole_closure)
-    sig_t = np.full((nx, 1, 1), 0.5)
+    sig_t = np.full((1, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     return sn_mesh, sig_t
 
 
@@ -341,7 +341,7 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     )
     quad = GaussLegendre1D.create(4)
     sn_mesh = SNMesh(mesh, quad)
-    sig_t = np.full((nx, 1, 1), 0.5)
+    sig_t = np.full((1, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
 
     # Linearity is enough to characterize the BC respond-only-to-outflow
@@ -410,7 +410,7 @@ def _outflow_at_boundary_for_sphere(sn_mesh, sig_t, psi_input):
     op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
     eq_map = op._ensure_eq_map()
     nx = sn_mesh.nx
-    ng = sig_t.shape[2]
+    ng = sig_t.shape[0]  # PR-INDEX-3: (ng, nx, ny)
     quad = sn_mesh.quad
     eps = 1e-15
     fi = solution_to_angular_flux_spherical(psi_input, eq_map, quad, nx, ng)
@@ -651,7 +651,7 @@ def test_sweep_curvilinear_per_ordinate_flat_flux_residual(
     # weights and per-level mu_quad — but for this STRUCTURAL test
     # we want to pin that the sweep-path's helper produces the same
     # seed as the apply-path helper, given identical inputs.
-    sigma_t_gx = sig_t_arr[:, 0, :].T  # (ng=1, nx)
+    sigma_t_gx = sig_t_arr[:, :, 0]  # (ng, nx) — PR-INDEX-3
     dr = sn_mesh.dx
 
     # GL-2 surrogate weights summing to 2 — for this structural-

@@ -96,12 +96,13 @@ class FissionOperator(LinearOperatorMixin):
     Attributes
     ----------
     chi : np.ndarray
-        Emission spectrum shape ``(nx, ny, ng)`` (per-cell because the
-        per-material :math:`\chi` is broadcast onto the cell grid via
-        :class:`assemble_cell_xs`).
+        Emission spectrum shape ``(ng, nx, ny)`` (Issue #196 PR-INDEX-3 —
+        principled layout).  Per-cell because the per-material
+        :math:`\chi` is broadcast onto the cell grid via
+        :class:`assemble_cell_xs`.
     sig_p : np.ndarray
         Production cross-section :math:`\nu\Sigma_f` shape
-        ``(nx, ny, ng)``.
+        ``(ng, nx, ny)``.
     capabilities : frozenset[str]
         ``{"apply"}`` — the rank-1 structure forbids a useful inverse,
         and the adjoint surface is not yet a consumer.
@@ -109,13 +110,13 @@ class FissionOperator(LinearOperatorMixin):
     Notes
     -----
     The constructor receives ``(chi, sig_p)`` already shaped
-    ``(nx, ny, ng)`` — the same per-cell tensors :class:`SNSolver`
+    ``(ng, nx, ny)`` — the same per-cell tensors :class:`SNSolver`
     holds. No re-broadcasting happens here; the operator simply applies
     the action.
     """
 
-    chi: np.ndarray  # (nx, ny, ng)
-    sig_p: np.ndarray  # (nx, ny, ng)
+    chi: np.ndarray  # (ng, nx, ny) — Issue #196 PR-INDEX-3
+    sig_p: np.ndarray  # (ng, nx, ny)
 
     capabilities: frozenset[str] = field(
         default_factory=lambda: frozenset({CAP_APPLY})
@@ -145,21 +146,30 @@ class FissionOperator(LinearOperatorMixin):
         Parameters
         ----------
         phi : np.ndarray
-            Scalar flux shape ``(nx, ny, ng)``.
+            Scalar flux shape ``(nx, ny, ng)`` (legacy public layout —
+            PR-INDEX-5 flips to ``(ng, nx, ny)``).
 
         Returns
         -------
         np.ndarray
-            Fission source shape ``(nx, ny, ng)`` *without* the
-            :math:`1/k` eigenvalue division. The caller divides by
-            :math:`k` (see module docstring for why).
+            Fission source shape ``(nx, ny, ng)`` (legacy contract —
+            preserved until PR-INDEX-5) *without* the :math:`1/k`
+            eigenvalue division. The caller divides by :math:`k` (see
+            module docstring for why).
 
         Notes
         -----
-        Bit-identical extraction of
-        ``SNSolver.compute_fission_source(phi, keff=1.0)``.
+        Issue #196 PR-INDEX-3: ``self.sig_p`` / ``self.chi`` are stored
+        in the principled ``(ng, nx, ny)`` layout, but ``phi`` and the
+        return value remain on the legacy ``(nx, ny, ng)`` contract.
+        ``np.einsum`` names the per-cell production-rate contraction
+        explicitly (Pattern 3) — ``fission_rate`` has units ``[1/s]``
+        per cell.  PR-INDEX-5 flips the public φ contract.
         """
-        # Production rate: sum over energy of νΣ_f * φ — shape (nx, ny).
-        fission_rate = np.sum(self.sig_p * phi, axis=2)
-        # Spectrum × rate, broadcast: chi[g] * rate[x, y] → (nx, ny, ng).
-        return self.chi * fission_rate[:, :, None]
+        # Production rate: per-cell sum over groups, shape (nx, ny).
+        # ``sig_p`` is principled (ng, nx, ny); ``phi`` is legacy
+        # (nx, ny, ng) — einsum names the contraction.
+        fission_rate = np.einsum("gxy,xyg->xy", self.sig_p, phi)
+        # Spectrum × rate: chi is (ng, nx, ny), rate is (nx, ny);
+        # build the legacy (nx, ny, ng) return via transposing chi.
+        return self.chi.transpose(1, 2, 0) * fission_rate[:, :, None]

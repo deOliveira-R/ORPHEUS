@@ -107,6 +107,11 @@ def transport_sweep(
     The cell-update strategy is read from ``sn_mesh.cell_update``
     (defaults to :class:`DiamondDifference`).
 
+    Issue #196 PR-INDEX-3: ``sig_t`` is now consumed in the principled
+    ``(ng, nx, ny)`` layout.  The 2-D wavefront body still expects the
+    legacy ``(nx, ny, ng)`` shape; a bridge transpose runs at its entry
+    (removed in PR-INDEX-4 when ``_sweep_2d_wavefront`` flips internally).
+
     Dispatch:
 
     * 1-D meshes (``sn_mesh.reduced is not None``) →
@@ -118,7 +123,9 @@ def transport_sweep(
     reduced = sn_mesh.reduced
     if reduced is not None:
         return _sweep_1d_unified(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
-    return _sweep_2d_wavefront(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
+    # Bridge to 2-D wavefront body's legacy layout — PR-INDEX-4 removes.
+    sig_t_legacy = sig_t.transpose(1, 2, 0)
+    return _sweep_2d_wavefront(Q, sig_t_legacy, sn_mesh, psi_bc, Q_aniso)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -223,16 +230,16 @@ def _ensure_coll_cache(
     every sweep without rebuild.  Ad-hoc test callers may bypass the
     solver — in that case the cache is built lazily here.
 
-    Bridge transpose (Issue #196 PR-INDEX-2).  The caller still passes
-    ``sig_t`` in the legacy ``(nx, ny, ng)`` layout (PR-INDEX-3 flips that
-    upstream).  The cache itself consumes the principled ``(ng, nx)``
-    layout — transpose at this entry-point bridge.
+    No bridge needed under PR-INDEX-3: ``sig_t`` arrives as principled
+    ``(ng, nx, ny=1)`` and the cache consumes ``(ng, nx)`` — a single
+    slice on the degenerate ``ny`` axis suffices.
     """
     cache = getattr(sn_mesh, "_coll_cache", None)
     if cache is None:
-        # 1-D meshes: sig_t shape is (nx, 1, ng).  Drop ny, transpose to
-        # (ng, nx) — the principled layout the cache expects natively.
-        sig_t_1d = sig_t[:, 0, :].T  # (ng, nx)
+        # 1-D meshes: sig_t shape is (ng, nx, 1).  Slice the trailing
+        # degenerate axis — the principled (ng, nx) layout the cache
+        # expects natively.
+        sig_t_1d = sig_t[:, :, 0]  # (ng, nx)
         cache = CollisionCache.from_geometry(geom, sig_t_1d)
         sn_mesh._coll_cache = cache  # type: ignore[attr-defined]
     return cache
@@ -287,11 +294,13 @@ def _run_1d_sweep(
     weights = quad.weights
     mu = quad.mu_x
 
-    # ── Entry transposes — principled layout (ng first, then nx) ──────
-    # Views, not copies (np.transpose returns views for C-contiguous
-    # inputs of the typical shapes used here).
+    # ── Entry layout — sig_t is principled (ng, nx, 1) after PR-INDEX-3 ──
+    # ``Q`` still arrives in legacy (nx, ny=1, ng) shape (PR-INDEX-5 flips
+    # the public source layout); transpose at entry as before.
     Q_p = np.transpose(Q[:, 0, :], (1, 0))                  # (ng, nx)
-    sig_t_p = np.transpose(sig_t[:, 0, :], (1, 0))          # (ng, nx)
+    # ``sig_t`` is already (ng, nx, 1) — a single slice drops the
+    # degenerate ny axis.  No transpose needed.
+    sig_t_p = sig_t[:, :, 0]                                # (ng, nx)
     V = sn_mesh.volumes[:, 0]                                # (nx,) — no group axis
     cell_update = sn_mesh.cell_update
 

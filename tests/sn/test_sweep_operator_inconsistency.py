@@ -68,7 +68,7 @@ def _make_spherical_problem(nx: int = 10, R: float = 10.0, N_ord: int = 8):
     )
     quad = GaussLegendre1D.create(N_ord)
     sn_mesh = SNMesh(mesh, quad)
-    sig_t = np.full((nx, 1, 1), 1.0)
+    sig_t = np.full((1, nx, 1), 1.0)  # (ng, nx, ny) — PR-INDEX-3
     Q_iso = np.full((nx, 1, 1), 1.0)
     return sn_mesh, quad, sig_t, Q_iso
 
@@ -247,7 +247,7 @@ def test_cartesian_sweep_gives_exact_flat_flux():
     )
     quad = GaussLegendre1D.create(8)
     sn_mesh = SNMesh(mesh, quad)
-    sig_t = np.full((nx, 1, 1), 1.0)
+    sig_t = np.full((1, nx, 1), 1.0)  # (ng, nx, ny) — PR-INDEX-3
     Q_iso = np.full((nx, 1, 1), 1.0)
 
     phi = _solve_sweep(sn_mesh, sig_t, Q_iso)

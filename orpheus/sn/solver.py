@@ -182,12 +182,30 @@ class SNSolver:
         _any_mat = next(iter(materials.values()))
         self.ng = _any_mat.ng
 
-        # Per-cell cross sections
+        # Per-cell cross sections — Principled layout (Issue #196 PR-INDEX-3):
+        # (ng, nx, ny).  Producer ``assemble_cell_xs`` still emits
+        # ``(N_cells, ng)`` flat (CP also consumes this shape — no
+        # producer-side flip).  The ``.T.reshape`` bridge stays AT THIS
+        # construction site; every downstream SN-internal consumer
+        # receives ``(ng, nx, ny)`` natively.  Round-trip invariant:
+        # ``sig_t_old[i, j, g] == sig_t_new[g, i, j]`` for all (i, j, g) —
+        # verified inline below in __debug__.
         xs = assemble_cell_xs(materials, sn_mesh.mat_map)
-        self.sig_t = xs.sig_t.reshape(nx, ny, self.ng)
-        self.sig_a = xs.sig_a.reshape(nx, ny, self.ng)
-        self.sig_p = xs.sig_p.reshape(nx, ny, self.ng)
-        self.chi = xs.chi.reshape(nx, ny, self.ng)
+        self.sig_t = xs.sig_t.T.reshape(self.ng, nx, ny)
+        self.sig_a = xs.sig_a.T.reshape(self.ng, nx, ny)
+        self.sig_p = xs.sig_p.T.reshape(self.ng, nx, ny)
+        self.chi = xs.chi.T.reshape(self.ng, nx, ny)
+        if __debug__:
+            # Cell-flattening invariant: the new (ng, nx, ny) storage
+            # must round-trip with the legacy (nx, ny, ng) reshape under
+            # transpose.  An assertion failure here would mean the
+            # ``mat_ids`` ravel order disagrees with the assumed C-order
+            # ``(nx, ny)`` flatten.
+            _sig_t_old = xs.sig_t.reshape(nx, ny, self.ng)
+            assert np.array_equal(_sig_t_old, self.sig_t.transpose(1, 2, 0)), (
+                "PR-INDEX-3 cell-flattening invariant broke — mat_ids "
+                "ravel order is not C-order (nx, ny)"
+            )
 
         # Scattering matrices per material — all available Legendre orders
         L = min(scattering_order, min(len(m.SigS) - 1 for m in materials.values()))
@@ -251,13 +269,20 @@ class SNSolver:
             weights=sn_mesh.quad.weights,
             cells_by_mat=self._cells_by_mat,
         )
+        # FissionOperator's stored ``chi`` / ``sig_p`` are principled
+        # ``(ng, nx, ny)`` under PR-INDEX-3.  Its ``apply`` body bridges
+        # for the still-legacy ``phi`` argument shape via an internal
+        # einsum (the public φ contract flips in PR-INDEX-5).
         self.fission_op = FissionOperator.from_solver_data(
             chi=self.chi, sig_p=self.sig_p,
         )
         # The streaming-collision operator L = Ω·∇ + Σ_t.  Built lazily
         # — the Cartesian / spherical / cylindrical EquationMap that L's
         # apply path needs is built on first call (lazy in
-        # SNStreamingOperator._ensure_eq_map).
+        # SNStreamingOperator._ensure_eq_map).  ``self.sig_t`` is in the
+        # principled ``(ng, nx, ny)`` layout (Issue #196 PR-INDEX-3) and
+        # the operator's matvec helpers were updated to consume that
+        # layout natively — no bridge needed.
         self.L = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=self.sig_t)
         self.S = self.scattering_op
         self.F = self.fission_op
@@ -272,11 +297,10 @@ class SNSolver:
         self.coll_cache: CollisionCache | None = None
         if sn_mesh.reduced is not None:
             self.geom_cache = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
-            # 1-D meshes: sig_t shape (nx, 1, ng) → drop ny, transpose to
-            # (ng, nx) — the principled layout the cache expects natively
-            # (Issue #196 PR-INDEX-2).  The transpose is a bridge until
-            # PR-INDEX-3 flips ``self.sig_t`` storage upstream.
-            sig_t_1d = self.sig_t[:, 0, :].T  # (ng, nx)
+            # No bridge needed under PR-INDEX-3: ``self.sig_t`` is already
+            # the principled ``(ng, nx, ny=1)`` layout the cache expects.
+            # Drop the trailing degenerate ``ny`` axis with a slice view.
+            sig_t_1d = self.sig_t[:, :, 0]  # (ng, nx)
             self.coll_cache = CollisionCache.from_geometry(
                 self.geom_cache, sig_t_1d,
             )
@@ -292,14 +316,22 @@ class SNSolver:
         Only the σ_t-dependent Stratum 2 rebuilds.  Used by depletion /
         thermal-feedback consumers (the API surface lives here at Step 2.5c;
         downstream multi-physics consumers wire up in later steps).
+
+        Parameters
+        ----------
+        new_sig_t
+            New total cross-section in the principled ``(ng, nx, ny)``
+            layout (Issue #196 PR-INDEX-3).
         """
         self.sig_t = new_sig_t
         # Mirror onto the L operator so its apply path stays consistent.
+        # Both ``self.sig_t`` and the operator's matvec helpers are on
+        # the principled ``(ng, nx, ny)`` layout — no bridge.
         self.L = SNStreamingOperator(sn_mesh=self.sn_mesh, sig_t=self.sig_t)
         if self.geom_cache is not None:
-            # Bridge transpose: (nx, 1, ng) → (ng, nx) for the cache
-            # (Issue #196 PR-INDEX-2; PR-INDEX-3 will flip self.sig_t).
-            sig_t_1d = self.sig_t[:, 0, :].T  # (ng, nx)
+            # ``self.sig_t`` is already principled ``(ng, nx, 1)`` — slice
+            # to drop the degenerate ``ny`` axis.
+            sig_t_1d = self.sig_t[:, :, 0]  # (ng, nx)
             self.coll_cache = CollisionCache.from_geometry(
                 self.geom_cache, sig_t_1d,
             )
@@ -363,8 +395,17 @@ class SNSolver:
         nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
         mu = self.sn_mesh.mesh.volume_measure
 
-        # Fission production: ∫ νΣ_f · φ dV, vectorised over groups
-        rate = mu((self.sig_p * flux_distribution).reshape(nx * ny, ng))
+        # Fission production: ∫ νΣ_f · φ dV, vectorised over groups.
+        # Transient bridge (Issue #196 PR-INDEX-3): ``self.sig_p`` is
+        # principled ``(ng, nx, ny)`` after PR-INDEX-3; ``flux_distribution``
+        # still arrives as legacy ``(nx, ny, ng)`` (PR-INDEX-5 flips that).
+        # ``np.einsum`` names the contraction explicitly — the result
+        # ``per_cell_per_group`` has units ``[1/s]`` per cell per group
+        # (a reactor-physics intermediate; Pattern 3).
+        per_cell_per_group = np.einsum(
+            "gxy,xyg->xyg", self.sig_p, flux_distribution,
+        )
+        rate = mu(per_cell_per_group.reshape(nx * ny, ng))
 
         # (n,2n) contribution — per-material loop over sig2[mid] @ flux,
         # tracking per outgoing group rather than collapsing as before.
@@ -386,7 +427,14 @@ class SNSolver:
         """
         nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
         mu = self.sn_mesh.mesh.volume_measure
-        return mu((self.sig_a * flux_distribution).reshape(nx * ny, ng))
+        # Transient bridge (Issue #196 PR-INDEX-3): ``self.sig_a`` is
+        # principled ``(ng, nx, ny)``; ``flux_distribution`` still arrives
+        # as legacy ``(nx, ny, ng)`` (PR-INDEX-5 flips).  ``np.einsum``
+        # makes the contraction self-documenting.
+        per_cell_per_group = np.einsum(
+            "gxy,xyg->xyg", self.sig_a, flux_distribution,
+        )
+        return mu(per_cell_per_group.reshape(nx * ny, ng))
 
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
         """k = production / absorption (volume-weighted).

@@ -178,7 +178,7 @@ class TestResolutionADecomposition:
 
         rng = np.random.default_rng(seed)
         psi_vec = rng.standard_normal(eq_map.n_unknowns).astype(np.float64)
-        sigma_t = np.full((sn_mesh.nx, sn_mesh.ny, ng), 2.0)
+        sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 2.0)  # PR-INDEX-3
 
         # Reference: the matvec at full σ_t.
         m_full = _call_matvec(sn_mesh, psi_vec, sigma_t, eq_map, ng)
@@ -224,15 +224,16 @@ class TestSubtractiveDefinition:
 
         rng = np.random.default_rng(seed)
         psi_vec = rng.standard_normal(eq_map.n_unknowns).astype(np.float64)
-        sigma_t = np.full((sn_mesh.nx, sn_mesh.ny, ng), 2.0)
+        sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 2.0)  # PR-INDEX-3
 
         L = StreamingOperator(sn_mesh, sigma_t)
         l_apply = L.apply(psi_vec)
 
         m_full = _call_matvec(sn_mesh, psi_vec, sigma_t, eq_map, ng)
+        # PR-INDEX-3: σ_t shape (ng, nx, ny); advanced index gives (ng, n_eq).
         sigma_packed = sigma_t[
-            eq_map.ix, eq_map.iy, :
-        ].T.ravel(order='F')
+            :, eq_map.ix, eq_map.iy
+        ].ravel(order='F')
         expected = m_full - sigma_packed * psi_vec
 
         # Bit-exact: L.apply IS the subtractive formula.
@@ -265,8 +266,8 @@ class TestResolutionADifferentFromPriorWrong:
 
         rng = np.random.default_rng(0)
         psi_vec = rng.standard_normal(eq_map.n_unknowns).astype(np.float64)
-        sigma_full = np.full((sn_mesh.nx, sn_mesh.ny, ng), 2.0)
-        sigma_zero = np.zeros((sn_mesh.nx, sn_mesh.ny, ng))
+        sigma_full = np.full((ng, sn_mesh.nx, sn_mesh.ny), 2.0)  # PR-INDEX-3
+        sigma_zero = np.zeros((ng, sn_mesh.nx, sn_mesh.ny))
 
         # Resolution A's L.apply (subtractive).
         L = StreamingOperator(sn_mesh, sigma_full)

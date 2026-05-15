@@ -121,8 +121,11 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
 
 
 def _sig_t_uniform(sn_mesh: SNMesh, ng: int = 2, value: float = 0.5) -> np.ndarray:
-    """Total cross-section, uniform across all cells/groups."""
-    return value * np.ones((sn_mesh.nx, sn_mesh.ny, ng))
+    """Total cross-section, uniform across all cells/groups.
+
+    Issue #196 PR-INDEX-3: principled ``(ng, nx, ny)`` layout.
+    """
+    return value * np.ones((ng, sn_mesh.nx, sn_mesh.ny))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -748,7 +751,7 @@ def test_apply_spherical_constant_flux_yields_zero_collisionless_reflective():
     quad = GaussLegendre1D.create(n_ordinates=4)
     sn_mesh = SNMesh(mesh, quad)
     ng = 2
-    sig_t = np.zeros((nx, sn_mesh.ny, ng))
+    sig_t = np.zeros((ng, nx, sn_mesh.ny))  # PR-INDEX-3 layout
     op = SNStreamingOperator(sn_mesh, sig_t)
     eq_map = build_equation_map_spherical(nx, quad, ng)
 
@@ -790,7 +793,7 @@ def test_apply_spherical_vacuum_bc_residual_is_consistent():
     quad = GaussLegendre1D.create(n_ordinates=4)
     sn_mesh = SNMesh(mesh, quad)
     ng = 2
-    sig_t = np.zeros((nx, sn_mesh.ny, ng))
+    sig_t = np.zeros((ng, nx, sn_mesh.ny))  # PR-INDEX-3 layout
     op = SNStreamingOperator(sn_mesh, sig_t)
     eq_map = build_equation_map_spherical(nx, quad, ng)
 
@@ -854,7 +857,7 @@ def test_apply_spherical_constant_flux_under_morel_montry_canonical_form():
     quad = GaussLegendre1D.create(n_ordinates=4)
     sn_mesh = SNMesh(mesh, quad, pole_angular_closure=MorelMontryAngularSweep())
     ng = 2
-    sig_t = np.zeros((nx, sn_mesh.ny, ng))
+    sig_t = np.zeros((ng, nx, sn_mesh.ny))  # PR-INDEX-3 layout
     op = SNStreamingOperator(sn_mesh, sig_t)
     eq_map = build_equation_map_spherical(nx, sn_mesh.quad, ng)
 

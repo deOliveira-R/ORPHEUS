@@ -429,7 +429,7 @@ def transport_operator_matvec(
     Parameters
     ----------
     solution : (n_unknowns,) flattened angular flux vector.
-    sig_t : (nx, ny, ng) total cross section.
+    sig_t : (ng, nx, ny) total cross section (Issue #196 PR-INDEX-3).
     bc_xmin, bc_xmax, bc_ymin, bc_ymax :
         Wave E Round 3 — :class:`~orpheus.geometry.boundary.BoundaryOperator`
         instances threaded through to :func:`solution_to_angular_flux`
@@ -454,7 +454,7 @@ def transport_operator_matvec(
         lhs[:, k] = (
             quad.mu_x[n] * dfidx
             + quad.mu_y[n] * dfidy
-            + sig_t[ix, iy, :] * fi[:, n, ix, iy]
+            + sig_t[:, ix, iy] * fi[:, n, ix, iy]
         )
 
     return lhs.ravel(order='F')
@@ -720,9 +720,9 @@ def transport_operator_matvec_spherical(
     else:
         bc_outer_value = np.zeros((ng,))
 
-    # σ_t per (g, i): the matvec receives ``sig_t`` shape ``(nx, ny=1, ng)``.
-    # Reshape to ``(ng, nx)`` for the Carlson sweep.
-    sigma_t_gx = sig_t[:, 0, :].T  # (ng, nx)
+    # σ_t per (g, i): the matvec receives ``sig_t`` shape ``(ng, nx, 1)``
+    # (Issue #196 PR-INDEX-3).  Slice drops the degenerate ``ny`` axis.
+    sigma_t_gx = sig_t[:, :, 0]  # (ng, nx)
 
     # Radial widths for the inward sweep's denominator.
     dr = sn_mesh.dx if sn_mesh is not None else np.diff(np.arange(nx + 1))
@@ -798,7 +798,7 @@ def transport_operator_matvec_spherical(
                 / V[i]
             )
             redistribution = redist_full[:, outgoing_mask, i]
-            collision = sig_t[i, 0, :, None] * psi_cell
+            collision = sig_t[:, i, 0, None] * psi_cell
             ks = eq_map.unknowns_at_cell_for_mask(i, outgoing_mask)
             if ks.size > 0:
                 lhs[:, ks] = streaming + redistribution + collision
@@ -831,7 +831,7 @@ def transport_operator_matvec_spherical(
                 / V[i]
             )
             redistribution = redist_full[:, incoming_mask, i]
-            collision = sig_t[i, 0, :, None] * psi_cell
+            collision = sig_t[:, i, 0, None] * psi_cell
             ks = eq_map.unknowns_at_cell_for_mask(i, incoming_mask)
             if ks.size > 0:
                 lhs[:, ks] = streaming + redistribution + collision
@@ -946,8 +946,9 @@ def transport_operator_matvec_cylindrical(
     # the empirical pass.
     from .spatial.psi_half_angle_seed import CarlsonSweepContext
 
-    # σ_t per (g, i).
-    sigma_t_gx = sig_t[:, 0, :].T  # (ng, nx)
+    # σ_t per (g, i): receives ``sig_t`` shape ``(ng, nx, 1)``
+    # (Issue #196 PR-INDEX-3) — slice drops the degenerate ``ny`` axis.
+    sigma_t_gx = sig_t[:, :, 0]  # (ng, nx)
     dr = sn_mesh.dx if sn_mesh is not None else np.diff(np.arange(nx + 1))
 
     # Pre-compute outer-face inflow estimate (full ordinate vector)
@@ -1040,7 +1041,7 @@ def transport_operator_matvec_cylindrical(
             global_out_mask = np.zeros(N, dtype=bool)
             global_out_mask[global_out] = True
             redistribution = redist_full[:, global_out, i]
-            collision = sig_t[i, 0, :, None] * psi_cell
+            collision = sig_t[:, i, 0, None] * psi_cell
             ks = eq_map.unknowns_at_cell_for_mask(i, global_out_mask)
             if ks.size > 0:
                 lhs[:, ks] = streaming + redistribution + collision
@@ -1089,7 +1090,7 @@ def transport_operator_matvec_cylindrical(
             global_in_mask = np.zeros(N, dtype=bool)
             global_in_mask[global_in] = True
             redistribution = redist_full[:, global_in, i]
-            collision = sig_t[i, 0, :, None] * psi_cell
+            collision = sig_t[:, i, 0, None] * psi_cell
             ks = eq_map.unknowns_at_cell_for_mask(i, global_in_mask)
             if ks.size > 0:
                 lhs[:, ks] = streaming + redistribution + collision
@@ -1104,7 +1105,7 @@ def transport_operator_matvec_cylindrical(
         for i in range(nx):
             psi_cell = fi[:, global_deg, i, 0]
             redistribution = redist_full[:, global_deg, i]
-            collision = sig_t[i, 0, :, None] * psi_cell
+            collision = sig_t[:, i, 0, None] * psi_cell
             # Streaming is identically zero for |η| < eps.
             ks = eq_map.unknowns_at_cell_for_mask(i, degenerate_mask)
             if ks.size > 0:
@@ -1225,8 +1226,8 @@ class SNStreamingOperator(LinearOperatorMixin):
         connection coefficients ``alpha_half``, ``redist_dAw``,
         ``tau_mm`` (or per-level analogues for cylindrical).
     sig_t : np.ndarray
-        Total cross-section, shape ``(nx, ny, ng)``.  Held as a
-        separate attribute (not derived from ``sn_mesh``) because
+        Total cross-section, shape ``(ng, nx, ny)`` (Issue #196 PR-INDEX-3).
+        Held as a separate attribute (not derived from ``sn_mesh``) because
         the existing solver passes it around explicitly.
     capabilities : frozenset[str]
         ``{"apply", "solve", "apply_transpose"}``.
@@ -1272,7 +1273,9 @@ class SNStreamingOperator(LinearOperatorMixin):
         on first :meth:`apply` / :meth:`apply_transpose` call.
         """
         if self._eq_map is None:
-            nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.sig_t.shape[2]
+            # PR-INDEX-3: ``sig_t`` layout is ``(ng, nx, ny)`` so the
+            # group count lives at axis 0.
+            nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.sig_t.shape[0]
             quad = self.sn_mesh.quad
             curv = getattr(self.sn_mesh, "curvature", None)
             if curv == "spherical":
@@ -1320,7 +1323,8 @@ class SNStreamingOperator(LinearOperatorMixin):
         """
         eq_map = self._ensure_eq_map()
         sn_mesh = self.sn_mesh
-        nx, ny, ng = sn_mesh.nx, sn_mesh.ny, self.sig_t.shape[2]
+        # PR-INDEX-3: ``sig_t`` shape is ``(ng, nx, ny)``.
+        nx, ny, ng = sn_mesh.nx, sn_mesh.ny, self.sig_t.shape[0]
         quad = sn_mesh.quad
         curv = getattr(sn_mesh, "curvature", None)
 
@@ -1410,6 +1414,9 @@ class SNStreamingOperator(LinearOperatorMixin):
         from .sweep import transport_sweep
         if psi_bc is None:
             psi_bc = {}
+        # ``self.sig_t`` and ``transport_sweep``'s ``sig_t`` parameter
+        # are both in the principled ``(ng, nx, ny)`` layout under
+        # PR-INDEX-3 — no bridge.
         return transport_sweep(Q, self.sig_t, self.sn_mesh, psi_bc, Q_aniso)
 
     # ── apply_transpose: adjoint action L*·ψ via dense transpose ──────
@@ -1619,8 +1626,9 @@ class StreamingOperator(LinearOperatorMixin):
         ``StreamingOperator`` reads ``sn_mesh.bc_*`` directly — no
         ``boundary`` constructor parameter.
     sigma_t : np.ndarray
-        Total cross-section, shape ``(nx, ny, ng)``. Carried at
-        constructor time per Resolution A's subtractive definition.
+        Total cross-section, shape ``(ng, nx, ny)`` (Issue #196 PR-INDEX-3).
+        Carried at constructor time per Resolution A's subtractive
+        definition.
 
     Notes
     -----
@@ -1659,8 +1667,12 @@ class StreamingOperator(LinearOperatorMixin):
 
     @property
     def n_unknowns(self) -> int:
-        """Total packed scalar unknowns inferred from ``sigma_t.shape[2]``."""
-        ng = int(self.sigma_t.shape[2])
+        """Total packed scalar unknowns inferred from ``sigma_t.shape[0]``.
+
+        PR-INDEX-3: ``sigma_t`` layout is ``(ng, nx, ny)`` — group at
+        axis 0.
+        """
+        ng = int(self.sigma_t.shape[0])
         return self._ensure_eq_map(ng=ng).n_unknowns
 
     def apply(self, psi: np.ndarray) -> np.ndarray:
@@ -1684,7 +1696,8 @@ class StreamingOperator(LinearOperatorMixin):
             ``L·ψ`` as a packed vector, same shape as ``psi``.
         """
         sn_mesh = self.sn_mesh
-        ng = int(self.sigma_t.shape[2])
+        # PR-INDEX-3: ``sigma_t`` shape is ``(ng, nx, ny)``.
+        ng = int(self.sigma_t.shape[0])
         eq_map = self._ensure_eq_map(ng=ng)
         if eq_map.n_unknowns != psi.size:
             raise ValueError(
@@ -1736,11 +1749,13 @@ class StreamingOperator(LinearOperatorMixin):
             )
 
         # Subtract σ_t ⊙ ψ at the packed-vector level. Layout matches
-        # CollisionOperator's gather: (n_eq, ng) → (ng, n_eq) → Fortran
-        # ravel gives (n_unknowns,) packed vector aligned with `psi`.
+        # CollisionOperator's gather: ``(ng, nx, ny)`` advanced-indexed
+        # by ``(ix, iy)`` returns ``(ng, n_eq)`` directly under PR-INDEX-3;
+        # Fortran ravel gives (n_unknowns,) packed vector aligned
+        # with `psi`.
         sigma_packed = self.sigma_t[
-            eq_map.ix, eq_map.iy, :
-        ].T.ravel(order='F')
+            :, eq_map.ix, eq_map.iy
+        ].ravel(order='F')
         return m_full - sigma_packed * psi
 
 
@@ -1793,9 +1808,10 @@ class CollisionOperator(LinearOperatorMixin):
         :class:`EquationMap` dispatch (same as
         :class:`StreamingOperator`).
     sigma : np.ndarray
-        Per-cell per-group cross-section, shape ``(nx, ny, ng)``. May
-        be σ_t (full collision) or σ_r (removal — within-group
-        self-scatter folded). The operator's action is identical.
+        Per-cell per-group cross-section, shape ``(ng, nx, ny)``
+        (Issue #196 PR-INDEX-3). May be σ_t (full collision) or σ_r
+        (removal — within-group self-scatter folded). The operator's
+        action is identical.
     """
 
     sn_mesh: "SNMesh"
@@ -1825,21 +1841,25 @@ class CollisionOperator(LinearOperatorMixin):
         return self._eq_map
 
     def _sigma_at_unknowns(self, eq_map: EquationMap, ng: int) -> np.ndarray:
-        r"""Gather ``σ`` at each packed-unknown's ``(ix, iy, g)`` slot.
+        r"""Gather ``σ`` at each packed-unknown's ``(g, ix, iy)`` slot.
 
         Builds the packed-vector-shaped coefficient array
-        ``(σ[ix[k], iy[k], g])`` for ``k`` ordered as the eq_map's
+        ``(σ[g, ix[k], iy[k]])`` for ``k`` ordered as the eq_map's
         Fortran-order ``(g, k)`` flatten — exactly what
         ``psi.reshape(ng, n_eq, order='F')`` produces on the input
         side. Returns shape ``(n_unknowns,)``; element-wise multiply
         with the input ``psi``.
+
+        PR-INDEX-3: ``sigma`` is principled ``(ng, nx, ny)`` — advanced
+        indexing on ``(ix, iy)`` returns ``(ng, n_eq)`` directly, no
+        transpose required.
         """
-        sigma_per_eq = self.sigma[eq_map.ix, eq_map.iy, :]    # (n_eq, ng)
-        return sigma_per_eq.T.ravel(order='F')                # (n_unknowns,)
+        sigma_per_eq = self.sigma[:, eq_map.ix, eq_map.iy]    # (ng, n_eq)
+        return sigma_per_eq.ravel(order='F')                  # (n_unknowns,)
 
     def apply(self, psi: np.ndarray) -> np.ndarray:
         r"""Forward action :math:`C\,\psi = \sigma\cdot\psi`."""
-        ng = int(self.sigma.shape[2])
+        ng = int(self.sigma.shape[0])
         eq_map = self._ensure_eq_map(ng)
         if eq_map.n_unknowns != psi.size:
             raise ValueError(
@@ -1859,7 +1879,7 @@ class CollisionOperator(LinearOperatorMixin):
         constructing :math:`\sigma_r = \sigma_t - \Sigma_{s,0}^{g\to g}`
         must guarantee positivity (the operator does not check).
         """
-        ng = int(self.sigma.shape[2])
+        ng = int(self.sigma.shape[0])
         eq_map = self._ensure_eq_map(ng)
         if eq_map.n_unknowns != q.size:
             raise ValueError(

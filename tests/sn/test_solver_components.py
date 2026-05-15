@@ -74,15 +74,20 @@ def _ref_add_n2n(solver, Q, phi):
 
 
 def _ref_compute_keff(solver, flux):
-    """Original per-cell keff computation (reference)."""
-    vol = solver.volume[:, :, None]
-    production = np.sum(solver.sig_p * flux * vol)
+    """Original per-cell keff computation (reference).
+
+    PR-INDEX-3: ``solver.sig_p`` / ``solver.sig_a`` are ``(ng, nx, ny)``
+    principled layout; ``flux`` remains ``(nx, ny, ng)`` (legacy public
+    layout — flips PR-INDEX-5).  ``np.einsum`` names the contraction.
+    """
+    vol = solver.volume  # (nx, ny)
+    production = float(np.einsum("gxy,xyg,xy->", solver.sig_p, flux, vol))
     for ix in range(solver.sn_mesh.nx):
         for iy in range(solver.sn_mesh.ny):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
             sig2_sum = np.array(solver.sig2[mid].sum(axis=1)).ravel()
             production += 2.0 * np.dot(sig2_sum, flux[ix, iy, :]) * solver.volume[ix, iy]
-    absorption = np.sum(solver.sig_a * flux * vol)
+    absorption = float(np.einsum("gxy,xyg,xy->", solver.sig_a, flux, vol))
     return float(production / absorption)
 
 
@@ -162,8 +167,9 @@ class TestComputeGroupRates:
 
         # Sum over groups must reproduce the legacy flat-sum production
         # numerator (within FP-non-associativity tolerance).
-        vol = solver.volume[:, :, None]
-        ref_production = float(np.sum(solver.sig_p * flux * vol))
+        # PR-INDEX-3: sig_p is (ng, nx, ny); flux is (nx, ny, ng).
+        vol = solver.volume  # (nx, ny)
+        ref_production = float(np.einsum("gxy,xyg,xy->", solver.sig_p, flux, vol))
         for ix in range(solver.sn_mesh.nx):
             for iy in range(solver.sn_mesh.ny):
                 mid = int(solver.sn_mesh.mat_map[ix, iy])
@@ -182,8 +188,9 @@ class TestComputeGroupRates:
         rate_g = solver.compute_group_absorption_rate(flux)
         assert rate_g.shape == (solver.ng,)
 
-        vol = solver.volume[:, :, None]
-        ref_absorption = float(np.sum(solver.sig_a * flux * vol))
+        # PR-INDEX-3: sig_a is (ng, nx, ny); flux is (nx, ny, ng).
+        vol = solver.volume  # (nx, ny)
+        ref_absorption = float(np.einsum("gxy,xyg,xy->", solver.sig_a, flux, vol))
         np.testing.assert_allclose(float(rate_g.sum()), ref_absorption,
                                    rtol=1e-13,
                                    err_msg="group absorption rate sum")
@@ -333,7 +340,8 @@ class TestQuadratureWeightConservation:
         for _ in range(200):
             _, phi = transport_sweep(Q, solver.sig_t, local_sn_mesh, psi_bc)
 
-        expected = Q / solver.sig_t
+        # PR-INDEX-3: solver.sig_t is (ng, nx, ny); Q / phi are (nx, ny, ng).
+        expected = Q / solver.sig_t.transpose(1, 2, 0)
         np.testing.assert_allclose(phi, expected, rtol=1e-6,
                                    err_msg="Converged φ ≠ Q/Σ_t for uniform source")
 
@@ -866,7 +874,10 @@ class TestFissionSource:
         # The fission source should NOT already include the 1/(4π) factor,
         # because the sweep applies weight_norm = 1/(4π) internally.
         # Check: fission_src = chi * sum(sig_p * phi) / keff
-        expected = solver.chi * np.sum(solver.sig_p * phi, axis=2)[:, :, None]
+        # PR-INDEX-3: solver.chi/sig_p are (ng, nx, ny); phi is (nx, ny, ng).
+        # FissionOperator.apply still returns (nx, ny, ng) — flips PR-INDEX-5.
+        fission_rate = np.einsum("gxy,xyg->xy", solver.sig_p, phi)
+        expected = solver.chi.transpose(1, 2, 0) * fission_rate[:, :, None]
         np.testing.assert_allclose(fission_src, expected, rtol=1e-14,
                                    err_msg="Fission source has unexpected normalization")
 
@@ -882,8 +893,12 @@ class TestFissionSource:
         keff = solver.compute_keff(phi)
         # keff from uniform flux should equal sum(sig_p) / sum(sig_a)
         # weighted by volume (which is uniform, so cancels)
-        vol = solver.volume[:, :, None]
-        expected = float(np.sum(solver.sig_p * phi * vol) / np.sum(solver.sig_a * phi * vol))
+        # PR-INDEX-3: ``solver.sig_p`` / ``solver.sig_a`` are (ng, nx, ny);
+        # ``phi`` is (nx, ny, ng) (legacy public layout — flips PR-INDEX-5).
+        vol = solver.volume  # (nx, ny)
+        prod = float(np.einsum("gxy,xyg,xy->", solver.sig_p, phi, vol))
+        absorp = float(np.einsum("gxy,xyg,xy->", solver.sig_a, phi, vol))
+        expected = prod / absorp
         # This only matches if there's zero n2n (which there may not be)
         # So just check they're both finite and positive
         assert np.isfinite(keff) and keff > 0

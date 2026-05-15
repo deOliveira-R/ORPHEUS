@@ -82,17 +82,20 @@ def _packed_psi(sn_mesh: SNMesh, sigma: np.ndarray,
 
 
 def _sigma_total(sn_mesh: SNMesh, ng: int = 2) -> np.ndarray:
-    """Random per-cell per-group cross-section, bounded away from 0."""
+    """Random per-cell per-group cross-section, bounded away from 0.
+
+    PR-INDEX-3: ``(ng, nx, ny)`` principled layout.
+    """
     nx, ny = sn_mesh.nx, sn_mesh.ny
     rng = np.random.default_rng(seed=20260514)
-    return 0.3 + 0.5 * rng.random((nx, ny, ng))
+    return 0.3 + 0.5 * rng.random((ng, nx, ny))
 
 
 def _sigma_removal(sn_mesh: SNMesh, ng: int = 2) -> np.ndarray:
     """Synthetic σ_r — same shape, smaller magnitude. Handled identically."""
     nx, ny = sn_mesh.nx, sn_mesh.ny
     rng = np.random.default_rng(seed=20260515)
-    return 0.1 + 0.3 * rng.random((nx, ny, ng))
+    return 0.1 + 0.3 * rng.random((ng, nx, ny))
 
 
 GEOMETRIES = [
@@ -160,7 +163,7 @@ class TestApply:
         sn_mesh = builder()
         nx, ny = sn_mesh.nx, sn_mesh.ny
         c = 0.4
-        sigma = c * np.ones((nx, ny, 2))
+        sigma = c * np.ones((2, nx, ny))  # PR-INDEX-3: (ng, nx, ny)
         C = CollisionOperator(sn_mesh, sigma)
         psi = _packed_psi(sn_mesh, sigma, seed=99)
         out = C.apply(psi)
@@ -196,7 +199,7 @@ class TestSolve:
         sn_mesh = builder()
         nx, ny = sn_mesh.nx, sn_mesh.ny
         c = 0.4
-        sigma = c * np.ones((nx, ny, 2))
+        sigma = c * np.ones((2, nx, ny))  # PR-INDEX-3: (ng, nx, ny)
         C = CollisionOperator(sn_mesh, sigma)
         q = _packed_psi(sn_mesh, sigma, seed=88)
         out = C.solve(q)
@@ -228,14 +231,15 @@ class TestSolve:
         nx, ny = sn_mesh.nx, sn_mesh.ny
         quad = sn_mesh.quad
         curv = getattr(sn_mesh, "curvature", None)
-        ng = int(sigma.shape[2])
+        ng = int(sigma.shape[0])  # PR-INDEX-3: ng at axis 0
         if curv == "spherical":
             eq_map = build_equation_map_spherical(nx, quad, ng)
         elif curv == "cylindrical":
             eq_map = build_equation_map_cylindrical(nx, quad, ng)
         else:
             eq_map = build_equation_map(nx, ny, quad, ng)
-        sigma_packed = sigma[eq_map.ix, eq_map.iy, :].T.ravel(order='F')
+        # PR-INDEX-3: principled (ng, nx, ny) — advanced index gives (ng, n_eq).
+        sigma_packed = sigma[:, eq_map.ix, eq_map.iy].ravel(order='F')
         np.testing.assert_allclose(out, b / sigma_packed, rtol=1e-14)
 
 
@@ -350,10 +354,10 @@ class TestSigmaLayout:
         nx, ny = sn_mesh.nx, sn_mesh.ny
         ix_target = nx // 2
         iy_target = 0
-        sigma = np.zeros((nx, ny, ng))
-        sigma[ix_target, iy_target, :] = 1.0
+        sigma = np.zeros((ng, nx, ny))  # PR-INDEX-3: (ng, nx, ny)
+        sigma[:, ix_target, iy_target] = 1.0
         C = CollisionOperator(sn_mesh, sigma)
-        sigma_ref = 0.5 * np.ones((nx, ny, ng))  # for sizing
+        sigma_ref = 0.5 * np.ones((ng, nx, ny))  # for sizing
         psi = _packed_psi(sn_mesh, sigma_ref, seed=33)
         out = C.apply(psi)
         from orpheus.sn.operator import (

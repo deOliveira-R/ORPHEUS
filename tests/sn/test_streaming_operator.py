@@ -102,15 +102,15 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
 
 def _sig_t_uniform(sn_mesh: SNMesh, ng: int = 2,
                    value: float = 0.5) -> np.ndarray:
-    """σ_t uniform across cells / groups."""
-    return value * np.ones((sn_mesh.nx, sn_mesh.ny, ng))
+    """σ_t uniform across cells / groups (PR-INDEX-3: ``(ng, nx, ny)``)."""
+    return value * np.ones((ng, sn_mesh.nx, sn_mesh.ny))
 
 
 def _sig_t_heterogeneous(sn_mesh: SNMesh, ng: int = 2) -> np.ndarray:
     """σ_t heterogeneous — different value per (cell, group)."""
     nx, ny = sn_mesh.nx, sn_mesh.ny
     rng = np.random.default_rng(seed=20260514)
-    return 0.3 + 0.5 * rng.random((nx, ny, ng))
+    return 0.3 + 0.5 * rng.random((ng, nx, ny))
 
 
 def _packed_psi(sn_mesh: SNMesh, ng: int, seed: int = 42) -> np.ndarray:

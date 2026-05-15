@@ -43,7 +43,7 @@ def _slab_setup(N: int = 4, nx: int = 8, ng: int = 2):
     )
     sn_mesh = SNMesh(mesh, GaussLegendre1D.create(n_ordinates=N))
     Q = np.full((nx, 1, ng), 1.0)
-    sig_t = np.full((nx, 1, ng), 0.5)
+    sig_t = np.full((ng, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     return Q, sig_t, sn_mesh
 
 
@@ -57,7 +57,7 @@ def _sphere_setup(N: int = 4, nx: int = 8, ng: int = 2):
     )
     sn_mesh = SNMesh(mesh, GaussLegendre1D.create(n_ordinates=N))
     Q = np.full((nx, 1, ng), 1.0)
-    sig_t = np.full((nx, 1, ng), 0.5)
+    sig_t = np.full((ng, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     return Q, sig_t, sn_mesh
 
 
