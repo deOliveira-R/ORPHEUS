@@ -243,10 +243,36 @@ def _run_1d_sweep(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Inner body of the unified 1-D sweep.
 
+    Issue #196 PR-INDEX-1: internal arrays carry the principled
+    ``(N, ng, nx, ny=1)`` layout (energy ``g`` is the *second* axis,
+    NOT trailing; see ``.claude/plans/principled_index_migration.md``).
+    Public ``transport_sweep`` signature is unchanged — entry transposes
+    convert caller-side ``(nx, ny, ng)`` / ``(N, nx, ny, ng)`` inputs
+    to principled layout; exit transposes return to the caller's shape.
+
+    The :class:`CollisionCache` and :class:`GeometryCoefficients` still
+    carry the *old* ``(N, nx, ng)`` / ``(N, nx)`` layout under
+    PR-INDEX-1; their fields are transposed at the consumption site.
+    PR-INDEX-2 flips the cache layout natively.
+
     Splits cleanly into setup (BC inflow, source pre-scale, Carlson
-    seed when curvilinear) and a per-ordinate loop whose body is three
-    tensor ops (slab) or four (curvilinear, with the M-M angular
-    update + Carlson-seeded angular thread).
+    seed when curvilinear) and a per-direction or per-ordinate scan:
+
+    * **SLAB** (joint-batch): ordinates within a chain direction are
+      independent (no M-M angular thread), so one
+      :func:`ordinate_scan` call per chain handles the entire chain's
+      ordinates at once with shape ``(nx, K, ng)`` where ``K`` is the
+      number of ordinates in that direction (``N/2`` for symmetric GL).
+      Exactly 2 scan calls per sweep regardless of ``N`` or ``ng``.
+
+    * **CURVILINEAR** (sphere/cylinder, per-ordinate): the M-M angular
+      thread couples ordinates sequentially within a μ-level (the
+      Hébert §3.9.4 Eqs. 3.437/3.439 recurrence reads
+      ``psi_angle[chain]`` updated by the *previous* ordinate in the
+      level).  One ``ordinate_scan`` per ordinate per level — unchanged
+      from PR-INDEX-1's pre-state.  A future parallel-prefix
+      reformulation of the M-M recurrence could unlock joint-batch for
+      curvilinear too (research-level; deferred per plan §7).
     """
     quad = sn_mesh.quad
     N = quad.N
@@ -255,9 +281,12 @@ def _run_1d_sweep(
     weights = quad.weights
     mu = quad.mu_x
 
-    Q_1d = Q[:, 0, :]           # (nx, ng)
-    sig_t_1d = sig_t[:, 0, :]   # (nx, ng)
-    V = sn_mesh.volumes[:, 0]   # (nx,)
+    # ── Entry transposes — principled layout (ng first, then nx) ──────
+    # Views, not copies (np.transpose returns views for C-contiguous
+    # inputs of the typical shapes used here).
+    Q_p = np.transpose(Q[:, 0, :], (1, 0))                  # (ng, nx)
+    sig_t_p = np.transpose(sig_t[:, 0, :], (1, 0))          # (ng, nx)
+    V = sn_mesh.volumes[:, 0]                                # (nx,) — no group axis
     cell_update = sn_mesh.cell_update
 
     coord = sn_mesh.reduced.coord  # type: ignore[union-attr]
@@ -266,15 +295,18 @@ def _run_1d_sweep(
 
     # ── Common pre-scale ──────────────────────────────────────────────
     weight_norm = 1.0 / weights.sum()
-    QV_iso = Q_1d * V[:, None] * weight_norm   # (nx, ng)
+    QV_iso = Q_p * V[None, :] * weight_norm                  # (ng, nx)
     has_aniso = Q_aniso is not None
     if has_aniso:
-        Q_aniso_1d = Q_aniso[:, :, 0, :] * weight_norm  # (N, nx, ng)
+        # Caller: (N, nx, ny=1, ng); principled: (N, ng, nx).
+        Q_aniso_p = np.transpose(Q_aniso[:, :, 0, :], (0, 2, 1)) * weight_norm
     else:
-        Q_aniso_1d = None
+        Q_aniso_p = None
 
-    angular_flux = np.zeros((N, nx, 1, ng))
-    scalar_flux = np.zeros((nx, ng))
+    # Internal principled layout — angular flux (N, ng, nx, 1),
+    # scalar flux (ng, nx) working buffer (ny added at return).
+    angular_flux = np.zeros((N, ng, nx, 1))
+    scalar_flux = np.zeros((ng, nx))
 
     # ── BC inflow + per-level Carlson seed (curvilinear only) ─────────
     if is_slab:
@@ -307,14 +339,16 @@ def _run_1d_sweep(
         bc_outer = psi_bc[bc_key]
         inflow_full = bc_outer_obj.apply(bc_outer)  # (N, ng)
 
-        # Carlson seed source (Phase G Step 2 Path C).
-        sigma_t_gx = sig_t_1d.T  # (ng, nx)
+        # Carlson seed source (Phase G Step 2 Path C).  ``sig_t_p`` is
+        # already principled (ng, nx) — the Carlson sweep expects
+        # exactly that.
+        sigma_t_gx = sig_t_p                                  # (ng, nx)
         dr = sn_mesh.dx
         if phi_prev_key in psi_bc:
-            phi_0_prev = psi_bc[phi_prev_key]
-            Q_bar_iso = sigma_t_gx * phi_0_prev.T / weights.sum()
+            phi_0_prev = psi_bc[phi_prev_key]                 # (ng, nx) post-PR-INDEX-1
+            Q_bar_iso = sigma_t_gx * phi_0_prev / weights.sum()
         else:
-            Q_bar_iso = Q_1d.T / weights.sum()
+            Q_bar_iso = Q_p / weights.sum()                   # (ng, nx)
 
         if is_sphere:
             levels = [None]
@@ -327,14 +361,105 @@ def _run_1d_sweep(
         inflow_left = inflow_right = None
         bc_left_face = bc_right_face = None
 
-    # ── Per-level / per-ordinate loop ─────────────────────────────────
-    for p_idx, level in enumerate(levels):
-        ordinates_in_level = level_ordinates_list[p_idx]
+    # ── SLAB joint-batch fast path ────────────────────────────────────
+    #
+    # Slab has no M-M angular thread, no degenerate ordinates, and one
+    # chain per direction.  Group ordinates by chain direction and run
+    # ONE ordinate_scan per chain.  Exactly 2 scan calls per sweep.
+    if is_slab:
+        # Partition ordinates by direction sign (μ ≥ 0 → forward chain).
+        forward_mask = mu >= 0
+        forward_ords = np.where(forward_mask)[0]
+        backward_ords = np.where(~forward_mask)[0]
 
-        # Carlson coupled-pole seed for this level's angular DAG.
-        if is_slab:
-            psi_angle = None
-        else:
+        for direction_sign, ords in ((+1, forward_ords), (-1, backward_ords)):
+            if ords.size == 0:
+                continue
+            K = ords.size
+
+            # Chain order is identical across ordinates in one direction
+            # for slab — pick from the first ordinate.
+            chain = geom.chain_idx[ords[0]]                   # (nx,)
+            inv = geom.chain_idx_inv[ords[0]]                 # (nx,)
+
+            # Per-ordinate inflow (cells degenerate, group axis full).
+            psi_in_chain = (
+                inflow_left[ords] if direction_sign == +1
+                else inflow_right[ords]
+            )                                                  # (K, ng)
+
+            # Per-ordinate source in chain order.
+            # QV_iso is (ng, nx); chain reorders the nx axis.
+            QV_chain_g = QV_iso[:, chain]                     # (ng, nx)
+            if has_aniso:
+                # Q_aniso_p[ords] is (K, ng, nx); add V along nx axis.
+                Q_aniso_chain = Q_aniso_p[ords][:, :, chain] * V[chain]
+                # Broadcast QV_chain_g (ng, nx) across K ordinates.
+                QV_full_chain = QV_chain_g[None, :, :] + Q_aniso_chain  # (K, ng, nx)
+            else:
+                QV_full_chain = np.broadcast_to(
+                    QV_chain_g[None, :, :], (K, ng, nx),
+                )
+
+            # Cache fields are still (N, nx, ng) under PR-INDEX-1.
+            # Transpose at consumption: (nx, ng) per ordinate.
+            # Vectorised: (K, nx, ng) → (K, ng, nx) via swapaxes.
+            inv_denom_chain = np.swapaxes(
+                coll.inverse_denom[ords], 1, 2,
+            )                                                  # (K, ng, nx)
+            a_atten_chain = np.swapaxes(
+                coll.a_attenuation[ords], 1, 2,
+            )                                                  # (K, ng, nx)
+
+            # b shape needed for ordinate_scan: (nx, K, ng) with cells
+            # on axis 0 (scan axis).  Build (K, ng, nx) first, then
+            # transpose.
+            b_chain = 2.0 * QV_full_chain * inv_denom_chain   # (K, ng, nx)
+            # Scan-input layout: (nx, K, ng).
+            a_scan = np.transpose(a_atten_chain, (2, 0, 1))   # (nx, K, ng)
+            b_scan = np.transpose(b_chain, (2, 0, 1))         # (nx, K, ng)
+
+            # ONE scan call per chain — joint-batched over (K, ng).
+            psi_face_chain_scan = ordinate_scan(
+                a_scan, b_scan, psi_in_chain,
+            )                                                  # (nx, K, ng)
+
+            # DD spatial closure — face-in shifts upstream by 1.
+            psi_face_in_chain = np.empty_like(psi_face_chain_scan)
+            psi_face_in_chain[0] = psi_in_chain
+            psi_face_in_chain[1:] = psi_face_chain_scan[:-1]
+            psi_avg_scan = 0.5 * (psi_face_in_chain + psi_face_chain_scan)
+            # (nx, K, ng) → per-ordinate (ng, nx) via reorder.
+            psi_avg_per_ord = np.transpose(psi_avg_scan, (1, 2, 0))  # (K, ng, nx)
+
+            # Scatter back to cell-index order + write angular_flux,
+            # accumulate scalar_flux.
+            psi_avg_cell_order = psi_avg_per_ord[:, :, inv]   # (K, ng, nx)
+            angular_flux[ords, :, :, 0] = psi_avg_cell_order
+
+            # scalar_flux += Σ_n w_n · ψ_n  (broadcast over K).
+            w_ords = weights[ords]                            # (K,)
+            scalar_flux += np.einsum(
+                "k,kgx->gx", w_ords, psi_avg_cell_order,
+            )
+
+            # Persist outflow at the appropriate boundary face — the
+            # last chain output is the outgoing-face flux on that side.
+            if direction_sign == +1:
+                bc_right_face[ords] = psi_face_chain_scan[-1]  # (K, ng)
+            else:
+                bc_left_face[ords] = psi_face_chain_scan[-1]   # (K, ng)
+
+    # ── CURVILINEAR per-ordinate path ─────────────────────────────────
+    #
+    # M-M angular thread couples ordinates sequentially within a level
+    # (psi_angle[chain] is updated by ordinate m → consumed by m+1).
+    # Joint-batch over ordinates is blocked; loop stays per-ordinate.
+    else:
+        for p_idx, level in enumerate(levels):
+            ordinates_in_level = level_ordinates_list[p_idx]
+
+            # Carlson coupled-pole seed for this level's angular DAG.
             ords_arr = np.asarray(ordinates_in_level)
             mu_in_level = mu[ords_arr]
             most_inward_global = int(ords_arr[int(np.argmin(mu_in_level))])
@@ -345,117 +470,111 @@ def _run_1d_sweep(
                 dr=dr,
                 bc_outer_value=bc_outer_value,
             )                                                    # (ng, nx)
-            psi_angle = phi_aux.T.copy()                          # (nx, ng)
+            psi_angle = phi_aux.copy()                            # (ng, nx) — principled
 
-        for m_local, global_n in enumerate(ordinates_in_level):
-            mu_n = mu[global_n]
-            w_n = weights[global_n]
-            chain = geom.chain_idx[global_n]
+            for m_local, global_n in enumerate(ordinates_in_level):
+                mu_n = mu[global_n]
+                w_n = weights[global_n]
+                chain = geom.chain_idx[global_n]
 
-            # ── Per-ordinate source assembly ─────────────────────────
-            if has_aniso:
-                QV_full = QV_iso + Q_aniso_1d[global_n] * V[:, None]  # type: ignore[index]
-            else:
-                QV_full = QV_iso
-            QV_chain = QV_full[chain]                                # (nx, ng)
+                # Per-ordinate source assembly (principled (ng, nx)).
+                if has_aniso:
+                    QV_full = QV_iso + Q_aniso_p[global_n] * V[None, :]
+                else:
+                    QV_full = QV_iso
+                QV_chain = QV_full[:, chain]                     # (ng, nx)
 
-            # ── Per-ordinate spatial-upstream inflow ─────────────────
-            if is_slab:
-                direction_sign = +1 if mu_n >= 0 else -1
-                psi_in = (
-                    inflow_left[global_n] if direction_sign == +1     # type: ignore[index]
-                    else inflow_right[global_n]                       # type: ignore[index]
-                )
-            else:
+                # Per-ordinate spatial-upstream inflow (ng,).
                 if mu_n < 0:
-                    psi_in = inflow_full[global_n]                    # type: ignore[index]
+                    psi_in = inflow_full[global_n]               # type: ignore[index]
                 else:
                     if pole_key in psi_bc:
                         psi_in = psi_bc[pole_key][global_n]
                     else:
                         psi_in = np.zeros(ng)
 
-            # ── Degenerate cyl-axis ordinate: slow per-cell path ─────
-            if geom.is_degenerate[global_n]:
-                # Per-cell update — no spatial chain.
-                ordinate_idx = global_n if is_sphere else m_local
-                visits = list(sn_mesh.dag_walk(
-                    ordinate_idx=ordinate_idx,
-                    mu_level_idx=level,
-                ))
-                for visit in visits:
-                    i = visit.cell_idx
-                    upstream = UpstreamState(
-                        spatial_upstream=psi_in,
-                        angular_upstream=psi_angle[i] if psi_angle is not None else None,
-                    )
-                    result = cell_update.update(
-                        visit=visit,
-                        total_xs=sig_t_1d[i],
-                        source=QV_full[i],
-                        upstream_state=upstream,
-                    )
-                    psi = result.cell_average_flux
-                    if psi_angle is not None:
-                        psi_angle[i] = result.outgoing_angular_state
-                    angular_flux[global_n, i, 0, :] = psi
-                    scalar_flux[i] += w_n * psi
-                continue
+                # Degenerate cyl-axis ordinate: slow per-cell path.
+                if geom.is_degenerate[global_n]:
+                    ordinate_idx = global_n if is_sphere else m_local
+                    visits = list(sn_mesh.dag_walk(
+                        ordinate_idx=ordinate_idx,
+                        mu_level_idx=level,
+                    ))
+                    for visit in visits:
+                        i = visit.cell_idx
+                        upstream = UpstreamState(
+                            spatial_upstream=psi_in,
+                            angular_upstream=psi_angle[:, i],
+                        )
+                        # cell_update.update expects per-cell (ng,)
+                        # arrays — sig_t / source slice on the cell axis.
+                        result = cell_update.update(
+                            visit=visit,
+                            total_xs=sig_t_p[:, i],
+                            source=QV_full[:, i],
+                            upstream_state=upstream,
+                        )
+                        psi = result.cell_average_flux           # (ng,)
+                        psi_angle[:, i] = result.outgoing_angular_state
+                        angular_flux[global_n, :, i, 0] = psi
+                        scalar_flux[:, i] += w_n * psi
+                    continue
 
-            # ── Non-degenerate fast path: three tensor ops ───────────
-            if psi_angle is not None:
-                psi_a_in_chain = psi_angle[chain].copy()
+                # Non-degenerate fast path: per-ordinate scan (ng, nx).
+                # psi_angle on (ng, nx); chain reorders the nx axis.
+                psi_a_in_chain = psi_angle[:, chain].copy()      # (ng, nx)
                 ang_contrib = (
                     geom.dA_w[global_n] * geom.c_in[global_n]
-                )[:, None] * psi_a_in_chain
-                b = 2.0 * (QV_chain + ang_contrib) * coll.inverse_denom[global_n]
-            else:
-                psi_a_in_chain = None
-                b = 2.0 * QV_chain * coll.inverse_denom[global_n]
+                )[None, :] * psi_a_in_chain                       # (ng, nx)
 
-            psi_face_chain = ordinate_scan(
-                coll.a_attenuation[global_n], b, psi_in,
-            )                                                          # (nx, ng)
+                # Cache field consumption — transpose to principled.
+                inv_denom_p = coll.inverse_denom[global_n].T     # (ng, nx)
+                a_atten_p = coll.a_attenuation[global_n].T       # (ng, nx)
+                b = 2.0 * (QV_chain + ang_contrib) * inv_denom_p  # (ng, nx)
 
-            # DD spatial closure — vectorised cell-average.
-            psi_face_in_chain = np.empty_like(psi_face_chain)
-            psi_face_in_chain[0] = psi_in
-            psi_face_in_chain[1:] = psi_face_chain[:-1]
-            psi_avg_chain = 0.5 * (psi_face_in_chain + psi_face_chain)
+                # ordinate_scan: leading axis is the scan/cell axis.
+                # Pass (nx, ng) — transpose from (ng, nx).
+                psi_face_chain = ordinate_scan(
+                    a_atten_p.T, b.T, psi_in,
+                )                                                 # (nx, ng)
 
-            # M-M angular thread for curvilinear (slab: no angular state).
-            if psi_angle is not None:
-                psi_angle_out_chain = (
-                    geom.tau_inv[global_n] * psi_avg_chain
+                # DD spatial closure — vectorised cell-average.
+                psi_face_in_chain = np.empty_like(psi_face_chain)
+                psi_face_in_chain[0] = psi_in
+                psi_face_in_chain[1:] = psi_face_chain[:-1]
+                psi_avg_chain = 0.5 * (psi_face_in_chain + psi_face_chain)
+                # Principled view: (ng, nx).
+                psi_avg_chain_p = psi_avg_chain.T                # (ng, nx)
+
+                # M-M angular thread (curvilinear-only).
+                psi_angle_out_chain_p = (
+                    geom.tau_inv[global_n] * psi_avg_chain_p
                     - geom.mm_a_in_coeff[global_n] * psi_a_in_chain
-                )
-                psi_angle[chain] = psi_angle_out_chain
+                )                                                 # (ng, nx)
+                psi_angle[:, chain] = psi_angle_out_chain_p
 
-            # ── Scatter back to cell-index order ─────────────────────
-            inv = geom.chain_idx_inv[global_n]
-            psi_avg = psi_avg_chain[inv]
-            angular_flux[global_n, :, 0, :] = psi_avg
-            scalar_flux += w_n * psi_avg
+                # Scatter back to cell-index order + writes.
+                inv = geom.chain_idx_inv[global_n]
+                psi_avg_p = psi_avg_chain_p[:, inv]              # (ng, nx)
+                angular_flux[global_n, :, :, 0] = psi_avg_p
+                scalar_flux += w_n * psi_avg_p
 
-            # ── Persist outflow at the appropriate boundary face ─────
-            if is_slab:
-                if direction_sign == +1:
-                    bc_right_face[global_n] = psi_face_chain[-1]  # type: ignore[index]
-                else:
-                    bc_left_face[global_n] = psi_face_chain[-1]   # type: ignore[index]
-            else:
-                # Curvilinear: outward sweeps' last chain output IS the
-                # outer-face outflow; inward sweeps don't write the
-                # outer face.
+                # Persist outflow at the outer face for outward ordinates.
                 if mu_n >= 0 and abs(mu_n) >= sn_mesh._DEGENERATE_ABS_ETA_THRESHOLD:
-                    bc_outer[global_n] = psi_face_chain[-1]      # type: ignore[index]
+                    bc_outer[global_n] = psi_face_chain[-1]      # (ng,)
 
     # ── Cache previous-iteration state for next sweep's seeds ─────────
     if not is_slab:
-        psi_bc[pole_key] = angular_flux[:, 0, 0, :].copy()
-        psi_bc[phi_prev_key] = scalar_flux.copy()
+        # angular_flux is (N, ng, nx, 1); pole is at cell index 0.
+        psi_bc[pole_key] = angular_flux[:, :, 0, 0].copy()       # (N, ng)
+        psi_bc[phi_prev_key] = scalar_flux.copy()                # (ng, nx) — principled
 
-    return angular_flux, scalar_flux[:, None, :]
+    # ── Exit transposes — caller expects old (N, nx, ny, ng) shape ────
+    # angular_flux (N, ng, nx, 1) → (N, nx, 1, ng)
+    angular_flux_out = np.transpose(angular_flux, (0, 2, 3, 1))
+    # scalar_flux (ng, nx) → (nx, 1, ng)
+    scalar_flux_out = np.transpose(scalar_flux, (1, 0))[:, None, :]
+    return angular_flux_out, scalar_flux_out
 
 
 # ═══════════════════════════════════════════════════════════════════════
