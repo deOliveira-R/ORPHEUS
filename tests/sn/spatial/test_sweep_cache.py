@@ -108,34 +108,41 @@ def test_collision_cache_built_at_sigma_t_bind() -> None:
     ``inverse_denom = 1 / (2|μ|·A_down + dA_w·c_out + σ_t·V)``
     cell-by-cell for one ordinate on a slab fixture (where dA_w=0, A_down=1,
     A_total=2) — the closed-form ``a = (2|μ|·2 − σ_t·V)/(2|μ|·1 + σ_t·V)``.
+
+    Cache storage layout is ``(N, ng, nx)`` under Issue #196 PR-INDEX-2.
     """
     sn_mesh = _make_slab(nx=4, N=4)
     geom = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
-    sig_t = np.array([[1.0, 2.0]] * 4)  # (nx, ng=2), uniform per group
+    # sig_t is (ng, nx) under PR-INDEX-2.  Two groups × four cells,
+    # uniform per group: group 0 has σ_t=1.0, group 1 has σ_t=2.0.
+    sig_t = np.array([[1.0] * 4, [2.0] * 4])  # (ng=2, nx=4)
     coll = CollisionCache.from_geometry(geom, sig_t)
 
-    assert coll.inverse_denom.shape == (4, 4, 2)
-    assert coll.a_attenuation.shape == (4, 4, 2)
-    assert coll.cumprod_a.shape == (4, 4, 2)
+    # (N, ng, nx) — N=4 ordinates, ng=2 groups, nx=4 cells.
+    assert coll.inverse_denom.shape == (4, 2, 4)
+    assert coll.a_attenuation.shape == (4, 2, 4)
+    assert coll.cumprod_a.shape == (4, 2, 4)
 
-    # Hand-eval for ordinate n=0 (most-inward μ), cell 0 (in chain order),
-    # group 0:  |μ|=|mu_x[0]|, V=mesh width = 0.25, σ_t=1.0.
+    # Hand-eval for ordinate n=0 (most-inward μ), group 0, cell 0
+    # (in chain order):  |μ|=|mu_x[0]|, V=mesh width = 0.25, σ_t=1.0.
     quad = sn_mesh.quad
     mu = abs(float(quad.mu_x[0]))
     V = 0.25  # uniform mesh
     sig = 1.0
     denom_expected = 2.0 * mu * 1.0 + 0.0 + sig * V  # dA_w=0 slab
     a_expected = 2.0 * mu * 2.0 / denom_expected - 1.0
+    # Indexing semantics: [n=0, g=0, i=0] under (N, ng, nx) layout.
     assert np.isclose(coll.inverse_denom[0, 0, 0], 1.0 / denom_expected, rtol=1e-14)
     assert np.isclose(coll.a_attenuation[0, 0, 0], a_expected, rtol=1e-14)
 
 
 @pytest.mark.l0
 def test_two_strata_independence_by_ng_axis() -> None:
-    """Test #3 — Stratum 1 has NO ``ng`` axis; Stratum 2 has ``(N, nx, ng)``.
+    """Test #3 — Stratum 1 has NO ``ng`` axis; Stratum 2 has ``(N, ng, nx)``.
 
     Proves the strata are deliberately separated by mutation cadence — a
     Smell #16 instance would surface as Stratum-1 carrying an ``ng`` axis.
+    Cache storage layout is ``(N, ng, nx)`` under Issue #196 PR-INDEX-2.
     """
     sn_mesh = _make_slab(nx=5, N=4)
     geom = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
@@ -147,12 +154,12 @@ def test_two_strata_independence_by_ng_axis() -> None:
         field_arr = getattr(geom, name)
         assert field_arr.ndim == 1, f"{name} should be (N,); got shape {field_arr.shape}"
 
-    # Stratum 2 — every tensor has the (N, nx, ng) shape.
-    sig_t = np.ones((5, 3))  # ng=3
+    # Stratum 2 — every tensor has the (N, ng, nx) shape (PR-INDEX-2).
+    sig_t = np.ones((3, 5))  # (ng=3, nx=5) under PR-INDEX-2
     coll = CollisionCache.from_geometry(geom, sig_t)
     for name in ("inverse_denom", "a_attenuation", "cumprod_a"):
         field_arr = getattr(coll, name)
-        assert field_arr.shape == (4, 5, 3), f"{name} shape {field_arr.shape} != (4, 5, 3)"
+        assert field_arr.shape == (4, 3, 5), f"{name} shape {field_arr.shape} != (4, 3, 5)"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -310,17 +317,18 @@ def test_cache_driven_sweep_matches_per_cell_update(
 
     geom = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
     rng = np.random.default_rng(42)
-    sig_t = 1.0 + 0.5 * rng.random((nx, ng))
+    # Issue #196 PR-INDEX-2: cache consumes σ_t as (ng, nx).
+    sig_t = 1.0 + 0.5 * rng.random((ng, nx))                  # (ng, nx)
     coll = CollisionCache.from_geometry(geom, sig_t)
 
-    # Build a representative source.
+    # Build a representative source in (ng, nx) — principled layout.
     if source_kind == "uniform":
-        Q = np.ones((nx, ng))
+        Q = np.ones((ng, nx))
     elif source_kind == "linear":
-        Q = (np.arange(nx)[:, None] + 1.0) * np.ones((1, ng))
+        Q = np.ones((ng, 1)) * (np.arange(nx)[None, :] + 1.0)
     else:
         x = np.linspace(0, 1, nx)
-        Q = np.exp(-((x - 0.5) ** 2) * 10)[:, None] * np.ones((1, ng))
+        Q = np.ones((ng, 1)) * np.exp(-((x - 0.5) ** 2) * 10)[None, :]
 
     # Pick the most-inward ordinate (μ<0) so chain order is reverse.
     quad = sn_mesh.quad
@@ -329,24 +337,29 @@ def test_cache_driven_sweep_matches_per_cell_update(
 
     # ψ_a_in is an INPUT to one ordinate's spatial scan (it's the
     # frozen output of the previous-ordinate's M-M angular thread).
-    # Both paths consume the SAME pre-computed (nx, ng) chain-ordered
+    # Both paths consume the SAME pre-computed (ng, nx) chain-ordered
     # array — for the dual-view contract, the cache and the reference
     # MUST be driven by the same input ψ_a_in.
     chain = geom.chain_idx[n]
-    V_chain = geom.V[n]
-    QV_chain = (Q * V_chain[chain][:, None] / quad.weights.sum())[chain]
+    V_chain = geom.V[n]                                       # (nx,)
+    # Q is (ng, nx); chain reorders the nx axis to chain order.
+    QV_chain = Q[:, chain] * V_chain[chain] / quad.weights.sum()  # (ng, nx)
     psi_in = np.zeros(ng)
     if geometry == "sphere":
         # Frozen ψ_a_in input — a representative bump so the curvature
         # term is genuinely exercised (zeros would null dA_w·c_in·ψ_a_in).
         rng2 = np.random.default_rng(7)
-        psi_a_in_chain = 0.1 * rng2.random((nx, ng))
-        ang_contrib = (geom.dA_w[n] * geom.c_in[n])[:, None] * psi_a_in_chain
-        b = 2.0 * (QV_chain + ang_contrib) * coll.inverse_denom[n]
+        psi_a_in_chain = 0.1 * rng2.random((ng, nx))          # (ng, nx)
+        ang_contrib = (geom.dA_w[n] * geom.c_in[n])[None, :] * psi_a_in_chain  # (ng, nx)
+        b = 2.0 * (QV_chain + ang_contrib) * coll.inverse_denom[n]  # (ng, nx)
     else:
         psi_a_in_chain = None
-        b = 2.0 * QV_chain * coll.inverse_denom[n]
-    psi_face_chain_fast = ordinate_scan(coll.a_attenuation[n], b, psi_in)
+        b = 2.0 * QV_chain * coll.inverse_denom[n]            # (ng, nx)
+    # ordinate_scan expects scan axis (cell axis) leading — transpose
+    # the principled (ng, nx) views to (nx, ng) at the call.
+    psi_face_chain_fast = ordinate_scan(
+        coll.a_attenuation[n].T, b.T, psi_in,
+    )                                                          # (nx, ng)
 
     # Reference path — per-cell update over the same chain, feeding the
     # SAME frozen ψ_a_in_chain per cell (NOT the M-M output).  This is
@@ -361,7 +374,7 @@ def test_cache_driven_sweep_matches_per_cell_update(
         cell_i = int(chain[k_chain])
         visit = visits_full[k_chain]
         psi_a_in_cell = (
-            psi_a_in_chain[k_chain] if psi_a_in_chain is not None else None
+            psi_a_in_chain[:, k_chain] if psi_a_in_chain is not None else None
         )
         upstream = UpstreamState(
             spatial_upstream=psi_face_in,
@@ -369,8 +382,8 @@ def test_cache_driven_sweep_matches_per_cell_update(
         )
         result = dd.update(
             visit=visit,
-            total_xs=sig_t[cell_i],
-            source=QV_chain[k_chain],
+            total_xs=sig_t[:, cell_i],                         # (ng,) — group axis at axis 0
+            source=QV_chain[:, k_chain],                       # (ng,)
             upstream_state=upstream,
         )
         if result.outgoing_spatial_flux is not None:
@@ -409,7 +422,10 @@ def test_cache_populator_matches_cell_balance_terms() -> None:
     sn_mesh = _make_sphere(nx=8, N=4)
     geom = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
     ng = 2
-    sig_t = np.linspace(0.5, 1.5, 8)[:, None] * np.array([[1.0, 2.0]])  # (8, 2)
+    # Issue #196 PR-INDEX-2: cache consumes σ_t as (ng, nx).
+    # Build (nx, ng) first via outer product for readability, then transpose.
+    sig_t_xg = np.linspace(0.5, 1.5, 8)[:, None] * np.array([[1.0, 2.0]])  # (8, 2)
+    sig_t = sig_t_xg.T                                                     # (ng=2, nx=8)
     coll = CollisionCache.from_geometry(geom, sig_t)
 
     # Sample two ordinates × two cells (chain positions).
@@ -429,12 +445,16 @@ def test_cache_populator_matches_cell_balance_terms() -> None:
             terms = cell_balance_terms(
                 visit.streaming_terms,
                 visit.face_area_downstream,
-                sig_t[cell_i],
+                sig_t[:, cell_i],                                          # (ng,)
                 upstream,
             )
-            # The cache's denom is 1/inverse_denom; a is a_attenuation.
-            denom_cached = 1.0 / coll.inverse_denom[n, k_chain]
-            a_cached = coll.a_attenuation[n, k_chain]
+            # Cache layout (N, ng, nx) — fix n, fix k_chain ⇒ (ng,) vector.
+            # Indexing pattern updated from [n, k_chain] (legacy axis 1 was
+            # cell) to [n, :, k_chain] (PR-INDEX-2 axis 1 is group, axis 2
+            # is cell).  The semantic intent is the same: "per-cell denom
+            # vector across groups."
+            denom_cached = 1.0 / coll.inverse_denom[n, :, k_chain]         # (ng,)
+            a_cached = coll.a_attenuation[n, :, k_chain]                   # (ng,)
             # Algebraic a from terms: a = 2|μ|·A_total / denom − 1.
             A_total = (
                 visit.streaming_terms.face_area_inner

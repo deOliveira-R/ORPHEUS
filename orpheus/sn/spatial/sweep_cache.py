@@ -25,31 +25,32 @@ The math notation
 =================
 
 For one ordinate :math:`n`, one cell :math:`i` (in chain order), one group
-:math:`g`:
+:math:`g`.  Storage layout: ``(N, ng, nx)`` — energy second, cell trailing
+(Issue #196 PR-INDEX-2 principled layout).
 
 .. math::
 
-   \mathrm{denom}[n, i, g]
+   \mathrm{denom}[n, g, i]
        &\;=\; 2|\mu_n|\,A_{\rm down}[n, i]
               + \frac{\Delta A[n, i]}{w_n}\,c_{\rm out}[n]
-              + \Sigma_t[i, g]\,V[i],\\
-   a[n, i, g]
-       &\;=\; \frac{2|\mu_n|\,A_{\rm total}[i]}{\mathrm{denom}[n, i, g]} - 1,\\
-   b[n, i, g]
-       &\;=\; \frac{2\,\bigl(q[n, i, g] + (\Delta A[n, i]/w_n)\,c_{\rm in}[n]
-                              \,\psi^{a}_{\rm in}[n, i, g]\bigr)}
-                   {\mathrm{denom}[n, i, g]},\\
-   \psi^{s}[n, i+1, g]
-       &\;=\; a[n, i, g]\,\psi^{s}[n, i, g] + b[n, i, g].
+              + \Sigma_t[g, i]\,V[i],\\
+   a[n, g, i]
+       &\;=\; \frac{2|\mu_n|\,A_{\rm total}[i]}{\mathrm{denom}[n, g, i]} - 1,\\
+   b[n, g, i]
+       &\;=\; \frac{2\,\bigl(q[n, g, i] + (\Delta A[n, i]/w_n)\,c_{\rm in}[n]
+                              \,\psi^{a}_{\rm in}[n, g, i]\bigr)}
+                   {\mathrm{denom}[n, g, i]},\\
+   \psi^{s}[n, g, i+1]
+       &\;=\; a[n, g, i]\,\psi^{s}[n, g, i] + b[n, g, i].
 
 Closed-form scan (Blelloch §1.5; :func:`~orpheus.sn.spatial.scan.ordinate_scan`):
 
 .. math::
 
-   \psi^{s}[n, i, g]
-       \;=\; \mathrm{cumprod\_a}[n, i, g]\,
+   \psi^{s}[n, g, i]
+       \;=\; \mathrm{cumprod\_a}[n, g, i]\,
              \bigl(\psi^{s}_0[n, g] + \mathrm{cumsum}_{k \le i}
-                   (b[n, k, g] / \mathrm{cumprod\_a}[n, k, g])\bigr).
+                   (b[n, g, k] / \mathrm{cumprod\_a}[n, g, k])\bigr).
 
 The :class:`GeometryCoefficients` populator hoists the geometry tensors
 (``A_down``, ``A_total``, ``dA_w``, ``V``, ``c_in``, ``c_out``, chain
@@ -342,9 +343,15 @@ class CollisionCache:
     survive every source iteration within one constant-:math:`\Sigma_t`
     epoch:
 
-    * ``inverse_denom[n, i, g] = 1 / (2|\mu_n|\,A_{\rm down}[n,i] + (\Delta A/w)\,c_{\rm out}[n] + \Sigma_t[i,g]\,V[i])``
-    * ``a_attenuation[n, i, g] = 2|\mu_n|\,A_{\rm total}[i] \cdot \mathrm{inverse\_denom}[n, i, g] - 1``
-    * ``cumprod_a[n, i, g] = \prod_{k \le i} a[n, k, g]``  (along chain axis)
+    * ``inverse_denom[n, g, i] = 1 / (2|\mu_n|\,A_{\rm down}[n,i] + (\Delta A/w)\,c_{\rm out}[n] + \Sigma_t[g,i]\,V[i])``
+    * ``a_attenuation[n, g, i] = 2|\mu_n|\,A_{\rm total}[i] \cdot \mathrm{inverse\_denom}[n, g, i] - 1``
+    * ``cumprod_a[n, g, i] = \prod_{k \le i} a[n, g, k]``  (along chain / cell axis)
+
+    Index convention (Issue #196 PR-INDEX-2).  The principled storage layout
+    is ``(N, ng, nx)`` — energy ``g`` is the *second* axis, NOT trailing.
+    See ``.claude/plans/principled_index_migration.md`` §1 derivation table.
+    Under this layout the chain / cell axis is axis 2; the ``cumprod_a``
+    cumulative product runs along ``axis=2`` (cell-wise).
 
     Cache invariance contract — the load-bearing performance gate.  Within
     one constant-:math:`\Sigma_t` epoch (one fixed-source solve, one
@@ -353,13 +360,13 @@ class CollisionCache:
     invariant in
     ``tests/sn/spatial/test_sweep_cache.py::test_collision_cache_invariance_under_source_iteration``.
 
-    Storage: ``(N, nx, ng)`` per field × 3 fields × 8 bytes.  Canonical
-    ``(N=16, nx=160, ng=2)`` problem ≈ 240 kB.
+    Storage: ``(N, ng, nx)`` per field × 3 fields × 8 bytes.  Canonical
+    ``(N=16, ng=2, nx=160)`` problem ≈ 240 kB.
     """
 
-    inverse_denom: np.ndarray   # (N, nx, ng) — chain-ordered
-    a_attenuation: np.ndarray   # (N, nx, ng) — chain-ordered
-    cumprod_a: np.ndarray       # (N, nx, ng) — chain-ordered
+    inverse_denom: np.ndarray   # (N, ng, nx) — chain-ordered along nx (axis 2)
+    a_attenuation: np.ndarray   # (N, ng, nx) — chain-ordered along nx (axis 2)
+    cumprod_a: np.ndarray       # (N, ng, nx) — chain-ordered along nx (axis 2)
 
     _build_count: ClassVar[int] = 0
     """Class-level counter incremented on every :meth:`from_geometry`.
@@ -392,29 +399,58 @@ class CollisionCache:
         ----------
         geom : GeometryCoefficients
             The Stratum 1 cache.
-        sig_t : ndarray, shape ``(nx, ng)``.
-            Per-cell per-group total cross section.  Shape matches the
-            1-D sweep contract (``sn_mesh.nx``, ``ng``).
+        sig_t : ndarray, shape ``(ng, nx)``.
+            Per-group per-cell total cross section.  Shape matches the
+            principled 1-D sweep contract (``ng``, ``sn_mesh.nx``) — see
+            Issue #196 PR-INDEX-2 in
+            ``.claude/plans/principled_index_migration.md``.
+
+        Notes
+        -----
+        Output layout is ``(N, ng, nx)`` for every field.  The cumulative
+        product ``cumprod_a`` runs along ``axis=2`` (the trailing cell
+        axis); under the principled layout the cell axis is NOT axis 1.
         """
         cls._build_count += 1
-        # Chain-order sig_t per ordinate: (N, nx, ng) via fancy indexing
-        # along axis 0 of sig_t with geom.chain_idx (N, nx).
-        sig_t_chain = sig_t[geom.chain_idx]            # (N, nx, ng)
-        # streaming_face[n, i] = 2|μ_n| · A_down[n, i]
-        streaming = 2.0 * geom.abs_mu[:, None] * geom.A_down      # (N, nx)
-        # curvature_redist[n, i] = dA_w[n, i] · c_out[n]
-        curvature = geom.dA_w * geom.c_out[:, None]               # (N, nx)
-        # collision[n, i, g] = sig_t_chain[n, i, g] · V[n, i]
+        # ── Per-ordinate per-cell geometric streaming (no group axis) ─
+        # streaming_face[n, i] = 2|μ_n| · A_down[n, i]   [dimensionless]
+        streaming_face_term = 2.0 * geom.abs_mu[:, None] * geom.A_down  # (N, nx)
+        # curvature_redist[n, i] = dA_w[n, i] · c_out[n]  [dimensionless]
+        curvature_redistribution_term = (
+            geom.dA_w * geom.c_out[:, None]
+        )                                                                # (N, nx)
+        # geometric_streaming[n, i] is the sum of streaming + curvature.
+        geometric_streaming_term = (
+            streaming_face_term + curvature_redistribution_term
+        )                                                                # (N, nx)
+
+        # ── σ_t chain-ordered per ordinate: (N, ng, nx) ───────────────
+        # sig_t is (ng, nx); reorder the cell axis (axis 1 of sig_t)
+        # by geom.chain_idx (N, nx).  Result has shape (ng, N, nx);
+        # transpose to (N, ng, nx) to match the principled layout.
+        sig_t_chain = sig_t[:, geom.chain_idx].transpose(1, 0, 2)        # (N, ng, nx)
+
+        # ── Collision volume term Σ_t · V  [units: 1/cm × cm³ = cm²] ──
+        collision_volume_term = sig_t_chain * geom.V[:, None, :]         # (N, ng, nx)
+
+        # ── Denominator (N, ng, nx)  [units: cm²] ─────────────────────
+        # Broadcast geometric_streaming_term (N, nx) against ng axis.
         denom = (
-            (streaming + curvature)[:, :, None]
-            + sig_t_chain * geom.V[:, :, None]
-        )                                                          # (N, nx, ng)
-        inverse_denom = 1.0 / denom
+            geometric_streaming_term[:, None, :]
+            + collision_volume_term
+        )                                                                 # (N, ng, nx)
+        inverse_denom = 1.0 / denom                                       # (N, ng, nx)
+
+        # ── Attenuation a = 2|μ|·A_total / denom − 1 ──────────────────
+        # 2|μ_n|·A_total[n,i] is (N, nx); broadcast into ng axis.
+        a_numer = 2.0 * geom.abs_mu[:, None] * geom.A_total              # (N, nx)
         a_attenuation = (
-            2.0 * geom.abs_mu[:, None, None] * geom.A_total[:, :, None]
-            * inverse_denom - 1.0
-        )                                                          # (N, nx, ng)
-        cumprod_a = np.cumprod(a_attenuation, axis=1)              # (N, nx, ng)
+            a_numer[:, None, :] * inverse_denom - 1.0
+        )                                                                 # (N, ng, nx)
+
+        # ── cumprod along the cell axis (axis 2 in principled layout) ─
+        cumprod_a = np.cumprod(a_attenuation, axis=2)                    # (N, ng, nx)
+
         return cls(
             inverse_denom=inverse_denom,
             a_attenuation=a_attenuation,

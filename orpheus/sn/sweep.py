@@ -222,11 +222,17 @@ def _ensure_coll_cache(
     cache is constructed by :class:`SNSolver.__init__` and consumed by
     every sweep without rebuild.  Ad-hoc test callers may bypass the
     solver — in that case the cache is built lazily here.
+
+    Bridge transpose (Issue #196 PR-INDEX-2).  The caller still passes
+    ``sig_t`` in the legacy ``(nx, ny, ng)`` layout (PR-INDEX-3 flips that
+    upstream).  The cache itself consumes the principled ``(ng, nx)``
+    layout — transpose at this entry-point bridge.
     """
     cache = getattr(sn_mesh, "_coll_cache", None)
     if cache is None:
-        # 1-D meshes: sig_t shape is (nx, 1, ng); reduce to (nx, ng).
-        sig_t_1d = sig_t[:, 0, :]
+        # 1-D meshes: sig_t shape is (nx, 1, ng).  Drop ny, transpose to
+        # (ng, nx) — the principled layout the cache expects natively.
+        sig_t_1d = sig_t[:, 0, :].T  # (ng, nx)
         cache = CollisionCache.from_geometry(geom, sig_t_1d)
         sn_mesh._coll_cache = cache  # type: ignore[attr-defined]
     return cache
@@ -250,10 +256,10 @@ def _run_1d_sweep(
     convert caller-side ``(nx, ny, ng)`` / ``(N, nx, ny, ng)`` inputs
     to principled layout; exit transposes return to the caller's shape.
 
-    The :class:`CollisionCache` and :class:`GeometryCoefficients` still
-    carry the *old* ``(N, nx, ng)`` / ``(N, nx)`` layout under
-    PR-INDEX-1; their fields are transposed at the consumption site.
-    PR-INDEX-2 flips the cache layout natively.
+    Issue #196 PR-INDEX-2: :class:`CollisionCache` fields now carry the
+    principled ``(N, ng, nx)`` layout natively; the bridge transposes at
+    the cache-access sites are gone.  :class:`GeometryCoefficients` stays
+    on ``(N, nx)`` / ``(N,)`` shapes — no group axis, no flip needed.
 
     Splits cleanly into setup (BC inflow, source pre-scale, Carlson
     seed when curvilinear) and a per-direction or per-ordinate scan:
@@ -401,15 +407,10 @@ def _run_1d_sweep(
                     QV_chain_g[None, :, :], (K, ng, nx),
                 )
 
-            # Cache fields are still (N, nx, ng) under PR-INDEX-1.
-            # Transpose at consumption: (nx, ng) per ordinate.
-            # Vectorised: (K, nx, ng) → (K, ng, nx) via swapaxes.
-            inv_denom_chain = np.swapaxes(
-                coll.inverse_denom[ords], 1, 2,
-            )                                                  # (K, ng, nx)
-            a_atten_chain = np.swapaxes(
-                coll.a_attenuation[ords], 1, 2,
-            )                                                  # (K, ng, nx)
+            # Cache fields are (N, ng, nx) natively under PR-INDEX-2.
+            # Indexed slice [ords] yields (K, ng, nx) — no transpose.
+            inv_denom_chain = coll.inverse_denom[ords]         # (K, ng, nx)
+            a_atten_chain = coll.a_attenuation[ords]           # (K, ng, nx)
 
             # b shape needed for ordinate_scan: (nx, K, ng) with cells
             # on axis 0 (scan axis).  Build (K, ng, nx) first, then
@@ -527,9 +528,10 @@ def _run_1d_sweep(
                     geom.dA_w[global_n] * geom.c_in[global_n]
                 )[None, :] * psi_a_in_chain                       # (ng, nx)
 
-                # Cache field consumption — transpose to principled.
-                inv_denom_p = coll.inverse_denom[global_n].T     # (ng, nx)
-                a_atten_p = coll.a_attenuation[global_n].T       # (ng, nx)
+                # Cache fields are (N, ng, nx) natively under PR-INDEX-2.
+                # Indexed slice [global_n] yields (ng, nx) — no transpose.
+                inv_denom_p = coll.inverse_denom[global_n]       # (ng, nx)
+                a_atten_p = coll.a_attenuation[global_n]         # (ng, nx)
                 b = 2.0 * (QV_chain + ang_contrib) * inv_denom_p  # (ng, nx)
 
                 # ordinate_scan: leading axis is the scan/cell axis.

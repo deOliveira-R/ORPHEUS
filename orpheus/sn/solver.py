@@ -272,8 +272,11 @@ class SNSolver:
         self.coll_cache: CollisionCache | None = None
         if sn_mesh.reduced is not None:
             self.geom_cache = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
-            # 1-D meshes: sig_t shape (nx, 1, ng) → (nx, ng) for the cache.
-            sig_t_1d = self.sig_t[:, 0, :]
+            # 1-D meshes: sig_t shape (nx, 1, ng) → drop ny, transpose to
+            # (ng, nx) — the principled layout the cache expects natively
+            # (Issue #196 PR-INDEX-2).  The transpose is a bridge until
+            # PR-INDEX-3 flips ``self.sig_t`` storage upstream.
+            sig_t_1d = self.sig_t[:, 0, :].T  # (ng, nx)
             self.coll_cache = CollisionCache.from_geometry(
                 self.geom_cache, sig_t_1d,
             )
@@ -294,7 +297,9 @@ class SNSolver:
         # Mirror onto the L operator so its apply path stays consistent.
         self.L = SNStreamingOperator(sn_mesh=self.sn_mesh, sig_t=self.sig_t)
         if self.geom_cache is not None:
-            sig_t_1d = self.sig_t[:, 0, :]
+            # Bridge transpose: (nx, 1, ng) → (ng, nx) for the cache
+            # (Issue #196 PR-INDEX-2; PR-INDEX-3 will flip self.sig_t).
+            sig_t_1d = self.sig_t[:, 0, :].T  # (ng, nx)
             self.coll_cache = CollisionCache.from_geometry(
                 self.geom_cache, sig_t_1d,
             )
