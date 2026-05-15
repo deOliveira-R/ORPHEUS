@@ -1194,129 +1194,109 @@ method-implementer with brief shaped per the §"Brief template" at the bottom of
 
 ---
 
-## Step 3 — L pure-streaming + C separate, built on `SNMesh`
+## Step 3+4 (Unified) — Within-group operator restructure under `S = S_foldable + S_residual`
 
-**Goal**: properly construct the four-operator algebra's first two leaves. `L = StreamingOperator(SNMesh, *, boundary)` with NO σ_t. `C = CollisionOperator(SNMesh, sigma_t)`. `(L + C).solve(q)` is the canonical curvilinear sweep (delegating to Step 2's corrected `_sweep_1d_*`). No `DiscreteOrdinatesPhaseSpace`. No duplication with `SNStreamingOperator` (which Step 3 retires or aliases).
+**Status (2026-05-14)**: DESIGN LOCKED, IMPLEMENTATION PENDING. Replaces the prior separate Step 3 (L/C split) + Step 4 (SourceIteration/KEigenvalue wiring). Bundled per user direction because the same files are touched and "new code never wears the old names". Full Step 3+4 design is in the plan-mode artefact at `~/.claude/plans/crystalline-wondering-token.md` (lines 369-833); summary follows.
 
-### Pre-step: read these files in full
+### Locked design decisions (user 2026-05-14)
 
-- `orpheus/sn/operator.py:1115-1473` — `SNStreamingOperator(LinearOperatorMixin)`, the existing monolithic L. Note its capability set `{apply, solve, apply_transpose}`, its `apply` body dispatching to `transport_operator_matvec_*`, its `solve` body delegating to `transport_sweep`.
-- `orpheus/numerics/operator.py:489-694` — `OperatorSum`, `OperatorProduct`, `ScaledOperator` capability propagation. Note: `(L+C).solve` does NOT propagate automatically from `OperatorSum` — `solve` does not distribute over sums. Either wire it explicitly on a new `FusedStreamingCollisionRepresentation`, or have `OperatorSum.solve` look for a `(L+C)` SN-specific fusion hook.
-- `orpheus/sn/geometry.py:51-868` — `SNMesh` full surface. `BOUNDARY_OPERATOR_REGISTRY`, `_resolve_one`, `bc_left/right/xmin/...`.
-- `orpheus/numerics/operator.py:1318-1368` — `as_scipy_linop` adapter for the Krylov path.
+1. **Split scattering as $S = S_{\text{foldable}} + S_{\text{residual}}$** — only P0 within-group folds into $\sigma_r$; Pℓ≥1 self-scatter is inherently anisotropic via $Y_\ell^m(\Omega_n)$. Not an SN peculiarity — inherent to scattering's angular structure for ALL transport solvers.
+2. **NO `WithinGroupOperator` class.** Use pure algebra `A_wg = L + C - S.foldable_part()` (an `OperatorSum`). Local variable name `A_wg`.
+3. **Local variable `scatter_cycle = A_wg.inverse() @ S_residual`** (math symbol $\mathcal{C}$). Do NOT use `T_off` (clashes with future time operator).
+4. **Bundle Step 3+4 into 5 substeps** sharing files; the cosmetic + architectural changes happen together.
+5. **Drop F universally from within-group accelerators** (`SourceIteration` / `KrylovAcceleration`). F belongs at Layer 3 (`KEigenvalue` outer) for all transport solver families (SN, CP, MoC, diffusion). The existing `F=ZeroOperator()` papering-over in `KEigenvalue` (`iteration.py:519-531`) gets retired.
+6. **Dispatch by accelerator CLASS, not string flag.** `inner_solver=SourceIteration` or `inner_solver=KrylovAcceleration`. Pattern 4.
+7. **Aggressive retirement is a deliverable.** Substep 3+4.e is a codebase-wide retirement audit. Old code = noise (memory: `feedback_aggressive_retirement`).
 
-### Anti-recommendations
+### Math architecture
 
-- **Do NOT create `DiscreteOrdinatesPhaseSpace`.** SNMesh IS the phase space. The four-operator constructors take `SNMesh` directly. `n_groups` can either be (a) a separate constructor parameter, (b) read from the cross-section data (`sigma_t.shape[-1]`), or (c) added to `SNMesh.__init__` as a new constructor param. Pick (b) if the operator can derive `n_groups` from the data it already takes; (a) if not.
-- **Do NOT inherit from `SNStreamingOperator`.** Replace it. The legacy class is the monolithic `(L+C)` and is exactly what Step 3 splits.
-- **Do NOT put L and C in a new `orpheus/sn/streaming.py` module.** The previous attempt created that module with `DiscreteOrdinatesPhaseSpace` and a broken `from .mesh import SNMesh` import; the rejected work is gone. Put them in `orpheus/sn/operator.py` next to where `SNStreamingOperator` lived, then delete `SNStreamingOperator` once the migration is verified.
-- **Do NOT call GMRES inside `(L+C).solve`.** That's the canonical sweep — delegate to `transport_sweep` (which after Step 2 is the corrected SI sweep).
+**Three layers**, F at exactly one:
 
-### What to deliver
+| Layer | Class / function | Inputs | Math |
+|---|---|---|---|
+| 3 — eigenvalue outer | `KEigenvalue(L, S, F, *, accelerator_cls)` | `L=A_wg, S=S_residual, F=F` | $(L-S)\psi = F\psi/k$; F enters via `q_fission = F.apply(ψ)/k`. |
+| 2 — within-group accelerator | `SourceIteration(L, S)` or `KrylovAcceleration(L, S)` (siblings) | `L=A_wg, S=S_residual` (no F!) | $(I - L^{-1}S)\psi = L^{-1}q_{\text{ext}}$. Picard or GMRES. |
+| 1 — per-step primitive | `step(ψ) = inverter(S.apply(ψ))` | shared across L2 accelerators | $\mathcal{C}\psi = A_{\text{wg}}^{-1}\,S_{\text{residual}}\,\psi$. |
 
-1. **New `StreamingOperator(LinearOperatorMixin)`** in `orpheus/sn/operator.py`:
-   - Constructor: `StreamingOperator(sn_mesh: SNMesh, *, boundary: LinearOperator | None = None)`. `boundary` defaults to `sn_mesh.bc_right` for curvilinear (or `bc_xmax`/etc. for Cartesian via a small selector helper).
-   - `capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})`. No `CAP_SOLVE` — L alone is not invertible by the WDD sweep (only `L + C` is).
-   - `apply(psi, *, sigma_t=None)` — the pure-streaming directional derivative. Routes through the geometry-dispatching `transport_operator_matvec_*` (post-Step-2 corrected) BUT with `sigma_t = 0` if `sigma_t` is None, OR the caller-supplied σ_t (this is how OperatorSum compositions can subtract C's contribution). The cleanest implementation: split `transport_operator_matvec_spherical` into two helpers, one for streaming + redistribution and one for adding collision; `L.apply` calls only the streaming helper.
-   - `apply_transpose(psi)` — analogous, with reverse-direction sweep.
+**Pseudo-code**:
 
-2. **New `CollisionOperator(LinearOperatorMixin)`** in the same module:
-   - Constructor: `CollisionOperator(sn_mesh: SNMesh, sigma_t: np.ndarray)`. `sigma_t` shape `(nx, ny, ng)` matching `SNMesh` conventions.
-   - `capabilities = frozenset({CAP_APPLY, CAP_SOLVE, CAP_APPLY_TRANSPOSE})`. C is self-adjoint (real diagonal); `apply_transpose = apply`.
-   - `apply(psi)` — `Σ_t · ψ`. Shape-agnostic: handle both packed `(n_unknowns,)` and structured `(N, nx, ny, ng)` shapes via duck-typing.
-   - `solve(q)` — `q / Σ_t` (per-element). Reject σ_t = 0 cells with a clear error.
+```python
+# Build the algebra at SNSolver.__init__ — pure algebra, no wrapper classes
+L = StreamingOperator(sn_mesh)
+C = CollisionOperator(sn_mesh, σ_t)
+S = ScatteringOperator(...)
+F = FissionOperator(...)
+A_wg       = L + C - S.foldable_part()         # OperatorSum (math: A_wg)
+S_residual = S.residual_part()
 
-3. **Wire `(L + C).solve`** so it routes through the canonical sweep. Two options:
-   - Option A: add a `FusedStreamingCollisionRepresentation` class that `OperatorSum.__init__` constructs when it detects `(StreamingOperator, CollisionOperator)` operands; its `solve` delegates to `transport_sweep`.
-   - Option B: leave `OperatorSum.solve` raising `MissingCapability` for the general case; provide a free function `solve_sn_within_group(L: StreamingOperator, C: CollisionOperator, q, ...) -> psi` that callers invoke explicitly. `SNSolver` calls this; `KEigenvalue`'s `inverter` hook (`iteration.py:209-229`) is given a closure over it.
+# k-eigenvalue route
+keff, k_hist, psi = KEigenvalue(
+    L=A_wg, S=S_residual, F=F,                  # F at Layer 3 only
+    accelerator_cls=SourceIteration,            # or KrylovAcceleration
+    inverter=A_wg.solve,
+).solve(initial_guess=...)
 
-   **Option B is simpler and more honest** (composition fusion is a special-case optimization that hides where the sweep lives). Pick Option B unless concrete reason for Option A emerges during implementation.
+# Fixed-source route
+psi, _ = SourceIteration(
+    L=A_wg, S=S_residual, inverter=A_wg.solve,  # no F
+).solve(q_ext=q_external)
+```
 
-4. **Retire `SNStreamingOperator`**. After `StreamingOperator + CollisionOperator` are functional and consumed by `SNSolver` (Step 4), the legacy class becomes dead code. Delete it. `SNSolver.L = StreamingOperator(sn_mesh)`; `SNSolver.C = CollisionOperator(sn_mesh, sig_t)`.
+**Convergence**: $\rho(\mathcal{C}) \ll 1$ in essentially all practical regimes. For 1G, $S_{\text{residual}} = 0$ → SI converges in 1 step. For multi-G downscatter, $S_{\text{residual}}$ is strictly triangular → exact in $N_g$ steps. For multi-G upscatter, $\rho \approx$ upscatter ratio — fast.
 
-5. **Extend `build_sn_operators(sn_mesh, materials) → (L, C, S, F)`** in `orpheus/sn/operator.py` (or wherever the existing builder lives; if no canonical builder, create one). S and F are constructed via their existing factories (`ScatteringOperator.from_solver_data`, `FissionOperator.from_solver_data`).
+### Substeps (5 commits)
 
-### Mechanism criteria
+- **3+4.a** — `ScatteringOperator.foldable_part() / .residual_part() / .foldable_sigma()`. Tests for the algebraic identity `S = S.foldable_part() + S.residual_part()` at `rtol=1e-14`.
+- **3+4.b** — `StreamingOperator` + `CollisionOperator` leaves; `OperatorSum.solve` fusion hook for the within-group shape (builds lazy σ_r cache, routes to `sweep_within_group_1d`); rename `apply_sweep_1d → sweep_within_group_1d`; new `apply_within_group_1d` mirror in `orpheus/sn/sweep.py`.
+- **3+4.c** — Refactor `SourceIteration` to drop F (signature becomes `(L, S, *, inverter, ...)`); new `KrylovAcceleration` sibling with same shape; `KEigenvalue.accelerator_cls` parameter; retire 4× `_solve_*` + 3× `transport_operator_matvec_*` + 3× `_build_rhs_*` + `SNStreamingOperator` + `power_iteration` use in SN. `solve_sn(..., inner_solver=SourceIteration)` is the public dispatch.
+- **3+4.d** — Iteration-count gates (c=0.95 1G cylinder SI → 1 sweep; Krylov → 1 outer × ≤30 inner); 2G upscatter convergence test; perf microbench; full suite `time pytest tests/sn/ -q` < 30 min.
+- **3+4.e** — Codebase-wide retirement audit; deletion of aliases/shims/dead tests per `feedback_aggressive_retirement`.
 
-- **`StreamingOperator` has no `sigma_t` field** and `StreamingOperator.apply` never multiplies by σ_t.
-- **`CollisionOperator.apply` works on slab, sphere, cylinder, and 2-D Cartesian** — fix the dormant `build_equation_map_spherical` bug. Geometry dispatch via `sn_mesh.curvature`.
-- **`SNSolver.__init__` constructs `(L, C, S, F)` via `build_sn_operators(sn_mesh, materials)`.** No more `SNStreamingOperator` instance.
-- **The 11 regression snapshots all stay bit-identical** because Step 3 is a code reorganisation, not a math change — Step 2 already changed the curvilinear math. If a snapshot breaks at Step 3, the split between L and C has introduced an arithmetic-order change; investigate.
+### Reference artefacts (durable)
 
-### Acceptance
+- **Plan-mode artefact** (full Step 3+4 design, ~470 lines): `~/.claude/plans/crystalline-wondering-token.md` lines 369-833.
+- **Explorer memos** (plan-mode artefacts; promote to `.claude/agent-memory/explorer/` on first use):
+  - Scattering split audit: `~/.claude/plans/crystalline-wondering-token-agent-a63c996cb3094b0fc.md`.
+  - Apply-path + solver coupling audit: `~/.claude/plans/crystalline-wondering-token-agent-ae365fb943dbedc39.md`.
+  - Naming sweep audit: `~/.claude/plans/crystalline-wondering-token-agent-aa70cfd7f0e605015.md`.
+- **Numerics-investigator memo** (Krylov 27× SLOWER pathology): `.claude/agent-memory/numerics-investigator/krylov_inner_solver_profile_2026_05_14.md`.
+- **Nexus bug report** (`retest --scope=branch` returns 0): `.claude/agent-memory/numerics-investigator/nexus_retest_branch_scope_bug.md` — for separate next-session resolution.
+- **Memory** (new entries 2026-05-14):
+  - `feedback_aggressive_retirement` — old code = noise; retirement is a deliverable.
+  - `feedback_unused_args_check_solver_families` — when deciding "keep unused arg for future" vs "drop as dead weight", check math layering across all solver families.
 
-- `StreamingOperator + CollisionOperator` exist; `SNStreamingOperator` is gone.
-- All 11 regression snapshots pass bit-identical.
-- `tests/numerics/test_iteration.py::test_keigenvalue_matches_solve_sn_2g_slab` passes with the new operator triple (the adapter shims at `test_iteration.py:402-440` should be removable; if not, the shape mismatch is a hint that Step 3 isn't complete).
-- `pytest tests/sn/ -q` green.
+### Anti-recommendations (the agent MUST NOT do these)
 
-### Deliverable
+- Do NOT introduce `WithinGroupOperator`, `IterationOperator`, or `ScatterCycleOperator` classes — algebra suffices.
+- Do NOT use `T_off` or `T` as iteration-operator variable name. Use `scatter_cycle` / 𝒞.
+- Do NOT add an `accelerator="picard"|"gmres"` string flag — dispatch by class.
+- Do NOT keep F as a constructor argument on within-group accelerators. F is at Layer 3 only.
+- Do NOT pass `F=ZeroOperator()` or `F=None` to within-group accelerators — refactored constructors have no F slot.
+- Do NOT keep `SNStreamingOperator` / `transport_operator_matvec_*` as deprecation aliases. Delete outright.
+- Do NOT add P1+ folding logic — only ℓ=0 within-group folds into σ_r.
+- Do NOT regenerate curvilinear snapshots without three-pillar attestation.
+- Do NOT skip the retirement audit (3+4.e).
 
-Commit chain:
-- `feat(sn): StreamingOperator (pure streaming) + CollisionOperator on SNMesh (Issue #196 Step 3 replan)`.
-- `refactor(sn): retire SNStreamingOperator; SNSolver consumes (L, C, S, F) via build_sn_operators (Issue #196 Step 3 replan)`.
-- `test(sn): direct LinearOperator coverage for L, C (Issue #196 Step 3 replan)`.
+### Verification gates
 
-Closeout memo: `.claude/agent-memory/method-implementer/issue_196_phase_g_step3_closeout.md`.
-
-### Sub-agent dispatch
-
-method-implementer.
-
----
-
-## Step 4 — Wire `SourceIteration` and `KEigenvalue` as canonical consumers
-
-**Goal**: collapse the duplicated inner-solver code in `SNSolver`. `_solve_source_iteration` and `_solve_fixed_source_si` become one call site that invokes `SourceIteration(L, S, F, q_ext).solve(...)`. `_solve_krylov` and `_solve_fixed_source_krylov` collapse similarly. `power_iteration` is replaced by `KEigenvalue` (with the SN-aware `keff_estimator`).
-
-### Pre-step: read these files in full
-
-- `orpheus/numerics/iteration.py` — `SourceIteration` (line 164) and `KEigenvalue` (line 360). The signatures are already `(L, S, F)` + `q_ext`. The `inverter` hook (line 209) accepts an arbitrary inner-solve closure.
-- `orpheus/sn/solver.py:281-625, 1067-1289` — the four duplicated solver functions.
-- `tests/numerics/test_iteration.py:328-460` — `test_keigenvalue_matches_solve_sn_2g_slab`. Shows the bridge with adapter shims; Step 4 removes the shims.
-
-### Anti-recommendations
-
-- **Do NOT write a new `SourceIteration` or `KEigenvalue`.** They exist. Consume them.
-- **Do NOT add a new `inner_solver` switch.** The existing string switch at `solver.py:162-170` stays as the dispatch; the bodies of both branches now consume the same iteration primitives, just with different `inverter` closures.
-- **Do NOT write a `PreconditionedGMRES` LinearOperator wrapper** before checking the inline use is the only consumer. There is exactly one Krylov inner-solve call site to be collapsed (`_solve_krylov` and `_solve_fixed_source_krylov` become one). Use inline `gmres(as_scipy_linop(A_loss), q, M=as_scipy_linop((L+C).inverse_via_sweep))` — write the wrapper only if a second consumer appears.
-
-### What to deliver
-
-1. **Collapse `_solve_source_iteration` and `_solve_fixed_source_si`** to one helper `_si_solve(L, C, S, F, q_ext, ...)` that builds and runs `SourceIteration(L, S, F, q_ext)` with `inverter=lambda q: solve_sn_within_group(L, C, q, ...)`. The two existing functions become one-line wrappers that compose the right operands and call `_si_solve`.
-
-2. **Collapse `_solve_krylov` and `_solve_fixed_source_krylov`** to one helper `_gmres_solve(L, C, S, F, q_ext, ...)` that constructs `A_loss = L + C - S`, wraps with `as_scipy_linop`, and calls `scipy.sparse.linalg.gmres`. Use `(L + C).solve_via_sweep` (or whatever Step 3 named the canonical sweep) as the left preconditioner. The two existing functions become one-line wrappers.
-
-3. **Replace `power_iteration` in `solve_sn`** with `KEigenvalue(L, S, F, inverter=..., keff_estimator=lambda L_,S_,F_,phi: solver.compute_keff(phi))`. `power_iteration` continues to ship for the cross-solver migration (CP, diffusion, MoC, homogeneous) per its `DeprecationWarning`.
-
-4. **Use `as_scipy_linop`** at the two Krylov sites instead of the bare `ScipyLinearOperator((n,n), matvec=...)` lines. One-line swap per site; free cleanup.
-
-5. **Remove the adapter shims** from `test_keigenvalue_matches_solve_sn_2g_slab` (test_iteration.py:402-440) once the shape mismatches are gone.
-
-### Mechanism criteria
-
-- `_solve_source_iteration` body is ≤ 10 lines (the rest is the helper).
-- `_solve_krylov` body is ≤ 10 lines.
-- `solve_sn` calls `KEigenvalue(...).solve(...)`, not `power_iteration(...)`.
-- All `tests/sn/regression/` and `tests/numerics/test_iteration.py` tests pass.
-- `power_iteration` is no longer called from `orpheus/sn/`; the deprecation warning issued at import is for cross-solver migration only.
-
-### Acceptance
-
-- `pytest tests/sn/ tests/numerics/ -q` green.
-- Line counts in `solver.py` drop by ~250 lines (the two ~125-line duplicated solver functions become 10-line wrappers).
-
-### Deliverable
-
-Commit chain:
-- `refactor(sn): SourceIteration / KEigenvalue consumers; _si_solve and _gmres_solve helpers (Issue #196 Step 4)`.
-- `refactor(sn): solve_sn uses KEigenvalue; power_iteration retired from SN paths (Issue #196 Step 4)`.
-
-Closeout memo: `.claude/agent-memory/method-implementer/issue_196_phase_g_step4_closeout.md`.
+1. Algebraic identity `S ≡ S.foldable_part() + S.residual_part()` at `rtol=1e-14`.
+2. Sweep/apply symmetry `(L+C-S_foldable).apply((L+C-S_foldable).solve(q)) == q` at `rtol=1e-12`.
+3. F at exactly one layer: `grep "F\.apply\|F\.solve" orpheus/numerics/iteration.py` matches only inside `KEigenvalue.solve`.
+4. Regression bit-identity 11/11 at `rtol=1e-12`.
+5. L0 streaming-equilibrium 26/26 PASS on both accelerators.
+6. Pair-monoid associativity stays green.
+7. L1 SN bridge test passes WITHOUT adapter shims.
+8. Iteration-count gates: 1G c=0.95 cyl SI → 1 sweep; Krylov → 1×≤30; 2G upscatter ≤ 5 outers @ ρ ≤ 0.2.
+9. Perf gate: `time pytest tests/sn/ -q` < 30 min (pre-3+4: 2h28m).
+10. Sphinx -W clean.
 
 ### Sub-agent dispatch
 
-method-implementer.
+method-implementer with brief shaped per §"Brief template". Brief MUST cite this Step 3+4 section, the plan-mode artefact for the full design, the three explorer memos, the Krylov investigator memo, and lessons L12-L16.
+
+### Closeout memo
+
+Path: `.claude/agent-memory/method-implementer/issue_196_phase_g_step3_4_closeout.md`. Required: verbatim full pytest stdout for each substep + final full suite; iteration-count + wall-clock measurements; concept-count audit; retirement audit findings; decision-point honesty (fire/no-fire for each STOP gate).
 
 ---
 
