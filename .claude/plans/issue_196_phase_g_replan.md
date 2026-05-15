@@ -1208,6 +1208,27 @@ method-implementer with brief shaped per the §"Brief template" at the bottom of
 6. **Dispatch by accelerator CLASS, not string flag.** `inner_solver=SourceIteration` or `inner_solver=KrylovAcceleration`. Pattern 4.
 7. **Aggressive retirement is a deliverable.** Substep 3+4.e is a codebase-wide retirement audit. Old code = noise (memory: `feedback_aggressive_retirement`).
 
+### CORRECTION (2026-05-14, post-revert of `ad37ca0`) — Resolution A: subtractive L decomposition
+
+**Authoritative memo**: `.claude/agent-memory/numerics-investigator/sn_LC_decomposition_derivation.md` (SymPy + numpy derivation).
+
+The first 3+4.b.i attempt implemented `StreamingOperator.apply(ψ) = matvec(ψ, σ_t=0)`. SymPy-derivation proves this is mathematically wrong for **curvilinear**: the Hébert §3.9.4 Eq. (3.434) Carlson coupled-pole seed `phi_aux_i = (dr·σ_t·φ_0/Σw + 2·phi_face) / (dr·σ_t + 2)` is **rational** (not affine) in σ_t — the discrete L (with M-M angular closure) is σ_t-coupled by construction. Cartesian IS affine; curvilinear is not. Empirically `matvec(ψ, σ_t=0)` differs from pure-L by 3-13% rel for sphere/cylinder on random ψ.
+
+**Resolution A (the canonical answer)**: define L subtractively, both L and C carry σ_t at constructor.
+
+```
+L: StreamingOperator(sn_mesh, sigma_t).apply(ψ) := M(ψ; σ_t_full) − σ_t_packed ⊙ ψ
+C: CollisionOperator(sn_mesh, sigma_t).apply(ψ) := σ_t_packed ⊙ ψ
+```
+
+Then `(L + C).apply(ψ) = M(ψ; σ_t_full)` by construction (bit-exact, rel_residual = 0.0 across slab/sphere/cylinder × 3 random seeds, verified in `derivations/diagnostics/diag_LC_decomposition_resolution.py`).
+
+The continuous L (`Ω·∇ψ + (1-μ²)/r · ∂_μ ψ`) is σ_t-independent. The **discrete L** (with Hébert's M-M angular closure) carries σ_t through the Carlson seed — this is a property of the closure choice, not an implementation defect. Analogous to MoC's `exp(-σ_t·s)` characteristic line and the DD coefficient `α_DD(σ_t·dx)`: discrete streaming operators routinely carry parameters their continuous form does not.
+
+**Step 6 impact**: PRESERVED. `(L+C-S).H.apply(x)` distributes via `OperatorSum.apply_transpose` → `L.H.apply(x) − σ_t·x + σ_t·x − S.H.apply(x) = matvec_transpose(x; σ_t) − S.H.apply(x)`. The reverse-direction sweep already required by Step 6 trivially extends with the same subtractive overlay.
+
+**The pseudo-code below (and all subsequent substep specifications) is corrected accordingly**: both L and C take σ_t at constructor; the factory `build_sn_operators(sn_mesh, materials)` ensures both leaves share the same σ_t.
+
 ### Math architecture
 
 **Three layers**, F at exactly one:
@@ -1221,11 +1242,10 @@ method-implementer with brief shaped per the §"Brief template" at the bottom of
 **Pseudo-code**:
 
 ```python
-# Build the algebra at SNSolver.__init__ — pure algebra, no wrapper classes
-L = StreamingOperator(sn_mesh)
-C = CollisionOperator(sn_mesh, σ_t)
-S = ScatteringOperator(...)
-F = FissionOperator(...)
+# Build the algebra at SNSolver.__init__ — pure algebra, no wrapper classes.
+# Both L and C carry σ_t at constructor (Resolution A — see CORRECTION above);
+# the factory ensures consistency.
+L, C, S, F = build_sn_operators(sn_mesh, materials)   # both L and C receive σ_t
 A_wg       = L + C - S.foldable_part()         # OperatorSum (math: A_wg)
 S_residual = S.residual_part()
 
@@ -1247,7 +1267,7 @@ psi, _ = SourceIteration(
 ### Substeps (5 commits)
 
 - **3+4.a** — `ScatteringOperator.foldable_part() / .residual_part() / .foldable_sigma()`. Tests for the algebraic identity `S = S.foldable_part() + S.residual_part()` at `rtol=1e-14`.
-- **3+4.b** — `StreamingOperator` + `CollisionOperator` leaves; `OperatorSum.solve` fusion hook for the within-group shape (builds lazy σ_r cache, routes to `sweep_within_group_1d`); rename `apply_sweep_1d → sweep_within_group_1d`; new `apply_within_group_1d` mirror in `orpheus/sn/sweep.py`.
+- **3+4.b** — `StreamingOperator(sn_mesh, σ_t)` + `CollisionOperator(sn_mesh, σ_t)` leaves under Resolution A (both carry σ_t; L.apply uses subtractive `M(ψ; σ_t) − σ_t⊙ψ`; bit-exact decomposition); `ScatteringOperator.is_foldable_into_sigma_r()` detection; `OperatorSum.solve` fusion hook for the within-group shape (reads σ_t from L/C, builds lazy σ_r cache, routes to `sweep_within_group_1d`); rename `apply_sweep_1d → sweep_within_group_1d`; new `apply_within_group_1d` mirror in `orpheus/sn/sweep.py`. **Split into 3+4.b.i (leaves + foldability detection) and 3+4.b.ii (fusion hook + sweep rename + apply mirror)** for gate-keeper-friendly blast radius. The reverted commit `ad37ca0` is the WRONG approach (`L.apply = matvec(σ_t=0)` is non-physical for curvilinear); see CORRECTION above.
 - **3+4.c** — Refactor `SourceIteration` to drop F (signature becomes `(L, S, *, inverter, ...)`); new `KrylovAcceleration` sibling with same shape; `KEigenvalue.accelerator_cls` parameter; retire 4× `_solve_*` + 3× `transport_operator_matvec_*` + 3× `_build_rhs_*` + `SNStreamingOperator` + `power_iteration` use in SN. `solve_sn(..., inner_solver=SourceIteration)` is the public dispatch.
 - **3+4.d** — Iteration-count gates (c=0.95 1G cylinder SI → 1 sweep; Krylov → 1 outer × ≤30 inner); 2G upscatter convergence test; perf microbench; full suite `time pytest tests/sn/ -q` < 30 min.
 - **3+4.e** — Codebase-wide retirement audit; deletion of aliases/shims/dead tests per `feedback_aggressive_retirement`.
