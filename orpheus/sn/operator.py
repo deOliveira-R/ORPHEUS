@@ -100,6 +100,8 @@ __all__ = [
     "transport_operator_matvec_spherical",
     "transport_operator_matvec_cylindrical",
     "SNStreamingOperator",
+    "StreamingOperator",
+    "CollisionOperator",
 ]
 
 
@@ -1475,3 +1477,403 @@ class SNStreamingOperator(LinearOperatorMixin):
         assert self._dense_matrix_T is not None
         return self._dense_matrix_T @ psi
 
+
+# ═══════════════════════════════════════════════════════════════════════
+# Phase G four-operator algebra — :class:`StreamingOperator` and
+# :class:`CollisionOperator` leaves (Issue #196 Step 3+4.b.i, Resolution A).
+# ═══════════════════════════════════════════════════════════════════════
+#
+# The Grand Report v3 §6 four-operator unification splits the historical
+# bundled ``L = Ω·∇ + Σ_t`` into two independently composable leaves:
+#
+#     L  →  StreamingOperator        (streaming + angular redistribution)
+#     C  →  CollisionOperator        (σ·, diagonal in pos/group/direction)
+#
+# so the within-group operator becomes pure algebra
+#
+#     A_wg = L + C - S.foldable_part()
+#
+# (an :class:`~orpheus.numerics.operator.OperatorSum`; no wrapper class).
+#
+# Resolution A — subtractive definition of L
+# ------------------------------------------
+#
+# An earlier attempt (reverted commit ``ad37ca0``) implemented
+# ``StreamingOperator.apply`` by calling the matvec primitive with
+# ``Σ_t = 0`` and treating that as "pure streaming". This is
+# mathematically WRONG for curvilinear: the matvec is **rational in
+# σ_t** (not affine) through Hébert §3.9.4 Eq. 3.434's Carlson
+# coupled-pole seed denominator ``Δr·σ_t + 2``. Setting ``σ_t = 0``
+# degenerates the seed and produces a different operator from
+# :math:`L = \Omega\cdot\nabla + {\rm redistribution}`. The empirical
+# signature was a 3-13% relative error on random ψ in the composition
+# test (see ``derivations/diagnostics/diag_LC_decomposition_sn.py``
+# evidence memo).
+#
+# **Resolution A** defines L subtractively:
+#
+# .. math::
+#
+#     L.{\rm apply}(\psi) \;:=\; M(\psi;\;\sigma_t) \;-\;
+#                                \sigma_t \odot \psi_{\rm packed}
+#
+# i.e. call the matvec primitive at the user's σ_t (not zero), then
+# subtract the cell-collision term :math:`\sigma_t \odot \psi` at the
+# packed-vector level. Combined with
+# :math:`C.{\rm apply}(\psi) = \sigma_t \odot \psi`, this gives
+#
+# .. math::
+#
+#     (L + C).{\rm apply}(\psi) \;=\; M(\psi;\;\sigma_t)
+#
+# **bit-exact, by construction** — the decomposition is an algebraic
+# identity, not an approximation. Verified at ``rel_residual = 0.0``
+# across slab/sphere/cylinder × 3 random seeds in
+# :file:`tests/sn/test_streaming_operator_decomposition.py`.
+#
+# This requires both L and C to carry ``σ_t`` at constructor time. The
+# discrete L's σ_t parametrisation is a property of Hébert's M-M
+# angular closure (the Carlson seed uses σ_t · φ_0 / W as the inward
+# equivalent source at μ = −1); it is intrinsic to the discretisation,
+# not a defect. The CONTINUOUS L (:math:`\Omega\cdot\nabla\psi +
+# (1-\mu^2)/r\,\partial\psi/\partial\mu`) is σ_t-independent, but the
+# DISCRETE curvilinear streaming-plus-redistribution operator inherits
+# σ_t through its closure. Cartesian L has no Carlson seed; for
+# Cartesian the subtraction removes σ_t exactly, so Cartesian L is
+# σ_t-independent at the apply level.
+#
+# This substep (Issue #196 Phase G Step 3+4.b.i) lands the LEAVES; the
+# fusion of ``(L + C - S.foldable_part()).solve(q)`` through the
+# within-group sweep is substep 3+4.b.ii.
+
+
+@dataclass
+class StreamingOperator(LinearOperatorMixin):
+    r"""Pure streaming + angular-redistribution operator :math:`L` as a
+    :class:`~orpheus.numerics.operator.LinearOperator` leaf.
+
+    The "L" of the Phase G four-operator algebra
+    :math:`A_{\rm wg} = L + C - S_{\rm foldable}`. Carries the spatial
+    streaming math plus the curvilinear angular redistribution — the
+    cell-collision term lives in the separate :class:`CollisionOperator`
+    leaf. The split lets the within-group operator be pure algebra
+    (``L + C - S.foldable_part()``); no ``WithinGroupOperator`` wrapper.
+
+    Resolution A — subtractive ``apply``
+    ------------------------------------
+
+    .. math::
+
+        L.{\rm apply}(\psi) \;:=\; M(\psi;\;\sigma_t) \;-\;
+                                  \sigma_t \odot \psi_{\rm packed}
+
+    The matvec primitive is called at the user's σ_t (constructor-stored),
+    then the cell-collision term :math:`\sigma_t \odot \psi` is
+    subtracted at the packed-vector level. Combined with
+    :math:`C.{\rm apply}(\psi) = \sigma_t \odot \psi`, this gives
+    :math:`(L + C).{\rm apply}(\psi) = M(\psi;\;\sigma_t)` bit-exact.
+
+    Why σ_t is a CONSTRUCTOR parameter (Pattern 4)
+    ----------------------------------------------
+
+    The discrete curvilinear matvec is RATIONAL in σ_t through the
+    Carlson coupled-pole seed (Hébert §3.9.4 Eqs. 3.432-3.435):
+
+    .. math::
+
+        \bar\phi_i \;=\; \frac{\Delta r_i\,\bar Q_i + 2\,\bar\phi_{i+1/2}}
+                              {\Delta r_i\,\Sigma_t(i) + 2}
+
+    where :math:`\bar Q_i = \Sigma_t(i)\,\phi_0(i) / W` at ℓ=0. The
+    discrete L (with M-M angular closure) is therefore intrinsically
+    σ_t-coupled — analogous to the DD coefficient :math:`\alpha_{DD}
+    (\sigma_t\,\Delta x)` in characteristic-line methods, or the
+    exponential characteristic :math:`\exp(-\sigma_t\,s)` in MoC/CP.
+    Discrete streaming operators routinely carry σ_t through their
+    closure choices.
+
+    The CONTINUOUS L (:math:`\Omega\cdot\nabla\psi + (1-\mu^2)/r\,
+    \partial\psi/\partial\mu`) is σ_t-independent. The DISCRETE L's
+    σ_t parametrisation is a property of the discretisation. Pattern 4
+    (illegal states unrepresentable) — ``StreamingOperator(sn_mesh)``
+    without σ_t is not a meaningful object for curvilinear SN; the
+    constructor refusing to construct without σ_t encodes that fact.
+
+    Capability set
+    --------------
+
+    ``frozenset({CAP_APPLY})`` — pure streaming alone is **not
+    invertible** (the streaming operator is rank-deficient without a
+    collision term to make the within-group cell balance non-singular).
+    The ``solve`` capability appears at the
+    :class:`~orpheus.numerics.operator.OperatorSum` level: ``(L + C
+    - S_foldable).solve(q)`` routes to the within-group sweep via the
+    fusion hook substep 3+4.b.ii adds. No ``apply_transpose`` yet —
+    the analytic reverse-direction sweep is Step 6 work.
+
+    Parameters
+    ----------
+    sn_mesh : SNMesh
+        The augmented geometry carrying quadrature, BCs, pole closure,
+        and (for curvilinear) the precomputed connection coefficients.
+        ``StreamingOperator`` reads ``sn_mesh.bc_*`` directly — no
+        ``boundary`` constructor parameter.
+    sigma_t : np.ndarray
+        Total cross-section, shape ``(nx, ny, ng)``. Carried at
+        constructor time per Resolution A's subtractive definition.
+
+    Notes
+    -----
+    This is Phase G Step 3+4.b.i — an **additive** introduction. The
+    legacy :class:`SNStreamingOperator` (which bundles ``L + C`` under
+    a single ``Σ_t`` constructor with three capabilities) remains in
+    place; substep 3+4.c retires it after
+    :class:`~orpheus.sn.solver.SNSolver` is wired to consume the leaf
+    algebra.
+    """
+
+    sn_mesh: "SNMesh"
+    sigma_t: np.ndarray
+
+    capabilities: frozenset[str] = field(
+        default_factory=lambda: frozenset({CAP_APPLY})
+    )
+
+    # Lazy EquationMap cache (geometry-dispatched, same logic as
+    # SNStreamingOperator._ensure_eq_map).
+    _eq_map: EquationMap | None = field(default=None, init=False, repr=False)
+
+    def _ensure_eq_map(self, ng: int) -> EquationMap:
+        """Lazily build the geometry-appropriate :class:`EquationMap`."""
+        if self._eq_map is None:
+            nx, ny = self.sn_mesh.nx, self.sn_mesh.ny
+            quad = self.sn_mesh.quad
+            curv = getattr(self.sn_mesh, "curvature", None)
+            if curv == "spherical":
+                self._eq_map = build_equation_map_spherical(nx, quad, ng)
+            elif curv == "cylindrical":
+                self._eq_map = build_equation_map_cylindrical(nx, quad, ng)
+            else:
+                self._eq_map = build_equation_map(nx, ny, quad, ng)
+        return self._eq_map
+
+    @property
+    def n_unknowns(self) -> int:
+        """Total packed scalar unknowns inferred from ``sigma_t.shape[2]``."""
+        ng = int(self.sigma_t.shape[2])
+        return self._ensure_eq_map(ng=ng).n_unknowns
+
+    def apply(self, psi: np.ndarray) -> np.ndarray:
+        r"""Subtractive forward action :math:`L\,\psi = M(\psi;\sigma_t)
+        - \sigma_t \odot \psi`.
+
+        Dispatches by ``self.sn_mesh.curvature`` to the existing matvec
+        primitives at the constructor-stored ``self.sigma_t``, then
+        subtracts the cell-collision term :math:`\sigma_t \odot \psi`
+        at the packed-vector level. By Resolution A,
+        :math:`(L + C).{\rm apply}(\psi) = M(\psi;\sigma_t)` bit-exact.
+
+        Parameters
+        ----------
+        psi : np.ndarray
+            Packed solution vector, shape ``(n_unknowns,)``.
+
+        Returns
+        -------
+        np.ndarray
+            ``L·ψ`` as a packed vector, same shape as ``psi``.
+        """
+        sn_mesh = self.sn_mesh
+        ng = int(self.sigma_t.shape[2])
+        eq_map = self._ensure_eq_map(ng=ng)
+        if eq_map.n_unknowns != psi.size:
+            raise ValueError(
+                f"StreamingOperator.apply: packed psi size {psi.size} "
+                f"does not match eq_map.n_unknowns {eq_map.n_unknowns} "
+                f"(ng={ng})."
+            )
+        nx, ny = sn_mesh.nx, sn_mesh.ny
+        quad = sn_mesh.quad
+        curv = getattr(sn_mesh, "curvature", None)
+
+        # Full matvec at the user's σ_t (NOT zero — Resolution A).
+        if curv == "spherical":
+            reduced = sn_mesh.reduced
+            m_full = transport_operator_matvec_spherical(
+                psi, eq_map, quad, self.sigma_t,
+                nx, ng,
+                reduced.face_areas,
+                sn_mesh.volumes,
+                reduced.alpha_half,
+                reduced.redist_dAw,
+                reduced.tau_mm,
+                sn_mesh=sn_mesh,
+                bc_outer=sn_mesh.bc_right,
+                pole_angular_closure=sn_mesh.pole_angular_closure,
+            )
+        elif curv == "cylindrical":
+            reduced = sn_mesh.reduced
+            m_full = transport_operator_matvec_cylindrical(
+                psi, eq_map, quad, self.sigma_t,
+                nx, ng,
+                reduced.face_areas,
+                sn_mesh.volumes,
+                reduced.alpha_per_level,
+                reduced.redist_dAw_per_level,
+                reduced.tau_mm_per_level,
+                sn_mesh=sn_mesh,
+                bc_outer=sn_mesh.bc_right,
+                pole_angular_closure=sn_mesh.pole_angular_closure,
+            )
+        else:  # Cartesian (1-D slab or 2-D)
+            m_full = transport_operator_matvec(
+                psi, eq_map, quad, self.sigma_t,
+                nx, ny, ng, sn_mesh.dx, sn_mesh.dy,
+                bc_xmin=sn_mesh.bc_xmin,
+                bc_xmax=sn_mesh.bc_xmax,
+                bc_ymin=sn_mesh.bc_ymin,
+                bc_ymax=sn_mesh.bc_ymax,
+            )
+
+        # Subtract σ_t ⊙ ψ at the packed-vector level. Layout matches
+        # CollisionOperator's gather: (n_eq, ng) → (ng, n_eq) → Fortran
+        # ravel gives (n_unknowns,) packed vector aligned with `psi`.
+        sigma_packed = self.sigma_t[
+            eq_map.ix, eq_map.iy, :
+        ].T.ravel(order='F')
+        return m_full - sigma_packed * psi
+
+
+@dataclass
+class CollisionOperator(LinearOperatorMixin):
+    r"""Pure collision operator :math:`C = \sigma\cdot` as a
+    :class:`~orpheus.numerics.operator.LinearOperator` leaf.
+
+    The "C" of the Phase G four-operator algebra
+    :math:`A_{\rm wg} = L + C - S_{\rm foldable}`. Diagonal in position,
+    group, and direction:
+
+    .. math::
+
+        (C\psi)_{n,i,j,g} \;=\; \sigma(i,j,g)\,\psi_{n,i,j,g}
+
+    The supplied ``sigma`` is per-cell per-group only — the operator
+    broadcasts identically across every ordinate ``n`` because the
+    collision cross-section is direction-independent.
+
+    Convention-agnostic σ
+    ---------------------
+
+    The same operator class supports the full total cross-section
+    :math:`\sigma_t` AND the within-group removal cross-section
+    :math:`\sigma_r = \sigma_t - \Sigma_{s,0}^{g\to g}`. The operator
+    does NOT carry an interpretation flag — both quantities are
+    ``(nx, ny, ng)`` arrays applied as :math:`\sigma\cdot\psi`. The
+    fusion hook (substep 3+4.b.ii) builds a lazy :math:`\sigma_r`
+    :class:`CollisionOperator` from
+    :meth:`~orpheus.sn.scattering.ScatteringOperator.foldable_sigma` at
+    the moment it detects ``L + C - S.foldable_part()`` in an
+    :class:`~orpheus.numerics.operator.OperatorSum`. (Pattern 4 —
+    illegal states unrepresentable via the type, not a runtime flag
+    the operator never inspects.)
+
+    Capability set
+    --------------
+
+    ``frozenset({CAP_APPLY, CAP_SOLVE, CAP_APPLY_TRANSPOSE})`` —
+    collision is the simplest sort of operator. ``solve(q) = q / σ``
+    is element-wise division; ``apply_transpose == apply`` because the
+    operator is self-adjoint (diagonal in every basis the SN method
+    operates in). All three capabilities are analytic.
+
+    Parameters
+    ----------
+    sn_mesh : SNMesh
+        The augmented geometry — used for the packed-vector
+        :class:`EquationMap` dispatch (same as
+        :class:`StreamingOperator`).
+    sigma : np.ndarray
+        Per-cell per-group cross-section, shape ``(nx, ny, ng)``. May
+        be σ_t (full collision) or σ_r (removal — within-group
+        self-scatter folded). The operator's action is identical.
+    """
+
+    sn_mesh: "SNMesh"
+    sigma: np.ndarray
+
+    capabilities: frozenset[str] = field(
+        default_factory=lambda: frozenset(
+            {CAP_APPLY, CAP_SOLVE, CAP_APPLY_TRANSPOSE}
+        )
+    )
+
+    # Lazy EquationMap cache — same dispatch as StreamingOperator.
+    _eq_map: EquationMap | None = field(default=None, init=False, repr=False)
+
+    def _ensure_eq_map(self, ng: int) -> EquationMap:
+        """Lazily build the geometry-appropriate :class:`EquationMap`."""
+        if self._eq_map is None:
+            nx, ny = self.sn_mesh.nx, self.sn_mesh.ny
+            quad = self.sn_mesh.quad
+            curv = getattr(self.sn_mesh, "curvature", None)
+            if curv == "spherical":
+                self._eq_map = build_equation_map_spherical(nx, quad, ng)
+            elif curv == "cylindrical":
+                self._eq_map = build_equation_map_cylindrical(nx, quad, ng)
+            else:
+                self._eq_map = build_equation_map(nx, ny, quad, ng)
+        return self._eq_map
+
+    def _sigma_at_unknowns(self, eq_map: EquationMap, ng: int) -> np.ndarray:
+        r"""Gather ``σ`` at each packed-unknown's ``(ix, iy, g)`` slot.
+
+        Builds the packed-vector-shaped coefficient array
+        ``(σ[ix[k], iy[k], g])`` for ``k`` ordered as the eq_map's
+        Fortran-order ``(g, k)`` flatten — exactly what
+        ``psi.reshape(ng, n_eq, order='F')`` produces on the input
+        side. Returns shape ``(n_unknowns,)``; element-wise multiply
+        with the input ``psi``.
+        """
+        sigma_per_eq = self.sigma[eq_map.ix, eq_map.iy, :]    # (n_eq, ng)
+        return sigma_per_eq.T.ravel(order='F')                # (n_unknowns,)
+
+    def apply(self, psi: np.ndarray) -> np.ndarray:
+        r"""Forward action :math:`C\,\psi = \sigma\cdot\psi`."""
+        ng = int(self.sigma.shape[2])
+        eq_map = self._ensure_eq_map(ng)
+        if eq_map.n_unknowns != psi.size:
+            raise ValueError(
+                f"CollisionOperator.apply: packed psi size {psi.size} "
+                f"does not match eq_map.n_unknowns {eq_map.n_unknowns} "
+                f"(ng={ng})."
+            )
+        sigma_packed = self._sigma_at_unknowns(eq_map, ng)
+        return sigma_packed * psi
+
+    def solve(self, q: np.ndarray) -> np.ndarray:
+        r"""Inverse action :math:`C^{-1}\,q = q/\sigma` element-wise.
+
+        Trivially invertible: collision is diagonal, so the inverse is
+        per-slot reciprocal scaling. Returns NaN / Inf at slots where
+        ``σ == 0`` per the IEEE-754 division contract — consumers
+        constructing :math:`\sigma_r = \sigma_t - \Sigma_{s,0}^{g\to g}`
+        must guarantee positivity (the operator does not check).
+        """
+        ng = int(self.sigma.shape[2])
+        eq_map = self._ensure_eq_map(ng)
+        if eq_map.n_unknowns != q.size:
+            raise ValueError(
+                f"CollisionOperator.solve: packed q size {q.size} "
+                f"does not match eq_map.n_unknowns {eq_map.n_unknowns} "
+                f"(ng={ng})."
+            )
+        sigma_packed = self._sigma_at_unknowns(eq_map, ng)
+        return q / sigma_packed
+
+    def apply_transpose(self, psi: np.ndarray) -> np.ndarray:
+        r"""Adjoint action :math:`C^*\,\psi = \sigma\cdot\psi`.
+
+        Equal to :meth:`apply` — collision is self-adjoint (diagonal
+        operator). Returned bit-equal to ``apply(psi)``.
+        """
+        return self.apply(psi)

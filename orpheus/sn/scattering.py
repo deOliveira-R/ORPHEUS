@@ -602,6 +602,67 @@ class ScatteringOperator(LinearOperatorMixin):
             cells_by_mat=self.cells_by_mat,
         )
 
+    def is_foldable_into_sigma_r(self) -> bool:
+        r"""Return ``True`` iff this operator is structurally the
+        :meth:`foldable_part` of some parent :math:`S`.
+
+        Mechanical predicate consumed by substep 3+4.b.ii's
+        :class:`~orpheus.numerics.operator.OperatorSum` fusion hook:
+        when the hook sees ``L + C - S_some`` and
+        ``S_some.is_foldable_into_sigma_r()`` is True, it knows the
+        within-group sum has the shape that admits fusion into a
+        removal cross-section :math:`\sigma_r = \sigma_t -
+        \Sigma_{s,0}^{g\to g}`, and routes :meth:`solve` through the
+        within-group sweep.
+
+        Structural test on the operator's data, not an identity claim
+        about its action — every ``ScatteringOperator`` instance whose
+        ``scattering_order`` is 0 with diagonal-only ``sig_s[mid][0]``
+        and zero ``sig2`` is, by definition, the foldable part of
+        itself (its :meth:`residual_part` is the zero operator).
+
+        Returns
+        -------
+        bool
+            ``True`` iff (a) ``scattering_order == 0``,
+            (b) every material's ``sig_s[mid][0]`` is diagonal
+            (off-diagonal ≈ zero by ``np.allclose``), AND
+            (c) every material's ``sig2[mid]`` is the zero matrix
+            (``np.allclose`` to 0). ``False`` otherwise.
+
+        Notes
+        -----
+        Uses ``np.allclose`` (default ``rtol=1e-5, atol=1e-8``) for the
+        diagonal / zero checks: floating-point construction
+        (e.g. ``np.diag(np.diag(M))``) introduces FP rounding so
+        bit-equality is fragile. The tolerance is permissive enough
+        to accept any physical input but strict enough to reject
+        genuine off-diagonal entries.
+
+        Contract verified by ``TestIsFoldableIntoSigmaR`` in
+        :file:`tests/sn/test_scattering_operator.py`:
+
+        * Full ``ScatteringOperator`` (non-zero off-diagonal P0 OR
+          Pℓ ≥ 1 OR non-zero sig2) → ``False``.
+        * ``S.foldable_part()`` → ``True`` (round-trip).
+        * ``S.residual_part()`` → ``False`` (cross-group P0).
+        * scattering_order=0 with non-diagonal P0 → ``False``.
+        * scattering_order=0 with diagonal P0 but non-zero sig2 →
+          ``False``.
+        """
+        if self.scattering_order != 0:
+            return False
+        for mid, mats in self.sig_s.items():
+            p0 = mats[0]
+            # Diagonal-only test: M ≈ diag(diag(M)).
+            if not np.allclose(p0, np.diag(np.diag(p0))):
+                return False
+            # sig2 must be the zero matrix — (n,2n) is unconditionally
+            # residual (see ``residual_part`` docstring).
+            if not np.allclose(self.sig2[mid], 0.0):
+                return False
+        return True
+
     def foldable_sigma(self) -> dict[int, np.ndarray]:
         r"""Return the per-material foldable cross-section :math:`(\sigma_{s,0}^{g\to g})_g`.
 
