@@ -225,15 +225,19 @@ class SweepCellSlice:
     | ``psi_y``              | ``(N_oct, nx, ny+1, ng)``   | Octant-restricted face-y       |
     |                        |                             | buffer; mutated in place       |
     +------------------------+-----------------------------+--------------------------------+
-    | ``Q``                  | ``(N_oct, nx, ny, ng)`` or  | Per-octant per-cell volumetric |
-    |                        | ``(1, nx, ny, ng)``         | source, **already weight-      |
+    | ``Q``                  | ``(N_oct, ng, nx, ny)`` or  | Per-octant per-cell volumetric |
+    |                        | ``(1, ng, nx, ny)``         | source, **already weight-      |
     |                        |                             | normalised**. The leading      |
     |                        |                             | axis is ``1`` for isotropic-   |
     |                        |                             | only sweeps and ``N_oct`` when |
     |                        |                             | a per-ordinate aniso source is |
-    |                        |                             | folded in.                     |
+    |                        |                             | folded in.  Issue #196         |
+    |                        |                             | PR-INDEX-4 — principled        |
+    |                        |                             | ``g`` after ``N_oct``.         |
     +------------------------+-----------------------------+--------------------------------+
-    | ``sig_t``              | ``(nx, ny, ng)``            | Per-cell per-group total XS    |
+    | ``sig_t``              | ``(ng, nx, ny)``            | Per-cell per-group total XS    |
+    |                        |                             | (Issue #196 PR-INDEX-4 —       |
+    |                        |                             | principled ``g`` leading).     |
     +------------------------+-----------------------------+--------------------------------+
     | ``str_x``              | ``(N_oct, nx)``             | Octant-restricted streaming    |
     |                        |                             | coefficient ``2|μ_x|/Δx``      |

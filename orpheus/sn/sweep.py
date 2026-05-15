@@ -107,10 +107,17 @@ def transport_sweep(
     The cell-update strategy is read from ``sn_mesh.cell_update``
     (defaults to :class:`DiamondDifference`).
 
-    Issue #196 PR-INDEX-3: ``sig_t`` is now consumed in the principled
-    ``(ng, nx, ny)`` layout.  The 2-D wavefront body still expects the
-    legacy ``(nx, ny, ng)`` shape; a bridge transpose runs at its entry
-    (removed in PR-INDEX-4 when ``_sweep_2d_wavefront`` flips internally).
+    Issue #196 PR-INDEX-3: ``sig_t`` is consumed in the principled
+    ``(ng, nx, ny)`` layout.
+
+    Issue #196 PR-INDEX-4: ``_sweep_2d_wavefront`` now consumes ``Q``
+    and ``Q_aniso`` in principled ``(ng, nx, ny)`` / ``(N, ng, nx, ny)``
+    layout natively.  ``transport_sweep``'s PUBLIC contract for ``Q``
+    and ``Q_aniso`` remains legacy ``(nx, ny, ng)`` / ``(N, nx, ny, ng)``
+    until PR-INDEX-5 flips the solver's storage; named bridge
+    transposes wire the legacy public to the principled internal.
+    The PR-INDEX-3 ``sig_t_legacy`` bridge is GONE — sig_t passes
+    through unchanged.
 
     Dispatch:
 
@@ -122,10 +129,22 @@ def transport_sweep(
     """
     reduced = sn_mesh.reduced
     if reduced is not None:
+        # 1-D path consumes Q in legacy (nx, ny=1, ng) — body internally
+        # transposes at entry.  Unchanged by PR-INDEX-4.
         return _sweep_1d_unified(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
-    # Bridge to 2-D wavefront body's legacy layout — PR-INDEX-4 removes.
-    sig_t_legacy = sig_t.transpose(1, 2, 0)
-    return _sweep_2d_wavefront(Q, sig_t_legacy, sn_mesh, psi_bc, Q_aniso)
+    # 2-D Cartesian: bridge Q + Q_aniso from legacy public layout to
+    # principled internal layout (PR-INDEX-5 removal target).
+    BRIDGE_Q_to_principled = np.transpose(Q, (2, 0, 1))             # (ng, nx, ny)
+    if Q_aniso is not None:
+        BRIDGE_Q_aniso_to_principled = np.transpose(
+            Q_aniso, (0, 3, 1, 2),
+        )                                                            # (N, ng, nx, ny)
+    else:
+        BRIDGE_Q_aniso_to_principled = None
+    return _sweep_2d_wavefront(
+        BRIDGE_Q_to_principled, sig_t, sn_mesh, psi_bc,
+        BRIDGE_Q_aniso_to_principled,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -632,6 +651,18 @@ def _sweep_2d_wavefront(
     ``SweepDependencyGraph.apply`` call. The ordinate axis is
     INTERNAL to every numpy operation.
 
+    Issue #196 PR-INDEX-4: ``Q`` is now consumed in principled
+    ``(ng, nx, ny)``; ``sig_t`` is principled ``(ng, nx, ny)``;
+    ``Q_aniso`` (if any) is principled ``(N, ng, nx, ny)``.  The
+    persistent ``psi_x`` / ``psi_y`` BC buffers stay on legacy
+    ``(N, nx+1, ny, ng)`` / ``(N, nx, ny+1, ng)`` (PR-INDEX-5
+    rewires them); the per-octant ``Q_octant`` packet handed to
+    ``sweep_graph.apply`` is built in principled ``(N_oct, ng, nx,
+    ny)`` layout to satisfy the
+    :class:`~orpheus.sn.spatial.cell_update.SweepCellSlice`
+    contract.  ``angular_flux`` returned to the caller is legacy
+    ``(N, nx, ny, ng)`` (PR-INDEX-5 scope).
+
     Bit-identity to legacy
     ----------------------
 
@@ -640,26 +671,12 @@ def _sweep_2d_wavefront(
     ``ProductQuadrature``), this implementation is bit-identical to
     the legacy per-ordinate loop on every snapshot — verified by
     ``tests/sn/test_2d_octant_sweep_equivalence.py`` (the C2.5
-    TESTS-FIRST harness). The argument:
-
-    * BC apply for octant σ reads partners (in the x-reflected
-      octant). For LS4, lex order matches legacy n-order at the
-      partner-state granularity, so the same iteration's value is
-      observed at the same point.
-    * Within an octant, the per-ordinate cell sweeps are independent
-      (different rows of ``psi_x`` / ``psi_y``); batching is
-      bit-identical to any per-ordinate sequencing of the same set.
-
-    For quadratures whose ordering is NOT lex (e.g. Lebedev), the
-    converged answer is the same Gauss-Seidel fixed point but the
-    iter-to-iter values may differ. Per ``vv-principles`` Bit-identity
-    vs principled-equivalence: principled at every step (octant-batched
-    BC apply IS the §15A.2 form), structurally-independent grounding
-    (closed-form L1 anchor + MMS regression suite both pass),
-    convergence to the same answer (verified empirically on regression
-    snapshots).
+    TESTS-FIRST harness).
     """
-    nx, ny, ng = Q.shape
+    # Issue #196 PR-INDEX-4: shape unpacked from sig_t (principled
+    # (ng, nx, ny)) — Q now arrives in the same principled layout, so
+    # Q.shape == sig_t.shape modulo the optional N broadcast.
+    ng, nx, ny = sig_t.shape
     quad = sn_mesh.quad
     N = quad.N
     weights = quad.weights
@@ -669,20 +686,22 @@ def _sweep_2d_wavefront(
 
     # Persistent boundary-flux buffers for reflective BCs (mutated in
     # place across sweep calls — partner reads need the previous
-    # iteration's outgoing-face writes).
+    # iteration's outgoing-face writes).  PR-INDEX-5 flips these to
+    # principled.
     if "bc_2d_x" not in psi_bc:
         psi_bc["bc_2d_x"] = np.zeros((N, nx + 1, ny, ng))
         psi_bc["bc_2d_y"] = np.zeros((N, nx, ny + 1, ng))
-    psi_x = psi_bc["bc_2d_x"]   # (N, nx+1, ny, ng)
-    psi_y = psi_bc["bc_2d_y"]   # (N, nx, ny+1, ng)
+    psi_x = psi_bc["bc_2d_x"]   # (N, nx+1, ny, ng) — legacy
+    psi_y = psi_bc["bc_2d_y"]   # (N, nx, ny+1, ng) — legacy
 
     # Source pre-scale once (was inside the ordinate loop in legacy
     # for a no-op O(1) load — kept here for clarity).
+    # Q is principled (ng, nx, ny); Q_scaled stays principled.
     weight_norm = 1.0 / weights.sum()
-    Q_scaled = Q * weight_norm
+    Q_scaled = Q * weight_norm                            # (ng, nx, ny)
     has_aniso = Q_aniso is not None
     if has_aniso:
-        Q_aniso_scaled = Q_aniso * weight_norm  # (N, nx, ny, ng)
+        Q_aniso_scaled = Q_aniso * weight_norm            # (N, ng, nx, ny)
 
     str_x = sn_mesh.streaming_x   # (N, nx)
     str_y = sn_mesh.streaming_y   # (N, ny)
@@ -699,13 +718,20 @@ def _sweep_2d_wavefront(
         # angular flux is the volumetric balance ψ = Q_n / Σ_t and
         # the scalar flux gets a weighted contribution.
         if sx == 0 and sy == 0:
-            Q_pure_z = Q_scaled[None, :, :, :]    # (1, nx, ny, ng)
+            # Q_pure_z principled (1, ng, nx, ny).
+            Q_pure_z = Q_scaled[None, :, :, :]
             if has_aniso:
-                Q_pure_z = Q_pure_z + Q_aniso_scaled[oct_idx]
-            psi_avg_pure_z = Q_pure_z / sig_t     # broadcasts to (N_oct, nx, ny, ng)
-            angular_flux[oct_idx] = psi_avg_pure_z
+                Q_pure_z = Q_pure_z + Q_aniso_scaled[oct_idx]  # (N_oct, ng, nx, ny)
+            # sig_t (ng, nx, ny) broadcasts against (N_oct, ng, nx, ny).
+            psi_avg_pure_z_principled = Q_pure_z / sig_t   # (N_oct, ng, nx, ny)
+            # angular_flux is legacy (N, nx, ny, ng) — bridge per octant.
+            BRIDGE_pure_z_to_legacy = np.transpose(
+                psi_avg_pure_z_principled, (0, 2, 3, 1),
+            )
+            angular_flux[oct_idx] = BRIDGE_pure_z_to_legacy
             scalar_flux += np.einsum(
-                "nijg,n->ijg", psi_avg_pure_z, weights[oct_idx],
+                "nijg,n->ijg",
+                BRIDGE_pure_z_to_legacy, weights[oct_idx],
             )
             continue
 
@@ -745,11 +771,16 @@ def _sweep_2d_wavefront(
         # mutable per-octant buffers, run the graph, and scatter back.
         # The cost (~2 × N_oct × nx × ny × ng × 8 bytes per octant)
         # is negligible vs the loop savings.
+        # psi_x / psi_y stay on legacy; the graph apply still consumes
+        # legacy psi buffers (no PR-INDEX-4 change to that contract).
         psi_x_oct = psi_x[oct_idx].copy()    # (N_oct, nx+1, ny, ng)
         psi_y_oct = psi_y[oct_idx].copy()    # (N_oct, nx, ny+1, ng)
-        Q_octant = Q_scaled[None, :, :, :]   # (1, nx, ny, ng) broadcastable
+        # Q packet is principled (N_oct, ng, nx, ny) — DiamondDifference
+        # .update_batch consumes Q via ``Q[:, :, ii, jj]`` per
+        # PR-INDEX-4.
+        Q_octant = Q_scaled[None, :, :, :]   # (1, ng, nx, ny)
         if has_aniso:
-            Q_octant = Q_octant + Q_aniso_scaled[oct_idx]   # (N_oct, nx, ny, ng)
+            Q_octant = Q_octant + Q_aniso_scaled[oct_idx]   # (N_oct, ng, nx, ny)
         angular_flux_oct = np.zeros((N_oct, nx, ny, ng))
 
         sweep_graph.apply(

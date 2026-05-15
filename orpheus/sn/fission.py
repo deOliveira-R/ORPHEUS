@@ -146,30 +146,30 @@ class FissionOperator(LinearOperatorMixin):
         Parameters
         ----------
         phi : np.ndarray
-            Scalar flux shape ``(nx, ny, ng)`` (legacy public layout —
-            PR-INDEX-5 flips to ``(ng, nx, ny)``).
+            Scalar flux shape ``(ng, nx, ny)`` (Issue #196 PR-INDEX-4 —
+            principled layout).
 
         Returns
         -------
         np.ndarray
-            Fission source shape ``(nx, ny, ng)`` (legacy contract —
-            preserved until PR-INDEX-5) *without* the :math:`1/k`
-            eigenvalue division. The caller divides by :math:`k` (see
-            module docstring for why).
+            Fission source shape ``(ng, nx, ny)`` (principled — Issue
+            #196 PR-INDEX-4) *without* the :math:`1/k` eigenvalue
+            division. The caller divides by :math:`k` (see module
+            docstring for why).
 
         Notes
         -----
-        Issue #196 PR-INDEX-3: ``self.sig_p`` / ``self.chi`` are stored
-        in the principled ``(ng, nx, ny)`` layout, but ``phi`` and the
-        return value remain on the legacy ``(nx, ny, ng)`` contract.
-        ``np.einsum`` names the per-cell production-rate contraction
-        explicitly (Pattern 3) — ``fission_rate`` has units ``[1/s]``
-        per cell.  PR-INDEX-5 flips the public φ contract.
+        Issue #196 PR-INDEX-4: ``self.sig_p`` / ``self.chi`` AND ``phi``
+        AND the return value all live in the principled ``(ng, nx, ny)``
+        layout — energy ``g`` is the leading axis end-to-end.  No
+        transposes; ``np.einsum`` names the per-cell production-rate
+        contraction (Pattern 3) — ``fission_rate`` has units ``[1/s]``
+        per cell.
         """
         # Production rate: per-cell sum over groups, shape (nx, ny).
-        # ``sig_p`` is principled (ng, nx, ny); ``phi`` is legacy
-        # (nx, ny, ng) — einsum names the contraction.
-        fission_rate = np.einsum("gxy,xyg->xy", self.sig_p, phi)
+        # Both sig_p and phi are (ng, nx, ny); einsum names the
+        # contraction over the leading group axis explicitly.
+        fission_rate = np.einsum("gxy,gxy->xy", self.sig_p, phi)
         # Spectrum × rate: chi is (ng, nx, ny), rate is (nx, ny);
-        # build the legacy (nx, ny, ng) return via transposing chi.
-        return self.chi.transpose(1, 2, 0) * fission_rate[:, :, None]
+        # broadcast rate across the leading group axis.
+        return self.chi * fission_rate[None, :, :]

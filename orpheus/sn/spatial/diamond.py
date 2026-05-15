@@ -254,10 +254,16 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         s = slice_args
         ii, jj = s.ii, s.jj
 
-        # Gather incoming face fluxes — fancy indexing with advanced
+        # Issue #196 PR-INDEX-4: ``sig_t`` is principled ``(ng, nx, ny)``
+        # and ``Q`` is principled ``(N_oct, ng, nx, ny)`` (or ``(1, ng,
+        # nx, ny)`` for isotropic-only).  The persistent ``psi_x`` /
+        # ``psi_y`` buffers remain on legacy ``(N_oct, nx+1, ny, ng)`` /
+        # ``(N_oct, nx, ny+1, ng)`` (their PR-INDEX-5 flip is out of
+        # scope here).
+
+        # Gather incoming face fluxes — psi_x/psi_y stay legacy, advanced
         # indices contiguous-in-the-middle gives result shape
-        # (N_oct, n_diag, ng). All four `psi_*[:, advanced, advanced, :]`
-        # patterns are the same numpy idiom.
+        # (N_oct, n_diag, ng) as before.
         psi_in_x = s.psi_x[:, s.face_in_x_idx, jj, :]    # (N_oct, n_diag, ng)
         psi_in_y = s.psi_y[:, ii, s.face_in_y_idx, :]    # (N_oct, n_diag, ng)
 
@@ -266,20 +272,25 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         sx = s.str_x[:, ii][:, :, None]                  # (N_oct, n_diag, 1)
         sy = s.str_y[:, jj][:, :, None]                  # (N_oct, n_diag, 1)
 
-        # Total-xs slice on this level. Shape (n_diag, ng); broadcasts
-        # to (N_oct, n_diag, ng) against sx + sy.
-        sigt_cells = s.sig_t[ii, jj, :]                  # (n_diag, ng)
+        # Total-xs slice on this level.  Under PR-INDEX-4 ``sig_t`` is
+        # ``(ng, nx, ny)``; ``[:, ii, jj]`` yields ``(ng, n_diag)``.
+        # Transpose to ``(n_diag, ng)`` for broadcast against
+        # ``sx + sy`` ``(N_oct, n_diag, 1)``.  The ``T`` is a view
+        # (zero copy).
+        sigt_cells = s.sig_t[:, ii, jj].T                # (n_diag, ng)
 
         # Operation order matches sweep.py:858 — denom builds as
         # sig_t + sx + sy (NOT sx + sy + sig_t).
         denom = sigt_cells + sx + sy                     # (N_oct, n_diag, ng)
 
-        # Q[:, ii, jj, :] is (N_oct, n_diag, ng) for aniso-broadcast Q
-        # OR (1, n_diag, ng) for an isotropic-only sweep where Q has
-        # leading dim 1; both broadcast against the rest.
+        # Q under PR-INDEX-4 is ``(N_oct, ng, nx, ny)`` or
+        # ``(1, ng, nx, ny)``.  ``[:, :, ii, jj]`` yields ``(N_oct,
+        # ng, n_diag)`` (advanced indices at end, stay in place);
+        # transpose to ``(N_oct, n_diag, ng)`` for the broadcast.
+        Q_cells = s.Q[:, :, ii, jj].transpose(0, 2, 1)   # (N_oct, n_diag, ng)
         # Operation order matches sweep.py:860-864.
         psi_avg = (
-            s.Q[:, ii, jj, :]
+            Q_cells
             + sx * psi_in_x
             + sy * psi_in_y
         ) / denom                                         # (N_oct, n_diag, ng)

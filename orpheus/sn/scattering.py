@@ -144,7 +144,8 @@ class LegendreMomentScattering(LinearOperatorMixin):
     Legendre cross-section matmul on the energy-group axis.
 
     For an input moment field
-    :math:`\phi_\ell^m(\vec r) \in \mathbb{R}^{(L+1) \times (2L+1) \times N_x \times N_y \times N_g}`,
+    :math:`\phi_\ell^m(\vec r) \in \mathbb{R}^{(L+1) \times (2L+1) \times N_g \times N_x \times N_y}`
+    (Issue #196 PR-INDEX-4 — principled ``g`` leading-after-moments),
     the action is
 
     .. math::
@@ -215,15 +216,16 @@ class LegendreMomentScattering(LinearOperatorMixin):
         Parameters
         ----------
         moments : np.ndarray
-            Moment field of shape ``(L+1, 2L+1, nx, ny, ng)``. The
-            :math:`m`-axis is the addition-theorem-shifted index where
-            slot ``l + m`` holds the :math:`(\ell, m)` entry; entries
-            outside :math:`|m| \le \ell` are conventionally zero.
+            Moment field of shape ``(L+1, 2L+1, ng, nx, ny)`` (Issue
+            #196 PR-INDEX-4 — principled).  The :math:`m`-axis is the
+            addition-theorem-shifted index where slot ``l + m`` holds
+            the :math:`(\ell, m)` entry; entries outside
+            :math:`|m| \le \ell` are conventionally zero.
 
         Returns
         -------
         np.ndarray
-            Same shape as ``moments``. The :math:`\ell = 0` block is
+            Same shape as ``moments``.  The :math:`\ell = 0` block is
             zero when ``skip_l0`` is ``True``; otherwise the P0 in-scatter
             contribution is included.
         """
@@ -240,13 +242,29 @@ class LegendreMomentScattering(LinearOperatorMixin):
                 # `build_aniso_source` and avoids scattering out-of-band
                 # garbage when the operator is fed a synthetic random input.
                 n_m = 2 * l + 1
-                # moments[l, :n_m, ix, iy, :]  shape (2ℓ+1, n_cells, ng)
-                # sig_s_mid[l]                 shape (ng, ng), [g_from, g_to]
-                # einsum: out_g_to = Σ_g_from moments_g_from * sig_s[g_from, g_to]
-                out[l, :n_m, ix, iy, :] += np.einsum(
-                    "mcf,fg->mcg",
-                    moments[l, :n_m, ix, iy, :],
-                    sig_s_mid[l],
+                # Indexing pattern: ``moments[l, :n_m][..., ix, iy]``
+                # keeps advanced indices CONTIGUOUS and at the trailing
+                # position → numpy preserves axis order, output shape
+                # ``(n_m, ng, n_cells)``.  If we instead wrote
+                # ``moments[l, :n_m, :, ix, iy]`` (advanced indices
+                # separated from ``:n_m`` by ``:``), numpy would move
+                # the advanced-index axis to the FRONT (output
+                # ``(n_cells, n_m, ng)``) — a silent shape rearrangement
+                # that breaks the einsum below.  See numpy advanced-
+                # indexing rules.
+                # moments_view shape: (n_m, ng, n_cells).
+                # sig_s_mid[l] shape: (ng, ng), indexed [g_from, g_to].
+                # einsum: out_g_to = Σ_g_from moments_g_from · sig_s[g_from, g_to]
+                moments_view = moments[l, :n_m][..., ix, iy]
+                out_block = np.einsum(
+                    "mfc,fg->mgc", moments_view, sig_s_mid[l],
+                )                                       # (n_m, ng, n_cells)
+                # Same trailing-contiguous indexing on out for the
+                # accumulation.  Use the long form ``out += np.einsum``
+                # via temporary because numpy fancy-index in-place
+                # assignment is well-defined for this pattern.
+                out[l, :n_m][..., ix, iy] = (
+                    out_block + out[l, :n_m][..., ix, iy]
                 )
         return out
 
@@ -272,7 +290,8 @@ class ScatteringOperator(LinearOperatorMixin):
         Number of angular ordinates :math:`N` in the quadrature.
     nx, ny, ng : int
         Spatial grid sizes and group count (the operator's action shape
-        is ``(N, nx, ny, ng) -> (N, nx, ny, ng)``).
+        is ``(N, ng, nx, ny) -> (N, ng, nx, ny)`` under PR-INDEX-4 —
+        principled).
     scattering_order : int
         Maximum Legendre order :math:`L` retained. ``0`` means P0 only.
     sig_s : dict[int, list[np.ndarray]]
@@ -363,36 +382,51 @@ class ScatteringOperator(LinearOperatorMixin):
     def add_iso_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
         """Add P0 in-scatter source to ``Q`` in-place.
 
-        Vectorised by material: ``Q[ix, iy, :] += phi[ix, iy, :] @
-        sig_s[mid][0]`` for every cell of every material.
+        Vectorised by material: per cell ``c`` of material ``mid``,
+        ``Q[:, ic, jc] += sig_s0[mid].T @ phi[:, ic, jc]`` where
+        ``sig_s0[mid]`` is ``(ng, ng)`` indexed ``[g_from, g_to]``.
 
         Parameters
         ----------
         Q : np.ndarray
-            Isotropic source array shape ``(nx, ny, ng)``. Modified in
-            place.
+            Isotropic source array shape ``(ng, nx, ny)`` (Issue #196
+            PR-INDEX-4 — principled layout). Modified in place.
         phi : np.ndarray
-            Scalar flux shape ``(nx, ny, ng)``.
+            Scalar flux shape ``(ng, nx, ny)``.
+
+        Notes
+        -----
+        ``np.einsum("fg,fxy->gxy", sig_s0[mid], phi[:, ix, iy])`` names
+        the [g_from → g_to] contraction explicitly — the in-scatter
+        source per cell is the source-spectrum-to-sink-spectrum
+        contraction of the per-material P0 matrix with the per-cell
+        scalar flux (Pattern 3).
         """
         for mid, (ix, iy) in self.cells_by_mat.items():
-            Q[ix, iy, :] += phi[ix, iy, :] @ self.sig_s0[mid]
+            # phi[:, ix, iy] shape (ng, n_cells); sig_s0[mid] shape
+            # (g_from, g_to). Source-to-sink contraction over g_from.
+            Q[:, ix, iy] += np.einsum(
+                "fg,fc->gc", self.sig_s0[mid], phi[:, ix, iy],
+            )
 
     def add_n2n_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
         """Add (n,2n) source to ``Q`` in-place.
 
-        Vectorised by material: ``Q[ix, iy, :] += 2 * (phi[ix, iy, :] @
-        sig2[mid])`` for every cell of every material.
+        Vectorised by material: per cell ``c`` of material ``mid``,
+        ``Q[:, ic, jc] += 2 · sig2[mid].T @ phi[:, ic, jc]``.
 
         Parameters
         ----------
         Q : np.ndarray
-            Isotropic source array shape ``(nx, ny, ng)``. Modified in
-            place.
+            Isotropic source array shape ``(ng, nx, ny)`` (Issue #196
+            PR-INDEX-4 — principled). Modified in place.
         phi : np.ndarray
-            Scalar flux shape ``(nx, ny, ng)``.
+            Scalar flux shape ``(ng, nx, ny)``.
         """
         for mid, (ix, iy) in self.cells_by_mat.items():
-            Q[ix, iy, :] += 2.0 * (phi[ix, iy, :] @ self.sig2[mid])
+            Q[:, ix, iy] += 2.0 * np.einsum(
+                "fg,fc->gc", self.sig2[mid], phi[:, ix, iy],
+            )
 
     def build_aniso_source(
         self, angular_flux: np.ndarray | None,
@@ -436,16 +470,29 @@ class ScatteringOperator(LinearOperatorMixin):
         Parameters
         ----------
         angular_flux : np.ndarray or None
-            Angular flux shape ``(N, nx, ny, ng)`` from the most recent
-            sweep, or ``None`` on the first source iteration before any
-            sweep has been run.
+            Angular flux shape ``(N, ng, nx, ny)`` (Issue #196
+            PR-INDEX-4 — principled) from the most recent sweep, or
+            ``None`` on the first source iteration before any sweep
+            has been run.
 
         Returns
         -------
         np.ndarray or None
-            ``(N, nx, ny, ng)`` per-ordinate :math:`\ell \ge 1`
+            ``(N, ng, nx, ny)`` per-ordinate :math:`\ell \ge 1`
             contribution, or ``None`` when ``scattering_order == 0`` or
             ``angular_flux is None``.
+
+        Notes
+        -----
+        :class:`HarmonicMomentProjection` and
+        :class:`HarmonicMomentReconstruction` are layout-agnostic in
+        their trailing axes — only the leading ordinate / harmonic axes
+        are consumed by the einsums.  Switching ψ from ``(N, nx, ny,
+        ng)`` to ``(N, ng, nx, ny)`` therefore transparently produces a
+        moment field shape ``(L+1, 2L+1, ng, nx, ny)`` (instead of
+        ``(L+1, 2L+1, nx, ny, ng)``), which is exactly what the
+        principled :class:`LegendreMomentScattering` consumes after
+        PR-INDEX-4.
         """
         if self.scattering_order == 0 or angular_flux is None:
             return None
@@ -697,8 +744,8 @@ class ScatteringOperator(LinearOperatorMixin):
 
         Returns a per-ordinate isotropic-equivalent source plus the
         :math:`\ell \ge 1` per-ordinate contribution, packaged together
-        as the :math:`(N, n_x, n_y, n_g)` array the sweep would receive
-        from the legacy code path.
+        as the :math:`(N, n_g, n_x, n_y)` array the operator-algebra
+        consumers expect under PR-INDEX-4.
 
         For the P0 + (n,2n) parts, the action is the same scalar source
         broadcast across every ordinate (the sweep's ``1/W`` factor is
@@ -709,13 +756,14 @@ class ScatteringOperator(LinearOperatorMixin):
         Parameters
         ----------
         psi : np.ndarray
-            Angular flux shape ``(N, nx, ny, ng)``.
+            Angular flux shape ``(N, ng, nx, ny)`` (Issue #196 PR-INDEX-4 —
+            principled).
 
         Returns
         -------
         np.ndarray
             Per-ordinate scattering source shape
-            ``(N, nx, ny, ng)``: the isotropic P0 + (n,2n) part is
+            ``(N, ng, nx, ny)``: the isotropic P0 + (n,2n) part is
             broadcast across the ``N`` axis; the :math:`\ell \ge 1`
             part is the genuine per-ordinate Galerkin reconstruction.
 
@@ -723,9 +771,9 @@ class ScatteringOperator(LinearOperatorMixin):
         -----
         ORPHEUS's existing :class:`SNSolver` source iteration consumes
         the isotropic and anisotropic pieces separately (the isotropic
-        :math:`Q` is a ``(nx, ny, ng)`` scalar source; the anisotropic
-        :math:`Q_{\rm aniso}` is a ``(N, nx, ny, ng)`` per-ordinate
-        source). For internal use by :class:`SNSolver` the helpers
+        :math:`Q` is a ``(ng, nx, ny)`` scalar source; the anisotropic
+        :math:`Q_{\rm aniso}` is a ``(N, ng, nx, ny)`` per-ordinate
+        source).  For internal use by :class:`SNSolver` the helpers
         :meth:`add_iso_source`, :meth:`add_n2n_source`, and
         :meth:`build_aniso_source` expose the same math without forcing
         a wasteful broadcast. :meth:`apply` is the LinearOperator
@@ -733,17 +781,21 @@ class ScatteringOperator(LinearOperatorMixin):
         consumers (Krylov-on-apply, adjoint sweeps, composition with
         :math:`L` and :math:`F`).
         """
-        # Reduce angular flux to scalar flux: φ = Σ_n w_n ψ_n
-        # (Equivalent to angular_flux_to_scalar from operator.py.)
-        phi = np.einsum('n,nxyg->xyg', self.weights, psi)
+        # Reduce angular flux to scalar flux: φ_g(r) = Σ_n w_n ψ_n,g(r)
+        # — leading-axis contraction over ordinates.  Output is
+        # principled ``(ng, nx, ny)``.
+        phi = np.einsum('n,ngxy->gxy', self.weights, psi)
 
         # Isotropic (P0 + (n,2n)) — vectorised by material into a fresh
-        # (nx, ny, ng) buffer, then broadcast across the N axis.
-        Q_iso = np.zeros((self.nx, self.ny, self.ng))
+        # (ng, nx, ny) buffer, then broadcast across the N axis.
+        Q_iso = np.zeros((self.ng, self.nx, self.ny))
         self.add_iso_source(Q_iso, phi)
         self.add_n2n_source(Q_iso, phi)
 
         # Broadcast across ordinates and add the Pℓ (l>=1) contribution.
+        # Q_iso (ng, nx, ny) → (1, ng, nx, ny) → broadcast to psi.shape
+        # (N, ng, nx, ny).  Same numpy idiom as the legacy
+        # (1, nx, ny, ng) broadcast — just with the axis order updated.
         Q = np.broadcast_to(Q_iso[None, :, :, :], psi.shape).copy()
         Q_aniso = self.build_aniso_source(psi)
         if Q_aniso is not None:

@@ -351,8 +351,21 @@ class SNSolver:
         operator is a *linear* operator (Wave A Issue 1 Protocol);
         :meth:`FissionOperator.apply` returns :math:`F\\,\\phi` and the
         eigenvalue scaling lives here.
+
+        Issue #196 PR-INDEX-4 — transient bridge.  ``flux_distribution``
+        arrives in the SOLVER-PUBLIC legacy ``(nx, ny, ng)`` layout
+        (PR-INDEX-5 flips it).  ``FissionOperator.apply`` now consumes
+        and returns principled ``(ng, nx, ny)``.  Bridge transposes the
+        per-call argument inward and the per-call return outward.  Both
+        bridges retire in PR-INDEX-5 when ``SNSolver.scalar_flux`` /
+        ``angular_flux`` storage flips.
         """
-        return self.fission_op.apply(flux_distribution) / keff
+        BRIDGE_phi_to_principled = np.transpose(flux_distribution, (2, 0, 1))
+        # ``np.transpose`` returns a view — zero copy.  The bridge name is
+        # PR-INDEX-5 removal-grep tag (Pattern 3 — named intermediate).
+        out_principled = self.fission_op.apply(BRIDGE_phi_to_principled) / keff
+        BRIDGE_out_to_legacy = np.transpose(out_principled, (1, 2, 0))
+        return BRIDGE_out_to_legacy
 
     def solve_fixed_source(
         self, fission_source: np.ndarray, flux_distribution: np.ndarray,
@@ -726,18 +739,54 @@ class SNSolver:
     # held on self.scattering_op, so bit-identity is by construction.
 
     def _add_scattering_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        """Add P0 scattering source to Q in-place (delegates to ScatteringOperator)."""
-        self.scattering_op.add_iso_source(Q, phi)
+        """Add P0 scattering source to Q in-place (delegates to ScatteringOperator).
+
+        Issue #196 PR-INDEX-4 — transient bridges.  Solver-internal
+        ``Q`` / ``phi`` are still on the legacy ``(nx, ny, ng)`` layout
+        (PR-INDEX-5 flips them).  ``ScatteringOperator.add_iso_source``
+        now consumes principled ``(ng, nx, ny)``.  Wire transposed
+        views — ``Q``'s mutation through the view writes back to the
+        same buffer (numpy transpose returns a stride-only view).
+        """
+        BRIDGE_Q_to_principled = np.transpose(Q, (2, 0, 1))
+        BRIDGE_phi_to_principled = np.transpose(phi, (2, 0, 1))
+        self.scattering_op.add_iso_source(
+            BRIDGE_Q_to_principled, BRIDGE_phi_to_principled,
+        )
 
     def _build_aniso_scattering(
         self, angular_flux: np.ndarray | None,
     ) -> np.ndarray | None:
-        """Build per-ordinate anisotropic Pℓ scattering source (delegates to ScatteringOperator)."""
-        return self.scattering_op.build_aniso_source(angular_flux)
+        """Build per-ordinate anisotropic Pℓ scattering source (delegates to ScatteringOperator).
+
+        Issue #196 PR-INDEX-4 — transient bridges.  ``angular_flux``
+        arrives in legacy ``(N, nx, ny, ng)``; the operator now
+        consumes / returns ``(N, ng, nx, ny)``.  PR-INDEX-5 retires
+        the bridges once solver storage flips.
+        """
+        if angular_flux is None:
+            return None
+        BRIDGE_psi_to_principled = np.transpose(angular_flux, (0, 3, 1, 2))
+        out_principled = self.scattering_op.build_aniso_source(
+            BRIDGE_psi_to_principled,
+        )
+        if out_principled is None:
+            return None
+        # (N, ng, nx, ny) → (N, nx, ny, ng) for the legacy caller.
+        BRIDGE_aniso_to_legacy = np.transpose(out_principled, (0, 2, 3, 1))
+        return BRIDGE_aniso_to_legacy
 
     def _add_n2n_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        """Add (n,2n) source to Q in-place (delegates to ScatteringOperator)."""
-        self.scattering_op.add_n2n_source(Q, phi)
+        """Add (n,2n) source to Q in-place (delegates to ScatteringOperator).
+
+        Issue #196 PR-INDEX-4 — see :meth:`_add_scattering_source` for
+        bridge rationale.
+        """
+        BRIDGE_Q_to_principled = np.transpose(Q, (2, 0, 1))
+        BRIDGE_phi_to_principled = np.transpose(phi, (2, 0, 1))
+        self.scattering_op.add_n2n_source(
+            BRIDGE_Q_to_principled, BRIDGE_phi_to_principled,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════

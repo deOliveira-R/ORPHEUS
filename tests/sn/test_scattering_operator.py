@@ -65,24 +65,33 @@ def solver_2g_p0():
 
 
 def _ref_iso_scatter_inplace(solver, Q, phi):
-    """Reference per-cell P0 in-scatter (bit-identical to the legacy code)."""
+    """Reference per-cell P0 in-scatter (bit-identical to the legacy code).
+
+    Issue #196 PR-INDEX-4: ``Q`` / ``phi`` are principled
+    ``(ng, nx, ny)``.  Per-cell update reads ``(ng,)`` slices over the
+    spatial pair.
+    """
     out = Q.copy()
     nx, ny = solver.sn_mesh.nx, solver.sn_mesh.ny
     for ix in range(nx):
         for iy in range(ny):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
-            out[ix, iy, :] += solver.sig_s0[mid].T @ phi[ix, iy, :]
+            out[:, ix, iy] += solver.sig_s0[mid].T @ phi[:, ix, iy]
     return out
 
 
 def _ref_n2n_inplace(solver, Q, phi):
-    """Reference per-cell (n,2n) source (bit-identical to the legacy code)."""
+    """Reference per-cell (n,2n) source (bit-identical to the legacy code).
+
+    Issue #196 PR-INDEX-4 — principled ``(ng, nx, ny)`` (see
+    :func:`_ref_iso_scatter_inplace`).
+    """
     out = Q.copy()
     nx, ny = solver.sn_mesh.nx, solver.sn_mesh.ny
     for ix in range(nx):
         for iy in range(ny):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
-            out[ix, iy, :] += 2.0 * (solver.sig2[mid].T @ phi[ix, iy, :])
+            out[:, ix, iy] += 2.0 * (solver.sig2[mid].T @ phi[:, ix, iy])
     return out
 
 
@@ -106,10 +115,10 @@ class TestProtocolCompliance:
         assert "apply_transpose" not in op.capabilities
 
     def test_apply_accepts_psi_shape(self, solver_2g_p0):
-        """apply(psi) must accept (N, nx, ny, ng) angular flux."""
+        """apply(psi) must accept (N, ng, nx, ny) angular flux (Issue #196 PR-INDEX-4)."""
         op = solver_2g_p0.scattering_op
         N = op.n_ordinates
-        psi = np.ones((N, op.nx, op.ny, op.ng))
+        psi = np.ones((N, op.ng, op.nx, op.ny))
         out = op.apply(psi)
         assert out.shape == psi.shape
 
@@ -123,11 +132,14 @@ class TestBitIdenticalExtractionP0:
     """The lifted math must match the legacy reference per-cell code."""
 
     def test_add_iso_source_matches_reference(self, solver_2g_p0):
-        """ScatteringOperator.add_iso_source = the per-cell reference."""
+        """ScatteringOperator.add_iso_source = the per-cell reference.
+
+        Issue #196 PR-INDEX-4: principled ``(ng, nx, ny)`` end-to-end.
+        """
         np.random.seed(42)
         nx, ny, ng = solver_2g_p0.sn_mesh.nx, solver_2g_p0.sn_mesh.ny, solver_2g_p0.ng
-        phi = np.random.rand(nx, ny, ng) + 0.1
-        Q = np.random.rand(nx, ny, ng)
+        phi = np.random.rand(ng, nx, ny) + 0.1
+        Q = np.random.rand(ng, nx, ny)
 
         expected = _ref_iso_scatter_inplace(solver_2g_p0, Q, phi)
 
@@ -140,8 +152,8 @@ class TestBitIdenticalExtractionP0:
         """ScatteringOperator.add_n2n_source = the per-cell reference."""
         np.random.seed(123)
         nx, ny, ng = solver_2g_p0.sn_mesh.nx, solver_2g_p0.sn_mesh.ny, solver_2g_p0.ng
-        phi = np.random.rand(nx, ny, ng) + 0.1
-        Q = np.random.rand(nx, ny, ng)
+        phi = np.random.rand(ng, nx, ny) + 0.1
+        Q = np.random.rand(ng, nx, ny)
 
         expected = _ref_n2n_inplace(solver_2g_p0, Q, phi)
 
@@ -153,24 +165,35 @@ class TestBitIdenticalExtractionP0:
     def test_zero_flux_zero_addition(self, solver_2g_p0):
         """φ = 0 => ScatteringOperator adds zero (linearity guard)."""
         nx, ny, ng = solver_2g_p0.sn_mesh.nx, solver_2g_p0.sn_mesh.ny, solver_2g_p0.ng
-        Q = np.ones((nx, ny, ng))
+        Q = np.ones((ng, nx, ny))
         phi = np.zeros_like(Q)
         Q_before = Q.copy()
         solver_2g_p0.scattering_op.add_iso_source(Q, phi)
         np.testing.assert_array_equal(Q, Q_before)
 
     def test_delegators_match_operator_directly(self, solver_2g_p0):
-        """SNSolver._add_scattering_source delegates to op.add_iso_source bit-identically."""
+        """SNSolver._add_scattering_source delegates to op.add_iso_source bit-identically.
+
+        Delegator's PUBLIC contract is still legacy (nx, ny, ng); the
+        operator's direct contract is principled (ng, nx, ny).  Bridge
+        via transpose for comparison.
+        """
         np.random.seed(7)
         nx, ny, ng = solver_2g_p0.sn_mesh.nx, solver_2g_p0.sn_mesh.ny, solver_2g_p0.ng
-        phi = np.random.rand(nx, ny, ng) + 0.1
-        Q = np.random.rand(nx, ny, ng)
+        phi_legacy = np.random.rand(nx, ny, ng) + 0.1
+        Q_legacy = np.random.rand(nx, ny, ng)
 
-        Q_via_delegator = Q.copy()
-        solver_2g_p0._add_scattering_source(Q_via_delegator, phi)
+        Q_via_delegator = Q_legacy.copy()
+        solver_2g_p0._add_scattering_source(Q_via_delegator, phi_legacy)
 
-        Q_via_operator = Q.copy()
-        solver_2g_p0.scattering_op.add_iso_source(Q_via_operator, phi)
+        # Operator path: principled views.
+        phi_principled = np.transpose(phi_legacy, (2, 0, 1)).copy()
+        Q_via_operator_principled = np.transpose(Q_legacy, (2, 0, 1)).copy()
+        solver_2g_p0.scattering_op.add_iso_source(
+            Q_via_operator_principled, phi_principled,
+        )
+        # Transpose back for comparison.
+        Q_via_operator = np.transpose(Q_via_operator_principled, (1, 2, 0))
 
         np.testing.assert_array_equal(Q_via_delegator, Q_via_operator)
 
@@ -178,14 +201,18 @@ class TestBitIdenticalExtractionP0:
         """SNSolver._add_n2n_source delegates to op.add_n2n_source bit-identically."""
         np.random.seed(11)
         nx, ny, ng = solver_2g_p0.sn_mesh.nx, solver_2g_p0.sn_mesh.ny, solver_2g_p0.ng
-        phi = np.random.rand(nx, ny, ng) + 0.1
-        Q = np.random.rand(nx, ny, ng)
+        phi_legacy = np.random.rand(nx, ny, ng) + 0.1
+        Q_legacy = np.random.rand(nx, ny, ng)
 
-        Q_via_delegator = Q.copy()
-        solver_2g_p0._add_n2n_source(Q_via_delegator, phi)
+        Q_via_delegator = Q_legacy.copy()
+        solver_2g_p0._add_n2n_source(Q_via_delegator, phi_legacy)
 
-        Q_via_operator = Q.copy()
-        solver_2g_p0.scattering_op.add_n2n_source(Q_via_operator, phi)
+        phi_principled = np.transpose(phi_legacy, (2, 0, 1)).copy()
+        Q_via_operator_principled = np.transpose(Q_legacy, (2, 0, 1)).copy()
+        solver_2g_p0.scattering_op.add_n2n_source(
+            Q_via_operator_principled, phi_principled,
+        )
+        Q_via_operator = np.transpose(Q_via_operator_principled, (1, 2, 0))
 
         np.testing.assert_array_equal(Q_via_delegator, Q_via_operator)
 
@@ -217,7 +244,8 @@ class TestAnisotropicScatteringExtraction:
         """L=0 => Pℓ contribution is None (signal: no aniso source needed)."""
         N = solver_2g_p0.quad.N
         nx, ny, ng = solver_2g_p0.sn_mesh.nx, solver_2g_p0.sn_mesh.ny, solver_2g_p0.ng
-        psi = np.ones((N, nx, ny, ng))
+        # Issue #196 PR-INDEX-4: principled (N, ng, nx, ny).
+        psi = np.ones((N, ng, nx, ny))
         out = solver_2g_p0.scattering_op.build_aniso_source(psi)
         assert out is None
 
@@ -230,20 +258,28 @@ class TestAnisotropicScatteringExtraction:
         """Isotropic ψ_n = const for every ordinate => P1+ Galerkin moments = 0."""
         op = solver_2g_p1.scattering_op
         N = op.n_ordinates
-        psi_iso = np.ones((N, op.nx, op.ny, op.ng))
+        psi_iso = np.ones((N, op.ng, op.nx, op.ny))
         Q_aniso = op.build_aniso_source(psi_iso)
         assert Q_aniso is not None
         np.testing.assert_allclose(Q_aniso, 0, atol=1e-12)
 
     def test_delegator_matches_operator(self, solver_2g_p1):
-        """SNSolver._build_aniso_scattering delegates bit-identically."""
+        """SNSolver._build_aniso_scattering delegates bit-identically.
+
+        Delegator's PUBLIC contract is legacy ``(N, nx, ny, ng)``;
+        operator consumes / returns principled ``(N, ng, nx, ny)``.
+        Compare via transpose bridges.
+        """
         op = solver_2g_p1.scattering_op
         N = op.n_ordinates
         np.random.seed(42)
-        psi = np.random.rand(N, op.nx, op.ny, op.ng) + 0.1
+        psi_legacy = np.random.rand(N, op.nx, op.ny, op.ng) + 0.1
 
-        out_via_delegator = solver_2g_p1._build_aniso_scattering(psi)
-        out_via_operator = op.build_aniso_source(psi)
+        out_via_delegator = solver_2g_p1._build_aniso_scattering(psi_legacy)
+        # Bridge psi → principled, take operator output, bridge back.
+        psi_principled = np.transpose(psi_legacy, (0, 3, 1, 2))
+        out_via_op_principled = op.build_aniso_source(psi_principled)
+        out_via_operator = np.transpose(out_via_op_principled, (0, 2, 3, 1))
         np.testing.assert_array_equal(out_via_delegator, out_via_operator)
 
 
@@ -260,19 +296,22 @@ class TestApplySemantics:
     """
 
     def test_apply_isotropic_flux_p0_only(self, solver_2g_p0):
-        """For P0-only solver, apply(ψ) = (P0 in-scatter + (n,2n))(φ) broadcast."""
+        """For P0-only solver, apply(ψ) = (P0 in-scatter + (n,2n))(φ) broadcast.
+
+        Issue #196 PR-INDEX-4: principled ``(N, ng, nx, ny)`` ψ.
+        """
         op = solver_2g_p0.scattering_op
         N = op.n_ordinates
         nx, ny, ng = op.nx, op.ny, op.ng
 
         np.random.seed(5)
-        psi = np.random.rand(N, nx, ny, ng) + 0.1
+        psi = np.random.rand(N, ng, nx, ny) + 0.1
 
         # Compute scalar flux the same way apply() does internally.
-        phi = np.einsum('n,nxyg->xyg', op.weights, psi)
+        phi = np.einsum('n,ngxy->gxy', op.weights, psi)
 
         # Reference: compute Q_iso explicitly
-        Q_iso = np.zeros((nx, ny, ng))
+        Q_iso = np.zeros((ng, nx, ny))
         op.add_iso_source(Q_iso, phi)
         op.add_n2n_source(Q_iso, phi)
         expected = np.broadcast_to(Q_iso[None, :, :, :], psi.shape)
@@ -284,7 +323,7 @@ class TestApplySemantics:
         """ψ = 0 => S·ψ = 0 (linearity guard)."""
         op = solver_2g_p0.scattering_op
         N = op.n_ordinates
-        psi = np.zeros((N, op.nx, op.ny, op.ng))
+        psi = np.zeros((N, op.ng, op.nx, op.ny))
         out = op.apply(psi)
         np.testing.assert_array_equal(out, np.zeros_like(psi))
 
@@ -295,8 +334,8 @@ class TestApplySemantics:
         nx, ny, ng = op.nx, op.ny, op.ng
 
         np.random.seed(13)
-        psi1 = np.random.rand(N, nx, ny, ng) + 0.1
-        psi2 = np.random.rand(N, nx, ny, ng) + 0.1
+        psi1 = np.random.rand(N, ng, nx, ny) + 0.1
+        psi2 = np.random.rand(N, ng, nx, ny) + 0.1
         alpha, beta = 2.5, -1.7
 
         lhs = op.apply(alpha * psi1 + beta * psi2)
@@ -313,7 +352,10 @@ class TestP0AlgebraicIdentities:
     """Hand-checkable cases for the P0 + (n,2n) algebra."""
 
     def test_p0_uniform_flux_homogeneous(self):
-        """Homogeneous medium, uniform φ_g = 1: Q_iso[g] = Σ_g' Σ_s0[g'->g]."""
+        """Homogeneous medium, uniform φ_g = 1: Q_iso[g] = Σ_g' Σ_s0[g'->g].
+
+        Issue #196 PR-INDEX-4: principled ``(ng, nx, ny)`` ψ / Q.
+        """
         mix = make_mixture(
             sig_t=np.array([0.5, 1.0]),
             sig_c=np.array([0.01, 0.02]),
@@ -328,7 +370,7 @@ class TestP0AlgebraicIdentities:
         solver = SNSolver({0: mix}, SNMesh(mesh, quad))
         op = solver.scattering_op
 
-        phi = np.ones((nx, ny, op.ng))
+        phi = np.ones((op.ng, nx, ny))
         Q = np.zeros_like(phi)
         op.add_iso_source(Q, phi)
 
@@ -339,7 +381,7 @@ class TestP0AlgebraicIdentities:
         expected_per_cell = np.ones(op.ng) @ sig_s0_dense
         for ix in range(nx):
             for iy in range(ny):
-                np.testing.assert_allclose(Q[ix, iy, :], expected_per_cell, rtol=1e-14)
+                np.testing.assert_allclose(Q[:, ix, iy], expected_per_cell, rtol=1e-14)
 
     def test_n2n_doubling_factor(self):
         """For a pure-(n,2n) mixture (Σ_s0 = 0), Q = 2·φ·Σ_2n."""
@@ -364,7 +406,8 @@ class TestP0AlgebraicIdentities:
         op = solver.scattering_op
 
         np.random.seed(31)
-        phi = np.random.rand(nx, ny, op.ng) + 0.1
+        # Issue #196 PR-INDEX-4: principled (ng, nx, ny).
+        phi = np.random.rand(op.ng, nx, ny) + 0.1
         Q = np.zeros_like(phi)
         op.add_iso_source(Q, phi)
         # P0 contribution should be zero
@@ -372,11 +415,11 @@ class TestP0AlgebraicIdentities:
 
         # (n,2n) contribution
         op.add_n2n_source(Q, phi)
-        # Hand-computed: Q[ix, iy, g] = 2 · sum_g' phi[ix, iy, g'] · sig2[g'->g]
+        # Hand-computed: Q[g, ix, iy] = 2 · sum_g' phi[g', ix, iy] · sig2[g'->g]
         for ix in range(nx):
             for iy in range(ny):
-                expected = 2.0 * phi[ix, iy, :] @ sig2_test
-                np.testing.assert_allclose(Q[ix, iy, :], expected, rtol=1e-14)
+                expected = 2.0 * phi[:, ix, iy] @ sig2_test
+                np.testing.assert_allclose(Q[:, ix, iy], expected, rtol=1e-14)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -621,19 +664,22 @@ class TestAlgebraicIdentity:
         np.testing.assert_allclose(full, split_sum, rtol=1e-14, atol=1e-15)
 
     def test_identity_p0_only_random_psi(self, solver_2g_p0):
-        """Case 1 — scattering_order == 0 only (no Pℓ)."""
+        """Case 1 — scattering_order == 0 only (no Pℓ).
+
+        Issue #196 PR-INDEX-4: principled ``(N, ng, nx, ny)`` ψ.
+        """
         op = solver_2g_p0.scattering_op
         assert op.scattering_order == 0
         N = op.n_ordinates
         np.random.seed(42)
-        psi = np.random.rand(N, op.nx, op.ny, op.ng) + 0.1
+        psi = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
         self._check_identity(op, psi)
 
     def test_identity_p0_only_uniform_psi(self, solver_2g_p0):
         """Case 1b — uniform ψ probes the diagonal isolation path."""
         op = solver_2g_p0.scattering_op
         N = op.n_ordinates
-        psi = np.ones((N, op.nx, op.ny, op.ng))
+        psi = np.ones((N, op.ng, op.nx, op.ny))
         self._check_identity(op, psi)
 
     def test_identity_with_pl_ge_1(self, solver_2g_p1_n2n):
@@ -642,7 +688,7 @@ class TestAlgebraicIdentity:
         assert op.scattering_order >= 1
         N = op.n_ordinates
         np.random.seed(101)
-        psi = np.random.rand(N, op.nx, op.ny, op.ng) + 0.1
+        psi = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
         self._check_identity(op, psi)
 
     def test_identity_with_nonzero_n2n(self, solver_2g_p1_n2n):
@@ -655,7 +701,7 @@ class TestAlgebraicIdentity:
         assert any_nonzero_n2n, "fixture must carry non-zero (n,2n)"
         N = op.n_ordinates
         np.random.seed(202)
-        psi = np.random.rand(N, op.nx, op.ny, op.ng) + 0.1
+        psi = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
         self._check_identity(op, psi)
 
     def test_identity_multigroup_cross_group_plus_diagonal(self, solver_2g_p1_n2n):
@@ -670,7 +716,7 @@ class TestAlgebraicIdentity:
             assert np.any(off != 0.0)
         N = op.n_ordinates
         np.random.seed(303)
-        psi = np.random.rand(N, op.nx, op.ny, op.ng) + 0.1
+        psi = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
         self._check_identity(op, psi)
 
     def test_residual_zero_when_p0_diagonal_only_no_n2n(self):
@@ -694,7 +740,8 @@ class TestAlgebraicIdentity:
 
         N = op.n_ordinates
         np.random.seed(404)
-        psi = np.random.rand(N, nx, ny, op.ng) + 0.1
+        # Issue #196 PR-INDEX-4: principled (N, ng, nx, ny).
+        psi = np.random.rand(N, op.ng, nx, ny) + 0.1
         full = op.apply(psi)
         residual_part = op.residual_part().apply(psi)
         np.testing.assert_allclose(residual_part, 0.0, atol=1e-15)

@@ -233,13 +233,19 @@ def _build_sn_mesh(
 def _build_sig_t(
     sn_mesh: SNMesh, materials: dict, ng: int,
 ) -> np.ndarray:
-    """Build the per-cell per-group ``sig_t`` array from a materials dict."""
+    """Build the per-cell per-group ``sig_t`` array from a materials dict.
+
+    Issue #196 PR-INDEX-4: principled ``(ng, nx, ny)`` layout to match
+    ``_sweep_2d_wavefront``'s direct contract.
+    """
     nx, ny = sn_mesh.nx, sn_mesh.ny
-    sig_t = np.zeros((nx, ny, ng))
+    sig_t = np.zeros((ng, nx, ny))
     for mid, mix in materials.items():
         cells = sn_mesh.mat_map == mid
-        # ``Mixture.SigT`` is ``(ng,)``.
-        sig_t[cells, :] = mix.SigT[None, :]
+        # ``Mixture.SigT`` is ``(ng,)``.  Broadcast across spatial axes.
+        # sig_t[:, cells] expects shape (ng, n_cells); SigT[:, None]
+        # broadcasts across the cells dimension.
+        sig_t[:, cells] = mix.SigT[:, None]
     return sig_t
 
 
@@ -294,13 +300,18 @@ class OctantEquivalenceCase:
 
 @dataclass(frozen=True)
 class OctantEquivalenceInputs:
-    """Per-case inputs to ``_sweep_2d_wavefront``."""
+    """Per-case inputs to ``_sweep_2d_wavefront``.
+
+    Issue #196 PR-INDEX-4: principled ``(ng, nx, ny)`` for the scalar
+    source ``Q`` and the cross-section ``sig_t``; principled
+    ``(N, ng, nx, ny)`` for the optional anisotropic source ``Q_aniso``.
+    """
 
     sn_mesh: SNMesh
-    Q: np.ndarray                      # (nx, ny, ng) — isotropic source
-    sig_t: np.ndarray                  # (nx, ny, ng)
+    Q: np.ndarray                      # (ng, nx, ny) — isotropic source
+    sig_t: np.ndarray                  # (ng, nx, ny)
     psi_bc: dict                        # mutable — sweep mutates BC buffers
-    Q_aniso: np.ndarray | None = None  # (N, nx, ny, ng) or None
+    Q_aniso: np.ndarray | None = None  # (N, ng, nx, ny) or None
 
 
 # ─── case-1 — smoke (all-vacuum, 1G homogeneous, uniform Q) ──────────
@@ -322,7 +333,8 @@ def _case_1_smoke() -> OctantEquivalenceInputs:
     )
     materials = {0: get_mixture("A", "1g")}
     sig_t = _build_sig_t(sn_mesh, materials, ng=1)
-    Q = np.ones((sn_mesh.nx, sn_mesh.ny, 1))
+    # PR-INDEX-4: principled (ng, nx, ny).
+    Q = np.ones((1, sn_mesh.nx, sn_mesh.ny))
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
         psi_bc={}, Q_aniso=None,
@@ -353,7 +365,7 @@ def _case_2_reflective() -> OctantEquivalenceInputs:
     )
     materials = {0: get_mixture("A", "1g")}
     sig_t = _build_sig_t(sn_mesh, materials, ng=1)
-    Q = np.ones((sn_mesh.nx, sn_mesh.ny, 1))
+    Q = np.ones((1, sn_mesh.nx, sn_mesh.ny))
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
         psi_bc=_empty_psi_bc(), Q_aniso=None,
@@ -413,8 +425,8 @@ def _case_3_l7_trap() -> OctantEquivalenceInputs:
     # Spatially uniform Q to keep the assertion focused on the BC /
     # heterogeneity / multi-group axes.  Uniform-Q + heterogeneous Σ_t
     # is the canonical fingerprint that surfaces redistribution bugs
-    # on a flat-source baseline.
-    Q = np.ones((sn_mesh.nx, sn_mesh.ny, 2))
+    # on a flat-source baseline.  PR-INDEX-4 (ng, nx, ny).
+    Q = np.ones((2, sn_mesh.nx, sn_mesh.ny))
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
         psi_bc=_empty_psi_bc(), Q_aniso=None,
@@ -444,14 +456,19 @@ def _case_4_heterogeneous() -> OctantEquivalenceInputs:
     sig_t = _build_sig_t(sn_mesh, materials, ng=2)
     rng = np.random.default_rng(seed=4)
     # Smoothly varying Q across both axes; group-asymmetric magnitudes
-    # to catch any ng-axis swap.
+    # to catch any ng-axis swap.  PR-INDEX-4: build in legacy
+    # (nx, ny, ng) then transpose to principled (ng, nx, ny) so the
+    # numerical values are identical to pre-PR-INDEX-4 snapshots after
+    # a single layout flip — bit-identity preserved by view-only
+    # transpose.
     x = np.linspace(0.0, 1.0, sn_mesh.nx)[:, None, None]
     y = np.linspace(0.0, 1.0, sn_mesh.ny)[None, :, None]
-    Q = (
+    Q_legacy = (
         np.array([1.0, 0.5])[None, None, :]
         + 0.5 * x + 0.3 * y
         + 0.1 * rng.standard_normal((sn_mesh.nx, sn_mesh.ny, 2))
     )
+    Q = np.transpose(Q_legacy, (2, 0, 1)).copy()  # (ng, nx, ny)
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
         psi_bc={}, Q_aniso=None,
@@ -485,22 +502,25 @@ def _case_5_q_aniso() -> OctantEquivalenceInputs:
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     sig_t = _build_sig_t(sn_mesh, materials, ng=2)
     rng = np.random.default_rng(seed=5)
+    # PR-INDEX-4: build legacy then flip to principled (ng, nx, ny) /
+    # (N, ng, nx, ny) for the numerical-value parity with pre-PR-4
+    # snapshots.
     x = np.linspace(0.0, 1.0, sn_mesh.nx)[:, None, None]
     y = np.linspace(0.0, 1.0, sn_mesh.ny)[None, :, None]
-    Q = (
+    Q_legacy = (
         np.array([1.0, 0.5])[None, None, :]
         + 0.5 * x + 0.3 * y
     )
-    # Q_aniso has shape (N, nx, ny, ng).  Use a smooth angular
-    # modulation × the spatial gradient to keep the field meaningful
-    # but avoid pure-noise that could mask sign / index bugs.
+    Q = np.transpose(Q_legacy, (2, 0, 1)).copy()  # (ng, nx, ny)
+    # Q_aniso legacy shape (N, nx, ny, ng) → principled (N, ng, nx, ny).
     N = sn_mesh.quad.N
     mu_x = sn_mesh.quad.mu_x[:, None, None, None]
     mu_y = sn_mesh.quad.mu_y[:, None, None, None]
-    Q_aniso = (
-        0.2 * mu_x * Q[None, ...] + 0.1 * mu_y * Q[None, ...]
+    Q_aniso_legacy = (
+        0.2 * mu_x * Q_legacy[None, ...] + 0.1 * mu_y * Q_legacy[None, ...]
         + 0.05 * rng.standard_normal((N, sn_mesh.nx, sn_mesh.ny, 2))
     )
+    Q_aniso = np.transpose(Q_aniso_legacy, (0, 3, 1, 2)).copy()  # (N, ng, nx, ny)
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
         psi_bc=_empty_psi_bc(), Q_aniso=Q_aniso,
@@ -535,7 +555,7 @@ def _case_6_pure_z() -> OctantEquivalenceInputs:
     )
     materials = {0: get_mixture("A", "1g")}
     sig_t = _build_sig_t(sn_mesh, materials, ng=1)
-    Q = np.ones((sn_mesh.nx, sn_mesh.ny, 1))
+    Q = np.ones((1, sn_mesh.nx, sn_mesh.ny))  # PR-INDEX-4 (ng, nx, ny)
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
         psi_bc={}, Q_aniso=None,
