@@ -463,6 +463,172 @@ class ScatteringOperator(LinearOperatorMixin):
         R = HarmonicMomentReconstruction.from_Y(self.Y)
         return R.apply(Lam.apply(M.apply(angular_flux)))
 
+    # ── Foldable / residual split ─────────────────────────────────────
+    #
+    # The Phase G four-operator unification splits scattering as
+    #
+    #     S = S_foldable + S_residual
+    #
+    # where ``S_foldable`` is the **P0 within-group self-scatter**
+    # only: per ordinate the source is :math:`\Sigma_{s,0}^{g\to g}
+    # \phi_g`, direction-independent, so the cell-balance denominator
+    # can absorb it as :math:`\sigma_r = \sigma_t -
+    # \Sigma_{s,0}^{g\to g}` (the "removal" cross-section). Every
+    # other piece of :math:`S` lives in ``S_residual``:
+    #
+    # * **Cross-group P0** (off-diagonal of ``sig_s[mid][0]``) — couples
+    #   distinct energy groups, cannot collapse into a per-cell scalar.
+    # * **All :math:`P_\ell \ge 1`** — direction-dependent through
+    #   :math:`Y_\ell^m(\Omega_n)`, fundamentally unfoldable into
+    #   :math:`\sigma_r`. This is NOT an SN-specific quirk; it is
+    #   inherent to anisotropic scattering's angular structure for
+    #   every transport solver family (SN, CP, MoC, diffusion-P_N).
+    # * **(n,2n) doubling** — emits two neutrons per absorption;
+    #   folding into a "removal" cross-section :math:`\sigma_r` is
+    #   conceptually wrong even when ``sig2[mid][g, g]`` is non-zero.
+    #
+    # Both halves are :class:`ScatteringOperator` siblings (same class,
+    # different per-material arrays). No new wrapper type. The split
+    # is purely additive: ``S.apply(\psi) =
+    # S.foldable_part().apply(\psi) + S.residual_part().apply(\psi)``
+    # at FP-non-associativity precision (typically ``rtol=1e-14``).
+    #
+    # The split is consumed by the within-group operator algebra
+    # ``A_wg = L + C - S.foldable_part()`` (Phase G substep 3+4.b)
+    # and the within-group accelerator's iteration operator
+    # ``scatter_cycle = A_wg.inverse() @ S.residual_part()``
+    # (substep 3+4.c). This substep lands the data API only; no
+    # solver/sweep/iteration code consumes the new methods yet.
+
+    def foldable_part(self) -> "ScatteringOperator":
+        r"""Return the P0 within-group self-scatter sibling of :math:`S`.
+
+        Carries only the diagonal of ``sig_s[mid][0]`` per material —
+        the within-group self-scatter cross-section
+        :math:`\Sigma_{s,0}^{g\to g}` per energy group. All other
+        scattering channels (cross-group P0, all :math:`P_\ell \ge 1`,
+        and (n,2n)) live in :meth:`residual_part`.
+
+        The foldability criterion is :math:`\ell = 0` within-group
+        only because :math:`Y_\ell^m(\Omega_n)` makes
+        :math:`P_\ell \ge 1` self-scatter inherently
+        direction-dependent and unfoldable into a per-cell
+        :math:`\sigma_r` (the cell-balance removal cross-section).
+
+        Returns
+        -------
+        ScatteringOperator
+            A sibling with ``scattering_order = 0``, ``Y = None``,
+            diagonal-only ``sig_s[mid][0]``, zero ``sig2``, and the
+            same ``n_ordinates / nx / ny / ng / weights /
+            cells_by_mat`` as ``self``. Pure function — calling
+            twice returns instances with equal per-material arrays.
+        """
+        # New per-material arrays — never mutate self.sig_s / self.sig2.
+        sig_s_foldable: dict[int, list[np.ndarray]] = {}
+        sig_s0_foldable: dict[int, np.ndarray] = {}
+        sig2_foldable: dict[int, np.ndarray] = {}
+        for mid, mats in self.sig_s.items():
+            diag_only = np.diag(np.diag(mats[0]))  # (ng, ng), diagonal only
+            sig_s_foldable[mid] = [diag_only]
+            sig_s0_foldable[mid] = diag_only
+            sig2_foldable[mid] = np.zeros_like(self.sig2[mid])
+        return ScatteringOperator(
+            n_ordinates=self.n_ordinates,
+            nx=self.nx,
+            ny=self.ny,
+            ng=self.ng,
+            scattering_order=0,
+            sig_s=sig_s_foldable,
+            sig2=sig2_foldable,
+            sig_s0=sig_s0_foldable,
+            Y=None,
+            weights=self.weights,
+            cells_by_mat=self.cells_by_mat,
+        )
+
+    def residual_part(self) -> "ScatteringOperator":
+        r"""Return the non-foldable sibling of :math:`S`.
+
+        Carries everything :meth:`foldable_part` does not: the
+        off-diagonal of ``sig_s[mid][0]`` (cross-group P0), every
+        :math:`P_\ell \ge 1` block verbatim, and ``sig2[mid]``
+        verbatim. These channels cannot collapse into a per-cell
+        :math:`\sigma_r`: cross-group P0 couples distinct energy
+        groups, :math:`P_\ell \ge 1` is direction-dependent via
+        :math:`Y_\ell^m(\Omega_n)`, and (n,2n) doubling emits two
+        neutrons per absorption (folding into a "removal"
+        cross-section is conceptually wrong).
+
+        Returns
+        -------
+        ScatteringOperator
+            A sibling with ``scattering_order ==
+            self.scattering_order``, ``Y is self.Y`` (precomputed
+            harmonics are reusable), zero-diagonal P0 matrix, and
+            unchanged :math:`P_\ell \ge 1` + (n,2n) data.
+
+        Notes
+        -----
+        Algebraic contract:
+        ``S.apply(\psi) \approx S.foldable_part().apply(\psi) +
+        S.residual_part().apply(\psi)`` at ``rtol=1e-14``. The
+        residual is FP-non-associativity (sum-of-two-applies vs
+        single-apply differs at machine precision).
+        """
+        sig_s_residual: dict[int, list[np.ndarray]] = {}
+        sig_s0_residual: dict[int, np.ndarray] = {}
+        for mid, mats in self.sig_s.items():
+            p0 = mats[0]
+            cross_group = p0 - np.diag(np.diag(p0))
+            # Pℓ ≥ 1 blocks carried verbatim — anisotropic scattering is
+            # unconditionally residual (Y_ℓ^m direction dependence).
+            sig_s_residual[mid] = [cross_group, *mats[1:]]
+            sig_s0_residual[mid] = cross_group
+        # (n,2n) carried verbatim — same dict; safe to share since
+        # apply() never mutates the matrices.
+        sig2_residual = self.sig2
+        return ScatteringOperator(
+            n_ordinates=self.n_ordinates,
+            nx=self.nx,
+            ny=self.ny,
+            ng=self.ng,
+            scattering_order=self.scattering_order,
+            sig_s=sig_s_residual,
+            sig2=sig2_residual,
+            sig_s0=sig_s0_residual,
+            Y=self.Y,
+            weights=self.weights,
+            cells_by_mat=self.cells_by_mat,
+        )
+
+    def foldable_sigma(self) -> dict[int, np.ndarray]:
+        r"""Return the per-material foldable cross-section :math:`(\sigma_{s,0}^{g\to g})_g`.
+
+        For every material ``mid``, returns the ``(ng,)`` array
+        ``np.diag(sig_s[mid][0])`` — the per-group within-group
+        self-scatter cross-section :math:`\Sigma_{s,0}^{g\to g}`
+        that the cell-balance denominator absorbs into
+        :math:`\sigma_r = \sigma_t - \Sigma_{s,0}^{g\to g}`.
+
+        Substep 3+4.b's ``OperatorSum.solve`` fusion hook consumes
+        these arrays directly (lazy :math:`\sigma_r` cache); the
+        full :meth:`foldable_part` operator is consumed by the
+        within-group algebra ``A_wg = L + C - S.foldable_part()``.
+        Both are equivalent re-expressions of the same data.
+
+        Returns
+        -------
+        dict[int, np.ndarray]
+            ``{mid: (ng,) array}`` keyed by material id. Each array
+            is a fresh copy (mutating the returned dict's values
+            does not affect ``self``).
+        """
+        return {
+            mid: np.diag(mats[0]).copy()
+            for mid, mats in self.sig_s.items()
+        }
+
     # ── LinearOperator surface ─────────────────────────────────────────
 
     def apply(self, psi: np.ndarray) -> np.ndarray:

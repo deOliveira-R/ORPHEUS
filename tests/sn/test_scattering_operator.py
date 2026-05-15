@@ -377,3 +377,361 @@ class TestP0AlgebraicIdentities:
             for iy in range(ny):
                 expected = 2.0 * phi[ix, iy, :] @ sig2_test
                 np.testing.assert_allclose(Q[ix, iy, :], expected, rtol=1e-14)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Foldable / residual split — Phase G Step 3+4.a (Issue #196)
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def solver_2g_p1_n2n():
+    """2G solver with non-trivial cross-group P0 AND a Pℓ≥1 channel AND
+    a non-zero (n,2n) matrix. Stresses every channel of the residual."""
+    # Asymmetric P0 matrix: non-trivial diagonal AND off-diagonal entries.
+    p0 = np.array([[0.38, 0.10], [0.05, 0.90]])
+    # Non-trivial P1 block — Pℓ≥1 is unconditionally residual.
+    p1 = np.array([[0.02, 0.01], [0.00, 0.04]])
+    from scipy.sparse import csr_matrix
+    mix = make_mixture(
+        sig_t=np.array([0.5, 1.0]),
+        sig_c=np.array([0.01, 0.02]),
+        sig_f=np.array([0.01, 0.08]),
+        nu=np.array([2.5, 2.5]),
+        chi=np.array([1.0, 0.0]),
+        sig_s=p0,
+    )
+    # Append a P1 block manually; ORPHEUS's SigS is a list[csr_matrix]
+    # indexed by Legendre order.
+    mix.SigS = [csr_matrix(p0), csr_matrix(p1)]
+    # Inject (n,2n) — non-zero on a cross-group entry only (the brief
+    # explicitly notes diagonal sig2 entries are rare but legal).
+    mix.Sig2 = csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))
+
+    nx, ny = 3, 2
+    mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
+    quad = LebedevSphere.create(order=17)
+    return SNSolver({0: mix}, SNMesh(mesh, quad), scattering_order=1)
+
+
+class TestFoldablePart:
+    """``foldable_part()`` carries ONLY the P0 within-group diagonal."""
+
+    def test_returns_scattering_operator_instance(self, solver_2g_p0):
+        """Mechanism criterion 1 — sibling class, not a new class."""
+        S = solver_2g_p0.scattering_op
+        assert isinstance(S.foldable_part(), ScatteringOperator)
+
+    def test_scattering_order_is_zero(self, solver_2g_p0):
+        """Mechanism criterion 2 — no Pℓ structure in foldable."""
+        S = solver_2g_p0.scattering_op
+        assert S.foldable_part().scattering_order == 0
+
+    def test_Y_is_None(self, solver_2g_p0):
+        """Mechanism criterion 3 — no spherical harmonics for ℓ=0."""
+        S = solver_2g_p0.scattering_op
+        assert S.foldable_part().Y is None
+
+    def test_Y_is_None_even_for_p1_source(self, solver_2g_p1_n2n):
+        """Even when S carries P1+ data, the foldable sibling has no Y."""
+        S = solver_2g_p1_n2n.scattering_op
+        assert S.foldable_part().Y is None
+
+    def test_sig_s_is_diagonal_only(self, solver_2g_p1_n2n):
+        """Mechanism criterion 4a — sig_s[mid][0] is diagonal-only."""
+        S = solver_2g_p1_n2n.scattering_op
+        S_fold = S.foldable_part()
+        for mid in S.sig_s:
+            mat = S_fold.sig_s[mid][0]
+            expected = np.diag(np.diag(S.sig_s[mid][0]))
+            np.testing.assert_array_equal(mat, expected)
+            # Off-diagonal is literally zero, not just small.
+            off_diag = mat - np.diag(np.diag(mat))
+            assert np.all(off_diag == 0.0)
+
+    def test_sig_s0_matches_sig_s_l0(self, solver_2g_p1_n2n):
+        """Mechanism criterion 4b — sig_s0 == sig_s[mid][0]."""
+        S = solver_2g_p1_n2n.scattering_op
+        S_fold = S.foldable_part()
+        for mid in S.sig_s:
+            np.testing.assert_array_equal(
+                S_fold.sig_s0[mid], S_fold.sig_s[mid][0]
+            )
+
+    def test_sig_s_has_length_one(self, solver_2g_p1_n2n):
+        """Mechanism criterion 4c — no Pℓ≥1 entries in foldable."""
+        S = solver_2g_p1_n2n.scattering_op
+        S_fold = S.foldable_part()
+        for mid in S.sig_s:
+            assert len(S_fold.sig_s[mid]) == 1
+
+    def test_sig2_is_zero_matrix(self, solver_2g_p1_n2n):
+        """Mechanism criterion 4d — (n,2n) belongs to residual unconditionally."""
+        S = solver_2g_p1_n2n.scattering_op
+        S_fold = S.foldable_part()
+        for mid in S.sig2:
+            assert S_fold.sig2[mid].shape == S.sig2[mid].shape
+            assert S_fold.sig2[mid].dtype == S.sig2[mid].dtype
+            np.testing.assert_array_equal(
+                S_fold.sig2[mid], np.zeros_like(S.sig2[mid])
+            )
+
+    def test_does_not_mutate_parent_sig_s(self, solver_2g_p1_n2n):
+        """Anti-rec 4 — split returns new arrays; parent unchanged."""
+        S = solver_2g_p1_n2n.scattering_op
+        # Snapshot every parent array.
+        before = {mid: [m.copy() for m in S.sig_s[mid]] for mid in S.sig_s}
+        before_sig2 = {mid: S.sig2[mid].copy() for mid in S.sig2}
+        _ = S.foldable_part()
+        # Parent unchanged.
+        for mid in S.sig_s:
+            for l, m in enumerate(S.sig_s[mid]):
+                np.testing.assert_array_equal(m, before[mid][l])
+        for mid in S.sig2:
+            np.testing.assert_array_equal(S.sig2[mid], before_sig2[mid])
+
+
+class TestResidualPart:
+    """``residual_part()`` carries everything but P0 within-group diagonal."""
+
+    def test_returns_scattering_operator_instance(self, solver_2g_p0):
+        """Mechanism criterion 1 — sibling class."""
+        S = solver_2g_p0.scattering_op
+        assert isinstance(S.residual_part(), ScatteringOperator)
+
+    def test_sig_s_l0_diagonal_zeroed(self, solver_2g_p1_n2n):
+        """Mechanism criterion 5a — cross-group only on P0."""
+        S = solver_2g_p1_n2n.scattering_op
+        S_res = S.residual_part()
+        for mid in S.sig_s:
+            expected = S.sig_s[mid][0] - np.diag(np.diag(S.sig_s[mid][0]))
+            np.testing.assert_array_equal(S_res.sig_s[mid][0], expected)
+            # The diagonal IS zero, not just close.
+            diag = np.diag(S_res.sig_s[mid][0])
+            assert np.all(diag == 0.0)
+
+    def test_sig_s0_matches_diagonal_zeroed(self, solver_2g_p1_n2n):
+        """Mechanism criterion 5b — sig_s0 alias of sig_s[mid][0]."""
+        S = solver_2g_p1_n2n.scattering_op
+        S_res = S.residual_part()
+        for mid in S.sig_s:
+            np.testing.assert_array_equal(
+                S_res.sig_s0[mid], S_res.sig_s[mid][0]
+            )
+
+    def test_pl_ge_1_carried_verbatim(self, solver_2g_p1_n2n):
+        """Mechanism criterion 5c — Pℓ≥1 blocks unchanged."""
+        S = solver_2g_p1_n2n.scattering_op
+        assert S.scattering_order >= 1, "fixture must carry P1+ data"
+        S_res = S.residual_part()
+        for mid in S.sig_s:
+            for l in range(1, S.scattering_order + 1):
+                np.testing.assert_array_equal(
+                    S_res.sig_s[mid][l], S.sig_s[mid][l]
+                )
+
+    def test_sig2_carried_verbatim(self, solver_2g_p1_n2n):
+        """Mechanism criterion 5d — (n,2n) unconditionally residual."""
+        S = solver_2g_p1_n2n.scattering_op
+        S_res = S.residual_part()
+        for mid in S.sig2:
+            np.testing.assert_array_equal(S_res.sig2[mid], S.sig2[mid])
+
+    def test_scattering_order_preserved(self, solver_2g_p1_n2n):
+        """Mechanism criterion 5e — Pℓ structure preserved."""
+        S = solver_2g_p1_n2n.scattering_op
+        assert S.residual_part().scattering_order == S.scattering_order
+
+    def test_Y_is_self_Y(self, solver_2g_p1_n2n):
+        """Mechanism criterion 5f — precomputed harmonics reusable."""
+        S = solver_2g_p1_n2n.scattering_op
+        S_res = S.residual_part()
+        # Either same object (preferred) or array-equal.
+        assert S_res.Y is S.Y or np.array_equal(S_res.Y, S.Y)
+
+    def test_Y_None_for_p0_solver(self, solver_2g_p0):
+        """If S has no harmonics (L=0), residual has none either."""
+        S = solver_2g_p0.scattering_op
+        assert S.residual_part().Y is None
+
+    def test_does_not_mutate_parent_sig_s(self, solver_2g_p1_n2n):
+        """Anti-rec 4 — split returns new arrays; parent unchanged."""
+        S = solver_2g_p1_n2n.scattering_op
+        before = {mid: [m.copy() for m in S.sig_s[mid]] for mid in S.sig_s}
+        _ = S.residual_part()
+        for mid in S.sig_s:
+            for l, m in enumerate(S.sig_s[mid]):
+                np.testing.assert_array_equal(m, before[mid][l])
+
+
+class TestFoldableSigma:
+    """``foldable_sigma()`` returns the per-material (ng,) σ_{s,0}^{g→g}."""
+
+    def test_returns_dict_of_ndarrays(self, solver_2g_p1_n2n):
+        """Mechanism criterion 6a — dict[int, ndarray]."""
+        S = solver_2g_p1_n2n.scattering_op
+        result = S.foldable_sigma()
+        assert isinstance(result, dict)
+        for mid, arr in result.items():
+            assert isinstance(mid, int)
+            assert isinstance(arr, np.ndarray)
+
+    def test_shape_is_ng(self, solver_2g_p1_n2n):
+        """Mechanism criterion 6b — each value is (ng,)."""
+        S = solver_2g_p1_n2n.scattering_op
+        result = S.foldable_sigma()
+        for arr in result.values():
+            assert arr.shape == (S.ng,)
+
+    def test_values_are_diagonal_of_sig_s0(self, solver_2g_p1_n2n):
+        """Mechanism criterion 6c — equals np.diag(sig_s[mid][0])."""
+        S = solver_2g_p1_n2n.scattering_op
+        result = S.foldable_sigma()
+        for mid, arr in result.items():
+            np.testing.assert_array_equal(arr, np.diag(S.sig_s[mid][0]))
+
+    def test_returned_arrays_are_copies(self, solver_2g_p1_n2n):
+        """Mutating the returned dict's values must not affect ``self``."""
+        S = solver_2g_p1_n2n.scattering_op
+        result = S.foldable_sigma()
+        # Snapshot parent diagonal.
+        before = {mid: np.diag(S.sig_s[mid][0]).copy() for mid in S.sig_s}
+        # Mutate the returned arrays.
+        for arr in result.values():
+            arr[:] = -999.0
+        # Parent unchanged.
+        for mid in S.sig_s:
+            np.testing.assert_array_equal(
+                np.diag(S.sig_s[mid][0]), before[mid]
+            )
+
+
+class TestAlgebraicIdentity:
+    """The load-bearing contract:
+    ``S.apply(ψ) ≈ S.foldable_part().apply(ψ) + S.residual_part().apply(ψ)``
+    at ``rtol=1e-14`` (FP-non-associativity precision).
+
+    Covers P0-only, Pℓ≥1, non-zero (n,2n), and cross-group + diagonal
+    coupling — the four cases enumerated in the brief's criterion 7.
+    """
+
+    def _check_identity(self, op, psi):
+        full = op.apply(psi)
+        split_sum = op.foldable_part().apply(psi) + op.residual_part().apply(psi)
+        np.testing.assert_allclose(full, split_sum, rtol=1e-14, atol=1e-15)
+
+    def test_identity_p0_only_random_psi(self, solver_2g_p0):
+        """Case 1 — scattering_order == 0 only (no Pℓ)."""
+        op = solver_2g_p0.scattering_op
+        assert op.scattering_order == 0
+        N = op.n_ordinates
+        np.random.seed(42)
+        psi = np.random.rand(N, op.nx, op.ny, op.ng) + 0.1
+        self._check_identity(op, psi)
+
+    def test_identity_p0_only_uniform_psi(self, solver_2g_p0):
+        """Case 1b — uniform ψ probes the diagonal isolation path."""
+        op = solver_2g_p0.scattering_op
+        N = op.n_ordinates
+        psi = np.ones((N, op.nx, op.ny, op.ng))
+        self._check_identity(op, psi)
+
+    def test_identity_with_pl_ge_1(self, solver_2g_p1_n2n):
+        """Case 2 — scattering_order >= 1 (with non-zero P1 block)."""
+        op = solver_2g_p1_n2n.scattering_op
+        assert op.scattering_order >= 1
+        N = op.n_ordinates
+        np.random.seed(101)
+        psi = np.random.rand(N, op.nx, op.ny, op.ng) + 0.1
+        self._check_identity(op, psi)
+
+    def test_identity_with_nonzero_n2n(self, solver_2g_p1_n2n):
+        """Case 3 — non-zero (n,2n) coupling."""
+        op = solver_2g_p1_n2n.scattering_op
+        # Fixture explicitly sets (n,2n) cross-group entries.
+        any_nonzero_n2n = any(
+            np.any(op.sig2[mid] != 0.0) for mid in op.sig2
+        )
+        assert any_nonzero_n2n, "fixture must carry non-zero (n,2n)"
+        N = op.n_ordinates
+        np.random.seed(202)
+        psi = np.random.rand(N, op.nx, op.ny, op.ng) + 0.1
+        self._check_identity(op, psi)
+
+    def test_identity_multigroup_cross_group_plus_diagonal(self, solver_2g_p1_n2n):
+        """Case 4 — non-trivial cross-group P0 + diagonal coupling."""
+        op = solver_2g_p1_n2n.scattering_op
+        # Fixture's P0 matrix has both diagonal AND off-diagonal entries.
+        for mid in op.sig_s:
+            p0 = op.sig_s[mid][0]
+            diag = np.diag(p0)
+            off = p0 - np.diag(diag)
+            assert np.any(diag != 0.0)
+            assert np.any(off != 0.0)
+        N = op.n_ordinates
+        np.random.seed(303)
+        psi = np.random.rand(N, op.nx, op.ny, op.ng) + 0.1
+        self._check_identity(op, psi)
+
+    def test_residual_zero_when_p0_diagonal_only_no_n2n(self):
+        """Pure-diagonal P0 with no (n,2n) and no Pℓ≥1 ⇒ residual.apply(ψ)=0
+        and full == foldable.apply(ψ) by construction."""
+        from scipy.sparse import csr_matrix
+        # Strictly diagonal P0, zero (n,2n).
+        mix = make_mixture(
+            sig_t=np.array([0.5, 1.0]),
+            sig_c=np.array([0.01, 0.02]),
+            sig_f=np.array([0.0, 0.0]),
+            nu=np.array([0.0, 0.0]),
+            chi=np.array([1.0, 0.0]),
+            sig_s=np.diag([0.3, 0.8]),
+        )
+        mix.Sig2 = csr_matrix(np.zeros((2, 2)))
+        nx, ny = 2, 2
+        mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
+        quad = LebedevSphere.create(order=17)
+        op = SNSolver({0: mix}, SNMesh(mesh, quad)).scattering_op
+
+        N = op.n_ordinates
+        np.random.seed(404)
+        psi = np.random.rand(N, nx, ny, op.ng) + 0.1
+        full = op.apply(psi)
+        residual_part = op.residual_part().apply(psi)
+        np.testing.assert_allclose(residual_part, 0.0, atol=1e-15)
+        # And full ≡ foldable up to FP-non-associativity.
+        foldable_part = op.foldable_part().apply(psi)
+        np.testing.assert_allclose(full, foldable_part, rtol=1e-14, atol=1e-15)
+
+
+class TestPurity:
+    """``foldable_part()`` / ``residual_part()`` are pure functions —
+    calling twice returns instances with equal per-material arrays
+    (mechanism criterion 8)."""
+
+    def test_foldable_part_pure(self, solver_2g_p1_n2n):
+        S = solver_2g_p1_n2n.scattering_op
+        a, b = S.foldable_part(), S.foldable_part()
+        assert a.scattering_order == b.scattering_order
+        assert a.Y is None and b.Y is None
+        for mid in S.sig_s:
+            np.testing.assert_array_equal(a.sig_s[mid][0], b.sig_s[mid][0])
+            np.testing.assert_array_equal(a.sig_s0[mid], b.sig_s0[mid])
+            np.testing.assert_array_equal(a.sig2[mid], b.sig2[mid])
+
+    def test_residual_part_pure(self, solver_2g_p1_n2n):
+        S = solver_2g_p1_n2n.scattering_op
+        a, b = S.residual_part(), S.residual_part()
+        assert a.scattering_order == b.scattering_order
+        for mid in S.sig_s:
+            for l in range(S.scattering_order + 1):
+                np.testing.assert_array_equal(
+                    a.sig_s[mid][l], b.sig_s[mid][l]
+                )
+            np.testing.assert_array_equal(a.sig2[mid], b.sig2[mid])
+
+    def test_foldable_sigma_pure(self, solver_2g_p1_n2n):
+        S = solver_2g_p1_n2n.scattering_op
+        a, b = S.foldable_sigma(), S.foldable_sigma()
+        assert set(a.keys()) == set(b.keys())
+        for mid in a:
+            np.testing.assert_array_equal(a[mid], b[mid])
