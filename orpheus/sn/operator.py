@@ -1208,13 +1208,15 @@ class SNStreamingOperator(LinearOperatorMixin):
     is the natural input shape for
     :func:`scipy.sparse.linalg.bicgstab`.
 
-    :meth:`solve` operates on **structured arrays**: source ``Q``
-    shape ``(nx, ny, ng)`` plus persistent boundary-flux dict
+    :meth:`solve` operates on **structured arrays** in the principled
+    storage layout (see :ref:`theory-sn-index-convention`): source
+    ``Q`` shape ``(ng, nx, ny)`` plus persistent boundary-flux dict
     ``psi_bc`` and optional anisotropic source ``Q_aniso`` shape
-    ``(N, nx, ny, ng)``.  It returns a ``(angular_flux, scalar_flux)``
+    ``(N, ng, nx, ny)``.  It returns a ``(angular_flux, scalar_flux)``
     tuple matching :func:`transport_sweep`'s contract.  The shape
-    mismatch between the packed-vector ``apply`` and the
-    structured-array ``solve`` reflects the historical layouts of
+    mismatch between the packed-vector ``apply`` (FD-matvec internal
+    Fortran-flat layout, deferred to PR-INDEX-7) and the
+    principled-storage ``solve`` reflects the historical layouts of
     the two consumers; Wave E will normalise these via a single
     Krylov-on-apply path.
 
@@ -1785,7 +1787,8 @@ class CollisionOperator(LinearOperatorMixin):
     :math:`\sigma_t` AND the within-group removal cross-section
     :math:`\sigma_r = \sigma_t - \Sigma_{s,0}^{g\to g}`. The operator
     does NOT carry an interpretation flag — both quantities are
-    ``(nx, ny, ng)`` arrays applied as :math:`\sigma\cdot\psi`. The
+    ``(ng, nx, ny)`` arrays applied as :math:`\sigma\cdot\psi` (see
+    :ref:`theory-sn-index-convention` for the canonical layout). The
     fusion hook (substep 3+4.b.ii) builds a lazy :math:`\sigma_r`
     :class:`CollisionOperator` from
     :meth:`~orpheus.sn.scattering.ScatteringOperator.foldable_sigma` at

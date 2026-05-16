@@ -31,10 +31,16 @@ Key Facts
   ``cell_update.update_batch``; mesh-time precompute of the per-
   octant DAG; BC apply once per octant per axis (the L7-trap fix).
   See :ref:`sweep-octant-dependency-graph`.
+- **Storage layout**: angular flux ``(N, ng, nx, ny)``; scalar flux
+  and per-cell cross sections ``(ng, nx, ny)``; 1-D problems keep
+  ``ny = 1`` (singleton, NOT squeezed).  The canonical statement
+  with derivation and migration history lives at
+  :ref:`theory-sn-index-convention`.
 
 .. admonition:: Conventions
 
    - Scattering matrix: :ref:`scattering-matrix-convention` — ``SigS[g_from, g_to]``, source uses transpose
+   - **Storage layout**: :ref:`theory-sn-index-convention` — ``(N, ng, nx, ny)`` for ψ, ``(ng, nx, ny)`` for φ / σ
    - Multi-group balance: :eq:`mg-balance` in :ref:`theory-homogeneous`
    - Cross sections: :ref:`theory-cross-section-data`
    - Verification: :ref:`synthetic-xs-library` — regions A/B/C/D
@@ -1850,9 +1856,10 @@ follow-up issue once the Wave 2 architecture is shipped.
 
 Closing the smoking gun by construction is itself a load-bearing
 result: the legacy ``for n in range(N)`` is gone, the metric
-(angular-flux tensor over ``(N, nx, ny, ng)``) now knows its
-iterative structure, and any future numpy-dispatch-cost reduction
-benefits all closures uniformly through the strategy contract.
+(angular-flux tensor; see :ref:`theory-sn-index-convention` for the
+canonical ``(N, ng, nx, ny)`` storage) now knows its iterative
+structure, and any future numpy-dispatch-cost reduction benefits
+all closures uniformly through the strategy contract.
 
 Verification
 ~~~~~~~~~~~~
@@ -5569,7 +5576,10 @@ polynomial of degree :math:`\leq L`.
       )
 
    This contracts :math:`\sum_n w_n Y_\ell^m(\hat{\Omega}_n) \psi_n(x,y,g)`
-   into a spatial-energy field of shape ``(nx, ny, ng)``.
+   into a spatial-energy moment field carrying the principled
+   ``(ng, nx, ny)`` layout (see :ref:`theory-sn-index-convention`;
+   the codepath presents the full moment field as
+   ``(L+1, 2L+1, ng, nx, ny)`` with energy leading the spatial axes).
 
 3. **Reconstruct per-ordinate source**: for each Legendre order
    :math:`\ell \geq 1` (the :math:`\ell = 0` term is handled by
@@ -5578,7 +5588,7 @@ polynomial of degree :math:`\leq L`.
    :math:`(2\ell+1) Y_\ell^m(\hat{\Omega}_n)` and accumulated into
    ``Q_aniso[n, :, :, :]``.
 
-4. The resulting ``Q_aniso`` array of shape ``(N, nx, ny, ng)`` is
+4. The resulting ``Q_aniso`` array of shape ``(N, ng, nx, ny)`` is
    passed to :func:`transport_sweep`, which adds it to the isotropic
    source on a per-ordinate basis.
 
@@ -6039,20 +6049,26 @@ natural input shape for :func:`scipy.sparse.linalg.bicgstab` and
 the canonical layout for the Wave E Krylov-on-apply path.
 
 :meth:`solve` operates on **structured arrays** matching
-:func:`transport_sweep`'s contract:
+:func:`transport_sweep`'s contract, in the principled
+``(ng, nx, ny)`` / ``(N, ng, nx, ny)`` layout
+(see :ref:`theory-sn-index-convention`):
 
-* Source ``Q`` shape ``(nx, ny, ng)``.
+* Source ``Q`` shape ``(ng, nx, ny)``.
 * Persistent boundary-flux dict ``psi_bc`` carrying state between
   sweeps.
 * Optional anisotropic source ``Q_aniso`` shape
-  ``(N, nx, ny, ng)`` for P\ :sub:`ℓ` (:math:`\ell\ge 1`)
+  ``(N, ng, nx, ny)`` for P\ :sub:`ℓ` (:math:`\ell\ge 1`)
   scattering.
 
-The shape mismatch reflects the historical layouts of the two
-consumers (BiCGSTAB on packed-vectors / sweep on structured
-arrays).  Wave E will normalise these via a single Krylov-on-apply
-path; until then, calling :meth:`apply` and :meth:`solve` requires
-the caller to be aware of the layout difference.
+The shape mismatch reflects the FD-matvec packed-vector internal
+convention (the packed vector is laid out group-major in Fortran
+order; see :ref:`theory-sn-index-convention`'s "What stayed
+deliberately legacy" subsection).  Wave E will normalise these via
+a single Krylov-on-apply path; until then, calling :meth:`apply` and
+:meth:`solve` requires the caller to be aware of the layout
+difference.  The principled-storage flip
+(:ref:`theory-sn-index-convention`) does NOT touch the packed-vector
+layout --- that work is deferred to PR-INDEX-7.
 
 Why not extract :meth:`apply_transpose` analytically?
 -----------------------------------------------------

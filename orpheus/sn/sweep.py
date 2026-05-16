@@ -278,14 +278,15 @@ def _run_1d_sweep(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Inner body of the unified 1-D sweep.
 
-    Issue #196 PR-INDEX-1: internal arrays carry the principled
+    Issue #196 PR-INDEX-1 through PR-INDEX-5: internal arrays AND the
+    public ``transport_sweep`` signature both carry the principled
     ``(N, ng, nx, ny=1)`` layout (energy ``g`` is the *second* axis,
-    NOT trailing; see ``.claude/plans/principled_index_migration.md``).
-    Public ``transport_sweep`` signature is unchanged — entry transposes
-    convert caller-side ``(nx, ny, ng)`` / ``(N, nx, ny, ng)`` inputs
-    to principled layout; exit transposes return to the caller's shape.
+    NOT trailing; see :ref:`theory-sn-index-convention`).  No
+    entry/exit transposes are required at the public boundary —
+    caller-side principled-layout inputs flow directly through the
+    sweep body.
 
-    Issue #196 PR-INDEX-2: :class:`CollisionCache` fields now carry the
+    Issue #196 PR-INDEX-2: :class:`CollisionCache` fields carry the
     principled ``(N, ng, nx)`` layout natively; the bridge transposes at
     the cache-access sites are gone.  :class:`GeometryCoefficients` stays
     on ``(N, nx)`` / ``(N,)`` shapes — no group axis, no flip needed.

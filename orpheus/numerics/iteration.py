@@ -233,7 +233,8 @@ class SourceIteration:
     operators consume.  The convergence test uses
     :func:`numpy.linalg.norm` on the flattened arrays.  Both the L0
     synthetic case (flat ``(N,)`` vector) and the L1 SN case
-    (structured ``(nx, ny, ng)`` array) are handled by the same
+    (structured ``(ng, nx, ny)`` array, principled storage per
+    :ref:`theory-sn-index-convention`) are handled by the same
     :func:`np.linalg.norm` call by virtue of numpy's behaviour on
     higher-rank arrays (it returns the Frobenius norm).
     """
@@ -302,8 +303,9 @@ class SourceIteration:
         ----------
         q_ext : np.ndarray
             External source.  Shape determined by what the operator
-            triple consumes — for SN this is ``(nx, ny, ng)``; for the
-            L0 synthetic case it is a flat ``(N,)`` vector.
+            triple consumes — for SN this is ``(ng, nx, ny)``
+            (principled storage; see :ref:`theory-sn-index-convention`);
+            for the L0 synthetic case it is a flat ``(N,)`` vector.
         initial_guess : np.ndarray or None, optional
             Initial iterate.  When ``None`` (default), the iteration
             starts from :func:`np.zeros_like` of ``q_ext``.

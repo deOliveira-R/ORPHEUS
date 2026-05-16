@@ -74,6 +74,7 @@ that places each transport method in the V&V hierarchy.
    discrete_measures
    galerkin_projection
    homogeneous
+   index_convention
    operator_algebra
    spherical_harmonics
    structured_geometry

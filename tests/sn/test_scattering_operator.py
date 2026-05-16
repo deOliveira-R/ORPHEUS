@@ -280,7 +280,8 @@ class TestApplySemantics:
     """apply(psi) returns the per-ordinate scattering source.
 
     Combines P0 in-scatter + (n,2n) (broadcast across N) + Pℓ (genuine
-    per-ordinate) into a single (N, nx, ny, ng) array.
+    per-ordinate) into a single ``(N, ng, nx, ny)`` array (principled
+    storage; see :ref:`theory-sn-index-convention`).
     """
 
     def test_apply_isotropic_flux_p0_only(self, solver_2g_p0):

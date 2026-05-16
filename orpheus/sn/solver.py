@@ -674,7 +674,8 @@ class SNSolver:
         adapter:
 
         1. Decodes the packed RHS into per-ordinate
-           ``Q_aniso`` shape ``(N, nx, ny, ng)``, undoing the
+           ``Q_aniso`` shape ``(N, ng, nx, ny)`` (principled storage
+           per :ref:`theory-sn-index-convention`), undoing the
            ``/sum_w`` normalisation from :func:`build_rhs*` so the
            sweep's internal ``× weight_norm`` step gets back to the
            caller's per-ordinate source.

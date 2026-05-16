@@ -62,6 +62,17 @@ Key Facts
   ``capabilities: frozenset[str]`` property advertising which optional
   methods (``solve``, ``apply_transpose``) are functional.
 
+- **SN array-storage convention** for every operator leaf
+  (:class:`~orpheus.sn.operator.StreamingOperator`,
+  :class:`~orpheus.sn.operator.CollisionOperator`,
+  :class:`~orpheus.sn.scattering.ScatteringOperator`,
+  :class:`~orpheus.sn.fission.FissionOperator`): the
+  ``apply(psi) -> psi'`` contract consumes and returns
+  ``psi.shape == (N, ng, nx, ny)`` for angular flux,
+  ``phi.shape == (ng, nx, ny)`` for scalar flux.  The canonical
+  statement with derivation and migration history lives at
+  :ref:`theory-sn-index-convention`.
+
 - The capability set is the **single source of truth** for what an
   operator can do. Composition primitives compute their own capability
   set from constituents; mismatches raise

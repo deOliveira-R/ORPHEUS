@@ -76,17 +76,25 @@ class TestHarmonicMomentProjectionShapes:
         assert out.shape == (L + 1, 2 * L + 1)
 
     def test_apply_with_trailing_axes_broadcasts(self):
-        """Trailing axes (cell, group) should broadcast unchanged."""
+        """Trailing axes (any rank) should broadcast unchanged.
+
+        :class:`HarmonicMomentProjection` is a generic numerics primitive
+        whose ``apply`` contract is "leading axis is ordinates, every
+        trailing axis broadcasts" — it is NOT tied to the SN principled
+        storage (:ref:`theory-sn-index-convention`).  The trailing-axes
+        shape used here is arbitrary; both ``(N, nx, ny, ng)`` and the
+        SN-principled ``(N, ng, nx, ny)`` are valid inputs.
+        """
         L = 2
         N = 6
-        nx, ny, ng = 3, 4, 5
+        a, b, c = 3, 4, 5
         rng = np.random.default_rng(seed=2)
         weights = np.abs(rng.standard_normal(N)) + 0.1
         Y = rng.standard_normal((N, L + 1, 2 * L + 1))
         M = HarmonicMomentProjection(weights=weights, Y=Y, L=L)
-        psi = rng.standard_normal((N, nx, ny, ng))
+        psi = rng.standard_normal((N, a, b, c))
         out = M.apply(psi)
-        assert out.shape == (L + 1, 2 * L + 1, nx, ny, ng)
+        assert out.shape == (L + 1, 2 * L + 1, a, b, c)
 
     def test_apply_against_einsum_reference(self):
         L = 3
