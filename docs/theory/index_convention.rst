@@ -740,12 +740,14 @@ axes :math:`(n_x, n_y)`.
      - same as parent
      - ``(N, nx, ny)`` or ``(nx, ny)``
      - Slice expression; not a separate type
-   * - ``HarmonicMomentField``
+   * - :class:`HarmonicMomentField`
      - :math:`\phi_{\ell m}(r, g)` --- Pℓ moment coefficients
-     - 1/(cm²·s)
+     - 1/(cm²·s·sr·eV) [inherits from source field]
      - ``(L+1, 2L+1, ng, nx, ny)``
      - :meth:`HarmonicMomentProjection.apply` output
-       (:mod:`orpheus.sn.scattering`)
+       (:mod:`orpheus.sn.scattering`); typed wrapper at
+       :class:`orpheus.sn.harmonic_moment_field.HarmonicMomentField`
+       (Issue #197 PR-TYPED-4)
    * - ``TraceField``
      - :math:`\psi` restricted to :math:`\Gamma_-` or :math:`\Gamma_+`
      - 1/(cm²·s·sr)

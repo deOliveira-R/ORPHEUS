@@ -505,6 +505,7 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     acceptance gate: ≤ 2.0 ms (a slim safety margin for CI machine noise).
     Marked ``@slow`` — skipped by default but runs in CI.
     """
+    from orpheus.sn.sources import IsotropicSource
     from orpheus.sn.sweep import transport_sweep
 
     mesh = Mesh1D(
@@ -516,7 +517,8 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     quad = GaussLegendre1D.create(16)
     sn_mesh = SNMesh(mesh, quad, _trivial_materials(ng=4))
     # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
-    Q = np.ones((4, 160, 1))
+    # Issue #197 PR-TYPED-4: strict typed source.
+    Q = IsotropicSource(np.ones((4, 160, 1)), sn_mesh)
     sig_t = np.ones((4, 160, 1))  # (ng, nx, ny) — PR-INDEX-3
     # Issue #197 PR-TYPED-2: typed boundary state replaces dict.
     boundary_flux = sn_mesh.zeros_boundary_flux()

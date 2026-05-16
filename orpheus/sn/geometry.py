@@ -47,6 +47,7 @@ if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from .angular_flux import AngularFlux
     from .boundary_flux import BoundaryFlux
+    from .harmonic_moment_field import HarmonicMomentField
     from .material_xs_field import MaterialXSField
     from .scalar_flux import ScalarFlux
     from .sources import IsotropicSource, PerOrdinateSource
@@ -630,6 +631,26 @@ class SNMesh:
         return PerOrdinateSource(
             np.zeros((self.quad.N, self.ng, self.nx, self.ny)), self,
         )
+
+    def zeros_harmonic_moments(self, L: int) -> "HarmonicMomentField":
+        r"""Build a zero :class:`HarmonicMomentField` at order ``L``.
+
+        Issue #197 PR-TYPED-4 — companion to
+        :meth:`zeros_isotropic_source` / :meth:`zeros_per_ordinate_source`
+        for the moment-space carrier consumed by the
+        :math:`R \cdot \Lambda \cdot M` Galerkin pipeline.
+
+        Parameters
+        ----------
+        L : int
+            Maximum harmonic order; result has shape
+            ``(L+1, 2L+1, ng, nx, ny)``.
+        """
+        from .harmonic_moment_field import HarmonicMomentField
+        values = np.zeros(
+            (L + 1, 2 * L + 1, self.ng, self.nx, self.ny),
+        )
+        return HarmonicMomentField(values, self, L)
 
     # ── Sweep DAG traversal ───────────────────────────────────────────
 

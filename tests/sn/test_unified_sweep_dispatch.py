@@ -143,9 +143,10 @@ class TestDispatchByReducedProperty:
         monkeypatch.setattr(sweep_module, "_sweep_1d_unified", fake_unified)
         monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
 
-        nx, ng = 8, 1
-        Q = np.zeros((nx, 1, ng))
-        sig_t = np.ones((nx, 1, ng))
+        # PR-INDEX-5 principled (ng, nx, ny); PR-TYPED-4 typed source.
+        ng = sn_mesh.ng
+        Q = sn_mesh.zeros_isotropic_source()
+        sig_t = np.ones((ng, sn_mesh.nx, 1))
         transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
 
         assert called["unified"] == 1
@@ -171,9 +172,9 @@ class TestDispatchByReducedProperty:
         monkeypatch.setattr(sweep_module, "_sweep_1d_unified", fake_unified)
         monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
 
-        nx, ng = 8, 1
-        Q = np.zeros((nx, 1, ng))
-        sig_t = np.ones((nx, 1, ng))
+        ng = sn_mesh.ng
+        Q = sn_mesh.zeros_isotropic_source()
+        sig_t = np.ones((ng, sn_mesh.nx, 1))
         transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
 
         assert called["unified"] == 1
@@ -199,9 +200,9 @@ class TestDispatchByReducedProperty:
         monkeypatch.setattr(sweep_module, "_sweep_1d_unified", fake_unified)
         monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
 
-        nx, ng = 8, 1
-        Q = np.zeros((nx, 1, ng))
-        sig_t = np.ones((nx, 1, ng))
+        ng = sn_mesh.ng
+        Q = sn_mesh.zeros_isotropic_source()
+        sig_t = np.ones((ng, sn_mesh.nx, 1))
         transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
 
         assert called["unified"] == 1
@@ -227,9 +228,9 @@ class TestDispatchByReducedProperty:
         monkeypatch.setattr(sweep_module, "_sweep_1d_unified", fake_unified)
         monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
 
-        nx, ny, ng = 4, 4, 1
-        Q = np.zeros((ng, nx, ny))
-        sig_t = np.ones((ng, nx, ny))
+        ng = sn_mesh.ng
+        Q = sn_mesh.zeros_isotropic_source()
+        sig_t = np.ones((ng, sn_mesh.nx, sn_mesh.ny))
         transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
 
         assert called["unified"] == 0
@@ -273,11 +274,12 @@ class TestUnifiedDispatch1Dvs2D:
         monkeypatch.setattr(sweep_module, "_sweep_1d_unified", fake_unified)
         monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
 
-        nx, ng = 8, 1
-        Q = np.zeros((nx, 1, ng))
-        sig_t = np.ones((nx, 1, ng))
-        Q_aniso = np.zeros((sn_mesh.quad.N, nx, 1, ng))
-        transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux(), Q_aniso=Q_aniso)
+        # PR-INDEX-5 principled (ng, nx, ny); PR-TYPED-4 typed source.
+        ng = sn_mesh.ng
+        Q = sn_mesh.zeros_isotropic_source()
+        sig_t = np.ones((ng, sn_mesh.nx, 1))
+        aniso = sn_mesh.zeros_per_ordinate_source()
+        transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux(), aniso_source=aniso)
 
         assert called["unified"] == 1
         assert called["wavefront"] == 0

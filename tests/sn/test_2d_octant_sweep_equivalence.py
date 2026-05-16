@@ -314,14 +314,20 @@ class OctantEquivalenceInputs:
 
     Issue #196 PR-INDEX-4: principled ``(ng, nx, ny)`` for the scalar
     source ``Q`` and the cross-section ``sig_t``; principled
-    ``(N, ng, nx, ny)`` for the optional anisotropic source ``Q_aniso``.
+    ``(N, ng, nx, ny)`` for the optional anisotropic source.
+
+    Issue #197 PR-TYPED-4: field renamed ``Q_aniso → aniso_source``
+    to align with the typed-source vocabulary; the field still carries
+    a bare ndarray because the consumer is the INTERNAL
+    ``_sweep_2d_wavefront`` which keeps its bare-ndarray signature
+    (the public typed contract lives at :func:`transport_sweep`).
     """
 
     sn_mesh: SNMesh
-    Q: np.ndarray                      # (ng, nx, ny) — isotropic source
-    sig_t: np.ndarray                  # (ng, nx, ny)
-    boundary_flux: "BoundaryFlux"     # mutable — sweep mutates BC buffers
-    Q_aniso: np.ndarray | None = None  # (N, ng, nx, ny) or None
+    Q: np.ndarray                          # (ng, nx, ny) — isotropic source
+    sig_t: np.ndarray                      # (ng, nx, ny)
+    boundary_flux: "BoundaryFlux"         # mutable — sweep mutates BC buffers
+    aniso_source: np.ndarray | None = None  # (N, ng, nx, ny) or None
 
 
 # ─── case-1 — smoke (all-vacuum, 1G homogeneous, uniform Q) ──────────
@@ -347,7 +353,7 @@ def _case_1_smoke() -> OctantEquivalenceInputs:
     Q = np.ones((1, sn_mesh.nx, sn_mesh.ny))
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=sn_mesh.zeros_boundary_flux(), Q_aniso=None,
+        boundary_flux=sn_mesh.zeros_boundary_flux(), aniso_source=None,
     )
 
 
@@ -378,7 +384,7 @@ def _case_2_reflective() -> OctantEquivalenceInputs:
     Q = np.ones((1, sn_mesh.nx, sn_mesh.ny))
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=_empty_boundary_flux(sn_mesh), Q_aniso=None,
+        boundary_flux=_empty_boundary_flux(sn_mesh), aniso_source=None,
     )
 
 
@@ -439,7 +445,7 @@ def _case_3_l7_trap() -> OctantEquivalenceInputs:
     Q = np.ones((2, sn_mesh.nx, sn_mesh.ny))
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=_empty_boundary_flux(sn_mesh), Q_aniso=None,
+        boundary_flux=_empty_boundary_flux(sn_mesh), aniso_source=None,
     )
 
 
@@ -481,7 +487,7 @@ def _case_4_heterogeneous() -> OctantEquivalenceInputs:
     Q = np.transpose(Q_legacy, (2, 0, 1)).copy()  # (ng, nx, ny)
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=sn_mesh.zeros_boundary_flux(), Q_aniso=None,
+        boundary_flux=sn_mesh.zeros_boundary_flux(), aniso_source=None,
     )
 
 
@@ -533,7 +539,7 @@ def _case_5_q_aniso() -> OctantEquivalenceInputs:
     Q_aniso = np.transpose(Q_aniso_legacy, (0, 3, 1, 2)).copy()  # (N, ng, nx, ny)
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=_empty_boundary_flux(sn_mesh), Q_aniso=Q_aniso,
+        boundary_flux=_empty_boundary_flux(sn_mesh), aniso_source=Q_aniso,
     )
 
 
@@ -568,7 +574,7 @@ def _case_6_pure_z() -> OctantEquivalenceInputs:
     Q = np.ones((1, sn_mesh.nx, sn_mesh.ny))  # PR-INDEX-4 (ng, nx, ny)
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=sn_mesh.zeros_boundary_flux(), Q_aniso=None,
+        boundary_flux=sn_mesh.zeros_boundary_flux(), aniso_source=None,
     )
 
 
@@ -802,7 +808,7 @@ def test_2d_octant_sweep_equivalence(case: OctantEquivalenceCase) -> None:
     for _ in range(case.n_sweeps):
         angular_flux, scalar_flux = _sweep_2d_wavefront(
             inputs.Q, inputs.sig_t, inputs.sn_mesh, inputs.boundary_flux,
-            Q_aniso=inputs.Q_aniso,
+            Q_aniso=inputs.aniso_source,
         )
 
     snap = np.load(snapshot_file)

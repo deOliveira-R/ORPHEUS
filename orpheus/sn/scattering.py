@@ -128,6 +128,7 @@ from orpheus.numerics.projection import (
 
 if TYPE_CHECKING:
     from .angular_flux import AngularFlux
+    from .harmonic_moment_field import HarmonicMomentField
     from .material_xs_field import MaterialXSField
     from .quadrature import AngularQuadrature
     from .scalar_flux import ScalarFlux
@@ -214,24 +215,33 @@ class LegendreMomentScattering(LinearOperatorMixin):
         default_factory=lambda: frozenset({CAP_APPLY})
     )
 
-    def apply(self, moments: np.ndarray) -> np.ndarray:
+    def apply(
+        self, moments: "np.ndarray | HarmonicMomentField",
+    ) -> "np.ndarray | HarmonicMomentField":
         r"""Apply :math:`\Lambda` to a moment field.
 
         Parameters
         ----------
-        moments : np.ndarray
+        moments : np.ndarray or HarmonicMomentField
             Moment field of shape ``(L+1, 2L+1, ng, nx, ny)`` (Issue
             #196 PR-INDEX-4 — principled).  The :math:`m`-axis is the
             addition-theorem-shifted index where slot ``l + m`` holds
             the :math:`(\ell, m)` entry; entries outside
             :math:`|m| \le \ell` are conventionally zero.
 
+            Issue #197 PR-TYPED-4 — typed
+            :class:`~orpheus.sn.harmonic_moment_field.HarmonicMomentField`
+            is accepted; when supplied, the return is a typed field
+            with matching ``L`` and ``mesh``.  Bare ndarray is still
+            accepted for legacy probe / test callers.
+
         Returns
         -------
-        np.ndarray
+        np.ndarray or HarmonicMomentField
             Same shape as ``moments``.  The :math:`\ell = 0` block is
-            zero when ``skip_l0`` is ``True``; otherwise the P0 in-scatter
-            contribution is included.
+            zero when ``skip_l0`` is ``True``; otherwise the P0
+            in-scatter contribution is included.  Type matches the
+            input.
 
         Notes
         -----
@@ -240,6 +250,12 @@ class LegendreMomentScattering(LinearOperatorMixin):
         Issue #197 PR-TYPED-1 collapses the ``for mid, (ix, iy) in
         cells_by_mat.items()`` loop into a typed verb.
         """
+        from .harmonic_moment_field import HarmonicMomentField
+        if isinstance(moments, HarmonicMomentField):
+            out_values = self.mat_xs.apply_legendre_scattering_moments(
+                moments.values, L=self.L, skip_l0=self.skip_l0,
+            )
+            return HarmonicMomentField(out_values, moments.mesh, moments.L)
         return self.mat_xs.apply_legendre_scattering_moments(
             moments, L=self.L, skip_l0=self.skip_l0,
         )
@@ -570,6 +586,7 @@ class ScatteringOperator(LinearOperatorMixin):
         PR-INDEX-4.
         """
         from .angular_flux import AngularFlux
+        from .harmonic_moment_field import HarmonicMomentField
         from .sources import PerOrdinateSource
         if self.scattering_order == 0 or angular_flux is None:
             return None
@@ -579,6 +596,14 @@ class ScatteringOperator(LinearOperatorMixin):
         # Build the §9 "S = R Λ M" pipeline. The constituent primitives
         # are cheap dataclass instantiations; the actual work is in the
         # three np.einsum calls inside their .apply methods.
+        # Issue #197 PR-TYPED-4 — the SN-side wraps the intermediate
+        # moment-space output of :math:`M` as a typed
+        # :class:`HarmonicMomentField` so :math:`\Lambda` can consume
+        # the typed field and the einsum-internal layout invariant is
+        # pinned by the dataclass shape contract.  The bare-ndarray
+        # projection / reconstruction primitives stay layout-agnostic
+        # (cross-method neutrality — :mod:`orpheus.numerics.projection`
+        # is used by future PN solver, energy condensation, etc.).
         Y = self.Y  # cached on first access
         M = HarmonicMomentProjection(weights=self.weights, Y=Y, L=L)
         Lam = LegendreMomentScattering(
@@ -587,9 +612,24 @@ class ScatteringOperator(LinearOperatorMixin):
             skip_l0=True,
         )
         R = HarmonicMomentReconstruction.from_Y(Y)
-        result = R.apply(Lam.apply(M.apply(values)))
+        # Type sandwich: M's bare-ndarray output is wrapped into
+        # HarmonicMomentField at the SN boundary; Lambda consumes /
+        # returns typed; the typed output's .values feeds R which is
+        # again bare-ndarray.
+        # If the caller passed a typed AngularFlux, mesh is known;
+        # otherwise we cannot construct a HarmonicMomentField (no mesh
+        # available) and fall through the legacy bare-ndarray pipeline.
         if is_typed:
-            return PerOrdinateSource(result, angular_flux.mesh)
+            mesh = angular_flux.mesh
+            moments_values = M.apply(values)
+            moments = HarmonicMomentField(moments_values, mesh, L)
+            scattered = Lam.apply(moments)  # HarmonicMomentField
+            result = R.apply(scattered.values)
+            return PerOrdinateSource(result, mesh)
+        # Legacy bare-ndarray path — no typed wrapping (the bare path
+        # is consumed by FD-matvec / probe-tests that bypass the type
+        # layer entirely).
+        result = R.apply(Lam.apply(M.apply(values)))
         return result
 
     # ── Foldable / residual split ─────────────────────────────────────

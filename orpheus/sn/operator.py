@@ -1297,11 +1297,12 @@ class SNStreamingOperator(LinearOperatorMixin):
     is the natural input shape for
     :func:`scipy.sparse.linalg.bicgstab`.
 
-    :meth:`solve` operates on **structured arrays** in the principled
-    storage layout (see :ref:`theory-sn-index-convention`): source
-    ``Q`` shape ``(ng, nx, ny)`` plus persistent
-    :class:`~orpheus.sn.boundary_flux.BoundaryFlux` and optional
-    anisotropic source ``Q_aniso`` shape ``(N, ng, nx, ny)``.  It returns a ``(angular_flux, scalar_flux)``
+    :meth:`solve` operates on **typed source carriers** in the
+    principled storage layout (see :ref:`theory-sn-index-convention`):
+    :class:`~orpheus.sn.sources.IsotropicSource` shape ``(ng, nx, ny)``
+    plus persistent :class:`~orpheus.sn.boundary_flux.BoundaryFlux` and
+    optional :class:`~orpheus.sn.sources.PerOrdinateSource` shape
+    ``(N, ng, nx, ny)``.  It returns a ``(angular_flux, scalar_flux)``
     tuple matching :func:`transport_sweep`'s contract.  The shape
     mismatch between the packed-vector ``apply`` (FD-matvec internal
     Fortran-flat layout, deferred to PR-INDEX-7) and the
@@ -1464,11 +1465,9 @@ class SNStreamingOperator(LinearOperatorMixin):
 
     def solve(
         self,
-        iso_source: "np.ndarray | IsotropicSource",
+        iso_source: "IsotropicSource",
         boundary_flux: "BoundaryFlux | None" = None,
-        aniso_source: "np.ndarray | PerOrdinateSource | None" = None,
-        *,
-        Q_aniso: "np.ndarray | PerOrdinateSource | None" = None,
+        aniso_source: "PerOrdinateSource | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         r"""Inverse action :math:`L^{-1}\,q` via the Wave D Round 2 sweep.
 
@@ -1482,22 +1481,25 @@ class SNStreamingOperator(LinearOperatorMixin):
         the class docstring "Why ``apply`` and ``solve`` use different
         closures (by design)" for the rationale.
 
+        Issue #197 PR-TYPED-4 — strict typed inputs only.  ``iso_source``
+        MUST be an :class:`IsotropicSource`; ``aniso_source`` MUST be a
+        :class:`PerOrdinateSource` or ``None``.  The legacy keyword-only
+        ``Q_aniso`` alias is GONE.
+
         Parameters
         ----------
-        iso_source : np.ndarray or IsotropicSource
-            Isotropic source density, shape ``(ng, nx, ny)``
-            (Issue #196 PR-INDEX-5 — principled).  Issue #197 PR-TYPED-3
-            adds typed-input support; bare ndarray still accepted.
+        iso_source : IsotropicSource
+            Isotropic source density, shape ``(ng, nx, ny)`` (Issue
+            #196 PR-INDEX-5 — principled).
         boundary_flux : BoundaryFlux or None
             Persistent boundary state (Issue #197 PR-TYPED-2 — the
             typed replacement for the legacy ``psi_bc: dict``).  If
             ``None``, a fresh zero-initialised
             :class:`~orpheus.sn.boundary_flux.BoundaryFlux` is supplied;
             the caller cannot then carry state between sweeps.
-        aniso_source : np.ndarray or PerOrdinateSource or None
-            Per-ordinate anisotropic source, shape
-            ``(N, ng, nx, ny)``, for P1+ scattering.  ``None`` for
-            isotropic-only (P0).
+        aniso_source : PerOrdinateSource or None
+            Per-ordinate anisotropic source, shape ``(N, ng, nx, ny)``,
+            for P1+ scattering.  ``None`` for isotropic-only (P0).
 
         Returns
         -------
@@ -1511,14 +1513,6 @@ class SNStreamingOperator(LinearOperatorMixin):
         from .sweep import transport_sweep
         if boundary_flux is None:
             boundary_flux = self.sn_mesh.zeros_boundary_flux()
-        if Q_aniso is not None and aniso_source is not None:
-            raise TypeError(
-                "SNStreamingOperator.solve: pass either 'aniso_source' "
-                "(preferred, Issue #197 PR-TYPED-3) or 'Q_aniso' (legacy "
-                "alias); not both."
-            )
-        if Q_aniso is not None:
-            aniso_source = Q_aniso
         # ``self.sig_t`` and ``transport_sweep``'s ``sig_t`` parameter
         # are both in the principled ``(ng, nx, ny)`` layout under
         # PR-INDEX-3 — no bridge.

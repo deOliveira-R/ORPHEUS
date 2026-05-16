@@ -96,13 +96,11 @@ if TYPE_CHECKING:
 
 
 def transport_sweep(
-    iso_source: "np.ndarray | IsotropicSource",
+    iso_source: "IsotropicSource",
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
-    aniso_source: "np.ndarray | PerOrdinateSource | None" = None,
-    *,
-    Q_aniso: "np.ndarray | PerOrdinateSource | None" = None,
+    aniso_source: "PerOrdinateSource | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Perform one full transport sweep.
 
@@ -121,31 +119,30 @@ def transport_sweep(
     parameter retired in favour of the typed :class:`BoundaryFlux`.
 
     Issue #197 PR-TYPED-3: the ``Q`` / ``Q_aniso`` parameters renamed
-    to ``iso_source`` / ``aniso_source`` and gain typed-input overload
-    via :class:`IsotropicSource` / :class:`PerOrdinateSource`.  Both
-    bare ``np.ndarray`` and typed inputs are accepted; internals
-    consume bare ndarray throughout for hot-path performance.
-    ``sig_t`` stays bare ``np.ndarray`` — per Issue #197 plan,
-    cross-section storage is a static parameter and is not promoted to
-    a typed wrapper here.
+    to ``iso_source`` / ``aniso_source`` and accepted typed
+    :class:`IsotropicSource` / :class:`PerOrdinateSource` inputs.
+
+    Issue #197 PR-TYPED-4: the bare-``np.ndarray`` overload is RETIRED.
+    ``iso_source`` MUST be an :class:`IsotropicSource`;
+    ``aniso_source`` MUST be a :class:`PerOrdinateSource` or ``None``.
+    The legacy keyword-only ``Q_aniso`` alias is GONE.  ``sig_t`` stays
+    bare ``np.ndarray`` — per Issue #197 plan, cross-section storage is
+    a static parameter and is not promoted to a typed wrapper here.
 
     Parameters
     ----------
-    iso_source
-        Isotropic volumetric source.  Either bare ndarray shape
-        ``(ng, nx, ny)`` or typed :class:`IsotropicSource`.
-    sig_t
+    iso_source : IsotropicSource
+        Isotropic volumetric source, shape ``(ng, nx, ny)``.
+    sig_t : np.ndarray
         Total cross-section, shape ``(ng, nx, ny)``.
-    sn_mesh
+    sn_mesh : SNMesh
         :class:`SNMesh` carrying geometry, BCs, quadrature, cell-update
         strategy.
-    boundary_flux
+    boundary_flux : BoundaryFlux
         Persistent :class:`BoundaryFlux` (mutated in place).  Build a
         zero-initialised instance via ``sn_mesh.zeros_boundary_flux()``.
-    aniso_source
-        Optional per-ordinate anisotropic source.  Either bare ndarray
-        shape ``(N, ng, nx, ny)`` or typed :class:`PerOrdinateSource`
-        or ``None``.
+    aniso_source : PerOrdinateSource or None, optional
+        Per-ordinate anisotropic source, shape ``(N, ng, nx, ny)``.
 
     Returns
     -------
@@ -161,20 +158,7 @@ def transport_sweep(
       the two-stratum cache).
     * 2-D Cartesian → :func:`_sweep_2d_wavefront` (anti-diagonal
       scheduling; Step 2.6 Q2 deferred).
-
-    The keyword-only ``Q_aniso`` parameter is a backward-compatibility
-    alias for ``aniso_source`` retained for one migration cycle.  New
-    call sites use ``aniso_source``; supplying both raises
-    :class:`TypeError`.
     """
-    if Q_aniso is not None and aniso_source is not None:
-        raise TypeError(
-            "transport_sweep: pass either 'aniso_source' (preferred, "
-            "Issue #197 PR-TYPED-3) or 'Q_aniso' (legacy alias); not "
-            "both."
-        )
-    if Q_aniso is not None:
-        aniso_source = Q_aniso
     Q, Q_aniso_local = _unwrap_sources(iso_source, aniso_source)
     reduced = sn_mesh.reduced
     if reduced is not None:
@@ -187,24 +171,36 @@ def transport_sweep(
 
 
 def _unwrap_sources(
-    iso_source: "np.ndarray | IsotropicSource",
-    aniso_source: "np.ndarray | PerOrdinateSource | None",
+    iso_source: "IsotropicSource",
+    aniso_source: "PerOrdinateSource | None",
 ) -> tuple[np.ndarray, np.ndarray | None]:
     """Unwrap typed source carriers to bare ndarrays for internal use.
 
-    The public sweep API accepts both typed and bare sources
-    (Issue #197 PR-TYPED-3); the internal hot path consumes bare
-    ndarray throughout to avoid wrapping overhead.  Performs the
-    isinstance dispatch once at the boundary.
+    Issue #197 PR-TYPED-4 — strict typed inputs only (the PR-TYPED-3
+    bare-ndarray overload is retired).  ``iso_source`` MUST be an
+    :class:`IsotropicSource`; ``aniso_source`` MUST be a
+    :class:`PerOrdinateSource` or ``None``.  The internal hot path
+    consumes bare ndarray throughout to avoid wrapping overhead;
+    this helper performs the unwrap once at the boundary.
     """
     from .sources import IsotropicSource, PerOrdinateSource
-    Q = iso_source.values if isinstance(iso_source, IsotropicSource) else iso_source
+    if not isinstance(iso_source, IsotropicSource):
+        raise TypeError(
+            f"transport_sweep / apply_sweep_1d: iso_source must be "
+            f"IsotropicSource (Issue #197 PR-TYPED-4); got "
+            f"{type(iso_source).__name__}"
+        )
+    Q = iso_source.values
     if aniso_source is None:
         Q_aniso: np.ndarray | None = None
     elif isinstance(aniso_source, PerOrdinateSource):
         Q_aniso = aniso_source.values
     else:
-        Q_aniso = aniso_source
+        raise TypeError(
+            f"transport_sweep / apply_sweep_1d: aniso_source must be "
+            f"PerOrdinateSource or None (Issue #197 PR-TYPED-4); got "
+            f"{type(aniso_source).__name__}"
+        )
     return Q, Q_aniso
 
 
@@ -214,13 +210,11 @@ def _unwrap_sources(
 
 
 def apply_sweep_1d(
-    iso_source: "np.ndarray | IsotropicSource",
+    iso_source: "IsotropicSource",
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
-    aniso_source: "np.ndarray | PerOrdinateSource | None" = None,
-    *,
-    Q_aniso: "np.ndarray | PerOrdinateSource | None" = None,
+    aniso_source: "PerOrdinateSource | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Public alias for :func:`_sweep_1d_unified`.
 
@@ -229,18 +223,11 @@ def apply_sweep_1d(
     plays ``xs``, the BC inflow plays ``init``, the returned ψ is the
     scan trajectory.
 
-    Issue #197 PR-TYPED-3 — accepts typed :class:`IsotropicSource` /
-    :class:`PerOrdinateSource` inputs as well as bare ndarrays.  The
-    keyword-only ``Q_aniso`` alias is preserved for one migration
-    cycle.
+    Issue #197 PR-TYPED-4 — strict typed inputs only.  ``iso_source``
+    MUST be an :class:`IsotropicSource`; ``aniso_source`` MUST be a
+    :class:`PerOrdinateSource` or ``None``.  The legacy
+    keyword-only ``Q_aniso`` alias is GONE.
     """
-    if Q_aniso is not None and aniso_source is not None:
-        raise TypeError(
-            "apply_sweep_1d: pass either 'aniso_source' (preferred) "
-            "or 'Q_aniso' (legacy alias); not both."
-        )
-    if Q_aniso is not None:
-        aniso_source = Q_aniso
     Q, Q_aniso_local = _unwrap_sources(iso_source, aniso_source)
     return _sweep_1d_unified(
         Q, sig_t, sn_mesh, boundary_flux, Q_aniso_local,

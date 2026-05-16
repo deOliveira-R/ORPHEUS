@@ -15,6 +15,7 @@ from orpheus.geometry import Mesh1D, Mesh2D
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import GaussLegendre1D, LebedevSphere
 from orpheus.sn.solver import SNSolver, solve_sn
+from orpheus.sn.sources import IsotropicSource
 from orpheus.sn.sweep import transport_sweep
 
 pytestmark = pytest.mark.l0  # SN solver method-in-isolation component checks
@@ -247,8 +248,9 @@ class TestTransportSweep:
 
         boundary_flux1 = sn_mesh.zeros_boundary_flux()
         boundary_flux2 = sn_mesh.zeros_boundary_flux()
-        ang1, phi1 = transport_sweep(Q, solver.mat_xs.total_cross_section, sn_mesh, boundary_flux1)
-        ang2, phi2 = transport_sweep(Q, solver.mat_xs.total_cross_section, sn_mesh, boundary_flux2)
+        iso = IsotropicSource(Q, sn_mesh)
+        ang1, phi1 = transport_sweep(iso, solver.mat_xs.total_cross_section, sn_mesh, boundary_flux1)
+        ang2, phi2 = transport_sweep(iso, solver.mat_xs.total_cross_section, sn_mesh, boundary_flux2)
 
         np.testing.assert_array_equal(phi1, phi2,
                                       err_msg="Sweep not deterministic")
@@ -259,7 +261,7 @@ class TestTransportSweep:
         np.random.seed(7)
         Q = np.random.rand(solver.ng, sn_mesh.nx, sn_mesh.ny) + 0.01
 
-        _, phi = transport_sweep(Q, solver.mat_xs.total_cross_section, solver.sn_mesh, solver.sn_mesh.zeros_boundary_flux())
+        _, phi = transport_sweep(IsotropicSource(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, solver.sn_mesh.zeros_boundary_flux())
         ref = np.load(Path(__file__).parent / "sweep_ref_2g.npy")
 
         np.testing.assert_allclose(phi, ref, rtol=1e-14,
@@ -270,7 +272,7 @@ class TestTransportSweep:
         solver, _, sn_mesh, quad = solver_2g
         Q = np.ones((solver.ng, sn_mesh.nx, sn_mesh.ny))
 
-        _, phi = transport_sweep(Q, solver.mat_xs.total_cross_section, solver.sn_mesh, solver.sn_mesh.zeros_boundary_flux())
+        _, phi = transport_sweep(IsotropicSource(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, solver.sn_mesh.zeros_boundary_flux())
 
         assert np.all(phi >= 0), "Negative flux from positive source"
 
@@ -279,7 +281,7 @@ class TestTransportSweep:
         solver, _, sn_mesh, quad = solver_2g
         Q = np.ones((solver.ng, sn_mesh.nx, sn_mesh.ny))
 
-        ang, phi = transport_sweep(Q, solver.mat_xs.total_cross_section, solver.sn_mesh, solver.sn_mesh.zeros_boundary_flux())
+        ang, phi = transport_sweep(IsotropicSource(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, solver.sn_mesh.zeros_boundary_flux())
 
         assert ang.shape == (quad.N, solver.ng, sn_mesh.nx, sn_mesh.ny)
         assert phi.shape == (solver.ng, sn_mesh.nx, sn_mesh.ny)
@@ -299,7 +301,7 @@ class TestQuadratureWeightConservation:
         solver, _, sn_mesh, quad = solver_2g
         Q = np.ones((solver.ng, sn_mesh.nx, sn_mesh.ny))
 
-        ang, phi = transport_sweep(Q, solver.mat_xs.total_cross_section, solver.sn_mesh, solver.sn_mesh.zeros_boundary_flux())
+        ang, phi = transport_sweep(IsotropicSource(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, solver.sn_mesh.zeros_boundary_flux())
 
         # Reconstruct scalar flux from angular flux manually
         phi_manual = np.zeros_like(phi)
@@ -314,7 +316,7 @@ class TestQuadratureWeightConservation:
         solver, _, sn_mesh, quad = solver_2g
         Q = np.ones((solver.ng, sn_mesh.nx, sn_mesh.ny))
 
-        ang, _ = transport_sweep(Q, solver.mat_xs.total_cross_section, solver.sn_mesh, solver.sn_mesh.zeros_boundary_flux())
+        ang, _ = transport_sweep(IsotropicSource(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, solver.sn_mesh.zeros_boundary_flux())
 
         for n in range(quad.N):
             if abs(quad.mu_x[n]) < 1e-15 and abs(quad.mu_y[n]) < 1e-15:
@@ -345,8 +347,9 @@ class TestQuadratureWeightConservation:
         # Run many sweeps to converge reflective BCs
         # Issue #197 PR-TYPED-2 — typed boundary state
         boundary_flux = local_sn_mesh.zeros_boundary_flux()
+        iso = IsotropicSource(Q, local_sn_mesh)
         for _ in range(200):
-            _, phi = transport_sweep(Q, solver.mat_xs.total_cross_section, local_sn_mesh, boundary_flux)
+            _, phi = transport_sweep(iso, solver.mat_xs.total_cross_section, local_sn_mesh, boundary_flux)
 
         expected = Q / solver.mat_xs.total_cross_section
         np.testing.assert_allclose(phi, expected, rtol=1e-6,
@@ -747,13 +750,14 @@ class TestAnisotropicScattering:
         quad = LebedevSphere.create(order=17)
         solver = SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=1)
 
-        # Isotropic angular flux: same value for all ordinates
+        # Isotropic angular flux: same value for all ordinates.
+        # PR-INDEX-5 principled layout (N, ng, nx, ny).
         N = quad.N
-        angular = np.ones((N, 2, 2, solver.ng))
+        angular = np.ones((N, solver.ng, 2, 2))
 
-        Q_aniso = solver._build_aniso_scattering(angular)
-        if Q_aniso is not None:
-            np.testing.assert_allclose(Q_aniso, 0, atol=1e-12,
+        aniso = solver._build_aniso_scattering(angular)
+        if aniso is not None:
+            np.testing.assert_allclose(aniso, 0, atol=1e-12,
                                        err_msg="P1 source nonzero for isotropic flux")
 
 
@@ -1030,9 +1034,10 @@ class TestPerformanceBaseline:
 
         # Transport sweep
         n_sweep = 5
+        iso = IsotropicSource(Q, solver.sn_mesh)
         t0 = time.perf_counter()
         for _ in range(n_sweep):
-            transport_sweep(Q, solver.mat_xs.total_cross_section, solver.sn_mesh, solver.sn_mesh.zeros_boundary_flux())
+            transport_sweep(iso, solver.mat_xs.total_cross_section, solver.sn_mesh, solver.sn_mesh.zeros_boundary_flux())
         t_sweep = (time.perf_counter() - t0) / n_sweep * 1000
         print(f"  transport_sweep: {t_sweep:.1f} ms")
 
@@ -1071,8 +1076,9 @@ class TestPerformanceBaseline:
         print(f"  [421g] compute_keff: {t_keff:.3f} ms")
 
         n_sweep = 3
+        iso = IsotropicSource(Q, solver.sn_mesh)
         t0 = time.perf_counter()
         for _ in range(n_sweep):
-            transport_sweep(Q, solver.mat_xs.total_cross_section, solver.sn_mesh, solver.sn_mesh.zeros_boundary_flux())
+            transport_sweep(iso, solver.mat_xs.total_cross_section, solver.sn_mesh, solver.sn_mesh.zeros_boundary_flux())
         t_sweep = (time.perf_counter() - t0) / n_sweep * 1000
         print(f"  [421g] transport_sweep: {t_sweep:.1f} ms")

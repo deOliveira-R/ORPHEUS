@@ -496,24 +496,34 @@ class SNSolver:
         Issue #196 PR-INDEX-5: every flux / source intermediate is in
         principled ``(ng, nx, ny)`` / ``(N, ng, nx, ny)`` layout.
         """
+        from .sources import IsotropicSource, PerOrdinateSource
         phi = flux_distribution.copy()
         angular = None  # no angular flux on first iteration
 
         for n_inner in range(self.max_inner):
             phi_prev = phi.copy()
 
-            # Isotropic source = fission + P0 scattering + (n,2n)
-            Q = fission_source.copy()
-            self._add_scattering_source(Q, phi)
-            self._add_n2n_source(Q, phi)
+            # Isotropic source = fission + P0 scattering + (n,2n).
+            # Issue #197 PR-TYPED-4: typed source carrier; the in-place
+            # ``_add_scattering_source`` / ``_add_n2n_source`` helpers
+            # still mutate the underlying ndarray (raw-in legacy contract
+            # for the FD-matvec / probe-test consumers).
+            Q_values = fission_source.copy()
+            self._add_scattering_source(Q_values, phi)
+            self._add_n2n_source(Q_values, phi)
+            iso_source = IsotropicSource(Q_values, self.sn_mesh)
 
             # Anisotropic scattering (P1+ terms, None when L=0)
-            Q_aniso = self._build_aniso_scattering(angular)
+            Q_aniso_values = self._build_aniso_scattering(angular)
+            if Q_aniso_values is None:
+                aniso_source: PerOrdinateSource | None = None
+            else:
+                aniso_source = PerOrdinateSource(Q_aniso_values, self.sn_mesh)
 
-            # Transport sweep — Issue #197 PR-TYPED-3 keyword rename.
+            # Transport sweep — Issue #197 PR-TYPED-4 strict typed.
             angular, phi = transport_sweep(
-                Q, self.mat_xs.total_cross_section, self.sn_mesh,
-                self._boundary_flux, aniso_source=Q_aniso,
+                iso_source, self.mat_xs.total_cross_section, self.sn_mesh,
+                self._boundary_flux, aniso_source=aniso_source,
             )
 
             norm = np.linalg.norm(phi)
@@ -723,20 +733,25 @@ class SNSolver:
                     bc_ymax=self.sn_mesh.bc_ymax,
                 )
             # ``fi_op`` is the principled (N, ng, nx, ny) angular flux;
-            # the sweep ingests Q_aniso in the same layout. The ``* sum_w``
-            # undoes the ``/sum_w`` baked into ``build_rhs*`` (the operator
-            # equation source carries the inverse-weight-sum factor).
-            Q_aniso = fi_op * sum_w
-            Q_iso = np.zeros((ng, nx, ny))
+            # the sweep ingests the aniso source in the same layout.
+            # The ``* sum_w`` undoes the ``/sum_w`` baked into
+            # ``build_rhs*`` (the operator equation source carries the
+            # inverse-weight-sum factor).
+            # Issue #197 PR-TYPED-4: strict typed sweep contract; build
+            # the typed carriers at the boundary.
+            from .sources import IsotropicSource, PerOrdinateSource
+            aniso_values = fi_op * sum_w
+            iso_source = self.sn_mesh.zeros_isotropic_source()
+            aniso_source = PerOrdinateSource(aniso_values, self.sn_mesh)
             boundary_flux_local = self.sn_mesh.zeros_boundary_flux()
             try:
                 angular, _ = transport_sweep(
-                    Q_iso, self.mat_xs.total_cross_section,
+                    iso_source, self.mat_xs.total_cross_section,
                     self.sn_mesh, boundary_flux_local,
-                    aniso_source=Q_aniso,
+                    aniso_source=aniso_source,
                 )
             except Exception:
-                # If the sweep cannot run with this Q_aniso shape, degrade
+                # If the sweep cannot run with this aniso shape, degrade
                 # to the identity preconditioner.
                 return q_packed
             # Pack angular → solution vector: ``angular`` is principled
@@ -1069,11 +1084,14 @@ def solve_sn(
     # Final sweep to get angular flux.  Issue #196 PR-INDEX-5: every
     # array is principled — scalar_flux ``(ng, nx, ny)``, angular_flux
     # ``(N, ng, nx, ny)``.
+    # Issue #197 PR-TYPED-4: typed source carrier.
+    from .sources import IsotropicSource
     Q_final = solver.compute_fission_source(scalar_flux, keff)
     solver._add_scattering_source(Q_final, scalar_flux)
     solver._add_n2n_source(Q_final, scalar_flux)
     angular_flux, _ = transport_sweep(
-        Q_final, solver.mat_xs.total_cross_section, sn_mesh,
+        IsotropicSource(Q_final, sn_mesh),
+        solver.mat_xs.total_cross_section, sn_mesh,
         solver._boundary_flux,
     )
 
@@ -1255,6 +1273,7 @@ def _solve_fixed_source_si(
     :func:`solve_sn_fixed_source`.  Extracted as a helper to make the
     geometry-default dispatch in :func:`solve_sn_fixed_source` clean.
     """
+    from .sources import IsotropicSource, PerOrdinateSource
     nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
 
     # Issue #196 PR-INDEX-5: phi principled (ng, nx, ny).
@@ -1266,21 +1285,24 @@ def _solve_fixed_source_si(
         phi_prev = phi
 
         # Isotropic in-scatter + (n,2n). No fission — this is fixed-source.
-        Q = np.zeros_like(phi)
-        solver._add_scattering_source(Q, phi)
-        solver._add_n2n_source(Q, phi)
+        # Issue #197 PR-TYPED-4: typed source carrier.
+        Q_values = np.zeros_like(phi)
+        solver._add_scattering_source(Q_values, phi)
+        solver._add_n2n_source(Q_values, phi)
+        iso_source = IsotropicSource(Q_values, sn_mesh)
 
         # Merge P1+ scattering moments (if any) with external MMS source.
         Q_aniso_p1 = solver._build_aniso_scattering(angular)
         if Q_aniso_p1 is None:
-            Q_aniso_total = external_source
+            aniso_values = external_source
         else:
-            Q_aniso_total = Q_aniso_p1 + external_source
+            aniso_values = Q_aniso_p1 + external_source
+        aniso_source = PerOrdinateSource(aniso_values, sn_mesh)
 
         angular, phi = transport_sweep(
-            Q, solver.mat_xs.total_cross_section, sn_mesh,
+            iso_source, solver.mat_xs.total_cross_section, sn_mesh,
             solver._boundary_flux,
-            aniso_source=Q_aniso_total,
+            aniso_source=aniso_source,
         )
 
         norm = np.linalg.norm(phi)

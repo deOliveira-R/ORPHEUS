@@ -80,7 +80,7 @@ def generate_one(
     for _ in range(case.n_sweeps):
         angular_flux, scalar_flux = _sweep_2d_wavefront(
             inputs.Q, inputs.sig_t, inputs.sn_mesh, inputs.boundary_flux,
-            Q_aniso=inputs.Q_aniso,
+            Q_aniso=inputs.aniso_source,
         )
     psi_x_post = inputs.boundary_flux.xmin_xmax_buf
     psi_y_post = inputs.boundary_flux.ymin_ymax_buf
