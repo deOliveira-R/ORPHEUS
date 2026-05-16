@@ -57,6 +57,7 @@ from orpheus.sn.operator import (
     transport_operator_matvec_cylindrical,
 )
 from orpheus.sn.quadrature import ProductQuadrature
+from tests.sn._test_helpers import placeholder_materials
 
 
 @pytest.mark.l0
@@ -88,7 +89,7 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
         geom, region_meshes=(RegionMesh(n_cells=n_cells),),
     )
     quad = ProductQuadrature.create(n_mu=n_mu, n_phi=n_phi)
-    sn_mesh = SNMesh(mesh, quad)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     nx = n_cells
     ng = 1
     sig_t = np.full((ng, nx, 1), 2.0)  # (ng, nx, ny) — PR-INDEX-3

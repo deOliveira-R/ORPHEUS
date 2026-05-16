@@ -19,6 +19,7 @@ from orpheus.sn.quadrature import (
     LevelSymmetricSN,
     ProductQuadrature,
 )
+from tests.sn._test_helpers import placeholder_materials
 
 # All quadrature tests are L0 term-verification (hand-computed weight
 # sums, moment conditions, alpha-recursion closure). TestL0TermVerification
@@ -211,7 +212,7 @@ class TestAlphaRedistribution:
             edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
             coord=CoordSystem.CYLINDRICAL,
         )
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         for p, alpha in enumerate(sn_mesh.reduced.alpha_per_level):
             assert np.all(alpha >= -1e-14), (
@@ -232,7 +233,7 @@ class TestAlphaRedistribution:
             edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
             coord=CoordSystem.CYLINDRICAL,
         )
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         for p, alpha in enumerate(sn_mesh.reduced.alpha_per_level):
             np.testing.assert_allclose(alpha[0], 0.0,
@@ -250,7 +251,7 @@ class TestAlphaRedistribution:
             edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
             coord=CoordSystem.SPHERICAL,
         )
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         assert np.all(sn_mesh.reduced.alpha_half >= -1e-14), (
             f"Negative spherical α: min = {sn_mesh.reduced.alpha_half.min():.2e}"
@@ -302,7 +303,7 @@ class TestL0TermVerification:
             ),
             region_meshes=(RegionMesh(n_cells=10),),
         )
-        sn = SNMesh(mesh, quad)
+        sn = SNMesh(mesh, quad, placeholder_materials())
         dA = sn.delta_A
         psi0 = 1.0
 
@@ -361,7 +362,7 @@ class TestL0TermVerification:
             quad = GaussLegendre1D.create(4)
         else:
             quad = ProductQuadrature.create(n_mu=4, n_phi=8)
-        sn = SNMesh(mesh, quad)
+        sn = SNMesh(mesh, quad, placeholder_materials())
 
         edges = mesh.edges
         if coord == CoordSystem.SPHERICAL:

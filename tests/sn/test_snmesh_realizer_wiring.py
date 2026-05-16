@@ -41,6 +41,7 @@ from orpheus.sn.quadrature import (
     LebedevSphere,
     LevelSymmetricSN,
 )
+from tests.sn._test_helpers import placeholder_materials
 
 
 pytestmark = pytest.mark.l1
@@ -80,7 +81,7 @@ def test_2d_cartesian_vacuum_xmin_masks_only_inflow(quad_2d):
         bc_xmin=BC("vacuum"), bc_xmax=BC("reflective"),
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
-    sn = SNMesh(mesh, quad_2d)
+    sn = SNMesh(mesh, quad_2d, placeholder_materials())
     assert isinstance(sn.bc_xmin, _BoundBoundaryOperator)
     assert sn.bc_xmin == "vacuum"
 
@@ -104,7 +105,7 @@ def test_2d_cartesian_reflective_ymax_returns_permutation(quad_2d):
         bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
-    sn = SNMesh(mesh, quad_2d)
+    sn = SNMesh(mesh, quad_2d, placeholder_materials())
     assert isinstance(sn.bc_ymax, _BoundBoundaryOperator)
     assert sn.bc_ymax == "reflective"
 
@@ -124,7 +125,7 @@ def test_2d_cartesian_construction_populates_traces(quad_2d):
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
         mat_map=np.zeros((4, 3), dtype=int),
     )
-    sn = SNMesh(mesh, quad_2d)
+    sn = SNMesh(mesh, quad_2d, placeholder_materials())
     assert sn._inflow_trace is not None
     assert sn._outflow_trace is not None
     assert sn._inflow_trace.face_names == ("xmin", "xmax", "ymin", "ymax")
@@ -149,7 +150,7 @@ def test_1d_cartesian_vacuum_right_masks_only_inflow(quad_1d):
         mat_ids=np.zeros(8, dtype=int),
         bc_left=BC("reflective"), bc_right=BC("vacuum"),
     )
-    sn = SNMesh(mesh, quad_1d)
+    sn = SNMesh(mesh, quad_1d, placeholder_materials())
     assert isinstance(sn.bc_right, _BoundBoundaryOperator)
     assert sn.bc_right == "vacuum"
 
@@ -181,7 +182,7 @@ def test_1d_cartesian_y_face_placeholders_realized_through_minimal_space(quad_1d
         edges=np.linspace(0, 1, 5),
         mat_ids=np.zeros(4, dtype=int),
     )
-    sn = SNMesh(mesh, quad_1d)
+    sn = SNMesh(mesh, quad_1d, placeholder_materials())
     assert isinstance(sn.bc_ymin, _BoundBoundaryOperator)
     assert isinstance(sn.bc_ymax, _BoundBoundaryOperator)
     # Inner is the REALIZED PermutationOperator (NOT the raw law).
@@ -231,7 +232,7 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
         coord=CoordSystem.SPHERICAL,
         bc_right=BC("vacuum"),
     )
-    sn = SNMesh(mesh, quad_1d)
+    sn = SNMesh(mesh, quad_1d, placeholder_materials())
     # Realizer path: shim wraps a realized 1-arg op.
     assert isinstance(sn.bc_right, _BoundBoundaryOperator)
     assert isinstance(sn.bc_right.inner, IncomingOrdinateMaskTensor)
@@ -275,7 +276,7 @@ def test_1d_cylindrical_reflective_routes_through_realizer():
         bc_left=BC("reflective"), bc_right=BC("reflective"),
     )
     quad = LevelSymmetricSN.create(sn_order=4)
-    sn = SNMesh(mesh, quad)
+    sn = SNMesh(mesh, quad, placeholder_materials())
     # Realizer path: shim wraps a realized 1-arg PermutationOperator.
     assert isinstance(sn.bc_left, _BoundBoundaryOperator)
     assert isinstance(sn.bc_left.inner, PermutationOperator)
@@ -322,4 +323,4 @@ def test_unknown_bc_kind_raises_valueerror(quad_1d):
         bc_left=BC("periodic"),
     )
     with pytest.raises(ValueError, match="'reflective'.*'vacuum'"):
-        SNMesh(mesh, quad_1d)
+        SNMesh(mesh, quad_1d, placeholder_materials())

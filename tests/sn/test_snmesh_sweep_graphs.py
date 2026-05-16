@@ -31,6 +31,7 @@ from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import GaussLegendre1D, LebedevSphere, LevelSymmetricSN
 from orpheus.sn.sweep_graph import OctantLabel, SweepDependencyGraph
+from tests.sn._test_helpers import placeholder_materials
 
 
 def _build_2d_mesh(nx: int = 3, ny: int = 3) -> Mesh2D:
@@ -51,7 +52,7 @@ def _build_2d_mesh(nx: int = 3, ny: int = 3) -> Mesh2D:
 @pytest.mark.l0
 class TestSweepGraphsByCoordSystem:
     def test_cartesian_2d_has_four_octants(self):
-        sn_mesh = SNMesh(_build_2d_mesh(3, 3), LevelSymmetricSN.create(4))
+        sn_mesh = SNMesh(_build_2d_mesh(3, 3), LevelSymmetricSN.create(4), placeholder_materials())
         assert sn_mesh.sweep_graphs is not None
         assert len(sn_mesh.sweep_graphs) == 4
         expected_keys = {
@@ -63,7 +64,7 @@ class TestSweepGraphsByCoordSystem:
     def test_cartesian_2d_with_lebedev(self):
         """Lebedev quadrature: octant set is the same — 4 in-plane octants
         (sign_z is dropped by the OctantLabel)."""
-        sn_mesh = SNMesh(_build_2d_mesh(4, 4), LebedevSphere.create(5))
+        sn_mesh = SNMesh(_build_2d_mesh(4, 4), LebedevSphere.create(5), placeholder_materials())
         assert sn_mesh.sweep_graphs is not None
         assert len(sn_mesh.sweep_graphs) == 4
 
@@ -84,7 +85,7 @@ class TestSweepGraphsByCoordSystem:
             bc_left=BC("vacuum"), bc_right=BC("vacuum"),
             coord=CoordSystem.CARTESIAN,
         )
-        sn_mesh = SNMesh(mesh, GaussLegendre1D.create(8))
+        sn_mesh = SNMesh(mesh, GaussLegendre1D.create(8), placeholder_materials())
         # 1-D slab still goes through _setup_cartesian, so dict exists.
         assert sn_mesh.sweep_graphs is not None
         assert len(sn_mesh.sweep_graphs) == 4
@@ -103,7 +104,7 @@ class TestSweepGraphsAbsentOnCurvilinear:
             bc_left=BC("reflective"), bc_right=BC("vacuum"),
             coord=CoordSystem.SPHERICAL,
         )
-        sn_mesh = SNMesh(mesh, GaussLegendre1D.create(8))
+        sn_mesh = SNMesh(mesh, GaussLegendre1D.create(8), placeholder_materials())
         assert sn_mesh.sweep_graphs is None
 
     def test_cylindrical_1d_no_sweep_graphs(self):
@@ -114,7 +115,7 @@ class TestSweepGraphsAbsentOnCurvilinear:
             bc_left=BC("reflective"), bc_right=BC("vacuum"),
             coord=CoordSystem.CYLINDRICAL,
         )
-        sn_mesh = SNMesh(mesh, LevelSymmetricSN.create(4))
+        sn_mesh = SNMesh(mesh, LevelSymmetricSN.create(4), placeholder_materials())
         assert sn_mesh.sweep_graphs is None
 
 
@@ -155,7 +156,7 @@ def _hand_diag_cache(nx: int, ny: int) -> dict[tuple[int, int], dict]:
 class TestSweepGraphsAgreeWithLegacyDiagCache:
     @pytest.mark.parametrize("nx,ny", [(3, 3), (4, 5), (5, 4), (2, 7)])
     def test_diags_match_legacy_per_octant(self, nx, ny):
-        sn_mesh = SNMesh(_build_2d_mesh(nx, ny), LevelSymmetricSN.create(4))
+        sn_mesh = SNMesh(_build_2d_mesh(nx, ny), LevelSymmetricSN.create(4), placeholder_materials())
         legacy = _hand_diag_cache(nx, ny)
         for (sx, sy), legacy_entry in legacy.items():
             graph = sn_mesh.sweep_graphs[OctantLabel(sx, sy)]
@@ -178,13 +179,13 @@ class TestSweepGraphsAgreeWithLegacyDiagCache:
 class TestSweepGraphsAreMeshTime:
     def test_dict_reference_stable(self):
         """Multiple reads return the SAME dict object (precomputed once)."""
-        sn_mesh = SNMesh(_build_2d_mesh(3, 3), LevelSymmetricSN.create(4))
+        sn_mesh = SNMesh(_build_2d_mesh(3, 3), LevelSymmetricSN.create(4), placeholder_materials())
         first = sn_mesh.sweep_graphs
         second = sn_mesh.sweep_graphs
         assert first is second
 
     def test_graphs_within_dict_stable(self):
-        sn_mesh = SNMesh(_build_2d_mesh(3, 3), LevelSymmetricSN.create(4))
+        sn_mesh = SNMesh(_build_2d_mesh(3, 3), LevelSymmetricSN.create(4), placeholder_materials())
         for label in sn_mesh.sweep_graphs:
             graph_a = sn_mesh.sweep_graphs[label]
             graph_b = sn_mesh.sweep_graphs[label]
@@ -199,11 +200,11 @@ class TestSweepGraphsAreMeshTime:
 @pytest.mark.l0
 class TestSweepGraphsTypeContract:
     def test_keys_are_octant_label(self):
-        sn_mesh = SNMesh(_build_2d_mesh(3, 3), LevelSymmetricSN.create(4))
+        sn_mesh = SNMesh(_build_2d_mesh(3, 3), LevelSymmetricSN.create(4), placeholder_materials())
         for key in sn_mesh.sweep_graphs:
             assert isinstance(key, OctantLabel)
 
     def test_values_are_sweep_dependency_graph(self):
-        sn_mesh = SNMesh(_build_2d_mesh(3, 3), LevelSymmetricSN.create(4))
+        sn_mesh = SNMesh(_build_2d_mesh(3, 3), LevelSymmetricSN.create(4), placeholder_materials())
         for value in sn_mesh.sweep_graphs.values():
             assert isinstance(value, SweepDependencyGraph)

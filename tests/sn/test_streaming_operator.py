@@ -52,6 +52,7 @@ from orpheus.sn.operator import (
     StreamingOperator,
 )
 from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
+from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.foundation
 
@@ -71,7 +72,7 @@ def _slab_mesh(nx: int = 4, length: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = GaussLegendre1D.create(n_ordinates=4)
-    return SNMesh(mesh, quad)
+    return SNMesh(mesh, quad, placeholder_materials())
 
 
 def _spherical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
@@ -84,7 +85,7 @@ def _spherical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = GaussLegendre1D.create(n_ordinates=4)
-    return SNMesh(mesh, quad)
+    return SNMesh(mesh, quad, placeholder_materials())
 
 
 def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
@@ -97,7 +98,7 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = LevelSymmetricSN.create(sn_order=4)
-    return SNMesh(mesh, quad)
+    return SNMesh(mesh, quad, placeholder_materials())
 
 
 def _sig_t_uniform(sn_mesh: SNMesh, ng: int = 2,

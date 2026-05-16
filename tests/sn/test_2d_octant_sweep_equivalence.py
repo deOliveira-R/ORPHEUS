@@ -128,6 +128,7 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import LebedevSphere, LevelSymmetricSN
 from orpheus.sn.solver import solve_sn_fixed_source
 from orpheus.sn.sweep import _sweep_2d_wavefront
+from tests.sn._test_helpers import placeholder_materials
 
 
 # File-level marker: every case is an L1 equation-equivalence claim
@@ -227,7 +228,7 @@ def _build_sn_mesh(
         quad = LebedevSphere.create(order=5)                  # N = 14
     else:
         raise ValueError(f"Unknown quadrature kind: {quadrature}")
-    return SNMesh(mesh, quad)
+    return SNMesh(mesh, quad, placeholder_materials())
 
 
 def _build_sig_t(

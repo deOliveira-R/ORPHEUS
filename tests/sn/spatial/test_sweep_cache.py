@@ -44,6 +44,24 @@ from orpheus.sn.spatial.sweep_cache import CollisionCache, GeometryCoefficients
 # ═══════════════════════════════════════════════════════════════════════
 
 
+def _trivial_materials(ng: int = 1) -> dict:
+    """Build a minimal materials dict for ng-group geometry-only tests.
+
+    Issue #197 PR-TYPED-0: SNMesh requires ``materials``.  This helper
+    provides a placeholder mixture for tests that exercise pure-
+    geometry/cache structure and don't consume cross-section values.
+    """
+    from orpheus.data.macro_xs.mixture import Mixture
+    from scipy.sparse import csr_matrix
+    z = np.zeros(ng)
+    z_mat = csr_matrix(np.zeros((ng, ng)))
+    return {0: Mixture(
+        SigC=z.copy(), SigL=z.copy(), SigF=z.copy(),
+        SigP=z.copy(), SigT=np.ones(ng),
+        SigS=[z_mat], Sig2=z_mat, chi=z.copy(),
+    )}
+
+
 def _make_slab(nx: int = 10, N: int = 8) -> SNMesh:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
@@ -52,7 +70,7 @@ def _make_slab(nx: int = 10, N: int = 8) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = GaussLegendre1D.create(N)
-    return SNMesh(mesh, quad)
+    return SNMesh(mesh, quad, _trivial_materials(ng=1))
 
 
 def _make_sphere(nx: int = 10, N: int = 8) -> SNMesh:
@@ -64,7 +82,7 @@ def _make_sphere(nx: int = 10, N: int = 8) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = GaussLegendre1D.create(N)
-    return SNMesh(mesh, quad)
+    return SNMesh(mesh, quad, _trivial_materials(ng=1))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -262,8 +280,8 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
         bc_right=BC("vacuum"),
     )
     quad = GaussLegendre1D.create(4)
-    sn_mesh = SNMesh(mesh, quad)
-    solver = SNSolver(materials=materials, sn_mesh=sn_mesh)
+    sn_mesh = SNMesh(mesh, quad, materials)
+    solver = SNSolver(sn_mesh=sn_mesh)
 
     geom_before = solver.geom_cache
     coll_before = solver.coll_cache
@@ -496,7 +514,7 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
         bc_right=BC("vacuum"),
     )
     quad = GaussLegendre1D.create(16)
-    sn_mesh = SNMesh(mesh, quad)
+    sn_mesh = SNMesh(mesh, quad, _trivial_materials(ng=4))
     # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
     Q = np.ones((4, 160, 1))
     sig_t = np.ones((4, 160, 1))  # (ng, nx, ny) — PR-INDEX-3

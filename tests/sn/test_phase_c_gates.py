@@ -46,6 +46,7 @@ from orpheus.sn.spatial.pole_angular_closure import (
     MorelMontryAngularSweep,
 )
 from orpheus.sn.sweep import transport_sweep
+from tests.sn._test_helpers import placeholder_materials
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -77,7 +78,7 @@ def _make_spherical_sn_mesh(
         coord=CoordSystem.SPHERICAL,
         bc_right=bc_outer or BC("reflective"),
     )
-    sn_mesh = SNMesh(mesh, quad, pole_angular_closure=pole_closure)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials(), pole_angular_closure=pole_closure)
     sig_t = np.full((1, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     return sn_mesh, sig_t
 
@@ -103,7 +104,7 @@ def _make_cylindrical_sn_mesh(
         coord=CoordSystem.CYLINDRICAL,
         bc_right=bc_outer or BC("reflective"),
     )
-    sn_mesh = SNMesh(mesh, quad, pole_angular_closure=pole_closure)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials(), pole_angular_closure=pole_closure)
     sig_t = np.full((1, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     return sn_mesh, sig_t
 
@@ -340,7 +341,7 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
         bc_right=BC("vacuum"),
     )
     quad = GaussLegendre1D.create(4)
-    sn_mesh = SNMesh(mesh, quad)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     sig_t = np.full((1, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
 

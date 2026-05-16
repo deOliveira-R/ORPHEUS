@@ -39,6 +39,7 @@ from orpheus.numerics.operator import (
     PermutationOperator,
     ZeroOperator,
 )
+from tests.sn._test_helpers import placeholder_materials
 
 
 pytestmark = pytest.mark.l0
@@ -220,7 +221,7 @@ class Test188WiringContracts:
             bc_right=BC("vacuum"),
         )
         quad = GaussLegendre1D.create(8)
-        sn = SNMesh(mesh, quad)
+        sn = SNMesh(mesh, quad, placeholder_materials())
 
         # Curvilinear now builds traces (C188.1+C188.2 lifted guard).
         assert sn._inflow_trace is not None
@@ -263,7 +264,7 @@ class Test188WiringContracts:
             bc_right=BC("vacuum"),
         )
         quad = GaussLegendre1D.create(4)
-        sn = SNMesh(mesh, quad)
+        sn = SNMesh(mesh, quad, placeholder_materials())
 
         # y-face placeholders shim-wrap a REALIZED PermutationOperator.
         assert isinstance(sn.bc_ymin, _BoundBoundaryOperator)

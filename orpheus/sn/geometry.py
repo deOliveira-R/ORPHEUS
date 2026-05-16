@@ -13,7 +13,7 @@ redistribution coefficients (:math:`\alpha`), the geometry factor
 from __future__ import annotations
 
 import warnings
-from typing import ClassVar, Iterator
+from typing import ClassVar, Iterator, TYPE_CHECKING
 
 import numpy as np
 
@@ -43,6 +43,21 @@ from .spatial.pole_angular_closure import (
 )
 from .sweep_graph import OctantLabel, SweepDependencyGraph
 
+if TYPE_CHECKING:
+    from orpheus.data.macro_xs.mixture import Mixture
+
+
+class InconsistentMaterialsError(ValueError):
+    """Raised when a materials dict has inconsistent metadata.
+
+    Currently triggered when materials disagree on ``ng`` (number of
+    energy groups).  :class:`SNMesh` requires a uniform group structure
+    across all materials in its ``mat_map`` because every operator that
+    consumes ``sn_mesh`` (L, C, S, F) assumes one ``ng``.  A
+    homogenization step must precede SNMesh construction if the input
+    materials carry different group structures.
+    """
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # SNMesh
@@ -70,9 +85,25 @@ class SNMesh:
         Base geometry.
     quadrature : AngularQuadrature
         Angular quadrature (Gauss–Legendre, Lebedev, etc.).
+    materials : dict mapping material id to Mixture
+        Macroscopic cross sections keyed by the integer ids appearing
+        in ``mesh.mat_ids`` / ``mesh.mat_map``.  Required (Issue #197
+        PR-TYPED-0).  The authoritative source of truth for both
+        cross sections and the group count :attr:`ng`; every operator
+        that consumes ``sn_mesh`` (L, C, S, F) reads materials from
+        here, not from a parallel argument.  All materials must agree
+        on ``ng`` — heterogeneous group structures are a
+        homogenization-step concern that must precede SNMesh
+        construction.
 
     Attributes
     ----------
+    materials : dict mapping material id to Mixture
+        The materials dict passed at construction (single source of
+        truth).
+    ng : int
+        Number of energy groups, derived from materials and validated
+        for consistency.
     BOUNDARY_OPERATOR_REGISTRY : dict[str, type[BoundaryTraceLaw]]
         Supported boundary-condition kinds (Wave 8 / C8.3). Values
         are :class:`BoundaryTraceLaw` subclasses (``VacuumInflow``,
@@ -126,11 +157,23 @@ class SNMesh:
         self,
         mesh: Mesh1D | Mesh2D,
         quadrature: AngularQuadrature,
+        materials: "dict[int, Mixture]",
         cell_update: CellUpdate | None = None,
         pole_angular_closure: PoleAngularClosure | None = None,
     ) -> None:
+        # Issue #197 PR-TYPED-0: ``materials`` is a REQUIRED parameter.
+        # SNMesh IS the SN phase space (mesh × quadrature × material
+        # group structure); constructing it without materials would
+        # leave ``.ng`` undefined and downstream operators with no
+        # cross-section keying.  The single source of truth for the
+        # material dict moves from SNSolver to SNMesh: every operator
+        # that consumes ``sn_mesh`` (L, C, S, F) reads materials and
+        # ``ng`` from here, not from a parallel argument.  See
+        # coding-elegance Pattern 4 (illegal states unrepresentable)
+        # and Pattern 7 (normalize at definition site).
         self.mesh = mesh
         self.quad = quadrature
+        self.materials: "dict[int, Mixture]" = materials
         # Cell-update strategy (Wave D Round 2 Issue #161). Defaults to
         # :class:`DiamondDifference`, which reproduces the existing
         # inlined sweep math bit-identically — every regression snapshot
@@ -258,6 +301,25 @@ class SNMesh:
 
         # Resolve boundary conditions from mesh declarations
         self._resolve_bcs(mesh)
+
+        # ── Materials consistency validation (Issue #197 PR-TYPED-0) ──
+        # Two checks at construction time:
+        #
+        #   (1) every material id used in ``mat_map`` must have an
+        #       entry in ``materials`` — otherwise downstream code
+        #       would key into an undefined material.
+        #   (2) all materials must agree on ``ng`` — SN requires one
+        #       uniform group structure; heterogeneous ``ng`` is a
+        #       homogenization-step concern that must precede SNMesh
+        #       construction, not a silent runtime issue.
+        #
+        # Both checks surface at SNMesh construction, NOT lazily —
+        # the failure mode (operators built on a bad SNMesh) is
+        # action-at-a-distance otherwise.
+        self._validate_materials()
+        # Trigger ``ng`` property's consistency check eagerly so
+        # mismatched-ng materials raise at construction time.
+        _ = self.ng
 
     # ── Boundary condition resolution ─────────────────────────────────
 
@@ -406,7 +468,71 @@ class SNMesh:
         realized = SNBoundaryRealizer().realize(law, method_space)
         return _BoundBoundaryOperator(realized, kind=bc.kind)
 
+    # ── Materials validation ──────────────────────────────────────────
+
+    def _validate_materials(self) -> None:
+        """Validate the materials dict against the mat_map.
+
+        Every material id referenced in ``self.mat_map`` MUST appear
+        as a key in ``self.materials``.  Failure surfaces here at
+        construction time, not lazily inside a solver step.
+
+        Raises
+        ------
+        ValueError
+            If any ``mat_map`` id is missing from ``materials``; the
+            error message shows both sets so the user can see the gap.
+        """
+        if not self.materials:
+            raise ValueError(
+                "SNMesh requires a non-empty materials dict; got "
+                f"materials={self.materials!r}."
+            )
+        used_ids = set(int(x) for x in np.unique(self.mat_map))
+        available_ids = set(self.materials.keys())
+        missing = used_ids - available_ids
+        if missing:
+            raise ValueError(
+                f"SNMesh.mat_map references material ids "
+                f"{sorted(missing)} that are NOT in materials "
+                f"(available ids: {sorted(available_ids)}; used ids: "
+                f"{sorted(used_ids)})."
+            )
+
     # ── Properties ────────────────────────────────────────────────────
+
+    @property
+    def ng(self) -> int:
+        """Number of energy groups; uniform across all materials.
+
+        Derived from ``self.materials``; the single source of truth
+        for the group count.  All materials must agree on ``ng`` —
+        SN requires one uniform group structure across the mesh.
+
+        Raises
+        ------
+        InconsistentMaterialsError
+            If materials disagree on ``ng``.  A homogenization step
+            must precede SNMesh construction in that case.
+        ValueError
+            If ``self.materials`` is empty (caught at construction
+            time by ``_validate_materials``).
+        """
+        if not self.materials:
+            raise ValueError(
+                "SNMesh.ng undefined — no materials.  Construct "
+                "SNMesh(mesh, quadrature, materials) with a non-empty "
+                "materials dict."
+            )
+        ngs = {m.ng for m in self.materials.values()}
+        if len(ngs) != 1:
+            raise InconsistentMaterialsError(
+                f"SNMesh requires uniform ng across all materials; got "
+                f"ng values {sorted(ngs)} in materials dict with keys "
+                f"{sorted(self.materials.keys())}.  Homogenize to a "
+                f"common group structure before SNMesh construction."
+            )
+        return ngs.pop()
 
     @property
     def volumes(self) -> np.ndarray:

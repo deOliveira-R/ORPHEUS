@@ -32,6 +32,7 @@ from orpheus.geometry import (
 )
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import GaussLegendre1D, ProductQuadrature
+from tests.sn._test_helpers import placeholder_materials
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -82,7 +83,7 @@ class TestHashEqualitySpherical:
     def pair(self):
         mesh = _spherical_mesh()
         quad = GaussLegendre1D.create(8)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         reduced = spherical_streaming(mesh, quad)
         return sn_mesh, reduced
 
@@ -122,7 +123,7 @@ class TestHashEqualitySpherical:
         """Hash equality holds for every quadrature order."""
         mesh = _spherical_mesh()
         quad = GaussLegendre1D.create(N)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         reduced = spherical_streaming(mesh, quad)
         assert np.array_equal(reduced.alpha_half, sn_mesh.reduced.alpha_half)
         assert np.array_equal(reduced.tau_mm, sn_mesh.reduced.tau_mm)
@@ -136,7 +137,7 @@ class TestHashEqualityCylindrical:
     def pair(self):
         mesh = _cylindrical_mesh()
         quad = ProductQuadrature.create(n_mu=2, n_phi=4)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         reduced = cylindrical_streaming(mesh, quad)
         return sn_mesh, reduced
 
@@ -184,7 +185,7 @@ class TestHashEqualityCylindrical:
         """Per-level hash equality across multiple quadrature shapes."""
         mesh = _cylindrical_mesh()
         quad = ProductQuadrature.create(n_mu=n_mu, n_phi=n_phi)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         reduced = cylindrical_streaming(mesh, quad)
         for rdc, snm in zip(
             reduced.alpha_per_level, sn_mesh.reduced.alpha_per_level

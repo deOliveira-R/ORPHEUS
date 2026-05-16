@@ -22,6 +22,7 @@ from orpheus.geometry import (
     StructuredGeometry,
 )
 from orpheus.sn.geometry import SNMesh
+from tests.sn._test_helpers import placeholder_materials
 
 
 _COORD_TO_TAG = {
@@ -228,7 +229,7 @@ class TestCylindricalSweepRegression:
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         sig_t = np.full((10, 1, 1), 0.5)
         Q = np.ones((10, 1, 1))
@@ -244,8 +245,8 @@ class TestCylindricalSweepRegression:
         mix = get_mixture("A", "2g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
-        sn_mesh = SNMesh(mesh, quad)
-        solver = SNSolver({0: mix}, sn_mesh, max_inner=500, inner_tol=1e-10)
+        sn_mesh = SNMesh(mesh, quad, {0: mix})
+        solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
         fission = solver.compute_fission_source(phi, 1.0)
@@ -280,7 +281,7 @@ class TestCylindricalSweepRegression:
         mesh = _homogeneous_mesh(5, 1.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = GaussLegendre1D.create(4)
         with pytest.raises(ValueError, match="level structure"):
-            SNMesh(mesh, quad)
+            SNMesh(mesh, quad, placeholder_materials())
 
 
 # Need this import for the guard test
@@ -379,8 +380,8 @@ class TestMultiGroupMultiRegion:
         mix = get_mixture("A", "4g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
-        sn_mesh = SNMesh(mesh, quad)
-        solver = SNSolver({0: mix}, sn_mesh, max_inner=500, inner_tol=1e-10)
+        sn_mesh = SNMesh(mesh, quad, {0: mix})
+        solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
         # Run 5 outer iterations — flux must remain bounded
         phi = solver.initial_flux_distribution()
@@ -466,8 +467,8 @@ class TestMultiGroupMultiRegion:
 
         )
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
-        sn_mesh = SNMesh(mesh, quad)
-        solver = SNSolver(materials, sn_mesh, max_inner=500, inner_tol=1e-10)
+        sn_mesh = SNMesh(mesh, quad, materials)
+        solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
         keff = 1.0
@@ -497,7 +498,7 @@ class TestMultiGroupMultiRegion:
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.CYLINDRICAL)
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         for p, alpha in enumerate(sn_mesh.reduced.alpha_per_level):
             np.testing.assert_allclose(alpha[0], 0.0,
@@ -532,7 +533,7 @@ class TestMultiGroupMultiRegion:
         mix = get_mixture("A", "1g")
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         sig_t = np.full((10, 1, 1), mix.SigT[0])
         Q = np.ones((10, 1, 1))
@@ -561,7 +562,7 @@ class TestMultiGroupMultiRegion:
 
         mesh = _homogeneous_mesh(2, 1.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         Q = np.ones((2, 1, 1))
         sig_t = np.ones((2, 1, 1))

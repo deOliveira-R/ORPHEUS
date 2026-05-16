@@ -383,8 +383,8 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     # Build the SN operator triple from the same precomputed solver
     # data used for the reference run.  This is the canonical path
     # Round 2 will use to wire SNSolver onto the new primitives.
-    sn_mesh = SNMesh(mesh, quad)
-    solver = SNSolver(materials, sn_mesh, scattering_order=0)
+    sn_mesh = SNMesh(mesh, quad, materials)
+    solver = SNSolver(sn_mesh, scattering_order=0)
     L = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=solver.sig_t)
     # The canonical S, F operators built directly from solver state.
     S = solver.scattering_op

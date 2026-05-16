@@ -29,6 +29,7 @@ from orpheus.sn.quadrature import (
     LevelSymmetricSN,
     ProductQuadrature,
 )
+from tests.sn._test_helpers import placeholder_materials
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -45,7 +46,7 @@ def test_dag_walk_spherical_outward_matches_per_ordinate():
         coord=CoordSystem.SPHERICAL,
     )
     quad = GaussLegendre1D.create(8)
-    sn_mesh = SNMesh(mesh, quad)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
     seq_by_dir = [
         v.cell_idx for v in sn_mesh.dag_walk(direction_sign=+1)
@@ -71,7 +72,7 @@ def test_dag_walk_spherical_inward_matches_per_ordinate():
         coord=CoordSystem.SPHERICAL,
     )
     quad = GaussLegendre1D.create(8)
-    sn_mesh = SNMesh(mesh, quad)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
     seq_by_dir = [
         v.cell_idx for v in sn_mesh.dag_walk(direction_sign=-1)
@@ -96,7 +97,7 @@ def test_dag_walk_slab_matches_per_ordinate():
         coord=CoordSystem.CARTESIAN,
     )
     quad = GaussLegendre1D.create(6)
-    sn_mesh = SNMesh(mesh, quad)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
     for sign in (+1, -1):
         seq_by_dir = [
@@ -122,7 +123,7 @@ def test_dag_walk_cylindrical_per_level_matches():
         coord=CoordSystem.CYLINDRICAL,
     )
     quad = ProductQuadrature.create(n_mu=2, n_phi=4)
-    sn_mesh = SNMesh(mesh, quad)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
     level_indices = quad.level_indices
     for level_p in range(len(level_indices)):
@@ -168,7 +169,7 @@ def test_dag_walk_invalid_sign_raises():
         coord=CoordSystem.SPHERICAL,
     )
     quad = GaussLegendre1D.create(4)
-    sn_mesh = SNMesh(mesh, quad)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     with pytest.raises(ValueError, match="direction_sign"):
         list(sn_mesh.dag_walk(direction_sign=0))
     with pytest.raises(ValueError, match="direction_sign"):
@@ -183,7 +184,7 @@ def test_dag_walk_cylindrical_requires_level():
         coord=CoordSystem.CYLINDRICAL,
     )
     quad = ProductQuadrature.create(n_mu=2, n_phi=4)
-    sn_mesh = SNMesh(mesh, quad)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     with pytest.raises(ValueError, match="mu_level_idx"):
         list(sn_mesh.dag_walk(direction_sign=+1))
 
@@ -197,7 +198,7 @@ def test_dag_walk_xor_signature_enforced():
         coord=CoordSystem.SPHERICAL,
     )
     quad = GaussLegendre1D.create(4)
-    sn_mesh = SNMesh(mesh, quad)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     # Neither supplied → ValueError.
     with pytest.raises(ValueError, match="exactly one"):
         list(sn_mesh.dag_walk())

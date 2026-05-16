@@ -148,9 +148,13 @@ class SNSolver:
 
     Parameters
     ----------
-    materials : dict mapping material ID to Mixture.
     sn_mesh : SNMesh — augmented geometry (wraps Mesh1D or Mesh2D with
-        precomputed streaming stencil).
+        precomputed streaming stencil + materials dict + ``ng``).
+        Issue #197 PR-TYPED-0: ``sn_mesh.materials`` IS the single
+        source of truth for cross sections and group count; the
+        legacy ``materials`` / ``n_groups`` SNSolver constructor
+        parameters were retired (aggressive retirement per
+        ``feedback_aggressive_retirement``).
     inner_solver : "source_iteration" or "krylov".
     scattering_order : int — Legendre order for scattering (0 = P0).
     keff_tol, flux_tol : outer iteration convergence.
@@ -159,7 +163,6 @@ class SNSolver:
 
     def __init__(
         self,
-        materials: dict[int, Mixture],
         sn_mesh: SNMesh,
         inner_solver: str = "source_iteration",
         scattering_order: int = 0,
@@ -186,9 +189,13 @@ class SNSolver:
         self.max_inner = max_inner
         self.inner_tol = inner_tol
 
+        # Issue #197 PR-TYPED-0: materials + ng are read from sn_mesh,
+        # not from constructor parameters.  ``sn_mesh.ng`` is the
+        # validated single source of truth (raises
+        # ``InconsistentMaterialsError`` if materials disagree).
+        materials = sn_mesh.materials
         nx, ny = sn_mesh.nx, sn_mesh.ny
-        _any_mat = next(iter(materials.values()))
-        self.ng = _any_mat.ng
+        self.ng = sn_mesh.ng
 
         # Per-cell cross sections — Principled layout (Issue #196 PR-INDEX-3):
         # (ng, nx, ny).  Producer ``assemble_cell_xs`` still emits
@@ -1032,11 +1039,13 @@ def solve_sn(
     """
     t_start = time.perf_counter()
 
-    # Build augmented geometry (precomputes streaming stencil)
-    sn_mesh = SNMesh(mesh, quadrature)
+    # Build augmented geometry (precomputes streaming stencil).
+    # Issue #197 PR-TYPED-0: materials now lives on SNMesh — the
+    # phase-space-as-such object.
+    sn_mesh = SNMesh(mesh, quadrature, materials)
 
     solver = SNSolver(
-        materials, sn_mesh,
+        sn_mesh,
         inner_solver=inner_solver,
         scattering_order=scattering_order,
         keff_tol=keff_tol, flux_tol=flux_tol,
@@ -1155,7 +1164,8 @@ def solve_sn_fixed_source(
 
     # Apply boundary_condition parameter to mesh if no explicit BCs set
     mesh = _apply_default_bcs(mesh, boundary_condition)
-    sn_mesh = SNMesh(mesh, quadrature)
+    # Issue #197 PR-TYPED-0: materials threaded through SNMesh.
+    sn_mesh = SNMesh(mesh, quadrature, materials)
 
     # Issue #168 status (Phase D ERR-026 closure, 2026-05-12):
     #
@@ -1184,7 +1194,7 @@ def solve_sn_fixed_source(
             inner_solver = "source_iteration"
 
     solver = SNSolver(
-        materials, sn_mesh,
+        sn_mesh,
         inner_solver=inner_solver,
         scattering_order=scattering_order,
         max_inner=max_inner, inner_tol=inner_tol,

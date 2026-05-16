@@ -64,6 +64,7 @@ from orpheus.sn.operator import (
 )
 from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
 from orpheus.sn.sweep import transport_sweep
+from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.foundation
 
@@ -90,7 +91,7 @@ def _slab_mesh(nx: int = 4, length: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = GaussLegendre1D.create(n_ordinates=4)
-    return SNMesh(mesh, quad)
+    return SNMesh(mesh, quad, placeholder_materials())
 
 
 def _spherical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
@@ -103,7 +104,7 @@ def _spherical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = GaussLegendre1D.create(n_ordinates=4)
-    return SNMesh(mesh, quad)
+    return SNMesh(mesh, quad, placeholder_materials())
 
 
 def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
@@ -117,7 +118,7 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = LevelSymmetricSN.create(sn_order=4)
-    return SNMesh(mesh, quad)
+    return SNMesh(mesh, quad, placeholder_materials())
 
 
 def _sig_t_uniform(sn_mesh: SNMesh, ng: int = 2, value: float = 0.5) -> np.ndarray:
@@ -322,7 +323,7 @@ def test_apply_2d_cartesian_bit_identical_to_legacy():
     # Keep N small so dense-matrix probe stays fast.
     from orpheus.sn.quadrature import LebedevSphere
     quad = LebedevSphere.create(order=5)
-    sn_mesh = SNMesh(mesh, quad)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     sig_t = _sig_t_uniform(sn_mesh, ng=2)
     op = SNStreamingOperator(sn_mesh, sig_t)
 
@@ -757,7 +758,7 @@ def test_apply_spherical_constant_flux_yields_zero_collisionless_reflective():
         bc_right=BC("reflective"),
     )
     quad = GaussLegendre1D.create(n_ordinates=4)
-    sn_mesh = SNMesh(mesh, quad)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     ng = 2
     sig_t = np.zeros((ng, nx, sn_mesh.ny))  # PR-INDEX-3 layout
     op = SNStreamingOperator(sn_mesh, sig_t)
@@ -799,7 +800,7 @@ def test_apply_spherical_vacuum_bc_residual_is_consistent():
         bc_right=BC("vacuum"),
     )
     quad = GaussLegendre1D.create(n_ordinates=4)
-    sn_mesh = SNMesh(mesh, quad)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     ng = 2
     sig_t = np.zeros((ng, nx, sn_mesh.ny))  # PR-INDEX-3 layout
     op = SNStreamingOperator(sn_mesh, sig_t)
@@ -863,7 +864,7 @@ def test_apply_spherical_constant_flux_under_morel_montry_canonical_form():
         bc_right=BC("reflective"),
     )
     quad = GaussLegendre1D.create(n_ordinates=4)
-    sn_mesh = SNMesh(mesh, quad, pole_angular_closure=MorelMontryAngularSweep())
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials(), pole_angular_closure=MorelMontryAngularSweep())
     ng = 2
     sig_t = np.zeros((ng, nx, sn_mesh.ny))  # PR-INDEX-3 layout
     op = SNStreamingOperator(sn_mesh, sig_t)
@@ -959,7 +960,7 @@ def test_snmesh_no_longer_accepts_boundary_face_flux_kwarg():
         bc_right=BC("vacuum"),
     )
     quad = GaussLegendre1D.create(n_ordinates=4)
-    sn = SNMesh(mesh, quad)
+    sn = SNMesh(mesh, quad, placeholder_materials())
     assert not hasattr(sn, "boundary_face_flux"), (
         "Phase C retired SNMesh.boundary_face_flux; attribute is "
         "back on the instance."
@@ -968,4 +969,4 @@ def test_snmesh_no_longer_accepts_boundary_face_flux_kwarg():
     # no longer accepts it).
     import pytest as _pytest
     with _pytest.raises(TypeError):
-        SNMesh(mesh, quad, boundary_face_flux=object())
+        SNMesh(mesh, quad, placeholder_materials(), boundary_face_flux=object())

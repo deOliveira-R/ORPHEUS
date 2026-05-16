@@ -43,6 +43,7 @@ def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) ->
     return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
 from orpheus.sn.quadrature import GaussLegendre1D, LebedevSphere
 from orpheus.sn.sweep import transport_sweep
+from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.l0  # SN sweep + SNMesh stencil regressions
 
@@ -76,8 +77,8 @@ class TestScatteringConvergence:
         mix = get_mixture("A", "2g")
         mesh = _homogeneous_slab_mesh(20, 2.0, mat_id=0)
         quad = GaussLegendre1D.create(8)
-        sn_mesh = SNMesh(mesh, quad)
-        solver = SNSolver({0: mix}, sn_mesh, max_inner=500, inner_tol=1e-10)
+        sn_mesh = SNMesh(mesh, quad, {0: mix})
+        solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
         # One outer iteration: flux must remain bounded
         phi = solver.initial_flux_distribution()
@@ -103,7 +104,7 @@ class TestSNMesh:
         mesh = Mesh1D(edges=np.array([0.0, 0.1, 0.3, 0.6]),
                       mat_ids=np.array([0, 1, 2]))
         quad = GaussLegendre1D.create(4)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         for n in range(quad.N):
             for i in range(sn_mesh.nx):
@@ -124,7 +125,7 @@ class TestSNMesh:
             mat_map=np.zeros((3, 2), dtype=int),
         )
         quad = LebedevSphere.create(order=17)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         sig_t = 0.5  # scalar for simplicity
         for n in range(quad.N):
@@ -138,7 +139,7 @@ class TestSNMesh:
         """SNMesh from Mesh1D must have (N,1) shaped mat_map and volumes."""
         mesh = Mesh1D(edges=np.linspace(0, 1, 6), mat_ids=np.array([0,1,2,1,0]))
         quad = GaussLegendre1D.create(4)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         assert sn_mesh.nx == 5
         assert sn_mesh.ny == 1
@@ -154,7 +155,7 @@ class TestSNMesh:
             mat_map=np.zeros((3, 2), dtype=int),
         )
         quad = LebedevSphere.create(order=17)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         assert sn_mesh.nx == 3
         assert sn_mesh.ny == 2
@@ -170,7 +171,7 @@ class TestSNMesh:
                       coord=CoordSystem.CYLINDRICAL)
         quad = GaussLegendre1D.create(4)
         with pytest.raises(ValueError, match="level structure"):
-            SNMesh(mesh, quad)
+            SNMesh(mesh, quad, placeholder_materials())
 
     def test_spherical_setup(self):
         """Spherical SNMesh must precompute face areas and α coefficients."""
@@ -179,7 +180,7 @@ class TestSNMesh:
         mesh = Mesh1D(edges=np.array([0.0, 0.5, 1.0]), mat_ids=np.array([0, 1]),
                       coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(4)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         assert sn_mesh.curvature == "spherical"
         assert sn_mesh.face_areas is not None
@@ -203,8 +204,7 @@ class TestSNMesh:
         # 1D with GL
         mesh_1d = _homogeneous_slab_mesh(10, 1.0, mat_id=0)
         quad_gl = GaussLegendre1D.create(8)
-        solver_1d = SNSolver({0: mix}, SNMesh(mesh_1d, quad_gl),
-                             max_inner=500, inner_tol=1e-10)
+        solver_1d = SNSolver(SNMesh(mesh_1d, quad_gl, {0: mix}), max_inner=500, inner_tol=1e-10)
         phi = solver_1d.initial_flux_distribution()
         keff_1d = 1.0
         for _ in range(50):
@@ -219,8 +219,7 @@ class TestSNMesh:
             mat_map=np.zeros((10, 1), dtype=int),
         )
         quad_leb = LebedevSphere.create(order=17)
-        solver_2d = SNSolver({0: mix}, SNMesh(mesh_2d, quad_leb),
-                             max_inner=500, inner_tol=1e-10)
+        solver_2d = SNSolver(SNMesh(mesh_2d, quad_leb, {0: mix}), max_inner=500, inner_tol=1e-10)
         phi = solver_2d.initial_flux_distribution()
         keff_2d = 1.0
         for _ in range(50):

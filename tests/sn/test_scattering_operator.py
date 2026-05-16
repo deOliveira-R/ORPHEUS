@@ -56,8 +56,8 @@ def solver_2g_p0():
 
     mesh = _uniform_2d(nx, ny, delta, mat)
     quad = LebedevSphere.create(order=17)
-    sn_mesh = SNMesh(mesh, quad)
-    solver = SNSolver(materials, sn_mesh)
+    sn_mesh = SNMesh(mesh, quad, materials)
+    solver = SNSolver(sn_mesh)
     return solver
 
 
@@ -230,7 +230,7 @@ class TestAnisotropicScatteringExtraction:
 
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = LebedevSphere.create(order=17)
-        return SNSolver({0: mix}, SNMesh(mesh, quad), scattering_order=1)
+        return SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=1)
 
     def test_returns_none_for_p0(self, solver_2g_p0):
         """L=0 => Pℓ contribution is None (signal: no aniso source needed)."""
@@ -356,7 +356,7 @@ class TestP0AlgebraicIdentities:
         nx, ny = 2, 2
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
         quad = LebedevSphere.create(order=17)
-        solver = SNSolver({0: mix}, SNMesh(mesh, quad))
+        solver = SNSolver(SNMesh(mesh, quad, {0: mix}))
         op = solver.scattering_op
 
         phi = np.ones((op.ng, nx, ny))
@@ -391,7 +391,7 @@ class TestP0AlgebraicIdentities:
         nx, ny = 2, 2
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
         quad = LebedevSphere.create(order=17)
-        solver = SNSolver({0: mix}, SNMesh(mesh, quad))
+        solver = SNSolver(SNMesh(mesh, quad, {0: mix}))
         op = solver.scattering_op
 
         np.random.seed(31)
@@ -443,7 +443,7 @@ def solver_2g_p1_n2n():
     nx, ny = 3, 2
     mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
     quad = LebedevSphere.create(order=17)
-    return SNSolver({0: mix}, SNMesh(mesh, quad), scattering_order=1)
+    return SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=1)
 
 
 class TestFoldablePart:
@@ -725,7 +725,7 @@ class TestAlgebraicIdentity:
         nx, ny = 2, 2
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
         quad = LebedevSphere.create(order=17)
-        op = SNSolver({0: mix}, SNMesh(mesh, quad)).scattering_op
+        op = SNSolver(SNMesh(mesh, quad, {0: mix})).scattering_op
 
         N = op.n_ordinates
         np.random.seed(404)

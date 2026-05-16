@@ -63,6 +63,7 @@ from orpheus.sn.operator import (
     transport_operator_matvec_spherical,
 )
 from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
+from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.l0
 
@@ -107,7 +108,7 @@ def _build_sn_mesh(geometry: str, n_cells: int = 5, n_ord: int = 4) -> SNMesh:
         quad = GaussLegendre1D.create(n_ordinates=n_ord)
     else:
         raise ValueError(geometry)
-    return SNMesh(mesh, quad)
+    return SNMesh(mesh, quad, placeholder_materials())
 
 
 def _eq_map_for(sn_mesh: SNMesh, ng: int):

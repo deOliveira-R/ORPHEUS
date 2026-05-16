@@ -31,6 +31,7 @@ from orpheus.sn import sweep as sweep_module
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.sweep import transport_sweep
+from tests.sn._test_helpers import placeholder_materials
 
 
 def _slab_setup(N: int = 4, nx: int = 8, ng: int = 2):
@@ -41,7 +42,7 @@ def _slab_setup(N: int = 4, nx: int = 8, ng: int = 2):
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    sn_mesh = SNMesh(mesh, GaussLegendre1D.create(n_ordinates=N))
+    sn_mesh = SNMesh(mesh, GaussLegendre1D.create(n_ordinates=N), placeholder_materials())
     # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
     Q = np.full((ng, nx, 1), 1.0)
     sig_t = np.full((ng, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
@@ -56,7 +57,7 @@ def _sphere_setup(N: int = 4, nx: int = 8, ng: int = 2):
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    sn_mesh = SNMesh(mesh, GaussLegendre1D.create(n_ordinates=N))
+    sn_mesh = SNMesh(mesh, GaussLegendre1D.create(n_ordinates=N), placeholder_materials())
     # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
     Q = np.full((ng, nx, 1), 1.0)
     sig_t = np.full((ng, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3

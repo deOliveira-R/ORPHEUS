@@ -82,6 +82,7 @@ def _two_region_mesh(
     ))
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.solver import SNSolver, solve_sn
+from tests.sn._test_helpers import placeholder_materials
 
 # File-level marker: only the equation-coverage list is global.
 # V&V level is set per-class / per-function below — this avoids the
@@ -188,7 +189,7 @@ class TestAlphaCoefficients:
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(N)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         np.testing.assert_allclose(sn_mesh.reduced.alpha_half[0], 0.0)
         np.testing.assert_allclose(sn_mesh.reduced.alpha_half[-1], 0.0, atol=1e-14)
@@ -198,7 +199,7 @@ class TestAlphaCoefficients:
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         alpha = sn_mesh.reduced.alpha_half
         for n in range(quad.N):
@@ -216,7 +217,7 @@ class TestAlphaCoefficients:
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         alpha = sn_mesh.reduced.alpha_half
         N = quad.N
@@ -349,7 +350,7 @@ class TestSphericalSweepRegression:
 
         mesh = _homogeneous_mesh(10, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         sig_t = np.ones((10, 1, 1))
         Q = np.ones((10, 1, 1))
@@ -379,7 +380,7 @@ class TestSphericalSweepRegression:
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         sig_t = np.full((10, 1, 1), 0.5)
         Q = np.ones((10, 1, 1))
@@ -399,8 +400,8 @@ class TestSphericalSweepRegression:
         mix = get_mixture("A", "2g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
-        sn_mesh = SNMesh(mesh, quad)
-        solver = SNSolver({0: mix}, sn_mesh, max_inner=500, inner_tol=1e-10)
+        sn_mesh = SNMesh(mesh, quad, {0: mix})
+        solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
         fission = solver.compute_fission_source(phi, 1.0)
@@ -545,8 +546,8 @@ class TestMultiGroupMultiRegionSpherical:
         mix = get_mixture("A", "4g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
-        sn_mesh = SNMesh(mesh, quad)
-        solver = SNSolver({0: mix}, sn_mesh, max_inner=500, inner_tol=1e-10)
+        sn_mesh = SNMesh(mesh, quad, {0: mix})
+        solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
         keff = 1.0
@@ -622,8 +623,8 @@ class TestMultiGroupMultiRegionSpherical:
 
         )
         quad = GaussLegendre1D.create(8)
-        sn_mesh = SNMesh(mesh, quad)
-        solver = SNSolver(materials, sn_mesh, max_inner=500, inner_tol=1e-10)
+        sn_mesh = SNMesh(mesh, quad, materials)
+        solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
         keff = 1.0
@@ -655,7 +656,7 @@ class TestMultiGroupMultiRegionSpherical:
 
         mesh = _homogeneous_mesh(40, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
-        sn_mesh = SNMesh(mesh, quad)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         Q = np.ones((40, 1, 1))
         sig_t = np.ones((40, 1, 1))

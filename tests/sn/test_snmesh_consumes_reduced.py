@@ -36,6 +36,7 @@ from orpheus.geometry import CoordSystem, Mesh1D
 from orpheus.geometry.reduced_operator import ReducedStreamingOperator
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import GaussLegendre1D, ProductQuadrature
+from tests.sn._test_helpers import placeholder_materials
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +51,7 @@ def _slab_mesh() -> SNMesh:
         coord=CoordSystem.CARTESIAN,
     )
     quad = GaussLegendre1D.create(4)
-    return SNMesh(mesh, quad)
+    return SNMesh(mesh, quad, placeholder_materials())
 
 
 def _sphere_mesh() -> SNMesh:
@@ -60,7 +61,7 @@ def _sphere_mesh() -> SNMesh:
         coord=CoordSystem.SPHERICAL,
     )
     quad = GaussLegendre1D.create(4)
-    return SNMesh(mesh, quad)
+    return SNMesh(mesh, quad, placeholder_materials())
 
 
 def _cylinder_mesh() -> SNMesh:
@@ -70,7 +71,7 @@ def _cylinder_mesh() -> SNMesh:
         coord=CoordSystem.CYLINDRICAL,
     )
     quad = ProductQuadrature.create(n_mu=4, n_phi=4)
-    return SNMesh(mesh, quad)
+    return SNMesh(mesh, quad, placeholder_materials())
 
 
 # ---------------------------------------------------------------------------

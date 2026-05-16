@@ -46,8 +46,8 @@ def solver_2g():
 
     mesh = _uniform_2d(nx, ny, delta, mat)
     quad = LebedevSphere.create(order=17)
-    sn_mesh = SNMesh(mesh, quad)
-    return SNSolver(materials, sn_mesh)
+    sn_mesh = SNMesh(mesh, quad, materials)
+    return SNSolver(sn_mesh)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -150,7 +150,7 @@ class TestRank1EnergyStructure:
         nx, ny = 3, 3
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
         quad = LebedevSphere.create(order=17)
-        solver = SNSolver({0: mix}, SNMesh(mesh, quad))
+        solver = SNSolver(SNMesh(mesh, quad, {0: mix}))
 
         c = 1.5
         # PR-INDEX-4: principled (ng, nx, ny).

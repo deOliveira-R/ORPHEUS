@@ -12,6 +12,7 @@ import pytest
 from orpheus.geometry import BC, Mesh1D, Mesh2D, CoordSystem
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import GaussLegendre1D
+from tests.sn._test_helpers import placeholder_materials
 
 
 @pytest.fixture
@@ -56,7 +57,7 @@ class TestSNBCResolution:
 
     def test_default_is_reflective(self, slab_mesh, quad):
         """None on mesh resolves to 'reflective' (eigenvalue default)."""
-        sn = SNMesh(slab_mesh, quad)
+        sn = SNMesh(slab_mesh, quad, placeholder_materials())
         assert sn.bc_left == "reflective"
         assert sn.bc_right == "reflective"
 
@@ -65,7 +66,7 @@ class TestSNBCResolution:
             edges=slab_mesh.edges, mat_ids=slab_mesh.mat_ids,
             bc_left=BC.vacuum, bc_right=BC.vacuum,
         )
-        sn = SNMesh(mesh, quad)
+        sn = SNMesh(mesh, quad, placeholder_materials())
         assert sn.bc_left == "vacuum"
         assert sn.bc_right == "vacuum"
 
@@ -74,7 +75,7 @@ class TestSNBCResolution:
             edges=slab_mesh.edges, mat_ids=slab_mesh.mat_ids,
             bc_left=BC.reflective, bc_right=BC.vacuum,
         )
-        sn = SNMesh(mesh, quad)
+        sn = SNMesh(mesh, quad, placeholder_materials())
         assert sn.bc_left == "reflective"
         assert sn.bc_right == "vacuum"
 
@@ -84,7 +85,7 @@ class TestSNBCResolution:
             bc_left=BC("white"),
         )
         with pytest.raises(ValueError, match="does not support.*'white'"):
-            SNMesh(mesh, quad)
+            SNMesh(mesh, quad, placeholder_materials())
 
     def test_error_lists_supported(self, slab_mesh, quad):
         mesh = Mesh1D(
@@ -92,7 +93,7 @@ class TestSNBCResolution:
             bc_left=BC("periodic"),
         )
         with pytest.raises(ValueError, match="'reflective'.*'vacuum'"):
-            SNMesh(mesh, quad)
+            SNMesh(mesh, quad, placeholder_materials())
 
     def test_2d_mesh_resolution(self, quad):
         mesh = Mesh2D(
@@ -102,7 +103,7 @@ class TestSNBCResolution:
             bc_xmin=BC.reflective, bc_xmax=BC.vacuum,
             bc_ymin=BC.reflective, bc_ymax=BC.vacuum,
         )
-        sn = SNMesh(mesh, quad)
+        sn = SNMesh(mesh, quad, placeholder_materials())
         assert sn.bc_xmin == "reflective"
         assert sn.bc_xmax == "vacuum"
         assert sn.bc_ymin == "reflective"
@@ -118,7 +119,7 @@ class TestSNBCResolution:
             coord=CoordSystem.SPHERICAL,
             bc_right=BC.vacuum,
         )
-        sn = SNMesh(mesh, quad)
+        sn = SNMesh(mesh, quad, placeholder_materials())
         assert sn.bc_right == "vacuum"
 
 
