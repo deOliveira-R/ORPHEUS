@@ -562,12 +562,10 @@ class SNSolver:
         # via Legendre-moment Galerkin reconstruction.  We carry the
         # packed solution across calls so the warm-start serves both
         # GMRES and the Pℓ source build.
-        # ``solution_to_angular_flux*`` returns the INTERNAL FD-matvec
-        # layout ``(ng, N, nx, ny)`` (PR-INDEX-7 scope per PR-INDEX-4
-        # §9.1/§9.2).  ``angular_full`` is consumed only inside the
-        # Pℓ moment-reconstruction block of ``_build_rhs_cartesian``
-        # which uses this same ``(ng, N, ...)`` indexing pattern —
-        # passed through unchanged.
+        # PR-INDEX-7: ``solution_to_angular_flux*`` returns principled
+        # ``(N, ng, nx, ny)`` natively — the FD-matvec internal layout
+        # flip closes the PR-INDEX-4 §9.1 deferral.
+        # ``_build_rhs_cartesian`` consumes the same layout.
         if self.scattering_order > 0 and curv is None and hasattr(
             self, "_psi_solution"
         ):
@@ -639,9 +637,8 @@ class SNSolver:
         self._psi_solution = solution
 
         # ---------- decode packed solution → scalar flux --------------
-        # ``solution_to_angular_flux*`` returns ``fi (ng, N, nx, ny)``
-        # (the INTERNAL FD-matvec layout — PR-INDEX-4 §9.1/§9.2 defer
-        # the packed-vector traversal flip to PR-INDEX-7).
+        # PR-INDEX-7: ``solution_to_angular_flux*`` returns principled
+        # ``(N, ng, nx, ny)`` natively (closes PR-INDEX-4 §9.1 deferral).
         # ``_scalar_flux_from_angular`` converts that to principled
         # scalar flux ``(ng, nx, ny)``.
         if curv == "spherical":
@@ -695,9 +692,10 @@ class SNSolver:
         curv = getattr(self.sn_mesh, "curvature", None)
 
         def matvec(q_packed: np.ndarray) -> np.ndarray:
-            # Decode q_packed → angular flux INTERNAL ``(ng, N, nx, ny)``
-            # layout (PR-INDEX-4 §9.1 preserved this for the FD-matvec
-            # path; PR-INDEX-7 will flip).
+            # PR-INDEX-7: ``solution_to_angular_flux*`` returns principled
+            # ``(N, ng, nx, ny)`` natively — no transpose adapter needed.
+            # Closes the PR-INDEX-4 §9.1 deferral; the FD-matvec internal
+            # ``(ng, N, nx, ny)`` legacy layout is retired.
             if curv == "spherical":
                 fi_op = solution_to_angular_flux_spherical(
                     q_packed, eq_map, self.quad, nx, ng,
@@ -714,10 +712,11 @@ class SNSolver:
                     bc_ymin=self.sn_mesh.bc_ymin,
                     bc_ymax=self.sn_mesh.bc_ymax,
                 )
-            # Re-shape FD-matvec ``(ng, N, nx, ny)`` → sweep principled
-            # ``(N, ng, nx, ny)`` (PR-INDEX-5 public contract).  Just
-            # swap the leading two axes — no copy needed.
-            Q_aniso = np.transpose(fi_op, (1, 0, 2, 3)) * sum_w
+            # ``fi_op`` is the principled (N, ng, nx, ny) angular flux;
+            # the sweep ingests Q_aniso in the same layout. The ``* sum_w``
+            # undoes the ``/sum_w`` baked into ``build_rhs*`` (the operator
+            # equation source carries the inverse-weight-sum factor).
+            Q_aniso = fi_op * sum_w
             Q_iso = np.zeros((ng, nx, ny))
             psi_bc_local: dict = {}
             try:
@@ -795,13 +794,15 @@ def _scalar_flux_from_angular(
     Wave E Round 2 along with the rest of the FD-operator API surface.
 
     Issue #196 PR-INDEX-5: output is principled ``(ng, nx, ny)``.
+    Issue #196 PR-INDEX-7: input is principled ``(N, ng, nx, ny)``
+    (the FD-matvec internal ``(ng, N, nx, ny)`` layout flipped at the
+    public ``solution_to_angular_flux*`` boundary; closes the
+    PR-INDEX-4 §9.1 deferral).
 
     Parameters
     ----------
     fi
-        Angular flux of shape ``(ng, N, nx, ny)`` (the INTERNAL
-        FD-matvec layout produced by :func:`solution_to_angular_flux*`
-        — preserved per PR-INDEX-4 §9.1 deferral to PR-INDEX-7).
+        Angular flux of shape ``(N, ng, nx, ny)``.
 
     Returns
     -------
@@ -809,9 +810,9 @@ def _scalar_flux_from_angular(
         Scalar flux shape ``(ng, nx, ny)``.
     """
     # Named contraction: sum over the ordinate axis with quadrature
-    # weights.  ``fi`` is ``(ng, N, nx, ny)``; ``quad.weights`` is
+    # weights.  ``fi`` is ``(N, ng, nx, ny)``; ``quad.weights`` is
     # ``(N,)``; result is ``(ng, nx, ny)``.
-    return np.einsum("gnxy,n->gxy", fi, quad.weights)
+    return np.einsum("ngxy,n->gxy", fi, quad.weights)
 
 
 def _build_rhs_cartesian(
@@ -845,10 +846,12 @@ def _build_rhs_cartesian(
 
     Issue #196 PR-INDEX-5: ``fission_source`` / ``scalar_flux`` are
     principled ``(ng, nx, ny)`` (per-cell slices index as
-    ``[:, ix, iy]``).  ``angular_flux`` (when supplied) follows the
-    INTERNAL FD-matvec ``(ng, N, nx, ny)`` layout produced by
-    :func:`solution_to_angular_flux` — preserved per PR-INDEX-4 §9.1
-    deferral to PR-INDEX-7.
+    ``[:, ix, iy]``).
+    Issue #196 PR-INDEX-7: ``angular_flux`` (when supplied) is now
+    principled ``(N, ng, nx, ny)`` end-to-end — both
+    :func:`solution_to_angular_flux` (the warm-start path) and the
+    sweep's angular flux output land in the same layout. Closes the
+    PR-INDEX-4 §9.1 deferral.
     """
     sum_w = float(quad.weights.sum())
     L = scattering_order
@@ -864,8 +867,13 @@ def _build_rhs_cartesian(
         for l in range(L + 1):
             for m in range(-l, l + 1):
                 for n in range(quad.N):
+                    # PR-INDEX-7: angular_flux is (N, ng, nx, ny).
+                    # angular_flux[n, :, :, :] is (ng, nx, ny); .T
+                    # reverses axes to (ny, nx, ng) — identical to
+                    # the pre-PR-INDEX-7 ``angular_flux[:, n, :, :].T``
+                    # behaviour bit-for-bit.
                     fiL[:, :, :, l, l + m] += (
-                        w[n] * angular_flux[:, n, :, :].T * Y[n, l, l + m]
+                        w[n] * angular_flux[n, :, :, :].T * Y[n, l, l + m]
                     )
 
     rhs = np.zeros((ng, eq_map.n_eq))
@@ -1366,14 +1374,12 @@ def _solve_fixed_source_krylov(
                 nx, ng,
             )
         else:
-            angular_full = None
-            if solver.scattering_order > 0 and angular is not None:
-                # Reshape sweep angular ``(N, ng, nx, ny)`` to FD-matvec
-                # internal layout ``(ng, N, nx, ny)`` for the
-                # ``build_rhs`` Pℓ moment reconstruction (PR-INDEX-4
-                # §9.2 — internal layout preserved).  Swap the leading
-                # two axes — no copy.
-                angular_full = np.transpose(angular, (1, 0, 2, 3))
+            # PR-INDEX-7: ``_build_rhs_cartesian`` consumes ``angular_flux``
+            # in principled ``(N, ng, nx, ny)`` layout — the same layout
+            # the sweep produces. No axis-swap adapter needed.
+            angular_full = angular if (
+                solver.scattering_order > 0 and angular is not None
+            ) else None
             rhs_iso = _build_rhs_cartesian(
                 np.zeros_like(phi), phi, eq_map, sn_mesh.quad,
                 solver.sig_s, solver.sig2, sn_mesh.mat_map,
@@ -1419,12 +1425,10 @@ def _solve_fixed_source_krylov(
                 bc_ymin=sn_mesh.bc_ymin,
                 bc_ymax=sn_mesh.bc_ymax,
             )
-        # Issue #196 PR-INDEX-5: ``fi`` has the FD-matvec internal
-        # layout ``(ng, N, nx, ny)`` (PR-INDEX-7 will flip); convert to
-        # the principled sweep layout ``(N, ng, nx, ny)`` for the
-        # SNFixedSourceResult contract by swapping the leading two
-        # axes — no copy.
-        angular = np.transpose(fi, (1, 0, 2, 3))
+        # PR-INDEX-7: ``solution_to_angular_flux*`` returns principled
+        # ``(N, ng, nx, ny)`` natively — no axis-swap adapter needed.
+        # Closes the PR-INDEX-4 §9.1 deferral.
+        angular = fi
         phi = _scalar_flux_from_angular(fi, sn_mesh.quad, nx, ny, ng)
 
         norm = np.linalg.norm(phi)

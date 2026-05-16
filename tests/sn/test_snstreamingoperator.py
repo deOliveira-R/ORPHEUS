@@ -633,6 +633,9 @@ def test_solution_to_angular_flux_spherical_returns_single_array():
     applied INSIDE the matvec body, consuming WDD-propagated outflow
     face values (not the cell-centre slots). The Phase A two-storage
     design is subsumed by the sweep-frame architecture.
+
+    Issue #196 PR-INDEX-7: shape is principled ``(N, ng, nx, 1)`` —
+    was the FD-matvec internal ``(ng, N, nx, 1)`` through PR-INDEX-6.
     """
     from orpheus.sn.operator import solution_to_angular_flux_spherical
 
@@ -645,7 +648,7 @@ def test_solution_to_angular_flux_spherical_returns_single_array():
         psi, eq_map, sn_mesh.quad, nx, ng,
     )
     assert isinstance(fi, np.ndarray)
-    assert fi.shape == (ng, sn_mesh.quad.N, nx, 1)
+    assert fi.shape == (sn_mesh.quad.N, ng, nx, 1)
 
 
 def test_solution_to_angular_flux_spherical_inward_extension():
@@ -671,12 +674,14 @@ def test_solution_to_angular_flux_spherical_inward_extension():
         psi, eq_map, sn_mesh.quad, nx, ng,
     )
 
+    # PR-INDEX-7: fi is principled (N, ng, nx, 1). Per-ordinate slice
+    # is ``fi[n, :, ...]`` not ``fi[:, n, ...]``.
     ref_x = sn_mesh.quad.reflection_index("x")
     for n in range(sn_mesh.quad.N):
         if sn_mesh.quad.mu_x[n] < -1e-15:
             np.testing.assert_array_equal(
-                fi[:, n, nx - 1, 0],
-                fi[:, ref_x[n], nx - 1, 0],
+                fi[n, :, nx - 1, 0],
+                fi[ref_x[n], :, nx - 1, 0],
                 err_msg=f"Phase C inward extension: cell-centre at "
                         f"i=N-1 for inward ordinate {n} must equal "
                         f"the reflected partner's cell-centre.",

@@ -414,14 +414,18 @@ def _outflow_at_boundary_for_sphere(sn_mesh, sig_t, psi_input):
     quad = sn_mesh.quad
     eps = 1e-15
     fi = solution_to_angular_flux_spherical(psi_input, eq_map, quad, nx, ng)
+    # PR-INDEX-7: fi is principled (N, ng, nx, 1). We mirror the matvec
+    # body's internal ``(ng, N, nx, 1)`` ordering via a transpose view
+    # to keep the (ng, n_out) algebra below bit-exact with the matvec.
+    psi_g_first = fi.transpose(1, 0, 2, 3)
     outgoing_mask = quad.mu_x > +eps
     outflow_at_boundary = np.zeros((ng, quad.N))
     if not np.any(outgoing_mask):
         return outflow_at_boundary
     # Lewis-Miller pole-face IC (matches transport_operator_matvec_spherical):
-    psi_face_in = fi[:, outgoing_mask, 0, 0].copy()
+    psi_face_in = psi_g_first[:, outgoing_mask, 0, 0].copy()
     for i in range(nx):
-        psi_cell = fi[:, outgoing_mask, i, 0]
+        psi_cell = psi_g_first[:, outgoing_mask, i, 0]
         psi_face_out = 2.0 * psi_cell - psi_face_in
         psi_face_in = psi_face_out
     outflow_at_boundary[:, outgoing_mask] = psi_face_out
@@ -445,10 +449,14 @@ def _cell_centred_outer_psi_for_sphere(sn_mesh, sig_t, psi_input):
     op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
     eq_map = op._ensure_eq_map()
     nx = sn_mesh.nx
-    ng = sig_t.shape[2]
+    # PR-INDEX-3: sig_t layout is principled (ng, nx, ny) — group at axis 0.
+    ng = sig_t.shape[0]
     quad = sn_mesh.quad
     fi = solution_to_angular_flux_spherical(psi_input, eq_map, quad, nx, ng)
-    return fi[:, :, -1, 0].T  # (N, ng)
+    # PR-INDEX-7: fi is (N, ng, nx, 1) natively; slice fi[:, :, -1, 0] IS
+    # (N, ng) — no transpose needed. This matches the matvec body's
+    # ``bc_outer.apply(fi[:, :, -1, 0])`` call signature.
+    return fi[:, :, -1, 0]  # (N, ng)
 
 
 @pytest.mark.foundation

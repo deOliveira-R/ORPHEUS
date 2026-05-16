@@ -252,10 +252,18 @@ def solution_to_angular_flux(
     bc_ymin: "BoundaryOperator | None" = None,
     bc_ymax: "BoundaryOperator | None" = None,
 ) -> np.ndarray:
-    """Convert 1D solution vector to 4D angular flux (ng, N, nx, ny).
+    """Convert 1D solution vector to 4D angular flux **(N, ng, nx, ny)**.
 
     Applies z-hemisphere reflection (Lebedev) and BC-resolved fills at
     the four boundaries of the 2-D Cartesian domain.
+
+    Issue #196 PR-INDEX-7 — output layout is principled
+    ``(N, ng, nx, ny)`` (n leading, g second, then mesh axes) per
+    :ref:`theory-sn-index-convention`. Was the FD-matvec internal
+    layout ``(ng, N, nx, ny)`` through PR-INDEX-6; the flip closes the
+    PR-INDEX-4 §9.1 deferral. The packed-vector traversal in
+    :func:`build_equation_map` is UNCHANGED — only the decoded 4-D
+    array's axis order flips.
 
     Wave E Round 3 (ERR-026 closure): the four ``bc_*`` keyword
     arguments accept :class:`~orpheus.geometry.boundary.BoundaryOperator`
@@ -265,10 +273,12 @@ def solution_to_angular_flux(
     is bound on the SNMesh-side shim) maps the boundary's outgoing
     angular flux to the incoming flux per the BC's tensor decomposition
     (vacuum → 0; specular → ``out[ref]``; white, albedo, mixed → their
-    respective combinations).  When all four
-    are ``None`` (legacy callers) the behaviour falls back to specular
-    reflection on every face — bit-identical to the pre-Round 3
-    hard-coded reflective fill that the BiCGSTAB FD path relied on.
+    respective combinations). ``apply`` consumes ``(N, ng)`` — under
+    PR-INDEX-7 the slice ``fi[:, :, 0, iy]`` IS ``(N, ng)`` natively
+    (no transpose). When all four are ``None`` (legacy callers) the
+    behaviour falls back to specular reflection on every face —
+    bit-identical to the pre-Round 3 hard-coded reflective fill that
+    the BiCGSTAB FD path relied on.
     """
     from orpheus.geometry.boundary import SpecularBoundaryOperator
 
@@ -286,55 +296,60 @@ def solution_to_angular_flux(
     # z-reflection: need ref_z for Lebedev
     ref_z = getattr(quad, '_ref_z', np.arange(quad.N))
 
-    fi = np.zeros((ng, quad.N, nx, ny))
+    # PR-INDEX-7: principled (N, ng, nx, ny) allocation.
+    fi = np.zeros((quad.N, ng, nx, ny))
 
-    # Scatter solution into fi
+    # Scatter solution into fi: the packed vector reshape stays
+    # ``(ng, n_eq, order='F')`` per the EquationMap traversal which
+    # PR-INDEX-7 preserves (PR-INDEX-4 §9.1 deferral content). The
+    # destination's axis 0 is the ordinate; the ``:`` slice covers
+    # the ng axis matching ``flux[:, k]``'s shape ``(ng,)``.
     flux = solution.reshape(ng, eq_map.n_eq, order='F')
     for k in range(eq_map.n_eq):
-        fi[:, eq_map.ordinate[k], eq_map.ix[k], eq_map.iy[k]] = flux[:, k]
+        fi[eq_map.ordinate[k], :, eq_map.ix[k], eq_map.iy[k]] = flux[:, k]
 
     # Z-reflection (Lebedev / 3-D quadratures): the eq_map only carries
     # mu_z >= 0; the lower hemisphere is filled by reflection across z.
     for n in range(quad.N):
         if mu_z[n] < -1e-15:
-            fi[:, n, :, :] = fi[:, ref_z[n], :, :]
+            fi[n, :, :, :] = fi[ref_z[n], :, :, :]
 
     # ── X-axis BC fills ───────────────────────────────────────────────
     # The eq_map skips incoming-at-boundary slots; we fill them here per
-    # the BC.  Layout: ``apply`` consumes a full
-    # ``(N, ng_axis_2)`` array (here ``(N, ng)``) and returns the same
-    # shape; we slice the incoming entries out for the boundary fill.
+    # the BC.  Layout: ``apply`` consumes a full ``(N, ng)`` array and
+    # returns the same shape; under PR-INDEX-7 the slice
+    # ``fi[:, :, 0, iy]`` IS ``(N, ng)`` natively (no transpose).
     # For each y-row independently to avoid spurious coupling.
     for iy in range(ny):
         # Left face (x = xmin): outgoing = mu_x < 0, incoming = mu_x > 0.
-        outgoing_xmin = fi[:, :, 0, iy].T   # (N, ng)
+        outgoing_xmin = fi[:, :, 0, iy]   # (N, ng) natively under PR-INDEX-7
         incoming_xmin = bc_xmin.apply(outgoing_xmin)
         for n in range(quad.N):
             if mu_x[n] > 1e-15:
-                fi[:, n, 0, iy] = incoming_xmin[n]
+                fi[n, :, 0, iy] = incoming_xmin[n]
 
         # Right face (x = xmax): outgoing = mu_x > 0, incoming = mu_x < 0.
-        outgoing_xmax = fi[:, :, -1, iy].T  # (N, ng)
+        outgoing_xmax = fi[:, :, -1, iy]  # (N, ng)
         incoming_xmax = bc_xmax.apply(outgoing_xmax)
         for n in range(quad.N):
             if mu_x[n] < -1e-15:
-                fi[:, n, -1, iy] = incoming_xmax[n]
+                fi[n, :, -1, iy] = incoming_xmax[n]
 
     # ── Y-axis BC fills ───────────────────────────────────────────────
     for ix in range(nx):
         # Bottom face (y = ymin): outgoing = mu_y < 0, incoming = mu_y > 0.
-        outgoing_ymin = fi[:, :, ix, 0].T   # (N, ng)
+        outgoing_ymin = fi[:, :, ix, 0]   # (N, ng)
         incoming_ymin = bc_ymin.apply(outgoing_ymin)
         for n in range(quad.N):
             if mu_y[n] > 1e-15:
-                fi[:, n, ix, 0] = incoming_ymin[n]
+                fi[n, :, ix, 0] = incoming_ymin[n]
 
         # Top face (y = ymax): outgoing = mu_y > 0, incoming = mu_y < 0.
-        outgoing_ymax = fi[:, :, ix, -1].T  # (N, ng)
+        outgoing_ymax = fi[:, :, ix, -1]  # (N, ng)
         incoming_ymax = bc_ymax.apply(outgoing_ymax)
         for n in range(quad.N):
             if mu_y[n] < -1e-15:
-                fi[:, n, ix, -1] = incoming_ymax[n]
+                fi[n, :, ix, -1] = incoming_ymax[n]
 
     return fi
 
@@ -351,6 +366,10 @@ def _compute_gradients(
     dx: np.ndarray, dy: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Upwind cell-center gradients with reflective BCs.
+
+    Issue #196 PR-INDEX-7: consumes ``fi`` in principled
+    ``(N, ng, nx, ny)`` layout. Per-(n, ix, iy) slice
+    ``fi[n, :, ix, iy]`` is shape ``(ng,)``.
 
     Returns (dfi/dx, dfi/dy), each shape (ng,).
 
@@ -369,39 +388,40 @@ def _compute_gradients(
     # X gradient
     if mu_x[n] > 1e-15:
         if ix == 0:
-            dfix = fi[:, ref_x[n], ix, iy] - fi[:, ref_x[n], ix + 1, iy]
+            dfix = fi[ref_x[n], :, ix, iy] - fi[ref_x[n], :, ix + 1, iy]
             hx = 0.5 * (dx[ix] + dx[ix + 1])
         else:
-            dfix = fi[:, n, ix, iy] - fi[:, n, ix - 1, iy]
+            dfix = fi[n, :, ix, iy] - fi[n, :, ix - 1, iy]
             hx = 0.5 * (dx[ix] + dx[ix - 1])
     elif mu_x[n] < -1e-15:
         if ix == nx - 1:
-            dfix = fi[:, ref_x[n], ix - 1, iy] - fi[:, ref_x[n], ix, iy]
+            dfix = fi[ref_x[n], :, ix - 1, iy] - fi[ref_x[n], :, ix, iy]
             hx = 0.5 * (dx[ix - 1] + dx[ix])
         else:
-            dfix = fi[:, n, ix + 1, iy] - fi[:, n, ix, iy]
+            dfix = fi[n, :, ix + 1, iy] - fi[n, :, ix, iy]
             hx = 0.5 * (dx[ix + 1] + dx[ix])
     else:
-        dfix = np.zeros(fi.shape[0])
+        # PR-INDEX-7: ng is fi.shape[1] (axis 1 = groups under principled layout).
+        dfix = np.zeros(fi.shape[1])
         hx = 1.0
 
     # Y gradient
     if mu_y[n] > 1e-15:
         if iy == 0:
-            dfiy = fi[:, ref_y[n], ix, iy] - fi[:, ref_y[n], ix, iy + 1]
+            dfiy = fi[ref_y[n], :, ix, iy] - fi[ref_y[n], :, ix, iy + 1]
             hy = 0.5 * (dy[iy] + dy[iy + 1])
         else:
-            dfiy = fi[:, n, ix, iy] - fi[:, n, ix, iy - 1]
+            dfiy = fi[n, :, ix, iy] - fi[n, :, ix, iy - 1]
             hy = 0.5 * (dy[iy] + dy[iy - 1])
     elif mu_y[n] < -1e-15:
         if iy == ny - 1:
-            dfiy = fi[:, ref_y[n], ix, iy - 1] - fi[:, ref_y[n], ix, iy]
+            dfiy = fi[ref_y[n], :, ix, iy - 1] - fi[ref_y[n], :, ix, iy]
             hy = 0.5 * (dy[iy - 1] + dy[iy])
         else:
-            dfiy = fi[:, n, ix, iy + 1] - fi[:, n, ix, iy]
+            dfiy = fi[n, :, ix, iy + 1] - fi[n, :, ix, iy]
             hy = 0.5 * (dy[iy + 1] + dy[iy])
     else:
-        dfiy = np.zeros(fi.shape[0])
+        dfiy = np.zeros(fi.shape[1])
         hy = 1.0
 
     return dfix / hx, dfiy / hy
@@ -451,10 +471,11 @@ def transport_operator_matvec(
     for k in range(eq_map.n_eq):
         n, ix, iy = eq_map.ordinate[k], eq_map.ix[k], eq_map.iy[k]
         dfidx, dfidy = _compute_gradients(fi, n, ix, iy, quad, nx, ny, dx, dy)
+        # PR-INDEX-7: fi is (N, ng, nx, ny); per-(n, ix, iy) slice is (ng,).
         lhs[:, k] = (
             quad.mu_x[n] * dfidx
             + quad.mu_y[n] * dfidy
-            + sig_t[:, ix, iy] * fi[:, n, ix, iy]
+            + sig_t[:, ix, iy] * fi[n, :, ix, iy]
         )
 
     return lhs.ravel(order='F')
@@ -548,12 +569,17 @@ def solution_to_angular_flux_spherical(
     Returns
     -------
     np.ndarray
-        ``fi`` shape ``(ng, N, nx, 1)`` — cell-centre angular flux.
+        ``fi`` shape **``(N, ng, nx, 1)``** — cell-centre angular
+        flux in principled axis order (Issue #196 PR-INDEX-7; was
+        ``(ng, N, nx, 1)`` through PR-INDEX-6). The packed-vector
+        traversal in :func:`build_equation_map_spherical` is
+        unchanged; only the decoded 4-D array's axis order flips.
     """
-    fi = np.zeros((ng, quad.N, nx, 1))
+    # PR-INDEX-7: principled (N, ng, nx, 1) allocation.
+    fi = np.zeros((quad.N, ng, nx, 1))
     flux = solution.reshape(ng, eq_map.n_eq, order='F')
     for k in range(eq_map.n_eq):
-        fi[:, eq_map.ordinate[k], eq_map.ix[k], 0] = flux[:, k]
+        fi[eq_map.ordinate[k], :, eq_map.ix[k], 0] = flux[:, k]
     # Analytical extension for inward ordinates at the outer
     # boundary cell. The eq_map skipped these slots (the BC fixes
     # them); we set the cell-centre to the reflected-partner's
@@ -566,7 +592,7 @@ def solution_to_angular_flux_spherical(
     ref_x = quad.reflection_index("x")
     for n in range(quad.N):
         if quad.mu_x[n] < -1e-15:
-            fi[:, n, -1, 0] = fi[:, ref_x[n], -1, 0]
+            fi[n, :, -1, 0] = fi[ref_x[n], :, -1, 0]
     return fi
 
 
@@ -676,6 +702,19 @@ def transport_operator_matvec_spherical(
     fi = solution_to_angular_flux_spherical(
         solution, eq_map, quad, nx, ng,
     )
+    # PR-INDEX-7: ``fi`` is principled (N, ng, nx, 1) — the public
+    # return of ``solution_to_angular_flux_spherical``. The matvec
+    # body algebra below (per-(mask, i) slices, ``pole_angular_closure``
+    # input shape, ``outflow_at_boundary`` buffer) is structured around
+    # the ``(ng, N, ...)`` ordering. We compute one named-intermediate
+    # transpose view here — the matvec-internal layout — and consume
+    # that view through the rest of the body. NO data copy: numpy
+    # transpose returns a view. The PUBLIC interface flip stays at
+    # ``solution_to_angular_flux_spherical``; the matvec's INTERNAL
+    # contract with ``pole_angular_closure`` (and its existing
+    # ``(ng, N, nx)`` consumers in spatial/) is preserved per the same
+    # §B.4 rationale that preserved the EquationMap traversal order.
+    psi_g_first = fi.transpose(1, 0, 2, 3)  # (ng, N, nx, 1) view
     A = face_areas       # (nx+1,)
     V = volumes[:, 0]    # (nx,)
     N = quad.N
@@ -709,10 +748,10 @@ def transport_operator_matvec_spherical(
     # inflow ordinates).
     from .spatial.psi_half_angle_seed import CarlsonSweepContext
     if n_in > 0:
-        # Apply BC realization to cell-centred outer-cell ψ (shape (N, ng))
-        # to obtain the outer-face inflow trace.  Read the value at the
-        # most-inward ordinate (μ closest to −1) per group.
-        outer_inflow_estimate = bc_outer.apply(fi[:, :, -1, 0].T)  # (N, ng)
+        # Apply BC realization to cell-centred outer-cell ψ.  Under
+        # PR-INDEX-7 the slice ``fi[:, :, -1, 0]`` IS ``(N, ng)``
+        # natively (no transpose).
+        outer_inflow_estimate = bc_outer.apply(fi[:, :, -1, 0])  # (N, ng)
         # Most-inward ordinate index in the incoming-mask subset:
         # ordinate with smallest μ_x.
         most_inward_global_idx = int(np.argmin(quad.mu_x))
@@ -736,8 +775,10 @@ def transport_operator_matvec_spherical(
     )
 
     # ── Phase B angular redistribution (precompute per (g, n, i)) ──
+    # ``pole_angular_closure`` consumes ``psi_cells`` in (ng, N, nx)
+    # layout — we feed the matvec-internal view.
     redist_full = pole_angular_closure(
-        fi[..., 0], alpha_half, redist_dAw, tau_mm, V,
+        psi_g_first[..., 0], alpha_half, redist_dAw, tau_mm, V,
         level_indices=None,  # spherical = single level
         carlson_context=carlson_ctx,
     )
@@ -781,15 +822,17 @@ def transport_operator_matvec_spherical(
     # propagation across the interior.
     if n_out > 0:
         # ψ_face_in initialised at cell-centre value of the pole cell.
+        # PR-INDEX-7: use the matvec-internal ``psi_g_first`` view so
+        # the (ng, n_out) algebra below stays bit-exact.
         if len(outward_visits) > 0:
             i0 = outward_visits[0].cell_idx
-            psi_face_in = fi[:, outgoing_mask, i0, 0].copy()
+            psi_face_in = psi_g_first[:, outgoing_mask, i0, 0].copy()
         else:
             psi_face_in = np.zeros((ng, n_out))
         for visit in outward_visits:
             i = visit.cell_idx
             # (ng, n_out) cell-centre flux at outgoing ordinates.
-            psi_cell = fi[:, outgoing_mask, i, 0]
+            psi_cell = psi_g_first[:, outgoing_mask, i, 0]
             # WDD diamond closure.
             psi_face_out = 2.0 * psi_cell - psi_face_in
             streaming = (
@@ -821,7 +864,7 @@ def transport_operator_matvec_spherical(
         psi_face_in = inflow_full[incoming_mask, :].T  # (ng, n_in)
         for visit in inward_visits:
             i = visit.cell_idx
-            psi_cell = fi[:, incoming_mask, i, 0]
+            psi_cell = psi_g_first[:, incoming_mask, i, 0]
             # WDD diamond closure (face_in is at A[i+1], face_out
             # — downstream — at A[i]).
             psi_face_out = 2.0 * psi_cell - psi_face_in
@@ -927,6 +970,12 @@ def transport_operator_matvec_cylindrical(
     fi = solution_to_angular_flux_cylindrical(
         solution, eq_map, quad, nx, ng,
     )
+    # PR-INDEX-7: ``fi`` is principled (N, ng, nx, 1). The matvec
+    # body algebra below uses (ng, n_mask) per-cell slices; we hold
+    # one named-intermediate transpose view to preserve the body's
+    # internal ordering. NO data copy — numpy transpose returns a
+    # view. Same §B.4 rationale as the spherical matvec.
+    psi_g_first = fi.transpose(1, 0, 2, 3)  # (ng, N, nx, 1) view
     A = face_areas       # (nx+1,)
     V = volumes[:, 0]    # (nx,)
     N = quad.N
@@ -953,8 +1002,8 @@ def transport_operator_matvec_cylindrical(
 
     # Pre-compute outer-face inflow estimate (full ordinate vector)
     # via the BC realization on cell-centred ψ at the outer cell.
-    # Shape ``(N, ng)``.
-    outer_inflow_estimate = bc_outer.apply(fi[:, :, -1, 0].T)
+    # Under PR-INDEX-7 ``fi[:, :, -1, 0]`` IS ``(N, ng)`` natively.
+    outer_inflow_estimate = bc_outer.apply(fi[:, :, -1, 0])  # (N, ng)
 
     carlson_ctx_per_level: list[CarlsonSweepContext] = []
     for level_idx in quad.level_indices:
@@ -977,8 +1026,10 @@ def transport_operator_matvec_cylindrical(
         )
 
     # ── Phase B per-level angular redistribution ──────────────────
+    # ``pole_angular_closure`` consumes ``psi_cells`` in (ng, N, nx)
+    # layout — feed the matvec-internal transpose view.
     redist_full = pole_angular_closure(
-        fi[..., 0],
+        psi_g_first[..., 0],
         alpha_per_level,
         redist_dAw_per_level,
         tau_mm_per_level,
@@ -1024,14 +1075,16 @@ def transport_operator_matvec_cylindrical(
         # Pole-face initial condition: cell-centre value (Lewis-
         # Miller §4.5; preserves flat-flux invariant — see the
         # spherical matvec for the full rationale).
+        # PR-INDEX-7: use ``psi_g_first`` view for the (ng, n_out)
+        # algebra.
         if len(visits) > 0:
             i0 = visits[0].cell_idx
-            psi_face_in = fi[:, global_out, i0, 0].copy()
+            psi_face_in = psi_g_first[:, global_out, i0, 0].copy()
         else:
             psi_face_in = np.zeros((ng, n_out))
         for visit in visits:
             i = visit.cell_idx
-            psi_cell = fi[:, global_out, i, 0]
+            psi_cell = psi_g_first[:, global_out, i, 0]
             psi_face_out = 2.0 * psi_cell - psi_face_in
             streaming = (
                 mu_out[None, :]
@@ -1080,7 +1133,7 @@ def transport_operator_matvec_cylindrical(
         psi_face_in = inflow_full[global_in, :].T  # (ng, n_in)
         for visit in visits:
             i = visit.cell_idx
-            psi_cell = fi[:, global_in, i, 0]
+            psi_cell = psi_g_first[:, global_in, i, 0]
             psi_face_out = 2.0 * psi_cell - psi_face_in
             streaming = (
                 mu_in[None, :]
@@ -1103,7 +1156,7 @@ def transport_operator_matvec_cylindrical(
     if np.any(degenerate_mask):
         global_deg = np.where(degenerate_mask)[0]
         for i in range(nx):
-            psi_cell = fi[:, global_deg, i, 0]
+            psi_cell = psi_g_first[:, global_deg, i, 0]
             redistribution = redist_full[:, global_deg, i]
             collision = sig_t[:, i, 0, None] * psi_cell
             # Streaming is identically zero for |η| < eps.
