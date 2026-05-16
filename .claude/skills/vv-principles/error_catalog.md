@@ -1132,10 +1132,25 @@ geometry, adding an external-source slot to `build_rhs_spherical` /
 `build_rhs_cylindrical`. GitHub Issue #98 tracks the fix, Issue #99
 tracks the blocked MMS verification.
 
-**L1 test that catches it:**
-`tests/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux`
-— runs constant-source reflective-BC problem via both sweep and BiCGSTAB
-and asserts BiCGSTAB is exact while documenting the sweep's deviation.
+**L0 test that catches it (post-closure evidence):**
+`tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere`
+— parametrized over ``inner_solver ∈ {"source_iteration", "krylov"}``,
+``n_cells ∈ {20, 40, 80}``, ``n_ord ∈ {8, 16}``.  Both inner solvers must
+reach the closed-form analytical streaming-equilibrium answer
+``φ = Q/(Σ_t(1-c))`` with per-ordinate ``ψ_n = φ/Σw`` at ``rtol = 1e-9``.
+Carries ``@pytest.mark.catches("ERR-026", "ERR-048")`` since the
+PR-CLEANUP-CODE retirement of the historical evidence ledger
+``tests/sn/test_sweep_operator_inconsistency.py`` (2026-05-16).  The
+canonical SI-vs-Krylov three-way standoff that documented the WDD
+fixed-point bias has been superseded by this L0 test (which now PASSES
+on both solvers — the cleanest possible evidence of ERR-026 closure).
+
+Additional ERR-026-tagged tests:
+``tests/sn/test_phase_c_gates.py``, ``tests/sn/test_phase_c_mms.py``,
+``tests/sn/spatial/test_psi_half_angle_seed.py``,
+``tests/sn/spatial/test_sweep_vs_apply_consistency.py``,
+``tests/sn/spatial/test_apply_matvec_cylinder_invariants.py`` —
+collectively the post-closure regression net.
 
 A cheaper L0 alternative — a direct unit test of the fixed-point
 of the 1D cumprod recurrence on a 1-cell uniform-material slab

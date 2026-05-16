@@ -87,7 +87,7 @@ def _expected_phi() -> float:
 
 @pytest.mark.l0
 @pytest.mark.verifies("hebert-3-432")
-@pytest.mark.catches("ERR-048")
+@pytest.mark.catches("ERR-026", "ERR-048")
 @pytest.mark.parametrize("n_cells", [20, 40, 80])
 @pytest.mark.parametrize("n_ord", [8, 16])
 @pytest.mark.parametrize("inner_solver", ["source_iteration", "krylov"])
@@ -105,6 +105,15 @@ def test_homogeneous_streaming_equilibrium_sphere(
     ``source_iteration`` path converged to a contaminated fixed point
     with ~15-22% per-cell error on this gauntlet; the apply-matvec
     Krylov path was correct.
+
+    Inherits the ERR-026 catch tag from the retired
+    ``tests/sn/test_sweep_operator_inconsistency.py`` evidence ledger
+    (PR-CLEANUP-CODE §C).  ERR-026 — the curvilinear sweep WDD wrong
+    fixed-point bug — manifested as a non-flat ψ from constant-source
+    reflective-BC inputs; THIS test is the canonical post-closure
+    evidence that the SI path now reaches the correct streaming-
+    equilibrium fixed point (φ = Q/(Σ_t(1-c)), ψ_n = φ/Σw) under both
+    inner solvers, on the canonical L0 gauntlet.
     """
     fuel = get_mixture("B", "1g")
     geom = StructuredGeometry(

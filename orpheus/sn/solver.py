@@ -195,25 +195,17 @@ class SNSolver:
         # ``(N_cells, ng)`` flat (CP also consumes this shape — no
         # producer-side flip).  The ``.T.reshape`` bridge stays AT THIS
         # construction site; every downstream SN-internal consumer
-        # receives ``(ng, nx, ny)`` natively.  Round-trip invariant:
-        # ``sig_t_old[i, j, g] == sig_t_new[g, i, j]`` for all (i, j, g) —
-        # verified inline below in __debug__.
+        # receives ``(ng, nx, ny)`` natively.  The cell-flattening
+        # invariant ``sig_t_old[i, j, g] == sig_t_new[g, i, j]`` for all
+        # ``(i, j, g)`` — which depends on ``mat_ids`` ravelling in
+        # C-order ``(nx, ny)`` — is pinned by the dedicated foundation
+        # test ``test_cell_flattening_invariant_xs_storage_round_trips``
+        # in ``tests/sn/test_solver_components.py`` (PR-CLEANUP-CODE §E).
         xs = assemble_cell_xs(materials, sn_mesh.mat_map)
         self.sig_t = xs.sig_t.T.reshape(self.ng, nx, ny)
         self.sig_a = xs.sig_a.T.reshape(self.ng, nx, ny)
         self.sig_p = xs.sig_p.T.reshape(self.ng, nx, ny)
         self.chi = xs.chi.T.reshape(self.ng, nx, ny)
-        if __debug__:
-            # Cell-flattening invariant: the new (ng, nx, ny) storage
-            # must round-trip with the legacy (nx, ny, ng) reshape under
-            # transpose.  An assertion failure here would mean the
-            # ``mat_ids`` ravel order disagrees with the assumed C-order
-            # ``(nx, ny)`` flatten.
-            _sig_t_old = xs.sig_t.reshape(nx, ny, self.ng)
-            assert np.array_equal(_sig_t_old, self.sig_t.transpose(1, 2, 0)), (
-                "PR-INDEX-3 cell-flattening invariant broke — mat_ids "
-                "ravel order is not C-order (nx, ny)"
-            )
 
         # Scattering matrices per material — all available Legendre orders
         L = min(scattering_order, min(len(m.SigS) - 1 for m in materials.values()))

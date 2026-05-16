@@ -111,7 +111,41 @@ __all__ = [
 
 @dataclass
 class EquationMap:
-    """Mapping between 1D solution vector and 4D angular flux."""
+    """Mapping between the packed 1-D FD-matvec solution vector and the
+    4-D angular flux ``(N, ng, nx, ny)``.
+
+    The packed solution is ``(n_unknowns,)`` where
+    ``n_unknowns = n_eq * ng``.  Flat indexing under Fortran order:
+    ``flat_idx = g + ng * k`` for group ``g`` and equation ``k``.  This
+    is an **optimisation choice of the FD-matvec sparse-matrix CSR row
+    order** — it is **orthogonal** to the user-visible field convention
+    ``(N, ng, nx, ny)`` (which lives at the
+    :func:`solution_to_angular_flux` decoder output and propagates
+    end-to-end through every public API per
+    :ref:`theory-sn-index-convention`).
+
+    The packed vector is purely an internal contract between
+    :func:`build_equation_map` (CSR row-order producer) and the
+    ``transport_operator_matvec_*`` family (CSR row-order consumer);
+    it never crosses a public boundary.  The Fortran-flat ``(g, k)``
+    layout was retained at PR-INDEX-7 §B.4 because flipping it
+    multiplies sparse-matrix blast radius without changing user-visible
+    behaviour.
+
+    Attributes
+    ----------
+    n_eq : int
+        Number of angular unknowns per group.  Equals ``N * nx * ny``
+        for Cartesian geometries; less for curvilinear geometries where
+        inward-at-outer-boundary ordinate-cell slots are BC-resolved
+        rather than solved.
+    n_unknowns : int
+        Total scalar unknowns ``= n_eq * ng``.
+    ordinate, ix, iy : ndarray of shape ``(n_eq,)``
+        Per-equation indices into the ``(N, ng, nx, ny)`` angular flux.
+        ``solution_to_angular_flux*`` scatters: ``fi[ordinate[k], g,
+        ix[k], iy[k]] = sol[g + ng * k]``.
+    """
 
     n_eq: int               # number of angular unknowns (per group)
     n_unknowns: int         # n_eq * ng (total scalar unknowns)
