@@ -96,7 +96,7 @@ def _ref_iso_scatter_inplace(solver, Q, phi):
     for ix in range(nx):
         for iy in range(ny):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
-            out[:, ix, iy] += solver.sig_s0[mid].T @ phi[:, ix, iy]
+            out[:, ix, iy] += {mid: solver.mat_xs.sig_s_legendre(mid)[0] for mid in solver.mat_xs.materials}[mid].T @ phi[:, ix, iy]
     return out
 
 
@@ -111,7 +111,7 @@ def _ref_n2n_inplace(solver, Q, phi):
     for ix in range(nx):
         for iy in range(ny):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
-            out[:, ix, iy] += 2.0 * (solver.sig2[mid].T @ phi[:, ix, iy])
+            out[:, ix, iy] += 2.0 * ({mid: solver.mat_xs.n2n_matrix(mid) for mid in solver.mat_xs.materials}[mid].T @ phi[:, ix, iy])
     return out
 
 

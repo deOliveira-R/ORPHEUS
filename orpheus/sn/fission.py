@@ -78,6 +78,7 @@ from orpheus.numerics.operator import (
 
 if TYPE_CHECKING:
     from .material_xs_field import MaterialXSField
+    from .scalar_flux import ScalarFlux
 
 
 __all__ = ["FissionOperator"]
@@ -143,7 +144,9 @@ class FissionOperator(LinearOperatorMixin):
         """
         return cls(mat_xs=mat_xs)
 
-    def apply(self, phi: np.ndarray) -> np.ndarray:
+    def apply(
+        self, phi: "np.ndarray | ScalarFlux",
+    ) -> "np.ndarray | ScalarFlux":
         r"""Apply :math:`F\,\phi`: emission rate × spectrum, no :math:`1/k`.
 
         .. math::
@@ -153,21 +156,34 @@ class FissionOperator(LinearOperatorMixin):
 
         Parameters
         ----------
-        phi : np.ndarray
-            Scalar flux shape ``(ng, nx, ny)`` (Issue #196 PR-INDEX-4 —
-            principled layout).
+        phi : np.ndarray or ScalarFlux
+            Scalar flux.  When typed as
+            :class:`~orpheus.sn.scalar_flux.ScalarFlux` (Issue #197
+            PR-TYPED-2), the result is also a :class:`ScalarFlux`
+            (the operator reads as the math).  When passed as bare
+            ``np.ndarray`` shape ``(ng, nx, ny)`` (Issue #196 PR-INDEX-4 —
+            principled layout), the result is a bare ``np.ndarray``.
+            The bare-ndarray surface is retained for the legacy
+            packed-vector / FD-matvec consumers (e.g.
+            :class:`SNStreamingOperator` / GMRES); the typed surface
+            is the elegance-pattern target.
 
         Returns
         -------
-        np.ndarray
-            Fission source shape ``(ng, nx, ny)`` *without* the
-            :math:`1/k` eigenvalue division.  The caller divides by
-            :math:`k` (see module docstring for why).
+        np.ndarray or ScalarFlux
+            Fission source *without* the :math:`1/k` eigenvalue
+            division.  Type matches the input (typed → typed, raw → raw).
         """
+        from .scalar_flux import ScalarFlux
+        is_typed = isinstance(phi, ScalarFlux)
+        values = phi.values if is_typed else phi
         sig_p = self.sig_p
         chi = self.chi
         # Production rate: per-cell sum over groups, shape (nx, ny).
-        fission_rate = np.einsum("gxy,gxy->xy", sig_p, phi)
+        fission_rate = np.einsum("gxy,gxy->xy", sig_p, values)
         # Spectrum × rate: chi is (ng, nx, ny), rate is (nx, ny);
         # broadcast rate across the leading group axis.
-        return chi * fission_rate[None, :, :]
+        out = chi * fission_rate[None, :, :]
+        if is_typed:
+            return ScalarFlux(out, phi.mesh)
+        return out

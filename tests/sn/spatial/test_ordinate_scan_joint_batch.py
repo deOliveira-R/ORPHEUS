@@ -64,7 +64,7 @@ def _sphere_setup(N: int = 4, nx: int = 8, ng: int = 2):
     return Q, sig_t, sn_mesh
 
 
-def _count_ordinate_scan_calls(Q, sig_t, sn_mesh, psi_bc):
+def _count_ordinate_scan_calls(Q, sig_t, sn_mesh, boundary_flux):
     """Run one sweep and return the number of ``ordinate_scan`` calls."""
     calls = []
     original = sweep_module.ordinate_scan
@@ -75,7 +75,7 @@ def _count_ordinate_scan_calls(Q, sig_t, sn_mesh, psi_bc):
 
     sweep_module.ordinate_scan = tracking_scan
     try:
-        transport_sweep(Q, sig_t, sn_mesh, psi_bc)
+        transport_sweep(Q, sig_t, sn_mesh, boundary_flux)
     finally:
         sweep_module.ordinate_scan = original
     return calls

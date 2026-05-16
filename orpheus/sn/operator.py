@@ -85,6 +85,7 @@ from .quadrature import AngularQuadrature
 if TYPE_CHECKING:
     from orpheus.geometry.boundary import BoundaryOperator
 
+    from .boundary_flux import BoundaryFlux
     from .geometry import SNMesh
     from .spatial.pole_angular_closure import PoleAngularClosure
 
@@ -1297,9 +1298,9 @@ class SNStreamingOperator(LinearOperatorMixin):
 
     :meth:`solve` operates on **structured arrays** in the principled
     storage layout (see :ref:`theory-sn-index-convention`): source
-    ``Q`` shape ``(ng, nx, ny)`` plus persistent boundary-flux dict
-    ``psi_bc`` and optional anisotropic source ``Q_aniso`` shape
-    ``(N, ng, nx, ny)``.  It returns a ``(angular_flux, scalar_flux)``
+    ``Q`` shape ``(ng, nx, ny)`` plus persistent
+    :class:`~orpheus.sn.boundary_flux.BoundaryFlux` and optional
+    anisotropic source ``Q_aniso`` shape ``(N, ng, nx, ny)``.  It returns a ``(angular_flux, scalar_flux)``
     tuple matching :func:`transport_sweep`'s contract.  The shape
     mismatch between the packed-vector ``apply`` (FD-matvec internal
     Fortran-flat layout, deferred to PR-INDEX-7) and the
@@ -1463,7 +1464,7 @@ class SNStreamingOperator(LinearOperatorMixin):
     def solve(
         self,
         Q: np.ndarray,
-        psi_bc: dict | None = None,
+        boundary_flux: "BoundaryFlux | None" = None,
         Q_aniso: np.ndarray | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         r"""Inverse action :math:`L^{-1}\,q` via the Wave D Round 2 sweep.
@@ -1483,11 +1484,12 @@ class SNStreamingOperator(LinearOperatorMixin):
         Q : np.ndarray
             Isotropic source density, shape ``(ng, nx, ny)`` (Issue
             #196 PR-INDEX-5 — principled layout).
-        psi_bc : dict or None
-            Persistent boundary-flux dict storing ψ on each face
-            between outer iterations.  If ``None``, a fresh empty
-            dict is supplied; the caller cannot then carry state
-            between sweeps.
+        boundary_flux : BoundaryFlux or None
+            Persistent boundary state (Issue #197 PR-TYPED-2 — the
+            typed replacement for the legacy ``psi_bc: dict``).  If
+            ``None``, a fresh zero-initialised
+            :class:`~orpheus.sn.boundary_flux.BoundaryFlux` is supplied;
+            the caller cannot then carry state between sweeps.
         Q_aniso : np.ndarray or None
             Per-ordinate anisotropic source, shape
             ``(N, ng, nx, ny)``, for P1+ scattering.  ``None`` for
@@ -1503,12 +1505,14 @@ class SNStreamingOperator(LinearOperatorMixin):
             * ``scalar_flux`` shape ``(ng, nx, ny)``.
         """
         from .sweep import transport_sweep
-        if psi_bc is None:
-            psi_bc = {}
+        if boundary_flux is None:
+            boundary_flux = self.sn_mesh.zeros_boundary_flux()
         # ``self.sig_t`` and ``transport_sweep``'s ``sig_t`` parameter
         # are both in the principled ``(ng, nx, ny)`` layout under
         # PR-INDEX-3 — no bridge.
-        return transport_sweep(Q, self.sig_t, self.sn_mesh, psi_bc, Q_aniso)
+        return transport_sweep(
+            Q, self.sig_t, self.sn_mesh, boundary_flux, Q_aniso,
+        )
 
     # ── apply_transpose: adjoint action L*·ψ via dense transpose ──────
 

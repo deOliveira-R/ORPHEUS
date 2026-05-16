@@ -87,8 +87,8 @@ class TestBitIdenticalExtraction:
         out_op = solver_2g.fission_op.apply(phi)
         # Reference: hand-coded version of the legacy method (no division by k).
         # All operands principled (ng, nx, ny).
-        fission_rate = np.einsum("gxy,gxy->xy", solver_2g.sig_p, phi)
-        expected = solver_2g.chi * fission_rate[None, :, :]
+        fission_rate = np.einsum("gxy,gxy->xy", solver_2g.mat_xs.fission_production, phi)
+        expected = solver_2g.mat_xs.emission_spectrum * fission_rate[None, :, :]
 
         np.testing.assert_array_equal(out_op, expected)
 
@@ -174,11 +174,11 @@ class TestRank1EnergyStructure:
         # Note: for materials with no fission, chi may be zero; we only check
         # the cells whose mixture has nonzero νΣ_f.
         nx, ny = solver_2g.sn_mesh.nx, solver_2g.sn_mesh.ny
-        # PR-INDEX-3: solver.chi / solver.sig_p are (ng, nx, ny).
-        for mid, (ix_arr, iy_arr) in solver_2g._cells_by_mat.items():
+        # PR-INDEX-3: solver.mat_xs.emission_spectrum / solver.mat_xs.fission_production are (ng, nx, ny).
+        for mid, (ix_arr, iy_arr) in solver_2g.mat_xs.cells_by_material.items():
             for ix, iy in zip(ix_arr, iy_arr):
-                chi_cell = solver_2g.chi[:, ix, iy]
-                if np.sum(solver_2g.sig_p[:, ix, iy]) > 1e-15:
+                chi_cell = solver_2g.mat_xs.emission_spectrum[:, ix, iy]
+                if np.sum(solver_2g.mat_xs.fission_production[:, ix, iy]) > 1e-15:
                     np.testing.assert_allclose(chi_cell.sum(), 1.0, rtol=1e-12)
 
 

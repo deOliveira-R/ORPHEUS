@@ -45,7 +45,10 @@ from .sweep_graph import OctantLabel, SweepDependencyGraph
 
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
+    from .angular_flux import AngularFlux
+    from .boundary_flux import BoundaryFlux
     from .material_xs_field import MaterialXSField
+    from .scalar_flux import ScalarFlux
 
 
 class InconsistentMaterialsError(ValueError):
@@ -560,6 +563,46 @@ class SNMesh:
         """
         from .material_xs_field import MaterialXSField
         return MaterialXSField.from_mesh(self)
+
+    # ── Typed-field factories (Issue #197 PR-TYPED-2) ─────────────────
+
+    def zeros_angular_flux(self) -> "AngularFlux":
+        r"""Build a zero :class:`AngularFlux` sized to this mesh.
+
+        Returns an :class:`~orpheus.sn.angular_flux.AngularFlux` of
+        shape ``(N, ng, nx, ny)`` filled with zeros.  Use as the
+        ``angular`` initial guess in inner-loop iterations.
+        """
+        from .angular_flux import AngularFlux
+        return AngularFlux(
+            np.zeros((self.quad.N, self.ng, self.nx, self.ny)),
+            self,
+        )
+
+    def zeros_scalar_flux(self) -> "ScalarFlux":
+        r"""Build a zero :class:`ScalarFlux` sized to this mesh.
+
+        Returns a :class:`~orpheus.sn.scalar_flux.ScalarFlux` of shape
+        ``(ng, nx, ny)`` filled with zeros.  Use as the ``phi``
+        initial guess in inner-loop iterations or as the zero
+        isotropic source on the first sweep.
+        """
+        from .scalar_flux import ScalarFlux
+        return ScalarFlux(
+            np.zeros((self.ng, self.nx, self.ny)), self,
+        )
+
+    def zeros_boundary_flux(self) -> "BoundaryFlux":
+        r"""Build a zero :class:`BoundaryFlux` sized to this mesh.
+
+        Delegates to :meth:`BoundaryFlux.zeros`; allocates only the
+        face / persistent buffers the mesh's geometry consumes (slab
+        gets two 1-D faces, curvilinear gets one outer face,
+        2-D Cartesian gets the two persistent ``(N, ng, nx+1, ny)``
+        buffers).
+        """
+        from .boundary_flux import BoundaryFlux
+        return BoundaryFlux.zeros(self)
 
     # ── Sweep DAG traversal ───────────────────────────────────────────
 

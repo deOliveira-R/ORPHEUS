@@ -344,9 +344,9 @@ class TestSphericalSweepRegression:
         the spherical sweep source term.
         """
         # Issue #196 Step 2.5: _sweep_1d_spherical retired; use the
-        # unified _sweep_1d_curvilinear which dispatches sphere /
+        # unified _sweep_1d_unified which dispatches sphere /
         # cylinder via sn_mesh.reduced.coord.
-        from orpheus.sn.sweep import _sweep_1d_curvilinear
+        from orpheus.sn.sweep import _sweep_1d_unified
 
         mesh = _homogeneous_mesh(10, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
@@ -355,9 +355,10 @@ class TestSphericalSweepRegression:
         sig_t = np.ones((10, 1, 1))
         Q = np.ones((10, 1, 1))
 
-        psi_bc = {}
+        # Issue #197 PR-TYPED-2 — typed boundary state
+        boundary_flux = sn_mesh.zeros_boundary_flux()
         for _ in range(200):
-            _, phi = _sweep_1d_curvilinear(Q, sig_t, sn_mesh, psi_bc)
+            _, phi = _sweep_1d_unified(Q, sig_t, sn_mesh, boundary_flux)
 
         # Volume-weighted average must converge to Q/Σ_t = 1.0.
         # Individual cells near r=0 have large DD error due to extreme
@@ -374,9 +375,9 @@ class TestSphericalSweepRegression:
         instead of |α| at the innermost cell where A=0.
         """
         # Issue #196 Step 2.5: _sweep_1d_spherical retired; use the
-        # unified _sweep_1d_curvilinear which dispatches sphere /
+        # unified _sweep_1d_unified which dispatches sphere /
         # cylinder via sn_mesh.reduced.coord.
-        from orpheus.sn.sweep import _sweep_1d_curvilinear
+        from orpheus.sn.sweep import _sweep_1d_unified
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
@@ -385,8 +386,9 @@ class TestSphericalSweepRegression:
         sig_t = np.full((10, 1, 1), 0.5)
         Q = np.ones((10, 1, 1))
 
-        psi_bc = {}
-        ang, phi = _sweep_1d_curvilinear(Q, sig_t, sn_mesh, psi_bc)
+        # Issue #197 PR-TYPED-2 — typed boundary state
+        boundary_flux = sn_mesh.zeros_boundary_flux()
+        ang, phi = _sweep_1d_unified(Q, sig_t, sn_mesh, boundary_flux)
 
         assert np.all(np.isfinite(ang)), "Non-finite angular flux in first sweep"
         assert np.all(np.isfinite(phi)), "Non-finite scalar flux in first sweep"
@@ -634,8 +636,8 @@ class TestMultiGroupMultiRegionSpherical:
             keff = solver.compute_keff(phi)
 
         vol = solver.volume[None, :, :]  # PR-INDEX-5
-        production = np.sum(solver.sig_p * phi * vol)
-        absorption = np.sum(solver.sig_a * phi * vol)
+        production = np.sum(solver.mat_xs.fission_production * phi * vol)
+        absorption = np.sum(solver.mat_xs.absorption_cross_section * phi * vol)
         k_balance = production / absorption
 
         np.testing.assert_allclose(
@@ -650,9 +652,9 @@ class TestMultiGroupMultiRegionSpherical:
         the origin.  With the fix, the range should be bounded.
         """
         # Issue #196 Step 2.5: _sweep_1d_spherical retired; use the
-        # unified _sweep_1d_curvilinear which dispatches sphere /
+        # unified _sweep_1d_unified which dispatches sphere /
         # cylinder via sn_mesh.reduced.coord.
-        from orpheus.sn.sweep import _sweep_1d_curvilinear
+        from orpheus.sn.sweep import _sweep_1d_unified
 
         mesh = _homogeneous_mesh(40, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = GaussLegendre1D.create(8)
@@ -660,9 +662,10 @@ class TestMultiGroupMultiRegionSpherical:
 
         Q = np.ones((40, 1, 1))
         sig_t = np.ones((40, 1, 1))
-        psi_bc = {}
+        # Issue #197 PR-TYPED-2 — typed boundary state
+        boundary_flux = sn_mesh.zeros_boundary_flux()
         for _ in range(50):
-            _, phi = _sweep_1d_curvilinear(Q, sig_t, sn_mesh, psi_bc)
+            _, phi = _sweep_1d_unified(Q, sig_t, sn_mesh, boundary_flux)
 
         phi_avg = np.average(phi[:, 0, 0], weights=mesh.volumes)
         np.testing.assert_allclose(phi_avg, 1.0, rtol=0.01,

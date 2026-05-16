@@ -1136,6 +1136,96 @@ Three array shapes that look like exceptions but are not:
   it's a slice of the principled storage.
 
 
+.. _theory-sn-typed-fields:
+
+Typed field types (Issue #197 PR-TYPED-2)
+=========================================
+
+The principled-layout migration (Issue #196 PR-INDEX-1..7) flipped the
+bare ndarray storage to ``(N, ng, nx, ny)``.  Issue #197 PR-TYPED-2
+wraps those arrays in three typed dataclasses so the field semantics
+read as the math (``coding-elegance`` Pattern 1) and shape mismatches
+fail at construction time (Pattern 4 — illegal states unrepresentable).
+
+.. todo:: Archivist expansion needed.
+
+   The full rich-narrative version of this section — derivation of each
+   type's domain semantics, units, the dunder algebra and its
+   correspondence to the operator-equation form ``(L + C − S − F/k) ψ
+   = q``, and a worked walk-through of the
+   :func:`~orpheus.sn.sweep.transport_sweep` BoundaryFlux contract —
+   should be authored by the **archivist** sub-agent.  This section
+   is the stub written by the method-implementer per
+   ``algebra-of-record``'s Sphinx stub vs rich narrative discipline.
+
+   Source modules: :mod:`orpheus.sn.angular_flux`,
+   :mod:`orpheus.sn.scalar_flux`, :mod:`orpheus.sn.boundary_flux`.
+   Foundation tests:
+   :file:`tests/sn/test_typed_fields.py` (22 cases, all green).
+   Closeout memo:
+   :file:`.claude/agent-memory/method-implementer/issue_197_pr_typed_2_closeout.md`.
+
+The three types
+---------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 28 52
+
+   * - Type
+     - Storage shape
+     - Reads as the math
+   * - :class:`~orpheus.sn.angular_flux.AngularFlux`
+     - ``(N, ng, nx, ny)``
+     - :math:`\psi(\vec r, \hat\Omega_n, g)`.  ``psi.integrate_angular()``
+       returns the :class:`ScalarFlux` (the canonical ``Σ_n w_n ψ_n``
+       reduction).
+   * - :class:`~orpheus.sn.scalar_flux.ScalarFlux`
+     - ``(ng, nx, ny)``
+     - :math:`\phi_g(\vec r) = \int_{4\pi} \psi\,d\Omega`.  Dunder
+       arithmetic: ``a + b``, ``α · phi``, ``phi.at_group(g)``.
+   * - :class:`~orpheus.sn.boundary_flux.BoundaryFlux`
+     - Per-face: 1-D ``(N, ng)``; 2-D persistent ``(N, ng, nx+1, ny)``
+       / ``(N, ng, nx, ny+1)``.
+     - Boundary :math:`\psi` at every face plus curvilinear pole state.
+       Replaces the stringly-typed ``psi_bc: dict``.
+
+Factory methods (:class:`SNMesh`)
+---------------------------------
+
+The :class:`SNMesh` carries factory methods that allocate zero-initialised
+instances sized to its phase space:
+
+* :meth:`SNMesh.zeros_angular_flux` → ``(N, ng, nx, ny)`` zeros.
+* :meth:`SNMesh.zeros_scalar_flux` → ``(ng, nx, ny)`` zeros.
+* :meth:`SNMesh.zeros_boundary_flux` → only the buffers the mesh's
+  geometry consumes (slab → two 1-D faces; curvilinear → one outer
+  face; 2-D Cartesian → the two persistent buffers).
+
+Mutability discipline
+---------------------
+
+:class:`AngularFlux` and :class:`ScalarFlux` are **frozen**
+(``@dataclass(frozen=True)``) — every dunder operation returns a fresh
+instance.  This matches the typical algebra-of-record usage where
+intermediates carry meaning (Pattern 3 — named intermediates) and
+in-place mutation would obscure provenance.
+
+:class:`BoundaryFlux` is **mutable** by design — the sweep's
+persistent-BC contract is a write-through cache, and reflective-BC
+partners read the previous-sweep outgoing-face writes.  Forcing a
+fresh allocation per sweep would force memory churn the production
+hot path cannot afford.
+
+Cross-references
+----------------
+
+* :ref:`scattering-matrix-convention` for the ``SigS[g_from, g_to]``
+  convention these types' arithmetic respects.
+* :doc:`operator_algebra` for the four-operator algebra
+  ``(L + C − S − F/k) ψ = q`` that the typed fields read as.
+
+
 Gotchas and subtleties
 ======================
 

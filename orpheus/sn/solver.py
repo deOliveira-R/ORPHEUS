@@ -236,8 +236,11 @@ class SNSolver:
         # Weight normalization (1/sum(w) — works for both GL and Lebedev)
         self.weight_norm = 1.0 / sn_mesh.quad.weights.sum()
 
-        # Persistent boundary flux cache (passed to sweep)
-        self._psi_bc: dict = {}
+        # Persistent boundary flux state (passed to sweep).
+        # Issue #197 PR-TYPED-2: typed :class:`BoundaryFlux` replaces
+        # the stringly-typed ``psi_bc: dict``.  Per-face buffers
+        # become named attributes; typos surface as AttributeError.
+        self._boundary_flux = sn_mesh.zeros_boundary_flux()
 
         # Volume array for keff computation
         self.volume = sn_mesh.volumes
@@ -293,72 +296,17 @@ class SNSolver:
             sn_mesh._geom_cache = self.geom_cache  # type: ignore[attr-defined]
             sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
 
-    # ── Read-through XS properties (Issue #197 PR-TYPED-1 shim) ────────
-    #
-    # TRANSIENT — to be retired in PR-TYPED-2 once every downstream
-    # consumer (operators, build_rhs helpers, test fixtures) reads
-    # ``solver.mat_xs.<view>`` directly.  Kept for one cycle to
-    # minimize blast-radius in PR-TYPED-1.
-
-    @property
-    def sig_t(self) -> np.ndarray:
-        r"""TRANSIENT — :math:`\sigma_t(\vec r, g)` per-cell view,
-        shape ``(ng, nx, ny)``.  Read-through onto
-        ``self.mat_xs.total_cross_section``.  Will be retired in
-        PR-TYPED-2; consumers should read through ``solver.mat_xs``
-        directly."""
-        return self.mat_xs.total_cross_section
-
-    @property
-    def sig_a(self) -> np.ndarray:
-        r"""TRANSIENT — :math:`\sigma_a(\vec r, g)` per-cell view.
-        See :attr:`sig_t`."""
-        return self.mat_xs.absorption_cross_section
-
-    @property
-    def sig_p(self) -> np.ndarray:
-        r"""TRANSIENT — :math:`\nu\Sigma_f(\vec r, g)` per-cell view.
-        See :attr:`sig_t`."""
-        return self.mat_xs.fission_production
-
-    @property
-    def chi(self) -> np.ndarray:
-        r"""TRANSIENT — :math:`\chi(\vec r, g)` per-cell view.
-        See :attr:`sig_t`."""
-        return self.mat_xs.emission_spectrum
-
-    @property
-    def sig_s(self) -> dict[int, list[np.ndarray]]:
-        """TRANSIENT — per-material Legendre scattering dict.
-        Read-through onto ``self.mat_xs.sig_s_legendre(mid)`` for
-        every material.  Will be retired in PR-TYPED-2."""
-        return {
-            mid: self.mat_xs.sig_s_legendre(mid)
-            for mid in self.mat_xs.materials
-        }
-
-    @property
-    def sig2(self) -> dict[int, np.ndarray]:
-        """TRANSIENT — per-material (n,2n) dict.  See :attr:`sig_s`."""
-        return {
-            mid: self.mat_xs.n2n_matrix(mid)
-            for mid in self.mat_xs.materials
-        }
-
-    @property
-    def sig_s0(self) -> dict[int, np.ndarray]:
-        """TRANSIENT — per-material P0 scattering matrix dict.
-        See :attr:`sig_s`."""
-        return {
-            mid: self.mat_xs.sig_s_legendre(mid)[0]
-            for mid in self.mat_xs.materials
-        }
-
-    @property
-    def _cells_by_mat(self) -> dict[int, tuple[np.ndarray, np.ndarray]]:
-        """TRANSIENT — per-material cell-index dict.
-        See :attr:`sig_s`."""
-        return self.mat_xs.cells_by_material
+    # Issue #197 PR-TYPED-2: the PR-TYPED-1 transient read-through
+    # shims (``sig_t``, ``sig_a``, ``sig_p``, ``chi``, ``sig_s``,
+    # ``sig2``, ``sig_s0``, ``_cells_by_mat``) have been RETIRED.
+    # Every downstream consumer now reads ``self.mat_xs.*`` directly:
+    # ``mat_xs.total_cross_section``,
+    # ``mat_xs.absorption_cross_section``,
+    # ``mat_xs.fission_production``,
+    # ``mat_xs.emission_spectrum``,
+    # ``mat_xs.sig_s_legendre(mid)``,
+    # ``mat_xs.n2n_matrix(mid)``,
+    # ``mat_xs.cells_by_material``.
 
     def rebind_cross_sections(self, new_sig_t: np.ndarray) -> None:
         """Rebind the total cross-section and rebuild only :class:`CollisionCache`.
@@ -462,15 +410,16 @@ class SNSolver:
         mu = self.sn_mesh.mesh.volume_measure
 
         # Fission production: ∫ νΣ_f · φ dV, vectorised over groups.
-        # Issue #196 PR-INDEX-5: both ``self.sig_p`` and
+        # Issue #196 PR-INDEX-5: both ``mat_xs.fission_production`` and
         # ``flux_distribution`` are principled ``(ng, nx, ny)``.  The
         # named intermediate ``per_cell_per_group`` has units ``[1/s]``
         # per cell per group (a reactor-physics quantity — coding-
         # elegance Pattern 3).  ``volume_measure`` consumes a flat
         # ``(N_cells, ng)`` view (Issue 9.6 wiring); reshape via
         # ``transpose(1, 2, 0)`` then flatten the spatial axes.
+        # Issue #197 PR-TYPED-2: consumes mat_xs directly (no shim).
         per_cell_per_group = np.einsum(
-            "gxy,gxy->gxy", self.sig_p, flux_distribution,
+            "gxy,gxy->gxy", self.mat_xs.fission_production, flux_distribution,
         )
         rate = mu(per_cell_per_group.transpose(1, 2, 0).reshape(nx * ny, ng))
 
@@ -498,8 +447,9 @@ class SNSolver:
         """
         nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
         mu = self.sn_mesh.mesh.volume_measure
+        # Issue #197 PR-TYPED-2: consumes mat_xs directly (no shim).
         per_cell_per_group = np.einsum(
-            "gxy,gxy->gxy", self.sig_a, flux_distribution,
+            "gxy,gxy->gxy", self.mat_xs.absorption_cross_section, flux_distribution,
         )
         return mu(per_cell_per_group.transpose(1, 2, 0).reshape(nx * ny, ng))
 
@@ -562,8 +512,8 @@ class SNSolver:
 
             # Transport sweep
             angular, phi = transport_sweep(
-                Q, self.sig_t, self.sn_mesh,
-                self._psi_bc, Q_aniso=Q_aniso,
+                Q, self.mat_xs.total_cross_section, self.sn_mesh,
+                self._boundary_flux, Q_aniso=Q_aniso,
             )
 
             norm = np.linalg.norm(phi)
@@ -629,22 +579,33 @@ class SNSolver:
             angular_full = None
 
         # ---------- packed RHS (fission + scattering + n2n) -------------
+        # Issue #197 PR-TYPED-2: per-material Legendre + (n,2n) dicts
+        # come from ``mat_xs.sig_s_legendre`` / ``mat_xs.n2n_matrix``
+        # directly — no SNSolver shim.
+        sig_s_dict = {
+            mid: self.mat_xs.sig_s_legendre(mid)
+            for mid in self.mat_xs.materials
+        }
+        sig2_dict = {
+            mid: self.mat_xs.n2n_matrix(mid)
+            for mid in self.mat_xs.materials
+        }
         if curv == "spherical":
             rhs = _build_rhs_spherical(
                 fission_src_norm, phi, eq_map, self.quad,
-                self.sig_s, self.sig2, self.sn_mesh.mat_map,
+                sig_s_dict, sig2_dict, self.sn_mesh.mat_map,
                 nx, ng,
             )
         elif curv == "cylindrical":
             rhs = _build_rhs_cylindrical(
                 fission_src_norm, phi, eq_map, self.quad,
-                self.sig_s, self.sig2, self.sn_mesh.mat_map,
+                sig_s_dict, sig2_dict, self.sn_mesh.mat_map,
                 nx, ng,
             )
         else:
             rhs = _build_rhs_cartesian(
                 fission_src_norm, phi, eq_map, self.quad,
-                self.sig_s, self.sig2, self.sn_mesh.mat_map,
+                sig_s_dict, sig2_dict, self.sn_mesh.mat_map,
                 nx, ny, ng,
                 scattering_order=self.scattering_order,
                 angular_flux=angular_full,
@@ -731,9 +692,9 @@ class SNSolver:
            solution-vector layout via the inverse of
            :func:`solution_to_angular_flux*`.
 
-        The sweep's internal ``psi_bc`` cache is NOT shared with
-        :attr:`self._psi_bc` — the preconditioner is stateless across
-        GMRES inner iterations, which keeps the linear-operator
+        The sweep's internal :class:`BoundaryFlux` is NOT shared with
+        :attr:`self._boundary_flux` — the preconditioner is stateless
+        across GMRES inner iterations, which keeps the linear-operator
         contract clean.
         """
         nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
@@ -767,10 +728,11 @@ class SNSolver:
             # equation source carries the inverse-weight-sum factor).
             Q_aniso = fi_op * sum_w
             Q_iso = np.zeros((ng, nx, ny))
-            psi_bc_local: dict = {}
+            boundary_flux_local = self.sn_mesh.zeros_boundary_flux()
             try:
                 angular, _ = transport_sweep(
-                    Q_iso, self.sig_t, self.sn_mesh, psi_bc_local,
+                    Q_iso, self.mat_xs.total_cross_section,
+                    self.sn_mesh, boundary_flux_local,
                     Q_aniso=Q_aniso,
                 )
             except Exception:
@@ -1111,7 +1073,8 @@ def solve_sn(
     solver._add_scattering_source(Q_final, scalar_flux)
     solver._add_n2n_source(Q_final, scalar_flux)
     angular_flux, _ = transport_sweep(
-        Q_final, solver.sig_t, sn_mesh, solver._psi_bc,
+        Q_final, solver.mat_xs.total_cross_section, sn_mesh,
+        solver._boundary_flux,
     )
 
     _any_mat = next(iter(materials.values()))
@@ -1315,7 +1278,8 @@ def _solve_fixed_source_si(
             Q_aniso_total = Q_aniso_p1 + external_source
 
         angular, phi = transport_sweep(
-            Q, solver.sig_t, sn_mesh, solver._psi_bc,
+            Q, solver.mat_xs.total_cross_section, sn_mesh,
+            solver._boundary_flux,
             Q_aniso=Q_aniso_total,
         )
 
@@ -1408,6 +1372,17 @@ def _solve_fixed_source_krylov(
     residual = np.inf
     angular = None
 
+    # Issue #197 PR-TYPED-2: per-material Legendre + (n,2n) dicts
+    # derived from mat_xs (no SNSolver shims).
+    sig_s_dict = {
+        mid: solver.mat_xs.sig_s_legendre(mid)
+        for mid in solver.mat_xs.materials
+    }
+    sig2_dict = {
+        mid: solver.mat_xs.n2n_matrix(mid)
+        for mid in solver.mat_xs.materials
+    }
+
     for n_outer in range(max_inner):
         phi_prev = phi.copy()
 
@@ -1416,13 +1391,13 @@ def _solve_fixed_source_krylov(
         if curv == "spherical":
             rhs_iso = _build_rhs_spherical(
                 np.zeros_like(phi), phi, eq_map, sn_mesh.quad,
-                solver.sig_s, solver.sig2, sn_mesh.mat_map,
+                sig_s_dict, sig2_dict, sn_mesh.mat_map,
                 nx, ng,
             )
         elif curv == "cylindrical":
             rhs_iso = _build_rhs_cylindrical(
                 np.zeros_like(phi), phi, eq_map, sn_mesh.quad,
-                solver.sig_s, solver.sig2, sn_mesh.mat_map,
+                sig_s_dict, sig2_dict, sn_mesh.mat_map,
                 nx, ng,
             )
         else:
@@ -1434,7 +1409,7 @@ def _solve_fixed_source_krylov(
             ) else None
             rhs_iso = _build_rhs_cartesian(
                 np.zeros_like(phi), phi, eq_map, sn_mesh.quad,
-                solver.sig_s, solver.sig2, sn_mesh.mat_map,
+                sig_s_dict, sig2_dict, sn_mesh.mat_map,
                 nx, ny, ng,
                 scattering_order=solver.scattering_order,
                 angular_flux=angular_full,

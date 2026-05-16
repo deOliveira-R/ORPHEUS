@@ -146,7 +146,7 @@ class TestDispatchByReducedProperty:
         nx, ng = 8, 1
         Q = np.zeros((nx, 1, ng))
         sig_t = np.ones((nx, 1, ng))
-        transport_sweep(Q, sig_t, sn_mesh, {})
+        transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
 
         assert called["unified"] == 1
         assert called["wavefront"] == 0
@@ -174,7 +174,7 @@ class TestDispatchByReducedProperty:
         nx, ng = 8, 1
         Q = np.zeros((nx, 1, ng))
         sig_t = np.ones((nx, 1, ng))
-        transport_sweep(Q, sig_t, sn_mesh, {})
+        transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
 
         assert called["unified"] == 1
         assert called["wavefront"] == 0
@@ -202,7 +202,7 @@ class TestDispatchByReducedProperty:
         nx, ng = 8, 1
         Q = np.zeros((nx, 1, ng))
         sig_t = np.ones((nx, 1, ng))
-        transport_sweep(Q, sig_t, sn_mesh, {})
+        transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
 
         assert called["unified"] == 1
         assert called["wavefront"] == 0
@@ -230,7 +230,7 @@ class TestDispatchByReducedProperty:
         nx, ny, ng = 4, 4, 1
         Q = np.zeros((ng, nx, ny))
         sig_t = np.ones((ng, nx, ny))
-        transport_sweep(Q, sig_t, sn_mesh, {})
+        transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
 
         assert called["unified"] == 0
         assert called["wavefront"] == 1
@@ -277,7 +277,7 @@ class TestUnifiedDispatch1Dvs2D:
         Q = np.zeros((nx, 1, ng))
         sig_t = np.ones((nx, 1, ng))
         Q_aniso = np.zeros((sn_mesh.quad.N, nx, 1, ng))
-        transport_sweep(Q, sig_t, sn_mesh, {}, Q_aniso=Q_aniso)
+        transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux(), Q_aniso=Q_aniso)
 
         assert called["unified"] == 1
         assert called["wavefront"] == 0

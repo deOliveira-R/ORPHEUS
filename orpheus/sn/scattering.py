@@ -127,6 +127,7 @@ from orpheus.numerics.projection import (
 )
 
 if TYPE_CHECKING:
+    from .angular_flux import AngularFlux
     from .material_xs_field import MaterialXSField
     from .quadrature import AngularQuadrature
 
@@ -678,7 +679,9 @@ class ScatteringOperator(LinearOperatorMixin):
 
     # ── LinearOperator surface ─────────────────────────────────────────
 
-    def apply(self, psi: np.ndarray) -> np.ndarray:
+    def apply(
+        self, psi: "np.ndarray | AngularFlux",
+    ) -> "np.ndarray | AngularFlux":
         r"""Apply the full scattering source operator :math:`S\,\psi`.
 
         Returns a per-ordinate isotropic-equivalent source plus the
@@ -694,17 +697,20 @@ class ScatteringOperator(LinearOperatorMixin):
 
         Parameters
         ----------
-        psi : np.ndarray
-            Angular flux shape ``(N, ng, nx, ny)`` (Issue #196 PR-INDEX-4 —
-            principled).
+        psi : np.ndarray or AngularFlux
+            Angular flux.  When typed as
+            :class:`~orpheus.sn.angular_flux.AngularFlux` (Issue #197
+            PR-TYPED-2), the result is also an :class:`AngularFlux` —
+            the operator reads as the math.  When passed as bare
+            ``np.ndarray`` shape ``(N, ng, nx, ny)``, the result is a
+            bare ``np.ndarray`` — preserved for legacy
+            packed-vector / FD-matvec call sites.
 
         Returns
         -------
-        np.ndarray
+        np.ndarray or AngularFlux
             Per-ordinate scattering source shape
-            ``(N, ng, nx, ny)``: the isotropic P0 + (n,2n) part is
-            broadcast across the ``N`` axis; the :math:`\ell \ge 1`
-            part is the genuine per-ordinate Galerkin reconstruction.
+            ``(N, ng, nx, ny)``.  Type matches the input.
 
         Notes
         -----
@@ -715,15 +721,15 @@ class ScatteringOperator(LinearOperatorMixin):
         source).  For internal use by :class:`SNSolver` the helpers
         :meth:`add_iso_source`, :meth:`add_n2n_source`, and
         :meth:`build_aniso_source` expose the same math without forcing
-        a wasteful broadcast. :meth:`apply` is the LinearOperator
-        Protocol surface and is intended for downstream operator-algebra
-        consumers (Krylov-on-apply, adjoint sweeps, composition with
-        :math:`L` and :math:`F`).
+        a wasteful broadcast.
         """
+        from .angular_flux import AngularFlux
+        is_typed = isinstance(psi, AngularFlux)
+        values = psi.values if is_typed else psi
         # Reduce angular flux to scalar flux: φ_g(r) = Σ_n w_n ψ_n,g(r)
         # — leading-axis contraction over ordinates.  Output is
         # principled ``(ng, nx, ny)``.
-        phi = np.einsum('n,ngxy->gxy', self.weights, psi)
+        phi = np.einsum('n,ngxy->gxy', self.weights, values)
 
         # Isotropic (P0 + (n,2n)) — vectorised by material into a fresh
         # (ng, nx, ny) buffer, then broadcast across the N axis.
@@ -733,10 +739,11 @@ class ScatteringOperator(LinearOperatorMixin):
 
         # Broadcast across ordinates and add the Pℓ (l>=1) contribution.
         # Q_iso (ng, nx, ny) → (1, ng, nx, ny) → broadcast to psi.shape
-        # (N, ng, nx, ny).  Same numpy idiom as the legacy
-        # (1, nx, ny, ng) broadcast — just with the axis order updated.
-        Q = np.broadcast_to(Q_iso[None, :, :, :], psi.shape).copy()
-        Q_aniso = self.build_aniso_source(psi)
+        # (N, ng, nx, ny).
+        Q = np.broadcast_to(Q_iso[None, :, :, :], values.shape).copy()
+        Q_aniso = self.build_aniso_source(values)
         if Q_aniso is not None:
             Q += Q_aniso
+        if is_typed:
+            return AngularFlux(Q, psi.mesh)
         return Q

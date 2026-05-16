@@ -385,7 +385,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     # Round 2 will use to wire SNSolver onto the new primitives.
     sn_mesh = SNMesh(mesh, quad, materials)
     solver = SNSolver(sn_mesh, scattering_order=0)
-    L = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=solver.sig_t)
+    L = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=solver.mat_xs.total_cross_section)
     # The canonical S, F operators built directly from solver state.
     S = solver.scattering_op
     F = solver.fission_op
@@ -399,7 +399,8 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     #   • L.solve takes Q+psi_bc+Q_aniso, returns (psi, phi) tuple.
     # Round 2 normalises this; for the L1 gate test we wrap each
     # operator into a thin scalar-in/scalar-out facade.
-    psi_bc: dict = {}
+    # Issue #197 PR-TYPED-2 — typed BoundaryFlux replaces psi_bc: dict.
+    boundary_flux = sn_mesh.zeros_boundary_flux()
 
     class L_inv_adapter(LinearOperatorMixin):
         """Adapter: rhs (ng, nx, ny) → phi via the unified sweep.
@@ -415,7 +416,8 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
 
         def solve(self, rhs):
             _angular, scalar = transport_sweep(
-                rhs, solver.sig_t, sn_mesh, psi_bc, Q_aniso=None,
+                rhs, solver.mat_xs.total_cross_section, sn_mesh,
+                boundary_flux, Q_aniso=None,
             )
             return scalar
 

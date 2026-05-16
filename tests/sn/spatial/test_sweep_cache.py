@@ -285,7 +285,7 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
 
     geom_before = solver.geom_cache
     coll_before = solver.coll_cache
-    new_sig_t = solver.sig_t * 2.0
+    new_sig_t = solver.mat_xs.total_cross_section * 2.0
     solver.rebind_cross_sections(new_sig_t)
     geom_after = solver.geom_cache
     coll_after = solver.coll_cache
@@ -518,17 +518,18 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
     Q = np.ones((4, 160, 1))
     sig_t = np.ones((4, 160, 1))  # (ng, nx, ny) — PR-INDEX-3
-    psi_bc: dict = {}
+    # Issue #197 PR-TYPED-2: typed boundary state replaces dict.
+    boundary_flux = sn_mesh.zeros_boundary_flux()
 
     # Warm-up — first call also caches inside SNMesh.
     for _ in range(3):
-        transport_sweep(Q, sig_t, sn_mesh, psi_bc)
+        transport_sweep(Q, sig_t, sn_mesh, boundary_flux)
 
     # Measured wall clock over 100 sweeps.
     n_iters = 100
     t0 = time.perf_counter()
     for _ in range(n_iters):
-        transport_sweep(Q, sig_t, sn_mesh, psi_bc)
+        transport_sweep(Q, sig_t, sn_mesh, boundary_flux)
     elapsed_per_sweep_ms = (time.perf_counter() - t0) / n_iters * 1000.0
     print(f"\nSlab sweep nx=160 N=16 ng=4: {elapsed_per_sweep_ms:.3f} ms/sweep")
     assert elapsed_per_sweep_ms < 2.0, (

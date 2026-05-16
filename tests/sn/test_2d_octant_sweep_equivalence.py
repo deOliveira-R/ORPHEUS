@@ -124,6 +124,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh2D
+from orpheus.sn.boundary_flux import BoundaryFlux
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import LebedevSphere, LevelSymmetricSN
 from orpheus.sn.solver import solve_sn_fixed_source
@@ -208,6 +209,7 @@ def _build_sn_mesh(
     bc_ymax: str = "vacuum",
     quadrature: str = "LS4",
     n_materials: int = 1,
+    ng: int = 1,
 ) -> SNMesh:
     """Build a 3×3 Cartesian SNMesh wired for the 2-D wavefront sweep."""
     mesh = _build_2d_mesh(
@@ -228,7 +230,10 @@ def _build_sn_mesh(
         quad = LebedevSphere.create(order=5)                  # N = 14
     else:
         raise ValueError(f"Unknown quadrature kind: {quadrature}")
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNMesh(
+        mesh, quad,
+        placeholder_materials(ng=ng, mat_ids=tuple(range(n_materials))),
+    )
 
 
 def _build_sig_t(
@@ -250,9 +255,13 @@ def _build_sig_t(
     return sig_t
 
 
-def _empty_psi_bc() -> dict:
-    """Fresh empty psi_bc dict; the sweep zero-initialises buffers on first call."""
-    return {}
+def _empty_boundary_flux(sn_mesh: SNMesh) -> "BoundaryFlux":
+    """Fresh zero :class:`BoundaryFlux`; the sweep populates buffers on first call.
+
+    Issue #197 PR-TYPED-2 — typed replacement for the legacy
+    ``psi_bc: dict`` fixture pattern.
+    """
+    return sn_mesh.zeros_boundary_flux()
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -311,7 +320,7 @@ class OctantEquivalenceInputs:
     sn_mesh: SNMesh
     Q: np.ndarray                      # (ng, nx, ny) — isotropic source
     sig_t: np.ndarray                  # (ng, nx, ny)
-    psi_bc: dict                        # mutable — sweep mutates BC buffers
+    boundary_flux: "BoundaryFlux"     # mutable — sweep mutates BC buffers
     Q_aniso: np.ndarray | None = None  # (N, ng, nx, ny) or None
 
 
@@ -338,7 +347,7 @@ def _case_1_smoke() -> OctantEquivalenceInputs:
     Q = np.ones((1, sn_mesh.nx, sn_mesh.ny))
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        psi_bc={}, Q_aniso=None,
+        boundary_flux=sn_mesh.zeros_boundary_flux(), Q_aniso=None,
     )
 
 
@@ -369,7 +378,7 @@ def _case_2_reflective() -> OctantEquivalenceInputs:
     Q = np.ones((1, sn_mesh.nx, sn_mesh.ny))
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        psi_bc=_empty_psi_bc(), Q_aniso=None,
+        boundary_flux=_empty_boundary_flux(sn_mesh), Q_aniso=None,
     )
 
 
@@ -419,7 +428,7 @@ def _case_3_l7_trap() -> OctantEquivalenceInputs:
         nx=3, ny=3,
         bc_xmin="reflective", bc_xmax="vacuum",
         bc_ymin="reflective", bc_ymax="vacuum",
-        quadrature="LS4", n_materials=2,
+        quadrature="LS4", n_materials=2, ng=2,
     )
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     sig_t = _build_sig_t(sn_mesh, materials, ng=2)
@@ -430,7 +439,7 @@ def _case_3_l7_trap() -> OctantEquivalenceInputs:
     Q = np.ones((2, sn_mesh.nx, sn_mesh.ny))
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        psi_bc=_empty_psi_bc(), Q_aniso=None,
+        boundary_flux=_empty_boundary_flux(sn_mesh), Q_aniso=None,
     )
 
 
@@ -451,7 +460,7 @@ def _case_4_heterogeneous() -> OctantEquivalenceInputs:
         nx=3, ny=3,
         bc_xmin="vacuum", bc_xmax="vacuum",
         bc_ymin="vacuum", bc_ymax="vacuum",
-        quadrature="LS6", n_materials=2,
+        quadrature="LS6", n_materials=2, ng=2,
     )
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     sig_t = _build_sig_t(sn_mesh, materials, ng=2)
@@ -472,7 +481,7 @@ def _case_4_heterogeneous() -> OctantEquivalenceInputs:
     Q = np.transpose(Q_legacy, (2, 0, 1)).copy()  # (ng, nx, ny)
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        psi_bc={}, Q_aniso=None,
+        boundary_flux=sn_mesh.zeros_boundary_flux(), Q_aniso=None,
     )
 
 
@@ -498,7 +507,7 @@ def _case_5_q_aniso() -> OctantEquivalenceInputs:
         nx=3, ny=3,
         bc_xmin="reflective", bc_xmax="vacuum",
         bc_ymin="reflective", bc_ymax="vacuum",
-        quadrature="LS4", n_materials=2,
+        quadrature="LS4", n_materials=2, ng=2,
     )
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     sig_t = _build_sig_t(sn_mesh, materials, ng=2)
@@ -524,7 +533,7 @@ def _case_5_q_aniso() -> OctantEquivalenceInputs:
     Q_aniso = np.transpose(Q_aniso_legacy, (0, 3, 1, 2)).copy()  # (N, ng, nx, ny)
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        psi_bc=_empty_psi_bc(), Q_aniso=Q_aniso,
+        boundary_flux=_empty_boundary_flux(sn_mesh), Q_aniso=Q_aniso,
     )
 
 
@@ -559,7 +568,7 @@ def _case_6_pure_z() -> OctantEquivalenceInputs:
     Q = np.ones((1, sn_mesh.nx, sn_mesh.ny))  # PR-INDEX-4 (ng, nx, ny)
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        psi_bc={}, Q_aniso=None,
+        boundary_flux=sn_mesh.zeros_boundary_flux(), Q_aniso=None,
     )
 
 
@@ -792,7 +801,7 @@ def test_2d_octant_sweep_equivalence(case: OctantEquivalenceCase) -> None:
     angular_flux = scalar_flux = None
     for _ in range(case.n_sweeps):
         angular_flux, scalar_flux = _sweep_2d_wavefront(
-            inputs.Q, inputs.sig_t, inputs.sn_mesh, inputs.psi_bc,
+            inputs.Q, inputs.sig_t, inputs.sn_mesh, inputs.boundary_flux,
             Q_aniso=inputs.Q_aniso,
         )
 
@@ -821,11 +830,11 @@ def test_2d_octant_sweep_equivalence(case: OctantEquivalenceCase) -> None:
         expected_scalar, nulp=case.nulp,
     )
     np.testing.assert_array_almost_equal_nulp(
-        np.asarray(inputs.psi_bc["bc_2d_x"], dtype=np.float64),
+        np.asarray(inputs.boundary_flux.xmin_xmax_buf, dtype=np.float64),
         expected_psi_x, nulp=case.nulp,
     )
     np.testing.assert_array_almost_equal_nulp(
-        np.asarray(inputs.psi_bc["bc_2d_y"], dtype=np.float64),
+        np.asarray(inputs.boundary_flux.ymin_ymax_buf, dtype=np.float64),
         expected_psi_y, nulp=case.nulp,
     )
 

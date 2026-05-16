@@ -70,21 +70,20 @@ def generate_one(
     """Run the case under the LEGACY sweep and write the .npz snapshot."""
     inputs = case.builder()
 
-    # The legacy ``_sweep_2d_wavefront`` mutates ``psi_bc`` in-place; we
-    # capture the post-sweep buffer so the test can assert agreement on
-    # the stateful output as well as on the angular/scalar flux.  For
-    # ``n_sweeps > 1`` we run multiple consecutive sweeps sharing
-    # psi_bc and snapshot the FINAL sweep's outputs — see the
-    # OctantEquivalenceCase.n_sweeps docstring for why this is needed
-    # to surface the L7-trap.
+    # The legacy ``_sweep_2d_wavefront`` mutates the persistent
+    # buffers in-place; we capture the post-sweep buffers so the test
+    # can assert agreement on the stateful output as well as on the
+    # angular/scalar flux.  Issue #197 PR-TYPED-2: the typed
+    # :class:`BoundaryFlux` exposes the two persistent buffers as
+    # ``xmin_xmax_buf`` and ``ymin_ymax_buf``.
     angular_flux = scalar_flux = None
     for _ in range(case.n_sweeps):
         angular_flux, scalar_flux = _sweep_2d_wavefront(
-            inputs.Q, inputs.sig_t, inputs.sn_mesh, inputs.psi_bc,
+            inputs.Q, inputs.sig_t, inputs.sn_mesh, inputs.boundary_flux,
             Q_aniso=inputs.Q_aniso,
         )
-    psi_x_post = inputs.psi_bc["bc_2d_x"]
-    psi_y_post = inputs.psi_bc["bc_2d_y"]
+    psi_x_post = inputs.boundary_flux.xmin_xmax_buf
+    psi_y_post = inputs.boundary_flux.ymin_ymax_buf
 
     SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
     out = _snapshot_path(case.case_id)

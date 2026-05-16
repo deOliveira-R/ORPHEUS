@@ -85,6 +85,7 @@ from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from .sweep_graph import OctantLabel
 
 if TYPE_CHECKING:
+    from .boundary_flux import BoundaryFlux
     from .geometry import SNMesh
 
 
@@ -97,7 +98,7 @@ def transport_sweep(
     Q: np.ndarray,
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
-    psi_bc: dict,
+    boundary_flux: "BoundaryFlux",
     Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Perform one full transport sweep.
@@ -110,9 +111,14 @@ def transport_sweep(
     Issue #196 PR-INDEX-5: PUBLIC contract is principled
     ``(ng, nx, ny)`` for ``Q`` / ``sig_t`` and ``(N, ng, nx, ny)`` for
     ``Q_aniso``.  Returns ``(angular_flux, scalar_flux)`` with shapes
-    ``(N, ng, nx, ny)`` / ``(ng, nx, ny)``.  Every entry / exit
-    transpose pair carried by PR-INDEX-1 through PR-INDEX-4 is GONE —
-    the internal layout matches the public contract natively.
+    ``(N, ng, nx, ny)`` / ``(ng, nx, ny)``.
+
+    Issue #197 PR-TYPED-2: the stringly-typed ``psi_bc: dict``
+    parameter (``"bc_1d_left_face"``, ``"bc_2d_x"``, ``"psi_pole"``,
+    ...) retires in favour of the typed :class:`BoundaryFlux`.  Per-face
+    buffers are named attributes; typos surface as ``AttributeError``
+    at write time rather than silently lazy-initialising a fresh
+    buffer at the wrong key.
 
     Parameters
     ----------
@@ -123,8 +129,9 @@ def transport_sweep(
     sn_mesh
         :class:`SNMesh` carrying geometry, BCs, quadrature, cell-update
         strategy.
-    psi_bc
-        Persistent BC buffer dict (mutated in place).
+    boundary_flux
+        Persistent :class:`BoundaryFlux` (mutated in place).  Build a
+        zero-initialised instance via ``sn_mesh.zeros_boundary_flux()``.
     Q_aniso
         Optional per-ordinate anisotropic source, shape
         ``(N, ng, nx, ny)``.
@@ -146,8 +153,8 @@ def transport_sweep(
     """
     reduced = sn_mesh.reduced
     if reduced is not None:
-        return _sweep_1d_unified(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
-    return _sweep_2d_wavefront(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
+        return _sweep_1d_unified(Q, sig_t, sn_mesh, boundary_flux, Q_aniso)
+    return _sweep_2d_wavefront(Q, sig_t, sn_mesh, boundary_flux, Q_aniso)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -159,7 +166,7 @@ def apply_sweep_1d(
     Q: np.ndarray,
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
-    psi_bc: dict,
+    boundary_flux: "BoundaryFlux",
     Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Public alias for :func:`_sweep_1d_unified`.
@@ -169,14 +176,14 @@ def apply_sweep_1d(
     plays ``xs``, the BC inflow plays ``init``, the returned ψ is the
     scan trajectory.  No code change; vocabulary only.
     """
-    return _sweep_1d_unified(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
+    return _sweep_1d_unified(Q, sig_t, sn_mesh, boundary_flux, Q_aniso)
 
 
 def _sweep_1d_unified(
     Q: np.ndarray,
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
-    psi_bc: dict,
+    boundary_flux: "BoundaryFlux",
     Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Geometry-blind 1-D SN sweep — three numpy tensor ops per ordinate.
@@ -228,7 +235,7 @@ def _sweep_1d_unified(
     """
     geom = _ensure_geom_cache(sn_mesh)
     coll = _ensure_coll_cache(sn_mesh, sig_t, geom)
-    return _run_1d_sweep(Q, sig_t, sn_mesh, psi_bc, Q_aniso, geom, coll)
+    return _run_1d_sweep(Q, sig_t, sn_mesh, boundary_flux, Q_aniso, geom, coll)
 
 
 def _ensure_geom_cache(sn_mesh: "SNMesh") -> GeometryCoefficients:
@@ -271,7 +278,7 @@ def _run_1d_sweep(
     Q: np.ndarray,
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
-    psi_bc: dict,
+    boundary_flux: "BoundaryFlux",
     Q_aniso: np.ndarray | None,
     geom: GeometryCoefficients,
     coll: CollisionCache,
@@ -348,31 +355,34 @@ def _run_1d_sweep(
     if is_slab:
         bc_left_obj = sn_mesh.bc_left
         bc_right_obj = sn_mesh.bc_right
-        if "bc_1d_left_face" not in psi_bc:
-            psi_bc["bc_1d_left_face"] = np.zeros((N, ng))
-            psi_bc["bc_1d_right_face"] = np.zeros((N, ng))
-        bc_left_face = psi_bc["bc_1d_left_face"]
-        bc_right_face = psi_bc["bc_1d_right_face"]
+        # Issue #197 PR-TYPED-2: BoundaryFlux carries named face buffers.
+        # ``zeros_boundary_flux`` pre-allocates them; the
+        # ``if ... is None`` guard handles the rare case where a caller
+        # builds a bare BoundaryFlux without zeros (e.g. a synthetic test).
+        if boundary_flux.xmin_face is None:
+            boundary_flux.xmin_face = np.zeros((N, ng))
+        if boundary_flux.xmax_face is None:
+            boundary_flux.xmax_face = np.zeros((N, ng))
+        bc_left_face = boundary_flux.xmin_face
+        bc_right_face = boundary_flux.xmax_face
         inflow_left = bc_left_obj.apply(bc_left_face)    # (N, ng)
         inflow_right = bc_right_obj.apply(bc_right_face)  # (N, ng)
         levels = [None]
         level_ordinates_list = [list(range(N))]
         bc_outer = None
-        pole_key = None
-        phi_prev_key = None
         Q_bar_iso = None
         sigma_t_gx = None
         dr = None
         inflow_full = None
     else:
-        bc_key = "bc_sph" if is_sphere else "bc_cyl"
-        pole_key = "psi_pole" if is_sphere else "psi_pole_cyl"
-        phi_prev_key = "phi_0_prev" if is_sphere else "phi_0_prev_cyl"
-
         bc_outer_obj = sn_mesh.bc_right
-        if bc_key not in psi_bc:
-            psi_bc[bc_key] = np.zeros((N, ng))
-        bc_outer = psi_bc[bc_key]
+        # Issue #197 PR-TYPED-2: curvilinear outer radial face routes
+        # through :attr:`BoundaryFlux.xmax_face` (the unified naming for
+        # 1-D outer face, retiring the ``"bc_sph"`` / ``"bc_cyl"`` dict
+        # keys that previously bifurcated spherical vs cylindrical).
+        if boundary_flux.xmax_face is None:
+            boundary_flux.xmax_face = np.zeros((N, ng))
+        bc_outer = boundary_flux.xmax_face
         inflow_full = bc_outer_obj.apply(bc_outer)  # (N, ng)
 
         # Carlson seed source (Phase G Step 2 Path C).  ``sig_t_p`` is
@@ -380,8 +390,12 @@ def _run_1d_sweep(
         # exactly that.
         sigma_t_gx = sig_t_p                                  # (ng, nx)
         dr = sn_mesh.dx
-        if phi_prev_key in psi_bc:
-            phi_0_prev = psi_bc[phi_prev_key]                 # (ng, nx) post-PR-INDEX-1
+        if boundary_flux.pole_phi_prev is not None:
+            # :attr:`pole_phi_prev` is a :class:`ScalarFlux` stored at
+            # principled ``(ng, nx, ny=1)``; drop the trailing
+            # degenerate ``ny`` axis to recover the (ng, nx) working
+            # layout the Carlson seed consumes.
+            phi_0_prev = boundary_flux.pole_phi_prev.values[:, :, 0]  # (ng, nx)
             Q_bar_iso = sigma_t_gx * phi_0_prev / weights.sum()
         else:
             Q_bar_iso = Q_p / weights.sum()                   # (ng, nx)
@@ -519,8 +533,8 @@ def _run_1d_sweep(
                 if mu_n < 0:
                     psi_in = inflow_full[global_n]               # type: ignore[index]
                 else:
-                    if pole_key in psi_bc:
-                        psi_in = psi_bc[pole_key][global_n]
+                    if boundary_flux.pole_psi is not None:
+                        psi_in = boundary_flux.pole_psi[global_n]
                     else:
                         psi_in = np.zeros(ng)
 
@@ -598,8 +612,18 @@ def _run_1d_sweep(
     # ── Cache previous-iteration state for next sweep's seeds ─────────
     if not is_slab:
         # angular_flux is (N, ng, nx, 1); pole is at cell index 0.
-        psi_bc[pole_key] = angular_flux[:, :, 0, 0].copy()       # (N, ng)
-        psi_bc[phi_prev_key] = scalar_flux.copy()                # (ng, nx) — principled
+        # Issue #197 PR-TYPED-2: curvilinear pole state lives in two
+        # named fields on :class:`BoundaryFlux` (one ``(N, ng)`` raw
+        # ndarray for the per-ordinate pole ψ history; one
+        # :class:`ScalarFlux` for the φ history that the Carlson seed
+        # consumes on the next sweep).
+        from .scalar_flux import ScalarFlux
+        boundary_flux.pole_psi = angular_flux[:, :, 0, 0].copy()    # (N, ng)
+        # scalar_flux is (ng, nx); restore the trailing ny=1 to satisfy
+        # the (ng, nx, ny) ScalarFlux contract.
+        boundary_flux.pole_phi_prev = ScalarFlux(
+            scalar_flux[:, :, None].copy(), sn_mesh,
+        )
 
     # ── Exit — PR-INDEX-5: caller consumes principled layout ──────────
     # angular_flux is already (N, ng, nx, 1); scalar_flux needs the ny=1
@@ -625,7 +649,7 @@ def _sweep_2d_wavefront(
     Q: np.ndarray,
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
-    psi_bc: dict,
+    boundary_flux: "BoundaryFlux",
     Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""2-D wavefront sweep — per-octant batched (Wave 2 / C2.6).
@@ -686,11 +710,16 @@ def _sweep_2d_wavefront(
     # place across sweep calls — partner reads need the previous
     # iteration's outgoing-face writes).  PR-INDEX-5: principled
     # ``(N, ng, nx+1, ny)`` / ``(N, ng, nx, ny+1)``.
-    if "bc_2d_x" not in psi_bc:
-        psi_bc["bc_2d_x"] = np.zeros((N, ng, nx + 1, ny))
-        psi_bc["bc_2d_y"] = np.zeros((N, ng, nx, ny + 1))
-    psi_x = psi_bc["bc_2d_x"]   # (N, ng, nx+1, ny) — principled
-    psi_y = psi_bc["bc_2d_y"]   # (N, ng, nx, ny+1) — principled
+    # Issue #197 PR-TYPED-2: the two persistent buffers live on the
+    # typed :class:`BoundaryFlux` as named attributes; per-face slices
+    # (``boundary_flux.xmin`` / ``xmax`` / ``ymin`` / ``ymax``) are
+    # auto-derived views.
+    if boundary_flux.xmin_xmax_buf is None:
+        boundary_flux.xmin_xmax_buf = np.zeros((N, ng, nx + 1, ny))
+    if boundary_flux.ymin_ymax_buf is None:
+        boundary_flux.ymin_ymax_buf = np.zeros((N, ng, nx, ny + 1))
+    psi_x = boundary_flux.xmin_xmax_buf  # (N, ng, nx+1, ny) — principled
+    psi_y = boundary_flux.ymin_ymax_buf  # (N, ng, nx, ny+1) — principled
 
     weight_norm = 1.0 / weights.sum()
     Q_scaled = Q * weight_norm                            # (ng, nx, ny)
