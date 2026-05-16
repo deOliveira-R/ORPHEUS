@@ -82,7 +82,7 @@ def test_sn_spherical_mms_converges_second_order():
             case.materials, mesh, case.quadrature, Q,
             max_inner=500, inner_tol=1e-13,
         )
-        phi_num = result.scalar_flux[0, :, 0]  # PR-INDEX-5: g=0 radial slice
+        phi_num = result.scalar_flux.values[0, :, 0]  # PR-INDEX-5: g=0 radial slice
         phi_ref = case.phi_exact(mesh.centers)
         errors.append(_l2_1d(phi_num, phi_ref, mesh.volumes))
 
@@ -139,7 +139,7 @@ def test_sn_cylindrical_mms_converges_second_order():
             case.materials, mesh, case.quadrature, Q,
             max_inner=500, inner_tol=1e-13,
         )
-        phi_num = result.scalar_flux[0, :, 0]  # PR-INDEX-5: g=0 radial slice
+        phi_num = result.scalar_flux.values[0, :, 0]  # PR-INDEX-5: g=0 radial slice
         phi_ref = case.phi_exact(mesh.centers)
         errors.append(_l2_1d(phi_num, phi_ref, mesh.volumes))
 

@@ -167,8 +167,8 @@ def test_cylinder_three_way_standoff(
         boundary_condition="reflective", inner_solver="krylov",
     )
 
-    psi_si = res_si.angular_flux[:, :, 0, :]
-    psi_k = res_k.angular_flux[:, :, 0, :]
+    psi_si = res_si.angular_flux.values[:, :, 0, :]
+    psi_k = res_k.angular_flux.values[:, :, 0, :]
 
     err_si_vs_ref = float(np.max(np.abs(psi_si - psi_ref)))
     err_k_vs_ref = float(np.max(np.abs(psi_k - psi_ref)))

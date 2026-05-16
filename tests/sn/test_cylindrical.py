@@ -164,7 +164,7 @@ def test_particle_balance(quad_factory):
                       max_inner=500, inner_tol=1e-10)
 
     V = mesh.volumes
-    flux = result.scalar_flux[:, :, 0].T  # PR-INDEX-5
+    flux = result.scalar_flux.values[:, :, 0].T  # PR-INDEX-5
     sig_p = mix.SigP
     sig_a = mix.SigC + mix.SigF
 
@@ -212,8 +212,8 @@ def test_flux_non_negative():
     quad = ProductQuadrature.create(n_mu=4, n_phi=8)
     result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
-    assert np.all(result.scalar_flux >= 0), (
-        f"Negative flux: min={result.scalar_flux.min():.4e}"
+    assert np.all(result.scalar_flux.values >= 0), (
+        f"Negative flux: min={result.scalar_flux.values.min():.4e}"
     )
 
 
@@ -337,7 +337,7 @@ class TestMultiGroupMultiRegion:
 
         assert np.isfinite(result.keff), f"keff is NaN/Inf"
         assert result.keff > 0, f"keff is non-positive: {result.keff}"
-        assert np.all(np.isfinite(result.scalar_flux)), "Non-finite flux"
+        assert np.all(np.isfinite(result.scalar_flux.values)), "Non-finite flux"
         # keff should be reasonable (not 0 or huge)
         assert 0.5 < result.keff < 3.0, f"keff={result.keff:.4f} out of physical range"
 
@@ -428,7 +428,7 @@ class TestMultiGroupMultiRegion:
                           max_inner=500, inner_tol=1e-10)
 
         # Average flux ratio (group 0 / group 1) in fuel vs moderator
-        flux = result.scalar_flux[:, :, 0].T  # PR-INDEX-5  # (nx, ng)
+        flux = result.scalar_flux.values[:, :, 0].T  # PR-INDEX-5  # (nx, ng)
         V = mesh.volumes
         mat_ids = mesh.mat_ids
 
@@ -518,7 +518,7 @@ class TestMultiGroupMultiRegion:
         quad = ProductQuadrature.create(n_mu=4, n_phi=8)
         result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
-        psi_center = result.angular_flux[:, 0, 0, 0]
+        psi_center = result.angular_flux.values[:, 0, 0, 0]
         assert np.all(psi_center > 0), (
             f"Zero/negative angular flux at centre: min={psi_center.min():.4e}"
         )

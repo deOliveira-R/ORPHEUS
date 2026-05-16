@@ -1,9 +1,8 @@
 from .fission import FissionOperator
 from .operator import SNStreamingOperator
 from .scattering import ScatteringOperator
+from .solution import IterationHistory, Solution, SolutionDiff
 from .solver import (
-    SNFixedSourceResult,
-    SNResult,
     SNSolver,
     solve_sn,
     solve_sn_fixed_source,

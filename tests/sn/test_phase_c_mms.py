@@ -69,7 +69,7 @@ def test_sn_spherical_aniso_mms_spatial_convergence_phase_c():
             max_inner=500, inner_tol=1e-13,
         )
         # PR-INDEX-5: scalar_flux principled (ng=1, nx, ny=1).
-        phi_num = result.scalar_flux[0, :, 0]
+        phi_num = result.scalar_flux.values[0, :, 0]
         phi_ref = case.phi_exact(mesh.centers)
         errors.append(_l2_1d(phi_num, phi_ref, mesh.volumes))
 
@@ -118,7 +118,7 @@ def test_sn_cylindrical_aniso_mms_spatial_convergence_phase_c():
             max_inner=500, inner_tol=1e-13,
         )
         # PR-INDEX-5: scalar_flux principled (ng=1, nx, ny=1).
-        phi_num = result.scalar_flux[0, :, 0]
+        phi_num = result.scalar_flux.values[0, :, 0]
         phi_ref = case.phi_exact(mesh.centers)
         errors.append(_l2_1d(phi_num, phi_ref, mesh.volumes))
 
@@ -158,7 +158,7 @@ def test_sn_spherical_angular_convergence_at_fixed_mesh():
             max_inner=500, inner_tol=1e-13,
         )
         # PR-INDEX-5: scalar_flux principled (ng=1, nx, ny=1).
-        phi_num = result.scalar_flux[0, :, 0]
+        phi_num = result.scalar_flux.values[0, :, 0]
         phi_ref = case.phi_exact(mesh.centers)
         errors.append(_l2_1d(phi_num, phi_ref, mesh.volumes))
 

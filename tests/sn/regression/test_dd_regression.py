@@ -65,7 +65,7 @@ def test_dd_regression(case: SnapshotCase) -> None:
         )
 
     np.testing.assert_allclose(
-        np.asarray(result.scalar_flux, dtype=np.float64),
+        np.asarray(result.scalar_flux.values, dtype=np.float64),
         expected_flux, rtol=1e-12, atol=1e-13,
         err_msg=f"scalar_flux regression failed for {case.name!r}",
     )

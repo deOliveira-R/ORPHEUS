@@ -153,7 +153,7 @@ def test_kinf_homogeneous_spectrum(ng_key: str, coord: str) -> None:
     )
 
     # spatial average per group → spectrum vector (homogeneous → spatially flat)
-    phi_per_group = result.scalar_flux.mean(axis=(0, 1))
+    phi_per_group = result.scalar_flux.values.mean(axis=(0, 1))
     phi_solver = phi_per_group / np.linalg.norm(phi_per_group)
 
     phi_ref = np.array([case.phi(0.0, g) for g in range(ng)], dtype=float)

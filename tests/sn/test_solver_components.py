@@ -228,7 +228,7 @@ class TestComputeGroupRates:
         # iteration-converged per-group flux as the spectrum.
         # PR-INDEX-5: scalar_flux principled (ng, nx, ny); spatial-mean
         # over the last two axes.
-        phi_g = result.scalar_flux.mean(axis=(1, 2))
+        phi_g = result.scalar_flux.values.mean(axis=(1, 2))
         sig_p = np.asarray(fuel.SigP)
         sig_a = np.asarray(fuel.absorption_xs)
         if sig_p.ndim == 2:

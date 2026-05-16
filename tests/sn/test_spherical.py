@@ -163,7 +163,7 @@ def test_particle_balance():
 
     # Volume-weighted production and absorption rates
     V = mesh.volumes
-    flux = result.scalar_flux[:, :, 0].T  # PR-INDEX-5  # (nx, ng)
+    flux = result.scalar_flux.values[:, :, 0].T  # PR-INDEX-5  # (nx, ng)
     sig_p = mix.SigP
     sig_a = mix.SigC + mix.SigF
 
@@ -324,8 +324,8 @@ def test_flux_non_negative():
     quad = GaussLegendre1D.create(8)
     result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
-    assert np.all(result.scalar_flux >= 0), (
-        f"Negative flux: min={result.scalar_flux.min():.4e}"
+    assert np.all(result.scalar_flux.values >= 0), (
+        f"Negative flux: min={result.scalar_flux.values.min():.4e}"
     )
 
 
@@ -428,7 +428,7 @@ class TestSphericalSweepRegression:
         result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
         # Angular flux at the innermost cell (closest to r=0)
-        psi_center = result.angular_flux[:, 0, 0, 0]  # (N_ord,) for group 0
+        psi_center = result.angular_flux.values[:, 0, 0, 0]  # (N_ord,) for group 0
 
         assert np.all(psi_center > 0), (
             f"Zero or negative angular flux at centre: {psi_center}"
@@ -498,7 +498,7 @@ class TestSphericalBicgstab:
                           max_inner=2000, inner_tol=1e-6)
 
         assert np.isfinite(result.keff), f"keff is not finite: {result.keff}"
-        assert np.all(np.isfinite(result.scalar_flux)), "Non-finite scalar flux"
+        assert np.all(np.isfinite(result.scalar_flux.values)), "Non-finite scalar flux"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -541,7 +541,7 @@ class TestMultiGroupMultiRegionSpherical:
 
         assert np.isfinite(result.keff), f"keff is NaN/Inf"
         assert 0.1 < result.keff < 3.0, f"keff={result.keff:.4f} out of range"
-        assert np.all(np.isfinite(result.scalar_flux)), "Non-finite flux"
+        assert np.all(np.isfinite(result.scalar_flux.values)), "Non-finite flux"
 
     def test_4g_scattering_convergence(self):
         """4G homogeneous must converge (richest scattering matrix)."""
@@ -587,7 +587,7 @@ class TestMultiGroupMultiRegionSpherical:
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
 
-        flux = result.scalar_flux[:, :, 0].T  # PR-INDEX-5
+        flux = result.scalar_flux.values[:, :, 0].T  # PR-INDEX-5
         V = mesh.volumes
         mat_ids = mesh.mat_ids
 

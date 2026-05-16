@@ -134,8 +134,8 @@ def test_homogeneous_streaming_equilibrium_sphere(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
         boundary_condition="reflective", inner_solver=inner_solver,
     )
-    psi = result.angular_flux[:, :, 0, :]   # (N, nx, ng)
-    sf = result.scalar_flux[:, 0, :]         # (nx, ng)
+    psi = result.angular_flux.values[:, :, 0, :]   # (N, nx, ng)
+    sf = result.scalar_flux.values[:, 0, :]         # (nx, ng)
 
     psi_expected = _expected_psi(quad)
     phi_expected = _expected_phi()
@@ -205,8 +205,8 @@ def test_homogeneous_streaming_equilibrium_cylinder(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
         boundary_condition="reflective", inner_solver=inner_solver,
     )
-    psi = result.angular_flux[:, :, 0, :]
-    sf = result.scalar_flux[:, 0, :]
+    psi = result.angular_flux.values[:, :, 0, :]
+    sf = result.scalar_flux.values[:, 0, :]
 
     psi_expected = _expected_psi(quad)
     phi_expected = _expected_phi()
@@ -267,7 +267,7 @@ def test_pomraning_pole_isotropy_sphere(inner_solver: str) -> None:
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
         boundary_condition="reflective", inner_solver=inner_solver,
     )
-    psi_at_pole = result.angular_flux[:, 0, 0, 0]   # (N,)
+    psi_at_pole = result.angular_flux.values[:, 0, 0, 0]   # (N,)
     cv = float(np.std(psi_at_pole) / np.mean(psi_at_pole))
     assert cv < 0.01, (
         f"Pomraning pole isotropy violated for {inner_solver}: "

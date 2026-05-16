@@ -398,7 +398,7 @@ def generate_one(case: SnapshotCase, *, sha: str | None = None) -> Path:
     out = SNAPSHOT_DIR / f"{case.name}.npz"
 
     payload: dict = dict(
-        scalar_flux=np.asarray(result.scalar_flux, dtype=np.float64),
+        scalar_flux=np.asarray(result.scalar_flux.values, dtype=np.float64),
         case_name=np.array(case.name),
         case_description=np.array(case.description),
         case_kind=np.array(cfg.get("kind", "eigen")),

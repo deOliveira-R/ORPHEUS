@@ -437,8 +437,9 @@ The six PRs
    * - PR-INDEX-5
      - ``3356cec``
      - Public API flip:
-       :class:`SNFixedSourceResult` / :class:`SNResult` storage flipped
-       to ``(N, ng, nx, ny)`` / ``(ng, nx, ny)``;
+       ``SNFixedSourceResult`` / ``SNResult`` (RETIRED in Issue #197
+       PR-TYPED-5; now :class:`~orpheus.sn.solution.Solution`)
+       storage flipped to ``(N, ng, nx, ny)`` / ``(ng, nx, ny)``;
        :func:`~orpheus.sn.sweep.transport_sweep` PUBLIC contract
        principled;
        :func:`~orpheus.sn.solver.solve_sn` /
@@ -727,14 +728,14 @@ axes :math:`(n_x, n_y)`.
      - :math:`\psi(r, \Omega, g)` --- phase-space directional flux
      - 1/(cm²·s·sr)
      - ``(N, ng, nx, ny)``
-     - :class:`SNResult`.\ ``angular_flux``
-       (:mod:`orpheus.sn.solver`)
+     - :class:`~orpheus.sn.solution.Solution`.\ ``angular_flux``
+       (Issue #197 PR-TYPED-5)
    * - :class:`ScalarFlux`
      - :math:`\phi(r, g) = \int_{4\pi}\psi\,d\Omega` --- angle-integrated
      - 1/(cm²·s)
      - ``(ng, nx, ny)``
-     - :class:`SNResult`.\ ``scalar_flux``
-       (:mod:`orpheus.sn.solver`)
+     - :class:`~orpheus.sn.solution.Solution`.\ ``scalar_flux``
+       (Issue #197 PR-TYPED-5)
    * - ``GroupFlux``
      - Slice of :class:`AngularFlux` / :class:`ScalarFlux` at one :math:`g`
      - same as parent
@@ -887,45 +888,61 @@ fields.
    * - ``keff``
      - Multiplication eigenvalue
      - scalar
-     - :class:`SNResult`.\ ``keff: float``
+     - :class:`~orpheus.sn.solution.Solution`.\ ``keff: float | None``
+       (``None`` for fixed-source problems — Issue #197 PR-TYPED-5)
    * - ``keff_history``
      - Outer iteration trajectory
-     - ``list[float]``
-     - :class:`SNResult`.\ ``keff_history``
+     - ``tuple[float, ...]``
+     - :class:`~orpheus.sn.solution.IterationHistory`.\ ``keff_history``
+       (exposed as ``list[float]`` via :meth:`Solution.keff_history_list`)
    * - ``Eigenpair``
      - ``(value, right, left, residual_norm)`` tuple
      - varies
-     - Implicit — :class:`SNResult` is a degenerate Eigenpair
+     - Implicit — :class:`~orpheus.sn.solution.Solution` is a
+       degenerate Eigenpair when :meth:`is_eigenvalue` returns ``True``
    * - ``ResidualHistory``
-     - Per-iter Krylov residual norm (Trefethen & Bau §3.2)
-     - ``list[float]``
-     - None today; lands with ``IterationHistory``
+     - Per-iter relative flux residual
+     - ``tuple[float, ...]``
+     - :class:`~orpheus.sn.solution.IterationHistory`.\ ``flux_residuals``
    * - ``DominanceRatio``
-     - :math:`|k_1/k_0|` convergence quotient
+     - :math:`|k_n - k_{n-1}| / |k_{n-1}|` convergence quotient
      - scalar
-     - None today; lands with ``IterationHistory``
+     - :meth:`~orpheus.sn.solution.Solution.dominance_ratio`
 
 Solution-class container
 ------------------------
 
-The typed-field-contract resume bundles the above into one
-``Solution`` dataclass.  Today the bare-array
-:class:`SNResult` / :class:`SNFixedSourceResult` carries the same
-fields; the typed evolution adds:
+Issue #197 PR-TYPED-5 lands the :class:`~orpheus.sn.solution.Solution`
+container.  It RETIRED the legacy bare-array ``SNResult`` /
+``SNFixedSourceResult`` data bags into one typed return type covering
+both problem kinds.
 
-- :class:`AngularFlux` + :class:`ScalarFlux` typed flux objects
-  (instead of bare numpy arrays);
-- ``IterationHistory`` with named per-outer / per-inner residual
-  fields (instead of bare ``list[float]``);
-- mesh ref carried by the typed flux objects (no need to thread
-  ``sn_mesh`` through every consumer);
-- ``Solution.flux_at(position)`` convenience for downstream
-  plotting (forwards to ``angular_flux.at(...)``).
+Solution holds:
+
+- :class:`~orpheus.sn.angular_flux.AngularFlux` +
+  :class:`~orpheus.sn.scalar_flux.ScalarFlux` +
+  :class:`~orpheus.sn.boundary_flux.BoundaryFlux` typed fields (NOT
+  bare ndarrays);
+- :class:`~orpheus.sn.solution.IterationHistory` carrying tuple-based
+  per-outer / per-inner trajectory diagnostics (NOT list-based);
+- ``mesh`` reference shared (by identity) with every typed flux field
+  — validated at construction (``coding-elegance`` Pattern 4 —
+  illegal states unrepresentable);
+- ``keff: float | None`` — ``None`` for fixed-source problems;
+  :meth:`Solution.is_eigenvalue` and :meth:`Solution.is_fixed_source`
+  are the canonical discriminators;
+- :meth:`Solution.dominance_ratio` / :meth:`Solution.converged` —
+  iteration diagnostics that read as math
+  (``coding-elegance`` Pattern 1);
+- :meth:`Solution.reaction_rate_density` — :math:`\sigma\cdot\phi`
+  per-cell rate density via one named einsum (Pattern 3);
+- :meth:`Solution.compare` — field-by-field difference summary that
+  returns :class:`~orpheus.sn.solution.SolutionDiff`.
 
 The Solution evolution is the SN-specific specialisation of the
 ``Eigenpair`` concept from Grand Report v3 §21.5 (lines 4252–4269).
-For a fixed-source problem :math:`\keff = 1` and the iteration
-history records only the Krylov residual trajectory.
+For a fixed-source problem :attr:`Solution.keff` is ``None`` and the
+iteration history records only the relative flux-residual trajectory.
 
 Operator vocabulary --- the four leaves of the algebra
 -------------------------------------------------------

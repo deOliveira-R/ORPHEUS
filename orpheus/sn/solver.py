@@ -31,7 +31,7 @@ configurable via :class:`~orpheus.geometry.mesh.BC` on the mesh.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, replace
+from dataclasses import replace
 
 import numpy as np
 from scipy.sparse.linalg import LinearOperator as ScipyLinearOperator
@@ -79,49 +79,12 @@ def _apply_default_bcs(
     return mesh
 
 
-@dataclass
-class SNFixedSourceResult:
-    """Results of an SN fixed-source (non-eigenvalue) calculation.
-
-    Used by :func:`solve_sn_fixed_source` and MMS verification
-    (:mod:`orpheus.derivations.continuous.mms.sn`). Carries the same flux arrays
-    as :class:`SNResult` but omits the fission eigenvalue fields.
-
-    Issue #196 PR-INDEX-5: storage flipped to principled layout —
-    ``angular_flux: (N_ordinates, ng, nx, ny)``;
-    ``scalar_flux: (ng, nx, ny)``.
-    """
-
-    angular_flux: np.ndarray   # (N_ordinates, ng, nx, ny)
-    scalar_flux: np.ndarray    # (ng, nx, ny) = Σ w_n ψ_n
-    geometry: Mesh1D | Mesh2D
-    quadrature: AngularQuadrature
-    n_inner: int               # source iterations used
-    residual: float            # final ||Δφ||/||φ||
-    elapsed_seconds: float
-    eg: np.ndarray | None = None  # (ng+1,) energy boundaries, or None for synthetic XS
-
-
-@dataclass
-class SNResult:
-    """Results of an SN transport calculation.
-
-    The primary output is the angular flux (the direct solution of the
-    SN equations). Scalar flux is derived by quadrature integration.
-
-    Issue #196 PR-INDEX-5: storage flipped to principled layout —
-    ``angular_flux: (N_ordinates, ng, nx, ny)``;
-    ``scalar_flux: (ng, nx, ny)``.
-    """
-
-    keff: float
-    keff_history: list[float]
-    angular_flux: np.ndarray   # (N_ordinates, ng, nx, ny)
-    scalar_flux: np.ndarray    # (ng, nx, ny) = Σ w_n ψ_n
-    geometry: Mesh1D | Mesh2D
-    quadrature: AngularQuadrature
-    eg: np.ndarray | None      # (ng+1,) energy boundaries, or None for synthetic XS
-    elapsed_seconds: float
+# Issue #197 PR-TYPED-5: SNFixedSourceResult + SNResult RETIRED.
+# Both solver entry points now return a typed :class:`Solution`
+# (orpheus.sn.solution); the two legacy data bags collapse into one
+# (coding-elegance Pattern 7 — single source of truth) with the
+# discrimination living in Solution.is_eigenvalue() / is_fixed_source().
+from .solution import IterationHistory, Solution
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1013,7 +976,7 @@ def solve_sn(
     flux_tol: float = 1e-6,
     max_inner: int = 200,
     inner_tol: float = 1e-8,
-) -> SNResult:
+) -> Solution:
     """Solve the multi-group SN eigenvalue problem.
 
     This is the **canonical entry point** for the production SN solver.
@@ -1060,9 +1023,16 @@ def solve_sn(
 
     Returns
     -------
-    SNResult
-        Eigenvalue, scalar + angular flux, geometry/quadrature handles,
-        and timing.
+    Solution
+        Typed return carrying eigenvalue, typed
+        :class:`~orpheus.sn.angular_flux.AngularFlux` +
+        :class:`~orpheus.sn.scalar_flux.ScalarFlux` +
+        :class:`~orpheus.sn.boundary_flux.BoundaryFlux` fields plus an
+        :class:`~orpheus.sn.solution.IterationHistory` carrying the
+        eigenvalue trajectory.  Issue #197 PR-TYPED-5 — the legacy
+        :class:`SNResult` data bag was retired in favour of the
+        unified :class:`Solution` type that covers both eigenvalue and
+        fixed-source problems.
     """
     t_start = time.perf_counter()
 
@@ -1095,18 +1065,26 @@ def solve_sn(
         solver._boundary_flux,
     )
 
-    _any_mat = next(iter(materials.values()))
     elapsed = time.perf_counter() - t_start
 
-    return SNResult(
-        keff=keff_history[-1],
-        keff_history=keff_history,
-        angular_flux=angular_flux,
-        scalar_flux=scalar_flux,
-        geometry=mesh,
-        quadrature=quadrature,
-        eg=_any_mat.eg,
-        elapsed_seconds=elapsed,
+    # Issue #197 PR-TYPED-5: build typed Solution.  The bare ndarrays
+    # produced by power_iteration + the final sweep get wrapped in
+    # AngularFlux + ScalarFlux at this single boundary; downstream
+    # consumers read typed fields.
+    from .angular_flux import AngularFlux
+    from .scalar_flux import ScalarFlux
+    history = IterationHistory(
+        keff_history=tuple(keff_history),
+        n_outer=len(keff_history),
+        converged=True,
+    )
+    return Solution(
+        angular_flux=AngularFlux(angular_flux, sn_mesh),
+        scalar_flux=ScalarFlux(scalar_flux, sn_mesh),
+        boundary_flux=solver._boundary_flux,
+        mesh=sn_mesh,
+        keff=float(keff_history[-1]),
+        history=history,
     )
 
 
@@ -1120,7 +1098,7 @@ def solve_sn_fixed_source(
     max_inner: int = 1000,
     inner_tol: float = 1e-12,
     inner_solver: str | None = None,
-) -> SNFixedSourceResult:
+) -> Solution:
     r"""Solve the multi-group SN fixed-source transport problem.
 
     Solves
@@ -1266,7 +1244,7 @@ def _solve_fixed_source_si(
     t_start: float,
     max_inner: int,
     inner_tol: float,
-) -> SNFixedSourceResult:
+) -> Solution:
     """Cartesian-default fixed-source path: source iteration via the sweep.
 
     Bit-identical math to the Wave A-D inline loop in
@@ -1274,12 +1252,16 @@ def _solve_fixed_source_si(
     geometry-default dispatch in :func:`solve_sn_fixed_source` clean.
     """
     from .sources import IsotropicSource, PerOrdinateSource
+    from .angular_flux import AngularFlux
+    from .scalar_flux import ScalarFlux
     nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
 
     # Issue #196 PR-INDEX-5: phi principled (ng, nx, ny).
     phi = np.zeros((ng, nx, ny))
     angular = None
     residual = np.inf
+    converged_flag = False
+    flux_residuals: list[float] = []
 
     for n_inner in range(max_inner):
         phi_prev = phi
@@ -1308,22 +1290,30 @@ def _solve_fixed_source_si(
         norm = np.linalg.norm(phi)
         if norm > 0:
             residual = np.linalg.norm(phi - phi_prev) / norm
+            flux_residuals.append(float(residual))
             if residual < inner_tol:
+                converged_flag = True
                 break
     else:
         n_inner = max_inner - 1  # loop exhausted without break
 
-    elapsed = time.perf_counter() - t_start
-    _any_mat = next(iter(materials.values()))
-    return SNFixedSourceResult(
-        angular_flux=angular,
-        scalar_flux=phi,
-        geometry=mesh,
-        quadrature=quadrature,
+    # Issue #197 PR-TYPED-5: build typed Solution at the boundary.
+    # mesh / quadrature / materials remain unconsumed by Solution — the
+    # typed fluxes carry the SNMesh reference, which transitively exposes
+    # those handles via .mesh.{mesh, quad, materials}.
+    del mesh, quadrature, materials  # retained as kwargs for API stability
+    history = IterationHistory(
+        flux_residuals=tuple(flux_residuals),
         n_inner=n_inner + 1,
-        residual=float(residual),
-        elapsed_seconds=elapsed,
-        eg=_any_mat.eg,
+        converged=converged_flag,
+    )
+    return Solution(
+        angular_flux=AngularFlux(angular, sn_mesh),
+        scalar_flux=ScalarFlux(phi, sn_mesh),
+        boundary_flux=solver._boundary_flux,
+        mesh=sn_mesh,
+        keff=None,
+        history=history,
     )
 
 
@@ -1337,7 +1327,7 @@ def _solve_fixed_source_krylov(
     t_start: float,
     max_inner: int,
     inner_tol: float,
-) -> SNFixedSourceResult:
+) -> Solution:
     r"""Curvilinear-default fixed-source path: GMRES on :meth:`L.apply`.
 
     This is the Wave E Round 2 reconciliation that closes ERR-026.  The
@@ -1393,6 +1383,8 @@ def _solve_fixed_source_krylov(
     solution = np.zeros(n_unknowns)
     residual = np.inf
     angular = None
+    converged_flag = False
+    flux_residuals: list[float] = []
 
     # Issue #197 PR-TYPED-2: per-material Legendre + (n,2n) dicts
     # derived from mat_xs (no SNSolver shims).
@@ -1483,20 +1475,27 @@ def _solve_fixed_source_krylov(
         norm = np.linalg.norm(phi)
         if norm > 0:
             residual = np.linalg.norm(phi - phi_prev) / norm
+            flux_residuals.append(float(residual))
             if residual < inner_tol:
+                converged_flag = True
                 break
     else:
         n_outer = max_inner - 1
 
-    elapsed = time.perf_counter() - t_start
-    _any_mat = next(iter(materials.values()))
-    return SNFixedSourceResult(
-        angular_flux=angular,
-        scalar_flux=phi,
-        geometry=mesh,
-        quadrature=quadrature,
+    # Issue #197 PR-TYPED-5: build typed Solution at the boundary.
+    del mesh, quadrature, materials  # retained as kwargs for API stability
+    from .angular_flux import AngularFlux
+    from .scalar_flux import ScalarFlux
+    history = IterationHistory(
+        flux_residuals=tuple(flux_residuals),
         n_inner=n_outer + 1,
-        residual=float(residual),
-        elapsed_seconds=elapsed,
-        eg=_any_mat.eg,
+        converged=converged_flag,
+    )
+    return Solution(
+        angular_flux=AngularFlux(angular, sn_mesh),
+        scalar_flux=ScalarFlux(phi, sn_mesh),
+        boundary_flux=solver._boundary_flux,
+        mesh=sn_mesh,
+        keff=None,
+        history=history,
     )

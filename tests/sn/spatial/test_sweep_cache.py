@@ -609,7 +609,7 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
     # → φ → 1.0 / σ_t.
     expected = 1.0 / sigma_t
     # PR-INDEX-5: scalar_flux principled (ng=1, nx=10, ny=1) — radial slice at g=0, y=0.
-    np.testing.assert_allclose(result.scalar_flux[0, :, 0], expected, rtol=1e-10)
+    np.testing.assert_allclose(result.scalar_flux.values[0, :, 0], expected, rtol=1e-10)
 
 
 @pytest.mark.l0

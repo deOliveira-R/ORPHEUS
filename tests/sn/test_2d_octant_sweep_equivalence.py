@@ -889,13 +889,13 @@ def test_2d_octant_sweep_closed_form_anchor() -> None:
     )
 
     np.testing.assert_allclose(
-        np.asarray(result.scalar_flux, dtype=np.float64),
+        np.asarray(result.scalar_flux.values, dtype=np.float64),
         inputs.expected_phi,
         rtol=1e-7, atol=1e-8,
         err_msg=(
             "All-reflective + uniform Q + uniform Σ_t (multi-group "
             "balance) closed-form anchor failed: φ does NOT match "
             "(diag(Σ_t) - Σ_s^T)^{-1} Q.  "
-            f"max |diff| = {np.max(np.abs(np.asarray(result.scalar_flux) - inputs.expected_phi)):.3e}"
+            f"max |diff| = {np.max(np.abs(np.asarray(result.scalar_flux.values) - inputs.expected_phi)):.3e}"
         ),
     )
