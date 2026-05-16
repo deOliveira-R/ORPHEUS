@@ -45,6 +45,7 @@ from .sweep_graph import OctantLabel, SweepDependencyGraph
 
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
+    from .material_xs_field import MaterialXSField
 
 
 class InconsistentMaterialsError(ValueError):
@@ -543,6 +544,22 @@ class SNMesh:
     def is_1d(self) -> bool:
         """True if this is a 1-D mesh (ny == 1)."""
         return self.ny == 1
+
+    def material_xs_field(self) -> "MaterialXSField":
+        """Build the macroscopic XS field from this mesh's materials.
+
+        Issue #197 PR-TYPED-1.  Returns a :class:`MaterialXSField`
+        wrapping the per-material :class:`Mixture` data plus this
+        mesh's ``mat_map`` — the single source of truth for both
+        per-cell and per-material XS access used by every SN operator
+        (L, C, S, F).
+
+        Lazy import of :mod:`.material_xs_field` to avoid a circular
+        dependency (the module imports :class:`SNMesh` via
+        ``TYPE_CHECKING``).
+        """
+        from .material_xs_field import MaterialXSField
+        return MaterialXSField.from_mesh(self)
 
     # ── Sweep DAG traversal ───────────────────────────────────────────
 

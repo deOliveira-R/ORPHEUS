@@ -113,6 +113,7 @@ need; can be added in a future wave).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -124,6 +125,10 @@ from orpheus.numerics.projection import (
     HarmonicMomentProjection,
     HarmonicMomentReconstruction,
 )
+
+if TYPE_CHECKING:
+    from .material_xs_field import MaterialXSField
+    from .quadrature import AngularQuadrature
 
 
 __all__ = ["LegendreMomentScattering", "ScatteringOperator"]
@@ -186,14 +191,11 @@ class LegendreMomentScattering(LinearOperatorMixin):
 
     Parameters
     ----------
-    sig_s : dict[int, list[np.ndarray]]
-        Per-material list of ``(ng, ng)`` Legendre scattering matrices,
-        one per Legendre order ``[0..L]``. ``sig_s[mid][l][g_from, g_to]``
-        is the scattering cross-section at order :math:`\ell` from
-        ``g_from`` to ``g_to``.
-    cells_by_mat : dict[int, tuple[np.ndarray, np.ndarray]]
-        Per-material ``(ix, iy)`` index arrays for vectorised assembly
-        into the cell axis.
+    mat_xs : MaterialXSField
+        Macroscopic XS field carrying both the per-material Legendre
+        scattering matrices and the cell-to-material map.  Issue #197
+        PR-TYPED-1 — the per-material dispatch loop lives ONLY inside
+        :meth:`MaterialXSField.apply_legendre_scattering_moments`.
     L : int
         Maximum Legendre order :math:`L` retained.
     skip_l0 : bool, default ``True``
@@ -202,8 +204,7 @@ class LegendreMomentScattering(LinearOperatorMixin):
         composition :math:`R \Lambda M \psi`.
     """
 
-    sig_s: dict[int, list[np.ndarray]]
-    cells_by_mat: dict[int, tuple[np.ndarray, np.ndarray]]
+    mat_xs: "MaterialXSField"
     L: int
     skip_l0: bool = True
     capabilities: frozenset = field(
@@ -228,45 +229,17 @@ class LegendreMomentScattering(LinearOperatorMixin):
             Same shape as ``moments``.  The :math:`\ell = 0` block is
             zero when ``skip_l0`` is ``True``; otherwise the P0 in-scatter
             contribution is included.
+
+        Notes
+        -----
+        Per-material dispatch is encapsulated by
+        :meth:`MaterialXSField.apply_legendre_scattering_moments` —
+        Issue #197 PR-TYPED-1 collapses the ``for mid, (ix, iy) in
+        cells_by_mat.items()`` loop into a typed verb.
         """
-        out = np.zeros_like(moments)
-        l_start = 1 if self.skip_l0 else 0
-        for mid, (ix, iy) in self.cells_by_mat.items():
-            sig_s_mid = self.sig_s[mid]
-            for l in range(l_start, self.L + 1):
-                # Only the 2ℓ+1 valid m-slots are physical at order ℓ;
-                # the remaining slots (2ℓ+1..2L) are zero by convention
-                # in the moment tensor produced by HarmonicMomentProjection.
-                # Restricting the einsum to the valid range matches the
-                # legacy ``for m in range(-l, l+1)`` iteration in
-                # `build_aniso_source` and avoids scattering out-of-band
-                # garbage when the operator is fed a synthetic random input.
-                n_m = 2 * l + 1
-                # Indexing pattern: ``moments[l, :n_m][..., ix, iy]``
-                # keeps advanced indices CONTIGUOUS and at the trailing
-                # position → numpy preserves axis order, output shape
-                # ``(n_m, ng, n_cells)``.  If we instead wrote
-                # ``moments[l, :n_m, :, ix, iy]`` (advanced indices
-                # separated from ``:n_m`` by ``:``), numpy would move
-                # the advanced-index axis to the FRONT (output
-                # ``(n_cells, n_m, ng)``) — a silent shape rearrangement
-                # that breaks the einsum below.  See numpy advanced-
-                # indexing rules.
-                # moments_view shape: (n_m, ng, n_cells).
-                # sig_s_mid[l] shape: (ng, ng), indexed [g_from, g_to].
-                # einsum: out_g_to = Σ_g_from moments_g_from · sig_s[g_from, g_to]
-                moments_view = moments[l, :n_m][..., ix, iy]
-                out_block = np.einsum(
-                    "mfc,fg->mgc", moments_view, sig_s_mid[l],
-                )                                       # (n_m, ng, n_cells)
-                # Same trailing-contiguous indexing on out for the
-                # accumulation.  Use the long form ``out += np.einsum``
-                # via temporary because numpy fancy-index in-place
-                # assignment is well-defined for this pattern.
-                out[l, :n_m][..., ix, iy] = (
-                    out_block + out[l, :n_m][..., ix, iy]
-                )
-        return out
+        return self.mat_xs.apply_legendre_scattering_moments(
+            moments, L=self.L, skip_l0=self.skip_l0,
+        )
 
 
 @dataclass
@@ -286,95 +259,144 @@ class ScatteringOperator(LinearOperatorMixin):
 
     Attributes
     ----------
-    n_ordinates : int
-        Number of angular ordinates :math:`N` in the quadrature.
-    nx, ny, ng : int
-        Spatial grid sizes and group count (the operator's action shape
-        is ``(N, ng, nx, ny) -> (N, ng, nx, ny)`` under PR-INDEX-4 —
-        principled).
+    mat_xs : MaterialXSField
+        Macroscopic XS field — the single source of truth for both
+        per-material scattering / (n,2n) data AND the cell-to-material
+        topology (Issue #197 PR-TYPED-1).  Every per-material loop
+        that previously lived on this class now routes through one of
+        the typed verbs (``mat_xs.apply_p0_in_scatter``, ``apply_n2n``,
+        etc.) which encapsulates the dispatch.
+    quadrature : AngularQuadrature
+        The angular quadrature.  Carries ``N``, ``weights``, and
+        :meth:`spherical_harmonics` — the previously-leaked
+        ``n_ordinates`` / ``weights`` / ``Y`` constructor parameters
+        all collapse into ``self.quadrature``.
     scattering_order : int
         Maximum Legendre order :math:`L` retained. ``0`` means P0 only.
-    sig_s : dict[int, list[np.ndarray]]
-        Per-material list of ``(ng, ng)`` Legendre scattering matrices,
-        one per Legendre order ``[0..L]``. ``sig_s[mid][l][g_from, g_to]``
-        is the scattering cross-section at order :math:`\ell` from
-        ``g_from`` to ``g_to``.
-    sig2 : dict[int, np.ndarray]
-        Per-material ``(ng, ng)`` (n,2n) cross-section matrices.
-    sig_s0 : dict[int, np.ndarray]
-        Convenience alias ``sig_s[mid][0]`` for the P0 fast path.
-    Y : np.ndarray | None
-        Real spherical harmonics evaluated at the quadrature ordinates,
-        shape ``(N, L+1, 2L+1)``. ``None`` when ``L == 0``.
-    weights : np.ndarray
-        Quadrature weights ``(N,)``.
-    cells_by_mat : dict[int, tuple[np.ndarray, np.ndarray]]
-        Per-material ``(ix, iy)`` arrays for vectorised assembly.
     capabilities : frozenset[str]
         ``{"apply"}`` — :math:`S` has no efficient inverse and the
         current ORPHEUS algebra has no consumer for :math:`S^T`.
-
-    Notes
-    -----
-    The constructor argument order mirrors how :class:`SNSolver` builds
-    the equivalent state in ``__init__`` (Wave D Issue 13's bit-identical
-    extraction). See the module docstring for the mathematical content.
     """
 
-    n_ordinates: int
-    nx: int
-    ny: int
-    ng: int
+    mat_xs: "MaterialXSField"
+    quadrature: "AngularQuadrature"
     scattering_order: int
-    sig_s: dict[int, list[np.ndarray]]
-    sig2: dict[int, np.ndarray]
-    sig_s0: dict[int, np.ndarray]
-    Y: np.ndarray | None
-    weights: np.ndarray
-    cells_by_mat: dict[int, tuple[np.ndarray, np.ndarray]]
 
     capabilities: frozenset[str] = field(
         default_factory=lambda: frozenset({CAP_APPLY})
     )
 
+    # Lazy cache for the precomputed spherical harmonics — only
+    # populated when ``scattering_order > 0`` (avoids paying the
+    # cost on P0-only problems).
+    _Y_cached: np.ndarray | None = field(
+        default=None, init=False, repr=False,
+    )
+
+    # ── Convenience read-throughs (the legacy n_ordinates / nx / ny
+    # / ng / weights / Y / cells_by_mat / sig_s / sig2 / sig_s0
+    # attributes the test suite + internal call sites consumed).
+    # Issue #197 PR-TYPED-1: these become read-throughs onto
+    # mat_xs + quadrature so consumers don't break.  Marked TRANSIENT
+    # in source comments where appropriate; full retirement deferred
+    # to a follow-up PR once consumers all read mat_xs.* directly.
+
+    @property
+    def n_ordinates(self) -> int:
+        """Number of angular ordinates :math:`N`."""
+        return self.quadrature.N
+
+    @property
+    def nx(self) -> int:
+        """Spatial extent in x — read-through from :attr:`mat_xs`."""
+        return self.mat_xs.nx
+
+    @property
+    def ny(self) -> int:
+        """Spatial extent in y."""
+        return self.mat_xs.ny
+
+    @property
+    def ng(self) -> int:
+        """Energy group count."""
+        return self.mat_xs.ng
+
+    @property
+    def weights(self) -> np.ndarray:
+        """Quadrature weights ``(N,)``."""
+        return self.quadrature.weights
+
+    @property
+    def Y(self) -> np.ndarray | None:
+        r"""Real spherical harmonics :math:`Y_\ell^m(\Omega_n)`,
+        shape ``(N, L+1, 2L+1)``, or ``None`` when ``L == 0``."""
+        if self.scattering_order == 0:
+            return None
+        if self._Y_cached is None:
+            self._Y_cached = self.quadrature.spherical_harmonics(
+                self.scattering_order,
+            )
+        return self._Y_cached
+
+    @property
+    def sig_s(self) -> dict[int, list[np.ndarray]]:
+        """TRANSIENT — per-material dense Legendre scattering dict.
+
+        Routes through :meth:`MaterialXSField.sig_s_legendre`.  Kept
+        as a shim for the four ``_build_rhs_*`` helpers in
+        :mod:`orpheus.sn.solver` that still consume the per-material
+        dict directly.  PR-TYPED-2 will rewire those helpers to
+        consume ``mat_xs`` directly and retire this shim.
+        """
+        return {
+            mid: self.mat_xs.sig_s_legendre(mid)
+            for mid in self.mat_xs.materials
+        }
+
+    @property
+    def sig2(self) -> dict[int, np.ndarray]:
+        """TRANSIENT — per-material dense (n,2n) dict.  See :attr:`sig_s`."""
+        return {
+            mid: self.mat_xs.n2n_matrix(mid)
+            for mid in self.mat_xs.materials
+        }
+
+    @property
+    def sig_s0(self) -> dict[int, np.ndarray]:
+        """TRANSIENT — per-material P0 scattering matrix dict.
+        See :attr:`sig_s`."""
+        return {
+            mid: self.mat_xs.sig_s_legendre(mid)[0]
+            for mid in self.mat_xs.materials
+        }
+
+    @property
+    def cells_by_mat(self) -> dict[int, tuple[np.ndarray, np.ndarray]]:
+        """TRANSIENT — per-material cell-index dict.  See :attr:`sig_s`."""
+        return self.mat_xs.cells_by_material
+
     @classmethod
     def from_solver_data(
         cls,
         *,
-        n_ordinates: int,
-        nx: int,
-        ny: int,
-        ng: int,
+        mat_xs: "MaterialXSField",
+        quadrature: "AngularQuadrature",
         scattering_order: int,
-        sig_s: dict[int, list[np.ndarray]],
-        sig2: dict[int, np.ndarray],
-        sig_s0: dict[int, np.ndarray],
-        Y: np.ndarray | None,
-        weights: np.ndarray,
-        cells_by_mat: dict[int, tuple[np.ndarray, np.ndarray]],
     ) -> "ScatteringOperator":
-        """Construct from the precomputed structures held by :class:`SNSolver`.
+        """Construct from a :class:`MaterialXSField` + quadrature.
 
-        This is the canonical construction path: :class:`SNSolver`
-        precomputes ``sig_s``, ``sig2``, ``sig_s0``, ``_Y`` (when
-        :math:`L > 0`), ``_cells_by_mat`` and the angular-quadrature
-        weights during ``__init__``, and then builds the
-        :class:`ScatteringOperator` from those structures. Sharing the
-        same precomputed handles is what lets the bit-identical
-        extraction round-trip exactly.
+        Issue #197 PR-TYPED-1 — the constructor surface collapses the
+        eight separate per-material handles (``sig_s``, ``sig2``,
+        ``sig_s0``, ``cells_by_mat``, ``Y``, ``weights``, ``n_ordinates``,
+        ``nx``, ``ny``, ``ng``) into two typed objects.  The
+        :class:`MaterialXSField` carries everything per-material plus
+        the spatial topology; the :class:`AngularQuadrature` carries
+        ``N`` / ``weights`` / harmonics.
         """
         return cls(
-            n_ordinates=n_ordinates,
-            nx=nx,
-            ny=ny,
-            ng=ng,
+            mat_xs=mat_xs,
+            quadrature=quadrature,
             scattering_order=scattering_order,
-            sig_s=sig_s,
-            sig2=sig2,
-            sig_s0=sig_s0,
-            Y=Y,
-            weights=weights,
-            cells_by_mat=cells_by_mat,
         )
 
     # ── In-place helpers (preserve bit-identity vs SNSolver pre-Wave-D) ─
@@ -396,18 +418,10 @@ class ScatteringOperator(LinearOperatorMixin):
 
         Notes
         -----
-        ``np.einsum("fg,fxy->gxy", sig_s0[mid], phi[:, ix, iy])`` names
-        the [g_from → g_to] contraction explicitly — the in-scatter
-        source per cell is the source-spectrum-to-sink-spectrum
-        contraction of the per-material P0 matrix with the per-cell
-        scalar flux (Pattern 3).
+        Issue #197 PR-TYPED-1 — the per-material dispatch lives ONLY
+        inside :meth:`MaterialXSField.apply_p0_in_scatter`.
         """
-        for mid, (ix, iy) in self.cells_by_mat.items():
-            # phi[:, ix, iy] shape (ng, n_cells); sig_s0[mid] shape
-            # (g_from, g_to). Source-to-sink contraction over g_from.
-            Q[:, ix, iy] += np.einsum(
-                "fg,fc->gc", self.sig_s0[mid], phi[:, ix, iy],
-            )
+        self.mat_xs.apply_p0_in_scatter(Q, phi)
 
     def add_n2n_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
         """Add (n,2n) source to ``Q`` in-place.
@@ -422,11 +436,13 @@ class ScatteringOperator(LinearOperatorMixin):
             PR-INDEX-4 — principled). Modified in place.
         phi : np.ndarray
             Scalar flux shape ``(ng, nx, ny)``.
+
+        Notes
+        -----
+        Issue #197 PR-TYPED-1 — per-material dispatch lives ONLY
+        inside :meth:`MaterialXSField.apply_n2n`.
         """
-        for mid, (ix, iy) in self.cells_by_mat.items():
-            Q[:, ix, iy] += 2.0 * np.einsum(
-                "fg,fc->gc", self.sig2[mid], phi[:, ix, iy],
-            )
+        self.mat_xs.apply_n2n(Q, phi)
 
     def build_aniso_source(
         self, angular_flux: np.ndarray | None,
@@ -500,14 +516,14 @@ class ScatteringOperator(LinearOperatorMixin):
         # Build the §9 "S = R Λ M" pipeline. The constituent primitives
         # are cheap dataclass instantiations; the actual work is in the
         # three np.einsum calls inside their .apply methods.
-        M = HarmonicMomentProjection(weights=self.weights, Y=self.Y, L=L)
+        Y = self.Y  # cached on first access
+        M = HarmonicMomentProjection(weights=self.weights, Y=Y, L=L)
         Lam = LegendreMomentScattering(
-            sig_s=self.sig_s,
-            cells_by_mat=self.cells_by_mat,
+            mat_xs=self.mat_xs,
             L=L,
             skip_l0=True,
         )
-        R = HarmonicMomentReconstruction.from_Y(self.Y)
+        R = HarmonicMomentReconstruction.from_Y(Y)
         return R.apply(Lam.apply(M.apply(angular_flux)))
 
     # ── Foldable / residual split ─────────────────────────────────────
@@ -556,42 +572,32 @@ class ScatteringOperator(LinearOperatorMixin):
         scattering channels (cross-group P0, all :math:`P_\ell \ge 1`,
         and (n,2n)) live in :meth:`residual_part`.
 
-        The foldability criterion is :math:`\ell = 0` within-group
-        only because :math:`Y_\ell^m(\Omega_n)` makes
-        :math:`P_\ell \ge 1` self-scatter inherently
-        direction-dependent and unfoldable into a per-cell
-        :math:`\sigma_r` (the cell-balance removal cross-section).
-
         Returns
         -------
         ScatteringOperator
-            A sibling with ``scattering_order = 0``, ``Y = None``,
-            diagonal-only ``sig_s[mid][0]``, zero ``sig2``, and the
-            same ``n_ordinates / nx / ny / ng / weights /
-            cells_by_mat`` as ``self``. Pure function — calling
-            twice returns instances with equal per-material arrays.
+            A sibling with ``scattering_order = 0``, diagonal-only
+            ``sig_s[mid][0]``, zero ``sig2``, and a derived
+            :class:`MaterialXSField` carrying the foldable overrides.
+
+        Notes
+        -----
+        Issue #197 PR-TYPED-1 — the per-material loop that built the
+        ``sig_s_foldable`` / ``sig2_foldable`` dicts lives ONLY inside
+        :meth:`MaterialXSField.foldable_sig_s`.
         """
-        # New per-material arrays — never mutate self.sig_s / self.sig2.
-        sig_s_foldable: dict[int, list[np.ndarray]] = {}
-        sig_s0_foldable: dict[int, np.ndarray] = {}
-        sig2_foldable: dict[int, np.ndarray] = {}
-        for mid, mats in self.sig_s.items():
-            diag_only = np.diag(np.diag(mats[0]))  # (ng, ng), diagonal only
-            sig_s_foldable[mid] = [diag_only]
-            sig_s0_foldable[mid] = diag_only
-            sig2_foldable[mid] = np.zeros_like(self.sig2[mid])
+        sig_s_foldable = self.mat_xs.foldable_sig_s()
+        sig2_foldable = {
+            mid: np.zeros_like(self.mat_xs.n2n_matrix(mid))
+            for mid in self.mat_xs.materials
+        }
+        derived_mat_xs = self.mat_xs.with_overridden_sig_s_and_n2n(
+            sig_s_dense=sig_s_foldable,
+            n2n_dense=sig2_foldable,
+        )
         return ScatteringOperator(
-            n_ordinates=self.n_ordinates,
-            nx=self.nx,
-            ny=self.ny,
-            ng=self.ng,
+            mat_xs=derived_mat_xs,
+            quadrature=self.quadrature,
             scattering_order=0,
-            sig_s=sig_s_foldable,
-            sig2=sig2_foldable,
-            sig_s0=sig_s0_foldable,
-            Y=None,
-            weights=self.weights,
-            cells_by_mat=self.cells_by_mat,
         )
 
     def residual_part(self) -> "ScatteringOperator":
@@ -600,142 +606,75 @@ class ScatteringOperator(LinearOperatorMixin):
         Carries everything :meth:`foldable_part` does not: the
         off-diagonal of ``sig_s[mid][0]`` (cross-group P0), every
         :math:`P_\ell \ge 1` block verbatim, and ``sig2[mid]``
-        verbatim. These channels cannot collapse into a per-cell
-        :math:`\sigma_r`: cross-group P0 couples distinct energy
-        groups, :math:`P_\ell \ge 1` is direction-dependent via
-        :math:`Y_\ell^m(\Omega_n)`, and (n,2n) doubling emits two
-        neutrons per absorption (folding into a "removal"
-        cross-section is conceptually wrong).
+        verbatim.
 
         Returns
         -------
         ScatteringOperator
             A sibling with ``scattering_order ==
-            self.scattering_order``, ``Y is self.Y`` (precomputed
-            harmonics are reusable), zero-diagonal P0 matrix, and
+            self.scattering_order``, zero-diagonal P0 matrix, and
             unchanged :math:`P_\ell \ge 1` + (n,2n) data.
 
         Notes
         -----
         Algebraic contract:
         ``S.apply(\psi) \approx S.foldable_part().apply(\psi) +
-        S.residual_part().apply(\psi)`` at ``rtol=1e-14``. The
-        residual is FP-non-associativity (sum-of-two-applies vs
-        single-apply differs at machine precision).
+        S.residual_part().apply(\psi)`` at ``rtol=1e-14``.
+
+        Issue #197 PR-TYPED-1 — the per-material loop that built the
+        ``sig_s_residual`` dict lives ONLY inside
+        :meth:`MaterialXSField.residual_sig_s`.
         """
-        sig_s_residual: dict[int, list[np.ndarray]] = {}
-        sig_s0_residual: dict[int, np.ndarray] = {}
-        for mid, mats in self.sig_s.items():
-            p0 = mats[0]
-            cross_group = p0 - np.diag(np.diag(p0))
-            # Pℓ ≥ 1 blocks carried verbatim — anisotropic scattering is
-            # unconditionally residual (Y_ℓ^m direction dependence).
-            sig_s_residual[mid] = [cross_group, *mats[1:]]
-            sig_s0_residual[mid] = cross_group
-        # (n,2n) carried verbatim — same dict; safe to share since
-        # apply() never mutates the matrices.
-        sig2_residual = self.sig2
+        sig_s_residual = self.mat_xs.residual_sig_s()
+        # (n,2n) carried verbatim — pull from mat_xs.
+        sig2_residual = {
+            mid: self.mat_xs.n2n_matrix(mid)
+            for mid in self.mat_xs.materials
+        }
+        derived_mat_xs = self.mat_xs.with_overridden_sig_s_and_n2n(
+            sig_s_dense=sig_s_residual,
+            n2n_dense=sig2_residual,
+        )
         return ScatteringOperator(
-            n_ordinates=self.n_ordinates,
-            nx=self.nx,
-            ny=self.ny,
-            ng=self.ng,
+            mat_xs=derived_mat_xs,
+            quadrature=self.quadrature,
             scattering_order=self.scattering_order,
-            sig_s=sig_s_residual,
-            sig2=sig2_residual,
-            sig_s0=sig_s0_residual,
-            Y=self.Y,
-            weights=self.weights,
-            cells_by_mat=self.cells_by_mat,
         )
 
     def is_foldable_into_sigma_r(self) -> bool:
         r"""Return ``True`` iff this operator is structurally the
         :meth:`foldable_part` of some parent :math:`S`.
 
-        Mechanical predicate consumed by substep 3+4.b.ii's
-        :class:`~orpheus.numerics.operator.OperatorSum` fusion hook:
-        when the hook sees ``L + C - S_some`` and
-        ``S_some.is_foldable_into_sigma_r()`` is True, it knows the
-        within-group sum has the shape that admits fusion into a
-        removal cross-section :math:`\sigma_r = \sigma_t -
-        \Sigma_{s,0}^{g\to g}`, and routes :meth:`solve` through the
-        within-group sweep.
-
-        Structural test on the operator's data, not an identity claim
-        about its action — every ``ScatteringOperator`` instance whose
-        ``scattering_order`` is 0 with diagonal-only ``sig_s[mid][0]``
-        and zero ``sig2`` is, by definition, the foldable part of
-        itself (its :meth:`residual_part` is the zero operator).
-
         Returns
         -------
         bool
-            ``True`` iff (a) ``scattering_order == 0``,
-            (b) every material's ``sig_s[mid][0]`` is diagonal
-            (off-diagonal ≈ zero by ``np.allclose``), AND
-            (c) every material's ``sig2[mid]`` is the zero matrix
-            (``np.allclose`` to 0). ``False`` otherwise.
+            ``True`` iff ``scattering_order == 0`` AND every material's
+            P0 is diagonal AND every material's (n,2n) is zero.
 
         Notes
         -----
-        Uses ``np.allclose`` (default ``rtol=1e-5, atol=1e-8``) for the
-        diagonal / zero checks: floating-point construction
-        (e.g. ``np.diag(np.diag(M))``) introduces FP rounding so
-        bit-equality is fragile. The tolerance is permissive enough
-        to accept any physical input but strict enough to reject
-        genuine off-diagonal entries.
-
-        Contract verified by ``TestIsFoldableIntoSigmaR`` in
-        :file:`tests/sn/test_scattering_operator.py`:
-
-        * Full ``ScatteringOperator`` (non-zero off-diagonal P0 OR
-          Pℓ ≥ 1 OR non-zero sig2) → ``False``.
-        * ``S.foldable_part()`` → ``True`` (round-trip).
-        * ``S.residual_part()`` → ``False`` (cross-group P0).
-        * scattering_order=0 with non-diagonal P0 → ``False``.
-        * scattering_order=0 with diagonal P0 but non-zero sig2 →
-          ``False``.
+        Issue #197 PR-TYPED-1 — the per-material allclose checks live
+        ONLY inside :meth:`MaterialXSField.is_p0_diagonal_with_zero_n2n`.
         """
         if self.scattering_order != 0:
             return False
-        for mid, mats in self.sig_s.items():
-            p0 = mats[0]
-            # Diagonal-only test: M ≈ diag(diag(M)).
-            if not np.allclose(p0, np.diag(np.diag(p0))):
-                return False
-            # sig2 must be the zero matrix — (n,2n) is unconditionally
-            # residual (see ``residual_part`` docstring).
-            if not np.allclose(self.sig2[mid], 0.0):
-                return False
-        return True
+        return self.mat_xs.is_p0_diagonal_with_zero_n2n()
 
     def foldable_sigma(self) -> dict[int, np.ndarray]:
         r"""Return the per-material foldable cross-section :math:`(\sigma_{s,0}^{g\to g})_g`.
-
-        For every material ``mid``, returns the ``(ng,)`` array
-        ``np.diag(sig_s[mid][0])`` — the per-group within-group
-        self-scatter cross-section :math:`\Sigma_{s,0}^{g\to g}`
-        that the cell-balance denominator absorbs into
-        :math:`\sigma_r = \sigma_t - \Sigma_{s,0}^{g\to g}`.
-
-        Substep 3+4.b's ``OperatorSum.solve`` fusion hook consumes
-        these arrays directly (lazy :math:`\sigma_r` cache); the
-        full :meth:`foldable_part` operator is consumed by the
-        within-group algebra ``A_wg = L + C - S.foldable_part()``.
-        Both are equivalent re-expressions of the same data.
 
         Returns
         -------
         dict[int, np.ndarray]
             ``{mid: (ng,) array}`` keyed by material id. Each array
-            is a fresh copy (mutating the returned dict's values
-            does not affect ``self``).
+            is a fresh copy.
+
+        Notes
+        -----
+        Issue #197 PR-TYPED-1 — delegates to
+        :meth:`MaterialXSField.foldable_sigma`.
         """
-        return {
-            mid: np.diag(mats[0]).copy()
-            for mid, mats in self.sig_s.items()
-        }
+        return self.mat_xs.foldable_sigma()
 
     # ── LinearOperator surface ─────────────────────────────────────────
 

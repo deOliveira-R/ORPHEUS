@@ -67,6 +67,7 @@ in a future wave when the adjoint transport machinery lands.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -74,6 +75,9 @@ from orpheus.numerics.operator import (
     CAP_APPLY,
     LinearOperatorMixin,
 )
+
+if TYPE_CHECKING:
+    from .material_xs_field import MaterialXSField
 
 
 __all__ = ["FissionOperator"]
@@ -83,57 +87,61 @@ __all__ = ["FissionOperator"]
 class FissionOperator(LinearOperatorMixin):
     r"""Fission source operator :math:`F = \chi\,\otimes\,\nu\Sigma_f`.
 
-    Holds the per-cell-flattened arrays the SN solver already builds in
-    ``__init__`` from the per-material :class:`Mixture` data: the
-    emission spectrum :math:`\chi(\vec r)` and the production
-    cross-section :math:`\nu\Sigma_{f,g}(\vec r)`. The action is a
-    contraction over groups (the production rate) followed by a
-    broadcast across the emission spectrum.
+    Reads :math:`\chi(\vec r)` and :math:`\nu\Sigma_{f,g}(\vec r)`
+    through a :class:`MaterialXSField` (Issue #197 PR-TYPED-1) — the
+    same per-cell typed views every other operator (L, C, S)
+    consumes.  The action is a contraction over groups (the production
+    rate) followed by a broadcast across the emission spectrum.
 
-    Use :meth:`from_solver_data` to build instances from the same
-    precomputed structures :class:`SNSolver` already holds.
+    Use :meth:`from_solver_data` to build instances; pass
+    ``mat_xs=sn_mesh.material_xs_field()``.
 
     Attributes
     ----------
-    chi : np.ndarray
-        Emission spectrum shape ``(ng, nx, ny)`` (Issue #196 PR-INDEX-3 —
-        principled layout).  Per-cell because the per-material
-        :math:`\chi` is broadcast onto the cell grid via
-        :class:`assemble_cell_xs`.
-    sig_p : np.ndarray
-        Production cross-section :math:`\nu\Sigma_f` shape
-        ``(ng, nx, ny)``.
+    mat_xs : MaterialXSField
+        Macroscopic XS field carrying ``emission_spectrum`` (χ) and
+        ``fission_production`` (νΣ_f) per-cell views.
     capabilities : frozenset[str]
         ``{"apply"}`` — the rank-1 structure forbids a useful inverse,
         and the adjoint surface is not yet a consumer.
-
-    Notes
-    -----
-    The constructor receives ``(chi, sig_p)`` already shaped
-    ``(ng, nx, ny)`` — the same per-cell tensors :class:`SNSolver`
-    holds. No re-broadcasting happens here; the operator simply applies
-    the action.
     """
 
-    chi: np.ndarray  # (ng, nx, ny) — Issue #196 PR-INDEX-3
-    sig_p: np.ndarray  # (ng, nx, ny)
+    mat_xs: "MaterialXSField"
 
     capabilities: frozenset[str] = field(
         default_factory=lambda: frozenset({CAP_APPLY})
     )
 
+    # ── Read-through properties for backwards compatibility ────────────
+
+    @property
+    def chi(self) -> np.ndarray:
+        r""":math:`\chi(\vec r)` per-cell view, shape ``(ng, nx, ny)``.
+
+        Read-through onto :attr:`mat_xs.emission_spectrum`.
+        """
+        return self.mat_xs.emission_spectrum
+
+    @property
+    def sig_p(self) -> np.ndarray:
+        r""":math:`\nu\Sigma_f(\vec r)` per-cell view, shape ``(ng, nx, ny)``.
+
+        Read-through onto :attr:`mat_xs.fission_production`.
+        """
+        return self.mat_xs.fission_production
+
     @classmethod
     def from_solver_data(
-        cls, *, chi: np.ndarray, sig_p: np.ndarray,
+        cls, *, mat_xs: "MaterialXSField",
     ) -> "FissionOperator":
-        """Construct from the precomputed structures held by :class:`SNSolver`.
+        """Construct from a :class:`MaterialXSField`.
 
-        ``chi`` and ``sig_p`` are the per-cell arrays
-        :class:`SNSolver` builds in ``__init__`` via
-        :func:`assemble_cell_xs` — already broadcast from per-material
-        :class:`Mixture` data onto the cell grid.
+        Issue #197 PR-TYPED-1 — the constructor surface collapses the
+        ``(chi, sig_p)`` ndarray pair into one :class:`MaterialXSField`
+        handle that carries both views consistently with the rest of
+        the four-operator algebra.
         """
-        return cls(chi=np.asarray(chi), sig_p=np.asarray(sig_p))
+        return cls(mat_xs=mat_xs)
 
     def apply(self, phi: np.ndarray) -> np.ndarray:
         r"""Apply :math:`F\,\phi`: emission rate × spectrum, no :math:`1/k`.
@@ -152,24 +160,14 @@ class FissionOperator(LinearOperatorMixin):
         Returns
         -------
         np.ndarray
-            Fission source shape ``(ng, nx, ny)`` (principled — Issue
-            #196 PR-INDEX-4) *without* the :math:`1/k` eigenvalue
-            division. The caller divides by :math:`k` (see module
-            docstring for why).
-
-        Notes
-        -----
-        Issue #196 PR-INDEX-4: ``self.sig_p`` / ``self.chi`` AND ``phi``
-        AND the return value all live in the principled ``(ng, nx, ny)``
-        layout — energy ``g`` is the leading axis end-to-end.  No
-        transposes; ``np.einsum`` names the per-cell production-rate
-        contraction (Pattern 3) — ``fission_rate`` has units ``[1/s]``
-        per cell.
+            Fission source shape ``(ng, nx, ny)`` *without* the
+            :math:`1/k` eigenvalue division.  The caller divides by
+            :math:`k` (see module docstring for why).
         """
+        sig_p = self.sig_p
+        chi = self.chi
         # Production rate: per-cell sum over groups, shape (nx, ny).
-        # Both sig_p and phi are (ng, nx, ny); einsum names the
-        # contraction over the leading group axis explicitly.
-        fission_rate = np.einsum("gxy,gxy->xy", self.sig_p, phi)
+        fission_rate = np.einsum("gxy,gxy->xy", sig_p, phi)
         # Spectrum × rate: chi is (ng, nx, ny), rate is (nx, ny);
         # broadcast rate across the leading group axis.
-        return self.chi * fission_rate[None, :, :]
+        return chi * fission_rate[None, :, :]

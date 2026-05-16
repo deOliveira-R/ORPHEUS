@@ -26,10 +26,30 @@ from orpheus.geometry import Mesh2D
 from orpheus.numerics.operator import CAP_APPLY, LinearOperator
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import LebedevSphere
+from orpheus.sn.material_xs_field import MaterialXSField
 from orpheus.sn.scattering import ScatteringOperator
 from orpheus.sn.solver import SNSolver
 
 pytestmark = pytest.mark.foundation  # software-invariant tier
+
+
+class _StubQuad:
+    """Minimal AngularQuadrature stand-in for synthetic tests.
+
+    Issue #197 PR-TYPED-1 — :class:`ScatteringOperator` now consumes
+    a quadrature handle (instead of separate ``N`` / ``weights`` / ``Y``
+    constructor args).  Tests that exercise the per-material dispatch
+    in isolation use this stub to avoid building a full quadrature.
+    """
+
+    def __init__(self, *, N: int, weights: np.ndarray) -> None:
+        self.N = N
+        self.weights = np.asarray(weights)
+
+    def spherical_harmonics(self, L: int) -> np.ndarray:
+        # Only called when scattering_order > 0; synthetic tests
+        # below pass scattering_order=0 or =1 with anisotropy unused.
+        return np.zeros((self.N, L + 1, 2 * L + 1))
 
 
 def _uniform_2d(nx, ny, delta, mat_map):
@@ -827,19 +847,19 @@ class TestIsFoldableIntoSigmaR:
         """
         ng = 2
         p0_diag = np.diag([0.38, 0.90])
-        S = ScatteringOperator(
-            n_ordinates=12,
-            nx=2, ny=2, ng=ng,
-            scattering_order=0,
+        mat_xs = MaterialXSField._synthetic_for_tests(
             sig_s={0: [p0_diag]},
             sig2={0: np.zeros((ng, ng))},
-            sig_s0={0: p0_diag},
-            Y=None,
-            weights=np.ones(12) / 12.0,
             cells_by_mat={0: (
                 np.zeros(4, dtype=int),
                 np.zeros(4, dtype=int),
             )},
+            ng=ng, nx=2, ny=2,
+        )
+        S = ScatteringOperator(
+            mat_xs=mat_xs,
+            quadrature=_StubQuad(N=12, weights=np.ones(12) / 12.0),
+            scattering_order=0,
         )
         assert S.is_foldable_into_sigma_r() is True
 
@@ -852,19 +872,19 @@ class TestIsFoldableIntoSigmaR:
         ng = 2
         # Non-diagonal P0 — non-zero off-diagonal entry.
         p0 = np.array([[0.38, 0.10], [0.00, 0.90]])
-        S = ScatteringOperator(
-            n_ordinates=12,
-            nx=2, ny=2, ng=ng,
-            scattering_order=0,
+        mat_xs = MaterialXSField._synthetic_for_tests(
             sig_s={0: [p0]},
             sig2={0: np.zeros((ng, ng))},
-            sig_s0={0: p0},
-            Y=None,
-            weights=np.ones(12) / 12.0,
             cells_by_mat={0: (
                 np.zeros(4, dtype=int),
                 np.zeros(4, dtype=int),
             )},
+            ng=ng, nx=2, ny=2,
+        )
+        S = ScatteringOperator(
+            mat_xs=mat_xs,
+            quadrature=_StubQuad(N=12, weights=np.ones(12) / 12.0),
+            scattering_order=0,
         )
         assert S.is_foldable_into_sigma_r() is False
 
@@ -878,19 +898,19 @@ class TestIsFoldableIntoSigmaR:
         ng = 2
         p0_diag = np.diag([0.38, 0.90])
         sig2 = np.array([[0.0, 0.05], [0.0, 0.0]])
-        S = ScatteringOperator(
-            n_ordinates=12,
-            nx=2, ny=2, ng=ng,
-            scattering_order=0,
+        mat_xs = MaterialXSField._synthetic_for_tests(
             sig_s={0: [p0_diag]},
             sig2={0: sig2},
-            sig_s0={0: p0_diag},
-            Y=None,
-            weights=np.ones(12) / 12.0,
             cells_by_mat={0: (
                 np.zeros(4, dtype=int),
                 np.zeros(4, dtype=int),
             )},
+            ng=ng, nx=2, ny=2,
+        )
+        S = ScatteringOperator(
+            mat_xs=mat_xs,
+            quadrature=_StubQuad(N=12, weights=np.ones(12) / 12.0),
+            scattering_order=0,
         )
         assert S.is_foldable_into_sigma_r() is False
 
@@ -906,18 +926,18 @@ class TestIsFoldableIntoSigmaR:
         ng = 2
         p0_diag = np.diag([0.38, 0.90])
         p1 = np.array([[0.02, 0.00], [0.00, 0.04]])
-        S = ScatteringOperator(
-            n_ordinates=12,
-            nx=2, ny=2, ng=ng,
-            scattering_order=1,
+        mat_xs = MaterialXSField._synthetic_for_tests(
             sig_s={0: [p0_diag, p1]},
             sig2={0: np.zeros((ng, ng))},
-            sig_s0={0: p0_diag},
-            Y=None,  # Not used by the predicate.
-            weights=np.ones(12) / 12.0,
             cells_by_mat={0: (
                 np.zeros(4, dtype=int),
                 np.zeros(4, dtype=int),
             )},
+            ng=ng, nx=2, ny=2,
+        )
+        S = ScatteringOperator(
+            mat_xs=mat_xs,
+            quadrature=_StubQuad(N=12, weights=np.ones(12) / 12.0),
+            scattering_order=1,
         )
         assert S.is_foldable_into_sigma_r() is False

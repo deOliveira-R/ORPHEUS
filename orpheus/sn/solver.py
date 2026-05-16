@@ -197,57 +197,41 @@ class SNSolver:
         nx, ny = sn_mesh.nx, sn_mesh.ny
         self.ng = sn_mesh.ng
 
-        # Per-cell cross sections — Principled layout (Issue #196 PR-INDEX-3):
-        # (ng, nx, ny).  Producer ``assemble_cell_xs`` still emits
-        # ``(N_cells, ng)`` flat (CP also consumes this shape — no
-        # producer-side flip).  The ``.T.reshape`` bridge stays AT THIS
-        # construction site; every downstream SN-internal consumer
-        # receives ``(ng, nx, ny)`` natively.  The cell-flattening
-        # invariant ``sig_t_old[i, j, g] == sig_t_new[g, i, j]`` for all
-        # ``(i, j, g)`` — which depends on ``mat_ids`` ravelling in
-        # C-order ``(nx, ny)`` — is pinned by the dedicated foundation
-        # test ``test_cell_flattening_invariant_xs_storage_round_trips``
-        # in ``tests/sn/test_solver_components.py`` (PR-CLEANUP-CODE §E).
-        xs = assemble_cell_xs(materials, sn_mesh.mat_map)
-        self.sig_t = xs.sig_t.T.reshape(self.ng, nx, ny)
-        self.sig_a = xs.sig_a.T.reshape(self.ng, nx, ny)
-        self.sig_p = xs.sig_p.T.reshape(self.ng, nx, ny)
-        self.chi = xs.chi.T.reshape(self.ng, nx, ny)
+        # Issue #197 PR-TYPED-1: the canonical XS state collapses to ONE
+        # attribute — ``self.mat_xs`` is the :class:`MaterialXSField`
+        # wrapping both the per-material :class:`Mixture` data AND the
+        # per-cell typed views.  Every operator (L, C, S, F) reads cross
+        # sections through this single source of truth; the seven
+        # separate per-XS attributes (sig_t, sig_a, sig_p, chi, sig_s,
+        # sig2, sig_s0) plus ``_cells_by_mat`` / ``_sig2_sum`` collapse
+        # into ``self.mat_xs.*`` accessors.
+        #
+        # The thin ``sig_t / sig_a / sig_p / chi`` read-through
+        # properties below preserve the SNSolver API surface for the
+        # one-PR migration window (downstream consumers that read
+        # ``solver.sig_t`` etc.).  PR-TYPED-2 retires them by rewiring
+        # consumers to read ``solver.mat_xs.total_cross_section`` etc.
+        # directly.
+        self.mat_xs = sn_mesh.material_xs_field()
 
-        # Scattering matrices per material — all available Legendre orders
-        L = min(scattering_order, min(len(m.SigS) - 1 for m in materials.values()))
+        # __debug__ cell-flattening invariant pinning (formerly at
+        # construction of self.sig_t — now exercised through the
+        # mat_xs.total_cross_section accessor, populated lazily).
+        if __debug__:
+            xs_check = assemble_cell_xs(materials, sn_mesh.mat_map)
+            _sig_t_old = xs_check.sig_t.reshape(nx, ny, self.ng)
+            assert np.array_equal(
+                _sig_t_old,
+                self.mat_xs.total_cross_section.transpose(1, 2, 0),
+            ), "PR-INDEX-3 cell-flattening invariant broke"
+
+        # Scattering order — clamp to the minimum Legendre count
+        # available across all materials.
+        L = min(
+            scattering_order,
+            min(len(m.SigS) - 1 for m in materials.values()),
+        )
         self.scattering_order = L
-        self.sig_s: dict[int, list[np.ndarray]] = {}
-        self.sig2: dict[int, np.ndarray] = {}
-        for mat_id, mix in materials.items():
-            self.sig_s[mat_id] = [
-                np.array(mix.SigS[l].todense()) for l in range(L + 1)
-            ]
-            self.sig2[mat_id] = np.array(mix.Sig2.todense())
-
-        # Backward-compatible alias: sig_s0[mid] = sig_s[mid][0]
-        self.sig_s0: dict[int, np.ndarray] = {
-            mid: mats[0] for mid, mats in self.sig_s.items()
-        }
-
-        # Precompute spherical harmonics if anisotropic scattering requested
-        if L > 0:
-            self._Y = sn_mesh.quad.spherical_harmonics(L)  # (N, L+1, 2L+1)
-        else:
-            self._Y = None
-
-        # Pre-group cells by material for vectorized source computation
-        self._cells_by_mat: dict[int, tuple[np.ndarray, np.ndarray]] = {}
-        for mat_id in materials:
-            ix, iy = np.where(sn_mesh.mat_map == mat_id)
-            self._cells_by_mat[mat_id] = (ix, iy)
-
-        # Pre-computed sig2 row sums per material (for keff)
-        self._sig2_sum: dict[int, np.ndarray] = {}
-        for mat_id in materials:
-            self._sig2_sum[mat_id] = np.asarray(
-                self.sig2[mat_id].sum(axis=1)
-            ).ravel()
 
         # Weight normalization (1/sum(w) — works for both GL and Lebedev)
         self.weight_norm = 1.0 / sn_mesh.quad.weights.sum()
@@ -263,25 +247,16 @@ class SNSolver:
         # __init__ so downstream consumers (the iteration primitives, the
         # _solve_krylov path, future sensitivity/adjoint hooks) see a
         # consistent operator triple over the lifetime of this solver.
+        # Issue #197 PR-TYPED-1: both S and F now consume the single
+        # ``self.mat_xs`` — the per-material dispatch lives inside
+        # :class:`MaterialXSField`'s typed verbs, not on the operators.
         self.scattering_op = ScatteringOperator.from_solver_data(
-            n_ordinates=sn_mesh.quad.N,
-            nx=nx,
-            ny=ny,
-            ng=self.ng,
+            mat_xs=self.mat_xs,
+            quadrature=sn_mesh.quad,
             scattering_order=self.scattering_order,
-            sig_s=self.sig_s,
-            sig2=self.sig2,
-            sig_s0=self.sig_s0,
-            Y=self._Y,
-            weights=sn_mesh.quad.weights,
-            cells_by_mat=self._cells_by_mat,
         )
-        # FissionOperator's stored ``chi`` / ``sig_p`` are principled
-        # ``(ng, nx, ny)`` under PR-INDEX-3.  Its ``apply`` body bridges
-        # for the still-legacy ``phi`` argument shape via an internal
-        # einsum (the public φ contract flips in PR-INDEX-5).
         self.fission_op = FissionOperator.from_solver_data(
-            chi=self.chi, sig_p=self.sig_p,
+            mat_xs=self.mat_xs,
         )
         # The streaming-collision operator L = Ω·∇ + Σ_t.  Built lazily
         # — the Cartesian / spherical / cylindrical EquationMap that L's
@@ -290,7 +265,9 @@ class SNSolver:
         # principled ``(ng, nx, ny)`` layout (Issue #196 PR-INDEX-3) and
         # the operator's matvec helpers were updated to consume that
         # layout natively — no bridge needed.
-        self.L = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=self.sig_t)
+        self.L = SNStreamingOperator(
+            sn_mesh=sn_mesh, sig_t=self.mat_xs.total_cross_section,
+        )
         self.S = self.scattering_op
         self.F = self.fission_op
 
@@ -304,10 +281,10 @@ class SNSolver:
         self.coll_cache: CollisionCache | None = None
         if sn_mesh.reduced is not None:
             self.geom_cache = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
-            # No bridge needed under PR-INDEX-3: ``self.sig_t`` is already
-            # the principled ``(ng, nx, ny=1)`` layout the cache expects.
+            # No bridge needed: ``mat_xs.total_cross_section`` is the
+            # principled ``(ng, nx, ny=1)`` layout the cache expects.
             # Drop the trailing degenerate ``ny`` axis with a slice view.
-            sig_t_1d = self.sig_t[:, :, 0]  # (ng, nx)
+            sig_t_1d = self.mat_xs.total_cross_section[:, :, 0]  # (ng, nx)
             self.coll_cache = CollisionCache.from_geometry(
                 self.geom_cache, sig_t_1d,
             )
@@ -316,29 +293,104 @@ class SNSolver:
             sn_mesh._geom_cache = self.geom_cache  # type: ignore[attr-defined]
             sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
 
+    # ── Read-through XS properties (Issue #197 PR-TYPED-1 shim) ────────
+    #
+    # TRANSIENT — to be retired in PR-TYPED-2 once every downstream
+    # consumer (operators, build_rhs helpers, test fixtures) reads
+    # ``solver.mat_xs.<view>`` directly.  Kept for one cycle to
+    # minimize blast-radius in PR-TYPED-1.
+
+    @property
+    def sig_t(self) -> np.ndarray:
+        r"""TRANSIENT — :math:`\sigma_t(\vec r, g)` per-cell view,
+        shape ``(ng, nx, ny)``.  Read-through onto
+        ``self.mat_xs.total_cross_section``.  Will be retired in
+        PR-TYPED-2; consumers should read through ``solver.mat_xs``
+        directly."""
+        return self.mat_xs.total_cross_section
+
+    @property
+    def sig_a(self) -> np.ndarray:
+        r"""TRANSIENT — :math:`\sigma_a(\vec r, g)` per-cell view.
+        See :attr:`sig_t`."""
+        return self.mat_xs.absorption_cross_section
+
+    @property
+    def sig_p(self) -> np.ndarray:
+        r"""TRANSIENT — :math:`\nu\Sigma_f(\vec r, g)` per-cell view.
+        See :attr:`sig_t`."""
+        return self.mat_xs.fission_production
+
+    @property
+    def chi(self) -> np.ndarray:
+        r"""TRANSIENT — :math:`\chi(\vec r, g)` per-cell view.
+        See :attr:`sig_t`."""
+        return self.mat_xs.emission_spectrum
+
+    @property
+    def sig_s(self) -> dict[int, list[np.ndarray]]:
+        """TRANSIENT — per-material Legendre scattering dict.
+        Read-through onto ``self.mat_xs.sig_s_legendre(mid)`` for
+        every material.  Will be retired in PR-TYPED-2."""
+        return {
+            mid: self.mat_xs.sig_s_legendre(mid)
+            for mid in self.mat_xs.materials
+        }
+
+    @property
+    def sig2(self) -> dict[int, np.ndarray]:
+        """TRANSIENT — per-material (n,2n) dict.  See :attr:`sig_s`."""
+        return {
+            mid: self.mat_xs.n2n_matrix(mid)
+            for mid in self.mat_xs.materials
+        }
+
+    @property
+    def sig_s0(self) -> dict[int, np.ndarray]:
+        """TRANSIENT — per-material P0 scattering matrix dict.
+        See :attr:`sig_s`."""
+        return {
+            mid: self.mat_xs.sig_s_legendre(mid)[0]
+            for mid in self.mat_xs.materials
+        }
+
+    @property
+    def _cells_by_mat(self) -> dict[int, tuple[np.ndarray, np.ndarray]]:
+        """TRANSIENT — per-material cell-index dict.
+        See :attr:`sig_s`."""
+        return self.mat_xs.cells_by_material
+
     def rebind_cross_sections(self, new_sig_t: np.ndarray) -> None:
-        """Rebind :attr:`sig_t` and rebuild only :class:`CollisionCache`.
+        """Rebind the total cross-section and rebuild only :class:`CollisionCache`.
 
         :class:`GeometryCoefficients` survives — Stratum 1 is geometry-only.
         Only the σ_t-dependent Stratum 2 rebuilds.  Used by depletion /
-        thermal-feedback consumers (the API surface lives here at Step 2.5c;
-        downstream multi-physics consumers wire up in later steps).
+        thermal-feedback consumers.
 
         Parameters
         ----------
         new_sig_t
             New total cross-section in the principled ``(ng, nx, ny)``
             layout (Issue #196 PR-INDEX-3).
+
+        Notes
+        -----
+        Issue #197 PR-TYPED-1 — ``rebind_cross_sections`` overrides
+        ``self.mat_xs._sig_t_cell`` directly (without re-deriving from
+        materials) because the depletion / thermal-feedback consumer
+        adjusts σ_t per-cell without revisiting the per-material data.
         """
-        self.sig_t = new_sig_t
+        # Override the lazy cache on mat_xs.  Force the dense
+        # per-cell view to be populated first so the other cell views
+        # (sig_a, sig_p, chi) match the rebind contract.
+        _ = self.mat_xs.absorption_cross_section
+        self.mat_xs._sig_t_cell = new_sig_t
         # Mirror onto the L operator so its apply path stays consistent.
-        # Both ``self.sig_t`` and the operator's matvec helpers are on
-        # the principled ``(ng, nx, ny)`` layout — no bridge.
-        self.L = SNStreamingOperator(sn_mesh=self.sn_mesh, sig_t=self.sig_t)
+        self.L = SNStreamingOperator(
+            sn_mesh=self.sn_mesh, sig_t=self.mat_xs.total_cross_section,
+        )
         if self.geom_cache is not None:
-            # ``self.sig_t`` is already principled ``(ng, nx, 1)`` — slice
-            # to drop the degenerate ``ny`` axis.
-            sig_t_1d = self.sig_t[:, :, 0]  # (ng, nx)
+            sig_t_1d = self.mat_xs.total_cross_section[:, :, 0]
             self.coll_cache = CollisionCache.from_geometry(
                 self.geom_cache, sig_t_1d,
             )
@@ -422,14 +474,12 @@ class SNSolver:
         )
         rate = mu(per_cell_per_group.transpose(1, 2, 0).reshape(nx * ny, ng))
 
-        # (n,2n) contribution — per-material loop over sig2[mid] @ flux.
-        # ``flux_distribution`` is principled ``(ng, nx, ny)``; the
-        # per-material cell slice ``[:, ix, iy]`` gives ``(ng, n_cells)``
-        # which we transpose to ``(n_cells, ng)`` for the matrix product.
-        for mid, (ix, iy) in self._cells_by_mat.items():
-            phi_cells_g = flux_distribution[:, ix, iy].T   # (n_cells, ng)
-            n2n_cell_g = 2.0 * (phi_cells_g @ self.sig2[mid])
-            rate += np.einsum("c,cg->g", self.volume[ix, iy], n2n_cell_g)
+        # (n,2n) contribution — Issue #197 PR-TYPED-1: the per-material
+        # dispatch loop lives ONLY inside
+        # :meth:`MaterialXSField.add_n2n_to_group_rate`.
+        self.mat_xs.add_n2n_to_group_rate(
+            rate, flux_distribution, self.volume,
+        )
 
         return rate
 
