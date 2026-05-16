@@ -97,7 +97,8 @@ def test_flux_symmetry():
     mesh_homo = _homogeneous_slab_mesh(20, 2.0, mat_id=0)
     result_homo = solve_sn({0: mix}, mesh_homo, quad, max_outer=200,
                            max_inner=500, inner_tol=1e-10)
-    flux = result_homo.scalar_flux[:, 0, 0]  # (nx,) for group 0
+    # PR-INDEX-5: scalar_flux principled (ng, nx, ny) — group-0 radial slice.
+    flux = result_homo.scalar_flux[0, :, 0]  # (nx,) for group 0
     np.testing.assert_allclose(
         flux, flux[0], rtol=1e-6,
         err_msg="Homogeneous slab flux is not flat",
@@ -114,14 +115,15 @@ def test_particle_balance():
     result = solve_sn(materials, mesh, quad,
                       max_inner=500, inner_tol=1e-10)
 
-    # Volume-weighted production and absorption rates
+    # Volume-weighted production and absorption rates.
+    # PR-INDEX-5: scalar_flux principled (ng, nx, ny=1) → (ng, nx).
     dx = mesh.widths
-    flux = result.scalar_flux[:, 0, :]  # (nx, ng)
+    flux = result.scalar_flux[:, :, 0]  # (ng, nx)
     sig_p = mix.SigP
     sig_a = mix.SigC + mix.SigF
 
-    production = np.sum(flux * sig_p[None, :] * dx[:, None])
-    absorption = np.sum(flux * sig_a[None, :] * dx[:, None])
+    production = np.sum(flux * sig_p[:, None] * dx[None, :])
+    absorption = np.sum(flux * sig_a[:, None] * dx[None, :])
 
     k_balance = production / absorption
     np.testing.assert_allclose(

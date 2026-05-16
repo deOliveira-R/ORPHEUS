@@ -7,12 +7,12 @@ Run::
     python -m tests.sn.regression._generate_2d_octant_snapshots --list
 
 Each snapshot writes ``snapshots/2d_octant_equivalence_<case_id>.npz``
-containing:
+containing (Issue #196 PR-INDEX-5 — principled ``g`` after ``N``):
 
-* ``angular_flux`` — ``(N, nx, ny, ng)`` float64
-* ``scalar_flux`` — ``(nx, ny, ng)`` float64
-* ``psi_x_post`` — ``(N, nx+1, ny, ng)`` float64
-* ``psi_y_post`` — ``(N, nx, ny+1, ng)`` float64
+* ``angular_flux`` — ``(N, ng, nx, ny)`` float64
+* ``scalar_flux`` — ``(ng, nx, ny)`` float64
+* ``psi_x_post`` — ``(N, ng, nx+1, ny)`` float64
+* ``psi_y_post`` — ``(N, ng, nx, ny+1)`` float64
 * ``case_id`` — np.array(case.case_id)
 * ``case_description`` — np.array(case.description)
 * ``failure_mode`` — np.array(case.failure_mode)

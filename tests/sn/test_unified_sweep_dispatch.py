@@ -227,8 +227,8 @@ class TestDispatchByReducedProperty:
         monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
 
         nx, ny, ng = 4, 4, 1
-        Q = np.zeros((nx, ny, ng))
-        sig_t = np.ones((nx, ny, ng))
+        Q = np.zeros((ng, nx, ny))
+        sig_t = np.ones((ng, nx, ny))
         transport_sweep(Q, sig_t, sn_mesh, {})
 
         assert called["unified"] == 0

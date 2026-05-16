@@ -87,7 +87,7 @@ def test_sn_heterogeneous_mms_converges_second_order():
             max_inner=500, inner_tol=1e-12,
         )
 
-        phi_solver = result.scalar_flux[:, 0, :]  # (n_cells, n_groups)
+        phi_solver = result.scalar_flux[:, :, 0].T  # PR-INDEX-5: (nx, ng) view of (ng, nx)  # (n_cells, n_groups)
         phi_ref_g0 = np.asarray(ref.phi(mesh.centers, 0), dtype=float)
         phi_ref_g1 = np.asarray(ref.phi(mesh.centers, 1), dtype=float)
 

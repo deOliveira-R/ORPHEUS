@@ -174,45 +174,37 @@ class TestBitIdenticalExtractionP0:
     def test_delegators_match_operator_directly(self, solver_2g_p0):
         """SNSolver._add_scattering_source delegates to op.add_iso_source bit-identically.
 
-        Delegator's PUBLIC contract is still legacy (nx, ny, ng); the
-        operator's direct contract is principled (ng, nx, ny).  Bridge
-        via transpose for comparison.
+        Issue #196 PR-INDEX-5: delegator's PUBLIC contract is now
+        principled ``(ng, nx, ny)``.  No bridge.
         """
         np.random.seed(7)
         nx, ny, ng = solver_2g_p0.sn_mesh.nx, solver_2g_p0.sn_mesh.ny, solver_2g_p0.ng
-        phi_legacy = np.random.rand(nx, ny, ng) + 0.1
-        Q_legacy = np.random.rand(nx, ny, ng)
+        phi = np.random.rand(ng, nx, ny) + 0.1
+        Q_init = np.random.rand(ng, nx, ny)
 
-        Q_via_delegator = Q_legacy.copy()
-        solver_2g_p0._add_scattering_source(Q_via_delegator, phi_legacy)
+        Q_via_delegator = Q_init.copy()
+        solver_2g_p0._add_scattering_source(Q_via_delegator, phi)
 
-        # Operator path: principled views.
-        phi_principled = np.transpose(phi_legacy, (2, 0, 1)).copy()
-        Q_via_operator_principled = np.transpose(Q_legacy, (2, 0, 1)).copy()
-        solver_2g_p0.scattering_op.add_iso_source(
-            Q_via_operator_principled, phi_principled,
-        )
-        # Transpose back for comparison.
-        Q_via_operator = np.transpose(Q_via_operator_principled, (1, 2, 0))
+        Q_via_operator = Q_init.copy()
+        solver_2g_p0.scattering_op.add_iso_source(Q_via_operator, phi)
 
         np.testing.assert_array_equal(Q_via_delegator, Q_via_operator)
 
     def test_delegator_n2n_matches_operator_directly(self, solver_2g_p0):
-        """SNSolver._add_n2n_source delegates to op.add_n2n_source bit-identically."""
+        """SNSolver._add_n2n_source delegates to op.add_n2n_source bit-identically.
+
+        Issue #196 PR-INDEX-5: principled ``(ng, nx, ny)`` end-to-end.
+        """
         np.random.seed(11)
         nx, ny, ng = solver_2g_p0.sn_mesh.nx, solver_2g_p0.sn_mesh.ny, solver_2g_p0.ng
-        phi_legacy = np.random.rand(nx, ny, ng) + 0.1
-        Q_legacy = np.random.rand(nx, ny, ng)
+        phi = np.random.rand(ng, nx, ny) + 0.1
+        Q_init = np.random.rand(ng, nx, ny)
 
-        Q_via_delegator = Q_legacy.copy()
-        solver_2g_p0._add_n2n_source(Q_via_delegator, phi_legacy)
+        Q_via_delegator = Q_init.copy()
+        solver_2g_p0._add_n2n_source(Q_via_delegator, phi)
 
-        phi_principled = np.transpose(phi_legacy, (2, 0, 1)).copy()
-        Q_via_operator_principled = np.transpose(Q_legacy, (2, 0, 1)).copy()
-        solver_2g_p0.scattering_op.add_n2n_source(
-            Q_via_operator_principled, phi_principled,
-        )
-        Q_via_operator = np.transpose(Q_via_operator_principled, (1, 2, 0))
+        Q_via_operator = Q_init.copy()
+        solver_2g_p0.scattering_op.add_n2n_source(Q_via_operator, phi)
 
         np.testing.assert_array_equal(Q_via_delegator, Q_via_operator)
 
@@ -266,20 +258,16 @@ class TestAnisotropicScatteringExtraction:
     def test_delegator_matches_operator(self, solver_2g_p1):
         """SNSolver._build_aniso_scattering delegates bit-identically.
 
-        Delegator's PUBLIC contract is legacy ``(N, nx, ny, ng)``;
-        operator consumes / returns principled ``(N, ng, nx, ny)``.
-        Compare via transpose bridges.
+        Issue #196 PR-INDEX-5: delegator and operator both consume /
+        return principled ``(N, ng, nx, ny)``.
         """
         op = solver_2g_p1.scattering_op
         N = op.n_ordinates
         np.random.seed(42)
-        psi_legacy = np.random.rand(N, op.nx, op.ny, op.ng) + 0.1
+        psi = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
 
-        out_via_delegator = solver_2g_p1._build_aniso_scattering(psi_legacy)
-        # Bridge psi → principled, take operator output, bridge back.
-        psi_principled = np.transpose(psi_legacy, (0, 3, 1, 2))
-        out_via_op_principled = op.build_aniso_source(psi_principled)
-        out_via_operator = np.transpose(out_via_op_principled, (0, 2, 3, 1))
+        out_via_delegator = solver_2g_p1._build_aniso_scattering(psi)
+        out_via_operator = op.build_aniso_source(psi)
         np.testing.assert_array_equal(out_via_delegator, out_via_operator)
 
 

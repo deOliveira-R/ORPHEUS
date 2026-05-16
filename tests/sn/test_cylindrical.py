@@ -163,7 +163,7 @@ def test_particle_balance(quad_factory):
                       max_inner=500, inner_tol=1e-10)
 
     V = mesh.volumes
-    flux = result.scalar_flux[:, 0, :]
+    flux = result.scalar_flux[:, :, 0].T  # PR-INDEX-5
     sig_p = mix.SigP
     sig_a = mix.SigC + mix.SigF
 
@@ -426,7 +426,7 @@ class TestMultiGroupMultiRegion:
                           max_inner=500, inner_tol=1e-10)
 
         # Average flux ratio (group 0 / group 1) in fuel vs moderator
-        flux = result.scalar_flux[:, 0, :]  # (nx, ng)
+        flux = result.scalar_flux[:, :, 0].T  # PR-INDEX-5  # (nx, ng)
         V = mesh.volumes
         mat_ids = mesh.mat_ids
 
@@ -476,7 +476,8 @@ class TestMultiGroupMultiRegion:
             phi = solver.solve_fixed_source(fs, phi)
             keff = solver.compute_keff(phi)
 
-        vol = solver.volume[:, :, None]
+        # PR-INDEX-5: solver.sig_p / sig_a / phi all principled (ng, nx, ny).
+        vol = solver.volume[None, :, :]
         production = np.sum(solver.sig_p * phi * vol)
         absorption = np.sum(solver.sig_a * phi * vol)
         k_balance = production / absorption

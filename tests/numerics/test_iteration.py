@@ -402,10 +402,11 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     psi_bc: dict = {}
 
     class L_inv_adapter(LinearOperatorMixin):
-        """Adapter: rhs (nx,ny,ng) → phi via the unified sweep.
+        """Adapter: rhs (ng, nx, ny) → phi via the unified sweep.
 
-        Returns scalar flux (drops angular flux for shape consistency
-        with F.apply / S.apply scalar facade).
+        Issue #196 PR-INDEX-5: principled layout throughout.  Returns
+        scalar flux (drops angular flux for shape consistency with
+        F.apply / S.apply scalar facade).
         """
         capabilities = frozenset({CAP_APPLY, CAP_SOLVE})
 
@@ -419,37 +420,27 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
             return scalar
 
     class S_scalar_adapter(LinearOperatorMixin):
-        """Adapter: phi (nx,ny,ng) → P0 scattering source (nx,ny,ng).
+        """Adapter: phi (ng, nx, ny) → P0 scattering source (ng, nx, ny).
 
-        Issue #196 PR-INDEX-4: S.add_iso_source / S.add_n2n_source now
-        consume principled (ng, nx, ny).  Bridge transposes around the
-        legacy-shape adapter interface.
+        Issue #196 PR-INDEX-5: principled end-to-end.
         """
         capabilities = frozenset({CAP_APPLY})
 
         def apply(self, phi):
-            # Principled views — Q in/out shares memory with the legacy
-            # Q buffer via transposed view.
-            Q_legacy = np.zeros_like(phi)
-            Q_principled = np.transpose(Q_legacy, (2, 0, 1))
-            phi_principled = np.transpose(phi, (2, 0, 1))
-            S.add_iso_source(Q_principled, phi_principled)
-            S.add_n2n_source(Q_principled, phi_principled)
-            return Q_legacy
+            Q = np.zeros_like(phi)
+            S.add_iso_source(Q, phi)
+            S.add_n2n_source(Q, phi)
+            return Q
 
     class F_scalar_adapter(LinearOperatorMixin):
-        """Adapter: phi (nx,ny,ng) → fission source (nx,ny,ng).
+        """Adapter: phi (ng, nx, ny) → fission source (ng, nx, ny).
 
-        Issue #196 PR-INDEX-4: F.apply now consumes / returns
-        principled (ng, nx, ny).  Bridge transposes around the
-        legacy-shape adapter interface.
+        Issue #196 PR-INDEX-5: principled end-to-end.
         """
         capabilities = frozenset({CAP_APPLY})
 
         def apply(self, phi):
-            phi_principled = np.transpose(phi, (2, 0, 1))
-            out_principled = F.apply(phi_principled)
-            return np.transpose(out_principled, (1, 2, 0))
+            return F.apply(phi)
 
     L_adapt = L_inv_adapter()
     S_adapt = S_scalar_adapter()
@@ -461,7 +452,8 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
         return solver.compute_keff(phi)
 
     nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
-    initial = np.ones((nx, ny, ng))
+    # Issue #196 PR-INDEX-5: principled initial guess.
+    initial = np.ones((ng, nx, ny))
 
     ke = KEigenvalue(
         L_adapt, S_adapt, F_adapt,

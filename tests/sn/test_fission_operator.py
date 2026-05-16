@@ -95,29 +95,17 @@ class TestBitIdenticalExtraction:
     def test_delegator_matches_apply_with_k(self, solver_2g):
         """SNSolver.compute_fission_source(φ, k) = fission_op.apply(φ) / k.
 
-        SNSolver.compute_fission_source still consumes legacy (nx, ny, ng)
-        on its PUBLIC contract (PR-INDEX-5 flips it).  fission_op.apply
-        consumes principled (ng, nx, ny).  Verify the delegator's
-        internal bridge transposes round-trip.
+        Issue #196 PR-INDEX-5: both the delegator and the operator
+        consume / return principled ``(ng, nx, ny)``.  No bridges.
         """
         np.random.seed(7)
         nx, ny, ng = solver_2g.sn_mesh.nx, solver_2g.sn_mesh.ny, solver_2g.ng
-        phi_legacy = np.random.rand(nx, ny, ng) + 0.1
-        phi_principled = np.transpose(phi_legacy, (2, 0, 1))
+        phi = np.random.rand(ng, nx, ny) + 0.1
 
         for k in [1.0, 0.93, 1.27, 0.5]:
-            out_via_delegator = solver_2g.compute_fission_source(phi_legacy, k)
-            out_via_operator_principled = (
-                solver_2g.fission_op.apply(phi_principled) / k
-            )
-            # delegator returns legacy (nx, ny, ng); operator returns
-            # principled (ng, nx, ny) — transpose to compare.
-            out_via_operator_legacy = np.transpose(
-                out_via_operator_principled, (1, 2, 0),
-            )
-            np.testing.assert_array_equal(
-                out_via_delegator, out_via_operator_legacy,
-            )
+            out_via_delegator = solver_2g.compute_fission_source(phi, k)
+            out_via_operator = solver_2g.fission_op.apply(phi) / k
+            np.testing.assert_array_equal(out_via_delegator, out_via_operator)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -213,13 +201,11 @@ class TestKDivisionConvention:
     def test_compute_fission_source_does_divide_by_k(self, solver_2g):
         """SNSolver.compute_fission_source(φ, k) = apply(φ) / k.
 
-        compute_fission_source's PUBLIC contract is legacy (nx, ny, ng)
-        until PR-INDEX-5.  Internal bridge transposes don't affect the
-        ``1/k`` scaling — the linearity check holds on either layout.
+        Issue #196 PR-INDEX-5: ``phi`` principled ``(ng, nx, ny)``.
         """
         np.random.seed(101)
         nx, ny, ng = solver_2g.sn_mesh.nx, solver_2g.sn_mesh.ny, solver_2g.ng
-        phi = np.random.rand(nx, ny, ng) + 0.1
+        phi = np.random.rand(ng, nx, ny) + 0.1
 
         out_k_one = solver_2g.compute_fission_source(phi, 1.0)
         out_k_two = solver_2g.compute_fission_source(phi, 2.0)

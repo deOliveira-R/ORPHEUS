@@ -162,7 +162,7 @@ def test_particle_balance():
 
     # Volume-weighted production and absorption rates
     V = mesh.volumes
-    flux = result.scalar_flux[:, 0, :]  # (nx, ng)
+    flux = result.scalar_flux[:, :, 0].T  # PR-INDEX-5  # (nx, ng)
     sig_p = mix.SigP
     sig_a = mix.SigC + mix.SigF
 
@@ -584,7 +584,7 @@ class TestMultiGroupMultiRegionSpherical:
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
 
-        flux = result.scalar_flux[:, 0, :]
+        flux = result.scalar_flux[:, :, 0].T  # PR-INDEX-5
         V = mesh.volumes
         mat_ids = mesh.mat_ids
 
@@ -632,7 +632,7 @@ class TestMultiGroupMultiRegionSpherical:
             phi = solver.solve_fixed_source(fs, phi)
             keff = solver.compute_keff(phi)
 
-        vol = solver.volume[:, :, None]
+        vol = solver.volume[None, :, :]  # PR-INDEX-5
         production = np.sum(solver.sig_p * phi * vol)
         absorption = np.sum(solver.sig_a * phi * vol)
         k_balance = production / absorption

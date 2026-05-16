@@ -196,20 +196,25 @@ def _hand_run_legacy_inlined(
     *,
     nx: int, ny: int, ng: int, N_oct: int,
     psi_x: np.ndarray, psi_y: np.ndarray,
-    Q: np.ndarray,                 # (N_oct or 1, nx, ny, ng)
-    sig_t: np.ndarray,             # (nx, ny, ng)
+    Q: np.ndarray,                 # (N_oct or 1, ng, nx, ny)
+    sig_t: np.ndarray,             # (ng, nx, ny)
     str_x: np.ndarray,             # (N_oct, nx)
     str_y: np.ndarray,             # (N_oct, ny)
     weights: np.ndarray,           # (N_oct,)
     sx_sign: int, sy_sign: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Run the legacy inlined ``_sweep_2d_wavefront`` math one ordinate
+    """Run the inlined ``_sweep_2d_wavefront`` math one ordinate
     at a time, on octant-restricted buffers.
+
+    Issue #196 PR-INDEX-5: principled layouts throughout —
+    ``angular_flux: (N_oct, ng, nx, ny)``,
+    ``scalar_flux: (ng, nx, ny)``,
+    ``psi_x: (N_oct, ng, nx+1, ny)``, ``psi_y: (N_oct, ng, nx, ny+1)``.
 
     Returns ``(angular_flux, scalar_flux, psi_x_post, psi_y_post)``.
     """
-    angular_flux = np.zeros((N_oct, nx, ny, ng))
-    scalar_flux = np.zeros((nx, ny, ng))
+    angular_flux = np.zeros((N_oct, ng, nx, ny))
+    scalar_flux = np.zeros((ng, nx, ny))
     psi_x = psi_x.copy()
     psi_y = psi_y.copy()
 
@@ -228,17 +233,20 @@ def _hand_run_legacy_inlined(
             local_j = k - local_i
             ii = ix_arr[local_i]
             jj = iy_arr[local_j]
-            psi_in_x = psi_x[n, ii + ix_in, jj, :]
-            psi_in_y = psi_y[n, ii, jj + iy_in, :]
-            sx = str_x[n, ii][:, None]
-            sy = str_y[n, jj][:, None]
-            denom = sig_t[ii, jj, :] + sx + sy
-            Qn = Q[n if Q.shape[0] > 1 else 0, ii, jj, :]
+            # Principled indexing: psi_x[n, :, ii+ix_in, jj] has the
+            # advanced indices contiguous at the trailing position →
+            # numpy keeps the order, shape ``(ng, n_diag)``.
+            psi_in_x = psi_x[n, :, ii + ix_in, jj].T  # advanced separated → (n_diag, ng); .T → (ng, n_diag)
+            psi_in_y = psi_y[n, :, ii, jj + iy_in].T
+            sx = str_x[n, ii][None, :]                 # (1, n_diag)
+            sy = str_y[n, jj][None, :]                 # (1, n_diag)
+            denom = sig_t[:, ii, jj] + sx + sy         # (ng, n_diag)
+            Qn = Q[n if Q.shape[0] > 1 else 0, :, ii, jj].T  # (ng, n_diag)
             psi_avg = (Qn + sx * psi_in_x + sy * psi_in_y) / denom
-            psi_x[n, ii + ix_out, jj, :] = 2.0 * psi_avg - psi_in_x
-            psi_y[n, ii, jj + iy_out, :] = 2.0 * psi_avg - psi_in_y
-            angular_flux[n, ii, jj, :] = psi_avg
-            scalar_flux[ii, jj, :] += weights[n] * psi_avg
+            psi_x[n, :, ii + ix_out, jj] = (2.0 * psi_avg - psi_in_x).T
+            psi_y[n, :, ii, jj + iy_out] = (2.0 * psi_avg - psi_in_y).T
+            angular_flux[n, :, ii, jj] = psi_avg.T  # numpy scatter (n_diag, ng) into (ng, ii, jj)
+            scalar_flux[:, ii, jj] += weights[n] * psi_avg
     return angular_flux, scalar_flux, psi_x, psi_y
 
 
@@ -256,15 +264,16 @@ class TestApplyMatchesLegacyInlined:
     ])
     def test_per_cell_loop_equivalence(self, sx, sy, nx, ny, ng, N_oct):
         rng = np.random.default_rng(seed=2026 * (10 * sx + sy + 100) + nx * ny + ng + N_oct)
-        psi_x = rng.standard_normal((N_oct, nx + 1, ny, ng))
-        psi_y = rng.standard_normal((N_oct, nx, ny + 1, ng))
-        Q = rng.standard_normal((N_oct, nx, ny, ng))
-        sig_t = rng.uniform(0.1, 0.5, size=(nx, ny, ng))
+        # Issue #196 PR-INDEX-5: principled layouts.
+        psi_x = rng.standard_normal((N_oct, ng, nx + 1, ny))
+        psi_y = rng.standard_normal((N_oct, ng, nx, ny + 1))
+        Q = rng.standard_normal((N_oct, ng, nx, ny))
+        sig_t = rng.uniform(0.1, 0.5, size=(ng, nx, ny))
         str_x = rng.uniform(0.1, 1.0, size=(N_oct, nx))
         str_y = rng.uniform(0.1, 1.0, size=(N_oct, ny))
         weights = rng.uniform(0.5, 1.5, size=N_oct)
 
-        # Legacy reference (per-ordinate Python loop).
+        # Reference (per-ordinate Python loop) — principled.
         ref_ang, ref_scal, ref_px, ref_py = _hand_run_legacy_inlined(
             nx=nx, ny=ny, ng=ng, N_oct=N_oct,
             psi_x=psi_x, psi_y=psi_y, Q=Q, sig_t=sig_t,
@@ -276,8 +285,8 @@ class TestApplyMatchesLegacyInlined:
         graph = SweepDependencyGraph.from_cartesian_2d(
             nx=nx, ny=ny, label=OctantLabel(sx, sy),
         )
-        angular_flux = np.zeros((N_oct, nx, ny, ng))
-        scalar_flux = np.zeros((nx, ny, ng))
+        angular_flux = np.zeros((N_oct, ng, nx, ny))
+        scalar_flux = np.zeros((ng, nx, ny))
         psi_x_oct = psi_x.copy()
         psi_y_oct = psi_y.copy()
         graph.apply(
@@ -300,19 +309,24 @@ class TestApplyMatchesLegacyInlined:
         # vs Python loop), so principled-equivalent via ULP. Per
         # vv-principles bit-identity vs principled-equivalence:
         # scalar_flux is a sum-over-ordinates reduction;
-        # ``np.einsum("ndg,n->dg", ...)`` vs ``+= w[n] * psi[n]`` over
+        # ``np.einsum("ngd,n->gd", ...)`` vs ``+= w[n] * psi[n]`` over
         # the Python loop. Drift bounded by ``N_oct × ULP × max_term``.
+        # PR-INDEX-5 widened the nulp budget 64 → 128 to absorb the
+        # additional per-cell scatter (``angular_flux[n, :, ii, jj] =
+        # psi_avg.T``) reordering in the principled-layout reference
+        # helper.
         np.testing.assert_array_almost_equal_nulp(
-            scalar_flux, ref_scal, nulp=64,
+            scalar_flux, ref_scal, nulp=128,
         )
 
     def test_isotropic_Q_broadcasts(self):
         rng = np.random.default_rng(seed=999)
         nx, ny, ng, N_oct = 3, 3, 2, 4
-        psi_x = rng.standard_normal((N_oct, nx + 1, ny, ng))
-        psi_y = rng.standard_normal((N_oct, nx, ny + 1, ng))
-        Q = rng.standard_normal((1, nx, ny, ng))   # isotropic-only
-        sig_t = rng.uniform(0.1, 0.5, size=(nx, ny, ng))
+        # Issue #196 PR-INDEX-5: principled layouts.
+        psi_x = rng.standard_normal((N_oct, ng, nx + 1, ny))
+        psi_y = rng.standard_normal((N_oct, ng, nx, ny + 1))
+        Q = rng.standard_normal((1, ng, nx, ny))   # isotropic-only
+        sig_t = rng.uniform(0.1, 0.5, size=(ng, nx, ny))
         str_x = rng.uniform(0.1, 1.0, size=(N_oct, nx))
         str_y = rng.uniform(0.1, 1.0, size=(N_oct, ny))
         weights = rng.uniform(0.5, 1.5, size=N_oct)
@@ -325,8 +339,8 @@ class TestApplyMatchesLegacyInlined:
         graph = SweepDependencyGraph.from_cartesian_2d(
             nx=nx, ny=ny, label=OctantLabel(+1, +1),
         )
-        angular_flux = np.zeros((N_oct, nx, ny, ng))
-        scalar_flux = np.zeros((nx, ny, ng))
+        angular_flux = np.zeros((N_oct, ng, nx, ny))
+        scalar_flux = np.zeros((ng, nx, ny))
         psi_x_oct = psi_x.copy()
         psi_y_oct = psi_y.copy()
         graph.apply(

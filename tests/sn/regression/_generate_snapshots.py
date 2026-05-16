@@ -266,7 +266,8 @@ def _slab_fixed_source(ng: str, n_cells: int) -> dict:
     # Uniform isotropic source: 1.0 / (4π or 2 for 1D) per ordinate. Use 1.0
     # raw — the solver applies the 1/W factor internally (see
     # docstring of solve_sn_fixed_source).
-    external_source = np.ones((n_ord, n_cells, 1, n_groups))
+    # Issue #196 PR-INDEX-5: principled shape ``(N, ng, nx, ny)``.
+    external_source = np.ones((n_ord, n_groups, n_cells, 1))
     return dict(
         materials={0: fuel}, mesh=mesh, quadrature=quadrature,
         scattering_order=0, kind="fixed_source",

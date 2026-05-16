@@ -86,10 +86,14 @@ class SNFixedSourceResult:
     Used by :func:`solve_sn_fixed_source` and MMS verification
     (:mod:`orpheus.derivations.continuous.mms.sn`). Carries the same flux arrays
     as :class:`SNResult` but omits the fission eigenvalue fields.
+
+    Issue #196 PR-INDEX-5: storage flipped to principled layout —
+    ``angular_flux: (N_ordinates, ng, nx, ny)``;
+    ``scalar_flux: (ng, nx, ny)``.
     """
 
-    angular_flux: np.ndarray   # (N_ordinates, nx, ny, ng)
-    scalar_flux: np.ndarray    # (nx, ny, ng) = Σ w_n ψ_n
+    angular_flux: np.ndarray   # (N_ordinates, ng, nx, ny)
+    scalar_flux: np.ndarray    # (ng, nx, ny) = Σ w_n ψ_n
     geometry: Mesh1D | Mesh2D
     quadrature: AngularQuadrature
     n_inner: int               # source iterations used
@@ -104,12 +108,16 @@ class SNResult:
 
     The primary output is the angular flux (the direct solution of the
     SN equations). Scalar flux is derived by quadrature integration.
+
+    Issue #196 PR-INDEX-5: storage flipped to principled layout —
+    ``angular_flux: (N_ordinates, ng, nx, ny)``;
+    ``scalar_flux: (ng, nx, ny)``.
     """
 
     keff: float
     keff_history: list[float]
-    angular_flux: np.ndarray   # (N_ordinates, nx, ny, ng)
-    scalar_flux: np.ndarray    # (nx, ny, ng) = Σ w_n ψ_n
+    angular_flux: np.ndarray   # (N_ordinates, ng, nx, ny)
+    scalar_flux: np.ndarray    # (ng, nx, ny) = Σ w_n ψ_n
     geometry: Mesh1D | Mesh2D
     quadrature: AngularQuadrature
     eg: np.ndarray | None      # (ng+1,) energy boundaries, or None for synthetic XS
@@ -338,8 +346,11 @@ class SNSolver:
             self.sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
 
     def initial_flux_distribution(self) -> np.ndarray:
-        """Initial scalar flux guess: ones(nx, ny, ng)."""
-        return np.ones((self.sn_mesh.nx, self.sn_mesh.ny, self.ng))
+        """Initial scalar flux guess: ones(ng, nx, ny).
+
+        Issue #196 PR-INDEX-5: principled layout.
+        """
+        return np.ones((self.ng, self.sn_mesh.nx, self.sn_mesh.ny))
 
     def compute_fission_source(
         self, flux_distribution: np.ndarray, keff: float,
@@ -352,27 +363,18 @@ class SNSolver:
         :meth:`FissionOperator.apply` returns :math:`F\\,\\phi` and the
         eigenvalue scaling lives here.
 
-        Issue #196 PR-INDEX-4 — transient bridge.  ``flux_distribution``
-        arrives in the SOLVER-PUBLIC legacy ``(nx, ny, ng)`` layout
-        (PR-INDEX-5 flips it).  ``FissionOperator.apply`` now consumes
-        and returns principled ``(ng, nx, ny)``.  Bridge transposes the
-        per-call argument inward and the per-call return outward.  Both
-        bridges retire in PR-INDEX-5 when ``SNSolver.scalar_flux`` /
-        ``angular_flux`` storage flips.
+        Issue #196 PR-INDEX-5: ``flux_distribution`` is principled
+        ``(ng, nx, ny)``.  No bridges — the PR-INDEX-4 transpose pair
+        is GONE.
         """
-        BRIDGE_phi_to_principled = np.transpose(flux_distribution, (2, 0, 1))
-        # ``np.transpose`` returns a view — zero copy.  The bridge name is
-        # PR-INDEX-5 removal-grep tag (Pattern 3 — named intermediate).
-        out_principled = self.fission_op.apply(BRIDGE_phi_to_principled) / keff
-        BRIDGE_out_to_legacy = np.transpose(out_principled, (1, 2, 0))
-        return BRIDGE_out_to_legacy
+        return self.fission_op.apply(flux_distribution) / keff
 
     def solve_fixed_source(
         self, fission_source: np.ndarray, flux_distribution: np.ndarray,
     ) -> np.ndarray:
         """Solve the within-group transport equation for given fission source.
 
-        Returns updated scalar flux (nx, ny, ng).
+        Returns updated scalar flux ``(ng, nx, ny)``.
         """
         if self.inner_solver == "source_iteration":
             return self._solve_source_iteration(fission_source, flux_distribution)
@@ -409,21 +411,25 @@ class SNSolver:
         mu = self.sn_mesh.mesh.volume_measure
 
         # Fission production: ∫ νΣ_f · φ dV, vectorised over groups.
-        # Transient bridge (Issue #196 PR-INDEX-3): ``self.sig_p`` is
-        # principled ``(ng, nx, ny)`` after PR-INDEX-3; ``flux_distribution``
-        # still arrives as legacy ``(nx, ny, ng)`` (PR-INDEX-5 flips that).
-        # ``np.einsum`` names the contraction explicitly — the result
-        # ``per_cell_per_group`` has units ``[1/s]`` per cell per group
-        # (a reactor-physics intermediate; Pattern 3).
+        # Issue #196 PR-INDEX-5: both ``self.sig_p`` and
+        # ``flux_distribution`` are principled ``(ng, nx, ny)``.  The
+        # named intermediate ``per_cell_per_group`` has units ``[1/s]``
+        # per cell per group (a reactor-physics quantity — coding-
+        # elegance Pattern 3).  ``volume_measure`` consumes a flat
+        # ``(N_cells, ng)`` view (Issue 9.6 wiring); reshape via
+        # ``transpose(1, 2, 0)`` then flatten the spatial axes.
         per_cell_per_group = np.einsum(
-            "gxy,xyg->xyg", self.sig_p, flux_distribution,
+            "gxy,gxy->gxy", self.sig_p, flux_distribution,
         )
-        rate = mu(per_cell_per_group.reshape(nx * ny, ng))
+        rate = mu(per_cell_per_group.transpose(1, 2, 0).reshape(nx * ny, ng))
 
-        # (n,2n) contribution — per-material loop over sig2[mid] @ flux,
-        # tracking per outgoing group rather than collapsing as before.
+        # (n,2n) contribution — per-material loop over sig2[mid] @ flux.
+        # ``flux_distribution`` is principled ``(ng, nx, ny)``; the
+        # per-material cell slice ``[:, ix, iy]`` gives ``(ng, n_cells)``
+        # which we transpose to ``(n_cells, ng)`` for the matrix product.
         for mid, (ix, iy) in self._cells_by_mat.items():
-            n2n_cell_g = 2.0 * (flux_distribution[ix, iy, :] @ self.sig2[mid])
+            phi_cells_g = flux_distribution[:, ix, iy].T   # (n_cells, ng)
+            n2n_cell_g = 2.0 * (phi_cells_g @ self.sig2[mid])
             rate += np.einsum("c,cg->g", self.volume[ix, iy], n2n_cell_g)
 
         return rate
@@ -437,17 +443,16 @@ class SNSolver:
 
         Volume-integrated via ``mesh.volume_measure`` (Issue 9.6 wiring).
         The denominator of ``compute_keff`` is ``.sum()`` of this vector.
+
+        Issue #196 PR-INDEX-5: ``flux_distribution`` is principled
+        ``(ng, nx, ny)``.
         """
         nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
         mu = self.sn_mesh.mesh.volume_measure
-        # Transient bridge (Issue #196 PR-INDEX-3): ``self.sig_a`` is
-        # principled ``(ng, nx, ny)``; ``flux_distribution`` still arrives
-        # as legacy ``(nx, ny, ng)`` (PR-INDEX-5 flips).  ``np.einsum``
-        # makes the contraction self-documenting.
         per_cell_per_group = np.einsum(
-            "gxy,xyg->xyg", self.sig_a, flux_distribution,
+            "gxy,gxy->gxy", self.sig_a, flux_distribution,
         )
-        return mu(per_cell_per_group.reshape(nx * ny, ng))
+        return mu(per_cell_per_group.transpose(1, 2, 0).reshape(nx * ny, ng))
 
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
         """k = production / absorption (volume-weighted).
@@ -488,13 +493,9 @@ class SNSolver:
         with operator triple :math:`(L, S, \\text{Zero})` and
         ``q_ext = fission_source``, where :math:`L^{-1}` is the sweep
         and :math:`S` carries both isotropic and Pℓ contributions.
-        SourceIteration cannot be directly composed because the Pℓ
-        anisotropic source requires per-ordinate angular-flux state
-        across iterations — a future cleanup is to thread that state
-        through ScatteringOperator so the primitive composes cleanly.
 
-        Bit-identity is the gating contract on the 11 frozen regression
-        snapshots: any drift here breaks them.
+        Issue #196 PR-INDEX-5: every flux / source intermediate is in
+        principled ``(ng, nx, ny)`` / ``(N, ng, nx, ny)`` layout.
         """
         phi = flux_distribution.copy()
         angular = None  # no angular flux on first iteration
@@ -543,7 +544,7 @@ class SNSolver:
         default), realising the SAILOR / Larsen-Adams preconditioned-
         Krylov framework (Adams & Larsen 2002 §III).
 
-        Returns the updated scalar flux (nx, ny, ng).
+        Returns the updated scalar flux ``(ng, nx, ny)``.
         """
         nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
         sum_w = float(self.quad.weights.sum())
@@ -561,6 +562,12 @@ class SNSolver:
         # via Legendre-moment Galerkin reconstruction.  We carry the
         # packed solution across calls so the warm-start serves both
         # GMRES and the Pℓ source build.
+        # ``solution_to_angular_flux*`` returns the INTERNAL FD-matvec
+        # layout ``(ng, N, nx, ny)`` (PR-INDEX-7 scope per PR-INDEX-4
+        # §9.1/§9.2).  ``angular_full`` is consumed only inside the
+        # Pℓ moment-reconstruction block of ``_build_rhs_cartesian``
+        # which uses this same ``(ng, N, ...)`` indexing pattern —
+        # passed through unchanged.
         if self.scattering_order > 0 and curv is None and hasattr(
             self, "_psi_solution"
         ):
@@ -632,11 +639,12 @@ class SNSolver:
         self._psi_solution = solution
 
         # ---------- decode packed solution → scalar flux --------------
+        # ``solution_to_angular_flux*`` returns ``fi (ng, N, nx, ny)``
+        # (the INTERNAL FD-matvec layout — PR-INDEX-4 §9.1/§9.2 defer
+        # the packed-vector traversal flip to PR-INDEX-7).
+        # ``_scalar_flux_from_angular`` converts that to principled
+        # scalar flux ``(ng, nx, ny)``.
         if curv == "spherical":
-            # Issue #168 Phase C: solution_to_angular_flux_spherical now
-            # returns a single fi array (pure cell-centre angular flux);
-            # the Phase A boundary_face_flux companion array retired
-            # along with the BoundaryFaceFlux Protocol.
             fi = solution_to_angular_flux_spherical(
                 solution, eq_map, self.quad, nx, ng,
             )
@@ -686,9 +694,10 @@ class SNSolver:
         curv = getattr(self.sn_mesh, "curvature", None)
 
         def matvec(q_packed: np.ndarray) -> np.ndarray:
-            # Decode q_packed → angular flux (ng, N, nx, ny).
+            # Decode q_packed → angular flux INTERNAL ``(ng, N, nx, ny)``
+            # layout (PR-INDEX-4 §9.1 preserved this for the FD-matvec
+            # path; PR-INDEX-7 will flip).
             if curv == "spherical":
-                # Issue #168 Phase C: pure cell-centre return.
                 fi_op = solution_to_angular_flux_spherical(
                     q_packed, eq_map, self.quad, nx, ng,
                 )
@@ -704,9 +713,11 @@ class SNSolver:
                     bc_ymin=self.sn_mesh.bc_ymin,
                     bc_ymax=self.sn_mesh.bc_ymax,
                 )
-            # Re-shape (ng, N, nx, ny) → sweep's (N, nx, ny, ng).
-            Q_aniso = np.transpose(fi_op, (1, 2, 3, 0)) * sum_w
-            Q_iso = np.zeros((nx, ny, ng))
+            # Re-shape FD-matvec ``(ng, N, nx, ny)`` → sweep principled
+            # ``(N, ng, nx, ny)`` (PR-INDEX-5 public contract).  Just
+            # swap the leading two axes — no copy needed.
+            Q_aniso = np.transpose(fi_op, (1, 0, 2, 3)) * sum_w
+            Q_iso = np.zeros((ng, nx, ny))
             psi_bc_local: dict = {}
             try:
                 angular, _ = transport_sweep(
@@ -717,13 +728,14 @@ class SNSolver:
                 # If the sweep cannot run with this Q_aniso shape, degrade
                 # to the identity preconditioner.
                 return q_packed
-            # Pack angular → solution vector: angular has shape
-            # (N, nx, ny, ng); solve packed expects ``flux[ng, n_eq]``
-            # in F-order via solution.reshape(ng, n_eq, order='F').
+            # Pack angular → solution vector: ``angular`` is principled
+            # ``(N, ng, nx, ny)``; the packed vector expects
+            # ``flux[ng, n_eq]`` in F-order via
+            # ``solution.reshape(ng, n_eq, order='F')``.
             packed = np.empty((ng, eq_map.n_eq), dtype=float)
             for k in range(eq_map.n_eq):
                 packed[:, k] = angular[
-                    eq_map.ordinate[k], eq_map.ix[k], eq_map.iy[k], :,
+                    eq_map.ordinate[k], :, eq_map.ix[k], eq_map.iy[k],
                 ]
             return packed.ravel(order="F")
 
@@ -741,52 +753,31 @@ class SNSolver:
     def _add_scattering_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
         """Add P0 scattering source to Q in-place (delegates to ScatteringOperator).
 
-        Issue #196 PR-INDEX-4 — transient bridges.  Solver-internal
-        ``Q`` / ``phi`` are still on the legacy ``(nx, ny, ng)`` layout
-        (PR-INDEX-5 flips them).  ``ScatteringOperator.add_iso_source``
-        now consumes principled ``(ng, nx, ny)``.  Wire transposed
-        views — ``Q``'s mutation through the view writes back to the
-        same buffer (numpy transpose returns a stride-only view).
+        Issue #196 PR-INDEX-5: every solver-public flux is principled
+        ``(ng, nx, ny)``; the PR-INDEX-4 transpose pair retired.
         """
-        BRIDGE_Q_to_principled = np.transpose(Q, (2, 0, 1))
-        BRIDGE_phi_to_principled = np.transpose(phi, (2, 0, 1))
-        self.scattering_op.add_iso_source(
-            BRIDGE_Q_to_principled, BRIDGE_phi_to_principled,
-        )
+        self.scattering_op.add_iso_source(Q, phi)
 
     def _build_aniso_scattering(
         self, angular_flux: np.ndarray | None,
     ) -> np.ndarray | None:
         """Build per-ordinate anisotropic Pℓ scattering source (delegates to ScatteringOperator).
 
-        Issue #196 PR-INDEX-4 — transient bridges.  ``angular_flux``
-        arrives in legacy ``(N, nx, ny, ng)``; the operator now
-        consumes / returns ``(N, ng, nx, ny)``.  PR-INDEX-5 retires
-        the bridges once solver storage flips.
+        Issue #196 PR-INDEX-5: ``angular_flux`` is principled
+        ``(N, ng, nx, ny)``; return shape ``(N, ng, nx, ny)`` (or
+        ``None`` when ``L == 0``).  The PR-INDEX-4 bridges retired.
         """
         if angular_flux is None:
             return None
-        BRIDGE_psi_to_principled = np.transpose(angular_flux, (0, 3, 1, 2))
-        out_principled = self.scattering_op.build_aniso_source(
-            BRIDGE_psi_to_principled,
-        )
-        if out_principled is None:
-            return None
-        # (N, ng, nx, ny) → (N, nx, ny, ng) for the legacy caller.
-        BRIDGE_aniso_to_legacy = np.transpose(out_principled, (0, 2, 3, 1))
-        return BRIDGE_aniso_to_legacy
+        return self.scattering_op.build_aniso_source(angular_flux)
 
     def _add_n2n_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
         """Add (n,2n) source to Q in-place (delegates to ScatteringOperator).
 
-        Issue #196 PR-INDEX-4 — see :meth:`_add_scattering_source` for
-        bridge rationale.
+        Issue #196 PR-INDEX-5: both arguments are principled
+        ``(ng, nx, ny)``.
         """
-        BRIDGE_Q_to_principled = np.transpose(Q, (2, 0, 1))
-        BRIDGE_phi_to_principled = np.transpose(phi, (2, 0, 1))
-        self.scattering_op.add_n2n_source(
-            BRIDGE_Q_to_principled, BRIDGE_phi_to_principled,
-        )
+        self.scattering_op.add_n2n_source(Q, phi)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -802,19 +793,24 @@ def _scalar_flux_from_angular(
     :func:`orpheus.sn.operator.angular_flux_to_scalar` was retired in
     Wave E Round 2 along with the rest of the FD-operator API surface.
 
+    Issue #196 PR-INDEX-5: output is principled ``(ng, nx, ny)``.
+
     Parameters
     ----------
     fi
-        Angular flux of shape ``(ng, N, nx, ny)`` (the layout produced
-        by :func:`solution_to_angular_flux*`).
+        Angular flux of shape ``(ng, N, nx, ny)`` (the INTERNAL
+        FD-matvec layout produced by :func:`solution_to_angular_flux*`
+        — preserved per PR-INDEX-4 §9.1 deferral to PR-INDEX-7).
+
+    Returns
+    -------
+    np.ndarray
+        Scalar flux shape ``(ng, nx, ny)``.
     """
-    sf = np.zeros((nx, ny, ng))
-    for iy in range(ny):
-        for ix in range(nx):
-            sf[ix, iy, :] = np.sum(
-                fi[:, :, ix, iy] * quad.weights[None, :], axis=1,
-            )
-    return sf
+    # Named contraction: sum over the ordinate axis with quadrature
+    # weights.  ``fi`` is ``(ng, N, nx, ny)``; ``quad.weights`` is
+    # ``(N,)``; result is ``(ng, nx, ny)``.
+    return np.einsum("gnxy,n->gxy", fi, quad.weights)
 
 
 def _build_rhs_cartesian(
@@ -845,6 +841,13 @@ def _build_rhs_cartesian(
     Extracted from the Wave A-D ``build_rhs`` function in
     :mod:`orpheus.sn.operator`, which was retired in Wave E Round 2
     along with the rest of the BiCGSTAB FD-operator API surface.
+
+    Issue #196 PR-INDEX-5: ``fission_source`` / ``scalar_flux`` are
+    principled ``(ng, nx, ny)`` (per-cell slices index as
+    ``[:, ix, iy]``).  ``angular_flux`` (when supplied) follows the
+    INTERNAL FD-matvec ``(ng, N, nx, ny)`` layout produced by
+    :func:`solution_to_angular_flux` — preserved per PR-INDEX-4 §9.1
+    deferral to PR-INDEX-7.
     """
     sum_w = float(quad.weights.sum())
     L = scattering_order
@@ -869,9 +872,9 @@ def _build_rhs_cartesian(
     for iy in range(ny):
         for ix in range(nx):
             mid = int(mat_map[ix, iy])
-            phi_cell = scalar_flux[ix, iy, :]
+            phi_cell = scalar_flux[:, ix, iy]
 
-            qF = fission_source[ix, iy, :]
+            qF = fission_source[:, ix, iy]
             q2 = 2.0 * (sig2[mid].T @ phi_cell) / sum_w
 
             for n in range(quad.N):
@@ -925,9 +928,11 @@ def _build_rhs_spherical(
     eq_idx = 0
     for ix in range(nx):
         mid = int(mat_map[ix, 0])
-        phi_cell = scalar_flux[ix, 0, :]
+        # PR-INDEX-5: scalar_flux / fission_source are principled
+        # ``(ng, nx, ny=1)``; per-cell slice is ``[:, ix, 0]``.
+        phi_cell = scalar_flux[:, ix, 0]
 
-        qF = fission_source[ix, 0, :]
+        qF = fission_source[:, ix, 0]
         q2 = 2.0 * (sig2[mid].T @ phi_cell) / sum_w
 
         for n in range(quad.N):
@@ -1039,7 +1044,9 @@ def solve_sn(
 
     keff, keff_history, scalar_flux = power_iteration(solver, max_iter=max_outer)
 
-    # Final sweep to get angular flux
+    # Final sweep to get angular flux.  Issue #196 PR-INDEX-5: every
+    # array is principled — scalar_flux ``(ng, nx, ny)``, angular_flux
+    # ``(N, ng, nx, ny)``.
     Q_final = solver.compute_fission_source(scalar_flux, keff)
     solver._add_scattering_source(Q_final, scalar_flux)
     solver._add_n2n_source(Q_final, scalar_flux)
@@ -1091,10 +1098,11 @@ def solve_sn_fixed_source(
     ----------
     materials, mesh, quadrature, scattering_order :
         Same as :func:`solve_sn`.
-    external_source : (N, nx, ny, ng)
+    external_source : (N, ng, nx, ny)
         Per-ordinate volumetric source :math:`Q^{\text{ext}}_n(x)`.
         Passed to the sweep as its ``Q_aniso`` argument (the solver
-        applies the :math:`1/W` factor internally).
+        applies the :math:`1/W` factor internally).  Issue #196
+        PR-INDEX-5: principled layout (``g`` axis after ``N``).
     boundary_condition : {"vacuum", "reflective"}
         Applied to all faces when the mesh has no explicit BC
         declarations (``bc_left`` etc. are ``None``).  When the mesh
@@ -1183,10 +1191,11 @@ def solve_sn_fixed_source(
 
     N = sn_mesh.quad.N
     nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
-    if external_source.shape != (N, nx, ny, ng):
+    # Issue #196 PR-INDEX-5: external_source principled (N, ng, nx, ny).
+    if external_source.shape != (N, ng, nx, ny):
         raise ValueError(
             f"external_source shape {external_source.shape} does not "
-            f"match (N, nx, ny, ng) = {(N, nx, ny, ng)}"
+            f"match (N, ng, nx, ny) = {(N, ng, nx, ny)}"
         )
 
     if inner_solver == "source_iteration":
@@ -1224,7 +1233,8 @@ def _solve_fixed_source_si(
     """
     nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
 
-    phi = np.zeros((nx, ny, ng))
+    # Issue #196 PR-INDEX-5: phi principled (ng, nx, ny).
+    phi = np.zeros((ng, nx, ny))
     angular = None
     residual = np.inf
 
@@ -1314,10 +1324,12 @@ def _solve_fixed_source_krylov(
     # Pre-pack the external source as the per-ordinate contribution to
     # the RHS, divided by sum_w to match the operator equation's
     # convention (build_rhs* outputs are pre-divided by sum_w).
+    # Issue #196 PR-INDEX-5: external_source is principled
+    # ``(N, ng, nx, ny)``; the packed-vector slice is ``[n, :, ix, iy]``.
     ext_packed = np.empty((ng, eq_map.n_eq), dtype=float)
     for k in range(eq_map.n_eq):
         ext_packed[:, k] = external_source[
-            eq_map.ordinate[k], eq_map.ix[k], eq_map.iy[k], :,
+            eq_map.ordinate[k], :, eq_map.ix[k], eq_map.iy[k],
         ] / sum_w
     ext_packed_flat = ext_packed.ravel(order="F")
 
@@ -1329,7 +1341,8 @@ def _solve_fixed_source_krylov(
     )
     precond = solver._make_sweep_preconditioner(eq_map, n_unknowns, sum_w)
 
-    phi = np.zeros((nx, ny, ng))
+    # Issue #196 PR-INDEX-5: phi principled (ng, nx, ny).
+    phi = np.zeros((ng, nx, ny))
     solution = np.zeros(n_unknowns)
     residual = np.inf
     angular = None
@@ -1354,10 +1367,12 @@ def _solve_fixed_source_krylov(
         else:
             angular_full = None
             if solver.scattering_order > 0 and angular is not None:
-                # Reshape sweep angular (N, nx, ny, ng) to operator
-                # layout (ng, N, nx, ny) for the build_rhs Pℓ moment
-                # reconstruction.
-                angular_full = np.transpose(angular, (3, 0, 1, 2))
+                # Reshape sweep angular ``(N, ng, nx, ny)`` to FD-matvec
+                # internal layout ``(ng, N, nx, ny)`` for the
+                # ``build_rhs`` Pℓ moment reconstruction (PR-INDEX-4
+                # §9.2 — internal layout preserved).  Swap the leading
+                # two axes — no copy.
+                angular_full = np.transpose(angular, (1, 0, 2, 3))
             rhs_iso = _build_rhs_cartesian(
                 np.zeros_like(phi), phi, eq_map, sn_mesh.quad,
                 solver.sig_s, solver.sig2, sn_mesh.mat_map,
@@ -1403,9 +1418,12 @@ def _solve_fixed_source_krylov(
                 bc_ymin=sn_mesh.bc_ymin,
                 bc_ymax=sn_mesh.bc_ymax,
             )
-        # fi has shape (ng, N, nx, ny); convert to sweep layout
-        # (N, nx, ny, ng) for the SNFixedSourceResult contract.
-        angular = np.transpose(fi, (1, 2, 3, 0))
+        # Issue #196 PR-INDEX-5: ``fi`` has the FD-matvec internal
+        # layout ``(ng, N, nx, ny)`` (PR-INDEX-7 will flip); convert to
+        # the principled sweep layout ``(N, ng, nx, ny)`` for the
+        # SNFixedSourceResult contract by swapping the leading two
+        # axes — no copy.
+        angular = np.transpose(fi, (1, 0, 2, 3))
         phi = _scalar_flux_from_angular(fi, sn_mesh.quad, nx, ny, ng)
 
         norm = np.linalg.norm(phi)

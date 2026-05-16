@@ -265,15 +265,15 @@ class SweepDependencyGraph:
         self,
         *,
         cell_update: CellUpdateBase,
-        psi_x_octant: np.ndarray,        # (N_oct, nx+1, ny, ng) — mutated in place
-        psi_y_octant: np.ndarray,        # (N_oct, nx, ny+1, ng) — mutated in place
-        Q_octant: np.ndarray,            # (N_oct or 1, nx, ny, ng)
-        sig_t: np.ndarray,               # (nx, ny, ng)
+        psi_x_octant: np.ndarray,        # (N_oct, ng, nx+1, ny) — mutated in place
+        psi_y_octant: np.ndarray,        # (N_oct, ng, nx, ny+1) — mutated in place
+        Q_octant: np.ndarray,            # (N_oct or 1, ng, nx, ny)
+        sig_t: np.ndarray,               # (ng, nx, ny)
         str_x_octant: np.ndarray,        # (N_oct, nx)
         str_y_octant: np.ndarray,        # (N_oct, ny)
         weights_octant: np.ndarray,      # (N_oct,)
-        angular_flux_octant: np.ndarray, # (N_oct, nx, ny, ng) — written
-        scalar_flux_buf: np.ndarray,     # (nx, ny, ng) — accumulated into
+        angular_flux_octant: np.ndarray, # (N_oct, ng, nx, ny) — written
+        scalar_flux_buf: np.ndarray,     # (ng, nx, ny) — accumulated into
     ) -> None:
         r"""Walk the topological levels and accumulate scalar + angular flux.
 
@@ -334,22 +334,22 @@ class SweepDependencyGraph:
                 Q=Q_octant, sig_t=sig_t,
                 str_x=str_x_octant, str_y=str_y_octant,
             )
-            psi_avg = cell_update.update_batch(slice_args)  # (N_oct, n_diag, ng)
+            # Issue #196 PR-INDEX-5: psi_avg returned principled
+            # ``(N_oct, ng, n_diag)`` (ordinate, group, anti-diagonal).
+            psi_avg = cell_update.update_batch(slice_args)  # (N_oct, ng, n_diag)
             # Scalar-flux accumulation — sum over ordinates with
             # quadrature weights. ``weights_octant`` is already
             # weight-normalised by the caller (the wavefront sweep
             # divides by Σw before invoking apply), so this is a
             # plain weighted sum.
-            scalar_flux_buf[ii, jj, :] += np.einsum(
-                "ndg,n->dg", psi_avg, weights_octant,
+            scalar_flux_buf[:, ii, jj] += np.einsum(
+                "ngd,n->gd", psi_avg, weights_octant,
             )
-            # Angular-flux scatter — write all (N_oct, n_diag, ng)
-            # values into the per-octant angular-flux buffer. Indices
-            # ``ii`` and ``jj`` broadcast naturally with the leading
-            # ``:`` (octant axis) and trailing ``:`` (group axis) to
-            # produce the contiguous-advanced-indexing shape
-            # ``(N_oct, n_diag, ng)``.
-            angular_flux_octant[:, ii, jj, :] = psi_avg
+            # Angular-flux scatter — write all ``(N_oct, ng, n_diag)``
+            # values into the per-octant principled angular-flux buffer.
+            # Indices ``ii`` and ``jj`` broadcast naturally with the
+            # leading ``:`` (octant) and the second ``:`` (group).
+            angular_flux_octant[:, :, ii, jj] = psi_avg
 
 
 __all__ = [

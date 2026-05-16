@@ -64,16 +64,16 @@ def _build_slice_kwargs(
 ) -> tuple[SweepCellSlice, np.ndarray, np.ndarray]:
     """Build a SweepCellSlice + return references to psi_x and psi_y.
 
-    Returns (slice_args, psi_x, psi_y) where psi_x / psi_y are the
-    SAME ndarrays referenced by slice_args (so callers can inspect
-    post-update writes).
+    Issue #196 PR-INDEX-5: principled layout — ``psi_x: (N_oct, ng,
+    nx+1, ny)``, ``psi_y: (N_oct, ng, nx, ny+1)``,
+    ``Q: (N_oct or 1, ng, nx, ny)``, ``sig_t: (ng, nx, ny)``.
     """
     rng = np.random.default_rng(seed)
-    psi_x = rng.standard_normal((N_oct, nx + 1, ny, ng))
-    psi_y = rng.standard_normal((N_oct, nx, ny + 1, ng))
+    psi_x = rng.standard_normal((N_oct, ng, nx + 1, ny))
+    psi_y = rng.standard_normal((N_oct, ng, nx, ny + 1))
     Q_lead = N_oct if Q_shape_leading is None else Q_shape_leading
-    Q = rng.standard_normal((Q_lead, nx, ny, ng))
-    sig_t = rng.uniform(0.1, 0.5, size=(nx, ny, ng))
+    Q = rng.standard_normal((Q_lead, ng, nx, ny))
+    sig_t = rng.uniform(0.1, 0.5, size=(ng, nx, ny))
     str_x = rng.uniform(0.1, 1.0, size=(N_oct, nx))
     str_y = rng.uniform(0.1, 1.0, size=(N_oct, ny))
 
@@ -102,23 +102,28 @@ def _build_slice_kwargs(
 def _legacy_inlined_psi_avg(
     slice_args: SweepCellSlice, psi_x_pre: np.ndarray, psi_y_pre: np.ndarray,
 ) -> np.ndarray:
-    """Reference implementation: per-ordinate Python loop matching the
-    EXACT operation order of ``_sweep_2d_wavefront`` lines 847-871.
+    """Reference implementation: per-ordinate Python loop in principled
+    ``(N_oct, ng, n_diag)`` layout.
 
-    Runs the legacy math one ordinate at a time on the **pre-write**
-    psi_x/psi_y buffers; returns the resulting ``psi_avg`` of shape
-    ``(N_oct, n_diag, ng)``.
+    Issue #196 PR-INDEX-5: ``psi_x`` is ``(N_oct, ng, nx+1, ny)`` etc.;
+    output principled ``(N_oct, ng, n_diag)``.
     """
     s = slice_args
     N_oct = s.psi_x.shape[0]
-    psi_avg_ref = np.empty((N_oct, len(s.ii), s.psi_x.shape[3]))
+    ng = s.psi_x.shape[1]
+    n_diag = len(s.ii)
+    psi_avg_ref = np.empty((N_oct, ng, n_diag))
     for n in range(N_oct):
-        psi_in_x = psi_x_pre[n, s.face_in_x_idx, s.jj, :]   # (n_diag, ng)
-        psi_in_y = psi_y_pre[n, s.ii, s.face_in_y_idx, :]   # (n_diag, ng)
-        sx_ii = s.str_x[n, s.ii][:, None]                   # (n_diag, 1)
-        sy_jj = s.str_y[n, s.jj][:, None]                   # (n_diag, 1)
-        denom = s.sig_t[s.ii, s.jj, :] + sx_ii + sy_jj
-        Q_n = s.Q[n if s.Q.shape[0] > 1 else 0, s.ii, s.jj, :]
+        psi_in_x = psi_x_pre[n, :, s.face_in_x_idx, s.jj]   # (n_diag, ng) — advanced at end
+        psi_in_y = psi_y_pre[n, :, s.ii, s.face_in_y_idx]   # (n_diag, ng)
+        # Note: numpy gives (n_diag, ng) when advanced indices trail two
+        # basic slices; transpose to (ng, n_diag) for principled output.
+        psi_in_x = psi_in_x.T                                # (ng, n_diag)
+        psi_in_y = psi_in_y.T                                # (ng, n_diag)
+        sx_ii = s.str_x[n, s.ii][None, :]                   # (1, n_diag)
+        sy_jj = s.str_y[n, s.jj][None, :]                   # (1, n_diag)
+        denom = s.sig_t[:, s.ii, s.jj] + sx_ii + sy_jj      # (ng, n_diag)
+        Q_n = s.Q[n if s.Q.shape[0] > 1 else 0, :, s.ii, s.jj].T  # (ng, n_diag)
         psi_avg_ref[n] = (
             Q_n + sx_ii * psi_in_x + sy_jj * psi_in_y
         ) / denom
@@ -135,17 +140,21 @@ class TestSingleCellClosedForm:
     """Smallest possible batch — analytical hand calculation."""
 
     def test_single_cell_psi_avg_matches_balance_formula(self):
-        """psi_avg = (Q + sx*psi_in_x + sy*psi_in_y) / (Σ_t + sx + sy)."""
+        """psi_avg = (Q + sx*psi_in_x + sy*psi_in_y) / (Σ_t + sx + sy).
+
+        Issue #196 PR-INDEX-5: psi_x/psi_y/Q/sig_t principled layout.
+        """
         # 1 ordinate, 1 cell at (i=0, j=0), 1 group, sx > 0, sy > 0.
-        # Pick numbers that give an exact float result: all small integers.
-        psi_x = np.zeros((1, 2, 1, 1))
-        psi_y = np.zeros((1, 1, 2, 1))
+        # psi_x principled: (N_oct=1, ng=1, nx+1=2, ny=1).
+        psi_x = np.zeros((1, 1, 2, 1))
+        psi_y = np.zeros((1, 1, 1, 2))
         psi_x[0, 0, 0, 0] = 4.0   # face_in_x at i=0 (sx>=0 -> ix_in=0)
         psi_y[0, 0, 0, 0] = 8.0   # face_in_y at j=0
+        # Q principled: (N_oct or 1, ng=1, nx=1, ny=1).
         Q = np.array([[[[16.0]]]])              # (1, 1, 1, 1)
-        sig_t = np.array([[[2.0]]])             # (1, 1, 1)
-        str_x = np.array([[3.0]])               # (1, 1)
-        str_y = np.array([[5.0]])               # (1, 1)
+        sig_t = np.array([[[2.0]]])             # (ng=1, nx=1, ny=1)
+        str_x = np.array([[3.0]])               # (N_oct, nx)
+        str_y = np.array([[5.0]])               # (N_oct, ny)
         slice_args = SweepCellSlice(
             ii=np.array([0]), jj=np.array([0]),
             face_in_x_idx=np.array([0]),  face_out_x_idx=np.array([1]),
@@ -157,18 +166,18 @@ class TestSingleCellClosedForm:
         # (16 + 3*4 + 5*8) / (2 + 3 + 5) = (16 + 12 + 40) / 10 = 6.8
         np.testing.assert_array_equal(psi_avg, 6.8)
         # Outgoing face-flux: 2*6.8 - 4 = 9.6 (x), 2*6.8 - 8 = 5.6 (y)
-        np.testing.assert_array_equal(psi_x[0, 1, 0, 0], 9.6)  # face_out_x
-        np.testing.assert_array_equal(psi_y[0, 0, 1, 0], 5.6)  # face_out_y
+        np.testing.assert_array_equal(psi_x[0, 0, 1, 0], 9.6)  # face_out_x at ix=1
+        np.testing.assert_array_equal(psi_y[0, 0, 0, 1], 5.6)  # face_out_y at iy=1
         # Incoming face values must be untouched.
         np.testing.assert_array_equal(psi_x[0, 0, 0, 0], 4.0)
         np.testing.assert_array_equal(psi_y[0, 0, 0, 0], 8.0)
 
     def test_single_cell_negative_sign_octant(self):
         """sx < 0, sy < 0: ix_in=1, ix_out=0; iy_in=1, iy_out=0."""
-        psi_x = np.zeros((1, 2, 1, 1))
-        psi_y = np.zeros((1, 1, 2, 1))
-        psi_x[0, 1, 0, 0] = 4.0   # face_in_x at i=1 (sx<0 -> ix_in=1)
-        psi_y[0, 0, 1, 0] = 8.0   # face_in_y at j=1
+        psi_x = np.zeros((1, 1, 2, 1))
+        psi_y = np.zeros((1, 1, 1, 2))
+        psi_x[0, 0, 1, 0] = 4.0   # face_in_x at i=1 (sx<0 -> ix_in=1)
+        psi_y[0, 0, 0, 1] = 8.0   # face_in_y at j=1
         Q = np.array([[[[16.0]]]])
         sig_t = np.array([[[2.0]]])
         str_x = np.array([[3.0]])
@@ -259,7 +268,10 @@ class TestFaceFluxScatter:
     """Outgoing face fluxes land at face_out_x_idx / face_out_y_idx only."""
 
     def test_only_face_out_indices_change(self):
-        """psi_x[face_out_x_idx, jj] changes; other entries unchanged."""
+        """psi_x[face_out_x_idx, jj] changes; other entries unchanged.
+
+        Issue #196 PR-INDEX-5: psi_x principled (N_oct, ng, nx+1, ny).
+        """
         slice_args, psi_x, psi_y = _build_slice_kwargs(
             nx=3, ny=3, N_oct=4, ng=2,
             diag_cells=[(0, 0), (1, 1), (2, 2)],
@@ -274,12 +286,13 @@ class TestFaceFluxScatter:
         face_out_y_idx = slice_args.jj + 1   # [1, 2, 3]
 
         # Build a mask of expected-changed locations.
+        # psi_x: (N_oct, ng, nx+1, ny); change at (:, :, face_out_x[k], jj[k]).
         x_changed_mask = np.zeros_like(psi_x, dtype=bool)
         for k, (i, j) in enumerate(zip(slice_args.ii, slice_args.jj)):
-            x_changed_mask[:, face_out_x_idx[k], j, :] = True
+            x_changed_mask[:, :, face_out_x_idx[k], j] = True
         y_changed_mask = np.zeros_like(psi_y, dtype=bool)
         for k, (i, j) in enumerate(zip(slice_args.ii, slice_args.jj)):
-            y_changed_mask[:, i, face_out_y_idx[k], :] = True
+            y_changed_mask[:, :, i, face_out_y_idx[k]] = True
 
         # Outside the masked region nothing changed.
         np.testing.assert_array_equal(
@@ -290,7 +303,10 @@ class TestFaceFluxScatter:
         )
 
     def test_face_out_value_matches_wdd_closure(self):
-        """psi_x[face_out_x_idx] == 2*psi_avg - psi_in_x."""
+        """psi_x[face_out_x_idx] == 2*psi_avg - psi_in_x.
+
+        Issue #196 PR-INDEX-5: principled indexing.
+        """
         slice_args, psi_x, psi_y = _build_slice_kwargs(
             nx=3, ny=3, N_oct=4, ng=2,
             diag_cells=[(0, 0), (1, 1), (2, 2)],
@@ -300,15 +316,16 @@ class TestFaceFluxScatter:
         psi_y_pre = psi_y.copy()
         psi_avg = DiamondDifference().update_batch(slice_args)
         # Reconstruct expected outgoing face values from psi_avg + pre-buffer.
-        psi_in_x = psi_x_pre[:, slice_args.face_in_x_idx, slice_args.jj, :]
-        psi_in_y = psi_y_pre[:, slice_args.ii, slice_args.face_in_y_idx, :]
+        # psi_x principled: index as [:, :, face_idx, jj].
+        psi_in_x = psi_x_pre[:, :, slice_args.face_in_x_idx, slice_args.jj]
+        psi_in_y = psi_y_pre[:, :, slice_args.ii, slice_args.face_in_y_idx]
         expected_psi_out_x = 2.0 * psi_avg - psi_in_x
         expected_psi_out_y = 2.0 * psi_avg - psi_in_y
         actual_psi_out_x = psi_x[
-            :, slice_args.face_out_x_idx, slice_args.jj, :
+            :, :, slice_args.face_out_x_idx, slice_args.jj,
         ]
         actual_psi_out_y = psi_y[
-            :, slice_args.ii, slice_args.face_out_y_idx, :
+            :, :, slice_args.ii, slice_args.face_out_y_idx,
         ]
         np.testing.assert_array_equal(actual_psi_out_x, expected_psi_out_x)
         np.testing.assert_array_equal(actual_psi_out_y, expected_psi_out_y)

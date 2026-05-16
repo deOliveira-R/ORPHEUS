@@ -53,7 +53,7 @@ def test_sn_1d_slab_mms_converges_second_order():
             max_inner=500,
             inner_tol=1e-13,
         )
-        phi_num = result.scalar_flux[:, 0, 0]
+        phi_num = result.scalar_flux[0, :, 0]  # PR-INDEX-5: g=0 radial slice
         phi_ref = case.phi_exact(mesh.centers)
         errors.append(_l2_error(phi_num, phi_ref, mesh.widths))
 
@@ -94,13 +94,13 @@ def test_sn_mms_manufactured_source_vanishes_at_zero_material():
     # the streaming contribution is exactly zero there.
     case = build_1d_slab_mms_case(sigma_t=1.0, sigma_s=0.9)
     mesh = case.build_mesh(32)
-    Q = case.external_source(mesh)  # (N, nx, 1, 1)
+    Q = case.external_source(mesh)  # PR-INDEX-5: (N, ng=1, nx, ny=1)
 
     # GaussLegendre1D never places an ordinate exactly at μ=0 for
     # even N, so probe the algebraic identity instead: the half-sum
     # of symmetric ordinates removes the μ·A' contribution and
     # isolates (Σ_t−Σ_s)·A.
-    Q_flat = Q[:, :, 0, 0]  # (N, nx)
+    Q_flat = Q[:, 0, :, 0]  # (N, nx) — principled g=0, ny=0 slice
     N = Q_flat.shape[0]
     Q_sym = 0.5 * (Q_flat[: N // 2] + Q_flat[-(N // 2):][::-1])  # avg μ ↔ −μ
     removal = (case.sigma_t - case.sigma_s) * case.phi_exact(mesh.centers)

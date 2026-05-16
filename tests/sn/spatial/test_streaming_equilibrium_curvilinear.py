@@ -119,7 +119,7 @@ def test_homogeneous_streaming_equilibrium_sphere(
     N = quad.N
     nx = mesh.N
     ng = 1
-    Q = np.ones((N, nx, 1, ng))
+    Q = np.ones((N, ng, nx, 1))
 
     result = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
@@ -190,7 +190,7 @@ def test_homogeneous_streaming_equilibrium_cylinder(
     N = quad.N
     nx = mesh.N
     ng = 1
-    Q = np.ones((N, nx, 1, ng))
+    Q = np.ones((N, ng, nx, 1))
 
     result = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
@@ -252,7 +252,7 @@ def test_pomraning_pole_isotropy_sphere(inner_solver: str) -> None:
     N = quad.N
     nx = mesh.N
     ng = 1
-    Q = np.ones((N, nx, 1, ng))
+    Q = np.ones((N, ng, nx, 1))
 
     result = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,

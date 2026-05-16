@@ -140,12 +140,12 @@ SNAPSHOT_DIR = Path(__file__).parent / "regression" / "snapshots"
 
     snapshots/2d_octant_equivalence_<case_id>.npz
 
-with payload keys:
+with payload keys (Issue #196 PR-INDEX-5 — principled layout):
 
-* ``angular_flux`` — ``(N, nx, ny, ng)`` float64
-* ``scalar_flux`` — ``(nx, ny, ng)`` float64
-* ``psi_x_post`` — ``(N, nx+1, ny, ng)`` float64 (post-sweep BC buffer)
-* ``psi_y_post`` — ``(N, nx, ny+1, ng)`` float64 (post-sweep BC buffer)
+* ``angular_flux`` — ``(N, ng, nx, ny)`` float64
+* ``scalar_flux`` — ``(ng, nx, ny)`` float64
+* ``psi_x_post`` — ``(N, ng, nx+1, ny)`` float64 (post-sweep BC buffer)
+* ``psi_y_post`` — ``(N, ng, nx, ny+1)`` float64 (post-sweep BC buffer)
 * ``case_id`` — string
 * ``case_description`` — string
 * ``generator_commit`` — short SHA
@@ -567,12 +567,15 @@ def _case_6_pure_z() -> OctantEquivalenceInputs:
 
 @dataclass(frozen=True)
 class _ClosedFormAnchorInputs:
-    """Inputs for case 7's converged-solution closed-form anchor."""
+    """Inputs for case 7's converged-solution closed-form anchor.
+
+    Issue #196 PR-INDEX-5: principled ``(ng, nx, ny)`` storage.
+    """
 
     sn_mesh: SNMesh
-    Q: np.ndarray              # (nx, ny, ng)
+    Q: np.ndarray              # (ng, nx, ny)
     materials: dict
-    expected_phi: np.ndarray   # (nx, ny, ng) — the analytical Q/Σ_t
+    expected_phi: np.ndarray   # (ng, nx, ny) — the analytical Q/Σ_t
 
 
 def _case_7_closed_form_anchor() -> _ClosedFormAnchorInputs:
@@ -647,8 +650,9 @@ def _case_7_closed_form_anchor() -> _ClosedFormAnchorInputs:
     mix = get_mixture("C", "2g")
     materials = {0: mix}
     Q_per_group = np.array([1.0, 0.5])
+    # Issue #196 PR-INDEX-5: principled (ng, nx, ny).
     Q = np.broadcast_to(
-        Q_per_group[None, None, :], (sn_mesh.nx, sn_mesh.ny, 2),
+        Q_per_group[:, None, None], (2, sn_mesh.nx, sn_mesh.ny),
     ).copy()
     # Build the (Σ_t,g - Σ_s,g→g)·δ_{gg'} - Σ_s,g'→g (off-diag) matrix.
     # ``mix.sig_s[0]`` is the P0 scattering matrix with ``[g_src, g_dst]``
@@ -659,8 +663,9 @@ def _case_7_closed_form_anchor() -> _ClosedFormAnchorInputs:
     sig_s = mix.SigS[0]                         # (2, 2), [g_src, g_dst]
     A = np.diag(sig_t_vec) - sig_s.T            # apply transpose for [g_dst, g_src]
     phi_per_group = np.linalg.solve(A, Q_per_group)
+    # Issue #196 PR-INDEX-5: principled (ng, nx, ny).
     expected_phi = np.broadcast_to(
-        phi_per_group[None, None, :], (sn_mesh.nx, sn_mesh.ny, 2),
+        phi_per_group[:, None, None], (2, sn_mesh.nx, sn_mesh.ny),
     ).copy()
     return _ClosedFormAnchorInputs(
         sn_mesh=sn_mesh, Q=Q, materials=materials,
@@ -791,6 +796,9 @@ def test_2d_octant_sweep_equivalence(case: OctantEquivalenceCase) -> None:
         )
 
     snap = np.load(snapshot_file)
+    # Issue #196 PR-INDEX-5: snapshots are stored in principled layout
+    # (``angular_flux: (N, ng, nx, ny)`` etc.) — same as the sweep's
+    # native output.  No transpose required.
     expected_angular = np.asarray(snap["angular_flux"], dtype=np.float64)
     expected_scalar = np.asarray(snap["scalar_flux"], dtype=np.float64)
     expected_psi_x = np.asarray(snap["psi_x_post"], dtype=np.float64)
@@ -852,8 +860,9 @@ def test_2d_octant_sweep_closed_form_anchor() -> None:
     result = solve_sn_fixed_source(
         inputs.materials, inputs.sn_mesh.mesh, inputs.sn_mesh.quad,
         # solve_sn_fixed_source expects external_source shape
-        # (N, nx, ny, ng).  Replicate the isotropic Q across ordinates
-        # without any per-ordinate dependence.
+        # ``(N, ng, nx, ny)`` (Issue #196 PR-INDEX-5 — principled).
+        # Replicate the isotropic Q across ordinates without any
+        # per-ordinate dependence.
         external_source=np.broadcast_to(
             inputs.Q[None, ...],
             (inputs.sn_mesh.quad.N, *inputs.Q.shape),

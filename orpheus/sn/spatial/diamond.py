@@ -254,51 +254,46 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         s = slice_args
         ii, jj = s.ii, s.jj
 
-        # Issue #196 PR-INDEX-4: ``sig_t`` is principled ``(ng, nx, ny)``
-        # and ``Q`` is principled ``(N_oct, ng, nx, ny)`` (or ``(1, ng,
-        # nx, ny)`` for isotropic-only).  The persistent ``psi_x`` /
-        # ``psi_y`` buffers remain on legacy ``(N_oct, nx+1, ny, ng)`` /
-        # ``(N_oct, nx, ny+1, ng)`` (their PR-INDEX-5 flip is out of
-        # scope here).
+        # Issue #196 PR-INDEX-5: every input is principled.
+        #   sig_t       : (ng, nx, ny)
+        #   Q           : (N_oct or 1, ng, nx, ny)
+        #   psi_x       : (N_oct, ng, nx+1, ny)
+        #   psi_y       : (N_oct, ng, nx, ny+1)
+        # ``psi_avg`` (return) is principled ``(N_oct, ng, n_diag)``.
 
-        # Gather incoming face fluxes — psi_x/psi_y stay legacy, advanced
-        # indices contiguous-in-the-middle gives result shape
-        # (N_oct, n_diag, ng) as before.
-        psi_in_x = s.psi_x[:, s.face_in_x_idx, jj, :]    # (N_oct, n_diag, ng)
-        psi_in_y = s.psi_y[:, ii, s.face_in_y_idx, :]    # (N_oct, n_diag, ng)
+        # Gather incoming face fluxes.  Advanced indices ``jj`` (psi_in_x)
+        # and ``ii`` (psi_in_y) are at the trailing position, contiguous
+        # at the end of the slice expression — numpy keeps the index
+        # order ``(N_oct, ng, n_diag)``.
+        psi_in_x = s.psi_x[:, :, s.face_in_x_idx, jj]    # (N_oct, ng, n_diag)
+        psi_in_y = s.psi_y[:, :, ii, s.face_in_y_idx]    # (N_oct, ng, n_diag)
 
         # Per-octant per-cell streaming coefficients, broadcast to
-        # (N_oct, n_diag, 1) so they multiply across the group axis.
-        sx = s.str_x[:, ii][:, :, None]                  # (N_oct, n_diag, 1)
-        sy = s.str_y[:, jj][:, :, None]                  # (N_oct, n_diag, 1)
+        # (N_oct, 1, n_diag) so they multiply across the group axis.
+        sx = s.str_x[:, ii][:, None, :]                  # (N_oct, 1, n_diag)
+        sy = s.str_y[:, jj][:, None, :]                  # (N_oct, 1, n_diag)
 
-        # Total-xs slice on this level.  Under PR-INDEX-4 ``sig_t`` is
-        # ``(ng, nx, ny)``; ``[:, ii, jj]`` yields ``(ng, n_diag)``.
-        # Transpose to ``(n_diag, ng)`` for broadcast against
-        # ``sx + sy`` ``(N_oct, n_diag, 1)``.  The ``T`` is a view
-        # (zero copy).
-        sigt_cells = s.sig_t[:, ii, jj].T                # (n_diag, ng)
+        # Total-xs slice on this level — principled ``(ng, n_diag)``.
+        sigt_cells = s.sig_t[:, ii, jj]                  # (ng, n_diag)
 
-        # Operation order matches sweep.py:858 — denom builds as
-        # sig_t + sx + sy (NOT sx + sy + sig_t).
-        denom = sigt_cells + sx + sy                     # (N_oct, n_diag, ng)
+        # denom builds as sig_t + sx + sy (operation order preserved
+        # per Pattern 7 / vv-principles bit-identity discipline).
+        denom = sigt_cells + sx + sy                     # (N_oct, ng, n_diag)
 
-        # Q under PR-INDEX-4 is ``(N_oct, ng, nx, ny)`` or
-        # ``(1, ng, nx, ny)``.  ``[:, :, ii, jj]`` yields ``(N_oct,
-        # ng, n_diag)`` (advanced indices at end, stay in place);
-        # transpose to ``(N_oct, n_diag, ng)`` for the broadcast.
-        Q_cells = s.Q[:, :, ii, jj].transpose(0, 2, 1)   # (N_oct, n_diag, ng)
-        # Operation order matches sweep.py:860-864.
+        # Q principled ``(N_oct or 1, ng, nx, ny)``; ``[:, :, ii, jj]``
+        # gives ``(N_oct or 1, ng, n_diag)`` directly — no transpose.
+        Q_cells = s.Q[:, :, ii, jj]                       # (N_oct or 1, ng, n_diag)
+
         psi_avg = (
             Q_cells
             + sx * psi_in_x
             + sy * psi_in_y
-        ) / denom                                         # (N_oct, n_diag, ng)
+        ) / denom                                         # (N_oct, ng, n_diag)
 
         # Spatial closure — scatter outgoing face fluxes back into the
-        # persistent buffers. Operation order matches sweep.py:866-867.
-        s.psi_x[:, s.face_out_x_idx, jj, :] = 2.0 * psi_avg - psi_in_x
-        s.psi_y[:, ii, s.face_out_y_idx, :] = 2.0 * psi_avg - psi_in_y
+        # persistent buffers (principled layout).
+        s.psi_x[:, :, s.face_out_x_idx, jj] = 2.0 * psi_avg - psi_in_x
+        s.psi_y[:, :, ii, s.face_out_y_idx] = 2.0 * psi_avg - psi_in_y
 
         return psi_avg
 

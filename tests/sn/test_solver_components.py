@@ -50,6 +50,9 @@ def solver_2g():
 
 
 # ── Reference implementations (per-cell loops, known correct) ─────────
+#
+# Issue #196 PR-INDEX-5: every reference helper consumes / returns
+# principled ``(ng, nx, ny)`` layout end-to-end.
 
 def _ref_add_scattering(solver, Q, phi):
     """Original per-cell scattering source (reference)."""
@@ -58,7 +61,7 @@ def _ref_add_scattering(solver, Q, phi):
     for ix in range(nx):
         for iy in range(ny):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
-            out[ix, iy, :] += solver.sig_s0[mid].T @ phi[ix, iy, :]
+            out[:, ix, iy] += solver.sig_s0[mid].T @ phi[:, ix, iy]
     return out
 
 
@@ -69,25 +72,24 @@ def _ref_add_n2n(solver, Q, phi):
     for ix in range(nx):
         for iy in range(ny):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
-            out[ix, iy, :] += 2.0 * (solver.sig2[mid].T @ phi[ix, iy, :])
+            out[:, ix, iy] += 2.0 * (solver.sig2[mid].T @ phi[:, ix, iy])
     return out
 
 
 def _ref_compute_keff(solver, flux):
     """Original per-cell keff computation (reference).
 
-    PR-INDEX-3: ``solver.sig_p`` / ``solver.sig_a`` are ``(ng, nx, ny)``
-    principled layout; ``flux`` remains ``(nx, ny, ng)`` (legacy public
-    layout — flips PR-INDEX-5).  ``np.einsum`` names the contraction.
+    PR-INDEX-5: ``solver.sig_p`` / ``solver.sig_a`` / ``flux`` are all
+    principled ``(ng, nx, ny)``.
     """
     vol = solver.volume  # (nx, ny)
-    production = float(np.einsum("gxy,xyg,xy->", solver.sig_p, flux, vol))
+    production = float(np.einsum("gxy,gxy,xy->", solver.sig_p, flux, vol))
     for ix in range(solver.sn_mesh.nx):
         for iy in range(solver.sn_mesh.ny):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
             sig2_sum = np.array(solver.sig2[mid].sum(axis=1)).ravel()
-            production += 2.0 * np.dot(sig2_sum, flux[ix, iy, :]) * solver.volume[ix, iy]
-    absorption = float(np.einsum("gxy,xyg,xy->", solver.sig_a, flux, vol))
+            production += 2.0 * np.dot(sig2_sum, flux[:, ix, iy]) * solver.volume[ix, iy]
+    absorption = float(np.einsum("gxy,gxy,xy->", solver.sig_a, flux, vol))
     return float(production / absorption)
 
 
@@ -97,8 +99,8 @@ class TestAddScatteringSource:
     def test_matches_reference(self, solver_2g):
         solver, *_ = solver_2g
         np.random.seed(42)
-        phi = np.random.rand(solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng) + 0.1
-        Q = np.random.rand(solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng)
+        phi = np.random.rand(solver.ng, solver.sn_mesh.nx, solver.sn_mesh.ny) + 0.1
+        Q = np.random.rand(solver.ng, solver.sn_mesh.nx, solver.sn_mesh.ny)
 
         expected = _ref_add_scattering(solver, Q, phi)
 
@@ -110,7 +112,7 @@ class TestAddScatteringSource:
 
     def test_zero_flux_gives_zero_addition(self, solver_2g):
         solver, *_ = solver_2g
-        Q = np.ones((solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng))
+        Q = np.ones((solver.ng, solver.sn_mesh.nx, solver.sn_mesh.ny))
         phi = np.zeros_like(Q)
 
         Q_before = Q.copy()
@@ -122,8 +124,8 @@ class TestAddN2NSource:
     def test_matches_reference(self, solver_2g):
         solver, *_ = solver_2g
         np.random.seed(123)
-        phi = np.random.rand(solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng) + 0.1
-        Q = np.random.rand(solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng)
+        phi = np.random.rand(solver.ng, solver.sn_mesh.nx, solver.sn_mesh.ny) + 0.1
+        Q = np.random.rand(solver.ng, solver.sn_mesh.nx, solver.sn_mesh.ny)
 
         expected = _ref_add_n2n(solver, Q, phi)
 
@@ -138,7 +140,7 @@ class TestComputeKeff:
     def test_matches_reference(self, solver_2g):
         solver, *_ = solver_2g
         np.random.seed(99)
-        flux = np.random.rand(solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng) + 0.1
+        flux = np.random.rand(solver.ng, solver.sn_mesh.nx, solver.sn_mesh.ny) + 0.1
 
         expected = _ref_compute_keff(solver, flux)
         actual = solver.compute_keff(flux)
@@ -160,21 +162,21 @@ class TestComputeGroupRates:
     def test_production_rate_shape_and_sum(self, solver_2g):
         solver, *_ = solver_2g
         np.random.seed(99)
-        flux = np.random.rand(solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng) + 0.1
+        flux = np.random.rand(solver.ng, solver.sn_mesh.nx, solver.sn_mesh.ny) + 0.1
 
         rate_g = solver.compute_group_production_rate(flux)
         assert rate_g.shape == (solver.ng,), "per-group rate must be (ng,)"
 
         # Sum over groups must reproduce the legacy flat-sum production
         # numerator (within FP-non-associativity tolerance).
-        # PR-INDEX-3: sig_p is (ng, nx, ny); flux is (nx, ny, ng).
+        # PR-INDEX-5: sig_p and flux both principled (ng, nx, ny).
         vol = solver.volume  # (nx, ny)
-        ref_production = float(np.einsum("gxy,xyg,xy->", solver.sig_p, flux, vol))
+        ref_production = float(np.einsum("gxy,gxy,xy->", solver.sig_p, flux, vol))
         for ix in range(solver.sn_mesh.nx):
             for iy in range(solver.sn_mesh.ny):
                 mid = int(solver.sn_mesh.mat_map[ix, iy])
                 sig2_sum = np.array(solver.sig2[mid].sum(axis=1)).ravel()
-                ref_production += 2.0 * np.dot(sig2_sum, flux[ix, iy, :]) * solver.volume[ix, iy]
+                ref_production += 2.0 * np.dot(sig2_sum, flux[:, ix, iy]) * solver.volume[ix, iy]
 
         np.testing.assert_allclose(float(rate_g.sum()), ref_production,
                                    rtol=1e-13,
@@ -183,14 +185,14 @@ class TestComputeGroupRates:
     def test_absorption_rate_shape_and_sum(self, solver_2g):
         solver, *_ = solver_2g
         np.random.seed(101)
-        flux = np.random.rand(solver.sn_mesh.nx, solver.sn_mesh.ny, solver.ng) + 0.1
+        flux = np.random.rand(solver.ng, solver.sn_mesh.nx, solver.sn_mesh.ny) + 0.1
 
         rate_g = solver.compute_group_absorption_rate(flux)
         assert rate_g.shape == (solver.ng,)
 
-        # PR-INDEX-3: sig_a is (ng, nx, ny); flux is (nx, ny, ng).
+        # PR-INDEX-5: sig_a and flux both principled (ng, nx, ny).
         vol = solver.volume  # (nx, ny)
-        ref_absorption = float(np.einsum("gxy,xyg,xy->", solver.sig_a, flux, vol))
+        ref_absorption = float(np.einsum("gxy,gxy,xy->", solver.sig_a, flux, vol))
         np.testing.assert_allclose(float(rate_g.sum()), ref_absorption,
                                    rtol=1e-13,
                                    err_msg="group absorption rate sum")
@@ -223,7 +225,9 @@ class TestComputeGroupRates:
         # Analytical k_∞ = (Σ_p · φ_g) / (Σ_a · φ_g) — flux-shape
         # independent in 1G but not in multi-G; here we use the
         # iteration-converged per-group flux as the spectrum.
-        phi_g = result.scalar_flux.mean(axis=(0, 1))
+        # PR-INDEX-5: scalar_flux principled (ng, nx, ny); spatial-mean
+        # over the last two axes.
+        phi_g = result.scalar_flux.mean(axis=(1, 2))
         sig_p = np.asarray(fuel.SigP)
         sig_a = np.asarray(fuel.absorption_xs)
         if sig_p.ndim == 2:
@@ -239,7 +243,7 @@ class TestTransportSweep:
         """Sweep with same input must produce same output."""
         solver, _, sn_mesh, quad = solver_2g
         np.random.seed(7)
-        Q = np.random.rand(sn_mesh.nx, sn_mesh.ny, solver.ng) + 0.01
+        Q = np.random.rand(solver.ng, sn_mesh.nx, sn_mesh.ny) + 0.01
 
         psi_bc1, psi_bc2 = {}, {}
         ang1, phi1 = transport_sweep(Q, solver.sig_t, sn_mesh, psi_bc1)
@@ -252,7 +256,7 @@ class TestTransportSweep:
         """Sweep output must match the saved reference (bitwise regression)."""
         solver, _, sn_mesh, quad = solver_2g
         np.random.seed(7)
-        Q = np.random.rand(sn_mesh.nx, sn_mesh.ny, solver.ng) + 0.01
+        Q = np.random.rand(solver.ng, sn_mesh.nx, sn_mesh.ny) + 0.01
 
         _, phi = transport_sweep(Q, solver.sig_t, solver.sn_mesh, {})
         ref = np.load(Path(__file__).parent / "sweep_ref_2g.npy")
@@ -263,7 +267,7 @@ class TestTransportSweep:
     def test_positive_source_positive_flux(self, solver_2g):
         """Positive source must produce non-negative flux."""
         solver, _, sn_mesh, quad = solver_2g
-        Q = np.ones((sn_mesh.nx, sn_mesh.ny, solver.ng))
+        Q = np.ones((solver.ng, sn_mesh.nx, sn_mesh.ny))
 
         _, phi = transport_sweep(Q, solver.sig_t, solver.sn_mesh, {})
 
@@ -272,12 +276,12 @@ class TestTransportSweep:
     def test_scalar_flux_shape(self, solver_2g):
         """Output shapes must match expectations."""
         solver, _, sn_mesh, quad = solver_2g
-        Q = np.ones((sn_mesh.nx, sn_mesh.ny, solver.ng))
+        Q = np.ones((solver.ng, sn_mesh.nx, sn_mesh.ny))
 
         ang, phi = transport_sweep(Q, solver.sig_t, solver.sn_mesh, {})
 
-        assert ang.shape == (quad.N, sn_mesh.nx, sn_mesh.ny, solver.ng)
-        assert phi.shape == (sn_mesh.nx, sn_mesh.ny, solver.ng)
+        assert ang.shape == (quad.N, solver.ng, sn_mesh.nx, sn_mesh.ny)
+        assert phi.shape == (solver.ng, sn_mesh.nx, sn_mesh.ny)
 
 
 class TestQuadratureWeightConservation:
@@ -292,7 +296,7 @@ class TestQuadratureWeightConservation:
     def test_no_weight_lost(self, solver_2g):
         """Σ_n w_n · ψ_n must use the full sum(weights), not a subset."""
         solver, _, sn_mesh, quad = solver_2g
-        Q = np.ones((sn_mesh.nx, sn_mesh.ny, solver.ng))
+        Q = np.ones((solver.ng, sn_mesh.nx, sn_mesh.ny))
 
         ang, phi = transport_sweep(Q, solver.sig_t, solver.sn_mesh, {})
 
@@ -307,7 +311,7 @@ class TestQuadratureWeightConservation:
     def test_z_ordinates_contribute(self, solver_2g):
         """Z-directed ordinates (mu_x=mu_y=0) must have nonzero angular flux."""
         solver, _, sn_mesh, quad = solver_2g
-        Q = np.ones((sn_mesh.nx, sn_mesh.ny, solver.ng))
+        Q = np.ones((solver.ng, sn_mesh.nx, sn_mesh.ny))
 
         ang, _ = transport_sweep(Q, solver.sig_t, solver.sn_mesh, {})
 
@@ -323,6 +327,8 @@ class TestQuadratureWeightConservation:
         With uniform source Q and reflective BCs, the isotropic SN
         equation gives ψ = Q/(4π·Σ_t) per ordinate.
         Then φ = Σ w_n ψ_n = sum(w) · Q/(4π·Σ_t) = Q/Σ_t.
+
+        PR-INDEX-5: Q / phi principled (ng, nx, ny); sig_t principled.
         """
         from orpheus.derivations.common.xs_library import get_mixture
 
@@ -333,15 +339,14 @@ class TestQuadratureWeightConservation:
         local_sn_mesh = SNMesh(mesh, quad)
         solver = SNSolver(materials, local_sn_mesh)
 
-        Q = np.ones((2, 2, solver.ng))
+        Q = np.ones((solver.ng, 2, 2))
 
         # Run many sweeps to converge reflective BCs
         psi_bc = {}
         for _ in range(200):
             _, phi = transport_sweep(Q, solver.sig_t, local_sn_mesh, psi_bc)
 
-        # PR-INDEX-3: solver.sig_t is (ng, nx, ny); Q / phi are (nx, ny, ng).
-        expected = Q / solver.sig_t.transpose(1, 2, 0)
+        expected = Q / solver.sig_t
         np.testing.assert_allclose(phi, expected, rtol=1e-6,
                                    err_msg="Converged φ ≠ Q/Σ_t for uniform source")
 
@@ -409,7 +414,8 @@ class TestMultiGroupEigenvector:
             keff = solver.compute_keff(phi)
             phi = phi / np.linalg.norm(phi)
 
-        phi_cell = phi[0, 0, :]
+        # PR-INDEX-5: phi principled (ng, nx, ny) — per-cell group spectrum at (0, 0).
+        phi_cell = phi[:, 0, 0]
         phi_ratio = phi_cell / phi_cell.sum()
 
         np.testing.assert_allclose(phi_ratio, phi_expected, rtol=1e-6,
@@ -874,10 +880,9 @@ class TestFissionSource:
         # The fission source should NOT already include the 1/(4π) factor,
         # because the sweep applies weight_norm = 1/(4π) internally.
         # Check: fission_src = chi * sum(sig_p * phi) / keff
-        # PR-INDEX-3: solver.chi/sig_p are (ng, nx, ny); phi is (nx, ny, ng).
-        # FissionOperator.apply still returns (nx, ny, ng) — flips PR-INDEX-5.
-        fission_rate = np.einsum("gxy,xyg->xy", solver.sig_p, phi)
-        expected = solver.chi.transpose(1, 2, 0) * fission_rate[:, :, None]
+        # PR-INDEX-5: solver.chi/sig_p/phi all principled (ng, nx, ny).
+        fission_rate = np.einsum("gxy,gxy->xy", solver.sig_p, phi)
+        expected = solver.chi * fission_rate[None, :, :]
         np.testing.assert_allclose(fission_src, expected, rtol=1e-14,
                                    err_msg="Fission source has unexpected normalization")
 
@@ -893,11 +898,11 @@ class TestFissionSource:
         keff = solver.compute_keff(phi)
         # keff from uniform flux should equal sum(sig_p) / sum(sig_a)
         # weighted by volume (which is uniform, so cancels)
-        # PR-INDEX-3: ``solver.sig_p`` / ``solver.sig_a`` are (ng, nx, ny);
-        # ``phi`` is (nx, ny, ng) (legacy public layout — flips PR-INDEX-5).
+        # PR-INDEX-5: ``solver.sig_p`` / ``solver.sig_a`` / ``phi`` all
+        # principled (ng, nx, ny).
         vol = solver.volume  # (nx, ny)
-        prod = float(np.einsum("gxy,xyg,xy->", solver.sig_p, phi, vol))
-        absorp = float(np.einsum("gxy,xyg,xy->", solver.sig_a, phi, vol))
+        prod = float(np.einsum("gxy,gxy,xy->", solver.sig_p, phi, vol))
+        absorp = float(np.einsum("gxy,gxy,xy->", solver.sig_a, phi, vol))
         expected = prod / absorp
         # This only matches if there's zero n2n (which there may not be)
         # So just check they're both finite and positive
@@ -1016,8 +1021,8 @@ class TestPerformanceBaseline:
     def test_profile_components(self, solver_2g):
         solver, _, sn_mesh, quad = solver_2g
         np.random.seed(42)
-        phi = np.random.rand(sn_mesh.nx, sn_mesh.ny, solver.ng) + 0.1
-        Q = np.random.rand(sn_mesh.nx, sn_mesh.ny, solver.ng)
+        phi = np.random.rand(solver.ng, sn_mesh.nx, sn_mesh.ny) + 0.1
+        Q = np.random.rand(solver.ng, sn_mesh.nx, sn_mesh.ny)
         fission_src = solver.compute_fission_source(phi, 1.0)
 
         # Scattering source

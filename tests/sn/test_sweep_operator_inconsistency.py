@@ -69,7 +69,8 @@ def _make_spherical_problem(nx: int = 10, R: float = 10.0, N_ord: int = 8):
     quad = GaussLegendre1D.create(N_ord)
     sn_mesh = SNMesh(mesh, quad)
     sig_t = np.full((1, nx, 1), 1.0)  # (ng, nx, ny) — PR-INDEX-3
-    Q_iso = np.full((nx, 1, 1), 1.0)
+    # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
+    Q_iso = np.full((1, nx, 1), 1.0)
     return sn_mesh, quad, sig_t, Q_iso
 
 
@@ -84,7 +85,8 @@ def _solve_sweep(sn_mesh, sig_t, Q_iso, max_iter=200):
             if res < 1e-14:
                 break
         phi_old = phi.copy()
-    return phi[:, 0, 0]
+    # PR-INDEX-5: phi principled (ng=1, nx, ny=1) — radial profile at g=0, y=0.
+    return phi[0, :, 0]
 
 
 def _build_pure_absorber_1g(sig_t_val: float):
@@ -130,7 +132,8 @@ def _solve_via_krylov(sn_mesh, quad, sig_t, Q_iso):
     # Match the symmetric-closure operator's per-ordinate constant
     # source.  The sweep applies 1/W internally; solve_sn_fixed_source
     # routes the krylov path the same way.
-    external_source = np.ones((N, nx, 1, 1))
+    # Issue #196 PR-INDEX-5: external_source principled (N, ng, nx, ny).
+    external_source = np.ones((N, 1, nx, 1))
 
     # Single-group, 1-region material with Σ_t = 1.0, Σ_s = 0.
     materials = {1: _build_pure_absorber_1g(sig_t[0, 0, 0])}
@@ -141,7 +144,8 @@ def _solve_via_krylov(sn_mesh, quad, sig_t, Q_iso):
         max_inner=200, inner_tol=1e-10,
         inner_solver="krylov",
     )
-    return result.scalar_flux[:, 0, 0]
+    # PR-INDEX-5: scalar_flux principled (ng=1, nx, ny=1) — radial profile.
+    return result.scalar_flux[0, :, 0]
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -248,7 +252,8 @@ def test_cartesian_sweep_gives_exact_flat_flux():
     quad = GaussLegendre1D.create(8)
     sn_mesh = SNMesh(mesh, quad)
     sig_t = np.full((1, nx, 1), 1.0)  # (ng, nx, ny) — PR-INDEX-3
-    Q_iso = np.full((nx, 1, 1), 1.0)
+    # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
+    Q_iso = np.full((1, nx, 1), 1.0)
 
     phi = _solve_sweep(sn_mesh, sig_t, Q_iso)
     np.testing.assert_allclose(phi, 1.0, atol=1e-10,

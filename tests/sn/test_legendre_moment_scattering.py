@@ -88,7 +88,7 @@ class TestPerEllBlockDiagonal:
         Lam, _, _ = _make_simple_lambda(skip_l0=True)
         L = Lam.L
         rng = np.random.default_rng(seed=42)
-        moments = rng.standard_normal((L + 1, 2 * L + 1, 3, 1, 2))
+        moments = rng.standard_normal((L + 1, 2 * L + 1, 2, 3, 1))
         out = Lam.apply(moments)
         np.testing.assert_array_equal(out[0, ...], 0.0)
 
@@ -96,7 +96,7 @@ class TestPerEllBlockDiagonal:
         Lam, sig_s, cells_by_mat = _make_simple_lambda(skip_l0=False)
         L = Lam.L
         rng = np.random.default_rng(seed=43)
-        moments = rng.standard_normal((L + 1, 2 * L + 1, 3, 1, 2))
+        moments = rng.standard_normal((L + 1, 2 * L + 1, 2, 3, 1))
         out = Lam.apply(moments)
         # ℓ=0 block must be non-zero (random input, non-zero sig_s[0])
         assert not np.array_equal(out[0, ...], np.zeros_like(out[0, ...]))
@@ -106,7 +106,7 @@ class TestPerEllBlockDiagonal:
         Lam, _, _ = _make_simple_lambda(skip_l0=True)
         L = Lam.L
         rng = np.random.default_rng(seed=44)
-        moments = rng.standard_normal((L + 1, 2 * L + 1, 3, 1, 2))
+        moments = rng.standard_normal((L + 1, 2 * L + 1, 2, 3, 1))
         # Zero out the ℓ=2 input block
         moments_modified = moments.copy()
         moments_modified[2, ...] = 0.0
@@ -131,8 +131,8 @@ class TestPerMaterialPartition:
         L = Lam.L
         rng = np.random.default_rng(seed=45)
         # Set ℓ=1 input to a constant for ALL cells
-        moments = np.zeros((L + 1, 2 * L + 1, 4, 1, 2))
-        moments[1, 1, :, 0, :] = 1.0  # ℓ=1, m=0, all cells, both groups
+        moments = np.zeros((L + 1, 2 * L + 1, 2, 4, 1))
+        moments[1, 1, :, :, 0] = 1.0  # ℓ=1, m=0, all cells, both groups
         out = Lam.apply(moments)
         # Cells 0, 2 belong to material 0; cells 1, 3 to material 1.
         ix_mat0, iy_mat0 = cells_by_mat[0]
@@ -141,8 +141,11 @@ class TestPerMaterialPartition:
         # (column-sum: out[g_to] = Σ_g_from sig_s[g_from, g_to] · 1.0)
         expected_mat0 = sig_s[0][1].sum(axis=0)
         expected_mat1 = sig_s[1][1].sum(axis=0)
-        out_mat0 = out[1, 1, ix_mat0, iy_mat0, :]   # (n_cells_mat0, ng)
-        out_mat1 = out[1, 1, ix_mat1, iy_mat1, :]   # (n_cells_mat1, ng)
+        # Advanced indices (ix, iy) separated by ``:`` (ng axis) →
+        # numpy moves the advanced-index axis to the FRONT, giving
+        # ``(n_cells, ng)`` directly — no transpose needed.
+        out_mat0 = out[1, 1, :, ix_mat0, iy_mat0]   # (n_cells_mat0, ng)
+        out_mat1 = out[1, 1, :, ix_mat1, iy_mat1]   # (n_cells_mat1, ng)
         # Every row equals the expected per-material vector
         for row in out_mat0:
             np.testing.assert_allclose(row, expected_mat0, rtol=1e-15)
@@ -178,12 +181,12 @@ class TestEnergyContractionDirection:
             skip_l0=True,
         )
         # ℓ=1, m=0, single cell, only g_from=0 nonzero
-        moments = np.zeros((L + 1, 2 * L + 1, 1, 1, ng))
+        moments = np.zeros((L + 1, 2 * L + 1, ng, 1, 1))
         moments[1, 1, 0, 0, 0] = 1.0
         out = Lam.apply(moments)
-        # Expected: out[1, 1, 0, 0, :] = sig_s_l1[0, :]
+        # Expected: out[1, 1, :, 0, 0] = sig_s_l1[0, :]
         np.testing.assert_allclose(
-            out[1, 1, 0, 0, :], sig_s_l1[0, :], rtol=1e-15,
+            out[1, 1, :, 0, 0], sig_s_l1[0, :], rtol=1e-15,
         )
 
     def test_two_groups_full_matrix(self):
@@ -197,14 +200,14 @@ class TestEnergyContractionDirection:
             skip_l0=True,
         )
         # All groups equal 1.0 in the (ℓ=1, m=0) slot
-        moments = np.zeros((2, 3, 1, 1, ng))
-        moments[1, 1, 0, 0, :] = np.array([1.0, 1.0])
+        moments = np.zeros((2, 3, ng, 1, 1))
+        moments[1, 1, :, 0, 0] = np.array([1.0, 1.0])
         out = Lam.apply(moments)
         # out_g_to = Σ_g_from sig_s[g_from, g_to]
         # = column sums of sig_s_l1
         expected = sig_s_l1.sum(axis=0)  # = [4.0, 6.0]
         np.testing.assert_allclose(
-            out[1, 1, 0, 0, :], expected, rtol=1e-15,
+            out[1, 1, :, 0, 0], expected, rtol=1e-15,
         )
 
 
@@ -235,17 +238,21 @@ class TestBitIdenticalToLegacyInlinedMath:
         Lam = LegendreMomentScattering(
             sig_s=sig_s, cells_by_mat=cells_by_mat, L=L, skip_l0=True,
         )
-        moments = rng.standard_normal((L + 1, 2 * L + 1, nx, ny, ng))
+        moments = rng.standard_normal((L + 1, 2 * L + 1, ng, nx, ny))
 
-        # Legacy reference: inline ``moment @ sig_s_l[l]`` per (mid, l, m)
+        # Legacy reference: inline ``moment @ sig_s_l[l]`` per (mid, l, m).
+        # PR-INDEX-5: moments principled (L+1, 2L+1, ng, nx, ny); advanced
+        # indices (ix, iy) separated by ``:`` → numpy puts advanced axis
+        # to the front, so ``moments[l, l+m, :, ix, iy]`` is
+        # ``(n_cells, ng)`` — exactly the legacy shape, no transpose.
         legacy = np.zeros_like(moments)
         for mid, (ix, iy) in cells_by_mat.items():
             sig_s_l = sig_s[mid]
             for l in range(1, L + 1):
                 for m in range(-l, l + 1):
-                    moment = moments[l, l + m, ix, iy, :]  # (n_cells, ng)
-                    scattered = moment @ sig_s_l[l]
-                    legacy[l, l + m, ix, iy, :] = scattered
+                    moment = moments[l, l + m, :, ix, iy]    # (n_cells, ng)
+                    scattered = moment @ sig_s_l[l]          # (n_cells, ng)
+                    legacy[l, l + m, :, ix, iy] = scattered  # numpy infers shapes
 
         out = Lam.apply(moments)
         np.testing.assert_allclose(out, legacy, rtol=1e-15, atol=0.0)

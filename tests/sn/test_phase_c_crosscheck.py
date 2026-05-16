@@ -569,6 +569,9 @@ def _load_snapshot_scalar_flux(snapshot_id: str) -> np.ndarray:
     r"""Load ``scalar_flux`` array from a regression snapshot npz.
 
     Returns shape ``(nx, ng)`` (squeezing the 1-D ``ny=1`` axis).
+    Issue #196 PR-INDEX-5: snapshots are stored in principled
+    ``(ng, nx, ny)`` layout; transpose + slice to recover the
+    legacy ``(nx, ng)`` view this consumer expects.
     """
     from pathlib import Path
     snap = (
@@ -577,7 +580,8 @@ def _load_snapshot_scalar_flux(snapshot_id: str) -> np.ndarray:
     )
     if not snap.exists():
         pytest.skip(f"snapshot {snapshot_id!r} not present at {snap}")
-    return np.load(snap)["scalar_flux"][:, 0, :]  # (nx, ng)
+    # Stored shape: (ng, nx, ny=1); slice ny=0 then transpose to (nx, ng).
+    return np.load(snap)["scalar_flux"][:, :, 0].T  # (nx, ng)
 
 
 _GATE_4_2_FLUX_SHAPE_CASES: tuple[

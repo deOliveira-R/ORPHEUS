@@ -57,7 +57,7 @@ def test_sn_p1_aniso_mms_converges_second_order():
             max_inner=500,
             inner_tol=1e-13,
         )
-        phi_num = result.scalar_flux[:, 0, 0]
+        phi_num = result.scalar_flux[0, :, 0]  # PR-INDEX-5: g=0 radial slice
         phi_ref = case.phi_exact(mesh.centers)
         errors.append(_l2_error(phi_num, phi_ref, mesh.widths))
 

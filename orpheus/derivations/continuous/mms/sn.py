@@ -153,7 +153,7 @@ class SNSlabMMSCase:
         streaming = mu[:, None] * Ap[None, :]     # (N, nx)
         removal = (self.sigma_t - self.sigma_s) * A[None, :]  # (1, nx)
         Q = streaming + removal                   # (N, nx)
-        return Q[:, :, None, None]                # (N, nx, 1, 1)
+        return Q[:, None, :, None]                # (N, nx, 1, 1)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -448,9 +448,8 @@ class SNSlab2GHeterogeneousMMSCase:
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
         r"""Per-ordinate, per-cell, per-group external source.
 
-        Shape ``(N_ord, n_cells, 1, n_groups)``, matching the
-        convention expected by
-        :func:`orpheus.sn.solve_sn_fixed_source`. The formula is
+        Shape ``(N_ord, n_groups, n_cells, 1)`` (Issue #196 PR-INDEX-5
+        — principled).  The formula is
 
         .. math::
 
@@ -476,7 +475,7 @@ class SNSlab2GHeterogeneousMMSCase:
         nx = len(x)
         ng = self.n_groups
 
-        Q = np.zeros((N, nx, 1, ng))
+        Q = np.zeros((N, ng, nx, 1))
         for g in range(ng):
             c_g = self.c_spectrum[g]
             sig_t_g = np.asarray(self.sigma_t_fn(x, g), dtype=float)  # (nx,)
@@ -488,7 +487,7 @@ class SNSlab2GHeterogeneousMMSCase:
                     self.sigma_s_fn(x, g_from, g), dtype=float,
                 )  # (nx,)
                 in_scatter += sig_s * self.c_spectrum[g_from] * A
-            Q[:, :, 0, g] = streaming + (removal - in_scatter)[None, :]
+            Q[:, g, :, 0] = streaming + (removal - in_scatter)[None, :]
         return Q
 
 
@@ -700,8 +699,9 @@ class SN2DCartesianMMSCase:
     def external_source(self, mesh: Mesh2D) -> np.ndarray:
         r"""Per-ordinate external source on a 2D mesh.
 
-        Returns shape ``(N, nx, ny, 1)`` — per ordinate, per cell (x),
-        per cell (y), one energy group.  Evaluated at cell centres.
+        Returns shape ``(N, 1, nx, ny)`` (Issue #196 PR-INDEX-5 —
+        principled).  Per ordinate, one energy group, per cell (x, y).
+        Evaluated at cell centres.
         """
         cx = mesh.centers_x                          # (nx,)
         cy = mesh.centers_y                          # (ny,)
@@ -726,7 +726,7 @@ class SN2DCartesianMMSCase:
                      + mu_y[:, None, None] * dA_dy[None, :, :])
         removal = (self.sigma_t - self.sigma_s) * A   # (nx, ny)
         Q = streaming + removal[None, :, :]            # (N, nx, ny)
-        return Q[:, :, :, None]                        # (N, nx, ny, 1)
+        return Q[:, None, :, :]                        # (N, 1, nx, ny)
 
 
 def build_2d_cartesian_mms_case(
@@ -886,7 +886,8 @@ class SN2DCartesian2GHeterogeneousMMSCase:
     def external_source(self, mesh: Mesh2D) -> np.ndarray:
         r"""Per-ordinate, per-cell, per-group external source.
 
-        Shape ``(N_ord, nx, ny, n_groups)``.
+        Shape ``(N_ord, n_groups, nx, ny)`` (Issue #196 PR-INDEX-5 —
+        principled).
         """
         cx = mesh.centers_x
         cy = mesh.centers_y
@@ -912,7 +913,7 @@ class SN2DCartesian2GHeterogeneousMMSCase:
         xx_flat = xx.ravel()
         yy_flat = yy.ravel()
 
-        Q = np.zeros((N, nx, ny_, ng))
+        Q = np.zeros((N, ng, nx, ny_))
         for g in range(ng):
             c_g = self.c_spectrum[g]
             sig_t_g = self.sigma_t_fn(xx_flat, yy_flat, g).reshape(nx, ny_)
@@ -925,7 +926,7 @@ class SN2DCartesian2GHeterogeneousMMSCase:
                     xx_flat, yy_flat, g_from, g,
                 ).reshape(nx, ny_)
                 in_scatter += sig_s * self.c_spectrum[g_from] * A
-            Q[:, :, :, g] = streaming + (removal - in_scatter)[None, :, :]
+            Q[:, g, :, :] = streaming + (removal - in_scatter)[None, :, :]
         return Q
 
 
@@ -1116,7 +1117,7 @@ class SNP1AnisoMMSCase:
         t3 = a * mu[:, None] * (self.sigma_t - self.sigma_s1) * A[None, :]  # α μ (Σ_t - Σ_s1) B
         t4 = a * (mu[:, None] ** 2) * Ap[None, :]                   # α μ² B'
         Q = t1 + t2 + t3 + t4
-        return Q[:, :, None, None]
+        return Q[:, None, :, None]
 
 
 def _make_1g_p1_mixture(
@@ -1231,7 +1232,7 @@ class SNSphericalMMSCase:
         streaming = mu[:, None] * Ap[None, :]
         removal = (self.sigma_t - self.sigma_s) * A[None, :]
         Q = streaming + removal
-        return Q[:, :, None, None]
+        return Q[:, None, :, None]
 
 
 def build_spherical_mms_case(
@@ -1315,7 +1316,7 @@ class SNCylindricalMMSCase:
         streaming = eta[:, None] * Ap[None, :]
         removal = (self.sigma_t - self.sigma_s) * A[None, :]
         Q = streaming + removal
-        return Q[:, :, None, None]
+        return Q[:, None, :, None]
 
 
 def build_cylindrical_mms_case(
@@ -2128,7 +2129,7 @@ class SNSphericalAnisotropicMMSCase:
 
         Q = (streaming_iso + streaming_aniso + redistribution
              + removal_iso + removal_aniso)            # (N, nx)
-        return Q[:, :, None, None]                     # (N, nx, 1, 1)
+        return Q[:, None, :, None]                     # (N, nx, 1, 1)
 
 
 def build_spherical_anisotropic_mms_case(
@@ -2274,7 +2275,7 @@ class SNCylindricalAnisotropicMMSCase:
 
         Q = (streaming_iso + streaming_aniso + redistribution
              + removal_iso + removal_aniso)
-        return Q[:, :, None, None]
+        return Q[:, None, :, None]
 
 
 def build_cylindrical_anisotropic_mms_case(

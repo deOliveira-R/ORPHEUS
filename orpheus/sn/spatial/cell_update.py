@@ -217,13 +217,16 @@ class SweepCellSlice:
     +------------------------+-----------------------------+--------------------------------+
     | ``face_out_y_idx``     | ``(n_diag,)`` int           | y-face index of outgoing flux  |
     +------------------------+-----------------------------+--------------------------------+
-    | ``psi_x``              | ``(N_oct, nx+1, ny, ng)``   | Octant-restricted face-x       |
+    | ``psi_x``              | ``(N_oct, ng, nx+1, ny)``   | Octant-restricted face-x       |
     |                        |                             | buffer; mutated in place       |
     |                        |                             | (outgoing fluxes scattered     |
-    |                        |                             | back at ``face_out_x_idx``)    |
+    |                        |                             | back at ``face_out_x_idx``).   |
+    |                        |                             | Issue #196 PR-INDEX-5 —        |
+    |                        |                             | principled ``g`` after         |
+    |                        |                             | ``N_oct``.                     |
     +------------------------+-----------------------------+--------------------------------+
-    | ``psi_y``              | ``(N_oct, nx, ny+1, ng)``   | Octant-restricted face-y       |
-    |                        |                             | buffer; mutated in place       |
+    | ``psi_y``              | ``(N_oct, ng, nx, ny+1)``   | Octant-restricted face-y       |
+    |                        |                             | buffer; mutated in place.      |
     +------------------------+-----------------------------+--------------------------------+
     | ``Q``                  | ``(N_oct, ng, nx, ny)`` or  | Per-octant per-cell volumetric |
     |                        | ``(1, ng, nx, ny)``         | source, **already weight-      |

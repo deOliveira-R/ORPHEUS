@@ -62,7 +62,8 @@ def test_sn_2d_cartesian_mms_converges_second_order():
             max_inner=500,
             inner_tol=1e-13,
         )
-        phi_num = result.scalar_flux[:, :, 0]         # (nx, ny)
+        # PR-INDEX-5: scalar_flux principled (ng=1, nx, ny) → g=0 slice.
+        phi_num = result.scalar_flux[0, :, :]          # (nx, ny)
         phi_ref = case.phi_exact(mesh.centers_x, mesh.centers_y)
         errors.append(_l2_2d(phi_num - phi_ref, mesh.volumes))
 
@@ -109,10 +110,11 @@ def test_sn_2d_cartesian_2g_heterogeneous_mms_converges_second_order():
             max_inner=500, inner_tol=1e-12,
         )
 
-        phi_solver = result.scalar_flux  # (nx, ny, ng)
+        # PR-INDEX-5: scalar_flux principled (ng, nx, ny).
+        phi_solver = result.scalar_flux  # (ng, nx, ny)
         for g, errs in [(0, errs_g0), (1, errs_g1)]:
             phi_ref = case.phi_exact(mesh.centers_x, mesh.centers_y, g)
-            errs.append(_l2_2d(phi_solver[:, :, g] - phi_ref, mesh.volumes))
+            errs.append(_l2_2d(phi_solver[g, :, :] - phi_ref, mesh.volumes))
 
     errs_g0_arr = np.asarray(errs_g0)
     errs_g1_arr = np.asarray(errs_g1)

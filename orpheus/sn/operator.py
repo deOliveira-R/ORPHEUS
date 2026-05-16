@@ -1392,15 +1392,17 @@ class SNStreamingOperator(LinearOperatorMixin):
         Parameters
         ----------
         Q : np.ndarray
-            Isotropic source density, shape ``(nx, ny, ng)``.
+            Isotropic source density, shape ``(ng, nx, ny)`` (Issue
+            #196 PR-INDEX-5 — principled layout).
         psi_bc : dict or None
             Persistent boundary-flux dict storing ψ on each face
             between outer iterations.  If ``None``, a fresh empty
             dict is supplied; the caller cannot then carry state
             between sweeps.
         Q_aniso : np.ndarray or None
-            Per-ordinate anisotropic source, shape ``(N, nx, ny, ng)``,
-            for P1+ scattering.  ``None`` for isotropic-only (P0).
+            Per-ordinate anisotropic source, shape
+            ``(N, ng, nx, ny)``, for P1+ scattering.  ``None`` for
+            isotropic-only (P0).
 
         Returns
         -------
@@ -1408,8 +1410,8 @@ class SNStreamingOperator(LinearOperatorMixin):
             ``(angular_flux, scalar_flux)`` matching the
             :func:`transport_sweep` contract:
 
-            * ``angular_flux`` shape ``(N, nx, ny, ng)``,
-            * ``scalar_flux`` shape ``(nx, ny, ng)``.
+            * ``angular_flux`` shape ``(N, ng, nx, ny)``,
+            * ``scalar_flux`` shape ``(ng, nx, ny)``.
         """
         from .sweep import transport_sweep
         if psi_bc is None:

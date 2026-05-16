@@ -497,7 +497,8 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     )
     quad = GaussLegendre1D.create(16)
     sn_mesh = SNMesh(mesh, quad)
-    Q = np.ones((160, 1, 4))
+    # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
+    Q = np.ones((4, 160, 1))
     sig_t = np.ones((4, 160, 1))  # (ng, nx, ny) — PR-INDEX-3
     psi_bc: dict = {}
 
@@ -569,8 +570,8 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
         bc_right=BC("reflective"),
     )
     quad = GaussLegendre1D.create(4)
-    # external_source has shape (N, nx, ny, ng); uniform Q=1.0 per ordinate.
-    Q_external = np.ones((quad.N, 10, 1, 1))
+    # Issue #196 PR-INDEX-5: external_source principled (N, ng, nx, ny).
+    Q_external = np.ones((quad.N, 1, 10, 1))
 
     result = solve_sn_fixed_source(
         materials=materials,
@@ -586,7 +587,8 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
     # ordinate; the source-iteration form is q = ∑_n w_n · Q_n / W
     # → φ → 1.0 / σ_t.
     expected = 1.0 / sigma_t
-    np.testing.assert_allclose(result.scalar_flux[:, 0, 0], expected, rtol=1e-10)
+    # PR-INDEX-5: scalar_flux principled (ng=1, nx=10, ny=1) — radial slice at g=0, y=0.
+    np.testing.assert_allclose(result.scalar_flux[0, :, 0], expected, rtol=1e-10)
 
 
 @pytest.mark.l0

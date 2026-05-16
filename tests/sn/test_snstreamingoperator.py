@@ -353,13 +353,16 @@ def test_apply_2d_cartesian_bit_identical_to_legacy():
 # ═══════════════════════════════════════════════════════════════════════
 
 def test_solve_slab_bit_identical_to_transport_sweep():
-    """SNStreamingOperator.solve produces transport_sweep's exact output."""
+    """SNStreamingOperator.solve produces transport_sweep's exact output.
+
+    Issue #196 PR-INDEX-5: Q principled ``(ng, nx, ny)``.
+    """
     sn_mesh = _slab_mesh()
     sig_t = _sig_t_uniform(sn_mesh, ng=2)
     op = SNStreamingOperator(sn_mesh, sig_t)
 
     rng = np.random.default_rng(seed=10)
-    Q = rng.standard_normal((sn_mesh.nx, sn_mesh.ny, 2))
+    Q = rng.standard_normal((2, sn_mesh.nx, sn_mesh.ny))
 
     # Use independent psi_bc dicts so neither path mutates the other.
     af_legacy, sf_legacy = transport_sweep(Q, sig_t, sn_mesh, {}, None)
@@ -381,7 +384,7 @@ def test_solve_spherical_bit_identical_to_transport_sweep():
     op = SNStreamingOperator(sn_mesh, sig_t)
 
     rng = np.random.default_rng(seed=11)
-    Q = rng.standard_normal((sn_mesh.nx, sn_mesh.ny, 2))
+    Q = rng.standard_normal((2, sn_mesh.nx, sn_mesh.ny))
 
     af_legacy, sf_legacy = transport_sweep(Q, sig_t, sn_mesh, {}, None)
     af_op, sf_op = op.solve(Q, psi_bc={}, Q_aniso=None)
@@ -397,7 +400,7 @@ def test_solve_cylindrical_bit_identical_to_transport_sweep():
     op = SNStreamingOperator(sn_mesh, sig_t)
 
     rng = np.random.default_rng(seed=12)
-    Q = rng.standard_normal((sn_mesh.nx, sn_mesh.ny, 2))
+    Q = rng.standard_normal((2, sn_mesh.nx, sn_mesh.ny))
 
     af_legacy, sf_legacy = transport_sweep(Q, sig_t, sn_mesh, {}, None)
     af_op, sf_op = op.solve(Q, psi_bc={}, Q_aniso=None)

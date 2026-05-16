@@ -153,7 +153,7 @@ def test_cylinder_three_way_standoff(
     N = quad.N
     nx = mesh.N
     ng = 1
-    Q = np.ones((N, nx, 1, ng))
+    Q = np.ones((N, ng, nx, 1))
 
     psi_ref = 1.0 / (0.1 * quad.weights.sum())
 
