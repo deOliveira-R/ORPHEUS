@@ -2933,7 +2933,7 @@ when the angular closure default does not flip to the canonical
 M–M form. Gate 3.1 is therefore marked
 ``@pytest.mark.xfail(strict=False)`` pending Phase D's pole-face
 spatial-closure refinement (see
-:ref:`sn-curvilinear-trajectory-resolvent-crosscheck` for the
+:ref:`sn-curvilinear-trajectory-resolvent-crosscheck-section` for the
 Phase D scope summary).
 
 The xfail is intentionally **not strict** at this gate (in
@@ -2983,21 +2983,33 @@ spatial because the legacy angular closure leaks
 :math:`\mathcal{O}(h^{1.3})` shape errors that the spatial
 discretisation cannot resolve away.
 
-.. _sn-curvilinear-homogeneous-kinf-recovery:
+.. _sn-curvilinear-homogeneous-kinf-recovery-section:
 
 Homogeneous-reflective k\ :sub:`∞` recovery (Phase C)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Gate 4.1 verifies the eigenvalue claim using a closed-form
 reference: the 2-group homogeneous reflective sphere recovers the
-analytical :math:`\kinf = \nSigf / \Sigma_a` from
-:func:`~orpheus.derivations.common.eigenvalue.kinf_homogeneous` to
-``rtol ≤ 5e-4``. The reference is the **transfer-matrix
-eigenvalue** for a homogeneous infinite medium (Lewis–Miller §3.2),
-computable in closed form without any spatial or angular
-discretisation choice; it is the State 1A closed-form pillar in the
-``algebra-of-record`` taxonomy. PASSES under Phase C's sweep-frame
-matvec; pinned at
+analytical infinite-medium eigenvalue
+
+.. math::
+   :label: sn-curvilinear-homogeneous-kinf-recovery
+
+   \kinf
+        \;=\; \rho\bigl(\mathbf{\Sigma}_a^{-1}
+              \,\boldsymbol{\chi}\,\boldsymbol{\nu\Sigma_f}^{\top}\bigr)
+        \;\stackrel{1\text{G}}{=}\;
+        \frac{\nu\Sigma_f}{\Sigma_a}\,,
+
+i.e., the dominant eigenvalue of the multi-group production /
+removal transfer matrix on the homogeneous infinite medium
+(Lewis--Miller §3.2; reduces to :math:`\nSigf/\Sigma_a` in 1-group).
+The reference is computed in closed form by
+:func:`~orpheus.derivations.common.eigenvalue.kinf_homogeneous`
+without any spatial or angular discretisation choice; it is the
+State 1A closed-form pillar in the ``algebra-of-record`` taxonomy.
+The Phase C sweep-frame matvec recovers it to ``rtol ≤ 5e-4`` on the
+2-group homogeneous reflective sphere; pinned at
 :func:`tests.sn.test_phase_c_crosscheck.test_sn_spherical_homogeneous_kinf_recovery_2g`.
 
 The clean :math:`k_\infty` recovery is **not** a contradiction of
@@ -3013,13 +3025,13 @@ redistribution term integrates to zero against the volume weights
 across an :math:`\mathcal{R}^4` cell). The shape-dependent ERR-026
 flux-shape bug therefore drops out of the eigenvalue but persists
 in the **flux shape** — exactly what
-:ref:`sn-curvilinear-trajectory-resolvent-crosscheck` will measure
-in Phase D. Gate 4.1 is therefore the **necessary** but **not
-sufficient** evidence chain (per ``vv-principles`` 1-group
+:ref:`sn-curvilinear-trajectory-resolvent-crosscheck-section` will
+measure in Phase D. Gate 4.1 is therefore the **necessary** but
+**not sufficient** evidence chain (per ``vv-principles`` 1-group
 degeneracy rule); the sufficient chain requires structurally-
 independent flux-shape evidence from Phase D.
 
-.. _sn-curvilinear-trajectory-resolvent-crosscheck:
+.. _sn-curvilinear-trajectory-resolvent-crosscheck-section:
 
 Trajectory-resolvent cross-check (Phase C → Phase D)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -3027,8 +3039,22 @@ Trajectory-resolvent cross-check (Phase C → Phase D)
 Gate 4.2 is the **flux-shape cross-check** against the
 structurally-independent trajectory_resolvent Green's-function
 reference (the Peierls Variant α State 1B semi-analytical pillar
-in the ``algebra-of-record`` taxonomy). The bare function entry
-points cover the 5 P0 deleted curvilinear regression snapshots:
+in the ``algebra-of-record`` taxonomy).  The contractual claim is
+
+.. math::
+   :label: sn-curvilinear-trajectory-resolvent-crosscheck
+
+   \bigl\|\phi^{\,\text{SN}}_h(r)
+        \;-\; \phi^{\,\text{traj.res.}}(r)\bigr\|_{\infty}
+        \;\le\; 5\times 10^{-4}
+        \quad
+        \text{on the 5 P0 curvilinear snapshots,}
+
+with :math:`\phi^{\,\text{SN}}_h` the SN flux at the snapshot's
+:math:`n_x` and :math:`\phi^{\,\text{traj.res.}}` the
+trajectory-resolvent reference flux at the same radii.  The bare
+function entry points cover the 5 P0 deleted curvilinear regression
+snapshots:
 
 .. list-table:: trajectory_resolvent reference coverage
    :header-rows: 1
@@ -3351,7 +3377,7 @@ Phase D Carlson coupled-pole sweep (Issue #168 Phase D)
      (``orpheus/sn/spatial/pole_angular_closure.py:411`` —
      ``_mm_weighted_angular_recurrence_single_level``), **NOT**
      in the WDD spatial pole-face initial condition the
-     :ref:`Phase C plan <sn-curvilinear-trajectory-resolvent-crosscheck>`
+     :ref:`Phase C plan <sn-curvilinear-trajectory-resolvent-crosscheck-section>`
      proposed.  The diagnostic memo at
      ``.claude/agent-memory/numerics-investigator/phase_d_gate_1_1_sphere_mms_diagnosis.md``
      empirically falsified intervention ``[A]`` (WDD pole-face
@@ -3617,7 +3643,7 @@ the inward-sweep result :math:`\bar\phi_i` into the **WDD
 spatial pole-face initial condition** at
 :func:`~orpheus.sn.operator.transport_operator_matvec_spherical`'s
 ``psi_face_in`` initialisation — the very same site the
-:ref:`sn-curvilinear-trajectory-resolvent-crosscheck` discussion
+:ref:`sn-curvilinear-trajectory-resolvent-crosscheck-section` discussion
 identified as the Phase C Carlson seed location.
 
 The numerics-investigator diagnostic
@@ -7160,6 +7186,124 @@ streaming of :math:`B(x)`.
   :meth:`orpheus.sn.solver.SNSolver._build_aniso_scattering`.
 
 
+.. _sn-mms-curvilinear-isotropic-verification:
+
+Curvilinear isotropic MMS — radial DD-closure probe
+----------------------------------------------------
+
+Phase 3.4 of the verification campaign extends the slab MMS
+(:eq:`sn-mms-psi` / :eq:`sn-mms-qext`) to 1-D **spherical** and
+1-D **cylindrical** geometries with the simplest non-trivial trial
+solution that respects the vacuum-at-outer and symmetry-at-origin
+boundary conditions: an **isotropic** ansatz
+:math:`\psi_n(r) = A(r)/W`.  By construction the angular
+redistribution operator vanishes on this ansatz
+(:math:`(1-\mu^2)/r \cdot \partial\psi/\partial\mu = 0` for the
+sphere; :math:`-(1/r)\,\partial(\xi\psi)/\partial\varphi = 0` for
+the cylinder), so the only spatial-discretisation error that drives
+the measured convergence rate is the **radial DD closure**.  The
+isotropic case is therefore the focused L1 probe for the
+streaming + removal path; the angular redistribution path is
+covered by the companion anisotropic case
+(:ref:`sn-mms-curvilinear-aniso-verification` below — a deliberate
+pairing that defeats the ``vv-principles`` Mode 7 "MMS
+simplification bias" failure mode).
+
+**Spherical isotropic ansatz.**  For a vacuum-BC sphere of radius
+:math:`R` with reflective inner BC at :math:`r=0` in one energy
+group, pick
+
+.. math::
+   :label: sn-mms-spherical-psi
+
+   \psi_n(r) = \frac{1}{W}\,A(r),
+   \qquad A(r) = \sin\!\left(\frac{\pi r}{R}\right),
+
+with :math:`W = \sum_n w_n = 2` for symmetric Gauss--Legendre.
+Because :math:`A(0) = A(R) = 0`, every ordinate vanishes at both
+the symmetry centre and the vacuum outer face — both BC kinds are
+satisfied automatically.  Since :math:`\psi_n` is independent of
+ordinate, the scalar flux recovered by any quadrature order is
+exactly :math:`\phi(r) = A(r)`.
+
+**Spherical manufactured source.**  Substituting
+:eq:`sn-mms-spherical-psi` into :eq:`transport-spherical` and
+using that :math:`(1-\mu^2)\,\partial_\mu\psi/r \equiv 0` for an
+isotropic flux gives
+
+.. math::
+   :label: sn-mms-spherical-qext
+
+   Q^{\text{ext}}_n(r)
+        = \mu_n\,A'(r)
+        + (\Sigma_t - \Sigma_s)\,A(r)
+        = \mu_n\,\frac{\pi}{R}\cos\!\left(\frac{\pi r}{R}\right)
+          + (\Sigma_t - \Sigma_s)\sin\!\left(\frac{\pi r}{R}\right).
+
+This is structurally identical to the slab source
+:eq:`sn-mms-qext` with :math:`x \to r` — the spherical
+:math:`(2/r)\partial_r` curvature term and the angular
+redistribution term both vanish on the isotropic ansatz, leaving
+the per-ordinate streaming + removal balance as the residual.
+
+**Cylindrical isotropic ansatz.**  The radial direction cosine for
+1-D cylindrical is :math:`\eta_n = \sin\theta_n \cos\varphi_n`.
+Use
+
+.. math::
+   :label: sn-mms-cylindrical-psi
+
+   \psi_n(r) = \frac{1}{W}\,A(r),
+   \qquad A(r) = \sin\!\left(\frac{\pi r}{R}\right),
+
+with the same :math:`W = \sum_n w_n` for the cylindrical Product or
+LS quadrature.  Symmetric Product quadrature gives
+:math:`\sum_n w_n \eta_n = 0`, so :math:`\phi(r) = A(r)` exactly.
+
+**Cylindrical manufactured source.**
+
+.. math::
+   :label: sn-mms-cylindrical-qext
+
+   Q^{\text{ext}}_n(r)
+        = \eta_n\,A'(r) + (\Sigma_t - \Sigma_s)\,A(r).
+
+The cylindrical curvature term :math:`-(1/r)\,\partial(\xi\psi)/\partial\varphi`
+vanishes by isotropy of :math:`A(r)`, the same way the spherical
+:math:`(1-\mu^2)/r \cdot \partial_\mu\psi` vanishes; the radial
+streaming :math:`\eta_n A'(r)` and the removal
+:math:`(\Sigma_t - \Sigma_s)A(r)` carry the residual.
+
+**Risk point — Mode 7 ansatz bias.**  Per ``vv-principles`` failure
+Mode 7 ("MMS simplification bias"), the isotropic ansatz is
+deliberately structured to NULL the angular redistribution path.
+A passing :math:`\mathcal{O}(h^2)` convergence here is necessary
+evidence for the radial DD closure but it is *not* sufficient for
+the full curvilinear sweep — ERR-026 (the curvilinear sweep WDD
+flux-shape bug) is mathematically invisible to this MMS because the
+redistribution term that ERR-026 lives on cancels by ansatz
+construction.  The companion anisotropic case
+(:ref:`sn-mms-curvilinear-aniso-verification`) is the load-bearing
+sufficient evidence for the full sweep; both are required.
+
+**Code pointers.**
+
+- Derivation:
+  :class:`orpheus.derivations.continuous.mms.sn.SNSphericalMMSCase`,
+  :class:`orpheus.derivations.continuous.mms.sn.SNCylindricalMMSCase`,
+  :func:`orpheus.derivations.continuous.mms.sn.build_spherical_mms_case`,
+  :func:`orpheus.derivations.continuous.mms.sn.build_cylindrical_mms_case`.
+- Tests:
+  :func:`tests.sn.test_mms_curvilinear.test_sn_spherical_mms_converges_second_order`
+  (sphere) and
+  :func:`tests.sn.test_mms_curvilinear.test_sn_cylindrical_mms_converges_second_order`
+  (cylinder).  Both are currently marked ``xfail strict=True``
+  pending Issue #195's pre-asymptotic-magnitude investigation —
+  the convergence ORDER (the math claim verified by these labels)
+  reaches :math:`\mathcal{O}(h^2)` cleanly; the absolute-magnitude
+  bracket at :math:`n_x = 160` is what fails.
+
+
 .. _sn-mms-curvilinear-aniso-verification:
 
 Curvilinear anisotropic MMS — angular redistribution probe
@@ -7282,6 +7426,44 @@ of the sphere's :math:`(1-\mu_n^2)\,B/r`. Both come from the
 same operator — angular redistribution of the linearly-:math:`\mu`
 (or linearly-:math:`\eta`) ansatz — and both vanish for any
 isotropic ansatz.
+
+**Spatial-convergence claims.**  Diamond-Difference is design-order
+:math:`\mathcal{O}(h^2)` in the cell width (:eq:`dd-cartesian-1d` /
+:eq:`dd-curvilinear-scalar`); the curvilinear anisotropic L1 claim
+asserts that the **measured** scalar-flux error against the
+manufactured solution :eq:`sn-mms-spherical-aniso-psi` /
+:eq:`sn-mms-cylindrical-aniso-psi` falls at the same rate.  For the
+sphere,
+
+.. math::
+   :label: sn-mms-spherical-aniso-spatial-convergence
+
+   \bigl\|\phi_h(r) - A(r)\bigr\|_{L^2(\Omega)}
+        \;=\; \mathcal{O}(h^2)
+        \qquad \text{as } h = R/n_x \to 0\,,
+
+with the convergence ORDER (slope of :math:`\log\|\phi_h - A\|`
+versus :math:`\log h` over the last two mesh halvings) the L1
+acceptance criterion ``min(orders[-2:]) > 1.9``.  The cylindrical
+analogue,
+
+.. math::
+   :label: sn-mms-cylindrical-aniso-spatial-convergence
+
+   \bigl\|\phi_h(r) - A(r)\bigr\|_{L^2(\Omega)}
+        \;=\; \mathcal{O}(h^2)
+        \qquad \text{as } h = R/n_x \to 0\,,
+
+uses the same acceptance criterion on the cylindrical-aniso
+ansatz.  Both labels are currently consumed by Issue #168 Phase C
+Gate-3 tests under the ``xfail strict=False`` marker (ERR-026
+PARTIAL closure — the curvilinear default
+``LegacyTauSymmetricInterpolation`` profile sits at
+:math:`\mathcal{O}(h^{1.3})` until the Phase D pole-face spatial
+closure lands; Carlson seed under Issue #168 Phase D restored
+:math:`\mathcal{O}(h^2)` on the empirical probe).  The xfail
+markers are removed when ERR-026 fully closes; the convergence
+claims above are the contractual evidence the markers gate on.
 
 **Verification chain (Branch 1 / Branch 2)**
 

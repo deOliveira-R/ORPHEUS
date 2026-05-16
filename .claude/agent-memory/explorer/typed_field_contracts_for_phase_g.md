@@ -7,10 +7,30 @@ metadata:
 
 # Typed Field Contracts for Phase G — `(L + C − S − F/k)ψ = q`
 
+> **Correction (2026-05-15).** This memo predates the layout discovery
+> that drove Issue #196 PRs INDEX-1..7.  The original
+> proposal stored `AngularFlux` as `(N, nx, ny, ng)` with energy
+> trailing (and `ScalarFlux` as `(nx, ny, ng)`); that layout was
+> wrong.  The principled layout is `(N, ng, nx, ny)` for angular
+> fields and `(ng, nx, ny)` for scalar fields and cross sections —
+> **energy is second after the ordinate axis**, then the spatial
+> cell axes trail.  The derivation lives in
+> `docs/theory/index_convention.rst` (the canonical `Derivation —
+> why (N, ng, nx, ny) is principled` section); the migration history
+> is documented in `.claude/plans/principled_index_migration.md`
+> §1.1.  Every shape and storage-layout statement below has been
+> corrected.  Design recommendations (frozen dataclass APIs,
+> operator-algebra coupling, Issue #197 partial close) are
+> conceptually unchanged — only the shape arithmetic moved.
+>
+> The current production state under the principled layout is the
+> single source of truth — see `index_convention.rst` "SN Field
+> Vocabulary" and "Layout-by-Array Reference" sections.
+
 ## Executive summary (5 lines)
 
-1. **Canonical typed fields:** `AngularFlux(values=(N, nx, ny, ng))`, `ScalarFlux(values=(nx, ny, ng))`, `IsotropicSource`, `PerOrdinateSource`, `Solution(keff, angular_flux, scalar_flux, iter_history)` — all frozen dataclasses carrying a numpy array + SNMesh ref; arithmetic dunders delegate to numpy so block ops stay vectorised.
-2. **Storage layout:** energy `g` is **always the trailing axis** (block over ng); ordinate `n` is the leading axis when present. Mesh axes (`nx, ny`) live between. One numpy op multiplies every field across every group; no per-group Python loops.
+1. **Canonical typed fields:** `AngularFlux(values=(N, ng, nx, ny))`, `ScalarFlux(values=(ng, nx, ny))`, `IsotropicSource`, `PerOrdinateSource`, `Solution(keff, angular_flux, scalar_flux, iter_history)` — all frozen dataclasses carrying a numpy array + SNMesh ref; arithmetic dunders delegate to numpy so block ops stay vectorised.
+2. **Storage layout:** the principled order is `(N, ng, nx, ny)` for angular fields and `(ng, nx, ny)` for scalar fields — **energy `g` is second (after the ordinate axis `N` for angular fields; leading for scalar fields and cross sections), then the spatial cell axes `(nx, ny)`**. The derivation lives in `docs/theory/index_convention.rst`: within-group block-diagonality places the joint-batch axes (`N`, `ng`) ahead of the must-iterate cell axes (`nx`, `ny`). One numpy op multiplies every field across every group; no per-group Python loops.
 3. **Operator-algebra coupling:** every leaf becomes `apply(psi: AngularFlux) → AngularFlux`. F is `(internally) AngularFlux → ScalarFlux (project) → ScalarFlux (rank-1 ops) → AngularFlux (broadcast)`. `(L + C − S_foldable − F/k).apply(ψ)` distributes cleanly because the four operands agree on a typed domain; the existing `OperatorSum.apply: a.apply(x) + b.apply(x)` works unchanged.
 4. **Issue #197 partial close:** `AngularFlux`, `ScalarFlux`, `IsotropicSource`, `PerOrdinateSource` land as **structural dataclasses** (more capable than bare NewType — they carry mesh ref + dunders); the remaining types from #197 Wave 1 (`CrossSection`, `ReactionRate`, `GroupRate`, `Volume`, `Position`, `KEff`, `EmissionSpectrum`, etc.) stay as bare `NewType` per the original plan.
 5. **Migration impact on `c21c2ef`:** the three b.i v2 leaves keep their constructors (`StreamingOperator(sn_mesh, sigma_t)`, `CollisionOperator(sn_mesh, sigma)`, `ScatteringOperator.foldable_part()` API), but their `apply` rewires to `AngularFlux → AngularFlux`; the bodies switch from `transport_operator_matvec_*` (which hardcodes a discretisation) to `sn_mesh.cell_update.residual` folded through `sn_mesh.dag_walk(...)` — making the discretisation strategy-driven per the user's hard requirement. Tests in `tests/sn/test_streaming_operator{,_decomposition}.py` and `tests/sn/test_collision_operator.py` are mechanically rewritten (build typed input → assert typed output); the algebraic identity tests survive verbatim.
@@ -25,14 +45,14 @@ This section enumerates every solver-state data structure the grand report v3 na
 
 | Report name | Physical meaning | Units | Shape | Existing counterpart | Notes |
 |---|---|---|---|---|---|
-| `AngularFlux` | ψ(r, Ω, g) — phase-space directional flux | 1/(cm²·s·sr) | `(N, nx, ny, ng)` | Bare `np.ndarray` returned by `transport_sweep` | Hard requirement: structural type |
-| `ScalarFlux` | φ(r, g) = ∫ψ dΩ — angle-integrated flux | 1/(cm²·s) | `(nx, ny, ng)` | Bare `np.ndarray` returned by `transport_sweep` | Hard requirement: structural type |
+| `AngularFlux` | ψ(r, Ω, g) — phase-space directional flux | 1/(cm²·s·sr) | `(N, ng, nx, ny)` | Bare `np.ndarray` returned by `transport_sweep` | Hard requirement: structural type |
+| `ScalarFlux` | φ(r, g) = ∫ψ dΩ — angle-integrated flux | 1/(cm²·s) | `(ng, nx, ny)` | Bare `np.ndarray` returned by `transport_sweep` | Hard requirement: structural type |
 | `Field` (base) | Generic abstract base — carries `space`, `data`, `representation` | — | — | None | Optional ancestor for §32.5 (line 5919) |
 | `CoefficientField` | Coefficients in a basis (PN moments, Galerkin DoFs) | — | basis-dependent | Implicit in `HarmonicMomentProjection` output | Not needed for SN |
-| `DiscreteField` | Per-cell discrete values | — | `(nx, ny, ng)` | The ScalarFlux above | Same data shape |
+| `DiscreteField` | Per-cell discrete values | — | `(ng, nx, ny)` | The ScalarFlux above | Same data shape |
 | `MeshField` | Field tagged with mesh (cell-centered, face-valued) | — | varies | `sn_mesh.volumes` etc. | Mesh side, not solution state |
 | `TraceField` | Field on `Γ_-` or `Γ_+` | varies | `(N_inflow, ng)` per face | `psi_bc["bc_*"]` dict entries (line 282-289 sweep.py) | Boundary trace storage |
-| `HarmonicMomentField` | φ_ℓm coefficients | 1/(cm²·s) | `(L+1, 2L+1, nx, ny, ng)` | `HarmonicMomentProjection.apply` output (orpheus/sn/scattering.py:212-251) | Internal to S |
+| `HarmonicMomentField` | φ_ℓm coefficients | 1/(cm²·s) | `(L+1, 2L+1, ng, nx, ny)` | `HarmonicMomentProjection.apply` output (orpheus/sn/scattering.py:212-251) | Internal to S |
 | `GroupFlux` | Flux on one energy group | 1/(cm²·s) | `(N, nx, ny)` or `(nx, ny)` | Slice of AngularFlux/ScalarFlux | Not a separate type |
 | `StochasticField` | UQ extension | varies | + `Xi` axis | None | Future |
 | `TensorTrainField` | TT-compressed flux | varies | TT-cores | None | Future |
@@ -42,10 +62,10 @@ This section enumerates every solver-state data structure the grand report v3 na
 
 | Report name | Meaning | Units | Shape | Existing counterpart |
 |---|---|---|---|---|
-| `q` (in `(L + C − S − F)ψ = q`) | External (driven) source | 1/(cm³·s·sr) | `(N, nx, ny, ng)` if anisotropic; `(nx, ny, ng)` if isotropic | Sweep arg `Q` (isotropic) + `Q_aniso` (per-ordinate) — see `transport_sweep(Q, sig_t, sn_mesh, psi_bc, Q_aniso)` at orpheus/sn/sweep.py:96 |
+| `q` (in `(L + C − S − F)ψ = q`) | External (driven) source | 1/(cm³·s·sr) | `(N, ng, nx, ny)` if anisotropic; `(ng, nx, ny)` if isotropic | Sweep arg `Q` (isotropic) + `Q_aniso` (per-ordinate) — see `transport_sweep(Q, sig_t, sn_mesh, psi_bc, Q_aniso)` at orpheus/sn/sweep.py:96 |
 | `Source` (§28, line 5382) | Boundary or volumetric source | — | — | Implicit |
-| Per-ordinate source `Q^aniso_n(r)` | RHS of the per-ordinate within-group system; rank ≥ 2 in angle | 1/(cm³·s·sr) | `(N, nx, ny, ng)` | `Q_aniso` in `transport_sweep`; output of `ScatteringOperator.build_aniso_source` (orpheus/sn/scattering.py:397-464) |
-| Isotropic source | `(P0+(n,2n))` source per group, direction-independent | 1/(cm³·s·sr) (broadcast) | `(nx, ny, ng)` | `Q` (isotropic part), `Q_iso` in `ScatteringOperator.apply` (orpheus/sn/scattering.py:742) |
+| Per-ordinate source `Q^aniso_n(r)` | RHS of the per-ordinate within-group system; rank ≥ 2 in angle | 1/(cm³·s·sr) | `(N, ng, nx, ny)` | `Q_aniso` in `transport_sweep`; output of `ScatteringOperator.build_aniso_source` (orpheus/sn/scattering.py:397-464) |
+| Isotropic source | `(P0+(n,2n))` source per group, direction-independent | 1/(cm³·s·sr) (broadcast) | `(ng, nx, ny)` | `Q` (isotropic part), `Q_iso` in `ScatteringOperator.apply` (orpheus/sn/scattering.py:742) |
 | `ResidualSource` (§25.1, line 4614) | `r = q − Aψ_D` for hybrid corrections | 1/(cm³·s·sr) | matches q | None — Phase G doesn't need this |
 | `BoundarySource` (§16A.2, lines 2788) | Prescribed inflow at Γ_- | 1/(cm²·s·sr) | `(N_inflow,)` per face | Implicit in BC-applied face buffers |
 
@@ -53,7 +73,7 @@ This section enumerates every solver-state data structure the grand report v3 na
 
 | Report name | Meaning | Units | Shape | Existing counterpart |
 |---|---|---|---|---|
-| `ReactionRate` | σ·φ — collision/absorption/fission rate density | 1/(cm³·s) | `(nx, ny, ng)` | Computed inline in `compute_group_*_rate` (orpheus/sn/solver.py:334-385) |
+| `ReactionRate` | σ·φ — collision/absorption/fission rate density | 1/(cm³·s) | `(ng, nx, ny)` | Computed inline in `compute_group_*_rate` (orpheus/sn/solver.py:334-385) |
 | `GroupRate` | ∫σ·φ dV — volume-integrated per group | 1/s | `(ng,)` | Return of `compute_group_production_rate` / `compute_group_absorption_rate` |
 | `TallyCosheaf` (§15A.6 line 2284) | Additive aggregation of scores | varies | — | None — MC concept |
 | `CurrentCochain` (§15A.10) | Face-summed currents | n/cm²/s | `(N_faces, ng)` | None |
@@ -130,7 +150,7 @@ The grand report does NOT use a single literal "Solution" class name in §29.2 �
 Driven by the user's verbatim requirements:
 
 1. **Frozen dataclasses + numpy array, not bare NewType.** A NewType is a label; a structural type carries operations (point-lookup, block-multiply, mesh ref).
-2. **Block storage:** energy `g` always trails; `numpy` block ops just work — `flux_a + flux_b`, `2.0 * flux`, `sigma_t * flux.values` are one-step operations.
+2. **Block storage:** energy `g` is second after `N` for angular fields, leading for scalar fields and cross sections — the principled `(N, ng, nx, ny)` / `(ng, nx, ny)` layout. `numpy` block ops just work — `flux_a + flux_b`, `2.0 * flux`, `sigma_t * flux.values` (with `sigma_t.shape == (ng, nx, ny)` broadcasting against the trailing axes of a `(N, ng, nx, ny)` angular flux) are one-step operations.
 3. **Mesh ref always attached.** Every field knows where its values live, so plotting can ask `flux.at(position)` without threading the mesh through every call site.
 4. **Pattern 4 (illegal-states-unrepresentable):** an `AngularFlux` paired with a mesh that has a different `(nx, ny)` is impossible — the constructor validates.
 5. **`dataclasses.replace()` for mutation, not `replace_psi`.** Standard Python pattern.
@@ -155,17 +175,19 @@ if TYPE_CHECKING:
 class AngularFlux:
     r"""Angular flux ψ(r, Ω, g) over an SN method space.
 
-    Block-storage layout: leading axis is ordinate index n; trailing
-    axis is energy group g. The interior (nx, ny) carries the spatial
-    mesh. **Energy is trailing by design** — a per-ordinate per-cell
-    block operator that mixes groups (e.g. `Σ_s,0[g→g'] · ψ`) acts as
-    a matmul on the last axis with no reshape.
+    Block-storage layout: leading axis is ordinate index n; energy
+    group g is the second axis; spatial cell axes (nx, ny) trail.
+    **Energy is second by design** (the principled `(N, ng, nx, ny)`
+    layout per `docs/theory/index_convention.rst`) — the within-group
+    block-diagonal structure places the joint-batch axes (N for
+    Krylov, ng for group block) ahead of the must-iterate cell axes
+    (nx, ny) whose streaming dependency cannot be parallelised.
 
     Units: 1/(cm²·s·sr).
 
     Constructor invariants
     ----------------------
-    * ``values.shape == (sn_mesh.quad.N, sn_mesh.nx, sn_mesh.ny, ng)``
+    * ``values.shape == (sn_mesh.quad.N, ng, sn_mesh.nx, sn_mesh.ny)``
       for some ``ng ≥ 1``. Validated at construction; mismatched shape
       raises ValueError (Pattern 4 — illegal states unrepresentable).
     * ``sn_mesh`` is held by reference, NOT copied. Multiple flux
@@ -181,9 +203,11 @@ class AngularFlux:
 
     ``__mul__`` / ``__rmul__`` — scalar or numpy-broadcastable array
     multiply. ``2.0 * flux`` returns ``AngularFlux``; ``sigma_t *
-    flux`` (where ``sigma_t.shape == (nx, ny, ng)``) broadcasts
-    correctly across the leading ordinate axis without manual
-    reshape.
+    flux`` (where ``sigma_t.shape == (ng, nx, ny)``) broadcasts
+    correctly: numpy aligns the trailing ``(ng, nx, ny)`` axes of
+    ``sigma_t`` with the trailing axes of ``flux.values`` shaped
+    ``(N, ng, nx, ny)``, so the leading ordinate axis broadcasts
+    without manual reshape.
 
     ``__truediv__`` — scalar division for normalisation
     (``F.apply(psi) / k``).
@@ -207,14 +231,14 @@ class AngularFlux:
       line 5524 (``k, psi = PowerIteration().solve(problem)`` — the
       ``psi`` is this type).
     * orpheus/sn/sweep.py:96 — ``transport_sweep`` returns the bare
-      values today (``(N, nx, ny, ng)`` tuple of ``(angular_flux,
+      values today (``(N, ng, nx, ny)`` tuple of ``(angular_flux,
       scalar_flux)``).
     * orpheus/sn/scattering.py:695 — ``ScatteringOperator.apply``
-      consumes ``(N, nx, ny, ng)`` today.
+      consumes ``(N, ng, nx, ny)`` today.
 
     Parameters
     ----------
-    values : np.ndarray, shape (N, nx, ny, ng)
+    values : np.ndarray, shape (N, ng, nx, ny)
         The actual flux array.
     sn_mesh : SNMesh
         The augmented geometry whose quadrature / cells / boundary
@@ -225,24 +249,23 @@ class AngularFlux:
     sn_mesh: "SNMesh"
 
     def __post_init__(self) -> None:
-        expected = (
-            self.sn_mesh.quad.N,
-            self.sn_mesh.nx,
-            self.sn_mesh.ny,
-            self.values.shape[-1] if self.values.ndim == 4 else -1,
-        )
-        if self.values.shape[:3] != expected[:3] or self.values.ndim != 4:
+        N, nx, ny = self.sn_mesh.quad.N, self.sn_mesh.nx, self.sn_mesh.ny
+        if (
+            self.values.ndim != 4
+            or self.values.shape[0] != N
+            or self.values.shape[2] != nx
+            or self.values.shape[3] != ny
+        ):
             raise ValueError(
                 f"AngularFlux.values.shape={self.values.shape} does "
-                f"not match (N, nx, ny, ng) for the given sn_mesh "
-                f"(N={self.sn_mesh.quad.N}, nx={self.sn_mesh.nx}, "
-                f"ny={self.sn_mesh.ny})."
+                f"not match (N, ng, nx, ny) for the given sn_mesh "
+                f"(N={N}, nx={nx}, ny={ny})."
             )
 
     # ── Properties ────────────────────────────────────────────────
     @property
     def ng(self) -> int:
-        return int(self.values.shape[-1])
+        return int(self.values.shape[1])
 
     @property
     def shape(self) -> tuple[int, int, int, int]:
@@ -287,10 +310,13 @@ class AngularFlux:
     def to_scalar(self) -> "ScalarFlux":
         r"""Reduce over ordinates: ``φ_g(r) = Σ_n w_n ψ_n(r, g)``.
 
-        One numpy einsum; vectorised over (nx, ny, ng). Pure function.
+        One numpy einsum; vectorised over (ng, nx, ny). Pure function.
+        Under the principled `(N, ng, nx, ny)` layout the reduction
+        contracts axis 0 (`N`) against the quadrature weights to
+        produce the `(ng, nx, ny)` ScalarFlux.
         """
         phi = np.einsum(
-            "n,nxyg->xyg", self.sn_mesh.quad.weights, self.values,
+            "n,ngxy->gxy", self.sn_mesh.quad.weights, self.values,
         )
         return ScalarFlux(values=phi, sn_mesh=self.sn_mesh)
 
@@ -301,10 +327,13 @@ class AngularFlux:
         r"""Value at a given (cell, ordinate) slot.
 
         Returns ``(ng,)`` if ``n`` supplied; ``(N, ng)`` otherwise.
+        Under the principled `(N, ng, nx, ny)` layout the spatial
+        slot lives at axes (2, 3), so the (ix, iy) slice keeps
+        axes 0 (`N`) and 1 (`ng`).
         """
         if n is None:
-            return self.values[:, ix, iy, :]
-        return self.values[n, ix, iy, :]
+            return self.values[:, :, ix, iy]
+        return self.values[n, :, ix, iy]
 
     @property
     def positions(self) -> np.ndarray:
@@ -322,10 +351,11 @@ class AngularFlux:
 class ScalarFlux:
     r"""Scalar flux φ(r, g) = ∫_{4π} ψ(r, Ω, g) dΩ over an SN method space.
 
-    Block-storage layout: spatial axes lead, energy trails. The same
-    block-multiply convention as :class:`AngularFlux`: ``sigma_t *
-    phi.values`` (with ``sigma_t.shape == (nx, ny, ng)``) is one
-    elementwise op.
+    Block-storage layout: energy leads, spatial axes trail (the
+    principled `(ng, nx, ny)` layout per
+    `docs/theory/index_convention.rst`). The same block-multiply
+    convention as :class:`AngularFlux`: ``sigma_t * phi.values``
+    (with ``sigma_t.shape == (ng, nx, ny)``) is one elementwise op.
 
     Units: 1/(cm²·s).
 
@@ -358,7 +388,7 @@ class ScalarFlux:
 
     Parameters
     ----------
-    values : np.ndarray, shape (nx, ny, ng)
+    values : np.ndarray, shape (ng, nx, ny)
     sn_mesh : SNMesh
     """
 
@@ -366,17 +396,21 @@ class ScalarFlux:
     sn_mesh: "SNMesh"
 
     def __post_init__(self) -> None:
-        expected = (self.sn_mesh.nx, self.sn_mesh.ny)
-        if self.values.ndim != 3 or self.values.shape[:2] != expected:
+        nx, ny = self.sn_mesh.nx, self.sn_mesh.ny
+        if (
+            self.values.ndim != 3
+            or self.values.shape[1] != nx
+            or self.values.shape[2] != ny
+        ):
             raise ValueError(
                 f"ScalarFlux.values.shape={self.values.shape} does not "
-                f"match (nx, ny, ng) for the given sn_mesh "
-                f"(nx={self.sn_mesh.nx}, ny={self.sn_mesh.ny})."
+                f"match (ng, nx, ny) for the given sn_mesh "
+                f"(nx={nx}, ny={ny})."
             )
 
     @property
     def ng(self) -> int:
-        return int(self.values.shape[-1])
+        return int(self.values.shape[0])
 
     # Dunders identical to AngularFlux (omitted for brevity).
     # _assert_same_mesh, __add__, __sub__, __neg__, __mul__, __rmul__,
@@ -390,6 +424,9 @@ class ScalarFlux:
         the new instance owns its array (``np.broadcast_to`` + copy
         to make it writable; or store a view if the consumer
         promises read-only — Pattern 2 dual-view, future).
+
+        Under the principled layout the broadcast prepends `N` to
+        produce `(N, ng, nx, ny)` from `(ng, nx, ny)`.
         """
         broadcast = np.broadcast_to(
             self.values[None, :, :, :],
@@ -398,8 +435,12 @@ class ScalarFlux:
         return AngularFlux(values=broadcast, sn_mesh=self.sn_mesh)
 
     def at(self, *, ix: int, iy: int = 0) -> np.ndarray:
-        """Value at a given (cell) slot, shape ``(ng,)``."""
-        return self.values[ix, iy, :]
+        """Value at a given (cell) slot, shape ``(ng,)``.
+
+        Under the principled `(ng, nx, ny)` layout the spatial slot
+        sits at axes (1, 2); the slice keeps axis 0 (`ng`).
+        """
+        return self.values[:, ix, iy]
 ```
 
 ### 2.4 `IsotropicSource` and `PerOrdinateSource` — RHS of `(L+C-S-F)ψ = q`
@@ -541,10 +582,13 @@ class AngularFlux:
 
     @classmethod
     def zeros(cls, sn_mesh: "SNMesh", ng: int) -> "AngularFlux":
-        """Zero flux on the given mesh + group count."""
+        """Zero flux on the given mesh + group count.
+
+        Allocates `(N, ng, nx, ny)` per the principled layout.
+        """
         return cls(
             values=np.zeros(
-                (sn_mesh.quad.N, sn_mesh.nx, sn_mesh.ny, ng)
+                (sn_mesh.quad.N, ng, sn_mesh.nx, sn_mesh.ny)
             ),
             sn_mesh=sn_mesh,
         )
@@ -569,9 +613,9 @@ Each leaf's new signature:
 
 | Leaf | New signature | Internal flow |
 |---|---|---|
-| `StreamingOperator.apply` | `(psi: AngularFlux) → AngularFlux` | Per ordinate `n`, iterate `sn_mesh.dag_walk(ordinate_idx=n)`, fold over `cell_update.residual(...)` (orpheus/sn/spatial/cell_update.py:518) to compute per-cell `(L_cell ψ̄ − q)` with `q=0`. Subtract `σ_t · ψ` packed-vector style (Resolution A's algebraic identity). Pack the per-cell residuals into `(N, nx, ny, ng)` shape. Wrap as `AngularFlux`. |
+| `StreamingOperator.apply` | `(psi: AngularFlux) → AngularFlux` | Per ordinate `n`, iterate `sn_mesh.dag_walk(ordinate_idx=n)`, fold over `cell_update.residual(...)` (orpheus/sn/spatial/cell_update.py:518) to compute per-cell `(L_cell ψ̄ − q)` with `q=0`. Subtract `σ_t · ψ` packed-vector style (Resolution A's algebraic identity). Pack the per-cell residuals into `(N, ng, nx, ny)` shape. Wrap as `AngularFlux`. |
 | `CollisionOperator.apply` | `(psi: AngularFlux) → AngularFlux` | `values = sigma[None, :, :, :] * psi.values` — one numpy broadcast multiply. Wrap as `AngularFlux`. |
-| `ScatteringOperator.apply` | `(psi: AngularFlux) → AngularFlux` | Internally project to `(nx, ny, ng)` (line 738), apply P0 + (n,2n) (line 743-744), broadcast, add Pℓ≥1 (line 747-750). Return packed as `AngularFlux`. **No shape change** — this is what `apply` already does at line 695. |
+| `ScatteringOperator.apply` | `(psi: AngularFlux) → AngularFlux` | Internally project to `(ng, nx, ny)` (line 738), apply P0 + (n,2n) (line 743-744), broadcast, add Pℓ≥1 (line 747-750). Return packed as `AngularFlux`. **No shape change** — this is what `apply` already does at line 695. |
 | `FissionOperator.apply` | `(psi: AngularFlux) → AngularFlux` | Project to scalar (`psi.to_scalar()`); compute `chi[g] · Σ_g' νΣ_f(g') · φ(g')` as today (line 162-165); broadcast back across ordinates. The broadcast makes the algebra close — F's domain and range are both `AngularFlux`, so `(L + C − S − F/k).apply(ψ)` distributes. |
 
 The strategy-driven discretisation is the crux of `StreamingOperator.apply`'s rewrite. Today its body calls `transport_operator_matvec_*` (orpheus/sn/operator.py:1700-1736), which hardcodes finite-difference upwind + τ-symmetric M-M closures regardless of what `sn_mesh.cell_update` is. The new body uses the strategy:
@@ -713,7 +757,7 @@ def as_scipy_linop_typed(
 
     def unpack(vec: np.ndarray) -> AngularFlux:
         return AngularFlux(
-            values=vec.reshape(N, nx, ny, ng),
+            values=vec.reshape(N, ng, nx, ny),
             sn_mesh=sn_mesh,
         )
 
@@ -725,7 +769,7 @@ def as_scipy_linop_typed(
     )
 ```
 
-This **replaces** the legacy `EquationMap`-packed layout used by `SNStreamingOperator.apply` today (orpheus/sn/operator.py:1199-1218). The new layout is the natural `(N, nx, ny, ng).ravel()` — simpler, no eq_map dispatch, no `(ix, iy)`+`.T.ravel(order='F')` gymnastics that the c21c2ef Resolution A subtraction relies on at line 1741-1744. The legacy `EquationMap` retires with the legacy matvec primitives.
+This **replaces** the legacy `EquationMap`-packed layout used by `SNStreamingOperator.apply` today (orpheus/sn/operator.py:1199-1218). The new layout is the natural `(N, ng, nx, ny).ravel()` — simpler, no eq_map dispatch, no `(ix, iy)`+`.T.ravel(order='F')` gymnastics that the c21c2ef Resolution A subtraction relies on at line 1741-1744. The legacy `EquationMap` retires with the legacy matvec primitives.
 
 ---
 
@@ -733,7 +777,9 @@ This **replaces** the legacy `EquationMap`-packed layout used by `SNStreamingOpe
 
 ### 4.1 What Issue #197's Wave 1 said (orpheus/numerics/quantities.py — proposed)
 
-The issue's literal proposal (§"What lands"):
+The issue's literal proposal (§"What lands") — quoted verbatim;
+note the shapes here predate the Issue #196 PR-INDEX-1..7 layout
+flip and are kept for historical accuracy:
 
 ```python
 Flux            = NewType("Flux", np.ndarray)            # (nx, ng)
@@ -756,8 +802,8 @@ ScatteringRatio = NewType("ScatteringRatio", np.ndarray)
 | #197 type | Proposed action | Reason |
 |---|---|---|
 | `Flux` (a.k.a. `ScalarFlux`) | **Promote to structural** (this memo's `ScalarFlux`) | Has rich operations (point-lookup, broadcast-to-ordinates, mesh ref, arithmetic), all of which a bare NewType cannot carry. |
-| `AngularFlux` | **Promote to structural** | Same reasoning. Also: the shape in #197 is `(N, nx, ng)` (no `ny`); the current 2-D-Cartesian path uses `(N, nx, ny, ng)` (orpheus/sn/scattering.py:695). The structural type encodes the actual shape. |
-| (new) `IsotropicSource` | **Add as structural** | Pattern 3 — names the SOURCE role of a shape-`(nx, ny, ng)` array, distinct from `ScalarFlux`. |
+| `AngularFlux` | **Promote to structural** | Same reasoning. Also: the shape in the original #197 sketch was `(N, nx, ng)` (1-D, energy trailing); the post-Issue-#196 principled layout is `(N, ng, nx, ny)` (2-D-Cartesian; 1-D uses `ny = 1` as a preserved singleton). The structural type encodes the actual shape. |
+| (new) `IsotropicSource` | **Add as structural** | Pattern 3 — names the SOURCE role of a shape-`(ng, nx, ny)` array, distinct from `ScalarFlux`. |
 | (new) `PerOrdinateSource` | **Add as structural** | Same reasoning. |
 | `CrossSection` | **Keep as bare NewType per #197** | Just a label; no domain of operations beyond numpy arithmetic. The Mixture dataclass already carries cross-sections (orpheus/data/macro_xs/mixture.py); a structural type would duplicate. |
 | `ReactionRate` | **Keep as bare NewType** | Same. |
@@ -807,8 +853,8 @@ Recap from the brief:
 | `SNStreamingOperator.apply` (orpheus/sn/operator.py:1293) | packed `(n_unknowns,)` |
 | `StreamingOperator.apply` (orpheus/sn/operator.py:1666) | packed `(n_unknowns,)` |
 | `CollisionOperator.apply` (orpheus/sn/operator.py:1840) | packed `(n_unknowns,)` |
-| `ScatteringOperator.apply` (orpheus/sn/scattering.py:695) | unpacked `(N, nx, ny, ng)` |
-| `FissionOperator.apply` (orpheus/sn/fission.py:137) | scalar `(nx, ny, ng)` |
+| `ScatteringOperator.apply` (orpheus/sn/scattering.py:695) | unpacked `(N, ng, nx, ny)` |
+| `FissionOperator.apply` (orpheus/sn/fission.py:137) | scalar `(ng, nx, ny)` |
 
 The `OperatorSum.apply` distribution `a.apply(x) + b.apply(x)` (orpheus/numerics/operator.py:561) passes the SAME `x` to both operands. With three different incompatible shape contracts, `(L + C − S_foldable).apply(packed_ψ)` blows up at distribution: `S.apply(packed_ψ)` reshape-fails or gives garbage.
 
@@ -868,7 +914,7 @@ The user's directive is explicit: do not revert `c21c2ef`. The leaves stay; thei
 | `operator.py:1748-1879` (`CollisionOperator`) | Change `apply(psi: np.ndarray) → np.ndarray` to `apply(psi: AngularFlux) → AngularFlux`. Body becomes one numpy broadcast (`self.sigma[None, :, :, :] * psi.values`); the `_sigma_at_unknowns` packed-vector gather (line 1827) retires. `solve` becomes `q.values / sigma[None, ...]`. `apply_transpose == apply` (self-adjoint) stays. |
 | `operator.py:1120-1478` (`SNStreamingOperator`) | **Retire** per Cardinal Rule 2 + the aggressive-retirement directive. The bundled `L + C` legacy is subsumed by the leaf algebra. The legacy `EquationMap` (`operator.py` lines ~80-410 of the file) retires too — its only consumers were the matvec primitives. |
 | `operator.py:414+, 573+, 853+` (the 3 `transport_operator_matvec_*` primitives) | **Retire** — strategy-driven discretisation supersedes them. |
-| `scattering.py:695-751` (`ScatteringOperator.apply`) | Type the signature: `apply(psi: AngularFlux) → AngularFlux`. The body stays — current shape is already `(N, nx, ny, ng)`, so only the type wrapping changes. |
+| `scattering.py:695-751` (`ScatteringOperator.apply`) | Type the signature: `apply(psi: AngularFlux) → AngularFlux`. The body stays — current shape is already `(N, ng, nx, ny)`, so only the type wrapping changes. |
 | `fission.py:137-165` (`FissionOperator.apply`) | Change to `apply(psi: AngularFlux) → AngularFlux`. Body adds a `psi.to_scalar()` at entry and a `.broadcast_to_ordinates()` at exit (or builds the broadcast values directly with `chi[None, :, :, :] * rate[None, :, :, None]`). Eigenvalue division `/k` stays at the solver level (fission.py module docstring lines 39-53). |
 | `sweep.py:96-300` (`transport_sweep` family) | Two options: (a) keep the bare-ndarray inner interface (sweep is implementation, not interface); (b) wrap at the entry to consume an `IsotropicSource + PerOrdinateSource` pair. Recommendation: **option (a)** — the sweep is the "hot" implementation surface and its bare-numpy interior is performance-critical. Wrap at `OperatorSum.solve` (fusion hook) and at the public `SNSolver.solve_*` entry points. |
 | `solver.py:101-117` (`SNResult`), `solver.py:82-99` (`SNFixedSourceResult`) | Optional in this Phase: rename to `Solution`, change field types from bare arrays to `AngularFlux`/`ScalarFlux`. Backward compatibility: keep `SNResult` as a deprecated alias for one release. |
@@ -880,7 +926,7 @@ The user's directive is explicit: do not revert `c21c2ef`. The leaves stay; thei
 | `tests/sn/test_streaming_operator.py` (orpheus repo line ranges from rg above) | `TestCapabilities` (line 136), `TestConstructor` (line 178), `TestLinearity` (line 304), `TestSumCapabilities` (line 338) — pure algebra tests, no shape contract | `TestApplyShape` (line 201), `TestCompositionEquivalence` (line 228) — must rewrite to construct `AngularFlux` inputs and assert `AngularFlux` outputs. The composition-equivalence test gains power: `(L+C).apply(psi)` now equals `M(psi)` *and* the result is an `AngularFlux`. |
 | `tests/sn/test_collision_operator.py` | `TestCapabilities` (line 110), `TestSigmaInterpretation` (line 294), `TestSigmaLayout` (line 339), `TestApplySolveIdentity` (line 247), `TestApplyTranspose` (line 274) — algebra | `TestApply` (line 135), `TestSolve` (line 190) — typed inputs |
 | `tests/sn/test_streaming_operator_decomposition.py` | `TestResolutionADecomposition` (line 163), `TestSubtractiveDefinition` (line 209), `TestResolutionADifferentFromPriorWrong` (line 247) — the Resolution A algebraic identity, which survives because the same algebra holds at the AngularFlux level (one broadcast-subtract instead of packed-vector subtract) | The eq_map construction helpers `_eq_map_for` (line 113), `_call_matvec` (line 125) — retire alongside the matvec primitives. |
-| `tests/sn/test_scattering_operator.py` | Everything — the ScatteringOperator's shape contract is already `(N, nx, ny, ng)`. | Only the entry/exit wrapping: `op.apply(psi)` becomes `op.apply(AngularFlux(values=psi, sn_mesh=...))`. |
+| `tests/sn/test_scattering_operator.py` | Everything — the ScatteringOperator's shape contract is already `(N, ng, nx, ny)`. | Only the entry/exit wrapping: `op.apply(psi)` becomes `op.apply(AngularFlux(values=psi, sn_mesh=...))`. |
 
 ### 6.3 Suggested PR boundaries (method-implementer guidance)
 
@@ -951,7 +997,7 @@ This is mechanical and additive. It does NOT have to land in Phase G — defer t
 
 ### 7.4 F's `AngularFlux → AngularFlux` contract — over-allocation
 
-F internally projects to scalar (cost-free numpy reduce) then broadcasts back to `(N, nx, ny, ng)`. The broadcast allocates `(N×nx×ny×ng)` floats for what is essentially `(nx×ny×ng)` data times N identical broadcasts.
+F internally projects to scalar (cost-free numpy reduce) then broadcasts back to `(N, ng, nx, ny)`. The broadcast allocates `(N×nx×ny×ng)` floats for what is essentially `(nx×ny×ng)` data times N identical broadcasts.
 
 For `N=16, nx=160, ng=2` the cost is ~80 KB per F apply. The k-eigenvalue iteration applies F once per outer (a few-to-few-dozen times per solve). Total: <few MB; negligible.
 

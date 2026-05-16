@@ -215,6 +215,37 @@ Under the principled layout, the per-sweep hot path
 becomes a single
 :func:`~orpheus.sn.spatial.scan.ordinate_scan` call per chain (two
 chains per slab problem), rather than ``N/2`` per-ordinate calls.
+
+The closed-form scan that
+:func:`~orpheus.sn.spatial.scan.ordinate_scan` evaluates is the
+**Blelloch §1.5 first-order linear-recurrence form**.  For the
+per-ordinate spatial recurrence
+:math:`\psi[i+1] = a[i]\,\psi[i] + b[i]` with :math:`\psi[0]
+= \psi_0` (forward substitution on the block-triangular streaming +
+collision operator), the prefix-product factorisation of the
+associated 2×2 lower-triangular affine matrix
+:math:`M = [[a,0],[b,1]]` gives
+
+.. math::
+   :label: blelloch-1990-eq-1-5
+
+   \psi[n] \;=\; \left(\prod_{i=0}^{n-1} a[i]\right)
+                 \left(\psi_0 \;+\; \sum_{i=0}^{n-1}
+                       \frac{b[i]}{\prod_{j=0}^{i} a[j]}\right).
+
+In numpy this is three ops:
+``cumprod(a) * (psi_0 + cumsum(b / cumprod(a)))`` —
+no Python loop over cells.  The pair-monoid composition
+:math:`(\alpha_1,\beta_1) \oplus (\alpha_2,\beta_2) =
+(\alpha_1 \alpha_2,\, \alpha_2 \beta_1 + \beta_2)` is associative
+([Blelloch1990]_ §1.5; [Brent1974]_), so the same closed form admits
+Brent's :math:`O(N/\log N)`-work parallel decomposition if a future
+GPU port adopts a parallel-prefix backend.  The
+``tests/sn/spatial/test_ordinate_scan.py`` algebraic-theorem suite
+pins the pair-monoid associativity, identity, linearity in
+:math:`\psi_0`, linearity in :math:`b`, and bit-identity to a serial
+explicit loop — fifteen foundation-level invariants that justify
+the implementation, not the other way around.
 For ``N = 16``, this saves 14 Python invocations per sweep ---
 roughly 28 % mean speedup on the
 ``slab_2g_3reg_dd_n40`` regression case (PR-INDEX-1 benchmark; see
@@ -651,6 +682,369 @@ all 7 pass.  The six bit-identity cases agree at ``nulp=64``
 as the legacy layout up to FP-non-associativity at the ULP regime.
 
 
+.. _sn-field-vocabulary:
+
+SN Field Vocabulary
+===================
+
+Before the per-array shape table, this section catalogues the
+*conceptual* field hierarchy a future maintainer (or LLM session)
+will see in the SN codebase.  Each entry pairs the
+mathematical role (what does this quantity *mean*?) with the
+physical units, the storage shape under the principled layout, and
+the existing-code counterpart with file:line pointers where helpful.
+The vocabulary descends from the typed-field contract memo at
+``.claude/agent-memory/explorer/typed_field_contracts_for_phase_g.md``
+(now corrected for the principled layout); the table below is the
+durable, build-versioned reference.
+
+The hierarchy is grouped by epistemic role, *not* by storage shape:
+two arrays may share the same numpy shape but play different
+roles in the operator algebra (``ScalarFlux`` vs ``IsotropicSource``,
+for instance).  The role distinction is what makes the type-system
+discipline of Issue #197 productive — a bare ``np.ndarray`` cannot
+distinguish them.
+
+Field hierarchy --- phase-space and reduced flux types
+-------------------------------------------------------
+
+These are the structural-flux types: directional, scalar, and
+reductions.  The principled layout places ordinate-index :math:`N`
+first (joint-batch over the Krylov axis), then energy :math:`n_g`
+(joint-batch over the block-diagonal group axis), then the cell
+axes :math:`(n_x, n_y)`.
+
+.. list-table:: Field types
+   :header-rows: 1
+   :widths: 18 28 14 18 22
+
+   * - Type
+     - Physical meaning
+     - Units
+     - Shape
+     - Existing counterpart
+   * - :class:`AngularFlux`
+     - :math:`\psi(r, \Omega, g)` --- phase-space directional flux
+     - 1/(cm²·s·sr)
+     - ``(N, ng, nx, ny)``
+     - :class:`SNResult`.\ ``angular_flux``
+       (:mod:`orpheus.sn.solver`)
+   * - :class:`ScalarFlux`
+     - :math:`\phi(r, g) = \int_{4\pi}\psi\,d\Omega` --- angle-integrated
+     - 1/(cm²·s)
+     - ``(ng, nx, ny)``
+     - :class:`SNResult`.\ ``scalar_flux``
+       (:mod:`orpheus.sn.solver`)
+   * - ``GroupFlux``
+     - Slice of :class:`AngularFlux` / :class:`ScalarFlux` at one :math:`g`
+     - same as parent
+     - ``(N, nx, ny)`` or ``(nx, ny)``
+     - Slice expression; not a separate type
+   * - ``HarmonicMomentField``
+     - :math:`\phi_{\ell m}(r, g)` --- Pℓ moment coefficients
+     - 1/(cm²·s)
+     - ``(L+1, 2L+1, ng, nx, ny)``
+     - :meth:`HarmonicMomentProjection.apply` output
+       (:mod:`orpheus.sn.scattering`)
+   * - ``TraceField``
+     - :math:`\psi` restricted to :math:`\Gamma_-` or :math:`\Gamma_+`
+     - 1/(cm²·s·sr)
+     - ``(N_inflow, ng)`` per face
+     - ``psi_bc["bc_*"]`` dict entries
+       (:func:`~orpheus.sn.sweep.transport_sweep`)
+
+The conversion functions between the two principal types are the
+load-bearing primitives of the operator algebra: ``to_scalar()`` is
+the :math:`\sum_n w_n \psi_n` reduction (one ``np.einsum`` over the
+leading ordinate axis), and ``broadcast_to_ordinates()`` is the
+isotropic embedding :math:`\psi_n(r, g) = \phi(r, g)\ \forall\,n`
+(a ``np.broadcast_to`` prepending the :math:`N` axis).  Both run in
+:math:`O(N \cdot n_g \cdot n_x \cdot n_y)` and live in the
+``orpheus/sn/typed_fields.py`` module (planned — the structural
+type lands as the typed-field-contract resume).
+
+Source / RHS vocabulary
+-----------------------
+
+The four-operator algebra :math:`(L + C - S - F/k)\psi = q` has a
+typed RHS.  The "source" :math:`q` is a deliberate split into
+direction-independent (``IsotropicSource``) and per-ordinate
+(``PerOrdinateSource``) contributions — the sweep at
+:func:`~orpheus.sn.sweep.transport_sweep` consumes both, and the
+internal P₀ + (n,2n) accumulation in
+:class:`~orpheus.sn.scattering.ScatteringOperator` emits the first
+while the P\ :sub:`ℓ≥1` accumulation emits the second.
+
+.. list-table:: Source / RHS field types
+   :header-rows: 1
+   :widths: 22 28 14 18 18
+
+   * - Type
+     - Physical meaning
+     - Units
+     - Shape
+     - Existing counterpart
+   * - ``IsotropicSource``
+     - :math:`q(r, g)` --- direction-independent external source
+     - 1/(cm³·s·sr)
+     - ``(ng, nx, ny)``
+     - ``Q`` arg of :func:`~orpheus.sn.sweep.transport_sweep`;
+       ``Q_iso`` in
+       :meth:`~orpheus.sn.scattering.ScatteringOperator.apply`
+   * - ``PerOrdinateSource``
+     - :math:`q_n(r, g)` --- per-ordinate (P\ :sub:`ℓ≥1` /
+       boundary) source
+     - 1/(cm³·s·sr)
+     - ``(N, ng, nx, ny)``
+     - ``Q_aniso`` arg of
+       :func:`~orpheus.sn.sweep.transport_sweep`;
+       output of
+       :meth:`~orpheus.sn.scattering.ScatteringOperator.build_aniso_source`
+   * - ``ResidualSource``
+     - :math:`r = q - A\psi_D` for hybrid corrections (Grand
+       Report v3 §25.1)
+     - 1/(cm³·s·sr)
+     - matches ``q``
+     - None — not used in Phase G
+   * - ``BoundarySource``
+     - Prescribed inflow at :math:`\Gamma_-` (Grand Report v3
+       §16A.2)
+     - 1/(cm²·s·sr)
+     - ``(N_inflow,)`` per face
+     - Implicit in BC-applied face buffers consumed at sweep
+       entry
+
+The shape distinction between the two source flavours
+(``(ng, nx, ny)`` vs ``(N, ng, nx, ny)``) is load-bearing: the
+sweep at :func:`~orpheus.sn.sweep.transport_sweep` avoids a wasteful
+:math:`N`-fold broadcast of the isotropic part by accepting both
+splits.
+
+Rates and tallies
+-----------------
+
+These are derived scalar / vector observables produced by the
+solver as named intermediates (Pattern 3 — "named intermediates"
+from the ``coding-elegance`` skill).  Their values fall out of the
+operator algebra once a flux is solved; the principled storage is
+the natural numpy reduction shape.
+
+.. list-table:: Rate and tally fields
+   :header-rows: 1
+   :widths: 20 28 14 18 20
+
+   * - Type
+     - Physical meaning
+     - Units
+     - Shape
+     - Existing counterpart
+   * - ``ReactionRate``
+     - :math:`\sigma \cdot \phi` --- per-cell, per-group rate density
+     - 1/(cm³·s)
+     - ``(ng, nx, ny)``
+     - Computed inline in
+       :func:`~orpheus.sn.solver.compute_group_production_rate`
+       / ``..._absorption_rate``
+   * - ``GroupRate``
+     - :math:`\int_V \sigma \cdot \phi\,dV` --- volume-integrated
+       per group
+     - 1/s
+     - ``(ng,)``
+     - Return of
+       :func:`~orpheus.sn.solver.compute_group_production_rate`
+   * - ``CurrentCochain``
+     - Face-summed currents (Grand Report v3 §15A.10)
+     - n/(cm²·s)
+     - ``(N_faces, ng)``
+     - None — future
+   * - ``Functional``
+     - Map field → scalar response
+     - varies
+     - scalar
+     - :func:`~orpheus.sn.solver.compute_keff` is a degenerate case
+
+Iteration state
+---------------
+
+These are the per-outer / per-inner diagnostic carriers that a
+Solution-class wraps.  Today they live as bare lists on the
+:class:`~orpheus.sn.solver.SNResult` /
+:class:`~orpheus.sn.solver.SNFixedSourceResult` dataclasses; the
+typed-field-contract resume promotes them to an
+``IterationHistory`` dataclass holding the same data with named
+fields.
+
+.. list-table:: Iteration state
+   :header-rows: 1
+   :widths: 22 30 18 30
+
+   * - Field
+     - Physical meaning
+     - Shape
+     - Existing counterpart
+   * - ``keff``
+     - Multiplication eigenvalue
+     - scalar
+     - :class:`SNResult`.\ ``keff: float``
+   * - ``keff_history``
+     - Outer iteration trajectory
+     - ``list[float]``
+     - :class:`SNResult`.\ ``keff_history``
+   * - ``Eigenpair``
+     - ``(value, right, left, residual_norm)`` tuple
+     - varies
+     - Implicit — :class:`SNResult` is a degenerate Eigenpair
+   * - ``ResidualHistory``
+     - Per-iter Krylov residual norm (Trefethen & Bau §3.2)
+     - ``list[float]``
+     - None today; lands with ``IterationHistory``
+   * - ``DominanceRatio``
+     - :math:`|k_1/k_0|` convergence quotient
+     - scalar
+     - None today; lands with ``IterationHistory``
+
+Solution-class container
+------------------------
+
+The typed-field-contract resume bundles the above into one
+``Solution`` dataclass.  Today the bare-array
+:class:`SNResult` / :class:`SNFixedSourceResult` carries the same
+fields; the typed evolution adds:
+
+- :class:`AngularFlux` + :class:`ScalarFlux` typed flux objects
+  (instead of bare numpy arrays);
+- ``IterationHistory`` with named per-outer / per-inner residual
+  fields (instead of bare ``list[float]``);
+- mesh ref carried by the typed flux objects (no need to thread
+  ``sn_mesh`` through every consumer);
+- ``Solution.flux_at(position)`` convenience for downstream
+  plotting (forwards to ``angular_flux.at(...)``).
+
+The Solution evolution is the SN-specific specialisation of the
+``Eigenpair`` concept from Grand Report v3 §21.5 (lines 4252–4269).
+For a fixed-source problem :math:`\keff = 1` and the iteration
+history records only the Krylov residual trajectory.
+
+Operator vocabulary --- the four leaves of the algebra
+-------------------------------------------------------
+
+The four-operator algebra :math:`(L + C - S - F/k)\psi = q` is
+implemented by four leaf operators, each conforming to
+:class:`~orpheus.numerics.operator.LinearOperator` with
+``apply(psi: AngularFlux) -> AngularFlux`` under the typed contract.
+The algebra closes because every operand agrees on the
+:class:`AngularFlux` domain — :class:`OperatorSum` distributes
+:math:`a.\text{apply}(\psi) + b.\text{apply}(\psi)` element-wise,
+and :class:`ScaledOperator` carries the :math:`1/k` (or :math:`-1`)
+scale through the same algebra.
+
+.. list-table:: Operator leaves
+   :header-rows: 1
+   :widths: 14 38 48
+
+   * - Leaf
+     - Code class
+     - Mathematical role
+   * - :math:`L`
+     - :class:`~orpheus.sn.operator.StreamingOperator`
+     - Streaming :math:`\Omega \cdot \nabla\psi`; per-ordinate
+       sweep over :func:`~orpheus.sn.geometry.SNMesh.dag_walk`,
+       fold over :meth:`CellUpdate.residual`
+   * - :math:`C`
+     - :class:`~orpheus.sn.operator.CollisionOperator`
+     - Collision :math:`\Sigma_t \psi`; one broadcast multiply
+       ``sigma[None, :, :, :] * psi.values``
+   * - :math:`S`
+     - :class:`~orpheus.sn.scattering.ScatteringOperator`
+     - Full Legendre scattering :math:`\sum_\ell \Sigma_{s,\ell}\,
+       P_\ell\,\phi_{\ell m}`; foldable P₀ within-group part
+       :meth:`~orpheus.sn.scattering.ScatteringOperator.foldable_part`
+       absorbs into :math:`\Sigma_r`
+   * - :math:`F`
+     - :class:`~orpheus.sn.fission.FissionOperator`
+     - Fission :math:`\chi_g \sum_{g'} \nu\Sigma_{f,g'}\,\phi_{g'}`;
+       rank-1 in energy, rank-0 in angle (internal
+       ``to_scalar`` + broadcast-back)
+
+Two derived combinations carry their own names:
+
+- The fusion target :math:`A_{wg} = L + C - S_{\text{foldable}}`
+  is the within-group system; its ``solve`` routes through the
+  fused :func:`~orpheus.sn.sweep.transport_sweep` (the
+  ``OperatorSum.solve`` fusion hook recognises the
+  ``L + C - S_{\text{foldable}}`` pattern and emits one call to
+  the sweep rather than the unfused Krylov outer-iteration).
+- The multiplication operator :math:`K = A_{\text{loss}}^{-1} F`
+  carries the k-eigenvalue iteration; lives implicitly in
+  :meth:`~orpheus.sn.solver.SNSolver.solve_eigenvalue`.
+
+Boundary-trace vocabulary
+-------------------------
+
+Boundary handling has its own type vocabulary
+(:mod:`orpheus.geometry.boundary`).  These types are
+**orthogonal** to the index convention — they live on
+:math:`\Gamma_\pm` faces, not in the volume:
+
+.. list-table:: Boundary-trace types
+   :header-rows: 1
+   :widths: 28 34 38
+
+   * - Type
+     - Code counterpart
+     - Role
+   * - ``BoundaryTraceLaw``
+     - :mod:`orpheus.geometry.boundary` per-BC modules
+     - The discrete BC's algebraic action
+       :math:`\psi^+_\Gamma = T(\psi^-_\Gamma)`
+   * - ``BoundaryRealizer``
+     - :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`
+     - SN-side discretisation of the trace law
+   * - ``InflowTraceSpace`` /
+       ``OutflowTraceSpace``
+     - :mod:`orpheus.numerics.trace_space`
+     - The :math:`\Gamma_-` and :math:`\Gamma_+` discrete trace
+       spaces
+   * - ``VacuumInflow`` /
+       ``ReflectiveBoundary``
+     - :mod:`orpheus.geometry.boundary.vacuum` /
+       :mod:`orpheus.geometry.boundary.reflective`
+     - Physical BC kinds
+   * - ``PermutationOperator`` /
+       ``IncomingOrdinateMaskTensor``
+     - :mod:`orpheus.numerics.operator`
+     - The discrete-ordinate face-permutation algebra
+
+Diagnostic and historical state
+-------------------------------
+
+Aspirational from Grand Report v3 §32 / §39; not yet implemented
+in SN.  Listed here for vocabulary completeness — a future
+``Solution`` extension may carry them as named fields.
+
+.. list-table:: Diagnostic types (aspirational)
+   :header-rows: 1
+   :widths: 28 38 34
+
+   * - Type
+     - Meaning
+     - Existing counterpart
+   * - ``Axis(name, size, coordinate, measure)``
+     - Labelled-axis primitive
+     - None — bare numpy shapes
+   * - ``AxisProduct``
+     - Tuple of ``Axis``
+     - None
+   * - ``DomainMismatchError`` /
+       ``CodomainMismatchError``
+     - Operator-algebra type errors
+     - :class:`~orpheus.numerics.operator.IncompatibleOperatorComposition`
+   * - ``ConservationDefect`` /
+       ``PositivityViolation``
+     - V&V residuals
+     - Distributed across :mod:`tests._harness`
+
+
 Layout-by-array reference table
 ===============================
 
@@ -848,11 +1242,20 @@ contract resume; the two efforts are independent.
 Typed-field contract resume
 ---------------------------
 
-After PR-INDEX-6 lands, the typed-field contract plan (see the memo
-at
+The typed-field contract is the natural successor to the index
+migration.  The field catalog landed at
+:ref:`sn-field-vocabulary` above is the durable Sphinx-side
+vocabulary; the design-side detail is in the corrected memo at
 ``.claude/agent-memory/explorer/typed_field_contracts_for_phase_g.md``
-and the public API reference at :doc:`../api/discrete_ordinates`)
-resumes, with the layout corrected.  The dataclasses become:
+(the memo predated the layout discovery; every shape mention there
+has been corrected to the principled layout — see the memo's
+correction banner).  The resume plan with PR boundaries and
+acceptance criteria lives in
+``.claude/plans/principled_index_migration.md`` §10.  The public
+API reference at :doc:`../api/discrete_ordinates` will gain typed
+signatures as the resume PRs land.
+
+The dataclasses on first landing are:
 
 .. code-block:: python
 
@@ -867,7 +1270,10 @@ resumes, with the layout corrected.  The dataclasses become:
        sn_mesh: "SNMesh"
 
 The dataclasses land on the principled foundation laid by
-PR-INDEX-5.  Every operator-leaf's ``apply`` signature becomes
+PR-INDEX-5; the principled-layout :ref:`sn-field-vocabulary`
+section names every flux / source / rate / trace type the resume
+will eventually surface as a typed field.  Every operator-leaf's
+``apply`` signature becomes
 ``apply(psi: AngularFlux) -> AngularFlux``, with the four-operator
 algebra :math:`(L + C - S - F/k).\texttt{apply}(\psi)` distributing
 through :class:`~orpheus.numerics.operator.OperatorSum` unchanged.
@@ -929,3 +1335,24 @@ treatment of the within-group source iteration.
   Eq. 74 (Morel--Montry weights) --- the curvilinear M--M angular
   thread that obstructs joint-batch over ordinates and motivates
   the principled :math:`n` leading layout.
+- [Blelloch1990]_ §1.5 ("First-Order Linear Recurrences") --- the
+  closed-form scan factorisation in :eq:`blelloch-1990-eq-1-5` that
+  underlies :func:`~orpheus.sn.spatial.scan.ordinate_scan` and the
+  slab joint-batch hot path.
+- [Brent1974]_ --- Brent's theorem on work-efficient associative-scan
+  reduction.  The pair-monoid associativity test in
+  ``tests/sn/spatial/test_ordinate_scan.py`` is the algebraic
+  justification for the closed form.
+
+.. [Blelloch1990] G.E. Blelloch,
+   *Prefix Sums and Their Applications*,
+   CMU-CS-90-190 Technical Report, Carnegie Mellon University, 1990.
+   §1.5 derives the first-order linear-recurrence closed form
+   :eq:`blelloch-1990-eq-1-5` that ORPHEUS's slab joint-batch sweep
+   consumes through :func:`~orpheus.sn.spatial.scan.ordinate_scan`.
+
+.. [Brent1974] R.P. Brent,
+   "The parallel evaluation of general arithmetic expressions,"
+   *Journal of the ACM*, 21(2):201--206, 1974.
+   Brent's theorem on the :math:`O(N/\log N)`-work parallel-prefix
+   decomposition of an associative scan.
