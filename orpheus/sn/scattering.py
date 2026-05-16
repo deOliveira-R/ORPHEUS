@@ -130,6 +130,8 @@ if TYPE_CHECKING:
     from .angular_flux import AngularFlux
     from .material_xs_field import MaterialXSField
     from .quadrature import AngularQuadrature
+    from .scalar_flux import ScalarFlux
+    from .sources import IsotropicSource, PerOrdinateSource
 
 
 __all__ = ["LegendreMomentScattering", "ScatteringOperator"]
@@ -402,52 +404,105 @@ class ScatteringOperator(LinearOperatorMixin):
 
     # ── In-place helpers (preserve bit-identity vs SNSolver pre-Wave-D) ─
 
-    def add_iso_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        """Add P0 in-scatter source to ``Q`` in-place.
+    def add_iso_source(
+        self,
+        Q: "np.ndarray | IsotropicSource",
+        phi: "np.ndarray | ScalarFlux",
+    ) -> "np.ndarray | IsotropicSource | None":
+        r"""Add P0 in-scatter source to :math:`Q`.
 
         Vectorised by material: per cell ``c`` of material ``mid``,
         ``Q[:, ic, jc] += sig_s0[mid].T @ phi[:, ic, jc]`` where
         ``sig_s0[mid]`` is ``(ng, ng)`` indexed ``[g_from, g_to]``.
 
+        Issue #197 PR-TYPED-3 introduces the typed-action overload:
+
+        * **Raw-in (legacy)** — ``Q: np.ndarray`` is mutated in place
+          and ``None`` is returned (the Wave A–D / PR-TYPED-1 contract).
+        * **Typed-in (return-new)** — ``Q: IsotropicSource`` is treated
+          as an immutable input; a NEW :class:`IsotropicSource` is
+          returned carrying ``Q.values + in_scatter`` (Pattern 4 —
+          frozen typed inputs stay immutable; Pattern 1 — the caller
+          spells the algebra as ``Q = scattering.add_iso_source(Q,
+          phi)``).
+
         Parameters
         ----------
-        Q : np.ndarray
-            Isotropic source array shape ``(ng, nx, ny)`` (Issue #196
-            PR-INDEX-4 — principled layout). Modified in place.
-        phi : np.ndarray
-            Scalar flux shape ``(ng, nx, ny)``.
+        Q : np.ndarray or IsotropicSource
+            Isotropic source carrier.  Raw ``(ng, nx, ny)`` ndarray is
+            mutated in place; typed :class:`IsotropicSource` returns a
+            new instance.
+        phi : np.ndarray or ScalarFlux
+            Scalar flux.  Either form is accepted; the underlying
+            values are unwrapped before the per-material dispatch.
+
+        Returns
+        -------
+        np.ndarray or IsotropicSource or None
+            Raw-in returns ``None`` (legacy in-place); typed-in returns
+            a fresh :class:`IsotropicSource`.
 
         Notes
         -----
         Issue #197 PR-TYPED-1 — the per-material dispatch lives ONLY
         inside :meth:`MaterialXSField.apply_p0_in_scatter`.
         """
-        self.mat_xs.apply_p0_in_scatter(Q, phi)
+        from .scalar_flux import ScalarFlux
+        from .sources import IsotropicSource
+        phi_values = phi.values if isinstance(phi, ScalarFlux) else phi
+        if isinstance(Q, IsotropicSource):
+            Q_values = Q.values.copy()
+            self.mat_xs.apply_p0_in_scatter(Q_values, phi_values)
+            return IsotropicSource(Q_values, Q.mesh)
+        self.mat_xs.apply_p0_in_scatter(Q, phi_values)
+        return None
 
-    def add_n2n_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        """Add (n,2n) source to ``Q`` in-place.
+    def add_n2n_source(
+        self,
+        Q: "np.ndarray | IsotropicSource",
+        phi: "np.ndarray | ScalarFlux",
+    ) -> "np.ndarray | IsotropicSource | None":
+        r"""Add (n,2n) source to :math:`Q`.
 
         Vectorised by material: per cell ``c`` of material ``mid``,
         ``Q[:, ic, jc] += 2 · sig2[mid].T @ phi[:, ic, jc]``.
 
+        Issue #197 PR-TYPED-3 introduces the same typed-action overload
+        as :meth:`add_iso_source` — raw-in mutates in place and returns
+        ``None``; typed-in returns a fresh :class:`IsotropicSource`.
+
         Parameters
         ----------
-        Q : np.ndarray
-            Isotropic source array shape ``(ng, nx, ny)`` (Issue #196
-            PR-INDEX-4 — principled). Modified in place.
-        phi : np.ndarray
-            Scalar flux shape ``(ng, nx, ny)``.
+        Q : np.ndarray or IsotropicSource
+            Isotropic source carrier.
+        phi : np.ndarray or ScalarFlux
+            Scalar flux.
+
+        Returns
+        -------
+        np.ndarray or IsotropicSource or None
+            Raw-in returns ``None`` (legacy in-place); typed-in returns
+            a fresh :class:`IsotropicSource`.
 
         Notes
         -----
         Issue #197 PR-TYPED-1 — per-material dispatch lives ONLY
         inside :meth:`MaterialXSField.apply_n2n`.
         """
-        self.mat_xs.apply_n2n(Q, phi)
+        from .scalar_flux import ScalarFlux
+        from .sources import IsotropicSource
+        phi_values = phi.values if isinstance(phi, ScalarFlux) else phi
+        if isinstance(Q, IsotropicSource):
+            Q_values = Q.values.copy()
+            self.mat_xs.apply_n2n(Q_values, phi_values)
+            return IsotropicSource(Q_values, Q.mesh)
+        self.mat_xs.apply_n2n(Q, phi_values)
+        return None
 
     def build_aniso_source(
-        self, angular_flux: np.ndarray | None,
-    ) -> np.ndarray | None:
+        self,
+        angular_flux: "np.ndarray | AngularFlux | None",
+    ) -> "np.ndarray | PerOrdinateSource | None":
         r"""Build per-ordinate Pℓ (:math:`\ell \ge 1`) scattering source.
 
         Implements the Galerkin reconstruction :eq:`pn-scatter` from
@@ -486,18 +541,21 @@ class ScatteringOperator(LinearOperatorMixin):
 
         Parameters
         ----------
-        angular_flux : np.ndarray or None
+        angular_flux : np.ndarray or AngularFlux or None
             Angular flux shape ``(N, ng, nx, ny)`` (Issue #196
             PR-INDEX-4 — principled) from the most recent sweep, or
             ``None`` on the first source iteration before any sweep
-            has been run.
+            has been run.  Issue #197 PR-TYPED-3 — typed
+            :class:`AngularFlux` is accepted; the result is then a
+            typed :class:`PerOrdinateSource` (preserving the type chain
+            through the scattering composition).
 
         Returns
         -------
-        np.ndarray or None
+        np.ndarray or PerOrdinateSource or None
             ``(N, ng, nx, ny)`` per-ordinate :math:`\ell \ge 1`
             contribution, or ``None`` when ``scattering_order == 0`` or
-            ``angular_flux is None``.
+            ``angular_flux is None``.  Type matches the input.
 
         Notes
         -----
@@ -511,8 +569,12 @@ class ScatteringOperator(LinearOperatorMixin):
         principled :class:`LegendreMomentScattering` consumes after
         PR-INDEX-4.
         """
+        from .angular_flux import AngularFlux
+        from .sources import PerOrdinateSource
         if self.scattering_order == 0 or angular_flux is None:
             return None
+        is_typed = isinstance(angular_flux, AngularFlux)
+        values = angular_flux.values if is_typed else angular_flux
         L = self.scattering_order
         # Build the §9 "S = R Λ M" pipeline. The constituent primitives
         # are cheap dataclass instantiations; the actual work is in the
@@ -525,7 +587,10 @@ class ScatteringOperator(LinearOperatorMixin):
             skip_l0=True,
         )
         R = HarmonicMomentReconstruction.from_Y(Y)
-        return R.apply(Lam.apply(M.apply(angular_flux)))
+        result = R.apply(Lam.apply(M.apply(values)))
+        if is_typed:
+            return PerOrdinateSource(result, angular_flux.mesh)
+        return result
 
     # ── Foldable / residual split ─────────────────────────────────────
     #
@@ -724,26 +789,52 @@ class ScatteringOperator(LinearOperatorMixin):
         a wasteful broadcast.
         """
         from .angular_flux import AngularFlux
+        from .scalar_flux import ScalarFlux
+        from .sources import IsotropicSource, PerOrdinateSource
         is_typed = isinstance(psi, AngularFlux)
         values = psi.values if is_typed else psi
-        # Reduce angular flux to scalar flux: φ_g(r) = Σ_n w_n ψ_n,g(r)
-        # — leading-axis contraction over ordinates.  Output is
-        # principled ``(ng, nx, ny)``.
-        phi = np.einsum('n,ngxy->gxy', self.weights, values)
-
-        # Isotropic (P0 + (n,2n)) — vectorised by material into a fresh
-        # (ng, nx, ny) buffer, then broadcast across the N axis.
-        Q_iso = np.zeros((self.ng, self.nx, self.ny))
-        self.add_iso_source(Q_iso, phi)
-        self.add_n2n_source(Q_iso, phi)
-
-        # Broadcast across ordinates and add the Pℓ (l>=1) contribution.
-        # Q_iso (ng, nx, ny) → (1, ng, nx, ny) → broadcast to psi.shape
-        # (N, ng, nx, ny).
-        Q = np.broadcast_to(Q_iso[None, :, :, :], values.shape).copy()
-        Q_aniso = self.build_aniso_source(values)
-        if Q_aniso is not None:
-            Q += Q_aniso
         if is_typed:
-            return AngularFlux(Q, psi.mesh)
-        return Q
+            mesh = psi.mesh
+            # Reduce angular flux to scalar flux via the typed reduction
+            # (Pattern 3 — named intermediate).
+            phi: "ScalarFlux | np.ndarray" = psi.integrate_angular()
+            # Build the isotropic source as a typed IsotropicSource
+            # accumulator (Pattern 1 — read-as-the-math).  P0 + (n,2n)
+            # both return-new under the typed overload.
+            iso: IsotropicSource = mesh.zeros_isotropic_source()
+            iso = self.add_iso_source(iso, phi)
+            iso = self.add_n2n_source(iso, phi)
+            # Pℓ (l>=1) contribution as a typed PerOrdinateSource.
+            aniso_or_none = self.build_aniso_source(psi)
+            if aniso_or_none is None:
+                aniso = mesh.zeros_per_ordinate_source()
+            else:
+                aniso = aniso_or_none  # type: PerOrdinateSource
+            # Cross-type dunder algebra: iso + aniso broadcasts the
+            # isotropic source across the N axis and adds the
+            # anisotropic source — the load-bearing PR-TYPED-3
+            # pattern (replaces ``np.broadcast_to(...).copy() + Q``).
+            combined: PerOrdinateSource = iso + aniso
+            return AngularFlux(combined.values, mesh)
+        # Bare-ndarray path preserves the legacy in-place contract for
+        # packed-vector / FD-matvec consumers.  The implicit-broadcast
+        # add (``Q_iso[None, :, :, :] + Q_aniso``) replaces the explicit
+        # ``np.broadcast_to(...).copy()`` followed by ``+=`` — numpy
+        # produces a fresh ``(N, ng, nx, ny)`` allocation from the
+        # broadcast add in one step.  When ``Q_aniso is None`` (P0-only),
+        # add against an implicit zero (``Q_iso[None, :, :, :] +
+        # np.zeros((1,1,1,1))``) — still elementwise add, no broadcast
+        # view, owns its data, ``(N, ng, nx, ny)`` shape.
+        phi_arr = np.einsum('n,ngxy->gxy', self.weights, values)
+        Q_iso = np.zeros((self.ng, self.nx, self.ny))
+        self.add_iso_source(Q_iso, phi_arr)
+        self.add_n2n_source(Q_iso, phi_arr)
+        Q_aniso = self.build_aniso_source(values)
+        if Q_aniso is None:
+            # Explicit allocation + broadcast assignment.  Pattern 3 —
+            # the result owns its memory; downstream callers may mutate.
+            N = values.shape[0]
+            Q = np.empty((N, self.ng, self.nx, self.ny), dtype=Q_iso.dtype)
+            Q[...] = Q_iso[None, :, :, :]
+            return Q
+        return Q_iso[None, :, :, :] + Q_aniso

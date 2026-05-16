@@ -510,10 +510,10 @@ class SNSolver:
             # Anisotropic scattering (P1+ terms, None when L=0)
             Q_aniso = self._build_aniso_scattering(angular)
 
-            # Transport sweep
+            # Transport sweep — Issue #197 PR-TYPED-3 keyword rename.
             angular, phi = transport_sweep(
                 Q, self.mat_xs.total_cross_section, self.sn_mesh,
-                self._boundary_flux, Q_aniso=Q_aniso,
+                self._boundary_flux, aniso_source=Q_aniso,
             )
 
             norm = np.linalg.norm(phi)
@@ -733,7 +733,7 @@ class SNSolver:
                 angular, _ = transport_sweep(
                     Q_iso, self.mat_xs.total_cross_section,
                     self.sn_mesh, boundary_flux_local,
-                    Q_aniso=Q_aniso,
+                    aniso_source=Q_aniso,
                 )
             except Exception:
                 # If the sweep cannot run with this Q_aniso shape, degrade
@@ -1280,7 +1280,7 @@ def _solve_fixed_source_si(
         angular, phi = transport_sweep(
             Q, solver.mat_xs.total_cross_section, sn_mesh,
             solver._boundary_flux,
-            Q_aniso=Q_aniso_total,
+            aniso_source=Q_aniso_total,
         )
 
         norm = np.linalg.norm(phi)

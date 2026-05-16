@@ -87,6 +87,7 @@ if TYPE_CHECKING:
 
     from .boundary_flux import BoundaryFlux
     from .geometry import SNMesh
+    from .sources import IsotropicSource, PerOrdinateSource
     from .spatial.pole_angular_closure import PoleAngularClosure
 
 __all__ = [
@@ -1463,9 +1464,11 @@ class SNStreamingOperator(LinearOperatorMixin):
 
     def solve(
         self,
-        Q: np.ndarray,
+        iso_source: "np.ndarray | IsotropicSource",
         boundary_flux: "BoundaryFlux | None" = None,
-        Q_aniso: np.ndarray | None = None,
+        aniso_source: "np.ndarray | PerOrdinateSource | None" = None,
+        *,
+        Q_aniso: "np.ndarray | PerOrdinateSource | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         r"""Inverse action :math:`L^{-1}\,q` via the Wave D Round 2 sweep.
 
@@ -1481,16 +1484,17 @@ class SNStreamingOperator(LinearOperatorMixin):
 
         Parameters
         ----------
-        Q : np.ndarray
-            Isotropic source density, shape ``(ng, nx, ny)`` (Issue
-            #196 PR-INDEX-5 — principled layout).
+        iso_source : np.ndarray or IsotropicSource
+            Isotropic source density, shape ``(ng, nx, ny)``
+            (Issue #196 PR-INDEX-5 — principled).  Issue #197 PR-TYPED-3
+            adds typed-input support; bare ndarray still accepted.
         boundary_flux : BoundaryFlux or None
             Persistent boundary state (Issue #197 PR-TYPED-2 — the
             typed replacement for the legacy ``psi_bc: dict``).  If
             ``None``, a fresh zero-initialised
             :class:`~orpheus.sn.boundary_flux.BoundaryFlux` is supplied;
             the caller cannot then carry state between sweeps.
-        Q_aniso : np.ndarray or None
+        aniso_source : np.ndarray or PerOrdinateSource or None
             Per-ordinate anisotropic source, shape
             ``(N, ng, nx, ny)``, for P1+ scattering.  ``None`` for
             isotropic-only (P0).
@@ -1507,11 +1511,20 @@ class SNStreamingOperator(LinearOperatorMixin):
         from .sweep import transport_sweep
         if boundary_flux is None:
             boundary_flux = self.sn_mesh.zeros_boundary_flux()
+        if Q_aniso is not None and aniso_source is not None:
+            raise TypeError(
+                "SNStreamingOperator.solve: pass either 'aniso_source' "
+                "(preferred, Issue #197 PR-TYPED-3) or 'Q_aniso' (legacy "
+                "alias); not both."
+            )
+        if Q_aniso is not None:
+            aniso_source = Q_aniso
         # ``self.sig_t`` and ``transport_sweep``'s ``sig_t`` parameter
         # are both in the principled ``(ng, nx, ny)`` layout under
         # PR-INDEX-3 — no bridge.
         return transport_sweep(
-            Q, self.sig_t, self.sn_mesh, boundary_flux, Q_aniso,
+            iso_source, self.sig_t, self.sn_mesh, boundary_flux,
+            aniso_source=aniso_source,
         )
 
     # ── apply_transpose: adjoint action L*·ψ via dense transpose ──────

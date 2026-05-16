@@ -1226,6 +1226,141 @@ Cross-references
   ``(L + C − S − F/k) ψ = q`` that the typed fields read as.
 
 
+.. _theory-sn-typed-sources:
+
+Typed source types (Issue #197 PR-TYPED-3)
+==========================================
+
+Issue #197 PR-TYPED-3 introduces two typed source-density carriers
+that wrap the right-hand side of the transport equation
+:math:`(L + C - S - F/k)\,\psi = q`:
+
+* :class:`~orpheus.sn.sources.IsotropicSource` — the isotropic
+  volumetric source :math:`Q(\vec r, g)`, shape ``(ng, nx, ny)``.
+  Aggregates per-group P0 in-scatter, (n,2n), and fission
+  contributions that every ordinate sees identically.
+* :class:`~orpheus.sn.sources.PerOrdinateSource` — the per-ordinate
+  source :math:`Q^{\rm aniso}(\vec r, \hat\Omega_n, g)`, shape
+  ``(N, ng, nx, ny)``.  Carries the :math:`P_\ell \ge 1` Galerkin
+  reconstruction contribution plus any MMS-style external source.
+
+.. todo:: Archivist expansion needed.
+
+   The rich-narrative version should walk through:
+
+   * The math of why iso + aniso = per-ordinate (broadcast across the
+     N axis is the algebraic content of the dunder).
+   * How the typed dunder dissolves the procedural
+     ``np.broadcast_to(Q_iso[None, :, :, :], psi.shape).copy(); Q +=
+     Q_aniso`` pattern that historically lived inside
+     :meth:`~orpheus.sn.scattering.ScatteringOperator.apply`.
+   * Why source and flux types stay distinct (same storage shape;
+     different algebraic role; cross-type addition undefined).
+   * The decision to keep ``sig_t`` as bare ndarray (static-parameter
+     quantities don't need typed wrappers — Issue #197 plan).
+
+   Source module: :mod:`orpheus.sn.sources`.
+   Foundation tests:
+   :file:`tests/sn/test_typed_sources.py` (22 cases).
+   Closeout memo:
+   :file:`.claude/agent-memory/method-implementer/issue_197_pr_typed_3_closeout.md`.
+
+The load-bearing dunder
+-----------------------
+
+The cross-type :meth:`~orpheus.sn.sources.IsotropicSource.__add__`
+accepting a :class:`~orpheus.sn.sources.PerOrdinateSource` partner is
+the load-bearing pattern of PR-TYPED-3.  It replaces the procedural
+broadcast-and-copy pattern with a single algebraic line::
+
+    # Before PR-TYPED-3 (scattering.py ``apply`` body):
+    Q = np.broadcast_to(Q_iso[None, :, :, :], psi.shape).copy()
+    Q += Q_aniso
+
+    # After PR-TYPED-3:
+    combined: PerOrdinateSource = iso_source + aniso_source
+
+The new path reads as the math: the iso → per-ordinate broadcast is
+internal to the dunder; the caller spells the algebra.  Bit-identity
+to the legacy pattern is pinned by
+:func:`tests.sn.test_typed_sources.TestCrossTypeDunder.test_bit_identity_with_legacy_broadcast_pattern`.
+
+Factory methods (:class:`SNMesh`)
+---------------------------------
+
+* :meth:`SNMesh.zeros_isotropic_source` → ``(ng, nx, ny)`` zeros.
+* :meth:`SNMesh.zeros_per_ordinate_source` → ``(N, ng, nx, ny)`` zeros.
+
+Cross-type ``__add__`` table
+----------------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 30 40
+
+   * - Left operand
+     - Right operand
+     - Result type
+   * - :class:`IsotropicSource`
+     - :class:`IsotropicSource`
+     - :class:`IsotropicSource` (within type)
+   * - :class:`IsotropicSource`
+     - :class:`PerOrdinateSource`
+     - :class:`PerOrdinateSource` (broadcast across N)
+   * - :class:`PerOrdinateSource`
+     - :class:`IsotropicSource`
+     - :class:`PerOrdinateSource` (commutative — delegates to the
+       :class:`IsotropicSource` side)
+   * - :class:`PerOrdinateSource`
+     - :class:`PerOrdinateSource`
+     - :class:`PerOrdinateSource` (within type)
+
+The cross-type with :class:`~orpheus.sn.scalar_flux.ScalarFlux` /
+:class:`~orpheus.sn.angular_flux.AngularFlux` is **not** defined.
+Source density and flux carry the same numpy storage shape but are
+different physical quantities — keeping the types distinct enforces
+the algebraic distinction at the dunder layer.
+
+Transport-sweep typed input
+---------------------------
+
+:func:`~orpheus.sn.sweep.transport_sweep` accepts both typed and bare
+inputs (one-cycle deprecation alias preserves the ``Q_aniso=`` keyword)::
+
+    iso = sn_mesh.zeros_isotropic_source()
+    aniso = sn_mesh.zeros_per_ordinate_source()
+    angular, scalar = transport_sweep(
+        iso, sig_t, sn_mesh, boundary_flux, aniso_source=aniso,
+    )
+
+The internal hot path consumes bare ndarray throughout; the typed
+inputs are unwrapped at the entry boundary.
+
+ScatteringOperator typed action
+-------------------------------
+
+:meth:`~orpheus.sn.scattering.ScatteringOperator.add_iso_source` and
+:meth:`~orpheus.sn.scattering.ScatteringOperator.add_n2n_source` gain
+return-new semantics under typed input:
+
+* Raw ``np.ndarray`` in → mutates in place, returns ``None`` (legacy
+  contract preserved).
+* :class:`IsotropicSource` in → returns a fresh :class:`IsotropicSource`
+  (Pattern 4 — frozen typed inputs stay immutable; the caller spells
+  the algebra as ``Q = scattering.add_iso_source(Q, phi)``).
+
+:meth:`~orpheus.sn.scattering.ScatteringOperator.build_aniso_source`
+returns :class:`PerOrdinateSource` when its angular-flux input is
+:class:`~orpheus.sn.angular_flux.AngularFlux`, preserving the type
+chain through the scattering composition.
+
+Cross-references
+----------------
+
+* :ref:`theory-sn-typed-fields` for the PR-TYPED-2 flux carriers
+  that share storage shape with the source types.
+
+
 Gotchas and subtleties
 ======================
 

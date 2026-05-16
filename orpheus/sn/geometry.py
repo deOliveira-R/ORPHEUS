@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from .boundary_flux import BoundaryFlux
     from .material_xs_field import MaterialXSField
     from .scalar_flux import ScalarFlux
+    from .sources import IsotropicSource, PerOrdinateSource
 
 
 class InconsistentMaterialsError(ValueError):
@@ -603,6 +604,32 @@ class SNMesh:
         """
         from .boundary_flux import BoundaryFlux
         return BoundaryFlux.zeros(self)
+
+    def zeros_isotropic_source(self) -> "IsotropicSource":
+        r"""Build a zero :class:`IsotropicSource` sized to this mesh.
+
+        Returns an :class:`~orpheus.sn.sources.IsotropicSource` of
+        shape ``(ng, nx, ny)`` filled with zeros.  The principled
+        starting point for source-iteration accumulation: P0 in-scatter,
+        (n,2n), and fission contributions all add into this buffer.
+        """
+        from .sources import IsotropicSource
+        return IsotropicSource(
+            np.zeros((self.ng, self.nx, self.ny)), self,
+        )
+
+    def zeros_per_ordinate_source(self) -> "PerOrdinateSource":
+        r"""Build a zero :class:`PerOrdinateSource` sized to this mesh.
+
+        Returns an :class:`~orpheus.sn.sources.PerOrdinateSource` of
+        shape ``(N, ng, nx, ny)`` filled with zeros.  The principled
+        starting point for the :math:`P_\ell \ge 1` Galerkin
+        reconstruction + MMS external-source accumulation buffer.
+        """
+        from .sources import PerOrdinateSource
+        return PerOrdinateSource(
+            np.zeros((self.quad.N, self.ng, self.nx, self.ny)), self,
+        )
 
     # ── Sweep DAG traversal ───────────────────────────────────────────
 
