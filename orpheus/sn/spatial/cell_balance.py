@@ -117,6 +117,174 @@ class CellBalanceTerms:
     c_out: float
 
 
+def cell_balance_for_streaming(
+    *,
+    abs_mu: np.ndarray,             # (n_mask,)  |μ_n| for ordinates in the mask
+    A_downstream: np.ndarray,       # (n_mask,)  sweep-resolved outgoing face area
+    A_total: np.ndarray,            # (n_mask,)  A_inner + A_outer  (broadcast scalar OK)
+    dA_w: np.ndarray,               # (n_mask,)  (ΔA / w_n) geometry factor
+    c_in: np.ndarray,               # (n_mask,)  M-M closure constant (1-τ)/τ · α_out + α_in
+    c_out: np.ndarray,              # (n_mask,)  M-M closure constant α_out / τ
+    total_xs: np.ndarray,           # (ng,)      per-group total cross section
+    volume: float,                  # scalar     cell volume V_i
+    psi_face_in: np.ndarray,        # (ng, n_mask) face flux entering this cell per ordinate
+    psi_angular_upstream: "np.ndarray | None",  # (ng, n_mask) or None
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Vectorized per-cell balance for one cell over an ORDINATE MASK.
+
+    Issue #197 PR-TYPED-6 — the shared cell-balance algebra both
+    :meth:`DiamondDifference.residual` (per-ordinate, ``n_mask=1``)
+    and :meth:`StreamingOperator.apply` (vectorized over ordinates in
+    a sweep direction) consume.  Pattern 2 — single source of truth.
+
+    Computes the cell-balance algebraic intermediates over ``n_mask``
+    ordinates simultaneously, returning shapes ``(ng, n_mask)``:
+
+    .. math::
+
+       \mathrm{denom}[g, n] &= 2\,|\mu_n|\,A_{\rm down,n}
+                              + (\Delta A/w)_n\,c_{\rm out,n}
+                              + \Sigma_{t,g}\,V,\\
+       \mathrm{numer\_upstream}[g, n] &= |\mu_n|\,A_{\rm total,n}\,
+                                          \psi^s_{\rm in,g,n}
+                                        + (\Delta A/w)_n\,c_{\rm in,n}\,
+                                          \psi^\theta_{\rm in,g,n}.
+
+    The same algebra as :func:`cell_balance_terms` — but vectorized
+    over an ``n_mask`` axis instead of bundled in a frozen dataclass.
+    Both helpers return mathematically identical numbers at
+    ``n_mask=1``; this helper is the broadcast-friendly form the
+    matvec consumes.
+
+    Conversion to operator residual
+    -------------------------------
+
+    At a probe value ``psi_cell_avg`` (shape ``(ng, n_mask)``), the
+    per-cell **cell-balance residual** is
+
+    .. math::
+
+       r[g, n] \;=\; \mathrm{denom}[g, n] \cdot \overline\psi[g, n]
+                     \;-\; \mathrm{numer\_upstream}[g, n].
+
+    Converting to the matvec convention (``[neutrons/cm^2/s]`` per
+    cell volume) divides by ``V``: ``L_apply[g, n] = r[g, n] / V``.
+    At ``source=0`` this equals the matvec body output for the
+    streaming + redistribution + collision triplet (Resolution A
+    factoring at ``L+C``).  See ``§6.3`` of the PR-TYPED-6 v2
+    situational analysis for the algebraic derivation.
+
+    Pattern 3 — named intermediates
+    -------------------------------
+
+    Each algebraic term is named with its physical role:
+
+    * ``streaming_denom_term`` — :math:`2|\mu|\,A_{\rm down}` (the
+      WDD outflow contribution to the denominator).
+    * ``redist_denom_term`` — :math:`(\Delta A/w)\,c_{\rm out}` (the
+      M-M outflow contribution to the denominator).
+    * ``collision_denom_term`` — :math:`\Sigma_t\,V` (the per-group
+      collision contribution; broadcast across ``n_mask``).
+    * ``spatial_upstream_term`` — :math:`|\mu|\,A_{\rm total}\,
+      \psi^s_{\rm in}` (the upstream face-flux contribution).
+    * ``angular_upstream_term`` — :math:`(\Delta A/w)\,c_{\rm in}\,
+      \psi^\theta_{\rm in}` (the M-M upstream half-angle
+      contribution; zero when ``psi_angular_upstream is None``).
+
+    Each term carries units of ``[1/cm·cm^2 = cm]`` (per-face
+    streaming density) or ``[cm^{-1}·cm^3 = cm^2]`` (collision /
+    redistribution × volume).  The denominator has units of ``cm^2``;
+    multiplying by :math:`\bar\psi\,[\rm n/cm^2/s]` and dividing by
+    :math:`V\,[\rm cm^3]` yields :math:`[1/cm/s]` — the matvec's
+    per-unit-volume rate density.
+
+    Parameters
+    ----------
+    abs_mu :
+        Shape ``(n_mask,)``.  Absolute direction cosines for the
+        ordinates in this mask.  Already sweep-direction-resolved
+        (no sign flips inside the helper).
+    A_downstream :
+        Shape ``(n_mask,)``.  Sweep-direction-resolved outgoing face
+        area for each ordinate (``face_area_outer`` for outward
+        sweeps, ``face_area_inner`` for inward sweeps).  Slab carries
+        ``1.0`` (neutral); cylindrical-degenerate ordinates carry
+        ``0.0`` (no spatial flow).
+    A_total :
+        Shape ``(n_mask,)`` (or broadcast scalar).  Sum of the cell's
+        inner and outer face areas.  Slab: ``2.0`` (1+1).
+    dA_w :
+        Shape ``(n_mask,)``.  :math:`\Delta A / w_n` geometry factor.
+        Slab carries ``0.0`` (neutral); curvilinear carries the
+        physical value.
+    c_in, c_out :
+        Shape ``(n_mask,)``.  Morel-Montry closure constants
+        :math:`c_{\rm in} = (1-\tau)/\tau\,\alpha_{\rm out} +
+        \alpha_{\rm in}` and :math:`c_{\rm out} = \alpha_{\rm out}/
+        \tau`.  Slab carries zeros (M-M closure is the identity for
+        flat-in-:math:`\mu` slab geometry).
+    total_xs :
+        Shape ``(ng,)``.  Per-group total cross section
+        :math:`\Sigma_t` on this cell.
+    volume :
+        Cell volume :math:`V_i`.  Scalar.
+    psi_face_in :
+        Shape ``(ng, n_mask)``.  Face flux entering this cell, per
+        group, per ordinate-in-mask.  Already sweep-direction-resolved.
+    psi_angular_upstream :
+        Shape ``(ng, n_mask)`` for curvilinear, ``None`` for slab.
+        :math:`\psi_{n-1/2, i, g}` — the upstream half-angle flux at
+        this cell, computed by the M-M angular recurrence.
+
+    Returns
+    -------
+    denom : np.ndarray
+        Shape ``(ng, n_mask)``.  Per-group per-ordinate-in-mask
+        cell-balance denominator.
+    numer_upstream : np.ndarray
+        Shape ``(ng, n_mask)``.  Per-group per-ordinate-in-mask
+        cell-balance upstream numerator (excludes the volumetric
+        source).
+
+    See Also
+    --------
+    cell_balance_terms :
+        Per-cell scalar form (the same algebra at ``n_mask=1`` with
+        a frozen-dataclass return).  Issue #196 Step 2.5 helper that
+        :meth:`DiamondDifference.update` consumes.  Pre-TYPED-6,
+        :meth:`DiamondDifference.residual` also consumed it; post-
+        TYPED-6, ``residual`` delegates here through a thin adapter
+        for shape uniformity.
+    """
+    # Denominator terms — each named with its physical role.
+    streaming_denom_term = 2.0 * abs_mu * A_downstream  # (n_mask,)
+    redist_denom_term = dA_w * c_out                    # (n_mask,)
+    collision_denom_term = total_xs * volume            # (ng,)
+
+    # Denominator: broadcast (ng,) collision against (n_mask,) streaming +
+    # redistribution to produce (ng, n_mask).
+    denom = (
+        (streaming_denom_term + redist_denom_term)[None, :]
+        + collision_denom_term[:, None]
+    )
+
+    # Upstream-numerator terms.  The angular branch evaluates to zero
+    # when no angular state exists (slab) — Pattern 4 via the None
+    # discriminator already established by UpstreamState.
+    spatial_upstream_term = (
+        abs_mu[None, :] * A_total[None, :] * psi_face_in
+    )                                                    # (ng, n_mask)
+    if psi_angular_upstream is None:
+        angular_upstream_term = np.zeros_like(spatial_upstream_term)
+    else:
+        angular_upstream_term = (
+            dA_w[None, :] * c_in[None, :] * psi_angular_upstream
+        )                                                # (ng, n_mask)
+    numer_upstream = spatial_upstream_term + angular_upstream_term
+
+    return denom, numer_upstream
+
+
 def cell_balance_terms(
     st: "StreamingTerms",
     A_downstream: float,
@@ -201,5 +369,6 @@ def cell_balance_terms(
 
 __all__ = [
     "CellBalanceTerms",
+    "cell_balance_for_streaming",
     "cell_balance_terms",
 ]

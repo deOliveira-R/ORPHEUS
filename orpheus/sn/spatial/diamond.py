@@ -82,7 +82,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from .cell_balance import cell_balance_terms
+from .cell_balance import cell_balance_for_streaming, cell_balance_terms
 from .cell_update import (
     CellResult,
     CellUpdateBase,
@@ -195,19 +195,57 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         Round-trip with :meth:`update`
         ------------------------------
 
-        Both methods share the algebra via :func:`cell_balance_terms`
-        (Pattern 2 — no twin paths).  At the converged
-        ``cell_avg = update(...).cell_average_flux``, the residual is
-        ``denom · cell_avg − (source + numer_upstream)`` = zero by
-        the cell-balance equation that ``update`` solved.
+        Issue #197 PR-TYPED-6: this method delegates to
+        :func:`cell_balance_for_streaming` (the vectorized helper the
+        SN matvec also consumes) at ``n_mask=1`` — Pattern 2, ONE
+        algebra source, two consumers.  :meth:`update` still routes
+        through :func:`cell_balance_terms` (the scalar form for the
+        solve direction).  Both helpers compute the same algebraic
+        intermediates; ``cell_balance_for_streaming`` exposes the
+        vectorized broadcast-friendly shape, and at ``n_mask=1`` the
+        per-ordinate result matches the scalar form bit-for-bit.
+
+        At the converged ``cell_avg = update(...).cell_average_flux``,
+        the residual is ``denom · cell_avg − (source +
+        numer_upstream)`` = zero by the cell-balance equation that
+        ``update`` solved.
         """
-        terms = cell_balance_terms(
-            visit.streaming_terms,
-            visit.face_area_downstream,
-            total_xs,
-            upstream_state,
+        st = visit.streaming_terms
+        # Convert per-cell scalar StreamingTerms primitives to the
+        # ``(n_mask=1,)`` arrays the vectorized helper consumes.
+        # Pattern 2 — single algebra source via cell_balance_for_streaming.
+        abs_mu_arr = np.array([st.abs_mu], dtype=float)
+        A_down_arr = np.array([visit.face_area_downstream], dtype=float)
+        A_total_arr = np.array(
+            [st.face_area_inner + st.face_area_outer], dtype=float,
         )
-        return terms.denom * cell_avg - (source + terms.numer_upstream)
+        dA_w_arr = np.array([st.delta_A_over_w], dtype=float)
+        # M-M closure constants (same algebra as cell_balance_terms).
+        tau = st.tau_mm
+        c_out_scalar = st.alpha_out / tau
+        c_in_scalar = (1.0 - tau) / tau * st.alpha_out + st.alpha_in
+        c_in_arr = np.array([c_in_scalar], dtype=float)
+        c_out_arr = np.array([c_out_scalar], dtype=float)
+
+        psi_face_in_mask = upstream_state.spatial_upstream[:, None]  # (ng, 1)
+        psi_ang = upstream_state.angular_upstream
+        psi_ang_mask = None if psi_ang is None else psi_ang[:, None]  # (ng, 1)
+
+        denom, numer_upstream = cell_balance_for_streaming(
+            abs_mu=abs_mu_arr,
+            A_downstream=A_down_arr,
+            A_total=A_total_arr,
+            dA_w=dA_w_arr,
+            c_in=c_in_arr,
+            c_out=c_out_arr,
+            total_xs=total_xs,
+            volume=st.volume,
+            psi_face_in=psi_face_in_mask,
+            psi_angular_upstream=psi_ang_mask,
+        )
+        # Both arrays are (ng, 1); collapse to (ng,) to match the
+        # scalar-form residual contract (Issue #196 Phase G Step 1).
+        return denom[:, 0] * cell_avg - (source + numer_upstream[:, 0])
 
     # ── 2-D Cartesian batched update (Wave 2 / C2.2) ───────────────
 
