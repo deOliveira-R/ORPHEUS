@@ -713,13 +713,18 @@ def transport_operator_matvec_spherical(
         :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
         strategy for evaluating the angular redistribution term.
         ``None`` defaults to
-        :class:`~orpheus.sn.spatial.pole_angular_closure.LegacyTauSymmetricInterpolation`
-        (Phase B default — see :class:`SNMesh` for the rationale).
+        :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+        — the Phase D canonical closure that matches the sweep route
+        AND exposes ``compute_psi_half_per_level`` for the upcoming
+        unified matvec (Issue #197 PR-TYPED-6c). In practice the
+        fallback is unreachable: all production and test callers
+        pass ``sn_mesh.pole_angular_closure`` explicitly, and
+        :class:`SNMesh` itself defaults to ``MorelMontryAngularSweep``.
     """
     from orpheus.geometry.boundary import SpecularBoundaryOperator
 
     from .spatial.pole_angular_closure import (
-        LegacyTauSymmetricInterpolation,
+        MorelMontryAngularSweep,
     )
 
     if bc_outer is None:
@@ -733,7 +738,7 @@ def transport_operator_matvec_spherical(
             spec_law, SNMethodSpace.minimal(quad),
         )
     if pole_angular_closure is None:
-        pole_angular_closure = LegacyTauSymmetricInterpolation()
+        pole_angular_closure = MorelMontryAngularSweep()
 
     fi = solution_to_angular_flux_spherical(
         solution, eq_map, quad, nx, ng,
@@ -986,12 +991,18 @@ def transport_operator_matvec_cylindrical(
         :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
         strategy for evaluating the per-level azimuthal redistribution.
         ``None`` defaults to
-        :class:`~orpheus.sn.spatial.pole_angular_closure.LegacyTauSymmetricInterpolation`.
+        :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+        — the Phase D canonical closure that matches the sweep route
+        AND exposes ``compute_psi_half_per_level`` for the upcoming
+        unified matvec (Issue #197 PR-TYPED-6c). In practice the
+        fallback is unreachable: all production and test callers
+        pass ``sn_mesh.pole_angular_closure`` explicitly, and
+        :class:`SNMesh` itself defaults to ``MorelMontryAngularSweep``.
     """
     from orpheus.geometry.boundary import SpecularBoundaryOperator
 
     from .spatial.pole_angular_closure import (
-        LegacyTauSymmetricInterpolation,
+        MorelMontryAngularSweep,
     )
 
     if bc_outer is None:
@@ -1001,7 +1012,7 @@ def transport_operator_matvec_cylindrical(
             spec_law, SNMethodSpace.minimal(quad),
         )
     if pole_angular_closure is None:
-        pole_angular_closure = LegacyTauSymmetricInterpolation()
+        pole_angular_closure = MorelMontryAngularSweep()
 
     fi = solution_to_angular_flux_cylindrical(
         solution, eq_map, quad, nx, ng,
