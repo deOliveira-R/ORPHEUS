@@ -1246,252 +1246,6 @@ def transport_operator_matvec_cylindrical(
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _transport_operator_matvec_unified_cylindrical(
-    psi_view: np.ndarray,            # (N, ng, nx, ny) canonical layout
-    sn_mesh: "SNMesh",
-    sigma_t: np.ndarray,             # (ng, nx, ny)
-    *,
-    bc_outer,
-    pole_angular_closure,
-) -> np.ndarray:                     # (N, ng, nx, ny) canonical layout
-    r"""Cylindrical branch of :func:`transport_operator_matvec_unified`.
-
-    Per-level structure (one Carlson context + one MMHalfGrid per μ-level)
-    + Phase 1 outward / BC trace / Phase 2 inward / Phase 3 degenerate.
-    The per-cell algebra is :func:`cell_balance_for_streaming` (Pattern 2);
-    the per-level upstream-face data is :class:`MMHalfGrid` (Pattern 4 —
-    upstream-per-ordinate impossible to off-by-one).
-
-    Issue #197 PR-TYPED-6c Step 3 — verified at L1 against
-    ``solve_greens_function_cylinder_mr`` (trajectory_resolvent Variant α);
-    verified at L0 against per-ordinate hand reference (27/27 across
-    LS4/LS6/ProductQuadrature × n_cells × seed, see
-    ``derivations/diagnostics/diag_step3_cyl_unified_vs_hand_battery.py``).
-
-    The legacy :func:`transport_operator_matvec_cylindrical` has a
-    per-ordinate routing bug (ERR-049) — ascending-global ``ks`` indices
-    do not match the level-internal μ-sorted column order in
-    ``streaming + redistribution + collision``. This unified body uses
-    fancy-index scatter ``out_g_first[:, global_X, i, 0] = m_full`` and
-    is structurally immune.
-    """
-    from .spatial.cell_balance import cell_balance_for_streaming
-    from .spatial.psi_half_angle_seed import CarlsonSweepContext
-
-    quad = sn_mesh.quad
-    N = quad.N
-    ng = psi_view.shape[1]
-    nx = sn_mesh.nx
-    eps = 1e-15
-
-    psi_g_first = psi_view.transpose(1, 0, 2, 3)        # (ng, N, nx, ny)
-    out_g_first = np.zeros((ng, N, nx, 1))
-
-    reduced = sn_mesh.reduced
-    A = reduced.face_areas               # (nx+1,)
-    V = sn_mesh.volumes[:, 0]            # (nx,)
-    mu_x = quad.mu_x
-
-    alpha_per_level = reduced.alpha_per_level             # list[(M_p+1,)]
-    redist_dAw_per_level = reduced.redist_dAw_per_level   # list[(nx, M_p)]
-    tau_mm_per_level = reduced.tau_mm_per_level           # list[(M_p,)]
-    level_indices = quad.level_indices                    # list[indices]
-
-    sigma_t_gx = sigma_t[:, :, 0]        # (ng, nx)
-    dr = sn_mesh.dx
-
-    # ── Per-level Carlson contexts ─────────────────────────────────────
-    outer_inflow_estimate = bc_outer.apply(psi_view[:, :, -1, 0])  # (N, ng)
-    carlson_ctx_per_level: list[CarlsonSweepContext] = []
-    for level_idx in level_indices:
-        level_idx_arr = np.asarray(level_idx)
-        mu_level = mu_x[level_idx_arr]
-        weights_level = quad.weights[level_idx_arr]
-        within_idx_most_inward = int(np.argmin(mu_level))
-        global_idx_most_inward = int(level_idx_arr[within_idx_most_inward])
-        bc_outer_value_level = outer_inflow_estimate[global_idx_most_inward, :]
-        carlson_ctx_per_level.append(
-            CarlsonSweepContext(
-                sigma_t=sigma_t_gx,
-                dr=dr,
-                mu_quad=mu_level.copy(),
-                weights=weights_level.copy(),
-                bc_outer_value=bc_outer_value_level,
-            )
-        )
-
-    # ── Per-level MMHalfGrid (Pattern 4 typed accessor) ────────────────
-    psi_cells_g_first = psi_g_first[..., 0]      # (ng, N, nx)
-    half_grid_per_level = []
-    for p, level_idx in enumerate(level_indices):
-        level_idx_arr = np.asarray(level_idx)
-        psi_level = psi_cells_g_first[:, level_idx_arr, :]   # (ng, M_p, nx)
-        hg = pole_angular_closure.compute_psi_half_per_level(
-            psi_level, tau_mm_per_level[p],
-            carlson_context=carlson_ctx_per_level[p],
-        )
-        half_grid_per_level.append(hg)
-
-    # ── Per-level M-M closure constants (c_in, c_out within-level) ────
-    c_in_per_level: list[np.ndarray] = []
-    c_out_per_level: list[np.ndarray] = []
-    for p in range(len(level_indices)):
-        alpha_half_p = alpha_per_level[p]                # (M_p+1,)
-        tau_mm_p = tau_mm_per_level[p]                   # (M_p,)
-        M_p = tau_mm_p.size
-        alpha_in_p = alpha_half_p[:M_p]                  # (M_p,)
-        alpha_out_p = alpha_half_p[1:M_p + 1]            # (M_p,)
-        c_out_per_level.append(alpha_out_p / tau_mm_p)
-        c_in_per_level.append(
-            (1.0 - tau_mm_p) / tau_mm_p * alpha_out_p + alpha_in_p
-        )
-
-    outflow_at_boundary = np.zeros((ng, N))
-
-    # ── Phase 1: outward sweep per level (μ_x > 0) ─────────────────────
-    for p, level_idx in enumerate(level_indices):
-        level_idx_arr = np.asarray(level_idx)
-        mu_level = mu_x[level_idx_arr]
-        outgoing_within = mu_level > +eps
-        if not np.any(outgoing_within):
-            continue
-        global_out = level_idx_arr[outgoing_within]
-        mu_out = mu_x[global_out]
-        n_out_p = int(global_out.size)
-
-        within_out_positions = np.where(outgoing_within)[0]
-        c_in_sub = c_in_per_level[p][within_out_positions]
-        c_out_sub = c_out_per_level[p][within_out_positions]
-        redist_dAw_p = redist_dAw_per_level[p]           # (nx, M_p)
-        upstream_p_all = half_grid_per_level[p].upstream_per_ordinate  # (ng, M_p, nx)
-
-        visits = list(sn_mesh.dag_walk(direction_sign=+1, mu_level_idx=p))
-        if not visits:
-            continue
-        i0 = visits[0].cell_idx
-        psi_face_in = psi_g_first[:, global_out, i0, 0].copy()   # (ng, n_out_p)
-
-        for visit in visits:
-            i = visit.cell_idx
-            psi_cell = psi_g_first[:, global_out, i, 0]
-            psi_angular_upstream = upstream_p_all[:, within_out_positions, i]
-
-            denom, numer_upstream = cell_balance_for_streaming(
-                abs_mu=mu_out,
-                A_downstream=np.full(n_out_p, A[i + 1]),
-                A_total=np.full(n_out_p, A[i] + A[i + 1]),
-                dA_w=redist_dAw_p[i, within_out_positions],
-                c_in=c_in_sub,
-                c_out=c_out_sub,
-                total_xs=sigma_t_gx[:, i],
-                volume=V[i],
-                psi_face_in=psi_face_in,
-                psi_angular_upstream=psi_angular_upstream,
-            )
-            m_full = (denom * psi_cell - numer_upstream) / V[i]
-            out_g_first[:, global_out, i, 0] = m_full
-
-            psi_face_in = 2.0 * psi_cell - psi_face_in
-        outflow_at_boundary[:, global_out] = psi_face_in
-
-    # ── BC trace at outer face ─────────────────────────────────────────
-    inflow_full = bc_outer.apply(outflow_at_boundary.T)   # (N, ng)
-
-    # ── Phase 2: inward sweep per level (μ_x < 0) ──────────────────────
-    for p, level_idx in enumerate(level_indices):
-        level_idx_arr = np.asarray(level_idx)
-        mu_level = mu_x[level_idx_arr]
-        incoming_within = mu_level < -eps
-        if not np.any(incoming_within):
-            continue
-        global_in = level_idx_arr[incoming_within]
-        mu_in = mu_x[global_in]
-        abs_mu_in = -mu_in
-        n_in_p = int(global_in.size)
-
-        within_in_positions = np.where(incoming_within)[0]
-        c_in_sub = c_in_per_level[p][within_in_positions]
-        c_out_sub = c_out_per_level[p][within_in_positions]
-        redist_dAw_p = redist_dAw_per_level[p]
-        upstream_p_all = half_grid_per_level[p].upstream_per_ordinate
-
-        visits = list(sn_mesh.dag_walk(direction_sign=-1, mu_level_idx=p))
-        if not visits:
-            continue
-        psi_face_in = inflow_full[global_in, :].T          # (ng, n_in_p)
-
-        for visit in visits:
-            i = visit.cell_idx
-            psi_cell = psi_g_first[:, global_in, i, 0]
-            psi_angular_upstream = upstream_p_all[:, within_in_positions, i]
-
-            denom, numer_upstream = cell_balance_for_streaming(
-                abs_mu=abs_mu_in,
-                A_downstream=np.full(n_in_p, A[i]),
-                A_total=np.full(n_in_p, A[i] + A[i + 1]),
-                dA_w=redist_dAw_p[i, within_in_positions],
-                c_in=c_in_sub,
-                c_out=c_out_sub,
-                total_xs=sigma_t_gx[:, i],
-                volume=V[i],
-                psi_face_in=psi_face_in,
-                psi_angular_upstream=psi_angular_upstream,
-            )
-            m_full = (denom * psi_cell - numer_upstream) / V[i]
-            out_g_first[:, global_in, i, 0] = m_full
-
-            psi_face_in = 2.0 * psi_cell - psi_face_in
-
-    # ── Phase 3: degenerate ordinates (|μ_x| < eps), no radial flow ────
-    degenerate_mask = np.abs(mu_x) < eps
-    if np.any(degenerate_mask):
-        global_deg = np.where(degenerate_mask)[0]
-        # Map each degenerate global ordinate to its (level, within-level) position.
-        deg_level: list[int] = []
-        deg_within: list[int] = []
-        for n_global in global_deg:
-            for p, lvl in enumerate(level_indices):
-                lvl_arr = np.asarray(lvl)
-                pos = np.where(lvl_arr == n_global)[0]
-                if pos.size > 0:
-                    deg_level.append(p)
-                    deg_within.append(int(pos[0]))
-                    break
-        n_deg = global_deg.size
-        for i in range(nx):
-            psi_upstream_collected = np.empty((ng, n_deg))
-            dA_w_collected = np.empty(n_deg)
-            c_in_collected = np.empty(n_deg)
-            c_out_collected = np.empty(n_deg)
-            for col_idx in range(n_deg):
-                p = deg_level[col_idx]
-                m = deg_within[col_idx]
-                psi_upstream_collected[:, col_idx] = (
-                    half_grid_per_level[p].upstream_per_ordinate[:, m, i]
-                )
-                dA_w_collected[col_idx] = redist_dAw_per_level[p][i, m]
-                c_in_collected[col_idx] = c_in_per_level[p][m]
-                c_out_collected[col_idx] = c_out_per_level[p][m]
-
-            psi_cell = psi_g_first[:, global_deg, i, 0]   # (ng, n_deg)
-            denom, numer_upstream = cell_balance_for_streaming(
-                abs_mu=np.abs(mu_x[global_deg]),
-                A_downstream=np.zeros(n_deg),
-                A_total=np.full(n_deg, A[i] + A[i + 1]),
-                dA_w=dA_w_collected,
-                c_in=c_in_collected,
-                c_out=c_out_collected,
-                total_xs=sigma_t_gx[:, i],
-                volume=V[i],
-                psi_face_in=np.zeros((ng, n_deg)),
-                psi_angular_upstream=psi_upstream_collected,
-            )
-            m_full = (denom * psi_cell - numer_upstream) / V[i]
-            out_g_first[:, global_deg, i, 0] = m_full
-
-    return out_g_first.transpose(1, 0, 2, 3)   # (N, ng, nx, ny)
-
-
 def transport_operator_matvec_unified(
     psi_view: np.ndarray,            # (N, ng, nx, ny) canonical layout
     sn_mesh: "SNMesh",
@@ -1547,8 +1301,10 @@ def transport_operator_matvec_unified(
     Raises
     ------
     NotImplementedError
-        Step 2 implements sphere only; cylinder lands in Step 3,
-        Cartesian in Step 4.
+        Cartesian curvature is Step 4.  Sphere + cylinder share a single
+        per-level body — sphere is the M_p=N, n_levels=1 case of the
+        cylinder algebra (the curvature read is a single data-only
+        normalisation at the boundary).
     """
     from .spatial.cell_balance import cell_balance_for_streaming
     from .spatial.pole_angular_closure import MorelMontryAngularSweep
@@ -1577,158 +1333,235 @@ def transport_operator_matvec_unified(
     if pole_angular_closure is None:
         pole_angular_closure = MorelMontryAngularSweep()
 
-    if curvature == "cylindrical":
-        return _transport_operator_matvec_unified_cylindrical(
-            psi_view, sn_mesh, sigma_t,
-            bc_outer=bc_outer,
-            pole_angular_closure=pole_angular_closure,
-        )
+    # ── Per-level normalisation at the data boundary ─────────────────
+    # Sphere = 1-level case of cylinder. The body below operates on the
+    # per-level (μ-level) form uniformly; sphere wraps its single-array
+    # data into a 1-element list and the loop iterates once with M_p=N.
+    # This data-only normalisation is the only place curvature is read;
+    # the body itself is geometry-agnostic.
+    reduced = sn_mesh.reduced
+    mu_x = quad.mu_x
+    if curvature == "spherical":
+        level_indices: list[np.ndarray] = [np.arange(N)]
+        alpha_per_level: list[np.ndarray] = [reduced.alpha_half]
+        redist_dAw_per_level: list[np.ndarray] = [reduced.redist_dAw]
+        tau_mm_per_level: list[np.ndarray] = [reduced.tau_mm]
+    else:  # cylindrical
+        level_indices = quad.level_indices
+        alpha_per_level = reduced.alpha_per_level
+        redist_dAw_per_level = reduced.redist_dAw_per_level
+        tau_mm_per_level = reduced.tau_mm_per_level
 
     # ── Internal view: (ng, N, nx, ny) — group-leading for the
     # (ng, n_mask) per-cell algebra cell_balance_for_streaming consumes.
-    # The PUBLIC interface stays canonical (N, ng, nx, ny). Zero-copy.
-    psi_g_first = psi_view.transpose(1, 0, 2, 3)         # (ng, N, nx, ny)
+    # Zero-copy transpose; public interface stays canonical.
+    psi_g_first = psi_view.transpose(1, 0, 2, 3)                     # (ng, N, nx, ny)
     out_g_first = np.zeros((ng, N, nx, ny))
 
-    # ── Sphere geometry data ────────────────────────────────────────
-    reduced = sn_mesh.reduced
-    A = reduced.face_areas       # (nx+1,)
-    V = sn_mesh.volumes[:, 0]    # (nx,)
-    alpha_half = reduced.alpha_half  # (N+1,) — α_{n-1/2} at indices 0..N
-    tau_mm = reduced.tau_mm      # (N,)
-    redist_dAw = reduced.redist_dAw  # (nx, N) — ΔA_i/w_n
-
-    # ── M-M closure constants per ordinate (precompute) ─────────────
-    # For ordinate m: α_in = alpha_half[m], α_out = alpha_half[m+1].
-    # c_out_m = α_out / τ_m
-    # c_in_m  = (1 - τ_m)/τ_m · α_out + α_in
-    alpha_in = alpha_half[:N]        # (N,) — alpha_half[m] for m=0..N-1
-    alpha_out = alpha_half[1:N + 1]  # (N,) — alpha_half[m+1] for m=0..N-1
-    c_out = alpha_out / tau_mm                                     # (N,)
-    c_in = (1.0 - tau_mm) / tau_mm * alpha_out + alpha_in           # (N,)
-
-    # ── Ordinate-mask geometry ──────────────────────────────────────
-    outgoing_mask = quad.mu_x > +eps
-    incoming_mask = quad.mu_x < -eps
-    mu_x = quad.mu_x
-    n_out = int(outgoing_mask.sum())
-    n_in = int(incoming_mask.sum())
-
-    # ── BC outer value for the Carlson seed ─────────────────────────
-    # Apply BC to cell-centred outer-cell ψ; take the most-inward
-    # ordinate's value as the auxiliary inward sweep seed.
-    if n_in > 0:
-        outer_inflow_estimate = bc_outer.apply(psi_view[:, :, -1, 0])  # (N, ng)
-        most_inward_global_idx = int(np.argmin(mu_x))
-        bc_outer_value = outer_inflow_estimate[most_inward_global_idx, :]  # (ng,)
-    else:
-        bc_outer_value = np.zeros((ng,))
-
-    sigma_t_gx = sigma_t[:, :, 0]  # (ng, nx)
+    A = reduced.face_areas                                           # (nx+1,)
+    V = sn_mesh.volumes[:, 0]                                        # (nx,)
+    sigma_t_gx = sigma_t[:, :, 0]                                    # (ng, nx)
     dr = sn_mesh.dx
-    carlson_ctx = CarlsonSweepContext(
-        sigma_t=sigma_t_gx,
-        dr=dr,
-        mu_quad=mu_x.copy(),
-        weights=quad.weights.copy(),
-        bc_outer_value=bc_outer_value,
-    )
 
-    # ── M-M half-angle grid (MMHalfGrid from Step 1.5) ──────────────
-    # Single-level for sphere. Pattern 4: the typed accessor's
-    # .upstream(m) method makes the upstream-per-ordinate semantic
-    # impossible to off-by-one.
-    psi_cells_g_first = psi_g_first[..., 0]  # (ng, N, nx)
-    half_grid = pole_angular_closure.compute_psi_half_per_level(
-        psi_cells_g_first, tau_mm, carlson_context=carlson_ctx,
-    )
-    # half_grid.upstream_per_ordinate is (ng, N, nx) — the upstream
-    # face per ordinate per cell per group.
-    psi_upstream_all = half_grid.upstream_per_ordinate  # (ng, N, nx)
+    # ── Per-level Carlson contexts (one per μ-level) ─────────────────
+    outer_inflow_estimate = bc_outer.apply(psi_view[:, :, -1, 0])    # (N, ng)
+    carlson_ctx_per_level: list[CarlsonSweepContext] = []
+    for level_idx in level_indices:
+        level_idx_arr = np.asarray(level_idx)
+        mu_level = mu_x[level_idx_arr]
+        weights_level = quad.weights[level_idx_arr]
+        within_idx_most_inward = int(np.argmin(mu_level))
+        global_idx_most_inward = int(level_idx_arr[within_idx_most_inward])
+        bc_outer_value_level = outer_inflow_estimate[global_idx_most_inward, :]
+        carlson_ctx_per_level.append(
+            CarlsonSweepContext(
+                sigma_t=sigma_t_gx,
+                dr=dr,
+                mu_quad=mu_level.copy(),
+                weights=weights_level.copy(),
+                bc_outer_value=bc_outer_value_level,
+            )
+        )
 
-    # ── Per-direction sweep via dag_walk ────────────────────────────
-    outward_visits = list(sn_mesh.dag_walk(direction_sign=+1))
-    inward_visits = list(sn_mesh.dag_walk(direction_sign=-1))
+    # ── Per-level MMHalfGrid (Pattern 4 typed accessor) ──────────────
+    # The half-grid's ``.upstream_per_ordinate`` makes off-by-one
+    # impossible to spell by API. Shape ``(ng, M_p, nx)`` per level.
+    psi_cells_g_first = psi_g_first[..., 0]                          # (ng, N, nx)
+    half_grid_per_level = []
+    for p, level_idx in enumerate(level_indices):
+        level_idx_arr = np.asarray(level_idx)
+        psi_level = psi_cells_g_first[:, level_idx_arr, :]           # (ng, M_p, nx)
+        hg = pole_angular_closure.compute_psi_half_per_level(
+            psi_level, tau_mm_per_level[p],
+            carlson_context=carlson_ctx_per_level[p],
+        )
+        half_grid_per_level.append(hg)
+
+    # ── Per-level M-M closure constants (c_in, c_out within-level) ───
+    # For ordinate m at level p: α_in = α_half[m], α_out = α_half[m+1].
+    #   c_out_m = α_out / τ_m
+    #   c_in_m  = (1 − τ_m)/τ_m · α_out + α_in
+    c_in_per_level: list[np.ndarray] = []
+    c_out_per_level: list[np.ndarray] = []
+    for p in range(len(level_indices)):
+        alpha_half_p = alpha_per_level[p]                            # (M_p+1,)
+        tau_mm_p = tau_mm_per_level[p]                               # (M_p,)
+        M_p = tau_mm_p.size
+        alpha_in_p = alpha_half_p[:M_p]
+        alpha_out_p = alpha_half_p[1:M_p + 1]
+        c_out_per_level.append(alpha_out_p / tau_mm_p)
+        c_in_per_level.append(
+            (1.0 - tau_mm_p) / tau_mm_p * alpha_out_p + alpha_in_p
+        )
 
     outflow_at_boundary = np.zeros((ng, N))
 
-    # ── Phase 1: outgoing ordinates (μ > 0), pole → outer ──────────
-    if n_out > 0:
-        mu_out = mu_x[outgoing_mask]                           # (n_out,)
-        c_out_subset = c_out[outgoing_mask]                    # (n_out,)
-        c_in_subset = c_in[outgoing_mask]                      # (n_out,)
-        sigma_t_outer = sigma_t[:, :, 0]                       # (ng, nx)
+    # ── Phase 1: outward sweep per level (μ_x > 0) ───────────────
+    for p, level_idx in enumerate(level_indices):
+        level_idx_arr = np.asarray(level_idx)
+        mu_level = mu_x[level_idx_arr]
+        outgoing_within = mu_level > +eps
+        if not np.any(outgoing_within):
+            continue
+        global_out = level_idx_arr[outgoing_within]
+        mu_out = mu_x[global_out]
+        n_out_p = int(global_out.size)
 
-        # Pole-face IC: cell-centre value of pole cell at outgoing ordinates.
-        # Lewis-Miller §4.5 — preserves the per-ordinate flat-flux invariant.
-        i0 = outward_visits[0].cell_idx if outward_visits else 0
-        psi_face_in = psi_g_first[:, outgoing_mask, i0, 0].copy()  # (ng, n_out)
+        within_out_positions = np.where(outgoing_within)[0]
+        c_in_sub = c_in_per_level[p][within_out_positions]
+        c_out_sub = c_out_per_level[p][within_out_positions]
+        redist_dAw_p = redist_dAw_per_level[p]                       # (nx, M_p)
+        upstream_p_all = half_grid_per_level[p].upstream_per_ordinate  # (ng, M_p, nx)
 
-        for visit in outward_visits:
+        visits = list(sn_mesh.dag_walk(direction_sign=+1, mu_level_idx=p))
+        if not visits:
+            continue
+        i0 = visits[0].cell_idx
+        # Pole-face IC: cell-centre value of pole cell (Lewis-Miller §4.5).
+        psi_face_in = psi_g_first[:, global_out, i0, 0].copy()       # (ng, n_out_p)
+
+        for visit in visits:
             i = visit.cell_idx
-            psi_cell = psi_g_first[:, outgoing_mask, i, 0]      # (ng, n_out)
-            psi_angular_upstream = psi_upstream_all[:, outgoing_mask, i]  # (ng, n_out)
+            psi_cell = psi_g_first[:, global_out, i, 0]
+            psi_angular_upstream = upstream_p_all[:, within_out_positions, i]
 
-            # Outward: A_down = A[i+1] (outer face), A_total = A[i] + A[i+1].
             denom, numer_upstream = cell_balance_for_streaming(
-                abs_mu=mu_out,                                  # |μ| = μ (outward)
-                A_downstream=np.full(n_out, A[i + 1]),
-                A_total=np.full(n_out, A[i] + A[i + 1]),
-                dA_w=redist_dAw[i, outgoing_mask],
-                c_in=c_in_subset,
-                c_out=c_out_subset,
-                total_xs=sigma_t_outer[:, i],
+                abs_mu=mu_out,
+                A_downstream=np.full(n_out_p, A[i + 1]),
+                A_total=np.full(n_out_p, A[i] + A[i + 1]),
+                dA_w=redist_dAw_p[i, within_out_positions],
+                c_in=c_in_sub,
+                c_out=c_out_sub,
+                total_xs=sigma_t_gx[:, i],
                 volume=V[i],
                 psi_face_in=psi_face_in,
                 psi_angular_upstream=psi_angular_upstream,
             )
-            # Matvec rate density: m_full = balance / V.
             m_full = (denom * psi_cell - numer_upstream) / V[i]
-            out_g_first[:, outgoing_mask, i, 0] = m_full
+            out_g_first[:, global_out, i, 0] = m_full
 
-            # Propagate face for next cell via WDD: ψ_face_out = 2·ψ̄ − ψ_face_in.
+            # WDD face propagation: ψ_face_out = 2·ψ̄ − ψ_face_in.
             psi_face_in = 2.0 * psi_cell - psi_face_in
-        # Boundary outflow face (last cell's ψ_face_out — i.e., current psi_face_in
-        # after the loop's final WDD propagation).
-        outflow_at_boundary[:, outgoing_mask] = psi_face_in
+        outflow_at_boundary[:, global_out] = psi_face_in
 
-    # ── BC trace at outer face ──────────────────────────────────────
-    inflow_full = bc_outer.apply(outflow_at_boundary.T)  # (N, ng)
+    # ── BC trace at outer face ───────────────────────────────
+    inflow_full = bc_outer.apply(outflow_at_boundary.T)              # (N, ng)
 
-    # ── Phase 2: incoming ordinates (μ < 0), outer → pole ──────────
-    if n_in > 0:
-        mu_in = mu_x[incoming_mask]                            # (n_in,)
-        abs_mu_in = -mu_in                                     # |μ| = -μ (incoming)
-        c_out_subset_in = c_out[incoming_mask]                 # (n_in,)
-        c_in_subset_in = c_in[incoming_mask]                   # (n_in,)
-        sigma_t_outer_in = sigma_t[:, :, 0]                    # (ng, nx)
+    # ── Phase 2: inward sweep per level (μ_x < 0) ────────────────
+    for p, level_idx in enumerate(level_indices):
+        level_idx_arr = np.asarray(level_idx)
+        mu_level = mu_x[level_idx_arr]
+        incoming_within = mu_level < -eps
+        if not np.any(incoming_within):
+            continue
+        global_in = level_idx_arr[incoming_within]
+        mu_in = mu_x[global_in]
+        abs_mu_in = -mu_in
+        n_in_p = int(global_in.size)
 
-        psi_face_in = inflow_full[incoming_mask, :].T  # (ng, n_in)
+        within_in_positions = np.where(incoming_within)[0]
+        c_in_sub = c_in_per_level[p][within_in_positions]
+        c_out_sub = c_out_per_level[p][within_in_positions]
+        redist_dAw_p = redist_dAw_per_level[p]
+        upstream_p_all = half_grid_per_level[p].upstream_per_ordinate
 
-        for visit in inward_visits:
+        visits = list(sn_mesh.dag_walk(direction_sign=-1, mu_level_idx=p))
+        if not visits:
+            continue
+        psi_face_in = inflow_full[global_in, :].T                    # (ng, n_in_p)
+
+        for visit in visits:
             i = visit.cell_idx
-            psi_cell = psi_g_first[:, incoming_mask, i, 0]
-            psi_angular_upstream = psi_upstream_all[:, incoming_mask, i]
+            psi_cell = psi_g_first[:, global_in, i, 0]
+            psi_angular_upstream = upstream_p_all[:, within_in_positions, i]
 
-            # Inward: A_down = A[i] (inner face), A_total = A[i] + A[i+1].
             denom, numer_upstream = cell_balance_for_streaming(
                 abs_mu=abs_mu_in,
-                A_downstream=np.full(n_in, A[i]),
-                A_total=np.full(n_in, A[i] + A[i + 1]),
-                dA_w=redist_dAw[i, incoming_mask],
-                c_in=c_in_subset_in,
-                c_out=c_out_subset_in,
-                total_xs=sigma_t_outer_in[:, i],
+                A_downstream=np.full(n_in_p, A[i]),
+                A_total=np.full(n_in_p, A[i] + A[i + 1]),
+                dA_w=redist_dAw_p[i, within_in_positions],
+                c_in=c_in_sub,
+                c_out=c_out_sub,
+                total_xs=sigma_t_gx[:, i],
                 volume=V[i],
                 psi_face_in=psi_face_in,
                 psi_angular_upstream=psi_angular_upstream,
             )
             m_full = (denom * psi_cell - numer_upstream) / V[i]
-            out_g_first[:, incoming_mask, i, 0] = m_full
+            out_g_first[:, global_in, i, 0] = m_full
 
             psi_face_in = 2.0 * psi_cell - psi_face_in
 
-    return out_g_first.transpose(1, 0, 2, 3)  # (N, ng, nx, ny)
+    # ── Phase 3: degenerate ordinates (|μ_x| < eps), no radial flow ──
+    # Sphere quadratures (GL) have no exact zeros — this branch is a
+    # no-op for sphere by construction (degenerate_mask is empty).
+    degenerate_mask = np.abs(mu_x) < eps
+    if np.any(degenerate_mask):
+        global_deg = np.where(degenerate_mask)[0]
+        # Map each degenerate global ordinate to its (level, within-level) position.
+        deg_level: list[int] = []
+        deg_within: list[int] = []
+        for n_global in global_deg:
+            for p, lvl in enumerate(level_indices):
+                lvl_arr = np.asarray(lvl)
+                pos = np.where(lvl_arr == n_global)[0]
+                if pos.size > 0:
+                    deg_level.append(p)
+                    deg_within.append(int(pos[0]))
+                    break
+        n_deg = global_deg.size
+        for i in range(nx):
+            psi_upstream_collected = np.empty((ng, n_deg))
+            dA_w_collected = np.empty(n_deg)
+            c_in_collected = np.empty(n_deg)
+            c_out_collected = np.empty(n_deg)
+            for col_idx in range(n_deg):
+                p = deg_level[col_idx]
+                m = deg_within[col_idx]
+                psi_upstream_collected[:, col_idx] = (
+                    half_grid_per_level[p].upstream_per_ordinate[:, m, i]
+                )
+                dA_w_collected[col_idx] = redist_dAw_per_level[p][i, m]
+                c_in_collected[col_idx] = c_in_per_level[p][m]
+                c_out_collected[col_idx] = c_out_per_level[p][m]
+
+            psi_cell = psi_g_first[:, global_deg, i, 0]              # (ng, n_deg)
+            denom, numer_upstream = cell_balance_for_streaming(
+                abs_mu=np.abs(mu_x[global_deg]),
+                A_downstream=np.zeros(n_deg),
+                A_total=np.full(n_deg, A[i] + A[i + 1]),
+                dA_w=dA_w_collected,
+                c_in=c_in_collected,
+                c_out=c_out_collected,
+                total_xs=sigma_t_gx[:, i],
+                volume=V[i],
+                psi_face_in=np.zeros((ng, n_deg)),
+                psi_angular_upstream=psi_upstream_collected,
+            )
+            m_full = (denom * psi_cell - numer_upstream) / V[i]
+            out_g_first[:, global_deg, i, 0] = m_full
+
+    return out_g_first.transpose(1, 0, 2, 3)                         # (N, ng, nx, ny)
 
 
 # ═══════════════════════════════════════════════════════════════════════
