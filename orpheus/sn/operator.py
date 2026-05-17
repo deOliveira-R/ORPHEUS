@@ -1215,6 +1215,275 @@ def transport_operator_matvec_cylindrical(
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# transport_operator_matvec_unified — Issue #197 PR-TYPED-6c Step 2+
+#
+# Single geometry-agnostic SN transport operator apply M(ψ; σ_t) =
+# (L + C)·ψ in canonical (N, ng, nx, ny) 4-D layout. Replaces the three
+# legacy helpers (transport_operator_matvec for Cartesian,
+# transport_operator_matvec_spherical, transport_operator_matvec_cylindrical)
+# whose per-cell math was a Pattern-2 twin of the sweep route's
+# DiamondDifference.update / .residual algebra.
+#
+# The unified body delegates the per-cell algebra to
+# cell_balance_for_streaming (PR-TYPED-6a foundation primitive),
+# vectorised over the ordinate-mask axis (n_mask=N for matvec), and
+# consumes MorelMontryAngularSweep.compute_psi_half_per_level via the
+# MMHalfGrid typed accessor (PR-TYPED-6b / Step 1.5) for the M-M
+# upstream half-angle flux.
+#
+# Step-by-step rollout:
+#   Step 2 (this commit): sphere implementation verified bit-exact
+#       against transport_operator_matvec_spherical at ULP scale.
+#       Cylinder + Cartesian raise NotImplementedError (Steps 3+4).
+#   Step 3: extend to cylindrical (per-level outward / BC / inward /
+#       degenerate structure) and verify against
+#       transport_operator_matvec_cylindrical.
+#   Step 4: extend to Cartesian (WDD via cell_balance_for_streaming;
+#       differs from legacy FD _compute_gradients by an O(h) order-
+#       of-accuracy delta — characterized, NOT bit-exact).
+#   Step 5: wire StreamingOperator.apply to call the unified function;
+#       legacy helpers retire in Step 7.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def transport_operator_matvec_unified(
+    psi_view: np.ndarray,            # (N, ng, nx, ny) canonical layout
+    sn_mesh: "SNMesh",
+    sigma_t: np.ndarray,             # (ng, nx, ny)
+    *,
+    bc_outer: "BoundaryOperator | None" = None,
+    pole_angular_closure: "PoleAngularClosure | None" = None,
+) -> np.ndarray:                     # (N, ng, nx, ny) canonical layout
+    r"""Unified geometry-agnostic SN transport operator apply.
+
+    Computes :math:`M(\psi; \Sigma_t) = (L + C)\,\psi` over all
+    geometries (sphere, cylinder, slab) via the shared per-cell
+    algebra in :func:`cell_balance_for_streaming` and (for curvilinear)
+    :meth:`MorelMontryAngularSweep.compute_psi_half_per_level`.
+
+    Issue #197 PR-TYPED-6c — replaces the three legacy geometry-keyed
+    helpers (Pattern 2: single source of truth for the discretisation
+    algebra). The body is geometry-agnostic by data: the per-cell
+    algebra reads cell geometry from :class:`StreamingTerms` (carried
+    on each :class:`CellVisit` yielded by :meth:`SNMesh.dag_walk`) and
+    the per-ordinate angular closure from
+    :class:`~orpheus.sn.spatial.pole_angular_closure.MMHalfGrid`.
+
+    Parameters
+    ----------
+    psi_view :
+        Angular flux in canonical layout ``(N, ng, nx, ny)``. The
+        matvec body uses a zero-copy transpose view to ``(ng, N, nx, ny)``
+        for the per-cell ``(ng, n_mask)`` algebra, but the public
+        contract is canonical.
+    sn_mesh :
+        :class:`SNMesh` carrying the per-cell geometry, quadrature,
+        boundary realizations, and angular closure strategy. The
+        function reads ``sn_mesh.quad``, ``sn_mesh.reduced``,
+        ``sn_mesh.volumes``, ``sn_mesh.dx``, ``sn_mesh.bc_right``,
+        ``sn_mesh.pole_angular_closure``.
+    sigma_t :
+        Per-group per-cell total cross section, shape ``(ng, nx, ny)``.
+        Issue #196 PR-INDEX-3 — group-leading.
+    bc_outer :
+        Outer-face boundary operator. ``None`` (default) reads
+        ``sn_mesh.bc_right``.
+    pole_angular_closure :
+        Angular closure strategy. ``None`` (default) reads
+        ``sn_mesh.pole_angular_closure``.
+
+    Returns
+    -------
+    np.ndarray
+        Operator action ``M(ψ; σ_t) = (L + C)·ψ`` in canonical
+        ``(N, ng, nx, ny)`` layout. Same shape as ``psi_view``.
+
+    Raises
+    ------
+    NotImplementedError
+        Step 2 implements sphere only; cylinder lands in Step 3,
+        Cartesian in Step 4.
+    """
+    from .spatial.cell_balance import cell_balance_for_streaming
+    from .spatial.pole_angular_closure import MorelMontryAngularSweep
+    from .spatial.psi_half_angle_seed import CarlsonSweepContext
+
+    quad = sn_mesh.quad
+    N = quad.N
+    ng = psi_view.shape[1]
+    nx = sn_mesh.nx
+    ny = sn_mesh.ny
+    eps = 1e-15
+    curvature = getattr(sn_mesh, "curvature", "cartesian")
+
+    if curvature == "cartesian":
+        raise NotImplementedError(
+            "transport_operator_matvec_unified Cartesian path is Step 4. "
+            "Use the legacy transport_operator_matvec for now."
+        )
+    if curvature == "cylindrical":
+        raise NotImplementedError(
+            "transport_operator_matvec_unified cylindrical path is Step 3. "
+            "Use the legacy transport_operator_matvec_cylindrical for now."
+        )
+    if curvature != "spherical":
+        raise ValueError(f"Unknown curvature: {curvature!r}")
+
+    if bc_outer is None:
+        bc_outer = sn_mesh.bc_right
+    if pole_angular_closure is None:
+        pole_angular_closure = sn_mesh.pole_angular_closure
+    if pole_angular_closure is None:
+        pole_angular_closure = MorelMontryAngularSweep()
+
+    # ── Internal view: (ng, N, nx, ny) — group-leading for the
+    # (ng, n_mask) per-cell algebra cell_balance_for_streaming consumes.
+    # The PUBLIC interface stays canonical (N, ng, nx, ny). Zero-copy.
+    psi_g_first = psi_view.transpose(1, 0, 2, 3)         # (ng, N, nx, ny)
+    out_g_first = np.zeros((ng, N, nx, ny))
+
+    # ── Sphere geometry data ────────────────────────────────────────
+    reduced = sn_mesh.reduced
+    A = reduced.face_areas       # (nx+1,)
+    V = sn_mesh.volumes[:, 0]    # (nx,)
+    alpha_half = reduced.alpha_half  # (N+1,) — α_{n-1/2} at indices 0..N
+    tau_mm = reduced.tau_mm      # (N,)
+    redist_dAw = reduced.redist_dAw  # (nx, N) — ΔA_i/w_n
+
+    # ── M-M closure constants per ordinate (precompute) ─────────────
+    # For ordinate m: α_in = alpha_half[m], α_out = alpha_half[m+1].
+    # c_out_m = α_out / τ_m
+    # c_in_m  = (1 - τ_m)/τ_m · α_out + α_in
+    alpha_in = alpha_half[:N]        # (N,) — alpha_half[m] for m=0..N-1
+    alpha_out = alpha_half[1:N + 1]  # (N,) — alpha_half[m+1] for m=0..N-1
+    c_out = alpha_out / tau_mm                                     # (N,)
+    c_in = (1.0 - tau_mm) / tau_mm * alpha_out + alpha_in           # (N,)
+
+    # ── Ordinate-mask geometry ──────────────────────────────────────
+    outgoing_mask = quad.mu_x > +eps
+    incoming_mask = quad.mu_x < -eps
+    mu_x = quad.mu_x
+    n_out = int(outgoing_mask.sum())
+    n_in = int(incoming_mask.sum())
+
+    # ── BC outer value for the Carlson seed ─────────────────────────
+    # Apply BC to cell-centred outer-cell ψ; take the most-inward
+    # ordinate's value as the auxiliary inward sweep seed.
+    if n_in > 0:
+        outer_inflow_estimate = bc_outer.apply(psi_view[:, :, -1, 0])  # (N, ng)
+        most_inward_global_idx = int(np.argmin(mu_x))
+        bc_outer_value = outer_inflow_estimate[most_inward_global_idx, :]  # (ng,)
+    else:
+        bc_outer_value = np.zeros((ng,))
+
+    sigma_t_gx = sigma_t[:, :, 0]  # (ng, nx)
+    dr = sn_mesh.dx
+    carlson_ctx = CarlsonSweepContext(
+        sigma_t=sigma_t_gx,
+        dr=dr,
+        mu_quad=mu_x.copy(),
+        weights=quad.weights.copy(),
+        bc_outer_value=bc_outer_value,
+    )
+
+    # ── M-M half-angle grid (MMHalfGrid from Step 1.5) ──────────────
+    # Single-level for sphere. Pattern 4: the typed accessor's
+    # .upstream(m) method makes the upstream-per-ordinate semantic
+    # impossible to off-by-one.
+    psi_cells_g_first = psi_g_first[..., 0]  # (ng, N, nx)
+    half_grid = pole_angular_closure.compute_psi_half_per_level(
+        psi_cells_g_first, tau_mm, carlson_context=carlson_ctx,
+    )
+    # half_grid.upstream_per_ordinate is (ng, N, nx) — the upstream
+    # face per ordinate per cell per group.
+    psi_upstream_all = half_grid.upstream_per_ordinate  # (ng, N, nx)
+
+    # ── Per-direction sweep via dag_walk ────────────────────────────
+    outward_visits = list(sn_mesh.dag_walk(direction_sign=+1))
+    inward_visits = list(sn_mesh.dag_walk(direction_sign=-1))
+
+    outflow_at_boundary = np.zeros((ng, N))
+
+    # ── Phase 1: outgoing ordinates (μ > 0), pole → outer ──────────
+    if n_out > 0:
+        mu_out = mu_x[outgoing_mask]                           # (n_out,)
+        c_out_subset = c_out[outgoing_mask]                    # (n_out,)
+        c_in_subset = c_in[outgoing_mask]                      # (n_out,)
+        sigma_t_outer = sigma_t[:, :, 0]                       # (ng, nx)
+
+        # Pole-face IC: cell-centre value of pole cell at outgoing ordinates.
+        # Lewis-Miller §4.5 — preserves the per-ordinate flat-flux invariant.
+        i0 = outward_visits[0].cell_idx if outward_visits else 0
+        psi_face_in = psi_g_first[:, outgoing_mask, i0, 0].copy()  # (ng, n_out)
+
+        for visit in outward_visits:
+            i = visit.cell_idx
+            psi_cell = psi_g_first[:, outgoing_mask, i, 0]      # (ng, n_out)
+            psi_angular_upstream = psi_upstream_all[:, outgoing_mask, i]  # (ng, n_out)
+
+            # Outward: A_down = A[i+1] (outer face), A_total = A[i] + A[i+1].
+            denom, numer_upstream = cell_balance_for_streaming(
+                abs_mu=mu_out,                                  # |μ| = μ (outward)
+                A_downstream=np.full(n_out, A[i + 1]),
+                A_total=np.full(n_out, A[i] + A[i + 1]),
+                dA_w=redist_dAw[i, outgoing_mask],
+                c_in=c_in_subset,
+                c_out=c_out_subset,
+                total_xs=sigma_t_outer[:, i],
+                volume=V[i],
+                psi_face_in=psi_face_in,
+                psi_angular_upstream=psi_angular_upstream,
+            )
+            # Matvec rate density: m_full = balance / V.
+            m_full = (denom * psi_cell - numer_upstream) / V[i]
+            out_g_first[:, outgoing_mask, i, 0] = m_full
+
+            # Propagate face for next cell via WDD: ψ_face_out = 2·ψ̄ − ψ_face_in.
+            psi_face_in = 2.0 * psi_cell - psi_face_in
+        # Boundary outflow face (last cell's ψ_face_out — i.e., current psi_face_in
+        # after the loop's final WDD propagation).
+        outflow_at_boundary[:, outgoing_mask] = psi_face_in
+
+    # ── BC trace at outer face ──────────────────────────────────────
+    inflow_full = bc_outer.apply(outflow_at_boundary.T)  # (N, ng)
+
+    # ── Phase 2: incoming ordinates (μ < 0), outer → pole ──────────
+    if n_in > 0:
+        mu_in = mu_x[incoming_mask]                            # (n_in,)
+        abs_mu_in = -mu_in                                     # |μ| = -μ (incoming)
+        c_out_subset_in = c_out[incoming_mask]                 # (n_in,)
+        c_in_subset_in = c_in[incoming_mask]                   # (n_in,)
+        sigma_t_outer_in = sigma_t[:, :, 0]                    # (ng, nx)
+
+        psi_face_in = inflow_full[incoming_mask, :].T  # (ng, n_in)
+
+        for visit in inward_visits:
+            i = visit.cell_idx
+            psi_cell = psi_g_first[:, incoming_mask, i, 0]
+            psi_angular_upstream = psi_upstream_all[:, incoming_mask, i]
+
+            # Inward: A_down = A[i] (inner face), A_total = A[i] + A[i+1].
+            denom, numer_upstream = cell_balance_for_streaming(
+                abs_mu=abs_mu_in,
+                A_downstream=np.full(n_in, A[i]),
+                A_total=np.full(n_in, A[i] + A[i + 1]),
+                dA_w=redist_dAw[i, incoming_mask],
+                c_in=c_in_subset_in,
+                c_out=c_out_subset_in,
+                total_xs=sigma_t_outer_in[:, i],
+                volume=V[i],
+                psi_face_in=psi_face_in,
+                psi_angular_upstream=psi_angular_upstream,
+            )
+            m_full = (denom * psi_cell - numer_upstream) / V[i]
+            out_g_first[:, incoming_mask, i, 0] = m_full
+
+            psi_face_in = 2.0 * psi_cell - psi_face_in
+
+    return out_g_first.transpose(1, 0, 2, 3)  # (N, ng, nx, ny)
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # SNStreamingOperator — unified LinearOperator for L = Ω·∇ + Σ_t
 # ═══════════════════════════════════════════════════════════════════════
 
