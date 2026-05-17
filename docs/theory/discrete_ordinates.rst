@@ -2347,6 +2347,41 @@ form, at which point
 :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
 becomes the natural default.
 
+.. _sn-pole-closure-compute-psi-half:
+
+Half-angle grid exposure (Issue #197 PR-TYPED-6b)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. todo:: Archivist expansion needed.
+
+   The Issue #197 PR-TYPED-6b dispatch added the public method
+   :meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep.compute_psi_half_per_level`
+   exposing the M-M recurrence's half-angle grid
+   :math:`\phi_{m\pm 1/2,i,g}` for one level.  The method is the
+   intermediate exposure that lets the unified SN matvec
+   (:class:`~orpheus.sn.operator.StreamingOperator`) consume
+   :math:`\phi_{m\pm 1/2}` as
+   :func:`~orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`'s
+   ``psi_angular_upstream`` argument — closing the apply-vs-sweep
+   twin path on the curvilinear angular branch.
+
+   Pattern 2 (Single source of truth).  Both the public method AND
+   the redistribution body inside
+   :meth:`MorelMontryAngularSweep.__call__` route through
+   :func:`~orpheus.sn.spatial.pole_angular_closure._mm_psi_half_grid_single_level`.
+   The :eq:`pole-mm-recurrence` recurrence body lives once.
+
+   Test gate:
+   :file:`tests/sn/spatial/test_compute_psi_half_per_level.py` —
+   21 foundation + L0 tests pinning method existence,
+   shape contract, recurrence formula, Carlson-context seed
+   contract, Pattern 2 round-trip to ``__call__``, linearity, and
+   refactor-regression on
+   :func:`_mm_weighted_angular_recurrence_single_level`.
+
+   Closeout memo:
+   ``.claude/agent-memory/method-implementer/issue_197_pr_typed_6b_closeout.md``.
+
 .. _phase-c-sweep-frame-matvec:
 
 Sweep-frame apply matvec (Issue #168 Phase C)
