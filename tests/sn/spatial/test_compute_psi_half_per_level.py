@@ -32,6 +32,7 @@ import numpy as np
 import pytest
 
 from orpheus.sn.spatial.pole_angular_closure import (
+    MMHalfGrid,
     MorelMontryAngularSweep,
     _mm_psi_half_grid_single_level,
     _mm_weighted_angular_recurrence_single_level,
@@ -89,7 +90,12 @@ class TestShapeContract:
         psi_half = sweep.compute_psi_half_per_level(
             psi_level, tau_level, carlson_context=None,
         )
-        assert psi_half.shape == (ng, M + 1, nx)
+        # PR-TYPED-6c Step 1.5: return is MMHalfGrid; underlying faces
+        # ndarray has the same (ng, M+1, nx) shape.
+        assert psi_half.faces.shape == (ng, M + 1, nx)
+        assert psi_half.n_groups == ng
+        assert psi_half.n_ordinates == M
+        assert psi_half.n_cells == nx
 
     @pytest.mark.parametrize("ng,M,nx", [(1, 4, 8), (2, 6, 16)])
     @pytest.mark.l0
@@ -109,7 +115,107 @@ class TestShapeContract:
         psi_half = sweep.compute_psi_half_per_level(
             psi_level, tau_level, carlson_context=ctx,
         )
-        assert psi_half.shape == (ng, M + 1, nx)
+        assert psi_half.faces.shape == (ng, M + 1, nx)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# L0 tests — MMHalfGrid typed accessor contracts (PR-TYPED-6c Step 1.5)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestMMHalfGridAccessors:
+    """The :class:`MMHalfGrid` wrapper exposes named accessors so the
+    matvec consumer cannot off-by-one between upstream and downstream
+    half-faces.
+
+    Pattern 4 — illegal states unrepresentable. The matvec's
+    ``psi_angular_upstream`` argument is populated via
+    :meth:`MMHalfGrid.upstream` (semantic, not raw indexing).
+    """
+
+    def _build_grid(self) -> tuple[MMHalfGrid, int, int, int]:
+        sweep = MorelMontryAngularSweep()
+        ng, M, nx = 2, 5, 10
+        rng = np.random.default_rng(seed=100)
+        psi_level = rng.random((ng, M, nx))
+        tau_level = np.full(M, 0.7)
+        grid = sweep.compute_psi_half_per_level(
+            psi_level, tau_level, carlson_context=None,
+        )
+        return grid, ng, M, nx
+
+    @pytest.mark.l0
+    def test_return_type_is_mm_half_grid(self) -> None:
+        """``compute_psi_half_per_level`` returns an :class:`MMHalfGrid`,
+        not a raw ndarray."""
+        grid, _, _, _ = self._build_grid()
+        assert isinstance(grid, MMHalfGrid)
+
+    @pytest.mark.l0
+    def test_shape_properties(self) -> None:
+        """``n_groups``, ``n_ordinates``, ``n_cells`` decode the
+        underlying ``faces.shape``."""
+        grid, ng, M, nx = self._build_grid()
+        assert grid.n_groups == ng
+        assert grid.n_ordinates == M
+        assert grid.n_cells == nx
+        assert grid.faces.shape == (ng, M + 1, nx)
+
+    @pytest.mark.l0
+    def test_upstream_per_ordinate_drops_trailing_face(self) -> None:
+        """``upstream_per_ordinate`` is shape ``(ng, M, nx)`` — the
+        first ``M`` faces, which are the upstream-per-ordinate set."""
+        grid, ng, M, nx = self._build_grid()
+        upstream = grid.upstream_per_ordinate
+        assert upstream.shape == (ng, M, nx)
+        np.testing.assert_array_equal(upstream, grid.faces[:, :-1, :])
+
+    @pytest.mark.l0
+    def test_downstream_per_ordinate_drops_leading_face(self) -> None:
+        """``downstream_per_ordinate`` is shape ``(ng, M, nx)`` — the
+        last ``M`` faces, which are the downstream-per-ordinate set."""
+        grid, ng, M, nx = self._build_grid()
+        downstream = grid.downstream_per_ordinate
+        assert downstream.shape == (ng, M, nx)
+        np.testing.assert_array_equal(downstream, grid.faces[:, 1:, :])
+
+    @pytest.mark.l0
+    def test_upstream_indexing(self) -> None:
+        """``upstream(m)`` returns ``faces[:, m, :]`` — the upstream
+        face of ordinate ``m`` (= downstream of ``m-1``)."""
+        grid, _, M, _ = self._build_grid()
+        for m in range(M):
+            np.testing.assert_array_equal(
+                grid.upstream(m), grid.faces[:, m, :],
+            )
+
+    @pytest.mark.l0
+    def test_downstream_indexing(self) -> None:
+        """``downstream(m)`` returns ``faces[:, m+1, :]`` — the
+        downstream face of ordinate ``m`` (= upstream of ``m+1``)."""
+        grid, _, M, _ = self._build_grid()
+        for m in range(M):
+            np.testing.assert_array_equal(
+                grid.downstream(m), grid.faces[:, m + 1, :],
+            )
+
+    @pytest.mark.l0
+    def test_upstream_downstream_chain(self) -> None:
+        """``downstream(m) == upstream(m+1)`` for adjacent ordinates —
+        the half-face identity that makes the M-M recurrence consistent."""
+        grid, _, M, _ = self._build_grid()
+        for m in range(M - 1):
+            np.testing.assert_array_equal(
+                grid.downstream(m), grid.upstream(m + 1),
+            )
+
+    @pytest.mark.l0
+    def test_mm_half_grid_is_frozen(self) -> None:
+        """``MMHalfGrid`` is a frozen dataclass — its ``faces`` attribute
+        cannot be reassigned (Pattern 4: prevent accidental mutation)."""
+        grid, _, _, _ = self._build_grid()
+        with pytest.raises((AttributeError, TypeError)):
+            grid.faces = np.zeros_like(grid.faces)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -138,11 +244,11 @@ class TestRecurrenceFormula:
             psi_level, tau_level, carlson_context=None,
         )
         # Zero seed: φ_{1/2} = 0.
-        assert np.array_equal(psi_half[:, 0, :], np.zeros((ng, nx)))
+        assert np.array_equal(psi_half.faces[:, 0, :], np.zeros((ng, nx)))
         # Verify pure-DD recurrence φ_{m+1/2} = 2φ_m − φ_{m-1/2}.
         for m in range(M):
-            expected = 2.0 * psi_level[:, m, :] - psi_half[:, m, :]
-            np.testing.assert_allclose(psi_half[:, m + 1, :], expected, rtol=1e-14)
+            expected = 2.0 * psi_level[:, m, :] - psi_half.faces[:, m, :]
+            np.testing.assert_allclose(psi_half.faces[:, m + 1, :], expected, rtol=1e-14)
 
     @pytest.mark.l0
     @pytest.mark.parametrize("tau_value", [0.5, 0.6, 0.75, 0.9, 1.0])
@@ -159,10 +265,10 @@ class TestRecurrenceFormula:
         )
         for m in range(M):
             expected = (
-                psi_level[:, m, :] - (1.0 - tau_value) * psi_half[:, m, :]
+                psi_level[:, m, :] - (1.0 - tau_value) * psi_half.faces[:, m, :]
             ) / tau_value
             np.testing.assert_allclose(
-                psi_half[:, m + 1, :], expected, rtol=1e-13,
+                psi_half.faces[:, m + 1, :], expected, rtol=1e-13,
             )
 
 
@@ -188,7 +294,7 @@ class TestSeedContract:
         )
         # Phase B zero seed: ψ_{1/2} = 0.
         np.testing.assert_array_equal(
-            psi_half[:, 0, :], np.zeros((ng, nx)),
+            psi_half.faces[:, 0, :], np.zeros((ng, nx)),
         )
 
     @pytest.mark.l0
@@ -219,7 +325,9 @@ class TestSeedContract:
         )
         # ZeroSeed returns zero regardless of context, so both branches
         # produce the same seed → bit-identical recurrence output.
-        np.testing.assert_array_equal(psi_half_with_ctx, psi_half_without_ctx)
+        np.testing.assert_array_equal(
+            psi_half_with_ctx.faces, psi_half_without_ctx.faces,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -264,8 +372,8 @@ class TestPattern2Roundtrip:
         for m in range(M):
             redist_from_method[:, m, :] = (
                 dAw_level[:, m].reshape(1, nx)
-                * (alpha_half[m + 1] * psi_half[:, m + 1, :]
-                   - alpha_half[m] * psi_half[:, m, :])
+                * (alpha_half[m + 1] * psi_half.faces[:, m + 1, :]
+                   - alpha_half[m] * psi_half.faces[:, m, :])
                 / volume.reshape(1, nx)
             )
 
@@ -295,7 +403,9 @@ class TestPattern2Roundtrip:
         from_helper = _mm_psi_half_grid_single_level(
             psi_level, tau_level, psi_half_seed=None,
         )
-        np.testing.assert_array_equal(from_method, from_helper)
+        # MMHalfGrid wraps an ndarray; .faces returns the raw grid which
+        # MUST be bit-identical to the free-function helper's output.
+        np.testing.assert_array_equal(from_method.faces, from_helper)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -328,8 +438,8 @@ class TestLinearity:
         result_b = sweep.compute_psi_half_per_level(
             psi_b, tau_level, carlson_context=None,
         )
-        expected = alpha * result_a + beta * result_b
-        np.testing.assert_allclose(result_combined, expected, rtol=1e-13)
+        expected = alpha * result_a.faces + beta * result_b.faces
+        np.testing.assert_allclose(result_combined.faces, expected, rtol=1e-13)
 
 
 # ═══════════════════════════════════════════════════════════════════════

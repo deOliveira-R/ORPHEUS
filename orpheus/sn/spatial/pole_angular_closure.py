@@ -337,6 +337,123 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
 # ═══════════════════════════════════════════════════════════════════════
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# MMHalfGrid — typed accessor for the M-M half-angle face grid
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True, slots=True)
+class MMHalfGrid:
+    r"""Typed accessor for the Morel-Montry half-angle face grid.
+
+    Issue #197 PR-TYPED-6c Step 1.5 — Pattern 4 (illegal states
+    unrepresentable) for the off-by-one trap the half-angle grid
+    historically exposed.
+
+    The M-M recurrence produces :math:`M+1` face fluxes per level for
+    :math:`M` ordinates: ``faces[g, 0, i] = ψ_{1/2, i, g}`` (Carlson
+    seed, upstream of ordinate 0), ``faces[g, m, i] = ψ_{m-1/2, i, g}``
+    (upstream of ordinate m, equivalently downstream of ordinate m-1),
+    ``faces[g, M, i] = ψ_{M+1/2, i, g}`` (downstream of last ordinate).
+
+    Two distinct consumers need DIFFERENT slices of this grid:
+
+    * The **redistribution body** (``_mm_weighted_angular_recurrence_single_level``)
+      consumes the paired ``(m, m+1)`` access for each ordinate, computing
+      :math:`R_m = (\Delta A/w)/V \cdot (\alpha_{m+1/2} \phi_{m+1/2}
+      - \alpha_{m-1/2} \phi_{m-1/2})`. Use :attr:`faces` for direct
+      paired access.
+
+    * The **unified matvec** (Issue #197 PR-TYPED-6c Step 2+) consumes the
+      upstream-per-ordinate slice — one ``(ng, nx)`` block per ordinate
+      to populate ``cell_balance_for_streaming``'s ``psi_angular_upstream``
+      argument. Use :meth:`upstream` (single ordinate) or
+      :attr:`upstream_per_ordinate` (all ordinates).
+
+    The off-by-one trap (``faces[g, m, i]`` vs ``faces[g, m+1, i]``)
+    is impossible by API design when consumers use :meth:`upstream` —
+    the method's name AND signature enforce upstream-per-ordinate
+    semantics. The raw :attr:`faces` array stays exposed so the redist
+    body keeps its bit-identical paired access pattern.
+
+    Storage convention (Step 1.5): ``faces`` shape ``(ng, M+1, nx)`` —
+    group-leading, matching the existing M-M recurrence kernel. Step
+    1.7 (packed-vector canonical alignment) will flip the storage to
+    ``(M+1, ng, nx)`` ordinate-leading; this change is deferred so
+    Step 1.5 stays purely additive.
+
+    Attributes
+    ----------
+    faces :
+        Shape ``(ng, M+1, nx)``. The raw half-angle grid as produced by
+        :func:`_mm_psi_half_grid_single_level`. ``faces[g, 0, i]`` is
+        the Carlson seed at ordinate 0 (= upstream of m=0); for
+        ``m = 1, …, M``, ``faces[g, m, i]`` is the half-angle face flux
+        :math:`\phi_{m-1/2, i, g}` (upstream of ordinate m, downstream
+        of ordinate m-1). ``faces[g, M, i]`` is the downstream face of
+        the last ordinate.
+    """
+
+    faces: np.ndarray
+
+    @property
+    def n_groups(self) -> int:
+        """Number of energy groups (``faces.shape[0]``)."""
+        return self.faces.shape[0]
+
+    @property
+    def n_ordinates(self) -> int:
+        """Number of ordinates :math:`M` in this level (``faces.shape[1] − 1``)."""
+        return self.faces.shape[1] - 1
+
+    @property
+    def n_cells(self) -> int:
+        """Number of spatial cells (``faces.shape[2]``)."""
+        return self.faces.shape[2]
+
+    @property
+    def upstream_per_ordinate(self) -> np.ndarray:
+        r"""Shape ``(ng, M, nx)`` — upstream half-face flux for each ordinate.
+
+        ``[g, m, i]`` is :math:`\phi_{m-1/2, i, g}` — the upstream face
+        of ordinate ``m`` (equivalently, the downstream face of ordinate
+        ``m-1``) in group ``g`` at cell ``i``. The matvec consumes this
+        slice as ``psi_angular_upstream`` (one ``(ng, nx)`` block per
+        ordinate). Excludes the trailing face ``faces[:, M, :]`` which
+        is the downstream of the last ordinate (not consumed as anyone's
+        upstream).
+        """
+        return self.faces[:, :-1, :]
+
+    @property
+    def downstream_per_ordinate(self) -> np.ndarray:
+        r"""Shape ``(ng, M, nx)`` — downstream half-face flux for each ordinate.
+
+        ``[g, m, i]`` is :math:`\phi_{m+1/2, i, g}` — the downstream face
+        of ordinate ``m`` (equivalently, the upstream face of ordinate
+        ``m+1``). Excludes the leading face ``faces[:, 0, :]`` which is
+        the Carlson seed (upstream of m=0, not any ordinate's downstream).
+        """
+        return self.faces[:, 1:, :]
+
+    def upstream(self, m: int) -> np.ndarray:
+        r"""Shape ``(ng, nx)`` — upstream half-face of ordinate ``m``.
+
+        Returns :math:`\phi_{m-1/2, i, g}` per ``(g, i)``. The unified
+        matvec consumes one of these per ordinate to populate
+        ``cell_balance_for_streaming``'s ``psi_angular_upstream`` argument.
+        """
+        return self.faces[:, m, :]
+
+    def downstream(self, m: int) -> np.ndarray:
+        r"""Shape ``(ng, nx)`` — downstream half-face of ordinate ``m``.
+
+        Returns :math:`\phi_{m+1/2, i, g}` per ``(g, i)``. Note that
+        ``downstream(m) == upstream(m+1)`` for ``m < M-1``.
+        """
+        return self.faces[:, m + 1, :]
+
+
 def _mm_psi_half_grid_single_level(
     psi_level: np.ndarray,           # (ng, M, nx) — ordinates within a level
     tau_level: np.ndarray,           # (M,) — Morel-Montry τ clamp values
@@ -716,18 +833,27 @@ class MorelMontryAngularSweep(
         tau_level: np.ndarray,
         *,
         carlson_context: "CarlsonSweepContext | None" = None,
-    ) -> np.ndarray:
+    ) -> MMHalfGrid:
         r"""Return the half-angle grid :math:`\phi_{m\pm 1/2, i, g}`
-        for one level under the M-M recurrence.
+        for one level under the M-M recurrence, wrapped in
+        :class:`MMHalfGrid` typed accessor.
 
         Issue #197 PR-TYPED-6b — the load-bearing intermediate the
-        unified matvec needs to consume.  The same recurrence the
+        unified matvec needs to consume.  Same recurrence the
         :meth:`__call__` redistribution evaluator runs internally,
         exposed as a public method so the matvec body can populate
         :func:`~orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`'s
-        ``psi_angular_upstream`` argument with
-        ``psi_half[g, m, i]`` — the M-M upstream half-angle flux for
-        cell :math:`i`, ordinate sub-domain :math:`m`, group :math:`g`.
+        ``psi_angular_upstream`` argument with the typed accessor
+        :meth:`MMHalfGrid.upstream` — Pattern 4 (illegal states
+        unrepresentable) on the upstream/downstream off-by-one trap.
+
+        Issue #197 PR-TYPED-6c Step 1.5: the return type became
+        :class:`MMHalfGrid` (was raw ``np.ndarray`` shape
+        ``(ng, M+1, nx)`` pre-Step-1.5). The underlying storage is
+        unchanged; consumers access via :attr:`MMHalfGrid.faces` for
+        the raw array (used by the redistribution body) or via
+        :meth:`MMHalfGrid.upstream` / :attr:`MMHalfGrid.upstream_per_ordinate`
+        for the matvec's upstream-per-ordinate semantic.
 
         Pattern 2 — single source of truth.  Both this public method
         AND the redistribution body inside :meth:`__call__` route
@@ -757,22 +883,30 @@ class MorelMontryAngularSweep(
 
         Returns
         -------
-        np.ndarray
-            Half-angle grid, shape ``(ng, M+1, nx)``.
+        MMHalfGrid
+            Typed accessor wrapping the half-angle grid
+            ``faces`` of shape ``(ng, M+1, nx)``.
 
         See Also
         --------
         _mm_psi_half_grid_single_level :
             Free-function helper that this method delegates to.  The
             method's value-add is the strategy-bound Carlson seed
-            construction; the helper is the pure recurrence kernel.
+            construction AND the :class:`MMHalfGrid` wrapping; the
+            helper is the pure recurrence kernel returning a raw
+            ``np.ndarray``.
+        MMHalfGrid :
+            Typed accessor with named :meth:`~MMHalfGrid.upstream`,
+            :meth:`~MMHalfGrid.downstream`, and full-grid
+            :attr:`~MMHalfGrid.faces` access.
         """
         psi_half_seed_arr: np.ndarray | None = None
         if carlson_context is not None:
             psi_half_seed_arr = self.psi_half_seed(psi_level, carlson_context)
-        return _mm_psi_half_grid_single_level(
+        faces = _mm_psi_half_grid_single_level(
             psi_level, tau_level, psi_half_seed=psi_half_seed_arr,
         )
+        return MMHalfGrid(faces=faces)
 
     def __repr__(self) -> str:
         return "MorelMontryAngularSweep()"
@@ -1093,6 +1227,7 @@ __all__ = [
     "CarlsonInwardSweep",
     "CarlsonSweepContext",
     "LegacyTauSymmetricInterpolation",
+    "MMHalfGrid",
     "MorelMontryAngularSweep",
     "PoleAngularClosure",
     "PoleAngularClosureBase",
