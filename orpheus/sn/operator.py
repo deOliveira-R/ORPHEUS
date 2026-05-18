@@ -2125,30 +2125,39 @@ class SNStreamingOperator(LinearOperatorMixin):
     def apply(self, psi: np.ndarray) -> np.ndarray:
         r"""Forward action :math:`L\,\psi` on the packed solution vector.
 
-        Dispatches by ``self.sn_mesh.curvature`` to the existing
-        finite-difference matvec routines:
+        Issue #197 PR-TYPED-6c Step 7 — 1-D slab / sphere / cylinder
+        all route through the single geometry-agnostic
+        :func:`transport_operator_matvec_unified` (no face state — the
+        LEGACY proxy fallback preserves the SN bundle's pre-B1''
+        packed format and the cell-centre-as-face Carlson seed used by
+        the production source-iteration paths).  2-D Cartesian
+        (``ny > 1``) keeps the legacy :func:`transport_operator_matvec`
+        FD path — anti-diagonal wavefront sweeps need a different
+        iteration structure than :meth:`SNMesh.dag_walk` and absorb
+        into the algebra in PR-TYPED-7.
 
-        * Cartesian (curvature ``None``):
-          :func:`transport_operator_matvec`.
-        * Spherical (curvature ``"spherical"``):
-          :func:`transport_operator_matvec_spherical`.
-        * Cylindrical (curvature ``"cylindrical"``):
-          :func:`transport_operator_matvec_cylindrical`.
-
-        The math is **extracted verbatim** from those functions; this
-        method is a thin protocol-conforming wrapper.
+        Side-effect of the rewire on cylinder: the legacy
+        :func:`transport_operator_matvec_cylindrical` carried ERR-049
+        (per-ordinate routing bug surfaced during PR-TYPED-6c Step 3);
+        the unified body's per-cell algebra is structurally immune.
+        SNStreamingOperator-via-unified therefore agrees with the
+        unified-via-StreamingOperator path on cylinder up to the B1''
+        face-state difference (the SN path still uses the cell-centre
+        proxy at the Carlson seed — B1'' lives on the new
+        :class:`StreamingOperator` leaf).  Slab's FD-vs-WDD difference
+        is structural (FD 1st-order ≠ WDD 2nd-order) and persists as
+        an order-of-accuracy delta documented in
+        ``test_unified_matvec_slab.py``.
 
         Parameters
         ----------
         psi : np.ndarray
-            Packed solution vector, shape ``(n_unknowns,)`` where
-            ``n_unknowns = eq_map.n_eq * ng`` is determined by
-            :meth:`_ensure_eq_map` for this geometry.
+            Packed solution vector, shape ``(n_unknowns,)``.
 
         Returns
         -------
         np.ndarray
-            ``L\,\psi`` as a packed vector, same shape as ``psi``.
+            ``L·ψ`` as a packed vector, same shape as ``psi``.
         """
         eq_map = self._ensure_eq_map()
         sn_mesh = self.sn_mesh
@@ -2157,46 +2166,45 @@ class SNStreamingOperator(LinearOperatorMixin):
         quad = sn_mesh.quad
         curv = getattr(sn_mesh, "curvature", None)
 
-        if curv == "spherical":
-            # Use ``self.reduced.{face_areas, alpha_half, redist_dAw,
-            # tau_mm}`` directly (Wave D R1 canonical accessor) to
-            # avoid the deprecated property's DeprecationWarning.
-            reduced = sn_mesh.reduced
-            return transport_operator_matvec_spherical(
+        # 2-D Cartesian remains on the legacy FD path (anti-diagonal
+        # wavefront, not dag_walk).  PR-TYPED-7 will absorb it.
+        if curv is None and ny > 1:
+            return transport_operator_matvec(
                 psi, eq_map, quad, self.sig_t,
-                nx, ng,
-                reduced.face_areas,
-                sn_mesh.volumes,
-                reduced.alpha_half,
-                reduced.redist_dAw,
-                reduced.tau_mm,
-                sn_mesh=sn_mesh,
-                bc_outer=sn_mesh.bc_right,
-                pole_angular_closure=sn_mesh.pole_angular_closure,
+                nx, ny, ng, sn_mesh.dx, sn_mesh.dy,
+                bc_xmin=sn_mesh.bc_xmin,
+                bc_xmax=sn_mesh.bc_xmax,
+                bc_ymin=sn_mesh.bc_ymin,
+                bc_ymax=sn_mesh.bc_ymax,
             )
-        if curv == "cylindrical":
-            reduced = sn_mesh.reduced
-            return transport_operator_matvec_cylindrical(
-                psi, eq_map, quad, self.sig_t,
-                nx, ng,
-                reduced.face_areas,
-                sn_mesh.volumes,
-                reduced.alpha_per_level,
-                reduced.redist_dAw_per_level,
-                reduced.tau_mm_per_level,
-                sn_mesh=sn_mesh,
-                bc_outer=sn_mesh.bc_right,
-                pole_angular_closure=sn_mesh.pole_angular_closure,
+
+        # 1-D slab / sphere / cylinder — unified matvec via the LEGACY
+        # cell-only packed format.  The decoder reconstructs ψ_view
+        # with the analytical extension at inward-at-outer cells
+        # (curvilinear); the unified matvec body uses the cell-centre
+        # proxy at the Carlson seed (the bug B1'' fixes — but the
+        # SNStreamingOperator path STAYS on the proxy through Step 7
+        # to preserve the legacy bundle's packed-format contract for
+        # ``solve_sn`` consumers).
+        if curv in ("spherical", "cylindrical"):
+            psi_view = solution_to_angular_flux_spherical(
+                psi, eq_map, quad, nx, ng,
             )
-        # Cartesian (1-D slab or 2-D)
-        return transport_operator_matvec(
-            psi, eq_map, quad, self.sig_t,
-            nx, ny, ng, sn_mesh.dx, sn_mesh.dy,
-            bc_xmin=sn_mesh.bc_xmin,
-            bc_xmax=sn_mesh.bc_xmax,
-            bc_ymin=sn_mesh.bc_ymin,
-            bc_ymax=sn_mesh.bc_ymax,
+        else:
+            psi_view = solution_to_angular_flux(
+                psi, eq_map, quad, nx, ny, ng,
+                bc_xmin=sn_mesh.bc_xmin,
+                bc_xmax=sn_mesh.bc_xmax,
+                bc_ymin=sn_mesh.bc_ymin,
+                bc_ymax=sn_mesh.bc_ymax,
+            )
+        m_view, _, _ = transport_operator_matvec_unified(
+            psi_view, sn_mesh, self.sig_t,
         )
+        # Re-pack at the legacy eq_map's unknown slots.
+        return m_view[
+            eq_map.ordinate, :, eq_map.ix, eq_map.iy,
+        ].T.ravel(order="F")
 
     # ── solve: L^{-1}·q via the unified sweep ─────────────────────────
 

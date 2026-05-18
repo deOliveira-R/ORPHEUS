@@ -86,9 +86,16 @@ time of writing was:
   strategies;
 * class-level ``is_linear: bool`` trait;
 * ``frozen=True, slots=True`` dataclass implementations with
-  explicit ``__repr__``;
-* legacy reproducer (:class:`BaileyFlatFluxRedist`) preserved for
-  ablation studies / back-bisection.
+  explicit ``__repr__`` (where the strategy carries no mesh-bound
+  state; ``MorelMontryAngularSweep`` is mesh-bound and thus a
+  regular class — see PR-TYPED-6.5 Phase 2).
+
+PR-TYPED-6c Step 7 (2026-05-18) retired
+``LegacyTauSymmetricInterpolation`` (pre-Phase-B inlined form) and
+``BaileyFlatFluxRedist`` (Phase B ablation strategy for back-bisection
+against the legacy form) — neither had a production consumer after
+PR-TYPED-6.5's default switch to ``MorelMontryAngularSweep`` for
+curvilinear + ``IdentityAngularClosure`` for Cartesian.
 
 The unification choice for cylindrical was: **one Protocol, optional
 per-level loop**.  The strategy accepts an optional ``level_indices``
@@ -233,8 +240,7 @@ class PoleAngularClosure(Protocol):
           ``(M_p,)``.
 
         Read by :class:`MorelMontryAngularSweep` to set the recurrence
-        weighting; ignored by :class:`BaileyFlatFluxRedist` (which
-        uses the flat-flux collapse, independent of :math:`\tau`).
+        weighting.
     volume : np.ndarray
         Cell volumes :math:`V_i`, shape ``(nx,)``.
     level_indices : list[np.ndarray] or None
@@ -252,9 +258,9 @@ class PoleAngularClosure(Protocol):
     Attributes
     ----------
     is_linear : bool
-        Whether the closure is linear in ``psi_cells``.  Both
-        :class:`MorelMontryAngularSweep` and :class:`BaileyFlatFluxRedist`
-        are linear (affine combinations of cell-centre values).
+        Whether the closure is linear in ``psi_cells``.
+        :class:`MorelMontryAngularSweep` is linear (an affine
+        combination of cell-centre values via the WDD recurrence).
         Read-only class attribute.
 
     Notes
@@ -1213,322 +1219,11 @@ def default_angular_closure_class(coord: CoordSystem) -> "type[PoleAngularClosur
     )
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# BaileyFlatFluxRedist — legacy reproducer for ablation / back-bisection
-# ═══════════════════════════════════════════════════════════════════════
-
-
-@dataclass(frozen=True, slots=True)
-class BaileyFlatFluxRedist(
-    PoleAngularClosureBase, key="bailey_flat_flux_redist",
-):
-    r"""Legacy flat-flux-collapsed redistribution — Issue #168 Defect 3.
-
-    Reproduces the **pre-Phase-B** angular redistribution of the
-    curvilinear FD operator.  The half-angle face fluxes were
-    collapsed to cell-centre values by the legacy τ-weighted
-    interpolation,
-
-    .. math::
-
-       \phi_{n\pm 1/2,i,g} \;\approx\; \phi_{n,i,g}
-
-    (more precisely: the symmetric Morel--Montry interpolation
-    :math:`\phi_{n+1/2} = \tau\,\phi_{n+1} + (1-\tau)\,\phi_n`
-    collapses to :math:`\phi_n` on angularly-flat :math:`\psi`).
-    The redistribution then becomes
-
-    .. math::
-
-       R_{n,i,g} \;=\; \frac{(\Delta A/w)_{i,n}}{V_i}
-                       \bigl(\alpha_{n+1/2} - \alpha_{n-1/2}\bigr)
-                       \phi_{n,i,g}
-                       \;=\; -\frac{\mu_n\,\Delta A_i}{V_i}\,\phi_{n,i,g}
-
-    using :math:`\alpha_{n+1/2} - \alpha_{n-1/2} = -w_n\,\mu_n`
-    (Bailey 2009 dome recursion).  This is **exact** when
-    :math:`\psi` is constant in :math:`\mu` (the per-ordinate
-    flat-flux consistency invariant Bailey's :math:`\Delta A/w`
-    factor enforces) but **only :math:`\mathcal{O}(1)` accurate** on
-    angularly-varying :math:`\psi` — the factor-of-two truncation
-    gap identified as Issue #168 Defect 3.
-
-    Why this strategy exists
-    ------------------------
-
-    * **Ablation studies**: comparing
-      :class:`MorelMontryAngularSweep` vs :class:`BaileyFlatFluxRedist`
-      quantifies the Phase-B improvement on angularly-varying
-      :math:`\psi`.
-    * **Back-bisection**: if a future change to the matvec causes a
-      regression, swapping in :class:`BaileyFlatFluxRedist`
-      reproduces the historical pre-Phase-B operator output and
-      pins which step in a multi-commit refactor introduced the
-      drift.
-    * **Documentation**: the strategy carries the bug it reproduces
-      in its docstring.  Issue #168 Defect 3 is now a strategy
-      pluggable into the matvec — anyone reading
-      :mod:`orpheus.sn.spatial.pole_angular_closure` learns what the
-      bug was, not just what the fix is.
-
-    This is **not** a default; production callers MUST use
-    :class:`MorelMontryAngularSweep`.
-
-    Notes
-    -----
-    The legacy form built into :func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
-    pre-Phase-B used τ-weighted symmetric interpolation rather than
-    the bare cell-centre substitution; on angularly-flat :math:`\psi`
-    these give bit-identical results (the τ-weighted form collapses
-    to :math:`\phi_n`).  This strategy reproduces the **collapse**
-    semantics directly so that the Phase-B flat-flux identity test
-    can pin the consistency between the two strategies on flat ψ
-    without going through the matvec.
-    """
-
-    is_linear: ClassVar[bool] = True
-    """Identity-like collapse on cell-centre values is trivially linear."""
-
-    def __call__(
-        self,
-        psi_cells: np.ndarray,
-        alpha_half: "np.ndarray | list[np.ndarray]",
-        redist_dAw: "np.ndarray | list[np.ndarray]",
-        tau_mm: "np.ndarray | list[np.ndarray]",  # accepted but unused
-        volume: np.ndarray,
-        level_indices: "list[np.ndarray] | None" = None,
-        carlson_context: "CarlsonSweepContext | list[CarlsonSweepContext] | None" = None,  # noqa: E501
-    ) -> np.ndarray:
-        r"""Reproduce the flat-flux-collapsed redistribution.
-
-        :math:`R_{n,i,g} = (\Delta A_i / w_n) (\alpha_{n+1/2} -
-        \alpha_{n-1/2}) \phi_{n,i,g} / V_i`.
-
-        ``tau_mm`` and ``carlson_context`` are accepted for
-        Protocol-shape compatibility with
-        :class:`MorelMontryAngularSweep` but are **not read** —
-        :class:`BaileyFlatFluxRedist` collapses the half-angle face
-        fluxes to cell centres unconditionally, independent of the
-        M-M clamp and the Phase D Carlson seed.
-        """
-        del tau_mm  # explicitly unused — Protocol-shape compatibility only
-        del carlson_context  # explicitly unused — Phase D compat only
-        if level_indices is None:
-            assert isinstance(alpha_half, np.ndarray)
-            assert isinstance(redist_dAw, np.ndarray)
-            return self._collapse_single_level(
-                psi_cells, alpha_half, redist_dAw, volume,
-            )
-
-        assert isinstance(alpha_half, list)
-        assert isinstance(redist_dAw, list)
-        ng, N, nx = psi_cells.shape
-        redist = np.zeros((ng, N, nx), dtype=psi_cells.dtype)
-        for p, level_idx in enumerate(level_indices):
-            psi_level = psi_cells[:, level_idx, :]
-            redist_level = self._collapse_single_level(
-                psi_level, alpha_half[p], redist_dAw[p], volume,
-            )
-            redist[:, level_idx, :] = redist_level
-        return redist
-
-    @staticmethod
-    def _collapse_single_level(
-        psi_level: np.ndarray,
-        alpha_level: np.ndarray,
-        dAw_level: np.ndarray,
-        volume: np.ndarray,
-    ) -> np.ndarray:
-        ng, M, nx = psi_level.shape
-        redist = np.empty((ng, M, nx), dtype=psi_level.dtype)
-        for m in range(M):
-            # R = (ΔA/w) × (α_out - α_in) × ψ_n / V
-            d_alpha = alpha_level[m + 1] - alpha_level[m]
-            redist[:, m, :] = (
-                dAw_level[:, m].reshape(1, nx)
-                * d_alpha
-                * psi_level[:, m, :]
-                / volume.reshape(1, nx)
-            )
-        return redist
-
-    def __repr__(self) -> str:
-        return "BaileyFlatFluxRedist()"
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# LegacyTauSymmetricInterpolation — pre-Phase-B inlined form
-# ═══════════════════════════════════════════════════════════════════════
-
-
-@dataclass(frozen=True, slots=True)
-class LegacyTauSymmetricInterpolation(
-    PoleAngularClosureBase, key="legacy_tau_symmetric",
-):
-    r"""Pre-Phase-B inlined :math:`\tau`-symmetric interpolation form.
-
-    Reproduces the **exact** angular redistribution algebra that lived
-    inline inside
-    :func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
-    (and ``_cylindrical``) before Issue #168 Phase B.  The half-angle
-    face fluxes were evaluated by τ-symmetric interpolation between
-    consecutive cell-centres,
-
-    .. math::
-
-       \phi_{n+1/2,i,g} \;=\; \tau_n\,\phi_{n+1,i,g}
-                              + (1 - \tau_n)\,\phi_{n,i,g}
-                              \quad (\text{for } n < N - 1),
-
-    .. math::
-
-       \phi_{n-1/2,i,g} \;=\; \tau_{n-1}\,\phi_{n,i,g}
-                              + (1 - \tau_{n-1})\,\phi_{n-1,i,g}
-                              \quad (\text{for } n \ge 1),
-
-    with the boundary conventions
-    :math:`\phi_{N+1/2,i,g} = \phi_{N,i,g}` and
-    :math:`\phi_{1/2,i,g} = \phi_{0,i,g}` (cell-centre extrapolation
-    at the ordinate endpoints).  On angularly-flat :math:`\psi` this
-    collapses to :math:`\phi_{n\pm 1/2,i,g} = \phi_{n,i,g}` —
-    bit-identical to :class:`BaileyFlatFluxRedist`'s collapse — but
-    on angularly-varying :math:`\psi` the τ-symmetric interpolation
-    gives a quantitatively different result from either
-    :class:`BaileyFlatFluxRedist` or :class:`MorelMontryAngularSweep`.
-
-    This strategy IS the **Phase B default** — it preserves bit-for-bit
-    agreement with the pre-Issue-#168 operator output, which is what
-    the curvilinear regression-snapshot bit-identity contract demands.
-    The Defect-3 truncation gap on angularly-varying :math:`\psi`
-    survives under this strategy by design (the bug is *reproducible*
-    so it can be cross-checked against Phase A's empirical behaviour);
-    fixing it requires opting in to
-    :class:`MorelMontryAngularSweep` and is gated on the spatial-closure
-    follow-up beyond Phase B's scope.
-
-    Why three strategies (not two)
-    ------------------------------
-
-    * :class:`LegacyTauSymmetricInterpolation` — reproduces the
-      pre-Phase-B inlined math exactly.  **Default**.  Bit-identical
-      regression preservation.  Carries Defect 3 by design.
-    * :class:`BaileyFlatFluxRedist` — algebraic collapse equivalent
-      (only on flat ψ); used for the ablation L1 test that pins the
-      flat-flux equivalence between the legacy form and the Bailey
-      collapse.
-    * :class:`MorelMontryAngularSweep` — canonical Hébert §3.9.4
-      form.  Opt-in.  Closes Defect 3 on angularly-varying ψ but
-      requires spatial-closure alignment for full ERR-026 closure.
-
-    Notes
-    -----
-    Frozen + slotted: instances are immutable and lightweight; a
-    single :class:`LegacyTauSymmetricInterpolation` can be reused
-    across every matvec call without per-call allocation.
-    """
-
-    is_linear: ClassVar[bool] = True
-    """The τ-symmetric interpolation is an affine combination of
-    cell-centre values; the redistribution output is linear in
-    ``psi_cells``."""
-
-    def __call__(
-        self,
-        psi_cells: np.ndarray,
-        alpha_half: "np.ndarray | list[np.ndarray]",
-        redist_dAw: "np.ndarray | list[np.ndarray]",
-        tau_mm: "np.ndarray | list[np.ndarray]",
-        volume: np.ndarray,
-        level_indices: "list[np.ndarray] | None" = None,
-        carlson_context: "CarlsonSweepContext | list[CarlsonSweepContext] | None" = None,  # noqa: E501
-    ) -> np.ndarray:
-        r"""Reproduce the pre-Phase-B inlined τ-symmetric form.
-
-        ``carlson_context`` is accepted for Protocol-shape
-        compatibility with :class:`MorelMontryAngularSweep` but is
-        **not read** — :class:`LegacyTauSymmetricInterpolation`
-        evaluates half-angle face fluxes via τ-symmetric interpolation
-        between cell centres, independent of any Carlson seed.
-        """
-        del carlson_context  # explicitly unused — Phase D compat only
-        if level_indices is None:
-            assert isinstance(alpha_half, np.ndarray)
-            assert isinstance(redist_dAw, np.ndarray)
-            assert isinstance(tau_mm, np.ndarray)
-            return self._tau_symmetric_single_level(
-                psi_cells, alpha_half, redist_dAw, tau_mm, volume,
-            )
-
-        assert isinstance(alpha_half, list)
-        assert isinstance(redist_dAw, list)
-        assert isinstance(tau_mm, list)
-        ng, N, nx = psi_cells.shape
-        redist = np.zeros((ng, N, nx), dtype=psi_cells.dtype)
-        for p, level_idx in enumerate(level_indices):
-            psi_level = psi_cells[:, level_idx, :]
-            redist_level = self._tau_symmetric_single_level(
-                psi_level, alpha_half[p], redist_dAw[p], tau_mm[p],
-                volume,
-            )
-            redist[:, level_idx, :] = redist_level
-        return redist
-
-    @staticmethod
-    def _tau_symmetric_single_level(
-        psi_level: np.ndarray,           # (ng, M, nx)
-        alpha_level: np.ndarray,         # (M+1,)
-        dAw_level: np.ndarray,           # (nx, M)
-        tau_level: np.ndarray,           # (M,)
-        volume: np.ndarray,              # (nx,)
-    ) -> np.ndarray:
-        ng, M, nx = psi_level.shape
-        redist = np.empty((ng, M, nx), dtype=psi_level.dtype)
-        for m in range(M):
-            tau_m = tau_level[m]
-            # Pre-Phase-B inlined ψ_face_right (psi_angle_right):
-            #   ψ_{m+1/2,i,g} = τ_m·ψ_{m+1,i,g} + (1-τ_m)·ψ_{m,i,g}
-            # for m < M-1; at m = M-1 the legacy code substituted the
-            # cell-centre (no upper neighbour available).
-            if m < M - 1:
-                psi_face_right = (
-                    tau_m * psi_level[:, m + 1, :]
-                    + (1.0 - tau_m) * psi_level[:, m, :]
-                )
-            else:
-                psi_face_right = psi_level[:, m, :]
-            # Pre-Phase-B inlined ψ_face_left (psi_angle_left):
-            #   ψ_{m-1/2,i,g} = τ_{m-1}·ψ_{m,i,g}
-            #                   + (1-τ_{m-1})·ψ_{m-1,i,g}
-            # for m > 0; at m = 0 the legacy code substituted the
-            # cell-centre (no lower neighbour available).
-            if m > 0:
-                tau_prev = tau_level[m - 1]
-                psi_face_left = (
-                    tau_prev * psi_level[:, m, :]
-                    + (1.0 - tau_prev) * psi_level[:, m - 1, :]
-                )
-            else:
-                psi_face_left = psi_level[:, m, :]
-            # Redistribution:
-            # R = (ΔA/w_m) × (α_{m+1/2}·ψ_{m+1/2} - α_{m-1/2}·ψ_{m-1/2}) / V
-            redist[:, m, :] = (
-                dAw_level[:, m].reshape(1, nx)
-                * (alpha_level[m + 1] * psi_face_right
-                   - alpha_level[m] * psi_face_left)
-                / volume.reshape(1, nx)
-            )
-        return redist
-
-    def __repr__(self) -> str:
-        return "LegacyTauSymmetricInterpolation()"
-
 
 __all__ = [
-    "BaileyFlatFluxRedist",
     "CarlsonInwardSweep",
     "CarlsonSweepContext",
     "IdentityAngularClosure",
-    "LegacyTauSymmetricInterpolation",
     "MorelMontryAngularSweep",
     "PoleAngularClosure",
     "PoleAngularClosureBase",

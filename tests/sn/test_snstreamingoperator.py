@@ -740,9 +740,11 @@ def test_apply_spherical_constant_flux_yields_zero_collisionless_reflective():
 
     The Phase C rewrite (sweep-frame WDD propagation + BC trace law
     at the boundary edge) preserves the per-ordinate flat-flux
-    invariant on a reflective sphere under the default
-    LegacyTauSymmetricInterpolation closure. This is Gate 1.1
-    parametrised at sphere-legacy-Σ_t=0 (see test_phase_c_gates.py).
+    invariant on a reflective sphere.  This is Gate 1.1
+    parametrised at sphere-Σ_t=0 (see test_phase_c_gates.py).
+    PR-TYPED-6c Step 7 retired ``LegacyTauSymmetricInterpolation``
+    + ``BaileyFlatFluxRedist``; ``MorelMontryAngularSweep`` is the
+    surviving curvilinear closure.
 
     Under vacuum BC the invariant does NOT hold (the BC physically
     removes the inflow → flat ψ cannot persist) — see

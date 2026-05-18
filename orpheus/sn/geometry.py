@@ -36,9 +36,7 @@ from .quadrature import AngularQuadrature
 from .spatial.cell_update import CellUpdate, CellVisit
 from .spatial.diamond import DiamondDifference
 from .spatial.pole_angular_closure import (
-    BaileyFlatFluxRedist,
     IdentityAngularClosure,
-    LegacyTauSymmetricInterpolation,
     MorelMontryAngularSweep,
     PoleAngularClosure,
     default_angular_closure_class,
@@ -214,26 +212,23 @@ class SNMesh:
         # The default flip pairs the canonical pole-angular closure
         # with its canonical spatial-closure partner.
         #
-        # Phase B ships three strategies (mirror of Phase A's two
-        # boundary-face-flux strategies):
+        # PR-TYPED-6.5 + Step 7 ship two angular-closure strategies:
         #
-        # * :class:`MorelMontryAngularSweep` (Phase D default) —
-        #   canonical Hébert §3.9.4 form with Carlson coupled-pole
+        # * :class:`MorelMontryAngularSweep` (default for curvilinear)
+        #   — canonical Hébert §3.9.4 form with Carlson coupled-pole
         #   seed.  Closes ERR-026 on sphere; preserves cylindrical
         #   Gate 1.1 regression-stability.
-        # * :class:`LegacyTauSymmetricInterpolation` — pre-Phase-B
-        #   inlined τ-symmetric form.  Bit-identical regression
-        #   preservation against the curvilinear snapshots generated
-        #   under Phase A.  Carries Defect 3 by design — the
-        #   factor-of-two angular truncation gap on angularly-varying
-        #   :math:`\\psi` survives.  Reachable via explicit user opt-in.
-        # * :class:`BaileyFlatFluxRedist` — the algebraic flat-flux
-        #   collapse equivalent (only on flat ψ).  Used by the L1
-        #   flat-flux-identity test for ablation studies.
+        # * :class:`IdentityAngularClosure` (default for Cartesian) —
+        #   no angular redistribution (flat geometry has no Hébert
+        #   §3.9.4 term); ships neutral zeros for the per-cell
+        #   contribution interface.
         #
-        # Used by the spherical / cylindrical
-        # ``transport_operator_matvec_*`` paths via
-        # :meth:`SNStreamingOperator.apply` and the unified matvec.
+        # Used by the unified matvec
+        # (:func:`transport_operator_matvec_unified`) via
+        # :meth:`StreamingOperator.apply` (the new Resolution A leaf)
+        # and, through Step 7's rewire, also by
+        # :meth:`SNStreamingOperator.apply` (the legacy bundle, in
+        # transition until ``solve_sn`` migrates to the (L+C) algebra).
         #
         # PR-TYPED-6.5 Phase 2.9: instantiation is deferred until AFTER
         # the ``match mesh.coord:`` block populates ``self.reduced`` /

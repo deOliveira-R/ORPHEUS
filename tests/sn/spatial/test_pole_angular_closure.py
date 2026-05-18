@@ -1,23 +1,22 @@
 """Foundation tests for the PoleAngularClosure Protocol + concrete strategies.
 
-These tests pin the **software contract** of the Phase B angular-closure
-strategies introduced for Issue #168 Defect 3 (the curvilinear FD
-operator's angular-redistribution truncation gap on angularly-varying
-:math:`\\psi`).  They are foundation-tagged because the claims are about
-the strategy API (Protocol conformance, registry self-registration,
+These tests pin the **software contract** of the angular-closure
+strategy family.  They are foundation-tagged because the claims are
+about the strategy API (Protocol conformance, registry self-registration,
 hand-calc closure algebra, α-recursion identities) rather than
 transport-equation identities — those are verified transitively via the
 operator-level tests at :file:`tests/sn/test_snstreamingoperator.py` and
 the curvilinear MMS suite.
 
-Three concrete strategies ship in Phase B:
-
-* :class:`LegacyTauSymmetricInterpolation` — pre-Phase-B inlined form
-  reproduced bit-for-bit (the default).
-* :class:`BaileyFlatFluxRedist` — flat-flux algebraic collapse used by
-  the L1 flat-flux-identity check.
-* :class:`MorelMontryAngularSweep` — canonical Hébert §3.9.4 per-cell
-  M-M weighted DD angular recurrence (opt-in).
+PR-TYPED-6c Step 7 (2026-05-18) retired
+``LegacyTauSymmetricInterpolation`` (pre-Phase-B inlined form) and
+``BaileyFlatFluxRedist`` (Phase B ablation strategy for back-bisection
+against the legacy form).  After PR-TYPED-6.5's default switch to
+``MorelMontryAngularSweep`` for curvilinear + ``IdentityAngularClosure``
+for Cartesian, neither legacy strategy had any production consumer;
+the unified matvec body's typed accessor (``closure.cell_contribution``)
+makes them unimplementable as full Protocol members without compatibility
+shims.  This file's coverage now focuses on the two surviving strategies.
 """
 from __future__ import annotations
 
@@ -25,8 +24,6 @@ import numpy as np
 import pytest
 
 from orpheus.sn.spatial.pole_angular_closure import (
-    BaileyFlatFluxRedist,
-    LegacyTauSymmetricInterpolation,
     MorelMontryAngularSweep,
     PoleAngularClosure,
     PoleAngularClosureBase,
@@ -41,39 +38,20 @@ pytestmark = pytest.mark.foundation
 
 
 class TestProtocolConformance:
-    """The :class:`PoleAngularClosure` Protocol shape is honoured by all
-    three concrete strategies via structural typing — no inheritance
+    """The :class:`PoleAngularClosure` Protocol shape is honoured by the
+    surviving strategies via structural typing — no inheritance
     needed for third-party closures."""
 
     def test_morel_montry_satisfies_protocol(self) -> None:
         """``MorelMontryAngularSweep`` is a structural ``PoleAngularClosure``."""
         assert isinstance(MorelMontryAngularSweep(), PoleAngularClosure)
 
-    def test_bailey_satisfies_protocol(self) -> None:
-        """``BaileyFlatFluxRedist`` is a structural ``PoleAngularClosure``."""
-        assert isinstance(BaileyFlatFluxRedist(), PoleAngularClosure)
-
-    def test_legacy_tau_symmetric_satisfies_protocol(self) -> None:
-        """``LegacyTauSymmetricInterpolation`` is a structural Protocol."""
-        assert isinstance(LegacyTauSymmetricInterpolation(), PoleAngularClosure)
-
     def test_is_linear_class_attr_advertised(self) -> None:
-        """All three Phase-B strategies advertise ``is_linear = True``."""
+        """``MorelMontryAngularSweep`` advertises ``is_linear = True``."""
         assert MorelMontryAngularSweep.is_linear is True
-        assert BaileyFlatFluxRedist.is_linear is True
-        assert LegacyTauSymmetricInterpolation.is_linear is True
 
     def test_morel_montry_repr(self) -> None:
         assert repr(MorelMontryAngularSweep()) == "MorelMontryAngularSweep()"
-
-    def test_bailey_repr(self) -> None:
-        assert repr(BaileyFlatFluxRedist()) == "BaileyFlatFluxRedist()"
-
-    def test_legacy_tau_symmetric_repr(self) -> None:
-        assert (
-            repr(LegacyTauSymmetricInterpolation())
-            == "LegacyTauSymmetricInterpolation()"
-        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -96,67 +74,15 @@ class TestRegistry:
             is MorelMontryAngularSweep
         )
 
-    def test_bailey_registered(self) -> None:
-        assert "bailey_flat_flux_redist" in PoleAngularClosureBase.registry
-        assert (
-            PoleAngularClosureBase.registry["bailey_flat_flux_redist"]
-            is BaileyFlatFluxRedist
-        )
-
-    def test_legacy_tau_symmetric_registered(self) -> None:
-        assert "legacy_tau_symmetric" in PoleAngularClosureBase.registry
-        assert (
-            PoleAngularClosureBase.registry["legacy_tau_symmetric"]
-            is LegacyTauSymmetricInterpolation
-        )
-
     def test_create_morel_montry_returns_instance(self) -> None:
         instance = PoleAngularClosureBase.create("morel_montry_angular_sweep")
         assert isinstance(instance, MorelMontryAngularSweep)
-
-    def test_create_bailey_returns_instance(self) -> None:
-        instance = PoleAngularClosureBase.create("bailey_flat_flux_redist")
-        assert isinstance(instance, BaileyFlatFluxRedist)
-
-    def test_create_legacy_tau_symmetric_returns_instance(self) -> None:
-        instance = PoleAngularClosureBase.create("legacy_tau_symmetric")
-        assert isinstance(instance, LegacyTauSymmetricInterpolation)
 
     def test_create_unknown_key_raises(self) -> None:
         with pytest.raises(
             KeyError, match="unknown PoleAngularClosureBase key",
         ):
             PoleAngularClosureBase.create("unknown_strategy")
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Frozen + slotted dataclass invariants
-# ═══════════════════════════════════════════════════════════════════════
-
-
-class TestImmutability:
-    """Stateless strategies (BFF, LegacyTau) are
-    ``@dataclass(frozen=True, slots=True)``.
-
-    PR-TYPED-6.5 Phase 2: :class:`MorelMontryAngularSweep` is no
-    longer frozen — it now carries mesh-bound state precomputed at
-    construction.  The class has substantial init logic (precomputing
-    α-dome / ΔA/w / τ / c_in / c_out / level partition from
-    ``sn_mesh.reduced``) that ``@dataclass(frozen=True)`` cannot
-    express.  No production code mutates a constructed instance;
-    we drop the type-level frozen invariant in favour of "documented
-    immutability by convention".
-    """
-
-    def test_bailey_is_frozen(self) -> None:
-        strategy = BaileyFlatFluxRedist()
-        with pytest.raises((AttributeError, TypeError)):
-            strategy.is_linear = False  # type: ignore[misc]
-
-    def test_legacy_tau_symmetric_is_frozen(self) -> None:
-        strategy = LegacyTauSymmetricInterpolation()
-        with pytest.raises((AttributeError, TypeError)):
-            strategy.is_linear = False  # type: ignore[misc]
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -307,60 +233,6 @@ class TestMorelMontryHandCalc:
         )
 
 
-class TestBaileyFlatFluxRedistHandCalc:
-    """Verbatim flat-flux-collapse algebra on the same 2-ordinate fixture."""
-
-    def test_bailey_2ord_collapse(self, two_ordinate_sphere_fixture) -> None:
-        r"""Bailey flat-flux collapse on N=2 sphere.
-
-        :math:`R_n = (\Delta A/w) (\alpha_{n+1/2} - \alpha_{n-1/2})
-        \psi_n / V`.  Hand-calc:
-
-        * Ordinate 0 (ψ_0 = 1):
-            R_0 = 1·(1/√3 - 0)·1/1 = 1/√3.
-        * Ordinate 1 (ψ_1 = 3):
-            R_1 = 1·(0 - 1/√3)·3/1 = -3/√3.
-        """
-        psi, alpha, dAw, tau, V = two_ordinate_sphere_fixture
-        result = BaileyFlatFluxRedist()(psi, alpha, dAw, tau, V)
-        inv_sqrt3 = 1.0 / np.sqrt(3.0)
-        expected = np.array([[[inv_sqrt3], [-3.0 * inv_sqrt3]]])
-        np.testing.assert_allclose(result, expected, rtol=1e-14)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Defect-3 factor-of-two gap: BaileyFlatFluxRedist vs canonical form
-# ═══════════════════════════════════════════════════════════════════════
-
-
-class TestDefect3FactorOfTwoGap:
-    """On angularly-LINEAR ψ, BFF and MMS canonical form disagree —
-    this gap IS the Issue #168 Defect 3 truncation gap.  On
-    angularly-FLAT ψ they agree (after weighted-integral collapse) —
-    the Bailey :math:`\\Delta A/w` flat-flux invariant.
-    """
-
-    def test_bff_vs_mms_disagree_on_linear_psi(
-        self, two_ordinate_sphere_fixture,
-    ) -> None:
-        """Bailey flat-flux collapse and Hébert canonical recurrence
-        give different answers on angularly-LINEAR ψ — this is
-        exactly the Issue #168 Defect 3 gap."""
-        psi, alpha, dAw, tau, V = two_ordinate_sphere_fixture
-        # The fixture's ψ varies linearly between ordinates (ψ_0=1, ψ_1=3).
-        bff = BaileyFlatFluxRedist()(psi, alpha, dAw, tau, V)
-        mms = MorelMontryAngularSweep()(psi, alpha, dAw, tau, V)
-        # Both produce per-ordinate values, but they are quantitatively
-        # different — and both are O(1) so the gap is a constant-factor
-        # truncation gap, not a higher-order correction.
-        assert not np.allclose(bff, mms, rtol=0.1), (
-            "Defect 3 gap: BFF and MMS canonical forms must disagree "
-            "on angularly-varying ψ.  If they agree, either ψ is "
-            "accidentally angle-flat or the closures have converged "
-            "to the same form (a regression)."
-        )
-
-
 # ═══════════════════════════════════════════════════════════════════════
 # Cylindrical multi-level sanity check
 # ═══════════════════════════════════════════════════════════════════════
@@ -427,15 +299,11 @@ class TestCylindricalLevelDispatch:
 
 @pytest.mark.parametrize(
     "strategy",
-    [
-        MorelMontryAngularSweep(),
-        BaileyFlatFluxRedist(),
-        LegacyTauSymmetricInterpolation(),
-    ],
-    ids=["mms", "bff", "legacy"],
+    [MorelMontryAngularSweep()],
+    ids=["mms"],
 )
 def test_strategy_is_linear_in_psi(strategy):
-    """Each strategy is linear in ``psi_cells`` (advertised
+    """Each surviving strategy is linear in ``psi_cells`` (advertised
     ``is_linear = True``).  Verify ``f(αψ + βφ) = α·f(ψ) + β·f(φ)``."""
     rng = np.random.default_rng(seed=42)
     ng, N, nx = 2, 4, 5

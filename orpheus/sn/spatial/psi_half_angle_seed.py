@@ -104,11 +104,10 @@ Architectural choice — Option α (composition, not sibling Protocol)
 ====================================================================
 
 The seed is **M-M-specific**: the
-:class:`~orpheus.sn.spatial.pole_angular_closure.LegacyTauSymmetricInterpolation`
-and :class:`~orpheus.sn.spatial.pole_angular_closure.BaileyFlatFluxRedist`
-closures do not have a ``psi_half_left`` variable to seed — their
-half-angle face flux evaluation collapses to cell-centre values
-unconditionally.  Composing the seed strategy as a field on
+:class:`~orpheus.sn.spatial.pole_angular_closure.IdentityAngularClosure`
+(Cartesian) does not have a ``psi_half_left`` variable to seed — its
+contribution is zero (no curvature → no Hébert §3.9.4 redistribution).
+Composing the seed strategy as a field on
 :class:`MorelMontryAngularSweep` keeps the abstraction local to where
 the seed is consumed.  Phase D's Step 3a evaluation against an
 alternative "sibling Protocol on ``SNMesh``" architecture (per the

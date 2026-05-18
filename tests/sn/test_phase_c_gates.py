@@ -41,8 +41,6 @@ from orpheus.sn.quadrature import (
     ProductQuadrature,
 )
 from orpheus.sn.spatial.pole_angular_closure import (
-    BaileyFlatFluxRedist,
-    LegacyTauSymmetricInterpolation,
     MorelMontryAngularSweep,
 )
 from orpheus.sn.sweep import transport_sweep
@@ -170,8 +168,6 @@ def _flat_psi_for_geometry(sn_mesh: SNMesh, sig_t: np.ndarray, ng: int = 1) -> n
 @pytest.mark.parametrize(
     "pole_closure_factory",
     [
-        pytest.param(LegacyTauSymmetricInterpolation, id="legacy"),
-        pytest.param(BaileyFlatFluxRedist, id="bff"),
         pytest.param(
             MorelMontryAngularSweep,
             id="mms",
@@ -185,7 +181,11 @@ def _flat_psi_for_geometry(sn_mesh: SNMesh, sig_t: np.ndarray, ng: int = 1) -> n
                     "(α-dome cancellation across pure-azimuthal "
                     "degenerate ordinates); spherical does NOT — "
                     "see Phase B closeout for the structural rationale. "
-                    "Per user constraint 7, default flip deferred."
+                    "PR-TYPED-6c Step 7 (2026-05-18) retired the "
+                    "``LegacyTauSymmetricInterpolation`` and "
+                    "``BaileyFlatFluxRedist`` ablation strategies that "
+                    "previously paramerised this gate; MMS is the only "
+                    "surviving curvilinear closure."
                 ),
             ),
         ),

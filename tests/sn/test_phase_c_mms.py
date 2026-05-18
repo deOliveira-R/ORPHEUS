@@ -41,14 +41,18 @@ def _l2_1d(phi_num: np.ndarray, phi_ref: np.ndarray, volumes: np.ndarray) -> flo
 @pytest.mark.xfail(
     strict=False,
     reason=(
-        "ERR-026 PARTIAL CLOSURE (Phase C 2026-05-12): sweep-frame "
-        "apply matvec rewrite aligned the spatial closure with the "
-        "sweep's WDD form, but Gate 1.1 empirical probe with "
-        "MorelMontryAngularSweep failed on sphere, so the curvilinear "
-        "default stays LegacyTauSymmetricInterpolation. The MMS "
-        "convergence rate stays at the pre-Phase-C ~O(h^1.3) profile "
-        "until a follow-up aligns the pole-face spatial closure "
-        "with the canonical Hébert §3.9.4 angular recurrence."
+        "ERR-026 PARTIAL CLOSURE (Phase C 2026-05-12, updated "
+        "PR-TYPED-6.5 2026-05-18): the sweep-frame apply matvec "
+        "rewrite + B1'' face-state architecture closed the spatial "
+        "side of ERR-026, but the Gate 1.1 empirical probe with "
+        "``MorelMontryAngularSweep`` on sphere still does not preserve "
+        "the per-ordinate flat-flux invariant by design (α-dome "
+        "cancellation across pure-azimuthal degenerate ordinates "
+        "happens to telescope cleanly on cylinder; sphere does not — "
+        "see Phase B closeout).  The MMS convergence rate stays at "
+        "the ~O(h^1.3) profile until a follow-up aligns the pole-face "
+        "spatial closure with the canonical Hébert §3.9.4 angular "
+        "recurrence."
     ),
 )
 def test_sn_spherical_aniso_mms_spatial_convergence_phase_c():

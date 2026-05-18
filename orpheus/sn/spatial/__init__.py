@@ -32,9 +32,7 @@ See the SN reshape campaign plan at
 from .cell_update import CellResult, CellUpdate, UpstreamState
 from .diamond import DiamondDifference
 from .pole_angular_closure import (
-    BaileyFlatFluxRedist,
     IdentityAngularClosure,
-    LegacyTauSymmetricInterpolation,
     MorelMontryAngularSweep,
     PoleAngularClosure,
     PoleAngularClosureBase,
@@ -59,14 +57,12 @@ from .scan import ordinate_scan
 # default, closing ERR-026 on sphere Gate 1.1 MMS.
 
 __all__ = [
-    "BaileyFlatFluxRedist",
     "CarlsonInwardSweep",
     "CarlsonSweepContext",
     "CellResult",
     "CellUpdate",
     "DiamondDifference",
     "IdentityAngularClosure",
-    "LegacyTauSymmetricInterpolation",
     "MorelMontryAngularSweep",
     "PoleAngularClosure",
     "PoleAngularClosureBase",
