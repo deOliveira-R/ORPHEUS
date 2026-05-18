@@ -37,9 +37,11 @@ from .spatial.cell_update import CellUpdate, CellVisit
 from .spatial.diamond import DiamondDifference
 from .spatial.pole_angular_closure import (
     BaileyFlatFluxRedist,
+    IdentityAngularClosure,
     LegacyTauSymmetricInterpolation,
     MorelMontryAngularSweep,
     PoleAngularClosure,
+    default_angular_closure_class,
 )
 from .sweep_graph import OctantLabel, SweepDependencyGraph
 
@@ -231,13 +233,16 @@ class SNMesh:
         #
         # Used by the spherical / cylindrical
         # ``transport_operator_matvec_*`` paths via
-        # :meth:`SNStreamingOperator.apply`. Cartesian path is unaffected
-        # — there is no angular redistribution on slab — and ignores
-        # this attribute.
-        self.pole_angular_closure: PoleAngularClosure = (
-            pole_angular_closure if pole_angular_closure is not None
-            else MorelMontryAngularSweep()
-        )
+        # :meth:`SNStreamingOperator.apply` and the unified matvec.
+        #
+        # PR-TYPED-6.5 Phase 2.9: instantiation is deferred until AFTER
+        # the ``match mesh.coord:`` block populates ``self.reduced`` /
+        # ``self._volumes`` / ``self.dx`` (the data the strategies bind
+        # to).  Cartesian gets :class:`IdentityAngularClosure`; sphere
+        # and cylinder get :class:`MorelMontryAngularSweep`.  See the
+        # ``self.pole_angular_closure = …`` line after ``self._resolve_bcs(...)``
+        # below.
+        self._user_supplied_closure = pole_angular_closure
 
         # Normalise to (nx, ny) shaped arrays for both 1-D and 2-D
         if isinstance(mesh, Mesh1D):
@@ -330,6 +335,22 @@ class SNMesh:
         # Trigger ``ng`` property's consistency check eagerly so
         # mismatched-ng materials raise at construction time.
         _ = self.ng
+
+        # ── Pole-angular closure binding (PR-TYPED-6.5 Phase 2.9) ──
+        # All upstream state needed by the closure constructors is now
+        # available (``self.reduced``, ``self._volumes``, ``self.dx``,
+        # ``self.quad``, ``self.ng``).  If the user supplied a closure
+        # at construction, use it verbatim; otherwise instantiate the
+        # default-by-coord-system bound to ``self``.
+        if self._user_supplied_closure is not None:
+            self.pole_angular_closure: PoleAngularClosure = (
+                self._user_supplied_closure
+            )
+        else:
+            closure_cls = default_angular_closure_class(mesh.coord)
+            self.pole_angular_closure = closure_cls(self)
+        # Drop the temporary attribute now that the closure is bound.
+        del self._user_supplied_closure
 
     # ── Boundary condition resolution ─────────────────────────────────
 

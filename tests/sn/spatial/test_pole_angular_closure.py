@@ -135,12 +135,18 @@ class TestRegistry:
 
 
 class TestImmutability:
-    """All three strategies are ``@dataclass(frozen=True, slots=True)``."""
+    """Stateless strategies (BFF, LegacyTau) are
+    ``@dataclass(frozen=True, slots=True)``.
 
-    def test_morel_montry_is_frozen(self) -> None:
-        strategy = MorelMontryAngularSweep()
-        with pytest.raises((AttributeError, TypeError)):
-            strategy.is_linear = False  # type: ignore[misc]
+    PR-TYPED-6.5 Phase 2: :class:`MorelMontryAngularSweep` is no
+    longer frozen — it now carries mesh-bound state precomputed at
+    construction.  The class has substantial init logic (precomputing
+    α-dome / ΔA/w / τ / c_in / c_out / level partition from
+    ``sn_mesh.reduced``) that ``@dataclass(frozen=True)`` cannot
+    express.  No production code mutates a constructed instance;
+    we drop the type-level frozen invariant in favour of "documented
+    immutability by convention".
+    """
 
     def test_bailey_is_frozen(self) -> None:
         strategy = BaileyFlatFluxRedist()

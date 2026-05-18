@@ -33,10 +33,12 @@ from .cell_update import CellResult, CellUpdate, UpstreamState
 from .diamond import DiamondDifference
 from .pole_angular_closure import (
     BaileyFlatFluxRedist,
+    IdentityAngularClosure,
     LegacyTauSymmetricInterpolation,
     MorelMontryAngularSweep,
     PoleAngularClosure,
     PoleAngularClosureBase,
+    default_angular_closure_class,
 )
 from .psi_half_angle_seed import (
     CarlsonInwardSweep,
@@ -63,6 +65,7 @@ __all__ = [
     "CellResult",
     "CellUpdate",
     "DiamondDifference",
+    "IdentityAngularClosure",
     "LegacyTauSymmetricInterpolation",
     "MorelMontryAngularSweep",
     "PoleAngularClosure",
@@ -71,5 +74,6 @@ __all__ = [
     "PsiHalfAngleSeedBase",
     "UpstreamState",
     "ZeroSeed",
+    "default_angular_closure_class",
     "ordinate_scan",
 ]
