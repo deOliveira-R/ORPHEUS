@@ -24,7 +24,7 @@ from orpheus.geometry import (
     CoordSystem,
     Mesh1D,
     Mesh2D,
-    compute_surfaces_1d,
+    compute_areas_1d,
     compute_volumes_1d,
     compute_volumes_2d,
     pwr_pin_2d,
@@ -112,18 +112,18 @@ class TestSurfaces1D:
 
     def test_cartesian(self):
         edges = np.array([0.0, 1.0, 3.0])
-        surf = compute_surfaces_1d(CoordSystem.CARTESIAN, edges)
+        surf = compute_areas_1d(CoordSystem.CARTESIAN, edges)
         np.testing.assert_allclose(surf, [1.0, 1.0, 1.0])
 
     def test_cylindrical(self):
         edges = np.array([0.0, 0.5, 1.0])
-        surf = compute_surfaces_1d(CoordSystem.CYLINDRICAL, edges)
+        surf = compute_areas_1d(CoordSystem.CYLINDRICAL, edges)
         expected = 2.0 * np.pi * edges
         np.testing.assert_allclose(surf, expected)
 
     def test_spherical(self):
         edges = np.array([0.0, 0.5, 1.0])
-        surf = compute_surfaces_1d(CoordSystem.SPHERICAL, edges)
+        surf = compute_areas_1d(CoordSystem.SPHERICAL, edges)
         expected = 4.0 * np.pi * edges**2
         np.testing.assert_allclose(surf, expected)
 

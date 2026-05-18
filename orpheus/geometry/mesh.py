@@ -1,7 +1,7 @@
 """Mesh data structures for 1-D and 2-D geometries.
 
 A mesh is an immutable description of a spatial domain: cell edges,
-material assignments, and derived quantities (volumes, surfaces,
+material assignments, and derived quantities (volumes, areas,
 cell centres).  Solvers receive a mesh and build mutable,
 solver-specific state on top of it.
 
@@ -22,14 +22,13 @@ about cell counts.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from functools import cached_property
 from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
 from .coord import (
     CoordSystem,
-    compute_surfaces_1d,
+    compute_areas_1d,
     compute_volumes_1d,
     compute_volumes_2d,
 )
@@ -281,58 +280,28 @@ class Mesh1D:
         object.__setattr__(self, "mat_ids", mat_ids)
         object.__setattr__(self, "precomputed_volumes", precomputed)
 
+        # Derived geometric attributes (PR-TYPED-6.5 Phase 1). Computed
+        # eagerly because ``Mesh1D`` is frozen — none of these can ever
+        # change after construction, so lazy ``@cached_property`` only
+        # buys first-access surprise and an extra branch per read.
+        widths = np.diff(edges)
+        centers = 0.5 * (edges[:-1] + edges[1:])
+        volumes = (
+            precomputed if precomputed is not None
+            else compute_volumes_1d(self.coord, edges)
+        )
+        areas = compute_areas_1d(self.coord, edges)
+        object.__setattr__(self, "widths", widths)
+        object.__setattr__(self, "centers", centers)
+        object.__setattr__(self, "volumes", volumes)
+        object.__setattr__(self, "areas", areas)
+
     # ── Derived properties ────────────────────────────────────────────
 
     @property
     def N(self) -> int:
         """Number of cells."""
         return len(self.edges) - 1
-
-    @cached_property
-    def widths(self) -> np.ndarray:
-        """Cell widths (edge-to-edge distance), shape (N,).
-
-        Cached at first access — ``Mesh1D`` is frozen, so ``edges`` is
-        immutable.  Per-call ``np.diff(self.edges)`` recomputation was
-        51,200 calls per ordinate sweep in profiling of the Step 2.5b
-        unified-fold path (Issue #196).  Step 2.5c subsumes this call
-        chain via the precomputed sweep cache; the @cached_property here
-        is a free interim win that survives the larger refactor.
-        """
-        return np.diff(self.edges)
-
-    @cached_property
-    def centers(self) -> np.ndarray:
-        """Cell centre positions, shape (N,).  Cached (frozen mesh)."""
-        return 0.5 * (self.edges[:-1] + self.edges[1:])
-
-    @cached_property
-    def volumes(self) -> np.ndarray:
-        """Cell volumes, shape (N,).
-
-        When ``precomputed_volumes`` was supplied at construction (the
-        normal path via :meth:`Mesh1D.from_geometry`), those exact
-        values are returned. Otherwise volumes are derived from edges
-        via :func:`~orpheus.geometry.coord.compute_volumes_1d` — which
-        is correct to ~1 ULP per cell but can break
-        "all cells in an equal-volume region are bit-identical"
-        assertions for the cylindrical/spherical cases where the
-        ``sqrt→**2`` / ``cbrt→**3`` edge round trip loses precision.
-
-        Cached (frozen mesh).  PR-TYPED-6c profiling showed
-        :func:`reduced_operator.streaming_terms` calls ``mesh.volumes[i]``
-        per cell visit, triggering 80-160 ``compute_volumes_1d`` re-runs
-        per unified-matvec apply.  ``@cached_property`` collapses this
-        to one call per mesh lifetime.
-        """
-        if self.precomputed_volumes is not None:
-            return self.precomputed_volumes
-        return compute_volumes_1d(self.coord, self.edges)
-
-    @cached_property
-    def surfaces(self) -> np.ndarray:
-        """Surface areas at each edge, shape (N+1,).  Cached (frozen mesh)."""
-        return compute_surfaces_1d(self.coord, self.edges)
 
     @property
     def total_width(self) -> float:

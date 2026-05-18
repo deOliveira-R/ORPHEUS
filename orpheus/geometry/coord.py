@@ -17,12 +17,12 @@ Cylindrical :math:`V_i = \\pi (r_{i+1}^2 - r_i^2)`
 Spherical   :math:`V_i = \\tfrac{4}{3}\\pi (r_{i+1}^3 - r_i^3)`
 =========== ==========================================
 
-Surface formulas (1-D)
+Area formulas (1-D)
 ~~~~~~~~~~~~~~~~~~~~~~
 =========== ==========================================
-Cartesian   :math:`S = 1` (per unit transverse area)
-Cylindrical :math:`S = 2\\pi r` (per unit height)
-Spherical   :math:`S = 4\\pi r^2`
+Cartesian   :math:`A = 1` (per unit transverse area)
+Cylindrical :math:`A = 2\\pi r` (per unit height)
+Spherical   :math:`A = 4\\pi r^2`
 =========== ==========================================
 """
 
@@ -69,8 +69,8 @@ def compute_volumes_1d(coord: CoordSystem, edges: np.ndarray) -> np.ndarray:
             raise ValueError(f"Unknown coordinate system: {coord}")
 
 
-def compute_surfaces_1d(coord: CoordSystem, edges: np.ndarray) -> np.ndarray:
-    """Surface areas at each 1-D edge position.
+def compute_areas_1d(coord: CoordSystem, edges: np.ndarray) -> np.ndarray:
+    """Face areas at each 1-D edge position.
 
     Parameters
     ----------
@@ -82,7 +82,7 @@ def compute_surfaces_1d(coord: CoordSystem, edges: np.ndarray) -> np.ndarray:
     Returns
     -------
     ndarray, shape (N+1,)
-        Surface area at every edge.
+        Face area at every edge.
     """
     match coord:
         case CoordSystem.CARTESIAN:

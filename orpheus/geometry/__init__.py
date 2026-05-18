@@ -32,7 +32,7 @@ from .boundary import (
     VacuumBoundaryOperator,
     WhiteBoundaryOperator,
 )
-from .coord import CoordSystem, compute_surfaces_1d, compute_volumes_1d, compute_volumes_2d
+from .coord import CoordSystem, compute_areas_1d, compute_volumes_1d, compute_volumes_2d
 from .factories import pwr_pin_2d
 from .mesh import BC, Mesh1D, Mesh2D, RegionMesh
 from .reduced_operator import (
@@ -62,7 +62,7 @@ __all__ = [
     "StructuredGeometry",
     "VacuumBoundaryOperator",
     "WhiteBoundaryOperator",
-    "compute_surfaces_1d",
+    "compute_areas_1d",
     "compute_volumes_1d",
     "compute_volumes_2d",
     "cylindrical_streaming",

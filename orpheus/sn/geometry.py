@@ -247,6 +247,7 @@ class SNMesh:
             self.dy: np.ndarray = np.array([1.0])
             self.mat_map: np.ndarray = mesh.mat_ids.reshape(mesh.N, 1)
             self._volumes: np.ndarray = mesh.volumes.reshape(mesh.N, 1)
+            self._areas: np.ndarray | None = mesh.areas
         else:
             self.nx = mesh.nx
             self.ny = mesh.ny
@@ -254,6 +255,9 @@ class SNMesh:
             self.dy = mesh.dy
             self.mat_map = mesh.mat_map
             self._volumes = mesh.volumes
+            # 2-D mesh has per-face areas of a different shape; not
+            # consumed by today's matvec callers — leave None.
+            self._areas = None
 
         # Dispatch stencil setup by coordinate system.
         #
@@ -544,6 +548,28 @@ class SNMesh:
     def volumes(self) -> np.ndarray:
         """Cell volumes, shape (nx, ny)."""
         return self._volumes
+
+    @property
+    def areas(self) -> np.ndarray:
+        """Face areas at each radial edge, shape (nx+1,) (1-D meshes).
+
+        Sourced from :attr:`Mesh1D.areas` (computed eagerly at mesh
+        construction via :func:`orpheus.geometry.coord.compute_areas_1d`).
+        Cartesian slab returns an array of ones; cylinder returns
+        :math:`2\\pi r`; sphere returns :math:`4\\pi r^2`.
+
+        Raises
+        ------
+        AttributeError
+            If accessed on a 2-D mesh (face areas have a different shape
+            and are not consumed by today's matvec callers).
+        """
+        if self._areas is None:
+            raise AttributeError(
+                "SNMesh.areas is not defined for 2-D meshes; "
+                "face-area data lives in the underlying Mesh2D directly."
+            )
+        return self._areas
 
     @property
     def is_1d(self) -> bool:

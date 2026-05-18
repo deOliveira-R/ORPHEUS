@@ -581,8 +581,8 @@ def spherical_streaming(
     N = angular_measure.N
 
     # Cell face areas: A_{i+1/2} = 4πr² at each edge — sourced from the
-    # mesh, which routes through coord.compute_surfaces_1d().
-    face_areas = mesh.surfaces  # (nx+1,)
+    # mesh, which routes through coord.compute_areas_1d().
+    face_areas = mesh.areas  # (nx+1,)
 
     # Cell face-area differences: ΔA_i = A_{i+1/2} − A_{i-1/2}
     delta_A = face_areas[1:] - face_areas[:-1]
@@ -676,7 +676,7 @@ def cylindrical_streaming(
             f"got {type(angular_measure).__name__}"
         )
 
-    face_areas = mesh.surfaces  # (nx+1,)
+    face_areas = mesh.areas  # (nx+1,)
     delta_A = face_areas[1:] - face_areas[:-1]
 
     # Per-level azimuthal redistribution coefficients

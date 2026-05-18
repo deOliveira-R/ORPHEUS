@@ -363,10 +363,10 @@ class CPMesh:
         P_inf = P_cell + P_out ⊗ P_in / (1 - P_inout)
 
         Works for all coordinate systems because mesh.volumes and
-        mesh.surfaces[-1] encode the geometry correctly.
+        mesh.areas[-1] encode the geometry correctly.
         """
         V = self.mesh.volumes
-        S_cell = self.mesh.surfaces[-1]
+        S_cell = self.mesh.areas[-1]
 
         P_out = np.maximum(1.0 - P_cell.sum(axis=1), 0.0)
         P_in = sig_t_g * V * P_out / S_cell
