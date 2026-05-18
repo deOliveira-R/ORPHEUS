@@ -34,7 +34,6 @@ from .diamond import DiamondDifference
 from .pole_angular_closure import (
     BaileyFlatFluxRedist,
     LegacyTauSymmetricInterpolation,
-    MMHalfGrid,
     MorelMontryAngularSweep,
     PoleAngularClosure,
     PoleAngularClosureBase,
@@ -65,7 +64,6 @@ __all__ = [
     "CellUpdate",
     "DiamondDifference",
     "LegacyTauSymmetricInterpolation",
-    "MMHalfGrid",
     "MorelMontryAngularSweep",
     "PoleAngularClosure",
     "PoleAngularClosureBase",

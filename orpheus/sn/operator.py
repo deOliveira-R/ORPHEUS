@@ -1233,7 +1233,7 @@ def transport_operator_matvec_cylindrical(
 # cell_balance_for_streaming (PR-TYPED-6a foundation primitive),
 # vectorised over the ordinate-mask axis (n_mask=N for matvec), and
 # consumes MorelMontryAngularSweep.compute_psi_half_per_level via the
-# MMHalfGrid typed accessor (PR-TYPED-6b / Step 1.5) for the M-M
+# _MMHalfGrid typed accessor (PR-TYPED-6b / Step 1.5) for the M-M
 # upstream half-angle flux.
 #
 # Step-by-step rollout:
@@ -1272,7 +1272,7 @@ def transport_operator_matvec_unified(
     algebra reads cell geometry from :class:`StreamingTerms` (carried
     on each :class:`CellVisit` yielded by :meth:`SNMesh.dag_walk`) and
     the per-ordinate angular closure from
-    :class:`~orpheus.sn.spatial.pole_angular_closure.MMHalfGrid`.
+    :class:`~orpheus.sn.spatial.pole_angular_closure._MMHalfGrid`.
 
     Parameters
     ----------
@@ -1394,7 +1394,7 @@ def transport_operator_matvec_unified(
     else:
         pole_face_seed = psi_view[:, :, 0, 0].copy()                 # (N, ng)
 
-    # ── Per-level Carlson contexts + MMHalfGrid (curvilinear only) ──
+    # ── Per-level Carlson contexts + _MMHalfGrid (curvilinear only) ──
     # Slab has no M-M angular closure (no curvature → ΔA/w = 0); skip
     # the entire half-grid computation and pass psi_angular_upstream=None
     # in the per-cell call.  cell_balance_for_streaming handles this
@@ -1421,7 +1421,7 @@ def transport_operator_matvec_unified(
                 )
             )
 
-        # MMHalfGrid (Pattern 4 typed accessor) per level.
+        # _MMHalfGrid (Pattern 4 typed accessor) per level.
         # Shape ``(ng, M_p, nx)`` per level via ``.upstream_per_ordinate``.
         psi_cells_g_first = psi_g_first[..., 0]                          # (ng, N, nx)
         half_grid_per_level = []

@@ -338,12 +338,19 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# MMHalfGrid — typed accessor for the M-M half-angle face grid
+# _MMHalfGrid — module-private typed accessor for the M-M half-angle grid
 # ═══════════════════════════════════════════════════════════════════════
+#
+# PR-TYPED-6.5 Phase 2: the underscore prefix declares "module-private".
+# Consumers (matvec, sweep, tests) see only the public API of
+# :class:`MorelMontryAngularSweep` and treat the half-grid as opaque
+# strategy state. The redistribution body inside the M-M class accesses
+# the raw :attr:`faces` array directly; external code consumes via
+# :meth:`upstream` / :attr:`upstream_per_ordinate` accessors.
 
 
 @dataclass(frozen=True, slots=True)
-class MMHalfGrid:
+class _MMHalfGrid:
     r"""Typed accessor for the Morel-Montry half-angle face grid.
 
     Issue #197 PR-TYPED-6c Step 1.5 — Pattern 4 (illegal states
@@ -833,10 +840,10 @@ class MorelMontryAngularSweep(
         tau_level: np.ndarray,
         *,
         carlson_context: "CarlsonSweepContext | None" = None,
-    ) -> MMHalfGrid:
+    ) -> _MMHalfGrid:
         r"""Return the half-angle grid :math:`\phi_{m\pm 1/2, i, g}`
         for one level under the M-M recurrence, wrapped in
-        :class:`MMHalfGrid` typed accessor.
+        :class:`_MMHalfGrid` typed accessor.
 
         Issue #197 PR-TYPED-6b — the load-bearing intermediate the
         unified matvec needs to consume.  Same recurrence the
@@ -844,15 +851,15 @@ class MorelMontryAngularSweep(
         exposed as a public method so the matvec body can populate
         :func:`~orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`'s
         ``psi_angular_upstream`` argument with the typed accessor
-        :meth:`MMHalfGrid.upstream` — Pattern 4 (illegal states
+        :meth:`_MMHalfGrid.upstream` — Pattern 4 (illegal states
         unrepresentable) on the upstream/downstream off-by-one trap.
 
         Issue #197 PR-TYPED-6c Step 1.5: the return type became
-        :class:`MMHalfGrid` (was raw ``np.ndarray`` shape
+        :class:`_MMHalfGrid` (was raw ``np.ndarray`` shape
         ``(ng, M+1, nx)`` pre-Step-1.5). The underlying storage is
-        unchanged; consumers access via :attr:`MMHalfGrid.faces` for
+        unchanged; consumers access via :attr:`_MMHalfGrid.faces` for
         the raw array (used by the redistribution body) or via
-        :meth:`MMHalfGrid.upstream` / :attr:`MMHalfGrid.upstream_per_ordinate`
+        :meth:`_MMHalfGrid.upstream` / :attr:`_MMHalfGrid.upstream_per_ordinate`
         for the matvec's upstream-per-ordinate semantic.
 
         Pattern 2 — single source of truth.  Both this public method
@@ -883,7 +890,7 @@ class MorelMontryAngularSweep(
 
         Returns
         -------
-        MMHalfGrid
+        _MMHalfGrid
             Typed accessor wrapping the half-angle grid
             ``faces`` of shape ``(ng, M+1, nx)``.
 
@@ -892,13 +899,13 @@ class MorelMontryAngularSweep(
         _mm_psi_half_grid_single_level :
             Free-function helper that this method delegates to.  The
             method's value-add is the strategy-bound Carlson seed
-            construction AND the :class:`MMHalfGrid` wrapping; the
+            construction AND the :class:`_MMHalfGrid` wrapping; the
             helper is the pure recurrence kernel returning a raw
             ``np.ndarray``.
-        MMHalfGrid :
-            Typed accessor with named :meth:`~MMHalfGrid.upstream`,
-            :meth:`~MMHalfGrid.downstream`, and full-grid
-            :attr:`~MMHalfGrid.faces` access.
+        _MMHalfGrid :
+            Typed accessor with named :meth:`~_MMHalfGrid.upstream`,
+            :meth:`~_MMHalfGrid.downstream`, and full-grid
+            :attr:`~_MMHalfGrid.faces` access.
         """
         psi_half_seed_arr: np.ndarray | None = None
         if carlson_context is not None:
@@ -906,7 +913,7 @@ class MorelMontryAngularSweep(
         faces = _mm_psi_half_grid_single_level(
             psi_level, tau_level, psi_half_seed=psi_half_seed_arr,
         )
-        return MMHalfGrid(faces=faces)
+        return _MMHalfGrid(faces=faces)
 
     def __repr__(self) -> str:
         return "MorelMontryAngularSweep()"
@@ -1227,7 +1234,6 @@ __all__ = [
     "CarlsonInwardSweep",
     "CarlsonSweepContext",
     "LegacyTauSymmetricInterpolation",
-    "MMHalfGrid",
     "MorelMontryAngularSweep",
     "PoleAngularClosure",
     "PoleAngularClosureBase",

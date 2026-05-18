@@ -32,8 +32,8 @@ import numpy as np
 import pytest
 
 from orpheus.sn.spatial.pole_angular_closure import (
-    MMHalfGrid,
     MorelMontryAngularSweep,
+    _MMHalfGrid,
     _mm_psi_half_grid_single_level,
     _mm_weighted_angular_recurrence_single_level,
 )
@@ -90,7 +90,7 @@ class TestShapeContract:
         psi_half = sweep.compute_psi_half_per_level(
             psi_level, tau_level, carlson_context=None,
         )
-        # PR-TYPED-6c Step 1.5: return is MMHalfGrid; underlying faces
+        # PR-TYPED-6c Step 1.5: return is _MMHalfGrid; underlying faces
         # ndarray has the same (ng, M+1, nx) shape.
         assert psi_half.faces.shape == (ng, M + 1, nx)
         assert psi_half.n_groups == ng
@@ -119,21 +119,21 @@ class TestShapeContract:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# L0 tests — MMHalfGrid typed accessor contracts (PR-TYPED-6c Step 1.5)
+# L0 tests — _MMHalfGrid typed accessor contracts (PR-TYPED-6c Step 1.5)
 # ═══════════════════════════════════════════════════════════════════════
 
 
 class TestMMHalfGridAccessors:
-    """The :class:`MMHalfGrid` wrapper exposes named accessors so the
+    """The :class:`_MMHalfGrid` wrapper exposes named accessors so the
     matvec consumer cannot off-by-one between upstream and downstream
     half-faces.
 
     Pattern 4 — illegal states unrepresentable. The matvec's
     ``psi_angular_upstream`` argument is populated via
-    :meth:`MMHalfGrid.upstream` (semantic, not raw indexing).
+    :meth:`_MMHalfGrid.upstream` (semantic, not raw indexing).
     """
 
-    def _build_grid(self) -> tuple[MMHalfGrid, int, int, int]:
+    def _build_grid(self) -> tuple[_MMHalfGrid, int, int, int]:
         sweep = MorelMontryAngularSweep()
         ng, M, nx = 2, 5, 10
         rng = np.random.default_rng(seed=100)
@@ -146,10 +146,10 @@ class TestMMHalfGridAccessors:
 
     @pytest.mark.l0
     def test_return_type_is_mm_half_grid(self) -> None:
-        """``compute_psi_half_per_level`` returns an :class:`MMHalfGrid`,
+        """``compute_psi_half_per_level`` returns an :class:`_MMHalfGrid`,
         not a raw ndarray."""
         grid, _, _, _ = self._build_grid()
-        assert isinstance(grid, MMHalfGrid)
+        assert isinstance(grid, _MMHalfGrid)
 
     @pytest.mark.l0
     def test_shape_properties(self) -> None:
@@ -211,7 +211,7 @@ class TestMMHalfGridAccessors:
 
     @pytest.mark.l0
     def test_mm_half_grid_is_frozen(self) -> None:
-        """``MMHalfGrid`` is a frozen dataclass — its ``faces`` attribute
+        """``_MMHalfGrid`` is a frozen dataclass — its ``faces`` attribute
         cannot be reassigned (Pattern 4: prevent accidental mutation)."""
         grid, _, _, _ = self._build_grid()
         with pytest.raises((AttributeError, TypeError)):
@@ -403,7 +403,7 @@ class TestPattern2Roundtrip:
         from_helper = _mm_psi_half_grid_single_level(
             psi_level, tau_level, psi_half_seed=None,
         )
-        # MMHalfGrid wraps an ndarray; .faces returns the raw grid which
+        # _MMHalfGrid wraps an ndarray; .faces returns the raw grid which
         # MUST be bit-identical to the free-function helper's output.
         np.testing.assert_array_equal(from_method.faces, from_helper)
 
