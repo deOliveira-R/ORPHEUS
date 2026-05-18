@@ -36,8 +36,6 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import (
     build_equation_map_spherical,
-    solution_to_angular_flux_spherical,
-    transport_operator_matvec_spherical,
     transport_operator_matvec_unified,
 )
 from orpheus.sn.quadrature import GaussLegendre1D
@@ -112,65 +110,18 @@ pytestmark = [pytest.mark.l0]
 
 
 class TestUnifiedMatvecSphere:
-    """Unified matvec equivalent to legacy spherical matvec at ULP scale."""
+    """Unified matvec sphere sanity gates.
 
-    @pytest.mark.parametrize("n_cells", [5, 10, 20])
-    @pytest.mark.parametrize("n_ord", [4, 8])
-    @pytest.mark.parametrize("seed", [0, 1, 2])
-    def test_unified_matches_legacy_spherical(
-        self, n_cells: int, n_ord: int, seed: int,
-    ) -> None:
-        sn_mesh = _build_sphere(n_cells=n_cells, n_ord=n_ord)
-        ng = 1
-        eq_map = build_equation_map_spherical(n_cells, sn_mesh.quad, ng)
-
-        # Random psi in canonical (N, ng, nx, ny) layout.
-        rng = np.random.default_rng(seed)
-        psi_view = rng.standard_normal(
-            (sn_mesh.quad.N, ng, n_cells, 1)
-        ).astype(np.float64)
-        # BC-fill the inflow-at-outer slots to match the legacy decoder's
-        # behavior. Both unified and legacy will see the SAME 4-D input.
-        psi_view = _bc_fill_outer(psi_view, sn_mesh, eq_map)
-
-        sigma_t = np.full((ng, n_cells, 1), 2.0)
-
-        # Legacy path: canonical → packed → legacy matvec → decode to (N, ng, nx, ny).
-        psi_packed = _canonical_to_packed(psi_view, eq_map, ng)
-        reduced = sn_mesh.reduced
-        m_packed = transport_operator_matvec_spherical(
-            psi_packed, eq_map, sn_mesh.quad, sigma_t, n_cells, ng,
-            reduced.face_areas, sn_mesh.volumes,
-            reduced.alpha_half, reduced.redist_dAw, reduced.tau_mm,
-            sn_mesh=sn_mesh, bc_outer=sn_mesh.bc_right,
-            pole_angular_closure=sn_mesh.pole_angular_closure,
-        )
-        # Decode m_packed to (N, ng, nx, ny) via the same path the
-        # legacy uses on the read side.
-        m_legacy_view = solution_to_angular_flux_spherical(
-            m_packed, eq_map, sn_mesh.quad, n_cells, ng,
-        )
-
-        # Unified path: canonical → unified matvec.
-        m_unified, _, _ = transport_operator_matvec_unified(
-            psi_view, sn_mesh, sigma_t,
-        )
-
-        # Compare at unknown slots only (BC-resolved slots may differ
-        # because solution_to_angular_flux_spherical fills them via
-        # BC.apply but the unified matvec doesn't write there).
-        m_legacy_unknowns = _extract_at_unknown_slots(m_legacy_view, eq_map)
-        m_unified_unknowns = _extract_at_unknown_slots(m_unified, eq_map)
-
-        # Bit-exact at ULP scale.
-        np.testing.assert_allclose(
-            m_unified_unknowns, m_legacy_unknowns,
-            rtol=1e-13, atol=1e-14,
-            err_msg=(
-                f"unified vs legacy spherical mismatch at n_cells={n_cells} "
-                f"n_ord={n_ord} seed={seed}"
-            ),
-        )
+    PR-TYPED-6c Step 7 (2026-05-18) retired
+    ``transport_operator_matvec_spherical``; the pre-retirement
+    ``test_unified_matches_legacy_spherical`` ULP-bit-identity gate
+    served its Step 2 purpose (verify the unified matvec matches the
+    legacy helper at ULP) and retires with the helper.  Matvec
+    correctness now relies on the constant-flux and zero-input
+    sanity gates here plus the broader L0/L1 anchors elsewhere
+    (the unified matvec's L1 reference for cylinder is the
+    trajectory_resolvent test in ``test_unified_matvec_cylinder.py``).
+    """
 
     def test_unified_constant_psi_gives_sigma_t(self) -> None:
         """At ψ = constant on homogeneous reflective sphere, unified

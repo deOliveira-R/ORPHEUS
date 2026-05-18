@@ -54,7 +54,7 @@ from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import (
     build_equation_map_cylindrical,
-    transport_operator_matvec_cylindrical,
+    transport_operator_matvec_unified,
 )
 from orpheus.sn.quadrature import ProductQuadrature
 from tests.sn._test_helpers import placeholder_materials
@@ -94,18 +94,17 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
     ng = 1
     sig_t = np.full((ng, nx, 1), 2.0)  # (ng, nx, ny) — PR-INDEX-3
     psi_flat = 10.0 / quad.weights.sum()
-    eq_map = build_equation_map_cylindrical(nx, quad, ng)
-    sol_flat = np.full(eq_map.n_unknowns, psi_flat)
 
-    lhs = transport_operator_matvec_cylindrical(
-        sol_flat, eq_map, quad, sig_t, nx, ng,
-        sn_mesh.reduced.face_areas, sn_mesh.volumes,
-        sn_mesh.reduced.alpha_per_level,
-        sn_mesh.reduced.redist_dAw_per_level,
-        sn_mesh.reduced.tau_mm_per_level,
-        sn_mesh=sn_mesh,
-        pole_angular_closure=sn_mesh.pole_angular_closure,
+    # PR-TYPED-6c Step 7: route through ``transport_operator_matvec_unified``
+    # — the legacy ``transport_operator_matvec_cylindrical`` retired.
+    psi_view = np.full((quad.N, ng, nx, 1), psi_flat)
+    m_cell, _, _ = transport_operator_matvec_unified(
+        psi_view, sn_mesh, sig_t,
     )
+    eq_map = build_equation_map_cylindrical(nx, quad, ng)
+    lhs = m_cell[
+        eq_map.ordinate, :, eq_map.ix, eq_map.iy,
+    ].T.ravel(order="F")
 
     expected = 2.0 * psi_flat  # = Σ_t · ψ_flat
     residual = float(np.max(np.abs(lhs - expected)))

@@ -59,8 +59,6 @@ from orpheus.sn.operator import (
     build_equation_map_spherical,
     build_equation_map_cylindrical,
     transport_operator_matvec,
-    transport_operator_matvec_spherical,
-    transport_operator_matvec_cylindrical,
 )
 from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
 from orpheus.sn.sources import IsotropicSource
@@ -177,129 +175,33 @@ def test_capabilities_is_frozenset():
 # from the BiCGSTAB-consumed FD operator math — a campaign-blocking
 # regression.
 
-def test_apply_slab_bit_identical_to_legacy():
-    """SNStreamingOperator.apply == transport_operator_matvec on slab.
-
-    Wave E Round 3 update: the legacy call now threads the mesh BCs
-    through to ``transport_operator_matvec`` so that
-    :class:`SNStreamingOperator.apply` (which always reads BCs from
-    the mesh) and the legacy call match.  Pre-Round 3 the legacy call
-    hard-coded specular reflective fills, which silently agreed with
-    ``apply`` only because the old ``apply`` also hard-coded them.
-    """
-    sn_mesh = _slab_mesh()
-    sig_t = _sig_t_uniform(sn_mesh, ng=2)
-    op = SNStreamingOperator(sn_mesh, sig_t)
-
-    # Build the same EquationMap the legacy BiCGSTAB path would build.
-    nx, ny, ng = sn_mesh.nx, sn_mesh.ny, 2
-    eq_map = build_equation_map(nx, ny, sn_mesh.quad, ng)
-
-    rng = np.random.default_rng(seed=42)
-    psi = rng.standard_normal(eq_map.n_unknowns)
-
-    legacy = transport_operator_matvec(
-        psi, eq_map, sn_mesh.quad, sig_t,
-        nx, ny, ng, sn_mesh.dx, sn_mesh.dy,
-        bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
-        bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
-    )
-    via_op = op.apply(psi)
-
-    assert np.array_equal(legacy, via_op), (
-        "SNStreamingOperator.apply diverged from transport_operator_matvec "
-        "on slab: max diff = {:.3e}".format(np.max(np.abs(legacy - via_op)))
-    )
+# PR-TYPED-6c Step 7 (2026-05-18) retired the 1-D slab bit-identity
+# test: ``SNStreamingOperator.apply`` on 1-D Cartesian now routes
+# through the unified WDD matvec
+# (``transport_operator_matvec_unified``), while the legacy
+# ``transport_operator_matvec`` carries the 1st-order FD path via
+# ``_compute_gradients``.  The two DIVERGE structurally (FD vs WDD
+# order-of-accuracy delta — characterised in
+# ``test_unified_matvec_slab.py``).  2-D Cartesian remains on the
+# legacy FD path (anti-diagonal wavefront sweeps not yet migrated to
+# ``SNMesh.dag_walk``) — see
+# ``test_apply_2d_cartesian_bit_identical_to_legacy`` below for that
+# code path's surviving bit-identity pin.
 
 
-def test_apply_spherical_bit_identical_to_legacy():
-    """SNStreamingOperator.apply == transport_operator_matvec_spherical.
-
-    Phase D update (Issue #168 ERR-026 closure, 2026-05-12): the
-    legacy call MUST thread ``sn_mesh.pole_angular_closure`` AND
-    ``sn_mesh``, since the SNMesh default for pole closure flipped
-    to :class:`MorelMontryAngularSweep` (with the Carlson coupled-pole
-    seed).  Without threading both, the legacy fallback (Legacy
-    τ-symmetric, function-level default in
-    :func:`transport_operator_matvec_spherical`) gives a different
-    result.
-
-    The threaded test exercises:
-    * BC-faithful Round 3 plumbing via ``sn_mesh.bc_right``.
-    * Phase D Carlson coupled-pole seed via ``sn_mesh.pole_angular_closure``.
-    * ``dag_walk(direction_sign=...)`` via ``sn_mesh``.
-    """
-    sn_mesh = _spherical_mesh()
-    sig_t = _sig_t_uniform(sn_mesh, ng=2)
-    op = SNStreamingOperator(sn_mesh, sig_t)
-
-    nx, ng = sn_mesh.nx, 2
-    eq_map = build_equation_map_spherical(nx, sn_mesh.quad, ng)
-
-    rng = np.random.default_rng(seed=43)
-    psi = rng.standard_normal(eq_map.n_unknowns)
-
-    reduced = sn_mesh.reduced
-    legacy = transport_operator_matvec_spherical(
-        psi, eq_map, sn_mesh.quad, sig_t,
-        nx, ng,
-        reduced.face_areas,
-        sn_mesh.volumes,
-        reduced.alpha_half,
-        reduced.redist_dAw,
-        reduced.tau_mm,
-        sn_mesh=sn_mesh,
-        bc_outer=sn_mesh.bc_right,
-        pole_angular_closure=sn_mesh.pole_angular_closure,
-    )
-    via_op = op.apply(psi)
-
-    assert np.array_equal(legacy, via_op), (
-        "SNStreamingOperator.apply diverged from "
-        "transport_operator_matvec_spherical: max diff = {:.3e}".format(
-            np.max(np.abs(legacy - via_op))
-        )
-    )
-
-
-def test_apply_cylindrical_bit_identical_to_legacy():
-    """SNStreamingOperator.apply == transport_operator_matvec_cylindrical.
-
-    Phase D update (Issue #168, 2026-05-12): the legacy call MUST
-    thread ``sn_mesh.pole_angular_closure`` AND ``sn_mesh``, since
-    the SNMesh default flipped to :class:`MorelMontryAngularSweep`.
-    """
-    sn_mesh = _cylindrical_mesh()
-    sig_t = _sig_t_uniform(sn_mesh, ng=2)
-    op = SNStreamingOperator(sn_mesh, sig_t)
-
-    nx, ng = sn_mesh.nx, 2
-    eq_map = build_equation_map_cylindrical(nx, sn_mesh.quad, ng)
-
-    rng = np.random.default_rng(seed=44)
-    psi = rng.standard_normal(eq_map.n_unknowns)
-
-    reduced = sn_mesh.reduced
-    legacy = transport_operator_matvec_cylindrical(
-        psi, eq_map, sn_mesh.quad, sig_t,
-        nx, ng,
-        reduced.face_areas,
-        sn_mesh.volumes,
-        reduced.alpha_per_level,
-        reduced.redist_dAw_per_level,
-        reduced.tau_mm_per_level,
-        sn_mesh=sn_mesh,
-        bc_outer=sn_mesh.bc_right,
-        pole_angular_closure=sn_mesh.pole_angular_closure,
-    )
-    via_op = op.apply(psi)
-
-    assert np.array_equal(legacy, via_op), (
-        "SNStreamingOperator.apply diverged from "
-        "transport_operator_matvec_cylindrical: max diff = {:.3e}".format(
-            np.max(np.abs(legacy - via_op))
-        )
-    )
+# PR-TYPED-6c Step 7 (2026-05-18) retired
+# ``transport_operator_matvec_spherical`` / ``_cylindrical`` (the two
+# legacy curvilinear helpers).  The pre-retirement
+# ``test_apply_{spherical,cylindrical}_bit_identical_to_legacy`` tests
+# pinned ``SNStreamingOperator.apply`` to the helper outputs at ULP;
+# now that the helpers don't exist (and ``SNStreamingOperator.apply``
+# routes through ``transport_operator_matvec_unified``), there is no
+# remaining reference to compare against from inside this file.  The
+# bit-identity contract migrated to
+# ``tests/sn/test_unified_matvec_sphere.py`` (sphere matvec correctness
+# pin) and ``tests/sn/test_unified_matvec_cylinder.py`` (cylinder
+# matvec correctness pin via the hand-reference battery + L1
+# trajectory_resolvent reference).
 
 
 def test_apply_2d_cartesian_bit_identical_to_legacy():
@@ -700,12 +602,14 @@ def test_apply_spherical_wdd_recurrence_deterministic():
 
     This is Gate 1.2 (foundation, plan §5): the sweep-frame matvec
     is structurally bit-deterministic. Pinned via np.array_equal on
-    repeated apply calls — replaces the Phase A
-    ``test_apply_spherical_outer_face_uses_dd_extrapolation`` which
-    pinned the now-retired BoundaryFaceFlux Protocol.
-    """
-    from orpheus.sn.operator import transport_operator_matvec_spherical
+    repeated apply calls.
 
+    PR-TYPED-6c Step 7 retired the direct comparison to
+    ``transport_operator_matvec_spherical`` (the helper retired with
+    the rest of the legacy curvilinear matvec path). Determinism is
+    the only property still pinned here; matvec correctness lives in
+    ``tests/sn/test_unified_matvec_sphere.py``.
+    """
     sn_mesh = _spherical_mesh()
     sig_t = _sig_t_uniform(sn_mesh, ng=2)
     op = SNStreamingOperator(sn_mesh, sig_t)
@@ -718,20 +622,6 @@ def test_apply_spherical_wdd_recurrence_deterministic():
     via_op_1 = op.apply(psi)
     via_op_2 = op.apply(psi)
     np.testing.assert_array_equal(via_op_1, via_op_2)
-
-    # Direct invocation through ``transport_operator_matvec_spherical``
-    # must match the dispatcher-via-op path bit-for-bit.
-    reduced = sn_mesh.reduced
-    via_direct = transport_operator_matvec_spherical(
-        psi, eq_map, sn_mesh.quad, sig_t,
-        nx, ng,
-        reduced.face_areas, sn_mesh.volumes,
-        reduced.alpha_half, reduced.redist_dAw, reduced.tau_mm,
-        sn_mesh=sn_mesh,
-        bc_outer=sn_mesh.bc_right,
-        pole_angular_closure=sn_mesh.pole_angular_closure,
-    )
-    np.testing.assert_array_equal(via_op_1, via_direct)
 
 
 def test_apply_spherical_constant_flux_yields_zero_collisionless_reflective():
@@ -857,9 +747,6 @@ def test_apply_spherical_constant_flux_under_morel_montry_canonical_form():
     from orpheus.geometry import BC, CoordSystem, Mesh1D
     from orpheus.sn.geometry import SNMesh
     from orpheus.sn.quadrature import GaussLegendre1D
-    from orpheus.sn.spatial.pole_angular_closure import (
-        MorelMontryAngularSweep,
-    )
 
     nx = 4
     mesh = Mesh1D(
@@ -870,7 +757,11 @@ def test_apply_spherical_constant_flux_under_morel_montry_canonical_form():
         bc_right=BC("reflective"),
     )
     quad = GaussLegendre1D.create(n_ordinates=4)
-    sn_mesh = SNMesh(mesh, quad, placeholder_materials(ng=2), pole_angular_closure=MorelMontryAngularSweep())
+    # PR-TYPED-6.5 Phase 2: ``MorelMontryAngularSweep`` is the default
+    # for spherical, so we no longer pass it explicitly (the previous
+    # explicit ``pole_angular_closure=MorelMontryAngularSweep()`` was
+    # the unbound construction form that PR-TYPED-6.5 retired).
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials(ng=2))
     ng = 2
     sig_t = np.zeros((ng, nx, sn_mesh.ny))  # PR-INDEX-3 layout
     op = SNStreamingOperator(sn_mesh, sig_t)
@@ -913,12 +804,12 @@ def test_apply_spherical_constant_flux_under_morel_montry_canonical_form():
 def test_apply_cylindrical_wdd_recurrence_deterministic():
     """Cylindrical Phase C sweep-frame matvec is bit-stable.
 
-    Replaces the Phase A
-    ``test_apply_cylindrical_outer_face_uses_dd_extrapolation``
-    which pinned the now-retired BoundaryFaceFlux Protocol.
+    PR-TYPED-6c Step 7 retired the direct comparison to
+    ``transport_operator_matvec_cylindrical`` (the helper retired with
+    the rest of the legacy curvilinear matvec path). Determinism is
+    the only property still pinned here; matvec correctness lives in
+    ``tests/sn/test_unified_matvec_cylinder.py``.
     """
-    from orpheus.sn.operator import transport_operator_matvec_cylindrical
-
     sn_mesh = _cylindrical_mesh()
     sig_t = _sig_t_uniform(sn_mesh, ng=2)
     op = SNStreamingOperator(sn_mesh, sig_t)
@@ -931,19 +822,6 @@ def test_apply_cylindrical_wdd_recurrence_deterministic():
     via_op_1 = op.apply(psi)
     via_op_2 = op.apply(psi)
     np.testing.assert_array_equal(via_op_1, via_op_2)
-
-    reduced = sn_mesh.reduced
-    via_direct = transport_operator_matvec_cylindrical(
-        psi, eq_map, sn_mesh.quad, sig_t,
-        nx, ng,
-        reduced.face_areas, sn_mesh.volumes,
-        reduced.alpha_per_level, reduced.redist_dAw_per_level,
-        reduced.tau_mm_per_level,
-        sn_mesh=sn_mesh,
-        bc_outer=sn_mesh.bc_right,
-        pole_angular_closure=sn_mesh.pole_angular_closure,
-    )
-    np.testing.assert_array_equal(via_op_1, via_direct)
 
 
 def test_snmesh_no_longer_accepts_boundary_face_flux_kwarg():
