@@ -34,8 +34,17 @@ import pytest
 from orpheus.sn.spatial.pole_angular_closure import (
     MorelMontryAngularSweep,
     _MMHalfGrid,
-    _mm_psi_half_grid_single_level,
-    _mm_weighted_angular_recurrence_single_level,
+)
+
+# Phase 2.2 (PR-TYPED-6.5): the M-M recurrence kernels live as private
+# staticmethods on the strategy class.  Tests reach them via the class
+# attribute access (Pattern 4 — illegal access patterns unrepresentable
+# for external code; tests inspect the private surface deliberately).
+_mm_psi_half_grid_single_level = (
+    MorelMontryAngularSweep._psi_half_grid_single_level
+)
+_mm_weighted_angular_recurrence_single_level = (
+    MorelMontryAngularSweep._weighted_angular_recurrence_single_level
 )
 from orpheus.sn.spatial.psi_half_angle_seed import (
     CarlsonInwardSweep,

@@ -2,7 +2,7 @@ r"""Half-angle face flux seed strategies for the M-M angular recurrence.
 
 Issue #168 Phase D — closes ERR-026 on sphere SN MMS by replacing the
 hardcoded ``psi_half_left = 0`` seed in
-:func:`~orpheus.sn.spatial.pole_angular_closure._mm_weighted_angular_recurrence_single_level`
+:meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep._weighted_angular_recurrence_single_level`
 with the canonical Hébert §3.9.4 Carlson coupled-pole inward μ = −1
 sweep.
 
@@ -229,7 +229,7 @@ class PsiHalfAngleSeed(Protocol):
     r"""Strategy contract for the M-M recurrence's half-angle face flux seed.
 
     Produces the initial ``ψ_{1/2,i,g}`` value for
-    :func:`~orpheus.sn.spatial.pole_angular_closure._mm_weighted_angular_recurrence_single_level`.
+    :meth:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep._weighted_angular_recurrence_single_level`.
 
     The recurrence consumes this seed as ``psi_half_left`` at
     ``m = 0`` and propagates it forward across ordinates.

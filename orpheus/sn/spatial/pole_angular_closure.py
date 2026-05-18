@@ -365,7 +365,7 @@ class _MMHalfGrid:
 
     Two distinct consumers need DIFFERENT slices of this grid:
 
-    * The **redistribution body** (``_mm_weighted_angular_recurrence_single_level``)
+    * The **redistribution body** (``MorelMontryAngularSweep._weighted_angular_recurrence_single_level``)
       consumes the paired ``(m, m+1)`` access for each ordinate, computing
       :math:`R_m = (\Delta A/w)/V \cdot (\alpha_{m+1/2} \phi_{m+1/2}
       - \alpha_{m-1/2} \phi_{m-1/2})`. Use :attr:`faces` for direct
@@ -393,7 +393,7 @@ class _MMHalfGrid:
     ----------
     faces :
         Shape ``(ng, M+1, nx)``. The raw half-angle grid as produced by
-        :func:`_mm_psi_half_grid_single_level`. ``faces[g, 0, i]`` is
+        :meth:`MorelMontryAngularSweep._psi_half_grid_single_level`. ``faces[g, 0, i]`` is
         the Carlson seed at ordinate 0 (= upstream of m=0); for
         ``m = 1, …, M``, ``faces[g, m, i]`` is the half-angle face flux
         :math:`\phi_{m-1/2, i, g}` (upstream of ordinate m, downstream
@@ -461,181 +461,17 @@ class _MMHalfGrid:
         return self.faces[:, m + 1, :]
 
 
-def _mm_psi_half_grid_single_level(
-    psi_level: np.ndarray,           # (ng, M, nx) — ordinates within a level
-    tau_level: np.ndarray,           # (M,) — Morel-Montry τ clamp values
-    psi_half_seed: np.ndarray | None = None,  # (ng, nx) — Phase D Carlson seed
-) -> np.ndarray:
-    r"""Run the M-M angular recurrence and return the half-angle grid
-    :math:`\phi_{m\pm 1/2, i, g}`.
-
-    Issue #197 PR-TYPED-6b — the load-bearing intermediate the unified
-    matvec needs to consume.  Same Hébert §3.9.4 Eqs. 3.437 / 3.439
-    recurrence as :func:`_mm_weighted_angular_recurrence_single_level`,
-    but returns the half-angle grid (``(ng, M+1, nx)``) — one half-flux
-    per ordinate face for the level — instead of the redistribution
-    output that fuses ``(α_{m+1/2}·ψ_{m+1/2} − α_{m-1/2}·ψ_{m-1/2})``
-    with the geometry-redistribution coefficient ``(ΔA/w)/V``.
-
-    The matvec body consumes ``psi_half[g, m, i]`` to populate
-    ``cell_balance_for_streaming``'s ``psi_angular_upstream`` argument
-    — the M-M upstream half-angle flux for the cell-balance algebra.
-
-    Parameters
-    ----------
-    psi_level :
-        Shape ``(ng, M, nx)`` — the cell-centre angular flux at the
-        :math:`M` ordinates of the level.
-    tau_level :
-        Shape ``(M,)``: Morel-Montry :math:`\tau` clamp.
-    psi_half_seed :
-        Optional shape ``(ng, nx)``: the M-M recurrence's
-        :math:`\phi_{1/2,i,g}` seed (Phase D Carlson coupled-pole
-        output).  When ``None``, falls back to the Phase B hardcoded
-        zero seed (ERR-026 anti-pattern; ablation path).
-
-    Returns
-    -------
-    np.ndarray
-        Half-angle grid, shape ``(ng, M+1, nx)``.  ``psi_half[:, 0, :]``
-        is the recurrence seed :math:`\phi_{1/2, i, g}`;
-        ``psi_half[:, m+1, :]`` is :math:`\phi_{m+1/2, i, g}` for
-        :math:`m = 0, \ldots, M-1`.
-    """
-    ng, M, nx = psi_level.shape
-    psi_half = np.empty((ng, M + 1, nx), dtype=psi_level.dtype)
-    # Seed: Phase D Carlson coupled-pole if supplied, else Phase B zero.
-    if psi_half_seed is None:
-        psi_half[:, 0, :] = 0.0
-    else:
-        psi_half[:, 0, :] = psi_half_seed
-    for m in range(M):
-        tau_m = tau_level[m]
-        # M-M weighted DD angular closure (Hébert Eqs. 3.437 / 3.439 at
-        # τ=1/2; Bailey-Morel-Chang 2010 weighted DD for τ ∈ (1/2, 1]):
-        # ψ_{m+1/2,i,g} = (ψ_{m,i,g} - (1-τ_m)·ψ_{m-1/2,i,g}) / τ_m
-        psi_half[:, m + 1, :] = (
-            psi_level[:, m, :] - (1.0 - tau_m) * psi_half[:, m, :]
-        ) / tau_m
-    return psi_half
-
-
-def _mm_weighted_angular_recurrence_single_level(
-    psi_level: np.ndarray,           # (ng, M, nx) — ordinates within a level
-    alpha_level: np.ndarray,         # (M+1,)
-    dAw_level: np.ndarray,           # (nx, M)
-    tau_level: np.ndarray,           # (M,) — Morel-Montry τ clamp values
-    volume: np.ndarray,              # (nx,)
-    psi_half_seed: np.ndarray | None = None,  # (ng, nx) — Phase D Carlson seed
-) -> np.ndarray:
-    r"""Run Hébert's per-cell M-M weighted DD angular recurrence on a single level.
-
-    This is the algorithmic core of :class:`MorelMontryAngularSweep`,
-    factored as a free function so the cylindrical (per-level) and
-    spherical (single-level) callers share the recurrence kernel
-    bit-for-bit.  It also matches the angular closure used by the
-    :class:`~orpheus.sn.spatial.diamond.DiamondDifference` cell update
-    inside the sweep, so the apply matvec and the sweep solve the
-    **same** discrete fixed point — the load-bearing condition for
-    the sweep-equivalence test
-    (:file:`tests/sn/l1_analytical/test_pole_closure_sweep_equivalence.py`).
-
-    Per cell :math:`i`, per group :math:`g`:
-
-    .. math::
-
-       \phi_{1/2,i,g} &= 0, \\
-       \phi_{m+1/2,i,g} &= \frac{\phi_{m,i,g}
-                          \;-\; (1 - \tau_m)\,\phi_{m-1/2,i,g}}{\tau_m},
-       \qquad m = 1, \ldots, M.
-
-    At :math:`\tau_m = 1/2` the recurrence reduces to pure DD angular
-    :math:`\phi_{m+1/2,i,g} = 2\,\phi_{m,i,g} - \phi_{m-1/2,i,g}`
-    (Hébert Eqs. 3.437 / 3.439).  Then for ordinate :math:`m \in \{1,
-    \ldots, M\}`:
-
-    .. math::
-
-       R_{m,i,g} \;=\; \frac{(\Delta A/w)_{i,m}}{V_i}
-                       \bigl[\alpha_{m+1/2}\,\phi_{m+1/2,i,g}
-                           - \alpha_{m-1/2}\,\phi_{m-1/2,i,g}\bigr].
-
-    Parameters
-    ----------
-    psi_level :
-        Shape ``(ng, M, nx)`` — the cell-centre angular flux at the
-        :math:`M` ordinates of the level.
-    alpha_level :
-        Shape ``(M+1,)``: ``alpha_level[m]`` corresponds to
-        :math:`\alpha_{m-1/2}` in Hébert numbering (with
-        ``alpha_level[0] = 0 = α_{1/2}`` and
-        ``alpha_level[M] = 0 = α_{M+1/2}`` by GL antisymmetry).
-    dAw_level :
-        Shape ``(nx, M)``: :math:`\Delta A_i / w_m`.
-    tau_level :
-        Shape ``(M,)``: Morel-Montry :math:`\tau` clamp.  Read here
-        for the recurrence's denominator and weighting; the same
-        array drives the sweep's
-        :class:`~orpheus.sn.spatial.diamond.DiamondDifference`
-        cell update, so apply and sweep stay consistent.
-    volume :
-        Shape ``(nx,)``: cell volumes :math:`V_i`.
-    psi_half_seed :
-        Optional shape ``(ng, nx)``: the M-M recurrence's
-        :math:`\phi_{1/2,i,g}` seed.  Phase D (Issue #168) closure:
-        when supplied (the canonical Carlson coupled-pole inward
-        sweep output from
-        :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`),
-        the recurrence is consistent with the Hébert §3.9.4
-        starting-direction equation (3.432) and the per-ordinate
-        flat-flux residual collapses to machine precision on the
-        sphere Gate 1.1 MMS probe.  When ``None`` (Phase B legacy
-        default), the recurrence falls back to ``psi_half_left = 0``
-        — the wrong term initialisation that ERR-026 diagnoses, kept
-        as the regression-safety :class:`ZeroSeed` ablation path.
-
-    Returns
-    -------
-    np.ndarray
-        Redistribution term for this level, shape ``(ng, M, nx)``.
-    """
-    # Pattern 2 — single source of truth for the half-angle grid.
-    # Issue #197 PR-TYPED-6b refactor: delegate the recurrence to the
-    # new :func:`_mm_psi_half_grid_single_level` helper; this body now
-    # only assembles the redistribution from the grid the helper
-    # produces.  Bit-identical to the pre-refactor body at every
-    # ULP because both store the half-angle grid in the same dtype
-    # and apply the same recurrence formula (the only structural
-    # change is the explicit grid storage that exposes the
-    # intermediate for the matvec consumer).
-    #
-    # NOTE on the α-recursion normalisation: ORPHEUS's α-recursion
-    # (alpha_level[m+1] = alpha_level[m] - w[m]·μ[m]) absorbs Hébert's
-    # factor-of-2 (his recurrence is α_{n+1/2} = α_{n-1/2} - 2·𝒲_n·μ_n,
-    # his redistribution divisor is ΔS_i/(2·𝒲_n)).  α^O = α^H/2 ⟹
-    # (ΔA/w)·α^O = (ΔS/(2w))·α^H.  The Phase D fix is in the SEED of
-    # the M-M weighted DD recurrence (Hébert Eqs. 3.437/3.439 at
-    # τ=1/2), not in the α-recursion or geometry factor.
-    ng, M, nx = psi_level.shape
-    psi_half = _mm_psi_half_grid_single_level(
-        psi_level, tau_level, psi_half_seed=psi_half_seed,
-    )                                          # (ng, M+1, nx)
-    redist = np.empty((ng, M, nx), dtype=psi_level.dtype)
-    for m in range(M):
-        # Redistribution at (g, m, i):
-        # R = (ΔA_i / w_m) / V_i × (α_{m+1/2}·ψ_{m+1/2} - α_{m-1/2}·ψ_{m-1/2})
-        redist[:, m, :] = (
-            dAw_level[:, m].reshape(1, nx)
-            * (alpha_level[m + 1] * psi_half[:, m + 1, :]
-               - alpha_level[m] * psi_half[:, m, :])
-            / volume.reshape(1, nx)
-        )
-    return redist
-
-
 # ═══════════════════════════════════════════════════════════════════════
 # MorelMontryAngularSweep — Phase B canonical (default)
 # ═══════════════════════════════════════════════════════════════════════
+#
+# PR-TYPED-6.5 Phase 2.2: the M-M recurrence kernels (formerly the
+# free module-level ``_mm_psi_half_grid_single_level`` and
+# ``_mm_weighted_angular_recurrence_single_level``) live as private
+# staticmethods on the class.  External code never reaches into the
+# M-M algebra directly — every M-M consumer goes through the strategy's
+# public surface (``__call__`` for the legacy bundle path that retires
+# in PR-TYPED-6c Step 7, ``compute_psi_half_per_level`` for the matvec).
 
 
 @dataclass(frozen=True, slots=True)
@@ -723,6 +559,136 @@ class MorelMontryAngularSweep(
     for the architectural rationale (Option α — composition, not
     sibling Protocol)."""
 
+    # ── Recurrence kernels (PR-TYPED-6.5 Phase 2.2) ──────────────────
+    # The two staticmethods below are the M-M algebraic core.  They
+    # were free module-level functions (``_mm_psi_half_grid_single_level``
+    # and ``_mm_weighted_angular_recurrence_single_level``) until Phase
+    # 2.2 of PR-TYPED-6.5; the move into the class scope makes the M-M
+    # algebra inaccessible outside the strategy (Pattern 4 — illegal
+    # states unrepresentable on "who can run the M-M recurrence").
+
+    @staticmethod
+    def _psi_half_grid_single_level(
+        psi_level: np.ndarray,           # (ng, M, nx) — ordinates within a level
+        tau_level: np.ndarray,           # (M,) — Morel-Montry τ clamp values
+        psi_half_seed: np.ndarray | None = None,  # (ng, nx) — Phase D Carlson seed
+    ) -> np.ndarray:
+        r"""Run the M-M angular recurrence and return the half-angle grid
+        :math:`\phi_{m\pm 1/2, i, g}`.
+
+        Issue #197 PR-TYPED-6b — the load-bearing intermediate the unified
+        matvec needs to consume.  Same Hébert §3.9.4 Eqs. 3.437 / 3.439
+        recurrence as :meth:`_weighted_angular_recurrence_single_level`,
+        but returns the half-angle grid (``(ng, M+1, nx)``) — one half-flux
+        per ordinate face for the level — instead of the redistribution
+        output that fuses ``(α_{m+1/2}·ψ_{m+1/2} − α_{m-1/2}·ψ_{m-1/2})``
+        with the geometry-redistribution coefficient ``(ΔA/w)/V``.
+
+        The matvec body consumes ``psi_half[g, m, i]`` to populate
+        the angular upstream half-angle flux for the cell-balance algebra.
+
+        Parameters
+        ----------
+        psi_level :
+            Shape ``(ng, M, nx)`` — the cell-centre angular flux at the
+            :math:`M` ordinates of the level.
+        tau_level :
+            Shape ``(M,)``: Morel-Montry :math:`\tau` clamp.
+        psi_half_seed :
+            Optional shape ``(ng, nx)``: the M-M recurrence's
+            :math:`\phi_{1/2,i,g}` seed (Phase D Carlson coupled-pole
+            output).  When ``None``, falls back to the Phase B hardcoded
+            zero seed (ERR-026 anti-pattern; ablation path).
+
+        Returns
+        -------
+        np.ndarray
+            Half-angle grid, shape ``(ng, M+1, nx)``.  ``psi_half[:, 0, :]``
+            is the recurrence seed :math:`\phi_{1/2, i, g}`;
+            ``psi_half[:, m+1, :]`` is :math:`\phi_{m+1/2, i, g}` for
+            :math:`m = 0, \ldots, M-1`.
+        """
+        ng, M, nx = psi_level.shape
+        psi_half = np.empty((ng, M + 1, nx), dtype=psi_level.dtype)
+        # Seed: Phase D Carlson coupled-pole if supplied, else Phase B zero.
+        if psi_half_seed is None:
+            psi_half[:, 0, :] = 0.0
+        else:
+            psi_half[:, 0, :] = psi_half_seed
+        for m in range(M):
+            tau_m = tau_level[m]
+            # M-M weighted DD angular closure (Hébert Eqs. 3.437 / 3.439 at
+            # τ=1/2; Bailey-Morel-Chang 2010 weighted DD for τ ∈ (1/2, 1]):
+            # ψ_{m+1/2,i,g} = (ψ_{m,i,g} - (1-τ_m)·ψ_{m-1/2,i,g}) / τ_m
+            psi_half[:, m + 1, :] = (
+                psi_level[:, m, :] - (1.0 - tau_m) * psi_half[:, m, :]
+            ) / tau_m
+        return psi_half
+
+    @staticmethod
+    def _weighted_angular_recurrence_single_level(
+        psi_level: np.ndarray,           # (ng, M, nx) — ordinates within a level
+        alpha_level: np.ndarray,         # (M+1,)
+        dAw_level: np.ndarray,           # (nx, M)
+        tau_level: np.ndarray,           # (M,) — Morel-Montry τ clamp values
+        volume: np.ndarray,              # (nx,)
+        psi_half_seed: np.ndarray | None = None,  # (ng, nx) — Phase D Carlson seed
+    ) -> np.ndarray:
+        r"""Run Hébert's per-cell M-M weighted DD angular recurrence on a single level.
+
+        This is the algorithmic core of :class:`MorelMontryAngularSweep`,
+        kept as a class-private staticmethod so the cylindrical
+        (per-level) and spherical (single-level) callers share the
+        recurrence kernel bit-for-bit.  It also matches the angular
+        closure used by the
+        :class:`~orpheus.sn.spatial.diamond.DiamondDifference` cell update
+        inside the sweep, so the apply matvec and the sweep solve the
+        **same** discrete fixed point — the load-bearing condition for
+        the sweep-equivalence test
+        (:file:`tests/sn/l1_analytical/test_pole_closure_sweep_equivalence.py`).
+
+        Per cell :math:`i`, per group :math:`g`:
+
+        .. math::
+
+           \phi_{1/2,i,g} &= 0, \\
+           \phi_{m+1/2,i,g} &= \frac{\phi_{m,i,g}
+                              \;-\; (1 - \tau_m)\,\phi_{m-1/2,i,g}}{\tau_m},
+           \qquad m = 1, \ldots, M.
+
+        At :math:`\tau_m = 1/2` the recurrence reduces to pure DD angular
+        :math:`\phi_{m+1/2,i,g} = 2\,\phi_{m,i,g} - \phi_{m-1/2,i,g}`
+        (Hébert Eqs. 3.437 / 3.439).  Then for ordinate :math:`m \in \{1,
+        \ldots, M\}`:
+
+        .. math::
+
+           R_{m,i,g} \;=\; \frac{(\Delta A/w)_{i,m}}{V_i}
+                           \bigl[\alpha_{m+1/2}\,\phi_{m+1/2,i,g}
+                               - \alpha_{m-1/2}\,\phi_{m-1/2,i,g}\bigr].
+
+        See the prior free-function docstring for full parameter notes
+        — preserved verbatim in the pre-Phase-2.2 history if needed.
+        """
+        # Pattern 2 — single source of truth for the half-angle grid.
+        # Both the public ``compute_psi_half_per_level`` AND the
+        # redistribution body call into ``_psi_half_grid_single_level``.
+        ng, M, nx = psi_level.shape
+        psi_half = MorelMontryAngularSweep._psi_half_grid_single_level(
+            psi_level, tau_level, psi_half_seed=psi_half_seed,
+        )                                          # (ng, M+1, nx)
+        redist = np.empty((ng, M, nx), dtype=psi_level.dtype)
+        for m in range(M):
+            # Redistribution at (g, m, i):
+            # R = (ΔA_i / w_m) / V_i × (α_{m+1/2}·ψ_{m+1/2} - α_{m-1/2}·ψ_{m-1/2})
+            redist[:, m, :] = (
+                dAw_level[:, m].reshape(1, nx)
+                * (alpha_level[m + 1] * psi_half[:, m + 1, :]
+                   - alpha_level[m] * psi_half[:, m, :])
+                / volume.reshape(1, nx)
+            )
+        return redist
+
     def __call__(
         self,
         psi_cells: np.ndarray,
@@ -780,7 +746,7 @@ class MorelMontryAngularSweep(
                 psi_half_seed_arr = self.psi_half_seed(
                     psi_cells, carlson_context,
                 )
-            return _mm_weighted_angular_recurrence_single_level(
+            return self._weighted_angular_recurrence_single_level(
                 psi_cells, alpha_half, redist_dAw, tau_mm, volume,
                 psi_half_seed=psi_half_seed_arr,
             )
@@ -824,7 +790,7 @@ class MorelMontryAngularSweep(
                 psi_half_seed_arr = self.psi_half_seed(
                     psi_level, carlson_context[p],
                 )
-            redist_level = _mm_weighted_angular_recurrence_single_level(
+            redist_level = self._weighted_angular_recurrence_single_level(
                 psi_level, alpha_half[p], redist_dAw[p], tau_mm[p],
                 volume, psi_half_seed=psi_half_seed_arr,
             )
@@ -864,7 +830,7 @@ class MorelMontryAngularSweep(
 
         Pattern 2 — single source of truth.  Both this public method
         AND the redistribution body inside :meth:`__call__` route
-        through :func:`_mm_psi_half_grid_single_level`.  Composing the
+        through :meth:`_psi_half_grid_single_level`.  Composing the
         public method with the geometry-redistribution coefficient
         ``(ΔA/w)/V`` reproduces the redistribution output exactly,
         which is what the matvec body will exploit.
@@ -896,7 +862,7 @@ class MorelMontryAngularSweep(
 
         See Also
         --------
-        _mm_psi_half_grid_single_level :
+        _psi_half_grid_single_level :
             Free-function helper that this method delegates to.  The
             method's value-add is the strategy-bound Carlson seed
             construction AND the :class:`_MMHalfGrid` wrapping; the
@@ -910,7 +876,7 @@ class MorelMontryAngularSweep(
         psi_half_seed_arr: np.ndarray | None = None
         if carlson_context is not None:
             psi_half_seed_arr = self.psi_half_seed(psi_level, carlson_context)
-        faces = _mm_psi_half_grid_single_level(
+        faces = self._psi_half_grid_single_level(
             psi_level, tau_level, psi_half_seed=psi_half_seed_arr,
         )
         return _MMHalfGrid(faces=faces)
