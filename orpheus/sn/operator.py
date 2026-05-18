@@ -1342,34 +1342,29 @@ def transport_operator_matvec_unified(
     if pole_angular_closure is None and curvature != "cartesian":
         pole_angular_closure = MorelMontryAngularSweep()
 
-    # ── Per-level normalisation at the data boundary ─────────────────
+    # ── Per-level data sourced from the angular closure strategy ─────
     # Sphere, cylinder, slab all flow through the same per-level body.
-    # Slab and sphere are the 1-level case (level_indices = [arange(N)],
-    # M_p = N); cylinder iterates over its μ-levels.  Slab carries
-    # neutral M-M values (α = 0, τ = 1, ΔA/w = 0, A = 1) so the per-cell
-    # algebra collapses to the slab form 2|μ|·1 + Σ_t·V (Step 2.5
-    # principle — cell_balance_for_streaming is geometry-blind by data).
-    reduced = sn_mesh.reduced
+    # Slab and sphere are the 1-level case (level_indices = (arange(N),),
+    # M_p = N); cylinder iterates over its μ-levels.  The strategy owns
+    # the per-level partition and the M-M coefficients (α, τ, ΔA/w, and
+    # the derived c_in / c_out); the matvec body reads them via the
+    # canonical tuple-of-arrays interface (PR-TYPED-6.5 Phase 3a.3).
+    # ``IdentityAngularClosure`` (Cartesian) ships neutral values
+    # (α = 0, τ = 1, ΔA/w = 0, c_in = c_out = 0) so the per-cell algebra
+    # collapses to the slab form 2|μ|·1 + Σ_t·V (Step 2.5 principle —
+    # ``cell_balance_for_streaming`` is geometry-blind by data).
+    # ``sn_mesh.areas`` returns the geometry's face-area array
+    # (Cartesian: ones; cylinder: 2πr; sphere: 4πr²) — Phase 1
+    # canonicalised this on ``SNMesh`` directly.
     mu_x = quad.mu_x
     has_angular_closure = (curvature != "cartesian")
-    if curvature == "spherical":
-        level_indices: list[np.ndarray] = [np.arange(N)]
-        alpha_per_level: list[np.ndarray] = [reduced.alpha_half]
-        redist_dAw_per_level: list[np.ndarray] = [reduced.redist_dAw]
-        tau_mm_per_level: list[np.ndarray] = [reduced.tau_mm]
-        A = reduced.face_areas                                       # (nx+1,)
-    elif curvature == "cylindrical":
-        level_indices = quad.level_indices
-        alpha_per_level = reduced.alpha_per_level
-        redist_dAw_per_level = reduced.redist_dAw_per_level
-        tau_mm_per_level = reduced.tau_mm_per_level
-        A = reduced.face_areas                                       # (nx+1,)
-    else:  # cartesian (1-D slab)
-        level_indices = [np.arange(N)]
-        alpha_per_level = [np.zeros(N + 1)]                          # M-M neutral
-        redist_dAw_per_level = [np.zeros((nx, N))]                   # no redistribution
-        tau_mm_per_level = [np.ones(N)]                              # τ = 1 (neutral)
-        A = np.ones(nx + 1)                                          # slab face area
+    level_indices: tuple[np.ndarray, ...] = pole_angular_closure.level_indices
+    alpha_per_level: tuple[np.ndarray, ...] = pole_angular_closure._alpha_per_level
+    redist_dAw_per_level: tuple[np.ndarray, ...] = pole_angular_closure._dAw_per_level
+    tau_mm_per_level: tuple[np.ndarray, ...] = pole_angular_closure._tau_per_level
+    c_in_per_level: tuple[np.ndarray, ...] = pole_angular_closure._c_in_per_level
+    c_out_per_level: tuple[np.ndarray, ...] = pole_angular_closure._c_out_per_level
+    A = sn_mesh.areas                                                # (nx+1,)
 
     # ── Internal view: (ng, N, nx, ny) — group-leading for the
     # (ng, n_mask) per-cell algebra cell_balance_for_streaming consumes.
@@ -1382,17 +1377,20 @@ def transport_operator_matvec_unified(
     dr = sn_mesh.dx
 
     # ── Phase 1 spatial-upstream seed at the inner boundary ──────────
-    # Curvilinear: pole-face IC uses cell-centre at i=0 directly
-    # (Lewis-Miller §4.5 — r=0 is the geometric pole, not a real face,
-    #  so the cell-centre proxy preserves the per-ordinate flat-flux
-    #  invariant).
-    # Slab: x=0 IS a real boundary, so apply bc_left to the cell-centre
-    # ψ at i=0 (symmetric to the bc_outer.apply on the outer cell-centre
-    # used to seed the Carlson context).
-    if curvature == "cartesian":
-        pole_face_seed = bc_inner.apply(psi_view[:, :, 0, 0])        # (N, ng)
-    else:
+    # The predicate is structural, not curvature-keyed: ``bc_inner is
+    # None`` means the inner edge is a pole (sphere / cylinder solid at
+    # r=0 — Lewis-Miller §4.5: r=0 is the geometric pole, not a real
+    # face, so the cell-centre proxy preserves the per-ordinate
+    # flat-flux invariant). ``bc_inner is not None`` means there IS a
+    # real inner boundary (slab at x=0, future hollow sphere /
+    # annulus at r_inner), so apply ``bc_inner`` to the cell-centre ψ
+    # at i=0 (symmetric to the ``bc_outer.apply`` on the outer side).
+    # PR-TYPED-6.5 Phase 3a.1 retired the prior ``curvature ==
+    # "cartesian"`` dispatch at this site.
+    if bc_inner is None:
         pole_face_seed = psi_view[:, :, 0, 0].copy()                 # (N, ng)
+    else:
+        pole_face_seed = bc_inner.apply(psi_view[:, :, 0, 0])        # (N, ng)
 
     # ── Per-level Carlson contexts + _MMHalfGrid (curvilinear only) ──
     # Slab has no M-M angular closure (no curvature → ΔA/w = 0); skip
@@ -1434,22 +1432,13 @@ def transport_operator_matvec_unified(
             )
             half_grid_per_level.append(hg)
 
-    # ── Per-level M-M closure constants (c_in, c_out within-level) ───
-    # For ordinate m at level p: α_in = α_half[m], α_out = α_half[m+1].
-    #   c_out_m = α_out / τ_m
-    #   c_in_m  = (1 − τ_m)/τ_m · α_out + α_in
-    c_in_per_level: list[np.ndarray] = []
-    c_out_per_level: list[np.ndarray] = []
-    for p in range(len(level_indices)):
-        alpha_half_p = alpha_per_level[p]                            # (M_p+1,)
-        tau_mm_p = tau_mm_per_level[p]                               # (M_p,)
-        M_p = tau_mm_p.size
-        alpha_in_p = alpha_half_p[:M_p]
-        alpha_out_p = alpha_half_p[1:M_p + 1]
-        c_out_per_level.append(alpha_out_p / tau_mm_p)
-        c_in_per_level.append(
-            (1.0 - tau_mm_p) / tau_mm_p * alpha_out_p + alpha_in_p
-        )
+    # Per-level M-M closure constants (c_in, c_out within-level) are
+    # precomputed at strategy construction (see ``MorelMontryAngularSweep``
+    # / ``IdentityAngularClosure``).  The matvec reads them via the
+    # ``_c_in_per_level`` / ``_c_out_per_level`` tuples bound above.
+    # For ordinate m at level p (curvilinear): α_in = α_half[m],
+    # α_out = α_half[m+1], c_out_m = α_out / τ_m,
+    # c_in_m = (1 − τ_m)/τ_m · α_out + α_in.  Identity ships zeros.
 
     outflow_at_boundary = np.zeros((ng, N))
 
@@ -1518,15 +1507,18 @@ def transport_operator_matvec_unified(
         outflow_at_boundary[:, global_out] = psi_face_in
 
     # ── BC trace at outer face ───────────────────────────────
-    # Curvilinear: apply bc_outer to the WDD-propagated outward outflow at r=R.
-    # Slab: apply bc_xmax to the cell-centre ψ at the outer cell (i=nx-1) —
-    # symmetric to the pole_face_seed treatment at x=0. The matvec stays
-    # linear in ψ_view; the single-pass form does NOT chain inward outflow
-    # back into outward (that's the SI sweep's job, not the matvec's).
-    if curvature == "cartesian":
-        inflow_full = bc_outer.apply(psi_view[:, :, -1, 0])          # (N, ng)
-    else:
-        inflow_full = bc_outer.apply(outflow_at_boundary.T)          # (N, ng)
+    # Apply ``bc_outer`` to the WDD-propagated outward outflow at the
+    # outer face (r=R for curvilinear, x=L for slab).  The outward
+    # sweep above populates ``outflow_at_boundary[:, global_out]`` with
+    # the WDD-propagated face flux at the end of each level's outward
+    # leg; that IS the outer-face trace.  The matvec stays linear in
+    # ψ_view; the single-pass form does NOT chain inward outflow back
+    # into outward (that's the SI sweep's job, not the matvec's).
+    # PR-TYPED-6.5 Phase 3a.2 retired the Cartesian cell-centre-as-face
+    # proxy here — free correctness gain for slab (the previous code
+    # read ``psi_view[..., -1, 0]`` which is the cell-CENTRE at i=nx-1,
+    # not the face flux at x=L).
+    inflow_full = bc_outer.apply(outflow_at_boundary.T)              # (N, ng)
 
     # ── Phase 2: inward sweep per level (μ_x < 0) ────────────────
     for p, level_idx in enumerate(level_indices):

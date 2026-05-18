@@ -1119,8 +1119,29 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
         self._sn_mesh = sn_mesh
         self._N: int = sn_mesh.quad.N
         self._ng: int = sn_mesh.ng
+        nx = sn_mesh.nx
         # Trivial single-level partition: every ordinate in one level.
         self.level_indices: tuple[np.ndarray, ...] = (np.arange(self._N),)
+        # Neutral M-M coefficients per level — Cartesian carries no
+        # angular redistribution, so α_{±1/2} = 0, τ = 1, ΔA/w = 0, and
+        # the algebraic constants c_in = c_out = 0.  Exposed under the
+        # same private names M-M uses so the matvec body can read from
+        # the closure without geometry dispatch (PR-TYPED-6.5 Phase 3a.3).
+        self._alpha_per_level: tuple[np.ndarray, ...] = (
+            np.zeros(self._N + 1),
+        )
+        self._dAw_per_level: tuple[np.ndarray, ...] = (
+            np.zeros((nx, self._N)),
+        )
+        self._tau_per_level: tuple[np.ndarray, ...] = (
+            np.ones(self._N),
+        )
+        self._c_in_per_level: tuple[np.ndarray, ...] = (
+            np.zeros(self._N),
+        )
+        self._c_out_per_level: tuple[np.ndarray, ...] = (
+            np.zeros(self._N),
+        )
 
     # ── Strategy Protocol surface ────────────────────────────────────
 
