@@ -1316,41 +1316,55 @@ def transport_operator_matvec_unified(
     nx = sn_mesh.nx
     ny = sn_mesh.ny
     eps = 1e-15
-    curvature = getattr(sn_mesh, "curvature", "cartesian")
+    curvature_raw = getattr(sn_mesh, "curvature", None)
+    # ``SNMesh.curvature`` is ``None`` for Cartesian meshes.  Normalize.
+    curvature = curvature_raw if curvature_raw is not None else "cartesian"
 
-    if curvature == "cartesian":
-        raise NotImplementedError(
-            "transport_operator_matvec_unified Cartesian path is Step 4. "
-            "Use the legacy transport_operator_matvec for now."
-        )
-    if curvature not in ("spherical", "cylindrical"):
+    if curvature not in ("spherical", "cylindrical", "cartesian"):
         raise ValueError(f"Unknown curvature: {curvature!r}")
+    if curvature == "cartesian" and ny > 1:
+        raise NotImplementedError(
+            "transport_operator_matvec_unified 2-D Cartesian is not yet "
+            "wired through dag_walk; only 1-D slab (ny=1) is implemented. "
+            "2-D anti-diagonal wavefront sweeps remain on the legacy path."
+        )
 
     if bc_outer is None:
         bc_outer = sn_mesh.bc_right
+    bc_inner = sn_mesh.bc_left if curvature == "cartesian" else None
     if pole_angular_closure is None:
         pole_angular_closure = sn_mesh.pole_angular_closure
-    if pole_angular_closure is None:
+    if pole_angular_closure is None and curvature != "cartesian":
         pole_angular_closure = MorelMontryAngularSweep()
 
     # ── Per-level normalisation at the data boundary ─────────────────
-    # Sphere = 1-level case of cylinder. The body below operates on the
-    # per-level (μ-level) form uniformly; sphere wraps its single-array
-    # data into a 1-element list and the loop iterates once with M_p=N.
-    # This data-only normalisation is the only place curvature is read;
-    # the body itself is geometry-agnostic.
+    # Sphere, cylinder, slab all flow through the same per-level body.
+    # Slab and sphere are the 1-level case (level_indices = [arange(N)],
+    # M_p = N); cylinder iterates over its μ-levels.  Slab carries
+    # neutral M-M values (α = 0, τ = 1, ΔA/w = 0, A = 1) so the per-cell
+    # algebra collapses to the slab form 2|μ|·1 + Σ_t·V (Step 2.5
+    # principle — cell_balance_for_streaming is geometry-blind by data).
     reduced = sn_mesh.reduced
     mu_x = quad.mu_x
+    has_angular_closure = (curvature != "cartesian")
     if curvature == "spherical":
         level_indices: list[np.ndarray] = [np.arange(N)]
         alpha_per_level: list[np.ndarray] = [reduced.alpha_half]
         redist_dAw_per_level: list[np.ndarray] = [reduced.redist_dAw]
         tau_mm_per_level: list[np.ndarray] = [reduced.tau_mm]
-    else:  # cylindrical
+        A = reduced.face_areas                                       # (nx+1,)
+    elif curvature == "cylindrical":
         level_indices = quad.level_indices
         alpha_per_level = reduced.alpha_per_level
         redist_dAw_per_level = reduced.redist_dAw_per_level
         tau_mm_per_level = reduced.tau_mm_per_level
+        A = reduced.face_areas                                       # (nx+1,)
+    else:  # cartesian (1-D slab)
+        level_indices = [np.arange(N)]
+        alpha_per_level = [np.zeros(N + 1)]                          # M-M neutral
+        redist_dAw_per_level = [np.zeros((nx, N))]                   # no redistribution
+        tau_mm_per_level = [np.ones(N)]                              # τ = 1 (neutral)
+        A = np.ones(nx + 1)                                          # slab face area
 
     # ── Internal view: (ng, N, nx, ny) — group-leading for the
     # (ng, n_mask) per-cell algebra cell_balance_for_streaming consumes.
@@ -1358,44 +1372,62 @@ def transport_operator_matvec_unified(
     psi_g_first = psi_view.transpose(1, 0, 2, 3)                     # (ng, N, nx, ny)
     out_g_first = np.zeros((ng, N, nx, ny))
 
-    A = reduced.face_areas                                           # (nx+1,)
     V = sn_mesh.volumes[:, 0]                                        # (nx,)
     sigma_t_gx = sigma_t[:, :, 0]                                    # (ng, nx)
     dr = sn_mesh.dx
 
-    # ── Per-level Carlson contexts (one per μ-level) ─────────────────
-    outer_inflow_estimate = bc_outer.apply(psi_view[:, :, -1, 0])    # (N, ng)
-    carlson_ctx_per_level: list[CarlsonSweepContext] = []
-    for level_idx in level_indices:
-        level_idx_arr = np.asarray(level_idx)
-        mu_level = mu_x[level_idx_arr]
-        weights_level = quad.weights[level_idx_arr]
-        within_idx_most_inward = int(np.argmin(mu_level))
-        global_idx_most_inward = int(level_idx_arr[within_idx_most_inward])
-        bc_outer_value_level = outer_inflow_estimate[global_idx_most_inward, :]
-        carlson_ctx_per_level.append(
-            CarlsonSweepContext(
-                sigma_t=sigma_t_gx,
-                dr=dr,
-                mu_quad=mu_level.copy(),
-                weights=weights_level.copy(),
-                bc_outer_value=bc_outer_value_level,
-            )
-        )
+    # ── Phase 1 spatial-upstream seed at the inner boundary ──────────
+    # Curvilinear: pole-face IC uses cell-centre at i=0 directly
+    # (Lewis-Miller §4.5 — r=0 is the geometric pole, not a real face,
+    #  so the cell-centre proxy preserves the per-ordinate flat-flux
+    #  invariant).
+    # Slab: x=0 IS a real boundary, so apply bc_left to the cell-centre
+    # ψ at i=0 (symmetric to the bc_outer.apply on the outer cell-centre
+    # used to seed the Carlson context).
+    if curvature == "cartesian":
+        pole_face_seed = bc_inner.apply(psi_view[:, :, 0, 0])        # (N, ng)
+    else:
+        pole_face_seed = psi_view[:, :, 0, 0].copy()                 # (N, ng)
 
-    # ── Per-level MMHalfGrid (Pattern 4 typed accessor) ──────────────
-    # The half-grid's ``.upstream_per_ordinate`` makes off-by-one
-    # impossible to spell by API. Shape ``(ng, M_p, nx)`` per level.
-    psi_cells_g_first = psi_g_first[..., 0]                          # (ng, N, nx)
-    half_grid_per_level = []
-    for p, level_idx in enumerate(level_indices):
-        level_idx_arr = np.asarray(level_idx)
-        psi_level = psi_cells_g_first[:, level_idx_arr, :]           # (ng, M_p, nx)
-        hg = pole_angular_closure.compute_psi_half_per_level(
-            psi_level, tau_mm_per_level[p],
-            carlson_context=carlson_ctx_per_level[p],
-        )
-        half_grid_per_level.append(hg)
+    # ── Per-level Carlson contexts + MMHalfGrid (curvilinear only) ──
+    # Slab has no M-M angular closure (no curvature → ΔA/w = 0); skip
+    # the entire half-grid computation and pass psi_angular_upstream=None
+    # in the per-cell call.  cell_balance_for_streaming handles this
+    # branch (slab's redistribution and angular-upstream terms vanish
+    # naturally — no algebraic shortcut, just neutral data).
+    half_grid_per_level: list | None = None
+    if has_angular_closure:
+        outer_inflow_estimate = bc_outer.apply(psi_view[:, :, -1, 0])    # (N, ng)
+        carlson_ctx_per_level: list[CarlsonSweepContext] = []
+        for level_idx in level_indices:
+            level_idx_arr = np.asarray(level_idx)
+            mu_level = mu_x[level_idx_arr]
+            weights_level = quad.weights[level_idx_arr]
+            within_idx_most_inward = int(np.argmin(mu_level))
+            global_idx_most_inward = int(level_idx_arr[within_idx_most_inward])
+            bc_outer_value_level = outer_inflow_estimate[global_idx_most_inward, :]
+            carlson_ctx_per_level.append(
+                CarlsonSweepContext(
+                    sigma_t=sigma_t_gx,
+                    dr=dr,
+                    mu_quad=mu_level.copy(),
+                    weights=weights_level.copy(),
+                    bc_outer_value=bc_outer_value_level,
+                )
+            )
+
+        # MMHalfGrid (Pattern 4 typed accessor) per level.
+        # Shape ``(ng, M_p, nx)`` per level via ``.upstream_per_ordinate``.
+        psi_cells_g_first = psi_g_first[..., 0]                          # (ng, N, nx)
+        half_grid_per_level = []
+        for p, level_idx in enumerate(level_indices):
+            level_idx_arr = np.asarray(level_idx)
+            psi_level = psi_cells_g_first[:, level_idx_arr, :]           # (ng, M_p, nx)
+            hg = pole_angular_closure.compute_psi_half_per_level(
+                psi_level, tau_mm_per_level[p],
+                carlson_context=carlson_ctx_per_level[p],
+            )
+            half_grid_per_level.append(hg)
 
     # ── Per-level M-M closure constants (c_in, c_out within-level) ───
     # For ordinate m at level p: α_in = α_half[m], α_out = α_half[m+1].
@@ -1431,19 +1463,26 @@ def transport_operator_matvec_unified(
         c_in_sub = c_in_per_level[p][within_out_positions]
         c_out_sub = c_out_per_level[p][within_out_positions]
         redist_dAw_p = redist_dAw_per_level[p]                       # (nx, M_p)
-        upstream_p_all = half_grid_per_level[p].upstream_per_ordinate  # (ng, M_p, nx)
+        upstream_p_all = (
+            half_grid_per_level[p].upstream_per_ordinate            # (ng, M_p, nx)
+            if half_grid_per_level is not None else None
+        )
 
         visits = list(sn_mesh.dag_walk(direction_sign=+1, mu_level_idx=p))
         if not visits:
             continue
-        i0 = visits[0].cell_idx
-        # Pole-face IC: cell-centre value of pole cell (Lewis-Miller §4.5).
-        psi_face_in = psi_g_first[:, global_out, i0, 0].copy()       # (ng, n_out_p)
+        # Spatial-upstream face seed at the inner boundary (i = i0).
+        # Curvilinear: cell-centre proxy at the pole (no BC at r=0).
+        # Slab: bc_xmin-applied cell-centre at x=0.
+        psi_face_in = pole_face_seed[global_out, :].T                # (ng, n_out_p)
 
         for visit in visits:
             i = visit.cell_idx
             psi_cell = psi_g_first[:, global_out, i, 0]
-            psi_angular_upstream = upstream_p_all[:, within_out_positions, i]
+            psi_angular_upstream = (
+                upstream_p_all[:, within_out_positions, i]
+                if upstream_p_all is not None else None
+            )
 
             denom, numer_upstream = cell_balance_for_streaming(
                 abs_mu=mu_out,
@@ -1465,7 +1504,15 @@ def transport_operator_matvec_unified(
         outflow_at_boundary[:, global_out] = psi_face_in
 
     # ── BC trace at outer face ───────────────────────────────
-    inflow_full = bc_outer.apply(outflow_at_boundary.T)              # (N, ng)
+    # Curvilinear: apply bc_outer to the WDD-propagated outward outflow at r=R.
+    # Slab: apply bc_xmax to the cell-centre ψ at the outer cell (i=nx-1) —
+    # symmetric to the pole_face_seed treatment at x=0. The matvec stays
+    # linear in ψ_view; the single-pass form does NOT chain inward outflow
+    # back into outward (that's the SI sweep's job, not the matvec's).
+    if curvature == "cartesian":
+        inflow_full = bc_outer.apply(psi_view[:, :, -1, 0])          # (N, ng)
+    else:
+        inflow_full = bc_outer.apply(outflow_at_boundary.T)          # (N, ng)
 
     # ── Phase 2: inward sweep per level (μ_x < 0) ────────────────
     for p, level_idx in enumerate(level_indices):
@@ -1483,7 +1530,10 @@ def transport_operator_matvec_unified(
         c_in_sub = c_in_per_level[p][within_in_positions]
         c_out_sub = c_out_per_level[p][within_in_positions]
         redist_dAw_p = redist_dAw_per_level[p]
-        upstream_p_all = half_grid_per_level[p].upstream_per_ordinate
+        upstream_p_all = (
+            half_grid_per_level[p].upstream_per_ordinate
+            if half_grid_per_level is not None else None
+        )
 
         visits = list(sn_mesh.dag_walk(direction_sign=-1, mu_level_idx=p))
         if not visits:
@@ -1493,7 +1543,10 @@ def transport_operator_matvec_unified(
         for visit in visits:
             i = visit.cell_idx
             psi_cell = psi_g_first[:, global_in, i, 0]
-            psi_angular_upstream = upstream_p_all[:, within_in_positions, i]
+            psi_angular_upstream = (
+                upstream_p_all[:, within_in_positions, i]
+                if upstream_p_all is not None else None
+            )
 
             denom, numer_upstream = cell_balance_for_streaming(
                 abs_mu=abs_mu_in,
