@@ -259,7 +259,9 @@ def test_unified_cylinder_matches_hand_reference(
     psi_view = _bc_fill_outer(psi_view, sn_mesh)
     sigma_t = np.full((ng, n_cells, 1), 2.0)
 
-    m_unified = transport_operator_matvec_unified(psi_view, sn_mesh, sigma_t)
+    m_unified, _, _ = transport_operator_matvec_unified(
+        psi_view, sn_mesh, sigma_t,
+    )
     m_hand = _hand_reference_cyl_matvec(psi_view, sn_mesh, sigma_t)
 
     m_unified_u = _extract_at_unknown_slots(m_unified, eq_map)
@@ -283,7 +285,9 @@ def test_unified_cylinder_zero_psi_gives_zero() -> None:
     sigma_t = np.full((ng, sn_mesh.nx, 1), 2.0)
     psi_view = np.zeros((quad.N, ng, sn_mesh.nx, 1))
 
-    m_unified = transport_operator_matvec_unified(psi_view, sn_mesh, sigma_t)
+    m_unified, _, _ = transport_operator_matvec_unified(
+        psi_view, sn_mesh, sigma_t,
+    )
     np.testing.assert_array_equal(m_unified, np.zeros_like(m_unified))
 
 
@@ -299,7 +303,9 @@ def test_unified_cylinder_constant_psi_gives_sigma_t() -> None:
     sigma_t = np.full((ng, sn_mesh.nx, 1), sigma_t_val)
     psi_view = np.ones((quad.N, ng, sn_mesh.nx, 1))
 
-    m_unified = transport_operator_matvec_unified(psi_view, sn_mesh, sigma_t)
+    m_unified, _, _ = transport_operator_matvec_unified(
+        psi_view, sn_mesh, sigma_t,
+    )
     eq_map = build_equation_map_cylindrical(sn_mesh.nx, quad, ng)
     m_at_unknowns = _extract_at_unknown_slots(m_unified, eq_map)
     np.testing.assert_allclose(
@@ -406,7 +412,7 @@ def _patch_apply_to_unified():
         psi_view = solution_to_angular_flux_cylindrical(
             psi_packed, eq_map, quad, nx, ng,
         )
-        m_view = transport_operator_matvec_unified(
+        m_view, _, _ = transport_operator_matvec_unified(
             psi_view, sn_mesh, self.sig_t,
             bc_outer=sn_mesh.bc_right,
             pole_angular_closure=sn_mesh.pole_angular_closure,

@@ -152,7 +152,7 @@ class TestUnifiedMatvecSphere:
         )
 
         # Unified path: canonical → unified matvec.
-        m_unified = transport_operator_matvec_unified(
+        m_unified, _, _ = transport_operator_matvec_unified(
             psi_view, sn_mesh, sigma_t,
         )
 
@@ -181,7 +181,7 @@ class TestUnifiedMatvecSphere:
         sigma_t = np.full((ng, sn_mesh.nx, 1), sigma_t_val)
         psi_view = np.ones((sn_mesh.quad.N, ng, sn_mesh.nx, 1))
 
-        m_unified = transport_operator_matvec_unified(
+        m_unified, _, _ = transport_operator_matvec_unified(
             psi_view, sn_mesh, sigma_t,
         )
         # At constant ψ = 1: (L+C)·1 ≈ σ_t · 1 = 2.0 everywhere.
@@ -198,7 +198,7 @@ class TestUnifiedMatvecSphere:
         sigma_t = np.full((ng, sn_mesh.nx, 1), 2.0)
         psi_view = np.zeros((sn_mesh.quad.N, ng, sn_mesh.nx, 1))
 
-        m_unified = transport_operator_matvec_unified(
+        m_unified, _, _ = transport_operator_matvec_unified(
             psi_view, sn_mesh, sigma_t,
         )
         np.testing.assert_array_equal(

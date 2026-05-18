@@ -115,11 +115,23 @@ def _sig_t_heterogeneous(sn_mesh: SNMesh, ng: int = 2) -> np.ndarray:
 
 
 def _packed_psi(sn_mesh: SNMesh, ng: int, seed: int = 42) -> np.ndarray:
-    """Random packed-vector ψ matching the geometry's eq_map size."""
+    """Random packed-vector ψ matching :class:`StreamingOperator`'s
+    eq_map size.
+
+    PR-TYPED-6.5 Phase 3b — :class:`StreamingOperator` now uses the
+    B1'' face-aware packed layout for 1-D (cell-centres + outer-face
+    + inner-face for slab); :class:`SNStreamingOperator` retains the
+    legacy compressed layout (no face slots, curvilinear inward-at-
+    outer cell-centres BC-resolved).  ``_packed_psi`` sizes for the
+    new leaf; tests that compare against the legacy bundle need
+    their own legacy-sized random vector (or accept that B1'' fixes
+    the bug and the two layouts no longer overlap — see
+    :class:`TestCompositionEquivalence` xfail markers).
+    """
     sig_t = _sig_t_uniform(sn_mesh, ng=ng)
-    legacy = SNStreamingOperator(sn_mesh, sig_t)
+    L = StreamingOperator(sn_mesh, sig_t)
     rng = np.random.default_rng(seed)
-    return rng.standard_normal(legacy.n_unknowns)
+    return rng.standard_normal(L.n_unknowns)
 
 
 GEOMETRIES = [
@@ -263,16 +275,25 @@ class TestCompositionEquivalence:
         Sphere: bit-identical post-Step-5.  Cylinder + slab: xfail
         (intentional legacy divergence, see class docstring).
         """
-        if name in ("slab", "cylinder"):
-            request.node.add_marker(pytest.mark.xfail(
-                reason=(
-                    f"PR-TYPED-6c Step 5: L.apply uses unified WDD matvec; "
-                    f"legacy SNStreamingOperator uses {name}-specific legacy "
-                    f"matvec ({'ERR-049 routing bug' if name == 'cylinder' else 'FD via _compute_gradients'}). "
-                    f"Retires in Step 7."
-                ),
-                strict=True,
-            ))
+        # PR-TYPED-6.5 Phase 3b — B1'' face-state in the packed vector
+        # makes :class:`StreamingOperator`'s packed format structurally
+        # incompatible with :class:`SNStreamingOperator`'s legacy
+        # compressed layout: the cell-only block has different size
+        # (curvilinear B1'' includes inward-at-outer cells; SN
+        # compresses them) AND there's a face block in B1'' that has
+        # no SN analog.  Direct (out_sum == out_legacy) is no longer
+        # well-defined — different shapes.  ALL geometries xfail until
+        # ``SNStreamingOperator`` retires at Step 7.
+        request.node.add_marker(pytest.mark.xfail(
+            reason=(
+                "PR-TYPED-6.5 Phase 3b — StreamingOperator now uses "
+                "B1'' face-aware packed layout; SNStreamingOperator "
+                "uses legacy compressed layout.  Shape mismatch is "
+                "structural; comparison retires at Step 7 when "
+                "SNStreamingOperator goes away."
+            ),
+            strict=True,
+        ))
         sn_mesh = builder()
         ng = 2
         sig_t = _sig_t_uniform(sn_mesh, ng=ng, value=0.4)
@@ -293,15 +314,19 @@ class TestCompositionEquivalence:
         Sphere: bit-identical post-Step-5.  Cylinder + slab: xfail
         (intentional legacy divergence, see class docstring).
         """
-        if name in ("slab", "cylinder"):
-            request.node.add_marker(pytest.mark.xfail(
-                reason=(
-                    f"PR-TYPED-6c Step 5: L.apply uses unified WDD matvec; "
-                    f"legacy SNStreamingOperator uses {name}-specific legacy "
-                    f"matvec. Retires in Step 7."
-                ),
-                strict=True,
-            ))
+        # PR-TYPED-6.5 Phase 3b — see ``test_uniform_sigma_t_homogeneous``
+        # for the rationale; B1'' packed layout makes the (L+C) vs
+        # SNStreamingOperator comparison structurally incompatible for
+        # all 1-D geometries.
+        request.node.add_marker(pytest.mark.xfail(
+            reason=(
+                "PR-TYPED-6.5 Phase 3b — StreamingOperator now uses "
+                "B1'' face-aware packed layout; SNStreamingOperator "
+                "uses legacy compressed layout.  Shape mismatch is "
+                "structural; comparison retires at Step 7."
+            ),
+            strict=True,
+        ))
         sn_mesh = builder()
         ng = 2
         sig_t = _sig_t_heterogeneous(sn_mesh, ng=ng)
@@ -327,15 +352,19 @@ class TestCompositionEquivalence:
         Sphere: bit-identical post-Step-5.  Cylinder + slab: xfail
         (intentional legacy divergence, see class docstring).
         """
-        if name in ("slab", "cylinder"):
-            request.node.add_marker(pytest.mark.xfail(
-                reason=(
-                    f"PR-TYPED-6c Step 5: L.apply uses unified WDD matvec; "
-                    f"legacy SNStreamingOperator uses {name}-specific legacy "
-                    f"matvec. Retires in Step 7."
-                ),
-                strict=True,
-            ))
+        # PR-TYPED-6.5 Phase 3b — see ``test_uniform_sigma_t_homogeneous``
+        # for the rationale; B1'' packed layout makes the (L+C) vs
+        # SNStreamingOperator comparison structurally incompatible for
+        # all 1-D geometries.
+        request.node.add_marker(pytest.mark.xfail(
+            reason=(
+                "PR-TYPED-6.5 Phase 3b — StreamingOperator now uses "
+                "B1'' face-aware packed layout; SNStreamingOperator "
+                "uses legacy compressed layout.  Shape mismatch is "
+                "structural; comparison retires at Step 7."
+            ),
+            strict=True,
+        ))
         sn_mesh = builder()
         ng = 2
         sig_t = _sig_t_heterogeneous(sn_mesh, ng=ng)

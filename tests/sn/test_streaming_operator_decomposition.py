@@ -56,10 +56,9 @@ from orpheus.sn.operator import (
     CollisionOperator,
     StreamingOperator,
     build_equation_map,
-    build_equation_map_cylindrical,
-    build_equation_map_spherical,
-    solution_to_angular_flux,
-    solution_to_angular_flux_spherical,
+    build_equation_map_with_traces,
+    pack_with_traces,
+    solution_to_angular_flux_with_traces,
     transport_operator_matvec,
     transport_operator_matvec_unified,
 )
@@ -113,15 +112,21 @@ def _build_sn_mesh(geometry: str, n_cells: int = 5, n_ord: int = 4) -> SNMesh:
 
 
 def _eq_map_for(sn_mesh: SNMesh, ng: int):
-    """Geometry-dispatched EquationMap factory (same logic as the operators)."""
+    """Geometry-dispatched EquationMap factory matching
+    :meth:`StreamingOperator._ensure_eq_map` after PR-TYPED-6.5 Phase 3b.
+
+    1-D paths use the B1'' face-aware layout (cell-centres + face
+    slots); 2-D Cartesian retains the legacy FD layout.
+    """
     nx, ny = sn_mesh.nx, sn_mesh.ny
     quad = sn_mesh.quad
     curv = getattr(sn_mesh, "curvature", None)
-    if curv == "spherical":
-        return build_equation_map_spherical(nx, quad, ng)
-    if curv == "cylindrical":
-        return build_equation_map_cylindrical(nx, quad, ng)
-    return build_equation_map(nx, ny, quad, ng)
+    if curv is None and ny > 1:
+        return build_equation_map(nx, ny, quad, ng)
+    has_inner_bc = (curv is None)
+    return build_equation_map_with_traces(
+        nx, quad, ng, has_inner_bc=has_inner_bc,
+    )
 
 
 def _call_matvec(sn_mesh: SNMesh, psi_vec: np.ndarray,
@@ -132,6 +137,10 @@ def _call_matvec(sn_mesh: SNMesh, psi_vec: np.ndarray,
     PR-TYPED-6c Step 5 — 1-D slab / sphere / cylinder all route through
     :func:`transport_operator_matvec_unified`; 2-D Cartesian remains on
     the legacy FD path (anti-diagonal wavefront, not dag_walk).
+
+    PR-TYPED-6.5 Phase 3b — 1-D paths consume the B1'' face-aware
+    packed layout via :func:`solution_to_angular_flux_with_traces` and
+    :func:`pack_with_traces`.
     """
     nx, ny = sn_mesh.nx, sn_mesh.ny
     quad = sn_mesh.quad
@@ -146,24 +155,22 @@ def _call_matvec(sn_mesh: SNMesh, psi_vec: np.ndarray,
             bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
         )
 
-    # 1-D slab / sphere / cylinder — unified.
-    if curv is None:
-        psi_view = solution_to_angular_flux(
-            psi_vec, eq_map, quad, nx, ny, ng,
-            bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
-            bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
+    # 1-D B1'' face-aware path.
+    psi_cell, psi_face_outer, psi_face_inner = (
+        solution_to_angular_flux_with_traces(
+            psi_vec, eq_map, nx, ng, N=quad.N,
         )
-    else:
-        psi_view = solution_to_angular_flux_spherical(
-            psi_vec, eq_map, quad, nx, ng,
-        )
-    m_view = transport_operator_matvec_unified(psi_view, sn_mesh, sigma_t_arr)
-    flux = np.empty((ng, eq_map.n_eq))
-    for k in range(eq_map.n_eq):
-        flux[:, k] = m_view[
-            eq_map.ordinate[k], :, eq_map.ix[k], eq_map.iy[k],
-        ]
-    return flux.ravel(order='F')
+    )
+    face_outer_arg = psi_face_outer if eq_map.n_face_outer > 0 else None
+    face_inner_arg = psi_face_inner if eq_map.n_face_inner > 0 else None
+    m_cell, m_face_outer, m_face_inner = transport_operator_matvec_unified(
+        psi_cell, sn_mesh, sigma_t_arr,
+        psi_face_outer=face_outer_arg,
+        psi_face_inner=face_inner_arg,
+        face_outer_ordinate=eq_map.face_outer_ordinate,
+        face_inner_ordinate=eq_map.face_inner_ordinate,
+    )
+    return pack_with_traces(m_cell, m_face_outer, m_face_inner, eq_map)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -242,10 +249,16 @@ class TestSubtractiveDefinition:
 
         m_full = _call_matvec(sn_mesh, psi_vec, sigma_t, eq_map, ng)
         # PR-INDEX-3: σ_t shape (ng, nx, ny); advanced index gives (ng, n_eq).
-        sigma_packed = sigma_t[
+        # PR-TYPED-6.5 Phase 3b: B1'' face slots carry no volumetric
+        # collision; build the σ_t subtraction vector for the cell-
+        # centre block only and zero-pad the face block.
+        sigma_packed_cell = sigma_t[
             :, eq_map.ix, eq_map.iy
         ].ravel(order='F')
-        expected = m_full - sigma_packed * psi_vec
+        n_cell_scalars = eq_map.n_eq * ng
+        expected = m_full.copy()
+        expected[:n_cell_scalars] -= sigma_packed_cell * psi_vec[:n_cell_scalars]
+        # face slots: expected[n_cell_scalars:] = m_full[face] − 0
 
         # Bit-exact: L.apply IS the subtractive formula.
         np.testing.assert_array_equal(l_apply, expected)
