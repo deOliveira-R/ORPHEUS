@@ -96,6 +96,7 @@ from __future__ import annotations
 from typing import Callable, Protocol
 
 import numpy as np
+import scipy.sparse.linalg as spla
 
 from .operator import (
     CAP_APPLY,
@@ -108,6 +109,7 @@ from .operator import (
 
 __all__ = [
     "SourceIteration",
+    "KrylovAcceleration",
     "KEigenvalue",
 ]
 
@@ -352,6 +354,238 @@ class SourceIteration:
                 break
 
         return psi, residual_history
+
+
+# ───────────────────────────────────────────────────────────────────────
+# KrylovAcceleration
+# ───────────────────────────────────────────────────────────────────────
+
+
+class KrylovAcceleration:
+    r"""GMRES on :math:`(L - S - F)\,\psi = q_{\rm ext}` — sibling of
+    :class:`SourceIteration` for the same algebra.
+
+    Both primitives solve the same fixed-source equation; they differ
+    in algorithm.  :class:`SourceIteration` lags :math:`(S + F)\,\psi`
+    as the right-hand side and inverts :math:`L` at every step
+    (geometric convergence at rate :math:`\rho(L^{-1}(S+F)) \le
+    \max\Sigma_s/\Sigma_t`).  :class:`KrylovAcceleration` builds the
+    composed matvec :math:`(L - S - F)\cdot` as a single linear operator
+    and solves it with GMRES, optionally preconditioned by :math:`L^{-1}`
+    (the sweep).  When the scattering ratio :math:`c = \Sigma_s/\Sigma_t`
+    approaches 1, GMRES converges in :math:`\mathcal{O}(\sqrt{\kappa})`
+    matvecs vs source iteration's :math:`\mathcal{O}(1/(1-c))` — the
+    standard transport-Krylov win documented in Adams & Larsen 2002
+    (the SAILOR / preconditioned-Krylov framework).
+
+    Algebra-of-record:
+
+    .. math::
+
+        (L - S - F)\,\psi \;=\; q_{\rm ext}.
+
+    The composed matvec is realised as ``L.apply(psi) - S.apply(psi) -
+    F.apply(psi)`` per call — no intermediate :class:`OperatorSum`
+    allocation.  The right-hand side is whatever shape the operator
+    triple consumes; scipy GMRES requires a flat 1-D view internally,
+    so the primitive ravels at the boundary and reshapes the solution
+    back to ``q_ext.shape`` on return.
+
+    The ``inverter`` parameter — preconditioner hook
+    ================================================
+
+    Unlike :class:`SourceIteration` (where ``inverter`` realises
+    :math:`L^{-1}` as the iteration's INVERSE step), in
+    :class:`KrylovAcceleration` ``inverter`` is the GMRES PRECONDITIONER
+    :math:`M \approx A^{-1}` where :math:`A = L - S - F`.  The natural
+    choice for transport problems is :math:`M = L^{-1}` (the sweep) —
+    this is the "transport-corrected" preconditioner from Adams & Larsen
+    2002 §III.  When :math:`c` is small, the sweep is an excellent
+    preconditioner; when :math:`c` is near unity, the sweep is
+    diffusion-like and GMRES needs more iterations.
+
+    * ``inverter = None`` (default): if ``L`` advertises
+      :pydata:`CAP_SOLVE`, use ``L.solve`` as the preconditioner;
+      otherwise, no preconditioner (identity ``M = I``).
+    * ``inverter = lambda q: sweep_preconditioner(q)``: caller-supplied
+      preconditioner.  Typically wraps a sweep that consumes the same
+      packed/structured layout the operators consume.
+
+    Parameters
+    ----------
+    L, S, F : LinearOperator
+        Operator triple.  Must each advertise :pydata:`CAP_APPLY`.
+        Pass :class:`ZeroOperator` for absent terms (e.g. ``F = Zero``
+        for within-group fixed-source: :class:`KEigenvalue` builds the
+        fission source as an EXTERNAL :math:`q_{\rm ext}` and zeroes
+        the within-group ``F``).
+    inverter : callable or None, optional
+        GMRES left preconditioner.  See above.  When ``None`` and
+        ``L`` has no :pydata:`CAP_SOLVE`, runs GMRES without
+        preconditioner.
+    max_iter : int, optional
+        Maximum GMRES iterations (``maxiter`` in scipy).  Default
+        ``1000``.
+    tol : float, optional
+        GMRES relative residual tolerance (``rtol`` in scipy).
+        Default ``1e-8``.
+    restart : int, optional
+        GMRES restart length.  Default ``50``.  Clamped to ``n`` at
+        :meth:`solve` time.
+
+    Raises
+    ------
+    MissingCapability
+        At construction time if any of ``L``, ``S``, ``F`` lacks
+        :pydata:`CAP_APPLY`.
+
+    Notes
+    -----
+    The primitive is shape-agnostic at the operator-triple level — it
+    only requires that the operators all consume and return arrays of
+    the same shape as ``q_ext``.  Internally it ravels to 1-D for
+    scipy's GMRES requirement and reshapes the solution to
+    ``q_ext.shape`` on return.
+    """
+
+    def __init__(
+        self,
+        L: LinearOperator,
+        S: LinearOperator,
+        F: LinearOperator,
+        *,
+        inverter: Inverter | None = None,
+        max_iter: int = 1000,
+        tol: float = 1e-8,
+        restart: int = 50,
+    ) -> None:
+        if not _has(L, CAP_APPLY):
+            raise MissingCapability(
+                f"KrylovAcceleration requires {CAP_APPLY!r} on L; "
+                f"{type(L).__name__} advertises "
+                f"{getattr(L, 'capabilities', frozenset())}."
+            )
+        if not _has(S, CAP_APPLY):
+            raise MissingCapability(
+                f"KrylovAcceleration requires {CAP_APPLY!r} on S; "
+                f"{type(S).__name__} advertises "
+                f"{getattr(S, 'capabilities', frozenset())}."
+            )
+        if not _has(F, CAP_APPLY):
+            raise MissingCapability(
+                f"KrylovAcceleration requires {CAP_APPLY!r} on F; "
+                f"{type(F).__name__} advertises "
+                f"{getattr(F, 'capabilities', frozenset())}."
+            )
+
+        self.L = L
+        self.S = S
+        self.F = F
+        self.max_iter = int(max_iter)
+        self.tol = float(tol)
+        self.restart = int(restart)
+
+        # Pin the preconditioner choice at construction.  If caller
+        # supplied one, use it.  Otherwise, fall back to L.solve when
+        # available; if not, run GMRES without preconditioner.
+        if inverter is not None:
+            self._preconditioner: Inverter | None = inverter
+        elif _has(L, CAP_SOLVE):
+            self._preconditioner = lambda q: self.L.solve(q)  # type: ignore[attr-defined]
+        else:
+            self._preconditioner = None
+
+    def solve(
+        self,
+        q_ext: np.ndarray,
+        initial_guess: np.ndarray | None = None,
+    ) -> tuple[np.ndarray, list[float]]:
+        r"""Run GMRES on :math:`(L - S - F)\,\psi = q_{\rm ext}` to convergence.
+
+        Parameters
+        ----------
+        q_ext : np.ndarray
+            External source.  Whatever shape the operator triple
+            consumes — ravelled to 1-D internally for scipy GMRES,
+            reshaped back to ``q_ext.shape`` on return.
+        initial_guess : np.ndarray or None, optional
+            GMRES initial iterate.  When ``None`` (default), starts
+            from :func:`np.zeros_like` of ``q_ext``.
+
+        Returns
+        -------
+        psi : np.ndarray
+            Converged solution, shape ``q_ext.shape``.
+        residual_history : list[float]
+            Preconditioned residual norm at every GMRES inner iteration
+            (scipy's ``callback_type='pr_norm'``).  Empty if GMRES
+            returned in zero iterations.
+        """
+        original_shape = q_ext.shape
+        b = np.asarray(q_ext, dtype=float).ravel()
+        n = b.size
+
+        def A_matvec(psi_flat: np.ndarray) -> np.ndarray:
+            # Reshape to original layout, compose (L − S − F)·ψ, ravel.
+            psi = psi_flat.reshape(original_shape)
+            out = self.L.apply(psi) - self.S.apply(psi) - self.F.apply(psi)
+            return np.asarray(out).ravel()
+
+        A_scipy = spla.LinearOperator((n, n), matvec=A_matvec, dtype=float)
+
+        if self._preconditioner is not None:
+            precond_fn = self._preconditioner
+
+            def M_matvec(q_flat: np.ndarray) -> np.ndarray:
+                q = q_flat.reshape(original_shape)
+                out = precond_fn(q)
+                return np.asarray(out).ravel()
+
+            M_scipy: spla.LinearOperator | None = spla.LinearOperator(
+                (n, n), matvec=M_matvec, dtype=float,
+            )
+        else:
+            M_scipy = None
+
+        x0 = (
+            np.asarray(initial_guess, dtype=float).ravel()
+            if initial_guess is not None
+            else np.zeros_like(b)
+        )
+
+        residual_history: list[float] = []
+
+        def callback(rk: object) -> None:
+            # scipy GMRES with callback_type='pr_norm' passes the
+            # preconditioned-residual norm (a scalar).  Older versions
+            # may pass the residual vector — handle both defensively.
+            r = np.asarray(rk)
+            if r.ndim == 0:
+                residual_history.append(float(r))
+            else:
+                residual_history.append(float(np.linalg.norm(r)))
+
+        try:
+            solution, _info = spla.gmres(
+                A_scipy, b, x0=x0, M=M_scipy,
+                rtol=self.tol, atol=0.0,
+                maxiter=self.max_iter,
+                restart=min(self.restart, n),
+                callback=callback,
+                callback_type='pr_norm',
+            )
+        except TypeError:
+            # Older scipy versions use ``tol`` instead of ``rtol`` and
+            # may not honour ``callback_type``.  Drop both keywords.
+            solution, _info = spla.gmres(
+                A_scipy, b, x0=x0, M=M_scipy,
+                tol=self.tol,
+                maxiter=self.max_iter,
+                restart=min(self.restart, n),
+                callback=callback,
+            )
+
+        return solution.reshape(original_shape), residual_history
 
 
 # ───────────────────────────────────────────────────────────────────────

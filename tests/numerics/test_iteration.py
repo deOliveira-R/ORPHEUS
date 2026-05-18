@@ -30,7 +30,11 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh1D
-from orpheus.numerics.iteration import KEigenvalue, SourceIteration
+from orpheus.numerics.iteration import (
+    KEigenvalue,
+    KrylovAcceleration,
+    SourceIteration,
+)
 from orpheus.numerics.operator import (
     CAP_APPLY,
     CAP_APPLY_TRANSPOSE,
@@ -182,6 +186,190 @@ def test_source_iteration_inverter_override():
     si = SourceIteration(L, S, F, inverter=inverter, max_iter=500, tol=1e-14)
     psi, _ = si.solve(q)
     np.testing.assert_allclose(psi, expected, atol=1e-12)
+
+
+# ───────────────────────────────────────────────────────────────────────
+# Foundation: synthetic KrylovAcceleration (R-1 sibling of SourceIteration)
+# ───────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.foundation
+def test_krylov_acceleration_recovers_direct_solve(rng):
+    """L0 ground truth: KrylovAcceleration on (L − S) matches np.linalg.solve.
+
+    Same algebraic setup as
+    :func:`test_source_iteration_recovers_direct_solve`.  GMRES on
+    the composed (L − S) matvec, with L.solve as the default
+    preconditioner.  Convergence to 1e-10 should take far fewer
+    matvecs than source iteration because L − S is well-conditioned.
+    """
+    n = 4
+    L_mat = np.eye(n) * 4.0 + 0.1 * rng.standard_normal((n, n))
+    L_mat = 0.5 * (L_mat + L_mat.T) + n * np.eye(n)
+    S_mat = 0.05 * rng.standard_normal((n, n))
+
+    L = MatrixOperator(L_mat, can_solve=True)
+    S = MatrixOperator(S_mat)
+    F = ZeroOperator()
+
+    q = rng.standard_normal(n)
+    expected = np.linalg.solve(L_mat - S_mat, q)
+
+    krylov = KrylovAcceleration(L, S, F, max_iter=200, tol=1e-12)
+    psi, residuals = krylov.solve(q)
+
+    np.testing.assert_allclose(psi, expected, atol=1e-10, rtol=1e-10)
+    assert residuals, "GMRES callback never fired"
+    assert residuals[-1] < 1e-8, (
+        f"GMRES residual did not reach 1e-8; final={residuals[-1]:.2e}"
+    )
+
+
+@pytest.mark.foundation
+def test_krylov_acceleration_with_fission_term(rng):
+    """KrylovAcceleration on full (L − S − F) recovers direct solve."""
+    n = 4
+    L_mat = np.eye(n) * 5.0 + 0.05 * rng.standard_normal((n, n))
+    L_mat = 0.5 * (L_mat + L_mat.T) + n * np.eye(n)
+    S_mat = 0.05 * rng.standard_normal((n, n))
+    F_mat = 0.05 * rng.standard_normal((n, n))
+
+    L = MatrixOperator(L_mat, can_solve=True)
+    S = MatrixOperator(S_mat)
+    F = MatrixOperator(F_mat)
+
+    q = rng.standard_normal(n)
+    expected = np.linalg.solve(L_mat - S_mat - F_mat, q)
+
+    krylov = KrylovAcceleration(L, S, F, max_iter=200, tol=1e-12)
+    psi, _ = krylov.solve(q)
+
+    np.testing.assert_allclose(psi, expected, atol=1e-10, rtol=1e-10)
+
+
+@pytest.mark.foundation
+def test_krylov_acceleration_inverter_override():
+    """Caller-supplied preconditioner shadows L.solve.
+
+    Pass an L that lacks ``CAP_SOLVE`` but supply ``inverter`` —
+    construction must succeed and GMRES must converge using the
+    supplied preconditioner.
+    """
+    n = 3
+    L_mat = np.diag([5.0, 6.0, 7.0])
+    S_mat = 0.1 * np.array([[0.0, 1.0, 0.0],
+                            [1.0, 0.0, 1.0],
+                            [0.0, 1.0, 0.0]])
+
+    L = MatrixOperator(L_mat, can_solve=False)
+    S = MatrixOperator(S_mat)
+    F = ZeroOperator()
+
+    inv_L = np.linalg.inv(L_mat)
+    inverter = lambda q: inv_L @ q
+
+    q = np.array([1.0, 2.0, 3.0])
+    expected = np.linalg.solve(L_mat - S_mat, q)
+
+    krylov = KrylovAcceleration(
+        L, S, F, inverter=inverter, max_iter=100, tol=1e-12,
+    )
+    psi, _ = krylov.solve(q)
+    np.testing.assert_allclose(psi, expected, atol=1e-10)
+
+
+@pytest.mark.foundation
+def test_krylov_acceleration_works_without_preconditioner():
+    """KrylovAcceleration runs unpreconditioned when L lacks CAP_SOLVE.
+
+    No ``inverter`` supplied, no ``CAP_SOLVE`` on L — GMRES still
+    converges, just with more iterations (M = I, the identity
+    preconditioner).
+    """
+    n = 5
+    # Well-conditioned diagonal-dominant L so unpreconditioned GMRES
+    # still converges quickly.
+    L_mat = np.eye(n) * 10.0
+    L = MatrixOperator(L_mat, can_solve=False)
+    S = ZeroOperator()
+    F = ZeroOperator()
+
+    q = np.arange(1.0, n + 1.0)
+    expected = q / 10.0
+
+    krylov = KrylovAcceleration(L, S, F, max_iter=50, tol=1e-12)
+    assert krylov._preconditioner is None, (
+        "Expected no preconditioner when L lacks CAP_SOLVE and no "
+        "inverter is supplied."
+    )
+    psi, _ = krylov.solve(q)
+    np.testing.assert_allclose(psi, expected, atol=1e-10)
+
+
+@pytest.mark.foundation
+def test_krylov_acceleration_high_scattering_beats_source_iteration():
+    """At c → 1, GMRES converges in many fewer matvecs than SI.
+
+    The whole point of the KrylovAcceleration sibling is the
+    spectral-radius win when the scattering ratio is high.  Pin the
+    qualitative win at c ≈ 0.9 (~ρ(L⁻¹S) ≈ 0.9 ⇒ SI needs
+    ~log(tol)/log(0.9) ≈ 220 iterations to reach 1e-10 vs GMRES at
+    well under that).
+    """
+    n = 8
+    # Diagonal L; nearly-uniform S to make ρ(L⁻¹·S) ≈ 0.9.
+    L_mat = np.eye(n) * 1.0
+    # All entries = 0.9/n so the row-sum is 0.9 and L⁻¹·S has spectral
+    # radius exactly 0.9.
+    S_mat = np.full((n, n), 0.9 / n)
+    L = MatrixOperator(L_mat, can_solve=True)
+    S = MatrixOperator(S_mat)
+    F = ZeroOperator()
+    q = np.arange(1.0, n + 1.0)
+
+    si = SourceIteration(L, S, F, max_iter=500, tol=1e-10)
+    _, si_residuals = si.solve(q)
+
+    krylov = KrylovAcceleration(L, S, F, max_iter=500, tol=1e-10)
+    _, kr_residuals = krylov.solve(q)
+
+    # GMRES should converge in well under SI's iteration count.  The
+    # exact ratio is problem-dependent; pin the qualitative gap at 5×.
+    assert len(kr_residuals) < len(si_residuals) / 5, (
+        f"KrylovAcceleration ({len(kr_residuals)} iters) was not "
+        f"meaningfully faster than SourceIteration "
+        f"({len(si_residuals)} iters) at c=0.9 — the algorithmic win "
+        f"that motivates the sibling primitive is missing."
+    )
+
+
+@pytest.mark.foundation
+def test_krylov_acceleration_requires_apply_on_L():
+    class BrokenL:
+        capabilities = frozenset()
+
+    with pytest.raises(MissingCapability, match=r"requires 'apply' on L"):
+        KrylovAcceleration(BrokenL(), ZeroOperator(), ZeroOperator())
+
+
+@pytest.mark.foundation
+def test_krylov_acceleration_requires_apply_on_S():
+    class BrokenS:
+        capabilities = frozenset()
+
+    L = MatrixOperator(np.eye(3), can_solve=True)
+    with pytest.raises(MissingCapability, match=r"requires 'apply' on S"):
+        KrylovAcceleration(L, BrokenS(), ZeroOperator())
+
+
+@pytest.mark.foundation
+def test_krylov_acceleration_requires_apply_on_F():
+    class BrokenF:
+        capabilities = frozenset()
+
+    L = MatrixOperator(np.eye(3), can_solve=True)
+    with pytest.raises(MissingCapability, match=r"requires 'apply' on F"):
+        KrylovAcceleration(L, ZeroOperator(), BrokenF())
 
 
 # ───────────────────────────────────────────────────────────────────────
