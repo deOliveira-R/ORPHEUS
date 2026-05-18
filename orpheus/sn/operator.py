@@ -1473,16 +1473,17 @@ def transport_operator_matvec_unified(
             if half_grid_per_level is not None else None
         )
 
-        visits = list(sn_mesh.dag_walk(direction_sign=+1, mu_level_idx=p))
-        if not visits:
+        cell_indices_outward = list(
+            sn_mesh.dag_walk_cell_indices(direction_sign=+1, mu_level_idx=p)
+        )
+        if not cell_indices_outward:
             continue
         # Spatial-upstream face seed at the inner boundary (i = i0).
         # Curvilinear: cell-centre proxy at the pole (no BC at r=0).
         # Slab: bc_xmin-applied cell-centre at x=0.
         psi_face_in = pole_face_seed[global_out, :].T                # (ng, n_out_p)
 
-        for visit in visits:
-            i = visit.cell_idx
+        for i in cell_indices_outward:
             psi_cell = psi_g_first[:, global_out, i, 0]
             psi_angular_upstream = (
                 upstream_p_all[:, within_out_positions, i]
@@ -1540,13 +1541,14 @@ def transport_operator_matvec_unified(
             if half_grid_per_level is not None else None
         )
 
-        visits = list(sn_mesh.dag_walk(direction_sign=-1, mu_level_idx=p))
-        if not visits:
+        cell_indices_inward = list(
+            sn_mesh.dag_walk_cell_indices(direction_sign=-1, mu_level_idx=p)
+        )
+        if not cell_indices_inward:
             continue
         psi_face_in = inflow_full[global_in, :].T                    # (ng, n_in_p)
 
-        for visit in visits:
-            i = visit.cell_idx
+        for i in cell_indices_inward:
             psi_cell = psi_g_first[:, global_in, i, 0]
             psi_angular_upstream = (
                 upstream_p_all[:, within_in_positions, i]

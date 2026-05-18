@@ -782,6 +782,72 @@ class SNMesh:
             f"Unknown coord system: {coord!r}"
         )
 
+    def dag_walk_cell_indices(
+        self,
+        *,
+        direction_sign: int,
+        mu_level_idx: int | None = None,
+    ) -> Iterator[int]:
+        r"""Lightweight twin of :meth:`dag_walk` — yields just cell indices.
+
+        Consumers that build their own per-cell algebra from primitives
+        (the unified matvec ``transport_operator_matvec_unified``) only
+        need the cell traversal order, not the full
+        :class:`~orpheus.sn.spatial.cell_update.CellVisit` packet.
+
+        Eliminates per-cell-per-call ``ReducedStreamingOperator.streaming_terms()``
+        construction + frozen-dataclass overhead.  PR-TYPED-6c profiling
+        showed this was ~14% of matvec time on slab, ~18% on cylinder
+        — all building a packet the matvec discards.
+
+        Cell-iteration order matches :meth:`dag_walk`:
+
+        * Slab, sphere, cylinder non-degenerate: ``range(nx)`` for
+          :math:`\mu_n \ge 0`, ``range(nx-1, -1, -1)`` for :math:`\mu_n < 0`.
+        * Cylindrical pure-azimuthal degenerate
+          (:math:`|\eta_n| < 10^{-15}`): ``range(nx)`` regardless of
+          ``direction_sign`` — same as :meth:`dag_walk`.
+        """
+        if self.reduced is None:
+            raise ValueError(
+                "dag_walk_cell_indices is only defined for meshes with a "
+                "ReducedStreamingOperator (1-D Cartesian, spherical, "
+                "or cylindrical)."
+            )
+        coord = self.reduced.coord
+        if coord is CoordSystem.CYLINDRICAL and mu_level_idx is None:
+            raise ValueError(
+                "cylindrical dag_walk_cell_indices requires mu_level_idx."
+            )
+        if direction_sign not in (+1, -1):
+            raise ValueError(
+                f"direction_sign must be +1 or -1; got {direction_sign}"
+            )
+
+        # Resolve the representative ordinate's signed primary cosine.
+        ordinate_idx = self._representative_ordinate(
+            direction_sign, mu_level_idx,
+        )
+        if coord is CoordSystem.CYLINDRICAL:
+            level_indices = self.quad.level_indices  # type: ignore[attr-defined]
+            global_n = int(level_indices[mu_level_idx][ordinate_idx])
+            mu_n = float(self.quad.mu_x[global_n])
+        else:
+            mu_n = float(self.quad.mu_x[ordinate_idx])
+
+        # Cylindrical degenerate ordinates iterate forward regardless of sign.
+        if (
+            coord is CoordSystem.CYLINDRICAL
+            and abs(mu_n) < self._DEGENERATE_ABS_ETA_THRESHOLD
+        ):
+            yield from range(self.nx)
+            return
+
+        if mu_n >= 0:
+            yield from range(self.nx)
+        else:
+            yield from range(self.nx - 1, -1, -1)
+
     def _representative_ordinate(
         self,
         direction_sign: int,
