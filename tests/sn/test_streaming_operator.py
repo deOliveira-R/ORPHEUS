@@ -229,21 +229,50 @@ class TestApplyShape:
 class TestCompositionEquivalence:
     r"""``(L + C(σ_t)).apply(ψ) ≈ SNStreamingOperator(σ_t).apply(ψ)``.
 
-    The mechanism-criterion 3 contract. By Resolution A this holds
-    **bit-exact** on ALL THREE geometries:
+    Pre-PR-TYPED-6c Step 5 this held bit-exact on ALL geometries because
+    ``L.apply`` consumed the same legacy per-geometry matvec helper as
+    ``SNStreamingOperator.apply``.
 
-    .. math::
+    Post-Step-5, ``L.apply`` routes through
+    :func:`transport_operator_matvec_unified` (the WDD-based unified
+    matvec).  The legacy bundle ``SNStreamingOperator`` still routes
+    through the per-geometry helpers.  The equivalence holds:
 
-        L.{\rm apply}(\psi) + C.{\rm apply}(\psi)
-        \;=\; [M(\psi;\sigma_t) - \sigma_t\odot\psi] + [\sigma_t\odot\psi]
-        \;=\; M(\psi;\sigma_t)
+      * **Sphere** — bit-identical (the unified sphere body was verified
+        ULP-equal to ``transport_operator_matvec_spherical`` at Step 2;
+        see ``test_unified_matvec_sphere.py``).
+      * **Cylinder** — DIVERGES.  The legacy ``transport_operator_matvec_cylindrical``
+        carries the ERR-049 routing bug; the unified body is structurally
+        immune.  Marked xfail until SNStreamingOperator retires
+        in PR-TYPED-6c Step 7 (general retirement).
+      * **Cartesian (slab)** — DIVERGES.  The legacy
+        ``transport_operator_matvec`` uses 1st-order upwind FD via
+        ``_compute_gradients``; the unified body uses 2nd-order WDD via
+        ``cell_balance_for_streaming``.  Order-of-accuracy delta is
+        characterised in ``test_unified_matvec_slab.py``.  Marked xfail
+        until Step 7.
 
-    No xfail. The decomposition is algebraic, not an approximation.
+    The Step 6 verification gate is the audit of this divergence — both
+    cylinder and Cartesian failures are documented and intentional.
     """
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_uniform_sigma_t_homogeneous(self, name, builder):
-        """L(σ_t) + C(σ_t) ≡ legacy(σ_t) — homogeneous σ_t."""
+    def test_uniform_sigma_t_homogeneous(self, name, builder, request):
+        """L(σ_t) + C(σ_t) ≡ legacy(σ_t) — homogeneous σ_t.
+
+        Sphere: bit-identical post-Step-5.  Cylinder + slab: xfail
+        (intentional legacy divergence, see class docstring).
+        """
+        if name in ("slab", "cylinder"):
+            request.node.add_marker(pytest.mark.xfail(
+                reason=(
+                    f"PR-TYPED-6c Step 5: L.apply uses unified WDD matvec; "
+                    f"legacy SNStreamingOperator uses {name}-specific legacy "
+                    f"matvec ({'ERR-049 routing bug' if name == 'cylinder' else 'FD via _compute_gradients'}). "
+                    f"Retires in Step 7."
+                ),
+                strict=True,
+            ))
         sn_mesh = builder()
         ng = 2
         sig_t = _sig_t_uniform(sn_mesh, ng=ng, value=0.4)
@@ -258,8 +287,21 @@ class TestCompositionEquivalence:
         )
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_heterogeneous_sigma_t(self, name, builder):
-        """L(σ_t) + C(σ_t) ≡ legacy(σ_t) — heterogeneous σ_t per cell."""
+    def test_heterogeneous_sigma_t(self, name, builder, request):
+        """L(σ_t) + C(σ_t) ≡ legacy(σ_t) — heterogeneous σ_t per cell.
+
+        Sphere: bit-identical post-Step-5.  Cylinder + slab: xfail
+        (intentional legacy divergence, see class docstring).
+        """
+        if name in ("slab", "cylinder"):
+            request.node.add_marker(pytest.mark.xfail(
+                reason=(
+                    f"PR-TYPED-6c Step 5: L.apply uses unified WDD matvec; "
+                    f"legacy SNStreamingOperator uses {name}-specific legacy "
+                    f"matvec. Retires in Step 7."
+                ),
+                strict=True,
+            ))
         sn_mesh = builder()
         ng = 2
         sig_t = _sig_t_heterogeneous(sn_mesh, ng=ng)
@@ -274,14 +316,26 @@ class TestCompositionEquivalence:
         )
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_via_operator_sum_algebra(self, name, builder):
+    def test_via_operator_sum_algebra(self, name, builder, request):
         """``(L + C).apply(ψ)`` via OperatorSum distribution.
 
         Mechanism criterion 3 — the algebra composes correctly. The
         same numerical result as explicit ``L.apply + C.apply``,
         confirming :class:`OperatorSum.apply` routes through both
         leaves with no order-of-operation drift.
+
+        Sphere: bit-identical post-Step-5.  Cylinder + slab: xfail
+        (intentional legacy divergence, see class docstring).
         """
+        if name in ("slab", "cylinder"):
+            request.node.add_marker(pytest.mark.xfail(
+                reason=(
+                    f"PR-TYPED-6c Step 5: L.apply uses unified WDD matvec; "
+                    f"legacy SNStreamingOperator uses {name}-specific legacy "
+                    f"matvec. Retires in Step 7."
+                ),
+                strict=True,
+            ))
         sn_mesh = builder()
         ng = 2
         sig_t = _sig_t_heterogeneous(sn_mesh, ng=ng)

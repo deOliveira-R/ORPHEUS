@@ -341,8 +341,11 @@ def solution_to_angular_flux(
     # destination's axis 0 is the ordinate; the ``:`` slice covers
     # the ng axis matching ``flux[:, k]``'s shape ``(ng,)``.
     flux = solution.reshape(ng, eq_map.n_eq, order='F')
-    for k in range(eq_map.n_eq):
-        fi[eq_map.ordinate[k], :, eq_map.ix[k], eq_map.iy[k]] = flux[:, k]
+    # Vectorised scatter: ``fi[ord_arr, :, ix_arr, iy_arr] = flux.T``
+    # writes the (n_eq, ng) packed slab into the (N, ng, nx, ny) view at
+    # the eq_map's unknown slots in one BLAS-friendly assignment.  Replaces
+    # the per-k Python loop (L16 perf hit on Krylov-driven test suites).
+    fi[eq_map.ordinate, :, eq_map.ix, eq_map.iy] = flux.T
 
     # Z-reflection (Lebedev / 3-D quadratures): the eq_map only carries
     # mu_z >= 0; the lower hemisphere is filled by reflection across z.
@@ -614,8 +617,10 @@ def solution_to_angular_flux_spherical(
     # PR-INDEX-7: principled (N, ng, nx, 1) allocation.
     fi = np.zeros((quad.N, ng, nx, 1))
     flux = solution.reshape(ng, eq_map.n_eq, order='F')
-    for k in range(eq_map.n_eq):
-        fi[eq_map.ordinate[k], :, eq_map.ix[k], 0] = flux[:, k]
+    # Vectorised scatter (L16 perf): n_eq Python iterations → one fancy-
+    # index assignment.  ``fi[ord_arr, :, ix_arr, 0]`` has shape
+    # ``(n_eq, ng)``; ``flux.T`` matches.
+    fi[eq_map.ordinate, :, eq_map.ix, 0] = flux.T
     # Analytical extension for inward ordinates at the outer
     # boundary cell. The eq_map skipped these slots (the BC fixes
     # them); we set the cell-centre to the reflected-partner's
@@ -2195,11 +2200,23 @@ class StreamingOperator(LinearOperatorMixin):
         r"""Subtractive forward action :math:`L\,\psi = M(\psi;\sigma_t)
         - \sigma_t \odot \psi`.
 
-        Dispatches by ``self.sn_mesh.curvature`` to the existing matvec
-        primitives at the constructor-stored ``self.sigma_t``, then
-        subtracts the cell-collision term :math:`\sigma_t \odot \psi`
-        at the packed-vector level. By Resolution A,
-        :math:`(L + C).{\rm apply}(\psi) = M(\psi;\sigma_t)` bit-exact.
+        Issue #197 PR-TYPED-6c Step 5 — routes through the single
+        geometry-agnostic :func:`transport_operator_matvec_unified`
+        for 1-D slab, sphere, and cylinder.  The three legacy
+        per-geometry helpers retire fully at Step 7 once
+        :class:`SNStreamingOperator` is also retired in favour of the
+        ``(L + C)`` operator-algebra path.
+
+        2-D Cartesian (``ny > 1``) remains on the legacy
+        :func:`transport_operator_matvec` (FD via
+        :func:`_compute_gradients`) — anti-diagonal wavefront sweeps
+        need a different iteration structure than
+        :meth:`SNMesh.dag_walk` and lie outside the PR-TYPED-6c scope.
+
+        By Resolution A: :math:`(L + C).{\rm apply}(\psi) =
+        M(\psi;\sigma_t)` bit-exact (the ``+`` is operator addition;
+        the per-cell σ_t·ψ cancellation lives at the algebra layer,
+        not inside this leaf).
 
         Parameters
         ----------
@@ -2225,36 +2242,9 @@ class StreamingOperator(LinearOperatorMixin):
         quad = sn_mesh.quad
         curv = getattr(sn_mesh, "curvature", None)
 
-        # Full matvec at the user's σ_t (NOT zero — Resolution A).
-        if curv == "spherical":
-            reduced = sn_mesh.reduced
-            m_full = transport_operator_matvec_spherical(
-                psi, eq_map, quad, self.sigma_t,
-                nx, ng,
-                reduced.face_areas,
-                sn_mesh.volumes,
-                reduced.alpha_half,
-                reduced.redist_dAw,
-                reduced.tau_mm,
-                sn_mesh=sn_mesh,
-                bc_outer=sn_mesh.bc_right,
-                pole_angular_closure=sn_mesh.pole_angular_closure,
-            )
-        elif curv == "cylindrical":
-            reduced = sn_mesh.reduced
-            m_full = transport_operator_matvec_cylindrical(
-                psi, eq_map, quad, self.sigma_t,
-                nx, ng,
-                reduced.face_areas,
-                sn_mesh.volumes,
-                reduced.alpha_per_level,
-                reduced.redist_dAw_per_level,
-                reduced.tau_mm_per_level,
-                sn_mesh=sn_mesh,
-                bc_outer=sn_mesh.bc_right,
-                pole_angular_closure=sn_mesh.pole_angular_closure,
-            )
-        else:  # Cartesian (1-D slab or 2-D)
+        # 2-D Cartesian remains on the legacy FD path (anti-diagonal
+        # wavefront, not dag_walk).  PR-TYPED-7 will absorb it.
+        if curv is None and ny > 1:
             m_full = transport_operator_matvec(
                 psi, eq_map, quad, self.sigma_t,
                 nx, ny, ng, sn_mesh.dx, sn_mesh.dy,
@@ -2263,12 +2253,36 @@ class StreamingOperator(LinearOperatorMixin):
                 bc_ymin=sn_mesh.bc_ymin,
                 bc_ymax=sn_mesh.bc_ymax,
             )
+        else:
+            # 1-D slab / sphere / cylinder — unified matvec.
+            if curv is None:
+                psi_view = solution_to_angular_flux(
+                    psi, eq_map, quad, nx, ny, ng,
+                    bc_xmin=sn_mesh.bc_xmin,
+                    bc_xmax=sn_mesh.bc_xmax,
+                    bc_ymin=sn_mesh.bc_ymin,
+                    bc_ymax=sn_mesh.bc_ymax,
+                )
+            else:
+                psi_view = solution_to_angular_flux_spherical(
+                    psi, eq_map, quad, nx, ng,
+                )
+            m_view = transport_operator_matvec_unified(
+                psi_view, sn_mesh, self.sigma_t,
+            )
+            # Re-pack at the unknown slots — vectorised advanced indexing.
+            # ``m_view[ord_arr, :, ix_arr, iy_arr]`` returns ``(n_eq, ng)``;
+            # transpose to ``(ng, n_eq)`` then ravel(order='F') matches the
+            # ``packed[g + ng·k]`` layout the legacy helpers emit.
+            m_full = m_view[
+                eq_map.ordinate, :, eq_map.ix, eq_map.iy,
+            ].T.ravel(order="F")
 
-        # Subtract σ_t ⊙ ψ at the packed-vector level. Layout matches
-        # CollisionOperator's gather: ``(ng, nx, ny)`` advanced-indexed
-        # by ``(ix, iy)`` returns ``(ng, n_eq)`` directly under PR-INDEX-3;
-        # Fortran ravel gives (n_unknowns,) packed vector aligned
-        # with `psi`.
+        # Subtract σ_t ⊙ ψ at the packed-vector level (Resolution A).
+        # Layout matches CollisionOperator's gather: ``(ng, nx, ny)``
+        # advanced-indexed by ``(ix, iy)`` returns ``(ng, n_eq)``
+        # directly under PR-INDEX-3; Fortran ravel gives (n_unknowns,)
+        # packed vector aligned with `psi`.
         sigma_packed = self.sigma_t[
             :, eq_map.ix, eq_map.iy
         ].ravel(order='F')
