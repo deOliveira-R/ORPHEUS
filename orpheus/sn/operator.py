@@ -1634,7 +1634,6 @@ def transport_operator_matvec_unified(
     """
     from .spatial.cell_balance import cell_balance_for_streaming
     from .spatial.pole_angular_closure import MorelMontryAngularSweep
-    from .spatial.psi_half_angle_seed import CarlsonSweepContext
 
     quad = sn_mesh.quad
     N = quad.N
@@ -1663,28 +1662,19 @@ def transport_operator_matvec_unified(
     if pole_angular_closure is None and curvature != "cartesian":
         pole_angular_closure = MorelMontryAngularSweep()
 
-    # ── Per-level data sourced from the angular closure strategy ─────
-    # Sphere, cylinder, slab all flow through the same per-level body.
-    # Slab and sphere are the 1-level case (level_indices = (arange(N),),
-    # M_p = N); cylinder iterates over its μ-levels.  The strategy owns
-    # the per-level partition and the M-M coefficients (α, τ, ΔA/w, and
-    # the derived c_in / c_out); the matvec body reads them via the
-    # canonical tuple-of-arrays interface (PR-TYPED-6.5 Phase 3a.3).
-    # ``IdentityAngularClosure`` (Cartesian) ships neutral values
-    # (α = 0, τ = 1, ΔA/w = 0, c_in = c_out = 0) so the per-cell algebra
-    # collapses to the slab form 2|μ|·1 + Σ_t·V (Step 2.5 principle —
-    # ``cell_balance_for_streaming`` is geometry-blind by data).
-    # ``sn_mesh.areas`` returns the geometry's face-area array
-    # (Cartesian: ones; cylinder: 2πr; sphere: 4πr²) — Phase 1
-    # canonicalised this on ``SNMesh`` directly.
+    # ── Geometry data sourced from the natural owners ────────────────
+    # Sphere, cylinder, slab all flow through the same body.  Slab and
+    # sphere are the 1-level case (``level_indices = (arange(N),)``);
+    # cylinder iterates over its μ-levels.  ``closure.cell_contribution``
+    # reads the M-M coefficients (α, τ, ΔA/w, c_in, c_out) directly
+    # from the closure object; ``IdentityAngularClosure`` returns zeros
+    # so the per-cell algebra collapses to the slab form
+    # ``2|μ|·1 + Σ_t·V`` (Step 2.5 principle — ``cell_balance_for_streaming``
+    # is geometry-blind by data).  ``sn_mesh.areas`` returns the
+    # geometry's face-area array (Cartesian: ones; cylinder: 2πr;
+    # sphere: 4πr²) — Phase 1 canonicalised this on SNMesh directly.
     mu_x = quad.mu_x
-    has_angular_closure = (curvature != "cartesian")
     level_indices: tuple[np.ndarray, ...] = pole_angular_closure.level_indices
-    alpha_per_level: tuple[np.ndarray, ...] = pole_angular_closure._alpha_per_level
-    redist_dAw_per_level: tuple[np.ndarray, ...] = pole_angular_closure._dAw_per_level
-    tau_mm_per_level: tuple[np.ndarray, ...] = pole_angular_closure._tau_per_level
-    c_in_per_level: tuple[np.ndarray, ...] = pole_angular_closure._c_in_per_level
-    c_out_per_level: tuple[np.ndarray, ...] = pole_angular_closure._c_out_per_level
     A = sn_mesh.areas                                                # (nx+1,)
 
     # ── Internal view: (ng, N, nx, ny) — group-leading for the
@@ -1695,7 +1685,6 @@ def transport_operator_matvec_unified(
 
     V = sn_mesh.volumes[:, 0]                                        # (nx,)
     sigma_t_gx = sigma_t[:, :, 0]                                    # (ng, nx)
-    dr = sn_mesh.dx
 
     # ── Phase 1 spatial-upstream seed at the inner boundary ──────────
     # The predicate is structural, not curvature-keyed: ``bc_inner is
@@ -1730,218 +1719,151 @@ def transport_operator_matvec_unified(
         # under SNStreamingOperator-style cell-only packed vectors).
         pole_face_seed = bc_inner.apply(psi_view[:, :, 0, 0])        # (N, ng)
 
-    # ── Per-level Carlson contexts + _MMHalfGrid (curvilinear only) ──
-    # Slab has no M-M angular closure (no curvature → ΔA/w = 0); skip
-    # the entire half-grid computation and pass psi_angular_upstream=None
-    # in the per-cell call.  cell_balance_for_streaming handles this
-    # branch (slab's redistribution and angular-upstream terms vanish
-    # naturally — no algebraic shortcut, just neutral data).
-    half_grid_per_level: list | None = None
-    if has_angular_closure:
-        # B1'' (PR-TYPED-6.5 Phase 3b) — Carlson seed reads the OUTER
-        # FACE flux ``psi_face_outer``, not the cell-CENTRE at
-        # ``i = nx-1``.  The Hébert §3.9.4 Eqs. 3.432-3.435 coupled-pole
-        # recurrence demands the FACE trace; the pre-Phase-3b code's
-        # cell-centre-as-face proxy produced an ``O(h)`` discretisation
-        # gap that drove the cylinder twin-path divergence
-        # (``rel ≈ 4e-3`` at ``nx = 40``).
-        if psi_face_outer is not None:
-            face_outer_full = np.zeros((N, ng))
-            face_outer_full[face_outer_ordinate, :] = psi_face_outer
-            outer_inflow_estimate = bc_outer.apply(face_outer_full)  # (N, ng)
-        else:
-            # Legacy proxy fallback for callers that haven't migrated.
-            outer_inflow_estimate = bc_outer.apply(psi_view[:, :, -1, 0])  # (N, ng)
-        carlson_ctx_per_level: list[CarlsonSweepContext] = []
-        for level_idx in level_indices:
-            level_idx_arr = np.asarray(level_idx)
-            mu_level = mu_x[level_idx_arr]
-            weights_level = quad.weights[level_idx_arr]
-            within_idx_most_inward = int(np.argmin(mu_level))
-            global_idx_most_inward = int(level_idx_arr[within_idx_most_inward])
-            bc_outer_value_level = outer_inflow_estimate[global_idx_most_inward, :]
-            carlson_ctx_per_level.append(
-                CarlsonSweepContext(
-                    sigma_t=sigma_t_gx,
-                    dr=dr,
-                    mu_quad=mu_level.copy(),
-                    weights=weights_level.copy(),
-                    bc_outer_value=bc_outer_value_level,
-                )
-            )
+    # ── Pre-compute the angular-closure state ───────────────────────
+    # B1'' (PR-TYPED-6.5 Phase 3b) — the Carlson coupled-pole seed
+    # consumes the OUTER FACE flux ``psi_face_outer``, not the cell-
+    # CENTRE at ``i = nx-1``.  The Hébert §3.9.4 Eqs. 3.432-3.435
+    # recurrence demands the FACE trace; the pre-Phase-3b code's
+    # cell-centre-as-face proxy produced an ``O(h)`` discretisation
+    # gap that drove the cylinder twin-path divergence (``rel ≈ 4e-3``
+    # at ``nx = 40``).  When ``psi_face_outer`` is not supplied
+    # (legacy callers), fall back to the cell-centre proxy.
+    if psi_face_outer is not None:
+        face_outer_full = np.zeros((N, ng))
+        face_outer_full[face_outer_ordinate, :] = psi_face_outer
+        outer_inflow_estimate = bc_outer.apply(face_outer_full)      # (N, ng)
+    else:
+        outer_inflow_estimate = bc_outer.apply(psi_view[:, :, -1, 0])  # (N, ng)
 
-        # _MMHalfGrid (Pattern 4 typed accessor) per level.
-        # Shape ``(ng, M_p, nx)`` per level via ``.upstream_per_ordinate``.
-        psi_cells_g_first = psi_g_first[..., 0]                          # (ng, N, nx)
-        half_grid_per_level = []
-        for p, level_idx in enumerate(level_indices):
-            level_idx_arr = np.asarray(level_idx)
-            psi_level = psi_cells_g_first[:, level_idx_arr, :]           # (ng, M_p, nx)
-            hg = pole_angular_closure.compute_psi_half_per_level(
-                psi_level, tau_mm_per_level[p],
-                carlson_context=carlson_ctx_per_level[p],
-            )
-            half_grid_per_level.append(hg)
+    # ``closure.precompute_psi_state`` returns a ``tuple[_MMHalfGrid, ...]``
+    # for curvilinear (one element per μ-level; sphere has one) and
+    # ``None`` for Cartesian (``IdentityAngularClosure``).  The matvec
+    # body then reads the per-cell angular contribution via
+    # ``closure.cell_contribution(psi_state, i, p, within_positions)``
+    # — single primitive across both strategies (Pattern 2).
+    psi_state = pole_angular_closure.precompute_psi_state(
+        psi_view, sigma_t=sigma_t_gx,
+        bc_outer_inflow_estimate=outer_inflow_estimate,
+    )
 
     # Per-level M-M closure constants (c_in, c_out within-level) are
     # precomputed at strategy construction (see ``MorelMontryAngularSweep``
-    # / ``IdentityAngularClosure``).  The matvec reads them via the
-    # ``_c_in_per_level`` / ``_c_out_per_level`` tuples bound above.
-    # For ordinate m at level p (curvilinear): α_in = α_half[m],
-    # α_out = α_half[m+1], c_out_m = α_out / τ_m,
-    # c_in_m = (1 − τ_m)/τ_m · α_out + α_in.  Identity ships zeros.
+    # / ``IdentityAngularClosure``); read via ``closure.cell_contribution``.
 
-    outflow_at_boundary = np.zeros((ng, N))
-    # PR-TYPED-6.5 Phase 3b — inward-sweep outflow accumulator at the
-    # inner face (``i = 0``).  Populated alongside the existing
-    # ``outflow_at_boundary`` (outward outflow at ``i = nx-1``) so the
-    # B1'' face residuals can be assembled at the return.  Cheap zero
-    # init when no face state was supplied (legacy callers); the
-    # accumulator is only read for ``m_face_inner`` when the caller
-    # passed ``psi_face_inner``.
-    outflow_at_inner = np.zeros((ng, N))
-
-    # ── Phase 1: outward sweep per level (μ_x > 0) ───────────────
-    for p, level_idx in enumerate(level_indices):
-        level_idx_arr = np.asarray(level_idx)
-        mu_level = mu_x[level_idx_arr]
-        outgoing_within = mu_level > +eps
-        if not np.any(outgoing_within):
-            continue
-        global_out = level_idx_arr[outgoing_within]
-        mu_out = mu_x[global_out]
-        n_out_p = int(global_out.size)
-
-        within_out_positions = np.where(outgoing_within)[0]
-        c_in_sub = c_in_per_level[p][within_out_positions]
-        c_out_sub = c_out_per_level[p][within_out_positions]
-        redist_dAw_p = redist_dAw_per_level[p]                       # (nx, M_p)
-        upstream_p_all = (
-            half_grid_per_level[p].upstream_per_ordinate            # (ng, M_p, nx)
-            if half_grid_per_level is not None else None
-        )
-
-        cell_indices_outward = list(
-            sn_mesh.dag_walk_cell_indices(direction_sign=+1, mu_level_idx=p)
-        )
-        if not cell_indices_outward:
-            continue
-        # Spatial-upstream face seed at the inner boundary (i = i0).
-        # Curvilinear: cell-centre proxy at the pole (no BC at r=0).
-        # Slab: bc_xmin-applied cell-centre at x=0.
-        psi_face_in = pole_face_seed[global_out, :].T                # (ng, n_out_p)
-
-        for i in cell_indices_outward:
-            psi_cell = psi_g_first[:, global_out, i, 0]
-            # PR-TYPED-6.5 Phase 2.11: cell_balance_for_streaming no
-            # longer accepts M-M-specific args (dA_w, c_in, c_out,
-            # psi_angular_upstream).  Compute the closure's per-cell
-            # contribution inline; Phase 3a delegates this to
-            # ``closure.cell_contribution(...)``.
-            dA_w_sub = redist_dAw_p[i, within_out_positions]    # (n_out_p,)
-            angular_denom_term = dA_w_sub * c_out_sub            # (n_out_p,)
-            if upstream_p_all is None:
-                angular_numer_upstream = np.zeros((ng, n_out_p))
-            else:
-                angular_numer_upstream = (
-                    dA_w_sub[None, :] * c_in_sub[None, :]
-                    * upstream_p_all[:, within_out_positions, i]
-                )                                                # (ng, n_out_p)
-
-            denom, numer_upstream = cell_balance_for_streaming(
-                abs_mu=mu_out,
-                A_downstream=A[i + 1],
-                A_total=A[i] + A[i + 1],
-                total_xs=sigma_t_gx[:, i],
-                volume=V[i],
-                psi_face_in=psi_face_in,
-                angular_denom_term=angular_denom_term,
-                angular_numer_upstream=angular_numer_upstream,
+    # ── Directional sweep primitive ─────────────────────────────────
+    # The outward and inward sweeps are the SAME procedure applied with
+    # opposite direction signs.  PR-TYPED-6.5 Phase 4 — extracted as a
+    # nested closure so the two calls read as one operator applied with
+    # ``direction_sign = +1`` / ``-1`` (Cardinal Rule 2 — single source
+    # of truth for per-cell streaming + WDD face propagation; the
+    # angular contribution comes from ``closure.cell_contribution``,
+    # the spatial+collision balance from ``cell_balance_for_streaming``).
+    #
+    # Side-effect: writes to ``out_g_first[:, dir_ords, i, 0]`` at every
+    # visited (cell, ordinate) and returns the accumulated WDD-
+    # propagated face flux at the end of each level's sweep — the
+    # outer-face accumulator for ``direction_sign=+1`` (outflow at
+    # ``i=nx-1``) and the inner-face accumulator for
+    # ``direction_sign=-1`` (outflow at ``i=0``).
+    def _sweep_direction(
+        direction_sign: int,
+        psi_face_in_init: np.ndarray,                                # (N, ng)
+    ) -> np.ndarray:                                                 # (ng, N)
+        outflow_at_end = np.zeros((ng, N))
+        for p, level_idx in enumerate(level_indices):
+            level_idx_arr = np.asarray(level_idx)
+            mu_level = mu_x[level_idx_arr]
+            within_mask = (
+                mu_level > +eps if direction_sign > 0
+                else mu_level < -eps
             )
-            m_full = (denom * psi_cell - numer_upstream) / V[i]
-            out_g_first[:, global_out, i, 0] = m_full
+            if not np.any(within_mask):
+                continue
+            global_dir = level_idx_arr[within_mask]
+            abs_mu = np.abs(mu_x[global_dir])
+            within_positions = np.where(within_mask)[0]
 
-            # WDD face propagation: ψ_face_out = 2·ψ̄ − ψ_face_in.
-            psi_face_in = 2.0 * psi_cell - psi_face_in
-        outflow_at_boundary[:, global_out] = psi_face_in
+            cell_indices = list(
+                sn_mesh.dag_walk_cell_indices(
+                    direction_sign=direction_sign, mu_level_idx=p,
+                )
+            )
+            if not cell_indices:
+                continue
+            psi_face_in = psi_face_in_init[global_dir, :].T          # (ng, n_dir_p)
+
+            for i in cell_indices:
+                psi_cell = psi_g_first[:, global_dir, i, 0]
+                # Strategy-supplied per-cell angular contribution.
+                # M-M reads from its precomputed half-grid; Identity
+                # returns zeros (Cartesian has no angular redistribution).
+                angular_denom_term, angular_numer_upstream = (
+                    pole_angular_closure.cell_contribution(
+                        psi_state, i, p, within_positions,
+                    )
+                )
+                # WDD downstream face area: ``A[i+1]`` for outward,
+                # ``A[i]`` for inward — the face the streaming term
+                # propagates ψ onto.
+                A_downstream = A[i + 1] if direction_sign > 0 else A[i]
+                denom, numer_upstream = cell_balance_for_streaming(
+                    abs_mu=abs_mu,
+                    A_downstream=A_downstream,
+                    A_total=A[i] + A[i + 1],
+                    total_xs=sigma_t_gx[:, i],
+                    volume=V[i],
+                    psi_face_in=psi_face_in,
+                    angular_denom_term=angular_denom_term,
+                    angular_numer_upstream=angular_numer_upstream,
+                )
+                m_full = (denom * psi_cell - numer_upstream) / V[i]
+                out_g_first[:, global_dir, i, 0] = m_full
+
+                # WDD face propagation: ψ_face_out = 2·ψ̄ − ψ_face_in.
+                psi_face_in = 2.0 * psi_cell - psi_face_in
+            # At loop end ``psi_face_in`` carries the WDD-propagated
+            # face flux at the streaming-direction's terminal face for
+            # each ordinate in this level.
+            outflow_at_end[:, global_dir] = psi_face_in
+        return outflow_at_end
+
+    # Outward sweep (μ_x > 0): seeds at the inner edge with
+    # ``pole_face_seed`` (cell-centre proxy at the pole, or
+    # ``bc_inner.apply`` at slab/hollow inner BC); accumulates the WDD-
+    # propagated outflow at the outer face (``i = nx-1``).
+    outflow_at_boundary = _sweep_direction(
+        direction_sign=+1, psi_face_in_init=pole_face_seed,
+    )
 
     # ── BC trace at outer face ───────────────────────────────
     # Apply ``bc_outer`` to the WDD-propagated outward outflow at the
-    # outer face (r=R for curvilinear, x=L for slab).  The outward
-    # sweep above populates ``outflow_at_boundary[:, global_out]`` with
-    # the WDD-propagated face flux at the end of each level's outward
-    # leg; that IS the outer-face trace.  The matvec stays linear in
-    # ψ_view; the single-pass form does NOT chain inward outflow back
-    # into outward (that's the SI sweep's job, not the matvec's).
-    # PR-TYPED-6.5 Phase 3a.2 retired the Cartesian cell-centre-as-face
-    # proxy here — free correctness gain for slab (the previous code
-    # read ``psi_view[..., -1, 0]`` which is the cell-CENTRE at i=nx-1,
-    # not the face flux at x=L).
+    # outer face (r=R for curvilinear, x=L for slab).  The single-pass
+    # matvec does NOT chain inward outflow back into outward (that's
+    # the SI sweep's job, not the matvec's).
     inflow_full = bc_outer.apply(outflow_at_boundary.T)              # (N, ng)
 
-    # ── Phase 2: inward sweep per level (μ_x < 0) ────────────────
-    for p, level_idx in enumerate(level_indices):
-        level_idx_arr = np.asarray(level_idx)
-        mu_level = mu_x[level_idx_arr]
-        incoming_within = mu_level < -eps
-        if not np.any(incoming_within):
-            continue
-        global_in = level_idx_arr[incoming_within]
-        mu_in = mu_x[global_in]
-        abs_mu_in = -mu_in
-        n_in_p = int(global_in.size)
-
-        within_in_positions = np.where(incoming_within)[0]
-        c_in_sub = c_in_per_level[p][within_in_positions]
-        c_out_sub = c_out_per_level[p][within_in_positions]
-        redist_dAw_p = redist_dAw_per_level[p]
-        upstream_p_all = (
-            half_grid_per_level[p].upstream_per_ordinate
-            if half_grid_per_level is not None else None
-        )
-
-        cell_indices_inward = list(
-            sn_mesh.dag_walk_cell_indices(direction_sign=-1, mu_level_idx=p)
-        )
-        if not cell_indices_inward:
-            continue
-        psi_face_in = inflow_full[global_in, :].T                    # (ng, n_in_p)
-
-        for i in cell_indices_inward:
-            psi_cell = psi_g_first[:, global_in, i, 0]
-            dA_w_sub = redist_dAw_p[i, within_in_positions]      # (n_in_p,)
-            angular_denom_term = dA_w_sub * c_out_sub             # (n_in_p,)
-            if upstream_p_all is None:
-                angular_numer_upstream = np.zeros((ng, n_in_p))
-            else:
-                angular_numer_upstream = (
-                    dA_w_sub[None, :] * c_in_sub[None, :]
-                    * upstream_p_all[:, within_in_positions, i]
-                )                                                 # (ng, n_in_p)
-
-            denom, numer_upstream = cell_balance_for_streaming(
-                abs_mu=abs_mu_in,
-                A_downstream=A[i],
-                A_total=A[i] + A[i + 1],
-                total_xs=sigma_t_gx[:, i],
-                volume=V[i],
-                psi_face_in=psi_face_in,
-                angular_denom_term=angular_denom_term,
-                angular_numer_upstream=angular_numer_upstream,
-            )
-            m_full = (denom * psi_cell - numer_upstream) / V[i]
-            out_g_first[:, global_in, i, 0] = m_full
-
-            psi_face_in = 2.0 * psi_cell - psi_face_in
-        # At loop end ``psi_face_in`` carries the WDD-propagated face
-        # flux at the inner face (``i = 0``) for each inward ordinate
-        # in this level.  PR-TYPED-6.5 Phase 3b — accumulate for the
-        # ``m_face_inner`` residual.
-        outflow_at_inner[:, global_in] = psi_face_in
+    # Inward sweep (μ_x < 0): seeds at the outer edge with the bc-
+    # trace inflow; accumulates the WDD-propagated outflow at the inner
+    # face (``i = 0``).  For slab + future hollow / annulus this
+    # populates ``m_face_inner``.
+    outflow_at_inner = _sweep_direction(
+        direction_sign=-1, psi_face_in_init=inflow_full,
+    )
 
     # ── Phase 3: degenerate ordinates (|μ_x| < eps), no radial flow ──
     # Sphere quadratures (GL) have no exact zeros — this branch is a
     # no-op for sphere by construction (degenerate_mask is empty).
+    # Cylinder quadratures (LevelSymmetricSN) can carry degenerate
+    # ordinates at certain orders; slab carries none either way.
+    #
+    # Degenerate ordinates have no streaming direction — A_downstream = 0
+    # and ψ_face_in = 0 throughout.  The cell-balance reduces to
+    # collision + angular-redistribution alone.  Per-cell angular
+    # contribution still comes from ``closure.cell_contribution``, but
+    # ordinates here are SCATTERED across levels (rather than within
+    # a single level as in the directional sweep), so we accumulate
+    # the contributions per (level, within-level) before the per-cell
+    # balance call.
     degenerate_mask = np.abs(mu_x) < eps
     if np.any(degenerate_mask):
         global_deg = np.where(degenerate_mask)[0]
@@ -1957,34 +1879,32 @@ def transport_operator_matvec_unified(
                     deg_within.append(int(pos[0]))
                     break
         n_deg = global_deg.size
+        abs_mu_deg = np.abs(mu_x[global_deg])
+        zero_face = np.zeros((ng, n_deg))
         for i in range(nx):
-            psi_upstream_collected = np.empty((ng, n_deg))
-            dA_w_collected = np.empty(n_deg)
-            c_in_collected = np.empty(n_deg)
-            c_out_collected = np.empty(n_deg)
+            # Collect the per-ordinate angular contribution by routing
+            # each degenerate ordinate through ``closure.cell_contribution``
+            # at its own (level, within-level) position.  Reads the SAME
+            # closure data as the directional sweep does (M-M's half-grid +
+            # c_in/c_out; Identity's zeros) — single source of truth.
+            angular_denom_term = np.empty(n_deg)
+            angular_numer_upstream = np.empty((ng, n_deg))
             for col_idx in range(n_deg):
-                p = deg_level[col_idx]
-                m = deg_within[col_idx]
-                psi_upstream_collected[:, col_idx] = (
-                    half_grid_per_level[p].upstream_per_ordinate[:, m, i]
+                denom_one, numer_one = pole_angular_closure.cell_contribution(
+                    psi_state, i, deg_level[col_idx],
+                    np.array([deg_within[col_idx]]),
                 )
-                dA_w_collected[col_idx] = redist_dAw_per_level[p][i, m]
-                c_in_collected[col_idx] = c_in_per_level[p][m]
-                c_out_collected[col_idx] = c_out_per_level[p][m]
+                angular_denom_term[col_idx] = denom_one[0]
+                angular_numer_upstream[:, col_idx] = numer_one[:, 0]
 
             psi_cell = psi_g_first[:, global_deg, i, 0]              # (ng, n_deg)
-            angular_denom_term = dA_w_collected * c_out_collected     # (n_deg,)
-            angular_numer_upstream = (
-                dA_w_collected[None, :] * c_in_collected[None, :]
-                * psi_upstream_collected
-            )                                                         # (ng, n_deg)
             denom, numer_upstream = cell_balance_for_streaming(
-                abs_mu=np.abs(mu_x[global_deg]),
+                abs_mu=abs_mu_deg,
                 A_downstream=0.0,
                 A_total=A[i] + A[i + 1],
                 total_xs=sigma_t_gx[:, i],
                 volume=V[i],
-                psi_face_in=np.zeros((ng, n_deg)),
+                psi_face_in=zero_face,
                 angular_denom_term=angular_denom_term,
                 angular_numer_upstream=angular_numer_upstream,
             )
