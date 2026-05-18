@@ -219,29 +219,50 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         A_total_arr = np.array(
             [st.face_area_inner + st.face_area_outer], dtype=float,
         )
-        dA_w_arr = np.array([st.delta_A_over_w], dtype=float)
-        # M-M closure constants (same algebra as cell_balance_terms).
+
+        psi_face_in_mask = upstream_state.spatial_upstream[:, None]  # (ng, 1)
+
+        # PR-TYPED-6.5 Phase 2.11: the M-M-specific arguments
+        # (``dA_w``, ``c_in``, ``c_out``, ``psi_angular_upstream``)
+        # are gone from ``cell_balance_for_streaming``'s interface.
+        # The closure now owns the M-M algebra and produces the
+        # ``(angular_denom_term, angular_numer_upstream)`` contributions.
+        #
+        # DD.residual reads the M-M coefficients directly from
+        # ``StreamingTerms`` (carried on the CellVisit), computes the
+        # contributions inline, and passes them to the helper.  This
+        # in-line computation is a Phase 6 cleanup target — the sweep
+        # route will route through ``closure.cell_contribution(...)``
+        # like the matvec does (Pattern 2: ONE strategy contract for
+        # the angular contribution, two consumers).  For Phase 2.11
+        # the inline path stays so we don't risk the sweep before the
+        # matvec is verified.
+        dA_w_scalar = st.delta_A_over_w
         tau = st.tau_mm
         c_out_scalar = st.alpha_out / tau
         c_in_scalar = (1.0 - tau) / tau * st.alpha_out + st.alpha_in
-        c_in_arr = np.array([c_in_scalar], dtype=float)
-        c_out_arr = np.array([c_out_scalar], dtype=float)
-
-        psi_face_in_mask = upstream_state.spatial_upstream[:, None]  # (ng, 1)
+        angular_denom_term = np.array(
+            [dA_w_scalar * c_out_scalar], dtype=float,
+        )                                                # (1,)
         psi_ang = upstream_state.angular_upstream
-        psi_ang_mask = None if psi_ang is None else psi_ang[:, None]  # (ng, 1)
+        if psi_ang is None:
+            angular_numer_upstream = np.zeros(
+                (total_xs.size, 1), dtype=float,
+            )                                            # (ng, 1)
+        else:
+            angular_numer_upstream = (
+                dA_w_scalar * c_in_scalar * psi_ang[:, None]
+            )                                            # (ng, 1)
 
         denom, numer_upstream = cell_balance_for_streaming(
             abs_mu=abs_mu_arr,
             A_downstream=A_down_arr,
             A_total=A_total_arr,
-            dA_w=dA_w_arr,
-            c_in=c_in_arr,
-            c_out=c_out_arr,
             total_xs=total_xs,
             volume=st.volume,
             psi_face_in=psi_face_in_mask,
-            psi_angular_upstream=psi_ang_mask,
+            angular_denom_term=angular_denom_term,
+            angular_numer_upstream=angular_numer_upstream,
         )
         # Both arrays are (ng, 1); collapse to (ng,) to match the
         # scalar-form residual contract (Issue #196 Phase G Step 1).

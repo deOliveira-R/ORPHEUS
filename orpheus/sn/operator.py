@@ -1485,22 +1485,30 @@ def transport_operator_matvec_unified(
 
         for i in cell_indices_outward:
             psi_cell = psi_g_first[:, global_out, i, 0]
-            psi_angular_upstream = (
-                upstream_p_all[:, within_out_positions, i]
-                if upstream_p_all is not None else None
-            )
+            # PR-TYPED-6.5 Phase 2.11: cell_balance_for_streaming no
+            # longer accepts M-M-specific args (dA_w, c_in, c_out,
+            # psi_angular_upstream).  Compute the closure's per-cell
+            # contribution inline; Phase 3a delegates this to
+            # ``closure.cell_contribution(...)``.
+            dA_w_sub = redist_dAw_p[i, within_out_positions]    # (n_out_p,)
+            angular_denom_term = dA_w_sub * c_out_sub            # (n_out_p,)
+            if upstream_p_all is None:
+                angular_numer_upstream = np.zeros((ng, n_out_p))
+            else:
+                angular_numer_upstream = (
+                    dA_w_sub[None, :] * c_in_sub[None, :]
+                    * upstream_p_all[:, within_out_positions, i]
+                )                                                # (ng, n_out_p)
 
             denom, numer_upstream = cell_balance_for_streaming(
                 abs_mu=mu_out,
                 A_downstream=A[i + 1],
                 A_total=A[i] + A[i + 1],
-                dA_w=redist_dAw_p[i, within_out_positions],
-                c_in=c_in_sub,
-                c_out=c_out_sub,
                 total_xs=sigma_t_gx[:, i],
                 volume=V[i],
                 psi_face_in=psi_face_in,
-                psi_angular_upstream=psi_angular_upstream,
+                angular_denom_term=angular_denom_term,
+                angular_numer_upstream=angular_numer_upstream,
             )
             m_full = (denom * psi_cell - numer_upstream) / V[i]
             out_g_first[:, global_out, i, 0] = m_full
@@ -1550,22 +1558,25 @@ def transport_operator_matvec_unified(
 
         for i in cell_indices_inward:
             psi_cell = psi_g_first[:, global_in, i, 0]
-            psi_angular_upstream = (
-                upstream_p_all[:, within_in_positions, i]
-                if upstream_p_all is not None else None
-            )
+            dA_w_sub = redist_dAw_p[i, within_in_positions]      # (n_in_p,)
+            angular_denom_term = dA_w_sub * c_out_sub             # (n_in_p,)
+            if upstream_p_all is None:
+                angular_numer_upstream = np.zeros((ng, n_in_p))
+            else:
+                angular_numer_upstream = (
+                    dA_w_sub[None, :] * c_in_sub[None, :]
+                    * upstream_p_all[:, within_in_positions, i]
+                )                                                 # (ng, n_in_p)
 
             denom, numer_upstream = cell_balance_for_streaming(
                 abs_mu=abs_mu_in,
                 A_downstream=A[i],
                 A_total=A[i] + A[i + 1],
-                dA_w=redist_dAw_p[i, within_in_positions],
-                c_in=c_in_sub,
-                c_out=c_out_sub,
                 total_xs=sigma_t_gx[:, i],
                 volume=V[i],
                 psi_face_in=psi_face_in,
-                psi_angular_upstream=psi_angular_upstream,
+                angular_denom_term=angular_denom_term,
+                angular_numer_upstream=angular_numer_upstream,
             )
             m_full = (denom * psi_cell - numer_upstream) / V[i]
             out_g_first[:, global_in, i, 0] = m_full
@@ -1606,17 +1617,20 @@ def transport_operator_matvec_unified(
                 c_out_collected[col_idx] = c_out_per_level[p][m]
 
             psi_cell = psi_g_first[:, global_deg, i, 0]              # (ng, n_deg)
+            angular_denom_term = dA_w_collected * c_out_collected     # (n_deg,)
+            angular_numer_upstream = (
+                dA_w_collected[None, :] * c_in_collected[None, :]
+                * psi_upstream_collected
+            )                                                         # (ng, n_deg)
             denom, numer_upstream = cell_balance_for_streaming(
                 abs_mu=np.abs(mu_x[global_deg]),
                 A_downstream=0.0,
                 A_total=A[i] + A[i + 1],
-                dA_w=dA_w_collected,
-                c_in=c_in_collected,
-                c_out=c_out_collected,
                 total_xs=sigma_t_gx[:, i],
                 volume=V[i],
                 psi_face_in=np.zeros((ng, n_deg)),
-                psi_angular_upstream=psi_upstream_collected,
+                angular_denom_term=angular_denom_term,
+                angular_numer_upstream=angular_numer_upstream,
             )
             m_full = (denom * psi_cell - numer_upstream) / V[i]
             out_g_first[:, global_deg, i, 0] = m_full
