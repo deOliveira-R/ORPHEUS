@@ -271,8 +271,12 @@ def cell_balance_for_streaming(
     # Upstream-numerator terms.  The angular branch evaluates to zero
     # when no angular state exists (slab) — Pattern 4 via the None
     # discriminator already established by UpstreamState.
+    # ``A_total`` may be a scalar (face area is per-cell, not per-ordinate,
+    # so all ordinates in a sweep level share the same A_total) — we drop
+    # the explicit ``[None, :]`` so the helper accepts both shapes.  Saves
+    # ~80-160 np.full() allocations per unified-matvec apply.
     spatial_upstream_term = (
-        abs_mu[None, :] * A_total[None, :] * psi_face_in
+        abs_mu[None, :] * A_total * psi_face_in
     )                                                    # (ng, n_mask)
     if psi_angular_upstream is None:
         angular_upstream_term = np.zeros_like(spatial_upstream_term)

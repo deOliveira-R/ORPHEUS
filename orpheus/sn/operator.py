@@ -1491,8 +1491,8 @@ def transport_operator_matvec_unified(
 
             denom, numer_upstream = cell_balance_for_streaming(
                 abs_mu=mu_out,
-                A_downstream=np.full(n_out_p, A[i + 1]),
-                A_total=np.full(n_out_p, A[i] + A[i + 1]),
+                A_downstream=A[i + 1],
+                A_total=A[i] + A[i + 1],
                 dA_w=redist_dAw_p[i, within_out_positions],
                 c_in=c_in_sub,
                 c_out=c_out_sub,
@@ -1555,8 +1555,8 @@ def transport_operator_matvec_unified(
 
             denom, numer_upstream = cell_balance_for_streaming(
                 abs_mu=abs_mu_in,
-                A_downstream=np.full(n_in_p, A[i]),
-                A_total=np.full(n_in_p, A[i] + A[i + 1]),
+                A_downstream=A[i],
+                A_total=A[i] + A[i + 1],
                 dA_w=redist_dAw_p[i, within_in_positions],
                 c_in=c_in_sub,
                 c_out=c_out_sub,
@@ -1606,8 +1606,8 @@ def transport_operator_matvec_unified(
             psi_cell = psi_g_first[:, global_deg, i, 0]              # (ng, n_deg)
             denom, numer_upstream = cell_balance_for_streaming(
                 abs_mu=np.abs(mu_x[global_deg]),
-                A_downstream=np.zeros(n_deg),
-                A_total=np.full(n_deg, A[i] + A[i + 1]),
+                A_downstream=0.0,
+                A_total=A[i] + A[i + 1],
                 dA_w=dA_w_collected,
                 c_in=c_in_collected,
                 c_out=c_out_collected,

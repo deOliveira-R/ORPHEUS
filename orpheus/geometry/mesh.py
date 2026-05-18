@@ -306,7 +306,7 @@ class Mesh1D:
         """Cell centre positions, shape (N,).  Cached (frozen mesh)."""
         return 0.5 * (self.edges[:-1] + self.edges[1:])
 
-    @property
+    @cached_property
     def volumes(self) -> np.ndarray:
         """Cell volumes, shape (N,).
 
@@ -318,14 +318,20 @@ class Mesh1D:
         "all cells in an equal-volume region are bit-identical"
         assertions for the cylindrical/spherical cases where the
         ``sqrt→**2`` / ``cbrt→**3`` edge round trip loses precision.
+
+        Cached (frozen mesh).  PR-TYPED-6c profiling showed
+        :func:`reduced_operator.streaming_terms` calls ``mesh.volumes[i]``
+        per cell visit, triggering 80-160 ``compute_volumes_1d`` re-runs
+        per unified-matvec apply.  ``@cached_property`` collapses this
+        to one call per mesh lifetime.
         """
         if self.precomputed_volumes is not None:
             return self.precomputed_volumes
         return compute_volumes_1d(self.coord, self.edges)
 
-    @property
+    @cached_property
     def surfaces(self) -> np.ndarray:
-        """Surface areas at each edge, shape (N+1,).  Formula depends on *coord*."""
+        """Surface areas at each edge, shape (N+1,).  Cached (frozen mesh)."""
         return compute_surfaces_1d(self.coord, self.edges)
 
     @property
