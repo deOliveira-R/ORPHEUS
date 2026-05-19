@@ -41,11 +41,19 @@ from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.numerics.eigenvalue import power_iteration
+from orpheus.numerics.iteration import KrylovAcceleration
+from orpheus.numerics.operator import (
+    OperatorSum,
+    ScaledOperator,
+    ZeroOperator,
+)
 from .fission import FissionOperator
 from .geometry import SNMesh
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from .operator import (
+    CollisionOperator,
     SNStreamingOperator,
+    StreamingOperator,
     build_equation_map,
     build_equation_map_spherical,
     build_equation_map_cylindrical,
@@ -231,8 +239,31 @@ class SNSolver:
         # principled ``(ng, nx, ny)`` layout (Issue #196 PR-INDEX-3) and
         # the operator's matvec helpers were updated to consume that
         # layout natively — no bridge needed.
-        self.L = SNStreamingOperator(
+        #
+        # R-1 Step 4b — the legacy ``SNStreamingOperator`` bundles
+        # ``L + C`` under a single σ_t constructor with three
+        # capabilities; the carved Krylov path consumes the leaf split
+        # ``L_leaf + C`` per the four-operator algebra
+        # (coding-elegance Pattern 5 — build the right primitive, not
+        # the right product).  ``self.L`` remains the legacy bundled
+        # operator (aliased as ``self.L_legacy``) so the module-level
+        # ``_solve_fixed_source_krylov`` MMS helper, which still wires
+        # GMRES directly onto ``solver.L.apply``, keeps working.  Sub-
+        # wave 4d retires ``self.L_legacy`` once that helper migrates.
+        self.L_legacy = SNStreamingOperator(
             sn_mesh=sn_mesh, sig_t=self.mat_xs.total_cross_section,
+        )
+        self.L = self.L_legacy  # alias for legacy callers
+        # R-1 Step 4b — typed leaf operators consumed by the carved
+        # ``_solve_krylov`` path via ``KrylovAcceleration`` on the
+        # ``AngularFlux`` algebra.  ``L_leaf`` is Resolution A
+        # subtractive (``M(ψ; σ_t) − σ_t⊙ψ_packed``); ``C_t`` carries
+        # ``σ_t⊙ψ`` so ``(L_leaf + C_t).apply(ψ) = M(ψ; σ_t)`` bit-exact.
+        self.L_leaf = StreamingOperator(
+            sn_mesh=sn_mesh, sigma_t=self.mat_xs.total_cross_section,
+        )
+        self.C_t = CollisionOperator(
+            sn_mesh=sn_mesh, sigma=self.mat_xs.total_cross_section,
         )
         self.S = self.scattering_op
         self.F = self.fission_op
@@ -296,9 +327,18 @@ class SNSolver:
         # (sig_a, sig_p, chi) match the rebind contract.
         _ = self.mat_xs.absorption_cross_section
         self.mat_xs._sig_t_cell = new_sig_t
-        # Mirror onto the L operator so its apply path stays consistent.
-        self.L = SNStreamingOperator(
+        # Mirror onto the L operator (legacy) so its apply path stays
+        # consistent.  R-1 Step 4b — also refresh ``self.L_leaf`` /
+        # ``self.C_t`` so the carved Krylov path sees the same σ_t.
+        self.L_legacy = SNStreamingOperator(
             sn_mesh=self.sn_mesh, sig_t=self.mat_xs.total_cross_section,
+        )
+        self.L = self.L_legacy
+        self.L_leaf = StreamingOperator(
+            sn_mesh=self.sn_mesh, sigma_t=self.mat_xs.total_cross_section,
+        )
+        self.C_t = CollisionOperator(
+            sn_mesh=self.sn_mesh, sigma=self.mat_xs.total_cross_section,
         )
         if self.geom_cache is not None:
             sig_t_1d = self.mat_xs.total_cross_section[:, :, 0]
@@ -456,6 +496,21 @@ class SNSolver:
         ``q_ext = fission_source``, where :math:`L^{-1}` is the sweep
         and :math:`S` carries both isotropic and Pℓ contributions.
 
+        R-1 Step 4c is deferred to a follow-up — see closeout memo
+        ``.claude/agent-memory/method-implementer/issue_197_r1_step4b_closeout.md``
+        §"4c deferred".  The Krylov path (R-1 Step 4b) carves cleanly
+        because :class:`KrylovAcceleration` exposes ``L.apply`` and the
+        preconditioner is a separate composable hook; carving SI runs
+        into the previous-iterate angular-flux thread that the
+        curvilinear Carlson seed consumes (sweep's ``initial_guess``
+        argument), which :class:`SourceIteration` does not propagate
+        through its primitive interface.  Empirically a naive carve
+        regresses 7 ``test_solver_components.py`` cases (sweep
+        determinism + SI-vs-Krylov agreement); the SI path stays on
+        the legacy loop until the SI primitive's interface is
+        extended with an SN-specific previous-iterate hook OR the
+        Carlson seed dependency is restructured.
+
         Issue #196 PR-INDEX-5: every flux / source intermediate is in
         principled ``(ng, nx, ny)`` / ``(N, ng, nx, ny)`` layout.
         """
@@ -506,26 +561,152 @@ class SNSolver:
 
         return phi
 
-    # ── Inner solver: Krylov-on-apply (replaces BiCGSTAB FD path) ─────
+    # ── Inner solver: Krylov-on-apply (carved via KrylovAcceleration) ─
 
     def _solve_krylov(
         self, fission_source: np.ndarray, flux_distribution: np.ndarray,
     ) -> np.ndarray:
-        r"""Inner solve via GMRES on :meth:`SNStreamingOperator.apply`.
+        r"""Inner solve via :class:`KrylovAcceleration` on the typed
+        ``AngularFlux`` algebra (1-D meshes), or the legacy packed-1D
+        path (2-D Cartesian).
 
-        Replaces the four legacy ``_solve_bicgstab_*`` methods.  Routes
-        through ONE operator (``self.L``, the streaming-collision
-        operator with the symmetric closure) — for curvilinear meshes
-        this is the Wave E Round 2 reconciliation that closes ERR-026
-        (the WDD asymmetric closure carried by the sweep is removed
-        from the converged-solution path); for Cartesian meshes it is
-        bit-identical math to the legacy BiCGSTAB FD path.
+        Dispatch
+        --------
+        1-D meshes (slab / sphere / cylinder, ``sn_mesh.reduced is not
+        None``) route through the carved
+        :class:`~orpheus.numerics.iteration.KrylovAcceleration` on
+        typed :class:`AngularFlux` — the algebra-of-record path that
+        the four-operator unification (R-1 Step 4) lands.
 
-        The sweep is wrapped as a left preconditioner (scipy gmres
-        default), realising the SAILOR / Larsen-Adams preconditioned-
-        Krylov framework (Adams & Larsen 2002 §III).
+        2-D Cartesian (``ny > 1``) routes through the legacy
+        scipy-gmres-on-``L.apply`` + packed-1D-vector path because
+        :meth:`AngularFlux.to_flat_with_traces` consumes the B1''
+        face-aware :class:`EquationMap` (``build_equation_map_with_traces``)
+        which is 1-D only: the packed layout has no ``iy`` dimension
+        (``n_eq = N · nx``).  Carving 2-D requires extending the B1''
+        face layout to 2-D faces (4 faces × N_in slots each) — a
+        separate piece of work tracked at sub-wave 4d.
+
+        The two paths solve the same operator equation; only the
+        flat-vector encoding differs.
+
+        R-1 Step 4b — replaces the inline scipy-gmres orchestration on
+        ``SNStreamingOperator.apply`` + packed-1D round-trip with a thin
+        wrapper around :class:`~orpheus.numerics.iteration.KrylovAcceleration`.
+        The within-group equation in algebra-of-record form is
+
+        .. math::
+
+           (L + C - S/W)\,\psi \;=\; q_{\rm ext}/W
+
+        where :math:`L = L_{\rm leaf}` (Resolution A streaming),
+        :math:`C` is the per-cell collision with :math:`\sigma_t`, and
+        :math:`S` is the full scattering operator (P0 + Pℓ + (n,2n)).
+        The :math:`1/W` factor on the source-side terms is the
+        convention the operator equation carries (the matvec
+        :math:`(L+C)` is the per-ordinate streaming + collision without
+        weight normalisation; scattering is angularly-integrated and
+        divided by :math:`W = \sum_n w_n` to convert the φ-source back
+        to an angular-flux source).
+
+        Routing the inner solve through ``KrylovAcceleration`` makes
+        the algebra explicit at the call site (coding-elegance Pattern 1
+        — match the algebra of the domain via dunders):
+
+        * ``LC = L_leaf + C_t`` — the streaming-collision matvec.
+        * ``S_scaled = ScaledOperator(1/W, S)`` — scattering with the
+          algebra-of-record :math:`/W` baked in.
+        * ``F = ZeroOperator()`` — fission lives at the outer eigenvalue
+          layer; within-group fixed-source has no F term.
+        * ``q_ext_typed = AngularFlux(broadcast(N, fission_source/W))``.
+        * Preconditioner: the WDD sweep wrapped as
+          ``inverter(rhs_typed) → AngularFlux`` consuming
+          ``rhs.values`` as a per-ordinate source.
 
         Returns the updated scalar flux ``(ng, nx, ny)``.
+        """
+        # 2-D Cartesian falls back to the legacy packed-1D path.
+        if self.sn_mesh.reduced is None:
+            return self._solve_krylov_legacy_packed(
+                fission_source, flux_distribution,
+            )
+
+        from .angular_flux import AngularFlux
+        from .scalar_flux import ScalarFlux
+        from .sources import IsotropicSource, PerOrdinateSource
+        N = self.quad.N
+        nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
+        sum_w = float(self.quad.weights.sum())
+
+        # ── Build the typed RHS  --------------------------------------
+        # Operator-equation convention: ``q_ext`` carries ``/W``.  The
+        # fission source enters at the per-ordinate iso-source level —
+        # the same scalar value broadcast over every ordinate.
+        q_per_ordinate = np.broadcast_to(
+            (fission_source / sum_w)[None, :, :, :],
+            (N, ng, nx, ny),
+        ).copy()
+        q_ext_typed = AngularFlux(q_per_ordinate, self.sn_mesh)
+
+        # ── Build the operator triple --------------------------------
+        # ``L_leaf + C_t`` collapses to ``M(ψ; σ_t)`` bit-exact via
+        # Resolution A: ``L_leaf.apply(ψ) = M(ψ; σ_t) − σ_t⊙ψ`` and
+        # ``C_t.apply(ψ) = σ_t⊙ψ`` cancel the subtractive term.
+        LC = OperatorSum(self.L_leaf, self.C_t)
+        # Algebra-of-record: ``S/W`` is the within-group scattering
+        # source operator after weight-normalisation.  ``ScaledOperator``
+        # propagates ``CAP_APPLY`` and broadcasts the scalar through
+        # ``S.apply``'s result.
+        S_scaled = ScaledOperator(1.0 / sum_w, self.scattering_op)
+        F_zero = ZeroOperator()
+
+        # ── Preconditioner: the WDD sweep at σ_t as ``L^{-1}`` proxy --
+        # Adams & Larsen 2002 §III SAILOR / Larsen-Adams preconditioned
+        # Krylov framework.  The sweep is invoked with ``aniso_source =
+        # rhs.values * sum_w`` to undo the operator-equation ``/W`` so
+        # the sweep's internal ``× weight_norm`` step lands on the
+        # original per-ordinate source.
+        sweep_inverter = self._make_sweep_inverter(sum_w)
+
+        # ── KrylovAcceleration -----------------------------------------
+        # Warm-start the inner solve from the previous iterate's
+        # angular flux (``self._psi_typed``) when present.  Cold-start
+        # is ``None`` → :class:`KrylovAcceleration` initialises with
+        # :func:`_zeros_like` of ``q_ext_typed``.
+        initial_guess = getattr(self, "_psi_typed", None)
+
+        krylov = KrylovAcceleration(
+            L=LC, S=S_scaled, F=F_zero,
+            inverter=sweep_inverter,
+            tol=self.inner_tol,
+            max_iter=self.max_inner,
+            restart=min(50, N * ng * nx * ny),
+        )
+        psi_typed, _residuals = krylov.solve(
+            q_ext_typed, initial_guess=initial_guess,
+        )
+
+        # Cache typed solution for next call's warm start.
+        self._psi_typed = psi_typed
+
+        # Reduce angular → scalar flux for return.
+        return psi_typed.integrate_angular().values
+
+    def _solve_krylov_legacy_packed(
+        self, fission_source: np.ndarray, flux_distribution: np.ndarray,
+    ) -> np.ndarray:
+        r"""Legacy scipy-gmres-on-``L.apply`` + packed-1D-vector path.
+
+        Used by :meth:`_solve_krylov` for 2-D Cartesian meshes
+        (``ny > 1``) where the typed B1'' :class:`AngularFlux` flat
+        layout doesn't yet support 2-D faces.  Verbatim preservation
+        of the Wave E Round 2 inner solve — the scipy GMRES is set
+        up on ``self.L.apply`` (the legacy ``SNStreamingOperator``)
+        with the existing ``_make_sweep_preconditioner`` and
+        ``_build_rhs_*`` helpers.
+
+        Sub-wave 4d / future work: extend B1'' to 2-D faces, then this
+        helper retires.
         """
         nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
         sum_w = float(self.quad.weights.sum())
@@ -538,15 +719,6 @@ class SNSolver:
         curv = getattr(self.sn_mesh, "curvature", None)
 
         # ---------- previous-iterate angular flux for Pℓ (Cartesian) ----
-        # Cartesian Pℓ scattering needs the angular flux of the previous
-        # outer iteration to build the per-ordinate scattering source
-        # via Legendre-moment Galerkin reconstruction.  We carry the
-        # packed solution across calls so the warm-start serves both
-        # GMRES and the Pℓ source build.
-        # PR-INDEX-7: ``solution_to_angular_flux*`` returns principled
-        # ``(N, ng, nx, ny)`` natively — the FD-matvec internal layout
-        # flip closes the PR-INDEX-4 §9.1 deferral.
-        # ``_build_rhs_cartesian`` consumes the same layout.
         if self.scattering_order > 0 and curv is None and hasattr(
             self, "_psi_solution"
         ):
@@ -560,10 +732,6 @@ class SNSolver:
         else:
             angular_full = None
 
-        # ---------- packed RHS (fission + scattering + n2n) -------------
-        # Issue #197 PR-TYPED-2: per-material Legendre + (n,2n) dicts
-        # come from ``mat_xs.sig_s_legendre`` / ``mat_xs.n2n_matrix``
-        # directly — no SNSolver shim.
         sig_s_dict = {
             mid: self.mat_xs.sig_s_legendre(mid)
             for mid in self.mat_xs.materials
@@ -593,26 +761,15 @@ class SNSolver:
                 angular_flux=angular_full,
             )
 
-        # ---------- L as a scipy LinearOperator (matvec = L.apply) -----
         L_scipy = ScipyLinearOperator(
             (n, n), matvec=self.L.apply, dtype=float,
         )
-
-        # ---------- sweep preconditioner ------------------------------
-        # The sweep is L^{-1} (in the WDD-closure sense; close enough as
-        # a preconditioner for the symmetric-closure operator).  Wraps
-        # the structured (Q_iso, Q_aniso) sweep contract back to the
-        # packed solution-vector layout that GMRES expects.
         precond = self._make_sweep_preconditioner(eq_map, n, sum_w)
-
-        # ---------- warm start ----------------------------------------
         x0 = (
             self._psi_solution.copy()
             if hasattr(self, "_psi_solution")
             else np.ones(n)
         )
-
-        # ---------- GMRES ---------------------------------------------
         try:
             solution, info = gmres(
                 L_scipy, rhs, x0=x0, M=precond,
@@ -620,7 +777,6 @@ class SNSolver:
                 maxiter=self.max_inner, restart=min(50, n),
             )
         except TypeError:
-            # Older scipy versions may use ``tol`` instead of ``rtol``.
             solution, info = gmres(
                 L_scipy, rhs, x0=x0, M=precond,
                 tol=self.inner_tol,
@@ -628,11 +784,6 @@ class SNSolver:
             )
         self._psi_solution = solution
 
-        # ---------- decode packed solution → scalar flux --------------
-        # PR-INDEX-7: ``solution_to_angular_flux*`` returns principled
-        # ``(N, ng, nx, ny)`` natively (closes PR-INDEX-4 §9.1 deferral).
-        # ``_scalar_flux_from_angular`` converts that to principled
-        # scalar flux ``(ng, nx, ny)``.
         if curv == "spherical":
             fi = solution_to_angular_flux_spherical(
                 solution, eq_map, self.quad, nx, ng,
@@ -651,6 +802,89 @@ class SNSolver:
             bc_ymax=self.sn_mesh.bc_ymax,
         )
         return _scalar_flux_from_angular(fi, self.quad, nx, ny, ng)
+
+    def _make_sweep_inverter(self, sum_w: float):
+        r"""Build the typed-AngularFlux sweep preconditioner.
+
+        Returns a callable ``inverter(rhs_typed: AngularFlux) ->
+        AngularFlux`` realising :math:`M^{-1} \approx (L+C)^{-1}` as a
+        block-diagonal linear operator on the B1''-packed
+        ``AngularFlux`` state:
+
+        * **Cell block**: the WDD :func:`~orpheus.sn.sweep.transport_sweep`
+          serves as the sweep approximation of :math:`(L+C)^{-1}` on
+          the cell-centre block.  The sweep is invoked with
+          ``aniso_source = rhs.values * sum_w`` because the
+          operator-equation RHS carries ``/W`` (built by the caller)
+          and the sweep internally applies ``× weight_norm = 1/W`` to
+          its source argument; multiplying the rhs by ``sum_w`` first
+          undoes the operator-equation normalisation so the sweep's
+          internal ``× 1/W`` lands on the original per-ordinate source.
+
+        * **Face block**: IDENTITY on the B1'' face slots
+          (``rhs.boundary.xmax_face`` outward ordinates and, for slab,
+          ``rhs.boundary.xmin_face`` inward ordinates).  Returning the
+          sweep's outflow face state — or zero — at these slots breaks
+          the preconditioner's linearity: a linear preconditioner must
+          satisfy :math:`M(q_1 + q_2) = Mq_1 + Mq_2` on every slot.
+          The sweep's outflow ``boundary_local.xmax_face`` is a
+          NONLINEAR functional of ``rhs`` (the WDD outflow at the
+          converged face state — not a linear operator on the face-slot
+          input), so encoding it into the preconditioner's face block
+          breaks Krylov's convergence theory.  Passing the face block
+          through unchanged (identity) preserves linearity and lets
+          GMRES drive the face residual ``L·ψ[face] = 0`` to zero
+          through its own iterations.
+
+        The fix surfaced empirically: GMRES converged to
+        :math:`\|A\,\psi - b\| \approx 10^{-31}` at the cell block but
+        the face block carried ``~1e-1`` residual — i.e., the operator
+        equation was satisfied at cells but the converged ψ violated
+        the WDD face propagation constraint.  Switching the face block
+        of the preconditioner from "sweep outflow" to "identity" let
+        GMRES converge in ``O(N_outer)`` iterations to the correct
+        ψ_n = φ/W (homogeneous reflective).
+
+        The sweep's persistent :class:`BoundaryFlux` is NOT shared
+        with :attr:`self._boundary_flux` — the preconditioner is
+        stateless across GMRES inner iterations (clean linear-operator
+        contract).
+        """
+        from .angular_flux import AngularFlux
+        from .boundary_flux import BoundaryFlux
+        from .sources import IsotropicSource, PerOrdinateSource
+
+        def inverter(rhs_typed: "AngularFlux") -> "AngularFlux":
+            # Sweep on cell block.
+            aniso_values = rhs_typed.values * sum_w
+            iso_source = self.sn_mesh.zeros_isotropic_source()
+            aniso_source = PerOrdinateSource(aniso_values, self.sn_mesh)
+            boundary_local = self.sn_mesh.zeros_boundary_flux()
+            angular, _scalar = transport_sweep(
+                iso_source, self.mat_xs.total_cross_section, self.sn_mesh,
+                boundary_local,
+                aniso_source=aniso_source,
+            )
+            # Identity on the B1'' face block: pass rhs's face state
+            # through unchanged.  Auto-allocated zero ``BoundaryFlux``
+            # on the output, then copy in rhs's face values where
+            # present.  Linear in rhs.
+            out_boundary = BoundaryFlux.zeros(self.sn_mesh)
+            if (
+                rhs_typed.boundary is not None
+                and rhs_typed.boundary.xmax_face is not None
+                and out_boundary.xmax_face is not None
+            ):
+                out_boundary.xmax_face[:] = rhs_typed.boundary.xmax_face
+            if (
+                rhs_typed.boundary is not None
+                and rhs_typed.boundary.xmin_face is not None
+                and out_boundary.xmin_face is not None
+            ):
+                out_boundary.xmin_face[:] = rhs_typed.boundary.xmin_face
+            return AngularFlux(angular, self.sn_mesh, boundary=out_boundary)
+
+        return inverter
 
     def _make_sweep_preconditioner(
         self, eq_map, n: int, sum_w: float,
