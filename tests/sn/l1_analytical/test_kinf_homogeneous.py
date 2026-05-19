@@ -101,11 +101,37 @@ def _quadrature_for(coord: str):
 # ─── eigenvalue + spectrum tests ─────────────────────────────────────
 
 
+# Tight tolerances so the analytical-reference comparison is solver-floor
+# correct on EVERY coord × ng × inner_solver combination.  Per the
+# 2026-05-19 numerics-investigator memo (curvilinear MG inner-tol
+# amplification): default ``inner_tol=1e-9`` lets the within-group SI
+# residual bound ``‖φ_n − φ_(n−1)‖ / ‖φ_n‖ < 1e-9`` propagate as a gap
+# of ``ρ/(1−ρ) × 1e-9 ≈ 9 × 1e-9 ≈ 1e-7`` to ``k_inf`` for the c=0.9
+# thermal-group case on curvilinear geometries (slab SI converges fast
+# enough to mask this).  Tightening ``inner_tol`` to 1e-12 collapses the
+# drift below 1e-11; running with ``inner_solver="krylov"`` removes the
+# SI amplification entirely.  Both inner-solver paths are now gated by
+# this L1 reference.
+_TIGHT_KW = dict(
+    max_outer=1000, keff_tol=1e-14, flux_tol=1e-12,
+    max_inner=300, inner_tol=1e-12,
+)
+
+
 @pytest.mark.verifies("matrix-eigenvalue", "fission-matrix", "removal-matrix")
+@pytest.mark.parametrize("inner_solver", ["source_iteration", "krylov"])
 @pytest.mark.parametrize("ng_key", ["1eg", "2eg", "4eg"])
 @pytest.mark.parametrize("coord", ["slab", "sphere", "cylinder"])
-def test_kinf_homogeneous(ng_key: str, coord: str) -> None:
-    """SN reproduces analytical k_inf on homogeneous medium, every coord × ng."""
+def test_kinf_homogeneous(ng_key: str, coord: str, inner_solver: str) -> None:
+    """SN reproduces analytical k_inf on homogeneous medium, every coord × ng.
+
+    Parametrised over BOTH ``inner_solver`` paths (Option B+D per the
+    numerics-investigator memo): the source-iteration path is the
+    default production path and MUST converge to the analytical
+    reference at tight tolerance; the Krylov path is the
+    symmetric-closure path and provides structural independence — the
+    two paths must reach the SAME k_inf to better than ``rtol=1e-10``.
+    """
     case = _get_continuous_case(ng_key)
     mat_id = next(iter(case.problem.materials.keys()))
 
@@ -114,24 +140,24 @@ def test_kinf_homogeneous(ng_key: str, coord: str) -> None:
 
     result = solve_sn(
         case.problem.materials, mesh, quadrature,
-        max_outer=200, keff_tol=1e-10, flux_tol=1e-9,
-        max_inner=100, inner_tol=1e-9,
+        inner_solver=inner_solver, **_TIGHT_KW,
     )
 
     np.testing.assert_allclose(
-        result.keff, case.k_eff, rtol=1e-9,
+        result.keff, case.k_eff, rtol=1e-10,
         err_msg=(
             f"SN k_inf disagrees with analytical reference: "
             f"got {result.keff!r}, expected {case.k_eff!r} "
-            f"(coord={coord}, ng={ng_key})"
+            f"(coord={coord}, ng={ng_key}, inner_solver={inner_solver})"
         ),
     )
 
 
 @pytest.mark.verifies("matrix-eigenvalue", "fission-matrix", "removal-matrix")
+@pytest.mark.parametrize("inner_solver", ["source_iteration", "krylov"])
 @pytest.mark.parametrize("ng_key", ["2eg", "4eg"])
 @pytest.mark.parametrize("coord", ["slab", "sphere", "cylinder"])
-def test_kinf_homogeneous_spectrum(ng_key: str, coord: str) -> None:
+def test_kinf_homogeneous_spectrum(ng_key: str, coord: str, inner_solver: str) -> None:
     """SN reproduces the dominant ``A^{-1}F`` eigenvector (multi-group only).
 
     A 1G test cannot pin the spectrum (only one component), so this test
@@ -139,6 +165,10 @@ def test_kinf_homogeneous_spectrum(ng_key: str, coord: str) -> None:
     catches scattering-transpose bugs that preserve trace (and thus
     k_inf) but flip the eigenvector — failure mode #2 (variable swap)
     in `vv-principles`.
+
+    Parametrised over both inner solvers per the 2026-05-19 memo.  The
+    spectrum is solved at TIGHT tolerances so the SI inner-residual
+    amplification does not bias the dominant eigenvector recovery.
     """
     case = _get_continuous_case(ng_key)
     ng = case.problem.n_groups
@@ -148,8 +178,7 @@ def test_kinf_homogeneous_spectrum(ng_key: str, coord: str) -> None:
     quadrature = _quadrature_for(coord)
     result = solve_sn(
         case.problem.materials, mesh, quadrature,
-        max_outer=200, keff_tol=1e-10, flux_tol=1e-9,
-        max_inner=100, inner_tol=1e-9,
+        inner_solver=inner_solver, **_TIGHT_KW,
     )
 
     # Spatial average per group → spectrum vector (homogeneous → spatially flat).
@@ -169,10 +198,10 @@ def test_kinf_homogeneous_spectrum(ng_key: str, coord: str) -> None:
         phi_ref = -phi_ref
 
     np.testing.assert_allclose(
-        phi_solver, phi_ref, rtol=1e-8,
+        phi_solver, phi_ref, rtol=1e-9,
         err_msg=(
             f"SN flux spectrum disagrees with analytical reference: "
             f"got {phi_solver!r}, expected {phi_ref!r} "
-            f"(coord={coord}, ng={ng_key})"
+            f"(coord={coord}, ng={ng_key}, inner_solver={inner_solver})"
         ),
     )
