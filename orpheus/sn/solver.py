@@ -459,6 +459,7 @@ class SNSolver:
         Issue #196 PR-INDEX-5: every flux / source intermediate is in
         principled ``(ng, nx, ny)`` / ``(N, ng, nx, ny)`` layout.
         """
+        from .angular_flux import AngularFlux
         from .sources import IsotropicSource, PerOrdinateSource
         phi = flux_distribution.copy()
         angular = None  # no angular flux on first iteration
@@ -483,10 +484,18 @@ class SNSolver:
             else:
                 aniso_source = PerOrdinateSource(Q_aniso_values, self.sn_mesh)
 
-            # Transport sweep — Issue #197 PR-TYPED-4 strict typed.
+            # Transport sweep — R-1 Step 0: thread the previous iteration's
+            # angular flux as ``initial_guess`` so the sweep's curvilinear
+            # Carlson seed uses ``σ_t · φ_0(prev) / W`` (trace-space analog
+            # of the matvec).
+            initial_guess = (
+                AngularFlux(angular, self.sn_mesh) if angular is not None
+                else None
+            )
             angular, phi = transport_sweep(
                 iso_source, self.mat_xs.total_cross_section, self.sn_mesh,
                 self._boundary_flux, aniso_source=aniso_source,
+                initial_guess=initial_guess,
             )
 
             norm = np.linalg.norm(phi)
@@ -1281,10 +1290,16 @@ def _solve_fixed_source_si(
             aniso_values = Q_aniso_p1 + external_source
         aniso_source = PerOrdinateSource(aniso_values, sn_mesh)
 
+        # R-1 Step 0: thread previous-iter angular flux as initial_guess
+        # for the trace-space Carlson seed.
+        initial_guess = (
+            AngularFlux(angular, sn_mesh) if angular is not None else None
+        )
         angular, phi = transport_sweep(
             iso_source, solver.mat_xs.total_cross_section, sn_mesh,
             solver._boundary_flux,
             aniso_source=aniso_source,
+            initial_guess=initial_guess,
         )
 
         norm = np.linalg.norm(phi)

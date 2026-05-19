@@ -85,6 +85,7 @@ from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from .sweep_graph import OctantLabel
 
 if TYPE_CHECKING:
+    from .angular_flux import AngularFlux
     from .boundary_flux import BoundaryFlux
     from .geometry import SNMesh
     from .sources import IsotropicSource, PerOrdinateSource
@@ -101,6 +102,8 @@ def transport_sweep(
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
     aniso_source: "PerOrdinateSource | None" = None,
+    *,
+    initial_guess: "AngularFlux | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Perform one full transport sweep.
 
@@ -129,6 +132,22 @@ def transport_sweep(
     bare ``np.ndarray`` — per Issue #197 plan, cross-section storage is
     a static parameter and is not promoted to a typed wrapper here.
 
+    R-1 Step 0 (2026-05-19): the curvilinear pole-region inputs (the
+    Carlson coupled-pole seed source + the per-ordinate spatial-upstream
+    inflow at the pole cell for outward ordinates) are now derived from
+    ``initial_guess`` — **the trace-space analog of the matvec's input
+    angular flux**.  The matvec's Carlson seed is
+    ``σ_t · φ_0(input_psi) / W`` derived from its current input
+    (:func:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep.__call__`
+    at ``psi_half_angle_seed.py:563``); the sweep's Carlson seed is now
+    the SAME formula derived from ``initial_guess`` (= the previous
+    iteration's angular flux when the caller is in a source-iteration
+    loop).  When ``initial_guess is None`` (fresh start), the Carlson seed
+    falls back to ``Q_p / W`` (the in-iteration source).  The previously-
+    leaked pole-history fields on :class:`BoundaryFlux`
+    (``pole_psi`` / ``pole_phi_prev``) retired with this change — there
+    is no separate iteration cache; the input angular flux IS the trace.
+
     Parameters
     ----------
     iso_source : IsotropicSource
@@ -143,6 +162,11 @@ def transport_sweep(
         zero-initialised instance via ``sn_mesh.zeros_boundary_flux()``.
     aniso_source : PerOrdinateSource or None, optional
         Per-ordinate anisotropic source, shape ``(N, ng, nx, ny)``.
+    initial_guess : AngularFlux or None, optional
+        Previous-iteration angular flux estimate, used for the
+        curvilinear Carlson coupled-pole seed and the per-ordinate
+        spatial-upstream inflow at the pole cell.  Ignored on slab.
+        ``None`` (default) selects the in-iteration fallback seed.
 
     Returns
     -------
@@ -164,6 +188,7 @@ def transport_sweep(
     if reduced is not None:
         return _sweep_1d_unified(
             Q, sig_t, sn_mesh, boundary_flux, Q_aniso_local,
+            initial_guess=initial_guess,
         )
     return _sweep_2d_wavefront(
         Q, sig_t, sn_mesh, boundary_flux, Q_aniso_local,
@@ -240,6 +265,8 @@ def _sweep_1d_unified(
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
     Q_aniso: np.ndarray | None = None,
+    *,
+    initial_guess: "AngularFlux | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Geometry-blind 1-D SN sweep — three numpy tensor ops per ordinate.
 
@@ -290,7 +317,10 @@ def _sweep_1d_unified(
     """
     geom = _ensure_geom_cache(sn_mesh)
     coll = _ensure_coll_cache(sn_mesh, sig_t, geom)
-    return _run_1d_sweep(Q, sig_t, sn_mesh, boundary_flux, Q_aniso, geom, coll)
+    return _run_1d_sweep(
+        Q, sig_t, sn_mesh, boundary_flux, Q_aniso, geom, coll,
+        initial_guess=initial_guess,
+    )
 
 
 def _ensure_geom_cache(sn_mesh: "SNMesh") -> GeometryCoefficients:
@@ -337,6 +367,8 @@ def _run_1d_sweep(
     Q_aniso: np.ndarray | None,
     geom: GeometryCoefficients,
     coll: CollisionCache,
+    *,
+    initial_guess: "AngularFlux | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Inner body of the unified 1-D sweep.
 
@@ -440,17 +472,28 @@ def _run_1d_sweep(
         bc_outer = boundary_flux.xmax_face
         inflow_full = bc_outer_obj.apply(bc_outer)  # (N, ng)
 
-        # Carlson seed source (Phase G Step 2 Path C).  ``sig_t_p`` is
-        # already principled (ng, nx) — the Carlson sweep expects
-        # exactly that.
+        # Carlson seed source (Phase G Step 2 Path C, refactored R-1
+        # Step 0 to mirror the matvec's seed derivation).  ``sig_t_p``
+        # is already principled (ng, nx).
+        #
+        # The matvec's Carlson seed lives in
+        # :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep.__call__`
+        # at ``psi_half_angle_seed.py:563`` — it computes
+        # ``φ_0 = Σ_n w_n · ψ_n`` from the current input angular flux
+        # and then ``Q_bar = σ_t · φ_0 / W``.  The sweep now uses the
+        # SAME formula, deriving ``φ_0`` from the caller-supplied
+        # ``initial_guess`` (= the previous iteration's angular flux
+        # in a source-iteration loop).  When ``initial_guess is None``
+        # (fresh start), the fallback is the in-iteration source
+        # ``Q_p / W``.
         sigma_t_gx = sig_t_p                                  # (ng, nx)
         dr = sn_mesh.dx
-        if boundary_flux.pole_phi_prev is not None:
-            # :attr:`pole_phi_prev` is a :class:`ScalarFlux` stored at
-            # principled ``(ng, nx, ny=1)``; drop the trailing
-            # degenerate ``ny`` axis to recover the (ng, nx) working
-            # layout the Carlson seed consumes.
-            phi_0_prev = boundary_flux.pole_phi_prev.values[:, :, 0]  # (ng, nx)
+        if initial_guess is not None:
+            # Derive φ_0 from the input angular flux — same as matvec.
+            # initial_guess.values shape: (N, ng, nx, ny=1).
+            phi_0_prev = np.einsum(
+                "n,ngx->gx", weights, initial_guess.values[:, :, :, 0],
+            )                                                 # (ng, nx)
             Q_bar_iso = sigma_t_gx * phi_0_prev / weights.sum()
         else:
             Q_bar_iso = Q_p / weights.sum()                   # (ng, nx)
@@ -588,8 +631,11 @@ def _run_1d_sweep(
                 if mu_n < 0:
                     psi_in = inflow_full[global_n]               # type: ignore[index]
                 else:
-                    if boundary_flux.pole_psi is not None:
-                        psi_in = boundary_flux.pole_psi[global_n]
+                    # R-1 Step 0: pole spatial-upstream derived from the
+                    # caller's ``initial_guess`` — same trace-space logic
+                    # as the matvec (read the input flux's pole cell).
+                    if initial_guess is not None:
+                        psi_in = initial_guess.values[global_n, :, 0, 0]
                     else:
                         psi_in = np.zeros(ng)
 
@@ -664,23 +710,11 @@ def _run_1d_sweep(
                 if mu_n >= 0 and abs(mu_n) >= sn_mesh._DEGENERATE_ABS_ETA_THRESHOLD:
                     bc_outer[global_n] = psi_face_chain[-1]      # (ng,)
 
-    # ── Cache previous-iteration state for next sweep's seeds ─────────
-    if not is_slab:
-        # angular_flux is (N, ng, nx, 1); pole is at cell index 0.
-        # Issue #197 PR-TYPED-2: curvilinear pole state lives in two
-        # named fields on :class:`BoundaryFlux` (one ``(N, ng)`` raw
-        # ndarray for the per-ordinate pole ψ history; one
-        # :class:`ScalarFlux` for the φ history that the Carlson seed
-        # consumes on the next sweep).
-        from .scalar_flux import ScalarFlux
-        boundary_flux.pole_psi = angular_flux[:, :, 0, 0].copy()    # (N, ng)
-        # scalar_flux is (ng, nx); restore the trailing ny=1 to satisfy
-        # the (ng, nx, ny) ScalarFlux contract.
-        boundary_flux.pole_phi_prev = ScalarFlux(
-            scalar_flux[:, :, None].copy(), sn_mesh,
-        )
-
     # ── Exit — PR-INDEX-5: caller consumes principled layout ──────────
+    # R-1 Step 0: NO iteration-cache write-back.  The caller threads the
+    # returned ``angular_flux`` as ``initial_guess`` to the NEXT sweep —
+    # that's all the "history" needed.  The matvec already operates this
+    # way; the sweep now mirrors it.
     # angular_flux is already (N, ng, nx, 1); scalar_flux needs the ny=1
     # axis added back to satisfy the (ng, nx, ny) public contract.
     return angular_flux, scalar_flux[:, :, None]

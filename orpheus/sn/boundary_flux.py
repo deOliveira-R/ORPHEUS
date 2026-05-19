@@ -20,8 +20,9 @@ PR-INDEX-1..5/7).
 
 * **1-D slab** — two faces, ``xmin`` and ``xmax``, each ``(N, ng)``.
 * **1-D spherical / cylindrical** — one outer radial face ``xmax``
-  ``(N, ng)``; plus the curvilinear **pole state** (``pole_psi``,
-  ``pole_phi_prev``) carried in separate fields.
+  ``(N, ng)``.  Curvilinear pole iteration history lives on
+  :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+  (R-1 Step 0, 2026-05-19) — see the module docstring.
 * **2-D Cartesian** — two persistent buffers covering BOTH x-faces
   AND interior x-face cells (``xmin_xmax_buf`` shape ``(N, ng, nx+1, ny)``)
   and likewise for y (``ymin_ymax_buf`` shape ``(N, ng, nx, ny+1)``).
@@ -41,11 +42,13 @@ Wrapping the buffers in a frozen dataclass would force every sweep to
 allocate fresh buffers and discard them — a memory churn the
 production hot path cannot afford.
 
-The 1-D pole state (``pole_psi``, ``pole_phi_prev``) is a separate
-``dict``-flavoured field rather than per-geometry slots because the
-spherical and cylindrical sweeps use distinct semantic keys; named
-attributes would require either two parallel attribute sets or
-single-purpose attributes that are unused on the other geometry.
+R-1 Step 0 (2026-05-19) — the curvilinear pole iteration history that
+formerly lived here as ``pole_psi`` / ``pole_phi_prev`` has been moved to
+:class:`~orpheus.sn.spatial.pole_angular_closure._PoleHistoryState` on
+:class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`.
+That state was always a curvilinear-closure concept; its presence on
+:class:`BoundaryFlux` was a concept leak between two semantically distinct
+notions (boundary face flux vs pole iteration cache).
 """
 
 from __future__ import annotations
@@ -57,7 +60,6 @@ import numpy as np
 
 if TYPE_CHECKING:
     from .geometry import SNMesh
-    from .scalar_flux import ScalarFlux
 
 
 __all__ = ["BoundaryFlux"]
@@ -83,15 +85,6 @@ class BoundaryFlux:
         face-flux cache the wavefront sweep maintains.  Shapes
         ``(N, ng, nx+1, ny)`` and ``(N, ng, nx, ny+1)``.  ``None`` for
         1-D meshes.
-    pole_psi : np.ndarray or None
-        Curvilinear pole angular flux history, shape ``(N, ng)``.
-        Carries the previous-iteration ``ψ`` at the centre cell (the
-        spherical / cylindrical pole) for the next sweep's BC inflow.
-        ``None`` for slab or before the first sweep.
-    pole_phi_prev : ScalarFlux or None
-        Curvilinear scalar-flux history feeding the Carlson seed,
-        shape ``(ng, nx)``.  ``None`` for slab or before the first
-        sweep.
     """
 
     mesh: "SNMesh"
@@ -103,10 +96,6 @@ class BoundaryFlux:
     # 2-D persistent buffers (cover face + interior face-flux cache).
     xmin_xmax_buf: np.ndarray | None = None
     ymin_ymax_buf: np.ndarray | None = None
-
-    # Curvilinear pole state (spherical or cylindrical).
-    pole_psi: np.ndarray | None = None
-    pole_phi_prev: "ScalarFlux | None" = None
 
     # ── Construction helpers ──────────────────────────────────────────
 
