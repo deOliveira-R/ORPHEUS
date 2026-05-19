@@ -719,21 +719,44 @@ class IdentityOperator(LinearOperatorMixin):
 class ZeroOperator(LinearOperatorMixin):
     r"""The zero operator :math:`0\,x = 0`.
 
-    Has ``apply`` (returns ``np.zeros_like(x)``) and
-    ``apply_transpose`` (also zero), but **not** ``solve``: the zero
-    operator is not invertible. Forcing it to advertise ``solve``
-    would be the harmful-stub anti-pattern this whole module is
-    designed against — composers downstream that ask for ``solve``
-    on :math:`L = A + 0` would silently get a meaningless answer.
+    Has ``apply`` (returns a zero of the same shape and type as ``x``)
+    and ``apply_transpose`` (also zero), but **not** ``solve``: the
+    zero operator is not invertible.  Forcing it to advertise
+    ``solve`` would be the harmful-stub anti-pattern this whole
+    module is designed against — composers downstream that ask for
+    ``solve`` on :math:`L = A + 0` would silently get a meaningless
+    answer.
+
+    Type preservation
+    -----------------
+
+    The implementation routes through ``0.0 * x``, which preserves
+    the input type via the right multiplication dunder
+    (:meth:`__rmul__` / :meth:`__mul__`):
+
+    * Bare ``np.ndarray`` — numpy scalar multiply returns
+      ``np.zeros_like(x)`` bit-exactly.
+    * Typed flux containers
+      (:class:`~orpheus.sn.angular_flux.AngularFlux`,
+      :class:`~orpheus.sn.scalar_flux.ScalarFlux`,
+      :class:`~orpheus.sn.harmonic_moment_field.HarmonicMomentField`) —
+      dunder arithmetic produces a fresh typed instance whose values
+      (and ``.boundary`` for AngularFlux) are all zero.
+
+    This is the load-bearing detail for the R-1 Step 4 typed-end-to-
+    end algebra: composing ``(L + C - S - F)`` where ``F =
+    ZeroOperator`` (within-group inner solve) MUST produce a typed
+    AngularFlux at every step; a bare ``np.zeros_like(AngularFlux)``
+    would raise.
     """
 
     capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
-    def apply(self, x: np.ndarray) -> np.ndarray:
-        return np.zeros_like(x)
+    def apply(self, x):
+        return 0.0 * x
 
-    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
-        return np.zeros_like(x)
+    def apply_transpose(self, x):
+        return 0.0 * x
 
 
 class PermutationOperator(LinearOperatorMixin):

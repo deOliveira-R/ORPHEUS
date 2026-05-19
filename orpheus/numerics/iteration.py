@@ -127,6 +127,74 @@ def _has(op: object, cap: str) -> bool:
     return bool(caps) and cap in caps
 
 
+# ───────────────────────────────────────────────────────────────────────
+# Ravellable protocol — bridges typed flux containers to scipy's
+# flat-vector requirement.  R-1 Step 4a — :class:`KrylovAcceleration`
+# and :class:`SourceIteration` accept typed flux containers
+# (:class:`~orpheus.sn.angular_flux.AngularFlux`) via duck-typing on
+# the pair of methods (``to_flat_with_traces`` instance method +
+# class-level ``from_flat_with_traces`` factory) that AngularFlux
+# already exposes for the scipy boundary.
+#
+# Keeping the protocol duck-typed here (not an ABC import) preserves
+# the deliberate decoupling of ``orpheus.numerics`` from
+# ``orpheus.sn`` — the iteration primitives still know nothing
+# about SN-specific shapes; they just consume any object that
+# advertises the ravel pair.
+# ───────────────────────────────────────────────────────────────────────
+
+
+def _is_ravellable(x: object) -> bool:
+    """Detect the ravellable protocol used by :class:`AngularFlux`.
+
+    True when ``x`` exposes both an instance method
+    ``to_flat_with_traces`` returning a 1-D ndarray AND a class-level
+    factory ``from_flat_with_traces(flat, mesh)`` AND a ``mesh``
+    attribute the factory consumes.  Bare ndarrays match none of
+    these and fall through to the legacy reshape path.
+    """
+    return (
+        hasattr(x, "to_flat_with_traces")
+        and hasattr(x, "mesh")
+        and hasattr(type(x), "from_flat_with_traces")
+    )
+
+
+def _ravel(x):
+    """Ravel typed flux or bare ndarray to a 1-D ``float64`` ndarray."""
+    if _is_ravellable(x):
+        return np.asarray(x.to_flat_with_traces(), dtype=float)
+    return np.asarray(x, dtype=float).ravel()
+
+
+def _unravel_like(template, flat: np.ndarray):
+    """Reconstruct the typed flux (or reshape the bare ndarray) from ``flat``.
+
+    Uses ``template`` only to recover the shape / mesh / factory —
+    ``flat`` is the new numeric content.
+    """
+    if _is_ravellable(template):
+        return type(template).from_flat_with_traces(flat, template.mesh)
+    return flat.reshape(template.shape)
+
+
+def _zeros_like(template):
+    """Zero typed flux or bare ndarray matching ``template``'s shape/mesh."""
+    if _is_ravellable(template):
+        flat_size = template.to_flat_with_traces().size
+        return type(template).from_flat_with_traces(
+            np.zeros(flat_size, dtype=float), template.mesh,
+        )
+    return np.zeros_like(template)
+
+
+def _l2_norm(x) -> float:
+    """L2 norm — ravels typed flux via the protocol before delegating to numpy."""
+    if _is_ravellable(x):
+        return float(np.linalg.norm(x.to_flat_with_traces()))
+    return float(np.linalg.norm(np.asarray(x)))
+
+
 def _default_keff_estimator(
     L: LinearOperator,
     S: LinearOperator,
@@ -322,11 +390,16 @@ class SourceIteration:
             plotting convergence and for diagnosing stalled
             iterations.
         """
-        psi = (
-            np.zeros_like(q_ext)
-            if initial_guess is None
-            else np.asarray(initial_guess).copy()
-        )
+        # R-1 Step 4a — ravellable protocol: typed flux containers
+        # (:class:`AngularFlux`) and bare ndarrays both work.  ``psi``
+        # carries the same type as ``q_ext``; arithmetic, norm, and
+        # zeros routing through the protocol helpers.
+        if initial_guess is None:
+            psi = _zeros_like(q_ext)
+        elif _is_ravellable(initial_guess):
+            psi = initial_guess  # typed: trust frozen-arithmetic contract
+        else:
+            psi = np.asarray(initial_guess).copy()
         residual_history: list[float] = []
 
         for _ in range(self.max_iter):
@@ -342,12 +415,14 @@ class SourceIteration:
             psi = self._inverter(rhs)
 
             # SNSolver-compatible convergence test (bit-identical loop
-            # structure for Round 2 wiring): relative L2 residual.
-            norm = float(np.linalg.norm(psi))
+            # structure for Round 2 wiring): relative L2 residual via
+            # the ravellable protocol — typed flux uses the flat
+            # representation including boundary face state.
+            norm = _l2_norm(psi)
             if norm > 0.0:
-                res = float(np.linalg.norm(psi - psi_prev) / max(norm, 1e-30))
+                res = _l2_norm(psi - psi_prev) / max(norm, 1e-30)
             else:
-                res = float(np.linalg.norm(psi - psi_prev))
+                res = _l2_norm(psi - psi_prev)
             residual_history.append(res)
 
             if res < self.tol:
@@ -521,15 +596,23 @@ class KrylovAcceleration:
             (scipy's ``callback_type='pr_norm'``).  Empty if GMRES
             returned in zero iterations.
         """
-        original_shape = q_ext.shape
-        b = np.asarray(q_ext, dtype=float).ravel()
+        # R-1 Step 4a — ravellable protocol: when ``q_ext`` is a typed
+        # flux container (:class:`AngularFlux`), the ravel/unravel goes
+        # through ``to_flat_with_traces`` / ``from_flat_with_traces`` so
+        # the flat vector for scipy carries the FULL state including the
+        # boundary face block.  Bare-ndarray inputs route through the
+        # legacy reshape path unchanged.
+        b = _ravel(q_ext)
         n = b.size
 
         def A_matvec(psi_flat: np.ndarray) -> np.ndarray:
-            # Reshape to original layout, compose (L − S − F)·ψ, ravel.
-            psi = psi_flat.reshape(original_shape)
+            # Lift back to the typed (or shaped) carrier, compose
+            # (L − S − F)·ψ, ravel.  Operator arithmetic propagates
+            # via dunders to ``.boundary`` (AngularFlux) or just the
+            # ndarray (bare).
+            psi = _unravel_like(q_ext, psi_flat)
             out = self.L.apply(psi) - self.S.apply(psi) - self.F.apply(psi)
-            return np.asarray(out).ravel()
+            return _ravel(out)
 
         A_scipy = spla.LinearOperator((n, n), matvec=A_matvec, dtype=float)
 
@@ -537,9 +620,9 @@ class KrylovAcceleration:
             precond_fn = self._preconditioner
 
             def M_matvec(q_flat: np.ndarray) -> np.ndarray:
-                q = q_flat.reshape(original_shape)
+                q = _unravel_like(q_ext, q_flat)
                 out = precond_fn(q)
-                return np.asarray(out).ravel()
+                return _ravel(out)
 
             M_scipy: spla.LinearOperator | None = spla.LinearOperator(
                 (n, n), matvec=M_matvec, dtype=float,
@@ -548,7 +631,7 @@ class KrylovAcceleration:
             M_scipy = None
 
         x0 = (
-            np.asarray(initial_guess, dtype=float).ravel()
+            _ravel(initial_guess)
             if initial_guess is not None
             else np.zeros_like(b)
         )
@@ -585,7 +668,7 @@ class KrylovAcceleration:
                 callback=callback,
             )
 
-        return solution.reshape(original_shape), residual_history
+        return _unravel_like(q_ext, solution), residual_history
 
 
 # ───────────────────────────────────────────────────────────────────────
