@@ -1,4 +1,4 @@
-r"""Foundation tests for ``SNMesh.dag_walk`` + ``EquationMap.unknowns_at_cell_for_mask``.
+r"""Foundation tests for ``SNMesh.dag_walk``.
 
 Issue #196 Phase G Step 2.6 (Q3) — the single canonical iteration
 primitive for 1-D sweeps.  ``dag_walk`` takes EXACTLY ONE of
@@ -11,6 +11,14 @@ These foundation tests pin the equivalence between the two
 invocation modes at bit precision: the direction-keyed branch must
 yield the same cell sequence as every non-degenerate ordinate in
 the matching sign class.
+
+R-1 Step 4 — the ``EquationMap.unknowns_at_cell_for_mask`` tests that
+used to live in this file have been retired with the helper (zero
+production callers; the typed-AngularFlux architecture indexes
+``psi.values[:, :, i, j]`` directly).  The five retired tests covered:
+spherical / cylindrical brute-force-equivalence, empty-mask early
+return, lazy-table caching, and outer-boundary-inward-absence.  None
+exercised :meth:`SNMesh.dag_walk`.
 """
 from __future__ import annotations
 
@@ -19,11 +27,6 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import (
-    EquationMap,
-    build_equation_map_cylindrical,
-    build_equation_map_spherical,
-)
 from orpheus.sn.quadrature import (
     GaussLegendre1D,
     LevelSymmetricSN,
@@ -205,96 +208,3 @@ def test_dag_walk_xor_signature_enforced():
     # Both supplied → ValueError.
     with pytest.raises(ValueError, match="exactly one"):
         list(sn_mesh.dag_walk(ordinate_idx=0, direction_sign=+1))
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# EquationMap.unknowns_at_cell_for_mask
-# ═══════════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.foundation
-def test_unknowns_at_cell_for_mask_spherical_matches_brute_force():
-    """For each cell + mask combo, the helper returns the same k set as a linear scan."""
-    quad = GaussLegendre1D.create(8)
-    nx = 10
-    ng = 2
-    eq_map = build_equation_map_spherical(nx, quad, ng)
-
-    outgoing = quad.mu_x > 1e-15
-    incoming = quad.mu_x < -1e-15
-    for i in range(nx):
-        for mask in (outgoing, incoming):
-            # Brute-force reference: scan eq_map.ix/ordinate.
-            ref_ks = [
-                k
-                for k in range(eq_map.n_eq)
-                if eq_map.ix[k] == i and mask[eq_map.ordinate[k]]
-            ]
-            ref_ks = np.asarray(ref_ks, dtype=np.intp)
-            helper_ks = eq_map.unknowns_at_cell_for_mask(i, mask)
-            # The helper orders by ascending ordinate index; the
-            # eq_map was built ordinate-inner, so ref_ks naturally
-            # matches that order too.
-            assert np.array_equal(np.sort(helper_ks), np.sort(ref_ks)), (
-                f"Cell {i}: helper {helper_ks} != ref {ref_ks}"
-            )
-
-
-@pytest.mark.foundation
-def test_unknowns_at_cell_for_mask_cylindrical_matches_brute_force():
-    quad = LevelSymmetricSN.create(4)
-    nx = 6
-    ng = 1
-    eq_map = build_equation_map_cylindrical(nx, quad, ng)
-
-    outgoing = quad.mu_x > 1e-15
-    for i in range(nx):
-        ref_ks = sorted(
-            k
-            for k in range(eq_map.n_eq)
-            if eq_map.ix[k] == i and outgoing[eq_map.ordinate[k]]
-        )
-        helper_ks = sorted(
-            eq_map.unknowns_at_cell_for_mask(i, outgoing).tolist()
-        )
-        assert helper_ks == ref_ks
-
-
-@pytest.mark.foundation
-def test_unknowns_at_cell_for_mask_empty_mask_yields_empty():
-    quad = GaussLegendre1D.create(4)
-    eq_map = build_equation_map_spherical(5, quad, 1)
-    empty_mask = np.zeros(quad.N, dtype=bool)
-    for i in range(5):
-        result = eq_map.unknowns_at_cell_for_mask(i, empty_mask)
-        assert result.size == 0
-
-
-@pytest.mark.foundation
-def test_unknowns_at_cell_for_mask_lazy_table_caches():
-    quad = GaussLegendre1D.create(4)
-    eq_map = build_equation_map_spherical(5, quad, 1)
-    assert eq_map._cell_ord_to_k is None  # type: ignore[attr-defined]
-    mask = quad.mu_x > 0
-    eq_map.unknowns_at_cell_for_mask(0, mask)
-    assert eq_map._cell_ord_to_k is not None  # type: ignore[attr-defined]
-    table_id = id(eq_map._cell_ord_to_k)  # type: ignore[attr-defined]
-    eq_map.unknowns_at_cell_for_mask(1, mask)
-    # Cached; second call reuses the table object.
-    assert id(eq_map._cell_ord_to_k) == table_id  # type: ignore[attr-defined]
-
-
-@pytest.mark.foundation
-def test_unknowns_at_cell_for_mask_outer_boundary_inward_absent():
-    r"""At i=nx-1, inward μ<0 ordinates are NOT unknowns (BC determines them).
-
-    The eq_map for spherical skips inward-at-outer-boundary slots
-    (line 399 in operator.py); the helper must return an empty array
-    when queried with an incoming mask at the outer boundary.
-    """
-    quad = GaussLegendre1D.create(6)
-    nx = 8
-    eq_map = build_equation_map_spherical(nx, quad, 1)
-    incoming = quad.mu_x < -1e-15
-    result = eq_map.unknowns_at_cell_for_mask(nx - 1, incoming)
-    assert result.size == 0

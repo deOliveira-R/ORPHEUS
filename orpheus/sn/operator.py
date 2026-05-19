@@ -205,82 +205,13 @@ class EquationMap:
     face_outer_ordinate: np.ndarray | None = None
     face_inner_ordinate: np.ndarray | None = None
 
-    # ── Issue #168 Phase C: precomputed (cell, ordinate) → unknown index ──
-    # Sparse inverse lookup for the sweep-frame matvec. Set lazily on
-    # first call to ``unknowns_at_cell_for_mask`` so existing callers
-    # are not forced to build it when they do not need it.
-    _cell_ord_to_k: np.ndarray | None = field(default=None, repr=False)
-    """``(nx, N) int`` with ``-1`` for absent (ordinate, cell) pairs.
-
-    Populated lazily by :meth:`unknowns_at_cell_for_mask`.
-    """
-
-    def unknowns_at_cell_for_mask(
-        self,
-        cell_idx: int,
-        ordinate_mask: np.ndarray,
-    ) -> np.ndarray:
-        r"""Return unknown indices ``k`` at cell ``cell_idx`` for ordinates in mask.
-
-        Issue #168 Phase C — sweep-frame matvec helper. Built from
-        :attr:`ordinate` and :attr:`ix` as a precomputed inverse
-        lookup table (O(N · nx) memory, lazily allocated) so the
-        per-cell call is an O(mask_count) array gather rather than
-        the O(n_eq) linear scan the legacy per-equation pattern used.
-
-        The first call materialises a ``(nx_inferred, N) int`` table
-        where ``table[i, n] == k`` if unknown ``k`` is at cell ``i``
-        ordinate ``n``, and ``-1`` otherwise. Subsequent calls reuse
-        the table; no per-call allocation cost beyond the boolean
-        mask gather.
-
-        Parameters
-        ----------
-        cell_idx : int
-            Cell index ``i`` in the spatial axis.
-        ordinate_mask : np.ndarray
-            Boolean array, shape ``(N,)``, ``True`` for ordinates to
-            include.
-
-        Returns
-        -------
-        np.ndarray
-            ``int`` array of unknown indices (subset of ``[0, n_eq)``)
-            ordered by the mask's ``True`` positions in ascending
-            ordinate index. Returns an empty array if no unknown at
-            ``cell_idx`` matches the mask.
-
-        Raises
-        ------
-        ValueError
-            If ``ordinate_mask`` is not 1-D or its length disagrees
-            with the quadrature's ordinate count inferred from
-            :attr:`ordinate`.
-        """
-        ordinate_mask = np.asarray(ordinate_mask, dtype=bool)
-        if ordinate_mask.ndim != 1:
-            raise ValueError(
-                f"ordinate_mask must be 1-D; got shape "
-                f"{ordinate_mask.shape}"
-            )
-        if self._cell_ord_to_k is None:
-            # Infer (nx, N) from the eq_map content. Use the maximum
-            # index plus one so the table covers every cell / ordinate
-            # the eq_map references.
-            nx = int(self.ix.max()) + 1 if self.n_eq > 0 else 0
-            n_ord = int(self.ordinate.max()) + 1 if self.n_eq > 0 else 0
-            n_ord = max(n_ord, ordinate_mask.size)
-            table = -np.ones((nx, n_ord), dtype=np.intp)
-            table[self.ix, self.ordinate] = np.arange(self.n_eq)
-            self._cell_ord_to_k = table
-        table = self._cell_ord_to_k
-        if ordinate_mask.size != table.shape[1]:
-            raise ValueError(
-                f"ordinate_mask length {ordinate_mask.size} does not "
-                f"match inferred N={table.shape[1]}"
-            )
-        ks = table[cell_idx][ordinate_mask]
-        return ks[ks >= 0]
+    # R-1 Step 4: ``unknowns_at_cell_for_mask`` + ``_cell_ord_to_k``
+    # retired (zero production callers — see R-1 Step 4 retirement
+    # audit).  Originally an Issue #168 Phase C optimization for the
+    # sweep-frame matvec; under the typed :class:`AngularFlux` /
+    # :class:`BoundaryFlux` architecture the per-cell ordinate lookup
+    # is direct array indexing on ``psi.values[:, :, i, j]`` — no
+    # precomputed inverse table needed.
 
 
 def build_equation_map(
