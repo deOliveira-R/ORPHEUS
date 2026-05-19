@@ -77,6 +77,7 @@ from orpheus.numerics.operator import (
 )
 
 if TYPE_CHECKING:
+    from .angular_flux import AngularFlux
     from .material_xs_field import MaterialXSField
     from .scalar_flux import ScalarFlux
 
@@ -145,8 +146,8 @@ class FissionOperator(LinearOperatorMixin):
         return cls(mat_xs=mat_xs)
 
     def apply(
-        self, phi: "np.ndarray | ScalarFlux",
-    ) -> "np.ndarray | ScalarFlux":
+        self, phi: "np.ndarray | ScalarFlux | AngularFlux",
+    ) -> "np.ndarray | ScalarFlux | AngularFlux":
         r"""Apply :math:`F\,\phi`: emission rate × spectrum, no :math:`1/k`.
 
         .. math::
@@ -156,25 +157,53 @@ class FissionOperator(LinearOperatorMixin):
 
         Parameters
         ----------
-        phi : np.ndarray or ScalarFlux
-            Scalar flux.  When typed as
-            :class:`~orpheus.sn.scalar_flux.ScalarFlux` (Issue #197
-            PR-TYPED-2), the result is also a :class:`ScalarFlux`
-            (the operator reads as the math).  When passed as bare
-            ``np.ndarray`` shape ``(ng, nx, ny)`` (Issue #196 PR-INDEX-4 —
-            principled layout), the result is a bare ``np.ndarray``.
-            The bare-ndarray surface is retained for the legacy
-            packed-vector / FD-matvec consumers (e.g.
-            :class:`SNStreamingOperator` / GMRES); the typed surface
-            is the elegance-pattern target.
+        phi : np.ndarray or ScalarFlux or AngularFlux
+            Flux.  Three input types are accepted:
+
+            * Bare ``np.ndarray`` shape ``(ng, nx, ny)`` — returns bare
+              ``np.ndarray`` (legacy packed-vector / FD-matvec consumers,
+              SNStreamingOperator / GMRES).
+            * :class:`~orpheus.sn.scalar_flux.ScalarFlux` — returns
+              :class:`ScalarFlux` (operator reads as the math at the
+              eigenvalue layer; PR-TYPED-2).
+            * :class:`~orpheus.sn.angular_flux.AngularFlux` — returns
+              :class:`AngularFlux` (R-1 Step 3 — operator-algebra
+              consumer at the within-group layer; lifts via internal
+              ``ψ → φ → F·φ → broadcast(N, ·, ·, ·)``).
 
         Returns
         -------
-        np.ndarray or ScalarFlux
+        np.ndarray or ScalarFlux or AngularFlux
             Fission source *without* the :math:`1/k` eigenvalue
             division.  Type matches the input (typed → typed, raw → raw).
+
+        Notes
+        -----
+        R-1 Step 3a — the :class:`AngularFlux` overload is added for
+        completeness of the operator algebra ``(L + C - S - F).apply(ψ)``.
+        In ORPHEUS the within-group operator triple has ``F =
+        ZeroOperator``; ``F.apply(AngularFlux)`` is consumed by the
+        future Phase A :class:`KEigenvalue` outer iteration, NOT by
+        the within-group inner solve.  The result's ``.boundary`` is
+        the auto-allocated zero :class:`BoundaryFlux` — fission is a
+        volumetric emission with no face-trace contribution.
         """
+        from .angular_flux import AngularFlux
         from .scalar_flux import ScalarFlux
+        # Typed AngularFlux lift — reduce angular → scalar, apply scalar
+        # path, broadcast back across the ordinate axis.  The per-
+        # ordinate fission source is the per-cell emission rate (no
+        # 1/W normalization — same convention as ScatteringOperator's
+        # typed branch returns Q_iso[None, :, :, :] broadcast).
+        if isinstance(phi, AngularFlux):
+            phi_scalar: "ScalarFlux" = phi.integrate_angular()
+            fission_scalar: "ScalarFlux" = self.apply(phi_scalar)
+            N = phi.mesh.quad.N
+            values = np.broadcast_to(
+                fission_scalar.values[None, :, :, :],
+                (N, phi.ng, phi.nx, phi.ny),
+            ).copy()
+            return AngularFlux(values, phi.mesh)
         is_typed = isinstance(phi, ScalarFlux)
         values = phi.values if is_typed else phi
         sig_p = self.sig_p

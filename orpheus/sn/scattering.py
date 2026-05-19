@@ -855,6 +855,12 @@ class ScatteringOperator(LinearOperatorMixin):
             # anisotropic source — the load-bearing PR-TYPED-3
             # pattern (replaces ``np.broadcast_to(...).copy() + Q``).
             combined: PerOrdinateSource = iso + aniso
+            # R-1 Step 3b — ``S`` is volumetric: zero face-trace
+            # contribution.  The auto-allocated ``boundary`` on the
+            # returned :class:`AngularFlux` is exactly the zero
+            # :class:`BoundaryFlux` the operator algebra expects.  See
+            # ``StreamingOperator.apply`` for the contrasting case
+            # where the face residual IS non-zero.
             return AngularFlux(combined.values, mesh)
         # Bare-ndarray path preserves the legacy in-place contract for
         # packed-vector / FD-matvec consumers.  The implicit-broadcast

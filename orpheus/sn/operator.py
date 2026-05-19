@@ -85,6 +85,7 @@ from .quadrature import AngularQuadrature
 if TYPE_CHECKING:
     from orpheus.geometry.boundary import BoundaryOperator
 
+    from .angular_flux import AngularFlux
     from .boundary_flux import BoundaryFlux
     from .geometry import SNMesh
     from .sources import IsotropicSource, PerOrdinateSource
@@ -1972,7 +1973,9 @@ class StreamingOperator(LinearOperatorMixin):
         ng = int(self.sigma_t.shape[0])
         return self._ensure_eq_map(ng=ng).n_unknowns
 
-    def apply(self, psi: np.ndarray) -> np.ndarray:
+    def apply(
+        self, psi: "np.ndarray | AngularFlux",
+    ) -> "np.ndarray | AngularFlux":
         r"""Subtractive forward action :math:`L\,\psi = M(\psi;\sigma_t)
         - \sigma_t \odot \psi`.
 
@@ -1991,11 +1994,27 @@ class StreamingOperator(LinearOperatorMixin):
         (slab).  The cylinder twin-path divergence (rel ≈ 4e-3 at
         ``nx = 40``) gets fixed at its architectural source.
 
+        R-1 Step 3d — typed :class:`AngularFlux` overload.  The Carlson
+        seed and inner-BC seed are pulled from ``psi.boundary``
+        directly (no flat-vector round-trip); the matvec returns the
+        cell action and the face residual; the result is a typed
+        :class:`AngularFlux` whose ``.boundary`` carries the B1'' face
+        residual at the outer face (and, for slab, the inner face).
+        This is the ONLY operator that emits a non-zero face residual;
+        :class:`CollisionOperator`, :class:`~orpheus.sn.scattering.ScatteringOperator`,
+        and :class:`~orpheus.sn.fission.FissionOperator` all leave the
+        output ``.boundary`` at the auto-allocated zero.
+
         2-D Cartesian (``ny > 1``) remains on the legacy
         :func:`transport_operator_matvec` (FD via
         :func:`_compute_gradients`) — anti-diagonal wavefront sweeps
         need a different iteration structure than
         :meth:`SNMesh.dag_walk` and lie outside the PR-TYPED-6c scope.
+        The R-1 typed overload routes 2-D through a flat round-trip
+        via :meth:`AngularFlux.to_flat_with_traces` /
+        :meth:`AngularFlux.from_flat_with_traces` for parity with 1-D
+        (the underlying compute remains the legacy FD; Phase A absorbs
+        the 2-D path).
 
         By Resolution A: :math:`(L + C).{\rm apply}(\psi) =
         M(\psi;\sigma_t)` bit-exact (the ``+`` is operator addition;
@@ -2004,14 +2023,25 @@ class StreamingOperator(LinearOperatorMixin):
 
         Parameters
         ----------
-        psi : np.ndarray
-            Packed solution vector, shape ``(n_unknowns,)``.
+        psi : np.ndarray or AngularFlux
+            * Bare ``np.ndarray`` — packed 1-D vector,
+              shape ``(n_unknowns,)``.
+            * :class:`~orpheus.sn.angular_flux.AngularFlux` — typed
+              flux with embedded :class:`BoundaryFlux` carrying the
+              face state at outer (and slab-inner) face.
 
         Returns
         -------
-        np.ndarray
-            ``L·ψ`` as a packed vector, same shape as ``psi``.
+        np.ndarray or AngularFlux
+            ``L·ψ`` in the matching type.  When :class:`AngularFlux`,
+            ``.boundary.xmax_face`` carries the outer-face residual
+            and (for slab) ``.boundary.xmin_face`` carries the
+            inner-face residual.
         """
+        from .angular_flux import AngularFlux
+        from .boundary_flux import BoundaryFlux
+        if isinstance(psi, AngularFlux):
+            return self._apply_typed(psi)
         sn_mesh = self.sn_mesh
         # PR-INDEX-3: ``sigma_t`` shape is ``(ng, nx, ny)``.
         ng = int(self.sigma_t.shape[0])
@@ -2078,6 +2108,86 @@ class StreamingOperator(LinearOperatorMixin):
             m_full[:n_cell_scalars] - sigma_packed_cell * psi[:n_cell_scalars]
         )
         return m_full
+
+    def _apply_typed(self, psi: "AngularFlux") -> "AngularFlux":
+        r"""Typed-AngularFlux body of :meth:`apply` (R-1 Step 3d).
+
+        Routes natively through :func:`transport_operator_matvec_unified`
+        for 1-D (no flat round-trip), and routes 2-D Cartesian through
+        a flat round-trip via :meth:`AngularFlux.to_flat_with_traces`
+        for parity (the underlying compute kernel for 2-D is the legacy
+        :func:`transport_operator_matvec`; Phase A absorbs it).
+
+        Returns an :class:`AngularFlux` whose ``.boundary`` carries the
+        face residual (the only operator in the L/C/S/F set that emits
+        a non-zero face residual).
+        """
+        from .angular_flux import AngularFlux
+        from .boundary_flux import BoundaryFlux
+        sn_mesh = self.sn_mesh
+        if sn_mesh is not psi.mesh:
+            raise ValueError(
+                "StreamingOperator.apply(AngularFlux): operator and flux "
+                "must share the SAME SNMesh instance (mesh-identity "
+                "invariant)."
+            )
+        ng = int(self.sigma_t.shape[0])
+        nx, ny = sn_mesh.nx, sn_mesh.ny
+        quad = sn_mesh.quad
+        curv = getattr(sn_mesh, "curvature", None)
+
+        # 2-D Cartesian — flat round-trip onto the legacy compute.
+        if curv is None and ny > 1:
+            flat_in = psi.to_flat_with_traces()
+            flat_out = self.apply(flat_in)
+            return AngularFlux.from_flat_with_traces(flat_out, sn_mesh)
+
+        # 1-D slab / sphere / cylinder — typed-native compute.  Pull
+        # face state directly from ``psi.boundary``; matvec returns
+        # cell action + face residual.
+        eq_map = self._ensure_eq_map(ng=ng)
+        # Gather face values at the typed per-ordinate slots.  Empty
+        # arrays (size 0) when the geometry has no inner-face block.
+        if eq_map.n_face_outer > 0:
+            face_outer_in = psi.boundary.xmax_face[
+                eq_map.face_outer_ordinate, :
+            ]
+            face_outer_ord = eq_map.face_outer_ordinate
+        else:
+            face_outer_in = None
+            face_outer_ord = None
+        if eq_map.n_face_inner > 0:
+            face_inner_in = psi.boundary.xmin_face[
+                eq_map.face_inner_ordinate, :
+            ]
+            face_inner_ord = eq_map.face_inner_ordinate
+        else:
+            face_inner_in = None
+            face_inner_ord = None
+
+        m_cell, m_face_outer, m_face_inner = transport_operator_matvec_unified(
+            psi.values, sn_mesh, self.sigma_t,
+            psi_face_outer=face_outer_in,
+            psi_face_inner=face_inner_in,
+            face_outer_ordinate=face_outer_ord,
+            face_inner_ordinate=face_inner_ord,
+        )
+
+        # Subtract σ_t ⊙ ψ at the CELL-CENTRE only — face slots carry
+        # no volumetric collision (the cell-balance σ·ψ term is a CELL
+        # quantity; the face residual is a TRACE equation).
+        cell_values = m_cell - self.sigma_t[None, :, :, :] * psi.values
+
+        # Build the result's BoundaryFlux from the matvec's face
+        # residuals.  Scatter back into the same per-ordinate slots
+        # that ``from_flat_with_traces`` uses on decode.
+        boundary = BoundaryFlux.zeros(sn_mesh)
+        if eq_map.n_face_outer > 0 and m_face_outer is not None:
+            boundary.xmax_face[eq_map.face_outer_ordinate, :] = m_face_outer
+        if eq_map.n_face_inner > 0 and m_face_inner is not None:
+            boundary.xmin_face[eq_map.face_inner_ordinate, :] = m_face_inner
+
+        return AngularFlux(cell_values, sn_mesh, boundary=boundary)
 
 
 @dataclass
@@ -2187,13 +2297,41 @@ class CollisionOperator(LinearOperatorMixin):
         sigma_per_eq = self.sigma[:, eq_map.ix, eq_map.iy]    # (ng, n_eq)
         return sigma_per_eq.ravel(order='F')                  # (n_eq · ng,)
 
-    def apply(self, psi: np.ndarray) -> np.ndarray:
+    def apply(
+        self, psi: "np.ndarray | AngularFlux",
+    ) -> "np.ndarray | AngularFlux":
         r"""Forward action :math:`C\,\psi = \sigma\cdot\psi`.
 
         PR-TYPED-6.5 Phase 3b — face slots receive zero contribution
         (no volumetric collision on the boundary face trace); the
         cell-centre block carries the elementwise ``σ ⊙ ψ_cell``.
+
+        R-1 Step 3c — typed :class:`AngularFlux` overload.  The diagonal
+        action :math:`\sigma\cdot\psi` is per-cell per-group, broadcast
+        across every ordinate.  Result's ``.boundary`` is the
+        auto-allocated zero :class:`BoundaryFlux` — collision has no
+        face-trace contribution.
+
+        Parameters
+        ----------
+        psi : np.ndarray or AngularFlux
+            * Bare ``np.ndarray`` — packed 1-D vector matching
+              :attr:`_eq_map.n_unknowns`.  Returns bare ``np.ndarray``.
+            * :class:`~orpheus.sn.angular_flux.AngularFlux` shape
+              ``(N, ng, nx, ny)``.  Returns :class:`AngularFlux` with
+              ``.values = σ ⊙ ψ.values`` and zero ``.boundary``.
         """
+        from .angular_flux import AngularFlux
+        if isinstance(psi, AngularFlux):
+            # Typed branch — broadcast σ across ordinate axis.
+            # σ is (ng, nx, ny); ψ.values is (N, ng, nx, ny);
+            # the product broadcasts σ to every ordinate (collision
+            # is direction-independent).  The output's ``.boundary``
+            # is auto-allocated to zeros (R-1 Step 2), which is the
+            # correct algebraic value — C has no face contribution.
+            return AngularFlux(
+                self.sigma[None, :, :, :] * psi.values, psi.mesh,
+            )
         ng = int(self.sigma.shape[0])
         eq_map = self._ensure_eq_map(ng)
         if eq_map.n_unknowns != psi.size:
