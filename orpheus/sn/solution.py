@@ -141,20 +141,30 @@ class Solution:
     angular_flux : AngularFlux
         Per-ordinate angular flux field
         :math:`\psi(\vec r, \hat\Omega_n, g)`, shape ``(N, ng, nx, ny)``.
+        Under R-1 Step 2, :class:`AngularFlux` carries its own boundary
+        face state via :attr:`AngularFlux.boundary`; see the
+        :attr:`Solution.boundary_flux` property below.
     scalar_flux : ScalarFlux
         Scalar flux field
         :math:`\phi(\vec r, g) = \sum_n w_n \psi_n`,
         shape ``(ng, nx, ny)``.
-    boundary_flux : BoundaryFlux
-        Persistent boundary face / pole state at the end of the solve.
     mesh : SNMesh
-        The phase-space mesh.  All three flux fields above MUST carry
+        The phase-space mesh.  Both typed flux fields above MUST carry
         this same :class:`SNMesh` instance (validated at construction).
     keff : float or None
         Multiplication eigenvalue.  ``None`` for fixed-source problems.
     history : IterationHistory or None
         Convergence-trajectory diagnostics.  ``None`` for paths that
         do not surface them.
+
+    Notes
+    -----
+    Prior to R-1 Step 2, :attr:`boundary_flux` was a separate dataclass
+    field carrying a :class:`BoundaryFlux` instance independent of
+    ``angular_flux``.  That was a twin-storage anti-pattern (the same
+    boundary face state was reachable through two paths).  Under R-1
+    Step 2, :attr:`boundary_flux` is a delegated property that returns
+    :attr:`AngularFlux.boundary` — single source of truth.
 
     Examples
     --------
@@ -171,7 +181,6 @@ class Solution:
 
     angular_flux: "AngularFlux"
     scalar_flux: "ScalarFlux"
-    boundary_flux: "BoundaryFlux"
     mesh: "SNMesh"
     keff: float | None = None
     history: IterationHistory | None = None
@@ -185,7 +194,6 @@ class Solution:
         for name, field_value in (
             ("angular_flux", self.angular_flux),
             ("scalar_flux", self.scalar_flux),
-            ("boundary_flux", self.boundary_flux),
         ):
             if field_value.mesh is not self.mesh:
                 raise ValueError(
@@ -193,6 +201,33 @@ class Solution:
                     "(typed-field mesh-identity contract broken — every "
                     "field must reference the same SNMesh instance)."
                 )
+
+    # ── R-1 Step 2: boundary_flux as a delegate property ─────────────
+    #
+    # Prior to R-1 Step 2, :attr:`boundary_flux` was a separate dataclass
+    # field; the boundary face state was reachable from BOTH
+    # ``sol.angular_flux.boundary`` (after the typed-pair migration)
+    # AND ``sol.boundary_flux`` (the legacy field).  That was a twin-
+    # storage path that invited drift; per ``coding-elegance``
+    # Pattern 2 (single source of truth), R-1 Step 2 collapses both
+    # paths to ``angular_flux.boundary``.  ``Solution.boundary_flux``
+    # is now a thin read-through that delegates to the AngularFlux's
+    # owned boundary — Step 5 removes the property entirely after one
+    # wave cycle of test migration elapses.
+
+    @property
+    def boundary_flux(self) -> "BoundaryFlux":
+        r"""Boundary face state — delegate to :attr:`AngularFlux.boundary`.
+
+        :class:`AngularFlux` now owns the boundary face / persistent
+        buffer state via :attr:`AngularFlux.boundary`.  This property
+        provides the legacy ``sol.boundary_flux`` access path while
+        ensuring the single-source-of-truth contract.
+
+        See :class:`~orpheus.sn.boundary_flux.BoundaryFlux` for the
+        per-geometry shape contract.
+        """
+        return self.angular_flux.boundary
 
     # ── Discrimination ───────────────────────────────────────────────
 

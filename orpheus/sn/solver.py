@@ -1088,9 +1088,10 @@ def solve_sn(
         converged=True,
     )
     return Solution(
-        angular_flux=AngularFlux(angular_flux, sn_mesh),
+        angular_flux=AngularFlux(
+            angular_flux, sn_mesh, boundary=solver._boundary_flux,
+        ),
         scalar_flux=ScalarFlux(scalar_flux, sn_mesh),
-        boundary_flux=solver._boundary_flux,
         mesh=sn_mesh,
         keff=float(keff_history[-1]),
         history=history,
@@ -1323,9 +1324,10 @@ def _solve_fixed_source_si(
         converged=converged_flag,
     )
     return Solution(
-        angular_flux=AngularFlux(angular, sn_mesh),
+        angular_flux=AngularFlux(
+            angular, sn_mesh, boundary=solver._boundary_flux,
+        ),
         scalar_flux=ScalarFlux(phi, sn_mesh),
-        boundary_flux=solver._boundary_flux,
         mesh=sn_mesh,
         keff=None,
         history=history,
@@ -1507,9 +1509,10 @@ def _solve_fixed_source_krylov(
         converged=converged_flag,
     )
     return Solution(
-        angular_flux=AngularFlux(angular, sn_mesh),
+        angular_flux=AngularFlux(
+            angular, sn_mesh, boundary=solver._boundary_flux,
+        ),
         scalar_flux=ScalarFlux(phi, sn_mesh),
-        boundary_flux=solver._boundary_flux,
         mesh=sn_mesh,
         keff=None,
         history=history,

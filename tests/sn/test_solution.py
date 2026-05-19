@@ -50,13 +50,20 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
 
 
 def _make_fluxes(sn_mesh: SNMesh, fill: float = 1.0):
-    """Build (angular, scalar, boundary) fluxes for the given mesh."""
+    """Build (angular, scalar, boundary) fluxes for the given mesh.
+
+    R-1 Step 2 — :class:`AngularFlux` auto-allocates ``.boundary`` on
+    construction; the returned ``bf`` is the same instance as
+    ``psi.boundary`` (single-source-of-truth contract).  The triple
+    return-tuple is preserved for fixture-shape stability across the
+    test file; the third slot ``bf`` is now ``psi.boundary`` rather
+    than an independent :class:`BoundaryFlux`.
+    """
     ng, nx, ny = sn_mesh.ng, sn_mesh.nx, sn_mesh.ny
     N = sn_mesh.quad.N
     psi = AngularFlux(np.full((N, ng, nx, ny), fill), sn_mesh)
     phi = ScalarFlux(np.full((ng, nx, ny), fill), sn_mesh)
-    bf = sn_mesh.zeros_boundary_flux()
-    return psi, phi, bf
+    return psi, phi, psi.boundary
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -127,7 +134,6 @@ class TestSolutionConstruction:
         sol = Solution(
             angular_flux=psi,
             scalar_flux=phi,
-            boundary_flux=bf,
             mesh=m,
         )
         assert sol.angular_flux is psi
@@ -142,7 +148,7 @@ class TestSolutionConstruction:
         psi, phi, bf = _make_fluxes(m)
         h = IterationHistory(keff_history=(1.0, 1.05), n_outer=2)
         sol = Solution(
-            angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+            angular_flux=psi, scalar_flux=phi,
             mesh=m, keff=1.05, history=h,
         )
         assert sol.keff == 1.05
@@ -158,8 +164,7 @@ class TestSolutionConstruction:
         _, phi, bf = _make_fluxes(m1)
         with pytest.raises(ValueError, match="angular_flux.mesh"):
             Solution(
-                angular_flux=psi_foreign, scalar_flux=phi,
-                boundary_flux=bf, mesh=m1,
+                angular_flux=psi_foreign, scalar_flux=phi, mesh=m1,
             )
 
     def test_mesh_identity_scalar_flux(self) -> None:
@@ -169,26 +174,26 @@ class TestSolutionConstruction:
         psi, _, bf = _make_fluxes(m1)
         with pytest.raises(ValueError, match="scalar_flux.mesh"):
             Solution(
-                angular_flux=psi, scalar_flux=phi_foreign,
-                boundary_flux=bf, mesh=m1,
+                angular_flux=psi, scalar_flux=phi_foreign, mesh=m1,
             )
 
-    def test_mesh_identity_boundary_flux(self) -> None:
-        m1 = _slab_mesh()
-        m2 = _slab_mesh()
-        bf_foreign = m2.zeros_boundary_flux()
-        psi, phi, _ = _make_fluxes(m1)
-        with pytest.raises(ValueError, match="boundary_flux.mesh"):
-            Solution(
-                angular_flux=psi, scalar_flux=phi,
-                boundary_flux=bf_foreign, mesh=m1,
-            )
+    def test_boundary_flux_delegates_to_angular_flux(self) -> None:
+        """R-1 Step 2 — ``sol.boundary_flux is sol.angular_flux.boundary``.
+
+        Under the single-source-of-truth contract, :attr:`Solution.boundary_flux`
+        is a property that returns :attr:`AngularFlux.boundary`.  There is
+        no separate :class:`BoundaryFlux` field on :class:`Solution`.
+        """
+        m = _slab_mesh()
+        psi, phi, bf = _make_fluxes(m)
+        sol = Solution(angular_flux=psi, scalar_flux=phi, mesh=m)
+        assert sol.boundary_flux is psi.boundary
+        assert sol.boundary_flux is bf  # bf = psi.boundary from _make_fluxes
 
     def test_frozen(self) -> None:
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
-        sol = Solution(angular_flux=psi, scalar_flux=phi,
-                       boundary_flux=bf, mesh=m)
+        sol = Solution(angular_flux=psi, scalar_flux=phi, mesh=m)
         with pytest.raises((AttributeError, Exception)):
             sol.keff = 1.0  # type: ignore[misc]
 
@@ -202,8 +207,7 @@ class TestSolutionDiscrimination:
     def test_fixed_source_no_keff(self) -> None:
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
-        sol = Solution(angular_flux=psi, scalar_flux=phi,
-                       boundary_flux=bf, mesh=m)
+        sol = Solution(angular_flux=psi, scalar_flux=phi, mesh=m)
         assert sol.is_fixed_source() is True
         assert sol.is_eigenvalue() is False
 
@@ -211,7 +215,7 @@ class TestSolutionDiscrimination:
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
         sol = Solution(
-            angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+            angular_flux=psi, scalar_flux=phi,
             mesh=m, keff=1.234,
         )
         assert sol.is_eigenvalue() is True
@@ -222,7 +226,7 @@ class TestSolutionDiscrimination:
         psi, phi, bf = _make_fluxes(m)
         for keff in (None, 1.0, 0.5, 2.0):
             sol = Solution(
-                angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+                angular_flux=psi, scalar_flux=phi,
                 mesh=m, keff=keff,
             )
             assert sol.is_eigenvalue() != sol.is_fixed_source()
@@ -239,7 +243,7 @@ class TestSolutionDiagnostics:
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
         h = IterationHistory(keff_history=(1.0, 1.1, 1.10005))
-        sol = Solution(angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+        sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m, keff=1.10005, history=h)
         ratio = sol.dominance_ratio()
         assert ratio is not None
@@ -248,7 +252,7 @@ class TestSolutionDiagnostics:
     def test_dominance_ratio_no_history(self) -> None:
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
-        sol = Solution(angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+        sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m)
         assert sol.dominance_ratio() is None
 
@@ -256,7 +260,7 @@ class TestSolutionDiagnostics:
         """A solution without history is assumed converged."""
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
-        sol = Solution(angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+        sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m)
         assert sol.converged() is True
 
@@ -266,11 +270,11 @@ class TestSolutionDiagnostics:
         h_yes = IterationHistory(converged=True)
         h_no = IterationHistory(converged=False)
         sol_yes = Solution(
-            angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+            angular_flux=psi, scalar_flux=phi,
             mesh=m, history=h_yes,
         )
         sol_no = Solution(
-            angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+            angular_flux=psi, scalar_flux=phi,
             mesh=m, history=h_no,
         )
         assert sol_yes.converged() is True
@@ -281,7 +285,7 @@ class TestSolutionDiagnostics:
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
         h = IterationHistory(keff_history=(1.0, 1.05, 1.04))
-        sol = Solution(angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+        sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m, keff=1.04, history=h)
         lst = sol.keff_history_list()
         assert isinstance(lst, list)
@@ -290,7 +294,7 @@ class TestSolutionDiagnostics:
     def test_keff_history_list_no_history(self) -> None:
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
-        sol = Solution(angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+        sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m)
         assert sol.keff_history_list() == []
 
@@ -310,7 +314,7 @@ class TestReactionRate:
             m.ng * m.nx * m.ny, dtype=float,
         ).reshape(m.ng, m.nx, m.ny) + 1.0
         phi = ScalarFlux(phi_values, m)
-        sol = Solution(angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+        sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m)
 
         xs = np.full((m.ng, m.nx, m.ny), 0.5)
@@ -326,7 +330,7 @@ class TestReactionRate:
             [[4.0], [5.0], [6.0]],
         ])  # (ng=2, nx=3, ny=1)
         phi = ScalarFlux(phi_values, m)
-        sol = Solution(angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+        sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m)
 
         # σ constant per group → rate[g,x,y] = σ[g] · φ[g,x,y]
@@ -346,7 +350,7 @@ class TestReactionRate:
         """σ · 0 = 0 everywhere."""
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m, fill=0.0)
-        sol = Solution(angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+        sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m)
         xs = np.full((m.ng, m.nx, m.ny), 0.5)
         rate = sol.reaction_rate_density(xs)
@@ -362,9 +366,9 @@ class TestSolutionCompare:
     def test_compare_identical_within_tolerance(self) -> None:
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
-        sol_a = Solution(angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+        sol_a = Solution(angular_flux=psi, scalar_flux=phi,
                          mesh=m, keff=1.0)
-        sol_b = Solution(angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+        sol_b = Solution(angular_flux=psi, scalar_flux=phi,
                          mesh=m, keff=1.0)
         diff = sol_a.compare(sol_b, rtol=1e-12)
         assert isinstance(diff, SolutionDiff)
@@ -376,9 +380,9 @@ class TestSolutionCompare:
     def test_compare_different_keff(self) -> None:
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
-        sol_a = Solution(angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+        sol_a = Solution(angular_flux=psi, scalar_flux=phi,
                          mesh=m, keff=1.0)
-        sol_b = Solution(angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+        sol_b = Solution(angular_flux=psi, scalar_flux=phi,
                          mesh=m, keff=1.001)
         diff = sol_a.compare(sol_b, rtol=1e-6)
         assert diff.keff_abs is not None
@@ -389,9 +393,9 @@ class TestSolutionCompare:
         m = _slab_mesh()
         psi, phi_a, bf = _make_fluxes(m, fill=1.0)
         _, phi_b, _ = _make_fluxes(m, fill=1.1)
-        sol_a = Solution(angular_flux=psi, scalar_flux=phi_a, boundary_flux=bf,
+        sol_a = Solution(angular_flux=psi, scalar_flux=phi_a,
                          mesh=m)
-        sol_b = Solution(angular_flux=psi, scalar_flux=phi_b, boundary_flux=bf,
+        sol_b = Solution(angular_flux=psi, scalar_flux=phi_b,
                          mesh=m)
         diff = sol_a.compare(sol_b, rtol=1e-12)
         # phi_a - phi_b = -0.1, L∞ = 0.1
@@ -402,9 +406,9 @@ class TestSolutionCompare:
         """When one is fixed-source, keff_abs is None."""
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
-        sol_a = Solution(angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+        sol_a = Solution(angular_flux=psi, scalar_flux=phi,
                          mesh=m, keff=1.0)
-        sol_b = Solution(angular_flux=psi, scalar_flux=phi, boundary_flux=bf,
+        sol_b = Solution(angular_flux=psi, scalar_flux=phi,
                          mesh=m)  # fixed-source
         diff = sol_a.compare(sol_b)
         assert diff.keff_abs is None
@@ -414,9 +418,7 @@ class TestSolutionCompare:
         m2 = _slab_mesh()
         psi_a, phi_a, bf_a = _make_fluxes(m1)
         psi_b, phi_b, bf_b = _make_fluxes(m2)
-        sol_a = Solution(angular_flux=psi_a, scalar_flux=phi_a,
-                         boundary_flux=bf_a, mesh=m1)
-        sol_b = Solution(angular_flux=psi_b, scalar_flux=phi_b,
-                         boundary_flux=bf_b, mesh=m2)
+        sol_a = Solution(angular_flux=psi_a, scalar_flux=phi_a, mesh=m1)
+        sol_b = Solution(angular_flux=psi_b, scalar_flux=phi_b, mesh=m2)
         with pytest.raises(ValueError, match="meshes differ"):
             sol_a.compare(sol_b)
