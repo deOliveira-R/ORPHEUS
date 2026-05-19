@@ -193,3 +193,108 @@ class BoundaryFlux:
             ny = self.mesh.ny
             return self.ymin_ymax_buf[:, :, :, ny]
         return None
+
+    # ── R-1 Step 1 — algebra-element arithmetic ──────────────────────
+    #
+    # :class:`BoundaryFlux` participates in the operator algebra as the
+    # face-flux companion to :class:`~orpheus.sn.angular_flux.AngularFlux`.
+    # Arithmetic on :class:`AngularFlux` propagates to its ``.boundary``
+    # field; that propagation delegates to the dunders below.
+    #
+    # Semantics: elementwise on every non-None face buffer.  The result
+    # is a fresh :class:`BoundaryFlux` (immutable arithmetic).  The
+    # sweep's mutable write-through pattern still works because it
+    # operates on whichever instance it's handed — the arithmetic just
+    # produces a new instance.
+    #
+    # Mesh-identity is the validity invariant: two operands must share
+    # the SAME :class:`SNMesh` object (``is`` comparison) to combine.
+    # This matches the existing :class:`AngularFlux._validate_partner`
+    # pattern and ensures shape compatibility by construction.
+
+    def _validate_partner(self, other: "BoundaryFlux") -> None:
+        """Reject cross-mesh arithmetic.
+
+        Two :class:`BoundaryFlux` instances may be combined only when
+        they share the same :class:`SNMesh` reference (identity ``is``).
+        Different meshes carry different geometry / quadrature / size,
+        so combining them is meaningless.  Matches
+        :meth:`AngularFlux._validate_partner`.
+        """
+        if not isinstance(other, BoundaryFlux):
+            raise TypeError(
+                f"BoundaryFlux arithmetic operand must be BoundaryFlux; "
+                f"got {type(other).__name__}"
+            )
+        if self.mesh is not other.mesh:
+            raise ValueError(
+                "BoundaryFlux operands must share the same SNMesh "
+                "reference (mesh-identity invariant); operating on "
+                "BoundaryFlux instances bound to different meshes is "
+                "undefined."
+            )
+
+    def _binary_op(
+        self,
+        other: "BoundaryFlux",
+        op,
+    ) -> "BoundaryFlux":
+        """Element-wise binary op across every non-None face buffer."""
+        self._validate_partner(other)
+        return BoundaryFlux(
+            mesh=self.mesh,
+            xmin_face=(
+                op(self.xmin_face, other.xmin_face)
+                if self.xmin_face is not None and other.xmin_face is not None
+                else None
+            ),
+            xmax_face=(
+                op(self.xmax_face, other.xmax_face)
+                if self.xmax_face is not None and other.xmax_face is not None
+                else None
+            ),
+            xmin_xmax_buf=(
+                op(self.xmin_xmax_buf, other.xmin_xmax_buf)
+                if self.xmin_xmax_buf is not None and other.xmin_xmax_buf is not None
+                else None
+            ),
+            ymin_ymax_buf=(
+                op(self.ymin_ymax_buf, other.ymin_ymax_buf)
+                if self.ymin_ymax_buf is not None and other.ymin_ymax_buf is not None
+                else None
+            ),
+        )
+
+    def _scalar_op(self, scalar: float, op) -> "BoundaryFlux":
+        """Element-wise scalar op across every non-None face buffer."""
+        return BoundaryFlux(
+            mesh=self.mesh,
+            xmin_face=op(self.xmin_face, scalar) if self.xmin_face is not None else None,
+            xmax_face=op(self.xmax_face, scalar) if self.xmax_face is not None else None,
+            xmin_xmax_buf=(
+                op(self.xmin_xmax_buf, scalar)
+                if self.xmin_xmax_buf is not None else None
+            ),
+            ymin_ymax_buf=(
+                op(self.ymin_ymax_buf, scalar)
+                if self.ymin_ymax_buf is not None else None
+            ),
+        )
+
+    def __add__(self, other: "BoundaryFlux") -> "BoundaryFlux":
+        return self._binary_op(other, lambda a, b: a + b)
+
+    def __sub__(self, other: "BoundaryFlux") -> "BoundaryFlux":
+        return self._binary_op(other, lambda a, b: a - b)
+
+    def __mul__(self, scalar: float) -> "BoundaryFlux":
+        return self._scalar_op(scalar, lambda a, c: a * c)
+
+    def __rmul__(self, scalar: float) -> "BoundaryFlux":
+        return self._scalar_op(scalar, lambda a, c: c * a)
+
+    def __truediv__(self, scalar: float) -> "BoundaryFlux":
+        return self._scalar_op(scalar, lambda a, c: a / c)
+
+    def __neg__(self) -> "BoundaryFlux":
+        return self._scalar_op(0.0, lambda a, _c: -a)
