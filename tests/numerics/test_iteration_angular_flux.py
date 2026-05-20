@@ -213,30 +213,42 @@ class TestKrylovAccelerationAngularFlux:
 # ── SourceIteration with AngularFlux ────────────────────────────────
 
 
+class _IdentityOperator:
+    r"""A type-plumbing fixture exposing CAP_APPLY + CAP_SOLVE both as identity.
+
+    R-1 Step B (2026-05-19) — used in place of the retired ``inverter``
+    Callable hook to give SourceIteration an L whose ``.solve`` is
+    trivially identity, so the iteration converges in one step and the
+    test can assert on the typed-flux plumbing without exercising a real
+    transport sweep.
+    """
+    from orpheus.numerics.operator import CAP_APPLY, CAP_SOLVE
+    capabilities = frozenset({CAP_APPLY, CAP_SOLVE})
+
+    def apply(self, x):
+        return x
+
+    def solve(self, rhs):
+        return rhs
+
+
 class TestSourceIterationAngularFlux:
     def test_zeros_like_in_solve(self) -> None:
         """SourceIteration's zero-initial-guess path uses _zeros_like."""
         sn = _slab_mesh()
-        sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
-        L = StreamingOperator(sn, sigma_t)
-        # L only — SourceIteration needs L.solve; use a thin inverter
-        # that just returns the input (1 iteration of identity sweep
-        # for the smoke test).  This is NOT a real transport solve;
-        # the point is to verify the type plumbing.
+        # L is an identity operator with full CAP_APPLY + CAP_SOLVE.
+        # The point of this test is the typed-flux plumbing, not a
+        # real transport solve; identity-L converges in one iter.
+        L = _IdentityOperator()
         S = ZeroOperator()
         F = ZeroOperator()
-
-        def trivial_inverter(rhs: AngularFlux) -> AngularFlux:
-            # Identity — for the smoke test only; converges in 1 iter.
-            return rhs
 
         q_ext = AngularFlux(
             np.full((sn.quad.N, sn.ng, sn.nx, sn.ny), 2.5), sn,
         )
-        si = SourceIteration(L, S, F, inverter=trivial_inverter, max_iter=5,
-                             tol=1e-10)
+        si = SourceIteration(L, S, F, max_iter=5, tol=1e-10)
         psi, history = si.solve(q_ext)
 
         assert isinstance(psi, AngularFlux)
-        # First iter: psi = inverter(F·0 + S·0 + q) = inverter(q) = q.
+        # First iter: psi = L.solve(F·0 + S·0 + q) = identity(q) = q.
         np.testing.assert_array_equal(psi.values, q_ext.values)

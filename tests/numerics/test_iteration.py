@@ -159,12 +159,15 @@ def test_source_iteration_with_fission_term(rng):
 
 
 @pytest.mark.foundation
-def test_source_iteration_inverter_override():
-    """The ``inverter`` parameter shadows ``L.solve``.
+def test_source_iteration_with_explicit_solve_realisation():
+    r"""The caller controls the inverse step by constructing L appropriately.
 
-    Pass an L that lacks ``CAP_SOLVE`` but supply ``inverter`` —
-    construction must succeed and the iteration must converge to
-    the same result as the direct solve.
+    R-1 Step B (2026-05-19) — the legacy ``inverter`` Callable hook
+    retires.  The new contract: ``L.solve`` IS the inverse step; the
+    caller wraps the desired inverse action as the ``L`` operator's
+    ``solve`` method.  This test exercises that pattern with a
+    pre-inverted dense matrix wrapped in a ``MatrixOperator`` whose
+    ``.solve`` realises the cached inverse action directly.
     """
     n = 3
     L_mat = np.diag([5.0, 6.0, 7.0])
@@ -172,18 +175,16 @@ def test_source_iteration_inverter_override():
                             [1.0, 0.0, 1.0],
                             [0.0, 1.0, 0.0]])
 
-    # L with NO ``solve`` capability — must rely on ``inverter``.
-    L = MatrixOperator(L_mat, can_solve=False)
+    # L with both apply AND solve (the new contract).  MatrixOperator
+    # exposes both — solve runs np.linalg.solve under the hood.
+    L = MatrixOperator(L_mat, can_solve=True)
     S = MatrixOperator(S_mat)
     F = ZeroOperator()
-
-    inv_L = np.linalg.inv(L_mat)
-    inverter = lambda q: inv_L @ q
 
     q = np.array([1.0, 2.0, 3.0])
     expected = np.linalg.solve(L_mat - S_mat, q)
 
-    si = SourceIteration(L, S, F, inverter=inverter, max_iter=500, tol=1e-14)
+    si = SourceIteration(L, S, F, max_iter=500, tol=1e-14)
     psi, _ = si.solve(q)
     np.testing.assert_allclose(psi, expected, atol=1e-12)
 
@@ -248,12 +249,13 @@ def test_krylov_acceleration_with_fission_term(rng):
 
 
 @pytest.mark.foundation
-def test_krylov_acceleration_inverter_override():
-    """Caller-supplied preconditioner shadows L.solve.
+def test_krylov_acceleration_explicit_preconditioner():
+    """Caller-supplied ``preconditioner`` shadows the default L.solve choice.
 
-    Pass an L that lacks ``CAP_SOLVE`` but supply ``inverter`` —
-    construction must succeed and GMRES must converge using the
-    supplied preconditioner.
+    R-1 Step B (2026-05-19) — the parameter name is ``preconditioner``
+    (not ``inverter``).  Pass an L that lacks ``CAP_SOLVE`` and
+    supply ``preconditioner`` — construction must succeed and GMRES
+    must converge using the supplied preconditioner.
     """
     n = 3
     L_mat = np.diag([5.0, 6.0, 7.0])
@@ -266,13 +268,13 @@ def test_krylov_acceleration_inverter_override():
     F = ZeroOperator()
 
     inv_L = np.linalg.inv(L_mat)
-    inverter = lambda q: inv_L @ q
+    preconditioner = lambda q: inv_L @ q
 
     q = np.array([1.0, 2.0, 3.0])
     expected = np.linalg.solve(L_mat - S_mat, q)
 
     krylov = KrylovAcceleration(
-        L, S, F, inverter=inverter, max_iter=100, tol=1e-12,
+        L, S, F, preconditioner=preconditioner, max_iter=100, tol=1e-12,
     )
     psi, _ = krylov.solve(q)
     np.testing.assert_allclose(psi, expected, atol=1e-10)
@@ -282,8 +284,8 @@ def test_krylov_acceleration_inverter_override():
 def test_krylov_acceleration_works_without_preconditioner():
     """KrylovAcceleration runs unpreconditioned when L lacks CAP_SOLVE.
 
-    No ``inverter`` supplied, no ``CAP_SOLVE`` on L — GMRES still
-    converges, just with more iterations (M = I, the identity
+    No ``preconditioner`` supplied, no ``CAP_SOLVE`` on L — GMRES
+    still converges, just with more iterations (M = I, the identity
     preconditioner).
     """
     n = 5
@@ -300,7 +302,7 @@ def test_krylov_acceleration_works_without_preconditioner():
     krylov = KrylovAcceleration(L, S, F, max_iter=50, tol=1e-12)
     assert krylov._preconditioner is None, (
         "Expected no preconditioner when L lacks CAP_SOLVE and no "
-        "inverter is supplied."
+        "preconditioner is supplied."
     )
     psi, _ = krylov.solve(q)
     np.testing.assert_allclose(psi, expected, atol=1e-10)
@@ -473,26 +475,14 @@ def test_source_iteration_requires_apply_on_F():
 
 
 @pytest.mark.foundation
-def test_source_iteration_requires_solve_or_inverter():
-    """L without solve AND no inverter → MissingCapability."""
+def test_source_iteration_requires_solve_on_L():
+    """L without solve → MissingCapability (R-1 Step B contract)."""
     L = MatrixOperator(np.eye(2), can_solve=False)
     S = MatrixOperator(np.eye(2))
     F = ZeroOperator()
 
     with pytest.raises(MissingCapability, match="solve"):
         SourceIteration(L, S, F)
-
-
-@pytest.mark.foundation
-def test_source_iteration_solve_or_inverter_satisfied_by_inverter():
-    """L without solve but WITH inverter → construction succeeds."""
-    L = MatrixOperator(np.eye(2), can_solve=False)
-    S = MatrixOperator(np.eye(2))
-    F = ZeroOperator()
-
-    # Construction must NOT raise.
-    si = SourceIteration(L, S, F, inverter=lambda q: q)
-    assert si is not None
 
 
 @pytest.mark.foundation

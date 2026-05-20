@@ -51,31 +51,39 @@ size.  The L0 synthetic tests use 4×4 dense matrices acting on
 :class:`~orpheus.sn.fission.FissionOperator` acting on
 :math:`(n_x, n_y, n_g)` scalar-flux arrays.
 
-The ``inverter`` parameter — Wave E's load-bearing design choice
-================================================================
+L⁻¹ comes from L, preconditioner is a different concept
+========================================================
 
-Both primitives accept an optional ``inverter: Callable[[ndarray],
-ndarray]`` that supplies :math:`L^{-1}`.  When ``None``, the primitive
-uses :meth:`L.solve` directly.  When provided, the caller controls
-how :math:`L^{-1}` is realised:
+R-1 Step B (2026-05-19) — the legacy ``inverter`` Callable hook
+retires.  The two primitives now read the inverse action directly off
+the operator:
 
-* ``inverter = None`` (default):  :math:`L^{-1}\,q = L.solve(q)` —
-  for an SN sweep, this is the WDD asymmetric closure (Wave D
-  Round 2 unified sweep), which has a closure-bias-driven self-
-  consistent fixed point on curvilinear meshes (ERR-026).
-* ``inverter = lambda q: gmres(as_scipy_linop(L), q, M=...)`` —
-  Krylov-on-:meth:`apply` (the symmetric closure), with the sweep
-  injected as a preconditioner :math:`M`.  This is the Wave E
-  Round 2 reconciliation that closes ERR-026 for curvilinear SN.
+* :class:`SourceIteration` calls ``L.solve(rhs)`` directly each step.
+  The caller controls the inverse step by passing an ``L`` whose
+  ``.solve`` realises the desired action — typically a composite
+  :class:`~orpheus.sn.operator.InvertibleOperator` whose ``.solve`` IS
+  the WDD sweep (R-1 Step C).  ``L`` MUST advertise
+  :pydata:`CAP_SOLVE`; if it cannot be inverted, the caller is asking
+  the wrong primitive.
 
-By making :math:`L^{-1}` a caller-supplied hook, the iteration
-primitives do not need to be re-implemented when the inversion
-strategy changes.  The same :class:`SourceIteration` runs in the
-synthetic L0 case (where ``L`` is a plain dense matrix and
-``inverter`` defaults to a direct solve), in the L1 SN case (where
-``inverter`` defaults to the WDD sweep), and in the future
-Krylov-on-:meth:`apply` SN case (where ``inverter`` is supplied
-explicitly by the caller).
+* :class:`KrylovAcceleration` takes an explicit ``preconditioner``
+  Callable hook (the previous ``inverter`` name was a category
+  mistake — it was a GMRES left preconditioner :math:`M \approx
+  A^{-1}`, never the inverse step).  Default behaviour preserves the
+  prior choice: if ``L`` advertises :pydata:`CAP_SOLVE`, use
+  ``L.solve`` as the preconditioner; otherwise run unpreconditioned.
+
+R-1 Step A integration — typed-flux Carlson seed threading
+==========================================================
+
+When :class:`SourceIteration` consumes a typed
+:class:`~orpheus.sn.angular_flux.AngularFlux` rhs, the previous
+iterate is threaded onto the rhs via
+:meth:`~orpheus.sn.angular_flux.AngularFlux.stash` so the sweep can
+read it back as ``rhs(1)``.  This is the load-bearing plumbing for
+curvilinear sweeps where the previous iterate IS the Carlson seed.
+Bare-ndarray rhs paths skip the stash (no protocol; the synthetic L0
+tests have no seed dependency).
 
 Forward references
 ==================
@@ -115,7 +123,7 @@ __all__ = [
 
 
 # Type alias for the L^{-1} hook: takes a right-hand-side, returns L^{-1}·rhs.
-Inverter = Callable[[np.ndarray], np.ndarray]
+Preconditioner = Callable[[np.ndarray], np.ndarray]
 KeffEstimator = Callable[
     [LinearOperator, LinearOperator, LinearOperator, np.ndarray], float,
 ]
@@ -195,6 +203,24 @@ def _l2_norm(x) -> float:
     return float(np.linalg.norm(np.asarray(x)))
 
 
+def _attach_previous(rhs, previous):
+    """Thread ``previous`` onto ``rhs`` as the lag-1 frame for Carlson-seed reads.
+
+    R-1 Step A/B integration — for typed
+    :class:`~orpheus.sn.angular_flux.AngularFlux` rhs, returns
+    ``previous.stash(rhs)`` so the downstream ``L.solve`` consumer can
+    read the previous iterate via ``rhs(1)``.  This is how the
+    SourceIteration loop carries the Carlson seed through the operator
+    contract without a separate keyword argument.
+
+    Bare-ndarray rhs falls through unchanged — the protocol doesn't
+    apply, and the synthetic L0 tests have no seed dependency.
+    """
+    if not _is_ravellable(rhs) or not _is_ravellable(previous):
+        return rhs
+    return previous.stash(rhs)
+
+
 def _default_keff_estimator(
     L: LinearOperator,
     S: LinearOperator,
@@ -243,10 +269,12 @@ class SourceIteration:
 
         \psi_{n+1} \;=\; L^{-1}\,(S\,\psi_n + F\,\psi_n + q_{\rm ext}).
 
-    The :math:`L^{-1}` action is supplied by the ``inverter``
-    parameter.  By default it routes through :meth:`L.solve`; the
-    caller may override with a Krylov method on :meth:`L.apply` to
-    decouple from a closure-biased :meth:`L.solve` (see ERR-026).
+    The :math:`L^{-1}` action is read off ``L.solve`` directly.  The
+    caller controls the inverse step by constructing ``L`` with the
+    desired ``.solve`` behaviour — for SN within-group inner solves
+    this is typically
+    :class:`~orpheus.sn.operator.InvertibleOperator` whose ``.solve``
+    IS the WDD sweep.
 
     Convergence test (matching :class:`SNSolver` for bit-identical
     Round 2 wiring):
@@ -261,10 +289,10 @@ class SourceIteration:
     Parameters
     ----------
     L : LinearOperator
-        Streaming-collision operator.  Must advertise
-        :pydata:`CAP_APPLY`.  Must advertise :pydata:`CAP_SOLVE` *or*
-        the caller must supply ``inverter`` — otherwise the
-        iteration cannot evaluate :math:`L^{-1}`.
+        Streaming-collision operator.  Must advertise BOTH
+        :pydata:`CAP_APPLY` and :pydata:`CAP_SOLVE` — the iteration
+        step is :math:`\psi_{n+1} = L^{-1}(S\psi_n + F\psi_n +
+        q_{\rm ext})`, so ``L.solve`` is non-negotiable.
     S : LinearOperator
         Scattering source operator.  Must advertise
         :pydata:`CAP_APPLY`.  Pass
@@ -276,14 +304,6 @@ class SourceIteration:
         :pydata:`CAP_APPLY`.  Pass
         :class:`~orpheus.numerics.operator.ZeroOperator` for the
         fission-free case.
-    inverter : callable or None, optional
-        Function ``rhs -> L^{-1}·rhs``.  When ``None`` (default), the
-        primitive uses ``L.solve`` directly — which requires ``L`` to
-        advertise :pydata:`CAP_SOLVE`.  When provided, ``inverter``
-        shadows ``L.solve`` and ``L`` is no longer required to
-        advertise :pydata:`CAP_SOLVE`.  The Wave E Round 2 SN-on-Krylov
-        path uses this hook to inject a ``gmres(as_scipy_linop(L),
-        rhs, M=sweep_preconditioner)`` Krylov solve.
     max_iter : int, optional
         Maximum fixed-point iterations.  Default ``1000``.
     tol : float, optional
@@ -294,8 +314,7 @@ class SourceIteration:
     ------
     MissingCapability
         At construction time if ``L`` or ``S`` or ``F`` lacks
-        :pydata:`CAP_APPLY`, or if ``L`` lacks :pydata:`CAP_SOLVE`
-        and no ``inverter`` was supplied.
+        :pydata:`CAP_APPLY`, or if ``L`` lacks :pydata:`CAP_SOLVE`.
 
     Notes
     -----
@@ -303,10 +322,15 @@ class SourceIteration:
     operators consume.  The convergence test uses
     :func:`numpy.linalg.norm` on the flattened arrays.  Both the L0
     synthetic case (flat ``(N,)`` vector) and the L1 SN case
-    (structured ``(ng, nx, ny)`` array, principled storage per
-    :ref:`theory-sn-index-convention`) are handled by the same
-    :func:`np.linalg.norm` call by virtue of numpy's behaviour on
-    higher-rank arrays (it returns the Frobenius norm).
+    (structured :class:`~orpheus.sn.angular_flux.AngularFlux`) are
+    handled by the same :func:`_l2_norm` call routed through the
+    ravellable protocol.
+
+    R-1 Step A/B (2026-05-19) — when ``q_ext`` is a typed
+    :class:`~orpheus.sn.angular_flux.AngularFlux`, the previous
+    iterate ``psi`` is threaded onto the rhs as the lag-1 frame so
+    ``L.solve`` can read it via ``rhs(1)`` for Carlson-seed plumbing
+    on curvilinear sweeps.  See :func:`_attach_previous`.
     """
 
     def __init__(
@@ -315,7 +339,6 @@ class SourceIteration:
         S: LinearOperator,
         F: LinearOperator,
         *,
-        inverter: Inverter | None = None,
         max_iter: int = 1000,
         tol: float = 1e-8,
     ) -> None:
@@ -339,13 +362,14 @@ class SourceIteration:
                 f"{type(F).__name__} advertises "
                 f"{getattr(F, 'capabilities', frozenset())}."
             )
-        if inverter is None and not _has(L, CAP_SOLVE):
+        if not _has(L, CAP_SOLVE):
             raise MissingCapability(
-                f"SourceIteration requires either {CAP_SOLVE!r} on L "
-                f"or a caller-supplied inverter; {type(L).__name__} "
-                f"advertises "
-                f"{getattr(L, 'capabilities', frozenset())} and no "
-                f"inverter was provided."
+                f"SourceIteration requires {CAP_SOLVE!r} on L — the "
+                f"iteration step is psi_(n+1) = L.solve(...); "
+                f"{type(L).__name__} advertises "
+                f"{getattr(L, 'capabilities', frozenset())}.  Pass an "
+                f"L whose .solve realises the desired inverse action "
+                f"(typically an InvertibleOperator)."
             )
 
         self.L = L
@@ -353,14 +377,6 @@ class SourceIteration:
         self.F = F
         self.max_iter = int(max_iter)
         self.tol = float(tol)
-
-        # Pin the inverter at construction.  Default: route through
-        # L.solve.  Capability check above guarantees L.solve exists
-        # when inverter is None.
-        if inverter is None:
-            self._inverter: Inverter = lambda q: self.L.solve(q)  # type: ignore[attr-defined]
-        else:
-            self._inverter = inverter
 
     def solve(
         self,
@@ -407,12 +423,20 @@ class SourceIteration:
 
             # Build the RHS of the fixed-point step.  All three
             # operators are LinearOperators; their .apply contracts
-            # are the only thing this loop touches.
-            rhs = self.F.apply(psi) + self.S.apply(psi) + q_ext
+            # are the only thing this loop touches.  Arithmetic drops
+            # history (R-1 Step A semantics), so rhs has no Carlson
+            # seed attached yet.
+            rhs_raw = self.F.apply(psi) + self.S.apply(psi) + q_ext
 
-            # Apply L^{-1} via the caller-supplied inverter (default
-            # routes through L.solve).
-            psi = self._inverter(rhs)
+            # R-1 Step A/B — thread psi (the previous iterate) onto
+            # the rhs as the lag-1 frame so L.solve can read it via
+            # rhs(1) for the Carlson seed (curvilinear sweeps).  For
+            # bare-ndarray rhs this is a no-op.
+            rhs = _attach_previous(rhs_raw, psi_prev)
+
+            # Apply L^{-1} directly — caller controls the inverse
+            # step by constructing L appropriately.
+            psi = self.L.solve(rhs)
 
             # SNSolver-compatible convergence test (bit-identical loop
             # structure for Round 2 wiring): relative L2 residual via
@@ -466,25 +490,31 @@ class KrylovAcceleration:
     so the primitive ravels at the boundary and reshapes the solution
     back to ``q_ext.shape`` on return.
 
-    The ``inverter`` parameter — preconditioner hook
-    ================================================
+    The ``preconditioner`` parameter (R-1 Step B rename)
+    =====================================================
 
-    Unlike :class:`SourceIteration` (where ``inverter`` realises
-    :math:`L^{-1}` as the iteration's INVERSE step), in
-    :class:`KrylovAcceleration` ``inverter`` is the GMRES PRECONDITIONER
-    :math:`M \approx A^{-1}` where :math:`A = L - S - F`.  The natural
-    choice for transport problems is :math:`M = L^{-1}` (the sweep) —
-    this is the "transport-corrected" preconditioner from Adams & Larsen
-    2002 §III.  When :math:`c` is small, the sweep is an excellent
-    preconditioner; when :math:`c` is near unity, the sweep is
-    diffusion-like and GMRES needs more iterations.
+    The GMRES PRECONDITIONER :math:`M \approx A^{-1}` where :math:`A =
+    L - S - F`.  The natural choice for transport problems is :math:`M
+    = L^{-1}` (the sweep) — this is the "transport-corrected"
+    preconditioner from Adams & Larsen 2002 §III.  When :math:`c` is
+    small, the sweep is an excellent preconditioner; when :math:`c` is
+    near unity, the sweep is diffusion-like and GMRES needs more
+    iterations.
 
-    * ``inverter = None`` (default): if ``L`` advertises
+    Previously named ``inverter`` — but that was a category mistake:
+    in :class:`SourceIteration` the ``inverter`` realised the
+    iteration's INVERSE step :math:`L^{-1}`, whereas here ``M`` is the
+    GMRES left preconditioner (an approximation to the FULL inverse
+    :math:`A^{-1}`).  The rename surfaces the distinction and
+    decouples the two surfaces (R-1 Step B, 2026-05-19).
+
+    * ``preconditioner = None`` (default): if ``L`` advertises
       :pydata:`CAP_SOLVE`, use ``L.solve`` as the preconditioner;
       otherwise, no preconditioner (identity ``M = I``).
-    * ``inverter = lambda q: sweep_preconditioner(q)``: caller-supplied
-      preconditioner.  Typically wraps a sweep that consumes the same
-      packed/structured layout the operators consume.
+    * ``preconditioner = lambda q: sweep_preconditioner(q)``:
+      caller-supplied preconditioner.  Typically wraps a sweep that
+      consumes the same packed/structured layout the operators
+      consume.
 
     Parameters
     ----------
@@ -494,7 +524,7 @@ class KrylovAcceleration:
         for within-group fixed-source: :class:`KEigenvalue` builds the
         fission source as an EXTERNAL :math:`q_{\rm ext}` and zeroes
         the within-group ``F``).
-    inverter : callable or None, optional
+    preconditioner : callable or None, optional
         GMRES left preconditioner.  See above.  When ``None`` and
         ``L`` has no :pydata:`CAP_SOLVE`, runs GMRES without
         preconditioner.
@@ -529,7 +559,7 @@ class KrylovAcceleration:
         S: LinearOperator,
         F: LinearOperator,
         *,
-        inverter: Inverter | None = None,
+        preconditioner: Preconditioner | None = None,
         max_iter: int = 1000,
         tol: float = 1e-8,
         restart: int = 50,
@@ -563,8 +593,8 @@ class KrylovAcceleration:
         # Pin the preconditioner choice at construction.  If caller
         # supplied one, use it.  Otherwise, fall back to L.solve when
         # available; if not, run GMRES without preconditioner.
-        if inverter is not None:
-            self._preconditioner: Inverter | None = inverter
+        if preconditioner is not None:
+            self._preconditioner: Preconditioner | None = preconditioner
         elif _has(L, CAP_SOLVE):
             self._preconditioner = lambda q: self.L.solve(q)  # type: ignore[attr-defined]
         else:
@@ -703,13 +733,11 @@ class KEigenvalue:
     ----------
     L, S, F : LinearOperator
         Operator triple, same constraints as
-        :class:`SourceIteration`.  ``F`` must advertise
-        :pydata:`CAP_APPLY` (no degenerate zero-fission case for an
-        eigenvalue solve — without fission the spectrum is empty).
-    inverter : callable or None, optional
-        :math:`L^{-1}` hook, propagated to the inner
-        :class:`SourceIteration`.  See :class:`SourceIteration` for
-        the design rationale.
+        :class:`SourceIteration` — ``L`` MUST advertise BOTH
+        :pydata:`CAP_APPLY` and :pydata:`CAP_SOLVE`; ``S`` and ``F``
+        must advertise :pydata:`CAP_APPLY`.  ``F`` is non-trivial for
+        an eigenvalue solve (no degenerate zero-fission case — without
+        fission the spectrum is empty).
     max_outer : int, optional
         Maximum outer (power) iterations.  Default ``500``.
     keff_tol, flux_tol : float, optional
@@ -750,7 +778,6 @@ class KEigenvalue:
         S: LinearOperator,
         F: LinearOperator,
         *,
-        inverter: Inverter | None = None,
         max_outer: int = 500,
         keff_tol: float = 1e-7,
         flux_tol: float = 1e-6,
@@ -771,13 +798,10 @@ class KEigenvalue:
         # same constraints apply, and we want one source of truth for
         # the messages.  The inner constructor will raise
         # MissingCapability for any deficient operand.
-        # (Note: we still do the F-apply check above implicitly via
-        # the inner SourceIteration receiving F as fission term.)
 
         self.L = L
         self.S = S
         self.F = F
-        self.inverter = inverter
         self.max_outer = int(max_outer)
         self.keff_tol = float(keff_tol)
         self.flux_tol = float(flux_tol)
@@ -791,9 +815,9 @@ class KEigenvalue:
 
         # Validate operator capabilities up front by trial-construction
         # of the inner SourceIteration shell.  This catches any L/S/F
-        # apply-capability violations and the L.solve / inverter
-        # requirement at construction time, NEVER mid-iteration.
-        SourceIteration(L, S, F, inverter=inverter, max_iter=1, tol=1.0)
+        # apply-capability violations and the L.solve requirement at
+        # construction time, NEVER mid-iteration.
+        SourceIteration(L, S, F, max_iter=1, tol=1.0)
 
     def solve(
         self,
@@ -844,7 +868,6 @@ class KEigenvalue:
             self.L,
             self.S,
             zero_F,
-            inverter=self.inverter,
             max_iter=self.max_inner,
             tol=self.inner_tol,
         )
