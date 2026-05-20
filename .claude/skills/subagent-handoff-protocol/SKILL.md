@@ -93,7 +93,7 @@ in one shot or return to the user.
 | **qa**                    | Reviewing code, validating claims                                             | `nexus-verification`, `nexus-impact`, `nexus-debugging`, `vv-principles`, `numerical-bug-signatures`, `subagent-handoff-protocol` |
 | **numerics-investigator** | Solver gives wrong answers                                                    | `nexus-debugging`, `nexus-impact`, `probe-cascade`, `vv-principles`, `numerical-bug-signatures`, `subagent-handoff-protocol` |
 | **literature-researcher** | Need equations from papers / external references                              | `research`, `subagent-handoff-protocol`                                                                                     |
-| **test-architect**        | Planning verification BEFORE implementation                                   | `nexus-verification`, `nexus-impact`, `vv-principles`, `numerical-bug-signatures`, `subagent-handoff-protocol`, `algebra-of-record` |
+| **test-architect**        | Planning verification BEFORE implementation; **MUST** be dispatched proactively before any operator-algebra carve that crosses subsystem boundaries (see "Proactive triggers" below) | `nexus-verification`, `nexus-impact`, `vv-principles`, `numerical-bug-signatures`, `subagent-handoff-protocol`, `algebra-of-record` |
 | **cross-domain-attacker** | Detecting structural patterns                                                 | `cross-domain-frames`, `subagent-handoff-protocol`                                                                          |
 | **method-implementer**    | Building a new verified prototype from a published mathematical formulation   | `vv-principles`, `numerical-bug-signatures`, `cross-domain-frames`, `algebra-of-record`, `subagent-handoff-protocol`        |
 
@@ -124,6 +124,39 @@ that makes nested-coordination requests work for every agent.)
 
 If you can't find a clean match, prefer `general-purpose` with a very
 explicit brief over forcing a poor match.
+
+### Proactive triggers (MUST conditions)
+
+Most dispatches are REACTIVE — the main agent picks an agent when a
+need arises mid-session. Some triggers are PROACTIVE — the main
+agent MUST dispatch the named agent before specified work begins,
+regardless of whether anything has visibly gone wrong yet. Proactive
+dispatches exist because the historical record shows the work fails
+~3× more often without them; the dispatch is a cheap prophylactic
+against a known-expensive failure mode.
+
+| Trigger condition                                                                                              | Agent to dispatch     | Why proactive             |
+| -------------------------------------------------------------------------------------------------------------- | --------------------- | ------------------------- |
+| **Operator-algebra carve crossing subsystem boundaries.** A refactor that moves the production path from one shape to another across any of: typed ↔ packed, per-ordinate ↔ iso, normal ↔ adjoint, scalar ↔ angular, signed ↔ unsigned. | `test-architect`      | R-1 Step 4 session 1 evidence: convention-bug debug time was ~3× the principled-design cost. The test-architect produces the verification plan (which existing tests pin the legacy behaviour, which new tests catch the new convention, which L1 MMS gates must continue passing). Without the plan the carve is reactive: bugs are found by accident. See `[[lessons-L17]]`. |
+| **Retirement of a public-API symbol or solver-internal helper called from production.** | `explorer` (for the dependency audit) | R-1 Step 4 session 1 evidence: Step G under-estimated scope by ~2× because the plan didn't audit production callers. The explorer produces the callgraph rows (production callers / test callers / internal-to-orphan). Without the audit the retirement is incremental and forces mid-session re-planning. See `[[lessons-L20]]`. |
+| **New L0/L1 reference solver derivation.** A new analytical, MMS, or semi-analytical reference that will be used to verify production code. | `cross-domain-attacker` | Catches structural-frame mismatches at design time (e.g. "this Cartesian construction won't lift to curvilinear; reformulate in terms of trajectory measure first") before the SymPy/mpmath ink dries. Cheap insurance against shipping a reference that is itself wrong. |
+
+**Operationalisation**: when the main agent sees a request that
+matches one of these triggers, the FIRST tool call after Plan-mode
+exit (or after the user gives the go-ahead) MUST be the
+corresponding `Agent(subagent_type=...)` dispatch. The dispatch
+output then SHAPES the implementation plan — it doesn't just
+inform it. If the main agent skips the proactive dispatch and the
+work hits one of the known failure modes (convention drift,
+retirement scope blowup, frame mismatch), the cost is documented:
+re-plan + lost session time. The proactive dispatch is the cheap
+side of an asymmetric bet.
+
+A proactive dispatch is NEVER skipped because "the main agent
+already has the answer." The main agent has breadth; the dispatched
+specialist has depth. Even when breadth is sufficient to sketch the
+answer, the specialist's output is the verification artefact that
+the implementation references later.
 
 ---
 
