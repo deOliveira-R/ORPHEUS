@@ -446,65 +446,121 @@ class SNSolver:
     def _solve_source_iteration(
         self, fission_source: np.ndarray, flux_distribution: np.ndarray,
     ) -> np.ndarray:
-        """Scattering source iteration: sweep → update scatter → sweep → ...
+        r"""Inner within-group solve via :class:`SourceIteration` on typed AngularFlux.
 
-        **Approach A — bit-identical preservation**: the loop math is
-        preserved character-for-character from the Wave A-D
-        implementation.  Conceptually this is a
-        :class:`~orpheus.numerics.iteration.SourceIteration` realisation
-        with operator triple :math:`(L, S, \\text{Zero})` and
-        ``q_ext = fission_source``, where :math:`L^{-1}` is the sweep
-        and :math:`S` carries both isotropic and Pℓ contributions.
+        R-1 Step E (2026-05-19) — carved onto
+        :class:`~orpheus.numerics.iteration.SourceIteration` consuming
+        the same typed-flux operator triple as the Krylov carve:
 
-        Issue #196 PR-INDEX-5: every flux / source intermediate is in
-        principled ``(ng, nx, ny)`` / ``(N, ng, nx, ny)`` layout.
+        .. math::
+
+            A \;=\; L + C\,, \quad
+            S \;=\; \tfrac{1}{W}\,\text{full multi-group scatter}\,, \quad
+            F \;=\; 0_{\rm wg}
+
+        on :class:`~orpheus.sn.angular_flux.AngularFlux`.  The
+        iteration step is
+
+        .. math::
+
+            \psi_{n+1} \;=\; (L + C)^{-1}\,\bigl(S\,\psi_n
+                                                + F\,\psi_n
+                                                + q_{\rm ext}\bigr)
+
+        where ``(L + C).solve`` IS the WDD sweep
+        (:class:`~orpheus.sn.operator.InvertibleOperator` from R-1
+        Step C).  The previous iterate ``psi_n`` is threaded onto the
+        rhs as the lag-1 frame by
+        :func:`orpheus.numerics.iteration._attach_previous` (R-1
+        Step A/B), so the sweep reads it as the Carlson coupled-pole
+        seed on curvilinear meshes — the load-bearing wiring R-1 was
+        built around.
+
+        Scope
+        =====
+
+        1-D only (slab + sphere + cylinder).  2-D Cartesian raises
+        :class:`NotImplementedError` (Phase A absorbs the 2-D B1''
+        face layout).
         """
+        if self.sn_mesh.reduced is None:
+            raise NotImplementedError(
+                "R-1 Step E — 2-D Cartesian SI carve deferred to "
+                "Phase A.  The B1'' face block is 1-D-only; 2-D needs "
+                "a separate 4-face layout (xmin, xmax, ymin, ymax)."
+            )
+
         from .angular_flux import AngularFlux
-        from .sources import IsotropicSource, PerOrdinateSource
-        phi = flux_distribution.copy()
-        angular = None  # no angular flux on first iteration
+        from .operator import (
+            CollisionOperator, StreamingOperator,
+            _copy_boundary_face_state,
+        )
+        from orpheus.numerics.iteration import SourceIteration
+        from orpheus.numerics.operator import ZeroOperator
 
-        for n_inner in range(self.max_inner):
-            phi_prev = phi.copy()
+        N = self.quad.N
+        nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
+        sum_w = float(self.quad.weights.sum())
 
-            # Isotropic source = fission + P0 scattering + (n,2n).
-            # Issue #197 PR-TYPED-4: typed source carrier; the in-place
-            # ``_add_scattering_source`` / ``_add_n2n_source`` helpers
-            # still mutate the underlying ndarray (raw-in legacy contract
-            # for the FD-matvec / probe-test consumers).
-            Q_values = fission_source.copy()
-            self._add_scattering_source(Q_values, phi)
-            self._add_n2n_source(Q_values, phi)
-            iso_source = IsotropicSource(Q_values, self.sn_mesh)
+        # ── Build the typed RHS ──────────────────────────────────────
+        # Per-ordinate q_ext: each ordinate sees fission_source / sum_w
+        # (iso-to-per-ordinate normalisation matching the discrete-
+        # ordinates convention).  See ``_solve_krylov`` for the same
+        # reasoning.
+        q_per_ord = np.broadcast_to(
+            (fission_source / sum_w)[None, :, :, :], (N, ng, nx, ny),
+        ).copy()
+        q_ext_typed = AngularFlux(q_per_ord, self.sn_mesh)
+        # Pre-populate q_ext.boundary with the persistent partner-flux
+        # state ``self._boundary_flux`` from the previous outer call.
+        # This is the load-bearing plumbing for reflective BCs: the
+        # FIRST inner SI iteration has no ``rhs(1)`` history (cold
+        # start), so without this seeding the sweep would see a zero
+        # BC trace (= vacuum), and the SI fixed point shifts away from
+        # the true reflective answer.  Subsequent iterations update
+        # the partner flux via the ``rhs(1).boundary`` thread that
+        # :meth:`InvertibleOperator.solve` reads.
+        _copy_boundary_face_state(self._boundary_flux, q_ext_typed.boundary)
 
-            # Anisotropic scattering (P1+ terms, None when L=0)
-            Q_aniso_values = self._build_aniso_scattering(angular)
-            if Q_aniso_values is None:
-                aniso_source: PerOrdinateSource | None = None
-            else:
-                aniso_source = PerOrdinateSource(Q_aniso_values, self.sn_mesh)
+        # ── Build the typed operator triple ─────────────────────────
+        L_leaf = StreamingOperator(
+            self.sn_mesh, self.mat_xs.total_cross_section,
+        )
+        C_t = CollisionOperator(
+            self.sn_mesh, self.mat_xs.total_cross_section,
+        )
+        LC = L_leaf + C_t  # InvertibleOperator — apply + solve
 
-            # Transport sweep — R-1 Step 0: thread the previous iteration's
-            # angular flux as ``initial_guess`` so the sweep's curvilinear
-            # Carlson seed uses ``σ_t · φ_0(prev) / W`` (trace-space analog
-            # of the matvec).
-            initial_guess = (
-                AngularFlux(angular, self.sn_mesh) if angular is not None
-                else None
-            )
-            angular, phi = transport_sweep(
-                iso_source, self.mat_xs.total_cross_section, self.sn_mesh,
-                self._boundary_flux, aniso_source=aniso_source,
-                initial_guess=initial_guess,
-            )
+        # ScatteringOperator.apply returns iso scatter source broadcast
+        # without /sum_w (sweep convention); rescale here so the
+        # operator-algebra consumer sees per-ordinate values directly.
+        S_normalised = self.scattering_op / sum_w
 
-            norm = np.linalg.norm(phi)
-            if norm > 0:
-                res = np.linalg.norm(phi - phi_prev) / norm
-                if res < self.inner_tol:
-                    break
+        si = SourceIteration(
+            LC,
+            S_normalised,
+            ZeroOperator(),
+            max_iter=self.max_inner,
+            tol=self.inner_tol,
+        )
 
-        return phi
+        # ── Warm start (typed) ──────────────────────────────────────
+        # SourceIteration.solve internally attaches the previous
+        # iterate to the rhs (via _attach_previous = previous.stash(
+        # rhs)) so InvertibleOperator.solve reads rhs(1) for the
+        # Carlson seed AND the partner-flux state each iteration —
+        # the load-bearing plumbing for curvilinear sweeps to see the
+        # previous iterate's scalar-flux trace AND for reflective BCs
+        # to retain partner-flux state.
+        initial_guess = getattr(self, "_psi_typed", None)
+
+        psi_typed, _residuals = si.solve(
+            q_ext_typed, initial_guess=initial_guess,
+        )
+        self._psi_typed = psi_typed
+
+        # Reduce angular → scalar flux for the eigenvalue outer's contract.
+        return psi_typed.integrate_angular().values
 
     # ── Inner solver: Krylov on (L+C-S)·ψ = q_ext (R-1 Step D carve) ──
 

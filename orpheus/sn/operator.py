@@ -2553,21 +2553,68 @@ class InvertibleOperator(OperatorSum):
             )
 
         sn_mesh = self.sn_mesh
-        # rhs.values is the per-ordinate source; iso source is zero.
+        # Convention bridge — operator-algebra ↔ ``transport_sweep``.
+        # The operator-algebra convention is **per-ordinate units
+        # everywhere**: ``StreamingOperator.apply`` returns
+        # :math:`(L+C)\psi` per ordinate; consumers build
+        # ``S_normalised = self.scattering_op / sum_w`` and
+        # ``q_ext = fission_source / sum_w`` (see
+        # :meth:`SNSolver._solve_krylov` line ~658) so the iteration's
+        # rhs ``S\psi + q_{ext}`` is per-ordinate.
+        #
+        # :func:`transport_sweep`, however, expects the ``aniso_source``
+        # in **iso-source magnitude** — the legacy SI fed
+        # ``Q_aniso = build_aniso_source(...)`` which carries the
+        # :math:`Y_\ell\,\Sigma_\ell\,\phi_\ell^m` field in iso units
+        # and ``transport_sweep`` then applies ``weight_norm = 1/W``
+        # internally to obtain the per-ordinate source (see
+        # ``_run_1d_sweep`` ``Q_aniso_p = Q_aniso * weight_norm`` at
+        # ``sweep.py:432``).  To make this ``.solve`` the algebraic
+        # inverse of ``LC.apply``, we must pre-multiply
+        # ``rhs.values`` by ``W`` so the sweep's internal ``/W`` lands
+        # us back in per-ordinate units.
+        #
+        # Without this bridge ``rhs.values`` ends up divided by ``W``
+        # twice (once by the operator-algebra caller, once by
+        # ``transport_sweep``) — the reflective slab/sphere/cylinder
+        # homogeneous-medium fixed point shifts from ``k_inf`` to
+        # ``k_inf / W`` (catches L1 ``kinf_homogeneous`` on every
+        # coord × ng≥2 in the R-1 Step E carve).
+        sum_w = float(sn_mesh.quad.weights.sum())
         iso_source = sn_mesh.zeros_isotropic_source()
-        aniso_source = PerOrdinateSource(rhs.values, sn_mesh)
+        aniso_source = PerOrdinateSource(rhs.values * sum_w, sn_mesh)
 
-        # The sweep mutates boundary_flux in place (write-through); the
-        # AngularFlux is immutable, so allocate a fresh buffer per call,
-        # seeded with whatever BC inflow rhs.boundary specifies (usually
-        # zero for SI / Krylov volumetric sources).
+        # Boundary-state plumbing for reflective / partner-flux BCs.
+        # The sweep mutates ``boundary_flux`` in place (write-through);
+        # the persistent partner-flux trace is the CRITICAL state for
+        # reflective BCs to converge to the right fixed point.  Two
+        # paths into the buffer, in priority order:
+        #
+        # 1. ``rhs(1)`` — the lag-1 frame attached via
+        #    :meth:`AngularFlux.stash` by
+        #    :class:`SourceIteration`.  Its ``.boundary`` carries the
+        #    previous iterate's outflow trace (which IS the partner
+        #    flux for reflective BCs).  When present, use it.
+        # 2. ``rhs.boundary`` — the rhs's own boundary trace
+        #    (typically zero for volumetric sources; non-zero for
+        #    explicit BC-driven solves).
+        #
+        # Why this matters: for SI on reflective BCs, the matvec
+        # iteration produces an outflow that becomes the next inflow.
+        # Without threading the partner flux, the sweep sees zero
+        # inflow each call → effectively VACUUM, and the fixed point
+        # shifts away from the true reflective answer.
         boundary_buf = sn_mesh.zeros_boundary_flux()
-        _copy_boundary_face_state(rhs.boundary, boundary_buf)
+        previous = rhs(1)
+        if previous is not None:
+            _copy_boundary_face_state(previous.boundary, boundary_buf)
+        else:
+            _copy_boundary_face_state(rhs.boundary, boundary_buf)
 
-        # Lag-1 frame is the Carlson seed.  None when rhs is cold-start
-        # (no history) — transport_sweep falls back to its in-iteration
-        # default at that lag.
-        carlson_seed = rhs(1)
+        # Lag-1 frame is also the Carlson seed.  None when rhs is
+        # cold-start (no history) — transport_sweep falls back to its
+        # in-iteration default at that lag.
+        carlson_seed = previous
 
         angular, _scalar = transport_sweep(
             iso_source,
