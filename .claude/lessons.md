@@ -314,3 +314,195 @@ the L12 deferral pattern. Main-agent re-run found the slow path; the
 agent's "2× faster" claim was true on a microbench but misleading
 on full-suite scale. Step 2.5c addresses via the two-stratum
 precomputed cache (L15).
+
+## L17: Convention crosswalk before carve
+
+A carve that crosses subsystem boundaries (operator algebra ↔ sweep,
+scalar ↔ per-ordinate, packed ↔ typed, normal ↔ adjoint, signed ↔
+unsigned) MUST start with a written crosswalk table enumerating each
+subsystem's **input / internal / output convention**. The crosswalk
+IS the architecture; the code is its transcription. Skipping it costs
+~3× debug time.
+
+R-1 Step 4 (session 1) evidence: three convention bugs each took
+≥1 hour to diagnose:
+
+1. **Step D — slab-2g eigenvalue keff=5.0 vs ref=1.875**. Producer
+   `ScatteringOperator.apply(typed)` returned per-ordinate values;
+   consumer `_solve_krylov` interpreted them as iso. Missing `*
+   sum_w` bridge.
+2. **Step E — slab-2g SI keff=1.484 vs ref=1.875**. Same convention
+   gap; SourceIteration consumer expected a different shape than
+   apply-matvec.
+3. **Step D second bug — sphere-2g-krylov 470× slowdown + keff
+   oscillation**. `KrylovAcceleration(preconditioner=None)` silently
+   routed through `L.solve`, which read `rhs(1)` history. GMRES
+   residual vectors have no history.
+
+Each bug had the structural signature: **two subsystems disagreed
+on what the value crossing the boundary meant**. The crosswalk
+table written in 15 minutes would have caught each before code
+landed; instead each cost 1+ hours of bisection.
+
+**The crosswalk template** lives in
+`.claude/skills/coding-elegance/SKILL.md` under "Pattern 7" — load
+that skill before any future carve. Apply to: per-ordinate vs iso
+scalar, `/W` normalisation, sign conventions (μ axis direction),
+packed vs typed layout, signed vs unsigned lethargy, group ordering.
+
+**How to apply:**
+
+1. Before writing any carve code, write the crosswalk table to a
+   plan file (`.claude/plans/<carve>_crosswalk.md`).
+2. For each row, identify the **Bridge** — which subsystem performs
+   the convention conversion. Apply L18 (Pattern 7 at the producer)
+   to decide where the bridge lives.
+3. Before committing the carve, re-read the crosswalk: every
+   producer-consumer pair should match column-for-column.
+
+Generalisation: applies to MoC track ↔ Σ_t ↔ source three-stratum
+cache, CP cell ↔ surface-current pairing, kinetics outer iteration
+↔ inner transport sweep, depletion ↔ flux solve.
+
+## L18: Pattern 7 at the producer, not the consumer
+
+When a producer outputs a value in convention A and consumers expect
+convention B, **fix the producer**. Consumer-side bridges multiply
+with every new consumer; producer-side normalisation costs once.
+
+R-1 Step 4 session-1 textbook instance: `ScatteringOperator.apply`
+typed branch returned the iso source un-rescaled by `1/sum_w`. The
+three consumers — `InvertibleOperator.solve`, `_solve_krylov`,
+`_solve_source_iteration` — each had to apply `* sum_w` or `/
+sum_w` to bridge to their expected convention. Three habitats for
+the bug to drift; debugged twice (Step D → fix in Krylov; Step E →
+fix in SI; the third bridge survived in `InvertibleOperator.solve`
+until the explicit Step 1.1 producer-side fix).
+
+The producer-side fix is **structurally cheaper**: it is one line
+at the definition site, every existing consumer becomes a NO-OP at
+the bridge, and every future consumer inherits the convention for
+free. Producer normalisation eliminates the entire bug habitat
+class.
+
+**Why** (the structural argument from `coding-elegance` Pattern 7):
+N consumers ⇒ N opportunities to drift. The convention is a property
+of the **producer**, not a requirement on the consumer. The asymmetry
+matters because the consumer set is open (every future caller adds a
+new habitat); the producer is one site by construction.
+
+**How to apply:**
+
+1. When a new convention-dependent value crosses a subsystem
+   boundary, ask: "is there ONE producer for this value, or many?"
+   If one, that's where the convention lives.
+2. If a consumer-side bridge already exists, ask: "what's the cost
+   of moving it to the producer?" The answer is usually one line.
+3. If the producer-side fix forces a test update (because the test
+   pinned the old un-normalised contract), the test was pinning the
+   wrong contract — rewrite the test to pin the new convention.
+
+Generalisation: applies wherever a typed object has multiple
+consumers with shared convention expectations: BoundaryRealizer
+output, AngularFlux trace decoders, source `/W` rescaling, cross-
+section group-ordering choices.
+
+Cross-reference: `[[feedback-elegance-causes-collapse]]` — fewer
+concepts after a refactor is the diagnostic. Producer-side
+normalisation reduces concepts (one fix site) where consumer-side
+bridges multiply them (N fix sites).
+
+## L19: `None` defaults that depend on unstated invariants are dangerous
+
+`KrylovAcceleration(preconditioner=None)` silently routed through
+`L.solve` if `L` advertised `CAP_SOLVE`. The silent fallback was the
+bug: `L.solve` was NOT stateless (read `rhs(1)` history). GMRES
+residual vectors have no history, so the in-iteration default
+silently produced wrong values.
+
+The `None` default ENCODED an unstated invariant: "if you pass
+`None`, the operator's `solve` is assumed stateless." Nothing in the
+type system enforced statelessness. Nothing in the API documentation
+said it. The invariant was an implicit handshake between the default
+and the operator's capability advertisement.
+
+**The general pattern**: default values for behavioural parameters
+(not just data parameters — *behavioural* parameters that change
+control flow) MUST either:
+
+1. **Advertise their preconditions in the type system.** Add a
+   capability flag (e.g. `CAP_STATELESS_INVERSE`) that the operator
+   must explicitly advertise. Default fallback only fires when the
+   capability is present.
+2. **OR require explicit caller choice.** No default; the caller
+   must pass the strategy. Forces every call site to think.
+
+The R-1 Step 1.2 fix (A2b) takes path 1: add `CAP_STATELESS_INVERSE`;
+`InvertibleOperator` does NOT advertise it; default-no-precond
+otherwise. The silent fallback hole closes.
+
+**The diagnostic question** for any behavioural default: "what does
+this default ASSUME about its surroundings? Is that assumption
+typed?" If the answer involves "the operator's solve is/isn't X" and
+X is not a capability flag, the default is the bug.
+
+**How to apply:**
+
+1. Audit every behavioural `=None` default in the public API.
+2. For each, ask: "what assumption does the fallback path encode?"
+3. If the assumption is not typed, either type it (add capability
+   flag) or remove the default (require explicit choice).
+
+Generalisation: applies wherever a primitive has pluggable strategy
+parameters — preconditioners, BC realizers, source builders, eigenvalue
+acceleration strategies, depletion-step integrators. Same lesson in MoC
+track-laydown strategies, CP cross-section selection, kinetics outer-loop
+schemes.
+
+## L20: Retirement requires an upstream dependency audit
+
+A retirement step that says "retire X" without enumerating "who
+calls X" is incomplete. R-1 Step 4 session-1 Step G under-estimated
+scope by ~2× because the plan didn't audit `solve_sn_fixed_source`'s
+callgraph through the legacy symbols (`SNStreamingOperator`,
+`EquationMap`, `build_equation_map*`, `solution_to_angular_flux*`,
+`_make_sweep_preconditioner`, `_build_rhs_*`).
+
+Each retirement target has THREE dependency surfaces, all of which
+must be enumerated before deletion:
+
+1. **Production callers** — production code that imports/uses the
+   symbol. These must be retargeted before the symbol can delete.
+2. **Test callers** — tests that exercise the symbol directly.
+   These either migrate to the new code (per
+   `[[feedback-retirement-means-test-migration]]`) or delete
+   alongside (if superseded).
+3. **Internal-to-orphan-after-retirement** — symbols that ONLY
+   exist to support the retirement target. These retire together
+   in a single commit.
+
+The audit is `grep -rn "<symbol>"` plus a Nexus `callers`/`impact`
+walk for each retirement target. Cost: ≤ 10 minutes per target.
+Skipped cost: full re-plan mid-session (session 1 evidence: Step G
+deferred entirely after the audit gap was discovered).
+
+**How to apply:**
+
+1. Before any retirement-class plan, produce a dependency-audit
+   table (rows = symbols, columns = the three surfaces above).
+   Save to `.claude/plans/<plan>_dependency_audit.md`.
+2. The retirement ORDER follows the audit: retire leaves first
+   (zero production callers), then internal-only helpers, then
+   the top-level symbol.
+3. The audit gates the retirement commit. No retirement without
+   the audit table referenced in the commit body.
+
+Generalisation: applies to every refactor that DELETES code — MoC
+legacy 1D paths when 2D unifies, CP IPN method retirement, depletion
+solver replacement, kinetics frequency-domain ↔ time-domain swaps,
+boundary-condition surface refactors. Every retirement is a graph
+operation, not a textual operation.
+
+Cross-reference: `[[feedback-aggressive-retirement]]` (retirement is
+mandatory; superseded code = noise) + this lesson (the audit IS the
+plan).
