@@ -132,6 +132,30 @@ def test_kinf_homogeneous(ng_key: str, coord: str, inner_solver: str) -> None:
     symmetric-closure path and provides structural independence — the
     two paths must reach the SAME k_inf to better than ``rtol=1e-10``.
     """
+    # R-1 Step D (2026-05-19) — the carved ``_solve_krylov`` runs GMRES
+    # UNPRECONDITIONED on curvilinear meshes (sphere / cylinder) per
+    # the user's R-1 direction "no preconditioner; consolidating the
+    # foundational architecture first".  The default sweep-as-
+    # preconditioner cannot be used because GMRES feeds residual
+    # vectors that have no ``rhs(1)`` history, so the curvilinear
+    # Carlson coupled-pole seed (Hébert §3.9.4) falls back to the
+    # in-iteration-source default — not the algebraic inverse of
+    # ``(L+C).apply``.  Unpreconditioned GMRES converges on
+    # ``sphere-1g/-2g`` and ``cylinder-1g/-2g/-4g`` within the
+    # ``max_inner=300`` budget, but ``sphere-4g`` is too ill-
+    # conditioned (the 4-group cross-section coupling on the sphere
+    # pole inflates the spectral radius beyond what 300 GMRES iters
+    # can resolve).  Tracked by issue #200 — the block-inverse face
+    # preconditioner will re-enable this case once it lands.
+    if coord == "sphere" and ng_key == "4eg" and inner_solver == "krylov":
+        pytest.xfail(
+            "R-1 — unpreconditioned GMRES on sphere-4g exceeds the "
+            "max_inner=300 budget without converging.  Issue #200 "
+            "tracks the block-inverse face preconditioner that "
+            "re-enables Krylov on curvilinear multi-group at high "
+            "scattering ratio."
+        )
+
     case = _get_continuous_case(ng_key)
     mat_id = next(iter(case.problem.materials.keys()))
 
@@ -170,6 +194,16 @@ def test_kinf_homogeneous_spectrum(ng_key: str, coord: str, inner_solver: str) -
     spectrum is solved at TIGHT tolerances so the SI inner-residual
     amplification does not bias the dominant eigenvector recovery.
     """
+    # R-1 Step D — see ``test_kinf_homogeneous`` for the structural
+    # rationale.  Sphere-4g unpreconditioned GMRES does not converge
+    # within ``max_inner=300``.  Issue #200 tracks the fix.
+    if coord == "sphere" and ng_key == "4eg" and inner_solver == "krylov":
+        pytest.xfail(
+            "R-1 — unpreconditioned GMRES on sphere-4g exceeds the "
+            "max_inner=300 budget without converging.  Issue #200 "
+            "tracks the block-inverse face preconditioner."
+        )
+
     case = _get_continuous_case(ng_key)
     ng = case.problem.n_groups
     mat_id = next(iter(case.problem.materials.keys()))

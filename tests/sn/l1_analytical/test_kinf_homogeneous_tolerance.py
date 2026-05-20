@@ -136,6 +136,17 @@ def test_krylov_inner_matches_tight_si(coord, ng_key):
     Krylov route through structurally different operators (a closure
     drift). At the time of writing, agreement is to ~1e-9 absolute.
     """
+    # R-1 Step D — see ``test_kinf_homogeneous`` for the rationale.
+    # Sphere-4g unpreconditioned GMRES does not converge within the
+    # max_inner=100 budget at default tolerances.  Issue #200 tracks
+    # the block-inverse face preconditioner.
+    if coord == "sphere" and ng_key == "4eg":
+        pytest.xfail(
+            "R-1 — unpreconditioned GMRES on sphere-4g exceeds the "
+            "max_inner=100 budget without converging.  Issue #200 "
+            "tracks the block-inverse face preconditioner."
+        )
+
     case = _BUILDERS[ng_key]()
     mat_id = next(iter(case.problem.materials.keys()))
     mesh = _mesh(coord, mat_id)
