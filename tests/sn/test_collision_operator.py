@@ -12,6 +12,16 @@ Convention-agnostic σ: the same operator class accepts either the
 full ``σ_t`` (total cross-section) or the within-group removal
 cross-section ``σ_r = σ_t − Σ_{s,0}^{g→g}``. No ``is_removal`` flag —
 the operator's action is identical for either input.
+
+R-1 Step F (2026-05-19) — these tests migrated from the legacy
+packed-1D contract (``rng.standard_normal(legacy.n_unknowns)``) to
+the typed :class:`~orpheus.sn.angular_flux.AngularFlux` contract.
+The legacy ``SNStreamingOperator.n_unknowns`` was sized to the
+pre-B1'' eq_map (cell-only); the new operator-algebra contract uses
+``build_equation_map_with_traces`` which sizes ``n_unknowns`` to
+include the B1'' face block.  Operating on typed ``AngularFlux``
+dissolves the size-mismatch concern: arithmetic, shape, and inverse
+contracts all read directly off the typed surface.
 """
 from __future__ import annotations
 
@@ -25,8 +35,9 @@ from orpheus.numerics.operator import (
     CAP_SOLVE,
     LinearOperator,
 )
+from orpheus.sn.angular_flux import AngularFlux
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import CollisionOperator, SNStreamingOperator
+from orpheus.sn.operator import CollisionOperator
 from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
 from tests.sn._test_helpers import placeholder_materials
 
@@ -47,7 +58,7 @@ def _slab_mesh(nx: int = 4, length: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = GaussLegendre1D.create(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNMesh(mesh, quad, placeholder_materials(ng=2))
 
 
 def _spherical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
@@ -59,7 +70,7 @@ def _spherical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = GaussLegendre1D.create(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNMesh(mesh, quad, placeholder_materials(ng=2))
 
 
 def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
@@ -71,15 +82,26 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = LevelSymmetricSN.create(sn_order=4)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNMesh(mesh, quad, placeholder_materials(ng=2))
 
 
-def _packed_psi(sn_mesh: SNMesh, sigma: np.ndarray,
-                seed: int = 42) -> np.ndarray:
-    """Random packed-vector ψ matching the geometry's eq_map size."""
-    legacy = SNStreamingOperator(sn_mesh, sigma)
+def _random_angular_flux(
+    sn_mesh: SNMesh, ng: int = 2, seed: int = 42,
+) -> AngularFlux:
+    """Random :class:`AngularFlux` shaped ``(N, ng, nx, ny)``.
+
+    R-1 Step F migration target: replaces the legacy ``_packed_psi``
+    helper that built bare-ndarray packed vectors of the
+    ``SNStreamingOperator.n_unknowns`` size.  The typed surface ties
+    the random field to the SN phase-space carrier directly — no
+    eq_map dispatch required at the test level.
+    """
     rng = np.random.default_rng(seed)
-    return rng.standard_normal(legacy.n_unknowns)
+    N = sn_mesh.quad.N
+    nx, ny = sn_mesh.nx, sn_mesh.ny
+    return AngularFlux(
+        rng.standard_normal((N, ng, nx, ny)), sn_mesh,
+    )
 
 
 def _sigma_total(sn_mesh: SNMesh, ng: int = 2) -> np.ndarray:
@@ -144,19 +166,21 @@ class TestApply:
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
         C = CollisionOperator(sn_mesh, sigma)
-        psi = _packed_psi(sn_mesh, sigma)
+        psi = _random_angular_flux(sn_mesh)
         out = C.apply(psi)
-        assert out.shape == psi.shape
+        assert isinstance(out, AngularFlux)
+        assert out.values.shape == psi.values.shape
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_apply_zero_returns_zero(self, name, builder):
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
         C = CollisionOperator(sn_mesh, sigma)
-        psi = _packed_psi(sn_mesh, sigma)
-        zero = np.zeros_like(psi)
+        N = sn_mesh.quad.N
+        nx, ny = sn_mesh.nx, sn_mesh.ny
+        zero = AngularFlux(np.zeros((N, sigma.shape[0], nx, ny)), sn_mesh)
         out = C.apply(zero)
-        np.testing.assert_array_equal(out, np.zeros_like(psi))
+        np.testing.assert_array_equal(out.values, 0.0)
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_apply_constant_sigma_uniform(self, name, builder):
@@ -166,23 +190,26 @@ class TestApply:
         c = 0.4
         sigma = c * np.ones((2, nx, ny))  # PR-INDEX-3: (ng, nx, ny)
         C = CollisionOperator(sn_mesh, sigma)
-        psi = _packed_psi(sn_mesh, sigma, seed=99)
+        psi = _random_angular_flux(sn_mesh, seed=99)
         out = C.apply(psi)
-        np.testing.assert_allclose(out, c * psi, rtol=1e-14, atol=1e-15)
+        np.testing.assert_allclose(
+            out.values, c * psi.values, rtol=1e-14, atol=1e-15,
+        )
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_apply_is_linear(self, name, builder):
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
         C = CollisionOperator(sn_mesh, sigma)
-        psi1 = _packed_psi(sn_mesh, sigma, seed=51)
-        psi2 = _packed_psi(sn_mesh, sigma, seed=52)
+        psi1 = _random_angular_flux(sn_mesh, seed=51)
+        psi2 = _random_angular_flux(sn_mesh, seed=52)
         alpha = 2.3
         beta = -0.7
         out_combined = C.apply(alpha * psi1 + beta * psi2)
         out_separate = alpha * C.apply(psi1) + beta * C.apply(psi2)
         np.testing.assert_allclose(
-            out_combined, out_separate, rtol=1e-14, atol=1e-15,
+            out_combined.values, out_separate.values,
+            rtol=1e-14, atol=1e-15,
         )
 
 
@@ -202,46 +229,34 @@ class TestSolve:
         c = 0.4
         sigma = c * np.ones((2, nx, ny))  # PR-INDEX-3: (ng, nx, ny)
         C = CollisionOperator(sn_mesh, sigma)
-        q = _packed_psi(sn_mesh, sigma, seed=88)
+        q = _random_angular_flux(sn_mesh, seed=88)
         out = C.solve(q)
-        np.testing.assert_allclose(out, q / c, rtol=1e-14, atol=1e-15)
+        np.testing.assert_allclose(
+            out.values, q.values / c, rtol=1e-14, atol=1e-15,
+        )
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_solve_preserves_shape(self, name, builder):
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
         C = CollisionOperator(sn_mesh, sigma)
-        q = _packed_psi(sn_mesh, sigma)
+        q = _random_angular_flux(sn_mesh)
         out = C.solve(q)
-        assert out.shape == q.shape
+        assert isinstance(out, AngularFlux)
+        assert out.values.shape == q.values.shape
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_solve_equals_division(self, name, builder):
-        """solve(b) == b / sigma_packed at rtol=1e-14."""
+        """solve(q) == q.values / sigma (broadcast over ordinates)."""
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
         C = CollisionOperator(sn_mesh, sigma)
-        b = _packed_psi(sn_mesh, sigma, seed=200)
-        out = C.solve(b)
-        # Compute sigma_packed independently via the same gather pattern.
-        from orpheus.sn.operator import (
-            build_equation_map,
-            build_equation_map_cylindrical,
-            build_equation_map_spherical,
+        q = _random_angular_flux(sn_mesh, seed=200)
+        out = C.solve(q)
+        # σ has shape (ng, nx, ny); broadcasts over the ordinate axis.
+        np.testing.assert_allclose(
+            out.values, q.values / sigma[None, :, :, :], rtol=1e-14,
         )
-        nx, ny = sn_mesh.nx, sn_mesh.ny
-        quad = sn_mesh.quad
-        curv = getattr(sn_mesh, "curvature", None)
-        ng = int(sigma.shape[0])  # PR-INDEX-3: ng at axis 0
-        if curv == "spherical":
-            eq_map = build_equation_map_spherical(nx, quad, ng)
-        elif curv == "cylindrical":
-            eq_map = build_equation_map_cylindrical(nx, quad, ng)
-        else:
-            eq_map = build_equation_map(nx, ny, quad, ng)
-        # PR-INDEX-3: principled (ng, nx, ny) — advanced index gives (ng, n_eq).
-        sigma_packed = sigma[:, eq_map.ix, eq_map.iy].ravel(order='F')
-        np.testing.assert_allclose(out, b / sigma_packed, rtol=1e-14)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -257,18 +272,22 @@ class TestApplySolveIdentity:
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
         C = CollisionOperator(sn_mesh, sigma)
-        q = _packed_psi(sn_mesh, sigma, seed=77)
+        q = _random_angular_flux(sn_mesh, seed=77)
         round_trip = C.apply(C.solve(q))
-        np.testing.assert_allclose(round_trip, q, rtol=1e-12, atol=1e-14)
+        np.testing.assert_allclose(
+            round_trip.values, q.values, rtol=1e-12, atol=1e-14,
+        )
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_solve_inverts_apply(self, name, builder):
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
         C = CollisionOperator(sn_mesh, sigma)
-        psi = _packed_psi(sn_mesh, sigma, seed=78)
+        psi = _random_angular_flux(sn_mesh, seed=78)
         round_trip = C.solve(C.apply(psi))
-        np.testing.assert_allclose(round_trip, psi, rtol=1e-12, atol=1e-14)
+        np.testing.assert_allclose(
+            round_trip.values, psi.values, rtol=1e-12, atol=1e-14,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -284,11 +303,11 @@ class TestApplyTranspose:
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
         C = CollisionOperator(sn_mesh, sigma)
-        psi = _packed_psi(sn_mesh, sigma, seed=4242)
+        psi = _random_angular_flux(sn_mesh, seed=4242)
         out_apply = C.apply(psi)
         out_transpose = C.apply_transpose(psi)
         # Bit-exact: apply_transpose delegates to apply.
-        np.testing.assert_array_equal(out_transpose, out_apply)
+        np.testing.assert_array_equal(out_transpose.values, out_apply.values)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -308,18 +327,18 @@ class TestSigmaInterpretation:
         sn_mesh = builder()
         sigma_t = _sigma_total(sn_mesh)
         C = CollisionOperator(sn_mesh, sigma_t)
-        psi = _packed_psi(sn_mesh, sigma_t, seed=10)
+        psi = _random_angular_flux(sn_mesh, seed=10)
         out = C.apply(psi)
-        assert np.any(np.abs(out) > 0)
+        assert np.any(np.abs(out.values) > 0)
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_works_with_removal_cross_section(self, name, builder):
         sn_mesh = builder()
         sigma_r = _sigma_removal(sn_mesh)
         C = CollisionOperator(sn_mesh, sigma_r)
-        psi = _packed_psi(sn_mesh, sigma_r, seed=10)
+        psi = _random_angular_flux(sn_mesh, seed=10)
         out = C.apply(psi)
-        assert np.any(np.abs(out) > 0)
+        assert np.any(np.abs(out.values) > 0)
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_no_is_removal_kwarg(self, name, builder):
@@ -337,15 +356,15 @@ class TestSigmaInterpretation:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 7. Sigma layout sanity — packed gather matches per-cell read.
+# 7. Sigma layout sanity — broadcast over the ordinate axis is correct.
 # ═══════════════════════════════════════════════════════════════════════
 
 
 class TestSigmaLayout:
-    """The packed-vector gather σ[ix(k), iy(k), g] is correct.
+    """The σ field broadcasts correctly across the ordinate axis.
 
     σ non-zero only at one cell → out is non-zero only at that
-    cell's packed slots.
+    cell's ``(ng, ix, iy)`` slot, replicated across every ordinate.
     """
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
@@ -358,30 +377,19 @@ class TestSigmaLayout:
         sigma = np.zeros((ng, nx, ny))  # PR-INDEX-3: (ng, nx, ny)
         sigma[:, ix_target, iy_target] = 1.0
         C = CollisionOperator(sn_mesh, sigma)
-        sigma_ref = 0.5 * np.ones((ng, nx, ny))  # for sizing
-        psi = _packed_psi(sn_mesh, sigma_ref, seed=33)
+        psi = _random_angular_flux(sn_mesh, ng=ng, seed=33)
         out = C.apply(psi)
-        from orpheus.sn.operator import (
-            build_equation_map,
-            build_equation_map_cylindrical,
-            build_equation_map_spherical,
-        )
-        quad = sn_mesh.quad
-        curv = getattr(sn_mesh, "curvature", None)
-        if curv == "spherical":
-            eq_map = build_equation_map_spherical(nx, quad, ng)
-        elif curv == "cylindrical":
-            eq_map = build_equation_map_cylindrical(nx, quad, ng)
-        else:
-            eq_map = build_equation_map(nx, ny, quad, ng)
-        out_grid = out.reshape(ng, eq_map.n_eq, order='F')
-        mask_target = (eq_map.ix == ix_target) & (eq_map.iy == iy_target)
+        # Build a mask shaped (nx, ny) selecting only the target cell.
+        cell_mask = np.zeros((nx, ny), dtype=bool)
+        cell_mask[ix_target, iy_target] = True
+        # Output at NON-target cells is zero.
         np.testing.assert_array_equal(
-            out_grid[:, ~mask_target], 0.0,
+            out.values[:, :, ~cell_mask], 0.0,
         )
-        psi_grid = psi.reshape(ng, eq_map.n_eq, order='F')
+        # Output at the TARGET cell equals 1.0 · psi at that cell
+        # (sigma == 1.0 at the target).
         np.testing.assert_allclose(
-            out_grid[:, mask_target],
-            1.0 * psi_grid[:, mask_target],
+            out.values[:, :, cell_mask],
+            psi.values[:, :, cell_mask],
             rtol=1e-14, atol=1e-15,
         )

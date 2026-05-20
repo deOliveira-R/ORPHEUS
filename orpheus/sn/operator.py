@@ -2293,7 +2293,9 @@ class CollisionOperator(LinearOperatorMixin):
         out[:n_cell_scalars] = sigma_packed * psi[:n_cell_scalars]
         return out
 
-    def solve(self, q: np.ndarray) -> np.ndarray:
+    def solve(
+        self, q: "np.ndarray | AngularFlux",
+    ) -> "np.ndarray | AngularFlux":
         r"""Inverse action :math:`C^{-1}\,q = q/\sigma` element-wise on
         the cell-centre block.
 
@@ -2312,7 +2314,22 @@ class CollisionOperator(LinearOperatorMixin):
         (the standard within-group source).  Callers that genuinely
         need ``C^{-1}`` on a non-zero face block (an unusual scenario)
         must handle the face slots themselves.
+
+        R-1 Step F — typed :class:`AngularFlux` overload.  The
+        inverse-collision action is per-cell per-group, broadcast
+        across every ordinate.  Result's ``.boundary`` is the
+        auto-allocated zero :class:`BoundaryFlux` (collision is rank-
+        deficient on the face block; pseudoinverse leaves it zero).
         """
+        from .angular_flux import AngularFlux
+        if isinstance(q, AngularFlux):
+            # Typed branch — broadcast 1/σ across the ordinate axis.
+            # σ is (ng, nx, ny); q.values is (N, ng, nx, ny).  The
+            # result's ``.boundary`` is auto-allocated to zeros — the
+            # pseudoinverse on the rank-deficient face block.
+            return AngularFlux(
+                q.values / self.sigma[None, :, :, :], q.mesh,
+            )
         ng = int(self.sigma.shape[0])
         eq_map = self._ensure_eq_map(ng)
         if eq_map.n_unknowns != q.size:
@@ -2328,11 +2345,16 @@ class CollisionOperator(LinearOperatorMixin):
         # Face slots (out[n_cell_scalars:]) pass through unchanged.
         return out
 
-    def apply_transpose(self, psi: np.ndarray) -> np.ndarray:
+    def apply_transpose(
+        self, psi: "np.ndarray | AngularFlux",
+    ) -> "np.ndarray | AngularFlux":
         r"""Adjoint action :math:`C^*\,\psi = \sigma\cdot\psi`.
 
         Equal to :meth:`apply` — collision is self-adjoint (diagonal
         operator). Returned bit-equal to ``apply(psi)``.
+
+        R-1 Step F — typed :class:`AngularFlux` overload propagates
+        through :meth:`apply`.
         """
         return self.apply(psi)
 
