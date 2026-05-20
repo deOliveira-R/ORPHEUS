@@ -78,6 +78,7 @@ from orpheus.numerics.operator import (
     CAP_APPLY_TRANSPOSE,
     CAP_SOLVE,
     LinearOperatorMixin,
+    OperatorSum,
 )
 
 from .quadrature import AngularQuadrature
@@ -2120,6 +2121,21 @@ class StreamingOperator(LinearOperatorMixin):
 
         return AngularFlux(cell_values, sn_mesh, boundary=boundary)
 
+    # ── Algebra dispatch — sweep-invertible composite (R-1 Step C) ────
+
+    def __add__(self, other):
+        r"""Compose :math:`L + X`.
+
+        When ``X`` is a :class:`CollisionOperator`, returns the
+        sweep-invertible specialisation :class:`InvertibleOperator`
+        carrying the algebraic identity :math:`(L + C)^{-1} \approx
+        \text{WDD sweep}`.  Otherwise falls through to the generic
+        :class:`OperatorSum` via the mixin.
+        """
+        if isinstance(other, CollisionOperator):
+            return InvertibleOperator(self, other)
+        return super().__add__(other)
+
 
 @dataclass
 class CollisionOperator(LinearOperatorMixin):
@@ -2319,3 +2335,272 @@ class CollisionOperator(LinearOperatorMixin):
         operator). Returned bit-equal to ``apply(psi)``.
         """
         return self.apply(psi)
+
+    # ── Algebra dispatch — sweep-invertible composite (R-1 Step C) ────
+
+    def __add__(self, other):
+        r"""Compose :math:`C + X`.
+
+        When ``X`` is a :class:`StreamingOperator`, returns the
+        sweep-invertible specialisation :class:`InvertibleOperator`
+        with the streaming operator placed first (the canonical
+        ``L + C`` ordering for the algebraic identity).  Otherwise
+        falls through to the generic :class:`OperatorSum` via the
+        mixin.
+        """
+        if isinstance(other, StreamingOperator):
+            return InvertibleOperator(other, self)
+        return super().__add__(other)
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# InvertibleOperator — sweep-invertible composite (L + C)
+# ─────────────────────────────────────────────────────────────────────────
+
+
+class InvertibleOperator(OperatorSum):
+    r"""Sweep-invertible composite :math:`L + C` carrying ``.solve`` = WDD sweep.
+
+    R-1 Step C (2026-05-19) — the SN-specific algebraic identity
+
+    .. math::
+
+        (L_{\rm streaming} + C_{\rm diagonal})^{-1} \;\approx\;
+        \text{WDD sweep}
+
+    has no generic ``(A+B)^{-1}`` formula — :class:`OperatorSum` by
+    itself cannot ``solve``.  The WDD sweep IS the inverse algorithm
+    for this specific composite — that's the algebraic foundation of
+    the entire SN method (Lewis & Miller §3.2; Adams & Larsen 2002
+    §III).  :class:`InvertibleOperator` is the specialisation that
+    carries the identity at the type level: it inherits the
+    :class:`OperatorSum` ``apply`` (the sum of the operand actions)
+    and adds ``solve`` via :func:`~orpheus.sn.sweep.transport_sweep`.
+
+    Construction
+    ============
+
+    Two equivalent paths:
+
+    * **Operator algebra dispatch** — ``L + C`` where ``L`` is a
+      :class:`StreamingOperator` and ``C`` is a
+      :class:`CollisionOperator` returns this class automatically (see
+      :meth:`StreamingOperator.__add__` and
+      :meth:`CollisionOperator.__add__`).  The composite reads as math.
+    * **Explicit construction** — ``InvertibleOperator(L, C)``.  Useful
+      when composing variants such as
+      ``InvertibleOperator(L_leaf, CollisionOperator(σ_r))`` where
+      ``σ_r = σ_t - Σ_{s,0}^{g→g}`` is the removal cross-section that
+      lets one fold the within-group self-scatter into the diagonal
+      collision term (Adams & Larsen 2002 §III; tracked by issue
+      `#200 <https://github.com/deOliveira-R/ORPHEUS/issues/200>`_).
+
+    The two paths produce structurally identical objects — the choice
+    only changes the call-site readability.
+
+    Capability set
+    ==============
+
+    ``frozenset({CAP_APPLY, CAP_SOLVE})`` — adds ``solve`` to the
+    parent :class:`OperatorSum`'s ``apply``-only set.
+    ``apply_transpose`` is reserved for Phase H (adjoint propagation
+    through the composite).
+
+    The ``.solve`` API
+    ==================
+
+    The ``rhs`` parameter is a typed
+    :class:`~orpheus.sn.angular_flux.AngularFlux` carrying:
+
+    * ``rhs.values`` — per-ordinate source ``(N, ng, nx, ny)``.  This
+      is treated as the per-ordinate anisotropic source
+      :math:`Q^{\rm aniso}` that the sweep consumes (the isotropic
+      source is zero).
+    * ``rhs.boundary`` — face source / BC inflow trace.  Typically
+      zero for volumetric SI/Krylov sources (which carry no face
+      contribution); the persistent reflective-BC state lives on the
+      :class:`SNMesh` and is handled inside the sweep.
+    * ``rhs(1)`` (the lag-1 frame, when ``rhs.history_depth >= 2``) —
+      the previous iterate that GENERATED this source.  Threaded as
+      :pydata:`initial_guess` to :func:`transport_sweep` so the
+      curvilinear sweep can read the Carlson coupled-pole seed from
+      it.  ``None`` (cold start) → the sweep falls back to its
+      in-iteration-source default.
+
+    Parameters
+    ----------
+    streaming : StreamingOperator
+        :math:`L = \Omega\cdot\nabla + \text{angular redistribution}`.
+        Resolution A subtractive form:
+        ``L.apply(ψ) = M(ψ; σ_t) - σ_t ⊙ ψ_cell``.
+    diagonal : CollisionOperator
+        :math:`C = \sigma\cdot`.  Its ``.sigma`` attribute is the
+        per-cell per-group coefficient used by the sweep (canonically
+        ``σ_t``; can be ``σ_r`` for the foldable variant).
+
+    Notes
+    -----
+    The validation ``σ > 0`` everywhere guards against the
+    ``σ_r < 0`` case that can arise when within-group self-scatter
+    exceeds total cross-section (rare; not physically meaningful but
+    mathematically possible for ill-conditioned multi-group sets).
+    The sweep would emit NaN at those cells — surfacing the
+    inconsistency at construction is friendlier.
+    """
+
+    def __init__(
+        self,
+        streaming: "StreamingOperator",
+        diagonal: "CollisionOperator",
+    ) -> None:
+        if not isinstance(streaming, StreamingOperator):
+            raise TypeError(
+                f"InvertibleOperator: 'streaming' must be a "
+                f"StreamingOperator; got {type(streaming).__name__}."
+            )
+        if not isinstance(diagonal, CollisionOperator):
+            raise TypeError(
+                f"InvertibleOperator: 'diagonal' must be a "
+                f"CollisionOperator; got {type(diagonal).__name__}."
+            )
+        if streaming.sn_mesh is not diagonal.sn_mesh:
+            raise ValueError(
+                "InvertibleOperator: streaming and diagonal operators "
+                "must share the same SNMesh instance "
+                "(mesh-identity invariant)."
+            )
+        if not np.all(diagonal.sigma > 0):
+            min_sigma = float(np.min(diagonal.sigma))
+            raise ValueError(
+                f"InvertibleOperator: diagonal coefficient must be "
+                f"strictly positive everywhere for the WDD sweep to be "
+                f"well-defined; got min(sigma) = {min_sigma:.3e}.  If "
+                f"sigma_r = sigma_t - Sigma_(s,0)^(g->g) is dipping "
+                f"negative, the multi-group cross-section set is "
+                f"physically inconsistent."
+            )
+        super().__init__(streaming, diagonal)
+        # OperatorSum.__init__ set capabilities = {CAP_APPLY, ...};
+        # we add CAP_SOLVE because this composite IS sweep-invertible.
+        self.capabilities = self.capabilities | frozenset({CAP_SOLVE})
+
+    # ── Convenience accessors ─────────────────────────────────────────
+
+    @property
+    def streaming(self) -> "StreamingOperator":
+        """The streaming operand (alias for ``self.a``)."""
+        return self.a  # type: ignore[return-value]
+
+    @property
+    def diagonal(self) -> "CollisionOperator":
+        """The diagonal-collision operand (alias for ``self.b``)."""
+        return self.b  # type: ignore[return-value]
+
+    @property
+    def sn_mesh(self) -> "SNMesh":
+        """The shared :class:`SNMesh` (validated mesh-identity at init)."""
+        return self.streaming.sn_mesh
+
+    @property
+    def sigma(self) -> np.ndarray:
+        r"""The diagonal coefficient used by ``solve`` (σ_t or σ_r)."""
+        return self.diagonal.sigma
+
+    # ── solve: WDD sweep ─────────────────────────────────────────────
+
+    def solve(self, rhs: "AngularFlux") -> "AngularFlux":
+        r"""Invert :math:`(L + C)\,\psi = \text{rhs}` via the WDD sweep.
+
+        The cell-balance equation
+        :math:`(\Omega\cdot\nabla + \sigma)\,\psi = Q` is integrated
+        cell-by-cell in inflow-to-outflow order; the angular closure
+        (Cartesian → identity, curvilinear → Morel-Montry) is bound
+        on the mesh.
+
+        Parameters
+        ----------
+        rhs : AngularFlux
+            * ``rhs.values`` — per-ordinate source :math:`Q^{\rm aniso}`.
+            * ``rhs.boundary`` — BC inflow trace (typically zero for
+              SI/Krylov volumetric sources).
+            * ``rhs(1)`` (lag-1 frame, if present) — previous iterate
+              passed to the sweep as :pydata:`initial_guess` for the
+              curvilinear Carlson coupled-pole seed.
+
+        Returns
+        -------
+        AngularFlux
+            The angular flux satisfying :math:`(L + C)\,\psi =
+            \text{rhs}`, with the sweep's outflow face state in
+            ``.boundary`` and ``history_depth`` inherited from
+            ``rhs.history_depth``.
+        """
+        from .angular_flux import AngularFlux
+        from .sources import IsotropicSource, PerOrdinateSource
+        from .sweep import transport_sweep
+
+        if not isinstance(rhs, AngularFlux):
+            raise TypeError(
+                f"InvertibleOperator.solve: 'rhs' must be AngularFlux; "
+                f"got {type(rhs).__name__}.  The typed-flux contract is "
+                f"the only supported surface in R-1; bare-ndarray rhs "
+                f"goes through the legacy SNSolver paths."
+            )
+        if rhs.mesh is not self.sn_mesh:
+            raise ValueError(
+                "InvertibleOperator.solve: rhs and operator must share "
+                "the same SNMesh instance (mesh-identity invariant)."
+            )
+
+        sn_mesh = self.sn_mesh
+        # rhs.values is the per-ordinate source; iso source is zero.
+        iso_source = sn_mesh.zeros_isotropic_source()
+        aniso_source = PerOrdinateSource(rhs.values, sn_mesh)
+
+        # The sweep mutates boundary_flux in place (write-through); the
+        # AngularFlux is immutable, so allocate a fresh buffer per call,
+        # seeded with whatever BC inflow rhs.boundary specifies (usually
+        # zero for SI / Krylov volumetric sources).
+        boundary_buf = sn_mesh.zeros_boundary_flux()
+        _copy_boundary_face_state(rhs.boundary, boundary_buf)
+
+        # Lag-1 frame is the Carlson seed.  None when rhs is cold-start
+        # (no history) — transport_sweep falls back to its in-iteration
+        # default at that lag.
+        carlson_seed = rhs(1)
+
+        angular, _scalar = transport_sweep(
+            iso_source,
+            self.sigma,
+            sn_mesh,
+            boundary_buf,
+            aniso_source=aniso_source,
+            initial_guess=carlson_seed,
+        )
+
+        return AngularFlux(
+            angular,
+            sn_mesh,
+            boundary=boundary_buf,
+            history_depth=rhs.history_depth,
+        )
+
+
+def _copy_boundary_face_state(
+    src: "BoundaryFlux", dst: "BoundaryFlux",
+) -> None:
+    """Copy non-None face buffers from ``src`` into ``dst`` in place.
+
+    Both buffers must share the same :class:`SNMesh` (no shape
+    validation needed — same mesh implies same buffer sizes).  Used by
+    :meth:`InvertibleOperator.solve` to seed the sweep's mutable
+    write-through buffer from the immutable rhs.boundary state.
+    """
+    if src.xmin_face is not None and dst.xmin_face is not None:
+        dst.xmin_face[...] = src.xmin_face
+    if src.xmax_face is not None and dst.xmax_face is not None:
+        dst.xmax_face[...] = src.xmax_face
+    if src.xmin_xmax_buf is not None and dst.xmin_xmax_buf is not None:
+        dst.xmin_xmax_buf[...] = src.xmin_xmax_buf
+    if src.ymin_ymax_buf is not None and dst.ymin_ymax_buf is not None:
+        dst.ymin_ymax_buf[...] = src.ymin_ymax_buf

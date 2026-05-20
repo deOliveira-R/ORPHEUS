@@ -415,18 +415,21 @@ class TestLinearity:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 6. The OperatorSum (L + C) advertises apply but NOT solve.
+# 6. The composite (L + C) dispatches to InvertibleOperator (R-1 Step C).
 # ═══════════════════════════════════════════════════════════════════════
 
 
 class TestSumCapabilities:
-    """Pre-3+4.b.ii contract: (L + C).solve must NOT be available.
+    """R-1 Step C contract: ``L + C`` dispatches to :class:`InvertibleOperator`.
 
-    The within-group fusion hook (substep 3+4.b.ii) will add a
-    SN-aware solve at the OperatorSum level. Before that lands, the
-    sum cannot invert itself — :class:`OperatorSum` does not
-    propagate solve in general (Sherman-Morrison applies only under
-    low-rank structure).
+    The within-group composite IS sweep-invertible — that's the
+    algebraic identity SN methods are built on (Lewis & Miller §3.2).
+    R-1 Step C encodes that identity at the type level by overriding
+    :meth:`StreamingOperator.__add__` and
+    :meth:`CollisionOperator.__add__` to return
+    :class:`~orpheus.sn.operator.InvertibleOperator`, a specialisation
+    of :class:`OperatorSum` that adds ``solve`` via
+    :func:`~orpheus.sn.sweep.transport_sweep`.
     """
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
@@ -439,10 +442,15 @@ class TestSumCapabilities:
         assert CAP_APPLY in A.capabilities
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_sum_does_not_advertise_solve(self, name, builder):
+    def test_sum_advertises_solve_via_invertible_dispatch(
+        self, name, builder,
+    ):
+        r"""``L + C`` dispatches to InvertibleOperator and advertises solve."""
+        from orpheus.sn.operator import InvertibleOperator
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh, sig_t)
         C = CollisionOperator(sn_mesh, sig_t)
         A = L + C
-        assert CAP_SOLVE not in A.capabilities
+        assert isinstance(A, InvertibleOperator)
+        assert CAP_SOLVE in A.capabilities
