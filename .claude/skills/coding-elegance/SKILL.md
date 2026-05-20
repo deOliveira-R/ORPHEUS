@@ -256,6 +256,34 @@ def lethargy_bin_widths(eg: np.ndarray) -> np.ndarray:
 
 **Evidence from the project bug history**: ERR-004 (4π hardcoded across solvers vs computed from quadrature weight sum), ERR-008 (half-cell volume convention applied at 3 sites), ERR-014 (truncated `sig_t` reused with wrong shape), ERR-018 (intentional MC direction sampling convention), ERR-022 (signed lethargy at three sites), ERR-025 (1/W normalisation convention), ERR-031 (positional argument swap caught only by upstream validation). The pattern's invocation eliminates all seven by construction.
 
+#### Convention crosswalk template (use before any operator-algebra carve)
+
+A carve that crosses subsystem boundaries (operator algebra ↔ sweep, scalar ↔ per-ordinate, packed ↔ typed, normal ↔ adjoint, signed ↔ unsigned) MUST start with this table written to a plan file (`.claude/plans/<carve>_crosswalk.md`) BEFORE any code is written. The crosswalk IS the architecture; the code is its transcription.
+
+For each subsystem crossed:
+
+| Subsystem | Input convention | Internal convention | Output convention |
+|-----------|------------------|---------------------|-------------------|
+| Producer A | …                | …                   | …                 |
+| Consumer B | …                | …                   | …                 |
+| Bridge     | (which way)      | (which transform)   | (which value)     |
+
+The **Bridge** row is where Pattern 7 demands action: either move the bridge to the producer (definition site, costs once), or document why it must stay at the consumer (rare; load-bearing reason required, e.g. the consumer needs the un-bridged form for an algebraic identity).
+
+Apply to these convention axes:
+
+- **Per-ordinate vs iso scalar** — does the value already contain the `/sum_w` factor, or does the consumer apply it?
+- **`/W` normalisation** — is the AngularFlux value in per-ordinate `(ng, N, nx)` shape with `/W` applied at the producer, or at each consumer?
+- **Sign convention on the μ axis** — does negative-μ mean inward or outward at this boundary? Is the producer normalising to a single sign convention?
+- **Packed vs typed layout** — packed-1D `(ng·N·nx,)` vector with `EquationMap` vs typed `AngularFlux` `(ng, N, nx)`. Mixing the two at a producer-consumer boundary is the load-bearing R-1 Step 4 mistake.
+- **Normal vs adjoint** — `.H` propagation through `OperatorSum`: which operators are self-adjoint, which need a transpose at the leaf, which need an explicit `apply_transpose` advertisement?
+- **Signed vs unsigned lethargy** — ascending vs descending energy grid; lethargy `Δu` must be non-negative at the definition site (ERR-022).
+- **Group ordering** — fast-to-thermal vs thermal-to-fast; producer fixes the order so downscatter is always upper-triangular.
+
+**Empirical evidence**: R-1 Step 4 session 1 ate ~3× debug time (three convention bugs × ≥1h each) because the carve crossed three subsystem boundaries (Krylov ↔ scattering ↔ sweep) with no crosswalk. The 15-minute crosswalk would have caught each at design time.
+
+Cross-reference: `[[lessons-L17]]` (the durable version of this lesson), `[[lessons-L18]]` (the Pattern 7 corollary applied to producer-side fix).
+
 ---
 
 ## CRITICAL: Anti-patterns to flag
