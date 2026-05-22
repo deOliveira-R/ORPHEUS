@@ -365,6 +365,69 @@ class TestApplySemantics:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# Producer-side normalisation invariant (R-1 Step 4 A1 — Pattern 7)
+# ──────────────────────────────────────────────────────────────────────
+
+
+class TestProducerSideNormalisation:
+    """Producer-side ``/sum_w`` invariant on the typed ``apply`` boundary.
+
+    R-1 Step 4 A1 lifted the per-ordinate projection from the sweep
+    interior to the producer boundary (Pattern 7 per
+    ``coding-elegance`` SKILL.md).  This test class pins the algebraic
+    identity that makes the projection ``sum_w``-independent for uniform
+    input: under a uniform AngularFlux ``ψ_n = c`` (so the iso magnitude
+    is ``φ = c · sum_w``), the producer's apply returns per-ordinate
+    density ``Q_n = c · Σ_{g'} (Σ_{s,0}[g'→g] + 2·Σ_{2n}[g'→g])`` —
+    explicitly *without* the ``sum_w`` factor.  If any future refactor
+    re-introduces a sweep-internal ``/W`` (or drops the producer's
+    ``/sum_w``), this test fails.
+    """
+
+    @pytest.mark.l0
+    @pytest.mark.verifies("matrix-eigenvalue")
+    def test_typed_apply_returns_per_ordinate_already_normalised(
+        self, solver_2g_p0,
+    ):
+        r"""Uniform :math:`\psi_n = c` ⇒ producer-side per-ord output is
+        :math:`Q_n = c \sum_{g'}(\Sigma_{s,0}[g'\to g] + 2\Sigma_{2n}[g'\to g])`.
+
+        Algebra:
+
+        * :math:`\phi_g = \sum_n w_n\,c = c \cdot \mathrm{sum\_w}` (iso scalar).
+        * Iso magnitude :math:`Q_{\rm iso}[g] = \sum_{g'} \big(\Sigma_{s,0}[g'\to g] + 2\Sigma_{2n}[g'\to g]\big) \cdot c \cdot \mathrm{sum\_w}`.
+        * Producer-side :math:`1/W`: :math:`Q_n[g] = Q_{\rm iso}[g]/\mathrm{sum\_w} = c \sum_{g'}(\Sigma_{s,0}[g'\to g] + 2\Sigma_{2n}[g'\to g])`.
+
+        The ``sum_w`` factor cancels by construction.  This is the
+        load-bearing producer-side identity that Pattern 7 introduces.
+        """
+        solver = solver_2g_p0
+        op = solver.scattering_op
+        N = op.n_ordinates
+        nx, ny, ng = op.nx, op.ny, op.ng
+
+        c = 0.37
+        psi = np.full((N, ng, nx, ny), c)
+
+        # Reference: compute Σ_{g'}(Σ_{s,0}[g'→g] + 2·Σ_{2n}[g'→g]) at each
+        # cell from the cell's material.  This is the per-ord magnitude
+        # the producer must emit (sum_w-independent).
+        expected = np.zeros((N, ng, nx, ny))
+        for ix in range(nx):
+            for iy in range(ny):
+                mid = int(solver.sn_mesh.mat_map[ix, iy])
+                sig_s0 = solver.mat_xs.sig_s_legendre(mid)[0]   # (ng, ng) — [g'→g]
+                sig_2n = solver.mat_xs.n2n_matrix(mid)          # (ng, ng) — [g'→g]
+                # Σ_{g'} (Σ_s0[g'→g] + 2·Σ_2n[g'→g]) per target group.
+                # sig_s0.T @ ones gives column sums (over g') indexed by g.
+                col_sum = (sig_s0.T + 2.0 * sig_2n.T) @ np.ones(ng)
+                expected[:, :, ix, iy] = c * col_sum[None, :]
+
+        actual = op.apply(psi)
+        np.testing.assert_allclose(actual, expected, rtol=1e-13, atol=1e-13)
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Algebraic identities (P0 + (n,2n))
 # ──────────────────────────────────────────────────────────────────────
 

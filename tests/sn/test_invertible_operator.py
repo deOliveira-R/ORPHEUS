@@ -371,6 +371,70 @@ class TestSolve:
         # Curvilinear sweep produces a non-trivial positive bulk.
         assert psi.values.max() > 0
 
+    @pytest.mark.l0
+    @pytest.mark.verifies("sn-streaming", "transport-cartesian")
+    def test_solve_consumes_per_ordinate_rhs(self) -> None:
+        r"""``InvertibleOperator.solve`` passes ``rhs.values`` unmodified to the sweep.
+
+        R-1 Step 4 A1 invariant pin (N5 per verification plan).  The
+        producer-side normalisation contract says ``rhs.values`` is
+        already per-ordinate density (the producer of ``rhs`` — typically
+        ``ScatteringOperator.apply`` or ``PerOrdinateSource.from_isotropic``
+        — applied ``/sum_w`` at the producer boundary).  The
+        ``InvertibleOperator.solve`` adapter MUST forward ``rhs.values``
+        to :func:`transport_sweep` *bit-equal* — no internal ``* sum_w``
+        bridge, no ``/sum_w`` rescaling.
+
+        Pre-A1 the adapter wrapped ``rhs.values * sum_w`` into the sweep
+        to compensate for the old sweep-internal ``/W``; both directions
+        of that bridge dissolved in A1.  This test spies on
+        :func:`transport_sweep` to capture the ``source`` argument and
+        asserts ``source.values`` is bit-identical to ``rhs.values``.
+        If a future refactor re-introduces a ``* sum_w`` / ``/ sum_w``
+        rescaling on this hot path, the bit-equal assertion fails.
+        """
+        sn = _slab_mesh(nx=4, n_ord=4, ng=1)
+        sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
+        invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
+            sn, sigma_t,
+        )
+
+        sum_w = float(sn.quad.weights.sum())
+        q_const = 2.7
+        per_ord_density = q_const / sum_w
+        rhs = AngularFlux(
+            np.full((sn.quad.N, sn.ng, sn.nx, sn.ny), per_ord_density), sn,
+        )
+
+        # Spy on transport_sweep — capture the source argument's values.
+        captured: list[np.ndarray] = []
+        from orpheus.sn import sweep as sweep_module
+        original = sweep_module.transport_sweep
+
+        def spy(source, *args, **kwargs):
+            # Snapshot ``source.values`` BEFORE the sweep mutates anything
+            # (transport_sweep is a pure reader of its source argument
+            # but the snapshot makes intent explicit).
+            captured.append(np.array(source.values, copy=True))
+            return original(source, *args, **kwargs)
+
+        with patch("orpheus.sn.sweep.transport_sweep", spy):
+            invertible.solve(rhs)
+
+        assert len(captured) == 1, (
+            f"transport_sweep called {len(captured)} times; expected 1"
+        )
+        forwarded = captured[0]
+        np.testing.assert_array_equal(
+            forwarded, rhs.values,
+            err_msg=(
+                "InvertibleOperator.solve modified rhs.values before "
+                "forwarding to transport_sweep — A1 producer-side "
+                "convention drifted (the ``* sum_w`` bridge MUST stay "
+                "dissolved)."
+            ),
+        )
+
     def test_solve_threads_carlson_seed_from_history(self) -> None:
         r"""``InvertibleOperator.solve`` passes ``rhs(1)`` to ``transport_sweep``.
 
