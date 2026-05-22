@@ -490,3 +490,279 @@ class TestSolve:
             invertible.solve(rhs)
         assert len(captured) == 1
         assert captured[0] is None
+
+
+# ── Convention-bridge regression catchers (R-1 Step 4 A5 promotion) ────
+
+
+class TestInvertibleSolveBridgeRegression:
+    r"""End-to-end regression catchers for the convention-bridge bug class.
+
+    Origin
+    ======
+
+    Promoted from ``derivations/diagnostics/diag_r1_step_e_invertible_solve_w_bridge.py``
+    (R-1 Step 4 session 1, 2026-05-19).  The diagnostic caught the
+    per-ordinate-vs-iso magnitude convention drift in the typed
+    operator algebra (issue #202, lesson :ref:`L18 <lessons-l18>`):
+    ``ScatteringOperator.apply`` (typed) was returning iso-magnitude
+    while :func:`~orpheus.sn.sweep.transport_sweep` internally divided
+    by ``W = sum_w``, so the converged fixed point sat at ``k_inf / W``
+    instead of ``k_inf``.  Slab-2eg SI keff = 1.4844 vs ref = 1.875
+    (ratio ≈ 1/W·c_s for W=2 GL) was the signature.
+
+    Phase 1.1 A1 (commit ``de8822d``) made the bug class **structurally
+    unreachable**: ``/sum_w`` lives at the producer boundary
+    (:meth:`ScatteringOperator.apply`, :meth:`FissionOperator.apply`,
+    :meth:`PerOrdinateSource.from_isotropic`); consumers see per-ord
+    density throughout.  The legacy ``rhs.values * sum_w`` bridge in
+    ``InvertibleOperator.solve`` is GONE.  The sweep applies NO
+    ``/W`` anywhere internally.
+
+    What this class pins
+    ====================
+
+    Three end-to-end checks that catch a re-introduction of any
+    convention-bridge bug on the typed operator-algebra hot path:
+
+    1. ``test_slab_uniform_roundtrip`` — ``(L+C).solve((L+C).apply(ψ=1))
+       == ψ=1`` to machine zero on slab (no curvilinear angular
+       redistribution to confound).  Pre-fix gave 1/W instead.
+    2. ``test_fixed_source_homogeneous_reflective_recovers_q_over_sigma``
+       — fixed-point ``ψ_n = q_n / Σ_t`` on reflective homogeneous
+       medium.  Pre-fix gave ``q_n / (W Σ_t)``.
+    3. ``test_si_carve_recovers_analytical_kinf`` — end-to-end SI inner
+       solve on homogeneous reflective medium reaches analytical
+       ``k_inf`` to ``rtol < 1e-9``.  Pre-fix every ng≥2 case failed
+       with ~21% drift.
+
+    Post-Phase-1.2 the M-M Carlson seed travels through the explicit
+    ``initial_guess`` kwarg on :meth:`InvertibleOperator.solve` (not
+    through ``rhs(1)`` history); the iterative tests below thread the
+    previous iterate that way.
+
+    References
+    ==========
+
+    - ``.claude/lessons.md`` L18 — Pattern 7 producer-side normalisation.
+    - ``.claude/lessons.md`` L21 — sweep and matvec share ONE strategy.
+    - Sphinx theory: ``docs/theory/discrete_ordinates.rst``
+      (transport-cartesian, sn-curvilinear-homogeneous-kinf-recovery).
+    - ERR catalog: ERR-049 — convention drift (Phase 1.4).
+    - Issue #202 — closed by Phase 1.1 commit ``de8822d``.
+    - Issue #204 — A5 promote diagnostics to permanent L1.
+    """
+
+    @staticmethod
+    def _homogeneous_solver(coord: str, ng_key: str = "2eg", n_cells: int = 10):
+        """Build a homogeneous reflective :class:`SNSolver` of the given coord.
+
+        Helper for the three tests below — replicates the legacy
+        diagnostic's ``_build_homogeneous_setup`` but uses the
+        l1_analytical infrastructure already on disk.
+        """
+        import sys
+        import warnings
+        from pathlib import Path
+
+        sys.path.insert(
+            0, str(Path(__file__).parent / "l1_analytical"),
+        )
+        warnings.simplefilter("ignore")
+        from test_kinf_homogeneous import (  # type: ignore[import-not-found]
+            _get_continuous_case, _homogeneous_mesh, _quadrature_for,
+        )
+        from orpheus.sn.geometry import SNMesh
+        from orpheus.sn.solver import SNSolver
+
+        case = _get_continuous_case(ng_key)
+        mat_id = next(iter(case.problem.materials.keys()))
+        mesh = _homogeneous_mesh(
+            coord=coord, n_cells=n_cells, length=2.0, mat_id=mat_id,
+        )
+        quad = _quadrature_for(coord)
+        sn_mesh = SNMesh(mesh, quad, case.problem.materials)
+        solver = SNSolver(
+            sn_mesh=sn_mesh, scattering_order=0,
+            max_inner=300, inner_tol=1e-12,
+            inner_solver="source_iteration",
+        )
+        return solver, case
+
+    @pytest.mark.l1
+    @pytest.mark.verifies("transport-cartesian")
+    @pytest.mark.catches("ERR-049")
+    def test_slab_uniform_roundtrip(self) -> None:
+        r"""Slab ``(L+C).solve((L+C).apply(ψ=1)) == ψ=1`` to machine zero.
+
+        Streaming-free check: uniform ψ on slab has no angular
+        redistribution, so the round-trip pins the convention bridge
+        cleanly.  Pre-fix (R-1 Step E, pre-Phase-1.1-A1) failed this
+        by a factor ``W = sum_w = 2`` (GL-N=8 quadrature), giving
+        ``LC.solve(LC.apply(1)) = 1/W``.
+
+        Restricted to slab because sphere / cylinder M-M angular
+        closure is a discrete operator on its own: the matvec / sweep
+        representations of M-M differ at the per-cell level even for
+        uniform ψ — those are two distinct discrete operators that
+        share a fixed point under SI/Krylov, NOT a strict matrix
+        inverse (cf. ERR-026).
+        """
+        solver, _case = self._homogeneous_solver("slab")
+        sn_mesh = solver.sn_mesh
+        N = solver.quad.N
+        nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
+
+        sigma_t = solver.mat_xs.total_cross_section
+        L_leaf = StreamingOperator(sn_mesh, sigma_t)
+        C_t = CollisionOperator(sn_mesh, sigma_t)
+        LC = L_leaf + C_t
+
+        psi_known = AngularFlux(np.ones((N, ng, nx, ny)), sn_mesh)
+        LC_psi = LC.apply(psi_known)
+
+        # Iterate ``ψ_{n+1} = LC.solve(LC.apply(ψ=1), initial_guess=ψ_n)``
+        # until the iterate stabilises.  The Carlson seed travels through
+        # the explicit kwarg (Phase 1.2); slab has no curvilinear
+        # closure so this converges in 1-2 iterates.
+        psi_recovered: AngularFlux | None = None
+        for _ in range(20):
+            if psi_recovered is None:
+                psi_new = LC.solve(LC_psi)
+            else:
+                psi_new = LC.solve(LC_psi, initial_guess=psi_recovered)
+            if psi_recovered is not None and np.abs(
+                psi_new.values - psi_recovered.values,
+            ).max() < 1e-15:
+                psi_recovered = psi_new
+                break
+            psi_recovered = psi_new
+
+        assert psi_recovered is not None
+        diff = np.abs(psi_known.values - psi_recovered.values).max()
+        assert diff < 1e-12, (
+            f"slab (L+C).solve((L+C).apply(ψ=1)) ≠ ψ=1: abs_max={diff:.3e}. "
+            f"Pre-fix R-1 Step E failed this by factor W = sum_w = 2 "
+            f"due to a missing ``×W`` bridge in InvertibleOperator.solve; "
+            f"Phase 1.1 A1 dissolved the bridge structurally (producer-side "
+            f"/sum_w).  See L18 + ERR-049."
+        )
+
+    @pytest.mark.l1
+    @pytest.mark.verifies(
+        "transport-cartesian", "sn-curvilinear-homogeneous-kinf-recovery",
+    )
+    @pytest.mark.catches("ERR-049")
+    @pytest.mark.parametrize("coord", ["slab", "sphere", "cylinder"])
+    def test_fixed_source_homogeneous_reflective_recovers_q_over_sigma(
+        self, coord: str,
+    ) -> None:
+        r"""Reflective homogeneous medium fixed-source → ``ψ_n = q_n / Σ_t``.
+
+        Streaming-equilibrium fixed-source check (L0-SN-001 family).
+        With reflective BCs and uniform per-ordinate source
+        ``q_n = const``, the converged per-ordinate ψ must be uniform
+        ``= q_n / Σ_t`` (zero spatial gradient on uniform medium with
+        reflective BCs).
+
+        Pre-fix (pre-A1) gave ``ψ = q_n / (W Σ_t)`` — a factor of ``W``
+        too small.  Post-A1 the producer-side ``/sum_w`` places ``q_n``
+        in the correct per-ord magnitude and ``(L+C).solve`` forwards
+        it bit-equal to the sweep (pinned by ``N5``,
+        :meth:`TestSolve.test_solve_consumes_per_ordinate_rhs`).
+        """
+        solver, _case = self._homogeneous_solver(coord)
+        sn_mesh = solver.sn_mesh
+        quad = solver.quad
+        N = quad.N
+        nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
+        sum_w = float(quad.weights.sum())
+
+        sigma_t = solver.mat_xs.total_cross_section
+        L_leaf = StreamingOperator(sn_mesh, sigma_t)
+        C_t = CollisionOperator(sn_mesh, sigma_t)
+        LC = L_leaf + C_t
+
+        # Per-ordinate uniform source — operator-algebra convention.
+        q_iso = 0.225
+        q_per_ord = np.full((N, ng, nx, ny), q_iso / sum_w)
+        rhs = AngularFlux(q_per_ord, sn_mesh)
+
+        # Iterate to converge the curvilinear partner-flux state under
+        # reflective BC.  Each call seeds the M-M Carlson closure via
+        # the explicit ``initial_guess`` kwarg (Phase 1.2).
+        psi_typed: AngularFlux | None = None
+        for _ in range(400):
+            if psi_typed is None:
+                psi_new = LC.solve(rhs)
+            else:
+                psi_new = LC.solve(rhs, initial_guess=psi_typed)
+            if psi_typed is not None and np.abs(
+                psi_new.values - psi_typed.values,
+            ).max() < 1e-14:
+                psi_typed = psi_new
+                break
+            psi_typed = psi_new
+
+        assert psi_typed is not None
+        # Per-ordinate expected: ψ_n = q_n / Σ_t = (q_iso/W) / Σ_t.
+        for g in range(ng):
+            sig_g = float(sigma_t[g, 0, 0])
+            expected_per_ord = (q_iso / sum_w) / sig_g
+            actual = psi_typed.values[:, g, :, 0]
+            rel_dev = np.abs(actual - expected_per_ord) / max(
+                expected_per_ord, 1e-30,
+            )
+            assert rel_dev.max() < 1e-6, (
+                f"{coord} g={g}: expected per-ord ψ = {expected_per_ord:.4e}; "
+                f"max rel deviation = {rel_dev.max():.3e}.  Pre-fix gave "
+                f"ψ_n = q_n / (W Σ_t) — a factor of W too small.  See "
+                f"L18 + ERR-049."
+            )
+
+    @pytest.mark.l1
+    @pytest.mark.verifies(
+        "transport-cartesian", "sn-curvilinear-homogeneous-kinf-recovery",
+    )
+    @pytest.mark.catches("ERR-049")
+    @pytest.mark.parametrize("coord", ["slab", "sphere", "cylinder"])
+    @pytest.mark.parametrize("ng_key", ["2eg", "4eg"])
+    def test_si_carve_recovers_analytical_kinf(
+        self, coord: str, ng_key: str,
+    ) -> None:
+        r"""End-to-end SI inner solver on homogeneous reflective → analytical ``k_inf``.
+
+        Pins the R-1 Step E ``_solve_source_iteration`` carve at L1.
+        Pre-fix (no ``×W`` bridge): keff lands at ``≈ k_inf / W`` —
+        every ng≥2 case failed with ~21% drift.  Post-fix every case
+        reaches the analytical reference at ``rtol < 1e-9``.
+
+        The L1 Krylov path is cross-checked by the L1 Krylov suite +
+        :file:`test_krylov_curvilinear_precond_safety.py` (the L19
+        regression catcher).  Together the two pin structural
+        independence: an A1 regression would surface in SI and Krylov
+        identically only if both inner solvers share the same producer
+        boundary — which they do, by Phase-1.1's design.
+        """
+        solver, case = self._homogeneous_solver(coord, ng_key=ng_key)
+
+        phi = solver.initial_flux_distribution()
+        keff = 1.0
+        keff_new = keff
+        for _ in range(60):
+            fis = solver.compute_fission_source(phi, keff)
+            phi_new = solver._solve_source_iteration(fis, phi)
+            keff_new = solver.compute_keff(phi_new)
+            if abs(keff_new - keff) < 1e-12:
+                break
+            keff, phi = keff_new, phi_new
+
+        rel_err = abs(keff_new - case.k_eff) / case.k_eff
+        assert rel_err < 1e-9, (
+            f"SI carve {coord}-{ng_key}: keff={keff_new:.10f}, "
+            f"ref={case.k_eff:.10f}, rel_err={rel_err:.3e}.  Pre-fix "
+            f"failed at ~21% (≈ 1/W·c_s for W=2 GL).  A1 producer-side "
+            f"normalisation eliminated the convention bridge; if this "
+            f"now fails again, a new convention drift has been "
+            f"introduced.  See L18 + ERR-049."
+        )
