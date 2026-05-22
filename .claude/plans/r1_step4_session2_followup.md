@@ -267,46 +267,98 @@ supersedes the original table here):
   `SNStreamingOperator` references** plus equation-map narrative
   sections.  Phase 6 / H Sphinx narrative is ~3-4 hours minimum.
 
-**Retirement sequence (canonical — supersedes the older §4.1-§4.4
-plan)**:
+### Legacy vs path-forward — user-directed scope correction (2026-05-22)
 
-1. **G1** — carve `_solve_fixed_source_krylov` onto
+**SURPRISE-1's original conclusion was wrong** ("`EquationMap` is a
+keeper").  Per user direction:
+
+> "The legacy architecture needs to be retired and equation map is
+> going with it.  Differentiate what is legacy architecture from
+> the path forward.  The path forward is operator algebra, unified
+> indices that do not require adapters."
+
+* **Legacy architecture (RETIRES)**: packed-1D vector layout with
+  `EquationMap` slot-dispatch — includes `EquationMap` class, all
+  `build_equation_map*` factories, all `solution_to_angular_flux*`
+  decoders, **AND** the `_with_traces` family (`pack_with_traces`,
+  `solution_to_angular_flux_with_traces`,
+  `build_equation_map_with_traces`), **AND** the typed operators'
+  `_ensure_eq_map` machinery (the slot lookup is itself an
+  adapter), **AND** `AngularFlux.to_flat_with_traces` /
+  `from_flat_with_traces` (typed ↔ legacy bridges), **AND**
+  `SNStreamingOperator`, **AND** `transport_operator_matvec_unified`
+  in its current packed-face-slot signature.  See the audit's
+  CORRECTION section for the full inventory.
+
+* **Path forward**: typed `AngularFlux.values` (shape
+  `(N, ng, nx, ny)`) + `BoundaryFlux.xmax_face` / `xmin_face`
+  (shape `(N, ng)`) — natively indexed by ordinate + group; NO
+  `eq_map.face_outer_ordinate` slot lookup.  Operators consume
+  `AngularFlux` and emit `AngularFlux`; the face-inflow ordinate
+  mask is derived from the quadrature, not from a precomputed
+  slot map.  Phase 5 of this plan (relocate `_with_traces` family
+  to `angular_flux.py`) is **hollowed out** — every former
+  relocation target retires instead.
+
+**Retirement sequence (canonical — supersedes the older §4.1-§4.4
+plan AND the prior 8-step list)**:
+
+1. **G0 (NEW pre-work)** — write a native-shape unified matvec that
+   consumes `AngularFlux.values` + `BoundaryFlux.xmax_face` /
+   `xmin_face` directly; derives inflow ordinates from
+   `sn_mesh.quad`; returns cell + face residuals in matching
+   native shapes.  Pin equivalence (bit-identity or principled-
+   equivalent per `vv-principles`) to the current
+   `transport_operator_matvec_unified` packed-face-slot path on
+   slab + sphere + cylinder.
+2. **G1** — carve `_solve_fixed_source_krylov` onto
    `KrylovAcceleration` + typed `AngularFlux` (1-D only;
-   `NotImplementedError` on 2-D).  Orphans `_make_sweep_preconditioner`
-   and `_build_rhs_*`.
-2. **G2** — carve `_solve_fixed_source_si` onto `SourceIteration` +
-   typed `AngularFlux` (geometry-agnostic — handles 2-D Cartesian).
-3. **G3a** — delete `_make_sweep_preconditioner` and
+   `NotImplementedError` on 2-D).  Orphans
+   `_make_sweep_preconditioner` and `_build_rhs_*`.
+3. **G2** — carve `_solve_fixed_source_si` onto `SourceIteration` +
+   typed `AngularFlux` (geometry-agnostic — handles 2-D Cartesian;
+   SURPRISE-5).
+4. **G3a** — delete `_make_sweep_preconditioner` +
    `_build_rhs_{cartesian, spherical, cylindrical}` (mechanical;
    closes #174).
-4. **G3b** — retire `build_equation_map_{spherical, cylindrical}` +
-   `solution_to_angular_flux_{spherical, cylindrical}` (after G3d
-   starves their consumers).
-5. **G3c — DEFERRED to Phase A** — retire Cartesian
-   `build_equation_map` + Cartesian-1-D fallback in
-   `solution_to_angular_flux`.  Blocked by 2-D typed-operator
-   consumers (SURPRISE-2).
-6. **G3d** — retire `SNStreamingOperator` (closes #199 items 1-4).
+5. **G3b** — migrate `StreamingOperator._apply_typed` +
+   `CollisionOperator._apply_typed` to the native matvec from G0;
+   drop `_ensure_eq_map`, `_eq_map` cache, `n_unknowns`.
+6. **G3c** — retire the legacy `transport_operator_matvec_unified`
+   (packed-face-slot signature).
+7. **G3d** — retire `pack_with_traces`,
+   `solution_to_angular_flux_with_traces`,
+   `build_equation_map_with_traces`, **`EquationMap`** (the user-
+   corrected scope: keeper status revoked).
+8. **G3e** — retire `solution_to_angular_flux_{spherical, cylindrical}`
+   + `build_equation_map_{spherical, cylindrical}`.
+9. **G3f** — retire `SNStreamingOperator` (closes #199 items 1-4).
    Migrate the 11 sites in `test_phase_c_gates.py` (SURPRISE-7) and
    the typed `(L+C)` apply comparison in
    `test_keigenvalue_matches_solve_sn_2g_slab`; delete
    `test_snstreamingoperator.py`; rewrite or retire monkey-patch
    fixtures in `test_l1_standoff_slab_cylinder.py` +
    `test_unified_matvec_*.py`.
-7. **G3e — `EquationMap` STAYS** (SURPRISE-1).
-8. **G4 / Phase 5** — relocate `EquationMap` + `_with_traces` family
-   to `orpheus/sn/angular_flux.py`.  48 call sites across 8 files;
-   ~30-45 min of edits.
+10. **G3g** — retire `AngularFlux.to_flat_with_traces` +
+    `AngularFlux.from_flat_with_traces` (no typed ↔ legacy bridge
+    left to feed).
+11. **G3h — DEFERRED to Phase A** — retire Cartesian
+    `build_equation_map` + Cartesian-1-D fallback in
+    `solution_to_angular_flux`.  Blocked by 2-D Cartesian
+    absorption (#199 item 5).
+12. **Phase 6 / H** — Sphinx narrative (~3-4 h minimum per
+    SURPRISE-8).
 
 **GitHub issue cross-references**:
 
 - **#199** (Step G omnibus) — Step G ships items 1-4; defers item 5
   (2-D Cartesian absorption) to Phase A.  Body should be amended
-  to mention `test_phase_c_gates.py` migration (SURPRISE-7).
+  to mention `test_phase_c_gates.py` migration (SURPRISE-7) AND
+  the G0 native-matvec pre-work.
 - **#174** (`_build_rhs_cartesian` softer refactor) — subsumed by
   G3a; close with reference to the G3a commit when it lands.
 - **#160** (originating issue for `SNStreamingOperator`) — open
-  since pre-R-1; G3d retirement is the terminal close-out.
+  since pre-R-1; G3f retirement is the terminal close-out.
 
 ### 2.2 Convention crosswalk for the legacy fixed-source carve
 

@@ -7,6 +7,91 @@
 audit"); operationalised in the session-2 plan §2.1 + §3-§4
 (`.claude/plans/r1_step4_session2_followup.md`).
 
+---
+
+## CORRECTION — user direction 2026-05-22
+
+The audit's SURPRISE-1 originally concluded `EquationMap` is a KEEPER.
+**That conclusion is WRONG and is hereby superseded.**  Per user
+direction:
+
+> "Equation map will likely not stay.  It is helper for legacy
+> architecture.  The legacy architecture needs to be retired and
+> equation map is going with it.  Differentiate what is legacy
+> architecture from the path forward.  The path forward is operator
+> algebra, unified indices that do not require adapters."
+
+### Legacy architecture — RETIRES (in Step G + Phase A)
+
+The **packed-1D vector layout with `EquationMap` slot-dispatch** and
+everything that bridges into it:
+
+| Symbol | Role in legacy |
+|---|---|
+| `EquationMap` (class) | Flat-vector index map `(ord, cell, group, face) → packed slot`. |
+| `build_equation_map`, `build_equation_map_spherical`, `build_equation_map_cylindrical` | Geometry-dispatched eq_map factories. |
+| `build_equation_map_with_traces` | Face-aware variant — **still legacy** (face slots indexed by `face_outer_ordinate` / `face_inner_ordinate` int arrays, an adapter for the typed `BoundaryFlux`'s native `(N, ng)` shape). |
+| `solution_to_angular_flux`, `*_spherical`, `*_cylindrical` | Packed → typed decoders. |
+| `solution_to_angular_flux_with_traces`, `pack_with_traces` | Face-aware adapter pair — **still legacy**. |
+| `SNStreamingOperator` | The bundle that runs on packed input. |
+| `transport_operator_matvec` (2-D FD), `transport_operator_matvec_unified` | The cell body of the unified matvec takes native `(N, ng, nx, ny)`, but the **face state** still arrives as packed sub-arrays `(n_face_outer, ng)` + a slot-ordinate map `face_outer_ordinate`.  The face-state interface is legacy; the cell-body interface is already path-forward. |
+| `AngularFlux.to_flat_with_traces`, `AngularFlux.from_flat_with_traces` | The typed ↔ legacy bridges that exist solely to feed packed-vector consumers. |
+| `StreamingOperator._ensure_eq_map`, `CollisionOperator._ensure_eq_map`, `_eq_map` cache, `n_unknowns` | eq_map machinery inside the typed operators — a sign the typed operators currently wrap the legacy compute via slot lookup (`eq_map.face_outer_ordinate`) instead of consuming `BoundaryFlux` natively. |
+| `_make_sweep_preconditioner`, `_build_rhs_cartesian`, `_build_rhs_spherical`, `_build_rhs_cylindrical` | `solver.py` packed-vector helpers. |
+
+### Path forward — operator algebra with unified native indices
+
+The typed `AngularFlux` + `BoundaryFlux` carry **everything natively**:
+
+| Field | Shape | Meaning |
+|---|---|---|
+| `AngularFlux.values` | `(N, ng, nx, ny)` | Cell-centre ψ indexed natively by `(ord, group, cell-x, cell-y)`. |
+| `BoundaryFlux.xmax_face` | `(N, ng)` | Outer-face ψ indexed natively by `(ord, group)`.  NO `eq_map.face_outer_ordinate` slot lookup — the boundary face IS indexed by ordinate. |
+| `BoundaryFlux.xmin_face` | `(N, ng)` | Inner-face ψ (slab only) — same shape. |
+
+The path-forward compute primitives:
+
+* **`transport_sweep(source, sig_t, sn_mesh, boundary, *, initial_guess=None) → AngularFlux`** — already path-forward (consumes typed `PerOrdinateSource` + `BoundaryFlux`, emits typed `AngularFlux`).
+* **NEW NEEDED — native-shape unified matvec** — consumes `AngularFlux` + `BoundaryFlux` natively; emits `AngularFlux` (with non-zero face residual at outer + slab-inner).  Derives "which ordinates are inflow at each face" from the quadrature (`quad.mu < 0` etc.), not from `eq_map.face_outer_ordinate`.  Replaces `transport_operator_matvec_unified`'s packed-face-slot interface.
+* All operators (`L`, `C`, `S`, `F`) consume `AngularFlux` and emit `AngularFlux` — no `_ensure_eq_map`, no `_with_traces` round-trip, no eq_map cache.
+
+### Updated retirement sequence (canonical — supersedes the original 8-step list below)
+
+1. **G0 (NEW pre-work)** — write a native-shape unified matvec that consumes `AngularFlux.values` + `BoundaryFlux.xmax_face`/`xmin_face` directly, derives inflow ordinates from `sn_mesh.quad`, and returns cell + face residuals in matching native shapes.  Pin equivalence (bit-identity or principled-equivalent per `vv-principles`) to the current `transport_operator_matvec_unified` packed-face-slot path on slab + sphere + cylinder.
+2. **G1** — carve `_solve_fixed_source_krylov` onto `KrylovAcceleration` + typed `AngularFlux` (1-D only; `NotImplementedError` on 2-D, mirroring `_solve_krylov`).
+3. **G2** — carve `_solve_fixed_source_si` onto `SourceIteration` + typed `AngularFlux` (geometry-agnostic via `transport_sweep` — handles 2-D Cartesian naturally; SURPRISE-5).
+4. **G3a** — delete `_make_sweep_preconditioner` + `_build_rhs_{cartesian, spherical, cylindrical}` (mechanical; closes #174).
+5. **G3b** — migrate `StreamingOperator._apply_typed` + `CollisionOperator._apply_typed` to the native matvec from G0; drop `_ensure_eq_map`, `_eq_map`, `n_unknowns`.
+6. **G3c** — retire the legacy `transport_operator_matvec_unified` (packed-face-slot signature).
+7. **G3d** — retire `pack_with_traces`, `solution_to_angular_flux_with_traces`, `build_equation_map_with_traces`, `EquationMap`.
+8. **G3e** — retire `solution_to_angular_flux_{spherical, cylindrical}` + `build_equation_map_{spherical, cylindrical}`.
+9. **G3f** — retire `SNStreamingOperator` class (closes #199 items 1-4; migrates `test_phase_c_gates.py` per SURPRISE-7).
+10. **G3g** — retire `AngularFlux.to_flat_with_traces` + `AngularFlux.from_flat_with_traces` (no typed ↔ legacy bridge left to feed).
+11. **G3h — DEFERRED to Phase A** — retire Cartesian `build_equation_map` + Cartesian-1-D `solution_to_angular_flux` (blocked by 2-D Cartesian absorption; #199 item 5).
+12. **Phase 6 / H** — Sphinx narrative (~3-4 h minimum per SURPRISE-8).
+
+### What Phase 5 becomes
+
+The original Phase 5 (G4) plan was "relocate `_with_traces` family +
+`EquationMap` to `angular_flux.py`".  Under the corrected scope,
+**every Phase 5 target retires instead** (G3d / G3g above).  Phase 5
+of the session-2 plan is **empty** — either delete it or note "all
+former relocation targets retire in G3d / G3g".
+
+### Operational consequence for the audit's per-target rows below
+
+The §"Per-target audit rows" section that follows is **STILL ACCURATE
+for callgraph data** — every "production caller" / "test caller" /
+"diagnostic caller" line was verified at `a638798` and remains the
+authoritative reference for HOW the symbol is consumed today.  What
+changes is the **retirement-target classification**: read every
+"Internal-only after retirement? YES (keeper)" note below as
+"retires alongside the legacy architecture — NOT relocated".  The
+"Retirement order" notes in each row are superseded by the 12-step
+sequence above.
+
+---
+
 **Why this audit exists** — session 1's original Step G plan said
 "retire X" without enumerating "who calls X". Mid-session it
 under-estimated scope by ~2× and forced a full re-plan. Every
