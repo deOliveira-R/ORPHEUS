@@ -79,7 +79,7 @@ from orpheus.geometry import CoordSystem
 
 from .spatial.cell_update import UpstreamState
 from .spatial.diamond import DiamondDifference
-from .spatial.psi_half_angle_seed import carlson_inward_sweep_from_source
+from .spatial.psi_half_angle_seed import CarlsonSweepContext
 from .spatial.scan import ordinate_scan
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from .sweep_graph import OctantLabel
@@ -216,7 +216,7 @@ def _unwrap_source(source: "PerOrdinateSource") -> np.ndarray:
     from .sources import PerOrdinateSource
     if not isinstance(source, PerOrdinateSource):
         raise TypeError(
-            f"transport_sweep / apply_sweep_1d: source must be "
+            f"transport_sweep: source must be "
             f"PerOrdinateSource (R-1 Step 4 A1); got "
             f"{type(source).__name__}"
         )
@@ -226,28 +226,6 @@ def _unwrap_source(source: "PerOrdinateSource") -> np.ndarray:
 # ═══════════════════════════════════════════════════════════════════════
 # 1-D unified sweep — slab + sphere + cylinder via the cache
 # ═══════════════════════════════════════════════════════════════════════
-
-
-def apply_sweep_1d(
-    source: "PerOrdinateSource",
-    sig_t: np.ndarray,
-    sn_mesh: "SNMesh",
-    boundary_flux: "BoundaryFlux",
-) -> tuple[np.ndarray, np.ndarray]:
-    """Public alias for :func:`_sweep_1d_unified`.
-
-    Provided so the JAX ``lax.scan(f, init, xs)`` vocabulary
-    (cross-domain-attacker Frame 3) is reachable by name — the cache
-    plays ``xs``, the BC inflow plays ``init``, the returned ψ is the
-    scan trajectory.
-
-    R-1 Step 4 A1 — single :class:`PerOrdinateSource` parameter.  See
-    :func:`transport_sweep` for the convention contract.
-    """
-    Q = _unwrap_source(source)
-    return _sweep_1d_unified(
-        Q, sig_t, sn_mesh, boundary_flux,
-    )
 
 
 def _sweep_1d_unified(
@@ -443,7 +421,6 @@ def _run_1d_sweep(
         levels = [None]
         level_ordinates_list = [list(range(N))]
         bc_outer = None
-        Q_bar_iso = None
         sigma_t_gx = None
         dr = None
         inflow_full = None
@@ -458,41 +435,16 @@ def _run_1d_sweep(
         bc_outer = boundary_flux.xmax_face
         inflow_full = bc_outer_obj.apply(bc_outer)  # (N, ng)
 
-        # Carlson seed source (Phase G Step 2 Path C, refactored R-1
-        # Step 0 to mirror the matvec's seed derivation; R-1 Step 4 A1
-        # adapts to the single per-ordinate source convention).
-        # ``sig_t_p`` is already principled (ng, nx).
-        #
-        # The matvec's Carlson seed lives in
-        # :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep.__call__`
-        # at ``psi_half_angle_seed.py:563`` — it computes
-        # ``φ_0 = Σ_n w_n · ψ_n`` from the current input angular flux
-        # and then ``Q_bar = σ_t · φ_0 / W``.  The sweep uses the
-        # SAME formula, deriving ``φ_0`` from the caller-supplied
-        # ``initial_guess`` (= the previous iteration's angular flux
-        # in a source-iteration loop).  When ``initial_guess is None``
-        # (fresh start), the fallback derives an iso-equivalent source
-        # from ``Q_per_ord`` via the weighted angular average
-        # ``(Σ_n w_n · Q_per_ord[n]) / W`` — for an isotropic input
-        # source (``Q_per_ord[n] = Q_iso / W`` for all n) this recovers
-        # the pre-A1 ``Q_iso / W`` formula exactly; for a non-iso input
-        # it gives the natural iso-projection of the source.
+        # Per-level Carlson coupled-pole seed delegates to the M-M
+        # closure's ``psi_half_seed`` strategy — the SAME strategy the
+        # matvec uses (Pattern 2 single source of truth).  Pre-amble
+        # only stashes the (σ_t, Δr) bundle the per-level context
+        # needs; the level loop builds the per-level CarlsonSweepContext
+        # and calls ``closure.psi_half_seed(psi_level, context)``.
+        # See ``MorelMontryAngularSweep.precompute_psi_state`` (the
+        # matvec entry point) for the symmetric routing.
         sigma_t_gx = sig_t_p                                  # (ng, nx)
         dr = sn_mesh.dx
-        if initial_guess is not None:
-            # Derive φ_0 from the input angular flux — same as matvec.
-            # initial_guess.values shape: (N, ng, nx, ny=1).
-            phi_0_prev = np.einsum(
-                "n,ngx->gx", weights, initial_guess.values[:, :, :, 0],
-            )                                                 # (ng, nx)
-            Q_bar_iso = sigma_t_gx * phi_0_prev / weights.sum()
-        else:
-            # Weighted angular average of the per-ordinate source.
-            # Matches the pre-A1 ``Q_iso / W`` formula when the input
-            # is isotropic-equivalent.
-            Q_bar_iso = np.einsum(
-                "n,ngx->gx", weights, Q_per_ord,
-            ) / weights.sum()                                 # (ng, nx)
 
         if is_sphere:
             levels = [None]
@@ -588,20 +540,40 @@ def _run_1d_sweep(
     # (psi_angle[chain] is updated by ordinate m → consumed by m+1).
     # Joint-batch over ordinates is blocked; loop stays per-ordinate.
     else:
+        # M-M closure owns the per-level Carlson coupled-pole seed
+        # (Pattern 2 single source of truth — the matvec consumes the
+        # SAME ``psi_half_seed`` strategy via
+        # :meth:`MorelMontryAngularSweep.precompute_psi_state`).  The
+        # strategy reads ψ at the level's ordinates (the previous
+        # iterate when ``initial_guess`` is supplied; zeros on cold
+        # start) and emits the cell-centred half-angle face flux
+        # ``φ̄_{1/2,i,g}`` per Hébert §3.9.4 Eqs. (3.432)-(3.435).
+        closure = sn_mesh.pole_angular_closure
+        if initial_guess is not None:
+            # (N, ng, nx, 1) → (ng, N, nx)
+            psi_g_first = initial_guess.values.transpose(1, 0, 2, 3)[..., 0]
+        else:
+            psi_g_first = None
+
         for p_idx, level in enumerate(levels):
             ordinates_in_level = level_ordinates_list[p_idx]
-
-            # Carlson coupled-pole seed for this level's angular DAG.
             ords_arr = np.asarray(ordinates_in_level)
             mu_in_level = mu[ords_arr]
             most_inward_global = int(ords_arr[int(np.argmin(mu_in_level))])
             bc_outer_value = inflow_full[most_inward_global, :]  # type: ignore[index]
-            phi_aux = carlson_inward_sweep_from_source(
-                Q_bar=Q_bar_iso,
+            level_weights = weights[ords_arr]
+            if psi_g_first is not None:
+                psi_level = psi_g_first[:, ords_arr, :]          # (ng, M_p, nx)
+            else:
+                psi_level = np.zeros((ng, ords_arr.size, nx))
+            carlson_ctx = CarlsonSweepContext(
                 sigma_t=sigma_t_gx,
                 dr=dr,
+                mu_quad=mu_in_level.copy(),
+                weights=level_weights.copy(),
                 bc_outer_value=bc_outer_value,
-            )                                                    # (ng, nx)
+            )
+            phi_aux = closure.psi_half_seed(psi_level, carlson_ctx)  # (ng, nx)
             psi_angle = phi_aux.copy()                            # (ng, nx) — principled
 
             for m_local, global_n in enumerate(ordinates_in_level):
@@ -887,6 +859,5 @@ def _sweep_2d_wavefront(
 
 
 __all__ = [
-    "apply_sweep_1d",
     "transport_sweep",
 ]

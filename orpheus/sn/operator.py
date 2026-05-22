@@ -2531,7 +2531,12 @@ class InvertibleOperator(OperatorSum):
 
     # ── solve: WDD sweep ─────────────────────────────────────────────
 
-    def solve(self, rhs: "AngularFlux") -> "AngularFlux":
+    def solve(
+        self,
+        rhs: "AngularFlux",
+        *,
+        initial_guess: "AngularFlux | None" = None,
+    ) -> "AngularFlux":
         r"""Invert :math:`(L + C)\,\psi = \text{rhs}` via the WDD sweep.
 
         The cell-balance equation
@@ -2545,10 +2550,28 @@ class InvertibleOperator(OperatorSum):
         rhs : AngularFlux
             * ``rhs.values`` — per-ordinate source :math:`Q^{\rm aniso}`.
             * ``rhs.boundary`` — BC inflow trace (typically zero for
-              SI/Krylov volumetric sources).
-            * ``rhs(1)`` (lag-1 frame, if present) — previous iterate
-              passed to the sweep as :pydata:`initial_guess` for the
-              curvilinear Carlson coupled-pole seed.
+              SI/Krylov volumetric sources; falls back to ``rhs.boundary``
+              when no ``initial_guess`` is supplied).
+        initial_guess : AngularFlux or None, optional
+            Previous iterate :math:`\psi^{(k-1)}` for the curvilinear
+            Carlson coupled-pole seed (M-M reads it as the level's
+            angular flux to derive :math:`\bar Q` at :math:`\mu = -1`).
+            Its ``.boundary`` also seeds the reflective-BC partner-flux
+            trace when present (the previous outflow IS the partner-
+            ordinate inflow).  ``None`` (default) → cold start: M-M's
+            Carlson seed degenerates to the zero-input result (same
+            as ``ZeroSeed`` ablation); BC trace falls back to
+            ``rhs.boundary``.
+
+            Explicit kwarg (post-Phase-1.2) — the seed is no longer
+            piggy-backed on ``rhs(1)`` (the AngularFlux lag-1 history
+            is reserved for time-derivative tracking, an unrelated
+            concern).  Outer iterators (:class:`SourceIteration`,
+            :class:`KEigenvalue`) pass the previous iterate
+            explicitly; GMRES residual calls pass ``None`` so the
+            preconditioner doesn't silently route through stateful
+            seed state (closes the R-1 Step D silent-fallback bug
+            class).
 
         Returns
         -------
@@ -2585,15 +2608,6 @@ class InvertibleOperator(OperatorSum):
         # :class:`PerOrdinateSource` and does NOT apply ``/W``
         # internally; both sides of the producer-consumer contract
         # are per-ordinate density.
-        #
-        # The legacy bridge ``aniso_source = PerOrdinateSource(
-        # rhs.values * sum_w, sn_mesh)`` is GONE — that ``* sum_w``
-        # undid the sweep's old internal ``/W``, which itself
-        # retired in R-1 Step 4 A1.  Pattern 7 producer-side
-        # normalisation lives at ``ScatteringOperator.apply`` /
-        # ``FissionOperator.apply`` / ``PerOrdinateSource.from_isotropic``.
-        # See `#205 <https://github.com/deOliveira-R/ORPHEUS/issues/205>`_
-        # for the dimensional-typing follow-up.
         source = PerOrdinateSource(rhs.values, sn_mesh)
 
         # Boundary-state plumbing for reflective / partner-flux BCs.
@@ -2602,12 +2616,9 @@ class InvertibleOperator(OperatorSum):
         # reflective BCs to converge to the right fixed point.  Two
         # paths into the buffer, in priority order:
         #
-        # 1. ``rhs(1)`` — the lag-1 frame attached via
-        #    :meth:`AngularFlux.stash` by
-        #    :class:`SourceIteration`.  Its ``.boundary`` carries the
-        #    previous iterate's outflow trace (which IS the partner
-        #    flux for reflective BCs).  When present, use it.
-        # 2. ``rhs.boundary`` — the rhs's own boundary trace
+        # 1. ``initial_guess.boundary`` — the previous iterate's outflow
+        #    trace (which IS the partner flux for reflective BCs).
+        # 2. ``rhs.boundary`` — fallback when no ``initial_guess``
         #    (typically zero for volumetric sources; non-zero for
         #    explicit BC-driven solves).
         #
@@ -2617,23 +2628,17 @@ class InvertibleOperator(OperatorSum):
         # inflow each call → effectively VACUUM, and the fixed point
         # shifts away from the true reflective answer.
         boundary_buf = sn_mesh.zeros_boundary_flux()
-        previous = rhs(1)
-        if previous is not None:
-            _copy_boundary_face_state(previous.boundary, boundary_buf)
+        if initial_guess is not None:
+            _copy_boundary_face_state(initial_guess.boundary, boundary_buf)
         else:
             _copy_boundary_face_state(rhs.boundary, boundary_buf)
-
-        # Lag-1 frame is also the Carlson seed.  None when rhs is
-        # cold-start (no history) — transport_sweep falls back to its
-        # in-iteration default at that lag.
-        carlson_seed = previous
 
         angular, _scalar = transport_sweep(
             source,
             self.sigma,
             sn_mesh,
             boundary_buf,
-            initial_guess=carlson_seed,
+            initial_guess=initial_guess,
         )
 
         return AngularFlux(

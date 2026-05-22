@@ -101,6 +101,7 @@ Forward references
 
 from __future__ import annotations
 
+import inspect
 from typing import Callable, Protocol
 
 import numpy as np
@@ -201,24 +202,6 @@ def _l2_norm(x) -> float:
     if _is_ravellable(x):
         return float(np.linalg.norm(x.to_flat_with_traces()))
     return float(np.linalg.norm(np.asarray(x)))
-
-
-def _attach_previous(rhs, previous):
-    """Thread ``previous`` onto ``rhs`` as the lag-1 frame for Carlson-seed reads.
-
-    R-1 Step A/B integration — for typed
-    :class:`~orpheus.sn.angular_flux.AngularFlux` rhs, returns
-    ``previous.stash(rhs)`` so the downstream ``L.solve`` consumer can
-    read the previous iterate via ``rhs(1)``.  This is how the
-    SourceIteration loop carries the Carlson seed through the operator
-    contract without a separate keyword argument.
-
-    Bare-ndarray rhs falls through unchanged — the protocol doesn't
-    apply, and the synthetic L0 tests have no seed dependency.
-    """
-    if not _is_ravellable(rhs) or not _is_ravellable(previous):
-        return rhs
-    return previous.stash(rhs)
 
 
 def _default_keff_estimator(
@@ -377,6 +360,22 @@ class SourceIteration:
         self.F = F
         self.max_iter = int(max_iter)
         self.tol = float(tol)
+        # Detect once whether ``L.solve`` accepts ``initial_guess`` —
+        # InvertibleOperator does (Phase 1.2, post Carlson-seed
+        # unification); MatrixOperator and other generic LinearOperators
+        # do not.  Avoids per-iteration introspection.
+        try:
+            self._solve_accepts_seed = (
+                "initial_guess" in inspect.signature(self.L.solve).parameters
+            )
+        except (TypeError, ValueError):
+            self._solve_accepts_seed = False
+
+    def _solve_with_seed(self, rhs, psi_prev):
+        """Dispatch ``L.solve`` with or without ``initial_guess`` per L's signature."""
+        if self._solve_accepts_seed:
+            return self.L.solve(rhs, initial_guess=psi_prev)
+        return self.L.solve(rhs)
 
     def solve(
         self,
@@ -423,20 +422,17 @@ class SourceIteration:
 
             # Build the RHS of the fixed-point step.  All three
             # operators are LinearOperators; their .apply contracts
-            # are the only thing this loop touches.  Arithmetic drops
-            # history (R-1 Step A semantics), so rhs has no Carlson
-            # seed attached yet.
-            rhs_raw = self.F.apply(psi) + self.S.apply(psi) + q_ext
+            # are the only thing this loop touches.
+            rhs = self.F.apply(psi) + self.S.apply(psi) + q_ext
 
-            # R-1 Step A/B — thread psi (the previous iterate) onto
-            # the rhs as the lag-1 frame so L.solve can read it via
-            # rhs(1) for the Carlson seed (curvilinear sweeps).  For
-            # bare-ndarray rhs this is a no-op.
-            rhs = _attach_previous(rhs_raw, psi_prev)
-
-            # Apply L^{-1} directly — caller controls the inverse
-            # step by constructing L appropriately.
-            psi = self.L.solve(rhs)
+            # Apply L^{-1} directly.  Phase-1.2 — the curvilinear
+            # Carlson coupled-pole seed and the reflective-BC partner-
+            # flux trace travel through ``initial_guess`` explicitly
+            # (the M-M closure reads the level's ψ at μ = −1 from
+            # this argument).  For bare-ndarray rhs the kwarg is
+            # ignored downstream — the synthetic L0 tests have no
+            # seed dependency.
+            psi = self._solve_with_seed(rhs, psi_prev)
 
             # SNSolver-compatible convergence test (bit-identical loop
             # structure for Round 2 wiring): relative L2 residual via

@@ -469,12 +469,12 @@ class SNSolver:
 
         where ``(L + C).solve`` IS the WDD sweep
         (:class:`~orpheus.sn.operator.InvertibleOperator` from R-1
-        Step C).  The previous iterate ``psi_n`` is threaded onto the
-        rhs as the lag-1 frame by
-        :func:`orpheus.numerics.iteration._attach_previous` (R-1
-        Step A/B), so the sweep reads it as the Carlson coupled-pole
-        seed on curvilinear meshes — the load-bearing wiring R-1 was
-        built around.
+        Step C).  Phase 1.2 — the previous iterate :math:`\psi_n`
+        travels into the sweep via the explicit ``initial_guess``
+        kwarg on :meth:`InvertibleOperator.solve`; the M-M closure's
+        ``psi_half_seed`` strategy reads it to derive the curvilinear
+        Carlson coupled-pole seed.  ``SourceIteration._solve_with_seed``
+        bridges the call.
 
         Scope
         =====
@@ -513,12 +513,12 @@ class SNSolver:
         # Pre-populate q_ext.boundary with the persistent partner-flux
         # state ``self._boundary_flux`` from the previous outer call.
         # This is the load-bearing plumbing for reflective BCs: the
-        # FIRST inner SI iteration has no ``rhs(1)`` history (cold
+        # FIRST inner SI iteration has no ``initial_guess`` (cold
         # start), so without this seeding the sweep would see a zero
         # BC trace (= vacuum), and the SI fixed point shifts away from
         # the true reflective answer.  Subsequent iterations update
-        # the partner flux via the ``rhs(1).boundary`` thread that
-        # :meth:`InvertibleOperator.solve` reads.
+        # the partner flux via the ``initial_guess.boundary`` thread
+        # that :meth:`InvertibleOperator.solve` reads.
         _copy_boundary_face_state(self._boundary_flux, q_ext_typed.boundary)
 
         # ── Build the typed operator triple ─────────────────────────
@@ -545,13 +545,12 @@ class SNSolver:
         )
 
         # ── Warm start (typed) ──────────────────────────────────────
-        # SourceIteration.solve internally attaches the previous
-        # iterate to the rhs (via _attach_previous = previous.stash(
-        # rhs)) so InvertibleOperator.solve reads rhs(1) for the
-        # Carlson seed AND the partner-flux state each iteration —
-        # the load-bearing plumbing for curvilinear sweeps to see the
-        # previous iterate's scalar-flux trace AND for reflective BCs
-        # to retain partner-flux state.
+        # SourceIteration._solve_with_seed forwards the previous
+        # iterate to InvertibleOperator.solve via the explicit
+        # ``initial_guess`` kwarg (Phase 1.2 — the M-M closure's
+        # ``psi_half_seed`` strategy reads it to derive the Carlson
+        # coupled-pole seed; the previous iterate's boundary trace
+        # seeds the reflective-BC partner-flux state).
         initial_guess = getattr(self, "_psi_typed", None)
 
         psi_typed, _residuals = si.solve(
@@ -645,25 +644,16 @@ class SNSolver:
 
         # NOTE on the preconditioner — R-1 ships GMRES UNPRECONDITIONED
         # (explicit identity) per user direction.  Issue #200 tracks the
-        # block-inverse face preconditioner re-enablement.  Why explicit
-        # identity and not ``preconditioner=None``: passing ``None``
-        # triggers the :class:`KrylovAcceleration` default, which uses
-        # ``L.solve`` (the sweep) when L has ``CAP_SOLVE``.  For
-        # curvilinear (sphere / cylinder) the discrete WDD sweep is
-        # RATIONAL in σ_t through the Carlson coupled-pole seed
-        # (Hébert §3.9.4 Eqs. 3.432–3.435); the seed is derived from the
-        # PREVIOUS-ITERATE scalar flux, threaded via
-        # :meth:`AngularFlux.stash` as the ``rhs(1)`` lag-1 frame.  But
-        # GMRES feeds the preconditioner a RESIDUAL VECTOR with no
-        # ``(1)`` history, so the sweep silently falls back to its
-        # in-iteration-source default — which is NOT the algebraic
-        # inverse of ``(L+C).apply`` on curvilinear.  Result: the
-        # preconditioned operator ``A·M⁻¹`` is far from identity, and
-        # GMRES diverges (oscillation on the outer eigenvalue loop, see
-        # the diagnostic memo at .claude/agent-memory/numerics-investigator/).
-        # Slab is unaffected because the discrete L+C IS affine in σ_t
-        # there (no Carlson seed needed); SI is unaffected because its
-        # iteration loop attaches the previous iterate to the rhs.
+        # block-inverse face preconditioner re-enablement.  Post-Phase-1.2
+        # the silent-fallback bug that motivated the explicit identity is
+        # GONE: ``InvertibleOperator.solve`` takes an explicit
+        # ``initial_guess`` kwarg (the M-M Carlson seed reads it), and
+        # :class:`KrylovAcceleration`'s ``preconditioner=None`` default
+        # invokes ``L.solve(q)`` with no ``initial_guess`` → cold-start
+        # M-M seed (deterministic, no garbage).  Sweep-as-preconditioner
+        # is functionally safe to re-enable.  The explicit identity is
+        # kept here to preserve the L1 anchor's bit-identity until #200
+        # ships the production preconditioner choice.
         N = self.quad.N
         nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
         krylov = KrylovAcceleration(

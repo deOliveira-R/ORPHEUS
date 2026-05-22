@@ -435,18 +435,22 @@ class TestSolve:
             ),
         )
 
-    def test_solve_threads_carlson_seed_from_history(self) -> None:
-        r"""``InvertibleOperator.solve`` passes ``rhs(1)`` to ``transport_sweep``.
+    def test_solve_forwards_explicit_initial_guess_to_sweep(self) -> None:
+        r"""``InvertibleOperator.solve`` forwards the explicit ``initial_guess``
+        kwarg to :func:`transport_sweep`.
 
-        The Carlson coupled-pole seed on curvilinear sweeps is derived
-        from the previous iterate.  In the iteration loop the previous
-        iterate is threaded onto the rhs as the lag-1 frame; the solve
-        adapter MUST forward ``rhs(1)`` to :func:`transport_sweep` as
-        ``initial_guess`` for the sweep to read it back.
+        Phase 1.2 — the curvilinear Carlson coupled-pole seed travels
+        through an explicit ``initial_guess`` argument; the lag-1 frame
+        machinery on :class:`AngularFlux` (``rhs(1)``, ``.stash``) is
+        reserved for future time-derivative tracking and no longer
+        load-bearing for the seed path.  The previous
+        ``previous = rhs(1)`` plumbing was retired together with the
+        sweep's inline Q_bar derivation — the M-M closure's
+        ``psi_half_seed`` strategy reads ``initial_guess`` directly
+        (or zeros on cold start).
 
-        Spy on :func:`transport_sweep` to capture the
-        ``initial_guess`` argument, then exercise both the
-        history-bearing rhs and the cold-start rhs.
+        Spy on :func:`transport_sweep` to capture the ``initial_guess``
+        argument on both the explicit-seed and cold-start paths.
         """
         sn = _sphere_mesh()
         sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
@@ -458,11 +462,10 @@ class TestSolve:
             np.full((sn.quad.N, sn.ng, sn.nx, sn.ny), 0.7),
             sn,
         )
-        rhs_volumetric = AngularFlux(
+        rhs = AngularFlux(
             np.zeros((sn.quad.N, sn.ng, sn.nx, sn.ny)),
             sn,
         )
-        rhs_with_history = psi_prev.stash(rhs_volumetric)
 
         # Spy on transport_sweep — capture initial_guess on every call.
         captured = []
@@ -475,15 +478,15 @@ class TestSolve:
             return original(*args, **kwargs)
 
         with patch("orpheus.sn.sweep.transport_sweep", spy):
-            invertible.solve(rhs_with_history)
+            invertible.solve(rhs, initial_guess=psi_prev)
         assert len(captured) == 1
         seed = captured[0]
         assert seed is not None
         np.testing.assert_array_equal(seed.values, psi_prev.values)
 
-        # Cold start — no history → initial_guess should be None.
+        # Cold start — no explicit seed → initial_guess should be None.
         captured.clear()
         with patch("orpheus.sn.sweep.transport_sweep", spy):
-            invertible.solve(rhs_volumetric)
+            invertible.solve(rhs)
         assert len(captured) == 1
         assert captured[0] is None
