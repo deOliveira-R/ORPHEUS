@@ -3531,3 +3531,361 @@ divergence under refinement) catalogues this fingerprint;
 ERR-026 manifestations #6 + #7 are this defect's twins on
 sphere (closed by Phase F+Phase G Step 2 Path C).
 
+
+---
+
+## ERR-049 — Convention drift between operator-algebra and transport_sweep — per-ordinate vs iso magnitude on the typed AngularFlux carrier
+
+**Date:** 2026-05-19 (R-1 Step 4 session 1 Step E — SI carve onto
+`SourceIteration` + typed `AngularFlux` diagnostic).
+
+**Status:** **CLOSED.**  Architectural fix landed in Phase 1.1 / A1
+commit ``de8822d`` (2026-05-22) on
+``refactor/sn-operator-algebra``: producer-side ``/sum_w``
+normalisation at every site that emits a per-ordinate value
+(``ScatteringOperator.apply`` AngularFlux variant,
+``FissionOperator.apply`` AngularFlux variant,
+``PerOrdinateSource.from_isotropic`` factory).  The legacy ``×W``
+bridge in ``InvertibleOperator.solve`` and the ``/W`` rescales in
+``_solve_krylov`` / ``_solve_source_iteration`` /
+``_make_sweep_preconditioner`` all dissolved.
+
+**Failure mode:** **#6 (convention drift)** — the operator-algebra
+layer (``InvertibleOperator``, ``ScatteringOperator``,
+``FissionOperator``) carried values in **per-ordinate units**
+(``ψ_n``, ``q_n = q_iso/Σw``); ``transport_sweep`` consumed an
+``aniso_source`` argument in **iso magnitude** and applied an internal
+``weight_norm = 1/W`` (``sweep.py:432`` pre-fix).  The carve in R-1
+Step E threaded per-ordinate ``rhs.values`` directly through
+``InvertibleOperator.solve`` to ``transport_sweep``: the per-ord
+``q_n`` got divided by ``W`` a second time, planting the converged
+fixed point at ``k_inf/W`` instead of ``k_inf``.
+
+**Module:** `orpheus.sn.operator.InvertibleOperator.solve` (the
+consumer-side bridge site); root cause is the convention asymmetry
+between `orpheus.sn.scattering.ScatteringOperator.apply` (typed
+producer; pre-A1 emitted iso magnitude on the AngularFlux variant)
+and `orpheus.sn.sweep.transport_sweep` (consumer; pre-A1 expected
+iso magnitude and applied internal ``/W``).
+
+**Mechanism:** the operator-algebra factorisation
+``(L + C − S)·ψ = q_ext`` is unit-stable at the typed level — every
+operand carries the per-ordinate magnitude ``ψ_n`` and the per-
+ordinate source ``q_n = q_iso/Σw``.  The pre-A1 ``transport_sweep``
+took the iso-magnitude scalar source ``q_iso`` and applied
+``weight_norm = 1/Σw`` internally as part of the within-cell balance
+``q_iso/Σw + Σ_t · ψ_n``.  The two conventions are individually
+correct; the bug is at the **boundary** where the operator-algebra
+hands its per-ordinate source to the sweep, expecting "this is
+already per-ord" and the sweep applying ``/Σw`` anyway.
+
+For a homogeneous reflective uniform-source problem
+``Σ_t · ψ_n = q_n``, the *correct* fixed point is
+``ψ_n = q_n/Σ_t = (q_iso/Σw)/Σ_t``.  Pre-fix the SI carve produced
+``ψ_n = q_n/(Σw · Σ_t) = q_iso/(Σw² · Σ_t)`` — a factor of ``Σw``
+too small.  For an eigenvalue problem the same factor propagates to
+``k_eff = (νΣ_f·φ) / (Σ_a·φ)`` indirectly via the within-group SI
+recursion's source magnitude; the empirical drift was
+``k_recovered/k_ref ≈ 1/(Σw·c_s)`` where ``c_s = Σ_s/Σ_t`` is the
+group's scattering ratio.  For Gauss-Legendre N=8 (``Σw = 2``) and a
+typical scattering-dominated thermal group ``c_s ≈ 0.9``, the
+observed ratio was ``1/(2·0.9) = 0.556`` — consistent with the
+``1.4844/1.875 = 0.7917`` slab-2eg signature once the eigenvalue
+power-iteration's group-source mixing is accounted for.
+
+**How it hid:**
+
+- **Krylov inner solver was unaffected.**  The Krylov path
+  (``_solve_krylov``) called the sweep ONLY as a preconditioner
+  (``preconditioner=lambda q: q`` per session 1 Step D's explicit
+  identity), so the convention bridge was a no-op.  The eigenvalue
+  outer iteration converged for the Krylov path on every
+  ``homogeneous_kinf`` case at rtol ≤ 1e-8.  Slab-2eg-SI was the
+  failing leg.
+
+- **Slab-1eg-SI passed by accident.**  One-group problems are
+  flux-shape independent (``k_inf = νΣ_f/Σ_a`` doesn't depend on
+  ``φ`` shape per ``vv-principles`` Cardinal Rule 6).  The
+  convention drift left the relative shape of ``φ`` unchanged on
+  homogeneous-1g; the keff ratio between corrected and drifted
+  paths cancels.  Multi-group eigenvalue is where the bug surfaces.
+
+- **L0 streaming-equilibrium tests were missing for the SI path**
+  in the pre-Phase-1.1 suite.  The L1 ``test_kinf_homogeneous.py``
+  was the only multi-group gate; its first failing case
+  (``slab-2eg-source_iteration``, ``keff=1.4844`` vs
+  ``ref=1.875``) was the diagnostic trigger.
+
+- **Pre-A1 the consumer-side ``×W`` bridge in
+  ``InvertibleOperator.solve`` had been added in R-1 Step C to
+  paper over the asymmetry**; Step E's principled carve removed
+  the bridge and exposed the underlying convention drift.
+
+**Empirical pre-fix evidence (R-1 Step E pre-Phase-1.1):**
+
+```
+Slab GL-N=8 (Σw = 2.0):
+  source_iteration:  keff = 1.4844  ref = 1.8750  rel_err ≈ 21%
+  krylov:            keff = 1.8750  ref = 1.8750  rel_err ≈ 0% (unaffected)
+
+Sphere GL-N=8:
+  source_iteration:  keff = 1.4844  ref = 1.8750  rel_err ≈ 21%
+
+Cylinder ProductQuadrature (Σw_full = 8.0):
+  source_iteration:  keff scaled by similar factor
+
+Streaming-equilibrium fixed-source on slab:
+  pre-fix:   ψ_n = q_iso / (W² · Σ_t)   (factor W too small)
+  post-fix:  ψ_n = q_iso / (W · Σ_t)    (correct)
+```
+
+**Empirical post-fix evidence (Phase 1.1 A1):**
+
+```
+L1 kinf_homogeneous suite (8 coords × 2 inner_solvers × 3 ng_keys + 6 cyl):
+  35 passed + 5 xfailed (xfails pre-existing per #200)
+
+L1 bridge-regression suite (Phase 1.3, tests/sn/test_invertible_operator.py
+TestInvertibleSolveBridgeRegression):
+  10/10 PASS — including all 3 coords × {2eg, 4eg} SI carve k_inf at rtol < 1e-9.
+
+L0 streaming-equilibrium curvilinear:
+  77 pass + 1 skip on the spatial/ slow gate
+```
+
+**Which test catches it:**
+
+`tests/sn/test_invertible_operator.py::TestInvertibleSolveBridgeRegression`
+(R-1 Step 4 Phase 1.3 promotion from
+``derivations/diagnostics/diag_r1_step_e_invertible_solve_w_bridge.py``).
+Three test methods, ``@pytest.mark.l1 @pytest.mark.catches("ERR-049")
+@pytest.mark.verifies("transport-cartesian",
+"sn-curvilinear-homogeneous-kinf-recovery")``:
+
+1. ``test_slab_uniform_roundtrip`` — slab
+   ``(L+C).solve((L+C).apply(ψ=1)) == ψ=1`` to machine zero
+   (streaming-free check; pre-fix gave ``1/W``).
+2. ``test_fixed_source_homogeneous_reflective_recovers_q_over_sigma``
+   — parametrised over slab/sphere/cylinder; converges to
+   ``ψ_n = q_n/Σ_t`` per ordinate (pre-fix gave ``q_n/(W·Σ_t)``).
+3. ``test_si_carve_recovers_analytical_kinf`` — parametrised over
+   {slab, sphere, cylinder} × {2eg, 4eg}; end-to-end SI inner
+   solver on homogeneous reflective converges to analytical
+   ``k_inf`` at rtol < 1e-9 (pre-fix failed every ng≥2 case at
+   ~21% drift).
+
+The N5 unit pin
+``tests/sn/test_invertible_operator.py::TestSolve::test_solve_consumes_per_ordinate_rhs``
+(``@pytest.mark.l0``) structurally pins the new contract:
+``InvertibleOperator.solve`` forwards ``rhs.values`` to
+``transport_sweep`` bit-equal — no ``×W`` or ``/W`` rescaling on the
+hot path.
+
+**Lesson** (cf. `.claude/lessons.md` L17 + L18): a carve that crosses
+subsystem boundaries (operator algebra ↔ sweep, scalar ↔ per-ord,
+packed ↔ typed) MUST start with a written convention crosswalk
+table.  When the producer and consumer disagree, fix the
+**producer** (Pattern 7 per ``coding-elegance``): place the
+``/Σw`` normalisation at the producer boundary, not at every
+consumer.  Consumer-side bridges multiply with every new consumer;
+producer-side normalisation costs once and dissolves the bridge
+class entirely.
+
+**Why a capability-style fix wouldn't have worked:** during R-1
+session 1 a brief flirtation considered "the convention is part of
+the value's type — wrap ``q`` in a ``PerOrdinateSource`` vs
+``IsotropicSource`` and let dispatch decide".  The implementation
+sketch ran into the dispatch-on-magnitude trap: the underlying ψ
+values are still floats, so the type tag only documents the
+expected magnitude, doesn't enforce it.  The principled fix is
+to normalise at the producer — once at the boundary, never again
+downstream.
+
+→ `numerical-bug-signatures` Signature TBD (multi-group SI keff
+drift by factor ``1/(Σw·c_s)`` while Krylov passes) catalogues
+the fingerprint family; ERR-048 (curvilinear SI sweep convention
+drift) is the structural sibling on a different convention axis
+(Carlson seed source vs WDD pole-face IC, not per-ord magnitude).
+
+
+---
+
+## ERR-050 — Silent preconditioner fallback breaks stateful-inverse contract — `KrylovAcceleration(preconditioner=None)` defaulted to `L.solve` which read history from GMRES residual vectors
+
+**Date:** 2026-05-19 (R-1 Step 4 session 1 Step D — Probe B sphere
+identity-precond diagnostic).
+
+**Status:** **CLOSED via structural supersession.**  The original
+session-1 plan A2 proposed advertising a ``CAP_STATELESS_INVERSE``
+capability and gating ``KrylovAcceleration`` on it (issue #203).
+On 2026-05-22 the user-led architectural read identified the
+deeper cause: 1D ``transport_sweep`` was duplicating the M-M
+Carlson coupled-pole seed inline (calling
+``carlson_inward_sweep_from_source`` directly + computing
+``Q_bar`` inline) while the matvec already routed through
+``MorelMontryAngularSweep.psi_half_seed``.  Phase 1.2
+(commit ``c93355c``) unified both consumers through M-M's
+``psi_half_seed`` strategy: ``InvertibleOperator.solve(rhs, *,
+initial_guess=None)`` is now a pure function — the Carlson seed
+travels through the explicit ``initial_guess`` kwarg, not through
+the lag-1 frame ``rhs(1)``.  ``KrylovAcceleration``'s
+``preconditioner=None`` default invokes ``L.solve(q)`` with
+``initial_guess=None``, which the M-M closure interprets as
+**explicit cold start** (deterministic zero seed via
+``psi_half_seed`` cold-path).  The silent-fallback path no longer
+exists; the capability-flag patch is unnecessary.  Issue #203
+closed by supersession.
+
+**Failure mode:** **#4 (wrong recursion / state)** — a "stateless"
+fallback path silently coupled to caller state that GMRES residual
+inputs did not carry.  The bug class is "the default invokes a
+primitive whose precondition (stateful caller) is not advertised
+in the type system".
+
+**Module:** `orpheus.sn.operator.InvertibleOperator.solve` (pre-fix
+read ``previous = rhs(1)`` to seed the M-M Carlson closure) +
+`orpheus.numerics.iteration.KrylovAcceleration` (pre-fix
+``preconditioner=None`` silently defaulted to invoking ``L.solve``
+on each GMRES residual).
+
+**Mechanism:** the curvilinear M-M closure
+(Hébert §3.9.4 Eqs. 3.432-3.435) needs a half-angle ψ seed to start
+the inward (``μ=−1``) sweep.  Pre-Phase-1.2 the seed came from the
+lag-1 frame of the iterate via ``rhs(1)`` on the ``AngularFlux``
+history machinery — adequate for the source-iteration loop where
+each call passes a true ψ iterate with valid history.  GMRES feeds
+**residual vectors** into the preconditioner; residuals have no
+history (``rhs.history_depth == 0``); ``rhs(1)`` then returned the
+``AngularFlux`` default (zeros via the cold-frame fallback).  The
+M-M closure with a zero half-angle seed is a **poor preconditioner
+for curvilinear** geometries — the Krylov polynomial
+``M⁻¹·A·δ`` is non-identity-like and destabilises GMRES.  Slab
+sweeps use no M-M closure (no curvilinear pole), so the slab
+default-sweep precond worked correctly.  Sphere/cylinder
+default-sweep precond exhibited 470× iteration-count blowup and
+keff oscillation around the wrong fixed point.
+
+**How it hid:**
+
+- **Slab default-sweep worked.**  The M-M closure is curvilinear-
+  only; slab sweeps never read the half-angle seed.  Step D's
+  probe A (slab) converged in 1-2 outer iterations under either
+  precond choice.  The diagnostic only surfaced when probe B
+  exercised sphere.
+
+- **The capability advertisement (``CAP_SOLVE``) was uniform across
+  L+C operands**; the type system gave no signal that "this
+  ``L.solve`` reads ``rhs(1)``" was a precondition any caller had
+  to satisfy.  Stateful coupling was implicit in the source-
+  iteration loop's design but not enforced anywhere.
+
+- **The fallback path was implicit.**
+  ``KrylovAcceleration(preconditioner=None)`` invoked
+  ``self.L.solve(q)`` for every GMRES residual — there was no
+  log, no warning, no type signal that the precondition (``q``
+  must be a valid iterate with history) was being violated.
+  Residual vectors had ``history_depth=0`` and ``rhs(1)`` silently
+  returned the cold-frame default (zeros).
+
+- **The slab cross-check ``passed`` for the wrong reason.**  The
+  slab Krylov leg of every ``test_kinf_homogeneous`` case
+  converged because slab doesn't trigger the M-M closure.  The
+  sphere/cylinder Krylov legs failed; that was the diagnostic
+  trigger.
+
+**Empirical pre-fix evidence (R-1 Step D Probe B, 2026-05-19):**
+
+```
+sphere-2eg-krylov, 5 outer iterations:
+  default (None) precond:  keff = 0.7..1.5..1.3..1.7..1.4  (oscillating)
+  identity precond:        keff = 1.8750 (converges)
+
+slab-2eg-krylov, 3 outer iterations:
+  default (None) precond:  keff = 1.8750 (converges in 1 outer)
+  identity precond:        keff = 1.8750 (converges in 1 outer)
+
+Inner iteration count on sphere default-precond:  ~470× the count
+on identity-precond (GMRES restarted repeatedly without progress).
+```
+
+**Empirical post-fix evidence (Phase 1.2, 2026-05-22):**
+
+```
+Phase 1.2 made InvertibleOperator.solve a pure function:
+  signature pre-fix:   solve(rhs)  →  read rhs(1) for Carlson seed
+  signature post-fix:  solve(rhs, *, initial_guess=None)  →  seed
+                       reads initial_guess explicitly; rhs(1) no
+                       longer touched.
+
+KrylovAcceleration(preconditioner=None) on a residual vector now
+invokes LC.solve(residual) — initial_guess=None → cold-start M-M
+seed (deterministic zero).  The M-M closure is still a poor
+preconditioner for curvilinear under cold-start (numerical issue
+tracked by #200), but the path is no longer silent and no longer
+stateful.  Identity-precond is the production choice until #200
+ships the block-inverse face preconditioner.
+
+L1 kinf_homogeneous suite:           35 passed + 5 xfailed (unchanged)
+L1 bridge-regression (Phase 1.3):   10/10 PASS
+L1 precond-safety (Phase 1.3):       4/4 PASS
+```
+
+**Which test catches it:**
+
+`tests/sn/test_krylov_curvilinear_precond_safety.py` (R-1 Step 4
+Phase 1.3 promotion from
+``derivations/diagnostics/diag_r1_step_d_probe_b_identity_precond.py``).
+Two test functions, ``@pytest.mark.l1
+@pytest.mark.catches("ERR-050") @pytest.mark.verifies(
+"transport-cartesian", "sn-curvilinear-homogeneous-kinf-recovery")``:
+
+1. ``test_identity_preconditioner_recovers_kinf`` — parametrised
+   over {slab, sphere, cylinder}.  Pins the production contract
+   that the typed Krylov inner solver with explicit identity
+   preconditioner converges to analytical ``k_inf`` at rtol < 1e-8.
+
+2. ``test_default_sweep_preconditioner_recovers_kinf_on_slab`` —
+   slab only.  Pins the **structural-fix sentinel** for the
+   silent-fallback bug class: slab default-sweep precond converges
+   to ``k_inf`` because slab is the geometry where preconditioner
+   quality (curvilinear M-M cold-start convergence) is NOT the
+   confound.  If the structural fix is reverted (e.g. a stateful
+   ``rhs(1)`` read re-introduced inside ``L.solve``), slab
+   default-sweep would also destabilise on residual inputs because
+   the residual carries no valid history.
+
+Companion structural pin in
+``tests/sn/test_invertible_operator.py::TestSolve::test_solve_forwards_explicit_initial_guess_to_sweep``
+(``@pytest.mark.foundation``): spies on ``transport_sweep`` and
+verifies the seed comes from the explicit ``initial_guess`` kwarg,
+NOT from any ``rhs(1)`` history lookup.
+
+**Why sphere/cylinder default-sweep is NOT pinned** by the L1
+suite: the curvilinear M-M closure with cold-start zero seed is a
+poor preconditioner for GMRES — a **numerical** issue, not the
+structural bug-class fix.  Issue #200 designs the block-inverse
+face preconditioner that restores sweep-as-preconditioner quality
+on curvilinear; pinning a failing curvilinear default-sweep case
+would lock in the wrong production state today.
+
+**Lesson** (cf. `.claude/lessons.md` L19 + L21): default values for
+behavioural parameters MUST either advertise their preconditions in
+the type system (``CAP_STATELESS_INVERSE``-style capability gating)
+OR require explicit caller choice (no default at all).  When you
+catch a "default fell back silently to a stateful primitive" bug,
+the **first** fix to consider is **structural unification**: are
+the two consumers actually different applications of the same
+operator?  If yes (here: sweep and matvec both apply the same
+``(L+C)`` operator, only differing in which ψ they feed the M-M
+closure as the seed), unify them through one strategy.  Reduce
+strategies; don't add alternatives.  The structural fix (Phase
+1.2) eliminated the bug class without needing a capability flag —
+a stronger result than the original A2 plan because
+``InvertibleOperator.solve`` is now a pure function with no
+silent paths to deprecate.
+
+→ ERR-049 (convention drift) is the sibling defect — both arose
+during the R-1 Step 4 carve when the operator-algebra layer met
+the legacy sweep implementation; both closed by Phase 1.1 + Phase
+1.2 of the consolidation plan.
+
