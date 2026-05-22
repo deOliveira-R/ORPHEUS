@@ -269,6 +269,77 @@ class PerOrdinateSource:
                 f"{expected}; got {self.values.shape}"
             )
 
+    # ── Constructors ──────────────────────────────────────────────────
+
+    @classmethod
+    def from_isotropic(
+        cls, iso_values: np.ndarray, mesh: "SNMesh",
+    ) -> "PerOrdinateSource":
+        r"""Project an iso scalar source :math:`Q(\vec r, g)` to per-ordinate.
+
+        This factory is the canonical entry point for **external,
+        user-supplied** iso scalar sources (fixed-source problems)
+        that must enter the per-ordinate SN transport equation
+        :math:`(\Omega\cdot\nabla + \sigma_t)\psi_n = Q/W + q_{\rm aniso,n}`.
+
+        The projection is
+        :math:`Q_n(\vec r, g) = Q(\vec r, g) / \sum_n w_n`
+        broadcast across the :math:`N` ordinates.
+
+        This is **Pattern 7 producer-side normalisation** for external
+        sources — the user (producer of the iso scalar) hands the
+        sweep a per-ordinate value, with the ``1/W`` projection
+        applied here at the type-construction boundary.  Sweep
+        consumers receive per-ordinate magnitude only; no consumer
+        applies ``1/W`` internally.
+
+        Parameters
+        ----------
+        iso_values : np.ndarray
+            Iso scalar source, shape ``(ng, nx, ny)``.
+        mesh : SNMesh
+            Phase-space carrier.
+
+        Returns
+        -------
+        PerOrdinateSource
+            Per-ordinate source with ``Q/W`` broadcast across N,
+            shape ``(N, ng, nx, ny)``.
+
+        See also
+        --------
+        :meth:`ScatteringOperator.apply` typed-AngularFlux variant —
+            the analogous producer-side projection for scattering-
+            generated sources.
+        :meth:`FissionOperator.apply` typed-AngularFlux variant —
+            same for fission-generated sources.
+
+        Notes
+        -----
+        R-1 Step 4 A1 (commit ``<this commit>``): introduced as part
+        of the per-ordinate-everywhere convention.  Replaces the
+        legacy pattern of building ``IsotropicSource`` from external
+        ``Q`` and relying on the sweep to apply ``/W`` internally —
+        Pattern 7 producer-side normalisation per lesson L18.
+        """
+        expected = (mesh.ng, mesh.nx, mesh.ny)
+        if iso_values.shape != expected:
+            raise ValueError(
+                f"PerOrdinateSource.from_isotropic expects iso "
+                f"shape (ng, nx, ny) = {expected}; got "
+                f"{iso_values.shape}"
+            )
+        sum_w = float(mesh.quad.weights.sum())
+        N = mesh.quad.N
+        # Broadcast Q/sum_w to (N, ng, nx, ny).  ``.copy()`` materialises
+        # the broadcast so the returned ndarray owns its data (avoids
+        # downstream "writeable view of a broadcast" surprises).
+        per_ord_values = np.broadcast_to(
+            (iso_values / sum_w)[None, :, :, :],
+            (N, mesh.ng, mesh.nx, mesh.ny),
+        ).copy()
+        return cls(per_ord_values, mesh)
+
     # ── Dunder algebra ────────────────────────────────────────────────
 
     def __add__(

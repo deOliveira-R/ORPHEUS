@@ -97,11 +97,10 @@ if TYPE_CHECKING:
 
 
 def transport_sweep(
-    iso_source: "IsotropicSource",
+    source: "PerOrdinateSource",
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
-    aniso_source: "PerOrdinateSource | None" = None,
     *,
     initial_guess: "AngularFlux | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -112,46 +111,59 @@ def transport_sweep(
     The cell-update strategy is read from ``sn_mesh.cell_update``
     (defaults to :class:`DiamondDifference`).
 
-    Issue #196 PR-INDEX-5: PUBLIC contract is principled
-    ``(ng, nx, ny)`` for the isotropic source / ``sig_t`` and
-    ``(N, ng, nx, ny)`` for the per-ordinate source.  Returns
-    ``(angular_flux, scalar_flux)`` with shapes ``(N, ng, nx, ny)`` /
-    ``(ng, nx, ny)``.
+    Single-source contract (R-1 Step 4 A1)
+    --------------------------------------
 
-    Issue #197 PR-TYPED-2: the stringly-typed ``psi_bc: dict``
-    parameter retired in favour of the typed :class:`BoundaryFlux`.
+    The sweep consumes ONE :class:`PerOrdinateSource` carrying the
+    combined per-ordinate source magnitude
+    :math:`Q_n(\\vec r, g)` — whatever combination of iso (P0 + n2n +
+    fission) and aniso (P_ℓ ≥ 1) the caller produced.  The producer
+    side has already applied the :math:`1/W` projection (Pattern 7
+    per ``coding-elegance`` SKILL.md §"Convention crosswalk template",
+    lesson L18); the sweep does NOT apply ``/W`` internally to ANY
+    part of the source.
 
-    Issue #197 PR-TYPED-3: the ``Q`` / ``Q_aniso`` parameters renamed
-    to ``iso_source`` / ``aniso_source`` and accepted typed
-    :class:`IsotropicSource` / :class:`PerOrdinateSource` inputs.
+    External iso scalar sources :math:`Q(\\vec r, g)` (e.g. user-
+    supplied fixed-source problems) project to per-ordinate at
+    construction time via
+    :meth:`~orpheus.sn.sources.PerOrdinateSource.from_isotropic`.
+    Scattering-generated sources project at the producer boundary
+    via the singledispatched
+    :meth:`~orpheus.sn.scattering.ScatteringOperator.apply`.  Fission-
+    generated sources project at the producer boundary via
+    :meth:`~orpheus.sn.fission.FissionOperator.apply`.
 
-    Issue #197 PR-TYPED-4: the bare-``np.ndarray`` overload is RETIRED.
-    ``iso_source`` MUST be an :class:`IsotropicSource`;
-    ``aniso_source`` MUST be a :class:`PerOrdinateSource` or ``None``.
-    The legacy keyword-only ``Q_aniso`` alias is GONE.  ``sig_t`` stays
-    bare ``np.ndarray`` — per Issue #197 plan, cross-section storage is
-    a static parameter and is not promoted to a typed wrapper here.
+    The legacy two-parameter convention (``iso_source: IsotropicSource``
+    + ``aniso_source: PerOrdinateSource | None`` with sweep-internal
+    ``/W``) is GONE.  See `#205
+    <https://github.com/deOliveira-R/ORPHEUS/issues/205>`_ for the
+    cross-method field architecture that will further refine the
+    typed contract.
 
-    R-1 Step 0 (2026-05-19): the curvilinear pole-region inputs (the
-    Carlson coupled-pole seed source + the per-ordinate spatial-upstream
-    inflow at the pole cell for outward ordinates) are now derived from
-    ``initial_guess`` — **the trace-space analog of the matvec's input
-    angular flux**.  The matvec's Carlson seed is
-    ``σ_t · φ_0(input_psi) / W`` derived from its current input
-    (:func:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep.__call__`
-    at ``psi_half_angle_seed.py:563``); the sweep's Carlson seed is now
-    the SAME formula derived from ``initial_guess`` (= the previous
-    iteration's angular flux when the caller is in a source-iteration
-    loop).  When ``initial_guess is None`` (fresh start), the Carlson seed
-    falls back to ``Q_p / W`` (the in-iteration source).  The previously-
-    leaked pole-history fields on :class:`BoundaryFlux`
-    (``pole_psi`` / ``pole_phi_prev``) retired with this change — there
-    is no separate iteration cache; the input angular flux IS the trace.
+    History (chronological)
+    -----------------------
+
+    * Issue #196 PR-INDEX-5: PUBLIC contract is principled
+      ``(ng, nx, ny)`` / ``(N, ng, nx, ny)``.
+    * Issue #197 PR-TYPED-2: ``psi_bc: dict`` retired in favour of
+      typed :class:`BoundaryFlux`.
+    * Issue #197 PR-TYPED-3: typed :class:`IsotropicSource` /
+      :class:`PerOrdinateSource` inputs.
+    * Issue #197 PR-TYPED-4: bare-``np.ndarray`` overload retired.
+    * R-1 Step 0 (2026-05-19): curvilinear Carlson seed derives from
+      ``initial_guess`` (= previous iterate; ``None`` fallback uses
+      the in-iteration source angular average).
+    * R-1 Step 4 A1 (2026-05-21): ``iso_source`` parameter retired;
+      sweep takes one :class:`PerOrdinateSource` carrying the combined
+      per-ordinate source magnitude.  Producer-side ``/W`` projection
+      everywhere.
 
     Parameters
     ----------
-    iso_source : IsotropicSource
-        Isotropic volumetric source, shape ``(ng, nx, ny)``.
+    source : PerOrdinateSource
+        Per-ordinate volumetric source, shape ``(N, ng, nx, ny)``.
+        Convention: **per-ordinate magnitude** (the producer has
+        already applied any required ``/W`` projection).
     sig_t : np.ndarray
         Total cross-section, shape ``(ng, nx, ny)``.
     sn_mesh : SNMesh
@@ -160,8 +172,6 @@ def transport_sweep(
     boundary_flux : BoundaryFlux
         Persistent :class:`BoundaryFlux` (mutated in place).  Build a
         zero-initialised instance via ``sn_mesh.zeros_boundary_flux()``.
-    aniso_source : PerOrdinateSource or None, optional
-        Per-ordinate anisotropic source, shape ``(N, ng, nx, ny)``.
     initial_guess : AngularFlux or None, optional
         Previous-iteration angular flux estimate, used for the
         curvilinear Carlson coupled-pole seed and the per-ordinate
@@ -183,50 +193,34 @@ def transport_sweep(
     * 2-D Cartesian → :func:`_sweep_2d_wavefront` (anti-diagonal
       scheduling; Step 2.6 Q2 deferred).
     """
-    Q, Q_aniso_local = _unwrap_sources(iso_source, aniso_source)
+    Q = _unwrap_source(source)
     reduced = sn_mesh.reduced
     if reduced is not None:
         return _sweep_1d_unified(
-            Q, sig_t, sn_mesh, boundary_flux, Q_aniso_local,
+            Q, sig_t, sn_mesh, boundary_flux,
             initial_guess=initial_guess,
         )
     return _sweep_2d_wavefront(
-        Q, sig_t, sn_mesh, boundary_flux, Q_aniso_local,
+        Q, sig_t, sn_mesh, boundary_flux,
     )
 
 
-def _unwrap_sources(
-    iso_source: "IsotropicSource",
-    aniso_source: "PerOrdinateSource | None",
-) -> tuple[np.ndarray, np.ndarray | None]:
-    """Unwrap typed source carriers to bare ndarrays for internal use.
+def _unwrap_source(source: "PerOrdinateSource") -> np.ndarray:
+    """Unwrap typed :class:`PerOrdinateSource` to bare ndarray.
 
-    Issue #197 PR-TYPED-4 — strict typed inputs only (the PR-TYPED-3
-    bare-ndarray overload is retired).  ``iso_source`` MUST be an
-    :class:`IsotropicSource`; ``aniso_source`` MUST be a
-    :class:`PerOrdinateSource` or ``None``.  The internal hot path
-    consumes bare ndarray throughout to avoid wrapping overhead;
-    this helper performs the unwrap once at the boundary.
+    Issue #197 PR-TYPED-4 — strict typed input.  R-1 Step 4 A1 collapsed
+    the iso / aniso parameter pair into a single per-ordinate source.
+    The internal hot path consumes bare ndarray; this helper performs
+    the unwrap once at the public boundary.
     """
-    from .sources import IsotropicSource, PerOrdinateSource
-    if not isinstance(iso_source, IsotropicSource):
+    from .sources import PerOrdinateSource
+    if not isinstance(source, PerOrdinateSource):
         raise TypeError(
-            f"transport_sweep / apply_sweep_1d: iso_source must be "
-            f"IsotropicSource (Issue #197 PR-TYPED-4); got "
-            f"{type(iso_source).__name__}"
+            f"transport_sweep / apply_sweep_1d: source must be "
+            f"PerOrdinateSource (R-1 Step 4 A1); got "
+            f"{type(source).__name__}"
         )
-    Q = iso_source.values
-    if aniso_source is None:
-        Q_aniso: np.ndarray | None = None
-    elif isinstance(aniso_source, PerOrdinateSource):
-        Q_aniso = aniso_source.values
-    else:
-        raise TypeError(
-            f"transport_sweep / apply_sweep_1d: aniso_source must be "
-            f"PerOrdinateSource or None (Issue #197 PR-TYPED-4); got "
-            f"{type(aniso_source).__name__}"
-        )
-    return Q, Q_aniso
+    return source.values
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -235,11 +229,10 @@ def _unwrap_sources(
 
 
 def apply_sweep_1d(
-    iso_source: "IsotropicSource",
+    source: "PerOrdinateSource",
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
-    aniso_source: "PerOrdinateSource | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Public alias for :func:`_sweep_1d_unified`.
 
@@ -248,14 +241,12 @@ def apply_sweep_1d(
     plays ``xs``, the BC inflow plays ``init``, the returned ψ is the
     scan trajectory.
 
-    Issue #197 PR-TYPED-4 — strict typed inputs only.  ``iso_source``
-    MUST be an :class:`IsotropicSource`; ``aniso_source`` MUST be a
-    :class:`PerOrdinateSource` or ``None``.  The legacy
-    keyword-only ``Q_aniso`` alias is GONE.
+    R-1 Step 4 A1 — single :class:`PerOrdinateSource` parameter.  See
+    :func:`transport_sweep` for the convention contract.
     """
-    Q, Q_aniso_local = _unwrap_sources(iso_source, aniso_source)
+    Q = _unwrap_source(source)
     return _sweep_1d_unified(
-        Q, sig_t, sn_mesh, boundary_flux, Q_aniso_local,
+        Q, sig_t, sn_mesh, boundary_flux,
     )
 
 
@@ -264,7 +255,6 @@ def _sweep_1d_unified(
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
-    Q_aniso: np.ndarray | None = None,
     *,
     initial_guess: "AngularFlux | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -318,7 +308,7 @@ def _sweep_1d_unified(
     geom = _ensure_geom_cache(sn_mesh)
     coll = _ensure_coll_cache(sn_mesh, sig_t, geom)
     return _run_1d_sweep(
-        Q, sig_t, sn_mesh, boundary_flux, Q_aniso, geom, coll,
+        Q, sig_t, sn_mesh, boundary_flux, geom, coll,
         initial_guess=initial_guess,
     )
 
@@ -364,7 +354,6 @@ def _run_1d_sweep(
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
-    Q_aniso: np.ndarray | None,
     geom: GeometryCoefficients,
     coll: CollisionCache,
     *,
@@ -407,14 +396,14 @@ def _run_1d_sweep(
     quad = sn_mesh.quad
     N = quad.N
     nx = sn_mesh.nx
-    ng = Q.shape[0]                                          # principled (ng, nx, ny=1)
+    ng = Q.shape[1]                                          # (N, ng, nx, ny=1)
     weights = quad.weights
     mu = quad.mu_x
 
     # ── Entry layout — PR-INDEX-5: public contract is principled ──────
     # Drop the degenerate trailing ``ny=1`` axis to obtain the
-    # (ng, nx) working layout.  No transpose required.
-    Q_p = Q[:, :, 0]                                         # (ng, nx)
+    # (N, ng, nx) working layout.  No transpose required.
+    Q_per_ord = Q[:, :, :, 0]                                # (N, ng, nx)
     sig_t_p = sig_t[:, :, 0]                                 # (ng, nx)
     V = sn_mesh.volumes[:, 0]                                # (nx,) — no group axis
     cell_update = sn_mesh.cell_update
@@ -424,14 +413,11 @@ def _run_1d_sweep(
     is_sphere = coord is CoordSystem.SPHERICAL
 
     # ── Common pre-scale ──────────────────────────────────────────────
-    weight_norm = 1.0 / weights.sum()
-    QV_iso = Q_p * V[None, :] * weight_norm                  # (ng, nx)
-    has_aniso = Q_aniso is not None
-    if has_aniso:
-        # Caller principled: (N, ng, nx, ny=1) → (N, ng, nx).
-        Q_aniso_p = Q_aniso[:, :, :, 0] * weight_norm
-    else:
-        Q_aniso_p = None
+    # R-1 Step 4 A1 — single per-ordinate source.  The producer applied
+    # ``1/W`` already; the sweep multiplies by cell volume V only.
+    # No iso/aniso distinction internally — every WDD recurrence
+    # consumes the same ``QV_per_ord``.
+    QV_per_ord = Q_per_ord * V[None, None, :]                # (N, ng, nx)
 
     # Internal principled layout — angular flux (N, ng, nx, 1),
     # scalar flux (ng, nx) working buffer (ny added at return).
@@ -473,19 +459,24 @@ def _run_1d_sweep(
         inflow_full = bc_outer_obj.apply(bc_outer)  # (N, ng)
 
         # Carlson seed source (Phase G Step 2 Path C, refactored R-1
-        # Step 0 to mirror the matvec's seed derivation).  ``sig_t_p``
-        # is already principled (ng, nx).
+        # Step 0 to mirror the matvec's seed derivation; R-1 Step 4 A1
+        # adapts to the single per-ordinate source convention).
+        # ``sig_t_p`` is already principled (ng, nx).
         #
         # The matvec's Carlson seed lives in
         # :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep.__call__`
         # at ``psi_half_angle_seed.py:563`` — it computes
         # ``φ_0 = Σ_n w_n · ψ_n`` from the current input angular flux
-        # and then ``Q_bar = σ_t · φ_0 / W``.  The sweep now uses the
+        # and then ``Q_bar = σ_t · φ_0 / W``.  The sweep uses the
         # SAME formula, deriving ``φ_0`` from the caller-supplied
         # ``initial_guess`` (= the previous iteration's angular flux
         # in a source-iteration loop).  When ``initial_guess is None``
-        # (fresh start), the fallback is the in-iteration source
-        # ``Q_p / W``.
+        # (fresh start), the fallback derives an iso-equivalent source
+        # from ``Q_per_ord`` via the weighted angular average
+        # ``(Σ_n w_n · Q_per_ord[n]) / W`` — for an isotropic input
+        # source (``Q_per_ord[n] = Q_iso / W`` for all n) this recovers
+        # the pre-A1 ``Q_iso / W`` formula exactly; for a non-iso input
+        # it gives the natural iso-projection of the source.
         sigma_t_gx = sig_t_p                                  # (ng, nx)
         dr = sn_mesh.dx
         if initial_guess is not None:
@@ -496,7 +487,12 @@ def _run_1d_sweep(
             )                                                 # (ng, nx)
             Q_bar_iso = sigma_t_gx * phi_0_prev / weights.sum()
         else:
-            Q_bar_iso = Q_p / weights.sum()                   # (ng, nx)
+            # Weighted angular average of the per-ordinate source.
+            # Matches the pre-A1 ``Q_iso / W`` formula when the input
+            # is isotropic-equivalent.
+            Q_bar_iso = np.einsum(
+                "n,ngx->gx", weights, Q_per_ord,
+            ) / weights.sum()                                 # (ng, nx)
 
         if is_sphere:
             levels = [None]
@@ -536,18 +532,11 @@ def _run_1d_sweep(
                 else inflow_right[ords]
             )                                                  # (K, ng)
 
-            # Per-ordinate source in chain order.
-            # QV_iso is (ng, nx); chain reorders the nx axis.
-            QV_chain_g = QV_iso[:, chain]                     # (ng, nx)
-            if has_aniso:
-                # Q_aniso_p[ords] is (K, ng, nx); add V along nx axis.
-                Q_aniso_chain = Q_aniso_p[ords][:, :, chain] * V[chain]
-                # Broadcast QV_chain_g (ng, nx) across K ordinates.
-                QV_full_chain = QV_chain_g[None, :, :] + Q_aniso_chain  # (K, ng, nx)
-            else:
-                QV_full_chain = np.broadcast_to(
-                    QV_chain_g[None, :, :], (K, ng, nx),
-                )
+            # Per-ordinate source in chain order — R-1 Step 4 A1's
+            # single-source convention: ``QV_per_ord`` already encodes
+            # per-ordinate magnitude × cell volume.  Slice the K
+            # ordinates and reorder along the chain axis.
+            QV_full_chain = QV_per_ord[ords][:, :, chain]      # (K, ng, nx)
 
             # Cache fields are (N, ng, nx) natively under PR-INDEX-2.
             # Indexed slice [ords] yields (K, ng, nx) — no transpose.
@@ -620,12 +609,11 @@ def _run_1d_sweep(
                 w_n = weights[global_n]
                 chain = geom.chain_idx[global_n]
 
-                # Per-ordinate source assembly (principled (ng, nx)).
-                if has_aniso:
-                    QV_full = QV_iso + Q_aniso_p[global_n] * V[None, :]
-                else:
-                    QV_full = QV_iso
-                QV_chain = QV_full[:, chain]                     # (ng, nx)
+                # Per-ordinate source assembly (R-1 Step 4 A1):
+                # ``QV_per_ord[global_n]`` is the per-ordinate source ×
+                # cell volume for ordinate ``global_n``, shape (ng, nx).
+                QV_full = QV_per_ord[global_n]                  # (ng, nx)
+                QV_chain = QV_full[:, chain]                    # (ng, nx)
 
                 # Per-ordinate spatial-upstream inflow (ng,).
                 if mu_n < 0:
@@ -739,7 +727,6 @@ def _sweep_2d_wavefront(
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
-    Q_aniso: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""2-D wavefront sweep — per-octant batched (Wave 2 / C2.6).
 
@@ -764,11 +751,15 @@ def _sweep_2d_wavefront(
     ``SweepDependencyGraph.apply`` call. The ordinate axis is
     INTERNAL to every numpy operation.
 
+    R-1 Step 4 A1: single per-ordinate source ``Q`` shape
+    ``(N, ng, nx, ny)`` carries the producer-side-projected magnitude.
+    Sweep does NOT apply ``/W`` internally.  The legacy iso/aniso
+    parameter pair is GONE.
+
     Issue #196 PR-INDEX-5: fully principled.  ``Q`` is consumed in
-    principled ``(ng, nx, ny)``; ``sig_t`` is principled
-    ``(ng, nx, ny)``; ``Q_aniso`` (if any) is principled
-    ``(N, ng, nx, ny)``.  The persistent ``psi_x`` / ``psi_y`` BC
-    buffers are now principled ``(N, ng, nx+1, ny)`` / ``(N, ng, nx,
+    principled ``(N, ng, nx, ny)``; ``sig_t`` is principled
+    ``(ng, nx, ny)``.  The persistent ``psi_x`` / ``psi_y`` BC
+    buffers are principled ``(N, ng, nx+1, ny)`` / ``(N, ng, nx,
     ny+1)``; ``angular_flux`` is returned principled
     ``(N, ng, nx, ny)``; ``scalar_flux`` is principled
     ``(ng, nx, ny)``.  The PR-INDEX-4 ``BRIDGE_pure_z_to_legacy``
@@ -810,12 +801,9 @@ def _sweep_2d_wavefront(
     psi_x = boundary_flux.xmin_xmax_buf  # (N, ng, nx+1, ny) — principled
     psi_y = boundary_flux.ymin_ymax_buf  # (N, ng, nx, ny+1) — principled
 
-    weight_norm = 1.0 / weights.sum()
-    Q_scaled = Q * weight_norm                            # (ng, nx, ny)
-    has_aniso = Q_aniso is not None
-    if has_aniso:
-        Q_aniso_scaled = Q_aniso * weight_norm            # (N, ng, nx, ny)
-
+    # R-1 Step 4 A1: ``Q`` is per-ordinate magnitude (N, ng, nx, ny).
+    # No ``/W`` applied here — the producer normalised at the apply
+    # boundary (Pattern 7).
     str_x = sn_mesh.streaming_x   # (N, nx)
     str_y = sn_mesh.streaming_y   # (N, ny)
     cell_update = sn_mesh.cell_update
@@ -831,9 +819,7 @@ def _sweep_2d_wavefront(
         # angular flux is the volumetric balance ψ = Q_n / Σ_t and
         # the scalar flux gets a weighted contribution.
         if sx == 0 and sy == 0:
-            Q_pure_z = Q_scaled[None, :, :, :]            # (1, ng, nx, ny)
-            if has_aniso:
-                Q_pure_z = Q_pure_z + Q_aniso_scaled[oct_idx]  # (N_oct, ng, nx, ny)
+            Q_pure_z = Q[oct_idx]                         # (N_oct, ng, nx, ny)
             # sig_t (ng, nx, ny) broadcasts against (N_oct, ng, nx, ny).
             psi_avg_pure_z = Q_pure_z / sig_t              # (N_oct, ng, nx, ny)
             angular_flux[oct_idx] = psi_avg_pure_z
@@ -875,9 +861,8 @@ def _sweep_2d_wavefront(
         # ── Per-octant buffers for the graph apply ────────────────
         psi_x_oct = psi_x[oct_idx].copy()    # (N_oct, ng, nx+1, ny)
         psi_y_oct = psi_y[oct_idx].copy()    # (N_oct, ng, nx, ny+1)
-        Q_octant = Q_scaled[None, :, :, :]   # (1, ng, nx, ny)
-        if has_aniso:
-            Q_octant = Q_octant + Q_aniso_scaled[oct_idx]   # (N_oct, ng, nx, ny)
+        # R-1 Step 4 A1 — slice the per-ordinate source for this octant.
+        Q_octant = Q[oct_idx]                # (N_oct, ng, nx, ny)
         angular_flux_oct = np.zeros((N_oct, ng, nx, ny))
 
         sweep_graph.apply(

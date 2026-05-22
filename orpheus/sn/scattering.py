@@ -113,6 +113,7 @@ need; can be added in a future wave).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import singledispatchmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -126,13 +127,19 @@ from orpheus.numerics.projection import (
     HarmonicMomentReconstruction,
 )
 
+# Runtime imports of the flux / source types — required at module load
+# time because :func:`singledispatchmethod.register` dispatches on the
+# runtime class.  These three modules form a leaf in the SN package
+# dependency graph (they do not import scattering.py), so the imports
+# are circular-import-safe.
+from .angular_flux import AngularFlux
+from .scalar_flux import ScalarFlux
+from .sources import IsotropicSource, PerOrdinateSource
+
 if TYPE_CHECKING:
-    from .angular_flux import AngularFlux
     from .harmonic_moment_field import HarmonicMomentField
     from .material_xs_field import MaterialXSField
     from .quadrature import AngularQuadrature
-    from .scalar_flux import ScalarFlux
-    from .sources import IsotropicSource, PerOrdinateSource
 
 
 __all__ = ["LegendreMomentScattering", "ScatteringOperator"]
@@ -528,7 +535,8 @@ class ScatteringOperator(LinearOperatorMixin):
 
         .. math::
 
-            Q^{\rm aniso}_n(\vec r) \;=\; (R \, \Lambda \, M \, \psi)_n(\vec r)
+            Q^{\rm aniso}_n(\vec r) \;=\;
+            \frac{1}{W}\,(R \, \Lambda \, M \, \psi)_n(\vec r)
 
         of the three primitives shipped in
         :mod:`orpheus.numerics.projection` and
@@ -550,6 +558,17 @@ class ScatteringOperator(LinearOperatorMixin):
         reconstruction, NOT the W-weighted Hilbert adjoint of :math:`M`,
         which differs by exactly this factor).
 
+        The trailing :math:`1/W = 1/\sum_n w_n` is the **producer-side
+        per-ordinate projection** introduced in R-1 Step 4 A1: the Pℓ
+        aniso source enters the per-ordinate transport equation
+        :math:`(\Omega\cdot\nabla + \sigma_t)\psi_n = Q/W +
+        q_{\rm aniso,n}` already in per-ordinate magnitude, so the
+        sweep does NOT need to apply ``/W`` again
+        (cf. :func:`~orpheus.sn.sweep.transport_sweep` whose
+        ``aniso_source`` parameter is documented as per-ordinate
+        magnitude post-A1).  See ``coding-elegance`` SKILL.md
+        §"Convention crosswalk template" / lesson L18.
+
         Total flop count is identical to the legacy hand-rolled
         ``for n in range(N)`` triple loop; the iteration over ordinates
         is now internal to :func:`numpy.einsum` inside :math:`R` and
@@ -570,8 +589,10 @@ class ScatteringOperator(LinearOperatorMixin):
         -------
         np.ndarray or PerOrdinateSource or None
             ``(N, ng, nx, ny)`` per-ordinate :math:`\ell \ge 1`
-            contribution, or ``None`` when ``scattering_order == 0`` or
-            ``angular_flux is None``.  Type matches the input.
+            contribution in **per-ordinate magnitude** (the trailing
+            ``/W`` is applied here, R-1 Step 4 A1).  Returns ``None``
+            when ``scattering_order == 0`` or ``angular_flux is None``.
+            Type matches the input.
 
         Notes
         -----
@@ -585,9 +606,7 @@ class ScatteringOperator(LinearOperatorMixin):
         principled :class:`LegendreMomentScattering` consumes after
         PR-INDEX-4.
         """
-        from .angular_flux import AngularFlux
         from .harmonic_moment_field import HarmonicMomentField
-        from .sources import PerOrdinateSource
         if self.scattering_order == 0 or angular_flux is None:
             return None
         is_typed = isinstance(angular_flux, AngularFlux)
@@ -612,6 +631,10 @@ class ScatteringOperator(LinearOperatorMixin):
             skip_l0=True,
         )
         R = HarmonicMomentReconstruction.from_Y(Y)
+        # Producer-side /W (R-1 Step 4 A1) — apply at the end of the
+        # reconstruction so both typed and bare outputs carry per-
+        # ordinate magnitude.  Pattern 7 producer-side normalisation.
+        sum_w = float(self.weights.sum())
         # Type sandwich: M's bare-ndarray output is wrapped into
         # HarmonicMomentField at the SN boundary; Lambda consumes /
         # returns typed; the typed output's .values feeds R which is
@@ -624,12 +647,13 @@ class ScatteringOperator(LinearOperatorMixin):
             moments_values = M.apply(values)
             moments = HarmonicMomentField(moments_values, mesh, L)
             scattered = Lam.apply(moments)  # HarmonicMomentField
-            result = R.apply(scattered.values)
+            result = R.apply(scattered.values) / sum_w
             return PerOrdinateSource(result, mesh)
         # Legacy bare-ndarray path — no typed wrapping (the bare path
         # is consumed by FD-matvec / probe-tests that bypass the type
-        # layer entirely).
-        result = R.apply(Lam.apply(M.apply(values)))
+        # layer entirely).  Still applies /W to advertise per-ordinate
+        # magnitude consistently with the typed path.
+        result = R.apply(Lam.apply(M.apply(values))) / sum_w
         return result
 
     # ── Foldable / residual split ─────────────────────────────────────
@@ -784,103 +808,186 @@ class ScatteringOperator(LinearOperatorMixin):
 
     # ── LinearOperator surface ─────────────────────────────────────────
 
-    def apply(
-        self, psi: "np.ndarray | AngularFlux",
-    ) -> "np.ndarray | AngularFlux":
+    @singledispatchmethod
+    def apply(self, psi):
         r"""Apply the full scattering source operator :math:`S\,\psi`.
 
-        Returns a per-ordinate isotropic-equivalent source plus the
-        :math:`\ell \ge 1` per-ordinate contribution, packaged together
-        as the :math:`(N, n_g, n_x, n_y)` array the operator-algebra
-        consumers expect under PR-INDEX-4.
+        Dispatched on input type via
+        :func:`functools.singledispatchmethod`:
 
-        For the P0 + (n,2n) parts, the action is the same scalar source
-        broadcast across every ordinate (the sweep's ``1/W`` factor is
-        not applied here — the caller, ``transport_sweep``, applies it).
-        For :math:`\ell \ge 1`, the action carries genuine per-ordinate
-        directional content.
+        * :class:`~orpheus.sn.angular_flux.AngularFlux` →
+          :class:`AngularFlux` — full :math:`P_\ell` Galerkin
+          reconstruction in **per-ordinate magnitude** (the trailing
+          :math:`1/W` projection lives at this producer boundary;
+          R-1 Step 4 A1).  Consumers are SN sweep / GMRES / source-
+          iteration loops that operate on per-ordinate angular flux.
+        * :class:`~orpheus.sn.scalar_flux.ScalarFlux` →
+          :class:`~orpheus.sn.sources.IsotropicSource` — :math:`P_0`
+          in-scatter + :math:`(n,2n)` doubling only, in **iso scalar
+          magnitude**.  No :math:`P_\ell` (scalar flux has no angular
+          info); no :math:`1/W` (scalar consumers — diffusion, CP,
+          kinetics — do not project to per-ordinate).
+        * :class:`numpy.ndarray` — legacy bare-ndarray path,
+          ``(N, ng, nx, ny)`` per-ordinate magnitude (consistent with
+          the typed :class:`AngularFlux` variant post-A1).  Preserved
+          for FD-matvec / probe-test call sites that bypass the type
+          layer.
+
+        The single :class:`ScatteringOperator` instance now serves
+        every consumer kind via type-directed dispatch — Pattern 1
+        (read-as-the-math via dunder) + Pattern 7 (producer-side
+        normalisation, the :math:`1/W` lives at the apply boundary,
+        decided by consumer type).  See ``coding-elegance`` SKILL.md
+        §"Convention crosswalk template" and lesson L18.
 
         Parameters
         ----------
-        psi : np.ndarray or AngularFlux
-            Angular flux.  When typed as
-            :class:`~orpheus.sn.angular_flux.AngularFlux` (Issue #197
-            PR-TYPED-2), the result is also an :class:`AngularFlux` —
-            the operator reads as the math.  When passed as bare
-            ``np.ndarray`` shape ``(N, ng, nx, ny)``, the result is a
-            bare ``np.ndarray`` — preserved for legacy
-            packed-vector / FD-matvec call sites.
+        psi : AngularFlux or ScalarFlux or np.ndarray
+            Flux argument.  Dispatch on runtime type.
 
         Returns
         -------
-        np.ndarray or AngularFlux
-            Per-ordinate scattering source shape
-            ``(N, ng, nx, ny)``.  Type matches the input.
+        AngularFlux or IsotropicSource or np.ndarray
+            Scattering source in the convention appropriate to the
+            consumer:
+
+            * AngularFlux input → AngularFlux output, per-ordinate
+              magnitude, full P_ℓ.
+            * ScalarFlux input → IsotropicSource output, iso scalar
+              magnitude, P_0 + (n,2n) only.
+            * np.ndarray input → np.ndarray output ``(N, ng, nx, ny)``,
+              per-ordinate magnitude.
 
         Notes
         -----
-        ORPHEUS's existing :class:`SNSolver` source iteration consumes
-        the isotropic and anisotropic pieces separately (the isotropic
-        :math:`Q` is a ``(ng, nx, ny)`` scalar source; the anisotropic
-        :math:`Q_{\rm aniso}` is a ``(N, ng, nx, ny)`` per-ordinate
-        source).  For internal use by :class:`SNSolver` the helpers
-        :meth:`add_iso_source`, :meth:`add_n2n_source`, and
-        :meth:`build_aniso_source` expose the same math without forcing
-        a wasteful broadcast.
+        Internal helpers :meth:`add_iso_source`, :meth:`add_n2n_source`,
+        and :meth:`build_aniso_source` remain available for callers
+        that need the iso / aniso pieces separately.
+        :meth:`build_aniso_source` returns **per-ordinate magnitude**
+        post-A1 (the :math:`1/W` is applied there); the per-ordinate
+        :class:`AngularFlux` variant of :meth:`apply` combines the iso
+        piece (in iso magnitude, projected by :math:`1/W` at the
+        boundary) with the aniso piece (already per-ordinate) into a
+        single :class:`PerOrdinateSource`.
         """
-        from .angular_flux import AngularFlux
-        from .scalar_flux import ScalarFlux
-        from .sources import IsotropicSource, PerOrdinateSource
-        is_typed = isinstance(psi, AngularFlux)
-        values = psi.values if is_typed else psi
-        if is_typed:
-            mesh = psi.mesh
-            # Reduce angular flux to scalar flux via the typed reduction
-            # (Pattern 3 — named intermediate).
-            phi: "ScalarFlux | np.ndarray" = psi.integrate_angular()
-            # Build the isotropic source as a typed IsotropicSource
-            # accumulator (Pattern 1 — read-as-the-math).  P0 + (n,2n)
-            # both return-new under the typed overload.
-            iso: IsotropicSource = mesh.zeros_isotropic_source()
-            iso = self.add_iso_source(iso, phi)
-            iso = self.add_n2n_source(iso, phi)
-            # Pℓ (l>=1) contribution as a typed PerOrdinateSource.
-            aniso_or_none = self.build_aniso_source(psi)
-            if aniso_or_none is None:
-                aniso = mesh.zeros_per_ordinate_source()
-            else:
-                aniso = aniso_or_none  # type: PerOrdinateSource
-            # Cross-type dunder algebra: iso + aniso broadcasts the
-            # isotropic source across the N axis and adds the
-            # anisotropic source — the load-bearing PR-TYPED-3
-            # pattern (replaces ``np.broadcast_to(...).copy() + Q``).
-            combined: PerOrdinateSource = iso + aniso
-            # R-1 Step 3b — ``S`` is volumetric: zero face-trace
-            # contribution.  The auto-allocated ``boundary`` on the
-            # returned :class:`AngularFlux` is exactly the zero
-            # :class:`BoundaryFlux` the operator algebra expects.  See
-            # ``StreamingOperator.apply`` for the contrasting case
-            # where the face residual IS non-zero.
-            return AngularFlux(combined.values, mesh)
-        # Bare-ndarray path preserves the legacy in-place contract for
-        # packed-vector / FD-matvec consumers.  The implicit-broadcast
-        # add (``Q_iso[None, :, :, :] + Q_aniso``) replaces the explicit
-        # ``np.broadcast_to(...).copy()`` followed by ``+=`` — numpy
-        # produces a fresh ``(N, ng, nx, ny)`` allocation from the
-        # broadcast add in one step.  When ``Q_aniso is None`` (P0-only),
-        # add against an implicit zero (``Q_iso[None, :, :, :] +
-        # np.zeros((1,1,1,1))``) — still elementwise add, no broadcast
-        # view, owns its data, ``(N, ng, nx, ny)`` shape.
-        phi_arr = np.einsum('n,ngxy->gxy', self.weights, values)
+        raise TypeError(
+            f"ScatteringOperator.apply: unsupported input type "
+            f"{type(psi).__name__}; expected AngularFlux, ScalarFlux, "
+            f"or numpy.ndarray.  Dispatch table is registered via "
+            f"@singledispatchmethod."
+        )
+
+    @apply.register
+    def _(self, psi: AngularFlux) -> "AngularFlux":
+        r"""Typed AngularFlux variant — per-ordinate magnitude output.
+
+        Math: combines
+        :math:`Q_{\rm iso} = \Sigma_{s,0} \phi + 2\Sigma_{2n} \phi`
+        (iso scalar from :meth:`add_iso_source`,
+        :meth:`add_n2n_source`) with
+        :math:`Q_{\rm aniso,n} = \frac{1}{W}\,
+        \sum_{\ell\ge 1}\,(2\ell+1)\,\sum_m
+        Y_\ell^m(\Omega_n)\,\Sigma_{s,\ell}\,\phi_\ell^m`
+        (per-ordinate from :meth:`build_aniso_source`) via the
+        boundary projection
+        :math:`Q_n = Q_{\rm iso}/W + Q_{\rm aniso,n}` — both terms in
+        per-ordinate magnitude after :math:`1/W`.
+
+        .. note:: **Tactical-legacy dimensional convention**.
+
+           This method returns :class:`AngularFlux`, but the returned
+           value is dimensionally a *source*
+           (:class:`~orpheus.sn.sources.PerOrdinateSource` would be the
+           dimensionally honest type).  ORPHEUS currently uses
+           :class:`AngularFlux` as the universal carrier for fluxes,
+           operator outputs, RHS sources, and Krylov residuals —
+           a known dimensional sin tracked in
+           `#205 <https://github.com/deOliveira-R/ORPHEUS/issues/205>`_
+           (Cross-method field architecture: storage × role typing).
+           R-1 Step 4 Phase 1.1 (the producer-side normalisation
+           carve) ships with this legacy convention.  Issue #205
+           designs the proper split (AngularFlux for ψ;
+           AngularSource for operator outputs / RHS; cross-method
+           field/role architecture).
+        """
+        mesh = psi.mesh
+        # Reduce angular flux to scalar flux via the typed reduction
+        # (Pattern 3 — named intermediate).
+        phi = psi.integrate_angular()
+        # Build the isotropic source as a typed IsotropicSource
+        # accumulator (Pattern 1 — read-as-the-math).  P0 + (n,2n)
+        # both return-new under the typed overload.
+        iso: IsotropicSource = mesh.zeros_isotropic_source()
+        iso = self.add_iso_source(iso, phi)
+        iso = self.add_n2n_source(iso, phi)
+        # Pℓ (ℓ≥1) contribution — per-ordinate magnitude after R-1
+        # Step 4 A1 (:meth:`build_aniso_source` applies /W internally).
+        aniso_or_none = self.build_aniso_source(psi)
+        if aniso_or_none is None:
+            aniso = mesh.zeros_per_ordinate_source()
+        else:
+            aniso = aniso_or_none
+        # Producer-side projection at the apply boundary (Pattern 7):
+        # ``iso / sum_w`` projects iso scalar to per-ordinate; ``+
+        # aniso`` adds the already-per-ordinate Pℓ piece.  Cross-type
+        # dunder ``IsotropicSource + PerOrdinateSource`` yields a
+        # :class:`PerOrdinateSource`.
+        sum_w = float(mesh.quad.weights.sum())
+        combined: PerOrdinateSource = (iso / sum_w) + aniso
+        # R-1 Step 3b — ``S`` is volumetric: zero face-trace
+        # contribution.  The auto-allocated ``boundary`` on the
+        # returned :class:`AngularFlux` is exactly the zero
+        # :class:`BoundaryFlux` the operator algebra expects.  See
+        # ``StreamingOperator.apply`` for the contrasting case
+        # where the face residual IS non-zero.
+        return AngularFlux(combined.values, mesh)
+
+    @apply.register
+    def _(self, phi: ScalarFlux) -> "IsotropicSource":
+        r"""Typed ScalarFlux variant — iso scalar magnitude output (P0 + n2n only).
+
+        Math:
+        :math:`Q(\vec r, g) = \Sigma_{s,0}(g'\to g)\,\phi_{g'}(\vec r)
+        + 2\,\Sigma_{2n}(g'\to g)\,\phi_{g'}(\vec r)`.
+        No :math:`P_\ell` (scalar flux lacks the angular info needed
+        for the Galerkin reconstruction); no :math:`1/W` (consumers in
+        scalar-flux equations — diffusion, CP, kinetics outer — do not
+        project to per-ordinate).
+        """
+        mesh = phi.mesh
+        iso: IsotropicSource = mesh.zeros_isotropic_source()
+        iso = self.add_iso_source(iso, phi)
+        iso = self.add_n2n_source(iso, phi)
+        return iso
+
+    @apply.register
+    def _(self, psi_arr: np.ndarray) -> np.ndarray:
+        r"""Bare-ndarray legacy variant — per-ordinate magnitude output.
+
+        Shape contract: input ``(N, ng, nx, ny)`` angular flux,
+        output ``(N, ng, nx, ny)`` per-ordinate source.  Preserved for
+        FD-matvec / probe-tests that bypass the type layer.
+
+        Post-R-1 Step 4 A1: returns per-ordinate magnitude consistent
+        with the :class:`AngularFlux` variant (the :math:`1/W` is
+        applied at the apply boundary just as in the typed path).
+        """
+        phi_arr = np.einsum('n,ngxy->gxy', self.weights, psi_arr)
         Q_iso = np.zeros((self.ng, self.nx, self.ny))
         self.add_iso_source(Q_iso, phi_arr)
         self.add_n2n_source(Q_iso, phi_arr)
-        Q_aniso = self.build_aniso_source(values)
+        # ℓ≥1 piece — per-ordinate magnitude after R-1 Step 4 A1.
+        Q_aniso = self.build_aniso_source(psi_arr)
+        sum_w = float(self.weights.sum())
         if Q_aniso is None:
-            # Explicit allocation + broadcast assignment.  Pattern 3 —
-            # the result owns its memory; downstream callers may mutate.
-            N = values.shape[0]
-            Q = np.empty((N, self.ng, self.nx, self.ny), dtype=Q_iso.dtype)
-            Q[...] = Q_iso[None, :, :, :]
+            # Iso scalar broadcast to per-ordinate via ``/sum_w``.
+            # Explicit allocation so the result owns its memory.
+            N = psi_arr.shape[0]
+            Q = np.empty(
+                (N, self.ng, self.nx, self.ny), dtype=Q_iso.dtype,
+            )
+            Q[...] = (Q_iso / sum_w)[None, :, :, :]
             return Q
-        return Q_iso[None, :, :, :] + Q_aniso
+        # Both terms in per-ordinate magnitude after A1; one broadcast
+        # add produces the combined source.
+        return (Q_iso / sum_w)[None, :, :, :] + Q_aniso

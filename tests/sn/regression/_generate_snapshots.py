@@ -263,11 +263,16 @@ def _slab_fixed_source(ng: str, n_cells: int) -> dict:
         bc_right=BC.vacuum,
     )
     quadrature = GaussLegendre1D.create(n_ordinates=n_ord)
-    # Uniform isotropic source: 1.0 / (4π or 2 for 1D) per ordinate. Use 1.0
-    # raw — the solver applies the 1/W factor internally (see
-    # docstring of solve_sn_fixed_source).
+    # R-1 Step 4 A1 — ``external_source`` is **per-ordinate density**
+    # (already projected via ``/sum_w`` at the caller boundary).
+    # Iso scalar source magnitude 1.0 ⇒ per-ord density ``1.0/sum_w``.
+    # The snapshot remains bit-identical because the scalar flux only
+    # depends on the iso magnitude: ``Σ_n w_n · ψ_n = sum_w · (1/sum_w)/Σ_t``.
     # Issue #196 PR-INDEX-5: principled shape ``(N, ng, nx, ny)``.
-    external_source = np.ones((n_ord, n_groups, n_cells, 1))
+    sum_w = float(quadrature.weights.sum())
+    external_source = np.full(
+        (n_ord, n_groups, n_cells, 1), 1.0 / sum_w,
+    )
     return dict(
         materials={0: fuel}, mesh=mesh, quadrature=quadrature,
         scattering_order=0, kind="fixed_source",

@@ -137,22 +137,30 @@ class SNSlabMMSCase:
         return Mesh1D(edges=edges, mat_ids=mat_ids)
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
-        r"""Per-ordinate external source :math:`Q^{\text{ext}}_n` on ``mesh``.
+        r"""Per-ordinate-density external source :math:`Q^{\text{ext}}_n` on ``mesh``.
 
         Evaluated at cell centres to match the diamond-difference
         cell-average convention. Returned shape is
         ``(N, nx, 1, 1)`` — per ordinate, per cell, one energy group.
+
+        R-1 Step 4 A1 — returns **per-ordinate density** (already
+        projected via ``/sum_w``).  The continuous derivation gives
+        :math:`Q_n = \mu_n A'(x) + (\Sigma_t - \Sigma_s) A(x)` for an
+        isotropic ansatz :math:`\psi_n = A(x)/W`; under the per-ord
+        contract this is divided by :math:`\sum_n w_n` at the producer
+        boundary (Pattern 7 of ``coding-elegance``).
         """
         x = mesh.centers                          # (nx,)
         A = self.phi_exact(x)                     # (nx,)
         Ap = self.dphi_exact(x)                   # (nx,)
         mu = self.quadrature.mu_x                 # (N,)
+        sum_w = float(self.quadrature.weights.sum())
         N = len(mu)
         nx = len(x)
 
         streaming = mu[:, None] * Ap[None, :]     # (N, nx)
         removal = (self.sigma_t - self.sigma_s) * A[None, :]  # (1, nx)
-        Q = streaming + removal                   # (N, nx)
+        Q = (streaming + removal) / sum_w         # (N, nx) per-ord density
         return Q[:, None, :, None]                # (N, nx, 1, 1)
 
 
@@ -471,6 +479,7 @@ class SNSlab2GHeterogeneousMMSCase:
         A = np.sin(np.pi * x / L)
         Ap = (np.pi / L) * np.cos(np.pi * x / L)
         mu = self.quadrature.mu_x
+        sum_w = float(self.quadrature.weights.sum())
         N = len(mu)
         nx = len(x)
         ng = self.n_groups
@@ -488,6 +497,8 @@ class SNSlab2GHeterogeneousMMSCase:
                 )  # (nx,)
                 in_scatter += sig_s * self.c_spectrum[g_from] * A
             Q[:, g, :, 0] = streaming + (removal - in_scatter)[None, :]
+        # R-1 Step 4 A1 — emit per-ordinate density (Pattern 7).
+        Q /= sum_w
         return Q
 
 
@@ -719,13 +730,15 @@ class SN2DCartesianMMSCase:
 
         mu_x = self.quadrature.mu_x                   # (N,)
         mu_y = self.quadrature.mu_y                   # (N,)
+        sum_w = float(self.quadrature.weights.sum())
         N = len(mu_x)
 
         # streaming: mu_x * dA/dx + mu_y * dA/dy   → (N, nx, ny)
         streaming = (mu_x[:, None, None] * dA_dx[None, :, :]
                      + mu_y[:, None, None] * dA_dy[None, :, :])
         removal = (self.sigma_t - self.sigma_s) * A   # (nx, ny)
-        Q = streaming + removal[None, :, :]            # (N, nx, ny)
+        # R-1 Step 4 A1 — emit per-ordinate density (Pattern 7).
+        Q = (streaming + removal[None, :, :]) / sum_w  # (N, nx, ny)
         return Q[:, None, :, :]                        # (N, 1, nx, ny)
 
 
@@ -905,6 +918,7 @@ class SN2DCartesian2GHeterogeneousMMSCase:
 
         mu_x = self.quadrature.mu_x
         mu_y = self.quadrature.mu_y
+        sum_w = float(self.quadrature.weights.sum())
         N = len(mu_x)
         nx, ny_ = len(cx), len(cy)
 
@@ -927,6 +941,8 @@ class SN2DCartesian2GHeterogeneousMMSCase:
                 ).reshape(nx, ny_)
                 in_scatter += sig_s * self.c_spectrum[g_from] * A
             Q[:, g, :, :] = streaming + (removal - in_scatter)[None, :, :]
+        # R-1 Step 4 A1 — emit per-ordinate density (Pattern 7).
+        Q /= sum_w
         return Q
 
 
@@ -1108,6 +1124,7 @@ class SNP1AnisoMMSCase:
         A = np.sin(np.pi * x / L)
         Ap = (np.pi / L) * np.cos(np.pi * x / L)
         mu = self.quadrature.mu_x
+        sum_w = float(self.quadrature.weights.sum())
         N = len(mu)
         a = self.alpha
 
@@ -1116,7 +1133,8 @@ class SNP1AnisoMMSCase:
         t2 = (self.sigma_t - self.sigma_s0) * A[None, :]            # (Σ_t - Σ_s0) A
         t3 = a * mu[:, None] * (self.sigma_t - self.sigma_s1) * A[None, :]  # α μ (Σ_t - Σ_s1) B
         t4 = a * (mu[:, None] ** 2) * Ap[None, :]                   # α μ² B'
-        Q = t1 + t2 + t3 + t4
+        # R-1 Step 4 A1 — emit per-ordinate density (Pattern 7).
+        Q = (t1 + t2 + t3 + t4) / sum_w
         return Q[:, None, :, None]
 
 
@@ -1228,10 +1246,12 @@ class SNSphericalMMSCase:
         A = self.phi_exact(r)
         Ap = self.dphi_exact(r)
         mu = self.quadrature.mu_x
+        sum_w = float(self.quadrature.weights.sum())
         N = len(mu)
         streaming = mu[:, None] * Ap[None, :]
         removal = (self.sigma_t - self.sigma_s) * A[None, :]
-        Q = streaming + removal
+        # R-1 Step 4 A1 — emit per-ordinate density (Pattern 7).
+        Q = (streaming + removal) / sum_w
         return Q[:, None, :, None]
 
 
@@ -1312,10 +1332,12 @@ class SNCylindricalMMSCase:
         Ap = self.dphi_exact(r)
         # mu_x is the radial direction cosine (η) for cylindrical
         eta = self.quadrature.mu_x
+        sum_w = float(self.quadrature.weights.sum())
         N = len(eta)
         streaming = eta[:, None] * Ap[None, :]
         removal = (self.sigma_t - self.sigma_s) * A[None, :]
-        Q = streaming + removal
+        # R-1 Step 4 A1 — emit per-ordinate density (Pattern 7).
+        Q = (streaming + removal) / sum_w
         return Q[:, None, :, None]
 
 
@@ -2120,6 +2142,7 @@ class SNSphericalAnisotropicMMSCase:
         B_ = self.B(r)                                # (nx,)
         Bp_ = self.Bp(r)                              # (nx,)
         mu = self.quadrature.mu_x                     # (N,)
+        sum_w = float(self.quadrature.weights.sum())
 
         streaming_iso = mu[:, None] * Ap_[None, :]               # μ A'
         streaming_aniso = (mu[:, None] ** 2) * Bp_[None, :]      # μ² B'
@@ -2127,8 +2150,9 @@ class SNSphericalAnisotropicMMSCase:
         removal_iso = (self.sigma_t - self.sigma_s) * A_[None, :]  # (Σ_t-Σ_s) A
         removal_aniso = self.sigma_t * mu[:, None] * B_[None, :]   # Σ_t μ B
 
+        # R-1 Step 4 A1 — emit per-ordinate density (Pattern 7).
         Q = (streaming_iso + streaming_aniso + redistribution
-             + removal_iso + removal_aniso)            # (N, nx)
+             + removal_iso + removal_aniso) / sum_w    # (N, nx)
         return Q[:, None, :, None]                     # (N, nx, 1, 1)
 
 
@@ -2266,6 +2290,7 @@ class SNCylindricalAnisotropicMMSCase:
         Bp_ = self.Bp(r)
         eta = self.quadrature.mu_x       # (N,) — radial cosine
         xi = self.quadrature.mu_y        # (N,) — azimuthal cosine
+        sum_w = float(self.quadrature.weights.sum())
 
         streaming_iso = eta[:, None] * Ap_[None, :]              # η A'
         streaming_aniso = (eta[:, None] ** 2) * Bp_[None, :]     # η² B'
@@ -2273,8 +2298,9 @@ class SNCylindricalAnisotropicMMSCase:
         removal_iso = (self.sigma_t - self.sigma_s) * A_[None, :]
         removal_aniso = self.sigma_t * eta[:, None] * B_[None, :]
 
+        # R-1 Step 4 A1 — emit per-ordinate density (Pattern 7).
         Q = (streaming_iso + streaming_aniso + redistribution
-             + removal_iso + removal_aniso)
+             + removal_iso + removal_aniso) / sum_w
         return Q[:, None, :, None]
 
 

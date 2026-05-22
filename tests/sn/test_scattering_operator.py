@@ -305,7 +305,15 @@ class TestApplySemantics:
     """
 
     def test_apply_isotropic_flux_p0_only(self, solver_2g_p0):
-        """For P0-only solver, apply(ψ) = (P0 in-scatter + (n,2n))(φ) broadcast.
+        """For P0-only solver, apply(ψ) = (P0 in-scatter + (n,2n))(φ) / W broadcast.
+
+        R-1 Step 4 A1 — ``ScatteringOperator.apply`` returns per-ordinate
+        density at the producer boundary (the ``/sum_w`` projection
+        lives at the producer per Pattern 7).  Pre-A1 this returned
+        iso magnitude broadcast across N; post-A1 it returns
+        ``Q_iso / sum_w`` broadcast — the per-ordinate value each
+        ordinate sees in the per-ordinate transport equation
+        ``(Ω·∇ + Σ_t) ψ_n = Q_iso/W + …``.
 
         Issue #196 PR-INDEX-4: principled ``(N, ng, nx, ny)`` ψ.
         """
@@ -319,11 +327,15 @@ class TestApplySemantics:
         # Compute scalar flux the same way apply() does internally.
         phi = np.einsum('n,ngxy->gxy', op.weights, psi)
 
-        # Reference: compute Q_iso explicitly
+        # Reference: compute Q_iso explicitly, then project to
+        # per-ordinate via /sum_w (R-1 Step 4 A1).
         Q_iso = np.zeros((ng, nx, ny))
         op.add_iso_source(Q_iso, phi)
         op.add_n2n_source(Q_iso, phi)
-        expected = np.broadcast_to(Q_iso[None, :, :, :], psi.shape)
+        sum_w = float(op.weights.sum())
+        expected = np.broadcast_to(
+            (Q_iso / sum_w)[None, :, :, :], psi.shape,
+        )
 
         actual = op.apply(psi)
         np.testing.assert_allclose(actual, expected, rtol=1e-13)

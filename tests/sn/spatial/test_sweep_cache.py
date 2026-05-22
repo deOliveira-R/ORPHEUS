@@ -505,7 +505,7 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     acceptance gate: ≤ 2.0 ms (a slim safety margin for CI machine noise).
     Marked ``@slow`` — skipped by default but runs in CI.
     """
-    from orpheus.sn.sources import IsotropicSource
+    from orpheus.sn.sources import PerOrdinateSource
     from orpheus.sn.sweep import transport_sweep
 
     mesh = Mesh1D(
@@ -516,9 +516,9 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     )
     quad = GaussLegendre1D.create(16)
     sn_mesh = SNMesh(mesh, quad, _trivial_materials(ng=4))
-    # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
-    # Issue #197 PR-TYPED-4: strict typed source.
-    Q = IsotropicSource(np.ones((4, 160, 1)), sn_mesh)
+    # Issue #196 PR-INDEX-5: Q principled.
+    # R-1 Step 4 A1: single per-ordinate source carrier.
+    Q = PerOrdinateSource.from_isotropic(np.ones((4, 160, 1)), sn_mesh)
     sig_t = np.ones((4, 160, 1))  # (ng, nx, ny) — PR-INDEX-3
     # Issue #197 PR-TYPED-2: typed boundary state replaces dict.
     boundary_flux = sn_mesh.zeros_boundary_flux()
@@ -591,8 +591,10 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
         bc_right=BC("reflective"),
     )
     quad = GaussLegendre1D.create(4)
-    # Issue #196 PR-INDEX-5: external_source principled (N, ng, nx, ny).
-    Q_external = np.ones((quad.N, 1, 10, 1))
+    # R-1 Step 4 A1 — ``external_source`` is per-ordinate density
+    # (already ``/sum_w``).  Iso scalar magnitude 1 ⇒ per-ord ``1/sum_w``.
+    sum_w = float(quad.weights.sum())
+    Q_external = np.full((quad.N, 1, 10, 1), 1.0 / sum_w)
 
     result = solve_sn_fixed_source(
         materials=materials,

@@ -153,9 +153,12 @@ def test_cylinder_three_way_standoff(
     N = quad.N
     nx = mesh.N
     ng = 1
-    Q = np.ones((N, ng, nx, 1))
+    # R-1 Step 4 A1 — ``external_source`` is per-ordinate density.
+    # Iso scalar magnitude 1 ⇒ per-ord density ``1/sum_w``.
+    sum_w = float(quad.weights.sum())
+    Q = np.full((N, ng, nx, 1), 1.0 / sum_w)
 
-    psi_ref = 1.0 / (0.1 * quad.weights.sum())
+    psi_ref = 1.0 / (0.1 * sum_w)
 
     res_si = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,

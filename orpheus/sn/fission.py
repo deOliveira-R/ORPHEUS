@@ -67,6 +67,7 @@ in a future wave when the adjoint transport machinery lands.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import singledispatchmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -76,10 +77,15 @@ from orpheus.numerics.operator import (
     LinearOperatorMixin,
 )
 
+# Runtime imports for :func:`singledispatchmethod.register` — see
+# ``scattering.py`` for the same pattern.  These three types form a
+# leaf in the SN dependency graph (they do not import fission.py).
+from .angular_flux import AngularFlux
+from .scalar_flux import ScalarFlux
+from .sources import IsotropicSource
+
 if TYPE_CHECKING:
-    from .angular_flux import AngularFlux
     from .material_xs_field import MaterialXSField
-    from .scalar_flux import ScalarFlux
 
 
 __all__ = ["FissionOperator"]
@@ -145,9 +151,8 @@ class FissionOperator(LinearOperatorMixin):
         """
         return cls(mat_xs=mat_xs)
 
-    def apply(
-        self, phi: "np.ndarray | ScalarFlux | AngularFlux",
-    ) -> "np.ndarray | ScalarFlux | AngularFlux":
+    @singledispatchmethod
+    def apply(self, phi):
         r"""Apply :math:`F\,\phi`: emission rate × spectrum, no :math:`1/k`.
 
         .. math::
@@ -155,64 +160,120 @@ class FissionOperator(LinearOperatorMixin):
             (F\,\phi)_g(\vec r) = \chi_g(\vec r)\,
               \sum_{g'} \nu\Sigma_{f,g'}(\vec r)\,\phi_{g'}(\vec r)
 
-        Parameters
-        ----------
-        phi : np.ndarray or ScalarFlux or AngularFlux
-            Flux.  Three input types are accepted:
+        Dispatched on input type via
+        :func:`functools.singledispatchmethod`:
 
-            * Bare ``np.ndarray`` shape ``(ng, nx, ny)`` — returns bare
-              ``np.ndarray`` (legacy packed-vector / FD-matvec consumers,
-              SNStreamingOperator / GMRES).
-            * :class:`~orpheus.sn.scalar_flux.ScalarFlux` — returns
-              :class:`ScalarFlux` (operator reads as the math at the
-              eigenvalue layer; PR-TYPED-2).
-            * :class:`~orpheus.sn.angular_flux.AngularFlux` — returns
-              :class:`AngularFlux` (R-1 Step 3 — operator-algebra
-              consumer at the within-group layer; lifts via internal
-              ``ψ → φ → F·φ → broadcast(N, ·, ·, ·)``).
+        * :class:`~orpheus.sn.angular_flux.AngularFlux` →
+          :class:`AngularFlux` — fission emission in **per-ordinate
+          magnitude** (the trailing :math:`1/W` projection lives at the
+          producer boundary; R-1 Step 4 A1).  Consumers are SN
+          sweep / GMRES / source-iteration loops operating on per-
+          ordinate angular flux.
+        * :class:`~orpheus.sn.scalar_flux.ScalarFlux` →
+          :class:`~orpheus.sn.sources.IsotropicSource` — fission
+          emission in **iso scalar magnitude**.  For consumers in
+          scalar-flux equations (eigenvalue outer / depletion /
+          diffusion) that do not project to per-ordinate.
+          Symmetric with :meth:`ScatteringOperator.apply`'s
+          :class:`ScalarFlux` variant.
+        * :class:`numpy.ndarray` — legacy bare-ndarray path,
+          ``(ng, nx, ny)`` iso scalar fission source.  Preserved for
+          packed-vector / FD-matvec consumers (e.g. ``SNStreamingOperator``,
+          legacy GMRES on ``L.apply``).
 
-        Returns
-        -------
-        np.ndarray or ScalarFlux or AngularFlux
-            Fission source *without* the :math:`1/k` eigenvalue
-            division.  Type matches the input (typed → typed, raw → raw).
+        See ``coding-elegance`` SKILL.md §"Convention crosswalk template"
+        and lesson L18 for the Pattern 7 producer-side normalisation
+        discipline.  Fission has no :math:`P_\ell` aniso component
+        (the emission spectrum is isotropic by construction); the
+        :math:`1/W` projection in the :class:`AngularFlux` variant is
+        the only producer-side normalisation.
 
         Notes
         -----
-        R-1 Step 3a — the :class:`AngularFlux` overload is added for
-        completeness of the operator algebra ``(L + C - S - F).apply(ψ)``.
-        In ORPHEUS the within-group operator triple has ``F =
-        ZeroOperator``; ``F.apply(AngularFlux)`` is consumed by the
-        future Phase A :class:`KEigenvalue` outer iteration, NOT by
-        the within-group inner solve.  The result's ``.boundary`` is
-        the auto-allocated zero :class:`BoundaryFlux` — fission is a
-        volumetric emission with no face-trace contribution.
+        R-1 Step 3a introduced the :class:`AngularFlux` overload for
+        the operator algebra ``(L + C - S - F).apply(ψ)``.  R-1 Step 4
+        A1 added the producer-side :math:`1/W` projection.
         """
-        from .angular_flux import AngularFlux
-        from .scalar_flux import ScalarFlux
-        # Typed AngularFlux lift — reduce angular → scalar, apply scalar
-        # path, broadcast back across the ordinate axis.  The per-
-        # ordinate fission source is the per-cell emission rate (no
-        # 1/W normalization — same convention as ScatteringOperator's
-        # typed branch returns Q_iso[None, :, :, :] broadcast).
-        if isinstance(phi, AngularFlux):
-            phi_scalar: "ScalarFlux" = phi.integrate_angular()
-            fission_scalar: "ScalarFlux" = self.apply(phi_scalar)
-            N = phi.mesh.quad.N
-            values = np.broadcast_to(
-                fission_scalar.values[None, :, :, :],
-                (N, phi.ng, phi.nx, phi.ny),
-            ).copy()
-            return AngularFlux(values, phi.mesh)
-        is_typed = isinstance(phi, ScalarFlux)
-        values = phi.values if is_typed else phi
+        raise TypeError(
+            f"FissionOperator.apply: unsupported input type "
+            f"{type(phi).__name__}; expected AngularFlux, ScalarFlux, "
+            f"or numpy.ndarray.  Dispatch table is registered via "
+            f"@singledispatchmethod."
+        )
+
+    @apply.register
+    def _(self, psi: AngularFlux) -> "AngularFlux":
+        r"""Typed AngularFlux variant — per-ordinate magnitude output.
+
+        Math: reduce angular → scalar via :math:`\phi = \sum_n w_n
+        \psi_n`, compute iso fission source :math:`F\phi`, then
+        project to per-ordinate via :math:`/W` and broadcast across
+        the :math:`N` ordinates.  The :math:`1/W` is the producer-side
+        normalisation (R-1 Step 4 A1).
+
+        .. note:: **Tactical-legacy dimensional convention**.
+
+           Returns :class:`AngularFlux`, but the returned value is
+           dimensionally a *source*
+           (:class:`~orpheus.sn.sources.PerOrdinateSource` would be the
+           honest type).  See
+           :meth:`ScatteringOperator.apply` (AngularFlux variant) and
+           `#205 <https://github.com/deOliveira-R/ORPHEUS/issues/205>`_
+           for the cross-method field/role architecture that will
+           split the dimensional roles cleanly.
+        """
+        phi_scalar = psi.integrate_angular()
+        # Compute iso fission source via the ScalarFlux variant.
+        fission_iso: IsotropicSource = self.apply(phi_scalar)
+        # Project to per-ordinate: ``Q/W`` broadcast across N.
+        # Reuses the canonical :class:`PerOrdinateSource.from_isotropic`
+        # factory — single source of truth for the iso→per-ord
+        # projection (Pattern 2).
+        from .sources import PerOrdinateSource
+        per_ord = PerOrdinateSource.from_isotropic(
+            fission_iso.values, psi.mesh,
+        )
+        return AngularFlux(per_ord.values, psi.mesh)
+
+    @apply.register
+    def _(self, phi: ScalarFlux) -> "IsotropicSource":
+        r"""Typed ScalarFlux variant — iso scalar magnitude output.
+
+        Math:
+        :math:`Q_g(\vec r) = \chi_g(\vec r)\,
+        \sum_{g'} \nu\Sigma_{f,g'}(\vec r)\,\phi_{g'}(\vec r)`.
+        Iso scalar magnitude — no :math:`1/W` (scalar consumers do
+        not project).
+
+        Returns :class:`IsotropicSource` (R-1 Step 4 A1 — was
+        :class:`ScalarFlux` pre-A1; the return type now matches
+        :meth:`ScatteringOperator.apply`'s ScalarFlux variant by
+        symmetry, and reflects the dimensional truth that the
+        fission output is a source quantity, not a flux).
+        """
         sig_p = self.sig_p
         chi = self.chi
         # Production rate: per-cell sum over groups, shape (nx, ny).
-        fission_rate = np.einsum("gxy,gxy->xy", sig_p, values)
+        fission_rate = np.einsum("gxy,gxy->xy", sig_p, phi.values)
         # Spectrum × rate: chi is (ng, nx, ny), rate is (nx, ny);
         # broadcast rate across the leading group axis.
         out = chi * fission_rate[None, :, :]
-        if is_typed:
-            return ScalarFlux(out, phi.mesh)
-        return out
+        return IsotropicSource(out, phi.mesh)
+
+    @apply.register
+    def _(self, phi_arr: np.ndarray) -> np.ndarray:
+        r"""Bare-ndarray legacy variant — iso scalar fission source.
+
+        Shape contract: input ``(ng, nx, ny)`` scalar flux, output
+        ``(ng, nx, ny)`` iso fission source.  Preserved for packed-
+        vector / FD-matvec consumers (``SNStreamingOperator``, legacy
+        GMRES on ``L.apply``).  No type wrapping; the bare path
+        bypasses the type layer entirely.
+        """
+        sig_p = self.sig_p
+        chi = self.chi
+        # Production rate: per-cell sum over groups, shape (nx, ny).
+        fission_rate = np.einsum("gxy,gxy->xy", sig_p, phi_arr)
+        # Spectrum × rate: chi is (ng, nx, ny), rate is (nx, ny);
+        # broadcast rate across the leading group axis.
+        return chi * fission_rate[None, :, :]

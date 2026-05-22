@@ -593,13 +593,13 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
             return phi
 
         def solve(self, rhs):
-            # PR-TYPED-4: strict typed sweep contract.  ``rhs`` is a
-            # bare ndarray from the iteration primitive; wrap at the
-            # adapter boundary.
-            from orpheus.sn.sources import IsotropicSource
-            iso = IsotropicSource(rhs, sn_mesh)
+            # R-1 Step 4 A1: single per-ordinate source carrier.
+            # ``rhs`` is bare ndarray (ng, nx, ny) — wrap via the
+            # canonical iso → per-ord factory at the adapter boundary.
+            from orpheus.sn.sources import PerOrdinateSource
+            source = PerOrdinateSource.from_isotropic(rhs, sn_mesh)
             _angular, scalar = transport_sweep(
-                iso, solver.mat_xs.total_cross_section, sn_mesh,
+                source, solver.mat_xs.total_cross_section, sn_mesh,
                 boundary_flux,
             )
             return scalar

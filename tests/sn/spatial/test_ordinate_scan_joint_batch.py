@@ -30,7 +30,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn import sweep as sweep_module
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.quadrature import GaussLegendre1D
-from orpheus.sn.sources import IsotropicSource
+from orpheus.sn.sources import PerOrdinateSource
 from orpheus.sn.sweep import transport_sweep
 from tests.sn._test_helpers import placeholder_materials
 
@@ -46,7 +46,7 @@ def _slab_setup(N: int = 4, nx: int = 8, ng: int = 2):
     sn_mesh = SNMesh(mesh, GaussLegendre1D.create(n_ordinates=N), placeholder_materials(ng=ng))
     # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
     # Issue #197 PR-TYPED-4: strict typed source.
-    Q = IsotropicSource(np.full((ng, nx, 1), 1.0), sn_mesh)
+    Q = PerOrdinateSource.from_isotropic(np.full((ng, nx, 1), 1.0), sn_mesh)
     sig_t = np.full((ng, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     return Q, sig_t, sn_mesh
 
@@ -62,7 +62,7 @@ def _sphere_setup(N: int = 4, nx: int = 8, ng: int = 2):
     sn_mesh = SNMesh(mesh, GaussLegendre1D.create(n_ordinates=N), placeholder_materials(ng=ng))
     # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
     # Issue #197 PR-TYPED-4: strict typed source.
-    Q = IsotropicSource(np.full((ng, nx, 1), 1.0), sn_mesh)
+    Q = PerOrdinateSource.from_isotropic(np.full((ng, nx, 1), 1.0), sn_mesh)
     sig_t = np.full((ng, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     return Q, sig_t, sn_mesh
 

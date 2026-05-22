@@ -495,22 +495,21 @@ class SNSolver:
             CollisionOperator, StreamingOperator,
             _copy_boundary_face_state,
         )
+        from .sources import PerOrdinateSource
         from orpheus.numerics.iteration import SourceIteration
         from orpheus.numerics.operator import ZeroOperator
 
-        N = self.quad.N
-        nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
-        sum_w = float(self.quad.weights.sum())
-
         # ── Build the typed RHS ──────────────────────────────────────
-        # Per-ordinate q_ext: each ordinate sees fission_source / sum_w
-        # (iso-to-per-ordinate normalisation matching the discrete-
-        # ordinates convention).  See ``_solve_krylov`` for the same
-        # reasoning.
-        q_per_ord = np.broadcast_to(
-            (fission_source / sum_w)[None, :, :, :], (N, ng, nx, ny),
-        ).copy()
-        q_ext_typed = AngularFlux(q_per_ord, self.sn_mesh)
+        # R-1 Step 4 A1 — q_ext as per-ordinate density via the canonical
+        # ``PerOrdinateSource.from_isotropic`` factory.  The /W projection
+        # lives at the factory boundary (Pattern 7 producer-side
+        # normalisation); the legacy
+        # ``q_per_ord = (fission_source / sum_w)[None, :, :, :]``
+        # broadcast pattern is GONE.
+        q_ext_per_ord = PerOrdinateSource.from_isotropic(
+            fission_source, self.sn_mesh,
+        )
+        q_ext_typed = AngularFlux(q_ext_per_ord.values, self.sn_mesh)
         # Pre-populate q_ext.boundary with the persistent partner-flux
         # state ``self._boundary_flux`` from the previous outer call.
         # This is the load-bearing plumbing for reflective BCs: the
@@ -531,14 +530,15 @@ class SNSolver:
         )
         LC = L_leaf + C_t  # InvertibleOperator — apply + solve
 
-        # ScatteringOperator.apply returns iso scatter source broadcast
-        # without /sum_w (sweep convention); rescale here so the
-        # operator-algebra consumer sees per-ordinate values directly.
-        S_normalised = self.scattering_op / sum_w
+        # R-1 Step 4 A1 — ``ScatteringOperator.apply`` now returns
+        # per-ordinate density at the producer boundary (the
+        # ``/sum_w`` projection lives inside the singledispatched
+        # ``apply``).  The legacy consumer-side rescale
+        # ``S_normalised = self.scattering_op / sum_w`` is GONE.
 
         si = SourceIteration(
             LC,
-            S_normalised,
+            self.scattering_op,
             ZeroOperator(),
             max_iter=self.max_inner,
             tol=self.inner_tol,
@@ -615,22 +615,18 @@ class SNSolver:
 
         from .angular_flux import AngularFlux
         from .operator import CollisionOperator, StreamingOperator
+        from .sources import PerOrdinateSource
         from orpheus.numerics.iteration import KrylovAcceleration
         from orpheus.numerics.operator import ZeroOperator
 
-        N = self.quad.N
-        nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
-        sum_w = float(self.quad.weights.sum())
-
         # ── Build the typed RHS ──────────────────────────────────────
-        # Per-ordinate q_ext: each ordinate sees ``fission_source /
-        # sum_w`` (the iso-to-per-ordinate normalisation — Σ_n w_n ·
-        # (X/sum_w) = X recovers the iso source under angular
-        # integration).
-        q_per_ord = np.broadcast_to(
-            (fission_source / sum_w)[None, :, :, :], (N, ng, nx, ny),
-        ).copy()
-        q_ext_typed = AngularFlux(q_per_ord, self.sn_mesh)
+        # R-1 Step 4 A1 — q_ext as per-ordinate density via the canonical
+        # ``PerOrdinateSource.from_isotropic`` factory.  /W lives at the
+        # factory boundary (Pattern 7 producer-side normalisation).
+        q_ext_per_ord = PerOrdinateSource.from_isotropic(
+            fission_source, self.sn_mesh,
+        )
+        q_ext_typed = AngularFlux(q_ext_per_ord.values, self.sn_mesh)
 
         # ── Build the typed operator triple ─────────────────────────
         # InvertibleOperator via __add__ dispatch (R-1 Step C).
@@ -642,20 +638,10 @@ class SNSolver:
         )
         LC = L_leaf + C_t  # InvertibleOperator: apply + solve
 
-        # NOTE on the ``/ sum_w`` rescaling of S — the
-        # :class:`ScatteringOperator.apply` typed branch returns the iso
-        # scattering source broadcast across N ordinates WITHOUT the
-        # ``1/sum_w`` discrete-ordinates normalisation (the legacy SI
-        # path's :func:`transport_sweep` applies it internally; the
-        # ScatteringOperator docstring marks this contract explicitly).
-        # The operator-algebra consumer here needs per-ordinate values
-        # already normalised — wrap via :class:`ScaledOperator`
-        # arithmetic.  After ``S = self.scattering_op / sum_w``,
-        # ``S.apply(psi) = scatter_iso(phi) / sum_w`` per ordinate,
-        # which IS the correct operator action for the discrete-
-        # ordinates per-ordinate equation
-        # ``(Omega.grad + sigma_t).psi_n - (1/sum_w).iso_scatter = q_n``.
-        S_normalised = self.scattering_op / sum_w
+        # R-1 Step 4 A1 — ``ScatteringOperator.apply`` returns
+        # per-ordinate density at the producer boundary.  The legacy
+        # consumer-side rescale ``S_normalised = self.scattering_op /
+        # sum_w`` is GONE.
 
         # NOTE on the preconditioner — R-1 ships GMRES UNPRECONDITIONED
         # (explicit identity) per user direction.  Issue #200 tracks the
@@ -678,9 +664,11 @@ class SNSolver:
         # Slab is unaffected because the discrete L+C IS affine in σ_t
         # there (no Carlson seed needed); SI is unaffected because its
         # iteration loop attaches the previous iterate to the rhs.
+        N = self.quad.N
+        nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
         krylov = KrylovAcceleration(
             LC,
-            S_normalised,
+            self.scattering_op,
             ZeroOperator(),
             preconditioner=lambda q: q,  # explicit identity — issue #200 tracks re-enable
             tol=self.inner_tol,
@@ -700,23 +688,22 @@ class SNSolver:
         return psi_typed.integrate_angular().values
 
     def _make_sweep_preconditioner(
-        self, eq_map, n: int, sum_w: float,
+        self, eq_map, n: int,
     ) -> ScipyLinearOperator:
         r"""Build a scipy LinearOperator wrapping the sweep as :math:`L^{-1}`.
 
-        The sweep takes a structured pair ``(Q_iso, Q_aniso)`` and
-        returns ``(angular_flux, scalar_flux)``.  GMRES wants a scalar
-        ``matvec(q) -> M^{-1}·q`` on the packed 1-D vector.  This
+        The sweep takes a single :class:`PerOrdinateSource` (R-1 Step 4
+        A1) and returns ``(angular_flux, scalar_flux)``.  GMRES wants a
+        scalar ``matvec(q) -> M^{-1}·q`` on the packed 1-D vector.  This
         adapter:
 
-        1. Decodes the packed RHS into per-ordinate
-           ``Q_aniso`` shape ``(N, ng, nx, ny)`` (principled storage
-           per :ref:`theory-sn-index-convention`), undoing the
-           ``/sum_w`` normalisation from :func:`build_rhs*` so the
-           sweep's internal ``× weight_norm`` step gets back to the
-           caller's per-ordinate source.
-        2. Runs the sweep with ``Q_iso = 0`` (everything routes through
-           ``Q_aniso`` so the per-ordinate variation is preserved).
+        1. Decodes the packed RHS into a per-ordinate source carrier of
+           shape ``(N, ng, nx, ny)`` (principled storage per
+           :ref:`theory-sn-index-convention`).  Both the packed-vector
+           convention AND the sweep's expected convention are
+           per-ordinate density after R-1 Step 4 A1, so the decoded
+           values feed the sweep directly with no rescale.
+        2. Runs the sweep with the single per-ordinate source.
         3. Re-packs the resulting angular flux into the packed
            solution-vector layout via the inverse of
            :func:`solution_to_angular_flux*`.
@@ -751,23 +738,22 @@ class SNSolver:
                     bc_ymin=self.sn_mesh.bc_ymin,
                     bc_ymax=self.sn_mesh.bc_ymax,
                 )
-            # ``fi_op`` is the principled (N, ng, nx, ny) angular flux;
-            # the sweep ingests the aniso source in the same layout.
-            # The ``* sum_w`` undoes the ``/sum_w`` baked into
-            # ``build_rhs*`` (the operator equation source carries the
-            # inverse-weight-sum factor).
-            # Issue #197 PR-TYPED-4: strict typed sweep contract; build
-            # the typed carriers at the boundary.
-            from .sources import IsotropicSource, PerOrdinateSource
-            aniso_values = fi_op * sum_w
-            iso_source = self.sn_mesh.zeros_isotropic_source()
-            aniso_source = PerOrdinateSource(aniso_values, self.sn_mesh)
+            # ``fi_op`` is the principled (N, ng, nx, ny) angular flux
+            # decoded from the packed RHS.  ``build_rhs*`` pre-applied
+            # ``/sum_w`` to the operator-equation source, so ``fi_op``
+            # IS in per-ordinate density magnitude.
+            #
+            # R-1 Step 4 A1 — the legacy ``* sum_w`` bridge that undid
+            # the sweep's old internal ``/W`` is GONE; the sweep now
+            # consumes per-ordinate density directly via a single
+            # :class:`PerOrdinateSource` parameter.
+            from .sources import PerOrdinateSource
+            source = PerOrdinateSource(fi_op, self.sn_mesh)
             boundary_flux_local = self.sn_mesh.zeros_boundary_flux()
             try:
                 angular, _ = transport_sweep(
-                    iso_source, self.mat_xs.total_cross_section,
+                    source, self.mat_xs.total_cross_section,
                     self.sn_mesh, boundary_flux_local,
-                    aniso_source=aniso_source,
                 )
             except Exception:
                 # If the sweep cannot run with this aniso shape, degrade
@@ -1110,13 +1096,16 @@ def solve_sn(
     # Final sweep to get angular flux.  Issue #196 PR-INDEX-5: every
     # array is principled — scalar_flux ``(ng, nx, ny)``, angular_flux
     # ``(N, ng, nx, ny)``.
-    # Issue #197 PR-TYPED-4: typed source carrier.
-    from .sources import IsotropicSource
+    # R-1 Step 4 A1: typed source via the canonical
+    # :meth:`PerOrdinateSource.from_isotropic` factory (Pattern 7
+    # producer-side normalisation — /W projection at the factory
+    # boundary).
+    from .sources import PerOrdinateSource
     Q_final = solver.compute_fission_source(scalar_flux, keff)
     solver._add_scattering_source(Q_final, scalar_flux)
     solver._add_n2n_source(Q_final, scalar_flux)
     angular_flux, _ = transport_sweep(
-        IsotropicSource(Q_final, sn_mesh),
+        PerOrdinateSource.from_isotropic(Q_final, sn_mesh),
         solver.mat_xs.total_cross_section, sn_mesh,
         solver._boundary_flux,
     )
@@ -1175,10 +1164,15 @@ def solve_sn_fixed_source(
     materials, mesh, quadrature, scattering_order :
         Same as :func:`solve_sn`.
     external_source : (N, ng, nx, ny)
-        Per-ordinate volumetric source :math:`Q^{\text{ext}}_n(x)`.
-        Passed to the sweep as its ``Q_aniso`` argument (the solver
-        applies the :math:`1/W` factor internally).  Issue #196
-        PR-INDEX-5: principled layout (``g`` axis after ``N``).
+        Per-ordinate volumetric source :math:`Q^{\text{ext}}_n(x)` in
+        **per-ordinate density magnitude** (R-1 Step 4 A1 convention).
+        Callers with an iso scalar source :math:`Q(\vec r, g)` should
+        project to per-ordinate via
+        :meth:`~orpheus.sn.sources.PerOrdinateSource.from_isotropic`
+        before passing (the :math:`1/W` projection lives at the
+        producer boundary per Pattern 7).  The sweep does NOT apply
+        ``/W`` internally.  Issue #196 PR-INDEX-5: principled layout
+        (``g`` axis after ``N``).
     boundary_condition : {"vacuum", "reflective"}
         Applied to all faces when the mesh has no explicit BC
         declarations (``bc_left`` etc. are ``None``).  When the mesh
@@ -1308,7 +1302,7 @@ def _solve_fixed_source_si(
     :func:`solve_sn_fixed_source`.  Extracted as a helper to make the
     geometry-default dispatch in :func:`solve_sn_fixed_source` clean.
     """
-    from .sources import IsotropicSource, PerOrdinateSource
+    from .sources import PerOrdinateSource
     from .angular_flux import AngularFlux
     from .scalar_flux import ScalarFlux
     nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
@@ -1324,19 +1318,26 @@ def _solve_fixed_source_si(
         phi_prev = phi
 
         # Isotropic in-scatter + (n,2n). No fission — this is fixed-source.
-        # Issue #197 PR-TYPED-4: typed source carrier.
-        Q_values = np.zeros_like(phi)
-        solver._add_scattering_source(Q_values, phi)
-        solver._add_n2n_source(Q_values, phi)
-        iso_source = IsotropicSource(Q_values, sn_mesh)
+        # R-1 Step 4 A1 — single per-ordinate source feeds the sweep.
+        # Producer-side normalisation: ``Q_iso`` (iso scalar magnitude)
+        # projects to per-ord via :meth:`PerOrdinateSource.from_isotropic`;
+        # ``Q_aniso_p1`` is per-ord density already
+        # (:meth:`ScatteringOperator.build_aniso_source` applies the
+        # ``/W`` at the producer post-A1); ``external_source`` is
+        # per-ord density by API contract (the caller of
+        # :func:`solve_sn_fixed_source` projects iso sources via
+        # :meth:`PerOrdinateSource.from_isotropic` before passing).
+        Q_iso = np.zeros_like(phi)
+        solver._add_scattering_source(Q_iso, phi)
+        solver._add_n2n_source(Q_iso, phi)
+        iso_per_ord = PerOrdinateSource.from_isotropic(Q_iso, sn_mesh)
 
-        # Merge P1+ scattering moments (if any) with external MMS source.
+        # Merge per-ord pieces — Pℓ scattering moments + external source.
         Q_aniso_p1 = solver._build_aniso_scattering(angular)
-        if Q_aniso_p1 is None:
-            aniso_values = external_source
-        else:
-            aniso_values = Q_aniso_p1 + external_source
-        aniso_source = PerOrdinateSource(aniso_values, sn_mesh)
+        total_values = iso_per_ord.values + external_source
+        if Q_aniso_p1 is not None:
+            total_values = total_values + Q_aniso_p1
+        source = PerOrdinateSource(total_values, sn_mesh)
 
         # R-1 Step 0: thread previous-iter angular flux as initial_guess
         # for the trace-space Carlson seed.
@@ -1344,9 +1345,8 @@ def _solve_fixed_source_si(
             AngularFlux(angular, sn_mesh) if angular is not None else None
         )
         angular, phi = transport_sweep(
-            iso_source, solver.mat_xs.total_cross_section, sn_mesh,
+            source, solver.mat_xs.total_cross_section, sn_mesh,
             solver._boundary_flux,
-            aniso_source=aniso_source,
             initial_guess=initial_guess,
         )
 
@@ -1404,13 +1404,14 @@ def _solve_fixed_source_krylov(
 
     The math reuses :meth:`SNSolver._solve_krylov`'s machinery: build
     a packed RHS, GMRES on ``L.apply`` with sweep preconditioner,
-    decode packed solution to angular flux.  The only addition is that
-    the per-ordinate ``external_source`` enters the packed RHS with
-    the ``/sum_w`` normalisation that the operator equation expects.
+    decode packed solution to angular flux.  R-1 Step 4 A1 — the
+    ``external_source`` arrives in per-ordinate density (matching the
+    operator-equation packed-vector convention that ``_build_rhs_*``
+    internally projects iso sources into); no ``/sum_w`` rescale at
+    the packing site.
     """
     nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
     N = sn_mesh.quad.N
-    sum_w = float(sn_mesh.quad.weights.sum())
     curv = getattr(sn_mesh, "curvature", None)
 
     # EquationMap dispatch matches SNStreamingOperator.apply.
@@ -1423,15 +1424,17 @@ def _solve_fixed_source_krylov(
     n_unknowns = eq_map.n_unknowns
 
     # Pre-pack the external source as the per-ordinate contribution to
-    # the RHS, divided by sum_w to match the operator equation's
-    # convention (build_rhs* outputs are pre-divided by sum_w).
+    # the RHS.  R-1 Step 4 A1 — ``external_source`` is per-ordinate
+    # density (matching the operator-equation packed-vector
+    # convention; ``_build_rhs_*`` internally /sum_w-projects its iso
+    # contributions to the same magnitude).  No rescale needed here.
     # Issue #196 PR-INDEX-5: external_source is principled
     # ``(N, ng, nx, ny)``; the packed-vector slice is ``[n, :, ix, iy]``.
     ext_packed = np.empty((ng, eq_map.n_eq), dtype=float)
     for k in range(eq_map.n_eq):
         ext_packed[:, k] = external_source[
             eq_map.ordinate[k], :, eq_map.ix[k], eq_map.iy[k],
-        ] / sum_w
+        ]
     ext_packed_flat = ext_packed.ravel(order="F")
 
     # Outer source iteration.  Each outer step rebuilds the in-scatter
@@ -1440,7 +1443,7 @@ def _solve_fixed_source_krylov(
     L_scipy = ScipyLinearOperator(
         (n_unknowns, n_unknowns), matvec=solver.L.apply, dtype=float,
     )
-    precond = solver._make_sweep_preconditioner(eq_map, n_unknowns, sum_w)
+    precond = solver._make_sweep_preconditioner(eq_map, n_unknowns)
 
     # Issue #196 PR-INDEX-5: phi principled (ng, nx, ny).
     phi = np.zeros((ng, nx, ny))

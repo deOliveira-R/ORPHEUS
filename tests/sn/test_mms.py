@@ -103,6 +103,11 @@ def test_sn_mms_manufactured_source_vanishes_at_zero_material():
     Q_flat = Q[:, 0, :, 0]  # (N, nx) — principled g=0, ny=0 slice
     N = Q_flat.shape[0]
     Q_sym = 0.5 * (Q_flat[: N // 2] + Q_flat[-(N // 2):][::-1])  # avg μ ↔ −μ
-    removal = (case.sigma_t - case.sigma_s) * case.phi_exact(mesh.centers)
+    # R-1 Step 4 A1 — ``external_source`` is per-ordinate **density**
+    # (already divided by ``sum_w`` at the producer boundary).  The
+    # residual after symmetric-μ averaging is therefore
+    # :math:`(\Sigma_t - \Sigma_s) A / \sum_n w_n`.
+    sum_w = float(case.quadrature.weights.sum())
+    removal = (case.sigma_t - case.sigma_s) * case.phi_exact(mesh.centers) / sum_w
     np.testing.assert_allclose(Q_sym, np.broadcast_to(removal, Q_sym.shape),
                                 rtol=1e-13, atol=1e-13)

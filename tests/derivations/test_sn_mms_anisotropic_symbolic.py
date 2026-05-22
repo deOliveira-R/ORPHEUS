@@ -250,8 +250,14 @@ def test_spherical_aniso_numerical_qext_matches_sympy():
         rr, mm, case.radius, case.sigma_t, case.sigma_s,
     )    # (N, nx)
 
+    # R-1 Step 4 A1 — Branch 2's ``external_source`` emits per-ordinate
+    # **density** (the raw SymPy closed form divided by :math:`\sum_n w_n`
+    # at the producer boundary, Pattern 7).  The mathematical equivalence
+    # check is therefore against the SymPy form scaled by ``1/sum_w``.
+    sum_w = float(case.quadrature.weights.sum())
     np.testing.assert_allclose(
-        Q_numerical[:, :, 0, 0], Q_sympy_grid, atol=1e-13, rtol=1e-13,
+        Q_numerical[:, :, 0, 0], Q_sympy_grid / sum_w,
+        atol=1e-13, rtol=1e-13,
     )
 
 
@@ -301,8 +307,11 @@ def test_cylindrical_aniso_numerical_qext_matches_sympy():
         rr, tt, pp, case.radius, case.sigma_t, case.sigma_s,
     )    # (N, nx)
 
+    # R-1 Step 4 A1 — Branch 2 emits per-ord density (raw / sum_w).
+    sum_w = float(case.quadrature.weights.sum())
     np.testing.assert_allclose(
-        Q_numerical[:, :, 0, 0], Q_sympy_grid, atol=1e-13, rtol=1e-13,
+        Q_numerical[:, :, 0, 0], Q_sympy_grid / sum_w,
+        atol=1e-13, rtol=1e-13,
     )
 
 

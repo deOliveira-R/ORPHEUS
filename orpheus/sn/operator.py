@@ -1578,9 +1578,8 @@ class SNStreamingOperator(LinearOperatorMixin):
 
     def solve(
         self,
-        iso_source: "IsotropicSource",
+        source: "PerOrdinateSource",
         boundary_flux: "BoundaryFlux | None" = None,
-        aniso_source: "PerOrdinateSource | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         r"""Inverse action :math:`L^{-1}\,q` via the Wave D Round 2 sweep.
 
@@ -1594,25 +1593,28 @@ class SNStreamingOperator(LinearOperatorMixin):
         the class docstring "Why ``apply`` and ``solve`` use different
         closures (by design)" for the rationale.
 
-        Issue #197 PR-TYPED-4 — strict typed inputs only.  ``iso_source``
-        MUST be an :class:`IsotropicSource`; ``aniso_source`` MUST be a
-        :class:`PerOrdinateSource` or ``None``.  The legacy keyword-only
-        ``Q_aniso`` alias is GONE.
+        R-1 Step 4 A1 — single per-ordinate source parameter.  The
+        legacy ``(iso_source, aniso_source)`` parameter pair is GONE.
+        External iso scalar sources project to per-ordinate at
+        construction via
+        :meth:`~orpheus.sn.sources.PerOrdinateSource.from_isotropic`;
+        scattering- and fission-generated sources are already per-
+        ordinate by producer contract
+        (:meth:`~orpheus.sn.scattering.ScatteringOperator.apply`,
+        :meth:`~orpheus.sn.fission.FissionOperator.apply`).
 
         Parameters
         ----------
-        iso_source : IsotropicSource
-            Isotropic source density, shape ``(ng, nx, ny)`` (Issue
-            #196 PR-INDEX-5 — principled).
+        source : PerOrdinateSource
+            Per-ordinate volumetric source, shape ``(N, ng, nx, ny)``.
+            Per-ordinate magnitude (the producer has applied any
+            required ``/W`` projection).
         boundary_flux : BoundaryFlux or None
             Persistent boundary state (Issue #197 PR-TYPED-2 — the
             typed replacement for the legacy ``psi_bc: dict``).  If
             ``None``, a fresh zero-initialised
             :class:`~orpheus.sn.boundary_flux.BoundaryFlux` is supplied;
             the caller cannot then carry state between sweeps.
-        aniso_source : PerOrdinateSource or None
-            Per-ordinate anisotropic source, shape ``(N, ng, nx, ny)``,
-            for P1+ scattering.  ``None`` for isotropic-only (P0).
 
         Returns
         -------
@@ -1630,8 +1632,7 @@ class SNStreamingOperator(LinearOperatorMixin):
         # are both in the principled ``(ng, nx, ny)`` layout under
         # PR-INDEX-3 — no bridge.
         return transport_sweep(
-            iso_source, self.sig_t, self.sn_mesh, boundary_flux,
-            aniso_source=aniso_source,
+            source, self.sig_t, self.sn_mesh, boundary_flux,
         )
 
     # ── apply_transpose: adjoint action L*·ψ via dense transpose ──────
@@ -2558,7 +2559,7 @@ class InvertibleOperator(OperatorSum):
             ``rhs.history_depth``.
         """
         from .angular_flux import AngularFlux
-        from .sources import IsotropicSource, PerOrdinateSource
+        from .sources import PerOrdinateSource
         from .sweep import transport_sweep
 
         if not isinstance(rhs, AngularFlux):
@@ -2575,36 +2576,25 @@ class InvertibleOperator(OperatorSum):
             )
 
         sn_mesh = self.sn_mesh
-        # Convention bridge — operator-algebra ↔ ``transport_sweep``.
-        # The operator-algebra convention is **per-ordinate units
-        # everywhere**: ``StreamingOperator.apply`` returns
-        # :math:`(L+C)\psi` per ordinate; consumers build
-        # ``S_normalised = self.scattering_op / sum_w`` and
-        # ``q_ext = fission_source / sum_w`` (see
-        # :meth:`SNSolver._solve_krylov` line ~658) so the iteration's
-        # rhs ``S\psi + q_{ext}`` is per-ordinate.
+        # R-1 Step 4 A1 — single per-ordinate source convention.
+        # ``rhs.values`` IS per-ordinate density by producer contract
+        # (``ScatteringOperator.apply`` typed branch normalises by
+        # ``/sum_w`` at the producer boundary; ``q_ext`` external
+        # sources project via ``PerOrdinateSource.from_isotropic``).
+        # The ``transport_sweep`` accepts a single
+        # :class:`PerOrdinateSource` and does NOT apply ``/W``
+        # internally; both sides of the producer-consumer contract
+        # are per-ordinate density.
         #
-        # :func:`transport_sweep`, however, expects the ``aniso_source``
-        # in **iso-source magnitude** — the legacy SI fed
-        # ``Q_aniso = build_aniso_source(...)`` which carries the
-        # :math:`Y_\ell\,\Sigma_\ell\,\phi_\ell^m` field in iso units
-        # and ``transport_sweep`` then applies ``weight_norm = 1/W``
-        # internally to obtain the per-ordinate source (see
-        # ``_run_1d_sweep`` ``Q_aniso_p = Q_aniso * weight_norm`` at
-        # ``sweep.py:432``).  To make this ``.solve`` the algebraic
-        # inverse of ``LC.apply``, we must pre-multiply
-        # ``rhs.values`` by ``W`` so the sweep's internal ``/W`` lands
-        # us back in per-ordinate units.
-        #
-        # Without this bridge ``rhs.values`` ends up divided by ``W``
-        # twice (once by the operator-algebra caller, once by
-        # ``transport_sweep``) — the reflective slab/sphere/cylinder
-        # homogeneous-medium fixed point shifts from ``k_inf`` to
-        # ``k_inf / W`` (catches L1 ``kinf_homogeneous`` on every
-        # coord × ng≥2 in the R-1 Step E carve).
-        sum_w = float(sn_mesh.quad.weights.sum())
-        iso_source = sn_mesh.zeros_isotropic_source()
-        aniso_source = PerOrdinateSource(rhs.values * sum_w, sn_mesh)
+        # The legacy bridge ``aniso_source = PerOrdinateSource(
+        # rhs.values * sum_w, sn_mesh)`` is GONE — that ``* sum_w``
+        # undid the sweep's old internal ``/W``, which itself
+        # retired in R-1 Step 4 A1.  Pattern 7 producer-side
+        # normalisation lives at ``ScatteringOperator.apply`` /
+        # ``FissionOperator.apply`` / ``PerOrdinateSource.from_isotropic``.
+        # See `#205 <https://github.com/deOliveira-R/ORPHEUS/issues/205>`_
+        # for the dimensional-typing follow-up.
+        source = PerOrdinateSource(rhs.values, sn_mesh)
 
         # Boundary-state plumbing for reflective / partner-flux BCs.
         # The sweep mutates ``boundary_flux`` in place (write-through);
@@ -2639,11 +2629,10 @@ class InvertibleOperator(OperatorSum):
         carlson_seed = previous
 
         angular, _scalar = transport_sweep(
-            iso_source,
+            source,
             self.sigma,
             sn_mesh,
             boundary_buf,
-            aniso_source=aniso_source,
             initial_guess=carlson_seed,
         )
 

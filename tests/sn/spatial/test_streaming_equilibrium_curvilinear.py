@@ -128,7 +128,11 @@ def test_homogeneous_streaming_equilibrium_sphere(
     N = quad.N
     nx = mesh.N
     ng = 1
-    Q = np.ones((N, ng, nx, 1))
+    # R-1 Step 4 A1 — ``external_source`` is per-ordinate density
+    # (already projected via ``/sum_w``).  Iso scalar magnitude 1 ⇒
+    # per-ord density ``1/sum_w``.
+    sum_w = float(np.sum(quad.weights))
+    Q = np.full((N, ng, nx, 1), 1.0 / sum_w)
 
     result = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
@@ -199,7 +203,9 @@ def test_homogeneous_streaming_equilibrium_cylinder(
     N = quad.N
     nx = mesh.N
     ng = 1
-    Q = np.ones((N, ng, nx, 1))
+    # R-1 Step 4 A1 — per-ordinate density (1 / sum_w).
+    sum_w = float(np.sum(quad.weights))
+    Q = np.full((N, ng, nx, 1), 1.0 / sum_w)
 
     result = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
@@ -261,7 +267,9 @@ def test_pomraning_pole_isotropy_sphere(inner_solver: str) -> None:
     N = quad.N
     nx = mesh.N
     ng = 1
-    Q = np.ones((N, ng, nx, 1))
+    # R-1 Step 4 A1 — per-ordinate density (1 / sum_w).
+    sum_w = float(np.sum(quad.weights))
+    Q = np.full((N, ng, nx, 1), 1.0 / sum_w)
 
     result = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,

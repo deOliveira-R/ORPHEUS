@@ -804,11 +804,32 @@ def test_2d_octant_sweep_equivalence(case: OctantEquivalenceCase) -> None:
     # reflective-BC apply READ buffer content written by an earlier
     # sweep — single-sweep cases would hide the trap (the buffer is
     # all-zero or seeded but immediately overwritten before any read).
+    #
+    # R-1 Step 4 A1 — ``_sweep_2d_wavefront`` takes a single per-ordinate
+    # source.  Snapshot inputs are in legacy iso/aniso magnitude (the
+    # snapshots were generated pre-A1).  To preserve bit-identity to
+    # those snapshots, combine ``inputs.Q`` (iso scalar) and
+    # ``inputs.aniso_source`` (legacy iso magnitude) into the new
+    # per-ordinate density via the same ``/sum_w`` projection the
+    # pre-A1 sweep applied internally.  Bit-identity to the existing
+    # snapshots therefore holds by construction (the new sweep does
+    # NOT apply ``/W``; we apply it here at the test boundary).
+    sum_w_2d = float(inputs.sn_mesh.quad.weights.sum())
+    N_2d = inputs.sn_mesh.quad.N
+    ng_2d, nx_2d, ny_2d = inputs.Q.shape
+    iso_broadcast = np.broadcast_to(
+        inputs.Q[None, :, :, :], (N_2d, ng_2d, nx_2d, ny_2d),
+    )
+    if inputs.aniso_source is not None:
+        Q_combined = (iso_broadcast + inputs.aniso_source) / sum_w_2d
+    else:
+        Q_combined = iso_broadcast / sum_w_2d
+    Q_combined = np.ascontiguousarray(Q_combined)
+
     angular_flux = scalar_flux = None
     for _ in range(case.n_sweeps):
         angular_flux, scalar_flux = _sweep_2d_wavefront(
-            inputs.Q, inputs.sig_t, inputs.sn_mesh, inputs.boundary_flux,
-            Q_aniso=inputs.aniso_source,
+            Q_combined, inputs.sig_t, inputs.sn_mesh, inputs.boundary_flux,
         )
 
     snap = np.load(snapshot_file)
@@ -873,14 +894,15 @@ def test_2d_octant_sweep_closed_form_anchor() -> None:
     """
     inputs = _case_7_closed_form_anchor()
 
+    # R-1 Step 4 A1 — ``external_source`` is per-ordinate density
+    # (already projected via ``/sum_w``).  The test's ``inputs.Q`` is
+    # iso scalar magnitude; project to per-ord by dividing by ``sum_w``
+    # before broadcasting across the N ordinates.
+    sum_w = float(np.sum(inputs.sn_mesh.quad.weights))
     result = solve_sn_fixed_source(
         inputs.materials, inputs.sn_mesh.mesh, inputs.sn_mesh.quad,
-        # solve_sn_fixed_source expects external_source shape
-        # ``(N, ng, nx, ny)`` (Issue #196 PR-INDEX-5 — principled).
-        # Replicate the isotropic Q across ordinates without any
-        # per-ordinate dependence.
         external_source=np.broadcast_to(
-            inputs.Q[None, ...],
+            (inputs.Q / sum_w)[None, ...],
             (inputs.sn_mesh.quad.N, *inputs.Q.shape),
         ).copy(),
         scattering_order=0,

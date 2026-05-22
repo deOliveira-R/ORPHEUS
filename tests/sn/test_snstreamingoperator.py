@@ -61,7 +61,7 @@ from orpheus.sn.operator import (
     transport_operator_matvec,
 )
 from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
-from orpheus.sn.sources import IsotropicSource
+from orpheus.sn.sources import IsotropicSource, PerOrdinateSource
 from orpheus.sn.sweep import transport_sweep
 from tests.sn._test_helpers import placeholder_materials
 
@@ -267,11 +267,12 @@ def test_solve_slab_bit_identical_to_transport_sweep():
 
     rng = np.random.default_rng(seed=10)
     Q_values = rng.standard_normal((2, sn_mesh.nx, sn_mesh.ny))
-    Q = IsotropicSource(Q_values, sn_mesh)
+    # R-1 Step 4 A1 — single per-ordinate source carrier.
+    Q = PerOrdinateSource.from_isotropic(Q_values, sn_mesh)
 
     # Use independent psi_bc dicts so neither path mutates the other.
-    af_legacy, sf_legacy = transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux(), None)
-    af_op, sf_op = op.solve(Q, boundary_flux=sn_mesh.zeros_boundary_flux(), aniso_source=None)
+    af_legacy, sf_legacy = transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
+    af_op, sf_op = op.solve(Q, boundary_flux=sn_mesh.zeros_boundary_flux())
 
     assert np.array_equal(af_legacy, af_op), (
         "SNStreamingOperator.solve angular-flux drift on slab: "
@@ -290,10 +291,10 @@ def test_solve_spherical_bit_identical_to_transport_sweep():
 
     rng = np.random.default_rng(seed=11)
     Q_values = rng.standard_normal((2, sn_mesh.nx, sn_mesh.ny))
-    Q = IsotropicSource(Q_values, sn_mesh)
+    Q = PerOrdinateSource.from_isotropic(Q_values, sn_mesh)
 
-    af_legacy, sf_legacy = transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux(), None)
-    af_op, sf_op = op.solve(Q, boundary_flux=sn_mesh.zeros_boundary_flux(), aniso_source=None)
+    af_legacy, sf_legacy = transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
+    af_op, sf_op = op.solve(Q, boundary_flux=sn_mesh.zeros_boundary_flux())
 
     assert np.array_equal(af_legacy, af_op)
     assert np.array_equal(sf_legacy, sf_op)
@@ -307,10 +308,10 @@ def test_solve_cylindrical_bit_identical_to_transport_sweep():
 
     rng = np.random.default_rng(seed=12)
     Q_values = rng.standard_normal((2, sn_mesh.nx, sn_mesh.ny))
-    Q = IsotropicSource(Q_values, sn_mesh)
+    Q = PerOrdinateSource.from_isotropic(Q_values, sn_mesh)
 
-    af_legacy, sf_legacy = transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux(), None)
-    af_op, sf_op = op.solve(Q, boundary_flux=sn_mesh.zeros_boundary_flux(), aniso_source=None)
+    af_legacy, sf_legacy = transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
+    af_op, sf_op = op.solve(Q, boundary_flux=sn_mesh.zeros_boundary_flux())
 
     assert np.array_equal(af_legacy, af_op)
     assert np.array_equal(sf_legacy, sf_op)
