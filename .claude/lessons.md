@@ -506,3 +506,86 @@ operation, not a textual operation.
 Cross-reference: `[[feedback-aggressive-retirement]]` (retirement is
 mandatory; superseded code = noise) + this lesson (the audit IS the
 plan).
+
+
+## L21: Sweep and matvec are different applications of the same operator — share ONE strategy
+
+**Failure mode**: Phase 1.2 origin (2026-05-22). The R-1 Step 4 plan
+recommended A2b: add a `CAP_STATELESS_INVERSE` capability flag so
+`KrylovAcceleration(preconditioner=None)` would refuse to route through
+`InvertibleOperator.solve` (which read `rhs(1)` history for the Carlson
+coupled-pole seed).  The capability advertisement was a symptom fix.
+
+The deeper cause, surfaced by the user: the 1-D sweep `_run_1d_sweep`
+was duplicating M-M's Carlson seed math INLINE (its own `Q_bar`
+derivation + a direct call to the free-function
+`carlson_inward_sweep_from_source`), while the matvec already routed
+through `MorelMontryAngularSweep.precompute_psi_state →
+self.psi_half_seed(psi_level, context)`.  Two implementations of the
+SAME mathematical recurrence — Pattern 2 (single source of truth)
+violation and concept leakage: curvilinear pole math belongs inside
+`MorelMontryAngularSweep`, not lying around outside.
+
+The architectural read that unlocks the fix:
+
+> Sweep and matvec are DIFFERENT APPLICATIONS of the SAME operator.
+> `L.apply(ψ)` (given ψ, produce L·ψ) and `L.solve(q)` (given q, find
+> ψ) operate on the same `L`.  Any seed strategy `L` uses is a property
+> of `L`, not of "the apply path" vs "the sweep path".  If two paths
+> compute the same recurrence on different inputs, the strategy is
+> ONE; only the input differs.
+
+For M-M's Carlson seed specifically:
+
+* Matvec path: passes `psi_view` (the apply target) to
+  `precompute_psi_state` → `psi_half_seed(psi_level=psi_view, ...)`.
+* Sweep path: passes `initial_guess` (the previous iterate, or zeros
+  on cold-start) to the same strategy → `psi_half_seed(psi_level=
+  initial_guess, ...)`.
+
+Same strategy.  One call site per concern.  The free-function duplicate
+retires.  The sweep's `initial_guess` becomes an explicit kwarg on
+`InvertibleOperator.solve(rhs, *, initial_guess=None)` — Cardinal
+Rule 2 (architecture).
+
+The bug class A2 was patching ("`None` default routes through a
+function with hidden caller-visible state") disappears: `L.solve` is a
+pure function of `(rhs, initial_guess, boundary)`; GMRES residual
+calls pass `initial_guess=None` → cold-start deterministic seed; no
+capability flag needed.
+
+The principle generalises beyond M-M: **reduce strategies, don't add
+alternatives**.  When sweep and matvec for the same operator look like
+they need "different" handling, ask first whether they need the same
+strategy applied to different inputs.  Almost always: yes.  The
+"different strategy" instinct is the leak.
+
+**How to apply:**
+
+1. When proposing a new strategy or a sibling adapter, audit whether
+   the existing strategy already covers the use case with a different
+   input.  Pattern: matvec uses the current target; sweep uses the
+   previous iterate; both feed the SAME strategy.
+
+2. When you see a free-function duplicating a class method's algorithm,
+   that's the duplication smell.  The class method is canonical; the
+   free function is the legacy leak.  Retire it.
+
+3. When tempted to add a capability flag to GATE a behaviour
+   ("`CAP_STATELESS_INVERSE` says it's safe to silently route through
+   this"), ask whether the underlying contract could be made trivially
+   stateless instead.  Explicit kwargs > capability advertisements
+   when both options exist.
+
+Generalisation: applies to operator algebras where the same operator
+admits both `.apply` and `.solve` — SN sweep+matvec, CP collision-
+probability+inverse, MoC characteristic tracing+source-iteration
+fixed-point.  Every operator-algebra carve that ships new sweep paths
+must reuse the existing `.apply`-side machinery for whatever's shared
+(seed strategies, BC realisers, angular closures).
+
+Cross-reference: `[[lessons-L18]]` (Pattern 7 producer-side — same
+spirit: single canonical site for the convention, not duplicated at
+consumers); commit `c93355c` evidence (net **−35 LOC** while
+strengthening invariants); CLAUDE.md Cardinal Rule 2 (architecture is
+critical — single source of truth).
