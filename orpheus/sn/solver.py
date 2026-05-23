@@ -1382,176 +1382,133 @@ def _solve_fixed_source_krylov(
     max_inner: int,
     inner_tol: float,
 ) -> Solution:
-    r"""Curvilinear-default fixed-source path: GMRES on :meth:`L.apply`.
+    r"""Curvilinear-default fixed-source path: typed :class:`KrylovAcceleration`.
 
-    This is the Wave E Round 2 reconciliation that closes ERR-026.  The
-    operator equation :math:`(L - S)\,\psi = q_{\rm ext}` is solved
-    once via GMRES on the symmetric closure (with the sweep as
-    preconditioner).  When scattering is significant, we wrap an outer
-    source iteration around the Krylov inner solve; the scattering
-    self-consistency converges geometrically at rate :math:`c =
-    \max\Sigma_s/\Sigma_t`.
+    R-1 Step 4 Step G1 (2026-05-22) — carved onto
+    :class:`~orpheus.numerics.iteration.KrylovAcceleration` consuming
+    the operator triple
 
-    The math reuses :meth:`SNSolver._solve_krylov`'s machinery: build
-    a packed RHS, GMRES on ``L.apply`` with sweep preconditioner,
-    decode packed solution to angular flux.  R-1 Step 4 A1 — the
-    ``external_source`` arrives in per-ordinate density (matching the
-    operator-equation packed-vector convention that ``_build_rhs_*``
-    internally projects iso sources into); no ``/sum_w`` rescale at
-    the packing site.
+    .. math::
+
+        A \;=\; L + C\,, \quad
+        S \;=\; \text{full multi-group scatter}\,, \quad
+        F \;=\; 0_{\rm wg}
+
+    on typed :class:`~orpheus.sn.angular_flux.AngularFlux`.  The
+    composite ``L + C`` returns an
+    :class:`~orpheus.sn.operator.InvertibleOperator`; its ``.solve``
+    IS the WDD sweep, but R-1 ships GMRES UNPRECONDITIONED
+    (explicit identity) — issue #200 tracks the block-inverse face
+    preconditioner re-enablement.
+
+    The outer Picard wrap on the scattering source dissolves at G1:
+    typed ``KrylovAcceleration`` solves :math:`(L+C-S)\,\psi =
+    q_{\rm ext}` directly via GMRES, putting scattering
+    self-consistency INSIDE the Krylov polynomial.  Fission ``F`` is
+    zero — this is the pure fixed-source path; the eigenvalue
+    outer/within-group decomposition lives in :func:`solve_sn`.
+
+    The dependency audit + retirement sequence eliminates the
+    packed-1D vector machinery this function previously consumed:
+
+    * ``build_equation_map_*`` (retires G3e)
+    * ``solution_to_angular_flux_*`` (retires G3e)
+    * ``_build_rhs_{cartesian, spherical, cylindrical}`` (retires G3a)
+    * ``_make_sweep_preconditioner`` (retires G3a)
+    * ``solver.L`` / ``SNStreamingOperator`` (retires G3f)
+
+    Scope
+    =====
+
+    1-D meshes only (slab + sphere + cylinder).  2-D Cartesian raises
+    :class:`NotImplementedError` — the typed-flux B1'' face block was
+    designed 1-D-only.  SURPRISE-5 of the dependency audit identifies
+    :func:`_solve_fixed_source_si` as the principled landing zone for
+    2-D Cartesian fixed-source: it's geometry-agnostic via
+    :func:`transport_sweep` and handles 2-D natively.  Phase A absorbs
+    a typed 2-D Krylov.
     """
-    nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
-    N = sn_mesh.quad.N
-    curv = getattr(sn_mesh, "curvature", None)
+    # 2-D Cartesian deferral — mirrors :meth:`SNSolver._solve_krylov`
+    # (the eigenvalue inner): 2-D Cartesian fixed-source Krylov has no
+    # typed-flux B1'' face block in 1-D-only shape.  SURPRISE-5 of the
+    # dependency audit identifies SI as the principled landing zone
+    # (geometry-agnostic via :func:`transport_sweep`).  Phase A absorbs
+    # typed 2-D Krylov.
+    if sn_mesh.reduced is None:
+        raise NotImplementedError(
+            "R-1 Step 4 G1 — 2-D Cartesian fixed-source Krylov carve "
+            "deferred to Phase A.  The typed B1'' face block is "
+            "1-D-only.  Use `inner_solver=\"source_iteration\"` for 2-D "
+            "Cartesian (the SI carve in `_solve_fixed_source_si` is "
+            "geometry-agnostic and handles 2-D via "
+            "`transport_sweep`'s wavefront dispatch — see SURPRISE-5 "
+            "of `.claude/plans/r1_step4_g_dependency_audit.md`)."
+        )
 
-    # EquationMap dispatch matches SNStreamingOperator.apply.
-    if curv == "spherical":
-        eq_map = build_equation_map_spherical(nx, sn_mesh.quad, ng)
-    elif curv == "cylindrical":
-        eq_map = build_equation_map_cylindrical(nx, sn_mesh.quad, ng)
-    else:
-        eq_map = build_equation_map(nx, ny, sn_mesh.quad, ng)
-    n_unknowns = eq_map.n_unknowns
-
-    # Pre-pack the external source as the per-ordinate contribution to
-    # the RHS.  R-1 Step 4 A1 — ``external_source`` is per-ordinate
-    # density (matching the operator-equation packed-vector
-    # convention; ``_build_rhs_*`` internally /sum_w-projects its iso
-    # contributions to the same magnitude).  No rescale needed here.
-    # Issue #196 PR-INDEX-5: external_source is principled
-    # ``(N, ng, nx, ny)``; the packed-vector slice is ``[n, :, ix, iy]``.
-    ext_packed = np.empty((ng, eq_map.n_eq), dtype=float)
-    for k in range(eq_map.n_eq):
-        ext_packed[:, k] = external_source[
-            eq_map.ordinate[k], :, eq_map.ix[k], eq_map.iy[k],
-        ]
-    ext_packed_flat = ext_packed.ravel(order="F")
-
-    # Outer source iteration.  Each outer step rebuilds the in-scatter
-    # source from the current scalar flux, then drives a GMRES inner
-    # solve to convergence.
-    L_scipy = ScipyLinearOperator(
-        (n_unknowns, n_unknowns), matvec=solver.L.apply, dtype=float,
-    )
-    precond = solver._make_sweep_preconditioner(eq_map, n_unknowns)
-
-    # Issue #196 PR-INDEX-5: phi principled (ng, nx, ny).
-    phi = np.zeros((ng, nx, ny))
-    solution = np.zeros(n_unknowns)
-    residual = np.inf
-    angular = None
-    converged_flag = False
-    flux_residuals: list[float] = []
-
-    # Issue #197 PR-TYPED-2: per-material Legendre + (n,2n) dicts
-    # derived from mat_xs (no SNSolver shims).
-    sig_s_dict = {
-        mid: solver.mat_xs.sig_s_legendre(mid)
-        for mid in solver.mat_xs.materials
-    }
-    sig2_dict = {
-        mid: solver.mat_xs.n2n_matrix(mid)
-        for mid in solver.mat_xs.materials
-    }
-
-    for n_outer in range(max_inner):
-        phi_prev = phi.copy()
-
-        # Build the in-scatter / (n,2n) RHS contribution from the
-        # current scalar flux.  Fission source is zero (fixed-source).
-        if curv == "spherical":
-            rhs_iso = _build_rhs_spherical(
-                np.zeros_like(phi), phi, eq_map, sn_mesh.quad,
-                sig_s_dict, sig2_dict, sn_mesh.mat_map,
-                nx, ng,
-            )
-        elif curv == "cylindrical":
-            rhs_iso = _build_rhs_cylindrical(
-                np.zeros_like(phi), phi, eq_map, sn_mesh.quad,
-                sig_s_dict, sig2_dict, sn_mesh.mat_map,
-                nx, ng,
-            )
-        else:
-            # PR-INDEX-7: ``_build_rhs_cartesian`` consumes ``angular_flux``
-            # in principled ``(N, ng, nx, ny)`` layout — the same layout
-            # the sweep produces. No axis-swap adapter needed.
-            angular_full = angular if (
-                solver.scattering_order > 0 and angular is not None
-            ) else None
-            rhs_iso = _build_rhs_cartesian(
-                np.zeros_like(phi), phi, eq_map, sn_mesh.quad,
-                sig_s_dict, sig2_dict, sn_mesh.mat_map,
-                nx, ny, ng,
-                scattering_order=solver.scattering_order,
-                angular_flux=angular_full,
-            )
-
-        rhs = rhs_iso + ext_packed_flat
-
-        # GMRES inner solve.
-        try:
-            solution, info = gmres(
-                L_scipy, rhs, x0=solution, M=precond,
-                rtol=inner_tol, atol=0.0,
-                maxiter=max_inner, restart=min(50, n_unknowns),
-            )
-        except TypeError:
-            solution, info = gmres(
-                L_scipy, rhs, x0=solution, M=precond,
-                tol=inner_tol,
-                maxiter=max_inner, restart=min(50, n_unknowns),
-            )
-
-        # Decode packed solution → angular and scalar flux.
-        # Issue #168 Phase A: curvilinear decoders now return
-        # Issue #168 Phase C: pure cell-centre return; the Phase A
-        # boundary_face_flux companion retired with the
-        # BoundaryFaceFlux Protocol.
-        if curv == "spherical":
-            fi = solution_to_angular_flux_spherical(
-                solution, eq_map, sn_mesh.quad, nx, ng,
-            )
-        elif curv == "cylindrical":
-            fi = solution_to_angular_flux_cylindrical(
-                solution, eq_map, sn_mesh.quad, nx, ng,
-            )
-        else:
-            fi = solution_to_angular_flux(
-                solution, eq_map, sn_mesh.quad, nx, ny, ng,
-                bc_xmin=sn_mesh.bc_xmin,
-                bc_xmax=sn_mesh.bc_xmax,
-                bc_ymin=sn_mesh.bc_ymin,
-                bc_ymax=sn_mesh.bc_ymax,
-            )
-        # PR-INDEX-7: ``solution_to_angular_flux*`` returns principled
-        # ``(N, ng, nx, ny)`` natively — no axis-swap adapter needed.
-        # Closes the PR-INDEX-4 §9.1 deferral.
-        angular = fi
-        phi = _scalar_flux_from_angular(fi, sn_mesh.quad, nx, ny, ng)
-
-        norm = np.linalg.norm(phi)
-        if norm > 0:
-            residual = np.linalg.norm(phi - phi_prev) / norm
-            flux_residuals.append(float(residual))
-            if residual < inner_tol:
-                converged_flag = True
-                break
-    else:
-        n_outer = max_inner - 1
-
-    # Issue #197 PR-TYPED-5: build typed Solution at the boundary.
-    del mesh, quadrature, materials  # retained as kwargs for API stability
     from .angular_flux import AngularFlux
     from .scalar_flux import ScalarFlux
+    from .operator import CollisionOperator, StreamingOperator
+    from .sources import PerOrdinateSource
+    from orpheus.numerics.iteration import KrylovAcceleration
+    from orpheus.numerics.operator import ZeroOperator
+
+    nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
+    N = sn_mesh.quad.N
+
+    # ── Build the typed RHS ──────────────────────────────────────────
+    # R-1 Step 4 A1 — ``external_source`` is per-ordinate density (the
+    # producer-side ``/sum_w`` projection lives at
+    # :meth:`PerOrdinateSource.from_isotropic` for iso scalar sources;
+    # by the time we get here the caller has projected).  Wrap into
+    # a typed :class:`AngularFlux` for the path-forward Krylov.
+    q_ext_per_ord = PerOrdinateSource(external_source, sn_mesh)
+    q_ext_typed = AngularFlux(q_ext_per_ord.values, sn_mesh)
+
+    # ── Build the typed operator triple ─────────────────────────────
+    # InvertibleOperator via __add__ dispatch (R-1 Step C).  L + C
+    # admits .apply (matvec) and .solve (sweep) capabilities.  Scattering
+    # is the full multi-group operator; F = 0 for fixed-source.
+    L_leaf = StreamingOperator(sn_mesh, solver.mat_xs.total_cross_section)
+    C_t = CollisionOperator(sn_mesh, solver.mat_xs.total_cross_section)
+    LC = L_leaf + C_t
+
+    # GMRES UNPRECONDITIONED (explicit identity) — issue #200 tracks
+    # the block-inverse face preconditioner re-enablement.  Post-Phase-1.2
+    # the silent-fallback bug class is structurally unreachable:
+    # ``InvertibleOperator.solve`` is a pure function of
+    # ``(rhs, initial_guess, boundary)``; ``KrylovAcceleration``'s
+    # ``preconditioner=None`` default would invoke ``L.solve(q)`` with
+    # ``initial_guess=None`` → cold-start M-M seed (deterministic).
+    # Explicit identity is kept until #200 lands a curvilinear-quality
+    # preconditioner.
+    krylov = KrylovAcceleration(
+        LC,
+        solver.scattering_op,
+        ZeroOperator(),
+        preconditioner=lambda q: q,
+        tol=inner_tol,
+        max_iter=max_inner,
+        restart=min(50, N * ng * nx * ny),
+    )
+
+    psi_typed, residuals = krylov.solve(q_ext_typed)
+    angular = psi_typed.values
+    phi = psi_typed.integrate_angular().values
+    converged_flag = bool(residuals) and residuals[-1] < inner_tol
+    n_outer = len(residuals)
+    flux_residuals = [float(r) for r in residuals]
+
+    # Issue #197 PR-TYPED-5: build typed Solution at the boundary.
+    # R-1 Step 4 G1 — ``psi_typed`` is already a typed AngularFlux with
+    # the matvec's B1'' face residual on its boundary; reuse directly.
+    del mesh, quadrature, materials  # retained as kwargs for API stability
     history = IterationHistory(
         flux_residuals=tuple(flux_residuals),
         n_inner=n_outer + 1,
         converged=converged_flag,
     )
     return Solution(
-        angular_flux=AngularFlux(
-            angular, sn_mesh, boundary=solver._boundary_flux,
-        ),
+        angular_flux=psi_typed,
         scalar_flux=ScalarFlux(phi, sn_mesh),
         mesh=sn_mesh,
         keff=None,
