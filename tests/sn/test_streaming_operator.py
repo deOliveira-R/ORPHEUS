@@ -62,8 +62,14 @@ pytestmark = pytest.mark.foundation
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _slab_mesh(nx: int = 4, length: float = 1.0) -> SNMesh:
-    """Slab Mesh1D + GL N=4 quadrature, vacuum BCs."""
+def _slab_mesh(nx: int = 4, length: float = 1.0, ng: int = 2) -> SNMesh:
+    """Slab Mesh1D + GL N=4 quadrature, vacuum BCs.
+
+    R-1 Step 4 Step G0 — ``ng`` matches ``_sig_t_uniform`` default so
+    AngularFlux shape validation accepts the typed wrapping inside the
+    path-forward matvec (the mesh.ng vs sig_t.ng dimensional sin per
+    #205 closes at the test boundary).
+    """
     mesh = Mesh1D(
         edges=np.linspace(0.0, length, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -72,11 +78,14 @@ def _slab_mesh(nx: int = 4, length: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = GaussLegendre1D.create(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _spherical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
-    """Spherical Mesh1D + GL N=4, reflective inner / vacuum outer."""
+def _spherical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNMesh:
+    """Spherical Mesh1D + GL N=4, reflective inner / vacuum outer.
+
+    R-1 Step 4 Step G0 — see ``_slab_mesh`` re: ``ng`` default.
+    """
     mesh = Mesh1D(
         edges=np.linspace(0.0, radius, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -85,11 +94,14 @@ def _spherical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = GaussLegendre1D.create(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
-    """Cylindrical Mesh1D + Level-Symmetric SN-4 quadrature."""
+def _cylindrical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNMesh:
+    """Cylindrical Mesh1D + Level-Symmetric SN-4 quadrature.
+
+    R-1 Step 4 Step G0 — see ``_slab_mesh`` re: ``ng`` default.
+    """
     mesh = Mesh1D(
         edges=np.linspace(0.01, radius, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -98,7 +110,7 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = LevelSymmetricSN.create(sn_order=4)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
 def _sig_t_uniform(sn_mesh: SNMesh, ng: int = 2,

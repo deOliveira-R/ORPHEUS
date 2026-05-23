@@ -57,7 +57,7 @@ from orpheus.sn.operator import (
     transport_operator_matvec_unified,
 )
 from orpheus.sn.quadrature import ProductQuadrature
-from tests.sn._test_helpers import placeholder_materials
+from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 
 
 @pytest.mark.l0
@@ -98,9 +98,7 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
     # PR-TYPED-6c Step 7: route through ``transport_operator_matvec_unified``
     # — the legacy ``transport_operator_matvec_cylindrical`` retired.
     psi_view = np.full((quad.N, ng, nx, 1), psi_flat)
-    m_cell, _, _ = transport_operator_matvec_unified(
-        psi_view, sn_mesh, sig_t,
-    )
+    m_cell = legacy_proxy_matvec(psi_view, sn_mesh, sig_t)
     eq_map = build_equation_map_cylindrical(nx, quad, ng)
     lhs = m_cell[
         eq_map.ordinate, :, eq_map.ix, eq_map.iy,

@@ -902,107 +902,111 @@ def pack_with_traces(
 
 
 def transport_operator_matvec_unified(
-    psi_view: np.ndarray,            # (N, ng, nx, ny) canonical layout
-    sn_mesh: "SNMesh",
+    psi: "AngularFlux",
     sigma_t: np.ndarray,             # (ng, nx, ny)
     *,
-    psi_face_outer: np.ndarray | None = None,
-    psi_face_inner: np.ndarray | None = None,
-    face_outer_ordinate: np.ndarray | None = None,
-    face_inner_ordinate: np.ndarray | None = None,
     bc_outer: "BoundaryOperator | None" = None,
     pole_angular_closure: "PoleAngularClosure | None" = None,
-) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None]:
-    r"""Unified geometry-agnostic SN transport operator apply.
+) -> "AngularFlux":
+    r"""Unified geometry-agnostic SN transport operator apply (path-forward).
 
     Computes :math:`M(\psi; \Sigma_t) = (L + C)\,\psi` over all
-    geometries (sphere, cylinder, slab) via the shared per-cell
+    1-D geometries (sphere, cylinder, slab) via the shared per-cell
     algebra in :func:`cell_balance_for_streaming` and (for curvilinear)
-    :meth:`MorelMontryAngularSweep.compute_psi_half_per_level`.
+    :class:`MorelMontryAngularSweep`.
 
-    Issue #197 PR-TYPED-6c — replaces the three legacy geometry-keyed
-    helpers (Pattern 2: single source of truth for the discretisation
-    algebra). The body is geometry-agnostic by data: the per-cell
-    algebra reads cell geometry from :class:`StreamingTerms` (carried
-    on each :class:`CellVisit` yielded by :meth:`SNMesh.dag_walk`) and
+    R-1 Step 4 Step G0 (2026-05-22) — native-shape signature.  Inputs
+    and outputs are typed :class:`AngularFlux` carrying the cell flux
+    ``(N, ng, nx, ny)`` AND the boundary face state
+    (:class:`BoundaryFlux`) at the outer + slab-inner faces in their
+    natural ``(N, ng)`` layout.  The legacy packed-face-slot signature
+    (``psi_face_outer: (n_face_outer, ng)`` + ``face_outer_ordinate``
+    int slot map) retired with this rewrite — the inflow / outflow
+    ordinate masks are derived from the quadrature direction signs
+    (``quad.mu_x > 0`` for outflow at the outer face, etc.), NOT from
+    a precomputed slot map.  Companion design notes in
+    ``.claude/plans/r1_step4_g_convention_crosswalk.md`` Axis 3 + 6.
+
+    The body is geometry-agnostic by data: the per-cell algebra reads
+    cell geometry from ``sn_mesh.volumes`` + ``sn_mesh.areas``, and
     the per-ordinate angular closure from
     :class:`~orpheus.sn.spatial.pole_angular_closure._MMHalfGrid`.
 
-    PR-TYPED-6.5 Phase 3b — B1'' face state in the packed vector.  The
-    Carlson coupled-pole seed (curvilinear) and the slab inner-BC seed
-    consume the OUTER / INNER FACE flux, not the cell-CENTRE flux at
-    the boundary cells.  When ``psi_face_outer`` (resp.
-    ``psi_face_inner``) is supplied, the matvec uses it directly as
-    the face-state input; when omitted, the matvec falls back to the
-    legacy cell-centre-as-face proxy (preserved for bit-identity with
-    the legacy callers — the legacy proxy retires when those callers
-    do, in Step 7 / PR-TYPED-6.5 Phase 6).
+    Issue #197 PR-TYPED-6c — replaced the three legacy geometry-keyed
+    helpers (Pattern 2: single source of truth for the discretisation
+    algebra).  R-1 Step 4 Step G0 — replaced the packed-face-slot
+    I/O with native typed-AngularFlux I/O (Pattern 2 again: the eq_map
+    slot maps disappear; ``BoundaryFlux`` IS the face-state carrier).
 
     Parameters
     ----------
-    psi_view :
-        Angular flux in canonical layout ``(N, ng, nx, ny)``. The
-        matvec body uses a zero-copy transpose view to ``(ng, N, nx, ny)``
-        for the per-cell ``(ng, n_mask)`` algebra, but the public
-        contract is canonical.
-    sn_mesh :
-        :class:`SNMesh` carrying the per-cell geometry, quadrature,
-        boundary realizations, and angular closure strategy. The
-        function reads ``sn_mesh.quad``, ``sn_mesh.reduced``,
-        ``sn_mesh.volumes``, ``sn_mesh.dx``, ``sn_mesh.bc_right``,
-        ``sn_mesh.pole_angular_closure``.
+    psi :
+        Typed :class:`AngularFlux` carrying:
+
+        * ``psi.values`` — angular flux in canonical layout
+          ``(N, ng, nx, ny)``.
+        * ``psi.boundary.xmax_face`` — outer-face flux ``(N, ng)``.
+          Outflow positions (``quad.mu_x > 0``) carry the unknown
+          face state the matvec accumulates a residual for; inflow
+          positions are read by ``bc_outer.apply`` to produce the
+          inward sweep's seed.
+        * ``psi.boundary.xmin_face`` — inner-face flux ``(N, ng)``
+          (slab only — sphere / cylinder have no inner face).
+          Outflow positions (``quad.mu_x < 0``) carry the slab's
+          inner-face unknown; inflow positions are read by
+          ``bc_inner.apply``.
+
+        The mesh is read as ``psi.mesh`` (the typed-flux carries it).
     sigma_t :
         Per-group per-cell total cross section, shape ``(ng, nx, ny)``.
         Issue #196 PR-INDEX-3 — group-leading.
-    psi_face_outer :
-        Outward-ordinate outflow flux at the outer face, shape
-        ``(n_face_outer, ng)``.  ``None`` falls back to the legacy
-        cell-centre proxy at ``i = nx-1`` (preserving bit-identity
-        with the pre-Phase-3b matvec for legacy callers).
-    psi_face_inner :
-        Inward-ordinate outflow flux at the inner face, shape
-        ``(n_face_inner, ng)``.  Required when ``bc_inner`` is not
-        ``None`` and the B1'' path is engaged (i.e., when
-        ``psi_face_outer`` is also supplied).  ``None`` falls back
-        to the legacy cell-centre proxy at ``i = 0`` for the slab BC.
-    face_outer_ordinate, face_inner_ordinate :
-        ``(n_face_outer,)`` / ``(n_face_inner,)`` int arrays mapping
-        each face slot to its ordinate index in the full ``(N,)`` set.
-        Required when the corresponding ``psi_face_*`` is supplied.
     bc_outer :
         Outer-face boundary operator. ``None`` (default) reads
-        ``sn_mesh.bc_right``.
+        ``psi.mesh.bc_right``.
     pole_angular_closure :
         Angular closure strategy. ``None`` (default) reads
-        ``sn_mesh.pole_angular_closure``.
+        ``psi.mesh.pole_angular_closure``.
 
     Returns
     -------
-    m_cell : np.ndarray
-        Cell-centre operator action ``M(ψ; σ_t) = (L + C)·ψ`` in
-        canonical ``(N, ng, nx, ny)`` layout. Same cell-shape as
-        ``psi_view``.
-    m_face_outer : np.ndarray or None
-        Outer-face residual ``(WDD-propagated face) − psi_face_outer``,
-        shape ``(n_face_outer, ng)``.  Driven to zero by GMRES at the
-        converged ``ψ_face_outer = WDD-propagated face``.  ``None``
-        when ``psi_face_outer`` was not supplied.
-    m_face_inner : np.ndarray or None
-        Inner-face residual analogous to ``m_face_outer``, computed
-        from the inward sweep's WDD-propagated outflow at ``i = 0``.
-        ``None`` when ``psi_face_inner`` was not supplied.
+    AngularFlux
+        ``M(ψ; σ_t) = (L + C)·ψ`` in typed form:
+
+        * ``.values`` — cell-centre matvec result ``(N, ng, nx, ny)``.
+        * ``.boundary.xmax_face`` — outer-face residual ``(N, ng)``.
+          At outflow positions (``quad.mu_x > 0``): ``WDD-propagated
+          face − psi.boundary.xmax_face`` (driven to zero by GMRES at
+          convergence).  At inflow positions: identically zero
+          (no equation; the inflow value is determined by the BC,
+          not an unknown).
+        * ``.boundary.xmin_face`` — inner-face residual ``(N, ng)``
+          for slab (zero at inflow positions; ``WDD-propagated −
+          stored`` at outflow positions).  For sphere / cylinder,
+          ``xmin_face`` is ``None`` per :class:`BoundaryFlux.zeros`
+          dispatch on the mesh's curvature.
 
     Raises
     ------
     NotImplementedError
         2-D Cartesian (``ny > 1``) still routes through the legacy
         :func:`transport_operator_matvec` (FD via
-        :func:`_compute_gradients`); anti-diagonal wavefront sweeps lie
-        outside the PR-TYPED-6c scope.
+        :func:`_compute_gradients`); anti-diagonal wavefront sweeps
+        absorb in Phase A.
     """
+    from .angular_flux import AngularFlux
+    from .boundary_flux import BoundaryFlux
     from .spatial.cell_balance import cell_balance_for_streaming
     from .spatial.pole_angular_closure import MorelMontryAngularSweep
 
+    if not isinstance(psi, AngularFlux):
+        raise TypeError(
+            f"transport_operator_matvec_unified expects an AngularFlux; "
+            f"got {type(psi).__name__}.  R-1 Step 4 Step G0 retired the "
+            f"packed-face-slot signature."
+        )
+
+    sn_mesh = psi.mesh
+    psi_view = psi.values                                            # (N, ng, nx, ny)
     quad = sn_mesh.quad
     N = quad.N
     ng = psi_view.shape[1]
@@ -1054,6 +1058,15 @@ def transport_operator_matvec_unified(
     V = sn_mesh.volumes[:, 0]                                        # (nx,)
     sigma_t_gx = sigma_t[:, :, 0]                                    # (ng, nx)
 
+    # ── Boundary face state — read directly from psi.boundary ────────
+    # R-1 Step 4 Step G0 — boundary face state arrives in native
+    # ``(N, ng)`` layout via :class:`BoundaryFlux`.  Slab has both
+    # ``xmin_face`` and ``xmax_face``; sphere / cylinder have
+    # ``xmax_face`` only (the inner edge is a pole, not a real face).
+    boundary = psi.boundary
+    face_outer = boundary.xmax_face                                  # (N, ng)
+    face_inner = boundary.xmin_face                                  # (N, ng) for slab; None otherwise
+
     # ── Phase 1 spatial-upstream seed at the inner boundary ──────────
     # The predicate is structural, not curvature-keyed: ``bc_inner is
     # None`` means the inner edge is a pole (sphere / cylinder solid at
@@ -1062,46 +1075,28 @@ def transport_operator_matvec_unified(
     # flat-flux invariant). ``bc_inner is not None`` means there IS a
     # real inner boundary (slab at x=0, future hollow sphere /
     # annulus at r_inner), so apply ``bc_inner`` to the FACE flux
-    # ``psi_face_inner`` (B1'' — PR-TYPED-6.5 Phase 3b) or, when the
-    # face state isn't supplied, to the cell-centre proxy
-    # ``psi_view[:, :, 0, 0]`` (legacy fallback).  PR-TYPED-6.5 Phase
-    # 3a.1 retired the prior ``curvature == "cartesian"`` dispatch at
-    # this site; Phase 3b switched the seed source from cell-centre
-    # to face state.
+    # ``face_inner`` directly.
     if bc_inner is None:
         pole_face_seed = psi_view[:, :, 0, 0].copy()                 # (N, ng)
-    elif psi_face_inner is not None:
-        # B1'': scatter the per-ordinate inner-face flux into (N, ng)
-        # and feed it to ``bc_inner.apply``.  Slots not in
-        # ``face_inner_ordinate`` remain zero; ``bc_inner.apply`` for
-        # the realized boundary operators we ship only consumes the
-        # outflow positions (inward-at-x=0 for slab), so the zero
-        # padding at outward positions does not contaminate the
-        # produced inflow.
-        face_inner_full = np.zeros((N, ng))
-        face_inner_full[face_inner_ordinate, :] = psi_face_inner
-        pole_face_seed = bc_inner.apply(face_inner_full)             # (N, ng)
+    elif face_inner is not None:
+        pole_face_seed = bc_inner.apply(face_inner)                  # (N, ng)
     else:
-        # Legacy proxy fallback — pre-Phase-3b behaviour for callers
-        # that haven't migrated to B1'' (slab unified matvec tests
-        # under SNStreamingOperator-style cell-only packed vectors).
-        pole_face_seed = bc_inner.apply(psi_view[:, :, 0, 0])        # (N, ng)
+        raise ValueError(
+            "Slab geometry requires psi.boundary.xmin_face to be "
+            "populated (R-1 Step 4 Step G0 retired the cell-centre "
+            "proxy fallback inside the matvec; legacy SN consumers "
+            "must build a BoundaryFlux carrying the cell-centre proxy "
+            "as face state at their call site)."
+        )
 
     # ── Pre-compute the angular-closure state ───────────────────────
     # B1'' (PR-TYPED-6.5 Phase 3b) — the Carlson coupled-pole seed
-    # consumes the OUTER FACE flux ``psi_face_outer``, not the cell-
-    # CENTRE at ``i = nx-1``.  The Hébert §3.9.4 Eqs. 3.432-3.435
-    # recurrence demands the FACE trace; the pre-Phase-3b code's
-    # cell-centre-as-face proxy produced an ``O(h)`` discretisation
-    # gap that drove the cylinder twin-path divergence (``rel ≈ 4e-3``
-    # at ``nx = 40``).  When ``psi_face_outer`` is not supplied
-    # (legacy callers), fall back to the cell-centre proxy.
-    if psi_face_outer is not None:
-        face_outer_full = np.zeros((N, ng))
-        face_outer_full[face_outer_ordinate, :] = psi_face_outer
-        outer_inflow_estimate = bc_outer.apply(face_outer_full)      # (N, ng)
-    else:
-        outer_inflow_estimate = bc_outer.apply(psi_view[:, :, -1, 0])  # (N, ng)
+    # consumes the OUTER FACE flux directly, not the cell-CENTRE at
+    # ``i = nx-1``.  The Hébert §3.9.4 Eqs. 3.432-3.435 recurrence
+    # demands the FACE trace; the pre-Phase-3b cell-centre-as-face
+    # proxy produced an ``O(h)`` discretisation gap that drove the
+    # cylinder twin-path divergence (``rel ≈ 4e-3`` at ``nx = 40``).
+    outer_inflow_estimate = bc_outer.apply(face_outer)               # (N, ng)
 
     # ``closure.precompute_psi_state`` returns a ``tuple[_MMHalfGrid, ...]``
     # for curvilinear (one element per μ-level; sphere has one) and
@@ -1281,31 +1276,49 @@ def transport_operator_matvec_unified(
 
     m_cell = out_g_first.transpose(1, 0, 2, 3)                       # (N, ng, nx, ny)
 
-    # ── PR-TYPED-6.5 Phase 3b: face residuals ────────────────────────
+    # ── Face residuals (R-1 Step 4 Step G0 native-shape) ─────────────
     # ``outflow_at_boundary`` holds the WDD-propagated outflow at the
     # outer face (``i = nx-1``) accumulated by the outward sweep;
     # ``outflow_at_inner`` holds the WDD-propagated outflow at the inner
-    # face (``i = 0``) accumulated by the inward sweep.  The face
-    # residual is the predicted face minus the stored face — GMRES
-    # drives it to zero, aligning ``ψ_face_*`` with the WDD-propagated
-    # face at convergence.
-    if psi_face_outer is not None:
-        # outflow_at_boundary: (ng, N) → outward-ord columns → (ng, n_face_outer)
-        # transpose → (n_face_outer, ng) matches psi_face_outer's shape.
-        m_face_outer = (
-            outflow_at_boundary[:, face_outer_ordinate].T - psi_face_outer
-        )
-    else:
-        m_face_outer = None
+    # face (``i = 0``) accumulated by the inward sweep.  Each is shape
+    # ``(ng, N)`` with non-zero columns only at the within-direction
+    # ordinates (``mu_x > 0`` for outward; ``mu_x < 0`` for inward).
+    #
+    # The face residual is ``WDD-propagated − stored`` at outflow
+    # positions (GMRES drives it to zero, aligning the stored face with
+    # the WDD-propagated face at convergence).  Inflow positions carry
+    # no equation (the inflow value comes from the BC, not an unknown);
+    # their residual stays at zero (the BoundaryFlux default).
+    # Outflow / inflow masks are derived from the quadrature direction
+    # sign — NO precomputed ``face_outer_ordinate`` slot map (R-1 Step 4
+    # Step G0 — removed legacy eq_map slot dispatch).
+    #
+    # Boundary arrays are sized to the INPUT flux's ng (``psi_view.shape[1]``)
+    # NOT ``sn_mesh.ng`` — bare-ndarray callers may carry a sig_t whose
+    # ng differs from the mesh's materials ng (the dimensional sin
+    # acknowledged in #205).  Typed callers have ng-consistency by
+    # construction; the input-ng allocation is correct for both.
+    m_boundary = BoundaryFlux(mesh=sn_mesh)
+    m_boundary.xmax_face = np.zeros((N, ng))
+    if face_inner is not None:
+        m_boundary.xmin_face = np.zeros((N, ng))
 
-    if psi_face_inner is not None:
-        m_face_inner = (
-            outflow_at_inner[:, face_inner_ordinate].T - psi_face_inner
+    outer_outflow_mask = mu_x > +eps                                 # (N,) bool
+    if np.any(outer_outflow_mask):
+        m_boundary.xmax_face[outer_outflow_mask, :] = (
+            outflow_at_boundary[:, outer_outflow_mask].T
+            - face_outer[outer_outflow_mask, :]
         )
-    else:
-        m_face_inner = None
 
-    return m_cell, m_face_outer, m_face_inner
+    if face_inner is not None:
+        inner_outflow_mask = mu_x < -eps                             # (N,) bool
+        if np.any(inner_outflow_mask):
+            m_boundary.xmin_face[inner_outflow_mask, :] = (
+                outflow_at_inner[:, inner_outflow_mask].T
+                - face_inner[inner_outflow_mask, :]
+            )
+
+    return AngularFlux(m_cell, sn_mesh, boundary=m_boundary)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1566,9 +1579,23 @@ class SNStreamingOperator(LinearOperatorMixin):
                 bc_ymin=sn_mesh.bc_ymin,
                 bc_ymax=sn_mesh.bc_ymax,
             )
-        m_view, _, _ = transport_operator_matvec_unified(
-            psi_view, sn_mesh, self.sig_t,
-        )
+        # R-1 Step 4 Step G0 — wrap the legacy cell-only packed view into
+        # a typed AngularFlux for the path-forward matvec.  The legacy
+        # SN bundle's pre-B1'' contract is "cell-centre as face proxy";
+        # build a synthetic BoundaryFlux carrying that proxy so the
+        # path-forward matvec can do the BC-trace step.  This
+        # synthesise-then-call shim retires with SNStreamingOperator at
+        # G3f — the legacy bundle's contract is the only thing keeping
+        # the proxy alive.
+        from .angular_flux import AngularFlux
+        from .boundary_flux import BoundaryFlux
+        boundary_legacy = BoundaryFlux.zeros(sn_mesh)
+        boundary_legacy.xmax_face[:, :] = psi_view[:, :, -1, 0]  # (N, ng)
+        if boundary_legacy.xmin_face is not None:
+            boundary_legacy.xmin_face[:, :] = psi_view[:, :, 0, 0]
+        psi_typed = AngularFlux(psi_view, sn_mesh, boundary=boundary_legacy)
+        result = transport_operator_matvec_unified(psi_typed, self.sig_t)
+        m_view = result.values
         # Re-pack at the legacy eq_map's unknown slots.
         return m_view[
             eq_map.ordinate, :, eq_map.ix, eq_map.iy,
@@ -2007,24 +2034,53 @@ class StreamingOperator(LinearOperatorMixin):
             return m_full - sigma_packed * psi
 
         # 1-D slab / sphere / cylinder — B1'' face-aware unified matvec.
+        # R-1 Step 4 Step G0 — the path-forward matvec consumes a typed
+        # AngularFlux + native BoundaryFlux.  The bare-ndarray packed
+        # path stays as an adapter that decodes packed → typed, calls
+        # the path-forward matvec, encodes typed → packed.  This shim
+        # retires at G3d when the _with_traces family + EquationMap
+        # retire (the legacy bare-ndarray caller chain dies with them).
+        from .angular_flux import AngularFlux
+        from .boundary_flux import BoundaryFlux
         psi_cell, psi_face_outer, psi_face_inner = (
             solution_to_angular_flux_with_traces(
                 psi, eq_map, nx, ng, N=quad.N,
             )
         )
-        # Pass face state only when slots exist; matvec uses cell-
-        # centre proxy fallback when face state is ``None``.
-        face_outer_arg = psi_face_outer if eq_map.n_face_outer > 0 else None
-        face_inner_arg = psi_face_inner if eq_map.n_face_inner > 0 else None
-
-        m_cell, m_face_outer, m_face_inner = transport_operator_matvec_unified(
-            psi_cell, sn_mesh, self.sigma_t,
-            psi_face_outer=face_outer_arg,
-            psi_face_inner=face_inner_arg,
-            face_outer_ordinate=eq_map.face_outer_ordinate,
-            face_inner_ordinate=eq_map.face_inner_ordinate,
+        # Scatter the packed face sub-arrays into native (N, ng) BoundaryFlux
+        # slots so the path-forward matvec can read them directly.  Slots
+        # not in the eq_map's face-ordinate maps stay at zero (the
+        # correct "no equation here" value).  Allocate by the INPUT ng
+        # (``sigma_t.shape[0]``) rather than ``sn_mesh.ng`` — bare-ndarray
+        # callers may carry a sig_t whose ng differs from the mesh's
+        # materials ng (the dimensional sin per #205).
+        boundary_in = BoundaryFlux(mesh=sn_mesh)
+        boundary_in.xmax_face = np.zeros((quad.N, ng))
+        if curv is None:  # slab has a real inner face
+            boundary_in.xmin_face = np.zeros((quad.N, ng))
+        if eq_map.n_face_outer > 0:
+            boundary_in.xmax_face[eq_map.face_outer_ordinate, :] = (
+                psi_face_outer
+            )
+        if eq_map.n_face_inner > 0 and boundary_in.xmin_face is not None:
+            boundary_in.xmin_face[eq_map.face_inner_ordinate, :] = (
+                psi_face_inner
+            )
+        psi_typed = AngularFlux(psi_cell, sn_mesh, boundary=boundary_in)
+        result = transport_operator_matvec_unified(psi_typed, self.sigma_t)
+        m_cell = result.values
+        # Gather face residuals back to packed sub-arrays at the eq_map
+        # slot positions (the legacy packed layout's contract).
+        m_face_outer = (
+            result.boundary.xmax_face[eq_map.face_outer_ordinate, :]
+            if eq_map.n_face_outer > 0
+            else None
         )
-
+        m_face_inner = (
+            result.boundary.xmin_face[eq_map.face_inner_ordinate, :]
+            if eq_map.n_face_inner > 0 and result.boundary.xmin_face is not None
+            else None
+        )
         # Pack matvec output into the B1'' packed layout.
         m_full = pack_with_traces(m_cell, m_face_outer, m_face_inner, eq_map)
 
@@ -2075,52 +2131,24 @@ class StreamingOperator(LinearOperatorMixin):
             flat_out = self.apply(flat_in)
             return AngularFlux.from_flat_with_traces(flat_out, sn_mesh)
 
-        # 1-D slab / sphere / cylinder — typed-native compute.  Pull
-        # face state directly from ``psi.boundary``; matvec returns
-        # cell action + face residual.
-        eq_map = self._ensure_eq_map(ng=ng)
-        # Gather face values at the typed per-ordinate slots.  Empty
-        # arrays (size 0) when the geometry has no inner-face block.
-        if eq_map.n_face_outer > 0:
-            face_outer_in = psi.boundary.xmax_face[
-                eq_map.face_outer_ordinate, :
-            ]
-            face_outer_ord = eq_map.face_outer_ordinate
-        else:
-            face_outer_in = None
-            face_outer_ord = None
-        if eq_map.n_face_inner > 0:
-            face_inner_in = psi.boundary.xmin_face[
-                eq_map.face_inner_ordinate, :
-            ]
-            face_inner_ord = eq_map.face_inner_ordinate
-        else:
-            face_inner_in = None
-            face_inner_ord = None
-
-        m_cell, m_face_outer, m_face_inner = transport_operator_matvec_unified(
-            psi.values, sn_mesh, self.sigma_t,
-            psi_face_outer=face_outer_in,
-            psi_face_inner=face_inner_in,
-            face_outer_ordinate=face_outer_ord,
-            face_inner_ordinate=face_inner_ord,
-        )
+        # 1-D slab / sphere / cylinder — typed-native compute.  R-1 Step 4
+        # Step G0 — the path-forward matvec consumes ``psi`` (AngularFlux)
+        # natively.  No eq_map gather/scatter; ``psi.boundary.xmax_face``
+        # carries the face state in (N, ng) layout, inflow vs outflow
+        # masks derived from the quadrature direction sign inside the
+        # matvec body.  ``_ensure_eq_map`` retires alongside this gather
+        # block at G3b — the typed leaf operator carries no eq_map state.
+        result = transport_operator_matvec_unified(psi, self.sigma_t)
 
         # Subtract σ_t ⊙ ψ at the CELL-CENTRE only — face slots carry
         # no volumetric collision (the cell-balance σ·ψ term is a CELL
         # quantity; the face residual is a TRACE equation).
-        cell_values = m_cell - self.sigma_t[None, :, :, :] * psi.values
+        cell_values = result.values - self.sigma_t[None, :, :, :] * psi.values
 
-        # Build the result's BoundaryFlux from the matvec's face
-        # residuals.  Scatter back into the same per-ordinate slots
-        # that ``from_flat_with_traces`` uses on decode.
-        boundary = BoundaryFlux.zeros(sn_mesh)
-        if eq_map.n_face_outer > 0 and m_face_outer is not None:
-            boundary.xmax_face[eq_map.face_outer_ordinate, :] = m_face_outer
-        if eq_map.n_face_inner > 0 and m_face_inner is not None:
-            boundary.xmin_face[eq_map.face_inner_ordinate, :] = m_face_inner
-
-        return AngularFlux(cell_values, sn_mesh, boundary=boundary)
+        # Face residual is the matvec's boundary output as-is — the
+        # path-forward matvec writes the residual at outflow positions
+        # only (inflow stays zero per ``BoundaryFlux.zeros``).
+        return AngularFlux(cell_values, sn_mesh, boundary=result.boundary)
 
     # ── Algebra dispatch — sweep-invertible composite (R-1 Step C) ────
 

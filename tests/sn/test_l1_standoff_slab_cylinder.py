@@ -67,6 +67,7 @@ from orpheus.sn.operator import (
     transport_operator_matvec_unified,
 )
 from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
+from tests.sn._test_helpers import legacy_proxy_matvec
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -103,7 +104,7 @@ def _patch_apply_to_unified():
             psi_view = solution_to_angular_flux_cylindrical(
                 psi_packed, eq_map, quad, nx, ng,
             )
-            m_view, _, _ = transport_operator_matvec_unified(
+            m_view = legacy_proxy_matvec(
                 psi_view, sn_mesh, self.sig_t,
                 bc_outer=sn_mesh.bc_right,
                 pole_angular_closure=sn_mesh.pole_angular_closure,
@@ -114,9 +115,7 @@ def _patch_apply_to_unified():
                 bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
                 bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
             )
-            m_view, _, _ = transport_operator_matvec_unified(
-                psi_view, sn_mesh, self.sig_t,
-            )
+            m_view = legacy_proxy_matvec(psi_view, sn_mesh, self.sig_t)
         else:  # spherical — pass through to legacy
             return orig_apply(self, psi_packed)
 

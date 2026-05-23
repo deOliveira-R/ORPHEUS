@@ -56,7 +56,7 @@ from orpheus.sn.operator import (
     transport_operator_matvec_unified,
 )
 from orpheus.sn.quadrature import GaussLegendre1D
-from tests.sn._test_helpers import placeholder_materials
+from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -84,9 +84,7 @@ def test_unified_slab_zero_psi_gives_zero() -> None:
     sigma_t = np.full((ng, sn_mesh.nx, 1), 2.0)
     psi_view = np.zeros((sn_mesh.quad.N, ng, sn_mesh.nx, 1))
 
-    m_unified, _, _ = transport_operator_matvec_unified(
-        psi_view, sn_mesh, sigma_t,
-    )
+    m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
     np.testing.assert_array_equal(m_unified, np.zeros_like(m_unified))
 
 
@@ -102,9 +100,7 @@ def test_unified_slab_constant_psi_gives_sigma_t() -> None:
     sigma_t = np.full((ng, sn_mesh.nx, 1), sigma_t_val)
     psi_view = np.ones((sn_mesh.quad.N, ng, sn_mesh.nx, 1))
 
-    m_unified, _, _ = transport_operator_matvec_unified(
-        psi_view, sn_mesh, sigma_t,
-    )
+    m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
     np.testing.assert_allclose(
         m_unified, sigma_t_val, rtol=1e-13, atol=1e-14,
     )
@@ -162,9 +158,7 @@ def _patch_apply_to_unified():
             bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
             bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
         )
-        m_view, _, _ = transport_operator_matvec_unified(
-            psi_view, sn_mesh, self.sig_t,
-        )
+        m_view = legacy_proxy_matvec(psi_view, sn_mesh, self.sig_t)
         flux = np.empty((ng, eq_map.n_eq))
         for k in range(eq_map.n_eq):
             flux[:, k] = m_view[
@@ -278,9 +272,7 @@ def test_unified_slab_differs_from_legacy_fd_O_h() -> None:
         bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
         bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
     )
-    m_view, _, _ = transport_operator_matvec_unified(
-        psi_view, sn_mesh, sigma_t,
-    )
+    m_view = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
     flux = np.empty((ng, eq_map.n_eq))
     for k in range(eq_map.n_eq):
         flux[:, k] = m_view[
@@ -312,9 +304,7 @@ def test_unified_slab_differs_from_legacy_fd_O_h() -> None:
         bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
         bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
     )
-    m_view_flat, _, _ = transport_operator_matvec_unified(
-        psi_view_flat, sn_mesh, sigma_t,
-    )
+    m_view_flat = legacy_proxy_matvec(psi_view_flat, sn_mesh, sigma_t)
     flux_flat = np.empty((ng, eq_map.n_eq))
     for k in range(eq_map.n_eq):
         flux_flat[:, k] = m_view_flat[

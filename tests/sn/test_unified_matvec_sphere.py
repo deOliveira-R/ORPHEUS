@@ -39,7 +39,7 @@ from orpheus.sn.operator import (
     transport_operator_matvec_unified,
 )
 from orpheus.sn.quadrature import GaussLegendre1D
-from tests.sn._test_helpers import placeholder_materials
+from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 
 
 def _build_sphere(n_cells: int = 5, n_ord: int = 4) -> SNMesh:
@@ -132,9 +132,7 @@ class TestUnifiedMatvecSphere:
         sigma_t = np.full((ng, sn_mesh.nx, 1), sigma_t_val)
         psi_view = np.ones((sn_mesh.quad.N, ng, sn_mesh.nx, 1))
 
-        m_unified, _, _ = transport_operator_matvec_unified(
-            psi_view, sn_mesh, sigma_t,
-        )
+        m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
         # At constant ψ = 1: (L+C)·1 ≈ σ_t · 1 = 2.0 everywhere.
         eq_map = build_equation_map_spherical(sn_mesh.nx, sn_mesh.quad, ng)
         m_at_unknowns = _extract_at_unknown_slots(m_unified, eq_map)
@@ -149,9 +147,7 @@ class TestUnifiedMatvecSphere:
         sigma_t = np.full((ng, sn_mesh.nx, 1), 2.0)
         psi_view = np.zeros((sn_mesh.quad.N, ng, sn_mesh.nx, 1))
 
-        m_unified, _, _ = transport_operator_matvec_unified(
-            psi_view, sn_mesh, sigma_t,
-        )
+        m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
         np.testing.assert_array_equal(
             m_unified, np.zeros_like(m_unified),
         )

@@ -73,6 +73,40 @@ def placeholder_materials(
     }
 
 
+def legacy_proxy_matvec(
+    psi_view: "np.ndarray", sn_mesh: "SNMesh", sigma_t: "np.ndarray",
+    *, bc_outer=None, pole_angular_closure=None,
+) -> "np.ndarray":
+    """Call the path-forward matvec with a legacy cell-centre-proxy boundary.
+
+    R-1 Step 4 Step G0 — :func:`transport_operator_matvec_unified` now
+    consumes a typed :class:`AngularFlux` natively (the packed-face-slot
+    signature retired alongside the eq_map slot dispatch).  Tests that
+    exercised the pre-G0 legacy "no face state, fall back to cell-centre
+    proxy" path use this helper to preserve their semantics: build a
+    :class:`BoundaryFlux` carrying ``psi_view``'s cell-centre value as
+    face state at the outer (and slab-inner) face, wrap into an
+    :class:`AngularFlux`, call the path-forward matvec, return cell
+    output.  This helper retires alongside the
+    :class:`SNStreamingOperator` legacy bundle at G3f.
+    """
+    from orpheus.sn.angular_flux import AngularFlux
+    from orpheus.sn.boundary_flux import BoundaryFlux
+    from orpheus.sn.operator import transport_operator_matvec_unified
+
+    bf = BoundaryFlux(mesh=sn_mesh)
+    bf.xmax_face = psi_view[:, :, -1, 0].copy()                  # (N, ng)
+    curv = getattr(sn_mesh, "curvature", None)
+    if curv is None:                                             # slab has real inner BC
+        bf.xmin_face = psi_view[:, :, 0, 0].copy()
+    psi_typed = AngularFlux(psi_view, sn_mesh, boundary=bf)
+    result = transport_operator_matvec_unified(
+        psi_typed, sigma_t,
+        bc_outer=bc_outer, pole_angular_closure=pole_angular_closure,
+    )
+    return result.values
+
+
 def make_boundary_flux_zero(sn_mesh: "SNMesh") -> "BoundaryFlux":
     """Build a zero-initialised :class:`BoundaryFlux` for ``sn_mesh``.
 

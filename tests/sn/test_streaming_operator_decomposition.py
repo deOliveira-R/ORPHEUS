@@ -155,20 +155,35 @@ def _call_matvec(sn_mesh: SNMesh, psi_vec: np.ndarray,
             bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
         )
 
-    # 1-D B1'' face-aware path.
+    # 1-D B1'' face-aware path.  R-1 Step 4 Step G0 — typed-AngularFlux
+    # entry; scatter packed face slots into the native (N, ng) BoundaryFlux.
+    from orpheus.sn.angular_flux import AngularFlux
+    from orpheus.sn.boundary_flux import BoundaryFlux
     psi_cell, psi_face_outer, psi_face_inner = (
         solution_to_angular_flux_with_traces(
             psi_vec, eq_map, nx, ng, N=quad.N,
         )
     )
-    face_outer_arg = psi_face_outer if eq_map.n_face_outer > 0 else None
-    face_inner_arg = psi_face_inner if eq_map.n_face_inner > 0 else None
-    m_cell, m_face_outer, m_face_inner = transport_operator_matvec_unified(
-        psi_cell, sn_mesh, sigma_t_arr,
-        psi_face_outer=face_outer_arg,
-        psi_face_inner=face_inner_arg,
-        face_outer_ordinate=eq_map.face_outer_ordinate,
-        face_inner_ordinate=eq_map.face_inner_ordinate,
+    boundary_in = BoundaryFlux(mesh=sn_mesh)
+    boundary_in.xmax_face = np.zeros((quad.N, ng))
+    curv = getattr(sn_mesh, "curvature", None)
+    if curv is None:
+        boundary_in.xmin_face = np.zeros((quad.N, ng))
+    if eq_map.n_face_outer > 0:
+        boundary_in.xmax_face[eq_map.face_outer_ordinate, :] = psi_face_outer
+    if eq_map.n_face_inner > 0 and boundary_in.xmin_face is not None:
+        boundary_in.xmin_face[eq_map.face_inner_ordinate, :] = psi_face_inner
+    psi_typed = AngularFlux(psi_cell, sn_mesh, boundary=boundary_in)
+    result = transport_operator_matvec_unified(psi_typed, sigma_t_arr)
+    m_cell = result.values
+    m_face_outer = (
+        result.boundary.xmax_face[eq_map.face_outer_ordinate, :]
+        if eq_map.n_face_outer > 0 else None
+    )
+    m_face_inner = (
+        result.boundary.xmin_face[eq_map.face_inner_ordinate, :]
+        if eq_map.n_face_inner > 0 and result.boundary.xmin_face is not None
+        else None
     )
     return pack_with_traces(m_cell, m_face_outer, m_face_inner, eq_map)
 

@@ -1,0 +1,511 @@
+r"""Foundation contract pins for the path-forward
+:func:`~orpheus.sn.operator.transport_operator_matvec_unified`.
+
+R-1 Step 4 Step G0 (2026-05-22) — the unified matvec switched to a
+native :class:`AngularFlux` ↔ :class:`AngularFlux` signature.  The
+face-state I/O is direct ``(N, ng)`` :class:`BoundaryFlux` access (no
+``EquationMap.face_outer_ordinate`` slot map; the inflow / outflow
+ordinate masks derive from ``quad.mu_x`` direction signs).
+
+This file pins the structural contract the path-forward matvec must
+satisfy.  Per V&V plan §G0.2 (``.claude/plans/r1_step4_g_verification_plan.md``)
+the seven foundation pins are:
+
+1. Zero input → zero output (linearity sentinel).
+2. Uniform ψ on homogeneous reflective medium → ``(L+C)·ψ = σ_t·ψ``
+   (the streaming-equilibrium / per-ordinate flat-flux invariant —
+   the ERR-026 / ERR-006 / ERR-007 canonical diagnostic; Signature
+   1 of ``numerical-bug-signatures``).
+3. Linearity in ψ — ``M(αψ + βφ) = αM(ψ) + βM(φ)`` at FP-ULP.
+4. Output shape ``(N, ng, nx, ny)`` for cells + ``(N, ng)`` for
+   ``boundary.xmax_face`` (and slab-inner) — the path-forward
+   typed contract.
+5. Face residual zero at non-outflow ordinates (no equation there;
+   inflow ords get their value from the BC, not from the iterate).
+6. Quadrature-derived outflow masks at the outer face match the
+   legacy ``face_outer_ordinate`` slot positions exactly.  Pin via
+   ``build_equation_map_with_traces`` cross-check.
+7. 2-D Cartesian raises ``NotImplementedError`` (mirrors the
+   existing 2-D guard pre-Step-G; Phase A absorbs).
+
+Cross-references:
+
+* ``.claude/plans/r1_step4_g_convention_crosswalk.md`` Axis 3 + 6.
+* ``.claude/plans/r1_step4_g_dependency_audit.md`` CORRECTION
+  section (Path forward).
+* ``.claude/lessons.md`` L18 (Pattern 7 producer-side normalisation;
+  the face-mask derivation from ``quad`` is the equivalent of
+  Pattern 7 applied to the slot-map elimination).
+"""
+from __future__ import annotations
+
+import numpy as np
+import pytest
+
+from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.sn.angular_flux import AngularFlux
+from orpheus.sn.boundary_flux import BoundaryFlux
+from orpheus.sn.geometry import SNMesh
+from orpheus.sn.operator import (
+    build_equation_map_spherical,
+    build_equation_map_with_traces,
+    transport_operator_matvec_unified,
+)
+from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
+from tests.sn._test_helpers import placeholder_materials
+
+
+pytestmark = pytest.mark.foundation
+
+
+# ── Mesh fixtures ────────────────────────────────────────────────────
+
+
+def _slab_mesh(nx: int = 4, length: float = 1.0, ng: int = 1) -> SNMesh:
+    """1-D slab with vacuum BCs + GL N=4."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, length, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
+    )
+    quad = GaussLegendre1D.create(n_ordinates=4)
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
+def _sphere_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNMesh:
+    """1-D sphere with reflective inner / vacuum outer + GL N=4."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, radius, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.SPHERICAL,
+        bc_left=BC("reflective"),
+        bc_right=BC("vacuum"),
+    )
+    quad = GaussLegendre1D.create(n_ordinates=4)
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
+def _cylinder_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNMesh:
+    """1-D cylinder with reflective inner / vacuum outer + LS-4."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.01, radius, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CYLINDRICAL,
+        bc_left=BC("reflective"),
+        bc_right=BC("vacuum"),
+    )
+    quad = LevelSymmetricSN.create(sn_order=4)
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
+GEOMETRIES = [
+    ("slab", _slab_mesh),
+    ("sphere", _sphere_mesh),
+    ("cylinder", _cylinder_mesh),
+]
+
+
+def _zero_flux(sn_mesh: SNMesh) -> AngularFlux:
+    """Construct a typed zero AngularFlux on ``sn_mesh``."""
+    N, ng, nx, ny = sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny
+    return AngularFlux(
+        np.zeros((N, ng, nx, ny)), sn_mesh,
+        boundary=BoundaryFlux.zeros(sn_mesh),
+    )
+
+
+def _uniform_flux(sn_mesh: SNMesh, value: float = 1.0) -> AngularFlux:
+    """Construct a typed uniform-ψ AngularFlux with face state matching."""
+    N, ng, nx, ny = sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny
+    bf = BoundaryFlux(mesh=sn_mesh)
+    bf.xmax_face = np.full((N, ng), value)
+    curv = getattr(sn_mesh, "curvature", None)
+    if curv is None:  # slab
+        bf.xmin_face = np.full((N, ng), value)
+    return AngularFlux(np.full((N, ng, nx, ny), value), sn_mesh, boundary=bf)
+
+
+# ── Pin 1: zero input → zero output ─────────────────────────────────
+
+
+class TestZeroInputZeroOutput:
+    """The matvec is linear; zero ψ + zero boundary → zero output."""
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    def test_zero_input_zero_output(self, name, builder) -> None:
+        sn_mesh = builder()
+        sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 2.0)
+        result = transport_operator_matvec_unified(
+            _zero_flux(sn_mesh), sigma_t,
+        )
+        np.testing.assert_array_equal(
+            result.values, np.zeros_like(result.values),
+        )
+        # Face residual at outflow positions = (WDD-propagated 0) - (stored 0)
+        # = 0; at inflow positions = 0 by default.  Whole array zero.
+        np.testing.assert_array_equal(
+            result.boundary.xmax_face,
+            np.zeros_like(result.boundary.xmax_face),
+        )
+        if result.boundary.xmin_face is not None:
+            np.testing.assert_array_equal(
+                result.boundary.xmin_face,
+                np.zeros_like(result.boundary.xmin_face),
+            )
+
+
+# ── Pin 2: uniform ψ on homogeneous reflective → σ_t·ψ ──────────────
+
+
+class TestUniformFluxSigmaT:
+    r"""On a homogeneous reflective medium with uniform face state, the
+    streaming term cancels exactly (per-ordinate flat-flux invariant)
+    and the matvec returns ``(L+C)·ψ = σ_t·ψ`` per ordinate.
+
+    This is the CANONICAL ERR-026 / ERR-006 / ERR-007 diagnostic — the
+    Pomraning isotropy test extended to all geometries.  Pre-Phase G
+    Step 2 the curvilinear SI sweep failed this with ~22% L0 error
+    (ERR-048 manifestation).  The path-forward matvec inherits the
+    geometry-agnostic body and the M-M Carlson seed structure that
+    closed ERR-048.
+    """
+
+    @pytest.mark.verifies("transport-cartesian", "hebert-3-432")
+    @pytest.mark.parametrize("name,builder", [
+        ("slab_reflective", lambda: _make_reflective_slab()),
+        ("sphere_reflective", lambda: _make_reflective_sphere()),
+        ("cylinder_reflective", lambda: _make_reflective_cylinder()),
+    ])
+    def test_uniform_flux_on_homogeneous_reflective_gives_sigma_t(
+        self, name, builder,
+    ) -> None:
+        sn_mesh = builder()
+        ng = sn_mesh.ng
+        sigma_t_val = 2.0
+        sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), sigma_t_val)
+        result = transport_operator_matvec_unified(
+            _uniform_flux(sn_mesh, value=1.0), sigma_t,
+        )
+        # Per-ordinate cell action: (L+C)·1 = σ_t·1 = 2.0.  Flat-flux
+        # invariant holds for every ordinate, every cell.
+        np.testing.assert_allclose(
+            result.values, sigma_t_val, rtol=1e-12, atol=1e-13,
+            err_msg=(
+                f"{name}: uniform-ψ flat-flux invariant violated; max "
+                f"deviation = {np.abs(result.values - sigma_t_val).max():.3e}"
+            ),
+        )
+
+
+def _make_reflective_slab(nx: int = 4, length: float = 1.0) -> SNMesh:
+    """Reflective slab (homogeneous infinite slab) — flat-flux invariant
+    needs reflective BC so the outflow at the boundary reflects back as
+    inflow, nulling the net streaming on uniform ψ."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, length, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("reflective"),
+        bc_right=BC("reflective"),
+    )
+    quad = GaussLegendre1D.create(n_ordinates=4)
+    return SNMesh(mesh, quad, placeholder_materials())
+
+
+def _make_reflective_sphere(nx: int = 4, radius: float = 1.0) -> SNMesh:
+    """Reflective outer sphere — uniform ψ flat-flux invariant requires
+    the outer BC to reflect the outflow back as inflow (so the net
+    radial streaming on uniform ψ cancels).  Pole at r=0 always
+    handles regularity via M-M Carlson seed."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, radius, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.SPHERICAL,
+        bc_left=BC("reflective"),  # unused — pole regularity
+        bc_right=BC("reflective"),
+    )
+    quad = GaussLegendre1D.create(n_ordinates=4)
+    return SNMesh(mesh, quad, placeholder_materials())
+
+
+def _make_reflective_cylinder(nx: int = 4, radius: float = 1.0) -> SNMesh:
+    """Reflective outer cylinder — same flat-flux logic as sphere."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.01, radius, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CYLINDRICAL,
+        bc_left=BC("reflective"),
+        bc_right=BC("reflective"),
+    )
+    quad = LevelSymmetricSN.create(sn_order=4)
+    return SNMesh(mesh, quad, placeholder_materials())
+
+
+# ── Pin 3: linearity ────────────────────────────────────────────────
+
+
+class TestLinearity:
+    """``M(αψ + βφ) = αM(ψ) + βM(φ)`` at FP-ULP."""
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    def test_linearity(self, name, builder) -> None:
+        sn_mesh = builder()
+        ng = sn_mesh.ng
+        N, nx, ny = sn_mesh.quad.N, sn_mesh.nx, sn_mesh.ny
+        sigma_t = np.full((ng, nx, ny), 0.5)
+
+        rng = np.random.default_rng(seed=42)
+        # ψ + φ with random face state too — linearity must hold
+        # across cell + boundary slots.
+        psi_values = rng.standard_normal((N, ng, nx, ny))
+        psi_xmax = rng.standard_normal((N, ng))
+        bf_psi = BoundaryFlux(mesh=sn_mesh)
+        bf_psi.xmax_face = psi_xmax
+        if getattr(sn_mesh, "curvature", None) is None:
+            bf_psi.xmin_face = rng.standard_normal((N, ng))
+        psi = AngularFlux(psi_values, sn_mesh, boundary=bf_psi)
+
+        phi_values = rng.standard_normal((N, ng, nx, ny))
+        phi_xmax = rng.standard_normal((N, ng))
+        bf_phi = BoundaryFlux(mesh=sn_mesh)
+        bf_phi.xmax_face = phi_xmax
+        if getattr(sn_mesh, "curvature", None) is None:
+            bf_phi.xmin_face = rng.standard_normal((N, ng))
+        phi = AngularFlux(phi_values, sn_mesh, boundary=bf_phi)
+
+        alpha, beta = 1.7, -0.3
+
+        # M(αψ + βφ)
+        sum_values = alpha * psi.values + beta * phi.values
+        bf_sum = BoundaryFlux(mesh=sn_mesh)
+        bf_sum.xmax_face = alpha * psi.boundary.xmax_face + beta * phi.boundary.xmax_face
+        if psi.boundary.xmin_face is not None and phi.boundary.xmin_face is not None:
+            bf_sum.xmin_face = alpha * psi.boundary.xmin_face + beta * phi.boundary.xmin_face
+        sum_psi = AngularFlux(sum_values, sn_mesh, boundary=bf_sum)
+        m_sum = transport_operator_matvec_unified(sum_psi, sigma_t)
+
+        # αM(ψ) + βM(φ)
+        m_psi = transport_operator_matvec_unified(psi, sigma_t)
+        m_phi = transport_operator_matvec_unified(phi, sigma_t)
+
+        np.testing.assert_allclose(
+            m_sum.values,
+            alpha * m_psi.values + beta * m_phi.values,
+            rtol=1e-12, atol=1e-13,
+            err_msg=f"{name}: linearity violated on cell slot",
+        )
+        np.testing.assert_allclose(
+            m_sum.boundary.xmax_face,
+            alpha * m_psi.boundary.xmax_face + beta * m_phi.boundary.xmax_face,
+            rtol=1e-12, atol=1e-13,
+            err_msg=f"{name}: linearity violated on xmax_face",
+        )
+
+
+# ── Pin 4: output shape contract ────────────────────────────────────
+
+
+class TestOutputShape:
+    """The matvec returns ``AngularFlux`` with the path-forward shapes."""
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    def test_output_shape_matches_input(self, name, builder) -> None:
+        sn_mesh = builder()
+        sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
+        result = transport_operator_matvec_unified(
+            _zero_flux(sn_mesh), sigma_t,
+        )
+        # Cell values: (N, ng, nx, ny).
+        assert result.values.shape == (
+            sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny,
+        )
+        # Outer face: (N, ng) for every geometry.
+        assert result.boundary.xmax_face.shape == (
+            sn_mesh.quad.N, sn_mesh.ng,
+        )
+        # Inner face: (N, ng) for slab; None for curvilinear.
+        curv = getattr(sn_mesh, "curvature", None)
+        if curv is None:
+            assert result.boundary.xmin_face is not None
+            assert result.boundary.xmin_face.shape == (
+                sn_mesh.quad.N, sn_mesh.ng,
+            )
+        else:
+            assert result.boundary.xmin_face is None
+
+
+# ── Pin 5: face residual zero at non-outflow ────────────────────────
+
+
+class TestFaceResidualMask:
+    r"""The matvec writes the face residual ONLY at outflow ordinates;
+    inflow ordinates at the same face get a zero residual (no equation
+    — their value comes from the BC, not from the iterate).
+
+    Outflow at the outer face: ``quad.mu_x > 0``.  Inflow: ``mu_x < 0``.
+    """
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    def test_outer_face_residual_zero_at_inflow_ordinates(
+        self, name, builder,
+    ) -> None:
+        sn_mesh = builder()
+        ng = sn_mesh.ng
+        sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 1.0)
+
+        # Random ψ — face residual at inflow ords must stay zero
+        # regardless of input data (no equation there).
+        rng = np.random.default_rng(seed=11)
+        psi_values = rng.standard_normal(
+            (sn_mesh.quad.N, ng, sn_mesh.nx, sn_mesh.ny),
+        )
+        bf = BoundaryFlux(mesh=sn_mesh)
+        bf.xmax_face = rng.standard_normal((sn_mesh.quad.N, ng))
+        if getattr(sn_mesh, "curvature", None) is None:
+            bf.xmin_face = rng.standard_normal((sn_mesh.quad.N, ng))
+        psi = AngularFlux(psi_values, sn_mesh, boundary=bf)
+
+        result = transport_operator_matvec_unified(psi, sigma_t)
+
+        mu_x = sn_mesh.quad.mu_x
+        eps = 1e-15
+        inflow_outer = mu_x <= -eps  # μ_x < 0 = inflow at outer face
+        np.testing.assert_array_equal(
+            result.boundary.xmax_face[inflow_outer, :],
+            np.zeros((np.sum(inflow_outer), ng)),
+            err_msg=(
+                f"{name}: outer-face residual is non-zero at inflow "
+                f"ordinates (μ_x < 0).  These have no equation; the "
+                f"residual at these positions MUST stay zero."
+            ),
+        )
+
+    def test_slab_inner_face_residual_zero_at_inflow_ordinates(
+        self,
+    ) -> None:
+        """Slab xmin face: outflow at μ < 0; inflow at μ > 0."""
+        sn_mesh = _make_reflective_slab()
+        ng = sn_mesh.ng
+        sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 1.0)
+
+        rng = np.random.default_rng(seed=22)
+        psi_values = rng.standard_normal(
+            (sn_mesh.quad.N, ng, sn_mesh.nx, sn_mesh.ny),
+        )
+        bf = BoundaryFlux(mesh=sn_mesh)
+        bf.xmax_face = rng.standard_normal((sn_mesh.quad.N, ng))
+        bf.xmin_face = rng.standard_normal((sn_mesh.quad.N, ng))
+        psi = AngularFlux(psi_values, sn_mesh, boundary=bf)
+
+        result = transport_operator_matvec_unified(psi, sigma_t)
+
+        mu_x = sn_mesh.quad.mu_x
+        eps = 1e-15
+        # Inflow at xmin face: μ_x > 0 (right-going).
+        inflow_inner = mu_x >= +eps
+        np.testing.assert_array_equal(
+            result.boundary.xmin_face[inflow_inner, :],
+            np.zeros((np.sum(inflow_inner), ng)),
+            err_msg=(
+                "slab inner-face residual is non-zero at inflow "
+                "ordinates (μ_x > 0).  Inflow at xmin has no equation; "
+                "residual MUST stay zero."
+            ),
+        )
+
+
+# ── Pin 6: quad-derived mask ≡ eq_map slot positions ────────────────
+
+
+class TestQuadDerivedMaskEqualsLegacySlotMap:
+    r"""The path-forward matvec derives the outflow-ordinate mask from
+    ``quad.mu_x`` direction signs.  The legacy
+    ``build_equation_map_with_traces``'s ``face_outer_ordinate``
+    precomputed the same set of ordinates from the same direction
+    signs (slab outer: ``mu_x > 0``; curvilinear outer: ``mu_x > 0``).
+    This pin makes that equivalence explicit so a future refactor of
+    the quadrature's mu_x semantics doesn't silently drift the mask.
+    """
+
+    def test_slab_outer_outflow_mask_matches_eq_map(self) -> None:
+        sn_mesh = _make_reflective_slab(nx=8)
+        ng = sn_mesh.ng
+        eq_map = build_equation_map_with_traces(
+            sn_mesh.nx, sn_mesh.quad, ng, has_inner_bc=True,
+        )
+        quad_outflow_outer = np.where(sn_mesh.quad.mu_x > 1e-15)[0]
+        np.testing.assert_array_equal(
+            np.sort(eq_map.face_outer_ordinate),
+            np.sort(quad_outflow_outer),
+            err_msg=(
+                "slab outer-face outflow ordinates derived from quad "
+                "(μ_x > 0) must equal the legacy eq_map.face_outer_ordinate"
+            ),
+        )
+
+    def test_sphere_outer_outflow_mask_matches_eq_map(self) -> None:
+        sn_mesh = _sphere_mesh(nx=8)
+        ng = sn_mesh.ng
+        eq_map = build_equation_map_with_traces(
+            sn_mesh.nx, sn_mesh.quad, ng, has_inner_bc=False,
+        )
+        quad_outflow_outer = np.where(sn_mesh.quad.mu_x > 1e-15)[0]
+        np.testing.assert_array_equal(
+            np.sort(eq_map.face_outer_ordinate),
+            np.sort(quad_outflow_outer),
+            err_msg=(
+                "sphere outer-face outflow ordinates derived from "
+                "quad (μ_x > 0) must equal the legacy "
+                "eq_map.face_outer_ordinate"
+            ),
+        )
+
+
+# ── Pin 7: 2-D Cartesian raises NotImplementedError ─────────────────
+
+
+class TestTwoDCartesianRaises:
+    r"""Mirrors the existing 2-D guard pre-Step-G — the unified matvec
+    only handles 1-D slab + curvilinear; 2-D Cartesian absorbs in
+    Phase A.  Failure here would mean a silent 2-D regression.
+    """
+
+    def test_two_d_cartesian_raises_not_implemented(self) -> None:
+        from orpheus.geometry.mesh import Mesh2D
+        # Need ny > 1 for the 2-D guard to fire.
+        mesh = Mesh2D(
+            edges_x=np.array([0.0, 1.0, 2.0]),
+            edges_y=np.array([0.0, 1.0, 2.0]),
+            mat_map=np.zeros((2, 2), dtype=int),
+            coord=CoordSystem.CARTESIAN,
+            bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
+            bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+        )
+        quad = GaussLegendre1D.create(n_ordinates=4)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
+        psi = AngularFlux(
+            np.zeros((sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny)),
+            sn_mesh,
+            boundary=BoundaryFlux.zeros(sn_mesh),
+        )
+        with pytest.raises(NotImplementedError, match="2-D Cartesian"):
+            transport_operator_matvec_unified(psi, sigma_t)
+
+
+# ── Sentinel: rejects non-AngularFlux input ─────────────────────────
+
+
+class TestTypeContract:
+    """Path-forward signature accepts AngularFlux only; bare ndarrays
+    rejected with TypeError (the legacy packed-face-slot signature
+    retired at G0)."""
+
+    def test_rejects_bare_ndarray(self) -> None:
+        sn_mesh = _slab_mesh()
+        sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
+        psi_bare = np.zeros((sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny))
+        with pytest.raises(TypeError, match="AngularFlux"):
+            transport_operator_matvec_unified(psi_bare, sigma_t)
