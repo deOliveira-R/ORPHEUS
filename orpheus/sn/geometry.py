@@ -30,6 +30,20 @@ from orpheus.geometry.reduced_operator import (
     slab_streaming,
     spherical_streaming,
 )
+from .axis import (
+    Axis1D,
+    AxisCoord,
+    AxisMesh,
+    FaceLabel,
+    RadialAxisMesh,
+    axes_from_legacy_mesh,
+    face_labels as _axis_face_labels,
+    face_outflow_ordinates as _axis_face_outflow_ordinates,
+    face_shape as _axis_face_shape,
+    legacy_mesh_from_axes,
+    n_unknowns_flat as _axis_n_unknowns_flat,
+    spatial_shape as _axis_spatial_shape,
+)
 from .boundary_realizer import SNBoundaryRealizer
 from .method_space import SNMethodSpace
 from .quadrature import AngularQuadrature
@@ -180,6 +194,19 @@ class SNMesh:
         self.mesh = mesh
         self.quad = quadrature
         self.materials: "dict[int, Mixture]" = materials
+        # R-1 Phase A C1: every SNMesh exposes an axis-tuple view of its
+        # dimensionality. The axis tuple is the canonical
+        # dim-agnostic ground truth for spatial_shape / face_labels /
+        # face_shape / face_outflow_ordinates / n_unknowns_flat (the
+        # properties below); legacy ``nx``/``ny``/``dx``/``dy`` survive
+        # this layer as deprecated shims and retire in a followup.
+        # The adapter handles both 1-D coord systems (Cartesian /
+        # spherical / cylindrical) and 2-D Cartesian — see
+        # :func:`orpheus.sn.axis.axes_from_legacy_mesh`. From C6 onward
+        # every dim-agnostic operator reads its shape from
+        # :attr:`SNMesh.axes`, NOT from ``mesh.coord`` /
+        # ``mesh.edges_x`` / ``mesh.bc_xmin``.
+        self.axes: tuple[Axis1D, ...] = axes_from_legacy_mesh(mesh)
         # Cell-update strategy (Wave D Round 2 Issue #161). Defaults to
         # :class:`DiamondDifference`, which reproduces the existing
         # inlined sweep math bit-identically — every regression snapshot
@@ -591,6 +618,135 @@ class SNMesh:
     def is_1d(self) -> bool:
         """True if this is a 1-D mesh (ny == 1)."""
         return self.ny == 1
+
+    # ── Dim-agnostic geometry primitives (R-1 Phase A C1) ─────────────
+
+    @property
+    def ndim(self) -> int:
+        """Number of spatial dimensions; equals ``len(self.axes)``."""
+        return len(self.axes)
+
+    @property
+    def spatial_shape(self) -> tuple[int, ...]:
+        r"""Per-axis cell counts ``(n_0, n_1, ...)``.
+
+        The canonical dim-agnostic shape descriptor. For 1-D meshes
+        returns ``(nx,)``; for 2-D Cartesian returns ``(nx, ny)``;
+        for 3-D (followup) would return ``(nx, ny, nz)``.
+
+        Every dim-agnostic shape reader (typed-field factories, pack
+        convention, sweep DAG) reads from here, NOT from ``self.nx``
+        / ``self.ny`` (the legacy shims that retire in a followup).
+        """
+        return _axis_spatial_shape(self.axes)
+
+    @property
+    def face_labels(self) -> tuple[FaceLabel, ...]:
+        r"""Canonical boundary-face inventory.
+
+        Each :class:`~orpheus.sn.axis.FaceLabel` carries an
+        ``axis_index`` and an ``endpoint`` label, derived from the
+        per-axis endpoints. Cartesian 1-D returns 2 labels; spherical
+        / cylindrical 1-D returns 1 label (the pole is NOT a face —
+        see :class:`~orpheus.sn.axis.Axis1D` docstring); 2-D Cartesian
+        returns 4 labels; synthetic 3-D Cartesian would return 6.
+
+        The iteration order is the canonical concatenation order for
+        :meth:`AngularFlux.to_flat` (C3) and the canonical iteration
+        order for :attr:`BoundaryFlux.face_buffers` (C4).
+        """
+        return _axis_face_labels(self.axes)
+
+    def face_shape(self, label: FaceLabel) -> tuple[int, ...]:
+        r"""Spatial shape of the boundary face identified by ``label``.
+
+        The face lies in the codimension-1 hyperplane spanned by the
+        axes other than ``label.axis_index``; its shape is the
+        per-axis cell count of those axes in axis-index order.
+        """
+        return _axis_face_shape(self.axes, label)
+
+    def face_outflow_ordinates(self, label: FaceLabel) -> np.ndarray:
+        r"""Ordinate indices whose direction-cosine is OUTWARD at face ``label``.
+
+        At the ``max`` / ``outer`` endpoint of an axis, outflow is
+        :math:`\mu_{axis} > +10^{-15}`; at ``min``, outflow is
+        :math:`\mu_{axis} < -10^{-15}`. Ordinates exactly tangent to
+        the face contribute neither inflow nor outflow.
+
+        This method is the canonical producer for the per-face
+        outflow mask used by the pack convention (C3),
+        :class:`BoundaryFlux.face_buffers` (C4), and the sweep DAG
+        face-trace state (C5).
+        """
+        return _axis_face_outflow_ordinates(self.axes, label, self.quad)
+
+    @property
+    def n_unknowns_flat(self) -> int:
+        r"""Total flat-vector size for typed :class:`AngularFlux`.
+
+        The pack convention (C3) is the direct-sum decomposition
+        :math:`V = V_\text{cells} \oplus \bigoplus_\ell V_{\text{face}, \ell}`;
+        ``n_unknowns_flat`` is the dimension of that vector space.
+        Cells contribute :math:`N \cdot n_g \cdot \prod_i n_i`; each
+        face :math:`\ell` contributes
+        :math:`|\text{outflow}_\ell| \cdot n_g \cdot \prod_{i \ne \text{axis}(\ell)} n_i`.
+        """
+        return _axis_n_unknowns_flat(self.axes, self.quad, self.ng)
+
+    @classmethod
+    def from_axes(
+        cls,
+        axes: tuple[Axis1D, ...],
+        quadrature: "AngularQuadrature",
+        materials: "dict[int, Mixture]",
+        *,
+        mat_map: np.ndarray | None = None,
+        cell_update: CellUpdate | None = None,
+        pole_angular_closure: PoleAngularClosure | None = None,
+    ) -> "SNMesh":
+        r"""Build an :class:`SNMesh` from an axis tuple.
+
+        The dim-agnostic constructor surface introduced by R-1 Phase A
+        C1. The axis tuple is round-tripped through a legacy
+        :class:`Mesh1D` / :class:`Mesh2D` so the existing constructor
+        body (BC realization, streaming stencil, materials validation,
+        pole-angular closure binding) is reached uniformly regardless
+        of which surface the caller used. Layer A keeps ``SNMesh.mesh``
+        as a :class:`Mesh1D` / :class:`Mesh2D`; the round-trip retires
+        with the legacy mesh dataclass in a later phase.
+
+        Parameters
+        ----------
+        axes : tuple of :class:`~orpheus.sn.axis.Axis1D`
+            Per-axis 1-D mesh descriptors. Length 1 → 1-D mesh;
+            length 2 → 2-D Cartesian mesh. Length ≥3 is NOT supported
+            in C1 — no ``Mesh3D`` dataclass exists today (D9 of the
+            ultraplan; the 3-D admission gate exercises the pure
+            shape functions in :mod:`orpheus.sn.axis` directly).
+        quadrature : :class:`AngularQuadrature`
+            Angular quadrature.
+        materials : dict[int, Mixture]
+            Materials dict keyed by material id; same contract as the
+            legacy constructor.
+        mat_map : ndarray or None
+            Material-id assignment. Shape ``spatial_shape``. Defaults
+            to all-zeros (single material with id 0).
+        cell_update : CellUpdate or None
+            Cell-update strategy. Defaults to :class:`DiamondDifference`.
+        pole_angular_closure : PoleAngularClosure or None
+            Override the default pole-angular closure
+            (curvilinear → :class:`MorelMontryAngularSweep`,
+            Cartesian → :class:`IdentityAngularClosure`).
+        """
+        mesh = legacy_mesh_from_axes(axes, mat_map=mat_map)
+        return cls(
+            mesh=mesh,
+            quadrature=quadrature,
+            materials=materials,
+            cell_update=cell_update,
+            pole_angular_closure=pole_angular_closure,
+        )
 
     def material_xs_field(self) -> "MaterialXSField":
         """Build the macroscopic XS field from this mesh's materials.
