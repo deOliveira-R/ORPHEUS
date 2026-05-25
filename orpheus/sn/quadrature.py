@@ -144,12 +144,37 @@ class _OctantsMixin:
 
 @runtime_checkable
 class AngularQuadrature(Protocol):
-    """Contract for any angular quadrature usable by the SN solver."""
+    r"""Contract for any angular quadrature usable by the SN solver.
 
-    mu_x: np.ndarray       # (N,) x-direction cosines
-    mu_y: np.ndarray       # (N,) y-direction cosines (0 for 1D)
-    weights: np.ndarray    # (N,) quadrature weights
-    N: int                 # number of ordinates
+    The canonical source of truth for the ordinate data is the wrapped
+    :class:`~orpheus.numerics.measure.DiscreteMeasure` exposed as
+    ``measure``. Per-ordinate direction components live in
+    ``measure.nodes`` — shape ``(N,)`` for slab quadratures
+    (1-D scalar polar :math:`\mu`), or ``(N, d)`` for sphere
+    cubatures with :math:`d \in \{2, 3\}`. The dim-agnostic shape
+    primitives in :mod:`orpheus.sn.axis` (R-1 Phase A C1) read
+    through ``measure.nodes`` directly; the named ``mu_x``/``mu_y``
+    fields below are denormalized views that survive as
+    back-compatibility for the legacy 2-D / curvilinear sweeps and
+    retire as those consumers migrate.
+
+    The Protocol declares both surfaces during the migration window:
+    ``measure`` is the canonical source consumed by new dim-agnostic
+    code; ``mu_x`` / ``mu_y`` / ``weights`` / ``N`` are the legacy
+    denormalized surface still consumed by the unmigrated sweep
+    paths. Pattern 7 (single source of truth) holds because
+    every concrete quadrature implements the denormalized fields as
+    @property reads of ``measure``'s columns — drift is structurally
+    prevented.
+    """
+
+    measure: DiscreteMeasure  # canonical data — single source of truth
+    N: int                    # = measure.n_points (legacy shortcut)
+
+    # ── Legacy denormalized views (retire when consumers migrate) ──
+    mu_x: np.ndarray          # (N,) — = measure.nodes[..., 0] or nodes (1-D)
+    mu_y: np.ndarray          # (N,) — = measure.nodes[..., 1] (zeros for slab)
+    weights: np.ndarray       # (N,) — = measure.weights
 
     def reflection_index(self, axis: str) -> np.ndarray:
         """Index array: ref[n] = partner of ordinate n reflected in ``axis``."""

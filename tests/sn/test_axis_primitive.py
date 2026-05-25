@@ -312,19 +312,23 @@ def test_f0_7_synthetic_3d_admission_six_face_labels() -> None:
     assert len(labels) == 6
 
 
-def test_f0_7_synthetic_3d_face_outflow_axis_2_uses_mu_z_fallback() -> None:
-    """C1 reads ``mu_z`` via getattr fallback when the quadrature
-    doesn't expose it.
+def test_f0_7_synthetic_3d_face_outflow_axis_beyond_quad_dim_is_empty() -> None:
+    r"""Axes beyond the quadrature's intrinsic dim have empty outflow.
 
-    GL1D is the slab quadrature; it carries only ``mu_x`` / ``mu_y``
-    (the latter zero), and ``mu_z`` arrives on the
-    :class:`AngularQuadrature` Protocol in C2. Until then, axis-2
-    outflow on a GL1D quadrature is empty (the ``getattr`` fallback
-    returns zeros, and zero cosines fall outside the ``> 1e-15``
-    strictly-outward cutoff). LevelSymmetric / Lebedev / Product
-    quadratures ALREADY have ``mu_z`` populated as a concrete-class
-    attribute (Protocol typing catches up in C2); for those the
-    fallback is not exercised.
+    GL1D is the slab quadrature; its :class:`DiscreteMeasure` has
+    ``nodes`` of shape ``(N,)`` (1-D scalar polar :math:`\mu`).
+    Pairing GL1D with a 3-D axis tuple is unphysical, but the
+    dim-agnostic shape primitive must handle it gracefully — for
+    any axis index :math:`i > 0` on a 1-D measure (or :math:`i \ge
+    d` on a d-dim measure), ``_quadrature_axis_cosines`` returns
+    zeros, and ``np.where(\pm 1 \cdot 0 > 10^{-15})[0]`` is empty.
+
+    This is the Pattern 7 verification: the shape primitive reads
+    ``quad.measure.nodes`` directly (the single source of truth);
+    there is no per-axis name dispatch and no getattr fallback. The
+    SHAPE of the measure (``nodes.ndim`` and ``nodes.shape[1]`` if
+    multi-dim) decides which axis indices return real cosines vs
+    zeros.
     """
     axes = (
         AxisMesh(edges=np.linspace(0.0, 1.0, 6)),
@@ -332,12 +336,16 @@ def test_f0_7_synthetic_3d_face_outflow_axis_2_uses_mu_z_fallback() -> None:
         AxisMesh(edges=np.linspace(0.0, 1.0, 6)),
     )
     quad = GaussLegendre1D.create(n_ordinates=8)
-    assert not hasattr(quad, "mu_z"), \
-        "GL1D should not yet expose mu_z until C2"
-    out_zmax = face_outflow_ordinates(axes, FaceLabel(2, "max"), quad)
-    out_zmin = face_outflow_ordinates(axes, FaceLabel(2, "min"), quad)
-    assert out_zmax.size == 0
-    assert out_zmin.size == 0
+    # GL1D's measure is 1-D scalar — only axis 0 carries real cosines.
+    assert quad.measure.nodes.ndim == 1
+    out_xmax = face_outflow_ordinates(axes, FaceLabel(0, "max"), quad)
+    assert out_xmax.size == quad.N // 2   # axis 0 is the polar μ — real cosines
+    # Axes 1 and 2 are beyond the quadrature's intrinsic dim — outflow is empty.
+    for axis_idx in (1, 2):
+        out_max = face_outflow_ordinates(axes, FaceLabel(axis_idx, "max"), quad)
+        out_min = face_outflow_ordinates(axes, FaceLabel(axis_idx, "min"), quad)
+        assert out_max.size == 0
+        assert out_min.size == 0
 
 
 def test_f0_7_synthetic_3d_face_outflow_axis_2_ls4_native_mu_z() -> None:

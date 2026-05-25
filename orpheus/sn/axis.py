@@ -309,22 +309,39 @@ def face_shape(
 
 
 def _quadrature_axis_cosines(quad, axis_index: int) -> np.ndarray:
-    """Per-axis directional cosines.
+    r"""Per-axis direction cosines, read from the underlying :class:`DiscreteMeasure`.
 
-    Axis 0 → ``mu_x``; axis 1 → ``mu_y``; axis 2 → ``mu_z`` (with
-    ``getattr`` fallback to zeros until C2 lands ``mu_z`` on the
-    :class:`AngularQuadrature` Protocol).
+    The quadrature's directional data lives in ``quad.measure.nodes`` —
+    either shape ``(N,)`` (1-D scalar measure on :math:`[-1, 1]`) or
+    ``(N, d)`` (d-dimensional measure on :math:`S^{d-1}`). The
+    axis-index → column-index pairing is identity by construction:
+    column :math:`i` of ``nodes`` is the projection of every ordinate
+    onto the :math:`i`-th canonical direction in the quadrature's
+    intrinsic frame.
+
+    For axis indices beyond the quadrature's dimensionality (e.g. axis
+    1 of a slab :class:`GaussLegendre1D` quadrature, or axis 2 of a
+    2-D in-plane quadrature), this returns zeros — the dim-agnostic
+    shape primitive interprets "no quadrature data on this axis" as
+    "no ordinate is outflowing on it"
+    (:func:`face_outflow_ordinates` then returns an empty array).
+
+    Cardinal Rule 2 + ``coding-elegance`` Pattern 2 / Pattern 7: the
+    quadrature's named ``mu_x``/``mu_y``/``mu_z`` attributes are
+    denormalized views of these very columns. Reading
+    ``measure.nodes`` directly bypasses the denormalized intermediate
+    and removes the per-axis name dispatch (``if axis_index == 0:
+    return quad.mu_x``) — there is exactly ONE source of truth for
+    the per-ordinate direction data, the :class:`DiscreteMeasure`
+    that every concrete quadrature already wraps.
     """
-    if axis_index == 0:
-        return np.asarray(quad.mu_x)
-    if axis_index == 1:
-        return np.asarray(quad.mu_y)
-    if axis_index == 2:
-        return np.asarray(getattr(quad, "mu_z", np.zeros(quad.N)))
-    raise NotImplementedError(
-        f"axis_index={axis_index} > 2 not supported "
-        f"(no SN quadrature today exposes >3 directional axes)"
-    )
+    nodes = quad.measure.nodes
+    n_points = quad.measure.n_points
+    if nodes.ndim == 1:
+        return nodes if axis_index == 0 else np.zeros(n_points)
+    if axis_index >= nodes.shape[1]:
+        return np.zeros(n_points)
+    return nodes[:, axis_index]
 
 
 _OUTWARD_ENDPOINTS = frozenset({"max", "outer"})
