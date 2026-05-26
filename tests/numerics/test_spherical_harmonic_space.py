@@ -110,7 +110,7 @@ def test_space_inner_product_weights_equal_4pi_over_2l_plus_1():
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-039")
-@pytest.mark.verifies("sh-quadrature-gram")
+@pytest.mark.verifies("real-sh-discrete-orthogonality")
 def test_basis_mass_matrix_against_lebedev(lebedev_L_pair):
     r"""``SphericalHarmonicBasis.mass_matrix(lebedev_measure)`` ≈ the theoretical metric.
 
@@ -204,7 +204,7 @@ def test_R_equals_2l_plus_1_times_S0(lebedev_L_pair):
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-039")
-@pytest.mark.verifies("galerkin-idempotency-4pi")
+@pytest.mark.verifies("pi-r-equals-4pi-i")
 def test_pi_R_is_4pi_identity_on_band_limited(lebedev_L_pair):
     r""":math:`\Pi \cdot R = 4\pi \cdot I` on the band-limited coefficient space.
 
@@ -276,7 +276,7 @@ def test_H_equals_g_C_times_S0(lebedev_L_pair):
 
 
 @pytest.mark.l0
-@pytest.mark.verifies("sh-basis-mass-matrix-quadrature-independence")
+@pytest.mark.verifies("real-sh-discrete-orthogonality")
 @pytest.mark.parametrize(
     "quadrature_factory",
     [
@@ -327,7 +327,6 @@ def test_mass_matrix_under_multiple_quadratures(quadrature_factory):
 
 
 @pytest.mark.l0
-@pytest.mark.verifies("moment-projection-codomain-type")
 def test_moment_projection_codomain_is_spherical_harmonic_space():
     r""":attr:`MomentProjection.codomain` returns a typed :class:`SphericalHarmonicSpace`.
 
@@ -355,7 +354,6 @@ def test_moment_projection_codomain_is_spherical_harmonic_space():
 
 
 @pytest.mark.l0
-@pytest.mark.verifies("from-spherical-harmonic-space-roundtrip")
 def test_from_spherical_harmonic_space_roundtrip():
     r"""Construction via the new classmethod is bit-identical to the legacy path.
 
@@ -391,7 +389,7 @@ def test_from_spherical_harmonic_space_roundtrip():
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-039")
-@pytest.mark.verifies("T-vs-H-representation-vs-hilbert")
+@pytest.mark.verifies("moment-projection-transpose-T", "hilbert-adjoint-equals-metric-times-S0")
 def test_T_carries_w_n_and_H_carries_g_C(lebedev_L_pair):
     r"""``M.apply_transpose`` carries :math:`w_n`; ``M.H`` carries :math:`g_C`.
 
@@ -443,7 +441,6 @@ def test_T_carries_w_n_and_H_carries_g_C(lebedev_L_pair):
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("space-equality-by-name-shape")
 def test_spherical_harmonic_space_equality_by_name_shape():
     r"""SphericalHarmonicSpace equality follows :class:`FunctionSpace`'s ``(name, shape)`` convention.
 

@@ -210,32 +210,90 @@ TestGalerkinIdempotencyOnLebedev::test_pi_R_is_identity_on_band_limited``.
 
 .. vv-status: pi-r-equals-4pi-i documented
 
+The four operators ERR-039 originally conflated
+================================================
+
+Post-P1.4 of the moment-space + layering plan, the four operators
+that share the ``(SH coefficient → angular ordinate)`` signature
+are SEPARATELY TYPED with mathematically distinct semantics. Each is
+the **naked synthesis** :math:`S_0(c)_n = \sum_{\ell, m}
+Y_\ell^m(\hat\Omega_n) c_\ell^m` post-multiplied by a diagonal that
+lives in exactly ONE place in the codebase:
+
+* :math:`S_0` itself — the bare synthesis, exposed by
+  :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.synthesize`.
+* :math:`\Pi^\top = w_n \cdot S_0` — the representation transpose,
+  exposed by :meth:`MomentProjection.apply_transpose`. The
+  :math:`w_n` factor is the quadrature weight carried on
+  :attr:`MomentProjection.domain`'s ``inner_product_weights``.
+
+.. math::
+   :label: moment-projection-transpose-T
+
+   (\Pi^\top c)_n
+   \;=\; w_n \, S_0(c)_n
+   \;=\; w_n \sum_{\ell, m} Y_\ell^m(\hat\Omega_n) c_\ell^m.
+
+* :math:`\Pi^* = g_C \cdot S_0` — the W-weighted Hilbert adjoint,
+  exposed by :attr:`MomentProjection.H` and computed generically by
+  the metric-aware ``_AdjointOperator`` wrapper. The
+  :math:`g_C^{\ell} = 4\pi/(2\ell+1)` factor is the SH Gram-matrix
+  diagonal carried on :attr:`MomentProjection.codomain`'s
+  ``inner_product_weights`` (which IS the canonical
+  :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`).
+
+.. math::
+   :label: hilbert-adjoint-equals-metric-times-S0
+
+   (\Pi^* c)_n
+   \;=\; \sum_\ell \frac{4\pi}{2\ell+1} \sum_m
+              Y_\ell^m(\hat\Omega_n) c_\ell^m.
+
+* :math:`R = (2\ell+1) \cdot S_0 = 4\pi \cdot g_C^{-1} \cdot S_0`
+  — the addition-theorem reconstruction, exposed by
+  :class:`HarmonicMomentReconstruction` (built canonically via
+  :meth:`~HarmonicMomentReconstruction.from_spherical_harmonic_space`
+  which sources :math:`(2\ell+1)` from
+  :attr:`SphericalHarmonicSpace.addition_theorem_factor`).
+
+.. math::
+   :label: sh-addition-theorem-reconstruction
+
+   (R \cdot c)_n
+   \;=\; \sum_\ell (2\ell+1) \sum_m Y_\ell^m(\hat\Omega_n) c_\ell^m.
+
+The metric :math:`g_C` is the single source of truth for the SH
+convention; it lives on :class:`SphericalHarmonicSpace` and equals
+:math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
+
+.. math::
+   :label: sh-space-metric
+
+   \langle c, d \rangle_C
+   \;=\; \sum_\ell \frac{4\pi}{2\ell+1} \sum_m c_\ell^m d_\ell^m.
+
+These four identities are pinned by
+``tests/numerics/test_spherical_harmonic_space.py`` (the
+``@pytest.mark.catches("ERR-039")`` test suite).
+
+.. vv-status: sh-space-metric documented
+.. vv-status: sh-addition-theorem-reconstruction documented
+.. vv-status: hilbert-adjoint-equals-metric-times-S0 documented
+.. vv-status: moment-projection-transpose-T documented
+
 .. note::
 
-   The strict Hilbert adjoint :math:`\Pi^*` (returned by
-   :meth:`HarmonicMomentProjection.apply_transpose`) is **not** the
-   same operator as :math:`R` (returned by
-   :meth:`HarmonicMomentReconstruction.apply`):
-
-   .. math::
-
-      \Pi^* \ne R, \qquad
-      (R \cdot c)_n
-        \;=\; \sum_\ell (2\ell+1) \sum_m Y_\ell^m c_\ell^m, \qquad
-      (\Pi^* c)_n
-        \;=\; \sum_{\ell, m} Y_\ell^m c_\ell^m.
-
-   :math:`R` carries the :math:`(2\ell+1)` factor — the
-   addition-theorem weight needed by the Pℓ scattering
-   reconstruction — while :math:`\Pi^*` is the naked sum (the
-   :math:`W` weight of :math:`\Pi = Y^* W` is on the inner-product
-   side, not the operator). Composing :math:`\Pi^* \cdot \Pi`
-   yields :math:`4\pi/(2\ell+1)\,\delta_{\ell\ell'}\delta_{mm'}` —
-   the Galerkin discipline's diagonal-in-:math:`\ell` adjoint
-   composition — while :math:`\Pi R = 4\pi I` (the addition-theorem
-   composition) is exactly identity-up-to-:math:`4\pi`. See
-   :ref:`galerkin-projection` for the full discipline-level
-   explanation.
+   ERR-039's original confusion was the result of two missing
+   abstractions: the :math:`(2\ell+1)` literal lived inline on
+   :class:`HarmonicMomentReconstruction` with no typed home, and
+   :meth:`MomentProjection.apply_transpose` returned the bare
+   :math:`S_0` but its docstring labeled it the W-weighted Hilbert
+   adjoint. The endpoint fix gives each of the four operators a
+   distinct construction path with the metric / weight diagonals
+   carried by typed spaces. The composition :math:`\Pi R = 4\pi I`
+   (the addition-theorem composition, :eq:`pi-r-equals-4pi-i`)
+   continues to hold on band-limited inputs and is the genuine
+   Galerkin-discipline identity for this SH basis.
 
 The numerical evidence:
 

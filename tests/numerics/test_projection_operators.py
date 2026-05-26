@@ -438,34 +438,17 @@ class TestGalerkinAdjointPairing:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Wave 0 plan invariant: M @ R = (4π) I on band-limited
+# Retired in P1.6: TestAssertGalerkinIdempotencyMethod (sole caller of
+# GalerkinProjection.assert_galerkin_idempotency) was deleted alongside
+# the method itself. The method shipped the wrong invariant
+# (M · R = I instead of the correct M · R = 4π · I under the
+# no-prefactor SH convention), and its sole test exercised it against
+# a deliberately non-orthogonal Y so its (wrong) assertion would
+# "successfully" fail.  The genuine Π R = 4π · I identity is pinned by
+# TestGalerkinIdempotencyOnLebedev (above) and the new file
+# tests/numerics/test_spherical_harmonic_space.py.
+# See moment-space + layering plan §1.5 CC.5 and §P1.6.
 # ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.l0
-class TestAssertGalerkinIdempotencyMethod:
-    r"""L0: :meth:`GalerkinProjection.assert_galerkin_idempotency`
-    materialises the invariant for testing purposes.
-
-    With the no-:math:`4\pi/(2\ell+1)` convention, M @ R = 4π · I,
-    NOT identity. So the canonical assertion uses 4π · c as the
-    expected output (or scales R by 1/(4π) for the strict identity).
-    """
-
-    def test_method_signals_violation(self):
-        # Construct a deliberately-broken Galerkin pair: use a
-        # non-orthogonal Y matrix so Π R ≠ I.
-        N = 4
-        L = 1
-        # Random non-orthogonal "Y" — guaranteed to fail idempotency
-        rng = np.random.default_rng(seed=999)
-        Y = rng.standard_normal((N, L + 1, 2 * L + 1))
-        weights = rng.uniform(0.1, 1.0, N)
-        M = MomentProjection(weights=weights, Y=Y, L=L)
-        R = HarmonicMomentReconstruction.from_Y(Y)
-        c = rng.standard_normal((L + 1, 2 * L + 1))
-        with pytest.raises(AssertionError, match="Galerkin idempotency"):
-            M.assert_galerkin_idempotency(R, c, atol=1e-10)
 
 
 # ─────────────────────────────────────────────────────────────────────

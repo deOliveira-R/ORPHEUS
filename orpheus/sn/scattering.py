@@ -554,9 +554,15 @@ class ScatteringOperator(LinearOperatorMixin):
           Y_\ell^m(\Omega_n) \phi_\ell^m`.
 
         The :math:`(2\ell+1)` factor in :math:`R` is the addition-theorem
-        scaling (cf. Wave 0 ERR-039: :math:`R` is the addition-theorem
-        reconstruction, NOT the W-weighted Hilbert adjoint of :math:`M`,
-        which differs by exactly this factor).
+        scaling sourced from
+        :attr:`~orpheus.numerics.spaces.SphericalHarmonicSpace.addition_theorem_factor`
+        — the single canonical home of the SH convention's
+        :math:`(2\ell+1)` literal (ERR-039 endpoint).  :math:`R` is the
+        addition-theorem reconstruction, NOT the W-weighted Hilbert
+        adjoint of :math:`M` (the two differ by the
+        :class:`SphericalHarmonicSpace` Gram :math:`g_C`); the
+        relationship is pinned by
+        ``tests/numerics/test_spherical_harmonic_space.py``.
 
         The trailing :math:`1/W = 1/\sum_n w_n` is the **producer-side
         per-ordinate projection** introduced in R-1 Step 4 A1: the Pℓ

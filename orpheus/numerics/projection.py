@@ -142,61 +142,42 @@ class ProjectionOperator(LinearOperatorMixin, ABC):
 class GalerkinProjection(ProjectionOperator, ABC):
     r"""Galerkin discipline: test space equals trial space.
 
-    Invariants concrete subclasses MUST satisfy:
+    Invariants concrete subclasses MUST satisfy (pinned by
+    ``tests/numerics/test_spherical_harmonic_space.py`` for the SH
+    instance; other concrete pairs assert the same identities through
+    their own test files):
 
-    * :math:`\Pi \, R = I` on the coefficient space, where :math:`R`
-      is the paired reconstruction operator. This is the
-      **idempotency-on-coefficients** invariant.
+    * :math:`\Pi \, R = (\sum_n w_n / |V|) \cdot I` on the band-limited
+      coefficient space, where :math:`R` is the paired reconstruction
+      and the proportionality constant arises from the basis's
+      Gram-matrix normalisation. For the no-prefactor real-SH basis on
+      :math:`S^2` (the
+      :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`
+      instance), this reduces to :math:`\Pi R = 4\pi \cdot I` —
+      pinned by
+      ``test_pi_R_is_4pi_identity_on_band_limited`` and the legacy
+      ``test_pi_R_is_identity_on_band_limited``.
     * :math:`R \, \Pi` is the band-limited projector on :math:`V` —
       idempotent on :math:`V`.
-    * :math:`\Pi^* = R` under the :math:`V`-inner-product (the test
-      space's inner product). This is the **adjoint-pair** identity
-      that distinguishes Galerkin from Petrov-Galerkin: a Galerkin
-      projection's adjoint IS its reconstruction.
+    * :math:`\Pi^* = g_C \cdot S_0` where :math:`g_C` is the
+      Gram-matrix diagonal on the coefficient space. This is the
+      **adjoint-pair** identity that distinguishes Galerkin from
+      Petrov-Galerkin: a Galerkin projection's Hilbert adjoint is the
+      metric-weighted naked synthesis, NOT the addition-theorem
+      reconstruction :math:`R = (2\ell+1) \cdot S_0` (the two differ
+      by the diagonal :math:`g_C \cdot (2\ell+1) = 4\pi`). Pinned by
+      ``test_H_equals_g_C_times_S0``.
 
-    The :meth:`assert_galerkin_idempotency` method materialises the
-    first invariant for testing purposes.
+    .. note::
+
+       The earlier ``assert_galerkin_idempotency`` method that
+       hand-checked ``Π R c = c`` (without the :math:`4\pi` factor)
+       was retired in P1.6 of the moment-space + layering plan
+       (ERR-039 follow-up). The method asserted the wrong invariant
+       under the no-prefactor SH convention; the genuine
+       :math:`4\pi \cdot I` identity is now pinned by the test files
+       above.
     """
-
-    def assert_galerkin_idempotency(
-        self,
-        reconstruction: "LinearOperator",
-        sample_coefficients: np.ndarray,
-        atol: float = 1e-12,
-        rtol: float = 1e-12,
-    ) -> None:
-        r"""Assert :math:`\Pi \, R \, c = c` for sample coefficients.
-
-        Apply the reconstruction then the projection; compare against
-        the identity on the input coefficients. Used by tests of
-        concrete Galerkin projections to validate the
-        idempotency-on-coefficients invariant.
-
-        Parameters
-        ----------
-        reconstruction : LinearOperator
-            The paired reconstruction operator :math:`R`.
-        sample_coefficients : np.ndarray
-            Sample input :math:`c` in the coefficient space; the
-            invariant is checked as :math:`\Pi(R(c)) = c`.
-        atol, rtol : float
-            Absolute / relative tolerance for the comparison.
-
-        Raises
-        ------
-        AssertionError
-            If :math:`\Pi(R(c))` does not match :math:`c` within
-            tolerance — signals a violation of Galerkin idempotency.
-        """
-        out = self.apply(reconstruction.apply(sample_coefficients))
-        np.testing.assert_allclose(
-            out, sample_coefficients, atol=atol, rtol=rtol,
-            err_msg=(
-                "Galerkin idempotency Π R c = c violated; check the "
-                "(test, trial) basis pair and the inner-product "
-                "weighting in Π."
-            ),
-        )
 
 
 class PetrovGalerkinProjection(ProjectionOperator, ABC):
