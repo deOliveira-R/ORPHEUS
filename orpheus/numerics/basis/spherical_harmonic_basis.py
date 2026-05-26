@@ -219,7 +219,7 @@ class SphericalHarmonicBasis:
 
     # ── Mass matrix ───────────────────────────────────────────────────
 
-    def discrete_mass_matrix(self, measure: "DiscreteMeasure") -> NDArray:
+    def mass_matrix(self, measure: "DiscreteMeasure") -> NDArray:
         r"""Discrete Gram matrix :math:`\sum_n w_n Y_\ell^m Y_{\ell'}^{m'}` over a quadrature.
 
         Computes the :math:`(L+1, 2L+1, L+1, 2L+1)` 4-tensor
@@ -259,6 +259,50 @@ class SphericalHarmonicBasis:
         """
         Y = self.evaluate(measure.nodes)
         return np.einsum("n,nlm,nLM->lmLM", measure.weights, Y, Y)
+
+    # ── Naked synthesis ───────────────────────────────────────────────
+
+    def synthesize(
+        self,
+        coefficients: NDArray,
+        directions: NDArray,
+    ) -> NDArray:
+        r"""Naked synthesis :math:`S_0(c)_n = \sum_{\ell, m} Y_\ell^m(\hat\Omega_n)\, c_\ell^m`.
+
+        The bare reconstruction with NO :math:`(2\ell+1)` factor and NO
+        :math:`w_n` weight — the pure synthesis :math:`S_0`. Pre-P1.4
+        this lived inside
+        :meth:`~orpheus.numerics.projection.MomentProjection.apply_transpose`
+        mislabeled as the W-weighted Hilbert adjoint (ERR-039); it now
+        has an explicit basis-method home.
+
+        Three related operators are :math:`S_0` post-multiplied by a
+        diagonal:
+
+        * :math:`\Pi^\top = w_n \cdot S_0` (representation transpose;
+          :meth:`MomentProjection.apply_transpose`).
+        * :math:`\Pi^* = g_C \cdot S_0` (Hilbert adjoint;
+          :attr:`MomentProjection.H`).
+        * :math:`R = (2\ell+1) \cdot S_0 = 4\pi \cdot g_C^{-1} \cdot S_0`
+          (addition-theorem reconstruction;
+          :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`).
+
+        Parameters
+        ----------
+        coefficients : NDArray, shape ``(L+1, 2L+1, ...)``
+            Moment-space input; entries outside :math:`|m| \le \ell` are
+            ignored (the einsum dots them with the corresponding Y
+            entries, which are zero by construction).
+        directions : NDArray, shape ``(N, 3)``
+            Direction cosines :math:`(\mu_x, \mu_y, \mu_z)` per ordinate.
+
+        Returns
+        -------
+        NDArray, shape ``(N, ...)``
+            :math:`S_0(c)` per ordinate.
+        """
+        Y = self.evaluate(directions)
+        return np.einsum("nlm,lm...->n...", Y, coefficients)
 
 
 # ─────────────────────────────────────────────────────────────────────
