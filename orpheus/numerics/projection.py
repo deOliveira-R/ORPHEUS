@@ -80,6 +80,7 @@ from orpheus.numerics.operator import (
     LinearOperator,
     LinearOperatorMixin,
 )
+from orpheus.numerics.space import FunctionSpace
 
 if TYPE_CHECKING:
     from orpheus.numerics.measure import DiscreteMeasure
@@ -376,6 +377,38 @@ class MomentProjection(GalerkinProjection):
         Y = SphericalHarmonicBasis(L=L).evaluate(nodes)
         return cls(weights=measure.weights, Y=Y, L=L)
 
+    @classmethod
+    def from_spherical_harmonic_space(
+        cls,
+        space: "SphericalHarmonicSpace",
+        *,
+        weights: np.ndarray,
+        Y: np.ndarray,
+    ) -> "MomentProjection":
+        r"""Construct from a :class:`SphericalHarmonicSpace` + precomputed weights + Y.
+
+        Mirrors
+        :meth:`HarmonicMomentReconstruction.from_spherical_harmonic_space`;
+        the canonical construction path when the caller already holds the
+        SH-evaluator table (e.g.,
+        :class:`~orpheus.sn.scattering.ScatteringOperator.build_aniso_source`
+        which builds both :math:`M` and :math:`R` from the SAME
+        :math:`Y` table) and wants both operators to advertise a typed
+        codomain identical to ``space``.
+
+        Parameters
+        ----------
+        space : SphericalHarmonicSpace
+            The moment-space codomain — supplies :math:`L`. Must satisfy
+            ``Y.shape[1:] == (space.L + 1, 2 * space.L + 1)``.
+        weights : np.ndarray, shape ``(N,)``
+            Quadrature weights :math:`w_n` matching ``Y.shape[0]``.
+        Y : np.ndarray, shape ``(N, L+1, 2L+1)``
+            Spherical-harmonic table built by
+            :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate`.
+        """
+        return cls(weights=weights, Y=Y, L=space.L)
+
     @property
     def codomain(self) -> "SphericalHarmonicSpace":
         r"""The :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`
@@ -388,11 +421,49 @@ class MomentProjection(GalerkinProjection):
         is the metric that the generic ``A.H`` machinery uses (along with
         the domain's quadrature weights ``W``) to compute the W-weighted
         Hilbert adjoint :math:`\Pi^* = g_C \cdot S_0` correctly.
+
+        ``range`` (the pre-P3.5 framework name read by
+        :class:`~orpheus.numerics.operator._AdjointOperator`) aliases
+        this property; both return the same :class:`SphericalHarmonicSpace`
+        instance per call.
         """
         from orpheus.numerics.spaces.spherical_harmonic_space import (
             SphericalHarmonicSpace,
         )
         return SphericalHarmonicSpace.from_L(self.L)
+
+    @property
+    def range(self) -> "SphericalHarmonicSpace":
+        r"""Alias of :attr:`codomain` — the pre-P3.5 framework name.
+
+        :class:`~orpheus.numerics.operator._AdjointOperator` reads
+        ``range`` to find the codomain's inner-product weights for the
+        Hilbert-adjoint calculation. P3.5 renames the framework attribute
+        ``range`` → ``codomain``; until then both are defined here
+        with identical return values.
+        """
+        return self.codomain
+
+    @property
+    def domain(self) -> FunctionSpace:
+        r"""The angular-ordinate :class:`FunctionSpace` this projection consumes.
+
+        Shape ``(N,)`` with the quadrature weights ``w_n`` as
+        :attr:`FunctionSpace.inner_product_weights`. The 1-D shape is
+        layout-agnostic; the
+        :func:`~orpheus.numerics.operator._broadcast_for_leading_axes`
+        helper pads the weights with trailing 1s to match higher-rank
+        data tensors at adjoint-application time.
+
+        This is the angular metric :math:`W = \mathrm{diag}(w_n)` that
+        the generic ``A.H`` machinery reads to compute the W-weighted
+        Hilbert adjoint correctly.
+        """
+        return FunctionSpace(
+            name="angular_ordinate",
+            shape=(self.weights.shape[0],),
+            inner_product_weights=self.weights,
+        )
 
     def apply(self, psi: np.ndarray) -> np.ndarray:
         r"""Apply :math:`\Pi \psi` along the leading angular axis.
@@ -405,43 +476,54 @@ class MomentProjection(GalerkinProjection):
         return np.einsum("n,nlm,n...->lm...", self.weights, self.Y, psi)
 
     def apply_transpose(self, c: np.ndarray) -> np.ndarray:
-        r"""Apply the W-weighted Hilbert adjoint :math:`\Pi^*`.
+        r"""Apply the representation transpose :math:`\Pi^\top`.
 
-        Under the :math:`W`-weighted inner product on the trial space
-        (:math:`\langle \psi, \phi \rangle_V = \sum_n w_n \psi_n \phi_n`)
-        and the Euclidean inner product on the coefficient space, the
-        adjoint of :math:`\Pi = Y^* W` is **not** the addition-theorem
-        reconstruction :math:`R` (which carries the :math:`(2\ell+1)`
-        factor). The adjoint identity
-        :math:`\langle \Pi \psi, c \rangle_C = \langle \psi, \Pi^* c \rangle_V`
-        gives
+        Since :math:`\Pi_{(\ell m), n} = w_n \, Y_\ell^m(\hat\Omega_n)`,
+        the matrix transpose is :math:`\Pi^\top_{n, (\ell m)} = w_n \,
+        Y_\ell^m(\hat\Omega_n)`, so
+
+        .. math::
+           :label: moment-projection-transpose
+
+           (\Pi^\top c)_n
+           \;=\; w_n \sum_{\ell, m} Y_\ell^m(\hat\Omega_n)\, c_\ell^m,
+
+        the naked synthesis :math:`S_0(c)` post-multiplied by the
+        quadrature weight :math:`w_n` on each ordinate. This is the
+        **representation transpose** — the operation needed by the
+        generic :class:`~orpheus.numerics.operator._AdjointOperator`
+        machinery to compute the W-weighted Hilbert adjoint
+        :math:`\Pi^* = g_C \cdot S_0` via
 
         .. math::
 
-            (\Pi^* c)_n \;=\; \sum_{\ell, m} Y_\ell^m(\hat\Omega_n)\, c_\ell^m,
+           (\Pi^* c)_n \;=\; \frac{1}{w_n}\, \Pi^\top(g_C \cdot c)_n
+                       \;=\; \sum_{\ell, m} g_C^{\ell}\,
+                              Y_\ell^m(\hat\Omega_n)\, c_\ell^m,
 
-        i.e., the **naked** reconstruction with NO :math:`(2\ell+1)`
-        factor. The :math:`W` weight on the trial-space side already
-        absorbs the quadrature weights (it is part of the inner
-        product, not the operator).
+        with :math:`g_C^\ell = 4\pi/(2\ell+1)` carried on
+        :attr:`codomain`'s ``inner_product_weights``.
 
-        Distinguishing :math:`\Pi^*` from :math:`R`: the project's
-        :class:`HarmonicMomentReconstruction` carries the
-        :math:`(2\ell+1)` factor because it is the **addition-theorem
-        reconstruction** used by the SN scattering Pℓ source build,
-        not the strict adjoint. Both are useful primitives; they
-        differ by the diagonal :math:`(2\ell+1)`-scaling.
-
-        Numerical relationship:
+        Numerical relationship (pinned by
+        ``tests/numerics/test_spherical_harmonic_space.py``):
 
         .. math::
 
-            \Pi \, R \;=\; 4\pi \cdot I \quad \text{(Galerkin idempotency, with factor)}
+            \Pi \, R \;=\; 4\pi \cdot I \quad
+              \text{(addition-theorem identity on band-limited inputs)}
 
-            \Pi \, \Pi^* \;=\; \frac{4\pi}{2\ell+1} \cdot I_\ell
-              \quad \text{(adjoint composition, diagonal in } \ell\text{)}.
+            \Pi \, \Pi^* \;=\; \frac{4\pi}{2\ell+1} \cdot I_\ell \quad
+              \text{(adjoint composition, diagonal in } \ell\text{)}.
+
+        ERR-039 in one sentence: pre-P1.4 this method returned the bare
+        :math:`S_0(c)` and was labeled the W-weighted Hilbert adjoint —
+        but the true representation transpose carries :math:`w_n`, and
+        the Hilbert adjoint additionally carries :math:`g_C`. The two
+        are now separately typed: ``.apply_transpose`` is the
+        representation transpose; ``.H`` is the Hilbert adjoint
+        constructed by the metric-aware adjoint machinery.
         """
-        return np.einsum("nlm,lm...->n...", self.Y, c)
+        return np.einsum("n,nlm,lm...->n...", self.weights, self.Y, c)
 
 
 @dataclass(frozen=True)

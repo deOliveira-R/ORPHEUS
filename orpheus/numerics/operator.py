@@ -194,6 +194,49 @@ def _has(op: object, cap: str) -> bool:
     return bool(caps) and cap in caps
 
 
+def _broadcast_for_leading_axes(w: Optional[np.ndarray], target_ndim: int) -> Optional[np.ndarray]:
+    r"""Reshape ``w`` so it broadcasts against the leading axes of a tensor of ``target_ndim``.
+
+    When the domain / range of an operator carries an inner-product
+    weight tensor of shape ``w.shape == (a₀, …, a_{k-1})``, and the
+    data tensor crossing the operator has shape ``(a₀, …, a_{k-1}, b₀,
+    …, b_{m-1})`` (i.e., the metric's axes are the LEADING axes of the
+    data), numpy's right-aligned broadcasting does NOT make ``w * data``
+    work directly. Padding ``w`` with trailing 1s — shape ``(a₀, …,
+    a_{k-1}, 1, …, 1)`` — restores correct broadcasting.
+
+    Called by :meth:`_AdjointOperator.apply` so the metrics defined on
+    function spaces (e.g.
+    :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`'s
+    ``inner_product_weights`` of shape ``(L+1, 2L+1)``) broadcast
+    correctly against arbitrarily-shaped data tensors (e.g. moment
+    fields of shape ``(L+1, 2L+1, ng, nx, ny)`` in the production SN
+    layout).
+
+    Parameters
+    ----------
+    w : Optional[np.ndarray]
+        The metric tensor, or ``None`` (when the space uses the
+        Euclidean inner product).
+    target_ndim : int
+        The number of dimensions of the data tensor the metric must
+        multiply.
+
+    Returns
+    -------
+    Optional[np.ndarray]
+        ``None`` if ``w`` is ``None``; otherwise ``w`` reshaped to
+        ``w.shape + (1,) * (target_ndim - w.ndim)`` when ``w.ndim <
+        target_ndim``; ``w`` unchanged otherwise (already aligned).
+    """
+    if w is None:
+        return None
+    if w.ndim >= target_ndim:
+        return w
+    new_shape = w.shape + (1,) * (target_ndim - w.ndim)
+    return w.reshape(new_shape)
+
+
 # ───────────────────────────────────────────────────────────────────────
 # Composition primitives
 # ───────────────────────────────────────────────────────────────────────
@@ -472,10 +515,21 @@ class _AdjointOperator(LinearOperatorMixin):
         if inner_domain is not None:
             w_V = inner_domain.inner_product_weights
 
-        z = y if w_W is None else (w_W * y)
+        # Leading-axis broadcast: if the metric has fewer dims than the
+        # input array, pad it with trailing 1s so it broadcasts against
+        # the input's leading axes. This is the "space carries the
+        # metric shaped for axis-0 broadcast; _AdjointOperator
+        # broadcasts trailing" pattern documented in the moment-space
+        # + layering plan §P1.4 — applies generically to any operator
+        # whose domain/range metric is shape-aligned with the leading
+        # axes of the data tensor (e.g., MomentProjection's
+        # SphericalHarmonicSpace metric on the (ℓ, m) axes).
+        w_W_b = _broadcast_for_leading_axes(w_W, y.ndim) if w_W is not None else None
+        z = y if w_W_b is None else (w_W_b * y)
         result = self.inner.apply_transpose(z)  # type: ignore[attr-defined]
         if w_V is not None:
-            result = result / w_V
+            w_V_b = _broadcast_for_leading_axes(w_V, result.ndim)
+            result = result / w_V_b
         return result
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:

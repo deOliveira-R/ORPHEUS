@@ -233,46 +233,50 @@ class TestGalerkinIdempotencyOnLebedev:
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-039")
-class TestApplyTransposeIsWWeightedAdjoint:
-    r"""L1: MomentProjection.apply_transpose is the W-weighted adjoint.
+class TestApplyTransposeIsRepresentationTranspose:
+    r"""L1: ``MomentProjection.apply_transpose`` is the representation transpose :math:`\Pi^\top`.
 
-    Direct test of the production ``apply_transpose`` against the
-    defining identity :math:`\langle \Pi \psi, c \rangle_C =
-    \langle \psi, \Pi^* c \rangle_V`.
+    Post-P1.4 contract: ``apply_transpose`` returns the row-by-row
+    matrix transpose of :math:`\Pi`, which carries :math:`w_n` (the
+    quadrature weight per ordinate) because :math:`\Pi_{(\ell m), n}
+    = w_n \, Y_\ell^m(\hat\Omega_n)`. The W-weighted Hilbert adjoint
+    :math:`\Pi^*` is the SEPARATE operation reached via
+    :attr:`MomentProjection.H`, which composes the metric-aware
+    formula :math:`\Pi^* = g_C \cdot S_0` via the generic
+    :class:`~orpheus.numerics.operator._AdjointOperator` machinery.
 
-    Closes the gap qa flagged: previous tests hand-coded the einsum
-    for the right side but never crossed the boundary into the
-    production ``apply_transpose`` path. This test does.
+    Closes ERR-039: pre-P1.4 ``apply_transpose`` returned the bare
+    :math:`S_0(c)` and the docstring labeled it the W-weighted Hilbert
+    adjoint — but the true representation transpose carries
+    :math:`w_n`, and the Hilbert adjoint additionally carries
+    :math:`g_C`. The two are now separately typed.
     """
 
-    def test_adjoint_identity_matches_production(self):
-        measure = lebedev_sphere(13)
-        L = 3
-        rng = np.random.default_rng(seed=1234)
+    def test_representation_transpose_carries_w_n(self):
+        """The representation transpose ``M.T`` is :math:`w_n \, S_0(c)`."""
+        measure = lebedev_sphere(7)
+        L = 2
+        rng = np.random.default_rng(seed=5678)
         M = MomentProjection.from_measure(measure, L=L)
 
-        psi = rng.standard_normal(measure.n_points)
         c = rng.standard_normal((L + 1, 2 * L + 1))
-        # Mask non-existent (l, m) entries (only |m| <= l survive)
         c_masked = np.zeros_like(c)
         for l_idx in range(L + 1):
             for m_off in range(2 * l_idx + 1):
                 c_masked[l_idx, m_off] = c[l_idx, m_off]
 
-        # ⟨Π ψ, c⟩_C — Euclidean inner product on coefficient space
-        Mpsi = M.apply(psi)
-        lhs = float(np.sum(Mpsi * c_masked))
+        Pi_T_c = M.apply_transpose(c_masked)
+        # Representation transpose: w_n · S_0(c).  The production einsum
+        # ``"n,nlm,lm...->n..."`` fuses the w_n multiplication into the
+        # reduction; the separate ``measure.weights * einsum(...)`` form
+        # below drifts at FP-non-associativity (≈1e-14) for the same
+        # mathematical answer.  Tolerance covers that drift.
+        Pi_T_expected = measure.weights * np.einsum("nlm,lm->n", M.Y, c_masked)
+        np.testing.assert_allclose(Pi_T_c, Pi_T_expected, rtol=1e-13, atol=1e-14)
 
-        # ⟨ψ, Π* c⟩_V — W-weighted inner product on trial space
-        # Π* c via the production apply_transpose:
-        Pi_star_c = M.apply_transpose(c_masked)
-        rhs = float(np.sum(psi * measure.weights * Pi_star_c))
-
-        np.testing.assert_allclose(lhs, rhs, rtol=1e-12, atol=1e-14)
-
-    def test_apply_transpose_no_2l_plus_1_factor(self):
-        """The W-weighted adjoint has NO (2l+1) factor — distinguishes
-        Π* from R (the addition-theorem reconstruction)."""
+    def test_transpose_distinct_from_addition_theorem_R(self):
+        """``M.T`` and ``R`` are not equal — distinguishes the two
+        primitives ERR-039 originally conflated."""
         measure = lebedev_sphere(7)
         L = 2
         rng = np.random.default_rng(seed=5678)
@@ -285,21 +289,113 @@ class TestApplyTransposeIsWWeightedAdjoint:
             for m_off in range(2 * l_idx + 1):
                 c_masked[l_idx, m_off] = c[l_idx, m_off]
 
-        # Π* c (no factor) vs R c (with (2l+1) factor) — must NOT be equal.
-        Pi_star_c = M.apply_transpose(c_masked)
-        Rc = R.apply(c_masked)
-        # They differ by a (2l+1) per-l weighting; not equal in general.
-        # Specifically, R c = einsum("nlm,l,lm->n", Y, two_l_plus_one, c).
-        two_l_plus_one = 2.0 * np.arange(L + 1) + 1.0
-        Rc_expected = np.einsum(
-            "nlm,l,lm->n", M.Y, two_l_plus_one, c_masked,
-        )
-        np.testing.assert_allclose(Rc, Rc_expected, rtol=1e-15)
-        # Π* c without factor:
-        Pi_star_expected = np.einsum("nlm,lm->n", M.Y, c_masked)
-        np.testing.assert_allclose(Pi_star_c, Pi_star_expected, rtol=1e-15)
-        # Confirm the two are NOT bit-identical (random non-trivial input).
-        assert not np.allclose(Pi_star_c, Rc, atol=1e-3)
+        Pi_T_c = M.apply_transpose(c_masked)   # = w_n · S_0(c)
+        Rc = R.apply(c_masked)                  # = (2ℓ+1) · S_0(c)
+        # They differ structurally: M.T weights per-ordinate by w_n;
+        # R weights per-ℓ by (2ℓ+1). Equal only at the trivial limit
+        # of vanishing input.
+        assert not np.allclose(Pi_T_c, Rc, atol=1e-3)
+
+    def test_representation_transpose_identity_matches_production(self):
+        """The matrix identity :math:`\langle \Pi \psi, c \rangle =
+        \langle \psi, \Pi^\top c \rangle` holds against the
+        production ``apply_transpose`` path.
+
+        ``apply_transpose`` IS the representation transpose, so the
+        identity is the standard ``inner(A x, y) == inner(x, A^T y)``
+        with the EUCLIDEAN inner product on both sides (w_n is already
+        absorbed into A^T by construction).
+        """
+        measure = lebedev_sphere(13)
+        L = 3
+        rng = np.random.default_rng(seed=1234)
+        M = MomentProjection.from_measure(measure, L=L)
+
+        psi = rng.standard_normal(measure.n_points)
+        c = rng.standard_normal((L + 1, 2 * L + 1))
+        c_masked = np.zeros_like(c)
+        for l_idx in range(L + 1):
+            for m_off in range(2 * l_idx + 1):
+                c_masked[l_idx, m_off] = c[l_idx, m_off]
+
+        # ⟨M ψ, c⟩  (Euclidean on coefficient space)
+        Mpsi = M.apply(psi)
+        lhs = float(np.sum(Mpsi * c_masked))
+
+        # ⟨ψ, M^T c⟩  (Euclidean on ordinate space —
+        #              w_n now lives INSIDE M^T)
+        Pi_T_c = M.apply_transpose(c_masked)
+        rhs = float(np.sum(psi * Pi_T_c))
+
+        np.testing.assert_allclose(lhs, rhs, rtol=1e-12, atol=1e-14)
+
+
+@pytest.mark.l1
+@pytest.mark.catches("ERR-039")
+class TestHilbertAdjointViaGenericMachinery:
+    r"""L1: :attr:`MomentProjection.H` computes :math:`g_C \cdot S_0(c)` via the generic adjoint wrapper.
+
+    Post-P1.4 the W-weighted Hilbert adjoint is reached through
+    ``M.H`` — the generic :class:`~orpheus.numerics.operator._AdjointOperator`
+    wrapper. It reads the codomain's
+    :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace` metric
+    (:math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))`) and the domain's
+    quadrature-weight metric (:math:`W = \mathrm{diag}(w_n)`) to compose
+
+    .. math::
+
+        (\Pi^* c)_n = \frac{1}{w_n}\, \Pi^\top(g_C \cdot c)_n
+                    = \sum_{\ell m} \frac{4\pi}{2\ell+1}\,
+                      Y_\ell^m(\hat\Omega_n)\, c_{\ell m}.
+
+    This is the ERR-039 endpoint: the metric, the transpose, and the
+    Hilbert adjoint are all now separately typed; their composition
+    falls out from the generic machinery without prose warnings.
+    """
+
+    def test_H_returns_g_C_times_S_0(self):
+        measure = lebedev_sphere(13)
+        L = 3
+        rng = np.random.default_rng(seed=1234)
+        M = MomentProjection.from_measure(measure, L=L)
+
+        c = rng.standard_normal((L + 1, 2 * L + 1))
+        c_masked = np.zeros_like(c)
+        for l_idx in range(L + 1):
+            for m_off in range(2 * l_idx + 1):
+                c_masked[l_idx, m_off] = c[l_idx, m_off]
+
+        M_H_c = M.H.apply(c_masked)
+
+        metric_per_ell = 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0)
+        expected = np.einsum("l,nlm,lm->n", metric_per_ell, M.Y, c_masked)
+
+        np.testing.assert_allclose(M_H_c, expected, rtol=1e-13, atol=1e-14)
+
+    def test_H_satisfies_hilbert_adjoint_identity(self):
+        r"""The defining identity :math:`\langle M\psi, c\rangle_C =
+        \langle \psi, M^* c\rangle_V` with the metric inner products."""
+        measure = lebedev_sphere(13)
+        L = 3
+        rng = np.random.default_rng(seed=1234)
+        M = MomentProjection.from_measure(measure, L=L)
+
+        psi = rng.standard_normal(measure.n_points)
+        c = rng.standard_normal((L + 1, 2 * L + 1))
+        c_masked = np.zeros_like(c)
+        for l_idx in range(L + 1):
+            for m_off in range(2 * l_idx + 1):
+                c_masked[l_idx, m_off] = c[l_idx, m_off]
+
+        # ⟨M ψ, c⟩_C  with the SphericalHarmonicSpace metric
+        Mpsi = M.apply(psi)
+        lhs = float(M.codomain.inner_product(Mpsi, c_masked))
+
+        # ⟨ψ, M^* c⟩_V  with the quadrature-weight metric
+        M_H_c = M.H.apply(c_masked)
+        rhs = float(np.sum(measure.weights * psi * M_H_c))
+
+        np.testing.assert_allclose(lhs, rhs, rtol=1e-12, atol=1e-14)
 
 
 @pytest.mark.l1
@@ -330,23 +426,14 @@ class TestGalerkinAdjointPairing:
         Mpsi = M.apply(psi)
         lhs = float(np.sum(Mpsi * c_masked))
 
-        # ⟨ψ, R c⟩_W — W-weighted inner product on ordinates:
-        # but here, the convention has Π = Y^* W (already includes W)
-        # so the natural pairing is just ⟨Π ψ, c⟩_M = ⟨ψ, R c⟩.
-        # The 4π·I norm of Π R means ⟨Π ψ, c⟩ = (1/(2l+1)) ⟨ψ, w · R c⟩ in
-        # full generality. Easier check: directly verify the einsum:
-        #   ⟨Πψ, c⟩ = Σ_lm c_lm Σ_n w_n Y_lm(n) ψ_n = Σ_n ψ_n w_n Σ_lm c_lm Y_lm(n)
-        # so the right side has w_n absorbed.
-        Rc = R.apply(c_masked)  # (N,)
-        # Need the (2l+1)-weighted Rc to make adjoint clean. The weighted
-        # form: define R_no_factor without the (2l+1):
-        #   ⟨Πψ, c⟩ = Σ_n ψ_n w_n Σ_lm Y_lm(n) c_lm
-        # so the natural adjoint is ⟨ψ, R_no_factor · c⟩_W where
-        #   R_no_factor c = Σ_lm Y_lm(n) c_lm   (no (2l+1))
-        # and R_no_factor c is just np.einsum("nlm,lm->n", Y, c).
-        Y = M.Y
-        Rc_no_factor = np.einsum("nlm,lm->n", Y, c_masked)
-        rhs = float(np.sum(psi * measure.weights * Rc_no_factor))
+        # ⟨ψ, M^T c⟩  — the matrix-transpose pairing crosses the
+        # production apply_transpose path (which now carries w_n
+        # internally per P1.4).  The natural pairing simplifies to
+        #   ⟨M ψ, c⟩ = ⟨ψ, M^T c⟩
+        # with the Euclidean inner product on both sides; the W weight
+        # has migrated from the test (external * measure.weights) into
+        # the operator (M.apply_transpose returns w_n · S_0(c)).
+        rhs = float(np.sum(psi * M.apply_transpose(c_masked)))
         np.testing.assert_allclose(lhs, rhs, rtol=1e-12, atol=1e-14)
 
 
