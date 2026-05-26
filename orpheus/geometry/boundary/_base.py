@@ -58,7 +58,7 @@ from ._source import BoundarySource, NoSource
 
 if TYPE_CHECKING:
     from orpheus.numerics.operator import LinearOperator
-    from orpheus.sn.quadrature import AngularQuadrature
+    from orpheus.numerics.quadrature import Quadrature
 
     from ._composition import LawNode, LawScaled, LawSum
 

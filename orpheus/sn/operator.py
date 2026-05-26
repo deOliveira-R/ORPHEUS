@@ -81,7 +81,7 @@ from orpheus.numerics.operator import (
     OperatorSum,
 )
 
-from .quadrature import AngularQuadrature
+from orpheus.numerics.quadrature import Quadrature
 
 if TYPE_CHECKING:
     from orpheus.geometry.boundary import BoundaryOperator

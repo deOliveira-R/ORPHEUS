@@ -46,7 +46,7 @@ from .axis import (
 )
 from .boundary_realizer import SNBoundaryRealizer
 from .method_space import SNMethodSpace
-from .quadrature import AngularQuadrature
+from orpheus.numerics.quadrature import Quadrature
 from .spatial.cell_update import CellUpdate, CellVisit
 from .spatial.diamond import DiamondDifference
 from .spatial.pole_angular_closure import (

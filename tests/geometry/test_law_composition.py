@@ -49,7 +49,7 @@ from orpheus.geometry.boundary import (
 from orpheus.numerics.operator import OperatorSum, ScaledOperator
 from orpheus.sn.boundary_realize import realize_recursively
 from orpheus.sn.boundary_realizer import SNBoundaryRealizer, SNMethodSpace
-from orpheus.sn.quadrature import GaussLegendre1D, LebedevSphere
+from orpheus.numerics.quadrature import Quadrature
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -205,7 +205,7 @@ def test_law_tree_has_no_apply() -> None:
 @pytest.mark.foundation
 def test_realize_recursively_leaf_dispatches_to_sn_realizer() -> None:
     """A bare :class:`BoundaryTraceLaw` leaf realises via the SN realiser."""
-    quad = GaussLegendre1D.create(8)
+    quad = Quadrature.gauss_legendre(8)
     ms = SNMethodSpace.minimal(quad)
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     walker_op = realize_recursively(spec, ms)
@@ -218,7 +218,7 @@ def test_realize_recursively_leaf_dispatches_to_sn_realizer() -> None:
 @pytest.mark.foundation
 def test_realize_recursively_lawscaled_wraps_in_scaled_operator() -> None:
     """``LawScaled(α, leaf)`` realises to ``ScaledOperator(α, realised_leaf)``."""
-    quad = GaussLegendre1D.create(8)
+    quad = Quadrature.gauss_legendre(8)
     ms = SNMethodSpace.minimal(quad)
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     tree = 0.5 * spec
@@ -237,7 +237,7 @@ def test_realize_recursively_lawscaled_wraps_in_scaled_operator() -> None:
 @pytest.mark.foundation
 def test_realize_recursively_lawsum_returns_operator_sum() -> None:
     """``LawSum(a, b)`` realises to ``OperatorSum(realise(a), realise(b))``."""
-    quad = LebedevSphere.create(17)
+    quad = Quadrature.lebedev(17)
     ms = SNMethodSpace.minimal(quad)
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
@@ -260,7 +260,7 @@ def test_realize_recursively_apply_matches_pointwise_weighted_sum() -> None:
     ``algebra-of-record``). nulp=4 covers the binary-reduction FP
     order vs the pointwise reduction.
     """
-    quad = LebedevSphere.create(17)
+    quad = Quadrature.lebedev(17)
     ms = SNMethodSpace.minimal(quad)
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
@@ -283,7 +283,7 @@ def test_realize_recursively_walks_nested_depth_first() -> None:
     is a ``LawScaled`` around a leaf. The realised tree mirrors the
     structure with Wave-0 composers.
     """
-    quad = LebedevSphere.create(17)
+    quad = Quadrature.lebedev(17)
     ms = SNMethodSpace.minimal(quad)
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
@@ -308,7 +308,7 @@ def test_realize_recursively_nested_apply_matches_distributive_form() -> None:
     identity through depth-first recursion. ``nulp=4`` covers
     binary-reduction FP order.
     """
-    quad = LebedevSphere.create(17)
+    quad = Quadrature.lebedev(17)
     ms = SNMethodSpace.minimal(quad)
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
@@ -335,7 +335,7 @@ def test_realize_recursively_nested_apply_matches_distributive_form() -> None:
 def test_realize_recursively_raises_type_error_on_unknown_node() -> None:
     """A node neither :class:`BoundaryTraceLaw` nor :class:`LawSum` /
     :class:`LawScaled` raises :class:`TypeError`."""
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     ms = SNMethodSpace.minimal(quad)
 
     class _NotALaw:
@@ -349,7 +349,7 @@ def test_realize_recursively_raises_type_error_on_unknown_node() -> None:
 def test_realize_recursively_raises_on_ndarray_leaf() -> None:
     """A plain ndarray is not a descriptor — walker raises
     :class:`TypeError`."""
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     ms = SNMethodSpace.minimal(quad)
     with pytest.raises(TypeError, match="LawSum | LawScaled"):
         realize_recursively(np.eye(3), ms)

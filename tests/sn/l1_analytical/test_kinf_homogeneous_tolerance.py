@@ -54,7 +54,7 @@ from orpheus.derivations.continuous.analytical.homogeneous import (
     derive_4g_continuous,
 )
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
-from orpheus.sn.quadrature import GaussLegendre1D, ProductQuadrature
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
 
@@ -77,8 +77,8 @@ def _mesh(coord: str, mat_id: int, n_cells: int = 10, length: float = 2.0) -> Me
 
 def _quadrature(coord: str):
     if coord == "cylinder":
-        return ProductQuadrature.create(n_mu=2, n_phi=4)
-    return GaussLegendre1D.create(n_ordinates=8)
+        return Quadrature.product(n_mu=2, n_phi=4)
+    return Quadrature.gauss_legendre(n_ordinates=8)
 
 
 @pytest.mark.verifies("matrix-eigenvalue", "fission-matrix", "removal-matrix")

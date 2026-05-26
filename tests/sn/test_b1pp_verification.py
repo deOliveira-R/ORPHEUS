@@ -42,7 +42,7 @@ from orpheus.sn.operator import (
     StreamingOperator,
     solution_to_angular_flux_with_traces,
 )
-from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
+from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
 # Per-test V&V level markers (see individual @pytest.mark.lN decorators).
@@ -62,7 +62,7 @@ def _build_cylinder(nx: int, sn_order: int = 4) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = LevelSymmetricSN.create(sn_order=sn_order)
+    quad = Quadrature.level_symmetric(sn_order=sn_order)
     return SNMesh(mesh, quad, placeholder_materials())
 
 
@@ -75,7 +75,7 @@ def _build_sphere(nx: int, n_ord: int = 8) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=n_ord)
+    quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNMesh(mesh, quad, placeholder_materials())
 
 
@@ -88,7 +88,7 @@ def _build_slab(nx: int, n_ord: int = 8) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=n_ord)
+    quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNMesh(mesh, quad, placeholder_materials())
 
 

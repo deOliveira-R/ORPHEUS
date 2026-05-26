@@ -66,7 +66,7 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import Mesh1D, Mesh2D
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.mesh import BC
-from orpheus.sn.quadrature import GaussLegendre1D, LebedevSphere, ProductQuadrature
+from orpheus.numerics.quadrature import Quadrature
 
 from ...common.continuous_reference import (
     ContinuousReferenceSolution,
@@ -94,7 +94,7 @@ class SNSlabMMSCase:
         Material map consumable by :class:`orpheus.sn.SNSolver`.
     mat_id : int
         Material ID assigned to every mesh cell.
-    quadrature : GaussLegendre1D
+    quadrature : Quadrature
         Angular quadrature (shared across mesh refinements so the
         convergence study isolates spatial error).
     tolerance : str
@@ -109,7 +109,7 @@ class SNSlabMMSCase:
     slab_length: float
     materials: dict[int, "Mixture"]
     mat_id: int
-    quadrature: GaussLegendre1D
+    quadrature: Quadrature
     tolerance: str = "O(h^2)"
     equation_labels: tuple[str, ...] = (
         "transport-cartesian",
@@ -215,7 +215,7 @@ def build_1d_slab_mms_case(
     thick that the manufactured source amplitude is uninteresting.
     """
     materials = {mat_id: _make_1g_mixture(sigma_t, sigma_s)}
-    quadrature = GaussLegendre1D.create(n_ordinates=n_ordinates)
+    quadrature = Quadrature.gauss_legendre(n_ordinates=n_ordinates)
     return SNSlabMMSCase(
         name=name,
         sigma_t=sigma_t,
@@ -348,7 +348,7 @@ class SNSlab2GHeterogeneousMMSCase:
         ``sigma_s_fn(x, g_from, g_to) -> ndarray`` returning
         :math:`\Sigma_{s,g_{\text{from}}\to g_{\text{to}}}(x)` on
         the same shape as ``x``.
-    quadrature : GaussLegendre1D
+    quadrature : Quadrature
         Fixed angular quadrature used across all mesh refinements
         (so the spatial convergence study isolates spatial error).
     n_groups : int
@@ -366,7 +366,7 @@ class SNSlab2GHeterogeneousMMSCase:
     c_spectrum: np.ndarray
     sigma_t_fn: "Callable[[np.ndarray, int], np.ndarray]"
     sigma_s_fn: "Callable[[np.ndarray, int, int], np.ndarray]"
-    quadrature: GaussLegendre1D
+    quadrature: Quadrature
     n_groups: int = 2
     tolerance: str = "O(h^2)"
     equation_labels: tuple[str, ...] = (
@@ -577,7 +577,7 @@ def build_1d_slab_heterogeneous_mms_case(
     """
     sigma_t_fn, sigma_s_fn, L_holder = _default_hetero_xs_functions()
     L_holder["L"] = float(slab_length)
-    quad = GaussLegendre1D.create(n_ordinates=n_ordinates)
+    quad = Quadrature.gauss_legendre(n_ordinates=n_ordinates)
     return SNSlab2GHeterogeneousMMSCase(
         name=name,
         slab_length=float(slab_length),
@@ -653,7 +653,7 @@ class SN2DCartesianMMSCase:
         Material map consumable by the SN solver.
     mat_id : int
         Material ID assigned to every cell.
-    quadrature : LebedevSphere
+    quadrature : Quadrature
         Angular quadrature (fixed across mesh refinements).
     tolerance : str
         Expected convergence order.
@@ -668,7 +668,7 @@ class SN2DCartesianMMSCase:
     length_y: float
     materials: dict[int, "Mixture"]
     mat_id: int
-    quadrature: LebedevSphere
+    quadrature: Quadrature
     tolerance: str = "O(h^2)"
     equation_labels: tuple[str, ...] = (
         "transport-cartesian-2d",
@@ -761,7 +761,7 @@ def build_2d_cartesian_mms_case(
       2D eigenvalue tests.
     """
     materials = {mat_id: _make_1g_mixture(sigma_t, sigma_s)}
-    quadrature = LebedevSphere.create(order=lebedev_order)
+    quadrature = Quadrature.lebedev(order=lebedev_order)
     return SN2DCartesianMMSCase(
         name=name,
         sigma_t=sigma_t,
@@ -820,7 +820,7 @@ class SN2DCartesian2GHeterogeneousMMSCase:
     c_spectrum: np.ndarray
     sigma_t_fn: "Callable[[np.ndarray, np.ndarray, int], np.ndarray]"
     sigma_s_fn: "Callable[[np.ndarray, np.ndarray, int, int], np.ndarray]"
-    quadrature: LebedevSphere
+    quadrature: Quadrature
     n_groups: int = 2
     tolerance: str = "O(h^2)"
     equation_labels: tuple[str, ...] = (
@@ -1018,7 +1018,7 @@ def build_2d_cartesian_heterogeneous_mms_case(
     sigma_t_fn, sigma_s_fn = _default_hetero_2d_xs_functions(
         float(length_x), float(length_y),
     )
-    quad = LebedevSphere.create(order=lebedev_order)
+    quad = Quadrature.lebedev(order=lebedev_order)
     return SN2DCartesian2GHeterogeneousMMSCase(
         name=name,
         length_x=float(length_x),
@@ -1087,7 +1087,7 @@ class SNP1AnisoMMSCase:
     slab_length: float
     materials: dict[int, "Mixture"]
     mat_id: int
-    quadrature: GaussLegendre1D
+    quadrature: Quadrature
     tolerance: str = "O(h^2)"
     equation_labels: tuple[str, ...] = (
         "transport-cartesian",
@@ -1181,7 +1181,7 @@ def build_p1_aniso_mms_case(
       (positive = forward-peaked in the lab frame).
     """
     materials = {mat_id: _make_1g_p1_mixture(sigma_t, sigma_s0, sigma_s1)}
-    quadrature = GaussLegendre1D.create(n_ordinates=n_ordinates)
+    quadrature = Quadrature.gauss_legendre(n_ordinates=n_ordinates)
     return SNP1AnisoMMSCase(
         name=name,
         sigma_t=sigma_t,
@@ -1216,7 +1216,7 @@ class SNSphericalMMSCase:
     radius: float
     materials: dict[int, "Mixture"]
     mat_id: int
-    quadrature: GaussLegendre1D
+    quadrature: Quadrature
     tolerance: str = "O(h^2)"
     equation_labels: tuple[str, ...] = (
         "transport-spherical",
@@ -1265,7 +1265,7 @@ def build_spherical_mms_case(
 ) -> SNSphericalMMSCase:
     r"""Build the canonical 1D spherical MMS case."""
     materials = {mat_id: _make_1g_mixture(sigma_t, sigma_s)}
-    quadrature = GaussLegendre1D.create(n_ordinates=n_ordinates)
+    quadrature = Quadrature.gauss_legendre(n_ordinates=n_ordinates)
     return SNSphericalMMSCase(
         name=name,
         sigma_t=sigma_t,
@@ -1301,7 +1301,7 @@ class SNCylindricalMMSCase:
     radius: float
     materials: dict[int, "Mixture"]
     mat_id: int
-    quadrature: ProductQuadrature
+    quadrature: Quadrature
     tolerance: str = "O(h^2)"
     equation_labels: tuple[str, ...] = (
         "transport-cylindrical",
@@ -1352,7 +1352,7 @@ def build_cylindrical_mms_case(
 ) -> SNCylindricalMMSCase:
     r"""Build the canonical 1D cylindrical MMS case."""
     materials = {mat_id: _make_1g_mixture(sigma_t, sigma_s)}
-    quadrature = ProductQuadrature.create(n_mu=n_mu, n_phi=n_phi)
+    quadrature = Quadrature.product(n_mu=n_mu, n_phi=n_phi)
     return SNCylindricalMMSCase(
         name=name,
         sigma_t=sigma_t,
@@ -2044,7 +2044,7 @@ class SNSphericalAnisotropicMMSCase:
     radius: float
     materials: dict[int, "Mixture"]
     mat_id: int
-    quadrature: GaussLegendre1D
+    quadrature: Quadrature
     tolerance: str = "O(h^2)"
     equation_labels: tuple[str, ...] = (
         "transport-spherical",
@@ -2173,7 +2173,7 @@ def build_spherical_anisotropic_mms_case(
     P1-coupling code path.
     """
     materials = {mat_id: _make_1g_mixture(sigma_t, sigma_s)}
-    quadrature = GaussLegendre1D.create(n_ordinates=n_ordinates)
+    quadrature = Quadrature.gauss_legendre(n_ordinates=n_ordinates)
     return SNSphericalAnisotropicMMSCase(
         name=name,
         sigma_t=sigma_t,
@@ -2215,7 +2215,7 @@ class SNCylindricalAnisotropicMMSCase:
     radius: float
     materials: dict[int, "Mixture"]
     mat_id: int
-    quadrature: ProductQuadrature
+    quadrature: Quadrature
     tolerance: str = "O(h^2)"
     equation_labels: tuple[str, ...] = (
         "transport-cylindrical",
@@ -2319,7 +2319,7 @@ def build_cylindrical_anisotropic_mms_case(
     cases narrows down failures: a passing isotropic + failing
     anisotropic pinpoints the azimuthal redistribution path."""
     materials = {mat_id: _make_1g_mixture(sigma_t, sigma_s)}
-    quadrature = ProductQuadrature.create(n_mu=n_mu, n_phi=n_phi)
+    quadrature = Quadrature.product(n_mu=n_mu, n_phi=n_phi)
     return SNCylindricalAnisotropicMMSCase(
         name=name,
         sigma_t=sigma_t,

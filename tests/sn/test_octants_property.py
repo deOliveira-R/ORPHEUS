@@ -31,11 +31,8 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.measure import DiscreteMeasurePartition
-from orpheus.sn.quadrature import (
-    GaussLegendre1D,
-    LebedevSphere,
-    LevelSymmetricSN,
-    ProductQuadrature,
+from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics.quadrature.directional import (
     _OCTANT_SIGN_EPS,
     _octant_sign_predicate,
 )
@@ -92,14 +89,14 @@ class TestSignPredicate:
 
 
 _QUAD_FACTORIES = [
-    pytest.param(lambda: GaussLegendre1D.create(8), id="gauss_legendre_1d_n8"),
-    pytest.param(lambda: GaussLegendre1D.create(16), id="gauss_legendre_1d_n16"),
-    pytest.param(lambda: LebedevSphere.create(5), id="lebedev_5"),
-    pytest.param(lambda: LebedevSphere.create(7), id="lebedev_7"),
-    pytest.param(lambda: LebedevSphere.create(11), id="lebedev_11"),
-    pytest.param(lambda: LevelSymmetricSN.create(4), id="ls4"),
-    pytest.param(lambda: LevelSymmetricSN.create(6), id="ls6"),
-    pytest.param(lambda: ProductQuadrature.create(8, 8), id="product_8x8"),
+    pytest.param(lambda: Quadrature.gauss_legendre(8), id="gauss_legendre_1d_n8"),
+    pytest.param(lambda: Quadrature.gauss_legendre(16), id="gauss_legendre_1d_n16"),
+    pytest.param(lambda: Quadrature.lebedev(5), id="lebedev_5"),
+    pytest.param(lambda: Quadrature.lebedev(7), id="lebedev_7"),
+    pytest.param(lambda: Quadrature.lebedev(11), id="lebedev_11"),
+    pytest.param(lambda: Quadrature.level_symmetric(4), id="ls4"),
+    pytest.param(lambda: Quadrature.level_symmetric(6), id="ls6"),
+    pytest.param(lambda: Quadrature.product(8, 8), id="product_8x8"),
 ]
 
 
@@ -131,14 +128,22 @@ class TestOctantsInvariants:
 
     @pytest.mark.parametrize("factory", _QUAD_FACTORIES)
     def test_label_matches_direction_signs(self, factory):
-        """For each entry with label σ, every ordinate's signs equal σ."""
+        """For each entry with label σ, every ordinate's signs equal σ.
+
+        The label tuple shape distinguishes the quadrature's intrinsic
+        directional dimensionality — ``len(label) == 1`` for slab GL1D
+        (only the polar :math:`\\mu` carries a sign), ``len(label) ==
+        3`` for sphere cubatures (one sign per Cartesian axis).
+        The unified :class:`Quadrature` class always exposes ``mu_x``,
+        ``mu_y``, ``mu_z`` as :func:`@property` views, so use the
+        label-tuple shape — not :func:`hasattr` — as the dispatch.
+        """
         quad = factory()
         for entry in quad.octants:
             indices = entry.indices
             label = entry.label
-            # Reconstruct signs from the cached mu_x/mu_y/mu_z arrays.
-            if hasattr(quad, "mu_z"):
-                # 3-D adapter: label is (s_x, s_y, s_z).
+            if len(label) == 3:
+                # Sphere cubature: label is (s_x, s_y, s_z).
                 actual = np.column_stack([
                     _octant_sign_predicate(quad.mu_x[indices]),
                     _octant_sign_predicate(quad.mu_y[indices]),
@@ -148,7 +153,7 @@ class TestOctantsInvariants:
                     np.array(label, dtype=int), actual.shape,
                 )
             else:
-                # 1-D adapter: label is (s,) — only μ_x carries the sign.
+                # Slab quadrature: label is (s,) — only μ_x carries the sign.
                 actual = _octant_sign_predicate(quad.mu_x[indices])
                 expected = np.full(actual.shape, label[0], dtype=int)
             np.testing.assert_array_equal(actual, expected)
@@ -194,13 +199,13 @@ class TestGaussLegendre1DOctants:
     """1-D: only ``(+1,)`` and ``(-1,)`` (GL has no μ=0 node)."""
 
     def test_two_partitions_only(self):
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         octs = quad.octants
         labels = {e.label for e in octs}
         assert labels == {(-1,), (+1,)}
 
     def test_label_is_one_tuple(self):
-        quad = GaussLegendre1D.create(16)
+        quad = Quadrature.gauss_legendre(16)
         for e in quad.octants:
             assert len(e.label) == 1
 
@@ -210,21 +215,21 @@ class TestLebedev5Octants:
     """Lebedev 5 has axis-aligned ``(0, 0, ±1)`` ordinates: 14 → 8 + 6 split."""
 
     def test_includes_pure_z_partitions(self):
-        quad = LebedevSphere.create(5)
+        quad = Quadrature.lebedev(5)
         labels = {e.label for e in quad.octants}
         # The two pure-z ordinates form their own partitions.
         assert (0, 0, +1) in labels
         assert (0, 0, -1) in labels
 
     def test_pure_z_partitions_have_one_ordinate_each(self):
-        quad = LebedevSphere.create(5)
+        quad = Quadrature.lebedev(5)
         per_label = {e.label: e for e in quad.octants}
         assert per_label[(0, 0, +1)].indices.size == 1
         assert per_label[(0, 0, -1)].indices.size == 1
 
     def test_full_octant_partitions_present(self):
         """The 8 full octants ``(±1, ±1, ±1)`` must all be present."""
-        quad = LebedevSphere.create(5)
+        quad = Quadrature.lebedev(5)
         labels = {e.label for e in quad.octants}
         for sx in (-1, +1):
             for sy in (-1, +1):
@@ -238,7 +243,7 @@ class TestLevelSymmetricSNOctants:
 
     @pytest.mark.parametrize("order", [4, 6, 8])
     def test_eight_full_octants_only(self, order):
-        quad = LevelSymmetricSN.create(order)
+        quad = Quadrature.level_symmetric(order)
         octs = quad.octants
         # All 8 ``(±1, ±1, ±1)`` must be present.
         assert len(octs) == 8
@@ -250,7 +255,7 @@ class TestLevelSymmetricSNOctants:
 
     def test_partitions_have_equal_size(self):
         """LS quadrature is octant-symmetric: every partition has N/8 ordinates."""
-        quad = LevelSymmetricSN.create(4)
+        quad = Quadrature.level_symmetric(4)
         sizes = sorted(e.indices.size for e in quad.octants)
         assert sizes == [quad.N // 8] * 8
 

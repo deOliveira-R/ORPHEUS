@@ -67,11 +67,7 @@ from orpheus.geometry.boundary import (
     WhiteBoundaryOperator,
 )
 from orpheus.sn.boundary_realizer import SNBoundaryRealizer, SNMethodSpace
-from orpheus.sn.quadrature import (
-    GaussLegendre1D,
-    LebedevSphere,
-    LevelSymmetricSN,
-)
+from orpheus.numerics.quadrature import Quadrature
 
 
 pytestmark = [pytest.mark.l1, pytest.mark.regression]
@@ -131,7 +127,7 @@ class TestVacuumLebedev17Snapshot:
         assertion has a deterministic target without re-deriving the
         index set at test time.
         """
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         inflow_indices = snapshot["inflow_indices_xmin"]
         space = SNMethodSpace(
             quadrature=quad, face="xmin", inflow_indices=inflow_indices,
@@ -186,7 +182,7 @@ class TestAlbedo05Lebedev17Snapshot:
         Multiplication is the only operation; no reduction tree change.
         ``assert_array_equal`` is the right gate.
         """
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         bc = AlbedoBoundaryOperator(albedo=0.5)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         actual = op.apply(snapshot["psi_out"])
@@ -215,7 +211,7 @@ class TestSpecularXLebedev17Snapshot:
         At α=1 the realizer's fast path returns the bare
         :class:`PermutationOperator` (no :class:`ScaledOperator` wrap).
         """
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         bc = SpecularBoundaryOperator(axis="x", albedo=1.0)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         actual = op.apply(snapshot["psi_out"])
@@ -246,7 +242,7 @@ class TestSpecularYPartial07LS6Snapshot:
         self, snapshot: np.lib.npyio.NpzFile,
     ) -> None:
         """Realized ``ScaledOperator(0.7, PermutationOperator)`` is bit-exact."""
-        quad = LevelSymmetricSN.create(sn_order=6)
+        quad = Quadrature.level_symmetric(sn_order=6)
         bc = SpecularBoundaryOperator(axis="y", albedo=0.7)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         actual = op.apply(snapshot["psi_out"])
@@ -281,7 +277,7 @@ class TestWhiteXmaxLS4Snapshot:
         ``assert_array_equal`` is the right gate; the snapshot was
         generated from this exact path.
         """
-        quad = LevelSymmetricSN.create(sn_order=4)
+        quad = Quadrature.level_symmetric(sn_order=4)
         bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         actual = op.apply(snapshot["psi_out"])
@@ -315,7 +311,7 @@ class TestWhiteXminPartial03GLSnapshot:
         self, snapshot: np.lib.npyio.NpzFile,
     ) -> None:
         """Realized ``ScaledOperator(0.3, AngularAverageOperator)`` is bit-exact."""
-        quad = GaussLegendre1D.create(n_ordinates=8)
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
         bc = WhiteBoundaryOperator(axis="x", outward_sign=-1, albedo=0.3)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         actual = op.apply(snapshot["psi_out"])
@@ -344,7 +340,7 @@ class TestPeriodicLebedev17Snapshot:
         Body is a no-op copy; no FP operations, no reduction tree.
         ``assert_array_equal`` is the right gate.
         """
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         bc = PeriodicBoundaryOperator()
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         actual = op.apply(snapshot["psi_out"])
@@ -389,7 +385,7 @@ class TestMixed30Spec70WhiteLS4Snapshot:
     ) -> None:
         """Wave-0 ``0.3 * spec_realised + 0.7 * white_realised`` matches
         snapshot at ``nulp=64``."""
-        quad = LevelSymmetricSN.create(sn_order=4)
+        quad = Quadrature.level_symmetric(sn_order=4)
         spec_realized = SNBoundaryRealizer().realize(
             SpecularBoundaryOperator(axis="x", albedo=1.0),
             SNMethodSpace.minimal(quad),

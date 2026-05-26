@@ -11,13 +11,13 @@ import pytest
 
 from orpheus.geometry import BC, Mesh1D, Mesh2D, CoordSystem
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
 
 @pytest.fixture
 def quad():
-    return GaussLegendre1D.create(4)
+    return Quadrature.gauss_legendre(4)
 
 
 @pytest.fixture

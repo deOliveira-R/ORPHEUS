@@ -50,11 +50,7 @@ from orpheus.geometry.boundary import (
     WhiteBoundary,
 )
 from orpheus.geometry.boundary._errors import ReflectionNotInvolutiveError
-from orpheus.sn.quadrature import (
-    GaussLegendre1D,
-    LebedevSphere,
-    LevelSymmetricSN,
-)
+from orpheus.numerics.quadrature import Quadrature
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -70,20 +66,20 @@ class TestReflectiveInvolutionInvariant:
     def test_passes_for_default_axis_reflection_lebedev(self) -> None:
         """Lebedev-17's x-axis reflection is a true involution."""
         bc = ReflectiveBoundary(axis="x")
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         # No raise.
         bc.assert_is_involutive(quad)
 
     def test_passes_for_level_symmetric_y_axis(self) -> None:
         """Level-symmetric S6 y-axis reflection is a true involution."""
         bc = ReflectiveBoundary(axis="y")
-        quad = LevelSymmetricSN.create(sn_order=6)
+        quad = Quadrature.level_symmetric(sn_order=6)
         bc.assert_is_involutive(quad)
 
     def test_passes_for_gauss_legendre_x_axis(self) -> None:
         """1-D Gauss-Legendre x-axis reflection is a true involution."""
         bc = ReflectiveBoundary(axis="x")
-        quad = GaussLegendre1D.create(n_ordinates=8)
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
         bc.assert_is_involutive(quad)
 
     def test_raises_for_non_involutive_perm(self) -> None:
@@ -93,7 +89,7 @@ class TestReflectiveInvolutionInvariant:
         a 1-cycle rotation (NOT its own inverse). The invariant must
         catch this.
         """
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         N = quad.N
 
         # Wrap with a fake reflection_index that returns a rotation
@@ -117,16 +113,16 @@ class TestReflectiveMeasurePreservingInvariant:
 
     def test_passes_for_real_quadratures(self) -> None:
         for quad in (
-            LebedevSphere.create(17),
-            LevelSymmetricSN.create(sn_order=6),
-            GaussLegendre1D.create(n_ordinates=8),
+            Quadrature.lebedev(17),
+            Quadrature.level_symmetric(sn_order=6),
+            Quadrature.gauss_legendre(n_ordinates=8),
         ):
             ReflectiveBoundary(axis="x").assert_geometry_map_measure_preserving(quad)
 
     def test_raises_when_involution_fails(self) -> None:
         """Non-involutive perm fails the measure-preserving check
         via the delegated involution test."""
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         N = quad.N
 
         class _FakeQuad:
@@ -345,7 +341,7 @@ class TestPrescribedInflowApply:
         )
 
         bc = PrescribedInflow()
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         psi_out = np.random.default_rng(0).standard_normal((quad.N, 3))
         psi_in = op.apply(psi_out)
@@ -363,7 +359,7 @@ class TestPrescribedInflowApply:
         )
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=3.7))
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         psi_out = np.random.default_rng(1).standard_normal((quad.N, 2))
         psi_in = op.apply(psi_out)
@@ -381,7 +377,7 @@ class TestPrescribedInflowApply:
         )
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=1.0))
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         psi_out_a = np.random.default_rng(2).standard_normal((quad.N, 2))
         psi_out_b = 1000.0 * np.ones((quad.N, 2))
@@ -444,7 +440,7 @@ class TestSNRealizerPrescribedInflowDispatch:
         )
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=1.5))
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         assert isinstance(op, IncomingSourceOperator)
         # The source is the same one we passed in.
@@ -459,7 +455,7 @@ class TestSNRealizerPrescribedInflowDispatch:
         )
 
         bc = PrescribedInflow()
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         assert isinstance(op, IncomingSourceOperator)
         assert isinstance(op.source, NoSource)

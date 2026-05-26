@@ -34,11 +34,7 @@ from orpheus.geometry.boundary import (
     WhiteBoundaryOperator,
 )
 from orpheus.sn.boundary_realizer import SNBoundaryRealizer, SNMethodSpace
-from orpheus.sn.quadrature import (
-    GaussLegendre1D,
-    LebedevSphere,
-    ProductQuadrature,
-)
+from orpheus.numerics.quadrature import Quadrature
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -111,7 +107,7 @@ def test_vacuum_bc_realizer_zeros_only_inflow_per_section_16A5() -> None:
     direct call still returns the legacy zeros-all output as a
     backward-compat fallback (documented in the BC docstring).
     """
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.random.default_rng(0).standard_normal((quad.N, 3))
     bc = VacuumBoundaryOperator()
 
@@ -135,7 +131,7 @@ def test_vacuum_bc_is_resolved_bc() -> None:
 @pytest.mark.foundation
 def test_specular_bc_indexes_through_reflection_partner() -> None:
     """``SpecularBoundaryOperator.apply(psi)[n] == psi[reflection_index[n]]``."""
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.arange(quad.N * 2, dtype=float).reshape(quad.N, 2)
     bc = SpecularBoundaryOperator(axis="x", albedo=1.0)
     ref = quad.reflection_index("x")
@@ -149,7 +145,7 @@ def test_specular_bc_indexes_through_reflection_partner() -> None:
 @pytest.mark.foundation
 def test_specular_bc_with_partial_albedo() -> None:
     """SpecularBoundaryOperator scales by ``albedo``."""
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     psi_out = np.array([[1.0], [2.0], [3.0], [4.0]])
     bc = SpecularBoundaryOperator(axis="x", albedo=0.5)
 
@@ -163,7 +159,7 @@ def test_specular_bc_with_partial_albedo() -> None:
 @pytest.mark.foundation
 def test_specular_bc_axis_y_on_lebedev() -> None:
     """Lebedev y-reflection partner: ``apply(axis='y')`` matches index."""
-    quad = LebedevSphere.create(order=9)
+    quad = Quadrature.lebedev(order=9)
     psi_out = np.random.default_rng(1).standard_normal((quad.N, 2))
     bc = SpecularBoundaryOperator(axis="y", albedo=1.0)
 
@@ -175,7 +171,7 @@ def test_specular_bc_axis_y_on_lebedev() -> None:
 @pytest.mark.foundation
 def test_white_bc_returns_cosine_weighted_average() -> None:
     """White BC: incoming = ``Σ w·μ·ψ_out / Σ w·μ`` over outgoing hemisphere."""
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     rng = np.random.default_rng(2)
     psi_out = rng.standard_normal((quad.N, 1))
     bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
@@ -197,7 +193,7 @@ def test_white_bc_returns_cosine_weighted_average() -> None:
 @pytest.mark.foundation
 def test_white_bc_is_angle_independent() -> None:
     """White BC produces the same value at every ordinate index."""
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.random.default_rng(3).standard_normal((quad.N, 2))
     bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=0.7)
 
@@ -211,7 +207,7 @@ def test_white_bc_is_angle_independent() -> None:
 @pytest.mark.foundation
 def test_white_bc_albedo_scales_linearly() -> None:
     """Two white BCs at α=1 and α=0.4 differ by exactly the ratio."""
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.random.default_rng(4).standard_normal((quad.N, 2))
     bc1 = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
     bc2 = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=0.4)
@@ -225,7 +221,7 @@ def test_white_bc_albedo_scales_linearly() -> None:
 @pytest.mark.foundation
 def test_white_bc_4_point_quadrature_hand_computed() -> None:
     """White BC on 4-point GL: explicit hand calculation."""
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     # 4-point GL: μ = ±0.339981..., ±0.861136..., w = 0.652145..., 0.347855...
     mu_pos = quad.mu_x[quad.mu_x > 0]
     w_pos = quad.weights[quad.mu_x > 0]
@@ -243,7 +239,7 @@ def test_white_bc_4_point_quadrature_hand_computed() -> None:
 @pytest.mark.foundation
 def test_white_bc_axis_z_on_product_quadrature() -> None:
     """White BC on z-axis routes through ``mu_z``."""
-    quad = ProductQuadrature.create(n_mu=8, n_phi=4)
+    quad = Quadrature.product(n_mu=8, n_phi=4)
     psi_out = np.where(quad.mu_z[:, None] > 0, 2.0, 9.0)
     bc = WhiteBoundaryOperator(axis="z", outward_sign=+1, albedo=1.0)
 
@@ -254,17 +250,25 @@ def test_white_bc_axis_z_on_product_quadrature() -> None:
 
 @pytest.mark.foundation
 def test_white_bc_z_axis_unsupported_on_1d_quadrature() -> None:
-    """1-D GL has no ``mu_z`` — z-axis raises ValueError."""
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    r"""Slab GL has zero z-cosines — z-axis white BC fails the
+    downstream "no outgoing ordinates" guard.
+
+    R-1 Phase A detour-C: the unified :class:`Quadrature` class
+    always exposes ``mu_z`` as a :func:`@property` view (returning
+    zeros for slab measures); the failure mode that the OLD
+    ``GaussLegendre1D`` adapter triggered via :exc:`AttributeError`
+    on missing ``mu_z`` now surfaces one layer downstream — the
+    :class:`AngularAverageOperator.from_quadrature` realizer sees
+    that NO ordinate has outward :math:`\mu_z > 0` and raises
+    ValueError with a "no outgoing ordinates" message. Same
+    defensive behavior (slab z-axis is structurally degenerate);
+    different layer of catch.
+    """
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     psi_out = np.zeros((quad.N, 1))
     bc = WhiteBoundaryOperator(axis="z", outward_sign=+1, albedo=1.0)
 
-    # Realizer constructs AngularAverageOperator.from_quadrature(quad,
-    # axis="z", ...) eagerly; the ValueError fires inside the realize
-    # call (before .apply runs). The ``pytest.raises`` context wraps
-    # both, so the test discriminates on the ValueError regardless of
-    # which call site (realize vs. apply) raises.
-    with pytest.raises(ValueError, match="mu_z"):
+    with pytest.raises(ValueError, match="no outgoing ordinates"):
         _realize_for_sn(bc, quad).apply(psi_out)
 
 
@@ -277,7 +281,7 @@ def test_periodic_bc_returns_input_unchanged() -> None:
     which is a no-op return of the (caller-supplied partner-face
     outgoing) buffer.
     """
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.random.default_rng(5).standard_normal((quad.N, 3))
     bc = PeriodicBoundaryOperator()
 
@@ -292,7 +296,7 @@ def test_periodic_bc_returns_input_unchanged() -> None:
 @pytest.mark.foundation
 def test_albedo_bc_scales_outgoing() -> None:
     """``AlbedoBoundaryOperator(α).apply(ψ_out) == α·ψ_out``."""
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     psi_out = np.random.default_rng(6).standard_normal((quad.N, 2))
     bc = AlbedoBoundaryOperator(albedo=0.5)
 
@@ -315,7 +319,7 @@ def test_albedo_zero_and_vacuum_agree_on_inflow_rows() -> None:
     (both zero them) — that's the production-relevant
     equivalence for SN sweeps that read inflow only.
     """
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     psi_out = np.random.default_rng(7).standard_normal((quad.N, 2))
 
     albedo_zero = _realize_for_sn(
@@ -343,7 +347,7 @@ def test_wave0_sum_of_realized_bcs_acts_as_weighted_sum() -> None:
     dunders. The composed operator's ``apply(psi)`` equals the explicit
     weighted sum of the leaves' realised ``apply(psi)`` outputs.
     """
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.random.default_rng(8).standard_normal((quad.N, 2))
     spec = SpecularBoundaryOperator(axis="x", albedo=1.0)
     white = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
@@ -427,7 +431,7 @@ def test_specular_realized_op_advertises_apply_transpose() -> None:
     :class:`PermutationOperator` (α=1 fast path) carries the capability
     set that consumers (sensitivity adjoints) inspect.
     """
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     spec = SpecularBoundaryOperator(axis="x", albedo=1.0)
     realized = _realize_for_sn(spec, quad)
     assert "apply_transpose" in realized.capabilities
@@ -442,7 +446,7 @@ def test_specular_apply_transpose_reciprocity_unweighted() -> None:
     reflection are involutions, so the transpose acts as the same
     permutation.
     """
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     rng = np.random.default_rng(42)
     psi_out = rng.standard_normal((quad.N, 2))
     phi_in = rng.standard_normal((quad.N, 2))
@@ -460,7 +464,7 @@ def test_specular_apply_transpose_reciprocity_unweighted() -> None:
 @pytest.mark.foundation
 def test_specular_self_inverse_identity() -> None:
     r"""``B(B(x)) == albedo^2 * x`` for a clean axis reflection."""
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     rng = np.random.default_rng(7)
     x = rng.standard_normal((quad.N, 2))
 
@@ -488,7 +492,7 @@ def test_operator_sum_of_bcs_acts_as_weighted_sum() -> None:
     the linearity of ``LinearOperator.apply`` itself, not any other
     composer).
     """
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     rng = np.random.default_rng(99)
     psi_out = rng.standard_normal((quad.N, 2))
 

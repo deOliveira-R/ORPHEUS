@@ -8,34 +8,36 @@ the project. Each function returns a
 ``degree_of_exactness`` so downstream code can reason about polynomial
 exactness and symmetry without recomputing it.
 
-The bridge pattern
-------------------
+The canonical directional :class:`Quadrature`
+---------------------------------------------
 
-Domain-specific consumers (e.g. SN) need fast attribute access to
-``mu_x`` / ``mu_y`` / ``mu_z`` / ``weights`` arrays in hot inner
-loops, plus precomputed reflection-index arrays. The SN-side adapters
-at :mod:`orpheus.sn.quadrature` cache numpy views of the
-:class:`DiscreteMeasure` returned here, preserving O(1) attribute
-access for the ~50 consumer call sites (sweeps, BiCGSTAB operators,
-solvers, geometry meshes) that depend on the legacy attribute API.
+R-1 Phase A detour-C retired the per-family SN-side adapter classes
+(GaussLegendre1D / LebedevSphere / LevelSymmetricSN /
+ProductQuadrature) and the AngularQuadrature Protocol. The four
+families collapse into named classmethod factories on a single
+:class:`Quadrature` class:
 
-This separation gives:
+* :meth:`Quadrature.gauss_legendre(n)` — slab 1-D polar.
+* :meth:`Quadrature.lebedev(order)` — :math:`O_h`-invariant sphere.
+* :meth:`Quadrature.level_symmetric(sn_order)` — Carlson-Lathrop S_N.
+* :meth:`Quadrature.product(n_mu, n_phi)` — GL × equispaced.
 
-* **One algebra-of-record** — node and weight construction lives
-  here; :class:`DiscreteMeasure` is the canonical mathematical
-  object.
-* **Composability** — rules can be tensor-producted
-  (:meth:`DiscreteMeasure.__mul__`), restricted, pushed forward, etc.,
-  without inheriting any SN-specific surface.
-* **Backward-compatible SN** — the :class:`AngularQuadrature`
-  Protocol and its four implementations
-  (:class:`~orpheus.sn.quadrature.GaussLegendre1D`,
-  :class:`~orpheus.sn.quadrature.LebedevSphere`,
-  :class:`~orpheus.sn.quadrature.LevelSymmetricSN`,
-  :class:`~orpheus.sn.quadrature.ProductQuadrature`) keep their
-  attribute-access surface bit-identical, with Wave B's regression
-  snapshots at ``tests/sn/regression/snapshots/`` enforcing the
-  contract.
+Each factory returns a :class:`Quadrature` wrapping the canonical
+:class:`DiscreteMeasure` produced by the rule functions
+(:func:`gauss_legendre_on_mu`, :func:`lebedev_sphere`,
+:func:`level_symmetric_sn`, :func:`product_mu_phi`) — the mathematical
+ground truth — plus the SN-side derived data (reflection partners,
+octant partition, level structure) cached at construction time.
+
+The legacy ``mu_x`` / ``mu_y`` / ``mu_z`` / ``weights`` / ``N``
+attribute surface survives on :class:`Quadrature` as ``@property``
+views over the underlying ``measure.nodes`` / ``measure.weights``,
+preserving back-compat for the ~150 consumer call sites that still
+read by these names. The Pattern 7 violation that made the legacy
+surface dangerous (denormalised dataclass *fields* in four parallel
+adapter classes) is closed by construction here: there is exactly
+ONE producer of the ordinate data, the ``measure``; the named
+accessors are derived views with no separate storage.
 
 References
 ----------

@@ -30,7 +30,7 @@ from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.sn.angular_flux import AngularFlux
 from orpheus.sn.boundary_flux import BoundaryFlux
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
 
@@ -49,7 +49,7 @@ def _slab_mesh(nx: int = 5, n_ordinates: int = 4, ng: int = 1) -> SNMesh:
         bcs=(BC.reflective, BC.reflective),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
-    quad = GaussLegendre1D.create(n_ordinates=n_ordinates)
+    quad = Quadrature.gauss_legendre(n_ordinates=n_ordinates)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
@@ -60,7 +60,7 @@ def _sphere_mesh(nx: int = 5, n_ordinates: int = 4, ng: int = 1) -> SNMesh:
         bcs=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
-    quad = GaussLegendre1D.create(n_ordinates=n_ordinates)
+    quad = Quadrature.gauss_legendre(n_ordinates=n_ordinates)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 

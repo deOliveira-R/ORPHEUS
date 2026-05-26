@@ -36,11 +36,7 @@ from orpheus.numerics.operator import (
     PermutationOperator,
 )
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import (
-    GaussLegendre1D,
-    LebedevSphere,
-    LevelSymmetricSN,
-)
+from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
 
@@ -55,13 +51,13 @@ pytestmark = pytest.mark.l1
 @pytest.fixture
 def quad_2d():
     """LebedevSphere(17) — the canonical 2-D Cartesian quadrature."""
-    return LebedevSphere.create(17)
+    return Quadrature.lebedev(17)
 
 
 @pytest.fixture
 def quad_1d():
     """GaussLegendre1D(8) — 1-D Cartesian / curvilinear quadrature."""
-    return GaussLegendre1D.create(8)
+    return Quadrature.gauss_legendre(8)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -275,7 +271,7 @@ def test_1d_cylindrical_reflective_routes_through_realizer():
         coord=CoordSystem.CYLINDRICAL,
         bc_left=BC("reflective"), bc_right=BC("reflective"),
     )
-    quad = LevelSymmetricSN.create(sn_order=4)
+    quad = Quadrature.level_symmetric(sn_order=4)
     sn = SNMesh(mesh, quad, placeholder_materials())
     # Realizer path: shim wraps a realized 1-arg PermutationOperator.
     assert isinstance(sn.bc_left, _BoundBoundaryOperator)

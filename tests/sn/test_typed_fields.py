@@ -19,7 +19,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.sn.angular_flux import AngularFlux
 from orpheus.sn.boundary_flux import BoundaryFlux
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.scalar_flux import ScalarFlux
 
 from tests.sn._test_helpers import placeholder_materials
@@ -39,7 +39,7 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
@@ -52,7 +52,7 @@ def _spherical_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
@@ -63,7 +63,7 @@ def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNMesh:
         edges_y=np.linspace(0, 1, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
     )
-    quad = LevelSymmetricSN.create(sn_order=4)
+    quad = Quadrature.level_symmetric(sn_order=4)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 

@@ -66,7 +66,7 @@ from orpheus.sn.operator import (
     solution_to_angular_flux_cylindrical,
     transport_operator_matvec_unified,
 )
-from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
+from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import legacy_proxy_matvec
 
 
@@ -210,7 +210,7 @@ def _cylinder_k_ref() -> float:
 
 def _solve_cyl_via_krylov_unified(nx: int) -> float:
     mesh, materials = _build_cyl_mesh(nx=nx)
-    quad = LevelSymmetricSN.create(sn_order=4)
+    quad = Quadrature.level_symmetric(sn_order=4)
     with _patch_apply_to_unified():
         sol = solve_sn(
             materials=materials, mesh=mesh, quadrature=quad,
@@ -223,7 +223,7 @@ def _solve_cyl_via_krylov_unified(nx: int) -> float:
 
 def _solve_cyl_via_sweep(nx: int) -> float:
     mesh, materials = _build_cyl_mesh(nx=nx)
-    quad = LevelSymmetricSN.create(sn_order=4)
+    quad = Quadrature.level_symmetric(sn_order=4)
     sol = solve_sn(
         materials=materials, mesh=mesh, quadrature=quad,
         inner_solver="source_iteration",
@@ -376,7 +376,7 @@ def _slab_k_ref() -> float:
 
 def _solve_slab_via_krylov_unified(n_per: int) -> float:
     mesh, materials, N_ord = _build_slab_2region_mesh(n_per=n_per)
-    quad = GaussLegendre1D.create(N_ord)
+    quad = Quadrature.gauss_legendre(N_ord)
     with _patch_apply_to_unified():
         sol = solve_sn(
             materials, mesh, quad,
@@ -389,7 +389,7 @@ def _solve_slab_via_krylov_unified(n_per: int) -> float:
 
 def _solve_slab_via_sweep(n_per: int) -> float:
     mesh, materials, N_ord = _build_slab_2region_mesh(n_per=n_per)
-    quad = GaussLegendre1D.create(N_ord)
+    quad = Quadrature.gauss_legendre(N_ord)
     sol = solve_sn(
         materials, mesh, quad,
         inner_solver="source_iteration",

@@ -205,13 +205,13 @@ def morel_montry_weights(
 
 
 if __name__ == "__main__":
-    from orpheus.sn.quadrature import GaussLegendre1D, ProductQuadrature, LevelSymmetricSN
+    from orpheus.numerics.quadrature import Quadrature
 
     print("=== Contamination Analysis (Bailey et al. 2009) ===\n")
 
     # Spherical
     for N in [4, 8, 16]:
-        q = GaussLegendre1D.create(N)
+        q = Quadrature.gauss_legendre(N)
         beta = contamination_beta(q, "spherical")
         tau = morel_montry_weights(q, "spherical")
         print(f"Spherical GL-{N}: β = {beta:.6e}, "
@@ -221,7 +221,7 @@ if __name__ == "__main__":
 
     # Cylindrical
     for n_phi in [8, 16]:
-        q = ProductQuadrature.create(n_mu=4, n_phi=n_phi)
+        q = Quadrature.product(n_mu=4, n_phi=n_phi)
         betas = contamination_beta(q, "cylindrical")
         taus = morel_montry_weights(q, "cylindrical")
         tau_all = np.concatenate(taus)
@@ -233,7 +233,7 @@ if __name__ == "__main__":
 
     # LS
     for order in [4, 6]:
-        q = LevelSymmetricSN.create(order)
+        q = Quadrature.level_symmetric(order)
         betas = contamination_beta(q, "cylindrical")
         taus = morel_montry_weights(q, "cylindrical")
         tau_all = np.concatenate(taus)

@@ -130,13 +130,20 @@ class TestDiscreteOrthogonalityOnLebedev:
 
 
 @pytest.mark.l0
-def test_legacy_sn_quadrature_delegates():
-    """The SN side imports ``evaluate_real_sh`` as the renamed legacy alias.
+def test_canonical_quadrature_delegates():
+    """The canonical :class:`Quadrature` reads ``evaluate_real_sh`` via
+    the same internal alias used by every existing regression snapshot.
 
-    Existing SN regression tests rely on bit-identical output —
-    verify the alias points at the same function.
+    R-1 Phase A detour-C: the alias formerly lived in
+    ``orpheus.sn.quadrature``; after the SN-side adapter hierarchy
+    retired, the alias migrated to
+    :mod:`orpheus.numerics.quadrature.directional`. Verify the
+    function identity is preserved so existing snapshots stay
+    bit-identical.
     """
-    from orpheus.sn.quadrature import _build_spherical_harmonics
+    from orpheus.numerics.quadrature.directional import (
+        _build_spherical_harmonics,
+    )
     assert _build_spherical_harmonics is evaluate_real_sh
 
 

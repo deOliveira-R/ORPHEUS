@@ -19,11 +19,11 @@ The Lebesgue integral of an integrable test function :math:`f` against
    \int_{\mathcal{X}} f \, d\mu \;=\; \sum_{i=1}^{N} w_i \, f(x_i).
 
 This module promotes that view to a first-class primitive. Today the
-project's quadrature classes (:class:`~orpheus.sn.quadrature.GaussLegendre1D`,
-:class:`~orpheus.sn.quadrature.LebedevSphere`, :class:`~orpheus.sn.quadrature.LevelSymmetricSN`,
-:class:`~orpheus.sn.quadrature.ProductQuadrature`) compose 1-D rules into
+project's quadrature classes (:class:`~orpheus.numerics.quadrature.Quadrature`,
+:class:`~orpheus.numerics.quadrature.Quadrature`, :class:`~orpheus.numerics.quadrature.Quadrature`,
+:class:`~orpheus.numerics.quadrature.Quadrature`) compose 1-D rules into
 2-D / S² rules **internally**, hiding the tensor-product structure
-behind ``ProductQuadrature.create(n_mu, n_phi)``. With
+behind ``Quadrature.product(n_mu, n_phi)``. With
 :class:`DiscreteMeasure` the four canonical operations are exposed:
 
 - **Tensor product** ``μ * ν``. Product measure on
@@ -68,7 +68,7 @@ See Also
 
 :ref:`discrete-measures` (theory page) — composition algebra,
 metadata-propagation table, structural connections to
-:class:`~orpheus.sn.quadrature.AngularQuadrature` and the upcoming
+:class:`~orpheus.numerics.quadrature.Quadrature` and the upcoming
 ``invariance_group`` tag from Issue 3.
 """
 

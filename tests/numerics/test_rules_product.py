@@ -15,7 +15,7 @@ import pytest
 from orpheus.numerics.measure import SPACE_SPHERE, DiscreteMeasure
 from orpheus.numerics.quadrature import product_mu_phi
 from orpheus.numerics.quadrature.rules_sphere import LevelStructure
-from orpheus.sn.quadrature import ProductQuadrature
+from orpheus.numerics.quadrature import Quadrature
 
 
 # ---------------------------------------------------------------------------
@@ -62,7 +62,7 @@ def test_product_bit_identical_to_legacy_adapter(n_mu: int, n_phi: int) -> None:
     Pins the cylindrical regression snapshots
     (``cyl_*_product_*.npz``)."""
     m, s = product_mu_phi(n_mu, n_phi)
-    legacy = ProductQuadrature.create(n_mu=n_mu, n_phi=n_phi)
+    legacy = Quadrature.product(n_mu=n_mu, n_phi=n_phi)
     nodes = m.nodes
     assert np.array_equal(legacy.mu_x, nodes[:, 0])
     assert np.array_equal(legacy.mu_y, nodes[:, 1])

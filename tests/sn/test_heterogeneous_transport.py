@@ -35,7 +35,7 @@ import pytest
 
 from orpheus.derivations.reference_values import continuous_get
 from orpheus.geometry import CoordSystem, Mesh1D
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
 pytestmark = pytest.mark.verifies(
@@ -81,7 +81,7 @@ def test_sn_2region_reflective_case_eigenvalue():
     H_A = float(geom["fuel_height"])
     H_B = float(geom["refl_height"])
     N_ord = int(geom["n_ordinates"])
-    quad = GaussLegendre1D.create(N_ord)
+    quad = Quadrature.gauss_legendre(N_ord)
 
     n_per_values = [20, 40, 80, 160, 320]
     keffs: list[float] = []
@@ -137,7 +137,7 @@ def test_sn_2region_reflective_flux_shape():
     H_A = float(geom["fuel_height"])
     H_B = float(geom["refl_height"])
     N_ord = int(geom["n_ordinates"])
-    quad = GaussLegendre1D.create(N_ord)
+    quad = Quadrature.gauss_legendre(N_ord)
 
     n_per = 320
     mesh = _build_2region_mesh(H_A, H_B, n_per)

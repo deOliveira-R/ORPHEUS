@@ -126,7 +126,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh2D
 from orpheus.sn.boundary_flux import BoundaryFlux
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import LebedevSphere, LevelSymmetricSN
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn_fixed_source
 from orpheus.sn.sweep import _sweep_2d_wavefront
 from tests.sn._test_helpers import placeholder_materials
@@ -219,15 +219,15 @@ def _build_sn_mesh(
         n_materials=n_materials,
     )
     if quadrature == "LS4":
-        quad = LevelSymmetricSN.create(sn_order=4)            # N = 24
+        quad = Quadrature.level_symmetric(sn_order=4)            # N = 24
     elif quadrature == "LS6":
-        quad = LevelSymmetricSN.create(sn_order=6)            # N = 48
+        quad = Quadrature.level_symmetric(sn_order=6)            # N = 48
     elif quadrature == "Lebedev5":
         # Lebedev order 5 has two pure-z ordinates (n=4: (0,0,+1),
         # n=5: (0,0,-1)).  This is the only ORPHEUS quadrature in this
         # harness's roster that exhibits the ``sign_x == 0 == sign_y``
         # degenerate-ordinate path.
-        quad = LebedevSphere.create(order=5)                  # N = 14
+        quad = Quadrature.lebedev(order=5)                  # N = 14
     else:
         raise ValueError(f"Unknown quadrature kind: {quadrature}")
     return SNMesh(

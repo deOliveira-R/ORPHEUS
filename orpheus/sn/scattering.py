@@ -139,7 +139,7 @@ from .sources import IsotropicSource, PerOrdinateSource
 if TYPE_CHECKING:
     from .harmonic_moment_field import HarmonicMomentField
     from .material_xs_field import MaterialXSField
-    from .quadrature import AngularQuadrature
+    from orpheus.numerics.quadrature import Quadrature
 
 
 __all__ = ["LegendreMomentScattering", "ScatteringOperator"]

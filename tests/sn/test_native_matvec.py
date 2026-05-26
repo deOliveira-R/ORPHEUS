@@ -51,7 +51,7 @@ from orpheus.sn.operator import (
     build_equation_map_with_traces,
     transport_operator_matvec_unified,
 )
-from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
+from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
 
@@ -70,7 +70,7 @@ def _slab_mesh(nx: int = 4, length: float = 1.0, ng: int = 1) -> SNMesh:
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
@@ -83,7 +83,7 @@ def _sphere_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
@@ -96,7 +96,7 @@ def _cylinder_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = LevelSymmetricSN.create(sn_order=4)
+    quad = Quadrature.level_symmetric(sn_order=4)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
@@ -210,7 +210,7 @@ def _make_reflective_slab(nx: int = 4, length: float = 1.0) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNMesh(mesh, quad, placeholder_materials())
 
 
@@ -226,7 +226,7 @@ def _make_reflective_sphere(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_left=BC("reflective"),  # unused — pole regularity
         bc_right=BC("reflective"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNMesh(mesh, quad, placeholder_materials())
 
 
@@ -239,7 +239,7 @@ def _make_reflective_cylinder(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = LevelSymmetricSN.create(sn_order=4)
+    quad = Quadrature.level_symmetric(sn_order=4)
     return SNMesh(mesh, quad, placeholder_materials())
 
 
@@ -483,7 +483,7 @@ class TestTwoDCartesianRaises:
             bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
             bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
         )
-        quad = GaussLegendre1D.create(n_ordinates=4)
+        quad = Quadrature.gauss_legendre(n_ordinates=4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
         psi = AngularFlux(

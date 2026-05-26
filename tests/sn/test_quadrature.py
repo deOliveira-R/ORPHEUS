@@ -1,24 +1,22 @@
-"""Tests for angular quadrature implementations.
+"""Tests for the canonical :class:`Quadrature` factories.
 
-Covers all four quadrature types:
-- GaussLegendre1D
-- LebedevSphere
-- LevelSymmetricSN
-- ProductQuadrature
+Covers all four factory classmethods:
 
-Tests verify mathematical properties that any valid quadrature must satisfy.
+* :meth:`Quadrature.gauss_legendre` — slab 1-D polar.
+* :meth:`Quadrature.lebedev` — sphere :math:`O_h`-invariant.
+* :meth:`Quadrature.level_symmetric` — Carlson-Lathrop S_N.
+* :meth:`Quadrature.product` — GL × equispaced.
+
+Tests verify mathematical properties that any valid quadrature must
+satisfy (weight sums, unit-sphere condition, second moments, level
+structure, reflection involution).
 """
 
 import numpy as np
 import pytest
 
 from orpheus.geometry import CoordSystem
-from orpheus.sn.quadrature import (
-    GaussLegendre1D,
-    LebedevSphere,
-    LevelSymmetricSN,
-    ProductQuadrature,
-)
+from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
 # All quadrature tests are L0 term-verification (hand-computed weight
@@ -47,21 +45,21 @@ class TestWeightSums:
 
     @pytest.mark.parametrize("N", [4, 8, 16])
     def test_gl_weights_sum_to_2(self, N):
-        quad = GaussLegendre1D.create(N)
+        quad = Quadrature.gauss_legendre(N)
         np.testing.assert_allclose(quad.weights.sum(), 2.0, atol=1e-14)
 
     def test_lebedev_weights_sum_to_4pi(self):
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         np.testing.assert_allclose(quad.weights.sum(), 4 * np.pi, rtol=1e-12)
 
     @pytest.mark.parametrize("order", [2, 4, 6, 8])
     def test_level_symmetric_weights_sum_to_4pi(self, order):
-        quad = LevelSymmetricSN.create(order)
+        quad = Quadrature.level_symmetric(order)
         np.testing.assert_allclose(quad.weights.sum(), 4 * np.pi, rtol=1e-12)
 
     @pytest.mark.parametrize("n_mu,n_phi", [(4, 4), (4, 8), (8, 8)])
     def test_product_weights_sum_to_4pi(self, n_mu, n_phi):
-        quad = ProductQuadrature.create(n_mu, n_phi)
+        quad = Quadrature.product(n_mu, n_phi)
         np.testing.assert_allclose(quad.weights.sum(), 4 * np.pi, rtol=1e-12)
 
 
@@ -73,19 +71,19 @@ class TestUnitSphere:
     """All ordinates must lie on the unit sphere: η² + ξ² + μ² = 1."""
 
     def test_lebedev(self):
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         norm = quad.mu_x**2 + quad.mu_y**2 + quad.mu_z**2
         np.testing.assert_allclose(norm, 1.0, atol=1e-14)
 
     @pytest.mark.parametrize("order", [2, 4, 6, 8])
     def test_level_symmetric(self, order):
-        quad = LevelSymmetricSN.create(order)
+        quad = Quadrature.level_symmetric(order)
         norm = quad.mu_x**2 + quad.mu_y**2 + quad.mu_z**2
         np.testing.assert_allclose(norm, 1.0, atol=1e-14)
 
     @pytest.mark.parametrize("n_mu,n_phi", [(4, 8), (8, 8)])
     def test_product(self, n_mu, n_phi):
-        quad = ProductQuadrature.create(n_mu, n_phi)
+        quad = Quadrature.product(n_mu, n_phi)
         norm = quad.mu_x**2 + quad.mu_y**2 + quad.mu_z**2
         np.testing.assert_allclose(norm, 1.0, atol=1e-14)
 
@@ -102,7 +100,7 @@ class TestMomentConditions:
 
     @pytest.mark.parametrize("order", [4, 6, 8])
     def test_level_symmetric_second_moments(self, order):
-        quad = LevelSymmetricSN.create(order)
+        quad = Quadrature.level_symmetric(order)
         target = 4 * np.pi / 3
         for attr in ['mu_x', 'mu_y', 'mu_z']:
             m2 = np.sum(quad.weights * getattr(quad, attr)**2)
@@ -111,7 +109,7 @@ class TestMomentConditions:
 
     @pytest.mark.parametrize("n_mu,n_phi", [(4, 8), (8, 8)])
     def test_product_second_moments(self, n_mu, n_phi):
-        quad = ProductQuadrature.create(n_mu, n_phi)
+        quad = Quadrature.product(n_mu, n_phi)
         target = 4 * np.pi / 3
         for attr in ['mu_x', 'mu_y', 'mu_z']:
             m2 = np.sum(quad.weights * getattr(quad, attr)**2)
@@ -119,7 +117,7 @@ class TestMomentConditions:
                                        err_msg=f"∫{attr}² dΩ ≠ 4π/3")
 
     def test_lebedev_second_moments(self):
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         target = 4 * np.pi / 3
         for attr in ['mu_x', 'mu_y', 'mu_z']:
             m2 = np.sum(quad.weights * getattr(quad, attr)**2)
@@ -136,19 +134,19 @@ class TestLevelStructure:
     @pytest.mark.parametrize("order", [2, 4, 6, 8])
     def test_level_sym_indices_partition(self, order):
         """Level indices must cover all ordinates exactly once."""
-        quad = LevelSymmetricSN.create(order)
+        quad = Quadrature.level_symmetric(order)
         all_idx = np.sort(np.concatenate(quad.level_indices))
         np.testing.assert_array_equal(all_idx, np.arange(quad.N))
 
     @pytest.mark.parametrize("n_mu,n_phi", [(4, 4), (8, 8)])
     def test_product_indices_partition(self, n_mu, n_phi):
-        quad = ProductQuadrature.create(n_mu, n_phi)
+        quad = Quadrature.product(n_mu, n_phi)
         all_idx = np.sort(np.concatenate(quad.level_indices))
         np.testing.assert_array_equal(all_idx, np.arange(quad.N))
 
     def test_product_level_mu_match(self):
         """On each level, all ordinates must share the same μ_z value."""
-        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        quad = Quadrature.product(n_mu=4, n_phi=8)
         for p, idx in enumerate(quad.level_indices):
             mu_vals = quad.mu_z[idx]
             np.testing.assert_allclose(mu_vals, quad.level_mu[p], atol=1e-14)
@@ -161,23 +159,23 @@ class TestLevelStructure:
 class TestReflectionIndices:
     """Reflection partner must have the negated direction cosine."""
 
-    @pytest.mark.parametrize("QuadClass,kwargs", [
-        (LevelSymmetricSN, {"sn_order": 4}),
-        (ProductQuadrature, {"n_mu": 4, "n_phi": 8}),
+    @pytest.mark.parametrize("factory,kwargs", [
+        (Quadrature.level_symmetric, {"sn_order": 4}),
+        (Quadrature.product, {"n_mu": 4, "n_phi": 8}),
     ])
-    def test_x_reflection(self, QuadClass, kwargs):
-        quad = QuadClass.create(**kwargs)
+    def test_x_reflection(self, factory, kwargs):
+        quad = factory(**kwargs)
         ref = quad.reflection_index("x")
         # μ_x of reflected partner should be -μ_x of original
         np.testing.assert_allclose(quad.mu_x[ref], -quad.mu_x, atol=1e-12)
 
-    @pytest.mark.parametrize("QuadClass,kwargs", [
-        (LevelSymmetricSN, {"sn_order": 4}),
-        (ProductQuadrature, {"n_mu": 4, "n_phi": 8}),
+    @pytest.mark.parametrize("factory,kwargs", [
+        (Quadrature.level_symmetric, {"sn_order": 4}),
+        (Quadrature.product, {"n_mu": 4, "n_phi": 8}),
     ])
-    def test_reflection_involution(self, QuadClass, kwargs):
+    def test_reflection_involution(self, factory, kwargs):
         """Reflecting twice must return to the original ordinate."""
-        quad = QuadClass.create(**kwargs)
+        quad = factory(**kwargs)
         for axis in ["x", "y", "z"]:
             ref = quad.reflection_index(axis)
             np.testing.assert_array_equal(ref[ref], np.arange(quad.N),
@@ -196,18 +194,18 @@ class TestAlphaRedistribution:
     The resulting dome must be non-negative with α[0] = α[M] = 0.
     """
 
-    @pytest.mark.parametrize("QuadClass,kwargs", [
-        (ProductQuadrature, {"n_mu": 4, "n_phi": 8}),
-        (ProductQuadrature, {"n_mu": 8, "n_phi": 16}),
-        (LevelSymmetricSN, {"sn_order": 4}),
-        (LevelSymmetricSN, {"sn_order": 6}),
+    @pytest.mark.parametrize("factory,kwargs", [
+        (Quadrature.product, {"n_mu": 4, "n_phi": 8}),
+        (Quadrature.product, {"n_mu": 8, "n_phi": 16}),
+        (Quadrature.level_symmetric, {"sn_order": 4}),
+        (Quadrature.level_symmetric, {"sn_order": 6}),
     ])
-    def test_alpha_dome_non_negative(self, QuadClass, kwargs):
+    def test_alpha_dome_non_negative(self, factory, kwargs):
         """α values must form a non-negative dome on each level."""
         from orpheus.geometry import CoordSystem, Mesh1D
         from orpheus.sn.geometry import SNMesh
 
-        quad = QuadClass.create(**kwargs)
+        quad = factory(**kwargs)
         mesh = Mesh1D(
             edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
             coord=CoordSystem.CYLINDRICAL,
@@ -219,16 +217,16 @@ class TestAlphaRedistribution:
                 f"Level {p}: negative α = {alpha.min():.2e}"
             )
 
-    @pytest.mark.parametrize("QuadClass,kwargs", [
-        (ProductQuadrature, {"n_mu": 4, "n_phi": 8}),
-        (LevelSymmetricSN, {"sn_order": 4}),
+    @pytest.mark.parametrize("factory,kwargs", [
+        (Quadrature.product, {"n_mu": 4, "n_phi": 8}),
+        (Quadrature.level_symmetric, {"sn_order": 4}),
     ])
-    def test_alpha_boundary_zero(self, QuadClass, kwargs):
+    def test_alpha_boundary_zero(self, factory, kwargs):
         """α must be zero at both dome boundaries (conservation)."""
         from orpheus.geometry import CoordSystem, Mesh1D
         from orpheus.sn.geometry import SNMesh
 
-        quad = QuadClass.create(**kwargs)
+        quad = factory(**kwargs)
         mesh = Mesh1D(
             edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
             coord=CoordSystem.CYLINDRICAL,
@@ -246,7 +244,7 @@ class TestAlphaRedistribution:
         from orpheus.geometry import CoordSystem, Mesh1D
         from orpheus.sn.geometry import SNMesh
 
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         mesh = Mesh1D(
             edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
             coord=CoordSystem.SPHERICAL,
@@ -287,9 +285,9 @@ class TestL0TermVerification:
         from orpheus.sn.geometry import SNMesh
 
         if coord == CoordSystem.SPHERICAL:
-            quad = GaussLegendre1D.create(8)
+            quad = Quadrature.gauss_legendre(8)
         else:
-            quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+            quad = Quadrature.product(n_mu=4, n_phi=8)
 
         tag = {
             CoordSystem.SPHERICAL: "SPH",
@@ -359,9 +357,9 @@ class TestL0TermVerification:
             region_meshes=(RegionMesh(n_cells=5),),
         )
         if coord == CoordSystem.SPHERICAL:
-            quad = GaussLegendre1D.create(4)
+            quad = Quadrature.gauss_legendre(4)
         else:
-            quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+            quad = Quadrature.product(n_mu=4, n_phi=8)
         sn = SNMesh(mesh, quad, placeholder_materials())
 
         edges = mesh.edges
@@ -374,14 +372,14 @@ class TestL0TermVerification:
     def test_contamination_beta_spherical(self):
         """L0-SN-008: Contamination β ≈ 0 (machine zero) for spherical."""
         from orpheus.derivations.discrete.sn.contamination import contamination_beta
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         beta = contamination_beta(quad, "spherical")
         assert abs(beta) < 1e-14, f"Spherical β = {beta:.2e}"
 
     def test_contamination_beta_cylindrical(self):
         """L0-SN-008: Contamination β ≈ 0 (machine zero) for cylindrical."""
         from orpheus.derivations.discrete.sn.contamination import contamination_beta
-        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        quad = Quadrature.product(n_mu=4, n_phi=8)
         betas = contamination_beta(quad, "cylindrical")
         assert np.all(np.abs(betas) < 1e-14), (
             f"Cylindrical β_max = {np.abs(betas).max():.2e}"

@@ -56,7 +56,7 @@ from orpheus.sn.operator import (
     build_equation_map_cylindrical,
     transport_operator_matvec_unified,
 )
-from orpheus.sn.quadrature import ProductQuadrature
+from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 
 
@@ -88,7 +88,7 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=n_cells),),
     )
-    quad = ProductQuadrature.create(n_mu=n_mu, n_phi=n_phi)
+    quad = Quadrature.product(n_mu=n_mu, n_phi=n_phi)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     nx = n_cells
     ng = 1
@@ -147,7 +147,7 @@ def test_cylinder_three_way_standoff(
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=n_cells),),
     )
-    quad = ProductQuadrature.create(n_mu=n_mu, n_phi=n_phi)
+    quad = Quadrature.product(n_mu=n_mu, n_phi=n_phi)
     N = quad.N
     nx = mesh.N
     ng = 1

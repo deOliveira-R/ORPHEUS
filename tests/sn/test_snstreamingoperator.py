@@ -60,7 +60,7 @@ from orpheus.sn.operator import (
     build_equation_map_cylindrical,
     transport_operator_matvec,
 )
-from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.sources import IsotropicSource, PerOrdinateSource
 from orpheus.sn.sweep import transport_sweep
 from tests.sn._test_helpers import placeholder_materials
@@ -89,7 +89,7 @@ def _slab_mesh(nx: int = 4, length: float = 1.0) -> SNMesh:
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNMesh(mesh, quad, placeholder_materials(ng=2))
 
 
@@ -102,7 +102,7 @@ def _spherical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNMesh(mesh, quad, placeholder_materials(ng=2))
 
 
@@ -116,7 +116,7 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = LevelSymmetricSN.create(sn_order=4)
+    quad = Quadrature.level_symmetric(sn_order=4)
     return SNMesh(mesh, quad, placeholder_materials(ng=2))
 
 
@@ -224,8 +224,8 @@ def test_apply_2d_cartesian_bit_identical_to_legacy():
         bc_ymax=BC("vacuum"),
     )
     # Keep N small so dense-matrix probe stays fast.
-    from orpheus.sn.quadrature import LebedevSphere
-    quad = LebedevSphere.create(order=5)
+    from orpheus.numerics.quadrature import Quadrature
+    quad = Quadrature.lebedev(order=5)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials(ng=2))
     sig_t = _sig_t_uniform(sn_mesh, ng=2)
     op = SNStreamingOperator(sn_mesh, sig_t)
@@ -644,7 +644,7 @@ def test_apply_spherical_constant_flux_yields_zero_collisionless_reflective():
     """
     from orpheus.geometry import BC, CoordSystem, Mesh1D
     from orpheus.sn.geometry import SNMesh
-    from orpheus.sn.quadrature import GaussLegendre1D
+    from orpheus.numerics.quadrature import Quadrature
 
     nx = 4
     mesh = Mesh1D(
@@ -654,7 +654,7 @@ def test_apply_spherical_constant_flux_yields_zero_collisionless_reflective():
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials(ng=2))
     ng = 2
     sig_t = np.zeros((ng, nx, sn_mesh.ny))  # PR-INDEX-3 layout
@@ -686,7 +686,7 @@ def test_apply_spherical_vacuum_bc_residual_is_consistent():
     """
     from orpheus.geometry import BC, CoordSystem, Mesh1D
     from orpheus.sn.geometry import SNMesh
-    from orpheus.sn.quadrature import GaussLegendre1D
+    from orpheus.numerics.quadrature import Quadrature
 
     nx = 4
     mesh = Mesh1D(
@@ -696,7 +696,7 @@ def test_apply_spherical_vacuum_bc_residual_is_consistent():
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials(ng=2))
     ng = 2
     sig_t = np.zeros((ng, nx, sn_mesh.ny))  # PR-INDEX-3 layout
@@ -747,7 +747,7 @@ def test_apply_spherical_constant_flux_under_morel_montry_canonical_form():
     """
     from orpheus.geometry import BC, CoordSystem, Mesh1D
     from orpheus.sn.geometry import SNMesh
-    from orpheus.sn.quadrature import GaussLegendre1D
+    from orpheus.numerics.quadrature import Quadrature
 
     nx = 4
     mesh = Mesh1D(
@@ -757,7 +757,7 @@ def test_apply_spherical_constant_flux_under_morel_montry_canonical_form():
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     # PR-TYPED-6.5 Phase 2: ``MorelMontryAngularSweep`` is the default
     # for spherical, so we no longer pass it explicitly (the previous
     # explicit ``pole_angular_closure=MorelMontryAngularSweep()`` was
@@ -835,7 +835,7 @@ def test_snmesh_no_longer_accepts_boundary_face_flux_kwarg():
     """
     from orpheus.geometry import BC, CoordSystem, Mesh1D
     from orpheus.sn.geometry import SNMesh
-    from orpheus.sn.quadrature import GaussLegendre1D
+    from orpheus.numerics.quadrature import Quadrature
 
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, 5),
@@ -844,7 +844,7 @@ def test_snmesh_no_longer_accepts_boundary_face_flux_kwarg():
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     sn = SNMesh(mesh, quad, placeholder_materials(ng=2))
     assert not hasattr(sn, "boundary_face_flux"), (
         "Phase C retired SNMesh.boundary_face_flux; attribute is "

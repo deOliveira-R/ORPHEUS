@@ -82,7 +82,7 @@ def _two_region_mesh(
         RegionMesh(n_cells=n_cells[0]),
         RegionMesh(n_cells=n_cells[1]),
     ))
-from orpheus.sn.quadrature import LevelSymmetricSN, ProductQuadrature
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver, solve_sn
 
 # File-level marker: only the equation-coverage list is global.
@@ -127,8 +127,8 @@ pytestmark = pytest.mark.verifies(
     "sn_slab_4eg_1rg",
 ])
 @pytest.mark.parametrize("quad_factory", [
-    lambda: ProductQuadrature.create(n_mu=4, n_phi=8),
-    lambda: LevelSymmetricSN.create(4),
+    lambda: Quadrature.product(n_mu=4, n_phi=8),
+    lambda: Quadrature.level_symmetric(4),
 ], ids=["product", "level_sym"])
 def test_homogeneous_exact(case_name, quad_factory):
     """Cylindrical SN on a homogeneous cylinder with reflective BC must
@@ -151,8 +151,8 @@ def test_homogeneous_exact(case_name, quad_factory):
 
 @pytest.mark.l1
 @pytest.mark.parametrize("quad_factory", [
-    lambda: ProductQuadrature.create(n_mu=4, n_phi=8),
-    lambda: LevelSymmetricSN.create(4),
+    lambda: Quadrature.product(n_mu=4, n_phi=8),
+    lambda: Quadrature.level_symmetric(4),
 ], ids=["product", "level_sym"])
 def test_particle_balance(quad_factory):
     """For reflective BCs (no leakage), production / absorption = keff."""
@@ -188,7 +188,7 @@ def test_cross_check_with_cp_1g():
     mix = get_mixture("A", "1g")
 
     mesh_sn = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-    quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+    quad = Quadrature.product(n_mu=4, n_phi=8)
     result_sn = solve_sn({0: mix}, mesh_sn, quad,
                          max_inner=500, inner_tol=1e-10)
 
@@ -209,7 +209,7 @@ def test_cross_check_with_cp_1g():
 def test_flux_non_negative():
     mix = get_mixture("A", "1g")
     mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-    quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+    quad = Quadrature.product(n_mu=4, n_phi=8)
     result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
     assert np.all(result.scalar_flux.values >= 0), (
@@ -228,7 +228,7 @@ class TestCylindricalSweepRegression:
         from orpheus.sn.sweep import _sweep_1d_unified  # Issue #196 Step 2.5
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        quad = Quadrature.product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         sig_t = np.full((10, 1, 1), 0.5)
@@ -245,7 +245,7 @@ class TestCylindricalSweepRegression:
         """Inner loop must stay bounded for multi-group."""
         mix = get_mixture("A", "2g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        quad = Quadrature.product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, {0: mix})
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
@@ -264,8 +264,8 @@ class TestCylindricalSweepRegression:
 
         keffs = {}
         for label, quad in [
-            ("product", ProductQuadrature.create(n_mu=4, n_phi=8)),
-            ("level_sym", LevelSymmetricSN.create(4)),
+            ("product", Quadrature.product(n_mu=4, n_phi=8)),
+            ("level_sym", Quadrature.level_symmetric(4)),
         ]:
             mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
             result = solve_sn({0: mix}, mesh, quad,
@@ -280,13 +280,13 @@ class TestCylindricalSweepRegression:
     def test_requires_level_quadrature(self):
         """Cylindrical SNMesh with GL quadrature must raise ValueError."""
         mesh = _homogeneous_mesh(5, 1.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-        quad = GaussLegendre1D.create(4)
+        quad = Quadrature.gauss_legendre(4)
         with pytest.raises(ValueError, match="level structure"):
             SNMesh(mesh, quad, placeholder_materials())
 
 
 # Need this import for the guard test
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -331,7 +331,7 @@ class TestMultiGroupMultiRegion:
 
 
         )
-        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        quad = Quadrature.product(n_mu=4, n_phi=8)
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
 
@@ -349,8 +349,8 @@ class TestMultiGroupMultiRegion:
 
         keffs = {}
         for label, quad in [
-            ("4×8", ProductQuadrature.create(n_mu=4, n_phi=8)),
-            ("8×8", ProductQuadrature.create(n_mu=8, n_phi=8)),
+            ("4×8", Quadrature.product(n_mu=4, n_phi=8)),
+            ("8×8", Quadrature.product(n_mu=8, n_phi=8)),
         ]:
             mesh = _two_region_mesh(
 
@@ -380,7 +380,7 @@ class TestMultiGroupMultiRegion:
         """
         mix = get_mixture("A", "4g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        quad = Quadrature.product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, {0: mix})
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
@@ -423,7 +423,7 @@ class TestMultiGroupMultiRegion:
 
 
         )
-        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        quad = Quadrature.product(n_mu=4, n_phi=8)
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
 
@@ -467,7 +467,7 @@ class TestMultiGroupMultiRegion:
 
 
         )
-        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        quad = Quadrature.product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, materials)
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
@@ -498,7 +498,7 @@ class TestMultiGroupMultiRegion:
         """
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.CYLINDRICAL)
-        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        quad = Quadrature.product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         for p, alpha in enumerate(sn_mesh.reduced.alpha_per_level):
@@ -515,7 +515,7 @@ class TestMultiGroupMultiRegion:
         """
         mix = get_mixture("A", "1g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        quad = Quadrature.product(n_mu=4, n_phi=8)
         result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
         psi_center = result.angular_flux.values[:, 0, 0, 0]
@@ -533,7 +533,7 @@ class TestMultiGroupMultiRegion:
 
         mix = get_mixture("A", "1g")
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        quad = Quadrature.product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         sig_t = np.full((10, 1, 1), mix.SigT[0])
@@ -563,7 +563,7 @@ class TestMultiGroupMultiRegion:
         from orpheus.sn.sweep import _sweep_1d_unified  # Issue #196 Step 2.5
 
         mesh = _homogeneous_mesh(2, 1.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        quad = Quadrature.product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         Q = np.ones((2, 1, 1))
@@ -582,7 +582,7 @@ class TestMultiGroupMultiRegion:
         mix_fuel = get_mixture("A", "1g")
         mix_mod = get_mixture("B", "1g")
         materials = {2: mix_fuel, 0: mix_mod}
-        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        quad = Quadrature.product(n_mu=4, n_phi=8)
 
         keffs = []
         for n_cells in [5, 10, 20]:
@@ -623,7 +623,7 @@ class TestMultiGroupMultiRegion:
             n_cells=(20, 20),
             coord=CoordSystem.CYLINDRICAL,
         )
-        quad = ProductQuadrature.create(n_mu=4, n_phi=8)
+        quad = Quadrature.product(n_mu=4, n_phi=8)
         result_sn = solve_sn(materials, mesh_sn, quad,
                              max_inner=500, inner_tol=1e-10)
 

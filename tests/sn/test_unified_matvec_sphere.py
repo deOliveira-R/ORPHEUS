@@ -38,7 +38,7 @@ from orpheus.sn.operator import (
     build_equation_map_spherical,
     transport_operator_matvec_unified,
 )
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 
 
@@ -50,7 +50,7 @@ def _build_sphere(n_cells: int = 5, n_ord: int = 4) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=n_ord)
+    quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNMesh(mesh, quad, placeholder_materials())
 
 

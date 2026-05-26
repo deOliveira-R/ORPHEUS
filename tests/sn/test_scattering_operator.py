@@ -25,7 +25,7 @@ from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.geometry import Mesh2D
 from orpheus.numerics.operator import CAP_APPLY, LinearOperator
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import LebedevSphere
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.material_xs_field import MaterialXSField
 from orpheus.sn.scattering import ScatteringOperator
 from orpheus.sn.solver import SNSolver
@@ -75,7 +75,7 @@ def solver_2g_p0():
     mat[3:, :] = 0
 
     mesh = _uniform_2d(nx, ny, delta, mat)
-    quad = LebedevSphere.create(order=17)
+    quad = Quadrature.lebedev(order=17)
     sn_mesh = SNMesh(mesh, quad, materials)
     solver = SNSolver(sn_mesh)
     return solver
@@ -249,7 +249,7 @@ class TestAnisotropicScatteringExtraction:
             pytest.skip("No P1 data in 4g library")
 
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         return SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=1)
 
     def test_returns_none_for_p0(self, solver_2g_p0):
@@ -450,7 +450,7 @@ class TestP0AlgebraicIdentities:
         )
         nx, ny = 2, 2
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         solver = SNSolver(SNMesh(mesh, quad, {0: mix}))
         op = solver.scattering_op
 
@@ -485,7 +485,7 @@ class TestP0AlgebraicIdentities:
 
         nx, ny = 2, 2
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         solver = SNSolver(SNMesh(mesh, quad, {0: mix}))
         op = solver.scattering_op
 
@@ -537,7 +537,7 @@ def solver_2g_p1_n2n():
 
     nx, ny = 3, 2
     mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
-    quad = LebedevSphere.create(order=17)
+    quad = Quadrature.lebedev(order=17)
     return SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=1)
 
 
@@ -819,7 +819,7 @@ class TestAlgebraicIdentity:
         mix.Sig2 = csr_matrix(np.zeros((2, 2)))
         nx, ny = 2, 2
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         op = SNSolver(SNMesh(mesh, quad, {0: mix})).scattering_op
 
         N = op.n_ordinates

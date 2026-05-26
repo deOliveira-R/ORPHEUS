@@ -58,7 +58,7 @@ from orpheus.geometry import (
     spherical_streaming,
 )
 from orpheus.geometry.reduced_operator import StreamingTerms
-from orpheus.sn.quadrature import GaussLegendre1D, ProductQuadrature
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial import DiamondDifference, UpstreamState
 from orpheus.sn.spatial.cell_update import CellVisit
 
@@ -163,7 +163,7 @@ class TestBitIdenticalSlab:
         without unrolling.
         """
         mesh = _slab_mesh(nx=5, length=1.0)
-        quad = GaussLegendre1D.create(4)
+        quad = Quadrature.gauss_legendre(4)
         op = slab_streaming(mesh, quad)
 
         # Pull the per-cell streaming terms for cell 0, the most
@@ -237,7 +237,7 @@ class TestBitIdenticalSlab:
         ``cell_idx == 0``.
         """
         mesh = _slab_mesh(nx=5, length=1.0)
-        quad = GaussLegendre1D.create(4)
+        quad = Quadrature.gauss_legendre(4)
         op = slab_streaming(mesh, quad)
 
         ng = 3
@@ -291,7 +291,7 @@ class TestBitIdenticalSlab:
         Both paths use the same magnitude, so bit-equality holds.
         """
         mesh = _slab_mesh(nx=5, length=1.0)
-        quad = GaussLegendre1D.create(4)
+        quad = Quadrature.gauss_legendre(4)
         op = slab_streaming(mesh, quad)
 
         ng = 2
@@ -363,7 +363,7 @@ class TestBitIdenticalCurvilinear:
         ``psi_spatial_in``, ``psi_angle_in``.
         """
         mesh = _spherical_mesh(nx=5, radius=1.0)
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = spherical_streaming(mesh, quad)
 
         ng = 2
@@ -438,7 +438,7 @@ class TestBitIdenticalCurvilinear:
         sign-of-:math:`\\mu` branching.
         """
         mesh = _spherical_mesh(nx=5, radius=1.0)
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = spherical_streaming(mesh, quad)
 
         ng = 2
@@ -534,7 +534,7 @@ class TestCylindricalDegenerate:
         synthetic geometry.
         """
         mesh = _cylindrical_mesh(nx=4, radius=1.0)
-        quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+        quad = Quadrature.product(n_mu=4, n_phi=4)
         op = cylindrical_streaming(mesh, quad)
 
         # Pull a real cylindrical streaming-terms packet, then
@@ -624,7 +624,7 @@ class TestCylindricalDegenerate:
         scaled probe.  Principled-equivalence per ``vv-principles``.
         """
         mesh = _cylindrical_mesh(nx=4, radius=1.0)
-        quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+        quad = Quadrature.product(n_mu=4, n_phi=4)
         op = cylindrical_streaming(mesh, quad)
         st_real = op.streaming_terms(
             cell_idx=1, direction_idx=0, mu_level_idx=0,
@@ -710,7 +710,7 @@ class TestPositivityFailure:
         """
         # Slab cell with optically thick mesh (Δx · Σ_t ≫ 2|μ|)
         mesh = _slab_mesh(nx=2, length=2.0)  # Δx = 1.0
-        quad = GaussLegendre1D.create(2)  # |μ| ≈ 0.577
+        quad = Quadrature.gauss_legendre(2)  # |μ| ≈ 0.577
         op = slab_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=0, direction_idx=quad.N - 1)
 
@@ -797,7 +797,7 @@ def _slab_visit_inputs(
     here so tests stay focused on the residual contract.
     """
     mesh = _slab_mesh(nx=nx, length=1.0)
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     op = slab_streaming(mesh, quad)
     if direction_idx is None:
         direction_idx = quad.N - 1
@@ -836,7 +836,7 @@ def _sphere_visit_inputs(
 ]:
     """Sphere visit + inputs for residual contract tests."""
     mesh = _spherical_mesh(nx=nx, radius=1.0)
-    quad = GaussLegendre1D.create(8)
+    quad = Quadrature.gauss_legendre(8)
     op = spherical_streaming(mesh, quad)
     if direction_idx is None:
         direction_idx = quad.N - 2 if outward else 1
@@ -878,7 +878,7 @@ def _cylinder_visit_inputs(
 ]:
     """Cylinder (non-degenerate) visit + inputs for residual contract tests."""
     mesh = _cylindrical_mesh(nx=nx, radius=1.0)
-    quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+    quad = Quadrature.product(n_mu=4, n_phi=4)
     op = cylindrical_streaming(mesh, quad)
     st = op.streaming_terms(
         cell_idx=cell_idx,
@@ -928,7 +928,7 @@ def _cylinder_degenerate_visit_inputs(
     :class:`TestCylindricalDegenerate` above.
     """
     mesh = _cylindrical_mesh(nx=nx, radius=1.0)
-    quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+    quad = Quadrature.product(n_mu=4, n_phi=4)
     op = cylindrical_streaming(mesh, quad)
     st_real = op.streaming_terms(
         cell_idx=cell_idx, direction_idx=0, mu_level_idx=0,
@@ -1348,7 +1348,7 @@ class TestResidual:
         # Use a cell with non-trivial geometric asymmetry between
         # inner and outer face areas.
         mesh = _spherical_mesh(nx=8, radius=1.0)
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = spherical_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=3, direction_idx=1)  # μ<0
         total_xs = np.array([1.0, 0.5])

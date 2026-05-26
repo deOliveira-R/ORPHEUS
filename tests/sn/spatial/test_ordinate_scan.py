@@ -37,7 +37,7 @@ from orpheus.geometry import (
     slab_streaming,
     spherical_streaming,
 )
-from orpheus.sn.quadrature import GaussLegendre1D, ProductQuadrature
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial import DiamondDifference, UpstreamState
 from orpheus.sn.spatial.cell_balance import cell_balance_terms
 from orpheus.sn.spatial.cell_update import CellVisit
@@ -504,7 +504,7 @@ def _build_slab_visits_and_inputs(
     psi_angular_init, psi_in) arrays for the dual-view tests.
     """
     mesh = _slab_mesh(nx=nx, length=1.0)
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     op = slab_streaming(mesh, quad)
     visits = []
     for i in range(nx):
@@ -528,7 +528,7 @@ def _build_sphere_visits_and_inputs(
 ):
     """Build sphere visits for one outward (or inward) ordinate."""
     mesh = _spherical_mesh(nx=nx, radius=1.0)
-    quad = GaussLegendre1D.create(8)
+    quad = Quadrature.gauss_legendre(8)
     op = spherical_streaming(mesh, quad)
     direction_idx = quad.N - 2 if outward else 1
     visits = []
@@ -559,7 +559,7 @@ def _build_cylinder_visits_and_inputs(
 ):
     """Build cylinder visits for one within-level ordinate (non-degenerate)."""
     mesh = _cylindrical_mesh(nx=nx, radius=1.0)
-    quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+    quad = Quadrature.product(n_mu=4, n_phi=4)
     op = cylindrical_streaming(mesh, quad)
     direction_idx = 0
     mu_level_idx = 0

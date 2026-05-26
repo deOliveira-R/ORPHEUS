@@ -16,7 +16,7 @@ import numpy as np
 from ._base import BoundaryTraceLaw
 
 if TYPE_CHECKING:
-    from orpheus.sn.quadrature import AngularQuadrature
+    from orpheus.numerics.quadrature import Quadrature
 
 
 __all__ = ["ReflectiveBoundary"]

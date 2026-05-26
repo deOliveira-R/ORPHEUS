@@ -49,11 +49,7 @@ from orpheus.geometry import (
     RegionMesh,
     StructuredGeometry,
 )
-from orpheus.sn.quadrature import (
-    GaussLegendre1D,
-    LevelSymmetricSN,
-    ProductQuadrature,
-)
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
 
 
@@ -72,7 +68,7 @@ def _slab_homogeneous(ng: str, n_cells: int) -> dict:
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
     return dict(
         materials={0: fuel}, mesh=mesh,
-        quadrature=GaussLegendre1D.create(n_ordinates=8),
+        quadrature=Quadrature.gauss_legendre(n_ordinates=8),
         scattering_order=0,
     )
 
@@ -98,7 +94,7 @@ def _slab_3region(ng: str, n_cells: int) -> dict:
     )
     return dict(
         materials={0: fuel, 1: mod}, mesh=mesh,
-        quadrature=GaussLegendre1D.create(n_ordinates=8),
+        quadrature=Quadrature.gauss_legendre(n_ordinates=8),
         scattering_order=0,
     )
 
@@ -113,7 +109,7 @@ def _sphere_homogeneous(ng: str, n_cells: int) -> dict:
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
     return dict(
         materials={0: fuel}, mesh=mesh,
-        quadrature=GaussLegendre1D.create(n_ordinates=8),
+        quadrature=Quadrature.gauss_legendre(n_ordinates=8),
         scattering_order=0,
     )
 
@@ -137,7 +133,7 @@ def _sphere_3region(ng: str, n_cells: int) -> dict:
     )
     return dict(
         materials={0: fuel, 1: mod}, mesh=mesh,
-        quadrature=GaussLegendre1D.create(n_ordinates=8),
+        quadrature=Quadrature.gauss_legendre(n_ordinates=8),
         scattering_order=0,
     )
 
@@ -151,9 +147,9 @@ def _cylinder_homogeneous(ng: str, n_cells: int, quad_kind: str) -> dict:
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
     if quad_kind == "LS4":
-        quadrature = LevelSymmetricSN.create(sn_order=4)
+        quadrature = Quadrature.level_symmetric(sn_order=4)
     elif quad_kind == "product_2x4":
-        quadrature = ProductQuadrature.create(n_mu=2, n_phi=4)
+        quadrature = Quadrature.product(n_mu=2, n_phi=4)
     else:
         raise ValueError(f"unknown cylinder quadrature kind: {quad_kind}")
     return dict(
@@ -180,9 +176,9 @@ def _cylinder_3region(ng: str, n_cells: int, quad_kind: str) -> dict:
         region_meshes=tuple(RegionMesh(n_cells=n) for n in n_per_region),
     )
     if quad_kind == "LS4":
-        quadrature = LevelSymmetricSN.create(sn_order=4)
+        quadrature = Quadrature.level_symmetric(sn_order=4)
     elif quad_kind == "product_2x4":
-        quadrature = ProductQuadrature.create(n_mu=2, n_phi=4)
+        quadrature = Quadrature.product(n_mu=2, n_phi=4)
     else:
         raise ValueError(f"unknown cylinder quadrature kind: {quad_kind}")
     return dict(
@@ -202,7 +198,7 @@ def _slab_p1_aniso(ng: str, n_cells: int) -> dict:
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
     return dict(
         materials={0: mod}, mesh=mesh,
-        quadrature=GaussLegendre1D.create(n_ordinates=8),
+        quadrature=Quadrature.gauss_legendre(n_ordinates=8),
         scattering_order=1,
     )
 
@@ -218,7 +214,7 @@ def _sphere_p1_aniso(ng: str, n_cells: int) -> dict:
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
     return dict(
         materials={0: mod}, mesh=mesh,
-        quadrature=GaussLegendre1D.create(n_ordinates=8),
+        quadrature=Quadrature.gauss_legendre(n_ordinates=8),
         scattering_order=1,
     )
 
@@ -240,7 +236,7 @@ def _cartesian_2d(ng: str, n_per_side: int) -> dict:
     )
     return dict(
         materials={0: fuel}, mesh=mesh,
-        quadrature=LevelSymmetricSN.create(sn_order=4),
+        quadrature=Quadrature.level_symmetric(sn_order=4),
         scattering_order=0,
     )
 
@@ -262,7 +258,7 @@ def _slab_fixed_source(ng: str, n_cells: int) -> dict:
         bc_left=BC.vacuum,
         bc_right=BC.vacuum,
     )
-    quadrature = GaussLegendre1D.create(n_ordinates=n_ord)
+    quadrature = Quadrature.gauss_legendre(n_ordinates=n_ord)
     # R-1 Step 4 A1 — ``external_source`` is **per-ordinate density**
     # (already projected via ``/sum_w`` at the caller boundary).
     # Iso scalar source magnitude 1.0 ⇒ per-ord density ``1.0/sum_w``.

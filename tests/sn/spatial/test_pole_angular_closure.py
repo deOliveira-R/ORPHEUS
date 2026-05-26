@@ -104,9 +104,9 @@ class TestAlphaRecursionIdentities:
 
     def test_alpha_endpoints_zero_gauss_legendre(self) -> None:
         """α_{1/2} = α_{N+1/2} = 0 by Hébert Eq. 3.423 + GL antisymmetry."""
-        from orpheus.sn.quadrature import GaussLegendre1D
+        from orpheus.numerics.quadrature import Quadrature
         for N in (4, 8, 16):
-            quad = GaussLegendre1D.create(n_ordinates=N)
+            quad = Quadrature.gauss_legendre(n_ordinates=N)
             mu = quad.mu_x
             w = quad.weights
             alpha = np.zeros(N + 1)
@@ -122,9 +122,9 @@ class TestAlphaRecursionIdentities:
 
     def test_alpha_recurrence_signed_step(self) -> None:
         """``α[n+1] - α[n] = -w[n]·μ[n]`` (the recurrence rule)."""
-        from orpheus.sn.quadrature import GaussLegendre1D
+        from orpheus.numerics.quadrature import Quadrature
         N = 8
-        quad = GaussLegendre1D.create(n_ordinates=N)
+        quad = Quadrature.gauss_legendre(n_ordinates=N)
         mu = quad.mu_x
         w = quad.weights
         alpha = np.zeros(N + 1)
@@ -138,9 +138,9 @@ class TestAlphaRecursionIdentities:
 
     def test_alpha_dome_non_negative(self) -> None:
         """α is non-negative across the GL quadrature (the 'dome' property)."""
-        from orpheus.sn.quadrature import GaussLegendre1D
+        from orpheus.numerics.quadrature import Quadrature
         for N in (4, 8, 16):
-            quad = GaussLegendre1D.create(n_ordinates=N)
+            quad = Quadrature.gauss_legendre(n_ordinates=N)
             mu = quad.mu_x
             w = quad.weights
             alpha = np.zeros(N + 1)

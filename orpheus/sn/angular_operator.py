@@ -29,7 +29,7 @@ from orpheus.numerics.operator import (
 
 if TYPE_CHECKING:
     from orpheus.geometry.boundary._source import BoundarySource
-    from orpheus.sn.quadrature import AngularQuadrature
+    from orpheus.numerics.quadrature import Quadrature
 
 __all__ = ["AngularAverageOperator", "IncomingSourceOperator"]
 

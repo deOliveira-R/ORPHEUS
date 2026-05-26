@@ -41,7 +41,7 @@ def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) ->
         bcs=(BC.reflective, BC.reflective),
     )
     return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
-from orpheus.sn.quadrature import GaussLegendre1D, LebedevSphere
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.sweep import transport_sweep
 from tests.sn._test_helpers import placeholder_materials
 
@@ -76,7 +76,7 @@ class TestScatteringConvergence:
 
         mix = get_mixture("A", "2g")
         mesh = _homogeneous_slab_mesh(20, 2.0, mat_id=0)
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, {0: mix})
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
@@ -103,7 +103,7 @@ class TestSNMesh:
         """streaming_x[n,i] must equal 2|μ_x[n]| / dx[i]."""
         mesh = Mesh1D(edges=np.array([0.0, 0.1, 0.3, 0.6]),
                       mat_ids=np.array([0, 1, 2]))
-        quad = GaussLegendre1D.create(4)
+        quad = Quadrature.gauss_legendre(4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         for n in range(quad.N):
@@ -124,7 +124,7 @@ class TestSNMesh:
             edges_y=np.linspace(0, 0.5, 3),  # 2 cells, dy=0.25
             mat_map=np.zeros((3, 2), dtype=int),
         )
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         sig_t = 0.5  # scalar for simplicity
@@ -138,7 +138,7 @@ class TestSNMesh:
     def test_mesh1d_shapes(self):
         """SNMesh from Mesh1D must have (N,1) shaped mat_map and volumes."""
         mesh = Mesh1D(edges=np.linspace(0, 1, 6), mat_ids=np.array([0,1,2,1,0]))
-        quad = GaussLegendre1D.create(4)
+        quad = Quadrature.gauss_legendre(4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         assert sn_mesh.nx == 5
@@ -154,7 +154,7 @@ class TestSNMesh:
             edges_y=np.linspace(0, 1, 3),
             mat_map=np.zeros((3, 2), dtype=int),
         )
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         assert sn_mesh.nx == 3
@@ -169,7 +169,7 @@ class TestSNMesh:
 
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.CYLINDRICAL)
-        quad = GaussLegendre1D.create(4)
+        quad = Quadrature.gauss_legendre(4)
         with pytest.raises(ValueError, match="level structure"):
             SNMesh(mesh, quad, placeholder_materials())
 
@@ -179,7 +179,7 @@ class TestSNMesh:
 
         mesh = Mesh1D(edges=np.array([0.0, 0.5, 1.0]), mat_ids=np.array([0, 1]),
                       coord=CoordSystem.SPHERICAL)
-        quad = GaussLegendre1D.create(4)
+        quad = Quadrature.gauss_legendre(4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         assert sn_mesh.curvature == "spherical"
@@ -203,7 +203,7 @@ class TestSNMesh:
 
         # 1D with GL
         mesh_1d = _homogeneous_slab_mesh(10, 1.0, mat_id=0)
-        quad_gl = GaussLegendre1D.create(8)
+        quad_gl = Quadrature.gauss_legendre(8)
         solver_1d = SNSolver(SNMesh(mesh_1d, quad_gl, {0: mix}), max_inner=500, inner_tol=1e-10)
         phi = solver_1d.initial_flux_distribution()
         keff_1d = 1.0
@@ -218,7 +218,7 @@ class TestSNMesh:
             edges_y=np.array([0.0, 1.0]),
             mat_map=np.zeros((10, 1), dtype=int),
         )
-        quad_leb = LebedevSphere.create(order=17)
+        quad_leb = Quadrature.lebedev(order=17)
         solver_2d = SNSolver(SNMesh(mesh_2d, quad_leb, {0: mix}), max_inner=500, inner_tol=1e-10)
         phi = solver_2d.initial_flux_distribution()
         keff_2d = 1.0

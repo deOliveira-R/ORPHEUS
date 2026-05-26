@@ -26,7 +26,7 @@ from orpheus.numerics.trace_space import (
     OutflowTraceSpace,
     TraceSpace,
 )
-from orpheus.sn.quadrature import GaussLegendre1D, LebedevSphere
+from orpheus.numerics.quadrature import Quadrature
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ def _mesh2d_cylindrical(nr: int = 3, nz: int = 3) -> Mesh2D:
 def test_inflow_trace_space_constructible_and_frozen():
     """L0: InflowTraceSpace constructs via factory; mutation raises."""
     mesh = _mesh2d_cartesian()
-    quad = LebedevSphere.create(11)
+    quad = Quadrature.lebedev(11)
     space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
 
     # Subclass check.
@@ -126,7 +126,7 @@ def test_inflow_trace_space_constructible_and_frozen():
 def test_inflow_outflow_distinguishable_by_name():
     """L0: InflowTraceSpace and OutflowTraceSpace with same N/ng UNEQUAL."""
     mesh = _mesh2d_cartesian()
-    quad = LebedevSphere.create(11)
+    quad = Quadrature.lebedev(11)
     inflow = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     outflow = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     assert inflow != outflow
@@ -137,7 +137,7 @@ def test_inflow_outflow_distinguishable_by_name():
 def test_inflow_trace_space_equality_independent_of_mask():
     """L0: two InflowTraceSpaces with same N/ng compare equal — mask not in __eq__."""
     mesh = _mesh2d_cartesian()
-    quad = LebedevSphere.create(11)
+    quad = Quadrature.lebedev(11)
     a = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     b = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     assert a == b
@@ -155,7 +155,7 @@ def test_inflow_trace_space_equality_independent_of_mask():
 def test_mesh2d_cartesian_lebedev_inflow_mask_per_face():
     """L1: per-face inflow predicate matches mu_x / mu_y signs."""
     mesh = _mesh2d_cartesian()
-    quad = LebedevSphere.create(11)
+    quad = Quadrature.lebedev(11)
     eps = 1e-12
     space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     mask = space.inflow_mask
@@ -183,7 +183,7 @@ def test_lebedev_axis_aligned_ordinates_excluded_from_both_masks():
     # Lebedev order=3 has 6 ordinates: (±1,0,0), (0,±1,0), (0,0,±1) —
     # all axis-aligned. Order=11 still includes the 6 axis ordinates.
     mesh = _mesh2d_cartesian()
-    quad = LebedevSphere.create(11)
+    quad = Quadrature.lebedev(11)
     inflow = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     outflow = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     # For face "xmin" (perpendicular to z-axis ordinates), the
@@ -209,7 +209,7 @@ def test_mesh1d_cartesian_gausslegendre():
     """L0: Mesh1D Cartesian + GL produces (2, N) inflow mask;
     bc_left has the 4 positive-mu_x ordinates as inflow."""
     mesh = _mesh1d_cartesian()
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     assert space.inflow_mask.shape == (2, 8)
     # bc_left: inflow iff mu_x > 0. GL on (-1, 1) with N=8 has 4
@@ -232,7 +232,7 @@ def test_mesh1d_cartesian_gausslegendre():
 def test_inflow_indices_for_face_cross_check_against_mask():
     """L0: inflow_indices_for_face("xmin") matches np.flatnonzero of mask row."""
     mesh = _mesh2d_cartesian()
-    quad = LebedevSphere.create(11)
+    quad = Quadrature.lebedev(11)
     space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     indices = space.inflow_indices_for_face("xmin")
     expected = np.flatnonzero(space.inflow_mask[0])
@@ -252,7 +252,7 @@ def test_inflow_indices_for_face_cross_check_against_mask():
 def test_inflow_outflow_sums_bounded_by_n_ordinates():
     """L0: inflow_mask[f].sum() + outflow_mask[f].sum() <= N (tangentials excluded)."""
     mesh = _mesh2d_cartesian()
-    quad = LebedevSphere.create(11)
+    quad = Quadrature.lebedev(11)
     inflow = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     outflow = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     for f_idx in range(4):
@@ -290,7 +290,7 @@ class TestCurvilinear1DTraceMask:
     def test_1d_spherical_inflow_mask(self):
         """L1: spherical Mesh1D + GL produces the same predicate as slab."""
         mesh = _mesh1d_spherical()
-        quad = GaussLegendre1D.create(n_ordinates=8)
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
         space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
         # Shape: (2 faces, N).
         assert space.inflow_mask.shape == (2, quad.N)
@@ -308,7 +308,7 @@ class TestCurvilinear1DTraceMask:
         """L1: cylindrical Mesh1D matches spherical (same face structure)."""
         mesh_sph = _mesh1d_spherical()
         mesh_cyl = _mesh1d_cylindrical()
-        quad = GaussLegendre1D.create(n_ordinates=8)
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
         sph = InflowTraceSpace.from_mesh_and_quadrature(mesh_sph, quad, ng=1)
         cyl = InflowTraceSpace.from_mesh_and_quadrature(mesh_cyl, quad, ng=1)
         # Pure-geometry: face_names and inflow_mask coincide.
@@ -320,7 +320,7 @@ class TestCurvilinear1DTraceMask:
         """L1: at each face, outflow is complement of inflow on GL
         (which has no mu_x = 0 ordinate, so no tangential)."""
         mesh = _mesh1d_spherical()
-        quad = GaussLegendre1D.create(n_ordinates=8)
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
         inflow = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
         outflow = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
         for f_idx in range(2):
@@ -333,7 +333,7 @@ class TestCurvilinear1DTraceMask:
     def test_1d_cylindrical_inflow_indices_for_face(self):
         """L1: inflow_indices_for_face works identically on curvilinear."""
         mesh = _mesh1d_cylindrical()
-        quad = GaussLegendre1D.create(n_ordinates=8)
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
         space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
         left_idx = space.inflow_indices_for_face("left")
         # Should be exactly the indices where mu_x > 0 (Ω · (-r̂) < 0).
@@ -351,7 +351,7 @@ class TestCurvilinear1DTraceMask:
         outward normal, both of which are identical across the three
         1-D coord systems.
         """
-        quad = GaussLegendre1D.create(n_ordinates=8)
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
         cart = InflowTraceSpace.from_mesh_and_quadrature(
             _mesh1d_cartesian(), quad, ng=1,
         )
@@ -375,7 +375,7 @@ def test_mesh2d_cylindrical_still_raises():
     change scope was Mesh1D only; the Mesh2D guard stays.
     """
     mesh = _mesh2d_cylindrical()
-    quad = LebedevSphere.create(11)
+    quad = Quadrature.lebedev(11)
     with pytest.raises(NotImplementedError, match="curvilinear"):
         InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     with pytest.raises(NotImplementedError, match="curvilinear"):
@@ -391,7 +391,7 @@ def test_mesh2d_cylindrical_still_raises():
 def test_subset_of_faces_produces_smaller_mask():
     """L0: faces=["xmin"] → inflow_mask shape (1, N)."""
     mesh = _mesh2d_cartesian()
-    quad = LebedevSphere.create(11)
+    quad = Quadrature.lebedev(11)
     space = InflowTraceSpace.from_mesh_and_quadrature(
         mesh, quad, faces=["xmin"], ng=1,
     )
@@ -408,7 +408,7 @@ def test_subset_of_faces_produces_smaller_mask():
 def test_ng_greater_than_one_in_shape():
     """L0: ng=4 yields shape == (n_ordinates, 4)."""
     mesh = _mesh2d_cartesian()
-    quad = LebedevSphere.create(11)
+    quad = Quadrature.lebedev(11)
     space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=4)
     assert space.shape == (quad.N, 4)
 
@@ -425,7 +425,7 @@ def test_inflow_xor_outflow_complementary_for_gl_1d():
     # GL ordinates are strictly in (-1, 1), never 0 → no tangentials
     # against the x-aligned faces.
     mesh = _mesh1d_cartesian()
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     inflow = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     outflow = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     for f_idx in range(2):
@@ -442,7 +442,7 @@ def test_inflow_xor_outflow_complementary_for_gl_1d():
 def test_mask_dtype_is_bool():
     """L0: inflow_mask / outflow_mask are bool arrays, not int."""
     mesh = _mesh2d_cartesian()
-    quad = LebedevSphere.create(11)
+    quad = Quadrature.lebedev(11)
     inflow = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     outflow = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     assert inflow.inflow_mask.dtype == np.bool_
@@ -458,7 +458,7 @@ def test_mask_dtype_is_bool():
 def test_outflow_indices_for_face_cross_check_against_mask():
     """L0: outflow_indices_for_face matches np.flatnonzero of mask."""
     mesh = _mesh2d_cartesian()
-    quad = LebedevSphere.create(11)
+    quad = Quadrature.lebedev(11)
     space = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     for f_idx, face in enumerate(("xmin", "xmax", "ymin", "ymax")):
         indices = space.outflow_indices_for_face(face)
@@ -470,7 +470,7 @@ def test_outflow_indices_for_face_cross_check_against_mask():
 def test_unknown_face_raises_value_error():
     """L0: inflow_indices_for_face('bogus') raises ValueError."""
     mesh = _mesh2d_cartesian()
-    quad = LebedevSphere.create(11)
+    quad = Quadrature.lebedev(11)
     inflow = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
     with pytest.raises(ValueError, match="Unknown face"):
         inflow.inflow_indices_for_face("bogus")

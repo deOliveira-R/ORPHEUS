@@ -24,7 +24,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.angular_flux import AngularFlux
 from orpheus.sn.boundary_flux import BoundaryFlux
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.scalar_flux import ScalarFlux
 from orpheus.sn.solution import IterationHistory, Solution, SolutionDiff
 
@@ -45,7 +45,7 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 

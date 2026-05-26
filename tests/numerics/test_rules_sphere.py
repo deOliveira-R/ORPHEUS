@@ -16,7 +16,7 @@ import pytest
 from orpheus.numerics.measure import SPACE_SPHERE, DiscreteMeasure
 from orpheus.numerics.quadrature import lebedev_sphere, level_symmetric_sn
 from orpheus.numerics.quadrature.rules_sphere import LevelStructure
-from orpheus.sn.quadrature import LebedevSphere, LevelSymmetricSN
+from orpheus.numerics.quadrature import Quadrature
 
 
 # ---------------------------------------------------------------------------
@@ -52,7 +52,7 @@ def test_lebedev_bit_identical_to_legacy_adapter(order: int) -> None:
     """Bit-identical match against the legacy
     :class:`~orpheus.sn.quadrature.LebedevSphere` constructor."""
     m = lebedev_sphere(order)
-    legacy = LebedevSphere.create(order)
+    legacy = Quadrature.lebedev(order)
     nodes = m.nodes
     assert np.array_equal(legacy.mu_x, nodes[:, 0])
     assert np.array_equal(legacy.mu_y, nodes[:, 1])
@@ -137,7 +137,7 @@ def test_level_symmetric_bit_identical_to_legacy_adapter(sn_order: int) -> None:
     drifts in node order or per-level grouping, the cylindrical
     sweep's α-recursion will deliver different per-cell flux."""
     m, s = level_symmetric_sn(sn_order)
-    legacy = LevelSymmetricSN.create(sn_order)
+    legacy = Quadrature.level_symmetric(sn_order)
     nodes = m.nodes
     assert np.array_equal(legacy.mu_x, nodes[:, 0])
     assert np.array_equal(legacy.mu_y, nodes[:, 1])

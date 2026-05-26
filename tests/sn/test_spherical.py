@@ -80,7 +80,7 @@ def _two_region_mesh(
         RegionMesh(n_cells=n_cells[0]),
         RegionMesh(n_cells=n_cells[1]),
     ))
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver, solve_sn
 from tests.sn._test_helpers import placeholder_materials
 
@@ -134,7 +134,7 @@ def test_homogeneous_exact(case_name):
     mix = next(iter(case.materials.values()))
     materials = {0: mix}
     mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
-    quad = GaussLegendre1D.create(8)
+    quad = Quadrature.gauss_legendre(8)
     result = solve_sn(materials, mesh, quad,
                       max_inner=500, inner_tol=1e-10)
 
@@ -157,7 +157,7 @@ def test_particle_balance():
     mix = next(iter(case.materials.values()))
     materials = {0: mix}
     mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
-    quad = GaussLegendre1D.create(8)
+    quad = Quadrature.gauss_legendre(8)
     result = solve_sn(materials, mesh, quad,
                       max_inner=500, inner_tol=1e-10)
 
@@ -188,7 +188,7 @@ class TestAlphaCoefficients:
         """α_{1/2} = 0 and α_{N+1/2} = 0 by GL antisymmetry."""
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.SPHERICAL)
-        quad = GaussLegendre1D.create(N)
+        quad = Quadrature.gauss_legendre(N)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         np.testing.assert_allclose(sn_mesh.reduced.alpha_half[0], 0.0)
@@ -198,7 +198,7 @@ class TestAlphaCoefficients:
         """α_{n+1/2} = α_{n-1/2} − w_n μ_n (Bailey et al. 2009 Eq. 50)."""
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.SPHERICAL)
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         alpha = sn_mesh.reduced.alpha_half
@@ -216,7 +216,7 @@ class TestAlphaCoefficients:
         """
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.SPHERICAL)
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         alpha = sn_mesh.reduced.alpha_half
@@ -252,7 +252,7 @@ def test_spatial_convergence():
             coord=CoordSystem.SPHERICAL,
 
         )
-        quad = GaussLegendre1D.create(16)
+        quad = Quadrature.gauss_legendre(16)
         result = solve_sn(
             materials, mesh, quad,
             max_outer=300, max_inner=500, inner_tol=1e-10,
@@ -297,7 +297,7 @@ def test_cross_check_with_cp_1g():
 
     # SN: homogeneous sphere with reflective BC
     mesh_sn = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
-    quad = GaussLegendre1D.create(8)
+    quad = Quadrature.gauss_legendre(8)
     result_sn = solve_sn(materials_sn, mesh_sn, quad,
                          max_inner=500, inner_tol=1e-10)
 
@@ -321,7 +321,7 @@ def test_flux_non_negative():
     """Converged scalar flux must be non-negative everywhere."""
     mix = get_mixture("A", "1g")
     mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
-    quad = GaussLegendre1D.create(8)
+    quad = Quadrature.gauss_legendre(8)
     result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
     assert np.all(result.scalar_flux.values >= 0), (
@@ -349,7 +349,7 @@ class TestSphericalSweepRegression:
         from orpheus.sn.sweep import _sweep_1d_unified
 
         mesh = _homogeneous_mesh(10, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         sig_t = np.ones((10, 1, 1))
@@ -380,7 +380,7 @@ class TestSphericalSweepRegression:
         from orpheus.sn.sweep import _sweep_1d_unified
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         sig_t = np.full((10, 1, 1), 0.5)
@@ -401,7 +401,7 @@ class TestSphericalSweepRegression:
         """
         mix = get_mixture("A", "2g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, {0: mix})
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
@@ -424,7 +424,7 @@ class TestSphericalSweepRegression:
         """
         mix = get_mixture("A", "1g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
         # Angular flux at the innermost cell (closest to r=0)
@@ -448,7 +448,7 @@ class TestSphericalBicgstab:
         case = get("sn_slab_1eg_1rg")
         mix = next(iter(case.materials.values()))
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         result = solve_sn({0: mix}, mesh, quad,
                           inner_solver="krylov",
                           max_inner=2000, inner_tol=1e-6)
@@ -467,7 +467,7 @@ class TestSphericalBicgstab:
                                     ("BC", "krylov")]:
             mesh = _homogeneous_mesh(10, 2.0, mat_id=0,
                                   coord=CoordSystem.SPHERICAL)
-            quad = GaussLegendre1D.create(8)
+            quad = Quadrature.gauss_legendre(8)
             result = solve_sn(
                 {0: mix}, mesh, quad,
                 inner_solver=solver_type,
@@ -492,7 +492,7 @@ class TestSphericalBicgstab:
         case = get("sn_slab_1eg_1rg")
         mix = next(iter(case.materials.values()))
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         result = solve_sn({0: mix}, mesh, quad,
                           inner_solver="krylov",
                           max_inner=2000, inner_tol=1e-6)
@@ -535,7 +535,7 @@ class TestMultiGroupMultiRegionSpherical:
 
 
         )
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
 
@@ -547,7 +547,7 @@ class TestMultiGroupMultiRegionSpherical:
         """4G homogeneous must converge (richest scattering matrix)."""
         mix = get_mixture("A", "4g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, {0: mix})
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
@@ -583,7 +583,7 @@ class TestMultiGroupMultiRegionSpherical:
 
 
         )
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
 
@@ -624,7 +624,7 @@ class TestMultiGroupMultiRegionSpherical:
 
 
         )
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, materials)
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
@@ -657,7 +657,7 @@ class TestMultiGroupMultiRegionSpherical:
         from orpheus.sn.sweep import _sweep_1d_unified
 
         mesh = _homogeneous_mesh(40, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         Q = np.ones((40, 1, 1))
@@ -679,7 +679,7 @@ class TestMultiGroupMultiRegionSpherical:
         mix_fuel = get_mixture("A", "1g")
         mix_mod = get_mixture("B", "1g")
         materials = {2: mix_fuel, 0: mix_mod}
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
 
         keffs = []
         for n_cells in [5, 10, 20]:

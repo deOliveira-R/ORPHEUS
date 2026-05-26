@@ -31,7 +31,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.cell_balance import cell_balance_terms
 from orpheus.sn.spatial.cell_update import UpstreamState
 from orpheus.sn.spatial.diamond import DiamondDifference
@@ -69,7 +69,7 @@ def _make_slab(nx: int = 10, N: int = 8) -> SNMesh:
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(N)
+    quad = Quadrature.gauss_legendre(N)
     return SNMesh(mesh, quad, _trivial_materials(ng=1))
 
 
@@ -81,7 +81,7 @@ def _make_sphere(nx: int = 10, N: int = 8) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(N)
+    quad = Quadrature.gauss_legendre(N)
     return SNMesh(mesh, quad, _trivial_materials(ng=1))
 
 
@@ -220,7 +220,7 @@ def test_collision_cache_invariance_under_source_iteration() -> None:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
 
     # Reset counter, then run a converged eigenvalue (≥ 5 outer × N inner).
     CollisionCache.reset_build_count()
@@ -279,7 +279,7 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     sn_mesh = SNMesh(mesh, quad, materials)
     solver = SNSolver(sn_mesh=sn_mesh)
 
@@ -514,7 +514,7 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(16)
+    quad = Quadrature.gauss_legendre(16)
     sn_mesh = SNMesh(mesh, quad, _trivial_materials(ng=4))
     # Issue #196 PR-INDEX-5: Q principled.
     # R-1 Step 4 A1: single per-ordinate source carrier.
@@ -590,7 +590,7 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     # R-1 Step 4 A1 — ``external_source`` is per-ordinate density
     # (already ``/sum_w``).  Iso scalar magnitude 1 ⇒ per-ord ``1/sum_w``.
     sum_w = float(quad.weights.sum())

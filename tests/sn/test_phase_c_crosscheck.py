@@ -102,7 +102,7 @@ def test_sn_spherical_homogeneous_kinf_recovery_2g():
     only mode is the homogeneous-reflective flat eigenmode).
     """
     from orpheus.sn import solve_sn
-    from orpheus.sn.quadrature import GaussLegendre1D
+    from orpheus.numerics.quadrature import Quadrature
 
     # Simple 2G test material (no upscatter, no fission spectrum split).
     sigma_t = [0.5, 1.0]
@@ -126,7 +126,7 @@ def test_sn_spherical_homogeneous_kinf_recovery_2g():
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     result = solve_sn(
         materials={0: mat},
         mesh=mesh,

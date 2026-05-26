@@ -62,7 +62,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
-from orpheus.sn.quadrature import GaussLegendre1D, ProductQuadrature
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn_fixed_source
 
 
@@ -124,7 +124,7 @@ def test_homogeneous_streaming_equilibrium_sphere(
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=n_cells),),
     )
-    quad = GaussLegendre1D.create(n_ordinates=n_ord)
+    quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     N = quad.N
     nx = mesh.N
     ng = 1
@@ -199,7 +199,7 @@ def test_homogeneous_streaming_equilibrium_cylinder(
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=n_cells),),
     )
-    quad = ProductQuadrature.create(n_mu=n_mu, n_phi=4)
+    quad = Quadrature.product(n_mu=n_mu, n_phi=4)
     N = quad.N
     nx = mesh.N
     ng = 1
@@ -263,7 +263,7 @@ def test_pomraning_pole_isotropy_sphere(inner_solver: str) -> None:
         bcs=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=40),))
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     N = quad.N
     nx = mesh.N
     ng = 1

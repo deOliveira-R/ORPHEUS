@@ -669,11 +669,13 @@ def cylindrical_streaming(
             f"cylindrical_streaming requires CYLINDRICAL mesh, "
             f"got {mesh.coord!r}"
         )
-    if not hasattr(angular_measure, "level_indices"):
+    if getattr(angular_measure, "level_structure", None) is None:
         raise ValueError(
             "Cylindrical streaming requires a quadrature with level "
-            "structure (LevelSymmetricSN or ProductQuadrature), "
-            f"got {type(angular_measure).__name__}"
+            "structure (Quadrature.level_symmetric or .product); "
+            "slab quadratures (Quadrature.gauss_legendre) and pure "
+            "sphere cubatures (Quadrature.lebedev) carry no "
+            "LevelStructure side-channel."
         )
 
     face_areas = mesh.areas  # (nx+1,)

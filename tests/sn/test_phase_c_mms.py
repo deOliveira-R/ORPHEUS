@@ -149,7 +149,7 @@ def test_sn_spherical_angular_convergence_at_fixed_mesh():
     Asserts monotone decrease of the L2 error with increasing
     n_ordinates, saturating to the spatial floor.
     """
-    from orpheus.sn.quadrature import GaussLegendre1D
+    from orpheus.numerics.quadrature import Quadrature
     nx_fixed = 40
     n_ordinates_list = [4, 8, 16]
     errors = []

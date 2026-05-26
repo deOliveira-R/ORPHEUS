@@ -30,7 +30,7 @@ from orpheus.geometry import BC, CoordSystem
 from orpheus.geometry.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.trace_space import InflowTraceSpace, OutflowTraceSpace
 from orpheus.sn.method_space import SNMethodSpace
-from orpheus.sn.quadrature import GaussLegendre1D, LebedevSphere
+from orpheus.numerics.quadrature import Quadrature
 
 
 pytestmark = pytest.mark.l0
@@ -43,7 +43,7 @@ pytestmark = pytest.mark.l0
 
 def test_minimal_factory_carries_only_quadrature():
     """``.minimal(quad)`` returns a method space with only quadrature populated."""
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     space = SNMethodSpace.minimal(quad)
     assert space.quadrature is quad
     assert space.face is None
@@ -68,7 +68,7 @@ def test_legacy_constructor_with_explicit_inflow_indices():
     ``SNMethodSpace(quadrature=q, face='xmin', inflow_indices=idx)``
     keeps working — the new fields default to ``None``.
     """
-    quad = LebedevSphere.create(17)
+    quad = Quadrature.lebedev(17)
     inflow = np.flatnonzero(quad.mu_x > 0)
     space = SNMethodSpace(
         quadrature=quad, face="xmin", inflow_indices=inflow,
@@ -92,7 +92,7 @@ def test_for_face_derives_inflow_indices_from_trace():
         edges_x=np.linspace(0.0, 2.0, 5), edges_y=np.linspace(0.0, 1.5, 4),
         mat_map=np.zeros((4, 3), dtype=np.int64),
     )
-    quad = LebedevSphere.create(17)
+    quad = Quadrature.lebedev(17)
     inflow_trace = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad)
     outflow_trace = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad)
 
@@ -118,7 +118,7 @@ def test_inflow_indices_for_face_delegates_to_trace():
         mat_ids=np.zeros(6, dtype=np.int64),
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(8)
+    quad = Quadrature.gauss_legendre(8)
     inflow_trace = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad)
 
     # Build a method space attached to 'left' — but we should still be
@@ -137,7 +137,7 @@ def test_inflow_indices_for_face_raises_without_trace():
     """Without an attached trace space, :meth:`inflow_indices_for_face`
     raises with a useful message — the right error.
     """
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     space = SNMethodSpace.minimal(quad)
     with pytest.raises(RuntimeError, match="no InflowTraceSpace attached"):
         space.inflow_indices_for_face("left")

@@ -46,7 +46,7 @@ def _slab_fuel_moderator_mesh(
         RegionMesh(n_cells=n_fuel),
         RegionMesh(n_cells=n_mod),
     ))
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
 pytestmark = pytest.mark.verifies(
@@ -76,7 +76,7 @@ def test_homogeneous_exact(case_name):
     mix = next(iter(case.materials.values()))
     materials = {0: mix}
     mesh = _homogeneous_slab_mesh(20, 2.0, mat_id=0)
-    quad = GaussLegendre1D.create(8)
+    quad = Quadrature.gauss_legendre(8)
     result = solve_sn(materials, mesh, quad,
                       max_inner=500, inner_tol=1e-10)
 
@@ -137,7 +137,7 @@ def test_spatial_convergence():
         mesh = _slab_fuel_moderator_mesh(
             n_fuel=n_per, n_mod=n_per, t_fuel=t_fuel, t_mod=t_mod,
         )
-        quad = GaussLegendre1D.create(16)
+        quad = Quadrature.gauss_legendre(16)
         result = solve_sn(
             materials, mesh, quad,
             max_outer=300, max_inner=500, inner_tol=1e-10,
@@ -194,7 +194,7 @@ def test_dd_per_cell_recurrence_matches_symbolic_derivation():
     dx_val = 0.7
     Q_val = 3.0
 
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     edges = np.array([0.0, dx_val])
     mesh = Mesh1D(
         edges=edges,
@@ -295,7 +295,7 @@ def test_heterogeneous_absolute_keff():
     edges = np.linspace(0.0, H_A + H_B, 2 * n_per + 1)
     mat_ids = np.array([0] * n_per + [1] * n_per)
     mesh = Mesh1D(edges=edges, mat_ids=mat_ids, coord=CoordSystem.CARTESIAN)
-    quad = GaussLegendre1D.create(N_ord)
+    quad = Quadrature.gauss_legendre(N_ord)
 
     result = solve_sn(
         materials, mesh, quad,
@@ -330,7 +330,7 @@ def test_angular_convergence():
         mesh = _slab_fuel_moderator_mesh(
             n_fuel=40, n_mod=40, t_fuel=0.5, t_mod=0.5,
         )
-        quad = GaussLegendre1D.create(N)
+        quad = Quadrature.gauss_legendre(N)
         result = solve_sn(
             materials, mesh, quad,
             max_outer=300, max_inner=500, inner_tol=1e-10,

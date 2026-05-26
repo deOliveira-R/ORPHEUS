@@ -7,10 +7,4 @@ from .solver import (
     solve_sn,
     solve_sn_fixed_source,
 )
-from .quadrature import (
-    AngularQuadrature,
-    GaussLegendre1D,
-    LebedevSphere,
-    LevelSymmetricSN,
-    ProductQuadrature,
-)
+from orpheus.numerics.quadrature import Quadrature

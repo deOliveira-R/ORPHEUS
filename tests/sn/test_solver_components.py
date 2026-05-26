@@ -13,7 +13,7 @@ import time
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh1D, Mesh2D
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import GaussLegendre1D, LebedevSphere
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver, solve_sn
 from orpheus.sn.sources import IsotropicSource, PerOrdinateSource
 from orpheus.sn.sweep import transport_sweep
@@ -44,7 +44,7 @@ def solver_2g():
     mat[3:, :] = 0
 
     mesh = _uniform_2d(nx, ny, delta, mat)
-    quad = LebedevSphere.create(order=17)
+    quad = Quadrature.lebedev(order=17)
     sn_mesh = SNMesh(mesh, quad, materials)
     solver = SNSolver(sn_mesh)
     return solver, materials, sn_mesh, quad
@@ -206,7 +206,7 @@ class TestComputeGroupRates:
         from orpheus.geometry import (
             BC, Mesh1D, Region, RegionMesh, StructuredGeometry,
         )
-        from orpheus.sn.quadrature import GaussLegendre1D
+        from orpheus.numerics.quadrature import Quadrature
 
         fuel = get_mixture("A", "2g")
         geom = StructuredGeometry(
@@ -219,7 +219,7 @@ class TestComputeGroupRates:
         )
         result = solve_sn(
             materials={0: fuel}, mesh=mesh,
-            quadrature=GaussLegendre1D.create(n_ordinates=8),
+            quadrature=Quadrature.gauss_legendre(n_ordinates=8),
             scattering_order=0,
         )
 
@@ -338,7 +338,7 @@ class TestQuadratureWeightConservation:
         mix = get_mixture("A", "2g")
         materials = {0: mix}
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         local_sn_mesh = SNMesh(mesh, quad, materials)
         solver = SNSolver(local_sn_mesh)
 
@@ -408,7 +408,7 @@ class TestMultiGroupEigenvector:
         # Run 2D solver
         materials = {0: mix}
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         solver = SNSolver(SNMesh(mesh, quad, materials), max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
@@ -444,7 +444,7 @@ class TestBicgstabNormalization:
         mix = next(iter(case.materials.values()))
 
         mesh = Mesh1D(edges=np.linspace(0, 2, 5), mat_ids=np.zeros(4, dtype=int))
-        gl = GaussLegendre1D.create(8)
+        gl = Quadrature.gauss_legendre(8)
         solver = SNSolver(SNMesh(mesh, gl, {0: mix}), inner_solver="krylov", max_inner=2000, inner_tol=1e-6)
 
         phi = solver.initial_flux_distribution()
@@ -467,7 +467,7 @@ class TestBicgstabNormalization:
         mix = next(iter(case.materials.values()))
 
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         solver = SNSolver(SNMesh(mesh, quad, {0: mix}), inner_solver="krylov", max_inner=2000, inner_tol=1e-6)
 
         phi = solver.initial_flux_distribution()
@@ -496,9 +496,9 @@ class TestBicgstabNormalization:
         results = {}
         for label, mesh, quad in [
             ("GL", Mesh1D(edges=np.linspace(0, 2, 5), mat_ids=np.zeros(4, dtype=int)),
-             GaussLegendre1D.create(8)),
+             Quadrature.gauss_legendre(8)),
             ("Lebedev", _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int)),
-             LebedevSphere.create(order=17)),
+             Quadrature.lebedev(order=17)),
         ]:
             solver = SNSolver(SNMesh(mesh, quad, {0: mix}), inner_solver="krylov", max_inner=2000, inner_tol=1e-6)
             phi = solver.initial_flux_distribution()
@@ -534,7 +534,7 @@ class TestAnisotropicScattering:
         case = get("sn_slab_2eg_1rg")
         mix = next(iter(case.materials.values()))
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
 
         # Default (P0)
         solver_default = SNSolver(SNMesh(mesh, quad, {0: mix}), max_inner=500, inner_tol=1e-10)
@@ -593,7 +593,7 @@ class TestAnisotropicScattering:
             # no sig_s1
         )
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
 
         # Request P1 but only P0 data available → should clamp to P0
         solver = SNSolver(SNMesh(mesh, quad, {0: mix_p0_only}), scattering_order=1)
@@ -603,7 +603,7 @@ class TestAnisotropicScattering:
 
     def test_spherical_harmonics_orthogonality(self):
         """Lebedev spherical harmonics must satisfy discrete orthogonality."""
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         Y = quad.spherical_harmonics(1)
         w = quad.weights
 
@@ -630,7 +630,7 @@ class TestAnisotropicScattering:
         ``_build_spherical_harmonics``: existing P0/P1 paths must not
         observe any numerical drift. ``assert_array_equal`` is bit-strict.
         """
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         Y = quad.spherical_harmonics(1)
         np.testing.assert_array_equal(Y[:, 0, 0], np.ones(quad.N))
         np.testing.assert_array_equal(Y[:, 1, 0], quad.mu_z)  # m = -1
@@ -655,7 +655,7 @@ class TestAnisotropicScattering:
         """
         from numpy.polynomial.legendre import legval
 
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         L = 3
         Y = quad.spherical_harmonics(L)
         N = quad.N
@@ -685,7 +685,7 @@ class TestAnisotropicScattering:
         Lebedev order 17 is exact for polynomials of degree <= 17, with
         plenty of margin for products of harmonics up to l+l' = 6.
         """
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         L = 3
         Y = quad.spherical_harmonics(L)
         w = quad.weights
@@ -720,7 +720,7 @@ class TestAnisotropicScattering:
         mat = np.zeros((6, 2), dtype=int)
         mat[:3, :] = 2
         mesh = _uniform_2d(6, 2, 0.2, mat)
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
 
         keffs = {}
         for L in [0, 1]:
@@ -747,7 +747,7 @@ class TestAnisotropicScattering:
             pytest.skip("No P1 data")
 
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         solver = SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=1)
 
         # Isotropic angular flux: same value for all ordinates.
@@ -779,7 +779,7 @@ class TestBicgstabPnScattering:
         case = get("sn_slab_2eg_1rg")
         mix = next(iter(case.materials.values()))
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
 
         keffs = {}
         for label, solver_type in [("SI", "source_iteration"), ("BC", "krylov")]:
@@ -803,7 +803,7 @@ class TestBicgstabPnScattering:
 
         mix = get_mixture("A", "2g")
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
 
         keffs = {}
         for L in [0, 1]:
@@ -828,7 +828,7 @@ class TestBicgstabPnScattering:
 
         mix = get_mixture("A", "2g")
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
 
         keffs = {}
         for label, solver_type in [("SI", "source_iteration"), ("BC", "krylov")]:
@@ -912,7 +912,7 @@ class TestHomogeneousExact:
         materials = {0: mix}
 
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         solver = SNSolver(SNMesh(mesh, quad, materials), max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
@@ -949,7 +949,7 @@ class TestSolveFixedSource:
         case = get("sn_slab_2eg_1rg")
         mix = next(iter(case.materials.values()))
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
 
         # Source iteration
         solver_si = SNSolver(SNMesh(mesh, quad, {0: mix}), inner_solver="source_iteration", max_inner=500, inner_tol=1e-10)
@@ -991,7 +991,7 @@ def solver_421g():
     materials = {2: fuel, 1: clad, 0: cool}
 
     mesh = _uniform_2d(10, 10, 0.2, np.tile(np.array([2]*5 + [1] + [0]*4, dtype=int), (10, 1)).T)
-    quad = LebedevSphere.create(order=17)
+    quad = Quadrature.lebedev(order=17)
     solver = SNSolver(SNMesh(mesh, quad, materials))
     return solver, materials, mesh, quad
 

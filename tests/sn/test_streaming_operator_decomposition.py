@@ -62,7 +62,7 @@ from orpheus.sn.operator import (
     transport_operator_matvec,
     transport_operator_matvec_unified,
 )
-from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
+from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.l0
@@ -87,7 +87,7 @@ def _build_sn_mesh(geometry: str, n_cells: int = 5, n_ord: int = 4) -> SNMesh:
             bc_left=BC("reflective"),
             bc_right=BC("reflective"),
         )
-        quad = GaussLegendre1D.create(n_ordinates=n_ord)
+        quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     elif geometry == "CYL":
         mesh = Mesh1D(
             edges=np.linspace(0.01, 2.0, n_cells + 1),
@@ -96,7 +96,7 @@ def _build_sn_mesh(geometry: str, n_cells: int = 5, n_ord: int = 4) -> SNMesh:
             bc_left=BC("reflective"),
             bc_right=BC("reflective"),
         )
-        quad = LevelSymmetricSN.create(sn_order=n_ord)
+        quad = Quadrature.level_symmetric(sn_order=n_ord)
     elif geometry == "CART":
         mesh = Mesh1D(
             edges=np.linspace(0.0, 2.0, n_cells + 1),
@@ -105,7 +105,7 @@ def _build_sn_mesh(geometry: str, n_cells: int = 5, n_ord: int = 4) -> SNMesh:
             bc_left=BC("reflective"),
             bc_right=BC("reflective"),
         )
-        quad = GaussLegendre1D.create(n_ordinates=n_ord)
+        quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     else:
         raise ValueError(geometry)
     return SNMesh(mesh, quad, placeholder_materials())

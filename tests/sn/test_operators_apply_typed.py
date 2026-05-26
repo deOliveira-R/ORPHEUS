@@ -39,7 +39,7 @@ from orpheus.sn.angular_flux import AngularFlux
 from orpheus.sn.fission import FissionOperator
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import CollisionOperator, StreamingOperator
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.scalar_flux import ScalarFlux
 from orpheus.sn.scattering import ScatteringOperator
 from tests.sn._test_helpers import placeholder_materials
@@ -60,7 +60,7 @@ def _slab_mesh(nx: int = 5, n_ord: int = 4, ng: int = 2) -> SNMesh:
         bcs=(BC.reflective, BC.reflective),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
-    quad = GaussLegendre1D.create(n_ordinates=n_ord)
+    quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
@@ -71,7 +71,7 @@ def _sphere_mesh(nx: int = 5, n_ord: int = 4, ng: int = 2) -> SNMesh:
         bcs=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
-    quad = GaussLegendre1D.create(n_ordinates=n_ord)
+    quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 

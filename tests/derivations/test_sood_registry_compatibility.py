@@ -308,13 +308,13 @@ def test_solve_sn_accepts_registry_slab_case() -> None:
     """
     import math
 
-    from orpheus.sn.quadrature import GaussLegendre1D
+    from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.solver import solve_sn
 
     case = UA_1_0_SL_STUB
     materials = build_materials(case)
     mesh = build_mesh(case, n_cells=32)
-    quadrature = GaussLegendre1D.create(n_ordinates=16)
+    quadrature = Quadrature.gauss_legendre(n_ordinates=16)
 
     result = solve_sn(
         materials, mesh, quadrature,

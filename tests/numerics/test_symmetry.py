@@ -31,12 +31,7 @@ import pytest
 
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.symmetry import SubgroupOfO3
-from orpheus.sn.quadrature import (
-    GaussLegendre1D,
-    LebedevSphere,
-    LevelSymmetricSN,
-    ProductQuadrature,
-)
+from orpheus.numerics.quadrature import Quadrature
 
 
 # ============================================================================
@@ -252,7 +247,7 @@ def test_lebedev_is_octahedral_invariant(order: int) -> None:
     The construction *guarantees* :math:`O_h`-invariance — this test
     confirms the project's wrapper preserves it.
     """
-    q = LebedevSphere.create(order=order)
+    q = Quadrature.lebedev(order=order)
     mu = _measure_from_sphere_quad(q)
     assert SubgroupOfO3.OctahedralOh.is_invariant(mu)
 
@@ -269,7 +264,7 @@ def test_lebedev_is_NOT_icosahedral_invariant() -> None:
     invariance check were too permissive (e.g. if it only checked
     weight sums rather than orbit closure).
     """
-    q = LebedevSphere.create(order=17)
+    q = Quadrature.lebedev(order=17)
     mu = _measure_from_sphere_quad(q)
     assert not SubgroupOfO3.IcosahedralIh.is_invariant(mu)
 
@@ -287,7 +282,7 @@ def test_level_symmetric_is_octahedral_invariant(sn_order: int) -> None:
     through every coordinate-plane combination — the construction
     enforces :math:`O_h`-invariance directly.
     """
-    q = LevelSymmetricSN.create(sn_order=sn_order)
+    q = Quadrature.level_symmetric(sn_order=sn_order)
     mu = _measure_from_sphere_quad(q)
     assert SubgroupOfO3.OctahedralOh.is_invariant(mu)
 
@@ -306,7 +301,7 @@ def test_gauss_legendre_1d_so2_invariant(n: int) -> None:
     This is the "axisymmetric slab" tag — slab geometry uses GL1D
     because the slab's azimuthal symmetry is automatically inherited.
     """
-    q = GaussLegendre1D.create(n_ordinates=n)
+    q = Quadrature.gauss_legendre(n_ordinates=n)
     mu = _measure_from_1d_quad(q)
     assert SubgroupOfO3.SO2.is_invariant(mu)
 
@@ -319,7 +314,7 @@ def test_gauss_legendre_1d_z2_reflective(n: int) -> None:
     Christoffel weights), so the measure is :math:`Z_2`-invariant
     under :math:`x \to -x`.
     """
-    q = GaussLegendre1D.create(n_ordinates=n)
+    q = Quadrature.gauss_legendre(n_ordinates=n)
     mu = _measure_from_1d_quad(q)
     assert SubgroupOfO3.Z2.is_invariant(mu)
 

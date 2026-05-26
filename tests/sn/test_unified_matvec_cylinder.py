@@ -48,7 +48,7 @@ from orpheus.sn.operator import (
     solution_to_angular_flux_cylindrical,
     transport_operator_matvec_unified,
 )
-from orpheus.sn.quadrature import LevelSymmetricSN, ProductQuadrature
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.pole_angular_closure import MorelMontryAngularSweep
 from orpheus.sn.spatial.psi_half_angle_seed import CarlsonSweepContext
 from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
@@ -231,9 +231,9 @@ def _hand_reference_cyl_matvec(
 
 @pytest.mark.l0
 @pytest.mark.parametrize("quad_factory", [
-    lambda: LevelSymmetricSN.create(sn_order=4),
-    lambda: LevelSymmetricSN.create(sn_order=6),
-    lambda: ProductQuadrature.create(n_mu=2, n_phi=4),
+    lambda: Quadrature.level_symmetric(sn_order=4),
+    lambda: Quadrature.level_symmetric(sn_order=6),
+    lambda: Quadrature.product(n_mu=2, n_phi=4),
 ])
 @pytest.mark.parametrize("n_cells", [3, 5, 10])
 @pytest.mark.parametrize("seed", [0, 1, 2])
@@ -277,7 +277,7 @@ def test_unified_cylinder_matches_hand_reference(
 @pytest.mark.l0
 def test_unified_cylinder_zero_psi_gives_zero() -> None:
     """Linear operator: zero input → zero output."""
-    quad = LevelSymmetricSN.create(sn_order=4)
+    quad = Quadrature.level_symmetric(sn_order=4)
     sn_mesh = _build_cyl(n_cells=5, quad=quad)
     ng = 1
     sigma_t = np.full((ng, sn_mesh.nx, 1), 2.0)
@@ -292,7 +292,7 @@ def test_unified_cylinder_constant_psi_gives_sigma_t() -> None:
     """At ψ = constant on homogeneous reflective cylinder, unified matvec
     returns σ_t · ψ. Sanity check — flat flux activates only the
     collision term in the per-cell balance."""
-    quad = LevelSymmetricSN.create(sn_order=4)
+    quad = Quadrature.level_symmetric(sn_order=4)
     sn_mesh = _build_cyl(n_cells=5, quad=quad)
     ng = 1
     sigma_t_val = 2.0
@@ -448,7 +448,7 @@ def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
     redist closure, no shared boundary recurrence).
     """
     mesh, materials = _build_mr_cylinder_mesh(nx=40)
-    quad = LevelSymmetricSN.create(sn_order=4)
+    quad = Quadrature.level_symmetric(sn_order=4)
 
     sigma_t, sigma_s, nu_sigma_f, chi = _mr_xs_2g()
     ref = solve_greens_function_cylinder_mr(
@@ -509,7 +509,7 @@ def test_unified_cylinder_l1_homogeneous_kinf_2g() -> None:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = LevelSymmetricSN.create(sn_order=4)
+    quad = Quadrature.level_symmetric(sn_order=4)
 
     with _patch_apply_to_unified():
         sol = solve_sn(

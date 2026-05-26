@@ -18,7 +18,7 @@ from orpheus.geometry import (
     RegionMesh,
     StructuredGeometry,
 )
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
 
@@ -55,7 +55,7 @@ pytestmark = pytest.mark.l0  # SN property checks (quadrature weights, symmetry,
 def test_gl_weights_sum():
     """Gauss-Legendre weights on [-1,1] must sum to 2."""
     for N in [4, 8, 16, 32]:
-        quad = GaussLegendre1D.create(N)
+        quad = Quadrature.gauss_legendre(N)
         np.testing.assert_allclose(
             quad.weights.sum(), 2.0, atol=1e-14,
             err_msg=f"GL({N}) weights sum to {quad.weights.sum()}, expected 2.0",
@@ -64,9 +64,9 @@ def test_gl_weights_sum():
 
 def test_gl_symmetry():
     """GL quadrature points must be symmetric: μ[i] = -μ[N-1-i]."""
-    quad = GaussLegendre1D.create(16)
+    quad = Quadrature.gauss_legendre(16)
     np.testing.assert_allclose(
-        quad.mu, -quad.mu[::-1], atol=1e-14,
+        quad.mu_x, -quad.mu_x[::-1], atol=1e-14,
     )
 
 
@@ -85,7 +85,7 @@ def test_flux_symmetry():
     mesh = _slab_fuel_moderator_mesh(
         n_fuel=10, n_mod=10, t_fuel=0.5, t_mod=0.5,
     )
-    quad = GaussLegendre1D.create(8)
+    quad = Quadrature.gauss_legendre(8)
     result = solve_sn(materials, mesh, quad, max_outer=200,
                       max_inner=500, inner_tol=1e-10)
 
@@ -111,7 +111,7 @@ def test_particle_balance():
     mix = next(iter(case.materials.values()))
     materials = {0: mix}
     mesh = _homogeneous_slab_mesh(20, 2.0, mat_id=0)
-    quad = GaussLegendre1D.create(8)
+    quad = Quadrature.gauss_legendre(8)
     result = solve_sn(materials, mesh, quad,
                       max_inner=500, inner_tol=1e-10)
 

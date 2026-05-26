@@ -31,7 +31,7 @@ from orpheus.geometry import (
     spherical_streaming,
 )
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import GaussLegendre1D, ProductQuadrature
+from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
 
@@ -82,7 +82,7 @@ class TestHashEqualitySpherical:
     @pytest.fixture
     def pair(self):
         mesh = _spherical_mesh()
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         reduced = spherical_streaming(mesh, quad)
         return sn_mesh, reduced
@@ -122,7 +122,7 @@ class TestHashEqualitySpherical:
     def test_alpha_dome_bit_identical_across_N(self, N):
         """Hash equality holds for every quadrature order."""
         mesh = _spherical_mesh()
-        quad = GaussLegendre1D.create(N)
+        quad = Quadrature.gauss_legendre(N)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         reduced = spherical_streaming(mesh, quad)
         assert np.array_equal(reduced.alpha_half, sn_mesh.reduced.alpha_half)
@@ -136,7 +136,7 @@ class TestHashEqualityCylindrical:
     @pytest.fixture
     def pair(self):
         mesh = _cylindrical_mesh()
-        quad = ProductQuadrature.create(n_mu=2, n_phi=4)
+        quad = Quadrature.product(n_mu=2, n_phi=4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         reduced = cylindrical_streaming(mesh, quad)
         return sn_mesh, reduced
@@ -184,7 +184,7 @@ class TestHashEqualityCylindrical:
     def test_full_per_level_hash_equality(self, n_mu, n_phi):
         """Per-level hash equality across multiple quadrature shapes."""
         mesh = _cylindrical_mesh()
-        quad = ProductQuadrature.create(n_mu=n_mu, n_phi=n_phi)
+        quad = Quadrature.product(n_mu=n_mu, n_phi=n_phi)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         reduced = cylindrical_streaming(mesh, quad)
         for rdc, snm in zip(
@@ -211,7 +211,7 @@ class TestProperties:
     @pytest.mark.foundation
     def test_slab_no_upstream_no_axis(self):
         mesh = _slab_mesh()
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = slab_streaming(mesh, quad)
         assert op.requires_upstream_angular_state is False
         assert op.angular_marching_axis is None
@@ -220,7 +220,7 @@ class TestProperties:
     @pytest.mark.foundation
     def test_slab_curvature_arrays_are_none(self):
         mesh = _slab_mesh()
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = slab_streaming(mesh, quad)
         assert op.face_areas is None
         assert op.delta_A is None
@@ -234,7 +234,7 @@ class TestProperties:
     @pytest.mark.foundation
     def test_sphere_requires_upstream(self):
         mesh = _spherical_mesh()
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = spherical_streaming(mesh, quad)
         assert op.requires_upstream_angular_state is True
         assert op.angular_marching_axis == "mu"
@@ -243,7 +243,7 @@ class TestProperties:
     @pytest.mark.foundation
     def test_cylinder_requires_upstream(self):
         mesh = _cylindrical_mesh()
-        quad = ProductQuadrature.create(n_mu=2, n_phi=4)
+        quad = Quadrature.product(n_mu=2, n_phi=4)
         op = cylindrical_streaming(mesh, quad)
         assert op.requires_upstream_angular_state is True
         assert op.angular_marching_axis == "mu"
@@ -272,7 +272,7 @@ class TestStreamingTermsExtraction:
         slab and curvilinear without geometry dispatch.
         """
         mesh = _slab_mesh()
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = slab_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=2, direction_idx=3)
         assert isinstance(st, StreamingTerms)
@@ -290,7 +290,7 @@ class TestStreamingTermsExtraction:
     @pytest.mark.foundation
     def test_sphere_streaming_terms_match_arrays(self):
         mesh = _spherical_mesh()
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = spherical_streaming(mesh, quad)
         i, n = 1, 5
         st = op.streaming_terms(cell_idx=i, direction_idx=n)
@@ -309,7 +309,7 @@ class TestStreamingTermsExtraction:
     @pytest.mark.foundation
     def test_cylinder_streaming_terms_match_per_level(self):
         mesh = _cylindrical_mesh()
-        quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+        quad = Quadrature.product(n_mu=4, n_phi=4)
         op = cylindrical_streaming(mesh, quad)
         i, level, m = 2, 1, 0
         st = op.streaming_terms(
@@ -335,7 +335,7 @@ class TestStreamingTermsExtraction:
     @pytest.mark.foundation
     def test_cylinder_streaming_terms_requires_level(self):
         mesh = _cylindrical_mesh()
-        quad = ProductQuadrature.create(n_mu=2, n_phi=4)
+        quad = Quadrature.product(n_mu=2, n_phi=4)
         op = cylindrical_streaming(mesh, quad)
         with pytest.raises(ValueError, match="mu_level_idx"):
             op.streaming_terms(cell_idx=0, direction_idx=0)
@@ -359,7 +359,7 @@ class TestStreamingTermsVolumeAndAbsMu:
     @pytest.mark.parametrize("direction_idx", [0, 5])
     def test_slab_volume_matches_mesh(self, cell_idx, direction_idx):
         mesh = _slab_mesh()
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = slab_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=cell_idx, direction_idx=direction_idx)
         assert st.volume == float(mesh.volumes[cell_idx])
@@ -371,7 +371,7 @@ class TestStreamingTermsVolumeAndAbsMu:
     @pytest.mark.parametrize("direction_idx", [0, 5])
     def test_slab_abs_mu_matches_quadrature(self, cell_idx, direction_idx):
         mesh = _slab_mesh()
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = slab_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=cell_idx, direction_idx=direction_idx)
         assert st.abs_mu == float(abs(quad.mu_x[direction_idx]))
@@ -382,7 +382,7 @@ class TestStreamingTermsVolumeAndAbsMu:
     @pytest.mark.parametrize("N", [4, 8, 16, 32])
     def test_spherical_volume_and_abs_mu_match(self, N):
         mesh = _spherical_mesh()
-        quad = GaussLegendre1D.create(N)
+        quad = Quadrature.gauss_legendre(N)
         op = spherical_streaming(mesh, quad)
         for cell_idx in (0, mesh.N - 1):
             for direction_idx in (0, N - 1):
@@ -397,7 +397,7 @@ class TestStreamingTermsVolumeAndAbsMu:
     @pytest.mark.parametrize("n_mu,n_phi", [(2, 4), (4, 4), (4, 8)])
     def test_cylindrical_volume_and_abs_mu_match(self, n_mu, n_phi):
         mesh = _cylindrical_mesh()
-        quad = ProductQuadrature.create(n_mu=n_mu, n_phi=n_phi)
+        quad = Quadrature.product(n_mu=n_mu, n_phi=n_phi)
         op = cylindrical_streaming(mesh, quad)
         # Pick a cell-idx pair and use level 0's first ordinate.
         level = 0
@@ -421,7 +421,7 @@ class TestStreamingTermsVolumeAndAbsMu:
         reordering or drift.
         """
         mesh = _spherical_mesh()
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = spherical_streaming(mesh, quad)
         i, n = 1, 5
         st = op.streaming_terms(cell_idx=i, direction_idx=n)
@@ -450,7 +450,7 @@ class TestStreamingTermsGeometricLabels:
     def test_sphere_faces_invariant_under_direction(self):
         """Sphere: inner/outer faces are the same for ±μ ordinates."""
         mesh = _spherical_mesh()
-        quad = GaussLegendre1D.create(8)  # μ ordered ascending
+        quad = Quadrature.gauss_legendre(8)  # μ ordered ascending
         op = spherical_streaming(mesh, quad)
         i = 2
         # n_neg has μ < 0 (inward); n_pos has μ > 0 (outward).
@@ -471,7 +471,7 @@ class TestStreamingTermsGeometricLabels:
     def test_cylinder_faces_invariant_under_direction(self):
         """Cylinder: inner/outer faces are direction-independent."""
         mesh = _cylindrical_mesh()
-        quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+        quad = Quadrature.product(n_mu=4, n_phi=4)
         op = cylindrical_streaming(mesh, quad)
         i, level = 2, 1
         # Find a within-level pair with η < 0 and η > 0 by scanning.
@@ -523,7 +523,7 @@ class TestCylindricalAbsMuUsesGlobalOrdinate:
     def test_cylindrical_abs_mu_per_level(self):
         """For every (level, m_local), abs_mu == |mu_x[level_idx[m_local]]|."""
         mesh = _cylindrical_mesh()
-        quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+        quad = Quadrature.product(n_mu=4, n_phi=4)
         op = cylindrical_streaming(mesh, quad)
         for level, level_idx in enumerate(quad.level_indices):
             for m_local in range(len(level_idx)):
@@ -545,7 +545,7 @@ class TestCylindricalAbsMuUsesGlobalOrdinate:
     def test_cylindrical_signed_mu_per_level(self):
         """Signed ``mu`` (= η) also reads from the GLOBAL ordinate."""
         mesh = _cylindrical_mesh()
-        quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+        quad = Quadrature.product(n_mu=4, n_phi=4)
         op = cylindrical_streaming(mesh, quad)
         for level, level_idx in enumerate(quad.level_indices):
             for m_local in range(len(level_idx)):
@@ -568,23 +568,23 @@ class TestGuards:
     @pytest.mark.foundation
     def test_slab_factory_rejects_spherical_mesh(self):
         with pytest.raises(ValueError, match="CARTESIAN"):
-            slab_streaming(_spherical_mesh(), GaussLegendre1D.create(4))
+            slab_streaming(_spherical_mesh(), Quadrature.gauss_legendre(4))
 
     @pytest.mark.foundation
     def test_spherical_factory_rejects_slab_mesh(self):
         with pytest.raises(ValueError, match="SPHERICAL"):
-            spherical_streaming(_slab_mesh(), GaussLegendre1D.create(4))
+            spherical_streaming(_slab_mesh(), Quadrature.gauss_legendre(4))
 
     @pytest.mark.foundation
     def test_cylindrical_factory_rejects_sphere_mesh(self):
         with pytest.raises(ValueError, match="CYLINDRICAL"):
             cylindrical_streaming(
-                _spherical_mesh(), ProductQuadrature.create(2, 4),
+                _spherical_mesh(), Quadrature.product(2, 4),
             )
 
     @pytest.mark.foundation
     def test_cylindrical_factory_requires_level_indices(self):
         mesh = _cylindrical_mesh()
-        quad = GaussLegendre1D.create(8)  # no level_indices
+        quad = Quadrature.gauss_legendre(8)  # no level_indices
         with pytest.raises(ValueError, match="level structure"):
             cylindrical_streaming(mesh, quad)

@@ -18,7 +18,7 @@ from orpheus.geometry import Mesh2D
 from orpheus.numerics.operator import CAP_APPLY, LinearOperator
 from orpheus.sn.fission import FissionOperator
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import LebedevSphere
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver
 
 pytestmark = pytest.mark.foundation
@@ -45,7 +45,7 @@ def solver_2g():
     mat[3:, :] = 0
 
     mesh = _uniform_2d(nx, ny, delta, mat)
-    quad = LebedevSphere.create(order=17)
+    quad = Quadrature.lebedev(order=17)
     sn_mesh = SNMesh(mesh, quad, materials)
     return SNSolver(sn_mesh)
 
@@ -149,7 +149,7 @@ class TestRank1EnergyStructure:
         )
         nx, ny = 3, 3
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
-        quad = LebedevSphere.create(order=17)
+        quad = Quadrature.lebedev(order=17)
         solver = SNSolver(SNMesh(mesh, quad, {0: mix}))
 
         c = 1.5

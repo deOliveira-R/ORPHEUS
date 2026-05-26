@@ -27,12 +27,7 @@ from .operator import (
     ZeroOperator,
     as_scipy_linop,
 )
-from .quadrature import (
-    gauss_legendre_on_mu,
-    lebedev_sphere,
-    level_symmetric_sn,
-    product_mu_phi,
-)
+from orpheus.numerics.quadrature import gauss_legendre_on_mu, lebedev_sphere, level_symmetric_sn, product_mu_phi
 from .projection import (
     GalerkinProjection,
     HarmonicMomentProjection,

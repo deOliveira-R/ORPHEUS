@@ -77,12 +77,7 @@ from orpheus.geometry.boundary import (
     WhiteBoundaryOperator,
 )
 from orpheus.sn.boundary_realizer import SNBoundaryRealizer, SNMethodSpace
-from orpheus.sn.quadrature import (
-    AngularQuadrature,
-    GaussLegendre1D,
-    LebedevSphere,
-    LevelSymmetricSN,
-)
+from orpheus.numerics.quadrature import Quadrature
 
 
 SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
@@ -165,13 +160,13 @@ CASES: tuple[BCEquivalenceCase, ...] = (
             "assertion."
         ),
         build_bc=lambda: VacuumBoundaryOperator(),
-        build_quadrature=lambda: LebedevSphere.create(17),
+        build_quadrature=lambda: Quadrature.lebedev(17),
     ),
     BCEquivalenceCase(
         case_id="albedo_05_lebedev17",
         description="AlbedoBoundaryOperator(0.5) + LebedevSphere(17).",
         build_bc=lambda: AlbedoBoundaryOperator(albedo=0.5),
-        build_quadrature=lambda: LebedevSphere.create(17),
+        build_quadrature=lambda: Quadrature.lebedev(17),
     ),
     BCEquivalenceCase(
         case_id="specular_x_lebedev17",
@@ -180,7 +175,7 @@ CASES: tuple[BCEquivalenceCase, ...] = (
             "LebedevSphere(17). Pure permutation; bit-exact."
         ),
         build_bc=lambda: SpecularBoundaryOperator(axis="x", albedo=1.0),
-        build_quadrature=lambda: LebedevSphere.create(17),
+        build_quadrature=lambda: Quadrature.lebedev(17),
     ),
     BCEquivalenceCase(
         case_id="specular_y_partial_07_LS6",
@@ -190,7 +185,7 @@ CASES: tuple[BCEquivalenceCase, ...] = (
             "bit-exact."
         ),
         build_bc=lambda: SpecularBoundaryOperator(axis="y", albedo=0.7),
-        build_quadrature=lambda: LevelSymmetricSN.create(sn_order=6),
+        build_quadrature=lambda: Quadrature.level_symmetric(sn_order=6),
     ),
     BCEquivalenceCase(
         case_id="white_xmax_LS4",
@@ -202,7 +197,7 @@ CASES: tuple[BCEquivalenceCase, ...] = (
         build_bc=lambda: WhiteBoundaryOperator(
             axis="x", outward_sign=+1, albedo=1.0,
         ),
-        build_quadrature=lambda: LevelSymmetricSN.create(sn_order=4),
+        build_quadrature=lambda: Quadrature.level_symmetric(sn_order=4),
     ),
     BCEquivalenceCase(
         case_id="white_xmin_partial_03_GL",
@@ -214,7 +209,7 @@ CASES: tuple[BCEquivalenceCase, ...] = (
         build_bc=lambda: WhiteBoundaryOperator(
             axis="x", outward_sign=-1, albedo=0.3,
         ),
-        build_quadrature=lambda: GaussLegendre1D.create(n_ordinates=8),
+        build_quadrature=lambda: Quadrature.gauss_legendre(n_ordinates=8),
     ),
     BCEquivalenceCase(
         case_id="periodic_lebedev17",
@@ -223,7 +218,7 @@ CASES: tuple[BCEquivalenceCase, ...] = (
             "body (psi.copy()); bit-exact."
         ),
         build_bc=lambda: PeriodicBoundaryOperator(),
-        build_quadrature=lambda: LebedevSphere.create(17),
+        build_quadrature=lambda: Quadrature.lebedev(17),
     ),
     # Wave 11: the ``mixed_30spec_70white_LS4`` case is the special
     # "rank-N composition" entry. Pre-Wave-11 it stored
@@ -247,7 +242,7 @@ CASES: tuple[BCEquivalenceCase, ...] = (
             "in Wave 11)."
         ),
         build_bc=None,
-        build_quadrature=lambda: LevelSymmetricSN.create(sn_order=4),
+        build_quadrature=lambda: Quadrature.level_symmetric(sn_order=4),
     ),
 )
 

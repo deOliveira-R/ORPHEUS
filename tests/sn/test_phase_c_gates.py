@@ -35,11 +35,7 @@ from orpheus.geometry.boundary import (
 )
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import SNStreamingOperator
-from orpheus.sn.quadrature import (
-    GaussLegendre1D,
-    LevelSymmetricSN,
-    ProductQuadrature,
-)
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.pole_angular_closure import (
     MorelMontryAngularSweep,
 )
@@ -64,9 +60,9 @@ def _make_spherical_sn_mesh(
     Returns (sn_mesh, sig_t).  sig_t shape (ng=1, nx, ny=1) under PR-INDEX-3.
     """
     if quad_name == "gl4":
-        quad = GaussLegendre1D.create(4)
+        quad = Quadrature.gauss_legendre(4)
     elif quad_name == "gl8":
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
     else:
         raise ValueError(quad_name)
     edges = np.linspace(0.0, R, nx + 1)
@@ -90,9 +86,9 @@ def _make_cylindrical_sn_mesh(
 ) -> tuple[SNMesh, np.ndarray]:
     """Build a homogeneous-material cylindrical SNMesh + sig_t array."""
     if quad_name == "ls4":
-        quad = LevelSymmetricSN.create(4)
+        quad = Quadrature.level_symmetric(4)
     elif quad_name == "prod_2x4":
-        quad = ProductQuadrature.create(n_mu=2, n_phi=4)
+        quad = Quadrature.product(n_mu=2, n_phi=4)
     else:
         raise ValueError(quad_name)
     edges = np.linspace(0.0, R, nx + 1)
@@ -340,7 +336,7 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
         coord=CoordSystem.SPHERICAL,
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     sig_t = np.full((1, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)

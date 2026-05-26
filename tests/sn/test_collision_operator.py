@@ -38,7 +38,7 @@ from orpheus.numerics.operator import (
 from orpheus.sn.angular_flux import AngularFlux
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import CollisionOperator
-from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
+from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.foundation
@@ -57,7 +57,7 @@ def _slab_mesh(nx: int = 4, length: float = 1.0) -> SNMesh:
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNMesh(mesh, quad, placeholder_materials(ng=2))
 
 
@@ -69,7 +69,7 @@ def _spherical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNMesh(mesh, quad, placeholder_materials(ng=2))
 
 
@@ -81,7 +81,7 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = LevelSymmetricSN.create(sn_order=4)
+    quad = Quadrature.level_symmetric(sn_order=4)
     return SNMesh(mesh, quad, placeholder_materials(ng=2))
 
 

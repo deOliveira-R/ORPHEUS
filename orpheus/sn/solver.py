@@ -53,7 +53,7 @@ from .operator import (
     solution_to_angular_flux_spherical,
     solution_to_angular_flux_cylindrical,
 )
-from .quadrature import AngularQuadrature
+from orpheus.numerics.quadrature import Quadrature
 from .scattering import ScatteringOperator
 from .sweep import transport_sweep
 

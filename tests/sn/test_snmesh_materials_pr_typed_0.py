@@ -18,7 +18,7 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, Mesh1D
 from orpheus.sn.geometry import InconsistentMaterialsError, SNMesh
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 
 pytestmark = pytest.mark.foundation
 
@@ -47,7 +47,7 @@ def _slab_mesh(mat_ids=None) -> Mesh1D:
 def test_materials_required_positional_arg() -> None:
     """Criterion 2: SNMesh(mesh, quad) without materials raises TypeError."""
     mesh = _slab_mesh()
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     with pytest.raises(TypeError, match="materials"):
         SNMesh(mesh, quad)
 
@@ -55,7 +55,7 @@ def test_materials_required_positional_arg() -> None:
 def test_ng_property_returns_uniform_ng() -> None:
     """Criterion 3: SNMesh.ng returns the materials' uniform ng."""
     mesh = _slab_mesh()
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     sn_mesh = SNMesh(mesh, quad, {0: _mix(ng=2)})
     assert sn_mesh.ng == 2
 
@@ -66,7 +66,7 @@ def test_ng_property_returns_uniform_ng() -> None:
 def test_inconsistent_ng_raises_inconsistent_materials_error() -> None:
     """Criterion 4: mismatched ng across materials raises InconsistentMaterialsError."""
     mesh = _slab_mesh(mat_ids=[0, 0, 1, 1])
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     materials = {0: _mix(ng=2), 1: _mix(ng=4)}
     with pytest.raises(InconsistentMaterialsError, match="uniform ng"):
         SNMesh(mesh, quad, materials)
@@ -75,7 +75,7 @@ def test_inconsistent_ng_raises_inconsistent_materials_error() -> None:
 def test_missing_material_id_raises_value_error() -> None:
     """Criterion 5: ``mat_map`` referencing an id missing from materials raises."""
     mesh = _slab_mesh(mat_ids=[0, 1, 1, 0])
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     # Only id 0 is present; id 1 used in mat_ids triggers the validation.
     with pytest.raises(ValueError, match=r"material ids \[1\]"):
         SNMesh(mesh, quad, {0: _mix(ng=2)})
@@ -83,7 +83,7 @@ def test_missing_material_id_raises_value_error() -> None:
 
 def test_empty_materials_raises_value_error() -> None:
     mesh = _slab_mesh()
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     with pytest.raises(ValueError, match="non-empty materials"):
         SNMesh(mesh, quad, {})
 
@@ -91,7 +91,7 @@ def test_empty_materials_raises_value_error() -> None:
 def test_materials_attribute_is_dict_passed() -> None:
     """The ``.materials`` attribute carries the dict from the constructor."""
     mesh = _slab_mesh()
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     materials = {0: _mix(ng=2)}
     sn_mesh = SNMesh(mesh, quad, materials)
     assert sn_mesh.materials is materials

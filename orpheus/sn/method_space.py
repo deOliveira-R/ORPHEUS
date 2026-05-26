@@ -61,7 +61,7 @@ import numpy as np
 if TYPE_CHECKING:
     from orpheus.geometry.mesh import Mesh1D, Mesh2D
     from orpheus.numerics.trace_space import InflowTraceSpace, OutflowTraceSpace
-    from orpheus.sn.quadrature import AngularQuadrature
+    from orpheus.numerics.quadrature import Quadrature
 
 
 __all__ = ["SNMethodSpace"]

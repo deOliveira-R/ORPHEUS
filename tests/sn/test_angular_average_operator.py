@@ -13,11 +13,7 @@ import pytest
 
 from orpheus.numerics.operator import CAP_APPLY
 from orpheus.sn.angular_operator import AngularAverageOperator
-from orpheus.sn.quadrature import (
-    GaussLegendre1D,
-    LebedevSphere,
-    LevelSymmetricSN,
-)
+from orpheus.numerics.quadrature import Quadrature
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -29,7 +25,7 @@ class TestOutgoingHemisphereMask:
     """The cos_w array zeroes contributions from non-outgoing ordinates."""
 
     def test_lebedev_xmax_outgoing_only(self):
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         op = AngularAverageOperator.from_quadrature(quad, axis="x", outward_sign=+1)
         # Apply to a flux that is +1 on outgoing (mu_x > 0) and -1 on incoming.
         # Cosine-weighted average must equal +1 (only outgoing contributes).
@@ -39,7 +35,7 @@ class TestOutgoingHemisphereMask:
         np.testing.assert_allclose(result, +1.0, rtol=1e-14)
 
     def test_level_symmetric_ymin_outgoing_only(self):
-        quad = LevelSymmetricSN.create(4)
+        quad = Quadrature.level_symmetric(4)
         op = AngularAverageOperator.from_quadrature(quad, axis="y", outward_sign=-1)
         # ymin face: outgoing = mu_y < 0.
         psi = np.where(quad.mu_y < 0, +1.0, -1.0)
@@ -47,7 +43,7 @@ class TestOutgoingHemisphereMask:
         np.testing.assert_allclose(result, +1.0, rtol=1e-14)
 
     def test_gauss_legendre_1d_xmax(self):
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = AngularAverageOperator.from_quadrature(quad, axis="x", outward_sign=+1)
         psi = np.where(quad.mu_x > 0, +1.0, -1.0)
         result = op.apply(psi)
@@ -72,7 +68,7 @@ class TestCosineWeightedCurrentConservation:
     """
 
     def test_outgoing_current_equals_incoming_lebedev(self):
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         op = AngularAverageOperator.from_quadrature(quad, axis="x", outward_sign=+1)
         rng = np.random.default_rng(42)
         psi = rng.uniform(0.5, 1.5, size=quad.N)  # positive flux
@@ -87,7 +83,7 @@ class TestCosineWeightedCurrentConservation:
         np.testing.assert_allclose(j_in, j_out, rtol=1e-13)
 
     def test_outgoing_current_with_anisotropic_input(self):
-        quad = LevelSymmetricSN.create(6)
+        quad = Quadrature.level_symmetric(6)
         op = AngularAverageOperator.from_quadrature(quad, axis="z", outward_sign=+1)
         # Strongly anisotropic input — exercises the cosine weighting.
         psi = np.exp(quad.mu_z) * (quad.mu_z + 2.0)
@@ -117,7 +113,7 @@ class TestSelfAdjointnessCosineWeighted:
     """
 
     def test_self_adjoint_lebedev(self):
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         op = AngularAverageOperator.from_quadrature(quad, axis="x", outward_sign=+1)
         rng = np.random.default_rng(0)
         x = rng.uniform(0, 1, size=quad.N)
@@ -131,7 +127,7 @@ class TestSelfAdjointnessCosineWeighted:
         np.testing.assert_allclose(lhs, rhs, rtol=1e-13)
 
     def test_self_adjoint_level_symmetric(self):
-        quad = LevelSymmetricSN.create(4)
+        quad = Quadrature.level_symmetric(4)
         op = AngularAverageOperator.from_quadrature(quad, axis="y", outward_sign=-1)
         rng = np.random.default_rng(1)
         x = rng.uniform(0, 1, size=quad.N)
@@ -152,7 +148,7 @@ class TestSelfAdjointnessCosineWeighted:
 @pytest.mark.l0
 class TestCapabilitySet:
     def test_caps(self):
-        quad = LebedevSphere.create(5)
+        quad = Quadrature.lebedev(5)
         op = AngularAverageOperator.from_quadrature(quad, axis="z", outward_sign=+1)
         assert op.capabilities == frozenset({CAP_APPLY})
 
@@ -164,22 +160,22 @@ class TestCapabilitySet:
 @pytest.mark.l0
 class TestAxisDispatch:
     def test_z_on_lebedev_succeeds(self):
-        quad = LebedevSphere.create(11)
+        quad = Quadrature.lebedev(11)
         op = AngularAverageOperator.from_quadrature(quad, axis="z", outward_sign=+1)
         assert op.n_ordinates == quad.N
 
     def test_z_on_gauss_legendre_raises(self):
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         with pytest.raises(ValueError, match="mu_z"):
             AngularAverageOperator.from_quadrature(quad, axis="z", outward_sign=+1)
 
     def test_invalid_axis_raises(self):
-        quad = LebedevSphere.create(5)
+        quad = Quadrature.lebedev(5)
         with pytest.raises(ValueError, match="Unknown axis"):
             AngularAverageOperator.from_quadrature(quad, axis="w", outward_sign=+1)
 
     def test_invalid_outward_sign_raises(self):
-        quad = LebedevSphere.create(5)
+        quad = Quadrature.lebedev(5)
         with pytest.raises(ValueError, match="outward_sign"):
             AngularAverageOperator.from_quadrature(quad, axis="x", outward_sign=0)
 
@@ -191,7 +187,7 @@ class TestAxisDispatch:
 @pytest.mark.l0
 class TestDefensiveCopy:
     def test_quadrature_reference_not_held(self):
-        quad = LebedevSphere.create(5)
+        quad = Quadrature.lebedev(5)
         op = AngularAverageOperator.from_quadrature(quad, axis="x", outward_sign=+1)
         # No quadrature attribute on the operator (no held reference).
         assert not hasattr(op, "quadrature")
@@ -203,7 +199,7 @@ class TestDefensiveCopy:
     def test_output_is_fresh_array(self):
         """Calling code may mutate the output without affecting the
         operator's internal state."""
-        quad = LebedevSphere.create(5)
+        quad = Quadrature.lebedev(5)
         op = AngularAverageOperator.from_quadrature(quad, axis="x", outward_sign=+1)
         psi = np.ones(quad.N)
         result1 = op.apply(psi)
@@ -220,7 +216,7 @@ class TestDefensiveCopy:
 @pytest.mark.l0
 class TestInputShape:
     def test_wrong_n_ordinates_raises(self):
-        quad = LebedevSphere.create(5)  # N=14
+        quad = Quadrature.lebedev(5)  # N=14
         op = AngularAverageOperator.from_quadrature(quad, axis="x", outward_sign=+1)
         with pytest.raises(ValueError, match="psi.shape"):
             op.apply(np.ones(13))
@@ -228,7 +224,7 @@ class TestInputShape:
     def test_multi_dim_input_broadcasts(self):
         """Shape (N_ord, 5, 3) input — average is taken over leading axis only,
         broadcast back."""
-        quad = LebedevSphere.create(11)
+        quad = Quadrature.lebedev(11)
         op = AngularAverageOperator.from_quadrature(quad, axis="x", outward_sign=+1)
         rng = np.random.default_rng(7)
         psi = rng.uniform(0, 1, size=(quad.N, 5, 3))

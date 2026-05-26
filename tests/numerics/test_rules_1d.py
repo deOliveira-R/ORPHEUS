@@ -18,7 +18,7 @@ import pytest
 
 from orpheus.numerics.measure import SPACE_INTERVAL_M11, DiscreteMeasure
 from orpheus.numerics.quadrature import gauss_legendre_on_mu
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 
 
 # ---------------------------------------------------------------------------
@@ -71,7 +71,7 @@ def test_gauss_legendre_bit_identical_to_legacy_adapter(n: int) -> None:
     :func:`numpy.allclose`.
     """
     m = gauss_legendre_on_mu(n)
-    legacy = GaussLegendre1D.create(n)
+    legacy = Quadrature.gauss_legendre(n)
     assert np.array_equal(legacy.mu_x, m.nodes)
     assert np.array_equal(legacy.weights, m.weights)
     # mu_y must be identically zero (1-D slab convention).

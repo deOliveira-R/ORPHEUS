@@ -54,11 +54,7 @@ from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.angular_flux import AngularFlux
 from orpheus.sn.boundary_flux import BoundaryFlux
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import (
-    GaussLegendre1D,
-    LevelSymmetricSN,
-    ProductQuadrature,
-)
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.sources import PerOrdinateSource
 from tests.sn._test_helpers import placeholder_materials
 
@@ -78,7 +74,7 @@ def _sphere_reflective(nx: int = 10, radius: float = 2.0) -> tuple:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     return mesh, quad
 
 
@@ -91,7 +87,7 @@ def _cylinder_reflective(nx: int = 10, radius: float = 2.0) -> tuple:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = ProductQuadrature.create(n_mu=2, n_phi=4)
+    quad = Quadrature.product(n_mu=2, n_phi=4)
     return mesh, quad
 
 
@@ -116,7 +112,7 @@ class TestTwoDCartesianRaises:
             bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
             bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
         )
-        quad = GaussLegendre1D.create(n_ordinates=4)
+        quad = Quadrature.gauss_legendre(n_ordinates=4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         src = PerOrdinateSource.from_isotropic(
             np.ones((1, 2, 2)), sn_mesh,

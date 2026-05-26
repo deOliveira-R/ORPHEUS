@@ -176,8 +176,8 @@ def realize_recursively(
         >>> from orpheus.sn.boundary_realizer import (
         ...     SNBoundaryRealizer, SNMethodSpace,
         ... )
-        >>> from orpheus.sn.quadrature import GaussLegendre1D
-        >>> ms = SNMethodSpace.minimal(GaussLegendre1D.create(4))
+        >>> from orpheus.numerics.quadrature import Quadrature
+        >>> ms = SNMethodSpace.minimal(Quadrature.gauss_legendre(4))
         >>> law = 0.5 * ReflectiveBoundary(axis="x")
         >>> realised = realize_recursively(law, ms)  # ScaledOperator
         ...                                          # around realised

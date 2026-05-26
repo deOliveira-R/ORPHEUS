@@ -186,7 +186,7 @@ def test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere():
     from orpheus.geometry import (
         BC, Mesh1D, Region, RegionMesh, StructuredGeometry,
     )
-    from orpheus.sn.quadrature import GaussLegendre1D
+    from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.solver import solve_sn
 
     fuel = get_mixture("A", "2g")
@@ -199,7 +199,7 @@ def test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere():
         geom,
         region_meshes=(RegionMesh(n_cells=20),),
     )
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
 
     res_si = solve_sn(
         materials={0: fuel}, mesh=mesh, quadrature=quad,

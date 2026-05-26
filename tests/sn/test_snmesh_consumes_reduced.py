@@ -35,7 +35,7 @@ import pytest
 from orpheus.geometry import CoordSystem, Mesh1D
 from orpheus.geometry.reduced_operator import ReducedStreamingOperator
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import GaussLegendre1D, ProductQuadrature
+from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
 
@@ -50,7 +50,7 @@ def _slab_mesh() -> SNMesh:
         mat_ids=np.zeros(4, dtype=int),
         coord=CoordSystem.CARTESIAN,
     )
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     return SNMesh(mesh, quad, placeholder_materials())
 
 
@@ -60,7 +60,7 @@ def _sphere_mesh() -> SNMesh:
         mat_ids=np.zeros(4, dtype=int),
         coord=CoordSystem.SPHERICAL,
     )
-    quad = GaussLegendre1D.create(4)
+    quad = Quadrature.gauss_legendre(4)
     return SNMesh(mesh, quad, placeholder_materials())
 
 
@@ -70,7 +70,7 @@ def _cylinder_mesh() -> SNMesh:
         mat_ids=np.zeros(4, dtype=int),
         coord=CoordSystem.CYLINDRICAL,
     )
-    quad = ProductQuadrature.create(n_mu=4, n_phi=4)
+    quad = Quadrature.product(n_mu=4, n_phi=4)
     return SNMesh(mesh, quad, placeholder_materials())
 
 

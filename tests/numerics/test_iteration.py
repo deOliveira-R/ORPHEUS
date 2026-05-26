@@ -530,7 +530,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
         from orpheus.sn.fission import FissionOperator
         from orpheus.sn.geometry import SNMesh
         from orpheus.sn.operator import SNStreamingOperator
-        from orpheus.sn.quadrature import GaussLegendre1D
+        from orpheus.numerics.quadrature import Quadrature
         from orpheus.sn.scattering import ScatteringOperator
         from orpheus.sn.solver import SNSolver, solve_sn
         from orpheus.sn.sweep import transport_sweep
@@ -543,7 +543,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
         edges=np.linspace(0.0, 5.0, 11),
         mat_ids=np.zeros(10, dtype=int),
     )
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
 
     # Reference: solve_sn (legacy power_iteration path).
     ref = solve_sn(

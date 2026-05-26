@@ -32,7 +32,7 @@ from orpheus.sn.axis import (
     spatial_shape,
 )
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 
 
 # Every F0.x pin here is a foundation invariant on the dim-agnostic
@@ -62,8 +62,8 @@ def _one_group_mixture():
 
 def _level_symmetric_quad_2d(order: int = 4):
     """Minimal 2-D quadrature (LevelSymmetric S4)."""
-    from orpheus.sn.quadrature import LevelSymmetricSN
-    return LevelSymmetricSN.create(sn_order=order)
+    from orpheus.numerics.quadrature import Quadrature
+    return Quadrature.level_symmetric(sn_order=order)
 
 
 # ─── F0.1 ────────────────────────────────────────────────────────────────
@@ -159,11 +159,8 @@ def test_f0_3_from_axes_2d_cartesian_shape_and_face_labels() -> None:
 
 
 @pytest.mark.parametrize("coord,make_quad", [
-    (AxisCoord.RADIAL_SPHERICAL, lambda: GaussLegendre1D.create(n_ordinates=8)),
-    (AxisCoord.RADIAL_CYLINDRICAL,
-     lambda: __import__(
-         "orpheus.sn.quadrature", fromlist=["ProductQuadrature"]
-     ).ProductQuadrature.create(n_mu=2, n_phi=4)),
+    (AxisCoord.RADIAL_SPHERICAL, lambda: Quadrature.gauss_legendre(n_ordinates=8)),
+    (AxisCoord.RADIAL_CYLINDRICAL, lambda: Quadrature.product(n_mu=2, n_phi=4)),
 ])
 def test_f0_4_solid_radial_mesh_has_one_face_label(coord, make_quad) -> None:
     """Sphere / cylinder SNMesh has exactly 1 face label (``outer``).
@@ -198,7 +195,7 @@ def test_f0_4_slab_1d_has_two_face_labels() -> None:
                      bc_low=BC("vacuum"), bc_high=BC("vacuum")),)
     mesh = SNMesh.from_axes(
         axes,
-        quadrature=GaussLegendre1D.create(n_ordinates=8),
+        quadrature=Quadrature.gauss_legendre(n_ordinates=8),
         materials={0: _one_group_mixture()},
     )
     assert mesh.face_labels == (FaceLabel(0, "min"), FaceLabel(0, "max"))
@@ -248,7 +245,7 @@ def test_f0_5_face_shape_radial_solid_no_inner_face() -> None:
 def test_f0_6_face_outflow_ordinates_matches_inline_expression_1d() -> None:
     """Outflow ordinate mask matches np.where(sign * mu > 1e-15)."""
     axes = (AxisMesh(edges=np.linspace(0.0, 1.0, 11)),)
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     out_max = face_outflow_ordinates(axes, FaceLabel(0, "max"), quad)
     out_min = face_outflow_ordinates(axes, FaceLabel(0, "min"), quad)
     np.testing.assert_array_equal(out_max, np.where(quad.mu_x > 1e-15)[0])
@@ -280,7 +277,7 @@ def test_f0_6_face_outflow_ordinates_radial() -> None:
         edges=np.linspace(0.0, 1.0, 11),
         coord=AxisCoord.RADIAL_SPHERICAL,
     ),)
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     out_outer = face_outflow_ordinates(axes, FaceLabel(0, "outer"), quad)
     np.testing.assert_array_equal(out_outer, np.where(quad.mu_x > 1e-15)[0])
 
@@ -335,7 +332,7 @@ def test_f0_7_synthetic_3d_face_outflow_axis_beyond_quad_dim_is_empty() -> None:
         AxisMesh(edges=np.linspace(0.0, 1.0, 6)),
         AxisMesh(edges=np.linspace(0.0, 1.0, 6)),
     )
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     # GL1D's measure is 1-D scalar — only axis 0 carries real cosines.
     assert quad.measure.nodes.ndim == 1
     out_xmax = face_outflow_ordinates(axes, FaceLabel(0, "max"), quad)
@@ -376,7 +373,7 @@ def test_f0_7_synthetic_3d_face_outflow_axis_2_ls4_native_mu_z() -> None:
 def test_f0_8_n_unknowns_flat_slab() -> None:
     """Slab 1-D: n_cells + outflow at min + outflow at max."""
     axes = (AxisMesh(edges=np.linspace(0.0, 1.0, 11)),)  # n=10
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     mesh = SNMesh.from_axes(
         axes, quadrature=quad, materials={0: _one_group_mixture()},
     )
@@ -395,7 +392,7 @@ def test_f0_8_n_unknowns_flat_sphere() -> None:
         coord=AxisCoord.RADIAL_SPHERICAL,
         bc_outer=BC("vacuum"),
     ),)
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     mesh = SNMesh.from_axes(
         axes, quadrature=quad, materials={0: _one_group_mixture()},
     )

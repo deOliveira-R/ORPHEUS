@@ -31,7 +31,7 @@ from orpheus.geometry import (
     slab_streaming,
     spherical_streaming,
 )
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.cell_update import (
     CellResult,
     CellUpdate,
@@ -302,7 +302,7 @@ class TestSlabVsCurvilinearDiscrimination:
     @pytest.mark.foundation
     def test_slab_streaming_terms_neutral_curvature(self):
         mesh = _slab_mesh()
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = slab_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=0, direction_idx=0)
         assert st.alpha_in == 0.0
@@ -315,7 +315,7 @@ class TestSlabVsCurvilinearDiscrimination:
     @pytest.mark.foundation
     def test_spherical_streaming_terms_have_alpha_in(self):
         mesh = _spherical_mesh()
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = spherical_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=0, direction_idx=0)
         assert st.alpha_in is not None
@@ -330,7 +330,7 @@ class TestCurvilinearStrategyDriven:
     @pytest.mark.foundation
     def test_spherical_streaming_terms_drive_strategy(self):
         mesh = _spherical_mesh()
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = spherical_streaming(mesh, quad)
         n = 4  # μ > 0 (outward sweep) for GL with n_half=4
         st = op.streaming_terms(cell_idx=2, direction_idx=n)
@@ -365,7 +365,7 @@ class TestCellVisitPacket:
     @pytest.mark.foundation
     def test_cell_visit_is_frozen(self):
         mesh = _slab_mesh()
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = slab_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=0, direction_idx=0)
         v = CellVisit(cell_idx=0, streaming_terms=st)
@@ -384,7 +384,7 @@ class TestCellVisitPacket:
         output.
         """
         mesh = _slab_mesh()
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = slab_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=0, direction_idx=0)
         v = CellVisit(cell_idx=0, streaming_terms=st)
@@ -395,7 +395,7 @@ class TestCellVisitPacket:
     def test_cell_visit_curvilinear_downstream(self):
         """Outward sphere visit: downstream = outer face by convention."""
         mesh = _spherical_mesh()
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = spherical_streaming(mesh, quad)
         n = 4  # μ > 0 outward
         st = op.streaming_terms(cell_idx=2, direction_idx=n)

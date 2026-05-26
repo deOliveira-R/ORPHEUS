@@ -45,7 +45,7 @@ from orpheus.geometry import (
     RegionMesh,
     StructuredGeometry,
 )
-from orpheus.sn.quadrature import GaussLegendre1D, ProductQuadrature
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
 
@@ -94,8 +94,8 @@ def _homogeneous_mesh(coord: str, n_cells: int, length: float, mat_id: int) -> M
 
 def _quadrature_for(coord: str):
     if coord == "cylinder":
-        return ProductQuadrature.create(n_mu=2, n_phi=4)  # 8 ordinates, level_indices populated
-    return GaussLegendre1D.create(n_ordinates=8)
+        return Quadrature.product(n_mu=2, n_phi=4)  # 8 ordinates, level_indices populated
+    return Quadrature.gauss_legendre(n_ordinates=8)
 
 
 # ─── eigenvalue + spectrum tests ─────────────────────────────────────

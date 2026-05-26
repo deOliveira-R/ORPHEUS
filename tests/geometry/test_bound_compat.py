@@ -211,7 +211,7 @@ class Test188WiringContracts:
             PermutationOperator as _PO,
         )
         from orpheus.sn.geometry import SNMesh
-        from orpheus.sn.quadrature import GaussLegendre1D
+        from orpheus.numerics.quadrature import Quadrature
 
         mesh = Mesh1D(
             edges=np.linspace(0.0, 1.0, 5),
@@ -220,7 +220,7 @@ class Test188WiringContracts:
             bc_left=BC("reflective"),
             bc_right=BC("vacuum"),
         )
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         sn = SNMesh(mesh, quad, placeholder_materials())
 
         # Curvilinear now builds traces (C188.1+C188.2 lifted guard).
@@ -254,7 +254,7 @@ class Test188WiringContracts:
         """
         from orpheus.geometry import BC, CoordSystem, Mesh1D
         from orpheus.sn.geometry import SNMesh
-        from orpheus.sn.quadrature import GaussLegendre1D
+        from orpheus.numerics.quadrature import Quadrature
 
         mesh = Mesh1D(
             edges=np.linspace(0.0, 1.0, 5),
@@ -263,7 +263,7 @@ class Test188WiringContracts:
             bc_left=BC("vacuum"),
             bc_right=BC("vacuum"),
         )
-        quad = GaussLegendre1D.create(4)
+        quad = Quadrature.gauss_legendre(4)
         sn = SNMesh(mesh, quad, placeholder_materials())
 
         # y-face placeholders shim-wrap a REALIZED PermutationOperator.

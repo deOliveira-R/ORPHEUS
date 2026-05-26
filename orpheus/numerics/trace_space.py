@@ -78,7 +78,7 @@ Coord-system coverage
 * **Mesh1D** — supported for Cartesian (slab), spherical, and
   cylindrical. All three share the same ``("left", "right")`` face
   structure; the outward normal is the unit vector along the radial
-  / Cartesian-x axis, and :class:`GaussLegendre1D` is the shared
+  / Cartesian-x axis, and :class:`Quadrature` is the shared
   quadrature with ``mu_x`` as the direction cosine along that axis.
 * **Mesh2D** — Cartesian only. 2-D cylindrical (axisymmetric
   ``(r, z)``) is not implemented in ORPHEUS today and continues to
@@ -115,7 +115,7 @@ from .space import FunctionSpace
 
 if TYPE_CHECKING:
     from orpheus.geometry.mesh import Mesh1D, Mesh2D
-    from orpheus.sn.quadrature import AngularQuadrature
+    from orpheus.numerics.quadrature import Quadrature
 
 
 __all__ = [
@@ -158,11 +158,11 @@ _MESH2D_FACE_NORMALS: dict[str, tuple[int, int]] = {
 }
 
 
-def _quadrature_axis(quadrature: "AngularQuadrature", axis: int) -> np.ndarray:
+def _quadrature_axis(quadrature: "Quadrature", axis: int) -> np.ndarray:
     """Return ``mu_x`` for axis=0, ``mu_y`` for axis=1, ``mu_z`` for axis=2.
 
     Falls back to a zero array when the requested axis is not present
-    on the quadrature object — this lets 1-D :class:`GaussLegendre1D`
+    on the quadrature object — this lets 1-D :class:`Quadrature`
     (which has ``mu_x`` populated and ``mu_y == 0``) feed into the
     same predicate logic without special-casing.
     """
@@ -177,7 +177,7 @@ def _quadrature_axis(quadrature: "AngularQuadrature", axis: int) -> np.ndarray:
 
 def _build_per_face_mask(
     mesh: "Mesh1D | Mesh2D",
-    quadrature: "AngularQuadrature",
+    quadrature: "Quadrature",
     faces: Sequence[str],
     *,
     direction: str,
@@ -309,7 +309,7 @@ class InflowTraceSpace(TraceSpace):
     def from_mesh_and_quadrature(
         cls,
         mesh: "Mesh1D | Mesh2D",
-        quadrature: "AngularQuadrature",
+        quadrature: "Quadrature",
         faces: Sequence[str] | None = None,
         ng: int = 1,
     ) -> "InflowTraceSpace":
@@ -322,7 +322,7 @@ class InflowTraceSpace(TraceSpace):
             Spatial mesh. :class:`Mesh1D` contributes the faces
             ``("left", "right")``; :class:`Mesh2D` contributes
             ``("xmin", "xmax", "ymin", "ymax")``.
-        quadrature : AngularQuadrature
+        quadrature : Quadrature
             Angular quadrature exposing ``mu_x`` (always) and
             ``mu_y`` / ``mu_z`` (when applicable). Each is a
             shape-``(n_ordinates,)`` array of direction cosines.
@@ -434,7 +434,7 @@ class OutflowTraceSpace(TraceSpace):
     def from_mesh_and_quadrature(
         cls,
         mesh: "Mesh1D | Mesh2D",
-        quadrature: "AngularQuadrature",
+        quadrature: "Quadrature",
         faces: Sequence[str] | None = None,
         ng: int = 1,
     ) -> "OutflowTraceSpace":

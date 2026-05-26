@@ -47,11 +47,7 @@ from orpheus.numerics.operator import (
 )
 from orpheus.sn.angular_operator import AngularAverageOperator
 from orpheus.sn.boundary_realizer import SNBoundaryRealizer, SNMethodSpace
-from orpheus.sn.quadrature import (
-    GaussLegendre1D,
-    LebedevSphere,
-    LevelSymmetricSN,
-)
+from orpheus.numerics.quadrature import Quadrature
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -75,7 +71,7 @@ class TestRealizeVacuum:
     """
 
     def test_lebedev17_xmin_zeroes_only_inflow(self):
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         # xmin face: outward normal is -x, inflow is mu_x > 0 (into the domain).
         inflow_indices = np.flatnonzero(quad.mu_x > 0)
         space = SNMethodSpace(
@@ -92,7 +88,7 @@ class TestRealizeVacuum:
         np.testing.assert_array_equal(out[non_inflow], psi[non_inflow])
 
     def test_lebedev17_ymax_zeroes_only_inflow(self):
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         # ymax face: outward normal is +y, inflow is mu_y < 0 (into the domain).
         inflow_indices = np.flatnonzero(quad.mu_y < 0)
         space = SNMethodSpace(
@@ -108,7 +104,7 @@ class TestRealizeVacuum:
 
     def test_vacuum_missing_inflow_indices_raises(self):
         """Without ``inflow_indices`` the realizer raises BoundaryError."""
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         space = SNMethodSpace.minimal(quad)  # no inflow_indices
         realizer = SNBoundaryRealizer()
         with pytest.raises(BoundaryError) as excinfo:
@@ -117,7 +113,7 @@ class TestRealizeVacuum:
 
     def test_returned_op_type_is_incoming_ordinate_mask(self):
         """The vacuum dispatch returns an :class:`IncomingOrdinateMaskTensor`."""
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         inflow_indices = np.flatnonzero(quad.mu_x > 0)
         space = SNMethodSpace(
             quadrature=quad, face="left", inflow_indices=inflow_indices,
@@ -146,7 +142,7 @@ class TestRealizeReflective:
         definition of specular reflection, not against another
         implementation.
         """
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         bc = SpecularBoundaryOperator(axis="x", albedo=1.0)
         space = SNMethodSpace.minimal(quad)
         op = SNBoundaryRealizer().realize(bc, space)
@@ -158,7 +154,7 @@ class TestRealizeReflective:
     def test_specular_unit_albedo_returns_bare_permutation(self):
         """At α=1 the dispatch returns the bare PermutationOperator
         (no ScaledOperator wrap) — preserves bit-identity vs legacy."""
-        quad = LevelSymmetricSN.create(4)
+        quad = Quadrature.level_symmetric(4)
         bc = SpecularBoundaryOperator(axis="x", albedo=1.0)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         assert isinstance(op, PermutationOperator)
@@ -172,7 +168,7 @@ class TestRealizeReflective:
         first gathers ``psi[perm]`` (via the inner PermutationOperator)
         then multiplies by 0.7 — identical to ``0.7 * psi[perm]``.
         """
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         bc = SpecularBoundaryOperator(axis="x", albedo=0.7)
         space = SNMethodSpace.minimal(quad)
         op = SNBoundaryRealizer().realize(bc, space)
@@ -183,7 +179,7 @@ class TestRealizeReflective:
 
     def test_specular_partial_albedo_returns_scaled_operator(self):
         """At α!=1 the dispatch returns a ScaledOperator."""
-        quad = LevelSymmetricSN.create(4)
+        quad = Quadrature.level_symmetric(4)
         bc = SpecularBoundaryOperator(axis="x", albedo=0.5)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         assert isinstance(op, ScaledOperator)
@@ -219,7 +215,7 @@ class TestRealizeWhite:
         ``tests/sn/test_angular_average_operator.py`` — those are the
         structurally-independent references.
         """
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         ref = AngularAverageOperator.from_quadrature(
@@ -231,7 +227,7 @@ class TestRealizeWhite:
 
     def test_white_unit_albedo_returns_bare_angular_average(self):
         """At α=1 the dispatch returns the bare AngularAverageOperator."""
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         assert isinstance(op, AngularAverageOperator)
@@ -251,7 +247,7 @@ class TestRealizeWhite:
         IEEE-754 FP-non-associativity. ``nulp=4`` is the safe floor
         per the ``algebra-of-record`` bit-identity discipline.
         """
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=0.3)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         ref = AngularAverageOperator.from_quadrature(
@@ -267,7 +263,7 @@ class TestRealizeWhite:
     def test_white_z_axis_on_gauss_legendre_raises(self):
         """z-axis white on a 1-D GL quadrature delegates the raise to
         :meth:`AngularAverageOperator.from_quadrature` (no mu_z)."""
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         bc = WhiteBoundaryOperator(axis="z", outward_sign=+1, albedo=1.0)
         with pytest.raises(ValueError, match="mu_z"):
             SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
@@ -283,7 +279,7 @@ class TestRealizeAlbedo:
     """Albedo realizes to Zero / Identity / Scaled-Identity by α."""
 
     def test_albedo_zero_realizes_to_zero_operator(self):
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = SNBoundaryRealizer().realize(
             AlbedoBoundaryOperator(0.0), SNMethodSpace.minimal(quad),
         )
@@ -292,7 +288,7 @@ class TestRealizeAlbedo:
         np.testing.assert_array_equal(op.apply(psi), 0.0)
 
     def test_albedo_one_realizes_to_identity_operator(self):
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = SNBoundaryRealizer().realize(
             AlbedoBoundaryOperator(1.0), SNMethodSpace.minimal(quad),
         )
@@ -301,7 +297,7 @@ class TestRealizeAlbedo:
         np.testing.assert_array_equal(op.apply(psi), psi)
 
     def test_albedo_half_realizes_to_scaled_identity(self):
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         op = SNBoundaryRealizer().realize(
             AlbedoBoundaryOperator(0.5), SNMethodSpace.minimal(quad),
         )
@@ -322,7 +318,7 @@ class TestRealizePeriodic:
     """Periodic realizes to :class:`PeriodicWrapOperator`."""
 
     def test_periodic_realizes_to_wrap_and_passes_through(self):
-        quad = LebedevSphere.create(17)
+        quad = Quadrature.lebedev(17)
         op = SNBoundaryRealizer().realize(
             PeriodicBoundaryOperator(), SNMethodSpace.minimal(quad),
         )
@@ -380,7 +376,7 @@ class TestRealizeUnknownLawRaises:
     raises BoundaryError naming the offending type."""
 
     def test_random_object_raises_boundary_error(self):
-        quad = GaussLegendre1D.create(8)
+        quad = Quadrature.gauss_legendre(8)
         realizer = SNBoundaryRealizer()
 
         class _NotABc:  # noqa: D401  --- ad-hoc test stand-in

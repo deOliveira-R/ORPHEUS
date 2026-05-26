@@ -39,7 +39,7 @@ from orpheus.geometry import (
     Mesh2D,
 )
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import GaussLegendre1D, LevelSymmetricSN
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.diamond import DiamondDifference
 from orpheus.sn.sweep import (
     _sweep_1d_unified,
@@ -62,7 +62,7 @@ def _slab_sn_mesh(nx: int = 8, length: float = 1.0) -> SNMesh:
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     return SNMesh(mesh, quad, placeholder_materials())
 
 
@@ -75,7 +75,7 @@ def _spherical_sn_mesh(nx: int = 8, radius: float = 1.0) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = GaussLegendre1D.create(n_ordinates=8)
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
     return SNMesh(mesh, quad, placeholder_materials())
 
 
@@ -88,7 +88,7 @@ def _cylindrical_sn_mesh(nx: int = 8, radius: float = 1.0) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = LevelSymmetricSN.create(sn_order=4)
+    quad = Quadrature.level_symmetric(sn_order=4)
     return SNMesh(mesh, quad, placeholder_materials())
 
 
@@ -103,7 +103,7 @@ def _2d_sn_mesh(nx: int = 4, ny: int = 4) -> SNMesh:
         bc_ymin=BC("vacuum"),
         bc_ymax=BC("vacuum"),
     )
-    quad = LevelSymmetricSN.create(sn_order=4)
+    quad = Quadrature.level_symmetric(sn_order=4)
     return SNMesh(mesh, quad, placeholder_materials())
 
 
@@ -314,6 +314,6 @@ class TestDefaultCellUpdate:
             bc_left=BC("vacuum"),
             bc_right=BC("vacuum"),
         )
-        quad = GaussLegendre1D.create(n_ordinates=8)
+        quad = Quadrature.gauss_legendre(n_ordinates=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials(), cell_update=custom)
         assert sn_mesh.cell_update is custom

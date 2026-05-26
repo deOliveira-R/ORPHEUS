@@ -35,7 +35,7 @@ from orpheus.numerics.operator import OperatorSum, ZeroOperator
 from orpheus.sn.angular_flux import AngularFlux
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import CollisionOperator, StreamingOperator
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
 
@@ -53,7 +53,7 @@ def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
         bcs=(BC.vacuum, BC.vacuum),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
-    quad = GaussLegendre1D.create(n_ordinates=n_ord)
+    quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 

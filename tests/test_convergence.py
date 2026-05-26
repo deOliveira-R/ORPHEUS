@@ -11,7 +11,7 @@ from orpheus.geometry import (
     RegionMesh,
     StructuredGeometry,
 )
-from orpheus.sn.quadrature import GaussLegendre1D
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
 # L2 cross-solver consistency check (SN ↔ CP).
@@ -52,7 +52,7 @@ def test_sn_approaches_cp_reference():
         RegionMesh(n_cells=40),
         RegionMesh(n_cells=40),
     ))
-    quad = GaussLegendre1D.create(32)
+    quad = Quadrature.gauss_legendre(32)
     result = solve_sn(
         materials, mesh, quad,
         max_outer=300, max_inner=500, inner_tol=1e-10,

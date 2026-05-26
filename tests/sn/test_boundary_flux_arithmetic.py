@@ -24,7 +24,7 @@ import pytest
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.sn.boundary_flux import BoundaryFlux
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.quadrature import GaussLegendre1D, LebedevSphere, ProductQuadrature
+from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
 
@@ -43,7 +43,7 @@ def _slab_mesh() -> SNMesh:
         bcs=(BC.reflective, BC.reflective),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=5),))
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNMesh(mesh, quad, placeholder_materials())
 
 
@@ -54,7 +54,7 @@ def _sphere_mesh() -> SNMesh:
         bcs=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=5),))
-    quad = GaussLegendre1D.create(n_ordinates=4)
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNMesh(mesh, quad, placeholder_materials())
 
 
@@ -65,7 +65,7 @@ def _cylinder_mesh() -> SNMesh:
         bcs=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=5),))
-    quad = ProductQuadrature.create(n_mu=2, n_phi=2)
+    quad = Quadrature.product(n_mu=2, n_phi=2)
     return SNMesh(mesh, quad, placeholder_materials())
 
 
@@ -202,7 +202,7 @@ def test_add_2d_cartesian_propagates_to_both_buffers() -> None:
         edges_y=np.linspace(0, ny * delta, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
     )
-    quad = LebedevSphere.create(order=5)
+    quad = Quadrature.lebedev(order=5)
     sn = SNMesh(mesh, quad, placeholder_materials())
     bf1 = BoundaryFlux.zeros(sn)
     bf2 = BoundaryFlux.zeros(sn)

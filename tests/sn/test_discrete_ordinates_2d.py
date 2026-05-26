@@ -5,7 +5,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh2D
-from orpheus.sn.quadrature import LebedevSphere
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
 # 2D SN mesh convergence — L2 integration check.
@@ -43,7 +43,7 @@ def test_do_mesh_convergence(ng_key, label):
     mod = get_mixture("B", ng_key)
     materials = {2: fuel, 0: mod}
 
-    quad = LebedevSphere.create(order=17)
+    quad = Quadrature.lebedev(order=17)
 
     keffs = []
     deltas = [0.1, 0.05, 0.02]
