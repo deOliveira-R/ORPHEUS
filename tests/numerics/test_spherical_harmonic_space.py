@@ -162,15 +162,15 @@ def test_R_equals_2l_plus_1_times_S0(lebedev_L_pair):
     naked synthesis :math:`S_0` by the per-:math:`\ell` factor
     :math:`(2\ell+1)`. This pins the ERR-039 distinction at the
     operator-construction level: ``R`` is built via the canonical
-    :meth:`~HarmonicMomentReconstruction.from_spherical_harmonic_space`
-    constructor that sources :math:`(2\ell+1)` from
-    :attr:`SphericalHarmonicSpace.addition_theorem_factor`.
+    :meth:`~HarmonicMomentReconstruction.from_Y` factory which sources
+    :math:`(2\ell+1)` from
+    :attr:`SphericalHarmonicSpace.addition_theorem_factor` internally
+    (single canonical home for the literal).
     """
     measure, L = lebedev_L_pair
-    space = SphericalHarmonicSpace.from_L(L)
     basis = SphericalHarmonicBasis(L=L)
     Y = basis.evaluate(measure.nodes)
-    R = HarmonicMomentReconstruction.from_spherical_harmonic_space(space, Y)
+    R = HarmonicMomentReconstruction.from_Y(Y)
 
     rng = np.random.default_rng(seed=2026)
     c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)
@@ -217,13 +217,10 @@ def test_pi_R_is_4pi_identity_on_band_limited(lebedev_L_pair):
     P1.6).
     """
     measure, L = lebedev_L_pair
-    space = SphericalHarmonicSpace.from_L(L)
     basis = SphericalHarmonicBasis(L=L)
     Y = basis.evaluate(measure.nodes)
-    M = MomentProjection.from_spherical_harmonic_space(
-        space, weights=measure.weights, Y=Y,
-    )
-    R = HarmonicMomentReconstruction.from_spherical_harmonic_space(space, Y)
+    M = MomentProjection.from_measure(measure, L, Y=Y)
+    R = HarmonicMomentReconstruction.from_Y(Y)
 
     rng = np.random.default_rng(seed=42)
     c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)
@@ -252,12 +249,9 @@ def test_H_equals_g_C_times_S0(lebedev_L_pair):
     out of the generic machinery without prose warnings.
     """
     measure, L = lebedev_L_pair
-    space = SphericalHarmonicSpace.from_L(L)
     basis = SphericalHarmonicBasis(L=L)
     Y = basis.evaluate(measure.nodes)
-    M = MomentProjection.from_spherical_harmonic_space(
-        space, weights=measure.weights, Y=Y,
-    )
+    M = MomentProjection.from_measure(measure, L, Y=Y)
 
     rng = np.random.default_rng(seed=99)
     c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)
@@ -275,7 +269,7 @@ def test_H_equals_g_C_times_S0(lebedev_L_pair):
 # ─────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.l0
+@pytest.mark.foundation
 @pytest.mark.verifies("real-sh-discrete-orthogonality")
 @pytest.mark.parametrize(
     "quadrature_factory",
@@ -326,22 +320,24 @@ def test_mass_matrix_under_multiple_quadratures(quadrature_factory):
             )
 
 
-@pytest.mark.l0
+@pytest.mark.foundation
 def test_moment_projection_codomain_is_spherical_harmonic_space():
     r""":attr:`MomentProjection.codomain` returns a typed :class:`SphericalHarmonicSpace`.
 
-    Type-level guarantee that ``M.H`` composition via the generic
-    adjoint machinery finds the SH metric correctly. The equality
-    convention is ``(name, shape)``: two SphericalHarmonicSpaces of
-    matching :math:`L` compare equal.
+    Type-level guarantee (software invariant — tagged ``foundation``
+    per ``vv-principles`` §"V&V level taxonomy") that ``M.H``
+    composition via the generic adjoint machinery finds the SH metric
+    correctly. The equality convention is ``(name, shape)``: two
+    SphericalHarmonicSpaces of matching :math:`L` compare equal.
+
+    Also confirms :attr:`MomentProjection.{domain, codomain, range}`
+    are cached (same object identity on repeat access) — the
+    `coding-elegance` Pattern 3 fix for the Krylov-inner-loop
+    allocation issue QA flagged in the Phase 1 review.
     """
     measure = lebedev_sphere(7)
     L = 2
-    basis = SphericalHarmonicBasis(L=L)
-    space = SphericalHarmonicSpace.from_L(L)
-    M = MomentProjection.from_spherical_harmonic_space(
-        space, weights=measure.weights, Y=basis.evaluate(measure.nodes),
-    )
+    M = MomentProjection.from_measure(measure, L)
     cod = M.codomain
     assert isinstance(cod, SphericalHarmonicSpace)
     assert cod.L == L
@@ -352,39 +348,14 @@ def test_moment_projection_codomain_is_spherical_harmonic_space():
     # the generic _AdjointOperator).
     assert M.range == M.codomain
 
-
-@pytest.mark.l0
-def test_from_spherical_harmonic_space_roundtrip():
-    r"""Construction via the new classmethod is bit-identical to the legacy path.
-
-    Both :meth:`MomentProjection.from_spherical_harmonic_space` and
-    :meth:`HarmonicMomentReconstruction.from_spherical_harmonic_space`
-    produce operators whose :meth:`apply` outputs are bit-identical to
-    the legacy ``(weights, Y, L)`` constructor and ``from_Y(Y)``
-    respectively. The migration is API-only; no numerical change.
-    """
-    measure = lebedev_sphere(13)
-    L = 3
-    basis = SphericalHarmonicBasis(L=L)
-    space = SphericalHarmonicSpace.from_L(L)
-    Y = basis.evaluate(measure.nodes)
-
-    # New API
-    M_new = MomentProjection.from_spherical_harmonic_space(
-        space, weights=measure.weights, Y=Y,
-    )
-    R_new = HarmonicMomentReconstruction.from_spherical_harmonic_space(space, Y)
-
-    # Legacy API (preserved as shim per plan §P1.3)
-    M_legacy = MomentProjection(weights=measure.weights, Y=Y, L=L)
-    R_legacy = HarmonicMomentReconstruction.from_Y(Y)
-
-    rng = np.random.default_rng(seed=12345)
-    psi = rng.standard_normal(measure.n_points)
-    c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)
-
-    np.testing.assert_array_equal(M_new.apply(psi), M_legacy.apply(psi))
-    np.testing.assert_array_equal(R_new.apply(c), R_legacy.apply(c))
+    # Caching: repeated access returns the SAME object (not just an
+    # equal one).  Pins the @cached_property contract — the Krylov
+    # inner loop's `_AdjointOperator.apply` reads codomain + domain
+    # per matvec; allocating fresh spaces per access would be
+    # wasted work.
+    assert M.codomain is M.codomain
+    assert M.range is M.range
+    assert M.domain is M.domain
 
 
 @pytest.mark.l1
@@ -405,12 +376,9 @@ def test_T_carries_w_n_and_H_carries_g_C(lebedev_L_pair):
         M.H.apply(c)          → g_C · S_0(c)      # Hilbert adjoint
     """
     measure, L = lebedev_L_pair
-    space = SphericalHarmonicSpace.from_L(L)
     basis = SphericalHarmonicBasis(L=L)
     Y = basis.evaluate(measure.nodes)
-    M = MomentProjection.from_spherical_harmonic_space(
-        space, weights=measure.weights, Y=Y,
-    )
+    M = MomentProjection.from_measure(measure, L, Y=Y)
 
     rng = np.random.default_rng(seed=7)
     psi = rng.standard_normal(measure.n_points)
@@ -440,7 +408,7 @@ def test_T_carries_w_n_and_H_carries_g_C(lebedev_L_pair):
 # ─────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.l1
+@pytest.mark.foundation
 def test_spherical_harmonic_space_equality_by_name_shape():
     r"""SphericalHarmonicSpace equality follows :class:`FunctionSpace`'s ``(name, shape)`` convention.
 

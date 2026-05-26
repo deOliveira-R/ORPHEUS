@@ -70,6 +70,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -335,62 +336,49 @@ class MomentProjection(GalerkinProjection):
         cls,
         measure: "DiscreteMeasure",
         L: int,
+        *,
+        Y: np.ndarray | None = None,
     ) -> "MomentProjection":
         r"""Construct from a :class:`DiscreteMeasure` over :math:`S^2`.
 
-        Convenience constructor that pulls the weights from the
-        measure and builds the :math:`Y` table by calling the canonical
-        :class:`~orpheus.numerics.basis.SphericalHarmonicBasis`
-        evaluator on the measure's nodes.
+        The canonical factory.  Pulls the weights from the measure and
+        either builds the spherical-harmonic table :math:`Y` from
+        :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` or
+        accepts a precomputed ``Y`` (the optional kwarg) when the
+        caller already holds it — e.g.,
+        :class:`~orpheus.sn.scattering.ScatteringOperator.build_aniso_source`
+        builds :math:`M` and :math:`R` from the same evaluator output.
 
         The measure's ``nodes`` MUST be a ``(N, 3)`` array of
         direction cosines :math:`(\mu_x, \mu_y, \mu_z)` per ordinate.
+
+        Parameters
+        ----------
+        measure : DiscreteMeasure
+            Angular quadrature on :math:`S^2`. ``measure.nodes`` is the
+            ``(N, 3)`` direction-cosine array; ``measure.weights`` is
+            the :math:`(N,)` quadrature weights.
+        L : int
+            Maximum harmonic order.
+        Y : np.ndarray, shape ``(N, L+1, 2L+1)``, optional
+            Precomputed spherical-harmonic table. If ``None`` (default),
+            ``SphericalHarmonicBasis(L=L).evaluate(measure.nodes)`` is
+            called internally.
         """
-        from orpheus.numerics.basis.spherical_harmonic_basis import (
-            SphericalHarmonicBasis,
-        )
         nodes = measure.nodes
         if nodes.ndim != 2 or nodes.shape[1] != 3:
             raise ValueError(
                 f"MomentProjection.from_measure expects "
                 f"nodes of shape (N, 3); got {nodes.shape}."
             )
-        Y = SphericalHarmonicBasis(L=L).evaluate(nodes)
+        if Y is None:
+            from orpheus.numerics.basis.spherical_harmonic_basis import (
+                SphericalHarmonicBasis,
+            )
+            Y = SphericalHarmonicBasis(L=L).evaluate(nodes)
         return cls(weights=measure.weights, Y=Y, L=L)
 
-    @classmethod
-    def from_spherical_harmonic_space(
-        cls,
-        space: "SphericalHarmonicSpace",
-        *,
-        weights: np.ndarray,
-        Y: np.ndarray,
-    ) -> "MomentProjection":
-        r"""Construct from a :class:`SphericalHarmonicSpace` + precomputed weights + Y.
-
-        Mirrors
-        :meth:`HarmonicMomentReconstruction.from_spherical_harmonic_space`;
-        the canonical construction path when the caller already holds the
-        SH-evaluator table (e.g.,
-        :class:`~orpheus.sn.scattering.ScatteringOperator.build_aniso_source`
-        which builds both :math:`M` and :math:`R` from the SAME
-        :math:`Y` table) and wants both operators to advertise a typed
-        codomain identical to ``space``.
-
-        Parameters
-        ----------
-        space : SphericalHarmonicSpace
-            The moment-space codomain — supplies :math:`L`. Must satisfy
-            ``Y.shape[1:] == (space.L + 1, 2 * space.L + 1)``.
-        weights : np.ndarray, shape ``(N,)``
-            Quadrature weights :math:`w_n` matching ``Y.shape[0]``.
-        Y : np.ndarray, shape ``(N, L+1, 2L+1)``
-            Spherical-harmonic table built by
-            :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate`.
-        """
-        return cls(weights=weights, Y=Y, L=space.L)
-
-    @property
+    @cached_property
     def codomain(self) -> "SphericalHarmonicSpace":
         r"""The :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`
         this projection targets — moment space of order :math:`L`.
@@ -413,7 +401,7 @@ class MomentProjection(GalerkinProjection):
         )
         return SphericalHarmonicSpace.from_L(self.L)
 
-    @property
+    @cached_property
     def range(self) -> "SphericalHarmonicSpace":
         r"""Alias of :attr:`codomain` — the pre-P3.5 framework name.
 
@@ -421,11 +409,13 @@ class MomentProjection(GalerkinProjection):
         ``range`` to find the codomain's inner-product weights for the
         Hilbert-adjoint calculation. P3.5 renames the framework attribute
         ``range`` → ``codomain``; until then both are defined here
-        with identical return values.
+        with identical return values (cached so the Krylov inner loop
+        doesn't reallocate the :class:`SphericalHarmonicSpace` per
+        matvec).
         """
         return self.codomain
 
-    @property
+    @cached_property
     def domain(self) -> FunctionSpace:
         r"""The angular-ordinate :class:`FunctionSpace` this projection consumes.
 
@@ -585,51 +575,31 @@ class HarmonicMomentReconstruction(ReconstructionOperator):
             )
 
     @classmethod
-    def from_spherical_harmonic_space(
-        cls,
-        space: "SphericalHarmonicSpace",
-        Y: np.ndarray,
-    ) -> "HarmonicMomentReconstruction":
-        r"""Construct from a :class:`SphericalHarmonicSpace` and Y table.
+    def from_Y(cls, Y: np.ndarray) -> "HarmonicMomentReconstruction":
+        r"""Construct from a :math:`Y` table.  The canonical factory.
 
-        Sources the addition-theorem factor :math:`2\ell+1` from
+        Sources the addition-theorem factor :math:`(2\ell+1)` from
         :attr:`SphericalHarmonicSpace.addition_theorem_factor` (which
-        in turn delegates to :attr:`SphericalHarmonicBasis.addition_theorem_factor`).
-        This is the CANONICAL construction path under the moment-space
-        plan — the SH convention's :math:`(2\ell+1)` formula lives in
-        exactly one place
-        (:class:`~orpheus.numerics.basis.SphericalHarmonicBasis`).
+        in turn delegates to
+        :attr:`SphericalHarmonicBasis.addition_theorem_factor`).  The
+        SH convention's :math:`(2\ell+1)` literal lives in exactly one
+        place — :class:`~orpheus.numerics.basis.SphericalHarmonicBasis`
+        — and the typed-space derivation here keeps the chain explicit.
 
         Parameters
         ----------
-        space : SphericalHarmonicSpace
-            The moment space of order :math:`L`. Must satisfy
-            ``space.L == Y.shape[1] - 1`` — checked by
-            ``__post_init__``.
         Y : np.ndarray, shape ``(N, L+1, 2L+1)``
             Spherical-harmonic table built by
             :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate`
-            on a quadrature's direction cosines.
-        """
-        return cls(Y=Y, two_l_plus_one=space.addition_theorem_factor)
-
-    @classmethod
-    def from_Y(cls, Y: np.ndarray) -> "HarmonicMomentReconstruction":
-        r"""Back-compat shim: construct from a :math:`Y` table alone.
-
-        Internally builds the
-        :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`
-        matching ``Y.shape[1] - 1`` and delegates to
-        :meth:`from_spherical_harmonic_space`. The
-        :math:`(2\ell+1)` array is sourced via the space → basis
-        chain; no local literal.
+            on a quadrature's direction cosines.  :math:`L` is derived
+            as ``Y.shape[1] - 1``.
         """
         from orpheus.numerics.spaces.spherical_harmonic_space import (
             SphericalHarmonicSpace,
         )
         L = Y.shape[1] - 1
         space = SphericalHarmonicSpace.from_L(L)
-        return cls.from_spherical_harmonic_space(space, Y)
+        return cls(Y=Y, two_l_plus_one=space.addition_theorem_factor)
 
     def apply(self, moments: np.ndarray) -> np.ndarray:
         r"""Apply :math:`R \phi` along the leading harmonic-coefficient axes.
