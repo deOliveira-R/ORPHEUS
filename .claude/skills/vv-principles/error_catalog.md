@@ -2940,7 +2940,53 @@ that advertises CAP_APPLY_TRANSPOSE or CAP_SOLVE MUST ship with a
 direct test of that method against an independent reference (the
 adjoint identity, or the solve round-trip on a non-trivial input).
 
-**Test reference:** `tests/numerics/test_projection_operators.py::TestApplyTransposeIsWWeightedAdjoint::test_adjoint_identity_matches_production` and `::test_apply_transpose_no_2l_plus_1_factor`. Tagged `@pytest.mark.l1` and `@pytest.mark.catches("ERR-039")`.
+**Test reference (Wave 0 / Round 1):** `tests/numerics/test_projection_operators.py::TestApplyTransposeIsWWeightedAdjoint::test_adjoint_identity_matches_production` and `::test_apply_transpose_no_2l_plus_1_factor`. Tagged `@pytest.mark.l1` and `@pytest.mark.catches("ERR-039")`.
+
+---
+
+**2026-05-26 Phase 1 update (refactor/moment-space-and-layering):**
+
+The Wave 0 fix made `apply_transpose` return the naked :math:`S_0(c)`
+— but the Phase 1 audit revealed this was ALSO mislabeled. The bare
+:math:`S_0` is **neither** the representation transpose **nor** the
+Hilbert adjoint; both are :math:`S_0` post-multiplied by a different
+diagonal:
+
+- :math:`\Pi^\top = w_n \cdot S_0` (representation transpose) —
+  `MomentProjection.apply_transpose` post-P1.4
+- :math:`\Pi^* = g_C \cdot S_0` (Hilbert adjoint) — `MomentProjection.H`
+  composed by the generic `_AdjointOperator` machinery using the
+  codomain's SH-Gram metric
+- :math:`R = (2\ell+1) \cdot S_0 = 4\pi \cdot g_C^{-1} \cdot S_0`
+  (addition-theorem reconstruction) — `HarmonicMomentReconstruction`
+
+All four operators (:math:`S_0, \Pi^\top, \Pi^*, R`) now have
+separately-typed homes; conflating any pair is structurally
+prevented. The :math:`(2\ell+1)` literal lives in exactly one place:
+`SphericalHarmonicBasis.addition_theorem_factor`; the :math:`g_C =
+\mathrm{diag}(4\pi/(2\ell+1))` metric on
+`SphericalHarmonicSpace.inner_product_weights`.
+
+The Wave 0 test `TestApplyTransposeIsWWeightedAdjoint` was renamed to
+`TestApplyTransposeIsRepresentationTranspose` (still
+`@pytest.mark.catches("ERR-039")`); a new class
+`TestHilbertAdjointViaGenericMachinery` covers the :math:`g_C \cdot
+S_0` identity. The new file
+`tests/numerics/test_spherical_harmonic_space.py` (13 tests, all
+`@pytest.mark.catches("ERR-039")` on the math-identity tests) carries
+the Phase 1 endpoint.
+
+**Lesson generalised:** When a bug is fixed by "removing the wrong
+operator", verify that the replacement is the **right** operator under
+the discipline's metric, not just "different from the wrong one". The
+Wave 0 fix removed the (2ℓ+1) factor but did not install the W metric
+that the W-weighted adjoint identity demands. The pattern was
+"fix-the-symptom-not-the-cause" applied to a convention-drift root —
+a deeper fix would have asked: "what IS the right adjoint?" rather
+than "what was wrong about the old one?". See ERR-051 for the related
+discipline failure on the validation-method side.
+
+**Phase 1 test reference (Round 2):** `tests/numerics/test_spherical_harmonic_space.py` (full file, 13 tests) + `tests/numerics/test_projection_operators.py::TestApplyTransposeIsRepresentationTranspose` + `::TestHilbertAdjointViaGenericMachinery`. Phase 1 commits: 0eb9cf3..c5be4b0 on `refactor/moment-space-and-layering`.
 
 
 ---
@@ -3889,3 +3935,45 @@ during the R-1 Step 4 carve when the operator-algebra layer met
 the legacy sweep implementation; both closed by Phase 1.1 + Phase
 1.2 of the consolidation plan.
 
+
+---
+
+## ERR-051 — `GalerkinProjection.assert_galerkin_idempotency` asserted :math:`\Pi R = I` instead of :math:`\Pi R = 4\pi \cdot I` (no-prefactor SH convention)
+
+**Status:** **CAUGHT IN PHASE 1 P1.6 (2026-05-26, moment-space + layering plan).** Method deleted; sole caller deleted alongside.
+
+**Failure mode:** **#6 (convention drift)** — the method's docstring named the discipline ("Galerkin idempotency :math:`\Pi R c = c`") but the no-prefactor SH basis convention installs a :math:`4\pi` factor that the addition-theorem reconstruction carries (:math:`R = (2\ell+1) \cdot S_0`, and the discrete Gram diagonal is :math:`4\pi/(2\ell+1)`, so the composition :math:`\Pi R = 4\pi \cdot I`, not :math:`I`). The discipline-statement was generic; the SH convention demanded a :math:`4\pi` correction the method did not apply.
+
+**Date discovered:** 2026-05-26 Phase 1 audit while designing the V&V test suite for the ERR-039 endpoint (`tests/numerics/test_spherical_harmonic_space.py`).
+**Module:** `orpheus.numerics.projection.GalerkinProjection.assert_galerkin_idempotency` (now deleted).
+
+**Mechanism:** The method was added during Wave 0 alongside the `ProjectionOperator` ABC. The implementer drafted the assertion from the abstract Galerkin-idempotency statement ":math:`\Pi R = I` on the coefficient space", forgetting that the convention-bearing SH basis carries an implicit metric (the :math:`4\pi/(2\ell+1)` Gram diagonal) which modifies the discrete identity by a factor of :math:`4\pi`. The method called `np.testing.assert_allclose(self.apply(reconstruction.apply(c)), c)` — directly asserting :math:`\Pi R c = c`, not :math:`\Pi R c = 4\pi c`.
+
+**How it hid:** **The method was never called against the production (Π, R) pair.** Its sole call site — `tests/numerics/test_projection_operators.py:368-381` (since deleted in P1.6) — deliberately built a **non-orthogonal Y matrix** so the method would raise:
+
+```python
+def test_method_signals_violation(self):
+    # Construct a deliberately-broken Galerkin pair: use a
+    # non-orthogonal Y matrix so Π R ≠ I.
+    Y = rng.standard_normal((N, L + 1, 2 * L + 1))   # ← random Y, NOT a quadrature basis
+    M = MomentProjection(weights=weights, Y=Y, L=L)
+    R = HarmonicMomentReconstruction.from_Y(Y)
+    with pytest.raises(AssertionError, match="Galerkin idempotency"):
+        M.assert_galerkin_idempotency(R, c, atol=1e-10)
+```
+
+The test pattern is: "construct a broken pair → call the method → assert it raises." The method's docstring claim — that it would NOT raise on a correct pair — was never tested. Net effect: the method shipped with a wrong-identity error AND the test silently agreed because no one verified what "correct" should look like.
+
+**How caught:** Phase 1 P1.5 designed `test_pi_R_is_4pi_identity_on_band_limited` for the ERR-039 endpoint. The test built the genuine :math:`(\Pi, R)` pair on a Lebedev-13 / :math:`L=3` quadrature and discovered :math:`\Pi R = 4\pi \cdot I`, NOT :math:`I`. Audit traced back to `assert_galerkin_idempotency`'s docstring; the discrepancy was the smoking gun. The sole caller's deliberately-broken-Y construction confirmed the test pattern was negative-only.
+
+**Fix:** Delete the method and its sole caller (P1.6). The genuine identity is now pinned by:
+- `tests/numerics/test_spherical_harmonic_space.py::test_pi_R_is_4pi_identity_on_band_limited` (uses `@pytest.mark.verifies("pi-r-equals-4pi-i")` — the existing Sphinx equation label).
+- `tests/numerics/test_projection_operators.py::TestGalerkinIdempotencyOnLebedev::test_pi_R_is_identity_on_band_limited` (the sibling test that already pinned :math:`\Pi R = 4\pi \cdot I` correctly — pre-existed; was orphaned by the wrong-identity method's coexistence).
+
+**Lesson:** **Every contract-validation method (``assert_X``, ``check_X``, ``verify_X``) MUST be tested against AT LEAST one correct instance where it must NOT raise AND AT LEAST one broken instance where it MUST raise.** Negative-only testing ("we fed it a broken case and it raised") validates the method's *raising behavior* but NOT its *invariant claim*. The bug surface in this defect was the TEST, not the method per se — the test never asked "does the method correctly distinguish correct from broken?", only "does it raise on broken?". Both halves are needed; either alone is a discipline failure that hides wrong-invariant claims indefinitely.
+
+This generalizes the L11 lesson ("cross-checks must be structurally independent"): the cross-check here was not even procedural — it was *self-referential* (the broken Y was constructed precisely to make the wrong assertion succeed at raising). The structural-independence requirement applies to ALL test design, not just numerical cross-checks.
+
+**Test reference:** `tests/numerics/test_spherical_harmonic_space.py::test_pi_R_is_4pi_identity_on_band_limited`. Tagged `@pytest.mark.l1` and `@pytest.mark.catches("ERR-051")` *(if the catches marker is added in a follow-up; currently the test is `@pytest.mark.catches("ERR-039")` because it was authored for the ERR-039 endpoint and ERR-051 surfaced as a side effect of writing it)*.
+
+→ ERR-039 is the sibling: both are convention-drift failures of the SH Galerkin discipline that conflated the discrete metric with the abstract identity. ERR-039 was the operator-side conflation (`Π* = R`); ERR-051 was the verification-method-side conflation (`Π R = I`). Both closed by Phase 1 of the moment-space + layering plan (refactor/moment-space-and-layering, commits 0eb9cf3..c5be4b0).
