@@ -54,6 +54,22 @@ any other review work.
 10. **NEVER** accept "it produces reasonable numbers" — **instead**
     enumerate every term, isolate it, and verify sign AND magnitude.
     Sign-flipped small terms look reasonable.
+11. **NEVER** test a contract-validation method (`assert_X`, `check_X`,
+    `verify_X`) ONLY against a deliberately-broken instance —
+    **instead** require AT LEAST one positive test (correct instance,
+    MUST NOT raise) AND AT LEAST one negative test (broken instance,
+    MUST raise). Negative-only testing validates the *raising
+    behaviour* but NOT the *invariant claim* — the test cannot tell
+    you the method's claim is correct, only that the method raises
+    when told to. ERR-051: `assert_galerkin_idempotency` asserted
+    `Π R = I` instead of `Π R = 4π · I` under the no-prefactor SH
+    convention; the bug hid for an entire merge cycle because the
+    sole test fed it a deliberately-non-orthogonal Y so the wrong
+    invariant produced the expected failure. The test was
+    self-referential: the broken Y was constructed precisely to make
+    the wrong assertion succeed at raising. The
+    structural-independence requirement (L11) applies to ALL test
+    design, not just numerical cross-checks.
 
 ---
 
