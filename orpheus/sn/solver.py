@@ -836,150 +836,31 @@ def _scalar_flux_from_angular(
     return np.einsum("ngxy,n->gxy", fi, quad.weights)
 
 
-def _build_rhs_cartesian(
-    fission_source: np.ndarray,
-    scalar_flux: np.ndarray,
-    eq_map,
-    quad: AngularQuadrature,
-    sig_s: dict[int, list[np.ndarray]],
-    sig2: dict[int, np.ndarray],
-    mat_map: np.ndarray,
-    nx: int, ny: int, ng: int,
-    scattering_order: int = 0,
-    angular_flux: np.ndarray | None = None,
-) -> np.ndarray:
-    """Packed RHS for the Cartesian operator equation :math:`L\\,\\psi = b`.
-
-    Internal helper for the Krylov inner-solver path.  All isotropic
-    sources are divided by :math:`W = \\sum w_n` to match the operator
-    equation convention (the operator carries no :math:`1/W`; sources
-    fed to it must).
-
-    For Pℓ scattering (``scattering_order > 0``), the per-ordinate
-    scattering source is the Galerkin reconstruction over real
-    spherical harmonics::
-
-        qS(n) = Σ_l (2l+1) · Σ_s^l^T @ [Σ_m φ^lm · Y_lm(n)] / W
-
-    Extracted from the Wave A-D ``build_rhs`` function in
-    :mod:`orpheus.sn.operator`, which was retired in Wave E Round 2
-    along with the rest of the BiCGSTAB FD-operator API surface.
-
-    Issue #196 PR-INDEX-5: ``fission_source`` / ``scalar_flux`` are
-    principled ``(ng, nx, ny)`` (per-cell slices index as
-    ``[:, ix, iy]``).
-    Issue #196 PR-INDEX-7: ``angular_flux`` (when supplied) is now
-    principled ``(N, ng, nx, ny)`` end-to-end — both
-    :func:`solution_to_angular_flux` (the warm-start path) and the
-    sweep's angular flux output land in the same layout. Closes the
-    PR-INDEX-4 §9.1 deferral.
-    """
-    sum_w = float(quad.weights.sum())
-    L = scattering_order
-    mu_z = getattr(quad, "mu_z", np.zeros(quad.N))
-
-    # Precompute Legendre moments if anisotropic scattering.
-    fiL = None
-    Y = None
-    if L > 0 and angular_flux is not None:
-        Y = quad.spherical_harmonics(L)  # (N, L+1, 2L+1)
-        w = quad.weights
-        fiL = np.zeros((nx, ny, ng, L + 1, 2 * L + 1))
-        for l in range(L + 1):
-            for m in range(-l, l + 1):
-                for n in range(quad.N):
-                    # PR-INDEX-7: angular_flux is (N, ng, nx, ny).
-                    # angular_flux[n, :, :, :] is (ng, nx, ny); .T
-                    # reverses axes to (ny, nx, ng) — identical to
-                    # the pre-PR-INDEX-7 ``angular_flux[:, n, :, :].T``
-                    # behaviour bit-for-bit.
-                    fiL[:, :, :, l, l + m] += (
-                        w[n] * angular_flux[n, :, :, :].T * Y[n, l, l + m]
-                    )
-
-    rhs = np.zeros((ng, eq_map.n_eq))
-    eq_idx = 0
-    for iy in range(ny):
-        for ix in range(nx):
-            mid = int(mat_map[ix, iy])
-            phi_cell = scalar_flux[:, ix, iy]
-
-            qF = fission_source[:, ix, iy]
-            q2 = 2.0 * (sig2[mid].T @ phi_cell) / sum_w
-
-            for n in range(quad.N):
-                if mu_z[n] < -1e-15:
-                    continue
-                if ix == 0 and quad.mu_x[n] > 1e-15:
-                    continue
-                if ix == nx - 1 and quad.mu_x[n] < -1e-15:
-                    continue
-                if iy == 0 and quad.mu_y[n] > 1e-15:
-                    continue
-                if iy == ny - 1 and quad.mu_y[n] < -1e-15:
-                    continue
-
-                qS = np.zeros(ng)
-                for l in range(L + 1):
-                    if l == 0:
-                        qS += sig_s[mid][0].T @ phi_cell / sum_w
-                    elif fiL is not None:
-                        SUM = np.zeros(ng)
-                        for m in range(-l, l + 1):
-                            SUM += fiL[ix, iy, :, l, l + m] * Y[n, l, l + m]
-                        qS += (2 * l + 1) * (sig_s[mid][l].T @ SUM) / sum_w
-
-                rhs[:, eq_idx] = qF + q2 + qS
-                eq_idx += 1
-
-    return rhs.ravel(order="F")
-
-
-def _build_rhs_spherical(
-    fission_source: np.ndarray,
-    scalar_flux: np.ndarray,
-    eq_map,
-    quad: AngularQuadrature,
-    sig_s: dict[int, list[np.ndarray]],
-    sig2: dict[int, np.ndarray],
-    mat_map: np.ndarray,
-    nx: int, ng: int,
-) -> np.ndarray:
-    """Packed RHS for spherical 1-D :math:`L\\,\\psi = b`.
-
-    Same structure as :func:`_build_rhs_cartesian` but with the
-    spherical equation map (no y-direction, no z-reflection
-    filtering).  P0 isotropic scattering only — the curvilinear FD
-    operator does not currently carry Pℓ.
-    """
-    sum_w = float(quad.weights.sum())
-
-    rhs = np.zeros((ng, eq_map.n_eq))
-    eq_idx = 0
-    for ix in range(nx):
-        mid = int(mat_map[ix, 0])
-        # PR-INDEX-5: scalar_flux / fission_source are principled
-        # ``(ng, nx, ny=1)``; per-cell slice is ``[:, ix, 0]``.
-        phi_cell = scalar_flux[:, ix, 0]
-
-        qF = fission_source[:, ix, 0]
-        q2 = 2.0 * (sig2[mid].T @ phi_cell) / sum_w
-
-        for n in range(quad.N):
-            if ix == nx - 1 and quad.mu_x[n] < -1e-15:
-                continue
-
-            qS = sig_s[mid][0].T @ phi_cell / sum_w
-            rhs[:, eq_idx] = qF + q2 + qS
-            eq_idx += 1
-
-    return rhs.ravel(order="F")
-
-
-# Cylindrical 1-D shares the spherical RHS structure (same equation
-# map, same isotropic-only scattering).  Internal alias so the
-# Krylov dispatch reads cleanly.
-_build_rhs_cylindrical = _build_rhs_spherical
+# ─────────────────────────────────────────────────────────────────────
+# Retired in P1.7 (moment-space + layering plan):
+#   `_build_rhs_cartesian`, `_build_rhs_spherical`,
+#   `_build_rhs_cylindrical`  (the latter was an alias of spherical)
+#
+# All three were packed-1D RHS builders for the legacy BiCGSTAB
+# FD-operator path.  Production call graph (verified by
+# `tests/sn/test_fixed_source_g1.py::TestNoLegacyMachineryInCallPath::
+# test_no_legacy_eq_map_or_decoder_in_g1_path`): ZERO callers — the
+# G1 Krylov path goes through typed `KrylovAcceleration` +
+# `(L + C).apply` instead of building a packed-1D RHS.
+#
+# The cartesian variant carried an inline `(2*l+1)` literal at its
+# Pℓ-source build, duplicating the canonical addition-theorem factor
+# now sourced from
+# `SphericalHarmonicSpace.addition_theorem_factor` via
+# `HarmonicMomentReconstruction.from_spherical_harmonic_space`.  Per
+# the moment-space plan §P1.3 "exactly one place" claim, retiring
+# this dead duplicate is required.
+#
+# The spherical/cylindrical variants had no (2*l+1) duplicate (they
+# were P0-isotropic-only), but they share the same dead-code status
+# and retire alongside cartesian for cleanliness — superseded code is
+# noise per `feedback_aggressive_retirement`.
+# ─────────────────────────────────────────────────────────────────────
 
 
 def _is_curvilinear(mesh: Mesh1D | Mesh2D) -> bool:
@@ -1413,7 +1294,12 @@ def _solve_fixed_source_krylov(
 
     * ``build_equation_map_*`` (retires G3e)
     * ``solution_to_angular_flux_*`` (retires G3e)
-    * ``_build_rhs_{cartesian, spherical, cylindrical}`` (retires G3a)
+    * ``_build_rhs_{cartesian, spherical, cylindrical}`` —
+      **RETIRED** in P1.7 of the moment-space + layering plan (the
+      Cartesian variant carried an inline ``(2*l+1)`` literal that
+      duplicated
+      :attr:`~orpheus.numerics.spaces.SphericalHarmonicSpace.addition_theorem_factor`;
+      all three were already dead code in production).
     * ``_make_sweep_preconditioner`` (retires G3a)
     * ``solver.L`` / ``SNStreamingOperator`` (retires G3f)
 

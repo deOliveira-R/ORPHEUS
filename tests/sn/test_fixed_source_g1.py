@@ -307,18 +307,37 @@ class TestReturnTypeContract:
 
 class TestNoLegacyMachineryInCallPath:
     r"""Callstack sentinel — none of the retiring symbols
-    (``build_equation_map_*``, ``_build_rhs_*``, ``_make_sweep_preconditioner``,
-    ``solution_to_angular_flux_*``) is invoked anywhere along the G1
+    (``build_equation_map_*``, ``solution_to_angular_flux_*``,
+    ``_make_sweep_preconditioner``) is invoked anywhere along the G1
     Krylov call path on 1-D.
 
     Spies the suspect callables; if the carve regresses (e.g. someone
     re-routes through legacy decoders), the spy count is non-zero and
     the assertion fires.
+
+    Post-P1.7 (moment-space + layering plan): the three
+    ``_build_rhs_{cartesian,spherical,cylindrical}`` helpers have been
+    DELETED from :mod:`orpheus.sn.solver` (they were already dead
+    code; deletion is the strict-strongest form of "never called").
+    The corresponding spies were dropped from this test; the
+    impossibility-of-call is now enforced by the symbols not existing
+    rather than by a runtime count.
     """
 
     def test_no_legacy_eq_map_or_decoder_in_g1_path(self) -> None:
         from orpheus.sn import operator as sn_op
         from orpheus.sn import solver as sn_solver
+
+        # Post-P1.7: the _build_rhs_* helpers are deleted from
+        # orpheus.sn.solver.  Confirm absence (the impossibility-of-call
+        # contract supplants the per-iteration spy count for these).
+        assert not hasattr(sn_solver, "_build_rhs_cartesian"), (
+            "_build_rhs_cartesian was retired in P1.7; re-adding it "
+            "would re-introduce the inline (2*l+1) duplicate the "
+            "moment-space plan §P1.3 ('exactly one place') retires."
+        )
+        assert not hasattr(sn_solver, "_build_rhs_spherical")
+        assert not hasattr(sn_solver, "_build_rhs_cylindrical")
 
         legacy_calls: dict[str, int] = {}
 
@@ -334,13 +353,10 @@ class TestNoLegacyMachineryInCallPath:
         original_decode_sph = sn_op.solution_to_angular_flux_spherical
         original_decode_cyl = sn_op.solution_to_angular_flux_cylindrical
         original_decode_cart = sn_op.solution_to_angular_flux
-        original_build_rhs_sph = sn_solver._build_rhs_spherical
-        original_build_rhs_cyl = sn_solver._build_rhs_cylindrical
-        original_build_rhs_cart = sn_solver._build_rhs_cartesian
         # _make_sweep_preconditioner is on SNSolver instances, not a
         # module-level symbol — check via attribute lookup at instance level
         # would require dispatching the spy through __init__.  Simpler:
-        # rely on _build_rhs_* / solution_to_angular_flux_* spies.
+        # rely on solution_to_angular_flux_* spies.
 
         with patch.object(
             sn_op, "build_equation_map_spherical",
@@ -360,15 +376,6 @@ class TestNoLegacyMachineryInCallPath:
         ), patch.object(
             sn_op, "solution_to_angular_flux",
             make_spy("solution_to_angular_flux", original_decode_cart),
-        ), patch.object(
-            sn_solver, "_build_rhs_spherical",
-            make_spy("_build_rhs_spherical", original_build_rhs_sph),
-        ), patch.object(
-            sn_solver, "_build_rhs_cylindrical",
-            make_spy("_build_rhs_cylindrical", original_build_rhs_cyl),
-        ), patch.object(
-            sn_solver, "_build_rhs_cartesian",
-            make_spy("_build_rhs_cartesian", original_build_rhs_cart),
         ):
             mesh, quad = _sphere_reflective(nx=6)
             sn_mesh = SNMesh(mesh, quad, placeholder_materials())
