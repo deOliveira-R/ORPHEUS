@@ -32,7 +32,7 @@ and named slicing / reduction primitives (Pattern 3):
 * ``phi.truncate(L_new)`` drops :math:`\ell > L_{\rm new}` blocks.
 
 Units: same as the source angular quantity.  When produced by
-:meth:`HarmonicMomentProjection.apply` from an
+:meth:`MomentProjection.apply` from an
 :class:`AngularFlux`, the moment field inherits flux units
 :math:`[1/(\rm cm^2\,s\,sr\,eV)]`.
 
@@ -167,7 +167,7 @@ class HarmonicMomentField:
         :math:`\phi_0^0 = \sum_n w_n Y_0^0 \psi_n = \sum_n w_n
         \psi_n` IS the scalar flux directly — no
         :math:`1/Y_0^0` factor.  This identity is what makes
-        ``HarmonicMomentProjection(\psi).scalar_flux()`` agree with
+        ``MomentProjection(\psi).scalar_flux()`` agree with
         ``\psi.integrate_angular()`` bit-exactly.
 
         Returns

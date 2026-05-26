@@ -6,7 +6,7 @@ the moment-space + layering plan). This module ships
 :func:`evaluate_real_sh` as a back-compat alias so the per-quadrature
 ``spherical_harmonics(L)`` methods on
 :class:`orpheus.numerics.quadrature.Quadrature` and the projection
-factory :meth:`orpheus.numerics.projection.HarmonicMomentProjection.from_measure`
+factory :meth:`orpheus.numerics.projection.MomentProjection.from_measure`
 continue to import the same function name they always have.
 
 This shim deletes in P3.2 when those delegators are rewired to consume

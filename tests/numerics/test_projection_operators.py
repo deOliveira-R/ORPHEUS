@@ -30,7 +30,7 @@ from orpheus.numerics.operator import (
 )
 from orpheus.numerics.projection import (
     GalerkinProjection,
-    HarmonicMomentProjection,
+    MomentProjection,
     HarmonicMomentReconstruction,
     PetrovGalerkinProjection,
     ProjectionOperator,
@@ -51,26 +51,26 @@ class TestABCs:
         assert issubclass(PetrovGalerkinProjection, ProjectionOperator)
 
     def test_harmonic_moment_projection_is_galerkin(self):
-        assert issubclass(HarmonicMomentProjection, GalerkinProjection)
+        assert issubclass(MomentProjection, GalerkinProjection)
 
     def test_projection_operator_is_linear_operator(self):
         assert issubclass(ProjectionOperator, LinearOperatorMixin)
 
 
 # ─────────────────────────────────────────────────────────────────────
-# HarmonicMomentProjection
+# MomentProjection
 # ─────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.l0
-class TestHarmonicMomentProjectionShapes:
+class TestMomentProjectionShapes:
     def test_apply_basic_shape(self):
         L = 2
         N = 6
         rng = np.random.default_rng(seed=1)
         weights = np.abs(rng.standard_normal(N)) + 0.1
         Y = rng.standard_normal((N, L + 1, 2 * L + 1))
-        M = HarmonicMomentProjection(weights=weights, Y=Y, L=L)
+        M = MomentProjection(weights=weights, Y=Y, L=L)
         psi = rng.standard_normal(N)
         out = M.apply(psi)
         assert out.shape == (L + 1, 2 * L + 1)
@@ -78,7 +78,7 @@ class TestHarmonicMomentProjectionShapes:
     def test_apply_with_trailing_axes_broadcasts(self):
         """Trailing axes (any rank) should broadcast unchanged.
 
-        :class:`HarmonicMomentProjection` is a generic numerics primitive
+        :class:`MomentProjection` is a generic numerics primitive
         whose ``apply`` contract is "leading axis is ordinates, every
         trailing axis broadcasts" — it is NOT tied to the SN principled
         storage (:ref:`theory-sn-index-convention`).  The trailing-axes
@@ -91,7 +91,7 @@ class TestHarmonicMomentProjectionShapes:
         rng = np.random.default_rng(seed=2)
         weights = np.abs(rng.standard_normal(N)) + 0.1
         Y = rng.standard_normal((N, L + 1, 2 * L + 1))
-        M = HarmonicMomentProjection(weights=weights, Y=Y, L=L)
+        M = MomentProjection(weights=weights, Y=Y, L=L)
         psi = rng.standard_normal((N, a, b, c))
         out = M.apply(psi)
         assert out.shape == (L + 1, 2 * L + 1, a, b, c)
@@ -102,27 +102,27 @@ class TestHarmonicMomentProjectionShapes:
         rng = np.random.default_rng(seed=3)
         weights = np.abs(rng.standard_normal(N)) + 0.1
         Y = rng.standard_normal((N, L + 1, 2 * L + 1))
-        M = HarmonicMomentProjection(weights=weights, Y=Y, L=L)
+        M = MomentProjection(weights=weights, Y=Y, L=L)
         psi = rng.standard_normal((N, 4))
         expected = np.einsum("n,nlm,nc->lmc", weights, Y, psi)
         np.testing.assert_allclose(M.apply(psi), expected, rtol=1e-15)
 
 
 @pytest.mark.l0
-class TestHarmonicMomentProjectionShapeValidation:
+class TestMomentProjectionShapeValidation:
     def test_inconsistent_Y_shape_raises(self):
         weights = np.ones(4)
         Y = np.zeros((4, 3, 5))  # claims L=2, but...
         with pytest.raises(ValueError, match="inconsistent"):
-            HarmonicMomentProjection(weights=weights, Y=Y, L=3)
+            MomentProjection(weights=weights, Y=Y, L=3)
 
 
 @pytest.mark.l0
-class TestHarmonicMomentProjectionFromMeasure:
+class TestMomentProjectionFromMeasure:
     def test_from_lebedev_measure(self):
         measure = lebedev_sphere(5)
         L = 3
-        M = HarmonicMomentProjection.from_measure(measure, L=L)
+        M = MomentProjection.from_measure(measure, L=L)
         assert M.weights.shape == (measure.n_points,)
         assert M.Y.shape == (measure.n_points, L + 1, 2 * L + 1)
         assert M.L == L
@@ -133,7 +133,7 @@ class TestHarmonicMomentProjectionFromMeasure:
         weights = np.array([1.0, 1.0])
         mu = DiscreteMeasure(nodes=nodes, weights=weights, space="[-1,1]")
         with pytest.raises(ValueError, match="\\(N, 3\\)"):
-            HarmonicMomentProjection.from_measure(mu, L=1)
+            MomentProjection.from_measure(mu, L=1)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -197,7 +197,7 @@ class TestGalerkinIdempotencyOnLebedev:
         # 4π normalisation: weights from lebedev_sphere sum to 4π.
         # The Galerkin identity is Π R c = c with the addition-theorem
         # convention used by evaluate_real_sh.
-        M = HarmonicMomentProjection.from_measure(measure, L=L)
+        M = MomentProjection.from_measure(measure, L=L)
         R = HarmonicMomentReconstruction.from_Y(M.Y)
         # Random coefficients in the moment space
         rng = np.random.default_rng(seed=order)
@@ -234,7 +234,7 @@ class TestGalerkinIdempotencyOnLebedev:
 @pytest.mark.l1
 @pytest.mark.catches("ERR-039")
 class TestApplyTransposeIsWWeightedAdjoint:
-    r"""L1: HarmonicMomentProjection.apply_transpose is the W-weighted adjoint.
+    r"""L1: MomentProjection.apply_transpose is the W-weighted adjoint.
 
     Direct test of the production ``apply_transpose`` against the
     defining identity :math:`\langle \Pi \psi, c \rangle_C =
@@ -249,7 +249,7 @@ class TestApplyTransposeIsWWeightedAdjoint:
         measure = lebedev_sphere(13)
         L = 3
         rng = np.random.default_rng(seed=1234)
-        M = HarmonicMomentProjection.from_measure(measure, L=L)
+        M = MomentProjection.from_measure(measure, L=L)
 
         psi = rng.standard_normal(measure.n_points)
         c = rng.standard_normal((L + 1, 2 * L + 1))
@@ -276,7 +276,7 @@ class TestApplyTransposeIsWWeightedAdjoint:
         measure = lebedev_sphere(7)
         L = 2
         rng = np.random.default_rng(seed=5678)
-        M = HarmonicMomentProjection.from_measure(measure, L=L)
+        M = MomentProjection.from_measure(measure, L=L)
         R = HarmonicMomentReconstruction.from_Y(M.Y)
 
         c = rng.standard_normal((L + 1, 2 * L + 1))
@@ -315,7 +315,7 @@ class TestGalerkinAdjointPairing:
         measure = lebedev_sphere(13)
         L = 3
         rng = np.random.default_rng(seed=42)
-        M = HarmonicMomentProjection.from_measure(measure, L=L)
+        M = MomentProjection.from_measure(measure, L=L)
         R = HarmonicMomentReconstruction.from_Y(M.Y)
 
         psi = rng.standard_normal(measure.n_points)
@@ -374,7 +374,7 @@ class TestAssertGalerkinIdempotencyMethod:
         rng = np.random.default_rng(seed=999)
         Y = rng.standard_normal((N, L + 1, 2 * L + 1))
         weights = rng.uniform(0.1, 1.0, N)
-        M = HarmonicMomentProjection(weights=weights, Y=Y, L=L)
+        M = MomentProjection(weights=weights, Y=Y, L=L)
         R = HarmonicMomentReconstruction.from_Y(Y)
         c = rng.standard_normal((L + 1, 2 * L + 1))
         with pytest.raises(AssertionError, match="Galerkin idempotency"):
@@ -390,7 +390,7 @@ class TestAssertGalerkinIdempotencyMethod:
 class TestCapabilities:
     def test_projection_advertises_apply_and_apply_transpose(self):
         measure = lebedev_sphere(7)
-        M = HarmonicMomentProjection.from_measure(measure, L=2)
+        M = MomentProjection.from_measure(measure, L=2)
         assert CAP_APPLY in M.capabilities
         assert CAP_APPLY_TRANSPOSE in M.capabilities
 

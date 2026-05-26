@@ -6,7 +6,7 @@ as a free literal on
 :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction` (the
 ``two_l_plus_one`` array, which is :math:`4\pi \cdot g_C^{-1}` wearing a
 disguise) and as a prose warning on
-:class:`~orpheus.numerics.projection.HarmonicMomentProjection.apply_transpose`.
+:class:`~orpheus.numerics.projection.MomentProjection.apply_transpose`.
 Both move here: the space carries the metric as
 :attr:`inner_product_weights`, and the metric formula itself is sourced
 from :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` so the
@@ -16,7 +16,8 @@ What this enables (P1.4)
 ========================
 
 Once :class:`~orpheus.numerics.projection.MomentProjection` exposes its
-:attr:`codomain` as ``SphericalHarmonicSpace.from_L(L)``, the generic
+:attr:`~orpheus.numerics.projection.MomentProjection.codomain` as
+``SphericalHarmonicSpace.from_L(L)`` (landed in P1.3), the generic
 ``_AdjointOperator`` machinery in :mod:`orpheus.numerics.operator`
 computes ``M.H`` correctly as :math:`g_C \cdot S_0`, where
 :math:`S_0` is the naked synthesis. The two prose warnings in

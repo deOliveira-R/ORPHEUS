@@ -30,10 +30,11 @@ from .operator import (
 from orpheus.numerics.quadrature import gauss_legendre_on_mu, lebedev_sphere, level_symmetric_sn, product_mu_phi
 from .projection import (
     GalerkinProjection,
-    HarmonicMomentProjection,
     HarmonicMomentReconstruction,
+    MomentProjection,
     PetrovGalerkinProjection,
     ProjectionOperator,
+    ReconstructionOperator,
 )
 from .spherical_harmonics import evaluate_real_sh
 from .symmetry import SubgroupOfO3
@@ -48,8 +49,9 @@ __all__ = [
     "DiscreteMeasurePartition",
     "EigenvalueSolver",
     "GalerkinProjection",
-    "HarmonicMomentProjection",
     "HarmonicMomentReconstruction",
+    "MomentProjection",
+    "ReconstructionOperator",
     "IdentityOperator",
     "KEigenvalue",
     "LinearOperator",

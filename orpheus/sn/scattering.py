@@ -123,7 +123,7 @@ from orpheus.numerics.operator import (
     LinearOperatorMixin,
 )
 from orpheus.numerics.projection import (
-    HarmonicMomentProjection,
+    MomentProjection,
     HarmonicMomentReconstruction,
 )
 
@@ -542,7 +542,7 @@ class ScatteringOperator(LinearOperatorMixin):
         :mod:`orpheus.numerics.projection` and
         :class:`LegendreMomentScattering` (Wave 1 / C1.1):
 
-        * :math:`M` :class:`~orpheus.numerics.projection.HarmonicMomentProjection`:
+        * :math:`M` :class:`~orpheus.numerics.projection.MomentProjection`:
           :math:`\psi(N, \cdot) \mapsto \phi^{\ell m}(L+1, 2L+1, \cdot)`
           via :math:`\phi_\ell^m = \sum_n w_n Y_\ell^m(\Omega_n) \psi_n`.
         * :math:`\Lambda` :class:`LegendreMomentScattering`: per-ℓ
@@ -596,7 +596,7 @@ class ScatteringOperator(LinearOperatorMixin):
 
         Notes
         -----
-        :class:`HarmonicMomentProjection` and
+        :class:`MomentProjection` and
         :class:`HarmonicMomentReconstruction` are layout-agnostic in
         their trailing axes — only the leading ordinate / harmonic axes
         are consumed by the einsums.  Switching ψ from ``(N, nx, ny,
@@ -624,7 +624,7 @@ class ScatteringOperator(LinearOperatorMixin):
         # (cross-method neutrality — :mod:`orpheus.numerics.projection`
         # is used by future PN solver, energy condensation, etc.).
         Y = self.Y  # cached on first access
-        M = HarmonicMomentProjection(weights=self.weights, Y=Y, L=L)
+        M = MomentProjection(weights=self.weights, Y=Y, L=L)
         Lam = LegendreMomentScattering(
             mat_xs=self.mat_xs,
             L=L,

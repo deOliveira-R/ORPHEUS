@@ -45,10 +45,13 @@ Naming hierarchy
 
 The naming is **deliberately three-level** so the type itself signals
 which discipline a concrete projection follows. A reader of
-``class HarmonicMomentProjection(GalerkinProjection)`` immediately
-knows (a) it's a projection, (b) it follows Galerkin discipline (test
-space = trial space), (c) the basis is real spherical harmonics — no
-docstring needed for those facts.
+``class MomentProjection(GalerkinProjection)`` immediately knows
+(a) it's a projection, (b) it follows Galerkin discipline (test space
+= trial space). The "harmonic"-ness of the moments is carried by the
+typed codomain :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`
+exposed via :attr:`MomentProjection.codomain`, rather than baked into
+the operator class name — so the §10 PN moment-space projection can
+land as a sibling under the same name with a different codomain.
 
 References
 ----------
@@ -80,13 +83,17 @@ from orpheus.numerics.operator import (
 
 if TYPE_CHECKING:
     from orpheus.numerics.measure import DiscreteMeasure
+    from orpheus.numerics.spaces.spherical_harmonic_space import (
+        SphericalHarmonicSpace,
+    )
 
 
 __all__ = [
     "ProjectionOperator",
     "GalerkinProjection",
     "PetrovGalerkinProjection",
-    "HarmonicMomentProjection",
+    "ReconstructionOperator",
+    "MomentProjection",
     "HarmonicMomentReconstruction",
 ]
 
@@ -120,7 +127,7 @@ class ProjectionOperator(LinearOperatorMixin, ABC):
 
     No domain / range validation here — the ABC stays abstract enough
     to host both Galerkin and Petrov-Galerkin subclasses. The concrete
-    classes :class:`HarmonicMomentProjection`, etc. carry their own
+    classes :class:`MomentProjection`, etc. carry their own
     shape contracts in their docstrings.
     """
 
@@ -215,13 +222,40 @@ class PetrovGalerkinProjection(ProjectionOperator, ABC):
     """
 
 
+class ReconstructionOperator(LinearOperatorMixin, ABC):
+    r"""Abstract :math:`R : W \to V`. Sibling of :class:`ProjectionOperator`.
+
+    A reconstruction operator lifts coefficients from a coarse space
+    :math:`W` back into the fine space :math:`V`. The canonical
+    Galerkin / Petrov-Galerkin pair :math:`(R, \Pi)` exposes both
+    primitives: :class:`ProjectionOperator` carries :math:`\Pi`,
+    :class:`ReconstructionOperator` carries :math:`R`.
+
+    Concrete subclasses (e.g. :class:`HarmonicMomentReconstruction`)
+    provide :meth:`apply`. The default capability set advertises
+    :pydata:`CAP_APPLY`; subclasses MAY add :pydata:`CAP_APPLY_TRANSPOSE`
+    if they can cheaply expose the representation transpose.
+
+    Per Grand Report v3 §5.7 — the Operator hierarchy. Pair this with
+    :class:`ProjectionOperator` (also §5.7) when shipping a Galerkin
+    discretisation: the (R, Π) pair IS the discretisation, modulo a
+    metric correction that lives on the operators' codomain spaces.
+    """
+
+    capabilities: frozenset[str] = frozenset({CAP_APPLY})
+
+    @abstractmethod
+    def apply(self, coefficients: np.ndarray) -> np.ndarray:
+        ...
+
+
 # ─────────────────────────────────────────────────────────────────────
 # Concrete: harmonic-moment projection / reconstruction (real SH)
 # ─────────────────────────────────────────────────────────────────────
 
 
 @dataclass(frozen=True)
-class HarmonicMomentProjection(GalerkinProjection):
+class MomentProjection(GalerkinProjection):
     r"""Discrete Galerkin projection on real spherical harmonics.
 
     The single-axis primitive
@@ -241,6 +275,16 @@ class HarmonicMomentProjection(GalerkinProjection):
     addition-theorem reconstruction) and the test space (where the
     inner product is taken). The paired reconstruction is
     :class:`HarmonicMomentReconstruction`.
+
+    .. note::
+
+       The class name dropped the ``Harmonic`` prefix in P1.3 of the
+       moment-space + layering plan; the typed codomain
+       :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`
+       (exposed via :attr:`codomain`) is now the carrier of
+       "harmonic-ness" — the operator class itself is the generic
+       :class:`MomentProjection`. The §10 PN moment-space projection
+       (still future work) will be a sibling under the same name.
 
     Mathematical content
     --------------------
@@ -298,7 +342,7 @@ class HarmonicMomentProjection(GalerkinProjection):
             self.weights.shape[0], self.L + 1, 2 * self.L + 1,
         ):
             raise ValueError(
-                f"HarmonicMomentProjection: Y shape "
+                f"MomentProjection: Y shape "
                 f"{self.Y.shape} inconsistent with N={self.weights.shape[0]}, "
                 f"L={self.L}; expected ({self.weights.shape[0]}, "
                 f"{self.L + 1}, {2 * self.L + 1})."
@@ -309,25 +353,46 @@ class HarmonicMomentProjection(GalerkinProjection):
         cls,
         measure: "DiscreteMeasure",
         L: int,
-    ) -> "HarmonicMomentProjection":
+    ) -> "MomentProjection":
         r"""Construct from a :class:`DiscreteMeasure` over :math:`S^2`.
 
         Convenience constructor that pulls the weights from the
-        measure and builds the :math:`Y` table by calling
-        :func:`evaluate_real_sh` on the measure's nodes.
+        measure and builds the :math:`Y` table by calling the canonical
+        :class:`~orpheus.numerics.basis.SphericalHarmonicBasis`
+        evaluator on the measure's nodes.
 
         The measure's ``nodes`` MUST be a ``(N, 3)`` array of
         direction cosines :math:`(\mu_x, \mu_y, \mu_z)` per ordinate.
         """
-        from orpheus.numerics.spherical_harmonics import evaluate_real_sh
+        from orpheus.numerics.basis.spherical_harmonic_basis import (
+            SphericalHarmonicBasis,
+        )
         nodes = measure.nodes
         if nodes.ndim != 2 or nodes.shape[1] != 3:
             raise ValueError(
-                f"HarmonicMomentProjection.from_measure expects "
+                f"MomentProjection.from_measure expects "
                 f"nodes of shape (N, 3); got {nodes.shape}."
             )
-        Y = evaluate_real_sh(L, nodes[:, 0], nodes[:, 1], nodes[:, 2])
+        Y = SphericalHarmonicBasis(L=L).evaluate(nodes)
         return cls(weights=measure.weights, Y=Y, L=L)
+
+    @property
+    def codomain(self) -> "SphericalHarmonicSpace":
+        r"""The :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`
+        this projection targets — moment space of order :math:`L`.
+
+        Built on access from :meth:`SphericalHarmonicSpace.from_L` so the
+        metric carried by :attr:`FunctionSpace.inner_product_weights` is
+        the canonical SH Gram :math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))`
+        padded to the moment-field storage layout ``(L+1, 2L+1)``. This
+        is the metric that the generic ``A.H`` machinery uses (along with
+        the domain's quadrature weights ``W``) to compute the W-weighted
+        Hilbert adjoint :math:`\Pi^* = g_C \cdot S_0` correctly.
+        """
+        from orpheus.numerics.spaces.spherical_harmonic_space import (
+            SphericalHarmonicSpace,
+        )
+        return SphericalHarmonicSpace.from_L(self.L)
 
     def apply(self, psi: np.ndarray) -> np.ndarray:
         r"""Apply :math:`\Pi \psi` along the leading angular axis.
@@ -380,9 +445,9 @@ class HarmonicMomentProjection(GalerkinProjection):
 
 
 @dataclass(frozen=True)
-class HarmonicMomentReconstruction(LinearOperatorMixin):
+class HarmonicMomentReconstruction(ReconstructionOperator):
     r"""Addition-theorem reconstruction :math:`R` paired with
-    :class:`HarmonicMomentProjection`.
+    :class:`MomentProjection`.
 
     Maps moment-space coefficients to a per-ordinate angular field
     via the addition-theorem reconstruction with the
@@ -399,48 +464,46 @@ class HarmonicMomentReconstruction(LinearOperatorMixin):
     angular field :math:`q : (N, \ldots)`. The remaining axes
     broadcast through unchanged.
 
-    .. warning::
+    .. note::
 
        :math:`R` is **not** the strict Hilbert adjoint of
-       :class:`HarmonicMomentProjection` — see ERR-039. The
-       addition-theorem reconstruction carries the
-       :math:`(2\ell+1)` factor that the Pℓ scattering
-       reconstruction needs (Bell & Glasstone 1970, §1.6); the
-       strict W-weighted Hilbert adjoint :math:`\Pi^*` is the
-       *naked* reconstruction without the :math:`(2\ell+1)` factor
-       and is returned by :meth:`HarmonicMomentProjection.apply_transpose`,
-       NOT by this class. The two operators differ by a
-       diagonal-in-:math:`\ell` scaling :math:`(2\ell+1)`. Both are
-       useful primitives:
-
-       * :math:`R` (this class) for the SN scattering source build
-         — the addition-theorem composition :math:`\Pi R = 4\pi I`
-         is the identity used by the Pℓ Galerkin reconstruction.
-       * :math:`\Pi^*` (the projection's apply_transpose) for the
-         W-weighted Hilbert adjoint — the discipline's
-         :math:`\langle \Pi \psi, c \rangle_C =
-         \langle \psi, \Pi^* c \rangle_V` identity.
+       :class:`MomentProjection` — see ERR-039. The addition-theorem
+       reconstruction carries the :math:`(2\ell+1)` factor that the
+       :math:`P_\ell` scattering reconstruction needs (Bell & Glasstone
+       1970, §1.6); the strict W-weighted Hilbert adjoint
+       :math:`\Pi^* = g_C \cdot S_0` lives on
+       :attr:`MomentProjection.H` (Phase 1 P1.4) where it is computed
+       generically by the metric-aware ``_AdjointOperator`` machinery
+       using the codomain's :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`
+       Gram. The two differ by exactly the
+       :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`
+       Gram :math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))`:
+       :math:`R = (2\ell+1) S_0 = 4\pi \cdot g_C^{-1} \cdot S_0`
+       whereas :math:`\Pi^* = g_C \cdot S_0`. Both are useful
+       primitives; the identity :math:`\Pi R = 4\pi I` is pinned by
+       ``tests/numerics/test_spherical_harmonic_space.py``.
 
     Parameters
     ----------
     Y : np.ndarray, shape (N, L+1, 2L+1)
         Spherical-harmonic table from
-        :func:`orpheus.numerics.spherical_harmonics.evaluate_real_sh`
+        :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate`
         — same table consumed by the projection.
     two_l_plus_one : np.ndarray, shape (L+1,)
         The addition-theorem factor :math:`2\ell+1` precomputed for
-        :math:`\ell = 0, 1, \ldots, L`.
+        :math:`\ell = 0, 1, \ldots, L`. Use
+        :meth:`from_spherical_harmonic_space` to source this from
+        :attr:`SphericalHarmonicSpace.addition_theorem_factor` (the
+        canonical single-source path); :meth:`from_Y` is the
+        back-compat shim that internally constructs the space.
 
     Notes
     -----
 
-    The capability set advertises :pydata:`CAP_APPLY` and
-    :pydata:`CAP_APPLY_TRANSPOSE` (the latter is the
-    :class:`HarmonicMomentProjection`'s :meth:`apply` modulo the
-    :math:`W` weight — but to compute :math:`R^*` in isolation we
-    would need the weights, which this dataclass does not carry. The
-    canonical adjoint pairing flows through
-    :class:`HarmonicMomentProjection` instead).
+    The capability set advertises :pydata:`CAP_APPLY` only. The
+    canonical adjoint pairing flows through :class:`MomentProjection`
+    via its ``.H`` property (which carries the W and :math:`g_C`
+    metrics needed for the W-weighted Hilbert adjoint).
 
     Implementation: ONE :func:`numpy.einsum`. No Python loops over
     :math:`n`, :math:`\ell`, or :math:`m`.
@@ -459,11 +522,51 @@ class HarmonicMomentReconstruction(LinearOperatorMixin):
             )
 
     @classmethod
+    def from_spherical_harmonic_space(
+        cls,
+        space: "SphericalHarmonicSpace",
+        Y: np.ndarray,
+    ) -> "HarmonicMomentReconstruction":
+        r"""Construct from a :class:`SphericalHarmonicSpace` and Y table.
+
+        Sources the addition-theorem factor :math:`2\ell+1` from
+        :attr:`SphericalHarmonicSpace.addition_theorem_factor` (which
+        in turn delegates to :attr:`SphericalHarmonicBasis.addition_theorem_factor`).
+        This is the CANONICAL construction path under the moment-space
+        plan — the SH convention's :math:`(2\ell+1)` formula lives in
+        exactly one place
+        (:class:`~orpheus.numerics.basis.SphericalHarmonicBasis`).
+
+        Parameters
+        ----------
+        space : SphericalHarmonicSpace
+            The moment space of order :math:`L`. Must satisfy
+            ``space.L == Y.shape[1] - 1`` — checked by
+            ``__post_init__``.
+        Y : np.ndarray, shape ``(N, L+1, 2L+1)``
+            Spherical-harmonic table built by
+            :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate`
+            on a quadrature's direction cosines.
+        """
+        return cls(Y=Y, two_l_plus_one=space.addition_theorem_factor)
+
+    @classmethod
     def from_Y(cls, Y: np.ndarray) -> "HarmonicMomentReconstruction":
-        """Construct from a :math:`Y` table; compute :math:`(2\\ell+1)`."""
+        r"""Back-compat shim: construct from a :math:`Y` table alone.
+
+        Internally builds the
+        :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`
+        matching ``Y.shape[1] - 1`` and delegates to
+        :meth:`from_spherical_harmonic_space`. The
+        :math:`(2\ell+1)` array is sourced via the space → basis
+        chain; no local literal.
+        """
+        from orpheus.numerics.spaces.spherical_harmonic_space import (
+            SphericalHarmonicSpace,
+        )
         L = Y.shape[1] - 1
-        two_l_plus_one = (2.0 * np.arange(L + 1) + 1.0)
-        return cls(Y=Y, two_l_plus_one=two_l_plus_one)
+        space = SphericalHarmonicSpace.from_L(L)
+        return cls.from_spherical_harmonic_space(space, Y)
 
     def apply(self, moments: np.ndarray) -> np.ndarray:
         r"""Apply :math:`R \phi` along the leading harmonic-coefficient axes.
