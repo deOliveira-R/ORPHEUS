@@ -133,7 +133,7 @@ def contamination_beta(
     elif geometry == "cylindrical":
         betas = []
         for level_idx in quad.level_indices:
-            eta = quad.mu_x[level_idx]
+            eta = quad.eta[level_idx]
             w = quad.weights[level_idx]
             mu_z_level = quad.mu_z[level_idx[0]]
             alpha = _alpha_dome(eta, w)
@@ -187,7 +187,7 @@ def morel_montry_weights(
     elif geometry == "cylindrical":
         tau_list = []
         for level_idx in quad.level_indices:
-            eta = quad.mu_x[level_idx]
+            eta = quad.eta[level_idx]
             w = quad.weights[level_idx]
             mu_z_level = quad.mu_z[level_idx[0]]
             eta_edge = _cell_edge_cosines(

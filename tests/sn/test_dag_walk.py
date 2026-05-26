@@ -127,7 +127,7 @@ def test_dag_walk_cylindrical_per_level_matches():
     level_indices = quad.level_indices
     for level_p in range(len(level_indices)):
         level_ords = np.asarray(level_indices[level_p])
-        eta_at_level = quad.mu_x[level_ords]
+        eta_at_level = quad.eta[level_ords]
         for sign in (+1, -1):
             # Exclude pure-azimuthal degenerate ordinates: their
             # ordinate-keyed dag_walk path always iterates forward (no

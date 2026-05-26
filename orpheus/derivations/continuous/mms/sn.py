@@ -1331,7 +1331,7 @@ class SNCylindricalMMSCase:
         A = self.phi_exact(r)
         Ap = self.dphi_exact(r)
         # mu_x is the radial direction cosine (η) for cylindrical
-        eta = self.quadrature.mu_x
+        eta = self.quadrature.eta
         sum_w = float(self.quadrature.weights.sum())
         N = len(eta)
         streaming = eta[:, None] * Ap[None, :]
@@ -2288,8 +2288,8 @@ class SNCylindricalAnisotropicMMSCase:
         Ap_ = self.Ap(r)
         B_ = self.B(r)
         Bp_ = self.Bp(r)
-        eta = self.quadrature.mu_x       # (N,) — radial cosine
-        xi = self.quadrature.mu_y        # (N,) — azimuthal cosine
+        eta = self.quadrature.eta       # (N,) — radial cosine
+        xi = self.quadrature.xi        # (N,) — azimuthal cosine
         sum_w = float(self.quadrature.weights.sum())
 
         streaming_iso = eta[:, None] * Ap_[None, :]              # η A'

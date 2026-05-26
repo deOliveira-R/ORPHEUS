@@ -243,7 +243,7 @@ def test_cylinder_dag_walk_per_level() -> None:
     quad = sn.quad
     # Pick a level with both signs of η represented.
     for p, level_idx in enumerate(quad.level_indices):
-        eta_signs = [np.sign(quad.mu_x[g]) for g in level_idx]
+        eta_signs = [np.sign(quad.eta[g]) for g in level_idx]
         if 1 in eta_signs and -1 in eta_signs:
             chosen_level = p
             break
@@ -253,7 +253,7 @@ def test_cylinder_dag_walk_per_level() -> None:
     level_idx = quad.level_indices[chosen_level]
     for m_local in range(len(level_idx)):
         global_n = int(level_idx[m_local])
-        eta_n = quad.mu_x[global_n]
+        eta_n = quad.eta[global_n]
         visits = list(
             sn.dag_walk(
                 ordinate_idx=m_local, mu_level_idx=chosen_level,

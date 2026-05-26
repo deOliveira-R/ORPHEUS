@@ -483,7 +483,7 @@ class ReducedStreamingOperator:
             # radial direction cosine).
             level_indices = self._quadrature.level_indices  # type: ignore[attr-defined]
             global_n = int(level_indices[mu_level_idx][direction_idx])
-            eta_n = float(self._quadrature.mu_x[global_n])
+            eta_n = float(self._quadrature.eta[global_n])
             alpha_lv = self.alpha_per_level[mu_level_idx]
             dAw_lv = self.redist_dAw_per_level[mu_level_idx]
             tau_lv = self.tau_mm_per_level[mu_level_idx]

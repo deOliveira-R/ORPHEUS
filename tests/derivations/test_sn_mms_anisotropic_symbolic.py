@@ -288,11 +288,11 @@ def test_cylindrical_aniso_numerical_qext_matches_sympy():
         modules="numpy",
     )
 
-    # ProductQuadrature gives (mu_x, mu_y) = (η_n, ξ_n) directly. We
+    # ProductQuadrature gives (eta, xi) = (η_n, ξ_n) directly. We
     # invert to (theta_n, phi_n) on the unit sphere: η = sinθ cosφ,
     # ξ = sinθ sinφ → tan φ = ξ/η, sinθ = sqrt(η² + ξ²).
-    eta = case.quadrature.mu_x
-    xi = case.quadrature.mu_y
+    eta = case.quadrature.eta
+    xi = case.quadrature.xi
     sin_theta = np.sqrt(eta**2 + xi**2)
     # phi_az: arctan2 gives the right quadrant in [-π, π].
     phi_az = np.arctan2(xi, eta)

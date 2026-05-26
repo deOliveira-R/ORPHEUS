@@ -308,8 +308,55 @@ class Quadrature:
 
     @property
     def mu_z(self) -> np.ndarray:
-        r"""Axis-2 direction cosines. Legacy SN slab convention name."""
+        r"""Axis-2 direction cosines. Legacy SN slab convention name.
+
+        For cylindrical SN this is the axial cosine :math:`\mu` —
+        the Cartesian-Z label aligns with the cylindrical convention
+        here (axial ≡ z), so the name is not misleading.
+        """
         return self.axis_cosines(2)
+
+    # ────────────────────────────────────────────────────────────
+    # Cylindrical-SN frame aliases (Bailey 2009 / Hébert convention)
+    # ────────────────────────────────────────────────────────────
+    #
+    # In cylindrical SN, the natural direction-cosine names are
+    # (η, ξ, μ) — radial, azimuthal, axial. These are the SAME
+    # three columns of the underlying ``measure.nodes`` as
+    # (mu_x, mu_y, mu_z), but the cylindrical-frame names are
+    # honest about what they represent:
+    #
+    #   η = Ω · r̂  (radial cosine)       = nodes[:, 0]
+    #   ξ = Ω · φ̂  (azimuthal cosine)    = nodes[:, 1]
+    #   μ = Ω · ẑ   (axial cosine)        = nodes[:, 2]  ← same as mu_z
+    #
+    # The ``mu_x`` name is **misleading in cylindrical context** —
+    # column 0 is the radial cosine, NOT a Cartesian-X projection.
+    # Cylindrical-context call sites should read ``quad.eta`` /
+    # ``quad.xi`` so the consumer code is self-documenting about
+    # which coordinate frame it is operating in.
+
+    @property
+    def eta(self) -> np.ndarray:
+        r"""Cylindrical-frame radial cosine :math:`\eta = \Omega \cdot \hat{r}`.
+
+        Same data as :attr:`mu_x` (column 0 of ``measure.nodes``);
+        the cylindrical-frame name is honest about the geometric
+        meaning. Use this in cylindrical-SN call sites where the
+        slab name ``mu_x`` would mislead a reader into thinking
+        the column is a Cartesian-X projection.
+        """
+        return self.axis_cosines(0)
+
+    @property
+    def xi(self) -> np.ndarray:
+        r"""Cylindrical-frame azimuthal cosine :math:`\xi = \Omega \cdot \hat{\varphi}`.
+
+        Same data as :attr:`mu_y` (column 1 of ``measure.nodes``);
+        the cylindrical-frame name is honest about the geometric
+        meaning.
+        """
+        return self.axis_cosines(1)
 
     # ────────────────────────────────────────────────────────────
     # Reflection partners

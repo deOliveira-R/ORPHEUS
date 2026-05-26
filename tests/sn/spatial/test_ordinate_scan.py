@@ -567,7 +567,7 @@ def _build_cylinder_visits_and_inputs(
     # Check sign of η for this ordinate to decide cell order
     level_indices = quad.level_indices
     global_n = int(level_indices[mu_level_idx][direction_idx])
-    eta_n = float(quad.mu_x[global_n])
+    eta_n = float(quad.eta[global_n])
     if eta_n >= 0:
         cell_order = range(nx)
         select_outer = True

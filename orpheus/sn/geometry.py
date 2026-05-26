@@ -1067,7 +1067,7 @@ class SNMesh:
         if coord is CoordSystem.CYLINDRICAL:
             level_indices = self.quad.level_indices  # type: ignore[attr-defined]
             level_ords = np.asarray(level_indices[mu_level_idx])
-            eta_at_level = self.quad.mu_x[level_ords]
+            eta_at_level = self.quad.eta[level_ords]
             if direction_sign == +1:
                 cand = np.where(eta_at_level > +eps)[0]
             else:
@@ -1172,7 +1172,7 @@ class SNMesh:
         assert self.reduced is not None
         level_indices = self.quad.level_indices  # type: ignore[attr-defined]
         global_n = int(level_indices[mu_level_idx][ordinate_idx])
-        eta_n = float(self.quad.mu_x[global_n])
+        eta_n = float(self.quad.eta[global_n])
         abs_eta = abs(eta_n)
 
         if abs_eta < self._DEGENERATE_ABS_ETA_THRESHOLD:

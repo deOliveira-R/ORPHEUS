@@ -141,6 +141,25 @@ def test_q3_2_mu_y_mu_z_zeros_for_slab() -> None:
     np.testing.assert_array_equal(q.mu_z, np.zeros(q.N))
 
 
+def test_q3_3_cylindrical_eta_xi_aliases_agree_with_mu_x_mu_y() -> None:
+    r"""``eta`` / ``xi`` aliases on :class:`Quadrature` are the
+    cylindrical-frame names for ``mu_x`` / ``mu_y`` — same data,
+    honest naming.
+
+    The slab convention names ``mu_x``/``mu_y`` mislead in
+    cylindrical SN: column 0 of ``measure.nodes`` is the radial
+    cosine :math:`\eta`, NOT a Cartesian-X projection; column 1
+    is the azimuthal cosine :math:`\xi`. The aliases let
+    cylindrical-context call sites read in the right frame.
+    """
+    q = Quadrature.level_symmetric(4)
+    np.testing.assert_array_equal(q.eta, q.mu_x)
+    np.testing.assert_array_equal(q.xi, q.mu_y)
+    # And they round-trip through axis_cosines(i).
+    np.testing.assert_array_equal(q.eta, q.axis_cosines(0))
+    np.testing.assert_array_equal(q.xi, q.axis_cosines(1))
+
+
 # ─── Q4: Reflection partners ────────────────────────────────────────────
 
 
