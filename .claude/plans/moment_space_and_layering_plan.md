@@ -1,11 +1,35 @@
 # Plan: Harmonic Moment-Space Typing, Operator Adjoint Correctness, and the `numerics`/`transport` Re-architecture
 
-Status: **executing** (P0 reconnaissance landed 2026-05-26). Branch:
-`refactor/moment-space-and-layering`, off `refactor/sn-operator-algebra`. Worktree:
-`.claude/worktrees/moment-space-and-layering/`. Implementation: Claude Code, this
-session — full-stack implementation. This document is self-contained by intent —
-every decision below is stated with its rationale so a session with no conversational
-history can execute it.
+Status: **Phase 1 COMPLETE (2026-05-26). Phases 2 + 3 PENDING (fresh session).**
+Branch: `refactor/moment-space-and-layering`, off `refactor/sn-operator-algebra`.
+Worktree: `.claude/worktrees/moment-space-and-layering/`. This document is
+self-contained by intent — every decision below is stated with its rationale so
+a session with no conversational history can execute it.
+
+---
+
+## ⚡ Pickup checklist (read first after `/clear`)
+
+1. **Re-load the cardinal context** via the session-start protocol (vv-principles,
+   subagent-handoff-protocol, coding-elegance, `.claude/lessons.md`,
+   `nexus__session_briefing`, `docs/development.rst`).
+2. **Check this plan's "Phase 1 outcome" section** (§0.3 below) for the actual
+   commit sequence + lessons learned.
+3. **Read** `.claude/agent-memory/qa/phase1_moment_space_review.md` (QA review)
+   + `.claude/agent-memory/method-implementer/phase1_self_review.md` (impl
+   self-review) for residual concerns and the "Os and Cs" analysis.
+4. **Choose order**: Phase 2 (small, ~2-3 commits) OR Phase 3 (large, ~7+ commits) —
+   user's preference (BOTH will be done; only the order is open). See §"Phase 2 vs
+   Phase 3 ordering" below for the trade-offs.
+5. **Verify Phase 1 still green** by running:
+   ```
+   .venv/bin/python -m pytest tests/numerics/ tests/sn/ \
+       --ignore=tests/sn/regression -q --no-header
+   ```
+   Expected: ~500+ PASS on numerics; the SN suite must stay clean.
+6. **Proceed to Phase 2 OR Phase 3** per §§ below.
+
+---
 
 ---
 
@@ -48,6 +72,91 @@ The plan's P1.0 demands a consumer inventory before any edit. That memo lives at
 file:line-cited throughout). Every claim in §§ 1, 1.5, and the Phase sections below
 that names a file:line site is sourced from that memo. The memo is the empirical
 backing for this plan; this document is the executable specification.
+
+### 0.3 Phase 1 outcome (2026-05-26)
+
+Phase 1 shipped as 11 commits on `refactor/moment-space-and-layering`:
+
+```
+1ab6233  P0    docs(plan): moment-space + layering plan — P0 reconnaissance landed
+0eb9cf3  P1.1  feat(numerics): SphericalHarmonicBasis — canonical home for SH evaluator + Gram
+f27ba47  P1.2  feat(numerics): SphericalHarmonicSpace — typed home for the SH Gram matrix
+6ba9102  P1.3  refactor(numerics): MomentProjection + ReconstructionOperator — single (2ℓ+1) source
+36159f5  P1.4  refactor(numerics): .T = w_n · S_0 ; .H = g_C · S_0 — ERR-039 root-cause fix
+28d9275  P1.5  test(numerics): SphericalHarmonicSpace V&V test suite — ERR-039 endpoint
+be92b92  P1.6  docs(numerics): collapse ERR-039 warnings + retire assert_galerkin_idempotency
+f54295c  P1.7  refactor(sn): retire dead _build_rhs_{cartesian,spherical,cylindrical}
+c5be4b0  P1.8a refactor(numerics): API simplification (cached_property + collapse factories + foundation marker)
+1f1e85e  P1.8b docs(vv): ERR-039 round-2 update + ERR-051 + vv-principles anti-pattern #11
+ea02ab5  P1.8b docs(vv): vv-principles anti-pattern #11 (followup commit; SKILL.md split from prior commit)
+```
+
+**The ERR-039 endpoint is reached:**
+
+- The four operators ERR-039 conflated are SEPARATELY TYPED:
+  `S_0` (basis.synthesize), `Π^T = w_n · S_0` (MomentProjection.apply_transpose),
+  `Π* = g_C · S_0` (MomentProjection.H), `R = (2ℓ+1) · S_0`
+  (HarmonicMomentReconstruction).
+- The `(2ℓ+1)` literal lives in EXACTLY ONE production place:
+  `SphericalHarmonicBasis.addition_theorem_factor`
+  (basis/spherical_harmonic_basis.py:152). Two grep hits in other files are
+  array-stride arithmetic (different semantics — verified).
+- The `g_C = diag(4π/(2ℓ+1))` metric lives in EXACTLY ONE production place:
+  `SphericalHarmonicSpace.inner_product_weights` (computed via
+  `SphericalHarmonicBasis.metric_per_ell`).
+- The broken `GalerkinProjection.assert_galerkin_idempotency` (asserted
+  `Π R = I` instead of `Π R = 4π · I`) was retired alongside its sole caller
+  test → **ERR-051** logged.
+- `_build_rhs_{cartesian, spherical, cylindrical}` retired (dead code; the
+  cartesian variant carried the inline `(2ℓ+1)` duplicate).
+- `_AdjointOperator.apply` generalised via `_broadcast_for_leading_axes` helper
+  to handle leading-axis metric broadcasting (operator.py:197-237).
+- 13 new V&V tests in `tests/numerics/test_spherical_harmonic_space.py`, all
+  `@pytest.mark.catches("ERR-039")` on the 5 math-identity tests.
+
+**ERR catalog actions (2026-05-26):**
+
+- **ERR-039 entry updated** with "Round 2 fix" block — Wave 0 fix made
+  `apply_transpose` return bare `S_0` which was ALSO mislabeled; Phase 1
+  installed the W and g_C metrics, separating `.T` from `.H`.
+- **NEW ERR-051** — `assert_galerkin_idempotency` shipped wrong invariant
+  (Π R = I vs Π R = 4π · I under no-prefactor SH convention); hidden by a
+  negative-only test that fed a non-orthogonal Y so the wrong invariant
+  produced the expected failure.
+- **NEW anti-pattern #11** in `vv-principles/SKILL.md` — contract-validation
+  methods MUST have positive AND negative tests; negative-only is a discipline
+  failure that hides wrong-invariant claims indefinitely.
+
+**Phase 1 lessons learned (durable insights):**
+
+1. **Single source of truth for convention literals.** The (2ℓ+1) factor was
+   in two places (R.from_Y constructor + sn/solver.py:930 inline); both got
+   absorbed into the typed-space chain. Pattern: convention literals belong
+   on the canonical TYPE, not at the consumer (Pattern 7 producer-side).
+2. **LS quadratures are NOT exact for arbitrary SH integration.** They are
+   optimised for moment integration in the SN transport equation; using them
+   to test ⟨Y_l, Y_l'⟩ products at L≥2 gives ~24% diagonal error. Use Lebedev
+   or product Gauss-Legendre × Chebyshev for SH-Gram tests. Recorded in user
+   memory as `feedback_no_tolerance_relaxation` ("don't relax — use or
+   implement an exact rule").
+3. **Negative-only tests for validation methods are a discipline failure.**
+   ERR-051's bug surface was the TEST, not the method per se. The test
+   pattern "feed a broken case, assert raises" validates the raising behaviour
+   but NOT the invariant claim. Anti-pattern #11 codifies the fix.
+4. **Dead code is invisible noise that hides bugs.** Three `_build_rhs_*`
+   functions were dead in production (the `TestNoLegacyMachineryInCallPath`
+   sentinel already enforced their absence from the Krylov path), yet they
+   carried a hidden `(2ℓ+1)` duplicate. Retiring them was free correctness +
+   16% smaller solver.py.
+5. **Reconnaissance memos pay 5-10× in implementation efficiency.** The
+   explorer's consumer inventory (CC.1-CC.8) shaped Phase 1 in load-bearing
+   ways: GroupFlux dropped (didn't exist), IsotropicSource added to P3.3,
+   `numerics/iteration.py` confirmed L1-clean (P3.4 greenfield not carve).
+6. **Cross-checks must be structurally independent, not just procedurally
+   different.** The unit-vector cross-check in
+   `test_R_equals_2l_plus_1_times_S0` is bit-identical to the einsum because
+   single-term input eliminates the FP-reduction-order ambiguity — that's
+   structural independence done right (L11).
 
 ### 0.2 Resolved open decisions (2026-05-26)
 
@@ -163,7 +272,12 @@ is PN-solver work, not part of this plan.
 
 ---
 
-## Phase 1 — Harmonic moment space and adjoint correctness
+## Phase 1 — Harmonic moment space and adjoint correctness ✅ COMPLETE (2026-05-26)
+
+See §0.3 above for the commit sequence (1ab6233..ea02ab5), Phase 1 outcome, and
+lessons learned. The step-by-step narrative below remains as the executable
+specification — useful for code archeology, V&V audit, and as the template for
+Phase 2's space-algebra commits.
 
 Goal: introduce `SphericalHarmonicBasis` and `SphericalHarmonicSpace`, make the SH
 metric a single typed object, correct the `.T`/`.H` split, and replace the ERR-039
@@ -175,7 +289,7 @@ warning boxes with tests. New files are placed at their final architectural loca
 Memo at `.claude/agent-memory/explorer/moment_space_plan_consumer_inventory.md`.
 Folded into §§ 1, 1.5 above and the Phase 1 / 3 steps below.
 
-### P1.1 — `SphericalHarmonicBasis` (the `Basis`, §5.4)
+### P1.1 — `SphericalHarmonicBasis` (the `Basis`, §5.4) ✅ commit 0eb9cf3
 
 Create `orpheus/numerics/basis/__init__.py` and
 `orpheus/numerics/basis/spherical_harmonic_basis.py`. New `numerics/basis/` package
@@ -196,7 +310,7 @@ The SH normalization convention and `g_C` live here and nowhere else.
 `numerics/quadrature/directional.py:75, 393` and the four sn-quadrature wrappers).
 The shim deletes in P3.2 when those delegators are rewired.
 
-### P1.2 — `SphericalHarmonicSpace` and `MomentMassMatrix`
+### P1.2 — `SphericalHarmonicSpace` and `MomentMassMatrix` ✅ commit f27ba47
 
 Create `orpheus/numerics/spaces/__init__.py` and
 `orpheus/numerics/spaces/spherical_harmonic_space.py`. The introduction of
@@ -223,7 +337,7 @@ as `TraceSpace` (`trace_space.py:251-263`):
 The space's metric **is** `SphericalHarmonicBasis.mass_matrix`; the space holds it,
 the basis defines it.
 
-### P1.3 — `MomentProjection` / `ReconstructionOperator` rewire
+### P1.3 — `MomentProjection` / `ReconstructionOperator` rewire ✅ commit 6ba9102
 
 In `orpheus/numerics/projection.py`:
 
@@ -242,7 +356,7 @@ In `orpheus/numerics/projection.py`:
   re-derive the array as the test spec; those are the test as the spec.)
 - The legacy duplicate at `sn/solver.py:862, 884-898, 930` is handled in P1.7.
 
-### P1.4 — `.T` / `.H` correction in `operator.py` (§6.3)
+### P1.4 — `.T` / `.H` correction in `operator.py` (§6.3) ✅ commit 36159f5
 
 §6.3 mandates: `.T` is the representation transpose; `.H` is the Hilbert adjoint
 including domain/codomain inner products.
@@ -267,7 +381,7 @@ the fixed-layout case by pre-shaping weights. Phase 1 resolves the
 projection-operator case concretely: the space carries the metric shaped for axis-0
 broadcast and `_AdjointOperator` broadcasts trailing. The general case is Phase 2.
 
-### P1.5 — V&V test
+### P1.5 — V&V test ✅ commit 28d9275
 
 Create `tests/numerics/test_spherical_harmonic_space.py`. The ERR-039 prose becomes
 executable:
@@ -287,7 +401,7 @@ All marked `@pytest.mark.catches("ERR-039")` + `@pytest.mark.l1` +
 `@pytest.mark.verifies(<label>)` where `<label>` matches the new
 `docs/theory/spherical_harmonics.rst` equations added in P1.6.
 
-### P1.6 — Docstring surgery + retire `assert_galerkin_idempotency`
+### P1.6 — Docstring surgery + retire `assert_galerkin_idempotency` ✅ commit be92b92
 
 Three actions in one step:
 
@@ -317,7 +431,32 @@ warnings collapsed to a signpost. They are different classes
 (`ReconstructionOperator` vs `_AdjointOperator`); that is the available type-level
 separation.
 
-### P1.7 — Retire `sn/solver.py:930` inline (2ℓ+1) duplicate (NEW per CC.3)
+### P1.7 — Retire `sn/solver.py:930` inline (2ℓ+1) duplicate (NEW per CC.3) ✅ commit f54295c
+
+(Scope expanded principle: all three `_build_rhs_{cartesian, spherical,
+cylindrical}` retired together, not just the cartesian variant carrying the
+literal. All were dead code per `TestNoLegacyMachineryInCallPath`; aggregate
+retirement per `feedback_aggressive_retirement`.)
+
+### P1.8 — Phase 1 polish: post-QA-review elegance + catalog + skill (NEW; landed 2026-05-26)
+
+QA's independent review surfaced four blockers + two catalog updates + one
+skill self-improvement. Shipped as three commits:
+
+- **P1.8a** (commit c5be4b0): `@cached_property` on
+  `MomentProjection.{domain, codomain, range}` (avoid per-matvec allocation
+  in Krylov inner loop); collapsed `from_spherical_harmonic_space` factories
+  on both projection and reconstruction classes into one canonical factory
+  per class (`from_measure(measure, L, *, Y=None)` and `from_Y(Y)` —
+  `coding-elegance` Pattern 5); tagged 3 API/type tests
+  `@pytest.mark.foundation` (was @l0/@l1; software invariants don't carry
+  math-identity labels); deleted vacuous
+  `test_from_spherical_harmonic_space_roundtrip` test.
+- **P1.8b** (commit 1f1e85e): ERR-039 entry update + new ERR-051 in the
+  V&V catalog.
+- **P1.8b followup** (commit ea02ab5): anti-pattern #11 in
+  `vv-principles/SKILL.md` (contract-validation methods need positive +
+  negative tests).
 
 The hand-rolled Pℓ source construction in `_build_rhs_cartesian` at
 `orpheus/sn/solver.py:862, 884-898, 930` carries the addition-theorem factor inline:
@@ -349,10 +488,61 @@ The plan's "exactly one place" claim depends on this step landing.
 
 ---
 
+## Phase 2 vs Phase 3 ordering (decision for the next session)
+
+Both phases WILL be done. Only the order is open. The choice has trade-offs:
+
+**Phase 2 first (smaller, ~2-3 commits):**
+
+- P2.1 introduces `DualSpace` + `Space.dual()` that generalises the inline
+  `_broadcast_for_leading_axes` helper added in P1.4 (commit 36159f5) into a
+  proper Space method. The helper currently has only ONE caller
+  (`_AdjointOperator.apply`); the existing project rule
+  (`feedback_unify_after_two_instances`) argues for deferring the
+  abstraction until a second caller arrives. Phase 2 doing it now is a
+  deliberate rule-departure justified by Grand Report v3 §5.3 + §6.1
+  scheduling.
+- P2.2 introduces `TensorProductSpace` (`Space.__mul__`) + `DirectSumSpace`
+  (`Space.__add__`). The plan's original deferral note —
+  "sequence them when those consumers are scheduled" — was written when
+  issues #172 (`SumOfTensorProductsOperator` §15.2 streaming-form L1 test)
+  and #173 (`TensorProductOperator` adjoint distributivity test) were
+  unscheduled. They are still unscheduled. **If Phase 2 is done before
+  Phase 3, P2.2 ships infrastructure with no immediate test consumer** —
+  the unification rule violation is intentional but creates orphan code.
+- Phase 2 commits are clean additions; no consumer rewires needed.
+
+**Phase 3 first (larger, ~7+ commits):**
+
+- P3.1 (import-linter) lands first and lights up violations as failures —
+  every subsequent P3.x commit is gated by the linter going green.
+- **P3.5 (range→codomain rename) should sequence EARLY** — eliminates the
+  dual-name overhead I introduced in MomentProjection (Phase 1 carries
+  `range` + `codomain` because the framework still reads `range`). Doing
+  P3.5 first means subsequent moves (P3.2, P3.3) work against a single
+  canonical attribute name. **Recommended order: P3.1 → P3.5 → P3.0 →
+  P3.2 → P3.3 → P3.4 → P3.6.**
+- Phase 3 fixes layering NOW (immediate value); Phase 2 adds infrastructure
+  for future consumers (deferred value).
+- **CC.7 confirmed**: P3.4 is greenfield (no SN import in
+  numerics/iteration.py); much smaller than originally framed.
+
+**Recommended pick:** **Phase 3 first**, then Phase 2 as a clean codetail
+addition. Reason: Phase 3 closes more debt (dual-naming, dead-code retirement
+audit, kinetics restructure) and unblocks Phase 2 by giving it a clean
+`numerics/spaces/` package to land into. Phase 2 then ships without scope
+contortions.
+
+**User has final say** — the plan supports either order with no rewriting.
+
+---
+
 ## Phase 2 — Space algebra
 
 Goal: the general `Space` compositional structure (§5.3, §6.1). ERR-039 does not
-require this; the generic adjoint and tensor/streaming work do.
+require this; the generic adjoint and tensor/streaming work do. Phase 1 added
+the leading-axis broadcast helper inline in `_AdjointOperator`; Phase 2 promotes
+it to a typed Space method.
 
 ### P2.1 — `DualSpace`, `Space.dual()`
 
@@ -592,12 +782,61 @@ Sequencing within P3.6: (i) extract time-stepping primitives into
 (iv) retire any duplicated abstractions; (v) the test suite stays green at each
 step.
 
-### Sequencing within Phase 3
+### Sequencing within Phase 3 (REVISED post-Phase-1 per QA learnings)
 
-`P3.1` (import-linter) first — always. Then `P3.0` documentation, `P3.2`, `P3.3`,
-`P3.4`, `P3.5`, `P3.6`, in that order, one layer at a time, each step
-behaviour-identical and green against the linter and the full suite before the
-next. No big-bang move.
+**Original sequencing** (from the pre-Phase-1 draft): P3.1 → P3.0 → P3.2 →
+P3.3 → P3.4 → P3.5 → P3.6.
+
+**REVISED sequencing** (recommended):
+
+1. **P3.1** — import-linter test (FIRST, always). Expect failures; they ARE
+   the migration to-do list.
+2. **P3.5** — `range → codomain` rename. **NEW POSITION**: do this BEFORE the
+   reorganisation moves (P3.2/P3.3). Reason: Phase 1's `MomentProjection`
+   carries `range` + `codomain` because the framework still reads `range`;
+   subsequent file moves and Problem/Solver splits should land against a
+   single canonical attribute name, not a transitional dual-name.
+3. **P3.0** — documentation of the criterion + layer table.
+4. **P3.2** — `numerics/` internal reorganisation (`spaces/`, `basis/`,
+   `measures/`, `operators/`, `solvers/`).
+5. **P3.3** — introduce `transport/` layer; migrate fields + sources. Per
+   CC.4: the `AngularFlux.from_flat_with_traces` design decision lands here
+   (thin SN adapter at L3, L2 base in `transport/`).
+6. **P3.4** — Problem/Solver split. **Re-scoped per CC.7**: greenfield, no
+   carve. `numerics/iteration.py` is already L1-clean; only the
+   `numerics/eigenvalue.py:power_iteration` legacy retires alongside.
+7. **P3.6** — `kinetics/` restructure. PointKinetics becomes a peer of
+   diffusion/; space-time transient = InitialValueProblem + TimeStepper.
+
+Each step: behaviour-identical, green against the linter and the full suite
+before the next. No big-bang move.
+
+### Phase 3 — additional notes from Phase 1 learnings
+
+**ReconstructionOperator ABC rule-departure (QA A6 — record here):** Phase 1
+shipped `ReconstructionOperator` ABC with ONE concrete subclass
+(`HarmonicMomentReconstruction`), borderline violating
+`feedback_unify_after_two_instances`. The deferral rule's load-bearing
+exception is Grand Report v3 §5.7's explicit sibling-of-`ProjectionOperator`
+structure: the ABC ships eagerly because the report anticipates ≥2
+instances (addition-theorem reconstruction + future PN method-space
+reconstruction). This is recorded so a future implementer doesn't
+inadvertently revert the ABC under the deferral rule.
+
+**`from_Y` shim retirement (QA A2 — defer to Phase 3 close-out):**
+`HarmonicMomentReconstruction.from_Y` is the canonical factory post-P1.8a
+(the only one). It does NOT retire; the original QA framing of "from_Y is
+the back-compat shim that retires" was inverted in P1.8a — from_Y is the
+natural API and `from_spherical_harmonic_space` retired instead. No further
+action.
+
+**Smell items the user may want to revisit during Phase 3:**
+
+- **QA A4** (`_broadcast_for_leading_axes` module-level free function with
+  one caller) — defer until a second caller arises; P2.1 promotes it to a
+  `Space` method if it lands then.
+- **QA A8** (constructor collapse on MomentProjection / HarmonicMomentReconstruction) —
+  done in P1.8a.
 
 ---
 
