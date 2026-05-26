@@ -1,1 +1,1 @@
-(no QA-specific memories yet — tool-selection guidance lives in .claude/lessons.md L1)
+- [Phase 1 moment-space review](phase1_moment_space_review.md) — Phase 1 (P1.1–P1.7) ERR-039 endpoint review on refactor/moment-space-and-layering: 2 BLOCKER (A3 cached_property, B1 wrong-marker), recommends P1.8 amendment.

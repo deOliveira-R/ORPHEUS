@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **4154**
+Total tests collected: **4241**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1133, 27.3%
-   L1, 893, 21.5%
-   L2, 36, 0.9%
+   L0, 1132, 26.7%
+   L1, 909, 21.4%
+   L2, 36, 0.8%
    L3, 0, 0.0%
-   foundation, 2055, 49.5%
+   foundation, 2127, 50.2%
    unmarked, 37, 0.9%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4038
+   explicit, 4125
    verify, 0
    class-name, 46
    func-name, 0
@@ -198,13 +198,15 @@ Module × level grid
    numerics/test_operator, 0, 0, 0, 0, 60, 0
    numerics/test_periodic_wrap_operator, 5, 0, 0, 0, 0, 0
    numerics/test_permutation_operator, 9, 2, 0, 0, 0, 0
-   numerics/test_projection_operators, 16, 6, 0, 0, 0, 0
+   numerics/test_projection_operators, 15, 9, 0, 0, 0, 0
+   numerics/test_quadrature_directional, 0, 0, 0, 0, 23, 0
    numerics/test_registry, 0, 0, 0, 0, 37, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
    numerics/test_rules_1d, 0, 5, 0, 0, 16, 0
    numerics/test_rules_product, 0, 3, 0, 0, 14, 0
    numerics/test_rules_sphere, 0, 7, 0, 0, 29, 0
    numerics/test_space, 0, 0, 0, 0, 17, 0
+   numerics/test_spherical_harmonic_space, 0, 6, 0, 0, 6, 0
    numerics/test_spherical_harmonics, 5, 7, 0, 0, 0, 0
    numerics/test_symmetry, 0, 0, 0, 0, 71, 0
    numerics/test_tensor_product_operator, 18, 0, 0, 0, 0, 0
@@ -213,6 +215,7 @@ Module × level grid
    sn/test_2d_octant_sweep_equivalence, 0, 7, 0, 0, 0, 0
    sn/test_angular_average_operator, 12, 4, 0, 0, 0, 0
    sn/test_angular_flux_with_boundary, 0, 0, 0, 0, 32, 0
+   sn/test_axis_primitive, 0, 0, 0, 0, 23, 0
    sn/test_b1pp_verification, 9, 3, 0, 0, 0, 0
    sn/test_boundary_conditions, 0, 0, 0, 0, 0, 11
    sn/test_boundary_flux_arithmetic, 0, 0, 0, 0, 12, 0
@@ -224,6 +227,7 @@ Module × level grid
    sn/test_dag_walk, 0, 0, 0, 0, 7, 0
    sn/test_discrete_ordinates_2d, 0, 0, 2, 0, 0, 0
    sn/test_fission_operator, 0, 0, 0, 0, 10, 0
+   sn/test_fixed_source_g1, 0, 7, 0, 0, 0, 0
    sn/test_harmonic_moment_field, 0, 0, 0, 0, 30, 0
    sn/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    sn/test_invertible_operator, 1, 10, 0, 0, 18, 0
@@ -236,6 +240,7 @@ Module × level grid
    sn/test_mms_aniso, 0, 2, 0, 0, 0, 0
    sn/test_mms_curvilinear, 0, 2, 0, 0, 0, 0
    sn/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
+   sn/test_native_matvec, 0, 0, 0, 0, 20, 0
    sn/test_octants_property, 60, 0, 0, 0, 0, 0
    sn/test_operators_apply_typed, 0, 0, 0, 0, 21, 0
    sn/test_phase_c_crosscheck, 0, 8, 0, 0, 0, 0
@@ -305,12 +310,12 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``e3-def``, 61
    ``self-slab``, 55
    ``self-cyl``, 54
+   ``hebert-3-432``, 53
    ``p-inf``, 53
    ``blelloch-1990-eq-1-5``, 52
    ``self-sph``, 52
    ``balance-general``, 51
    ``chord-length``, 51
-   ``hebert-3-432``, 50
    ``fission-matrix``, 49
    ``flux-moments``, 49
    ``removal-matrix``, 49
@@ -318,6 +323,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``attenuation``, 48
    ``optical-thickness``, 48
    ``scalar-flux-integral``, 48
+   ``transport-cartesian``, 38
    ``cp-kernel-differential-identities``, 36
    ``flat-source``, 35
    ``cp-keff-update``, 34
@@ -337,7 +343,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-equation``, 33
    ``sigma-keff``, 33
    ``free-flight``, 31
-   ``transport-cartesian``, 31
    ``dd-slab``, 30
    ``transport-spherical``, 29
    ``chi-sampling``, 28
@@ -367,11 +372,11 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``keff-cycle``, 16
    ``roulette-conservation``, 16
    ``roulette-prob``, 16
+   ``sn-curvilinear-homogeneous-kinf-recovery``, 16
    ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
    ``peierls-greens-annulus-architecture``, 14
    ``pn-scatter``, 14
-   ``sn-curvilinear-homogeneous-kinf-recovery``, 14
    ``peierls-greens-slab-asym-architecture``, 13
    ``complementarity``, 12
    ``kinf-1g``, 12
@@ -428,6 +433,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-cyl-Gbc-3d-final``, 5
    ``peierls-greens-cylinder-T``, 5
    ``peierls-greens-cylinder-mr-homogeneous-reduction``, 5
+   ``real-sh-discrete-orthogonality``, 5
    ``singular-eigenfunction-eq40``, 5
    ``transport-cartesian-2d``, 5
    ``xs-interp``, 5
@@ -471,6 +477,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``atalay-eq54-sphere-vacuum-isotropic``, 2
    ``atalay-table6-eigenvalue-moderate-d-consistency``, 2
    ``cp-second-difference-operator``, 2
+   ``hilbert-adjoint-equals-metric-times-S0``, 2
    ``peierls-greens-cylinder-mr-kinf``, 2
    ``peierls-greens-cylinder-mr-piecewise-tau``, 2
    ``peierls-greens-slab-asym-method-of-images``, 2
@@ -497,6 +504,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``collision-estimator``, 1
    ``e1-decomposition``, 1
    ``majorant``, 1
+   ``moment-projection-transpose-T``, 1
    ``nm-1980-reflected-slab-fn``, 1
    ``normalisation``, 1
    ``peierls-class-b-Pss-homogeneous``, 1
@@ -520,7 +528,10 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-greens-slab-asym-resolvent``, 1
    ``peierls-greens-slab-trajectory``, 1
    ``peierls-greens-surface-fixed-point``, 1
+   ``pi-r-equals-4pi-i``, 1
    ``real-spherical-harmonics``, 1
+   ``sh-addition-theorem-reconstruction``, 1
+   ``sh-space-metric``, 1
    ``sigT-computed``, 1
    ``singular-eigenfunction-eq5``, 1
    ``sn-mms-2d-2g-qext``, 1
@@ -588,7 +599,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **186** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **190** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bailey-dome-recursion``
 - ``bc-rank-n-as-sum-of-products``
@@ -635,10 +646,12 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``gas-pressure``
 - ``group-flux``
 - ``group-xs``
+- ``hilbert-adjoint-equals-metric-times-S0``
 - ``kll-1974-slab-phi``
 - ``kll-1974-sphere-phi``
 - ``maxwellian``
 - ``mode-conservation-target``
+- ``moment-projection-transpose-T``
 - ``morel-montry-clamp``
 - ``nm1980-eq16-tau-zero``
 - ``octant-direct-sum-tensor-product``
@@ -749,6 +762,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``real-sh-l1``
 - ``real-sh-l2plus``
 - ``scattering-as-tensor-product-sum``
+- ``sh-addition-theorem-reconstruction``
+- ``sh-space-metric``
 - ``sigs-convention``
 - ``singular-eigenfunction-eq5``
 - ``sood-eq18-1g-balance``
@@ -824,7 +839,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-036``, 8
    ``ERR-037``, 11
    ``ERR-038``, 5
-   ``ERR-039``, 2
+   ``ERR-039``, 11
    ``ERR-040``, **0 (MISSING)**
    ``ERR-041``, **0 (MISSING)**
    ``ERR-042``, **0 (MISSING)**
@@ -834,6 +849,9 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-046``, 8
    ``ERR-047``, **0 (MISSING)**
    ``ERR-048``, 50
+   ``ERR-049``, 17
+   ``ERR-050``, 4
+   ``ERR-051``, **0 (MISSING)**
 
 Unmarked tests
 --------------
