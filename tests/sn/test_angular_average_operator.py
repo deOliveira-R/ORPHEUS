@@ -166,7 +166,11 @@ class TestAxisDispatch:
 
     def test_z_on_gauss_legendre_raises(self):
         quad = Quadrature.gauss_legendre(8)
-        with pytest.raises(ValueError, match="mu_z"):
+        # 1-D Gauss-Legendre carries mu_z=zeros(N) (the axis is degenerate),
+        # so AngularAverageOperator.from_quadrature reaches the "no outgoing
+        # ordinates" guard rather than the "requires mu_z" early-return.
+        # Both messages encode the same defect; pin the actual one.
+        with pytest.raises(ValueError, match="no outgoing"):
             AngularAverageOperator.from_quadrature(quad, axis="z", outward_sign=+1)
 
     def test_invalid_axis_raises(self):
