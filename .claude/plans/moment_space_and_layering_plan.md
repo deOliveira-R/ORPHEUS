@@ -1,6 +1,9 @@
 # Plan: Harmonic Moment-Space Typing, Operator Adjoint Correctness, and the `numerics`/`transport` Re-architecture
 
-Status: **Phase 1 COMPLETE (2026-05-26). Phases 2 + 3 PENDING (fresh session).**
+Status: **Phase 1 + pre-Phase-3 stabilisation COMPLETE (2026-05-26). Order
+chosen: Phase 3 first, Phase 2 after.** Ready to start **P3.1 (import-linter
+test)** — first step in the REVISED sequencing (P3.1 → P3.5 → P3.0 → P3.2 →
+P3.3 → P3.4 → P3.6).
 Branch: `refactor/moment-space-and-layering`, off `refactor/sn-operator-algebra`.
 Worktree: `.claude/worktrees/moment-space-and-layering/`. This document is
 self-contained by intent — every decision below is stated with its rationale so
@@ -12,22 +15,56 @@ a session with no conversational history can execute it.
 
 1. **Re-load the cardinal context** via the session-start protocol (vv-principles,
    subagent-handoff-protocol, coding-elegance, `.claude/lessons.md`,
-   `nexus__session_briefing`, `docs/development.rst`).
-2. **Check this plan's "Phase 1 outcome" section** (§0.3 below) for the actual
-   commit sequence + lessons learned.
-3. **Read** `.claude/agent-memory/qa/phase1_moment_space_review.md` (QA review)
-   + `.claude/agent-memory/method-implementer/phase1_self_review.md` (impl
-   self-review) for residual concerns and the "Os and Cs" analysis.
-4. **Choose order**: Phase 2 (small, ~2-3 commits) OR Phase 3 (large, ~7+ commits) —
-   user's preference (BOTH will be done; only the order is open). See §"Phase 2 vs
-   Phase 3 ordering" below for the trade-offs.
-5. **Verify Phase 1 still green** by running:
+   `docs/development.rst`).
+   - **CRITICAL**: Run `nexus briefing --db docs/_build/html/_nexus/graph.db`
+     via Bash to confirm the Nexus graph is loaded. If the DB is missing,
+     rebuild Sphinx via `.venv/bin/python -m sphinx -q docs docs/_build/html`
+     BEFORE dispatching any sub-agent that depends on graph queries. The MCP
+     server only spawns at session boot, so the graph must exist at startup
+     — mid-session rebuild does NOT reload the MCP tool fleet (use the
+     `nexus` CLI via Bash as a workaround within the session).
+   - **Standalone scripts gotcha**: anything under `derivations/diagnostics/`
+     run via `python <path>` will silently load the venv's
+     `pip install -e .` resolution (usually points at the MAIN repo, not the
+     worktree). Either prepend `PYTHONPATH=.` or use `sys.path.insert(0, str(_REPO))`
+     at the top of the script. Pytest is unaffected (uses `<rootdir>`).
+2. **Check this plan's outcome sections** (§§0.3 + 0.4 below) for the actual
+   commit sequence + lessons learned. §0.4 covers the pre-Phase-3
+   stabilisation work that fixed two pre-existing failures and logged
+   ERR-052.
+3. **Read the four prep memos** in `.claude/agent-memory/`:
+   - `qa/phase1_moment_space_review.md` — Phase 1 QA review (Os + Cs analysis)
+   - `method-implementer/phase1_self_review.md` — Phase 1 implementer self-review
+   - `test-architect/phase3_verification_plan.md` — **Phase 3 verification plan**
+     (P3.1 skeleton verbatim, FORBIDDEN_EDGES, WHITELIST, per-step gates, risk
+     register). This is the load-bearing artefact for Phase 3 execution.
+   - `numerics-investigator/vacuum_bc_eigenvalue_divergence.md` — ERR-052
+     investigation memo (the hypothesis cascade that led to the fix).
+4. **Order is RESOLVED**: Phase 3 first, Phase 2 after (user choice
+   2026-05-26). See §"Phase 2 vs Phase 3 ordering" below for the trade-offs
+   captured at decision time. Phase 2 ships as a clean tail addition into a
+   reorganised `numerics/spaces/` package.
+5. **Verify the baseline still green** via PROGRESSIVE CHUNKS (NOT the full
+   SN suite — issue #198 documents memory growth to 50 GB that makes the
+   full suite a bad gate). Target Phase 1's actual touch surface first:
    ```
-   .venv/bin/python -m pytest tests/numerics/ tests/sn/ \
-       --ignore=tests/sn/regression -q --no-header
+   .venv/bin/python -m pytest tests/numerics/ \
+       tests/sn/test_fixed_source_g1.py \
+       tests/sn/test_scattering_operator.py \
+       tests/sn/test_boundary_conditions.py \
+       tests/sn/test_angular_average_operator.py \
+       tests/sn/l1_analytical/ \
+       -q --no-header
    ```
-   Expected: ~500+ PASS on numerics; the SN suite must stay clean.
-6. **Proceed to Phase 2 OR Phase 3** per §§ below.
+   Expected: ~750 PASS, 5 xfailed (pre-existing — sphere-4eg-krylov per
+   issue #200; cylinder-2eg / cylinder-4eg variants).
+6. **Proceed to P3.1** per §P3.1 below. The verification plan at
+   `.claude/agent-memory/test-architect/phase3_verification_plan.md` §1.7
+   has the verbatim 76-LoC test skeleton ready to copy into
+   `tests/test_layer_imports.py`. Test-architect + explorer cross-verified
+   zero production-side violations; the 3 derivations-only edges are
+   pre-whitelisted with `RETIRE_IN_PX` retirement triggers. P3.1 lands
+   GREEN and gates every subsequent P3.x commit.
 
 ---
 
@@ -157,6 +194,107 @@ ea02ab5  P1.8b docs(vv): vv-principles anti-pattern #11 (followup commit; SKILL.
    `test_R_equals_2l_plus_1_times_S0` is bit-identical to the einsum because
    single-term input eliminates the FP-reduction-order ambiguity — that's
    structural independence done right (L11).
+
+### 0.4 Pre-Phase-3 stabilisation outcome (2026-05-26)
+
+Between Phase 1's commit `8e5a263` and the start of Phase 3, a baseline
+green-gate run on the inherited branch (`refactor/sn-operator-algebra@62994ad`)
+surfaced two pre-existing failures that Phase 1 had inherited but not caused.
+Per `feedback_fix_bugs_immediately`, the user directed fix-on-this-branch
+BEFORE Phase 3 begins. Three additional commits shipped:
+
+```
+e3522fe  fix(numerics): ERR-052 — power iteration flux renormalisation
+                        (subcritical eigenvalue underflow)
+4b5ba90  test(sn): refresh test_z_on_gauss_legendre_raises regex for
+                   current production message
+6f88402  docs(memory): Phase 3 prep memos + ERR-052 investigation
+```
+
+**ERR-052 (the load-bearing fix):** `orpheus.numerics.eigenvalue.power_iteration`
+(legacy, consumed by `solve_sn`) and `orpheus.numerics.iteration.KEigenvalue.solve`
+(canonical going forward, P3.4 destination) both omitted the textbook per-step
+flux renormalisation. For supercritical operators the iterate grew geometrically
+but converged in 3-4 outers before overflow — works by accident. For subcritical
+operators (the failing test's 2cm vacuum slab) the iterate decayed geometrically,
+underflowed to denormalised FP (~1e-43) within ~60 outers, and the keff ratio
+`production/absorption` became a 0/0 noise fixed point that `converged()` then
+falsely accepted.
+
+Fix: per-step renormalisation to **unit production rate** `∫νΣ_f·φ·dV = 1`
+(NOT L2 norm — the canonical reactor-physics convention, scale-invariant in
+keff, physically meaningful, rescalable to absolute flux at target power via
+one multiplication by `P_target/κ`). Implemented as:
+- `SNSolver.compute_production_rate(flux) -> float` (composes existing
+  `compute_group_production_rate.sum()`)
+- `EigenvalueSolver` Protocol gains optional `compute_production_rate`;
+  `power_iteration` uses `getattr` for backward compat
+- `KEigenvalue` gains a `production_estimator` constructor parameter
+  (defaulting to `np.sum(F.apply(ψ))` for operator-triple generic case)
+
+**Test-config tuning:** `tests/sn/l1_analytical/test_kinf_homogeneous.py::_TIGHT_KW`
+bumped `max_inner: 300 → 1000`. The new iteration trajectory perturbs the GMRES
+initial guess each outer step, so the unpreconditioned Krylov subspace re-builds
+from a non-warmed state; sphere-2eg-krylov empirically needs ~600 GMRES iter per
+outer (vs ~50 pre-fix) to hit `inner_tol=1e-12`. All 28 (coord × ng × inner_solver)
+L1 variants pass at the original tight tolerances (`rtol=1e-10` keff, `rtol=1e-9`
+spectrum) post-bump. Production `solve_sn(max_inner=200)` default is untouched.
+Posted as comment on issue #200 (block-inverse preconditioner) with full
+empirical evidence — the ERR-052 fix exposed that preconditioning is structurally
+load-bearing for tight L1 gates, not just a performance nice-to-have.
+
+**Second pre-existing failure (test_z_on_gauss_legendre_raises):** the test
+asserted `pytest.raises(ValueError, match="mu_z")` against
+`AngularAverageOperator.from_quadrature(quad_GL, axis="z", ...)`. The production
+code does raise, but with a different message: the GL adapter exposes
+`mu_z = zeros(N)` (not absent), so the from_quadrature path falls through past
+the early "requires a quadrature with mu_z" guard and into the downstream
+"no outgoing ordinates on axis='z'" check. Both messages encode the same
+defect; the test now pins the actual one.
+
+**Phase 3 prep memos** (commissioned 2026-05-26, all under
+`.claude/agent-memory/`):
+- `test-architect/phase3_verification_plan.md` — P3.1 import-linter test
+  specification (FORBIDDEN_EDGES + WHITELIST + 76-LoC skeleton),
+  layer assignment proposal for all 14 packages, per-step verification
+  gates (P3.2–P3.6), AngularFlux CC.4 design-note resolution, risk register,
+  concurrence on the REVISED sequencing.
+- `explorer/import_walk.py` + `explorer/phase3_import_edges.json` —
+  ast-walker inventory of cross-package import edges (200 edges total).
+  Independently verifies the test-architect's "zero production violations"
+  claim; the only 3 forbidden edges are in `derivations/` (pre-whitelisted).
+- `numerics-investigator/vacuum_bc_eigenvalue_divergence.md` — full ERR-052
+  hypothesis cascade. The sub-agent was sandbox-blocked from Bash/Write but
+  the static analysis narrowed the suspect set enough for the main agent
+  to reproduce, discriminate, and fix.
+
+**Durable insights from the stabilisation:**
+
+1. **Power iteration MUST renormalise.** The textbook formula isn't a
+   nice-to-have. Without it, subcritical eigenproblems underflow, supercritical
+   may overflow, and only "iteration count small enough" hides the issue.
+   Unit-production-rate is the principled convention (`ψ` is then a power-density
+   basis directly rescalable to any reactor power).
+2. **Bit-identity in tight tests can be a happy accident.** The
+   sphere-2eg-krylov L1 test was getting `rtol=1e-10` keff because the initial
+   guess `ones(...)` happened to be the eigenmode for homogeneous reflective
+   sphere (uniform flux). Once the iteration was principled, the bit-identity
+   coincidence broke; the right action was to give the inner solver the budget
+   it actually needs (`max_inner=1000`), NOT to relax the test tolerance.
+3. **Standalone-script sys.path resolution silently picks the venv-installed
+   orpheus, NOT the worktree.** Took ~30 min of head-scratching during the
+   ERR-052 fix to spot that `python derivations/diagnostics/diag_*.py` was
+   running against the MAIN repo's `pip install -e .`, not the worktree's
+   code. Always self-prepend the repo root to `sys.path` in standalone diags.
+   Pytest is fine because `<rootdir>` auto-discovery via `pyproject.toml`
+   uses the worktree.
+4. **Nexus MCP must be verified at session start.** This session's prep
+   work would have been substantially faster if the Nexus graph had been
+   loaded — the explorer wrote a 200-LoC ast walker reinventing what
+   `nexus migration --from orpheus.sn` gives for free. The MCP server only
+   spawns at boot; the graph DB must exist at the configured path before
+   the session starts. Mid-session rebuild populates the DB but does NOT
+   reload the MCP tool fleet (the `nexus` CLI via Bash works as fallback).
 
 ### 0.2 Resolved open decisions (2026-05-26)
 
@@ -488,7 +626,11 @@ The plan's "exactly one place" claim depends on this step landing.
 
 ---
 
-## Phase 2 vs Phase 3 ordering (decision for the next session)
+## Phase 2 vs Phase 3 ordering (RESOLVED 2026-05-26: Phase 3 first)
+
+User chose Phase 3 first. The trade-off rationale captured at decision time
+is preserved below for the next session's reference. **Phase 3 is the active
+work.**
 
 Both phases WILL be done. Only the order is open. The choice has trade-offs:
 
@@ -610,15 +752,36 @@ Add `tests/test_layer_imports.py` asserting the import contract: no module in
 `numerics/` imports `transport/` or any method package; no module in `transport/`
 imports a method package; no method package imports another. This is the safety
 net for every subsequent move and converts the layout into a named, enforced
-invariant (§2 philosophy applied to the package graph). Expect it to fail
-initially — its initial failures are the migration's to-do list.
+invariant (§2 philosophy applied to the package graph).
 
-Implementation: a pytest test that walks `orpheus/<layer>/**/*.py` and parses
-`import orpheus.<other>` / `from orpheus.<other> import` via `ast`, checking the
-forbidden directions. Two tolerances: (a) `TYPE_CHECKING` imports of L3-only types
-inside L1 / L2 modules are allowed (string annotations don't create runtime
-edges); (b) the `numerics/eigenvalue.py` legacy shim is whitelisted until P3.4
-retires it.
+**STATUS (2026-05-26):** The test-architect verification plan at
+`.claude/agent-memory/test-architect/phase3_verification_plan.md` §1.7
+contains the **verbatim 76-LoC test skeleton** including `FORBIDDEN_EDGES`
+(all 14 packages assigned) and `WHITELIST` (3 derivations-only entries with
+`RETIRE_IN_PX` retirement-trigger comments). The explorer's ast walker
+(`.claude/agent-memory/explorer/import_walk.py`) independently confirmed
+**zero production-side L1/L2/L3 violations**, so P3.1 lands GREEN out of
+the gate — the migration to-do list is empty for production code, and the
+3 whitelist entries ARE the migration to-do list for `derivations/` (each
+will retire as its containing module moves to method-side tests or to an
+external benchmark harness).
+
+This rewrites the original framing: "Expect it to fail initially — its
+initial failures are the migration's to-do list" was correct conceptually
+but empirically the project is already structurally clean (the discipline
+was enforced by earlier waves; the linter just makes it executable). The
+real Phase 3 work is the file moves (P3.2/P3.3) and the conceptual carve
+(P3.4 Problem/Solver split, P3.6 kinetics dissolution), NOT import-graph
+surgery.
+
+Implementation: copy the verbatim skeleton from the test-architect memo
+into `tests/test_layer_imports.py`, run `pytest tests/test_layer_imports.py
+-q --no-header`, expect all parametrised modules to PASS. Commit as
+`test(harness): P3.1 — import-linter test for L0/L1/L2/L3 contract`. Two
+tolerances per the original plan: (a) `TYPE_CHECKING` imports of L3-only
+types inside L1/L2 modules are allowed (string annotations don't create
+runtime edges); (b) the 3 WHITELIST entries each carry `RETIRE_IN_PX`
+retirement-trigger comments so future contributors can audit them.
 
 ### P3.2 — `numerics/` internal reorganization by math-object family
 
