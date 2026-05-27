@@ -60,7 +60,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from .geometry import SNMesh
-    from .scalar_flux import ScalarFlux
+    from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 
 __all__ = ["HarmonicMomentField"]
@@ -176,10 +176,10 @@ class HarmonicMomentField:
             The :math:`(\ell=0, m=0)` slice ``values[0, 0]``, wrapped
             with the same mesh.
         """
-        from .scalar_flux import ScalarFlux
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
         # values[0, 0] is the per-cell, per-group isotropic moment
         # shape (ng, nx, ny) — the principled ScalarFlux storage.
-        return ScalarFlux(self.values[0, 0].copy(), self.mesh)
+        return ScalarFlux.from_mesh(self.values[0, 0].copy(), self.mesh)
 
     def truncate(self, L_new: int) -> "HarmonicMomentField":
         r"""Return a new :class:`HarmonicMomentField` truncated to

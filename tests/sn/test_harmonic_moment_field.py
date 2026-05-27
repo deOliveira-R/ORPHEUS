@@ -23,7 +23,7 @@ from orpheus.sn.angular_flux import AngularFlux
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.harmonic_moment_field import HarmonicMomentField
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.scalar_flux import ScalarFlux
+from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 from tests.sn._test_helpers import placeholder_materials
 

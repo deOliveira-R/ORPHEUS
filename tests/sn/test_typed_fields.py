@@ -20,7 +20,7 @@ from orpheus.sn.angular_flux import AngularFlux
 from orpheus.sn.boundary_flux import BoundaryFlux
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.scalar_flux import ScalarFlux
+from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 from tests.sn._test_helpers import placeholder_materials
 
@@ -82,28 +82,28 @@ class TestScalarFlux:
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
         m = _slab_mesh()
-        with pytest.raises(ValueError, match="ScalarFlux expects shape"):
-            ScalarFlux(np.zeros((m.ng, m.nx + 1, m.ny)), m)
+        with pytest.raises(ValueError, match="ScalarFlux.*does not match"):
+            ScalarFlux.from_mesh(np.zeros((m.ng, m.nx + 1, m.ny)), m)
 
     def test_addition_returns_typed(self) -> None:
         m = _slab_mesh()
-        a = ScalarFlux(np.ones((m.ng, m.nx, m.ny)), m)
-        b = ScalarFlux(2.0 * np.ones((m.ng, m.nx, m.ny)), m)
+        a = ScalarFlux.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
+        b = ScalarFlux.from_mesh(2.0 * np.ones((m.ng, m.nx, m.ny)), m)
         c = a + b
         assert isinstance(c, ScalarFlux)
         np.testing.assert_array_equal(c.values, 3.0 * np.ones((m.ng, m.nx, m.ny)))
 
     def test_subtraction(self) -> None:
         m = _slab_mesh()
-        a = ScalarFlux(np.full((m.ng, m.nx, m.ny), 5.0), m)
-        b = ScalarFlux(np.full((m.ng, m.nx, m.ny), 2.0), m)
+        a = ScalarFlux.from_mesh(np.full((m.ng, m.nx, m.ny), 5.0), m)
+        b = ScalarFlux.from_mesh(np.full((m.ng, m.nx, m.ny), 2.0), m)
         c = a - b
         assert isinstance(c, ScalarFlux)
         np.testing.assert_array_equal(c.values, 3.0 * np.ones((m.ng, m.nx, m.ny)))
 
     def test_scalar_multiplication_left_and_right(self) -> None:
         m = _slab_mesh()
-        a = ScalarFlux(np.ones((m.ng, m.nx, m.ny)), m)
+        a = ScalarFlux.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
         left = 3.0 * a
         right = a * 3.0
         np.testing.assert_array_equal(left.values, right.values)
@@ -125,7 +125,7 @@ class TestScalarFlux:
         vals = np.arange(m.ng * m.nx * m.ny, dtype=float).reshape(
             m.ng, m.nx, m.ny,
         )
-        phi = ScalarFlux(vals, m)
+        phi = ScalarFlux.from_mesh(vals, m)
         slice_g0 = phi.at_group(0)
         assert slice_g0.shape == (m.nx, m.ny)
         np.testing.assert_array_equal(slice_g0, vals[0])
@@ -133,12 +133,12 @@ class TestScalarFlux:
     def test_linf(self) -> None:
         m = _slab_mesh()
         vals = np.full((m.ng, m.nx, m.ny), -7.0)
-        phi = ScalarFlux(vals, m)
-        assert phi.linf() == 7.0
+        phi = ScalarFlux.from_mesh(vals, m)
+        assert phi.linf == 7.0
 
     def test_copy_owns_buffer(self) -> None:
         m = _slab_mesh()
-        a = ScalarFlux(np.ones((m.ng, m.nx, m.ny)), m)
+        a = ScalarFlux.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
         b = a.copy()
         # Mutating the copy's array does not affect ``a``.
         b.values[...] = 99.0

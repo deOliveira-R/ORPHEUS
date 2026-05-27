@@ -52,7 +52,7 @@ if TYPE_CHECKING:
     from .angular_flux import AngularFlux
     from .boundary_flux import BoundaryFlux
     from .geometry import SNMesh
-    from .scalar_flux import ScalarFlux
+    from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 
 __all__ = ["IterationHistory", "Solution", "SolutionDiff"]

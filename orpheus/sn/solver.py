@@ -1005,7 +1005,7 @@ def solve_sn(
     # AngularFlux + ScalarFlux at this single boundary; downstream
     # consumers read typed fields.
     from .angular_flux import AngularFlux
-    from .scalar_flux import ScalarFlux
+    from orpheus.transport.fields.scalar_flux import ScalarFlux
     history = IterationHistory(
         keff_history=tuple(keff_history),
         n_outer=len(keff_history),
@@ -1015,7 +1015,7 @@ def solve_sn(
         angular_flux=AngularFlux(
             angular_flux, sn_mesh, boundary=solver._boundary_flux,
         ),
-        scalar_flux=ScalarFlux(scalar_flux, sn_mesh),
+        scalar_flux=ScalarFlux.from_mesh(scalar_flux, sn_mesh),
         mesh=sn_mesh,
         keff=float(keff_history[-1]),
         history=history,
@@ -1192,7 +1192,7 @@ def _solve_fixed_source_si(
     """
     from .sources import PerOrdinateSource
     from .angular_flux import AngularFlux
-    from .scalar_flux import ScalarFlux
+    from orpheus.transport.fields.scalar_flux import ScalarFlux
     nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
 
     # Issue #196 PR-INDEX-5: phi principled (ng, nx, ny).
@@ -1262,7 +1262,7 @@ def _solve_fixed_source_si(
         angular_flux=AngularFlux(
             angular, sn_mesh, boundary=solver._boundary_flux,
         ),
-        scalar_flux=ScalarFlux(phi, sn_mesh),
+        scalar_flux=ScalarFlux.from_mesh(phi, sn_mesh),
         mesh=sn_mesh,
         keff=None,
         history=history,
@@ -1349,7 +1349,7 @@ def _solve_fixed_source_krylov(
         )
 
     from .angular_flux import AngularFlux
-    from .scalar_flux import ScalarFlux
+    from orpheus.transport.fields.scalar_flux import ScalarFlux
     from .operator import CollisionOperator, StreamingOperator
     from .sources import PerOrdinateSource
     from orpheus.numerics.iteration import KrylovAcceleration
@@ -1412,7 +1412,7 @@ def _solve_fixed_source_krylov(
     )
     return Solution(
         angular_flux=psi_typed,
-        scalar_flux=ScalarFlux(phi, sn_mesh),
+        scalar_flux=ScalarFlux.from_mesh(phi, sn_mesh),
         mesh=sn_mesh,
         keff=None,
         history=history,

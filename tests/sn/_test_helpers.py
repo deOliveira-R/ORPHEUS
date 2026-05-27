@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from orpheus.sn.angular_flux import AngularFlux
     from orpheus.sn.boundary_flux import BoundaryFlux
     from orpheus.sn.geometry import SNMesh
-    from orpheus.sn.scalar_flux import ScalarFlux
+    from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 
 def placeholder_materials(

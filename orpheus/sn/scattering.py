@@ -133,7 +133,7 @@ from orpheus.numerics.projection import (
 # dependency graph (they do not import scattering.py), so the imports
 # are circular-import-safe.
 from .angular_flux import AngularFlux
-from .scalar_flux import ScalarFlux
+from orpheus.transport.fields.scalar_flux import ScalarFlux
 from .sources import IsotropicSource, PerOrdinateSource
 
 if TYPE_CHECKING:
@@ -470,7 +470,7 @@ class ScatteringOperator(LinearOperatorMixin):
         Issue #197 PR-TYPED-1 — the per-material dispatch lives ONLY
         inside :meth:`MaterialXSField.apply_p0_in_scatter`.
         """
-        from .scalar_flux import ScalarFlux
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
         from .sources import IsotropicSource
         phi_values = phi.values if isinstance(phi, ScalarFlux) else phi
         if isinstance(Q, IsotropicSource):
@@ -512,7 +512,7 @@ class ScatteringOperator(LinearOperatorMixin):
         Issue #197 PR-TYPED-1 — per-material dispatch lives ONLY
         inside :meth:`MaterialXSField.apply_n2n`.
         """
-        from .scalar_flux import ScalarFlux
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
         from .sources import IsotropicSource
         phi_values = phi.values if isinstance(phi, ScalarFlux) else phi
         if isinstance(Q, IsotropicSource):

@@ -63,7 +63,7 @@ if TYPE_CHECKING:
     from .boundary_flux import BoundaryFlux
     from .harmonic_moment_field import HarmonicMomentField
     from .material_xs_field import MaterialXSField
-    from .scalar_flux import ScalarFlux
+    from orpheus.transport.fields.scalar_flux import ScalarFlux
     from .sources import IsotropicSource, PerOrdinateSource
 
 
@@ -787,8 +787,8 @@ class SNMesh:
         initial guess in inner-loop iterations or as the zero
         isotropic source on the first sweep.
         """
-        from .scalar_flux import ScalarFlux
-        return ScalarFlux(
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
+        return ScalarFlux.from_mesh(
             np.zeros((self.ng, self.nx, self.ny)), self,
         )
 

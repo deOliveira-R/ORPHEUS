@@ -40,7 +40,7 @@ from orpheus.sn.fission import FissionOperator
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import CollisionOperator, StreamingOperator
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.scalar_flux import ScalarFlux
+from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.sn.scattering import ScatteringOperator
 from tests.sn._test_helpers import placeholder_materials
 

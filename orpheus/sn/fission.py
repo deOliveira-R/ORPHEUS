@@ -81,7 +81,7 @@ from orpheus.numerics.operator import (
 # ``scattering.py`` for the same pattern.  These three types form a
 # leaf in the SN dependency graph (they do not import fission.py).
 from .angular_flux import AngularFlux
-from .scalar_flux import ScalarFlux
+from orpheus.transport.fields.scalar_flux import ScalarFlux
 from .sources import IsotropicSource
 
 if TYPE_CHECKING:

@@ -25,7 +25,7 @@ from orpheus.sn.angular_flux import AngularFlux
 from orpheus.sn.boundary_flux import BoundaryFlux
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.scalar_flux import ScalarFlux
+from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.sn.solution import IterationHistory, Solution, SolutionDiff
 
 from tests.sn._test_helpers import placeholder_materials
@@ -62,7 +62,7 @@ def _make_fluxes(sn_mesh: SNMesh, fill: float = 1.0):
     ng, nx, ny = sn_mesh.ng, sn_mesh.nx, sn_mesh.ny
     N = sn_mesh.quad.N
     psi = AngularFlux(np.full((N, ng, nx, ny), fill), sn_mesh)
-    phi = ScalarFlux(np.full((ng, nx, ny), fill), sn_mesh)
+    phi = ScalarFlux.from_mesh(np.full((ng, nx, ny), fill), sn_mesh)
     return psi, phi, psi.boundary
 
 
@@ -170,7 +170,7 @@ class TestSolutionConstruction:
     def test_mesh_identity_scalar_flux(self) -> None:
         m1 = _slab_mesh()
         m2 = _slab_mesh()
-        phi_foreign = ScalarFlux(np.zeros((m2.ng, m2.nx, m2.ny)), m2)
+        phi_foreign = ScalarFlux.from_mesh(np.zeros((m2.ng, m2.nx, m2.ny)), m2)
         psi, _, bf = _make_fluxes(m1)
         with pytest.raises(ValueError, match="scalar_flux.mesh"):
             Solution(
@@ -313,7 +313,7 @@ class TestReactionRate:
         phi_values = np.arange(
             m.ng * m.nx * m.ny, dtype=float,
         ).reshape(m.ng, m.nx, m.ny) + 1.0
-        phi = ScalarFlux(phi_values, m)
+        phi = ScalarFlux.from_mesh(phi_values, m)
         sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m)
 
@@ -329,7 +329,7 @@ class TestReactionRate:
             [[1.0], [2.0], [3.0]],
             [[4.0], [5.0], [6.0]],
         ])  # (ng=2, nx=3, ny=1)
-        phi = ScalarFlux(phi_values, m)
+        phi = ScalarFlux.from_mesh(phi_values, m)
         sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m)
 

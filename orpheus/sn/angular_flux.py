@@ -71,7 +71,7 @@ import numpy as np
 if TYPE_CHECKING:
     from .boundary_flux import BoundaryFlux
     from .geometry import SNMesh
-    from .scalar_flux import ScalarFlux
+    from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 
 __all__ = ["AngularFlux"]
@@ -148,9 +148,9 @@ class AngularFlux:
         canonical angular average that produces the scalar flux that
         the within-group scattering source consumes.
         """
-        from .scalar_flux import ScalarFlux
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
         w = self.mesh.quad.weights
-        return ScalarFlux(
+        return ScalarFlux.from_mesh(
             np.einsum("n,ngxy->gxy", w, self.values), self.mesh,
         )
 
