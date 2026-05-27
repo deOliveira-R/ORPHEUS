@@ -30,7 +30,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn import sweep as sweep_module
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.sources import PerOrdinateSource
+from orpheus.transport.sources import PerOrdinateSource
 from orpheus.sn.sweep import transport_sweep
 from tests.sn._test_helpers import placeholder_materials
 

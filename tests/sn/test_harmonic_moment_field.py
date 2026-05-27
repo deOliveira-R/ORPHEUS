@@ -429,7 +429,7 @@ class TestRLambdaMRoundTrip:
         from orpheus.derivations.common.xs_library import get_mixture
         from orpheus.sn.scattering import ScatteringOperator
         from orpheus.sn.solver import SNSolver
-        from orpheus.sn.sources import PerOrdinateSource
+        from orpheus.transport.sources import PerOrdinateSource
         mix = get_mixture("A", "2g")
         if len(mix.SigS) < 2:
             pytest.skip("No P1 data in test mixture")

@@ -82,7 +82,7 @@ from orpheus.numerics.operator import (
 # leaf in the SN dependency graph (they do not import fission.py).
 from .angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
-from .sources import IsotropicSource
+from orpheus.transport.sources import IsotropicSource
 
 if TYPE_CHECKING:
     from .material_xs_field import MaterialXSField
@@ -229,7 +229,7 @@ class FissionOperator(LinearOperatorMixin):
         # Reuses the canonical :class:`PerOrdinateSource.from_isotropic`
         # factory — single source of truth for the iso→per-ord
         # projection (Pattern 2).
-        from .sources import PerOrdinateSource
+        from orpheus.transport.sources import PerOrdinateSource
         per_ord = PerOrdinateSource.from_isotropic(
             fission_iso.values, psi.mesh,
         )
@@ -258,7 +258,7 @@ class FissionOperator(LinearOperatorMixin):
         # Spectrum × rate: chi is (ng, nx, ny), rate is (nx, ny);
         # broadcast rate across the leading group axis.
         out = chi * fission_rate[None, :, :]
-        return IsotropicSource(out, phi.mesh)
+        return IsotropicSource.from_mesh(out, phi.mesh)
 
     @apply.register
     def _(self, phi_arr: np.ndarray) -> np.ndarray:

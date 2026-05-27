@@ -134,7 +134,7 @@ from orpheus.numerics.projection import (
 # are circular-import-safe.
 from .angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
-from .sources import IsotropicSource, PerOrdinateSource
+from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
 
 if TYPE_CHECKING:
     from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
@@ -471,12 +471,12 @@ class ScatteringOperator(LinearOperatorMixin):
         inside :meth:`MaterialXSField.apply_p0_in_scatter`.
         """
         from orpheus.transport.fields.scalar_flux import ScalarFlux
-        from .sources import IsotropicSource
+        from orpheus.transport.sources import IsotropicSource
         phi_values = phi.values if isinstance(phi, ScalarFlux) else phi
         if isinstance(Q, IsotropicSource):
             Q_values = Q.values.copy()
             self.mat_xs.apply_p0_in_scatter(Q_values, phi_values)
-            return IsotropicSource(Q_values, Q.mesh)
+            return IsotropicSource.from_mesh(Q_values, Q.mesh)
         self.mat_xs.apply_p0_in_scatter(Q, phi_values)
         return None
 
@@ -513,12 +513,12 @@ class ScatteringOperator(LinearOperatorMixin):
         inside :meth:`MaterialXSField.apply_n2n`.
         """
         from orpheus.transport.fields.scalar_flux import ScalarFlux
-        from .sources import IsotropicSource
+        from orpheus.transport.sources import IsotropicSource
         phi_values = phi.values if isinstance(phi, ScalarFlux) else phi
         if isinstance(Q, IsotropicSource):
             Q_values = Q.values.copy()
             self.mat_xs.apply_n2n(Q_values, phi_values)
-            return IsotropicSource(Q_values, Q.mesh)
+            return IsotropicSource.from_mesh(Q_values, Q.mesh)
         self.mat_xs.apply_n2n(Q, phi_values)
         return None
 
@@ -654,7 +654,7 @@ class ScatteringOperator(LinearOperatorMixin):
             moments = HarmonicMomentField.from_mesh_and_L(moments_values, mesh, L)
             scattered = Lam.apply(moments)  # HarmonicMomentField
             result = R.apply(scattered.values) / sum_w
-            return PerOrdinateSource(result, mesh)
+            return PerOrdinateSource.from_mesh(result, mesh)
         # Legacy bare-ndarray path — no typed wrapping (the bare path
         # is consumed by FD-matvec / probe-tests that bypass the type
         # layer entirely).  Still applies /W to advertise per-ordinate
@@ -934,10 +934,11 @@ class ScatteringOperator(LinearOperatorMixin):
         else:
             aniso = aniso_or_none
         # Producer-side projection at the apply boundary (Pattern 7):
-        # ``iso / sum_w`` projects iso scalar to per-ordinate; ``+
-        # aniso`` adds the already-per-ordinate Pℓ piece.  Cross-type
-        # dunder ``IsotropicSource + PerOrdinateSource`` yields a
-        # :class:`PerOrdinateSource`.
+        # ``iso / sum_w`` projects iso scalar to per-ordinate;
+        # ``+ aniso`` adds the already-per-ordinate Pℓ piece via the
+        # cross-class subspace-containment dunder (refined Issue #207
+        # principle: IsotropicSource ⊂ PerOrdinateSource via the
+        # canonical broadcast injection; the dunder applies it).
         sum_w = float(mesh.quad.weights.sum())
         combined: PerOrdinateSource = (iso / sum_w) + aniso
         # R-1 Step 3b — ``S`` is volumetric: zero face-trace

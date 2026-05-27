@@ -61,7 +61,7 @@ from orpheus.sn.operator import (
     transport_operator_matvec,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.sources import IsotropicSource, PerOrdinateSource
+from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
 from orpheus.sn.sweep import transport_sweep
 from tests.sn._test_helpers import placeholder_materials
 

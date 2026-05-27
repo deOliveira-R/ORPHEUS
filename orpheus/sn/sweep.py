@@ -88,7 +88,7 @@ if TYPE_CHECKING:
     from .angular_flux import AngularFlux
     from .boundary_flux import BoundaryFlux
     from .geometry import SNMesh
-    from .sources import IsotropicSource, PerOrdinateSource
+    from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -213,7 +213,7 @@ def _unwrap_source(source: "PerOrdinateSource") -> np.ndarray:
     The internal hot path consumes bare ndarray; this helper performs
     the unwrap once at the public boundary.
     """
-    from .sources import PerOrdinateSource
+    from orpheus.transport.sources import PerOrdinateSource
     if not isinstance(source, PerOrdinateSource):
         raise TypeError(
             f"transport_sweep: source must be "

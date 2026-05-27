@@ -596,7 +596,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
             # R-1 Step 4 A1: single per-ordinate source carrier.
             # ``rhs`` is bare ndarray (ng, nx, ny) — wrap via the
             # canonical iso → per-ord factory at the adapter boundary.
-            from orpheus.sn.sources import PerOrdinateSource
+            from orpheus.transport.sources import PerOrdinateSource
             source = PerOrdinateSource.from_isotropic(rhs, sn_mesh)
             _angular, scalar = transport_sweep(
                 source, solver.mat_xs.total_cross_section, sn_mesh,

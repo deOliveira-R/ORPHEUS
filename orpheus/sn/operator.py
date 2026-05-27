@@ -89,7 +89,7 @@ if TYPE_CHECKING:
     from .angular_flux import AngularFlux
     from .boundary_flux import BoundaryFlux
     from .geometry import SNMesh
-    from .sources import IsotropicSource, PerOrdinateSource
+    from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
     from .spatial.pole_angular_closure import PoleAngularClosure
 
 __all__ = [
@@ -2610,7 +2610,7 @@ class InvertibleOperator(OperatorSum):
             ``rhs.history_depth``.
         """
         from .angular_flux import AngularFlux
-        from .sources import PerOrdinateSource
+        from orpheus.transport.sources import PerOrdinateSource
         from .sweep import transport_sweep
 
         if not isinstance(rhs, AngularFlux):
@@ -2636,7 +2636,7 @@ class InvertibleOperator(OperatorSum):
         # :class:`PerOrdinateSource` and does NOT apply ``/W``
         # internally; both sides of the producer-consumer contract
         # are per-ordinate density.
-        source = PerOrdinateSource(rhs.values, sn_mesh)
+        source = PerOrdinateSource.from_mesh(rhs.values, sn_mesh)
 
         # Boundary-state plumbing for reflective / partner-flux BCs.
         # The sweep mutates ``boundary_flux`` in place (write-through);

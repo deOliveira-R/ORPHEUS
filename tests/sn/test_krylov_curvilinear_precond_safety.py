@@ -128,7 +128,7 @@ def _krylov_power_iteration_kinf(
     from orpheus.sn.geometry import SNMesh
     from orpheus.sn.operator import CollisionOperator, StreamingOperator
     from orpheus.sn.solver import SNSolver
-    from orpheus.sn.sources import PerOrdinateSource
+    from orpheus.transport.sources import PerOrdinateSource
 
     case = _get_continuous_case(ng_key)
     mat_id = next(iter(case.problem.materials.keys()))

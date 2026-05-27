@@ -512,7 +512,7 @@ class SNSolver:
             CollisionOperator, StreamingOperator,
             _copy_boundary_face_state,
         )
-        from .sources import PerOrdinateSource
+        from orpheus.transport.sources import PerOrdinateSource
         from orpheus.numerics.iteration import SourceIteration
         from orpheus.numerics.operator import ZeroOperator
 
@@ -631,7 +631,7 @@ class SNSolver:
 
         from .angular_flux import AngularFlux
         from .operator import CollisionOperator, StreamingOperator
-        from .sources import PerOrdinateSource
+        from orpheus.transport.sources import PerOrdinateSource
         from orpheus.numerics.iteration import KrylovAcceleration
         from orpheus.numerics.operator import ZeroOperator
 
@@ -754,8 +754,8 @@ class SNSolver:
             # the sweep's old internal ``/W`` is GONE; the sweep now
             # consumes per-ordinate density directly via a single
             # :class:`PerOrdinateSource` parameter.
-            from .sources import PerOrdinateSource
-            source = PerOrdinateSource(fi_op, self.sn_mesh)
+            from orpheus.transport.sources import PerOrdinateSource
+            source = PerOrdinateSource.from_mesh(fi_op, self.sn_mesh)
             boundary_flux_local = self.sn_mesh.zeros_boundary_flux()
             try:
                 angular, _ = transport_sweep(
@@ -988,7 +988,7 @@ def solve_sn(
     # :meth:`PerOrdinateSource.from_isotropic` factory (Pattern 7
     # producer-side normalisation — /W projection at the factory
     # boundary).
-    from .sources import PerOrdinateSource
+    from orpheus.transport.sources import PerOrdinateSource
     Q_final = solver.compute_fission_source(scalar_flux, keff)
     solver._add_scattering_source(Q_final, scalar_flux)
     solver._add_n2n_source(Q_final, scalar_flux)
@@ -1190,7 +1190,7 @@ def _solve_fixed_source_si(
     :func:`solve_sn_fixed_source`.  Extracted as a helper to make the
     geometry-default dispatch in :func:`solve_sn_fixed_source` clean.
     """
-    from .sources import PerOrdinateSource
+    from orpheus.transport.sources import PerOrdinateSource
     from .angular_flux import AngularFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
@@ -1225,7 +1225,7 @@ def _solve_fixed_source_si(
         total_values = iso_per_ord.values + external_source
         if Q_aniso_p1 is not None:
             total_values = total_values + Q_aniso_p1
-        source = PerOrdinateSource(total_values, sn_mesh)
+        source = PerOrdinateSource.from_mesh(total_values, sn_mesh)
 
         # R-1 Step 0: thread previous-iter angular flux as initial_guess
         # for the trace-space Carlson seed.
@@ -1351,7 +1351,7 @@ def _solve_fixed_source_krylov(
     from .angular_flux import AngularFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from .operator import CollisionOperator, StreamingOperator
-    from .sources import PerOrdinateSource
+    from orpheus.transport.sources import PerOrdinateSource
     from orpheus.numerics.iteration import KrylovAcceleration
     from orpheus.numerics.operator import ZeroOperator
 
@@ -1364,7 +1364,7 @@ def _solve_fixed_source_krylov(
     # :meth:`PerOrdinateSource.from_isotropic` for iso scalar sources;
     # by the time we get here the caller has projected).  Wrap into
     # a typed :class:`AngularFlux` for the path-forward Krylov.
-    q_ext_per_ord = PerOrdinateSource(external_source, sn_mesh)
+    q_ext_per_ord = PerOrdinateSource.from_mesh(external_source, sn_mesh)
     q_ext_typed = AngularFlux(q_ext_per_ord.values, sn_mesh)
 
     # ── Build the typed operator triple ─────────────────────────────

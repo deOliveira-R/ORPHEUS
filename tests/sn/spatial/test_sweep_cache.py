@@ -505,7 +505,7 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     acceptance gate: ≤ 2.0 ms (a slim safety margin for CI machine noise).
     Marked ``@slow`` — skipped by default but runs in CI.
     """
-    from orpheus.sn.sources import PerOrdinateSource
+    from orpheus.transport.sources import PerOrdinateSource
     from orpheus.sn.sweep import transport_sweep
 
     mesh = Mesh1D(

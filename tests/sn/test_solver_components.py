@@ -15,7 +15,7 @@ from orpheus.geometry import Mesh1D, Mesh2D
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver, solve_sn
-from orpheus.sn.sources import IsotropicSource, PerOrdinateSource
+from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
 from orpheus.sn.sweep import transport_sweep
 
 pytestmark = pytest.mark.l0  # SN solver method-in-isolation component checks

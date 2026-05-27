@@ -64,7 +64,7 @@ if TYPE_CHECKING:
     from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
     from .material_xs_field import MaterialXSField
     from orpheus.transport.fields.scalar_flux import ScalarFlux
-    from .sources import IsotropicSource, PerOrdinateSource
+    from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
 
 
 class InconsistentMaterialsError(ValueError):
@@ -812,8 +812,8 @@ class SNMesh:
         starting point for source-iteration accumulation: P0 in-scatter,
         (n,2n), and fission contributions all add into this buffer.
         """
-        from .sources import IsotropicSource
-        return IsotropicSource(
+        from orpheus.transport.sources import IsotropicSource
+        return IsotropicSource.from_mesh(
             np.zeros((self.ng, self.nx, self.ny)), self,
         )
 
@@ -825,8 +825,8 @@ class SNMesh:
         starting point for the :math:`P_\ell \ge 1` Galerkin
         reconstruction + MMS external-source accumulation buffer.
         """
-        from .sources import PerOrdinateSource
-        return PerOrdinateSource(
+        from orpheus.transport.sources import PerOrdinateSource
+        return PerOrdinateSource.from_mesh(
             np.zeros((self.quad.N, self.ng, self.nx, self.ny)), self,
         )
 

@@ -18,7 +18,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.sources import IsotropicSource, PerOrdinateSource
+from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
 
 from tests.sn._test_helpers import placeholder_materials
 
@@ -68,13 +68,13 @@ class TestIsotropicSource:
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
         m = _slab_mesh()
-        with pytest.raises(ValueError, match="IsotropicSource expects"):
-            IsotropicSource(np.zeros((m.ng + 1, m.nx, m.ny)), m)
+        with pytest.raises(ValueError, match="IsotropicSource.*does not match"):
+            IsotropicSource.from_mesh(np.zeros((m.ng + 1, m.nx, m.ny)), m)
 
     def test_within_type_add(self) -> None:
         m = _slab_mesh()
-        a = IsotropicSource(np.ones((m.ng, m.nx, m.ny)), m)
-        b = IsotropicSource(2.0 * np.ones((m.ng, m.nx, m.ny)), m)
+        a = IsotropicSource.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
+        b = IsotropicSource.from_mesh(2.0 * np.ones((m.ng, m.nx, m.ny)), m)
         c = a + b
         assert isinstance(c, IsotropicSource)
         assert np.all(c.values == 3.0)
@@ -84,15 +84,15 @@ class TestIsotropicSource:
 
     def test_within_type_sub(self) -> None:
         m = _slab_mesh()
-        a = IsotropicSource(3.0 * np.ones((m.ng, m.nx, m.ny)), m)
-        b = IsotropicSource(np.ones((m.ng, m.nx, m.ny)), m)
+        a = IsotropicSource.from_mesh(3.0 * np.ones((m.ng, m.nx, m.ny)), m)
+        b = IsotropicSource.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
         c = a - b
         assert isinstance(c, IsotropicSource)
         assert np.all(c.values == 2.0)
 
     def test_scalar_mul_left_and_right(self) -> None:
         m = _slab_mesh()
-        a = IsotropicSource(np.ones((m.ng, m.nx, m.ny)), m)
+        a = IsotropicSource.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
         left = 3.0 * a
         right = a * 3.0
         assert isinstance(left, IsotropicSource)
@@ -101,16 +101,16 @@ class TestIsotropicSource:
         assert np.all(left.values == 3.0)
 
     def test_mesh_binding_check(self) -> None:
-        a = IsotropicSource(np.ones((2, 4, 1)), _slab_mesh())
-        b = IsotropicSource(np.ones((2, 4, 1)), _slab_mesh())  # different mesh instance
+        a = IsotropicSource.from_mesh(np.ones((2, 4, 1)), _slab_mesh())
+        b = IsotropicSource.from_mesh(np.ones((2, 4, 1)), _slab_mesh())  # different mesh instance
         with pytest.raises(ValueError, match="distinct SNMesh"):
             _ = a + b
 
     def test_linf_and_copy(self) -> None:
         m = _slab_mesh()
         rng = np.random.default_rng(42)
-        a = IsotropicSource(rng.standard_normal((m.ng, m.nx, m.ny)), m)
-        assert a.linf() == pytest.approx(float(np.abs(a.values).max()))
+        a = IsotropicSource.from_mesh(rng.standard_normal((m.ng, m.nx, m.ny)), m)
+        assert a.linf == pytest.approx(float(np.abs(a.values).max()))
         b = a.copy()
         assert b is not a
         assert b.values is not a.values
@@ -132,16 +132,16 @@ class TestPerOrdinateSource:
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
         m = _slab_mesh()
-        with pytest.raises(ValueError, match="PerOrdinateSource expects"):
-            PerOrdinateSource(
+        with pytest.raises(ValueError, match="PerOrdinateSource.*does not match"):
+            PerOrdinateSource.from_mesh(
                 np.zeros((m.quad.N + 1, m.ng, m.nx, m.ny)), m,
             )
 
     def test_within_type_add(self) -> None:
         m = _slab_mesh()
         shape = (m.quad.N, m.ng, m.nx, m.ny)
-        a = PerOrdinateSource(np.ones(shape), m)
-        b = PerOrdinateSource(2.0 * np.ones(shape), m)
+        a = PerOrdinateSource.from_mesh(np.ones(shape), m)
+        b = PerOrdinateSource.from_mesh(2.0 * np.ones(shape), m)
         c = a + b
         assert isinstance(c, PerOrdinateSource)
         assert np.all(c.values == 3.0)
@@ -149,7 +149,7 @@ class TestPerOrdinateSource:
     def test_scalar_mul(self) -> None:
         m = _slab_mesh()
         shape = (m.quad.N, m.ng, m.nx, m.ny)
-        a = PerOrdinateSource(np.ones(shape), m)
+        a = PerOrdinateSource.from_mesh(np.ones(shape), m)
         c = 2.5 * a
         assert isinstance(c, PerOrdinateSource)
         assert np.all(c.values == 2.5)
@@ -159,83 +159,112 @@ class TestPerOrdinateSource:
         shape = (m.quad.N, m.ng, m.nx, m.ny)
         rng = np.random.default_rng(7)
         values = rng.standard_normal(shape)
-        a = PerOrdinateSource(values, m)
+        a = PerOrdinateSource.from_mesh(values, m)
         np.testing.assert_array_equal(a.at_ordinate(2), values[2])
 
 
 # ════════════════════════════════════════════════════════════════════
-# Cross-type dunder algebra (the load-bearing PR-TYPED-3 pattern)
+# Cross-class arithmetic via canonical subspace containment (refined
+# Issue #207 principle): IsotropicSource ⊂ PerOrdinateSource via the
+# broadcast injection iso → 1 ⊗ iso. The dunder applies the injection
+# inside the operation; result type is the LARGER (containing) space.
 # ════════════════════════════════════════════════════════════════════
 
 
-class TestCrossTypeDunder:
+class TestCrossClassDunder:
     def test_iso_plus_aniso_returns_per_ordinate(self) -> None:
         """``IsotropicSource + PerOrdinateSource → PerOrdinateSource``.
 
-        The load-bearing case for PR-TYPED-3 — replaces the procedural
-        ``np.broadcast_to(...).copy(); Q += Q_aniso`` pattern with one
-        line of typed algebra.
+        The canonical subspace-containment dunder: iso is broadcast
+        across the Ω axis, then added to the per-ordinate operand.
+        Reads as the math ``Q_total = Q_iso + Q_aniso``.
         """
         m = _slab_mesh()
         rng = np.random.default_rng(11)
         iso_values = rng.standard_normal((m.ng, m.nx, m.ny))
         aniso_values = rng.standard_normal((m.quad.N, m.ng, m.nx, m.ny))
-        iso = IsotropicSource(iso_values, m)
-        aniso = PerOrdinateSource(aniso_values, m)
+        iso = IsotropicSource.from_mesh(iso_values, m)
+        aniso = PerOrdinateSource.from_mesh(aniso_values, m)
 
         combined = iso + aniso
         assert isinstance(combined, PerOrdinateSource)
         # Broadcast: per-ordinate the combined value is iso + aniso[n].
         expected = iso_values[None, :, :, :] + aniso_values
         np.testing.assert_array_equal(combined.values, expected)
-        # Mesh propagates through the dunder.
         assert combined.mesh is m
 
     def test_aniso_plus_iso_commutative(self) -> None:
-        """``PerOrdinateSource + IsotropicSource → PerOrdinateSource``.
-
-        The reverse-order case must yield the same result (algebra is
-        commutative by construction — the dunder delegates to the
-        IsotropicSource path).
-        """
+        """``PerOrdinateSource + IsotropicSource → PerOrdinateSource``
+        (commutative — delegates to IsotropicSource for Pattern 2)."""
         m = _slab_mesh()
         rng = np.random.default_rng(13)
         iso_values = rng.standard_normal((m.ng, m.nx, m.ny))
         aniso_values = rng.standard_normal((m.quad.N, m.ng, m.nx, m.ny))
-        iso = IsotropicSource(iso_values, m)
-        aniso = PerOrdinateSource(aniso_values, m)
+        iso = IsotropicSource.from_mesh(iso_values, m)
+        aniso = PerOrdinateSource.from_mesh(aniso_values, m)
 
         forward = iso + aniso
         reverse = aniso + iso
         assert isinstance(reverse, PerOrdinateSource)
         np.testing.assert_array_equal(forward.values, reverse.values)
 
-    def test_bit_identity_with_legacy_broadcast_pattern(self) -> None:
-        r"""``(iso + aniso).values == np.broadcast_to(iso.values[None, ...], aniso.values.shape).copy() + aniso.values``.
+    def test_iso_plus_aniso_rejects_distinct_meshes(self) -> None:
+        """The cross-class dunder still enforces mesh-identity."""
+        m1 = _slab_mesh()
+        m2 = _slab_mesh()  # distinct instance, same shape
+        iso = IsotropicSource.from_mesh(np.ones((m1.ng, m1.nx, m1.ny)), m1)
+        aniso = PerOrdinateSource.from_mesh(
+            np.ones((m2.quad.N, m2.ng, m2.nx, m2.ny)), m2,
+        )
+        with pytest.raises(ValueError, match="mesh-bound"):
+            _ = iso + aniso
 
-        Proves the dunder replicates the procedural pattern at FP
-        bit-identity (the legacy ``ScatteringOperator.apply`` pattern
-        ``Q = np.broadcast_to(...).copy(); Q += Q_aniso``).  Both
-        produce a newly-allocated ``(N, ng, nx, ny)`` array; numpy's
-        broadcast add yields the same byte-for-byte result.
+    def test_pattern_7_normalised_iso_plus_aniso(self) -> None:
+        r"""Pattern 7 producer-side normalisation: divide by sum_w
+        BEFORE the cross-class add. Mirrors the ScatteringOperator
+        call site at ``scattering.py:942``.
+
+        ``(iso / sum_w) + aniso`` reads as the math
+        :math:`Q_n = Q_{\text{iso}} / W + Q_{\text{aniso},n}` —
+        the per-ordinate magnitude after the producer's dimensional
+        normalisation.
         """
         m = _slab_mesh()
         rng = np.random.default_rng(17)
         iso_values = rng.standard_normal((m.ng, m.nx, m.ny))
         aniso_values = rng.standard_normal((m.quad.N, m.ng, m.nx, m.ny))
-        iso = IsotropicSource(iso_values, m)
-        aniso = PerOrdinateSource(aniso_values, m)
+        iso = IsotropicSource.from_mesh(iso_values, m)
+        aniso = PerOrdinateSource.from_mesh(aniso_values, m)
+        sum_w = float(m.quad.weights.sum())
 
-        # Legacy pattern (from scattering.py:799 pre-PR-TYPED-3).
-        Q_legacy = np.broadcast_to(
-            iso_values[None, :, :, :], aniso_values.shape,
+        # Pattern 7 entry point — caller-applied /sum_w.
+        combined = (iso / sum_w) + aniso
+
+        # Bit-identical reference: broadcast iso/sum_w into per-ordinate,
+        # add aniso element-wise.
+        Q_reference = np.broadcast_to(
+            (iso_values / sum_w)[None, :, :, :], aniso_values.shape,
         ).copy()
-        Q_legacy += aniso_values
+        Q_reference += aniso_values
+        np.testing.assert_array_equal(combined.values, Q_reference)
 
-        # New typed dunder.
-        Q_typed = (iso + aniso).values
+    def test_per_ordinate_from_isotropic_alternative_factory(self) -> None:
+        r"""Named factory :meth:`PerOrdinateSource.from_isotropic` is
+        the alternative to caller-applied /sum_w + cross-class dunder.
 
-        np.testing.assert_array_equal(Q_typed, Q_legacy)
+        It bakes the ``/sum_w`` normalisation into the factory,
+        equivalent to ``(iso / sum_w).as_per_ordinate()``. Caller
+        chooses between this and the dunder form based on which
+        better reads at the call site.
+        """
+        m = _slab_mesh()
+        rng = np.random.default_rng(23)
+        iso_values = rng.standard_normal((m.ng, m.nx, m.ny))
+        iso = IsotropicSource.from_mesh(iso_values, m)
+
+        via_factory = PerOrdinateSource.from_isotropic(iso.values, m)
+        via_dunder = (iso / float(m.quad.weights.sum())).as_per_ordinate()
+        np.testing.assert_array_equal(via_factory.values, via_dunder.values)
 
     def test_iso_plus_iso_stays_isotropic(self) -> None:
         """``IsotropicSource + IsotropicSource → IsotropicSource``.
@@ -244,8 +273,8 @@ class TestCrossTypeDunder:
         path only fires when the partner is :class:`PerOrdinateSource`.
         """
         m = _slab_mesh()
-        a = IsotropicSource(np.ones((m.ng, m.nx, m.ny)), m)
-        b = IsotropicSource(2.0 * np.ones((m.ng, m.nx, m.ny)), m)
+        a = IsotropicSource.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
+        b = IsotropicSource.from_mesh(2.0 * np.ones((m.ng, m.nx, m.ny)), m)
         c = a + b
         assert isinstance(c, IsotropicSource)
         assert not isinstance(c, PerOrdinateSource)
@@ -254,8 +283,8 @@ class TestCrossTypeDunder:
         """``PerOrdinateSource + PerOrdinateSource → PerOrdinateSource``."""
         m = _slab_mesh()
         shape = (m.quad.N, m.ng, m.nx, m.ny)
-        a = PerOrdinateSource(np.ones(shape), m)
-        b = PerOrdinateSource(2.0 * np.ones(shape), m)
+        a = PerOrdinateSource.from_mesh(np.ones(shape), m)
+        b = PerOrdinateSource.from_mesh(2.0 * np.ones(shape), m)
         c = a + b
         assert isinstance(c, PerOrdinateSource)
         assert np.all(c.values == 3.0)
@@ -271,7 +300,7 @@ class TestAsPerOrdinate:
         m = _slab_mesh()
         rng = np.random.default_rng(19)
         iso_values = rng.standard_normal((m.ng, m.nx, m.ny))
-        iso = IsotropicSource(iso_values, m)
+        iso = IsotropicSource.from_mesh(iso_values, m)
 
         aniso = iso.as_per_ordinate()
         assert isinstance(aniso, PerOrdinateSource)
@@ -286,7 +315,7 @@ class TestAsPerOrdinate:
         load-bearing piece that prevents readonly-broadcast-view
         surprises at the caller."""
         m = _slab_mesh()
-        iso = IsotropicSource(np.ones((m.ng, m.nx, m.ny)), m)
+        iso = IsotropicSource.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
         aniso = iso.as_per_ordinate()
         assert aniso.values.flags.writeable
 
@@ -298,7 +327,7 @@ class TestAsPerOrdinate:
         """
         m = _slab_mesh()
         rng = np.random.default_rng(23)
-        iso = IsotropicSource(
+        iso = IsotropicSource.from_mesh(
             rng.standard_normal((m.ng, m.nx, m.ny)), m,
         )
         via_conv = iso.as_per_ordinate()
@@ -322,10 +351,10 @@ class Test2DTypedSources:
     def test_cross_type_add_2d(self) -> None:
         m = _2d_mesh()
         rng = np.random.default_rng(29)
-        iso = IsotropicSource(
+        iso = IsotropicSource.from_mesh(
             rng.standard_normal((m.ng, m.nx, m.ny)), m,
         )
-        aniso = PerOrdinateSource(
+        aniso = PerOrdinateSource.from_mesh(
             rng.standard_normal((m.quad.N, m.ng, m.nx, m.ny)), m,
         )
         combined = iso + aniso
