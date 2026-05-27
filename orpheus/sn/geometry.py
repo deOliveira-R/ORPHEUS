@@ -59,6 +59,7 @@ from .sweep_graph import OctantLabel, SweepDependencyGraph
 
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
+    from orpheus.numerics.face_layout import FaceLayout
     from .angular_flux import AngularFlux
     from .boundary_flux import BoundaryFlux
     from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
@@ -803,6 +804,69 @@ class SNMesh:
         """
         from .boundary_flux import BoundaryFlux
         return BoundaryFlux.zeros(self)
+
+    @property
+    def boundary_face_layout(self) -> "FaceLayout":
+        r"""Flat :class:`~orpheus.numerics.face_layout.FaceLayout` of boundary faces.
+
+        Depth B step D-G primitive. Returns the per-geometry boundary
+        face descriptor: which faces exist, their per-face shapes, and
+        the flat-buffer offsets that pack them. The post-D-G pure-Field
+        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+        consumes this layout to lay out its flat backing buffer.
+
+        Geometry mapping:
+
+        * 1-D slab (``reduced is not None`` and ``curvature is None``)
+          — two faces ``xmin`` / ``xmax``, each shape ``(N, ng)``.
+        * 1-D curvilinear sphere / cylinder (``curvature in
+          {"spherical", "cylindrical"}``) — one face ``xmax`` shape
+          ``(N, ng)`` (the geometric pole at r=0 is a regularity
+          condition, not a BC face).
+        * 2-D Cartesian (``reduced is None``) — four faces ``xmin`` /
+          ``xmax`` shape ``(N, ng, ny)``; ``ymin`` / ``ymax`` shape
+          ``(N, ng, nx)``.
+
+        Returns
+        -------
+        FaceLayout
+            Per-geometry face descriptor. Total flat size = sum of
+            ``prod(shape)`` over all faces.
+
+        Notes
+        -----
+        The layout contains ONLY boundary face slots. Interior
+        wavefront cache cells (pre-D-G stored in BoundaryFlux's 2-D
+        ``xmin_xmax_buf`` / ``ymin_ymax_buf`` interior positions) are
+        explicitly excluded — they live on
+        :class:`~orpheus.sn.sweep_scratch.SweepScratch` post-D-G.
+        """
+        from orpheus.numerics.face_layout import FaceLayout
+
+        N = self.quad.N
+        ng = self.ng
+        nx = self.nx
+        ny = self.ny
+
+        if self.reduced is not None:
+            # 1-D — slab or curvilinear.
+            curv = getattr(self, "curvature", None)
+            if curv in ("spherical", "cylindrical"):
+                # Curvilinear: only the outer radial face exists.
+                return FaceLayout.from_named_shapes([("xmax", (N, ng))])
+            # 1-D slab: two faces.
+            return FaceLayout.from_named_shapes([
+                ("xmin", (N, ng)),
+                ("xmax", (N, ng)),
+            ])
+
+        # 2-D Cartesian: four faces.
+        return FaceLayout.from_named_shapes([
+            ("xmin", (N, ng, ny)),
+            ("xmax", (N, ng, ny)),
+            ("ymin", (N, ng, nx)),
+            ("ymax", (N, ng, nx)),
+        ])
 
     def zeros_isotropic_source(self) -> "IsotropicSource":
         r"""Build a zero :class:`IsotropicSource` sized to this mesh.

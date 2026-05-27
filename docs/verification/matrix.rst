@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **4484**
+Total tests collected: **4607**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1132, 25.2%
-   L1, 909, 20.3%
+   L0, 1131, 24.5%
+   L1, 909, 19.7%
    L2, 36, 0.8%
    L3, 0, 0.0%
-   foundation, 2370, 52.9%
+   foundation, 2494, 54.1%
    unmarked, 37, 0.8%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4368
+   explicit, 4491
    verify, 0
    class-name, 46
    func-name, 0
@@ -160,6 +160,7 @@ Module × level grid
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
+   fields/test_boundary_flux, 0, 0, 0, 0, 35, 0
    geometry/test_bc_equivalence_snapshot, 0, 8, 0, 0, 0, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 30, 0, 0, 11, 0
@@ -190,6 +191,8 @@ Module × level grid
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
    numerics/test_diagonal_operator, 17, 0, 0, 0, 0, 0
+   numerics/test_face_layout, 0, 0, 0, 0, 15, 0
+   numerics/test_field, 0, 0, 0, 0, 26, 0
    numerics/test_incoming_ordinate_mask_tensor, 13, 0, 0, 0, 0, 0
    numerics/test_iteration, 0, 1, 0, 0, 17, 0
    numerics/test_iteration_angular_flux, 0, 0, 0, 0, 8, 0
@@ -206,8 +209,9 @@ Module × level grid
    numerics/test_rules_product, 0, 3, 0, 0, 14, 0
    numerics/test_rules_sphere, 0, 7, 0, 0, 29, 0
    numerics/test_space, 0, 0, 0, 0, 17, 0
+   numerics/test_space_algebra, 0, 0, 0, 0, 20, 0
+   numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 0, 0
    numerics/test_spherical_harmonic_space, 0, 6, 0, 0, 6, 0
-   numerics/test_spherical_harmonics, 5, 7, 0, 0, 0, 0
    numerics/test_symmetry, 0, 0, 0, 0, 71, 0
    numerics/test_tensor_product_operator, 18, 0, 0, 0, 0, 0
    numerics/test_trace_space, 13, 7, 0, 0, 0, 0
@@ -228,7 +232,7 @@ Module × level grid
    sn/test_discrete_ordinates_2d, 0, 0, 2, 0, 0, 0
    sn/test_fission_operator, 0, 0, 0, 0, 10, 0
    sn/test_fixed_source_g1, 0, 7, 0, 0, 0, 0
-   sn/test_harmonic_moment_field, 0, 0, 0, 0, 30, 0
+   sn/test_harmonic_moment_field, 0, 0, 0, 0, 31, 0
    sn/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    sn/test_invertible_operator, 1, 10, 0, 0, 18, 0
    sn/test_krylov_curvilinear_precond_safety, 0, 4, 0, 0, 0, 0
@@ -262,8 +266,9 @@ Module × level grid
    sn/test_streaming_operator_decomposition, 19, 0, 0, 0, 0, 0
    sn/test_sweep_graph, 63, 0, 0, 0, 0, 0
    sn/test_sweep_regression, 8, 0, 0, 0, 0, 0
+   sn/test_sweep_scratch, 0, 0, 0, 0, 14, 0
    sn/test_typed_fields, 0, 0, 0, 0, 22, 0
-   sn/test_typed_sources, 0, 0, 0, 0, 22, 0
+   sn/test_typed_sources, 0, 0, 0, 0, 24, 0
    sn/test_unified_matvec_cylinder, 29, 2, 0, 0, 0, 0
    sn/test_unified_matvec_slab, 3, 2, 0, 0, 0, 0
    sn/test_unified_matvec_sphere, 2, 0, 0, 0, 0, 0
@@ -281,7 +286,7 @@ Module × level grid
    spatial/test_sweep_cache, 28, 0, 0, 0, 0, 0
    spatial/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 57, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 243, 0
+   test_layer_imports, 0, 0, 0, 0, 254, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
 

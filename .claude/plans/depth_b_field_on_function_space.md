@@ -296,45 +296,42 @@ Notes:
 
 ### 3.3 The L2 field types
 
-Each subclass adds DOMAIN-SPECIFIC fields (e.g. `mesh`, `boundary`, `L`) on top of `Field`'s `(values, space)`. The dunders are inherited unchanged. Only the constructor + class-specific methods differ.
+Each subclass adds DOMAIN-SPECIFIC fields (e.g. `mesh`, `L`) on top of `Field`'s `(values, space)`. The dunders are inherited unchanged. Only the constructor + class-specific methods differ.
+
+**Architecture decision (recorded 2026-05-27)**: `AngularFlux` is a **pure Field**, symmetric with `ScalarFlux`. It does NOT carry `boundary` or `_history`. The composite iteration state (psi + boundary + history) lives in a **separate container class** introduced at §3.8.
 
 ```python
 # orpheus/transport/fields/angular_flux.py
-@dataclass(frozen=True, eq=False)
+@dataclass(frozen=True, eq=False, kw_only=True)
 class AngularFlux(Field):
-    """L2 typed flux: a Field on the (N, ng, nx, ny) phase space.
+    """L2 typed flux: a pure Field on the (N, ng, nx, ny) phase space.
 
-    Carries a `space: FunctionSpace` for L² algebra, a `mesh: SNMesh`
-    for discretisation handle (today method-specific; future Protocol),
-    a `boundary: BoundaryFlux` partner field on the trace space, and
-    an iteration history `_history` for Krylov tracking.
+    Carries `values + space + mesh` and inherits Field algebra. No
+    boundary, no history, no iteration metadata — symmetric with
+    ScalarFlux. Composite iteration state lives in TransportState
+    (see §3.8).
     """
-    mesh: SNMesh  # added field
-    boundary: BoundaryFlux  # added field, REQUIRED (no default — see §3.5)
-    history_depth: int = 2
-    _history: tuple = dc_field(default=(), compare=False)
+    mesh: SNMesh  # added field — discretisation handle (future TransportMesh Protocol)
 
     # __post_init__ extends Field.__post_init__ via super() — adds mesh-vs-space
-    # consistency check; cannot reassign boundary auto-allocation default.
+    # consistency check.
 
-    # Class-level factories from_flat_with_traces / to_flat_with_traces
-    # are NOT defined here. They are injected by the SN adapter at L3:
-    # orpheus/sn/angular_flux_b1pp_adapter.py monkey-patches them onto
-    # this class at module-import time. The same-class invariant
-    # (numerics/iteration.py:163-176) is satisfied because type(x) is
-    # always this L2 class.
+    # NO from_flat_with_traces / to_flat_with_traces — those live on the
+    # TransportState container, where the trace-data target makes sense.
 ```
 
-Subtle: `dataclass` inheritance with `@dataclass(frozen=True)` requires every parent field to have a default OR every child field to come AFTER no-default parent fields. We use `frozen=True` already, so the order is constrained. Audit this when implementing — may need to declare `values` and `space` with defaults of `None` and validate, OR use `kw_only=True` (Python 3.10+; the project is on 3.14 per the venv inspection earlier).
+Subtle: `dataclass` inheritance with `@dataclass(frozen=True)` requires every parent field to have a default OR `kw_only=True`. We use `kw_only=True` (Python 3.10+; project is on 3.14). Pattern established by `IsotropicSource` / `PerOrdinateSource` in D-F.
 
-### 3.4 `BoundaryFlux` — the geometry-conditional case (Option Ω, flat-buffer storage)
+### 3.4 `BoundaryFlux` — pure Field with flat-buffer storage (Option Ω)
 
-`BoundaryFlux` is structurally a **collection of `BoundaryFaceFlux` fields**, one per geometry boundary face. Each `BoundaryFaceFlux` is a Field on a per-face trace space.
+**Architecture decision (recorded 2026-05-27)**: `BoundaryFlux` is a **pure Field** with a flat backing buffer + `FaceLayout` descriptor. The pre-D-G framing ("not a Field, structured bundle") is RETIRED — Field-on-flat-storage gives both single-space algebra (Field-inherited dunders) AND per-face slice-view access (via FaceLayout). The interior-cache conflation that the pre-D-G 2-D `xmin_xmax_buf` / `ymin_ymax_buf` buffers carried is split out into a sweep-private `SweepScratch` type — BoundaryFlux is IMMUTABLE.
+
+`BoundaryFaceFlux` is the per-face slice-view type, also a Field (on a single face's trace space). Construction is via `BoundaryFlux.faces[face_name]` — returns a Field view, no copy.
 
 **Naming convention:**
 - `FaceFlux` (FUTURE, potential L2) — flux on ANY face (internal or boundary). Not in scope for this phase.
 - `BoundaryFaceFlux` — flux on ONE boundary face's inflow trace space. This phase introduces it.
-- `BoundaryFlux` — the BUNDLE of `BoundaryFaceFlux` over all boundary faces of a mesh.
+- `BoundaryFlux` — single Field over all boundary faces of a mesh (flat storage + FaceLayout).
 
 **Storage: Option Ω — flat backing buffer + per-face slice views.**
 
@@ -383,55 +380,65 @@ class BoundaryFaceFlux(Field):
 
 ```python
 # orpheus/transport/fields/boundary_flux.py
-@dataclass(frozen=True, eq=False)
-class BoundaryFlux:
-    """Bundle of per-face boundary fluxes. NOT a Field (it's a structured
-    bundle, not a single space's element). Arithmetic is delegated to the
-    flat backing buffer for vectorized performance.
-    """
-    _values: NDArray                  # flat backing buffer, length == layout.total_size
-    layout: FaceLayout                # mesh-provided descriptor
-    mesh: SNMesh                      # discretisation handle (future: TransportMesh Protocol)
+@dataclass(frozen=True, eq=False, kw_only=True)
+class BoundaryFlux(Field):
+    """L2 typed boundary trace flux: a pure Field over all boundary faces.
 
-    def __post_init__(self):
-        if self._values.shape != (self.layout.total_size,):
+    Storage is a flat backing buffer; per-face access via the FaceLayout
+    descriptor returns slice views (no copies). Field algebra is
+    inherited — `__add__`, `__sub__`, scalar `*`, `__neg__`, `__truediv__`
+    all operate on the flat buffer in ONE numpy call.
+
+    IMMUTABLE. The pre-D-G mutable write-through path (sweep persistent
+    BC state) is replaced by sweep-side SweepScratch + functional
+    reconstruction at iteration boundaries.
+    """
+    # values (flat backing) and space (FunctionSpace with shape=(layout.total_size,))
+    # inherited from Field. Added fields:
+    layout: FaceLayout                # mesh-provided descriptor
+    mesh: SNMesh                      # discretisation handle
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.values.shape != (self.layout.total_size,):
             raise ValueError(
-                f"BoundaryFlux: flat buffer shape {self._values.shape} "
+                f"BoundaryFlux: flat buffer shape {self.values.shape} "
                 f"!= ({self.layout.total_size},)"
             )
+
+    def _check_partner(self, other: object) -> None:
+        super()._check_partner(other)
+        if self.mesh is not other.mesh:  # type: ignore[attr-defined]
+            raise ValueError("BoundaryFlux mesh-binding mismatch")
+        if self.layout is not other.layout:  # type: ignore[attr-defined]
+            if self.layout != other.layout:
+                raise ValueError("BoundaryFlux layout mismatch")
 
     # ── Per-face access (slice views, no copies) ────────────────────────
     @property
     def faces(self) -> Mapping[str, BoundaryFaceFlux]:
         return {
             name: BoundaryFaceFlux(
-                values=slot.slice_view(self._values),
-                space=self._space_for_face(name),  # constructed from layout + mesh metadata
+                values=slot.slice_view(self.values),
+                space=self._space_for_face(name),
             )
             for name, slot in self.layout.faces.items()
         }
 
-    # ── Vectorized arithmetic on the flat buffer ────────────────────────
-    def _check_partner(self, other: "BoundaryFlux") -> None:
-        if type(other) is not type(self):
-            raise TypeError(...)
-        if self.layout is not other.layout:
-            # Layouts must match by identity (cheap) or by structural equality (deeper check).
-            if self.layout != other.layout:
-                raise ValueError("BoundaryFlux layout mismatch")
-
-    def __add__(self, other: "BoundaryFlux") -> "BoundaryFlux":
-        self._check_partner(other)
-        return BoundaryFlux(
-            _values=self._values + other._values,   # ONE numpy call
-            layout=self.layout,
-            mesh=self.mesh,
+    @classmethod
+    def zeros_for_sn_mesh(cls, mesh: SNMesh) -> "BoundaryFlux":
+        """SN-geometry-conditional zero-construction. Lives here as a
+        classmethod rather than at sweep call sites — the geometry
+        branching is part of the field's construction discipline.
+        """
+        layout = mesh.boundary_face_layout
+        space = FunctionSpace(name="sn_boundary_flat", shape=(layout.total_size,))
+        return cls(
+            values=np.zeros(layout.total_size),
+            space=space,
+            layout=layout,
+            mesh=mesh,
         )
-    # __sub__, __mul__, __neg__, __truediv__ — same pattern
-
-    @property
-    def linf(self) -> float:
-        return float(np.abs(self._values).max())
 ```
 
 **The mesh contract** (cross-method uniform):
@@ -464,34 +471,32 @@ The MESH PROVIDES the layout; the `BoundaryFlux` consumes it without knowing the
 
 **`DirectSumSpace` is deferred to Phase 3.6.** The Option Ω layout above is functionally equivalent to a DirectSumSpace's flat representation, but `BoundaryFlux` does not inherit from `Field` in this phase (it's a structured BUNDLE, not a single Field on a single space). When Phase 3.6 lands DirectSumSpace (for kinetics flux⊕precursors), `BoundaryFlux` may be refactored to `Field(values=_flat_buffer, space=DirectSumSpace(layout=...))` — same storage, more uniform algebra. That refactor is non-breaking; Option Ω here is forward-compatible.
 
-### 3.5 The boundary auto-allocation question (revisited)
+### 3.5 The boundary auto-allocation question — resolved by the container
 
-Per the §3.5 BoundaryFlux question from the previous exploration: the L2 `AngularFlux` needs to know how to construct a zero `BoundaryFlux` matching its phase-space mesh.
-
-**Resolution under Depth B:** the SN adapter (`orpheus/sn/angular_flux_b1pp_adapter.py` or similar) provides:
+The pre-D-G framing — "the L2 `AngularFlux` needs to know how to construct a zero `BoundaryFlux` matching its phase-space mesh" — is **dissolved** by the architecture decision recorded at §3.3 and §3.8: AngularFlux does NOT carry boundary, so it does not need to know how to construct one. The composite construction lives on the **container**:
 
 ```python
-# orpheus/sn/angular_flux_b1pp_adapter.py
-def zeros_for_sn_mesh(mesh: SNMesh, history_depth: int = 2) -> AngularFlux:
-    """L3 factory: construct a zero AngularFlux + zero BoundaryFlux for the SN mesh.
-
-    The L2 AngularFlux requires `boundary: BoundaryFlux` (no default — illegal
-    states unrepresentable per coding-elegance Pattern 4). The factory is the
-    SN-specific constructor.
+# orpheus/sn/transport_state_b1pp_adapter.py
+@classmethod
+def zeros_for_sn_mesh(cls, mesh: SNMesh, history_depth: int = 2) -> "TransportState":
+    """L3 factory: construct a zero TransportState (psi + boundary + empty history)
+    for the SN mesh. The composite is the iteration state; algebraically pure
+    AngularFlux and BoundaryFlux components have their own zero factories
+    (AngularFlux.from_mesh + BoundaryFlux.zeros_for_sn_mesh) and stand alone.
     """
-    boundary = _sn_zero_boundary_flux(mesh)  # geometry-conditional logic
-    return AngularFlux(
-        values=np.zeros((mesh.quad.N, mesh.ng, mesh.nx, mesh.ny)),
-        space=_sn_angular_flux_space(mesh),
-        mesh=mesh,
-        boundary=boundary,
+    return cls(
+        psi=AngularFlux(
+            values=np.zeros((mesh.quad.N, mesh.ng, mesh.nx, mesh.ny)),
+            space=_sn_angular_flux_space(mesh),
+            mesh=mesh,
+        ),
+        boundary=BoundaryFlux.zeros_for_sn_mesh(mesh),
+        _history=(),
         history_depth=history_depth,
     )
 ```
 
-The L2 base AngularFlux remains "every instance is fully-constructed; boundary is non-None by construction." The geometry-conditional `_sn_zero_boundary_flux` lives in L3.
-
-Any future MoC analog would provide `zeros_for_moc_mesh(mesh: MoCMesh) -> AngularFlux` likewise.
+The L2 `AngularFlux` constructor is now trivially symmetric with `ScalarFlux` — just `(values, space, mesh)`. The geometry-conditional construction logic lives ONCE, on the container's L3 adapter. Any future MoC analog provides `TransportState.zeros_for_moc_mesh(mesh)` likewise — the container is method-agnostic but its zero factories are method-specific.
 
 ### 3.6 `Source` siblings
 
@@ -565,6 +570,184 @@ result = scattering.apply(psi)  # routes through the typed AngularFlux handler
 | `Representation` abstraction (dense / sparse / sweep / TT) | **YES** — when grand-report §32.8 lands in a future phase. |
 
 **Cross-references:** `coding-elegance` Pattern 1 (read-as-the-math via dunder); Pattern 5 (build the right primitive). The singledispatch tables ARE the right primitives for storage/role polymorphism.
+
+### 3.8 Container architecture — `TransportState` (the composite iteration state)
+
+**Architecture decision recorded 2026-05-27 from the conversation.** The user's verbatim framing:
+
+> "I actually think the AngularFlux class, having boundary condition inside and history, is not appropriate. It would seem to me that AngularFlux should not have BoundaryFlux and time history (just like ScalarFlux) and that we need a container class (maybe TimedFullField) that can have a field with boundary values and history. This container class could then contain AngularFlux + BoundaryFlux and history inside, and operates with a dunder."
+
+The container separates THREE responsibilities that the pre-D-H `AngularFlux` conflated:
+
+| Responsibility | Pre-D-H location | Post-D-H location |
+|---|---|---|
+| Interior phase-space flux values | `AngularFlux.values` | `AngularFlux.values` (unchanged) |
+| Boundary trace values | `AngularFlux.boundary: BoundaryFlux` | `TransportState.boundary: BoundaryFlux` |
+| Iteration history (Krylov / Anderson) | `AngularFlux._history: tuple` | `TransportState._history: tuple[TransportState, ...]` |
+
+**Why this is principled** (the cardinal-rule 2 architectural argument):
+
+1. **`ScalarFlux` / `AngularFlux` symmetry.** Pre-D-H, ScalarFlux is a clean Field (values+space+mesh) and AngularFlux is bloated with two extra responsibilities. Post-D-H they're both just Fields. The asymmetry that's been bugging the architecture through Depth B disappears.
+2. **Composition over inheritance.** Per Issue #207's three-way split (data composition / trait composition / named composition), `TransportState` is a **composition constructor** — it builds a composite state from existing Fields. It's a sibling of `TensorProductSpace`'s role at L1 (which also constructs new types from existing ones).
+3. **Future alignment with `DirectSumSpace`.** The container's natural backing in grand-report §5.3 is `Field(values=DirectSumStorage, space=DirectSumSpace(psi.space, boundary.space))`. `DirectSumSpace` is DEFERRED to Phase 3.6 per `feedback_unify_after_two_instances` (the second instance is kinetics' `flux ⊕ precursors`). D-H ships `TransportState` as a structured bundle with delegate-style dunders; the Phase 3.6 promotion is non-breaking.
+4. **Dissolves the 2-D conflation.** Once boundary is its own Field at the container level, BoundaryFlux is just `(face_values, face_space, mesh)` — no interior cache, no buffer-mixing. The pre-D-G 2-D `xmin_xmax_buf` / `ymin_ymax_buf` buffers split naturally: pure boundary trace → `BoundaryFlux`; interior wavefront cache → sweep-private `SweepScratch`.
+
+**Naming.** The user's working name is `TimedFullField`. Alternates considered:
+
+| Candidate | Pros | Cons |
+|---|---|---|
+| `TimedFullField` | User's working name; emphasizes time-stepping potential | "Timed" implies temporal stepping but primary use today is Krylov/SI iteration state |
+| `TransportState` | Concise; reads as the math (the state of a transport iteration) | Slightly generic |
+| `IterationState` | Captures the actual use case (iteration metadata) | Couples concept to the solver mechanism, not the physics |
+| `FullTransportField` | Descriptive | Wordy; "field" is misleading because the container is NOT a Field |
+
+**Recommendation: `TransportState`** — the composite IS the state of the transport problem at a given iteration index. The name reads as the math at consumer sites: `state = source_iteration.step(state, source)`, `new_state = (L+C).solve(rhs_state)`. Final name to be decided pre-D-H.1 implementation.
+
+**The class shape:**
+
+```python
+# orpheus/transport/state.py  (or orpheus/transport/transport_state.py)
+@dataclass(frozen=True, kw_only=True)
+class TransportState:
+    """Composite iteration state: pure flux + pure boundary trace + history.
+
+    NOT a Field. A structured bundle with delegate-style dunders that
+    propagate algebra to the contained fields. The history shift register
+    is iteration metadata — does NOT participate in algebra (algebra
+    results carry empty history).
+
+    Architectural sibling of TensorProductSpace at L1: a composition
+    constructor that builds a composite type from existing typed Fields.
+    Future Phase 3.6 may promote to Field-with-DirectSumSpace backing
+    (non-breaking — public API stays).
+    """
+    psi: AngularFlux
+    boundary: BoundaryFlux
+    _history: tuple["TransportState", ...] = ()
+    history_depth: int = 2
+
+    def __post_init__(self) -> None:
+        if self.psi.mesh is not self.boundary.mesh:
+            raise ValueError(
+                "TransportState requires psi and boundary on the same mesh"
+            )
+
+    # ── Algebra (delegates to contained fields; history dropped) ────────
+    def _check_partner(self, other: "TransportState") -> None:
+        if type(other) is not TransportState:
+            raise TypeError(
+                f"TransportState arithmetic requires TransportState partner; "
+                f"got {type(other).__name__}"
+            )
+        if self.psi.mesh is not other.psi.mesh:
+            raise ValueError("TransportState arithmetic across different meshes")
+
+    def __add__(self, other: "TransportState") -> "TransportState":
+        self._check_partner(other)
+        return TransportState(
+            psi=self.psi + other.psi,
+            boundary=self.boundary + other.boundary,
+            _history=(),  # algebra results have no iteration history
+            history_depth=self.history_depth,
+        )
+
+    def __sub__(self, other: "TransportState") -> "TransportState":
+        self._check_partner(other)
+        return TransportState(
+            psi=self.psi - other.psi,
+            boundary=self.boundary - other.boundary,
+            _history=(),
+            history_depth=self.history_depth,
+        )
+
+    def __neg__(self) -> "TransportState":
+        return TransportState(
+            psi=-self.psi,
+            boundary=-self.boundary,
+            _history=(),
+            history_depth=self.history_depth,
+        )
+
+    def __mul__(self, scalar: float) -> "TransportState":
+        return TransportState(
+            psi=self.psi * scalar,
+            boundary=self.boundary * scalar,
+            _history=(),
+            history_depth=self.history_depth,
+        )
+
+    def __rmul__(self, scalar: float) -> "TransportState":
+        return self.__mul__(scalar)
+
+    def __truediv__(self, scalar: float) -> "TransportState":
+        return self.__mul__(1.0 / float(scalar))
+
+    # ── History shift-register (iteration metadata) ─────────────────────
+    def advance(self, new_psi: AngularFlux, new_boundary: BoundaryFlux) -> "TransportState":
+        """Push current (psi, boundary) into history; new (psi, boundary) become current.
+
+        The shift-register pattern that pre-D-H AngularFlux exposed via
+        `psi << new` — lifted to the container where the history lives.
+        """
+        current_snapshot = TransportState(
+            psi=self.psi,
+            boundary=self.boundary,
+            _history=(),
+            history_depth=self.history_depth,
+        )
+        new_history = (current_snapshot, *self._history)[: self.history_depth]
+        return TransportState(
+            psi=new_psi,
+            boundary=new_boundary,
+            _history=new_history,
+            history_depth=self.history_depth,
+        )
+
+    def at_lag(self, lag: int) -> "TransportState":
+        """Read the state at iteration lag (0 = current, 1 = previous, ...)."""
+        if lag == 0:
+            return self
+        if lag - 1 >= len(self._history):
+            raise IndexError(
+                f"TransportState: lag {lag} out of history (depth={len(self._history)})"
+            )
+        return self._history[lag - 1]
+```
+
+**Krylov / GMRES adapter at L3.** The packed-vector adapter (`to_flat_with_traces` / `from_flat_with_traces`) now targets the CONTAINER, not the inner flux. The `_is_ravellable` Protocol at `iteration.py:163-176` detects `TransportState`. This is structurally cleaner: the flat packed vector is `concat([psi.values.ravel(), boundary.values])` — a direct sum representation, which is exactly what the future DirectSumSpace Field promotion will formalize.
+
+```python
+# orpheus/sn/transport_state_b1pp_adapter.py
+def _install_ravel_unravel():
+    """L3 import-time injection: install to_flat_with_traces / from_flat_with_traces
+    on the L2 TransportState class. Preserves the same-class invariant
+    (numerics/iteration.py:163-176): type(x) is always TransportState.
+    """
+    def to_flat_with_traces(self: TransportState) -> NDArray:
+        return np.concatenate([self.psi.values.ravel(), self.boundary.values])
+
+    def from_flat_with_traces(cls, flat: NDArray, template: TransportState) -> TransportState:
+        n_psi = template.psi.values.size
+        psi_values = flat[:n_psi].reshape(template.psi.values.shape)
+        boundary_values = flat[n_psi:]
+        return cls(
+            psi=replace(template.psi, values=psi_values),
+            boundary=replace(template.boundary, values=boundary_values),
+            _history=(),
+            history_depth=template.history_depth,
+        )
+
+    TransportState.to_flat_with_traces = to_flat_with_traces
+    TransportState.from_flat_with_traces = classmethod(from_flat_with_traces)
+
+_install_ravel_unravel()
+```
+
+**Sweep API impact.** Pre-D-H, the sweep consumes `psi: AngularFlux` (reading `psi.boundary` internally) and produces a new `AngularFlux` (writing `.boundary` write-through). Post-D-H, the sweep consumes `state: TransportState` and produces a new `TransportState`. Internally the sweep reads `state.psi.values` and `state.boundary.values`, produces fresh ndarray outputs, and constructs a new `TransportState` (immutable functional path). The pre-D-G mutable write-through is replaced by the sweep-side `SweepScratch` for any per-iteration cache needs.
+
+**SourceIteration / InvertibleOperator.solve API impact.** Today (R-1 Step C): `(L+C).solve(rhs: AngularFlux) -> AngularFlux` reads `rhs.boundary`. Post-D-H: `(L+C).solve(rhs: TransportState) -> TransportState`. The rhs container carries both the inhomogeneous source flux AND the inflow boundary trace; the solve returns the converged container with updated psi + updated boundary trace + new history entry.
+
+**Same-class invariant.** Today `_is_ravellable` checks `hasattr(type(x), "from_flat_with_traces")` on `AngularFlux`. Post-D-H it checks on `TransportState`. The mechanism is unchanged — only the target type changes. The protocol detection still works; the carved-off responsibility lives on the correct type.
 
 ---
 
@@ -676,16 +859,28 @@ Recommended sequence — each step is a single commit, lands with verification g
 
 **Execution status (2026-05-27):**
 
-| Step | Status | Commit |
-|---|---|---|
-| D-A | LANDED | `1e0bb98` (Field ABC + FunctionSpace.units + pint) |
-| D-C | LANDED | `469ea15` (trace_space moved to numerics/spaces/) |
-| D-D | LANDED | `53bc986` (ScalarFlux migrated to L2 + inherits Field) |
-| D-B | NEXT | (TensorProductSpace L1 primitive — promoted from optional to load-bearing) |
-| D-B+1 | NEXT | (specular BC tensor-network — first production instance) |
-| D-E through D-K | PENDING | (in logical order below) |
+| Step | Status | Commit | Notes |
+|---|---|---|---|
+| D-A | LANDED | `1e0bb98` | Field ABC + FunctionSpace.units + pint |
+| D-C | LANDED | `469ea15` | trace_space moved to numerics/spaces/ |
+| D-D | LANDED | `53bc986` | ScalarFlux migrated to L2 + inherits Field |
+| D-B | LANDED | — | TensorProductSpace L1 primitive (load-bearing) |
+| D-B+1 | LANDED | — | specular BC tensor-network — first production instance |
+| D-E | LANDED | `6123422` | HarmonicMomentField migrated to L2; uses TensorProductSpace |
+| D-F | LANDED | `efdd4fe` | IsotropicSource + PerOrdinateSource migrated to L2; cross-class dunder preserved (Issue #207 refinement) |
+| D-G | NEXT | — | **REVISED 2026-05-27**: BoundaryFlux as pure Field (Option β stage 1); split SweepScratch |
+| D-H.1 | PENDING | — | **NEW 2026-05-27**: TransportState container + consumer migration (Option β stage 2a) |
+| D-H.2 | PENDING | — | **NEW 2026-05-27**: Retire legacy AngularFlux.boundary/_history (Option β stage 2b — HARD DEADLINE per user) |
+| D-I through D-K | PENDING | — | Operator typing, dead-factory retirement, shim retirement |
 
-The execution order is dependency-driven, not strictly top-to-bottom of this section. D-A had to land first (Field ABC). D-C (trace_space move) and D-D (ScalarFlux migration) followed because they only depended on D-A. D-B is the next foundational step — TensorProductSpace unlocks Wave T (which follows Depth B) and enables D-E's HarmonicMomentField to use product-space typing cleanly. D-B+1 ships the first tensor-network instance, validating the abstraction before subsequent steps generalise.
+**Sequencing rationale.** D-A had to land first (Field ABC). D-C (trace_space move) and D-D (ScalarFlux migration) followed because they only depended on D-A. D-B was the next foundational step — TensorProductSpace unlocked Wave T (which follows Depth B) and enabled D-E's HarmonicMomentField to use product-space typing cleanly. D-B+1 shipped the first tensor-network instance. D-E + D-F migrated the simpler fields.
+
+**D-G / D-H split (Option β, decided 2026-05-27).** The original D-G+D-H plan (BoundaryFlux as a non-Field bundle; AngularFlux carrying boundary+history) was REVISED after the conversation surfaced the architectural conflation in AngularFlux's pre-D-H state. The new staging:
+- **D-G**: BoundaryFlux becomes a pure Field; interior wavefront cache split to SweepScratch. AngularFlux still carries boundary+history (legacy preserved).
+- **D-H.1**: TransportState container introduced; AngularFlux becomes pure Field; all consumers migrated. Legacy shims forward to hidden container.
+- **D-H.2**: Legacy `AngularFlux.boundary` / `_history` deleted. User's hard constraint: by end of D-H, legacy is retired.
+
+See §3.8 for the container architecture and §6 D-G/D-H step bodies for the per-step scope.
 
 
 ### Step D-A — L1 Field ABC (foundational)
@@ -745,30 +940,164 @@ D-B+1 ships INSTANCE #1 of the tensor-network pattern in production. INSTANCES #
 - Ship shims; update tests.
 - **Verification**: every source test stays green. STRICT bit-identical.
 
-### Step D-G — Migrate `BoundaryFlux` to L2 (BundleOfEdges path per §3.4)
-- Decide and document: **BundleOfEdges** (this phase) vs DirectSumSpace (Phase 3.6).
-- Create `orpheus/transport/fields/boundary_edge.py` (a `BoundaryEdge(Field)` per face).
-- Create `orpheus/transport/fields/boundary_flux.py` — a NON-Field bundle of edges.
-- Refactor existing `BoundaryFlux` usage: every `bf.xmin_face` / `bf.xmax_face` access becomes `bf.edges["xmin"].values` / `bf.edges["xmax"].values`. This is a significant API surface change.
-- Ship the SN-specific `zeros_for_sn_mesh` factory at `orpheus/sn/boundary_flux_zeros_factory.py` (or as a classmethod on `BoundaryFlux` that takes `mesh` — see decision point).
-- Migrate consumers (~15 files per audit memo §3 / §4).
-- **Verification**: every SN test stays green. STRICT bit-identical. The 10 pre-existing DD-regression failures stay AT the same failure set.
+### Step D-G — Migrate `BoundaryFlux` to L2 as a pure `Field` (Option β stage 1)
 
-### Step D-H — Migrate `AngularFlux` to L2 (the most complex case)
-- Move `orpheus/sn/angular_flux.py` (PARTIALLY) to `orpheus/transport/fields/angular_flux.py`.
-- The L2 AngularFlux:
-  - Inherits `Field`.
-  - Carries `mesh: SNMesh`, `boundary: BoundaryFlux`, `history_depth`, `_history`.
-  - REQUIRES `boundary` (no default — per §3.5).
-  - Does NOT define `from_flat_with_traces` / `to_flat_with_traces`.
-- The L3 SN adapter at `orpheus/sn/angular_flux_b1pp_adapter.py`:
-  - Imports the L2 `AngularFlux`.
-  - Installs `from_flat_with_traces` / `to_flat_with_traces` as class methods via `AngularFlux.from_flat_with_traces = staticmethod(...)` or similar at module load.
-  - Exports `zeros_for_sn_mesh(mesh) -> AngularFlux`.
-- The `same-class invariant` is preserved because `type(x)` is still the L2 `AngularFlux` — the SN adapter just installs methods on it.
-- `orpheus/sn/__init__.py` re-exports the L3 factories.
-- Migrate all consumers (~30 files).
-- **Verification**: every AngularFlux test stays green. STRICT bit-identical. The `_is_ravellable` Protocol still detects via `hasattr(type(x), "from_flat_with_traces")` because the adapter installed the method.
+**Decision recorded 2026-05-27** (in conversation): pursue Option β of three scoping
+choices — stage the AngularFlux factoring across D-G (BoundaryFlux pure) + D-H
+(AngularFlux pure + container + retire legacy). The user's hard constraint: **by
+the end of D-H, the legacy `AngularFlux.boundary` / `AngularFlux._history`
+structure is retired (deleted from the codebase after all gates green).** D-G is
+the prep step: BoundaryFlux becomes a pure Field, decoupled from the interior
+wavefront scratch it was conflating in 2-D.
+
+Scope:
+
+- Move `orpheus/sn/boundary_flux.py` → `orpheus/transport/fields/boundary_flux.py`.
+- `BoundaryFlux` **inherits `Field`** — frozen dataclass with `values + space + mesh`,
+  Field algebra inherited (no hand-coded dunders).
+- Storage: **flat backing buffer + `FaceLayout` descriptor** (Option Ω from §3.4).
+  `values: NDArray` is shape `(layout.total_size,)`; `FaceLayout` maps face names
+  to slice + per-face shape. Per-face access is via slice views — no copies.
+  This is the SAME storage shape that makes BoundaryFlux MoC-compatible and
+  algebra-vectorizable; the difference from the pre-D-G §3.4 framing is that
+  BoundaryFlux **is now a Field** (single flat space) rather than a non-Field
+  bundle. The flat layout is what makes this principled.
+- **Split out the interior wavefront cache** (the architectural problem the
+  pre-D-G 2-D `xmin_xmax_buf` / `ymin_ymax_buf` buffers were conflating with
+  boundary trace state). Introduce a `SweepScratch` type (L3, SN-specific)
+  carried by the sweep itself, NOT by BoundaryFlux. BoundaryFlux becomes
+  IMMUTABLE; the mutable wavefront cache lives on the sweep.
+- BoundaryFlux is `frozen=True` and `kw_only=True`. The pre-D-G mutability
+  (write-through cache for sweep persistent BC state) is replaced by sweep-side
+  cache + functional reconstruction at iteration boundaries.
+- Ship a `BoundaryFlux.zeros_for_sn_mesh(mesh)` classmethod factory (the
+  geometry-conditional construction logic lives here, not at sweep call sites).
+- AngularFlux still carries `boundary: BoundaryFlux` and `_history` in D-G (legacy
+  preservation; the retirement is D-H's responsibility). The pre-D-G mutable
+  write-through path stays alive via a one-cycle shim until D-H lands.
+- Ship one-cycle re-export shim at `orpheus/sn/boundary_flux.py`.
+- Migrate consumers (~15 files per audit memo §3 / §4). The sweep gets a
+  `SweepScratch` parameter; BC state reads/writes use the BoundaryFlux Field
+  interface.
+
+**Verification**:
+
+- Every SN test stays green. STRICT bit-identical on the BoundaryFlux algebra
+  itself (the data hasn't changed, the type discipline has).
+- New tests: `tests/transport/fields/test_boundary_flux.py` — pin Field algebra,
+  per-face slice views, mesh-binding rejection.
+- New test: `tests/sn/test_sweep_scratch_split.py` — pin that 2-D sweeps still
+  produce bit-identical interior fluxes after the buffer split.
+- The 10 pre-existing DD-regression failures stay AT the same failure set.
+
+### Step D-H — Pure `AngularFlux` Field + `TransportState` container + RETIRE legacy (Option β stage 2)
+
+**This is the load-bearing step of Option β.** It must:
+
+1. Refactor `AngularFlux` to a PURE `Field` (drop `boundary`, drop `_history`,
+   drop `history_depth`). Symmetric with `ScalarFlux`.
+2. Introduce the **`TransportState`** container (working name; see §3.8 for the
+   naming discussion — alternates: `TimedFullField` per the user's proposal,
+   `IterationState`, `FullTransportField`). The container holds
+   `(psi: AngularFlux, boundary: BoundaryFlux, _history: tuple, history_depth: int)`
+   and exposes dunders that delegate to the contained Fields.
+3. Migrate ALL consumers from `AngularFlux.boundary` / `AngularFlux._history`
+   accesses to the container.
+4. **Retire** the legacy `AngularFlux.boundary` / `AngularFlux._history` fields
+   from the codebase. No shim survives D-H.
+
+Architecture details live in **§3.8 — Container architecture (`TransportState`)**.
+The summary:
+
+- L2 `AngularFlux(Field)`: `values + space + mesh`. No boundary, no history.
+  Inherits all Field algebra. From-mesh factory + `from_ndarray` test ergonomic.
+- L2 `TransportState`: NOT a Field (structured bundle). Holds
+  `psi: AngularFlux + boundary: BoundaryFlux + _history: tuple[TransportState, ...] + history_depth: int`.
+  Algebra: `__add__`, `__sub__`, `__mul__`, `__neg__`, `__truediv__` propagate
+  to inner fields; algebra results carry empty history (history is iteration
+  metadata, not algebraic state).
+- L2 `TransportState.psi << new_psi` (or `.advance(new_psi, new_boundary)`)
+  rotates the history shift register — the SAME pattern the pre-D-H
+  `AngularFlux._history` exposed, lifted to the container.
+- L3 `from_flat_with_traces` / `to_flat_with_traces` — installed at IMPORT time
+  on `TransportState` by `orpheus/sn/transport_state_b1pp_adapter.py`. The
+  `_is_ravellable` Protocol at `iteration.py:163-176` now targets `TransportState`
+  (the container) — the wrong thing-to-flatten target is now structurally
+  unrepresentable.
+- L3 `TransportState.zeros_for_sn_mesh(mesh)` — the canonical constructor.
+  Constructs zero psi, zero boundary, empty history.
+- All sweep / SourceIteration / KrylovAcceleration / InvertibleOperator.solve
+  consumers migrated to consume/produce `TransportState`.
+
+**Scope of changes (file-by-file estimate, to be refined post-D-G)**:
+
+| File | Touch | Reason |
+|---|---|---|
+| `orpheus/transport/fields/angular_flux.py` | NEW | pure Field subclass |
+| `orpheus/transport/state.py` (or `transport/transport_state.py`) | NEW | container class |
+| `orpheus/sn/transport_state_b1pp_adapter.py` | NEW | L3 ravel/unravel injection |
+| `orpheus/sn/angular_flux.py` | RETIRE | one-cycle shim then delete |
+| `orpheus/numerics/iteration.py` | MOD | `_is_ravellable` targets container |
+| `orpheus/numerics/krylov.py` (or wherever Krylov adapter lives) | MOD | packed-vector signature |
+| `orpheus/sn/source_iteration.py` | MOD | consume/produce `TransportState` |
+| `orpheus/sn/operator.py` (InvertibleOperator.solve) | MOD | R-1 Step C signature |
+| `orpheus/sn/sweep.py` | MOD | sweep API targets container (psi out, boundary out) |
+| ~25 other consumer files | MOD | per audit memo §3 / §4 |
+| `tests/sn/...` | MIGRATE | `psi.boundary` → `state.boundary`; `psi._history` → `state._history` |
+
+Estimated 600-900 LOC across orpheus + tests. Single commit (per the user's
+"complete migration AND retire legacy" constraint) OR split into D-H.1 (container
+introduced, dual API both ways) + D-H.2 (legacy retired) — see §6.X decision
+point below.
+
+**Container space discipline**:
+
+`TransportState` does NOT inherit from `Field` in D-H. Per `feedback_unify_after_two_instances`,
+the natural backing — a `DirectSumSpace` Field with `psi.space ⊕ boundary.space`
+— remains DEFERRED to Phase 3.6, when kinetics' `flux ⊕ precursors` lands the
+second use case. D-H ships the container as a structured bundle with
+delegate-style dunders. The Phase 3.6 promotion (`TransportState` becoming
+`Field(values=DirectSumStorage, space=DirectSumSpace(psi.space, boundary.space))`)
+is a non-breaking refactor — the public API stays the same; only the storage
+backing changes.
+
+**Decision point at D-H planning (open)**:
+
+- **D-H.1 + D-H.2 split**: D-H.1 introduces `TransportState` and migrates all
+  CONSUMERS to use it; the legacy `AngularFlux.boundary` / `_history` stay alive
+  as shims that just forward to a hidden container. D-H.2 retires the legacy.
+  Two commits, both green.
+- **D-H single commit**: do everything in one commit, no intermediate dual-API
+  state. Higher review cognitive load. One bisect point.
+
+User constraint: "by the end of D-H, the legacy is retired." Both forms satisfy
+the constraint. **Recommended: D-H.1 + D-H.2 split** — keeps each commit small
+enough to review and bisectable. Decided post-D-G when the actual consumer-site
+count is verified.
+
+**Verification**:
+
+- Every L1 MMS gate stays green. PRINCIPLED bit-identity (algorithm unchanged;
+  algebra path is delegated through container; ULP-level drift acceptable iff
+  bounded by `iter_count × ULP`).
+- The 10 pre-existing DD-regression failures stay AT the same failure set.
+- New test: `tests/transport/test_transport_state.py` — pin container algebra,
+  history shift-register, dunder propagation, mesh-binding rejection,
+  cross-container rejection.
+- New test: `tests/sn/test_transport_state_b1pp_adapter.py` — pin
+  `from_flat_with_traces` / `to_flat_with_traces` round-trip on the container.
+- New test: `tests/numerics/test_ravellable_protocol_targets_container.py` —
+  pin that `_is_ravellable` detects `TransportState`, NOT `AngularFlux`.
+- The `_is_ravellable` Protocol at `iteration.py:163-176` STILL works (target
+  changed; mechanism unchanged).
+
+**Test-architect dispatch BEFORE D-H implementation** — per the proactive-trigger
+table in `subagent-handoff-protocol`. The D-H carve crosses the typed↔packed
+boundary AND the field-singleton↔composite-state boundary. The proactive
+dispatch produces the verification spec: which existing tests pin the legacy
+behaviour (and must migrate to the container API), which new tests catch the
+container-side convention, which L1 MMS gates must continue passing across the
+swap.
 
 ### Step D-I — Wire operators to typed Fields (keep singledispatch, retire ndarray handlers)
 
@@ -805,9 +1134,12 @@ Per §3.7 policy, the `@singledispatchmethod` dispatch tables on `ScatteringOper
 - `tests/transport/fields/test_scalar_flux.py` — migrated test (D-D).
 - `tests/transport/fields/test_harmonic_moment_field.py` — migrated + new space-link test (D-E).
 - `tests/transport/sources/test_isotropic_source.py`, `test_per_ordinate_source.py` — migrated (D-F).
-- `tests/transport/fields/test_boundary_edge.py`, `test_boundary_flux.py` — new + migrated (D-G).
-- `tests/transport/fields/test_angular_flux.py` — migrated, exercising L2 algebra (D-H).
-- `tests/sn/test_angular_flux_b1pp_adapter.py` — pins the SN-adapter's `from_flat_with_traces` / `to_flat_with_traces` (D-H).
+- `tests/transport/fields/test_boundary_flux.py` — migrated, exercises pure-Field BoundaryFlux algebra + per-face slice views (D-G).
+- `tests/sn/test_sweep_scratch_split.py` — pins that 2-D sweeps produce bit-identical interior fluxes after the BoundaryFlux/SweepScratch buffer split (D-G).
+- `tests/transport/fields/test_angular_flux.py` — migrated, exercises pure-Field AngularFlux algebra (no boundary, no history) (D-H).
+- `tests/transport/test_transport_state.py` — NEW. Pins container algebra (delegate dunders), history shift-register (`advance`, `at_lag`), mesh-binding rejection, cross-container rejection (D-H).
+- `tests/sn/test_transport_state_b1pp_adapter.py` — pins the SN-adapter's `from_flat_with_traces` / `to_flat_with_traces` round-trip on `TransportState` (D-H).
+- `tests/numerics/test_ravellable_protocol_targets_container.py` — pins that `_is_ravellable` detects `TransportState`, NOT `AngularFlux` (D-H).
 
 ### 7.2 Tests that MUST stay green at every commit
 
@@ -829,8 +1161,9 @@ Per `vv-principles` §"Bit-identity vs principled-equivalence":
 | D-D | STRICT | ScalarFlux algebra unchanged. |
 | D-E | STRICT | HarmonicMomentField algebra unchanged. |
 | D-F | STRICT | Sources algebra unchanged. |
-| D-G | STRICT | BoundaryFlux access surface changes; the BUFFERS are unchanged. |
-| D-H | STRICT | AngularFlux algebra unchanged; class identity preserved. |
+| D-G | PRINCIPLED | BoundaryFlux becomes a pure Field; flat-buffer layout is unchanged but the access surface flips from mutable write-through to immutable functional. Interior wavefront cache splits to SweepScratch — same numerical content, different ownership. L1 MMS gates pin numerical equivalence; ULP drift bounded by `(reduction depth) × ULP` per `vv-principles`. |
+| D-H.1 | PRINCIPLED | TransportState container introduced; consumers migrated. AngularFlux algebra preserved; container delegate dunders compose to identical numerical paths. ULP drift bounded by `(reduction depth) × ULP`. |
+| D-H.2 | N/A | Legacy retirement (deletion only — no new numerical paths). |
 | D-I | PRINCIPLED | Operator signatures change from `ndarray` to `Field`. Underlying algorithm unchanged. |
 | D-J | N/A | Dead-code retirement. |
 
@@ -839,24 +1172,29 @@ The PRINCIPLED step (D-I) needs the three criteria:
 2. **Structurally-independent reference**: the L1 MMS gates remain the truth-of-record. SATISFIED.
 3. **Drift dimensionally explainable**: zero drift expected (algorithm unchanged); ULP-level drift would be the only possible signal. If snapshots break by more than `iter_count × ULP`, the rewire is wrong.
 
-### 7.4 Same-class invariant test
+### 7.4 Same-class invariant test (target: TransportState post-D-H)
 
 Add `tests/numerics/test_ravellable_protocol_same_class.py`:
 
 ```python
 def test_ravellable_class_identity_preserved():
-    """Pin: AngularFlux returned by from_flat_with_traces is the SAME class
-    as the input template. Breaks _is_ravellable Protocol detection if
-    violated."""
-    # Construct an L2 AngularFlux via the SN adapter
-    psi = zeros_for_sn_mesh(some_sn_mesh)
-    assert type(psi).__name__ == "AngularFlux"
-    flat = psi.to_flat_with_traces()
-    reconstructed = type(psi).from_flat_with_traces(flat, some_sn_mesh)
-    assert type(reconstructed) is type(psi)
+    """Pin: TransportState returned by from_flat_with_traces is the SAME
+    class as the input template. Breaks _is_ravellable Protocol detection
+    if violated."""
+    # Construct an L2 TransportState via the SN adapter
+    state = TransportState.zeros_for_sn_mesh(some_sn_mesh)
+    assert type(state).__name__ == "TransportState"
+    flat = state.to_flat_with_traces()
+    reconstructed = type(state).from_flat_with_traces(flat, state)
+    assert type(reconstructed) is type(state)
+    # Inner Fields also preserve type
+    assert type(reconstructed.psi) is type(state.psi)
+    assert type(reconstructed.boundary) is type(state.boundary)
 ```
 
 This pins the contract that any future L2/L3 split (e.g., for MoC) MUST preserve.
+
+**Pre-D-H (during D-G): the protocol target is still `AngularFlux`.** The legacy `_is_ravellable` continues to detect `AngularFlux` until D-H.1 migrates the target. The test above is added in D-H.1 alongside the migration; the pre-D-H legacy test (`tests/numerics/test_ravellable_protocol_angular_flux.py`) is retired in D-H.2 along with the legacy `AngularFlux.boundary` / `_history` fields.
 
 ### 7.5 Three-layer dimensional-enforcement story
 
@@ -891,7 +1229,9 @@ Most tests are mode-agnostic and pass under both invocations. Tests that exercis
 | --- | --- | --- |
 | **1** | `dataclass` field-order constraints in `Field` ABC + subclasses (mandatory fields after defaulted ones). | Use `kw_only=True` on the dataclass decorator (Python 3.10+; project is on 3.14). |
 | **2** | Same-class invariant broken by L2/L3 module-level injection getting tangled. | Strict test (`test_ravellable_protocol_same_class.py`) per §7.4. Plus: prefer `class AngularFlux` defined at L2 with the L3 adapter installing methods, NOT a subclass. |
-| **3** | `BoundaryFlux` BundleOfEdges API change breaks too many consumer sites. | Audit-driven migration; the audit memo identified ~15 files. One-cycle deprecation shim on `bf.xmin_face` accessors. Migrate consumers in lockstep. |
+| **3** | `BoundaryFlux` pure-Field carve + interior-cache split (D-G) breaks consumer sites. | Audit-driven migration; the audit memo identified ~15 files. One-cycle deprecation shim on legacy mutable write-through; migrate consumers in lockstep. SweepScratch isolation tested by new `tests/sn/test_sweep_scratch_split.py`. |
+| **3b** | `TransportState` container migration (D-H.1) is the largest single carve in Depth B — ~30 consumer files, crosses typed↔packed AND field↔composite boundaries. | Stage as D-H.1 (container in + consumers migrated, legacy shims forward) → D-H.2 (legacy retired). Each commit independently green + bisectable. Proactive test-architect dispatch BEFORE D-H.1 implementation (per `subagent-handoff-protocol` triggers). Krylov adapter `_is_ravellable` Protocol migration is the highest-risk single touch. |
+| **3c** | Legacy retirement deadline at D-H.2 missed — `AngularFlux.boundary` / `_history` shims linger past D-H. | User constraint is hard: "by the end of D-H, the legacy structure is retired (deleted from the codebase after all gates green)." D-H.2 IS the retirement commit; if blocked, the blocker (e.g., a consumer migration that didn't complete in D-H.1) is fixed before D-H.2 lands. NEVER bundle D-H.2 into a later step. |
 | **4** | Step D-I retires `apply(np.ndarray)` handlers but tests still pass bare ndarrays. | Add `TypedField.from_ndarray(arr, mesh)` factory in step D-A; migrate test call sites in lockstep with each typed field's D-D/D-E/D-F/D-G/D-H migration. The singledispatch table itself STAYS (per §3.7); only the ndarray entry leaves. |
 | **4b** | `pint` dependency adds installation surface. | Single-package pure-Python dep, no C extensions, MIT-licensed, well-maintained. Pin `pint >= 0.20` for stable API. |
 | **5** | DD-regression suite already has 10 pre-existing failures. New Depth B failures would be hidden in the noise. | Capture the exact pre-existing failure set as `tests/sn/regression/known_failures.txt` BEFORE step D-A. Every step asserts the failure set is unchanged. |
@@ -941,13 +1281,17 @@ When Depth B is COMPLETE, the following invariants hold and are pickup condition
 
 1. **`Field` ABC ships at L1** (`orpheus/numerics/field.py`) with the algebra described in §3.2.
 2. **`FunctionSpace.units: pint.Unit | None`** exists and is consumed by `__eq__` (dimensionality comparison) and `Field._check_partner` (Layer 3 assert).
-3. **`orpheus/transport/` exists** as the L2 package with `fields/` (AngularFlux, ScalarFlux, HarmonicMomentField, BoundaryFlux, BoundaryFaceFlux) and `sources/` (IsotropicSource, PerOrdinateSource) subpackages.
-4. **The L3 SN adapter installs `from_flat_with_traces` / `to_flat_with_traces`** on the L2 `AngularFlux` class at module-import time. The same-class invariant test (`tests/numerics/test_ravellable_protocol_same_class.py`) is GREEN.
-5. **`@singledispatchmethod` dispatch tables stay** on `ScatteringOperator.apply`, `FissionOperator.apply` with handlers for `AngularFlux` and `ScalarFlux` (and future `AngularSource`/`AngularResidual` when #201 lands). The `apply(np.ndarray)` handlers are RETIRED. Each typed field has a `.from_ndarray(arr, mesh)` factory.
-6. **`SourceIteration.__init__` / `KrylovAcceleration.__init__` do Layer 2 dimensional checks** at construction. Production runs (`python -O`) get this safety net.
-7. **All four completed Phase 3 steps** (P3.1 import-linter, P3.5 range→codomain, P3.0 layering docs, P3.2 spherical_harmonics shim retirement) remain GREEN. The 10 pre-existing DD-regression failures stay at the same failure set.
-8. **`pint >= 0.20`** is in `pyproject.toml`. CI matrix runs both `pytest` and `python -O -m pytest`.
-9. **GitHub Issues #201 and #205 remain OPEN** — they are downstream consumers of Depth B, not closed by it.
+3. **`orpheus/transport/` exists** as the L2 package with `fields/` (AngularFlux, ScalarFlux, HarmonicMomentField, BoundaryFlux, BoundaryFaceFlux), `sources/` (IsotropicSource, PerOrdinateSource), and the `TransportState` container (`orpheus/transport/state.py` or `transport_state.py`).
+4. **AngularFlux is a pure Field** (`values + space + mesh`). It does NOT carry `boundary` or `_history` — those responsibilities live on `TransportState`. Symmetric with `ScalarFlux`. The legacy `AngularFlux.boundary` / `_history` fields are DELETED from the codebase (retired in D-H.2).
+5. **BoundaryFlux is a pure Field** (flat backing buffer + `FaceLayout` descriptor + `mesh`). IMMUTABLE. The pre-D-G mutable write-through + interior wavefront cache is split: BoundaryFlux carries only trace state; `SweepScratch` (L3, SN-private) carries the wavefront cache.
+6. **The L3 SN adapter installs `from_flat_with_traces` / `to_flat_with_traces`** on `TransportState` (NOT on AngularFlux) at module-import time. The same-class invariant test (`tests/numerics/test_ravellable_protocol_same_class.py`) is GREEN with TransportState as the target.
+7. **The `_is_ravellable` Protocol at `iteration.py:163-176` detects `TransportState`** — the Krylov adapter packs/unpacks the composite state, NOT the inner flux alone.
+8. **`@singledispatchmethod` dispatch tables stay** on `ScatteringOperator.apply`, `FissionOperator.apply` with handlers for `AngularFlux` and `ScalarFlux` (and future `AngularSource`/`AngularResidual` when #201 lands). The `apply(np.ndarray)` handlers are RETIRED. Each typed field has a `.from_ndarray(arr, mesh)` factory.
+9. **`SourceIteration.__init__` / `KrylovAcceleration.__init__` do Layer 2 dimensional checks** at construction. Production runs (`python -O`) get this safety net. Sweep + `(L+C).solve` (InvertibleOperator R-1 Step C) consume and produce `TransportState`.
+10. **All four completed Phase 3 steps** (P3.1 import-linter, P3.5 range→codomain, P3.0 layering docs, P3.2 spherical_harmonics shim retirement) remain GREEN. The 10 pre-existing DD-regression failures stay at the same failure set.
+11. **`pint >= 0.20`** is in `pyproject.toml`. CI matrix runs both `pytest` and `python -O -m pytest`.
+12. **GitHub Issues #201 and #205 remain OPEN** — they are downstream consumers of Depth B, not closed by it.
+13. **`DirectSumSpace` is still DEFERRED to Phase 3.6** per `feedback_unify_after_two_instances`. The TransportState container ships as a structured bundle (delegate dunders); Phase 3.6's kinetics flux⊕precursors lands DirectSumSpace and may then promote TransportState to Field-with-DirectSumSpace backing (non-breaking).
 
 ### 11.2 What P3.4 picks up
 
@@ -956,10 +1300,11 @@ P3.4 (parent plan §P3.4, around line 867 of `moment_space_and_layering_plan.md`
 - `Solver` ABC at L1 (`orpheus/numerics/solvers/`) — iterative algorithms: `PowerIteration` (formerly `KEigenvalue`), `Arnoldi`, `SourceIteration`, time-steppers
 - `homogeneous/solver.py:26`'s `power_iteration` legacy retires (CC.8 close-out)
 
-P3.4 directly consumes Depth B's typed Fields:
+P3.4 directly consumes Depth B's typed Fields and the `TransportState` container:
 - `CriticalityProblem` carries `loss: LinearOperator` (codomain = AngularResidual space) and `fission: LinearOperator` (codomain = AngularSource space)
-- `PowerIteration.solve(problem) -> AngularFlux` — the typed flux is the result
-- `FixedSourceProblem` carries `(L, S, F, q_ext: AngularSource)` — every component is dimensionally explicit
+- `PowerIteration.solve(problem) -> TransportState` — the composite state (psi + boundary + history) is the result; consumers access `.psi` for the flux, `.boundary` for the trace
+- `FixedSourceProblem` carries `(L, S, F, q_ext: AngularSource | TransportState)` — every component is dimensionally explicit; the rhs may be a pure source or a state-shaped rhs depending on the formulation
+- `SourceIteration.step(state: TransportState, source) -> TransportState` — the iteration verb consumes and produces the container
 
 The Layer 2 construction-time dimensional check (Depth B §5) is the FIRST check `PowerIteration` does on its problem — verifying the operator algebra makes dimensional sense before any iteration runs.
 
