@@ -28,6 +28,7 @@ from .operator import (
     as_scipy_linop,
 )
 from orpheus.numerics.quadrature import gauss_legendre_on_mu, lebedev_sphere, level_symmetric_sn, product_mu_phi
+from .basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from .projection import (
     GalerkinProjection,
     HarmonicMomentReconstruction,
@@ -36,7 +37,6 @@ from .projection import (
     ProjectionOperator,
     ReconstructionOperator,
 )
-from .spherical_harmonics import evaluate_real_sh
 from .symmetry import SubgroupOfO3
 
 __all__ = [
@@ -63,13 +63,13 @@ __all__ = [
     "ProjectionOperator",
     "ScaledOperator",
     "SourceIteration",
+    "SphericalHarmonicBasis",
     "SubgroupOfO3",
     "SumOfTensorProductsOperator",
     "TensorProductOperator",
     "ZeroOperator",
     "as_scipy_linop",
     "equispaced",
-    "evaluate_real_sh",
     "gauss_chebyshev",
     "gauss_legendre",
     "gauss_legendre_on_mu",

@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **4241**
+Total tests collected: **4484**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1132, 26.7%
-   L1, 909, 21.4%
+   L0, 1132, 25.2%
+   L1, 909, 20.3%
    L2, 36, 0.8%
    L3, 0, 0.0%
-   foundation, 2127, 50.2%
-   unmarked, 37, 0.9%
+   foundation, 2370, 52.9%
+   unmarked, 37, 0.8%
 
 Tagging source
 --------------
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4125
+   explicit, 4368
    verify, 0
    class-name, 46
    func-name, 0
@@ -281,6 +281,7 @@ Module × level grid
    spatial/test_sweep_cache, 28, 0, 0, 0, 0, 0
    spatial/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 57, 0
    test_convergence, 0, 0, 1, 0, 0, 0
+   test_layer_imports, 0, 0, 0, 0, 243, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
 
@@ -852,6 +853,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-049``, 17
    ``ERR-050``, 4
    ``ERR-051``, **0 (MISSING)**
+   ``ERR-052``, 1
 
 Unmarked tests
 --------------

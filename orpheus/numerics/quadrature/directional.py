@@ -71,10 +71,10 @@ from functools import cached_property
 
 import numpy as np
 
-from orpheus.numerics.measure import DiscreteMeasure, DiscreteMeasurePartition
-from orpheus.numerics.spherical_harmonics import (
-    evaluate_real_sh as _build_spherical_harmonics,
+from orpheus.numerics.basis.spherical_harmonic_basis import (
+    SphericalHarmonicBasis,
 )
+from orpheus.numerics.measure import DiscreteMeasure, DiscreteMeasurePartition
 
 from .rules_1d import gauss_legendre_on_mu
 from .rules_product import product_mu_phi
@@ -400,8 +400,7 @@ class Quadrature:
         polar). For sphere cubatures all :math:`(l, m)` pairs are
         evaluated.
         """
-        return _build_spherical_harmonics(
-            L,
+        return SphericalHarmonicBasis(L=L).evaluate_from_components(
             self.axis_cosines(0),
             self.axis_cosines(1),
             self.axis_cosines(2),

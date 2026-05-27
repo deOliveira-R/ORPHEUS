@@ -1,10 +1,10 @@
-r"""Tests for :func:`orpheus.numerics.spherical_harmonics.evaluate_real_sh`.
+r"""Tests for :class:`orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`.
 
-The function returns the :math:`(N, L+1, 2L+1)` table of real spherical
-harmonics under the no-:math:`4\pi/(2\ell+1)`-prefactor convention used
-by the SN Galerkin reconstruction. The invariants below are the test
-hooks the architecture catalog (§B-table) names for the harmonic
-basis:
+The class's :meth:`evaluate` / :meth:`evaluate_from_components` methods
+return the :math:`(N, L+1, 2L+1)` table of real spherical harmonics
+under the no-:math:`4\pi/(2\ell+1)`-prefactor convention used by the
+SN Galerkin reconstruction. The invariants below are the test hooks
+the architecture catalog (§B-table) names for the harmonic basis:
 
 * ``Y_0^0 = 1`` (P0 normalisation).
 * Hard-coded P1 values: :math:`Y_1^{-1} = \mu_z`, :math:`Y_1^0 = \mu_x`,
@@ -23,22 +23,31 @@ import numpy as np
 import pytest
 from scipy.special import eval_legendre
 
+from orpheus.numerics.basis.spherical_harmonic_basis import (
+    SphericalHarmonicBasis,
+)
 from orpheus.numerics.quadrature import lebedev_sphere
-from orpheus.numerics.spherical_harmonics import evaluate_real_sh
 
 
 @pytest.mark.l0
 class TestEvaluateRealSHBasic:
     """L0: hard-coded P0/P1 invariants."""
 
-    def test_l_negative_returns_empty(self):
-        Y = evaluate_real_sh(-1, np.array([1.0]), np.array([0.0]), np.array([0.0]))
-        assert Y.size == 0
-        assert Y.shape[0] == 1
+    def test_l_negative_rejected_at_construction(self):
+        """Negative L is semantically meaningless for spherical harmonics;
+        :class:`SphericalHarmonicBasis` rejects it at ``__post_init__``.
+
+        Tightens the contract relative to the pre-P3.2 ``evaluate_real_sh``
+        free function, which silently returned an empty array on
+        ``L < 0`` — a permissive behaviour with no consumer."""
+        with pytest.raises(ValueError, match="L must be non-negative"):
+            SphericalHarmonicBasis(L=-1)
 
     def test_l_zero_p0_unity(self):
         mu_x = np.array([0.5, -0.5, 1.0])
-        Y = evaluate_real_sh(0, mu_x, np.zeros(3), np.zeros(3))
+        Y = SphericalHarmonicBasis(L=0).evaluate_from_components(
+            mu_x, np.zeros(3), np.zeros(3),
+        )
         assert Y.shape == (3, 1, 1)
         np.testing.assert_array_equal(Y[:, 0, 0], 1.0)
 
@@ -46,7 +55,7 @@ class TestEvaluateRealSHBasic:
         mu_x = np.array([0.6, -0.3, 0.8])
         mu_y = np.array([0.0, 0.4, -0.5])
         mu_z = np.array([0.5, 0.7, 0.1])
-        Y = evaluate_real_sh(1, mu_x, mu_y, mu_z)
+        Y = SphericalHarmonicBasis(L=1).evaluate_from_components(mu_x, mu_y, mu_z)
         assert Y.shape == (3, 2, 3)
         np.testing.assert_array_equal(Y[:, 0, 0], 1.0)
         np.testing.assert_array_equal(Y[:, 1, 0], mu_z)   # m = -1
@@ -67,6 +76,7 @@ class TestAdditionTheorem:
     @pytest.mark.parametrize("L", [2, 3, 4, 5])
     def test_addition_theorem_pairs(self, L):
         rng = np.random.default_rng(seed=2026 + L)
+        basis = SphericalHarmonicBasis(L=L)
         # Sample two random unit vectors per trial, 8 trials.
         for trial in range(8):
             v = rng.standard_normal((2, 3))
@@ -74,7 +84,7 @@ class TestAdditionTheorem:
             mu_x = v[:, 0]
             mu_y = v[:, 1]
             mu_z = v[:, 2]
-            Y = evaluate_real_sh(L, mu_x, mu_y, mu_z)
+            Y = basis.evaluate_from_components(mu_x, mu_y, mu_z)
             # cos(angle) = Ω · Ω'
             cos_alpha = float(np.dot(v[0], v[1]))
             for l in range(L + 1):
@@ -109,7 +119,7 @@ class TestDiscreteOrthogonalityOnLebedev:
         w = measure.weights
         deg = measure.degree_of_exactness
         L = deg // 2  # safe order so ℓ+ℓ' ≤ deg
-        Y = evaluate_real_sh(L, mu_x, mu_y, mu_z)
+        Y = SphericalHarmonicBasis(L=L).evaluate_from_components(mu_x, mu_y, mu_z)
         # Build flat (Y_lm) basis indexed by (l, m_offset).
         flat = []
         labels = []
@@ -130,24 +140,6 @@ class TestDiscreteOrthogonalityOnLebedev:
 
 
 @pytest.mark.l0
-def test_canonical_quadrature_delegates():
-    """The canonical :class:`Quadrature` reads ``evaluate_real_sh`` via
-    the same internal alias used by every existing regression snapshot.
-
-    R-1 Phase A detour-C: the alias formerly lived in
-    ``orpheus.sn.quadrature``; after the SN-side adapter hierarchy
-    retired, the alias migrated to
-    :mod:`orpheus.numerics.quadrature.directional`. Verify the
-    function identity is preserved so existing snapshots stay
-    bit-identical.
-    """
-    from orpheus.numerics.quadrature.directional import (
-        _build_spherical_harmonics,
-    )
-    assert _build_spherical_harmonics is evaluate_real_sh
-
-
-@pytest.mark.l0
 def test_on_axis_safe_no_division_by_zero():
     """When sin(theta) ≈ 0 (mu_x = ±1), the cos_phi/sin_phi expressions
     must NOT divide by zero. The implementation uses ``np.where`` to
@@ -156,5 +148,5 @@ def test_on_axis_safe_no_division_by_zero():
     mu_y = np.array([0.0, 0.0, 1.0])
     mu_z = np.array([0.0, 0.0, 0.0])
     with np.errstate(divide="raise", invalid="raise"):
-        Y = evaluate_real_sh(3, mu_x, mu_y, mu_z)
+        Y = SphericalHarmonicBasis(L=3).evaluate_from_components(mu_x, mu_y, mu_z)
     assert np.all(np.isfinite(Y))

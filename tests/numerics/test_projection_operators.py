@@ -12,7 +12,7 @@ The ``(R, Π)`` Galerkin pair invariants verified here:
   \langle \psi, R c \rangle_W` under the W-weighted inner product
   (the Galerkin discipline's defining identity).
 * **From-measure construction** wires up the :class:`DiscreteMeasure`
-  + :func:`evaluate_real_sh` machinery.
+  + :meth:`SphericalHarmonicBasis.evaluate_from_components` machinery.
 * **Multi-axis broadcasting**: applying along the leading axis with
   arbitrary trailing axes (cell, group) preserves shape.
 * **Shape validation** rejects mismatched ``Y`` / ``L`` / weights.
@@ -36,7 +36,6 @@ from orpheus.numerics.projection import (
     ProjectionOperator,
 )
 from orpheus.numerics.quadrature import lebedev_sphere
-from orpheus.numerics.spherical_harmonics import evaluate_real_sh
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -196,7 +195,7 @@ class TestGalerkinIdempotencyOnLebedev:
         measure = lebedev_sphere(order)
         # 4π normalisation: weights from lebedev_sphere sum to 4π.
         # The Galerkin identity is Π R c = c with the addition-theorem
-        # convention used by evaluate_real_sh.
+        # convention used by SphericalHarmonicBasis.evaluate_from_components.
         M = MomentProjection.from_measure(measure, L=L)
         R = HarmonicMomentReconstruction.from_Y(M.Y)
         # Random coefficients in the moment space
