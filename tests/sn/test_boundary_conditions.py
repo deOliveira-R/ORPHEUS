@@ -130,8 +130,16 @@ class TestSNBCResolution:
 class TestSNBCSweepBehavior:
     """Verify that resolved BCs produce correct sweep behavior."""
 
+    @pytest.mark.catches("ERR-052")
     def test_vacuum_keff_lower_than_reflective(self, quad):
-        """Vacuum BC loses neutrons → lower keff than reflective."""
+        """Vacuum BC loses neutrons → lower keff than reflective.
+
+        Catches ERR-052: power-iteration flux non-renormalisation. Without
+        the per-step ``ψ /= ||ψ||`` projection in ``power_iteration`` /
+        ``KEigenvalue.solve``, subcritical cases (vacuum 2cm slab here)
+        underflow to denormalised FP within ~30-60 outer iterations, and
+        the keff ratio becomes numerically meaningless.
+        """
         from orpheus.derivations.reference_values import get
         from orpheus.geometry import (
             Mesh1D as _Mesh1D,

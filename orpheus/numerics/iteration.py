@@ -128,6 +128,13 @@ Preconditioner = Callable[[np.ndarray], np.ndarray]
 KeffEstimator = Callable[
     [LinearOperator, LinearOperator, LinearOperator, np.ndarray], float,
 ]
+# Production-rate estimator: returns the volume-integrated fission
+# production ``∫νΣ_f·φ·dV`` (scalar).  Used by :class:`KEigenvalue` to
+# renormalise the iterate to unit production rate each outer step so
+# subcritical eigenmodes do not underflow to denormalised FP — ERR-052.
+ProductionEstimator = Callable[
+    [LinearOperator, LinearOperator, LinearOperator, np.ndarray], float,
+]
 
 
 def _has(op: object, cap: str) -> bool:
@@ -202,6 +209,27 @@ def _l2_norm(x) -> float:
     if _is_ravellable(x):
         return float(np.linalg.norm(x.to_flat_with_traces()))
     return float(np.linalg.norm(np.asarray(x)))
+
+
+def _default_production_estimator(
+    L: LinearOperator,
+    S: LinearOperator,
+    F: LinearOperator,
+    psi: np.ndarray,
+) -> float:
+    r"""Generic production-rate estimator: :math:`P(\psi) = \sum (F\,\psi)`.
+
+    The :math:`F` operator already carries any volume weights its
+    domain advertises; the unweighted sum over array entries is the
+    discrete analog of :math:`\int \nu\Sigma_f\,\phi\,dV` when the
+    operator's action absorbs the measure (as ORPHEUS's typed
+    operators do).
+
+    SN consumers that need explicit volume weighting (matching
+    :meth:`orpheus.sn.solver.SNSolver.compute_production_rate`) should
+    supply a custom :pydata:`production_estimator`.
+    """
+    return float(np.sum(F.apply(psi)))
 
 
 def _default_keff_estimator(
@@ -781,6 +809,7 @@ class KEigenvalue:
         inner_tol: float = 1e-8,
         eigenvalue_method: str = "power",
         keff_estimator: KeffEstimator | None = None,
+        production_estimator: ProductionEstimator | None = None,
     ) -> None:
         if eigenvalue_method != "power":
             raise NotImplementedError(
@@ -807,6 +836,10 @@ class KEigenvalue:
         self._keff_estimator = (
             keff_estimator if keff_estimator is not None
             else _default_keff_estimator
+        )
+        self._production_estimator = (
+            production_estimator if production_estimator is not None
+            else _default_production_estimator
         )
 
         # Validate operator capabilities up front by trial-construction
@@ -884,6 +917,23 @@ class KEigenvalue:
             psi, _inner_residuals = inner.solve(
                 q_fission, initial_guess=psi_old,
             )
+
+            # Renormalise to unit production rate so the iterate stays
+            # at a physically natural O(1) magnitude across iterations
+            # regardless of whether the operator is supercritical
+            # (k>1, would grow) or subcritical (k<1, would decay to
+            # denormalised FP within ~30-60 iterations and the keff
+            # ratio would become 0/0 numerically meaningless —
+            # ERR-052).  Production rate is scale-invariant in
+            # ``keff`` so the converged eigenvalue is unchanged; the
+            # converged ``ψ`` carries the canonical reactor-physics
+            # output convention :math:`\\int \\nu\\Sigma_f\\,\\phi\\,dV = 1`,
+            # which makes rescaling to absolute flux at a target power
+            # a single multiplication by
+            # :math:`P_{\\text{target}} / \\kappa`.
+            production = self._production_estimator(self.L, self.S, self.F, psi)
+            if production > 0.0:
+                psi = psi / production
 
             # Outer keff update.
             keff = self._keff_estimator(self.L, self.S, self.F, psi)

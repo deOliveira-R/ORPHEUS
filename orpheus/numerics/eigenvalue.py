@@ -105,6 +105,22 @@ class EigenvalueSolver(Protocol):
         """
         ...
 
+    def compute_production_rate(self, flux_distribution: np.ndarray) -> float:
+        """Total volume-integrated neutron production rate (scalar).
+
+        Power iteration renormalises :math:`\\phi` to unit production
+        rate at each outer step (ERR-052) so the iterate stays at a
+        physically natural O(1) magnitude regardless of whether the
+        operator is supercritical or subcritical.  Callers rescale to
+        absolute flux at a target reactor power via a single
+        multiplication.
+
+        Solvers that have not yet adopted the production-rate contract
+        may omit this method; :func:`power_iteration` falls back to
+        the un-normalised legacy trajectory in that case.
+        """
+        ...
+
     def converged(
         self,
         keff: float,
@@ -146,6 +162,26 @@ def power_iteration(
 
         fission_source = solver.compute_fission_source(flux_distribution, keff)
         flux_distribution = solver.solve_fixed_source(fission_source, flux_distribution)
+        # Renormalise to unit production rate so the iterate stays at a
+        # physically natural O(1) magnitude across iterations regardless
+        # of whether the operator is supercritical (k>1, would grow) or
+        # subcritical (k<1, would decay to denormalised FP within ~30-60
+        # iterations and the keff ratio would become 0/0 numerically
+        # meaningless — ERR-052).  Production rate is scale-invariant in
+        # ``keff`` so the converged eigenvalue is unchanged; the
+        # converged ``φ`` carries the canonical reactor-physics output
+        # convention :math:`\\int \\nu\\Sigma_f\\,\\phi\\,dV = 1`, which
+        # makes rescaling to absolute flux at a target power a single
+        # multiplication by :math:`P_{\\text{target}} / \\kappa`.
+        #
+        # Solvers that have not adopted ``compute_production_rate``
+        # retain the legacy un-normalised trajectory (the deprecation
+        # window for CP / diffusion / MoC / homogeneous migration).
+        production = getattr(solver, "compute_production_rate", None)
+        if production is not None:
+            p = float(production(flux_distribution))
+            if p > 0.0:
+                flux_distribution = flux_distribution / p
         keff = solver.compute_keff(flux_distribution)
         keff_history.append(keff)
 

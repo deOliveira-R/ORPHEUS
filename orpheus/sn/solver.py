@@ -416,6 +416,23 @@ class SNSolver:
         )
         return mu(per_cell_per_group.transpose(1, 2, 0).reshape(nx * ny, ng))
 
+    def compute_production_rate(self, flux_distribution: np.ndarray) -> float:
+        r"""Total volume-integrated neutron production rate (scalar).
+
+        :math:`P(\phi) = \sum_g r_g = \sum_g \int_V \nu \Sigma_{f,g} \phi_g\,dV
+        + 2 \sum_g \int_V \sum_{g'} \Sigma_{2,g'\to g} \phi_{g'} \,dV`,
+        i.e. ``.sum()`` of :meth:`compute_group_production_rate`.
+
+        This is the canonical scale anchor for the SN eigenmode:
+        :func:`orpheus.numerics.eigenvalue.power_iteration` renormalises
+        :math:`\phi` to unit production rate at each outer step
+        (ERR-052), which gives callers a stable physical handle —
+        scaling to an absolute flux at a target reactor power becomes a
+        single multiplication by :math:`P_{\text{target}} / \kappa`
+        where :math:`\kappa` is the energy released per fission.
+        """
+        return float(self.compute_group_production_rate(flux_distribution).sum())
+
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
         """k = production / absorption (volume-weighted).
 
@@ -425,7 +442,7 @@ class SNSolver:
         :meth:`compute_group_production_rate` and
         :meth:`compute_group_absorption_rate`.
         """
-        production = float(self.compute_group_production_rate(flux_distribution).sum())
+        production = self.compute_production_rate(flux_distribution)
         absorption = float(self.compute_group_absorption_rate(flux_distribution).sum())
         return production / absorption
 

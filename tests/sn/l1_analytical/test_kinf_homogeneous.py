@@ -114,7 +114,18 @@ def _quadrature_for(coord: str):
 # this L1 reference.
 _TIGHT_KW = dict(
     max_outer=1000, keff_tol=1e-14, flux_tol=1e-12,
-    max_inner=300, inner_tol=1e-12,
+    # max_inner bumped from 300 to 1000 (2026-05-26) to accommodate the
+    # ERR-052 production-rate-normalised iteration trajectory.  Empirically,
+    # sphere-2eg-krylov needs ~600 GMRES iterations per outer step under
+    # the new trajectory (the normalisation alters the initial guess each
+    # outer iter, so GMRES re-builds its Krylov subspace from a non-warmed
+    # state).  Below 1000, the inner solver hits the cap, returns an
+    # under-converged result, and the outer iteration accumulates ~2.4e-7
+    # drift in keff.  With max_inner=1000 every (coord, ng, inner_solver)
+    # variant reaches FP-precision; the rtol=1e-10 keff and rtol=1e-9
+    # spectrum gates hold for all 28 cases.  Issue #200 (block-inverse
+    # preconditioner) will eventually let us reduce this back to 300.
+    max_inner=1000, inner_tol=1e-12,
 )
 
 

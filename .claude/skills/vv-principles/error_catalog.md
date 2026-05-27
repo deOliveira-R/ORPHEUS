@@ -3977,3 +3977,64 @@ This generalizes the L11 lesson ("cross-checks must be structurally independent"
 **Test reference:** `tests/numerics/test_spherical_harmonic_space.py::test_pi_R_is_4pi_identity_on_band_limited`. Tagged `@pytest.mark.l1` and `@pytest.mark.catches("ERR-051")` *(if the catches marker is added in a follow-up; currently the test is `@pytest.mark.catches("ERR-039")` because it was authored for the ERR-039 endpoint and ERR-051 surfaced as a side effect of writing it)*.
 
 → ERR-039 is the sibling: both are convention-drift failures of the SH Galerkin discipline that conflated the discrete metric with the abstract identity. ERR-039 was the operator-side conflation (`Π* = R`); ERR-051 was the verification-method-side conflation (`Π R = I`). Both closed by Phase 1 of the moment-space + layering plan (refactor/moment-space-and-layering, commits 0eb9cf3..c5be4b0).
+
+
+## ERR-052 — Power iteration without per-step flux renormalisation: subcritical cases underflow to denormalised FP and converge to a meaningless keff ratio
+
+**Status:** **CAUGHT 2026-05-26** while resolving pre-existing failures inherited from `refactor/sn-operator-algebra@62994ad` before starting Phase 3 of the moment-space + layering plan. Fixed in the same session.
+
+**Failure mode:** **#3 (missing factor)** — the textbook power-iteration formula `ψ_{n+1} = (1/k_n) A^{-1} F ψ_n` requires an explicit renormalisation step `ψ_{n+1} /= ||ψ_{n+1}||` to prevent the iterate from growing (supercritical, `k > 1`) or decaying (subcritical, `k < 1`) geometrically. The codebase's two implementations — `orpheus.numerics.eigenvalue.power_iteration` (legacy) and `orpheus.numerics.iteration.KEigenvalue.solve` (canonical going forward, per P3.4 of the moment-space + layering plan) — **both** omitted the renormalisation.
+
+**Date discovered:** 2026-05-26 during pre-Phase-3 baseline verification. The failing test (`tests/sn/test_boundary_conditions.py::TestSNBCSweepBehavior::test_vacuum_keff_lower_than_reflective`) was inherited unchanged from the `refactor/sn-operator-algebra` base; verified to fail identically there (commit 62994ad), confirming the bug pre-dates Phase 1.
+
+**Module:** `orpheus.numerics.eigenvalue.power_iteration` (legacy, currently the `solve_sn` outer path) and `orpheus.numerics.iteration.KEigenvalue.solve` (canonical, will replace `power_iteration` in P3.4). Both have the same structural omission.
+
+**Mechanism.** Inside the outer loop both implementations did:
+
+```python
+for n in range(1, max_iter + 1):
+    flux_old = flux.copy()
+    keff_old = keff
+    q = solver.compute_fission_source(flux, keff)   # F·ψ / k
+    flux = solver.solve_fixed_source(q, flux)       # (L+C-S)^{-1} · q
+    keff = solver.compute_keff(flux)                # ratio of integrals
+    if solver.converged(...): break
+```
+
+Without renormalisation, the iterate scales by approximately `keff` per step (the power-method ratio). For a 2cm slab with the 2-group SN benchmark material (`k_inf = 1.875`):
+
+- **Reflective BCs** (no leakage, physically `k = k_inf = 1.875 > 1`): flux grows ~1.875× per outer step, but converges in 3-4 outers — the growth never reaches FP overflow. Test passes **accidentally**.
+- **Vacuum BCs** (the slab is supercritical with `k ≈ 1.67 < k_inf`, but the test only needs `k_vac < k_refl`, which is the physically correct ordering): flux decays each step if the leakage is enough to push the operator's spectral radius below unity in the iterate's working magnitude. After ~30-60 outer steps the flux saturates at IEEE-754 **denormalised** magnitude (`~1e-39` to `1e-43`); both `compute_keff = ∫νΣ_f φ / ∫Σ_a φ` and the convergence-test residual become `0/0` ratios that round to spurious values. The legacy `converged()` method's `max(||ψ||, 1e-30)` floor magnifies the false-positive (the floor caps the denominator and produces a deceptively-small `dphi`); the iteration claims `converged=True` at a meaningless fixed point. The two inner solvers (`source_iteration` vs `krylov`) project onto different residual modes during the collapse, hence each reports a different bogus keff (SI: 1.94 ≈ k_g1_pure = 2.00 — degenerated to the thermal-only spectral shape; Krylov: 1.67 — close to the physical answer but with denormalised flux).
+
+The keff ratio `(F·φ, φ) / (A·φ, φ)` is scale-invariant in φ, so per-step renormalisation `ψ /= ||ψ||` preserves keff while keeping the iterate at unit norm — the textbook power-iteration form. Post-fix all paths converge to **keff = 1.6693** (slab is subcritically supercritical: k_inf=1.875 reduced by leakage to 1.67, still > 1), with **psi_max = 0.089** (well-conditioned, not denormalised), in **n_outer = 6** (not the 64-step cap), with **SI and Krylov agreeing** to 1e-9.
+
+**How it hid.** Every existing L1 eigenvalue test in `tests/sn/l1_analytical/test_kinf_homogeneous.py` (and the in-suite `test_invertible_operator.py` regression matrix) uses **reflective** BCs. Reflective always gives `keff = k_inf > 1`, where the flux grows but the iteration terminates before the growth blows up. The vacuum-eigenvalue path had **zero L1 coverage**; the only test exercising vacuum + power iteration was `test_vacuum_keff_lower_than_reflective`, which has been failing on the base branch since at least the `refactor/sn-operator-algebra` cut (verified at commit 62994ad). The failure pre-existed Phase 1 — Phase 1 inherited and did not introduce it.
+
+Compounding the gap: `solve_sn` (`orpheus/sn/solver.py:992-996`) hardcodes `IterationHistory(..., converged=True)` regardless of the solver's actual `converged()` return value, masking the convergence-state defect from any caller that only inspects the history.
+
+**How caught.** Pre-Phase-3 baseline run: progressive-chunk pytest exposed 2 failures on the moment-space-and-layering branch. The user (per `feedback_fix_bugs_immediately`) directed fix-on-this-branch-before-Phase-3. Static analysis by `numerics-investigator` narrowed the suspect set; probe-cascade discrimination (`source_iteration` vs `krylov`, isolated subprocesses, `python -c` vs `python script.py` path differences) pinned the failure to the iteration loop; reading `power_iteration` source revealed the missing `flux /= ||flux||`.
+
+**Fix.** Add the standard power-method renormalisation at the end of each outer step, before the keff update:
+
+```python
+norm = float(np.linalg.norm(flux))
+if norm > 0.0:
+    flux = flux / norm
+keff = solver.compute_keff(flux)
+```
+
+Applied identically in:
+- `orpheus/numerics/eigenvalue.py:power_iteration` (legacy; retires in P3.4)
+- `orpheus/numerics/iteration.py:KEigenvalue.solve` (canonical going forward)
+
+Both call sites annotated with an `ERR-052` reference in the inline comment so future readers see the load-bearing reason.
+
+**Lesson.** **Every BC type needs its own L1 eigenvalue test at multi-group.** "Reflective passes" does NOT generalise — reflective is the easy case for power iteration (flux growth is bounded by the small iteration count needed for `k > 1` cases); vacuum, white, and albedo BCs exercise the subcritical regime where the growth ratio is `< 1` and the iterate decays. Coverage by BC type is a separate axis from coverage by mesh / multigroup / scattering order. The moment-space + layering plan's P3.4 verification programme will install an `L1` test matrix indexed by `(BC, geometry, group count)` — that matrix would have caught ERR-052 the first time vacuum BCs were exercised on a multiplying medium.
+
+**Secondary surface — Krylov inner-iteration budget.** The unit-production-rate normalisation alters the GMRES initial guess at each outer step (the previous un-normalised trajectory inherited a warmed-up subspace; the normalised trajectory does not). On `sphere-2eg-krylov` this raised the per-outer-iter GMRES count from ~50 to ~600 — and the L1 test `_TIGHT_KW` budget of `max_inner=300` was no longer sufficient. The inner solve was hitting the cap, returning an under-converged result, and the outer iteration accumulated ~2.4e-7 keff drift before claiming convergence. The fix was `max_inner=300 → 1000` in `tests/sn/l1_analytical/test_kinf_homogeneous.py::_TIGHT_KW`, restoring FP-precision keff for all 28 `(coord, ng, inner_solver)` variants. Issue #200 (block-inverse preconditioner for Krylov on the typed AngularFlux algebra) tracks the longer-term reduction. The production `solve_sn` default (`max_inner=200`) is unaffected — this is purely an L1 verification budget for the tightest reference-comparison gate.
+
+Secondary lesson: **`IterationHistory.converged=True` was hardcoded** in `orpheus/sn/solver.py:992-996`, decoupled from the solver's actual convergence flag. This is a latent bug worth a follow-up fix (low severity — the keff value is correct post-ERR-052; only the `converged` field is misleading). Tracked as P3.4 close-out work.
+
+**Test reference:** `tests/sn/test_boundary_conditions.py::TestSNBCSweepBehavior::test_vacuum_keff_lower_than_reflective` — tagged `@pytest.mark.catches("ERR-052")`. Companion diagnostic: `derivations/diagnostics/diag_vacuum_bc_eigenvalue_divergence.py` runs the three discriminating probes (reflective baseline, vacuum + SI, vacuum + Krylov) and confirms SI/Krylov agreement post-fix. The diag script also documents a session-level gotcha — standalone scripts under `derivations/diagnostics/` must prepend the repo root to `sys.path` to load the worktree's `orpheus`; otherwise the venv's `pip install -e .` silently resolves to the main checkout, giving stale-fix false-negatives.
+
+→ Probe path: see `.claude/agent-memory/numerics-investigator/vacuum_bc_eigenvalue_divergence.md` for the full hypothesis cascade.
