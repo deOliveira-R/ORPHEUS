@@ -103,10 +103,10 @@ class IncompatibleOperatorComposition(ValueError):
     """A composition's operands carry incompatible function spaces.
 
     Raised at composition time when two operators with declared
-    :attr:`domain`/:attr:`range` carry shapes that cannot be combined
-    (Sum: ``a.domain != b.domain`` or ``a.range != b.range``;
-    Product ``A @ B``: ``A.domain != B.range``). The check is
-    skipped when either operand has ``None`` for its domain or range
+    :attr:`domain`/:attr:`codomain` carry shapes that cannot be combined
+    (Sum: ``a.domain != b.domain`` or ``a.codomain != b.codomain``;
+    Product ``A @ B``: ``A.domain != B.codomain``). The check is
+    skipped when either operand has ``None`` for its domain or codomain
     — backward-compatible with operators predating Issue 9.6 that
     carry no function-space metadata.
     """
@@ -159,14 +159,14 @@ class LinearOperator(Protocol):
         Operators that pre-date Issue 9.6 (and any operator that has
         no canonical function-space tagging) return ``None``. When
         either operand of a composition has ``None`` for ``domain``
-        or ``range``, the composability check is skipped — preserving
+        or ``codomain``, the composability check is skipped — preserving
         the legacy duck-typed behaviour for code paths that do not
         track spaces.
         """
         ...
 
     @property
-    def range(self) -> Optional["FunctionSpace"]:
+    def codomain(self) -> Optional["FunctionSpace"]:
         """The function space this operator produces, or ``None``.
 
         See :attr:`domain` for the ``None`` semantics.
@@ -197,7 +197,7 @@ def _has(op: object, cap: str) -> bool:
 def _broadcast_for_leading_axes(w: Optional[np.ndarray], target_ndim: int) -> Optional[np.ndarray]:
     r"""Reshape ``w`` so it broadcasts against the leading axes of a tensor of ``target_ndim``.
 
-    When the domain / range of an operator carries an inner-product
+    When the domain / codomain of an operator carries an inner-product
     weight tensor of shape ``w.shape == (a₀, …, a_{k-1})``, and the
     data tensor crossing the operator has shape ``(a₀, …, a_{k-1}, b₀,
     …, b_{m-1})`` (i.e., the metric's axes are the LEADING axes of the
@@ -267,13 +267,13 @@ class LinearOperatorMixin:
       powers (``A**0`` is the identity, ``A**n`` for ``n>=1`` is
       ``A @ A @ ... @ A``).
     * :meth:`adjoint` — weight-aware Hilbert adjoint for operators
-      whose domain and range carry inner products.
+      whose domain and codomain carry inner products.
     * :attr:`H` — property alias for ``adjoint()`` matching the Grand
       Report v3 §6.3 vocabulary.
-    * Default :attr:`domain` / :attr:`range` return ``None`` —
+    * Default :attr:`domain` / :attr:`codomain` return ``None`` —
       backward-compatible with operators predating Issue 9.6.
     * :meth:`__repr__` — uniform default reporting class name,
-      domain/range, and capabilities.
+      domain/codomain, and capabilities.
     """
 
     capabilities: frozenset[str]
@@ -287,7 +287,7 @@ class LinearOperatorMixin:
         return None
 
     @property
-    def range(self) -> Optional["FunctionSpace"]:
+    def codomain(self) -> Optional["FunctionSpace"]:
         return None
 
     # ------------------------------------------------------------------
@@ -411,7 +411,7 @@ class LinearOperatorMixin:
 
         For an operator :math:`A : V \to W` with diagonal inner-product
         weights :math:`w_V` (on the domain) and :math:`w_W` (on the
-        range), the Hilbert adjoint satisfies
+        codomain), the Hilbert adjoint satisfies
 
         .. math::
 
@@ -423,7 +423,7 @@ class LinearOperatorMixin:
         the adjoint reduces to the representation transpose.
 
         The returned wrapper preserves :meth:`apply` (= adjoint
-        action) and swaps :attr:`domain` ↔ :attr:`range`. The
+        action) and swaps :attr:`domain` ↔ :attr:`codomain`. The
         :pydata:`capabilities` set advertises ``apply`` whenever the
         underlying operator advertises :pydata:`CAP_APPLY_TRANSPOSE`;
         otherwise the call to :meth:`apply` will raise at call time.
@@ -443,11 +443,11 @@ class LinearOperatorMixin:
     def __repr__(self) -> str:
         cls = type(self).__name__
         d = getattr(self, "domain", None)
-        r = getattr(self, "range", None)
+        c = getattr(self, "codomain", None)
         d_name = repr(d.name) if d is not None else "'?'"
-        r_name = repr(r.name) if r is not None else "'?'"
+        c_name = repr(c.name) if c is not None else "'?'"
         caps = sorted(getattr(self, "capabilities", frozenset()))
-        return f"<{cls} domain={d_name} range={r_name} caps={caps}>"
+        return f"<{cls} domain={d_name} codomain={c_name} caps={caps}>"
 
 
 # ---------------------------------------------------------------------------
@@ -459,7 +459,7 @@ class _AdjointOperator(LinearOperatorMixin):
     """Hilbert-adjoint wrapper around a :class:`LinearOperator`.
 
     Constructed by :meth:`LinearOperatorMixin.adjoint` (and its alias
-    ``A.H``). Domain/range are swapped relative to the inner operator;
+    ``A.H``). Domain/codomain are swapped relative to the inner operator;
     :meth:`apply` performs the weight-aware adjoint action.
 
     The capability set is derived from the inner operator: ``apply``
@@ -486,11 +486,11 @@ class _AdjointOperator(LinearOperatorMixin):
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
-        # Adjoint of A: V → W is A.H: W → V — domain swaps with inner.range.
-        return getattr(self.inner, "range", None)
+        # Adjoint of A: V → W is A.H: W → V — domain swaps with inner.codomain.
+        return getattr(self.inner, "codomain", None)
 
     @property
-    def range(self) -> Optional["FunctionSpace"]:
+    def codomain(self) -> Optional["FunctionSpace"]:
         return getattr(self.inner, "domain", None)
 
     def apply(self, y: np.ndarray) -> np.ndarray:
@@ -502,16 +502,16 @@ class _AdjointOperator(LinearOperatorMixin):
             )
         # Hilbert-adjoint action:
         #   (A^* y)_V = (1/w_V) ⊙ apply_transpose(w_W ⊙ y)
-        # On the adjoint wrapper, ``range`` is the inner operator's
-        # domain (V) — so ``range.inner_product_weights`` is w_V; and
-        # ``domain`` is the inner operator's range (W) — so
+        # On the adjoint wrapper, ``codomain`` is the inner operator's
+        # domain (V) — so ``codomain.inner_product_weights`` is w_V; and
+        # ``domain`` is the inner operator's codomain (W) — so
         # ``domain.inner_product_weights`` is w_W. Read with care.
         w_W = None
         w_V = None
-        inner_range = getattr(self.inner, "range", None)
+        inner_codomain = getattr(self.inner, "codomain", None)
         inner_domain = getattr(self.inner, "domain", None)
-        if inner_range is not None:
-            w_W = inner_range.inner_product_weights
+        if inner_codomain is not None:
+            w_W = inner_codomain.inner_product_weights
         if inner_domain is not None:
             w_V = inner_domain.inner_product_weights
 
@@ -521,7 +521,7 @@ class _AdjointOperator(LinearOperatorMixin):
         # metric shaped for axis-0 broadcast; _AdjointOperator
         # broadcasts trailing" pattern documented in the moment-space
         # + layering plan §P1.4 — applies generically to any operator
-        # whose domain/range metric is shape-aligned with the leading
+        # whose domain/codomain metric is shape-aligned with the leading
         # axes of the data tensor (e.g., MomentProjection's
         # SphericalHarmonicSpace metric on the (ℓ, m) axes).
         w_W_b = _broadcast_for_leading_axes(w_W, y.ndim) if w_W is not None else None
@@ -574,11 +574,11 @@ class OperatorSum(LinearOperatorMixin):
                 f"OperatorSum requires apply on both operands; right "
                 f"operand {type(b).__name__} lacks {CAP_APPLY!r}."
             )
-        # Domain/range compatibility check (skipped when either
+        # Domain/codomain compatibility check (skipped when either
         # operand lacks function-space metadata — backward-compatible
         # with operators that pre-date Issue 9.6).
-        a_dom, a_rng = getattr(a, "domain", None), getattr(a, "range", None)
-        b_dom, b_rng = getattr(b, "domain", None), getattr(b, "range", None)
+        a_dom, a_cod = getattr(a, "domain", None), getattr(a, "codomain", None)
+        b_dom, b_cod = getattr(b, "domain", None), getattr(b, "codomain", None)
         if (
             a_dom is not None and b_dom is not None and a_dom != b_dom
         ):
@@ -587,11 +587,11 @@ class OperatorSum(LinearOperatorMixin):
                 f"{b_dom!r}."
             )
         if (
-            a_rng is not None and b_rng is not None and a_rng != b_rng
+            a_cod is not None and b_cod is not None and a_cod != b_cod
         ):
             raise IncompatibleOperatorComposition(
-                f"OperatorSum requires equal ranges; got {a_rng!r} and "
-                f"{b_rng!r}."
+                f"OperatorSum requires equal codomains; got {a_cod!r} and "
+                f"{b_cod!r}."
             )
         self.a = a
         self.b = b
@@ -608,9 +608,9 @@ class OperatorSum(LinearOperatorMixin):
         return a_dom if a_dom is not None else getattr(self.b, "domain", None)
 
     @property
-    def range(self) -> Optional["FunctionSpace"]:
-        a_rng = getattr(self.a, "range", None)
-        return a_rng if a_rng is not None else getattr(self.b, "range", None)
+    def codomain(self) -> Optional["FunctionSpace"]:
+        a_cod = getattr(self.a, "codomain", None)
+        return a_cod if a_cod is not None else getattr(self.b, "codomain", None)
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         return self.a.apply(x) + self.b.apply(x)
@@ -649,16 +649,16 @@ class OperatorProduct(LinearOperatorMixin):
                 f"OperatorProduct requires apply on both operands; "
                 f"right operand {type(b).__name__} lacks {CAP_APPLY!r}."
             )
-        # Domain/range compatibility check for ``A @ B``: A.domain
-        # must equal B.range. Skipped when either is None.
+        # Domain/codomain compatibility check for ``A @ B``: A.domain
+        # must equal B.codomain. Skipped when either is None.
         a_dom = getattr(a, "domain", None)
-        b_rng = getattr(b, "range", None)
+        b_cod = getattr(b, "codomain", None)
         if (
-            a_dom is not None and b_rng is not None and a_dom != b_rng
+            a_dom is not None and b_cod is not None and a_dom != b_cod
         ):
             raise IncompatibleOperatorComposition(
-                f"OperatorProduct A @ B requires A.domain == B.range; "
-                f"got A.domain={a_dom!r}, B.range={b_rng!r}."
+                f"OperatorProduct A @ B requires A.domain == B.codomain; "
+                f"got A.domain={a_dom!r}, B.codomain={b_cod!r}."
             )
         self.a = a
         self.b = b
@@ -676,9 +676,9 @@ class OperatorProduct(LinearOperatorMixin):
         return getattr(self.b, "domain", None)
 
     @property
-    def range(self) -> Optional["FunctionSpace"]:
-        # A @ B: output space is A.range.
-        return getattr(self.a, "range", None)
+    def codomain(self) -> Optional["FunctionSpace"]:
+        # A @ B: output space is A.codomain.
+        return getattr(self.a, "codomain", None)
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         return self.a.apply(self.b.apply(x))
@@ -734,8 +734,8 @@ class ScaledOperator(LinearOperatorMixin):
         return getattr(self.op, "domain", None)
 
     @property
-    def range(self) -> Optional["FunctionSpace"]:
-        return getattr(self.op, "range", None)
+    def codomain(self) -> Optional["FunctionSpace"]:
+        return getattr(self.op, "codomain", None)
 
     def apply(self, x, *extra, **kwextra):
         return self.scalar * self.op.apply(x, *extra, **kwextra)

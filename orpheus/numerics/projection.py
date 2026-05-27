@@ -127,7 +127,7 @@ class ProjectionOperator(LinearOperatorMixin, ABC):
     Notes
     -----
 
-    No domain / range validation here — the ABC stays abstract enough
+    No domain / codomain validation here — the ABC stays abstract enough
     to host both Galerkin and Petrov-Galerkin subclasses. The concrete
     classes :class:`MomentProjection`, etc. carry their own
     shape contracts in their docstrings.
@@ -391,29 +391,15 @@ class MomentProjection(GalerkinProjection):
         the domain's quadrature weights ``W``) to compute the W-weighted
         Hilbert adjoint :math:`\Pi^* = g_C \cdot S_0` correctly.
 
-        ``range`` (the pre-P3.5 framework name read by
-        :class:`~orpheus.numerics.operator._AdjointOperator`) aliases
-        this property; both return the same :class:`SphericalHarmonicSpace`
-        instance per call.
+        :class:`~orpheus.numerics.operator._AdjointOperator` reads
+        ``codomain`` (the canonical framework attribute) to find the
+        codomain's inner-product weights for the Hilbert-adjoint
+        calculation.
         """
         from orpheus.numerics.spaces.spherical_harmonic_space import (
             SphericalHarmonicSpace,
         )
         return SphericalHarmonicSpace.from_L(self.L)
-
-    @cached_property
-    def range(self) -> "SphericalHarmonicSpace":
-        r"""Alias of :attr:`codomain` — the pre-P3.5 framework name.
-
-        :class:`~orpheus.numerics.operator._AdjointOperator` reads
-        ``range`` to find the codomain's inner-product weights for the
-        Hilbert-adjoint calculation. P3.5 renames the framework attribute
-        ``range`` → ``codomain``; until then both are defined here
-        with identical return values (cached so the Krylov inner loop
-        doesn't reallocate the :class:`SphericalHarmonicSpace` per
-        matvec).
-        """
-        return self.codomain
 
     @cached_property
     def domain(self) -> FunctionSpace:

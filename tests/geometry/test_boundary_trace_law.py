@@ -143,12 +143,12 @@ def test_descriptor_has_no_capabilities_attribute() -> None:
 
 
 @pytest.mark.foundation
-def test_descriptor_has_no_domain_or_range() -> None:
-    """``domain`` / ``range`` are :class:`LinearOperatorMixin`
+def test_descriptor_has_no_domain_or_codomain() -> None:
+    """``domain`` / ``codomain`` are :class:`LinearOperatorMixin`
     attributes; descriptors drop the mixin in B3 + β2."""
     law = _StubLaw()
     assert not hasattr(law, "domain")
-    assert not hasattr(law, "range")
+    assert not hasattr(law, "codomain")
 
 
 # ─────────────────────────────────────────────────────────────────────

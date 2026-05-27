@@ -344,17 +344,12 @@ def test_moment_projection_codomain_is_spherical_harmonic_space():
     assert cod.shape == (L + 1, 2 * L + 1)
     assert cod == SphericalHarmonicSpace.from_L(L)
 
-    # ``range`` aliases ``codomain`` (pre-P3.5 framework name read by
-    # the generic _AdjointOperator).
-    assert M.range == M.codomain
-
     # Caching: repeated access returns the SAME object (not just an
     # equal one).  Pins the @cached_property contract — the Krylov
     # inner loop's `_AdjointOperator.apply` reads codomain + domain
     # per matvec; allocating fresh spaces per access would be
     # wasted work.
     assert M.codomain is M.codomain
-    assert M.range is M.range
     assert M.domain is M.domain
 
 

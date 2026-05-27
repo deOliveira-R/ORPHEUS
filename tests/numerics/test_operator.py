@@ -471,7 +471,7 @@ def test_as_scipy_linop_works_with_composite(matrix_full, matrix_apply_only):
 #   * Hilbert-adjoint identity ``<A x, y> = <x, A.H y>`` for both
 #     Euclidean and quadrature-weight-aware inner products.
 #   * ``IncompatibleOperatorComposition`` raised on
-#     domain/range mismatch in the composers.
+#     domain/codomain mismatch in the composers.
 #   * ``__repr__`` smoke tests.
 
 from orpheus.numerics.operator import IncompatibleOperatorComposition
@@ -538,10 +538,10 @@ def test_adjoint_euclidean_identity(matrix_full, rng, n_dim):
 
 
 class _SpacedMatrixOperator(LinearOperatorMixin):
-    """MatrixOperator carrying explicit domain / range function spaces.
+    """MatrixOperator carrying explicit domain / codomain function spaces.
 
     Used for the weight-aware Hilbert-adjoint identity tests, where the
-    inner product on the range carries non-trivial weights and the
+    inner product on the codomain carries non-trivial weights and the
     adjoint must invert them. Mirrors ``MatrixOperator`` but exposes
     the function-space metadata shipped in Phase B.
     """
@@ -550,11 +550,11 @@ class _SpacedMatrixOperator(LinearOperatorMixin):
         self,
         matrix: np.ndarray,
         domain_space: FunctionSpace,
-        range_space: FunctionSpace,
+        codomain_space: FunctionSpace,
     ) -> None:
         self.matrix = np.asarray(matrix, dtype=float)
         self._domain = domain_space
-        self._range = range_space
+        self._codomain = codomain_space
         self.capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
     @property
@@ -562,8 +562,8 @@ class _SpacedMatrixOperator(LinearOperatorMixin):
         return self._domain
 
     @property
-    def range(self) -> FunctionSpace:
-        return self._range
+    def codomain(self) -> FunctionSpace:
+        return self._codomain
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         return self.matrix @ x
@@ -575,39 +575,39 @@ class _SpacedMatrixOperator(LinearOperatorMixin):
 def test_adjoint_weighted_identity(rng):
     """Hilbert-adjoint identity holds with quadrature-weight metadata.
 
-    Range inner product carries non-trivial diagonal weights ``w_W``;
+    Codomain inner product carries non-trivial diagonal weights ``w_W``;
     the adjoint must produce an output that, evaluated under the
     domain inner product, balances ``<A u, v>_W``.
     """
     n_dom = 4
-    n_rng = 4
-    M = rng.standard_normal((n_rng, n_dom))
-    w_W = np.array([1.0, 2.0, 3.0, 4.0])  # range weights (non-trivial)
+    n_cod = 4
+    M = rng.standard_normal((n_cod, n_dom))
+    w_W = np.array([1.0, 2.0, 3.0, 4.0])  # codomain weights (non-trivial)
     domain = FunctionSpace(name="V", shape=(n_dom,))  # Euclidean
-    range_ = FunctionSpace(
-        name="W", shape=(n_rng,), inner_product_weights=w_W,
+    codomain = FunctionSpace(
+        name="W", shape=(n_cod,), inner_product_weights=w_W,
     )
-    A = _SpacedMatrixOperator(M, domain, range_)
+    A = _SpacedMatrixOperator(M, domain, codomain)
     u = rng.standard_normal(n_dom)
-    v = rng.standard_normal(n_rng)
+    v = rng.standard_normal(n_cod)
 
     Au = A.apply(u)                     # in W
     Hv = A.H.apply(v)                   # in V
-    lhs = range_.inner_product(Au, v)
+    lhs = codomain.inner_product(Au, v)
     rhs = domain.inner_product(u, Hv)
     assert np.isclose(lhs, rhs, rtol=1e-12)
 
 
-def test_adjoint_swaps_domain_and_range():
-    """``A.H.domain`` is ``A.range`` and vice versa."""
+def test_adjoint_swaps_domain_and_codomain():
+    """``A.H.domain`` is ``A.codomain`` and vice versa."""
     n_dom = 3
-    n_rng = 4
-    M = np.random.default_rng(0).standard_normal((n_rng, n_dom))
+    n_cod = 4
+    M = np.random.default_rng(0).standard_normal((n_cod, n_dom))
     domain = FunctionSpace(name="V", shape=(n_dom,))
-    range_ = FunctionSpace(name="W", shape=(n_rng,))
-    A = _SpacedMatrixOperator(M, domain, range_)
-    assert A.H.domain == range_
-    assert A.H.range == domain
+    codomain = FunctionSpace(name="W", shape=(n_cod,))
+    A = _SpacedMatrixOperator(M, domain, codomain)
+    assert A.H.domain == codomain
+    assert A.H.codomain == domain
 
 
 def test_sum_rejects_incompatible_domains():
@@ -623,7 +623,7 @@ def test_sum_rejects_incompatible_domains():
         _ = A + B
 
 
-def test_sum_rejects_incompatible_ranges():
+def test_sum_rejects_incompatible_codomains():
     n = 3
     M = np.eye(n)
     V = FunctionSpace(name="V", shape=(n,))
@@ -631,21 +631,21 @@ def test_sum_rejects_incompatible_ranges():
     W2 = FunctionSpace(name="W2", shape=(n,))
     A = _SpacedMatrixOperator(M, V, W1)
     B = _SpacedMatrixOperator(M, V, W2)
-    with pytest.raises(IncompatibleOperatorComposition, match="range"):
+    with pytest.raises(IncompatibleOperatorComposition, match="codomain"):
         _ = A + B
 
 
 def test_product_rejects_incompatible_inner_space():
-    """``A @ B`` requires ``A.domain == B.range``."""
+    """``A @ B`` requires ``A.domain == B.codomain``."""
     n = 3
     M = np.eye(n)
     V = FunctionSpace(name="V", shape=(n,))
     W = FunctionSpace(name="W", shape=(n,))
     Z = FunctionSpace(name="Z", shape=(n,))
     A = _SpacedMatrixOperator(M, W, V)  # A: W → V
-    B = _SpacedMatrixOperator(M, V, Z)  # B: V → Z; range Z != A.domain W
+    B = _SpacedMatrixOperator(M, V, Z)  # B: V → Z; codomain Z != A.domain W
     with pytest.raises(
-        IncompatibleOperatorComposition, match="A @ B|domain|range",
+        IncompatibleOperatorComposition, match="A @ B|domain|codomain",
     ):
         _ = A @ B
 
@@ -658,16 +658,16 @@ def test_compatible_composition_succeeds_with_spaces():
     W = FunctionSpace(name="W", shape=(n,))
     A = _SpacedMatrixOperator(M, V, W)
     B = _SpacedMatrixOperator(M, V, W)
-    s = A + B  # same domain V, same range W: OK
+    s = A + B  # same domain V, same codomain W: OK
     assert s.domain == V
-    assert s.range == W
+    assert s.codomain == W
 
 
 def test_composition_skips_check_when_either_is_none(matrix_full):
     """Backward-compat: operators without function spaces pass freely.
 
     ``MatrixOperator`` (the existing fixture) returns ``None`` for
-    domain and range. Sums and products against another ``None``
+    domain and codomain. Sums and products against another ``None``
     operator must not raise — the composition compatibility check
     only fires when BOTH operators carry function spaces.
     """
@@ -678,12 +678,12 @@ def test_composition_skips_check_when_either_is_none(matrix_full):
 
 
 def test_repr_format(matrix_full):
-    """``repr(op)`` carries the class name, domain/range, and caps."""
+    """``repr(op)`` carries the class name, domain/codomain, and caps."""
     r = repr(matrix_full)
     assert "MatrixOperator" in r
     # MatrixOperator has no function-space tagging; expect '?' placeholders.
     assert "domain='?'" in r
-    assert "range='?'" in r
+    assert "codomain='?'" in r
     # Capabilities list.
     assert "apply" in r
 

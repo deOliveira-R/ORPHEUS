@@ -254,7 +254,7 @@ def boundary_trace_space(
     distinguishes the *incoming* and *outgoing* faces of a boundary
     operator: a :class:`BoundaryOperator` ``B`` has
     ``B.domain = boundary_trace_space("out", ...)`` and
-    ``B.range = boundary_trace_space("in", ...)`` (it consumes
+    ``B.codomain = boundary_trace_space("in", ...)`` (it consumes
     outgoing flux, produces incoming flux).
 
     Parameters
