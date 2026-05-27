@@ -137,7 +137,7 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 from .sources import IsotropicSource, PerOrdinateSource
 
 if TYPE_CHECKING:
-    from .harmonic_moment_field import HarmonicMomentField
+    from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
     from .material_xs_field import MaterialXSField
     from orpheus.numerics.quadrature import Quadrature
 
@@ -257,12 +257,12 @@ class LegendreMomentScattering(LinearOperatorMixin):
         Issue #197 PR-TYPED-1 collapses the ``for mid, (ix, iy) in
         cells_by_mat.items()`` loop into a typed verb.
         """
-        from .harmonic_moment_field import HarmonicMomentField
+        from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
         if isinstance(moments, HarmonicMomentField):
             out_values = self.mat_xs.apply_legendre_scattering_moments(
                 moments.values, L=self.L, skip_l0=self.skip_l0,
             )
-            return HarmonicMomentField(out_values, moments.mesh, moments.L)
+            return HarmonicMomentField.from_mesh_and_L(out_values, moments.mesh, moments.L)
         return self.mat_xs.apply_legendre_scattering_moments(
             moments, L=self.L, skip_l0=self.skip_l0,
         )
@@ -612,7 +612,7 @@ class ScatteringOperator(LinearOperatorMixin):
         principled :class:`LegendreMomentScattering` consumes after
         PR-INDEX-4.
         """
-        from .harmonic_moment_field import HarmonicMomentField
+        from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
         if self.scattering_order == 0 or angular_flux is None:
             return None
         is_typed = isinstance(angular_flux, AngularFlux)
@@ -651,7 +651,7 @@ class ScatteringOperator(LinearOperatorMixin):
         if is_typed:
             mesh = angular_flux.mesh
             moments_values = M.apply(values)
-            moments = HarmonicMomentField(moments_values, mesh, L)
+            moments = HarmonicMomentField.from_mesh_and_L(moments_values, mesh, L)
             scattered = Lam.apply(moments)  # HarmonicMomentField
             result = R.apply(scattered.values) / sum_w
             return PerOrdinateSource(result, mesh)

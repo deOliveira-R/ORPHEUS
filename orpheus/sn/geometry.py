@@ -61,7 +61,7 @@ if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from .angular_flux import AngularFlux
     from .boundary_flux import BoundaryFlux
-    from .harmonic_moment_field import HarmonicMomentField
+    from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
     from .material_xs_field import MaterialXSField
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from .sources import IsotropicSource, PerOrdinateSource
@@ -844,11 +844,11 @@ class SNMesh:
             Maximum harmonic order; result has shape
             ``(L+1, 2L+1, ng, nx, ny)``.
         """
-        from .harmonic_moment_field import HarmonicMomentField
+        from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
         values = np.zeros(
             (L + 1, 2 * L + 1, self.ng, self.nx, self.ny),
         )
-        return HarmonicMomentField(values, self, L)
+        return HarmonicMomentField.from_mesh_and_L(values, self, L)
 
     # ── Sweep DAG traversal ───────────────────────────────────────────
 

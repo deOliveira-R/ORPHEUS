@@ -24,6 +24,7 @@ in-flight callers have a window to update imports (per
 
 from __future__ import annotations
 
+from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 
-__all__ = ["ScalarFlux"]
+__all__ = ["HarmonicMomentField", "ScalarFlux"]

@@ -344,6 +344,21 @@ class TensorProductSpace(FunctionSpace):
 
     factors: tuple["FunctionSpace", ...] = field(default=(), compare=False, repr=False)
 
+    # ── Equality / hashing inherited from FunctionSpace ───────────────
+    #
+    # The @dataclass(frozen=True) decorator would otherwise auto-generate
+    # __eq__ that compares every field — including the ndarray
+    # ``inner_product_weights`` which raises "truth value ambiguous" at
+    # use time. Explicit delegation restores the (name, shape, units)
+    # identity convention from :class:`FunctionSpace`. ``factors`` is
+    # already excluded from compare via the field-level ``compare=False``.
+
+    def __eq__(self, other: object) -> bool:
+        return FunctionSpace.__eq__(self, other)
+
+    def __hash__(self) -> int:
+        return FunctionSpace.__hash__(self)
+
     @classmethod
     def from_factors(
         cls, factors: tuple["FunctionSpace", ...],
@@ -416,6 +431,18 @@ class DualSpace(FunctionSpace):
     """
 
     primal: Optional["FunctionSpace"] = field(default=None, compare=False, repr=False)
+
+    # ── Equality / hashing inherited from FunctionSpace ───────────────
+    #
+    # Same rationale as :class:`TensorProductSpace.__eq__` — auto-
+    # generated dataclass __eq__ would compare ndarray weights and raise
+    # "truth value ambiguous". Explicit delegation to FunctionSpace.
+
+    def __eq__(self, other: object) -> bool:
+        return FunctionSpace.__eq__(self, other)
+
+    def __hash__(self) -> int:
+        return FunctionSpace.__hash__(self)
 
     @classmethod
     def of(cls, primal: "FunctionSpace") -> "FunctionSpace":

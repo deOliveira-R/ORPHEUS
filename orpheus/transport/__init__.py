@@ -42,6 +42,6 @@ References
 
 from __future__ import annotations
 
-from orpheus.transport.fields import ScalarFlux
+from orpheus.transport.fields import HarmonicMomentField, ScalarFlux
 
-__all__ = ["ScalarFlux"]
+__all__ = ["HarmonicMomentField", "ScalarFlux"]

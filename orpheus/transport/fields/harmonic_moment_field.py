@@ -1,0 +1,343 @@
+r"""Real-spherical-harmonic moment field on a tensor-product space.
+
+The L2 typed wrapper for :math:`\phi_\ell^m(\vec r, g)` — a moment
+field that sits between :class:`~orpheus.sn.angular_flux.AngularFlux`
+and the scattering operator :math:`\Lambda` as the natural data carrier
+of the :math:`R \cdot \Lambda \cdot M \cdot \psi` Galerkin pipeline.
+
+Stores coefficients in an ``(L+1, 2L+1, ng, nx, ny)`` ndarray, with the
+addition-theorem-shifted :math:`m`-index where slot ``l + m`` holds the
+:math:`(\ell, m)` entry; entries outside :math:`|m| \le \ell` are zero
+by convention.
+
+Migration status (Depth B, step D-E)
+====================================
+
+This class moved from ``orpheus.sn.harmonic_moment_field`` to
+``orpheus.transport.fields.harmonic_moment_field`` and now inherits
+from :class:`~orpheus.numerics.field.Field`. The migration:
+
+* Drops the hand-coded dunder skeleton (Cardinal Rule 2 — the algebra
+  is now inherited via :func:`dataclasses.replace`).
+* Adds the ``space: FunctionSpace`` field; the canonical space is a
+  :class:`~orpheus.numerics.space.TensorProductSpace` of the form
+  :math:`\mathrm{SphericalHarmonicSpace}(L) \otimes
+  \mathrm{CellGroupSpace}(ng, nx, ny)` — the **first
+  TensorProductSpace consumer in a typed Field** (D-B's L1 primitive
+  is now load-bearing).
+* Keeps ``mesh: SNMesh`` as an additive field under ``TYPE_CHECKING``
+  (same pattern as :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`).
+* Preserves the mesh-identity strict semantic via a
+  :meth:`_check_partner` override.
+* The ``L`` parameter is encoded in ``space.shape`` (and queryable via
+  the composition-tree walk per Issue #207); the redundant ``L`` field
+  is kept as a top-level attribute for ergonomic access — equivalent
+  to ``self.space.find_factor(SphericalHarmonicSpace).L`` but avoiding
+  the traversal at hot-path read sites.
+* Introduces :meth:`from_mesh_and_L` for ergonomic 3-arg construction
+  (the kw_only constructor requires explicit ``space``; the classmethod
+  derives the space from ``mesh`` and ``L``).
+
+Why distinct from :class:`AngularFlux` / :class:`ScalarFlux`
+============================================================
+
+The moment field lives in **moment space**
+(:math:`(L+1) \cdot (2L+1)` coefficients per cell + group); the angular
+flux lives in **per-ordinate space** (:math:`N` directions per cell +
+group). Cross-type addition between the two is undefined — Field's
+Layer 1 class-identity gate (`coding-elegance` Pattern 4) rejects it
+by construction. The legitimate route is
+``moments = M.apply(psi)`` (projection) or ``psi = R.apply(moments)``
+(reconstruction) via the
+:mod:`~orpheus.numerics.projection` Galerkin pair.
+
+Units (informational, not yet enforced)
+=======================================
+
+When produced by :meth:`MomentProjection.apply` from an
+:class:`AngularFlux`, the moment field inherits flux units
+:math:`[1/(\mathrm{cm^2 \cdot s \cdot sr \cdot eV})]`.
+
+References
+----------
+
+* Lewis, E.E. & Miller, W.F. (1993). *Computational Methods of Neutron
+  Transport*. ANS. §3.5 — spherical-harmonic moments of the angular
+  flux.
+* Depth B plan §3.3, §6 step D-E.
+* Issue #207 — architectural pattern: composition queries traverse the
+  tensor-product tree; ``space.find_factor(SphericalHarmonicSpace).L``
+  is the composition-aware way to read the truncation order.
+* Issue #197 PR-TYPED-4 — original typed-wrapper introduction (now
+  superseded by this Field-inheriting form).
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+import numpy as np
+from numpy.typing import NDArray
+
+from orpheus.numerics.field import Field
+from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.spaces.spherical_harmonic_space import (
+    SphericalHarmonicSpace,
+)
+
+if TYPE_CHECKING:
+    from orpheus.sn.geometry import SNMesh
+    from orpheus.transport.fields.scalar_flux import ScalarFlux
+
+
+__all__ = ["HarmonicMomentField"]
+
+
+@dataclass(frozen=True, eq=False, kw_only=True)
+class HarmonicMomentField(Field):
+    r"""Real-spherical-harmonic moment field :math:`\phi_\ell^m(\vec r, g)`.
+
+    Parameters
+    ----------
+    values : NDArray
+        Moment coefficients of shape ``(L+1, 2L+1, ng, nx, ny)``.
+    space : FunctionSpace
+        The function space this field lives on. Canonically a
+        :class:`TensorProductSpace` of the form
+        :math:`\mathrm{SphericalHarmonicSpace}(L) \otimes
+        \mathrm{CellGroupSpace}`. Construction via
+        :meth:`from_mesh_and_L` is the canonical path; direct kw-only
+        construction is for callers that already hold a constructed
+        space.
+    mesh : SNMesh
+        The SN phase-space carrier.
+    L : int
+        Maximum harmonic order retained. Determines the leading two
+        axes' sizes: ``values.shape[:2] == (L+1, 2L+1)``. Encoded in
+        ``space.shape`` AND kept as a top-level field for ergonomic
+        hot-path read access (avoids a per-read composition-tree
+        traversal).
+
+    Notes
+    -----
+    Algebra is inherited from :class:`~orpheus.numerics.field.Field`
+    (dunders ``+``, ``-``, unary ``-``, scalar ``*``, scalar ``/``,
+    plus diagnostics ``linf``, ``l2``, ``inner_product``, ``copy``).
+    The :meth:`_check_partner` override adds the SN-specific
+    mesh-identity check on top of Field's class-and-space gate. The
+    ``L`` match is implicit via the space check (different ``L`` values
+    produce different ``SphericalHarmonicSpace`` shapes, so different
+    ``space`` instances) but checked explicitly in :meth:`_check_partner`
+    for a clearer error message at the L-mismatch site.
+
+    Cross-class arithmetic with :class:`AngularFlux` / :class:`ScalarFlux`
+    is forbidden by Field's Layer 1 gate (`coding-elegance` Pattern 4).
+    The legitimate route is through :class:`MomentProjection` /
+    :class:`HarmonicMomentReconstruction`.
+    """
+
+    mesh: "SNMesh"
+    L: int
+
+    # ── Construction validation ──────────────────────────────────────
+
+    def __post_init__(self) -> None:
+        super().__post_init__()  # Field validates shape against space.
+        expected = (
+            self.L + 1, 2 * self.L + 1,
+            self.mesh.ng, self.mesh.nx, self.mesh.ny,
+        )
+        if self.space.shape != expected:
+            raise ValueError(
+                f"HarmonicMomentField: space.shape {self.space.shape!r} "
+                f"does not match (L+1, 2L+1, mesh.ng, mesh.nx, mesh.ny) "
+                f"= {expected!r}"
+            )
+
+    # ── Algebra extensions (over Field) ──────────────────────────────
+
+    def _check_partner(self, other: object) -> None:
+        r"""Reject mesh-and-L mismatches on top of Field's class/space gate.
+
+        Field's :meth:`~Field._check_partner` rejects on class identity
+        and space equality. This override adds:
+
+        * Mesh-identity check (same pattern as
+          :class:`ScalarFlux._check_partner`): SN fluxes are mesh-bound;
+          mixing fluxes across distinct :class:`SNMesh` instances is
+          a class of bugs the strict identity check prevents.
+        * Explicit ``L`` match for a clearer error message at the
+          truncation-mismatch site (the space check also catches this
+          via shape mismatch, but the message is less specific).
+        """
+        super()._check_partner(other)
+        if self.mesh is not other.mesh:  # type: ignore[attr-defined]
+            raise ValueError(
+                "HarmonicMomentField arithmetic across distinct SNMesh "
+                "instances is forbidden — the field is mesh-bound."
+            )
+        if self.L != other.L:  # type: ignore[attr-defined]
+            raise ValueError(
+                f"HarmonicMomentField arithmetic requires matching L; "
+                f"got self.L={self.L}, other.L={other.L}."
+            )
+
+    # ── Construction factories ───────────────────────────────────────
+
+    @classmethod
+    def from_mesh_and_L(
+        cls, values: NDArray, mesh: "SNMesh", L: int,
+    ) -> "HarmonicMomentField":
+        r"""Construct from raw values + mesh + L, deriving the
+        :class:`TensorProductSpace`.
+
+        Builds the space as
+        ``SphericalHarmonicSpace.from_L(L) * CellGroupSpace`` where
+        ``CellGroupSpace`` is a plain :class:`FunctionSpace` with the
+        mesh's ``(ng, nx, ny)`` shape. This is the FIRST production
+        consumer of the D-B :class:`TensorProductSpace` primitive in a
+        typed transport Field — the moment-axis structure is now
+        type-visible through the composition tree (queryable via
+        ``space.find_factor(SphericalHarmonicSpace).L`` per Issue #207).
+        """
+        sh_space = SphericalHarmonicSpace.from_L(L)
+        cell_group_space = FunctionSpace(
+            name="cell_group",
+            shape=(mesh.ng, mesh.nx, mesh.ny),
+        )
+        space = sh_space * cell_group_space
+        return cls(values=values, space=space, mesh=mesh, L=L)
+
+    @classmethod
+    def from_ndarray(
+        cls, arr: NDArray, mesh: "SNMesh", L: int,
+    ) -> "HarmonicMomentField":
+        r"""Test-ergonomic alias for :meth:`from_mesh_and_L`.
+
+        Per Depth B plan §3.7, every typed field exposes
+        ``from_ndarray(arr, ...)`` as the migration path from the
+        retired ``apply(np.ndarray)`` singledispatch handlers (D-I).
+        For :class:`HarmonicMomentField` the second argument is the
+        mesh and the third is the truncation order ``L``.
+        """
+        return cls.from_mesh_and_L(arr, mesh, L)
+
+    # ── Slicing / decomposition (Pattern 3 — named intermediates) ────
+
+    def l_block(self, l: int) -> NDArray:
+        r"""View of one :math:`\ell`-block, shape ``(2ℓ+1, ng, nx, ny)``.
+
+        Returns the slice ``values[l, :2*l+1]`` — the legitimate
+        :math:`m`-entries for that :math:`\ell` (the trailing
+        zero-padding outside :math:`|m| \le \ell` is excluded). Use
+        this to retire the explicit ``moments[l, :n_m][..., ix, iy]``
+        slicing pattern (``coding-elegance`` Pattern 3).
+        """
+        if not 0 <= l <= self.L:
+            raise ValueError(
+                f"HarmonicMomentField.l_block: l={l} out of range "
+                f"[0, {self.L}]"
+            )
+        return self.values[l, : 2 * l + 1]
+
+    def isotropic_part(self) -> "HarmonicMomentField":
+        r"""Return the :math:`\ell = 0` (isotropic) projection.
+
+        Same shape as ``self``; all :math:`\ell \ge 1` blocks zeroed.
+        Used by the foldable-vs-residual scattering split when the
+        consumer wants the :math:`P_0` content alone.
+        """
+        out = np.zeros_like(self.values)
+        out[0, 0] = self.values[0, 0]
+        return HarmonicMomentField(
+            values=out, space=self.space, mesh=self.mesh, L=self.L,
+        )
+
+    def anisotropic_part(self) -> "HarmonicMomentField":
+        r"""Return the :math:`\ell \ge 1` (anisotropic) projection.
+
+        Same shape as ``self``; the :math:`\ell = 0, m = 0` slot zeroed.
+        Pairs with :meth:`isotropic_part` to partition the moment field;
+        ``self.values == isotropic_part().values + anisotropic_part().values``
+        bit-exactly.
+
+        Mirrors the ``skip_l0`` pattern in
+        :class:`~orpheus.sn.scattering.LegendreMomentScattering`.
+        """
+        out = self.values.copy()
+        out[0, 0] = 0.0
+        return HarmonicMomentField(
+            values=out, space=self.space, mesh=self.mesh, L=self.L,
+        )
+
+    def scalar_flux(self) -> "ScalarFlux":
+        r"""Extract the isotropic moment as a :class:`ScalarFlux`.
+
+        Under the no-prefactor SH convention used by
+        :class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`
+        (where :math:`Y_0^0 = 1`), the addition-theorem moment
+        :math:`\phi_0^0 = \sum_n w_n Y_0^0 \psi_n = \sum_n w_n \psi_n`
+        IS the scalar flux directly — no :math:`1/Y_0^0` factor. This
+        identity is what makes ``MomentProjection(\psi).scalar_flux()``
+        agree with ``\psi.integrate_angular()`` bit-exactly.
+
+        Returns
+        -------
+        ScalarFlux
+            The :math:`(\ell=0, m=0)` slice ``values[0, 0]``, wrapped
+            with the same mesh.
+        """
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
+        return ScalarFlux.from_mesh(self.values[0, 0].copy(), self.mesh)
+
+    def truncate(self, L_new: int) -> "HarmonicMomentField":
+        r"""Return a new :class:`HarmonicMomentField` truncated to
+        :math:`L_{\rm new} \le L`.
+
+        Drops the :math:`\ell > L_{\rm new}` blocks and the
+        corresponding zero-padded :math:`m`-columns; result has shape
+        ``(L_new+1, 2*L_new+1, ng, nx, ny)``.
+
+        Parameters
+        ----------
+        L_new : int
+            Target order, must satisfy ``0 <= L_new <= self.L``.
+        """
+        if L_new > self.L:
+            raise ValueError(
+                f"HarmonicMomentField.truncate: L_new={L_new} > "
+                f"current L={self.L}"
+            )
+        if L_new < 0:
+            raise ValueError(
+                f"HarmonicMomentField.truncate: L_new={L_new} < 0"
+            )
+        new_shape = (
+            L_new + 1, 2 * L_new + 1,
+            self.mesh.ng, self.mesh.nx, self.mesh.ny,
+        )
+        new_values = np.zeros(new_shape, dtype=self.values.dtype)
+        new_values[: L_new + 1, : 2 * L_new + 1] = (
+            self.values[: L_new + 1, : 2 * L_new + 1]
+        )
+        return HarmonicMomentField.from_mesh_and_L(
+            new_values, self.mesh, L_new,
+        )
+
+    # ── Metadata read-throughs ───────────────────────────────────────
+
+    @property
+    def ng(self) -> int:
+        r"""Energy group count (delegated to ``mesh.ng``)."""
+        return self.mesh.ng
+
+    @property
+    def nx(self) -> int:
+        r"""Spatial extent in x (delegated to ``mesh.nx``)."""
+        return self.mesh.nx
+
+    @property
+    def ny(self) -> int:
+        r"""Spatial extent in y (delegated to ``mesh.ny``)."""
+        return self.mesh.ny

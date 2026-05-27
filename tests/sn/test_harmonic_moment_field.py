@@ -21,7 +21,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.sn.angular_flux import AngularFlux
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.harmonic_moment_field import HarmonicMomentField
+from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 
@@ -81,7 +81,7 @@ class TestHarmonicMomentFieldConstruction:
         vals = np.arange(2 * 3 * 1 * 3 * 3, dtype=float).reshape(
             (2, 3, 1, 3, 3),
         )
-        phi = HarmonicMomentField(vals, m, L)
+        phi = HarmonicMomentField.from_mesh_and_L(vals, m, L)
         assert phi.L == 1
         np.testing.assert_array_equal(phi.values, vals)
 
@@ -89,16 +89,16 @@ class TestHarmonicMomentFieldConstruction:
         m = _slab_mesh()
         L = 2
         # Wrong shape: (L+1, 2L, ...) instead of (L+1, 2L+1, ...).
-        with pytest.raises(ValueError, match="HarmonicMomentField expects"):
-            HarmonicMomentField(
+        with pytest.raises(ValueError, match="HarmonicMomentField.*does not match"):
+            HarmonicMomentField.from_mesh_and_L(
                 np.zeros((L + 1, 2 * L, m.ng, m.nx, m.ny)), m, L,
             )
 
     def test_shape_validation_wrong_mesh_dims(self) -> None:
         m = _slab_mesh()
         L = 1
-        with pytest.raises(ValueError, match="HarmonicMomentField expects"):
-            HarmonicMomentField(
+        with pytest.raises(ValueError, match="HarmonicMomentField.*does not match"):
+            HarmonicMomentField.from_mesh_and_L(
                 np.zeros((L + 1, 2 * L + 1, m.ng + 1, m.nx, m.ny)), m, L,
             )
 
@@ -108,6 +108,43 @@ class TestHarmonicMomentFieldConstruction:
         assert phi.ng == m.ng
         assert phi.nx == m.nx
         assert phi.ny == m.ny
+
+    def test_space_is_tensor_product_of_sh_and_cell_group(self) -> None:
+        r"""D-E invariant: the typed field's ``space`` is a
+        :class:`TensorProductSpace` whose factors are
+        ``SphericalHarmonicSpace(L)`` and a cell-group
+        :class:`FunctionSpace`.
+
+        This is the FIRST production consumer of D-B's
+        :class:`TensorProductSpace` primitive in a typed transport
+        Field. The moment-axis structure is type-visible via the
+        composition tree — consumers asking for ``L`` via the
+        composition-tree query (Issue #207) get the right answer:
+        ``phi.space.factors[0].L == phi.L``.
+        """
+        from orpheus.numerics.space import (
+            FunctionSpace, TensorProductSpace,
+        )
+        from orpheus.numerics.spaces.spherical_harmonic_space import (
+            SphericalHarmonicSpace,
+        )
+        m = _slab_mesh()
+        L = 2
+        phi = m.zeros_harmonic_moments(L=L)
+        # Space typing invariants.
+        assert isinstance(phi.space, TensorProductSpace)
+        assert len(phi.space.factors) == 2
+        # Factor 0: SphericalHarmonicSpace carrying the L parameter.
+        sh_factor = phi.space.factors[0]
+        assert isinstance(sh_factor, SphericalHarmonicSpace)
+        assert sh_factor.L == L
+        assert sh_factor.shape == (L + 1, 2 * L + 1)
+        # Factor 1: cell-group FunctionSpace.
+        cg_factor = phi.space.factors[1]
+        assert isinstance(cg_factor, FunctionSpace)
+        assert cg_factor.shape == (m.ng, m.nx, m.ny)
+        # Combined shape matches the field's data shape.
+        assert phi.space.shape == phi.values.shape
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -131,7 +168,7 @@ class TestHarmonicMomentFieldSlicing:
         vals = rng.standard_normal(
             (L + 1, 2 * L + 1, m.ng, m.nx, m.ny),
         )
-        phi = HarmonicMomentField(vals, m, L)
+        phi = HarmonicMomentField.from_mesh_and_L(vals, m, L)
         for l in range(L + 1):
             np.testing.assert_array_equal(
                 phi.l_block(l), vals[l, : 2 * l + 1],
@@ -152,7 +189,7 @@ class TestHarmonicMomentFieldSlicing:
         vals = rng.standard_normal(
             (L + 1, 2 * L + 1, m.ng, m.nx, m.ny),
         )
-        phi = HarmonicMomentField(vals, m, L)
+        phi = HarmonicMomentField.from_mesh_and_L(vals, m, L)
         iso = phi.isotropic_part()
         assert isinstance(iso, HarmonicMomentField)
         assert iso.L == L
@@ -170,7 +207,7 @@ class TestHarmonicMomentFieldSlicing:
         vals = rng.standard_normal(
             (L + 1, 2 * L + 1, m.ng, m.nx, m.ny),
         )
-        phi = HarmonicMomentField(vals, m, L)
+        phi = HarmonicMomentField.from_mesh_and_L(vals, m, L)
         aniso = phi.anisotropic_part()
         assert isinstance(aniso, HarmonicMomentField)
         # ℓ=0 m=0 slot zeroed.
@@ -189,7 +226,7 @@ class TestHarmonicMomentFieldSlicing:
         # exactly (the padding is not part of the legitimate
         # moment-space content).
         vals[0, 1:] = 0.0
-        phi = HarmonicMomentField(vals, m, L)
+        phi = HarmonicMomentField.from_mesh_and_L(vals, m, L)
         recombined = phi.isotropic_part() + phi.anisotropic_part()
         np.testing.assert_array_equal(recombined.values, vals)
 
@@ -207,7 +244,7 @@ class TestHarmonicMomentFieldScalarFlux:
         vals = rng.standard_normal(
             (L + 1, 2 * L + 1, m.ng, m.nx, m.ny),
         )
-        phi = HarmonicMomentField(vals, m, L)
+        phi = HarmonicMomentField.from_mesh_and_L(vals, m, L)
         sf = phi.scalar_flux()
         assert isinstance(sf, ScalarFlux)
         assert sf.values.shape == (m.ng, m.nx, m.ny)
@@ -239,7 +276,7 @@ class TestHarmonicMomentFieldScalarFlux:
             weights=m.quad.weights, Y=Y, L=L,
         )
         moments_values = M.apply(psi.values)
-        moments = HarmonicMomentField(moments_values, m, L)
+        moments = HarmonicMomentField.from_mesh_and_L(moments_values, m, L)
         sf_via_moments = moments.scalar_flux()
 
         np.testing.assert_allclose(
@@ -260,7 +297,7 @@ class TestHarmonicMomentFieldTruncate:
         vals = rng.standard_normal(
             (L + 1, 2 * L + 1, m.ng, m.nx, m.ny),
         )
-        phi = HarmonicMomentField(vals, m, L)
+        phi = HarmonicMomentField.from_mesh_and_L(vals, m, L)
         for L_new in range(L + 1):
             trunc = phi.truncate(L_new)
             assert trunc.L == L_new
@@ -297,8 +334,8 @@ class TestHarmonicMomentFieldAlgebra:
         m = _slab_mesh()
         L = 1
         shape = (L + 1, 2 * L + 1, m.ng, m.nx, m.ny)
-        a = HarmonicMomentField(np.ones(shape), m, L)
-        b = HarmonicMomentField(2.0 * np.ones(shape), m, L)
+        a = HarmonicMomentField.from_mesh_and_L(np.ones(shape), m, L)
+        b = HarmonicMomentField.from_mesh_and_L(2.0 * np.ones(shape), m, L)
         c = a + b
         assert isinstance(c, HarmonicMomentField)
         np.testing.assert_array_equal(c.values, 3.0 * np.ones(shape))
@@ -309,8 +346,8 @@ class TestHarmonicMomentFieldAlgebra:
         m = _slab_mesh()
         L = 1
         shape = (L + 1, 2 * L + 1, m.ng, m.nx, m.ny)
-        a = HarmonicMomentField(3.0 * np.ones(shape), m, L)
-        b = HarmonicMomentField(np.ones(shape), m, L)
+        a = HarmonicMomentField.from_mesh_and_L(3.0 * np.ones(shape), m, L)
+        b = HarmonicMomentField.from_mesh_and_L(np.ones(shape), m, L)
         c = a - b
         assert isinstance(c, HarmonicMomentField)
         np.testing.assert_array_equal(c.values, 2.0 * np.ones(shape))
@@ -319,7 +356,7 @@ class TestHarmonicMomentFieldAlgebra:
         m = _slab_mesh()
         L = 1
         shape = (L + 1, 2 * L + 1, m.ng, m.nx, m.ny)
-        a = HarmonicMomentField(np.ones(shape), m, L)
+        a = HarmonicMomentField.from_mesh_and_L(np.ones(shape), m, L)
         np.testing.assert_array_equal(
             (3.0 * a).values, (a * 3.0).values,
         )
@@ -331,7 +368,7 @@ class TestHarmonicMomentFieldAlgebra:
         m = _slab_mesh()
         L = 0
         shape = (L + 1, 2 * L + 1, m.ng, m.nx, m.ny)
-        a = HarmonicMomentField(2.0 * np.ones(shape), m, L)
+        a = HarmonicMomentField.from_mesh_and_L(2.0 * np.ones(shape), m, L)
         np.testing.assert_array_equal(
             (a / 2.0).values, np.ones(shape),
         )
@@ -340,14 +377,14 @@ class TestHarmonicMomentFieldAlgebra:
         m = _slab_mesh()
         L = 1
         shape = (L + 1, 2 * L + 1, m.ng, m.nx, m.ny)
-        a = HarmonicMomentField(np.ones(shape), m, L)
+        a = HarmonicMomentField.from_mesh_and_L(np.ones(shape), m, L)
         np.testing.assert_array_equal((-a).values, -np.ones(shape))
 
     def test_partner_must_be_same_type(self) -> None:
         m = _slab_mesh()
         L = 1
         shape = (L + 1, 2 * L + 1, m.ng, m.nx, m.ny)
-        a = HarmonicMomentField(np.ones(shape), m, L)
+        a = HarmonicMomentField.from_mesh_and_L(np.ones(shape), m, L)
         with pytest.raises(TypeError):
             a + 5  # not a HarmonicMomentField
 
@@ -356,8 +393,8 @@ class TestHarmonicMomentFieldAlgebra:
         m2 = _slab_mesh()  # distinct instance — same shape
         L = 1
         shape = (L + 1, 2 * L + 1, m1.ng, m1.nx, m1.ny)
-        a = HarmonicMomentField(np.ones(shape), m1, L)
-        b = HarmonicMomentField(np.ones(shape), m2, L)
+        a = HarmonicMomentField.from_mesh_and_L(np.ones(shape), m1, L)
+        b = HarmonicMomentField.from_mesh_and_L(np.ones(shape), m2, L)
         with pytest.raises(ValueError, match="mesh-bound"):
             a + b
 
@@ -365,7 +402,14 @@ class TestHarmonicMomentFieldAlgebra:
         m = _slab_mesh()
         a = m.zeros_harmonic_moments(L=1)
         b = m.zeros_harmonic_moments(L=2)
-        with pytest.raises(ValueError, match="matching"):
+        # Post-D-E: L mismatch surfaces as a space-equality error,
+        # because different L values produce different
+        # SphericalHarmonicSpace shapes, which propagates to different
+        # TensorProductSpace identities. Field._check_partner's space
+        # check fires before the explicit L check in
+        # HarmonicMomentField._check_partner. Both gate the same
+        # invariant; the space-level message is more general.
+        with pytest.raises(ValueError, match="equal space"):
             a + b
 
 
@@ -441,7 +485,7 @@ class TestRLambdaMRoundTrip:
         moments_values = rng.standard_normal(
             (L + 1, 2 * L + 1, mix.ng, nx, ny),
         )
-        moments = HarmonicMomentField(moments_values, sn_mesh, L)
+        moments = HarmonicMomentField.from_mesh_and_L(moments_values, sn_mesh, L)
 
         Lam = LegendreMomentScattering(
             mat_xs=op.mat_xs, L=L, skip_l0=True,
