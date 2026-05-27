@@ -105,7 +105,7 @@ These statements are the audit memo's findings, restated for the planner.
 
 8. **The boundary tower** (`orpheus/geometry/boundary.py`, `orpheus/sn/boundary_realizer.py`, `orpheus/diffusion/boundary_realizer.py`) already has `BoundaryOperator` + `BoundaryTraceLaw` + `BoundaryRealizer`. **Already partially aligned with grand-report §16A.** Out-of-scope direct consumers (e.g., `boundary_trace_space()` factory) can be retired.
 
-9. **Operators returning bare ndarray** (`SNStreamingOperator.apply`, `LegendreMomentScattering.apply`, `MomentProjection.apply` — the LAST is the most embarrassing since its `codomain` is already typed) are the migration target for Depth-B's "operator-side completion" phase (Step D-G below).
+9. **Operators returning bare ndarray** (`LegendreMomentScattering.apply`, `MomentProjection.apply` — the LAST is the most embarrassing since its `codomain` is already typed) are the migration target for Depth-B's "operator-side completion" phase (Step D-I below). NOTE: `SNStreamingOperator` (the legacy `L + C` bundle from pre-Phase-G) is on the retirement queue and is OUT OF SCOPE for Depth B's typed-fields wire-up — the modern algebraic path is `(L + C).apply` where `L = StreamingOperator` and `C = CollisionOperator` compose into `InvertibleOperator(OperatorSum)` (see `orpheus/sn/operator.py:1801, 2170, 2412`). `StreamingOperator.apply` already accepts typed `AngularFlux` per the R-1 Step 3d signature.
 
 ---
 
@@ -650,7 +650,7 @@ The audit identified the targets:
 
 3. **`ScatteringOperator.apply` / `FissionOperator.apply` `@singledispatchmethod`** — KEEP the dispatch table. KEEP the `apply(AngularFlux)` and `apply(ScalarFlux)` handlers (genuine storage-axis polymorphism per §3.7). RETIRE the `apply(np.ndarray)` handler.
 
-4. **`SNStreamingOperator.apply(psi: np.ndarray) -> np.ndarray`** (`orpheus/sn/operator.py:1506`) — packed-vector path for scipy.gmres. KEEP as the L4 NUMERICAL PRIMITIVE for the GMRES adapter (it's not really an "operator apply"; it's a packed-vector matvec for the iterative solver). The L2 typed entry is `StreamingOperator.apply(psi: AngularFlux)` at line 1801. Document the split as "L4 packed-vector primitive vs L2 typed entry."
+4. **`StreamingOperator.apply` (modern, `orpheus/sn/operator.py:1801`)** already accepts typed `AngularFlux` per the R-1 Step 3d signature. The bare-ndarray branch inside it is the L4 packed-vector path for scipy.gmres — out of scope for Depth B (retires with the GMRES adapter rewrite, separately). Note: `SNStreamingOperator` (the legacy `L + C` bundle, `operator.py:1329`) is OUT OF SCOPE here — it's on the retirement queue from Phase G substep 3+4.c. The modern algebraic path is `(L + C).apply` where `L + C` composes into `InvertibleOperator` (`operator.py:2412`) carrying both `apply` (forward matvec) and `solve` (transport sweep). Depth B's typed-field wire-up targets `StreamingOperator` (the modern leaf), not `SNStreamingOperator` (the legacy bundle).
 
 These changes are NOT bit-identical at the API boundary (signatures change, ndarray entry points retire), but ARE bit-identical at the numerical level (same algorithm, same ndarray-level reductions inside each handler). The verification: every L1 MMS gate + every regression snapshot stays GREEN.
 
@@ -674,18 +674,48 @@ This is the **production safety net** for dimensional consistency — Layer 3 (`
 
 Recommended sequence — each step is a single commit, lands with verification gates green at every commit. Order chosen for monotonic dependency: L1 first, then field-by-field migration in size order (smallest first), then operator completion.
 
+**Execution status (2026-05-27):**
+
+| Step | Status | Commit |
+|---|---|---|
+| D-A | LANDED | `1e0bb98` (Field ABC + FunctionSpace.units + pint) |
+| D-C | LANDED | `469ea15` (trace_space moved to numerics/spaces/) |
+| D-D | LANDED | `53bc986` (ScalarFlux migrated to L2 + inherits Field) |
+| D-B | NEXT | (TensorProductSpace L1 primitive — promoted from optional to load-bearing) |
+| D-B+1 | NEXT | (specular BC tensor-network — first production instance) |
+| D-E through D-K | PENDING | (in logical order below) |
+
+The execution order is dependency-driven, not strictly top-to-bottom of this section. D-A had to land first (Field ABC). D-C (trace_space move) and D-D (ScalarFlux migration) followed because they only depended on D-A. D-B is the next foundational step — TensorProductSpace unlocks Wave T (which follows Depth B) and enables D-E's HarmonicMomentField to use product-space typing cleanly. D-B+1 ships the first tensor-network instance, validating the abstraction before subsequent steps generalise.
+
+
 ### Step D-A — L1 Field ABC (foundational)
 - Create `orpheus/numerics/field.py` with the `Field` ABC per §3.2.
 - Add unit tests in `tests/numerics/test_field.py` for the ABC algebra: same-space `+/-/*/neg`, cross-type rejection, cross-space rejection, inner_product, copy, linf, l2.
 - Add `Field` to `orpheus/numerics/__init__.py` exports.
 - **Verification**: `tests/numerics/test_field.py` PASS. P3.1 linter stays green. No production code changes (the ABC has no consumers yet).
 
-### Step D-B — L1 Space algebra (optional in this phase)
-- Add `FunctionSpace.__mul__` → `TensorProductSpace`.
-- Add `FunctionSpace.dual()` → `DualSpace`.
-- DEFER `__add__` (DirectSumSpace) per "unify after two instances" — it lands with Phase 3.6 if a second use case appears.
-- **Verification**: `tests/numerics/test_space.py` extends with tensor-product + dual tests. PASS.
-- **OPTIONAL**: this step can be skipped if §6's Field migration doesn't need TensorProductSpace yet (it doesn't — every field has a flat shape).
+### Step D-B — L1 `TensorProductSpace` primitive (LOAD-BEARING)
+
+**Promoted from optional to load-bearing** (per architectural reassessment 2026-05-27, recorded in conversation). The grand report §15.1-15.2, §16A.10, and the north-star statement (line 5697) all frame neutron transport as "an algebra of ... tensor products ...". Today the codebase has shipped `TensorProductOperator`, `SumOfTensorProductsOperator`, and the `&` dunder at `orpheus/numerics/operator.py:1004-1216`, but ZERO production consumers exist. `TensorProductSpace` is the missing L1 primitive that types the *codomain* of these operators — without it, the operator algebra cannot express the §16A.10 BC tensor-network decomposition, the §15.2 scattering decomposition, or the §15.1 streaming decomposition. D-B unlocks D-B+1 (the first production tensor-network instance) and the entire Wave T that follows Depth B.
+
+Scope:
+- Add `FunctionSpace.__mul__(other) -> TensorProductSpace((self, other))`.
+- Add `TensorProductSpace(FunctionSpace)` as a frozen dataclass with `factors: tuple[FunctionSpace, ...]`, derived `name`, `shape = tuple(chain.from_iterable(f.shape for f in factors))`, and an `inner_product` that respects per-factor weights along each factor's axis range.
+- Add `FunctionSpace.dual()` → `DualSpace` (small additive — used by adjoint operator wiring).
+- DEFER `__add__` (`DirectSumSpace`) per "unify after two instances" — lands with Phase 3.6 if a second use case appears.
+- **Verification**: `tests/numerics/test_space.py` (or new `test_space_algebra.py`) extends with: associativity of `*`, shape composition law, inner-product factorisation along factor axes, dual idempotency. ~50 LoC of code, ~150 LoC of tests.
+
+### Step D-B+1 — first production tensor-network instance (SPECULAR BC)
+
+Rewires `SNBoundaryRealizer` for the specular case from `PermutationOperator(perm, axis=0)` to `PermutationOperator(perm) & IdentityOperator() & IdentityOperator()` — a 3-factor `TensorProductOperator` with the angular permutation as the only non-trivial factor (the `I_group ⊗ I_face` factors capture the implicit numpy broadcasting that the legacy single-axis form left untyped).
+
+Scope:
+- `orpheus/sn/boundary_realizer.py:149-156` — change the realised operator from `PermutationOperator(perm, axis=0)` (optionally wrapped in `ScaledOperator(albedo, ·)`) to `TensorProductOperator((P_angle, I_group, I_face))` (optionally `ScaledOperator(α, P_angle & I_group & I_face)`).
+- `is_involution=True` is propagated as a per-factor property (the angular permutation factor IS the involution; the I factors are identity-involutive).
+- Add postcondition assertion: the returned operator's `domain.shape == codomain.shape == boundary_trace_space.shape` (impossible to encode with the legacy single-axis form).
+- **Verification**: bit-identical `.apply` (`TensorProductOperator` folds factors and `IdentityOperator.apply(x) == x`; the inner `np.take(x, perm, axis=0)` call is unchanged). `tests/sn/test_boundary_realizer.py` reflective-BC tests gain `isinstance(result, TensorProductOperator)` assertion and `result.assert_separable()` call.
+
+D-B+1 ships INSTANCE #1 of the tensor-network pattern in production. INSTANCES #2-#5 (other BCs — vacuum, periodic, white, albedo) land in Wave T.1, with the abstraction settled before generalisation per `[[feedback_unify_after_two_instances]]`.
 
 ### Step D-C — Move `trace_space.py` into `numerics/spaces/`
 - Per P3.2 plan (already scheduled): move `orpheus/numerics/trace_space.py` → `orpheus/numerics/spaces/trace_space.py`.
@@ -749,7 +779,7 @@ Per §3.7 policy, the `@singledispatchmethod` dispatch tables on `ScatteringOper
 - **`LegendreMomentScattering.apply`** — refactor the `ndarray | HarmonicMomentField` union into a `@singledispatchmethod` with ONE handler (`apply(HarmonicMomentField)`). Retire the ndarray branch.
 - **`ScatteringOperator.apply`** — KEEP the dispatch table. KEEP `apply(AngularFlux)` and `apply(ScalarFlux)` handlers. **Retire only the `apply(np.ndarray)` handler.** Tests migrate to `AngularFlux.from_ndarray(...)` / `ScalarFlux.from_ndarray(...)` + typed dispatch.
 - **`FissionOperator.apply`** — same pattern as ScatteringOperator. Keep dispatch table; retire ndarray handler.
-- **`SNStreamingOperator.apply(psi: np.ndarray) -> np.ndarray`** (`orpheus/sn/operator.py:1506`) — KEEP as the L4 packed-vector primitive for scipy.gmres. Document as "the GMRES adapter primitive — not a Field operator." The typed `StreamingOperator.apply(psi: AngularFlux)` at line 1801 is the L2 user-facing entry.
+- **`StreamingOperator.apply` (modern, `operator.py:1801`)** — already accepts typed `AngularFlux`. The bare-ndarray branch is the L4 GMRES adapter primitive and is out of scope for Depth B (separate GMRES adapter cleanup wave). `SNStreamingOperator` (legacy `L + C` bundle, `operator.py:1329`) is on the retirement queue and is NOT a Depth B target — the modern `(L + C).apply` via `InvertibleOperator(OperatorSum)` is the algebraic path.
 - **Add `from_ndarray` factory methods** on every typed Field: `AngularFlux.from_ndarray(arr, mesh)`, `ScalarFlux.from_ndarray(arr, mesh)`, etc. Constructs a typed instance with the appropriate space. Replaces test-side bare-ndarray usage.
 
 **Verification**: every L1 MMS gate stays green. The 10 DD-regression failures stay AT the same failure set. Type-checker (mypy/pyright if configured) reports zero new errors on the typed call sites. The `@singledispatchmethod` tables still have 2 handlers each (AngularFlux + ScalarFlux), down from 3 (was: + ndarray).
@@ -933,15 +963,24 @@ P3.4 directly consumes Depth B's typed Fields:
 
 The Layer 2 construction-time dimensional check (Depth B §5) is the FIRST check `PowerIteration` does on its problem — verifying the operator algebra makes dimensional sense before any iteration runs.
 
-### 11.3 Sequence after P3.4
+### 11.3 Sequence after Depth B — Wave T precedes P3.4
 
-The parent plan's REVISED Phase 3 sequencing (per its §"Sequencing within Phase 3 (REVISED post-Phase-1 per QA learnings)"):
+The parent plan's REVISED Phase 3 sequencing was extended on 2026-05-27 to insert **Wave T (Tensor-Network Operator Algebra)** between Depth B and P3.4:
 
 ```text
-P3.1 ✓  → P3.5 ✓  → P3.0 ✓  → P3.2 ✓  → [Depth B = P3.3] → P3.4 → P3.6
-                                          ↑                  ↑      ↑
-                                          THIS PLAN          NEXT   LAST
+P3.1 ✓ → P3.5 ✓ → P3.0 ✓ → P3.2 ✓ → [Depth B = P3.3] → Wave T → P3.4 → P3.6
+                                       ↑                  ↑       ↑     ↑
+                                       THIS PLAN          NEW     NEXT  LAST
 ```
+
+**Wave T** is the load-bearing consumer of the `TensorProductOperator` / `SumOfTensorProductsOperator` / `TensorProductSpace` infrastructure shipped here (D-B) and in `numerics/operator.py:1004-1216`. Today that infrastructure has ZERO production consumers; Wave T rewires the BC realizers, fission, scattering, and modern `StreamingOperator.apply` to use the algebra natively. Detailed plan: `.claude/plans/wave_t_tensor_network.md`. Wave T substeps (concrete forms):
+
+- **T.1** — Remaining BC realizers (vacuum, periodic, white, albedo) as `K_factor ⊗ I_group ⊗ I_face` (extends D-B+1 specular).
+- **T.2** — Fission `F = χ ⊗ νΣ_f` as rank-1 `TensorProductOperator`.
+- **T.3** — Scattering `Σ_ℓ Σ_ℓ ⊗ A_ℓ ⊗ G_ℓ` per §15.2 as `SumOfTensorProductsOperator`.
+- **T.4** — `StreamingOperator.apply` as `L_spatial + L_angular_redist` per the connection-coefficient framing (`geometry/reduced_operator.py:1-30`). Universal across slab/sphere/cylinder; slab degenerates to `ZeroOperator` for `L_angular_redist`.
+
+Wave T's dependency: Depth B complete (typed Fields available as operator domain/codomain). Wave T's exit: P3.4 (Problem/Solver split). T.4 may surface complications when curvilinear specifics resist clean factoring — face difficulties as they come; the architectural commitment to one algebraic form across geometries is non-negotiable.
 
 **P3.6 (kinetics restructure)** is the LAST step. It dissolves `kinetics/` into `transport/problems/initial_value.py` + `numerics/solvers/time_stepping.py`. It also lands `DirectSumSpace` (the deferred grand-report §5.3 primitive) when it needs `flux ⊕ precursors`. P3.6 closes Phase 3.
 
