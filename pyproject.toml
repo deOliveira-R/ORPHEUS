@@ -13,6 +13,7 @@ dependencies = [
     "matplotlib>=3.8",
     "pyXSteam>=0.4",
     "h5py>=3.9",
+    "pint>=0.20",
 ]
 
 [project.optional-dependencies]

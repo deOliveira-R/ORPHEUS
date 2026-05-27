@@ -834,20 +834,22 @@ The plan's units machinery enforces dimensional consistency at three layers, eac
 
 | Layer | When it runs | Cost | What it catches |
 |---|---|---|---|
-| **L1 — class identity in `Field._check_partner`** | Every dunder operation, BOTH `pytest` and `python -O -m pytest` | O(1) type comparison | `AngularFlux + AngularSource` (cross-class), `ScalarFlux + IsotropicSource` (cross-class). Foundational — never stripped. |
+| **L1 — class identity in `Field._check_partner`** | Every dunder operation, BOTH `python -O -m pytest` and `pytest` | O(1) type comparison | `AngularFlux + AngularSource` (cross-class), `ScalarFlux + IsotropicSource` (cross-class). Foundational — never stripped. |
 | **L2 — dimensional check at solver/operator construction** | Once per `SourceIteration.__init__` / `KrylovAcceleration.__init__` / `OperatorProduct.__init__`, BOTH modes | O(1) `pint.Unit.dimensionality` comparison per operator (~microseconds total per build) | Solver wired with dimensionally-inconsistent operators (e.g., `L.codomain.units` doesn't match `q_ext.space.units`). Production safety net. |
-| **L3 — defensive `assert` in dunders + composition sites** | Every dunder, ONLY `pytest` (stripped in `-O`) | Zero in production; small in development | Class/units misdesign (a class declared with wrong units); manual-construction bugs where someone hand-builds a Field with mismatched space.units. Defense in depth. |
+| **L3 — defensive `assert` in dunders + composition sites** | Every dunder, ONLY debug-mode `pytest` (stripped in `-O`) | Zero in production; small in development | Class/units misdesign (a class declared with wrong units); manual-construction bugs where someone hand-builds a Field with mismatched space.units. Defense in depth. |
 
-**CI matrix** runs both modes:
+**CI matrix** (per `[[default-test-mode-is-optimize]]` — `-O` is canonical):
 
 ```yaml
-test-debug:
-  run: pytest tests/             # Layer 3 active — full coverage
-test-optimized:
-  run: python -O -m pytest tests/ # Layer 3 stripped — verifies production path works without debug-only side effects
+test-optimized (PRIMARY — runs the full suite):
+  run: python -O -m pytest tests/         # Layer 3 stripped — production-like
+test-debug (NARROW — exercises Layer 3 catches only):
+  run: pytest tests/ -m "layer3_dynamic"  # Layer 3 active — pins debug-only behaviour
 ```
 
-**Layer 3 implementation** uses `assert` statements (idiomatic, bytecode-stripped in `-O`) rather than `if __debug__:` blocks (equally stripped but more verbose). Both produce the same bytecode in `-O` mode.
+Most tests are mode-agnostic and pass under both invocations. Tests that exercise Layer 3 dimensional-check-on-the-fly are marked with `@pytest.mark.skipif(not __debug__, …)`; their companion strip-verification tests use `@pytest.mark.skipif(__debug__, …)`. The pair toggles which one runs based on mode — no test runs twice.
+
+**Layer 3 implementation** uses `assert` statements (idiomatic, bytecode-stripped in `-O`) rather than `if __debug__:` blocks (equally stripped but more verbose). Both produce the same bytecode in `-O` mode. pytest's own assertion rewriting still works under `-O` for `assert` inside `test_*.py` files (rewritten at AST level); only production-code asserts under `orpheus/` get stripped — exactly the asymmetry that makes Layer 3 work.
 
 **`pint` import policy.** `pint >= 0.20` is a normal production dependency (added to `pyproject.toml` in step D-A). `import pint` at module load — ~100ms once at startup, irrelevant on simulation timescales. NO lazy import; lazy import was considered and rejected because it would force `units: str` (losing typed-ness) and add string-parsing overhead at every dimensional check.
 

@@ -160,10 +160,95 @@ Real spherical harmonics:
   \cdot \Omega')`. See :ref:`spherical-harmonics`.
 
 
+Field algebra (Depth B, step D-A)
+---------------------------------
+
+.. _field-algebra:
+
+The :class:`~orpheus.numerics.field.Field` ABC is the L1 algebraic
+base of every typed transport field — angular flux, scalar flux,
+spherical-harmonic moments, boundary traces, sources, residuals. It
+codifies the Grand Report v3 §5.5 / §32.5 prescription:
+
+   *Every typed transport field is the pair ``(values, space)`` with
+   closed same-CLASS, same-SPACE arithmetic.*
+
+The ABC carries the dunder algebra (``+``, ``-``, ``-`` unary, scalar
+``*``, scalar ``/``) and the diagnostics (``linf``, ``l2``,
+``inner_product``) inherited unchanged by every concrete subclass.
+Subclasses add domain-specific fields (``mesh``, ``boundary``,
+``history``) on top of the ``(values, space)`` base; the algebra is
+inherited verbatim via :func:`dataclasses.replace`. The same
+hand-coded dunder skeleton that previously lived in six separate
+classes (``AngularFlux``, ``ScalarFlux``, ``HarmonicMomentField``,
+``BoundaryFlux``, ``IsotropicSource``, ``PerOrdinateSource``) is
+consolidated here — Cardinal Rule 2 (single source of truth).
+
+**Three-layer dimensional enforcement.** Dimensional consistency is
+gated at three layers, each with a different cost / coverage trade-off:
+
+* **Layer 1 — class identity.**
+  :meth:`~orpheus.numerics.field.Field._check_partner` rejects
+  ``type(self) is not type(other)`` before any value comparison. This
+  is the *primary* gate: even when units match (an ``AngularSource``
+  and an ``AngularResidual`` may both carry
+  :math:`1/(\mathrm{cm^2 \cdot s \cdot sr \cdot eV})`),
+  cross-class arithmetic raises by construction. Same units gives
+  PERMISSION to add in linear algebra; it does not give MEANING.
+* **Layer 2 — construction-time dimensional check.** Solvers like
+  :class:`~orpheus.numerics.iteration.SourceIteration` do a single
+  :math:`O(1)` ``pint.Unit.dimensionality`` comparison per operator at
+  ``__init__`` to verify the operator algebra is dimensionally sound
+  before any iteration runs. Cost: microseconds per build. ALWAYS
+  runs (both default ``python -O -m pytest`` and ``pytest``).
+* **Layer 3 — defensive assert in dunders.** Inside
+  ``_check_partner``, ``assert self.space.units == other.space.units``
+  catches the rare class/units misdesign (two instances of the same
+  class whose spaces nonetheless carry inconsistent unit STRINGS — e.g.
+  one in :math:`1/\mathrm{cm}^2`, one in :math:`1/\mathrm{m}^2` — same
+  dimensionality, different scaling). Stripped in ``-O`` mode; defense
+  in depth during development.
+
+Together these layers make dimensional-mismatch bugs unrepresentable
+without paying the cost of full ``pint.Quantity`` arithmetic on every
+ndarray operation.
+
+**Class identity for cross-class same-units operations.** When two
+distinct Field subclasses share a dimensional signature, arithmetic
+between them MUST go through an explicit *named composition* — a
+factory method that constructs the result with a definite physical
+interpretation. The canonical example (planned with Issue #201):
+
+.. code-block:: python
+
+    # FORBIDDEN — cross-class arithmetic raises TypeError:
+    iteration_residual = angular_residual - angular_source
+
+    # REQUIRED — named composition with explicit physical meaning:
+    iteration_residual = IterationResidual.from_balance(
+        lhs=angular_residual, rhs=angular_source,
+    )
+
+The named-composition discipline IS what makes the Field algebra
+sound under physical interpretation — ``coding-elegance`` Pattern 4
+(illegal states unrepresentable) takes its strictest form here.
+
+See the Depth B plan
+(``.claude/plans/depth_b_field_on_function_space.md``) §3.2 for the
+ABC spec, §3.7 for the singledispatch policy that consumes ``Field``
+in operator apply, §5 for the Layer 2 construction-time check, and
+§7.5 for the full CI matrix.
+
+
 API Reference
 -------------
 
 .. automodule:: orpheus.numerics.eigenvalue
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: orpheus.numerics.field
    :members:
    :undoc-members:
    :show-inheritance:

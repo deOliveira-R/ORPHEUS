@@ -1,6 +1,7 @@
 """Model-independent numerical methods for reactor physics."""
 
 from .eigenvalue import EigenvalueSolver, power_iteration
+from .field import Field
 from .iteration import KEigenvalue, SourceIteration
 from .measure import (
     BundleMeasure,
@@ -48,6 +49,7 @@ __all__ = [
     "DiscreteMeasure",
     "DiscreteMeasurePartition",
     "EigenvalueSolver",
+    "Field",
     "GalerkinProjection",
     "HarmonicMomentReconstruction",
     "MomentProjection",

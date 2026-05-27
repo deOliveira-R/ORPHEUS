@@ -76,6 +76,7 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional
 
 import numpy as np
+import pint
 from numpy.typing import NDArray
 
 __all__ = [
@@ -111,31 +112,54 @@ class FunctionSpace:
         weights along the ordinate axis of an angular-flux space).
         ``None`` selects the Euclidean inner product
         :math:`\sum_i x_i \, y_i`.
+    units : pint.Unit | None, default None
+        Dimensional label of every :class:`~orpheus.numerics.field.Field`
+        that lives on this space. Two spaces with the same
+        ``(name, shape)`` but different ``units.dimensionality`` are
+        structurally different mathematical objects — :meth:`__eq__`
+        returns ``False`` in that case so :class:`Field` arithmetic
+        across them raises. ``None`` is a permissive sentinel that
+        opts out of dimensional checking (treated as compatible with
+        any other units in :meth:`__eq__`).
 
     Notes
     -----
     The class is **frozen**. Two function spaces are considered
-    identical iff their ``(name, shape)`` tuple matches; weights are
-    metadata that affect the inner product but not the identity of
-    the space. This convention matches the abstract-vector-space
-    framing where two copies of :math:`\mathbb{R}^n` are "the same"
-    space regardless of which inner product is installed.
+    identical iff their ``(name, shape)`` tuple matches AND their
+    ``units.dimensionality`` matches (when both sides set units).
+    Inner-product weights are metadata that affect the inner product
+    but not the identity of the space — this matches the abstract-
+    vector-space framing where two copies of :math:`\mathbb{R}^n` are
+    "the same" space regardless of which inner product is installed.
+
+    Hashing is on ``(name, shape)`` only; units do not participate.
+    Two spaces with the same ``(name, shape)`` but incompatible
+    dimensionality will collide in dict keys but resolve via the
+    ``__eq__`` dimensionality check — Python's hashable contract
+    (equal-implies-same-hash) is preserved.
     """
 
     name: str
     shape: tuple[int, ...]
     inner_product_weights: Optional[NDArray] = field(default=None, repr=False)
+    units: Optional[pint.Unit] = field(default=None)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, FunctionSpace):
             return NotImplemented
-        return self.name == other.name and self.shape == other.shape
+        if self.name != other.name or self.shape != other.shape:
+            return False
+        if self.units is None or other.units is None:
+            return True
+        return self.units.dimensionality == other.units.dimensionality
 
     def __hash__(self) -> int:
         return hash((self.name, self.shape))
 
     def __repr__(self) -> str:
-        return f"FunctionSpace({self.name!r}, shape={self.shape})"
+        if self.units is None:
+            return f"FunctionSpace({self.name!r}, shape={self.shape})"
+        return f"FunctionSpace({self.name!r}, shape={self.shape}, units={self.units!s})"
 
     # ------------------------------------------------------------------
     # Inner product / norm
