@@ -38,6 +38,7 @@ from .projection import (
     ProjectionOperator,
     ReconstructionOperator,
 )
+from .space import DualSpace, FunctionSpace, TensorProductSpace
 from .symmetry import SubgroupOfO3
 
 __all__ = [
@@ -48,8 +49,10 @@ __all__ = [
     "DiagonalOperator",
     "DiscreteMeasure",
     "DiscreteMeasurePartition",
+    "DualSpace",
     "EigenvalueSolver",
     "Field",
+    "FunctionSpace",
     "GalerkinProjection",
     "HarmonicMomentReconstruction",
     "MomentProjection",
@@ -69,6 +72,7 @@ __all__ = [
     "SubgroupOfO3",
     "SumOfTensorProductsOperator",
     "TensorProductOperator",
+    "TensorProductSpace",
     "ZeroOperator",
     "as_scipy_linop",
     "equispaced",

@@ -80,7 +80,9 @@ import pint
 from numpy.typing import NDArray
 
 __all__ = [
+    "DualSpace",
     "FunctionSpace",
+    "TensorProductSpace",
     "angular_flux_space",
     "scalar_flux_space",
     "boundary_trace_space",
@@ -194,6 +196,246 @@ class FunctionSpace:
         r"""Return the induced :math:`L^2` norm
         :math:`\sqrt{\langle x, x \rangle}`."""
         return float(np.sqrt(self.inner_product(x, x)))
+
+    # ------------------------------------------------------------------
+    # Space algebra (Depth B step D-B)
+    # ------------------------------------------------------------------
+
+    def __mul__(self, other: "FunctionSpace") -> "TensorProductSpace":
+        r"""Return the tensor product :math:`V \otimes W` of this space
+        with ``other``.
+
+        Implements ``V * W`` per grand-report §6.1: the resulting
+        :class:`TensorProductSpace` carries the concatenated shape
+        ``self.shape + other.shape``, the outer-product inner-product
+        weights, and the multiplied units. Associative on its inputs:
+        ``(A * B) * C`` and ``A * (B * C)`` both produce a flat
+        3-factor :class:`TensorProductSpace`.
+
+        Loadbearing for the Wave T tensor-network rewires per the
+        grand report §15.1 (streaming as
+        :math:`L = \sum_{\text{axis}} D_{\text{axis}} \otimes \Omega_{\text{axis}} \otimes I_g`)
+        and §16A.10 (boundary as
+        :math:`B = G_{\text{patch}} \otimes K_\omega \otimes K_g`).
+        See ``.claude/plans/depth_b_field_on_function_space.md`` §6
+        step D-B for the design.
+        """
+        if not isinstance(other, FunctionSpace):
+            return NotImplemented
+        self_factors = (
+            self.factors if isinstance(self, TensorProductSpace) else (self,)
+        )
+        other_factors = (
+            other.factors if isinstance(other, TensorProductSpace) else (other,)
+        )
+        return TensorProductSpace.from_factors(self_factors + other_factors)
+
+    def dual(self) -> "DualSpace":
+        r"""Return the dual space :math:`V^*`.
+
+        Under L²-Riesz identification (the standard ORPHEUS setting
+        where every :class:`FunctionSpace` carries an inner product),
+        :math:`V^*` is isomorphic to :math:`V` itself with a covariance
+        tag for bra-ket-style composition tracking. The dual carries
+        the same shape, weights, and units as the primal; its
+        ``primal`` attribute holds a reference back.
+
+        Used by the Hilbert-adjoint machinery
+        (:meth:`~orpheus.numerics.operator.LinearOperator.adjoint`,
+        ``A.H``) to track which spaces are codomain-sourced vs
+        domain-sourced through operator composition.
+        """
+        return DualSpace.of(self)
+
+
+# ---------------------------------------------------------------------------
+# Tensor-product and dual space (Depth B step D-B)
+# ---------------------------------------------------------------------------
+
+
+def _tensor_product_inner_weights(
+    factors: tuple["FunctionSpace", ...],
+) -> Optional[NDArray]:
+    r"""Compute the outer-product inner-product weights of a tensor product.
+
+    For factors with weights :math:`w_1, w_2, \ldots, w_k`, the tensor-
+    product weights tensor has shape ``factors[0].shape + factors[1].shape
+    + ...`` with entries
+    :math:`W[i_1, i_2, \ldots, i_k] = w_1[i_1] \cdot w_2[i_2] \cdots w_k[i_k]`.
+    Factor weights ``None`` (Euclidean) contribute identity (ones broadcast
+    to the factor shape). If ALL factors are Euclidean, the result is
+    ``None`` (preserving the Euclidean default — no allocation).
+    """
+    if all(f.inner_product_weights is None for f in factors):
+        return None
+    result: Optional[NDArray] = None
+    for f in factors:
+        w = (
+            f.inner_product_weights
+            if f.inner_product_weights is not None
+            else np.ones(f.shape)
+        )
+        w = np.broadcast_to(w, f.shape)
+        result = w if result is None else np.multiply.outer(result, w)
+    return result
+
+
+def _tensor_product_units(
+    factors: tuple["FunctionSpace", ...],
+) -> "pint.Unit | None":
+    r"""Multiply the units of the factors via pint's unit algebra.
+
+    :math:`V_1 \otimes V_2 \otimes \cdots` lives in units that are the
+    product of the factor units. If any factor has ``units=None``, the
+    product is ``None`` (cannot infer; documented gap).
+    """
+    if any(f.units is None for f in factors):
+        return None
+    result = factors[0].units
+    for f in factors[1:]:
+        result = result * f.units
+    return result
+
+
+@dataclass(frozen=True)
+class TensorProductSpace(FunctionSpace):
+    r"""A function space that decomposes as
+    :math:`V = V_1 \otimes V_2 \otimes \cdots \otimes V_k`.
+
+    The tensor-product structure makes algebraic identities of operators
+    on this space (adjoint distributivity, composition distributivity,
+    representation polymorphism) checkable at the type level. See grand-
+    report §5.3, §15, §32.4 for the L1 motivation; see
+    ``.claude/plans/wave_t_tensor_network.md`` for the production
+    consumers being wired in Wave T.
+
+    Construction
+    ------------
+    Two equivalent paths:
+
+    * **Operator-algebra dispatch** — ``A * B`` where ``A`` and ``B``
+      are :class:`FunctionSpace` instances returns a
+      :class:`TensorProductSpace`. The dunder is associative on its
+      inputs (``(A * B) * C`` flattens to a 3-factor product, never
+      nests).
+    * **Explicit factory** — :meth:`from_factors` with a tuple of
+      factor spaces.
+
+    Notes
+    -----
+    The class is **frozen**. Identity is the inherited
+    ``(name, shape, units.dimensionality)`` tuple, where ``name`` and
+    ``shape`` are derived from the factors. Two
+    :class:`TensorProductSpace` instances with the same factor sequence
+    compare equal even if reached via different composition paths.
+
+    The ``factors`` field is metadata that supports introspection (e.g.,
+    operator-algebra factor matching for ``(A & B) ∘ (C & D)`` rewriting)
+    and is not part of the identity.
+
+    Parameters
+    ----------
+    factors : tuple[FunctionSpace, ...]
+        The factor spaces, in order. Should have ``len >= 2`` for a
+        meaningful tensor product; trivial 1-factor TensorProductSpaces
+        are permitted by the dataclass but produced only via the
+        :meth:`__mul__` flattening edge cases.
+    """
+
+    factors: tuple["FunctionSpace", ...] = field(default=(), compare=False, repr=False)
+
+    @classmethod
+    def from_factors(
+        cls, factors: tuple["FunctionSpace", ...],
+    ) -> "TensorProductSpace":
+        r"""Construct a :class:`TensorProductSpace` from a tuple of factor
+        spaces.
+
+        Derives:
+        * ``name`` from ``" ⊗ ".join(f.name for f in factors)``
+        * ``shape`` from concatenated factor shapes
+        * ``inner_product_weights`` from the outer product of factor
+          weights (``None`` if all factors are Euclidean)
+        * ``units`` from the product of factor units (``None`` if any
+          factor is unitless)
+        """
+        if len(factors) < 2:
+            raise ValueError(
+                f"TensorProductSpace.from_factors requires at least 2 "
+                f"factors; got {len(factors)}"
+            )
+        name = " ⊗ ".join(f.name for f in factors)
+        shape: tuple[int, ...] = ()
+        for f in factors:
+            shape = shape + f.shape
+        return cls(
+            name=name,
+            shape=shape,
+            inner_product_weights=_tensor_product_inner_weights(factors),
+            units=_tensor_product_units(factors),
+            factors=factors,
+        )
+
+    def __repr__(self) -> str:
+        if self.units is None:
+            return f"TensorProductSpace({self.name!r}, shape={self.shape})"
+        return (
+            f"TensorProductSpace({self.name!r}, shape={self.shape}, "
+            f"units={self.units!s})"
+        )
+
+
+@dataclass(frozen=True)
+class DualSpace(FunctionSpace):
+    r"""The dual :math:`V^*` of a :class:`FunctionSpace`.
+
+    Under L²-Riesz identification (the standard ORPHEUS setting where
+    every :class:`FunctionSpace` carries an inner product),
+    :math:`V^*` is isomorphic to :math:`V` itself but carries a
+    covariance tag that the operator-algebra layer reads through to
+    track which spaces participate as bras vs. kets in composition
+    chains. The dual carries the same ``shape``, ``inner_product_weights``,
+    and ``units`` as the primal; the ``primal`` field is the
+    introspection link.
+
+    Used by the Hilbert-adjoint machinery
+    (:meth:`~orpheus.numerics.operator.LinearOperator.adjoint`,
+    ``A.H``) — taking ``A.H`` swaps domain ↔ codomain AND flips both
+    to their duals, so the adjoint's domain is the original's codomain
+    dual.
+
+    Notes
+    -----
+    ``V.dual().dual() == V`` is enforced by :meth:`of` recognising a
+    :class:`DualSpace` argument and returning its primal (idempotency).
+
+    Parameters
+    ----------
+    primal : FunctionSpace
+        The primal space :math:`V` of which this is the dual.
+    """
+
+    primal: Optional["FunctionSpace"] = field(default=None, compare=False, repr=False)
+
+    @classmethod
+    def of(cls, primal: "FunctionSpace") -> "FunctionSpace":
+        r"""Construct the dual of ``primal``.
+
+        Idempotent: ``of(of(V)) == V`` (returns the primal of a passed
+        :class:`DualSpace`, never wraps twice).
+        """
+        if isinstance(primal, DualSpace):
+            return primal.primal
+        return cls(
+            name=f"{primal.name}*",
+            shape=primal.shape,
+            inner_product_weights=primal.inner_product_weights,
+            units=primal.units,
+            primal=primal,
+        )
+
+    def __repr__(self) -> str:
+        return f"DualSpace({self.name!r}, shape={self.shape})"
 
 
 # ---------------------------------------------------------------------------
