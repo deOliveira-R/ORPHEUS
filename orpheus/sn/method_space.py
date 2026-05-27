@@ -13,10 +13,10 @@ carries everything an SN realizer needs to turn a
 * :attr:`face` -- the face label (``"left"``, ``"right"``,
   ``"xmin"``, ``"xmax"``, ``"ymin"``, ``"ymax"``). Identifies WHICH
   face the realized BC operates on.
-* :attr:`inflow_trace` -- :class:`~orpheus.numerics.trace_space.InflowTraceSpace`
+* :attr:`inflow_trace` -- :class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace`
   precomputed for the mesh+quad pair. Used by the realizer's vacuum
   branch to extract per-face inflow indices.
-* :attr:`outflow_trace` -- :class:`~orpheus.numerics.trace_space.OutflowTraceSpace`
+* :attr:`outflow_trace` -- :class:`~orpheus.numerics.spaces.trace_space.OutflowTraceSpace`
   precomputed for the mesh+quad pair. Symmetric for any future law
   that needs outflow indices.
 
@@ -60,7 +60,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from orpheus.geometry.mesh import Mesh1D, Mesh2D
-    from orpheus.numerics.trace_space import InflowTraceSpace, OutflowTraceSpace
+    from orpheus.numerics.spaces.trace_space import InflowTraceSpace, OutflowTraceSpace
     from orpheus.numerics.quadrature import Quadrature
 
 

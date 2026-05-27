@@ -1,4 +1,4 @@
-r"""Tests for :mod:`orpheus.numerics.trace_space`.
+r"""Tests for :mod:`orpheus.numerics.spaces.trace_space`.
 
 Wave 2 of the ``transient-giggling-cake`` plan — trace function
 spaces with per-face inflow / outflow masks.
@@ -21,7 +21,7 @@ import pytest
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.trace_space import (
+from orpheus.numerics.spaces.trace_space import (
     InflowTraceSpace,
     OutflowTraceSpace,
     TraceSpace,

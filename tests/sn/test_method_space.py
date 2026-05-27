@@ -28,7 +28,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem
 from orpheus.geometry.mesh import Mesh1D, Mesh2D
-from orpheus.numerics.trace_space import InflowTraceSpace, OutflowTraceSpace
+from orpheus.numerics.spaces.trace_space import InflowTraceSpace, OutflowTraceSpace
 from orpheus.sn.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 

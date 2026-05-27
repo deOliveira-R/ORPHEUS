@@ -1021,7 +1021,7 @@ Boundary handling has its own type vocabulary
      - SN-side discretisation of the trace law
    * - ``InflowTraceSpace`` /
        ``OutflowTraceSpace``
-     - :mod:`orpheus.numerics.trace_space`
+     - :mod:`orpheus.numerics.spaces.trace_space`
      - The :math:`\Gamma_-` and :math:`\Gamma_+` discrete trace
        spaces
    * - ``VacuumInflow`` /

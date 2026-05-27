@@ -287,10 +287,10 @@ class IncomingSourceOperator(LinearOperatorMixin):
         :class:`~orpheus.geometry.boundary._source.ConstantInflowSource`
         cases that only need ``shape``.
         """
-        # Local import — :mod:`orpheus.numerics.trace_space` is a
+        # Local import — :mod:`orpheus.numerics.spaces.trace_space` is a
         # peer module; deferring to def-level keeps cold-import time
         # off this module.
-        from orpheus.numerics.trace_space import InflowTraceSpace
+        from orpheus.numerics.spaces.trace_space import InflowTraceSpace
 
         probe = InflowTraceSpace(
             name="trace_inflow",

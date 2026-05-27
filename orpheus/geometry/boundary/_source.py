@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 import numpy as np
 
 if TYPE_CHECKING:
-    from orpheus.numerics.trace_space import InflowTraceSpace
+    from orpheus.numerics.spaces.trace_space import InflowTraceSpace
 
 
 __all__ = [

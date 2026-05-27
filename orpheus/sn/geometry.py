@@ -409,7 +409,7 @@ class SNMesh:
             or (isinstance(mesh, Mesh2D) and mesh.coord == CoordSystem.CARTESIAN)
         )
         if build_trace:
-            from orpheus.numerics.trace_space import (
+            from orpheus.numerics.spaces.trace_space import (
                 InflowTraceSpace,
                 OutflowTraceSpace,
             )

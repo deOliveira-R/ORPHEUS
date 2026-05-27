@@ -16,7 +16,7 @@ The realisation map (legacy class → Wave-0 / Wave-1 primitive)
 * :class:`~orpheus.geometry.boundary.vacuum.VacuumBoundaryOperator` →
   :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
   with the per-face inflow indices from the method space's
-  :class:`~orpheus.numerics.trace_space.InflowTraceSpace`. **Semantic
+  :class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace`. **Semantic
   correction** (Wave 5 risk register entry, plan §16A.5): the legacy
   body zeroes ALL ordinates, but the §16A.10 trace-correct
   implementation zeroes ONLY the inflow ordinates so the outflow

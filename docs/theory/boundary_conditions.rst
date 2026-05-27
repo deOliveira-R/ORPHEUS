@@ -29,7 +29,7 @@ Key Facts
   +-------+-----------------------+---------------------------------------------+
   | Layer | What                  | Where                                       |
   +=======+=======================+=============================================+
-  | 1     | Trace structure       | :mod:`orpheus.numerics.trace_space`         |
+  | 1     | Trace structure       | :mod:`orpheus.numerics.spaces.trace_space`         |
   |       | (Γ\_-, Γ\_+ + mask)   | (all Mesh1D coord systems + 2-D Cartesian;  |
   |       |                       | 2-D cylindrical Mesh2D deferred)            |
   +-------+-----------------------+---------------------------------------------+
@@ -234,12 +234,12 @@ The trace operators :math:`\gamma_\pm` carry their domain
 information in two typed :class:`~orpheus.numerics.space.FunctionSpace`
 subclasses:
 
-* :class:`~orpheus.numerics.trace_space.InflowTraceSpace` represents
+* :class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace` represents
   :math:`\Gamma_- = \{(\mathbf{r}, \Omega) \in \partial\Omega \times S^2
   : \Omega \cdot \hat n(\mathbf{r}) < 0\}` — the per-face directional
   half of the boundary on which the incoming angular flux is
   constrained by the law.
-* :class:`~orpheus.numerics.trace_space.OutflowTraceSpace` represents
+* :class:`~orpheus.numerics.spaces.trace_space.OutflowTraceSpace` represents
   :math:`\Gamma_+` symmetrically — the boundary half on which the
   outgoing flux is *not* constrained by the BC but is *consumed* by
   it (as :math:`\gamma_+ \psi`).
@@ -349,7 +349,7 @@ the load-bearing primitive that downstream consumers need:
 * The SN realizer's vacuum branch reads
   ``inflow_mask[f]`` for the specific face :math:`f` and converts
   it to an integer array of ordinate indices via
-  :meth:`~orpheus.numerics.trace_space.InflowTraceSpace.inflow_indices_for_face`.
+  :meth:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace.inflow_indices_for_face`.
   Those indices are the constructor argument to
   :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`.
 * The universal invariant
@@ -361,12 +361,12 @@ the load-bearing primitive that downstream consumers need:
   ERR-047).
 * The SN curvilinear sweep (1-D spherical / cylindrical) consumes
   the same realizer-routed mask as the Cartesian path — Issue #188
-  (C188.1+C188.2 in :mod:`orpheus.numerics.trace_space`, C188.3 in
+  (C188.1+C188.2 in :mod:`orpheus.numerics.spaces.trace_space`, C188.3 in
   :mod:`orpheus.sn.geometry`) lifted the curvilinear deferral and
   Issue #176 then dropped the legacy 2-arg shim that existed only
   to bridge that deferral.
 
-The class :class:`~orpheus.numerics.trace_space.InflowTraceSpace`
+The class :class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace`
 carries the mask as an ``Optional[np.ndarray]`` field excluded from
 :meth:`__eq__` and :meth:`__hash__` — preserving the
 :class:`~orpheus.numerics.space.FunctionSpace` identity convention
@@ -624,7 +624,7 @@ The Wave 5 SN dispatch table is the documented standard:
    * - :class:`VacuumInflow`
      - :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
        with the per-face ``inflow_indices`` from the method space's
-       :class:`~orpheus.numerics.trace_space.InflowTraceSpace`.
+       :class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace`.
      - n/a (vacuum has no α parameter)
    * - :class:`ReflectiveBoundary(axis, α)`
      - bare
@@ -862,7 +862,7 @@ For the **Cartesian** path, the SNMesh has precomputed the
 
 .. code-block:: python
 
-   from orpheus.numerics.trace_space import InflowTraceSpace
+   from orpheus.numerics.spaces.trace_space import InflowTraceSpace
 
    self._inflow_trace = InflowTraceSpace.from_mesh_and_quadrature(
        mesh, self.quad, faces=("left", "right"),

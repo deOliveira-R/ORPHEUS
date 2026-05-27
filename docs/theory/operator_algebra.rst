@@ -755,8 +755,8 @@ transport equation's boundary trace. Per Grand Report v3 §5.3 and
 
 The two halves are represented by typed
 :class:`~orpheus.numerics.space.FunctionSpace` subclasses
-:class:`~orpheus.numerics.trace_space.InflowTraceSpace` and
-:class:`~orpheus.numerics.trace_space.OutflowTraceSpace`, which
+:class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace` and
+:class:`~orpheus.numerics.spaces.trace_space.OutflowTraceSpace`, which
 carry a **per-face directional mask**:
 
 .. math::

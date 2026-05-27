@@ -2419,7 +2419,7 @@ Sweep-frame apply matvec (Issue #168 Phase C)
    * The structural-frame name for the rewrite is the **sweep /
      wavefront frame** (cross-domain-attacker 2026-05-12 analysis):
      the "ghost cell" idiom is realised as a typed
-     :class:`~orpheus.numerics.trace_space.InflowTraceSpace` vector
+     :class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace` vector
      defined by the realised BC operator, not extrapolated from
      interior cell centres.
 
@@ -2903,13 +2903,13 @@ cell centres. The boundary-edge sequence is:
 The :class:`~orpheus.numerics.operator.LinearOperator` returned by
 :meth:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`
 internally consumes its
-:class:`~orpheus.numerics.trace_space.OutflowTraceSpace` mask
+:class:`~orpheus.numerics.spaces.trace_space.OutflowTraceSpace` mask
 (the ordinate slots with :math:`\mu \cdot \hat n > 0` at the face)
 and writes only the inflow slots; the outflow slots in the output
 are unspecified by the §16A.3 contract and the matvec reads back
 only ``inflow_full[incoming_mask, :]``. This is the user's "ghost
 cell for higher-order boundary closure" idiom realised as a typed
-:class:`~orpheus.numerics.trace_space.InflowTraceSpace` vector
+:class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace` vector
 defined by the realised BC operator — not extrapolated from
 interior cell centres.
 
@@ -5423,7 +5423,7 @@ The :meth:`SNMesh._resolve_one` dispatch constructs the resolved
 operator via :meth:`SNBoundaryRealizer.realize(law, method_space)`
 where the ``method_space`` is built by
 :meth:`SNMethodSpace.for_face` carrying the precomputed
-:class:`~orpheus.numerics.trace_space.InflowTraceSpace` (built
+:class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace` (built
 once at :class:`SNMesh` construction for every supported mesh).
 The
 :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
