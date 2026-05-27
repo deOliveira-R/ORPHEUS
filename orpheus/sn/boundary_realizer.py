@@ -81,6 +81,7 @@ from orpheus.numerics.operator import (
     PeriodicWrapOperator,
     PermutationOperator,
     ScaledOperator,
+    TensorProductOperator,
     ZeroOperator,
 )
 from orpheus.sn.angular_operator import (
@@ -148,10 +149,26 @@ class SNBoundaryRealizer:
 
         if isinstance(law, SpecularBoundaryOperator):
             perm = quad.reflection_index(law.axis)
-            base = PermutationOperator(perm, axis=0)
+            # Depth B step D-B+1 — first production tensor-network instance.
+            # The grand-report §16A.10 BC decomposition is
+            # ``B = G_patch ⊗ K_omega ⊗ K_g``; for specular reflection the
+            # only non-trivial factor is the angular permutation. The
+            # group axis (and any face axis a higher layer composes) are
+            # identity. Pre-D-B+1 this was a single-axis
+            # ``PermutationOperator(perm, axis=0)`` whose implicit numpy
+            # broadcast played the role of ``I_group``; promoting to a
+            # ``TensorProductOperator`` makes the algebra type-visible
+            # so adjoint distributivity, composition distributivity,
+            # and (downstream) ``assert_separable`` light up without
+            # changing the matvec output.
+            base = (
+                PermutationOperator(perm, axis=0) & IdentityOperator()
+            )  # 2-factor TensorProductOperator
             if law.albedo == 1.0:
-                # Fast path: bare permutation preserves bit-identity
-                # with legacy when albedo is exactly 1.0.
+                # Fast path: bare permutation TP preserves bit-identity
+                # with legacy when albedo is exactly 1.0. The fold
+                # ``IdentityOperator.apply(np.take(x, perm, axis=0))``
+                # reduces to ``np.take(x, perm, axis=0)`` — same bytes.
                 return base
             return ScaledOperator(float(law.albedo), base)
 

@@ -43,6 +43,7 @@ from orpheus.numerics.operator import (
     PeriodicWrapOperator,
     PermutationOperator,
     ScaledOperator,
+    TensorProductOperator,
     ZeroOperator,
 )
 from orpheus.sn.angular_operator import AngularAverageOperator
@@ -151,13 +152,27 @@ class TestRealizeReflective:
         expected = psi[quad.reflection_index("x")]
         np.testing.assert_array_equal(op.apply(psi), expected)
 
-    def test_specular_unit_albedo_returns_bare_permutation(self):
-        """At α=1 the dispatch returns the bare PermutationOperator
-        (no ScaledOperator wrap) — preserves bit-identity vs legacy."""
+    def test_specular_unit_albedo_returns_tensor_product(self):
+        """At α=1 the dispatch returns a :class:`TensorProductOperator`
+        whose factors are ``(PermutationOperator, IdentityOperator)``.
+
+        Depth B step D-B+1 (2026-05-27): the first production tensor-
+        network instance in ORPHEUS. Pre-D-B+1 the realiser returned a
+        bare :class:`PermutationOperator(perm, axis=0)`; the implicit
+        numpy broadcast across the group axis played the role of
+        ``I_group``. Promoting to a typed TP makes the §16A.10
+        ``B = G_patch ⊗ K_omega ⊗ K_g`` algebra type-visible without
+        changing the matvec output (the ``IdentityOperator.apply``
+        leaves the array untouched, so the fold reduces to the bare
+        permutation's ``np.take``).
+        """
         quad = Quadrature.level_symmetric(4)
         bc = SpecularBoundaryOperator(axis="x", albedo=1.0)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
-        assert isinstance(op, PermutationOperator)
+        assert isinstance(op, TensorProductOperator)
+        assert len(op.ops) == 2
+        assert isinstance(op.ops[0], PermutationOperator)
+        assert isinstance(op.ops[1], IdentityOperator)
 
     def test_specular_partial_albedo_matches_hand_computed(self):
         """At α=0.7 the realized op output equals ``0.7 * psi[reflection_index]``
@@ -177,14 +192,18 @@ class TestRealizeReflective:
         expected = 0.7 * psi[quad.reflection_index("x")]
         np.testing.assert_array_equal(op.apply(psi), expected)
 
-    def test_specular_partial_albedo_returns_scaled_operator(self):
-        """At α!=1 the dispatch returns a ScaledOperator."""
+    def test_specular_partial_albedo_returns_scaled_tensor_product(self):
+        """At α≠1 the dispatch returns ``ScaledOperator(α, TP)`` where
+        TP is the 2-factor :class:`TensorProductOperator` from D-B+1."""
         quad = Quadrature.level_symmetric(4)
         bc = SpecularBoundaryOperator(axis="x", albedo=0.5)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         assert isinstance(op, ScaledOperator)
         assert op.scalar == 0.5
-        assert isinstance(op.op, PermutationOperator)
+        assert isinstance(op.op, TensorProductOperator)
+        assert len(op.op.ops) == 2
+        assert isinstance(op.op.ops[0], PermutationOperator)
+        assert isinstance(op.op.ops[1], IdentityOperator)
 
 
 # ─────────────────────────────────────────────────────────────────────
