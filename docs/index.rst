@@ -9,6 +9,12 @@ ORPHEUS — Open Reactor Physics Educational University System
 
 .. toctree::
    :maxdepth: 2
+   :caption: Architecture
+
+   architecture/index
+
+.. toctree::
+   :maxdepth: 2
    :caption: Testing & Verification
 
    testing/index
