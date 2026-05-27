@@ -1,0 +1,2002 @@
+[
+  {
+    "importer_pkg": "cp",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 41,
+    "type_checking": false,
+    "file": "orpheus/cp/solver.py"
+  },
+  {
+    "importer_pkg": "cp",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.cell_xs",
+    "symbol": "CellXS",
+    "kind": "from",
+    "line": 42,
+    "type_checking": false,
+    "file": "orpheus/cp/solver.py"
+  },
+  {
+    "importer_pkg": "cp",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.cell_xs",
+    "symbol": "assemble_cell_xs",
+    "kind": "from",
+    "line": 42,
+    "type_checking": false,
+    "file": "orpheus/cp/solver.py"
+  },
+  {
+    "importer_pkg": "cp",
+    "importee_pkg": "derivations",
+    "importee_module": "orpheus.derivations.common.kernels",
+    "symbol": "chord_half_lengths",
+    "kind": "from",
+    "line": 43,
+    "type_checking": false,
+    "file": "orpheus/cp/solver.py"
+  },
+  {
+    "importer_pkg": "cp",
+    "importee_pkg": "derivations",
+    "importee_module": "orpheus.derivations.common.quadrature",
+    "symbol": "composite_gauss_legendre",
+    "kind": "from",
+    "line": 44,
+    "type_checking": false,
+    "file": "orpheus/cp/solver.py"
+  },
+  {
+    "importer_pkg": "cp",
+    "importee_pkg": "derivations",
+    "importee_module": "orpheus.derivations.continuous.flat_source_cp.geometry",
+    "symbol": "_ki3_mp",
+    "kind": "from",
+    "line": 45,
+    "type_checking": false,
+    "file": "orpheus/cp/solver.py"
+  },
+  {
+    "importer_pkg": "cp",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "BoundaryRealizerRegistry",
+    "kind": "from",
+    "line": 24,
+    "type_checking": false,
+    "file": "orpheus/cp/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "cp",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "BC",
+    "kind": "from",
+    "line": 46,
+    "type_checking": false,
+    "file": "orpheus/cp/solver.py"
+  },
+  {
+    "importer_pkg": "cp",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "CoordSystem",
+    "kind": "from",
+    "line": 46,
+    "type_checking": false,
+    "file": "orpheus/cp/solver.py"
+  },
+  {
+    "importer_pkg": "cp",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 46,
+    "type_checking": false,
+    "file": "orpheus/cp/solver.py"
+  },
+  {
+    "importer_pkg": "cp",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 814,
+    "type_checking": false,
+    "file": "orpheus/cp/solver.py"
+  },
+  {
+    "importer_pkg": "cp",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "RegionMesh",
+    "kind": "from",
+    "line": 814,
+    "type_checking": false,
+    "file": "orpheus/cp/solver.py"
+  },
+  {
+    "importer_pkg": "cp",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "StructuredGeometry",
+    "kind": "from",
+    "line": 814,
+    "type_checking": false,
+    "file": "orpheus/cp/solver.py"
+  },
+  {
+    "importer_pkg": "cp",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.eigenvalue",
+    "symbol": "power_iteration",
+    "kind": "from",
+    "line": 47,
+    "type_checking": false,
+    "file": "orpheus/cp/solver.py"
+  },
+  {
+    "importer_pkg": "cp",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.measure",
+    "symbol": "DiscreteMeasure",
+    "kind": "from",
+    "line": 628,
+    "type_checking": false,
+    "file": "orpheus/cp/solver.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "cp",
+    "importee_module": "orpheus.cp.solver",
+    "symbol": "CPParams",
+    "kind": "from",
+    "line": 62,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/sood_registry/builders.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 20,
+    "type_checking": false,
+    "file": "orpheus/derivations/common/xs_library.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 45,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/analytical/homogeneous.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 71,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/fn_method/moment_space.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 155,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/galerkin_spectral/basis_space.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 65,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/mms/sn.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 145,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/singular_eigenfunction/spectrum.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 49,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/sood_registry/atalay1997.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 23,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/sood_registry/builders.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 57,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/sood_registry/la13511.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 88,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/trajectory_resolvent/billiard.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "diffusion",
+    "importee_module": "orpheus.diffusion.solver",
+    "symbol": "CoreGeometry",
+    "kind": "from",
+    "line": 152,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/cases/diffusion.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "diffusion",
+    "importee_module": "orpheus.diffusion.solver",
+    "symbol": "TwoGroupXS",
+    "kind": "from",
+    "line": 152,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/cases/diffusion.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "diffusion",
+    "importee_module": "orpheus.diffusion.solver",
+    "symbol": "solve_diffusion_1d",
+    "kind": "from",
+    "line": 152,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/cases/diffusion.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.structured_geometry",
+    "symbol": "StructuredGeometry",
+    "kind": "from",
+    "line": 76,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/fn_method/moment_space.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.structured_geometry",
+    "symbol": "StructuredGeometry",
+    "kind": "from",
+    "line": 157,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/galerkin_spectral/basis_space.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "CoordSystem",
+    "kind": "from",
+    "line": 95,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/mms/moc.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 95,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/mms/moc.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 66,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/mms/sn.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh2D",
+    "kind": "from",
+    "line": 66,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/mms/sn.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.coord",
+    "symbol": "CoordSystem",
+    "kind": "from",
+    "line": 67,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/mms/sn.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.mesh",
+    "symbol": "BC",
+    "kind": "from",
+    "line": 68,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/mms/sn.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.structured_geometry",
+    "symbol": "StructuredGeometry",
+    "kind": "from",
+    "line": 150,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/singular_eigenfunction/spectrum.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.mesh",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 24,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/sood_registry/builders.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.mesh",
+    "symbol": "RegionMesh",
+    "kind": "from",
+    "line": 47,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/sood_registry/builders.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.mesh",
+    "symbol": "BC",
+    "kind": "from",
+    "line": 59,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/sood_registry/la13511.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.structured_geometry",
+    "symbol": "StructuredGeometry",
+    "kind": "from",
+    "line": 62,
+    "type_checking": true,
+    "file": "orpheus/derivations/continuous/sood_registry/la13511.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.structured_geometry",
+    "symbol": "Region",
+    "kind": "from",
+    "line": 300,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/sood_registry/la13511.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.structured_geometry",
+    "symbol": "StructuredGeometry",
+    "kind": "from",
+    "line": 300,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/sood_registry/la13511.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.structured_geometry",
+    "symbol": "StructuredGeometry",
+    "kind": "from",
+    "line": 89,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/trajectory_resolvent/billiard.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "moc",
+    "importee_module": "orpheus.moc.geometry",
+    "symbol": "MOCMesh",
+    "kind": "from",
+    "line": 96,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/mms/moc.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "moc",
+    "importee_module": "orpheus.moc.quadrature",
+    "symbol": "MOCQuadrature",
+    "kind": "from",
+    "line": 97,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/mms/moc.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.quadrature",
+    "symbol": "Quadrature",
+    "kind": "from",
+    "line": 69,
+    "type_checking": false,
+    "file": "orpheus/derivations/continuous/mms/sn.py"
+  },
+  {
+    "importer_pkg": "derivations",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.quadrature",
+    "symbol": "Quadrature",
+    "kind": "from",
+    "line": 208,
+    "type_checking": false,
+    "file": "orpheus/derivations/discrete/sn/contamination.py"
+  },
+  {
+    "importer_pkg": "diffusion",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "BoundaryRealizerRegistry",
+    "kind": "from",
+    "line": 25,
+    "type_checking": false,
+    "file": "orpheus/diffusion/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "diffusion",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.eigenvalue",
+    "symbol": "power_iteration",
+    "kind": "from",
+    "line": 18,
+    "type_checking": false,
+    "file": "orpheus/diffusion/solver.py"
+  },
+  {
+    "importer_pkg": "fuel",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.materials",
+    "symbol": "matpro",
+    "kind": "from",
+    "line": 26,
+    "type_checking": false,
+    "file": "orpheus/fuel/solver.py"
+  },
+  {
+    "importer_pkg": "geometry",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.registry",
+    "symbol": "RegistryMixin",
+    "kind": "from",
+    "line": 55,
+    "type_checking": false,
+    "file": "orpheus/geometry/boundary/_base.py"
+  },
+  {
+    "importer_pkg": "geometry",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "LinearOperator",
+    "kind": "from",
+    "line": 60,
+    "type_checking": true,
+    "file": "orpheus/geometry/boundary/_base.py"
+  },
+  {
+    "importer_pkg": "geometry",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.quadrature",
+    "symbol": "Quadrature",
+    "kind": "from",
+    "line": 61,
+    "type_checking": true,
+    "file": "orpheus/geometry/boundary/_base.py"
+  },
+  {
+    "importer_pkg": "geometry",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "LinearOperatorMixin",
+    "kind": "from",
+    "line": 63,
+    "type_checking": false,
+    "file": "orpheus/geometry/boundary/_bound_compat.py"
+  },
+  {
+    "importer_pkg": "geometry",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "LinearOperator",
+    "kind": "from",
+    "line": 66,
+    "type_checking": true,
+    "file": "orpheus/geometry/boundary/_bound_compat.py"
+  },
+  {
+    "importer_pkg": "geometry",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "LinearOperator",
+    "kind": "from",
+    "line": 61,
+    "type_checking": true,
+    "file": "orpheus/geometry/boundary/_realizer.py"
+  },
+  {
+    "importer_pkg": "geometry",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.trace_space",
+    "symbol": "InflowTraceSpace",
+    "kind": "from",
+    "line": 37,
+    "type_checking": true,
+    "file": "orpheus/geometry/boundary/_source.py"
+  },
+  {
+    "importer_pkg": "geometry",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.quadrature",
+    "symbol": "Quadrature",
+    "kind": "from",
+    "line": 19,
+    "type_checking": true,
+    "file": "orpheus/geometry/boundary/reflective.py"
+  },
+  {
+    "importer_pkg": "geometry",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.measure",
+    "symbol": "DiscreteMeasure",
+    "kind": "from",
+    "line": 336,
+    "type_checking": false,
+    "file": "orpheus/geometry/mesh.py"
+  },
+  {
+    "importer_pkg": "geometry",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.measure",
+    "symbol": "DiscreteMeasure",
+    "kind": "from",
+    "line": 603,
+    "type_checking": false,
+    "file": "orpheus/geometry/mesh.py"
+  },
+  {
+    "importer_pkg": "homogeneous",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 25,
+    "type_checking": false,
+    "file": "orpheus/homogeneous/solver.py"
+  },
+  {
+    "importer_pkg": "homogeneous",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.eigenvalue",
+    "symbol": "power_iteration",
+    "kind": "from",
+    "line": 26,
+    "type_checking": false,
+    "file": "orpheus/homogeneous/solver.py"
+  },
+  {
+    "importer_pkg": "kinetics",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.materials",
+    "symbol": "matpro",
+    "kind": "from",
+    "line": 35,
+    "type_checking": false,
+    "file": "orpheus/kinetics/solver.py"
+  },
+  {
+    "importer_pkg": "kinetics",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.materials.h2o_properties",
+    "symbol": "h2o_density",
+    "kind": "from",
+    "line": 36,
+    "type_checking": false,
+    "file": "orpheus/kinetics/solver.py"
+  },
+  {
+    "importer_pkg": "kinetics",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.materials.h2o_properties",
+    "symbol": "h2o_enthalpy",
+    "kind": "from",
+    "line": 36,
+    "type_checking": false,
+    "file": "orpheus/kinetics/solver.py"
+  },
+  {
+    "importer_pkg": "kinetics",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.materials.h2o_properties",
+    "symbol": "h2o_properties",
+    "kind": "from",
+    "line": 36,
+    "type_checking": false,
+    "file": "orpheus/kinetics/solver.py"
+  },
+  {
+    "importer_pkg": "mc",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 30,
+    "type_checking": false,
+    "file": "orpheus/mc/solver.py"
+  },
+  {
+    "importer_pkg": "mc",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "BoundaryRealizerRegistry",
+    "kind": "from",
+    "line": 28,
+    "type_checking": false,
+    "file": "orpheus/mc/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "mc",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "BC",
+    "kind": "from",
+    "line": 31,
+    "type_checking": false,
+    "file": "orpheus/mc/solver.py"
+  },
+  {
+    "importer_pkg": "mc",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "CoordSystem",
+    "kind": "from",
+    "line": 31,
+    "type_checking": false,
+    "file": "orpheus/mc/solver.py"
+  },
+  {
+    "importer_pkg": "mc",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 31,
+    "type_checking": false,
+    "file": "orpheus/mc/solver.py"
+  },
+  {
+    "importer_pkg": "moc",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 17,
+    "type_checking": false,
+    "file": "orpheus/moc/core.py"
+  },
+  {
+    "importer_pkg": "moc",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 22,
+    "type_checking": false,
+    "file": "orpheus/moc/solver.py"
+  },
+  {
+    "importer_pkg": "moc",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "BoundaryRealizerRegistry",
+    "kind": "from",
+    "line": 24,
+    "type_checking": false,
+    "file": "orpheus/moc/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "moc",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "BC",
+    "kind": "from",
+    "line": 22,
+    "type_checking": false,
+    "file": "orpheus/moc/geometry.py"
+  },
+  {
+    "importer_pkg": "moc",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 22,
+    "type_checking": false,
+    "file": "orpheus/moc/geometry.py"
+  },
+  {
+    "importer_pkg": "moc",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "CoordSystem",
+    "kind": "from",
+    "line": 23,
+    "type_checking": false,
+    "file": "orpheus/moc/solver.py"
+  },
+  {
+    "importer_pkg": "moc",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 23,
+    "type_checking": false,
+    "file": "orpheus/moc/solver.py"
+  },
+  {
+    "importer_pkg": "moc",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 108,
+    "type_checking": false,
+    "file": "orpheus/moc/solver.py"
+  },
+  {
+    "importer_pkg": "moc",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "RegionMesh",
+    "kind": "from",
+    "line": 108,
+    "type_checking": false,
+    "file": "orpheus/moc/solver.py"
+  },
+  {
+    "importer_pkg": "moc",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "StructuredGeometry",
+    "kind": "from",
+    "line": 108,
+    "type_checking": false,
+    "file": "orpheus/moc/solver.py"
+  },
+  {
+    "importer_pkg": "moc",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.eigenvalue",
+    "symbol": "power_iteration",
+    "kind": "from",
+    "line": 24,
+    "type_checking": false,
+    "file": "orpheus/moc/solver.py"
+  },
+  {
+    "importer_pkg": "numerics",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.mesh",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 117,
+    "type_checking": true,
+    "file": "orpheus/numerics/trace_space.py"
+  },
+  {
+    "importer_pkg": "numerics",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.mesh",
+    "symbol": "Mesh2D",
+    "kind": "from",
+    "line": 117,
+    "type_checking": true,
+    "file": "orpheus/numerics/trace_space.py"
+  },
+  {
+    "importer_pkg": "numerics",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.coord",
+    "symbol": "CoordSystem",
+    "kind": "from",
+    "line": 194,
+    "type_checking": false,
+    "file": "orpheus/numerics/trace_space.py"
+  },
+  {
+    "importer_pkg": "numerics",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.mesh",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 195,
+    "type_checking": false,
+    "file": "orpheus/numerics/trace_space.py"
+  },
+  {
+    "importer_pkg": "numerics",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.mesh",
+    "symbol": "Mesh2D",
+    "kind": "from",
+    "line": 195,
+    "type_checking": false,
+    "file": "orpheus/numerics/trace_space.py"
+  },
+  {
+    "importer_pkg": "numerics",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.mesh",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 347,
+    "type_checking": false,
+    "file": "orpheus/numerics/trace_space.py"
+  },
+  {
+    "importer_pkg": "numerics",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.mesh",
+    "symbol": "Mesh2D",
+    "kind": "from",
+    "line": 347,
+    "type_checking": false,
+    "file": "orpheus/numerics/trace_space.py"
+  },
+  {
+    "importer_pkg": "numerics",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.mesh",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 444,
+    "type_checking": false,
+    "file": "orpheus/numerics/trace_space.py"
+  },
+  {
+    "importer_pkg": "numerics",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.mesh",
+    "symbol": "Mesh2D",
+    "kind": "from",
+    "line": 444,
+    "type_checking": false,
+    "file": "orpheus/numerics/trace_space.py"
+  },
+  {
+    "importer_pkg": "plotting",
+    "importee_pkg": "homogeneous",
+    "importee_module": "orpheus.homogeneous.solver",
+    "symbol": "HomogeneousResult",
+    "kind": "from",
+    "line": 17,
+    "type_checking": true,
+    "file": "orpheus/plotting.py"
+  },
+  {
+    "importer_pkg": "plotting",
+    "importee_pkg": "mc",
+    "importee_module": "orpheus.mc.solver",
+    "symbol": "MCResult",
+    "kind": "from",
+    "line": 20,
+    "type_checking": true,
+    "file": "orpheus/plotting.py"
+  },
+  {
+    "importer_pkg": "plotting",
+    "importee_pkg": "moc",
+    "importee_module": "orpheus.moc.solver",
+    "symbol": "MoCResult",
+    "kind": "from",
+    "line": 18,
+    "type_checking": true,
+    "file": "orpheus/plotting.py"
+  },
+  {
+    "importer_pkg": "plotting",
+    "importee_pkg": "moc",
+    "importee_module": "orpheus.moc.geometry",
+    "symbol": "MOCMesh",
+    "kind": "from",
+    "line": 19,
+    "type_checking": true,
+    "file": "orpheus/plotting.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 61,
+    "type_checking": true,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.cell_xs",
+    "symbol": "assemble_cell_xs",
+    "kind": "from",
+    "line": 92,
+    "type_checking": false,
+    "file": "orpheus/sn/material_xs_field.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 95,
+    "type_checking": true,
+    "file": "orpheus/sn/material_xs_field.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.cell_xs",
+    "symbol": "assemble_cell_xs",
+    "kind": "from",
+    "line": 40,
+    "type_checking": false,
+    "file": "orpheus/sn/solver.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.macro_xs.mixture",
+    "symbol": "Mixture",
+    "kind": "from",
+    "line": 41,
+    "type_checking": false,
+    "file": "orpheus/sn/solver.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary._source",
+    "symbol": "BoundarySource",
+    "kind": "from",
+    "line": 31,
+    "type_checking": true,
+    "file": "orpheus/sn/angular_operator.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "BC",
+    "kind": "from",
+    "line": 39,
+    "type_checking": false,
+    "file": "orpheus/sn/axis.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "CoordSystem",
+    "kind": "from",
+    "line": 439,
+    "type_checking": false,
+    "file": "orpheus/sn/axis.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 439,
+    "type_checking": false,
+    "file": "orpheus/sn/axis.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh2D",
+    "kind": "from",
+    "line": 439,
+    "type_checking": false,
+    "file": "orpheus/sn/axis.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "CoordSystem",
+    "kind": "from",
+    "line": 524,
+    "type_checking": false,
+    "file": "orpheus/sn/axis.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 524,
+    "type_checking": false,
+    "file": "orpheus/sn/axis.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh2D",
+    "kind": "from",
+    "line": 524,
+    "type_checking": false,
+    "file": "orpheus/sn/axis.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "BoundaryTraceLaw",
+    "kind": "from",
+    "line": 110,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realize.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "LawScaled",
+    "kind": "from",
+    "line": 110,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realize.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "LawSum",
+    "kind": "from",
+    "line": 110,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realize.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "LawNode",
+    "kind": "from",
+    "line": 118,
+    "type_checking": true,
+    "file": "orpheus/sn/boundary_realize.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "AlbedoBoundaryOperator",
+    "kind": "from",
+    "line": 67,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "BoundaryError",
+    "kind": "from",
+    "line": 67,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "BoundaryRealizerRegistry",
+    "kind": "from",
+    "line": 67,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "PeriodicBoundaryOperator",
+    "kind": "from",
+    "line": 67,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "PrescribedInflow",
+    "kind": "from",
+    "line": 67,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "SpecularBoundaryOperator",
+    "kind": "from",
+    "line": 67,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "VacuumBoundaryOperator",
+    "kind": "from",
+    "line": 67,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "WhiteBoundaryOperator",
+    "kind": "from",
+    "line": 67,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "BoundaryOperator",
+    "kind": "from",
+    "line": 99,
+    "type_checking": true,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "BC",
+    "kind": "from",
+    "line": 20,
+    "type_checking": false,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "CoordSystem",
+    "kind": "from",
+    "line": 20,
+    "type_checking": false,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 20,
+    "type_checking": false,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh2D",
+    "kind": "from",
+    "line": 20,
+    "type_checking": false,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "BoundaryTraceLaw",
+    "kind": "from",
+    "line": 21,
+    "type_checking": false,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "ReflectiveBoundary",
+    "kind": "from",
+    "line": 21,
+    "type_checking": false,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "VacuumInflow",
+    "kind": "from",
+    "line": 21,
+    "type_checking": false,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary._bound_compat",
+    "symbol": "_BoundBoundaryOperator",
+    "kind": "from",
+    "line": 26,
+    "type_checking": false,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.reduced_operator",
+    "symbol": "ReducedStreamingOperator",
+    "kind": "from",
+    "line": 27,
+    "type_checking": false,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.reduced_operator",
+    "symbol": "cylindrical_streaming",
+    "kind": "from",
+    "line": 27,
+    "type_checking": false,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.reduced_operator",
+    "symbol": "slab_streaming",
+    "kind": "from",
+    "line": 27,
+    "type_checking": false,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.reduced_operator",
+    "symbol": "spherical_streaming",
+    "kind": "from",
+    "line": 27,
+    "type_checking": false,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.mesh",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 62,
+    "type_checking": true,
+    "file": "orpheus/sn/method_space.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.mesh",
+    "symbol": "Mesh2D",
+    "kind": "from",
+    "line": 62,
+    "type_checking": true,
+    "file": "orpheus/sn/method_space.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "BoundaryOperator",
+    "kind": "from",
+    "line": 87,
+    "type_checking": true,
+    "file": "orpheus/sn/operator.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.boundary",
+    "symbol": "SpecularBoundaryOperator",
+    "kind": "from",
+    "line": 301,
+    "type_checking": false,
+    "file": "orpheus/sn/operator.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "BC",
+    "kind": "from",
+    "line": 42,
+    "type_checking": false,
+    "file": "orpheus/sn/solver.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh1D",
+    "kind": "from",
+    "line": 42,
+    "type_checking": false,
+    "file": "orpheus/sn/solver.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "Mesh2D",
+    "kind": "from",
+    "line": 42,
+    "type_checking": false,
+    "file": "orpheus/sn/solver.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.reduced_operator",
+    "symbol": "StreamingTerms",
+    "kind": "from",
+    "line": 76,
+    "type_checking": true,
+    "file": "orpheus/sn/spatial/cell_balance.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry.reduced_operator",
+    "symbol": "StreamingTerms",
+    "kind": "from",
+    "line": 172,
+    "type_checking": false,
+    "file": "orpheus/sn/spatial/cell_update.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "CoordSystem",
+    "kind": "from",
+    "line": 172,
+    "type_checking": false,
+    "file": "orpheus/sn/spatial/pole_angular_closure.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "CoordSystem",
+    "kind": "from",
+    "line": 211,
+    "type_checking": false,
+    "file": "orpheus/sn/spatial/sweep_cache.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "geometry",
+    "importee_module": "orpheus.geometry",
+    "symbol": "CoordSystem",
+    "kind": "from",
+    "line": 78,
+    "type_checking": false,
+    "file": "orpheus/sn/sweep.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.quadrature",
+    "symbol": "Quadrature",
+    "kind": "from",
+    "line": 10,
+    "type_checking": false,
+    "file": "orpheus/sn/__init__.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "CAP_APPLY",
+    "kind": "from",
+    "line": 25,
+    "type_checking": false,
+    "file": "orpheus/sn/angular_operator.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "LinearOperatorMixin",
+    "kind": "from",
+    "line": 25,
+    "type_checking": false,
+    "file": "orpheus/sn/angular_operator.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.quadrature",
+    "symbol": "Quadrature",
+    "kind": "from",
+    "line": 32,
+    "type_checking": true,
+    "file": "orpheus/sn/angular_operator.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.trace_space",
+    "symbol": "InflowTraceSpace",
+    "kind": "from",
+    "line": 293,
+    "type_checking": false,
+    "file": "orpheus/sn/angular_operator.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "LinearOperator",
+    "kind": "from",
+    "line": 111,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realize.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "OperatorSum",
+    "kind": "from",
+    "line": 111,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realize.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "ScaledOperator",
+    "kind": "from",
+    "line": 111,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realize.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "IdentityOperator",
+    "kind": "from",
+    "line": 77,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "IncomingOrdinateMaskTensor",
+    "kind": "from",
+    "line": 77,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "LinearOperator",
+    "kind": "from",
+    "line": 77,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "PeriodicWrapOperator",
+    "kind": "from",
+    "line": 77,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "PermutationOperator",
+    "kind": "from",
+    "line": 77,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "ScaledOperator",
+    "kind": "from",
+    "line": 77,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "ZeroOperator",
+    "kind": "from",
+    "line": 77,
+    "type_checking": false,
+    "file": "orpheus/sn/boundary_realizer.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "CAP_APPLY",
+    "kind": "from",
+    "line": 75,
+    "type_checking": false,
+    "file": "orpheus/sn/fission.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "LinearOperatorMixin",
+    "kind": "from",
+    "line": 75,
+    "type_checking": false,
+    "file": "orpheus/sn/fission.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.quadrature",
+    "symbol": "Quadrature",
+    "kind": "from",
+    "line": 49,
+    "type_checking": false,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.trace_space",
+    "symbol": "InflowTraceSpace",
+    "kind": "from",
+    "line": 412,
+    "type_checking": false,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.trace_space",
+    "symbol": "OutflowTraceSpace",
+    "kind": "from",
+    "line": 412,
+    "type_checking": false,
+    "file": "orpheus/sn/geometry.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.trace_space",
+    "symbol": "InflowTraceSpace",
+    "kind": "from",
+    "line": 63,
+    "type_checking": true,
+    "file": "orpheus/sn/method_space.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.trace_space",
+    "symbol": "OutflowTraceSpace",
+    "kind": "from",
+    "line": 63,
+    "type_checking": true,
+    "file": "orpheus/sn/method_space.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.quadrature",
+    "symbol": "Quadrature",
+    "kind": "from",
+    "line": 64,
+    "type_checking": true,
+    "file": "orpheus/sn/method_space.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "CAP_APPLY",
+    "kind": "from",
+    "line": 76,
+    "type_checking": false,
+    "file": "orpheus/sn/operator.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "CAP_APPLY_TRANSPOSE",
+    "kind": "from",
+    "line": 76,
+    "type_checking": false,
+    "file": "orpheus/sn/operator.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "CAP_SOLVE",
+    "kind": "from",
+    "line": 76,
+    "type_checking": false,
+    "file": "orpheus/sn/operator.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "LinearOperatorMixin",
+    "kind": "from",
+    "line": 76,
+    "type_checking": false,
+    "file": "orpheus/sn/operator.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "OperatorSum",
+    "kind": "from",
+    "line": 76,
+    "type_checking": false,
+    "file": "orpheus/sn/operator.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.quadrature",
+    "symbol": "Quadrature",
+    "kind": "from",
+    "line": 84,
+    "type_checking": false,
+    "file": "orpheus/sn/operator.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "CAP_APPLY",
+    "kind": "from",
+    "line": 121,
+    "type_checking": false,
+    "file": "orpheus/sn/scattering.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "LinearOperatorMixin",
+    "kind": "from",
+    "line": 121,
+    "type_checking": false,
+    "file": "orpheus/sn/scattering.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.projection",
+    "symbol": "MomentProjection",
+    "kind": "from",
+    "line": 125,
+    "type_checking": false,
+    "file": "orpheus/sn/scattering.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.projection",
+    "symbol": "HarmonicMomentReconstruction",
+    "kind": "from",
+    "line": 125,
+    "type_checking": false,
+    "file": "orpheus/sn/scattering.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.quadrature",
+    "symbol": "Quadrature",
+    "kind": "from",
+    "line": 142,
+    "type_checking": true,
+    "file": "orpheus/sn/scattering.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.eigenvalue",
+    "symbol": "power_iteration",
+    "kind": "from",
+    "line": 43,
+    "type_checking": false,
+    "file": "orpheus/sn/solver.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.quadrature",
+    "symbol": "Quadrature",
+    "kind": "from",
+    "line": 56,
+    "type_checking": false,
+    "file": "orpheus/sn/solver.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.iteration",
+    "symbol": "SourceIteration",
+    "kind": "from",
+    "line": 499,
+    "type_checking": false,
+    "file": "orpheus/sn/solver.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "ZeroOperator",
+    "kind": "from",
+    "line": 500,
+    "type_checking": false,
+    "file": "orpheus/sn/solver.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.iteration",
+    "symbol": "KrylovAcceleration",
+    "kind": "from",
+    "line": 618,
+    "type_checking": false,
+    "file": "orpheus/sn/solver.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "ZeroOperator",
+    "kind": "from",
+    "line": 619,
+    "type_checking": false,
+    "file": "orpheus/sn/solver.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.iteration",
+    "symbol": "KrylovAcceleration",
+    "kind": "from",
+    "line": 1338,
+    "type_checking": false,
+    "file": "orpheus/sn/solver.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.operator",
+    "symbol": "ZeroOperator",
+    "kind": "from",
+    "line": 1339,
+    "type_checking": false,
+    "file": "orpheus/sn/solver.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.registry",
+    "symbol": "RegistryMixin",
+    "kind": "from",
+    "line": 173,
+    "type_checking": false,
+    "file": "orpheus/sn/spatial/cell_update.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.registry",
+    "symbol": "RegistryMixin",
+    "kind": "from",
+    "line": 173,
+    "type_checking": false,
+    "file": "orpheus/sn/spatial/pole_angular_closure.py"
+  },
+  {
+    "importer_pkg": "sn",
+    "importee_pkg": "numerics",
+    "importee_module": "orpheus.numerics.registry",
+    "symbol": "RegistryMixin",
+    "kind": "from",
+    "line": 158,
+    "type_checking": false,
+    "file": "orpheus/sn/spatial/psi_half_angle_seed.py"
+  },
+  {
+    "importer_pkg": "thermal_hydraulics",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.materials",
+    "symbol": "matpro",
+    "kind": "from",
+    "line": 27,
+    "type_checking": false,
+    "file": "orpheus/thermal_hydraulics/solver.py"
+  },
+  {
+    "importer_pkg": "thermal_hydraulics",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.materials.h2o_properties",
+    "symbol": "h2o_density",
+    "kind": "from",
+    "line": 28,
+    "type_checking": false,
+    "file": "orpheus/thermal_hydraulics/solver.py"
+  },
+  {
+    "importer_pkg": "thermal_hydraulics",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.materials.h2o_properties",
+    "symbol": "h2o_enthalpy",
+    "kind": "from",
+    "line": 28,
+    "type_checking": false,
+    "file": "orpheus/thermal_hydraulics/solver.py"
+  },
+  {
+    "importer_pkg": "thermal_hydraulics",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.materials.h2o_properties",
+    "symbol": "h2o_properties",
+    "kind": "from",
+    "line": 28,
+    "type_checking": false,
+    "file": "orpheus/thermal_hydraulics/solver.py"
+  },
+  {
+    "importer_pkg": "thermal_hydraulics",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.materials",
+    "symbol": "matpro",
+    "kind": "from",
+    "line": 26,
+    "type_checking": false,
+    "file": "orpheus/thermal_hydraulics/solver_dae.py"
+  },
+  {
+    "importer_pkg": "thermal_hydraulics",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.materials.h2o_properties",
+    "symbol": "h2o_density",
+    "kind": "from",
+    "line": 27,
+    "type_checking": false,
+    "file": "orpheus/thermal_hydraulics/solver_dae.py"
+  },
+  {
+    "importer_pkg": "thermal_hydraulics",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.materials.h2o_properties",
+    "symbol": "h2o_enthalpy",
+    "kind": "from",
+    "line": 27,
+    "type_checking": false,
+    "file": "orpheus/thermal_hydraulics/solver_dae.py"
+  },
+  {
+    "importer_pkg": "thermal_hydraulics",
+    "importee_pkg": "data",
+    "importee_module": "orpheus.data.materials.h2o_properties",
+    "symbol": "h2o_properties",
+    "kind": "from",
+    "line": 27,
+    "type_checking": false,
+    "file": "orpheus/thermal_hydraulics/solver_dae.py"
+  }
+]
