@@ -174,7 +174,9 @@ class TestExternalSourcePerOrdContract:
         original_solve = iteration_mod.KrylovAcceleration.solve
 
         def spy(self, q_ext, initial_guess=None):
-            captured.append(np.array(q_ext.values, copy=True))
+            # D-H.1c stage 2: q_ext is now a TimedFullField; the
+            # per-ordinate source values live at ``q_ext.bulk.values``.
+            captured.append(np.array(q_ext.bulk.values, copy=True))
             return original_solve(self, q_ext, initial_guess=initial_guess)
 
         with patch.object(

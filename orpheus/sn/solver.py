@@ -507,16 +507,19 @@ class SNSolver:
                 "a separate 4-face layout (xmin, xmax, ymin, ymax)."
             )
 
-        from .angular_flux import AngularFlux
-        from .operator import (
-            CollisionOperator, StreamingOperator,
-            _copy_boundary_face_state,
+        from .operator import CollisionOperator, StreamingOperator
+        from orpheus.transport.fields.angular_flux import (
+            AngularFlux as L2AngularFlux,
+        )
+        from orpheus.transport.fields.boundary_flux import (
+            BoundaryFlux as L2BoundaryFlux,
         )
         from orpheus.transport.sources import PerOrdinateSource
+        from orpheus.transport.timed_full_field import TimedFullField
         from orpheus.numerics.iteration import SourceIteration
         from orpheus.numerics.operator import ZeroOperator
 
-        # ── Build the typed RHS ──────────────────────────────────────
+        # ── Build the composite RHS ─────────────────────────────────
         # R-1 Step 4 A1 — q_ext as per-ordinate density via the canonical
         # ``PerOrdinateSource.from_isotropic`` factory.  The /W projection
         # lives at the factory boundary (Pattern 7 producer-side
@@ -526,17 +529,27 @@ class SNSolver:
         q_ext_per_ord = PerOrdinateSource.from_isotropic(
             fission_source, self.sn_mesh,
         )
-        q_ext_typed = AngularFlux(q_ext_per_ord.values, self.sn_mesh)
-        # Pre-populate q_ext.boundary with the persistent partner-flux
-        # state ``self._boundary_flux`` from the previous outer call.
+        # D-H.1c stage 2 — q_ext composite carries:
+        #   * bulk = per-ordinate source values on the L2 AngularFlux.
+        #   * boundary = the persistent partner-flux state seeded from
+        #     the legacy ``self._boundary_flux`` via the L2 adapter.
         # This is the load-bearing plumbing for reflective BCs: the
         # FIRST inner SI iteration has no ``initial_guess`` (cold
         # start), so without this seeding the sweep would see a zero
         # BC trace (= vacuum), and the SI fixed point shifts away from
-        # the true reflective answer.  Subsequent iterations update
-        # the partner flux via the ``initial_guess.boundary`` thread
-        # that :meth:`InvertibleOperator.solve` reads.
-        _copy_boundary_face_state(self._boundary_flux, q_ext_typed.boundary)
+        # the true reflective answer.  InvertibleOperator.solve's
+        # composite branch reads ``rhs.boundary`` as the fallback BC
+        # inflow trace when ``initial_guess is None`` (audit §5).
+        q_ext_composite = TimedFullField(
+            bulk=L2AngularFlux.from_mesh(
+                q_ext_per_ord.values, self.sn_mesh,
+            ),
+            boundary=L2BoundaryFlux.from_legacy_sn(
+                self._boundary_flux, self.sn_mesh,
+            ),
+            _history=(),
+            history_depth=2,
+        )
 
         # ── Build the typed operator triple ─────────────────────────
         L_leaf = StreamingOperator(
@@ -561,22 +574,25 @@ class SNSolver:
             tol=self.inner_tol,
         )
 
-        # ── Warm start (typed) ──────────────────────────────────────
+        # ── Warm start (composite) ──────────────────────────────────
         # SourceIteration._solve_with_seed forwards the previous
         # iterate to InvertibleOperator.solve via the explicit
         # ``initial_guess`` kwarg (Phase 1.2 — the M-M closure's
         # ``psi_half_seed`` strategy reads it to derive the Carlson
         # coupled-pole seed; the previous iterate's boundary trace
-        # seeds the reflective-BC partner-flux state).
+        # seeds the reflective-BC partner-flux state).  Post-D-H.1c
+        # stage 2 ``self._psi_typed`` is a :class:`TimedFullField`;
+        # the type propagates through the iteration primitive via the
+        # ravellable protocol.
         initial_guess = getattr(self, "_psi_typed", None)
 
         psi_typed, _residuals = si.solve(
-            q_ext_typed, initial_guess=initial_guess,
+            q_ext_composite, initial_guess=initial_guess,
         )
         self._psi_typed = psi_typed
 
         # Reduce angular → scalar flux for the eigenvalue outer's contract.
-        return psi_typed.integrate_angular().values
+        return psi_typed.bulk.integrate_angular().values
 
     # ── Inner solver: Krylov on (L+C-S)·ψ = q_ext (R-1 Step D carve) ──
 
@@ -629,20 +645,37 @@ class SNSolver:
                 "inner_solver='source_iteration'."
             )
 
-        from .angular_flux import AngularFlux
         from .operator import CollisionOperator, StreamingOperator
+        from orpheus.transport.fields.angular_flux import (
+            AngularFlux as L2AngularFlux,
+        )
+        from orpheus.transport.fields.boundary_flux import (
+            BoundaryFlux as L2BoundaryFlux,
+        )
         from orpheus.transport.sources import PerOrdinateSource
+        from orpheus.transport.timed_full_field import TimedFullField
         from orpheus.numerics.iteration import KrylovAcceleration
         from orpheus.numerics.operator import ZeroOperator
 
-        # ── Build the typed RHS ──────────────────────────────────────
+        # ── Build the composite RHS ─────────────────────────────────
         # R-1 Step 4 A1 — q_ext as per-ordinate density via the canonical
         # ``PerOrdinateSource.from_isotropic`` factory.  /W lives at the
         # factory boundary (Pattern 7 producer-side normalisation).
+        # D-H.1c stage 2 — TimedFullField bulk + zero boundary (the
+        # Krylov path does NOT pre-seed q_ext.boundary; reflective-BC
+        # state threads through ``initial_guess`` per the audit §5
+        # contract).
         q_ext_per_ord = PerOrdinateSource.from_isotropic(
             fission_source, self.sn_mesh,
         )
-        q_ext_typed = AngularFlux(q_ext_per_ord.values, self.sn_mesh)
+        q_ext_composite = TimedFullField(
+            bulk=L2AngularFlux.from_mesh(
+                q_ext_per_ord.values, self.sn_mesh,
+            ),
+            boundary=L2BoundaryFlux.zeros_for_sn_mesh(self.sn_mesh),
+            _history=(),
+            history_depth=2,
+        )
 
         # ── Build the typed operator triple ─────────────────────────
         # InvertibleOperator via __add__ dispatch (R-1 Step C).
@@ -683,16 +716,20 @@ class SNSolver:
             restart=min(50, N * ng * nx * ny),
         )
 
-        # ── Warm start (typed) ──────────────────────────────────────
+        # ── Warm start (composite) ──────────────────────────────────
+        # Post-D-H.1c stage 2: ``self._psi_typed`` is a TimedFullField;
+        # the Krylov ravellable protocol detects the composite via
+        # ``to_flat`` / ``from_flat`` (D-H.1b.1) and threads it through
+        # the matvec / unravel cycle natively.
         initial_guess = getattr(self, "_psi_typed", None)
 
         psi_typed, _residuals = krylov.solve(
-            q_ext_typed, initial_guess=initial_guess,
+            q_ext_composite, initial_guess=initial_guess,
         )
         self._psi_typed = psi_typed
 
         # Reduce angular → scalar flux for the eigenvalue outer's contract.
-        return psi_typed.integrate_angular().values
+        return psi_typed.bulk.integrate_angular().values
 
     def _make_sweep_preconditioner(
         self, eq_map, n: int,
@@ -1002,15 +1039,19 @@ def solve_sn(
 
     # Issue #197 PR-TYPED-5: build typed Solution.  The bare ndarrays
     # produced by power_iteration + the final sweep get wrapped in
-    # AngularFlux + ScalarFlux at this single boundary; downstream
-    # consumers read typed fields.
-    # D-H.1b (2026-05-28): Solution.angular_flux is now a typed
-    # TimedFullField composite (bulk + boundary + history). Build
-    # via the legacy-AngularFlux adapter — solver._boundary_flux is
-    # still a legacy BoundaryFlux instance; the L2 BoundaryFlux is
-    # constructed inside TimedFullField.from_legacy_angular_flux via
-    # the legacy → L2 adapter.
-    from .angular_flux import AngularFlux
+    # typed fields at this single boundary; downstream consumers read
+    # typed fields.
+    # D-H.1c stage 2 (2026-05-28): Solution.angular_flux is a
+    # TimedFullField composite (bulk + boundary + history) constructed
+    # DIRECTLY from L2 types.  The legacy-AngularFlux adapter wrap is
+    # GONE — ``angular_flux`` is a bare ndarray from the final sweep;
+    # we wrap it once into the composite carrier.
+    from orpheus.transport.fields.angular_flux import (
+        AngularFlux as L2AngularFlux,
+    )
+    from orpheus.transport.fields.boundary_flux import (
+        BoundaryFlux as L2BoundaryFlux,
+    )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.timed_full_field import TimedFullField
     history = IterationHistory(
@@ -1018,11 +1059,15 @@ def solve_sn(
         n_outer=len(keff_history),
         converged=True,
     )
-    legacy_psi = AngularFlux(
-        angular_flux, sn_mesh, boundary=solver._boundary_flux,
-    )
     return Solution(
-        angular_flux=TimedFullField.from_legacy_angular_flux(legacy_psi),
+        angular_flux=TimedFullField(
+            bulk=L2AngularFlux.from_mesh(angular_flux, sn_mesh),
+            boundary=L2BoundaryFlux.from_legacy_sn(
+                solver._boundary_flux, sn_mesh,
+            ),
+            _history=(),
+            history_depth=2,
+        ),
         scalar_flux=ScalarFlux.from_mesh(scalar_flux, sn_mesh),
         mesh=sn_mesh,
         keff=float(keff_history[-1]),
@@ -1266,11 +1311,27 @@ def _solve_fixed_source_si(
         n_inner=n_inner + 1,
         converged=converged_flag,
     )
-    # D-H.1b (2026-05-28): Solution.angular_flux is now a TimedFullField.
+    # D-H.1c stage 2 (2026-05-28): Solution.angular_flux constructed
+    # DIRECTLY as a TimedFullField composite.  ``angular`` is the bare
+    # ndarray returned by transport_sweep; ``solver._boundary_flux`` is
+    # the legacy BoundaryFlux carrying the converged partner-flux
+    # trace.  No legacy AngularFlux intermediate.
+    from orpheus.transport.fields.angular_flux import (
+        AngularFlux as L2AngularFlux,
+    )
+    from orpheus.transport.fields.boundary_flux import (
+        BoundaryFlux as L2BoundaryFlux,
+    )
     from orpheus.transport.timed_full_field import TimedFullField
-    legacy_psi = AngularFlux(angular, sn_mesh, boundary=solver._boundary_flux)
     return Solution(
-        angular_flux=TimedFullField.from_legacy_angular_flux(legacy_psi),
+        angular_flux=TimedFullField(
+            bulk=L2AngularFlux.from_mesh(angular, sn_mesh),
+            boundary=L2BoundaryFlux.from_legacy_sn(
+                solver._boundary_flux, sn_mesh,
+            ),
+            _history=(),
+            history_depth=2,
+        ),
         scalar_flux=ScalarFlux.from_mesh(phi, sn_mesh),
         mesh=sn_mesh,
         keff=None,
@@ -1357,24 +1418,37 @@ def _solve_fixed_source_krylov(
             "of `.claude/plans/r1_step4_g_dependency_audit.md`)."
         )
 
-    from .angular_flux import AngularFlux
+    from orpheus.transport.fields.angular_flux import (
+        AngularFlux as L2AngularFlux,
+    )
+    from orpheus.transport.fields.boundary_flux import (
+        BoundaryFlux as L2BoundaryFlux,
+    )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from .operator import CollisionOperator, StreamingOperator
     from orpheus.transport.sources import PerOrdinateSource
+    from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.numerics.iteration import KrylovAcceleration
     from orpheus.numerics.operator import ZeroOperator
 
     nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
     N = sn_mesh.quad.N
 
-    # ── Build the typed RHS ──────────────────────────────────────────
+    # ── Build the composite RHS ──────────────────────────────────────
     # R-1 Step 4 A1 — ``external_source`` is per-ordinate density (the
     # producer-side ``/sum_w`` projection lives at
     # :meth:`PerOrdinateSource.from_isotropic` for iso scalar sources;
-    # by the time we get here the caller has projected).  Wrap into
-    # a typed :class:`AngularFlux` for the path-forward Krylov.
+    # by the time we get here the caller has projected).
+    # D-H.1c stage 2 — TimedFullField composite for the path-forward
+    # Krylov (zero boundary; reflective-BC state flows through
+    # ``initial_guess`` not ``rhs.boundary``).
     q_ext_per_ord = PerOrdinateSource.from_mesh(external_source, sn_mesh)
-    q_ext_typed = AngularFlux(q_ext_per_ord.values, sn_mesh)
+    q_ext_composite = TimedFullField(
+        bulk=L2AngularFlux.from_mesh(q_ext_per_ord.values, sn_mesh),
+        boundary=L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+        _history=(),
+        history_depth=2,
+    )
 
     # ── Build the typed operator triple ─────────────────────────────
     # InvertibleOperator via __add__ dispatch (R-1 Step C).  L + C
@@ -1403,30 +1477,29 @@ def _solve_fixed_source_krylov(
         restart=min(50, N * ng * nx * ny),
     )
 
-    psi_typed, residuals = krylov.solve(q_ext_typed)
-    angular = psi_typed.values
-    phi = psi_typed.integrate_angular().values
+    psi_typed, residuals = krylov.solve(q_ext_composite)
+    # D-H.1c stage 2 — psi_typed is a TimedFullField (the Krylov
+    # ravellable protocol unravels back to the template type, which is
+    # ``q_ext_composite``).  Read bulk for scalar reduction.
+    phi = psi_typed.bulk.integrate_angular().values
     converged_flag = bool(residuals) and residuals[-1] < inner_tol
     n_outer = len(residuals)
     flux_residuals = [float(r) for r in residuals]
 
     # Issue #197 PR-TYPED-5: build typed Solution at the boundary.
-    # R-1 Step 4 G1 — ``psi_typed`` is already a typed AngularFlux with
-    # the matvec's B1'' face residual on its boundary; reuse directly.
+    # R-1 Step 4 G1 — ``psi_typed`` carries the Krylov-converged
+    # composite with the matvec's B1'' face residual on its boundary;
+    # reuse directly.
     del mesh, quadrature, materials  # retained as kwargs for API stability
     history = IterationHistory(
         flux_residuals=tuple(flux_residuals),
         n_inner=n_outer + 1,
         converged=converged_flag,
     )
-    # D-H.1b (2026-05-28): Solution.angular_flux is now a TimedFullField.
-    # psi_typed is the Krylov adapter output — still a legacy AngularFlux
-    # (the Krylov adapter unravels back to the template type, which is the
-    # legacy q_ext_typed). Wrap into TimedFullField at the Solution
-    # boundary via the legacy adapter.
-    from orpheus.transport.timed_full_field import TimedFullField
+    # D-H.1c stage 2 (2026-05-28): psi_typed IS already a TimedFullField;
+    # no adapter wrap at the Solution boundary.
     return Solution(
-        angular_flux=TimedFullField.from_legacy_angular_flux(psi_typed),
+        angular_flux=psi_typed,
         scalar_flux=ScalarFlux.from_mesh(phi, sn_mesh),
         mesh=sn_mesh,
         keff=None,
