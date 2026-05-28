@@ -121,11 +121,6 @@ def make_boundary_flux_zero(sn_mesh: "SNMesh") -> "BoundaryFlux":
     return sn_mesh.zeros_boundary_flux()
 
 
-def make_angular_flux_zero(sn_mesh: "SNMesh") -> "AngularFlux":
-    """Build a zero-initialised :class:`AngularFlux` for ``sn_mesh``."""
-    return sn_mesh.zeros_angular_flux()
-
-
 def make_scalar_flux_zero(sn_mesh: "SNMesh") -> "ScalarFlux":
     """Build a zero-initialised :class:`ScalarFlux` for ``sn_mesh``."""
     return sn_mesh.zeros_scalar_flux()

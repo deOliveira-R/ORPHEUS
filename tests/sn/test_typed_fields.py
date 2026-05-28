@@ -151,12 +151,11 @@ class TestScalarFlux:
 
 
 class TestAngularFlux:
-    def test_construct_from_factory(self) -> None:
-        m = _slab_mesh()
-        psi = m.zeros_angular_flux()
-        assert psi.values.shape == (m.quad.N, m.ng, m.nx, m.ny)
-        assert np.all(psi.values == 0.0)
-        assert psi.mesh is m
+    # Note: D-H.1b.7 retired ``SNMesh.zeros_angular_flux()``; the L2
+    # equivalent (``L2AngularFlux.zeros_for_sn_mesh(mesh)``) carries its
+    # own test in ``tests/transport/fields/test_angular_flux.py``.  The
+    # composite zero factory (``mesh.zeros_timed_full_field()``) is
+    # covered by ``tests/transport/test_timed_full_field.py``.
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
         m = _slab_mesh()

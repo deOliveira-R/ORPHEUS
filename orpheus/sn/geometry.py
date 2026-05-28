@@ -767,19 +767,17 @@ class SNMesh:
         return MaterialXSField.from_mesh(self)
 
     # ── Typed-field factories (Issue #197 PR-TYPED-2) ─────────────────
-
-    def zeros_angular_flux(self) -> "AngularFlux":
-        r"""Build a zero :class:`AngularFlux` sized to this mesh.
-
-        Returns an :class:`~orpheus.sn.angular_flux.AngularFlux` of
-        shape ``(N, ng, nx, ny)`` filled with zeros.  Use as the
-        ``angular`` initial guess in inner-loop iterations.
-        """
-        from .angular_flux import AngularFlux
-        return AngularFlux(
-            np.zeros((self.quad.N, self.ng, self.nx, self.ny)),
-            self,
-        )
+    #
+    # Depth B D-H.1b.7 (2026-05-28) — the legacy ``zeros_angular_flux()``
+    # retired: it constructed an ``orpheus.sn.angular_flux.AngularFlux``
+    # (legacy, with embedded boundary + history slots), which the D-H.1+
+    # migration replaces with one of two factories:
+    #
+    # * :meth:`zeros_timed_full_field` — composite bulk + boundary
+    #   container (the post-D-H carrier; current and future consumers).
+    # * :meth:`orpheus.transport.fields.angular_flux.AngularFlux.zeros_for_sn_mesh`
+    #   — pure-Field bulk only (L2 type; for tests / consumers that
+    #   want just the bulk shape).
 
     def zeros_scalar_flux(self) -> "ScalarFlux":
         r"""Build a zero :class:`ScalarFlux` sized to this mesh.
