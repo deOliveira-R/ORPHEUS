@@ -492,6 +492,247 @@ class TestSolve:
         assert captured[0] is None
 
 
+# ── D-H.1c Stage 1: TimedFullField composite dispatch on .solve ────────
+
+
+class TestSolveTimedFullField:
+    """Composite :class:`TimedFullField` dispatch on
+    :meth:`InvertibleOperator.solve`.
+
+    Same WDD-sweep math as the legacy AngularFlux branch (D-H.1c
+    stage 1 ships an adapter — the kernel-side migration absorbs in
+    D-H.2).  These tests pin the bridge correctness:
+
+    * Composite I/O contract (type, history_depth, _history).
+    * Bulk and boundary equivalence to the legacy branch on identical
+      numerical input (proves the bridge is a thin adapter, not a new
+      math path).
+    * Mesh-identity invariant on both ``rhs`` and ``initial_guess``.
+    * Mixed-type rejection (composite rhs + legacy initial_guess).
+    """
+
+    def _composite_from_legacy(self, legacy_psi):
+        """Build a TimedFullField from a legacy AngularFlux (test helper).
+
+        Mirrors ``TimedFullField.from_legacy_angular_flux`` but
+        constructed inline so the test pin doesn't depend on the
+        adapter's identity behaviour.
+        """
+        from dataclasses import replace
+
+        from orpheus.transport.fields.angular_flux import (
+            AngularFlux as L2AngularFlux,
+        )
+        from orpheus.transport.fields.boundary_flux import (
+            BoundaryFlux as L2BoundaryFlux,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        mesh = legacy_psi.mesh
+        bulk = L2AngularFlux.from_mesh(legacy_psi.values.copy(), mesh)
+        boundary = L2BoundaryFlux.from_legacy_sn(legacy_psi.boundary, mesh)
+        return TimedFullField(
+            bulk=bulk,
+            boundary=boundary,
+            _history=(),
+            history_depth=legacy_psi.history_depth,
+        )
+
+    def test_returns_timed_full_field_on_slab(self) -> None:
+        from orpheus.transport.fields.angular_flux import (
+            AngularFlux as L2AngularFlux,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sn = _slab_mesh()
+        sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
+        invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
+            sn, sigma_t,
+        )
+
+        rhs_legacy = AngularFlux(
+            np.ones((sn.quad.N, sn.ng, sn.nx, sn.ny)), sn,
+        )
+        rhs = self._composite_from_legacy(rhs_legacy)
+        psi = invertible.solve(rhs)
+
+        assert isinstance(psi, TimedFullField)
+        assert isinstance(psi.bulk, L2AngularFlux)
+        assert psi.bulk.mesh is sn
+        assert psi.bulk.values.shape == rhs.bulk.values.shape
+        assert psi._history == ()
+
+    def test_bulk_matches_legacy_branch(self) -> None:
+        """Composite bulk == legacy values on identical numerical input."""
+        sn = _slab_mesh()
+        sigma_t = np.full((sn.ng, sn.nx, sn.ny), 1.5)
+        invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
+            sn, sigma_t,
+        )
+
+        np.random.seed(311)
+        values = np.random.rand(sn.quad.N, sn.ng, sn.nx, sn.ny) + 0.1
+        rhs_legacy = AngularFlux(values, sn)
+        rhs_composite = self._composite_from_legacy(rhs_legacy)
+
+        out_legacy = invertible.solve(rhs_legacy)
+        out_composite = invertible.solve(rhs_composite)
+
+        np.testing.assert_array_equal(
+            out_composite.bulk.values, out_legacy.values,
+        )
+
+    def test_boundary_matches_legacy_branch(self) -> None:
+        """Composite boundary == legacy face state on identical input."""
+        sn = _slab_mesh()
+        sigma_t = np.full((sn.ng, sn.nx, sn.ny), 1.5)
+        invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
+            sn, sigma_t,
+        )
+
+        np.random.seed(312)
+        values = np.random.rand(sn.quad.N, sn.ng, sn.nx, sn.ny) + 0.1
+        rhs_legacy = AngularFlux(values, sn)
+        rhs_composite = self._composite_from_legacy(rhs_legacy)
+
+        out_legacy = invertible.solve(rhs_legacy)
+        out_composite = invertible.solve(rhs_composite)
+
+        layout = out_composite.boundary.layout
+        if "xmax" in layout.faces:
+            np.testing.assert_array_equal(
+                out_composite.boundary.face_view("xmax"),
+                out_legacy.boundary.xmax_face,
+            )
+        if "xmin" in layout.faces:
+            np.testing.assert_array_equal(
+                out_composite.boundary.face_view("xmin"),
+                out_legacy.boundary.xmin_face,
+            )
+
+    def test_runs_on_sphere(self) -> None:
+        """Composite dispatch on the curvilinear sweep path (smoke)."""
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sn = _sphere_mesh(nx=8, n_ord=4, ng=1)
+        sigma_t = np.full((sn.ng, sn.nx, sn.ny), 1.0)
+        invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
+            sn, sigma_t,
+        )
+
+        rhs_legacy = AngularFlux(
+            np.ones((sn.quad.N, sn.ng, sn.nx, sn.ny)), sn,
+        )
+        rhs = self._composite_from_legacy(rhs_legacy)
+
+        psi = invertible.solve(rhs)
+        assert isinstance(psi, TimedFullField)
+        assert psi.bulk.values.shape == rhs.bulk.values.shape
+        # Curvilinear sweep produces a non-trivial positive bulk.
+        assert psi.bulk.values.max() > 0
+
+    def test_initial_guess_partner_flux_threaded(self) -> None:
+        """Composite initial_guess.boundary seeds the partner-flux trace.
+
+        Reflective-BC partner-flux state is load-bearing per audit §5.
+        The bridge must extract the L2 boundary's face arrays and
+        seed the sweep's mutable ``boundary_buf`` via the same
+        ``_copy_boundary_face_state`` helper the legacy branch uses.
+        """
+        from unittest.mock import patch
+        import orpheus.sn.operator as operator_mod
+
+        sn = _slab_mesh()
+        sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
+        invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
+            sn, sigma_t,
+        )
+
+        rhs_legacy = AngularFlux(
+            np.ones((sn.quad.N, sn.ng, sn.nx, sn.ny)), sn,
+        )
+        # Build initial_guess with a non-zero xmax_face — verify it
+        # makes it into the sweep's boundary_buf.
+        ig_legacy = AngularFlux(
+            np.zeros((sn.quad.N, sn.ng, sn.nx, sn.ny)), sn,
+        )
+        ig_legacy.boundary.xmax_face[:] = 0.7
+        ig_legacy.boundary.xmin_face[:] = 0.3
+
+        rhs_composite = self._composite_from_legacy(rhs_legacy)
+        ig_composite = self._composite_from_legacy(ig_legacy)
+
+        # Spy on _copy_boundary_face_state to ensure ig_composite's
+        # boundary gets routed in (not a fresh zero).
+        captured = []
+        original = operator_mod._copy_boundary_face_state
+
+        def spy(src, dst):
+            captured.append((src.xmax_face.copy(), src.xmin_face.copy()))
+            return original(src, dst)
+
+        with patch(
+            "orpheus.sn.operator._copy_boundary_face_state", spy,
+        ):
+            invertible.solve(rhs_composite, initial_guess=ig_composite)
+
+        # Source of the copy was the initial_guess's boundary trace,
+        # NOT the rhs's (zero).
+        assert len(captured) == 1
+        np.testing.assert_array_equal(captured[0][0], 0.7)
+        np.testing.assert_array_equal(captured[0][1], 0.3)
+
+    def test_history_depth_preserved(self) -> None:
+        """``rhs.history_depth`` propagates through the composite branch."""
+        sn = _slab_mesh()
+        sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
+        invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
+            sn, sigma_t,
+        )
+
+        for depth in (1, 2, 4):
+            rhs = sn.zeros_timed_full_field(history_depth=depth)
+            psi = invertible.solve(rhs)
+            assert psi.history_depth == depth
+
+    def test_rejects_mismatched_mesh_on_rhs(self) -> None:
+        sn1 = _slab_mesh()
+        sn2 = _slab_mesh()
+        sigma_t1 = np.ones((sn1.ng, sn1.nx, sn1.ny))
+        invertible = StreamingOperator(sn1, sigma_t1) + CollisionOperator(
+            sn1, sigma_t1,
+        )
+        rhs = sn2.zeros_timed_full_field()
+        with pytest.raises(ValueError, match="mesh-identity"):
+            invertible.solve(rhs)
+
+    def test_rejects_mismatched_mesh_on_initial_guess(self) -> None:
+        sn1 = _slab_mesh()
+        sn2 = _slab_mesh()
+        sigma_t1 = np.ones((sn1.ng, sn1.nx, sn1.ny))
+        invertible = StreamingOperator(sn1, sigma_t1) + CollisionOperator(
+            sn1, sigma_t1,
+        )
+        rhs = sn1.zeros_timed_full_field()
+        ig = sn2.zeros_timed_full_field()
+        with pytest.raises(ValueError, match="mesh-identity"):
+            invertible.solve(rhs, initial_guess=ig)
+
+    def test_rejects_mixed_rhs_composite_initial_guess_legacy(self) -> None:
+        """Mixed dispatch (composite rhs + legacy initial_guess) is rejected."""
+        sn = _slab_mesh()
+        sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
+        invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
+            sn, sigma_t,
+        )
+        rhs = sn.zeros_timed_full_field()
+        ig_legacy = AngularFlux(
+            np.zeros((sn.quad.N, sn.ng, sn.nx, sn.ny)), sn,
+        )
+        with pytest.raises(TypeError, match="both must agree"):
+            invertible.solve(rhs, initial_guess=ig_legacy)
+
+
 # ── Convention-bridge regression catchers (R-1 Step 4 A5 promotion) ────
 
 

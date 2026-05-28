@@ -2188,23 +2188,22 @@ class StreamingOperator(LinearOperatorMixin):
         r"""Composite :class:`TimedFullField` body of :meth:`apply` (D-H.1b.6).
 
         Bridges through the legacy :class:`AngularFlux` typed path —
-        Phase A owns the internal matvec kernel
+        the internal matvec kernel
         (:func:`transport_operator_matvec_unified`) and the
-        :meth:`_apply_typed` body; this method touches only the entry-
-        level dispatch + L2↔legacy boundary conversion.
+        :meth:`_apply_typed` body remain untouched (D-H.2 absorbs the
+        kernel-side migration).  This method handles only the
+        L2↔legacy bridge at the public-entry boundary.
 
         Scope: 1-D paths (slab + spherical + cylindrical).  2-D
-        Cartesian raises :class:`NotImplementedError` (the legacy
+        Cartesian raises :class:`NotImplementedError` — the legacy
         2-D path uses :meth:`AngularFlux.to_flat_with_traces`, which
-        couples to the legacy persistent boundary buffer — Phase A
-        territory).
+        couples to the legacy persistent boundary buffer; deferred to
+        D-H.2 alongside the legacy retirement.
 
         Returns a :class:`TimedFullField` whose bulk carries
         :math:`L\psi.bulk` and whose boundary carries the matvec's
         face residuals at the layout-assigned slots.
         """
-        from .angular_flux import AngularFlux as LegacyAngularFlux
-        from .boundary_flux import BoundaryFlux as LegacyBoundaryFlux
         from orpheus.transport.fields.angular_flux import (
             AngularFlux as L2AngularFlux,
         )
@@ -2227,28 +2226,19 @@ class StreamingOperator(LinearOperatorMixin):
                 "StreamingOperator.apply(TimedFullField): 2-D Cartesian "
                 "is deferred — the legacy ``_apply_typed`` body uses "
                 "AngularFlux.to_flat_with_traces, which couples to the "
-                "legacy persistent boundary buffer.  Phase A's matvec "
-                "rewrite will absorb the 2-D path; until then, 2-D "
-                "consumers must use the legacy AngularFlux dispatch."
+                "legacy persistent boundary buffer.  D-H.2 absorbs the "
+                "2-D path alongside the legacy retirement; until then, "
+                "2-D consumers must use the legacy AngularFlux dispatch."
             )
 
-        # ── L2 → legacy BoundaryFlux conversion ─────────────────────
-        # 1-D layouts: slab has {xmin, xmax}; curvilinear has {xmax}.
-        # Legacy ``xmin_face`` / ``xmax_face`` map 1:1 to the L2
-        # ``face_view`` slices.
-        legacy_bf = LegacyBoundaryFlux(mesh=sn_mesh)
-        layout = psi.boundary.layout
-        if "xmax" in layout.faces:
-            legacy_bf.xmax_face = psi.boundary.face_view("xmax").copy()
-        if "xmin" in layout.faces:
-            legacy_bf.xmin_face = psi.boundary.face_view("xmin").copy()
+        # D-H.1c stage 1 — composite ↔ legacy bridge centralised on
+        # :meth:`TimedFullField.to_legacy_angular_flux` (Pattern 2 —
+        # single source of truth; this site previously inlined the
+        # boundary-face copy loop).
+        legacy_in = psi.to_legacy_angular_flux()
 
-        # ── Bridge: legacy AngularFlux carrying the composite bulk + boundary ──
-        legacy_in = LegacyAngularFlux(
-            psi.bulk.values, sn_mesh, boundary=legacy_bf,
-        )
-
-        # Existing typed path — touches kernel internals owned by Phase A.
+        # Existing typed path — touches kernel internals untouched by
+        # the type-system swap (D-H.2 absorbs the kernel rewrite).
         legacy_out = self._apply_typed(legacy_in)
 
         # ── legacy → L2 conversion ──────────────────────────────────
@@ -2732,10 +2722,10 @@ class InvertibleOperator(OperatorSum):
 
     def solve(
         self,
-        rhs: "AngularFlux",
+        rhs: "AngularFlux | TimedFullField",
         *,
-        initial_guess: "AngularFlux | None" = None,
-    ) -> "AngularFlux":
+        initial_guess: "AngularFlux | TimedFullField | None" = None,
+    ) -> "AngularFlux | TimedFullField":
         r"""Invert :math:`(L + C)\,\psi = \text{rhs}` via the WDD sweep.
 
         The cell-balance equation
@@ -2746,12 +2736,22 @@ class InvertibleOperator(OperatorSum):
 
         Parameters
         ----------
-        rhs : AngularFlux
-            * ``rhs.values`` — per-ordinate source :math:`Q^{\rm aniso}`.
-            * ``rhs.boundary`` — BC inflow trace (typically zero for
-              SI/Krylov volumetric sources; falls back to ``rhs.boundary``
-              when no ``initial_guess`` is supplied).
-        initial_guess : AngularFlux or None, optional
+        rhs : AngularFlux or TimedFullField
+            Legacy :class:`AngularFlux` or composite
+            :class:`TimedFullField` carrying:
+
+            * ``values`` / ``bulk.values`` — per-ordinate source
+              :math:`Q^{\rm aniso}`, shape ``(N, ng, nx, ny)``.
+            * ``boundary`` / ``bulk.boundary`` — BC inflow trace
+              (typically zero for SI/Krylov volumetric sources;
+              falls back as the seed when no ``initial_guess`` is
+              supplied).
+
+            Both branches dispatch via runtime isinstance; the
+            composite branch (D-H.1c stage 1) bridges through the
+            legacy sweep path internally and returns
+            :class:`TimedFullField`.  Output type matches input type.
+        initial_guess : AngularFlux, TimedFullField, or None, optional
             Previous iterate :math:`\psi^{(k-1)}` for the curvilinear
             Carlson coupled-pole seed (M-M reads it as the level's
             angular flux to derive :math:`\bar Q` at :math:`\mu = -1`).
@@ -2761,6 +2761,9 @@ class InvertibleOperator(OperatorSum):
             Carlson seed degenerates to the zero-input result (same
             as ``ZeroSeed`` ablation); BC trace falls back to
             ``rhs.boundary``.
+
+            Type must match ``rhs`` (both legacy or both composite);
+            mixed inputs raise :class:`TypeError`.
 
             Explicit kwarg (post-Phase-1.2) — the seed is no longer
             piggy-backed on ``rhs(1)`` (the AngularFlux lag-1 history
@@ -2774,22 +2777,43 @@ class InvertibleOperator(OperatorSum):
 
         Returns
         -------
-        AngularFlux
+        AngularFlux or TimedFullField
             The angular flux satisfying :math:`(L + C)\,\psi =
             \text{rhs}`, with the sweep's outflow face state in
             ``.boundary`` and ``history_depth`` inherited from
-            ``rhs.history_depth``.
+            ``rhs.history_depth``.  Return type matches ``rhs`` input
+            type.
         """
         from .angular_flux import AngularFlux
         from orpheus.transport.sources import PerOrdinateSource
+        from orpheus.transport.timed_full_field import TimedFullField
         from .sweep import transport_sweep
+
+        # D-H.1c stage 1 — composite branch dispatch ahead of the
+        # legacy AngularFlux validation.  Both branches must agree
+        # on input/output type pairing: composite rhs → composite
+        # initial_guess (or None) → composite return.
+        if isinstance(rhs, TimedFullField):
+            if initial_guess is not None and not isinstance(
+                initial_guess, TimedFullField,
+            ):
+                raise TypeError(
+                    f"InvertibleOperator.solve: 'rhs' is TimedFullField "
+                    f"but 'initial_guess' is "
+                    f"{type(initial_guess).__name__}; both must agree "
+                    f"on type (composite or legacy)."
+                )
+            return self._solve_timed_full_field(
+                rhs, initial_guess=initial_guess,
+            )
 
         if not isinstance(rhs, AngularFlux):
             raise TypeError(
-                f"InvertibleOperator.solve: 'rhs' must be AngularFlux; "
-                f"got {type(rhs).__name__}.  The typed-flux contract is "
-                f"the only supported surface in R-1; bare-ndarray rhs "
-                f"goes through the legacy SNSolver paths."
+                f"InvertibleOperator.solve: 'rhs' must be AngularFlux "
+                f"or TimedFullField; got {type(rhs).__name__}.  The "
+                f"typed-flux contract is the only supported surface in "
+                f"R-1; bare-ndarray rhs goes through the legacy "
+                f"SNSolver paths."
             )
         if rhs.mesh is not self.sn_mesh:
             raise ValueError(
@@ -2844,6 +2868,105 @@ class InvertibleOperator(OperatorSum):
             angular,
             sn_mesh,
             boundary=boundary_buf,
+            history_depth=rhs.history_depth,
+        )
+
+    def _solve_timed_full_field(
+        self,
+        rhs: "TimedFullField",
+        *,
+        initial_guess: "TimedFullField | None" = None,
+    ) -> "TimedFullField":
+        r"""Composite :class:`TimedFullField` body of :meth:`solve` (D-H.1c stage 1).
+
+        Bridges through the legacy :class:`AngularFlux` solve path —
+        the WDD sweep kernel (:func:`~orpheus.sn.sweep.transport_sweep`)
+        stays untouched; this method handles only the L2↔legacy
+        bridge at the public-entry boundary.
+
+        The boundary plumbing for the reflective-BC partner-flux state
+        is preserved: ``initial_guess.boundary`` (composite) → legacy
+        BoundaryFlux via :meth:`TimedFullField.to_legacy_angular_flux`
+        → ``boundary_buf`` (the sweep's mutable write-through buffer)
+        via :func:`_copy_boundary_face_state`.  The sweep mutates
+        ``boundary_buf`` in place; the result is re-wrapped as an L2
+        composite at the end.
+
+        Parameters
+        ----------
+        rhs : TimedFullField
+            Per-ordinate source on the composite carrier.
+        initial_guess : TimedFullField or None
+            Previous iterate (carries the partner-flux trace and
+            curvilinear Carlson seed).  ``None`` → cold start.
+
+        Returns
+        -------
+        TimedFullField
+            Solve output with ``bulk`` = ``(L + C)^{-1} rhs.bulk`` and
+            ``boundary`` = the sweep's outflow face state.
+            ``history_depth`` matches ``rhs.history_depth``; ``_history``
+            is empty (solver outputs carry no iteration history — the
+            outer SI / Krylov loop owns history threading).
+        """
+        from orpheus.transport.fields.angular_flux import (
+            AngularFlux as L2AngularFlux,
+        )
+        from orpheus.transport.fields.boundary_flux import (
+            BoundaryFlux as L2BoundaryFlux,
+        )
+        from orpheus.transport.sources import PerOrdinateSource
+        from orpheus.transport.timed_full_field import TimedFullField
+        from .sweep import transport_sweep
+
+        sn_mesh = self.sn_mesh
+        if rhs.bulk.mesh is not sn_mesh:
+            raise ValueError(
+                "InvertibleOperator.solve(TimedFullField): rhs and "
+                "operator must share the same SNMesh instance "
+                "(mesh-identity invariant)."
+            )
+        if initial_guess is not None and initial_guess.bulk.mesh is not sn_mesh:
+            raise ValueError(
+                "InvertibleOperator.solve(TimedFullField): initial_guess "
+                "and operator must share the same SNMesh instance "
+                "(mesh-identity invariant)."
+            )
+
+        # ── L2 → legacy boundary bridge (the load-bearing partner-flux
+        # plumbing per audit §5).  The sweep mutates ``boundary_buf``
+        # in place; the legacy initial_guess.boundary (built via
+        # to_legacy_angular_flux) seeds it.
+        boundary_buf = sn_mesh.zeros_boundary_flux()
+        if initial_guess is not None:
+            legacy_ig = initial_guess.to_legacy_angular_flux()
+            _copy_boundary_face_state(legacy_ig.boundary, boundary_buf)
+        else:
+            legacy_ig = None
+            # Fallback to rhs.boundary as the BC inflow trace.
+            legacy_rhs = rhs.to_legacy_angular_flux()
+            _copy_boundary_face_state(legacy_rhs.boundary, boundary_buf)
+
+        # ── Per-ordinate source from rhs.bulk (single-source convention
+        # per R-1 Step 4 A1 — ``rhs.bulk.values`` IS per-ordinate
+        # density by producer contract).
+        source = PerOrdinateSource.from_mesh(rhs.bulk.values, sn_mesh)
+
+        # ── Legacy sweep (kernel unchanged — D-H.2 absorbs the kernel-
+        # side migration).
+        angular, _scalar = transport_sweep(
+            source,
+            self.sigma,
+            sn_mesh,
+            boundary_buf,
+            initial_guess=legacy_ig,
+        )
+
+        # ── legacy → L2 reconstruction.
+        return TimedFullField(
+            bulk=L2AngularFlux.from_mesh(angular, sn_mesh),
+            boundary=L2BoundaryFlux.from_legacy_sn(boundary_buf, sn_mesh),
+            _history=(),
             history_depth=rhs.history_depth,
         )
 

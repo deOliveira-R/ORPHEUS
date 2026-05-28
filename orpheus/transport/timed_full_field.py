@@ -514,6 +514,65 @@ class TimedFullField:
             history_depth=history_depth,
         )
 
+    def to_legacy_angular_flux(self) -> object:
+        r"""Convert composite → legacy :class:`orpheus.sn.angular_flux.AngularFlux`.
+
+        Inverse of :meth:`from_legacy_angular_flux`.  Builds a legacy
+        bundle whose ``.values`` is the composite's ``bulk.values`` and
+        whose ``.boundary`` is a fresh legacy :class:`BoundaryFlux`
+        whose per-face slots are populated from the composite
+        boundary's per-face L2 :meth:`face_view` arrays (copied).
+
+        **Single source of truth** for the composite→legacy bridge.
+        Used by :meth:`InvertibleOperator.solve`'s composite branch
+        (D-H.1c stage 1) and
+        :meth:`StreamingOperator._apply_timed_full_field` (D-H.1b.6)
+        — both call sites previously inlined this conversion; they
+        now route through this method per Pattern 2 (single source of
+        truth).
+
+        **Transitional**: this method retires when D-H.2 deletes the
+        legacy :class:`orpheus.sn.angular_flux.AngularFlux` class.
+        Production code outside the legacy-bridge pattern MUST NOT
+        consume this method — it is exclusively for traversing the
+        legacy/L2 type boundary during the D-H migration.
+
+        Notes
+        -----
+        ``history_depth`` is NOT propagated to the legacy bundle: the
+        legacy class requires ``history_depth >= 1`` (post_init check)
+        while :class:`TimedFullField` permits ``history_depth == 0``,
+        and the bridge intermediate is transient (the legacy bundle
+        is consumed by sweep / matvec and discarded).  Callers that
+        need the original composite's ``history_depth`` on a fresh
+        composite output should propagate it directly on the
+        :class:`TimedFullField` reconstruction, not via the legacy
+        bridge.
+
+        Returns
+        -------
+        object
+            Legacy ``orpheus.sn.angular_flux.AngularFlux`` instance
+            with bulk values + per-face boundary trace.  Mesh identity
+            is inherited from ``self.bulk.mesh``.  Legacy
+            ``history_depth`` left at the legacy default (2).
+        """
+        from orpheus.sn.angular_flux import AngularFlux as LegacyAngularFlux
+        from orpheus.sn.boundary_flux import BoundaryFlux as LegacyBoundaryFlux
+
+        mesh = getattr(self.bulk, "mesh")
+        legacy_bf = LegacyBoundaryFlux(mesh=mesh)
+        layout = getattr(self.boundary, "layout", None)
+        if layout is not None:
+            if "xmax" in layout.faces:
+                legacy_bf.xmax_face = self.boundary.face_view("xmax").copy()
+            if "xmin" in layout.faces:
+                legacy_bf.xmin_face = self.boundary.face_view("xmin").copy()
+        return LegacyAngularFlux(
+            self.bulk.values, mesh,
+            boundary=legacy_bf,
+        )
+
     # ── Diagnostics ──────────────────────────────────────────────────
 
     def copy(self) -> "TimedFullField":
