@@ -134,7 +134,10 @@ from orpheus.numerics.projection import (
 # are circular-import-safe.
 from .angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
+from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux as L2BoundaryFlux
 from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
+from orpheus.transport.timed_full_field import TimedFullField
 
 if TYPE_CHECKING:
     from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
@@ -615,7 +618,13 @@ class ScatteringOperator(LinearOperatorMixin):
         from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
         if self.scattering_order == 0 or angular_flux is None:
             return None
-        is_typed = isinstance(angular_flux, AngularFlux)
+        # Typed path accepts BOTH the legacy ``orpheus.sn.angular_flux``
+        # ``AngularFlux`` (transitional, retires in D-H.1c) AND the L2
+        # pure-Field ``orpheus.transport.fields.angular_flux.AngularFlux``
+        # (the post-D-H carrier on the TimedFullField composite).  Both
+        # expose ``.values`` and ``.mesh`` identically; the typed pipeline
+        # is layout-agnostic.
+        is_typed = isinstance(angular_flux, (AngularFlux, L2AngularFlux))
         values = angular_flux.values if is_typed else angular_flux
         L = self.scattering_order
         # Build the §9 "S = R Λ M" pipeline. The constituent primitives
@@ -821,12 +830,20 @@ class ScatteringOperator(LinearOperatorMixin):
         Dispatched on input type via
         :func:`functools.singledispatchmethod`:
 
-        * :class:`~orpheus.sn.angular_flux.AngularFlux` →
+        * :class:`~orpheus.sn.angular_flux.AngularFlux` (legacy) →
           :class:`AngularFlux` — full :math:`P_\ell` Galerkin
           reconstruction in **per-ordinate magnitude** (the trailing
           :math:`1/W` projection lives at this producer boundary;
           R-1 Step 4 A1).  Consumers are SN sweep / GMRES / source-
-          iteration loops that operate on per-ordinate angular flux.
+          iteration loops operating on legacy per-ordinate angular
+          flux.  Retires in D-H.1c alongside the legacy ``AngularFlux``.
+        * :class:`~orpheus.transport.timed_full_field.TimedFullField`
+          → :class:`TimedFullField` — composite bulk + boundary
+          variant for the D-H.1+ migration path.  Bulk follows the
+          same full :math:`P_\ell` Galerkin path; boundary is the
+          implicit-zero :class:`L2BoundaryFlux` (Option β3 —
+          scattering is volumetric; Wave O Issue #208 will encode the
+          bulk-only nature in the type via :class:`BulkOperator`).
         * :class:`~orpheus.sn.scalar_flux.ScalarFlux` →
           :class:`~orpheus.sn.sources.IsotropicSource` — :math:`P_0`
           in-scatter + :math:`(n,2n)` doubling only, in **iso scalar
@@ -948,6 +965,62 @@ class ScatteringOperator(LinearOperatorMixin):
         # ``StreamingOperator.apply`` for the contrasting case
         # where the face residual IS non-zero.
         return AngularFlux(combined.values, mesh)
+
+    @apply.register
+    def _(self, psi: TimedFullField) -> "TimedFullField":
+        r"""Composite :class:`TimedFullField` variant — bulk-only scattering source.
+
+        Math: identical to the :class:`AngularFlux` branch above —
+        reduce ``psi.bulk`` angular → scalar, build iso :math:`P_0 +
+        (n,2n)` source on the typed
+        :class:`~orpheus.transport.sources.IsotropicSource` accumulator,
+        build the per-ordinate :math:`P_\ell\ge 1` Galerkin
+        contribution via :meth:`build_aniso_source` (now accepting
+        the L2 :class:`AngularFlux` on the composite's bulk), then
+        combine via the producer-side :math:`1/W` projection
+        (Pattern 7).  The output bulk is a pure-Field
+        :class:`L2AngularFlux`; the output boundary is the
+        **implicit-zero** :class:`L2BoundaryFlux` — scattering is
+        volumetric, no face-trace contribution.
+
+        Per Option β3 (`#208
+        <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_) the
+        implicit-zero boundary is a transitional shim: Wave O will
+        introduce :class:`BulkOperator` / :class:`FullOperator`
+        Protocols so that scattering's volumetric nature is encoded
+        in the *type*, not in a zero-valued boundary member.  Until
+        then the composite return enables ``L.apply(state) -
+        S.apply(state) - F.apply(state)`` to compose under
+        :meth:`TimedFullField.__sub__` once all four operators expose
+        the composite branch (D-H.1c).
+        """
+        bulk = psi.bulk
+        mesh = bulk.mesh
+        # Reduce bulk → scalar via the L2 typed reduction (the L2
+        # ``AngularFlux.integrate_angular`` returns the same
+        # :class:`ScalarFlux` type the legacy branch consumes).
+        phi = bulk.integrate_angular()
+        # iso = P0 in-scatter + (n,2n) doubling on the typed accumulator.
+        iso: IsotropicSource = mesh.zeros_isotropic_source()
+        iso = self.add_iso_source(iso, phi)
+        iso = self.add_n2n_source(iso, phi)
+        # Pℓ (ℓ≥1) — per-ordinate after R-1 Step 4 A1 producer-side /W.
+        # ``build_aniso_source`` now accepts the L2 ``AngularFlux`` on
+        # the composite's bulk (the type-check widening above).
+        aniso_or_none = self.build_aniso_source(bulk)
+        if aniso_or_none is None:
+            aniso = mesh.zeros_per_ordinate_source()
+        else:
+            aniso = aniso_or_none
+        # Producer-side projection at the apply boundary (Pattern 7).
+        sum_w = float(mesh.quad.weights.sum())
+        combined: PerOrdinateSource = (iso / sum_w) + aniso
+        return TimedFullField(
+            bulk=L2AngularFlux.from_mesh(combined.values, mesh),
+            boundary=L2BoundaryFlux.zeros_for_sn_mesh(mesh),
+            _history=(),
+            history_depth=psi.history_depth,
+        )
 
     @apply.register
     def _(self, phi: ScalarFlux) -> "IsotropicSource":

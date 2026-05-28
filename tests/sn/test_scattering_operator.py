@@ -428,6 +428,150 @@ class TestProducerSideNormalisation:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# D-H.1b.4 — TimedFullField composite dispatch
+# ──────────────────────────────────────────────────────────────────────
+
+
+class TestTimedFullFieldBranch:
+    """Composite :class:`TimedFullField` variant: bulk-only scattering.
+
+    Per Option β3 (Issue #208), scattering is volumetric — the output
+    boundary is the implicit-zero :class:`L2BoundaryFlux`.  Bulk
+    follows the full :math:`P_\\ell` Galerkin path identical to the
+    legacy :class:`AngularFlux` branch.
+    """
+
+    def test_returns_timed_full_field(self, solver_2g_p0):
+        """Composite input → composite output (dispatch contract)."""
+        from dataclasses import replace
+
+        from orpheus.transport.fields.angular_flux import (
+            AngularFlux as L2AngularFlux,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sn_mesh = solver_2g_p0.sn_mesh
+        state = sn_mesh.zeros_timed_full_field()
+        np.random.seed(41)
+        bulk_values = np.random.rand(*state.bulk.values.shape) + 0.1
+        state = replace(state, bulk=replace(state.bulk, values=bulk_values))
+
+        out = solver_2g_p0.scattering_op.apply(state)
+
+        assert isinstance(out, TimedFullField)
+        assert isinstance(out.bulk, L2AngularFlux)
+        assert out.bulk.mesh is sn_mesh
+        assert out.history_depth == state.history_depth
+        assert out._history == ()
+
+    def test_implicit_zero_boundary(self, solver_2g_p0):
+        """Scattering is volumetric — boundary member is all zeros."""
+        from dataclasses import replace
+
+        sn_mesh = solver_2g_p0.sn_mesh
+        state = sn_mesh.zeros_timed_full_field()
+        np.random.seed(42)
+        bulk_values = np.random.rand(*state.bulk.values.shape) + 0.1
+        state = replace(state, bulk=replace(state.bulk, values=bulk_values))
+
+        out = solver_2g_p0.scattering_op.apply(state)
+
+        # Implicit-zero boundary (Option β3 / Wave O #208).
+        np.testing.assert_array_equal(out.boundary.values, 0.0)
+
+    def test_bulk_matches_legacy_angular_flux_branch_p0(self, solver_2g_p0):
+        """Composite branch bulk == legacy AngularFlux branch values (P0).
+
+        Both share the same math (iso scalar + (n,2n) projected to per-
+        ordinate); the only delta is the return type.  This pins the
+        equivalence so D-H.1c can retire the legacy branch without a
+        numerical regression.
+        """
+        from dataclasses import replace
+
+        from orpheus.sn.angular_flux import AngularFlux as LegacyAngularFlux
+
+        sn_mesh = solver_2g_p0.sn_mesh
+        op = solver_2g_p0.scattering_op
+        N = op.n_ordinates
+        np.random.seed(43)
+        bulk_values = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+
+        # Composite path.
+        state = sn_mesh.zeros_timed_full_field()
+        state = replace(state, bulk=replace(state.bulk, values=bulk_values))
+        out_composite = op.apply(state)
+
+        # Legacy path — same numerical input.
+        legacy_psi = LegacyAngularFlux(bulk_values.copy(), sn_mesh)
+        out_legacy = op.apply(legacy_psi)
+
+        np.testing.assert_array_equal(
+            out_composite.bulk.values, out_legacy.values,
+        )
+
+    def test_bulk_matches_legacy_branch_p1(self):
+        """Composite bulk == legacy bulk also under P1 anisotropic scattering.
+
+        The Pℓ Galerkin path runs through :meth:`build_aniso_source`,
+        whose ``is_typed`` isinstance check was widened to accept the
+        L2 ``AngularFlux`` on the composite's bulk.  Without that
+        widening the L2 bulk would fall through to the bare-ndarray
+        branch and the einsum would fail; with it, both code paths
+        share the typed Pℓ pipeline and produce identical values.
+        """
+        from dataclasses import replace
+
+        from orpheus.sn.angular_flux import AngularFlux as LegacyAngularFlux
+
+        try:
+            mix = get_mixture("A", "4g")
+        except Exception:
+            pytest.skip("4g library unavailable")
+        if len(mix.SigS) < 2:
+            pytest.skip("No P1 data in 4g library")
+
+        mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        quad = Quadrature.lebedev(order=17)
+        solver = SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=1)
+        op = solver.scattering_op
+        sn_mesh = solver.sn_mesh
+
+        np.random.seed(44)
+        N = op.n_ordinates
+        bulk_values = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+
+        # Composite path.
+        state = sn_mesh.zeros_timed_full_field()
+        state = replace(state, bulk=replace(state.bulk, values=bulk_values))
+        out_composite = op.apply(state)
+
+        # Legacy path — same numerical input.
+        legacy_psi = LegacyAngularFlux(bulk_values.copy(), sn_mesh)
+        out_legacy = op.apply(legacy_psi)
+
+        np.testing.assert_allclose(
+            out_composite.bulk.values, out_legacy.values,
+            rtol=1e-14, atol=1e-15,
+        )
+
+    def test_zero_bulk_zero_output(self, solver_2g_p0):
+        """ψ = 0 ⇒ S·ψ = 0 (linearity guard at composite layer)."""
+        state = solver_2g_p0.sn_mesh.zeros_timed_full_field()
+        out = solver_2g_p0.scattering_op.apply(state)
+        np.testing.assert_array_equal(out.bulk.values, 0.0)
+        np.testing.assert_array_equal(out.boundary.values, 0.0)
+
+    def test_history_depth_preserved(self, solver_2g_p0):
+        """Composite return preserves input ``history_depth`` capacity."""
+        sn_mesh = solver_2g_p0.sn_mesh
+        for depth in (0, 1, 2, 4):
+            state = sn_mesh.zeros_timed_full_field(history_depth=depth)
+            out = solver_2g_p0.scattering_op.apply(state)
+            assert out.history_depth == depth
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Algebraic identities (P0 + (n,2n))
 # ──────────────────────────────────────────────────────────────────────
 
