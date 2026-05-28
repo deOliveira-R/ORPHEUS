@@ -353,3 +353,199 @@ def test_operator_algebra_reads_as_math() -> None:
     np.testing.assert_array_equal(
         rhs.boundary.xmax_face, Lpsi.boundary.xmax_face,
     )
+
+
+# ───────────────────────────────────────────────────────────────────────
+# D-H.1b.8 — Compose (L + C - S - F).apply(state) under TimedFullField
+# ───────────────────────────────────────────────────────────────────────
+
+
+def _random_composite(sn: SNMesh, seed: int):
+    """Build a TimedFullField with non-trivial bulk + boundary.
+
+    Mirrors :func:`_random_psi` for the composite carrier.  Bulk
+    values + boundary face values are independently sampled from a
+    standard-normal RNG seeded with ``seed`` / ``seed+1000``; the
+    composite's ``history_depth`` stays at the default (2).
+    """
+    from dataclasses import replace
+
+    rng_bulk = np.random.default_rng(seed)
+    rng_bnd = np.random.default_rng(seed + 1000)
+    state = sn.zeros_timed_full_field()
+    bulk_values = rng_bulk.standard_normal(state.bulk.values.shape)
+    boundary_values = rng_bnd.standard_normal(state.boundary.values.shape)
+    state = replace(state, bulk=replace(state.bulk, values=bulk_values))
+    state = replace(
+        state, boundary=replace(state.boundary, values=boundary_values),
+    )
+    return state
+
+
+def _legacy_from_composite(state):
+    """Build a legacy AngularFlux carrying the composite's bulk + boundary.
+
+    Mirror of the helper in test_streaming_operator.py — kept inline
+    here to avoid a cross-test-file import.  Used to compare composite
+    vs legacy algebra outputs on identical numerical input.
+    """
+    from orpheus.sn.angular_flux import AngularFlux as LegacyAngularFlux
+    from orpheus.sn.boundary_flux import BoundaryFlux as LegacyBoundaryFlux
+
+    sn_mesh = state.bulk.mesh
+    legacy_bf = LegacyBoundaryFlux(mesh=sn_mesh)
+    layout = state.boundary.layout
+    if "xmax" in layout.faces:
+        legacy_bf.xmax_face = state.boundary.face_view("xmax").copy()
+    if "xmin" in layout.faces:
+        legacy_bf.xmin_face = state.boundary.face_view("xmin").copy()
+    return LegacyAngularFlux(
+        state.bulk.values.copy(), sn_mesh, boundary=legacy_bf,
+    )
+
+
+@pytest.mark.parametrize("name,builder", GEOMETRIES)
+def test_full_algebra_returns_timed_full_field(name, builder) -> None:
+    """``(L + C - S - F).apply(state)`` returns a TimedFullField end-to-end.
+
+    Load-bearing for the D-H.1b operator-algebra type-uniformity claim:
+    every leaf operator (L, C, S, F) accepts :class:`TimedFullField`
+    input and returns :class:`TimedFullField` output, so the composed
+    :class:`~orpheus.numerics.operator.OperatorSum` tree's inherited
+    ``apply`` (``a.apply(x) + b.apply(x)``) type-checks at every node.
+
+    ``L + C`` dispatches to :class:`InvertibleOperator` (subclass of
+    OperatorSum); subsequent ``-S - F`` chain through the generic
+    LinearOperatorMixin's ``__sub__`` → ``OperatorSum(self,
+    ScaledOperator(other, -1))``.  The ``-1`` scaling propagates via
+    :meth:`TimedFullField.__mul__` (which propagates to bulk +
+    boundary members).  All four leaves carry their TimedFullField
+    branches as of D-H.1b.3..6.
+    """
+    from orpheus.transport.timed_full_field import TimedFullField
+
+    sn = builder()
+    state = _random_composite(sn, seed=24)
+    sigma_t = np.full((sn.ng, sn.nx, sn.ny), 0.7)
+    L = StreamingOperator(sn, sigma_t)
+    C = CollisionOperator(sn, sigma_t * 0.5)
+    S = ScatteringOperator.from_solver_data(
+        mat_xs=sn.material_xs_field(),
+        quadrature=sn.quad,
+        scattering_order=0,
+    )
+    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
+
+    A = L + C - S - F  # full operator-algebra composition
+    out = A.apply(state)
+
+    assert isinstance(out, TimedFullField)
+    assert out.bulk.mesh is sn
+    assert out.history_depth == state.history_depth
+    assert out._history == ()
+
+
+@pytest.mark.parametrize("name,builder", GEOMETRIES)
+def test_full_algebra_bulk_matches_legacy(name, builder) -> None:
+    """Composite (L+C-S-F) bulk == legacy (L+C-S-F) values on identical input.
+
+    Pins the bridge correctness: the TimedFullField branches must
+    compute the same numerics as the legacy branches at the
+    cell-centre block.
+    """
+    sn = builder()
+    state = _random_composite(sn, seed=25)
+    legacy = _legacy_from_composite(state)
+    sigma_t = np.full((sn.ng, sn.nx, sn.ny), 0.7)
+    L = StreamingOperator(sn, sigma_t)
+    C = CollisionOperator(sn, sigma_t * 0.5)
+    S = ScatteringOperator.from_solver_data(
+        mat_xs=sn.material_xs_field(),
+        quadrature=sn.quad,
+        scattering_order=0,
+    )
+    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
+    A = L + C - S - F
+
+    out_composite = A.apply(state)
+    out_legacy = A.apply(legacy)
+
+    np.testing.assert_array_equal(
+        out_composite.bulk.values, out_legacy.values,
+    )
+
+
+@pytest.mark.parametrize("name,builder", GEOMETRIES)
+def test_full_algebra_boundary_matches_legacy(name, builder) -> None:
+    """Composite (L+C-S-F) boundary == legacy face residual.
+
+    Only L contributes a non-zero face residual (C / S / F return
+    implicit-zero composite boundary per Option β3); the composite's
+    final boundary must match the legacy's face residual face-by-face.
+    """
+    sn = builder()
+    state = _random_composite(sn, seed=26)
+    legacy = _legacy_from_composite(state)
+    sigma_t = np.full((sn.ng, sn.nx, sn.ny), 0.7)
+    L = StreamingOperator(sn, sigma_t)
+    C = CollisionOperator(sn, sigma_t * 0.5)
+    S = ScatteringOperator.from_solver_data(
+        mat_xs=sn.material_xs_field(),
+        quadrature=sn.quad,
+        scattering_order=0,
+    )
+    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
+    A = L + C - S - F
+
+    out_composite = A.apply(state)
+    out_legacy = A.apply(legacy)
+
+    layout = out_composite.boundary.layout
+    if "xmax" in layout.faces:
+        np.testing.assert_array_equal(
+            out_composite.boundary.face_view("xmax"),
+            out_legacy.boundary.xmax_face,
+        )
+    if "xmin" in layout.faces:
+        np.testing.assert_array_equal(
+            out_composite.boundary.face_view("xmin"),
+            out_legacy.boundary.xmin_face,
+        )
+
+
+@pytest.mark.parametrize("name,builder", GEOMETRIES)
+def test_full_algebra_linearity(name, builder) -> None:
+    """``A.apply(α·state₁ + β·state₂) == α·A·state₁ + β·A·state₂``.
+
+    Linearity of the composed operator on the composite carrier — the
+    ``+`` / scalar-``*`` dunders on TimedFullField propagate through
+    bulk + boundary, and the operator algebra commutes with them
+    (linear-operator-on-vector-space invariant).
+    """
+    sn = builder()
+    state1 = _random_composite(sn, seed=27)
+    state2 = _random_composite(sn, seed=28)
+    sigma_t = np.full((sn.ng, sn.nx, sn.ny), 0.7)
+    L = StreamingOperator(sn, sigma_t)
+    C = CollisionOperator(sn, sigma_t * 0.5)
+    S = ScatteringOperator.from_solver_data(
+        mat_xs=sn.material_xs_field(),
+        quadrature=sn.quad,
+        scattering_order=0,
+    )
+    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
+    A = L + C - S - F
+    alpha, beta = 2.5, -1.7
+
+    lhs = A.apply((alpha * state1) + (beta * state2))
+    rhs = (alpha * A.apply(state1)) + (beta * A.apply(state2))
+
+    # Bulk linearity check.
+    np.testing.assert_allclose(
+        lhs.bulk.values, rhs.bulk.values, rtol=1e-12, atol=1e-13,
+    )
+    # Boundary linearity check.
+    np.testing.assert_allclose(
+        lhs.boundary.values, rhs.boundary.values,
+        rtol=1e-12, atol=1e-13,
+    )
