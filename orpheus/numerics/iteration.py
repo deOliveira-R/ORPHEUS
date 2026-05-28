@@ -161,23 +161,43 @@ def _has(op: object, cap: str) -> bool:
 
 
 def _is_ravellable(x: object) -> bool:
-    """Detect the ravellable protocol used by :class:`AngularFlux`.
+    """Detect the ravellable protocol — supports two flavors.
 
-    True when ``x`` exposes both an instance method
-    ``to_flat_with_traces`` returning a 1-D ndarray AND a class-level
-    factory ``from_flat_with_traces(flat, mesh)`` AND a ``mesh``
-    attribute the factory consumes.  Bare ndarrays match none of
-    these and fall through to the legacy reshape path.
+    1. **Template-based** (post-D-H.1, canonical):
+       ``to_flat()`` instance method + ``from_flat(flat, template)``
+       classmethod. Used by
+       :class:`~orpheus.transport.timed_full_field.TimedFullField`
+       (the bulk+boundary+history container).
+
+    2. **Mesh-based** (legacy, pre-D-H.1):
+       ``to_flat_with_traces()`` + ``from_flat_with_traces(flat, mesh)``
+       + ``mesh`` attribute. Used by legacy
+       :class:`~orpheus.sn.angular_flux.AngularFlux` (which retires
+       in D-H.2).
+
+    Both flavors share the same ``_is_ravellable`` / ``_ravel`` /
+    ``_unravel_like`` interface so the Krylov adapter is type-agnostic
+    during the migration window.
+
+    Bare ndarrays match neither protocol and fall through to the
+    legacy reshape path in the helpers below.
     """
-    return (
+    has_new = (
+        hasattr(x, "to_flat")
+        and hasattr(type(x), "from_flat")
+    )
+    has_legacy = (
         hasattr(x, "to_flat_with_traces")
         and hasattr(x, "mesh")
         and hasattr(type(x), "from_flat_with_traces")
     )
+    return has_new or has_legacy
 
 
 def _ravel(x):
     """Ravel typed flux or bare ndarray to a 1-D ``float64`` ndarray."""
+    if hasattr(x, "to_flat") and hasattr(type(x), "from_flat"):
+        return np.asarray(x.to_flat(), dtype=float)
     if _is_ravellable(x):
         return np.asarray(x.to_flat_with_traces(), dtype=float)
     return np.asarray(x, dtype=float).ravel()
@@ -189,6 +209,8 @@ def _unravel_like(template, flat: np.ndarray):
     Uses ``template`` only to recover the shape / mesh / factory —
     ``flat`` is the new numeric content.
     """
+    if hasattr(template, "to_flat") and hasattr(type(template), "from_flat"):
+        return type(template).from_flat(flat, template)
     if _is_ravellable(template):
         return type(template).from_flat_with_traces(flat, template.mesh)
     return flat.reshape(template.shape)
@@ -196,6 +218,11 @@ def _unravel_like(template, flat: np.ndarray):
 
 def _zeros_like(template):
     """Zero typed flux or bare ndarray matching ``template``'s shape/mesh."""
+    if hasattr(template, "to_flat") and hasattr(type(template), "from_flat"):
+        flat_size = template.to_flat().size
+        return type(template).from_flat(
+            np.zeros(flat_size, dtype=float), template,
+        )
     if _is_ravellable(template):
         flat_size = template.to_flat_with_traces().size
         return type(template).from_flat_with_traces(
@@ -206,6 +233,8 @@ def _zeros_like(template):
 
 def _l2_norm(x) -> float:
     """L2 norm — ravels typed flux via the protocol before delegating to numpy."""
+    if hasattr(x, "to_flat") and hasattr(type(x), "from_flat"):
+        return float(np.linalg.norm(x.to_flat()))
     if _is_ravellable(x):
         return float(np.linalg.norm(x.to_flat_with_traces()))
     return float(np.linalg.norm(np.asarray(x)))

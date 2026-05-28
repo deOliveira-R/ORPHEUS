@@ -387,3 +387,100 @@ class TestCopy:
         assert advanced.history_length == 1
         copy = advanced.copy()
         assert copy.history_length == 0
+
+
+# ───────────────────────────────────────────────────────────────────────
+# H. Flat-vector protocol (Krylov / scipy.gmres adapter)
+# ───────────────────────────────────────────────────────────────────────
+
+
+class TestFlatVectorProtocol:
+    """Pin the to_flat / from_flat round-trip used by the Krylov adapter."""
+
+    def test_to_flat_returns_concatenated_1d(self) -> None:
+        m = _slab_mesh()
+        state = _filled_state(m, bulk_val=1.0, bound_val=2.0)
+        flat = state.to_flat()
+        assert flat.ndim == 1
+        expected_size = state.bulk.values.size + state.boundary.values.size
+        assert flat.size == expected_size
+
+    def test_to_flat_preserves_values(self) -> None:
+        m = _slab_mesh()
+        state = _filled_state(m, bulk_val=3.0, bound_val=7.0)
+        flat = state.to_flat()
+        n_bulk = state.bulk.values.size
+        np.testing.assert_array_equal(flat[:n_bulk], 3.0)
+        np.testing.assert_array_equal(flat[n_bulk:], 7.0)
+
+    def test_from_flat_round_trip_slab(self) -> None:
+        m = _slab_mesh()
+        rng = np.random.default_rng(42)
+        state = _filled_state(m, bulk_val=0.0, bound_val=0.0)
+        state.bulk.values[:] = rng.standard_normal(state.bulk.values.shape)
+        state.boundary.values[:] = rng.standard_normal(state.boundary.values.shape)
+        flat = state.to_flat()
+        reconstructed = TimedFullField.from_flat(flat, state)
+        np.testing.assert_array_equal(
+            reconstructed.bulk.values, state.bulk.values,
+        )
+        np.testing.assert_array_equal(
+            reconstructed.boundary.values, state.boundary.values,
+        )
+
+    def test_from_flat_round_trip_2d(self) -> None:
+        m = _cartesian_2d_mesh()
+        rng = np.random.default_rng(7)
+        state = m.zeros_timed_full_field()
+        state.bulk.values[:] = rng.standard_normal(state.bulk.values.shape)
+        state.boundary.values[:] = rng.standard_normal(state.boundary.values.shape)
+        flat = state.to_flat()
+        reconstructed = TimedFullField.from_flat(flat, state)
+        np.testing.assert_array_equal(
+            reconstructed.bulk.values, state.bulk.values,
+        )
+        np.testing.assert_array_equal(
+            reconstructed.boundary.values, state.boundary.values,
+        )
+
+    def test_from_flat_drops_history(self) -> None:
+        m = _slab_mesh()
+        state = m.zeros_timed_full_field()
+        nb = AngularFlux.zeros_for_sn_mesh(m)
+        nf = BoundaryFlux.zeros_for_sn_mesh(m)
+        advanced = state.advance(nb, nf)
+        assert advanced.history_length == 1
+        reconstructed = TimedFullField.from_flat(advanced.to_flat(), advanced)
+        assert reconstructed.history_length == 0  # Krylov iterates carry no history
+
+    def test_from_flat_preserves_history_depth(self) -> None:
+        m = _slab_mesh()
+        state = m.zeros_timed_full_field(history_depth=5)
+        reconstructed = TimedFullField.from_flat(state.to_flat(), state)
+        assert reconstructed.history_depth == 5
+
+    def test_from_flat_wrong_size_raises(self) -> None:
+        m = _slab_mesh()
+        state = m.zeros_timed_full_field()
+        with pytest.raises(ValueError, match="flat.size"):
+            TimedFullField.from_flat(np.zeros(3), state)
+
+    def test_iteration_protocol_detection(self) -> None:
+        """The Krylov adapter's _is_ravellable detects TimedFullField."""
+        from orpheus.numerics.iteration import (
+            _is_ravellable, _ravel, _unravel_like, _zeros_like, _l2_norm,
+        )
+        m = _slab_mesh()
+        state = _filled_state(m, bulk_val=1.0, bound_val=2.0)
+        assert _is_ravellable(state)
+        flat = _ravel(state)
+        assert flat.ndim == 1
+        rec = _unravel_like(state, flat)
+        assert isinstance(rec, TimedFullField)
+        zeros = _zeros_like(state)
+        np.testing.assert_array_equal(zeros.bulk.values, 0.0)
+        np.testing.assert_array_equal(zeros.boundary.values, 0.0)
+        # L2 norm reads the flat representation directly.
+        l2 = _l2_norm(state)
+        expected = float(np.linalg.norm(state.to_flat()))
+        np.testing.assert_allclose(l2, expected, rtol=1e-15)

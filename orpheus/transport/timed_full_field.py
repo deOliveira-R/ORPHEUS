@@ -387,6 +387,82 @@ class TimedFullField:
         r"""Number of historical states currently retained."""
         return len(self._history)
 
+    # ── Flat-vector protocol (Krylov / scipy.gmres adapter) ──────────
+    #
+    # Direct-sum flat representation: ``concat(bulk.values.ravel(),
+    # boundary.values)``. The boundary values are already a flat 1-D
+    # ndarray (per :class:`BoundaryFlux`'s flat-backing storage); the
+    # bulk values are reshaped via :meth:`ndarray.ravel`. The Krylov
+    # adapter at :mod:`orpheus.numerics.iteration` consumes this flat
+    # representation as the GMRES iterate vector; round-trip exactness
+    # is the load-bearing invariant.
+
+    def to_flat(self) -> "NDArray":
+        r"""Pack the current frame ``(bulk, boundary)`` into a flat 1-D vector.
+
+        The packed layout is ``[bulk.values.ravel(), boundary.values]``
+        — the direct-sum representation of the composite. The history
+        is NOT packed (algebra results carry empty history; Krylov
+        operates on the current frame only).
+
+        Returns
+        -------
+        np.ndarray
+            1-D ``float64`` ndarray of size
+            ``bulk.values.size + boundary.values.size``.
+        """
+        import numpy as np
+
+        return np.concatenate([
+            self.bulk.values.ravel(),
+            self.boundary.values,  # already 1-D (BoundaryFlux flat storage)
+        ])
+
+    @classmethod
+    def from_flat(
+        cls, flat: "NDArray", template: "TimedFullField",
+    ) -> "TimedFullField":
+        r"""Reconstruct a :class:`TimedFullField` from a flat 1-D vector + template.
+
+        The ``template`` provides the shapes and types: ``bulk`` is
+        reshaped to ``template.bulk.values.shape`` and constructed with
+        the same ``space`` / ``mesh`` as the template; ``boundary``
+        likewise. History is empty (Krylov iterates carry no
+        iteration history).
+
+        Parameters
+        ----------
+        flat : np.ndarray
+            1-D vector matching ``template.to_flat()`` in size.
+        template : TimedFullField
+            Source of structural metadata (shapes, spaces, meshes,
+            history_depth).
+
+        Returns
+        -------
+        TimedFullField
+            Reconstructed composite, empty history.
+        """
+        n_bulk = template.bulk.values.size
+        n_boundary = template.boundary.values.size
+        expected_total = n_bulk + n_boundary
+        if flat.size != expected_total:
+            raise ValueError(
+                f"TimedFullField.from_flat: flat.size = {flat.size} "
+                f"does not match template total size "
+                f"{n_bulk} + {n_boundary} = {expected_total}"
+            )
+        bulk_values = flat[:n_bulk].reshape(template.bulk.values.shape)
+        boundary_values = flat[n_bulk:]
+        new_bulk = replace(template.bulk, values=bulk_values)
+        new_boundary = replace(template.boundary, values=boundary_values)
+        return cls(
+            bulk=new_bulk,
+            boundary=new_boundary,
+            _history=(),
+            history_depth=template.history_depth,
+        )
+
     # ── Diagnostics ──────────────────────────────────────────────────
 
     def copy(self) -> "TimedFullField":
