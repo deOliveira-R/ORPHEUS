@@ -1007,3 +1007,158 @@ class TestInvertibleSolveBridgeRegression:
             f"now fails again, a new convention drift has been "
             f"introduced.  See L18 + ERR-049."
         )
+
+    # ── D-H.1c Stage 3 composite-branch L1 anchors ────────────────────
+    #
+    # Mirror the two streaming-equilibrium L1 anchors above but
+    # exercise the InvertibleOperator.solve TimedFullField composite
+    # branch DIRECTLY (no solver wrapper).  Structurally independent
+    # of the SI carve L1 test (which routes through solver._solve_
+    # source_iteration): a regression breaking the composite branch
+    # alone — without touching solver.py — would surface here while
+    # the SI carve test would (transitively) catch it too via Stage 2.
+    # Two L1 anchors covering the same equilibrium → two angles into
+    # the same bug class.
+
+    @pytest.mark.l1
+    @pytest.mark.verifies("transport-cartesian")
+    @pytest.mark.catches("ERR-049")
+    def test_slab_uniform_roundtrip_composite(self) -> None:
+        r"""Composite mate of :meth:`test_slab_uniform_roundtrip`.
+
+        ``LC.solve(LC.apply(ψ=1)) == ψ=1`` on slab under TimedFullField
+        dispatch.  Exercises the StreamingOperator + CollisionOperator
+        composite-input branches (D-H.1b.6 / D-H.1b.5) ∘
+        InvertibleOperator.solve composite branch (D-H.1c stage 1).
+        Pre-D-H.1c-stage-1 the composite branch did not exist; pre-A1
+        the legacy branch failed by factor W (now structurally
+        impossible per L18).
+        """
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        solver, _case = self._homogeneous_solver("slab")
+        sn_mesh = solver.sn_mesh
+        N = solver.quad.N
+        nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
+
+        sigma_t = solver.mat_xs.total_cross_section
+        L_leaf = StreamingOperator(sn_mesh, sigma_t)
+        C_t = CollisionOperator(sn_mesh, sigma_t)
+        LC = L_leaf + C_t
+
+        # Build composite ψ=1.  No need for legacy AngularFlux at all
+        # on this path.
+        from dataclasses import replace
+        psi_known = sn_mesh.zeros_timed_full_field()
+        psi_known = replace(
+            psi_known,
+            bulk=replace(psi_known.bulk, values=np.ones((N, ng, nx, ny))),
+        )
+        LC_psi = LC.apply(psi_known)
+
+        # Iterate until stabilises (slab converges in 1-2 iterates).
+        psi_recovered: TimedFullField | None = None
+        for _ in range(20):
+            if psi_recovered is None:
+                psi_new = LC.solve(LC_psi)
+            else:
+                psi_new = LC.solve(LC_psi, initial_guess=psi_recovered)
+            if psi_recovered is not None and np.abs(
+                psi_new.bulk.values - psi_recovered.bulk.values,
+            ).max() < 1e-15:
+                psi_recovered = psi_new
+                break
+            psi_recovered = psi_new
+
+        assert psi_recovered is not None
+        diff = np.abs(psi_known.bulk.values - psi_recovered.bulk.values).max()
+        assert diff < 1e-12, (
+            f"slab composite (L+C).solve((L+C).apply(ψ=1)) ≠ ψ=1: "
+            f"abs_max={diff:.3e}.  D-H.1c stage 1's composite bridge "
+            f"is the test target; if this fails the bridge has drifted "
+            f"from the legacy branch (cf. the L0 bulk-equivalence pin "
+            f"in TestSolveTimedFullField.test_bulk_matches_legacy_branch)."
+        )
+
+    @pytest.mark.l1
+    @pytest.mark.verifies(
+        "transport-cartesian", "sn-curvilinear-homogeneous-kinf-recovery",
+    )
+    @pytest.mark.catches("ERR-049")
+    @pytest.mark.parametrize("coord", ["slab", "sphere", "cylinder"])
+    def test_fixed_source_homogeneous_reflective_recovers_q_over_sigma_composite(
+        self, coord: str,
+    ) -> None:
+        r"""Composite mate of
+        :meth:`test_fixed_source_homogeneous_reflective_recovers_q_over_sigma`.
+
+        Reflective homogeneous medium, uniform per-ordinate source
+        ``q_n = const`` → converged composite ψ_n must equal
+        ``q_n / Σ_t`` on every cell.  Exercises the composite branch
+        of InvertibleOperator.solve under three geometries (slab +
+        spherical + cylindrical), pinning the streaming-equilibrium
+        property end-to-end on the composite path.
+        """
+        from dataclasses import replace
+        from orpheus.transport.fields.angular_flux import (
+            AngularFlux as L2AngularFlux,
+        )
+        from orpheus.transport.fields.boundary_flux import (
+            BoundaryFlux as L2BoundaryFlux,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        solver, _case = self._homogeneous_solver(coord)
+        sn_mesh = solver.sn_mesh
+        quad = solver.quad
+        N = quad.N
+        nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
+        sum_w = float(quad.weights.sum())
+
+        sigma_t = solver.mat_xs.total_cross_section
+        L_leaf = StreamingOperator(sn_mesh, sigma_t)
+        C_t = CollisionOperator(sn_mesh, sigma_t)
+        LC = L_leaf + C_t
+
+        # Per-ordinate uniform source — composite carrier.
+        q_iso = 0.225
+        q_per_ord = np.full((N, ng, nx, ny), q_iso / sum_w)
+        rhs = TimedFullField(
+            bulk=L2AngularFlux.from_mesh(q_per_ord, sn_mesh),
+            boundary=L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+            _history=(),
+            history_depth=2,
+        )
+
+        # Iterate to converge the curvilinear partner-flux state under
+        # reflective BC.  Each call seeds the M-M Carlson closure via
+        # the explicit ``initial_guess`` kwarg.
+        psi_typed: TimedFullField | None = None
+        for _ in range(400):
+            if psi_typed is None:
+                psi_new = LC.solve(rhs)
+            else:
+                psi_new = LC.solve(rhs, initial_guess=psi_typed)
+            if psi_typed is not None and np.abs(
+                psi_new.bulk.values - psi_typed.bulk.values,
+            ).max() < 1e-14:
+                psi_typed = psi_new
+                break
+            psi_typed = psi_new
+
+        assert psi_typed is not None
+        # Per-ordinate expected: ψ_n = q_n / Σ_t = (q_iso/W) / Σ_t.
+        for g in range(ng):
+            sig_g = float(sigma_t[g, 0, 0])
+            expected_per_ord = (q_iso / sum_w) / sig_g
+            actual = psi_typed.bulk.values[:, g, :, 0]
+            rel_dev = np.abs(actual - expected_per_ord) / max(
+                expected_per_ord, 1e-30,
+            )
+            assert rel_dev.max() < 1e-6, (
+                f"{coord} composite g={g}: expected per-ord ψ = "
+                f"{expected_per_ord:.4e}; max rel deviation = "
+                f"{rel_dev.max():.3e}.  D-H.1c stage 1 composite branch "
+                f"and stage 2 solver routing must both hold for this "
+                f"streaming-equilibrium identity to converge."
+            )
