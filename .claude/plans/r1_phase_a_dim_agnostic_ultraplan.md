@@ -109,6 +109,23 @@ and the strict use of "tensor". Supersedes
 that mistakenly introduced `BlockLayout` (an unnecessary
 intermediate that just replaces one mapping with another).
 
+> ## 🔗 Cross-worktree coordination note (added 2026-05-28)
+>
+> **`BoundaryFlux` design — adopted from Depth B D-G.**
+>
+> The parallel `refactor/moment-space-and-layering` worktree (Depth B
+> plan at `.claude/plans/depth_b_field_on_function_space.md`)
+> shipped a pure-Field `BoundaryFlux` at L2 in commit `a107ea7`
+> (`orpheus/transport/fields/boundary_flux.py`) using a flat backing
+> buffer + `FaceLayout` descriptor (`orpheus/numerics/face_layout.py`).
+> Per user decision 2026-05-28 (Option P), that design is now the
+> canonical Phase A target — §2.4 below is REVISED accordingly, and
+> C4 step is reframed from "design + migrate" to "migrate". When
+> Phase A reaches C4, it adopts D-G's design rather than building its
+> own dict-of-buffers form.
+>
+> See §2.4 (revised) and C4 (revised) for the updated design.
+
 **Grand report alignment**: this plan has been cross-checked against
 `.claude/plans/neutron_transport_grand_report_v3.md` (uploaded by the
 user). See §0 below for the architectural decision → grand-report
@@ -139,7 +156,7 @@ report wins — flag the discrepancy and pause.
 | Future `MethodSpace` ABC inheritance  | §7.3 `MethodSpace(Space, ABC)` base    | DEFERRED to followup; Layer A keeps `SNMesh` as concrete class                    |
 | `AngularFlux.to_flat`/`from_flat` (§2.3) | §6.1 Spaces: `Space.__add__` → direct sum | The pack convention IS the direct-sum decomposition V = V_cells ⊕ ⨁ V_face flattened in label order |
 | Pack convention encoded ONCE on `AngularFlux` (D1) | §3.3 ABCs / §6.4 Fields carry their space | No intermediate dataclass — the field knows its space; flat-encoding lives on the field |
-| `BoundaryFlux.face_buffers: dict[FaceLabel, ...]` (§2.4) | §16A.5 SN realization | `SNBoundaryOperator` + `IncomingOrdinateMask` + `OutgoingOrdinateMask` canonical names |
+| `BoundaryFlux(Field)` flat-buffer + `FaceLayout` (§2.4 — D-G design adopted 2026-05-28) | §16A.5 SN realization + §32.5 Field primitive | `SNBoundaryOperator` + `IncomingOrdinateMask` + `OutgoingOrdinateMask` canonical names; flat-buffer Field-inherited algebra matches §32.5 |
 | `RadialAxisMesh.endpoints = (outer,)` — pole excluded (D3/D4) | §16 `Γ_± = {Ω·n ≷ 0}` is faces-only | Pole at r=0 is a coordinate singularity; not in `Γ_-/Γ_+` because there is no face normal at r=0; treated by angular closure |
 | `SNMesh.bc: dict[FaceLabel, ...]` + `_resolve_bcs` loop (§2.5) | §16A.4 `BoundaryRealizer` Protocol | Per-face realization via the existing `SNBoundaryRealizer` + `_BoundBoundaryOperator`; no change to the realization pipeline |
 | `OctantLabel(signs=...)` variable-arity (§2.6) | §9 high-signal class `OctantPartition` | Aligns with `OctantPartition` from `DiscreteOrdinatesPhaseSpace` family |
@@ -437,28 +454,68 @@ The convention lives in these two methods + the `n_unknowns_flat`
 property. The Sphinx theory page is the architectural specification
 of the convention; the methods are its sole implementation.
 
-### 2.4 `BoundaryFlux` as face-buffer dict (R3)
+### 2.4 `BoundaryFlux` as pure Field + FaceLayout (R3) — D-G design adopted (2026-05-28)
+
+**SUPERSEDED 2026-05-28**: the original §2.4 design (`face_buffers:
+dict[FaceLabel, np.ndarray]` with per-face dict storage) is REPLACED
+by the **Depth B D-G design** that already shipped on the parallel
+moment-space-and-layering worktree (commits `a107ea7` and follow-ups).
+
+D-G's `BoundaryFlux` is a **pure `Field`** at L2
+(`orpheus/transport/fields/boundary_flux.py`) with a SINGLE FLAT
+backing buffer + a `FaceLayout` descriptor for per-face slice views:
 
 ```python
-@dataclass
-class BoundaryFlux:
-    mesh: "SNMesh"
-    face_buffers: dict[FaceLabel, np.ndarray]
+from orpheus.numerics.face_layout import FaceLayout, FaceSlot
+from orpheus.numerics.field import Field
+
+@dataclass(frozen=True, eq=False, kw_only=True)
+class BoundaryFlux(Field):
+    """L2 typed boundary trace flux: pure Field with flat-layout storage."""
+    # Inherits: values: NDArray (flat), space: FunctionSpace.
+    layout: FaceLayout                # per-geometry face descriptor
+    mesh: "SNMesh"                    # phase-space carrier
 
     @classmethod
-    def zeros(cls, mesh) -> "BoundaryFlux": ...
-    def face(self, label) -> np.ndarray: ...
-    def __iter__(self): return iter(self.face_buffers.items())
-    # Arithmetic dunders iterate over face_buffers.items().
+    def zeros_for_sn_mesh(cls, mesh) -> "BoundaryFlux": ...
+
+    @classmethod
+    def from_face_arrays(cls, mesh, face_arrays: Mapping[str, NDArray]) -> "BoundaryFlux": ...
+
+    def face_view(self, name: str) -> NDArray:  # memory-shared slice view
+        return self.layout.faces[name].slice_view(self.values)
 ```
 
-`face_labels` excludes coordinate singularities (the pole). Therefore
-`face_buffers` has no entry for the pole. The Carlson seed in
-`transport_operator_matvec_unified` (currently
-`operator.py:1079-1090`) continues to read `psi_view[:, :, 0, 0]`
-when `bc_inner is None` (the pole-as-cell-centre-proxy at i=0) —
-that is the pole's mathematical treatment under the regularity
-condition, unchanged.
+`SNMesh.boundary_face_layout` (D-G) provides the per-geometry
+`FaceLayout`. Face names: `"xmin"` / `"xmax"` (1-D slab), `"xmax"`
+only (1-D curvilinear — sphere/cylinder), `"xmin"` / `"xmax"` /
+`"ymin"` / `"ymax"` (2-D Cartesian). The mapping to Phase A's
+proposed `FaceLabel(axis_index, endpoint)` is straightforward:
+`"xmin"` ↔ `FaceLabel(0, "min")`; `"xmax"` ↔ `FaceLabel(0, "max")`;
+`"ymin"` ↔ `FaceLabel(1, "min")`; `"ymax"` ↔ `FaceLabel(1, "max")`.
+3-D extends mechanically: `"zmin"` / `"zmax"` ↔ `FaceLabel(2, ...)`.
+
+Why D-G's flat-buffer design wins over Phase A's original dict:
+
+* **Field inheritance**: `BoundaryFlux(Field)` inherits the L1 algebra
+  (Field-inherited `__add__`, `__sub__`, scalar `*`, `inner_product`,
+  `linf`, `l2`). Phase A's original dict design would require
+  hand-rolled dunders.
+* **MoC scalability**: a single numpy call on the flat buffer
+  vectorizes over arbitrary face count. Phase A's original dict-of-
+  buffers approach hits Python overhead at MoC scale (thousands of
+  per-track-family "boundary faces").
+* **L1 algebra integration**: lives on a `FunctionSpace` with shape
+  `(layout.total_size,)` — composes with `TensorProductSpace`,
+  `DualSpace` (D-B, already shipped) natively.
+* **Grand-report §32.5 alignment**: "Field is values + space +
+  algebra". The flat-buffer form IS the natural Field representation;
+  the dict form would have departed from the Field hierarchy.
+
+The pole-treatment regression pin from Phase A's original §2.4
+(Carlson seed at `psi_view[:, :, 0, 0]` for `bc_inner is None`) is
+unchanged — the pole isn't a face under either design (no entry in
+`FaceLayout.faces` for the regularity-condition pole).
 
 ### 2.5 BC realizer iterates over face strata (R3)
 
@@ -611,12 +668,15 @@ solver.py:879, 911; angular_operator.py:165; trace_space.py:175).
 - `_compute_gradients` helper.
 
 **Wave R3 — persistent buffers + slice accessors (Commit 5)**
-- `BoundaryFlux.xmin_xmax_buf` / `ymin_ymax_buf` fields.
-- `BoundaryFlux.xmin` / `xmax` / `ymin` / `ymax` slice accessors.
-- `BoundaryFlux.xmin_face` / `xmax_face` / `ymin_face` / `ymax_face`
-  named fields (replaced by `face_buffers` dict).
+- LEGACY `orpheus/sn/boundary_flux.py:BoundaryFlux` class entirely
+  (replaced by D-G's L2 `orpheus.transport.fields.boundary_flux.BoundaryFlux`).
+  Includes the `xmin_xmax_buf` / `ymin_ymax_buf` fields, the
+  `xmin` / `xmax` / `ymin` / `ymax` slice accessors, and the
+  `xmin_face` / `xmax_face` / `ymin_face` / `ymax_face` named fields.
 - `_copy_boundary_face_state` (operator.py:2680-2697) collapses to
-  `dst.face_buffers = {k: v.copy() for k, v in src.face_buffers.items()}`.
+  `dst = replace(src, values=src.values.copy())` (D-G's
+  `BoundaryFlux` is a frozen `Field`; `dataclasses.replace` is the
+  canonical functional update).
 
 **Wave R4 — SNMesh named BC attributes (Commit 7)**
 - `SNMesh.bc_xmin` / `bc_xmax` / `bc_ymin` / `bc_ymax` / `bc_left` /
@@ -755,42 +815,69 @@ through C3; renames in C7).
 
 **Commit msg**: `feat(sn): AngularFlux.to_flat/from_flat — canonical pack convention without intermediate map (R-1 Phase A C3/8)`
 
-### C4 — `BoundaryFlux.face_buffers` + `SNMesh.bc` dict
+### C4 — Migrate to D-G's `BoundaryFlux(Field)` + `SNMesh.bc` dict
 
-**Adds**: `face_buffers: dict[FaceLabel, np.ndarray]`, `face(label)`,
-`from_mesh` classmethod, dict-iterating arithmetic. `SNMesh.bc` dict.
-`_resolve_bcs` rewritten as one loop replacing the 92-line
-`isinstance` ladder.
+**REVISED 2026-05-28**: the original C4 design was a NEW
+`face_buffers: dict` form. That is SUPERSEDED — Depth B D-G already
+shipped the canonical `BoundaryFlux(Field)` at
+`orpheus/transport/fields/boundary_flux.py` (commit `a107ea7`),
+with a flat backing buffer + `FaceLayout` descriptor. C4's job
+narrows from "design + migrate" to "migrate".
+
+**C4 scope (revised)**:
+
+1. **Adopt D-G's BoundaryFlux as canonical**. Imports:
+   ```python
+   from orpheus.transport.fields.boundary_flux import BoundaryFlux
+   from orpheus.numerics.face_layout import FaceLayout
+   ```
+   The legacy mutable `orpheus/sn/boundary_flux.py:BoundaryFlux` retires
+   in favor of the L2 pure-Field form. AngularFlux's `boundary:
+   BoundaryFlux` attribute switches type (the field name stays during
+   the migration window; D-H.1 of Depth B retires the field itself).
+
+2. **Add `SNMesh.bc: dict[FaceLabel, _BoundBoundaryOperator]`** — the
+   dict-of-BCs replaces the named `bc_xmin/.../bc_ymax/bc_left/bc_right`
+   attributes. The face-label dict mirrors D-G's `FaceLayout.faces`
+   keying convention (string face names like `"xmin"`; or the typed
+   `FaceLabel(axis, endpoint)` form if Phase A prefers — they're
+   isomorphic).
+
+3. **Rewrite `_resolve_bcs`** as one loop replacing the 92-line
+   `isinstance` ladder (the original C4 plan's primary contribution).
 
 **Preserves** (delete in C7):
-- `BoundaryFlux.{xmin,xmax,ymin,ymax}_face` as `@property` shims.
 - `SNMesh.{bc_xmin,bc_xmax,bc_ymin,bc_ymax,bc_left,bc_right}` as
-  `@property` shims.
-- Persistent buffers `xmin_xmax_buf`/`ymin_ymax_buf` (still required
-  by `_sweep_2d_wavefront`; retire in C5).
+  `@property` shims pointing to `self.bc[FaceLabel(...)]`.
+- Legacy `orpheus/sn/boundary_flux.py:BoundaryFlux` as a re-export
+  shim pointing to the L2 form.
+- Persistent buffers `xmin_xmax_buf`/`ymin_ymax_buf` on the LEGACY
+  shim only (D-G's pure-Field BoundaryFlux already excludes them).
+  Retire in C5.
 
-**Pins** (`tests/sn/test_boundary_flux_fiber_section.py`, 7 pins):
-F2.1 2-D Cart `face_buffers` has 4 entries with shapes; F2.2
-sphere has 1 entry `FaceLabel(0, "outer")`; F2.3 slab has 2 entries;
-F2.4 (3-D admission) synthetic 3-D has 6 entries; F2.5 arithmetic
-preserves labels; F2.6 `sn_mesh.bc[FaceLabel(0, "min")]` matches
-legacy `sn_mesh.bc_xmin` shim; F2.7 `sn_mesh.bc` for sphere has 1
-entry (NO pole entry — the pole isn't a face).
+**Pins**: extend the existing Depth B D-G pins
+(`tests/transport/fields/test_boundary_flux.py`, 35 tests; already
+green on the D-G branch) with Phase-A-specific additions:
+F2.6 `sn_mesh.bc[FaceLabel(0, "min")]` matches legacy
+`sn_mesh.bc_xmin` shim; F2.7 `sn_mesh.bc` for sphere has 1 entry
+(NO pole entry — the pole isn't a face — matches D-G's FaceLayout
+which has only `"xmax"` for sphere).
 
-**Pole-treatment regression pin** (new, in
-`test_pole_unchanged.py`): verify on sphere `n=20`
-homogeneous-reflective LS4 fixture that the matvec via
-`transport_operator_matvec_unified` produces bit-identical residual
-at L0 ULP after migration to `BoundaryFlux.face_buffers` — proves
-the pole's Carlson coupled-pole sweep treatment in
-`MorelMontryAngularSweep` is unchanged by the architectural carve.
+**Pole-treatment regression pin** (unchanged from original):
+verify on sphere `n=20` homogeneous-reflective LS4 fixture that the
+matvec via `transport_operator_matvec_unified` produces bit-identical
+residual at L0 ULP after migration. Proves the pole's Carlson
+coupled-pole sweep treatment in `MorelMontryAngularSweep` is
+unchanged.
 
 **Gates**: BC-resolution tests; `test_typed_fields.py`;
 `test_boundary_flux_arithmetic.py`; `test_sn_boundary_realizer.py`;
 `test_snmesh_realizer_wiring.py`; `test_method_space.py`; the new
-pole-treatment regression pin.
+pole-treatment regression pin; PLUS all D-G's existing tests on
+`tests/numerics/test_face_layout.py` and
+`tests/transport/fields/test_boundary_flux.py`.
 
-**Commit msg**: `refactor(sn): BoundaryFlux as face-buffer dict + SNMesh.bc dict (R-1 Phase A C4/8)`
+**Commit msg**: `refactor(sn): adopt D-G BoundaryFlux(Field) + SNMesh.bc dict (R-1 Phase A C4/8)`
 
 ### C5 — Sweep DAG dim-agnostic + level-local interior state
 

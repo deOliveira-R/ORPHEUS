@@ -328,6 +328,8 @@ Subtle: `dataclass` inheritance with `@dataclass(frozen=True)` requires every pa
 
 Option I (2026-05-28): the 2-D `(L+C).apply` / `(L+C).solve` operator-algebra unification (currently the 2-D apply uses legacy FD via `_compute_gradients` while the sweep uses WDD via `sweep_graph.apply`) is owned by the parallel R-1 Phase A worktree (`.claude/worktrees/r1-phase-a-dim-agnostic/`, plan at `.claude/plans/r1_phase_a_dim_agnostic_ultraplan.md`, C6 step). D-G's BoundaryFlux contract is forward-compatible with that unification: face-only flat layout is the right contract regardless of whether 2-D apply uses WDD or FD.
 
+Option P (2026-05-28): D-G's `BoundaryFlux(Field)` design is the **canonical** form, adopted by Phase A's C4 step (originally a different `face_buffers: dict[FaceLabel, np.ndarray]` design — superseded). The Phase A plan was edited 2026-05-28 to redirect §2.4 + C4 to the D-G design. When Phase A's worktree reaches C4, it migrates legacy `orpheus.sn.boundary_flux.BoundaryFlux` to D-G's `orpheus.transport.fields.boundary_flux.BoundaryFlux` rather than building its own form. Rationale: Field inheritance matches grand-report §32.5; flat-buffer scales to MoC's per-track-family "faces"; L1 algebra (TensorProductSpace, DualSpace) composes natively.
+
 `BoundaryFaceFlux` is the per-face slice-view type, also a Field (on a single face's trace space). Construction is via `BoundaryFlux.faces[face_name]` — returns a Field view, no copy.
 
 **Naming convention:**
