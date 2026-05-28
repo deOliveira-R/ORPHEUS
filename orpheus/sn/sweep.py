@@ -89,6 +89,7 @@ if TYPE_CHECKING:
     from .boundary_flux import BoundaryFlux
     from .geometry import SNMesh
     from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
+    from orpheus.transport.timed_full_field import TimedFullField
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -102,7 +103,7 @@ def transport_sweep(
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
     *,
-    initial_guess: "AngularFlux | None" = None,
+    initial_guess: "AngularFlux | TimedFullField | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Perform one full transport sweep.
 
@@ -172,11 +173,19 @@ def transport_sweep(
     boundary_flux : BoundaryFlux
         Persistent :class:`BoundaryFlux` (mutated in place).  Build a
         zero-initialised instance via ``sn_mesh.zeros_boundary_flux()``.
-    initial_guess : AngularFlux or None, optional
+    initial_guess : AngularFlux, TimedFullField, or None, optional
         Previous-iteration angular flux estimate, used for the
         curvilinear Carlson coupled-pole seed and the per-ordinate
         spatial-upstream inflow at the pole cell.  Ignored on slab.
         ``None`` (default) selects the in-iteration fallback seed.
+
+        Accepts both the legacy
+        :class:`~orpheus.sn.angular_flux.AngularFlux` (reads
+        ``.values``) and the composite
+        :class:`~orpheus.transport.timed_full_field.TimedFullField`
+        (reads ``.bulk.values``) via D-H.1c stage 4's
+        :func:`_initial_guess_values` extractor — the kernel reads
+        only the per-ordinate bulk ndarray, container-agnostic.
 
     Returns
     -------
@@ -223,6 +232,50 @@ def _unwrap_source(source: "PerOrdinateSource") -> np.ndarray:
     return source.values
 
 
+def _initial_guess_values(
+    initial_guess: "AngularFlux | TimedFullField | None",
+) -> "np.ndarray | None":
+    """Extract the per-ordinate bulk ndarray from either container type.
+
+    D-H.1c stage 4 — the sweep kernel reads only the per-ordinate bulk
+    values (shape ``(N, ng, nx, ny)``) at two sites: the M-M Carlson
+    coupled-pole seed (transposed slice at level p) and the pole-cell
+    spatial-upstream inflow (single-cell slice at ordinate global_n).
+
+    Both legacy :class:`~orpheus.sn.angular_flux.AngularFlux` and
+    composite :class:`~orpheus.transport.timed_full_field.TimedFullField`
+    carry the same ndarray under different attribute paths.  This
+    helper centralises the access so the kernel stays
+    container-agnostic.
+
+    Parameters
+    ----------
+    initial_guess : AngularFlux, TimedFullField, or None
+        Container carrying the previous iterate, OR ``None`` for
+        cold-start.
+
+    Returns
+    -------
+    np.ndarray or None
+        The per-ordinate ``(N, ng, nx, ny)`` ndarray, or ``None``
+        when ``initial_guess`` is ``None``.
+
+    Notes
+    -----
+    Uses duck-typing on ``.bulk`` to detect the composite — avoids a
+    runtime import of :class:`TimedFullField` (which would create a
+    circular-dependency risk through transport↔sn).
+    """
+    if initial_guess is None:
+        return None
+    # Composite container exposes ``.bulk`` (an L2 AngularFlux); the
+    # legacy bundle does not.
+    bulk = getattr(initial_guess, "bulk", None)
+    if bulk is not None:
+        return bulk.values
+    return initial_guess.values  # type: ignore[union-attr]
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # 1-D unified sweep — slab + sphere + cylinder via the cache
 # ═══════════════════════════════════════════════════════════════════════
@@ -234,7 +287,7 @@ def _sweep_1d_unified(
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
     *,
-    initial_guess: "AngularFlux | None" = None,
+    initial_guess: "AngularFlux | TimedFullField | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Geometry-blind 1-D SN sweep — three numpy tensor ops per ordinate.
 
@@ -334,8 +387,12 @@ def _run_1d_sweep(
     boundary_flux: "BoundaryFlux",
     geom: GeometryCoefficients,
     coll: CollisionCache,
+    # NOTE: ``initial_guess`` typing widens to also accept
+    # :class:`TimedFullField` after D-H.1c stage 4; the container-
+    # agnostic extractor :func:`_initial_guess_values` centralises the
+    # read.
     *,
-    initial_guess: "AngularFlux | None" = None,
+    initial_guess: "AngularFlux | TimedFullField | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Inner body of the unified 1-D sweep.
 
@@ -549,9 +606,13 @@ def _run_1d_sweep(
         # start) and emits the cell-centred half-angle face flux
         # ``φ̄_{1/2,i,g}`` per Hébert §3.9.4 Eqs. (3.432)-(3.435).
         closure = sn_mesh.pole_angular_closure
-        if initial_guess is not None:
+        # D-H.1c stage 4 — container-agnostic bulk extraction (works for
+        # legacy AngularFlux ``.values`` and composite TimedFullField
+        # ``.bulk.values`` identically).
+        ig_values = _initial_guess_values(initial_guess)
+        if ig_values is not None:
             # (N, ng, nx, 1) → (ng, N, nx)
-            psi_g_first = initial_guess.values.transpose(1, 0, 2, 3)[..., 0]
+            psi_g_first = ig_values.transpose(1, 0, 2, 3)[..., 0]
         else:
             psi_g_first = None
 
@@ -594,8 +655,11 @@ def _run_1d_sweep(
                     # R-1 Step 0: pole spatial-upstream derived from the
                     # caller's ``initial_guess`` — same trace-space logic
                     # as the matvec (read the input flux's pole cell).
-                    if initial_guess is not None:
-                        psi_in = initial_guess.values[global_n, :, 0, 0]
+                    # D-H.1c stage 4 — ``ig_values`` carries the bulk
+                    # ndarray regardless of container type (legacy
+                    # AngularFlux or composite TimedFullField).
+                    if ig_values is not None:
+                        psi_in = ig_values[global_n, :, 0, 0]
                     else:
                         psi_in = np.zeros(ng)
 

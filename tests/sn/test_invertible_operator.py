@@ -635,12 +635,15 @@ class TestSolveTimedFullField:
         """Composite initial_guess.boundary seeds the partner-flux trace.
 
         Reflective-BC partner-flux state is load-bearing per audit §5.
-        The bridge must extract the L2 boundary's face arrays and
-        seed the sweep's mutable ``boundary_buf`` via the same
-        ``_copy_boundary_face_state`` helper the legacy branch uses.
+        The bridge must extract the L2 boundary's face arrays and seed
+        the sweep's mutable ``boundary_buf`` before transport_sweep
+        runs.  D-H.1c stage 4 inlined the L2 face_view → legacy
+        xmin/xmax_face copy (was via ``_copy_boundary_face_state`` in
+        stage 1); the test pin shifted from mechanism-level (spy on
+        the helper) to outcome-level (spy on transport_sweep, assert
+        boundary_buf carries the seeded face values).
         """
         from unittest.mock import patch
-        import orpheus.sn.operator as operator_mod
 
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
@@ -651,8 +654,8 @@ class TestSolveTimedFullField:
         rhs_legacy = AngularFlux(
             np.ones((sn.quad.N, sn.ng, sn.nx, sn.ny)), sn,
         )
-        # Build initial_guess with a non-zero xmax_face — verify it
-        # makes it into the sweep's boundary_buf.
+        # Build initial_guess with a non-zero xmax_face / xmin_face —
+        # verify it makes it into the sweep's boundary_buf.
         ig_legacy = AngularFlux(
             np.zeros((sn.quad.N, sn.ng, sn.nx, sn.ny)), sn,
         )
@@ -662,22 +665,32 @@ class TestSolveTimedFullField:
         rhs_composite = self._composite_from_legacy(rhs_legacy)
         ig_composite = self._composite_from_legacy(ig_legacy)
 
-        # Spy on _copy_boundary_face_state to ensure ig_composite's
-        # boundary gets routed in (not a fresh zero).
-        captured = []
-        original = operator_mod._copy_boundary_face_state
+        # Outcome-level spy: capture the boundary_buf as transport_sweep
+        # sees it.  The seed must already be in place when the kernel
+        # runs (otherwise the sweep sees vacuum and the SI fixed point
+        # shifts).
+        captured: list[tuple[np.ndarray, np.ndarray]] = []
+        from orpheus.sn import sweep as sweep_mod
+        original = sweep_mod.transport_sweep
 
-        def spy(src, dst):
-            captured.append((src.xmax_face.copy(), src.xmin_face.copy()))
-            return original(src, dst)
+        def spy(source, sigma, sn_mesh, boundary_flux, *, initial_guess=None):
+            captured.append((
+                boundary_flux.xmax_face.copy(),
+                boundary_flux.xmin_face.copy(),
+            ))
+            return original(
+                source, sigma, sn_mesh, boundary_flux,
+                initial_guess=initial_guess,
+            )
 
-        with patch(
-            "orpheus.sn.operator._copy_boundary_face_state", spy,
-        ):
+        # transport_sweep is imported INSIDE _solve_timed_full_field
+        # (local import to break circular dep), so patch the source
+        # module where the symbol lives.
+        with patch("orpheus.sn.sweep.transport_sweep", spy):
             invertible.solve(rhs_composite, initial_guess=ig_composite)
 
-        # Source of the copy was the initial_guess's boundary trace,
-        # NOT the rhs's (zero).
+        # transport_sweep was called once; boundary_buf carried the
+        # initial_guess's face values (NOT a fresh zero).
         assert len(captured) == 1
         np.testing.assert_array_equal(captured[0][0], 0.7)
         np.testing.assert_array_equal(captured[0][1], 0.3)

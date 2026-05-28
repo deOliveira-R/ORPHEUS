@@ -2933,33 +2933,42 @@ class InvertibleOperator(OperatorSum):
                 "(mesh-identity invariant)."
             )
 
-        # ── L2 → legacy boundary bridge (the load-bearing partner-flux
-        # plumbing per audit §5).  The sweep mutates ``boundary_buf``
-        # in place; the legacy initial_guess.boundary (built via
-        # to_legacy_angular_flux) seeds it.
+        # ── L2 → legacy-buffer boundary seeding (the load-bearing
+        # partner-flux plumbing per audit §5).  The sweep mutates
+        # ``boundary_buf`` (a legacy BoundaryFlux — the write-through
+        # buffer pattern; the L2 buffer migration defers to D-H.2
+        # alongside legacy-AngularFlux retirement).  Seed it from the
+        # composite's boundary face_view (initial_guess.boundary takes
+        # priority; rhs.boundary is the fallback) — D-H.1c stage 4 inlined
+        # the face-by-face copy, replacing the prior
+        # ``to_legacy_angular_flux()`` round-trip.
         boundary_buf = sn_mesh.zeros_boundary_flux()
-        if initial_guess is not None:
-            legacy_ig = initial_guess.to_legacy_angular_flux()
-            _copy_boundary_face_state(legacy_ig.boundary, boundary_buf)
-        else:
-            legacy_ig = None
-            # Fallback to rhs.boundary as the BC inflow trace.
-            legacy_rhs = rhs.to_legacy_angular_flux()
-            _copy_boundary_face_state(legacy_rhs.boundary, boundary_buf)
+        seed_boundary = (
+            initial_guess.boundary if initial_guess is not None else rhs.boundary
+        )
+        layout = seed_boundary.layout
+        if "xmax" in layout.faces and boundary_buf.xmax_face is not None:
+            boundary_buf.xmax_face[...] = seed_boundary.face_view("xmax")
+        if "xmin" in layout.faces and boundary_buf.xmin_face is not None:
+            boundary_buf.xmin_face[...] = seed_boundary.face_view("xmin")
 
         # ── Per-ordinate source from rhs.bulk (single-source convention
         # per R-1 Step 4 A1 — ``rhs.bulk.values`` IS per-ordinate
         # density by producer contract).
         source = PerOrdinateSource.from_mesh(rhs.bulk.values, sn_mesh)
 
-        # ── Legacy sweep (kernel unchanged — D-H.2 absorbs the kernel-
-        # side migration).
+        # ── Sweep: pass the composite ``initial_guess`` directly.
+        # D-H.1c stage 4: :func:`transport_sweep` accepts both legacy
+        # AngularFlux and TimedFullField for ``initial_guess`` (via the
+        # container-agnostic :func:`_initial_guess_values` extractor in
+        # sweep.py).  The kernel reads ``.bulk.values`` for the composite
+        # path with no AngularFlux round-trip.
         angular, _scalar = transport_sweep(
             source,
             self.sigma,
             sn_mesh,
             boundary_buf,
-            initial_guess=legacy_ig,
+            initial_guess=initial_guess,
         )
 
         # ── legacy → L2 reconstruction.
