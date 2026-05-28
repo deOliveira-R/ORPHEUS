@@ -63,6 +63,7 @@ if TYPE_CHECKING:
     from .angular_flux import AngularFlux
     from .boundary_flux import BoundaryFlux
     from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
+    from orpheus.transport.timed_full_field import TimedFullField
     from .material_xs_field import MaterialXSField
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
@@ -804,6 +805,46 @@ class SNMesh:
         """
         from .boundary_flux import BoundaryFlux
         return BoundaryFlux.zeros(self)
+
+    def zeros_timed_full_field(
+        self, history_depth: int = 2,
+    ) -> "TimedFullField":
+        r"""Build a zero :class:`~orpheus.transport.timed_full_field.TimedFullField`
+        sized to this mesh.
+
+        Composite zero-state for SN: pure-Field
+        :class:`~orpheus.transport.fields.angular_flux.AngularFlux` on
+        ``(N, ng, nx, ny)`` paired with pure-Field
+        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+        on the mesh's :attr:`boundary_face_layout`, with empty history.
+
+        This is the SN-specific factory for the cross-method generic
+        :class:`TimedFullField` container (Depth B D-H.1, 2026-05-28).
+        CP / MoC / diffusion will provide their own analogous factories
+        when those method migrations land.
+
+        Parameters
+        ----------
+        history_depth : int, optional
+            Maximum number of historical states the container retains.
+            Default 2 (current + one lag — enough for first-order time
+            derivative). Bump for higher-order BDF stencils.
+
+        Returns
+        -------
+        TimedFullField
+            Composite zero-state with empty history.
+        """
+        from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
+        from orpheus.transport.fields.boundary_flux import BoundaryFlux as L2BoundaryFlux
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        return TimedFullField(
+            bulk=L2AngularFlux.zeros_for_sn_mesh(self),
+            boundary=L2BoundaryFlux.zeros_for_sn_mesh(self),
+            _history=(),
+            history_depth=history_depth,
+        )
 
     @property
     def boundary_face_layout(self) -> "FaceLayout":

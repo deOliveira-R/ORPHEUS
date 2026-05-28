@@ -1,0 +1,277 @@
+r"""L0/L2 — pure-Field :class:`AngularFlux` foundation tests.
+
+Pins the post-D-H.1 contract for
+:class:`orpheus.transport.fields.angular_flux.AngularFlux`:
+
+* Inherits :class:`~orpheus.numerics.field.Field`; no hand-coded
+  dunders.
+* Pure Field — NO ``boundary`` attribute, NO ``_history`` attribute.
+* Mesh-binding rejection (cross-mesh arithmetic raises).
+* ``from_mesh`` / ``from_ndarray`` / ``zeros_for_sn_mesh`` factories.
+* Frozen contract.
+* ``integrate_angular`` reduction to ScalarFlux.
+
+Symmetric with :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
+algebra (no special-case for boundary or history).
+
+References
+----------
+
+* Depth B plan §3.3 (pure AngularFlux at L2).
+* Pre-D-H.1 ``orpheus/sn/angular_flux.py:AngularFlux`` (legacy with
+  ``boundary`` + ``_history`` fields — retired in D-H.2).
+"""
+from __future__ import annotations
+
+from dataclasses import FrozenInstanceError
+
+import numpy as np
+import pytest
+
+from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
+from orpheus.numerics.field import Field
+from orpheus.numerics.quadrature import Quadrature
+from orpheus.sn.geometry import SNMesh
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.scalar_flux import ScalarFlux
+
+from tests.sn._test_helpers import placeholder_materials
+
+
+pytestmark = [pytest.mark.foundation]
+
+
+# ───────────────────────────────────────────────────────────────────────
+# Mesh fixtures
+# ───────────────────────────────────────────────────────────────────────
+
+
+def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 1.0, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
+def _cartesian_2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> SNMesh:
+    mesh = Mesh2D(
+        edges_x=np.linspace(0, 1, nx + 1),
+        edges_y=np.linspace(0, 1, ny + 1),
+        mat_map=np.zeros((nx, ny), dtype=int),
+    )
+    quad = Quadrature.level_symmetric(sn_order=4)
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
+# ───────────────────────────────────────────────────────────────────────
+# A. Field-ABC inheritance
+# ───────────────────────────────────────────────────────────────────────
+
+
+class TestFieldInheritance:
+    def test_inherits_field(self) -> None:
+        m = _slab_mesh()
+        psi = AngularFlux.zeros_for_sn_mesh(m)
+        assert isinstance(psi, Field)
+
+    def test_pure_field_no_boundary_attribute(self) -> None:
+        """Critical: post-D-H.1 AngularFlux has NO .boundary field."""
+        m = _slab_mesh()
+        psi = AngularFlux.zeros_for_sn_mesh(m)
+        assert not hasattr(psi, "boundary")
+
+    def test_pure_field_no_history_attribute(self) -> None:
+        """Critical: post-D-H.1 AngularFlux has NO ._history field."""
+        m = _slab_mesh()
+        psi = AngularFlux.zeros_for_sn_mesh(m)
+        assert not hasattr(psi, "_history")
+
+    def test_pure_field_no_history_depth_attribute(self) -> None:
+        m = _slab_mesh()
+        psi = AngularFlux.zeros_for_sn_mesh(m)
+        assert not hasattr(psi, "history_depth")
+
+
+# ───────────────────────────────────────────────────────────────────────
+# B. Algebra (inherited from Field)
+# ───────────────────────────────────────────────────────────────────────
+
+
+class TestAlgebra:
+    def test_add_returns_typed(self) -> None:
+        m = _slab_mesh()
+        a = AngularFlux.from_mesh(np.ones((m.quad.N, m.ng, m.nx, m.ny)), m)
+        b = AngularFlux.from_mesh(2.0 * np.ones((m.quad.N, m.ng, m.nx, m.ny)), m)
+        c = a + b
+        assert isinstance(c, AngularFlux)
+        np.testing.assert_array_equal(c.values, 3.0)
+
+    def test_sub(self) -> None:
+        m = _slab_mesh()
+        a = AngularFlux.from_mesh(np.full((m.quad.N, m.ng, m.nx, m.ny), 5.0), m)
+        b = AngularFlux.from_mesh(np.full((m.quad.N, m.ng, m.nx, m.ny), 2.0), m)
+        c = a - b
+        np.testing.assert_array_equal(c.values, 3.0)
+
+    def test_scalar_mul(self) -> None:
+        m = _slab_mesh()
+        a = AngularFlux.from_mesh(np.full((m.quad.N, m.ng, m.nx, m.ny), 2.0), m)
+        c = a * 3.0
+        np.testing.assert_array_equal(c.values, 6.0)
+
+    def test_scalar_div(self) -> None:
+        m = _slab_mesh()
+        a = AngularFlux.from_mesh(np.full((m.quad.N, m.ng, m.nx, m.ny), 8.0), m)
+        c = a / 4.0
+        np.testing.assert_array_equal(c.values, 2.0)
+
+    def test_neg(self) -> None:
+        m = _slab_mesh()
+        a = AngularFlux.from_mesh(np.full((m.quad.N, m.ng, m.nx, m.ny), 1.5), m)
+        c = -a
+        np.testing.assert_array_equal(c.values, -1.5)
+
+
+# ───────────────────────────────────────────────────────────────────────
+# C. Mesh-binding rejection
+# ───────────────────────────────────────────────────────────────────────
+
+
+class TestMeshBinding:
+    def test_cross_mesh_add_rejected(self) -> None:
+        m1 = _slab_mesh()
+        m2 = _slab_mesh()  # different instance, same structure
+        a = AngularFlux.zeros_for_sn_mesh(m1)
+        b = AngularFlux.zeros_for_sn_mesh(m2)
+        with pytest.raises(ValueError, match="mesh-bound"):
+            a + b
+
+    def test_cross_class_rejected(self) -> None:
+        m = _slab_mesh()
+        psi = AngularFlux.zeros_for_sn_mesh(m)
+        phi = ScalarFlux.from_mesh(np.zeros((m.ng, m.nx, m.ny)), m)
+        with pytest.raises(TypeError, match="same-class"):
+            psi + phi  # type: ignore[operator]
+
+
+# ───────────────────────────────────────────────────────────────────────
+# D. Construction factories
+# ───────────────────────────────────────────────────────────────────────
+
+
+class TestConstruction:
+    def test_from_mesh(self) -> None:
+        m = _slab_mesh()
+        arr = np.ones((m.quad.N, m.ng, m.nx, m.ny))
+        psi = AngularFlux.from_mesh(arr, m)
+        assert psi.values.shape == (m.quad.N, m.ng, m.nx, m.ny)
+        assert psi.mesh is m
+
+    def test_from_ndarray_alias(self) -> None:
+        m = _slab_mesh()
+        arr = np.ones((m.quad.N, m.ng, m.nx, m.ny))
+        psi = AngularFlux.from_ndarray(arr, m)
+        assert isinstance(psi, AngularFlux)
+
+    def test_zeros_for_sn_mesh(self) -> None:
+        m = _slab_mesh()
+        psi = AngularFlux.zeros_for_sn_mesh(m)
+        np.testing.assert_array_equal(psi.values, 0.0)
+
+    def test_shape_validation_rejects_wrong_shape(self) -> None:
+        m = _slab_mesh()
+        with pytest.raises(ValueError, match="AngularFlux.*does not match"):
+            AngularFlux.from_mesh(
+                np.zeros((m.quad.N, m.ng, m.nx + 1, m.ny)), m,
+            )
+
+    def test_2d_construction(self) -> None:
+        m = _cartesian_2d_mesh(nx=3, ny=2, ng=2)
+        N = m.quad.N
+        psi = AngularFlux.from_mesh(np.zeros((N, 2, 3, 2)), m)
+        assert psi.values.shape == (N, 2, 3, 2)
+
+
+# ───────────────────────────────────────────────────────────────────────
+# E. Frozen contract
+# ───────────────────────────────────────────────────────────────────────
+
+
+class TestFrozen:
+    def test_assign_values_raises(self) -> None:
+        m = _slab_mesh()
+        psi = AngularFlux.zeros_for_sn_mesh(m)
+        with pytest.raises(FrozenInstanceError):
+            psi.values = np.zeros(psi.values.shape)  # type: ignore[misc]
+
+    def test_assign_mesh_raises(self) -> None:
+        m = _slab_mesh()
+        psi = AngularFlux.zeros_for_sn_mesh(m)
+        with pytest.raises(FrozenInstanceError):
+            psi.mesh = m  # type: ignore[misc]
+
+
+# ───────────────────────────────────────────────────────────────────────
+# F. Angular integration (reduction to ScalarFlux)
+# ───────────────────────────────────────────────────────────────────────
+
+
+class TestIntegrateAngular:
+    def test_returns_scalar_flux(self) -> None:
+        m = _slab_mesh()
+        psi = AngularFlux.zeros_for_sn_mesh(m)
+        phi = psi.integrate_angular()
+        assert isinstance(phi, ScalarFlux)
+        assert phi.values.shape == (m.ng, m.nx, m.ny)
+
+    def test_uniform_flux_gives_sum_of_weights(self) -> None:
+        m = _slab_mesh()
+        psi = AngularFlux.from_mesh(
+            np.ones((m.quad.N, m.ng, m.nx, m.ny)), m,
+        )
+        phi = psi.integrate_angular()
+        # φ = Σ_n w_n ψ_n; uniform ψ_n = 1 → φ = Σ_n w_n
+        expected = m.quad.weights.sum()
+        np.testing.assert_allclose(phi.values, expected, rtol=1e-15)
+
+    def test_isotropic_flux_recovers_scalar(self) -> None:
+        """For isotropic flux ψ_n(r,g) = φ(r,g) / Σw, integrate gives φ."""
+        m = _slab_mesh()
+        sum_w = m.quad.weights.sum()
+        phi_target = 5.0
+        psi_values = np.full((m.quad.N, m.ng, m.nx, m.ny), phi_target / sum_w)
+        psi = AngularFlux.from_mesh(psi_values, m)
+        phi = psi.integrate_angular()
+        np.testing.assert_allclose(phi.values, phi_target, rtol=1e-15)
+
+
+# ───────────────────────────────────────────────────────────────────────
+# G. Metadata read-throughs
+# ───────────────────────────────────────────────────────────────────────
+
+
+class TestMetadata:
+    def test_N_property(self) -> None:
+        m = _slab_mesh()
+        psi = AngularFlux.zeros_for_sn_mesh(m)
+        assert psi.N == m.quad.N
+
+    def test_ng_property(self) -> None:
+        m = _slab_mesh(ng=3)
+        psi = AngularFlux.zeros_for_sn_mesh(m)
+        assert psi.ng == 3
+
+    def test_nx_property(self) -> None:
+        m = _slab_mesh(nx=7)
+        psi = AngularFlux.zeros_for_sn_mesh(m)
+        assert psi.nx == 7
+
+    def test_ny_property(self) -> None:
+        m = _cartesian_2d_mesh(nx=3, ny=5)
+        psi = AngularFlux.zeros_for_sn_mesh(m)
+        assert psi.ny == 5
