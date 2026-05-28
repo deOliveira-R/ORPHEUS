@@ -324,7 +324,9 @@ Subtle: `dataclass` inheritance with `@dataclass(frozen=True)` requires every pa
 
 ### 3.4 `BoundaryFlux` — pure Field with flat-buffer storage (Option Ω)
 
-**Architecture decision (recorded 2026-05-27)**: `BoundaryFlux` is a **pure Field** with a flat backing buffer + `FaceLayout` descriptor. The pre-D-G framing ("not a Field, structured bundle") is RETIRED — Field-on-flat-storage gives both single-space algebra (Field-inherited dunders) AND per-face slice-view access (via FaceLayout). The interior-cache conflation that the pre-D-G 2-D `xmin_xmax_buf` / `ymin_ymax_buf` buffers carried is split out into a sweep-private `SweepScratch` type — BoundaryFlux is IMMUTABLE.
+**Architecture decision (recorded 2026-05-27, refined 2026-05-28)**: `BoundaryFlux` is a **pure Field** with a flat backing buffer + `FaceLayout` descriptor. The pre-D-G framing ("not a Field, structured bundle") is RETIRED — Field-on-flat-storage gives both single-space algebra (Field-inherited dunders) AND per-face slice-view access (via FaceLayout). The interior-cache conflation that the pre-D-G 2-D `xmin_xmax_buf` / `ymin_ymax_buf` buffers carried is dissolved into **ephemeral local arrays inside `_sweep_2d_wavefront`** — matching the 1-D blueprint pattern (`psi_face_chain_scan` is a local in `_sweep_1d_unified`). No separate interior-cache type (no `SweepScratch`, no `StaggeredFaceFlux`). BoundaryFlux is IMMUTABLE and carries face state only.
+
+Option I (2026-05-28): the 2-D `(L+C).apply` / `(L+C).solve` operator-algebra unification (currently the 2-D apply uses legacy FD via `_compute_gradients` while the sweep uses WDD via `sweep_graph.apply`) is owned by the parallel R-1 Phase A worktree (`.claude/worktrees/r1-phase-a-dim-agnostic/`, plan at `.claude/plans/r1_phase_a_dim_agnostic_ultraplan.md`, C6 step). D-G's BoundaryFlux contract is forward-compatible with that unification: face-only flat layout is the right contract regardless of whether 2-D apply uses WDD or FD.
 
 `BoundaryFaceFlux` is the per-face slice-view type, also a Field (on a single face's trace space). Construction is via `BoundaryFlux.faces[face_name]` — returns a Field view, no copy.
 
@@ -390,8 +392,10 @@ class BoundaryFlux(Field):
     all operate on the flat buffer in ONE numpy call.
 
     IMMUTABLE. The pre-D-G mutable write-through path (sweep persistent
-    BC state) is replaced by sweep-side SweepScratch + functional
-    reconstruction at iteration boundaries.
+    BC state) is replaced by ephemeral local arrays inside the sweep
+    body + functional reconstruction of a fresh BoundaryFlux at sweep
+    end (Option I, 2026-05-28). Matches the 1-D blueprint where
+    ``psi_face_chain_scan`` is a local in ``_sweep_1d_unified``.
     """
     # values (flat backing) and space (FunctionSpace with shape=(layout.total_size,))
     # inherited from Field. Added fields:
@@ -590,7 +594,7 @@ The container separates THREE responsibilities that the pre-D-H `AngularFlux` co
 1. **`ScalarFlux` / `AngularFlux` symmetry.** Pre-D-H, ScalarFlux is a clean Field (values+space+mesh) and AngularFlux is bloated with two extra responsibilities. Post-D-H they're both just Fields. The asymmetry that's been bugging the architecture through Depth B disappears.
 2. **Composition over inheritance.** Per Issue #207's three-way split (data composition / trait composition / named composition), `TransportState` is a **composition constructor** — it builds a composite state from existing Fields. It's a sibling of `TensorProductSpace`'s role at L1 (which also constructs new types from existing ones).
 3. **Future alignment with `DirectSumSpace`.** The container's natural backing in grand-report §5.3 is `Field(values=DirectSumStorage, space=DirectSumSpace(psi.space, boundary.space))`. `DirectSumSpace` is DEFERRED to Phase 3.6 per `feedback_unify_after_two_instances` (the second instance is kinetics' `flux ⊕ precursors`). D-H ships `TransportState` as a structured bundle with delegate-style dunders; the Phase 3.6 promotion is non-breaking.
-4. **Dissolves the 2-D conflation.** Once boundary is its own Field at the container level, BoundaryFlux is just `(face_values, face_space, mesh)` — no interior cache, no buffer-mixing. The pre-D-G 2-D `xmin_xmax_buf` / `ymin_ymax_buf` buffers split naturally: pure boundary trace → `BoundaryFlux`; interior wavefront cache → sweep-private `SweepScratch`.
+4. **Dissolves the 2-D conflation.** Once boundary is its own Field at the container level, BoundaryFlux is just `(face_values, face_space, mesh)` — no interior cache, no buffer-mixing. The pre-D-G 2-D `xmin_xmax_buf` / `ymin_ymax_buf` buffers split naturally: pure boundary trace → `BoundaryFlux`; interior wavefront cache → ephemeral local arrays in `_sweep_2d_wavefront` (matching 1-D's `psi_face_chain_scan` pattern; Option I, 2026-05-28).
 
 **Naming.** The user's working name is `TimedFullField`. Alternates considered:
 
@@ -743,7 +747,7 @@ def _install_ravel_unravel():
 _install_ravel_unravel()
 ```
 
-**Sweep API impact.** Pre-D-H, the sweep consumes `psi: AngularFlux` (reading `psi.boundary` internally) and produces a new `AngularFlux` (writing `.boundary` write-through). Post-D-H, the sweep consumes `state: TransportState` and produces a new `TransportState`. Internally the sweep reads `state.psi.values` and `state.boundary.values`, produces fresh ndarray outputs, and constructs a new `TransportState` (immutable functional path). The pre-D-G mutable write-through is replaced by the sweep-side `SweepScratch` for any per-iteration cache needs.
+**Sweep API impact.** Pre-D-H, the sweep consumes `psi: AngularFlux` (reading `psi.boundary` internally) and produces a new `AngularFlux` (writing `.boundary` write-through). Post-D-H, the sweep consumes `state: TransportState` and produces a new `TransportState`. Internally the sweep reads `state.psi.values` and `state.boundary.values`, produces fresh ndarray outputs, and constructs a new `TransportState` (immutable functional path). The pre-D-G mutable write-through is dissolved into ephemeral local arrays (Option I, 2026-05-28) — no separate scratch type required.
 
 **SourceIteration / InvertibleOperator.solve API impact.** Today (R-1 Step C): `(L+C).solve(rhs: AngularFlux) -> AngularFlux` reads `rhs.boundary`. Post-D-H: `(L+C).solve(rhs: TransportState) -> TransportState`. The rhs container carries both the inhomogeneous source flux AND the inflow boundary trace; the solve returns the converged container with updated psi + updated boundary trace + new history entry.
 
@@ -868,7 +872,7 @@ Recommended sequence — each step is a single commit, lands with verification g
 | D-B+1 | LANDED | — | specular BC tensor-network — first production instance |
 | D-E | LANDED | `6123422` | HarmonicMomentField migrated to L2; uses TensorProductSpace |
 | D-F | LANDED | `efdd4fe` | IsotropicSource + PerOrdinateSource migrated to L2; cross-class dunder preserved (Issue #207 refinement) |
-| D-G | NEXT | — | **REVISED 2026-05-27**: BoundaryFlux as pure Field (Option β stage 1); split SweepScratch |
+| D-G | IN-PROGRESS | `a107ea7` (prep) | **REVISED 2026-05-28 (Option I)**: BoundaryFlux as pure Field; ephemeral local interior buffers in 2-D sweep (NO SweepScratch); 2-D apply/solve operator-algebra unification owned by R-1 Phase A worktree |
 | D-H.1 | PENDING | — | **NEW 2026-05-27**: TransportState container + consumer migration (Option β stage 2a) |
 | D-H.2 | PENDING | — | **NEW 2026-05-27**: Retire legacy AngularFlux.boundary/_history (Option β stage 2b — HARD DEADLINE per user) |
 | D-I through D-K | PENDING | — | Operator typing, dead-factory retirement, shim retirement |
@@ -876,7 +880,7 @@ Recommended sequence — each step is a single commit, lands with verification g
 **Sequencing rationale.** D-A had to land first (Field ABC). D-C (trace_space move) and D-D (ScalarFlux migration) followed because they only depended on D-A. D-B was the next foundational step — TensorProductSpace unlocked Wave T (which follows Depth B) and enabled D-E's HarmonicMomentField to use product-space typing cleanly. D-B+1 shipped the first tensor-network instance. D-E + D-F migrated the simpler fields.
 
 **D-G / D-H split (Option β, decided 2026-05-27).** The original D-G+D-H plan (BoundaryFlux as a non-Field bundle; AngularFlux carrying boundary+history) was REVISED after the conversation surfaced the architectural conflation in AngularFlux's pre-D-H state. The new staging:
-- **D-G**: BoundaryFlux becomes a pure Field; interior wavefront cache split to SweepScratch. AngularFlux still carries boundary+history (legacy preserved).
+- **D-G**: BoundaryFlux becomes a pure Field; interior wavefront cache dissolves into ephemeral local arrays in `_sweep_2d_wavefront` (matching 1-D blueprint; no separate scratch type — Option I, 2026-05-28). AngularFlux still carries boundary+history (legacy preserved). 2-D apply/solve operator-algebra unification owned by R-1 Phase A.
 - **D-H.1**: TransportState container introduced; AngularFlux becomes pure Field; all consumers migrated. Legacy shims forward to hidden container.
 - **D-H.2**: Legacy `AngularFlux.boundary` / `_history` deleted. User's hard constraint: by end of D-H, legacy is retired.
 
@@ -962,23 +966,30 @@ Scope:
   algebra-vectorizable; the difference from the pre-D-G §3.4 framing is that
   BoundaryFlux **is now a Field** (single flat space) rather than a non-Field
   bundle. The flat layout is what makes this principled.
-- **Split out the interior wavefront cache** (the architectural problem the
-  pre-D-G 2-D `xmin_xmax_buf` / `ymin_ymax_buf` buffers were conflating with
-  boundary trace state). Introduce a `SweepScratch` type (L3, SN-specific)
-  carried by the sweep itself, NOT by BoundaryFlux. BoundaryFlux becomes
-  IMMUTABLE; the mutable wavefront cache lives on the sweep.
+- **Dissolve the interior wavefront cache into ephemeral local arrays** (Option I, 2026-05-28).
+  The pre-D-G 2-D `xmin_xmax_buf` / `ymin_ymax_buf` buffers conflated boundary
+  trace state with interior wavefront cache. Post-D-G, `_sweep_2d_wavefront`
+  allocates `psi_x_buf` and `psi_y_buf` as LOCAL variables on each call
+  (matching the 1-D blueprint pattern in `_sweep_1d_unified` where
+  `psi_face_chain_scan` is a local). No separate scratch type. BoundaryFlux
+  becomes IMMUTABLE and carries only face state. The 2-D `(L+C).apply` /
+  `(L+C).solve` operator-algebra unification (legacy 2-D apply uses FD via
+  `_compute_gradients`; the sweep uses WDD via `sweep_graph.apply`) is OWNED
+  BY the parallel R-1 Phase A worktree (`.claude/worktrees/r1-phase-a-dim-agnostic/`,
+  C6 of `r1_phase_a_dim_agnostic_ultraplan.md`). D-G's BoundaryFlux contract is
+  forward-compatible with that unification.
 - BoundaryFlux is `frozen=True` and `kw_only=True`. The pre-D-G mutability
-  (write-through cache for sweep persistent BC state) is replaced by sweep-side
-  cache + functional reconstruction at iteration boundaries.
+  (write-through cache for sweep persistent BC state) is dissolved into
+  ephemeral local arrays + functional reconstruction of a fresh BoundaryFlux
+  at sweep end (next iteration's BC partner reads from THAT BoundaryFlux).
 - Ship a `BoundaryFlux.zeros_for_sn_mesh(mesh)` classmethod factory (the
   geometry-conditional construction logic lives here, not at sweep call sites).
 - AngularFlux still carries `boundary: BoundaryFlux` and `_history` in D-G (legacy
   preservation; the retirement is D-H's responsibility). The pre-D-G mutable
   write-through path stays alive via a one-cycle shim until D-H lands.
 - Ship one-cycle re-export shim at `orpheus/sn/boundary_flux.py`.
-- Migrate consumers (~15 files per audit memo §3 / §4). The sweep gets a
-  `SweepScratch` parameter; BC state reads/writes use the BoundaryFlux Field
-  interface.
+- Migrate consumers (~15 files per audit memo §3 / §4). BC state reads/writes
+  use the BoundaryFlux Field interface (`face_view(name)` for slice access).
 
 **Verification**:
 
@@ -986,8 +997,9 @@ Scope:
   itself (the data hasn't changed, the type discipline has).
 - New tests: `tests/transport/fields/test_boundary_flux.py` — pin Field algebra,
   per-face slice views, mesh-binding rejection.
-- New test: `tests/sn/test_sweep_scratch_split.py` — pin that 2-D sweeps still
-  produce bit-identical interior fluxes after the buffer split.
+- New test: `tests/sn/test_sweep_local_buffers.py` (D-G commit 3) — pin that
+  2-D sweeps produce bit-identical interior fluxes after the conflation
+  dissolution (interior cells become ephemeral; only boundary state persists).
 - The 10 pre-existing DD-regression failures stay AT the same failure set.
 
 ### Step D-H — Pure `AngularFlux` Field + `TransportState` container + RETIRE legacy (Option β stage 2)
@@ -1135,7 +1147,7 @@ Per §3.7 policy, the `@singledispatchmethod` dispatch tables on `ScatteringOper
 - `tests/transport/fields/test_harmonic_moment_field.py` — migrated + new space-link test (D-E).
 - `tests/transport/sources/test_isotropic_source.py`, `test_per_ordinate_source.py` — migrated (D-F).
 - `tests/transport/fields/test_boundary_flux.py` — migrated, exercises pure-Field BoundaryFlux algebra + per-face slice views (D-G).
-- `tests/sn/test_sweep_scratch_split.py` — pins that 2-D sweeps produce bit-identical interior fluxes after the BoundaryFlux/SweepScratch buffer split (D-G).
+- `tests/sn/test_sweep_local_buffers.py` — pins that 2-D sweeps produce bit-identical interior fluxes after the conflation dissolution (interior cells become ephemeral local arrays; only boundary state persists via BoundaryFlux) (D-G).
 - `tests/transport/fields/test_angular_flux.py` — migrated, exercises pure-Field AngularFlux algebra (no boundary, no history) (D-H).
 - `tests/transport/test_transport_state.py` — NEW. Pins container algebra (delegate dunders), history shift-register (`advance`, `at_lag`), mesh-binding rejection, cross-container rejection (D-H).
 - `tests/sn/test_transport_state_b1pp_adapter.py` — pins the SN-adapter's `from_flat_with_traces` / `to_flat_with_traces` round-trip on `TransportState` (D-H).
@@ -1161,7 +1173,7 @@ Per `vv-principles` §"Bit-identity vs principled-equivalence":
 | D-D | STRICT | ScalarFlux algebra unchanged. |
 | D-E | STRICT | HarmonicMomentField algebra unchanged. |
 | D-F | STRICT | Sources algebra unchanged. |
-| D-G | PRINCIPLED | BoundaryFlux becomes a pure Field; flat-buffer layout is unchanged but the access surface flips from mutable write-through to immutable functional. Interior wavefront cache splits to SweepScratch — same numerical content, different ownership. L1 MMS gates pin numerical equivalence; ULP drift bounded by `(reduction depth) × ULP` per `vv-principles`. |
+| D-G | PRINCIPLED | BoundaryFlux becomes a pure Field; access surface flips from mutable write-through to immutable functional. Interior wavefront cache dissolves into ephemeral local arrays inside `_sweep_2d_wavefront` (matching 1-D blueprint; Option I, 2026-05-28) — same numerical content, no separate scratch type. L1 MMS gates pin numerical equivalence; ULP drift bounded by `(reduction depth) × ULP` per `vv-principles`. |
 | D-H.1 | PRINCIPLED | TransportState container introduced; consumers migrated. AngularFlux algebra preserved; container delegate dunders compose to identical numerical paths. ULP drift bounded by `(reduction depth) × ULP`. |
 | D-H.2 | N/A | Legacy retirement (deletion only — no new numerical paths). |
 | D-I | PRINCIPLED | Operator signatures change from `ndarray` to `Field`. Underlying algorithm unchanged. |
@@ -1229,7 +1241,7 @@ Most tests are mode-agnostic and pass under both invocations. Tests that exercis
 | --- | --- | --- |
 | **1** | `dataclass` field-order constraints in `Field` ABC + subclasses (mandatory fields after defaulted ones). | Use `kw_only=True` on the dataclass decorator (Python 3.10+; project is on 3.14). |
 | **2** | Same-class invariant broken by L2/L3 module-level injection getting tangled. | Strict test (`test_ravellable_protocol_same_class.py`) per §7.4. Plus: prefer `class AngularFlux` defined at L2 with the L3 adapter installing methods, NOT a subclass. |
-| **3** | `BoundaryFlux` pure-Field carve + interior-cache split (D-G) breaks consumer sites. | Audit-driven migration; the audit memo identified ~15 files. One-cycle deprecation shim on legacy mutable write-through; migrate consumers in lockstep. SweepScratch isolation tested by new `tests/sn/test_sweep_scratch_split.py`. |
+| **3** | `BoundaryFlux` pure-Field carve + conflation dissolution (D-G) breaks consumer sites. | Audit-driven migration; the audit memo identified ~15 files. One-cycle deprecation shim on legacy mutable write-through; migrate consumers in lockstep. Ephemeral local buffers in `_sweep_2d_wavefront` tested by `tests/sn/test_sweep_local_buffers.py`. |
 | **3b** | `TransportState` container migration (D-H.1) is the largest single carve in Depth B — ~30 consumer files, crosses typed↔packed AND field↔composite boundaries. | Stage as D-H.1 (container in + consumers migrated, legacy shims forward) → D-H.2 (legacy retired). Each commit independently green + bisectable. Proactive test-architect dispatch BEFORE D-H.1 implementation (per `subagent-handoff-protocol` triggers). Krylov adapter `_is_ravellable` Protocol migration is the highest-risk single touch. |
 | **3c** | Legacy retirement deadline at D-H.2 missed — `AngularFlux.boundary` / `_history` shims linger past D-H. | User constraint is hard: "by the end of D-H, the legacy structure is retired (deleted from the codebase after all gates green)." D-H.2 IS the retirement commit; if blocked, the blocker (e.g., a consumer migration that didn't complete in D-H.1) is fixed before D-H.2 lands. NEVER bundle D-H.2 into a later step. |
 | **4** | Step D-I retires `apply(np.ndarray)` handlers but tests still pass bare ndarrays. | Add `TypedField.from_ndarray(arr, mesh)` factory in step D-A; migrate test call sites in lockstep with each typed field's D-D/D-E/D-F/D-G/D-H migration. The singledispatch table itself STAYS (per §3.7); only the ndarray entry leaves. |
@@ -1283,7 +1295,7 @@ When Depth B is COMPLETE, the following invariants hold and are pickup condition
 2. **`FunctionSpace.units: pint.Unit | None`** exists and is consumed by `__eq__` (dimensionality comparison) and `Field._check_partner` (Layer 3 assert).
 3. **`orpheus/transport/` exists** as the L2 package with `fields/` (AngularFlux, ScalarFlux, HarmonicMomentField, BoundaryFlux, BoundaryFaceFlux), `sources/` (IsotropicSource, PerOrdinateSource), and the `TransportState` container (`orpheus/transport/state.py` or `transport_state.py`).
 4. **AngularFlux is a pure Field** (`values + space + mesh`). It does NOT carry `boundary` or `_history` — those responsibilities live on `TransportState`. Symmetric with `ScalarFlux`. The legacy `AngularFlux.boundary` / `_history` fields are DELETED from the codebase (retired in D-H.2).
-5. **BoundaryFlux is a pure Field** (flat backing buffer + `FaceLayout` descriptor + `mesh`). IMMUTABLE. The pre-D-G mutable write-through + interior wavefront cache is split: BoundaryFlux carries only trace state; `SweepScratch` (L3, SN-private) carries the wavefront cache.
+5. **BoundaryFlux is a pure Field** (flat backing buffer + `FaceLayout` descriptor + `mesh`). IMMUTABLE. The pre-D-G mutable write-through + interior wavefront cache is dissolved: BoundaryFlux carries only trace state; interior wavefront cache becomes ephemeral local arrays inside `_sweep_2d_wavefront` (matching 1-D blueprint; Option I, 2026-05-28). No separate scratch type. The 2-D apply/solve operator-algebra unification (WDD-unified matvec) is owned by the parallel R-1 Phase A worktree.
 6. **The L3 SN adapter installs `from_flat_with_traces` / `to_flat_with_traces`** on `TransportState` (NOT on AngularFlux) at module-import time. The same-class invariant test (`tests/numerics/test_ravellable_protocol_same_class.py`) is GREEN with TransportState as the target.
 7. **The `_is_ravellable` Protocol at `iteration.py:163-176` detects `TransportState`** — the Krylov adapter packs/unpacks the composite state, NOT the inner flux alone.
 8. **`@singledispatchmethod` dispatch tables stay** on `ScatteringOperator.apply`, `FissionOperator.apply` with handlers for `AngularFlux` and `ScalarFlux` (and future `AngularSource`/`AngularResidual` when #201 lands). The `apply(np.ndarray)` handlers are RETIRED. Each typed field has a `.from_ndarray(arr, mesh)` factory.
