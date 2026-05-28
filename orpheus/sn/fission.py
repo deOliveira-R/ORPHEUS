@@ -78,11 +78,18 @@ from orpheus.numerics.operator import (
 )
 
 # Runtime imports for :func:`singledispatchmethod.register` — see
-# ``scattering.py`` for the same pattern.  These three types form a
-# leaf in the SN dependency graph (they do not import fission.py).
+# ``scattering.py`` for the same pattern.  These types form a leaf in
+# the SN dependency graph (they do not import fission.py).  The L2
+# pure-Field :class:`AngularFlux` and :class:`BoundaryFlux` are
+# re-aliased to ``L2AngularFlux`` / ``L2BoundaryFlux`` to disambiguate
+# from the legacy ``orpheus.sn.angular_flux.AngularFlux`` which still
+# rides on the operator-algebra path until D-H.1c.
 from .angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
+from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux as L2BoundaryFlux
 from orpheus.transport.sources import IsotropicSource
+from orpheus.transport.timed_full_field import TimedFullField
 
 if TYPE_CHECKING:
     from .material_xs_field import MaterialXSField
@@ -163,12 +170,21 @@ class FissionOperator(LinearOperatorMixin):
         Dispatched on input type via
         :func:`functools.singledispatchmethod`:
 
-        * :class:`~orpheus.sn.angular_flux.AngularFlux` →
+        * :class:`~orpheus.sn.angular_flux.AngularFlux` (legacy) →
           :class:`AngularFlux` — fission emission in **per-ordinate
           magnitude** (the trailing :math:`1/W` projection lives at the
           producer boundary; R-1 Step 4 A1).  Consumers are SN
-          sweep / GMRES / source-iteration loops operating on per-
-          ordinate angular flux.
+          sweep / GMRES / source-iteration loops operating on legacy
+          per-ordinate angular flux.  Retires in D-H.1c alongside the
+          legacy ``AngularFlux``.
+        * :class:`~orpheus.transport.timed_full_field.TimedFullField`
+          → :class:`TimedFullField` — composite bulk + boundary
+          variant for the D-H.1+ migration path.  Bulk follows the
+          same per-ordinate :math:`1/W` projection as the legacy
+          branch; boundary is the implicit-zero
+          :class:`L2BoundaryFlux` (Option β3 — fission has no boundary
+          action; Wave O Issue #208 will encode bulk-only nature in
+          the type).
         * :class:`~orpheus.sn.scalar_flux.ScalarFlux` →
           :class:`~orpheus.sn.sources.IsotropicSource` — fission
           emission in **iso scalar magnitude**.  For consumers in
@@ -234,6 +250,46 @@ class FissionOperator(LinearOperatorMixin):
             fission_iso.values, psi.mesh,
         )
         return AngularFlux(per_ord.values, psi.mesh)
+
+    @apply.register
+    def _(self, psi: TimedFullField) -> "TimedFullField":
+        r"""Composite :class:`TimedFullField` variant — bulk-only fission emission.
+
+        Math: identical to the :class:`AngularFlux` branch above —
+        reduce bulk angular → scalar via :math:`\phi = \sum_n w_n
+        \psi_n`, compute iso fission source :math:`F\phi`, project to
+        per-ordinate via :math:`/W`.  The output bulk is a pure-Field
+        :class:`L2AngularFlux`; the output boundary is an **implicit
+        zero** :class:`L2BoundaryFlux` because the fission operator
+        has no boundary action (the emission spectrum
+        :math:`\chi(\vec r)` lives only on cell-centred volumes).
+
+        Per Option β3 (`#208
+        <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_) the
+        implicit-zero boundary is a transitional shim: Wave O will
+        introduce :class:`BulkOperator` /
+        :class:`FullOperator` Protocols so that fission's bulk-only
+        nature is encoded in the *type*, not in a zero-valued boundary
+        member.  Until then the composite return enables
+        :math:`L.\mathrm{apply}(\psi) - S.\mathrm{apply}(\psi) -
+        F.\mathrm{apply}(\psi)` to compose under
+        :meth:`TimedFullField.__sub__` once all four operators expose
+        the composite branch (D-H.1c).
+        """
+        phi_scalar = psi.bulk.integrate_angular()
+        # Reuse the ScalarFlux branch — single source of truth for the
+        # per-cell production-rate × emission-spectrum contraction.
+        fission_iso: IsotropicSource = self.apply(phi_scalar)
+        from orpheus.transport.sources import PerOrdinateSource
+        per_ord = PerOrdinateSource.from_isotropic(
+            fission_iso.values, psi.bulk.mesh,
+        )
+        return TimedFullField(
+            bulk=L2AngularFlux.from_mesh(per_ord.values, psi.bulk.mesh),
+            boundary=L2BoundaryFlux.zeros_for_sn_mesh(psi.bulk.mesh),
+            _history=(),
+            history_depth=psi.history_depth,
+        )
 
     @apply.register
     def _(self, phi: ScalarFlux) -> "IsotropicSource":
