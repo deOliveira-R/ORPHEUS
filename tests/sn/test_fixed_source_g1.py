@@ -51,8 +51,6 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.geometry.mesh import Mesh2D
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.angular_flux import AngularFlux
-from orpheus.sn.boundary_flux import BoundaryFlux
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.sources import PerOrdinateSource

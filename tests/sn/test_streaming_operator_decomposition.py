@@ -44,6 +44,18 @@ Test contract (mechanism criteria 1, 2 from the substep brief)
 A separate test verifies that the subtractive L's apply DIFFERS from
 the prior wrong approach ``matvec(σ_t=0)`` (sanity: we're shipping a
 genuinely different formulation).
+
+D-H.2-C1 note
+-------------
+All tests in this file exercise the bare-``np.ndarray`` flat-vector
+path through :func:`transport_operator_matvec_unified` (the legacy
+matvec kernel).  ``_call_matvec`` internally adapts via the legacy
+:class:`orpheus.sn.angular_flux.AngularFlux` +
+:class:`orpheus.sn.boundary_flux.BoundaryFlux` pair as a transient
+bridge to the unified matvec.  The composite migration deferred
+this file to C4 because the matvec kernel itself needs the L2-native
+rewrite before the test fixtures can express the input as a
+:class:`TimedFullField`.  Tests stay legacy until C4.
 """
 from __future__ import annotations
 

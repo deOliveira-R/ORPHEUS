@@ -213,22 +213,28 @@ class TestKDivisionConvention:
 
 
 # ──────────────────────────────────────────────────────────────────────
-# D-H.1b.3 — TimedFullField composite dispatch
+# D-H.2-C1 — Composite TimedFullField invariants (bulk-only fission).
+#
+# Per Option β3 (Issue #208), the FissionOperator has no boundary
+# action — the emission spectrum lives only on cell-centred volumes.
+# The composite branch returns a :class:`TimedFullField` with the
+# fission per-ordinate source in the bulk member and an implicit-zero
+# :class:`L2BoundaryFlux` in the boundary member.  The parity test
+# vs. legacy AngularFlux retired with D-H.2 (legacy branch deleted in
+# C5); the algebra is exercised on the composite carrier directly.
 # ──────────────────────────────────────────────────────────────────────
 
 
-class TestTimedFullFieldBranch:
-    """Composite :class:`TimedFullField` variant: bulk-only fission.
-
-    Per Option β3 (Issue #208), the FissionOperator has no boundary
-    action — the emission spectrum lives only on cell-centred volumes.
-    The composite branch returns a :class:`TimedFullField` with the
-    fission per-ordinate source in the bulk member and an implicit-zero
-    :class:`L2BoundaryFlux` in the boundary member.
-    """
+class TestCompositeInvariants:
+    """Composite :class:`TimedFullField` variant: bulk-only fission."""
 
     def test_returns_timed_full_field(self, solver_2g):
         """Composite input → composite output (dispatch contract)."""
+        from dataclasses import replace
+
+        from orpheus.transport.fields.angular_flux import (
+            AngularFlux as L2AngularFlux,
+        )
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = solver_2g.sn_mesh
@@ -236,10 +242,7 @@ class TestTimedFullFieldBranch:
         # Seed bulk with a deterministic non-zero per-ordinate ψ.
         np.random.seed(31)
         bulk_values = np.random.rand(*state.bulk.values.shape) + 0.1
-        from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
-        from dataclasses import replace
-        new_bulk = replace(state.bulk, values=bulk_values)
-        state = replace(state, bulk=new_bulk)
+        state = replace(state, bulk=replace(state.bulk, values=bulk_values))
 
         out = solver_2g.fission_op.apply(state)
 
@@ -251,11 +254,12 @@ class TestTimedFullFieldBranch:
 
     def test_implicit_zero_boundary(self, solver_2g):
         """Fission has no boundary action — boundary member is all zeros."""
+        from dataclasses import replace
+
         sn_mesh = solver_2g.sn_mesh
         state = sn_mesh.zeros_timed_full_field()
         np.random.seed(32)
         bulk_values = np.random.rand(*state.bulk.values.shape) + 0.1
-        from dataclasses import replace
         state = replace(state, bulk=replace(state.bulk, values=bulk_values))
 
         out = solver_2g.fission_op.apply(state)
@@ -264,38 +268,6 @@ class TestTimedFullFieldBranch:
         # Option β3 / Wave O Issue #208 — the bulk-only nature will be
         # encoded in the type system once :class:`BulkOperator` ships.
         np.testing.assert_array_equal(out.boundary.values, 0.0)
-
-    def test_bulk_matches_legacy_angular_flux_branch(self, solver_2g):
-        """Composite branch bulk == legacy AngularFlux branch values.
-
-        Both branches share the same math (reduce angular → scalar,
-        apply ScalarFlux variant, project to per-ordinate via
-        :class:`PerOrdinateSource.from_isotropic`); the only delta is
-        the return type (composite vs. legacy AngularFlux).  This test
-        pins the equivalence so D-H.1c can retire the legacy branch
-        without a numerical regression.
-        """
-        from orpheus.sn.angular_flux import AngularFlux as LegacyAngularFlux
-
-        sn_mesh = solver_2g.sn_mesh
-        np.random.seed(33)
-        bulk_values = np.random.rand(
-            sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny,
-        ) + 0.1
-
-        # Composite path.
-        state = sn_mesh.zeros_timed_full_field()
-        from dataclasses import replace
-        state = replace(state, bulk=replace(state.bulk, values=bulk_values))
-        out_composite = solver_2g.fission_op.apply(state)
-
-        # Legacy path — same numerical input.
-        legacy_psi = LegacyAngularFlux(bulk_values.copy(), sn_mesh)
-        out_legacy = solver_2g.fission_op.apply(legacy_psi)
-
-        np.testing.assert_array_equal(
-            out_composite.bulk.values, out_legacy.values,
-        )
 
     def test_zero_bulk_zero_output(self, solver_2g):
         """ψ = 0 ⇒ F·ψ = 0 (linearity guard at composite layer)."""

@@ -32,6 +32,7 @@ Tests pin:
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from unittest.mock import patch
 
 import numpy as np
@@ -43,8 +44,6 @@ from orpheus.numerics.operator import (
     CAP_SOLVE,
     OperatorSum,
 )
-from orpheus.sn.angular_flux import AngularFlux
-from orpheus.sn.boundary_flux import BoundaryFlux
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import (
     CollisionOperator,
@@ -52,7 +51,42 @@ from orpheus.sn.operator import (
     StreamingOperator,
 )
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
+from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
+
+
+def _random_state(
+    sn_mesh: SNMesh, seed: int = 42, *, history_depth: int = 2,
+) -> TimedFullField:
+    """Build a :class:`TimedFullField` with random bulk values.
+
+    D-H.2-C1: the composite carrier replaces the legacy
+    :class:`orpheus.sn.angular_flux.AngularFlux` test fixture.  Bulk
+    values are sampled from ``N(0, 1)``; boundary is left as the
+    implicit-zero L2 :class:`BoundaryFlux`.
+    """
+    rng = np.random.default_rng(seed)
+    N, ng, nx, ny = sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny
+    state = sn_mesh.zeros_timed_full_field(history_depth=history_depth)
+    return replace(
+        state,
+        bulk=replace(
+            state.bulk, values=rng.standard_normal((N, ng, nx, ny)),
+        ),
+    )
+
+
+def _const_state(
+    sn_mesh: SNMesh, value: float = 1.0, *, history_depth: int = 2,
+) -> TimedFullField:
+    """Build a :class:`TimedFullField` whose bulk is uniformly ``value``."""
+    N, ng, nx, ny = sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny
+    state = sn_mesh.zeros_timed_full_field(history_depth=history_depth)
+    return replace(
+        state,
+        bulk=replace(state.bulk, values=np.full((N, ng, nx, ny), value)),
+    )
 
 
 pytestmark = [pytest.mark.foundation]
@@ -221,76 +255,66 @@ class TestCapabilitiesAndInvariants:
 
 class TestApply:
     def test_apply_equals_l_plus_c_on_typed_flux(self) -> None:
-        r"""``(L+C).apply(ψ) == L.apply(ψ) + C.apply(ψ)`` for AngularFlux."""
+        r"""``(L+C).apply(ψ) == L.apply(ψ) + C.apply(ψ)`` for TimedFullField."""
         sn = _slab_mesh(nx=4, n_ord=4, ng=2)
         sigma_t = np.full((sn.ng, sn.nx, sn.ny), 0.8)
         L = StreamingOperator(sn, sigma_t)
         C = CollisionOperator(sn, sigma_t)
         invertible = L + C
 
-        rng = np.random.default_rng(7)
-        psi = AngularFlux(
-            rng.standard_normal((sn.quad.N, sn.ng, sn.nx, sn.ny)), sn,
-        )
+        state = _random_state(sn, seed=7)
 
-        composite_out = invertible.apply(psi)
-        sum_out = L.apply(psi) + C.apply(psi)
+        composite_out = invertible.apply(state)
+        sum_out = L.apply(state) + C.apply(state)
 
-        np.testing.assert_array_equal(composite_out.values, sum_out.values)
         np.testing.assert_array_equal(
-            composite_out.boundary.xmax_face, sum_out.boundary.xmax_face,
+            composite_out.bulk.values, sum_out.bulk.values,
         )
-        if composite_out.boundary.xmin_face is not None:
-            np.testing.assert_array_equal(
-                composite_out.boundary.xmin_face, sum_out.boundary.xmin_face,
-            )
+        np.testing.assert_array_equal(
+            composite_out.boundary.values, sum_out.boundary.values,
+        )
 
 
 # ── Solve via sweep ─────────────────────────────────────────────────────
 
 
 class TestSolve:
-    def test_solve_returns_angular_flux_on_slab(self) -> None:
-        """``InvertibleOperator.solve`` returns a typed AngularFlux on slab."""
+    def test_solve_returns_composite_on_slab(self) -> None:
+        """``InvertibleOperator.solve`` returns a :class:`TimedFullField` on slab."""
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
         invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
             sn, sigma_t,
         )
 
-        rhs = AngularFlux(
-            np.ones((sn.quad.N, sn.ng, sn.nx, sn.ny)), sn,
-        )
+        rhs = _const_state(sn, value=1.0)
         psi = invertible.solve(rhs)
 
-        assert isinstance(psi, AngularFlux)
-        assert psi.mesh is sn
-        assert psi.values.shape == rhs.values.shape
+        assert isinstance(psi, TimedFullField)
+        assert isinstance(psi.bulk, L2AngularFlux)
+        assert psi.bulk.mesh is sn
+        assert psi.bulk.values.shape == rhs.bulk.values.shape
 
     def test_solve_inherits_history_depth_from_rhs(self) -> None:
-        """``rhs.history_depth`` propagates to the returned AngularFlux."""
+        """``rhs.history_depth`` propagates to the returned composite."""
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
         invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
             sn, sigma_t,
         )
 
-        rhs = AngularFlux(
-            np.zeros((sn.quad.N, sn.ng, sn.nx, sn.ny)),
-            sn,
-            history_depth=5,
-        )
+        rhs = sn.zeros_timed_full_field(history_depth=5)
         psi = invertible.solve(rhs)
         assert psi.history_depth == 5
 
     def test_solve_rejects_bare_ndarray(self) -> None:
-        """The typed-flux contract is mandatory — bare ndarray rejected."""
+        """The composite-flux contract is mandatory — bare ndarray rejected."""
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
         invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
             sn, sigma_t,
         )
-        with pytest.raises(TypeError, match="AngularFlux"):
+        with pytest.raises(TypeError):
             invertible.solve(np.zeros(10))
 
     def test_solve_rejects_mismatched_mesh(self) -> None:
@@ -300,9 +324,7 @@ class TestSolve:
         invertible = StreamingOperator(sn1, sigma_t1) + CollisionOperator(
             sn1, sigma_t1,
         )
-        rhs = AngularFlux(
-            np.zeros((sn2.quad.N, sn2.ng, sn2.nx, sn2.ny)), sn2,
-        )
+        rhs = sn2.zeros_timed_full_field()
         with pytest.raises(ValueError, match="mesh-identity"):
             invertible.solve(rhs)
 
@@ -339,7 +361,10 @@ class TestSolve:
             np.sin(np.pi * x)[None, None, :, None] * np.ones((N, ng, 1, ny)),
             (N, ng, nx, ny),
         ).copy()
-        q = AngularFlux(rhs_values, sn)
+        q = replace(
+            sn.zeros_timed_full_field(),
+            bulk=replace(sn.zeros_timed_full_field().bulk, values=rhs_values),
+        )
         psi = invertible.solve(q)
 
         # Some cells positive (interior; the sweep is monotone for
@@ -347,10 +372,11 @@ class TestSolve:
         # positivity may fail at the BC face under WDD's diamond
         # closure — that's a known DD artefact.  Sufficient signal:
         # non-trivial peak in the interior.
-        assert psi.values.max() > 0
+        assert psi.bulk.values.max() > 0
         # Peak occurs near the source maximum (centre of the slab).
         peak_x_idx = np.unravel_index(
-            np.argmax(psi.values[0, 0, :, 0]), psi.values[0, 0, :, 0].shape,
+            np.argmax(psi.bulk.values[0, 0, :, 0]),
+            psi.bulk.values[0, 0, :, 0].shape,
         )
         assert nx // 4 <= peak_x_idx[0] <= 3 * nx // 4
 
@@ -362,34 +388,32 @@ class TestSolve:
             sn, sigma_t,
         )
 
-        q = AngularFlux(
-            np.ones((sn.quad.N, sn.ng, sn.nx, sn.ny)), sn,
-        )
+        q = _const_state(sn, value=1.0)
         psi = invertible.solve(q)
-        assert isinstance(psi, AngularFlux)
-        assert psi.values.shape == q.values.shape
+        assert isinstance(psi, TimedFullField)
+        assert psi.bulk.values.shape == q.bulk.values.shape
         # Curvilinear sweep produces a non-trivial positive bulk.
-        assert psi.values.max() > 0
+        assert psi.bulk.values.max() > 0
 
     @pytest.mark.l0
     @pytest.mark.verifies("sn-streaming", "transport-cartesian")
     def test_solve_consumes_per_ordinate_rhs(self) -> None:
-        r"""``InvertibleOperator.solve`` passes ``rhs.values`` unmodified to the sweep.
+        r"""``InvertibleOperator.solve`` passes ``rhs.bulk.values`` unmodified to the sweep.
 
         R-1 Step 4 A1 invariant pin (N5 per verification plan).  The
-        producer-side normalisation contract says ``rhs.values`` is
+        producer-side normalisation contract says the bulk values are
         already per-ordinate density (the producer of ``rhs`` — typically
         ``ScatteringOperator.apply`` or ``PerOrdinateSource.from_isotropic``
         — applied ``/sum_w`` at the producer boundary).  The
-        ``InvertibleOperator.solve`` adapter MUST forward ``rhs.values``
-        to :func:`transport_sweep` *bit-equal* — no internal ``* sum_w``
-        bridge, no ``/sum_w`` rescaling.
+        ``InvertibleOperator.solve`` adapter MUST forward the bulk
+        values to :func:`transport_sweep` *bit-equal* — no internal
+        ``* sum_w`` bridge, no ``/sum_w`` rescaling.
 
         Pre-A1 the adapter wrapped ``rhs.values * sum_w`` into the sweep
         to compensate for the old sweep-internal ``/W``; both directions
         of that bridge dissolved in A1.  This test spies on
         :func:`transport_sweep` to capture the ``source`` argument and
-        asserts ``source.values`` is bit-identical to ``rhs.values``.
+        asserts ``source.values`` is bit-identical to ``rhs.bulk.values``.
         If a future refactor re-introduces a ``* sum_w`` / ``/ sum_w``
         rescaling on this hot path, the bit-equal assertion fails.
         """
@@ -402,8 +426,15 @@ class TestSolve:
         sum_w = float(sn.quad.weights.sum())
         q_const = 2.7
         per_ord_density = q_const / sum_w
-        rhs = AngularFlux(
-            np.full((sn.quad.N, sn.ng, sn.nx, sn.ny), per_ord_density), sn,
+        zero = sn.zeros_timed_full_field()
+        rhs = replace(
+            zero,
+            bulk=replace(
+                zero.bulk,
+                values=np.full(
+                    (sn.quad.N, sn.ng, sn.nx, sn.ny), per_ord_density,
+                ),
+            ),
         )
 
         # Spy on transport_sweep — capture the source argument's values.
@@ -426,9 +457,9 @@ class TestSolve:
         )
         forwarded = captured[0]
         np.testing.assert_array_equal(
-            forwarded, rhs.values,
+            forwarded, rhs.bulk.values,
             err_msg=(
-                "InvertibleOperator.solve modified rhs.values before "
+                "InvertibleOperator.solve modified rhs.bulk.values before "
                 "forwarding to transport_sweep — A1 producer-side "
                 "convention drifted (the ``* sum_w`` bridge MUST stay "
                 "dissolved)."
@@ -441,13 +472,12 @@ class TestSolve:
 
         Phase 1.2 — the curvilinear Carlson coupled-pole seed travels
         through an explicit ``initial_guess`` argument; the lag-1 frame
-        machinery on :class:`AngularFlux` (``rhs(1)``, ``.stash``) is
-        reserved for future time-derivative tracking and no longer
-        load-bearing for the seed path.  The previous
-        ``previous = rhs(1)`` plumbing was retired together with the
-        sweep's inline Q_bar derivation — the M-M closure's
-        ``psi_half_seed`` strategy reads ``initial_guess`` directly
-        (or zeros on cold start).
+        machinery (``rhs(1)``, ``.stash``) is reserved for future
+        time-derivative tracking and no longer load-bearing for the
+        seed path.  The previous ``previous = rhs(1)`` plumbing was
+        retired together with the sweep's inline Q_bar derivation —
+        the M-M closure's ``psi_half_seed`` strategy reads
+        ``initial_guess`` directly (or zeros on cold start).
 
         Spy on :func:`transport_sweep` to capture the ``initial_guess``
         argument on both the explicit-seed and cold-start paths.
@@ -458,14 +488,8 @@ class TestSolve:
             sn, sigma_t,
         )
 
-        psi_prev = AngularFlux(
-            np.full((sn.quad.N, sn.ng, sn.nx, sn.ny), 0.7),
-            sn,
-        )
-        rhs = AngularFlux(
-            np.zeros((sn.quad.N, sn.ng, sn.nx, sn.ny)),
-            sn,
-        )
+        psi_prev = _const_state(sn, value=0.7)
+        rhs = sn.zeros_timed_full_field()
 
         # Spy on transport_sweep — capture initial_guess on every call.
         captured = []
@@ -482,7 +506,10 @@ class TestSolve:
         assert len(captured) == 1
         seed = captured[0]
         assert seed is not None
-        np.testing.assert_array_equal(seed.values, psi_prev.values)
+        # The composite branch forwards the TimedFullField directly; the
+        # sweep's :func:`_initial_guess_values` extractor reads
+        # ``seed.bulk.values`` from the composite.
+        np.testing.assert_array_equal(seed.bulk.values, psi_prev.bulk.values)
 
         # Cold start — no explicit seed → initial_guess should be None.
         captured.clear()
@@ -492,178 +519,48 @@ class TestSolve:
         assert captured[0] is None
 
 
-# ── D-H.1c Stage 1: TimedFullField composite dispatch on .solve ────────
+# ── D-H.2-C1: TimedFullField composite-only solve invariants ───────────
 
 
 class TestSolveTimedFullField:
-    """Composite :class:`TimedFullField` dispatch on
-    :meth:`InvertibleOperator.solve`.
+    """Composite-specific invariants on :meth:`InvertibleOperator.solve`.
 
-    Same WDD-sweep math as the legacy AngularFlux branch (D-H.1c
-    stage 1 ships an adapter — the kernel-side migration absorbs in
-    D-H.2).  These tests pin the bridge correctness:
+    The parity-vs-legacy-AngularFlux tests retired with D-H.2-C1
+    (legacy class itself retires in C5).  These tests pin the
+    invariants that remain composite-specific:
 
-    * Composite I/O contract (type, history_depth, _history).
-    * Bulk and boundary equivalence to the legacy branch on identical
-      numerical input (proves the bridge is a thin adapter, not a new
-      math path).
     * Mesh-identity invariant on both ``rhs`` and ``initial_guess``.
-    * Mixed-type rejection (composite rhs + legacy initial_guess).
+    * History-depth propagation.
+    * Composite initial_guess.boundary threads to the sweep's
+      ``boundary_buf`` (partner-flux seeding, audit §5).
     """
 
-    def _composite_from_legacy(self, legacy_psi):
-        """Build a TimedFullField from a legacy AngularFlux (test helper).
-
-        Mirrors ``TimedFullField.from_legacy_angular_flux`` but
-        constructed inline so the test pin doesn't depend on the
-        adapter's identity behaviour.
-        """
-        from dataclasses import replace
-
-        from orpheus.transport.fields.angular_flux import (
-            AngularFlux as L2AngularFlux,
-        )
-        from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux as L2BoundaryFlux,
-        )
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        mesh = legacy_psi.mesh
-        bulk = L2AngularFlux.from_mesh(legacy_psi.values.copy(), mesh)
-        boundary = L2BoundaryFlux.from_legacy_sn(legacy_psi.boundary, mesh)
-        return TimedFullField(
-            bulk=bulk,
-            boundary=boundary,
-            _history=(),
-            history_depth=legacy_psi.history_depth,
-        )
-
-    def test_returns_timed_full_field_on_slab(self) -> None:
-        from orpheus.transport.fields.angular_flux import (
-            AngularFlux as L2AngularFlux,
-        )
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        sn = _slab_mesh()
-        sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
-        invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
-            sn, sigma_t,
-        )
-
-        rhs_legacy = AngularFlux(
-            np.ones((sn.quad.N, sn.ng, sn.nx, sn.ny)), sn,
-        )
-        rhs = self._composite_from_legacy(rhs_legacy)
-        psi = invertible.solve(rhs)
-
-        assert isinstance(psi, TimedFullField)
-        assert isinstance(psi.bulk, L2AngularFlux)
-        assert psi.bulk.mesh is sn
-        assert psi.bulk.values.shape == rhs.bulk.values.shape
-        assert psi._history == ()
-
-    def test_bulk_matches_legacy_branch(self) -> None:
-        """Composite bulk == legacy values on identical numerical input."""
-        sn = _slab_mesh()
-        sigma_t = np.full((sn.ng, sn.nx, sn.ny), 1.5)
-        invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
-            sn, sigma_t,
-        )
-
-        np.random.seed(311)
-        values = np.random.rand(sn.quad.N, sn.ng, sn.nx, sn.ny) + 0.1
-        rhs_legacy = AngularFlux(values, sn)
-        rhs_composite = self._composite_from_legacy(rhs_legacy)
-
-        out_legacy = invertible.solve(rhs_legacy)
-        out_composite = invertible.solve(rhs_composite)
-
-        np.testing.assert_array_equal(
-            out_composite.bulk.values, out_legacy.values,
-        )
-
-    def test_boundary_matches_legacy_branch(self) -> None:
-        """Composite boundary == legacy face state on identical input."""
-        sn = _slab_mesh()
-        sigma_t = np.full((sn.ng, sn.nx, sn.ny), 1.5)
-        invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
-            sn, sigma_t,
-        )
-
-        np.random.seed(312)
-        values = np.random.rand(sn.quad.N, sn.ng, sn.nx, sn.ny) + 0.1
-        rhs_legacy = AngularFlux(values, sn)
-        rhs_composite = self._composite_from_legacy(rhs_legacy)
-
-        out_legacy = invertible.solve(rhs_legacy)
-        out_composite = invertible.solve(rhs_composite)
-
-        layout = out_composite.boundary.layout
-        if "xmax" in layout.faces:
-            np.testing.assert_array_equal(
-                out_composite.boundary.face_view("xmax"),
-                out_legacy.boundary.xmax_face,
-            )
-        if "xmin" in layout.faces:
-            np.testing.assert_array_equal(
-                out_composite.boundary.face_view("xmin"),
-                out_legacy.boundary.xmin_face,
-            )
-
-    def test_runs_on_sphere(self) -> None:
-        """Composite dispatch on the curvilinear sweep path (smoke)."""
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        sn = _sphere_mesh(nx=8, n_ord=4, ng=1)
-        sigma_t = np.full((sn.ng, sn.nx, sn.ny), 1.0)
-        invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
-            sn, sigma_t,
-        )
-
-        rhs_legacy = AngularFlux(
-            np.ones((sn.quad.N, sn.ng, sn.nx, sn.ny)), sn,
-        )
-        rhs = self._composite_from_legacy(rhs_legacy)
-
-        psi = invertible.solve(rhs)
-        assert isinstance(psi, TimedFullField)
-        assert psi.bulk.values.shape == rhs.bulk.values.shape
-        # Curvilinear sweep produces a non-trivial positive bulk.
-        assert psi.bulk.values.max() > 0
-
     def test_initial_guess_partner_flux_threaded(self) -> None:
-        """Composite initial_guess.boundary seeds the partner-flux trace.
+        """Composite ``initial_guess.boundary`` seeds the partner-flux trace.
 
         Reflective-BC partner-flux state is load-bearing per audit §5.
         The bridge must extract the L2 boundary's face arrays and seed
         the sweep's mutable ``boundary_buf`` before transport_sweep
-        runs.  D-H.1c stage 4 inlined the L2 face_view → legacy
-        xmin/xmax_face copy (was via ``_copy_boundary_face_state`` in
-        stage 1); the test pin shifted from mechanism-level (spy on
-        the helper) to outcome-level (spy on transport_sweep, assert
-        boundary_buf carries the seeded face values).
+        runs.
         """
-        from unittest.mock import patch
-
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
         invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
             sn, sigma_t,
         )
 
-        rhs_legacy = AngularFlux(
-            np.ones((sn.quad.N, sn.ng, sn.nx, sn.ny)), sn,
-        )
-        # Build initial_guess with a non-zero xmax_face / xmin_face —
-        # verify it makes it into the sweep's boundary_buf.
-        ig_legacy = AngularFlux(
-            np.zeros((sn.quad.N, sn.ng, sn.nx, sn.ny)), sn,
-        )
-        ig_legacy.boundary.xmax_face[:] = 0.7
-        ig_legacy.boundary.xmin_face[:] = 0.3
-
-        rhs_composite = self._composite_from_legacy(rhs_legacy)
-        ig_composite = self._composite_from_legacy(ig_legacy)
+        # Build initial_guess with a non-zero boundary trace —
+        # verify it makes it into the sweep's boundary_buf.  Slab has
+        # both xmin and xmax faces.
+        rhs = sn.zeros_timed_full_field()
+        ig = sn.zeros_timed_full_field()
+        # Seed both face buffers via L2 face_view.
+        layout = ig.boundary.layout
+        ig_boundary = ig.boundary
+        if "xmax" in layout.faces:
+            ig_boundary.face_view("xmax")[:] = 0.7
+        if "xmin" in layout.faces:
+            ig_boundary.face_view("xmin")[:] = 0.3
 
         # Outcome-level spy: capture the boundary_buf as transport_sweep
         # sees it.  The seed must already be in place when the kernel
@@ -683,14 +580,9 @@ class TestSolveTimedFullField:
                 initial_guess=initial_guess,
             )
 
-        # transport_sweep is imported INSIDE _solve_timed_full_field
-        # (local import to break circular dep), so patch the source
-        # module where the symbol lives.
         with patch("orpheus.sn.sweep.transport_sweep", spy):
-            invertible.solve(rhs_composite, initial_guess=ig_composite)
+            invertible.solve(rhs, initial_guess=ig)
 
-        # transport_sweep was called once; boundary_buf carried the
-        # initial_guess's face values (NOT a fresh zero).
         assert len(captured) == 1
         np.testing.assert_array_equal(captured[0][0], 0.7)
         np.testing.assert_array_equal(captured[0][1], 0.3)
@@ -730,20 +622,6 @@ class TestSolveTimedFullField:
         ig = sn2.zeros_timed_full_field()
         with pytest.raises(ValueError, match="mesh-identity"):
             invertible.solve(rhs, initial_guess=ig)
-
-    def test_rejects_mixed_rhs_composite_initial_guess_legacy(self) -> None:
-        """Mixed dispatch (composite rhs + legacy initial_guess) is rejected."""
-        sn = _slab_mesh()
-        sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
-        invertible = StreamingOperator(sn, sigma_t) + CollisionOperator(
-            sn, sigma_t,
-        )
-        rhs = sn.zeros_timed_full_field()
-        ig_legacy = AngularFlux(
-            np.zeros((sn.quad.N, sn.ng, sn.nx, sn.ny)), sn,
-        )
-        with pytest.raises(TypeError, match="both must agree"):
-            invertible.solve(rhs, initial_guess=ig_legacy)
 
 
 # ── Convention-bridge regression catchers (R-1 Step 4 A5 promotion) ────
@@ -842,137 +720,6 @@ class TestInvertibleSolveBridgeRegression:
             inner_solver="source_iteration",
         )
         return solver, case
-
-    @pytest.mark.l1
-    @pytest.mark.verifies("transport-cartesian")
-    @pytest.mark.catches("ERR-049")
-    def test_slab_uniform_roundtrip(self) -> None:
-        r"""Slab ``(L+C).solve((L+C).apply(ψ=1)) == ψ=1`` to machine zero.
-
-        Streaming-free check: uniform ψ on slab has no angular
-        redistribution, so the round-trip pins the convention bridge
-        cleanly.  Pre-fix (R-1 Step E, pre-Phase-1.1-A1) failed this
-        by a factor ``W = sum_w = 2`` (GL-N=8 quadrature), giving
-        ``LC.solve(LC.apply(1)) = 1/W``.
-
-        Restricted to slab because sphere / cylinder M-M angular
-        closure is a discrete operator on its own: the matvec / sweep
-        representations of M-M differ at the per-cell level even for
-        uniform ψ — those are two distinct discrete operators that
-        share a fixed point under SI/Krylov, NOT a strict matrix
-        inverse (cf. ERR-026).
-        """
-        solver, _case = self._homogeneous_solver("slab")
-        sn_mesh = solver.sn_mesh
-        N = solver.quad.N
-        nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
-
-        sigma_t = solver.mat_xs.total_cross_section
-        L_leaf = StreamingOperator(sn_mesh, sigma_t)
-        C_t = CollisionOperator(sn_mesh, sigma_t)
-        LC = L_leaf + C_t
-
-        psi_known = AngularFlux(np.ones((N, ng, nx, ny)), sn_mesh)
-        LC_psi = LC.apply(psi_known)
-
-        # Iterate ``ψ_{n+1} = LC.solve(LC.apply(ψ=1), initial_guess=ψ_n)``
-        # until the iterate stabilises.  The Carlson seed travels through
-        # the explicit kwarg (Phase 1.2); slab has no curvilinear
-        # closure so this converges in 1-2 iterates.
-        psi_recovered: AngularFlux | None = None
-        for _ in range(20):
-            if psi_recovered is None:
-                psi_new = LC.solve(LC_psi)
-            else:
-                psi_new = LC.solve(LC_psi, initial_guess=psi_recovered)
-            if psi_recovered is not None and np.abs(
-                psi_new.values - psi_recovered.values,
-            ).max() < 1e-15:
-                psi_recovered = psi_new
-                break
-            psi_recovered = psi_new
-
-        assert psi_recovered is not None
-        diff = np.abs(psi_known.values - psi_recovered.values).max()
-        assert diff < 1e-12, (
-            f"slab (L+C).solve((L+C).apply(ψ=1)) ≠ ψ=1: abs_max={diff:.3e}. "
-            f"Pre-fix R-1 Step E failed this by factor W = sum_w = 2 "
-            f"due to a missing ``×W`` bridge in InvertibleOperator.solve; "
-            f"Phase 1.1 A1 dissolved the bridge structurally (producer-side "
-            f"/sum_w).  See L18 + ERR-049."
-        )
-
-    @pytest.mark.l1
-    @pytest.mark.verifies(
-        "transport-cartesian", "sn-curvilinear-homogeneous-kinf-recovery",
-    )
-    @pytest.mark.catches("ERR-049")
-    @pytest.mark.parametrize("coord", ["slab", "sphere", "cylinder"])
-    def test_fixed_source_homogeneous_reflective_recovers_q_over_sigma(
-        self, coord: str,
-    ) -> None:
-        r"""Reflective homogeneous medium fixed-source → ``ψ_n = q_n / Σ_t``.
-
-        Streaming-equilibrium fixed-source check (L0-SN-001 family).
-        With reflective BCs and uniform per-ordinate source
-        ``q_n = const``, the converged per-ordinate ψ must be uniform
-        ``= q_n / Σ_t`` (zero spatial gradient on uniform medium with
-        reflective BCs).
-
-        Pre-fix (pre-A1) gave ``ψ = q_n / (W Σ_t)`` — a factor of ``W``
-        too small.  Post-A1 the producer-side ``/sum_w`` places ``q_n``
-        in the correct per-ord magnitude and ``(L+C).solve`` forwards
-        it bit-equal to the sweep (pinned by ``N5``,
-        :meth:`TestSolve.test_solve_consumes_per_ordinate_rhs`).
-        """
-        solver, _case = self._homogeneous_solver(coord)
-        sn_mesh = solver.sn_mesh
-        quad = solver.quad
-        N = quad.N
-        nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
-        sum_w = float(quad.weights.sum())
-
-        sigma_t = solver.mat_xs.total_cross_section
-        L_leaf = StreamingOperator(sn_mesh, sigma_t)
-        C_t = CollisionOperator(sn_mesh, sigma_t)
-        LC = L_leaf + C_t
-
-        # Per-ordinate uniform source — operator-algebra convention.
-        q_iso = 0.225
-        q_per_ord = np.full((N, ng, nx, ny), q_iso / sum_w)
-        rhs = AngularFlux(q_per_ord, sn_mesh)
-
-        # Iterate to converge the curvilinear partner-flux state under
-        # reflective BC.  Each call seeds the M-M Carlson closure via
-        # the explicit ``initial_guess`` kwarg (Phase 1.2).
-        psi_typed: AngularFlux | None = None
-        for _ in range(400):
-            if psi_typed is None:
-                psi_new = LC.solve(rhs)
-            else:
-                psi_new = LC.solve(rhs, initial_guess=psi_typed)
-            if psi_typed is not None and np.abs(
-                psi_new.values - psi_typed.values,
-            ).max() < 1e-14:
-                psi_typed = psi_new
-                break
-            psi_typed = psi_new
-
-        assert psi_typed is not None
-        # Per-ordinate expected: ψ_n = q_n / Σ_t = (q_iso/W) / Σ_t.
-        for g in range(ng):
-            sig_g = float(sigma_t[g, 0, 0])
-            expected_per_ord = (q_iso / sum_w) / sig_g
-            actual = psi_typed.values[:, g, :, 0]
-            rel_dev = np.abs(actual - expected_per_ord) / max(
-                expected_per_ord, 1e-30,
-            )
-            assert rel_dev.max() < 1e-6, (
-                f"{coord} g={g}: expected per-ord ψ = {expected_per_ord:.4e}; "
-                f"max rel deviation = {rel_dev.max():.3e}.  Pre-fix gave "
-                f"ψ_n = q_n / (W Σ_t) — a factor of W too small.  See "
-                f"L18 + ERR-049."
-            )
 
     @pytest.mark.l1
     @pytest.mark.verifies(

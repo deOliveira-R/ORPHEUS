@@ -469,37 +469,21 @@ class TestSumCapabilities:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# D-H.1b.6 — TimedFullField composite dispatch on StreamingOperator.apply.
+# D-H.2-C1 — Composite TimedFullField invariants on StreamingOperator.apply.
+#
+# 1-D geometries — the TimedFullField branch supports these natively.
+# 2-D Cartesian raises NotImplementedError (Phase A coordination).  The
+# parity-vs-legacy ``AngularFlux`` tests retired with D-H.2-C1 (the
+# legacy class itself retires in C5; both branches share the same
+# matvec kernel — exercising the composite branch alone is sufficient).
 # ═══════════════════════════════════════════════════════════════════════
 
 
-# 1-D geometries — the TimedFullField branch supports these natively
-# via the legacy AngularFlux bridge.  2-D Cartesian raises
-# NotImplementedError (Phase A coordination).
 GEOMETRIES_1D = [
     ("slab", _slab_mesh),
     ("sphere", _spherical_mesh),
     ("cylinder", _cylindrical_mesh),
 ]
-
-
-def _legacy_angular_flux_from_composite(state):
-    """Helper: build a legacy AngularFlux carrying the composite's
-    bulk + boundary, for direct comparison against the legacy branch.
-    """
-    from orpheus.sn.angular_flux import AngularFlux as LegacyAngularFlux
-    from orpheus.sn.boundary_flux import BoundaryFlux as LegacyBoundaryFlux
-
-    sn_mesh = state.bulk.mesh
-    legacy_bf = LegacyBoundaryFlux(mesh=sn_mesh)
-    layout = state.boundary.layout
-    if "xmax" in layout.faces:
-        legacy_bf.xmax_face = state.boundary.face_view("xmax").copy()
-    if "xmin" in layout.faces:
-        legacy_bf.xmin_face = state.boundary.face_view("xmin").copy()
-    return LegacyAngularFlux(
-        state.bulk.values.copy(), sn_mesh, boundary=legacy_bf,
-    )
 
 
 def _random_composite(sn_mesh, seed=171):
@@ -517,7 +501,7 @@ def _random_composite(sn_mesh, seed=171):
     return state
 
 
-class TestTimedFullFieldBranch:
+class TestCompositeInvariants:
     """Composite :class:`TimedFullField` dispatch on
     :meth:`StreamingOperator.apply`.
 
@@ -548,56 +532,33 @@ class TestTimedFullFieldBranch:
         assert out._history == ()
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
-    def test_bulk_matches_legacy_branch(self, name, builder):
-        """Composite branch bulk == legacy AngularFlux branch values.
-
-        Pins equivalence so the bridge stays a thin adapter — any
-        future change to the matvec kernel produces identical bulk
-        values across both type dispatches.
-        """
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
-        state = _random_composite(sn_mesh, seed=181)
-        legacy_in = _legacy_angular_flux_from_composite(state)
-
-        out_composite = L.apply(state)
-        out_legacy = L.apply(legacy_in)
-
-        np.testing.assert_array_equal(
-            out_composite.bulk.values, out_legacy.values,
-        )
-
-    @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_boundary_carries_face_residual(self, name, builder):
-        """Composite boundary == legacy boundary face residual.
+        """L emits a non-zero face residual into ``out.boundary``.
 
         L is the only operator in {L, C, S, F} that emits a non-zero
-        face residual.  The composite branch must preserve this — the
-        L2 BoundaryFlux flat buffer carries the matvec's face output
-        at the layout-assigned slots.
+        face residual.  The composite branch routes the matvec's face
+        output through the L2 BoundaryFlux flat buffer at the
+        layout-assigned slots; on random non-zero input the buffer
+        must carry visibly non-zero values.
         """
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh, sig_t)
         state = _random_composite(sn_mesh, seed=182)
-        legacy_in = _legacy_angular_flux_from_composite(state)
 
         out_composite = L.apply(state)
-        out_legacy = L.apply(legacy_in)
 
-        # Face-by-face comparison via L2 face_view.
+        # At least one face slot must carry a non-trivial residual.
         layout = out_composite.boundary.layout
-        if "xmax" in layout.faces:
-            np.testing.assert_array_equal(
-                out_composite.boundary.face_view("xmax"),
-                out_legacy.boundary.xmax_face,
-            )
-        if "xmin" in layout.faces:
-            np.testing.assert_array_equal(
-                out_composite.boundary.face_view("xmin"),
-                out_legacy.boundary.xmin_face,
-            )
+        face_max = max(
+            float(np.abs(out_composite.boundary.face_view(face)).max())
+            for face in layout.faces
+        )
+        assert face_max > 1e-12, (
+            f"L's composite boundary face residual is ~0 "
+            f"(max |face| = {face_max:.3e}); L must emit a non-zero "
+            f"face residual on random input."
+        )
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_zero_state_zero_output(self, name, builder):
@@ -684,20 +645,3 @@ class TestOperatorAlgebraCompositionUnderTimedFullField:
         assert out.bulk.mesh is sn_mesh
         assert out.history_depth == state.history_depth
 
-    @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
-    def test_LC_apply_matches_legacy(self, name, builder):
-        """``(L + C).apply(state).bulk`` matches the legacy branch sum."""
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
-        C = CollisionOperator(sn_mesh, sig_t)
-        A = L + C
-        state = _random_composite(sn_mesh, seed=192)
-        legacy_in = _legacy_angular_flux_from_composite(state)
-
-        out_composite = A.apply(state)
-        out_legacy = A.apply(legacy_in)
-
-        np.testing.assert_array_equal(
-            out_composite.bulk.values, out_legacy.values,
-        )

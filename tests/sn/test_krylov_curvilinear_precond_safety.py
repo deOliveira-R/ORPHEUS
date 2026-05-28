@@ -122,13 +122,15 @@ def _krylov_power_iteration_kinf(
     * ``"identity"`` → explicit ``lambda q: q`` (the production default
       until issue #200 ships the block-inverse face preconditioner).
     """
+    from dataclasses import replace
+
     from orpheus.numerics.iteration import KrylovAcceleration
     from orpheus.numerics.operator import ZeroOperator
-    from orpheus.sn.angular_flux import AngularFlux
     from orpheus.sn.geometry import SNMesh
     from orpheus.sn.operator import CollisionOperator, StreamingOperator
     from orpheus.sn.solver import SNSolver
     from orpheus.transport.sources import PerOrdinateSource
+    from orpheus.transport.timed_full_field import TimedFullField
 
     case = _get_continuous_case(ng_key)
     mat_id = next(iter(case.problem.materials.keys()))
@@ -165,16 +167,23 @@ def _krylov_power_iteration_kinf(
 
     phi = solver.initial_flux_distribution()
     keff = 1.0
-    psi_typed_warm: AngularFlux | None = None
+    psi_typed_warm: TimedFullField | None = None
     for n_outer in range(max_outer):
         fis = solver.compute_fission_source(phi, keff)
         q_ext_per_ord = PerOrdinateSource.from_isotropic(fis, sn_mesh)
-        q_ext_typed = AngularFlux(q_ext_per_ord.values, sn_mesh)
+        # D-H.2-C1: build the per-ordinate external source as a
+        # :class:`TimedFullField` composite — bulk = L2 AngularFlux
+        # carrying ``q_ext_per_ord.values``; boundary = implicit zero.
+        zero = sn_mesh.zeros_timed_full_field()
+        q_ext_typed = replace(
+            zero,
+            bulk=replace(zero.bulk, values=q_ext_per_ord.values),
+        )
         psi_typed, _residuals = krylov.solve(
             q_ext_typed, initial_guess=psi_typed_warm,
         )
         psi_typed_warm = psi_typed
-        phi = psi_typed.integrate_angular().values
+        phi = psi_typed.bulk.integrate_angular().values
         keff_new = solver.compute_keff(phi)
         if abs(keff_new - keff) < keff_tol:
             keff = keff_new

@@ -1,10 +1,9 @@
-r"""L0 foundation: operator ``apply(AngularFlux) → AngularFlux`` (R-1 Step 3).
+r"""L0 foundation: operator ``apply(TimedFullField) → TimedFullField`` (D-H.2).
 
 The four SN operators in the algebra :math:`(L + C - S - F)` each
-expose a typed :class:`~orpheus.sn.angular_flux.AngularFlux` apply
-surface so the algebra reads as the math:
+expose a typed apply surface so the algebra reads as the math:
 
-    (L + C - S).apply(psi)  →  AngularFlux
+    (L + C - S - F).apply(state)  →  TimedFullField
 
 Per-operator boundary semantics pinned here:
 
@@ -12,35 +11,39 @@ Per-operator boundary semantics pinned here:
   operator that emits a non-zero face residual into
   ``result.boundary``.  The B1'' face equation
   :math:`(WDD\text{-propagated face}) − \psi_{\rm face}` lives in
-  ``result.boundary.xmax_face`` (and, for slab, ``xmin_face``).
+  the appropriate face slots of ``result.boundary``.
 * :class:`~orpheus.sn.operator.CollisionOperator` (``C``) — volumetric;
-  ``result.boundary`` is the auto-allocated zero.
+  ``result.boundary`` is the implicit-zero L2 BoundaryFlux.
 * :class:`~orpheus.sn.scattering.ScatteringOperator` (``S``) —
   volumetric secondary-emission; ``result.boundary`` is zero.
 * :class:`~orpheus.sn.fission.FissionOperator` (``F``) — volumetric
   rank-1 emission; ``result.boundary`` is zero.
 
-Equivalence tests pin that the typed and packed (legacy bare-ndarray)
-paths compute the SAME action — typed routes through ``boundary``
-buffers while packed routes through the B1''-aware flat layout, but
-both consume the same compute kernel
-(:func:`~orpheus.sn.operator.transport_operator_matvec_unified` for L,
-:meth:`CollisionOperator._sigma_at_unknowns` for C, etc.).
-Round-trip identity via :meth:`AngularFlux.from_flat_with_traces` /
-:meth:`AngularFlux.to_flat_with_traces` is the bridge.
+D-H.2-C1 (2026-05-28) — migrated from the legacy
+:class:`orpheus.sn.angular_flux.AngularFlux` input contract to the
+composite :class:`~orpheus.transport.timed_full_field.TimedFullField`
+carrier.  The legacy class retires in D-H.2-C5; the typed-vs-packed
+``to_flat_with_traces`` parity tests retired with the migration
+(both branches share the same compute kernel — exercising the
+composite branch alone is sufficient).  The composite-vs-legacy
+parity tests also retired (tautological once both sides are
+composite).
 """
 from __future__ import annotations
+
+from dataclasses import replace
 
 import numpy as np
 import pytest
 
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
-from orpheus.sn.angular_flux import AngularFlux
 from orpheus.sn.fission import FissionOperator
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import CollisionOperator, StreamingOperator
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
+from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.sn.scattering import ScatteringOperator
 from tests.sn._test_helpers import placeholder_materials
 
@@ -78,330 +81,149 @@ def _sphere_mesh(nx: int = 5, n_ord: int = 4, ng: int = 2) -> SNMesh:
 GEOMETRIES = [("slab", _slab_mesh), ("sphere", _sphere_mesh)]
 
 
-def _random_psi(sn: SNMesh, seed: int) -> AngularFlux:
-    """Build an :class:`AngularFlux` with non-trivial values + boundary."""
-    rng = np.random.default_rng(seed)
-    N, ng, nx, ny = sn.quad.N, sn.ng, sn.nx, sn.ny
-    psi = AngularFlux(rng.standard_normal((N, ng, nx, ny)), sn)
-    # Populate the boundary face buffers with non-zero random values so
-    # the typed branch exercises non-trivial face state.
-    if psi.boundary.xmax_face is not None:
-        psi.boundary.xmax_face[...] = rng.standard_normal(
-            psi.boundary.xmax_face.shape,
-        )
-    if psi.boundary.xmin_face is not None:
-        psi.boundary.xmin_face[...] = rng.standard_normal(
-            psi.boundary.xmin_face.shape,
-        )
-    return psi
+def _random_state(sn: SNMesh, seed: int) -> TimedFullField:
+    """Build a :class:`TimedFullField` with non-trivial bulk + boundary.
 
-
-# ───────────────────────────────────────────────────────────────────────
-# F — FissionOperator.apply(AngularFlux) lift
-# ───────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.parametrize("name,builder", GEOMETRIES)
-def test_F_apply_angular_flux_returns_angular_flux(name, builder) -> None:
-    """F.apply(AngularFlux) returns AngularFlux with zero boundary."""
-    sn = builder()
-    psi = _random_psi(sn, seed=1)
-    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
-
-    Fpsi = F.apply(psi)
-    assert isinstance(Fpsi, AngularFlux)
-    assert Fpsi.values.shape == psi.values.shape
-    assert Fpsi.mesh is sn
-    # Boundary is the auto-allocated zero — F has no face contribution.
-    if Fpsi.boundary.xmax_face is not None:
-        np.testing.assert_array_equal(Fpsi.boundary.xmax_face, 0.0)
-    if Fpsi.boundary.xmin_face is not None:
-        np.testing.assert_array_equal(Fpsi.boundary.xmin_face, 0.0)
-
-
-@pytest.mark.parametrize("name,builder", GEOMETRIES)
-def test_F_typed_lift_equivalent_to_scalar(name, builder) -> None:
-    """F.apply(AngularFlux) broadcasts F.apply(integrate_angular(AngularFlux))."""
-    sn = builder()
-    psi = _random_psi(sn, seed=2)
-    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
-
-    # Typed path: F(psi) — AngularFlux
-    Fpsi_typed = F.apply(psi)
-    # Scalar path: F(integrate_angular(psi)) — ScalarFlux, then broadcast
-    phi = psi.integrate_angular()
-    F_phi = F.apply(phi)
-    N = sn.quad.N
-    expected_values = np.broadcast_to(
-        F_phi.values[None, :, :, :], Fpsi_typed.values.shape,
-    )
-    np.testing.assert_allclose(Fpsi_typed.values, expected_values, rtol=1e-14)
-
-
-# ───────────────────────────────────────────────────────────────────────
-# S — ScatteringOperator.apply(AngularFlux) (already existed pre-R-1 Step 3)
-# ───────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.parametrize("name,builder", GEOMETRIES)
-def test_S_apply_angular_flux_returns_angular_flux_zero_boundary(
-    name, builder,
-) -> None:
-    """S.apply(AngularFlux) returns AngularFlux; boundary stays zero."""
-    sn = builder()
-    psi = _random_psi(sn, seed=3)
-    S = ScatteringOperator.from_solver_data(
-        mat_xs=sn.material_xs_field(),
-        quadrature=sn.quad,
-        scattering_order=0,
-    )
-
-    Spsi = S.apply(psi)
-    assert isinstance(Spsi, AngularFlux)
-    assert Spsi.values.shape == psi.values.shape
-    # S is volumetric; result's boundary is auto-allocated zero.
-    if Spsi.boundary.xmax_face is not None:
-        np.testing.assert_array_equal(Spsi.boundary.xmax_face, 0.0)
-
-
-@pytest.mark.parametrize("name,builder", GEOMETRIES)
-def test_S_typed_matches_raw(name, builder) -> None:
-    """S.apply(AngularFlux).values == S.apply(np.ndarray) bit-exact."""
-    sn = builder()
-    psi = _random_psi(sn, seed=4)
-    S = ScatteringOperator.from_solver_data(
-        mat_xs=sn.material_xs_field(),
-        quadrature=sn.quad,
-        scattering_order=0,
-    )
-    typed_values = S.apply(psi).values
-    raw_values = S.apply(psi.values)
-    np.testing.assert_array_equal(typed_values, raw_values)
-
-
-# ───────────────────────────────────────────────────────────────────────
-# C — CollisionOperator.apply(AngularFlux)
-# ───────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.parametrize("name,builder", GEOMETRIES)
-def test_C_apply_angular_flux_returns_angular_flux_zero_boundary(
-    name, builder,
-) -> None:
-    """C.apply(AngularFlux) returns AngularFlux; boundary stays zero."""
-    sn = builder()
-    psi = _random_psi(sn, seed=5)
-    sigma = np.ones((sn.ng, sn.nx, sn.ny)) * 0.7
-    C = CollisionOperator(sn, sigma)
-
-    Cpsi = C.apply(psi)
-    assert isinstance(Cpsi, AngularFlux)
-    assert Cpsi.values.shape == psi.values.shape
-    if Cpsi.boundary.xmax_face is not None:
-        np.testing.assert_array_equal(Cpsi.boundary.xmax_face, 0.0)
-    if Cpsi.boundary.xmin_face is not None:
-        np.testing.assert_array_equal(Cpsi.boundary.xmin_face, 0.0)
-
-
-@pytest.mark.parametrize("name,builder", GEOMETRIES)
-def test_C_diagonal_action(name, builder) -> None:
-    """C.apply(AngularFlux).values == σ ⊙ psi.values element-wise."""
-    sn = builder()
-    psi = _random_psi(sn, seed=6)
-    rng = np.random.default_rng(7)
-    sigma = 0.3 + 0.5 * rng.random((sn.ng, sn.nx, sn.ny))
-    C = CollisionOperator(sn, sigma)
-
-    Cpsi = C.apply(psi)
-    expected = sigma[None, :, :, :] * psi.values
-    np.testing.assert_array_equal(Cpsi.values, expected)
-
-
-@pytest.mark.parametrize("name,builder", GEOMETRIES)
-def test_C_typed_matches_packed(name, builder) -> None:
-    """C.apply(AngularFlux) and C.apply(to_flat_with_traces()) agree on cells."""
-    sn = builder()
-    psi = _random_psi(sn, seed=8)
-    rng = np.random.default_rng(9)
-    sigma = 0.3 + 0.5 * rng.random((sn.ng, sn.nx, sn.ny))
-    C = CollisionOperator(sn, sigma)
-
-    Cpsi_typed = C.apply(psi)
-    flat_psi = psi.to_flat_with_traces()
-    Cflat = C.apply(flat_psi)
-    Cpsi_recon = AngularFlux.from_flat_with_traces(Cflat, sn)
-
-    # Cell-centre block: typed and packed agree bit-exact.
-    np.testing.assert_array_equal(Cpsi_typed.values, Cpsi_recon.values)
-    # Face block: typed is zero; packed routes a zero through the
-    # face-block (the cell-only σ-multiply leaves face slots at 0).
-    if Cpsi_recon.boundary.xmax_face is not None:
-        np.testing.assert_array_equal(Cpsi_recon.boundary.xmax_face, 0.0)
-
-
-# ───────────────────────────────────────────────────────────────────────
-# L — StreamingOperator.apply(AngularFlux) — load-bearing
-# ───────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.parametrize("name,builder", GEOMETRIES)
-def test_L_apply_angular_flux_returns_angular_flux(name, builder) -> None:
-    """L.apply(AngularFlux) returns AngularFlux; .boundary may be non-zero."""
-    sn = builder()
-    psi = _random_psi(sn, seed=10)
-    rng = np.random.default_rng(11)
-    sigma_t = 0.4 + 0.4 * rng.random((sn.ng, sn.nx, sn.ny))
-    L = StreamingOperator(sn, sigma_t)
-
-    Lpsi = L.apply(psi)
-    assert isinstance(Lpsi, AngularFlux)
-    assert Lpsi.values.shape == psi.values.shape
-    # L emits the face residual into .boundary; for these random
-    # inputs at least one face slot is non-zero.
-    assert Lpsi.boundary.xmax_face is not None
-    assert not np.allclose(Lpsi.boundary.xmax_face, 0.0)
-
-
-@pytest.mark.parametrize("name,builder", GEOMETRIES)
-def test_L_typed_matches_packed_round_trip(name, builder) -> None:
-    """L typed and packed paths agree via from_flat/to_flat round-trip.
-
-    The packed path runs ``solution_to_angular_flux_with_traces ∘
-    transport_operator_matvec_unified ∘ pack_with_traces`` and
-    subtracts σ_t ⊙ ψ at cell slots only.  The typed path runs the
-    matvec directly on ``psi.values`` and stores the face residual in
-    ``result.boundary``.  Both must produce identical numerics — same
-    compute kernel, just different I/O wrapping.
-    """
-    sn = builder()
-    psi = _random_psi(sn, seed=12)
-    rng = np.random.default_rng(13)
-    sigma_t = 0.4 + 0.4 * rng.random((sn.ng, sn.nx, sn.ny))
-    L = StreamingOperator(sn, sigma_t)
-
-    # Typed path
-    Lpsi_typed = L.apply(psi)
-
-    # Packed path
-    flat_psi = psi.to_flat_with_traces()
-    Lflat = L.apply(flat_psi)
-    Lpsi_recon = AngularFlux.from_flat_with_traces(Lflat, sn)
-
-    # Cell-centre values agree bit-exact.
-    np.testing.assert_array_equal(Lpsi_typed.values, Lpsi_recon.values)
-    # Face residual agrees on the populated ordinate slots.  The typed
-    # output stores residual only at ``face_outer_ordinate`` /
-    # ``face_inner_ordinate`` slots; the unpopulated ordinates stay 0
-    # in both paths.
-    np.testing.assert_array_equal(
-        Lpsi_typed.boundary.xmax_face, Lpsi_recon.boundary.xmax_face,
-    )
-    if sn.curvature is None:  # slab — inner face exists
-        np.testing.assert_array_equal(
-            Lpsi_typed.boundary.xmin_face, Lpsi_recon.boundary.xmin_face,
-        )
-
-
-@pytest.mark.parametrize("name,builder", GEOMETRIES)
-def test_L_cross_mesh_rejected(name, builder) -> None:
-    """L.apply(AngularFlux) rejects a flux bound to a different SNMesh."""
-    sn1 = builder()
-    sn2 = builder()  # distinct instance, structurally identical
-    sigma_t = np.ones((sn1.ng, sn1.nx, sn1.ny))
-    L = StreamingOperator(sn1, sigma_t)
-    psi_foreign = AngularFlux(
-        np.zeros((sn2.quad.N, sn2.ng, sn2.nx, sn2.ny)), sn2,
-    )
-    with pytest.raises(ValueError, match="SAME SNMesh"):
-        L.apply(psi_foreign)
-
-
-# ───────────────────────────────────────────────────────────────────────
-# Compose: (L + C - S).apply(psi) reads as the algebra
-# ───────────────────────────────────────────────────────────────────────
-
-
-def test_operator_algebra_reads_as_math() -> None:
-    """``(L + C - S).apply(psi)`` returns a typed AngularFlux end-to-end.
-
-    Pins the load-bearing R-1 design contract: the operator algebra
-    consumes :class:`AngularFlux` with one argument (no second
-    boundary arg).  Validates only the type contract and the algebraic
-    propagation of ``.boundary`` — numerics are checked elsewhere.
-    """
-    sn = _slab_mesh()
-    psi = _random_psi(sn, seed=14)
-    sigma_t = np.full((sn.ng, sn.nx, sn.ny), 0.7)
-    L = StreamingOperator(sn, sigma_t)
-    C = CollisionOperator(sn, sigma_t * 0.5)
-    S = ScatteringOperator.from_solver_data(
-        mat_xs=sn.material_xs_field(),
-        quadrature=sn.quad,
-        scattering_order=0,
-    )
-
-    # The algebra reads as the math.
-    Lpsi = L.apply(psi)
-    Cpsi = C.apply(psi)
-    Spsi = S.apply(psi)
-    rhs = Lpsi + Cpsi - Spsi
-
-    assert isinstance(rhs, AngularFlux)
-    # Boundary propagation through arithmetic — L contributes the only
-    # non-zero face residual; C and S boundaries are zero, so
-    # rhs.boundary == Lpsi.boundary at face slots.
-    np.testing.assert_array_equal(
-        rhs.boundary.xmax_face, Lpsi.boundary.xmax_face,
-    )
-
-
-# ───────────────────────────────────────────────────────────────────────
-# D-H.1b.8 — Compose (L + C - S - F).apply(state) under TimedFullField
-# ───────────────────────────────────────────────────────────────────────
-
-
-def _random_composite(sn: SNMesh, seed: int):
-    """Build a TimedFullField with non-trivial bulk + boundary.
-
-    Mirrors :func:`_random_psi` for the composite carrier.  Bulk
-    values + boundary face values are independently sampled from a
-    standard-normal RNG seeded with ``seed`` / ``seed+1000``; the
+    Bulk values + boundary face values are independently sampled from
+    a standard-normal RNG seeded with ``seed`` / ``seed+1000``; the
     composite's ``history_depth`` stays at the default (2).
     """
-    from dataclasses import replace
-
     rng_bulk = np.random.default_rng(seed)
     rng_bnd = np.random.default_rng(seed + 1000)
     state = sn.zeros_timed_full_field()
     bulk_values = rng_bulk.standard_normal(state.bulk.values.shape)
     boundary_values = rng_bnd.standard_normal(state.boundary.values.shape)
     state = replace(state, bulk=replace(state.bulk, values=bulk_values))
-    state = replace(
+    return replace(
         state, boundary=replace(state.boundary, values=boundary_values),
     )
-    return state
 
 
-def _legacy_from_composite(state):
-    """Build a legacy AngularFlux carrying the composite's bulk + boundary.
+# ───────────────────────────────────────────────────────────────────────
+# F — FissionOperator.apply(TimedFullField) lift
+# ───────────────────────────────────────────────────────────────────────
 
-    Mirror of the helper in test_streaming_operator.py — kept inline
-    here to avoid a cross-test-file import.  Used to compare composite
-    vs legacy algebra outputs on identical numerical input.
-    """
-    from orpheus.sn.angular_flux import AngularFlux as LegacyAngularFlux
-    from orpheus.sn.boundary_flux import BoundaryFlux as LegacyBoundaryFlux
 
-    sn_mesh = state.bulk.mesh
-    legacy_bf = LegacyBoundaryFlux(mesh=sn_mesh)
-    layout = state.boundary.layout
-    if "xmax" in layout.faces:
-        legacy_bf.xmax_face = state.boundary.face_view("xmax").copy()
-    if "xmin" in layout.faces:
-        legacy_bf.xmin_face = state.boundary.face_view("xmin").copy()
-    return LegacyAngularFlux(
-        state.bulk.values.copy(), sn_mesh, boundary=legacy_bf,
+@pytest.mark.parametrize("name,builder", GEOMETRIES)
+def test_F_apply_timed_full_field_returns_composite(name, builder) -> None:
+    """F.apply(TimedFullField) returns TimedFullField with zero boundary."""
+    sn = builder()
+    state = _random_state(sn, seed=1)
+    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
+
+    Fpsi = F.apply(state)
+    assert isinstance(Fpsi, TimedFullField)
+    assert isinstance(Fpsi.bulk, L2AngularFlux)
+    assert Fpsi.bulk.values.shape == state.bulk.values.shape
+    assert Fpsi.bulk.mesh is sn
+    # F is volumetric; result's boundary is implicit-zero.
+    np.testing.assert_array_equal(Fpsi.boundary.values, 0.0)
+
+
+@pytest.mark.parametrize("name,builder", GEOMETRIES)
+def test_F_typed_lift_equivalent_to_scalar(name, builder) -> None:
+    """F.apply(TimedFullField) broadcasts F.apply(integrate_angular(bulk))."""
+    sn = builder()
+    state = _random_state(sn, seed=2)
+    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
+
+    # Composite path: F(state) — TimedFullField
+    Fpsi_typed = F.apply(state)
+    # Scalar path: F(integrate_angular(state.bulk)) — ScalarFlux, then broadcast
+    phi = state.bulk.integrate_angular()
+    F_phi = F.apply(phi)
+    expected_values = np.broadcast_to(
+        F_phi.values[None, :, :, :], Fpsi_typed.bulk.values.shape,
     )
+    np.testing.assert_allclose(
+        Fpsi_typed.bulk.values, expected_values, rtol=1e-14,
+    )
+
+
+# ───────────────────────────────────────────────────────────────────────
+# S — ScatteringOperator.apply(TimedFullField)
+# ───────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("name,builder", GEOMETRIES)
+def test_S_apply_timed_full_field_zero_boundary(name, builder) -> None:
+    """S.apply(TimedFullField) returns TimedFullField; boundary stays zero."""
+    sn = builder()
+    state = _random_state(sn, seed=3)
+    S = ScatteringOperator.from_solver_data(
+        mat_xs=sn.material_xs_field(),
+        quadrature=sn.quad,
+        scattering_order=0,
+    )
+
+    Spsi = S.apply(state)
+    assert isinstance(Spsi, TimedFullField)
+    assert isinstance(Spsi.bulk, L2AngularFlux)
+    assert Spsi.bulk.values.shape == state.bulk.values.shape
+    # S is volumetric; result's boundary is implicit-zero.
+    np.testing.assert_array_equal(Spsi.boundary.values, 0.0)
+
+
+# ───────────────────────────────────────────────────────────────────────
+# C — CollisionOperator.apply(TimedFullField)
+# ───────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("name,builder", GEOMETRIES)
+def test_C_apply_timed_full_field_zero_boundary(name, builder) -> None:
+    """C.apply(TimedFullField) returns TimedFullField; boundary stays zero."""
+    sn = builder()
+    state = _random_state(sn, seed=5)
+    sigma = np.ones((sn.ng, sn.nx, sn.ny)) * 0.7
+    C = CollisionOperator(sn, sigma)
+
+    Cpsi = C.apply(state)
+    assert isinstance(Cpsi, TimedFullField)
+    assert isinstance(Cpsi.bulk, L2AngularFlux)
+    assert Cpsi.bulk.values.shape == state.bulk.values.shape
+    np.testing.assert_array_equal(Cpsi.boundary.values, 0.0)
+
+
+@pytest.mark.parametrize("name,builder", GEOMETRIES)
+def test_C_diagonal_action(name, builder) -> None:
+    """C.apply(TimedFullField).bulk.values == σ ⊙ bulk.values element-wise."""
+    sn = builder()
+    state = _random_state(sn, seed=6)
+    rng = np.random.default_rng(7)
+    sigma = 0.3 + 0.5 * rng.random((sn.ng, sn.nx, sn.ny))
+    C = CollisionOperator(sn, sigma)
+
+    Cpsi = C.apply(state)
+    expected = sigma[None, :, :, :] * state.bulk.values
+    np.testing.assert_array_equal(Cpsi.bulk.values, expected)
+
+
+# ───────────────────────────────────────────────────────────────────────
+# L — StreamingOperator.apply(TimedFullField) — load-bearing
+# ───────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("name,builder", GEOMETRIES)
+def test_L_apply_timed_full_field_returns_composite(name, builder) -> None:
+    """L.apply(TimedFullField) returns TimedFullField; .boundary may be non-zero."""
+    sn = builder()
+    state = _random_state(sn, seed=10)
+    rng = np.random.default_rng(11)
+    sigma_t = 0.4 + 0.4 * rng.random((sn.ng, sn.nx, sn.ny))
+    L = StreamingOperator(sn, sigma_t)
+
+    Lpsi = L.apply(state)
+    assert isinstance(Lpsi, TimedFullField)
+    assert isinstance(Lpsi.bulk, L2AngularFlux)
+    assert Lpsi.bulk.values.shape == state.bulk.values.shape
+    # L emits the face residual into .boundary; for these random
+    # inputs at least one face slot is non-zero.
+    assert not np.allclose(Lpsi.boundary.values, 0.0)
+
+
+# ───────────────────────────────────────────────────────────────────────
+# Compose (L + C - S - F).apply(state) under TimedFullField
+# ───────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize("name,builder", GEOMETRIES)
@@ -422,10 +244,8 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
     boundary members).  All four leaves carry their TimedFullField
     branches as of D-H.1b.3..6.
     """
-    from orpheus.transport.timed_full_field import TimedFullField
-
     sn = builder()
-    state = _random_composite(sn, seed=24)
+    state = _random_state(sn, seed=24)
     sigma_t = np.full((sn.ng, sn.nx, sn.ny), 0.7)
     L = StreamingOperator(sn, sigma_t)
     C = CollisionOperator(sn, sigma_t * 0.5)
@@ -446,74 +266,6 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
 
 
 @pytest.mark.parametrize("name,builder", GEOMETRIES)
-def test_full_algebra_bulk_matches_legacy(name, builder) -> None:
-    """Composite (L+C-S-F) bulk == legacy (L+C-S-F) values on identical input.
-
-    Pins the bridge correctness: the TimedFullField branches must
-    compute the same numerics as the legacy branches at the
-    cell-centre block.
-    """
-    sn = builder()
-    state = _random_composite(sn, seed=25)
-    legacy = _legacy_from_composite(state)
-    sigma_t = np.full((sn.ng, sn.nx, sn.ny), 0.7)
-    L = StreamingOperator(sn, sigma_t)
-    C = CollisionOperator(sn, sigma_t * 0.5)
-    S = ScatteringOperator.from_solver_data(
-        mat_xs=sn.material_xs_field(),
-        quadrature=sn.quad,
-        scattering_order=0,
-    )
-    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
-    A = L + C - S - F
-
-    out_composite = A.apply(state)
-    out_legacy = A.apply(legacy)
-
-    np.testing.assert_array_equal(
-        out_composite.bulk.values, out_legacy.values,
-    )
-
-
-@pytest.mark.parametrize("name,builder", GEOMETRIES)
-def test_full_algebra_boundary_matches_legacy(name, builder) -> None:
-    """Composite (L+C-S-F) boundary == legacy face residual.
-
-    Only L contributes a non-zero face residual (C / S / F return
-    implicit-zero composite boundary per Option β3); the composite's
-    final boundary must match the legacy's face residual face-by-face.
-    """
-    sn = builder()
-    state = _random_composite(sn, seed=26)
-    legacy = _legacy_from_composite(state)
-    sigma_t = np.full((sn.ng, sn.nx, sn.ny), 0.7)
-    L = StreamingOperator(sn, sigma_t)
-    C = CollisionOperator(sn, sigma_t * 0.5)
-    S = ScatteringOperator.from_solver_data(
-        mat_xs=sn.material_xs_field(),
-        quadrature=sn.quad,
-        scattering_order=0,
-    )
-    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
-    A = L + C - S - F
-
-    out_composite = A.apply(state)
-    out_legacy = A.apply(legacy)
-
-    layout = out_composite.boundary.layout
-    if "xmax" in layout.faces:
-        np.testing.assert_array_equal(
-            out_composite.boundary.face_view("xmax"),
-            out_legacy.boundary.xmax_face,
-        )
-    if "xmin" in layout.faces:
-        np.testing.assert_array_equal(
-            out_composite.boundary.face_view("xmin"),
-            out_legacy.boundary.xmin_face,
-        )
-
-
-@pytest.mark.parametrize("name,builder", GEOMETRIES)
 def test_full_algebra_linearity(name, builder) -> None:
     """``A.apply(α·state₁ + β·state₂) == α·A·state₁ + β·A·state₂``.
 
@@ -523,8 +275,8 @@ def test_full_algebra_linearity(name, builder) -> None:
     (linear-operator-on-vector-space invariant).
     """
     sn = builder()
-    state1 = _random_composite(sn, seed=27)
-    state2 = _random_composite(sn, seed=28)
+    state1 = _random_state(sn, seed=27)
+    state2 = _random_state(sn, seed=28)
     sigma_t = np.full((sn.ng, sn.nx, sn.ny), 0.7)
     L = StreamingOperator(sn, sigma_t)
     C = CollisionOperator(sn, sigma_t * 0.5)
