@@ -259,8 +259,9 @@ class TestHomogeneousReflectiveFixedPoint:
             f"{coord_name}: G1 Krylov did not converge in 200 iters"
         )
         # Per-ord ψ should be uniform across (N, ng, nx, ny) at the
-        # fixed point.
-        per_ord = result.angular_flux.values
+        # fixed point. D-H.1b: angular_flux is now a TimedFullField;
+        # the bulk per-ordinate values live at .bulk.values.
+        per_ord = result.angular_flux.bulk.values
         rel_dev = np.abs(per_ord - expected_per_ord) / max(
             expected_per_ord, 1e-30,
         )
@@ -294,12 +295,17 @@ class TestReturnTypeContract:
             inner_solver="krylov",
             max_inner=50, inner_tol=1e-10,
         )
-        psi_typed = result.angular_flux
-        assert isinstance(psi_typed, AngularFlux)
-        # Sphere has xmax_face only (no xmin face; pole at r=0).
-        assert psi_typed.boundary.xmax_face is not None
-        assert psi_typed.boundary.xmax_face.shape == (quad.N, 1)
-        assert psi_typed.boundary.xmin_face is None  # sphere
+        # D-H.1b: angular_flux is now a TimedFullField composite. The
+        # boundary is the L2 BoundaryFlux with flat-layout storage; the
+        # legacy ``.xmin_face`` / ``.xmax_face`` accessors are replaced
+        # by ``.face_view(name)``.
+        from orpheus.transport.timed_full_field import TimedFullField
+        state = result.angular_flux
+        assert isinstance(state, TimedFullField)
+        # Sphere has xmax face only (no xmin face; pole at r=0).
+        assert "xmax" in state.boundary.layout.faces
+        assert state.boundary.face_view("xmax").shape == (quad.N, 1)
+        assert "xmin" not in state.boundary.layout.faces  # sphere has no inner face
 
 
 # ── Pin 5: no legacy eq_map / _build_rhs_* / _make_sweep_preconditioner

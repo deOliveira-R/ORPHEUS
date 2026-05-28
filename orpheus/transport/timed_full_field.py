@@ -463,6 +463,57 @@ class TimedFullField:
             history_depth=template.history_depth,
         )
 
+    # ── Legacy adapter (D-H.1b transitional; retires in D-H.2) ───────
+
+    @classmethod
+    def from_legacy_angular_flux(
+        cls, legacy_psi: object,
+    ) -> "TimedFullField":
+        r"""Construct from a legacy :class:`orpheus.sn.angular_flux.AngularFlux`.
+
+        One-way adapter for D-H.1b consumer migration: extracts the
+        legacy ``psi.values`` (bulk), ``psi.boundary`` (legacy
+        BoundaryFlux), and ``psi.history_depth`` and constructs an L2
+        composite. Internal calls use the legacy → L2 adapters on
+        :class:`~orpheus.transport.fields.angular_flux.AngularFlux` and
+        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`.
+
+        **Transitional**: this method retires when D-H.2 deletes the
+        legacy :class:`orpheus.sn.angular_flux.AngularFlux` class. Do
+        not use in new code — construct directly via
+        :meth:`SNMesh.zeros_timed_full_field` or by passing typed L2
+        bulk + boundary explicitly.
+
+        Parameters
+        ----------
+        legacy_psi : object
+            Legacy ``orpheus.sn.angular_flux.AngularFlux`` instance.
+            Duck-typed: must expose ``values``, ``mesh``, ``boundary``,
+            and ``history_depth`` attributes.
+
+        Returns
+        -------
+        TimedFullField
+            L2 composite with empty history (the legacy bundle's
+            ``_history`` is NOT propagated — Krylov / SI iterates carry
+            no history, and the legacy history was rarely populated in
+            practice; future BDF kinetics work will use
+            :meth:`advance` to build history).
+        """
+        from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
+        from orpheus.transport.fields.boundary_flux import BoundaryFlux as L2BoundaryFlux
+
+        mesh = legacy_psi.mesh  # type: ignore[attr-defined]
+        history_depth = getattr(legacy_psi, "history_depth", 2)
+        return cls(
+            bulk=L2AngularFlux.from_mesh(legacy_psi.values, mesh),  # type: ignore[attr-defined]
+            boundary=L2BoundaryFlux.from_legacy_sn(
+                legacy_psi.boundary, mesh,  # type: ignore[attr-defined]
+            ),
+            _history=(),
+            history_depth=history_depth,
+        )
+
     # ── Diagnostics ──────────────────────────────────────────────────
 
     def copy(self) -> "TimedFullField":

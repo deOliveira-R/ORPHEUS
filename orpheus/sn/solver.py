@@ -1004,17 +1004,25 @@ def solve_sn(
     # produced by power_iteration + the final sweep get wrapped in
     # AngularFlux + ScalarFlux at this single boundary; downstream
     # consumers read typed fields.
+    # D-H.1b (2026-05-28): Solution.angular_flux is now a typed
+    # TimedFullField composite (bulk + boundary + history). Build
+    # via the legacy-AngularFlux adapter — solver._boundary_flux is
+    # still a legacy BoundaryFlux instance; the L2 BoundaryFlux is
+    # constructed inside TimedFullField.from_legacy_angular_flux via
+    # the legacy → L2 adapter.
     from .angular_flux import AngularFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
+    from orpheus.transport.timed_full_field import TimedFullField
     history = IterationHistory(
         keff_history=tuple(keff_history),
         n_outer=len(keff_history),
         converged=True,
     )
+    legacy_psi = AngularFlux(
+        angular_flux, sn_mesh, boundary=solver._boundary_flux,
+    )
     return Solution(
-        angular_flux=AngularFlux(
-            angular_flux, sn_mesh, boundary=solver._boundary_flux,
-        ),
+        angular_flux=TimedFullField.from_legacy_angular_flux(legacy_psi),
         scalar_flux=ScalarFlux.from_mesh(scalar_flux, sn_mesh),
         mesh=sn_mesh,
         keff=float(keff_history[-1]),
@@ -1258,10 +1266,11 @@ def _solve_fixed_source_si(
         n_inner=n_inner + 1,
         converged=converged_flag,
     )
+    # D-H.1b (2026-05-28): Solution.angular_flux is now a TimedFullField.
+    from orpheus.transport.timed_full_field import TimedFullField
+    legacy_psi = AngularFlux(angular, sn_mesh, boundary=solver._boundary_flux)
     return Solution(
-        angular_flux=AngularFlux(
-            angular, sn_mesh, boundary=solver._boundary_flux,
-        ),
+        angular_flux=TimedFullField.from_legacy_angular_flux(legacy_psi),
         scalar_flux=ScalarFlux.from_mesh(phi, sn_mesh),
         mesh=sn_mesh,
         keff=None,
@@ -1410,8 +1419,14 @@ def _solve_fixed_source_krylov(
         n_inner=n_outer + 1,
         converged=converged_flag,
     )
+    # D-H.1b (2026-05-28): Solution.angular_flux is now a TimedFullField.
+    # psi_typed is the Krylov adapter output — still a legacy AngularFlux
+    # (the Krylov adapter unravels back to the template type, which is the
+    # legacy q_ext_typed). Wrap into TimedFullField at the Solution
+    # boundary via the legacy adapter.
+    from orpheus.transport.timed_full_field import TimedFullField
     return Solution(
-        angular_flux=psi_typed,
+        angular_flux=TimedFullField.from_legacy_angular_flux(psi_typed),
         scalar_flux=ScalarFlux.from_mesh(phi, sn_mesh),
         mesh=sn_mesh,
         keff=None,

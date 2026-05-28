@@ -49,10 +49,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from .angular_flux import AngularFlux
-    from .boundary_flux import BoundaryFlux
     from .geometry import SNMesh
+    from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
+    from orpheus.transport.timed_full_field import TimedFullField
 
 
 __all__ = ["IterationHistory", "Solution", "SolutionDiff"]
@@ -138,12 +138,19 @@ class Solution:
 
     Parameters
     ----------
-    angular_flux : AngularFlux
-        Per-ordinate angular flux field
-        :math:`\psi(\vec r, \hat\Omega_n, g)`, shape ``(N, ng, nx, ny)``.
-        Under R-1 Step 2, :class:`AngularFlux` carries its own boundary
-        face state via :attr:`AngularFlux.boundary`; see the
-        :attr:`Solution.boundary_flux` property below.
+    angular_flux : TimedFullField
+        Composite iteration state — pure-Field
+        :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
+        bulk paired with pure-Field
+        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+        boundary trace plus time-derivative history.
+
+        Under D-H.1b (2026-05-28), this field carries a
+        :class:`~orpheus.transport.timed_full_field.TimedFullField`
+        composite. The bulk (``angular_flux.bulk``) is the
+        per-ordinate angular flux :math:`\psi(\vec r, \hat\Omega_n, g)`
+        on shape ``(N, ng, nx, ny)``; the boundary trace is exposed
+        via the :attr:`Solution.boundary_flux` delegate property.
     scalar_flux : ScalarFlux
         Scalar flux field
         :math:`\phi(\vec r, g) = \sum_n w_n \psi_n`,
@@ -159,12 +166,14 @@ class Solution:
 
     Notes
     -----
-    Prior to R-1 Step 2, :attr:`boundary_flux` was a separate dataclass
-    field carrying a :class:`BoundaryFlux` instance independent of
-    ``angular_flux``.  That was a twin-storage anti-pattern (the same
-    boundary face state was reachable through two paths).  Under R-1
-    Step 2, :attr:`boundary_flux` is a delegated property that returns
-    :attr:`AngularFlux.boundary` — single source of truth.
+    Pre-D-H, :attr:`angular_flux` was the legacy
+    :class:`orpheus.sn.angular_flux.AngularFlux` (a bulk Field that
+    ALSO owned the boundary face state and iteration history). Under
+    D-H.1b that conflation dissolves: the composite-state container
+    :class:`TimedFullField` holds the bulk + boundary + history trio
+    as a structured composite. The :attr:`Solution.boundary_flux`
+    delegate (line below) becomes a thin read-through to
+    ``self.angular_flux.boundary`` (now a typed L2 BoundaryFlux).
 
     Examples
     --------
@@ -179,7 +188,7 @@ class Solution:
     array(...)
     """
 
-    angular_flux: "AngularFlux"
+    angular_flux: "TimedFullField"
     scalar_flux: "ScalarFlux"
     mesh: "SNMesh"
     keff: float | None = None
@@ -191,41 +200,40 @@ class Solution:
         # unrepresentable; the typed field's invariants are leveraged
         # at Solution construction time so consumers downstream cannot
         # see a Solution with mismatched meshes).
-        for name, field_value in (
-            ("angular_flux", self.angular_flux),
-            ("scalar_flux", self.scalar_flux),
-        ):
-            if field_value.mesh is not self.mesh:
-                raise ValueError(
-                    f"Solution: {name}.mesh is not Solution.mesh "
-                    "(typed-field mesh-identity contract broken — every "
-                    "field must reference the same SNMesh instance)."
-                )
+        # D-H.1b: angular_flux is now a TimedFullField composite —
+        # the mesh is on the bulk (and validated against boundary at
+        # TimedFullField construction).
+        if self.angular_flux.bulk.mesh is not self.mesh:
+            raise ValueError(
+                "Solution: angular_flux.bulk.mesh is not Solution.mesh "
+                "(typed-field mesh-identity contract broken — every "
+                "field must reference the same SNMesh instance)."
+            )
+        if self.scalar_flux.mesh is not self.mesh:
+            raise ValueError(
+                "Solution: scalar_flux.mesh is not Solution.mesh "
+                "(typed-field mesh-identity contract broken — every "
+                "field must reference the same SNMesh instance)."
+            )
 
-    # ── R-1 Step 2: boundary_flux as a delegate property ─────────────
+    # ── boundary_flux as a delegate property ─────────────────────────
     #
-    # Prior to R-1 Step 2, :attr:`boundary_flux` was a separate dataclass
-    # field; the boundary face state was reachable from BOTH
-    # ``sol.angular_flux.boundary`` (after the typed-pair migration)
-    # AND ``sol.boundary_flux`` (the legacy field).  That was a twin-
-    # storage path that invited drift; per ``coding-elegance``
-    # Pattern 2 (single source of truth), R-1 Step 2 collapses both
-    # paths to ``angular_flux.boundary``.  ``Solution.boundary_flux``
-    # is now a thin read-through that delegates to the AngularFlux's
-    # owned boundary — Step 5 removes the property entirely after one
-    # wave cycle of test migration elapses.
+    # The composite :class:`~orpheus.transport.timed_full_field.TimedFullField`
+    # owns the boundary face state via :attr:`TimedFullField.boundary`.
+    # ``Solution.boundary_flux`` is a thin read-through that delegates
+    # to the composite's owned boundary trace.
 
     @property
     def boundary_flux(self) -> "BoundaryFlux":
-        r"""Boundary face state — delegate to :attr:`AngularFlux.boundary`.
+        r"""Boundary face state — delegate to :attr:`TimedFullField.boundary`.
 
-        :class:`AngularFlux` now owns the boundary face / persistent
-        buffer state via :attr:`AngularFlux.boundary`.  This property
-        provides the legacy ``sol.boundary_flux`` access path while
-        ensuring the single-source-of-truth contract.
+        The composite :class:`~orpheus.transport.timed_full_field.TimedFullField`
+        owns the boundary face state via :attr:`TimedFullField.boundary`.
+        This property provides the canonical ``sol.boundary_flux``
+        access path.
 
-        See :class:`~orpheus.sn.boundary_flux.BoundaryFlux` for the
-        per-geometry shape contract.
+        See :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+        for the per-geometry flat-layout contract.
         """
         return self.angular_flux.boundary
 
@@ -323,7 +331,7 @@ class Solution:
         else:
             keff_abs = None
 
-        ang_diff = self.angular_flux.values - other.angular_flux.values
+        ang_diff = self.angular_flux.bulk.values - other.angular_flux.bulk.values
         sca_diff = self.scalar_flux.values - other.scalar_flux.values
         ang_linf = float(np.abs(ang_diff).max()) if ang_diff.size else 0.0
         sca_linf = float(np.abs(sca_diff).max()) if sca_diff.size else 0.0

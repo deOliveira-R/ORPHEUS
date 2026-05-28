@@ -21,11 +21,10 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.sn.angular_flux import AngularFlux
-from orpheus.sn.boundary_flux import BoundaryFlux
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.scalar_flux import ScalarFlux
+from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.sn.solution import IterationHistory, Solution, SolutionDiff
 
 from tests.sn._test_helpers import placeholder_materials
@@ -50,20 +49,20 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
 
 
 def _make_fluxes(sn_mesh: SNMesh, fill: float = 1.0):
-    """Build (angular, scalar, boundary) fluxes for the given mesh.
+    """Build (state, scalar, boundary) for the given mesh.
 
-    R-1 Step 2 — :class:`AngularFlux` auto-allocates ``.boundary`` on
-    construction; the returned ``bf`` is the same instance as
-    ``psi.boundary`` (single-source-of-truth contract).  The triple
-    return-tuple is preserved for fixture-shape stability across the
-    test file; the third slot ``bf`` is now ``psi.boundary`` rather
-    than an independent :class:`BoundaryFlux`.
+    D-H.1b — :class:`Solution.angular_flux` is now a
+    :class:`~orpheus.transport.timed_full_field.TimedFullField`
+    composite. The triple return-tuple is preserved for fixture-shape
+    stability; the first slot is now a TimedFullField (bulk angular
+    flux + boundary trace + history), the third slot is the
+    composite's boundary trace.
     """
-    ng, nx, ny = sn_mesh.ng, sn_mesh.nx, sn_mesh.ny
-    N = sn_mesh.quad.N
-    psi = AngularFlux(np.full((N, ng, nx, ny), fill), sn_mesh)
-    phi = ScalarFlux.from_mesh(np.full((ng, nx, ny), fill), sn_mesh)
-    return psi, phi, psi.boundary
+    state = sn_mesh.zeros_timed_full_field()
+    state.bulk.values[:] = fill
+    state.boundary.values[:] = fill
+    phi = ScalarFlux.from_mesh(np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), fill), sn_mesh)
+    return state, phi, state.boundary
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -155,16 +154,14 @@ class TestSolutionConstruction:
         assert sol.history is h
 
     def test_mesh_identity_angular_flux(self) -> None:
-        """A foreign-mesh AngularFlux must be rejected at construction."""
+        """A foreign-mesh TimedFullField must be rejected at construction."""
         m1 = _slab_mesh()
         m2 = _slab_mesh()  # distinct instance, same shape
-        psi_foreign = AngularFlux(
-            np.zeros((m2.quad.N, m2.ng, m2.nx, m2.ny)), m2,
-        )
+        state_foreign = m2.zeros_timed_full_field()
         _, phi, bf = _make_fluxes(m1)
-        with pytest.raises(ValueError, match="angular_flux.mesh"):
+        with pytest.raises(ValueError, match="angular_flux.bulk.mesh"):
             Solution(
-                angular_flux=psi_foreign, scalar_flux=phi, mesh=m1,
+                angular_flux=state_foreign, scalar_flux=phi, mesh=m1,
             )
 
     def test_mesh_identity_scalar_flux(self) -> None:
@@ -178,17 +175,17 @@ class TestSolutionConstruction:
             )
 
     def test_boundary_flux_delegates_to_angular_flux(self) -> None:
-        """R-1 Step 2 — ``sol.boundary_flux is sol.angular_flux.boundary``.
+        """D-H.1b — ``sol.boundary_flux is sol.angular_flux.boundary``.
 
-        Under the single-source-of-truth contract, :attr:`Solution.boundary_flux`
-        is a property that returns :attr:`AngularFlux.boundary`.  There is
-        no separate :class:`BoundaryFlux` field on :class:`Solution`.
+        :attr:`Solution.boundary_flux` is a property that returns
+        :attr:`TimedFullField.boundary` — the composite's owned
+        boundary trace.
         """
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
         sol = Solution(angular_flux=psi, scalar_flux=phi, mesh=m)
         assert sol.boundary_flux is psi.boundary
-        assert sol.boundary_flux is bf  # bf = psi.boundary from _make_fluxes
+        assert sol.boundary_flux is bf  # bf = state.boundary from _make_fluxes
 
     def test_frozen(self) -> None:
         m = _slab_mesh()
