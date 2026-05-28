@@ -466,3 +466,238 @@ class TestSumCapabilities:
         A = L + C
         assert isinstance(A, InvertibleOperator)
         assert CAP_SOLVE in A.capabilities
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# D-H.1b.6 — TimedFullField composite dispatch on StreamingOperator.apply.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+# 1-D geometries — the TimedFullField branch supports these natively
+# via the legacy AngularFlux bridge.  2-D Cartesian raises
+# NotImplementedError (Phase A coordination).
+GEOMETRIES_1D = [
+    ("slab", _slab_mesh),
+    ("sphere", _spherical_mesh),
+    ("cylinder", _cylindrical_mesh),
+]
+
+
+def _legacy_angular_flux_from_composite(state):
+    """Helper: build a legacy AngularFlux carrying the composite's
+    bulk + boundary, for direct comparison against the legacy branch.
+    """
+    from orpheus.sn.angular_flux import AngularFlux as LegacyAngularFlux
+    from orpheus.sn.boundary_flux import BoundaryFlux as LegacyBoundaryFlux
+
+    sn_mesh = state.bulk.mesh
+    legacy_bf = LegacyBoundaryFlux(mesh=sn_mesh)
+    layout = state.boundary.layout
+    if "xmax" in layout.faces:
+        legacy_bf.xmax_face = state.boundary.face_view("xmax").copy()
+    if "xmin" in layout.faces:
+        legacy_bf.xmin_face = state.boundary.face_view("xmin").copy()
+    return LegacyAngularFlux(
+        state.bulk.values.copy(), sn_mesh, boundary=legacy_bf,
+    )
+
+
+def _random_composite(sn_mesh, seed=171):
+    """Build a TimedFullField with non-zero bulk + non-zero boundary."""
+    from dataclasses import replace
+
+    rng = np.random.default_rng(seed)
+    state = sn_mesh.zeros_timed_full_field()
+    bulk_values = rng.standard_normal(state.bulk.values.shape)
+    boundary_values = 0.1 + rng.random(state.boundary.values.shape)
+    state = replace(state, bulk=replace(state.bulk, values=bulk_values))
+    state = replace(
+        state, boundary=replace(state.boundary, values=boundary_values),
+    )
+    return state
+
+
+class TestTimedFullFieldBranch:
+    """Composite :class:`TimedFullField` dispatch on
+    :meth:`StreamingOperator.apply`.
+
+    Unlike C / S / F (which return implicit-zero composite boundary),
+    L's composite return carries the actual face residual — this is
+    the algebraic value the operator-algebra :math:`(L+C-S-F)\\psi`
+    needs at the trace.
+    """
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
+    def test_returns_timed_full_field(self, name, builder):
+        from orpheus.transport.fields.angular_flux import (
+            AngularFlux as L2AngularFlux,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sn_mesh = builder()
+        sig_t = _sig_t_uniform(sn_mesh)
+        L = StreamingOperator(sn_mesh, sig_t)
+        state = _random_composite(sn_mesh)
+
+        out = L.apply(state)
+
+        assert isinstance(out, TimedFullField)
+        assert isinstance(out.bulk, L2AngularFlux)
+        assert out.bulk.mesh is sn_mesh
+        assert out.history_depth == state.history_depth
+        assert out._history == ()
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
+    def test_bulk_matches_legacy_branch(self, name, builder):
+        """Composite branch bulk == legacy AngularFlux branch values.
+
+        Pins equivalence so the bridge stays a thin adapter — any
+        future change to the matvec kernel produces identical bulk
+        values across both type dispatches.
+        """
+        sn_mesh = builder()
+        sig_t = _sig_t_uniform(sn_mesh)
+        L = StreamingOperator(sn_mesh, sig_t)
+        state = _random_composite(sn_mesh, seed=181)
+        legacy_in = _legacy_angular_flux_from_composite(state)
+
+        out_composite = L.apply(state)
+        out_legacy = L.apply(legacy_in)
+
+        np.testing.assert_array_equal(
+            out_composite.bulk.values, out_legacy.values,
+        )
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
+    def test_boundary_carries_face_residual(self, name, builder):
+        """Composite boundary == legacy boundary face residual.
+
+        L is the only operator in {L, C, S, F} that emits a non-zero
+        face residual.  The composite branch must preserve this — the
+        L2 BoundaryFlux flat buffer carries the matvec's face output
+        at the layout-assigned slots.
+        """
+        sn_mesh = builder()
+        sig_t = _sig_t_uniform(sn_mesh)
+        L = StreamingOperator(sn_mesh, sig_t)
+        state = _random_composite(sn_mesh, seed=182)
+        legacy_in = _legacy_angular_flux_from_composite(state)
+
+        out_composite = L.apply(state)
+        out_legacy = L.apply(legacy_in)
+
+        # Face-by-face comparison via L2 face_view.
+        layout = out_composite.boundary.layout
+        if "xmax" in layout.faces:
+            np.testing.assert_array_equal(
+                out_composite.boundary.face_view("xmax"),
+                out_legacy.boundary.xmax_face,
+            )
+        if "xmin" in layout.faces:
+            np.testing.assert_array_equal(
+                out_composite.boundary.face_view("xmin"),
+                out_legacy.boundary.xmin_face,
+            )
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
+    def test_zero_state_zero_output(self, name, builder):
+        """ψ = 0 ⇒ L·ψ = 0 in both bulk AND boundary (linearity guard)."""
+        sn_mesh = builder()
+        sig_t = _sig_t_uniform(sn_mesh)
+        L = StreamingOperator(sn_mesh, sig_t)
+        state = sn_mesh.zeros_timed_full_field()
+        out = L.apply(state)
+        np.testing.assert_array_equal(out.bulk.values, 0.0)
+        np.testing.assert_array_equal(out.boundary.values, 0.0)
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
+    def test_history_depth_preserved(self, name, builder):
+        """Composite return preserves input ``history_depth`` capacity."""
+        sn_mesh = builder()
+        sig_t = _sig_t_uniform(sn_mesh)
+        L = StreamingOperator(sn_mesh, sig_t)
+        for depth in (0, 1, 2, 4):
+            state = sn_mesh.zeros_timed_full_field(history_depth=depth)
+            out = L.apply(state)
+            assert out.history_depth == depth
+
+    def test_2d_cartesian_raises_not_implemented(self):
+        """2-D Cartesian path raises NotImplementedError (Phase A scope)."""
+        from orpheus.geometry import Mesh2D
+
+        mesh = Mesh2D(
+            edges_x=np.linspace(0.0, 1.0, 4),
+            edges_y=np.linspace(0.0, 1.0, 4),
+            mat_map=np.zeros((3, 3), dtype=int),
+        )
+        quad = Quadrature.level_symmetric(sn_order=4)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials(ng=2))
+        sig_t = _sig_t_uniform(sn_mesh)
+        L = StreamingOperator(sn_mesh, sig_t)
+
+        state = sn_mesh.zeros_timed_full_field()
+        with pytest.raises(NotImplementedError, match="2-D Cartesian"):
+            L.apply(state)
+
+    def test_mesh_identity_invariant(self):
+        """Distinct SNMesh instances must reject the apply."""
+        sn_mesh_a = _slab_mesh()
+        sn_mesh_b = _slab_mesh()
+        sig_t = _sig_t_uniform(sn_mesh_a)
+        L = StreamingOperator(sn_mesh_a, sig_t)
+        state_b = sn_mesh_b.zeros_timed_full_field()
+        with pytest.raises(ValueError, match="mesh-identity"):
+            L.apply(state_b)
+
+
+class TestOperatorAlgebraCompositionUnderTimedFullField:
+    """``(L + C - S - F).apply(state)`` composes under TimedFullField.
+
+    Load-bearing for the post-D-H.1b operator algebra: all four
+    operators must accept TimedFullField input and return
+    TimedFullField output for ``OperatorSum.apply`` (which evaluates
+    ``self.a.apply(x) + self.b.apply(x)``) to type-check at every
+    composition step.
+    """
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
+    def test_LC_apply_composite(self, name, builder):
+        """``(L + C).apply(state)`` returns a TimedFullField.
+
+        ``L + C`` dispatches to :class:`InvertibleOperator` (subclass
+        of :class:`OperatorSum`); its inherited ``.apply`` evaluates
+        ``L.apply(state) + C.apply(state)`` and the addition succeeds
+        only if BOTH return TimedFullField.
+        """
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sn_mesh = builder()
+        sig_t = _sig_t_uniform(sn_mesh)
+        L = StreamingOperator(sn_mesh, sig_t)
+        C = CollisionOperator(sn_mesh, sig_t)
+        A = L + C
+        state = _random_composite(sn_mesh, seed=191)
+
+        out = A.apply(state)
+
+        assert isinstance(out, TimedFullField)
+        assert out.bulk.mesh is sn_mesh
+        assert out.history_depth == state.history_depth
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
+    def test_LC_apply_matches_legacy(self, name, builder):
+        """``(L + C).apply(state).bulk`` matches the legacy branch sum."""
+        sn_mesh = builder()
+        sig_t = _sig_t_uniform(sn_mesh)
+        L = StreamingOperator(sn_mesh, sig_t)
+        C = CollisionOperator(sn_mesh, sig_t)
+        A = L + C
+        state = _random_composite(sn_mesh, seed=192)
+        legacy_in = _legacy_angular_flux_from_composite(state)
+
+        out_composite = A.apply(state)
+        out_legacy = A.apply(legacy_in)
+
+        np.testing.assert_array_equal(
+            out_composite.bulk.values, out_legacy.values,
+        )

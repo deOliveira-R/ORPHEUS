@@ -1934,8 +1934,8 @@ class StreamingOperator(LinearOperatorMixin):
         return self._ensure_eq_map(ng=ng).n_unknowns
 
     def apply(
-        self, psi: "np.ndarray | AngularFlux",
-    ) -> "np.ndarray | AngularFlux":
+        self, psi: "np.ndarray | AngularFlux | TimedFullField",
+    ) -> "np.ndarray | AngularFlux | TimedFullField":
         r"""Subtractive forward action :math:`L\,\psi = M(\psi;\sigma_t)
         - \sigma_t \odot \psi`.
 
@@ -1965,6 +1965,30 @@ class StreamingOperator(LinearOperatorMixin):
         and :class:`~orpheus.sn.fission.FissionOperator` all leave the
         output ``.boundary`` at the auto-allocated zero.
 
+        Depth B D-H.1b.6 — :class:`TimedFullField` composite overload.
+        Bridges through the existing legacy :class:`AngularFlux` body
+        (no kernel rewrite — Phase A territory) for 1-D paths:
+
+        1. Convert composite → legacy AngularFlux: extract
+           ``psi.bulk.values``; convert L2 :class:`BoundaryFlux` face
+           arrays → legacy ``xmin_face`` / ``xmax_face`` slots.
+        2. Apply via the existing :meth:`_apply_typed` path.
+        3. Convert legacy result → composite: wrap ``result.values``
+           into an :class:`L2AngularFlux`; convert legacy boundary →
+           L2 :class:`BoundaryFlux` via :meth:`from_legacy_sn`;
+           propagate input's ``history_depth``.
+
+        Unlike :class:`CollisionOperator`,
+        :class:`~orpheus.sn.scattering.ScatteringOperator`, and
+        :class:`~orpheus.sn.fission.FissionOperator` (which all return
+        implicit-zero composite boundary), **L's composite return
+        carries the actual face residual** in its boundary member —
+        this is the algebraic value the operator-algebra
+        :math:`(L + C - S - F)\psi` needs at the trace.  2-D Cartesian
+        raises :class:`NotImplementedError` (Phase A territory; the
+        flat round-trip via :meth:`to_flat_with_traces` couples to
+        the legacy persistent buffer layout).
+
         2-D Cartesian (``ny > 1``) remains on the legacy
         :func:`transport_operator_matvec` (FD via
         :func:`_compute_gradients`) — anti-diagonal wavefront sweeps
@@ -1983,23 +2007,31 @@ class StreamingOperator(LinearOperatorMixin):
 
         Parameters
         ----------
-        psi : np.ndarray or AngularFlux
+        psi : np.ndarray or AngularFlux or TimedFullField
             * Bare ``np.ndarray`` — packed 1-D vector,
               shape ``(n_unknowns,)``.
             * :class:`~orpheus.sn.angular_flux.AngularFlux` — typed
               flux with embedded :class:`BoundaryFlux` carrying the
               face state at outer (and slab-inner) face.
+            * :class:`~orpheus.transport.timed_full_field.TimedFullField`
+              — composite bulk (L2 AngularFlux) + boundary (L2
+              BoundaryFlux); 1-D paths only.
 
         Returns
         -------
-        np.ndarray or AngularFlux
+        np.ndarray or AngularFlux or TimedFullField
             ``L·ψ`` in the matching type.  When :class:`AngularFlux`,
             ``.boundary.xmax_face`` carries the outer-face residual
             and (for slab) ``.boundary.xmin_face`` carries the
-            inner-face residual.
+            inner-face residual.  When :class:`TimedFullField`, the
+            L2 ``boundary.values`` flat buffer carries the same face
+            residuals at their layout-assigned slots.
         """
         from .angular_flux import AngularFlux
         from .boundary_flux import BoundaryFlux
+        from orpheus.transport.timed_full_field import TimedFullField
+        if isinstance(psi, TimedFullField):
+            return self._apply_timed_full_field(psi)
         if isinstance(psi, AngularFlux):
             return self._apply_typed(psi)
         sn_mesh = self.sn_mesh
@@ -2149,6 +2181,85 @@ class StreamingOperator(LinearOperatorMixin):
         # path-forward matvec writes the residual at outflow positions
         # only (inflow stays zero per ``BoundaryFlux.zeros``).
         return AngularFlux(cell_values, sn_mesh, boundary=result.boundary)
+
+    def _apply_timed_full_field(
+        self, psi: "TimedFullField",
+    ) -> "TimedFullField":
+        r"""Composite :class:`TimedFullField` body of :meth:`apply` (D-H.1b.6).
+
+        Bridges through the legacy :class:`AngularFlux` typed path —
+        Phase A owns the internal matvec kernel
+        (:func:`transport_operator_matvec_unified`) and the
+        :meth:`_apply_typed` body; this method touches only the entry-
+        level dispatch + L2↔legacy boundary conversion.
+
+        Scope: 1-D paths (slab + spherical + cylindrical).  2-D
+        Cartesian raises :class:`NotImplementedError` (the legacy
+        2-D path uses :meth:`AngularFlux.to_flat_with_traces`, which
+        couples to the legacy persistent boundary buffer — Phase A
+        territory).
+
+        Returns a :class:`TimedFullField` whose bulk carries
+        :math:`L\psi.bulk` and whose boundary carries the matvec's
+        face residuals at the layout-assigned slots.
+        """
+        from .angular_flux import AngularFlux as LegacyAngularFlux
+        from .boundary_flux import BoundaryFlux as LegacyBoundaryFlux
+        from orpheus.transport.fields.angular_flux import (
+            AngularFlux as L2AngularFlux,
+        )
+        from orpheus.transport.fields.boundary_flux import (
+            BoundaryFlux as L2BoundaryFlux,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sn_mesh = self.sn_mesh
+        if sn_mesh is not psi.bulk.mesh:
+            raise ValueError(
+                "StreamingOperator.apply(TimedFullField): operator and "
+                "composite must share the SAME SNMesh instance "
+                "(mesh-identity invariant)."
+            )
+        curv = getattr(sn_mesh, "curvature", None)
+        ny = sn_mesh.ny
+        if curv is None and ny > 1:
+            raise NotImplementedError(
+                "StreamingOperator.apply(TimedFullField): 2-D Cartesian "
+                "is deferred — the legacy ``_apply_typed`` body uses "
+                "AngularFlux.to_flat_with_traces, which couples to the "
+                "legacy persistent boundary buffer.  Phase A's matvec "
+                "rewrite will absorb the 2-D path; until then, 2-D "
+                "consumers must use the legacy AngularFlux dispatch."
+            )
+
+        # ── L2 → legacy BoundaryFlux conversion ─────────────────────
+        # 1-D layouts: slab has {xmin, xmax}; curvilinear has {xmax}.
+        # Legacy ``xmin_face`` / ``xmax_face`` map 1:1 to the L2
+        # ``face_view`` slices.
+        legacy_bf = LegacyBoundaryFlux(mesh=sn_mesh)
+        layout = psi.boundary.layout
+        if "xmax" in layout.faces:
+            legacy_bf.xmax_face = psi.boundary.face_view("xmax").copy()
+        if "xmin" in layout.faces:
+            legacy_bf.xmin_face = psi.boundary.face_view("xmin").copy()
+
+        # ── Bridge: legacy AngularFlux carrying the composite bulk + boundary ──
+        legacy_in = LegacyAngularFlux(
+            psi.bulk.values, sn_mesh, boundary=legacy_bf,
+        )
+
+        # Existing typed path — touches kernel internals owned by Phase A.
+        legacy_out = self._apply_typed(legacy_in)
+
+        # ── legacy → L2 conversion ──────────────────────────────────
+        return TimedFullField(
+            bulk=L2AngularFlux.from_mesh(legacy_out.values, sn_mesh),
+            boundary=L2BoundaryFlux.from_legacy_sn(
+                legacy_out.boundary, sn_mesh,
+            ),
+            _history=(),
+            history_depth=psi.history_depth,
+        )
 
     # ── Algebra dispatch — sweep-invertible composite (R-1 Step C) ────
 
