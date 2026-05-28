@@ -393,3 +393,204 @@ class TestSigmaLayout:
             psi.values[:, :, cell_mask],
             rtol=1e-14, atol=1e-15,
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 8. D-H.1b.5 — TimedFullField composite dispatch on apply / solve /
+#    apply_transpose.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _composite_state_from_legacy(legacy_psi: AngularFlux):
+    """Build a TimedFullField composite carrying the same bulk values.
+
+    Helper for the D-H.1b.5 composite-branch tests: takes a legacy
+    :class:`AngularFlux` and constructs a composite
+    :class:`TimedFullField` whose bulk values match — so the two
+    dispatch branches can be compared on identical numerical input.
+    """
+    from dataclasses import replace
+
+    sn_mesh = legacy_psi.mesh
+    state = sn_mesh.zeros_timed_full_field()
+    state = replace(
+        state,
+        bulk=replace(state.bulk, values=legacy_psi.values.copy()),
+    )
+    return state
+
+
+class TestTimedFullFieldBranch:
+    """Composite :class:`TimedFullField` dispatch on apply / solve.
+
+    Per Option β3 (Issue #208), collision is bulk-only in the
+    operator-algebra view; the output boundary is the implicit-zero
+    :class:`L2BoundaryFlux`.
+    """
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    def test_apply_returns_timed_full_field(self, name, builder):
+        from orpheus.transport.fields.angular_flux import (
+            AngularFlux as L2AngularFlux,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sn_mesh = builder()
+        sigma = _sigma_total(sn_mesh)
+        C = CollisionOperator(sn_mesh, sigma)
+        legacy_psi = _random_angular_flux(sn_mesh)
+        state = _composite_state_from_legacy(legacy_psi)
+
+        out = C.apply(state)
+
+        assert isinstance(out, TimedFullField)
+        assert isinstance(out.bulk, L2AngularFlux)
+        assert out.bulk.mesh is sn_mesh
+        assert out.history_depth == state.history_depth
+        assert out._history == ()
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    def test_apply_bulk_matches_legacy_branch(self, name, builder):
+        """Composite branch bulk == legacy AngularFlux branch values.
+
+        Both branches share the same broadcast :math:`\\sigma\\cdot\\psi`;
+        the only delta is the return type.  Pins the equivalence so
+        D-H.1c can retire the legacy branch without a numerical
+        regression.
+        """
+        sn_mesh = builder()
+        sigma = _sigma_total(sn_mesh)
+        C = CollisionOperator(sn_mesh, sigma)
+        legacy_psi = _random_angular_flux(sn_mesh, seed=171)
+        state = _composite_state_from_legacy(legacy_psi)
+
+        out_composite = C.apply(state)
+        out_legacy = C.apply(legacy_psi)
+
+        np.testing.assert_array_equal(
+            out_composite.bulk.values, out_legacy.values,
+        )
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    def test_apply_implicit_zero_boundary(self, name, builder):
+        """Collision is bulk-only — boundary member is all zeros."""
+        sn_mesh = builder()
+        sigma = _sigma_total(sn_mesh)
+        C = CollisionOperator(sn_mesh, sigma)
+        state = _composite_state_from_legacy(
+            _random_angular_flux(sn_mesh, seed=172),
+        )
+
+        out = C.apply(state)
+
+        np.testing.assert_array_equal(out.boundary.values, 0.0)
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    def test_solve_returns_timed_full_field(self, name, builder):
+        from orpheus.transport.fields.angular_flux import (
+            AngularFlux as L2AngularFlux,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sn_mesh = builder()
+        sigma = _sigma_total(sn_mesh)
+        C = CollisionOperator(sn_mesh, sigma)
+        legacy_q = _random_angular_flux(sn_mesh, seed=173)
+        state = _composite_state_from_legacy(legacy_q)
+
+        out = C.solve(state)
+
+        assert isinstance(out, TimedFullField)
+        assert isinstance(out.bulk, L2AngularFlux)
+        assert out.bulk.mesh is sn_mesh
+        assert out.history_depth == state.history_depth
+        assert out._history == ()
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    def test_solve_bulk_matches_legacy_branch(self, name, builder):
+        """Composite branch bulk == legacy AngularFlux branch values."""
+        sn_mesh = builder()
+        sigma = _sigma_total(sn_mesh)
+        C = CollisionOperator(sn_mesh, sigma)
+        legacy_q = _random_angular_flux(sn_mesh, seed=174)
+        state = _composite_state_from_legacy(legacy_q)
+
+        out_composite = C.solve(state)
+        out_legacy = C.solve(legacy_q)
+
+        np.testing.assert_array_equal(
+            out_composite.bulk.values, out_legacy.values,
+        )
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    def test_solve_implicit_zero_boundary(self, name, builder):
+        """Pseudoinverse leaves the rank-deficient face block zero."""
+        sn_mesh = builder()
+        sigma = _sigma_total(sn_mesh)
+        C = CollisionOperator(sn_mesh, sigma)
+        state = _composite_state_from_legacy(
+            _random_angular_flux(sn_mesh, seed=175),
+        )
+
+        out = C.solve(state)
+
+        np.testing.assert_array_equal(out.boundary.values, 0.0)
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    def test_apply_solve_round_trip_composite(self, name, builder):
+        """apply(solve(state)).bulk ≈ state.bulk (inverse contract)."""
+        sn_mesh = builder()
+        sigma = _sigma_total(sn_mesh)
+        C = CollisionOperator(sn_mesh, sigma)
+        state = _composite_state_from_legacy(
+            _random_angular_flux(sn_mesh, seed=176),
+        )
+
+        round_trip = C.apply(C.solve(state))
+
+        np.testing.assert_allclose(
+            round_trip.bulk.values, state.bulk.values,
+            rtol=1e-12, atol=1e-14,
+        )
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    def test_apply_transpose_equals_apply_composite(self, name, builder):
+        """C is self-adjoint — composite branch propagates via apply."""
+        sn_mesh = builder()
+        sigma = _sigma_total(sn_mesh)
+        C = CollisionOperator(sn_mesh, sigma)
+        state = _composite_state_from_legacy(
+            _random_angular_flux(sn_mesh, seed=177),
+        )
+
+        out_apply = C.apply(state)
+        out_transpose = C.apply_transpose(state)
+
+        np.testing.assert_array_equal(
+            out_transpose.bulk.values, out_apply.bulk.values,
+        )
+        np.testing.assert_array_equal(
+            out_transpose.boundary.values, out_apply.boundary.values,
+        )
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    def test_zero_bulk_zero_output(self, name, builder):
+        """ψ = 0 ⇒ C·ψ = 0 (linearity guard)."""
+        sn_mesh = builder()
+        sigma = _sigma_total(sn_mesh)
+        C = CollisionOperator(sn_mesh, sigma)
+        state = sn_mesh.zeros_timed_full_field()
+        out = C.apply(state)
+        np.testing.assert_array_equal(out.bulk.values, 0.0)
+        np.testing.assert_array_equal(out.boundary.values, 0.0)
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    def test_history_depth_preserved(self, name, builder):
+        """Composite return preserves input ``history_depth`` capacity."""
+        sn_mesh = builder()
+        sigma = _sigma_total(sn_mesh)
+        C = CollisionOperator(sn_mesh, sigma)
+        for depth in (0, 1, 2, 4):
+            state = sn_mesh.zeros_timed_full_field(history_depth=depth)
+            assert C.apply(state).history_depth == depth
+            assert C.solve(state).history_depth == depth

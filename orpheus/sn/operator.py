@@ -2274,8 +2274,8 @@ class CollisionOperator(LinearOperatorMixin):
         return sigma_per_eq.ravel(order='F')                  # (n_eq · ng,)
 
     def apply(
-        self, psi: "np.ndarray | AngularFlux",
-    ) -> "np.ndarray | AngularFlux":
+        self, psi: "np.ndarray | AngularFlux | TimedFullField",
+    ) -> "np.ndarray | AngularFlux | TimedFullField":
         r"""Forward action :math:`C\,\psi = \sigma\cdot\psi`.
 
         PR-TYPED-6.5 Phase 3b — face slots receive zero contribution
@@ -2288,16 +2288,47 @@ class CollisionOperator(LinearOperatorMixin):
         auto-allocated zero :class:`BoundaryFlux` — collision has no
         face-trace contribution.
 
+        Depth B D-H.1b.5 — typed :class:`TimedFullField` overload.
+        Composite bulk + boundary variant for the D-H.1+ migration
+        path.  Bulk receives the same :math:`\sigma\cdot\psi.bulk`
+        broadcast; boundary is the implicit-zero :class:`L2BoundaryFlux`
+        (Option β3 — Wave O Issue #208 will encode the bulk-only
+        nature in the type via :class:`BulkOperator`).
+
         Parameters
         ----------
-        psi : np.ndarray or AngularFlux
+        psi : np.ndarray or AngularFlux or TimedFullField
             * Bare ``np.ndarray`` — packed 1-D vector matching
               :attr:`_eq_map.n_unknowns`.  Returns bare ``np.ndarray``.
             * :class:`~orpheus.sn.angular_flux.AngularFlux` shape
               ``(N, ng, nx, ny)``.  Returns :class:`AngularFlux` with
               ``.values = σ ⊙ ψ.values`` and zero ``.boundary``.
+            * :class:`~orpheus.transport.timed_full_field.TimedFullField`
+              wrapping an :class:`L2AngularFlux` bulk.  Returns a
+              :class:`TimedFullField` with bulk = σ ⊙ ψ.bulk.values and
+              implicit-zero boundary.
         """
         from .angular_flux import AngularFlux
+        from orpheus.transport.timed_full_field import TimedFullField
+        if isinstance(psi, TimedFullField):
+            # Composite branch — broadcast σ across ordinate axis on
+            # the bulk; boundary is the implicit-zero L2 BoundaryFlux
+            # (Option β3 / Issue #208).
+            from orpheus.transport.fields.angular_flux import (
+                AngularFlux as L2AngularFlux,
+            )
+            from orpheus.transport.fields.boundary_flux import (
+                BoundaryFlux as L2BoundaryFlux,
+            )
+            mesh = psi.bulk.mesh
+            return TimedFullField(
+                bulk=L2AngularFlux.from_mesh(
+                    self.sigma[None, :, :, :] * psi.bulk.values, mesh,
+                ),
+                boundary=L2BoundaryFlux.zeros_for_sn_mesh(mesh),
+                _history=(),
+                history_depth=psi.history_depth,
+            )
         if isinstance(psi, AngularFlux):
             # Typed branch — broadcast σ across ordinate axis.
             # σ is (ng, nx, ny); ψ.values is (N, ng, nx, ny);
@@ -2323,8 +2354,8 @@ class CollisionOperator(LinearOperatorMixin):
         return out
 
     def solve(
-        self, q: "np.ndarray | AngularFlux",
-    ) -> "np.ndarray | AngularFlux":
+        self, q: "np.ndarray | AngularFlux | TimedFullField",
+    ) -> "np.ndarray | AngularFlux | TimedFullField":
         r"""Inverse action :math:`C^{-1}\,q = q/\sigma` element-wise on
         the cell-centre block.
 
@@ -2349,8 +2380,34 @@ class CollisionOperator(LinearOperatorMixin):
         across every ordinate.  Result's ``.boundary`` is the
         auto-allocated zero :class:`BoundaryFlux` (collision is rank-
         deficient on the face block; pseudoinverse leaves it zero).
+
+        Depth B D-H.1b.5 — typed :class:`TimedFullField` overload.
+        Bulk receives :math:`q.bulk / \sigma` broadcast; boundary is
+        the implicit-zero :class:`L2BoundaryFlux` (Option β3,
+        formal pseudoinverse on the rank-deficient face block).
         """
         from .angular_flux import AngularFlux
+        from orpheus.transport.timed_full_field import TimedFullField
+        if isinstance(q, TimedFullField):
+            # Composite branch — broadcast 1/σ across the ordinate
+            # axis on the bulk; boundary is the implicit-zero L2
+            # BoundaryFlux (Option β3 — pseudoinverse on the rank-
+            # deficient face block).
+            from orpheus.transport.fields.angular_flux import (
+                AngularFlux as L2AngularFlux,
+            )
+            from orpheus.transport.fields.boundary_flux import (
+                BoundaryFlux as L2BoundaryFlux,
+            )
+            mesh = q.bulk.mesh
+            return TimedFullField(
+                bulk=L2AngularFlux.from_mesh(
+                    q.bulk.values / self.sigma[None, :, :, :], mesh,
+                ),
+                boundary=L2BoundaryFlux.zeros_for_sn_mesh(mesh),
+                _history=(),
+                history_depth=q.history_depth,
+            )
         if isinstance(q, AngularFlux):
             # Typed branch — broadcast 1/σ across the ordinate axis.
             # σ is (ng, nx, ny); q.values is (N, ng, nx, ny).  The
@@ -2375,8 +2432,8 @@ class CollisionOperator(LinearOperatorMixin):
         return out
 
     def apply_transpose(
-        self, psi: "np.ndarray | AngularFlux",
-    ) -> "np.ndarray | AngularFlux":
+        self, psi: "np.ndarray | AngularFlux | TimedFullField",
+    ) -> "np.ndarray | AngularFlux | TimedFullField":
         r"""Adjoint action :math:`C^*\,\psi = \sigma\cdot\psi`.
 
         Equal to :meth:`apply` — collision is self-adjoint (diagonal
@@ -2384,6 +2441,9 @@ class CollisionOperator(LinearOperatorMixin):
 
         R-1 Step F — typed :class:`AngularFlux` overload propagates
         through :meth:`apply`.
+
+        Depth B D-H.1b.5 — :class:`TimedFullField` overload also
+        propagates through :meth:`apply`.
         """
         return self.apply(psi)
 
