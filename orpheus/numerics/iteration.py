@@ -102,6 +102,7 @@ Forward references
 from __future__ import annotations
 
 import inspect
+import warnings
 from typing import Callable, Protocol
 
 import numpy as np
@@ -732,7 +733,7 @@ class KrylovAcceleration:
                 residual_history.append(float(np.linalg.norm(r)))
 
         try:
-            solution, _info = spla.gmres(
+            solution, info = spla.gmres(
                 A_scipy, b, x0=x0, M=M_scipy,
                 rtol=self.tol, atol=0.0,
                 maxiter=self.max_iter,
@@ -743,12 +744,38 @@ class KrylovAcceleration:
         except TypeError:
             # Older scipy versions use ``tol`` instead of ``rtol`` and
             # may not honour ``callback_type``.  Drop both keywords.
-            solution, _info = spla.gmres(
+            solution, info = spla.gmres(
                 A_scipy, b, x0=x0, M=M_scipy,
                 tol=self.tol,
                 maxiter=self.max_iter,
                 restart=min(self.restart, n),
                 callback=callback,
+            )
+
+        # D-H.1e (2026-05-28) — surface GMRES non-convergence.  Pre-fix
+        # the ``info`` flag was discarded; an unconverged ``solution``
+        # would silently be consumed as if it were the true inverse.
+        # Conjunction with the legacy ``restart=min(50, full_size)``
+        # clamp at the caller produced the ERR-053 keff drift on
+        # curvilinear meshes (the GMRES iteration was structurally
+        # truncated, then the failure was hidden by this discard).
+        # scipy convention: ``info > 0`` means "not converged within
+        # ``maxiter``"; ``info < 0`` means illegal-input.  Both
+        # surface as warnings — raising would break long-standing
+        # callers that tolerate slow convergence and need the
+        # best-effort iterate.  See ERR-053.
+        if info != 0:
+            warnings.warn(
+                f"KrylovAcceleration.solve: scipy.sparse.linalg.gmres "
+                f"returned info={info} (not converged within "
+                f"maxiter={self.max_iter}; restart={min(self.restart, n)}; "
+                f"rtol={self.tol}).  Returning best-effort iterate; "
+                f"residual_history tail = "
+                f"{residual_history[-3:] if residual_history else '[]'}.  "
+                f"Tighten ``restart`` to ``n`` (full size) if the Krylov "
+                f"subspace is being truncated; see ERR-053.",
+                RuntimeWarning,
+                stacklevel=2,
             )
 
         return _unravel_like(q_ext, solution), residual_history

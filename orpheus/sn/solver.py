@@ -713,7 +713,12 @@ class SNSolver:
             preconditioner=lambda q: q,  # explicit identity — issue #200 tracks re-enable
             tol=self.inner_tol,
             max_iter=self.max_inner,
-            restart=min(50, N * ng * nx * ny),
+            # D-H.1e (2026-05-28): restart sized to the full problem
+            # (do NOT clamp at 50).  Pre-D-H.1e clamp truncated the
+            # Krylov subspace below the natural domain size, leaving
+            # GMRES structurally unconverged on curvilinear meshes with
+            # ``N*ng*nx*ny > 50``.  See ERR-053.
+            restart=N * ng * nx * ny,
         )
 
         # ── Warm start (composite) ──────────────────────────────────
@@ -1474,7 +1479,11 @@ def _solve_fixed_source_krylov(
         preconditioner=lambda q: q,
         tol=inner_tol,
         max_iter=max_inner,
-        restart=min(50, N * ng * nx * ny),
+        # D-H.1e (2026-05-28): see :meth:`SNSolver._solve_krylov`'s
+        # matching note.  Restart at full problem size; the legacy
+        # ``min(50, ...)`` clamp left GMRES structurally truncated on
+        # any mesh with ``N*ng*nx*ny > 50``.  ERR-053.
+        restart=N * ng * nx * ny,
     )
 
     psi_typed, residuals = krylov.solve(q_ext_composite)

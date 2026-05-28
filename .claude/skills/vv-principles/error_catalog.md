@@ -4038,3 +4038,136 @@ Secondary lesson: **`IterationHistory.converged=True` was hardcoded** in `orpheu
 **Test reference:** `tests/sn/test_boundary_conditions.py::TestSNBCSweepBehavior::test_vacuum_keff_lower_than_reflective` — tagged `@pytest.mark.catches("ERR-052")`. Companion diagnostic: `derivations/diagnostics/diag_vacuum_bc_eigenvalue_divergence.py` runs the three discriminating probes (reflective baseline, vacuum + SI, vacuum + Krylov) and confirms SI/Krylov agreement post-fix. The diag script also documents a session-level gotcha — standalone scripts under `derivations/diagnostics/` must prepend the repo root to `sys.path` to load the worktree's `orpheus`; otherwise the venv's `pip install -e .` silently resolves to the main checkout, giving stale-fix false-negatives.
 
 → Probe path: see `.claude/agent-memory/numerics-investigator/vacuum_bc_eigenvalue_divergence.md` for the full hypothesis cascade.
+
+## ERR-053 — Hardcoded GMRES `restart=min(50, full_size)` clamp + discarded scipy `info` flag silently truncate the Krylov subspace and consume the unconverged iterate as the inverse
+
+**Status:** **CAUGHT 2026-05-28** during the D-H.1 (TimedFullField composite carrier) trunk migration close-out — surfaced by `tests/sn/spatial/test_sweep_vs_apply_consistency.py::test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere` failing in the post-Stage-4 envelope. The bug pre-dates D-H.1 entirely; verified to fail identically on commit `9d02ade` (the D-G consolidation, well before D-H.1b.1).
+
+**Failure mode:** **#3 (missing factor)** + **#7 (test-design failure / MMS simplification bias)** in superposition. The structural defect is a SUBSPACE-DIMENSION undershoot at the GMRES call site; the test-coverage defect is that no existing L1 anchor probed a homogeneous-reflective Krylov-eigenvalue case at `n_unknowns > 50` with a strict `keff_tol`. The two together let the bug ship under "all gates green" while quietly producing keff errors up to **47.3%** on curvilinear meshes.
+
+**Date discovered:** 2026-05-28. The failure surfaced when the D-H.1c stage-4 envelope expanded to include the `tests/sn/spatial/` suite (previously excluded for wall-clock per L16). The numerics-investigator promotion + restart-sweep diagnostic pinned the root cause.
+
+**Module:** `orpheus.sn.solver` (lines 716 and 1477 — the `_solve_krylov` method on `SNSolver` and the module-level `_solve_curvilinear_krylov` helper) and `orpheus.numerics.iteration.KrylovAcceleration.solve` (lines 735, 746 — both scipy.gmres call branches).
+
+**Mechanism.** Two defects in superposition, mutually concealing.
+
+**Defect 1 — Subspace truncation at the call site** (`orpheus/sn/solver.py:716`, `:1477`):
+
+```python
+krylov = KrylovAcceleration(
+    LC, scattering_op, ZeroOperator(),
+    preconditioner=lambda q: q,
+    tol=inner_tol, max_iter=max_inner,
+    restart=min(50, N * ng * nx * ny),   # ← THE BUG
+)
+```
+
+GMRES with `restart=R` truncates the Krylov subspace to dimension `R`; any direction outside that subspace cannot be represented in the iterate, regardless of `maxiter`. The clamp `min(50, full_size)` is dimensionless intent (presumably "don't waste memory on tiny problems") but the threshold `50` is small enough that EVERY non-trivial curvilinear problem trips it: a sphere with N=8 ordinates × 2 groups × 20 cells × 1 ny = 320 unknowns, plus 8 boundary trace ordinates × 2 groups = 16 face slots = **328 unknowns total**. Restart=50 vs full=328 ⇒ GMRES is structurally unable to reach the true `(L − S − F)⁻¹ q` from any non-trivial initial guess.
+
+**Defect 2 — Discarded convergence flag** (`orpheus/numerics/iteration.py:735` and `:746`, both scipy branches):
+
+```python
+solution, _info = spla.gmres(...)
+```
+
+scipy.gmres returns `(solution, info)` where `info > 0` signals "did not converge within `maxiter`" and the returned `solution` is the best-effort iterate. The underscore-prefix discards the flag. Without the warning, `KrylovAcceleration.solve` returns the unconverged iterate as if it were the inverse; the consumer (the eigenvalue outer loop) computes a `keff` from a flux that doesn't satisfy `(L − S − F) ψ = q_ext` even to its claimed tolerance.
+
+**Why "tighter inner_tol" did NOT rescue the test** (the misleading first hypothesis): scipy's `rtol` controls the EXIT criterion (relative residual < rtol), not the SUBSPACE dimension. With restart=50, no value of `rtol` can produce convergence — the subspace simply doesn't contain the solution direction. The investigator's repro (`/tmp/repro_krylov_sphere.py`) showed keff = 1.4019239124 identically for `inner_tol ∈ {1e-8, 1e-10, 1e-12}` — a clean tolerance-isn't-it falsification.
+
+**Error growth with refinement** (the load-bearing diagnostic): mesh-refinement table from the investigator's step-5 diagnostic (`derivations/diagnostics/diag_krylov_si_homogeneous_sphere_step5_mesh_scaling.py`):
+
+```
+n_cells   SI_keff         SI_err     KR_keff         KR_err
+   5      1.8750000000   1.069e-11   1.8750000004   4.103e-10
+   10     1.8750000000   1.097e-11   1.9152507886   4.025e-02
+   16     1.8750000000   1.104e-11   1.5987097760   2.763e-01
+   20     1.8750000000   1.106e-11   1.4019239124   4.731e-01
+```
+
+The signature is unmistakable: SI is correct at machine precision across the refinement series; Krylov is correct only when `n_unknowns ≤ 50` (the n_cells=5 row), then diverges as the mesh refines and the natural subspace dimension grows past the hardcoded clamp. **Error growing with refinement** is the canonical structural-defect signature — a tolerance issue would produce uniform error or monotone-decreasing error with refinement, not divergence.
+
+**Restart sweep — direct scipy** (step-8a):
+
+```
+restart=  50  info=200  true_||r||=1.273e+00         ← unconverged, info ignored upstream
+restart= 100  info=  0  true_||r||=1.421e-12
+restart= 200  info=  0  true_||r||=1.421e-12
+restart= 320  info=  0  true_||r||=1.251e-12
+```
+
+`info=200` at restart=50 == "did not converge in 200 outer iterations of the restarted scheme"; the iterate's true residual is **O(1)**, not O(rtol). The discarded `info` flag (Defect 2) is what let this slip into the keff calculation.
+
+**End-to-end fix verification** (step-8b — manual outer loop, no production-rate rescale, no `_psi_typed` cache):
+
+```
+restart  keff           err         last_res
+   50    1.5498783237   3.251e-01    5.677e+00   ← production hardcode
+  100    1.8750000000   6.395e-14    9.193e-13   ← bug dissolves
+  200    1.8750000000   6.972e-14    9.988e-13
+```
+
+Once the subspace is large enough to span the solution direction, GMRES converges to floating-point precision.
+
+**How it hid.** Three reasons:
+
+1. **L1 anchor uses tight `inner_tol=1e-12` AND a small mesh** (`tests/sn/test_krylov_curvilinear_precond_safety.py::test_identity_preconditioner_recovers_kinf`, n_cells=10). For n_cells=10, the natural subspace happens to fit within the 50-dimension clamp on the dominant eigenmode for this test's specific operator; the iteration coincidentally projects correctly. Mesh refinement past n_cells≈16 was not in the L1 matrix.
+
+2. **The failing test (`test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere`) was a `tests/sn/spatial/` member**, and the spatial suite was excluded from the leaf envelope during D-H.1b/c (per L16, wall-clock constraint — full-suite execution was hitting 70 minutes). The bug had been failing on every base commit since `refactor/sn-operator-algebra@62994ad` was cut, but no agent had run the spatial suite in any prior session.
+
+3. **Discarded `info` flag silently consumes the unconverged iterate**. Without Defect 2, scipy would have surfaced the failure as a `LinAlgWarning` at the consumer; with Defect 2, the failure is invisible to every consumer including the eigenvalue outer loop.
+
+The interaction of #1+#2+#3 is the test-design failure (Mode #7 — the existing L1 coverage's parameter range did not stress-test the bug-rich corner of the parameter space).
+
+**How caught.** Post-Stage-4 of D-H.1c (the trunk migration to TimedFullField composite carrier), the leaf-envelope retest expanded to include `tests/sn/spatial/` for the first time. `test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere` failed with `SI keff = 1.875, Krylov keff = 1.4019` — a 25% drift that was immediately suspicious (vs. the L1 anchor's rtol < 1e-8 result on the same operator). Pre-D-H.1 bisection on commit `9d02ade` confirmed the bug pre-dated the migration. Static analysis surfaced the `restart=min(50, ...)` clamp; numerics-investigator's step-8 restart-sweep diagnostic pinned the mechanism by direct scipy invocation, isolating the subspace truncation from the `info` discard.
+
+**Fix.** Two single-line changes preserving the public-API contract (`inner_tol`, `max_inner`, `keff_tol`, `flux_tol` semantics unchanged):
+
+1. `orpheus/sn/solver.py:716` (`SNSolver._solve_krylov`) and `:1477` (`_solve_curvilinear_krylov` module helper):
+
+```python
+# Before:
+restart=min(50, N * ng * nx * ny),
+# After:
+restart=N * ng * nx * ny,
+```
+
+Restart at the full problem size disables subspace truncation; GMRES converges from any well-defined initial guess.
+
+2. `orpheus/numerics/iteration.py:735, 746` (both scipy branches in `KrylovAcceleration.solve`):
+
+```python
+# Before:
+solution, _info = spla.gmres(...)
+# After:
+solution, info = spla.gmres(...)
+if info != 0:
+    warnings.warn(
+        f"KrylovAcceleration.solve: scipy.sparse.linalg.gmres returned info={info} "
+        f"(not converged within maxiter={self.max_iter}; restart={...}; rtol={self.tol}).  "
+        f"Returning best-effort iterate; residual_history tail = ...  "
+        f"Tighten ``restart`` to ``n`` (full size) if the Krylov subspace is being "
+        f"truncated; see ERR-053.",
+        RuntimeWarning, stacklevel=2,
+    )
+```
+
+Surfaces non-convergence so the consumer can choose to retry / raise / proceed. RuntimeWarning rather than raise preserves call-site compatibility for callers that legitimately tolerate non-convergence (e.g., diagnostic probes).
+
+**Verification.** Post-fix:
+
+```
+inner_tol=1e-08: keff=1.8749999997     ← was 1.4019239124
+inner_tol=1e-10: keff=1.8750000000
+inner_tol=1e-12: keff=1.8750000000
+```
+
+`test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere` — 1 passed in 2.32s (was failing with `abs(diff) = 4.73e-01 > 1e-6`).
+
+**Lesson.** **Subspace-dimension caps are SILENT failure modes for iterative linear solvers.** Unlike tolerance caps (which fail with a residual signal), subspace truncation produces a structurally-wrong answer with no observable signal at the call site. The compounding bug (`_info` discard) created a silent failure of a silent failure. The defense is twofold: (a) NEVER discard the convergence flag of a scipy iterative solver — promote it to at least a warning; (b) NEVER hardcode a subspace size below the natural problem dimension without an explicit MAX_INNER-shape verification gate.
+
+**Secondary defense at the test level**: mesh-refinement convergence is the canonical structural signature for distinguishing tolerance defects from subspace-dimension defects. Tolerance defects produce uniform or monotone-decreasing error with refinement; subspace defects produce DIVERGING error with refinement (because the natural subspace grows past the cap). The new permanent regression test (`tests/sn/test_krylov_restart_signature.py`, promoted from `diag_krylov_si_homogeneous_sphere_step5_mesh_scaling.py` per the investigator's recommendation) pins this signature at L1.
+
+**Test reference:** `tests/sn/spatial/test_sweep_vs_apply_consistency.py::test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere` (existing — pinned by inheritance), plus the new mesh-refinement regression catcher under `tests/sn/` (this commit), plus the restart-sweep direct-scipy diagnostic that confirms `info` discard at the kernel boundary. All three carry `@pytest.mark.catches("ERR-053")`.
+
+→ Probe path: see the 8 diagnostic scripts at `derivations/diagnostics/diag_krylov_si_homogeneous_sphere_step{1..8}_*.py` for the full bisection cascade.
+

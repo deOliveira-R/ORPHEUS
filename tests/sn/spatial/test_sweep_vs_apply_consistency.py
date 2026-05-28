@@ -167,6 +167,7 @@ def test_carlson_seed_helper_is_linear_in_bc():
 
 @pytest.mark.foundation
 @pytest.mark.catches("ERR-026")
+@pytest.mark.catches("ERR-053")
 def test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere():
     r"""SI and Krylov inner solvers agree on homogeneous reflective sphere.
 
