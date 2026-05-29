@@ -59,76 +59,22 @@ from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinde
 )
 from orpheus.derivations.reference_values import continuous_get
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.sn import operator as sn_op
 from orpheus.sn import solve_sn
-from orpheus.sn.operator import (
-    solution_to_angular_flux,
-    solution_to_angular_flux_cylindrical,
-    transport_operator_matvec_unified,
-)
 from orpheus.numerics.quadrature import Quadrature
-from tests.sn._test_helpers import legacy_proxy_matvec
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# Unified-matvec routing shim (cartesian + cylindrical)
-# ═══════════════════════════════════════════════════════════════════════
-
-
-@contextlib.contextmanager
-def _patch_apply_to_unified():
-    r"""Route :meth:`SNStreamingOperator.apply` through the unified matvec.
-
-    Replaces the legacy per-geometry dispatch with
-    :func:`transport_operator_matvec_unified` for Cartesian +
-    cylindrical meshes; sphere stays on legacy (Step 2 proved the two
-    are bit-identical so the patch would be a no-op there anyway).
-
-    Production scope: the patch is the pre-Step-7 stand-in for the
-    post-Step-7 production routing, which will have ``solve_sn`` build
-    a ``StreamingOperator + CollisionOperator`` chain directly. After
-    Step 7 retires ``SNStreamingOperator``, this shim and the file's
-    use of it die together.
-    """
-    orig_apply = sn_op.SNStreamingOperator.apply
-
-    def _unified_apply(self, psi_packed: np.ndarray) -> np.ndarray:
-        sn_mesh = self.sn_mesh
-        curv = getattr(sn_mesh, "curvature", None)
-        eq_map = self._ensure_eq_map()
-        quad = sn_mesh.quad
-        ng = self.sig_t.shape[0]
-        nx = sn_mesh.nx
-
-        if curv == "cylindrical":
-            psi_view = solution_to_angular_flux_cylindrical(
-                psi_packed, eq_map, quad, nx, ng,
-            )
-            m_view = legacy_proxy_matvec(
-                psi_view, sn_mesh, self.sig_t,
-                bc_outer=sn_mesh.bc_right,
-                pole_angular_closure=sn_mesh.pole_angular_closure,
-            )
-        elif curv is None:  # Cartesian
-            psi_view = solution_to_angular_flux(
-                psi_packed, eq_map, quad, nx, sn_mesh.ny, ng,
-                bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
-                bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
-            )
-            m_view = legacy_proxy_matvec(psi_view, sn_mesh, self.sig_t)
-        else:  # spherical — pass through to legacy
-            return orig_apply(self, psi_packed)
-
-        flux = m_view[
-            eq_map.ordinate, :, eq_map.ix, eq_map.iy,
-        ]  # (n_eq, ng)
-        return flux.T.ravel(order="F")
-
-    sn_op.SNStreamingOperator.apply = _unified_apply
-    try:
-        yield
-    finally:
-        sn_op.SNStreamingOperator.apply = orig_apply
+# D-K.5 (2026-05-29): the ``_patch_apply_to_unified`` contextmanager
+# retired together with :class:`SNStreamingOperator`.  Pre-D-K.1, the
+# patch monkey-patched ``SNStreamingOperator.apply`` to route through
+# the unified matvec (the pre-Step-7 stand-in for the post-Step-7
+# production routing).  Post-D-K.1 (commit ``400ca33``), ``SNSolver.L``
+# is now the algebraic composition ``StreamingOperator +
+# CollisionOperator`` = :class:`InvertibleOperator`, which already
+# routes through ``transport_operator_matvec_unified`` natively (1-D
+# slab/sphere/cylinder) or ``StreamingOperator._apply_2d_cartesian_l2``
+# (2-D Cartesian).  The monkey-patch had no effect on the call path
+# any longer; deleting it removes the no-op and severs the test's
+# dependency on the retiring :class:`SNStreamingOperator` class.
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -211,8 +157,7 @@ def _cylinder_k_ref() -> float:
 def _solve_cyl_via_krylov_unified(nx: int) -> float:
     mesh, materials = _build_cyl_mesh(nx=nx)
     quad = Quadrature.level_symmetric(sn_order=4)
-    with _patch_apply_to_unified():
-        sol = solve_sn(
+    sol = solve_sn(
             materials=materials, mesh=mesh, quadrature=quad,
             inner_solver="krylov",
             max_outer=200, keff_tol=1e-7, flux_tol=1e-7,
@@ -377,8 +322,7 @@ def _slab_k_ref() -> float:
 def _solve_slab_via_krylov_unified(n_per: int) -> float:
     mesh, materials, N_ord = _build_slab_2region_mesh(n_per=n_per)
     quad = Quadrature.gauss_legendre(N_ord)
-    with _patch_apply_to_unified():
-        sol = solve_sn(
+    sol = solve_sn(
             materials, mesh, quad,
             inner_solver="krylov",
             max_outer=500, max_inner=500,

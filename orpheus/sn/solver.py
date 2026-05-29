@@ -46,7 +46,6 @@ from .geometry import SNMesh
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from .operator import (
     CollisionOperator,
-    SNStreamingOperator,
     StreamingOperator,
     build_equation_map,
     build_equation_map_spherical,

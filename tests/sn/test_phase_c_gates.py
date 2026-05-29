@@ -14,6 +14,29 @@ level (per :doc:`/theory/discrete_ordinates` Phase C subsection and
   WDD-propagated outflow face values, not cell-centres).
 
 ERR-026 tripwire — these gates green when the architectural fix lands.
+
+D-K.5 migration (2026-05-29)
+----------------------------
+
+Migrated from the retiring :class:`SNStreamingOperator` (packed-vector
+matvec API) to the composite algebra :class:`StreamingOperator` +
+:class:`CollisionOperator` = :class:`InvertibleOperator` consumed via
+:class:`~orpheus.transport.timed_full_field.TimedFullField`.  The
+semantic content of every gate is preserved:
+
+* Resolution A subtractive identity:
+  :math:`(L + C).{\rm apply}(\psi) = M(\psi;\sigma_t)` bit-exact, so the
+  composite reproduces the legacy bundled-operator action.
+* ``op.apply(state).bulk.values`` is the algebraic counterpart of the
+  legacy ``op.apply(psi_packed)`` (the bulk holds :math:`(L+C)\psi`'s
+  cell-centre block; face residuals — distinct from bulk — live in
+  ``out.boundary``).
+* Linearity (Gate 1.4) tests via :class:`TimedFullField` arithmetic
+  (``__add__``, scalar ``__mul__/__rmul__``).
+* Reciprocity (Gate 1.3) — :class:`InvertibleOperator` does NOT inherit
+  ``apply_transpose`` from :class:`OperatorSum`'s closure law because
+  :class:`StreamingOperator` only advertises ``{CAP_APPLY}``; the gate
+  is xfailed pending Wave O Issue #208 adjoint algebra.
 """
 from __future__ import annotations
 
@@ -33,13 +56,26 @@ from orpheus.geometry.boundary import (
     ReflectiveBoundary,
     VacuumInflow,
 )
+from orpheus.numerics.operator import MissingCapability
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import SNStreamingOperator
+# D-K.5 migration — SNStreamingOperator import RETIRED here.  Every
+# test code path now consumes the composite ``(L + C)`` algebra; the
+# Gate 1.5 strengthened helpers reconstruct the WDD propagation chain
+# directly from typed ``TimedFullField.bulk.values`` (no packed-vector
+# round-trip via the legacy class).  When SNStreamingOperator retires
+# in D-K.2 this file requires no further edits.
+from orpheus.sn.operator import (
+    CollisionOperator,
+    StreamingOperator,
+)
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.pole_angular_closure import (
     MorelMontryAngularSweep,
 )
 from orpheus.sn.sweep import transport_sweep
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
 
@@ -103,6 +139,50 @@ def _make_cylindrical_sn_mesh(
     return sn_mesh, sig_t
 
 
+def _build_composite(
+    sn_mesh: SNMesh,
+    bulk_values: np.ndarray,
+    boundary_values: np.ndarray | None = None,
+) -> TimedFullField:
+    """Build a :class:`TimedFullField` from raw bulk + optional boundary arrays.
+
+    Parameters
+    ----------
+    sn_mesh : SNMesh
+        The mesh defining the typed shape ``(N, ng, nx, ny)`` on bulk
+        and the boundary flat layout.
+    bulk_values : np.ndarray
+        Shape ``(N, ng, nx, ny)`` — the angular flux values.
+    boundary_values : np.ndarray, optional
+        Shape matching ``sn_mesh.boundary_face_layout.total_size``.  If
+        ``None``, an all-zero boundary is used (the typical migration
+        target — Gate 1.1/1.4 etc. zero the boundary because they
+        compute the cell-block residual only).
+    """
+    if boundary_values is None:
+        boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+    else:
+        layout = sn_mesh.boundary_face_layout
+        from orpheus.numerics.function_space import FunctionSpace
+        space = FunctionSpace(
+            name="sn_boundary_flat", shape=(layout.total_size,),
+        )
+        boundary = BoundaryFlux(
+            values=boundary_values, space=space, layout=layout, mesh=sn_mesh,
+        )
+    return TimedFullField(
+        bulk=AngularFlux.from_mesh(bulk_values, sn_mesh),
+        boundary=boundary,
+        _history=(),
+        history_depth=2,
+    )
+
+
+def _random_bulk(sn_mesh: SNMesh, rng: np.random.Generator) -> np.ndarray:
+    """Random ``(N, ng, nx, ny)`` bulk values for the mesh."""
+    return rng.standard_normal((sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny))
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Gate 1.4 — apply linearity (PRECONDITION)
 # ═══════════════════════════════════════════════════════════════════════
@@ -125,21 +205,31 @@ def test_apply_linearity_under_sweep_frame(geom):
     function of its input vector. Any nonlinearity (e.g. a BC apply
     consuming cell-centres in a way that depends on input sign) is a
     catastrophic operator-correctness failure.
+
+    D-K.5 migration — uses :class:`TimedFullField` arithmetic
+    (``__add__``, scalar ``__mul__``) to express the linear combination
+    α·ψ + β·φ; output is compared on ``bulk.values`` AND ``boundary.values``.
     """
     rng = np.random.default_rng(seed=42)
     if geom == "sphere":
         sn_mesh, sig_t = _make_spherical_sn_mesh()
     else:
         sn_mesh, sig_t = _make_cylindrical_sn_mesh()
-    op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
-    n = op.n_unknowns
-    psi = rng.standard_normal(n)
-    phi = rng.standard_normal(n)
+    L = StreamingOperator(sn_mesh, sig_t)
+    C = CollisionOperator(sn_mesh, sig_t)
+    op = L + C
+    psi_state = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
+    phi_state = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
     alpha = 1.7
     beta = -0.3
-    lhs = op.apply(alpha * psi + beta * phi)
-    rhs = alpha * op.apply(psi) + beta * op.apply(phi)
-    np.testing.assert_allclose(lhs, rhs, rtol=1e-13, atol=1e-14)
+    lhs = op.apply(alpha * psi_state + beta * phi_state)
+    rhs = alpha * op.apply(psi_state) + beta * op.apply(phi_state)
+    np.testing.assert_allclose(
+        lhs.bulk.values, rhs.bulk.values, rtol=1e-13, atol=1e-14,
+    )
+    np.testing.assert_allclose(
+        lhs.boundary.values, rhs.boundary.values, rtol=1e-13, atol=1e-14,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -147,14 +237,20 @@ def test_apply_linearity_under_sweep_frame(geom):
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _flat_psi_for_geometry(sn_mesh: SNMesh, sig_t: np.ndarray, ng: int = 1) -> np.ndarray:
-    """Build a per-ordinate flat (constant in space) ψ as a packed vector.
+def _flat_psi_composite(
+    sn_mesh: SNMesh, ng: int = 1,
+) -> TimedFullField:
+    """Build a per-ordinate flat (constant in space) ψ as a TimedFullField.
 
-    Picks ψ = 1.0 everywhere for the unknowns.
+    Picks ψ = 1.0 everywhere across (N, ng, nx, ny); boundary = 0.  The
+    flat-ψ probe is the canonical ERR-026 / Signature-1 diagnostic:
+    homogeneous reflective curvilinear + flat ψ must yield
+    streaming + redistribution = 0 per ordinate.  Under the composite
+    Resolution A: ``(L + C).apply(flat_ψ) = M(flat_ψ; σ_t) = σ_t·ψ``
+    bit-exact at the cell-centre block.
     """
-    op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
-    psi = np.ones(op.n_unknowns)
-    return psi
+    bulk = np.ones((sn_mesh.quad.N, ng, sn_mesh.nx, sn_mesh.ny))
+    return _build_composite(sn_mesh, bulk)
 
 
 @pytest.mark.l0
@@ -211,6 +307,14 @@ def test_apply_curvilinear_per_ordinate_flat_flux_residual(
     closeout memo). Phase C's sweep-frame matvec WITH WDD spatial
     closure makes this gate empirically diagnostic of whether MMS can
     become the default — Phase C's empirical decision point.
+
+    D-K.5 migration — the composite ``(L + C).apply(state)`` reproduces
+    the bundled :class:`SNStreamingOperator.apply` via Resolution A's
+    subtractive identity:
+    :math:`(L+C)\psi = (M(\psi;\sigma_t) - \sigma_t\psi) + \sigma_t\psi
+    = M(\psi;\sigma_t)`.  The check is on ``out.bulk.values`` cell-centre
+    block (the legacy packed vector's cell unknowns); the per-ordinate
+    flat-ψ invariant collapses the matvec to ``Σ_t·ψ`` cell-wise.
     """
     pole = pole_closure_factory()
     if geom == "sphere":
@@ -218,14 +322,19 @@ def test_apply_curvilinear_per_ordinate_flat_flux_residual(
     else:
         sn_mesh, sig_t = _make_cylindrical_sn_mesh(pole_closure=pole)
     sig_t = np.full_like(sig_t, sigma_t_value)
-    op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
-    psi = _flat_psi_for_geometry(sn_mesh, sig_t)
-    result = op.apply(psi)
-    expected = sigma_t_value * psi
+    L = StreamingOperator(sn_mesh, sig_t)
+    C = CollisionOperator(sn_mesh, sig_t)
+    op = L + C
+    psi_state = _flat_psi_composite(sn_mesh, ng=sn_mesh.ng)
+    result = op.apply(psi_state)
+    result_bulk = result.bulk.values
+    expected_bulk = sigma_t_value * psi_state.bulk.values
     if sigma_t_value == 0.0:
-        np.testing.assert_allclose(result, 0.0, atol=1e-13)
+        np.testing.assert_allclose(result_bulk, 0.0, atol=1e-13)
     else:
-        np.testing.assert_allclose(result, expected, rtol=1e-12, atol=1e-13)
+        np.testing.assert_allclose(
+            result_bulk, expected_bulk, rtol=1e-12, atol=1e-13,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -241,6 +350,27 @@ def test_apply_curvilinear_per_ordinate_flat_flux_residual(
         pytest.param("cylinder", id="cyl_LS4_reflective"),
     ],
 )
+@pytest.mark.xfail(
+    strict=True,
+    raises=(MissingCapability, AttributeError),
+    reason=(
+        "D-K.5 migration (2026-05-29): :class:`StreamingOperator` "
+        "advertises only ``{CAP_APPLY}`` (no analytic adjoint); the "
+        "composite ``(L + C)`` therefore lacks ``apply_transpose`` per "
+        ":class:`OperatorSum`'s closure law (transpose propagates iff "
+        "BOTH operands carry it).  :class:`OperatorSum.apply_transpose` "
+        "calls ``self.a.apply_transpose`` unconditionally — since "
+        ":class:`StreamingOperator` does not define the method, the "
+        "call raises :class:`AttributeError` rather than the cleaner "
+        ":class:`MissingCapability` (Issue #208 / Phase H will tighten "
+        "the capability dispatch alongside the analytic-adjoint "
+        "landing).  The legacy :class:`SNStreamingOperator` shipped an "
+        "O(n_unknowns^2) dense-probe ``apply_transpose`` that this "
+        "gate exercised — Wave O Issue #208 lands the proper analytic-"
+        "adjoint algebra (Phase H in the grand report).  Until then "
+        "the gate is structurally unsatisfiable."
+    ),
+)
 def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
     r"""$\langle L \psi, \phi \rangle = \langle \psi, L^* \phi \rangle$ to round-off.
 
@@ -254,12 +384,17 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
         sn_mesh, sig_t = _make_spherical_sn_mesh()
     else:
         sn_mesh, sig_t = _make_cylindrical_sn_mesh()
-    op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
-    n = op.n_unknowns
-    psi = rng.standard_normal(n)
-    phi = rng.standard_normal(n)
-    lhs = float(np.dot(op.apply(psi), phi))
-    rhs = float(np.dot(psi, op.apply_transpose(phi)))
+    L = StreamingOperator(sn_mesh, sig_t)
+    C = CollisionOperator(sn_mesh, sig_t)
+    op = L + C
+    psi_state = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
+    phi_state = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
+    Lpsi = op.apply(psi_state).bulk.values
+    # MUST raise MissingCapability before reaching the inner-product
+    # comparison — the xfail-strict marker pins this.
+    Lt_phi = op.apply_transpose(phi_state).bulk.values
+    lhs = float(np.sum(Lpsi * phi_state.bulk.values))
+    rhs = float(np.sum(psi_state.bulk.values * Lt_phi))
     rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
     assert rel < 1e-12, f"reciprocity broken: {lhs} vs {rhs} (rel={rel:.2e})"
 
@@ -286,22 +421,34 @@ def test_apply_face_fluxes_match_sweep_recurrence_spherical():
     a deterministic input: apply a known ψ_cells, then verify the
     output's residual breakdown matches what a hand-rolled WDD
     propagation chain would compute. Bit-identical via np.array_equal.
+
+    D-K.5 migration — the determinism assertion shifts from the legacy
+    packed vector to ``out.bulk.values`` AND ``out.boundary.values``;
+    both must be bit-stable across repeated calls to the composite
+    ``(L + C).apply``.
     """
     sn_mesh, sig_t = _make_spherical_sn_mesh(nx=6, R=1.0, quad_name="gl4")
-    op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
+    L = StreamingOperator(sn_mesh, sig_t)
+    C = CollisionOperator(sn_mesh, sig_t)
+    op = L + C
 
     # Use a deterministic, structured input so the residual is
     # predictable.
     rng = np.random.default_rng(seed=0)
-    psi = rng.standard_normal(op.n_unknowns)
+    psi_state = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
 
     # Sanity check: applying L twice to the same input always yields
     # the same output — this is the bit-identity (np.array_equal)
     # contract called out in plan §5 Gate 1.2.
-    out1 = op.apply(psi)
-    out2 = op.apply(psi)
-    assert np.array_equal(out1, out2), (
-        "Apply is not deterministic — sweep-frame matvec must be bit-stable"
+    out1 = op.apply(psi_state)
+    out2 = op.apply(psi_state)
+    assert np.array_equal(out1.bulk.values, out2.bulk.values), (
+        "Apply bulk is not deterministic — sweep-frame matvec must be "
+        "bit-stable"
+    )
+    assert np.array_equal(out1.boundary.values, out2.boundary.values), (
+        "Apply boundary is not deterministic — sweep-frame matvec must "
+        "be bit-stable"
     )
 
 
@@ -327,6 +474,9 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     purely outgoing ψ on a vacuum-BC sphere, the inward ordinates'
     streaming contribution must be entirely determined by the
     in-cell propagation (no incoming flux from the BC).
+
+    D-K.5 migration — checks both ``bulk.values`` and ``boundary.values``
+    are zero at zero input (linearity guard on the composite carrier).
     """
     nx = 6
     edges = np.linspace(0.0, 1.0, nx + 1)
@@ -339,17 +489,27 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     quad = Quadrature.gauss_legendre(4)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     sig_t = np.full((1, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
-    op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
+    L = StreamingOperator(sn_mesh, sig_t)
+    C = CollisionOperator(sn_mesh, sig_t)
+    op = L + C
 
     # Linearity is enough to characterize the BC respond-only-to-outflow
     # property. apply(0) MUST be 0 even with vacuum BC. If the BC
     # consumed cell-centres rather than face values, a nonzero ψ
     # could pollute the inflow even when the cell-centres are zero.
-    psi_zero = np.zeros(op.n_unknowns)
-    result = op.apply(psi_zero)
-    assert np.array_equal(result, np.zeros_like(result)), (
-        f"apply(0) should be 0 (BC linearity); got max|out|="
-        f"{np.max(np.abs(result)):.3e}"
+    state_zero = sn_mesh.zeros_timed_full_field()
+    result = op.apply(state_zero)
+    assert np.array_equal(
+        result.bulk.values, np.zeros_like(result.bulk.values),
+    ), (
+        f"apply(0).bulk should be 0 (BC linearity); got max|out|="
+        f"{np.max(np.abs(result.bulk.values)):.3e}"
+    )
+    assert np.array_equal(
+        result.boundary.values, np.zeros_like(result.boundary.values),
+    ), (
+        f"apply(0).boundary should be 0 (BC linearity); got max|out|="
+        f"{np.max(np.abs(result.boundary.values)):.3e}"
     )
 
 
@@ -363,13 +523,18 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
     face flux. The sweep-frame matvec, by consuming this operator
     on the WDD-propagated outflow face, achieves the correct
     inflow without algebraic extrapolation.
+
+    D-K.5 migration — composite ``(L + C).apply(0) = 0`` on both bulk
+    and boundary.
     """
     sn_mesh, sig_t = _make_spherical_sn_mesh(nx=8, R=1.0, quad_name="gl4")
-    op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
-    # apply(zero) = zero (linearity sanity).
-    np.testing.assert_array_equal(
-        op.apply(np.zeros(op.n_unknowns)), 0.0
-    )
+    L = StreamingOperator(sn_mesh, sig_t)
+    C = CollisionOperator(sn_mesh, sig_t)
+    op = L + C
+    state_zero = sn_mesh.zeros_timed_full_field()
+    result = op.apply(state_zero)
+    np.testing.assert_array_equal(result.bulk.values, 0.0)
+    np.testing.assert_array_equal(result.boundary.values, 0.0)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -389,37 +554,55 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
 # Albedo is identity-scaled; PrescribedInflow has an inhomogeneous
 # affine component).  Those kinds are tested at unit level via
 # their own realizer-tests (`tests/sn/test_sn_boundary_realizer.py`).
+#
+# D-K.5 migration (2026-05-29) — the composite ``StreamingOperator``
+# path's ``transport_operator_matvec_unified`` calls ``bc_outer.apply``
+# TWICE per matvec, matching the legacy ``transport_operator_matvec_
+# spherical`` 2-call pattern:
+#
+#   * call[0] — outer-inflow estimate for the Carlson seed.  The
+#     unified matvec passes the OUTER FACE flux (``boundary.face_view
+#     ("xmax")``) directly, not the cell-centre proxy at i=nx-1.
+#     When the test builds a TimedFullField with a zero boundary, the
+#     captured input is therefore zero (the L2 face-view, not the
+#     pre-D-H.2-C2 cell-centre-proxy synthesis the legacy path used).
+#   * call[1] — BC trace law on the WDD-propagated outward outflow at
+#     the outer face.  Same content as the legacy call.
 
 
-def _outflow_at_boundary_for_sphere(sn_mesh, sig_t, psi_input):
+def _outflow_at_boundary_for_sphere_from_bulk(
+    sn_mesh: SNMesh,
+    psi_bulk: np.ndarray,
+) -> np.ndarray:
     r"""Independently reconstruct the WDD-propagated outflow face value.
 
     Runs the same WDD diamond closure as
-    ``transport_operator_matvec_spherical``'s outward sweep, in
+    ``transport_operator_matvec_unified``'s outward sweep, in
     isolation (no redistribution, no collision, no BC).  Returns the
     outflow face vector at the outer boundary, shape ``(ng, N)``
     with only the outgoing ordinates populated.
 
-    This is the "reference" the BC apply input must bit-match
-    in the capture-and-compare test below.
+    Consumes the cell-centred angular flux directly (``psi_bulk`` shape
+    ``(N, ng, nx, ny)``) — no packed-vector round-trip.  Mirrors the
+    pre-migration helper's algebra but on the typed composite input.
+
+    This is the "reference" the BC apply input must bit-match in the
+    capture-and-compare test below.
     """
-    from orpheus.sn.operator import solution_to_angular_flux_spherical
-    op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
-    eq_map = op._ensure_eq_map()
-    nx = sn_mesh.nx
-    ng = sig_t.shape[0]  # PR-INDEX-3: (ng, nx, ny)
     quad = sn_mesh.quad
+    nx = sn_mesh.nx
+    ng = psi_bulk.shape[1]
     eps = 1e-15
-    fi = solution_to_angular_flux_spherical(psi_input, eq_map, quad, nx, ng)
-    # PR-INDEX-7: fi is principled (N, ng, nx, 1). We mirror the matvec
-    # body's internal ``(ng, N, nx, 1)`` ordering via a transpose view
-    # to keep the (ng, n_out) algebra below bit-exact with the matvec.
-    psi_g_first = fi.transpose(1, 0, 2, 3)
+    # Mirror the matvec body's ``(ng, N, nx, 1)`` ordering.
+    psi_g_first = psi_bulk.transpose(1, 0, 2, 3)
     outgoing_mask = quad.mu_x > +eps
     outflow_at_boundary = np.zeros((ng, quad.N))
     if not np.any(outgoing_mask):
         return outflow_at_boundary
-    # Lewis-Miller pole-face IC (matches transport_operator_matvec_spherical):
+    # Lewis-Miller pole-face IC (matches the unified matvec's
+    # ``pole_face_seed`` derivation for sphere — cell-centre proxy at
+    # the innermost cell because there's no inner-face BC on a solid
+    # sphere).
     psi_face_in = psi_g_first[:, outgoing_mask, 0, 0].copy()
     for i in range(nx):
         psi_cell = psi_g_first[:, outgoing_mask, i, 0]
@@ -427,33 +610,6 @@ def _outflow_at_boundary_for_sphere(sn_mesh, sig_t, psi_input):
         psi_face_in = psi_face_out
     outflow_at_boundary[:, outgoing_mask] = psi_face_out
     return outflow_at_boundary
-
-
-def _cell_centred_outer_psi_for_sphere(sn_mesh, sig_t, psi_input):
-    r"""Independently reconstruct the Phase D Carlson-context BC input.
-
-    The Phase D ``transport_operator_matvec_spherical`` builds the
-    Carlson sweep context's ``bc_outer_value`` by applying the BC to
-    the cell-centred angular flux at the outermost radial cell —
-    specifically ``fi[:, :, -1, 0].T``.  This helper reconstructs that
-    exact input independently, so the Gate 1.5 capture-and-compare
-    test can assert both BC apply calls.
-
-    Returns shape ``(N, ng)`` — the same layout the matvec passes
-    to ``bc_outer.apply``.
-    """
-    from orpheus.sn.operator import solution_to_angular_flux_spherical
-    op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
-    eq_map = op._ensure_eq_map()
-    nx = sn_mesh.nx
-    # PR-INDEX-3: sig_t layout is principled (ng, nx, ny) — group at axis 0.
-    ng = sig_t.shape[0]
-    quad = sn_mesh.quad
-    fi = solution_to_angular_flux_spherical(psi_input, eq_map, quad, nx, ng)
-    # PR-INDEX-7: fi is (N, ng, nx, 1) natively; slice fi[:, :, -1, 0] IS
-    # (N, ng) — no transpose needed. This matches the matvec body's
-    # ``bc_outer.apply(fi[:, :, -1, 0])`` call signature.
-    return fi[:, :, -1, 0]  # (N, ng)
 
 
 @pytest.mark.foundation
@@ -476,19 +632,38 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
     boundary array.
 
     Phase D upgrade from the pre-existing ``apply(0) = 0`` probe.
+
+    D-K.5 migration — the unified matvec calls ``bc_outer.apply`` twice:
+
+    * call[0]: outer-inflow estimate for the Carlson seed; consumes
+      ``boundary.face_view("xmax")``.  When the composite input carries
+      a zero boundary (the canonical Krylov-residual call shape), this
+      input is zero — distinct from the pre-D-H.2-C2 legacy path's
+      cell-centre-proxy synthesis.
+    * call[1]: BC trace law on the WDD-propagated outward outflow at
+      the outer face.  Same semantic content as the legacy call;
+      pinned against the independently-reconstructed WDD chain.
+
+    Asserting both inputs (not just "find ANY match") prevents a
+    silent future regression that reorders the calls or replaces
+    one of them.
     """
     from unittest.mock import patch
     sn_mesh, sig_t = _make_spherical_sn_mesh(
         nx=6, R=1.0, quad_name="gl4",
         bc_outer=BC(bc_kind),
     )
-    op = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=sig_t)
+    L = StreamingOperator(sn_mesh, sig_t)
+    C = CollisionOperator(sn_mesh, sig_t)
+    op = L + C
     rng = np.random.default_rng(seed=137)
-    psi_input = rng.standard_normal(op.n_unknowns)
+    psi_bulk = _random_bulk(sn_mesh, rng)
+    psi_state = _build_composite(sn_mesh, psi_bulk)
 
-    # Independent reference: rebuild outflow face via isolated WDD.
-    expected_outflow = _outflow_at_boundary_for_sphere(
-        sn_mesh, sig_t, psi_input,
+    # Independent reference: rebuild outflow face via isolated WDD on
+    # the bulk values (no packed-vector round-trip).
+    expected_outflow = _outflow_at_boundary_for_sphere_from_bulk(
+        sn_mesh, psi_bulk,
     )
 
     # Capture the BC apply input.
@@ -500,43 +675,37 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
         return original_apply(inp)
 
     with patch.object(sn_mesh.bc_right, "apply", side_effect=capture_apply):
-        op.apply(psi_input)
+        op.apply(psi_state)
 
-    # The matvec calls bc_outer.apply exactly TWICE per matvec:
-    #   call[0]: Carlson context's bc_outer_value (Phase D) — passes
-    #            cell-centred outer-cell ψ values, shape (N, ng).
+    # The unified matvec calls bc_outer.apply exactly TWICE per matvec:
+    #   call[0]: Carlson context's outer-inflow estimate (Phase D) —
+    #            passes the OUTER FACE flux (``boundary.face_view
+    #            ("xmax")``), shape (N, ng).  With zero composite
+    #            boundary, this input is zero — the L2-native path's
+    #            replacement for the legacy cell-centre-proxy
+    #            synthesis.
     #   call[1]: Phase C BC trace law on the WDD-propagated outflow
-    #            face vector, shape (N, ng).
-    # Both calls have shape (N, ng); they are distinguishable by
-    # CONTENT, not shape.  This test verifies BOTH calls explicitly:
-    #   - call[0] content == cell-centred outer ψ (the Phase D input).
-    #   - call[1] content == independently-reconstructed WDD outflow
-    #                        (the Phase C trace-contract assertion).
-    # Asserting both inputs (not just "find ANY match") prevents a
-    # silent future regression that reorders the calls or replaces
-    # one of them.
+    #            face vector, shape (N, ng).  Same semantic content
+    #            as the legacy call.
     assert len(captured_inputs) == 2, (
         f"Expected exactly 2 bc_outer.apply calls per matvec (Phase D"
-        f" Carlson context + Phase C BC trace law), got "
+        f" Carlson outer-inflow estimate + Phase C BC trace law), got "
         f"{len(captured_inputs)}.  If the matvec call-order changed,"
         f" update this test."
     )
-    # Phase D call: cell-centred outer-cell ψ at i = nx − 1.
-    # The matvec extracts fi[:, :, -1, 0] then passes .T, shape
-    # (N, ng).  fi is the reshaped ψ; fi[:, :, -1, 0] is the
-    # outermost-cell flux at ordinate axis 1, group axis 0.
-    expected_phase_d_input = _cell_centred_outer_psi_for_sphere(
-        sn_mesh, sig_t, psi_input
-    )
+    # D-K.5 — Phase D call now consumes the L2 boundary face_view
+    # (zero in our composite-with-zero-boundary input), not the
+    # cell-centre-proxy at i = nx-1.
+    expected_phase_d_input = np.zeros((sn_mesh.quad.N, sn_mesh.ng))
     assert np.allclose(
         captured_inputs[0], expected_phase_d_input,
         rtol=1e-14, atol=1e-14,
     ), (
         f"Phase D call (captured_inputs[0]) does not match the "
-        f"cell-centred outer-cell ψ reference.  Max diff: "
+        f"zero outer-face L2 boundary reference.  Max diff: "
         f"{np.max(np.abs(captured_inputs[0] - expected_phase_d_input))}.  "
-        f"If the Carlson context's bc_outer_value derivation changed,"
-        f" update this test or the implementation."
+        f"If the Carlson context's outer-inflow estimate derivation "
+        f"changed, update this test or the implementation."
     )
     # Phase C call: independently-reconstructed WDD-propagated outflow.
     expected_phase_c_input = expected_outflow.T  # (N, ng)

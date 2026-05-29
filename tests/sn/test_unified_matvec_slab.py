@@ -133,43 +133,16 @@ def _make_2g_mixture(sigma_t, sig_s_matrix, nu_sigma_f, chi):
     )
 
 
-@contextlib.contextmanager
-def _patch_apply_to_unified():
-    """Route :meth:`SNStreamingOperator.apply` Cartesian path through the
-    unified matvec (sphere/cylinder fall through to legacy).  The shim
-    decodes packed ψ via :func:`solution_to_angular_flux` (which BC-fills
-    the boundary cell-centre slots), calls the unified matvec on the
-    canonical 4-D view, then re-packs at the unknown slots.
-    """
-    orig_apply = sn_op.SNStreamingOperator.apply
-
-    def _unified_apply(self, psi_packed: np.ndarray) -> np.ndarray:
-        sn_mesh = self.sn_mesh
-        curv = getattr(sn_mesh, "curvature", None)
-        if curv is not None:
-            return orig_apply(self, psi_packed)
-
-        eq_map = self._ensure_eq_map()
-        quad = sn_mesh.quad
-        ng = self.sig_t.shape[0]
-        psi_view = solution_to_angular_flux(
-            psi_packed, eq_map, quad, sn_mesh.nx, sn_mesh.ny, ng,
-            bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
-            bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
-        )
-        m_view = legacy_proxy_matvec(psi_view, sn_mesh, self.sig_t)
-        flux = np.empty((ng, eq_map.n_eq))
-        for k in range(eq_map.n_eq):
-            flux[:, k] = m_view[
-                eq_map.ordinate[k], :, eq_map.ix[k], eq_map.iy[k],
-            ]
-        return flux.ravel(order="F")
-
-    sn_op.SNStreamingOperator.apply = _unified_apply
-    try:
-        yield
-    finally:
-        sn_op.SNStreamingOperator.apply = orig_apply
+# D-K.5 (2026-05-29): ``_patch_apply_to_unified`` retired together with
+# :class:`SNStreamingOperator`.  Pre-D-K.1, this monkey-patched
+# ``SNStreamingOperator.apply`` Cartesian path through the unified
+# matvec.  Post-D-K.1 (commit ``400ca33``), ``SNSolver.L`` is
+# ``StreamingOperator + CollisionOperator`` (= :class:`InvertibleOperator`),
+# which routes through the unified matvec natively for 1-D and through
+# :meth:`StreamingOperator._apply_2d_cartesian_l2` for 2-D.  The
+# monkey-patch had no effect on the call path post-D-K.1; deleting it
+# removes the no-op + the dependency on the retiring
+# :class:`SNStreamingOperator` class.
 
 
 @pytest.mark.l1
@@ -209,15 +182,14 @@ def test_unified_slab_l1_homogeneous_kinf_2g(nx: int) -> None:
     )
     quad = Quadrature.gauss_legendre(n_ordinates=8)
 
-    with _patch_apply_to_unified():
-        sol = solve_sn(
-            materials={0: mat},
-            mesh=mesh,
-            quadrature=quad,
-            inner_solver="krylov",
-            max_outer=200, keff_tol=1e-9, flux_tol=1e-8,
-            max_inner=200, inner_tol=1e-10,
-        )
+    sol = solve_sn(
+        materials={0: mat},
+        mesh=mesh,
+        quadrature=quad,
+        inner_solver="krylov",
+        max_outer=200, keff_tol=1e-9, flux_tol=1e-8,
+        max_inner=200, inner_tol=1e-10,
+    )
 
     rel = abs(sol.keff - k_analytical) / k_analytical
     assert rel < 5e-4, (

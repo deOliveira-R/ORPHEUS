@@ -48,7 +48,6 @@ from orpheus.numerics.operator import (
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import (
     CollisionOperator,
-    SNStreamingOperator,
     StreamingOperator,
 )
 from orpheus.numerics.quadrature import Quadrature

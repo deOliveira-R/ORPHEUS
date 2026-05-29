@@ -380,49 +380,15 @@ def _build_mr_cylinder_mesh(nx: int = 40) -> tuple[Mesh1D, dict]:
     return mesh, materials
 
 
-@contextlib.contextmanager
-def _patch_apply_to_unified():
-    """Route :meth:`SNStreamingOperator.apply` through ``transport_operator_matvec_unified``.
-
-    Only the cylindrical branch is patched — sphere/Cartesian fall through
-    to the legacy. The shim decodes packed ψ via
-    :func:`solution_to_angular_flux_cylindrical` (which fills BC slots
-    consistently with the legacy reader), calls the unified matvec on
-    the canonical 4-D view, then re-packs at the unknown slots.
-    """
-    orig_apply = sn_op.SNStreamingOperator.apply
-
-    def _unified_apply(self, psi_packed: np.ndarray) -> np.ndarray:
-        sn_mesh = self.sn_mesh
-        curv = getattr(sn_mesh, "curvature", None)
-        if curv != "cylindrical":
-            return orig_apply(self, psi_packed)
-
-        eq_map = self._ensure_eq_map()
-        quad = sn_mesh.quad
-        ng = self.sig_t.shape[0]
-        nx = sn_mesh.nx
-
-        psi_view = solution_to_angular_flux_cylindrical(
-            psi_packed, eq_map, quad, nx, ng,
-        )
-        m_view = legacy_proxy_matvec(
-            psi_view, sn_mesh, self.sig_t,
-            bc_outer=sn_mesh.bc_right,
-            pole_angular_closure=sn_mesh.pole_angular_closure,
-        )
-        flux = np.empty((ng, eq_map.n_eq))
-        for k in range(eq_map.n_eq):
-            flux[:, k] = m_view[
-                eq_map.ordinate[k], :, eq_map.ix[k], eq_map.iy[k],
-            ]
-        return flux.ravel(order="F")
-
-    sn_op.SNStreamingOperator.apply = _unified_apply
-    try:
-        yield
-    finally:
-        sn_op.SNStreamingOperator.apply = orig_apply
+# D-K.5 (2026-05-29): ``_patch_apply_to_unified`` retired together with
+# :class:`SNStreamingOperator`.  Pre-D-K.1, this patch routed the
+# cylindrical ``SNStreamingOperator.apply`` through
+# ``transport_operator_matvec_unified``.  Post-D-K.1 (commit
+# ``400ca33``), ``SNSolver.L`` is ``StreamingOperator +
+# CollisionOperator``, which calls the unified matvec natively for 1-D
+# cylindrical.  The monkey-patch had no effect on the call path
+# post-D-K.1; deleting it removes the no-op and severs the test's
+# dependency on the retiring :class:`SNStreamingOperator` class.
 
 
 @pytest.mark.l1
@@ -461,8 +427,7 @@ def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
     )
     k_ref = float(ref.k_eff)
 
-    with _patch_apply_to_unified():
-        sol = solve_sn(
+    sol = solve_sn(
             materials=materials,
             mesh=mesh,
             quadrature=quad,
@@ -511,8 +476,7 @@ def test_unified_cylinder_l1_homogeneous_kinf_2g() -> None:
     )
     quad = Quadrature.level_symmetric(sn_order=4)
 
-    with _patch_apply_to_unified():
-        sol = solve_sn(
+    sol = solve_sn(
             materials={0: mat},
             mesh=mesh,
             quadrature=quad,
