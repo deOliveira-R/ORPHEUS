@@ -29,6 +29,8 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.material_xs_field import MaterialXSField
 from orpheus.sn.scattering import ScatteringOperator
 from orpheus.sn.solver import SNSolver
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.sources import PerOrdinateSource
 
 pytestmark = pytest.mark.foundation  # software-invariant tier
 
@@ -135,12 +137,13 @@ class TestProtocolCompliance:
         assert "apply_transpose" not in op.capabilities
 
     def test_apply_accepts_psi_shape(self, solver_2g_p0):
-        """apply(psi) must accept (N, ng, nx, ny) angular flux (Issue #196 PR-INDEX-4)."""
+        """apply(psi) must accept typed AngularFlux ``(N, ng, nx, ny)`` (D-I.2)."""
         op = solver_2g_p0.scattering_op
         N = op.n_ordinates
-        psi = np.ones((N, op.ng, op.nx, op.ny))
+        psi_values = np.ones((N, op.ng, op.nx, op.ny))
+        psi = AngularFlux.from_mesh(psi_values, solver_2g_p0.sn_mesh)
         out = op.apply(psi)
-        assert out.shape == psi.shape
+        assert out.values.shape == psi.values.shape
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -256,8 +259,9 @@ class TestAnisotropicScatteringExtraction:
         """L=0 => Pℓ contribution is None (signal: no aniso source needed)."""
         N = solver_2g_p0.quad.N
         nx, ny, ng = solver_2g_p0.sn_mesh.nx, solver_2g_p0.sn_mesh.ny, solver_2g_p0.ng
-        # Issue #196 PR-INDEX-4: principled (N, ng, nx, ny).
-        psi = np.ones((N, ng, nx, ny))
+        # D-I.2: typed AngularFlux carrier.
+        psi_values = np.ones((N, ng, nx, ny))
+        psi = AngularFlux.from_mesh(psi_values, solver_2g_p0.sn_mesh)
         out = solver_2g_p0.scattering_op.build_aniso_source(psi)
         assert out is None
 
@@ -270,25 +274,31 @@ class TestAnisotropicScatteringExtraction:
         """Isotropic ψ_n = const for every ordinate => P1+ Galerkin moments = 0."""
         op = solver_2g_p1.scattering_op
         N = op.n_ordinates
-        psi_iso = np.ones((N, op.ng, op.nx, op.ny))
+        psi_iso_values = np.ones((N, op.ng, op.nx, op.ny))
+        psi_iso = AngularFlux.from_mesh(psi_iso_values, solver_2g_p1.sn_mesh)
         Q_aniso = op.build_aniso_source(psi_iso)
         assert Q_aniso is not None
-        np.testing.assert_allclose(Q_aniso, 0, atol=1e-12)
+        np.testing.assert_allclose(Q_aniso.values, 0, atol=1e-12)
 
     def test_delegator_matches_operator(self, solver_2g_p1):
         """SNSolver._build_aniso_scattering delegates bit-identically.
 
-        Issue #196 PR-INDEX-5: delegator and operator both consume /
-        return principled ``(N, ng, nx, ny)``.
+        D-I.2 — the delegator preserves a bare-ndarray external
+        contract for backward compat (solver.py:1203 caller); the
+        operator now consumes typed :class:`AngularFlux` and returns
+        :class:`PerOrdinateSource`.  Compare ``out_via_delegator``
+        (bare ndarray) to ``out_via_operator.values`` (typed
+        :class:`PerOrdinateSource` unwrapped).
         """
         op = solver_2g_p1.scattering_op
         N = op.n_ordinates
         np.random.seed(42)
-        psi = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+        psi_values = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+        psi_typed = AngularFlux.from_mesh(psi_values, solver_2g_p1.sn_mesh)
 
-        out_via_delegator = solver_2g_p1._build_aniso_scattering(psi)
-        out_via_operator = op.build_aniso_source(psi)
-        np.testing.assert_array_equal(out_via_delegator, out_via_operator)
+        out_via_delegator = solver_2g_p1._build_aniso_scattering(psi_values)
+        out_via_operator = op.build_aniso_source(psi_typed)
+        np.testing.assert_array_equal(out_via_delegator, out_via_operator.values)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -315,17 +325,18 @@ class TestApplySemantics:
         ordinate sees in the per-ordinate transport equation
         ``(Ω·∇ + Σ_t) ψ_n = Q_iso/W + …``.
 
-        Issue #196 PR-INDEX-4: principled ``(N, ng, nx, ny)`` ψ.
+        D-I.2: typed AngularFlux carrier → PerOrdinateSource output.
         """
         op = solver_2g_p0.scattering_op
         N = op.n_ordinates
         nx, ny, ng = op.nx, op.ny, op.ng
 
         np.random.seed(5)
-        psi = np.random.rand(N, ng, nx, ny) + 0.1
+        psi_values = np.random.rand(N, ng, nx, ny) + 0.1
+        psi = AngularFlux.from_mesh(psi_values, solver_2g_p0.sn_mesh)
 
         # Compute scalar flux the same way apply() does internally.
-        phi = np.einsum('n,ngxy->gxy', op.weights, psi)
+        phi = np.einsum('n,ngxy->gxy', op.weights, psi_values)
 
         # Reference: compute Q_iso explicitly, then project to
         # per-ordinate via /sum_w (R-1 Step 4 A1).
@@ -334,19 +345,20 @@ class TestApplySemantics:
         op.add_n2n_source(Q_iso, phi)
         sum_w = float(op.weights.sum())
         expected = np.broadcast_to(
-            (Q_iso / sum_w)[None, :, :, :], psi.shape,
+            (Q_iso / sum_w)[None, :, :, :], psi_values.shape,
         )
 
         actual = op.apply(psi)
-        np.testing.assert_allclose(actual, expected, rtol=1e-13)
+        np.testing.assert_allclose(actual.values, expected, rtol=1e-13)
 
     def test_apply_zero_psi_returns_zero(self, solver_2g_p0):
         """ψ = 0 => S·ψ = 0 (linearity guard)."""
         op = solver_2g_p0.scattering_op
         N = op.n_ordinates
-        psi = np.zeros((N, op.ng, op.nx, op.ny))
+        psi_values = np.zeros((N, op.ng, op.nx, op.ny))
+        psi = AngularFlux.from_mesh(psi_values, solver_2g_p0.sn_mesh)
         out = op.apply(psi)
-        np.testing.assert_array_equal(out, np.zeros_like(psi))
+        np.testing.assert_array_equal(out.values, np.zeros_like(psi_values))
 
     def test_apply_linearity(self, solver_2g_p0):
         """S·(αψ_1 + βψ_2) = αS·ψ_1 + βS·ψ_2."""
@@ -355,13 +367,19 @@ class TestApplySemantics:
         nx, ny, ng = op.nx, op.ny, op.ng
 
         np.random.seed(13)
-        psi1 = np.random.rand(N, ng, nx, ny) + 0.1
-        psi2 = np.random.rand(N, ng, nx, ny) + 0.1
+        psi1_values = np.random.rand(N, ng, nx, ny) + 0.1
+        psi2_values = np.random.rand(N, ng, nx, ny) + 0.1
+        psi1 = AngularFlux.from_mesh(psi1_values, solver_2g_p0.sn_mesh)
+        psi2 = AngularFlux.from_mesh(psi2_values, solver_2g_p0.sn_mesh)
         alpha, beta = 2.5, -1.7
 
+        # AngularFlux + scalar * AngularFlux algebra (Field dunders).
         lhs = op.apply(alpha * psi1 + beta * psi2)
-        rhs = alpha * op.apply(psi1) + beta * op.apply(psi2)
-        np.testing.assert_allclose(lhs, rhs, rtol=1e-12, atol=1e-13)
+        rhs_p1 = op.apply(psi1)
+        rhs_p2 = op.apply(psi2)
+        # PerOrdinateSource carries the same Field dunders.
+        rhs = alpha * rhs_p1 + beta * rhs_p2
+        np.testing.assert_allclose(lhs.values, rhs.values, rtol=1e-12, atol=1e-13)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -407,7 +425,8 @@ class TestProducerSideNormalisation:
         nx, ny, ng = op.nx, op.ny, op.ng
 
         c = 0.37
-        psi = np.full((N, ng, nx, ny), c)
+        psi_values = np.full((N, ng, nx, ny), c)
+        psi = AngularFlux.from_mesh(psi_values, solver.sn_mesh)
 
         # Reference: compute Σ_{g'}(Σ_{s,0}[g'→g] + 2·Σ_{2n}[g'→g]) at each
         # cell from the cell's material.  This is the per-ord magnitude
@@ -424,7 +443,7 @@ class TestProducerSideNormalisation:
                 expected[:, :, ix, iy] = c * col_sum[None, :]
 
         actual = op.apply(psi)
-        np.testing.assert_allclose(actual, expected, rtol=1e-13, atol=1e-13)
+        np.testing.assert_allclose(actual.values, expected, rtol=1e-13, atol=1e-13)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -813,27 +832,31 @@ class TestAlgebraicIdentity:
     """
 
     def _check_identity(self, op, psi):
+        """``psi`` is a typed :class:`AngularFlux`; ``apply`` returns
+        :class:`PerOrdinateSource`.  Compare via ``.values``."""
         full = op.apply(psi)
         split_sum = op.foldable_part().apply(psi) + op.residual_part().apply(psi)
-        np.testing.assert_allclose(full, split_sum, rtol=1e-14, atol=1e-15)
+        np.testing.assert_allclose(full.values, split_sum.values, rtol=1e-14, atol=1e-15)
 
     def test_identity_p0_only_random_psi(self, solver_2g_p0):
         """Case 1 — scattering_order == 0 only (no Pℓ).
 
-        Issue #196 PR-INDEX-4: principled ``(N, ng, nx, ny)`` ψ.
+        D-I.2: typed AngularFlux carrier.
         """
         op = solver_2g_p0.scattering_op
         assert op.scattering_order == 0
         N = op.n_ordinates
         np.random.seed(42)
-        psi = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+        psi_values = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+        psi = AngularFlux.from_mesh(psi_values, solver_2g_p0.sn_mesh)
         self._check_identity(op, psi)
 
     def test_identity_p0_only_uniform_psi(self, solver_2g_p0):
         """Case 1b — uniform ψ probes the diagonal isolation path."""
         op = solver_2g_p0.scattering_op
         N = op.n_ordinates
-        psi = np.ones((N, op.ng, op.nx, op.ny))
+        psi_values = np.ones((N, op.ng, op.nx, op.ny))
+        psi = AngularFlux.from_mesh(psi_values, solver_2g_p0.sn_mesh)
         self._check_identity(op, psi)
 
     def test_identity_with_pl_ge_1(self, solver_2g_p1_n2n):
@@ -842,7 +865,8 @@ class TestAlgebraicIdentity:
         assert op.scattering_order >= 1
         N = op.n_ordinates
         np.random.seed(101)
-        psi = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+        psi_values = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+        psi = AngularFlux.from_mesh(psi_values, solver_2g_p1_n2n.sn_mesh)
         self._check_identity(op, psi)
 
     def test_identity_with_nonzero_n2n(self, solver_2g_p1_n2n):
@@ -855,7 +879,8 @@ class TestAlgebraicIdentity:
         assert any_nonzero_n2n, "fixture must carry non-zero (n,2n)"
         N = op.n_ordinates
         np.random.seed(202)
-        psi = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+        psi_values = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+        psi = AngularFlux.from_mesh(psi_values, solver_2g_p1_n2n.sn_mesh)
         self._check_identity(op, psi)
 
     def test_identity_multigroup_cross_group_plus_diagonal(self, solver_2g_p1_n2n):
@@ -870,7 +895,8 @@ class TestAlgebraicIdentity:
             assert np.any(off != 0.0)
         N = op.n_ordinates
         np.random.seed(303)
-        psi = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+        psi_values = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+        psi = AngularFlux.from_mesh(psi_values, solver_2g_p1_n2n.sn_mesh)
         self._check_identity(op, psi)
 
     def test_residual_zero_when_p0_diagonal_only_no_n2n(self):
@@ -890,18 +916,20 @@ class TestAlgebraicIdentity:
         nx, ny = 2, 2
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
         quad = Quadrature.lebedev(order=17)
-        op = SNSolver(SNMesh(mesh, quad, {0: mix})).scattering_op
+        solver = SNSolver(SNMesh(mesh, quad, {0: mix}))
+        op = solver.scattering_op
 
         N = op.n_ordinates
         np.random.seed(404)
-        # Issue #196 PR-INDEX-4: principled (N, ng, nx, ny).
-        psi = np.random.rand(N, op.ng, nx, ny) + 0.1
+        # D-I.2: typed AngularFlux carrier.
+        psi_values = np.random.rand(N, op.ng, nx, ny) + 0.1
+        psi = AngularFlux.from_mesh(psi_values, solver.sn_mesh)
         full = op.apply(psi)
         residual_part = op.residual_part().apply(psi)
-        np.testing.assert_allclose(residual_part, 0.0, atol=1e-15)
+        np.testing.assert_allclose(residual_part.values, 0.0, atol=1e-15)
         # And full ≡ foldable up to FP-non-associativity.
         foldable_part = op.foldable_part().apply(psi)
-        np.testing.assert_allclose(full, foldable_part, rtol=1e-14, atol=1e-15)
+        np.testing.assert_allclose(full.values, foldable_part.values, rtol=1e-14, atol=1e-15)
 
 
 class TestPurity:

@@ -617,26 +617,17 @@ class ScatteringOperator(LinearOperatorMixin):
         from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
         if self.scattering_order == 0 or angular_flux is None:
             return None
-        # D-H.2-C3: typed path accepts only the L2 pure-Field
-        # ``orpheus.transport.fields.angular_flux.AngularFlux`` (the
-        # post-D-H carrier on the :class:`TimedFullField` composite).
-        # Legacy :class:`orpheus.sn.angular_flux.AngularFlux` retired in
-        # D-H.2-C3; bare ndarrays still flow through as the
-        # singledispatch fall-through.
-        is_typed = isinstance(angular_flux, AngularFlux)
-        values = angular_flux.values if is_typed else angular_flux
+        # D-I.2 (2026-05-29): only the typed :class:`AngularFlux` is
+        # accepted.  The bare-ndarray fallthrough retired alongside the
+        # singledispatch ``np.ndarray`` arm on :meth:`apply`; the typed
+        # leaf carries the mesh, which is required to construct the
+        # intermediate :class:`HarmonicMomentField` and the output
+        # :class:`PerOrdinateSource`.
+        mesh = angular_flux.mesh
         L = self.scattering_order
         # Build the §9 "S = R Λ M" pipeline. The constituent primitives
         # are cheap dataclass instantiations; the actual work is in the
         # three np.einsum calls inside their .apply methods.
-        # Issue #197 PR-TYPED-4 — the SN-side wraps the intermediate
-        # moment-space output of :math:`M` as a typed
-        # :class:`HarmonicMomentField` so :math:`\Lambda` can consume
-        # the typed field and the einsum-internal layout invariant is
-        # pinned by the dataclass shape contract.  The bare-ndarray
-        # projection / reconstruction primitives stay layout-agnostic
-        # (cross-method neutrality — :mod:`orpheus.numerics.projection`
-        # is used by future PN solver, energy condensation, etc.).
         Y = self.Y  # cached on first access
         M = MomentProjection(weights=self.weights, Y=Y, L=L)
         Lam = LegendreMomentScattering(
@@ -646,29 +637,18 @@ class ScatteringOperator(LinearOperatorMixin):
         )
         R = HarmonicMomentReconstruction.from_Y(Y)
         # Producer-side /W (R-1 Step 4 A1) — apply at the end of the
-        # reconstruction so both typed and bare outputs carry per-
-        # ordinate magnitude.  Pattern 7 producer-side normalisation.
+        # reconstruction so the output carries per-ordinate magnitude.
+        # Pattern 7 producer-side normalisation.
         sum_w = float(self.weights.sum())
         # Type sandwich: M's bare-ndarray output is wrapped into
         # HarmonicMomentField at the SN boundary; Lambda consumes /
         # returns typed; the typed output's .values feeds R which is
-        # again bare-ndarray.
-        # If the caller passed a typed AngularFlux, mesh is known;
-        # otherwise we cannot construct a HarmonicMomentField (no mesh
-        # available) and fall through the legacy bare-ndarray pipeline.
-        if is_typed:
-            mesh = angular_flux.mesh
-            moments_values = M.apply(values)
-            moments = HarmonicMomentField.from_mesh_and_L(moments_values, mesh, L)
-            scattered = Lam.apply(moments)  # HarmonicMomentField
-            result = R.apply(scattered.values) / sum_w
-            return PerOrdinateSource.from_mesh(result, mesh)
-        # Legacy bare-ndarray path — no typed wrapping (the bare path
-        # is consumed by FD-matvec / probe-tests that bypass the type
-        # layer entirely).  Still applies /W to advertise per-ordinate
-        # magnitude consistently with the typed path.
-        result = R.apply(Lam.apply(M.apply(values))) / sum_w
-        return result
+        # again bare-ndarray; PerOrdinateSource wraps the final result.
+        moments_values = M.apply(angular_flux.values)
+        moments = HarmonicMomentField.from_mesh_and_L(moments_values, mesh, L)
+        scattered = Lam.apply(moments)  # HarmonicMomentField
+        result = R.apply(scattered.values) / sum_w
+        return PerOrdinateSource.from_mesh(result, mesh)
 
     # ── Foldable / residual split ─────────────────────────────────────
     #
@@ -974,33 +954,35 @@ class ScatteringOperator(LinearOperatorMixin):
         return iso
 
     @apply.register
-    def _(self, psi_arr: np.ndarray) -> np.ndarray:
-        r"""Bare-ndarray legacy variant — per-ordinate magnitude output.
+    def _(self, psi: AngularFlux) -> "PerOrdinateSource":
+        r"""Typed :class:`AngularFlux` variant — per-ordinate magnitude output.
 
-        Shape contract: input ``(N, ng, nx, ny)`` angular flux,
-        output ``(N, ng, nx, ny)`` per-ordinate source.  Preserved for
-        FD-matvec / probe-tests that bypass the type layer.
+        Math: identical to the :class:`TimedFullField` arm above on the
+        bulk axis — reduce ``psi`` angular → scalar, build iso :math:`P_0
+        + (n,2n)` source on the typed
+        :class:`~orpheus.transport.sources.IsotropicSource` accumulator,
+        build the per-ordinate :math:`P_\ell\ge 1` Galerkin contribution
+        via :meth:`build_aniso_source`, then combine via the producer-side
+        :math:`1/W` projection (Pattern 7).
 
-        Post-R-1 Step 4 A1: returns per-ordinate magnitude consistent
-        with the :class:`AngularFlux` variant (the :math:`1/W` is
-        applied at the apply boundary just as in the typed path).
+        D-I.2 (2026-05-29) added this typed leaf alongside the existing
+        :class:`TimedFullField` composite arm; the legacy bare-ndarray
+        :class:`numpy.ndarray` arm retired in the same commit.  Direct
+        :class:`AngularFlux` consumers (the within-group iteration when
+        scattering is computed on the bulk-only carrier) now have a
+        first-class dispatch arm instead of routing through a transient
+        :class:`TimedFullField` wrap.
         """
-        phi_arr = np.einsum('n,ngxy->gxy', self.weights, psi_arr)
-        Q_iso = np.zeros((self.ng, self.nx, self.ny))
-        self.add_iso_source(Q_iso, phi_arr)
-        self.add_n2n_source(Q_iso, phi_arr)
-        # ℓ≥1 piece — per-ordinate magnitude after R-1 Step 4 A1.
-        Q_aniso = self.build_aniso_source(psi_arr)
-        sum_w = float(self.weights.sum())
-        if Q_aniso is None:
-            # Iso scalar broadcast to per-ordinate via ``/sum_w``.
-            # Explicit allocation so the result owns its memory.
-            N = psi_arr.shape[0]
-            Q = np.empty(
-                (N, self.ng, self.nx, self.ny), dtype=Q_iso.dtype,
-            )
-            Q[...] = (Q_iso / sum_w)[None, :, :, :]
-            return Q
-        # Both terms in per-ordinate magnitude after A1; one broadcast
-        # add produces the combined source.
-        return (Q_iso / sum_w)[None, :, :, :] + Q_aniso
+        mesh = psi.mesh
+        phi = psi.integrate_angular()
+        iso: IsotropicSource = mesh.zeros_isotropic_source()
+        iso = self.add_iso_source(iso, phi)
+        iso = self.add_n2n_source(iso, phi)
+        aniso_or_none = self.build_aniso_source(psi)
+        if aniso_or_none is None:
+            aniso = mesh.zeros_per_ordinate_source()
+        else:
+            aniso = aniso_or_none
+        sum_w = float(mesh.quad.weights.sum())
+        combined: PerOrdinateSource = (iso / sum_w) + aniso
+        return combined

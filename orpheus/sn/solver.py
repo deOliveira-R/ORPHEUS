@@ -761,11 +761,27 @@ class SNSolver:
 
         Issue #196 PR-INDEX-5: ``angular_flux`` is principled
         ``(N, ng, nx, ny)``; return shape ``(N, ng, nx, ny)`` (or
-        ``None`` when ``L == 0``).  The PR-INDEX-4 bridges retired.
+        ``None`` when ``L == 0``).
+
+        D-I.2 (2026-05-29): the underlying
+        :meth:`ScatteringOperator.build_aniso_source` retired its
+        bare-ndarray arm and now accepts only typed
+        :class:`AngularFlux`.  This delegator wraps the inbound
+        ``angular_flux`` ndarray as :class:`AngularFlux` at the helper
+        boundary, then unwraps the resulting
+        :class:`PerOrdinateSource` via ``.values`` so the bare-ndarray
+        external contract is preserved for legacy consumers in
+        :func:`_solve_fixed_source_si` and the verification probes in
+        :mod:`tests.sn.test_scattering_operator`.
         """
         if angular_flux is None:
             return None
-        return self.scattering_op.build_aniso_source(angular_flux)
+        from orpheus.transport.fields.angular_flux import AngularFlux
+        typed = AngularFlux.from_mesh(angular_flux, self.sn_mesh)
+        result = self.scattering_op.build_aniso_source(typed)
+        if result is None:
+            return None
+        return result.values
 
     def _add_n2n_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
         """Add (n,2n) source to Q in-place (delegates to ScatteringOperator).
