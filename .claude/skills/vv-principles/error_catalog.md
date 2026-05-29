@@ -4171,3 +4171,80 @@ inner_tol=1e-12: keff=1.8750000000
 
 → Probe path: see the 8 diagnostic scripts at `derivations/diagnostics/diag_krylov_si_homogeneous_sphere_step{1..8}_*.py` for the full bisection cascade.
 
+
+## ERR-054 — `ordinate_scan` Blelloch closed-form `cumprod_a · (psi_0 + cumsum(b/cumprod_a))` produces NaN when any chain entry of `a` is exactly 0 (cylindrical pole-cell algebraic resonance)
+
+**Date:** 2026-05-29
+**Module:** `sn` (`orpheus/sn/spatial/scan.py`)
+**GitHub issue:** [#209](https://github.com/deOliveira-R/ORPHEUS/issues/209)
+**Failure mode:** #4 (wrong recursion — closed-form numerically catastrophic in a documented but unenforced regime)
+
+**Symptom.** `solve_sn(inner_solver="source_iteration")` on a 1-D cylindrical reflective mesh at the EXACT configuration `(thickness=2.0 cm, n_cells=20, LevelSymmetric S8, mixture A 2G)` returns `keff = NaN` and times out at 475 s under default `max_outer=500 × max_inner=500` caps. The same problem solved via `inner_solver="krylov"` converges to `keff = 1.875` (the analytical `k_inf = νΣ_f / Σ_a`) in 0.03 s. Neither `n_cells = 19` nor `n_cells = 21` triggers the failure; only the sharp algebraic resonance at the exact `(thick=2, n=20, μ_x=-1/√20, Σ_t=1)` point.
+
+**Root cause.** `orpheus/sn/spatial/scan.py:138` evaluates the per-ordinate first-order linear recurrence `ψ[i+1] = a[i]·ψ[i] + b[i]` via the Blelloch closed form
+
+```python
+cumprod_a = np.cumprod(a, axis=0)
+return cumprod_a * (psi_0 + np.cumsum(b / cumprod_a, axis=0))
+```
+
+This is correct in real arithmetic but numerically catastrophic in IEEE-754 when any chain entry `a[i] = 0` exactly. The cumprod then collapses to zero from cell `i` onward; the divide `b / cumprod_a` produces `±Inf` or NaN; `np.cumsum` propagates the NaN forward; and the final `cumprod_a · (...) = 0 · NaN = NaN`, not zero as the math would suggest. The mathematically equivalent explicit recurrence is FINITE at the same chain: at `a[i] = 0`, the per-cell update degenerates to `ψ[i+1] = b[i]`, which is a physically meaningful "fully attenuated" exit flux.
+
+The cache (`orpheus/sn/spatial/sweep_cache.py:444-449`) produces `a` via
+
+```python
+a = 2|μ| · A_total / (2|μ| · A_down + dA_w · c_out + Σ_t · V) − 1
+```
+
+At the **cylindrical pole cell** the inner radial face has zero area, so `A_down = 0`. The formula reduces to `a = 2|μ|·A_total / (dA_w·c_out + Σ_t·V) − 1`, and `a = 0` ⇔ `2|μ|·A_total = dA_w·c_out + Σ_t·V`. At `μ_x = -1/√20` (smallest |μ| in LS-S8), `dr = 0.1`, `Σ_t = 1.0` (mixture A group 1), the identity holds **bit-exactly** at `2π/5 = 1.2566370614359172`. `cache.a_attenuation[ord=72, g=1, chain_pos=19] == 0.0` is the smoking-gun cache entry.
+
+**How it hid.**
+
+1. **Existing scan-form tests cover the wrong regime.** `tests/sn/spatial/test_ordinate_scan.py::test_ordinate_scan_small_attenuation` uses `a ∈ [0.05, 0.2]` (positive, bounded away from 0). `test_ordinate_scan_zero_attenuation` uses `a ≡ 1` (the opposite limit). No existing test covers `a ∋ 0` — the exact pole-cell pathology.
+
+2. **The docstring acknowledged the regime but did not enforce it.** `scan.py` lines 126–135 explicitly noted "requires `cumprod_a` to stay finite and bounded away from zero ... For `a → 0` ... outside DD's normal operating envelope, consult the test catalog". The caveat lived in prose; no positive contract test pinned it. Anti-pattern #10 in `vv-principles` ("docstring caveat without enforcement").
+
+3. **Production SI cylindrical tests miss the resonance.** Integration suites use `n_cells ∈ {40, 80, 160}` (dr ∈ {0.05, 0.025, 0.0125}); none lands on `dr = 0.1` with `μ_x = -1/√20, Σ_t = 1`. The L1 standoff suite (cited in the bug report as "slowed by the bug") uses `thickness=2.0, n_cells=40` and does NOT actually hit this resonance.
+
+4. **1-G eigenvalue degeneracy + homogeneous-reflective shape invariance.** Even when the bug is active, `k = νΣ_f / Σ_a` is independent of the angular flux shape; a converged SI returns `k_inf` regardless of internal redistribution errors. NaN is the ONE failure that cannot be smuggled past the eigenvalue identity — it propagates.
+
+5. **Krylov bypasses the buggy code path entirely.** `transport_operator_matvec_unified` and the per-geometry matvec helpers in `orpheus/sn/operator.py` do NOT import `ordinate_scan`; only `_sweep_1d_unified` (the SI sweep path) does. The structural-independence assertion is verified in `diag_si_cyl_20cell_nan_step5_root_cause.py::test_krylov_avoids_ordinate_scan_path`.
+
+**Which test catches it.** Permanent regression catcher: `tests/sn/test_si_cyl_20cell_nan_regression.py`. Pre-fix this test FAILS on:
+
+* `test_si_returns_finite_keff` (SI returns NaN — the bug class signature).
+* `test_ordinate_scan_at_a_zero_returns_finite_via_loop` (the scan-form contract test, structurally independent of any solver).
+
+Post-fix (when the Blelloch closed form is replaced with a numerically-stable pair-monoid scan), both pass; `test_si_agrees_with_kinf_at_resonance` (currently `@pytest.mark.slow`) becomes the L1 correctness pin.
+
+Diagnostic scripts:
+
+* `derivations/diagnostics/diag_si_cyl_20cell_nan_step1_characterize.py` — 6 tests pinning the sharp-resonance fingerprint (`n_cells = 20` only; Krylov works on the same problem).
+* `derivations/diagnostics/diag_si_cyl_20cell_nan_step5_root_cause.py` — 4 tests pinning the cache-level `a = 0` algebraic identity, the `ordinate_scan` NaN at the failing chain, the explicit-loop finiteness, and the Krylov-bypass structural invariant.
+
+When the fix lands, both regression tests carry `@pytest.mark.catches("ERR-054")`.
+
+**Fix family.** Replace the Blelloch closed form with a numerically-stable Blelloch variant. Three viable options:
+
+1. **Pair-monoid prefix scan.** Compose `(α, β) ⊕ (α', β') = (α·α', α'·β + β')` via an explicit associative prefix scan. The existing `tests/sn/spatial/test_ordinate_scan.py::test_pair_monoid_associativity` already verifies the algebra. No division anywhere; vectorises across `(K, ng)` identically. **Preferred — cleanest path.**
+
+2. **Fallback to explicit loop** at chain cells where `|a| < ε`. Hybrid; loses the all-numpy uniformity.
+
+3. **Brent blocked scan** with bounded condition number per block. Over-engineered for 1-D SN.
+
+Coordination: the fix lives in `orpheus/sn/spatial/scan.py:80-138`; it is orthogonal to the D-H.2-C5 `angular_flux.py` retirement. It can land independently or alongside.
+
+**Lesson.**
+
+1. **Closed-form algorithms with regime caveats need positive contract tests at the regime boundary.** A docstring claiming "stable when `a` is bounded away from 0" is NOT a contract; only an executable test that constructs a chain with `a = 0` and asserts finiteness is. ERR-054 demonstrates that documented-but-untested regime limits are silent-failure waiting to happen.
+
+2. **`vv-principles` Anti-pattern #10 ("convergence rate is correct" ≠ "result is correct") generalises to algorithmic stability:** a closed-form's correctness in real arithmetic is not the same as its correctness in IEEE-754. Real-arithmetic equivalence is not numerical equivalence. The pair-monoid SCAN proof on paper does not save the IEEE-754 cumprod_a from collapsing to zero.
+
+3. **Sharp algebraic resonances (single-point failures) are an under-tested bug class.** Mesh-refinement convergence tests (n=10, 40, 80, 160) implicitly assume the bug is a smooth function of mesh; but a clean algebraic identity like `2|μ|·A_total = dA_w·c_out + Σ_t·V` is single-point and can be missed by any refinement sweep that doesn't probe the exact point. The defense is dimensional-analysis-derived corner probes: for every closed-form `f / g − 1` numerator-denominator structure, write a test that constructs the exact (g, f) coincidence and asserts the resulting value is finite. Catalogue this for follow-up: there is no `numerical-bug-signatures` Signature 8 for "closed-form-divides-by-zero-at-algebraic-resonance"; the catalog gap is itself a finding.
+
+4. **Krylov-versus-SI structural divergence is a load-bearing cross-check.** When two solver paths share the same operator construction but differ in execution algorithm, agreement is information; disagreement at the SAME problem is a diagnostic localiser. Issue #209 was localised in <2 hours because Krylov-vs-SI disagreement was already in the user's empirical table.
+
+**Test reference:** `tests/sn/test_si_cyl_20cell_nan_regression.py` (this commit), with `@pytest.mark.catches("ERR-054")` to be added when the fix lands.
+
+→ Probe path: see `derivations/diagnostics/diag_si_cyl_20cell_nan_step{1,5}_*.py` for the cascade. The cascade is two-step (no need for step 2/3/4 isolation because the failing path was named directly by the FP-warning traceback at step 1); the methodology is a degenerate case of the standard 8-step cascade where step 1's traceback short-circuits the isolation.
+
