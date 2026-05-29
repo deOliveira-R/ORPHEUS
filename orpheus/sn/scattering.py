@@ -133,8 +133,8 @@ from orpheus.numerics.projection import (
 # dependency graph (they do not import scattering.py), so the imports
 # are circular-import-safe.
 from orpheus.transport.fields.scalar_flux import ScalarFlux
-from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux as L2BoundaryFlux
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
 from orpheus.transport.timed_full_field import TimedFullField
 
@@ -623,7 +623,7 @@ class ScatteringOperator(LinearOperatorMixin):
         # Legacy :class:`orpheus.sn.angular_flux.AngularFlux` retired in
         # D-H.2-C3; bare ndarrays still flow through as the
         # singledispatch fall-through.
-        is_typed = isinstance(angular_flux, L2AngularFlux)
+        is_typed = isinstance(angular_flux, AngularFlux)
         values = angular_flux.values if is_typed else angular_flux
         L = self.scattering_order
         # Build the §9 "S = R Λ M" pipeline. The constituent primitives
@@ -840,7 +840,7 @@ class ScatteringOperator(LinearOperatorMixin):
           → :class:`TimedFullField` — composite bulk + boundary
           variant for the D-H.1+ migration path.  Bulk follows the
           same full :math:`P_\ell` Galerkin path; boundary is the
-          implicit-zero :class:`L2BoundaryFlux` (Option β3 —
+          implicit-zero :class:`BoundaryFlux` (Option β3 —
           scattering is volumetric; Wave O Issue #208 will encode the
           bulk-only nature in the type via :class:`BulkOperator`).
         * :class:`~orpheus.sn.scalar_flux.ScalarFlux` →
@@ -912,8 +912,8 @@ class ScatteringOperator(LinearOperatorMixin):
         the L2 :class:`AngularFlux` on the composite's bulk), then
         combine via the producer-side :math:`1/W` projection
         (Pattern 7).  The output bulk is a pure-Field
-        :class:`L2AngularFlux`; the output boundary is the
-        **implicit-zero** :class:`L2BoundaryFlux` — scattering is
+        :class:`AngularFlux`; the output boundary is the
+        **implicit-zero** :class:`BoundaryFlux` — scattering is
         volumetric, no face-trace contribution.
 
         Per Option β3 (`#208
@@ -949,8 +949,8 @@ class ScatteringOperator(LinearOperatorMixin):
         sum_w = float(mesh.quad.weights.sum())
         combined: PerOrdinateSource = (iso / sum_w) + aniso
         return TimedFullField(
-            bulk=L2AngularFlux.from_mesh(combined.values, mesh),
-            boundary=L2BoundaryFlux.zeros_for_sn_mesh(mesh),
+            bulk=AngularFlux.from_mesh(combined.values, mesh),
+            boundary=BoundaryFlux.zeros_for_sn_mesh(mesh),
             _history=(),
             history_depth=psi.history_depth,
         )

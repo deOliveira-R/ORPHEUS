@@ -166,10 +166,10 @@ def _call_matvec(sn_mesh: SNMesh, psi_vec: np.ndarray,
     # ``transport_operator_matvec_unified`` consumes ``TimedFullField``;
     # decode packed face slots into the L2 ``face_view`` writable arrays.
     from orpheus.transport.fields.angular_flux import (
-        AngularFlux as L2AngularFlux,
+        AngularFlux,
     )
     from orpheus.transport.fields.boundary_flux import (
-        BoundaryFlux as L2BoundaryFlux,
+        BoundaryFlux,
     )
     from orpheus.transport.timed_full_field import TimedFullField
     psi_cell, psi_face_outer, psi_face_inner = (
@@ -177,7 +177,7 @@ def _call_matvec(sn_mesh: SNMesh, psi_vec: np.ndarray,
             psi_vec, eq_map, nx, ng, N=quad.N,
         )
     )
-    boundary_in = L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+    boundary_in = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
     if eq_map.n_face_outer > 0:
         boundary_in.face_view("xmax")[eq_map.face_outer_ordinate, :] = (
             psi_face_outer
@@ -187,7 +187,7 @@ def _call_matvec(sn_mesh: SNMesh, psi_vec: np.ndarray,
             psi_face_inner
         )
     composite_in = TimedFullField(
-        bulk=L2AngularFlux.from_mesh(psi_cell, sn_mesh),
+        bulk=AngularFlux.from_mesh(psi_cell, sn_mesh),
         boundary=boundary_in,
         _history=(),
         history_depth=2,

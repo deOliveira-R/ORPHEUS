@@ -51,7 +51,7 @@ from orpheus.sn.operator import (
     StreamingOperator,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
+from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
@@ -291,7 +291,7 @@ class TestSolve:
         psi = invertible.solve(rhs)
 
         assert isinstance(psi, TimedFullField)
-        assert isinstance(psi.bulk, L2AngularFlux)
+        assert isinstance(psi.bulk, AngularFlux)
         assert psi.bulk.mesh is sn
         assert psi.bulk.values.shape == rhs.bulk.values.shape
 
@@ -863,10 +863,10 @@ class TestInvertibleSolveBridgeRegression:
         """
         from dataclasses import replace
         from orpheus.transport.fields.angular_flux import (
-            AngularFlux as L2AngularFlux,
+            AngularFlux,
         )
         from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux as L2BoundaryFlux,
+            BoundaryFlux,
         )
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -886,8 +886,8 @@ class TestInvertibleSolveBridgeRegression:
         q_iso = 0.225
         q_per_ord = np.full((N, ng, nx, ny), q_iso / sum_w)
         rhs = TimedFullField(
-            bulk=L2AngularFlux.from_mesh(q_per_ord, sn_mesh),
-            boundary=L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+            bulk=AngularFlux.from_mesh(q_per_ord, sn_mesh),
+            boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
             _history=(),
             history_depth=2,
         )

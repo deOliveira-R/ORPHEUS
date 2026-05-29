@@ -91,20 +91,20 @@ def legacy_proxy_matvec(
     D-H.2-C4e.
     """
     from orpheus.transport.fields.angular_flux import (
-        AngularFlux as L2AngularFlux,
+        AngularFlux,
     )
     from orpheus.transport.fields.boundary_flux import (
-        BoundaryFlux as L2BoundaryFlux,
+        BoundaryFlux,
     )
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.sn.operator import transport_operator_matvec_unified
 
-    boundary = L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+    boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
     boundary.face_view("xmax")[:] = psi_view[:, :, -1, 0]
     if "xmin" in boundary.layout.faces:
         boundary.face_view("xmin")[:] = psi_view[:, :, 0, 0]
     composite = TimedFullField(
-        bulk=L2AngularFlux.from_mesh(psi_view, sn_mesh),
+        bulk=AngularFlux.from_mesh(psi_view, sn_mesh),
         boundary=boundary,
         _history=(),
         history_depth=2,

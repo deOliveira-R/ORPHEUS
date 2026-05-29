@@ -49,8 +49,8 @@ from orpheus.sn.operator import (
     build_equation_map_with_traces,
     transport_operator_matvec_unified,
 )
-from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux as L2BoundaryFlux
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
@@ -318,8 +318,8 @@ class TestOutputShape:
         )
         # Composite carrier; bulk is L2 AngularFlux.
         assert isinstance(result, TimedFullField)
-        assert isinstance(result.bulk, L2AngularFlux)
-        assert isinstance(result.boundary, L2BoundaryFlux)
+        assert isinstance(result.bulk, AngularFlux)
+        assert isinstance(result.boundary, BoundaryFlux)
         # Cell values: (N, ng, nx, ny).
         assert result.bulk.values.shape == (
             sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny,

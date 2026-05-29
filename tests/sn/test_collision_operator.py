@@ -38,7 +38,7 @@ from orpheus.numerics.operator import (
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import CollisionOperator
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
+from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
@@ -171,7 +171,7 @@ class TestApply:
         psi = _random_state(sn_mesh)
         out = C.apply(psi)
         assert isinstance(out, TimedFullField)
-        assert isinstance(out.bulk, L2AngularFlux)
+        assert isinstance(out.bulk, AngularFlux)
         assert out.bulk.values.shape == psi.bulk.values.shape
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
@@ -244,7 +244,7 @@ class TestSolve:
         q = _random_state(sn_mesh)
         out = C.solve(q)
         assert isinstance(out, TimedFullField)
-        assert isinstance(out.bulk, L2AngularFlux)
+        assert isinstance(out.bulk, AngularFlux)
         assert out.bulk.values.shape == q.bulk.values.shape
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)

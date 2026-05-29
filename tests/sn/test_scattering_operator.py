@@ -431,7 +431,7 @@ class TestProducerSideNormalisation:
 # D-H.2-C1 — Composite TimedFullField invariants (volumetric scattering).
 #
 # Per Option β3 (Issue #208), scattering is volumetric — the output
-# boundary is the implicit-zero :class:`L2BoundaryFlux`.  Bulk follows
+# boundary is the implicit-zero :class:`BoundaryFlux`.  Bulk follows
 # the full :math:`P_\ell` Galerkin path identical to the legacy
 # :class:`AngularFlux` branch.  The parity tests vs. legacy retired
 # with D-H.2-C1 (the legacy class itself retires in C5; both branches
@@ -448,7 +448,7 @@ class TestCompositeInvariants:
         from dataclasses import replace
 
         from orpheus.transport.fields.angular_flux import (
-            AngularFlux as L2AngularFlux,
+            AngularFlux,
         )
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -461,7 +461,7 @@ class TestCompositeInvariants:
         out = solver_2g_p0.scattering_op.apply(state)
 
         assert isinstance(out, TimedFullField)
-        assert isinstance(out.bulk, L2AngularFlux)
+        assert isinstance(out.bulk, AngularFlux)
         assert out.bulk.mesh is sn_mesh
         assert out.history_depth == state.history_depth
         assert out._history == ()

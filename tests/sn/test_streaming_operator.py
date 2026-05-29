@@ -514,7 +514,7 @@ class TestCompositeInvariants:
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_returns_timed_full_field(self, name, builder):
         from orpheus.transport.fields.angular_flux import (
-            AngularFlux as L2AngularFlux,
+            AngularFlux,
         )
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -526,7 +526,7 @@ class TestCompositeInvariants:
         out = L.apply(state)
 
         assert isinstance(out, TimedFullField)
-        assert isinstance(out.bulk, L2AngularFlux)
+        assert isinstance(out.bulk, AngularFlux)
         assert out.bulk.mesh is sn_mesh
         assert out.history_depth == state.history_depth
         assert out._history == ()
@@ -593,7 +593,7 @@ class TestCompositeInvariants:
         """
         from orpheus.geometry import Mesh2D
         from orpheus.transport.fields.angular_flux import (
-            AngularFlux as L2AngularFlux,
+            AngularFlux,
         )
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -611,7 +611,7 @@ class TestCompositeInvariants:
         out = L.apply(state)
 
         assert isinstance(out, TimedFullField)
-        assert isinstance(out.bulk, L2AngularFlux)
+        assert isinstance(out.bulk, AngularFlux)
         assert out.bulk.mesh is sn_mesh
         assert out.history_depth == state.history_depth
 

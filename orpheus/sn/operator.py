@@ -958,10 +958,10 @@ def transport_operator_matvec_unified(
         :func:`_compute_gradients`); D-H.2-C4d will absorb it.
     """
     from orpheus.transport.fields.angular_flux import (
-        AngularFlux as L2AngularFlux,
+        AngularFlux,
     )
     from orpheus.transport.fields.boundary_flux import (
-        BoundaryFlux as L2BoundaryFlux,
+        BoundaryFlux,
     )
     from orpheus.transport.timed_full_field import TimedFullField
     from .spatial.cell_balance import cell_balance_for_streaming
@@ -1279,7 +1279,7 @@ def transport_operator_matvec_unified(
     # ng-consistency by the kernel's own internal arithmetic — this
     # site uses the input flux's ng via ``face_outer.shape[1]``
     # consistency, not a separate allocation.
-    m_boundary = L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+    m_boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
 
     outer_outflow_mask = mu_x > +eps                                 # (N,) bool
     if np.any(outer_outflow_mask):
@@ -1297,7 +1297,7 @@ def transport_operator_matvec_unified(
             )
 
     return TimedFullField(
-        bulk=L2AngularFlux.from_mesh(m_cell, sn_mesh),
+        bulk=AngularFlux.from_mesh(m_cell, sn_mesh),
         boundary=m_boundary,
         _history=(),
         history_depth=psi.history_depth,
@@ -1542,10 +1542,10 @@ class SNStreamingOperator(LinearOperatorMixin):
         # production 2-D matvec.
         if curv is None and ny > 1:
             from orpheus.transport.fields.angular_flux import (
-                AngularFlux as L2AngularFlux,
+                AngularFlux,
             )
             from orpheus.transport.fields.boundary_flux import (
-                BoundaryFlux as L2BoundaryFlux,
+                BoundaryFlux,
             )
             from orpheus.transport.timed_full_field import TimedFullField
             psi_cell = solution_to_angular_flux(
@@ -1556,8 +1556,8 @@ class SNStreamingOperator(LinearOperatorMixin):
                 bc_ymax=sn_mesh.bc_ymax,
             )
             composite_in = TimedFullField(
-                bulk=L2AngularFlux.from_mesh(psi_cell, sn_mesh),
-                boundary=L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+                bulk=AngularFlux.from_mesh(psi_cell, sn_mesh),
+                boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
                 _history=(),
                 history_depth=2,
             )
@@ -1605,19 +1605,19 @@ class SNStreamingOperator(LinearOperatorMixin):
         # :class:`TimedFullField` carrying the cell-centre proxy at
         # the outer (and slab-inner) face.
         from orpheus.transport.fields.angular_flux import (
-            AngularFlux as L2AngularFlux,
+            AngularFlux,
         )
         from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux as L2BoundaryFlux,
+            BoundaryFlux,
         )
         from orpheus.transport.timed_full_field import TimedFullField
 
-        boundary_l2 = L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+        boundary_l2 = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
         boundary_l2.face_view("xmax")[:] = psi_view[:, :, -1, 0]
         if "xmin" in boundary_l2.layout.faces:
             boundary_l2.face_view("xmin")[:] = psi_view[:, :, 0, 0]
         composite_in = TimedFullField(
-            bulk=L2AngularFlux.from_mesh(psi_view, sn_mesh),
+            bulk=AngularFlux.from_mesh(psi_view, sn_mesh),
             boundary=boundary_l2,
             _history=(),
             history_depth=2,
@@ -2002,7 +2002,7 @@ class StreamingOperator(LinearOperatorMixin):
            arrays → legacy ``xmin_face`` / ``xmax_face`` slots.
         2. Apply via the existing :meth:`_apply_typed` path.
         3. Convert legacy result → composite: wrap ``result.values``
-           into an :class:`L2AngularFlux`; convert legacy boundary →
+           into an :class:`AngularFlux`; convert legacy boundary →
            L2 :class:`BoundaryFlux` via :meth:`from_legacy_sn`;
            propagate input's ``history_depth``.
 
@@ -2084,10 +2084,10 @@ class StreamingOperator(LinearOperatorMixin):
         # repack is a single slot-to-flat ravel.
         if curv is None and ny > 1:
             from orpheus.transport.fields.angular_flux import (
-                AngularFlux as L2AngularFlux,
+                AngularFlux,
             )
             from orpheus.transport.fields.boundary_flux import (
-                BoundaryFlux as L2BoundaryFlux,
+                BoundaryFlux,
             )
             from orpheus.transport.timed_full_field import TimedFullField
             psi_cell = solution_to_angular_flux(
@@ -2098,8 +2098,8 @@ class StreamingOperator(LinearOperatorMixin):
                 bc_ymax=sn_mesh.bc_ymax,
             )
             composite_in = TimedFullField(
-                bulk=L2AngularFlux.from_mesh(psi_cell, sn_mesh),
-                boundary=L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+                bulk=AngularFlux.from_mesh(psi_cell, sn_mesh),
+                boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
                 _history=(),
                 history_depth=2,
             )
@@ -2117,10 +2117,10 @@ class StreamingOperator(LinearOperatorMixin):
         # G3d when the _with_traces family + EquationMap retire
         # (the legacy bare-ndarray caller chain dies with them).
         from orpheus.transport.fields.angular_flux import (
-            AngularFlux as L2AngularFlux,
+            AngularFlux,
         )
         from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux as L2BoundaryFlux,
+            BoundaryFlux,
         )
         from orpheus.transport.timed_full_field import TimedFullField
         psi_cell, psi_face_outer, psi_face_inner = (
@@ -2132,7 +2132,7 @@ class StreamingOperator(LinearOperatorMixin):
         # zero-filled L2 face buffers; populate only the eq_map's outflow
         # ordinate slots from the packed face arrays.  Inflow slots stay
         # at zero (the correct "no equation here" value).
-        boundary_in = L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+        boundary_in = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
         if eq_map.n_face_outer > 0:
             boundary_in.face_view("xmax")[eq_map.face_outer_ordinate, :] = (
                 psi_face_outer
@@ -2142,7 +2142,7 @@ class StreamingOperator(LinearOperatorMixin):
                 psi_face_inner
             )
         composite_in = TimedFullField(
-            bulk=L2AngularFlux.from_mesh(psi_cell, sn_mesh),
+            bulk=AngularFlux.from_mesh(psi_cell, sn_mesh),
             boundary=boundary_in,
             _history=(),
             history_depth=2,
@@ -2197,10 +2197,10 @@ class StreamingOperator(LinearOperatorMixin):
         face residuals at the layout-assigned slots.
         """
         from orpheus.transport.fields.angular_flux import (
-            AngularFlux as L2AngularFlux,
+            AngularFlux,
         )
         from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux as L2BoundaryFlux,
+            BoundaryFlux,
         )
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -2228,7 +2228,7 @@ class StreamingOperator(LinearOperatorMixin):
             - self.sigma_t[None, :, :, :] * psi.bulk.values
         )
         return TimedFullField(
-            bulk=L2AngularFlux.from_mesh(cell_values, sn_mesh),
+            bulk=AngularFlux.from_mesh(cell_values, sn_mesh),
             boundary=result.boundary,
             _history=(),
             history_depth=psi.history_depth,
@@ -2281,10 +2281,10 @@ class StreamingOperator(LinearOperatorMixin):
         """
         from orpheus.geometry.boundary import SpecularBoundaryOperator
         from orpheus.transport.fields.angular_flux import (
-            AngularFlux as L2AngularFlux,
+            AngularFlux,
         )
         from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux as L2BoundaryFlux,
+            BoundaryFlux,
         )
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -2351,10 +2351,10 @@ class StreamingOperator(LinearOperatorMixin):
 
         # Boundary output: zero — face_view is passive in this 2-D
         # cell-centre-proxy formulation (see method docstring).
-        out_boundary = L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+        out_boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
 
         return TimedFullField(
-            bulk=L2AngularFlux.from_mesh(out_bulk, sn_mesh),
+            bulk=AngularFlux.from_mesh(out_bulk, sn_mesh),
             boundary=out_boundary,
             _history=(),
             history_depth=psi.history_depth,
@@ -2501,7 +2501,7 @@ class CollisionOperator(LinearOperatorMixin):
         Depth B D-H.1b.5 — typed :class:`TimedFullField` overload.
         Composite bulk + boundary variant for the D-H.1+ migration
         path.  Bulk receives the same :math:`\sigma\cdot\psi.bulk`
-        broadcast; boundary is the implicit-zero :class:`L2BoundaryFlux`
+        broadcast; boundary is the implicit-zero :class:`BoundaryFlux`
         (Option β3 — Wave O Issue #208 will encode the bulk-only
         nature in the type via :class:`BulkOperator`).
 
@@ -2514,7 +2514,7 @@ class CollisionOperator(LinearOperatorMixin):
               ``(N, ng, nx, ny)``.  Returns :class:`AngularFlux` with
               ``.values = σ ⊙ ψ.values`` and zero ``.boundary``.
             * :class:`~orpheus.transport.timed_full_field.TimedFullField`
-              wrapping an :class:`L2AngularFlux` bulk.  Returns a
+              wrapping an :class:`AngularFlux` bulk.  Returns a
               :class:`TimedFullField` with bulk = σ ⊙ ψ.bulk.values and
               implicit-zero boundary.
         """
@@ -2524,17 +2524,17 @@ class CollisionOperator(LinearOperatorMixin):
             # the bulk; boundary is the implicit-zero L2 BoundaryFlux
             # (Option β3 / Issue #208).
             from orpheus.transport.fields.angular_flux import (
-                AngularFlux as L2AngularFlux,
+                AngularFlux,
             )
             from orpheus.transport.fields.boundary_flux import (
-                BoundaryFlux as L2BoundaryFlux,
+                BoundaryFlux,
             )
             mesh = psi.bulk.mesh
             return TimedFullField(
-                bulk=L2AngularFlux.from_mesh(
+                bulk=AngularFlux.from_mesh(
                     self.sigma[None, :, :, :] * psi.bulk.values, mesh,
                 ),
-                boundary=L2BoundaryFlux.zeros_for_sn_mesh(mesh),
+                boundary=BoundaryFlux.zeros_for_sn_mesh(mesh),
                 _history=(),
                 history_depth=psi.history_depth,
             )
@@ -2582,7 +2582,7 @@ class CollisionOperator(LinearOperatorMixin):
 
         Depth B D-H.1b.5 — typed :class:`TimedFullField` overload.
         Bulk receives :math:`q.bulk / \sigma` broadcast; boundary is
-        the implicit-zero :class:`L2BoundaryFlux` (Option β3,
+        the implicit-zero :class:`BoundaryFlux` (Option β3,
         formal pseudoinverse on the rank-deficient face block).
         """
         from orpheus.transport.timed_full_field import TimedFullField
@@ -2592,17 +2592,17 @@ class CollisionOperator(LinearOperatorMixin):
             # BoundaryFlux (Option β3 — pseudoinverse on the rank-
             # deficient face block).
             from orpheus.transport.fields.angular_flux import (
-                AngularFlux as L2AngularFlux,
+                AngularFlux,
             )
             from orpheus.transport.fields.boundary_flux import (
-                BoundaryFlux as L2BoundaryFlux,
+                BoundaryFlux,
             )
             mesh = q.bulk.mesh
             return TimedFullField(
-                bulk=L2AngularFlux.from_mesh(
+                bulk=AngularFlux.from_mesh(
                     q.bulk.values / self.sigma[None, :, :, :], mesh,
                 ),
-                boundary=L2BoundaryFlux.zeros_for_sn_mesh(mesh),
+                boundary=BoundaryFlux.zeros_for_sn_mesh(mesh),
                 _history=(),
                 history_depth=q.history_depth,
             )
@@ -2936,10 +2936,10 @@ class InvertibleOperator(OperatorSum):
             outer SI / Krylov loop owns history threading).
         """
         from orpheus.transport.fields.angular_flux import (
-            AngularFlux as L2AngularFlux,
+            AngularFlux,
         )
         from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux as L2BoundaryFlux,
+            BoundaryFlux,
         )
         from orpheus.transport.sources import PerOrdinateSource
         from orpheus.transport.timed_full_field import TimedFullField
@@ -3001,7 +3001,7 @@ class InvertibleOperator(OperatorSum):
 
         # ── L2 direct return — no adapter needed (D-H.2-C2). ───────────
         return TimedFullField(
-            bulk=L2AngularFlux.from_mesh(angular, sn_mesh),
+            bulk=AngularFlux.from_mesh(angular, sn_mesh),
             boundary=boundary_buf,
             _history=(),
             history_depth=rhs.history_depth,

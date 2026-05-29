@@ -815,9 +815,9 @@ class SNMesh:
             All-zero L2 boundary flux on the mesh's flat layout.
         """
         from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux as L2BoundaryFlux,
+            BoundaryFlux,
         )
-        return L2BoundaryFlux.zeros_for_sn_mesh(self)
+        return BoundaryFlux.zeros_for_sn_mesh(self)
 
     def zeros_timed_full_field(
         self, history_depth: int = 2,
@@ -848,13 +848,13 @@ class SNMesh:
         TimedFullField
             Composite zero-state with empty history.
         """
-        from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
-        from orpheus.transport.fields.boundary_flux import BoundaryFlux as L2BoundaryFlux
+        from orpheus.transport.fields.angular_flux import AngularFlux
+        from orpheus.transport.fields.boundary_flux import BoundaryFlux
         from orpheus.transport.timed_full_field import TimedFullField
 
         return TimedFullField(
-            bulk=L2AngularFlux.zeros_for_sn_mesh(self),
-            boundary=L2BoundaryFlux.zeros_for_sn_mesh(self),
+            bulk=AngularFlux.zeros_for_sn_mesh(self),
+            boundary=BoundaryFlux.zeros_for_sn_mesh(self),
             _history=(),
             history_depth=history_depth,
         )

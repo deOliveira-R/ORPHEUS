@@ -20,7 +20,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.sn.geometry import SNMesh
-from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
+from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.scalar_flux import ScalarFlux
@@ -265,7 +265,7 @@ class TestHarmonicMomentFieldScalarFlux:
         rng = np.random.default_rng(seed=5)
         N = m.quad.N
         psi_values = rng.standard_normal((N, m.ng, m.nx, m.ny))
-        psi = L2AngularFlux.from_mesh(psi_values, m)
+        psi = AngularFlux.from_mesh(psi_values, m)
 
         # Direct angular reduction.
         sf_direct = psi.integrate_angular()
@@ -448,7 +448,7 @@ class TestRLambdaMRoundTrip:
         # Build a typed AngularFlux with isotropic content.
         N = quad.N
         psi_values = np.ones((N, mix.ng, nx, ny))
-        psi = L2AngularFlux.from_mesh(psi_values, sn_mesh)
+        psi = AngularFlux.from_mesh(psi_values, sn_mesh)
 
         # Typed pipeline output.
         out = op.build_aniso_source(psi)

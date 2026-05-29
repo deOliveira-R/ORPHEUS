@@ -219,7 +219,7 @@ class TestKDivisionConvention:
 # action — the emission spectrum lives only on cell-centred volumes.
 # The composite branch returns a :class:`TimedFullField` with the
 # fission per-ordinate source in the bulk member and an implicit-zero
-# :class:`L2BoundaryFlux` in the boundary member.  The parity test
+# :class:`BoundaryFlux` in the boundary member.  The parity test
 # vs. legacy AngularFlux retired with D-H.2 (legacy branch deleted in
 # C5); the algebra is exercised on the composite carrier directly.
 # ──────────────────────────────────────────────────────────────────────
@@ -233,7 +233,7 @@ class TestCompositeInvariants:
         from dataclasses import replace
 
         from orpheus.transport.fields.angular_flux import (
-            AngularFlux as L2AngularFlux,
+            AngularFlux,
         )
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -247,7 +247,7 @@ class TestCompositeInvariants:
         out = solver_2g.fission_op.apply(state)
 
         assert isinstance(out, TimedFullField)
-        assert isinstance(out.bulk, L2AngularFlux)
+        assert isinstance(out.bulk, AngularFlux)
         assert out.bulk.mesh is sn_mesh
         assert out.history_depth == state.history_depth
         assert out._history == ()

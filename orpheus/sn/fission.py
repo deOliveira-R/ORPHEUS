@@ -81,12 +81,12 @@ from orpheus.numerics.operator import (
 # ``scattering.py`` for the same pattern.  These types form a leaf in
 # the SN dependency graph (they do not import fission.py).  The L2
 # pure-Field :class:`AngularFlux` and :class:`BoundaryFlux` are
-# re-aliased to ``L2AngularFlux`` / ``L2BoundaryFlux`` to disambiguate
+# re-aliased to ``AngularFlux`` / ``BoundaryFlux`` to disambiguate
 # from the legacy ``orpheus.sn.angular_flux.AngularFlux`` which still
 # rides on the operator-algebra path until D-H.1c.
 from orpheus.transport.fields.scalar_flux import ScalarFlux
-from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux as L2BoundaryFlux
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.sources import IsotropicSource
 from orpheus.transport.timed_full_field import TimedFullField
 
@@ -181,7 +181,7 @@ class FissionOperator(LinearOperatorMixin):
           variant for the D-H.1+ migration path.  Bulk follows the
           same per-ordinate :math:`1/W` projection as the legacy
           branch; boundary is the implicit-zero
-          :class:`L2BoundaryFlux` (Option β3 — fission has no boundary
+          :class:`BoundaryFlux` (Option β3 — fission has no boundary
           action; Wave O Issue #208 will encode bulk-only nature in
           the type).
         * :class:`~orpheus.sn.scalar_flux.ScalarFlux` →
@@ -224,8 +224,8 @@ class FissionOperator(LinearOperatorMixin):
         reduce bulk angular → scalar via :math:`\phi = \sum_n w_n
         \psi_n`, compute iso fission source :math:`F\phi`, project to
         per-ordinate via :math:`/W`.  The output bulk is a pure-Field
-        :class:`L2AngularFlux`; the output boundary is an **implicit
-        zero** :class:`L2BoundaryFlux` because the fission operator
+        :class:`AngularFlux`; the output boundary is an **implicit
+        zero** :class:`BoundaryFlux` because the fission operator
         has no boundary action (the emission spectrum
         :math:`\chi(\vec r)` lives only on cell-centred volumes).
 
@@ -250,8 +250,8 @@ class FissionOperator(LinearOperatorMixin):
             fission_iso.values, psi.bulk.mesh,
         )
         return TimedFullField(
-            bulk=L2AngularFlux.from_mesh(per_ord.values, psi.bulk.mesh),
-            boundary=L2BoundaryFlux.zeros_for_sn_mesh(psi.bulk.mesh),
+            bulk=AngularFlux.from_mesh(per_ord.values, psi.bulk.mesh),
+            boundary=BoundaryFlux.zeros_for_sn_mesh(psi.bulk.mesh),
             _history=(),
             history_depth=psi.history_depth,
         )

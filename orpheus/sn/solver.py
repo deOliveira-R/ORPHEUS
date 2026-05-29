@@ -516,10 +516,10 @@ class SNSolver:
 
         from .operator import CollisionOperator, StreamingOperator
         from orpheus.transport.fields.angular_flux import (
-            AngularFlux as L2AngularFlux,
+            AngularFlux,
         )
         from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux as L2BoundaryFlux,
+            BoundaryFlux,
         )
         from orpheus.transport.sources import PerOrdinateSource
         from orpheus.transport.timed_full_field import TimedFullField
@@ -548,7 +548,7 @@ class SNSolver:
         # composite branch reads ``rhs.boundary`` as the fallback BC
         # inflow trace when ``initial_guess is None`` (audit §5).
         q_ext_composite = TimedFullField(
-            bulk=L2AngularFlux.from_mesh(
+            bulk=AngularFlux.from_mesh(
                 q_ext_per_ord.values, self.sn_mesh,
             ),
             # D-H.2-C2: ``self._boundary_flux`` is now L2 directly via
@@ -648,10 +648,10 @@ class SNSolver:
 
         from .operator import CollisionOperator, StreamingOperator
         from orpheus.transport.fields.angular_flux import (
-            AngularFlux as L2AngularFlux,
+            AngularFlux,
         )
         from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux as L2BoundaryFlux,
+            BoundaryFlux,
         )
         from orpheus.transport.sources import PerOrdinateSource
         from orpheus.transport.timed_full_field import TimedFullField
@@ -670,10 +670,10 @@ class SNSolver:
             fission_source, self.sn_mesh,
         )
         q_ext_composite = TimedFullField(
-            bulk=L2AngularFlux.from_mesh(
+            bulk=AngularFlux.from_mesh(
                 q_ext_per_ord.values, self.sn_mesh,
             ),
-            boundary=L2BoundaryFlux.zeros_for_sn_mesh(self.sn_mesh),
+            boundary=BoundaryFlux.zeros_for_sn_mesh(self.sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -1053,10 +1053,10 @@ def solve_sn(
     # GONE — ``angular_flux`` is a bare ndarray from the final sweep;
     # we wrap it once into the composite carrier.
     from orpheus.transport.fields.angular_flux import (
-        AngularFlux as L2AngularFlux,
+        AngularFlux,
     )
     from orpheus.transport.fields.boundary_flux import (
-        BoundaryFlux as L2BoundaryFlux,
+        BoundaryFlux,
     )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.timed_full_field import TimedFullField
@@ -1067,7 +1067,7 @@ def solve_sn(
     )
     return Solution(
         angular_flux=TimedFullField(
-            bulk=L2AngularFlux.from_mesh(angular_flux, sn_mesh),
+            bulk=AngularFlux.from_mesh(angular_flux, sn_mesh),
             # D-H.2-C2: ``solver._boundary_flux`` is L2 directly.
             boundary=solver._boundary_flux,
             _history=(),
@@ -1250,10 +1250,10 @@ def _solve_fixed_source_si(
     """
     from orpheus.transport.sources import PerOrdinateSource
     from orpheus.transport.fields.angular_flux import (
-        AngularFlux as L2AngularFlux,
+        AngularFlux,
     )
     from orpheus.transport.fields.boundary_flux import (
-        BoundaryFlux as L2BoundaryFlux,
+        BoundaryFlux,
     )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.timed_full_field import TimedFullField
@@ -1297,8 +1297,8 @@ def _solve_fixed_source_si(
         # sweep's ``_initial_guess_values`` duck-types on ``.bulk``.
         if angular is not None:
             initial_guess = TimedFullField(
-                bulk=L2AngularFlux.from_mesh(angular, sn_mesh),
-                boundary=L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+                bulk=AngularFlux.from_mesh(angular, sn_mesh),
+                boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
                 _history=(),
                 history_depth=2,
             )
@@ -1336,15 +1336,15 @@ def _solve_fixed_source_si(
     # the legacy BoundaryFlux carrying the converged partner-flux
     # trace.  No legacy AngularFlux intermediate.
     from orpheus.transport.fields.angular_flux import (
-        AngularFlux as L2AngularFlux,
+        AngularFlux,
     )
     from orpheus.transport.fields.boundary_flux import (
-        BoundaryFlux as L2BoundaryFlux,
+        BoundaryFlux,
     )
     from orpheus.transport.timed_full_field import TimedFullField
     return Solution(
         angular_flux=TimedFullField(
-            bulk=L2AngularFlux.from_mesh(angular, sn_mesh),
+            bulk=AngularFlux.from_mesh(angular, sn_mesh),
             # D-H.2-C2: ``solver._boundary_flux`` is L2 directly.
             boundary=solver._boundary_flux,
             _history=(),
@@ -1437,10 +1437,10 @@ def _solve_fixed_source_krylov(
         )
 
     from orpheus.transport.fields.angular_flux import (
-        AngularFlux as L2AngularFlux,
+        AngularFlux,
     )
     from orpheus.transport.fields.boundary_flux import (
-        BoundaryFlux as L2BoundaryFlux,
+        BoundaryFlux,
     )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from .operator import CollisionOperator, StreamingOperator
@@ -1462,8 +1462,8 @@ def _solve_fixed_source_krylov(
     # ``initial_guess`` not ``rhs.boundary``).
     q_ext_per_ord = PerOrdinateSource.from_mesh(external_source, sn_mesh)
     q_ext_composite = TimedFullField(
-        bulk=L2AngularFlux.from_mesh(q_ext_per_ord.values, sn_mesh),
-        boundary=L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+        bulk=AngularFlux.from_mesh(q_ext_per_ord.values, sn_mesh),
+        boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
         _history=(),
         history_depth=2,
     )
