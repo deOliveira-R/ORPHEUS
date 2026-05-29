@@ -11,9 +11,9 @@ The math
 .. math::
 
    L.{\rm apply}(\psi) \;:=\; M(\psi;\;\sigma_t) \;-\;
-                              \sigma_t \odot \psi_{\rm packed}
+                              \sigma_t \odot \psi_{\rm bulk}
    \\
-   C.{\rm apply}(\psi) \;:=\; \sigma_t \odot \psi_{\rm packed}
+   C.{\rm apply}(\psi) \;:=\; \sigma_t \odot \psi_{\rm bulk}
    \\
    (L + C).{\rm apply}(\psi) \;\equiv\; M(\psi;\;\sigma_t)
        \qquad \text{rel\_residual} = 0.0
@@ -38,24 +38,31 @@ Test contract (mechanism criteria 1, 2 from the substep brief)
 
 * slab/sphere/cylinder × 3 random seeds × σ_t = 2.0 uniform.
 * Composition residual ``(L+C).apply(ψ) − M(ψ;σ_t)`` MUST be bit-exact
-  (``rel_residual < 1e-14``).
+  (``rel_residual < 1e-14``) on BOTH the cell-centre bulk
+  ``AngularFlux`` and the boundary face residual ``BoundaryFlux``.
 * No xfail. Resolution A guarantees this hold by construction.
 
 A separate test verifies that the subtractive L's apply DIFFERS from
 the prior wrong approach ``matvec(σ_t=0)`` (sanity: we're shipping a
 genuinely different formulation).
 
-D-H.2-C1 note
--------------
-All tests in this file exercise the bare-``np.ndarray`` flat-vector
-path through :func:`transport_operator_matvec_unified` (the legacy
-matvec kernel).  ``_call_matvec`` internally adapts via the legacy
-:class:`orpheus.sn.angular_flux.AngularFlux` +
-:class:`orpheus.sn.boundary_flux.BoundaryFlux` pair as a transient
-bridge to the unified matvec.  The composite migration deferred
-this file to C4 because the matvec kernel itself needs the L2-native
-rewrite before the test fixtures can express the input as a
-:class:`TimedFullField`.  Tests stay legacy until C4.
+D-I.1 — typed-carrier migration
+-------------------------------
+
+This file was originally written against the legacy packed-vector
+contract (bare-``np.ndarray`` through
+:func:`transport_operator_matvec_unified` via the
+:class:`EquationMap` B1'' adapter).  D-I.1 retires
+:meth:`CollisionOperator.apply(bare_ndarray)` /
+:meth:`CollisionOperator.solve(bare_ndarray)` along with the
+supporting ``_ensure_eq_map`` / ``_sigma_at_unknowns`` / ``_eq_map``
+fields; the test file migrates first so its assertions land directly
+on the typed :class:`TimedFullField` carrier (the D-H wave's
+load-bearing composite type).
+
+The TimedFullField construction inlines at each test — the typed
+construction IS the test setup; no per-test wrapper helper is
+introduced.
 """
 from __future__ import annotations
 
@@ -67,13 +74,12 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import (
     CollisionOperator,
     StreamingOperator,
-    build_equation_map,
-    build_equation_map_with_traces,
-    pack_with_traces,
-    solution_to_angular_flux_with_traces,
     transport_operator_matvec_unified,
 )
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.l0
@@ -122,91 +128,6 @@ def _build_sn_mesh(geometry: str, n_cells: int = 5, n_ord: int = 4) -> SNMesh:
     return SNMesh(mesh, quad, placeholder_materials())
 
 
-def _eq_map_for(sn_mesh: SNMesh, ng: int):
-    """Geometry-dispatched EquationMap factory matching
-    :meth:`StreamingOperator._ensure_eq_map` after PR-TYPED-6.5 Phase 3b.
-
-    1-D paths use the B1'' face-aware layout (cell-centres + face
-    slots); 2-D Cartesian retains the legacy FD layout.
-    """
-    nx, ny = sn_mesh.nx, sn_mesh.ny
-    quad = sn_mesh.quad
-    curv = getattr(sn_mesh, "curvature", None)
-    if curv is None and ny > 1:
-        return build_equation_map(nx, ny, quad, ng)
-    has_inner_bc = (curv is None)
-    return build_equation_map_with_traces(
-        nx, quad, ng, has_inner_bc=has_inner_bc,
-    )
-
-
-def _call_matvec(sn_mesh: SNMesh, psi_vec: np.ndarray,
-                 sigma_t_arr: np.ndarray, eq_map, ng: int) -> np.ndarray:
-    """Geometry-dispatched matvec at the supplied σ_t — the reference value.
-
-    Mirrors :meth:`StreamingOperator.apply`'s internal dispatch.  Issue #197
-    PR-TYPED-6c Step 5 — 1-D slab / sphere / cylinder all route through
-    :func:`transport_operator_matvec_unified`.
-
-    D-H.2-C4e.6 (2026-05-29) — the 2-D Cartesian dead branch (predicate
-    ``curv is None and ny > 1``) retired with the legacy
-    ``transport_operator_matvec``: this helper is only called from 1-D
-    Cartesian (``CART``) tests where ``ny == 1``, so the 2-D fallthrough
-    never fired in practice.  The 1-D B1'' face-aware L2-native path
-    below is the only path now.
-
-    PR-TYPED-6.5 Phase 3b — 1-D paths consume the B1'' face-aware
-    packed layout via :func:`solution_to_angular_flux_with_traces` and
-    :func:`pack_with_traces`.
-    """
-    nx, ny = sn_mesh.nx, sn_mesh.ny
-    quad = sn_mesh.quad
-
-    # 1-D B1'' face-aware path.  D-H.2-C4c — L2-native
-    # ``transport_operator_matvec_unified`` consumes ``TimedFullField``;
-    # decode packed face slots into the L2 ``face_view`` writable arrays.
-    from orpheus.transport.fields.angular_flux import (
-        AngularFlux,
-    )
-    from orpheus.transport.fields.boundary_flux import (
-        BoundaryFlux,
-    )
-    from orpheus.transport.timed_full_field import TimedFullField
-    psi_cell, psi_face_outer, psi_face_inner = (
-        solution_to_angular_flux_with_traces(
-            psi_vec, eq_map, nx, ng, N=quad.N,
-        )
-    )
-    boundary_in = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
-    if eq_map.n_face_outer > 0:
-        boundary_in.face_view("xmax")[eq_map.face_outer_ordinate, :] = (
-            psi_face_outer
-        )
-    if eq_map.n_face_inner > 0 and "xmin" in boundary_in.layout.faces:
-        boundary_in.face_view("xmin")[eq_map.face_inner_ordinate, :] = (
-            psi_face_inner
-        )
-    composite_in = TimedFullField(
-        bulk=AngularFlux.from_mesh(psi_cell, sn_mesh),
-        boundary=boundary_in,
-        _history=(),
-        history_depth=2,
-    )
-    result = transport_operator_matvec_unified(composite_in, sigma_t_arr)
-    m_cell = result.bulk.values
-    m_face_outer = (
-        result.boundary.face_view("xmax")[eq_map.face_outer_ordinate, :]
-        if eq_map.n_face_outer > 0 else None
-    )
-    m_face_inner = (
-        result.boundary.face_view("xmin")[eq_map.face_inner_ordinate, :]
-        if eq_map.n_face_inner > 0
-        and "xmin" in result.boundary.layout.faces
-        else None
-    )
-    return pack_with_traces(m_cell, m_face_outer, m_face_inner, eq_map)
-
-
 # ═══════════════════════════════════════════════════════════════════════
 # Mechanism criterion 1 — (L + C).apply(ψ) ≡ M(ψ; σ_t) bit-exact.
 # ═══════════════════════════════════════════════════════════════════════
@@ -216,55 +137,89 @@ class TestResolutionADecomposition:
     """``(L + C).apply(ψ) == M(ψ; σ_t)`` bit-exact across all geometries.
 
     Resolution A guarantees this by construction:
-    ``L.apply := M(ψ; σ_t) − σ_t⊙ψ`` and ``C.apply := σ_t⊙ψ``, so
-    ``(L + C).apply = M(ψ; σ_t)`` algebraically. NO xfail.
+    ``L.apply := M(ψ; σ_t) − σ_t⊙ψ.bulk`` and ``C.apply := σ_t⊙ψ.bulk``,
+    so ``(L + C).apply = M(ψ; σ_t)`` algebraically on both bulk and
+    boundary blocks. NO xfail.
     """
 
     @pytest.mark.parametrize("geometry", ["CART", "SPH", "CYL"])
     @pytest.mark.parametrize("seed", [0, 1, 2])
     def test_bit_exact_uniform_sigma_t(self, geometry, seed):
-        """(L + C).apply(ψ) ≡ M(ψ; σ_t) at rel_residual == 0.0."""
+        """(L + C).apply(ψ) ≡ M(ψ; σ_t) at rel_residual == 0.0
+        on both the bulk and the boundary blocks of the typed carrier.
+        """
         sn_mesh = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
         ng = 1
-        eq_map = _eq_map_for(sn_mesh, ng=ng)
+        N = sn_mesh.quad.N
+        nx, ny = sn_mesh.nx, sn_mesh.ny
 
         rng = np.random.default_rng(seed)
-        psi_vec = rng.standard_normal(eq_map.n_unknowns).astype(np.float64)
+        state = TimedFullField(
+            bulk=AngularFlux.from_mesh(
+                rng.standard_normal((N, ng, nx, ny)), sn_mesh,
+            ),
+            boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+            _history=(),
+            history_depth=2,
+        )
         sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 2.0)  # PR-INDEX-3
 
-        # Reference: the matvec at full σ_t.
-        m_full = _call_matvec(sn_mesh, psi_vec, sigma_t, eq_map, ng)
+        # Reference: the unified matvec at full σ_t.
+        m_full_state = transport_operator_matvec_unified(state, sigma_t)
 
-        # Resolution A: L.apply + C.apply.
+        # Resolution A: L.apply + C.apply via TimedFullField arithmetic.
         L = StreamingOperator(sn_mesh, sigma_t)
         C = CollisionOperator(sn_mesh, sigma_t)
-        sum_apply = L.apply(psi_vec) + C.apply(psi_vec)
+        sum_state = L.apply(state) + C.apply(state)
 
-        residual = sum_apply - m_full
-        rel_residual = (
-            np.linalg.norm(residual)
-            / max(np.linalg.norm(m_full), 1e-300)
+        # Bulk residual — (N, ng, nx, ny) ndarray.
+        residual_bulk = sum_state.bulk.values - m_full_state.bulk.values
+        rel_bulk = (
+            np.linalg.norm(residual_bulk)
+            / max(np.linalg.norm(m_full_state.bulk.values), 1e-300)
         )
-        assert rel_residual < 1e-14, (
-            f"{geometry} seed={seed}: rel_residual={rel_residual:.3e} "
+        assert rel_bulk < 1e-14, (
+            f"{geometry} seed={seed}: bulk rel_residual={rel_bulk:.3e} "
             f"— Resolution A subtractive decomposition FAILED bit-exact "
-            f"gate. (L + C).apply MUST equal M(ψ; σ_t) by construction."
+            f"gate on bulk. (L + C).apply.bulk MUST equal M(ψ; σ_t).bulk."
+        )
+
+        # Boundary residual — flat (layout.total_size,) backing buffer.
+        residual_bdry = (
+            sum_state.boundary.values - m_full_state.boundary.values
+        )
+        if m_full_state.boundary.values.size > 0:
+            rel_bdry = (
+                np.linalg.norm(residual_bdry)
+                / max(np.linalg.norm(m_full_state.boundary.values), 1e-300)
+            )
+        else:
+            rel_bdry = 0.0
+        assert rel_bdry < 1e-14, (
+            f"{geometry} seed={seed}: boundary rel_residual={rel_bdry:.3e} "
+            f"— Resolution A subtractive decomposition FAILED bit-exact "
+            f"gate on boundary. (L + C).apply.boundary MUST equal "
+            f"M(ψ; σ_t).boundary by construction (C contributes zero "
+            f"to the boundary face residual)."
         )
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # Mechanism criterion 2 — the subtractive definition holds:
-# L.apply(ψ) ≡ M(ψ; σ_t) − σ_t⊙ψ exactly.
+# L.apply(ψ) ≡ M(ψ; σ_t) − σ_t⊙ψ.bulk exactly (on bulk; equal on boundary).
 # ═══════════════════════════════════════════════════════════════════════
 
 
 class TestSubtractiveDefinition:
-    """``L.apply(ψ) == M(ψ; σ_t) − σ_t_packed * ψ`` at exact equality.
+    """``L.apply(ψ).bulk == M(ψ; σ_t).bulk − σ_t · ψ.bulk`` at exact equality
+    and ``L.apply(ψ).boundary == M(ψ; σ_t).boundary`` at exact equality.
 
     The complement of the (L + C) test — this verifies the L leaf
-    alone matches the subtractive formula. Together with the
-    ``C.apply == σ_t⊙ψ`` contract (covered by test_collision_operator),
-    these two tests fully pin Resolution A.
+    alone matches the subtractive formula on the bulk while leaving
+    the boundary face residual untouched (collision contributes zero
+    on the trace). Together with the ``C.apply == σ_t⊙ψ.bulk; zero
+    boundary`` contract (covered by test_collision_operator), these
+    two tests fully pin Resolution A.
     """
 
     @pytest.mark.parametrize("geometry", ["CART", "SPH", "CYL"])
@@ -272,30 +227,39 @@ class TestSubtractiveDefinition:
     def test_L_apply_equals_subtractive_form(self, geometry, seed):
         sn_mesh = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
         ng = 1
-        eq_map = _eq_map_for(sn_mesh, ng=ng)
+        N = sn_mesh.quad.N
+        nx, ny = sn_mesh.nx, sn_mesh.ny
 
         rng = np.random.default_rng(seed)
-        psi_vec = rng.standard_normal(eq_map.n_unknowns).astype(np.float64)
+        state = TimedFullField(
+            bulk=AngularFlux.from_mesh(
+                rng.standard_normal((N, ng, nx, ny)), sn_mesh,
+            ),
+            boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+            _history=(),
+            history_depth=2,
+        )
         sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 2.0)  # PR-INDEX-3
 
         L = StreamingOperator(sn_mesh, sigma_t)
-        l_apply = L.apply(psi_vec)
+        l_state = L.apply(state)
 
-        m_full = _call_matvec(sn_mesh, psi_vec, sigma_t, eq_map, ng)
-        # PR-INDEX-3: σ_t shape (ng, nx, ny); advanced index gives (ng, n_eq).
-        # PR-TYPED-6.5 Phase 3b: B1'' face slots carry no volumetric
-        # collision; build the σ_t subtraction vector for the cell-
-        # centre block only and zero-pad the face block.
-        sigma_packed_cell = sigma_t[
-            :, eq_map.ix, eq_map.iy
-        ].ravel(order='F')
-        n_cell_scalars = eq_map.n_eq * ng
-        expected = m_full.copy()
-        expected[:n_cell_scalars] -= sigma_packed_cell * psi_vec[:n_cell_scalars]
-        # face slots: expected[n_cell_scalars:] = m_full[face] − 0
+        m_full_state = transport_operator_matvec_unified(state, sigma_t)
+
+        # Cell-centre subtraction: bulk expected = M.bulk - σ_t·ψ.bulk
+        # (σ_t broadcast over the ordinate axis 0 via [None, :, :, :]).
+        expected_bulk = (
+            m_full_state.bulk.values - sigma_t[None, :, :, :] * state.bulk.values
+        )
+        # Face slots: L.boundary == M.boundary (no volumetric collision
+        # on the trace; the cell-balance σ·ψ term is a CELL quantity).
+        expected_boundary = m_full_state.boundary.values
 
         # Bit-exact: L.apply IS the subtractive formula.
-        np.testing.assert_array_equal(l_apply, expected)
+        np.testing.assert_array_equal(l_state.bulk.values, expected_bulk)
+        np.testing.assert_array_equal(
+            l_state.boundary.values, expected_boundary,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -332,23 +296,34 @@ class TestResolutionADifferentFromPriorWrong:
     ):
         sn_mesh = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
         ng = 1
-        eq_map = _eq_map_for(sn_mesh, ng=ng)
+        N = sn_mesh.quad.N
+        nx, ny = sn_mesh.nx, sn_mesh.ny
 
         rng = np.random.default_rng(0)
-        psi_vec = rng.standard_normal(eq_map.n_unknowns).astype(np.float64)
+        state = TimedFullField(
+            bulk=AngularFlux.from_mesh(
+                rng.standard_normal((N, ng, nx, ny)), sn_mesh,
+            ),
+            boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+            _history=(),
+            history_depth=2,
+        )
         sigma_full = np.full((ng, sn_mesh.nx, sn_mesh.ny), 2.0)  # PR-INDEX-3
         sigma_zero = np.zeros((ng, sn_mesh.nx, sn_mesh.ny))
 
         # Resolution A's L.apply (subtractive).
         L = StreamingOperator(sn_mesh, sigma_full)
-        l_correct = L.apply(psi_vec)
+        l_correct_state = L.apply(state)
 
-        # Prior agent's wrong L.apply: matvec at σ_t = 0.
-        l_prior = _call_matvec(sn_mesh, psi_vec, sigma_zero, eq_map, ng)
+        # Prior agent's wrong L.apply: matvec at σ_t = 0 (which has
+        # different boundary behaviour because the Carlson seed
+        # denominator degenerates).
+        l_prior_state = transport_operator_matvec_unified(state, sigma_zero)
 
-        diff = l_correct - l_prior
+        diff_bulk = l_correct_state.bulk.values - l_prior_state.bulk.values
         rel = (
-            np.linalg.norm(diff) / max(np.linalg.norm(l_correct), 1e-300)
+            np.linalg.norm(diff_bulk)
+            / max(np.linalg.norm(l_correct_state.bulk.values), 1e-300)
         )
         assert rel > 1e-3, (
             f"{geometry}: Resolution A's L.apply and prior agent's "

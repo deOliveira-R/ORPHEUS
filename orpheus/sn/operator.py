@@ -1919,199 +1919,75 @@ class CollisionOperator(LinearOperatorMixin):
         )
     )
 
-    # Lazy EquationMap cache — same dispatch as StreamingOperator.
-    _eq_map: EquationMap | None = field(default=None, init=False, repr=False)
+    # D-I.1 (2026-05-29): lazy ``_eq_map`` cache + ``_ensure_eq_map`` +
+    # ``_sigma_at_unknowns`` retired together with the bare-ndarray
+    # packed-vector apply / solve arms.  All consumers route through
+    # :class:`TimedFullField`; no packed-vector decoder needed.
 
-    def _ensure_eq_map(self, ng: int) -> EquationMap:
-        """Lazily build the geometry-appropriate :class:`EquationMap`.
+    def apply(self, psi: "TimedFullField") -> "TimedFullField":
+        r"""Forward action :math:`C\,\psi = \sigma\cdot\psi` on the composite carrier.
 
-        Matches :meth:`StreamingOperator._ensure_eq_map` so the (L+C)
-        algebra composes on the same packed format.  1-D uses the
-        B1'' face-aware layout (PR-TYPED-6.5 Phase 3b); 2-D Cartesian
-        retains the legacy FD layout.
-        """
-        if self._eq_map is None:
-            nx, ny = self.sn_mesh.nx, self.sn_mesh.ny
-            quad = self.sn_mesh.quad
-            curv = getattr(self.sn_mesh, "curvature", None)
-            if curv is None and ny > 1:
-                self._eq_map = build_equation_map(nx, ny, quad, ng)
-            else:
-                has_inner_bc = (curv is None)
-                self._eq_map = build_equation_map_with_traces(
-                    nx, quad, ng, has_inner_bc=has_inner_bc,
-                )
-        return self._eq_map
+        The diagonal action :math:`\sigma\cdot\psi` is per-cell per-group,
+        broadcast across every ordinate.  Bulk receives
+        ``σ ⊙ ψ.bulk.values``; boundary is the implicit-zero
+        :class:`BoundaryFlux` — collision has no face-trace contribution
+        (the cell-balance :math:`\sigma\cdot\psi` term is a CELL quantity;
+        the boundary residual is a TRACE equation).  Option β3 / Issue #208
+        will encode this bulk-only nature in the type via
+        :class:`BulkOperator`.
 
-    def _sigma_at_unknowns(self, eq_map: EquationMap, ng: int) -> np.ndarray:
-        r"""Gather ``σ`` at each packed CELL-CENTRE unknown's
-        ``(g, ix, iy)`` slot.
-
-        Returns shape ``(n_eq · ng,)`` — covers the cell-centre block
-        of the packed vector only.  Face slots (B1'') carry no
-        volumetric collision, so this gather does NOT include them.
-        Callers element-wise multiply the cell-centre block of
-        ``psi`` by this; face slots are handled separately (zero
-        contribution to ``apply``).
-
-        PR-INDEX-3: ``sigma`` is principled ``(ng, nx, ny)`` — advanced
-        indexing on ``(ix, iy)`` returns ``(ng, n_eq)`` directly, no
-        transpose required.
-        """
-        sigma_per_eq = self.sigma[:, eq_map.ix, eq_map.iy]    # (ng, n_eq)
-        return sigma_per_eq.ravel(order='F')                  # (n_eq · ng,)
-
-    def apply(
-        self, psi: "np.ndarray | AngularFlux | TimedFullField",
-    ) -> "np.ndarray | AngularFlux | TimedFullField":
-        r"""Forward action :math:`C\,\psi = \sigma\cdot\psi`.
-
-        PR-TYPED-6.5 Phase 3b — face slots receive zero contribution
-        (no volumetric collision on the boundary face trace); the
-        cell-centre block carries the elementwise ``σ ⊙ ψ_cell``.
-
-        R-1 Step 3c — typed :class:`AngularFlux` overload.  The diagonal
-        action :math:`\sigma\cdot\psi` is per-cell per-group, broadcast
-        across every ordinate.  Result's ``.boundary`` is the
-        auto-allocated zero :class:`BoundaryFlux` — collision has no
-        face-trace contribution.
-
-        Depth B D-H.1b.5 — typed :class:`TimedFullField` overload.
-        Composite bulk + boundary variant for the D-H.1+ migration
-        path.  Bulk receives the same :math:`\sigma\cdot\psi.bulk`
-        broadcast; boundary is the implicit-zero :class:`BoundaryFlux`
-        (Option β3 — Wave O Issue #208 will encode the bulk-only
-        nature in the type via :class:`BulkOperator`).
-
-        Parameters
-        ----------
-        psi : np.ndarray or AngularFlux or TimedFullField
-            * Bare ``np.ndarray`` — packed 1-D vector matching
-              :attr:`_eq_map.n_unknowns`.  Returns bare ``np.ndarray``.
-            * :class:`~orpheus.sn.angular_flux.AngularFlux` shape
-              ``(N, ng, nx, ny)``.  Returns :class:`AngularFlux` with
-              ``.values = σ ⊙ ψ.values`` and zero ``.boundary``.
-            * :class:`~orpheus.transport.timed_full_field.TimedFullField`
-              wrapping an :class:`AngularFlux` bulk.  Returns a
-              :class:`TimedFullField` with bulk = σ ⊙ ψ.bulk.values and
-              implicit-zero boundary.
+        D-I.1 (2026-05-29) retired the legacy bare-ndarray packed-vector
+        arm.  :class:`TimedFullField` is the sole accepted carrier.
         """
         from orpheus.transport.timed_full_field import TimedFullField
-        if isinstance(psi, TimedFullField):
-            # Composite branch — broadcast σ across ordinate axis on
-            # the bulk; boundary is the implicit-zero L2 BoundaryFlux
-            # (Option β3 / Issue #208).
-            from orpheus.transport.fields.angular_flux import (
-                AngularFlux,
-            )
-            from orpheus.transport.fields.boundary_flux import (
-                BoundaryFlux,
-            )
-            mesh = psi.bulk.mesh
-            return TimedFullField(
-                bulk=AngularFlux.from_mesh(
-                    self.sigma[None, :, :, :] * psi.bulk.values, mesh,
-                ),
-                boundary=BoundaryFlux.zeros_for_sn_mesh(mesh),
-                _history=(),
-                history_depth=psi.history_depth,
-            )
-        ng = int(self.sigma.shape[0])
-        eq_map = self._ensure_eq_map(ng)
-        if eq_map.n_unknowns != psi.size:
-            raise ValueError(
-                f"CollisionOperator.apply: packed psi size {psi.size} "
-                f"does not match eq_map.n_unknowns {eq_map.n_unknowns} "
-                f"(ng={ng})."
-            )
-        n_cell_scalars = eq_map.n_eq * ng
-        out = np.zeros_like(psi)
-        sigma_packed = self._sigma_at_unknowns(eq_map, ng)
-        out[:n_cell_scalars] = sigma_packed * psi[:n_cell_scalars]
-        return out
+        from orpheus.transport.fields.angular_flux import AngularFlux
+        from orpheus.transport.fields.boundary_flux import BoundaryFlux
+        mesh = psi.bulk.mesh
+        return TimedFullField(
+            bulk=AngularFlux.from_mesh(
+                self.sigma[None, :, :, :] * psi.bulk.values, mesh,
+            ),
+            boundary=BoundaryFlux.zeros_for_sn_mesh(mesh),
+            _history=(),
+            history_depth=psi.history_depth,
+        )
 
-    def solve(
-        self, q: "np.ndarray | AngularFlux | TimedFullField",
-    ) -> "np.ndarray | AngularFlux | TimedFullField":
-        r"""Inverse action :math:`C^{-1}\,q = q/\sigma` element-wise on
-        the cell-centre block.
+    def solve(self, q: "TimedFullField") -> "TimedFullField":
+        r"""Inverse action :math:`C^{-1}\,q = q/\sigma` on the composite carrier.
 
-        Trivially invertible on the cell-centre block: collision is
-        diagonal, so the inverse is per-slot reciprocal scaling.
-        Returns NaN / Inf at slots where ``σ == 0`` per the IEEE-754
-        division contract — consumers constructing
-        :math:`\sigma_r = \sigma_t - \Sigma_{s,0}^{g\to g}` must
-        guarantee positivity (the operator does not check).
+        Trivially invertible on the bulk: collision is diagonal, so the
+        inverse is per-slot reciprocal scaling.  Returns NaN / Inf at
+        slots where ``σ == 0`` per the IEEE-754 division contract —
+        consumers constructing :math:`\sigma_r = \sigma_t -
+        \Sigma_{s,0}^{g\to g}` must guarantee positivity (the operator
+        does not check).
 
-        PR-TYPED-6.5 Phase 3b — the face block has no σ (rank-deficient
-        for pure ``C`` on the face).  Face slots of ``q`` pass through
-        unchanged (identity-on-face) — this is the formal pseudoinverse
-        for the rank-deficient face block and the right behaviour when
-        ``(L + C).solve`` consumes a packed ``q`` with zero face entries
-        (the standard within-group source).  Callers that genuinely
-        need ``C^{-1}`` on a non-zero face block (an unusual scenario)
-        must handle the face slots themselves.
+        Boundary is the implicit-zero :class:`BoundaryFlux` (Option β3,
+        formal pseudoinverse on the rank-deficient face block — face
+        slots of ``q`` are NOT inverted because collision contributes
+        no volumetric term on the trace).
 
-        R-1 Step F — typed :class:`AngularFlux` overload.  The
-        inverse-collision action is per-cell per-group, broadcast
-        across every ordinate.  Result's ``.boundary`` is the
-        auto-allocated zero :class:`BoundaryFlux` (collision is rank-
-        deficient on the face block; pseudoinverse leaves it zero).
-
-        Depth B D-H.1b.5 — typed :class:`TimedFullField` overload.
-        Bulk receives :math:`q.bulk / \sigma` broadcast; boundary is
-        the implicit-zero :class:`BoundaryFlux` (Option β3,
-        formal pseudoinverse on the rank-deficient face block).
+        D-I.1 retired the legacy bare-ndarray packed-vector arm.
+        :class:`TimedFullField` is the sole accepted carrier.
         """
         from orpheus.transport.timed_full_field import TimedFullField
-        if isinstance(q, TimedFullField):
-            # Composite branch — broadcast 1/σ across the ordinate
-            # axis on the bulk; boundary is the implicit-zero L2
-            # BoundaryFlux (Option β3 — pseudoinverse on the rank-
-            # deficient face block).
-            from orpheus.transport.fields.angular_flux import (
-                AngularFlux,
-            )
-            from orpheus.transport.fields.boundary_flux import (
-                BoundaryFlux,
-            )
-            mesh = q.bulk.mesh
-            return TimedFullField(
-                bulk=AngularFlux.from_mesh(
-                    q.bulk.values / self.sigma[None, :, :, :], mesh,
-                ),
-                boundary=BoundaryFlux.zeros_for_sn_mesh(mesh),
-                _history=(),
-                history_depth=q.history_depth,
-            )
-        ng = int(self.sigma.shape[0])
-        eq_map = self._ensure_eq_map(ng)
-        if eq_map.n_unknowns != q.size:
-            raise ValueError(
-                f"CollisionOperator.solve: packed q size {q.size} "
-                f"does not match eq_map.n_unknowns {eq_map.n_unknowns} "
-                f"(ng={ng})."
-            )
-        n_cell_scalars = eq_map.n_eq * ng
-        out = q.copy()
-        sigma_packed = self._sigma_at_unknowns(eq_map, ng)
-        out[:n_cell_scalars] = q[:n_cell_scalars] / sigma_packed
-        # Face slots (out[n_cell_scalars:]) pass through unchanged.
-        return out
+        from orpheus.transport.fields.angular_flux import AngularFlux
+        from orpheus.transport.fields.boundary_flux import BoundaryFlux
+        mesh = q.bulk.mesh
+        return TimedFullField(
+            bulk=AngularFlux.from_mesh(
+                q.bulk.values / self.sigma[None, :, :, :], mesh,
+            ),
+            boundary=BoundaryFlux.zeros_for_sn_mesh(mesh),
+            _history=(),
+            history_depth=q.history_depth,
+        )
 
-    def apply_transpose(
-        self, psi: "np.ndarray | AngularFlux | TimedFullField",
-    ) -> "np.ndarray | AngularFlux | TimedFullField":
+    def apply_transpose(self, psi: "TimedFullField") -> "TimedFullField":
         r"""Adjoint action :math:`C^*\,\psi = \sigma\cdot\psi`.
 
         Equal to :meth:`apply` — collision is self-adjoint (diagonal
         operator). Returned bit-equal to ``apply(psi)``.
-
-        R-1 Step F — typed :class:`AngularFlux` overload propagates
-        through :meth:`apply`.
-
-        Depth B D-H.1b.5 — :class:`TimedFullField` overload also
-        propagates through :meth:`apply`.
         """
         return self.apply(psi)
 
