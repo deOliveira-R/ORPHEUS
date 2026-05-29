@@ -544,9 +544,10 @@ class SNSolver:
             bulk=L2AngularFlux.from_mesh(
                 q_ext_per_ord.values, self.sn_mesh,
             ),
-            boundary=L2BoundaryFlux.from_legacy_sn(
-                self._boundary_flux, self.sn_mesh,
-            ),
+            # D-H.2-C2: ``self._boundary_flux`` is now L2 directly via
+            # ``zeros_boundary_flux``; the ``from_legacy_sn`` adapter
+            # retires from this call site.
+            boundary=self._boundary_flux,
             _history=(),
             history_depth=2,
         )
@@ -1067,9 +1068,8 @@ def solve_sn(
     return Solution(
         angular_flux=TimedFullField(
             bulk=L2AngularFlux.from_mesh(angular_flux, sn_mesh),
-            boundary=L2BoundaryFlux.from_legacy_sn(
-                solver._boundary_flux, sn_mesh,
-            ),
+            # D-H.2-C2: ``solver._boundary_flux`` is L2 directly.
+            boundary=solver._boundary_flux,
             _history=(),
             history_depth=2,
         ),
@@ -1331,9 +1331,8 @@ def _solve_fixed_source_si(
     return Solution(
         angular_flux=TimedFullField(
             bulk=L2AngularFlux.from_mesh(angular, sn_mesh),
-            boundary=L2BoundaryFlux.from_legacy_sn(
-                solver._boundary_flux, sn_mesh,
-            ),
+            # D-H.2-C2: ``solver._boundary_flux`` is L2 directly.
+            boundary=solver._boundary_flux,
             _history=(),
             history_depth=2,
         ),

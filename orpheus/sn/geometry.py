@@ -61,7 +61,7 @@ if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.numerics.face_layout import FaceLayout
     from .angular_flux import AngularFlux
-    from .boundary_flux import BoundaryFlux
+    from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
     from orpheus.transport.timed_full_field import TimedFullField
     from .material_xs_field import MaterialXSField
@@ -793,16 +793,32 @@ class SNMesh:
         )
 
     def zeros_boundary_flux(self) -> "BoundaryFlux":
-        r"""Build a zero :class:`BoundaryFlux` sized to this mesh.
+        r"""Build a zero L2 :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+        sized to this mesh.
 
-        Delegates to :meth:`BoundaryFlux.zeros`; allocates only the
-        face / persistent buffers the mesh's geometry consumes (slab
-        gets two 1-D faces, curvilinear gets one outer face,
-        2-D Cartesian gets the two persistent ``(N, ng, nx+1, ny)``
-        buffers).
+        D-H.2-C2 (2026-05-28) — flipped from the legacy
+        :class:`orpheus.sn.boundary_flux.BoundaryFlux` to the L2
+        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+        (pure-Field flat-backing + :class:`FaceLayout` descriptor).
+        The legacy class retires in D-H.2-C5; this factory was the last
+        production allocation site.
+
+        Layout is per-geometry via :attr:`boundary_face_layout`:
+
+        * 1-D slab — two faces ``xmin`` / ``xmax``, each shape ``(N, ng)``.
+        * 1-D curvilinear — one face ``xmax`` shape ``(N, ng)``.
+        * 2-D Cartesian — four faces ``xmin`` / ``xmax`` (shape
+          ``(N, ng, ny)``) and ``ymin`` / ``ymax`` (shape ``(N, ng, nx)``).
+
+        Returns
+        -------
+        BoundaryFlux
+            All-zero L2 boundary flux on the mesh's flat layout.
         """
-        from .boundary_flux import BoundaryFlux
-        return BoundaryFlux.zeros(self)
+        from orpheus.transport.fields.boundary_flux import (
+            BoundaryFlux as L2BoundaryFlux,
+        )
+        return L2BoundaryFlux.zeros_for_sn_mesh(self)
 
     def zeros_timed_full_field(
         self, history_depth: int = 2,

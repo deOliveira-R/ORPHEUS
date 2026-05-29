@@ -87,7 +87,7 @@ if TYPE_CHECKING:
     from orpheus.geometry.boundary import BoundaryOperator
 
     from .angular_flux import AngularFlux
-    from .boundary_flux import BoundaryFlux
+    from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from .geometry import SNMesh
     from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
     from .spatial.pole_angular_closure import PoleAngularClosure
@@ -2850,19 +2850,42 @@ class InvertibleOperator(OperatorSum):
         # Without threading the partner flux, the sweep sees zero
         # inflow each call → effectively VACUUM, and the fixed point
         # shifts away from the true reflective answer.
-        boundary_buf = sn_mesh.zeros_boundary_flux()
+        # D-H.2-C2: zeros_boundary_flux now returns L2 :class:`BoundaryFlux`;
+        # this legacy branch (retired in D-H.2-C3) operates on legacy
+        # types throughout, so allocate the legacy buffer directly.
+        # The sweep is migrated to consume L2 in C2 — bridge L2 ↔ legacy
+        # via a paired temporary: the legacy ``boundary_buf`` carries
+        # the partner-flux state for the AngularFlux return contract;
+        # the L2 ``sweep_buf`` is what the sweep actually reads/writes.
+        from .boundary_flux import BoundaryFlux as _LegacyBoundaryFlux
+        boundary_buf = _LegacyBoundaryFlux.zeros(sn_mesh)
         if initial_guess is not None:
             _copy_boundary_face_state(initial_guess.boundary, boundary_buf)
         else:
             _copy_boundary_face_state(rhs.boundary, boundary_buf)
 
+        # Sweep consumes L2; bridge legacy ↔ L2 around the call.
+        sweep_buf = sn_mesh.zeros_boundary_flux()  # L2 after C2
+        layout = sweep_buf.layout
+        if "xmin" in layout.faces and boundary_buf.xmin_face is not None:
+            sweep_buf.face_view("xmin")[:] = boundary_buf.xmin_face
+        if "xmax" in layout.faces and boundary_buf.xmax_face is not None:
+            sweep_buf.face_view("xmax")[:] = boundary_buf.xmax_face
+
         angular, _scalar = transport_sweep(
             source,
             self.sigma,
             sn_mesh,
-            boundary_buf,
+            sweep_buf,
             initial_guess=initial_guess,
         )
+
+        # Persist sweep outflow back to the legacy buffer for the
+        # AngularFlux return.
+        if "xmin" in layout.faces and boundary_buf.xmin_face is not None:
+            boundary_buf.xmin_face[:] = sweep_buf.face_view("xmin")
+        if "xmax" in layout.faces and boundary_buf.xmax_face is not None:
+            boundary_buf.xmax_face[:] = sweep_buf.face_view("xmax")
 
         return AngularFlux(
             angular,
@@ -2933,24 +2956,26 @@ class InvertibleOperator(OperatorSum):
                 "(mesh-identity invariant)."
             )
 
-        # ── L2 → legacy-buffer boundary seeding (the load-bearing
-        # partner-flux plumbing per audit §5).  The sweep mutates
-        # ``boundary_buf`` (a legacy BoundaryFlux — the write-through
-        # buffer pattern; the L2 buffer migration defers to D-H.2
-        # alongside legacy-AngularFlux retirement).  Seed it from the
-        # composite's boundary face_view (initial_guess.boundary takes
-        # priority; rhs.boundary is the fallback) — D-H.1c stage 4 inlined
-        # the face-by-face copy, replacing the prior
-        # ``to_legacy_angular_flux()`` round-trip.
-        boundary_buf = sn_mesh.zeros_boundary_flux()
+        # ── L2 boundary buffer for the sweep (D-H.2-C2) ───────────────
+        #
+        # The sweep mutates ``boundary_buf`` (the L2 mutable
+        # write-through; ``frozen=True`` freezes field rebinding but
+        # the underlying flat ndarray remains writable through
+        # :meth:`face_view`).  Seed it from the composite's boundary
+        # face_view — ``initial_guess.boundary`` takes priority,
+        # ``rhs.boundary`` is the fallback.  D-H.2-C2 retires the
+        # legacy round-trip: ``boundary_buf`` IS L2 throughout.
+        boundary_buf = sn_mesh.zeros_boundary_flux()  # L2 after C2
         seed_boundary = (
             initial_guess.boundary if initial_guess is not None else rhs.boundary
         )
-        layout = seed_boundary.layout
-        if "xmax" in layout.faces and boundary_buf.xmax_face is not None:
-            boundary_buf.xmax_face[...] = seed_boundary.face_view("xmax")
-        if "xmin" in layout.faces and boundary_buf.xmin_face is not None:
-            boundary_buf.xmin_face[...] = seed_boundary.face_view("xmin")
+        # Per-face copy via L2 face_view — works for slab (xmin, xmax),
+        # curvilinear (xmax only), and 2-D Cartesian (all 4).
+        for face_name in boundary_buf.layout.faces:
+            if face_name in seed_boundary.layout.faces:
+                boundary_buf.face_view(face_name)[:] = (
+                    seed_boundary.face_view(face_name)
+                )
 
         # ── Per-ordinate source from rhs.bulk (single-source convention
         # per R-1 Step 4 A1 — ``rhs.bulk.values`` IS per-ordinate
@@ -2971,10 +2996,10 @@ class InvertibleOperator(OperatorSum):
             initial_guess=initial_guess,
         )
 
-        # ── legacy → L2 reconstruction.
+        # ── L2 direct return — no adapter needed (D-H.2-C2). ───────────
         return TimedFullField(
             bulk=L2AngularFlux.from_mesh(angular, sn_mesh),
-            boundary=L2BoundaryFlux.from_legacy_sn(boundary_buf, sn_mesh),
+            boundary=boundary_buf,
             _history=(),
             history_depth=rhs.history_depth,
         )

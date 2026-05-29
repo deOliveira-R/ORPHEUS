@@ -571,9 +571,11 @@ class TestSolveTimedFullField:
         original = sweep_mod.transport_sweep
 
         def spy(source, sigma, sn_mesh, boundary_flux, *, initial_guess=None):
+            # D-H.2-C2: L2 BoundaryFlux exposes per-face writable views
+            # via face_view; copy them out at entry to snapshot the seed.
             captured.append((
-                boundary_flux.xmax_face.copy(),
-                boundary_flux.xmin_face.copy(),
+                boundary_flux.face_view("xmax").copy(),
+                boundary_flux.face_view("xmin").copy(),
             ))
             return original(
                 source, sigma, sn_mesh, boundary_flux,

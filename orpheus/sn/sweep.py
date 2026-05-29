@@ -86,7 +86,7 @@ from .sweep_graph import OctantLabel
 
 if TYPE_CHECKING:
     from .angular_flux import AngularFlux
-    from .boundary_flux import BoundaryFlux
+    from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from .geometry import SNMesh
     from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
     from orpheus.transport.timed_full_field import TimedFullField
@@ -463,16 +463,14 @@ def _run_1d_sweep(
     if is_slab:
         bc_left_obj = sn_mesh.bc_left
         bc_right_obj = sn_mesh.bc_right
-        # Issue #197 PR-TYPED-2: BoundaryFlux carries named face buffers.
-        # ``zeros_boundary_flux`` pre-allocates them; the
-        # ``if ... is None`` guard handles the rare case where a caller
-        # builds a bare BoundaryFlux without zeros (e.g. a synthetic test).
-        if boundary_flux.xmin_face is None:
-            boundary_flux.xmin_face = np.zeros((N, ng))
-        if boundary_flux.xmax_face is None:
-            boundary_flux.xmax_face = np.zeros((N, ng))
-        bc_left_face = boundary_flux.xmin_face
-        bc_right_face = boundary_flux.xmax_face
+        # D-H.2-C2: L2 :class:`BoundaryFlux` provides writable per-face
+        # views via :meth:`face_view`.  Slab layout has both ``xmin``
+        # and ``xmax`` slots (shape ``(N, ng)`` each); writes through
+        # the view propagate to the flat backing buffer.  Per-cell-call
+        # outflow persistence below (``bc_left_face[ords] = ...``)
+        # mutates these views in place.
+        bc_left_face = boundary_flux.face_view("xmin")   # (N, ng)
+        bc_right_face = boundary_flux.face_view("xmax")  # (N, ng)
         inflow_left = bc_left_obj.apply(bc_left_face)    # (N, ng)
         inflow_right = bc_right_obj.apply(bc_right_face)  # (N, ng)
         levels = [None]
@@ -483,13 +481,11 @@ def _run_1d_sweep(
         inflow_full = None
     else:
         bc_outer_obj = sn_mesh.bc_right
-        # Issue #197 PR-TYPED-2: curvilinear outer radial face routes
-        # through :attr:`BoundaryFlux.xmax_face` (the unified naming for
-        # 1-D outer face, retiring the ``"bc_sph"`` / ``"bc_cyl"`` dict
-        # keys that previously bifurcated spherical vs cylindrical).
-        if boundary_flux.xmax_face is None:
-            boundary_flux.xmax_face = np.zeros((N, ng))
-        bc_outer = boundary_flux.xmax_face
+        # D-H.2-C2: 1-D curvilinear layout has only the outer radial
+        # ``xmax`` face (the geometric pole at r=0 is a regularity
+        # condition, not a BC face).  Writable view into the L2 flat
+        # backing buffer.
+        bc_outer = boundary_flux.face_view("xmax")  # (N, ng)
         inflow_full = bc_outer_obj.apply(bc_outer)  # (N, ng)
 
         # Per-level Carlson coupled-pole seed delegates to the M-M
@@ -822,20 +818,30 @@ def _sweep_2d_wavefront(
     angular_flux = np.zeros((N, ng, nx, ny))
     scalar_flux = np.zeros((ng, nx, ny))
 
-    # Persistent boundary-flux buffers for reflective BCs (mutated in
-    # place across sweep calls — partner reads need the previous
-    # iteration's outgoing-face writes).  PR-INDEX-5: principled
-    # ``(N, ng, nx+1, ny)`` / ``(N, ng, nx, ny+1)``.
-    # Issue #197 PR-TYPED-2: the two persistent buffers live on the
-    # typed :class:`BoundaryFlux` as named attributes; per-face slices
-    # (``boundary_flux.xmin`` / ``xmax`` / ``ymin`` / ``ymax``) are
-    # auto-derived views.
-    if boundary_flux.xmin_xmax_buf is None:
-        boundary_flux.xmin_xmax_buf = np.zeros((N, ng, nx + 1, ny))
-    if boundary_flux.ymin_ymax_buf is None:
-        boundary_flux.ymin_ymax_buf = np.zeros((N, ng, nx, ny + 1))
-    psi_x = boundary_flux.xmin_xmax_buf  # (N, ng, nx+1, ny) — principled
-    psi_y = boundary_flux.ymin_ymax_buf  # (N, ng, nx, ny+1) — principled
+    # ── Persistent boundary-flux buffers ──────────────────────────────
+    #
+    # D-H.2-C2 / Plan §11.1 #5 — L2 :class:`BoundaryFlux` carries ONLY
+    # boundary face state (``xmin``/``xmax`` shape ``(N, ng, ny)``;
+    # ``ymin``/``ymax`` shape ``(N, ng, nx)``).  The interior
+    # wavefront cache (positions 1..nx-1 along the sweep direction)
+    # dissolves into EPHEMERAL local arrays here — no separate scratch
+    # type, no persistence (the next sweep call rebuilds from boundary
+    # slots).  Pre-D-H.2 the legacy ``xmin_xmax_buf`` /
+    # ``ymin_ymax_buf`` 4-D arrays conflated boundary + interior; that
+    # conflation now dissolves.
+    #
+    # Reflective-BC partner-flux state still persists between sweep
+    # calls — the boundary slots (positions 0 / nx along sweep) carry
+    # it.  At entry: seed local interior arrays from boundary slots.
+    # At exit: write boundary slots back to the L2 face views.
+    psi_x = np.zeros((N, ng, nx + 1, ny))  # ephemeral interior cache
+    psi_y = np.zeros((N, ng, nx, ny + 1))
+    # Seed boundary slots from the persistent L2 buffer (partner-flux
+    # state from the previous iteration).
+    psi_x[:, :, 0, :] = boundary_flux.face_view("xmin")    # (N, ng, ny)
+    psi_x[:, :, nx, :] = boundary_flux.face_view("xmax")   # (N, ng, ny)
+    psi_y[:, :, :, 0] = boundary_flux.face_view("ymin")    # (N, ng, nx)
+    psi_y[:, :, :, ny] = boundary_flux.face_view("ymax")   # (N, ng, nx)
 
     # R-1 Step 4 A1: ``Q`` is per-ordinate magnitude (N, ng, nx, ny).
     # No ``/W`` applied here — the producer normalised at the apply
@@ -914,10 +920,22 @@ def _sweep_2d_wavefront(
             scalar_flux_buf=scalar_flux,
         )
 
-        # Scatter back the persistent BC buffers + angular flux.
+        # Scatter back the local-cache BC buffers + angular flux.
         psi_x[oct_idx] = psi_x_oct
         psi_y[oct_idx] = psi_y_oct
         angular_flux[oct_idx] = angular_flux_oct
+
+    # ── Persist boundary face state to L2 buffer (D-H.2-C2) ───────────
+    #
+    # The ephemeral local ``psi_x`` / ``psi_y`` carry the full sweep
+    # state including boundary AND interior partition faces; only the
+    # BOUNDARY slots persist across sweep calls (interior is rebuilt
+    # next time).  Push the boundary slots back to the L2 writable
+    # face views so the next call's BC-apply sees this call's outflow.
+    boundary_flux.face_view("xmin")[:] = psi_x[:, :, 0, :]
+    boundary_flux.face_view("xmax")[:] = psi_x[:, :, nx, :]
+    boundary_flux.face_view("ymin")[:] = psi_y[:, :, :, 0]
+    boundary_flux.face_view("ymax")[:] = psi_y[:, :, :, ny]
 
     return angular_flux, scalar_flux
 
