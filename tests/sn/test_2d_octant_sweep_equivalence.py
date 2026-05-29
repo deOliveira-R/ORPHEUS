@@ -124,7 +124,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh2D
-from orpheus.sn.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn_fixed_source
@@ -842,12 +842,24 @@ def test_2d_octant_sweep_equivalence(case: OctantEquivalenceCase) -> None:
     expected_psi_y = np.asarray(snap["psi_y_post"], dtype=np.float64)
 
     # Bit-identity contract — angular flux, scalar flux, AND post-sweep
-    # BC buffers.  All three are MUST-MATCH because (i) angular flux is
-    # the primary output, (ii) scalar flux carries the
+    # boundary-edge BC state.  All four are MUST-MATCH because (i) angular
+    # flux is the primary output, (ii) scalar flux carries the
     # einsum-reduction order that drifts most in the refactor,
-    # (iii) post-sweep BC buffers are the stateful link between
-    # consecutive source iterations — drift here would silently
-    # contaminate downstream iterations.
+    # (iii) post-sweep boundary edges (xmin/xmax/ymin/ymax face views) are
+    # the stateful link between consecutive source iterations — reflective
+    # BC reads them on the next sweep, so drift here silently contaminates
+    # downstream iterations.
+    #
+    # Post-D-G note: legacy persisted the FULL (N, ng, nx+1, ny) interior
+    # x-face buffer and the (N, ng, nx, ny+1) interior y-face buffer as
+    # ``xmin_xmax_buf`` / ``ymin_ymax_buf`` fields on BoundaryFlux.  L2
+    # BoundaryFlux (post-D-G) stores only the boundary edges; interior
+    # face state lives in an ephemeral local buffer inside
+    # ``_sweep_2d_wavefront``.  The cross-iteration BC linkage IS the
+    # boundary-edge state, not the interior; the four assertions below
+    # gate exactly that linkage by slicing the legacy snapshot at the
+    # boundary edges and comparing to L2 face views.
+    nx_, ny_ = inputs.sn_mesh.nx, inputs.sn_mesh.ny
     np.testing.assert_array_almost_equal_nulp(
         np.asarray(angular_flux, dtype=np.float64),
         expected_angular, nulp=case.nulp,
@@ -857,12 +869,20 @@ def test_2d_octant_sweep_equivalence(case: OctantEquivalenceCase) -> None:
         expected_scalar, nulp=case.nulp,
     )
     np.testing.assert_array_almost_equal_nulp(
-        np.asarray(inputs.boundary_flux.xmin_xmax_buf, dtype=np.float64),
-        expected_psi_x, nulp=case.nulp,
+        np.asarray(inputs.boundary_flux.face_view("xmin"), dtype=np.float64),
+        expected_psi_x[:, :, 0, :], nulp=case.nulp,
     )
     np.testing.assert_array_almost_equal_nulp(
-        np.asarray(inputs.boundary_flux.ymin_ymax_buf, dtype=np.float64),
-        expected_psi_y, nulp=case.nulp,
+        np.asarray(inputs.boundary_flux.face_view("xmax"), dtype=np.float64),
+        expected_psi_x[:, :, nx_, :], nulp=case.nulp,
+    )
+    np.testing.assert_array_almost_equal_nulp(
+        np.asarray(inputs.boundary_flux.face_view("ymin"), dtype=np.float64),
+        expected_psi_y[:, :, :, 0], nulp=case.nulp,
+    )
+    np.testing.assert_array_almost_equal_nulp(
+        np.asarray(inputs.boundary_flux.face_view("ymax"), dtype=np.float64),
+        expected_psi_y[:, :, :, ny_], nulp=case.nulp,
     )
 
 
