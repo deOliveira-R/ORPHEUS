@@ -45,7 +45,9 @@ from .fission import FissionOperator
 from .geometry import SNMesh
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from .operator import (
+    CollisionOperator,
     SNStreamingOperator,
+    StreamingOperator,
     build_equation_map,
     build_equation_map_spherical,
     build_equation_map_cylindrical,
@@ -224,15 +226,19 @@ class SNSolver:
         self.fission_op = FissionOperator.from_solver_data(
             mat_xs=self.mat_xs,
         )
-        # The streaming-collision operator L = Ω·∇ + Σ_t.  Built lazily
-        # — the Cartesian / spherical / cylindrical EquationMap that L's
-        # apply path needs is built on first call (lazy in
-        # SNStreamingOperator._ensure_eq_map).  ``self.sig_t`` is in the
-        # principled ``(ng, nx, ny)`` layout (Issue #196 PR-INDEX-3) and
-        # the operator's matvec helpers were updated to consume that
-        # layout natively — no bridge needed.
-        self.L = SNStreamingOperator(
-            sn_mesh=sn_mesh, sig_t=self.mat_xs.total_cross_section,
+        # The full transport operator :math:`L = \Omega\cdot\nabla + \Sigma_t`
+        # as the algebraic sum :class:`StreamingOperator` +
+        # :class:`CollisionOperator` = :class:`InvertibleOperator`.  D-K.1
+        # (2026-05-29) retargeted from the legacy :class:`SNStreamingOperator`
+        # bundle (which packaged the streaming + collision matvec into a
+        # single packed-vector class) to the algebraic composition.  The
+        # ``InvertibleOperator``'s :meth:`apply` returns ``(L_stream + C)·ψ``
+        # in :class:`TimedFullField` form (matching the SNStreamingOperator's
+        # M·ψ contract); its :meth:`solve` consumes ``initial_guess`` for
+        # the Carlson seed (R-1 Phase 1.2 unification).
+        self.L = (
+            StreamingOperator(sn_mesh, self.mat_xs.total_cross_section)
+            + CollisionOperator(sn_mesh, self.mat_xs.total_cross_section)
         )
         self.S = self.scattering_op
         self.F = self.fission_op
@@ -297,8 +303,9 @@ class SNSolver:
         _ = self.mat_xs.absorption_cross_section
         self.mat_xs._sig_t_cell = new_sig_t
         # Mirror onto the L operator so its apply path stays consistent.
-        self.L = SNStreamingOperator(
-            sn_mesh=self.sn_mesh, sig_t=self.mat_xs.total_cross_section,
+        self.L = (
+            StreamingOperator(self.sn_mesh, self.mat_xs.total_cross_section)
+            + CollisionOperator(self.sn_mesh, self.mat_xs.total_cross_section)
         )
         if self.geom_cache is not None:
             sig_t_1d = self.mat_xs.total_cross_section[:, :, 0]
