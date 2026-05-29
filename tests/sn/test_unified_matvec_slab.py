@@ -52,7 +52,6 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import (
     build_equation_map,
     solution_to_angular_flux,
-    transport_operator_matvec,
     transport_operator_matvec_unified,
 )
 from orpheus.numerics.quadrature import Quadrature
@@ -228,89 +227,15 @@ def test_unified_slab_l1_homogeneous_kinf_2g(nx: int) -> None:
     )
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# Characterization — FD-vs-WDD order-of-accuracy delta (informational)
-# ═══════════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.l0
-def test_unified_slab_differs_from_legacy_fd_O_h() -> None:
-    r"""Characterize the FD-vs-WDD delta on a homogeneous reflective slab.
-
-    The legacy :func:`transport_operator_matvec` uses upwind finite
-    differences via :func:`_compute_gradients` (1st-order at the
-    interface, but on uniform homogeneous reflective the FD is
-    consistent with WDD on flat ψ).  The unified
-    :func:`transport_operator_matvec_unified` uses WDD via
-    :func:`cell_balance_for_streaming`.
-
-    On flat ψ both should produce ``σ_t · ψ`` exactly.  On a
-    structured ψ they diverge by an O(magnitude) order-of-accuracy
-    difference.  This test pins the divergence as a CHARACTERISATION,
-    not a correctness gate — it just confirms the two methods are
-    actually computing different discretisations as designed.
-    """
-    n_cells, n_ord, ng = 5, 4, 1
-    sn_mesh = _build_slab(n_cells=n_cells, n_ord=n_ord)
-    sigma_t = np.full((ng, n_cells, 1), 2.0)
-    eq_map = build_equation_map(n_cells, 1, sn_mesh.quad, ng)
-
-    rng = np.random.default_rng(0)
-    psi_packed = rng.standard_normal(eq_map.n_unknowns)
-
-    # Legacy FD
-    m_legacy = transport_operator_matvec(
-        psi_packed, eq_map, sn_mesh.quad, sigma_t, n_cells, 1, ng,
-        sn_mesh.dx, sn_mesh.dy,
-        bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
-        bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
-    )
-
-    # Unified WDD
-    psi_view = solution_to_angular_flux(
-        psi_packed, eq_map, sn_mesh.quad, n_cells, 1, ng,
-        bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
-        bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
-    )
-    m_view = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
-    flux = np.empty((ng, eq_map.n_eq))
-    for k in range(eq_map.n_eq):
-        flux[:, k] = m_view[
-            eq_map.ordinate[k], :, eq_map.ix[k], eq_map.iy[k],
-        ]
-    m_unified = flux.ravel(order="F")
-
-    # Both finite, both produce the same result for FLAT ψ (collision term
-    # only); both produce DIFFERENT results for non-flat ψ (different
-    # discretisations).
-    assert np.all(np.isfinite(m_legacy))
-    assert np.all(np.isfinite(m_unified))
-    diff = np.linalg.norm(m_legacy - m_unified)
-    assert diff > 1e-3, (
-        f"Expected legacy FD vs unified WDD to differ on random ψ "
-        f"(different discretisation orders); got ||Δ||={diff:.3e}"
-    )
-
-    # Sanity: M·1 = σ_t = 2.0 for BOTH (collision-only on flat ψ).
-    ones_packed = np.ones(eq_map.n_unknowns)
-    m_legacy_flat = transport_operator_matvec(
-        ones_packed, eq_map, sn_mesh.quad, sigma_t, n_cells, 1, ng,
-        sn_mesh.dx, sn_mesh.dy,
-        bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
-        bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
-    )
-    psi_view_flat = solution_to_angular_flux(
-        ones_packed, eq_map, sn_mesh.quad, n_cells, 1, ng,
-        bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
-        bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
-    )
-    m_view_flat = legacy_proxy_matvec(psi_view_flat, sn_mesh, sigma_t)
-    flux_flat = np.empty((ng, eq_map.n_eq))
-    for k in range(eq_map.n_eq):
-        flux_flat[:, k] = m_view_flat[
-            eq_map.ordinate[k], :, eq_map.ix[k], eq_map.iy[k],
-        ]
-    m_unified_flat = flux_flat.ravel(order="F")
-
-    np.testing.assert_allclose(m_legacy_flat, 2.0, rtol=1e-13, atol=1e-14)
-    np.testing.assert_allclose(m_unified_flat, 2.0, rtol=1e-13, atol=1e-14)
+# D-H.2-C4e.6 (2026-05-29): retired
+# ``test_unified_slab_differs_from_legacy_fd_O_h`` together with the
+# legacy ``transport_operator_matvec`` it characterised against.
+# The test pinned the FD-vs-WDD discretisation-order delta on a
+# homogeneous reflective slab as informational; with the legacy FD
+# retired (only the L2-native :meth:`StreamingOperator._apply_2d_
+# cartesian_l2` survives), the cross-comparison has no architectural
+# target.  Slab correctness is pinned by ``test_unified_slab_l1_
+# homogeneous_kinf_2g`` (L1 k_∞ recovery) at L1, the C4a unit-source
+# tests (``test_2d_l2_matvec_correctness.py``) at L0 for the 2-D
+# matvec, and ``test_l1_standoff_slab_cylinder.py`` for cross-method
+# slab anchoring at L1.

@@ -103,7 +103,6 @@ __all__ = [
     "solution_to_angular_flux_cylindrical",  # alias of _spherical
     "solution_to_angular_flux_with_traces",
     "pack_with_traces",
-    "transport_operator_matvec",  # Cartesian 2-D FD; retires in PR-TYPED-7
     "transport_operator_matvec_unified",
     "SNStreamingOperator",
     "StreamingOperator",
@@ -452,54 +451,18 @@ def _compute_gradients(
 # Transport operator  T: ψ → μ·∇ψ + Σ_t·ψ
 # ═══════════════════════════════════════════════════════════════════════
 
-def transport_operator_matvec(
-    solution: np.ndarray,
-    eq_map: EquationMap,
-    quad: AngularQuadrature,
-    sig_t: np.ndarray,
-    nx: int, ny: int, ng: int,
-    dx: np.ndarray, dy: np.ndarray,
-    *,
-    bc_xmin: "BoundaryOperator | None" = None,
-    bc_xmax: "BoundaryOperator | None" = None,
-    bc_ymin: "BoundaryOperator | None" = None,
-    bc_ymax: "BoundaryOperator | None" = None,
-) -> np.ndarray:
-    """Apply the streaming + collision operator T·ψ.
-
-    Parameters
-    ----------
-    solution : (n_unknowns,) flattened angular flux vector.
-    sig_t : (ng, nx, ny) total cross section (Issue #196 PR-INDEX-3).
-    bc_xmin, bc_xmax, bc_ymin, bc_ymax :
-        Wave E Round 3 — :class:`~orpheus.geometry.boundary.BoundaryOperator`
-        instances threaded through to :func:`solution_to_angular_flux`
-        for BC-faithful boundary fills.  ``None`` = legacy reflective
-        fallback (bit-identical to pre-Round 3 hard-coded behaviour).
-
-    Returns
-    -------
-    np.ndarray
-        Shape ``(n_unknowns,)``. T applied to the angular flux.
-    """
-    fi = solution_to_angular_flux(
-        solution, eq_map, quad, nx, ny, ng,
-        bc_xmin=bc_xmin, bc_xmax=bc_xmax,
-        bc_ymin=bc_ymin, bc_ymax=bc_ymax,
-    )
-
-    lhs = np.empty((ng, eq_map.n_eq))
-    for k in range(eq_map.n_eq):
-        n, ix, iy = eq_map.ordinate[k], eq_map.ix[k], eq_map.iy[k]
-        dfidx, dfidy = _compute_gradients(fi, n, ix, iy, quad, nx, ny, dx, dy)
-        # PR-INDEX-7: fi is (N, ng, nx, ny); per-(n, ix, iy) slice is (ng,).
-        lhs[:, k] = (
-            quad.mu_x[n] * dfidx
-            + quad.mu_y[n] * dfidy
-            + sig_t[:, ix, iy] * fi[n, :, ix, iy]
-        )
-
-    return lhs.ravel(order='F')
+# D-H.2-C4e.6 (2026-05-29): the legacy 2-D Cartesian FD matvec
+# ``transport_operator_matvec(solution, eq_map, quad, sig_t, nx, ny,
+# ng, dx, dy, *, bc_xmin, bc_xmax, bc_ymin, bc_ymax)`` was retired
+# here.  It computed ``M·ψ = (L+C)·ψ`` via cell-centred upwind FD
+# (:func:`_compute_gradients`) on the legacy packed
+# :class:`EquationMap` layout.  Both production callers
+# (:meth:`StreamingOperator.apply` and :meth:`SNStreamingOperator.apply`
+# 2-D bare-ndarray branches) now route through
+# :meth:`StreamingOperator._apply_2d_cartesian_l2` (the L2-native
+# kernel shipped in D-H.2-C4d), which uses the same cell-centred
+# upwind FD body wrapped in the :class:`TimedFullField` carrier.
+# The :func:`_compute_gradients` helper is the surviving primitive.
 
 
 # ═══════════════════════════════════════════════════════════════════════

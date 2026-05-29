@@ -58,7 +58,6 @@ from orpheus.sn.operator import (
     build_equation_map,
     build_equation_map_spherical,
     build_equation_map_cylindrical,
-    transport_operator_matvec,
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.sources import IsotropicSource, PerOrdinateSource

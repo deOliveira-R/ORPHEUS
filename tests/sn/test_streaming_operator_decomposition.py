@@ -71,7 +71,6 @@ from orpheus.sn.operator import (
     build_equation_map_with_traces,
     pack_with_traces,
     solution_to_angular_flux_with_traces,
-    transport_operator_matvec,
     transport_operator_matvec_unified,
 )
 from orpheus.numerics.quadrature import Quadrature
@@ -147,8 +146,14 @@ def _call_matvec(sn_mesh: SNMesh, psi_vec: np.ndarray,
 
     Mirrors :meth:`StreamingOperator.apply`'s internal dispatch.  Issue #197
     PR-TYPED-6c Step 5 — 1-D slab / sphere / cylinder all route through
-    :func:`transport_operator_matvec_unified`; 2-D Cartesian remains on
-    the legacy FD path (anti-diagonal wavefront, not dag_walk).
+    :func:`transport_operator_matvec_unified`.
+
+    D-H.2-C4e.6 (2026-05-29) — the 2-D Cartesian dead branch (predicate
+    ``curv is None and ny > 1``) retired with the legacy
+    ``transport_operator_matvec``: this helper is only called from 1-D
+    Cartesian (``CART``) tests where ``ny == 1``, so the 2-D fallthrough
+    never fired in practice.  The 1-D B1'' face-aware L2-native path
+    below is the only path now.
 
     PR-TYPED-6.5 Phase 3b — 1-D paths consume the B1'' face-aware
     packed layout via :func:`solution_to_angular_flux_with_traces` and
@@ -156,16 +161,6 @@ def _call_matvec(sn_mesh: SNMesh, psi_vec: np.ndarray,
     """
     nx, ny = sn_mesh.nx, sn_mesh.ny
     quad = sn_mesh.quad
-    curv = getattr(sn_mesh, "curvature", None)
-
-    # 2-D Cartesian — legacy FD remains.
-    if curv is None and ny > 1:
-        return transport_operator_matvec(
-            psi_vec, eq_map, quad, sigma_t_arr,
-            nx, ny, ng, sn_mesh.dx, sn_mesh.dy,
-            bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
-            bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
-        )
 
     # 1-D B1'' face-aware path.  D-H.2-C4c — L2-native
     # ``transport_operator_matvec_unified`` consumes ``TimedFullField``;
