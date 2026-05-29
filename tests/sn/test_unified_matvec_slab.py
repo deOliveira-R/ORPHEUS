@@ -139,7 +139,7 @@ def _make_2g_mixture(sigma_t, sig_s_matrix, nu_sigma_f, chi):
 # matvec.  Post-D-K.1 (commit ``400ca33``), ``SNSolver.L`` is
 # ``StreamingOperator + CollisionOperator`` (= :class:`InvertibleOperator`),
 # which routes through the unified matvec natively for 1-D and through
-# :meth:`StreamingOperator._apply_2d_cartesian_l2` for 2-D.  The
+# :meth:`StreamingOperator._apply_2d_cartesian` for 2-D.  The
 # monkey-patch had no effect on the call path post-D-K.1; deleting it
 # removes the no-op + the dependency on the retiring
 # :class:`SNStreamingOperator` class.

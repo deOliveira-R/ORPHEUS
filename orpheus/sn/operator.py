@@ -457,7 +457,7 @@ def _compute_gradients(
 # :class:`EquationMap` layout.  Both production callers
 # (:meth:`StreamingOperator.apply` and :meth:`SNStreamingOperator.apply`
 # 2-D bare-ndarray branches) now route through
-# :meth:`StreamingOperator._apply_2d_cartesian_l2` (the L2-native
+# :meth:`StreamingOperator._apply_2d_cartesian` (the L2-native
 # kernel shipped in D-H.2-C4d), which uses the same cell-centred
 # upwind FD body wrapped in the :class:`TimedFullField` carrier.
 # The :func:`_compute_gradients` helper is the surviving primitive.
@@ -1552,10 +1552,10 @@ class StreamingOperator(LinearOperatorMixin):
 
         # 2-D Cartesian — D-H.2-C4e: wrap packed ψ → :class:`TimedFullField`,
         # call the L2-native :meth:`_apply_timed_full_field` (which
-        # dispatches to :meth:`_apply_2d_cartesian_l2`), repack the bulk
+        # dispatches to :meth:`_apply_2d_cartesian`), repack the bulk
         # result.  C4e retired the legacy ``transport_operator_matvec``
-        # FD kernel — ``_apply_2d_cartesian_l2`` is now the only 2-D
-        # matvec.  ``_apply_2d_cartesian_l2`` returns ``L·ψ`` directly
+        # FD kernel — ``_apply_2d_cartesian`` is now the only 2-D
+        # matvec.  ``_apply_2d_cartesian`` returns ``L·ψ`` directly
         # (the σ_t·ψ collision term subtracts INSIDE the kernel — see
         # operator.py L2421); no post-call subtract needed.  The 2-D
         # packed layout has only cell unknowns (no face block), so the
@@ -1693,7 +1693,7 @@ class StreamingOperator(LinearOperatorMixin):
         ny = sn_mesh.ny
         if curv is None and ny > 1:
             # 2-D Cartesian — D-H.2-C4d L2-native FD kernel.
-            return self._apply_2d_cartesian_l2(psi)
+            return self._apply_2d_cartesian(psi)
 
         # 1-D — L2-native kernel call (no legacy round-trip).
         result = transport_operator_matvec_unified(psi, self.sigma_t)
@@ -1712,7 +1712,7 @@ class StreamingOperator(LinearOperatorMixin):
             history_depth=psi.history_depth,
         )
 
-    def _apply_2d_cartesian_l2(
+    def _apply_2d_cartesian(
         self, psi: "TimedFullField",
     ) -> "TimedFullField":
         r"""2-D Cartesian L2-native FD matvec (D-H.2-C4d).

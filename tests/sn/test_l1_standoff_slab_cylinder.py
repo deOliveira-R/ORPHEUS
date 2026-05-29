@@ -71,7 +71,7 @@ from orpheus.numerics.quadrature import Quadrature
 # is now the algebraic composition ``StreamingOperator +
 # CollisionOperator`` = :class:`InvertibleOperator`, which already
 # routes through ``transport_operator_matvec_unified`` natively (1-D
-# slab/sphere/cylinder) or ``StreamingOperator._apply_2d_cartesian_l2``
+# slab/sphere/cylinder) or ``StreamingOperator._apply_2d_cartesian``
 # (2-D Cartesian).  The monkey-patch had no effect on the call path
 # any longer; deleting it removes the no-op and severs the test's
 # dependency on the retiring :class:`SNStreamingOperator` class.

@@ -34,7 +34,6 @@ import time
 from dataclasses import replace
 
 import numpy as np
-from scipy.sparse.linalg import LinearOperator as ScipyLinearOperator
 from scipy.sparse.linalg import gmres
 
 from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
@@ -47,12 +46,6 @@ from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from .operator import (
     CollisionOperator,
     StreamingOperator,
-    build_equation_map,
-    build_equation_map_spherical,
-    build_equation_map_cylindrical,
-    solution_to_angular_flux,
-    solution_to_angular_flux_spherical,
-    solution_to_angular_flux_cylindrical,
 )
 from orpheus.numerics.quadrature import Quadrature
 from .scattering import ScatteringOperator
@@ -639,7 +632,7 @@ class SNSolver:
         :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
         face layout is the natural 4-face descriptor (xmin / xmax /
         ymin / ymax) that the legacy 1-D B1'' face block lacked; the
-        L2-native ``StreamingOperator._apply_2d_cartesian_l2`` kernel
+        L2-native ``StreamingOperator._apply_2d_cartesian`` kernel
         operates on it directly.
 
         Returns the updated scalar flux ``(ng, nx, ny)``.
@@ -736,90 +729,13 @@ class SNSolver:
         # Reduce angular → scalar flux for the eigenvalue outer's contract.
         return psi_typed.bulk.integrate_angular().values
 
-    def _make_sweep_preconditioner(
-        self, eq_map, n: int,
-    ) -> ScipyLinearOperator:
-        r"""Build a scipy LinearOperator wrapping the sweep as :math:`L^{-1}`.
-
-        The sweep takes a single :class:`PerOrdinateSource` (R-1 Step 4
-        A1) and returns ``(angular_flux, scalar_flux)``.  GMRES wants a
-        scalar ``matvec(q) -> M^{-1}·q`` on the packed 1-D vector.  This
-        adapter:
-
-        1. Decodes the packed RHS into a per-ordinate source carrier of
-           shape ``(N, ng, nx, ny)`` (principled storage per
-           :ref:`theory-sn-index-convention`).  Both the packed-vector
-           convention AND the sweep's expected convention are
-           per-ordinate density after R-1 Step 4 A1, so the decoded
-           values feed the sweep directly with no rescale.
-        2. Runs the sweep with the single per-ordinate source.
-        3. Re-packs the resulting angular flux into the packed
-           solution-vector layout via the inverse of
-           :func:`solution_to_angular_flux*`.
-
-        The sweep's internal :class:`BoundaryFlux` is NOT shared with
-        :attr:`self._boundary_flux` — the preconditioner is stateless
-        across GMRES inner iterations, which keeps the linear-operator
-        contract clean.
-        """
-        nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
-        N = self.quad.N
-        curv = getattr(self.sn_mesh, "curvature", None)
-
-        def matvec(q_packed: np.ndarray) -> np.ndarray:
-            # PR-INDEX-7: ``solution_to_angular_flux*`` returns principled
-            # ``(N, ng, nx, ny)`` natively — no transpose adapter needed.
-            # Closes the PR-INDEX-4 §9.1 deferral; the FD-matvec internal
-            # ``(ng, N, nx, ny)`` legacy layout is retired.
-            if curv == "spherical":
-                fi_op = solution_to_angular_flux_spherical(
-                    q_packed, eq_map, self.quad, nx, ng,
-                )
-            elif curv == "cylindrical":
-                fi_op = solution_to_angular_flux_cylindrical(
-                    q_packed, eq_map, self.quad, nx, ng,
-                )
-            else:
-                fi_op = solution_to_angular_flux(
-                    q_packed, eq_map, self.quad, nx, ny, ng,
-                    bc_xmin=self.sn_mesh.bc_xmin,
-                    bc_xmax=self.sn_mesh.bc_xmax,
-                    bc_ymin=self.sn_mesh.bc_ymin,
-                    bc_ymax=self.sn_mesh.bc_ymax,
-                )
-            # ``fi_op`` is the principled (N, ng, nx, ny) angular flux
-            # decoded from the packed RHS.  ``build_rhs*`` pre-applied
-            # ``/sum_w`` to the operator-equation source, so ``fi_op``
-            # IS in per-ordinate density magnitude.
-            #
-            # R-1 Step 4 A1 — the legacy ``* sum_w`` bridge that undid
-            # the sweep's old internal ``/W`` is GONE; the sweep now
-            # consumes per-ordinate density directly via a single
-            # :class:`PerOrdinateSource` parameter.
-            from orpheus.transport.sources import PerOrdinateSource
-            source = PerOrdinateSource.from_mesh(fi_op, self.sn_mesh)
-            boundary_flux_local = self.sn_mesh.zeros_boundary_flux()
-            try:
-                angular, _ = transport_sweep(
-                    source, self.mat_xs.total_cross_section,
-                    self.sn_mesh, boundary_flux_local,
-                )
-            except Exception:
-                # If the sweep cannot run with this aniso shape, degrade
-                # to the identity preconditioner.
-                return q_packed
-            # Pack angular → solution vector: ``angular`` is principled
-            # ``(N, ng, nx, ny)``; the packed vector expects
-            # ``flux[ng, n_eq]`` in F-order via
-            # ``solution.reshape(ng, n_eq, order='F')``.
-            packed = np.empty((ng, eq_map.n_eq), dtype=float)
-            for k in range(eq_map.n_eq):
-                packed[:, k] = angular[
-                    eq_map.ordinate[k], :, eq_map.ix[k], eq_map.iy[k],
-                ]
-            return packed.ravel(order="F")
-
-        return ScipyLinearOperator((n, n), matvec=matvec, dtype=float)
+    # D-J (2026-05-29): ``_make_sweep_preconditioner`` retired —
+    # the method built a scipy LinearOperator wrapping the sweep as
+    # the legacy packed-vector GMRES preconditioner.  Zero callers
+    # remained post-D-K.1: the production Krylov path
+    # (``_solve_fixed_source_krylov``) wraps the L+C composite in a
+    # KrylovAcceleration consumer that handles the to_flat/from_flat
+    # ravellable protocol on :class:`TimedFullField` natively.
 
     # ── Source computation helpers ────────────────────────────────────
     #
