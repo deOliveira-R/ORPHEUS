@@ -2056,13 +2056,9 @@ class StreamingOperator(LinearOperatorMixin):
             L2 ``boundary.values`` flat buffer carries the same face
             residuals at their layout-assigned slots.
         """
-        from .angular_flux import AngularFlux
-        from .boundary_flux import BoundaryFlux
         from orpheus.transport.timed_full_field import TimedFullField
         if isinstance(psi, TimedFullField):
             return self._apply_timed_full_field(psi)
-        if isinstance(psi, AngularFlux):
-            return self._apply_typed(psi)
         sn_mesh = self.sn_mesh
         # PR-INDEX-3: ``sigma_t`` shape is ``(ng, nx, ny)``.
         ng = int(self.sigma_t.shape[0])
@@ -2183,86 +2179,6 @@ class StreamingOperator(LinearOperatorMixin):
             m_full[:n_cell_scalars] - sigma_packed_cell * psi[:n_cell_scalars]
         )
         return m_full
-
-    def _apply_typed(self, psi: "AngularFlux") -> "AngularFlux":
-        r"""Typed-AngularFlux body of :meth:`apply` (R-1 Step 3d).
-
-        Routes natively through :func:`transport_operator_matvec_unified`
-        for 1-D (no flat round-trip), and routes 2-D Cartesian through
-        a flat round-trip via :meth:`AngularFlux.to_flat_with_traces`
-        for parity (the underlying compute kernel for 2-D is the legacy
-        :func:`transport_operator_matvec`; Phase A absorbs it).
-
-        Returns an :class:`AngularFlux` whose ``.boundary`` carries the
-        face residual (the only operator in the L/C/S/F set that emits
-        a non-zero face residual).
-        """
-        from .angular_flux import AngularFlux
-        from .boundary_flux import BoundaryFlux
-        sn_mesh = self.sn_mesh
-        if sn_mesh is not psi.mesh:
-            raise ValueError(
-                "StreamingOperator.apply(AngularFlux): operator and flux "
-                "must share the SAME SNMesh instance (mesh-identity "
-                "invariant)."
-            )
-        ng = int(self.sigma_t.shape[0])
-        nx, ny = sn_mesh.nx, sn_mesh.ny
-        quad = sn_mesh.quad
-        curv = getattr(sn_mesh, "curvature", None)
-
-        # 2-D Cartesian — flat round-trip onto the legacy compute.
-        if curv is None and ny > 1:
-            flat_in = psi.to_flat_with_traces()
-            flat_out = self.apply(flat_in)
-            return AngularFlux.from_flat_with_traces(flat_out, sn_mesh)
-
-        # 1-D slab / sphere / cylinder — L2-native compute.  D-H.2-C4c
-        # flipped :func:`transport_operator_matvec_unified` to consume
-        # the L2 composite carrier; this legacy ``_apply_typed`` path
-        # wraps legacy ``AngularFlux`` → ``TimedFullField`` at the
-        # call boundary, then unwraps the composite result back to
-        # legacy on return.
-        from orpheus.transport.fields.angular_flux import (
-            AngularFlux as L2AngularFlux,
-        )
-        from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux as L2BoundaryFlux,
-        )
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        composite_in = TimedFullField(
-            bulk=L2AngularFlux.from_mesh(psi.values, sn_mesh),
-            boundary=L2BoundaryFlux.from_legacy_sn(psi.boundary, sn_mesh),
-            _history=(),
-            history_depth=2,
-        )
-        composite_out = transport_operator_matvec_unified(
-            composite_in, self.sigma_t,
-        )
-
-        # Subtract σ_t ⊙ ψ at the CELL-CENTRE only — face slots carry
-        # no volumetric collision (the cell-balance σ·ψ term is a CELL
-        # quantity; the face residual is a TRACE equation).
-        cell_values = (
-            composite_out.bulk.values
-            - self.sigma_t[None, :, :, :] * psi.values
-        )
-
-        # ── Unwrap composite boundary back to legacy BoundaryFlux ────
-        # Face residual is the matvec's boundary output as-is — the
-        # path-forward matvec writes the residual at outflow positions
-        # only (inflow stays zero per the L2 layout default).
-        legacy_out_boundary = BoundaryFlux(mesh=sn_mesh)
-        layout = composite_out.boundary.layout
-        legacy_out_boundary.xmax_face = (
-            composite_out.boundary.face_view("xmax").copy()
-        )
-        if "xmin" in layout.faces:
-            legacy_out_boundary.xmin_face = (
-                composite_out.boundary.face_view("xmin").copy()
-            )
-        return AngularFlux(cell_values, sn_mesh, boundary=legacy_out_boundary)
 
     def _apply_timed_full_field(
         self, psi: "TimedFullField",
