@@ -529,7 +529,6 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
 
         from orpheus.sn.fission import FissionOperator
         from orpheus.sn.geometry import SNMesh
-        from orpheus.sn.operator import SNStreamingOperator
         from orpheus.numerics.quadrature import Quadrature
         from orpheus.sn.scattering import ScatteringOperator
         from orpheus.sn.solver import SNSolver, solve_sn
@@ -559,11 +558,14 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     expected_keff = ref.keff
 
     # Build the SN operator triple from the same precomputed solver
-    # data used for the reference run.  This is the canonical path
-    # Round 2 will use to wire SNSolver onto the new primitives.
+    # data used for the reference run.  D-K.5 (2026-05-29): the legacy
+    # ``L = SNStreamingOperator(...)`` construction at this line was
+    # dead code — this test's ``L_inv_adapter`` (defined below) wraps
+    # :func:`transport_sweep` directly, never consuming the SN bundle's
+    # operator surface.  Solver instance retained to provide
+    # ``solver.scattering_op`` / ``solver.fission_op`` / ``solver.mat_xs``.
     sn_mesh = SNMesh(mesh, quad, materials)
     solver = SNSolver(sn_mesh, scattering_order=0)
-    L = SNStreamingOperator(sn_mesh=sn_mesh, sig_t=solver.mat_xs.total_cross_section)
     # The canonical S, F operators built directly from solver state.
     S = solver.scattering_op
     F = solver.fission_op

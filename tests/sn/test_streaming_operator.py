@@ -250,146 +250,17 @@ class TestApplyShape:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class TestCompositionEquivalence:
-    r"""``(L + C(σ_t)).apply(ψ) ≈ SNStreamingOperator(σ_t).apply(ψ)``.
-
-    Pre-PR-TYPED-6c Step 5 this held bit-exact on ALL geometries because
-    ``L.apply`` consumed the same legacy per-geometry matvec helper as
-    ``SNStreamingOperator.apply``.
-
-    Post-Step-5, ``L.apply`` routes through
-    :func:`transport_operator_matvec_unified` (the WDD-based unified
-    matvec).  The legacy bundle ``SNStreamingOperator`` still routes
-    through the per-geometry helpers.  The equivalence holds:
-
-      * **Sphere** — bit-identical (the unified sphere body was verified
-        ULP-equal to ``transport_operator_matvec_spherical`` at Step 2;
-        see ``test_unified_matvec_sphere.py``).
-      * **Cylinder** — DIVERGES.  The legacy ``transport_operator_matvec_cylindrical``
-        carries the ERR-049 routing bug; the unified body is structurally
-        immune.  Marked xfail until SNStreamingOperator retires
-        in PR-TYPED-6c Step 7 (general retirement).
-      * **Cartesian (slab)** — DIVERGES.  The legacy
-        ``transport_operator_matvec`` uses 1st-order upwind FD via
-        ``_compute_gradients``; the unified body uses 2nd-order WDD via
-        ``cell_balance_for_streaming``.  Order-of-accuracy delta is
-        characterised in ``test_unified_matvec_slab.py``.  Marked xfail
-        until Step 7.
-
-    The Step 6 verification gate is the audit of this divergence — both
-    cylinder and Cartesian failures are documented and intentional.
-    """
-
-    @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_uniform_sigma_t_homogeneous(self, name, builder, request):
-        """L(σ_t) + C(σ_t) ≡ legacy(σ_t) — homogeneous σ_t.
-
-        Sphere: bit-identical post-Step-5.  Cylinder + slab: xfail
-        (intentional legacy divergence, see class docstring).
-        """
-        # PR-TYPED-6.5 Phase 3b — B1'' face-state in the packed vector
-        # makes :class:`StreamingOperator`'s packed format structurally
-        # incompatible with :class:`SNStreamingOperator`'s legacy
-        # compressed layout: the cell-only block has different size
-        # (curvilinear B1'' includes inward-at-outer cells; SN
-        # compresses them) AND there's a face block in B1'' that has
-        # no SN analog.  Direct (out_sum == out_legacy) is no longer
-        # well-defined — different shapes.  ALL geometries xfail until
-        # ``SNStreamingOperator`` retires at Step 7.
-        request.node.add_marker(pytest.mark.xfail(
-            reason=(
-                "PR-TYPED-6.5 Phase 3b — StreamingOperator now uses "
-                "B1'' face-aware packed layout; SNStreamingOperator "
-                "uses legacy compressed layout.  Shape mismatch is "
-                "structural; comparison retires at Step 7 when "
-                "SNStreamingOperator goes away."
-            ),
-            strict=True,
-        ))
-        sn_mesh = builder()
-        ng = 2
-        sig_t = _sig_t_uniform(sn_mesh, ng=ng, value=0.4)
-        legacy = SNStreamingOperator(sn_mesh, sig_t)
-        L = StreamingOperator(sn_mesh, sig_t)
-        C = CollisionOperator(sn_mesh, sig_t)
-        psi = _packed_psi(sn_mesh, ng=ng, seed=11)
-        out_sum = L.apply(psi) + C.apply(psi)
-        out_legacy = legacy.apply(psi)
-        np.testing.assert_allclose(
-            out_sum, out_legacy, rtol=1e-12, atol=1e-14
-        )
-
-    @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_heterogeneous_sigma_t(self, name, builder, request):
-        """L(σ_t) + C(σ_t) ≡ legacy(σ_t) — heterogeneous σ_t per cell.
-
-        Sphere: bit-identical post-Step-5.  Cylinder + slab: xfail
-        (intentional legacy divergence, see class docstring).
-        """
-        # PR-TYPED-6.5 Phase 3b — see ``test_uniform_sigma_t_homogeneous``
-        # for the rationale; B1'' packed layout makes the (L+C) vs
-        # SNStreamingOperator comparison structurally incompatible for
-        # all 1-D geometries.
-        request.node.add_marker(pytest.mark.xfail(
-            reason=(
-                "PR-TYPED-6.5 Phase 3b — StreamingOperator now uses "
-                "B1'' face-aware packed layout; SNStreamingOperator "
-                "uses legacy compressed layout.  Shape mismatch is "
-                "structural; comparison retires at Step 7."
-            ),
-            strict=True,
-        ))
-        sn_mesh = builder()
-        ng = 2
-        sig_t = _sig_t_heterogeneous(sn_mesh, ng=ng)
-        legacy = SNStreamingOperator(sn_mesh, sig_t)
-        L = StreamingOperator(sn_mesh, sig_t)
-        C = CollisionOperator(sn_mesh, sig_t)
-        psi = _packed_psi(sn_mesh, ng=ng, seed=22)
-        out_sum = L.apply(psi) + C.apply(psi)
-        out_legacy = legacy.apply(psi)
-        np.testing.assert_allclose(
-            out_sum, out_legacy, rtol=1e-12, atol=1e-14
-        )
-
-    @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_via_operator_sum_algebra(self, name, builder, request):
-        """``(L + C).apply(ψ)`` via OperatorSum distribution.
-
-        Mechanism criterion 3 — the algebra composes correctly. The
-        same numerical result as explicit ``L.apply + C.apply``,
-        confirming :class:`OperatorSum.apply` routes through both
-        leaves with no order-of-operation drift.
-
-        Sphere: bit-identical post-Step-5.  Cylinder + slab: xfail
-        (intentional legacy divergence, see class docstring).
-        """
-        # PR-TYPED-6.5 Phase 3b — see ``test_uniform_sigma_t_homogeneous``
-        # for the rationale; B1'' packed layout makes the (L+C) vs
-        # SNStreamingOperator comparison structurally incompatible for
-        # all 1-D geometries.
-        request.node.add_marker(pytest.mark.xfail(
-            reason=(
-                "PR-TYPED-6.5 Phase 3b — StreamingOperator now uses "
-                "B1'' face-aware packed layout; SNStreamingOperator "
-                "uses legacy compressed layout.  Shape mismatch is "
-                "structural; comparison retires at Step 7."
-            ),
-            strict=True,
-        ))
-        sn_mesh = builder()
-        ng = 2
-        sig_t = _sig_t_heterogeneous(sn_mesh, ng=ng)
-        L = StreamingOperator(sn_mesh, sig_t)
-        C = CollisionOperator(sn_mesh, sig_t)
-        legacy = SNStreamingOperator(sn_mesh, sig_t)
-        A = L + C  # OperatorSum via LinearOperatorMixin.__add__
-        psi = _packed_psi(sn_mesh, ng=ng, seed=33)
-        out_algebra = A.apply(psi)
-        out_legacy = legacy.apply(psi)
-        np.testing.assert_allclose(
-            out_algebra, out_legacy, rtol=1e-12, atol=1e-14
-        )
+# D-K.5 (2026-05-29): ``TestCompositionEquivalence`` retired together
+# with :class:`SNStreamingOperator`.  The three xfail-strict tests
+# (``test_uniform_sigma_t_homogeneous``, ``test_heterogeneous_sigma_t``,
+# ``test_via_operator_sum_algebra``) pinned
+# ``(L + C).apply(ψ) ≈ SNStreamingOperator(σ_t).apply(ψ)``.  The
+# comparison was documented as retiring "when SNStreamingOperator goes
+# away at PR-TYPED-6c Step 7"; that step is D-K.  ``(L + C).apply``'s
+# correctness is now gated by ``test_unified_matvec_{slab,sphere,
+# cylinder}.py`` against structurally-independent references
+# (L1 trajectory-resolvent, hand-derived k_∞, the unified WDD body
+# itself).
 
 
 # ═══════════════════════════════════════════════════════════════════════
