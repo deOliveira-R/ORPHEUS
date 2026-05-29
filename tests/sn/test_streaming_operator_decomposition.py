@@ -167,34 +167,46 @@ def _call_matvec(sn_mesh: SNMesh, psi_vec: np.ndarray,
             bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
         )
 
-    # 1-D B1'' face-aware path.  R-1 Step 4 Step G0 — typed-AngularFlux
-    # entry; scatter packed face slots into the native (N, ng) BoundaryFlux.
-    from orpheus.sn.angular_flux import AngularFlux
-    from orpheus.sn.boundary_flux import BoundaryFlux
+    # 1-D B1'' face-aware path.  D-H.2-C4c — L2-native
+    # ``transport_operator_matvec_unified`` consumes ``TimedFullField``;
+    # decode packed face slots into the L2 ``face_view`` writable arrays.
+    from orpheus.transport.fields.angular_flux import (
+        AngularFlux as L2AngularFlux,
+    )
+    from orpheus.transport.fields.boundary_flux import (
+        BoundaryFlux as L2BoundaryFlux,
+    )
+    from orpheus.transport.timed_full_field import TimedFullField
     psi_cell, psi_face_outer, psi_face_inner = (
         solution_to_angular_flux_with_traces(
             psi_vec, eq_map, nx, ng, N=quad.N,
         )
     )
-    boundary_in = BoundaryFlux(mesh=sn_mesh)
-    boundary_in.xmax_face = np.zeros((quad.N, ng))
-    curv = getattr(sn_mesh, "curvature", None)
-    if curv is None:
-        boundary_in.xmin_face = np.zeros((quad.N, ng))
+    boundary_in = L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
     if eq_map.n_face_outer > 0:
-        boundary_in.xmax_face[eq_map.face_outer_ordinate, :] = psi_face_outer
-    if eq_map.n_face_inner > 0 and boundary_in.xmin_face is not None:
-        boundary_in.xmin_face[eq_map.face_inner_ordinate, :] = psi_face_inner
-    psi_typed = AngularFlux(psi_cell, sn_mesh, boundary=boundary_in)
-    result = transport_operator_matvec_unified(psi_typed, sigma_t_arr)
-    m_cell = result.values
+        boundary_in.face_view("xmax")[eq_map.face_outer_ordinate, :] = (
+            psi_face_outer
+        )
+    if eq_map.n_face_inner > 0 and "xmin" in boundary_in.layout.faces:
+        boundary_in.face_view("xmin")[eq_map.face_inner_ordinate, :] = (
+            psi_face_inner
+        )
+    composite_in = TimedFullField(
+        bulk=L2AngularFlux.from_mesh(psi_cell, sn_mesh),
+        boundary=boundary_in,
+        _history=(),
+        history_depth=2,
+    )
+    result = transport_operator_matvec_unified(composite_in, sigma_t_arr)
+    m_cell = result.bulk.values
     m_face_outer = (
-        result.boundary.xmax_face[eq_map.face_outer_ordinate, :]
+        result.boundary.face_view("xmax")[eq_map.face_outer_ordinate, :]
         if eq_map.n_face_outer > 0 else None
     )
     m_face_inner = (
-        result.boundary.xmin_face[eq_map.face_inner_ordinate, :]
-        if eq_map.n_face_inner > 0 and result.boundary.xmin_face is not None
+        result.boundary.face_view("xmin")[eq_map.face_inner_ordinate, :]
+        if eq_map.n_face_inner > 0
+        and "xmin" in result.boundary.layout.faces
         else None
     )
     return pack_with_traces(m_cell, m_face_outer, m_face_inner, eq_map)

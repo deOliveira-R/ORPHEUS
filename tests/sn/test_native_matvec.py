@@ -43,14 +43,15 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.sn.angular_flux import AngularFlux
-from orpheus.sn.boundary_flux import BoundaryFlux
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import (
     build_equation_map_spherical,
     build_equation_map_with_traces,
     transport_operator_matvec_unified,
 )
+from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux as L2BoundaryFlux
+from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
@@ -107,24 +108,24 @@ GEOMETRIES = [
 ]
 
 
-def _zero_flux(sn_mesh: SNMesh) -> AngularFlux:
-    """Construct a typed zero AngularFlux on ``sn_mesh``."""
-    N, ng, nx, ny = sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny
-    return AngularFlux(
-        np.zeros((N, ng, nx, ny)), sn_mesh,
-        boundary=BoundaryFlux.zeros(sn_mesh),
-    )
+def _zero_flux(sn_mesh: SNMesh) -> TimedFullField:
+    """Construct a zero :class:`TimedFullField` on ``sn_mesh``."""
+    return sn_mesh.zeros_timed_full_field()
 
 
-def _uniform_flux(sn_mesh: SNMesh, value: float = 1.0) -> AngularFlux:
-    """Construct a typed uniform-ψ AngularFlux with face state matching."""
-    N, ng, nx, ny = sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny
-    bf = BoundaryFlux(mesh=sn_mesh)
-    bf.xmax_face = np.full((N, ng), value)
-    curv = getattr(sn_mesh, "curvature", None)
-    if curv is None:  # slab
-        bf.xmin_face = np.full((N, ng), value)
-    return AngularFlux(np.full((N, ng, nx, ny), value), sn_mesh, boundary=bf)
+def _uniform_flux(sn_mesh: SNMesh, value: float = 1.0) -> TimedFullField:
+    """Construct a uniform-ψ :class:`TimedFullField` with face state matching.
+
+    The boundary face state is set to ``value`` on every face the geometry
+    carries, preserving the pre-D-H.2-C4c semantic where bulk-uniform
+    implies boundary-at-the-value (the flat-flux invariant input).
+    """
+    state = sn_mesh.zeros_timed_full_field()
+    state.bulk.values[:] = value
+    for face in ("xmin", "xmax"):
+        if face in state.boundary.layout.faces:
+            state.boundary.face_view(face)[:] = value
+    return state
 
 
 # ── Pin 1: zero input → zero output ─────────────────────────────────
@@ -141,19 +142,15 @@ class TestZeroInputZeroOutput:
             _zero_flux(sn_mesh), sigma_t,
         )
         np.testing.assert_array_equal(
-            result.values, np.zeros_like(result.values),
+            result.bulk.values, np.zeros_like(result.bulk.values),
         )
         # Face residual at outflow positions = (WDD-propagated 0) - (stored 0)
         # = 0; at inflow positions = 0 by default.  Whole array zero.
-        np.testing.assert_array_equal(
-            result.boundary.xmax_face,
-            np.zeros_like(result.boundary.xmax_face),
-        )
-        if result.boundary.xmin_face is not None:
-            np.testing.assert_array_equal(
-                result.boundary.xmin_face,
-                np.zeros_like(result.boundary.xmin_face),
-            )
+        xmax_view = result.boundary.face_view("xmax")
+        np.testing.assert_array_equal(xmax_view, np.zeros_like(xmax_view))
+        if "xmin" in result.boundary.layout.faces:
+            xmin_view = result.boundary.face_view("xmin")
+            np.testing.assert_array_equal(xmin_view, np.zeros_like(xmin_view))
 
 
 # ── Pin 2: uniform ψ on homogeneous reflective → σ_t·ψ ──────────────
@@ -191,10 +188,10 @@ class TestUniformFluxSigmaT:
         # Per-ordinate cell action: (L+C)·1 = σ_t·1 = 2.0.  Flat-flux
         # invariant holds for every ordinate, every cell.
         np.testing.assert_allclose(
-            result.values, sigma_t_val, rtol=1e-12, atol=1e-13,
+            result.bulk.values, sigma_t_val, rtol=1e-12, atol=1e-13,
             err_msg=(
                 f"{name}: uniform-ψ flat-flux invariant violated; max "
-                f"deviation = {np.abs(result.values - sigma_t_val).max():.3e}"
+                f"deviation = {np.abs(result.bulk.values - sigma_t_val).max():.3e}"
             ),
         )
 
@@ -257,33 +254,34 @@ class TestLinearity:
         sigma_t = np.full((ng, nx, ny), 0.5)
 
         rng = np.random.default_rng(seed=42)
+
+        def _random_state() -> TimedFullField:
+            state = sn_mesh.zeros_timed_full_field()
+            state.bulk.values[:] = rng.standard_normal((N, ng, nx, ny))
+            state.boundary.face_view("xmax")[:] = rng.standard_normal((N, ng))
+            if "xmin" in state.boundary.layout.faces:
+                state.boundary.face_view("xmin")[:] = rng.standard_normal((N, ng))
+            return state
+
         # ψ + φ with random face state too — linearity must hold
         # across cell + boundary slots.
-        psi_values = rng.standard_normal((N, ng, nx, ny))
-        psi_xmax = rng.standard_normal((N, ng))
-        bf_psi = BoundaryFlux(mesh=sn_mesh)
-        bf_psi.xmax_face = psi_xmax
-        if getattr(sn_mesh, "curvature", None) is None:
-            bf_psi.xmin_face = rng.standard_normal((N, ng))
-        psi = AngularFlux(psi_values, sn_mesh, boundary=bf_psi)
-
-        phi_values = rng.standard_normal((N, ng, nx, ny))
-        phi_xmax = rng.standard_normal((N, ng))
-        bf_phi = BoundaryFlux(mesh=sn_mesh)
-        bf_phi.xmax_face = phi_xmax
-        if getattr(sn_mesh, "curvature", None) is None:
-            bf_phi.xmin_face = rng.standard_normal((N, ng))
-        phi = AngularFlux(phi_values, sn_mesh, boundary=bf_phi)
+        psi = _random_state()
+        phi = _random_state()
 
         alpha, beta = 1.7, -0.3
 
         # M(αψ + βφ)
-        sum_values = alpha * psi.values + beta * phi.values
-        bf_sum = BoundaryFlux(mesh=sn_mesh)
-        bf_sum.xmax_face = alpha * psi.boundary.xmax_face + beta * phi.boundary.xmax_face
-        if psi.boundary.xmin_face is not None and phi.boundary.xmin_face is not None:
-            bf_sum.xmin_face = alpha * psi.boundary.xmin_face + beta * phi.boundary.xmin_face
-        sum_psi = AngularFlux(sum_values, sn_mesh, boundary=bf_sum)
+        sum_psi = sn_mesh.zeros_timed_full_field()
+        sum_psi.bulk.values[:] = alpha * psi.bulk.values + beta * phi.bulk.values
+        sum_psi.boundary.face_view("xmax")[:] = (
+            alpha * psi.boundary.face_view("xmax")
+            + beta * phi.boundary.face_view("xmax")
+        )
+        if "xmin" in sum_psi.boundary.layout.faces:
+            sum_psi.boundary.face_view("xmin")[:] = (
+                alpha * psi.boundary.face_view("xmin")
+                + beta * phi.boundary.face_view("xmin")
+            )
         m_sum = transport_operator_matvec_unified(sum_psi, sigma_t)
 
         # αM(ψ) + βM(φ)
@@ -291,14 +289,15 @@ class TestLinearity:
         m_phi = transport_operator_matvec_unified(phi, sigma_t)
 
         np.testing.assert_allclose(
-            m_sum.values,
-            alpha * m_psi.values + beta * m_phi.values,
+            m_sum.bulk.values,
+            alpha * m_psi.bulk.values + beta * m_phi.bulk.values,
             rtol=1e-12, atol=1e-13,
             err_msg=f"{name}: linearity violated on cell slot",
         )
         np.testing.assert_allclose(
-            m_sum.boundary.xmax_face,
-            alpha * m_psi.boundary.xmax_face + beta * m_phi.boundary.xmax_face,
+            m_sum.boundary.face_view("xmax"),
+            alpha * m_psi.boundary.face_view("xmax")
+            + beta * m_phi.boundary.face_view("xmax"),
             rtol=1e-12, atol=1e-13,
             err_msg=f"{name}: linearity violated on xmax_face",
         )
@@ -308,7 +307,7 @@ class TestLinearity:
 
 
 class TestOutputShape:
-    """The matvec returns ``AngularFlux`` with the path-forward shapes."""
+    """The matvec returns ``TimedFullField`` with the path-forward shapes."""
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_output_shape_matches_input(self, name, builder) -> None:
@@ -317,23 +316,27 @@ class TestOutputShape:
         result = transport_operator_matvec_unified(
             _zero_flux(sn_mesh), sigma_t,
         )
+        # Composite carrier; bulk is L2 AngularFlux.
+        assert isinstance(result, TimedFullField)
+        assert isinstance(result.bulk, L2AngularFlux)
+        assert isinstance(result.boundary, L2BoundaryFlux)
         # Cell values: (N, ng, nx, ny).
-        assert result.values.shape == (
+        assert result.bulk.values.shape == (
             sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny,
         )
         # Outer face: (N, ng) for every geometry.
-        assert result.boundary.xmax_face.shape == (
+        assert result.boundary.face_view("xmax").shape == (
             sn_mesh.quad.N, sn_mesh.ng,
         )
-        # Inner face: (N, ng) for slab; None for curvilinear.
+        # Inner face: (N, ng) for slab; absent for curvilinear.
         curv = getattr(sn_mesh, "curvature", None)
         if curv is None:
-            assert result.boundary.xmin_face is not None
-            assert result.boundary.xmin_face.shape == (
+            assert "xmin" in result.boundary.layout.faces
+            assert result.boundary.face_view("xmin").shape == (
                 sn_mesh.quad.N, sn_mesh.ng,
             )
         else:
-            assert result.boundary.xmin_face is None
+            assert "xmin" not in result.boundary.layout.faces
 
 
 # ── Pin 5: face residual zero at non-outflow ────────────────────────
@@ -358,14 +361,17 @@ class TestFaceResidualMask:
         # Random ψ — face residual at inflow ords must stay zero
         # regardless of input data (no equation there).
         rng = np.random.default_rng(seed=11)
-        psi_values = rng.standard_normal(
+        psi = sn_mesh.zeros_timed_full_field()
+        psi.bulk.values[:] = rng.standard_normal(
             (sn_mesh.quad.N, ng, sn_mesh.nx, sn_mesh.ny),
         )
-        bf = BoundaryFlux(mesh=sn_mesh)
-        bf.xmax_face = rng.standard_normal((sn_mesh.quad.N, ng))
-        if getattr(sn_mesh, "curvature", None) is None:
-            bf.xmin_face = rng.standard_normal((sn_mesh.quad.N, ng))
-        psi = AngularFlux(psi_values, sn_mesh, boundary=bf)
+        psi.boundary.face_view("xmax")[:] = rng.standard_normal(
+            (sn_mesh.quad.N, ng),
+        )
+        if "xmin" in psi.boundary.layout.faces:
+            psi.boundary.face_view("xmin")[:] = rng.standard_normal(
+                (sn_mesh.quad.N, ng),
+            )
 
         result = transport_operator_matvec_unified(psi, sigma_t)
 
@@ -373,7 +379,7 @@ class TestFaceResidualMask:
         eps = 1e-15
         inflow_outer = mu_x <= -eps  # μ_x < 0 = inflow at outer face
         np.testing.assert_array_equal(
-            result.boundary.xmax_face[inflow_outer, :],
+            result.boundary.face_view("xmax")[inflow_outer, :],
             np.zeros((np.sum(inflow_outer), ng)),
             err_msg=(
                 f"{name}: outer-face residual is non-zero at inflow "
@@ -391,13 +397,16 @@ class TestFaceResidualMask:
         sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 1.0)
 
         rng = np.random.default_rng(seed=22)
-        psi_values = rng.standard_normal(
+        psi = sn_mesh.zeros_timed_full_field()
+        psi.bulk.values[:] = rng.standard_normal(
             (sn_mesh.quad.N, ng, sn_mesh.nx, sn_mesh.ny),
         )
-        bf = BoundaryFlux(mesh=sn_mesh)
-        bf.xmax_face = rng.standard_normal((sn_mesh.quad.N, ng))
-        bf.xmin_face = rng.standard_normal((sn_mesh.quad.N, ng))
-        psi = AngularFlux(psi_values, sn_mesh, boundary=bf)
+        psi.boundary.face_view("xmax")[:] = rng.standard_normal(
+            (sn_mesh.quad.N, ng),
+        )
+        psi.boundary.face_view("xmin")[:] = rng.standard_normal(
+            (sn_mesh.quad.N, ng),
+        )
 
         result = transport_operator_matvec_unified(psi, sigma_t)
 
@@ -406,7 +415,7 @@ class TestFaceResidualMask:
         # Inflow at xmin face: μ_x > 0 (right-going).
         inflow_inner = mu_x >= +eps
         np.testing.assert_array_equal(
-            result.boundary.xmin_face[inflow_inner, :],
+            result.boundary.face_view("xmin")[inflow_inner, :],
             np.zeros((np.sum(inflow_inner), ng)),
             err_msg=(
                 "slab inner-face residual is non-zero at inflow "
@@ -486,11 +495,7 @@ class TestTwoDCartesianRaises:
         quad = Quadrature.gauss_legendre(n_ordinates=4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
-        psi = AngularFlux(
-            np.zeros((sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny)),
-            sn_mesh,
-            boundary=BoundaryFlux.zeros(sn_mesh),
-        )
+        psi = sn_mesh.zeros_timed_full_field()
         with pytest.raises(NotImplementedError, match="2-D Cartesian"):
             transport_operator_matvec_unified(psi, sigma_t)
 
@@ -499,13 +504,14 @@ class TestTwoDCartesianRaises:
 
 
 class TestTypeContract:
-    """Path-forward signature accepts AngularFlux only; bare ndarrays
-    rejected with TypeError (the legacy packed-face-slot signature
-    retired at G0)."""
+    """Path-forward signature accepts :class:`TimedFullField` only;
+    bare ndarrays (and the bulk-only L2 AngularFlux) are rejected with
+    TypeError.  D-H.2-C4c flipped the kernel signature from the
+    bulk-only AngularFlux to the L2 composite carrier."""
 
     def test_rejects_bare_ndarray(self) -> None:
         sn_mesh = _slab_mesh()
         sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
         psi_bare = np.zeros((sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny))
-        with pytest.raises(TypeError, match="AngularFlux"):
+        with pytest.raises(TypeError, match="TimedFullField"):
             transport_operator_matvec_unified(psi_bare, sigma_t)
