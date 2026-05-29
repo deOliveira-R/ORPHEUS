@@ -134,15 +134,6 @@ def _reflective_y_2d_for_1d_reduction(nx: int = 4, ny: int = 2) -> SNMesh:
 
 
 @pytest.mark.l1
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "2-D Cartesian L2 matvec lands in D-H.2-C4b "
-        "(StreamingOperator._apply_timed_full_field raises "
-        "NotImplementedError for ny > 1).  Auto-flips to PASS when C4b "
-        "ships the flat-shim through transport_operator_matvec."
-    ),
-)
 def test_solve_sn_2d_krylov_homogeneous_reflective_recovers_kinf() -> None:
     r"""All-reflective 2-D homogeneous ⇒ k_eff = k_inf = 1.875.
 
@@ -177,10 +168,6 @@ def test_solve_sn_2d_krylov_homogeneous_reflective_recovers_kinf() -> None:
 
 @pytest.mark.foundation
 @pytest.mark.catches("ERR-026")
-@pytest.mark.xfail(
-    strict=True,
-    reason="2-D L2 matvec lands in D-H.2-C4b.",
-)
 def test_apply_vs_sweep_2d_residual_cancellation() -> None:
     r"""``(L + C).apply(state).bulk == L.apply(state).bulk + C.apply(state).bulk``.
 
@@ -224,10 +211,6 @@ def test_apply_vs_sweep_2d_residual_cancellation() -> None:
 
 
 @pytest.mark.l1
-@pytest.mark.xfail(
-    strict=True,
-    reason="2-D L2 matvec lands in D-H.2-C4b.",
-)
 def test_2d_reflective_xy_keff_matches_1d_slab_reflective_analog() -> None:
     r"""2-D all-reflective + y-direction-symmetric ⇒ keff = 1-D slab keff.
 
@@ -275,10 +258,6 @@ def test_2d_reflective_xy_keff_matches_1d_slab_reflective_analog() -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.xfail(
-    strict=True,
-    reason="2-D L2 matvec lands in D-H.2-C4b.",
-)
 def test_2d_matvec_linearity_random_state() -> None:
     r"""``A.apply(α·u + β·v) ≡ α·A.apply(u) + β·A.apply(v)`` on 2-D L2.
 

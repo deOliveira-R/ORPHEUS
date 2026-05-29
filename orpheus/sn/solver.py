@@ -629,22 +629,15 @@ class SNSolver:
         Scope
         =====
 
-        1-D meshes only (slab + sphere + cylinder).  2-D Cartesian
-        raises :class:`NotImplementedError` — the typed-flux B1''
-        face block was designed 1-D-only (one ``xmin_face`` + one
-        ``xmax_face``); 2-D needs a 4-face layout that's deferred to
-        Phase A.
+        D-H.2-C4d (2026-05-29) — 2-D Cartesian unblocked.  The L2
+        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+        face layout is the natural 4-face descriptor (xmin / xmax /
+        ymin / ymax) that the legacy 1-D B1'' face block lacked; the
+        L2-native ``StreamingOperator._apply_2d_cartesian_l2`` kernel
+        operates on it directly.
 
         Returns the updated scalar flux ``(ng, nx, ny)``.
         """
-        if self.sn_mesh.reduced is None:
-            raise NotImplementedError(
-                "R-1 Step D — 2-D Cartesian Krylov carve deferred to "
-                "Phase A.  The B1'' face block is 1-D-only; 2-D needs a "
-                "separate 4-face layout (xmin, xmax, ymin, ymax).  Use a "
-                "1-D mesh (slab / sphere / cylinder) or switch "
-                "inner_solver='source_iteration'."
-            )
 
         from .operator import CollisionOperator, StreamingOperator
         from orpheus.transport.fields.angular_flux import (

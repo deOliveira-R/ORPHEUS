@@ -582,9 +582,20 @@ class TestCompositeInvariants:
             out = L.apply(state)
             assert out.history_depth == depth
 
-    def test_2d_cartesian_raises_not_implemented(self):
-        """2-D Cartesian path raises NotImplementedError (Phase A scope)."""
+    def test_2d_cartesian_produces_timed_full_field(self):
+        """D-H.2-C4d — 2-D Cartesian path returns a TimedFullField.
+
+        Pre-C4d this test pinned the deferred ``NotImplementedError``
+        stub for the 2-D path; C4d ships the L2-native FD kernel
+        ``_apply_2d_cartesian_l2`` and the path becomes functional.
+        Structural invariant test: the return is the composite carrier
+        with the correct bulk type.
+        """
         from orpheus.geometry import Mesh2D
+        from orpheus.transport.fields.angular_flux import (
+            AngularFlux as L2AngularFlux,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
 
         mesh = Mesh2D(
             edges_x=np.linspace(0.0, 1.0, 4),
@@ -597,8 +608,12 @@ class TestCompositeInvariants:
         L = StreamingOperator(sn_mesh, sig_t)
 
         state = sn_mesh.zeros_timed_full_field()
-        with pytest.raises(NotImplementedError, match="2-D Cartesian"):
-            L.apply(state)
+        out = L.apply(state)
+
+        assert isinstance(out, TimedFullField)
+        assert isinstance(out.bulk, L2AngularFlux)
+        assert out.bulk.mesh is sn_mesh
+        assert out.history_depth == state.history_depth
 
     def test_mesh_identity_invariant(self):
         """Distinct SNMesh instances must reject the apply."""

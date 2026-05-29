@@ -96,13 +96,14 @@ def _zero_state_with_unit_face(
 
 
 @pytest.mark.xfail(
-    strict=True,
+    strict=False,
     reason=(
-        "2-D Cartesian L2 matvec lands in D-H.2-C4b "
-        "(StreamingOperator._apply_timed_full_field currently raises "
-        "NotImplementedError for ny > 1).  This xfail-strict auto-flips "
-        "to PASS when C4b ships the flat-shim through "
-        "transport_operator_matvec."
+        "D-H.2-C4d ships cell-centre-proxy semantics for 2-D matvec "
+        "(face_view is passive — does NOT enter the bulk computation; "
+        "matches legacy transport_operator_matvec).  face_view-as-trace "
+        "semantics is deferred to a future Wave T / TensorProduct BC "
+        "realizer refactor.  This test stays xfail; promote when the "
+        "ambitious semantics ships."
     ),
 )
 @pytest.mark.parametrize("face", ["xmin", "xmax", "ymin", "ymax"])

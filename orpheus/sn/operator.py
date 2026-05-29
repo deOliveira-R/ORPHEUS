@@ -2285,18 +2285,8 @@ class StreamingOperator(LinearOperatorMixin):
         curv = getattr(sn_mesh, "curvature", None)
         ny = sn_mesh.ny
         if curv is None and ny > 1:
-            # 2-D Cartesian deferred to D-H.2-C4d (L2-native rewrite of
-            # transport_operator_matvec FD kernel).  The legacy
-            # AngularFlux round-trip via to_legacy_angular_flux does
-            # NOT support 2-D boundary layouts (legacy 2-D stores
-            # conflated xmin_xmax_buf / ymin_ymax_buf, not flat
-            # face_view backing).  Keep the explicit stub until C4d.
-            raise NotImplementedError(
-                "StreamingOperator.apply(TimedFullField): 2-D Cartesian "
-                "is deferred to D-H.2-C4d (L2-native rewrite of the FD "
-                "kernel transport_operator_matvec).  Until then, 2-D "
-                "consumers must use the legacy AngularFlux dispatch."
-            )
+            # 2-D Cartesian — D-H.2-C4d L2-native FD kernel.
+            return self._apply_2d_cartesian_l2(psi)
 
         # 1-D — L2-native kernel call (no legacy round-trip).
         result = transport_operator_matvec_unified(psi, self.sigma_t)
@@ -2311,6 +2301,132 @@ class StreamingOperator(LinearOperatorMixin):
         return TimedFullField(
             bulk=L2AngularFlux.from_mesh(cell_values, sn_mesh),
             boundary=result.boundary,
+            _history=(),
+            history_depth=psi.history_depth,
+        )
+
+    def _apply_2d_cartesian_l2(
+        self, psi: "TimedFullField",
+    ) -> "TimedFullField":
+        r"""2-D Cartesian L2-native FD matvec (D-H.2-C4d).
+
+        Computes :math:`L\,\psi = (\mu_x\partial_x + \mu_y\partial_y)\psi`
+        with cell-centred upwind FD (the legacy stencil from
+        :func:`transport_operator_matvec`'s body), wrapped in the L2
+        ``TimedFullField`` carrier.
+
+        Boundary semantics
+        ------------------
+
+        Legacy cell-centre-proxy semantics: the matvec body reads
+        ``psi.bulk.values[:, :, 0, iy]`` as the outgoing trace at
+        xmin (and similarly at other faces).  The BC's
+        ``apply(outgoing)`` returns the incoming-direction values;
+        the incoming-direction values fill the boundary cells of
+        ``fi`` (overwriting the bulk value at incoming positions).
+        For homogeneous reflective, the cell-centre proxy makes the
+        kernel reduce to a uniform ``fi``, giving ``L·ψ_uniform = 0``
+        and converging the eigenvalue to ``k_inf``.
+
+        ``psi.boundary.face_view`` is currently passive: its values
+        do NOT enter the bulk computation.  The output boundary is
+        the zero L2 :class:`BoundaryFlux`.  Krylov drives the cell
+        residual to zero on the bulk dimension only; the face_view
+        is left at whatever value the iteration produces, but does
+        not affect convergence.  This matches the legacy 2-D
+        ``transport_operator_matvec`` semantics — the Krylov problem
+        size is N × ng × nx × ny cells (no face unknowns).
+
+        A more ambitious face_view-as-trace formulation (face_view
+        enters the bulk computation as the boundary trace, with a
+        boundary residual driving face_view ↔ bulk consistency)
+        causes the eigenvalue iteration to converge to a non-uniform
+        mode (~10% off from k_inf).  Deferred to a future Wave T /
+        TensorProduct refactor when the BC realizers gain a proper
+        composable algebra.
+
+        Returns ``L·ψ`` (NOT ``(L+C)·ψ`` — the σ_t·ψ term subtracts
+        out at the cell level, matching the 1-D path's convention
+        that ``_apply_typed`` / ``_apply_timed_full_field`` return
+        L-only).
+        """
+        from orpheus.geometry.boundary import SpecularBoundaryOperator
+        from orpheus.transport.fields.angular_flux import (
+            AngularFlux as L2AngularFlux,
+        )
+        from orpheus.transport.fields.boundary_flux import (
+            BoundaryFlux as L2BoundaryFlux,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sn_mesh = self.sn_mesh
+        quad = sn_mesh.quad
+        N = quad.N
+        nx, ny = sn_mesh.nx, sn_mesh.ny
+        dx, dy = sn_mesh.dx, sn_mesh.dy
+        mu_x, mu_y = quad.mu_x, quad.mu_y
+        eps = 1e-15
+
+        bc_xmin = getattr(sn_mesh, "bc_xmin", None) or SpecularBoundaryOperator(
+            axis="x", albedo=1.0,
+        )
+        bc_xmax = getattr(sn_mesh, "bc_xmax", None) or SpecularBoundaryOperator(
+            axis="x", albedo=1.0,
+        )
+        bc_ymin = getattr(sn_mesh, "bc_ymin", None) or SpecularBoundaryOperator(
+            axis="y", albedo=1.0,
+        )
+        bc_ymax = getattr(sn_mesh, "bc_ymax", None) or SpecularBoundaryOperator(
+            axis="y", albedo=1.0,
+        )
+
+        # ── Build fi: cell-centre proxy + BC-filled incoming at boundary ─
+        fi = psi.bulk.values.copy()
+
+        mask_xmin_in = mu_x > eps     # incoming at xmin
+        mask_xmax_in = mu_x < -eps    # incoming at xmax
+        mask_ymin_in = mu_y > eps     # incoming at ymin
+        mask_ymax_in = mu_y < -eps    # incoming at ymax
+
+        # xmin / xmax: outgoing trace = fi at boundary cell; BC.apply
+        # returns full (N, ng) incoming; write only incoming-mask cells.
+        for iy in range(ny):
+            incoming_xmin = bc_xmin.apply(fi[:, :, 0, iy])      # (N, ng)
+            fi[mask_xmin_in, :, 0, iy] = incoming_xmin[mask_xmin_in]
+            incoming_xmax = bc_xmax.apply(fi[:, :, -1, iy])
+            fi[mask_xmax_in, :, -1, iy] = incoming_xmax[mask_xmax_in]
+
+        for ix in range(nx):
+            incoming_ymin = bc_ymin.apply(fi[:, :, ix, 0])
+            fi[mask_ymin_in, :, ix, 0] = incoming_ymin[mask_ymin_in]
+            incoming_ymax = bc_ymax.apply(fi[:, :, ix, -1])
+            fi[mask_ymax_in, :, ix, -1] = incoming_ymax[mask_ymax_in]
+
+        # ── Compute M·ψ = (L+C)·ψ via cell-centred FD stencil ─────────
+        out_M = np.zeros_like(psi.bulk.values)
+        for n in range(N):
+            for ix in range(nx):
+                for iy in range(ny):
+                    dfix, dfiy = _compute_gradients(
+                        fi, n, ix, iy, quad, nx, ny, dx, dy,
+                    )
+                    out_M[n, :, ix, iy] = (
+                        mu_x[n] * dfix
+                        + mu_y[n] * dfiy
+                        + self.sigma_t[:, ix, iy] * fi[n, :, ix, iy]
+                    )
+
+        # L = M - C: subtract σ_t · ψ at the cell-centres (using
+        # ORIGINAL psi.bulk.values, not the BC-filled fi).
+        out_bulk = out_M - self.sigma_t[None, :, :, :] * psi.bulk.values
+
+        # Boundary output: zero — face_view is passive in this 2-D
+        # cell-centre-proxy formulation (see method docstring).
+        out_boundary = L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+
+        return TimedFullField(
+            bulk=L2AngularFlux.from_mesh(out_bulk, sn_mesh),
+            boundary=out_boundary,
             _history=(),
             history_depth=psi.history_depth,
         )
