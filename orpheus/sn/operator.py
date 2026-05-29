@@ -86,7 +86,6 @@ from orpheus.numerics.quadrature import Quadrature
 if TYPE_CHECKING:
     from orpheus.geometry.boundary import BoundaryOperator
 
-    from .angular_flux import AngularFlux
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from .geometry import SNMesh
     from orpheus.transport.sources import IsotropicSource, PerOrdinateSource

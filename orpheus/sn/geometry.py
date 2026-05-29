@@ -60,7 +60,6 @@ from .sweep_graph import OctantLabel, SweepDependencyGraph
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.numerics.face_layout import FaceLayout
-    from .angular_flux import AngularFlux
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
     from orpheus.transport.timed_full_field import TimedFullField

@@ -85,7 +85,6 @@ from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from .sweep_graph import OctantLabel
 
 if TYPE_CHECKING:
-    from .angular_flux import AngularFlux
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from .geometry import SNMesh
     from orpheus.transport.sources import IsotropicSource, PerOrdinateSource

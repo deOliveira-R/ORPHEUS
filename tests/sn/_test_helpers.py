@@ -27,12 +27,6 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 if TYPE_CHECKING:
-    from orpheus.sn.angular_flux import AngularFlux
-    # ``legacy_proxy_matvec`` uses the legacy
-    # :class:`orpheus.sn.boundary_flux.BoundaryFlux` (its function-local
-    # import below); ``make_boundary_flux_zero`` returns the L2
-    # :class:`orpheus.transport.fields.boundary_flux.BoundaryFlux` post-D-H.2-C2.
-    from orpheus.sn.boundary_flux import BoundaryFlux as LegacyBoundaryFlux
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from orpheus.sn.geometry import SNMesh
     from orpheus.transport.fields.scalar_flux import ScalarFlux

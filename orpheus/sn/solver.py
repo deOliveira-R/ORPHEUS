@@ -1242,8 +1242,14 @@ def _solve_fixed_source_si(
     geometry-default dispatch in :func:`solve_sn_fixed_source` clean.
     """
     from orpheus.transport.sources import PerOrdinateSource
-    from .angular_flux import AngularFlux
+    from orpheus.transport.fields.angular_flux import (
+        AngularFlux as L2AngularFlux,
+    )
+    from orpheus.transport.fields.boundary_flux import (
+        BoundaryFlux as L2BoundaryFlux,
+    )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
+    from orpheus.transport.timed_full_field import TimedFullField
     nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
 
     # Issue #196 PR-INDEX-5: phi principled (ng, nx, ny).
@@ -1279,10 +1285,18 @@ def _solve_fixed_source_si(
         source = PerOrdinateSource.from_mesh(total_values, sn_mesh)
 
         # R-1 Step 0: thread previous-iter angular flux as initial_guess
-        # for the trace-space Carlson seed.
-        initial_guess = (
-            AngularFlux(angular, sn_mesh) if angular is not None else None
-        )
+        # for the trace-space Carlson seed.  D-H.2-C5 phase 2: composite
+        # TimedFullField directly (legacy AngularFlux retired); the
+        # sweep's ``_initial_guess_values`` duck-types on ``.bulk``.
+        if angular is not None:
+            initial_guess = TimedFullField(
+                bulk=L2AngularFlux.from_mesh(angular, sn_mesh),
+                boundary=L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+                _history=(),
+                history_depth=2,
+            )
+        else:
+            initial_guess = None
         angular, phi = transport_sweep(
             source, solver.mat_xs.total_cross_section, sn_mesh,
             solver._boundary_flux,
