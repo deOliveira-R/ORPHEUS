@@ -1568,17 +1568,48 @@ class SNStreamingOperator(LinearOperatorMixin):
         quad = sn_mesh.quad
         curv = getattr(sn_mesh, "curvature", None)
 
-        # 2-D Cartesian remains on the legacy FD path (anti-diagonal
-        # wavefront, not dag_walk).  PR-TYPED-7 will absorb it.
+        # 2-D Cartesian — D-H.2-C4e: route through the L2-native
+        # :meth:`StreamingOperator._apply_2d_cartesian_l2` and add
+        # ``σ_t·ψ`` back to recover :class:`SNStreamingOperator`'s
+        # M·ψ = (L+C)·ψ contract (the 1-D path below also returns M·ψ
+        # — :func:`transport_operator_matvec_unified` carries the
+        # collision term; :meth:`_apply_2d_cartesian_l2` returns L·ψ
+        # so the SN bundle's M·ψ contract needs the post-add).  The
+        # legacy :func:`transport_operator_matvec` 2-D FD path retires
+        # in C4e.6 — :meth:`_apply_2d_cartesian_l2` is the only
+        # production 2-D matvec.
         if curv is None and ny > 1:
-            return transport_operator_matvec(
-                psi, eq_map, quad, self.sig_t,
-                nx, ny, ng, sn_mesh.dx, sn_mesh.dy,
+            from orpheus.transport.fields.angular_flux import (
+                AngularFlux as L2AngularFlux,
+            )
+            from orpheus.transport.fields.boundary_flux import (
+                BoundaryFlux as L2BoundaryFlux,
+            )
+            from orpheus.transport.timed_full_field import TimedFullField
+            psi_cell = solution_to_angular_flux(
+                psi, eq_map, quad, nx, ny, ng,
                 bc_xmin=sn_mesh.bc_xmin,
                 bc_xmax=sn_mesh.bc_xmax,
                 bc_ymin=sn_mesh.bc_ymin,
                 bc_ymax=sn_mesh.bc_ymax,
             )
+            composite_in = TimedFullField(
+                bulk=L2AngularFlux.from_mesh(psi_cell, sn_mesh),
+                boundary=L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+                _history=(),
+                history_depth=2,
+            )
+            L_streaming = StreamingOperator(sn_mesh, self.sig_t)
+            composite_out = L_streaming._apply_timed_full_field(composite_in)
+            # M·ψ = L·ψ + σ_t·ψ — recover the SN bundle's full-matvec
+            # contract from the L2-native L·ψ output.
+            m_view = (
+                composite_out.bulk.values
+                + self.sig_t[None, :, :, :] * psi_cell
+            )
+            return m_view[
+                eq_map.ordinate, :, eq_map.ix, eq_map.iy,
+            ].T.ravel(order='F')
 
         # 1-D slab / sphere / cylinder — unified matvec via the LEGACY
         # cell-only packed format.  The decoder reconstructs ψ_view
@@ -2083,22 +2114,42 @@ class StreamingOperator(LinearOperatorMixin):
         quad = sn_mesh.quad
         curv = getattr(sn_mesh, "curvature", None)
 
-        # 2-D Cartesian remains on the legacy FD path (anti-diagonal
-        # wavefront, not dag_walk).  PR-TYPED-7 will absorb it.
+        # 2-D Cartesian — D-H.2-C4e: wrap packed ψ → :class:`TimedFullField`,
+        # call the L2-native :meth:`_apply_timed_full_field` (which
+        # dispatches to :meth:`_apply_2d_cartesian_l2`), repack the bulk
+        # result.  C4e retired the legacy ``transport_operator_matvec``
+        # FD kernel — ``_apply_2d_cartesian_l2`` is now the only 2-D
+        # matvec.  ``_apply_2d_cartesian_l2`` returns ``L·ψ`` directly
+        # (the σ_t·ψ collision term subtracts INSIDE the kernel — see
+        # operator.py L2421); no post-call subtract needed.  The 2-D
+        # packed layout has only cell unknowns (no face block), so the
+        # repack is a single slot-to-flat ravel.
         if curv is None and ny > 1:
-            m_full = transport_operator_matvec(
-                psi, eq_map, quad, self.sigma_t,
-                nx, ny, ng, sn_mesh.dx, sn_mesh.dy,
+            from orpheus.transport.fields.angular_flux import (
+                AngularFlux as L2AngularFlux,
+            )
+            from orpheus.transport.fields.boundary_flux import (
+                BoundaryFlux as L2BoundaryFlux,
+            )
+            from orpheus.transport.timed_full_field import TimedFullField
+            psi_cell = solution_to_angular_flux(
+                psi, eq_map, quad, nx, ny, ng,
                 bc_xmin=sn_mesh.bc_xmin,
                 bc_xmax=sn_mesh.bc_xmax,
                 bc_ymin=sn_mesh.bc_ymin,
                 bc_ymax=sn_mesh.bc_ymax,
             )
-            # Subtract σ_t ⊙ ψ at the legacy packed slots.
-            sigma_packed = self.sigma_t[
-                :, eq_map.ix, eq_map.iy
-            ].ravel(order='F')
-            return m_full - sigma_packed * psi
+            composite_in = TimedFullField(
+                bulk=L2AngularFlux.from_mesh(psi_cell, sn_mesh),
+                boundary=L2BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+                _history=(),
+                history_depth=2,
+            )
+            composite_out = self._apply_timed_full_field(composite_in)
+            m_view = composite_out.bulk.values
+            return m_view[
+                eq_map.ordinate, :, eq_map.ix, eq_map.iy,
+            ].T.ravel(order='F')
 
         # 1-D slab / sphere / cylinder — B1'' face-aware L2-native matvec.
         # D-H.2-C4c — the path-forward matvec consumes the L2 composite

@@ -204,15 +204,32 @@ def test_capabilities_is_frozenset():
 # trajectory_resolvent reference).
 
 
-def test_apply_2d_cartesian_bit_identical_to_legacy():
-    """SNStreamingOperator.apply == transport_operator_matvec on 2-D Cartesian.
+def test_apply_2d_cartesian_consistent_with_l_plus_collision():
+    """SNStreamingOperator.apply == StreamingOperator.apply + σ_t·ψ on 2-D Cartesian.
 
-    The 2-D Cartesian path exercises the full
-    :func:`build_equation_map` filter (including z-hemisphere and
-    y-axis reflective BCs) that 1-D slab does not.
+    D-H.2-C4e (2026-05-29) — the legacy ``transport_operator_matvec``
+    2-D FD kernel retires; both :class:`SNStreamingOperator` (returns
+    M·ψ = (L+C)·ψ) and :class:`StreamingOperator` (returns L·ψ) route
+    through :meth:`StreamingOperator._apply_2d_cartesian_l2` for the
+    2-D Cartesian case.  The structural contract becomes::
 
-    Wave E Round 3 update: legacy call threads all 4 BCs from the mesh.
+        SNStreamingOperator.apply(psi)  ==  StreamingOperator.apply(psi)  +  σ_t·ψ
+
+    bit-identical (both sides reduce through the SAME L2-native
+    ``_apply_2d_cartesian_l2`` body; the SN side post-adds σ_t·ψ at the
+    same packed slots that the L side leaves un-collided).  This test
+    gates that consistency on a 2-D Cartesian mesh exercising
+    :func:`build_equation_map`'s full filter (z-hemisphere + reflective
+    BCs).
+
+    The legacy bit-identity vs ``transport_operator_matvec`` retires
+    with the helper itself.  The new C4a unit-source semantic tests
+    (``test_2d_l2_matvec_correctness.py``) + Test 3.1 MMS L1
+    convergence pin gate the absolute correctness of
+    ``_apply_2d_cartesian_l2`` independently; this test gates the
+    SN-vs-L algebraic identity above.
     """
+    from orpheus.sn.operator import StreamingOperator
     nx, ny = 3, 3
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 1.0, nx + 1),
@@ -228,7 +245,8 @@ def test_apply_2d_cartesian_bit_identical_to_legacy():
     quad = Quadrature.lebedev(order=5)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials(ng=2))
     sig_t = _sig_t_uniform(sn_mesh, ng=2)
-    op = SNStreamingOperator(sn_mesh, sig_t)
+    sn_op = SNStreamingOperator(sn_mesh, sig_t)
+    L_op = StreamingOperator(sn_mesh, sig_t)
 
     ng = 2
     eq_map = build_equation_map(nx, ny, quad, ng)
@@ -236,18 +254,15 @@ def test_apply_2d_cartesian_bit_identical_to_legacy():
     rng = np.random.default_rng(seed=45)
     psi = rng.standard_normal(eq_map.n_unknowns)
 
-    legacy = transport_operator_matvec(
-        psi, eq_map, quad, sig_t,
-        nx, ny, ng, sn_mesh.dx, sn_mesh.dy,
-        bc_xmin=sn_mesh.bc_xmin, bc_xmax=sn_mesh.bc_xmax,
-        bc_ymin=sn_mesh.bc_ymin, bc_ymax=sn_mesh.bc_ymax,
-    )
-    via_op = op.apply(psi)
+    via_sn = sn_op.apply(psi)
+    via_L = L_op.apply(psi)
+    sigma_t_packed = sig_t[:, eq_map.ix, eq_map.iy].ravel(order='F')
+    via_L_plus_C = via_L + sigma_t_packed * psi
 
-    assert np.array_equal(legacy, via_op), (
-        "SNStreamingOperator.apply diverged from "
-        "transport_operator_matvec on 2-D: max diff = {:.3e}".format(
-            np.max(np.abs(legacy - via_op))
+    assert np.array_equal(via_sn, via_L_plus_C), (
+        "SNStreamingOperator.apply diverged from StreamingOperator.apply "
+        "+ σ_t·ψ on 2-D: max diff = {:.3e}".format(
+            np.max(np.abs(via_sn - via_L_plus_C))
         )
     )
 
