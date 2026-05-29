@@ -132,7 +132,6 @@ from orpheus.numerics.projection import (
 # runtime class.  These three modules form a leaf in the SN package
 # dependency graph (they do not import scattering.py), so the imports
 # are circular-import-safe.
-from .angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux as L2BoundaryFlux
@@ -618,13 +617,13 @@ class ScatteringOperator(LinearOperatorMixin):
         from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
         if self.scattering_order == 0 or angular_flux is None:
             return None
-        # Typed path accepts BOTH the legacy ``orpheus.sn.angular_flux``
-        # ``AngularFlux`` (transitional, retires in D-H.1c) AND the L2
-        # pure-Field ``orpheus.transport.fields.angular_flux.AngularFlux``
-        # (the post-D-H carrier on the TimedFullField composite).  Both
-        # expose ``.values`` and ``.mesh`` identically; the typed pipeline
-        # is layout-agnostic.
-        is_typed = isinstance(angular_flux, (AngularFlux, L2AngularFlux))
+        # D-H.2-C3: typed path accepts only the L2 pure-Field
+        # ``orpheus.transport.fields.angular_flux.AngularFlux`` (the
+        # post-D-H carrier on the :class:`TimedFullField` composite).
+        # Legacy :class:`orpheus.sn.angular_flux.AngularFlux` retired in
+        # D-H.2-C3; bare ndarrays still flow through as the
+        # singledispatch fall-through.
+        is_typed = isinstance(angular_flux, L2AngularFlux)
         values = angular_flux.values if is_typed else angular_flux
         L = self.scattering_order
         # Build the §9 "S = R Λ M" pipeline. The constituent primitives
@@ -899,72 +898,6 @@ class ScatteringOperator(LinearOperatorMixin):
             f"or numpy.ndarray.  Dispatch table is registered via "
             f"@singledispatchmethod."
         )
-
-    @apply.register
-    def _(self, psi: AngularFlux) -> "AngularFlux":
-        r"""Typed AngularFlux variant — per-ordinate magnitude output.
-
-        Math: combines
-        :math:`Q_{\rm iso} = \Sigma_{s,0} \phi + 2\Sigma_{2n} \phi`
-        (iso scalar from :meth:`add_iso_source`,
-        :meth:`add_n2n_source`) with
-        :math:`Q_{\rm aniso,n} = \frac{1}{W}\,
-        \sum_{\ell\ge 1}\,(2\ell+1)\,\sum_m
-        Y_\ell^m(\Omega_n)\,\Sigma_{s,\ell}\,\phi_\ell^m`
-        (per-ordinate from :meth:`build_aniso_source`) via the
-        boundary projection
-        :math:`Q_n = Q_{\rm iso}/W + Q_{\rm aniso,n}` — both terms in
-        per-ordinate magnitude after :math:`1/W`.
-
-        .. note:: **Tactical-legacy dimensional convention**.
-
-           This method returns :class:`AngularFlux`, but the returned
-           value is dimensionally a *source*
-           (:class:`~orpheus.sn.sources.PerOrdinateSource` would be the
-           dimensionally honest type).  ORPHEUS currently uses
-           :class:`AngularFlux` as the universal carrier for fluxes,
-           operator outputs, RHS sources, and Krylov residuals —
-           a known dimensional sin tracked in
-           `#205 <https://github.com/deOliveira-R/ORPHEUS/issues/205>`_
-           (Cross-method field architecture: storage × role typing).
-           R-1 Step 4 Phase 1.1 (the producer-side normalisation
-           carve) ships with this legacy convention.  Issue #205
-           designs the proper split (AngularFlux for ψ;
-           AngularSource for operator outputs / RHS; cross-method
-           field/role architecture).
-        """
-        mesh = psi.mesh
-        # Reduce angular flux to scalar flux via the typed reduction
-        # (Pattern 3 — named intermediate).
-        phi = psi.integrate_angular()
-        # Build the isotropic source as a typed IsotropicSource
-        # accumulator (Pattern 1 — read-as-the-math).  P0 + (n,2n)
-        # both return-new under the typed overload.
-        iso: IsotropicSource = mesh.zeros_isotropic_source()
-        iso = self.add_iso_source(iso, phi)
-        iso = self.add_n2n_source(iso, phi)
-        # Pℓ (ℓ≥1) contribution — per-ordinate magnitude after R-1
-        # Step 4 A1 (:meth:`build_aniso_source` applies /W internally).
-        aniso_or_none = self.build_aniso_source(psi)
-        if aniso_or_none is None:
-            aniso = mesh.zeros_per_ordinate_source()
-        else:
-            aniso = aniso_or_none
-        # Producer-side projection at the apply boundary (Pattern 7):
-        # ``iso / sum_w`` projects iso scalar to per-ordinate;
-        # ``+ aniso`` adds the already-per-ordinate Pℓ piece via the
-        # cross-class subspace-containment dunder (refined Issue #207
-        # principle: IsotropicSource ⊂ PerOrdinateSource via the
-        # canonical broadcast injection; the dunder applies it).
-        sum_w = float(mesh.quad.weights.sum())
-        combined: PerOrdinateSource = (iso / sum_w) + aniso
-        # R-1 Step 3b — ``S`` is volumetric: zero face-trace
-        # contribution.  The auto-allocated ``boundary`` on the
-        # returned :class:`AngularFlux` is exactly the zero
-        # :class:`BoundaryFlux` the operator algebra expects.  See
-        # ``StreamingOperator.apply`` for the contrasting case
-        # where the face residual IS non-zero.
-        return AngularFlux(combined.values, mesh)
 
     @apply.register
     def _(self, psi: TimedFullField) -> "TimedFullField":

@@ -2409,7 +2409,6 @@ class CollisionOperator(LinearOperatorMixin):
               :class:`TimedFullField` with bulk = σ ⊙ ψ.bulk.values and
               implicit-zero boundary.
         """
-        from .angular_flux import AngularFlux
         from orpheus.transport.timed_full_field import TimedFullField
         if isinstance(psi, TimedFullField):
             # Composite branch — broadcast σ across ordinate axis on
@@ -2429,16 +2428,6 @@ class CollisionOperator(LinearOperatorMixin):
                 boundary=L2BoundaryFlux.zeros_for_sn_mesh(mesh),
                 _history=(),
                 history_depth=psi.history_depth,
-            )
-        if isinstance(psi, AngularFlux):
-            # Typed branch — broadcast σ across ordinate axis.
-            # σ is (ng, nx, ny); ψ.values is (N, ng, nx, ny);
-            # the product broadcasts σ to every ordinate (collision
-            # is direction-independent).  The output's ``.boundary``
-            # is auto-allocated to zeros (R-1 Step 2), which is the
-            # correct algebraic value — C has no face contribution.
-            return AngularFlux(
-                self.sigma[None, :, :, :] * psi.values, psi.mesh,
             )
         ng = int(self.sigma.shape[0])
         eq_map = self._ensure_eq_map(ng)
@@ -2487,7 +2476,6 @@ class CollisionOperator(LinearOperatorMixin):
         the implicit-zero :class:`L2BoundaryFlux` (Option β3,
         formal pseudoinverse on the rank-deficient face block).
         """
-        from .angular_flux import AngularFlux
         from orpheus.transport.timed_full_field import TimedFullField
         if isinstance(q, TimedFullField):
             # Composite branch — broadcast 1/σ across the ordinate
@@ -2508,14 +2496,6 @@ class CollisionOperator(LinearOperatorMixin):
                 boundary=L2BoundaryFlux.zeros_for_sn_mesh(mesh),
                 _history=(),
                 history_depth=q.history_depth,
-            )
-        if isinstance(q, AngularFlux):
-            # Typed branch — broadcast 1/σ across the ordinate axis.
-            # σ is (ng, nx, ny); q.values is (N, ng, nx, ny).  The
-            # result's ``.boundary`` is auto-allocated to zeros — the
-            # pseudoinverse on the rank-deficient face block.
-            return AngularFlux(
-                q.values / self.sigma[None, :, :, :], q.mesh,
             )
         ng = int(self.sigma.shape[0])
         eq_map = self._ensure_eq_map(ng)
@@ -2784,114 +2764,28 @@ class InvertibleOperator(OperatorSum):
             ``rhs.history_depth``.  Return type matches ``rhs`` input
             type.
         """
-        from .angular_flux import AngularFlux
-        from orpheus.transport.sources import PerOrdinateSource
         from orpheus.transport.timed_full_field import TimedFullField
-        from .sweep import transport_sweep
 
-        # D-H.1c stage 1 — composite branch dispatch ahead of the
-        # legacy AngularFlux validation.  Both branches must agree
-        # on input/output type pairing: composite rhs → composite
-        # initial_guess (or None) → composite return.
-        if isinstance(rhs, TimedFullField):
-            if initial_guess is not None and not isinstance(
-                initial_guess, TimedFullField,
-            ):
-                raise TypeError(
-                    f"InvertibleOperator.solve: 'rhs' is TimedFullField "
-                    f"but 'initial_guess' is "
-                    f"{type(initial_guess).__name__}; both must agree "
-                    f"on type (composite or legacy)."
-                )
-            return self._solve_timed_full_field(
-                rhs, initial_guess=initial_guess,
-            )
-
-        if not isinstance(rhs, AngularFlux):
+        # D-H.2-C3: only the :class:`TimedFullField` composite branch
+        # remains; legacy :class:`AngularFlux` retired.  ``rhs`` and
+        # ``initial_guess`` MUST be :class:`TimedFullField` (or ``None``
+        # for ``initial_guess``).
+        if not isinstance(rhs, TimedFullField):
             raise TypeError(
-                f"InvertibleOperator.solve: 'rhs' must be AngularFlux "
-                f"or TimedFullField; got {type(rhs).__name__}.  The "
-                f"typed-flux contract is the only supported surface in "
-                f"R-1; bare-ndarray rhs goes through the legacy "
-                f"SNSolver paths."
+                f"InvertibleOperator.solve: 'rhs' must be TimedFullField; "
+                f"got {type(rhs).__name__}.  Legacy AngularFlux retired "
+                f"in D-H.2-C3."
             )
-        if rhs.mesh is not self.sn_mesh:
-            raise ValueError(
-                "InvertibleOperator.solve: rhs and operator must share "
-                "the same SNMesh instance (mesh-identity invariant)."
+        if initial_guess is not None and not isinstance(
+            initial_guess, TimedFullField,
+        ):
+            raise TypeError(
+                f"InvertibleOperator.solve: 'initial_guess' must be "
+                f"TimedFullField or None; got "
+                f"{type(initial_guess).__name__}."
             )
-
-        sn_mesh = self.sn_mesh
-        # R-1 Step 4 A1 — single per-ordinate source convention.
-        # ``rhs.values`` IS per-ordinate density by producer contract
-        # (``ScatteringOperator.apply`` typed branch normalises by
-        # ``/sum_w`` at the producer boundary; ``q_ext`` external
-        # sources project via ``PerOrdinateSource.from_isotropic``).
-        # The ``transport_sweep`` accepts a single
-        # :class:`PerOrdinateSource` and does NOT apply ``/W``
-        # internally; both sides of the producer-consumer contract
-        # are per-ordinate density.
-        source = PerOrdinateSource.from_mesh(rhs.values, sn_mesh)
-
-        # Boundary-state plumbing for reflective / partner-flux BCs.
-        # The sweep mutates ``boundary_flux`` in place (write-through);
-        # the persistent partner-flux trace is the CRITICAL state for
-        # reflective BCs to converge to the right fixed point.  Two
-        # paths into the buffer, in priority order:
-        #
-        # 1. ``initial_guess.boundary`` — the previous iterate's outflow
-        #    trace (which IS the partner flux for reflective BCs).
-        # 2. ``rhs.boundary`` — fallback when no ``initial_guess``
-        #    (typically zero for volumetric sources; non-zero for
-        #    explicit BC-driven solves).
-        #
-        # Why this matters: for SI on reflective BCs, the matvec
-        # iteration produces an outflow that becomes the next inflow.
-        # Without threading the partner flux, the sweep sees zero
-        # inflow each call → effectively VACUUM, and the fixed point
-        # shifts away from the true reflective answer.
-        # D-H.2-C2: zeros_boundary_flux now returns L2 :class:`BoundaryFlux`;
-        # this legacy branch (retired in D-H.2-C3) operates on legacy
-        # types throughout, so allocate the legacy buffer directly.
-        # The sweep is migrated to consume L2 in C2 — bridge L2 ↔ legacy
-        # via a paired temporary: the legacy ``boundary_buf`` carries
-        # the partner-flux state for the AngularFlux return contract;
-        # the L2 ``sweep_buf`` is what the sweep actually reads/writes.
-        from .boundary_flux import BoundaryFlux as _LegacyBoundaryFlux
-        boundary_buf = _LegacyBoundaryFlux.zeros(sn_mesh)
-        if initial_guess is not None:
-            _copy_boundary_face_state(initial_guess.boundary, boundary_buf)
-        else:
-            _copy_boundary_face_state(rhs.boundary, boundary_buf)
-
-        # Sweep consumes L2; bridge legacy ↔ L2 around the call.
-        sweep_buf = sn_mesh.zeros_boundary_flux()  # L2 after C2
-        layout = sweep_buf.layout
-        if "xmin" in layout.faces and boundary_buf.xmin_face is not None:
-            sweep_buf.face_view("xmin")[:] = boundary_buf.xmin_face
-        if "xmax" in layout.faces and boundary_buf.xmax_face is not None:
-            sweep_buf.face_view("xmax")[:] = boundary_buf.xmax_face
-
-        angular, _scalar = transport_sweep(
-            source,
-            self.sigma,
-            sn_mesh,
-            sweep_buf,
-            initial_guess=initial_guess,
-        )
-
-        # Persist sweep outflow back to the legacy buffer for the
-        # AngularFlux return.
-        if "xmin" in layout.faces and boundary_buf.xmin_face is not None:
-            boundary_buf.xmin_face[:] = sweep_buf.face_view("xmin")
-        if "xmax" in layout.faces and boundary_buf.xmax_face is not None:
-            boundary_buf.xmax_face[:] = sweep_buf.face_view("xmax")
-
-        return AngularFlux(
-            angular,
-            sn_mesh,
-            boundary=boundary_buf,
-            history_depth=rhs.history_depth,
+        return self._solve_timed_full_field(
+            rhs, initial_guess=initial_guess,
         )
 
     def _solve_timed_full_field(
@@ -3003,23 +2897,3 @@ class InvertibleOperator(OperatorSum):
             _history=(),
             history_depth=rhs.history_depth,
         )
-
-
-def _copy_boundary_face_state(
-    src: "BoundaryFlux", dst: "BoundaryFlux",
-) -> None:
-    """Copy non-None face buffers from ``src`` into ``dst`` in place.
-
-    Both buffers must share the same :class:`SNMesh` (no shape
-    validation needed — same mesh implies same buffer sizes).  Used by
-    :meth:`InvertibleOperator.solve` to seed the sweep's mutable
-    write-through buffer from the immutable rhs.boundary state.
-    """
-    if src.xmin_face is not None and dst.xmin_face is not None:
-        dst.xmin_face[...] = src.xmin_face
-    if src.xmax_face is not None and dst.xmax_face is not None:
-        dst.xmax_face[...] = src.xmax_face
-    if src.xmin_xmax_buf is not None and dst.xmin_xmax_buf is not None:
-        dst.xmin_xmax_buf[...] = src.xmin_xmax_buf
-    if src.ymin_ymax_buf is not None and dst.ymin_ymax_buf is not None:
-        dst.ymin_ymax_buf[...] = src.ymin_ymax_buf

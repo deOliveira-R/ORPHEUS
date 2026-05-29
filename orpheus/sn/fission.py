@@ -84,7 +84,6 @@ from orpheus.numerics.operator import (
 # re-aliased to ``L2AngularFlux`` / ``L2BoundaryFlux`` to disambiguate
 # from the legacy ``orpheus.sn.angular_flux.AngularFlux`` which still
 # rides on the operator-algebra path until D-H.1c.
-from .angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.fields.angular_flux import AngularFlux as L2AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux as L2BoundaryFlux
@@ -216,40 +215,6 @@ class FissionOperator(LinearOperatorMixin):
             f"or numpy.ndarray.  Dispatch table is registered via "
             f"@singledispatchmethod."
         )
-
-    @apply.register
-    def _(self, psi: AngularFlux) -> "AngularFlux":
-        r"""Typed AngularFlux variant — per-ordinate magnitude output.
-
-        Math: reduce angular → scalar via :math:`\phi = \sum_n w_n
-        \psi_n`, compute iso fission source :math:`F\phi`, then
-        project to per-ordinate via :math:`/W` and broadcast across
-        the :math:`N` ordinates.  The :math:`1/W` is the producer-side
-        normalisation (R-1 Step 4 A1).
-
-        .. note:: **Tactical-legacy dimensional convention**.
-
-           Returns :class:`AngularFlux`, but the returned value is
-           dimensionally a *source*
-           (:class:`~orpheus.sn.sources.PerOrdinateSource` would be the
-           honest type).  See
-           :meth:`ScatteringOperator.apply` (AngularFlux variant) and
-           `#205 <https://github.com/deOliveira-R/ORPHEUS/issues/205>`_
-           for the cross-method field/role architecture that will
-           split the dimensional roles cleanly.
-        """
-        phi_scalar = psi.integrate_angular()
-        # Compute iso fission source via the ScalarFlux variant.
-        fission_iso: IsotropicSource = self.apply(phi_scalar)
-        # Project to per-ordinate: ``Q/W`` broadcast across N.
-        # Reuses the canonical :class:`PerOrdinateSource.from_isotropic`
-        # factory — single source of truth for the iso→per-ord
-        # projection (Pattern 2).
-        from orpheus.transport.sources import PerOrdinateSource
-        per_ord = PerOrdinateSource.from_isotropic(
-            fission_iso.values, psi.mesh,
-        )
-        return AngularFlux(per_ord.values, psi.mesh)
 
     @apply.register
     def _(self, psi: TimedFullField) -> "TimedFullField":
