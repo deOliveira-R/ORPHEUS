@@ -8,6 +8,20 @@
 
 **Status:** STUB. The architectural commitment is settled (see §1); detailed designs for each substep land when each substep starts (depth-on-demand per `[[feedback_no_method_implementer_for_surgical_carves]]` — main-agent direct authorship with turn-by-turn user steering).
 
+**2026-05-30 polish update (post-Depth-B-close):**
+Depth B closed completely on 2026-05-29 (commits `c97897d`, `8a8ddbf`,
+`da9b73b`, `4a53737`, `dadf4e8`, `a5a7ff9`).  This pass refreshes file
+line numbers, splits TP-operator vs TP-space provenance, removes the
+stale `SNStreamingOperator`-retirement paragraph (`dadf4e8` retired the
+class), accurate-counts production tensor-network consumers (ONE today —
+the specular BC at `boundary_realizer.py:164-166` — not zero as
+originally written), and clarifies the 2-D Cartesian status (the
+unblock landed but the path is procedural FD via `_apply_2d_cartesian`,
+not yet tensor-product-shaped; the `NotImplementedError` gate in
+`transport_operator_matvec_unified` is unreachable-by-routing).  Six
+BC kinds exist in `SNBoundaryRealizer.realize` (not four as §6 T.1
+tabulates) — see §6 T.1 below for the updated table.
+
 ---
 
 ## 0. Pickup checklist (read first)
@@ -20,15 +34,20 @@ If you are picking this plan up in a fresh session:
    - §15 lines 2003-2086 — "The tensor section": V = X ⊗ Ω ⊗ G; native operator form = sum of tensor products.
    - §15.1 lines 2031-2045 — streaming as `L = Σ_axis (D_axis ⊗ Ω_axis ⊗ I_g)`.
    - §15.2 lines 2046-2086 — scattering as `S = Σ_ℓ (Σ_{s,ℓ} ⊗ A_ℓ ⊗ G_ℓ)`.
-   - §16A.10 lines 3142-3197 — BC as tensor network; `BoundaryGeometryTensor`, `BoundaryResponseTensor`; canonical separable form `B = G_patch ⊗ K_omega ⊗ K_g`.
+   - §16A.10 lines 3142-3197 — BC as tensor network; canonical separable form `B = G_patch ⊗ K_omega ⊗ K_g`.  Note: `BoundaryGeometryTensor` and `BoundaryResponseTensor` are grand-report aspirational symbols — they do NOT exist as code today.  The closest ORPHEUS analogues are `InflowTraceSpace` / `OutflowTraceSpace` for the `G_patch` axis structure and `IncomingOrdinateMaskTensor` / the specular permutation for `K_omega`.  Wave T does NOT introduce these named tensors; it lifts existing BC operators into `TensorProductOperator` factors that fill the same algebraic roles.
    - §35 line 5675 — 20 commandments: "Represent multigroup scattering as a sum of tensor products."
    - North-star line 5697: "tensor products are foundational".
 4. **Read the explorer's two audit memos** that motivated Wave T (referenced in Depth B plan §11.3 footnotes; if absent, regenerate via explorer dispatches against the grand report).
 5. **Read the existing L1 primitives**:
-   - `orpheus/numerics/operator.py:1004-1122` — `TensorProductOperator` (definition, `__and__` dunder, `apply` fold).
-   - `orpheus/numerics/operator.py:1125-1215` — `SumOfTensorProductsOperator`.
-   - `orpheus/numerics/operator.py:1203-1215` — `assert_separable()` (currently shipped but never called).
-   - `orpheus/numerics/space.py` — `TensorProductSpace` (lands in Depth B D-B).
+   - `orpheus/numerics/operator.py:1058-1177` — `TensorProductOperator` (definition, `__and__` dunder via `_build`, `apply` fold, `solve` fold for fully-invertible factors).
+   - `orpheus/numerics/operator.py:1179-1269` — `SumOfTensorProductsOperator`.
+   - `orpheus/numerics/operator.py:1257-1269` — `assert_separable()` method (shipped, currently called only in tests; lights up post-T.1).
+   - `orpheus/numerics/space.py:301` — `TensorProductSpace` (landed in Depth B D-B, commit `c2f968a`).
+   - `orpheus/sn/boundary_realizer.py:164-166` — the **sole production `TensorProductOperator` instance today** (D-B+1, specular BC).
+   - `orpheus/sn/angular_operator.py:37` — `AngularAverageOperator` (legacy single-axis; T.1's white-BC lift target).
+   - `orpheus/sn/operator.py:645` — modern `StreamingOperator` leaf (T.4 target).  `CollisionOperator` at `:973`, `InvertibleOperator.solve` public entry at `:1280` (body delegates to `_solve_timed_full_field` at `:1368`; `transport_sweep` invoked at `:1462`).
+   - `orpheus/sn/operator.py:203` — `transport_operator_matvec_unified` (NOT `numerics/`; 2-D `NotImplementedError` at L328-333 is unreachable-by-routing today — see §1.3).
+   - `orpheus/sn/operator.py:830` — `_apply_2d_cartesian` (procedural FD path that intercepts 2-D Cartesian via the dispatcher at L809-812; not currently tensor-product-shaped).
 6. **Pick up at the leftmost incomplete step in §6** below.
 
 The `feedback_no_method_implementer_for_surgical_carves` rule applies: this is the main agent's work with turn-by-turn user steering. Do NOT batch via method-implementer.
@@ -43,7 +62,7 @@ The `feedback_no_method_implementer_for_surgical_carves` rule applies: this is t
 
 The codebase today implements this tensor-product structure via flat-axis numpy with implicit broadcasting — `np.einsum("gxy,gxy->xy", chi, phi)` for fission, `np.take(x, perm, axis=0)` for specular BC, etc. Numpy broadcasting IS the implementation of `... ⊗ I_other_axes` — but the *type system* doesn't know, the *operator algebra* doesn't know, and the algebraic identities `(A ⊗ B)^† = A^† ⊗ B^†` and `(A ⊗ B) ∘ (C ⊗ D) = (A ∘ C) ⊗ (B ∘ D)` (documented at `operator.py:1024-1033`) cannot fire because no production operator is ever instantiated as `TensorProductOperator`.
 
-**Wave T closes the gap.** The L1 primitives (`TensorProductOperator`, `SumOfTensorProductsOperator`, `assert_separable`) shipped in Wave 0 of the parent plan. Today they have ZERO production consumers. Wave T rewires the boundary realizers, the fission operator, the scattering operator, and the modern streaming operator to use the algebra natively. Wave T is the consumer side of the Wave-0 infrastructure.
+**Wave T closes the gap.** The L1 tensor-product **operators** (`TensorProductOperator`, `SumOfTensorProductsOperator`, `assert_separable`) shipped in Wave 0 (commit `bc1253e`, 2026-05-10); the L1 tensor-product **space** (`TensorProductSpace`) shipped in Depth B D-B (commit `c2f968a`, 2026-05-27).  Today exactly ONE production consumer exists: the specular BC at `boundary_realizer.py:164-166`, lifted in D-B+1.  `SumOfTensorProductsOperator` has zero production consumers — Wave T introduces its first via T.3 (scattering) and T.4 (streaming).  Wave T extends the D-B+1 pattern to the remaining BC kinds and rewires fission, scattering, and the modern streaming operator to use the algebra natively.  Wave T is the consumer side of the Wave-0 + Depth B D-B infrastructure.
 
 ### 1.1 The "do it now" decision
 
@@ -78,7 +97,7 @@ The user has flagged (2026-05-27): *"we'll probably run into problems when we ge
 Known unknowns:
 - Curvilinear `R_angular` may not factor as cleanly as the Cartesian streaming term — the M-M half-grid is a sequential sweep coupling, not a clean diagonal. Whether it's representable as a `TensorProductOperator` factor (vs. requiring a bespoke `AngularSweepOperator`) is open.
 - The L+C composition's `.solve` path (`InvertibleOperator.solve` via `transport_sweep`) is a procedural algorithm, not factored. T.4 must NOT touch `.solve`; only `.apply` is in scope.
-- 2-D Cartesian sweep currently uses anti-diagonal wavefront (legacy FD), not `dag_walk`. The unified matvec doesn't yet support 2-D Cartesian (`transport_operator_matvec_unified` raises `NotImplementedError` for `ny > 1`, `operator.py:1022-1027`). T.4 may need to stay 1-D-only until 2-D is wired through `dag_walk`.
+- 2-D Cartesian is reachable but procedural.  Depth B D-H.2-C4 (commits `8721f3f`, `1ae8d5f`, `7746fd3`) added an L2-native 2-D Cartesian apply path: `StreamingOperator.apply` intercepts 2-D at `sn/operator.py:809-812` and routes to `_apply_2d_cartesian` at `sn/operator.py:830`.  The `NotImplementedError` in `transport_operator_matvec_unified` (`sn/operator.py:328-333`) is now unreachable-by-routing.  However, `_apply_2d_cartesian`'s body is **procedural FD** (anti-diagonal wavefront over `mu_x/mu_y` masks), NOT tensor-product-shaped.  T.4 therefore has a choice: (a) tensor-lift the 2-D path in scope (extension of the `L_spatial = D_x ⊗ Ω_x ⊗ I_g + D_y ⊗ Ω_y ⊗ I_g` decomposition that §15.1 names explicitly for 2-D), or (b) leave the 2-D path as procedural FD and target 1-D only.  The decision is "discover during execution" — likely a separate companion wave if the procedural path resists clean factorisation.
 - `StreamingTerms` is currently SN-specific despite the `geometry/` layer placement; MoC and CP share the primitive in principle but haven't migrated. T.4's rewire shouldn't BLOCK on cross-method generality — keep SN-only and let MoC/CP migrations land in their own waves.
 
 These are deferred to "discover during execution" — the architectural commitment to one algebraic form across geometries is non-negotiable, but the concrete shape of T.4 will be refined when T.4 starts.
@@ -87,16 +106,16 @@ These are deferred to "discover during execution" — the architectural commitme
 
 ## 2. Dependencies
 
-Wave T cannot start until Depth B completes. Specifically:
+Depth B **closed completely** on 2026-05-29 (commits up to `a5a7ff9`).  Every dependency Wave T originally listed (`TensorProductSpace` from D-B, `HarmonicMomentField` from D-E, `AngularFlux` from D-H, the specular tensor-network pattern from D-B+1) is LANDED in production.  Wave T is unblocked.
 
-| Wave T substep | Depends on Depth B step | Why |
+For historical record, the dependency map was:
+
+| Wave T substep | Depended on | Status |
 |---|---|---|
-| T.1 (BC realizers) | D-B (TensorProductSpace), D-B+1 (specular pattern) | Extends D-B+1's specular pattern to vacuum / periodic / white / albedo. Needs the same primitive. |
-| T.2 (fission) | D-B (TensorProductSpace) | Codomain typing of the rank-1 product needs `TensorProductSpace` |
-| T.3 (scattering) | D-B, D-E (HarmonicMomentField) | Scattering's codomain is moment-space; HarmonicMomentField's typed form is needed as the dispatch target |
-| T.4 (streaming) | D-B, D-H (AngularFlux) | Streaming's domain/codomain is angular-flux space; the typed AngularFlux is the dispatch target |
-
-In practice, Wave T can start as soon as D-K (Depth B's last cleanup step) lands.
+| T.1 (BC realizers)    | D-B `TensorProductSpace`, D-B+1 specular pattern | ✓ landed |
+| T.2 (fission)         | D-B `TensorProductSpace`                          | ✓ landed |
+| T.3 (scattering)      | D-B, D-E `HarmonicMomentField`                    | ✓ landed |
+| T.4 (streaming)       | D-B, D-H `AngularFlux` / `TimedFullField`         | ✓ landed |
 
 ---
 
@@ -108,8 +127,7 @@ These decisions are made (Depth B plan §11.3 + this plan §1):
 2. **`TensorProductSpace`** is the codomain-typing primitive (Depth B D-B).
 3. **The connection-coefficient framing** (geometric data in `StreamingTerms`, angular closure strategy in `PoleAngularClosure`) is preserved. Wave T does not refactor the geometric primitives — it consumes them at the operator level.
 4. **Bit-identity discipline.** Each substep is a STRICT bit-identical rewire at the matvec level (same numpy reductions, just expressed through the `TensorProductOperator.apply` fold). The 10 pre-existing DD-regression failures stay at the same set; no new failures.
-5. **`SNStreamingOperator` is OUT OF SCOPE.** It's the legacy `L + C` bundle, on the retirement queue from Phase G substep 3+4.c. Wave T targets the modern `StreamingOperator` leaf (`operator.py:1801`). `SNStreamingOperator` retires with the GMRES adapter rewrite in a separate cleanup wave.
-6. **`InvertibleOperator.solve` is OUT OF SCOPE.** The `.solve` path uses `transport_sweep` (WDD algorithm) — a procedural inverse with no tensor-product decomposition. Wave T only touches `.apply` paths.
+5. **`InvertibleOperator.solve` is OUT OF SCOPE.** The public `.solve` entry at `orpheus/sn/operator.py:1280` delegates to `_solve_timed_full_field` at `:1368`, which invokes `transport_sweep` (`orpheus/sn/sweep.py:99`) at `orpheus/sn/operator.py:1462` — the WDD algorithm, a procedural inverse with no tensor-product decomposition. Wave T only touches `.apply` paths.
 
 ---
 
@@ -163,21 +181,25 @@ These are L0 foundation tests (`tests/numerics/test_tensor_product_identities.py
 
 ### Step T.1 — Generalize remaining BC realizers to tensor-product form
 
-Extend D-B+1's specular pattern to the remaining BC kinds in `SNBoundaryRealizer.realize`:
+Extend D-B+1's specular pattern to the remaining BC kinds in `SNBoundaryRealizer.realize`.
 
-| BC | Current realisation | Wave T.1 form |
-|---|---|---|
-| Vacuum | `IncomingOrdinateMaskTensor(axis=0)` | `M_inflow & I_group & I_face` |
-| Periodic | `PeriodicWrapOperator()` | `I_angle & I_group & P_patch_pair` |
-| White | `AngularAverageOperator(axis, sign)` | `K_avg_angle & I_group & I_face` |
-| Albedo (isotropic, α < 1) | `ScaledOperator(α, I)` | `ScaledOperator(α, I_angle & I_group & I_face)` |
+`SNBoundaryRealizer.realize` (`orpheus/sn/boundary_realizer.py:123-199`) dispatches to six BC kinds today.  T.1's scope is to lift the FIVE that are not yet tensor-network-shaped; the specular row is the D-B+1 instance, included here for completeness.
 
-For each rewire:
+| BC                          | Source                          | Current realisation                                                                              | T.1 lift target                                                                                                                                          |
+|-----------------------------|---------------------------------|--------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Vacuum                      | `boundary_realizer.py:131-148`  | `IncomingOrdinateMaskTensor(axis=0)` — single-axis                                               | `M_inflow & I_group & I_face`                                                                                                                            |
+| Specular ✓ (D-B+1)          | `boundary_realizer.py:150-173`  | `PermutationOperator(perm, axis=0) & IdentityOperator()` — already 2-factor TP                   | **DONE**; T.1 leaves it untouched                                                                                                                        |
+| White                       | `boundary_realizer.py:175-181`  | `AngularAverageOperator.from_quadrature(...)` (`sn/angular_operator.py:37`) — single-axis        | `K_avg_angle & I_group & I_face`                                                                                                                         |
+| Albedo (isotropic, α < 1)   | `boundary_realizer.py:183-188`  | `ScaledOperator(α, IdentityOperator())`                                                          | `ScaledOperator(α, I_angle & I_group & I_face)`                                                                                                          |
+| Periodic                    | `boundary_realizer.py:190-191`  | bare `PeriodicWrapOperator()` (`numerics/operator.py:1010`) — single-axis                        | `I_angle & I_group & P_patch_pair`                                                                                                                       |
+| PrescribedInflow            | `boundary_realizer.py:193-199`  | `IncomingSourceOperator(...)` — affine, not linear                                               | Open: affine-source BCs may need `AffineFullOperator` typing in Wave O before T.1 lifts them; T.1 may defer this row to Wave O                           |
+
+For each remaining-rewire row:
 - The realised operator's `.apply` is bit-identical at the value level.
 - The codomain shape check (impossible to encode with the legacy single-axis form) becomes a postcondition.
 - `assert_separable()` passes.
 
-After T.1: FIVE production tensor-network instances (1 specular from D-B+1 + 4 here). The abstraction is empirically validated per `[[feedback_unify_after_two_instances]]`; the "right abstraction shrinks the count" property is checkable (6 BC operator types → 1 composition pattern over a small factor library).
+After T.1: FIVE production tensor-network instances (1 specular from D-B+1 + 4 here, deferring PrescribedInflow to Wave O if it doesn't cleanly fit the linear-tensor-product form). The abstraction is empirically validated per `[[feedback_unify_after_two_instances]]`; the "right abstraction shrinks the count" property is checkable (6 BC operator types → 1 composition pattern over a small factor library).
 
 ### Step T.2 — Fission as rank-1 `TensorProductOperator`
 
@@ -226,7 +248,7 @@ The geometric data lives in `StreamingTerms` (`geometry/reduced_operator.py:151`
 
 **Complications expected** (§1.3):
 - Whether `R_polar` factors cleanly as a `TensorProductOperator` factor or needs a bespoke shape (the M-M half-grid sequential sweep coupling is not diagonal). Discover during execution.
-- 2-D Cartesian may stay on the legacy FD path until `dag_walk` is wired through.
+- **2-D Cartesian decision pending**.  Post-D-H.2-C4 the 2-D Cartesian apply path exists but is procedural FD (`_apply_2d_cartesian` at `sn/operator.py:830`).  T.4 must decide between (a) tensor-lifting the 2-D path inside T.4's scope (`L_spatial = D_x ⊗ Ω_x ⊗ I_g + D_y ⊗ Ω_y ⊗ I_g`, the §15.1-explicit 2-D form) or (b) leaving 2-D procedural and targeting 1-D only.  Decision deferred to T.4 start.
 - Curvilinear may surface other coupling that resists the decomposition; if so, document the principled non-factorization and adapt the architecture rather than abandoning the algebra.
 
 Verification: slab L1 gates (slab is the simplest case, must work first), then sphere and cylinder. The structural-independence reference is the existing `transport_operator_matvec_unified` output (the unified procedural baseline that Wave T rewires).
@@ -250,7 +272,6 @@ After T.1-T.4 land:
 | 3 | Bit-identity breaks at FP-non-associativity ULP because `TensorProductOperator.apply` reorders reductions vs. the legacy fused einsum. | Per `vv-principles` §"Bit-identity vs principled-equivalence": acceptable if (a) the new path is principled (each factor is a named operator with definite physical meaning), (b) verified against an independent reference (k_∞ closed-form, L1 MMS), (c) drift is dimensionally explainable (`reduction_depth × ULP`). Document the contract relaxation at the affected regression snapshot. |
 | 4 | T.3 scattering rewire touches the R · Λ · M pipeline used by EVERY iteration of EVERY SN solve. Bugs are expensive. | Test-architect proactive dispatch BEFORE T.3 implementation (per `subagent-handoff-protocol`'s proactive trigger for operator-algebra carves crossing subsystem boundaries). |
 | 5 | Wave T's substeps depend on Depth B's typed Fields (T.3 needs HarmonicMomentField from D-E, T.4 needs AngularFlux from D-H). If Depth B's later steps slip, Wave T slips with them. | Sequential dependency; no shortcut. Communicate slippage up the parent-plan chain. |
-| 6 | `SNStreamingOperator` retirement (separate cleanup wave) interacts with Wave T's `StreamingOperator` rewire. | Wave T treats `SNStreamingOperator` as out-of-scope (§3). The separate cleanup wave can land before, during, or after Wave T independently. |
 
 ---
 
@@ -270,7 +291,7 @@ Once these checkpoints are confirmed AND Depth B is complete, this plan becomes 
 
 When Wave T's T.1 through T.5 commit, the following invariants hold:
 
-1. **All four operator classes** (`SNBoundaryRealizer`-produced BCs, `FissionOperator`, `ScatteringOperator`, `StreamingOperator`) produce `TensorProductOperator` / `SumOfTensorProductsOperator` instances from `.apply` and `.realize`. The `assert_separable` invariant fires.
+1. **All four operator classes** (`SNBoundaryRealizer`-produced BCs, `FissionOperator`, `ScatteringOperator`, `StreamingOperator`) produce `TensorProductOperator` / `SumOfTensorProductsOperator` instances from `.apply` and `.realize`. (Affine-source BCs — `PrescribedInflow` — may defer to Wave O if the linear-tensor-product form does not accommodate the affine shift; see §6 T.1.) The `assert_separable` invariant fires.
 2. **L1 MMS gates** stay green. The 10 pre-existing DD-regression failures stay at the same failure set. The new algebraic-identity gates (§5.3) pass.
 3. **Bit-identity** holds at the matvec value level for the touched operators, or — for the rare reduction-reordering cases — the principled-equivalence three-criteria test passes (`vv-principles` §"Bit-identity vs principled-equivalence").
 4. **Performance** is within ≤ 5% of pre-Wave-T baseline on the 1-D slab Krylov benchmark.
@@ -292,8 +313,9 @@ The Depth B + Wave T pair is the architectural foundation; P3.4 is its first maj
 - **Grand report**: `.claude/plans/neutron_transport_grand_report_v3.md`. Wave T's authority — §15 (tensor products), §16A.10 (BC as tensor network), §35 (commandments), north-star line 5697.
 - **Connection-coefficient primitive**: `orpheus/geometry/reduced_operator.py:1-30` (the SO(3)-charts framing for spherical / cylindrical streaming).
 - **Cell-balance algebra (geometry-blind by data)**: `orpheus/sn/spatial/cell_balance.py:120-198`.
-- **L1 primitives (shipped, unused until Wave T)**:
-  - `orpheus/numerics/operator.py:1004-1122` — `TensorProductOperator`.
-  - `orpheus/numerics/operator.py:1125-1215` — `SumOfTensorProductsOperator`.
-  - `orpheus/numerics/operator.py:1203-1215` — `assert_separable()`.
+- **L1 primitives** (operators shipped Wave 0 commit `bc1253e`; space shipped Depth B D-B commit `c2f968a`; sole production consumer today is the D-B+1 specular BC at `boundary_realizer.py:164-166`):
+  - `orpheus/numerics/operator.py:1058-1177` — `TensorProductOperator`.
+  - `orpheus/numerics/operator.py:1179-1269` — `SumOfTensorProductsOperator`.
+  - `orpheus/numerics/operator.py:1257-1269` — `assert_separable()`.
+  - `orpheus/numerics/space.py:301` — `TensorProductSpace`.
 - **Cardinal rules from memory**: `feedback_unify_after_two_instances`, `feedback_no_method_implementer_for_surgical_carves`, `feedback_architecture_forward_not_legacy_fit`, `feedback_elegance_causes_collapse`, `default-test-mode-is-optimize`.
