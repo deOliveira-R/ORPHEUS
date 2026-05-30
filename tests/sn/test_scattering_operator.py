@@ -1259,6 +1259,56 @@ class TestPerLegendreOrderKernel:
         summand_out = sum(s.apply(psi_values) for s in op.kernel_summands)
         np.testing.assert_array_equal(kernel_out, summand_out)
 
+    def test_build_aniso_source_bit_identical_to_pre_t3_snapshot(
+        self, op_p1, solver_2g_p1_n2n,
+    ):
+        """L1-4 per spec §3 — `build_aniso_source` output matches the
+        pre-T.3 captured snapshot within `nulp ≤ 4·scattering_order`.
+
+        Pre-T.3 the body inlined `R(Λ(M(psi))) / sum_w`.  Post-T.3c
+        the body delegates to `self.kernel.apply(...) / sum_w` where
+        the kernel is an `OperatorSum` of per-ℓ summands.  Each
+        summand rebuilds M and R internally per ℓ; the inline path
+        built them once and folded the per-ℓ einsum inside Λ.  The
+        reduction tree differs at the `Σ_ℓ` outer sum; drift bounded
+        by `(L+1) × ULP` per `vv-principles` §"Bit-identity vs
+        principled-equivalence" three-criteria gate.
+
+        Snapshot lives at
+        `tests/sn/_fixtures/wave_t_t3/pre_t3_snapshots.npz`, captured
+        in T.3a (commit `ed05ea3`) on the same fixture
+        (`solver_2g_p1_n2n`) with the same seed (20260530).
+        """
+        from orpheus.transport.fields.angular_flux import AngularFlux
+        from pathlib import Path
+
+        # Reproduce the fixture's seed + psi construction from
+        # `_capture_pre_t3_snapshots.py::_make_psi(solver, seed=20260530)`.
+        op = op_p1
+        sn_mesh = solver_2g_p1_n2n.sn_mesh
+        rng = np.random.default_rng(20260530)
+        N = op.n_ordinates
+        psi_values = rng.uniform(
+            0.05, 1.0, size=(N, op.ng, op.nx, op.ny),
+        )
+        psi = AngularFlux.from_mesh(psi_values, sn_mesh)
+
+        # Post-T.3c output via the kernel-routed `build_aniso_source`.
+        out_post_t3 = op.build_aniso_source(psi).values
+
+        # Pre-T.3 snapshot.
+        snapshot_path = (
+            Path(__file__).parent
+            / "_fixtures" / "wave_t_t3" / "pre_t3_snapshots.npz"
+        )
+        snapshots = np.load(snapshot_path)
+        expected = snapshots["p1_build_aniso_source"]
+
+        nulp_bound = max(4, 4 * op.scattering_order)
+        np.testing.assert_array_almost_equal_nulp(
+            out_post_t3, expected, nulp=nulp_bound,
+        )
+
     def test_kernel_apply_matches_build_aniso_source_pre_w(self, op_p1, solver_2g_p1_n2n):
         """L1-4 (T.3b variant): `kernel.apply(psi.values)` matches
         `build_aniso_source(psi).values * sum_w` (pre-/W).  This is

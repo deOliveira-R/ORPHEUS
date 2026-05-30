@@ -839,41 +839,25 @@ class ScatteringOperator(LinearOperatorMixin):
         principled :class:`LegendreMomentScattering` consumes after
         PR-INDEX-4.
         """
-        from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
         if self.scattering_order == 0 or angular_flux is None:
             return None
         # D-I.2 (2026-05-29): only the typed :class:`AngularFlux` is
         # accepted.  The bare-ndarray fallthrough retired alongside the
         # singledispatch ``np.ndarray`` arm on :meth:`apply`; the typed
         # leaf carries the mesh, which is required to construct the
-        # intermediate :class:`HarmonicMomentField` and the output
-        # :class:`PerOrdinateSource`.
+        # output :class:`PerOrdinateSource`.
         mesh = angular_flux.mesh
-        L = self.scattering_order
-        # Build the §9 "S = R Λ M" pipeline. The constituent primitives
-        # are cheap dataclass instantiations; the actual work is in the
-        # three np.einsum calls inside their .apply methods.
-        Y = self.Y  # cached on first access
-        M = MomentProjection(weights=self.weights, Y=Y, L=L)
-        Lam = LegendreMomentScattering(
-            mat_xs=self.mat_xs,
-            L=L,
-            skip_l0=True,
-        )
-        R = HarmonicMomentReconstruction.from_Y(Y)
-        # Producer-side /W (R-1 Step 4 A1) — apply at the end of the
-        # reconstruction so the output carries per-ordinate magnitude.
-        # Pattern 7 producer-side normalisation.
+        # Wave T step T.3c — delegate the §9 "S = R Λ M" inner numerics
+        # to the typed :attr:`kernel` (an :class:`OperatorSum` of per-ℓ
+        # :class:`_PerLegendreOrderScattering` summands per the §15.2
+        # form, Q6 honest-fallback resolution).  The kernel's apply
+        # produces the pre-:math:`/W` per-ordinate output; the
+        # :math:`/sum_w` Pattern 7 producer-side normalisation lives
+        # HERE at the apply boundary, OUTSIDE the kernel (per spec
+        # §6 Q5).
         sum_w = float(self.weights.sum())
-        # Type sandwich: M's bare-ndarray output is wrapped into
-        # HarmonicMomentField at the SN boundary; Lambda consumes /
-        # returns typed; the typed output's .values feeds R which is
-        # again bare-ndarray; PerOrdinateSource wraps the final result.
-        moments_values = M.apply(angular_flux.values)
-        moments = HarmonicMomentField.from_mesh_and_L(moments_values, mesh, L)
-        scattered = Lam.apply(moments)  # HarmonicMomentField
-        result = R.apply(scattered.values) / sum_w
-        return PerOrdinateSource.from_mesh(result, mesh)
+        out_values = self.kernel.apply(angular_flux.values) / sum_w
+        return PerOrdinateSource.from_mesh(out_values, mesh)
 
     # ── Foldable / residual split ─────────────────────────────────────
     #
