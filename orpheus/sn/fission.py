@@ -74,7 +74,10 @@ import numpy as np
 
 from orpheus.numerics.operator import (
     CAP_APPLY,
+    IdentityOperator,
     LinearOperatorMixin,
+    RankOneOperator,
+    TensorProductOperator,
 )
 
 # Runtime imports for :func:`singledispatchmethod.register` — see
@@ -156,6 +159,61 @@ class FissionOperator(LinearOperatorMixin):
         the four-operator algebra.
         """
         return cls(mat_xs=mat_xs)
+
+    @property
+    def kernel(self) -> "TensorProductOperator":
+        r"""Wave T step T.2 — the rank-1 TP kernel of the fission action.
+
+        Returns the 2-factor :class:`TensorProductOperator`
+
+        .. math::
+
+            \mathrm{RankOneOperator}(\chi,\,\nu\Sigma_f,\,\mathrm{axis}=0)
+            \;\&\; \mathrm{IdentityOperator}()
+
+        which composes :math:`F = \chi \otimes \nu\Sigma_f` (Grand
+        Report v3 §15 line 2008) as a type-visible separable form
+        per §16A.10's ``B = G_patch \otimes K_omega \otimes K_g``
+        decomposition.  The first factor encodes the rank-1
+        group-axis outer product (with spatial parameters carried
+        in the ``(ng, nx, ny)``-shaped ``left`` and ``right``); the
+        second factor advertises the spatial-axis broadcast.
+
+        Built fresh on each access to honor the read-through semantics
+        for :attr:`mat_xs`: depletion or thermal-feedback updates that
+        mutate :attr:`MaterialXSField.emission_spectrum` or
+        :attr:`MaterialXSField.fission_production` in-place show up
+        immediately in the next :meth:`apply` call.  The construction
+        is O(1) — two array-reference bindings plus a constructor
+        call — so the lookup cost is negligible compared to the
+        ``np.einsum`` inside :meth:`RankOneOperator.apply`.
+
+        Bit-identity with the legacy two-step formulation
+        ``np.einsum("gxy,gxy->xy", sig_p, phi) * chi[None, :, :]``
+        is preserved because :meth:`RankOneOperator.apply` performs
+        the same ``(right * x).sum(axis=0, keepdims=True)`` reduction
+        followed by ``left * inner`` broadcast — the IEEE-754
+        pairwise reduction order is identical.
+
+        Returns
+        -------
+        TensorProductOperator
+            The 2-factor TP whose first element is a
+            :class:`RankOneOperator(self.chi, self.sig_p, axis=0)`
+            and whose second element is an :class:`IdentityOperator`.
+
+        Notes
+        -----
+        The verification gate for Wave T step T.2 inspects this
+        property — the type signature change from the legacy
+        opaque-einsum body to a typed :class:`TensorProductOperator`
+        is the deliverable.  See
+        ``tests/sn/test_fission_operator.py::TestRankOneTensorProductKernel``.
+        """
+        return (
+            RankOneOperator(self.chi, self.sig_p, axis=0)
+            & IdentityOperator()
+        )
 
     @singledispatchmethod
     def apply(self, phi):
@@ -272,14 +330,16 @@ class FissionOperator(LinearOperatorMixin):
         :meth:`ScatteringOperator.apply`'s ScalarFlux variant by
         symmetry, and reflects the dimensional truth that the
         fission output is a source quantity, not a flux).
+
+        Wave T step T.2: the inner math is delegated to the typed
+        :attr:`kernel` (a 2-factor :class:`TensorProductOperator`
+        wrapping :class:`RankOneOperator`).  This dispatch arm
+        handles only the typed-flux layer (extraction of
+        ``phi.values`` and packaging into :class:`IsotropicSource`);
+        the rank-1 outer-product math itself lives at the L1
+        primitive level.
         """
-        sig_p = self.sig_p
-        chi = self.chi
-        # Production rate: per-cell sum over groups, shape (nx, ny).
-        fission_rate = np.einsum("gxy,gxy->xy", sig_p, phi.values)
-        # Spectrum × rate: chi is (ng, nx, ny), rate is (nx, ny);
-        # broadcast rate across the leading group axis.
-        out = chi * fission_rate[None, :, :]
+        out = self.kernel.apply(phi.values)
         return IsotropicSource.from_mesh(out, phi.mesh)
 
     @apply.register
@@ -291,11 +351,9 @@ class FissionOperator(LinearOperatorMixin):
         ``KEigenvalue`` / depletion / diffusion outer-iteration
         consumers that still feed bare ``(ng, nx, ny)`` arrays.  No
         type wrapping; the bare path bypasses the type layer entirely.
+
+        Wave T step T.2: delegates to :attr:`kernel` (same as the
+        typed :class:`ScalarFlux` branch).  Single source of truth
+        for the rank-1 outer-product math.
         """
-        sig_p = self.sig_p
-        chi = self.chi
-        # Production rate: per-cell sum over groups, shape (nx, ny).
-        fission_rate = np.einsum("gxy,gxy->xy", sig_p, phi_arr)
-        # Spectrum × rate: chi is (ng, nx, ny), rate is (nx, ny);
-        # broadcast rate across the leading group axis.
-        return chi * fission_rate[None, :, :]
+        return self.kernel.apply(phi_arr)

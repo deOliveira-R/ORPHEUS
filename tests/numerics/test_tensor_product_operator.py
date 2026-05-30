@@ -27,6 +27,7 @@ from orpheus.numerics.operator import (
     DiagonalOperator,
     IdentityOperator,
     MissingCapability,
+    RankOneOperator,
     SumOfTensorProductsOperator,
     TensorProductOperator,
     ZeroOperator,
@@ -221,3 +222,99 @@ class TestSumOfTensorProducts:
     def test_empty_summand_list_rejected(self):
         with pytest.raises(ValueError, match="at least one"):
             SumOfTensorProductsOperator(())
+
+
+# ─────────────────────────────────────────────────────────────────────
+# RankOneOperator (Wave T step T.2 — fission kernel primitive)
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l0
+class TestRankOneOperator:
+    """L0: rank-1 outer product :math:`|\\ell\\rangle\\langle r|` on a
+    tagged axis with spatial-parametrised vectors.  Introduced for the
+    multigroup fission emission :math:`F = \\chi \\otimes \\nu\\Sigma_f`
+    (Grand Report v3 §15 line 2008).
+    """
+
+    def test_apply_matches_hand_computed_outer_product(self):
+        """1-D case: ``out_i = ell_i · sum_j r_j · x_j`` (the pure
+        :math:`|\\ell\\rangle\\langle r|` action)."""
+        ell = np.array([1.0, 2.0, 3.0])
+        r = np.array([4.0, 5.0, 6.0])
+        x = np.array([0.5, -0.25, 0.75])
+        R = RankOneOperator(ell, r, axis=0)
+        inner = float(r @ x)  # = 4·0.5 + 5·(-0.25) + 6·0.75 = 5.25
+        expected = ell * inner
+        np.testing.assert_array_equal(R.apply(x), expected)
+
+    def test_apply_multi_dim_spatial_parametrisation(self):
+        """3-D case (group × spatial × spatial) — fission's actual
+        ``(ng, nx, ny)`` shape.  ``out[g, x, y] = chi[g, x, y] ·
+        sum_g' (nu_sigma_f[g', x, y] · phi[g', x, y])``.
+
+        ``np.einsum`` and ``.sum(axis=0)`` may pick different
+        pairwise-reduction trees (1 ULP drift over a depth-``ng``
+        sum); compared at ``nulp=4`` per the project's
+        algebra-of-record FP discipline.
+        """
+        ng, nx, ny = 4, 3, 2
+        rng = np.random.default_rng(11)
+        chi = rng.uniform(0.1, 1.0, size=(ng, nx, ny))
+        nu_sigma_f = rng.uniform(0.01, 0.5, size=(ng, nx, ny))
+        phi = rng.uniform(0.1, 2.0, size=(ng, nx, ny))
+
+        R = RankOneOperator(chi, nu_sigma_f, axis=0)
+        out = R.apply(phi)
+
+        # Hand-computed per-cell rank-1 action.
+        inner = np.einsum("gxy,gxy->xy", nu_sigma_f, phi)
+        expected = chi * inner[None, :, :]
+        np.testing.assert_array_almost_equal_nulp(out, expected, nulp=4)
+
+    def test_capabilities_apply_only(self):
+        """Rank-1 ops advertise CAP_APPLY only (non-invertible by
+        construction; ``apply_transpose`` not yet a consumer)."""
+        R = RankOneOperator(np.ones(3), np.ones(3))
+        assert R.capabilities == frozenset({CAP_APPLY})
+
+    def test_constructor_rejects_shape_mismatch(self):
+        with pytest.raises(ValueError, match="matching shapes"):
+            RankOneOperator(np.ones((3,)), np.ones((4,)))
+
+    def test_constructor_rejects_scalar(self):
+        with pytest.raises(ValueError, match="ScaledOperator"):
+            RankOneOperator(np.array(1.0), np.array(2.0))
+
+    def test_constructor_rejects_axis_out_of_range(self):
+        with pytest.raises(ValueError, match="axis=5 out of range"):
+            RankOneOperator(np.ones(3), np.ones(3), axis=5)
+
+    def test_apply_rejects_shape_mismatch(self):
+        R = RankOneOperator(np.ones(3), np.ones(3))
+        with pytest.raises(ValueError, match="expected"):
+            R.apply(np.ones(5))
+
+    def test_negative_axis_normalised(self):
+        """``axis=-1`` on a 3-D op resolves to ``axis=2``."""
+        ell = np.ones((2, 3, 4))
+        r = np.ones((2, 3, 4))
+        R = RankOneOperator(ell, r, axis=-1)
+        assert R.axis == 2
+
+    def test_compose_with_identity_via_tensor_product(self):
+        """``RankOneOperator & IdentityOperator`` is a valid 2-factor
+        TP whose apply is bit-identical to the bare RankOneOperator
+        (the §16A.10 separable form for fission's Wave T T.2 lift)."""
+        ng, nx, ny = 3, 2, 2
+        rng = np.random.default_rng(23)
+        ell = rng.uniform(0.1, 1.0, size=(ng, nx, ny))
+        r = rng.uniform(0.1, 1.0, size=(ng, nx, ny))
+        phi = rng.uniform(0.1, 2.0, size=(ng, nx, ny))
+
+        bare = RankOneOperator(ell, r, axis=0)
+        wrapped = RankOneOperator(ell, r, axis=0) & IdentityOperator()
+
+        assert isinstance(wrapped, TensorProductOperator)
+        assert wrapped.capabilities == frozenset({CAP_APPLY})
+        np.testing.assert_array_equal(wrapped.apply(phi), bare.apply(phi))

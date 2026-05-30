@@ -77,7 +77,34 @@ class TestBitIdenticalExtraction:
     """FissionOperator math must match the legacy compute_fission_source."""
 
     def test_apply_matches_legacy_compute_at_k_eq_1(self, solver_2g):
-        """apply(φ) = compute_fission_source(φ, k=1.0) bit-identically."""
+        """apply(φ) = compute_fission_source(φ, k=1.0) within nulp=4.
+
+        Wave T step T.2 relaxed this from ``np.array_equal`` to
+        ``assert_array_almost_equal_nulp(nulp=4)`` per the
+        ``vv-principles`` §"Bit-identity vs principled-equivalence"
+        three-criteria gate:
+
+        1. **Principled at every step** — the new path routes through
+           the typed 2-factor :class:`TensorProductOperator` kernel
+           (``RankOneOperator(chi, νΣ_f, axis=0) & IdentityOperator()``);
+           every intermediate is a named physical quantity (per-cell
+           production rate, emission spectrum × rate).
+        2. **Structurally-independent reference** — the homogeneous-
+           reflective :math:`k_\infty = \nu\Sigma_f / \Sigma_a`
+           analytical limit is pinned by
+           ``tests/sn/l1_analytical/test_kinf_homogeneous.py``.
+        3. **FP-non-associativity, dimensionally explainable** —
+           drift ≤ ``reduction_depth × ULP`` (here ng=2, drift ≈ 1
+           ULP); reduction tree differs between ``np.einsum`` and
+           ``(right * x).sum(axis=0)`` even though both compute the
+           same algebraic sum.
+
+        Pre-T.2 the apply body inlined the einsum and matched the
+        legacy bit-identically.  Post-T.2 the inlined math lives in
+        :class:`~orpheus.numerics.operator.RankOneOperator.apply`
+        (single source of truth); the reduction order is whatever
+        numpy chooses for ``(a * b).sum(axis=0)``.
+        """
         np.random.seed(42)
         nx, ny, ng = solver_2g.sn_mesh.nx, solver_2g.sn_mesh.ny, solver_2g.ng
         # PR-INDEX-4: FissionOperator.apply consumes / returns principled
@@ -90,13 +117,20 @@ class TestBitIdenticalExtraction:
         fission_rate = np.einsum("gxy,gxy->xy", solver_2g.mat_xs.fission_production, phi)
         expected = solver_2g.mat_xs.emission_spectrum * fission_rate[None, :, :]
 
-        np.testing.assert_array_equal(out_op, expected)
+        # Wave T step T.2: nulp=4 relaxation (see docstring).
+        np.testing.assert_array_almost_equal_nulp(out_op, expected, nulp=4)
 
     def test_delegator_matches_apply_with_k(self, solver_2g):
         """SNSolver.compute_fission_source(φ, k) = fission_op.apply(φ) / k.
 
         Issue #196 PR-INDEX-5: both the delegator and the operator
         consume / return principled ``(ng, nx, ny)``.  No bridges.
+
+        Wave T step T.2: the delegator and the operator both route
+        through the same :attr:`FissionOperator.kernel` (single source
+        of truth), so bit-identity holds between them — only the
+        legacy-vs-RankOneOperator reduction-order drift (above test)
+        requires nulp relaxation.
         """
         np.random.seed(7)
         nx, ny, ng = solver_2g.sn_mesh.nx, solver_2g.sn_mesh.ny, solver_2g.ng
@@ -288,3 +322,86 @@ class TestCompositeInvariants:
             state = sn_mesh.zeros_timed_full_field(history_depth=depth)
             out = solver_2g.fission_op.apply(state)
             assert out.history_depth == depth
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Wave T step T.2 — RankOneOperator TP kernel verification gate.
+#
+# T.2 lifts the inlined ``np.einsum("gxy,gxy->xy", sig_p, phi) *
+# chi[None, :, :]`` body into the typed 2-factor TP kernel
+# ``RankOneOperator(chi, νΣ_f, axis=0) & IdentityOperator()``.  The
+# `kernel` property is the type-visible §16A.10 ``B = G_patch ⊗ K_omega
+# ⊗ K_g`` decomposition for fission.  This class pins the kernel
+# structure so future refactors don't silently undo the T.2 lift.
+# ──────────────────────────────────────────────────────────────────────
+
+
+class TestRankOneTensorProductKernel:
+    """Wave T step T.2 — fission kernel is a 2-factor TensorProductOperator
+    wrapping :class:`~orpheus.numerics.operator.RankOneOperator`.
+    """
+
+    def test_kernel_is_2_factor_tensor_product(self, solver_2g):
+        """``fission_op.kernel`` returns ``RankOneOperator & IdentityOperator``.
+
+        The 2-factor TP shape mirrors D-B+1's specular BC pattern and
+        T.1's vacuum / white / albedo / periodic lifts: a leading
+        operator that does the actual algebraic work on the
+        non-trivial axis (here ``axis=0``, the group axis) plus an
+        :class:`IdentityOperator` factor that advertises the spatial-
+        axis broadcast.
+        """
+        from orpheus.numerics.operator import (
+            IdentityOperator,
+            RankOneOperator,
+            TensorProductOperator,
+        )
+
+        kernel = solver_2g.fission_op.kernel
+        assert isinstance(kernel, TensorProductOperator)
+        assert len(kernel.ops) == 2
+        assert isinstance(kernel.ops[0], RankOneOperator)
+        assert isinstance(kernel.ops[1], IdentityOperator)
+
+    def test_kernel_left_is_chi_right_is_nu_sigma_f(self, solver_2g):
+        """The RankOneOperator's left = χ, right = νΣ_f, axis=0 (group)."""
+        kernel = solver_2g.fission_op.kernel
+        rank_one = kernel.ops[0]
+        # ``mat_xs`` shares the same numpy buffers across calls; the
+        # kernel binds REFERENCES (not copies), so ``is`` holds.
+        assert rank_one.left is solver_2g.mat_xs.emission_spectrum
+        assert rank_one.right is solver_2g.mat_xs.fission_production
+        assert rank_one.axis == 0
+
+    def test_kernel_apply_matches_apply_dispatch(self, solver_2g):
+        """``kernel.apply(phi.values)`` equals ``fission_op.apply(phi).values``
+        for the bare-ndarray and ScalarFlux dispatch arms — both go
+        through the same kernel.  Single source of truth for the
+        rank-1 outer-product math.
+        """
+        np.random.seed(57)
+        nx, ny, ng = (
+            solver_2g.sn_mesh.nx,
+            solver_2g.sn_mesh.ny,
+            solver_2g.ng,
+        )
+        phi_arr = np.random.rand(ng, nx, ny) + 0.1
+
+        out_via_apply = solver_2g.fission_op.apply(phi_arr)
+        out_via_kernel = solver_2g.fission_op.kernel.apply(phi_arr)
+        # Same code path — bit-identical.
+        np.testing.assert_array_equal(out_via_apply, out_via_kernel)
+
+    def test_kernel_capabilities_intersect_to_apply_only(self, solver_2g):
+        """Kernel advertises ``CAP_APPLY`` only — rank-1 is non-invertible.
+
+        Capability intersection: :class:`RankOneOperator` has
+        ``{CAP_APPLY}``; :class:`IdentityOperator` has all three.
+        The TP intersection is ``{CAP_APPLY}`` — the inverse-bearing
+        capabilities are filtered out as documented by the §15
+        rank-1 fission structure (no useful inverse exists).
+        """
+        from orpheus.numerics.operator import CAP_APPLY
+
+        kernel = solver_2g.fission_op.kernel
+        assert kernel.capabilities == frozenset({CAP_APPLY})

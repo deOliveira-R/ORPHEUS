@@ -74,6 +74,7 @@ __all__ = [
     "IncomingOrdinateMaskTensor",
     "PeriodicWrapOperator",
     "DiagonalOperator",
+    "RankOneOperator",
     "TensorProductOperator",
     "SumOfTensorProductsOperator",
     "as_scipy_linop",
@@ -1385,6 +1386,127 @@ class DiagonalOperator(LinearOperatorMixin):
                 f"in input of shape {b_arr.shape}."
             )
         return b_arr / self._reshape(b_arr.ndim)
+
+
+class RankOneOperator(LinearOperatorMixin):
+    r"""Rank-1 outer-product on a tagged axis: :math:`|\ell\rangle\langle r|`.
+
+    For two arrays :math:`\ell, r \in \mathbb{R}^{N \times P}` whose
+    leading axis (``axis``) is the rank-1 axis and whose trailing
+    axes :math:`P` parametrize spatial / energy / etc. structure, the
+    action on a same-shape array :math:`x` is the per-position rank-1
+    contraction:
+
+    .. math::
+
+        (R\,x)_{i,\mathbf{p}} \;=\;
+        \ell_{i,\mathbf{p}} \,
+        \sum_{j} r_{j,\mathbf{p}} \, x_{j,\mathbf{p}}.
+
+    Native to the multigroup fission emission
+    :math:`F = \chi \otimes \nu\Sigma_f` (Grand Report v3 §15 line
+    2008): the per-cell production rate
+    :math:`\sum_{g'} \nu\Sigma_{f,g'}\phi_{g'}` is the contraction
+    along the group axis, and the emission spectrum :math:`\chi_g`
+    re-fills the group axis as a rank-1 outer product.  The two
+    "vectors" are :math:`\ell = \chi`, :math:`r = \nu\Sigma_f`, the
+    rank-1 axis is the group axis, and the spatial axes parametrize.
+
+    Relation to :class:`TensorProductOperator`
+    -------------------------------------------
+
+    A :class:`RankOneOperator` satisfies the TP-factor contract — it
+    acts on the tagged ``axis`` and broadcasts on the other axes —
+    even though its action on ``axis`` is rank-deficient (it projects
+    onto the 1-D subspace spanned by :math:`\ell`).  Use as a TP
+    factor when the operator-algebra view wants the type-visible
+    separable form:
+
+    .. code-block:: python
+
+        F_kernel = RankOneOperator(chi, nu_sigma_f, axis=0) & IdentityOperator()
+
+    The :class:`IdentityOperator` factor advertises the spatial-axis
+    broadcast; the TP fold reduces to :meth:`RankOneOperator.apply`
+    bit-identically (``IdentityOperator.apply`` returns ``x``).
+
+    Capability set: ``{CAP_APPLY}``.  Rank-1 operators are
+    non-invertible by construction (kernel is the orthogonal
+    complement of :math:`\ell` along ``axis``).  ``apply_transpose``
+    is the dual rank-1 form :math:`|r\rangle\langle\ell|` — structurally
+    distinct (it sums over the **left** "vector" and emits with the
+    **right** one).  Not advertised here because the current consumer
+    (multigroup fission) does not need it.  When the adjoint
+    transport machinery lands and a consumer surfaces, the dual
+    form can be added — see :ref:`operator-algebra-adjoint`.
+
+    Parameters
+    ----------
+    left : numpy.ndarray
+        Output-side "vector" :math:`\ell`.  Shape
+        ``(N_axis, *spatial)``: leading axis is the rank-1 axis
+        (``axis``); trailing axes parametrize per-position dependence.
+    right : numpy.ndarray
+        Input-side "vector" :math:`r`.  Same shape as ``left``.
+        Symmetry of ``left.shape == right.shape`` is enforced because
+        the contraction
+        :math:`\sum_j r_{j,\mathbf{p}}\,x_{j,\mathbf{p}}` requires
+        ``right`` to align with the input on all axes.
+    axis : int, default 0
+        The rank-1 axis.  Contraction sums along this axis;
+        broadcast re-fills it with :math:`\ell`.
+
+    Notes
+    -----
+    Bit-identity with the legacy two-step formulation
+    ``np.einsum("g...,g...->...", right, x) → (...,) * left[None, ...]``:
+    both reductions sum along the same axis with the same numpy
+    primitive (``np.einsum`` vs ``.sum(axis=axis)``), and the
+    subsequent broadcast multiplication is elementwise.  IEEE-754
+    pairwise-reduction order is preserved.
+    """
+
+    capabilities: frozenset[str] = frozenset({CAP_APPLY})
+
+    def __init__(
+        self,
+        left: np.ndarray,
+        right: np.ndarray,
+        axis: int = 0,
+    ) -> None:
+        left_arr = np.asarray(left)
+        right_arr = np.asarray(right)
+        if left_arr.shape != right_arr.shape:
+            raise ValueError(
+                f"RankOneOperator left and right must have matching "
+                f"shapes; got left.shape={left_arr.shape} vs "
+                f"right.shape={right_arr.shape}."
+            )
+        if left_arr.ndim == 0:
+            raise ValueError(
+                "RankOneOperator requires at least 1-D left/right; "
+                "got scalars (use ScaledOperator instead)."
+            )
+        if not (-left_arr.ndim <= axis < left_arr.ndim):
+            raise ValueError(
+                f"RankOneOperator axis={axis} out of range for "
+                f"ndim={left_arr.ndim}."
+            )
+        self.left = left_arr
+        self.right = right_arr
+        self.axis = int(axis) % left_arr.ndim
+
+    def apply(self, x: np.ndarray) -> np.ndarray:
+        x_arr = np.asarray(x)
+        if x_arr.shape != self.left.shape:
+            raise ValueError(
+                f"RankOneOperator.apply: x.shape={x_arr.shape}, "
+                f"expected {self.left.shape} (matching left/right)."
+            )
+        # Contract along ``axis`` with ``right`` as the inner-product
+        # vector; broadcast back along ``axis`` weighted by ``left``.
+        inner = (self.right * x_arr).sum(axis=self.axis, keepdims=True)
+        return self.left * inner
 
 
 # ───────────────────────────────────────────────────────────────────────
