@@ -76,19 +76,28 @@ def legacy_proxy_matvec(
     psi_view: "np.ndarray", sn_mesh: "SNMesh", sigma_t: "np.ndarray",
     *, bc_outer=None, pole_angular_closure=None,
 ) -> "np.ndarray":
-    """Call the path-forward matvec with a cell-centre-proxy boundary.
+    """Call :func:`transport_operator_matvec_unified` with the
+    cell-centre-proxy boundary fill semantics (pre-B1'' convention).
 
-    D-H.2-C4c — :func:`transport_operator_matvec_unified` now consumes
-    a composite :class:`TimedFullField` natively (the L2 AngularFlux +
-    BoundaryFlux pair).  This helper preserves the pre-G0 legacy "no
-    face state, fall back to cell-centre proxy" semantics for tests
-    that haven't migrated to construct the composite directly: build
-    an L2 :class:`BoundaryFlux` carrying ``psi_view``'s cell-centre
-    value as face state at the outer (and slab-inner) face, wrap into
-    a :class:`TimedFullField`, call the kernel, return cell output.
+    Tests that compare against L0 hand-derived references built BEFORE
+    the B1'' face-aware architecture (i.e. references constructed
+    around "no face state, fall back to cell-centre proxy" semantics)
+    feed bare ``psi_view`` ``(N, ng, nx, ny)`` ndarrays and expect a
+    bare ``(N, ng, nx, ny)`` cell-output ndarray.  This helper bridges:
 
-    This helper retires alongside its legacy-test consumers in
-    D-H.2-C4e.
+    1. Build a :class:`BoundaryFlux` whose face buffers carry
+       ``psi_view``'s cell-centre value at the outer (and slab-inner)
+       face — the cell-centre-proxy fill.
+    2. Wrap into a :class:`TimedFullField`.
+    3. Call :func:`transport_operator_matvec_unified`.
+    4. Return ``result.bulk.values`` as a bare ndarray.
+
+    The "legacy" prefix refers to the BOUNDARY-FILL CONVENTION (the
+    pre-B1'' cell-centre proxy), not to retired code.  Production
+    code uses the B1'' face-aware path via
+    :class:`InvertibleOperator` (= ``L + C``); this helper exists only
+    for L0 tests that pin the legacy convention's behaviour against
+    closed-form hand references.
     """
     from orpheus.transport.fields.angular_flux import (
         AngularFlux,

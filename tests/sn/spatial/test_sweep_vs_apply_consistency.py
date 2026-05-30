@@ -109,7 +109,7 @@ def test_carlson_seed_helper_is_linear_in_Q_bar():
     Required for the operator to remain linear: the seed propagates
     through the M-M angular recurrence as the half-angle face flux
     initial condition.  A non-linear seed would break
-    SNStreamingOperator.apply_transpose / dense matrix probing.
+    :meth:`InvertibleOperator.apply_transpose` / dense matrix probing.
     """
     nx = 8
     sigma_t_gx = np.full((1, nx), 0.5)

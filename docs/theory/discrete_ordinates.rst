@@ -1901,7 +1901,8 @@ discipline):
     Lebedev (vacuum-BC variant).
 
 * **L2 regression** — existing ``tests/sn/test_mms_2d.py``,
-  ``test_discrete_ordinates_2d.py``, ``test_snstreamingoperator.py``,
+  ``test_discrete_ordinates_2d.py``, ``test_streaming_operator.py``,
+  ``test_streaming_operator_decomposition.py``,
   ``test_unified_sweep_dispatch.py``, ``tests/sn/regression/``: 56/56
   pass, 6 slow-marked skipped.
 
@@ -2121,7 +2122,7 @@ took two passes at the closure:
 
 * **Wave E Round 2** wired
   :func:`~orpheus.sn.solver.solve_sn_fixed_source` to route
-  through Krylov-on-:meth:`SNStreamingOperator.apply` (the
+  through Krylov-on-:meth:`InvertibleOperator.apply` (the
   symmetric closure) with the sweep-as-``solve`` as preconditioner.
   This closes ERR-026 on **constant-source reflective-BC
   problems** — the canonical
@@ -2679,7 +2680,7 @@ Three additional simplifications ship with the rewrite:
 * :class:`~orpheus.sn.geometry.SNMesh` no longer accepts the
   ``boundary_face_flux=`` keyword (a regression test pins the
   field retirement).
-* :class:`~orpheus.sn.operator.SNStreamingOperator.apply` dispatch
+* :class:`~orpheus.sn.operator.InvertibleOperator.apply` dispatch
   drops the ``boundary_face_flux_closure`` plumbing.
 
 What stays
@@ -2692,9 +2693,9 @@ What stays
   so the three-strategy Phase B Protocol is the right shape; only
   the **default** is under question, and that is the Phase D
   decision point.
-* The :meth:`~orpheus.sn.operator.SNStreamingOperator.apply_transpose`
+* The :meth:`~orpheus.sn.operator.InvertibleOperator.apply_transpose`
   machinery via dense-probe construction stays. Linearity of the
-  rewritten :meth:`~orpheus.sn.operator.SNStreamingOperator.apply`
+  rewritten :meth:`~orpheus.sn.operator.InvertibleOperator.apply`
   (Gate 1.4, pinned to ``rtol=1e-13``) guarantees the transpose is
   correctly tracked.
 * The
@@ -3379,7 +3380,7 @@ CLOSED while keeping the **magnitude** scope open per
    path is the snapshot generator, and the SI path uses the
    sweep (not the apply matvec), so the Phase D default flip
    does NOT disturb them. Regeneration under a Phase D
-   :meth:`SNStreamingOperator.apply`-driven Krylov path is
+   :meth:`InvertibleOperator.apply`-driven Krylov path is
    carried at Issue #195.
 5. **Gate 1.5 strengthened (capture-and-compare).** The §16A.3
    BC trace contract now has a stricter parametrised test that
@@ -3922,7 +3923,7 @@ Both seed strategies — :class:`ZeroSeed` and
 by foundation tests).  Linearity is the load-bearing property:
 the apply matvec must be a linear operator, otherwise the
 operator-algebra capabilities of
-:class:`~orpheus.sn.operator.SNStreamingOperator`
+:class:`~orpheus.sn.operator.InvertibleOperator`
 (apply, apply_transpose, dense matrix probing) break.  The
 :class:`CarlsonInwardSweep` is linear because:
 
@@ -3942,12 +3943,12 @@ operator-algebra capabilities of
 The foundation test
 :func:`tests.sn.spatial.test_psi_half_angle_seed.test_carlson_inward_sweep_is_linear_in_input`
 pins the linearity directly; the operator-level linearity gate
-:func:`tests.sn.test_snstreamingoperator.test_apply_is_linear`
-pins it transitively at the matvec boundary (``rtol=1e-12`` —
-relaxed from the pre-Phase-D ``rtol=1e-13`` to absorb ~10×ULP
-non-associativity drift, justified by the three principled-
-relaxation criteria of the ``vv-principles`` bit-identity-vs-
-principled-equivalence framework).
+in :file:`tests/sn/test_streaming_operator.py` pins it transitively
+at the matvec boundary (``rtol=1e-12`` — relaxed from the
+pre-Phase-D ``rtol=1e-13`` to absorb ~10×ULP non-associativity
+drift, justified by the three principled-relaxation criteria of
+the ``vv-principles`` bit-identity-vs-principled-equivalence
+framework).
 
 The L = 0 isotropic-only limitation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3958,7 +3959,7 @@ evaluates only the :math:`\ell = 0` (isotropic) Legendre moment
 when building the moment-folded source in
 :eq:`hebert-3-432-source`.  This is **consistent with the apply
 matvec's structure**: the
-:class:`~orpheus.sn.operator.SNStreamingOperator` apply matvec
+:class:`~orpheus.sn.operator.InvertibleOperator` apply matvec
 carries only an isotropic collision term :math:`\Sigma_t \psi`;
 anisotropic scattering (P\ :sub:`1`\ +) is composed externally via
 a separate scattering operator, not included in :math:`L`.
@@ -4015,7 +4016,7 @@ canonical curvilinear closure path:
    stays at ``"source_iteration"``.  The rationale: the Phase D
    fix lives in the apply matvec, and the Krylov path is the one
    that uses
-   :meth:`~orpheus.sn.operator.SNStreamingOperator.apply`.  The
+   :meth:`~orpheus.sn.operator.InvertibleOperator.apply`.  The
    sweep path (``"source_iteration"``) uses the spatial WDD
    recurrence and is unaffected by the Phase D fix — leaving its
    ERR-026-affected curvilinear behaviour in place would be wrong
@@ -4242,7 +4243,8 @@ The full Phase D footprint (per the closeout memo at
   flipped to ``"krylov"``.
 * :file:`tests/sn/test_phase_c_gates.py` — Gate 1.5 strengthened
   with capture-and-compare.
-* :file:`tests/sn/test_snstreamingoperator.py` — 3 tests updated
+* :file:`tests/sn/test_streaming_operator.py` (post-D-K successor
+  to the retired ``test_snstreamingoperator.py``) — 3 tests updated
   (one test docstring rewritten to pin the Phase D fix; two
   bit-identity tests threaded with ``sn_mesh.pole_angular_closure``;
   one linearity tolerance relaxed ``rtol=1e-13 → 1e-12``).
@@ -4326,7 +4328,7 @@ The twin-path bug Phase D left open
 
 Phase D's fix lived entirely in the **apply-matvec path**.  The
 Phase D Carlson seed is invoked by
-:meth:`~orpheus.sn.operator.SNStreamingOperator.apply` via the
+:meth:`~orpheus.sn.operator.InvertibleOperator.apply` via the
 :attr:`MorelMontryAngularSweep.psi_half_seed` composition; that
 covers every Krylov-driven call.  But ORPHEUS's curvilinear
 production default is **source iteration**, which dispatches
@@ -4468,7 +4470,7 @@ Same materials, same quadrature, same mesh, same
 Carlson seed installed on its ``psi_half_seed`` field — the
 **only** difference is which inner-solver dispatch is used.
 The Krylov path goes through
-:meth:`SNStreamingOperator.apply` (which consumes the Phase D
+:meth:`InvertibleOperator.apply` (which consumes the Phase D
 Carlson seed correctly); the SI path goes through
 :func:`transport_sweep` (which carries the **legacy zero
 seed** untouched by Phase D).
@@ -5018,7 +5020,7 @@ Krylov inner solver
 Instead of sweep-based source iteration, the within-group transport
 problem can be solved directly using a Krylov method.  Wave E Round 2
 (Issue #164) replaces the legacy BiCGSTAB FD-operator path with GMRES
-on :meth:`SNStreamingOperator.apply` (the symmetric closure carried
+on :meth:`InvertibleOperator.apply` (the symmetric closure carried
 by the operator algebra) with the sweep as a left preconditioner —
 the SAILOR / Larsen-Adams preconditioned-Krylov framework
 ([AdamsLarsen2002]_ §III).
@@ -5027,7 +5029,7 @@ Operator equation
 -----------------
 
 The streaming-collision operator :math:`L` is formed explicitly via
-:class:`~orpheus.sn.operator.SNStreamingOperator`:
+:class:`~orpheus.sn.operator.InvertibleOperator`:
 
 .. math::
 
@@ -5081,7 +5083,7 @@ close ERR-026 on the curvilinear vacuum-BC MMS cases.
 Implementation surfaced an unforeseen coupling: the
 :func:`~orpheus.sn.operator.build_equation_map_spherical` /
 ``build_equation_map_cylindrical`` packed-vector layout that
-:meth:`SNStreamingOperator.apply` reuses was designed for the
+:meth:`InvertibleOperator.apply` reuses was designed for the
 **reflective** outer-boundary BC only — it has no slot for a vacuum-
 BC outer-incoming :math:`\psi`.  Wave E Round 3 owns the equation-map
 extension that closes the vacuum-BC path; Round 2 ships the krylov
@@ -5918,11 +5920,11 @@ descriptor; the SN realiser produces the callable. See
 
 .. _sn-streaming-operator:
 
-SNStreamingOperator: the streaming-collision operator algebra
+InvertibleOperator: the streaming-collision operator algebra
 ==============================================================
 
 Wave D Round 3 (Issue #160) installs
-:class:`~orpheus.sn.operator.SNStreamingOperator` as the unified
+:class:`~orpheus.sn.operator.InvertibleOperator` as the unified
 :class:`~orpheus.numerics.operator.LinearOperator` for the
 streaming-collision operator
 :math:`L = \Omega\cdot\nabla + \Sigma_t`.  This is the Wave D
@@ -5951,10 +5953,10 @@ laws (see :ref:`operator-algebra`).
 Three capabilities
 ------------------
 
-:class:`SNStreamingOperator` advertises ``{"apply", "solve",
+:class:`InvertibleOperator` advertises ``{"apply", "solve",
 "apply_transpose"}`` — every member of the Wave A capability set:
 
-* :meth:`~orpheus.sn.operator.SNStreamingOperator.apply` —
+* :meth:`~orpheus.sn.operator.InvertibleOperator.apply` —
   matrix-free forward action :math:`L\,\psi`.  Reuses the
   symmetric closure math from the existing
   :func:`~orpheus.sn.operator.transport_operator_matvec`,
@@ -5963,12 +5965,12 @@ Three capabilities
   functions (the historical BiCGSTAB FD operator).  The math is
   **extracted verbatim**; the new class is a thin Protocol wrapper.
 
-* :meth:`~orpheus.sn.operator.SNStreamingOperator.solve` —
+* :meth:`~orpheus.sn.operator.InvertibleOperator.solve` —
   inverse action :math:`L^{-1}\,q` via the Wave D Round 2 unified
   sweep (:func:`~orpheus.sn.sweep.transport_sweep`).  Bit-identical
   to a direct :func:`transport_sweep` call on the same arguments.
 
-* :meth:`~orpheus.sn.operator.SNStreamingOperator.apply_transpose` —
+* :meth:`~orpheus.sn.operator.InvertibleOperator.apply_transpose` —
   adjoint action :math:`L^*\,\psi`.  Implemented via the explicit
   transpose of the dense matrix assembled by probing
   :meth:`apply` with each unit basis vector.  The construction is
@@ -5980,7 +5982,7 @@ Apply and solve use **different** closures by design
 ----------------------------------------------------
 
 This is the load-bearing architectural fact about
-:class:`SNStreamingOperator`, and the reason the operator's
+:class:`InvertibleOperator`, and the reason the operator's
 :meth:`apply` is **not** bit-identical to its :meth:`solve`.
 
 The historical SN dispatch in ORPHEUS ships **two distinct
@@ -6046,7 +6048,7 @@ Two reasons:
 2. **The composers (Wave A) need a uniform contract.**  When a
    downstream agent composes :math:`(L - S - F)`, the composition's
    capability set is derived from each operand's capabilities.  If
-   :class:`SNStreamingOperator` shipped only :meth:`apply`, the
+   :class:`InvertibleOperator` shipped only :meth:`apply`, the
    composition would lose ``solve`` and the Wave E Krylov-on-apply
    path could not request a sweep-preconditioned matvec without
    bypassing the algebra.
@@ -6070,32 +6072,26 @@ adjoint sources / fluxes; it is the foundation on which detector
 sensitivity, perturbation theory, and adjoint-weighted kinetics
 all rest.
 
-In :class:`SNStreamingOperator`, :meth:`apply_transpose` is built
-from the explicit transpose of the dense matrix assembled by
-probing :meth:`apply`, so the reciprocity identity holds **by
-construction**: every linear operator has a transpose, and the
-transpose of the assembled matrix *is* the operator's transpose.
-The reciprocity test
-:func:`tests.sn.test_snstreamingoperator.test_reciprocity_round_off`
-gates this identity to round-off (``rtol=1e-12``, ``atol=1e-13``)
-across slab, spherical, and cylindrical geometries on synthetic
-:math:`(\psi, \varphi)` pairs.
+Post-Depth-B (2026-05), :meth:`apply_transpose` on
+:class:`InvertibleOperator` is inherited from
+:class:`~orpheus.numerics.operator.OperatorSum`'s adjoint-propagation
+closure law: each leaf's ``.H`` adjoint composes via the sum/
+difference algebra, so the composite transpose is built analytically
+(no dense-matrix probing).  The pre-Depth-B implementation assembled
+a dense matrix by probing :meth:`apply` with unit basis vectors and
+returned the explicit transpose; that path retired with the bundled
+``SNStreamingOperator`` class in D-K.
 
-A reciprocity-test failure would indicate one of two catastrophic
-operator-correctness failures:
-
-(a) :meth:`apply` is non-linear (a sign-flip, an incorrectly
-    handled bias term, or a state-dependent operation such as
-    re-normalisation) — caught by the linearity gate
-    :func:`test_apply_is_linear`.
-(b) The dense-assembly probe in
-    :meth:`SNStreamingOperator._ensure_dense_matrix` does not
-    faithfully assemble the matrix of :meth:`apply` — caught by
-    the bit-identical extraction tests against
-    :func:`transport_operator_matvec_*`.
-
-Both gates are foundation-tagged in
-:file:`tests/sn/test_snstreamingoperator.py`.
+Reciprocity gating today: the foundation linearity gate
+:func:`tests.sn.test_streaming_operator.test_apply_is_linear` catches
+non-linearity in :meth:`apply`, and the Resolution A bit-exact
+decomposition gate
+:file:`tests/sn/test_streaming_operator_decomposition.py` catches
+:math:`(L+C).{\rm apply} \neq M(\psi;\sigma_t)` drift.  The full
+analytical-adjoint Gate 1.3 round-off pin lands with **Wave O**
+(:issue:`208`, the BulkOperator / FullOperator / BoundaryOperator
+adjoint algebra); see ``test_phase_c_gates.py`` for the current
+xfail-strict placeholder.
 
 Vector layouts (``apply`` vs ``solve``)
 ---------------------------------------
@@ -6175,7 +6171,7 @@ Wave E and beyond — landed and forward
   consumers in :mod:`orpheus.numerics.iteration`, decoupling them
   from :class:`SNSolver`.
 * **Wave E Issue 15 wired** :class:`SNSolver` to
-  :class:`SNStreamingOperator`: the inner solve becomes Krylov on
+  :class:`InvertibleOperator`: the inner solve becomes Krylov on
   :meth:`apply` with sweep as preconditioner, which removes the WDD
   asymmetric closure from the converged-solution path for the
   reflective-BC eigenvalue case.  Wave E Round 3 will extend the
@@ -6183,8 +6179,10 @@ Wave E and beyond — landed and forward
   for fixed-source curvilinear MMS.
 * **Forward**: when production reciprocity becomes performance-
   critical, an :math:`O(n)` analytic-adjoint matvec replaces the
-  dense-transpose fallback; the new path is gated by the same
-  reciprocity tests in :file:`tests/sn/test_snstreamingoperator.py`.
+  dense-transpose fallback; the new path is gated by the
+  reciprocity tests in :file:`tests/sn/test_streaming_operator.py`
+  (post-D-K successor) and :file:`tests/sn/test_phase_c_gates.py`
+  Gate 1.3 (xfail pending Wave O).
 
 References
 ----------
@@ -6318,7 +6316,7 @@ choice for closing ERR-026.
   (ERR-026).
 * ``inverter = lambda q: gmres(as_scipy_linop(L), q, M=...)``:
   Krylov-on-:meth:`apply` (the symmetric closure of
-  :class:`~orpheus.sn.operator.SNStreamingOperator`), with the
+  :class:`~orpheus.sn.operator.InvertibleOperator`), with the
   sweep injected as a preconditioner :math:`M`.  This is the
   Wave E Round 2 reconciliation that closes ERR-026 for
   curvilinear SN: the converged solution comes from the symmetric
@@ -6372,7 +6370,7 @@ construction time.
 Cross-references
 ----------------
 
-* :class:`~orpheus.sn.operator.SNStreamingOperator` — the
+* :class:`~orpheus.sn.operator.InvertibleOperator` — the
   :math:`L` operand the SN solver ships, with both ``apply``
   (symmetric closure) and ``solve`` (WDD asymmetric closure).
   See :ref:`sn-streaming-operator` for the design rationale.
@@ -6408,7 +6406,7 @@ sequence:
   :math:`L^{-1}` ``inverter`` callable.
 * **MoC** (method of characteristics) — Issue TBD.  MoC's track-
   based inner sweep maps onto :math:`L^{-1}` via the same
-  facade pattern :class:`SNStreamingOperator.solve` uses.
+  facade pattern :class:`InvertibleOperator.solve` uses.
 * **Homogeneous** — Issue TBD.  Already a direct linear solve;
   migration is mostly cosmetic.
 
@@ -6443,7 +6441,7 @@ Wave E Round 2 (Issue #164) closes the campaign loop by rewriting
 :class:`~orpheus.sn.solver.SNSolver` to consume the operator triple
 :math:`(L, S, F)` directly.  At construction time, the solver builds:
 
-* :attr:`SNSolver.L` — :class:`SNStreamingOperator` carrying the
+* :attr:`SNSolver.L` — :class:`InvertibleOperator` carrying the
   symmetric-closure streaming-collision operator.
 * :attr:`SNSolver.S` — :class:`~orpheus.sn.scattering.ScatteringOperator`
   carrying the P0 + (n,2n) + Pℓ Galerkin reconstruction (Wave D
@@ -6534,7 +6532,7 @@ Two Inner Solvers
 
 - Operator: :math:`L = \mu \nabla + \Sigt{}` (finite-difference
   gradients, symmetric closure carried by
-  :meth:`SNStreamingOperator.apply`)
+  :meth:`InvertibleOperator.apply`)
 - Solution variable: angular flux :math:`\psi(x, y, n, g)` (much
   larger than scalar flux)
 - System: :math:`L\psi = b` where :math:`b` = fission + scattering

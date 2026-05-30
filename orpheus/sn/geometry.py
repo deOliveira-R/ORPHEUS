@@ -253,10 +253,9 @@ class SNMesh:
         #
         # Used by the unified matvec
         # (:func:`transport_operator_matvec_unified`) via
-        # :meth:`StreamingOperator.apply` (the new Resolution A leaf)
-        # and, through Step 7's rewire, also by
-        # :meth:`SNStreamingOperator.apply` (the legacy bundle, in
-        # transition until ``solve_sn`` migrates to the (L+C) algebra).
+        # :meth:`StreamingOperator.apply` (the Resolution A leaf;
+        # composed as ``L + C`` via :class:`InvertibleOperator` for
+        # the within-group sweep + Krylov path).
         #
         # PR-TYPED-6.5 Phase 2.9: instantiation is deferred until AFTER
         # the ``match mesh.coord:`` block populates ``self.reduced`` /

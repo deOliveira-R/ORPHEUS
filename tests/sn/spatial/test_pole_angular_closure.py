@@ -5,8 +5,10 @@ strategy family.  They are foundation-tagged because the claims are
 about the strategy API (Protocol conformance, registry self-registration,
 hand-calc closure algebra, α-recursion identities) rather than
 transport-equation identities — those are verified transitively via the
-operator-level tests at :file:`tests/sn/test_snstreamingoperator.py` and
-the curvilinear MMS suite.
+operator-level tests at
+:file:`tests/sn/test_streaming_operator.py` /
+:file:`tests/sn/test_streaming_operator_decomposition.py` and the
+curvilinear MMS suite.
 
 PR-TYPED-6c Step 7 (2026-05-18) retired
 ``LegacyTauSymmetricInterpolation`` (pre-Phase-B inlined form) and

@@ -2003,8 +2003,9 @@ Phase F extension — BC applies in the SI sweep path
 
 Phase D (Issue #168 Phase D, :ref:`bc-phase-d-two-bc-applies-per-matvec`
 above) instituted the *two BC apply calls per curvilinear matvec*
-contract on the apply-matvec path
-(:meth:`~orpheus.sn.operator.SNStreamingOperator.apply`).  Phase F
+contract on the apply-matvec path (the within-group operator,
+:class:`~orpheus.sn.operator.InvertibleOperator` post-Depth-B; the
+matvec lives at :func:`~orpheus.sn.operator.transport_operator_matvec_unified`).  Phase F
 (Issue #168 Phase F, 2026-05-12, also landed on
 ``refactor/sn-operator-algebra``) propagates the same pattern to the
 **SI/sweep path** (:func:`~orpheus.sn.sweep.transport_sweep` →

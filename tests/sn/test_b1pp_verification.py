@@ -9,23 +9,15 @@ Why this lives alongside ``test_l1_standoff_slab_cylinder.py``
 
 The existing L1 standoff test (``test_l1_standoff_slab_cylinder.py``)
 exercises the cylinder + slab matvec-vs-sweep twin path through
-``solve_sn → SNStreamingOperator``.  ``SNStreamingOperator`` is the
-LEGACY bundle that retires at Step 7 of Issue #197 PR-TYPED-6c; until
-then ``solve_sn`` keeps consuming it, and the Krylov leg there routes
-through a patched ``apply`` that uses the cell-centre proxy at the
-Carlson seed (the bug B1'' fixes).  That standoff therefore stays
-``xfail strict`` on the twin-path and refinement tests until Step 7.
+``solve_sn`` (now routing the Krylov leg through
+:class:`InvertibleOperator` post-D-K).  Pre-D-K, that test's Krylov
+leg used a cell-centre proxy at the Carlson seed (the bug B1'' fixes)
+and stayed ``xfail strict`` on the twin-path and refinement gates.
 
-THIS module verifies B1'' directly on the new leaves
-(``StreamingOperator + CollisionOperator``) without going through
-``solve_sn`` or ``SNStreamingOperator`` at all.  GMRES on
+THIS module verifies B1'' directly on the operator leaves
+(``StreamingOperator + CollisionOperator``).  GMRES on
 ``(L + C) ψ = q`` through the operator algebra is the direct
 verification path the bug fix gates against.
-
-After Step 7, ``solve_sn`` will consume the (L+C) algebra natively;
-the existing L1 standoff's strict xfails flip green at that point,
-and this file's tests subsume into the standoff naturally (or stay as
-the focused B1''-only verification — TBD at retirement time).
 """
 
 from __future__ import annotations

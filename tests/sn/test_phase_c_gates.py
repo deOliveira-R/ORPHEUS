@@ -15,22 +15,17 @@ level (per :doc:`/theory/discrete_ordinates` Phase C subsection and
 
 ERR-026 tripwire — these gates green when the architectural fix lands.
 
-D-K.5 migration (2026-05-29)
-----------------------------
+Operator algebra
+----------------
 
-Migrated from the retiring :class:`SNStreamingOperator` (packed-vector
-matvec API) to the composite algebra :class:`StreamingOperator` +
-:class:`CollisionOperator` = :class:`InvertibleOperator` consumed via
-:class:`~orpheus.transport.timed_full_field.TimedFullField`.  The
-semantic content of every gate is preserved:
+Gates consume the composite algebra :class:`StreamingOperator` +
+:class:`CollisionOperator` = :class:`InvertibleOperator` via
+:class:`~orpheus.transport.timed_full_field.TimedFullField`:
 
 * Resolution A subtractive identity:
-  :math:`(L + C).{\rm apply}(\psi) = M(\psi;\sigma_t)` bit-exact, so the
-  composite reproduces the legacy bundled-operator action.
-* ``op.apply(state).bulk.values`` is the algebraic counterpart of the
-  legacy ``op.apply(psi_packed)`` (the bulk holds :math:`(L+C)\psi`'s
-  cell-centre block; face residuals — distinct from bulk — live in
-  ``out.boundary``).
+  :math:`(L + C).{\rm apply}(\psi) = M(\psi;\sigma_t)` bit-exact.
+* ``op.apply(state).bulk.values`` holds :math:`(L+C)\psi`'s
+  cell-centre block; face residuals live in ``out.boundary``.
 * Linearity (Gate 1.4) tests via :class:`TimedFullField` arithmetic
   (``__add__``, scalar ``__mul__/__rmul__``).
 * Reciprocity (Gate 1.3) — :class:`InvertibleOperator` does NOT inherit
@@ -58,12 +53,6 @@ from orpheus.geometry.boundary import (
 )
 from orpheus.numerics.operator import MissingCapability
 from orpheus.sn.geometry import SNMesh
-# D-K.5 migration — SNStreamingOperator import RETIRED here.  Every
-# test code path now consumes the composite ``(L + C)`` algebra; the
-# Gate 1.5 strengthened helpers reconstruct the WDD propagation chain
-# directly from typed ``TimedFullField.bulk.values`` (no packed-vector
-# round-trip via the legacy class).  When SNStreamingOperator retires
-# in D-K.2 this file requires no further edits.
 from orpheus.sn.operator import (
     CollisionOperator,
     StreamingOperator,
@@ -308,13 +297,12 @@ def test_apply_curvilinear_per_ordinate_flat_flux_residual(
     closure makes this gate empirically diagnostic of whether MMS can
     become the default — Phase C's empirical decision point.
 
-    D-K.5 migration — the composite ``(L + C).apply(state)`` reproduces
-    the bundled :class:`SNStreamingOperator.apply` via Resolution A's
-    subtractive identity:
+    The composite ``(L + C).apply(state)`` realises the geometry-agnostic
+    matvec via Resolution A's subtractive identity:
     :math:`(L+C)\psi = (M(\psi;\sigma_t) - \sigma_t\psi) + \sigma_t\psi
     = M(\psi;\sigma_t)`.  The check is on ``out.bulk.values`` cell-centre
-    block (the legacy packed vector's cell unknowns); the per-ordinate
-    flat-ψ invariant collapses the matvec to ``Σ_t·ψ`` cell-wise.
+    block; the per-ordinate flat-ψ invariant collapses the matvec to
+    ``Σ_t·ψ`` cell-wise.
     """
     pole = pole_closure_factory()
     if geom == "sphere":
@@ -364,10 +352,8 @@ def test_apply_curvilinear_per_ordinate_flat_flux_residual(
         "call raises :class:`AttributeError` rather than the cleaner "
         ":class:`MissingCapability` (Issue #208 / Phase H will tighten "
         "the capability dispatch alongside the analytic-adjoint "
-        "landing).  The legacy :class:`SNStreamingOperator` shipped an "
-        "O(n_unknowns^2) dense-probe ``apply_transpose`` that this "
-        "gate exercised — Wave O Issue #208 lands the proper analytic-"
-        "adjoint algebra (Phase H in the grand report).  Until then "
+        "landing).  Wave O Issue #208 lands the proper analytic-"
+        "adjoint algebra (Phase H in the grand report); until then "
         "the gate is structurally unsatisfiable."
     ),
 )

@@ -17,10 +17,12 @@ Inner solver dispatch
   construction — the loop math is preserved character-for-character so
   the 11 frozen regression snapshots stay green.
 * ``inner_solver="krylov"``.  GMRES on the symmetric closure carried
-  by :meth:`SNStreamingOperator.apply`.  This is the Wave E
-  reconciliation that makes the curvilinear ``solve_sn_fixed_source``
-  path discretization-correct (closes ERR-026).  On Cartesian meshes
-  it is bit-identical math to the legacy BiCGSTAB FD path.
+  by the algebraic composition
+  :class:`~orpheus.sn.operator.InvertibleOperator` (= ``L + C``).
+  This is the Wave E reconciliation that makes the curvilinear
+  ``solve_sn_fixed_source`` path discretization-correct (closes
+  ERR-026).  On Cartesian meshes it is bit-identical math to the
+  legacy BiCGSTAB FD path.
 
 Boundary conditions default to reflective (infinite lattice) but are
 configurable via :class:`~orpheus.geometry.mesh.BC` on the mesh.
@@ -95,10 +97,11 @@ class SNSolver:
     * ``"source_iteration"`` — sweep-driven within-group fixed-point
       iteration (WDD asymmetric closure; ERR-026-affected for
       curvilinear).  Bit-identical to the Wave A-D path.
-    * ``"krylov"`` — GMRES on :meth:`SNStreamingOperator.apply` (the
-      symmetric closure) with the sweep as preconditioner.  Closes
-      ERR-026 on curvilinear; bit-identical math to the legacy
-      BiCGSTAB FD path on Cartesian.
+    * ``"krylov"`` — GMRES on
+      :class:`~orpheus.sn.operator.InvertibleOperator` (the algebraic
+      composition ``L + C``; symmetric closure) with the sweep as
+      preconditioner.  Closes ERR-026 on curvilinear; bit-identical
+      math to the legacy BiCGSTAB FD path on Cartesian.
 
     The legacy ``"bicgstab"`` value is no longer accepted — call sites
     must migrate to ``"krylov"``.
@@ -134,7 +137,7 @@ class SNSolver:
                 f"Valid choices are 'source_iteration' or 'krylov'. "
                 f"(The legacy 'bicgstab' alias was retired in Wave E "
                 f"Round 2; use 'krylov' which routes through "
-                f"SNStreamingOperator.apply with the sweep as "
+                f"InvertibleOperator (L + C) with the sweep as "
                 f"preconditioner.)"
             )
         self.sn_mesh = sn_mesh
@@ -220,13 +223,10 @@ class SNSolver:
         )
         # The full transport operator :math:`L = \Omega\cdot\nabla + \Sigma_t`
         # as the algebraic sum :class:`StreamingOperator` +
-        # :class:`CollisionOperator` = :class:`InvertibleOperator`.  D-K.1
-        # (2026-05-29) retargeted from the legacy :class:`SNStreamingOperator`
-        # bundle (which packaged the streaming + collision matvec into a
-        # single packed-vector class) to the algebraic composition.  The
-        # ``InvertibleOperator``'s :meth:`apply` returns ``(L_stream + C)·ψ``
-        # in :class:`TimedFullField` form (matching the SNStreamingOperator's
-        # M·ψ contract); its :meth:`solve` consumes ``initial_guess`` for
+        # :class:`CollisionOperator` = :class:`InvertibleOperator`.
+        # :meth:`InvertibleOperator.apply` returns ``(L_stream + C)·ψ`` in
+        # :class:`TimedFullField` form (the typed direct-sum carrier);
+        # :meth:`InvertibleOperator.solve` consumes ``initial_guess`` for
         # the Carlson seed (R-1 Phase 1.2 unification).
         self.L = (
             StreamingOperator(sn_mesh, self.mat_xs.total_cross_section)
@@ -1336,7 +1336,10 @@ def _solve_fixed_source_krylov(
       :attr:`~orpheus.numerics.spaces.SphericalHarmonicSpace.addition_theorem_factor`;
       all three were already dead code in production).
     * ``_make_sweep_preconditioner`` — **RETIRED** pre-D-J.
-    * ``solver.L`` / ``SNStreamingOperator`` (retires G3f)
+    * ``SNStreamingOperator`` — **RETIRED** in D-K (commit
+      ``dadf4e8``).  ``self.L`` now binds to the algebraic
+      composition ``StreamingOperator + CollisionOperator``
+      (= :class:`InvertibleOperator`).
 
     Scope
     =====

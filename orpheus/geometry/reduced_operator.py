@@ -98,12 +98,12 @@ References
 See also
 ========
 
-* :class:`orpheus.sn.geometry.SNMesh` — the legacy in-line implementation.
-  Issue 10 (Wave G) of the SN reshape campaign refactors :class:`SNMesh`
-  to consume this primitive.  Issues 11/12 (Wave H) make
-  ``SNStreamingOperator.apply`` consume it.  MoC and CP campaigns
-  (post-Wave-1) reuse this primitive with their own consumption
-  patterns.
+* :class:`orpheus.sn.geometry.SNMesh` — consumes this primitive
+  via the curvilinear connection-coefficients path.
+  :class:`~orpheus.sn.operator.StreamingOperator` consumes it through
+  :func:`~orpheus.sn.operator.transport_operator_matvec_unified`.
+  MoC and CP campaigns (post-Wave-1) reuse this primitive with their
+  own consumption patterns.
 * :doc:`/theory/structured_geometry` — the architecture page;
   see "Connection coefficients (reduced streaming operator)".
 """

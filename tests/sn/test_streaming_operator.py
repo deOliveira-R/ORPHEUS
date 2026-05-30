@@ -1,11 +1,9 @@
 r"""Foundation tests for :class:`orpheus.sn.operator.StreamingOperator`.
 
-Phase G Step 3+4.b.i (Issue #196, Resolution A). The "L" of the
-four-operator algebra ``A_wg = L + C - S.foldable_part()``. This
-substep lands it as an ADDITIVE leaf alongside the legacy
-:class:`SNStreamingOperator` (which bundles ``L + C`` with σ_t);
-no production code consumes the leaf yet (substep 3+4.c wires
-:class:`SNSolver`).
+The "L" of the four-operator algebra
+``A_wg = L + C - S.foldable_part()`` (Issue #196, Resolution A).
+:class:`StreamingOperator` is the typed leaf; the within-group
+sweep-invertible composite is :class:`InvertibleOperator` (= ``L + C``).
 
 Resolution A — subtractive definition
 -------------------------------------
@@ -13,7 +11,7 @@ Resolution A — subtractive definition
 .. math::
 
    L.{\rm apply}(\psi) \;:=\; M(\psi;\;\sigma_t) \;-\;
-                              \sigma_t \odot \psi_{\rm packed}
+                              \sigma_t \odot \psi.{\rm bulk}
 
 L carries σ_t at constructor time. This is intrinsic to the discrete
 curvilinear matvec (rational in σ_t through Hébert §3.9.4's Carlson
@@ -21,17 +19,10 @@ coupled-pole seed), not a defect — analogous to the DD coefficient
 :math:`\alpha_{DD}(\sigma_t\,\Delta x)` carrying σ_t in
 characteristic-line methods.
 
-Load-bearing test (no xfail allowed)
-------------------------------------
-
-The composition equivalence
-``(L + C(σ_t)).apply(ψ) ≈ SNStreamingOperator(σ_t).apply(ψ)`` MUST
-hold bit-exact (``rtol=1e-12``) on ALL THREE geometries: slab,
-sphere, cylinder. With both homogeneous AND heterogeneous σ_t. By
-Resolution A this is guaranteed by construction.
-
-The decomposition itself (``rel_residual = 0.0``) lives in
-:file:`tests/sn/test_streaming_operator_decomposition.py`.
+The decomposition gate (``rel_residual = 0.0``) lives in
+:file:`tests/sn/test_streaming_operator_decomposition.py`.  ``(L + C)``
+correctness is gated by ``test_unified_matvec_{slab,sphere,cylinder}``
+against structurally-independent references.
 """
 from __future__ import annotations
 
@@ -235,17 +226,10 @@ class TestConstructor:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-# D-K.5 (2026-05-29): ``TestCompositionEquivalence`` retired together
-# with :class:`SNStreamingOperator`.  The three xfail-strict tests
-# (``test_uniform_sigma_t_homogeneous``, ``test_heterogeneous_sigma_t``,
-# ``test_via_operator_sum_algebra``) pinned
-# ``(L + C).apply(ψ) ≈ SNStreamingOperator(σ_t).apply(ψ)``.  The
-# comparison was documented as retiring "when SNStreamingOperator goes
-# away at PR-TYPED-6c Step 7"; that step is D-K.  ``(L + C).apply``'s
-# correctness is now gated by ``test_unified_matvec_{slab,sphere,
-# cylinder}.py`` against structurally-independent references
-# (L1 trajectory-resolvent, hand-derived k_∞, the unified WDD body
-# itself).
+# ``(L + C).apply``'s correctness is gated by
+# ``test_unified_matvec_{slab,sphere,cylinder}.py`` against
+# structurally-independent references (L1 trajectory-resolvent,
+# hand-derived k_∞, the unified WDD body).
 
 
 # ═══════════════════════════════════════════════════════════════════════

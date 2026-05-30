@@ -14,11 +14,12 @@ Tests in this file:
   :class:`MissingCapability` when their argument operators lack the
   required Protocol surface.
 * **L1 (SN integration gate):** build an actual SN operator triple
-  (:class:`SNStreamingOperator` / :class:`ScatteringOperator` /
-  :class:`FissionOperator`) for a 2-group homogeneous slab and assert
-  that :class:`KEigenvalue` recovers the same :math:`k_{\\rm eff}` as
-  :func:`solve_sn`.  This is the gate test that the new primitives
-  compose with the existing SN operator algebra.
+  (:class:`~orpheus.sn.operator.InvertibleOperator` (= ``L + C``) /
+  :class:`ScatteringOperator` / :class:`FissionOperator`) for a
+  2-group homogeneous slab and assert that :class:`KEigenvalue`
+  recovers the same :math:`k_{\\rm eff}` as :func:`solve_sn`.  This
+  is the gate test that the new primitives compose with the existing
+  SN operator algebra.
 """
 
 from __future__ import annotations
@@ -510,7 +511,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
 
     * :func:`solve_sn` (the legacy power_iteration-based path), and
     * :class:`KEigenvalue` directly on
-      ``(SNStreamingOperator, ScatteringOperator, FissionOperator)``
+      ``(InvertibleOperator (= L + C), ScatteringOperator, FissionOperator)``
       with adapter shims that present scalar-flux shapes consistent
       across operators.
 
@@ -558,11 +559,10 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     expected_keff = ref.keff
 
     # Build the SN operator triple from the same precomputed solver
-    # data used for the reference run.  D-K.5 (2026-05-29): the legacy
-    # ``L = SNStreamingOperator(...)`` construction at this line was
-    # dead code — this test's ``L_inv_adapter`` (defined below) wraps
-    # :func:`transport_sweep` directly, never consuming the SN bundle's
-    # operator surface.  Solver instance retained to provide
+    # data used for the reference run.  ``L_inv_adapter`` (defined
+    # below) wraps :func:`transport_sweep` directly; the
+    # :class:`InvertibleOperator` (= ``L + C``) on the SNSolver is
+    # unused here.  Solver instance retained to provide
     # ``solver.scattering_op`` / ``solver.fission_op`` / ``solver.mat_xs``.
     sn_mesh = SNMesh(mesh, quad, materials)
     solver = SNSolver(sn_mesh, scattering_order=0)

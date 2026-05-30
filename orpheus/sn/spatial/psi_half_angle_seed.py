@@ -122,7 +122,8 @@ Both strategies are LINEAR in the input ``psi_cells`` (verified by
 :attr:`is_linear` ClassVar = True).  This is the load-bearing
 property: the apply matvec must be a linear operator, otherwise
 the operator-algebra capabilities of
-:class:`~orpheus.sn.operator.SNStreamingOperator` (apply,
+:class:`~orpheus.sn.operator.StreamingOperator` /
+:class:`~orpheus.sn.operator.InvertibleOperator` (apply,
 apply_transpose, dense matrix probing) break.  The
 :class:`CarlsonInwardSweep` is linear because:
 
@@ -495,8 +496,9 @@ class CarlsonInwardSweep(
     require additional moments :math:`\phi_\ell` and the full
     moment-folded sum :math:`\bar Q = \Sigma_\ell (2\ell+1)/2 \cdot
     \Sigma_t \cdot \phi_\ell \cdot (-1)^\ell`.  Since the
-    :class:`~orpheus.sn.operator.SNStreamingOperator` apply matvec
-    currently carries an isotropic collision term, the L = 0
+    :class:`~orpheus.sn.operator.StreamingOperator` apply matvec
+    carries only the isotropic collision term (the per-cell
+    :math:`\Sigma_t \psi` cancellation in Resolution A), the L = 0
     truncation is consistent with the operator's structure.
 
     .. warning::

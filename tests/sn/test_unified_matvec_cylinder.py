@@ -15,10 +15,10 @@ correctness is a 4-way standoff):
   scatter that is **structurally immune** to the routing bug. Both
   match at rtol=1e-12.
 
-* **L1** — heterogeneous 3-region 2G closed cylinder eigenvalue. The
-  unified matvec drives a GMRES inner solve via a monkey-patched
-  :meth:`SNStreamingOperator.apply` and the resulting ``k_eff`` is
-  cross-checked against the trajectory_resolvent reference
+* **L1** — heterogeneous 3-region 2G closed cylinder eigenvalue.  The
+  GMRES inner solve routes through :class:`InvertibleOperator`
+  (= ``L + C``) consuming the unified matvec; the resulting ``k_eff``
+  is cross-checked against the trajectory_resolvent reference
   (Variant α at α=1) at the same tolerance as the production Gate 4.2
   cross-check (3% — set by Variant α's quadrature error budget).
 
@@ -386,15 +386,11 @@ def _build_mr_cylinder_mesh(nx: int = 40) -> tuple[Mesh1D, dict]:
     return mesh, materials
 
 
-# D-K.5 (2026-05-29): ``_patch_apply_to_unified`` retired together with
-# :class:`SNStreamingOperator`.  Pre-D-K.1, this patch routed the
-# cylindrical ``SNStreamingOperator.apply`` through
-# ``transport_operator_matvec_unified``.  Post-D-K.1 (commit
-# ``400ca33``), ``SNSolver.L`` is ``StreamingOperator +
-# CollisionOperator``, which calls the unified matvec natively for 1-D
-# cylindrical.  The monkey-patch had no effect on the call path
-# post-D-K.1; deleting it removes the no-op and severs the test's
-# dependency on the retiring :class:`SNStreamingOperator` class.
+# Post-D-K (commit ``dadf4e8``), ``SNSolver.L`` is the algebraic
+# composition ``StreamingOperator + CollisionOperator``
+# (= :class:`InvertibleOperator`), which calls
+# :func:`transport_operator_matvec_unified` natively for 1-D
+# cylindrical.  No monkey-patch is required.
 
 
 @pytest.mark.l1
@@ -403,10 +399,10 @@ def _build_mr_cylinder_mesh(nx: int = 40) -> tuple[Mesh1D, dict]:
 def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
     r"""L1 — heterogeneous 3-region 2G closed cylinder via unified matvec.
 
-    Drives :func:`solve_sn` with ``inner_solver="krylov"`` and a
-    monkey-patched :meth:`SNStreamingOperator.apply` that routes the
-    matvec through :func:`transport_operator_matvec_unified`. The
-    converged ``k_eff`` is compared against the structurally-independent
+    Drives :func:`solve_sn` with ``inner_solver="krylov"`` — the
+    matvec routes through :class:`InvertibleOperator` (= ``L + C``)
+    via :func:`transport_operator_matvec_unified`. The converged
+    ``k_eff`` is compared against the structurally-independent
     :func:`solve_greens_function_cylinder_mr` reference (Variant α at
     α=1) at the same 3% tolerance the production Gate 4.2 cross-check
     uses (set by Variant α's quadrature error budget at n_r=24 +

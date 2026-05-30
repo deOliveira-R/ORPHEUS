@@ -46,10 +46,11 @@ the operator triple acts linearly on it and that
 :func:`numpy.linalg.norm` returns a scalar that orders by relative
 size.  The L0 synthetic tests use 4×4 dense matrices acting on
 ``(4,)`` flat vectors; the L1 SN gate uses
-:class:`~orpheus.sn.operator.SNStreamingOperator`,
+:class:`~orpheus.sn.operator.InvertibleOperator` (composite ``L + C``),
 :class:`~orpheus.sn.scattering.ScatteringOperator`, and
 :class:`~orpheus.sn.fission.FissionOperator` acting on
-:math:`(n_x, n_y, n_g)` scalar-flux arrays.
+:class:`~orpheus.transport.timed_full_field.TimedFullField` composite
+carriers.
 
 L⁻¹ comes from L, preconditioner is a different concept
 ========================================================

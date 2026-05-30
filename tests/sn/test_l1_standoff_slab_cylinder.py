@@ -1,15 +1,17 @@
-r"""L14 four-leg standoff — slab + cylinder via unified matvec (PR-TYPED-6c pre-Step-7 gate).
+r"""L14 four-leg standoff — slab + cylinder via the typed operator algebra.
 
 Per ``.claude/lessons.md`` L14, solver correctness is four-legged:
 
-1.  **Algorithm 1 (Krylov via unified matvec) ≡ structurally-independent reference.**
+1.  **Algorithm 1 (Krylov via ``(L + C)``) ≡ structurally-independent reference.**
 2.  **Algorithm 2 (sweep via ``transport_sweep``) ≡ structurally-independent reference.**
 3.  **Algorithm 1 ≡ Algorithm 2** (twin-path agreement).
 4.  **All three under mesh refinement** (right rate to right limit).
 
 Two algorithms agreeing is necessary but NOT sufficient — both can be
-equally wrong. This file is the formal L14 demonstration for slab +
-cylinder BEFORE ``SNStreamingOperator`` retires in PR-TYPED-6c Step 7.
+equally wrong.  Post-D-K (commit ``dadf4e8``), ``solve_sn`` routes
+through ``StreamingOperator + CollisionOperator`` =
+:class:`InvertibleOperator`; the Krylov path uses GMRES on
+``InvertibleOperator.apply`` with the sweep as preconditioner.
 
 References (semi-analytical pillar per ``vv-principles``):
 
@@ -26,25 +28,10 @@ References (semi-analytical pillar per ``vv-principles``):
   SN code (no shared FP path, no shared redist closure, no shared
   boundary recurrence).
 
-**Krylov-route caveat** (pre-Step-7).  ``solve_sn(inner_solver="krylov")``
-currently routes through ``SNStreamingOperator.apply`` (the legacy
-bundle).  Two of the three legacy per-geometry helpers it dispatches
-to are known divergent from the unified body:
-
-* Cylindrical legacy carries ERR-049 (per-ordinate routing bug).
-* Cartesian legacy uses 1st-order upwind FD via ``_compute_gradients``
-  (vs 2nd-order WDD in the unified body).
-
-To exercise the unified matvec through Krylov pre-Step-7, the test
-monkey-patches ``SNStreamingOperator.apply`` to dispatch through
-:func:`transport_operator_matvec_unified`.  The patch is a no-op
-post-Step-7 (when the legacy bundle is deleted and ``solve_sn``
-naturally routes through ``StreamingOperator + CollisionOperator``).
-
-Sweep route (``inner_solver="source_iteration"``) does NOT need a
-patch — it routes through ``transport_sweep`` / ``CellUpdate.update``,
-which already uses WDD (Cartesian) / the same per-cell algebra as the
-unified matvec (curvilinear).
+Sweep route (``inner_solver="source_iteration"``) routes through
+``transport_sweep`` / ``CellUpdate.update``, which uses WDD
+(Cartesian) / the same per-cell algebra as
+:func:`transport_operator_matvec_unified` (curvilinear).
 """
 from __future__ import annotations
 
@@ -63,18 +50,13 @@ from orpheus.sn import solve_sn
 from orpheus.numerics.quadrature import Quadrature
 
 
-# D-K.5 (2026-05-29): the ``_patch_apply_to_unified`` contextmanager
-# retired together with :class:`SNStreamingOperator`.  Pre-D-K.1, the
-# patch monkey-patched ``SNStreamingOperator.apply`` to route through
-# the unified matvec (the pre-Step-7 stand-in for the post-Step-7
-# production routing).  Post-D-K.1 (commit ``400ca33``), ``SNSolver.L``
-# is now the algebraic composition ``StreamingOperator +
-# CollisionOperator`` = :class:`InvertibleOperator`, which already
-# routes through ``transport_operator_matvec_unified`` natively (1-D
-# slab/sphere/cylinder) or ``StreamingOperator._apply_2d_cartesian``
-# (2-D Cartesian).  The monkey-patch had no effect on the call path
-# any longer; deleting it removes the no-op and severs the test's
-# dependency on the retiring :class:`SNStreamingOperator` class.
+# Post-D-K (commit ``dadf4e8``), ``SNSolver.L`` is the algebraic
+# composition :class:`InvertibleOperator` (= ``StreamingOperator +
+# CollisionOperator``), routing through
+# :func:`transport_operator_matvec_unified` natively for 1-D slab /
+# sphere / cylinder and through
+# :meth:`StreamingOperator._apply_2d_cartesian` for 2-D Cartesian.
+# No monkey-patch is required.
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -216,16 +198,14 @@ def test_cylinder_l1_sweep_vs_trajectory_resolvent() -> None:
     reason=(
         "PR-TYPED-6.5 Phase 5 — cylinder twin-path divergence "
         "(rel ≈ 4e-3 at nx=40) is the L14 manifestation-#6 signature "
-        "the B1'' face-state architecture fixes.  Phase 3b landed B1'' "
-        "on StreamingOperator + CollisionOperator (the new Resolution A "
-        "leaves) and GMRES on (L+C) through that path converges at "
-        "FP-noise (verified by ``test_b1pp_cylinder_gmres_converges`` "
-        "in ``tests/sn/test_b1pp_verification.py``).  This standoff "
-        "test routes through ``solve_sn → SNStreamingOperator`` (the "
-        "legacy bundle) with a patched apply that uses the LEGACY "
-        "cell-centre proxy at the Carlson seed.  ``SNStreamingOperator`` "
-        "retires at Step 7, at which point ``solve_sn`` migrates to "
-        "the (L+C) operator algebra and this test xfail flips green."
+        "the B1'' face-state architecture fixes.  GMRES on the "
+        "B1''-aware (L+C) through :class:`InvertibleOperator` "
+        "converges at FP-noise (verified by "
+        "``test_b1pp_cylinder_gmres_converges`` in "
+        "``tests/sn/test_b1pp_verification.py``).  Post-D-K, "
+        "``solve_sn`` routes through the (L+C) operator algebra "
+        "natively; this xfail should be re-validated and likely "
+        "flipped green by a follow-up V&V pass."
     ),
 )
 def test_cylinder_l1_sweep_vs_krylov_twin_path() -> None:
@@ -236,12 +216,10 @@ def test_cylinder_l1_sweep_vs_krylov_twin_path() -> None:
     iteration drift. Disagreement here is the L14 manifestation-#6
     signature: same equation, two algorithmic paths, two answers.
 
-    Currently xfailed strict: the Krylov leg routes through
-    ``SNStreamingOperator.apply`` (legacy bundle, retires at Step 7),
-    which uses the cell-centre proxy at the Carlson seed.  The B1''
-    fix lives on :class:`StreamingOperator` (Resolution A leaf,
-    PR-TYPED-6.5 Phase 3b); see ``test_b1pp_verification.py`` for the
-    direct (L+C) verification that the fix works.
+    Currently xfailed strict — the test predates D-K's retargeting of
+    ``solve_sn`` to the B1''-aware (L+C) algebra and has not been
+    re-validated since.  See ``test_b1pp_verification.py`` for the
+    direct (L+C) verification that the B1'' fix works.
     """
     k_sweep = _solve_cyl_via_sweep(nx=40)
     k_krylov = _solve_cyl_via_krylov_unified(nx=40)
@@ -258,12 +236,13 @@ def test_cylinder_l1_sweep_vs_krylov_twin_path() -> None:
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "PR-TYPED-6.5 Phase 5 — Krylov leg routes through "
-        "``SNStreamingOperator`` (legacy bundle, cell-centre proxy at "
-        "the Carlson seed).  The twin-path assertion fails until "
-        "``solve_sn`` migrates to the B1''-aware (L+C) algebra at "
-        "Step 7.  See ``test_b1pp_verification.py`` for the direct "
-        "B1'' L1 verification on the new Resolution A leaves."
+        "PR-TYPED-6.5 Phase 5 — twin-path divergence on cylinder at "
+        "the Krylov leg's pre-D-K Carlson seed (cell-centre proxy).  "
+        "Post-D-K, ``solve_sn`` migrated to the B1''-aware (L+C) "
+        "algebra via :class:`InvertibleOperator`; xfail should be "
+        "re-validated and likely flipped green.  See "
+        "``test_b1pp_verification.py`` for the direct B1'' L1 "
+        "verification on the Resolution A leaves."
     ),
 )
 def test_cylinder_l1_refinement_both_paths(nx: int) -> None:

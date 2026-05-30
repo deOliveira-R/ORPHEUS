@@ -62,8 +62,8 @@ class TestProtocolConformance:
         Load-bearing: the M-M closure delegates to these strategies
         in the apply matvec, which MUST remain a linear operator.
         Non-linearity in the seed would propagate non-linearity into
-        the operator and break the SNStreamingOperator's
-        apply_transpose / dense matrix probing.
+        the operator and break :meth:`InvertibleOperator.apply_transpose`
+        / dense matrix probing.
         """
         assert ZeroSeed.is_linear is True
         assert CarlsonInwardSweep.is_linear is True
@@ -356,9 +356,8 @@ class TestSeedLinearity:
     Required by the operator algebra: the M-M closure is linear, and
     a non-linear seed would propagate non-linearity into the apply
     matvec.  Linearity is a pre-condition for
-    :meth:`~orpheus.sn.operator.SNStreamingOperator.apply_transpose`
-    correctness (the dense-matrix probing in
-    :meth:`SNStreamingOperator._ensure_dense_matrix` assumes linearity).
+    :meth:`~orpheus.sn.operator.InvertibleOperator.apply_transpose`
+    correctness (dense-matrix probing assumes linearity).
     """
 
     @pytest.mark.foundation

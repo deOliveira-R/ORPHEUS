@@ -411,10 +411,10 @@ SN reshape campaign (``.claude/plans/sn_reshape.md``):
 * **Issue 10 (Wave D Round 1.1) — DONE**: :class:`SNMesh` consumes
   :class:`ReducedStreamingOperator` via the dispatch ladder above.
   The connection-coefficient math no longer lives in :class:`SNMesh`.
-* **Issues 11/12 (Wave D Round 2/3)** make ``SNStreamingOperator.apply``
-  consume the primitive directly, eliminating the SN-specific
-  curvature attributes from :class:`SNMesh` (the deprecated
-  properties retire here).
+* **SN operator algebra (Depth B, 2026-05)** —
+  :class:`~orpheus.sn.operator.StreamingOperator` /
+  :class:`~orpheus.sn.operator.InvertibleOperator` consume the
+  primitive through :func:`~orpheus.sn.operator.transport_operator_matvec_unified`.
 * **MoC and CP campaigns (post-Wave-1)** reuse the same primitive
   with their own consumption patterns (track-segment chord march
   for MoC; ray-traced chord-length integrals for CP).

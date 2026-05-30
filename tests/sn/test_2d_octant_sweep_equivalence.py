@@ -158,9 +158,10 @@ with payload keys (Issue #196 PR-INDEX-5 — principled layout):
 # ═══════════════════════════════════════════════════════════════════
 #
 # Inheritance: the BC / Mesh2D / quadrature primitives are the same
-# fixtures used by ``test_unified_sweep_dispatch.py`` and
-# ``test_snstreamingoperator.py::test_apply_2d_cartesian_bit_identical_to_legacy``.
-# That gives the harness a known-good starting point.
+# fixtures used by ``test_unified_sweep_dispatch.py`` and the
+# 2-D ``StreamingOperator._apply_2d_cartesian`` gates in
+# ``test_2d_l2_matvec_correctness.py``.  That gives the harness a
+# known-good starting point.
 
 
 def _build_2d_mesh(

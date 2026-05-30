@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1131, 24.5%
-   L1, 909, 19.7%
+   L0, 1127, 24.5%
+   L1, 922, 20.0%
    L2, 36, 0.8%
    L3, 0, 0.0%
-   foundation, 2494, 54.1%
-   unmarked, 37, 0.8%
+   foundation, 2474, 53.7%
+   unmarked, 48, 1.0%
 
 Tagging source
 --------------
@@ -32,12 +32,12 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4491
+   explicit, 4480
    verify, 0
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 37
+   unmarked, 48
 
 Module × level grid
 -------------------
@@ -160,6 +160,7 @@ Module × level grid
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
+   fields/test_angular_flux, 0, 0, 0, 0, 25, 0
    fields/test_boundary_flux, 0, 0, 0, 0, 35, 0
    geometry/test_bc_equivalence_snapshot, 0, 8, 0, 0, 0, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
@@ -195,7 +196,6 @@ Module × level grid
    numerics/test_field, 0, 0, 0, 0, 26, 0
    numerics/test_incoming_ordinate_mask_tensor, 13, 0, 0, 0, 0, 0
    numerics/test_iteration, 0, 1, 0, 0, 17, 0
-   numerics/test_iteration_angular_flux, 0, 0, 0, 0, 8, 0
    numerics/test_measure, 0, 16, 0, 0, 32, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_operator, 0, 0, 0, 0, 60, 0
@@ -216,27 +216,30 @@ Module × level grid
    numerics/test_tensor_product_operator, 18, 0, 0, 0, 0, 0
    numerics/test_trace_space, 13, 7, 0, 0, 0, 0
    regression/test_dd_regression, 0, 0, 0, 0, 0, 11
+   sn/test_2d_l2_face_view_unit_source, 0, 0, 0, 0, 0, 7
+   sn/test_2d_l2_matvec_correctness, 0, 2, 0, 0, 2, 0
    sn/test_2d_octant_sweep_equivalence, 0, 7, 0, 0, 0, 0
    sn/test_angular_average_operator, 12, 4, 0, 0, 0, 0
-   sn/test_angular_flux_with_boundary, 0, 0, 0, 0, 32, 0
    sn/test_axis_primitive, 0, 0, 0, 0, 23, 0
-   sn/test_b1pp_verification, 9, 3, 0, 0, 0, 0
+   sn/test_b1pp_verification, 6, 3, 0, 0, 0, 0
    sn/test_boundary_conditions, 0, 0, 0, 0, 0, 11
-   sn/test_boundary_flux_arithmetic, 0, 0, 0, 0, 12, 0
+   sn/test_boundary_face_layout, 0, 0, 0, 0, 5, 0
    sn/test_cartesian, 1, 6, 0, 0, 0, 0
    sn/test_cell_flattening_invariant, 0, 0, 0, 0, 3, 0
    sn/test_cell_update_batch, 10, 0, 0, 0, 0, 0
-   sn/test_collision_operator, 0, 0, 0, 0, 48, 0
+   sn/test_collision_operator, 0, 0, 0, 0, 57, 0
    sn/test_cylindrical, 4, 10, 11, 0, 0, 0
    sn/test_dag_walk, 0, 0, 0, 0, 7, 0
    sn/test_discrete_ordinates_2d, 0, 0, 2, 0, 0, 0
-   sn/test_fission_operator, 0, 0, 0, 0, 10, 0
-   sn/test_fixed_source_g1, 0, 7, 0, 0, 0, 0
+   sn/test_fission_operator, 0, 0, 0, 0, 14, 0
+   sn/test_fixed_source_g1, 0, 6, 0, 0, 0, 0
    sn/test_harmonic_moment_field, 0, 0, 0, 0, 31, 0
    sn/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
-   sn/test_invertible_operator, 1, 10, 0, 0, 18, 0
+   sn/test_invertible_operator, 1, 10, 0, 0, 23, 0
    sn/test_krylov_curvilinear_precond_safety, 0, 4, 0, 0, 0, 0
+   sn/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    sn/test_l1_standoff_slab_cylinder, 0, 10, 0, 0, 0, 0
+   sn/test_l2_boundary_face_view, 0, 0, 0, 0, 11, 0
    sn/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    sn/test_method_space, 6, 0, 0, 0, 0, 0
    sn/test_mms, 0, 2, 0, 0, 0, 0
@@ -244,33 +247,31 @@ Module × level grid
    sn/test_mms_aniso, 0, 2, 0, 0, 0, 0
    sn/test_mms_curvilinear, 0, 2, 0, 0, 0, 0
    sn/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
-   sn/test_native_matvec, 0, 0, 0, 0, 20, 0
+   sn/test_native_matvec, 0, 0, 0, 0, 18, 0
    sn/test_octants_property, 60, 0, 0, 0, 0, 0
-   sn/test_operators_apply_typed, 0, 0, 0, 0, 21, 0
+   sn/test_operators_apply_typed, 0, 0, 0, 0, 16, 0
    sn/test_phase_c_crosscheck, 0, 8, 0, 0, 0, 0
    sn/test_phase_c_gates, 8, 0, 0, 0, 9, 0
    sn/test_phase_c_mms, 0, 3, 0, 0, 0, 0
    sn/test_properties, 4, 0, 0, 0, 0, 0
    sn/test_quadrature, 49, 0, 0, 0, 0, 0
-   sn/test_scattering_operator, 1, 0, 0, 0, 55, 0
+   sn/test_scattering_operator, 1, 0, 0, 0, 59, 0
+   sn/test_si_cyl_20cell_nan_regression, 0, 0, 0, 0, 0, 4
    sn/test_sn_boundary_realizer, 0, 19, 0, 0, 0, 0
    sn/test_snmesh_consumes_reduced, 0, 0, 0, 0, 15, 0
    sn/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
    sn/test_snmesh_realizer_wiring, 0, 9, 0, 0, 0, 0
    sn/test_snmesh_sweep_graphs, 13, 0, 0, 0, 0, 0
-   sn/test_snstreamingoperator, 0, 0, 0, 0, 27, 0
    sn/test_solution, 0, 0, 0, 0, 31, 0
    sn/test_solver_components, 41, 0, 0, 0, 0, 0
    sn/test_spherical, 13, 7, 6, 0, 0, 0
-   sn/test_streaming_operator, 0, 0, 0, 0, 42, 0
+   sn/test_streaming_operator, 0, 0, 0, 0, 44, 0
    sn/test_streaming_operator_decomposition, 19, 0, 0, 0, 0, 0
    sn/test_sweep_graph, 63, 0, 0, 0, 0, 0
    sn/test_sweep_regression, 8, 0, 0, 0, 0, 0
-   sn/test_sweep_scratch, 0, 0, 0, 0, 14, 0
-   sn/test_typed_fields, 0, 0, 0, 0, 22, 0
    sn/test_typed_sources, 0, 0, 0, 0, 24, 0
    sn/test_unified_matvec_cylinder, 29, 2, 0, 0, 0, 0
-   sn/test_unified_matvec_slab, 3, 2, 0, 0, 0, 0
+   sn/test_unified_matvec_slab, 2, 2, 0, 0, 0, 0
    sn/test_unified_matvec_sphere, 2, 0, 0, 0, 0, 0
    sn/test_unified_sweep_dispatch, 0, 0, 0, 0, 7, 0
    spatial/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
@@ -286,9 +287,10 @@ Module × level grid
    spatial/test_sweep_cache, 28, 0, 0, 0, 0, 0
    spatial/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 57, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 254, 0
+   test_layer_imports, 0, 0, 0, 0, 253, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
+   transport/test_timed_full_field, 0, 0, 0, 0, 36, 0
 
 Equation coverage
 -----------------
@@ -354,6 +356,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``chi-sampling``, 28
    ``decompose``, 28
    ``scattering-cdf``, 28
+   ``sn-curvilinear-homogeneous-kinf-recovery``, 28
    ``transport-cylindrical``, 28
    ``cp-flat-source-derivation``, 27
    ``cp-flat-source-double-integral``, 27
@@ -378,7 +381,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``keff-cycle``, 16
    ``roulette-conservation``, 16
    ``roulette-prob``, 16
-   ``sn-curvilinear-homogeneous-kinf-recovery``, 16
    ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
    ``peierls-greens-annulus-architecture``, 14
@@ -432,7 +434,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``characteristic-ode``, 6
    ``kin-kernel-special-values``, 6
    ``peierls-greens-slab-T``, 6
-   ``sn-streaming-reciprocity``, 6
    ``cp-outer-integral-antiderivative``, 5
    ``dd-cartesian-2d``, 5
    ``en-kernel-special-values``, 5
@@ -558,7 +559,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **41** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **42** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``bc-rank-n-tensor-decomposition``
@@ -590,6 +591,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``phase-f-source-eq-sigt-phi0``
 - ``pole-mm-recurrence``
 - ``sn-cell-flatten-roundtrip``
+- ``sn-streaming-reciprocity``
 - ``sn-within-group-system``
 - ``spectrum-case-eigenfunction-equation``
 - ``spectrum-case-eigenfunction-explicit``
@@ -832,7 +834,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-023``, 1
    ``ERR-024``, 1
    ``ERR-025``, 5
-   ``ERR-026``, 84
+   ``ERR-026``, 85
    ``ERR-027``, 5
    ``ERR-028``, 1
    ``ERR-029``, 6
@@ -855,15 +857,17 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-046``, 8
    ``ERR-047``, **0 (MISSING)**
    ``ERR-048``, 50
-   ``ERR-049``, 17
+   ``ERR-049``, 16
    ``ERR-050``, 4
    ``ERR-051``, **0 (MISSING)**
    ``ERR-052``, 1
+   ``ERR-053``, 7
+   ``ERR-054``, **0 (MISSING)**
 
 Unmarked tests
 --------------
 
-**37 tests** have no V&V level marker.
+**48 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -878,6 +882,8 @@ equations. See ``docs/testing/architecture.rst``
    ``tests/sn/regression/test_dd_regression.py``, 11
    ``tests/sn/test_boundary_conditions.py``, 11
    ``tests/sn/spatial/test_cell_balance_for_streaming.py``, 9
+   ``tests/sn/test_2d_l2_face_view_unit_source.py``, 7
+   ``tests/sn/test_si_cyl_20cell_nan_regression.py``, 4
    ``tests/derivations/test_atkinson_product_nystrom.py``, 3
    ``tests/derivations/test_fn_projection_vs_kll_flux.py``, 2
    ``tests/derivations/test_fn_la13511_slab_reflected.py``, 1

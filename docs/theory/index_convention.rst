@@ -40,14 +40,15 @@ this page, this page is correct.
   :class:`~orpheus.sn.operator.CollisionOperator`,
   :class:`~orpheus.sn.scattering.ScatteringOperator`,
   :class:`~orpheus.sn.fission.FissionOperator`).
-- **One internal exception is deliberately preserved**: the
-  FD-matvec packed-vector helper
-  :meth:`~orpheus.sn.operator.SNStreamingOperator.solution_to_angular_flux`
-  returns ``(ng, N, nx, ny)`` internally.  The Krylov decode path
-  absorbs the leading-axis-swap via two zero-copy
-  :func:`numpy.transpose` adapters at
-  :func:`~orpheus.sn.solver.solve_sn_fixed_source`.  PR-INDEX-7 retires
-  this exception; see :ref:`sn-index-convention-future-work`.
+- **Historical note (resolved 2026-05)**: a legacy FD-matvec
+  packed-vector helper ``solution_to_angular_flux`` returned
+  ``(ng, N, nx, ny)`` internally with a Krylov-side
+  :func:`numpy.transpose` adapter.  The entire helper family
+  (``EquationMap`` / ``solution_to_angular_flux*`` /
+  ``pack_with_traces``) retired in Depth B D-J (commit ``4a53737``)
+  alongside the bare-ndarray operator contract; the principled
+  ``(N, ng, nx, ny)`` layout is now universal on the typed
+  :class:`~orpheus.transport.fields.angular_flux.AngularFlux` carrier.
 
 .. admonition:: Authoritative origin
 

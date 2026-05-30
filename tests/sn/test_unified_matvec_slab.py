@@ -28,12 +28,10 @@ mesh.  The L1 verification here uses analytical k_∞ (shape-invariant,
 so insensitive to discretisation order) and the FD-vs-WDD
 characterisation is informational (NOT a pass/fail gate).
 
-The full Case singular-eigenfunction Krylov verification is deferred
-to PR-TYPED-6c Step 5 (when ``SNStreamingOperator.apply`` is rewired
-to call ``transport_operator_matvec_unified`` and the production
-``test_heterogeneous_transport.py`` runs through the unified path).
-The standalone Krylov + Case combination is unusably slow at the
-n_per=320 production mesh; that production test uses
+The full Case singular-eigenfunction Krylov verification is exercised
+by ``test_heterogeneous_transport.py`` (production path through the
+unified matvec).  The standalone Krylov + Case combination is unusably
+slow at the n_per=320 production mesh; that production test uses
 ``inner_solver="source_iteration"`` (the sweep, not the matvec).
 """
 from __future__ import annotations
@@ -109,9 +107,8 @@ def test_unified_slab_constant_psi_gives_sigma_t() -> None:
 # reflective.  Any consistent matvec converges to the same k_∞.  This
 # pins the unified matvec's basic correctness (does it converge to a
 # reasonable eigenvalue at all?) without the slow heterogeneous Case
-# Krylov path.  Heterogeneous verification arrives at Step 5 when
-# SNStreamingOperator.apply is rewired and the production
-# test_heterogeneous_transport.py exercises the unified path.
+# Krylov path; ``test_heterogeneous_transport.py`` covers heterogeneous
+# verification on the unified path.
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -129,16 +126,12 @@ def _make_2g_mixture(sigma_t, sig_s_matrix, nu_sigma_f, chi):
     )
 
 
-# D-K.5 (2026-05-29): ``_patch_apply_to_unified`` retired together with
-# :class:`SNStreamingOperator`.  Pre-D-K.1, this monkey-patched
-# ``SNStreamingOperator.apply`` Cartesian path through the unified
-# matvec.  Post-D-K.1 (commit ``400ca33``), ``SNSolver.L`` is
-# ``StreamingOperator + CollisionOperator`` (= :class:`InvertibleOperator`),
-# which routes through the unified matvec natively for 1-D and through
-# :meth:`StreamingOperator._apply_2d_cartesian` for 2-D.  The
-# monkey-patch had no effect on the call path post-D-K.1; deleting it
-# removes the no-op + the dependency on the retiring
-# :class:`SNStreamingOperator` class.
+# Post-D-K (commit ``dadf4e8``), ``SNSolver.L`` is the algebraic
+# composition ``StreamingOperator + CollisionOperator``
+# (= :class:`InvertibleOperator`), which routes through
+# :func:`transport_operator_matvec_unified` natively for 1-D and
+# :meth:`StreamingOperator._apply_2d_cartesian` for 2-D.  No monkey-
+# patch is required.
 
 
 @pytest.mark.l1
@@ -146,10 +139,10 @@ def _make_2g_mixture(sigma_t, sig_s_matrix, nu_sigma_f, chi):
 def test_unified_slab_l1_homogeneous_kinf_2g(nx: int) -> None:
     r"""L1 — 2G homogeneous reflective slab via the unified matvec.
 
-    Drives :func:`solve_sn` with ``inner_solver="krylov"`` and a
-    monkey-patched :meth:`SNStreamingOperator.apply` that routes the
-    matvec through :func:`transport_operator_matvec_unified` for
-    Cartesian meshes.  The converged ``k_eff`` is compared to the
+    Drives :func:`solve_sn` with ``inner_solver="krylov"`` — the
+    matvec routes through :class:`InvertibleOperator` (= ``L + C``)
+    via :func:`transport_operator_matvec_unified` for Cartesian
+    meshes.  The converged ``k_eff`` is compared to the
     analytical ``k_∞ = (νΣ_f^T φ) / (Σ_a^T φ)`` reference at rtol < 5e-4
     — the same tolerance the production
     ``test_sn_spherical_homogeneous_kinf_recovery_2g`` uses.

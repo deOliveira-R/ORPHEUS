@@ -193,8 +193,9 @@ class FissionOperator(LinearOperatorMixin):
           :class:`ScalarFlux` variant.
         * :class:`numpy.ndarray` — legacy bare-ndarray path,
           ``(ng, nx, ny)`` iso scalar fission source.  Preserved for
-          packed-vector / FD-matvec consumers (e.g. ``SNStreamingOperator``,
-          legacy GMRES on ``L.apply``).
+          ``KEigenvalue`` / depletion / diffusion consumers that
+          still feed bare ``(ng, nx, ny)`` arrays at outer-iteration
+          boundaries.
 
         See ``coding-elegance`` SKILL.md §"Convention crosswalk template"
         and lesson L18 for the Pattern 7 producer-side normalisation
@@ -286,10 +287,10 @@ class FissionOperator(LinearOperatorMixin):
         r"""Bare-ndarray legacy variant — iso scalar fission source.
 
         Shape contract: input ``(ng, nx, ny)`` scalar flux, output
-        ``(ng, nx, ny)`` iso fission source.  Preserved for packed-
-        vector / FD-matvec consumers (``SNStreamingOperator``, legacy
-        GMRES on ``L.apply``).  No type wrapping; the bare path
-        bypasses the type layer entirely.
+        ``(ng, nx, ny)`` iso fission source.  Preserved for
+        ``KEigenvalue`` / depletion / diffusion outer-iteration
+        consumers that still feed bare ``(ng, nx, ny)`` arrays.  No
+        type wrapping; the bare path bypasses the type layer entirely.
         """
         sig_p = self.sig_p
         chi = self.chi
