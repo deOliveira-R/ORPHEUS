@@ -1114,3 +1114,184 @@ class TestIsFoldableIntoSigmaR:
             scattering_order=1,
         )
         assert S.is_foldable_into_sigma_r() is False
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Wave T step T.3 — per-ℓ kernel structure tests (substep T.3b).
+#
+# T.3 design context (test-architect spec §6 Q6, user resolution):
+# the §15.2 form `Σ_ℓ (Σ_{s,ℓ} ⊗ A_ℓ ⊗ G_ℓ)` does NOT satisfy the
+# disjoint-axes TensorProductOperator contract because the per-material
+# per-ℓ einsum couples group + spatial axes via cells_by_material
+# indexing.  Math-honest fallback: kernel is an OperatorSum of
+# per-ℓ summands (each a custom LinearOperator, NOT a TP).  T.3 is
+# therefore NOT the first SOTP production consumer — T.4 (streaming)
+# inherits that role.
+# ──────────────────────────────────────────────────────────────────────
+
+
+class TestPerLegendreOrderKernel:
+    """Wave T step T.3b — `scattering_op.kernel` is an `OperatorSum`
+    of per-ℓ summands.
+
+    Mirrors the verification gate pattern from T.2's
+    `TestRankOneTensorProductKernel` but adapted to T.3's
+    OperatorSum-of-custom-summands shape per the Q6 honest-fallback
+    resolution.
+    """
+
+    @pytest.fixture
+    def op_p1(self, solver_2g_p1_n2n):
+        """ScatteringOperator with P1 aniso (asymmetric SigS + n2n)."""
+        return solver_2g_p1_n2n.scattering_op
+
+    @pytest.fixture
+    def op_p0(self, solver_2g_p0):
+        """ScatteringOperator with scattering_order=0 (P0 only)."""
+        return solver_2g_p0.scattering_op
+
+    def test_kernel_summands_count_matches_scattering_order(self, op_p1):
+        """`len(kernel_summands) == scattering_order` (one summand per
+        Legendre order ℓ ∈ [1, L]; P0 stays in the fast path per
+        spec §6 Q3 Option (β))."""
+        assert len(op_p1.kernel_summands) == op_p1.scattering_order
+
+    def test_kernel_summands_cover_ell_1_through_L(self, op_p1):
+        """Each summand handles a distinct ℓ in [1, L]; collectively
+        they cover the full anisotropic range."""
+        ells = sorted(s.ell for s in op_p1.kernel_summands)
+        expected = list(range(1, op_p1.scattering_order + 1))
+        assert ells == expected
+
+    def test_each_summand_is_per_legendre_order_scattering(self, op_p1):
+        """Each summand is a `_PerLegendreOrderScattering` instance —
+        the math-honest per-ℓ primitive (NOT a TensorProductOperator,
+        per Q6 honest-fallback)."""
+        from orpheus.sn.scattering import _PerLegendreOrderScattering
+
+        for summand in op_p1.kernel_summands:
+            assert isinstance(summand, _PerLegendreOrderScattering)
+
+    def test_each_summand_capabilities_apply_only(self, op_p1):
+        """Per-ℓ summands advertise CAP_APPLY only (no inverse, no
+        transpose surface in this wave)."""
+        from orpheus.numerics.operator import CAP_APPLY
+
+        for summand in op_p1.kernel_summands:
+            assert summand.capabilities == frozenset({CAP_APPLY})
+
+    @pytest.fixture
+    def op_p2(self):
+        """ScatteringOperator with P2 aniso — yields ≥2 kernel summands
+        so the OperatorSum tree actually wraps (`reduce` over a
+        singleton returns the singleton directly)."""
+        from scipy.sparse import csr_matrix
+
+        p0 = np.array([[0.38, 0.10], [0.05, 0.90]])
+        p1 = np.array([[0.02, 0.01], [0.00, 0.04]])
+        p2 = np.array([[0.005, 0.002], [0.000, 0.010]])
+        mix = make_mixture(
+            sig_t=np.array([0.5, 1.0]),
+            sig_c=np.array([0.01, 0.02]),
+            sig_f=np.array([0.01, 0.08]),
+            nu=np.array([2.5, 2.5]),
+            chi=np.array([1.0, 0.0]),
+            sig_s=p0,
+        )
+        mix.SigS = [csr_matrix(p0), csr_matrix(p1), csr_matrix(p2)]
+        mix.Sig2 = csr_matrix(np.zeros((2, 2)))
+
+        nx, ny = 3, 2
+        mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
+        quad = Quadrature.lebedev(order=17)
+        return SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=2).scattering_op
+
+    def test_kernel_is_operator_sum_for_multiple_summands(self, op_p2):
+        """`kernel` is an OperatorSum tree (NOT a SOTP) — Q6 honest
+        fallback. The tree structure for L summands is the
+        `functools.reduce(add, summands)` left-fold. For L=1 the
+        degenerate case is the single summand directly (no sum needed);
+        for L≥2 the OperatorSum wrap kicks in. This test pins L=2."""
+        from orpheus.numerics.operator import OperatorSum
+
+        assert len(op_p2.kernel_summands) == 2
+        kernel = op_p2.kernel
+        assert isinstance(kernel, OperatorSum)
+
+    def test_kernel_is_single_summand_for_p1(self, op_p1):
+        """Degenerate case: when scattering_order == 1, kernel is the
+        single per-ℓ summand directly (no OperatorSum wrap needed —
+        `reduce(add, [x])` returns `x`). Math-honest: `Σ_ℓ X_ℓ` with
+        one ℓ is just X_1."""
+        from orpheus.sn.scattering import _PerLegendreOrderScattering
+
+        assert len(op_p1.kernel_summands) == 1
+        kernel = op_p1.kernel
+        assert isinstance(kernel, _PerLegendreOrderScattering)
+
+    def test_kernel_capabilities_apply_only(self, op_p1):
+        """Kernel inherits `{CAP_APPLY}` only (no propagation of
+        solve through OperatorSum, no apply_transpose since summands
+        don't advertise it)."""
+        from orpheus.numerics.operator import CAP_APPLY
+
+        assert op_p1.kernel.capabilities == frozenset({CAP_APPLY})
+
+    def test_p0_only_kernel_is_zero_operator(self, op_p0):
+        """When `scattering_order == 0`, kernel is a ZeroOperator
+        (no anisotropic in-scatter; all of S goes through the
+        P0 + n2n fast path)."""
+        from orpheus.numerics.operator import ZeroOperator
+
+        assert op_p0.kernel_summands == ()
+        assert isinstance(op_p0.kernel, ZeroOperator)
+
+    def test_kernel_apply_sums_per_ell_contributions(self, op_p1):
+        """Linearity guard: kernel.apply(psi) ≈ sum(s.apply(psi) for s
+        in summands).  Confirms the OperatorSum binary tree reduces
+        correctly to the algebraic sum of summands."""
+        op = op_p1
+        N = op.n_ordinates
+        rng = np.random.default_rng(101)
+        psi_values = rng.uniform(0.05, 1.0, size=(N, op.ng, op.nx, op.ny))
+
+        kernel_out = op.kernel.apply(psi_values)
+        summand_out = sum(s.apply(psi_values) for s in op.kernel_summands)
+        np.testing.assert_array_equal(kernel_out, summand_out)
+
+    def test_kernel_apply_matches_build_aniso_source_pre_w(self, op_p1, solver_2g_p1_n2n):
+        """L1-4 (T.3b variant): `kernel.apply(psi.values)` matches
+        `build_aniso_source(psi).values * sum_w` (pre-/W).  This is
+        the substep-T.3b internal-consistency check that the kernel
+        will produce the same numbers as the existing inline
+        `R · Λ · M` pipeline at the apply boundary in T.3c.
+
+        Per the `vv-principles` §"Bit-identity vs principled-equivalence"
+        three-criteria gate, the new path REORDERS reductions
+        (summands rebuild R/M per ℓ vs the inline single-shot
+        construction).  Comparison uses `nulp ≤ 4·order` per spec
+        Q1 Route B principled-equivalence bound — drift bounded by
+        the Σ_ℓ reduction depth.
+        """
+        from orpheus.transport.fields.angular_flux import AngularFlux
+
+        op = op_p1
+        sn_mesh = solver_2g_p1_n2n.sn_mesh
+        N = op.n_ordinates
+        rng = np.random.default_rng(202)
+        psi_values = rng.uniform(0.05, 1.0, size=(N, op.ng, op.nx, op.ny))
+        psi = AngularFlux.from_mesh(psi_values, sn_mesh)
+
+        # Pre-/W via the existing inline path
+        aniso = op.build_aniso_source(psi)
+        sum_w = float(op.weights.sum())
+        expected_pre_w = aniso.values * sum_w  # un-apply the /W
+
+        # Kernel apply (also pre-/W by design — /W lives at apply boundary)
+        kernel_out = op.kernel.apply(psi_values)
+
+        # nulp tolerance: scattering_order summands; drift bounded by L
+        nulp_bound = max(4, 4 * op.scattering_order)
+        np.testing.assert_array_almost_equal_nulp(
+            kernel_out, expected_pre_w, nulp=nulp_bound,
+        )
