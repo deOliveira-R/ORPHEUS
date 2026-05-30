@@ -52,10 +52,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import (
-    build_equation_map_cylindrical,
-    transport_operator_matvec_unified,
-)
+from orpheus.sn.operator import transport_operator_matvec_unified
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 
@@ -99,10 +96,20 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
     # — the legacy ``transport_operator_matvec_cylindrical`` retired.
     psi_view = np.full((quad.N, ng, nx, 1), psi_flat)
     m_cell = legacy_proxy_matvec(psi_view, sn_mesh, sig_t)
-    eq_map = build_equation_map_cylindrical(nx, quad, ng)
-    lhs = m_cell[
-        eq_map.ordinate, :, eq_map.ix, eq_map.iy,
-    ].T.ravel(order="F")
+    # D-J (2026-05-30): equation slots derived from quad direction signs
+    # (replaces ``EquationMap`` slot map — curvilinear set is all
+    # ``(n, ix, 0)`` except inward ordinates at outermost cell).
+    inflow_outer = quad.mu_x < -1e-15  # (N,)
+    ord_list, ix_list = [], []
+    for ix in range(nx):
+        for n in range(quad.N):
+            if ix == nx - 1 and inflow_outer[n]:
+                continue
+            ord_list.append(n)
+            ix_list.append(ix)
+    ord_arr = np.array(ord_list)
+    ix_arr = np.array(ix_list)
+    lhs = m_cell[ord_arr, :, ix_arr, 0].T.ravel(order="F")
 
     expected = 2.0 * psi_flat  # = Σ_t · ψ_flat
     residual = float(np.max(np.abs(lhs - expected)))

@@ -44,11 +44,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import (
-    build_equation_map_spherical,
-    build_equation_map_with_traces,
-    transport_operator_matvec_unified,
-)
+from orpheus.sn.operator import transport_operator_matvec_unified
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -425,54 +421,13 @@ class TestFaceResidualMask:
         )
 
 
-# ── Pin 6: quad-derived mask ≡ eq_map slot positions ────────────────
-
-
-class TestQuadDerivedMaskEqualsLegacySlotMap:
-    r"""The path-forward matvec derives the outflow-ordinate mask from
-    ``quad.mu_x`` direction signs.  The legacy
-    ``build_equation_map_with_traces``'s ``face_outer_ordinate``
-    precomputed the same set of ordinates from the same direction
-    signs (slab outer: ``mu_x > 0``; curvilinear outer: ``mu_x > 0``).
-    This pin makes that equivalence explicit so a future refactor of
-    the quadrature's mu_x semantics doesn't silently drift the mask.
-    """
-
-    def test_slab_outer_outflow_mask_matches_eq_map(self) -> None:
-        sn_mesh = _make_reflective_slab(nx=8)
-        ng = sn_mesh.ng
-        eq_map = build_equation_map_with_traces(
-            sn_mesh.nx, sn_mesh.quad, ng, has_inner_bc=True,
-        )
-        quad_outflow_outer = np.where(sn_mesh.quad.mu_x > 1e-15)[0]
-        np.testing.assert_array_equal(
-            np.sort(eq_map.face_outer_ordinate),
-            np.sort(quad_outflow_outer),
-            err_msg=(
-                "slab outer-face outflow ordinates derived from quad "
-                "(μ_x > 0) must equal the legacy eq_map.face_outer_ordinate"
-            ),
-        )
-
-    def test_sphere_outer_outflow_mask_matches_eq_map(self) -> None:
-        sn_mesh = _sphere_mesh(nx=8)
-        ng = sn_mesh.ng
-        eq_map = build_equation_map_with_traces(
-            sn_mesh.nx, sn_mesh.quad, ng, has_inner_bc=False,
-        )
-        quad_outflow_outer = np.where(sn_mesh.quad.mu_x > 1e-15)[0]
-        np.testing.assert_array_equal(
-            np.sort(eq_map.face_outer_ordinate),
-            np.sort(quad_outflow_outer),
-            err_msg=(
-                "sphere outer-face outflow ordinates derived from "
-                "quad (μ_x > 0) must equal the legacy "
-                "eq_map.face_outer_ordinate"
-            ),
-        )
-
-
 # ── Pin 7: 2-D Cartesian raises NotImplementedError ─────────────────
+#
+# (Pin 6 — ``TestQuadDerivedMaskEqualsLegacySlotMap`` — retired with
+# D-J 2026-05-30.  It pinned the equivalence ``quad.mu_x > 0`` ≡
+# ``eq_map.face_outer_ordinate``.  The eq_map side of that equation no
+# longer exists; the production code now uses the quad-derived mask
+# directly.  The equivalence is no longer a gate, it is the definition.)
 
 
 class TestTwoDCartesianRaises:

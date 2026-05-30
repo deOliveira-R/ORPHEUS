@@ -40,7 +40,6 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import (
     CollisionOperator,
     StreamingOperator,
-    solution_to_angular_flux_with_traces,
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.timed_full_field import TimedFullField
@@ -354,29 +353,9 @@ def test_b1pp_lplusc_gmres_converges_fp_noise(name, builder):
 # decoder / encoder pair.
 
 
-@pytest.mark.l0
-@pytest.mark.parametrize("name,builder", _GEOMETRIES)
-def test_b1pp_decode_encode_roundtrip(name, builder):
-    r"""Decoding a packed vector and re-packing the parts is the identity."""
-    from orpheus.sn.operator import pack_with_traces
-
-    sn_mesh = builder(nx=7)
-    ng = 2
-    sigma_t = np.full((ng, sn_mesh.nx, 1), 0.4)
-    L = StreamingOperator(sn_mesh, sigma_t)
-    eq_map = L._ensure_eq_map(ng=ng)
-
-    rng = np.random.default_rng(seed=17)
-    psi = rng.standard_normal(eq_map.n_unknowns)
-    psi_cell, psi_face_outer, psi_face_inner = (
-        solution_to_angular_flux_with_traces(
-            psi, eq_map, sn_mesh.nx, ng, N=sn_mesh.quad.N,
-        )
-    )
-    psi_back = pack_with_traces(
-        psi_cell, psi_face_outer, psi_face_inner, eq_map,
-    )
-    np.testing.assert_array_equal(
-        psi_back, psi,
-        err_msg=f"{name}: pack ∘ decode is not the identity",
-    )
+# D-J (2026-05-30): ``test_b1pp_decode_encode_roundtrip`` retired with
+# the :func:`solution_to_angular_flux_with_traces` /
+# :func:`pack_with_traces` codec family.  The legacy bare-ndarray
+# packed-vector layout no longer exists; the codec roundtrip has
+# nothing to invert.  The math claim it pinned (decoder ∘ encoder ==
+# identity on the packed layout) was a property of the retired layout.

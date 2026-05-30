@@ -21,10 +21,13 @@ What this file pins
 4. **Returns typed AngularFlux with B1'' face residual on its
    boundary** (the path-forward contract — Solution.angular_flux
    carries the matvec's face residual as `.boundary`).
-5. **No legacy eq_map machinery invoked** (callstack sentinel —
-   ``build_equation_map_*``, ``_build_rhs_*``,
-   ``_make_sweep_preconditioner``, ``solution_to_angular_flux_*``
-   must not appear in the G1 call path on 1-D).
+5. **No legacy eq_map machinery exists** (D-J 2026-05-30: the
+   ``build_equation_map_*`` / ``solution_to_angular_flux_*`` /
+   ``pack_with_traces`` family was deleted from
+   :mod:`orpheus.sn.operator`; ``_build_rhs_*`` and
+   ``_make_sweep_preconditioner`` were already retired pre-D-J).
+   The impossibility-of-call contract is enforced by the symbols
+   not existing — runtime spy is unnecessary.
 
 References
 ==========
@@ -308,104 +311,15 @@ class TestReturnTypeContract:
         assert "xmin" not in state.boundary.layout.faces  # sphere has no inner face
 
 
-# ── Pin 5: no legacy eq_map / _build_rhs_* / _make_sweep_preconditioner
-
-
-class TestNoLegacyMachineryInCallPath:
-    r"""Callstack sentinel — none of the retiring symbols
-    (``build_equation_map_*``, ``solution_to_angular_flux_*``,
-    ``_make_sweep_preconditioner``) is invoked anywhere along the G1
-    Krylov call path on 1-D.
-
-    Spies the suspect callables; if the carve regresses (e.g. someone
-    re-routes through legacy decoders), the spy count is non-zero and
-    the assertion fires.
-
-    Post-P1.7 (moment-space + layering plan): the three
-    ``_build_rhs_{cartesian,spherical,cylindrical}`` helpers have been
-    DELETED from :mod:`orpheus.sn.solver` (they were already dead
-    code; deletion is the strict-strongest form of "never called").
-    The corresponding spies were dropped from this test; the
-    impossibility-of-call is now enforced by the symbols not existing
-    rather than by a runtime count.
-    """
-
-    def test_no_legacy_eq_map_or_decoder_in_g1_path(self) -> None:
-        from orpheus.sn import operator as sn_op
-        from orpheus.sn import solver as sn_solver
-
-        # Post-P1.7: the _build_rhs_* helpers are deleted from
-        # orpheus.sn.solver.  Confirm absence (the impossibility-of-call
-        # contract supplants the per-iteration spy count for these).
-        assert not hasattr(sn_solver, "_build_rhs_cartesian"), (
-            "_build_rhs_cartesian was retired in P1.7; re-adding it "
-            "would re-introduce the inline (2*l+1) duplicate the "
-            "moment-space plan §P1.3 ('exactly one place') retires."
-        )
-        assert not hasattr(sn_solver, "_build_rhs_spherical")
-        assert not hasattr(sn_solver, "_build_rhs_cylindrical")
-
-        legacy_calls: dict[str, int] = {}
-
-        def make_spy(name, original):
-            def wrapped(*args, **kwargs):
-                legacy_calls[name] = legacy_calls.get(name, 0) + 1
-                return original(*args, **kwargs)
-            return wrapped
-
-        original_build_eq_map_sph = sn_op.build_equation_map_spherical
-        original_build_eq_map_cyl = sn_op.build_equation_map_cylindrical
-        original_build_eq_map_cart = sn_op.build_equation_map
-        original_decode_sph = sn_op.solution_to_angular_flux_spherical
-        original_decode_cyl = sn_op.solution_to_angular_flux_cylindrical
-        original_decode_cart = sn_op.solution_to_angular_flux
-        # _make_sweep_preconditioner is on SNSolver instances, not a
-        # module-level symbol — check via attribute lookup at instance level
-        # would require dispatching the spy through __init__.  Simpler:
-        # rely on solution_to_angular_flux_* spies.
-
-        with patch.object(
-            sn_op, "build_equation_map_spherical",
-            make_spy("build_equation_map_spherical", original_build_eq_map_sph),
-        ), patch.object(
-            sn_op, "build_equation_map_cylindrical",
-            make_spy("build_equation_map_cylindrical", original_build_eq_map_cyl),
-        ), patch.object(
-            sn_op, "build_equation_map",
-            make_spy("build_equation_map", original_build_eq_map_cart),
-        ), patch.object(
-            sn_op, "solution_to_angular_flux_spherical",
-            make_spy("solution_to_angular_flux_spherical", original_decode_sph),
-        ), patch.object(
-            sn_op, "solution_to_angular_flux_cylindrical",
-            make_spy("solution_to_angular_flux_cylindrical", original_decode_cyl),
-        ), patch.object(
-            sn_op, "solution_to_angular_flux",
-            make_spy("solution_to_angular_flux", original_decode_cart),
-        ):
-            mesh, quad = _sphere_reflective(nx=6)
-            sn_mesh = SNMesh(mesh, quad, placeholder_materials())
-            src = PerOrdinateSource.from_isotropic(
-                np.full((1, 6, 1), 1.0), sn_mesh,
-            )
-            solve_sn_fixed_source(
-                materials=placeholder_materials(),
-                mesh=mesh, quadrature=quad,
-                external_source=src.values,
-                inner_solver="krylov",
-                max_inner=50, inner_tol=1e-10,
-            )
-
-        # Permitted callers of legacy symbols in the G1 Krylov path:
-        # - SNSolver.__init__ builds self.L = SNStreamingOperator(...)
-        #   which lazily builds an eq_map on first `apply` — but G1's
-        #   Krylov path does NOT call solver.L.apply (it uses the typed
-        #   (L+C).apply via KrylovAcceleration).  Net: zero calls in path.
-        # - The Solution constructor doesn't decode from packed.
-        for sym, count in legacy_calls.items():
-            assert count == 0, (
-                f"Legacy symbol {sym!r} called {count} times in the "
-                f"G1 Krylov call path.  Per the dependency audit, "
-                f"this symbol retires; calling it from G1 is a "
-                f"regression of the structural carve."
-            )
+# ── Pin 5: no legacy eq_map machinery — retired with D-J 2026-05-30
+#
+# The legacy ``build_equation_map_*`` / ``solution_to_angular_flux_*`` /
+# ``pack_with_traces`` codec family was deleted from
+# :mod:`orpheus.sn.operator` in D-J (alongside the bare-ndarray
+# packed-vector contract).  ``_build_rhs_{cartesian,spherical,cylindrical}``
+# were already deleted in P1.7.  ``_make_sweep_preconditioner`` retired
+# pre-D-J.  The runtime-spy ``TestNoLegacyMachineryInCallPath`` test
+# (which patched these symbols and asserted zero invocations) retires
+# WITH the symbols: the impossibility-of-call contract is now enforced
+# structurally (the symbols don't exist), not behaviourally (the
+# patched spy counts zero calls).

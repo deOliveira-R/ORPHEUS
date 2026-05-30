@@ -49,11 +49,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn import operator as sn_op
 from orpheus.sn import solve_sn
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import (
-    build_equation_map,
-    solution_to_angular_flux,
-    transport_operator_matvec_unified,
-)
+from orpheus.sn.operator import transport_operator_matvec_unified
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 

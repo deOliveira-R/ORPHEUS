@@ -43,11 +43,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn import operator as sn_op
 from orpheus.sn import solve_sn
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import (
-    build_equation_map_cylindrical,
-    solution_to_angular_flux_cylindrical,
-    transport_operator_matvec_unified,
-)
+from orpheus.sn.operator import transport_operator_matvec_unified
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.pole_angular_closure import MorelMontryAngularSweep
 from orpheus.sn.spatial.psi_half_angle_seed import CarlsonSweepContext
@@ -86,15 +82,27 @@ def _bc_fill_outer(psi_view: np.ndarray, sn_mesh: SNMesh) -> np.ndarray:
     return psi_view
 
 
-def _extract_at_unknown_slots(field_4d: np.ndarray, eq_map) -> np.ndarray:
-    """Gather field_4d at the eq_map's (ordinate, ix, iy) slots → (ng, n_eq)."""
+def _extract_at_unknown_slots(
+    field_4d: np.ndarray, sn_mesh: SNMesh,
+) -> np.ndarray:
+    """Gather field_4d at the curvilinear equation-bearing slots → (ng, n_eq).
+
+    D-J (2026-05-30) — replaces the legacy :class:`EquationMap`-driven
+    slot map.  Curvilinear 1-D equation set: all ``(n, ix, 0)`` slots
+    EXCEPT inward ordinates at the outermost cell ``ix == nx - 1``
+    (the reflective BC determines those values; they are NOT unknowns).
+    """
+    quad = sn_mesh.quad
+    nx = sn_mesh.nx
     ng = field_4d.shape[1]
-    out = np.empty((ng, eq_map.n_eq))
-    for k in range(eq_map.n_eq):
-        out[:, k] = field_4d[
-            eq_map.ordinate[k], :, eq_map.ix[k], eq_map.iy[k],
-        ]
-    return out
+    inflow_outer = quad.mu_x < -1e-15  # (N,)
+    cols = []
+    for ix in range(nx):
+        for n in range(quad.N):
+            if ix == nx - 1 and inflow_outer[n]:
+                continue
+            cols.append(field_4d[n, :, ix, 0])
+    return np.stack(cols, axis=1)  # (ng, n_eq)
 
 
 def _hand_reference_cyl_matvec(
@@ -252,7 +260,6 @@ def test_unified_cylinder_matches_hand_reference(
     sn_mesh = _build_cyl(n_cells, quad)
     ng = 1
     N = quad.N
-    eq_map = build_equation_map_cylindrical(n_cells, quad, ng)
 
     rng = np.random.default_rng(seed)
     psi_view = rng.standard_normal((N, ng, n_cells, 1)).astype(np.float64)
@@ -262,8 +269,8 @@ def test_unified_cylinder_matches_hand_reference(
     m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
     m_hand = _hand_reference_cyl_matvec(psi_view, sn_mesh, sigma_t)
 
-    m_unified_u = _extract_at_unknown_slots(m_unified, eq_map)
-    m_hand_u = _extract_at_unknown_slots(m_hand, eq_map)
+    m_unified_u = _extract_at_unknown_slots(m_unified, sn_mesh)
+    m_hand_u = _extract_at_unknown_slots(m_hand, sn_mesh)
 
     np.testing.assert_allclose(
         m_unified_u, m_hand_u, rtol=1e-12, atol=1e-13,
@@ -300,8 +307,7 @@ def test_unified_cylinder_constant_psi_gives_sigma_t() -> None:
     psi_view = np.ones((quad.N, ng, sn_mesh.nx, 1))
 
     m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
-    eq_map = build_equation_map_cylindrical(sn_mesh.nx, quad, ng)
-    m_at_unknowns = _extract_at_unknown_slots(m_unified, eq_map)
+    m_at_unknowns = _extract_at_unknown_slots(m_unified, sn_mesh)
     np.testing.assert_allclose(
         m_at_unknowns, sigma_t_val, rtol=1e-12, atol=1e-13,
     )

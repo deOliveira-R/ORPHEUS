@@ -34,10 +34,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import (
-    build_equation_map_spherical,
-    transport_operator_matvec_unified,
-)
+from orpheus.sn.operator import transport_operator_matvec_unified
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 
@@ -94,16 +91,29 @@ def _bc_fill_outer(
 
 
 def _extract_at_unknown_slots(
-    field_4d: np.ndarray, eq_map,
+    field_4d: np.ndarray, sn_mesh: SNMesh,
 ) -> np.ndarray:
-    """Gather field_4d at the eq_map's (ordinate, ix, iy) slots → (ng, n_eq)."""
+    """Gather field_4d at the curvilinear equation-bearing slots → (ng, n_eq).
+
+    D-J (2026-05-30) — replaces the legacy :class:`EquationMap`-driven
+    slot map.  Curvilinear 1-D equation set: all ``(n, ix, 0)`` slots
+    EXCEPT inward ordinates at the outermost cell ``ix == nx - 1``
+    (the reflective BC determines those values; they are NOT unknowns).
+    The quad-derived mask is legitimised by the (now-retired)
+    ``test_native_matvec.TestQuadDerivedMaskEqualsLegacySlotMap`` pin
+    which proved ``quad.mu_x > 0`` ≡ ``eq_map.face_outer_ordinate``.
+    """
+    quad = sn_mesh.quad
+    nx = sn_mesh.nx
     ng = field_4d.shape[1]
-    out = np.empty((ng, eq_map.n_eq))
-    for k in range(eq_map.n_eq):
-        out[:, k] = field_4d[
-            eq_map.ordinate[k], :, eq_map.ix[k], eq_map.iy[k],
-        ]
-    return out
+    inflow_outer = quad.mu_x < -1e-15  # (N,)
+    cols = []
+    for ix in range(nx):
+        for n in range(quad.N):
+            if ix == nx - 1 and inflow_outer[n]:
+                continue
+            cols.append(field_4d[n, :, ix, 0])
+    return np.stack(cols, axis=1)  # (ng, n_eq)
 
 
 pytestmark = [pytest.mark.l0]
@@ -134,8 +144,7 @@ class TestUnifiedMatvecSphere:
 
         m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
         # At constant ψ = 1: (L+C)·1 ≈ σ_t · 1 = 2.0 everywhere.
-        eq_map = build_equation_map_spherical(sn_mesh.nx, sn_mesh.quad, ng)
-        m_at_unknowns = _extract_at_unknown_slots(m_unified, eq_map)
+        m_at_unknowns = _extract_at_unknown_slots(m_unified, sn_mesh)
         np.testing.assert_allclose(
             m_at_unknowns, sigma_t_val, rtol=1e-13, atol=1e-14,
         )

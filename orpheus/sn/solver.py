@@ -808,8 +808,9 @@ def _scalar_flux_from_angular(
     Issue #196 PR-INDEX-5: output is principled ``(ng, nx, ny)``.
     Issue #196 PR-INDEX-7: input is principled ``(N, ng, nx, ny)``
     (the FD-matvec internal ``(ng, N, nx, ny)`` layout flipped at the
-    public ``solution_to_angular_flux*`` boundary; closes the
-    PR-INDEX-4 §9.1 deferral).
+    typed L2 ``AngularFlux`` boundary; closes the PR-INDEX-4 §9.1
+    deferral).  The legacy ``solution_to_angular_flux*`` decoder
+    family retired at D-J (2026-05-30).
 
     Parameters
     ----------
@@ -1062,11 +1063,8 @@ def solve_sn_fixed_source(
     inner_solver : {"source_iteration", "krylov", None}
         Inner-solve strategy.  When ``None`` (default), all geometries
         use ``"source_iteration"`` — bit-identical to the Wave A-D
-        path.  Wave E Round 3 ships the BC-aware FD operator
-        (:func:`solution_to_angular_flux*` consume the mesh's
-        :class:`~orpheus.geometry.boundary.BoundaryOperator` instances via
-        :meth:`apply`), which makes ``"krylov"`` available
-        as an opt-in for vacuum / reflective / white / albedo / mixed
+        path.  ``"krylov"`` is available as an opt-in for vacuum /
+        reflective / white / albedo / mixed
         BCs uniformly — but the curvilinear-default flip is **not**
         enabled because empirically the symmetric-closure FD operator
         at the curvilinear outer face uses cell-center as a face-flux
@@ -1325,18 +1323,19 @@ def _solve_fixed_source_krylov(
     zero — this is the pure fixed-source path; the eigenvalue
     outer/within-group decomposition lives in :func:`solve_sn`.
 
-    The dependency audit + retirement sequence eliminates the
+    The dependency audit + retirement sequence eliminated the
     packed-1D vector machinery this function previously consumed:
 
-    * ``build_equation_map_*`` (retires G3e)
-    * ``solution_to_angular_flux_*`` (retires G3e)
+    * ``build_equation_map_*`` — **RETIRED** in D-J (2026-05-30).
+    * ``solution_to_angular_flux_*`` — **RETIRED** in D-J (2026-05-30).
+    * ``pack_with_traces`` — **RETIRED** in D-J (2026-05-30).
     * ``_build_rhs_{cartesian, spherical, cylindrical}`` —
       **RETIRED** in P1.7 of the moment-space + layering plan (the
       Cartesian variant carried an inline ``(2*l+1)`` literal that
       duplicated
       :attr:`~orpheus.numerics.spaces.SphericalHarmonicSpace.addition_theorem_factor`;
       all three were already dead code in production).
-    * ``_make_sweep_preconditioner`` (retires G3a)
+    * ``_make_sweep_preconditioner`` — **RETIRED** pre-D-J.
     * ``solver.L`` / ``SNStreamingOperator`` (retires G3f)
 
     Scope

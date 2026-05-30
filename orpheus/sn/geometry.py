@@ -444,12 +444,14 @@ class SNMesh:
             #
             # Any future consumer that calls ``apply`` on these
             # placeholders sees the same uniform 1-arg contract as
-            # every other ``bc_*`` attribute; the production 2-D
-            # Cartesian path at :func:`solution_to_angular_flux` does
-            # consume ``bc_ymin.apply(...)`` on 1-D meshes when
-            # ``curvature is None`` but discards the result because
-            # the inner ``if mu_y[n] > 1e-15`` filter is false for
-            # every ordinate on GL1D.
+            # every other ``bc_*`` attribute; the legacy 2-D Cartesian
+            # ``solution_to_angular_flux`` decoder consumed
+            # ``bc_ymin.apply(...)`` on 1-D meshes when
+            # ``curvature is None`` but discarded the result because
+            # the inner ``if mu_y[n] > 1e-15`` filter was false for
+            # every ordinate on GL1D.  (Decoder retired in D-J; the
+            # 1-D matvec now uses ``transport_operator_matvec_unified``
+            # which does not need the placeholder.)
             self.bc_xmin = self.bc_left
             self.bc_xmax = self.bc_right
             y_method_space = SNMethodSpace.minimal(self.quad)
