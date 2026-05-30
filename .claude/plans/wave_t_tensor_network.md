@@ -2,7 +2,7 @@
 
 **Branch:** `refactor/moment-space-and-layering`
 **Worktree:** `.claude/worktrees/moment-space-and-layering/`
-**Phase status:** PENDING. Lands AFTER Depth B (`depth_b_field_on_function_space.md`) completes (D-K shim retirement). Precedes parent-plan step P3.4 (Problem/Solver split).
+**Phase status:** PENDING. Lands AFTER Depth B (`depth_b_field_on_function_space.md`) completes (D-K shim retirement, completed 2026-05-30). Precedes **Wave O** (`.claude/plans/wave_o_operator_typing.md` — operator-role typing per Issue #208), which in turn precedes parent-plan step P3.4 (Problem/Solver split). Updated sequencing (2026-05-30): `Depth B ✓ → Wave T → Wave O → P3.4 → P3.6`.
 
 **Date:** 2026-05-27. Plan author: main agent + explorer audit (`.claude/agent-memory/explorer/` — `function_space_typed_field_audit.md` for Depth B background; the conversation that motivated Wave T is recorded in the Depth B plan §11.3).
 

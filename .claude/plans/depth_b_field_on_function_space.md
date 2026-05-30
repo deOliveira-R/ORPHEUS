@@ -1324,14 +1324,14 @@ P3.4 directly consumes Depth B's typed Fields and the `TransportState` container
 
 The Layer 2 construction-time dimensional check (Depth B §5) is the FIRST check `PowerIteration` does on its problem — verifying the operator algebra makes dimensional sense before any iteration runs.
 
-### 11.3 Sequence after Depth B — Wave T precedes P3.4
+### 11.3 Sequence after Depth B — Waves T + O precede P3.4
 
-The parent plan's REVISED Phase 3 sequencing was extended on 2026-05-27 to insert **Wave T (Tensor-Network Operator Algebra)** between Depth B and P3.4:
+The parent plan's Phase 3 sequencing was extended on 2026-05-27 to insert **Wave T (Tensor-Network Operator Algebra)** between Depth B and P3.4, and again on 2026-05-30 to add **Wave O (Operator-Role Typing)** after Wave T:
 
 ```text
-P3.1 ✓ → P3.5 ✓ → P3.0 ✓ → P3.2 ✓ → [Depth B = P3.3] → Wave T → P3.4 → P3.6
-                                       ↑                  ↑       ↑     ↑
-                                       THIS PLAN          NEW     NEXT  LAST
+P3.1 ✓ → P3.5 ✓ → P3.0 ✓ → P3.2 ✓ → [Depth B = P3.3 ✓] → Wave T → Wave O → P3.4 → P3.6
+                                       ↑                    ↑       ↑       ↑     ↑
+                                       COMPLETE             NEXT    AFTER-T AFTER LAST
 ```
 
 **Wave T** is the load-bearing consumer of the `TensorProductOperator` / `SumOfTensorProductsOperator` / `TensorProductSpace` infrastructure shipped here (D-B) and in `numerics/operator.py:1004-1216`. Today that infrastructure has ZERO production consumers; Wave T rewires the BC realizers, fission, scattering, and modern `StreamingOperator.apply` to use the algebra natively. Detailed plan: `.claude/plans/wave_t_tensor_network.md`. Wave T substeps (concrete forms):
@@ -1341,7 +1341,22 @@ P3.1 ✓ → P3.5 ✓ → P3.0 ✓ → P3.2 ✓ → [Depth B = P3.3] → Wave T 
 - **T.3** — Scattering `Σ_ℓ Σ_ℓ ⊗ A_ℓ ⊗ G_ℓ` per §15.2 as `SumOfTensorProductsOperator`.
 - **T.4** — `StreamingOperator.apply` as `L_spatial + L_angular_redist` per the connection-coefficient framing (`geometry/reduced_operator.py:1-30`). Universal across slab/sphere/cylinder; slab degenerates to `ZeroOperator` for `L_angular_redist`.
 
-Wave T's dependency: Depth B complete (typed Fields available as operator domain/codomain). Wave T's exit: P3.4 (Problem/Solver split). T.4 may surface complications when curvilinear specifics resist clean factoring — face difficulties as they come; the architectural commitment to one algebraic form across geometries is non-negotiable.
+Wave T's dependency: Depth B complete (typed Fields available as operator domain/codomain). Wave T's exit: Wave O. T.4 may surface complications when curvilinear specifics resist clean factoring — face difficulties as they come; the architectural commitment to one algebraic form across geometries is non-negotiable.
+
+**Wave O** (Operator-Role Typing — `BulkOperator` / `FullOperator` / `BoundaryOperator` Protocols + typed `AngularSource` / `AngularResidual`) follows Wave T. Detailed plan: `.claude/plans/wave_o_operator_typing.md`; GitHub Issue [#208](https://github.com/deOliveira-R/ORPHEUS/issues/208); project memory `[[project_wave_o_operator_algebra]]`. Wave O addresses two architectural asymmetries surfaced during D-H.1b (2026-05-28):
+
+- **Asymmetry 1** — operators have implicit bulk/boundary character; no type distinguishes the three algebraic shapes today.
+- **Asymmetry 2** — Sources and residuals have BOTH bulk and boundary parts (typed `AngularSource` / `AngularResidual` are TimedFullField-shaped composites, not bulk-only Fields).
+
+Wave O substeps (concrete forms):
+
+- **O.1** — `BulkOperator` / `FullOperator` / `BoundaryOperator` Protocols at L1.
+- **O.2** — `OperatorSum.apply` / `.H` dispatch by Protocol. **Gate 1.3 (apply ↔ apply_transpose reciprocity) flips green here** — this is the load-bearing Wave O deliverable; the test in `test_phase_c_gates.py` is currently xfail-strict pending Wave O.
+- **O.3** — Typed `TimedFullAngularSource` / `TimedFullAngularResidual`; MMS machinery emits typed sources for non-vacuum BCs.
+- **O.4** — Migrate consumers (`solve_sn_fixed_source` accepts typed source; `(L+C).apply` returns typed residual).
+- **O.5** — Retire D-H.1b implicit-zero-boundary shortcuts at the leaf level; the typed contract becomes universal.
+
+Wave O's dependency: Wave T complete (factored operators give well-defined Bulk/Full/Boundary roles to each tensor factor). Wave O's exit: P3.4 (Problem/Solver split).
 
 **P3.6 (kinetics restructure)** is the LAST step. It dissolves `kinetics/` into `transport/problems/initial_value.py` + `numerics/solvers/time_stepping.py`. It also lands `DirectSumSpace` (the deferred grand-report §5.3 primitive) when it needs `flux ⊕ precursors`. P3.6 closes Phase 3.
 

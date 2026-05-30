@@ -945,31 +945,46 @@ Sequencing within P3.6: (i) extract time-stepping primitives into
 (iv) retire any duplicated abstractions; (v) the test suite stays green at each
 step.
 
-### Sequencing within Phase 3 (REVISED post-Phase-1 per QA learnings)
+### Sequencing within Phase 3 (REVISED post-Phase-1 + 2026-05-30 Wave-T/O insertion)
 
-**Original sequencing** (from the pre-Phase-1 draft): P3.1 → P3.0 → P3.2 →
+**Original sequencing** (pre-Phase-1 draft): P3.1 → P3.0 → P3.2 →
 P3.3 → P3.4 → P3.5 → P3.6.
 
-**REVISED sequencing** (recommended):
+**REVISED sequencing** (current — extended for Waves T and O):
 
-1. **P3.1** — import-linter test (FIRST, always). Expect failures; they ARE
+1. **P3.1** ✅ — import-linter test (FIRST, always). Expect failures; they ARE
    the migration to-do list.
-2. **P3.5** — `range → codomain` rename. **NEW POSITION**: do this BEFORE the
+2. **P3.5** ✅ — `range → codomain` rename. **NEW POSITION**: do this BEFORE the
    reorganisation moves (P3.2/P3.3). Reason: Phase 1's `MomentProjection`
    carries `range` + `codomain` because the framework still reads `range`;
    subsequent file moves and Problem/Solver splits should land against a
    single canonical attribute name, not a transitional dual-name.
-3. **P3.0** — documentation of the criterion + layer table.
-4. **P3.2** — `numerics/` internal reorganisation (`spaces/`, `basis/`,
+3. **P3.0** ✅ — documentation of the criterion + layer table.
+4. **P3.2** ✅ — `numerics/` internal reorganisation (`spaces/`, `basis/`,
    `measures/`, `operators/`, `solvers/`).
-5. **P3.3** — introduce `transport/` layer; migrate fields + sources. Per
-   CC.4: the `AngularFlux.from_flat_with_traces` design decision lands here
-   (thin SN adapter at L3, L2 base in `transport/`).
-6. **P3.4** — Problem/Solver split. **Re-scoped per CC.7**: greenfield, no
+5. **P3.3 (= Depth B)** ✅ — introduce `transport/` layer; migrate fields +
+   sources; typed Field-on-FunctionSpace; `TimedFullField` composite.
+   Re-scoped through `.claude/plans/depth_b_field_on_function_space.md`;
+   completed via Waves D-A → D-K (Depth B fully closed 2026-05-30).
+6. **Wave T (NEW, NEXT)** — Tensor-Network Operator Algebra (T.1–T.5).
+   Rewires BC realizers, fission, scattering, and modern
+   `StreamingOperator.apply` to consume the `TensorProductOperator` /
+   `SumOfTensorProductsOperator` / `TensorProductSpace` infrastructure
+   shipped in Wave 0. Detailed plan: `.claude/plans/wave_t_tensor_network.md`.
+7. **Wave O (NEW, AFTER WAVE T)** — Operator-Role Typing
+   (`BulkOperator` / `FullOperator` / `BoundaryOperator` Protocols +
+   typed `AngularSource` / `AngularResidual`). Closes two architectural
+   asymmetries surfaced during D-H.1b (Issue #208). Lands Gate 1.3
+   (apply ↔ apply_transpose reciprocity) — currently xfail-strict.
+   Detailed plan: `.claude/plans/wave_o_operator_typing.md`.
+8. **P3.4** — Problem/Solver split. **Re-scoped per CC.7**: greenfield, no
    carve. `numerics/iteration.py` is already L1-clean; only the
    `numerics/eigenvalue.py:power_iteration` legacy retires alongside.
-7. **P3.6** — `kinetics/` restructure. PointKinetics becomes a peer of
+   Now consumes role-typed operators (`CriticalityProblem.loss:
+   FullOperator`, `CriticalityProblem.fission: BulkOperator`).
+9. **P3.6** — `kinetics/` restructure. PointKinetics becomes a peer of
    diffusion/; space-time transient = InitialValueProblem + TimeStepper.
+   Lands `DirectSumSpace` when needed for `flux ⊕ precursors`.
 
 Each step: behaviour-identical, green against the linter and the full suite
 before the next. No big-bang move.
@@ -1007,9 +1022,13 @@ action.
 
 | Phase | Named assertions |
 |---|---|
-| P1 | SH Gram = `4π/(2ℓ+1)`; quadrature Gram ≈ `MomentMassMatrix`; `R = (2ℓ+1)·S₀`; `M·R = 4π·I`; `M.H = g_C·S₀`; legacy `_build_rhs_*` inline `(2ℓ+1)` retires to single canonical source (P1.7); `assert_galerkin_idempotency` + sole caller deleted (P1.6) |
+| P1 ✅ | SH Gram = `4π/(2ℓ+1)`; quadrature Gram ≈ `MomentMassMatrix`; `R = (2ℓ+1)·S₀`; `M·R = 4π·I`; `M.H = g_C·S₀`; legacy `_build_rhs_*` inline `(2ℓ+1)` retires to single canonical source (P1.7); `assert_galerkin_idempotency` + sole caller deleted (P1.6) |
 | P2 | `dual(dual(S)) == S`; `(A@B).H == B.H@A.H`; `assert_adjoint_consistency` on tensor/sum spaces; issue #172 / #173 anchors satisfied |
-| P3 | import-linter contract holds at every commit; full suite bit-identical across each mechanical move (FP drift bounded by `iteration_count × ULP` per `vv-principles`); `power_iteration` legacy retired; kinetics restructure leaves test suite green |
+| P3.1–P3.3 ✅ | import-linter contract holds at every commit; full suite bit-identical across each mechanical move (FP drift bounded by `iteration_count × ULP` per `vv-principles`); Depth B Field-on-FunctionSpace typing lands (D-A → D-K complete) |
+| Wave T | every BC realizer factored as `K ⊗ I ⊗ I` per §16A.10; fission as rank-1 `χ ⊗ νΣ_f`; scattering as `Σ_ℓ Σ_ℓ ⊗ A_ℓ ⊗ G_ℓ` per §15.2; streaming as `L_spatial + L_angular_redist` per the connection-coefficient framing; `assert_separable` callable on every production operator factor |
+| Wave O | `BulkOperator` / `FullOperator` / `BoundaryOperator` Protocols at L1; `OperatorSum.apply` / `.H` dispatch by Protocol; **Gate 1.3 (apply ↔ apply_transpose reciprocity) flips green** across slab + sphere + cylinder + 2-D Cartesian; typed `TimedFullAngularSource` / `TimedFullAngularResidual` ship; MMS emits non-zero boundary part for non-vacuum BCs; D-H.1b implicit-zero-boundary shortcuts retire (Issue #208 closes) |
+| P3.4 | `power_iteration` legacy retired; `Problem` / `Solver` ABCs land; `CriticalityProblem.loss: FullOperator` machine-checkable type signature; `PowerIteration.solve(problem) → TransportState` |
+| P3.6 | kinetics restructure leaves test suite green; `DirectSumSpace` lands for `flux ⊕ precursors` |
 
 ---
 
