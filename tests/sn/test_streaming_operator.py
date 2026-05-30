@@ -125,31 +125,36 @@ def _sig_t_heterogeneous(sn_mesh: SNMesh, ng: int = 2) -> np.ndarray:
     return 0.3 + 0.5 * rng.random((ng, nx, ny))
 
 
-def _packed_psi(sn_mesh: SNMesh, ng: int, seed: int = 42) -> np.ndarray:
-    """Random packed-vector ψ matching :class:`StreamingOperator`'s
-    eq_map size.
-
-    PR-TYPED-6.5 Phase 3b — :class:`StreamingOperator` now uses the
-    B1'' face-aware packed layout for 1-D (cell-centres + outer-face
-    + inner-face for slab); :class:`SNStreamingOperator` retains the
-    legacy compressed layout (no face slots, curvilinear inward-at-
-    outer cell-centres BC-resolved).  ``_packed_psi`` sizes for the
-    new leaf; tests that compare against the legacy bundle need
-    their own legacy-sized random vector (or accept that B1'' fixes
-    the bug and the two layouts no longer overlap — see
-    :class:`TestCompositionEquivalence` xfail markers).
-    """
-    sig_t = _sig_t_uniform(sn_mesh, ng=ng)
-    L = StreamingOperator(sn_mesh, sig_t)
-    rng = np.random.default_rng(seed)
-    return rng.standard_normal(L.n_unknowns)
-
-
 GEOMETRIES = [
     ("slab", _slab_mesh),
     ("sphere", _spherical_mesh),
     ("cylinder", _cylindrical_mesh),
 ]
+
+
+# 1-D-only geometries — alias of ``GEOMETRIES`` (the 1-D paths are the
+# only ones the :class:`TimedFullField` branch supports natively at this
+# wave; 2-D Cartesian is exercised separately below).
+GEOMETRIES_1D = [
+    ("slab", _slab_mesh),
+    ("sphere", _spherical_mesh),
+    ("cylinder", _cylindrical_mesh),
+]
+
+
+def _random_composite(sn_mesh, seed=171):
+    """Build a TimedFullField with non-zero bulk + non-zero boundary."""
+    from dataclasses import replace
+
+    rng = np.random.default_rng(seed)
+    state = sn_mesh.zeros_timed_full_field()
+    bulk_values = rng.standard_normal(state.bulk.values.shape)
+    boundary_values = 0.1 + rng.random(state.boundary.values.shape)
+    state = replace(state, bulk=replace(state.bulk, values=bulk_values))
+    state = replace(
+        state, boundary=replace(state.boundary, values=boundary_values),
+    )
+    return state
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -218,30 +223,11 @@ class TestConstructor:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 3. apply shape correctness.
+# 3. apply shape correctness — D-I.3c (2026-05-29) retired alongside the
+#    bare-ndarray adapter.  The TimedFullField shape contract is now
+#    pinned by :class:`TestCompositeInvariants` (returns TimedFullField,
+#    bulk type, history-depth preservation, mesh identity).
 # ═══════════════════════════════════════════════════════════════════════
-
-
-class TestApplyShape:
-    """apply preserves packed-vector shape across geometries."""
-
-    @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_apply_preserves_shape(self, name, builder):
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh, ng=2)
-        L = StreamingOperator(sn_mesh, sig_t)
-        psi = _packed_psi(sn_mesh, ng=2)
-        out = L.apply(psi)
-        assert out.shape == psi.shape
-
-    @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_apply_returns_packed_vector(self, name, builder):
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh, ng=2)
-        L = StreamingOperator(sn_mesh, sig_t)
-        psi = _packed_psi(sn_mesh, ng=2)
-        out = L.apply(psi)
-        assert out.ndim == 1
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -268,31 +254,45 @@ class TestApplyShape:
 
 
 class TestLinearity:
-    """L is a linear operator on packed vectors."""
+    """L is a linear operator on :class:`TimedFullField`.
 
-    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    D-I.3c (2026-05-29) — migrated from the retiring bare-ndarray
+    calling convention to :class:`TimedFullField`.  The linearity
+    claim survives unchanged; the construction routes through
+    :meth:`SNMesh.zeros_timed_full_field` and the typed dunders
+    :meth:`TimedFullField.__add__` / :meth:`TimedFullField.__mul__`
+    propagate the linear combination to both bulk and boundary
+    members.
+    """
+
+    @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_apply_zero_returns_zero(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh, ng=2)
         L = StreamingOperator(sn_mesh, sig_t)
-        psi = _packed_psi(sn_mesh, ng=2)
-        zero = np.zeros_like(psi)
-        out = L.apply(zero)
-        np.testing.assert_allclose(out, 0.0, atol=1e-14)
+        state = sn_mesh.zeros_timed_full_field()
+        out = L.apply(state)
+        np.testing.assert_allclose(out.bulk.values, 0.0, atol=1e-14)
+        np.testing.assert_allclose(out.boundary.values, 0.0, atol=1e-14)
 
-    @pytest.mark.parametrize("name,builder", GEOMETRIES)
+    @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_apply_is_linear(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh, ng=2)
         L = StreamingOperator(sn_mesh, sig_t)
-        psi1 = _packed_psi(sn_mesh, ng=2, seed=51)
-        psi2 = _packed_psi(sn_mesh, ng=2, seed=52)
+        state1 = _random_composite(sn_mesh, seed=51)
+        state2 = _random_composite(sn_mesh, seed=52)
         alpha = 2.3
         beta = -0.7
-        out_combined = L.apply(alpha * psi1 + beta * psi2)
-        out_separate = alpha * L.apply(psi1) + beta * L.apply(psi2)
+        out_combined = L.apply(alpha * state1 + beta * state2)
+        out_separate = alpha * L.apply(state1) + beta * L.apply(state2)
         np.testing.assert_allclose(
-            out_combined, out_separate, rtol=1e-12, atol=1e-13,
+            out_combined.bulk.values, out_separate.bulk.values,
+            rtol=1e-12, atol=1e-13,
+        )
+        np.testing.assert_allclose(
+            out_combined.boundary.values, out_separate.boundary.values,
+            rtol=1e-12, atol=1e-13,
         )
 
 
@@ -347,28 +347,6 @@ class TestSumCapabilities:
 # legacy class itself retires in C5; both branches share the same
 # matvec kernel — exercising the composite branch alone is sufficient).
 # ═══════════════════════════════════════════════════════════════════════
-
-
-GEOMETRIES_1D = [
-    ("slab", _slab_mesh),
-    ("sphere", _spherical_mesh),
-    ("cylinder", _cylindrical_mesh),
-]
-
-
-def _random_composite(sn_mesh, seed=171):
-    """Build a TimedFullField with non-zero bulk + non-zero boundary."""
-    from dataclasses import replace
-
-    rng = np.random.default_rng(seed)
-    state = sn_mesh.zeros_timed_full_field()
-    bulk_values = rng.standard_normal(state.bulk.values.shape)
-    boundary_values = 0.1 + rng.random(state.boundary.values.shape)
-    state = replace(state, bulk=replace(state.bulk, values=bulk_values))
-    state = replace(
-        state, boundary=replace(state.boundary, values=boundary_values),
-    )
-    return state
 
 
 class TestCompositeInvariants:

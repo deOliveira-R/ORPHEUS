@@ -43,6 +43,7 @@ from orpheus.sn.operator import (
     solution_to_angular_flux_with_traces,
 )
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
 # Per-test V&V level markers (see individual @pytest.mark.lN decorators).
@@ -119,28 +120,55 @@ def test_b1pp_lplusc_is_full_rank(name, builder):
     Builds (L + C) via :class:`StreamingOperator` + :class:`CollisionOperator`
     on a 5-cell homogeneous 1G case.  Materialises the dense matrix by
     probing with unit basis vectors; checks rank and condition number.
+
+    D-I.3c (2026-05-29) — migrated from the bare-ndarray packed-vector
+    contract to :class:`TimedFullField`.  The unit-basis probing now
+    bridges through :meth:`TimedFullField.to_flat` /
+    :meth:`TimedFullField.from_flat` (the direct-sum flat
+    representation ``concat(bulk.ravel(), boundary.flat)``).  The
+    full-rank / condition-number claim is layout-agnostic; the typed
+    layout's flat dimension may differ from the legacy B1'' packed
+    layout but the math (matrix is invertible) is the same.
     """
     sn_mesh = builder(nx=5)
     ng = 1
     sigma_t = np.full((ng, sn_mesh.nx, 1), 0.4)
     L = StreamingOperator(sn_mesh, sigma_t)
     C = CollisionOperator(sn_mesh, sigma_t)
-    n_unknowns = L.n_unknowns
 
-    def matvec(psi: np.ndarray) -> np.ndarray:
-        return L.apply(psi) + C.apply(psi)
+    template = sn_mesh.zeros_timed_full_field()
+    n_flat = template.to_flat().size
 
-    M = np.empty((n_unknowns, n_unknowns))
-    for k in range(n_unknowns):
-        e = np.zeros(n_unknowns)
+    def matvec_flat(flat: np.ndarray) -> np.ndarray:
+        psi_typed = TimedFullField.from_flat(flat, template)
+        out_typed = L.apply(psi_typed) + C.apply(psi_typed)
+        return out_typed.to_flat()
+
+    M = np.empty((n_flat, n_flat))
+    for k in range(n_flat):
+        e = np.zeros(n_flat)
         e[k] = 1.0
-        M[:, k] = matvec(e)
+        M[:, k] = matvec_flat(e)
 
-    rank = np.linalg.matrix_rank(M)
-    cond = np.linalg.cond(M)
-    assert rank == n_unknowns, (
-        f"{name}: (L + C) matrix is rank-deficient — "
-        f"rank={rank}, n_unknowns={n_unknowns}"
+    # The typed direct-sum flat layout includes BoundaryFlux slots for
+    # inflow ordinates (face_view slots where no equation is defined —
+    # implicit-zero in the operator output).  Those rows AND columns
+    # of M are structurally zero (no equation at that slot, and that
+    # slot does not feed any equation through L or C).  Restrict the
+    # rank / conditioning check to the equation-bearing subspace by
+    # excluding all-zero rows AND columns.  The math claim
+    # ("(L+C) is full-rank on the equation subspace") is layout-agnostic.
+    nonzero_rows = np.any(M != 0, axis=1)
+    nonzero_cols = np.any(M != 0, axis=0)
+    nontrivial_idx = nonzero_rows & nonzero_cols
+    M_sub = M[np.ix_(nontrivial_idx, nontrivial_idx)]
+    n_eq = int(nontrivial_idx.sum())
+
+    rank = np.linalg.matrix_rank(M_sub)
+    cond = np.linalg.cond(M_sub)
+    assert rank == n_eq, (
+        f"{name}: (L + C) restricted matrix is rank-deficient — "
+        f"rank={rank}, n_eq={n_eq} (full flat size {n_flat})"
     )
     assert cond < 1e8, (
         f"{name}: (L + C) condition number too large — cond={cond:.3e}"
@@ -171,38 +199,53 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     Streaming cancels (WDD with flat ψ produces flat face flux);
     collision is the only surviving term in the cell-balance.  At face
     slots the WDD face residual is ``2·const − const_face_in − const_face = 0``.
+
+    D-I.3c (2026-05-29) — migrated from the bare-ndarray packed-vector
+    contract to :class:`TimedFullField`.  The packed
+    ``out[:n_cell_scalars]`` / ``out[n_cell_scalars:]`` slot split
+    becomes a typed ``out.bulk`` / ``out.boundary`` split (Pattern 4:
+    illegal-states-unrepresentable — the slot distinction is now a
+    type distinction, not an array-slicing convention).
     """
+    from dataclasses import replace
+
     sn_mesh = builder(nx=5)
     ng = 1
     sigma_t_val = 0.4
     sigma_t = np.full((ng, sn_mesh.nx, 1), sigma_t_val)
     L = StreamingOperator(sn_mesh, sigma_t)
     C = CollisionOperator(sn_mesh, sigma_t)
-    n_unknowns = L.n_unknowns
 
-    psi = np.ones(n_unknowns)
-    out = L.apply(psi) + C.apply(psi)
+    # Build flat-ψ TimedFullField: bulk = 1 everywhere AND boundary
+    # face_view = 1 at every face slot (the "ψ = const at every B1''
+    # slot" condition the docstring describes).  The face-flat buffer
+    # is filled by assigning to every face_view in turn.
+    state = sn_mesh.zeros_timed_full_field()
+    bulk_values = np.ones_like(state.bulk.values)
+    new_bulk = replace(state.bulk, values=bulk_values)
+    new_boundary = state.boundary
+    for face in new_boundary.layout.faces:
+        new_boundary.face_view(face)[:] = 1.0
+    state = replace(state, bulk=new_bulk, boundary=new_boundary)
 
-    # Decode to inspect cell vs face slots.
-    eq_map = L._ensure_eq_map(ng=ng)
-    n_cell_scalars = eq_map.n_eq * ng
+    out = L.apply(state) + C.apply(state)
 
-    # Cell slots: (L + C)·1 = σ_t · 1
+    # Cell slots: (L + C)·1.bulk = σ_t · 1.bulk
     np.testing.assert_allclose(
-        out[:n_cell_scalars], sigma_t_val, rtol=1e-12, atol=1e-13,
+        out.bulk.values, sigma_t_val, rtol=1e-12, atol=1e-13,
         err_msg=(
             f"{name}: (L + C) on flat ψ should reduce to σ_t at cell "
-            f"slots; got out_cell with max diff "
-            f"{np.max(np.abs(out[:n_cell_scalars] - sigma_t_val)):.3e}"
+            f"slots; got out.bulk with max diff "
+            f"{np.max(np.abs(out.bulk.values - sigma_t_val)):.3e}"
         ),
     )
     # Face slots: WDD residual = 0 at flat ψ.
     np.testing.assert_allclose(
-        out[n_cell_scalars:], 0.0, rtol=1e-12, atol=1e-13,
+        out.boundary.values, 0.0, rtol=1e-12, atol=1e-13,
         err_msg=(
             f"{name}: face residuals should be zero at flat ψ; "
             f"got max |face residual| = "
-            f"{np.max(np.abs(out[n_cell_scalars:])):.3e}"
+            f"{np.max(np.abs(out.boundary.values)):.3e}"
         ),
     )
 
@@ -227,39 +270,76 @@ def test_b1pp_lplusc_gmres_converges_fp_noise(name, builder):
     Drives GMRES at ``rtol=1e-12``; verifies the relative residual
     ``||(L + C)ψ − q|| / ||q|| < 1e-10``.  Any residual above that
     bound signals the B1'' algebra is internally inconsistent.
+
+    D-I.3c (2026-05-29) — migrated from the bare-ndarray packed-vector
+    contract to :class:`TimedFullField` via the direct-sum flat-bridge
+    (Pattern 7 at the producer): the matvec closure lifts the GMRES
+    iterate ``flat → TimedFullField`` via :meth:`from_flat`, applies
+    ``(L + C)`` in the typed algebra, and packs back ``TimedFullField
+    → flat`` via :meth:`to_flat` at the scipy interface boundary.
+    GMRES sees a pure flat-vector contract; the producer (the
+    operator algebra) sees the typed contract; the bridge collapses
+    at the producer side, never at the consumer side.
     """
     sn_mesh = builder(nx=10)
     ng = 1
     sigma_t = np.full((ng, sn_mesh.nx, 1), 0.4)
     L = StreamingOperator(sn_mesh, sigma_t)
     C = CollisionOperator(sn_mesh, sigma_t)
-    n_unknowns = L.n_unknowns
 
-    def matvec(psi: np.ndarray) -> np.ndarray:
-        return L.apply(psi) + C.apply(psi)
+    template = sn_mesh.zeros_timed_full_field()
+    n_flat = template.to_flat().size
+
+    def matvec(flat: np.ndarray) -> np.ndarray:
+        psi_typed = TimedFullField.from_flat(flat, template)
+        out_typed = L.apply(psi_typed) + C.apply(psi_typed)
+        return out_typed.to_flat()
+
+    # The typed flat layout has zero-row/zero-column slots for inflow
+    # ordinates on each BoundaryFlux face (no-equation slots).  Identify
+    # the equation-bearing subspace by probing every column and finding
+    # which rows AND columns are non-trivial (Pattern 7 at the producer:
+    # the equation subspace is determined ONCE up-front, then GMRES
+    # operates on the well-posed system).  Without this restriction the
+    # operator is singular on the inflow-slot null space and GMRES does
+    # not converge.
+    M_probe = np.empty((n_flat, n_flat))
+    for k in range(n_flat):
+        e = np.zeros(n_flat)
+        e[k] = 1.0
+        M_probe[:, k] = matvec(e)
+    nonzero_rows = np.any(M_probe != 0, axis=1)
+    nonzero_cols = np.any(M_probe != 0, axis=0)
+    eq_idx = np.where(nonzero_rows & nonzero_cols)[0]
+    n_eq = int(eq_idx.size)
+
+    def matvec_eq(x_eq: np.ndarray) -> np.ndarray:
+        flat = np.zeros(n_flat)
+        flat[eq_idx] = x_eq
+        return matvec(flat)[eq_idx]
 
     LO = SciLinearOperator(
-        shape=(n_unknowns, n_unknowns),
-        matvec=matvec, dtype=np.float64,
+        shape=(n_eq, n_eq),
+        matvec=matvec_eq, dtype=np.float64,
     )
 
     rng = np.random.default_rng(seed=42)
-    q = rng.standard_normal(n_unknowns)
+    q = rng.standard_normal(n_eq)
     psi, info = gmres(
         LO, q,
         rtol=1e-12,
         maxiter=2000,
-        restart=min(200, n_unknowns),
+        restart=min(200, n_eq),
     )
     assert info == 0, (
         f"{name}: GMRES did not converge — info={info}, "
-        f"n_unknowns={n_unknowns}"
+        f"n_eq={n_eq} (n_flat={n_flat})"
     )
-    r = matvec(psi) - q
+    r = matvec_eq(psi) - q
     rel_residual = float(np.linalg.norm(r) / np.linalg.norm(q))
     assert rel_residual < 1e-10, (
         f"{name}: GMRES residual too large under B1'' — "
-        f"rel_residual={rel_residual:.3e} (n_unknowns={n_unknowns})"
+        f"rel_residual={rel_residual:.3e} (n_eq={n_eq})"
     )
 
 

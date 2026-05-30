@@ -317,6 +317,25 @@ class TestSolve:
         with pytest.raises(TypeError):
             invertible.solve(np.zeros(10))
 
+    @pytest.mark.foundation
+    def test_apply_rejects_bare_ndarray(self) -> None:
+        """Negative contract: post-D-I.3d, :meth:`StreamingOperator.apply`
+        accepts only :class:`~orpheus.transport.timed_full_field.TimedFullField`.
+        A bare ``np.ndarray`` argument raises ``TypeError`` (principled
+        rejection at the method entry — the typed contract is enforced
+        before any attribute access).
+
+        D-I.3d (2026-05-29) — Lesson L18 (Pattern 7 producer-side
+        normalisation): the convention bridge collapses at the
+        producer; consumers see only the typed contract.
+        """
+        sn = _slab_mesh()
+        sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
+        L = StreamingOperator(sn, sigma_t)
+        psi_bare = np.zeros(10)
+        with pytest.raises(TypeError, match="expected TimedFullField"):
+            L.apply(psi_bare)
+
     def test_solve_rejects_mismatched_mesh(self) -> None:
         sn1 = _slab_mesh()
         sn2 = _slab_mesh()

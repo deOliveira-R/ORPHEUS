@@ -1381,12 +1381,14 @@ class StreamingOperator(LinearOperatorMixin):
 
     Notes
     -----
-    This is Phase G Step 3+4.b.i — an **additive** introduction. The
-    legacy :class:`SNStreamingOperator` (which bundles ``L + C`` under
-    a single ``Σ_t`` constructor with three capabilities) remains in
-    place; substep 3+4.c retires it after
-    :class:`~orpheus.sn.solver.SNSolver` is wired to consume the leaf
-    algebra.
+    Depth B D-I.3d (2026-05-29) — :meth:`apply` accepts ONLY
+    :class:`~orpheus.transport.timed_full_field.TimedFullField`.  The
+    bare-ndarray packed-vector adapter retired with D-I.3d (its
+    underlying :class:`EquationMap` /
+    :func:`solution_to_angular_flux*` / :func:`pack_with_traces`
+    family retires at D-J).  Producer-side normalisation (Pattern 7)
+    at the operator: the entire matvec consumes / emits the typed
+    direct-sum carrier, never the legacy packed flat layout.
     """
 
     sn_mesh: "SNMesh"
@@ -1439,265 +1441,82 @@ class StreamingOperator(LinearOperatorMixin):
         ng = int(self.sigma_t.shape[0])
         return self._ensure_eq_map(ng=ng).n_unknowns
 
-    def apply(
-        self, psi: "np.ndarray | AngularFlux | TimedFullField",
-    ) -> "np.ndarray | AngularFlux | TimedFullField":
+    def apply(self, psi: "TimedFullField") -> "TimedFullField":
         r"""Subtractive forward action :math:`L\,\psi = M(\psi;\sigma_t)
-        - \sigma_t \odot \psi`.
+        - \sigma_t \odot \psi.bulk`.
 
-        Issue #197 PR-TYPED-6c Step 5 — routes through the single
-        geometry-agnostic :func:`transport_operator_matvec_unified`
-        for 1-D slab, sphere, and cylinder.  The three legacy
-        per-geometry helpers retire fully at Step 7 once
-        :class:`SNStreamingOperator` is also retired in favour of the
-        ``(L + C)`` operator-algebra path.
+        Routes through the geometry-agnostic
+        :func:`transport_operator_matvec_unified` for 1-D slab, sphere,
+        and cylinder; through :meth:`_apply_2d_cartesian` (L2-native
+        FD kernel) for 2-D Cartesian.
 
-        PR-TYPED-6.5 Phase 3b — 1-D paths consume the B1'' face-aware
-        packed vector (cell-centre block + outer-face block + inner-
-        face block for slab) so the matvec body reads the actual face
-        flux from the packed state instead of synthesising it from the
-        cell-centre proxy at ``i = nx-1`` (curvilinear) or ``i = 0``
-        (slab).  The cylinder twin-path divergence (rel ≈ 4e-3 at
-        ``nx = 40``) gets fixed at its architectural source.
+        Resolution A — :math:`(L + C).{\rm apply}(\psi) \equiv
+        M(\psi;\sigma_t)` bit-exact: the per-cell σ_t·ψ cancellation
+        lives at the algebra layer; this leaf returns the subtractive
+        :math:`L`-only action on the typed direct-sum carrier.
 
-        R-1 Step 3d — typed :class:`AngularFlux` overload.  The Carlson
-        seed and inner-BC seed are pulled from ``psi.boundary``
-        directly (no flat-vector round-trip); the matvec returns the
-        cell action and the face residual; the result is a typed
-        :class:`AngularFlux` whose ``.boundary`` carries the B1'' face
-        residual at the outer face (and, for slab, the inner face).
-        This is the ONLY operator that emits a non-zero face residual;
-        :class:`CollisionOperator`, :class:`~orpheus.sn.scattering.ScatteringOperator`,
-        and :class:`~orpheus.sn.fission.FissionOperator` all leave the
-        output ``.boundary`` at the auto-allocated zero.
+        D-I.3d (2026-05-29) collapsed the bare-ndarray packed-vector
+        adapter (decode via ``solution_to_angular_flux*`` → wrap into
+        composite → typed matvec → encode via ``pack_with_traces``).
+        Producer-side normalisation (Pattern 7) — the operator
+        consumes / emits ONLY
+        :class:`~orpheus.transport.timed_full_field.TimedFullField`;
+        the typed↔packed boundary collapses at the producer site.
+        The :class:`EquationMap` /
+        :func:`solution_to_angular_flux*` / :func:`pack_with_traces`
+        family becomes D-J retirement target.
 
-        Depth B D-H.1b.6 — :class:`TimedFullField` composite overload.
-        Bridges through the existing legacy :class:`AngularFlux` body
-        (no kernel rewrite — Phase A territory) for 1-D paths:
-
-        1. Convert composite → legacy AngularFlux: extract
-           ``psi.bulk.values``; convert L2 :class:`BoundaryFlux` face
-           arrays → legacy ``xmin_face`` / ``xmax_face`` slots.
-        2. Apply via the existing :meth:`_apply_typed` path.
-        3. Convert legacy result → composite: wrap ``result.values``
-           into an :class:`AngularFlux`; convert legacy boundary →
-           L2 :class:`BoundaryFlux` via :meth:`from_legacy_sn`;
-           propagate input's ``history_depth``.
-
-        Unlike :class:`CollisionOperator`,
+        ``L`` is the ONLY operator that emits a non-zero face
+        residual on its output ``.boundary`` —
+        :class:`CollisionOperator`,
         :class:`~orpheus.sn.scattering.ScatteringOperator`, and
-        :class:`~orpheus.sn.fission.FissionOperator` (which all return
-        implicit-zero composite boundary), **L's composite return
-        carries the actual face residual** in its boundary member —
-        this is the algebraic value the operator-algebra
-        :math:`(L + C - S - F)\psi` needs at the trace.  2-D Cartesian
-        raises :class:`NotImplementedError` (Phase A territory; the
-        flat round-trip via :meth:`to_flat_with_traces` couples to
-        the legacy persistent buffer layout).
-
-        2-D Cartesian (``ny > 1``) remains on the legacy
-        :func:`transport_operator_matvec` (FD via
-        :func:`_compute_gradients`) — anti-diagonal wavefront sweeps
-        need a different iteration structure than
-        :meth:`SNMesh.dag_walk` and lie outside the PR-TYPED-6c scope.
-        The R-1 typed overload routes 2-D through a flat round-trip
-        via :meth:`AngularFlux.to_flat_with_traces` /
-        :meth:`AngularFlux.from_flat_with_traces` for parity with 1-D
-        (the underlying compute remains the legacy FD; Phase A absorbs
-        the 2-D path).
-
-        By Resolution A: :math:`(L + C).{\rm apply}(\psi) =
-        M(\psi;\sigma_t)` bit-exact (the ``+`` is operator addition;
-        the per-cell σ_t·ψ cancellation lives at the algebra layer,
-        not inside this leaf).
+        :class:`~orpheus.sn.fission.FissionOperator` all leave the
+        output boundary at the auto-allocated zero.
 
         Parameters
         ----------
-        psi : np.ndarray or AngularFlux or TimedFullField
-            * Bare ``np.ndarray`` — packed 1-D vector,
-              shape ``(n_unknowns,)``.
-            * :class:`~orpheus.sn.angular_flux.AngularFlux` — typed
-              flux with embedded :class:`BoundaryFlux` carrying the
-              face state at outer (and slab-inner) face.
-            * :class:`~orpheus.transport.timed_full_field.TimedFullField`
-              — composite bulk (L2 AngularFlux) + boundary (L2
-              BoundaryFlux); 1-D paths only.
+        psi : TimedFullField
+            Composite carrier with bulk
+            (:class:`~orpheus.transport.fields.angular_flux.AngularFlux`)
+            and boundary
+            (:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`).
+            Operator and ``psi.bulk.mesh`` MUST be the same
+            :class:`~orpheus.sn.geometry.SNMesh` instance.
 
         Returns
         -------
-        np.ndarray or AngularFlux or TimedFullField
-            ``L·ψ`` in the matching type.  When :class:`AngularFlux`,
-            ``.boundary.xmax_face`` carries the outer-face residual
-            and (for slab) ``.boundary.xmin_face`` carries the
-            inner-face residual.  When :class:`TimedFullField`, the
-            L2 ``boundary.values`` flat buffer carries the same face
-            residuals at their layout-assigned slots.
+        TimedFullField
+            ``L·ψ`` as a typed composite — bulk carries the cell
+            action, boundary carries the face residual at the
+            layout-assigned trace slots (non-zero at outer face for
+            curvilinear; non-zero at outer + inner faces for slab).
         """
+        from orpheus.transport.fields.angular_flux import AngularFlux
         from orpheus.transport.timed_full_field import TimedFullField
-        if isinstance(psi, TimedFullField):
-            return self._apply_timed_full_field(psi)
-        sn_mesh = self.sn_mesh
-        # PR-INDEX-3: ``sigma_t`` shape is ``(ng, nx, ny)``.
-        ng = int(self.sigma_t.shape[0])
-        eq_map = self._ensure_eq_map(ng=ng)
-        if eq_map.n_unknowns != psi.size:
-            raise ValueError(
-                f"StreamingOperator.apply: packed psi size {psi.size} "
-                f"does not match eq_map.n_unknowns {eq_map.n_unknowns} "
-                f"(ng={ng})."
-            )
-        nx, ny = sn_mesh.nx, sn_mesh.ny
-        quad = sn_mesh.quad
-        curv = getattr(sn_mesh, "curvature", None)
 
-        # 2-D Cartesian — D-H.2-C4e: wrap packed ψ → :class:`TimedFullField`,
-        # call the L2-native :meth:`_apply_timed_full_field` (which
-        # dispatches to :meth:`_apply_2d_cartesian`), repack the bulk
-        # result.  C4e retired the legacy ``transport_operator_matvec``
-        # FD kernel — ``_apply_2d_cartesian`` is now the only 2-D
-        # matvec.  ``_apply_2d_cartesian`` returns ``L·ψ`` directly
-        # (the σ_t·ψ collision term subtracts INSIDE the kernel — see
-        # operator.py L2421); no post-call subtract needed.  The 2-D
-        # packed layout has only cell unknowns (no face block), so the
-        # repack is a single slot-to-flat ravel.
-        if curv is None and ny > 1:
-            from orpheus.transport.fields.angular_flux import (
-                AngularFlux,
+        if not isinstance(psi, TimedFullField):
+            raise TypeError(
+                "StreamingOperator.apply: expected TimedFullField, got "
+                f"{type(psi).__name__}.  D-I.3d (2026-05-29) retired the "
+                "bare-ndarray packed-vector contract; construct a typed "
+                "composite via ``sn_mesh.zeros_timed_full_field()`` or "
+                "explicit ``TimedFullField(bulk=..., boundary=...)``."
             )
-            from orpheus.transport.fields.boundary_flux import (
-                BoundaryFlux,
-            )
-            from orpheus.transport.timed_full_field import TimedFullField
-            psi_cell = solution_to_angular_flux(
-                psi, eq_map, quad, nx, ny, ng,
-                bc_xmin=sn_mesh.bc_xmin,
-                bc_xmax=sn_mesh.bc_xmax,
-                bc_ymin=sn_mesh.bc_ymin,
-                bc_ymax=sn_mesh.bc_ymax,
-            )
-            composite_in = TimedFullField(
-                bulk=AngularFlux.from_mesh(psi_cell, sn_mesh),
-                boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
-                _history=(),
-                history_depth=2,
-            )
-            composite_out = self._apply_timed_full_field(composite_in)
-            m_view = composite_out.bulk.values
-            return m_view[
-                eq_map.ordinate, :, eq_map.ix, eq_map.iy,
-            ].T.ravel(order='F')
-
-        # 1-D slab / sphere / cylinder — B1'' face-aware L2-native matvec.
-        # D-H.2-C4c — the path-forward matvec consumes the L2 composite
-        # carrier.  The bare-ndarray packed path stays as an adapter
-        # that decodes packed → L2 composite, calls the path-forward
-        # matvec, encodes composite → packed.  This shim retires at
-        # G3d when the _with_traces family + EquationMap retire
-        # (the legacy bare-ndarray caller chain dies with them).
-        from orpheus.transport.fields.angular_flux import (
-            AngularFlux,
-        )
-        from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux,
-        )
-        from orpheus.transport.timed_full_field import TimedFullField
-        psi_cell, psi_face_outer, psi_face_inner = (
-            solution_to_angular_flux_with_traces(
-                psi, eq_map, nx, ng, N=quad.N,
-            )
-        )
-        # Build an L2 composite from the packed sub-arrays.  Pre-allocate
-        # zero-filled L2 face buffers; populate only the eq_map's outflow
-        # ordinate slots from the packed face arrays.  Inflow slots stay
-        # at zero (the correct "no equation here" value).
-        boundary_in = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
-        if eq_map.n_face_outer > 0:
-            boundary_in.face_view("xmax")[eq_map.face_outer_ordinate, :] = (
-                psi_face_outer
-            )
-        if eq_map.n_face_inner > 0 and "xmin" in boundary_in.layout.faces:
-            boundary_in.face_view("xmin")[eq_map.face_inner_ordinate, :] = (
-                psi_face_inner
-            )
-        composite_in = TimedFullField(
-            bulk=AngularFlux.from_mesh(psi_cell, sn_mesh),
-            boundary=boundary_in,
-            _history=(),
-            history_depth=2,
-        )
-        result = transport_operator_matvec_unified(composite_in, self.sigma_t)
-        m_cell = result.bulk.values
-        # Gather face residuals back to packed sub-arrays at the eq_map
-        # slot positions (the legacy packed layout's contract).
-        m_face_outer = (
-            result.boundary.face_view("xmax")[eq_map.face_outer_ordinate, :]
-            if eq_map.n_face_outer > 0
-            else None
-        )
-        m_face_inner = (
-            result.boundary.face_view("xmin")[eq_map.face_inner_ordinate, :]
-            if eq_map.n_face_inner > 0
-            and "xmin" in result.boundary.layout.faces
-            else None
-        )
-        # Pack matvec output into the B1'' packed layout.
-        m_full = pack_with_traces(m_cell, m_face_outer, m_face_inner, eq_map)
-
-        # Subtract σ_t ⊙ ψ at the CELL-CENTRE slots ONLY.  Face slots
-        # carry no volumetric collision (the cell-balance σ·ψ term is
-        # a CELL quantity; the face residual ``m_face_*`` is a TRACE
-        # equation).  Resolution A's subtractive form thus zeros out
-        # at face slots: ``L·ψ_face = M·ψ_face − 0 = m_face_*``.
-        n_cell_scalars = eq_map.n_eq * ng
-        sigma_packed_cell = self.sigma_t[
-            :, eq_map.ix, eq_map.iy
-        ].ravel(order='F')
-        m_full[:n_cell_scalars] = (
-            m_full[:n_cell_scalars] - sigma_packed_cell * psi[:n_cell_scalars]
-        )
-        return m_full
-
-    def _apply_timed_full_field(
-        self, psi: "TimedFullField",
-    ) -> "TimedFullField":
-        r"""Composite :class:`TimedFullField` body of :meth:`apply`.
-
-        D-H.2-C4c — 1-D paths (slab + spherical + cylindrical) call
-        :func:`transport_operator_matvec_unified` natively (no legacy
-        AngularFlux round-trip).  2-D Cartesian still routes through
-        the legacy ``_apply_typed`` flat round-trip via the L2 →
-        legacy adapter ``psi.to_legacy_angular_flux()`` — the legacy
-        ``transport_operator_matvec`` (FD) kernel rewrites L2-native
-        in D-H.2-C4d.
-
-        Returns a :class:`TimedFullField` whose bulk carries
-        :math:`L\psi.bulk` and whose boundary carries the matvec's
-        face residuals at the layout-assigned slots.
-        """
-        from orpheus.transport.fields.angular_flux import (
-            AngularFlux,
-        )
-        from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux,
-        )
-        from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = self.sn_mesh
         if sn_mesh is not psi.bulk.mesh:
             raise ValueError(
-                "StreamingOperator.apply(TimedFullField): operator and "
-                "composite must share the SAME SNMesh instance "
-                "(mesh-identity invariant)."
+                "StreamingOperator.apply: operator and composite must "
+                "share the SAME SNMesh instance (mesh-identity invariant)."
             )
+
         curv = getattr(sn_mesh, "curvature", None)
-        ny = sn_mesh.ny
-        if curv is None and ny > 1:
+        if curv is None and sn_mesh.ny > 1:
             # 2-D Cartesian — D-H.2-C4d L2-native FD kernel.
             return self._apply_2d_cartesian(psi)
 
-        # 1-D — L2-native kernel call (no legacy round-trip).
+        # 1-D slab / sphere / cylinder — geometry-agnostic matvec.
         result = transport_operator_matvec_unified(psi, self.sigma_t)
-
         # Subtract σ_t ⊙ ψ.bulk at the CELL-CENTRE — face residuals
         # carry no volumetric collision (the cell-balance σ·ψ term is
         # a CELL quantity; the boundary residual is a TRACE equation).
