@@ -1259,6 +1259,108 @@ class TestPerLegendreOrderKernel:
         summand_out = sum(s.apply(psi_values) for s in op.kernel_summands)
         np.testing.assert_array_equal(kernel_out, summand_out)
 
+    def _load_snapshot(self):
+        from pathlib import Path
+
+        snapshot_path = (
+            Path(__file__).parent
+            / "_fixtures" / "wave_t_t3" / "pre_t3_snapshots.npz"
+        )
+        return np.load(snapshot_path)
+
+    def _reproduce_psi(self, solver, seed: int):
+        """Mirror `_capture_pre_t3_snapshots.py::_make_psi`."""
+        from orpheus.transport.fields.angular_flux import AngularFlux
+
+        N = solver.quad.N
+        ng = solver.ng
+        nx, ny = solver.sn_mesh.nx, solver.sn_mesh.ny
+        rng = np.random.default_rng(seed)
+        psi_values = rng.uniform(0.05, 1.0, size=(N, ng, nx, ny))
+        return AngularFlux.from_mesh(psi_values, solver.sn_mesh)
+
+    def _reproduce_phi(self, solver, seed: int):
+        """Mirror `_capture_pre_t3_snapshots.py::_make_phi`."""
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
+
+        ng = solver.ng
+        nx, ny = solver.sn_mesh.nx, solver.sn_mesh.ny
+        rng = np.random.default_rng(seed)
+        phi_values = rng.uniform(0.05, 1.0, size=(ng, nx, ny))
+        return ScalarFlux.from_mesh(phi_values, solver.sn_mesh)
+
+    def test_apply_angular_flux_bit_identical_to_pre_t3_snapshot(
+        self, op_p1, solver_2g_p1_n2n,
+    ):
+        """L1-1 per spec §3 — `apply(AngularFlux)` per-ordinate output
+        matches the pre-T.3 captured snapshot within
+        `nulp ≤ 4·scattering_order`.
+
+        Post-T.3c the AngularFlux arm inherits the kernel-routed
+        numerics via its call to `build_aniso_source`.  P0 + (n,2n)
+        contribution is bit-identical (unchanged code path).  The
+        per-ℓ aniso contribution may drift by `(L+1) × ULP` per the
+        principled-equivalence three-criteria gate; the
+        `(iso/sum_w + aniso)` combination at the apply boundary
+        preserves the drift bound.
+        """
+        psi = self._reproduce_psi(solver_2g_p1_n2n, seed=20260530)
+        out_post_t3 = op_p1.apply(psi).values
+        expected = self._load_snapshot()["p1_apply_angular_flux"]
+        nulp_bound = max(4, 4 * op_p1.scattering_order)
+        np.testing.assert_array_almost_equal_nulp(
+            out_post_t3, expected, nulp=nulp_bound,
+        )
+
+    def test_apply_scalar_flux_bit_identical_to_pre_t3_snapshot(
+        self, op_p1, solver_2g_p1_n2n,
+    ):
+        """L1-2 per spec §3 — `apply(ScalarFlux)` iso scalar output
+        matches the pre-T.3 captured snapshot **bit-identically**.
+
+        The ScalarFlux arm is P0 + (n,2n) only — it does NOT call
+        `build_aniso_source` and therefore NOT the kernel.  T.3
+        leaves this path untouched; `np.array_equal` is the
+        appropriate gate (no FP reduction reorder).
+        """
+        phi = self._reproduce_phi(solver_2g_p1_n2n, seed=20260530 + 1)
+        out_post_t3 = op_p1.apply(phi).values
+        expected = self._load_snapshot()["p1_apply_scalar_flux"]
+        np.testing.assert_array_equal(out_post_t3, expected)
+
+    def test_apply_timed_full_field_bit_identical_to_pre_t3_snapshot(
+        self, op_p1, solver_2g_p1_n2n,
+    ):
+        """L1-3 per spec §3 — `apply(TimedFullField)` bulk + boundary
+        output matches the pre-T.3 captured snapshot.
+
+        Bulk: nulp ≤ 4·order (inherits from AngularFlux-style
+        kernel-routed numerics).  Boundary: bit-identical (the
+        implicit-zero BoundaryFlux from Option β3 is unchanged
+        across T.3).
+        """
+        from dataclasses import replace
+
+        psi = self._reproduce_psi(solver_2g_p1_n2n, seed=20260530)
+        state = solver_2g_p1_n2n.sn_mesh.zeros_timed_full_field()
+        state = replace(state, bulk=replace(state.bulk, values=psi.values))
+
+        out_post_t3 = op_p1.apply(state)
+        snapshots = self._load_snapshot()
+
+        # Bulk: principled-equivalence relaxation.
+        nulp_bound = max(4, 4 * op_p1.scattering_order)
+        np.testing.assert_array_almost_equal_nulp(
+            out_post_t3.bulk.values,
+            snapshots["p1_apply_timed_full_field_bulk"],
+            nulp=nulp_bound,
+        )
+        # Boundary: bit-identical (implicit zero, untouched by T.3).
+        np.testing.assert_array_equal(
+            out_post_t3.boundary.values,
+            snapshots["p1_apply_timed_full_field_boundary"],
+        )
+
     def test_build_aniso_source_bit_identical_to_pre_t3_snapshot(
         self, op_p1, solver_2g_p1_n2n,
     ):
@@ -1308,6 +1410,81 @@ class TestPerLegendreOrderKernel:
         np.testing.assert_array_almost_equal_nulp(
             out_post_t3, expected, nulp=nulp_bound,
         )
+
+    def test_per_material_einsum_invariance_p1(self, op_p1, solver_2g_p1_n2n):
+        """L6-1 per spec §3 — `MaterialXSField.apply_legendre_scattering_moments`
+        output is bit-identical at P=1 to the pre-T.3 snapshot.
+
+        T.3 does NOT touch `material_xs_field.py:515-572` — this test
+        defends against an unintentional modernisation while in the
+        file.  The per-material per-ℓ einsum is the leaf primitive;
+        no FP reduction reorder; `np.array_equal` is the appropriate
+        gate.
+        """
+        from orpheus.numerics.projection import MomentProjection
+        from orpheus.transport.fields.angular_flux import AngularFlux
+
+        # Reproduce the snapshot script's psi (seed=20260530).
+        psi_p1 = self._reproduce_psi(solver_2g_p1_n2n, seed=20260530)
+        L = 1
+        Y = op_p1.Y
+        M = MomentProjection(weights=op_p1.weights, Y=Y, L=L)
+        moments_values = M.apply(psi_p1.values)
+
+        # apply_legendre_scattering_moments inline (mirror snapshot
+        # capture script).  skip_l0=False → full block coverage.
+        out = op_p1.mat_xs.apply_legendre_scattering_moments(
+            moments_values, L=L, skip_l0=False,
+        )
+        expected = self._load_snapshot()["p1_apply_legendre_scattering_moments"]
+        np.testing.assert_array_equal(out, expected)
+
+    def test_per_material_einsum_invariance_p3(self):
+        """L6-2 per spec §3 — same as L6-1 but at P=3, exercising the
+        higher-order ℓ loop body.
+
+        Builds an independent P3 solver (mirroring
+        `_capture_pre_t3_snapshots.py::build_p3_solver`) to reach the
+        captured snapshot.
+        """
+        from orpheus.numerics.projection import MomentProjection
+        from orpheus.transport.fields.angular_flux import AngularFlux
+        from scipy.sparse import csr_matrix
+
+        p0 = np.array([[0.38, 0.10], [0.05, 0.90]])
+        p1 = np.array([[0.02, 0.01], [0.00, 0.04]])
+        p2 = np.array([[0.005, 0.002], [0.000, 0.010]])
+        p3 = np.array([[0.001, 0.0005], [0.000, 0.002]])
+        mix = make_mixture(
+            sig_t=np.array([0.5, 1.0]),
+            sig_c=np.array([0.01, 0.02]),
+            sig_f=np.array([0.01, 0.08]),
+            nu=np.array([2.5, 2.5]),
+            chi=np.array([1.0, 0.0]),
+            sig_s=p0,
+        )
+        mix.SigS = [csr_matrix(p0), csr_matrix(p1), csr_matrix(p2), csr_matrix(p3)]
+        mix.Sig2 = csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))
+
+        nx, ny = 3, 2
+        mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
+        quad = Quadrature.lebedev(order=17)
+        solver_p3 = SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=3)
+        op_p3 = solver_p3.scattering_op
+
+        rng = np.random.default_rng(20260530 + 2)
+        psi_p3 = AngularFlux.from_mesh(
+            rng.uniform(0.05, 1.0, size=(quad.N, 2, nx, ny)), solver_p3.sn_mesh,
+        )
+        L = 3
+        Y = op_p3.Y
+        M = MomentProjection(weights=op_p3.weights, Y=Y, L=L)
+        moments_values = M.apply(psi_p3.values)
+        out = op_p3.mat_xs.apply_legendre_scattering_moments(
+            moments_values, L=L, skip_l0=False,
+        )
+        expected = self._load_snapshot()["p3_apply_legendre_scattering_moments"]
+        np.testing.assert_array_equal(out, expected)
 
     def test_kernel_apply_matches_build_aniso_source_pre_w(self, op_p1, solver_2g_p1_n2n):
         """L1-4 (T.3b variant): `kernel.apply(psi.values)` matches
