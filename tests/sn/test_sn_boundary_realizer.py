@@ -112,15 +112,27 @@ class TestRealizeVacuum:
             realizer.realize(VacuumBoundaryOperator(), space)
         assert excinfo.value.law == "vacuum"
 
-    def test_returned_op_type_is_incoming_ordinate_mask(self):
-        """The vacuum dispatch returns an :class:`IncomingOrdinateMaskTensor`."""
+    def test_vacuum_returns_tensor_product(self):
+        """The vacuum dispatch returns a 2-factor :class:`TensorProductOperator`
+        ``(IncomingOrdinateMaskTensor, IdentityOperator)``.
+
+        Wave T step T.1 (2026-05-30): vacuum BC lifted from a bare
+        single-axis :class:`IncomingOrdinateMaskTensor` to the 2-factor
+        TP shape introduced by D-B+1 for specular reflection.  The
+        first factor still does the inflow-zeroing on the angular axis;
+        the second :class:`IdentityOperator` makes the trailing-axis
+        broadcast type-visible.
+        """
         quad = Quadrature.gauss_legendre(8)
         inflow_indices = np.flatnonzero(quad.mu_x > 0)
         space = SNMethodSpace(
             quadrature=quad, face="left", inflow_indices=inflow_indices,
         )
         op = SNBoundaryRealizer().realize(VacuumBoundaryOperator(), space)
-        assert isinstance(op, IncomingOrdinateMaskTensor)
+        assert isinstance(op, TensorProductOperator)
+        assert len(op.ops) == 2
+        assert isinstance(op.ops[0], IncomingOrdinateMaskTensor)
+        assert isinstance(op.ops[1], IdentityOperator)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -244,12 +256,37 @@ class TestRealizeWhite:
         psi = rng.uniform(0.0, 2.0, size=(quad.N, 5, 3))
         np.testing.assert_array_equal(op.apply(psi), ref.apply(psi))
 
-    def test_white_unit_albedo_returns_bare_angular_average(self):
-        """At α=1 the dispatch returns the bare AngularAverageOperator."""
+    def test_white_unit_albedo_returns_tensor_product(self):
+        """At α=1 the dispatch returns a 2-factor
+        :class:`TensorProductOperator` ``(AngularAverageOperator, IdentityOperator)``.
+
+        Wave T step T.1 (2026-05-30): white BC lifted from a bare
+        :class:`AngularAverageOperator` to the 2-factor TP shape
+        introduced by D-B+1 for specular reflection.  The TP fold
+        reduces to the bare ``AngularAverageOperator.apply`` (the
+        :class:`IdentityOperator` factor returns ``x`` unchanged), so
+        bit-identity at the apply level is preserved.
+        """
         quad = Quadrature.lebedev(17)
         bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
-        assert isinstance(op, AngularAverageOperator)
+        assert isinstance(op, TensorProductOperator)
+        assert len(op.ops) == 2
+        assert isinstance(op.ops[0], AngularAverageOperator)
+        assert isinstance(op.ops[1], IdentityOperator)
+
+    def test_white_partial_albedo_returns_scaled_tensor_product(self):
+        """At α≠1 the dispatch returns ``ScaledOperator(α, TP)`` where
+        TP is the 2-factor :class:`TensorProductOperator`."""
+        quad = Quadrature.lebedev(17)
+        bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=0.3)
+        op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
+        assert isinstance(op, ScaledOperator)
+        assert op.scalar == 0.3
+        assert isinstance(op.op, TensorProductOperator)
+        assert len(op.op.ops) == 2
+        assert isinstance(op.op.ops[0], AngularAverageOperator)
+        assert isinstance(op.op.ops[1], IdentityOperator)
 
     def test_white_partial_albedo_matches_albedo_times_angular_average(self):
         """At α=0.3 the realized op output equals
@@ -315,14 +352,26 @@ class TestRealizeAlbedo:
         psi = np.arange(quad.N * 4, dtype=float).reshape(quad.N, 4)
         np.testing.assert_array_equal(op.apply(psi), psi)
 
-    def test_albedo_half_realizes_to_scaled_identity(self):
+    def test_albedo_half_realizes_to_scaled_tensor_product(self):
+        """At α=0.5 the dispatch returns
+        ``ScaledOperator(0.5, IdentityOperator() & IdentityOperator())``.
+
+        Wave T step T.1 (2026-05-30): the inner identity lifts to a
+        2-factor TP (I & I), making the §16A.10 algebra type-visible
+        while the apply remains a no-op (both factors return ``x``
+        unchanged; the ``ScaledOperator`` wrapper supplies the α
+        multiplication).
+        """
         quad = Quadrature.gauss_legendre(8)
         op = SNBoundaryRealizer().realize(
             AlbedoBoundaryOperator(0.5), SNMethodSpace.minimal(quad),
         )
         assert isinstance(op, ScaledOperator)
         assert op.scalar == 0.5
-        assert isinstance(op.op, IdentityOperator)
+        assert isinstance(op.op, TensorProductOperator)
+        assert len(op.op.ops) == 2
+        assert isinstance(op.op.ops[0], IdentityOperator)
+        assert isinstance(op.op.ops[1], IdentityOperator)
         psi = np.arange(quad.N * 4, dtype=float).reshape(quad.N, 4)
         np.testing.assert_array_equal(op.apply(psi), 0.5 * psi)
 
@@ -336,18 +385,28 @@ class TestRealizeAlbedo:
 class TestRealizePeriodic:
     """Periodic realizes to :class:`PeriodicWrapOperator`."""
 
-    def test_periodic_realizes_to_wrap_and_passes_through(self):
+    def test_periodic_returns_tensor_product_and_passes_through(self):
+        """Periodic realizes to a 2-factor :class:`TensorProductOperator`
+        ``(PeriodicWrapOperator, IdentityOperator)`` whose apply passes
+        through values unchanged.
+
+        Wave T step T.1 (2026-05-30): the bare
+        :class:`PeriodicWrapOperator` (identity-with-copy body) is now
+        lifted to a 2-factor TP, mirroring the D-B+1 specular pattern.
+        Compare values, NOT identity: the TP fold returns a copy from
+        the first factor and the :class:`IdentityOperator` second
+        factor returns it unchanged.
+        """
         quad = Quadrature.lebedev(17)
         op = SNBoundaryRealizer().realize(
             PeriodicBoundaryOperator(), SNMethodSpace.minimal(quad),
         )
-        assert isinstance(op, PeriodicWrapOperator)
+        assert isinstance(op, TensorProductOperator)
+        assert len(op.ops) == 2
+        assert isinstance(op.ops[0], PeriodicWrapOperator)
+        assert isinstance(op.ops[1], IdentityOperator)
         rng = np.random.default_rng(3)
         psi = rng.uniform(-1.0, 1.0, size=(quad.N, 5))
-        # The Wave-0 PeriodicWrapOperator returns the input by
-        # reference (zero-cost angular pass-through); legacy
-        # PeriodicBoundaryOperator returned a copy.  Compare values,
-        # NOT identity.
         np.testing.assert_array_equal(op.apply(psi), psi)
 
 

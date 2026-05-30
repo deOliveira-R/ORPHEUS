@@ -141,10 +141,21 @@ class SNBoundaryRealizer:
                     "inflow_indices=...).",
                     law="vacuum",
                 )
-            return IncomingOrdinateMaskTensor(
-                inflow_indices=method_space.inflow_indices,
-                n_ordinates=quad.N,
-                axis=0,
+            # Wave T step T.1 — vacuum BC lift to 2-factor
+            # TensorProductOperator, mirroring the D-B+1 specular pattern.
+            # IncomingOrdinateMaskTensor acts on the ordinate axis
+            # (axis=0); trailing axes (group, spatial / face) broadcast
+            # through the IdentityOperator factor.  The TP fold reduces
+            # to the bare mask's ``apply`` (IdentityOperator.apply
+            # returns ``x`` unchanged), so bit-identity with the pre-T.1
+            # single-axis form is preserved.
+            return (
+                IncomingOrdinateMaskTensor(
+                    inflow_indices=method_space.inflow_indices,
+                    n_ordinates=quad.N,
+                    axis=0,
+                )
+                & IdentityOperator()
             )
 
         if isinstance(law, SpecularBoundaryOperator):
@@ -173,8 +184,17 @@ class SNBoundaryRealizer:
             return ScaledOperator(float(law.albedo), base)
 
         if isinstance(law, WhiteBoundaryOperator):
-            base = AngularAverageOperator.from_quadrature(
-                quad, law.axis, law.outward_sign,
+            # Wave T step T.1 — white BC lift to 2-factor
+            # TensorProductOperator, mirroring D-B+1.
+            # ``AngularAverageOperator`` acts on the ordinate axis (axis 0);
+            # IdentityOperator broadcasts on trailing axes (group,
+            # spatial / face).  Bit-identity preserved because
+            # IdentityOperator.apply returns x unchanged.
+            base = (
+                AngularAverageOperator.from_quadrature(
+                    quad, law.axis, law.outward_sign,
+                )
+                & IdentityOperator()
             )
             if law.albedo == 1.0:
                 return base
@@ -185,10 +205,28 @@ class SNBoundaryRealizer:
                 return ZeroOperator()
             if law.albedo == 1.0:
                 return IdentityOperator()
-            return ScaledOperator(float(law.albedo), IdentityOperator())
+            # Wave T step T.1 — albedo BC lift.  For α ∉ {0,1} the
+            # action is uniform attenuation across all axes; lifting
+            # the inner identity to a 2-factor TP (I & I) makes the
+            # §16A.10 algebra type-visible while remaining a no-op at
+            # the apply level (both IdentityOperator factors return
+            # ``x`` unchanged; the ``ScaledOperator`` wrapper supplies
+            # the α multiplication).
+            return ScaledOperator(
+                float(law.albedo),
+                IdentityOperator() & IdentityOperator(),
+            )
 
         if isinstance(law, PeriodicBoundaryOperator):
-            return PeriodicWrapOperator()
+            # Wave T step T.1 — periodic BC lift to 2-factor
+            # TensorProductOperator.  The current PeriodicWrapOperator
+            # body is identity-with-copy (the SN sweep handles the
+            # spatial wrap via its face-pair indexing); the TP wrap
+            # makes the §16A.10 algebra type-visible without changing
+            # the matvec output.  When PeriodicWrapOperator gains a
+            # non-trivial spatial-pushforward (follow-up issue), the
+            # second factor will carry that structure.
+            return PeriodicWrapOperator() & IdentityOperator()
 
         if isinstance(law, PrescribedInflow):
             # Wave-7 addition: rank-0 affine source. The operator's
