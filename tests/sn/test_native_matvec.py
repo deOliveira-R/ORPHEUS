@@ -44,7 +44,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import _transport_operator_matvec_unified
+from tests.sn._test_helpers import _LC_matvec
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -134,7 +134,7 @@ class TestZeroInputZeroOutput:
     def test_zero_input_zero_output(self, name, builder) -> None:
         sn_mesh = builder()
         sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 2.0)
-        result = _transport_operator_matvec_unified(
+        result = _LC_matvec(
             _zero_flux(sn_mesh), sigma_t,
         )
         np.testing.assert_array_equal(
@@ -178,7 +178,7 @@ class TestUniformFluxSigmaT:
         ng = sn_mesh.ng
         sigma_t_val = 2.0
         sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), sigma_t_val)
-        result = _transport_operator_matvec_unified(
+        result = _LC_matvec(
             _uniform_flux(sn_mesh, value=1.0), sigma_t,
         )
         # Per-ordinate cell action: (L+C)·1 = σ_t·1 = 2.0.  Flat-flux
@@ -278,11 +278,11 @@ class TestLinearity:
                 alpha * psi.boundary.face_view("xmin")
                 + beta * phi.boundary.face_view("xmin")
             )
-        m_sum = _transport_operator_matvec_unified(sum_psi, sigma_t)
+        m_sum = _LC_matvec(sum_psi, sigma_t)
 
         # αM(ψ) + βM(φ)
-        m_psi = _transport_operator_matvec_unified(psi, sigma_t)
-        m_phi = _transport_operator_matvec_unified(phi, sigma_t)
+        m_psi = _LC_matvec(psi, sigma_t)
+        m_phi = _LC_matvec(phi, sigma_t)
 
         np.testing.assert_allclose(
             m_sum.bulk.values,
@@ -309,7 +309,7 @@ class TestOutputShape:
     def test_output_shape_matches_input(self, name, builder) -> None:
         sn_mesh = builder()
         sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
-        result = _transport_operator_matvec_unified(
+        result = _LC_matvec(
             _zero_flux(sn_mesh), sigma_t,
         )
         # Composite carrier; bulk is L2 AngularFlux.
@@ -369,7 +369,7 @@ class TestFaceResidualMask:
                 (sn_mesh.quad.N, ng),
             )
 
-        result = _transport_operator_matvec_unified(psi, sigma_t)
+        result = _LC_matvec(psi, sigma_t)
 
         mu_x = sn_mesh.quad.mu_x
         eps = 1e-15
@@ -404,7 +404,7 @@ class TestFaceResidualMask:
             (sn_mesh.quad.N, ng),
         )
 
-        result = _transport_operator_matvec_unified(psi, sigma_t)
+        result = _LC_matvec(psi, sigma_t)
 
         mu_x = sn_mesh.quad.mu_x
         eps = 1e-15
@@ -436,9 +436,17 @@ class TestTwoDCartesianRaises:
     Phase A.  Failure here would mean a silent 2-D regression.
     """
 
-    def test_two_d_cartesian_raises_not_implemented(self) -> None:
+    def test_two_d_cartesian_routes_through_apply_2d_cartesian(self) -> None:
+        """Wave T post-T.5 matvec retirement: the legacy 2-D guard
+        in ``_transport_operator_matvec_unified`` (which raised
+        ``NotImplementedError``) is GONE; 2-D Cartesian routes through
+        :meth:`StreamingOperator._apply_2d_cartesian` instead, which
+        successfully computes the matvec.  The new contract: 2-D
+        Cartesian (L+C).apply returns a valid TimedFullField result
+        (no exception)."""
         from orpheus.geometry.mesh import Mesh2D
-        # Need ny > 1 for the 2-D guard to fire.
+        from orpheus.transport.timed_full_field import TimedFullField
+        # Need ny > 1 for the 2-D path to fire.
         mesh = Mesh2D(
             edges_x=np.array([0.0, 1.0, 2.0]),
             edges_y=np.array([0.0, 1.0, 2.0]),
@@ -451,8 +459,12 @@ class TestTwoDCartesianRaises:
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
         psi = sn_mesh.zeros_timed_full_field()
-        with pytest.raises(NotImplementedError, match="2-D Cartesian"):
-            _transport_operator_matvec_unified(psi, sigma_t)
+        result = _LC_matvec(psi, sigma_t)
+        assert isinstance(result, TimedFullField)
+        # On zero input the matvec is zero (linearity sentinel).
+        np.testing.assert_array_equal(
+            result.bulk.values, np.zeros_like(result.bulk.values),
+        )
 
 
 # ── Sentinel: rejects non-AngularFlux input ─────────────────────────
@@ -465,8 +477,18 @@ class TestTypeContract:
     bulk-only AngularFlux to the L2 composite carrier."""
 
     def test_rejects_bare_ndarray(self) -> None:
+        """The (L+C).apply operator-algebra path rejects bare ndarrays
+        via `StreamingOperator.apply`'s TimedFullField type check
+        (post-D-I.3d).  Wave T post-T.5 (matvec retirement) routes
+        the check through the public operator-algebra surface."""
+        from orpheus.sn.operator import (
+            CollisionOperator,
+            StreamingOperator,
+        )
         sn_mesh = _slab_mesh()
         sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
         psi_bare = np.zeros((sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny))
+        L_op = StreamingOperator(sn_mesh, sigma_t)
+        C_op = CollisionOperator(sn_mesh, sigma_t)
         with pytest.raises(TypeError, match="TimedFullField"):
-            _transport_operator_matvec_unified(psi_bare, sigma_t)
+            (L_op + C_op).apply(psi_bare)

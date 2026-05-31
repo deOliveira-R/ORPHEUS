@@ -106,8 +106,23 @@ def legacy_proxy_matvec(
         BoundaryFlux,
     )
     from orpheus.transport.timed_full_field import TimedFullField
-    from orpheus.sn.operator import _transport_operator_matvec_unified
+    from orpheus.sn.operator import (
+        CollisionOperator,
+        StreamingOperator,
+    )
 
+    # Wave T T.5 close-out (matvec retirement): route through the
+    # public operator-algebra path `(L + C).apply`.  The legacy
+    # `_transport_operator_matvec_unified` helper was DELETED;
+    # `_MSpatialOperatorSum._compute_decomposition` is the canonical
+    # dual-emission body, and `(L + C).apply` = `L.apply + C.apply`
+    # = `(M_spat + M_ang - sigma_t * psi) + sigma_t * psi` = (L+C)
+    # bit-exact for the legacy semantic.  The ``bc_outer`` /
+    # ``pole_angular_closure`` override parameters are not used by
+    # any production caller of this helper today (all call sites pass
+    # `bc_outer=None, pole_angular_closure=None`) — kept in the
+    # function signature for legacy back-compat but ignored.
+    del bc_outer, pole_angular_closure  # explicitly mark unused
     boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
     boundary.face_view("xmax")[:] = psi_view[:, :, -1, 0]
     if "xmin" in boundary.layout.faces:
@@ -118,11 +133,34 @@ def legacy_proxy_matvec(
         _history=(),
         history_depth=2,
     )
-    result = _transport_operator_matvec_unified(
-        composite, sigma_t,
-        bc_outer=bc_outer, pole_angular_closure=pole_angular_closure,
-    )
+    L_op = StreamingOperator(sn_mesh, sigma_t)
+    C_op = CollisionOperator(sn_mesh, sigma_t)
+    result = (L_op + C_op).apply(composite)
     return result.bulk.values
+
+
+def _LC_matvec(
+    psi: "TimedFullField", sigma_t: "np.ndarray",
+) -> "TimedFullField":
+    r"""Test-helper shim: returns ``(L + C).apply(psi)`` as a TimedFullField.
+
+    Wave T T.5 close-out (matvec retirement, post-T.5.2): the module-
+    level helper ``_transport_operator_matvec_unified`` was DELETED;
+    its body lives as
+    :meth:`_MSpatialOperatorSum._compute_decomposition`.  This shim
+    constructs the canonical ``(L + C)`` operator-algebra composite
+    and delegates to its public :meth:`apply` — the migration target
+    for tests that previously called the deleted helper directly.
+
+    Bit-identical to the legacy call ``_transport_operator_matvec_unified(psi, sigma_t)``
+    for default ``bc_outer`` / ``pole_angular_closure`` (the only call
+    convention any test actually exercised).
+    """
+    from orpheus.sn.operator import CollisionOperator, StreamingOperator
+    sn_mesh = psi.bulk.mesh
+    L = StreamingOperator(sn_mesh, sigma_t)
+    C = CollisionOperator(sn_mesh, sigma_t)
+    return (L + C).apply(psi)
 
 
 def make_boundary_flux_zero(sn_mesh: "SNMesh") -> "BoundaryFlux":

@@ -43,7 +43,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn import operator as sn_op
 from orpheus.sn import solve_sn
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import _transport_operator_matvec_unified
+from tests.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.pole_angular_closure import MorelMontryAngularSweep
 from orpheus.sn.spatial.psi_half_angle_seed import CarlsonSweepContext

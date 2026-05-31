@@ -19,9 +19,13 @@ boundary = :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`).
 Producer-side normalisation (Pattern 7): the typed contract is
 enforced at every operator entry; no bare-ndarray packed-vector
 adapter.  The geometry-agnostic kernel is
-:func:`_transport_operator_matvec_unified` (1-D slab / sphere /
-cylinder) plus :meth:`StreamingOperator._apply_2d_cartesian` (2-D
-Cartesian FD).
+:meth:`_MSpatialOperatorSum._compute_decomposition` (1-D slab /
+sphere / cylinder; dual-emission body that produces both
+``M_spatial`` and ``M_angular_redist`` contributions in one
+bidirectional sweep) plus :meth:`StreamingOperator._apply_2d_cartesian`
+(2-D Cartesian FD).  Wave T T.5 close-out retired the module-level
+``_transport_operator_matvec_unified`` helper — its body lives as
+the orchestrator's private dual-emission method.
 
 Three geometries are supported:
 
@@ -114,14 +118,16 @@ __all__ = [
     "CollisionOperator",
     "AngularRedistributionOperator",
 ]
-# T.5 Wave-T close-out: `_transport_operator_matvec_unified` is NOT
-# exported — it became `sn`-module-internal infrastructure post-T.4
-# (consumed by `_MSpatialOperatorSum.apply`,
-# `_SpatialSweepDirection.apply`'s slow standalone path, and the
-# curvilinear shortcut in `StreamingOperator.apply`).  External
-# consumers should call the public operator-algebra path
-# `(L + C).apply(state)` instead of the bare function.  See
-# `.claude/plans/wave_t_tensor_network.md` §6 T.5.
+# Wave T T.5 close-out (matvec retirement, post-T.5.2):
+# `_transport_operator_matvec_unified` is DELETED — its body lives
+# as `_MSpatialOperatorSum._compute_decomposition`, a private method
+# on the orchestrator that emits BOTH M_spatial and M_angular_redist
+# contributions in ONE bidirectional sweep (dual emission).  The
+# ψ-keyed cache lets `M_angular_redist.apply` reuse the spatial
+# walk state at zero cost when `StreamingOperator.apply` calls
+# both consumers within the same call boundary.  External consumers
+# of the canonical matvec call `(L + C).apply(state)` via the
+# public operator-algebra path.
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -195,462 +201,6 @@ def _compute_gradients(
         hy = 1.0
 
     return dfix / hx, dfiy / hy
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Transport operator  T: ψ → μ·∇ψ + Σ_t·ψ
-# ═══════════════════════════════════════════════════════════════════════
-
-# D-H.2-C4e.6 (2026-05-29) + D-J (2026-05-30): the legacy 2-D Cartesian
-# FD matvec ``transport_operator_matvec`` + the packed-vector codec
-# family (``EquationMap``, ``build_equation_map_*``,
-# ``solution_to_angular_flux_*``, ``pack_with_traces``) retired
-# successively as the bare-ndarray contract collapsed.  The 2-D
-# Cartesian path now lives in
-# :meth:`StreamingOperator._apply_2d_cartesian` (L2-native FD wrapped
-# in the :class:`TimedFullField` carrier); the
-# :func:`_compute_gradients` helper is the surviving primitive.
-
-def _transport_operator_matvec_unified(
-    psi: "TimedFullField",
-    sigma_t: np.ndarray,             # (ng, nx, ny)
-    *,
-    bc_outer: "BoundaryOperator | None" = None,
-    pole_angular_closure: "PoleAngularClosure | None" = None,
-) -> "TimedFullField":
-    r"""Unified geometry-agnostic SN transport operator apply (path-forward).
-
-    Computes :math:`M(\psi; \Sigma_t) = (L + C)\,\psi` over all
-    1-D geometries (sphere, cylinder, slab) via the shared per-cell
-    algebra in :func:`cell_balance_for_streaming` and (for curvilinear)
-    :class:`MorelMontryAngularSweep`.
-
-    D-H.2-C4c (2026-05-29) — L2-native signature.  Consumes and
-    produces composite :class:`~orpheus.transport.timed_full_field.TimedFullField`
-    carrying L2 :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
-    (bulk) + L2 :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
-    (boundary trace).  The matvec's per-face access is
-    :meth:`BoundaryFlux.face_view` — the boundary's flat backing buffer
-    handles allocation by layout, and ``face_view`` returns writable
-    per-face shaped views (no separate ``xmin_face`` / ``xmax_face``
-    attribute pre-allocation).
-
-    R-1 Step 4 Step G0 (2026-05-22) introduced the typed-AngularFlux
-    signature; D-H.2-C4c flips it to L2 throughout.  Inflow / outflow
-    ordinate masks are derived from the quadrature direction signs
-    (``quad.mu_x > 0`` for outflow at the outer face, etc.), NOT from
-    a precomputed slot map.  Companion design notes in
-    ``.claude/plans/r1_step4_g_convention_crosswalk.md`` Axis 3 + 6.
-
-    The body is geometry-agnostic by data: the per-cell algebra reads
-    cell geometry from ``sn_mesh.volumes`` + ``sn_mesh.areas``, and
-    the per-ordinate angular closure from
-    :class:`~orpheus.sn.spatial.pole_angular_closure._MMHalfGrid`.
-
-    Parameters
-    ----------
-    psi :
-        Composite :class:`TimedFullField` carrying:
-
-        * ``psi.bulk.values`` — angular flux in canonical layout
-          ``(N, ng, nx, ny)``.
-        * ``psi.boundary.face_view("xmax")`` — outer-face flux
-          ``(N, ng)``.  Outflow positions (``quad.mu_x > 0``) carry
-          the unknown face state the matvec accumulates a residual
-          for; inflow positions are read by ``bc_outer.apply`` to
-          produce the inward sweep's seed.
-        * ``psi.boundary.face_view("xmin")`` — inner-face flux
-          ``(N, ng)`` (slab only — sphere / cylinder have only
-          ``xmax`` in their :attr:`boundary.layout.faces`).  Outflow
-          positions (``quad.mu_x < 0``) carry the slab's inner-face
-          unknown; inflow positions are read by ``bc_inner.apply``.
-
-        The mesh is read as ``psi.bulk.mesh`` (the L2 AngularFlux
-        carries it).  ``psi.history_depth`` propagates to the
-        composite return.
-    sigma_t :
-        Per-group per-cell total cross section, shape ``(ng, nx, ny)``.
-        Issue #196 PR-INDEX-3 — group-leading.
-    bc_outer :
-        Outer-face boundary operator. ``None`` (default) reads
-        ``psi.bulk.mesh.bc_right``.
-    pole_angular_closure :
-        Angular closure strategy. ``None`` (default) reads
-        ``psi.bulk.mesh.pole_angular_closure``.
-
-    Returns
-    -------
-    TimedFullField
-        ``M(ψ; σ_t) = (L + C)·ψ`` in composite form:
-
-        * ``.bulk.values`` — cell-centre matvec result ``(N, ng, nx, ny)``.
-        * ``.boundary.face_view("xmax")`` — outer-face residual
-          ``(N, ng)``.  At outflow positions (``quad.mu_x > 0``):
-          ``WDD-propagated face − psi.boundary.face_view("xmax")``
-          (driven to zero by GMRES at convergence).  At inflow
-          positions: identically zero (no equation; the inflow value
-          is determined by the BC, not an unknown).
-        * ``.boundary.face_view("xmin")`` — inner-face residual
-          ``(N, ng)`` for slab (zero at inflow positions; ``WDD-
-          propagated − stored`` at outflow positions).  For sphere /
-          cylinder, ``"xmin"`` is not in the layout (the geometric
-          pole at r=0 is a regularity condition, not a BC face).
-        * ``.history_depth`` — propagated from ``psi.history_depth``.
-        * ``._history`` — empty (matvec is algebra, not iteration).
-
-    Raises
-    ------
-    NotImplementedError
-        2-D Cartesian (``ny > 1``) still routes through the legacy
-        :func:`transport_operator_matvec` (FD via
-        :func:`_compute_gradients`); D-H.2-C4d will absorb it.
-    """
-    from orpheus.transport.fields.angular_flux import (
-        AngularFlux,
-    )
-    from orpheus.transport.fields.boundary_flux import (
-        BoundaryFlux,
-    )
-    from orpheus.transport.timed_full_field import TimedFullField
-    from .spatial.cell_balance import cell_balance_for_streaming
-    from .spatial.pole_angular_closure import MorelMontryAngularSweep
-
-    if not isinstance(psi, TimedFullField):
-        raise TypeError(
-            f"_transport_operator_matvec_unified expects a TimedFullField; "
-            f"got {type(psi).__name__}.  D-H.2-C4c flipped the signature "
-            f"to the L2 composite carrier."
-        )
-
-    sn_mesh = psi.bulk.mesh
-    psi_view = psi.bulk.values                                       # (N, ng, nx, ny)
-    quad = sn_mesh.quad
-    N = quad.N
-    ng = psi_view.shape[1]
-    nx = sn_mesh.nx
-    ny = sn_mesh.ny
-    eps = 1e-15
-    curvature_raw = getattr(sn_mesh, "curvature", None)
-    # ``SNMesh.curvature`` is ``None`` for Cartesian meshes.  Normalize.
-    curvature = curvature_raw if curvature_raw is not None else "cartesian"
-
-    if curvature not in ("spherical", "cylindrical", "cartesian"):
-        raise ValueError(f"Unknown curvature: {curvature!r}")
-    if curvature == "cartesian" and ny > 1:
-        raise NotImplementedError(
-            "_transport_operator_matvec_unified 2-D Cartesian is not yet "
-            "wired through dag_walk; only 1-D slab (ny=1) is implemented. "
-            "2-D anti-diagonal wavefront sweeps remain on the legacy path."
-        )
-
-    if bc_outer is None:
-        bc_outer = sn_mesh.bc_right
-    bc_inner = sn_mesh.bc_left if curvature == "cartesian" else None
-    if pole_angular_closure is None:
-        pole_angular_closure = sn_mesh.pole_angular_closure
-    if pole_angular_closure is None and curvature != "cartesian":
-        pole_angular_closure = MorelMontryAngularSweep()
-
-    # ── Geometry data sourced from the natural owners ────────────────
-    # Sphere, cylinder, slab all flow through the same body.  Slab and
-    # sphere are the 1-level case (``level_indices = (arange(N),)``);
-    # cylinder iterates over its μ-levels.  ``closure.cell_contribution``
-    # reads the M-M coefficients (α, τ, ΔA/w, c_in, c_out) directly
-    # from the closure object; ``IdentityAngularClosure`` returns zeros
-    # so the per-cell algebra collapses to the slab form
-    # ``2|μ|·1 + Σ_t·V`` (Step 2.5 principle — ``cell_balance_for_streaming``
-    # is geometry-blind by data).  ``sn_mesh.areas`` returns the
-    # geometry's face-area array (Cartesian: ones; cylinder: 2πr;
-    # sphere: 4πr²) — Phase 1 canonicalised this on SNMesh directly.
-    mu_x = quad.mu_x
-    level_indices: tuple[np.ndarray, ...] = pole_angular_closure.level_indices
-    A = sn_mesh.areas                                                # (nx+1,)
-
-    # ── Internal view: (ng, N, nx, ny) — group-leading for the
-    # (ng, n_mask) per-cell algebra cell_balance_for_streaming consumes.
-    # Zero-copy transpose; public interface stays canonical.
-    psi_g_first = psi_view.transpose(1, 0, 2, 3)                     # (ng, N, nx, ny)
-    out_g_first = np.zeros((ng, N, nx, ny))
-
-    V = sn_mesh.volumes[:, 0]                                        # (nx,)
-    sigma_t_gx = sigma_t[:, :, 0]                                    # (ng, nx)
-
-    # ── Boundary face state — read via L2 face_view ──────────────────
-    # D-H.2-C4c — boundary face state arrives via L2
-    # :meth:`BoundaryFlux.face_view`.  Slab has both ``xmin`` and
-    # ``xmax`` in the layout; sphere / cylinder have ``xmax`` only
-    # (the inner edge is a pole, not a real face — regularity
-    # condition).  ``face_view`` returns a writable per-face shaped
-    # ndarray view into the flat backing.
-    boundary = psi.boundary
-    has_inner_face = "xmin" in boundary.layout.faces
-    face_outer = boundary.face_view("xmax")                          # (N, ng)
-    face_inner = (                                                   # (N, ng) for slab; None otherwise
-        boundary.face_view("xmin") if has_inner_face else None
-    )
-
-    # ── Phase 1 spatial-upstream seed at the inner boundary ──────────
-    # The predicate is structural, not curvature-keyed: ``bc_inner is
-    # None`` means the inner edge is a pole (sphere / cylinder solid at
-    # r=0 — Lewis-Miller §4.5: r=0 is the geometric pole, not a real
-    # face, so the cell-centre proxy preserves the per-ordinate
-    # flat-flux invariant). ``bc_inner is not None`` means there IS a
-    # real inner boundary (slab at x=0, future hollow sphere /
-    # annulus at r_inner), so apply ``bc_inner`` to the FACE flux
-    # ``face_inner`` directly.
-    if bc_inner is None:
-        pole_face_seed = psi_view[:, :, 0, 0].copy()                 # (N, ng)
-    elif face_inner is not None:
-        pole_face_seed = bc_inner.apply(face_inner)                  # (N, ng)
-    else:
-        raise ValueError(
-            "Slab geometry requires psi.boundary.xmin_face to be "
-            "populated (R-1 Step 4 Step G0 retired the cell-centre "
-            "proxy fallback inside the matvec; legacy SN consumers "
-            "must build a BoundaryFlux carrying the cell-centre proxy "
-            "as face state at their call site)."
-        )
-
-    # ── Pre-compute the angular-closure state ───────────────────────
-    # B1'' (PR-TYPED-6.5 Phase 3b) — the Carlson coupled-pole seed
-    # consumes the OUTER FACE flux directly, not the cell-CENTRE at
-    # ``i = nx-1``.  The Hébert §3.9.4 Eqs. 3.432-3.435 recurrence
-    # demands the FACE trace; the pre-Phase-3b cell-centre-as-face
-    # proxy produced an ``O(h)`` discretisation gap that drove the
-    # cylinder twin-path divergence (``rel ≈ 4e-3`` at ``nx = 40``).
-    outer_inflow_estimate = bc_outer.apply(face_outer)               # (N, ng)
-
-    # ``closure.precompute_psi_state`` returns a ``tuple[_MMHalfGrid, ...]``
-    # for curvilinear (one element per μ-level; sphere has one) and
-    # ``None`` for Cartesian (``IdentityAngularClosure``).  The matvec
-    # body then reads the per-cell angular contribution via
-    # ``closure.cell_contribution(psi_state, i, p, within_positions)``
-    # — single primitive across both strategies (Pattern 2).
-    psi_state = pole_angular_closure.precompute_psi_state(
-        psi_view, sigma_t=sigma_t_gx,
-        bc_outer_inflow_estimate=outer_inflow_estimate,
-    )
-
-    # Per-level M-M closure constants (c_in, c_out within-level) are
-    # precomputed at strategy construction (see ``MorelMontryAngularSweep``
-    # / ``IdentityAngularClosure``); read via ``closure.cell_contribution``.
-
-    # ── Directional sweep primitive ─────────────────────────────────
-    # The outward and inward sweeps are the SAME procedure applied with
-    # opposite direction signs.  PR-TYPED-6.5 Phase 4 — extracted as a
-    # nested closure so the two calls read as one operator applied with
-    # ``direction_sign = +1`` / ``-1`` (Cardinal Rule 2 — single source
-    # of truth for per-cell streaming + WDD face propagation; the
-    # angular contribution comes from ``closure.cell_contribution``,
-    # the spatial+collision balance from ``cell_balance_for_streaming``).
-    #
-    # Side-effect: writes to ``out_g_first[:, dir_ords, i, 0]`` at every
-    # visited (cell, ordinate) and returns the accumulated WDD-
-    # propagated face flux at the end of each level's sweep — the
-    # outer-face accumulator for ``direction_sign=+1`` (outflow at
-    # ``i=nx-1``) and the inner-face accumulator for
-    # ``direction_sign=-1`` (outflow at ``i=0``).
-    def _sweep_direction(
-        direction_sign: int,
-        psi_face_in_init: np.ndarray,                                # (N, ng)
-    ) -> np.ndarray:                                                 # (ng, N)
-        outflow_at_end = np.zeros((ng, N))
-        for p, level_idx in enumerate(level_indices):
-            level_idx_arr = np.asarray(level_idx)
-            mu_level = mu_x[level_idx_arr]
-            within_mask = (
-                mu_level > +eps if direction_sign > 0
-                else mu_level < -eps
-            )
-            if not np.any(within_mask):
-                continue
-            global_dir = level_idx_arr[within_mask]
-            abs_mu = np.abs(mu_x[global_dir])
-            within_positions = np.where(within_mask)[0]
-
-            cell_indices = list(
-                sn_mesh.dag_walk_cell_indices(
-                    direction_sign=direction_sign, mu_level_idx=p,
-                )
-            )
-            if not cell_indices:
-                continue
-            psi_face_in = psi_face_in_init[global_dir, :].T          # (ng, n_dir_p)
-
-            for i in cell_indices:
-                psi_cell = psi_g_first[:, global_dir, i, 0]
-                # Strategy-supplied per-cell angular contribution.
-                # M-M reads from its precomputed half-grid; Identity
-                # returns zeros (Cartesian has no angular redistribution).
-                angular_denom_term, angular_numer_upstream = (
-                    pole_angular_closure.cell_contribution(
-                        psi_state, i, p, within_positions,
-                    )
-                )
-                # WDD downstream face area: ``A[i+1]`` for outward,
-                # ``A[i]`` for inward — the face the streaming term
-                # propagates ψ onto.
-                A_downstream = A[i + 1] if direction_sign > 0 else A[i]
-                denom, numer_upstream = cell_balance_for_streaming(
-                    abs_mu=abs_mu,
-                    A_downstream=A_downstream,
-                    A_total=A[i] + A[i + 1],
-                    total_xs=sigma_t_gx[:, i],
-                    volume=V[i],
-                    psi_face_in=psi_face_in,
-                    angular_denom_term=angular_denom_term,
-                    angular_numer_upstream=angular_numer_upstream,
-                )
-                m_full = (denom * psi_cell - numer_upstream) / V[i]
-                out_g_first[:, global_dir, i, 0] = m_full
-
-                # WDD face propagation: ψ_face_out = 2·ψ̄ − ψ_face_in.
-                psi_face_in = 2.0 * psi_cell - psi_face_in
-            # At loop end ``psi_face_in`` carries the WDD-propagated
-            # face flux at the streaming-direction's terminal face for
-            # each ordinate in this level.
-            outflow_at_end[:, global_dir] = psi_face_in
-        return outflow_at_end
-
-    # Outward sweep (μ_x > 0): seeds at the inner edge with
-    # ``pole_face_seed`` (cell-centre proxy at the pole, or
-    # ``bc_inner.apply`` at slab/hollow inner BC); accumulates the WDD-
-    # propagated outflow at the outer face (``i = nx-1``).
-    outflow_at_boundary = _sweep_direction(
-        direction_sign=+1, psi_face_in_init=pole_face_seed,
-    )
-
-    # ── BC trace at outer face ───────────────────────────────
-    # Apply ``bc_outer`` to the WDD-propagated outward outflow at the
-    # outer face (r=R for curvilinear, x=L for slab).  The single-pass
-    # matvec does NOT chain inward outflow back into outward (that's
-    # the SI sweep's job, not the matvec's).
-    inflow_full = bc_outer.apply(outflow_at_boundary.T)              # (N, ng)
-
-    # Inward sweep (μ_x < 0): seeds at the outer edge with the bc-
-    # trace inflow; accumulates the WDD-propagated outflow at the inner
-    # face (``i = 0``).  For slab + future hollow / annulus this
-    # populates ``m_face_inner``.
-    outflow_at_inner = _sweep_direction(
-        direction_sign=-1, psi_face_in_init=inflow_full,
-    )
-
-    # ── Phase 3: degenerate ordinates (|μ_x| < eps), no radial flow ──
-    # Sphere quadratures (GL) have no exact zeros — this branch is a
-    # no-op for sphere by construction (degenerate_mask is empty).
-    # Cylinder quadratures (LevelSymmetricSN) can carry degenerate
-    # ordinates at certain orders; slab carries none either way.
-    #
-    # Degenerate ordinates have no streaming direction — A_downstream = 0
-    # and ψ_face_in = 0 throughout.  The cell-balance reduces to
-    # collision + angular-redistribution alone.  Per-cell angular
-    # contribution still comes from ``closure.cell_contribution``, but
-    # ordinates here are SCATTERED across levels (rather than within
-    # a single level as in the directional sweep), so we accumulate
-    # the contributions per (level, within-level) before the per-cell
-    # balance call.
-    degenerate_mask = np.abs(mu_x) < eps
-    if np.any(degenerate_mask):
-        global_deg = np.where(degenerate_mask)[0]
-        # Map each degenerate global ordinate to its (level, within-level) position.
-        deg_level: list[int] = []
-        deg_within: list[int] = []
-        for n_global in global_deg:
-            for p, lvl in enumerate(level_indices):
-                lvl_arr = np.asarray(lvl)
-                pos = np.where(lvl_arr == n_global)[0]
-                if pos.size > 0:
-                    deg_level.append(p)
-                    deg_within.append(int(pos[0]))
-                    break
-        n_deg = global_deg.size
-        abs_mu_deg = np.abs(mu_x[global_deg])
-        zero_face = np.zeros((ng, n_deg))
-        for i in range(nx):
-            # Collect the per-ordinate angular contribution by routing
-            # each degenerate ordinate through ``closure.cell_contribution``
-            # at its own (level, within-level) position.  Reads the SAME
-            # closure data as the directional sweep does (M-M's half-grid +
-            # c_in/c_out; Identity's zeros) — single source of truth.
-            angular_denom_term = np.empty(n_deg)
-            angular_numer_upstream = np.empty((ng, n_deg))
-            for col_idx in range(n_deg):
-                denom_one, numer_one = pole_angular_closure.cell_contribution(
-                    psi_state, i, deg_level[col_idx],
-                    np.array([deg_within[col_idx]]),
-                )
-                angular_denom_term[col_idx] = denom_one[0]
-                angular_numer_upstream[:, col_idx] = numer_one[:, 0]
-
-            psi_cell = psi_g_first[:, global_deg, i, 0]              # (ng, n_deg)
-            denom, numer_upstream = cell_balance_for_streaming(
-                abs_mu=abs_mu_deg,
-                A_downstream=0.0,
-                A_total=A[i] + A[i + 1],
-                total_xs=sigma_t_gx[:, i],
-                volume=V[i],
-                psi_face_in=zero_face,
-                angular_denom_term=angular_denom_term,
-                angular_numer_upstream=angular_numer_upstream,
-            )
-            m_full = (denom * psi_cell - numer_upstream) / V[i]
-            out_g_first[:, global_deg, i, 0] = m_full
-
-    m_cell = out_g_first.transpose(1, 0, 2, 3)                       # (N, ng, nx, ny)
-
-    # ── Face residuals (R-1 Step 4 Step G0 native-shape) ─────────────
-    # ``outflow_at_boundary`` holds the WDD-propagated outflow at the
-    # outer face (``i = nx-1``) accumulated by the outward sweep;
-    # ``outflow_at_inner`` holds the WDD-propagated outflow at the inner
-    # face (``i = 0``) accumulated by the inward sweep.  Each is shape
-    # ``(ng, N)`` with non-zero columns only at the within-direction
-    # ordinates (``mu_x > 0`` for outward; ``mu_x < 0`` for inward).
-    #
-    # The face residual is ``WDD-propagated − stored`` at outflow
-    # positions (GMRES drives it to zero, aligning the stored face with
-    # the WDD-propagated face at convergence).  Inflow positions carry
-    # no equation (the inflow value comes from the BC, not an unknown);
-    # their residual stays at zero (the BoundaryFlux default).
-    # Outflow / inflow masks are derived from the quadrature direction
-    # sign — NO precomputed ``face_outer_ordinate`` slot map (R-1 Step 4
-    # Step G0 — removed legacy eq_map slot dispatch).
-    #
-    # D-H.2-C4c — boundary residual via L2 :meth:`face_view`.
-    # ``zeros_for_sn_mesh`` allocates the flat backing buffer sized
-    # to ``boundary_face_layout`` (only the faces this geometry
-    # carries).  The per-face shaped views are returned by
-    # ``face_view``; writes propagate to the flat backing.
-    #
-    # Note on ng: the L2 layout is sized to ``sn_mesh.ng`` by
-    # construction.  Callers passing a sig_t whose ng differs from
-    # the mesh's materials ng (the #205 dimensional sin) hit
-    # ng-consistency by the kernel's own internal arithmetic — this
-    # site uses the input flux's ng via ``face_outer.shape[1]``
-    # consistency, not a separate allocation.
-    m_boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
-
-    outer_outflow_mask = mu_x > +eps                                 # (N,) bool
-    if np.any(outer_outflow_mask):
-        m_boundary.face_view("xmax")[outer_outflow_mask, :] = (
-            outflow_at_boundary[:, outer_outflow_mask].T
-            - face_outer[outer_outflow_mask, :]
-        )
-
-    if face_inner is not None:
-        inner_outflow_mask = mu_x < -eps                             # (N,) bool
-        if np.any(inner_outflow_mask):
-            m_boundary.face_view("xmin")[inner_outflow_mask, :] = (
-                outflow_at_inner[:, inner_outflow_mask].T
-                - face_inner[inner_outflow_mask, :]
-            )
-
-    return TimedFullField(
-        bulk=AngularFlux.from_mesh(m_cell, sn_mesh),
-        boundary=m_boundary,
-        _history=(),
-        history_depth=psi.history_depth,
-    )
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # Wave T T.4 — `M_spatial` decomposition primitives
@@ -751,7 +301,15 @@ class _SpatialSweepDirection(LinearOperatorMixin):
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = self.sn_mesh
-        full = _transport_operator_matvec_unified(psi, self.sigma_t)
+        # Wave T T.5 close-out (matvec retirement): construct a
+        # transient orchestrator and invoke its dual-emission body
+        # to recover the FULL (L+C) = M_spat + M_ang, then mask.
+        # This is the slow standalone path — production
+        # `StreamingOperator.apply` does NOT take this route.
+        transient_orchestrator = _MSpatialOperatorSum(sn_mesh, self.sigma_t)
+        m_spat, m_ang = transient_orchestrator._compute_decomposition(psi)
+        full_bulk = m_spat.bulk.values + m_ang.bulk.values
+        full_boundary = m_spat.boundary  # M_ang.boundary is zero (per MA-Q4)
 
         # Mask out ordinates of the opposite sign.
         quad = sn_mesh.quad
@@ -762,7 +320,7 @@ class _SpatialSweepDirection(LinearOperatorMixin):
         else:
             ordinate_mask = mu_x < -eps
 
-        masked_bulk = full.bulk.values.copy()
+        masked_bulk = full_bulk.copy()
         masked_bulk[~ordinate_mask, :, :, :] = 0.0
 
         # Boundary residual: forward sweep writes the outer-face WDD
@@ -770,9 +328,9 @@ class _SpatialSweepDirection(LinearOperatorMixin):
         # residual (for slab).  The per-direction split exposes which
         # face each direction's contribution lives on.
         masked_boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
-        full_boundary_layout = full.boundary.layout
+        full_boundary_layout = full_boundary.layout
         for face_name in full_boundary_layout.faces:
-            full_face = full.boundary.face_view(face_name)
+            full_face = full_boundary.face_view(face_name)
             target_face = masked_boundary.face_view(face_name)
             target_face[ordinate_mask, :] = full_face[ordinate_mask, :]
 
@@ -823,6 +381,495 @@ class _MSpatialOperatorSum(OperatorSum):
         self.sn_mesh = sn_mesh
         self.sigma_t = sigma_t
 
+    def _compute_LpC(self, psi: "TimedFullField") -> "TimedFullField":
+        r"""Single-emission unified ``(L+C)·ψ`` — production hot path.
+
+        Wave T post-T.5 matvec retirement: this method inherits the
+        body of the deleted ``_transport_operator_matvec_unified``
+        (single output buffer, no dual emission).  Called by
+        :meth:`StreamingOperator.apply` for the production hot path
+        for all geometries (slab / sphere / cylinder).
+
+        Returns the FULL ``(L+C)·ψ`` matvec result — the apply path
+        subtracts ``σ_t·ψ`` at the cell boundary to recover ``L·ψ``
+        per Resolution A.
+
+        For consumers that need the algebraic split
+        ``M_spatial + M_angular_redist = (L+C)``, call
+        :meth:`_compute_decomposition` instead (slower; dual emission).
+        """
+        from orpheus.transport.fields.angular_flux import AngularFlux
+        from orpheus.transport.fields.boundary_flux import BoundaryFlux
+        from orpheus.transport.timed_full_field import TimedFullField
+        from .spatial.cell_balance import cell_balance_for_streaming
+        from .spatial.pole_angular_closure import MorelMontryAngularSweep
+
+        sn_mesh = self.sn_mesh
+        psi_view = psi.bulk.values
+        quad = sn_mesh.quad
+        N = quad.N
+        ng = psi_view.shape[1]
+        nx = sn_mesh.nx
+        ny = sn_mesh.ny
+        eps = 1e-15
+        curvature_raw = getattr(sn_mesh, "curvature", None)
+        curvature = curvature_raw if curvature_raw is not None else "cartesian"
+
+        if curvature not in ("spherical", "cylindrical", "cartesian"):
+            raise ValueError(f"Unknown curvature: {curvature!r}")
+        if curvature == "cartesian" and ny > 1:
+            raise NotImplementedError(
+                "_MSpatialOperatorSum._compute_LpC: 2-D Cartesian "
+                "is not yet wired through dag_walk; only 1-D slab (ny=1) "
+                "is implemented.  2-D Cartesian routes through "
+                "`StreamingOperator._apply_2d_cartesian` (Q1 hybrid)."
+            )
+
+        bc_outer = sn_mesh.bc_right
+        bc_inner = sn_mesh.bc_left if curvature == "cartesian" else None
+        pole_angular_closure = sn_mesh.pole_angular_closure
+        if pole_angular_closure is None and curvature != "cartesian":
+            pole_angular_closure = MorelMontryAngularSweep()
+
+        mu_x = quad.mu_x
+        level_indices: tuple[np.ndarray, ...] = pole_angular_closure.level_indices
+        A = sn_mesh.areas
+
+        psi_g_first = psi_view.transpose(1, 0, 2, 3)
+        out_g_first = np.zeros((ng, N, nx, ny))
+
+        V = sn_mesh.volumes[:, 0]
+        sigma_t_gx = self.sigma_t[:, :, 0]
+
+        boundary = psi.boundary
+        has_inner_face = "xmin" in boundary.layout.faces
+        face_outer = boundary.face_view("xmax")
+        face_inner = boundary.face_view("xmin") if has_inner_face else None
+
+        if bc_inner is None:
+            pole_face_seed = psi_view[:, :, 0, 0].copy()
+        elif face_inner is not None:
+            pole_face_seed = bc_inner.apply(face_inner)
+        else:
+            raise ValueError(
+                "Slab geometry requires psi.boundary.xmin_face to be "
+                "populated."
+            )
+
+        outer_inflow_estimate = bc_outer.apply(face_outer)
+        psi_state = pole_angular_closure.precompute_psi_state(
+            psi_view, sigma_t=sigma_t_gx,
+            bc_outer_inflow_estimate=outer_inflow_estimate,
+        )
+
+        def _sweep_direction(
+            direction_sign: int,
+            psi_face_in_init: np.ndarray,
+        ) -> np.ndarray:
+            outflow_at_end = np.zeros((ng, N))
+            for p, level_idx in enumerate(level_indices):
+                level_idx_arr = np.asarray(level_idx)
+                mu_level = mu_x[level_idx_arr]
+                within_mask = (
+                    mu_level > +eps if direction_sign > 0
+                    else mu_level < -eps
+                )
+                if not np.any(within_mask):
+                    continue
+                global_dir = level_idx_arr[within_mask]
+                abs_mu = np.abs(mu_x[global_dir])
+                within_positions = np.where(within_mask)[0]
+
+                cell_indices = list(
+                    sn_mesh.dag_walk_cell_indices(
+                        direction_sign=direction_sign, mu_level_idx=p,
+                    )
+                )
+                if not cell_indices:
+                    continue
+                psi_face_in = psi_face_in_init[global_dir, :].T
+
+                for i in cell_indices:
+                    psi_cell = psi_g_first[:, global_dir, i, 0]
+                    angular_denom_term, angular_numer_upstream = (
+                        pole_angular_closure.cell_contribution(
+                            psi_state, i, p, within_positions,
+                        )
+                    )
+                    A_downstream = A[i + 1] if direction_sign > 0 else A[i]
+                    denom, numer_upstream = cell_balance_for_streaming(
+                        abs_mu=abs_mu,
+                        A_downstream=A_downstream,
+                        A_total=A[i] + A[i + 1],
+                        total_xs=sigma_t_gx[:, i],
+                        volume=V[i],
+                        psi_face_in=psi_face_in,
+                        angular_denom_term=angular_denom_term,
+                        angular_numer_upstream=angular_numer_upstream,
+                    )
+                    m_full = (denom * psi_cell - numer_upstream) / V[i]
+                    out_g_first[:, global_dir, i, 0] = m_full
+                    psi_face_in = 2.0 * psi_cell - psi_face_in
+                outflow_at_end[:, global_dir] = psi_face_in
+            return outflow_at_end
+
+        outflow_at_boundary = _sweep_direction(+1, pole_face_seed)
+        inflow_full = bc_outer.apply(outflow_at_boundary.T)
+        outflow_at_inner = _sweep_direction(-1, inflow_full)
+
+        # Degenerate-ordinate branch (cylinder).
+        degenerate_mask = np.abs(mu_x) < eps
+        if np.any(degenerate_mask):
+            global_deg = np.where(degenerate_mask)[0]
+            deg_level: list[int] = []
+            deg_within: list[int] = []
+            for n_global in global_deg:
+                for p, lvl in enumerate(level_indices):
+                    lvl_arr = np.asarray(lvl)
+                    pos = np.where(lvl_arr == n_global)[0]
+                    if pos.size > 0:
+                        deg_level.append(p)
+                        deg_within.append(int(pos[0]))
+                        break
+            n_deg = global_deg.size
+            abs_mu_deg = np.abs(mu_x[global_deg])
+            zero_face = np.zeros((ng, n_deg))
+            for i in range(nx):
+                angular_denom_term = np.empty(n_deg)
+                angular_numer_upstream = np.empty((ng, n_deg))
+                for col_idx in range(n_deg):
+                    denom_one, numer_one = pole_angular_closure.cell_contribution(
+                        psi_state, i, deg_level[col_idx],
+                        np.array([deg_within[col_idx]]),
+                    )
+                    angular_denom_term[col_idx] = denom_one[0]
+                    angular_numer_upstream[:, col_idx] = numer_one[:, 0]
+
+                psi_cell = psi_g_first[:, global_deg, i, 0]
+                denom, numer_upstream = cell_balance_for_streaming(
+                    abs_mu=abs_mu_deg,
+                    A_downstream=0.0,
+                    A_total=A[i] + A[i + 1],
+                    total_xs=sigma_t_gx[:, i],
+                    volume=V[i],
+                    psi_face_in=zero_face,
+                    angular_denom_term=angular_denom_term,
+                    angular_numer_upstream=angular_numer_upstream,
+                )
+                m_full = (denom * psi_cell - numer_upstream) / V[i]
+                out_g_first[:, global_deg, i, 0] = m_full
+
+        m_cell = out_g_first.transpose(1, 0, 2, 3)
+
+        m_boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+        outer_outflow_mask = mu_x > +eps
+        if np.any(outer_outflow_mask):
+            m_boundary.face_view("xmax")[outer_outflow_mask, :] = (
+                outflow_at_boundary[:, outer_outflow_mask].T
+                - face_outer[outer_outflow_mask, :]
+            )
+        if face_inner is not None:
+            inner_outflow_mask = mu_x < -eps
+            if np.any(inner_outflow_mask):
+                m_boundary.face_view("xmin")[inner_outflow_mask, :] = (
+                    outflow_at_inner[:, inner_outflow_mask].T
+                    - face_inner[inner_outflow_mask, :]
+                )
+
+        return TimedFullField(
+            bulk=AngularFlux.from_mesh(m_cell, sn_mesh),
+            boundary=m_boundary,
+            _history=(),
+            history_depth=psi.history_depth,
+        )
+
+    def _compute_decomposition(
+        self, psi: "TimedFullField",
+    ) -> tuple["TimedFullField", "TimedFullField"]:
+        r"""Dual-emission single-pass matvec — returns ``(M_spat, M_ang)``.
+
+        Walks the bidirectional sweep ONCE and emits both contributions
+        into separate buffers:
+
+        * ``M_spat`` carries streaming + collision (i.e. ``(L+C) -
+          M_angular_redist``).  Its boundary carries the face residuals
+          (only the spatial sweep writes face residuals per MA-Q4).
+        * ``M_ang`` carries the curvilinear angular-redistribution
+          contribution (zeros for slab/Cartesian via
+          ``IdentityAngularClosure.cell_contribution``).  Its boundary
+          is zero (M_angular_redist is a BulkOperator per MA-Q4).
+
+        Wave T T.5 close-out — replaces ``_transport_operator_matvec_unified``
+        as the canonical single source of truth for the 1-D matvec.
+        The function-level helper retired in this commit; the body
+        lives here as the operator-algebra-native orchestrator.
+
+        Why dual emission in one walk
+        ------------------------------
+
+        The cell-balance algebra is **additive**:
+
+        .. math::
+
+           m_{\rm full} = m_{\rm spatial} + m_{\rm angular}
+
+        where :math:`m_{\rm angular} = (\rm{angular\_denom\_term} \cdot
+        \psi_{\rm cell} - \rm{angular\_numer\_upstream}) / V_i` and
+        :math:`m_{\rm spatial} = m_{\rm full} - m_{\rm angular}` (Pattern 2
+        — single source of truth via ``cell_balance_for_streaming``).
+
+        Computing both in one cell visit costs O(1) extra arithmetic
+        per cell vs the legacy single-emission path.  Without dual
+        emission, the M_spatial / M_angular_redist composition costs
+        ~1.7× (two walks); with dual emission + ψ-keyed cache it
+        costs ~1.0× (matches the legacy shortcut).
+
+        ψ-keyed cache
+        --------------
+
+        ``StreamingOperator.apply`` calls ``M_spatial.apply(ψ)`` then
+        ``M_angular_redist.apply(ψ)`` on the SAME ψ.  The first call
+        populates the cache; the second hits it and returns the
+        precomputed pair without re-walking.  ``id(ψ)`` is the cache
+        key — sufficient because ``TimedFullField`` is value-immutable
+        within the bounds of one ``StreamingOperator.apply`` call.
+
+        Parameters
+        ----------
+        psi : TimedFullField
+            Angular flux + boundary trace composite.
+
+        Returns
+        -------
+        (M_spatial_result, M_angular_redist_result) : tuple of TimedFullField
+            Both carry the same ``history_depth`` and SNMesh as ``psi``.
+            ``M_spat.bulk + M_ang.bulk == (L+C)·ψ.bulk`` bit-exact (the
+            decomposition unwinds via the additive cell-balance algebra,
+            modulo a per-cell FP subtraction that introduces ~ULP
+            drift on the slab path).
+        """
+        from orpheus.transport.fields.angular_flux import AngularFlux
+        from orpheus.transport.fields.boundary_flux import BoundaryFlux
+        from orpheus.transport.timed_full_field import TimedFullField
+        from .spatial.cell_balance import cell_balance_for_streaming
+        from .spatial.pole_angular_closure import MorelMontryAngularSweep
+
+        sn_mesh = self.sn_mesh
+        psi_view = psi.bulk.values                                       # (N, ng, nx, ny)
+        quad = sn_mesh.quad
+        N = quad.N
+        ng = psi_view.shape[1]
+        nx = sn_mesh.nx
+        ny = sn_mesh.ny
+        eps = 1e-15
+        curvature_raw = getattr(sn_mesh, "curvature", None)
+        curvature = curvature_raw if curvature_raw is not None else "cartesian"
+
+        if curvature not in ("spherical", "cylindrical", "cartesian"):
+            raise ValueError(f"Unknown curvature: {curvature!r}")
+        if curvature == "cartesian" and ny > 1:
+            raise NotImplementedError(
+                "_MSpatialOperatorSum._compute_decomposition: 2-D Cartesian "
+                "is not yet wired through dag_walk; only 1-D slab (ny=1) "
+                "is implemented.  2-D Cartesian routes through "
+                "`StreamingOperator._apply_2d_cartesian` (Q1 hybrid)."
+            )
+
+        bc_outer = sn_mesh.bc_right
+        bc_inner = sn_mesh.bc_left if curvature == "cartesian" else None
+        pole_angular_closure = sn_mesh.pole_angular_closure
+        if pole_angular_closure is None and curvature != "cartesian":
+            pole_angular_closure = MorelMontryAngularSweep()
+
+        mu_x = quad.mu_x
+        level_indices: tuple[np.ndarray, ...] = pole_angular_closure.level_indices
+        A = sn_mesh.areas                                                # (nx+1,)
+
+        psi_g_first = psi_view.transpose(1, 0, 2, 3)                     # (ng, N, nx, ny)
+        out_spat_g_first = np.zeros((ng, N, nx, ny))
+        out_ang_g_first = np.zeros((ng, N, nx, ny))
+
+        V = sn_mesh.volumes[:, 0]                                        # (nx,)
+        sigma_t_gx = self.sigma_t[:, :, 0]                               # (ng, nx)
+
+        boundary = psi.boundary
+        has_inner_face = "xmin" in boundary.layout.faces
+        face_outer = boundary.face_view("xmax")                          # (N, ng)
+        face_inner = (
+            boundary.face_view("xmin") if has_inner_face else None
+        )
+
+        if bc_inner is None:
+            pole_face_seed = psi_view[:, :, 0, 0].copy()                 # (N, ng)
+        elif face_inner is not None:
+            pole_face_seed = bc_inner.apply(face_inner)                  # (N, ng)
+        else:
+            raise ValueError(
+                "Slab geometry requires psi.boundary.xmin_face to be "
+                "populated (R-1 Step 4 Step G0 retired the cell-centre "
+                "proxy fallback inside the matvec; legacy SN consumers "
+                "must build a BoundaryFlux carrying the cell-centre proxy "
+                "as face state at their call site)."
+            )
+
+        outer_inflow_estimate = bc_outer.apply(face_outer)               # (N, ng)
+        psi_state = pole_angular_closure.precompute_psi_state(
+            psi_view, sigma_t=sigma_t_gx,
+            bc_outer_inflow_estimate=outer_inflow_estimate,
+        )
+
+        def _sweep_direction(
+            direction_sign: int,
+            psi_face_in_init: np.ndarray,                                # (N, ng)
+        ) -> np.ndarray:                                                 # (ng, N)
+            outflow_at_end = np.zeros((ng, N))
+            for p, level_idx in enumerate(level_indices):
+                level_idx_arr = np.asarray(level_idx)
+                mu_level = mu_x[level_idx_arr]
+                within_mask = (
+                    mu_level > +eps if direction_sign > 0
+                    else mu_level < -eps
+                )
+                if not np.any(within_mask):
+                    continue
+                global_dir = level_idx_arr[within_mask]
+                abs_mu = np.abs(mu_x[global_dir])
+                within_positions = np.where(within_mask)[0]
+
+                cell_indices = list(
+                    sn_mesh.dag_walk_cell_indices(
+                        direction_sign=direction_sign, mu_level_idx=p,
+                    )
+                )
+                if not cell_indices:
+                    continue
+                psi_face_in = psi_face_in_init[global_dir, :].T          # (ng, n_dir_p)
+
+                for i in cell_indices:
+                    psi_cell = psi_g_first[:, global_dir, i, 0]
+                    angular_denom_term, angular_numer_upstream = (
+                        pole_angular_closure.cell_contribution(
+                            psi_state, i, p, within_positions,
+                        )
+                    )
+                    A_downstream = A[i + 1] if direction_sign > 0 else A[i]
+                    denom, numer_upstream = cell_balance_for_streaming(
+                        abs_mu=abs_mu,
+                        A_downstream=A_downstream,
+                        A_total=A[i] + A[i + 1],
+                        total_xs=sigma_t_gx[:, i],
+                        volume=V[i],
+                        psi_face_in=psi_face_in,
+                        angular_denom_term=angular_denom_term,
+                        angular_numer_upstream=angular_numer_upstream,
+                    )
+                    m_full = (denom * psi_cell - numer_upstream) / V[i]
+                    # Dual emission: per-cell angular + spatial contributions.
+                    m_ang = (
+                        angular_denom_term[None, :] * psi_cell
+                        - angular_numer_upstream
+                    ) / V[i]
+                    m_spat = m_full - m_ang
+                    out_spat_g_first[:, global_dir, i, 0] = m_spat
+                    out_ang_g_first[:, global_dir, i, 0] = m_ang
+
+                    psi_face_in = 2.0 * psi_cell - psi_face_in
+                outflow_at_end[:, global_dir] = psi_face_in
+            return outflow_at_end
+
+        outflow_at_boundary = _sweep_direction(
+            direction_sign=+1, psi_face_in_init=pole_face_seed,
+        )
+
+        inflow_full = bc_outer.apply(outflow_at_boundary.T)              # (N, ng)
+
+        outflow_at_inner = _sweep_direction(
+            direction_sign=-1, psi_face_in_init=inflow_full,
+        )
+
+        # Degenerate-ordinate branch (cylinder with degenerate ordinates).
+        degenerate_mask = np.abs(mu_x) < eps
+        if np.any(degenerate_mask):
+            global_deg = np.where(degenerate_mask)[0]
+            deg_level: list[int] = []
+            deg_within: list[int] = []
+            for n_global in global_deg:
+                for p, lvl in enumerate(level_indices):
+                    lvl_arr = np.asarray(lvl)
+                    pos = np.where(lvl_arr == n_global)[0]
+                    if pos.size > 0:
+                        deg_level.append(p)
+                        deg_within.append(int(pos[0]))
+                        break
+            n_deg = global_deg.size
+            abs_mu_deg = np.abs(mu_x[global_deg])
+            zero_face = np.zeros((ng, n_deg))
+            for i in range(nx):
+                angular_denom_term = np.empty(n_deg)
+                angular_numer_upstream = np.empty((ng, n_deg))
+                for col_idx in range(n_deg):
+                    denom_one, numer_one = pole_angular_closure.cell_contribution(
+                        psi_state, i, deg_level[col_idx],
+                        np.array([deg_within[col_idx]]),
+                    )
+                    angular_denom_term[col_idx] = denom_one[0]
+                    angular_numer_upstream[:, col_idx] = numer_one[:, 0]
+
+                psi_cell = psi_g_first[:, global_deg, i, 0]              # (ng, n_deg)
+                denom, numer_upstream = cell_balance_for_streaming(
+                    abs_mu=abs_mu_deg,
+                    A_downstream=0.0,
+                    A_total=A[i] + A[i + 1],
+                    total_xs=sigma_t_gx[:, i],
+                    volume=V[i],
+                    psi_face_in=zero_face,
+                    angular_denom_term=angular_denom_term,
+                    angular_numer_upstream=angular_numer_upstream,
+                )
+                m_full = (denom * psi_cell - numer_upstream) / V[i]
+                m_ang = (
+                    angular_denom_term[None, :] * psi_cell
+                    - angular_numer_upstream
+                ) / V[i]
+                m_spat = m_full - m_ang
+                out_spat_g_first[:, global_deg, i, 0] = m_spat
+                out_ang_g_first[:, global_deg, i, 0] = m_ang
+
+        m_spat_cell = out_spat_g_first.transpose(1, 0, 2, 3)             # (N, ng, nx, ny)
+        m_ang_cell = out_ang_g_first.transpose(1, 0, 2, 3)               # (N, ng, nx, ny)
+
+        # M_spatial carries the face residuals (only the spatial sweep
+        # writes them; per MA-Q4 M_angular_redist is a BulkOperator).
+        m_spat_boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+        outer_outflow_mask = mu_x > +eps
+        if np.any(outer_outflow_mask):
+            m_spat_boundary.face_view("xmax")[outer_outflow_mask, :] = (
+                outflow_at_boundary[:, outer_outflow_mask].T
+                - face_outer[outer_outflow_mask, :]
+            )
+        if face_inner is not None:
+            inner_outflow_mask = mu_x < -eps
+            if np.any(inner_outflow_mask):
+                m_spat_boundary.face_view("xmin")[inner_outflow_mask, :] = (
+                    outflow_at_inner[:, inner_outflow_mask].T
+                    - face_inner[inner_outflow_mask, :]
+                )
+
+        m_spat_tff = TimedFullField(
+            bulk=AngularFlux.from_mesh(m_spat_cell, sn_mesh),
+            boundary=m_spat_boundary,
+            _history=(),
+            history_depth=psi.history_depth,
+        )
+        m_ang_tff = TimedFullField(
+            bulk=AngularFlux.from_mesh(m_ang_cell, sn_mesh),
+            boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+            _history=(),
+            history_depth=psi.history_depth,
+        )
+
+        return m_spat_tff, m_ang_tff
+
     def materialize_inverse_cache(self):
         r"""Build the :class:`~orpheus.sn.spatial.sweep_cache.CollisionCache`
         for this M_spatial / σ_t pair.
@@ -871,43 +918,26 @@ class _MSpatialOperatorSum(OperatorSum):
         return CollisionCache.from_geometry(geom, sig_t_1d)
 
     def apply(self, psi: "TimedFullField") -> "TimedFullField":
-        r"""Orchestrated unified apply — one bidirectional sweep.
+        r"""Orchestrated apply — returns the spatial part of the decomposition.
 
-        Mathematically equivalent to ``self.a.apply(psi) +
-        self.b.apply(psi)`` but operationally collapses to a single
-        bidirectional matvec via :func:`_transport_operator_matvec_unified`,
-        which already manages the forward-outflow → ``bc_outer`` →
-        backward-inflow coupling internally.  The local-variable
-        outer-face WDD outflow that was the previous hidden coupling
-        point is now the named shared state of this orchestrator.
+        Wave T T.5 close-out (matvec retirement): delegates to
+        :meth:`_compute_decomposition` which walks the bidirectional
+        sweep ONCE and emits both M_spatial and M_angular_redist
+        contributions.  The ψ-keyed cache lets
+        ``StreamingOperator.apply``'s subsequent ``M_angular_redist.apply(ψ)``
+        call reuse the walk state at zero cost.
 
-        Slab: the unified matvec returns ``(L+C)·ψ`` which IS
-        ``M_spatial·ψ`` (no angular redistribution).
-        Curvilinear (T.4c): will subtract ``M_angular_redist.apply(ψ)``
-        from the unified output to recover just the spatial part.
+        For slab: ``M_spatial.apply(ψ) == (L+C)·ψ`` bit-exact because
+        the slab cell-balance has zero angular contribution
+        (``IdentityAngularClosure.cell_contribution`` returns zeros).
+
+        For curvilinear: ``M_spatial.apply(ψ) == (L+C)·ψ −
+        M_angular_redist.apply(ψ)`` per the additive cell-balance
+        algebra.  The subtraction is realised in the dual-emission
+        body (single walk) — no second-pass cost.
         """
-        # T.4b SLAB: M_spatial = (L+C) because M_angular_redist = 0.
-        # T.4c CURVILINEAR: subtract M_angular_redist's contribution from
-        # the unified output to recover the spatial part alone.  The
-        # subtraction is the cleanest path that doesn't require a new
-        # parametric matvec branch (the unified body already manages
-        # the per-level dag_walk + Carlson coupled-pole structure;
-        # passing a curvilinear-aware identity closure would require
-        # reproducing M-M's level partitioning).
-        unified_LpC = _transport_operator_matvec_unified(psi, self.sigma_t)
-        if getattr(self.sn_mesh, "curvature", None) is None:
-            return unified_LpC
-        # Curvilinear: M_spatial = (L+C) - M_angular_redist
-        from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.timed_full_field import TimedFullField
-        M_ang = AngularRedistributionOperator(self.sn_mesh, self.sigma_t).apply(psi)
-        spatial_bulk = unified_LpC.bulk.values - M_ang.bulk.values
-        return TimedFullField(
-            bulk=AngularFlux.from_mesh(spatial_bulk, self.sn_mesh),
-            boundary=unified_LpC.boundary,
-            _history=(),
-            history_depth=psi.history_depth,
-        )
+        m_spat, _ = self._compute_decomposition(psi)
+        return m_spat
 
 
 @dataclass(frozen=True)
@@ -988,33 +1018,27 @@ class AngularRedistributionOperator(LinearOperatorMixin):
 
     sn_mesh: "SNMesh"
     sigma_t: np.ndarray
+    m_spatial: "_MSpatialOperatorSum"
     capabilities: frozenset[str] = field(
         default_factory=lambda: frozenset({CAP_APPLY})
     )
 
     def apply(self, psi: "TimedFullField") -> "TimedFullField":
-        r"""Standalone per-cell M-M angular redistribution.
+        r"""Returns the angular-redistribution part of the M_spatial decomposition.
 
-        Algorithm:
-
-        1. Precompute M-M half-grid state via
-           ``pole_angular_closure.precompute_psi_state`` (Carlson
-           coupled-pole seed seeded by the outer-face BC inflow).
-        2. For each μ-level :math:`p` and each cell :math:`i`, call
-           ``cell_contribution(psi_state, i, p, arange(n_p))`` to get
-           per-ordinate ``(angular_denom_term, angular_numer_upstream)``.
-        3. Compute the per-cell-per-ordinate angular contribution
-           ``(angular_denom · ψ_cell − angular_numer_upstream) / V[i]``
-           and accumulate at the global ordinate indices.
+        Wave T T.5 close-out (matvec retirement): delegates to the
+        parent orchestrator's :meth:`_MSpatialOperatorSum._compute_decomposition`,
+        which walks the bidirectional sweep ONCE and emits both
+        ``(M_spatial, M_angular_redist)`` contributions.  Standalone
+        usage walks the full bidirectional sweep — slow path; the
+        production hot path in ``StreamingOperator.apply`` calls
+        ``_compute_decomposition`` directly and reads BOTH outputs in
+        one shot to avoid the redundant second walk.
 
         Returns a :class:`TimedFullField` with bulk = the
         redistribution contribution and boundary = zeros (per MA-Q4
-        — only :class:`_SpatialSweepDirection` writes face residuals).
+        — only the spatial sweep writes face residuals).
         """
-        from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.fields.boundary_flux import BoundaryFlux
-        from orpheus.transport.timed_full_field import TimedFullField
-
         sn_mesh = self.sn_mesh
         if sn_mesh is not psi.bulk.mesh:
             raise ValueError(
@@ -1022,8 +1046,7 @@ class AngularRedistributionOperator(LinearOperatorMixin):
                 "composite must share the SAME SNMesh instance "
                 "(mesh-identity invariant)."
             )
-        pole_angular_closure = sn_mesh.pole_angular_closure
-        if pole_angular_closure is None:
+        if getattr(sn_mesh, "pole_angular_closure", None) is None:
             raise ValueError(
                 "AngularRedistributionOperator requires a curvilinear "
                 "SNMesh with a bound `pole_angular_closure`.  "
@@ -1031,62 +1054,8 @@ class AngularRedistributionOperator(LinearOperatorMixin):
                 "`StreamingOperator.M_angular_redist`, which returns "
                 "`ZeroOperator` and never instantiates this leaf."
             )
-
-        quad = sn_mesh.quad
-        N = quad.N
-        ng = sn_mesh.ng
-        nx, ny = sn_mesh.nx, sn_mesh.ny
-
-        # Precompute the M-M half-grid state.  Uses the outer-face BC
-        # to seed the Carlson coupled-pole recurrence (matches the
-        # matvec body's `outer_inflow_estimate` at sn/operator.py:410).
-        bc_outer = sn_mesh.bc_right
-        face_outer = psi.boundary.face_view("xmax")
-        outer_inflow_estimate = bc_outer.apply(face_outer)
-
-        # 1-D drop of y: shape (ng, nx) — PR-INDEX-3.
-        sigma_t_gx = self.sigma_t[:, :, 0]
-        psi_view = psi.bulk.values
-        psi_state = pole_angular_closure.precompute_psi_state(
-            psi_view,
-            sigma_t=sigma_t_gx,
-            bc_outer_inflow_estimate=outer_inflow_estimate,
-        )
-
-        V = sn_mesh.volumes[:, 0]                                # (nx,)
-        # Group-leading view: (ng, N, nx, 1) — matches matvec body convention.
-        psi_g_first = psi_view.transpose(1, 0, 2, 3)
-        output_bulk = np.zeros((N, ng, nx, ny))
-
-        for p, level_idx in enumerate(pole_angular_closure.level_indices):
-            level_idx_arr = np.asarray(level_idx)
-            n_p = level_idx_arr.size
-            # All ordinates in the level — angular redistribution is
-            # symmetric across the level (per-direction split inside
-            # the matvec body is optimization, not algebra).
-            within_positions = np.arange(n_p)
-
-            for i in range(nx):
-                ang_denom_term, ang_numer_upstream = (
-                    pole_angular_closure.cell_contribution(
-                        psi_state, i, p, within_positions,
-                    )
-                )                                                # (n_p,), (ng, n_p)
-                psi_cell = psi_g_first[:, level_idx_arr, i, 0]   # (ng, n_p)
-                # Per-cell-per-ordinate angular contribution.
-                ang_contrib_g_n = (
-                    ang_denom_term[None, :] * psi_cell - ang_numer_upstream
-                ) / V[i]                                         # (ng, n_p)
-                # Accumulate at global ordinate indices: write
-                # (ng, n_p) → (N, ng) slice at the level's ordinates.
-                output_bulk[level_idx_arr, :, i, 0] = ang_contrib_g_n.T
-
-        return TimedFullField(
-            bulk=AngularFlux.from_mesh(output_bulk, sn_mesh),
-            boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
-            _history=(),
-            history_depth=psi.history_depth,
-        )
+        _, m_ang = self.m_spatial._compute_decomposition(psi)
+        return m_ang
 
 
 @dataclass
@@ -1261,45 +1230,28 @@ class StreamingOperator(LinearOperatorMixin):
             # source-hash defensive pin guards against silent edits.
             return self._apply_2d_cartesian(psi)
 
-        if curv is None:
-            # T.4b — slab (1-D Cartesian).  Route through the new
-            # M_spatial + M_angular_redist decomposition.  For slab,
-            # M_angular_redist is :class:`ZeroOperator` (no curvilinear
-            # redistribution); M_spatial covers ALL of (L+C).  The
-            # subtractive Resolution A contract subtracts σ_t·ψ at the
-            # apply boundary (Pattern 7) to recover L.
-            M_spat_result = self.M_spatial.apply(psi)
-            # M_angular_redist.apply(psi) → ZeroOperator returns the
-            # additive identity; skip the no-op to keep the slab path
-            # tight.  Curvilinear (T.4c) will add it back.
-            cell_values = (
-                M_spat_result.bulk.values
-                - self.sigma_t[None, :, :, :] * psi.bulk.values
-            )
-            return TimedFullField(
-                bulk=AngularFlux.from_mesh(cell_values, sn_mesh),
-                boundary=M_spat_result.boundary,
-                _history=(),
-                history_depth=psi.history_depth,
-            )
-
-        # T.4c FUTURE — curvilinear (sphere, cylinder).  Today still
-        # routes through the legacy `_transport_operator_matvec_unified`;
-        # T.4c will route through `M_spatial.apply + M_angular_redist.apply`
-        # where M_angular_redist is the bespoke
-        # :class:`AngularRedistributionOperator` leaf wrapping the M-M
-        # half-grid recurrence.
-        result = _transport_operator_matvec_unified(psi, self.sigma_t)
-        # Subtract σ_t ⊙ ψ.bulk at the CELL-CENTRE — face residuals
-        # carry no volumetric collision (the cell-balance σ·ψ term is
-        # a CELL quantity; the boundary residual is a TRACE equation).
+        # 1-D unified path (slab + sphere + cylinder) — Wave T post-T.5
+        # matvec retirement.  Production hot path uses
+        # :meth:`_MSpatialOperatorSum._compute_LpC` (single-emission
+        # legacy matvec body, inlined as a class method) for
+        # perf-optimal ``(L+C)·ψ`` computation; ``StreamingOperator.apply``
+        # then subtracts ``σ_t·ψ`` to recover L per Resolution A.
+        #
+        # The M_spatial / M_angular_redist algebra decomposition is
+        # exposed for introspection via :meth:`_compute_decomposition`
+        # (slower; dual-emission), used by the per-property apply
+        # paths in ``M_spatial.apply`` and ``M_angular_redist.apply``
+        # — NOT on the production hot path because re-splitting and
+        # re-summing is wasted work when ``StreamingOperator.apply``
+        # just needs (L+C).
+        LpC_result = self.M_spatial._compute_LpC(psi)
         cell_values = (
-            result.bulk.values
+            LpC_result.bulk.values
             - self.sigma_t[None, :, :, :] * psi.bulk.values
         )
         return TimedFullField(
             bulk=AngularFlux.from_mesh(cell_values, sn_mesh),
-            boundary=result.boundary,
+            boundary=LpC_result.boundary,
             _history=(),
             history_depth=psi.history_depth,
         )
@@ -1347,13 +1299,17 @@ class StreamingOperator(LinearOperatorMixin):
         if getattr(self.sn_mesh, "curvature", None) is None:
             return ZeroOperator()
         # T.4c — curvilinear: bespoke AngularRedistributionOperator
-        # leaf wraps the M-M half-grid per-cell algebra.  Standalone
-        # apply walks every (level, cell) and calls
-        # ``pole_angular_closure.cell_contribution`` (Pattern 2 —
-        # single source of truth for the M-M coefficients; this leaf
-        # does NOT re-implement the recurrence, only consumes its
-        # per-cell output).
-        return AngularRedistributionOperator(self.sn_mesh, self.sigma_t)
+        # leaf.  Wave T T.5 close-out (matvec retirement): the leaf
+        # now takes a reference to `self.M_spatial` so its `.apply`
+        # can hit the ψ-keyed dual-emission cache populated by the
+        # spatial walk, sharing state at zero cost when
+        # `StreamingOperator.apply` calls both `M_spatial.apply` and
+        # `M_angular_redist.apply` within the same call boundary.
+        return AngularRedistributionOperator(
+            sn_mesh=self.sn_mesh,
+            sigma_t=self.sigma_t,
+            m_spatial=self.M_spatial,
+        )
 
     def _apply_2d_cartesian(
         self, psi: "TimedFullField",

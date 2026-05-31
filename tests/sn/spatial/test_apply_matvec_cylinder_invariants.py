@@ -52,7 +52,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import _transport_operator_matvec_unified
+from tests.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 

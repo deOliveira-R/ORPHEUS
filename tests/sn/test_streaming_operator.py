@@ -41,6 +41,7 @@ from orpheus.sn.operator import (
     CollisionOperator,
     StreamingOperator,
 )
+from tests.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
@@ -862,15 +863,12 @@ class TestT4cAlgebraDecompositionInvariantCurvilinear:
 
     def test_sphere_LpC_equals_M_spatial_plus_M_angular_redist(self):
         """A-2 — sphere: `(L+C)·ψ == M_spat·ψ + M_ang·ψ` (ULP-clean)."""
-        from orpheus.sn.operator import (
-            _transport_operator_matvec_unified,
-        )
         from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
             _sphere_mesh,
         )
         L, state = self._build_curvilinear_fixture(_sphere_mesh, seed=20260531 + 42)
 
-        unified = _transport_operator_matvec_unified(state, L.sigma_t)
+        unified = _LC_matvec(state, L.sigma_t)
         M_spat = L.M_spatial.apply(state)
         M_ang = L.M_angular_redist.apply(state)
 
@@ -891,15 +889,12 @@ class TestT4cAlgebraDecompositionInvariantCurvilinear:
 
     def test_cylinder_LpC_equals_M_spatial_plus_M_angular_redist(self):
         """A-3 — cylinder: same invariant on multi-level fixture."""
-        from orpheus.sn.operator import (
-            _transport_operator_matvec_unified,
-        )
         from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
             _cylinder_mesh,
         )
         L, state = self._build_curvilinear_fixture(_cylinder_mesh, seed=20260531 + 43)
 
-        unified = _transport_operator_matvec_unified(state, L.sigma_t)
+        unified = _LC_matvec(state, L.sigma_t)
         M_spat = L.M_spatial.apply(state)
         M_ang = L.M_angular_redist.apply(state)
 
@@ -971,14 +966,19 @@ class TestT4cAlgebraDecompositionInvariantCurvilinear:
 
 
 class TestT4cPreT4RegressionSnapshotCurvilinear:
-    """L4-2 / L4-3 — sphere + cylinder bit-identity vs pre-T.4 snapshot.
+    """L4-2 / L4-3 — sphere + cylinder principled-equivalence vs pre-T.4 snapshot.
 
-    T.4c leaves `StreamingOperator.apply` curvilinear branch on the
-    unified matvec shortcut (production hot path unchanged).  The
-    bit-identity gate passes by construction since the production
-    apply path was NOT touched for curvilinear; the spec L4-2 / L4-3
-    rows are pinned anyway as a defensive regression to catch any
-    accidental future drift.
+    Wave T post-T.5 matvec retirement: ``StreamingOperator.apply``
+    curvilinear branch now goes through the dual-emission
+    decomposition (``M_spatial + M_angular_redist − σ_t·ψ``) rather
+    than the legacy unified-matvec shortcut.  The dual-emission body
+    computes ``m_spat = m_full − m_ang`` per cell — this introduces a
+    per-cell FP-non-associativity reorder vs the legacy single-
+    emission path.  The drift is bounded by ``cell_count × ULP``
+    (per `vv-principles` principled-equivalence three-criteria gate);
+    the test relaxes from strict bit-identity to ``rtol=1e-13,
+    atol=1e-14`` accordingly.  L1 closed-form k_∞ + L1 MMS gates
+    remain the structural-independence ground.
     """
 
     @pytest.fixture(scope="class")
@@ -1014,8 +1014,13 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
             _sphere_mesh,
         )
         bulk, boundary = self._capture_arm(_sphere_mesh(ng=1), seed=20260531 + 11)
-        np.testing.assert_array_equal(bulk, snapshots["sphere_1g_apply_bulk"])
-        np.testing.assert_array_equal(boundary, snapshots["sphere_1g_apply_boundary"])
+        np.testing.assert_allclose(
+            bulk, snapshots["sphere_1g_apply_bulk"],
+            rtol=1e-13, atol=1e-14,
+        )
+        np.testing.assert_array_equal(
+            boundary, snapshots["sphere_1g_apply_boundary"],
+        )
 
     def test_sphere_2g_apply_bit_identical(self, snapshots):
         """L4-2 — sphere 2G P1 asymmetric SigS vacuum-at-r=R."""
@@ -1023,8 +1028,13 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
             _sphere_mesh,
         )
         bulk, boundary = self._capture_arm(_sphere_mesh(ng=2), seed=20260531 + 12)
-        np.testing.assert_array_equal(bulk, snapshots["sphere_2g_apply_bulk"])
-        np.testing.assert_array_equal(boundary, snapshots["sphere_2g_apply_boundary"])
+        np.testing.assert_allclose(
+            bulk, snapshots["sphere_2g_apply_bulk"],
+            rtol=1e-13, atol=1e-14,
+        )
+        np.testing.assert_array_equal(
+            boundary, snapshots["sphere_2g_apply_boundary"],
+        )
 
     def test_cylinder_1g_apply_bit_identical(self, snapshots):
         """L4-3 — cylinder 1G P0 level-symmetric quad."""
@@ -1032,8 +1042,13 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
             _cylinder_mesh,
         )
         bulk, boundary = self._capture_arm(_cylinder_mesh(ng=1), seed=20260531 + 21)
-        np.testing.assert_array_equal(bulk, snapshots["cyl_1g_apply_bulk"])
-        np.testing.assert_array_equal(boundary, snapshots["cyl_1g_apply_boundary"])
+        np.testing.assert_allclose(
+            bulk, snapshots["cyl_1g_apply_bulk"],
+            rtol=1e-13, atol=1e-14,
+        )
+        np.testing.assert_array_equal(
+            boundary, snapshots["cyl_1g_apply_boundary"],
+        )
 
     def test_cylinder_2g_apply_bit_identical(self, snapshots):
         """L4-3 — cylinder 2G P1 asymmetric SigS, multi-level quad."""
@@ -1041,8 +1056,13 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
             _cylinder_mesh,
         )
         bulk, boundary = self._capture_arm(_cylinder_mesh(ng=2), seed=20260531 + 22)
-        np.testing.assert_array_equal(bulk, snapshots["cyl_2g_apply_bulk"])
-        np.testing.assert_array_equal(boundary, snapshots["cyl_2g_apply_boundary"])
+        np.testing.assert_allclose(
+            bulk, snapshots["cyl_2g_apply_bulk"],
+            rtol=1e-13, atol=1e-14,
+        )
+        np.testing.assert_array_equal(
+            boundary, snapshots["cyl_2g_apply_boundary"],
+        )
 
 
 class TestT5MaterializeInverseCache:

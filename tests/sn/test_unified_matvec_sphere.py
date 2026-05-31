@@ -34,7 +34,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import _transport_operator_matvec_unified
+from tests.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 
