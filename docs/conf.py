@@ -75,6 +75,7 @@ napoleon_use_ivar = True
 
 def _regenerate_verification_matrix(app):
     import subprocess
+    from sphinx.util.logging import getLogger
     try:
         subprocess.run(
             [sys.executable, "-m", "tools.verification.generate_matrix"],
@@ -84,7 +85,11 @@ def _regenerate_verification_matrix(app):
             text=True,
         )
     except subprocess.CalledProcessError as e:
-        app.warn(
+        # Sphinx 9.1 removed ``app.warn``; use the canonical
+        # ``sphinx.util.logging`` logger instead (per Sphinx 9.0+
+        # migration notes).  Flagged by the archivist during Wave T
+        # T.5.2 close-out (commit `40e9ccc`).
+        getLogger(__name__).warning(
             f"verification matrix regeneration failed: {e.stderr}"
         )
 
