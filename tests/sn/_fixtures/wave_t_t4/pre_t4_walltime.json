@@ -1,0 +1,12 @@
+{
+  "fixture": "slab_2g_p1_asymmetric_vacuum_nx40_S8GL_apply",
+  "n_iterations": 200,
+  "walltime_seconds_median": 0.000822770525701344,
+  "walltime_seconds_p95": 0.0009730516816489398,
+  "walltime_seconds_mean": 0.0008430522977141663,
+  "walltime_seconds_stdev": 6.537457134124165e-05,
+  "python_version": "3.14.3",
+  "numpy_version": "2.4.4",
+  "rng_seed": 20260631,
+  "capture_date": "2026-05-31"
+}
