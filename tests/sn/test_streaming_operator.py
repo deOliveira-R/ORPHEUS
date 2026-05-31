@@ -641,20 +641,30 @@ class TestT4bMSpatialStructure:
         L = StreamingOperator(sn_mesh, sig_t)
         assert isinstance(L.M_angular_redist, ZeroOperator)
 
-    def test_M_angular_redist_curvilinear_raises_until_t4c(self):
-        """T.4b interim — curvilinear ``M_angular_redist`` raises
-        ``NotImplementedError`` until T.4c lands the bespoke leaf.
+    def test_M_angular_redist_curvilinear_is_bespoke_leaf(self):
+        """L2-4 (T.4c) — curvilinear ``M_angular_redist`` is the bespoke
+        :class:`AngularRedistributionOperator` leaf.
 
-        This is a CONTRACT test, not a defect: it documents the
-        per-substep deferral.  T.4c replaces this with the
-        :class:`AngularRedistributionOperator` instance check.
+        Per the spec Q2 = (iii) bespoke leaf — the M-M half-grid
+        recurrence is sequentially coupled along the angular axis;
+        wrapping it as a 3-factor TP would false-assert separability
+        the recurrence doesn't support.  The leaf carries
+        ``{CAP_APPLY}`` and standalone applies per-cell M-M
+        ``cell_contribution`` algebra.
         """
+        from orpheus.sn.operator import AngularRedistributionOperator
+
         for builder in (_spherical_mesh, _cylindrical_mesh):
             sn_mesh = builder()
             sig_t = _sig_t_uniform(sn_mesh)
             L = StreamingOperator(sn_mesh, sig_t)
-            with pytest.raises(NotImplementedError, match="T.4c"):
-                _ = L.M_angular_redist
+            M_ang = L.M_angular_redist
+            assert isinstance(M_ang, AngularRedistributionOperator)
+            assert M_ang.capabilities == frozenset({CAP_APPLY})
+            # The leaf carries the same sn_mesh and sigma_t as the
+            # parent operator (no copy; shared reference).
+            assert M_ang.sn_mesh is sn_mesh
+            assert M_ang.sigma_t is sig_t
 
     def test_M_spatial_capabilities_apply_only(self):
         """L2-6 — M_spatial advertises `{CAP_APPLY}` only.
@@ -820,6 +830,219 @@ class TestT4bPreT4RegressionSnapshot:
         np.testing.assert_array_equal(
             boundary, snapshots["slab_2g_reflective_apply_boundary"],
         )
+
+
+class TestT4cAlgebraDecompositionInvariantCurvilinear:
+    """A-2 / A-3 — curvilinear algebra-decomposition invariant.
+
+    `(L+C).apply(ψ) == M_spatial.apply(ψ) + M_angular_redist.apply(ψ)`
+    at principled-equivalence ULP precision (per `vv-principles` §
+    "Bit-identity vs principled-equivalence" three-criteria gate —
+    M_spatial is computed via subtraction `(L+C) - M_ang` in
+    `_MSpatialOperatorSum.apply` for curvilinear, so the equivalence
+    differs from bit-identity at FP-non-associativity ULP).
+    """
+
+    def _build_curvilinear_fixture(self, builder, seed: int):
+        """Construct a curvilinear sn_mesh + sig_t + state fixture."""
+        from dataclasses import replace
+        sn_mesh = builder(ng=2)
+        sig_t = _sigma_t_from_mat_map(sn_mesh)
+        L = StreamingOperator(sn_mesh, sig_t)
+        state = sn_mesh.zeros_timed_full_field()
+        rng = np.random.default_rng(seed)
+        state = replace(
+            state,
+            bulk=replace(
+                state.bulk,
+                values=rng.uniform(0.05, 1.0, size=state.bulk.values.shape),
+            ),
+        )
+        return L, state
+
+    def test_sphere_LpC_equals_M_spatial_plus_M_angular_redist(self):
+        """A-2 — sphere: `(L+C)·ψ == M_spat·ψ + M_ang·ψ` (ULP-clean)."""
+        from orpheus.sn.operator import (
+            transport_operator_matvec_unified,
+        )
+        from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
+            _sphere_mesh,
+        )
+        L, state = self._build_curvilinear_fixture(_sphere_mesh, seed=20260531 + 42)
+
+        unified = transport_operator_matvec_unified(state, L.sigma_t)
+        M_spat = L.M_spatial.apply(state)
+        M_ang = L.M_angular_redist.apply(state)
+
+        # `(L+C) == M_spatial + M_angular_redist` at principled-
+        # equivalence ULP — the subtraction `M_spatial = (L+C) - M_ang`
+        # inside `_MSpatialOperatorSum.apply` re-introduces FP-non-
+        # associativity drift bounded by ~reduction_depth × ULP.
+        np.testing.assert_allclose(
+            M_spat.bulk.values + M_ang.bulk.values,
+            unified.bulk.values,
+            rtol=1e-14, atol=1e-14,
+        )
+        # Boundary: M_angular_redist writes zero → M_spatial.boundary
+        # equals the unified boundary exactly (bit-identical).
+        np.testing.assert_array_equal(
+            M_spat.boundary.values, unified.boundary.values,
+        )
+
+    def test_cylinder_LpC_equals_M_spatial_plus_M_angular_redist(self):
+        """A-3 — cylinder: same invariant on multi-level fixture."""
+        from orpheus.sn.operator import (
+            transport_operator_matvec_unified,
+        )
+        from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
+            _cylinder_mesh,
+        )
+        L, state = self._build_curvilinear_fixture(_cylinder_mesh, seed=20260531 + 43)
+
+        unified = transport_operator_matvec_unified(state, L.sigma_t)
+        M_spat = L.M_spatial.apply(state)
+        M_ang = L.M_angular_redist.apply(state)
+
+        np.testing.assert_allclose(
+            M_spat.bulk.values + M_ang.bulk.values,
+            unified.bulk.values,
+            rtol=1e-14, atol=1e-14,
+        )
+        np.testing.assert_array_equal(
+            M_spat.boundary.values, unified.boundary.values,
+        )
+
+    def test_curvilinear_M_angular_redist_writes_no_boundary(self):
+        """MA-Q4 — `M_angular_redist.apply` writes ZERO to boundary
+        for sphere AND cylinder.  The angular redistribution is an
+        interior-cell operation per the cell-balance algebra; spatial
+        face residuals belong to `M_spatial` alone (Wave O typing
+        consequence: M_angular_redist is a BulkOperator, M_spatial
+        is a FullOperator).
+        """
+        from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
+            _sphere_mesh, _cylinder_mesh,
+        )
+        for builder, seed in (
+            (_sphere_mesh, 20260531 + 81),
+            (_cylinder_mesh, 20260531 + 82),
+        ):
+            L, state = self._build_curvilinear_fixture(builder, seed=seed)
+            M_ang = L.M_angular_redist.apply(state)
+            np.testing.assert_array_equal(
+                M_ang.boundary.values, np.zeros_like(M_ang.boundary.values),
+            )
+
+    def test_curvilinear_M_angular_redist_linearity(self):
+        """A-8 — linearity of `M_angular_redist.apply` for curvilinear.
+
+        `M_ang(α·ψ + β·φ) = α·M_ang(ψ) + β·M_ang(φ)`.  Verified at
+        FP precision because M-M's `cell_contribution` is linear in
+        `psi_state`, and `precompute_psi_state` is linear in ψ
+        (Carlson coupled-pole seed is linear; M-M closure is
+        ``is_linear = True``).
+        """
+        from dataclasses import replace
+        from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
+            _sphere_mesh,
+        )
+
+        sn_mesh = _sphere_mesh(ng=2)
+        sig_t = _sigma_t_from_mat_map(sn_mesh)
+        L = StreamingOperator(sn_mesh, sig_t)
+        rng = np.random.default_rng(20260531 + 91)
+
+        # Two random ψ states.
+        psi_shape = (sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny)
+        psi_a = rng.uniform(0.05, 1.0, size=psi_shape)
+        psi_b = rng.uniform(0.05, 1.0, size=psi_shape)
+        alpha, beta = 0.37, -0.91
+
+        def _make(values):
+            state = sn_mesh.zeros_timed_full_field()
+            return replace(state, bulk=replace(state.bulk, values=values))
+
+        out_a = L.M_angular_redist.apply(_make(psi_a)).bulk.values
+        out_b = L.M_angular_redist.apply(_make(psi_b)).bulk.values
+        out_lin = L.M_angular_redist.apply(_make(alpha * psi_a + beta * psi_b)).bulk.values
+
+        expected = alpha * out_a + beta * out_b
+        np.testing.assert_allclose(out_lin, expected, rtol=1e-13, atol=1e-14)
+
+
+class TestT4cPreT4RegressionSnapshotCurvilinear:
+    """L4-2 / L4-3 — sphere + cylinder bit-identity vs pre-T.4 snapshot.
+
+    T.4c leaves `StreamingOperator.apply` curvilinear branch on the
+    unified matvec shortcut (production hot path unchanged).  The
+    bit-identity gate passes by construction since the production
+    apply path was NOT touched for curvilinear; the spec L4-2 / L4-3
+    rows are pinned anyway as a defensive regression to catch any
+    accidental future drift.
+    """
+
+    @pytest.fixture(scope="class")
+    def snapshots(self):
+        """Load the pre-T.4 snapshot bundle."""
+        import os
+        path = os.path.join(
+            os.path.dirname(__file__), "_fixtures", "wave_t_t4",
+            "pre_t4_snapshots.npz",
+        )
+        with np.load(path) as data:
+            return {k: data[k] for k in data.files}
+
+    def _capture_arm(self, sn_mesh: SNMesh, seed: int) -> tuple[np.ndarray, np.ndarray]:
+        from dataclasses import replace
+        sig_t = _sigma_t_from_mat_map(sn_mesh)
+        L = StreamingOperator(sn_mesh, sig_t)
+        state = sn_mesh.zeros_timed_full_field()
+        rng = np.random.default_rng(seed)
+        state = replace(
+            state,
+            bulk=replace(
+                state.bulk,
+                values=rng.uniform(0.05, 1.0, size=state.bulk.values.shape),
+            ),
+        )
+        out = L.apply(state)
+        return out.bulk.values.copy(), out.boundary.values.copy()
+
+    def test_sphere_1g_apply_bit_identical(self, snapshots):
+        """L4-2 — sphere 1G P0 vacuum-at-r=R."""
+        from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
+            _sphere_mesh,
+        )
+        bulk, boundary = self._capture_arm(_sphere_mesh(ng=1), seed=20260531 + 11)
+        np.testing.assert_array_equal(bulk, snapshots["sphere_1g_apply_bulk"])
+        np.testing.assert_array_equal(boundary, snapshots["sphere_1g_apply_boundary"])
+
+    def test_sphere_2g_apply_bit_identical(self, snapshots):
+        """L4-2 — sphere 2G P1 asymmetric SigS vacuum-at-r=R."""
+        from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
+            _sphere_mesh,
+        )
+        bulk, boundary = self._capture_arm(_sphere_mesh(ng=2), seed=20260531 + 12)
+        np.testing.assert_array_equal(bulk, snapshots["sphere_2g_apply_bulk"])
+        np.testing.assert_array_equal(boundary, snapshots["sphere_2g_apply_boundary"])
+
+    def test_cylinder_1g_apply_bit_identical(self, snapshots):
+        """L4-3 — cylinder 1G P0 level-symmetric quad."""
+        from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
+            _cylinder_mesh,
+        )
+        bulk, boundary = self._capture_arm(_cylinder_mesh(ng=1), seed=20260531 + 21)
+        np.testing.assert_array_equal(bulk, snapshots["cyl_1g_apply_bulk"])
+        np.testing.assert_array_equal(boundary, snapshots["cyl_1g_apply_boundary"])
+
+    def test_cylinder_2g_apply_bit_identical(self, snapshots):
+        """L4-3 — cylinder 2G P1 asymmetric SigS, multi-level quad."""
+        from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
+            _cylinder_mesh,
+        )
+        bulk, boundary = self._capture_arm(_cylinder_mesh(ng=2), seed=20260531 + 22)
+        np.testing.assert_array_equal(bulk, snapshots["cyl_2g_apply_bulk"])
+        np.testing.assert_array_equal(boundary, snapshots["cyl_2g_apply_boundary"])
 
 
 class TestT4bMSpatialStandaloneApply:

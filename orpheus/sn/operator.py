@@ -832,10 +832,206 @@ class _MSpatialOperatorSum(OperatorSum):
         from the unified output to recover just the spatial part.
         """
         # T.4b SLAB: M_spatial = (L+C) because M_angular_redist = 0.
-        # T.4c CURVILINEAR (future): subtract M_angular_redist's
-        # contribution from the unified output to recover the spatial
-        # part alone.
-        return transport_operator_matvec_unified(psi, self.sigma_t)
+        # T.4c CURVILINEAR: subtract M_angular_redist's contribution from
+        # the unified output to recover the spatial part alone.  The
+        # subtraction is the cleanest path that doesn't require a new
+        # parametric matvec branch (the unified body already manages
+        # the per-level dag_walk + Carlson coupled-pole structure;
+        # passing a curvilinear-aware identity closure would require
+        # reproducing M-M's level partitioning).
+        unified_LpC = transport_operator_matvec_unified(psi, self.sigma_t)
+        if getattr(self.sn_mesh, "curvature", None) is None:
+            return unified_LpC
+        # Curvilinear: M_spatial = (L+C) - M_angular_redist
+        from orpheus.transport.fields.angular_flux import AngularFlux
+        from orpheus.transport.timed_full_field import TimedFullField
+        M_ang = AngularRedistributionOperator(self.sn_mesh, self.sigma_t).apply(psi)
+        spatial_bulk = unified_LpC.bulk.values - M_ang.bulk.values
+        return TimedFullField(
+            bulk=AngularFlux.from_mesh(spatial_bulk, self.sn_mesh),
+            boundary=unified_LpC.boundary,
+            _history=(),
+            history_depth=psi.history_depth,
+        )
+
+
+@dataclass(frozen=True)
+class AngularRedistributionOperator(LinearOperatorMixin):
+    r"""Bespoke curvilinear angular-redistribution leaf — :attr:`StreamingOperator.M_angular_redist` for sphere / cylinder.
+
+    Per the Wave T T.4 verification spec Q2 (user-endorsed) — the M-M
+    half-grid recurrence (Hébert §3.9.4 Eqs. 3.432-3.435) is
+    sequentially coupled along the angular axis: ``α_{m+1/2}`` recurs
+    from ``α_{m-1/2}`` with absorption coefficients that depend on σ_t
+    and the upstream half-angle ψ.  This is a SWEEP operator, NOT a
+    diagonal per-angular-axis factor.  A 3-factor TP wrap
+    ``(leaf & I_x & I_g)`` would false-assert separability the
+    recurrence doesn't support — same MA-Q1 master condition that
+    applies to the spatial WDD recurrence in :class:`_SpatialSweepDirection`:
+    coupled physics falls back to ``OperatorSum`` summands, NOT clean
+    tensor products.
+
+    Per-cell algebra (extracted from `cell_balance_for_streaming`)
+    --------------------------------------------------------------
+
+    The cell-balance algebra decomposes additively:
+
+    .. math::
+
+       (L+C)\,\psi\big|_{\rm cell} \;=\; m_{\rm streaming} \;+\;
+                                         m_{\rm collision} \;+\;
+                                         m_{\rm angular\_redist}
+
+    where
+
+    .. math::
+
+       m_{\rm angular\_redist} \;=\;
+         \frac{1}{V_i}\bigl[
+            \mathrm{angular\_denom\_term} \cdot \psi_{\rm cell}
+          - \mathrm{angular\_numer\_upstream}
+         \bigr]
+
+    The per-level M-M closure supplies
+    ``angular_denom_term = (ΔA/w) · c_out`` and
+    ``angular_numer_upstream = (ΔA/w) · c_in · ψ_{m-1/2, i, g}`` via
+    :meth:`PoleAngularClosure.cell_contribution`.  Calling
+    ``cell_contribution`` with ``within_positions = arange(n_p)``
+    (all ordinates in the level) yields the full per-level
+    contribution in one shot — the matvec body's per-direction split
+    is an optimization, not an algebraic requirement.
+
+    Boundary residual semantics (per the spec MA-Q4)
+    -------------------------------------------------
+
+    M_angular_redist writes ONLY to bulk; the angular redistribution
+    is an interior-cell operation that doesn't traverse the spatial
+    boundary.  Output ``boundary`` is the zero
+    :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`.
+
+    Slab status
+    ------------
+
+    For Cartesian (slab + 2-D), the property dispatch in
+    :class:`StreamingOperator` returns :class:`ZeroOperator` instead
+    of this leaf — there is no curvilinear redistribution to compute
+    (``IdentityAngularClosure.cell_contribution`` returns zeros by
+    construction).  This leaf is instantiated ONLY for sphere /
+    cylinder.
+
+    Parameters
+    ----------
+    sn_mesh : SNMesh
+        Curvilinear (spherical or cylindrical) SN mesh carrying the
+        M-M ``pole_angular_closure`` strategy.
+    sigma_t : np.ndarray
+        Per-group per-cell total cross section, ``(ng, nx, ny)``.
+        Bound at constructor time per Resolution A's subtractive
+        contract (the M-M Carlson coupled-pole seed is rational in
+        σ_t — Hébert §3.9.4 Eqs. 3.432-3.435).
+    """
+
+    sn_mesh: "SNMesh"
+    sigma_t: np.ndarray
+    capabilities: frozenset[str] = field(
+        default_factory=lambda: frozenset({CAP_APPLY})
+    )
+
+    def apply(self, psi: "TimedFullField") -> "TimedFullField":
+        r"""Standalone per-cell M-M angular redistribution.
+
+        Algorithm:
+
+        1. Precompute M-M half-grid state via
+           ``pole_angular_closure.precompute_psi_state`` (Carlson
+           coupled-pole seed seeded by the outer-face BC inflow).
+        2. For each μ-level :math:`p` and each cell :math:`i`, call
+           ``cell_contribution(psi_state, i, p, arange(n_p))`` to get
+           per-ordinate ``(angular_denom_term, angular_numer_upstream)``.
+        3. Compute the per-cell-per-ordinate angular contribution
+           ``(angular_denom · ψ_cell − angular_numer_upstream) / V[i]``
+           and accumulate at the global ordinate indices.
+
+        Returns a :class:`TimedFullField` with bulk = the
+        redistribution contribution and boundary = zeros (per MA-Q4
+        — only :class:`_SpatialSweepDirection` writes face residuals).
+        """
+        from orpheus.transport.fields.angular_flux import AngularFlux
+        from orpheus.transport.fields.boundary_flux import BoundaryFlux
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sn_mesh = self.sn_mesh
+        if sn_mesh is not psi.bulk.mesh:
+            raise ValueError(
+                "AngularRedistributionOperator.apply: operator and "
+                "composite must share the SAME SNMesh instance "
+                "(mesh-identity invariant)."
+            )
+        pole_angular_closure = sn_mesh.pole_angular_closure
+        if pole_angular_closure is None:
+            raise ValueError(
+                "AngularRedistributionOperator requires a curvilinear "
+                "SNMesh with a bound `pole_angular_closure`.  "
+                "Cartesian meshes should route through "
+                "`StreamingOperator.M_angular_redist`, which returns "
+                "`ZeroOperator` and never instantiates this leaf."
+            )
+
+        quad = sn_mesh.quad
+        N = quad.N
+        ng = sn_mesh.ng
+        nx, ny = sn_mesh.nx, sn_mesh.ny
+
+        # Precompute the M-M half-grid state.  Uses the outer-face BC
+        # to seed the Carlson coupled-pole recurrence (matches the
+        # matvec body's `outer_inflow_estimate` at sn/operator.py:410).
+        bc_outer = sn_mesh.bc_right
+        face_outer = psi.boundary.face_view("xmax")
+        outer_inflow_estimate = bc_outer.apply(face_outer)
+
+        # 1-D drop of y: shape (ng, nx) — PR-INDEX-3.
+        sigma_t_gx = self.sigma_t[:, :, 0]
+        psi_view = psi.bulk.values
+        psi_state = pole_angular_closure.precompute_psi_state(
+            psi_view,
+            sigma_t=sigma_t_gx,
+            bc_outer_inflow_estimate=outer_inflow_estimate,
+        )
+
+        V = sn_mesh.volumes[:, 0]                                # (nx,)
+        # Group-leading view: (ng, N, nx, 1) — matches matvec body convention.
+        psi_g_first = psi_view.transpose(1, 0, 2, 3)
+        output_bulk = np.zeros((N, ng, nx, ny))
+
+        for p, level_idx in enumerate(pole_angular_closure.level_indices):
+            level_idx_arr = np.asarray(level_idx)
+            n_p = level_idx_arr.size
+            # All ordinates in the level — angular redistribution is
+            # symmetric across the level (per-direction split inside
+            # the matvec body is optimization, not algebra).
+            within_positions = np.arange(n_p)
+
+            for i in range(nx):
+                ang_denom_term, ang_numer_upstream = (
+                    pole_angular_closure.cell_contribution(
+                        psi_state, i, p, within_positions,
+                    )
+                )                                                # (n_p,), (ng, n_p)
+                psi_cell = psi_g_first[:, level_idx_arr, i, 0]   # (ng, n_p)
+                # Per-cell-per-ordinate angular contribution.
+                ang_contrib_g_n = (
+                    ang_denom_term[None, :] * psi_cell - ang_numer_upstream
+                ) / V[i]                                         # (ng, n_p)
+                # Accumulate at global ordinate indices: write
+                # (ng, n_p) → (N, ng) slice at the level's ordinates.
+                output_bulk[level_idx_arr, :, i, 0] = ang_contrib_g_n.T
+
+        return TimedFullField(
+            bulk=AngularFlux.from_mesh(output_bulk, sn_mesh),
+            boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+            _history=(),
+            history_depth=psi.history_depth,
+        )
 
 
 @dataclass
@@ -1095,20 +1291,14 @@ class StreamingOperator(LinearOperatorMixin):
         """
         if getattr(self.sn_mesh, "curvature", None) is None:
             return ZeroOperator()
-        # T.4c FUTURE — return AngularRedistributionOperator(self.sn_mesh,
-        # self.sigma_t) wrapping the M-M closure's per-cell algebra.
-        # Until then, the legacy curvilinear path inside `apply` carries
-        # the M-M contribution implicitly via
-        # `transport_operator_matvec_unified`.
-        raise NotImplementedError(
-            "StreamingOperator.M_angular_redist: curvilinear bespoke "
-            "leaf lands in Wave T step T.4c.  Slab returns ZeroOperator; "
-            "curvilinear (sphere, cylinder) raises until T.4c. "
-            "For the curvilinear matvec, route through "
-            "`StreamingOperator.apply` (which still uses the legacy "
-            "unified path for curvilinear) — do NOT call "
-            "`.M_angular_redist` until T.4c lands."
-        )
+        # T.4c — curvilinear: bespoke AngularRedistributionOperator
+        # leaf wraps the M-M half-grid per-cell algebra.  Standalone
+        # apply walks every (level, cell) and calls
+        # ``pole_angular_closure.cell_contribution`` (Pattern 2 —
+        # single source of truth for the M-M coefficients; this leaf
+        # does NOT re-implement the recurrence, only consumes its
+        # per-cell output).
+        return AngularRedistributionOperator(self.sn_mesh, self.sigma_t)
 
     def _apply_2d_cartesian(
         self, psi: "TimedFullField",
