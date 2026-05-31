@@ -76,7 +76,7 @@ def legacy_proxy_matvec(
     psi_view: "np.ndarray", sn_mesh: "SNMesh", sigma_t: "np.ndarray",
     *, bc_outer=None, pole_angular_closure=None,
 ) -> "np.ndarray":
-    """Call :func:`transport_operator_matvec_unified` with the
+    """Call :func:`_transport_operator_matvec_unified` with the
     cell-centre-proxy boundary fill semantics (pre-B1'' convention).
 
     Tests that compare against L0 hand-derived references built BEFORE
@@ -89,7 +89,7 @@ def legacy_proxy_matvec(
        ``psi_view``'s cell-centre value at the outer (and slab-inner)
        face — the cell-centre-proxy fill.
     2. Wrap into a :class:`TimedFullField`.
-    3. Call :func:`transport_operator_matvec_unified`.
+    3. Call :func:`_transport_operator_matvec_unified`.
     4. Return ``result.bulk.values`` as a bare ndarray.
 
     The "legacy" prefix refers to the BOUNDARY-FILL CONVENTION (the
@@ -106,7 +106,7 @@ def legacy_proxy_matvec(
         BoundaryFlux,
     )
     from orpheus.transport.timed_full_field import TimedFullField
-    from orpheus.sn.operator import transport_operator_matvec_unified
+    from orpheus.sn.operator import _transport_operator_matvec_unified
 
     boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
     boundary.face_view("xmax")[:] = psi_view[:, :, -1, 0]
@@ -118,7 +118,7 @@ def legacy_proxy_matvec(
         _history=(),
         history_depth=2,
     )
-    result = transport_operator_matvec_unified(
+    result = _transport_operator_matvec_unified(
         composite, sigma_t,
         bc_outer=bc_outer, pole_angular_closure=pole_angular_closure,
     )

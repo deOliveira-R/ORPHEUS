@@ -743,7 +743,7 @@ class TestT4bPreT4RegressionSnapshot:
     """L4-1 / L4-5 / L4-6 / L4-7 — bit-identity vs pre-T.4 snapshots.
 
     Per the T.4 verification spec §6 R3 (reduction-order drift) — the
-    slab path's M_spatial.apply delegates to `transport_operator_matvec_unified`
+    slab path's M_spatial.apply delegates to `_transport_operator_matvec_unified`
     bit-exact (no reduction reorder), so Route A strict bit-identity
     applies.
 
@@ -863,14 +863,14 @@ class TestT4cAlgebraDecompositionInvariantCurvilinear:
     def test_sphere_LpC_equals_M_spatial_plus_M_angular_redist(self):
         """A-2 — sphere: `(L+C)·ψ == M_spat·ψ + M_ang·ψ` (ULP-clean)."""
         from orpheus.sn.operator import (
-            transport_operator_matvec_unified,
+            _transport_operator_matvec_unified,
         )
         from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
             _sphere_mesh,
         )
         L, state = self._build_curvilinear_fixture(_sphere_mesh, seed=20260531 + 42)
 
-        unified = transport_operator_matvec_unified(state, L.sigma_t)
+        unified = _transport_operator_matvec_unified(state, L.sigma_t)
         M_spat = L.M_spatial.apply(state)
         M_ang = L.M_angular_redist.apply(state)
 
@@ -892,14 +892,14 @@ class TestT4cAlgebraDecompositionInvariantCurvilinear:
     def test_cylinder_LpC_equals_M_spatial_plus_M_angular_redist(self):
         """A-3 — cylinder: same invariant on multi-level fixture."""
         from orpheus.sn.operator import (
-            transport_operator_matvec_unified,
+            _transport_operator_matvec_unified,
         )
         from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
             _cylinder_mesh,
         )
         L, state = self._build_curvilinear_fixture(_cylinder_mesh, seed=20260531 + 43)
 
-        unified = transport_operator_matvec_unified(state, L.sigma_t)
+        unified = _transport_operator_matvec_unified(state, L.sigma_t)
         M_spat = L.M_spatial.apply(state)
         M_ang = L.M_angular_redist.apply(state)
 
@@ -1043,6 +1043,59 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         bulk, boundary = self._capture_arm(_cylinder_mesh(ng=2), seed=20260531 + 22)
         np.testing.assert_array_equal(bulk, snapshots["cyl_2g_apply_bulk"])
         np.testing.assert_array_equal(boundary, snapshots["cyl_2g_apply_boundary"])
+
+
+class TestT5MaterializeInverseCache:
+    """T.5 close-out — `M_spatial.materialize_inverse_cache(sigma_t)` API surface.
+
+    Exposes the `CollisionCache` from M_spatial's natural angle
+    (Pattern 2 dual-view of `CollisionCache.from_geometry`).  The
+    method delegates to the existing factory; no new cache logic is
+    introduced.  This test pins the API and verifies the cache fields
+    match what `CollisionCache.from_geometry` would produce
+    independently — same factory, same numerics.
+
+    Future leverage (post-T.5 cache-unification micro-wave, NOT in
+    T.5 scope): `_ensure_coll_cache` in `sn/sweep.py` could route
+    through this method as the canonical cache-construction path,
+    making M_spatial the single source of truth for its own inverse
+    cache.  Today both pathways co-exist; this method exposes the
+    operator-side angle so future refactoring has a name to migrate
+    toward.
+    """
+
+    def test_M_spatial_materialize_inverse_cache_returns_collision_cache(self):
+        """`M_spatial.materialize_inverse_cache()` returns a CollisionCache
+        with the same fields as the canonical `from_geometry` factory."""
+        from orpheus.sn.spatial.sweep_cache import (
+            CollisionCache,
+            GeometryCoefficients,
+        )
+
+        sn_mesh = _slab_mesh()
+        sig_t = _sig_t_uniform(sn_mesh)
+        L = StreamingOperator(sn_mesh, sig_t)
+
+        # Build the cache via M_spatial.
+        cache_via_op = L.M_spatial.materialize_inverse_cache()
+        assert isinstance(cache_via_op, CollisionCache)
+
+        # Compare to the canonical from_geometry path.
+        geom = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
+        cache_canonical = CollisionCache.from_geometry(geom, sig_t[:, :, 0])
+
+        # All three cache fields bit-identical (both paths call the
+        # SAME `from_geometry` factory; this verifies the delegation
+        # is wired correctly).
+        np.testing.assert_array_equal(
+            cache_via_op.inverse_denom, cache_canonical.inverse_denom,
+        )
+        np.testing.assert_array_equal(
+            cache_via_op.a_attenuation, cache_canonical.a_attenuation,
+        )
+        np.testing.assert_array_equal(
+            cache_via_op.cumprod_a, cache_canonical.cumprod_a,
+        )
 
 
 class TestT4dApply2DCartesianSourceHashPin:

@@ -1,7 +1,7 @@
 r"""Comparison tests — unified cylinder matvec (PR-TYPED-6c Step 3).
 
 Issue #197 PR-TYPED-6c Step 3 verifies the cylindrical branch of
-:func:`~orpheus.sn.operator.transport_operator_matvec_unified`.
+:func:`~orpheus.sn.operator._transport_operator_matvec_unified`.
 
 Two levels of evidence (per L14 in ``.claude/lessons.md`` — solver
 correctness is a 4-way standoff):
@@ -43,7 +43,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn import operator as sn_op
 from orpheus.sn import solve_sn
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import transport_operator_matvec_unified
+from orpheus.sn.operator import _transport_operator_matvec_unified
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.pole_angular_closure import MorelMontryAngularSweep
 from orpheus.sn.spatial.psi_half_angle_seed import CarlsonSweepContext
@@ -389,7 +389,7 @@ def _build_mr_cylinder_mesh(nx: int = 40) -> tuple[Mesh1D, dict]:
 # Post-D-K (commit ``dadf4e8``), ``SNSolver.L`` is the algebraic
 # composition ``StreamingOperator + CollisionOperator``
 # (= :class:`InvertibleOperator`), which calls
-# :func:`transport_operator_matvec_unified` natively for 1-D
+# :func:`_transport_operator_matvec_unified` natively for 1-D
 # cylindrical.  No monkey-patch is required.
 
 
@@ -401,7 +401,7 @@ def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
 
     Drives :func:`solve_sn` with ``inner_solver="krylov"`` — the
     matvec routes through :class:`InvertibleOperator` (= ``L + C``)
-    via :func:`transport_operator_matvec_unified`. The converged
+    via :func:`_transport_operator_matvec_unified`. The converged
     ``k_eff`` is compared against the structurally-independent
     :func:`solve_greens_function_cylinder_mr` reference (Variant α at
     α=1) at the same 3% tolerance the production Gate 4.2 cross-check

@@ -51,7 +51,7 @@ D-I.1 — typed-carrier migration
 
 This file was originally written against the legacy packed-vector
 contract (bare-``np.ndarray`` through
-:func:`transport_operator_matvec_unified` via the
+:func:`_transport_operator_matvec_unified` via the
 :class:`EquationMap` B1'' adapter).  D-I.1 retires
 :meth:`CollisionOperator.apply(bare_ndarray)` /
 :meth:`CollisionOperator.solve(bare_ndarray)` along with the
@@ -74,7 +74,7 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import (
     CollisionOperator,
     StreamingOperator,
-    transport_operator_matvec_unified,
+    _transport_operator_matvec_unified,
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -165,7 +165,7 @@ class TestResolutionADecomposition:
         sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 2.0)  # PR-INDEX-3
 
         # Reference: the unified matvec at full σ_t.
-        m_full_state = transport_operator_matvec_unified(state, sigma_t)
+        m_full_state = _transport_operator_matvec_unified(state, sigma_t)
 
         # Resolution A: L.apply + C.apply via TimedFullField arithmetic.
         L = StreamingOperator(sn_mesh, sigma_t)
@@ -244,7 +244,7 @@ class TestSubtractiveDefinition:
         L = StreamingOperator(sn_mesh, sigma_t)
         l_state = L.apply(state)
 
-        m_full_state = transport_operator_matvec_unified(state, sigma_t)
+        m_full_state = _transport_operator_matvec_unified(state, sigma_t)
 
         # Cell-centre subtraction: bulk expected = M.bulk - σ_t·ψ.bulk
         # (σ_t broadcast over the ordinate axis 0 via [None, :, :, :]).
@@ -318,7 +318,7 @@ class TestResolutionADifferentFromPriorWrong:
         # Prior agent's wrong L.apply: matvec at σ_t = 0 (which has
         # different boundary behaviour because the Carlson seed
         # denominator degenerates).
-        l_prior_state = transport_operator_matvec_unified(state, sigma_zero)
+        l_prior_state = _transport_operator_matvec_unified(state, sigma_zero)
 
         diff_bulk = l_correct_state.bulk.values - l_prior_state.bulk.values
         rel = (

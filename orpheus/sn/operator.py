@@ -19,7 +19,7 @@ boundary = :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`).
 Producer-side normalisation (Pattern 7): the typed contract is
 enforced at every operator entry; no bare-ndarray packed-vector
 adapter.  The geometry-agnostic kernel is
-:func:`transport_operator_matvec_unified` (1-D slab / sphere /
+:func:`_transport_operator_matvec_unified` (1-D slab / sphere /
 cylinder) plus :meth:`StreamingOperator._apply_2d_cartesian` (2-D
 Cartesian FD).
 
@@ -110,10 +110,18 @@ if TYPE_CHECKING:
     from .spatial.pole_angular_closure import PoleAngularClosure
 
 __all__ = [
-    "transport_operator_matvec_unified",
     "StreamingOperator",
     "CollisionOperator",
+    "AngularRedistributionOperator",
 ]
+# T.5 Wave-T close-out: `_transport_operator_matvec_unified` is NOT
+# exported — it became `sn`-module-internal infrastructure post-T.4
+# (consumed by `_MSpatialOperatorSum.apply`,
+# `_SpatialSweepDirection.apply`'s slow standalone path, and the
+# curvilinear shortcut in `StreamingOperator.apply`).  External
+# consumers should call the public operator-algebra path
+# `(L + C).apply(state)` instead of the bare function.  See
+# `.claude/plans/wave_t_tensor_network.md` §6 T.5.
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -203,7 +211,7 @@ def _compute_gradients(
 # in the :class:`TimedFullField` carrier); the
 # :func:`_compute_gradients` helper is the surviving primitive.
 
-def transport_operator_matvec_unified(
+def _transport_operator_matvec_unified(
     psi: "TimedFullField",
     sigma_t: np.ndarray,             # (ng, nx, ny)
     *,
@@ -309,7 +317,7 @@ def transport_operator_matvec_unified(
 
     if not isinstance(psi, TimedFullField):
         raise TypeError(
-            f"transport_operator_matvec_unified expects a TimedFullField; "
+            f"_transport_operator_matvec_unified expects a TimedFullField; "
             f"got {type(psi).__name__}.  D-H.2-C4c flipped the signature "
             f"to the L2 composite carrier."
         )
@@ -330,7 +338,7 @@ def transport_operator_matvec_unified(
         raise ValueError(f"Unknown curvature: {curvature!r}")
     if curvature == "cartesian" and ny > 1:
         raise NotImplementedError(
-            "transport_operator_matvec_unified 2-D Cartesian is not yet "
+            "_transport_operator_matvec_unified 2-D Cartesian is not yet "
             "wired through dag_walk; only 1-D slab (ny=1) is implemented. "
             "2-D anti-diagonal wavefront sweeps remain on the legacy path."
         )
@@ -685,7 +693,7 @@ def transport_operator_matvec_unified(
 # forward sweep's WDD outflow via `bc_outer`).
 #
 # Slab status: `M_spatial = (L+C)` (no angular redistribution); the
-# orchestrated apply delegates to `transport_operator_matvec_unified`
+# orchestrated apply delegates to `_transport_operator_matvec_unified`
 # bit-exact.  Curvilinear T.4c will introduce `M_angular_redist` as
 # a bespoke leaf and subtract its contribution to produce M_spatial
 # alone; for now, `M_spatial.apply` IS the unified matvec output.
@@ -743,7 +751,7 @@ class _SpatialSweepDirection(LinearOperatorMixin):
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = self.sn_mesh
-        full = transport_operator_matvec_unified(psi, self.sigma_t)
+        full = _transport_operator_matvec_unified(psi, self.sigma_t)
 
         # Mask out ordinates of the opposite sign.
         quad = sn_mesh.quad
@@ -786,7 +794,7 @@ class _MSpatialOperatorSum(OperatorSum):
 
     Operationally: :meth:`apply` overrides :meth:`OperatorSum.apply` so
     that the bidirectional sweep runs ONCE with shared local state
-    (matching the legacy `transport_operator_matvec_unified` perf
+    (matching the legacy `_transport_operator_matvec_unified` perf
     profile, ~1× walltime).  The default
     :meth:`OperatorSum.apply` semantics
     (``self.a.apply(x) + self.b.apply(x)``) would cost ~1.5× because
@@ -815,12 +823,59 @@ class _MSpatialOperatorSum(OperatorSum):
         self.sn_mesh = sn_mesh
         self.sigma_t = sigma_t
 
+    def materialize_inverse_cache(self):
+        r"""Build the :class:`~orpheus.sn.spatial.sweep_cache.CollisionCache`
+        for this M_spatial / σ_t pair.
+
+        Wave T T.5 close-out — exposes the cache from M_spatial's
+        natural angle (Pattern 2 dual-view of the
+        :meth:`CollisionCache.from_geometry` primitive).  The cache
+        holds the per-cell-per-group-per-ordinate DD scan coefficients
+        (`inverse_denom`, `a_attenuation`, `cumprod_a`) that the sweep
+        path consumes; computing them from M_spatial documents the
+        relationship "this operator IS the matvec whose inverse-on-
+        the-sweep-path uses these cached coefficients".
+
+        Returns
+        -------
+        CollisionCache
+            A fresh cache instance — increments
+            :attr:`CollisionCache._build_count`.  Per the cache
+            invariance contract (sweep_cache.py:356-361), within a
+            constant-σ_t epoch the cache MUST be built exactly once;
+            callers MUST not invoke this method redundantly inside an
+            inner Krylov / SI iteration.
+
+        Notes
+        -----
+        Future leverage opportunity (post-T.5 cache-unification
+        micro-wave): :func:`~orpheus.sn.sweep._ensure_coll_cache` and
+        :class:`~orpheus.sn.solver.SNSolver` would route through this
+        method as the canonical cache-construction path, making
+        M_spatial the single source of truth for its own inverse
+        cache.  Today both call :meth:`CollisionCache.from_geometry`
+        directly; the unification requires SNSolver to thread the
+        StreamingOperator (or M_spatial) into the cache build, which
+        is a separate refactor.
+        """
+        from orpheus.sn.spatial.sweep_cache import (
+            CollisionCache,
+            GeometryCoefficients,
+        )
+
+        geom = GeometryCoefficients.from_mesh_and_quad(self.sn_mesh)
+        # 1-D drop of y axis for the sweep cache contract (it stores
+        # per-(N, ng, nx); 2-D Cartesian routes through
+        # `_apply_2d_cartesian` and does not use this cache).
+        sig_t_1d = self.sigma_t[:, :, 0]
+        return CollisionCache.from_geometry(geom, sig_t_1d)
+
     def apply(self, psi: "TimedFullField") -> "TimedFullField":
         r"""Orchestrated unified apply — one bidirectional sweep.
 
         Mathematically equivalent to ``self.a.apply(psi) +
         self.b.apply(psi)`` but operationally collapses to a single
-        bidirectional matvec via :func:`transport_operator_matvec_unified`,
+        bidirectional matvec via :func:`_transport_operator_matvec_unified`,
         which already manages the forward-outflow → ``bc_outer`` →
         backward-inflow coupling internally.  The local-variable
         outer-face WDD outflow that was the previous hidden coupling
@@ -839,7 +894,7 @@ class _MSpatialOperatorSum(OperatorSum):
         # the per-level dag_walk + Carlson coupled-pole structure;
         # passing a curvilinear-aware identity closure would require
         # reproducing M-M's level partitioning).
-        unified_LpC = transport_operator_matvec_unified(psi, self.sigma_t)
+        unified_LpC = _transport_operator_matvec_unified(psi, self.sigma_t)
         if getattr(self.sn_mesh, "curvature", None) is None:
             return unified_LpC
         # Curvilinear: M_spatial = (L+C) - M_angular_redist
@@ -1139,7 +1194,7 @@ class StreamingOperator(LinearOperatorMixin):
         - \sigma_t \odot \psi.bulk`.
 
         Routes through the geometry-agnostic
-        :func:`transport_operator_matvec_unified` for 1-D slab, sphere,
+        :func:`_transport_operator_matvec_unified` for 1-D slab, sphere,
         and cylinder; through :meth:`_apply_2d_cartesian` (L2-native
         FD kernel) for 2-D Cartesian.
 
@@ -1229,12 +1284,12 @@ class StreamingOperator(LinearOperatorMixin):
             )
 
         # T.4c FUTURE — curvilinear (sphere, cylinder).  Today still
-        # routes through the legacy `transport_operator_matvec_unified`;
+        # routes through the legacy `_transport_operator_matvec_unified`;
         # T.4c will route through `M_spatial.apply + M_angular_redist.apply`
         # where M_angular_redist is the bespoke
         # :class:`AngularRedistributionOperator` leaf wrapping the M-M
         # half-grid recurrence.
-        result = transport_operator_matvec_unified(psi, self.sigma_t)
+        result = _transport_operator_matvec_unified(psi, self.sigma_t)
         # Subtract σ_t ⊙ ψ.bulk at the CELL-CENTRE — face residuals
         # carry no volumetric collision (the cell-balance σ·ψ term is
         # a CELL quantity; the boundary residual is a TRACE equation).

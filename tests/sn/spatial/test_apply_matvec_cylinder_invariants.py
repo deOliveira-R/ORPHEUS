@@ -52,7 +52,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import transport_operator_matvec_unified
+from orpheus.sn.operator import _transport_operator_matvec_unified
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 
@@ -92,7 +92,7 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
     sig_t = np.full((ng, nx, 1), 2.0)  # (ng, nx, ny) — PR-INDEX-3
     psi_flat = 10.0 / quad.weights.sum()
 
-    # PR-TYPED-6c Step 7: route through ``transport_operator_matvec_unified``
+    # PR-TYPED-6c Step 7: route through ``_transport_operator_matvec_unified``
     # — the legacy ``transport_operator_matvec_cylindrical`` retired.
     psi_view = np.full((quad.N, ng, nx, 1), psi_flat)
     m_cell = legacy_proxy_matvec(psi_view, sn_mesh, sig_t)

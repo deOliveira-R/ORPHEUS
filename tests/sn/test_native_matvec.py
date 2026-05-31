@@ -1,5 +1,5 @@
 r"""Foundation contract pins for the path-forward
-:func:`~orpheus.sn.operator.transport_operator_matvec_unified`.
+:func:`~orpheus.sn.operator._transport_operator_matvec_unified`.
 
 R-1 Step 4 Step G0 (2026-05-22) — the unified matvec switched to a
 native :class:`AngularFlux` ↔ :class:`AngularFlux` signature.  The
@@ -44,7 +44,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import transport_operator_matvec_unified
+from orpheus.sn.operator import _transport_operator_matvec_unified
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -134,7 +134,7 @@ class TestZeroInputZeroOutput:
     def test_zero_input_zero_output(self, name, builder) -> None:
         sn_mesh = builder()
         sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 2.0)
-        result = transport_operator_matvec_unified(
+        result = _transport_operator_matvec_unified(
             _zero_flux(sn_mesh), sigma_t,
         )
         np.testing.assert_array_equal(
@@ -178,7 +178,7 @@ class TestUniformFluxSigmaT:
         ng = sn_mesh.ng
         sigma_t_val = 2.0
         sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), sigma_t_val)
-        result = transport_operator_matvec_unified(
+        result = _transport_operator_matvec_unified(
             _uniform_flux(sn_mesh, value=1.0), sigma_t,
         )
         # Per-ordinate cell action: (L+C)·1 = σ_t·1 = 2.0.  Flat-flux
@@ -278,11 +278,11 @@ class TestLinearity:
                 alpha * psi.boundary.face_view("xmin")
                 + beta * phi.boundary.face_view("xmin")
             )
-        m_sum = transport_operator_matvec_unified(sum_psi, sigma_t)
+        m_sum = _transport_operator_matvec_unified(sum_psi, sigma_t)
 
         # αM(ψ) + βM(φ)
-        m_psi = transport_operator_matvec_unified(psi, sigma_t)
-        m_phi = transport_operator_matvec_unified(phi, sigma_t)
+        m_psi = _transport_operator_matvec_unified(psi, sigma_t)
+        m_phi = _transport_operator_matvec_unified(phi, sigma_t)
 
         np.testing.assert_allclose(
             m_sum.bulk.values,
@@ -309,7 +309,7 @@ class TestOutputShape:
     def test_output_shape_matches_input(self, name, builder) -> None:
         sn_mesh = builder()
         sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
-        result = transport_operator_matvec_unified(
+        result = _transport_operator_matvec_unified(
             _zero_flux(sn_mesh), sigma_t,
         )
         # Composite carrier; bulk is L2 AngularFlux.
@@ -369,7 +369,7 @@ class TestFaceResidualMask:
                 (sn_mesh.quad.N, ng),
             )
 
-        result = transport_operator_matvec_unified(psi, sigma_t)
+        result = _transport_operator_matvec_unified(psi, sigma_t)
 
         mu_x = sn_mesh.quad.mu_x
         eps = 1e-15
@@ -404,7 +404,7 @@ class TestFaceResidualMask:
             (sn_mesh.quad.N, ng),
         )
 
-        result = transport_operator_matvec_unified(psi, sigma_t)
+        result = _transport_operator_matvec_unified(psi, sigma_t)
 
         mu_x = sn_mesh.quad.mu_x
         eps = 1e-15
@@ -452,7 +452,7 @@ class TestTwoDCartesianRaises:
         sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
         psi = sn_mesh.zeros_timed_full_field()
         with pytest.raises(NotImplementedError, match="2-D Cartesian"):
-            transport_operator_matvec_unified(psi, sigma_t)
+            _transport_operator_matvec_unified(psi, sigma_t)
 
 
 # ── Sentinel: rejects non-AngularFlux input ─────────────────────────
@@ -469,4 +469,4 @@ class TestTypeContract:
         sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
         psi_bare = np.zeros((sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny))
         with pytest.raises(TypeError, match="TimedFullField"):
-            transport_operator_matvec_unified(psi_bare, sigma_t)
+            _transport_operator_matvec_unified(psi_bare, sigma_t)

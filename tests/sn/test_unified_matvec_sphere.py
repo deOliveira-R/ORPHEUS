@@ -1,7 +1,7 @@
 r"""Comparison test — unified matvec vs legacy spherical matvec (PR-TYPED-6c Step 2).
 
 Issue #197 PR-TYPED-6c Step 2 — verifies that the new
-:func:`~orpheus.sn.operator.transport_operator_matvec_unified` produces
+:func:`~orpheus.sn.operator._transport_operator_matvec_unified` produces
 output bit-exact (within ULP) to the legacy
 :func:`~orpheus.sn.operator.transport_operator_matvec_spherical` for
 spherical geometry.
@@ -34,7 +34,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import transport_operator_matvec_unified
+from orpheus.sn.operator import _transport_operator_matvec_unified
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 

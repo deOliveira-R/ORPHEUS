@@ -1,7 +1,7 @@
 r"""Comparison tests — unified slab matvec (PR-TYPED-6c Step 4).
 
 Issue #197 PR-TYPED-6c Step 4 verifies the 1-D Cartesian (slab) branch
-of :func:`~orpheus.sn.operator.transport_operator_matvec_unified`.
+of :func:`~orpheus.sn.operator._transport_operator_matvec_unified`.
 
 Slab is the M-M-neutral 1-level case of the per-level body that
 sphere and cylinder also flow through:
@@ -47,7 +47,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn import operator as sn_op
 from orpheus.sn import solve_sn
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import transport_operator_matvec_unified
+from orpheus.sn.operator import _transport_operator_matvec_unified
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 
@@ -129,7 +129,7 @@ def _make_2g_mixture(sigma_t, sig_s_matrix, nu_sigma_f, chi):
 # Post-D-K (commit ``dadf4e8``), ``SNSolver.L`` is the algebraic
 # composition ``StreamingOperator + CollisionOperator``
 # (= :class:`InvertibleOperator`), which routes through
-# :func:`transport_operator_matvec_unified` natively for 1-D and
+# :func:`_transport_operator_matvec_unified` natively for 1-D and
 # :meth:`StreamingOperator._apply_2d_cartesian` for 2-D.  No monkey-
 # patch is required.
 
@@ -141,7 +141,7 @@ def test_unified_slab_l1_homogeneous_kinf_2g(nx: int) -> None:
 
     Drives :func:`solve_sn` with ``inner_solver="krylov"`` — the
     matvec routes through :class:`InvertibleOperator` (= ``L + C``)
-    via :func:`transport_operator_matvec_unified` for Cartesian
+    via :func:`_transport_operator_matvec_unified` for Cartesian
     meshes.  The converged ``k_eff`` is compared to the
     analytical ``k_∞ = (νΣ_f^T φ) / (Σ_a^T φ)`` reference at rtol < 5e-4
     — the same tolerance the production
