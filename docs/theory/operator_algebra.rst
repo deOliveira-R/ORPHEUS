@@ -733,6 +733,738 @@ See :ref:`bc-realize-recursively` for the walker semantics and
 :ref:`bc-rank-n-algebra` for the rank-N algebra in detail.
 
 
+.. _wave-t-tensor-network:
+
+Tensor-Network Decomposition of SN Operators (Wave T)
+=====================================================
+
+Wave T (May 2026, commits ``fa13e78`` / ``0b2848b`` / ``9f85c5d`` /
+``03bcdba`` / ``cb18fdb`` / ``c55b505`` / ``90e7d4e``) lifted the four
+SN operator leaves — boundary realizers, fission, scattering,
+streaming — from procedural single-axis numpy bodies into the
+operator-algebra types documented above
+(:class:`~orpheus.numerics.operator.TensorProductOperator`,
+:class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`,
+:class:`~orpheus.numerics.operator.OperatorSum`). The migration is
+the consumer side of the Wave-0 + Depth B D-B infrastructure
+(:class:`~orpheus.numerics.operator.TensorProductOperator` shipped at
+commit ``bc1253e``, 2026-05-10;
+:class:`~orpheus.numerics.space.TensorProductSpace` shipped at commit
+``c2f968a``, 2026-05-27; the first production consumer was the D-B+1
+specular BC at ``boundary_realizer.py:164-166``).
+
+What landed is **not** the uniform :math:`A = \sum_k A_x^{(k)} \otimes
+A_\omega^{(k)} \otimes A_g^{(k)}` aspiration of Grand Report v3
+§15-§16A. The shipped state is **five algebraically distinct shapes**,
+chosen per operator by what the underlying physics actually couples.
+Future agents who assume "all SN operators are
+:class:`SumOfTensorProductsOperator`" — including Wave O
+(`Issue #208 <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_)
+operator-role typing — will be wrong. This section names the master
+condition that decides the shape, catalogues which shape each operator
+uses, and documents the architectural rationale for the per-direction
+streaming split.
+
+
+Key Facts (Wave T)
+------------------
+
+- **The SN flux state lives on a tensor-product space** :math:`V = X
+  \otimes \Omega \otimes G` (Grand Report v3 §15 line 2003-2019). The
+  shipped array layout ``(N, ng, nx, ny)`` is the implicit numpy
+  realisation: the angular axis :math:`\Omega` is leading, the group
+  axis :math:`G` is next, and the spatial axis :math:`X` trails (see
+  :ref:`theory-sn-index-convention`).
+
+- **Five algebraic shapes** are now in production simultaneously,
+  selected by the per-operator physics coupling — see
+  :ref:`wave-t-shape-table` below for the catalogue.
+
+- **The MA-Q1 master condition** (load-bearing for every future
+  consumer):
+
+  .. epigraph::
+
+     :class:`SumOfTensorProductsOperator` (SOTP) requires Cartesian-
+     product per-axis decomposition: every summand factors as a
+     product of independent per-axis operations. *Coupled physics* —
+     per-material XS lookup that ties group to spatial cell,
+     sequential WDD recurrence that ties spatial cells, M-M half-grid
+     recurrence that ties angular ordinates — falls back to
+     :class:`OperatorSum` over bespoke :class:`LinearOperator`
+     summands, **NOT** SOTP.
+
+- **Zero production consumers** of
+  :class:`SumOfTensorProductsOperator`. The §15.2 SOTP form is
+  contradicted by the actual coupling structure of scattering (T.3)
+  and streaming (T.4). Only T.1 (BC realizers) and T.2 (fission rank-1)
+  cleanly admit the clean tensor-product factorisation.
+
+- **Wave O typing constraint**: operator-role types
+  (``BulkOperator`` / ``FullOperator`` / ``BoundaryOperator``
+  Protocols, Issue #208) **MUST** accept non-SOTP summands. Any
+  contract that requires "all summands are
+  :class:`TensorProductOperator`" forecloses scattering and streaming.
+
+- **Per-direction streaming split**:
+  :attr:`StreamingOperator.M_spatial` is an :class:`OperatorSum` of
+  forward (μ_x > 0) and backward (μ_x < 0) sweep summands — NOT a
+  monolithic sweep. The split is architecturally load-bearing for
+  Wave O typing, adjoint propagation, DSA-class preconditioners,
+  cross-method (billiard / trajectory-resolvent) pollination, and
+  per-direction debugging slicing.
+
+- **Orchestrated apply (Design B)**:
+  :class:`_MSpatialOperatorSum` overrides the default
+  :class:`OperatorSum`'s additive apply because the two per-direction
+  summands share local state — the forward-sweep outer-face WDD
+  outflow seeds the backward sweep's :attr:`bc_outer` boundary
+  condition. The naïve sum would cost 1.5× the unified matvec because
+  each standalone leaf would re-run the forward sweep to compute its
+  own seed. Perf measured at median 1.04× pre-T.4 baseline (commit
+  ``90e7d4e``).
+
+- **Hybrid 2-D Cartesian**: T.4 lifted 1-D only. The 2-D Cartesian
+  path (:meth:`StreamingOperator._apply_2d_cartesian`) stays
+  procedural FD with cell-centre-proxy semantics. A defensive
+  source-hash pin (A2D-1) guards against silent author drift on that
+  path until a future wave delivers the trace-correct face_view
+  refactor.
+
+.. vv-status: wave-t-shape-table documented
+
+
+.. _wave-t-shape-table:
+
+Per-operator shape catalogue
+----------------------------
+
+The five algebraic shapes that ship today, grouped by Wave T substep.
+Each row names the operator, the algebraic shape its kernel/apply
+takes, a concrete example, and the physics coupling that forced the
+shape choice.
+
+.. list-table:: Wave T per-operator shape catalogue
+   :header-rows: 1
+   :widths: 18 22 30 30
+
+   * - Operator
+     - Algebraic shape
+     - Example
+     - Why this shape
+   * - BC realizers (vacuum,
+       specular, white,
+       albedo, periodic)
+     - :class:`TensorProductOperator`
+       (single TP)
+     - ``IncomingOrdinateMaskTensor(...) &
+       IdentityOperator()`` for vacuum;
+       ``PermutationOperator(perm, axis=0) &
+       IdentityOperator()`` for specular
+     - Each BC acts on the ordinate axis; the
+       trailing group / face axes broadcast. Per
+       §16A.10 ``B = G_patch ⊗ K_omega ⊗ K_g``
+       with two factors degenerate to
+       :class:`IdentityOperator`.
+   * - Fission (:math:`F`)
+     - :class:`TensorProductOperator`
+       (single rank-1 TP)
+     - ``RankOneOperator(χ, νΣ_f, axis=0) &
+       IdentityOperator()``
+       (:attr:`FissionOperator.kernel`)
+     - Per Grand Report v3 §15 line 2008
+       :math:`F = \chi \otimes \nu\Sigma_f`. The
+       group-axis contraction-then-broadcast is
+       exactly :class:`RankOneOperator`; spatial
+       axes broadcast.
+   * - Scattering kernel
+       (:math:`S_{\rm aniso}`)
+     - :class:`OperatorSum` of
+       per-ℓ bespoke leaves
+     - ``reduce(add, kernel_summands)`` where each
+       summand is
+       :class:`_PerLegendreOrderScattering(ell=ℓ)`
+       (:attr:`ScatteringOperator.kernel`)
+     - **MA-Q1 fallback**: the per-material per-ℓ
+       einsum
+       :meth:`MaterialXSField.apply_legendre_scattering_moments`
+       couples the group axis (matrix multiply on
+       :math:`\Sigma_{s,\ell}[g'\to g]`) with the
+       spatial axis (via
+       :attr:`cells_by_material` indexing). No
+       SOTP factorisation respects disjoint axes;
+       the §15.2 SOTP target form fails the
+       :class:`TensorProductOperator` contract.
+   * - Streaming spatial
+       part
+       (:attr:`StreamingOperator.M_spatial`)
+     - :class:`OperatorSum` of two
+       per-direction bespoke leaves
+       (subclass
+       :class:`_MSpatialOperatorSum`)
+     - ``_SpatialSweepDirection(+1) +
+       _SpatialSweepDirection(-1)`` orchestrated
+       via :meth:`_MSpatialOperatorSum.apply`
+     - **MA-Q1 fallback**: the WDD recurrence
+       :math:`\psi_{\text{face,out}} = 2\bar\psi
+       - \psi_{\text{face,in}}` sequentially
+       couples cells along x. The per-direction
+       summands expose structure at the type
+       level but are NOT clean
+       :math:`(D_x \otimes \Omega_x \otimes I_g)`
+       3-factor TPs — the sweep operator is the
+       leaf factor.
+   * - Streaming angular
+       redistribution
+       (:attr:`StreamingOperator.M_angular_redist`)
+     - Bespoke
+       :class:`LinearOperator`
+       leaf (sphere / cylinder)
+       OR :class:`ZeroOperator`
+       (slab / 2-D Cartesian)
+     - :class:`AngularRedistributionOperator`
+       wrapping
+       :meth:`PoleAngularClosure.cell_contribution`
+     - **MA-Q1 fallback**: the M-M half-grid
+       recurrence (Hébert 2009 §3.9.4
+       Eqs. 3.432-3.435) sequentially couples
+       angular ordinates ``α_{m+1/2}`` from
+       ``α_{m-1/2}`` with σ_t-dependent
+       absorption coefficients. Not a diagonal
+       angular factor; a 3-factor TP wrap would
+       false-assert separability the recurrence
+       doesn't support.
+
+
+The MA-Q1 master condition
+--------------------------
+
+The pattern across T.3, T.4-spatial, and T.4-curvilinear is the same:
+*coupled physics produces summands that fail the disjoint-axes
+contract of* :class:`TensorProductOperator`. Naming this explicitly
+prevents future agents from re-attempting the §15.2 SOTP form on each
+of these operators.
+
+.. (vv-status rationale) Master condition gate for Wave-O typing
+   decisions. Verified by the absence of SOTP-shaped consumers in
+   production after T.3 + T.4 land — exhaustively documented in
+   ``.claude/plans/wave_t_tensor_network.md`` §6 T.3 + T.4 deviations.
+.. vv-status: wave-t-ma-q1-master-condition documented
+
+.. math::
+   :label: wave-t-ma-q1-master-condition
+
+   \text{SOTP applies} \;\Longleftrightarrow\;
+   \text{each summand factors as} \;
+   f(x_1,\dots,x_d) \;=\; f_1(x_1)\otimes\cdots\otimes f_d(x_d).
+
+When the physics violates the right-hand side — and three of the four
+Wave-T-touched operators do — the algebraic home is
+:class:`OperatorSum` over :class:`LinearOperator` summands, NOT
+:class:`SumOfTensorProductsOperator`. The §15.2 target form is
+*aspirational* in the grand report; Wave T documents that the actual
+coupling structure of multigroup transport with per-material
+cross-sections does not admit it for scattering and streaming.
+
+**Three coupled-physics archetypes** ship in Wave T:
+
+1. **Per-material XS coupling** (T.3 scattering). The per-material
+   einsum :math:`\sum_{g'}\Sigma_{s,\ell}^{m(\vec r)}[g'\to g]
+   \phi_{\ell,g'}^{m}(\vec r)` ties the group axis (matrix multiply)
+   to the spatial axis (per-cell material id lookup). The factor
+   :math:`\Lambda_\ell` cannot be written as a group-axis-only
+   operator without information loss.
+
+2. **Sequential WDD recurrence** (T.4 streaming, spatial). The
+   diamond-difference closure :math:`\psi_{\text{face,out}} =
+   2\bar\psi_{\text{cell}} - \psi_{\text{face,in}}` makes the cell
+   :math:`i+1` value depend on the cell :math:`i` value. A
+   per-direction sweep summand IS the WDD recurrence as a single
+   :class:`LinearOperator` — not a factor on a per-cell tensor axis.
+
+3. **M-M half-grid recurrence** (T.4 streaming, curvilinear angular).
+   The Carlson-Morel-Montry α-coefficients (Hébert 2009 §3.9.4
+   Eqs. 3.432-3.435) recur sequentially along the angular axis within
+   each μ-level: :math:`\alpha_{m+1/2}` depends on
+   :math:`\alpha_{m-1/2}` and on σ_t. The leaf factor is the entire
+   recurrence — a single :class:`LinearOperator` — not a diagonal
+   angular operator.
+
+In each case, the algebraic home is the SAME — :class:`OperatorSum`
+over bespoke :class:`LinearOperator` summands — and the
+:class:`TensorProductOperator` form is structurally inaccessible
+without information loss.
+
+
+.. _wave-t-streaming-deep-dive:
+
+Streaming :math:`M_{\rm spatial}` deep dive — per-direction split
+-----------------------------------------------------------------
+
+:attr:`StreamingOperator.M_spatial` is an :class:`OperatorSum` of
+**two per-direction-sign summands**:
+:class:`_SpatialSweepDirection(+1)` (forward sweep, :math:`\mu_x > 0`)
+and :class:`_SpatialSweepDirection(-1)` (backward sweep,
+:math:`\mu_x < 0`). The split serves five distinct future consumers,
+none of which justifies the split on its own but which together carry
+significant architectural payload.
+
+**Why split per direction:**
+
+1. **Wave O typing** — the natural type signal for the per-direction
+   summand exposes the BC dependency footprint cleanly: the forward
+   summand reads :attr:`bc_inner` (or the symmetry axis for sphere /
+   cylinder) and writes the outer-face WDD residual; the backward
+   summand reads the outer-face inflow (the BC's
+   :meth:`apply(outgoing)` result) and writes the inner-face WDD
+   residual. Without the split, every consumer would have to
+   re-derive this dependency structure.
+
+2. **Adjoint propagation**. The reverse-direction sweep is the
+   structural transpose of the forward sweep with swapped boundary
+   conditions: :math:`(M_{x,+})^* = M_{x,-}^{\text{BC-swapped}}`. The
+   per-direction split exposes the dual operator's identity at the
+   type level, so the adjoint sensitivity path
+   (deferred to Phase H) can match per-direction summands without
+   mining the internal sweep body.
+
+3. **DSA-class preconditioners**. Traditional diffusion-synthetic
+   acceleration schemes split per-direction at the P_1 closure level.
+   The per-direction summand is the structural unit the DSA
+   preconditioner consumes.
+
+4. **Cross-method pollination**. The billiard solver and the
+   trajectory-resolvent reference both expose per-direction sweep
+   primitives in their own architectures (a single forward-trajectory
+   evaluation in billiard; a single ray-direction Bickley-Naylor pass
+   in trajectory-resolvent). Exposing the per-direction summand at
+   the SN type level provides a future structural bridge.
+
+5. **Per-direction debugging slicing**. The ERR-006 family
+   (curvilinear sweep divergence) and Signature-1 recurrence-coupled
+   bugs (catalogued in the ``vv-principles`` skill) manifest
+   *per direction* before they manifest in the summed
+   matvec. A per-direction property gives test code a clean
+   inspection point without re-implementing the sweep body in the
+   test.
+
+**WDD coupling along x**. The sequential coupling that breaks SOTP
+applies *within* each per-direction summand. The forward sweep is
+
+.. math::
+   :label: wdd-forward-recurrence
+
+   \bar\psi_i \;=\;
+     \frac{\Delta x_i\,\bar Q_i + |\mu|\,(\psi_{\text{face,in}})_i}
+          {\Delta x_i\,\Sigma_t(i) + |\mu|},
+   \qquad
+   (\psi_{\text{face,out}})_i \;=\;
+     2\,\bar\psi_i \;-\; (\psi_{\text{face,in}})_i
+
+with :math:`(\psi_{\text{face,in}})_{i+1} =
+(\psi_{\text{face,out}})_i`. The cell-balance algebra at
+:func:`orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`
+hides this recurrence inside the named denom-numer primitives, but
+the recurrence is the load-bearing structure that prevents a clean
+:math:`(D_x \otimes \Omega_x \otimes I_g)` 3-factor TP.
+
+.. vv-status: wdd-forward-recurrence documented
+
+**Forward-backward coupling at the outer face**. The two
+per-direction summands are independent *in their per-direction
+contribution*, but they share local state: the forward sweep's
+outer-face WDD outflow IS the input to the backward sweep's outer-face
+BC application (:func:`bc_outer.apply(outgoing)`). In the legacy
+:func:`_transport_operator_matvec_unified <orpheus.sn.operator._transport_operator_matvec_unified>` body, this shared state was
+a local variable; under the per-direction operator-algebra split, it
+becomes the **named shared state** of the
+:class:`_MSpatialOperatorSum` orchestrator.
+
+
+.. _wave-t-orchestrated-apply:
+
+Orchestrated :meth:`apply` (Design B)
+-------------------------------------
+
+:class:`_MSpatialOperatorSum` is a **subclass** of
+:class:`OperatorSum` (so its ``.a`` and ``.b`` attributes carry the
+two :class:`_SpatialSweepDirection` summands for type introspection
+by Wave O / adjoint / DSA). The subclass **overrides**
+:meth:`OperatorSum.apply` because the default
+
+.. math::
+
+   \texttt{OperatorSum.apply}(x) \;=\;
+     \texttt{self.a.apply}(x) \;+\; \texttt{self.b.apply}(x)
+
+would cost 1.5× the unified matvec walltime: each standalone
+:meth:`_SpatialSweepDirection.apply` invokes
+:func:`_transport_operator_matvec_unified <orpheus.sn.operator._transport_operator_matvec_unified>` (which already runs the
+**bidirectional** sweep internally to compute the backward-sweep seed
+from the forward outflow) and masks the opposite-direction ordinates
+to zero. Calling the unified matvec twice — once per direction
+summand — duplicates the forward sweep cost.
+
+The orchestrator runs the bidirectional sweep **once** via
+:func:`_transport_operator_matvec_unified <orpheus.sn.operator._transport_operator_matvec_unified>` and returns the full
+:math:`(L+C)\,\psi` for slab (since slab has no curvilinear
+redistribution; see :ref:`wave-t-curvilinear-deep-dive` below for the
+curvilinear subtraction). The standalone
+:meth:`_SpatialSweepDirection.apply` is preserved as a slow fallback
+for testing, Wave-O adjoint inspection, and per-direction debugging
+slicing.
+
+**Why this matters architecturally**. The forward-sweep outer-face
+WDD outflow that was a hidden local variable in the legacy
+:func:`_transport_operator_matvec_unified <orpheus.sn.operator._transport_operator_matvec_unified>` body is now the **named
+shared state** of the orchestrator. Pattern 6 (single source of
+truth) of the project's ``coding-elegance`` skill requires that hidden
+coupling points become named. Wave T does not refactor the sweep
+body; it lifts the hidden coupling into a named property at the
+operator-algebra level.
+
+The full bidirectional matvec is mathematically equivalent to
+:math:`M_{x,+}\,\psi + M_{x,-}\,\psi`, and the
+:meth:`_MSpatialOperatorSum.apply` orchestrator returns the same
+value bit-exact (Route A — preserving the unified matvec's reduction
+order). The standalone per-direction summands return masked outputs
+that, when summed, equal the unified matvec output at
+FP-non-associativity ULP.
+
+
+.. _wave-t-curvilinear-deep-dive:
+
+Curvilinear :math:`M_{\rm angular\_redist}` — bespoke leaf
+----------------------------------------------------------
+
+For sphere / cylinder geometries, :attr:`StreamingOperator.M_angular_redist`
+returns an :class:`AngularRedistributionOperator` — a bespoke
+:class:`LinearOperator` leaf wrapping the M-M (Morel-Montry) half-grid
+recurrence. The leaf consumes the per-cell M-M algebra at
+:meth:`PoleAngularClosure.cell_contribution` (Pattern 6 — single
+source of truth for the M-M coefficients).
+
+**Why a leaf and not a tensor product**. Per Hébert 2009 §3.9.4,
+Eqs. 3.432-3.435, the M-M closure produces an angular recurrence
+
+.. math::
+   :label: mm-half-grid-recurrence
+
+   \alpha_{m+1/2} \;=\;
+     f(\alpha_{m-1/2},\;\Sigma_t,\;\psi_{m-1/2,\,\text{upstream}})
+
+within each μ-level :math:`p`. The :math:`\alpha_{m\pm 1/2}` are the
+Carlson coupled-pole half-angle coefficients, and the recurrence on
+angular ordinates is sequential along the half-grid axis with
+σ_t-dependent absorption. The factor that produces
+:math:`\alpha_{m+1/2}` from :math:`\alpha_{m-1/2}` IS the entire
+recurrence; there is no clean per-angular-axis diagonal factor that
+respects the disjoint-axes contract.
+
+.. vv-status: mm-half-grid-recurrence documented
+
+A 3-factor TP wrap of the form ``leaf & I_x & I_g`` would
+**false-assert separability** the recurrence doesn't support:
+:meth:`TensorProductOperator.assert_separable` would erroneously
+pass for an operator whose leaf factor secretly couples
+:math:`(N, n_x)` jointly through the sequential per-level recurrence.
+Per the ``coding-elegance`` skill's Pattern 4 (make illegal states
+unrepresentable), the converse holds: do not represent states
+(separability) that aren't actually legal.
+
+**Per-cell algebra**. The leaf's :meth:`apply` walks every
+:math:`(p,\,i)` pair (μ-level × spatial cell) and calls
+:meth:`PoleAngularClosure.cell_contribution`. The cell-balance
+algebra at
+:func:`orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`
+decomposes additively into three terms:
+
+.. math::
+   :label: wave-t-cell-balance-three-terms
+
+   {\rm denom} \;=\;
+     {\rm streaming\_denom\_term} \;+\;
+     {\rm angular\_denom\_term} \;+\;
+     {\rm collision\_denom\_term}
+
+.. math::
+
+   {\rm numer\_upstream} \;=\;
+     {\rm spatial\_upstream\_term} \;+\;
+     {\rm angular\_numer\_upstream}
+
+The :math:`M_{\rm spatial}` summand carries the streaming +
+collision-share contribution; the :math:`M_{\rm angular\_redist}`
+leaf carries
+
+.. math::
+
+   m_{\rm angular\_redist} \;=\;
+     \frac{1}{V_i}\bigl[
+        {\rm angular\_denom\_term} \cdot \psi_{\rm cell}
+      - {\rm angular\_numer\_upstream}
+     \bigr]
+
+with :math:`{\rm angular\_denom\_term} = (\Delta A / w)\,c_{\rm out}`
+and :math:`{\rm angular\_numer\_upstream} = (\Delta A / w)\,c_{\rm in}\,
+\psi_{m-1/2,\,i,\,g}` per the M-M closure (see
+:class:`orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+for the closure data).
+
+.. vv-status: wave-t-cell-balance-three-terms documented
+
+**Boundary residual semantics**. :attr:`M_angular_redist` writes
+**only to bulk**; angular redistribution is an interior-cell operation
+that doesn't traverse the spatial boundary. Output ``boundary`` is the
+zero :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`.
+Only :class:`_SpatialSweepDirection` writes non-trivial face
+residuals.
+
+
+Curvilinear :math:`M_{\rm spatial}` via subtraction
+---------------------------------------------------
+
+For curvilinear (sphere / cylinder), :meth:`_MSpatialOperatorSum.apply`
+computes :math:`M_{\rm spatial}` by **subtracting**
+:math:`M_{\rm angular\_redist}` from the unified
+:math:`(L+C)\,\psi`:
+
+.. math::
+   :label: wave-t-mspat-curvilinear-subtraction
+
+   M_{\rm spatial}\,\psi \;=\; (L+C)\,\psi \;-\;
+                               M_{\rm angular\_redist}\,\psi
+   \qquad (\text{curvilinear})
+
+.. vv-status: wave-t-mspat-curvilinear-subtraction documented
+
+This subtraction introduces a minor architectural smell: the curvilinear
+:math:`M_{\rm spatial}` depends on :math:`M_{\rm angular\_redist}` for
+its definition. The alternative — re-implementing the spatial-only
+sweep without M-M coupling at the leaf level — would duplicate the
+per-level :func:`dag_walk` + Carlson coupled-pole structure that
+already lives in :func:`_transport_operator_matvec_unified <orpheus.sn.operator._transport_operator_matvec_unified>`. The
+subtraction is the cleanest path that preserves Pattern 6 (single
+source of truth).
+
+The smell is bounded by an **algebra-decomposition invariant test**:
+
+.. math::
+
+   (L+C)\,\psi \;\equiv\;
+     M_{\rm spatial}\,\psi \;+\; M_{\rm angular\_redist}\,\psi
+
+at principled-equivalence ULP per
+the ``vv-principles`` skill (~16×ULP for the
+1-D curvilinear matvec). If the subtraction ever falsely cancels (or
+adds) a term, this test fires.
+
+
+The 2-D Cartesian hybrid (Q1)
+-----------------------------
+
+T.4 lifted the 1-D path only. The 2-D Cartesian path
+(:meth:`StreamingOperator._apply_2d_cartesian`) remains procedural
+cell-centred upwind FD with **cell-centre-proxy boundary semantics**:
+the matvec body reads ``psi.bulk.values[:, :, 0, iy]`` as the outgoing
+trace at xmin and the BC's :meth:`apply(outgoing)` fills the
+incoming-direction bulk cells. The
+:attr:`psi.boundary.face_view` is currently **passive**: its values
+do not enter the bulk computation.
+
+The trace-correct face_view formulation (face_view enters the bulk
+computation as the boundary trace, with a boundary residual driving
+face_view ↔ bulk consistency) caused a 10% k_inf drift in
+experiments — see the existing comment at
+``orpheus/sn/operator.py:843-868``. That rewire requires the BC
+realizers to gain a "proper composable algebra" — a payload distinct
+from T.4's per-direction lift. Bundling the two would violate the
+``feedback_unify_after_two_instances`` discipline (only one working
+2-D path exists; unify after ≥2 working instances).
+
+**Defensive A2D-1 source-hash pin**. T.4d added a structural
+regression test that records the source-code signature of
+:meth:`_apply_2d_cartesian` and asserts it remains unchanged. The pin
+catches a future author who accidentally modernises the 2-D path
+while editing nearby code, before the change ships and breaks the
+known-good cell-centre-proxy semantics.
+
+
+Verification approach
+---------------------
+
+Wave T's verification chain combines three independent grounds:
+
+1. **Pre-T.4 snapshot bit-identity** (Route A). The substep T.4a
+   captured the value of :meth:`apply` and :meth:`solve` on fixed
+   :math:`(\text{seed}, \text{mesh}, \text{material})` triples across
+   slab, sphere, cylinder, and 2-D Cartesian, plus 1G / 2G / asymmetric
+   :math:`\Sigma_s` / vacuum / white / specular variants. Each
+   subsequent T.4 substep is gated on :func:`np.array_equal` against
+   those snapshots — the existing numerics are the local
+   bit-identity reference.
+
+2. **Principled-equivalence ULP** for cases where reductions reorder.
+   Per the ``vv-principles`` skill §"Bit-identity
+   vs principled-equivalence": when the operator-algebra fold inserts
+   a :func:`np.add` at a different position than the legacy fused
+   einsum, the new value is verified by the three-criteria gate
+   (principled at every step / structurally-independent reference /
+   FP-non-associativity dimensionally explainable). For the
+   curvilinear :math:`M_{\rm spatial} = (L+C) - M_{\rm angular\_redist}`
+   subtraction, the algebra-decomposition invariant passes at
+   ~16×ULP.
+
+3. **Structural-independence ground at L1**. The pre-snapshot
+   regression tests are bit-identity against the OLD code; they
+   cannot catch a bug that was ALREADY in the old code and survived.
+   The L1 ground truth is two-pillared (per
+   the ``vv-principles`` skill):
+
+   - **Closed-form pillar**: :math:`k_\infty = \nu\Sigma_f / \Sigma_a`
+     on homogeneous reflective slab / sphere / cylinder. Verified at
+     ``tests/sn/l1_analytical/test_kinf_homogeneous.py``. This is the
+     eigenvalue reference — MMS does NOT prove eigenvalues per
+     the ``vv-principles`` skill §"What each pillar
+     proves".
+
+   - **MMS pillar**: P1 anisotropic manufactured-source convergence
+     at ``tests/sn/test_mms_aniso.py``,
+     ``tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py``,
+     ``tests/sn/test_mms_heterogeneous.py``, and
+     ``tests/sn/test_mms_2d.py``. The MMS source is structurally
+     independent of the operator-algebra path (derived by SymPy in
+     ``orpheus/derivations/sn/mms_*.py``); it catches flux-shape and
+     convergence-order errors that snapshot bit-identity cannot.
+
+4. **Algebraic-identity gates** (new in Wave T). Each touched
+   operator passes the algebra contracts:
+
+   - :meth:`TensorProductOperator.assert_separable` passes on every
+     TP-shaped operator (BC realizers, fission). This is structurally
+     inapplicable to :class:`OperatorSum`-of-bespoke-leaves (T.3
+     scattering kernel, T.4 :attr:`M_spatial`) — see the
+     "out of scope" note in
+     ``.claude/plans/wave_t_tensor_network.md`` §6 T.5.
+
+   - :math:`(L+C)\,\psi \equiv M_{\rm spatial}\,\psi +
+     M_{\rm angular\_redist}\,\psi` at Route A bit-identity (slab) or
+     ~16×ULP principled equivalence (curvilinear).
+
+   - :math:`(L+C).{\rm solve}(q)` bit-identical pre/post-Wave-T,
+     verifying the WDD sweep procedural inverse was NOT touched
+     (the :class:`InvertibleOperator.solve` body is the procedural
+     algorithm at :func:`orpheus.sn.sweep.transport_sweep`).
+
+5. **Performance regression gate**. The 1-D slab Krylov benchmark
+   measured median 1.04× pre-T.4 baseline (under the 5% threshold).
+   The :func:`cached_property` decorators on :attr:`M_spatial` and
+   :attr:`M_angular_redist` ensure construction happens once per
+   :class:`StreamingOperator` lifetime, not per :meth:`apply`.
+
+
+What :class:`SumOfTensorProductsOperator` was supposed to do — and didn't
+-------------------------------------------------------------------------
+
+Grand Report v3 §15.2 (lines 2046-2086) names the canonical scattering
+form
+
+.. math::
+
+   S \;=\; \sum_{\ell=0}^{L}
+     \Sigma_{s,\ell}\, \otimes\, A_\ell\, \otimes\, G_\ell
+
+with :math:`A_\ell` the angular Pℓ-projection factor,
+:math:`\Sigma_{s,\ell}` the per-ℓ group-coupling factor, and
+:math:`G_\ell` the per-ℓ spatial factor. Wave T's original T.3 plan
+targeted this SOTP form for the scattering kernel.
+
+The design fork (T.3 spec Q6) surfaced that the per-material per-ℓ
+einsum in
+:meth:`MaterialXSField.apply_legendre_scattering_moments`
+**couples the group axis with the spatial axis** — the per-cell
+material id ``cells_by_material[mid]`` selects the per-material
+scattering matrix :math:`\Sigma_{s,\ell}^{m(\vec r)}`. There is no
+factor design where one factor acts on the group axis alone and
+broadcasts on the spatial axis; the per-cell material id breaks the
+broadcast contract.
+
+The user-resolved math-honest fallback shipped at commit ``9f85c5d``:
+:class:`OperatorSum` over per-ℓ :class:`_PerLegendreOrderScattering`
+bespoke leaves. The §15.2 *form* is preserved at the summation level
+(one summand per Legendre order); the per-summand decomposition into
+:math:`R_\ell \circ \Lambda_\ell \circ M_\ell` is a procedural
+composition, not a tensor product.
+
+The same master condition applies to T.4-spatial (per-direction WDD
+recurrence) and T.4-curvilinear (M-M half-grid recurrence). Two of
+the three originally-SOTP-targeted Wave-T substeps fell back to
+:class:`OperatorSum`-of-bespoke-leaves; only T.1 (BC realizers) and
+T.2 (fission rank-1) cleanly support the TP form.
+
+**Implication for Wave O (Issue #208)**. The operator-role typing
+work MUST accommodate non-SOTP :class:`OperatorSum` summands. Any
+contract of the form "every BulkOperator summand IS a
+:class:`TensorProductOperator`" forecloses scattering, streaming
+spatial, and curvilinear angular redistribution. The five-shape
+catalogue in :ref:`wave-t-shape-table` is the constraint the Wave O
+typing must respect.
+
+
+Cross-references
+----------------
+
+- **Wave T plan** (canonical reference for substep sequencing,
+  architectural decisions, deviations from §15.2):
+  ``.claude/plans/wave_t_tensor_network.md``.
+- **T.4 verification spec** (Q1-Q5 architectural decisions, risk
+  register, test catalogue):
+  ``.claude/agent-memory/test-architect/wave_t_t4_streaming_verification_spec.md``.
+- **Grand Report v3** §15 (V = X ⊗ Ω ⊗ G), §15.1 (streaming as sum of
+  tensor products), §15.2 (scattering as sum of tensor products),
+  §16A.10 (BC as tensor network), §35 (commandments), north-star line
+  5697.
+- **Shipped commits**: ``fa13e78`` (T.1 BC), ``0b2848b`` (T.2
+  fission), ``9f85c5d`` (T.3b kernel), ``03bcdba`` (T.3c
+  build_aniso_source rewire), ``cb18fdb`` (T.4a snapshots),
+  ``c55b505`` (T.4b slab M_spatial), ``90e7d4e`` (T.4c curvilinear
+  M_angular_redist).
+- **Code anchors**:
+
+  - :class:`orpheus.numerics.operator.TensorProductOperator`,
+    :class:`orpheus.numerics.operator.SumOfTensorProductsOperator`,
+    :class:`orpheus.numerics.operator.OperatorSum`,
+    :class:`orpheus.numerics.operator.RankOneOperator`,
+    :class:`orpheus.numerics.operator.IdentityOperator`,
+    :class:`orpheus.numerics.operator.ZeroOperator`.
+  - :class:`orpheus.sn.boundary_realizer.SNBoundaryRealizer` —
+    the BC realizer dispatching the T.1 lifts.
+  - :class:`orpheus.sn.fission.FissionOperator` and its
+    :attr:`~orpheus.sn.fission.FissionOperator.kernel` property.
+  - :class:`orpheus.sn.scattering.ScatteringOperator` and its
+    :attr:`~orpheus.sn.scattering.ScatteringOperator.kernel` /
+    :attr:`~orpheus.sn.scattering.ScatteringOperator.kernel_summands`
+    properties; the bespoke
+    :class:`orpheus.sn.scattering._PerLegendreOrderScattering` leaf.
+  - :class:`orpheus.sn.operator.StreamingOperator` and its
+    :attr:`~orpheus.sn.operator.StreamingOperator.M_spatial` /
+    :attr:`~orpheus.sn.operator.StreamingOperator.M_angular_redist`
+    properties; the bespoke
+    :class:`orpheus.sn.operator._SpatialSweepDirection`,
+    :class:`orpheus.sn.operator._MSpatialOperatorSum`, and
+    :class:`orpheus.sn.operator.AngularRedistributionOperator`
+    leaves.
+  - :func:`orpheus.sn.operator._transport_operator_matvec_unified`
+    — the unified 1-D matvec the orchestrator wraps (module-private
+    after Wave T's T.5 close-out; the public surface is the
+    :meth:`StreamingOperator.apply` /
+    :attr:`StreamingOperator.M_spatial` boundary).
+  - :class:`orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+    — the M-M closure data and per-cell algebra primitive.
+  - :func:`orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`
+    — the three-term cell-balance primitive.
+
+
 .. _trace-spaces-doc:
 
 Trace spaces — :math:`\Gamma_-` and :math:`\Gamma_+`

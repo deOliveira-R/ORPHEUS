@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **4607**
+Total tests collected: **4658**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1127, 24.5%
-   L1, 922, 20.0%
+   L0, 1136, 24.4%
+   L1, 923, 19.8%
    L2, 36, 0.8%
    L3, 0, 0.0%
-   foundation, 2474, 53.7%
+   foundation, 2515, 54.0%
    unmarked, 48, 1.0%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4480
+   explicit, 4531
    verify, 0
    class-name, 46
    func-name, 0
@@ -213,7 +213,7 @@ Module × level grid
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 0, 0
    numerics/test_spherical_harmonic_space, 0, 6, 0, 0, 6, 0
    numerics/test_symmetry, 0, 0, 0, 0, 71, 0
-   numerics/test_tensor_product_operator, 18, 0, 0, 0, 0, 0
+   numerics/test_tensor_product_operator, 27, 0, 0, 0, 0, 0
    numerics/test_trace_space, 13, 7, 0, 0, 0, 0
    regression/test_dd_regression, 0, 0, 0, 0, 0, 11
    sn/test_2d_l2_face_view_unit_source, 0, 0, 0, 0, 0, 7
@@ -231,7 +231,7 @@ Module × level grid
    sn/test_cylindrical, 4, 10, 11, 0, 0, 0
    sn/test_dag_walk, 0, 0, 0, 0, 7, 0
    sn/test_discrete_ordinates_2d, 0, 0, 2, 0, 0, 0
-   sn/test_fission_operator, 0, 0, 0, 0, 14, 0
+   sn/test_fission_operator, 0, 0, 0, 0, 18, 0
    sn/test_fixed_source_g1, 0, 6, 0, 0, 0, 0
    sn/test_harmonic_moment_field, 0, 0, 0, 0, 31, 0
    sn/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
@@ -255,9 +255,9 @@ Module × level grid
    sn/test_phase_c_mms, 0, 3, 0, 0, 0, 0
    sn/test_properties, 4, 0, 0, 0, 0, 0
    sn/test_quadrature, 49, 0, 0, 0, 0, 0
-   sn/test_scattering_operator, 1, 0, 0, 0, 59, 0
+   sn/test_scattering_operator, 1, 0, 0, 0, 75, 0
    sn/test_si_cyl_20cell_nan_regression, 0, 0, 0, 0, 0, 4
-   sn/test_sn_boundary_realizer, 0, 19, 0, 0, 0, 0
+   sn/test_sn_boundary_realizer, 0, 20, 0, 0, 0, 0
    sn/test_snmesh_consumes_reduced, 0, 0, 0, 0, 15, 0
    sn/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
    sn/test_snmesh_realizer_wiring, 0, 9, 0, 0, 0, 0
@@ -265,7 +265,7 @@ Module × level grid
    sn/test_solution, 0, 0, 0, 0, 31, 0
    sn/test_solver_components, 41, 0, 0, 0, 0, 0
    sn/test_spherical, 13, 7, 6, 0, 0, 0
-   sn/test_streaming_operator, 0, 0, 0, 0, 44, 0
+   sn/test_streaming_operator, 0, 0, 0, 0, 65, 0
    sn/test_streaming_operator_decomposition, 19, 0, 0, 0, 0, 0
    sn/test_sweep_graph, 63, 0, 0, 0, 0, 0
    sn/test_sweep_regression, 8, 0, 0, 0, 0, 0
@@ -607,7 +607,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **190** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **195** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bailey-dome-recursion``
 - ``bc-rank-n-as-sum-of-products``
@@ -658,6 +658,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``kll-1974-slab-phi``
 - ``kll-1974-sphere-phi``
 - ``maxwellian``
+- ``mm-half-grid-recurrence``
 - ``mode-conservation-target``
 - ``moment-projection-transpose-T``
 - ``morel-montry-clamp``
@@ -792,6 +793,10 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``trace-half-decomposition``
 - ``transport-equation``
 - ``vacuum-bc``
+- ``wave-t-cell-balance-three-terms``
+- ``wave-t-ma-q1-master-condition``
+- ``wave-t-mspat-curvilinear-subtraction``
+- ``wdd-forward-recurrence``
 - ``wm72-coupled-linear-system``
 - ``wm72-eq30-bare``
 - ``wm72-eq31``

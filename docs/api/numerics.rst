@@ -102,7 +102,8 @@ operator-algebra primitives consumed by every solver. See
 :ref:`operator-algebra` for the design rationale, capability-set
 semantics, and tensor-product algebra.
 
-Tensor-product primitives (Wave 0 of SN performance plan):
+Tensor-product primitives (Wave 0 of SN performance plan, Wave T
+consumers landed May 2026):
 
 * :class:`~orpheus.numerics.operator.DiagonalOperator` — diagonal
   multiplication on a tagged tensor axis. The ``AngularWeightMatrix``
@@ -116,7 +117,110 @@ Tensor-product primitives (Wave 0 of SN performance plan):
   (B \circ D)`. See :ref:`tensorial-framing`.
 * :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
   — :math:`\sum_k A_k \otimes B_k \otimes \cdots`; the §15.2
-  canonical scattering / streaming form.
+  *aspirational* canonical scattering / streaming form. **Zero
+  production consumers** today; see :ref:`wave-t-tensor-network`
+  for why (the MA-Q1 master condition: coupled physics falls back to
+  :class:`OperatorSum` over bespoke leaves, not SOTP).
+* :class:`~orpheus.numerics.operator.OperatorSum` — the additive
+  composer :math:`A + B`. Wave T promoted this to load-bearing
+  status (T.3 scattering kernel, T.4
+  :attr:`StreamingOperator.M_spatial`); see :ref:`wave-t-shape-table`.
+* :class:`~orpheus.numerics.operator.RankOneOperator` — rank-1
+  outer product :math:`|\ell\rangle\langle r|` on a tagged axis;
+  native to the multigroup fission emission
+  :math:`F = \chi \otimes \nu\Sigma_f` (Wave T T.2,
+  :attr:`FissionOperator.kernel`).
+
+
+Consumer matrix for tensor-product primitives (post Wave T)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The table below lists the production consumers as of Wave T close-out
+(May 2026). The full architectural narrative — including the MA-Q1
+master condition that decides between :class:`TensorProductOperator`,
+:class:`SumOfTensorProductsOperator`, and
+:class:`OperatorSum`-of-bespoke-leaves — is at
+:ref:`wave-t-tensor-network`.
+
+.. list-table:: Production consumers of the tensor-product primitives
+   :header-rows: 1
+   :widths: 28 14 28 30
+
+   * - Primitive
+     - Consumers (count)
+     - Examples
+     - Notes
+   * - :class:`~orpheus.numerics.operator.TensorProductOperator`
+     - 6
+     - 5 BC realizers (vacuum / specular / white / albedo / periodic
+       via Wave T T.1 ``& IdentityOperator()`` wrap); fission kernel
+       (Wave T T.2,
+       :attr:`FissionOperator.kernel = RankOneOperator(χ, νΣ_f,
+       axis=0) & IdentityOperator()`)
+     - Six clean-TP production instances. The MA-Q1 master condition
+       is satisfied: each consumer factors as disjoint per-axis
+       operations.
+   * - :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
+     - 0
+     - (no production consumers)
+     - The §15.2 SOTP form is aspirational; Wave T T.3 (scattering)
+       and T.4 (streaming) both fell back to :class:`OperatorSum`
+       over bespoke leaves per the MA-Q1 master condition. See
+       :ref:`wave-t-tensor-network` for the per-substep rationale.
+   * - :class:`~orpheus.numerics.operator.OperatorSum`
+     - 2 (load-bearing, post Wave T)
+     - Wave T T.3 scattering kernel
+       (:attr:`ScatteringOperator.kernel` =
+       ``reduce(add, kernel_summands)`` over per-ℓ
+       :class:`_PerLegendreOrderScattering`); Wave T T.4 streaming
+       spatial (:attr:`StreamingOperator.M_spatial` =
+       :class:`_MSpatialOperatorSum` over two
+       :class:`_SpatialSweepDirection` summands)
+     - The subclass
+       :class:`~orpheus.sn.operator._MSpatialOperatorSum` overrides
+       :meth:`apply` to run the bidirectional sweep ONCE with shared
+       state (Design B), avoiding the 1.5× cost of the naïve sum.
+       See :ref:`wave-t-orchestrated-apply`.
+   * - :class:`~orpheus.numerics.operator.RankOneOperator`
+     - 1
+     - Wave T T.2 fission kernel
+       (:attr:`FissionOperator.kernel` first factor of the
+       :class:`TensorProductOperator`)
+     - Encodes the group-axis contraction-then-broadcast
+       :math:`(F\,\phi)_g = \chi_g\,\sum_{g'}\nu\Sigma_{f,g'}\,\phi_{g'}`
+       as a typed primitive.
+
+**New SN-side bespoke leaves shipped in Wave T** (private to
+:mod:`orpheus.sn`, accessed via public properties; documented for
+forward-reference by Wave O typing work):
+
+* :class:`orpheus.sn.scattering._PerLegendreOrderScattering` — per-ℓ
+  summand of :attr:`ScatteringOperator.kernel`. Public access via
+  :attr:`ScatteringOperator.kernel_summands`. Implements
+  :math:`R_\ell \circ \Lambda_\ell \circ M_\ell` for one Legendre
+  order.
+* :class:`orpheus.sn.operator._SpatialSweepDirection` — per-direction
+  sweep summand of :attr:`StreamingOperator.M_spatial`. Standalone
+  :meth:`apply` is the slow per-direction fallback for testing /
+  adjoint inspection / DSA preconditioner work.
+* :class:`orpheus.sn.operator._MSpatialOperatorSum` — subclass of
+  :class:`OperatorSum` that orchestrates the per-direction sweep
+  with shared state. Returned by
+  :attr:`StreamingOperator.M_spatial`.
+* :class:`orpheus.sn.operator.AngularRedistributionOperator` —
+  bespoke curvilinear angular-redistribution leaf wrapping the M-M
+  half-grid per-cell algebra. Returned by
+  :attr:`StreamingOperator.M_angular_redist` for sphere / cylinder
+  (returns :class:`ZeroOperator` for slab / 2-D Cartesian).
+
+The leading-underscore primitives are intentionally private (the
+public surface is via the :attr:`M_spatial` / :attr:`M_angular_redist`
+/ :attr:`kernel` / :attr:`kernel_summands` properties on the operator
+classes). Wave O (`Issue #208
+<https://github.com/deOliveira-R/ORPHEUS/issues/208>`_) will introduce
+``BulkOperator`` / ``FullOperator`` / ``BoundaryOperator`` Protocols
+that may promote some of these to public status if a downstream
+consumer surfaces.
 
 Discrete measures and partition (Wave 0 of SN performance plan):
 
