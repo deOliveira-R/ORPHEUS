@@ -1045,6 +1045,67 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         np.testing.assert_array_equal(boundary, snapshots["cyl_2g_apply_boundary"])
 
 
+class TestT4dApply2DCartesianSourceHashPin:
+    """A2D-1 — defensive source-hash pin on ``_apply_2d_cartesian``.
+
+    Per the T.4 verification spec §1 Q1 = (c) HYBRID: T.4 lifts the 1-D
+    matvec into the ``M_spatial + M_angular_redist`` decomposition, but
+    LEAVES the 2-D Cartesian path procedural (cell-centre proxy + upwind
+    FD via ``_compute_gradients``).  The decision to keep 2-D procedural
+    rests on the architectural payload of the cell-centre-proxy ↔
+    face-view-as-trace rewire (10% k_∞ drift comment at
+    ``sn/operator.py:862-868``) and ``[[feedback_unify_after_two_instances]]``.
+
+    Without a defensive pin, future author drift on the 2-D Cartesian
+    path could silently change the behavior — the M_spatial /
+    M_angular_redist properties don't touch it; the L1 MMS 2-D suite
+    only catches a subset of failure modes.  This source-hash pin
+    surfaces ANY intentional edit (the developer MUST update the pin)
+    while preserving full freedom to refactor (the pin is one line).
+
+    When updating ``_apply_2d_cartesian``:
+
+    1. Run this test to see the new hash in the failure message.
+    2. Update ``EXPECTED_SHA256`` with the new value.
+    3. Commit the test + production change together.
+
+    The hash invariant is INTENTIONALLY brittle — it's a tripwire, not
+    a soft constraint.
+    """
+
+    # The SHA-256 hash of ``inspect.getsource(StreamingOperator._apply_2d_cartesian)``
+    # as of T.4d (commit landing this test).  See class docstring for
+    # the update procedure when the 2-D Cartesian path is intentionally
+    # refactored.
+    EXPECTED_SHA256: str = (
+        "7a5dfee89499f246334c505330d86e4b30aeec8c2f33975c3306b862353d114e"
+    )
+
+    def test_apply_2d_cartesian_source_hash_unchanged(self):
+        """Defensive: any source-level edit to ``_apply_2d_cartesian``
+        MUST be deliberate — update the hash with the new value
+        printed in the failure message.
+        """
+        import hashlib
+        import inspect
+
+        src = inspect.getsource(StreamingOperator._apply_2d_cartesian)
+        actual = hashlib.sha256(src.encode("utf-8")).hexdigest()
+        if actual != self.EXPECTED_SHA256:
+            raise AssertionError(
+                "A2D-1: `StreamingOperator._apply_2d_cartesian` source code "
+                "has changed.  This is the T.4 hybrid-Q1 defensive pin — "
+                "any intentional edit to the 2-D Cartesian path MUST "
+                "update `TestT4dApply2DCartesianSourceHashPin.EXPECTED_SHA256` "
+                "in this test file.\n"
+                f"  EXPECTED: {self.EXPECTED_SHA256}\n"
+                f"  ACTUAL:   {actual}\n"
+                "If the change is intentional, copy the ACTUAL value above "
+                "into EXPECTED_SHA256 and commit alongside the production "
+                "change.  If the change is unintentional, revert it."
+            )
+
+
 class TestT4bMSpatialStandaloneApply:
     """Standalone per-direction `_SpatialSweepDirection.apply` slow-path
     invariants.  Used by future Wave-O / adjoint composition where the

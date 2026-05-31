@@ -542,6 +542,41 @@ procedural FD; both BCs must remain unchanged.
 
 Per plan §5.3 and the architectural decisions in §1 above.
 
+### 🔧 Post-T.4b implementation deviations (added 2026-05-31, T.5.1 amendment)
+
+**The §4 test table below was authored against the SOTP form for `M_spatial`** (one summand per spatial axis, each a clean 3-factor `TensorProductOperator` `(D_axis & Ω_axis & I_g)`).  **The shipped form deviates** per the AskUserQuestion architectural follow-up that landed BEFORE T.4b code was written (the user surfaced the inconsistency between Q1's SOTP claim and Q2's bespoke-leaf treatment — same MA-Q1 master condition applies to both).
+
+The user-endorsed honest decomposition (commit `c55b505` T.4b):
+
+* `M_spatial` IS `_MSpatialOperatorSum(OperatorSum)` — a SUBCLASS of `OperatorSum`, NOT `SumOfTensorProductsOperator`.
+* `M_spatial.a` and `M_spatial.b` are `_SpatialSweepDirection` BESPOKE LEAVES — NOT `TensorProductOperator` instances.  Each carries `direction_sign ∈ {+1, -1}` metadata.
+* `M_spatial.apply` OVERRIDES the default `OperatorSum.apply` to run ONE bidirectional sweep with shared state (Design B — see plan §6 T.4 and the T.4b commit message for the rationale).
+
+**Revised test rows (what actually shipped in `tests/sn/test_streaming_operator.py`)**:
+
+| Spec row | Original claim (table below) | Shipped form (T.4b/T.4c) | Implementation |
+|----------|------------------------------|--------------------------|----------------|
+| **L2-1** | `op.M_spatial` is `SumOfTensorProductsOperator` with `len(summands) == n_spatial_axes` | `op.M_spatial` is `_MSpatialOperatorSum(OperatorSum)` with 2 `_SpatialSweepDirection` summands (forward + backward, regardless of spatial dimension count) | `TestT4bMSpatialStructure.test_M_spatial_is_operator_sum_with_two_per_direction_summands_slab` |
+| **L2-2** | Each summand is a 3-factor `TensorProductOperator` `(D_axis & Ω_axis & I_g)` | Each summand is a `_SpatialSweepDirection` BESPOKE LEAF — NOT a `TensorProductOperator` wrap.  Test **DROPPED** (the claim was structurally false per MA-Q1) | (no test) |
+| **L2-7** | Summand's 3 factors act on disjoint axes (D on spatial, Ω on angular, I on group) | Summands' `direction_sign` values are disjoint (one +1, one -1).  Direction-sign is the structural exposure; axes-disjoint claim doesn't apply to bespoke leaves | `TestT4bMSpatialStructure.test_M_spatial_summand_direction_signs_disjoint` |
+| **L2-5** | `M_spatial.assert_separable()` passes (L1 invariant fires) | Test **DROPPED** — `assert_separable` is structurally inapplicable to `OperatorSum`-of-bespoke-leaves.  The narrower per-operator separability check fires only on T.1 BC realizers and T.2 fission TP | (no test) |
+| **A-1** | Slab algebra-decomposition invariant at `rtol=1e-13, atol=1e-14` (Route A bit-id) | `np.testing.assert_array_equal` strict bit-identity for slab (M_spatial.apply IS bit-exact to the unified matvec for slab) | `TestT4bAlgebraDecompositionInvariantSlab.test_slab_apply_decomposition_invariant` |
+| **A-2 / A-3** | Curvilinear algebra-decomposition invariant at `rtol=1e-13, atol=1e-14` | Curvilinear: `np.testing.assert_allclose(rtol=1e-14, atol=1e-14)` per the principled-equivalence ULP gate (M_spatial = `(L+C) − M_ang` introduces ~16·ULP drift) | `TestT4cAlgebraDecompositionInvariantCurvilinear.test_{sphere,cylinder}_LpC_equals_M_spatial_plus_M_angular_redist` |
+| **A-9** | `M_spatial.apply(zeros) == zeros` | Test **DROPPED** as redundant with A-1 + A-8 algebra invariants (any failure here would surface via the additive decomposition tests at a stronger gate) | (no test) |
+| **L4-4** | 2-D Cartesian bit-identity to pre-T.4 | Covered via A2D-1 defensive source-hash pin + the StreamingOperator.apply 2-D dispatch is untouched (verified inline at T.4b/T.4c snapshot re-capture; no pytest case shipped — overlaps with A2D-1) | `TestT4dApply2DCartesianSourceHashPin.test_apply_2d_cartesian_source_hash_unchanged` |
+| **L4-5 / L4-6** | `(L+C).apply` / `(L+C).solve` bit-identical to pre-T.4 snapshot | Verified inline at snapshot re-capture (commits `cb18fdb`/`c55b505`/`90e7d4e` close-out checks all bit-identical).  No pytest case shipped — the inline check is the load-bearing gate for the algebra-decomposition contract; explicit test could be added in a future maintenance pass | (verified inline; no test row) |
+| **L5-1** | `(L+C).apply` walltime ≤ 1.05× pre-T.4 baseline on 1000-iter slab P1 | Verified inline at T.4c close-out (median 1.040×, p95 0.998×; commit `90e7d4e`).  200 iterations instead of 1000 for fixture wallclock cost.  No pytest case shipped — perf gate would need a marker like `@pytest.mark.slow` to avoid CI noise; deferred | (verified inline; no test row) |
+
+The **shipped test count** is 21 new tests in `tests/sn/test_streaming_operator.py` (vs the spec's projected 27 = 18 foundation + 7 L4 + 1 L5 + 1 A2D-1).  The 6 missing tests are either DROPPED (L2-2, L2-5, A-9 — structurally inapplicable to the OperatorSum/bespoke-leaf shape) or verified inline (L4-4, L4-5, L4-6, L5-1 — the snapshot re-capture proves bit-identity at close-out time; an explicit pytest case is redundant for these but could be added in a future maintenance pass for CI discipline).
+
+The **architectural value** of the deviation is captured in the T.4 spec §1 "post-implementation deviations" subsection and the Wave T plan §6 T.4 + §9 amendments (T.5.1, also landing in this commit).
+
+---
+
+**Original §4 table** (the spec as authored 2026-05-30):
+
+
+
 | #   | Test name | File | Class | Level | What it verifies | Reference | Pass criterion |
 |-----|-----------|------|-------|-------|------------------|-----------|----------------|
 | L2-1 | `test_M_spatial_is_sum_of_tensor_products` | `tests/sn/test_streaming_operator.py` | `TestTensorNetworkDecomposition` | foundation | `op.M_spatial` is a `SumOfTensorProductsOperator` with one summand per spatial axis (slab/sphere/cylinder: 1; 2-D Cartesian: out of scope per Q1) | Type-introspection | `isinstance(op.M_spatial, SumOfTensorProductsOperator)` AND `len(op.M_spatial.summands) == op.sn_mesh.n_spatial_axes` |

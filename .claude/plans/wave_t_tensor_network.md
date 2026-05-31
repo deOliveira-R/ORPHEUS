@@ -214,9 +214,11 @@ Open design question (T.2 starting brief): what's the cleanest factor split? `F 
 
 Verification: existing fission tests stay green; new test pins `isinstance(fission_op.apply, ...) == TensorProductOperator`-shaped invariant; `k_∞ = νΣ_f / Σ_a` homogeneous-reflective check is the structural-independence ground.
 
-### Step T.3 — Scattering as `SumOfTensorProductsOperator` per §15.2
+### Step T.3 — Scattering as `OperatorSum` of per-ℓ summands (NOT SOTP per Q6 honest-fallback)
 
-The grand-report-named identity (line 2058-2061):
+**T.3 IMPLEMENTATION (2026-05-30, commits `9f85c5d` / `03bcdba` / `2595d2f`) — DEVIATION from §15.2 aspiration**
+
+The grand-report §15.2 form names the identity:
 
 ```python
 S = SumOfTensorProductsOperator([
@@ -225,41 +227,184 @@ S = SumOfTensorProductsOperator([
 ])
 ```
 
-The largest Wave T payoff (Krylov hot path). Touches `LegendreMomentScattering` (`scattering.py:148-268`) and `ScatteringOperator` (`scattering.py:271-993`). The R · Λ · M pipeline (`scattering.py:625-657`) — currently three classes composed by direct method calls — becomes `(R & I_angle & I_group) ∘ Λ ∘ (M & I_angle & I_group)` operator-algebra composition.
+T.3 design-fork Q6 surfaced that this §15.2 SOTP form **fails the disjoint-axes contract**: the per-material per-ℓ einsum at `material_xs_field.py:515-572` couples the group axis (per-material XS lookup `mat_xs.sig_s_legendre(mid)[ell]`) with the spatial axis (per-cell material id from `mat_xs.cells_by_material`). The user resolved Q6 to the **math-honest fallback** at AskUserQuestion time: ship `OperatorSum` over per-ℓ bespoke summands.
 
-The per-material per-ℓ einsum at `material_xs_field.py:515-572` is the inner numerics. Bit-identical preserved.
-
-Verification: 2-group heterogeneous L1 MMS gate is the structural ground; existing scattering tests pin value-level identity; new test pins the `SumOfTensorProductsOperator` structure.
-
-### Step T.4 — `StreamingOperator.apply` as `L_spatial + L_angular_redist`
-
-The universal decomposition per the connection-coefficient framing:
+**Shipped form (T.3b/c/d/e, ✓ landed)**:
 
 ```python
-L_apply = L_spatial.apply(psi) + L_angular_redist.apply(psi)
+class _PerLegendreOrderScattering(LinearOperator):
+    """Per-ℓ summand: applies R_ℓ ∘ Λ_ℓ ∘ M_ℓ for ONE Legendre order ℓ."""
+    ell: int                 # specific ℓ ∈ {1, ..., scattering_order}
+    L: int                   # total order
+    mat_xs: MaterialXSField  # for per-material per-ℓ einsum
+    weights: np.ndarray; Y: np.ndarray
 
-L_spatial = sum over spatial axes of  D_axis(streaming_terms) & Ω_axis(quad) & I_group
-L_angular_redist = R_polar(connection_coefficients) & I_x & I_group   # ZeroOperator for slab
+class ScatteringOperator(LinearOperator):
+    @cached_property
+    def kernel_summands(self) -> tuple[_PerLegendreOrderScattering, ...]:
+        """ONE summand per Legendre order ℓ ∈ {1, ..., scattering_order}.
+        Note: P0 (ℓ=0) stays in the iso-fast-path, NOT in the kernel —
+        Q3 Option (β) resolution.  ``len(kernel_summands) == scattering_order``,
+        not order + 1.
+        """
+        ...
+
+    @cached_property
+    def kernel(self) -> LinearOperator:
+        """`OperatorSum` of `kernel_summands` via `functools.reduce(add)`.
+        For `scattering_order == 0` (P0 only), returns `ZeroOperator`.
+        For `scattering_order == 1` (P1), `reduce` returns the singleton
+        summand directly (NOT an OperatorSum)."""
+        ...
 ```
 
-Both summands are `TensorProductOperator`s (`L_spatial` is a `SumOfTensorProductsOperator` over spatial axes). `L_angular_redist` is the M-M closure for sphere/cylinder; degenerate (zero operator) for slab.
+The R · Λ · M pipeline (`scattering.py:625-657`) — three classes composed by direct method calls — becomes per-ℓ `OperatorSum` summands. The `build_aniso_source` body collapsed from 22 → 14 LOC (single-source-of-truth via `self.kernel.apply`).
 
-The geometric data lives in `StreamingTerms` (`geometry/reduced_operator.py:151`) for spatial face-area ratios, and in `PoleAngularClosure` (`sn/spatial/pole_angular_closure.py:191`) for the angular connection coefficients. T.4 does NOT refactor those primitives — it consumes them at the operator level via `D_axis(streaming_terms)` / `R_polar(connection_coefficients)` factory methods.
+The per-material per-ℓ einsum at `material_xs_field.py:515-572` is the inner numerics, preserved bit-exact inside `_PerLegendreOrderScattering.apply`.
 
-**Complications expected** (§1.3):
-- Whether `R_polar` factors cleanly as a `TensorProductOperator` factor or needs a bespoke shape (the M-M half-grid sequential sweep coupling is not diagonal). Discover during execution.
-- **2-D Cartesian decision pending**.  Post-D-H.2-C4 the 2-D Cartesian apply path exists but is procedural FD (`_apply_2d_cartesian` at `sn/operator.py:830`).  T.4 must decide between (a) tensor-lifting the 2-D path inside T.4's scope (`L_spatial = D_x ⊗ Ω_x ⊗ I_g + D_y ⊗ Ω_y ⊗ I_g`, the §15.1-explicit 2-D form) or (b) leaving 2-D procedural and targeting 1-D only.  Decision deferred to T.4 start.
-- Curvilinear may surface other coupling that resists the decomposition; if so, document the principled non-factorization and adapt the architecture rather than abandoning the algebra.
+Verification (landed): 2-group heterogeneous L1 MMS gate is the structural ground; existing scattering tests pin value-level identity; new tests pin the `OperatorSum`-of-per-ℓ structure + per-arm bit-identity vs pre-T.3 snapshots.
 
-Verification: slab L1 gates (slab is the simplest case, must work first), then sphere and cylinder. The structural-independence reference is the existing `transport_operator_matvec_unified` output (the unified procedural baseline that Wave T rewires).
+**Master condition surfaced (T.3 resolution → T.4 amendment)**: SOTP requires Cartesian-product per-axis decomposition; coupled physics (per-material XS in T.3) falls back to `OperatorSum`. See §6 T.4 for the analogous T.4 application of this master condition (per-direction WDD + sequential M-M half-grid).
 
-### Step T.5 — Documentation + retirement of dead infrastructure (close-out)
+### Step T.4 — `StreamingOperator.apply` as `M_spatial + M_angular_redist - σ_t·ψ`
+
+**T.4 IMPLEMENTATION (2026-05-31, commits `cb18fdb` / `c55b505` / `90e7d4e`) — multiple DEVIATIONS from the original §15.1 SOTP aspiration**
+
+The user-endorsed honest decomposition (resolved via the T.4-spec Q1-Q5 + post-spec follow-up at AskUserQuestion time, before T.4b code landed):
+
+```python
+# Shipped T.4 form — properties named M_* per Q3 = (γ); see "naming" below.
+class StreamingOperator:
+    @cached_property
+    def M_spatial(self) -> _MSpatialOperatorSum:
+        """OperatorSum of per-direction-sign summands (M_x_forward + M_x_backward).
+        For 1-D slab/sphere/cyl: exactly 2 per-direction `_SpatialSweepDirection`
+        leaves.  NOT a `SumOfTensorProductsOperator` — the WDD recurrence is
+        sequentially coupled along x.  Honest decomp per MA-Q1 master
+        condition."""
+        ...
+
+    @cached_property
+    def M_angular_redist(self) -> LinearOperator:
+        """Bespoke `AngularRedistributionOperator` leaf for sphere/cyl;
+        `ZeroOperator` for slab/Cartesian.  NOT a `TensorProductOperator`
+        wrap — M-M half-grid recurrence is sequentially coupled along the
+        angular axis (Hébert §3.9.4)."""
+        ...
+
+    def apply(self, psi):
+        # L = M - C; M = M_spatial + M_angular_redist
+        # Slab: routes through M_spatial.apply (M_angular_redist = Zero skip)
+        # Curvilinear: STAYS on `transport_operator_matvec_unified` shortcut
+        # for perf (the M_* decomposition exists for type-level inspection
+        # — Wave O / adjoint / DSA — but does NOT drive the production
+        # hot path for curvilinear).
+        ...
+```
+
+**Five DEVIATIONS from the original SOTP form** (each resolved via AskUserQuestion ahead of code):
+
+* **Q1 (2-D Cartesian)** = HYBRID. T.4 lifts 1-D only; `_apply_2d_cartesian`
+  stays procedural FD. The cell-centre-proxy ↔ face-view-as-trace rewire
+  is its own architectural payload (10% k_∞ drift comment at
+  `sn/operator.py:862-868`); bundling violates
+  `feedback_unify_after_two_instances`. T.4d adds a defensive
+  source-hash pin (A2D-1).
+* **Q2 (curvilinear angular)** = BESPOKE LEAF. `AngularRedistributionOperator`
+  is a `LinearOperator` leaf, NOT a 3-factor TP wrap.  The M-M half-grid
+  recurrence (Hébert §3.9.4 Eqs. 3.432-3.435) is sequentially coupled
+  along the angular axis — `(leaf & I_x & I_g)` would false-assert
+  separability the recurrence doesn't support.
+* **Q3 (subtraction location)** = APPLY-BOUNDARY + RENAME. `σ_t·ψ`
+  subtraction stays at `StreamingOperator.apply`'s boundary (Pattern 7
+  producer-side normalisation). Properties renamed `M_spatial` /
+  `M_angular_redist` (NOT `L_spatial` / `L_angular_redist`) because the
+  discrete cell-balance algebra produces un-subtracted M-shaped
+  contributions; the continuous L and the discrete M = L + C are not
+  the same thing.
+* **Q4 (slab degeneracy)** = STRUCTURAL PRESERVATION. Slab's
+  `M_angular_redist = ZeroOperator()`; both properties always exist
+  (Pattern 4 illegal-states-unrepresentable).
+* **Q5 (`.solve` path)** = OUT OF SCOPE. The
+  `InvertibleOperator.solve` body (WDD sweep) is the procedural
+  inverse — NOT tensor-product-factorable. T.4 only touches `.apply`.
+
+**Master condition (surfaced post-T.4b)**: M_spatial is **NOT** a
+clean SOTP `(D_x & Ω_x & I_g)` for the same MA-Q1 master condition the
+T.3 spec applied to curvilinear M-M:
+
+> SOTP requires Cartesian-product per-axis decomposition; coupled
+> physics (per-material XS in T.3, per-ordinate recurrence in
+> T.4-curvilinear, **AND per-direction WDD in T.4-spatial**) falls
+> back to `OperatorSum`.
+
+The honest shape: M_spatial = `OperatorSum[M_x_forward, M_x_backward]`,
+each summand a bespoke `_SpatialSweepDirection` leaf.
+
+**Per-direction split rationale (user-endorsed post-Q2)**: separate
+forward and backward sweep summands set up structural pollination for
+(a) Wave O typing — per-direction BC dependency footprint is naturally
+exposed; (b) adjoint propagation `(M_x_fwd).H = M_x_back`-with-swapped-
+BCs; (c) DSA-class preconditioners (split per-direction for P_1
+closure); (d) cross-method pollination with billiard/trajectory_resolvent
+single-direction sweeps; (e) per-direction debugging slicing
+(ERR-006 family diagnosis).
+
+**Orchestrated apply (Design B)**: `_MSpatialOperatorSum` **overrides**
+the default `OperatorSum.apply` (which would be `forward.apply +
+backward.apply` = 1.5× perf because each standalone leaf must redo
+the forward sweep to compute the backward sweep's `bc_outer` seed) and
+runs the bidirectional matvec ONCE via
+`transport_operator_matvec_unified`. The local-variable outer-face WDD
+outflow that was the previous hidden coupling point is now the named
+shared state of this orchestrator. Standalone
+`_SpatialSweepDirection.apply` exists as a slow fallback for testing
+/ Wave-O / adjoint inspection.
+
+**Curvilinear M_spatial = `(L+C) − M_angular_redist` via subtraction**.
+This introduces a minor architectural smell (M_spatial depends on
+M_angular_redist for curvilinear; algebraically clean but
+implementationally coupled). The smell is bounded by the
+algebra-decomposition invariant test (`(L+C) == M_spat + M_ang` at
+principled-equivalence ULP ~16·ULP per `vv-principles`
+three-criteria gate).
+
+The geometric data still lives in `StreamingTerms`
+(`geometry/reduced_operator.py:151`) and `PoleAngularClosure`
+(`sn/spatial/pole_angular_closure.py:191`). T.4 does NOT refactor
+those primitives — it consumes them at the operator level
+(Pattern 2 single source of truth).
+
+Verification (landed): slab L1 gates (T.4b green-gate), then sphere
+and cylinder (T.4c bit-identity vs pre-T.4 snapshots). The
+structural-independence reference is the existing
+`transport_operator_matvec_unified` output — STILL alive post-T.4c
+because both `_MSpatialOperatorSum.apply` and the
+`StreamingOperator.apply` curvilinear shortcut consume it (NOT
+orphan code).
+
+### Step T.5 — Close-out (documentation + plan/spec amendments + defensive pin)
 
 After T.1-T.4 land:
-- Update `docs/theory/operator_algebra.rst` to document the §15-§16A tensor-network instances now active in production.
-- Update `docs/api/numerics.rst` for `TensorProductSpace` / `TensorProductOperator` consumer table.
-- Retire any operator-algebra leaves that became unused (e.g., if `PermutationOperator(axis=0)` is no longer instantiated outside of `TensorProductOperator` factors, it could fold into the factor itself).
-- Run the `assert_separable` gate across the whole solver suite — every Wave-T-touched operator's `apply` should produce a `TensorProductOperator`-typed result.
+
+**T.5.1 (this commit)** — Plan + verification-spec wording amendments. The original §6 T.3 / §6 T.4 / §9 wording assumed SOTP for scattering + streaming; the user-resolved Q6 (T.3) and Q1-Q5 (T.4) + post-spec follow-up shipped `OperatorSum`-of-bespoke-leaves instead. T.5.1 codifies the deviations so future agents read the CURRENT-STATE truth, not the original aspiration. Amends:
+
+- §6 T.3 paragraph 1 — `SumOfTensorProductsOperator` → `OperatorSum`; `order + 1` summands → `order` (P0 in fast path)
+- §6 T.4 — full rewrite of the form section to reflect Q1-Q5 + `M_spatial`/`M_angular_redist` naming + per-direction `OperatorSum` (NOT 3-factor TP) + bespoke `AngularRedistributionOperator` leaf + 2-D Cartesian hybrid
+- §9 exit-route — clarify that SOTP has ZERO production consumers; the algebraic SHAPE varies by physics coupling (TP, OperatorSum-of-leaves, or bespoke leaf); Wave O typing must accommodate non-SOTP summands
+
+**T.5.2** — Sphinx documentation updates:
+
+- `docs/theory/operator_algebra.rst` to document the §15-§16A tensor-network instances now active in production AND the MA-Q1 master condition (SOTP applicability boundary). Includes the per-direction `OperatorSum` decomposition for streaming and the per-ℓ `OperatorSum` decomposition for scattering as the **canonical examples** of "coupled-physics OperatorSum fallback".
+- `docs/api/numerics.rst` consumer table for `TensorProductSpace` / `TensorProductOperator` / `OperatorSum` (the latter now load-bearing for T.3+T.4 production consumers).
+
+**T.5.3 (T.4d)** — Defensive A2D-1 source-hash pin on `_apply_2d_cartesian` (per Q1 hybrid resolution): guards against silent author drift on the 2-D Cartesian path that T.4 left procedural. Small focused test.
+
+**OUT OF T.5 SCOPE — moved to future micro-waves**:
+
+- ~~Retire `transport_operator_matvec_unified`~~ — explorer's pre-T.4 audit (`adf8bfb5f7aa1556c`) recommended retirement at T.5; post-T.4c re-audit shows the function is STILL load-bearing (called from `_MSpatialOperatorSum.apply` for slab + curvilinear via subtraction, AND from `StreamingOperator.apply` curvilinear shortcut). NOT orphan. The retirement is contingent on either (a) re-architecting `_MSpatialOperatorSum.apply` to walk cells directly (~200 LOC), or (b) curvilinear `StreamingOperator.apply` switching from the unified shortcut to `M_spat + M_ang` composition (perf hit). Deferred to a separate post-T.5 cleanup micro-wave.
+- ~~Soft leverage opportunity (cache unification)~~ — `_ensure_coll_cache` could read `a_attenuation` from `M_spatial.materialize_inverse_cache(sigma_t)`. ~50 LOC, 1 sweep_cache.py test. Flagged in the explorer report as separate post-T.4 micro-wave. Out of T.5 scope.
+- ~~`assert_separable` suite-wide gate~~ — the invariant is structurally meaningful ONLY for the TP/SOTP-shaped operators (BCs + fission). It is inapplicable to scattering's `OperatorSum`-of-per-ℓ-leaves, streaming's per-direction `OperatorSum`, and the `AngularRedistributionOperator` bespoke leaf. The narrow per-operator `assert_separable` checks already exist (T.1/T.2 tests); a suite-wide check would be misleading.
 
 ---
 
@@ -289,13 +434,18 @@ Once these checkpoints are confirmed AND Depth B is complete, this plan becomes 
 
 ## 9. Exit Route — where this wave leads when complete
 
-When Wave T's T.1 through T.5 commit, the following invariants hold:
+When Wave T's T.1 through T.5 commit, the following invariants hold. **Items revised post-T.3/T.4 implementation to reflect the OperatorSum/bespoke-leaf deviations from the original SOTP aspiration** — see §6 T.3 + T.4 for the MA-Q1 master condition rationale.
 
-1. **All four operator classes** (`SNBoundaryRealizer`-produced BCs, `FissionOperator`, `ScatteringOperator`, `StreamingOperator`) produce `TensorProductOperator` / `SumOfTensorProductsOperator` instances from `.apply` and `.realize`. (Affine-source BCs — `PrescribedInflow` — may defer to Wave O if the linear-tensor-product form does not accommodate the affine shift; see §6 T.1.) The `assert_separable` invariant fires.
-2. **L1 MMS gates** stay green. The 10 pre-existing DD-regression failures stay at the same failure set. The new algebraic-identity gates (§5.3) pass.
-3. **Bit-identity** holds at the matvec value level for the touched operators, or — for the rare reduction-reordering cases — the principled-equivalence three-criteria test passes (`vv-principles` §"Bit-identity vs principled-equivalence").
-4. **Performance** is within ≤ 5% of pre-Wave-T baseline on the 1-D slab Krylov benchmark.
-5. **`TensorProductOperator` / `SumOfTensorProductsOperator`** have FIVE+ production consumers (4 BC kinds + fission + scattering + streaming). The Wave-0 primitives are no longer shipped-but-unused.
+1. **All four operator classes touched** (`SNBoundaryRealizer`-produced BCs, `FissionOperator`, `ScatteringOperator`, `StreamingOperator`) produce operator-algebra-typed results — but the algebraic SHAPE varies by physics coupling:
+   - **`TensorProductOperator` (clean SOTP / TP)** — BC realizers (T.1, 5 instances: vacuum/specular/white/albedo/periodic); fission rank-1 TP (T.2: `RankOneOperator(χ, νΣ_f, axis=0) & IdentityOperator()`).
+   - **`OperatorSum` of bespoke leaves (NOT SOTP)** — scattering kernel (T.3: `OperatorSum` over per-ℓ `_PerLegendreOrderScattering` summands, per Q6 honest fallback); streaming `M_spatial` (T.4b: `_MSpatialOperatorSum` of `_SpatialSweepDirection(±1)` leaves, per MA-Q1 master condition).
+   - **Bespoke `LinearOperator` leaf (NOT TP, NOT OperatorSum at leaf level)** — `AngularRedistributionOperator` (T.4c: M-M half-grid recurrence wrapped as a single leaf, per Q2 = (iii)).
+   - **`PrescribedInflow`** — affine-source BC, deferred to Wave O (linear-tensor-product form doesn't accommodate the affine shift). See §6 T.1.
+   - `assert_separable` invariant fires ONLY on the TP/SOTP-shaped subset (BCs + fission); it is structurally inapplicable to bespoke leaves and pure-`OperatorSum` summands.
+2. **L1 MMS gates** stay green. The 10 pre-existing DD-regression failures stay at the same failure set. The new algebraic-identity gates (§5.3) pass — `M_spat + M_ang == (L+C)` at principled-equivalence ULP.
+3. **Bit-identity** holds at the matvec value level for the touched operators on the production hot path (T.4 verified bit-exact pre/post on slab + sphere + cylinder + 2-D Cartesian via pre-T.4 snapshots `cb18fdb`). For algebra-decomposition checks (M_spat+M_ang ≡ (L+C) for curvilinear) the principled-equivalence three-criteria test passes at ~16·ULP (`vv-principles` §"Bit-identity vs principled-equivalence").
+4. **Performance** is within ≤ 5% of pre-Wave-T baseline on the 1-D slab Krylov benchmark. **Confirmed post-T.4c**: median 1.04× (3.97% slowdown), p95 0.998× — under threshold (`90e7d4e` close-out measurement).
+5. **`TensorProductOperator`** has FIVE+ production consumers (4 BC kinds from T.1 + fission rank-1 TP from T.2 = 5; the specular BC carried over from D-B+1 raises the count to 6 if counted as a Wave T consumer too). **`SumOfTensorProductsOperator` has ZERO production consumers** — both T.3 and T.4 shipped as `OperatorSum` over bespoke leaves per the MA-Q1 master condition. The aspirational §15.2 SOTP form is contradicted by coupled-physics primitives (per-material XS, sequential WDD, M-M half-grid recurrence) in two of the three originally-SOTP-targeted substeps. **Wave O design SHOULD NOT assume universal SOTP-ability** of the operator algebra.
 
 **Hand-off to parent-plan step P3.4** (Problem/Solver split). P3.4 picks up:
 - Typed Fields (from Depth B) AS operator domain/codomain.
