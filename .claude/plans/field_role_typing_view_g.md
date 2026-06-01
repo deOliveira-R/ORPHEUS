@@ -74,8 +74,7 @@ realizer routing). A.3 touches that wiring — watch it.
 |---|---|---|---|
 | 0a/0b | test-architect spec + explorer L20 audit | — | done |
 | **A.1 ✅** | remove `units` from `FunctionSpace` (`space.py`: field, `__eq__`, `__repr__`, `_tensor_product_units`); drop Layer-3 assert in `field.py`; migrate unit-pins (3 in `test_space_algebra.py` + **5 in `test_field.py`** — grep found more than the spec listed); fix latent cm²→cm³ error in field.py docstring; scalar_flux.py docstring | **BI** (units `None` everywhere) | **DONE: 237 passed `-O`** (space+space_algebra+field+operator+transport+typed_sources) |
-| **A.2** | one concrete `TraceSpace` (`spaces/trace_space.py`) | new+BI predicate | rewritten `test_trace_space.py` (L1 `sign(Ω·n)`) |
-| **A.3** | migrate 5 consumers; delete `Inflow/Outflow`, factory, shim | BI | trace/realizer/method_space/btl/bound_compat; red set still =5 |
+| **A.2+A.3** (MERGED) | **TraceSpace unification** — one logical change (see "Unification design" below): build one concrete `TraceSpace(FunctionSpace)`; migrate the 5 consumers; delete `Inflow/OutflowTraceSpace` + `boundary_trace_space()` factory + `numerics/trace_space.py` shim; rewrite `test_trace_space.py` | **BI both sides** (operator + realizer) | rewritten `test_trace_space.py` (L1 `sign(Ω·n)`) + eps-gap guard; trace/realizer/method_space/btl/bound_compat green; red set still exactly 5 |
 | **A.4** | consolidate inline `mu_x>±eps` masks in `operator.py` (≈8 copies; verify `eps`=`_TANGENTIAL_EPS`) | **BI (highest risk)** | Resolution-A `assert_array_equal`; 347 wall |
 | **A.5** | re-home `BoundaryFlux` onto `TraceSpace`; FaceLayout field→space | BI | `test_boundary_flux.py`, `test_timed_full_field.py` |
 | **B.1** | storage-base ABCs; dedup; re-parent | BI | leaf tests bit-identical |
@@ -89,3 +88,61 @@ realizer routing). A.3 touches that wiring — watch it.
 
 **Verify:** `python -O -m pytest`; after each phase rebuild Sphinx + `python -m
 tests._harness.audit`. Re-run the field/space set after each step; red set = 5.
+
+---
+
+## A.2/A.3 — TraceSpace unification: resolved design (2026-05-31)
+
+Merged into ONE step — the `TraceSpace` name + the coupled face/eps
+reconciliation make a clean build-then-migrate split unstable.
+
+**Target type:** one concrete `TraceSpace(FunctionSpace)` carrying
+`name="sn_trace"`, `shape=(layout.total_size,)`, `inner_product_weights=None`,
+`layout: FaceLayout`, and `omega_dot_n: NDArray (n_faces, N)`. It is the
+whole-boundary storage space (role-agnostic, View-G) and REPLACES both the
+per-face `Inflow/OutflowTraceSpace` AND the ad-hoc
+`FunctionSpace("sn_boundary_flat")` that `BoundaryFlux` currently builds.
+
+- **Granularity:** whole-boundary `(total_size,)`; per-face access via the
+  `FaceLayout` slot + the `(face, ordinate)` mask row. Selectors stay per-face
+  (`inflow_indices_for_face(face)` / `outflow_indices_for_face`). The old
+  per-face `(N,ng)` "space" becomes a derived view, NOT a class.
+- **Directional leaf-data:** store the SIGNED `omega_dot_n` `(n_faces, N)`
+  (`= sign_f · μ_axis(f)`); derive inflow (`< −eps`) / outflow (`> +eps`) /
+  tangential (`|·| ≤ eps`) on demand. Single source of truth — A.4's
+  `operator.py` masks (≈8 inline copies of `mu_x > ±eps`) read the SAME array.
+- **eps — principled, NOT a magic number:**
+  `_TANGENTIAL_EPS = 4.0 * np.finfo(np.float64).eps  # ≈ 8.9e-16` — a safety
+  factor over the IEEE-754 dot-product round-off bound `d·u` (`d ≤ 3` spatial
+  dims, `u = eps/2`) for the unit-vector projection `Ω·n = ⟨n, μ⟩`. EMPIRICAL
+  (`eps_probe.py`, GL N=2..64 + Lebedev orders 3..53): nominally-tangential
+  cosines are EXACTLY `0.0` (quadrature symmetry — odd-N central node + all
+  off-axis 1-D components + Lebedev axis nodes); smallest GENUINE cosine
+  `= 2.44e-2`; gap `[0, 0.024]` spans ~14 orders. eps sits 4× above the
+  round-off floor and 2.7e13× below genuine → masks BIT-IDENTICAL to BOTH the
+  operator's old `1e-15` AND the realizer's old `1e-12` (the `(eps, 1e-12)`
+  band is empty). New foundation test: `_TANGENTIAL_EPS < min genuine |μ|`
+  across GL+Lebedev (gap guard so a future quadrature can't silently violate it).
+- **Face-naming reconciliation (fixes a latent curvilinear bug):** key the
+  normal table on the LAYOUT's face names from `SNMesh.boundary_face_layout` —
+  `xmin/xmax` (slab), `xmax` ONLY (1-D curvilinear: r=0 is a regularity
+  condition, not a BC face), `xmin/xmax/ymin/ymax` (2-D Cartesian) — NOT
+  trace_space's old `left/right` (which wrongly fabricated a mask for a
+  non-existent curvilinear inner face). Restrict masks to the layout's faces.
+- **Inner-product weights = None (Euclidean)** now — matches `BoundaryFlux`'s
+  `sn_boundary_flat` → bit-identical. The physically-correct `|Ω·n|`-weighted
+  boundary metric (partial currents / `BoundaryOperator` adjoints) is DEFERRED
+  to Wave O; **recorded at #208, comment posted 2026-05-31**
+  (`#issuecomment-4589013439`).
+- **Consumers to migrate (explorer L20 audit):** `sn/geometry.py` (SNMesh: one
+  `_trace` replacing `_inflow_trace`/`_outflow_trace`), `sn/method_space.py`
+  (holds one trace; `inflow_indices_for_face` delegates), `sn/boundary_realizer.py`,
+  `geometry/boundary/_source.py` (`evaluate(trace, face)` → per-face inflow
+  values), `sn/angular_operator.py` (probe). Then DELETE the two subclasses +
+  factory + shim. Migrate tests: `test_trace_space.py` (rewrite — rehome the
+  per-face `sign(Ω·n)` correctness intent onto the unified space),
+  `test_method_space.py`, `test_space.py:190-207` (the `boundary_trace_space`
+  tests). A.5 then re-homes `BoundaryFlux` onto this `TraceSpace` (FaceLayout
+  field→space).
+- **Probe artifact:** `eps_probe.py` lives in the job tmp (not committed); its
+  result is captured above. The gap-guard test is the durable form.
