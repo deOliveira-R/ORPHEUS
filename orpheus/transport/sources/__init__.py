@@ -10,13 +10,13 @@ isotropic source with a per-ordinate source) go through NAMED
 composition factories, not cross-class dunders.
 
 Migration status (Depth B step D-F): currently houses
-:class:`IsotropicSource` and :class:`PerOrdinateSource`. Future steps
+:class:`ScalarSource` and :class:`AngularSource`. Future steps
 will add :class:`AngularSource` (Issue #201).
 """
 
 from __future__ import annotations
 
-from orpheus.transport.sources.isotropic_source import IsotropicSource
-from orpheus.transport.sources.per_ordinate_source import PerOrdinateSource
+from orpheus.transport.sources.scalar_source import ScalarSource
+from orpheus.transport.sources.angular_source import AngularSource
 
-__all__ = ["IsotropicSource", "PerOrdinateSource"]
+__all__ = ["ScalarSource", "AngularSource"]

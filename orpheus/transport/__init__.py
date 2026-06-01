@@ -26,7 +26,7 @@ Today's contents:
 
 Future contents (deferred to later Depth B / parent-plan steps):
 
-* :mod:`orpheus.transport.sources` — IsotropicSource / PerOrdinateSource
+* :mod:`orpheus.transport.sources` — ScalarSource / AngularSource
   (D-F).
 * :mod:`orpheus.transport.problems` — Problem ABCs (P3.4): Criticality,
   FixedSource, AlphaEigen, InitialValue.

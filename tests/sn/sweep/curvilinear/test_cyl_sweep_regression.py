@@ -48,7 +48,7 @@ class TestCylindricalSweepRegression:
     def test_single_sweep_all_finite(self):
         """A single sweep must produce finite fluxes."""
         from orpheus.sn.sweep import transport_sweep
-        from orpheus.transport.sources import PerOrdinateSource
+        from orpheus.transport.sources import AngularSource
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.product(n_mu=4, n_phi=8)
@@ -56,7 +56,7 @@ class TestCylindricalSweepRegression:
 
         sig_t = np.full((1, 10, 1), 0.5)        # (ng, nx, ny)
         Q_iso = np.ones((1, 10, 1))             # (ng, nx, ny)
-        source = PerOrdinateSource.from_isotropic(Q_iso, sn_mesh)
+        source = AngularSource.from_isotropic(Q_iso, sn_mesh)
 
         boundary_flux = sn_mesh.zeros_boundary_flux()
         ang, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
@@ -160,7 +160,7 @@ class TestAzimuthalRedistribution:
         must vanish for each cell because α[0] = α[M] = 0.
         """
         from orpheus.sn.sweep import transport_sweep
-        from orpheus.transport.sources import PerOrdinateSource
+        from orpheus.transport.sources import AngularSource
 
         mix = get_mixture("A", "1g")
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
@@ -169,7 +169,7 @@ class TestAzimuthalRedistribution:
 
         sig_t = np.full((1, 10, 1), mix.SigT[0])    # (ng, nx, ny)
         Q_iso = np.ones((1, 10, 1))                 # (ng, nx, ny)
-        source = PerOrdinateSource.from_isotropic(Q_iso, sn_mesh)
+        source = AngularSource.from_isotropic(Q_iso, sn_mesh)
         boundary_flux = sn_mesh.zeros_boundary_flux()
         ang, _ = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
@@ -189,7 +189,7 @@ class TestAzimuthalRedistribution:
     def test_single_cell_uniform_source_equilibrium(self):
         """Two-cell 1G pure absorber with uniform source → φ = Q/Σ_t."""
         from orpheus.sn.sweep import transport_sweep
-        from orpheus.transport.sources import PerOrdinateSource
+        from orpheus.transport.sources import AngularSource
 
         mesh = _homogeneous_mesh(2, 1.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.product(n_mu=4, n_phi=8)
@@ -197,7 +197,7 @@ class TestAzimuthalRedistribution:
 
         sig_t = np.ones((1, 2, 1))              # (ng, nx, ny)
         Q_iso = np.ones((1, 2, 1))              # (ng, nx, ny)
-        source = PerOrdinateSource.from_isotropic(Q_iso, sn_mesh)
+        source = AngularSource.from_isotropic(Q_iso, sn_mesh)
         boundary_flux = sn_mesh.zeros_boundary_flux()
         phi = None
         for _ in range(100):

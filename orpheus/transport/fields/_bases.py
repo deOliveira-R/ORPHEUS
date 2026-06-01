@@ -2,10 +2,10 @@ r"""Storage-base ABCs for the typed transport field vocabulary (B.1).
 
 This module is the single source of truth for the machinery that every
 typed transport field used to redeclare leaf-by-leaf (Cardinal Rule 2).
-Before B.1, ``AngularFlux`` and ``PerOrdinateSource`` each independently
+Before B.1, ``AngularFlux`` and ``AngularSource`` each independently
 carried an identical ``mesh`` field, ``(N, ng, nx, ny)`` shape-check,
 mesh-binding ``_check_partner``, ``from_mesh``/``from_ndarray``, and
-``N/ng/nx/ny`` read-throughs — and ``ScalarFlux`` / ``IsotropicSource``
+``N/ng/nx/ny`` read-throughs — and ``ScalarFlux`` / ``ScalarSource``
 mirrored the same pattern on ``(ng, nx, ny)``. The repetition IS the
 architectural smell; these bases are the consolidation.
 
@@ -21,11 +21,11 @@ trace) × **role** (flux / source / residual). This module provides the
     Field (numerics, L1 — values + space + dunder algebra)
      ├─ BulkField (ABC)           mesh + mesh-binding + ng/nx/ny + abstract _phase_space_shape
      │   ├─ AngularField (ABC)    + N + (N,ng,nx,ny) from_mesh/_ndarray, parametrized by _SPACE_NAME
-     │   │   ├─ AngularFlux           role leaf
-     │   │   └─ PerOrdinateSource     role leaf  (→ AngularSource in B.2)
+     │   │   ├─ AngularFlux           role leaf  (flux)
+     │   │   └─ AngularSource     role leaf  (source; renamed from PerOrdinateSource in B.2)
      │   ├─ ScalarField (ABC)     + (ng,nx,ny) from_mesh/_ndarray, parametrized by _SPACE_NAME
-     │   │   ├─ ScalarFlux            role leaf
-     │   │   └─ IsotropicSource       role leaf  (→ ScalarSource in B.2)
+     │   │   ├─ ScalarFlux            role leaf  (flux)
+     │   │   └─ ScalarSource       role leaf  (source; renamed from IsotropicSource in B.2)
      │   └─ MomentField (ABC)     family marker; the moment shape is leaf-specific
      │       └─ HarmonicMomentField   role leaf  (flux-only for now)
      └─ BoundaryField (ABC)       mesh + mesh-binding + TraceSpace contract + layout/face_view + factories
@@ -39,7 +39,7 @@ The per-family phase-space shape is the one abstract hook
 ``__post_init__`` validator. The Angular/Scalar families additionally
 expose a ``from_mesh`` classmethod parametrized by the leaf's
 ``_SPACE_NAME`` :class:`~typing.ClassVar` (so ``AngularFlux``'s space is
-named ``"angular_flux"`` and ``PerOrdinateSource``'s ``"per_ordinate_source"``,
+named ``"angular_flux"`` and ``AngularSource``'s ``"angular_source"``,
 preserving the pre-B.1 space identities bit-for-bit). ``MomentField`` and
 ``BoundaryField`` build their spaces differently (a TensorProductSpace
 keyed on ``L``; the mesh's cached ``TraceSpace``) and so do not use
@@ -169,8 +169,8 @@ class AngularField(BulkField):
     r"""Per-ordinate bulk family on ``(N, ng, nx, ny)``.
 
     The storage base for the angular role leaves (``AngularFlux`` and
-    ``PerOrdinateSource`` today; ``AngularSource`` / ``AngularResidual``
-    after B.2/B.3). Subclasses declare a ``_SPACE_NAME``
+    ``AngularSource`` today; ``AngularResidual`` joins after B.3).
+    Subclasses declare a ``_SPACE_NAME``
     :class:`~typing.ClassVar` that names the :class:`FunctionSpace`
     built by :meth:`from_mesh` (preserving each leaf's pre-B.1 space
     identity). Abstract — instantiate a concrete leaf.
@@ -218,9 +218,9 @@ class ScalarField(BulkField):
     r"""Scalar bulk family on ``(ng, nx, ny)``.
 
     The storage base for the scalar role leaves (``ScalarFlux`` and
-    ``IsotropicSource`` today; ``ScalarSource`` / ``ScalarResidual``
-    after B.2/B.3). Parametrized by the leaf's ``_SPACE_NAME``. Abstract
-    — instantiate a concrete leaf.
+    ``ScalarSource`` today; ``ScalarResidual`` joins after B.3).
+    Parametrized by the leaf's ``_SPACE_NAME``. Abstract — instantiate
+    a concrete leaf.
     """
 
     #: The :class:`FunctionSpace` ``name`` for this leaf (e.g.

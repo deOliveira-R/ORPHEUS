@@ -135,7 +135,7 @@ from orpheus.numerics.projection import (
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
-from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
+from orpheus.transport.sources import ScalarSource, AngularSource
 from orpheus.transport.timed_full_field import TimedFullField
 
 if TYPE_CHECKING:
@@ -656,9 +656,9 @@ class ScatteringOperator(LinearOperatorMixin):
 
     def add_iso_source(
         self,
-        Q: "np.ndarray | IsotropicSource",
+        Q: "np.ndarray | ScalarSource",
         phi: "np.ndarray | ScalarFlux",
-    ) -> "np.ndarray | IsotropicSource | None":
+    ) -> "np.ndarray | ScalarSource | None":
         r"""Add P0 in-scatter source to :math:`Q`.
 
         Vectorised by material: per cell ``c`` of material ``mid``,
@@ -669,8 +669,8 @@ class ScatteringOperator(LinearOperatorMixin):
 
         * **Raw-in (legacy)** — ``Q: np.ndarray`` is mutated in place
           and ``None`` is returned (the Wave A–D / PR-TYPED-1 contract).
-        * **Typed-in (return-new)** — ``Q: IsotropicSource`` is treated
-          as an immutable input; a NEW :class:`IsotropicSource` is
+        * **Typed-in (return-new)** — ``Q: ScalarSource`` is treated
+          as an immutable input; a NEW :class:`ScalarSource` is
           returned carrying ``Q.values + in_scatter`` (Pattern 4 —
           frozen typed inputs stay immutable; Pattern 1 — the caller
           spells the algebra as ``Q = scattering.add_iso_source(Q,
@@ -678,9 +678,9 @@ class ScatteringOperator(LinearOperatorMixin):
 
         Parameters
         ----------
-        Q : np.ndarray or IsotropicSource
+        Q : np.ndarray or ScalarSource
             Isotropic source carrier.  Raw ``(ng, nx, ny)`` ndarray is
-            mutated in place; typed :class:`IsotropicSource` returns a
+            mutated in place; typed :class:`ScalarSource` returns a
             new instance.
         phi : np.ndarray or ScalarFlux
             Scalar flux.  Either form is accepted; the underlying
@@ -688,9 +688,9 @@ class ScatteringOperator(LinearOperatorMixin):
 
         Returns
         -------
-        np.ndarray or IsotropicSource or None
+        np.ndarray or ScalarSource or None
             Raw-in returns ``None`` (legacy in-place); typed-in returns
-            a fresh :class:`IsotropicSource`.
+            a fresh :class:`ScalarSource`.
 
         Notes
         -----
@@ -698,20 +698,20 @@ class ScatteringOperator(LinearOperatorMixin):
         inside :meth:`MaterialXSField.apply_p0_in_scatter`.
         """
         from orpheus.transport.fields.scalar_flux import ScalarFlux
-        from orpheus.transport.sources import IsotropicSource
+        from orpheus.transport.sources import ScalarSource
         phi_values = phi.values if isinstance(phi, ScalarFlux) else phi
-        if isinstance(Q, IsotropicSource):
+        if isinstance(Q, ScalarSource):
             Q_values = Q.values.copy()
             self.mat_xs.apply_p0_in_scatter(Q_values, phi_values)
-            return IsotropicSource.from_mesh(Q_values, Q.mesh)
+            return ScalarSource.from_mesh(Q_values, Q.mesh)
         self.mat_xs.apply_p0_in_scatter(Q, phi_values)
         return None
 
     def add_n2n_source(
         self,
-        Q: "np.ndarray | IsotropicSource",
+        Q: "np.ndarray | ScalarSource",
         phi: "np.ndarray | ScalarFlux",
-    ) -> "np.ndarray | IsotropicSource | None":
+    ) -> "np.ndarray | ScalarSource | None":
         r"""Add (n,2n) source to :math:`Q`.
 
         Vectorised by material: per cell ``c`` of material ``mid``,
@@ -719,20 +719,20 @@ class ScatteringOperator(LinearOperatorMixin):
 
         Issue #197 PR-TYPED-3 introduces the same typed-action overload
         as :meth:`add_iso_source` — raw-in mutates in place and returns
-        ``None``; typed-in returns a fresh :class:`IsotropicSource`.
+        ``None``; typed-in returns a fresh :class:`ScalarSource`.
 
         Parameters
         ----------
-        Q : np.ndarray or IsotropicSource
+        Q : np.ndarray or ScalarSource
             Isotropic source carrier.
         phi : np.ndarray or ScalarFlux
             Scalar flux.
 
         Returns
         -------
-        np.ndarray or IsotropicSource or None
+        np.ndarray or ScalarSource or None
             Raw-in returns ``None`` (legacy in-place); typed-in returns
-            a fresh :class:`IsotropicSource`.
+            a fresh :class:`ScalarSource`.
 
         Notes
         -----
@@ -740,19 +740,19 @@ class ScatteringOperator(LinearOperatorMixin):
         inside :meth:`MaterialXSField.apply_n2n`.
         """
         from orpheus.transport.fields.scalar_flux import ScalarFlux
-        from orpheus.transport.sources import IsotropicSource
+        from orpheus.transport.sources import ScalarSource
         phi_values = phi.values if isinstance(phi, ScalarFlux) else phi
-        if isinstance(Q, IsotropicSource):
+        if isinstance(Q, ScalarSource):
             Q_values = Q.values.copy()
             self.mat_xs.apply_n2n(Q_values, phi_values)
-            return IsotropicSource.from_mesh(Q_values, Q.mesh)
+            return ScalarSource.from_mesh(Q_values, Q.mesh)
         self.mat_xs.apply_n2n(Q, phi_values)
         return None
 
     def build_aniso_source(
         self,
         angular_flux: "np.ndarray | AngularFlux | None",
-    ) -> "np.ndarray | PerOrdinateSource | None":
+    ) -> "np.ndarray | AngularSource | None":
         r"""Build per-ordinate Pℓ (:math:`\ell \ge 1`) scattering source.
 
         Implements the Galerkin reconstruction :eq:`pn-scatter` from
@@ -815,12 +815,12 @@ class ScatteringOperator(LinearOperatorMixin):
             ``None`` on the first source iteration before any sweep
             has been run.  Issue #197 PR-TYPED-3 — typed
             :class:`AngularFlux` is accepted; the result is then a
-            typed :class:`PerOrdinateSource` (preserving the type chain
+            typed :class:`AngularSource` (preserving the type chain
             through the scattering composition).
 
         Returns
         -------
-        np.ndarray or PerOrdinateSource or None
+        np.ndarray or AngularSource or None
             ``(N, ng, nx, ny)`` per-ordinate :math:`\ell \ge 1`
             contribution in **per-ordinate magnitude** (the trailing
             ``/W`` is applied here, R-1 Step 4 A1).  Returns ``None``
@@ -845,7 +845,7 @@ class ScatteringOperator(LinearOperatorMixin):
         # accepted.  The bare-ndarray fallthrough retired alongside the
         # singledispatch ``np.ndarray`` arm on :meth:`apply`; the typed
         # leaf carries the mesh, which is required to construct the
-        # output :class:`PerOrdinateSource`.
+        # output :class:`AngularSource`.
         mesh = angular_flux.mesh
         # Wave T step T.3c — delegate the §9 "S = R Λ M" inner numerics
         # to the typed :attr:`kernel` (an :class:`OperatorSum` of per-ℓ
@@ -857,7 +857,7 @@ class ScatteringOperator(LinearOperatorMixin):
         # §6 Q5).
         sum_w = float(self.weights.sum())
         out_values = self.kernel.apply(angular_flux.values) / sum_w
-        return PerOrdinateSource.from_mesh(out_values, mesh)
+        return AngularSource.from_mesh(out_values, mesh)
 
     # ── Foldable / residual split ─────────────────────────────────────
     #
@@ -1033,7 +1033,7 @@ class ScatteringOperator(LinearOperatorMixin):
           scattering is volumetric; Wave O Issue #208 will encode the
           bulk-only nature in the type via :class:`BulkOperator`).
         * :class:`~orpheus.sn.scalar_flux.ScalarFlux` →
-          :class:`~orpheus.sn.sources.IsotropicSource` — :math:`P_0`
+          :class:`~orpheus.sn.sources.ScalarSource` — :math:`P_0`
           in-scatter + :math:`(n,2n)` doubling only, in **iso scalar
           magnitude**.  No :math:`P_\ell` (scalar flux has no angular
           info); no :math:`1/W` (scalar consumers — diffusion, CP,
@@ -1058,13 +1058,13 @@ class ScatteringOperator(LinearOperatorMixin):
 
         Returns
         -------
-        AngularFlux or IsotropicSource or np.ndarray
+        AngularFlux or ScalarSource or np.ndarray
             Scattering source in the convention appropriate to the
             consumer:
 
             * AngularFlux input → AngularFlux output, per-ordinate
               magnitude, full P_ℓ.
-            * ScalarFlux input → IsotropicSource output, iso scalar
+            * ScalarFlux input → ScalarSource output, iso scalar
               magnitude, P_0 + (n,2n) only.
             * np.ndarray input → np.ndarray output ``(N, ng, nx, ny)``,
               per-ordinate magnitude.
@@ -1079,7 +1079,7 @@ class ScatteringOperator(LinearOperatorMixin):
         :class:`AngularFlux` variant of :meth:`apply` combines the iso
         piece (in iso magnitude, projected by :math:`1/W` at the
         boundary) with the aniso piece (already per-ordinate) into a
-        single :class:`PerOrdinateSource`.
+        single :class:`AngularSource`.
         """
         raise TypeError(
             f"ScatteringOperator.apply: unsupported input type "
@@ -1095,7 +1095,7 @@ class ScatteringOperator(LinearOperatorMixin):
         Math: identical to the :class:`AngularFlux` branch above —
         reduce ``psi.bulk`` angular → scalar, build iso :math:`P_0 +
         (n,2n)` source on the typed
-        :class:`~orpheus.transport.sources.IsotropicSource` accumulator,
+        :class:`~orpheus.transport.sources.ScalarSource` accumulator,
         build the per-ordinate :math:`P_\ell\ge 1` Galerkin
         contribution via :meth:`build_aniso_source` (now accepting
         the L2 :class:`AngularFlux` on the composite's bulk), then
@@ -1123,7 +1123,7 @@ class ScatteringOperator(LinearOperatorMixin):
         # :class:`ScalarFlux` type the legacy branch consumes).
         phi = bulk.integrate_angular()
         # iso = P0 in-scatter + (n,2n) doubling on the typed accumulator.
-        iso: IsotropicSource = mesh.zeros_isotropic_source()
+        iso: ScalarSource = mesh.zeros_scalar_source()
         iso = self.add_iso_source(iso, phi)
         iso = self.add_n2n_source(iso, phi)
         # Pℓ (ℓ≥1) — per-ordinate after R-1 Step 4 A1 producer-side /W.
@@ -1131,12 +1131,12 @@ class ScatteringOperator(LinearOperatorMixin):
         # the composite's bulk (the type-check widening above).
         aniso_or_none = self.build_aniso_source(bulk)
         if aniso_or_none is None:
-            aniso = mesh.zeros_per_ordinate_source()
+            aniso = mesh.zeros_angular_source()
         else:
             aniso = aniso_or_none
         # Producer-side projection at the apply boundary (Pattern 7).
         sum_w = float(mesh.quad.weights.sum())
-        combined: PerOrdinateSource = (iso / sum_w) + aniso
+        combined: AngularSource = (iso / sum_w) + aniso
         return TimedFullField(
             bulk=AngularFlux.from_mesh(combined.values, mesh),
             boundary=BoundaryFlux.zeros_for_sn_mesh(mesh),
@@ -1145,7 +1145,7 @@ class ScatteringOperator(LinearOperatorMixin):
         )
 
     @apply.register
-    def _(self, phi: ScalarFlux) -> "IsotropicSource":
+    def _(self, phi: ScalarFlux) -> "ScalarSource":
         r"""Typed ScalarFlux variant — iso scalar magnitude output (P0 + n2n only).
 
         Math:
@@ -1157,19 +1157,19 @@ class ScatteringOperator(LinearOperatorMixin):
         project to per-ordinate).
         """
         mesh = phi.mesh
-        iso: IsotropicSource = mesh.zeros_isotropic_source()
+        iso: ScalarSource = mesh.zeros_scalar_source()
         iso = self.add_iso_source(iso, phi)
         iso = self.add_n2n_source(iso, phi)
         return iso
 
     @apply.register
-    def _(self, psi: AngularFlux) -> "PerOrdinateSource":
+    def _(self, psi: AngularFlux) -> "AngularSource":
         r"""Typed :class:`AngularFlux` variant — per-ordinate magnitude output.
 
         Math: identical to the :class:`TimedFullField` arm above on the
         bulk axis — reduce ``psi`` angular → scalar, build iso :math:`P_0
         + (n,2n)` source on the typed
-        :class:`~orpheus.transport.sources.IsotropicSource` accumulator,
+        :class:`~orpheus.transport.sources.ScalarSource` accumulator,
         build the per-ordinate :math:`P_\ell\ge 1` Galerkin contribution
         via :meth:`build_aniso_source`, then combine via the producer-side
         :math:`1/W` projection (Pattern 7).
@@ -1184,14 +1184,14 @@ class ScatteringOperator(LinearOperatorMixin):
         """
         mesh = psi.mesh
         phi = psi.integrate_angular()
-        iso: IsotropicSource = mesh.zeros_isotropic_source()
+        iso: ScalarSource = mesh.zeros_scalar_source()
         iso = self.add_iso_source(iso, phi)
         iso = self.add_n2n_source(iso, phi)
         aniso_or_none = self.build_aniso_source(psi)
         if aniso_or_none is None:
-            aniso = mesh.zeros_per_ordinate_source()
+            aniso = mesh.zeros_angular_source()
         else:
             aniso = aniso_or_none
         sum_w = float(mesh.quad.weights.sum())
-        combined: PerOrdinateSource = (iso / sum_w) + aniso
+        combined: AngularSource = (iso / sum_w) + aniso
         return combined

@@ -110,7 +110,7 @@ if TYPE_CHECKING:
 
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from .geometry import SNMesh
-    from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
+    from orpheus.transport.sources import ScalarSource, AngularSource
     from .spatial.pole_angular_closure import PoleAngularClosure
 
 __all__ = [
@@ -1907,7 +1907,7 @@ class InvertibleOperator(OperatorSum):
         from orpheus.transport.fields.boundary_flux import (
             BoundaryFlux,
         )
-        from orpheus.transport.sources import PerOrdinateSource
+        from orpheus.transport.sources import AngularSource
         from orpheus.transport.timed_full_field import TimedFullField
         from .sweep import transport_sweep
 
@@ -1949,7 +1949,7 @@ class InvertibleOperator(OperatorSum):
         # ── Per-ordinate source from rhs.bulk (single-source convention
         # per R-1 Step 4 A1 — ``rhs.bulk.values`` IS per-ordinate
         # density by producer contract).
-        source = PerOrdinateSource.from_mesh(rhs.bulk.values, sn_mesh)
+        source = AngularSource.from_mesh(rhs.bulk.values, sn_mesh)
 
         # ── Sweep: pass the composite ``initial_guess`` directly.
         # D-H.1c stage 4: :func:`transport_sweep` accepts both legacy

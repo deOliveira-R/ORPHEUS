@@ -66,7 +66,7 @@ if TYPE_CHECKING:
     from .material_xs_field import MaterialXSField
     from orpheus.numerics.spaces.trace_space import TraceSpace
     from orpheus.transport.fields.scalar_flux import ScalarFlux
-    from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
+    from orpheus.transport.sources import ScalarSource, AngularSource
 
 
 class InconsistentMaterialsError(ValueError):
@@ -943,29 +943,29 @@ class SNMesh:
             ("ymax", (N, ng, nx)),
         ])
 
-    def zeros_isotropic_source(self) -> "IsotropicSource":
-        r"""Build a zero :class:`IsotropicSource` sized to this mesh.
+    def zeros_scalar_source(self) -> "ScalarSource":
+        r"""Build a zero :class:`ScalarSource` sized to this mesh.
 
-        Returns an :class:`~orpheus.sn.sources.IsotropicSource` of
+        Returns an :class:`~orpheus.sn.sources.ScalarSource` of
         shape ``(ng, nx, ny)`` filled with zeros.  The principled
         starting point for source-iteration accumulation: P0 in-scatter,
         (n,2n), and fission contributions all add into this buffer.
         """
-        from orpheus.transport.sources import IsotropicSource
-        return IsotropicSource.from_mesh(
+        from orpheus.transport.sources import ScalarSource
+        return ScalarSource.from_mesh(
             np.zeros((self.ng, self.nx, self.ny)), self,
         )
 
-    def zeros_per_ordinate_source(self) -> "PerOrdinateSource":
-        r"""Build a zero :class:`PerOrdinateSource` sized to this mesh.
+    def zeros_angular_source(self) -> "AngularSource":
+        r"""Build a zero :class:`AngularSource` sized to this mesh.
 
-        Returns an :class:`~orpheus.sn.sources.PerOrdinateSource` of
+        Returns an :class:`~orpheus.sn.sources.AngularSource` of
         shape ``(N, ng, nx, ny)`` filled with zeros.  The principled
         starting point for the :math:`P_\ell \ge 1` Galerkin
         reconstruction + MMS external-source accumulation buffer.
         """
-        from orpheus.transport.sources import PerOrdinateSource
-        return PerOrdinateSource.from_mesh(
+        from orpheus.transport.sources import AngularSource
+        return AngularSource.from_mesh(
             np.zeros((self.quad.N, self.ng, self.nx, self.ny)), self,
         )
 
@@ -973,7 +973,7 @@ class SNMesh:
         r"""Build a zero :class:`HarmonicMomentField` at order ``L``.
 
         Issue #197 PR-TYPED-4 — companion to
-        :meth:`zeros_isotropic_source` / :meth:`zeros_per_ordinate_source`
+        :meth:`zeros_scalar_source` / :meth:`zeros_angular_source`
         for the moment-space carrier consumed by the
         :math:`R \cdot \Lambda \cdot M` Galerkin pipeline.
 

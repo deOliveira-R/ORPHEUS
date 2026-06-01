@@ -90,7 +90,7 @@ from orpheus.numerics.operator import (
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
-from orpheus.transport.sources import IsotropicSource
+from orpheus.transport.sources import ScalarSource
 from orpheus.transport.timed_full_field import TimedFullField
 
 if TYPE_CHECKING:
@@ -243,7 +243,7 @@ class FissionOperator(LinearOperatorMixin):
           action; Wave O Issue #208 will encode bulk-only nature in
           the type).
         * :class:`~orpheus.sn.scalar_flux.ScalarFlux` →
-          :class:`~orpheus.sn.sources.IsotropicSource` — fission
+          :class:`~orpheus.sn.sources.ScalarSource` — fission
           emission in **iso scalar magnitude**.  For consumers in
           scalar-flux equations (eigenvalue outer / depletion /
           diffusion) that do not project to per-ordinate.
@@ -303,9 +303,9 @@ class FissionOperator(LinearOperatorMixin):
         phi_scalar = psi.bulk.integrate_angular()
         # Reuse the ScalarFlux branch — single source of truth for the
         # per-cell production-rate × emission-spectrum contraction.
-        fission_iso: IsotropicSource = self.apply(phi_scalar)
-        from orpheus.transport.sources import PerOrdinateSource
-        per_ord = PerOrdinateSource.from_isotropic(
+        fission_iso: ScalarSource = self.apply(phi_scalar)
+        from orpheus.transport.sources import AngularSource
+        per_ord = AngularSource.from_isotropic(
             fission_iso.values, psi.bulk.mesh,
         )
         return TimedFullField(
@@ -316,7 +316,7 @@ class FissionOperator(LinearOperatorMixin):
         )
 
     @apply.register
-    def _(self, phi: ScalarFlux) -> "IsotropicSource":
+    def _(self, phi: ScalarFlux) -> "ScalarSource":
         r"""Typed ScalarFlux variant — iso scalar magnitude output.
 
         Math:
@@ -325,7 +325,7 @@ class FissionOperator(LinearOperatorMixin):
         Iso scalar magnitude — no :math:`1/W` (scalar consumers do
         not project).
 
-        Returns :class:`IsotropicSource` (R-1 Step 4 A1 — was
+        Returns :class:`ScalarSource` (R-1 Step 4 A1 — was
         :class:`ScalarFlux` pre-A1; the return type now matches
         :meth:`ScatteringOperator.apply`'s ScalarFlux variant by
         symmetry, and reflects the dimensional truth that the
@@ -335,12 +335,12 @@ class FissionOperator(LinearOperatorMixin):
         :attr:`kernel` (a 2-factor :class:`TensorProductOperator`
         wrapping :class:`RankOneOperator`).  This dispatch arm
         handles only the typed-flux layer (extraction of
-        ``phi.values`` and packaging into :class:`IsotropicSource`);
+        ``phi.values`` and packaging into :class:`ScalarSource`);
         the rank-1 outer-product math itself lives at the L1
         primitive level.
         """
         out = self.kernel.apply(phi.values)
-        return IsotropicSource.from_mesh(out, phi.mesh)
+        return ScalarSource.from_mesh(out, phi.mesh)
 
     @apply.register
     def _(self, phi_arr: np.ndarray) -> np.ndarray:

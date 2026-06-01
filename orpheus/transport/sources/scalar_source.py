@@ -6,17 +6,21 @@ density. Same storage shape as
 ny)``), but a structurally distinct physical quantity (units of
 reaction-rate density / source density, not flux density).
 
-Migration status (Depth B step D-F)
-====================================
+Migration status (Depth B step D-F → B.1 → B.2)
+================================================
 
-Moved from ``orpheus.sn.sources.IsotropicSource`` to here. Inherits
-:class:`~orpheus.numerics.field.Field`. The cross-class arithmetic
-with :class:`~orpheus.transport.sources.per_ordinate_source.PerOrdinateSource`
+Moved (D-F) from ``orpheus.sn.sources.IsotropicSource`` to here;
+re-parented (B.1) onto
+:class:`~orpheus.transport.fields._bases.ScalarField` (the storage-base
+dedup); and **renamed ``IsotropicSource`` → ``ScalarSource`` (B.2, hard
+rename, no shim)** to complete the ``{Angular, Scalar} × {Flux, Source,
+Residual}`` role grid. The cross-class arithmetic
+with :class:`~orpheus.transport.sources.angular_source.AngularSource`
 is **PRESERVED** — the refined Issue #207 principle (recorded in the
 conversation 2026-05-27) permits cross-class dunders when there is a
 canonical subspace-containment relation between the operands' spaces.
-:class:`IsotropicSource` lives in the subspace of
-:class:`PerOrdinateSource` where every ordinate carries the same
+:class:`ScalarSource` lives in the subspace of
+:class:`AngularSource` where every ordinate carries the same
 value; the canonical injection ``iso → 1 ⊗ iso`` (broadcast across
 the Ω axis) is the structural map the dunder applies during the
 operation.
@@ -33,12 +37,12 @@ recognize the containment direction:
 
 .. code-block:: python
 
-    # Within-class: returns IsotropicSource (Field's inherited algebra).
+    # Within-class: returns ScalarSource (Field's inherited algebra).
     Q_total = iso_a + iso_b
 
     # Cross-class with containment: returns the LARGER type
-    # (PerOrdinateSource), broadcast inside the dunder.
-    Q_total = iso + aniso          # → PerOrdinateSource
+    # (AngularSource), broadcast inside the dunder.
+    Q_total = iso + aniso          # → AngularSource
     Q_total = aniso + iso          # commutative; same result
 
 Units (informational, not enforced at dunder level)
@@ -53,7 +57,7 @@ normalisation. The dunder does NOT apply that conversion (the
 broadcast is the pure structural injection); callers that need
 Pattern 7 producer-side normalisation apply ``/sum_w`` explicitly
 BEFORE the dunder (e.g. ``(iso / sum_w) + aniso``) — or use the
-named factory :meth:`PerOrdinateSource.from_isotropic` which bakes
+named factory :meth:`AngularSource.from_isotropic` which bakes
 ``/sum_w`` in. The choice between caller-applied ``/sum_w`` and the
 named factory is a Pattern 7 discipline concern, not a dunder concern.
 """
@@ -70,14 +74,14 @@ from orpheus.transport.fields._bases import ScalarField
 
 if TYPE_CHECKING:
     from orpheus.sn.geometry import SNMesh
-    from orpheus.transport.sources.per_ordinate_source import PerOrdinateSource
+    from orpheus.transport.sources.angular_source import AngularSource
 
 
-__all__ = ["IsotropicSource"]
+__all__ = ["ScalarSource"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True)
-class IsotropicSource(ScalarField):
+class ScalarSource(ScalarField):
     r"""Isotropic source field :math:`Q(\vec r, g)`.
 
     Parameters
@@ -99,7 +103,7 @@ class IsotropicSource(ScalarField):
     Field's Layer 1 class-identity gate rejects cross-class arithmetic
     with :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
     (same shape, different physical kind), with
-    :class:`PerOrdinateSource` (different shape AND different physical
+    :class:`AngularSource` (different shape AND different physical
     kind), and with any other Field subclass. Same-class arithmetic is
     closed.
 
@@ -110,33 +114,33 @@ class IsotropicSource(ScalarField):
     #: The :class:`FunctionSpace` name for this leaf (preserves the
     #: pre-B.1 space identity). All mesh/shape/algebra/factory machinery
     #: is inherited from :class:`ScalarField` / :class:`BulkField`.
-    _SPACE_NAME: ClassVar[str] = "isotropic_source"
+    _SPACE_NAME: ClassVar[str] = "scalar_source"
 
     # ── Algebra extensions (over Field) ──────────────────────────────
 
     def __add__(self, other):
         r"""Add a partner source — dispatches by partner type.
 
-        * :class:`IsotropicSource` partner → within-class add via
+        * :class:`ScalarSource` partner → within-class add via
           Field's inherited algebra.
-        * :class:`PerOrdinateSource` partner → canonical subspace-
+        * :class:`AngularSource` partner → canonical subspace-
           containment injection: broadcast ``self.values`` across the
           Ω axis (the structural map ``iso → 1 ⊗ iso``) and add into
           the per-ordinate operand's space. Returns
-          :class:`PerOrdinateSource`. Commutative — see
-          :meth:`PerOrdinateSource.__add__`.
+          :class:`AngularSource`. Commutative — see
+          :meth:`AngularSource.__add__`.
 
         See module docstring for the principled justification (refined
         Issue #207: cross-class dunders permitted via canonical
         subspace containment).
         """
-        from orpheus.transport.sources.per_ordinate_source import (
-            PerOrdinateSource,
+        from orpheus.transport.sources.angular_source import (
+            AngularSource,
         )
-        if isinstance(other, PerOrdinateSource):
+        if isinstance(other, AngularSource):
             if self.mesh is not other.mesh:
                 raise ValueError(
-                    "IsotropicSource + PerOrdinateSource across "
+                    "ScalarSource + AngularSource across "
                     "distinct SNMesh instances is forbidden — both "
                     "fields are mesh-bound."
                 )
@@ -149,22 +153,22 @@ class IsotropicSource(ScalarField):
 
     def __radd__(self, other):
         r"""Reflected add — Python falls here when
-        ``PerOrdinateSource.__add__(IsotropicSource)`` returns
+        ``AngularSource.__add__(ScalarSource)`` returns
         NotImplemented. Delegates to :meth:`__add__` (commutative).
         """
-        from orpheus.transport.sources.per_ordinate_source import (
-            PerOrdinateSource,
+        from orpheus.transport.sources.angular_source import (
+            AngularSource,
         )
-        if isinstance(other, PerOrdinateSource):
+        if isinstance(other, AngularSource):
             return self.__add__(other)
         return NotImplemented
 
     # ── Conversion (named cross-class composition) ───────────────────
 
-    def as_per_ordinate(self) -> "PerOrdinateSource":
+    def as_per_ordinate(self) -> "AngularSource":
         r"""Broadcast this isotropic source to a per-ordinate source.
 
-        Returns a :class:`PerOrdinateSource` whose every ordinate slice
+        Returns a :class:`AngularSource` whose every ordinate slice
         equals ``self.values``. Uses ``np.broadcast_to(...).copy()`` so
         the resulting array is writable and owns its data.
 
@@ -172,14 +176,14 @@ class IsotropicSource(ScalarField):
         Pattern 7) has ALREADY been applied to ``self.values`` and the
         consumer just needs the per-ordinate broadcast. When the
         normalisation has NOT been applied yet, use
-        :meth:`PerOrdinateSource.from_isotropic` instead.
+        :meth:`AngularSource.from_isotropic` instead.
         """
-        from orpheus.transport.sources.per_ordinate_source import (
-            PerOrdinateSource,
+        from orpheus.transport.sources.angular_source import (
+            AngularSource,
         )
         N = self.mesh.quad.N
         target_shape = (N, *self.values.shape)
         per_ord_values = np.broadcast_to(
             self.values[None, :, :, :], target_shape,
         ).copy()
-        return PerOrdinateSource.from_mesh(per_ord_values, self.mesh)
+        return AngularSource.from_mesh(per_ord_values, self.mesh)

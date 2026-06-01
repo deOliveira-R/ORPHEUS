@@ -518,7 +518,7 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     acceptance gate: ≤ 2.0 ms (a slim safety margin for CI machine noise).
     Marked ``@slow`` — skipped by default but runs in CI.
     """
-    from orpheus.transport.sources import PerOrdinateSource
+    from orpheus.transport.sources import AngularSource
     from orpheus.sn.sweep import transport_sweep
 
     mesh = Mesh1D(
@@ -531,7 +531,7 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     sn_mesh = SNMesh(mesh, quad, _trivial_materials(ng=4))
     # Issue #196 PR-INDEX-5: Q principled.
     # R-1 Step 4 A1: single per-ordinate source carrier.
-    Q = PerOrdinateSource.from_isotropic(np.ones((4, 160, 1)), sn_mesh)
+    Q = AngularSource.from_isotropic(np.ones((4, 160, 1)), sn_mesh)
     sig_t = np.ones((4, 160, 1))  # (ng, nx, ny) — PR-INDEX-3
     # Issue #197 PR-TYPED-2: typed boundary state replaces dict.
     boundary_flux = sn_mesh.zeros_boundary_flux()

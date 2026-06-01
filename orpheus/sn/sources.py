@@ -9,15 +9,15 @@ New code MUST import from the canonical location:
 
 .. code-block:: python
 
-    from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
+    from orpheus.transport.sources import ScalarSource, AngularSource
 
 Migration rationale: source fields are method-agnostic transport
 concepts, so the canonical home is L2 transport, not L3 SN. See plan
 §3.1 (layer assignments) and §6 step D-F. Per Issue #207's named-
-composition principle, the cross-class ``IsotropicSource +
-PerOrdinateSource`` dunder is RETIRED in the L2 forms; callers
+composition principle, the cross-class ``ScalarSource +
+AngularSource`` dunder is RETIRED in the L2 forms; callers
 combining iso + per-ordinate sources go through
-:meth:`PerOrdinateSource.from_isotropic` followed by within-class
+:meth:`AngularSource.from_isotropic` followed by within-class
 addition.
 """
 
@@ -26,18 +26,18 @@ from __future__ import annotations
 import warnings as _warnings
 
 from orpheus.transport.sources import (  # noqa: F401
-    IsotropicSource,
-    PerOrdinateSource,
+    ScalarSource,
+    AngularSource,
 )
 
 _warnings.warn(
-    "orpheus.sn.sources is deprecated; import IsotropicSource and "
-    "PerOrdinateSource from orpheus.transport.sources instead "
+    "orpheus.sn.sources is deprecated; import ScalarSource and "
+    "AngularSource from orpheus.transport.sources instead "
     "(shim retires in Depth B step D-K). The cross-class "
-    "IsotropicSource + PerOrdinateSource dunder is RETIRED in the L2 "
-    "forms; use PerOrdinateSource.from_isotropic + within-class add.",
+    "ScalarSource + AngularSource dunder is RETIRED in the L2 "
+    "forms; use AngularSource.from_isotropic + within-class add.",
     DeprecationWarning,
     stacklevel=2,
 )
 
-__all__ = ["IsotropicSource", "PerOrdinateSource"]
+__all__ = ["ScalarSource", "AngularSource"]

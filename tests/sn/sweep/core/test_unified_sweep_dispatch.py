@@ -145,7 +145,7 @@ class TestDispatchByReducedProperty:
 
         # PR-INDEX-5 principled (ng, nx, ny); PR-TYPED-4 typed source.
         ng = sn_mesh.ng
-        Q = sn_mesh.zeros_per_ordinate_source()
+        Q = sn_mesh.zeros_angular_source()
         sig_t = np.ones((ng, sn_mesh.nx, 1))
         transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
 
@@ -173,7 +173,7 @@ class TestDispatchByReducedProperty:
         monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
 
         ng = sn_mesh.ng
-        Q = sn_mesh.zeros_per_ordinate_source()
+        Q = sn_mesh.zeros_angular_source()
         sig_t = np.ones((ng, sn_mesh.nx, 1))
         transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
 
@@ -201,7 +201,7 @@ class TestDispatchByReducedProperty:
         monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
 
         ng = sn_mesh.ng
-        Q = sn_mesh.zeros_per_ordinate_source()
+        Q = sn_mesh.zeros_angular_source()
         sig_t = np.ones((ng, sn_mesh.nx, 1))
         transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
 
@@ -229,7 +229,7 @@ class TestDispatchByReducedProperty:
         monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
 
         ng = sn_mesh.ng
-        Q = sn_mesh.zeros_per_ordinate_source()
+        Q = sn_mesh.zeros_angular_source()
         sig_t = np.ones((ng, sn_mesh.nx, sn_mesh.ny))
         transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
 
@@ -253,7 +253,7 @@ class TestUnifiedDispatch1Dvs2D:
     """
 
     @pytest.mark.foundation
-    def test_1d_unified_handles_anisotropic_source(self, monkeypatch):
+    def test_1d_unified_handles_anscalar_source(self, monkeypatch):
         """1-D + anisotropic source still routes to ``_sweep_1d_unified``."""
         sn_mesh = _slab_sn_mesh()
         assert sn_mesh.ny == 1
@@ -276,7 +276,7 @@ class TestUnifiedDispatch1Dvs2D:
 
         # R-1 Step 4 A1 — single per-ordinate source.
         ng = sn_mesh.ng
-        source = sn_mesh.zeros_per_ordinate_source()
+        source = sn_mesh.zeros_angular_source()
         sig_t = np.ones((ng, sn_mesh.nx, 1))
         transport_sweep(source, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
 
