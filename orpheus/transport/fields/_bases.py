@@ -29,7 +29,9 @@ trace) × **role** (flux / source / residual). This module provides the
      │   └─ MomentField (ABC)     family marker; the moment shape is leaf-specific
      │       └─ HarmonicMomentField   role leaf  (flux-only for now)
      └─ BoundaryField (ABC)       mesh + mesh-binding + TraceSpace contract + layout/face_view + factories
-         └─ BoundaryFlux              role leaf  (Boundary{Source,Residual} arrive in B.3)
+         ├─ BoundaryFlux              role leaf  (flux)
+         ├─ BoundarySource            role leaf  (source; B.3 — orpheus.transport.sources)
+         └─ BoundaryResidual          role leaf  (residual; B.3 — orpheus.transport.residuals)
 
 Parametrization (no twin paths)
 ===============================
@@ -275,8 +277,8 @@ class BoundaryField(Field):
     unified :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`.
 
     Carries the machinery shared by every boundary trace field
-    (``BoundaryFlux`` today; ``BoundarySource`` / ``BoundaryResidual``
-    after B.3): the :class:`SNMesh` binding + cross-mesh guard, the
+    (``BoundaryFlux``, ``BoundarySource``, ``BoundaryResidual`` — the
+    latter two minted in B.3): the :class:`SNMesh` binding + cross-mesh guard, the
     TraceSpace contract (the space IS the trace and carries the
     :class:`~orpheus.numerics.face_layout.FaceLayout`), the read-through
     :attr:`layout` property, per-face :meth:`face_view` access, and the

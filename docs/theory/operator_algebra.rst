@@ -634,7 +634,7 @@ target set:
      - :class:`~orpheus.geometry.boundary.WhiteBoundary`
    * - :class:`~orpheus.sn.angular_operator.IncomingSourceOperator`
      - Ignores the outgoing flux; returns the prescribed source
-       value via :meth:`BoundarySource.evaluate`.
+       value via :meth:`InflowSourceSpec.evaluate`.
      - :class:`~orpheus.geometry.boundary.PrescribedInflow`
 
 The rank-N case (Marshak / partial-current) is built directly
@@ -1513,7 +1513,7 @@ Three consumers read the mask today:
 * The universal invariant
   :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
   uses the inflow mask to validate a
-  :class:`~orpheus.geometry.boundary.BoundarySource` (ERR-047).
+  :class:`~orpheus.geometry.boundary.InflowSourceSpec` (ERR-047).
 * The SN curvilinear sweep (1-D spherical / cylindrical) consumes
   the same realizer-routed mask as the slab and 2-D Cartesian
   paths (Issue #188 + #176, closed 2026-05-11).
@@ -1532,7 +1532,7 @@ The :class:`Mesh2D` factory supports ``coord=CARTESIAN`` only;
 sweep ships in ORPHEUS (none exists today).
 
 The two trace spaces and the
-:class:`~orpheus.geometry.boundary.BoundarySource` Protocol
+:class:`~orpheus.geometry.boundary.InflowSourceSpec` Protocol
 together close the §16A.1 affine boundary form
 :math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q` documented in
 detail at :ref:`affine-bc-form`.

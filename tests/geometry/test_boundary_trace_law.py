@@ -42,7 +42,7 @@ import pytest
 
 from orpheus.geometry.boundary import (
     BoundaryOperator,
-    BoundarySource,
+    InflowSourceSpec,
     BoundaryTraceLaw,
     ConstantInflowSource,
     NoSource,
@@ -265,5 +265,5 @@ def test_boundary_source_protocol_is_runtime_checkable() -> None:
     """A bare instance of :class:`NoSource` or
     :class:`ConstantInflowSource` satisfies the Protocol via
     duck-typing (the ``evaluate`` method is present)."""
-    assert isinstance(NoSource(), BoundarySource)
-    assert isinstance(ConstantInflowSource(1.0), BoundarySource)
+    assert isinstance(NoSource(), InflowSourceSpec)
+    assert isinstance(ConstantInflowSource(1.0), InflowSourceSpec)

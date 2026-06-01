@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar
 
 from ._base import BoundaryTraceLaw
-from ._source import BoundarySource, NoSource
+from ._source import InflowSourceSpec, NoSource
 
 
 __all__ = ["PrescribedInflow"]
@@ -66,12 +66,12 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
 
     Parameters
     ----------
-    source : BoundarySource
+    source : InflowSourceSpec
         Source generator. The default :class:`NoSource` makes this
         BC equivalent to vacuum (:math:`\gamma_- = 0`); use
         :class:`~orpheus.geometry.boundary._source.ConstantInflowSource`
         or a custom
-        :class:`~orpheus.geometry.boundary._source.BoundarySource`
+        :class:`~orpheus.geometry.boundary._source.InflowSourceSpec`
         implementation for nonzero incident flux.
 
     Notes
@@ -84,7 +84,7 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
     Implementation note: field-vs-property collision
     ------------------------------------------------
     :class:`BoundaryTraceLaw` declares ``source`` as a ``@property``
-    returning :class:`NoSource()`. Declaring ``source: BoundarySource``
+    returning :class:`NoSource()`. Declaring ``source: InflowSourceSpec``
     as a dataclass field on the subclass would collide with the
     inherited descriptor (no setter ⇒ dataclass ``__init__`` raises
     ``AttributeError``). The field is therefore named ``_source``
@@ -95,9 +95,9 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
 
     creates_sweep_cycle: ClassVar[bool] = False
 
-    _source: BoundarySource = field(default_factory=NoSource)
+    _source: InflowSourceSpec = field(default_factory=NoSource)
 
-    def __init__(self, source: BoundarySource | None = None) -> None:
+    def __init__(self, source: InflowSourceSpec | None = None) -> None:
         # Accept ``source=`` as the public constructor kwarg; route it
         # to the underlying ``_source`` field (named to avoid the
         # collision with the inherited ``BoundaryTraceLaw.source``
@@ -108,7 +108,7 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
         object.__setattr__(self, "_source", source)
 
     @property
-    def source(self) -> BoundarySource:
+    def source(self) -> InflowSourceSpec:
         return self._source
 
     @property

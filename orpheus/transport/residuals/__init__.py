@@ -18,22 +18,26 @@ Role grid (field vocabulary, issues #205 / #201)
 
 This package supplies the **residual** column of the bulk role grid::
 
-    {Angular, Scalar} × {Flux, Source, Residual}
-       flux    →  orpheus.transport.fields    (AngularFlux, ScalarFlux)
-       source  →  orpheus.transport.sources   (AngularSource, ScalarSource)
-       residual →  orpheus.transport.residuals (AngularResidual, ScalarResidual)
+    {Angular, Scalar, Boundary} × {Flux, Source, Residual}
+       flux     →  orpheus.transport.fields    (Angular/Scalar/BoundaryFlux)
+       source   →  orpheus.transport.sources   (Angular/Scalar/BoundarySource)
+       residual →  orpheus.transport.residuals (Angular/Scalar/BoundaryResidual)
 
-The boundary residual column (``BoundaryResidual``) is DEFERRED to the
-operator-typing / BC-extraction work (Issue #208), where it gains a
-real consumer; see ``field_role_typing_view_g.md`` step B.3 notes.
+The boundary residual :class:`BoundaryResidual` IS the already-computed
+matvec face-defect (the residual of ``γ₋ψ = R·G·γ₊ψ + q``), today
+mistyped as :class:`BoundaryFlux`; this package mints the type (B.3) so
+the **B.5** operator-output carve can retype the emission sites. See
+:mod:`orpheus.transport.residuals.boundary_residual`.
 
 Migration status (field-role-typing plan, step B.3): houses
-:class:`AngularResidual` and :class:`ScalarResidual`.
+:class:`AngularResidual`, :class:`ScalarResidual`, and
+:class:`BoundaryResidual`.
 """
 
 from __future__ import annotations
 
 from orpheus.transport.residuals.angular_residual import AngularResidual
 from orpheus.transport.residuals.scalar_residual import ScalarResidual
+from orpheus.transport.residuals.boundary_residual import BoundaryResidual
 
-__all__ = ["AngularResidual", "ScalarResidual"]
+__all__ = ["AngularResidual", "ScalarResidual", "BoundaryResidual"]

@@ -138,7 +138,7 @@ sole bridge. The canonical SN-realised representation per law:
   :class:`~orpheus.sn.angular_operator.IncomingSourceOperator(source)`
   whose :meth:`apply` ignores the outgoing flux and returns
   ``source.evaluate(psi_out.shape)``. Consumes a
-  :class:`BoundarySource` (typically :class:`NoSource` for the
+  :class:`InflowSourceSpec` (typically :class:`NoSource` for the
   homogeneous case or :class:`ConstantInflowSource(value)` for a
   uniform inflow).
   :attr:`creates_sweep_cycle` = ``False``.
@@ -271,7 +271,7 @@ replace the pre-refactor generic :class:`ValueError` raises:
 * :class:`SubmarkovViolationError` — ERR-046, fires when
   :math:`\alpha > 1` on a sub-Markov BC (albedo, white).
 * :class:`BoundarySourceNotOnIncomingTraceError` — ERR-047, fires on
-  a :class:`BoundarySource` with nonzero entries on :math:`\Gamma_+`.
+  a :class:`InflowSourceSpec` with nonzero entries on :math:`\Gamma_+`.
 
 All eight extend :class:`ValueError` (via the
 :class:`BoundaryError` base) for backward compatibility with
@@ -313,7 +313,7 @@ Package layout (Wave 4 source-layout split, post-#186 descriptor cleanup)
   dataclasses (Issue #186 / B3 + β2).
 * :mod:`_errors` -- :class:`BoundaryError` + 8 typed subclasses
   (Wave 3 / ERR-040..ERR-047).
-* :mod:`_source` -- :class:`BoundarySource` Protocol +
+* :mod:`_source` -- :class:`InflowSourceSpec` Protocol +
   :class:`NoSource` + :class:`ConstantInflowSource` (Wave 3).
 * :mod:`_realizer` -- :class:`BoundaryRealizer` Protocol +
   :class:`BoundaryRealizerRegistry` (Wave 5).
@@ -449,7 +449,7 @@ from ._errors import (
 # Wave 3 -- prescribed-inflow source.
 # ---------------------------------------------------------------------------
 
-from ._source import BoundarySource, ConstantInflowSource, NoSource
+from ._source import InflowSourceSpec, ConstantInflowSource, NoSource
 
 # ---------------------------------------------------------------------------
 # Wave 5 -- BoundaryRealizer Protocol + per-method registry.
@@ -504,7 +504,7 @@ __all__ = [
     "SubmarkovViolationError",
     "VacuumAppliedToOutgoingTraceError",
     # Source
-    "BoundarySource",
+    "InflowSourceSpec",
     "ConstantInflowSource",
     "NoSource",
     # Wave 5 -- realizer Protocol + registry

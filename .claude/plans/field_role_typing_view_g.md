@@ -10,7 +10,13 @@ discipline — superseded), #208 (operator typing — **deferred**).
 
 ---
 
-## SESSION STATE — PHASE A + B.1 + B.2 + B.3 (bulk) DONE, RESUME AT B.4 (2026-06-01)
+## SESSION STATE — PHASE A + B.1 + B.2 + B.3 (all leaves + rename) DONE, RESUME AT B.4 (2026-06-01)
+
+> B.3 minted all six role leaves (bulk Angular/Scalar Residual + boundary
+> Source/Residual) and renamed the geometry `BoundarySource` Protocol →
+> `InflowSourceSpec`. The boundary-residual matvec WIRING is intentionally
+> held for **B.5** (inseparable from the bulk operator-output retype). **B.4
+> (UNITS) is NEXT and the user wants to steer it.**
 
 **B.1 DONE (`6e70ec1`):** 5 storage-base ABCs in `transport/fields/
 _bases.py`; 6 leaves re-parented (−602 lines of duplicated machinery).
@@ -36,25 +42,50 @@ fixed a stale `field.py` module-docstring field-list (duplicate
 `AngularSource`, `BoundaryFaceFlux`→`BoundaryFlux`). Additive /
 bit-identical: 782 fast-tier (+22) + sentinel 36/36.
 
-**B.3 (BOUNDARY) DEFERRED → #208.** The planned `BoundarySource`
-field leaf **collides** with the EXISTING `runtime_checkable` Protocol
-`orpheus.geometry.boundary._source.BoundarySource` (the affine-law `q`
-in `γ₋ψ = R·G·γ₊ψ + q`). Explorer map (2026-06-01): they are
-**recipe→snapshot**, NOT duplicates — the Protocol is a *lazy per-face
-generator* (`evaluate(shape)→array`, all impls construction-time/
-explicit, ignores ψ) at the geometry layer that A.2/A.3 *deliberately
-decoupled from the trace*; the planned leaf would be an *eager
-whole-boundary stored field* on `TraceSpace`. The `q`-path NEVER
-touches `TraceSpace`/a flat buffer today (one call site,
-`angular_operator.py:289`) — so the field leaf has **no current
-consumer**. Decision: ship the bulk residuals now; defer
-`BoundarySource`/`BoundaryResidual` field leaves to **#208**'s
-BC-extraction `(L_full + C − S − F − B)ψ = q`, where (a) the field
-gets a real consumer and (b) the collision is resolved by RENAMING the
-geometry Protocol to a `*Spec`/generator name (it is a spec, not a
-field) rather than minting a colliding/parallel symbol now. Full map
-recorded as a comment on issue #208. ⇒ `BoundaryField` stays a
-single-instance ABC (BoundaryFlux) one more cycle.
+**B.3 (BOUNDARY) DONE (user overrode the #208 deferral — "don't defer
+known-future work when we have the context advantage").** Two parallel
+explorer maps (2026-06-01) established the asymmetry:
+- **`BoundaryResidual` has a REAL, already-computed consumer** — the SN
+  matvec emits the affine-BC face defect (`γ₊ψ − bc_estimate`, residual
+  of `γ₋ψ = R·G·γ₊ψ + q`) at `operator.py` (`:330/:570/:852`, output at
+  `:1263`), TODAY mistyped as `BoundaryFlux`; GMRES drives it to zero
+  via `TimedFullField.to_flat`. Wiring = **(retype)**.
+- **`BoundarySource` has NO consumer** — every MMS case vanishes on Γ₋
+  (vacuum q≡0); `solve_sn_fixed_source` has no inflow arg; the
+  prescribed-inflow stack has zero end-to-end consumers. Minting it is
+  **role-grid completion**.
+
+Shipped this step (additive / bit-identical; the matvec WIRING is NOT
+done here — see below):
+1. **Rename** geometry Protocol `BoundarySource` → **`InflowSourceSpec`**
+   (it is a lazy per-face *generator*, not a field — recipe→snapshot).
+   ~31 sites across `geometry/boundary/{_source,_base,prescribed_inflow,
+   __init__}.py`, `sn/angular_operator.py`, `test_boundary_trace_law.py`,
+   2 theory `.rst`. `BoundarySourceNotOnIncomingTraceError` (ERR-047)
+   NOT renamed (negative-lookahead guard). Impls `NoSource`/
+   `ConstantInflowSource` keep names.
+2. **Mint** empty `BoundaryField` leaves: `BoundarySource`
+   (`transport/sources/boundary_source.py`) + `BoundaryResidual`
+   (`transport/residuals/boundary_residual.py`) — role-organized, like
+   the bulk leaves. `from_spec(spec, mesh)` recipe→snapshot bridge
+   DEFERRED (no consumer; `feedback_unify_after_two_instances`).
+3. **Tests** `tests/transport/fields/test_boundary_source_residual.py`
+   (25, foundation): the load-bearing invariant is **cross-class raises
+   despite all three boundary leaves sharing the SAME `mesh.trace`** —
+   the space gate would PASS, the **class** gate rejects.
+Verified: geometry 56 pass; fast tier 1082 pass (the only `tests/geometry`
+reds are 2 PRE-EXISTING TP-lift `Test188WiringContracts`, confirmed via
+`git stash` at f0522b4); sentinel 36/36.
+
+**B.3 BOUNDARY WIRING → B.5.** Retyping the matvec output boundary
+`BoundaryFlux→BoundaryResidual` is INSEPARABLE from the bulk
+operator-output retype: `TimedFullField` composition requires every
+leaf's output boundary to share a class, and the typed arithmetic at
+`iteration.py:455` (`Fψ+Sψ+q_ext`) / `:511` (`Lψ−Sψ−Fψ`) decides all
+operator-output types together. So `BoundaryResidual` is *minted and
+ready* here; its WIRING lands in **B.5** (with `from_balance` + a
+test-architect verification plan, per the operator-algebra-carve
+proactive trigger).
 
 **B.4 IS NEXT** — **UNITS class constant (user wants to steer)**: the
 design commitment that class-identity *is* units-identity. Add `UNITS`
@@ -254,7 +285,7 @@ from SESSION STATE, and verify A.4 bit-identity against the relevant
 | **A.5 ✅** | re-homed `BoundaryFlux` onto `TraceSpace`: dropped field-side `layout` (→ read-through property `space.layout`), factories source `space=mesh.trace`, `__post_init__` enforces TraceSpace, retired both `sn_boundary_flat` builds; `mesh` kept as cross-mesh guard. `57c5151` | **BI** (only `space.name` flips, not values) | **DONE: test_boundary_flux 36 / operators-batch 439 / sweep+transport+solve 652 passed.** Migrated 2 direct-ctor test sites + added negative guard test |
 | **B.1 ✅** | created all 5 storage-base ABCs in `transport/fields/_bases.py` (plan-literal): `BulkField`(mesh+mesh-binding+ng/nx/ny+abstract `_phase_space_shape`) → `AngularField`/`ScalarField`(parametrized `from_mesh` via `_SPACE_NAME`)/`MomentField`(marker); `BoundaryField`(TraceSpace contract+layout+face_view+factories via `cls`). Re-parented all 6 leaves (−602 lines). `6e70ec1` | **BI** (values + space names + public API preserved; `isinstance` holds) | **DONE: smoke (MRO/abstractness/`_SPACE_NAME`) + transport+primitives+operators 760 passed + sentinel gate 36/36 (full DAG).** |
 | **B.2 ✅** | **HARD rename (no shim, user decision)**: `PerOrdinateSource→AngularSource`, `IsotropicSource→ScalarSource` (+ `git mv` modules, `_SPACE_NAME`s, `SNMesh.zeros_*` factories). 37 files / ~342 occurrences, 0 residual. Cross-class injection dunder preserved. `698a587` | **BI** (rename touches no values) | **DONE: 760 (primitives+transport+operators) + sentinel 36/36; imports clean; 0 residual tokens.** |
-| **B.3 ✅ (bulk)** | new `transport/residuals/` leaves `Angular/ScalarResidual` (cm⁻³) shipped + tested. `Boundary{Source,Residual}` (cm⁻²) + `BoundaryField` 2nd/3rd instances → **DEFERRED #208** (name collision w/ geometry `BoundarySource` Protocol; no current consumer) | new (additive/BI) | 22 construction/arith/cross-class-raise tests; 782 fast + sentinel 36/36 |
+| **B.3 ✅ (all leaves + rename)** | bulk `Angular/ScalarResidual` (`transport/residuals/`) + boundary `BoundarySource` (`transport/sources/`) / `BoundaryResidual` (`transport/residuals/`); renamed geometry Protocol `BoundarySource`→`InflowSourceSpec`. `BoundaryField` now has its 2nd/3rd instances. **Boundary-residual matvec WIRING → B.5** (inseparable from bulk operator-output retype). | new (additive/BI) | 22 bulk + 25 boundary cross-class-raise tests; 1082 fast (−2 pre-existing TP-lift) + sentinel 36/36 |
 | **B.4 ← NEXT** | `UNITS` class constant; Layer-1 = units gate (**user steers**) | new | dimensionality + `-O` zero-cost tests |
 | **B.5** | `from_balance`; rewire `iteration.py:455`/`operator.py:1938`; #207 cross-storage injection STAYS implicit (resolved) | NI type / BI arithmetic | 347 wall; named-composition test |
 | **B.6** | tighten `TimedFullField` slots | NI | composite reject tests (update `match=`) |

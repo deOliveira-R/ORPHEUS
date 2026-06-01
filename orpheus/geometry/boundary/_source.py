@@ -13,8 +13,8 @@ periodic without external injection), :class:`NoSource` is the
 sentinel. For a constant scalar inflow, use
 :class:`ConstantInflowSource`.
 
-The :class:`BoundarySource` Protocol is :class:`runtime_checkable`
-so consumers can ``isinstance(s, BoundarySource)`` to validate the
+The :class:`InflowSourceSpec` Protocol is :class:`runtime_checkable`
+so consumers can ``isinstance(s, InflowSourceSpec)`` to validate the
 source contract without subclassing. Custom sources (e.g. a
 spatially-varying beam injection) only need to implement
 :meth:`evaluate` with the documented signature.
@@ -35,14 +35,14 @@ import numpy as np
 
 
 __all__ = [
-    "BoundarySource",
+    "InflowSourceSpec",
     "NoSource",
     "ConstantInflowSource",
 ]
 
 
 @runtime_checkable
-class BoundarySource(Protocol):
+class InflowSourceSpec(Protocol):
     r"""Prescribed inflow source :math:`q \in \Gamma_-`.
 
     The implementor fills an array of the incoming-face ``shape``

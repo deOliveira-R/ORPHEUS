@@ -28,7 +28,7 @@ from orpheus.numerics.operator import (
 )
 
 if TYPE_CHECKING:
-    from orpheus.geometry.boundary._source import BoundarySource
+    from orpheus.geometry.boundary._source import InflowSourceSpec
     from orpheus.numerics.quadrature import Quadrature
 
 __all__ = ["AngularAverageOperator", "IncomingSourceOperator"]
@@ -243,7 +243,7 @@ class IncomingSourceOperator(LinearOperatorMixin):
     :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow`.
 
     The operator stores only the
-    :class:`~orpheus.geometry.boundary._source.BoundarySource` —
+    :class:`~orpheus.geometry.boundary._source.InflowSourceSpec` —
     no quadrature reference is retained. The probe trace built at
     apply time carries just the shape information the source needs
     to size its output; the source's :meth:`evaluate` is responsible
@@ -256,20 +256,20 @@ class IncomingSourceOperator(LinearOperatorMixin):
 
     Parameters
     ----------
-    source : BoundarySource
+    source : InflowSourceSpec
         The :math:`q` source generator. Typically
         :class:`~orpheus.geometry.boundary._source.NoSource` (no
         inflow, equivalent to vacuum) or
         :class:`~orpheus.geometry.boundary._source.ConstantInflowSource`
         for a uniform inflow level. Custom
-        :class:`~orpheus.geometry.boundary._source.BoundarySource`
+        :class:`~orpheus.geometry.boundary._source.InflowSourceSpec`
         implementations may inject spatially / energy- / angularly-
         varying inflow.
     """
 
     capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
 
-    def __init__(self, source: "BoundarySource") -> None:
+    def __init__(self, source: "InflowSourceSpec") -> None:
         self.source = source
 
     def apply(self, psi_out: np.ndarray) -> np.ndarray:

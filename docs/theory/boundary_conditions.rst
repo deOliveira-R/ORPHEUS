@@ -355,7 +355,7 @@ the load-bearing primitive that downstream consumers need:
 * The universal invariant
   :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
   uses the inflow mask to validate that a
-  :class:`~orpheus.geometry.boundary.BoundarySource` has no nonzero
+  :class:`~orpheus.geometry.boundary.InflowSourceSpec` has no nonzero
   entries on outflow ordinates (per
   :class:`~orpheus.geometry.boundary.BoundarySourceNotOnIncomingTraceError`,
   ERR-047).
@@ -1152,7 +1152,7 @@ shipped under :mod:`orpheus.geometry.boundary._errors` are:
        (ERR-047)
      - Boundary source :math:`q` has nonzero outflow entries.
      - #6 (convention)
-     - User-supplied :class:`BoundarySource` has nonzero entries on
+     - User-supplied :class:`InflowSourceSpec` has nonzero entries on
        :math:`\Gamma_+`; geometrically meaningless and indicates a
        wrong source-shape contract.
 

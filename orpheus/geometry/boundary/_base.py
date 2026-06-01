@@ -54,7 +54,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from orpheus.numerics.registry import RegistryMixin
 
-from ._source import BoundarySource, NoSource
+from ._source import InflowSourceSpec, NoSource
 
 if TYPE_CHECKING:
     from orpheus.numerics.operator import LinearOperator
@@ -169,7 +169,7 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         return None
 
     @property
-    def source(self) -> BoundarySource:
+    def source(self) -> InflowSourceSpec:
         r"""The prescribed inflow :math:`q`. Default:
         :class:`NoSource`."""
         return NoSource()
