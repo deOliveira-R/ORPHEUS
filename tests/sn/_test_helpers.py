@@ -21,6 +21,7 @@ helper is for the geometry-only call sites.
 """
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -30,6 +31,57 @@ if TYPE_CHECKING:
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from orpheus.sn.geometry import SNMesh
     from orpheus.transport.fields.scalar_flux import ScalarFlux
+
+
+# Anchor for shared, sn-root-relative test data (regression snapshots,
+# the sweep reference vector, the Wave-T fixture .npz files).  The
+# capability-taxonomy reorg nests tests several directories deep
+# (e.g. ``sweep/curvilinear/``); a ``Path(__file__).parent``-relative
+# data lookup would break on every move.  Every consumer resolves data
+# through this single anchor so the data store stays at the sn-root
+# regardless of where the test that reads it lives.
+SN_TESTS_ROOT = Path(__file__).resolve().parent
+"""Absolute path to ``tests/sn/`` — the anchor for shared test data."""
+
+
+def stamp_capability_marker(items, conftest_file: str, capability: str) -> None:
+    """Apply ``@pytest.mark.cap(<capability>)`` to every test under a dir.
+
+    The capability-taxonomy reorg encodes the SN-capability tier of a
+    test as the *directory* it lives in (single source of truth). Rather
+    than decorate every test file with a ``cap(...)`` marker — which can
+    drift from the directory it documents — each capability directory
+    carries a one-line ``conftest.py`` that delegates here. Every item
+    collected at or below the conftest's directory gets the marker; the
+    existing ``l0/l1/l2/foundation/verifies/catches`` markers on each
+    test are untouched (``cap`` is orthogonal and composable).
+
+    Parameters
+    ----------
+    items
+        The collected items passed to ``pytest_collection_modifyitems``.
+    conftest_file
+        ``__file__`` of the calling capability-directory conftest.
+    capability
+        The capability name (one of the DAG nodes; see the ``cap``
+        marker description in ``pyproject.toml``).
+    """
+    import pytest
+
+    here = Path(conftest_file).resolve().parent
+    marker = pytest.mark.cap(capability)
+    for item in items:
+        try:
+            item_path = Path(str(item.fspath)).resolve()
+        except Exception:
+            continue
+        # ``here`` is the item's parent OR an ancestor — covers both a
+        # flat capability dir and a nested one (e.g. sweep/core under
+        # sweep). The sweep/ conftest does NOT stamp because each leaf
+        # (core, slab, curvilinear, cartesian_2d) carries its own.
+        if item_path.parent == here:
+            item.add_marker(marker)
+
 
 
 def placeholder_materials(

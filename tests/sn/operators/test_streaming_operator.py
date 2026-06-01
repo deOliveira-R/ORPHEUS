@@ -756,11 +756,8 @@ class TestT4bPreT4RegressionSnapshot:
     @pytest.fixture(scope="class")
     def snapshots(self):
         """Load the pre-T.4 snapshot bundle."""
-        import os
-        path = os.path.join(
-            os.path.dirname(__file__), "_fixtures", "wave_t_t4",
-            "pre_t4_snapshots.npz",
-        )
+        from tests.sn._test_helpers import SN_TESTS_ROOT
+        path = SN_TESTS_ROOT / "_fixtures" / "wave_t_t4" / "pre_t4_snapshots.npz"
         with np.load(path) as data:
             return {k: data[k] for k in data.files}
 
@@ -984,11 +981,8 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
     @pytest.fixture(scope="class")
     def snapshots(self):
         """Load the pre-T.4 snapshot bundle."""
-        import os
-        path = os.path.join(
-            os.path.dirname(__file__), "_fixtures", "wave_t_t4",
-            "pre_t4_snapshots.npz",
-        )
+        from tests.sn._test_helpers import SN_TESTS_ROOT
+        path = SN_TESTS_ROOT / "_fixtures" / "wave_t_t4" / "pre_t4_snapshots.npz"
         with np.load(path) as data:
             return {k: data[k] for k in data.files}
 

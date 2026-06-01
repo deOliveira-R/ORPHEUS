@@ -716,10 +716,11 @@ class TestInvertibleSolveBridgeRegression:
         """
         import sys
         import warnings
-        from pathlib import Path
+
+        from tests.sn._test_helpers import SN_TESTS_ROOT
 
         sys.path.insert(
-            0, str(Path(__file__).parent / "l1_analytical"),
+            0, str(SN_TESTS_ROOT / "verification" / "analytical"),
         )
         warnings.simplefilter("ignore")
         from test_kinf_homogeneous import (  # type: ignore[import-not-found]

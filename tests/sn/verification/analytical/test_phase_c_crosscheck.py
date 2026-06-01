@@ -573,10 +573,9 @@ def _load_snapshot_scalar_flux(snapshot_id: str) -> np.ndarray:
     ``(ng, nx, ny)`` layout; transpose + slice to recover the
     legacy ``(nx, ng)`` view this consumer expects.
     """
-    from pathlib import Path
+    from tests.sn._test_helpers import SN_TESTS_ROOT
     snap = (
-        Path(__file__).parent / "regression" / "snapshots"
-        / f"{snapshot_id}.npz"
+        SN_TESTS_ROOT / "regression" / "snapshots" / f"{snapshot_id}.npz"
     )
     if not snap.exists():
         pytest.skip(f"snapshot {snapshot_id!r} not present at {snap}")

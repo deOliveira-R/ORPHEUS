@@ -137,7 +137,9 @@ from tests.sn._test_helpers import placeholder_materials
 pytestmark = pytest.mark.l1
 
 
-SNAPSHOT_DIR = Path(__file__).parent / "regression" / "snapshots"
+from tests.sn._test_helpers import SN_TESTS_ROOT
+
+SNAPSHOT_DIR = SN_TESTS_ROOT / "regression" / "snapshots"
 """Snapshot location.  Snapshots are .npz files keyed by case id::
 
     snapshots/2d_octant_equivalence_<case_id>.npz

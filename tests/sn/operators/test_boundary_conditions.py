@@ -14,6 +14,12 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
+# SN boundary-condition infrastructure: structural invariants of the
+# SNMesh BC wiring (no theory-page :label:). Foundation, not a physics
+# equation gate. (Was a V&V orphan before the taxonomy reorg forced a
+# marker — see .claude/plans/sn_test_taxonomy.md.)
+pytestmark = pytest.mark.foundation
+
 
 @pytest.fixture
 def quad():

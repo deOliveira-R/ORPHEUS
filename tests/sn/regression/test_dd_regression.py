@@ -24,7 +24,11 @@ import pytest
 from ._generate_snapshots import CASES, SNAPSHOT_DIR, SnapshotCase, run_case
 
 
-pytestmark = pytest.mark.regression
+# ``regression`` flags the frozen-snapshot drift gate; ``foundation``
+# gives it a V&V-level so the audit does not report it as an orphan
+# (the snapshot comparison is a software invariant, not a physics
+# equation gate). Both compose.
+pytestmark = [pytest.mark.regression, pytest.mark.foundation]
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c.name)

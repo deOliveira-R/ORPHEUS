@@ -48,6 +48,12 @@ from orpheus.sn.spatial.cell_balance import (
 )
 from orpheus.sn.spatial.cell_update import UpstreamState
 
+# Per-cell streaming-balance algebra: structural invariants of the
+# cell_balance_for_streaming primitive (no theory-page :label:).
+# Foundation, not a physics equation gate. (Was a V&V orphan before
+# the taxonomy reorg forced a marker.)
+pytestmark = pytest.mark.foundation
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Helper — build a representative curvilinear per-cell packet

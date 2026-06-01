@@ -51,6 +51,12 @@ from orpheus.geometry import BC, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 
+# 2-D Cartesian L2 face_view convention crosswalk: structural pins on
+# the BoundaryFlux.face_view writability + unit-source convention (no
+# theory-page :label:). Foundation, not a physics equation gate. (Was a
+# V&V orphan before the taxonomy reorg forced a marker.)
+pytestmark = pytest.mark.foundation
+
 
 # ── Mesh fixture: 4×4 vacuum-everywhere 2-D Cartesian, 1G pure streamer ─
 

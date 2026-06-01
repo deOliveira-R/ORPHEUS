@@ -58,6 +58,12 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 from orpheus.derivations.common.xs_library import get_mixture
 
+# SI cylindrical pole-cell NaN regression catcher: ``regression`` flags
+# the frozen-behaviour drift gate; ``foundation`` gives it a V&V-level
+# so the audit does not report it as an orphan. Both compose. (Was a
+# V&V orphan before the taxonomy reorg forced a marker.)
+pytestmark = [pytest.mark.regression, pytest.mark.foundation]
+
 
 @pytest.fixture
 def homog_cyl_2g_thick2_n20():

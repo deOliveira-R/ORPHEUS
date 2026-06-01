@@ -62,6 +62,7 @@ markers = [
     "verifies(*labels): Sphinx equation labels (:label: in docs/theory/*.rst) that this test exercises",
     "catches(*tags): failure-mode (FM-NN) or error-catalog (ERR-NNN) tags this test guards",
     "regression: Frozen-reference snapshot tests gating numerical drift across refactors (NOT a verification reference — see tests/sn/regression/_generate_snapshots.py)",
+    "cap(name): SN capability-taxonomy tier the test exercises (orthogonal to l0/l1/l2/foundation). Names from the capability DAG in .claude/plans/sn_test_taxonomy.md: primitives, operators, sweep_core, sweep_slab, sweep_curvilinear, sweep_cartesian_2d, solve, eigenvalue, verification_mms, verification_analytical.",
 ]
 
 [tool.setuptools.packages.find]

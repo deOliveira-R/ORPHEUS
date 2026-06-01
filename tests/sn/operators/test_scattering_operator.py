@@ -1260,11 +1260,10 @@ class TestPerLegendreOrderKernel:
         np.testing.assert_array_equal(kernel_out, summand_out)
 
     def _load_snapshot(self):
-        from pathlib import Path
+        from tests.sn._test_helpers import SN_TESTS_ROOT
 
         snapshot_path = (
-            Path(__file__).parent
-            / "_fixtures" / "wave_t_t3" / "pre_t3_snapshots.npz"
+            SN_TESTS_ROOT / "_fixtures" / "wave_t_t3" / "pre_t3_snapshots.npz"
         )
         return np.load(snapshot_path)
 
@@ -1382,7 +1381,6 @@ class TestPerLegendreOrderKernel:
         (`solver_2g_p1_n2n`) with the same seed (20260530).
         """
         from orpheus.transport.fields.angular_flux import AngularFlux
-        from pathlib import Path
 
         # Reproduce the fixture's seed + psi construction from
         # `_capture_pre_t3_snapshots.py::_make_psi(solver, seed=20260530)`.
@@ -1399,9 +1397,10 @@ class TestPerLegendreOrderKernel:
         out_post_t3 = op.build_aniso_source(psi).values
 
         # Pre-T.3 snapshot.
+        from tests.sn._test_helpers import SN_TESTS_ROOT
+
         snapshot_path = (
-            Path(__file__).parent
-            / "_fixtures" / "wave_t_t3" / "pre_t3_snapshots.npz"
+            SN_TESTS_ROOT / "_fixtures" / "wave_t_t3" / "pre_t3_snapshots.npz"
         )
         snapshots = np.load(snapshot_path)
         expected = snapshots["p1_build_aniso_source"]

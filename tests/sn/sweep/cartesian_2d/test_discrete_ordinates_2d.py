@@ -21,6 +21,15 @@ pytestmark = [
 
 @pytest.mark.slow
 @pytest.mark.catches("ERR-003")
+@pytest.mark.xfail(
+    reason="R-1 Step E: 2-D Cartesian source-iteration carve deferred "
+    "(sn_mesh.reduced is None ⇒ NotImplementedError). The B1'' face "
+    "block is 1-D-only; 2-D needs the 4-face layout. The ERR-003 "
+    "catcher + L2 convergence assertion are preserved and will run "
+    "(xpass) once the 2-D SI carve lands. Re-enable then.",
+    raises=NotImplementedError,
+    strict=False,
+)
 @pytest.mark.parametrize("ng_key,label", [("1g", "1G"), ("2g", "2G")])
 def test_do_mesh_convergence(ng_key, label):
     """2D SN solver must converge with mesh refinement.

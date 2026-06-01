@@ -74,7 +74,6 @@ from __future__ import annotations
 
 import sys
 import warnings
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -82,8 +81,10 @@ import pytest
 
 # Re-use the L1 analytical homogeneous reference + mesh / quadrature helpers.
 # Same dependency the diagnostic relied on, lifted to module-load.
+from tests.sn._test_helpers import SN_TESTS_ROOT  # noqa: E402
+
 sys.path.insert(
-    0, str(Path(__file__).parent / "l1_analytical"),
+    0, str(SN_TESTS_ROOT / "verification" / "analytical"),
 )
 warnings.simplefilter("ignore")
 from test_kinf_homogeneous import (  # noqa: E402  (post-sys.path import)
