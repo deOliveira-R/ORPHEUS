@@ -10,11 +10,11 @@ discipline — superseded), #208 (operator typing — **deferred**).
 
 ---
 
-## SESSION STATE — RESUME AT A.4 (2026-06-01)
+## SESSION STATE — RESUME AT A.5 (2026-06-01)
 
-A.1 + A.2/A.3 are DONE. Between A.3 and A.4 the session took a large
+A.1 + A.2/A.3 + **A.4 are DONE**. Between A.3 and A.4 the session took a large
 **user-directed testing-infrastructure detour** (all test-only/config — ZERO
-production changes beyond the A.2/A.3 commit). Commit chain on
+production changes beyond the A.2/A.3 + A.4 commits). Commit chain on
 `refactor/field-role-typing` (newest last):
 
 - `30c858c` — **A.2/A.3 TraceSpace unification** (the field-typing work).
@@ -33,10 +33,25 @@ production changes beyond the A.2/A.3 commit). Commit chain on
 - `d9cd29f..138b4b0` — **SENTINEL HARNESS** (see `sn_sentinel_harness.md` +
   `tests/_mutation/`): `pytest -m sentinel` (~4 s, 36 nodes, one per capability
   node), cosmic-ray mutation-validated (diamond.py 96.8 %).
-- `9a5e09e` + (regression-redesign agent IN FLIGHT, agentId `ad896dc8c3314194a`)
-  — regression tolerance redesign (see `sn_regression_tolerance_redesign.md`):
-  drop magic floors → principled `conv_tol`/`nulp` + `DriftWarning` tripwire +
-  regenerate stale snapshots from the verified-correct solver.
+- `9a5e09e`/`94d3aa4`/`887f2de`/`7851eb2`/`5e9f165` — regression tolerance
+  redesign DONE (see `sn_regression_tolerance_redesign.md`): magic floors →
+  principled `conv_tol`/`nulp` + `DriftWarning` tripwire + regenerated snapshots.
+- **`f86846e` — A.4 DONE** (the field-typing work): all 8 inline `sign(Ω·n)`
+  face masks in `operator.py` now read `TraceSpace.{inflow,outflow}_indices_
+  for_face` (the 4 outflow in `_compute_LpC`/`_compute_decomposition` + the 4
+  2-D inflow in `_apply_2d_cartesian`); new public `SNMesh.trace` accessor.
+  Bit-identical (boolean-mask vs sorted fancy-index). Gated: sweep 524 /
+  operators 392 / 2-D MMS 3 passed. A2D-1 hash pin updated.
+- `e46c63c` — fix a DEAD L1 gate found by A.4's sweep
+  (`..._mms_manufactured_source_couples_groups` raised IndexError since
+  written; restored: axis order + `/sum_w` per-ordinate-density norm).
+- `e581409` — mark the slow verification studies `@pytest.mark.slow` so
+  `pytest tests/sn/verification -m "not slow"` = 44 passed in **21 s** (was
+  >13 min). Deeper test-suite speed work (Green's-reference caching, reference
+  substitution for the not-research-grade Nyström tests, `-n 6` default,
+  bare-assert vv-Mode-8, the `test_cylinder_l1_sweep_vs_krylov_twin_path`
+  XPASS(strict) stale-xfail) deferred to **issue #211** (user's dedicated
+  verification-suite + harness session).
 
 **NEW test workflow (post-reorg) — use this, not the stale gates below:**
 - Run **PER TIER** single-process (light: operators 395 tests / 3 s / 186 MB).
@@ -53,13 +68,19 @@ the moved `tests/sn/operators/` + realizer-wiring/bound_compat files; stale
 assertions tracked for C.2 (NOT correctness bugs). Snapshot-drift reds are
 being fixed by the regression agent.
 
-**A.4 IS READY:** `TraceSpace.outflow_indices_for_face(face)` /
-`inflow_indices_for_face(face)` are built + bit-identical to the old
-`mu_x>±eps` masks (`_TANGENTIAL_EPS = 4·machine_eps`). A.4 = replace the ≈8
-inline `mu_x > +eps` / `mu_x < -eps` masks in `orpheus/sn/operator.py`
-(~lines 565-576 + 844-855: `outer_outflow_mask`/`inner_outflow_mask` writing to
-`m_boundary.face_view("xmax"/"xmin")`) with the trace selectors. Operator/sweep
-tests now live under `tests/sn/operators/` + `tests/sn/sweep/`.
+**A.4 DONE (`f86846e`).** All 8 inline face masks now read the `TraceSpace`
+selectors via the new `SNMesh.trace` accessor; bit-identical; gated green.
+
+**A.5 IS NEXT:** re-home `BoundaryFlux` onto `TraceSpace`. Today `BoundaryFlux`
+builds an ad-hoc `FunctionSpace("sn_boundary_flat")` + carries its own
+`FaceLayout`; the unified `TraceSpace` already carries `layout` +
+`shape=(total_size,)` + Euclidean (`inner_product_weights=None`) weights, so
+re-homing is **bit-identical storage** (same flat buffer, same Euclidean inner
+product). Move `FaceLayout` from the field onto the space; the field becomes
+pure `values + space`. `SNMesh.trace` (A.4) + `SNMesh.boundary_face_layout`
+are the wiring points. Gate: `tests/sn/operators/test_boundary_flux.py` (find
+under the reorg'd paths) + `test_phase_c_gates` (L0 streaming-equilibrium) +
+`test_timed_full_field`; bit-identity on boundary field values.
 
 ---
 
@@ -130,8 +151,8 @@ from SESSION STATE, and verify A.4 bit-identity against the relevant
 | 0a/0b | test-architect spec + explorer L20 audit | — | done |
 | **A.1 ✅** | remove `units` from `FunctionSpace` (`space.py`: field, `__eq__`, `__repr__`, `_tensor_product_units`); drop Layer-3 assert in `field.py`; migrate unit-pins (3 in `test_space_algebra.py` + **5 in `test_field.py`** — grep found more than the spec listed); fix latent cm²→cm³ error in field.py docstring; scalar_flux.py docstring | **BI** (units `None` everywhere) | **DONE: 237 passed `-O`** (space+space_algebra+field+operator+transport+typed_sources) |
 | **A.2+A.3 ✅** (MERGED) | **TraceSpace unification** — DONE. Built one concrete `TraceSpace(FunctionSpace)` (whole-boundary `shape=(layout.total_size,)`, `layout: FaceLayout`, signed `omega_dot_n (n_faces,N)`, `_TANGENTIAL_EPS=4·machine_eps`, inflow/outflow selectors). Migrated SNMesh (`_inflow_trace`+`_outflow_trace`→one `_trace`), method_space (`inflow_trace`/`outflow_trace`→`trace`), `_resolve_one` (`for_face(trace=)`). Decoupled `IncomingSourceOperator` probe + `BoundarySource.evaluate` from the trace → **`evaluate(shape)`** (retired the fake-trace-as-shape-carrier anti-pattern). Deleted `Inflow/OutflowTraceSpace` + `boundary_trace_space()` + `numerics/trace_space.py` shim. **Curvilinear-one-boundary resolved (see below).** | **BI both sides** | DONE — verified in memory-safe targeted chunks (full `tests/sn` OOMs: 1376 single-process items, pre-existing infra, NOT ours). **Zero new failures.** trace/space/method_space/realizer_wiring/bound_compat/btl: 68 pass / 5 pre-existing TP-lift red. sn_boundary_realizer+native_matvec+streaming_decomposition(Res-A)+typed_sources: 80 pass / 1 pre-existing stale red (`test_white_z_axis…raises`, stale `mu_z` regex → msg is now "degenerate for this face"). unified_matvec_cylinder (curvilinear `bc_left=None`): all pass. phase_c_gates(L0)+solution: 42 pass / 6 expected-xfail. Masks bit-identical (xmin↔old "left", xmax↔old "right"). **Pre-existing base-branch reds confirmed via `git stash` (same failures with my changes removed):** 6× curvilinear-sweep `IndexError` in `sweep_cache.py:431` `sig_t[:, geom.chain_idx]` (test_spherical ×3 + test_cylindrical ×3 — the `_sweep_1d_unified`/CollisionCache legacy path, superseded by the passing matvec; a separate subsystem). |
-| **A.4 ← NEXT** | consolidate ≈8 inline `mu_x>±eps` masks in `operator.py` (~565-576, ~844-855) to read `TraceSpace.outflow_indices_for_face` (READY + bit-identical; eps already unified to `4·machine_eps`) | **BI (highest risk)** | Resolution-A `assert_array_equal`; verify `tests/sn/sweep/` + `tests/sn/operators/` tiers green (per-tier, not 347 wall) |
-| **A.5** | re-home `BoundaryFlux` onto `TraceSpace` (its `sn_boundary_flat` space → the unified trace; FaceLayout field→space). Trace already carries `layout`+`shape=(total_size,)`+Euclidean weights = bit-identical storage | BI | `test_boundary_flux.py`, `test_timed_full_field.py` (find under new tier paths) |
+| **A.4 ✅** | consolidated all 8 inline `sign(Ω·n)` face masks in `operator.py` to read `TraceSpace.{inflow,outflow}_indices_for_face` (4 outflow in `_compute_LpC`/`_compute_decomposition` + 4 2-D inflow in `_apply_2d_cartesian`); new public `SNMesh.trace`. `f86846e` | **BI** (boolean-mask ≡ sorted fancy-index) | **DONE: sweep 524 / operators 392 / 2-D MMS 3 passed; A2D-1 hash pin updated.** Also: restored a dead L1 gate (`e46c63c`) + marked slow studies (`e581409`, fast loop 21 s); deferred deep test-speed → issue #211 |
+| **A.5 ← NEXT** | re-home `BoundaryFlux` onto `TraceSpace` (its `sn_boundary_flat` space → the unified trace; FaceLayout field→space). Trace already carries `layout`+`shape=(total_size,)`+Euclidean weights = bit-identical storage. Wiring: `SNMesh.trace` (A.4) + `SNMesh.boundary_face_layout` | BI | `test_boundary_flux.py`, `test_phase_c_gates` (L0), `test_timed_full_field.py` (under reorg'd tier paths) |
 | **B.1** | storage-base ABCs; dedup; re-parent | BI | leaf tests bit-identical |
 | **B.2** | rename sources (1-cycle shim); re-parent; land atomically (cross-class `__add__` + 4 singledispatch guards) | BI | `test_typed_sources.py` (migrate names) |
 | **B.3** | new leaves `Angular/ScalarResidual` (cm⁻³), `Boundary{Source,Residual}` (cm⁻²) | new | new construction/arith/cross-role-raise tests |
