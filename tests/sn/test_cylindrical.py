@@ -225,18 +225,28 @@ class TestCylindricalSweepRegression:
 
     def test_single_sweep_all_finite(self):
         """A single sweep must produce finite fluxes."""
-        from orpheus.sn.sweep import _sweep_1d_unified  # Issue #196 Step 2.5
+        # Issue #196 Step 2.5: _sweep_1d_cylindrical retired.  Route
+        # through the production producer (transport_sweep +
+        # PerOrdinateSource.from_isotropic) on the principled PR-INDEX-5
+        # contract: sig_t (ng, nx, ny), source built from an isotropic
+        # scalar (ng, nx, ny).  Pattern 7 — the test exercises the SAME
+        # convention the solver does, so layout drift cannot silently
+        # re-open (the obsolete (nx, ng, ny) bare-array layout crashed
+        # with an IndexError at sweep_cache.py).
+        from orpheus.sn.sweep import transport_sweep
+        from orpheus.transport.sources import PerOrdinateSource
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        sig_t = np.full((10, 1, 1), 0.5)
-        Q = np.ones((10, 1, 1))
+        sig_t = np.full((1, 10, 1), 0.5)        # (ng, nx, ny)
+        Q_iso = np.ones((1, 10, 1))             # (ng, nx, ny)
+        source = PerOrdinateSource.from_isotropic(Q_iso, sn_mesh)
 
         # Issue #197 PR-TYPED-2 — typed boundary state
         boundary_flux = sn_mesh.zeros_boundary_flux()
-        ang, phi = _sweep_1d_unified(Q, sig_t, sn_mesh, boundary_flux)
+        ang, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
         assert np.all(np.isfinite(ang)), "Non-finite angular flux"
         assert np.all(np.isfinite(phi)), "Non-finite scalar flux"
@@ -530,18 +540,23 @@ class TestMultiGroupMultiRegion:
         The redistribution sum Σ_m (α_{m+1/2}ψ_{m+1/2} − α_{m-1/2}ψ_{m-1/2})
         must vanish for each cell because α[0] = α[M] = 0.
         """
-        from orpheus.sn.sweep import _sweep_1d_unified  # Issue #196 Step 2.5
+        # Issue #196 Step 2.5: _sweep_1d_cylindrical retired.  Principled
+        # PR-INDEX-5 contract via the production producer (see
+        # test_single_sweep_all_finite for the rationale).
+        from orpheus.sn.sweep import transport_sweep
+        from orpheus.transport.sources import PerOrdinateSource
 
         mix = get_mixture("A", "1g")
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        sig_t = np.full((10, 1, 1), mix.SigT[0])
-        Q = np.ones((10, 1, 1))
+        sig_t = np.full((1, 10, 1), mix.SigT[0])    # (ng, nx, ny)
+        Q_iso = np.ones((1, 10, 1))                 # (ng, nx, ny)
+        source = PerOrdinateSource.from_isotropic(Q_iso, sn_mesh)
         # Issue #197 PR-TYPED-2 — typed boundary state
         boundary_flux = sn_mesh.zeros_boundary_flux()
-        ang, _ = _sweep_1d_unified(Q, sig_t, sn_mesh, boundary_flux)
+        ang, _ = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
         for p, level_idx in enumerate(quad.level_indices):
             alpha = sn_mesh.reduced.alpha_per_level[p]
@@ -550,7 +565,9 @@ class TestMultiGroupMultiRegion:
             psi_angle = np.zeros(10)
             for m_local in range(M):
                 n = level_idx[m_local]
-                psi_cell = ang[n, :, 0, 0]
+                # Angular flux is (N, ng, nx, ny) under PR-INDEX-5; the
+                # per-cell vector for ordinate n, group 0 is [n, 0, :, 0].
+                psi_cell = ang[n, 0, :, 0]
                 psi_angle_new = 2.0 * psi_cell - psi_angle
                 psi_angle = psi_angle_new
             # After all ordinates, psi_angle = ψ_{M+1/2}
@@ -561,20 +578,26 @@ class TestMultiGroupMultiRegion:
 
     def test_single_cell_uniform_source_equilibrium(self):
         """Two-cell 1G pure absorber with uniform source → φ = Q/Σ_t."""
-        from orpheus.sn.sweep import _sweep_1d_unified  # Issue #196 Step 2.5
+        # Issue #196 Step 2.5: _sweep_1d_cylindrical retired.  Principled
+        # PR-INDEX-5 contract via the production producer (see
+        # test_single_sweep_all_finite for the rationale).
+        from orpheus.sn.sweep import transport_sweep
+        from orpheus.transport.sources import PerOrdinateSource
 
         mesh = _homogeneous_mesh(2, 1.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        Q = np.ones((2, 1, 1))
-        sig_t = np.ones((2, 1, 1))
+        sig_t = np.ones((1, 2, 1))              # (ng, nx, ny)
+        Q_iso = np.ones((1, 2, 1))              # (ng, nx, ny)
+        source = PerOrdinateSource.from_isotropic(Q_iso, sn_mesh)
         # Issue #197 PR-TYPED-2 — typed boundary state
         boundary_flux = sn_mesh.zeros_boundary_flux()
+        phi = None
         for _ in range(100):
-            _, phi = _sweep_1d_unified(Q, sig_t, sn_mesh, boundary_flux)
+            _, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
-        phi_avg = np.average(phi[:, 0, 0], weights=mesh.volumes)
+        phi_avg = np.average(phi[0, :, 0], weights=mesh.volumes)
         np.testing.assert_allclose(phi_avg, 1.0, rtol=0.01,
                                    err_msg="Volume-avg φ ≠ Q/Σ_t for uniform source")
 

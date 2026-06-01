@@ -4248,3 +4248,33 @@ Coordination: the fix lives in `orpheus/sn/spatial/scan.py:80-138`; it is orthog
 
 → Probe path: see `derivations/diagnostics/diag_si_cyl_20cell_nan_step{1,5}_*.py` for the cascade. The cascade is two-step (no need for step 2/3/4 isolation because the failing path was named directly by the FP-warning traceback at step 1); the methodology is a degenerate case of the standard 8-step cascade where step 1's traceback short-circuits the isolation.
 
+## ERR-055 — Curvilinear sweep regression tests fed `sig_t` / `Q` in the obsolete `(nx, ng, ny)` layout after the production contract flipped to PR-INDEX-5 `(ng, nx, ny)` / `(N, ng, nx, ny)` — `IndexError` at `CollisionCache.from_geometry`
+
+**Date:** 2026-06-01
+**Module:** `sn` / `tests` (`tests/sn/test_spherical.py`, `tests/sn/test_cylindrical.py`; crash surfaces at `orpheus/sn/spatial/sweep_cache.py:431`)
+**Failure mode:** #6 (convention drift — definition site vs usage site disagree), residing in the TEST fixtures, NOT in production code.
+
+**Symptom.** Six SN curvilinear sweep-regression tests crash with `IndexError: index 9 is out of bounds for axis 1 with size 1` at `sweep_cache.py:431` (`sig_t[:, geom.chain_idx].transpose(1, 0, 2)`). Affected: `test_spherical.py::TestSphericalSweepRegression::{test_uniform_source_converges_to_Q_over_sigt, test_single_sweep_all_finite}`, `::TestMultiGroupMultiRegionSpherical::test_fixed_source_flux_bounded`, `test_cylindrical.py::TestCylindricalSweepRegression::test_single_sweep_all_finite`, `::TestMultiGroupMultiRegion::{test_redistribution_telescoping_conservation, test_single_cell_uniform_source_equilibrium}`.
+
+**Root cause.** Each test calls the internal `_sweep_1d_unified(Q, sig_t, sn_mesh, boundary_flux)` directly with bare ndarrays in the **obsolete** `(nx, ng, ny)` layout — e.g. `sig_t = np.full((10, 1, 1), 0.5)`, `Q = np.ones((10, 1, 1))` for a 10-cell ng=1 mesh. The production contract (`sweep.py:167-168`, `sweep.py:164`) is `sig_t (ng, nx, ny)` and source `(N, ng, nx, ny)`. With ng=1 these are NOT interchangeable: `_ensure_coll_cache` slices `sig_t[:, :, 0]` → `(10, 1)`, and `from_geometry` reads axis 0 as `ng=10`, axis 1 as `nx=1`; `geom.chain_idx` then indexes the 10-cell chain into a size-1 axis → `IndexError`. The bug was introduced when commit `6cfdfd4` (Issue #196 PR-INDEX-2) flipped `CollisionCache` to the `(ng, nx)` layout and the principled `(N, ng, nx, ny)` source / `(ng, nx, ny)` sig_t contract landed; the production producers (`solver.py`, `operator.py`, `material_xs_field.py:372` `xs.sig_t.T.reshape(ng, nx, ny)`) were migrated but these six direct-call tests were not. `_sweep_1d_unified` is **production** (the sole 1-D sweep body, reached by `transport_sweep` from `solver.py:970` and `operator.py:1946`); it is NOT a dying path — so the principled fix is a test migration, not a helper retirement.
+
+**How it hid.**
+
+1. **The crash is deterministic but only on the DIRECT-call tests.** Every production sweep flows through `transport_sweep` → `PerOrdinateSource.from_isotropic(..., sn_mesh)`, which builds the source in the principled `(N, ng, nx, ny)` layout by construction. Only ad-hoc tests that bypass the producer and hand-build bare arrays could carry the obsolete layout — these six did. The green matvec twin (`test_unified_matvec_cylinder.py`) constructs `sigma_t = np.full((ng, n_cells, 1), 2.0)` (correct layout) and never crashed, masking the test-side drift.
+
+2. **The degenerate ng=1 layout aliasing.** `(nx=10, ng=1, ny=1)` and `(ng=1, nx=10, ny=1)` have the same total element count and look superficially similar; only the trailing-slice + chain-index step exposes the axis swap. An ng≥2 test would have failed louder/earlier (axis-1 size 2 vs nx mismatch), but these six are all ng=1.
+
+3. **Pattern 7 violation in the test layer.** The tests re-applied the array-layout convention at the consumer (hand-built bare arrays) instead of routing through the producer. A future layout flip re-opens the drift silently because nothing pins the test inputs to the production convention.
+
+**Which test catches it.** The fix migrates all six tests onto the production producer: `sig_t` shaped `(ng, nx, ny)` and source built via `PerOrdinateSource.from_isotropic(Q_iso(ng,nx,ny), sn_mesh)`, swept through `transport_sweep`. Output indexing updated `phi[:, 0, 0] → phi[0, :, 0]` and angular `ang[n, :, 0, 0] → ang[n, 0, :, 0]` to match `(ng, nx, ny)` / `(N, ng, nx, ny)`. The six migrated tests ARE the permanent regression gates (they now exercise the same convention production obeys; a future re-flip fails them).
+
+**Lesson.**
+
+1. **`coding-elegance` Pattern 7 applies to test fixtures, not just production.** When a test bypasses the production producer to hand-build inputs, it re-applies a layout/normalisation convention at the consumer — an independent opportunity for drift. Route tests through the SAME producer the solver uses (`PerOrdinateSource.from_isotropic`, `transport_sweep`) so layout drift cannot silently re-open. A test that calls an internal `_helper` directly with bare arrays is a Pattern-7 landmine.
+
+2. **A layout/convention migration is incomplete until the direct-call tests are migrated too.** PR-INDEX-2/PR-INDEX-5 migrated the production producers but left six direct `_sweep_1d_unified` callers on the old layout. Per `feedback_retirement_means_test_migration`, flipping a convention means rewiring its tests to the new convention — and the test inputs must match the producer the new code expects.
+
+3. **ng=1 degeneracy hides axis-swap convention drift.** `(nx, ng, ny)` with ng=1 aliases against `(ng, nx, ny)` in element count and shape-rank; the swap only declares itself at an index/slice that distinguishes the two axes. ≥2 groups would have surfaced it sooner — another instance of cross-cutting hygiene rule H1 (1-group degeneracy) operating at the data-layout level.
+
+**Test reference:** `tests/sn/test_spherical.py::TestSphericalSweepRegression::{test_uniform_source_converges_to_Q_over_sigt, test_single_sweep_all_finite}`, `::TestMultiGroupMultiRegionSpherical::test_fixed_source_flux_bounded`, `tests/sn/test_cylindrical.py::TestCylindricalSweepRegression::test_single_sweep_all_finite`, `::TestMultiGroupMultiRegion::{test_redistribution_telescoping_conservation, test_single_cell_uniform_source_equilibrium}` (all six migrated this commit). No `@pytest.mark.catches` needed — the bug was in the test fixtures, not a production code path; the migrated tests gate the production convention by routing through the producer.
+

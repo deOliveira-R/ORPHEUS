@@ -343,28 +343,36 @@ class TestSphericalSweepRegression:
         This caught the missing weight_norm (1/sum_w) normalization in
         the spherical sweep source term.
         """
-        # Issue #196 Step 2.5: _sweep_1d_spherical retired; use the
-        # unified _sweep_1d_unified which dispatches sphere /
-        # cylinder via sn_mesh.reduced.coord.
-        from orpheus.sn.sweep import _sweep_1d_unified
+        # Issue #196 Step 2.5: _sweep_1d_spherical retired.  Route
+        # through the production producer (transport_sweep +
+        # PerOrdinateSource.from_isotropic) on the principled
+        # PR-INDEX-5 contract: sig_t (ng, nx, ny), source built from an
+        # isotropic scalar (ng, nx, ny).  Pattern 7 — the test exercises
+        # the SAME convention the solver does, so layout drift cannot
+        # silently re-open (the obsolete (nx, ng, ny) bare-array layout
+        # crashed with an IndexError at sweep_cache.py).
+        from orpheus.sn.sweep import transport_sweep
+        from orpheus.transport.sources import PerOrdinateSource
 
         mesh = _homogeneous_mesh(10, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        sig_t = np.ones((10, 1, 1))
-        Q = np.ones((10, 1, 1))
+        sig_t = np.ones((1, 10, 1))             # (ng, nx, ny)
+        Q_iso = np.ones((1, 10, 1))             # (ng, nx, ny)
+        source = PerOrdinateSource.from_isotropic(Q_iso, sn_mesh)
 
         # Issue #197 PR-TYPED-2 — typed boundary state
         boundary_flux = sn_mesh.zeros_boundary_flux()
+        phi = None
         for _ in range(200):
-            _, phi = _sweep_1d_unified(Q, sig_t, sn_mesh, boundary_flux)
+            _, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
         # Volume-weighted average must converge to Q/Σ_t = 1.0.
         # Individual cells near r=0 have large DD error due to extreme
         # aspect ratios on equal-volume spherical meshes.
         V = sn_mesh.volumes[:, 0]
-        phi_avg = np.sum(phi[:, 0, 0] * V) / V.sum()
+        phi_avg = np.sum(phi[0, :, 0] * V) / V.sum()
         np.testing.assert_allclose(phi_avg, 1.0, rtol=0.10,
                                    err_msg="Volume-avg φ ≠ Q/Σ_t for uniform source")
 
@@ -374,21 +382,23 @@ class TestSphericalSweepRegression:
         This catches the negative-denominator bug from using signed α
         instead of |α| at the innermost cell where A=0.
         """
-        # Issue #196 Step 2.5: _sweep_1d_spherical retired; use the
-        # unified _sweep_1d_unified which dispatches sphere /
-        # cylinder via sn_mesh.reduced.coord.
-        from orpheus.sn.sweep import _sweep_1d_unified
+        # Issue #196 Step 2.5: _sweep_1d_spherical retired.  Principled
+        # PR-INDEX-5 contract via the production producer (see
+        # test_uniform_source_converges_to_Q_over_sigt for the rationale).
+        from orpheus.sn.sweep import transport_sweep
+        from orpheus.transport.sources import PerOrdinateSource
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        sig_t = np.full((10, 1, 1), 0.5)
-        Q = np.ones((10, 1, 1))
+        sig_t = np.full((1, 10, 1), 0.5)        # (ng, nx, ny)
+        Q_iso = np.ones((1, 10, 1))             # (ng, nx, ny)
+        source = PerOrdinateSource.from_isotropic(Q_iso, sn_mesh)
 
         # Issue #197 PR-TYPED-2 — typed boundary state
         boundary_flux = sn_mesh.zeros_boundary_flux()
-        ang, phi = _sweep_1d_unified(Q, sig_t, sn_mesh, boundary_flux)
+        ang, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
         assert np.all(np.isfinite(ang)), "Non-finite angular flux in first sweep"
         assert np.all(np.isfinite(phi)), "Non-finite scalar flux in first sweep"
@@ -653,27 +663,30 @@ class TestMultiGroupMultiRegionSpherical:
         Without the ΔA/w geometry factor, the flux spikes to ~5x at
         the origin.  With the fix, the range should be bounded.
         """
-        # Issue #196 Step 2.5: _sweep_1d_spherical retired; use the
-        # unified _sweep_1d_unified which dispatches sphere /
-        # cylinder via sn_mesh.reduced.coord.
-        from orpheus.sn.sweep import _sweep_1d_unified
+        # Issue #196 Step 2.5: _sweep_1d_spherical retired.  Principled
+        # PR-INDEX-5 contract via the production producer (see
+        # test_uniform_source_converges_to_Q_over_sigt for the rationale).
+        from orpheus.sn.sweep import transport_sweep
+        from orpheus.transport.sources import PerOrdinateSource
 
         mesh = _homogeneous_mesh(40, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        Q = np.ones((40, 1, 1))
-        sig_t = np.ones((40, 1, 1))
+        sig_t = np.ones((1, 40, 1))             # (ng, nx, ny)
+        Q_iso = np.ones((1, 40, 1))             # (ng, nx, ny)
+        source = PerOrdinateSource.from_isotropic(Q_iso, sn_mesh)
         # Issue #197 PR-TYPED-2 — typed boundary state
         boundary_flux = sn_mesh.zeros_boundary_flux()
+        phi = None
         for _ in range(50):
-            _, phi = _sweep_1d_unified(Q, sig_t, sn_mesh, boundary_flux)
+            _, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
-        phi_avg = np.average(phi[:, 0, 0], weights=mesh.volumes)
+        phi_avg = np.average(phi[0, :, 0], weights=mesh.volumes)
         np.testing.assert_allclose(phi_avg, 1.0, rtol=0.01,
                                    err_msg="Volume-avg φ ≠ Q/Σ_t")
-        assert phi[:, 0, 0].max() < 2.0, (
-            f"Flux spike at origin: max={phi[:, 0, 0].max():.4f}"
+        assert phi[0, :, 0].max() < 2.0, (
+            f"Flux spike at origin: max={phi[0, :, 0].max():.4f}"
         )
 
     def test_heterogeneous_1g_spatial_convergence(self):
