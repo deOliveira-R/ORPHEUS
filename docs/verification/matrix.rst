@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **4658**
+Total tests collected: **4647**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1136, 24.4%
-   L1, 923, 19.8%
+   L0, 1134, 24.4%
+   L1, 921, 19.8%
    L2, 36, 0.8%
    L3, 0, 0.0%
-   foundation, 2515, 54.0%
+   foundation, 2508, 54.0%
    unmarked, 48, 1.0%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4531
+   explicit, 4520
    verify, 0
    class-name, 46
    func-name, 0
@@ -193,7 +193,7 @@ Module × level grid
    moc/test_verification, 27, 15, 6, 0, 0, 0
    numerics/test_diagonal_operator, 17, 0, 0, 0, 0, 0
    numerics/test_face_layout, 0, 0, 0, 0, 15, 0
-   numerics/test_field, 0, 0, 0, 0, 26, 0
+   numerics/test_field, 0, 0, 0, 0, 22, 0
    numerics/test_incoming_ordinate_mask_tensor, 13, 0, 0, 0, 0, 0
    numerics/test_iteration, 0, 1, 0, 0, 17, 0
    numerics/test_measure, 0, 16, 0, 0, 32, 0
@@ -208,13 +208,13 @@ Module × level grid
    numerics/test_rules_1d, 0, 5, 0, 0, 16, 0
    numerics/test_rules_product, 0, 3, 0, 0, 14, 0
    numerics/test_rules_sphere, 0, 7, 0, 0, 29, 0
-   numerics/test_space, 0, 0, 0, 0, 17, 0
-   numerics/test_space_algebra, 0, 0, 0, 0, 20, 0
+   numerics/test_space, 0, 0, 0, 0, 15, 0
+   numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 0, 0
    numerics/test_spherical_harmonic_space, 0, 6, 0, 0, 6, 0
    numerics/test_symmetry, 0, 0, 0, 0, 71, 0
    numerics/test_tensor_product_operator, 27, 0, 0, 0, 0, 0
-   numerics/test_trace_space, 13, 7, 0, 0, 0, 0
+   numerics/test_trace_space, 11, 5, 0, 0, 2, 0
    regression/test_dd_regression, 0, 0, 0, 0, 0, 11
    sn/test_2d_l2_face_view_unit_source, 0, 0, 0, 0, 0, 7
    sn/test_2d_l2_matvec_correctness, 0, 2, 0, 0, 2, 0
@@ -287,7 +287,7 @@ Module × level grid
    spatial/test_sweep_cache, 28, 0, 0, 0, 0, 0
    spatial/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 57, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 253, 0
+   test_layer_imports, 0, 0, 0, 0, 252, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 36, 0
@@ -868,6 +868,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-052``, 1
    ``ERR-053``, 7
    ``ERR-054``, **0 (MISSING)**
+   ``ERR-055``, **0 (MISSING)**
 
 Unmarked tests
 --------------
