@@ -151,13 +151,10 @@ def _build_composite(
     if boundary_values is None:
         boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
     else:
-        layout = sn_mesh.boundary_face_layout
-        from orpheus.numerics.function_space import FunctionSpace
-        space = FunctionSpace(
-            name="sn_boundary_flat", shape=(layout.total_size,),
-        )
+        # A.5: the BoundaryFlux space IS the mesh's unified TraceSpace
+        # (it carries the FaceLayout); no ad-hoc sn_boundary_flat build.
         boundary = BoundaryFlux(
-            values=boundary_values, space=space, layout=layout, mesh=sn_mesh,
+            values=boundary_values, space=sn_mesh.trace, mesh=sn_mesh,
         )
     return TimedFullField(
         bulk=AngularFlux.from_mesh(bulk_values, sn_mesh),

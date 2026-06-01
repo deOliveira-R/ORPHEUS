@@ -18,18 +18,25 @@ conflated boundary face cells with interior wavefront cache.
 Post-D-G this class:
 
 * **Is a pure Field** (single flat ``values`` array + L1 ``space``
-  + Field-inherited algebra). Cross-method generality: MoC's
-  per-track-family "boundary faces" (thousands) work with the same
-  flat-buffer arithmetic as SN's 1-4 faces.
+  + Field-inherited algebra) — and since **A.5** (View-G, #205/#201)
+  that ``space`` IS the unified
+  :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`, so the
+  storage is genuinely ``values + space`` with NO extra geometry
+  attribute. Cross-method generality: MoC's per-track-family "boundary
+  faces" (thousands) work with the same flat-buffer arithmetic as SN's
+  1-4 faces.
 * **Is IMMUTABLE** (``frozen=True``). The pre-D-G mutable
   write-through pattern (sweep's persistent BC state) is replaced by
   sweep-side :class:`~orpheus.sn.sweep_scratch.SweepScratch` +
   functional reconstruction at iteration boundaries.
 * **Carries face geometry via** :class:`~orpheus.numerics.face_layout.FaceLayout`
-  on the mesh. The mesh's :attr:`~orpheus.sn.geometry.SNMesh.boundary_face_layout`
-  property provides the per-geometry descriptor (1-D slab: ``xmin``,
-  ``xmax``; 1-D curvilinear: ``xmax``; 2-D: ``xmin``, ``xmax``,
-  ``ymin``, ``ymax``).
+  **on the** :class:`TraceSpace` **(A.5)**, not as a separate field
+  attribute. ``mesh.trace`` is the cached source; the underlying
+  per-geometry descriptor is still
+  :attr:`~orpheus.sn.geometry.SNMesh.boundary_face_layout` (1-D slab:
+  ``xmin``, ``xmax``; 1-D curvilinear: ``xmax``; 2-D: ``xmin``,
+  ``xmax``, ``ymin``, ``ymax``). The :attr:`layout` read-through
+  property preserves the ``boundary.layout`` access surface.
 * **Excludes interior wavefront cache.** The pre-D-G 2-D
   ``(N, ng, nx+1, ny)`` / ``(N, ng, nx, ny+1)`` conflated buffers
   split: face slots live here (``(N, ng, ny)`` × 2 + ``(N, ng, nx)``
@@ -55,11 +62,11 @@ from typing import TYPE_CHECKING, Mapping
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.field import Field
-from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.spaces.trace_space import TraceSpace
 
 if TYPE_CHECKING:
+    from orpheus.numerics.face_layout import FaceLayout
     from orpheus.sn.geometry import SNMesh
 
 
@@ -73,20 +80,25 @@ class BoundaryFlux(Field):
     Parameters
     ----------
     values : NDArray
-        Flat backing buffer, shape ``(layout.total_size,)``. Field
+        Flat backing buffer, shape ``(space.layout.total_size,)``. Field
         algebra (``__add__``, scalar ``*``, etc.) operates on this
         buffer in ONE numpy call.
-    space : FunctionSpace
-        The L1 space anchor (shape ``(layout.total_size,)``). Used
-        by Field's dunder algebra for class+space matching.
-    layout : FaceLayout
-        Per-geometry face descriptor. Provides ``faces[name].slice_view``
-        access into the flat buffer. Typically obtained from
-        :attr:`~orpheus.sn.geometry.SNMesh.boundary_face_layout`.
+    space : TraceSpace
+        The unified boundary
+        :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
+        (A.5 re-home). It IS the L1 space anchor (shape
+        ``(layout.total_size,)``, Euclidean inner product) AND carries
+        the per-geometry :class:`~orpheus.numerics.face_layout.FaceLayout`
+        as space-level leaf-data — so :attr:`layout` and
+        :meth:`face_view` read it off the space, not off the field.
+        Canonically the mesh's cached
+        :attr:`~orpheus.sn.geometry.SNMesh.trace`.
     mesh : SNMesh
         The SN phase-space carrier. Mesh-binding is enforced in
         :meth:`_check_partner` — arithmetic across distinct mesh
-        instances is forbidden even when the spaces match.
+        instances is forbidden even when the spaces match (two
+        same-size meshes share a ``(name, shape)``-equal
+        :class:`TraceSpace`, so ``mesh`` identity is the discriminator).
 
     Notes
     -----
@@ -95,16 +107,31 @@ class BoundaryFlux(Field):
     by Field's Layer 1 class-identity gate. Cross-mesh arithmetic is
     rejected by the mesh-binding override (Rank 4 of the D-G
     verification memo).
+
+    A.5 (View-G field vocabulary, #205/#201): the field is now pure
+    ``values + space`` for its storage — the ``FaceLayout`` lives on the
+    :class:`TraceSpace`, not as a separate field attribute (it was
+    duplicated with the mesh's descriptor pre-A.5). ``mesh`` is retained
+    only as the cross-mesh-arithmetic guard.
     """
 
-    layout: FaceLayout
     mesh: "SNMesh"
 
     # ── Construction validation ──────────────────────────────────────
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        expected = (self.layout.total_size,)
+        # A.5: the space IS the unified TraceSpace and carries the
+        # FaceLayout. Enforce the contract (illegal-states-unrepresentable):
+        # a BoundaryFlux on a layout-less space cannot do face_view.
+        if not isinstance(self.space, TraceSpace) or self.space.layout is None:
+            raise TypeError(
+                "BoundaryFlux requires a TraceSpace carrying a FaceLayout "
+                f"(A.5 re-home); got space={self.space!r}. Build via "
+                "BoundaryFlux.zeros_for_sn_mesh / from_face_arrays, or pass "
+                "mesh.trace as the space."
+            )
+        expected = (self.space.layout.total_size,)
         if self.values.shape != expected:
             raise ValueError(
                 f"BoundaryFlux: values.shape {self.values.shape!r} does "
@@ -121,17 +148,19 @@ class BoundaryFlux(Field):
     def _check_partner(self, other: object) -> None:
         super()._check_partner(other)
         # Mesh-binding override — two BoundaryFluxes can share a space
-        # ("sn_boundary_flat", same total_size) but differ in mesh
-        # identity. Rank 4 failure mode per the verification memo.
+        # (``"sn_trace"``, same total_size — TraceSpace.__eq__ is on
+        # ``(name, shape)``) but differ in mesh identity. Rank 4 failure
+        # mode per the verification memo.
         if self.mesh is not other.mesh:  # type: ignore[attr-defined]
             raise ValueError(
                 "BoundaryFlux arithmetic across distinct SNMesh instances "
                 "is forbidden — the field is mesh-bound."
             )
         if self.layout is not other.layout:  # type: ignore[attr-defined]
-            # Layouts may match structurally without sharing identity
-            # (e.g., re-derived from the same mesh). Fall back to
-            # structural equality — same set of face names + same
+            # Belt-and-suspenders since A.5: operands sourced from the
+            # same mesh share the cached ``mesh.trace`` (hence one layout
+            # identity), so this fires only for hand-built operands.
+            # Fall back to structural equality — same face names + same
             # per-face shapes + same offsets.
             if self.layout != other.layout:  # type: ignore[attr-defined]
                 raise ValueError(
@@ -140,6 +169,20 @@ class BoundaryFlux(Field):
                 )
 
     # ── Per-face access (slice views into the flat buffer) ───────────
+
+    @property
+    def layout(self) -> "FaceLayout":
+        r"""The per-geometry :class:`FaceLayout`, read off the space.
+
+        A.5 re-home: the layout lives on the
+        :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
+        (:attr:`TraceSpace.layout`), not as a separate field attribute.
+        This read-through property preserves the ``boundary.layout``
+        access surface (``boundary.layout.faces``, ``.total_size``) that
+        :meth:`face_view`, :meth:`_check_partner`, and downstream
+        consumers rely on.
+        """
+        return self.space.layout  # type: ignore[attr-defined]
 
     def face_view(self, name: str) -> NDArray:
         r"""Return a per-face slice view into the flat backing buffer.
@@ -203,15 +246,17 @@ class BoundaryFlux(Field):
         BoundaryFlux
             All-zero boundary flux on the mesh's flat boundary layout.
         """
-        layout = mesh.boundary_face_layout
-        space = FunctionSpace(
-            name="sn_boundary_flat",
-            shape=(layout.total_size,),
-        )
+        space = mesh.trace
+        if space is None:
+            raise ValueError(
+                "BoundaryFlux.zeros_for_sn_mesh: mesh has no TraceSpace "
+                "(mesh.trace is None — only trace-less 2-D cylindrical "
+                "meshes, which have no SN sweep, hit this). A BoundaryFlux "
+                "cannot be built without a boundary trace."
+            )
         return cls(
-            values=np.zeros(layout.total_size),
+            values=np.zeros(space.shape[0]),
             space=space,
-            layout=layout,
             mesh=mesh,
         )
 
@@ -250,7 +295,14 @@ class BoundaryFlux(Field):
             faces, or any per-face ndarray's shape mismatches the
             layout's expected per-face shape.
         """
-        layout = mesh.boundary_face_layout
+        space = mesh.trace
+        if space is None:
+            raise ValueError(
+                "BoundaryFlux.from_face_arrays: mesh has no TraceSpace "
+                "(mesh.trace is None — trace-less 2-D cylindrical). A "
+                "BoundaryFlux cannot be built without a boundary trace."
+            )
+        layout = space.layout
         provided = set(face_arrays.keys())
         expected = set(layout.faces.keys())
         if provided != expected:
@@ -271,9 +323,5 @@ class BoundaryFlux(Field):
                 )
             slot.slice_view(flat)[:] = arr
 
-        space = FunctionSpace(
-            name="sn_boundary_flat",
-            shape=(layout.total_size,),
-        )
-        return cls(values=flat, space=space, layout=layout, mesh=mesh)
+        return cls(values=flat, space=space, mesh=mesh)
 

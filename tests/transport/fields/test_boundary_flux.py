@@ -359,16 +359,22 @@ class TestConstruction:
     def test_post_init_validates_shape(self) -> None:
         """Constructing with values.shape != (layout.total_size,) raises."""
         m = _slab_mesh()
-        layout = m.boundary_face_layout
-        from orpheus.numerics.space import FunctionSpace
-        space = FunctionSpace(name="sn_boundary_flat", shape=(layout.total_size,))
         with pytest.raises(ValueError, match="values.shape"):
             BoundaryFlux(
-                values=np.zeros(layout.total_size + 1),
-                space=space,
-                layout=layout,
+                values=np.zeros(m.trace.shape[0] + 1),
+                space=m.trace,
                 mesh=m,
             )
+
+    def test_post_init_requires_trace_space(self) -> None:
+        """A.5: the space MUST be a TraceSpace carrying a FaceLayout —
+        a layout-less plain FunctionSpace cannot back a BoundaryFlux
+        (illegal-states-unrepresentable; ``face_view`` needs the layout)."""
+        m = _slab_mesh()
+        from orpheus.numerics.space import FunctionSpace
+        plain = FunctionSpace(name="sn_boundary_flat", shape=(m.trace.shape[0],))
+        with pytest.raises(TypeError, match="TraceSpace"):
+            BoundaryFlux(values=np.zeros(m.trace.shape[0]), space=plain, mesh=m)
 
     def test_from_face_arrays_slab(self) -> None:
         m = _slab_mesh()
