@@ -186,6 +186,7 @@ def test_sn_spherical_angular_convergence_at_fixed_mesh():
         "investigation + marker removal."
     ),
 )
+@pytest.mark.slow
 @pytest.mark.verifies(
     "transport-spherical",
     "sn-mms-spherical-aniso-psi",
@@ -234,6 +235,7 @@ def test_sn_spherical_aniso_mms_converges_second_order():
         "investigation + marker removal."
     ),
 )
+@pytest.mark.slow
 @pytest.mark.verifies(
     "transport-cylindrical",
     "sn-mms-cylindrical-aniso-psi",

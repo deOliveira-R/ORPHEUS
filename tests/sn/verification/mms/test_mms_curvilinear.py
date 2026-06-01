@@ -60,6 +60,7 @@ def _l2_1d(phi_num: np.ndarray, phi_ref: np.ndarray, volumes: np.ndarray) -> flo
         "investigation + marker removal."
     ),
 )
+@pytest.mark.slow
 @pytest.mark.verifies(
     "transport-spherical",
     "sn-mms-spherical-psi", "sn-mms-spherical-qext",
@@ -117,6 +118,7 @@ def test_sn_spherical_mms_converges_second_order():
         "investigation applies to both geometries."
     ),
 )
+@pytest.mark.slow
 @pytest.mark.verifies(
     "transport-cylindrical",
     "sn-mms-cylindrical-psi", "sn-mms-cylindrical-qext",

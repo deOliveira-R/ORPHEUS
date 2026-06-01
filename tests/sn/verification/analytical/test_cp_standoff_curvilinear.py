@@ -86,6 +86,7 @@ def test_cross_check_with_cp_1g():
 
 @_CYL_VERIFIES
 @pytest.mark.l2
+@pytest.mark.slow
 def test_heterogeneous_sn_vs_cp_cross_check():
     """Heterogeneous SN and CP should agree within ~10%."""
     from orpheus.cp.solver import solve_cp

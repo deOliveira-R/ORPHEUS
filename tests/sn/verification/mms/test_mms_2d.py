@@ -38,6 +38,7 @@ def _l2_2d(err: np.ndarray, volumes: np.ndarray) -> float:
 # ═══════════════════════════════════════════════════════════════════════
 
 @pytest.mark.l1
+@pytest.mark.slow
 @pytest.mark.verifies(
     "transport-cartesian-2d", "dd-cartesian-2d",
     "sn-mms-2d-psi", "sn-mms-2d-qext",
@@ -82,6 +83,7 @@ def test_sn_2d_cartesian_mms_converges_second_order():
 # ═══════════════════════════════════════════════════════════════════════
 
 @pytest.mark.l1
+@pytest.mark.slow
 @pytest.mark.verifies(
     "transport-cartesian-2d", "dd-cartesian-2d",
     "multigroup", "mg-balance",

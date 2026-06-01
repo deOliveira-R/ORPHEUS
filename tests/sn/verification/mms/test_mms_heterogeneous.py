@@ -53,6 +53,7 @@ def _cell_l2(err_cells: np.ndarray, widths: np.ndarray) -> float:
     return float(np.sqrt(np.sum(widths * err_cells * err_cells)))
 
 
+@pytest.mark.slow
 def test_sn_heterogeneous_mms_converges_second_order():
     r"""SN on a continuously heterogeneous 2-group slab shows measured
     :math:`\mathcal O(h^{2})` convergence.
@@ -114,6 +115,7 @@ def test_sn_heterogeneous_mms_converges_second_order():
     assert 1e-7 < errs_g1_arr[-1] < 1e-4, errs_g1_arr[-1]
 
 
+@pytest.mark.slow
 def test_sn_heterogeneous_mms_vacuum_bcs_exact_on_reference():
     r"""The reference :math:`\phi_g(x) = c_g\sin(\pi x/L)` is
     **exactly zero** at both boundaries for both groups.
@@ -196,6 +198,7 @@ def test_sn_heterogeneous_mms_manufactured_source_couples_groups():
         np.testing.assert_allclose(diff_g1[n], expected, atol=1e-14)
 
 
+@pytest.mark.slow
 def test_sn_heterogeneous_mms_positive_absorption_everywhere():
     r"""The canonical smooth Σ(x) must give :math:`\Sigma_{a,g}(x) > 0`
     on the whole slab for both groups.
