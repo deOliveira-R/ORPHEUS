@@ -37,6 +37,12 @@ test = [
     # injected mutant can cause an infinite loop, so each mutated run
     # must be time-bounded. Inert without `--timeout`.
     "pytest-timeout>=2",
+    # Mutation-testing engine for the sentinel sensitivity metric. Runs
+    # on Python 3.14.3 via the `local` distributor (NO xdist). Scopes to
+    # ONE module-under-test per config so per-capability runs stay
+    # tractable (~1 s/mutant). See tests/_mutation/README.md (Phase S0
+    # verdict: cosmic-ray over mutmut). diamond.py spike: 99.7 % score.
+    "cosmic-ray>=8.4",
     "sympy>=1.13",
 ]
 docs = [
@@ -72,6 +78,7 @@ markers = [
     "catches(*tags): failure-mode (FM-NN) or error-catalog (ERR-NNN) tags this test guards",
     "regression: Frozen-reference snapshot tests gating numerical drift across refactors (NOT a verification reference — see tests/sn/regression/_generate_snapshots.py)",
     "cap(name): SN capability-taxonomy tier the test exercises (orthogonal to l0/l1/l2/foundation). Names from the capability DAG in .claude/plans/sn_test_taxonomy.md: primitives, operators, sweep_core, sweep_slab, sweep_curvilinear, sweep_cartesian_2d, solve, eigenvalue, verification_mms, verification_analytical.",
+    "sentinel: SN canary regression tripwire — a CHEAP, sharply-sensitive test selected so `pytest -m sentinel` runs in seconds and a single flip localizes the blast radius via its cap() label + the capability DAG. Mutation-adequate fast net (NOT proof; the full per-tier suite is the deep net). One sentinel per capability node. See .claude/plans/sn_sentinel_harness.md.",
 ]
 
 [tool.setuptools.packages.find]

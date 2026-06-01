@@ -1,0 +1,16 @@
+[cosmic-ray]
+# S0 mutation-tool spike — scope ONE pure module against its FULL test set.
+# Proves cosmic-ray runs on Python 3.14.3 with the `local` distributor
+# (NO xdist, which deadlocks per sn_taxonomy_reorg_mapping.md).
+#
+# diamond.py spans TWO capability tiers:
+#   - update()/residual()  -> sweep_core (test_diamond, test_cell_balance_for_streaming)
+#   - update_batch()       -> sweep_core 2-D batch (test_cell_update_batch)
+# All three test files are needed to cover the whole module.
+module-path = "orpheus/sn/spatial/diamond.py"
+timeout = 30.0
+excluded-modules = []
+test-command = "env PYTHONPATH=/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/field-role-typing /Users/rodrigo/git/nuclear/ORPHEUS/.venv/bin/python -O -m pytest tests/sn/sweep/core/test_diamond.py tests/sn/sweep/core/test_cell_balance_for_streaming.py tests/sn/sweep/core/test_cell_update_batch.py -q -p no:cacheprovider --timeout=30"
+
+[cosmic-ray.distributor]
+name = "local"

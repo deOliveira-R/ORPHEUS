@@ -1,0 +1,4 @@
+# cosmic-ray session databases are regenerable work-order artifacts
+# (init → exec). Never commit — they are large (~90 MB) and per-run.
+*.sqlite
+*.sqlite-journal
