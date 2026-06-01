@@ -29,13 +29,38 @@ the abstraction created in B.1 now earns its keep.) Then **B.4 (UNITS
 class constant — user wants to steer)** and **B.5 (`from_balance`
 dimensional-sin rewire at `iteration.py:455` / `operator.py:1938`)**.
 
+**As-built shape a fresh session needs (post-compaction):**
+- Bases live in `orpheus/transport/fields/_bases.py`: `BulkField`
+  (mesh + mesh-binding `_check_partner` + `ng/nx/ny` + abstract
+  `_phase_space_shape`) → `AngularField`(N,ng,nx,ny)/`ScalarField`(ng,nx,ny)/
+  `MomentField`(marker); `BoundaryField` (mesh + TraceSpace contract +
+  `layout` property + `face_view` + `zeros_for_sn_mesh`/`from_face_arrays`
+  via `cls`). Angular/Scalar `from_mesh` is parametrized by the leaf's
+  `_SPACE_NAME` ClassVar.
+- Leaves (all THIN — `_SPACE_NAME` + role-specific methods only):
+  `AngularFlux`("angular_flux")/`AngularSource`("angular_source",
+  `angular_source.py`) on AngularField; `ScalarFlux`("scalar_flux")/
+  `ScalarSource`("scalar_source", `scalar_source.py`) on ScalarField;
+  `HarmonicMomentField` on MomentField; `BoundaryFlux` on BoundaryField.
+- **B.3 leaf pattern:** copy the B.1/B.2 thin-leaf shape (`6e70ec1`/
+  `698a587`). `AngularResidual(AngularField)` + `ScalarResidual(ScalarField)`
+  = `_SPACE_NAME` only (+ `UNITS` in B.4). `BoundarySource`/`BoundaryResidual`
+  `(BoundaryField)` = empty leaves (machinery all inherited, like BoundaryFlux).
+- **Verification workflow (load-bearing):** per-tier single-process
+  (NEVER whole `tests/sn` — OOMs). `pytest -m sentinel` WITHOUT `-O`
+  (vv Mode 8) = seconds-fast full-DAG net (36 nodes). Fast bit-identity =
+  `tests/{transport,sn/primitives,sn/operators}` (~760, ~4 s). The full
+  sweep/solve/eigenvalue convergence tiers are TOO SLOW to run whole
+  (issue **#211** — unmarked-slow studies; even `-m "not slow"` drags on
+  sweep/solve). Use `-n 6` (NOT `-n auto` — oversubscribes the 10-core box).
+  Test env: `PYTHONPATH=<worktree> .venv/bin/python` (worktree shadows the
+  editable install); host env.
+
 ---
 
-### (historical) PHASE A DONE + B.1 DONE, RESUME AT B.2
+### (historical — superseded by the SESSION STATE above)
 
----
-
-### (historical) PHASE A COMPLETE, RESUME AT B.1 (2026-06-01)
+#### PHASE A COMPLETE, RESUME AT B.1 (2026-06-01)
 
 **Phase A (the space layer) is DONE: A.1 + A.2/A.3 + A.4 + A.5.** Between A.3
 and A.4 the session took a large
@@ -107,7 +132,7 @@ cross-mesh guard (drop it once `TraceSpace` identity is mesh-distinguishing —
 sweep+transport+solve 652. Migrated the 2 direct-ctor test sites + added a
 negative guard test.
 
-**PHASE A (the space layer) IS COMPLETE. B.1 IS NEXT** — Phase B is the FIELD
+**(historical) Phase B overview** — Phase B is the FIELD
 VOCABULARY: storage-base ABCs (`BulkField`/`AngularField`/`ScalarField`/
 `MomentField`/`BoundaryField`) deduping the `AngularFlux`↔`PerOrdinateSource`
 machinery; then renames (`PerOrdinateSource→AngularSource`,
