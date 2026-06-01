@@ -124,6 +124,86 @@ def placeholder_materials(
     }
 
 
+# ── Shared curvilinear / slab mesh builders ──────────────────────────
+#
+# Lifted verbatim from the legacy ``test_cylindrical.py`` /
+# ``test_spherical.py`` modules during the SN taxonomy reorg so the
+# cylinder + sphere split files (eigenvalue/, sweep/curvilinear/,
+# verification/analytical/) share ONE definition rather than each
+# carrying a copy.
+
+_COORD_TO_TAG = {
+    "CARTESIAN": "SLB",
+    "CYLINDRICAL": "CYL",
+    "SPHERICAL": "SPH",
+}
+
+
+def _bcs_for(tag: str, bc):
+    """BC tuple matching the geometry tag's endpoint count."""
+    if tag == "SLB":
+        return (bc, bc)
+    return (bc,)
+
+
+def curvilinear_homogeneous_mesh(
+    n_cells: int,
+    total_width: float,
+    mat_id: int = 0,
+    coord=None,
+    bc=None,
+):
+    """Single-region uniform mesh in any coordinate system.
+
+    SN tests default to ``BC.reflective`` (the eigenvalue / lattice
+    convention). CP tests must override to ``BC.white`` because CP
+    only supports ``"vacuum"`` / ``"white"``.
+    """
+    from orpheus.geometry import (
+        BC, CoordSystem, Mesh1D, Region, RegionMesh, StructuredGeometry,
+    )
+    if coord is None:
+        coord = CoordSystem.CARTESIAN
+    if bc is None:
+        bc = BC.reflective
+    tag = _COORD_TO_TAG[coord.name]
+    geom = StructuredGeometry(
+        geometry=tag,
+        regions=(Region(mat_id=mat_id, outer_thickness_cm=total_width),),
+        bcs=_bcs_for(tag, bc),
+    )
+    return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+
+
+def curvilinear_two_region_mesh(
+    outers,
+    mat_ids,
+    n_cells,
+    coord,
+    bc=None,
+):
+    """Two-region mesh with absolute outer-edge convention."""
+    from orpheus.geometry import (
+        BC, Region, RegionMesh, StructuredGeometry,
+    )
+    from orpheus.geometry import Mesh1D
+    if bc is None:
+        bc = BC.reflective
+    tag = _COORD_TO_TAG[coord.name]
+    geom = StructuredGeometry(
+        geometry=tag,
+        regions=(
+            Region(mat_id=mat_ids[0], outer_thickness_cm=outers[0]),
+            Region(mat_id=mat_ids[1], outer_thickness_cm=outers[1] - outers[0]),
+        ),
+        bcs=_bcs_for(tag, bc),
+    )
+    return Mesh1D.from_geometry(geom, region_meshes=(
+        RegionMesh(n_cells=n_cells[0]),
+        RegionMesh(n_cells=n_cells[1]),
+    ))
+
+
 def legacy_proxy_matvec(
     psi_view: "np.ndarray", sn_mesh: "SNMesh", sigma_t: "np.ndarray",
     *, bc_outer=None, pole_angular_closure=None,
