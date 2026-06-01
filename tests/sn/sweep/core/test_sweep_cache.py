@@ -189,47 +189,59 @@ def test_two_strata_independence_by_ng_axis() -> None:
 def test_collision_cache_invariance_under_source_iteration() -> None:
     """Test #4 (CARDINAL) — :meth:`CollisionCache.from_geometry` called ONCE per σ_t epoch.
 
-    Run a 5-iteration Picard fixed-point on a homogeneous slab eigenvalue
-    problem.  The inner SI updates ``Q`` each iteration; the outer power
-    iteration updates the fission source.  Across both loops, σ_t is bound
-    once at ``SNSolver.__init__`` and the cache MUST be built exactly once.
+    Run a multi-iteration Picard fixed-point on a **heterogeneous**
+    fuel|moderator|fuel 2-group slab eigenvalue problem.  The inner SI
+    updates ``Q`` each iteration; the outer power iteration updates the
+    fission source.  Across both loops, σ_t is bound once at
+    ``SNSolver.__init__`` and the cache MUST be built exactly once.
 
     This is the cardinal invariance gate: it proves the cache placement
     on :class:`SNSolver` survives Picard, and that no sweep path is
     secretly rebuilding the cache on every iteration.
-    """
-    from orpheus.data.macro_xs.mixture import Mixture
-    from orpheus.sn.solver import solve_sn
-    from scipy.sparse import csr_matrix
 
-    # Single-group multiplying mixture: c = σ_s/σ_t = 0.5, νΣ_f = 0.3.
-    mix = Mixture(
-        SigT=np.array([1.0]),
-        SigC=np.array([0.5]),                       # capture
-        SigL=np.array([0.0]),                       # leakage / (n, 2n) loss
-        SigF=np.array([0.3]),
-        SigP=np.array([0.3]),                       # ν · Σ_f (production)
-        SigS=[csr_matrix(np.array([[0.5]]))],
-        Sig2=csr_matrix(np.array([[0.0]])),
-        chi=np.array([1.0]),
+    A heterogeneous 2G case is used deliberately: a homogeneous-reflective
+    slab is a degenerate eigenvalue problem (flat flux, k = νΣ_f/Σ_a is
+    shape-independent) and the power iteration converges in ~3 outer steps
+    regardless of tolerance — too few to meaningfully exercise the Picard
+    loop.  The fuel|moderator|fuel slab carries a genuine spatial +
+    spectral flux shape that the power iteration must settle over ~7
+    outer steps, so the once-per-epoch cache invariant is tested across a
+    real iteration history (the >= 5 floor is comfortably cleared).
+    """
+    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.geometry import Region, RegionMesh, StructuredGeometry
+    from orpheus.sn.solver import solve_sn
+
+    fuel = get_mixture("A", "2g")
+    mod = get_mixture("B", "2g")
+    materials = {0: fuel, 1: mod}
+    geom = StructuredGeometry(
+        geometry="SLB",
+        regions=(
+            Region(mat_id=0, outer_thickness_cm=0.5),
+            Region(mat_id=1, outer_thickness_cm=1.0),
+            Region(mat_id=0, outer_thickness_cm=0.5),
+        ),
+        bcs=(BC("reflective"), BC("reflective")),
     )
-    materials = {0: mix}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 11),
-        mat_ids=np.zeros(10, dtype=int),
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
+    mesh = Mesh1D.from_geometry(
+        geom,
+        region_meshes=(
+            RegionMesh(n_cells=2),
+            RegionMesh(n_cells=4),
+            RegionMesh(n_cells=2),
+        ),
     )
     quad = Quadrature.gauss_legendre(4)
 
-    # Reset counter, then run a converged eigenvalue (≥ 5 outer × N inner).
+    # Reset counter, then run a converged eigenvalue (~7 outer × N inner).
     CollisionCache.reset_build_count()
     result = solve_sn(
         materials=materials,
         mesh=mesh,
         quadrature=quad,
         inner_solver="source_iteration",
-        max_outer=20,
+        max_outer=50,
         max_inner=50,
         inner_tol=1e-8,
         keff_tol=1e-6,
@@ -237,7 +249,8 @@ def test_collision_cache_invariance_under_source_iteration() -> None:
     )
     assert len(result.keff_history) >= 5, (
         "Test fixture is too trivial — converged in fewer than 5 outer "
-        "iterations; raise max_outer to exercise the Picard loop."
+        "iterations; the heterogeneous slab should need ~7. Raise "
+        "max_outer or tighten tolerances to exercise the Picard loop."
     )
     # ``solve_sn`` constructs ONE fresh SNSolver, which builds the cache
     # exactly once at ``__init__``.  Subsequent sweeps (every outer ×
