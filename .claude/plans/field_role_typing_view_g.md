@@ -10,18 +10,28 @@ discipline — superseded), #208 (operator typing — **deferred**).
 
 ---
 
-## SESSION STATE — PHASE A DONE + B.1 DONE, RESUME AT B.2 (2026-06-01)
+## SESSION STATE — PHASE A + B.1 + B.2 DONE, RESUME AT B.3 (2026-06-01)
 
-**B.1 DONE (`6e70ec1`):** all 5 storage-base ABCs created in
-`transport/fields/_bases.py` (plan-literal); 6 leaves re-parented (−602
-lines of duplicated mesh/shape/factory/`_check_partner` machinery →
-single-sourced on the bases); bit-identical (space `name`s preserved via
-`_SPACE_NAME`, public API intact, `isinstance` holds). Verified: smoke +
-transport/primitives/operators 760 + sentinel 36/36. **B.2 IS NEXT** —
-renames `PerOrdinateSource→AngularSource`, `IsotropicSource→ScalarSource`
-(1-merge-cycle deprecation shim) + migrate consumers. ⚠ B.2 touches a
-public-API symbol name — user wanted to steer the rename strategy before
-it lands.
+**B.1 DONE (`6e70ec1`):** 5 storage-base ABCs in `transport/fields/
+_bases.py`; 6 leaves re-parented (−602 lines of duplicated machinery).
+**B.2 DONE (`698a587`):** HARD rename (user chose no shim)
+`PerOrdinateSource→AngularSource`, `IsotropicSource→ScalarSource` +
+`git mv` modules + `_SPACE_NAME`s + `SNMesh.zeros_*` factories; 37 files
+/ ~342 occurrences, 0 residual; cross-class injection dunder preserved.
+Both bit-identical; verified via 760 (primitives+transport+operators) +
+sentinel 36/36.
+
+**B.3 IS NEXT** — new role leaves: `AngularResidual` / `ScalarResidual`
+(BulkField, cm⁻³) + `BoundarySource` / `BoundaryResidual` (BoundaryField,
+cm⁻²). New tests: construction, same-class arithmetic closed, cross-class
+RAISES. (This is also where `BoundaryField` gains its 2nd/3rd instances —
+the abstraction created in B.1 now earns its keep.) Then **B.4 (UNITS
+class constant — user wants to steer)** and **B.5 (`from_balance`
+dimensional-sin rewire at `iteration.py:455` / `operator.py:1938`)**.
+
+---
+
+### (historical) PHASE A DONE + B.1 DONE, RESUME AT B.2
 
 ---
 
@@ -180,8 +190,8 @@ from SESSION STATE, and verify A.4 bit-identity against the relevant
 | **A.4 ✅** | consolidated all 8 inline `sign(Ω·n)` face masks in `operator.py` to read `TraceSpace.{inflow,outflow}_indices_for_face` (4 outflow in `_compute_LpC`/`_compute_decomposition` + 4 2-D inflow in `_apply_2d_cartesian`); new public `SNMesh.trace`. `f86846e` | **BI** (boolean-mask ≡ sorted fancy-index) | **DONE: sweep 524 / operators 392 / 2-D MMS 3 passed; A2D-1 hash pin updated.** Also: restored a dead L1 gate (`e46c63c`) + marked slow studies (`e581409`, fast loop 21 s); deferred deep test-speed → issue #211 |
 | **A.5 ✅** | re-homed `BoundaryFlux` onto `TraceSpace`: dropped field-side `layout` (→ read-through property `space.layout`), factories source `space=mesh.trace`, `__post_init__` enforces TraceSpace, retired both `sn_boundary_flat` builds; `mesh` kept as cross-mesh guard. `57c5151` | **BI** (only `space.name` flips, not values) | **DONE: test_boundary_flux 36 / operators-batch 439 / sweep+transport+solve 652 passed.** Migrated 2 direct-ctor test sites + added negative guard test |
 | **B.1 ✅** | created all 5 storage-base ABCs in `transport/fields/_bases.py` (plan-literal): `BulkField`(mesh+mesh-binding+ng/nx/ny+abstract `_phase_space_shape`) → `AngularField`/`ScalarField`(parametrized `from_mesh` via `_SPACE_NAME`)/`MomentField`(marker); `BoundaryField`(TraceSpace contract+layout+face_view+factories via `cls`). Re-parented all 6 leaves (−602 lines). `6e70ec1` | **BI** (values + space names + public API preserved; `isinstance` holds) | **DONE: smoke (MRO/abstractness/`_SPACE_NAME`) + transport+primitives+operators 760 passed + sentinel gate 36/36 (full DAG).** |
-| **B.2 ← NEXT** | rename sources (1-cycle shim); re-parent; land atomically (cross-class `__add__` + 4 singledispatch guards) | BI | `test_typed_sources.py` (migrate names) |
-| **B.3** | new leaves `Angular/ScalarResidual` (cm⁻³), `Boundary{Source,Residual}` (cm⁻²) | new | new construction/arith/cross-role-raise tests |
+| **B.2 ✅** | **HARD rename (no shim, user decision)**: `PerOrdinateSource→AngularSource`, `IsotropicSource→ScalarSource` (+ `git mv` modules, `_SPACE_NAME`s, `SNMesh.zeros_*` factories). 37 files / ~342 occurrences, 0 residual. Cross-class injection dunder preserved. `698a587` | **BI** (rename touches no values) | **DONE: 760 (primitives+transport+operators) + sentinel 36/36; imports clean; 0 residual tokens.** |
+| **B.3 ← NEXT** | new leaves `Angular/ScalarResidual` (cm⁻³), `Boundary{Source,Residual}` (cm⁻²) — and EXTRACT `BoundaryField`'s 2nd/3rd instances (deferred from B.1) | new | new construction/arith/cross-role-raise tests |
 | **B.4** | `UNITS` class constant; Layer-1 = units gate | new | dimensionality + `-O` zero-cost tests |
 | **B.5** | `from_balance`; rewire `iteration.py:455`/`operator.py:1938`; #207 cross-storage injection STAYS implicit (resolved) | NI type / BI arithmetic | 347 wall; named-composition test |
 | **B.6** | tighten `TimedFullField` slots | NI | composite reject tests (update `match=`) |
