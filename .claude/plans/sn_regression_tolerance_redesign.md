@@ -1,4 +1,40 @@
-# SN Regression-Test Tolerance Redesign + Drift Tripwire (queued)
+# SN Regression-Test Tolerance Redesign + Drift Tripwire (✅ DONE 2026-06-01)
+
+**Landed:** `94d3aa4` (keff_history fixture) · `887f2de` (principled gate) ·
+`7851eb2` (regenerate snapshots). Zero production changes. Regression tier =
+**11 passed** under normal / `-O` / strict `-W error::DriftWarning`.
+
+**As-built:** `tests/sn/regression/_regression_assert.py::assert_regression`
+(single source of truth, `-O`-safe — np.testing + explicit raise). Iterative
+gate = `SAFETY × conv_tol` with conv_tol READ off the run config (k_eff→keff_tol
+1e-12, eigen flux→flux_tol 1e-10, fixed-source→inner_tol 1e-12); **SAFETY=10**
+derived from the iteration-map gap bound `ρ/(1−ρ) ≲ 10` for the roster's `ρ≲0.9`
+(principled, not a fudge). Direct branch = `assert_array_almost_equal_nulp`
+(present; no current case is direct). `DriftWarning` tripwire: informational by
+default (summarized), `-W error::tests.sn.regression._regression_assert.DriftWarning`
+escalates to a strict bit-identity gate. Every regenerated snapshot was
+corroborated against a structurally-independent reference BEFORE trust
+(closed-form k_inf=λ_max(A⁻¹F), particle balance, flat inf-medium flux) — all
+reldiffs ≤ ~5e-12.
+
+**Two registry defects found + fixed (test-only):** (1) `slab/sphere_2g_p1_aniso`
+were MALFORMED eigen problems (non-multiplying mixture → k=0/0 → snapshots stored
+all-NaN, never valid coverage) → reformulated to well-posed **fixed_source** P1
+cases (preserves the P1-Galerkin coverage; corroborated vs flat inf-medium flux).
+(2) `2d_1g_LS4` raised NotImplementedError (2-D SI deferred) → switched to
+`inner_solver="krylov"` (reaches k_inf=1.5 exactly). `test_sweep_cache` stale
+`keff_history>=5` (degenerate slab converged in 3) → replaced with a
+heterogeneous fuel|mod|fuel 2G slab needing ~7 outer steps (strictly stronger).
+
+**OPEN (user decision, low-stakes):** the P1-aniso eigen→fixed-source
+reformulation is a scope expansion forced by the NaN defect. Accepted as the
+better option (the eigen form was broken-from-creation; reformulation preserves
+P1 coverage). Drop-instead = a one-line registry change if preferred.
+
+---
+
+## (original plan below — design now realized as above)
+
 
 **Why:** `tests/sn/regression/test_dd_regression.py` uses MAGIC FLOORS
 (`rtol=1e-12`/`atol=1e-13` slab; `rtol=5e-6` curvilinear) and a docstring that
