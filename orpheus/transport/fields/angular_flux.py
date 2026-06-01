@@ -43,13 +43,11 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
-from numpy.typing import NDArray
 
-from orpheus.numerics.field import Field
-from orpheus.numerics.space import FunctionSpace
+from orpheus.transport.fields._bases import AngularField
 
 if TYPE_CHECKING:
     from orpheus.sn.geometry import SNMesh
@@ -59,7 +57,7 @@ __all__ = ["AngularFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True)
-class AngularFlux(Field):
+class AngularFlux(AngularField):
     r"""L2 typed angular flux: pure :class:`Field` on (N, ng, nx, ny).
 
     Parameters
@@ -95,49 +93,12 @@ class AngularFlux(Field):
     :class:`~orpheus.transport.timed_full_field.TimedFullField`.
     """
 
-    mesh: "SNMesh"
-
-    # ── Construction validation ──────────────────────────────────────
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        expected = (self.mesh.quad.N, self.mesh.ng, self.mesh.nx, self.mesh.ny)
-        if self.space.shape != expected:
-            raise ValueError(
-                f"AngularFlux: space.shape {self.space.shape!r} does "
-                f"not match (mesh.quad.N, mesh.ng, mesh.nx, mesh.ny) "
-                f"= {expected!r}"
-            )
-
-    # ── Algebra extensions (over Field) ──────────────────────────────
-
-    def _check_partner(self, other: object) -> None:
-        super()._check_partner(other)
-        if self.mesh is not other.mesh:  # type: ignore[attr-defined]
-            raise ValueError(
-                "AngularFlux arithmetic across distinct SNMesh "
-                "instances is forbidden — the field is mesh-bound."
-            )
+    #: The :class:`FunctionSpace` name for this leaf (preserves the
+    #: pre-B.1 space identity). All mesh/shape/algebra/factory machinery
+    #: is inherited from :class:`AngularField` / :class:`BulkField`.
+    _SPACE_NAME: ClassVar[str] = "angular_flux"
 
     # ── Construction factories ───────────────────────────────────────
-
-    @classmethod
-    def from_mesh(
-        cls, values: NDArray, mesh: "SNMesh",
-    ) -> "AngularFlux":
-        r"""Construct from raw values + mesh, deriving the space."""
-        space = FunctionSpace(
-            name="angular_flux",
-            shape=(mesh.quad.N, mesh.ng, mesh.nx, mesh.ny),
-        )
-        return cls(values=values, space=space, mesh=mesh)
-
-    @classmethod
-    def from_ndarray(
-        cls, arr: NDArray, mesh: "SNMesh",
-    ) -> "AngularFlux":
-        r"""Test-ergonomic alias for :meth:`from_mesh`."""
-        return cls.from_mesh(arr, mesh)
 
     @classmethod
     def zeros_for_sn_mesh(cls, mesh: "SNMesh") -> "AngularFlux":
@@ -166,25 +127,3 @@ class AngularFlux(Field):
         # with weights (N,) → (ng, nx, ny).
         scalar_values = np.einsum("n,ngij->gij", weights, self.values)
         return ScalarFlux.from_mesh(scalar_values, self.mesh)
-
-    # ── Metadata read-throughs ───────────────────────────────────────
-
-    @property
-    def N(self) -> int:  # noqa: N802 — matches AngularQuadrature.N
-        r"""Number of angular ordinates."""
-        return self.mesh.quad.N
-
-    @property
-    def ng(self) -> int:
-        r"""Number of energy groups."""
-        return self.mesh.ng
-
-    @property
-    def nx(self) -> int:
-        r"""Number of cells along x."""
-        return self.mesh.nx
-
-    @property
-    def ny(self) -> int:
-        r"""Number of cells along y."""
-        return self.mesh.ny

@@ -48,14 +48,13 @@ goes through :meth:`from_isotropic` (named factory bakes it in).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.field import Field
-from orpheus.numerics.space import FunctionSpace
+from orpheus.transport.fields._bases import AngularField
 
 if TYPE_CHECKING:
     from orpheus.sn.geometry import SNMesh
@@ -65,7 +64,7 @@ __all__ = ["PerOrdinateSource"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True)
-class PerOrdinateSource(Field):
+class PerOrdinateSource(AngularField):
     r"""Per-ordinate source field :math:`Q^{\rm aniso}(\vec r, \hat\Omega_n, g)`.
 
     Parameters
@@ -89,30 +88,12 @@ class PerOrdinateSource(Field):
     Layer 1 class-identity gate.
     """
 
-    mesh: "SNMesh"
-
-    # ── Construction validation ──────────────────────────────────────
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        N = self.mesh.quad.N
-        expected = (N, self.mesh.ng, self.mesh.nx, self.mesh.ny)
-        if self.space.shape != expected:
-            raise ValueError(
-                f"PerOrdinateSource: space.shape {self.space.shape!r} "
-                f"does not match (mesh.quad.N, mesh.ng, mesh.nx, mesh.ny) "
-                f"= {expected!r}"
-            )
+    #: The :class:`FunctionSpace` name for this leaf (preserves the
+    #: pre-B.1 space identity). All mesh/shape/algebra/factory machinery
+    #: is inherited from :class:`AngularField` / :class:`BulkField`.
+    _SPACE_NAME: ClassVar[str] = "per_ordinate_source"
 
     # ── Algebra extensions (over Field) ──────────────────────────────
-
-    def _check_partner(self, other: object) -> None:
-        super()._check_partner(other)
-        if self.mesh is not other.mesh:  # type: ignore[attr-defined]
-            raise ValueError(
-                "PerOrdinateSource arithmetic across distinct SNMesh "
-                "instances is forbidden — the field is mesh-bound."
-            )
 
     def __add__(self, other):
         r"""Add a partner source — dispatches by partner type.
@@ -140,24 +121,6 @@ class PerOrdinateSource(Field):
         return super().__add__(other)
 
     # ── Construction factories ───────────────────────────────────────
-
-    @classmethod
-    def from_mesh(
-        cls, values: NDArray, mesh: "SNMesh",
-    ) -> "PerOrdinateSource":
-        r"""Construct from raw values + mesh, deriving the space."""
-        space = FunctionSpace(
-            name="per_ordinate_source",
-            shape=(mesh.quad.N, mesh.ng, mesh.nx, mesh.ny),
-        )
-        return cls(values=values, space=space, mesh=mesh)
-
-    @classmethod
-    def from_ndarray(
-        cls, arr: NDArray, mesh: "SNMesh",
-    ) -> "PerOrdinateSource":
-        r"""Test-ergonomic alias for :meth:`from_mesh`."""
-        return cls.from_mesh(arr, mesh)
 
     @classmethod
     def from_isotropic(
@@ -215,22 +178,3 @@ class PerOrdinateSource(Field):
     def at_ordinate(self, n: int) -> NDArray:
         r"""Return the per-ordinate slice ``values[n]``, shape ``(ng, nx, ny)``."""
         return self.values[n]
-
-    # ── Metadata read-throughs ───────────────────────────────────────
-
-    @property
-    def N(self) -> int:  # noqa: N802 — matches AngularQuadrature.N
-        r"""Number of angular ordinates."""
-        return self.mesh.quad.N
-
-    @property
-    def ng(self) -> int:
-        return self.mesh.ng
-
-    @property
-    def nx(self) -> int:
-        return self.mesh.nx
-
-    @property
-    def ny(self) -> int:
-        return self.mesh.ny

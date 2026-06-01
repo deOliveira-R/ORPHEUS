@@ -82,13 +82,11 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
-import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.field import Field
-from orpheus.numerics.space import FunctionSpace
+from orpheus.transport.fields._bases import ScalarField
 
 if TYPE_CHECKING:
     from orpheus.sn.geometry import SNMesh
@@ -98,7 +96,7 @@ __all__ = ["ScalarFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True)
-class ScalarFlux(Field):
+class ScalarFlux(ScalarField):
     r"""Scalar flux field :math:`\phi(\vec r, g)`.
 
     Parameters
@@ -133,113 +131,13 @@ class ScalarFlux(Field):
     lives at L2. At runtime ``mesh`` is duck-typed.
     """
 
-    mesh: "SNMesh"
-
-    # ── Construction validation ──────────────────────────────────────
-
-    def __post_init__(self) -> None:
-        super().__post_init__()  # Field validates shape against space.
-        expected = (self.mesh.ng, self.mesh.nx, self.mesh.ny)
-        if self.space.shape != expected:
-            raise ValueError(
-                f"ScalarFlux: space.shape {self.space.shape!r} does not "
-                f"match mesh phase-space shape (mesh.ng, mesh.nx, mesh.ny) "
-                f"= {expected!r}"
-            )
-
-    # ── Algebra extensions (over Field) ──────────────────────────────
-
-    def _check_partner(self, other: object) -> None:
-        r"""Reject cross-mesh arithmetic on top of Field's class/space
-        gate.
-
-        Field's :meth:`~Field._check_partner` rejects on class
-        identity (Layer 1) and space equality. This override adds
-        the SN-specific mesh-identity check: two :class:`ScalarFlux`
-        instances built on DIFFERENT :class:`SNMesh` instances are
-        non-additive, even when the meshes have matching shapes.
-
-        Rationale: an SNMesh carries per-cell geometric metadata
-        (volumes, edge coordinates, BC tags) that two same-shape
-        meshes may disagree on. Silently mixing fluxes across such
-        meshes produces a physically meaningless result. The
-        existing pre-Depth-B contract was strict on this; the
-        migration preserves it.
-        """
-        super()._check_partner(other)
-        if self.mesh is not other.mesh:  # type: ignore[attr-defined]
-            raise ValueError(
-                "ScalarFlux arithmetic across distinct SNMesh instances "
-                "is forbidden — the field is mesh-bound."
-            )
-
-    # ── Construction factories ───────────────────────────────────────
-
-    @classmethod
-    def from_mesh(
-        cls, values: NDArray, mesh: "SNMesh",
-    ) -> "ScalarFlux":
-        r"""Construct a :class:`ScalarFlux` from raw values + mesh,
-        deriving the :class:`FunctionSpace` automatically.
-
-        This is the ergonomic 2-arg constructor — the canonical
-        migration path from the pre-Depth-B positional
-        ``ScalarFlux(values, mesh)`` API. The space is built with
-        ``name='scalar_flux'`` and ``shape=(mesh.ng, mesh.nx, mesh.ny)``.
-
-        Parameters
-        ----------
-        values : NDArray
-            Field values of shape ``(mesh.ng, mesh.nx, mesh.ny)``.
-        mesh : SNMesh
-            The SN phase-space carrier.
-
-        Returns
-        -------
-        ScalarFlux
-            Typed scalar-flux instance.
-        """
-        space = FunctionSpace(
-            name="scalar_flux",
-            shape=(mesh.ng, mesh.nx, mesh.ny),
-        )
-        return cls(values=values, space=space, mesh=mesh)
-
-    @classmethod
-    def from_ndarray(
-        cls, arr: NDArray, mesh: "SNMesh",
-    ) -> "ScalarFlux":
-        r"""Test-ergonomic alias for :meth:`from_mesh`.
-
-        Per Depth B plan §3.7, every typed field exposes
-        ``from_ndarray(arr, mesh)`` as the migration path from the
-        retired ``apply(np.ndarray)`` singledispatch handlers (D-I).
-        For :class:`ScalarFlux` this is just an alias of
-        :meth:`from_mesh`; subclasses with more complex construction
-        (e.g. :class:`AngularFlux` with its boundary partner) carry
-        a distinct ``from_ndarray`` body.
-        """
-        return cls.from_mesh(arr, mesh)
+    #: The :class:`FunctionSpace` name for this leaf (preserves the
+    #: pre-B.1 space identity). All mesh/shape/algebra/factory machinery
+    #: is inherited from :class:`ScalarField` / :class:`BulkField`.
+    _SPACE_NAME: ClassVar[str] = "scalar_flux"
 
     # ── Selectors ────────────────────────────────────────────────────
 
     def at_group(self, g: int) -> NDArray:
         r"""Return the per-group slice ``values[g]``, shape ``(nx, ny)``."""
         return self.values[g]
-
-    # ── Metadata read-throughs ───────────────────────────────────────
-
-    @property
-    def ng(self) -> int:
-        r"""Energy group count (delegated to ``mesh.ng``)."""
-        return self.mesh.ng
-
-    @property
-    def nx(self) -> int:
-        r"""Spatial extent in x (delegated to ``mesh.nx``)."""
-        return self.mesh.nx
-
-    @property
-    def ny(self) -> int:
-        r"""Spatial extent in y (delegated to ``mesh.ny``)."""
-        return self.mesh.ny

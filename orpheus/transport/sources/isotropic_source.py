@@ -61,13 +61,12 @@ named factory is a Pattern 7 discipline concern, not a dunder concern.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.field import Field
-from orpheus.numerics.space import FunctionSpace
+from orpheus.transport.fields._bases import ScalarField
 
 if TYPE_CHECKING:
     from orpheus.sn.geometry import SNMesh
@@ -78,7 +77,7 @@ __all__ = ["IsotropicSource"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True)
-class IsotropicSource(Field):
+class IsotropicSource(ScalarField):
     r"""Isotropic source field :math:`Q(\vec r, g)`.
 
     Parameters
@@ -108,28 +107,12 @@ class IsotropicSource(Field):
     RETIRED — see module docstring for the named-composition migration.
     """
 
-    mesh: "SNMesh"
-
-    # ── Construction validation ──────────────────────────────────────
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        expected = (self.mesh.ng, self.mesh.nx, self.mesh.ny)
-        if self.space.shape != expected:
-            raise ValueError(
-                f"IsotropicSource: space.shape {self.space.shape!r} does "
-                f"not match (mesh.ng, mesh.nx, mesh.ny) = {expected!r}"
-            )
+    #: The :class:`FunctionSpace` name for this leaf (preserves the
+    #: pre-B.1 space identity). All mesh/shape/algebra/factory machinery
+    #: is inherited from :class:`ScalarField` / :class:`BulkField`.
+    _SPACE_NAME: ClassVar[str] = "isotropic_source"
 
     # ── Algebra extensions (over Field) ──────────────────────────────
-
-    def _check_partner(self, other: object) -> None:
-        super()._check_partner(other)
-        if self.mesh is not other.mesh:  # type: ignore[attr-defined]
-            raise ValueError(
-                "IsotropicSource arithmetic across distinct SNMesh "
-                "instances is forbidden — the field is mesh-bound."
-            )
 
     def __add__(self, other):
         r"""Add a partner source — dispatches by partner type.
@@ -176,26 +159,6 @@ class IsotropicSource(Field):
             return self.__add__(other)
         return NotImplemented
 
-    # ── Construction factories ───────────────────────────────────────
-
-    @classmethod
-    def from_mesh(
-        cls, values: NDArray, mesh: "SNMesh",
-    ) -> "IsotropicSource":
-        r"""Construct from raw values + mesh, deriving the space."""
-        space = FunctionSpace(
-            name="isotropic_source",
-            shape=(mesh.ng, mesh.nx, mesh.ny),
-        )
-        return cls(values=values, space=space, mesh=mesh)
-
-    @classmethod
-    def from_ndarray(
-        cls, arr: NDArray, mesh: "SNMesh",
-    ) -> "IsotropicSource":
-        r"""Test-ergonomic alias for :meth:`from_mesh`."""
-        return cls.from_mesh(arr, mesh)
-
     # ── Conversion (named cross-class composition) ───────────────────
 
     def as_per_ordinate(self) -> "PerOrdinateSource":
@@ -220,17 +183,3 @@ class IsotropicSource(Field):
             self.values[None, :, :, :], target_shape,
         ).copy()
         return PerOrdinateSource.from_mesh(per_ord_values, self.mesh)
-
-    # ── Metadata read-throughs ───────────────────────────────────────
-
-    @property
-    def ng(self) -> int:
-        return self.mesh.ng
-
-    @property
-    def nx(self) -> int:
-        return self.mesh.nx
-
-    @property
-    def ny(self) -> int:
-        return self.mesh.ny

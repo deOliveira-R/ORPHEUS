@@ -80,11 +80,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.field import Field
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.spherical_harmonic_space import (
     SphericalHarmonicSpace,
 )
+from orpheus.transport.fields._bases import MomentField
 
 if TYPE_CHECKING:
     from orpheus.sn.geometry import SNMesh
@@ -95,7 +95,7 @@ __all__ = ["HarmonicMomentField"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True)
-class HarmonicMomentField(Field):
+class HarmonicMomentField(MomentField):
     r"""Real-spherical-harmonic moment field :math:`\phi_\ell^m(\vec r, g)`.
 
     Parameters
@@ -137,46 +137,34 @@ class HarmonicMomentField(Field):
     :class:`HarmonicMomentReconstruction`.
     """
 
-    mesh: "SNMesh"
     L: int
 
     # ── Construction validation ──────────────────────────────────────
 
-    def __post_init__(self) -> None:
-        super().__post_init__()  # Field validates shape against space.
-        expected = (
+    def _phase_space_shape(self) -> tuple[int, ...]:
+        r"""The ``(L+1, 2L+1, ng, nx, ny)`` moment phase-space shape.
+
+        Implements :meth:`BulkField._phase_space_shape`; the shared
+        :meth:`BulkField.__post_init__` validator consumes it. The
+        leading two axes encode the harmonic truncation order ``L``.
+        """
+        return (
             self.L + 1, 2 * self.L + 1,
             self.mesh.ng, self.mesh.nx, self.mesh.ny,
         )
-        if self.space.shape != expected:
-            raise ValueError(
-                f"HarmonicMomentField: space.shape {self.space.shape!r} "
-                f"does not match (L+1, 2L+1, mesh.ng, mesh.nx, mesh.ny) "
-                f"= {expected!r}"
-            )
 
-    # ── Algebra extensions (over Field) ──────────────────────────────
+    # ── Algebra extensions (over BulkField) ──────────────────────────
 
     def _check_partner(self, other: object) -> None:
-        r"""Reject mesh-and-L mismatches on top of Field's class/space gate.
+        r"""Add the L-match on top of BulkField's class/space/mesh gate.
 
-        Field's :meth:`~Field._check_partner` rejects on class identity
-        and space equality. This override adds:
-
-        * Mesh-identity check (same pattern as
-          :class:`ScalarFlux._check_partner`): SN fluxes are mesh-bound;
-          mixing fluxes across distinct :class:`SNMesh` instances is
-          a class of bugs the strict identity check prevents.
-        * Explicit ``L`` match for a clearer error message at the
-          truncation-mismatch site (the space check also catches this
-          via shape mismatch, but the message is less specific).
+        :meth:`BulkField._check_partner` already rejects on class
+        identity, space equality, AND mesh identity (mesh-bound). This
+        override adds an explicit ``L`` match for a clearer error
+        message at the truncation-mismatch site (the space check also
+        catches it via shape mismatch, but the message is less specific).
         """
         super()._check_partner(other)
-        if self.mesh is not other.mesh:  # type: ignore[attr-defined]
-            raise ValueError(
-                "HarmonicMomentField arithmetic across distinct SNMesh "
-                "instances is forbidden — the field is mesh-bound."
-            )
         if self.L != other.L:  # type: ignore[attr-defined]
             raise ValueError(
                 f"HarmonicMomentField arithmetic requires matching L; "
@@ -291,6 +279,8 @@ class HarmonicMomentField(Field):
         from orpheus.transport.fields.scalar_flux import ScalarFlux
         return ScalarFlux.from_mesh(self.values[0, 0].copy(), self.mesh)
 
+    # ── Truncation ───────────────────────────────────────────────────
+
     def truncate(self, L_new: int) -> "HarmonicMomentField":
         r"""Return a new :class:`HarmonicMomentField` truncated to
         :math:`L_{\rm new} \le L`.
@@ -324,20 +314,3 @@ class HarmonicMomentField(Field):
         return HarmonicMomentField.from_mesh_and_L(
             new_values, self.mesh, L_new,
         )
-
-    # ── Metadata read-throughs ───────────────────────────────────────
-
-    @property
-    def ng(self) -> int:
-        r"""Energy group count (delegated to ``mesh.ng``)."""
-        return self.mesh.ng
-
-    @property
-    def nx(self) -> int:
-        r"""Spatial extent in x (delegated to ``mesh.nx``)."""
-        return self.mesh.nx
-
-    @property
-    def ny(self) -> int:
-        r"""Spatial extent in y (delegated to ``mesh.ny``)."""
-        return self.mesh.ny
