@@ -169,14 +169,27 @@ def test_sn_heterogeneous_mms_manufactured_source_couples_groups():
     # the μ-dependent streaming term (which only couples to c_g of the
     # same group and would be identical between the two cases for g=1
     # since c_1 is the same in both).
-    diff_g1 = (Q_coupled - Q_uncoupled)[:, :, 0, 1]   # (N_ord, n_cells)
+    # ``external_source`` is the per-ordinate angular source, shape
+    # ``(N_ord, n_groups, n_cells, n_y)``; select group g=1 (thermal),
+    # all cells, the single y-slab → ``(N_ord, n_cells)``. (The prior
+    # ``[:, :, 0, 1]`` indexed axis order n_cells/n_y wrong and raised
+    # IndexError on ``n_y == 1`` — this regression guard never actually
+    # executed until A.4's verification sweep surfaced it.)
+    diff_g1 = (Q_coupled - Q_uncoupled)[:, 1, :, 0]   # (N_ord, n_cells)
 
-    # Expected: Q_coupled_g1 - Q_uncoupled_g1 = -Σ_{s,0→1}(x) * (c0_coup - c0_uncoup) * A(x)
+    # Expected: Q_coupled_g1 - Q_uncoupled_g1
+    #   = -Σ_{s,0→1}(x) * (c0_coup - c0_uncoup) * A(x) / Σ_n w_n.
+    # The 1/Σ_n w_n carries the per-ordinate-DENSITY normalization that
+    # ``external_source`` applies (``Q /= sum_w``, Pattern 7 "R-1 Step 4
+    # A1") — the streaming and removal terms cancel in the g=1 difference
+    # (c_1 is identical in both cases), leaving only the isotropic g0→g1
+    # in-scatter contribution, itself emitted as a per-ordinate density.
     x = mesh.centers
     L = case_coupled.slab_length
     A = np.sin(np.pi * x / L)
     sig_s_01 = np.asarray(case_coupled.sigma_s_fn(x, 0, 1), dtype=float)
-    expected = -sig_s_01 * (1.0 - 0.0) * A  # (n_cells,)
+    sum_w = float(case_coupled.quadrature.weights.sum())
+    expected = -sig_s_01 * (1.0 - 0.0) * A / sum_w  # (n_cells,)
 
     # Every ordinate must see the same isotropic difference
     for n in range(diff_g1.shape[0]):
