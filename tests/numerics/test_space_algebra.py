@@ -16,7 +16,6 @@ operator-algebra rewires by construction.
 from __future__ import annotations
 
 import numpy as np
-import pint
 import pytest
 
 from orpheus.numerics.space import (
@@ -24,16 +23,6 @@ from orpheus.numerics.space import (
     FunctionSpace,
     TensorProductSpace,
 )
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Test fixtures
-# ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.fixture(scope="module")
-def ureg() -> pint.UnitRegistry:
-    return pint.UnitRegistry()
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -187,32 +176,6 @@ def test_inner_product_mixed_euclidean_and_weighted():
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Units composition
-# ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.foundation
-def test_tp_units_multiply(ureg):
-    r"""Units of :math:`V_1 \otimes V_2` are the product of factor units."""
-    a = FunctionSpace(name="X", shape=(3,), units=ureg.Unit("cm**-2"))
-    b = FunctionSpace(name="T", shape=(2,), units=ureg.Unit("s**-1"))
-    tp = a * b
-    assert tp.units is not None
-    # Dimensionality is [length]^-2 · [time]^-1.
-    expected_dim = (ureg.Unit("cm**-2") * ureg.Unit("s**-1")).dimensionality
-    assert tp.units.dimensionality == expected_dim
-
-
-@pytest.mark.foundation
-def test_tp_units_none_if_any_factor_unitless(ureg):
-    """If any factor lacks units, the TP product is None (cannot infer)."""
-    a = FunctionSpace(name="X", shape=(3,), units=ureg.Unit("cm**-2"))
-    b = FunctionSpace(name="G", shape=(2,))  # no units
-    tp = a * b
-    assert tp.units is None
-
-
-# ─────────────────────────────────────────────────────────────────────
 # Equality / hashing
 # ─────────────────────────────────────────────────────────────────────
 
@@ -265,17 +228,17 @@ def test_dual_idempotent():
 
 
 @pytest.mark.foundation
-def test_dual_preserves_weights_and_units(ureg):
-    """The L²-Riesz dual carries the same weights and units as the primal."""
+def test_dual_preserves_weights():
+    """The L²-Riesz dual carries the same inner-product weights as the primal.
+
+    Units are NOT a space property (View-G, issues #205 / #207) — they
+    live on the field role-leaf, so there is nothing unit-like for the
+    dual to preserve here.
+    """
     w = np.array([1.0, 2.0, 3.0])
-    a = FunctionSpace(
-        name="X", shape=(3,),
-        inner_product_weights=w,
-        units=ureg.Unit("cm**-2"),
-    )
+    a = FunctionSpace(name="X", shape=(3,), inner_product_weights=w)
     a_dual = a.dual()
     np.testing.assert_array_equal(a_dual.inner_product_weights, w)
-    assert a_dual.units == a.units
 
 
 # ─────────────────────────────────────────────────────────────────────

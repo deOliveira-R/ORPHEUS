@@ -27,45 +27,45 @@ It lives at L1 because it knows nothing about transport: it is just
 etc.) lift this ABC at L2 (``orpheus/transport/fields/...``) by adding
 their domain-specific fields (e.g. ``mesh: SNMesh``, ``boundary``).
 
-The three-layer dimensional enforcement story
-=============================================
+Dimensional enforcement under View-G
+====================================
 
-Dimensional consistency is enforced at three layers, each with a
-different cost/coverage trade-off (see plan §7.5):
+Units do NOT live on the :class:`~orpheus.numerics.space.FunctionSpace`
+(the "View-G" decision, issues #205 / #207): a space is pure geometry
+and is role-/dimension-agnostic. Units are a property of the *quantity*
+(the field) and the *map* (the operator), enforced at two layers:
 
 * **Layer 1 — class identity.** ``Field._check_partner`` rejects
   ``type(self) is not type(other)`` before any value comparison.
-  This is the *primary* gate: even when units match (e.g. an
+  This is the runtime gate: even when units match (e.g. an
   ``AngularSource`` and an ``AngularResidual`` may both carry
-  ``1/(cm²·s·sr·eV)``), the cross-class arithmetic raises by
-  construction. Same units gives PERMISSION to add in linear
-  algebra; it does not give MEANING. The "complex-frequency"
+  ``1/(cm³·s·sr·eV)``), the cross-class arithmetic raises by
+  construction. Same units give PERMISSION to add in linear
+  algebra; they do not give MEANING. The "complex-frequency"
   analog: ``i ω − γ = s`` is the named complex-frequency
-  construction; naive ``ω + γ`` is forbidden by convention.
-* **Layer 2 — dimensional check at solver construction.**
-  ``SourceIteration.__init__`` / ``KrylovAcceleration.__init__``
-  do a single O(1) ``pint.Unit.dimensionality`` comparison per
-  operator to verify the operator algebra is dimensionally sound
-  before any iteration runs. Cost: microseconds per solver build.
-  ALWAYS runs (both ``pytest`` and ``python -O``). See plan §5.
-* **Layer 3 — defensive assert in dunders.** Inside
-  :meth:`_check_partner` an ``assert self.space.units ==
-  other.space.units`` catches the rare class/units misdesign
-  (two instances of the same class whose spaces nonetheless
-  carry inconsistent units — e.g. one in ``1/cm²``, one in
-  ``1/m²``). Stripped in ``-O`` mode; defense in depth during
-  development.
+  construction; naive ``ω + γ`` is forbidden by convention. Because
+  each role-leaf carries its units as a class constant ``UNITS``
+  (Phase B of the field-vocabulary plan), class identity *is* units
+  identity — no per-instance units check is needed, and the old
+  space-level ``units`` assert retired together with the field.
+* **Layer 2 — dimensional check at operator construction.** The
+  dimensional soundness of an operator algebra (the ``L``, ``C``,
+  ``S``, ``F`` unit-gains composing to a consistent residual) is
+  checked once when the composite operator is assembled, via the
+  operator's unit-gain — O(1) per build, runs under ``python -O``.
+  This is the operator-side counterpart to the field-side ``UNITS``
+  and lands with the operator typing (issue #208).
 
-Together these layers make dimensional-mismatch bugs unrepresentable
-without paying the cost of full pint-Quantity arithmetic on every
-ndarray operation (which would be prohibitive).
+Together these make dimensional-mismatch bugs unrepresentable without
+paying the cost of full pint-Quantity arithmetic on every ndarray
+operation (which would be prohibitive).
 
 Class identity for cross-class same-units operations
 ====================================================
 
 When two distinct Field subclasses share a dimensional signature
 (e.g. ``AngularResidual`` and ``AngularSource`` both have units
-``1/(cm²·s·sr·eV)``), arithmetic between them is REQUIRED to go
+``1/(cm³·s·sr·eV)``), arithmetic between them is REQUIRED to go
 through an explicit *named composition* — a factory method that
 constructs the result with a definite physical interpretation. The
 canonical example (planned for Issue #201):
@@ -166,17 +166,14 @@ class Field(ABC):
     def _check_partner(self, other: object) -> None:
         r"""Reject ill-formed binary operations.
 
-        Three-layer dimensional enforcement (see module docstring):
+        Dimensional enforcement under View-G (see module docstring):
 
-        * **Layer 1** (always): ``type(self) is type(other)``. The
-          primary gate — cross-class arithmetic is forbidden even
-          when units match.
-        * **Layer 2** is at solver-construction (not here).
-        * **Layer 3** (stripped in ``-O``): defensive assert that
-          ``space.units`` agree exactly. Tautological if the class
-          hierarchy is well-designed; catches class/units misdesign
-          where two instances of the same class carry different
-          units (e.g. one in ``1/cm²``, one in ``1/m²``).
+        * **Layer 1** (always, here): ``type(self) is type(other)``.
+          The runtime gate — cross-class arithmetic is forbidden even
+          when units match. Because each role-leaf's units are a class
+          constant ``UNITS``, class identity *is* units identity.
+        * **Layer 2** (operator construction, not here): the operator
+          unit-gain dimensional check (issue #208).
         """
         if type(self) is not type(other):
             raise TypeError(
@@ -191,12 +188,6 @@ class Field(ABC):
                 f"{type(self).__name__} arithmetic requires equal space; "
                 f"got {self.space!r} vs {other.space!r}"
             )
-        # Layer 3 — defensive units assertion, stripped in -O mode.
-        assert self.space.units == other.space.units, (
-            f"internal: class identity matched but units mismatch "
-            f"({self.space.units} vs {other.space.units}) — "
-            f"class/units inconsistency in {type(self).__name__}"
-        )
 
     def __add__(self: T, other: T) -> T:
         self._check_partner(other)

@@ -6,10 +6,12 @@ unchanged:
 * Same-class + same-space addition / subtraction / negation return
   the same concrete subclass.
 * Cross-class arithmetic raises ``TypeError`` (the Layer 1 gate —
-  *primary* dimensional defense; runs in both ``pytest`` and
-  ``python -O -m pytest``).
+  the runtime dimensional defense; runs in both ``pytest`` and
+  ``python -O -m pytest``). Under View-G (issues #205 / #207) units
+  live on the field role-leaf, not the space, so class identity *is*
+  units identity.
 * Cross-space arithmetic raises ``ValueError`` even within the same
-  class (different shapes, names, or dimensionalities).
+  class (different shapes or names).
 * Scalar multiplication / division / unary negation preserve class
   identity and space.
 * :meth:`~Field.inner_product` reads the space's metric (Euclidean
@@ -25,8 +27,9 @@ These tests use a test-local concrete subclass ``_DummyField`` because
 their own tests in ``tests/transport/fields/``.
 
 See ``.claude/plans/depth_b_field_on_function_space.md`` §3.2 for the
-ABC spec, §7.5 for the three-layer dimensional-enforcement story,
-and §7.1 for the test inventory.
+ABC spec and §7.1 for the test inventory; the View-G dimensional-
+enforcement story (units live on the field role-leaf, not the space)
+is in the field-vocabulary plan (issues #205 / #201).
 """
 
 from __future__ import annotations
@@ -34,7 +37,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-import pint
 import pytest
 
 from orpheus.numerics.field import Field
@@ -42,14 +44,8 @@ from orpheus.numerics.space import FunctionSpace
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Test fixtures: concrete subclasses + a shared pint registry.
+# Test fixtures: concrete subclasses.
 # ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.fixture(scope="module")
-def ureg() -> pint.UnitRegistry:
-    """A shared pint registry for unit construction."""
-    return pint.UnitRegistry()
 
 
 @dataclass(frozen=True, eq=False, kw_only=True)
@@ -199,16 +195,17 @@ def test_cross_class_subtraction_rejected():
 
 
 @pytest.mark.foundation
-def test_cross_class_addition_rejected_even_with_matching_units(ureg):
-    """The class-identity gate is dimensional-units-independent.
+def test_cross_class_addition_rejected_on_shared_space():
+    """The class-identity gate is units-independent.
 
-    Two subclasses with the same units dimensionality MUST still
-    refuse to add. This pins the "same units gives PERMISSION but
-    not MEANING" semantics — same units is necessary-but-not-
-    sufficient; class identity is what carries the physical kind.
+    Two subclasses sharing the *same* geometric space (hence, under
+    View-G, the same would-be units) MUST still refuse to add. This
+    pins the "same units gives PERMISSION but not MEANING" semantics —
+    same units is necessary-but-not-sufficient; class identity is what
+    carries the physical kind. (Units are a role-leaf class constant,
+    not a space property — issues #205 / #207.)
     """
-    units = ureg.Unit("1/(cm**2 * s * eV)")
-    sp = FunctionSpace(name="dummy", shape=(3,), units=units)
+    sp = FunctionSpace(name="dummy", shape=(3,))
     a = _DummyField(values=np.zeros(3), space=sp)
     b = _OtherDummyField(values=np.zeros(3), space=sp)
     with pytest.raises(TypeError, match="same-class partner"):
@@ -238,81 +235,6 @@ def test_cross_space_addition_rejected_on_name_mismatch():
     b = _DummyField(values=np.zeros(3), space=sp_b)
     with pytest.raises(ValueError, match="equal space"):
         _ = a + b
-
-
-@pytest.mark.foundation
-def test_cross_space_addition_rejected_on_dimensionality_mismatch(ureg):
-    """Two same-class fields with same (name, shape) but DIFFERENT
-    units dimensionality MUST raise — the space check catches the
-    incompatible dimensions via :meth:`FunctionSpace.__eq__`.
-    """
-    sp_a = FunctionSpace(name="dummy", shape=(3,), units=ureg.Unit("1/cm**2"))
-    sp_b = FunctionSpace(name="dummy", shape=(3,), units=ureg.Unit("1/s"))
-    a = _DummyField(values=np.zeros(3), space=sp_a)
-    b = _DummyField(values=np.zeros(3), space=sp_b)
-    with pytest.raises(ValueError, match="equal space"):
-        _ = a + b
-
-
-@pytest.mark.foundation
-def test_same_dimensionality_different_unit_strings_match_at_space_layer(ureg):
-    """``1/cm²`` and ``1/m²`` share dimensionality ``1/[length]²``;
-    :meth:`FunctionSpace.__eq__` compares dimensionality, not the
-    exact unit string. This pins the Layer 2 (space-equality) gate.
-
-    Whether downstream Field arithmetic ALSO accepts these spaces
-    depends on the Layer 3 assert (debug-only); see
-    :func:`test_same_dimensionality_different_units_caught_by_layer3_assert`.
-    """
-    sp_a = FunctionSpace(name="dummy", shape=(3,), units=ureg.Unit("1/cm**2"))
-    sp_b = FunctionSpace(name="dummy", shape=(3,), units=ureg.Unit("1/m**2"))
-    assert sp_a == sp_b
-
-
-@pytest.mark.foundation
-@pytest.mark.skipif(
-    not __debug__,
-    reason="Layer 3 assert is bytecode-stripped under python -O",
-)
-def test_same_dimensionality_different_units_caught_by_layer3_assert(ureg):
-    """Layer 3 defensive assert: two same-class fields whose spaces
-    share dimensionality but disagree on exact units (e.g. ``1/cm²``
-    vs ``1/m²``) raise ``AssertionError`` in debug mode.
-
-    Under ``python -O`` this assertion is stripped — the arithmetic
-    succeeds with the value-level result. The Layer 3 strip behaviour
-    is exercised by the CI matrix's ``test-optimized`` job (see plan
-    §7.5 CI matrix).
-    """
-    sp_a = FunctionSpace(name="dummy", shape=(3,), units=ureg.Unit("1/cm**2"))
-    sp_b = FunctionSpace(name="dummy", shape=(3,), units=ureg.Unit("1/m**2"))
-    a = _DummyField(values=np.zeros(3), space=sp_a)
-    b = _DummyField(values=np.zeros(3), space=sp_b)
-    with pytest.raises(AssertionError, match="units mismatch"):
-        _ = a + b
-
-
-@pytest.mark.foundation
-@pytest.mark.skipif(
-    __debug__,
-    reason="This test asserts the strip; only meaningful under python -O",
-)
-def test_layer3_assert_is_stripped_under_optimize_mode(ureg):
-    """Under ``python -O`` the Layer 3 assert is stripped — Field
-    arithmetic across spaces with matching dimensionality but
-    different exact units MUST succeed (Layer 1 class identity and
-    Layer 2 space equality both pass).
-
-    This test pins the production-path behaviour: Layer 3 is a
-    development-only safety net, never a runtime cost.
-    """
-    sp_a = FunctionSpace(name="dummy", shape=(3,), units=ureg.Unit("1/cm**2"))
-    sp_b = FunctionSpace(name="dummy", shape=(3,), units=ureg.Unit("1/m**2"))
-    a = _DummyField(values=np.ones(3), space=sp_a)
-    b = _DummyField(values=np.ones(3), space=sp_b)
-    c = a + b  # should NOT raise under -O
-    assert type(c) is _DummyField
-    np.testing.assert_array_equal(c.values, [2.0, 2.0, 2.0])
 
 
 # ─────────────────────────────────────────────────────────────────────

@@ -64,10 +64,10 @@ Units (informational, not yet enforced)
 
 :math:`[1/(\mathrm{cm^2 \cdot s \cdot eV})]` per energy group bin.
 The per-bin energy density is absorbed into the cross-section
-convention. When all six typed fields ship and the dimensional-check
-machinery wires up at the solver-construction layer (Depth B plan
-§5), :attr:`space.units` will carry this label and :class:`Field`'s
-Layer 2 check will gate operator composition.
+convention. Under View-G (issues #205 / #207) this label is NOT a
+space property — it becomes the role-leaf's ``UNITS`` class constant
+(Phase B of the field-vocabulary plan), and the operator-side unit-
+gain check gates composition at operator-construction time (#208).
 
 References
 ----------

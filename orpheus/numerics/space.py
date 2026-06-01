@@ -76,7 +76,6 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional
 
 import numpy as np
-import pint
 from numpy.typing import NDArray
 
 __all__ = [
@@ -114,54 +113,45 @@ class FunctionSpace:
         weights along the ordinate axis of an angular-flux space).
         ``None`` selects the Euclidean inner product
         :math:`\sum_i x_i \, y_i`.
-    units : pint.Unit | None, default None
-        Dimensional label of every :class:`~orpheus.numerics.field.Field`
-        that lives on this space. Two spaces with the same
-        ``(name, shape)`` but different ``units.dimensionality`` are
-        structurally different mathematical objects — :meth:`__eq__`
-        returns ``False`` in that case so :class:`Field` arithmetic
-        across them raises. ``None`` is a permissive sentinel that
-        opts out of dimensional checking (treated as compatible with
-        any other units in :meth:`__eq__`).
 
     Notes
     -----
-    The class is **frozen**. Two function spaces are considered
-    identical iff their ``(name, shape)`` tuple matches AND their
-    ``units.dimensionality`` matches (when both sides set units).
-    Inner-product weights are metadata that affect the inner product
-    but not the identity of the space — this matches the abstract-
-    vector-space framing where two copies of :math:`\mathbb{R}^n` are
-    "the same" space regardless of which inner product is installed.
+    The class is **frozen**. A :class:`FunctionSpace` encodes pure
+    *geometry* — the discrete degrees of freedom (``shape``), the
+    inner-product metric, and the composition algebra (``*`` /
+    :meth:`dual`). It is **role- and dimension-agnostic** (the
+    "View-G" decision, issues #205 / #207): a flux ``ψ`` and a
+    reaction-rate density ``Lψ`` live on the *same* geometric space
+    even though they carry different units. **Units do NOT live on the
+    space** — they are a property of the *quantity*, carried by the
+    :class:`~orpheus.numerics.field.Field` role-leaf (as a class
+    constant ``UNITS``) and, for maps, by the operator's unit-gain
+    (issue #208). This keeps one space per grid (no ``flux_space`` vs
+    ``ratedensity_space`` duplication) and lets ``L`` / ``L⁻¹`` type as
+    geometric endomorphisms on the bulk grid with a dimensional gain.
 
-    Hashing is on ``(name, shape)`` only; units do not participate.
-    Two spaces with the same ``(name, shape)`` but incompatible
-    dimensionality will collide in dict keys but resolve via the
-    ``__eq__`` dimensionality check — Python's hashable contract
-    (equal-implies-same-hash) is preserved.
+    Two function spaces are identical iff their ``(name, shape)`` tuple
+    matches — ``name`` is the **identity** of the space, not a
+    description of its contents. Inner-product weights are metadata
+    that affect the inner product but not the identity: two copies of
+    :math:`\mathbb{R}^n` are "the same" space regardless of which inner
+    product is installed. Hashing is on ``(name, shape)``.
     """
 
     name: str
     shape: tuple[int, ...]
     inner_product_weights: Optional[NDArray] = field(default=None, repr=False)
-    units: Optional[pint.Unit] = field(default=None)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, FunctionSpace):
             return NotImplemented
-        if self.name != other.name or self.shape != other.shape:
-            return False
-        if self.units is None or other.units is None:
-            return True
-        return self.units.dimensionality == other.units.dimensionality
+        return self.name == other.name and self.shape == other.shape
 
     def __hash__(self) -> int:
         return hash((self.name, self.shape))
 
     def __repr__(self) -> str:
-        if self.units is None:
-            return f"FunctionSpace({self.name!r}, shape={self.shape})"
-        return f"FunctionSpace({self.name!r}, shape={self.shape}, units={self.units!s})"
+        return f"FunctionSpace({self.name!r}, shape={self.shape})"
 
     # ------------------------------------------------------------------
     # Inner product / norm
@@ -280,23 +270,6 @@ def _tensor_product_inner_weights(
     return result
 
 
-def _tensor_product_units(
-    factors: tuple["FunctionSpace", ...],
-) -> "pint.Unit | None":
-    r"""Multiply the units of the factors via pint's unit algebra.
-
-    :math:`V_1 \otimes V_2 \otimes \cdots` lives in units that are the
-    product of the factor units. If any factor has ``units=None``, the
-    product is ``None`` (cannot infer; documented gap).
-    """
-    if any(f.units is None for f in factors):
-        return None
-    result = factors[0].units
-    for f in factors[1:]:
-        result = result * f.units
-    return result
-
-
 @dataclass(frozen=True)
 class TensorProductSpace(FunctionSpace):
     r"""A function space that decomposes as
@@ -324,7 +297,7 @@ class TensorProductSpace(FunctionSpace):
     Notes
     -----
     The class is **frozen**. Identity is the inherited
-    ``(name, shape, units.dimensionality)`` tuple, where ``name`` and
+    ``(name, shape)`` tuple, where ``name`` and
     ``shape`` are derived from the factors. Two
     :class:`TensorProductSpace` instances with the same factor sequence
     compare equal even if reached via different composition paths.
@@ -371,8 +344,6 @@ class TensorProductSpace(FunctionSpace):
         * ``shape`` from concatenated factor shapes
         * ``inner_product_weights`` from the outer product of factor
           weights (``None`` if all factors are Euclidean)
-        * ``units`` from the product of factor units (``None`` if any
-          factor is unitless)
         """
         if len(factors) < 2:
             raise ValueError(
@@ -387,17 +358,11 @@ class TensorProductSpace(FunctionSpace):
             name=name,
             shape=shape,
             inner_product_weights=_tensor_product_inner_weights(factors),
-            units=_tensor_product_units(factors),
             factors=factors,
         )
 
     def __repr__(self) -> str:
-        if self.units is None:
-            return f"TensorProductSpace({self.name!r}, shape={self.shape})"
-        return (
-            f"TensorProductSpace({self.name!r}, shape={self.shape}, "
-            f"units={self.units!s})"
-        )
+        return f"TensorProductSpace({self.name!r}, shape={self.shape})"
 
 
 @dataclass(frozen=True)
@@ -409,9 +374,9 @@ class DualSpace(FunctionSpace):
     :math:`V^*` is isomorphic to :math:`V` itself but carries a
     covariance tag that the operator-algebra layer reads through to
     track which spaces participate as bras vs. kets in composition
-    chains. The dual carries the same ``shape``, ``inner_product_weights``,
-    and ``units`` as the primal; the ``primal`` field is the
-    introspection link.
+    chains. The dual carries the same ``shape`` and
+    ``inner_product_weights`` as the primal; the ``primal`` field is
+    the introspection link.
 
     Used by the Hilbert-adjoint machinery
     (:meth:`~orpheus.numerics.operator.LinearOperator.adjoint`,
@@ -457,7 +422,6 @@ class DualSpace(FunctionSpace):
             name=f"{primal.name}*",
             shape=primal.shape,
             inner_product_weights=primal.inner_product_weights,
-            units=primal.units,
             primal=primal,
         )
 
