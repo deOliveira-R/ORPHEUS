@@ -36,8 +36,11 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 from orpheus.numerics.operator import (
+    IdentityOperator,
     IncomingOrdinateMaskTensor,
+    LinearOperator,
     PermutationOperator,
+    TensorProductOperator,
 )
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
@@ -45,6 +48,28 @@ from tests.sn._test_helpers import placeholder_materials
 
 
 pytestmark = pytest.mark.l1
+
+
+def _angular_factor(op: LinearOperator) -> LinearOperator:
+    """Return the angular factor of a realized boundary operator.
+
+    Wave T step T.1 lifted every realized boundary operator into a
+    ``TensorProductOperator`` of the form ``<angular-op> ⊗ Identity``
+    (the angular law on the ordinate axis, identity on the spatial
+    axis). Before T.1 the realized ``inner`` WAS the bare angular op.
+    This accessor returns the angular factor (``ops[0]``) when the
+    inner is a tensor product, else the bare op — so the structural
+    assertions below survive the T.1 lift without being blind to it.
+    """
+    if isinstance(op, TensorProductOperator):
+        # ``<angular-op> ⊗ Identity``: ops[1] MUST be the spatial
+        # identity, ops[0] the angular law the test inspects.
+        assert len(op.ops) == 2, f"expected a 2-factor TP, got {len(op.ops)}"
+        assert isinstance(op.ops[1], IdentityOperator), (
+            f"TP spatial factor is {type(op.ops[1]).__name__}, not Identity"
+        )
+        return op.ops[0]
+    return op
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -183,16 +208,15 @@ def test_1d_cartesian_y_face_placeholders_realized_through_minimal_space(quad_1d
     sn = SNMesh(mesh, quad_1d, placeholder_materials())
     assert isinstance(sn.bc_ymin, _BoundBoundaryOperator)
     assert isinstance(sn.bc_ymax, _BoundBoundaryOperator)
-    # Inner is the REALIZED PermutationOperator (NOT the raw law).
-    assert isinstance(sn.bc_ymin.inner, PermutationOperator)
-    assert isinstance(sn.bc_ymax.inner, PermutationOperator)
+    # Inner is the REALIZED PermutationOperator (NOT the raw law),
+    # post-T.1 lifted into ``Permutation ⊗ Identity``.
+    ymin_perm = _angular_factor(sn.bc_ymin.inner)
+    ymax_perm = _angular_factor(sn.bc_ymax.inner)
+    assert isinstance(ymin_perm, PermutationOperator)
+    assert isinstance(ymax_perm, PermutationOperator)
     # The permutation is the identity for GL1D y-reflection.
-    np.testing.assert_array_equal(
-        sn.bc_ymin.inner.perm, np.arange(quad_1d.N),
-    )
-    np.testing.assert_array_equal(
-        sn.bc_ymax.inner.perm, np.arange(quad_1d.N),
-    )
+    np.testing.assert_array_equal(ymin_perm.perm, np.arange(quad_1d.N))
+    np.testing.assert_array_equal(ymax_perm.perm, np.arange(quad_1d.N))
     # No bound quadrature — the realized op is already 1-arg.
     # Issue #176 / C176.1 dropped the _quadrature attribute entirely.
     assert not hasattr(sn.bc_ymin, "_quadrature")
@@ -229,9 +253,12 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
         bc_right=BC("vacuum"),
     )
     sn = SNMesh(mesh, quad_1d, placeholder_materials())
-    # Realizer path: shim wraps a realized 1-arg op.
+    # Realizer path: shim wraps a realized 1-arg op, post-T.1 lifted
+    # into ``IncomingOrdinateMaskTensor ⊗ Identity``.
     assert isinstance(sn.bc_right, _BoundBoundaryOperator)
-    assert isinstance(sn.bc_right.inner, IncomingOrdinateMaskTensor)
+    assert isinstance(
+        _angular_factor(sn.bc_right.inner), IncomingOrdinateMaskTensor
+    )
     # Issue #176 / C176.1 dropped the _quadrature attribute entirely.
     assert not hasattr(sn.bc_right, "_quadrature")
     assert sn.bc_right == "vacuum"
@@ -282,13 +309,15 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
     assert sn.bc_xmin is None
     assert sn._trace is not None
     assert sn._trace.face_names == ("xmax",)
-    # Outer face: realizer path; shim wraps a realized 1-arg op.
+    # Outer face: realizer path; shim wraps a realized 1-arg op,
+    # post-T.1 lifted into ``Permutation ⊗ Identity``.
     assert isinstance(sn.bc_right, _BoundBoundaryOperator)
-    assert isinstance(sn.bc_right.inner, PermutationOperator)
+    outer_perm = _angular_factor(sn.bc_right.inner)
+    assert isinstance(outer_perm, PermutationOperator)
     assert not hasattr(sn.bc_right, "_quadrature")
     assert sn.bc_right == "reflective"
     np.testing.assert_array_equal(
-        sn.bc_right.inner.perm, quad.reflection_index("x"),
+        outer_perm.perm, quad.reflection_index("x"),
     )
 
     # Bit-equivalence: the shim's 1-arg apply matches the

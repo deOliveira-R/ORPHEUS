@@ -104,7 +104,7 @@ class TestSNMesh:
         mesh = Mesh1D(edges=np.array([0.0, 0.1, 0.3, 0.6]),
                       mat_ids=np.array([0, 1, 2]))
         quad = Quadrature.gauss_legendre(4)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
 
         for n in range(quad.N):
             for i in range(sn_mesh.nx):
@@ -139,7 +139,7 @@ class TestSNMesh:
         """SNMesh from Mesh1D must have (N,1) shaped mat_map and volumes."""
         mesh = Mesh1D(edges=np.linspace(0, 1, 6), mat_ids=np.array([0,1,2,1,0]))
         quad = Quadrature.gauss_legendre(4)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
 
         assert sn_mesh.nx == 5
         assert sn_mesh.ny == 1
@@ -180,7 +180,7 @@ class TestSNMesh:
         mesh = Mesh1D(edges=np.array([0.0, 0.5, 1.0]), mat_ids=np.array([0, 1]),
                       coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(4)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials(mat_ids=(0, 1)))
 
         assert sn_mesh.curvature == "spherical"
         assert sn_mesh.face_areas is not None
@@ -190,6 +190,14 @@ class TestSNMesh:
         np.testing.assert_allclose(sn_mesh.reduced.alpha_half[0], 0.0)
         np.testing.assert_allclose(sn_mesh.reduced.alpha_half[-1], 0.0, atol=1e-14)
 
+    @pytest.mark.xfail(
+        reason="R-1 Step E: 2-D Cartesian SI carve deferred to a later "
+        "phase; the 2-D solve path raises NotImplementedError. The 1-D "
+        "leg still validates, but the consistency assertion cannot run "
+        "until the 2-D SI carve lands. Re-enable then.",
+        raises=NotImplementedError,
+        strict=False,
+    )
     def test_sweep_1d_2d_consistency(self):
         """1D and 2D sweeps on equivalent meshes must produce similar keff.
 

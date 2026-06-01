@@ -318,10 +318,16 @@ class TestRealizeWhite:
 
     def test_white_z_axis_on_gauss_legendre_raises(self):
         """z-axis white on a 1-D GL quadrature delegates the raise to
-        :meth:`AngularAverageOperator.from_quadrature` (no mu_z)."""
+        :meth:`AngularAverageOperator.from_quadrature`.
+
+        A 1-D GL quadrature has no outgoing ordinates on the z-axis, so
+        the white-BC average operator cannot be built. The Wave-T
+        angular-average lift replaced the legacy ``mu_z`` wording with a
+        degenerate-face diagnostic; the test asserts that message.
+        """
         quad = Quadrature.gauss_legendre(8)
         bc = WhiteBoundaryOperator(axis="z", outward_sign=+1, albedo=1.0)
-        with pytest.raises(ValueError, match="mu_z"):
+        with pytest.raises(ValueError, match="degenerate for this face"):
             SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
 
 
