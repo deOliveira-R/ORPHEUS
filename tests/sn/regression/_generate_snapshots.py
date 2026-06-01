@@ -55,6 +55,12 @@ from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
 
 SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
 
+
+def _n_groups(ng: str) -> int:
+    """Map the group-count tag to the integer group count."""
+    return {"1g": 1, "2g": 2, "4g": 4}[ng]
+
+
 # ─── case configuration helpers ──────────────────────────────────────
 
 
@@ -188,34 +194,71 @@ def _cylinder_3region(ng: str, n_cells: int, quad_kind: str) -> dict:
 
 
 def _slab_p1_aniso(ng: str, n_cells: int) -> dict:
-    """Slab with B mixture (μ_bar=0.6, strongly anisotropic, P1 data)."""
+    """Slab with B mixture (μ_bar=0.6, strongly anisotropic, P1 data).
+
+    **Fixed-source, NOT eigenvalue.** Mixture B is a non-multiplying
+    moderator (``Σ_f = νΣ_f = 0``), so an eigenvalue formulation is
+    malformed — ``k = production / absorption = 0 / absorption`` and the
+    production-rate-normalised power iteration divides by zero (the legacy
+    ``eigen`` snapshots were frozen as all-NaN; not a meaningful gate).
+    The P1 Galerkin assembly path — the thing this case exists to pin — is
+    exercised identically by a fixed-source solve.  With a uniform
+    isotropic source and reflective BCs the converged scalar flux is the
+    flat infinite-medium solution ``φ = (diag(Σ_t) − Σ_{s0}^T)^{-1} Q``,
+    which is the structurally-independent corroboration of the snapshot
+    (closed-form linear-algebra, no transport discretisation).
+    """
     mod = get_mixture("B", ng)
+    n_groups = _n_groups(ng)
+    n_ord = 8
     geom = StructuredGeometry(
         geometry="SLB",
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
         bcs=(BC.reflective, BC.reflective),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    quadrature = Quadrature.gauss_legendre(n_ordinates=n_ord)
+    # Iso scalar source magnitude 1.0 ⇒ per-ordinate density 1.0/sum_w
+    # (R-1 Step 4 A1 producer-side /W projection convention).
+    sum_w = float(quadrature.weights.sum())
+    external_source = np.full((n_ord, n_groups, n_cells, 1), 1.0 / sum_w)
     return dict(
-        materials={0: mod}, mesh=mesh,
-        quadrature=Quadrature.gauss_legendre(n_ordinates=8),
-        scattering_order=1,
+        materials={0: mod}, mesh=mesh, quadrature=quadrature,
+        scattering_order=1, kind="fixed_source",
+        external_source=external_source,
+        # Explicit SI (the flat reflective solution is exact for the WDD
+        # sweep, so SI is bit-stable and fast; the curvilinear krylov
+        # auto-flip is unnecessary and ~100× slower here). c=0.975 group-2
+        # needs a deep inner budget to reach the convergence floor.
+        inner_solver="source_iteration", max_inner=3000, inner_tol=1e-13,
     )
 
 
 def _sphere_p1_aniso(ng: str, n_cells: int) -> dict:
-    """Sphere with B mixture; activates Pℓ Galerkin path on curvilinear sweep."""
+    """Sphere with B mixture; activates Pℓ Galerkin path on curvilinear sweep.
+
+    Fixed-source for the same reason as :func:`_slab_p1_aniso` — mixture B
+    has no fission so the eigenvalue is undefined.  Pins the curvilinear
+    Pℓ Galerkin closure; corroborated against the closed-form flat
+    infinite-medium flux.
+    """
     mod = get_mixture("B", ng)
+    n_groups = _n_groups(ng)
+    n_ord = 8
     geom = StructuredGeometry(
         geometry="SPH",
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
         bcs=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    quadrature = Quadrature.gauss_legendre(n_ordinates=n_ord)
+    sum_w = float(quadrature.weights.sum())
+    external_source = np.full((n_ord, n_groups, n_cells, 1), 1.0 / sum_w)
     return dict(
-        materials={0: mod}, mesh=mesh,
-        quadrature=Quadrature.gauss_legendre(n_ordinates=8),
-        scattering_order=1,
+        materials={0: mod}, mesh=mesh, quadrature=quadrature,
+        scattering_order=1, kind="fixed_source",
+        external_source=external_source,
+        inner_solver="source_iteration", max_inner=3000, inner_tol=1e-13,
     )
 
 
@@ -238,6 +281,12 @@ def _cartesian_2d(ng: str, n_per_side: int) -> dict:
         materials={0: fuel}, mesh=mesh,
         quadrature=Quadrature.level_symmetric(sn_order=4),
         scattering_order=0,
+        # The 2-D Cartesian source-iteration inner solve is deferred to
+        # Phase A (R-1 Step E — the B1'' face block is 1-D-only; 2-D needs
+        # a separate 4-face layout).  The Krylov-on-apply path solves the
+        # 2-D operator directly; on this homogeneous reflective case it
+        # reaches the analytical k_inf = νΣ_f/Σ_a = 1.5 exactly.
+        inner_solver="krylov",
     )
 
 
@@ -251,7 +300,7 @@ def _slab_fixed_source(ng: str, n_cells: int) -> dict:
     fuel = get_mixture("A", ng)
     L = 2.0
     n_ord = 8
-    n_groups = 1 if ng == "1g" else 2 if ng == "2g" else 4
+    n_groups = _n_groups(ng)
     mesh = Mesh1D(
         edges=np.linspace(0.0, L, n_cells + 1),
         mat_ids=np.zeros(n_cells, dtype=int),
@@ -330,17 +379,17 @@ CASES: tuple[SnapshotCase, ...] = (
     ),
     SnapshotCase(
         "slab_2g_p1_aniso_dd_n20",
-        "DD slab 2G + B mixture P1 anisotropic scattering, GL-8, n=20",
+        "DD slab 2G + B mixture P1 anisotropic FIXED-SOURCE, GL-8, n=20",
         lambda: _slab_p1_aniso("2g", 20),
     ),
     SnapshotCase(
         "sphere_2g_p1_aniso_dd_n20",
-        "DD sphere 2G + B mixture P1 anisotropic scattering, GL-8, n=20",
+        "DD sphere 2G + B mixture P1 anisotropic FIXED-SOURCE, GL-8, n=20",
         lambda: _sphere_p1_aniso("2g", 20),
     ),
     SnapshotCase(
         "2d_1g_LS4_dd_15x15",
-        "DD 2D Cartesian 1G homogeneous, LS_4 (12 ord), 15x15",
+        "DD 2D Cartesian 1G homogeneous, LS_4 (12 ord), 15x15, krylov inner",
         lambda: _cartesian_2d("1g", 15),
     ),
     SnapshotCase(
@@ -367,26 +416,88 @@ def _git_short_sha() -> str:
         return "unknown"
 
 
+# ── Convergence configuration — the SINGLE SOURCE OF TRUTH ────────────
+#
+# These are the solver stopping criteria the snapshots were generated
+# against.  They are read by BOTH ``run_case`` (to drive the solve) AND
+# ``test_dd_regression`` (to derive the principled correctness tolerance
+# ``SAFETY × conv_tol`` per quantity).  Coding-elegance Pattern 7 — the
+# convention (here: the convergence floor) lives at ONE definition site;
+# the generator and the test cannot drift apart on what "converged" means.
+#
+# A case's ``builder()`` cfg may override any of these per-case (the P1
+# anisotropic cases need a deeper inner budget for c≈0.97; see the
+# builders).  ``run_case`` merges the cfg override over these defaults.
+EIGEN_DEFAULTS = dict(
+    max_outer=500, keff_tol=1e-12, flux_tol=1e-10,
+    max_inner=300, inner_tol=1e-10,
+)
+FIXED_SOURCE_DEFAULTS = dict(
+    max_inner=500, inner_tol=1e-12,
+)
+
+# Per-quantity ↦ which convergence-config key governs its iterative floor.
+# k_eff converges on ``|Δk| < keff_tol``; the eigen flux converges on the
+# relative-norm ``flux_tol``; the fixed-source flux converges on
+# ``inner_tol``.  The test reads these to pass the right ``conv_tol`` to
+# ``assert_regression`` for each quantity it pins.
+EIGEN_KEFF_TOL_KEY = "keff_tol"
+EIGEN_FLUX_TOL_KEY = "flux_tol"
+FIXED_SOURCE_FLUX_TOL_KEY = "inner_tol"
+
+
+def run_config(cfg: dict) -> dict:
+    """Resolve the effective solver convergence config for a case.
+
+    Merges any per-case override in ``cfg`` over the kind's defaults.
+    Returned dict is the authoritative record of the stopping criteria
+    the snapshot was generated against — the test reads ``conv_tol`` off
+    it (never hardcodes).
+    """
+    kind = cfg.get("kind", "eigen")
+    base = FIXED_SOURCE_DEFAULTS if kind == "fixed_source" else EIGEN_DEFAULTS
+    resolved = dict(base)
+    for key in base:
+        if key in cfg:
+            resolved[key] = cfg[key]
+    # inner_solver is an optional override carried by some cases.
+    if "inner_solver" in cfg:
+        resolved["inner_solver"] = cfg["inner_solver"]
+    return resolved
+
+
 def run_case(cfg: dict):
     """Run the configured case (eigen or fixed-source) and return result.
 
     Shared between snapshot generation and the regression test so the
-    two paths cannot drift in solver-tolerance configuration.
+    two paths cannot drift in solver-tolerance configuration. Iteration
+    parameters resolve through :func:`run_config` (defaults + per-case
+    override), making the cfg the single source of truth.
     """
     kind = cfg.get("kind", "eigen")
+    rc = run_config(cfg)
     if kind == "fixed_source":
+        kwargs = dict(
+            scattering_order=cfg.get("scattering_order", 0),
+            max_inner=rc["max_inner"], inner_tol=rc["inner_tol"],
+        )
+        if "inner_solver" in rc:
+            kwargs["inner_solver"] = rc["inner_solver"]
         return solve_sn_fixed_source(
             cfg["materials"], cfg["mesh"], cfg["quadrature"],
-            cfg["external_source"],
-            scattering_order=cfg.get("scattering_order", 0),
-            max_inner=500, inner_tol=1e-12,
+            cfg["external_source"], **kwargs,
         )
     if kind == "eigen":
-        return solve_sn(
-            cfg["materials"], cfg["mesh"], cfg["quadrature"],
+        kwargs = dict(
             scattering_order=cfg.get("scattering_order", 0),
-            max_outer=500, keff_tol=1e-12, flux_tol=1e-10,
-            max_inner=300, inner_tol=1e-10,
+            max_outer=rc["max_outer"],
+            keff_tol=rc["keff_tol"], flux_tol=rc["flux_tol"],
+            max_inner=rc["max_inner"], inner_tol=rc["inner_tol"],
+        )
+        if "inner_solver" in rc:
+            kwargs["inner_solver"] = rc["inner_solver"]
+        return solve_sn(
+            cfg["materials"], cfg["mesh"], cfg["quadrature"], **kwargs,
         )
     raise ValueError(f"unknown case kind: {kind!r}")
 
