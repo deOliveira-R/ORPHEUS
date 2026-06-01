@@ -21,18 +21,21 @@ test = [
     "pytest>=8",
     # The SN suite OOMs when run as ONE single-process invocation (1378
     # tests, many materialize dense operators). The memory-safe default
-    # is now PER CAPABILITY TIER (see .claude/plans/sn_test_taxonomy.md):
+    # is PER CAPABILITY TIER (see .claude/plans/sn_test_taxonomy.md):
     # each tier dir runs single-process fast + light (e.g. operators =
     # 395 tests / 3s / 186 MB), and `pytest -m sentinel` is the
-    # seconds-fast always-on gate. NO whole-tree single-process run.
+    # seconds-fast always-on gate (run sentinels WITHOUT -O — vv Mode 8:
+    # -O strips bare asserts in non-rewritten helpers). NO whole-tree
+    # single-process run.
     #
-    # pytest-xdist would parallelize, BUT 3.8.0 DEADLOCKS the scheduler
-    # on Python 3.14.3 (workers exit, master idles at 0% CPU; reproduces
-    # at -n 2 and on a single slow file). Until that's fixed, do NOT use
-    # `-n` for the suite; pin <3.8 if you must parallelize. Kept declared
-    # because the mutation-testing harness (per-capability) will want
-    # parallelism once a working xdist/Py combo exists.
-    "pytest-xdist>=3",
+    # xdist pin: 3.8.0 DEADLOCKS the scheduler on Python 3.14.3 (workers
+    # exit, master idles at 0% CPU; reproduces at -n 2). 3.7.0 WORKS
+    # (operators tier -n4 = 4s, exit 0) — hence the <3.8 cap. NOTE: even
+    # on 3.7, `tests/sn -n auto` over the WHOLE suite uses ~21 GB
+    # aggregate RSS (per-worker bounded, but summed) and is slow (the
+    # inherent convergence/MMS tests dominate) — prefer per-tier, and use
+    # `-n` to parallelize WITHIN a tier or in CI where the RAM is there.
+    "pytest-xdist>=3,<3.8",
     # Per-test timeout — REQUIRED by the mutation-testing harness: an
     # injected mutant can cause an infinite loop, so each mutated run
     # must be time-bounded. Inert without `--timeout`.
