@@ -166,6 +166,33 @@ def test_homogeneous_streaming_equilibrium_sphere(
     )
 
 
+# ── Sentinel (canary) — cheapest single curvilinear-pole probe ──────
+# One sentinel for the ``sweep_curvilinear`` capability node: the
+# cheapest config of the gauntlet above (n_cells=20, n_ord=8, SI).
+# Sharp at the r=0 pole corner + the WDD curvilinear fixed point.
+# Delegates to the same solver path so it tracks the matrix test.
+# See .claude/plans/sn_sentinel_harness.md.
+
+
+@pytest.mark.sentinel
+@pytest.mark.l0
+@pytest.mark.verifies("hebert-3-432")
+@pytest.mark.catches("ERR-026", "ERR-048")
+def test_sentinel_sphere_streaming_equilibrium() -> None:
+    r"""Sentinel: sphere streaming-equilibrium at the cheapest config.
+
+    Canary for the ``sweep_curvilinear`` capability node — a flip here
+    localizes (via cap("sweep_curvilinear") + the DAG) to the
+    pole-angular-closure / Carlson-seed / WDD-curvilinear cluster.
+    Same assertion as
+    :func:`test_homogeneous_streaming_equilibrium_sphere` at
+    ``n_cells=20, n_ord=8, inner_solver="source_iteration"``.
+    """
+    test_homogeneous_streaming_equilibrium_sphere(
+        n_cells=20, n_ord=8, inner_solver="source_iteration",
+    )
+
+
 # ── Cylindrical tests ──────────────────────────────────────────────
 
 

@@ -48,6 +48,7 @@ class TestWeightSums:
         quad = Quadrature.gauss_legendre(N)
         np.testing.assert_allclose(quad.weights.sum(), 2.0, atol=1e-14)
 
+    @pytest.mark.sentinel
     def test_lebedev_weights_sum_to_4pi(self):
         quad = Quadrature.lebedev(order=17)
         np.testing.assert_allclose(quad.weights.sum(), 4 * np.pi, rtol=1e-12)
@@ -239,6 +240,7 @@ class TestAlphaRedistribution:
             np.testing.assert_allclose(alpha[-1], 0.0, atol=1e-13,
                                        err_msg=f"Level {p}: α[-1] ≠ 0")
 
+    @pytest.mark.sentinel
     def test_spherical_alpha_dome_non_negative(self):
         """Spherical α (cumsum(−w·μ)) must be non-negative for GL quadrature."""
         from orpheus.geometry import CoordSystem, Mesh1D
@@ -264,6 +266,7 @@ class TestL0TermVerification:
     for the publication catalog.
     """
 
+    @pytest.mark.sentinel
     @pytest.mark.catches("ERR-006", "ERR-007")
     @pytest.mark.parametrize("coord", [
         CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL,
@@ -385,6 +388,7 @@ class TestL0TermVerification:
             f"Cylindrical β_max = {np.abs(betas).max():.2e}"
         )
 
+    @pytest.mark.sentinel
     @pytest.mark.catches("ERR-002")
     def test_scattering_source_magnitude(self):
         """L0-SN-009: Scattering source = SigS^T @ φ, hand-calculated."""

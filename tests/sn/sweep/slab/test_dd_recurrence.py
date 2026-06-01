@@ -30,6 +30,7 @@ pytestmark = pytest.mark.verifies(
 
 # ─── L0 term verification of the DD cumprod recurrence (ERR-025) ────
 
+@pytest.mark.sentinel
 @pytest.mark.l0
 @pytest.mark.catches("ERR-025")
 def test_dd_per_cell_recurrence_matches_symbolic_derivation():

@@ -1,0 +1,11 @@
+[cosmic-ray]
+# Phase S2 — measure the SENTINEL set's mutation score on diamond.py
+# (sweep_core / sweep_slab / sweep_cartesian_2d capability cluster).
+# Sentinels run WITHOUT -O so bare asserts fire (see README gotcha).
+module-path = "orpheus/sn/spatial/diamond.py"
+timeout = 60.0
+excluded-modules = []
+test-command = "env PYTHONPATH=/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/field-role-typing /Users/rodrigo/git/nuclear/ORPHEUS/.venv/bin/python -m pytest tests/sn -m sentinel -q -p no:cacheprovider --timeout=60"
+
+[cosmic-ray.distributor]
+name = "local"

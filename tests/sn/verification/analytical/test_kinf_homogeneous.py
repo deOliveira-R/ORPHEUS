@@ -188,6 +188,22 @@ def test_kinf_homogeneous(ng_key: str, coord: str, inner_solver: str) -> None:
     )
 
 
+# ── Sentinel (canary) — closed-form eigenvalue pillar ───────────────
+# One sentinel for the ``verification_analytical`` capability node: the
+# cheapest NON-DEGENERATE closed-form k_inf cross-check (2G slab krylov).
+# This is the EIGENVALUE-claim pillar (closed-form analytical reference,
+# NOT MMS — MMS does not prove eigenvalues per vv-principles). A flip
+# here localizes to the eigenvalue + analytical-reference cluster.
+# See .claude/plans/sn_sentinel_harness.md.
+
+
+@pytest.mark.sentinel
+@pytest.mark.verifies("matrix-eigenvalue", "fission-matrix", "removal-matrix")
+def test_sentinel_kinf_slab_2g_krylov() -> None:
+    """Sentinel: closed-form 2G slab k_inf via the krylov path."""
+    test_kinf_homogeneous(ng_key="2eg", coord="slab", inner_solver="krylov")
+
+
 @pytest.mark.verifies("matrix-eigenvalue", "fission-matrix", "removal-matrix")
 @pytest.mark.parametrize("inner_solver", ["source_iteration", "krylov"])
 @pytest.mark.parametrize("ng_key", ["2eg", "4eg"])

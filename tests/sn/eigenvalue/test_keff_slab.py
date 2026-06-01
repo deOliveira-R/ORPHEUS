@@ -83,7 +83,12 @@ def _convergence_order(values, spacings, reference):
 
 @pytest.mark.parametrize("case_name", [
     "sn_slab_1eg_1rg",
-    "sn_slab_2eg_1rg",
+    # Sentinel for the ``eigenvalue`` capability node: the cheapest
+    # NON-DEGENERATE solver eigenvalue (2G; 1G k=νΣf/Σa is flux-shape
+    # independent per vv-principles 1-group degeneracy). A flip here
+    # localizes to the k-eigenvalue / source-iteration outer loop.
+    # See .claude/plans/sn_sentinel_harness.md.
+    pytest.param("sn_slab_2eg_1rg", marks=pytest.mark.sentinel),
     "sn_slab_4eg_1rg",
 ])
 def test_homogeneous_exact(case_name):

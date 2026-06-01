@@ -74,6 +74,7 @@ def test_sn_1d_slab_mms_converges_second_order():
     assert 1e-8 < errors[-1] < 1e-4
 
 
+@pytest.mark.sentinel
 @pytest.mark.l1
 @pytest.mark.verifies("dd-cartesian-1d")
 def test_sn_mms_manufactured_source_vanishes_at_zero_material():

@@ -235,7 +235,14 @@ class TestHomogeneousReflectiveFixedPoint:
     )
     @pytest.mark.parametrize("coord_builder,coord_name", [
         (_sphere_reflective, "sphere"),
-        (_cylinder_reflective, "cylinder"),
+        # Sentinel for the ``solve`` capability node: the curvilinear
+        # Q/Σ_t fixed-source equilibrium (Signature 4 — the single most
+        # powerful curvilinear diagnostic). cylinder only, to keep the
+        # sentinel set minimal. See .claude/plans/sn_sentinel_harness.md.
+        pytest.param(
+            _cylinder_reflective, "cylinder",
+            marks=pytest.mark.sentinel,
+        ),
     ])
     def test_uniform_source_converges_to_q_over_sigma_t(
         self, coord_builder, coord_name,

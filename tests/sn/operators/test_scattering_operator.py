@@ -154,6 +154,7 @@ class TestProtocolCompliance:
 class TestBitIdenticalExtractionP0:
     """The lifted math must match the legacy reference per-cell code."""
 
+    @pytest.mark.sentinel
     def test_add_iso_source_matches_reference(self, solver_2g_p0):
         """ScatteringOperator.add_iso_source = the per-cell reference.
 

@@ -71,6 +71,7 @@ def test_sn_p1_aniso_mms_converges_second_order():
     assert 1e-8 < errors[-1] < 1e-4
 
 
+@pytest.mark.sentinel
 @pytest.mark.l1
 @pytest.mark.verifies("pn-scatter", "sn-mms-p1-qext")
 def test_sn_p1_aniso_mms_source_degrades_to_p0():

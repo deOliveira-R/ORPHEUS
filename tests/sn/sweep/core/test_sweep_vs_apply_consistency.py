@@ -102,6 +102,7 @@ def test_carlson_seed_apply_sweep_equivalence_flat_psi(
 
 
 @pytest.mark.foundation
+@pytest.mark.sentinel
 @pytest.mark.catches("ERR-026")
 def test_carlson_seed_helper_is_linear_in_Q_bar():
     r"""``carlson_inward_sweep_from_source`` is linear in ``Q_bar``.

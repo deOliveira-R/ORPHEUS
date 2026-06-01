@@ -894,6 +894,7 @@ def test_2d_octant_sweep_equivalence(case: OctantEquivalenceCase) -> None:
 # ═══════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.sentinel
 @pytest.mark.verifies("transport-cartesian-2d", "dd-cartesian-2d", "multigroup")
 def test_2d_octant_sweep_closed_form_anchor() -> None:
     r"""L1 anchor: all-reflective + uniform Q + uniform Σ_t → φ_g = (A^{-1} Q)_g.
