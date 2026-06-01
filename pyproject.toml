@@ -19,6 +19,15 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest>=8",
+    # Per-worker process isolation + parallelism. The SN suite (1376
+    # tests) exhausts memory when run single-process because many L1
+    # tests materialize dense operators; xdist bounds memory per worker
+    # (and parallelizes). Canonical heavy run:
+    #   pytest tests/sn -n auto --dist loadscope
+    # (loadscope keeps a module/class on one worker so module-scoped
+    # fixtures hold). Not forced via addopts — small targeted runs stay
+    # single-process to avoid worker-spawn overhead.
+    "pytest-xdist>=3",
     "sympy>=1.13",
 ]
 docs = [
