@@ -10,7 +10,22 @@ discipline — superseded), #208 (operator typing — **deferred**).
 
 ---
 
-## SESSION STATE — PHASE A COMPLETE, RESUME AT B.1 (2026-06-01)
+## SESSION STATE — PHASE A DONE + B.1 DONE, RESUME AT B.2 (2026-06-01)
+
+**B.1 DONE (`6e70ec1`):** all 5 storage-base ABCs created in
+`transport/fields/_bases.py` (plan-literal); 6 leaves re-parented (−602
+lines of duplicated mesh/shape/factory/`_check_partner` machinery →
+single-sourced on the bases); bit-identical (space `name`s preserved via
+`_SPACE_NAME`, public API intact, `isinstance` holds). Verified: smoke +
+transport/primitives/operators 760 + sentinel 36/36. **B.2 IS NEXT** —
+renames `PerOrdinateSource→AngularSource`, `IsotropicSource→ScalarSource`
+(1-merge-cycle deprecation shim) + migrate consumers. ⚠ B.2 touches a
+public-API symbol name — user wanted to steer the rename strategy before
+it lands.
+
+---
+
+### (historical) PHASE A COMPLETE, RESUME AT B.1 (2026-06-01)
 
 **Phase A (the space layer) is DONE: A.1 + A.2/A.3 + A.4 + A.5.** Between A.3
 and A.4 the session took a large
@@ -164,8 +179,8 @@ from SESSION STATE, and verify A.4 bit-identity against the relevant
 | **A.2+A.3 ✅** (MERGED) | **TraceSpace unification** — DONE. Built one concrete `TraceSpace(FunctionSpace)` (whole-boundary `shape=(layout.total_size,)`, `layout: FaceLayout`, signed `omega_dot_n (n_faces,N)`, `_TANGENTIAL_EPS=4·machine_eps`, inflow/outflow selectors). Migrated SNMesh (`_inflow_trace`+`_outflow_trace`→one `_trace`), method_space (`inflow_trace`/`outflow_trace`→`trace`), `_resolve_one` (`for_face(trace=)`). Decoupled `IncomingSourceOperator` probe + `BoundarySource.evaluate` from the trace → **`evaluate(shape)`** (retired the fake-trace-as-shape-carrier anti-pattern). Deleted `Inflow/OutflowTraceSpace` + `boundary_trace_space()` + `numerics/trace_space.py` shim. **Curvilinear-one-boundary resolved (see below).** | **BI both sides** | DONE — verified in memory-safe targeted chunks (full `tests/sn` OOMs: 1376 single-process items, pre-existing infra, NOT ours). **Zero new failures.** trace/space/method_space/realizer_wiring/bound_compat/btl: 68 pass / 5 pre-existing TP-lift red. sn_boundary_realizer+native_matvec+streaming_decomposition(Res-A)+typed_sources: 80 pass / 1 pre-existing stale red (`test_white_z_axis…raises`, stale `mu_z` regex → msg is now "degenerate for this face"). unified_matvec_cylinder (curvilinear `bc_left=None`): all pass. phase_c_gates(L0)+solution: 42 pass / 6 expected-xfail. Masks bit-identical (xmin↔old "left", xmax↔old "right"). **Pre-existing base-branch reds confirmed via `git stash` (same failures with my changes removed):** 6× curvilinear-sweep `IndexError` in `sweep_cache.py:431` `sig_t[:, geom.chain_idx]` (test_spherical ×3 + test_cylindrical ×3 — the `_sweep_1d_unified`/CollisionCache legacy path, superseded by the passing matvec; a separate subsystem). |
 | **A.4 ✅** | consolidated all 8 inline `sign(Ω·n)` face masks in `operator.py` to read `TraceSpace.{inflow,outflow}_indices_for_face` (4 outflow in `_compute_LpC`/`_compute_decomposition` + 4 2-D inflow in `_apply_2d_cartesian`); new public `SNMesh.trace`. `f86846e` | **BI** (boolean-mask ≡ sorted fancy-index) | **DONE: sweep 524 / operators 392 / 2-D MMS 3 passed; A2D-1 hash pin updated.** Also: restored a dead L1 gate (`e46c63c`) + marked slow studies (`e581409`, fast loop 21 s); deferred deep test-speed → issue #211 |
 | **A.5 ✅** | re-homed `BoundaryFlux` onto `TraceSpace`: dropped field-side `layout` (→ read-through property `space.layout`), factories source `space=mesh.trace`, `__post_init__` enforces TraceSpace, retired both `sn_boundary_flat` builds; `mesh` kept as cross-mesh guard. `57c5151` | **BI** (only `space.name` flips, not values) | **DONE: test_boundary_flux 36 / operators-batch 439 / sweep+transport+solve 652 passed.** Migrated 2 direct-ctor test sites + added negative guard test |
-| **B.1 ← NEXT** | storage-base ABCs (`BulkField`/`AngularField`/`ScalarField`/`MomentField`/`BoundaryField`); dedup `AngularFlux`↔`PerOrdinateSource` machinery (mesh, shape-check, factories, `_check_partner`) into bases; re-parent leaves | BI | leaf tests bit-identical (`test_angular_flux`, `test_scalar_flux`, `test_boundary_flux`, `test_harmonic_moment_field`, typed-sources) |
-| **B.2** | rename sources (1-cycle shim); re-parent; land atomically (cross-class `__add__` + 4 singledispatch guards) | BI | `test_typed_sources.py` (migrate names) |
+| **B.1 ✅** | created all 5 storage-base ABCs in `transport/fields/_bases.py` (plan-literal): `BulkField`(mesh+mesh-binding+ng/nx/ny+abstract `_phase_space_shape`) → `AngularField`/`ScalarField`(parametrized `from_mesh` via `_SPACE_NAME`)/`MomentField`(marker); `BoundaryField`(TraceSpace contract+layout+face_view+factories via `cls`). Re-parented all 6 leaves (−602 lines). `6e70ec1` | **BI** (values + space names + public API preserved; `isinstance` holds) | **DONE: smoke (MRO/abstractness/`_SPACE_NAME`) + transport+primitives+operators 760 passed + sentinel gate 36/36 (full DAG).** |
+| **B.2 ← NEXT** | rename sources (1-cycle shim); re-parent; land atomically (cross-class `__add__` + 4 singledispatch guards) | BI | `test_typed_sources.py` (migrate names) |
 | **B.3** | new leaves `Angular/ScalarResidual` (cm⁻³), `Boundary{Source,Residual}` (cm⁻²) | new | new construction/arith/cross-role-raise tests |
 | **B.4** | `UNITS` class constant; Layer-1 = units gate | new | dimensionality + `-O` zero-cost tests |
 | **B.5** | `from_balance`; rewire `iteration.py:455`/`operator.py:1938`; #207 cross-storage injection STAYS implicit (resolved) | NI type / BI arithmetic | 347 wall; named-composition test |
