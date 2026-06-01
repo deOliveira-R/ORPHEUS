@@ -354,6 +354,7 @@ class TestBitIdenticalCurvilinear:
     coverage suffices to gate the curvilinear branch.
     """
 
+    @pytest.mark.sentinel
     @pytest.mark.foundation
     @pytest.mark.verifies("dd-curvilinear-scalar", "dd-mm-closure-constants")
     def test_spherical_outward_bit_identical(self):
@@ -1035,6 +1036,7 @@ class TestResidual:
         # Round-trip identity to FP rounding — one division ULP band.
         np.testing.assert_allclose(residual, 0.0, atol=1e-13)
 
+    @pytest.mark.sentinel
     @pytest.mark.foundation
     @pytest.mark.parametrize("geometry", GEOMETRIES)
     @pytest.mark.parametrize("n_groups", [1, 2, 4])
@@ -1099,12 +1101,19 @@ class TestResidual:
 
     # ── 2. Linearity in cell_avg ───────────────────────────────────
 
+    @pytest.mark.sentinel
     @pytest.mark.foundation
     @pytest.mark.parametrize("geometry", GEOMETRIES)
     def test_residual_linear_in_cell_avg(self, geometry: str) -> None:
         r"""Residual is linear in ``cell_avg`` (Diamond Difference closure
         is linear; M-M and Bailey terms enter only through fixed
         upstream-state contributions, not through ``cell_avg``).
+
+        Sentinel (Phase S2) for ``DiamondDifference.residual`` — the
+        apply-direction. The cheap sentinels for the sweep nodes did NOT
+        call ``residual()`` at all (0 % of its mutants); this linearity
+        identity kills the interior-arithmetic mutants (e.g. the lone
+        S0 ``-``→``//`` FloorDiv survivor breaks linearity).
 
         Mathematical identity (DD ``is_linear = True``):
 

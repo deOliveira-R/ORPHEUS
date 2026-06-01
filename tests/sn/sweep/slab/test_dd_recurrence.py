@@ -124,3 +124,19 @@ def test_dd_per_cell_recurrence_matches_symbolic_derivation():
             "DiamondDifference does not match "
             "sn_balance.derive_cumprod_recurrence."
         )
+
+        # Spatial WDD closure: ψ_out = 2·ψ_avg − ψ_in MUST equal the
+        # symbolic ψ_out_expected.  Asserting this (NOT just cell_avg)
+        # gives the sentinel sensitivity to the ``psi_spat_out`` sign /
+        # factor in DiamondDifference.update — a sentinel-mutation gap
+        # found in Phase S2 (the cell_avg-only assertion left the
+        # spatial-closure mutants alive).  np.testing.assert_allclose
+        # is a function call, so it fires even under ``-O`` (vv Mode 8).
+        np.testing.assert_allclose(
+            float(result.outgoing_spatial_flux[0]), psi_out_expected,
+            rtol=1e-12,
+            err_msg=(
+                f"Ordinate n={n} (μ={mu_val:.6f}): WDD spatial closure "
+                f"ψ_out=2ψ_avg−ψ_in disagrees with symbolic ψ_out."
+            ),
+        )
