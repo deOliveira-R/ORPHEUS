@@ -10,7 +10,7 @@ discipline — superseded), #208 (operator typing — **deferred**).
 
 ---
 
-## SESSION STATE — PHASE A + B.1 + B.2 DONE, RESUME AT B.3 (2026-06-01)
+## SESSION STATE — PHASE A + B.1 + B.2 + B.3 (bulk) DONE, RESUME AT B.4 (2026-06-01)
 
 **B.1 DONE (`6e70ec1`):** 5 storage-base ABCs in `transport/fields/
 _bases.py`; 6 leaves re-parented (−602 lines of duplicated machinery).
@@ -21,13 +21,49 @@ _bases.py`; 6 leaves re-parented (−602 lines of duplicated machinery).
 Both bit-identical; verified via 760 (primitives+transport+operators) +
 sentinel 36/36.
 
-**B.3 IS NEXT** — new role leaves: `AngularResidual` / `ScalarResidual`
-(BulkField, cm⁻³) + `BoundarySource` / `BoundaryResidual` (BoundaryField,
-cm⁻²). New tests: construction, same-class arithmetic closed, cross-class
-RAISES. (This is also where `BoundaryField` gains its 2nd/3rd instances —
-the abstraction created in B.1 now earns its keep.) Then **B.4 (UNITS
-class constant — user wants to steer)** and **B.5 (`from_balance`
-dimensional-sin rewire at `iteration.py:455` / `operator.py:1938`)**.
+**B.3 (BULK) DONE:** new `transport/residuals/` package (parallel to
+`sources/`) — `AngularResidual`("angular_residual", on AngularField) +
+`ScalarResidual`("scalar_residual", on ScalarField), THIN leaves
+(`_SPACE_NAME` only; NO bespoke factory — a residual is *produced* by
+an operator balance in B.5, not built from thin air). New tests
+`tests/transport/residuals/test_typed_residuals.py` (22, foundation):
+construction/shape-validation, same-class add/sub/scalar/neg closed,
+mesh-binding guard, frozen, 2-D smoke, and the **load-bearing
+cross-class rejection** — `AngularResidual − AngularSource` RAISES
+*even though shape AND units match* (the dimensional-sin gate), same
+for scalar, residual±flux, cross-family, and `inner_product`. Also
+fixed a stale `field.py` module-docstring field-list (duplicate
+`AngularSource`, `BoundaryFaceFlux`→`BoundaryFlux`). Additive /
+bit-identical: 782 fast-tier (+22) + sentinel 36/36.
+
+**B.3 (BOUNDARY) DEFERRED → #208.** The planned `BoundarySource`
+field leaf **collides** with the EXISTING `runtime_checkable` Protocol
+`orpheus.geometry.boundary._source.BoundarySource` (the affine-law `q`
+in `γ₋ψ = R·G·γ₊ψ + q`). Explorer map (2026-06-01): they are
+**recipe→snapshot**, NOT duplicates — the Protocol is a *lazy per-face
+generator* (`evaluate(shape)→array`, all impls construction-time/
+explicit, ignores ψ) at the geometry layer that A.2/A.3 *deliberately
+decoupled from the trace*; the planned leaf would be an *eager
+whole-boundary stored field* on `TraceSpace`. The `q`-path NEVER
+touches `TraceSpace`/a flat buffer today (one call site,
+`angular_operator.py:289`) — so the field leaf has **no current
+consumer**. Decision: ship the bulk residuals now; defer
+`BoundarySource`/`BoundaryResidual` field leaves to **#208**'s
+BC-extraction `(L_full + C − S − F − B)ψ = q`, where (a) the field
+gets a real consumer and (b) the collision is resolved by RENAMING the
+geometry Protocol to a `*Spec`/generator name (it is a spec, not a
+field) rather than minting a colliding/parallel symbol now. Full map
+recorded as a comment on issue #208. ⇒ `BoundaryField` stays a
+single-instance ABC (BoundaryFlux) one more cycle.
+
+**B.4 IS NEXT** — **UNITS class constant (user wants to steer)**: the
+design commitment that class-identity *is* units-identity. Add `UNITS`
+(pint) to every role leaf; Layer-1 identity becomes the units gate;
+the old Layer-3 `space.units` assert retires. Debug test: same-role
+share `UNITS`, cross-role differ; `python -O` shows zero per-op cost.
+Then **B.5 (`from_balance` dimensional-sin rewire at `iteration.py:455`
+/ `operator.py:1938`)** and **B.6 (`TimedFullField` slots →
+`bulk: BulkField, boundary: BoundaryField`)**.
 
 **As-built shape a fresh session needs (post-compaction):**
 - Bases live in `orpheus/transport/fields/_bases.py`: `BulkField`
@@ -42,10 +78,12 @@ dimensional-sin rewire at `iteration.py:455` / `operator.py:1938`)**.
   `angular_source.py`) on AngularField; `ScalarFlux`("scalar_flux")/
   `ScalarSource`("scalar_source", `scalar_source.py`) on ScalarField;
   `HarmonicMomentField` on MomentField; `BoundaryFlux` on BoundaryField.
-- **B.3 leaf pattern:** copy the B.1/B.2 thin-leaf shape (`6e70ec1`/
-  `698a587`). `AngularResidual(AngularField)` + `ScalarResidual(ScalarField)`
-  = `_SPACE_NAME` only (+ `UNITS` in B.4). `BoundarySource`/`BoundaryResidual`
-  `(BoundaryField)` = empty leaves (machinery all inherited, like BoundaryFlux).
+- **B.3 leaf pattern (as built):** copied the B.1/B.2 thin-leaf shape.
+  `AngularResidual(AngularField)` + `ScalarResidual(ScalarField)` =
+  `_SPACE_NAME` only (+ `UNITS` in B.4), in new `transport/residuals/`.
+  `BoundarySource`/`BoundaryResidual` `(BoundaryField)` = DEFERRED to
+  #208 (name collision with the geometry-layer `BoundarySource` Protocol;
+  no current consumer — see SESSION STATE).
 - **Verification workflow (load-bearing):** per-tier single-process
   (NEVER whole `tests/sn` — OOMs). `pytest -m sentinel` WITHOUT `-O`
   (vv Mode 8) = seconds-fast full-DAG net (36 nodes). Fast bit-identity =
@@ -216,8 +254,8 @@ from SESSION STATE, and verify A.4 bit-identity against the relevant
 | **A.5 ✅** | re-homed `BoundaryFlux` onto `TraceSpace`: dropped field-side `layout` (→ read-through property `space.layout`), factories source `space=mesh.trace`, `__post_init__` enforces TraceSpace, retired both `sn_boundary_flat` builds; `mesh` kept as cross-mesh guard. `57c5151` | **BI** (only `space.name` flips, not values) | **DONE: test_boundary_flux 36 / operators-batch 439 / sweep+transport+solve 652 passed.** Migrated 2 direct-ctor test sites + added negative guard test |
 | **B.1 ✅** | created all 5 storage-base ABCs in `transport/fields/_bases.py` (plan-literal): `BulkField`(mesh+mesh-binding+ng/nx/ny+abstract `_phase_space_shape`) → `AngularField`/`ScalarField`(parametrized `from_mesh` via `_SPACE_NAME`)/`MomentField`(marker); `BoundaryField`(TraceSpace contract+layout+face_view+factories via `cls`). Re-parented all 6 leaves (−602 lines). `6e70ec1` | **BI** (values + space names + public API preserved; `isinstance` holds) | **DONE: smoke (MRO/abstractness/`_SPACE_NAME`) + transport+primitives+operators 760 passed + sentinel gate 36/36 (full DAG).** |
 | **B.2 ✅** | **HARD rename (no shim, user decision)**: `PerOrdinateSource→AngularSource`, `IsotropicSource→ScalarSource` (+ `git mv` modules, `_SPACE_NAME`s, `SNMesh.zeros_*` factories). 37 files / ~342 occurrences, 0 residual. Cross-class injection dunder preserved. `698a587` | **BI** (rename touches no values) | **DONE: 760 (primitives+transport+operators) + sentinel 36/36; imports clean; 0 residual tokens.** |
-| **B.3 ← NEXT** | new leaves `Angular/ScalarResidual` (cm⁻³), `Boundary{Source,Residual}` (cm⁻²) — and EXTRACT `BoundaryField`'s 2nd/3rd instances (deferred from B.1) | new | new construction/arith/cross-role-raise tests |
-| **B.4** | `UNITS` class constant; Layer-1 = units gate | new | dimensionality + `-O` zero-cost tests |
+| **B.3 ✅ (bulk)** | new `transport/residuals/` leaves `Angular/ScalarResidual` (cm⁻³) shipped + tested. `Boundary{Source,Residual}` (cm⁻²) + `BoundaryField` 2nd/3rd instances → **DEFERRED #208** (name collision w/ geometry `BoundarySource` Protocol; no current consumer) | new (additive/BI) | 22 construction/arith/cross-class-raise tests; 782 fast + sentinel 36/36 |
+| **B.4 ← NEXT** | `UNITS` class constant; Layer-1 = units gate (**user steers**) | new | dimensionality + `-O` zero-cost tests |
 | **B.5** | `from_balance`; rewire `iteration.py:455`/`operator.py:1938`; #207 cross-storage injection STAYS implicit (resolved) | NI type / BI arithmetic | 347 wall; named-composition test |
 | **B.6** | tighten `TimedFullField` slots | NI | composite reject tests (update `match=`) |
 | **C.1** | archivist: Sphinx theory page (View-G, storage×role×locus, dimensional table, named-composition, TraceSpace) + refresh `operator_algebra.rst` | — | `-W` clean; Nexus reload |

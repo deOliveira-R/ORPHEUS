@@ -13,8 +13,8 @@ Why this lives at L1
 
 The Grand Report v3 (§5.5, §32.5) prescribes that every typed
 transport field — ``AngularFlux``, ``ScalarFlux``, ``HarmonicMomentField``,
-``BoundaryFaceFlux``, ``ScalarSource``, ``AngularSource``,
-``AngularSource``, ``AngularResidual`` — share a single algebraic
+``BoundaryFlux``, ``ScalarSource``, ``AngularSource``,
+``ScalarResidual``, ``AngularResidual`` — share a single algebraic
 base. The pre-Depth-B codebase had six concrete classes each carrying
 an identical hand-coded dunder skeleton plus a ``_validate_partner``
 helper (see ``orpheus/sn/scalar_flux.py`` pre-D-D). The repetition
