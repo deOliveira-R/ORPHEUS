@@ -1,5 +1,14 @@
 # SN Test Suite — Capability Taxonomy Reorg (Nexus-driven)
 
+**STATUS: ✅ DONE (2026-06-01)** — reorg landed in `e851e76..842dd4a`
+(1378 tests in tier dirs + `cap()` markers; V&V audit intact; zero production
+changes; tiers run light single-process). The **sentinel harness** (`d9cd29f..
+138b4b0`, see `sn_sentinel_harness.md`) was then built ON TOP, and the
+**regression tolerance redesign** (see `sn_regression_tolerance_redesign.md`)
+follows. Final tree: `tests/sn/{primitives, operators, sweep/{core,slab,
+curvilinear,cartesian_2d}, solve, eigenvalue, verification/{mms,analytical},
+regression}`. The design below is the as-built record.
+
 **Why:** `tests/sn/` = 74 files / 1376+ tests with no logical organization →
 running the whole tree OOMs (single-process), and there's no visible
 "what to test for change X". Reorganize into an **incremental SN-capability
@@ -7,10 +16,12 @@ taxonomy** (each tier depends on those below) so we can run focused tiers,
 see coverage gaps, and the suite stays memory-safe. The poor file division
 IS the symptom. Decided 2026-06-01 (user: "now, before continuing A-phase").
 
-**OOM bridge (DONE):** `pytest-xdist 3.8.0` installed + declared in
-`pyproject` `test` deps. Canonical heavy run: `pytest tests/sn -n auto
---dist loadscope` (per-worker process isolation bounds memory + parallelizes).
-Not forced via addopts. Smoke-validated: 216 operator tests / 1.68s / -n 4.
+**OOM resolution (DONE):** the FIX is GRANULARITY (per-tier single-process —
+operators 395/3s/186MB), not `-n auto`-the-whole-thing (that's ~21 GB aggregate
++ slow). `pytest -m sentinel` (~4s, WITHOUT `-O` — vv Mode 8) is the always-on
+gate. **pytest-xdist pinned `<3.8`**: 3.8.0 DEADLOCKS the scheduler on Py3.14.3
+(workers exit, master idles at 0% CPU, repro at -n 2); **3.7.0 works** (operators
+-n4 = 4s, exit 0) — usable for in-tier / CI parallelism. Commit `6052664`.
 
 **Graph staleness (user hypothesis CONFIRMED):** Nexus graph built 2026-05-17
 (~2wk stale) — still shows pre-unification `Inflow/OutflowTraceSpace`, old
@@ -109,17 +120,17 @@ table.) Encoding = directories + `@pytest.mark.cap("<capability>")` markers
   no standalone boundary-operator L1 analytical gate (reflective-bc only verified
   incidentally inside solves).
 
-## Sequencing constraints
+## Sequencing — ✅ ALL DONE (2026-06-01)
 
-1. **numerics-investigator is editing `test_spherical.py`/`test_cylindrical.py`/
-   `sweep_cache.py`/`sweep.py`** (the curvilinear `sig_t[:, chain_idx]` bug). The reorg
-   MOVES/SPLITS those test files → MUST wait for the investigator to land first (collision).
-2. **Rebuild Sphinx** after the investigator lands → fresh graph for the test-architect +
-   validates A.2/A.3 docstrings.
-3. Then dispatch **test-architect** to execute the reorg incrementally, keeping the suite
-   green at each move (git mv preserves history; importlib discovery already configured).
-4. Validate `pytest tests/sn -n auto --dist loadscope` completes without OOM (the proof).
-5. Resume field-typing A.4/A.5 on the reorganized, memory-safe suite.
+1. ✅ numerics-investigator fixed the curvilinear `sig_t[:,chain_idx]` bug (ERR-055, `0defb4d`).
+2. ✅ Rebuilt Sphinx → fresh graph + A.2/A.3 docstrings clean (30 pre-existing warnings remain).
+3. ✅ test-architect executed the reorg incrementally (`e851e76..842dd4a`, git-mv history preserved).
+4. ✅ OOM resolved by per-tier granularity (not `-n auto`); xdist pinned `<3.8` (3.7 works).
+5. ◻ **A.4/A.5 — NEXT** (see `field_role_typing_view_g.md` SESSION STATE). The reorg + sentinel
+   + (in-flight) regression redesign are the substrate A.4 onward runs on.
 
-**Partial reorg already exists:** `tests/sn/{spatial,l1_analytical,regression}/` (16 files).
-Absorb, don't ignore.
+**Follow-ons noted (not done):** mutation-validate the OTHER tier modules
+(collision/streaming/scattering/sweep_cache/pole_angular_closure — recipe in
+`tests/_mutation/README.md`; only diamond.py is scored so far); the V&V coverage
+gaps above (2-D L1/L2 thin, no standalone boundary L1 gate) — file as issues if
+not absorbed; the 30 pre-existing Sphinx doc warnings (`/skills/` cross-refs).

@@ -10,6 +10,59 @@ discipline — superseded), #208 (operator typing — **deferred**).
 
 ---
 
+## SESSION STATE — RESUME AT A.4 (2026-06-01)
+
+A.1 + A.2/A.3 are DONE. Between A.3 and A.4 the session took a large
+**user-directed testing-infrastructure detour** (all test-only/config — ZERO
+production changes beyond the A.2/A.3 commit). Commit chain on
+`refactor/field-role-typing` (newest last):
+
+- `30c858c` — **A.2/A.3 TraceSpace unification** (the field-typing work).
+- `0defb4d` — fix ERR-055: curvilinear `sig_t` layout drift in TEST fixtures
+  (pre-existing base-branch bug; `_sweep_1d_unified` is production, tests were
+  on the obsolete `(nx,ng,ny)` layout → migrated to the `(ng,nx,ny)` producer).
+- `d95b64a` / `8e95db9` / `d0634c9` / `6052664` — test infra: **pytest-xdist
+  pinned `<3.8`** (3.8.0 DEADLOCKS on Py3.14.3; 3.7.0 works), taxonomy plan,
+  regenerated V&V matrix, runner guidance.
+- `e851e76..842dd4a` — **SN test-suite TAXONOMY REORG** (see
+  `sn_test_taxonomy.md`): 1378 tests → capability-tier dirs
+  `tests/sn/{primitives, operators, sweep/{core,slab,curvilinear,cartesian_2d},
+  solve, eigenvalue, verification/{mms,analytical}, regression}` + `cap()`
+  markers. **⚠ TEST PATHS CHANGED** — operator tests now under
+  `tests/sn/operators/`, sweep under `tests/sn/sweep/...`, etc.
+- `d9cd29f..138b4b0` — **SENTINEL HARNESS** (see `sn_sentinel_harness.md` +
+  `tests/_mutation/`): `pytest -m sentinel` (~4 s, 36 nodes, one per capability
+  node), cosmic-ray mutation-validated (diamond.py 96.8 %).
+- `9a5e09e` + (regression-redesign agent IN FLIGHT, agentId `ad896dc8c3314194a`)
+  — regression tolerance redesign (see `sn_regression_tolerance_redesign.md`):
+  drop magic floors → principled `conv_tol`/`nulp` + `DriftWarning` tripwire +
+  regenerate stale snapshots from the verified-correct solver.
+
+**NEW test workflow (post-reorg) — use this, not the stale gates below:**
+- Run **PER TIER** single-process (light: operators 395 tests / 3 s / 186 MB).
+  NEVER the whole `tests/sn` tree single-process (OOMs — 1378 items).
+- `pytest -m sentinel` = the seconds-fast always-on gate — **run WITHOUT `-O`**
+  (vv **Mode 8**: `-O` strips bare `assert` in non-rewritten helpers → false green).
+- xdist 3.7 works: `-n auto` within a tier is fine; whole-suite `-n auto` is
+  ~21 GB aggregate + slow (CI only).
+
+**Red baseline for A.4 onward:** the 6 curvilinear-sweep IndexErrors are FIXED.
+Remaining pre-existing reds = 5× Wave-T.1 TP-lift `isinstance(bc.inner, …)`
+(`bc.inner` is now a `TensorProductOperator`) + 1× stale `mu_z` regex — all in
+the moved `tests/sn/operators/` + realizer-wiring/bound_compat files; stale
+assertions tracked for C.2 (NOT correctness bugs). Snapshot-drift reds are
+being fixed by the regression agent.
+
+**A.4 IS READY:** `TraceSpace.outflow_indices_for_face(face)` /
+`inflow_indices_for_face(face)` are built + bit-identical to the old
+`mu_x>±eps` masks (`_TANGENTIAL_EPS = 4·machine_eps`). A.4 = replace the ≈8
+inline `mu_x > +eps` / `mu_x < -eps` masks in `orpheus/sn/operator.py`
+(~lines 565-576 + 844-855: `outer_outflow_mask`/`inner_outflow_mask` writing to
+`m_boundary.face_view("xmax"/"xmin")`) with the trace selectors. Operator/sweep
+tests now live under `tests/sn/operators/` + `tests/sn/sweep/`.
+
+---
+
 ## Context — why
 
 `AngularFlux` & friends are under-abstracted; the type system erases physics
@@ -64,19 +117,21 @@ units on the quantity), with one unified `TraceSpace`. Foundation for #208.
 
 ## Execution ledger (gates from the test-architect verification spec)
 
-**Regression wall:** SN operator-algebra-core 12-file gate = **347 pass / 0 fail
-/ 0 xfail**; anchors 46 pass / **8 expected-xfail** (ERR-026; must stay xfail).
-**Pre-existing red (NOT ours; pin at exactly 5, must not grow):**
-`test_snmesh_realizer_wiring.py` ×3 + `test_bound_compat.py` ×2 (curvilinear-
-realizer routing). A.3 touches that wiring — watch it.
+**⚠ STALE (pre-reorg) — superseded by "SESSION STATE" above.** The old gate
+was: SN operator-algebra-core 12-file gate = 347 pass; "pin pre-existing red at
+exactly 5". POST-REORG those file groupings no longer exist (tests moved into
+capability tiers) and the red set changed (curvilinear 6 fixed; 5 TP-lift + 1
+`mu_z` remain). For A.4 onward use the per-tier workflow + `-m sentinel` gate
+from SESSION STATE, and verify A.4 bit-identity against the relevant
+`tests/sn/sweep/` + `tests/sn/operators/` tiers (the operator-algebra tests).
 
 | Step | Scope | Bit-identity? | Gate |
 |---|---|---|---|
 | 0a/0b | test-architect spec + explorer L20 audit | — | done |
 | **A.1 ✅** | remove `units` from `FunctionSpace` (`space.py`: field, `__eq__`, `__repr__`, `_tensor_product_units`); drop Layer-3 assert in `field.py`; migrate unit-pins (3 in `test_space_algebra.py` + **5 in `test_field.py`** — grep found more than the spec listed); fix latent cm²→cm³ error in field.py docstring; scalar_flux.py docstring | **BI** (units `None` everywhere) | **DONE: 237 passed `-O`** (space+space_algebra+field+operator+transport+typed_sources) |
 | **A.2+A.3 ✅** (MERGED) | **TraceSpace unification** — DONE. Built one concrete `TraceSpace(FunctionSpace)` (whole-boundary `shape=(layout.total_size,)`, `layout: FaceLayout`, signed `omega_dot_n (n_faces,N)`, `_TANGENTIAL_EPS=4·machine_eps`, inflow/outflow selectors). Migrated SNMesh (`_inflow_trace`+`_outflow_trace`→one `_trace`), method_space (`inflow_trace`/`outflow_trace`→`trace`), `_resolve_one` (`for_face(trace=)`). Decoupled `IncomingSourceOperator` probe + `BoundarySource.evaluate` from the trace → **`evaluate(shape)`** (retired the fake-trace-as-shape-carrier anti-pattern). Deleted `Inflow/OutflowTraceSpace` + `boundary_trace_space()` + `numerics/trace_space.py` shim. **Curvilinear-one-boundary resolved (see below).** | **BI both sides** | DONE — verified in memory-safe targeted chunks (full `tests/sn` OOMs: 1376 single-process items, pre-existing infra, NOT ours). **Zero new failures.** trace/space/method_space/realizer_wiring/bound_compat/btl: 68 pass / 5 pre-existing TP-lift red. sn_boundary_realizer+native_matvec+streaming_decomposition(Res-A)+typed_sources: 80 pass / 1 pre-existing stale red (`test_white_z_axis…raises`, stale `mu_z` regex → msg is now "degenerate for this face"). unified_matvec_cylinder (curvilinear `bc_left=None`): all pass. phase_c_gates(L0)+solution: 42 pass / 6 expected-xfail. Masks bit-identical (xmin↔old "left", xmax↔old "right"). **Pre-existing base-branch reds confirmed via `git stash` (same failures with my changes removed):** 6× curvilinear-sweep `IndexError` in `sweep_cache.py:431` `sig_t[:, geom.chain_idx]` (test_spherical ×3 + test_cylindrical ×3 — the `_sweep_1d_unified`/CollisionCache legacy path, superseded by the passing matvec; a separate subsystem). |
-| **A.4** | consolidate inline `mu_x>±eps` masks in `operator.py` (≈8 copies; verify `eps`=`_TANGENTIAL_EPS`) | **BI (highest risk)** | Resolution-A `assert_array_equal`; 347 wall |
-| **A.5** | re-home `BoundaryFlux` onto `TraceSpace`; FaceLayout field→space | BI | `test_boundary_flux.py`, `test_timed_full_field.py` |
+| **A.4 ← NEXT** | consolidate ≈8 inline `mu_x>±eps` masks in `operator.py` (~565-576, ~844-855) to read `TraceSpace.outflow_indices_for_face` (READY + bit-identical; eps already unified to `4·machine_eps`) | **BI (highest risk)** | Resolution-A `assert_array_equal`; verify `tests/sn/sweep/` + `tests/sn/operators/` tiers green (per-tier, not 347 wall) |
+| **A.5** | re-home `BoundaryFlux` onto `TraceSpace` (its `sn_boundary_flat` space → the unified trace; FaceLayout field→space). Trace already carries `layout`+`shape=(total_size,)`+Euclidean weights = bit-identical storage | BI | `test_boundary_flux.py`, `test_timed_full_field.py` (find under new tier paths) |
 | **B.1** | storage-base ABCs; dedup; re-parent | BI | leaf tests bit-identical |
 | **B.2** | rename sources (1-cycle shim); re-parent; land atomically (cross-class `__add__` + 4 singledispatch guards) | BI | `test_typed_sources.py` (migrate names) |
 | **B.3** | new leaves `Angular/ScalarResidual` (cm⁻³), `Boundary{Source,Residual}` (cm⁻²) | new | new construction/arith/cross-role-raise tests |
