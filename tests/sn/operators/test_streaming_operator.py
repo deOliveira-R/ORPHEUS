@@ -1140,12 +1140,18 @@ class TestT4dApply2DCartesianSourceHashPin:
     a soft constraint.
     """
 
-    # The SHA-256 hash of ``inspect.getsource(StreamingOperator._apply_2d_cartesian)``
-    # as of T.4d (commit landing this test).  See class docstring for
-    # the update procedure when the 2-D Cartesian path is intentionally
-    # refactored.
+    # The SHA-256 hash of ``inspect.getsource(StreamingOperator._apply_2d_cartesian)``.
+    # See class docstring for the update procedure when the 2-D Cartesian
+    # path is intentionally refactored.  History:
+    #   T.4d (landing commit)     7a5dfee8…353d114e
+    #   A.4  (TraceSpace selector) e7ceab0b…d64d12a — the inline
+    #         ``mu_{x,y} ≷ ±eps`` inflow masks were replaced by
+    #         ``trace.inflow_indices_for_face(...)`` (bit-identical:
+    #         boolean-mask vs sorted-integer fancy-index select the same
+    #         rows in the same order; verified by the cartesian_2d sweep
+    #         tier + 2-D matvec-consistency tests).
     EXPECTED_SHA256: str = (
-        "7a5dfee89499f246334c505330d86e4b30aeec8c2f33975c3306b862353d114e"
+        "e7ceab0b9e922a49c5e6d88e2949b3ce595c4d462d2bb50da4c419187d64d12a"
     )
 
     def test_apply_2d_cartesian_source_hash_unchanged(self):

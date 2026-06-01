@@ -13,7 +13,7 @@ redistribution coefficients (:math:`\alpha`), the geometry factor
 from __future__ import annotations
 
 import warnings
-from typing import ClassVar, Iterator, TYPE_CHECKING
+from typing import ClassVar, Iterator, Optional, TYPE_CHECKING
 
 import numpy as np
 
@@ -64,6 +64,7 @@ if TYPE_CHECKING:
     from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
     from orpheus.transport.timed_full_field import TimedFullField
     from .material_xs_field import MaterialXSField
+    from orpheus.numerics.spaces.trace_space import TraceSpace
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.sources import IsotropicSource, PerOrdinateSource
 
@@ -858,6 +859,26 @@ class SNMesh:
             _history=(),
             history_depth=history_depth,
         )
+
+    @property
+    def trace(self) -> "Optional[TraceSpace]":
+        r"""The unified boundary :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`.
+
+        One concrete trace space for the whole boundary :math:`\Gamma`,
+        built (A.2/A.3) from this mesh + quadrature +
+        :attr:`boundary_face_layout`. It is the single source of truth
+        for the signed projection :math:`\Omega\cdot\hat n_f` per face;
+        the inflow / outflow *selectors*
+        (:meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.outflow_indices_for_face`)
+        replace the inline ``sign(Ω·n)`` masks that the streaming matvec
+        and the boundary realizer previously each recomputed.
+
+        ``None`` only for trace-less meshes — a curvilinear (cylindrical)
+        :class:`~orpheus.geometry.mesh.Mesh2D`, which has no SN sweep.
+        Every mesh that drives a sweep (1-D slab / sphere / cylinder,
+        2-D Cartesian) carries a non-``None`` trace.
+        """
+        return self._trace
 
     @property
     def boundary_face_layout(self) -> "FaceLayout":

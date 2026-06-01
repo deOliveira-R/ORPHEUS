@@ -442,6 +442,7 @@ class _MSpatialOperatorSum(OperatorSum):
         sigma_t_gx = self.sigma_t[:, :, 0]
 
         boundary = psi.boundary
+        trace = sn_mesh.trace
         has_inner_face = "xmin" in boundary.layout.faces
         face_outer = boundary.face_view("xmax")
         face_inner = boundary.face_view("xmin") if has_inner_face else None
@@ -561,19 +562,24 @@ class _MSpatialOperatorSum(OperatorSum):
 
         m_cell = out_g_first.transpose(1, 0, 2, 3)
 
+        # Outflow-face residuals: the ordinates pointing OUT of the
+        # domain at each boundary face carry ψ_out − bc_estimate. The
+        # outflow set is read from the unified TraceSpace selector
+        # (single source of truth for sign(Ω·n)) — A.4 retired the
+        # inline ``mu_x > ±eps`` masks this matvec used to recompute.
         m_boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
-        outer_outflow_mask = mu_x > +eps
-        if np.any(outer_outflow_mask):
-            m_boundary.face_view("xmax")[outer_outflow_mask, :] = (
-                outflow_at_boundary[:, outer_outflow_mask].T
-                - face_outer[outer_outflow_mask, :]
+        outer_outflow = trace.outflow_indices_for_face("xmax")
+        if outer_outflow.size:
+            m_boundary.face_view("xmax")[outer_outflow, :] = (
+                outflow_at_boundary[:, outer_outflow].T
+                - face_outer[outer_outflow, :]
             )
         if face_inner is not None:
-            inner_outflow_mask = mu_x < -eps
-            if np.any(inner_outflow_mask):
-                m_boundary.face_view("xmin")[inner_outflow_mask, :] = (
-                    outflow_at_inner[:, inner_outflow_mask].T
-                    - face_inner[inner_outflow_mask, :]
+            inner_outflow = trace.outflow_indices_for_face("xmin")
+            if inner_outflow.size:
+                m_boundary.face_view("xmin")[inner_outflow, :] = (
+                    outflow_at_inner[:, inner_outflow].T
+                    - face_inner[inner_outflow, :]
                 )
 
         return TimedFullField(
@@ -693,6 +699,7 @@ class _MSpatialOperatorSum(OperatorSum):
         sigma_t_gx = self.sigma_t[:, :, 0]                               # (ng, nx)
 
         boundary = psi.boundary
+        trace = sn_mesh.trace
         has_inner_face = "xmin" in boundary.layout.faces
         face_outer = boundary.face_view("xmax")                          # (N, ng)
         face_inner = (
@@ -840,19 +847,21 @@ class _MSpatialOperatorSum(OperatorSum):
 
         # M_spatial carries the face residuals (only the spatial sweep
         # writes them; per MA-Q4 M_angular_redist is a BulkOperator).
+        # Outflow set read from the unified TraceSpace selector (single
+        # source of truth for sign(Ω·n) — see A.4 in _compute_LpC).
         m_spat_boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
-        outer_outflow_mask = mu_x > +eps
-        if np.any(outer_outflow_mask):
-            m_spat_boundary.face_view("xmax")[outer_outflow_mask, :] = (
-                outflow_at_boundary[:, outer_outflow_mask].T
-                - face_outer[outer_outflow_mask, :]
+        outer_outflow = trace.outflow_indices_for_face("xmax")
+        if outer_outflow.size:
+            m_spat_boundary.face_view("xmax")[outer_outflow, :] = (
+                outflow_at_boundary[:, outer_outflow].T
+                - face_outer[outer_outflow, :]
             )
         if face_inner is not None:
-            inner_outflow_mask = mu_x < -eps
-            if np.any(inner_outflow_mask):
-                m_spat_boundary.face_view("xmin")[inner_outflow_mask, :] = (
-                    outflow_at_inner[:, inner_outflow_mask].T
-                    - face_inner[inner_outflow_mask, :]
+            inner_outflow = trace.outflow_indices_for_face("xmin")
+            if inner_outflow.size:
+                m_spat_boundary.face_view("xmin")[inner_outflow, :] = (
+                    outflow_at_inner[:, inner_outflow].T
+                    - face_inner[inner_outflow, :]
                 )
 
         m_spat_tff = TimedFullField(
@@ -1371,7 +1380,7 @@ class StreamingOperator(LinearOperatorMixin):
         nx, ny = sn_mesh.nx, sn_mesh.ny
         dx, dy = sn_mesh.dx, sn_mesh.dy
         mu_x, mu_y = quad.mu_x, quad.mu_y
-        eps = 1e-15
+        trace = sn_mesh.trace
 
         bc_xmin = getattr(sn_mesh, "bc_xmin", None) or SpecularBoundaryOperator(
             axis="x", albedo=1.0,
@@ -1389,24 +1398,29 @@ class StreamingOperator(LinearOperatorMixin):
         # ── Build fi: cell-centre proxy + BC-filled incoming at boundary ─
         fi = psi.bulk.values.copy()
 
-        mask_xmin_in = mu_x > eps     # incoming at xmin
-        mask_xmax_in = mu_x < -eps    # incoming at xmax
-        mask_ymin_in = mu_y > eps     # incoming at ymin
-        mask_ymax_in = mu_y < -eps    # incoming at ymax
+        # Incoming-ordinate set per face, read from the unified TraceSpace
+        # selector (single source of truth for sign(Ω·n) — A.4 retired
+        # the inline ``mu_{x,y} ≷ ±eps`` masks this 2-D matvec used to
+        # recompute; ``inflow`` is Ω·n < −ε, i.e. the direction points
+        # INTO the domain through that face).
+        xmin_inflow = trace.inflow_indices_for_face("xmin")
+        xmax_inflow = trace.inflow_indices_for_face("xmax")
+        ymin_inflow = trace.inflow_indices_for_face("ymin")
+        ymax_inflow = trace.inflow_indices_for_face("ymax")
 
         # xmin / xmax: outgoing trace = fi at boundary cell; BC.apply
-        # returns full (N, ng) incoming; write only incoming-mask cells.
+        # returns full (N, ng) incoming; write only the incoming cells.
         for iy in range(ny):
             incoming_xmin = bc_xmin.apply(fi[:, :, 0, iy])      # (N, ng)
-            fi[mask_xmin_in, :, 0, iy] = incoming_xmin[mask_xmin_in]
+            fi[xmin_inflow, :, 0, iy] = incoming_xmin[xmin_inflow]
             incoming_xmax = bc_xmax.apply(fi[:, :, -1, iy])
-            fi[mask_xmax_in, :, -1, iy] = incoming_xmax[mask_xmax_in]
+            fi[xmax_inflow, :, -1, iy] = incoming_xmax[xmax_inflow]
 
         for ix in range(nx):
             incoming_ymin = bc_ymin.apply(fi[:, :, ix, 0])
-            fi[mask_ymin_in, :, ix, 0] = incoming_ymin[mask_ymin_in]
+            fi[ymin_inflow, :, ix, 0] = incoming_ymin[ymin_inflow]
             incoming_ymax = bc_ymax.apply(fi[:, :, ix, -1])
-            fi[mask_ymax_in, :, ix, -1] = incoming_ymax[mask_ymax_in]
+            fi[ymax_inflow, :, ix, -1] = incoming_ymax[ymax_inflow]
 
         # ── Compute M·ψ = (L+C)·ψ via cell-centred FD stencil ─────────
         out_M = np.zeros_like(psi.bulk.values)
