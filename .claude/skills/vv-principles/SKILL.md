@@ -104,9 +104,13 @@ a different defense (test review, not L0 verification).
 | #   | Mode             | Example                                | Detection (test-review strategy)                          |
 | --- | ---------------- | -------------------------------------- | --------------------------------------------------------- |
 | 7   | MMS simplification bias | Curvilinear ψ_chosen = sin(πr/R)/W chosen isotropic-in-μ "to isolate the radial closure" — the angular redistribution term IS the sweep's hardest math, but the test cannot see it because it cancels by ansatz design. ERR-026 (curvilinear sweep WDD) is invisible to this MMS. | Every multi-dim test must declare which terms its ansatz **activates** AND which it **nulls**. If the nulled set includes a term covered by an active ERR-NNN, redesign the ansatz. Add an angularly-non-trivial companion case (e.g., ψ = (A(r) + B(r)μ)/W) so the redistribution path is exercised. **NEVER** ship only the simpler case. |
+| 8   | Compiled-out assertion (runtime-mode strip) | A test asserts via a bare `assert` statement, but the suite runs under `python -O`, which strips `assert` to a NO-OP. The test collects, passes, and reports green — while asserting **nothing**. Bites hardest for always-on canary/sentinel gates: a tripwire that cannot trip is a *false green* worse than no gate. (ORPHEUS canonical invocation is `-O`; the SN sentinel set mixed bare `assert` with `np.testing.assert_*` — the bare-assert sentinels were inert under `-O`.) | Per gate, decide the runtime mode **explicitly**. A bare-`assert`-bearing gate MUST run **without `-O`** (or be rewritten to use `np.testing.assert_*` / `pytest.fail`, which are function calls and fire under `-O`). Review: grep the gate's tests for `^\s*assert ` and confirm the invocation does not pass `-O`. **NEVER** assume an assert fired just because the test passed under an unknown optimisation level. |
 
 **The mechanism is non-tokenizer.** Modes 1–6 are observable signatures
-of sub-word tokenizer co-location (see `reference.md` §2). Mode 7 is
+of sub-word tokenizer co-location (see `reference.md` §2). Mode 8 is a
+toolchain/runtime-mode failure: the assertion is real in source but
+compiled out by the interpreter flag, so the bug is unobservable at run
+time regardless of how good the assertion is. Mode 7 is
 human cognitive bias: the simplest trial function that satisfies the
 BCs is also the most error-resistant to derive, and so wins by default
 even when stronger trials would stress more of the solver. AI agents

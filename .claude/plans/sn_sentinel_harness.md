@@ -70,11 +70,16 @@ Tool: cosmic-ray (`tests/_mutation/`, Phase S0 verdict). Per-capability
 recipe: mutate ONE tier's module, run the sentinel set, `dump` →
 classify killed/survived by `definition_name`.
 
-- `diamond.py` (sweep_core/slab/2d cluster) sentinel score: see
-  `tests/_mutation/diamond_sentinels.toml` run. The FULL per-tier suite
-  scores 99.7 % on diamond.py (Phase S0); the sentinel subset is a
-  fraction of that — the honest sensitivity, reported as a number, not
-  a "catches any regression" claim.
+- `diamond.py` (sweep_core/slab/2d cluster) sentinel score:
+  **96.8 %** (362/374; 98.1 % excluding 5 equivalent ClassVar/decorator
+  mutants) — `update` 96.1 %, `update_batch` 100 %, `residual` 97.9 %.
+  Reached by promoting cheap `DiamondDifference` unit tests
+  (`TestResidual` round-trip + linearity, `TestBitIdenticalCurvilinear`,
+  `test_dd_recurrence` spatial closure) to sentinels — ~0 wall-clock
+  cost. The FULL per-tier suite scores 99.7 % (Phase S0); the sentinel
+  subset is the fast tripwire, reported as a NUMBER, not a "catches any
+  regression" claim. See `tests/_mutation/README.md` for the
+  S1→S2 progression table.
 
 ## Known sentinel coverage notes
 

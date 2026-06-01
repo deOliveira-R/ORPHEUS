@@ -72,6 +72,38 @@ mutation stays applied to the source file. **Always
 trusting any subsequent test result. S0 caught this: diamond.py was
 left with `* cell_avg // (...)` (the surviving mutant) on disk.
 
+## Sentinel-set sensitivity on diamond.py (Phase S2)
+
+`tests/_mutation/diamond_sentinels.toml` runs `pytest -m sentinel` (no
+`-O`) against every diamond.py mutant. The sentinel subset is a FAST
+TRIPWIRE, not the deep net, so its score is lower than the full suite's
+99.7 % — that is expected and honest.
+
+| sentinel-set version | update_batch | update | residual | TOTAL |
+|---|---|---|---|---|
+| S1 (15 node sentinels) | 100 % | 33 % | 0 % | 42.5 % |
+| S2 (+spatial-closure +linearity) | 100 % | 96 % | 57 % | 81.3 % |
+| **S2 final (+round-trip 2G/4G het)** | **100 %** | **96.1 %** | **97.9 %** | **96.8 %** |
+
+S2 final = **96.8 %** (362/374); **98.1 % excluding the 5 equivalent
+mutants** (`ReplaceTrueWith/FalseWith` on the `is_linear` /
+`is_positivity_preserving` ClassVar metadata + `RemoveDecorator` on
+`@dataclass`). Exceeds the ≥90 % S2 target for the core sweep
+capability. The S2 gap-closers cost ~0 wall-clock (the gate stays at
+~4.1 s): they promote already-cheap `DiamondDifference` unit tests
+(`test_diamond.py::TestResidual`, `TestBitIdenticalCurvilinear`,
+`test_dd_recurrence`) to sentinels.
+
+The 12 remaining survivors are all equivalent / near-equivalent: 5
+ClassVar-flag + decorator mutants (no numeric effect); 4 in `update`
+are `Gt`→`GtE`/`NotEq` flips on the `face_area_downstream > 0.0` /
+`angular_upstream is not None` **structural-presence** guards (flipping
+`>` to `>=` at a geometric `0.0` boundary is equivalent for
+non-degenerate cells) + `Sub_Mod`/`NumberReplacer` on cold branches; 3
+`NumberReplacer` constant tweaks in `residual` the round-trip
+tolerates. The full per-tier `test_diamond.py` is the deep net (S0:
+99.7 %); the sentinel set is the fast tripwire.
+
 ## Known survivors (diamond.py)
 
 - `residual()` line 269, `-` → `//`
