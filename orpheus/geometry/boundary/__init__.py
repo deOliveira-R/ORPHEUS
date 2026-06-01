@@ -30,15 +30,15 @@ sub-Markov BCs); and :math:`q \in \Gamma_-` is the optional
 
 The §16A.3 decomposition splits this map into three concrete layers:
 
-1. **Trace structure** — typed
-   :class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace` and
-   :class:`~orpheus.numerics.spaces.trace_space.OutflowTraceSpace`
+1. **Trace structure** — the unified typed
+   :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
    (every supported mesh — 1-D Cartesian / spherical / cylindrical
    + 2-D Cartesian — post Issue #188; 2-D cylindrical
    :class:`Mesh2D` is the only mesh that still raises, deferred
-   until a 2-D cylindrical SN sweep ships).
-   These carry the per-face directional mask discretising the
-   sign predicate :math:`\mathrm{sign}(\Omega_n \cdot \hat n_f)`.
+   until a 2-D cylindrical SN sweep ships). It carries the signed
+   :math:`\Omega_n \cdot \hat n_f` per face; inflow and outflow are
+   *selectors* over the sign predicate
+   :math:`\mathrm{sign}(\Omega_n \cdot \hat n_f)`.
 2. **Boundary law** — :class:`BoundaryTraceLaw` ABC + six concrete
    subclasses, each carrying the three first-class properties
    (:attr:`~BoundaryTraceLaw.geometry_map`,
@@ -137,7 +137,7 @@ sole bridge. The canonical SN-realised representation per law:
   :math:`R = G = 0`, :math:`q \neq 0`. SN realises to
   :class:`~orpheus.sn.angular_operator.IncomingSourceOperator(source)`
   whose :meth:`apply` ignores the outgoing flux and returns
-  :meth:`source.evaluate(probe_inflow_trace)`. Consumes a
+  ``source.evaluate(psi_out.shape)``. Consumes a
   :class:`BoundarySource` (typically :class:`NoSource` for the
   homogeneous case or :class:`ConstantInflowSource(value)` for a
   uniform inflow).

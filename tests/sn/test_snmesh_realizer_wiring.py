@@ -10,13 +10,17 @@ shim wrapping the 1-arg realized :class:`LinearOperator`. The shim's
 that still pass ``(psi, quad)``. Wave 9 migrates those.
 
 Issue #188 / C188.3 (this revision): the curvilinear bypass branch
-in ``_resolve_one`` is gone. With C188.1+C188.2's curvilinear
-:class:`InflowTraceSpace` support, 1-D spherical and 1-D cylindrical
-meshes route through the SAME realizer-then-shim path as Cartesian
-meshes. The 1-D y-face placeholders now use a minimal method space
-(no inflow_trace; the realizer's :class:`ReflectiveBoundary` branch
-does not consume inflow_indices). For GL1D the y-reflection
-permutation is the identity, so the realized op is a no-op.
+in ``_resolve_one`` is gone. With the unified
+:class:`~orpheus.numerics.spaces.trace_space.TraceSpace`'s curvilinear
+support, 1-D spherical and 1-D cylindrical meshes route through the
+SAME realizer-then-shim path as Cartesian meshes — but a solid
+sphere / cylinder has only the outer (``xmax``) boundary face; the
+pole r=0 is the angular closure's regularity condition, so
+``bc_left`` / ``bc_xmin`` are ``None``. The 1-D y-face placeholders
+use a minimal method space (no trace; the realizer's
+:class:`ReflectiveBoundary` branch does not consume inflow_indices).
+For GL1D the y-reflection permutation is the identity, so the
+realized op is a no-op.
 
 V&V tags
 --------
@@ -112,22 +116,20 @@ def test_2d_cartesian_reflective_ymax_returns_permutation(quad_2d):
     np.testing.assert_array_equal(sn.bc_ymax.apply(psi), expected)
 
 
-def test_2d_cartesian_construction_populates_traces(quad_2d):
-    """SNMesh on a Cartesian mesh populates :attr:`_inflow_trace` and
-    :attr:`_outflow_trace`. Carries the per-face inflow indices used
-    by the realizer.
+def test_2d_cartesian_construction_populates_trace(quad_2d):
+    """SNMesh on a Cartesian mesh populates the unified :attr:`_trace`.
+    Carries the per-face inflow indices used by the realizer.
     """
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
         mat_map=np.zeros((4, 3), dtype=int),
     )
     sn = SNMesh(mesh, quad_2d, placeholder_materials())
-    assert sn._inflow_trace is not None
-    assert sn._outflow_trace is not None
-    assert sn._inflow_trace.face_names == ("xmin", "xmax", "ymin", "ymax")
+    assert sn._trace is not None
+    assert sn._trace.face_names == ("xmin", "xmax", "ymin", "ymax")
     # xmin: inflow ordinates have mu_x > 0
     np.testing.assert_array_equal(
-        sn._inflow_trace.inflow_indices_for_face("xmin"),
+        sn._trace.inflow_indices_for_face("xmin"),
         np.flatnonzero(quad_2d.mu_x > 1e-12),
     )
 
@@ -164,7 +166,7 @@ def test_1d_cartesian_y_face_placeholders_realized_through_minimal_space(quad_1d
     :class:`SNBoundaryRealizer` with :meth:`SNMethodSpace.minimal` —
     the 1-D trace space cannot service
     ``inflow_indices_for_face('ymin')`` (its face_names are
-    ``("left", "right")`` only) but the realizer's
+    ``("xmin", "xmax")`` only) but the realizer's
     :class:`ReflectiveBoundary` branch does NOT read inflow_indices,
     only ``law.axis`` and ``quad.reflection_index``. For
     :class:`GaussLegendre1D`, ``reflection_index("y")`` returns the
@@ -210,17 +212,15 @@ def test_1d_cartesian_y_face_placeholders_realized_through_minimal_space(quad_1d
 
 
 def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
-    """Issue #188 / C188.3: Spherical vacuum now routes through
-    :class:`SNBoundaryRealizer` — :class:`InflowTraceSpace` was
-    extended to all 1-D coord systems in C188.1+C188.2 (Cartesian /
-    spherical / cylindrical all share the ``("left", "right")`` face
-    structure with outward normals along the radial / x axis). The
-    realizer's vacuum branch returns an
-    :class:`IncomingOrdinateMaskTensor` over the per-face inflow
-    indices (mu_x < 0 at the right face). The shim wraps it with no
-    bound quadrature (the realized op is already 1-arg). Per §16A.5
-    the mask zeros ONLY the inflow rows, leaving outflow rows
-    untouched.
+    """Spherical vacuum routes through :class:`SNBoundaryRealizer`. A
+    solid sphere has exactly ONE boundary — the outer radius
+    (``xmax``); the pole r=0 is the angular closure's regularity
+    condition, not a BC face. The unified :class:`TraceSpace` therefore
+    carries only the ``xmax`` face, and ``bc_left`` / ``bc_xmin`` are
+    ``None`` (no inner boundary). The realizer's vacuum branch returns
+    an :class:`IncomingOrdinateMaskTensor` over the per-face inflow
+    indices (mu_x < 0 at the outer face). Per §16A.5 the mask zeros
+    ONLY the inflow rows, leaving outflow rows untouched.
     """
     mesh = Mesh1D(
         edges=np.linspace(0.1, 1.0, 6),
@@ -235,16 +235,17 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
     # Issue #176 / C176.1 dropped the _quadrature attribute entirely.
     assert not hasattr(sn.bc_right, "_quadrature")
     assert sn.bc_right == "vacuum"
-    # Curvilinear trace spaces ARE now built (C188.1+C188.2 lifted
-    # the Mesh1D guard).
-    assert sn._inflow_trace is not None
-    assert sn._outflow_trace is not None
-    assert sn._inflow_trace.face_names == ("left", "right")
-    # The right-face inflow indices on a 1-D mesh are the mu_x < 0
-    # ordinates (Ω · n_right = +mu_x; inflow iff Ω · n < 0).
+    # ONE boundary: no inner-face operator at the pole.
+    assert sn.bc_left is None
+    assert sn.bc_xmin is None
+    # The unified trace carries only the outer ``xmax`` face.
+    assert sn._trace is not None
+    assert sn._trace.face_names == ("xmax",)
+    # The outer-face inflow indices are the mu_x < 0 ordinates
+    # (Ω · n_xmax = +mu_x; inflow iff Ω · n < 0).
     expected_inflow = np.flatnonzero(quad_1d.mu_x < -1e-12)
     np.testing.assert_array_equal(
-        sn._inflow_trace.inflow_indices_for_face("right"),
+        sn._trace.inflow_indices_for_face("xmax"),
         expected_inflow,
     )
 
@@ -256,14 +257,15 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
     np.testing.assert_array_equal(out[non_inflow], psi[non_inflow])
 
 
-def test_1d_cylindrical_reflective_routes_through_realizer():
-    """Issue #188 / C188.3: Cylindrical reflective now routes through
-    the realizer. The :class:`ReflectiveBoundary` branch produces a
-    :class:`PermutationOperator` over ``quad.reflection_index("x")``.
-    For :class:`LevelSymmetricSN` (the cylindrical-compatible
-    quadrature) the x-reflection partners every ordinate with the one
-    of opposite ``mu_x``; the permutation is a non-trivial pairing,
-    not the identity. The shim wraps it with no bound quadrature.
+def test_1d_cylindrical_one_boundary_outer_reflective():
+    """A solid cylinder has ONE boundary — the outer radius (``xmax``).
+    Any ``bc_left`` declaration at the pole r=0 is moot: the centreline
+    is a geometry-forced symmetry handled by the angular pole closure,
+    not an externally-imposed BC. So ``bc_left`` / ``bc_xmin`` are
+    ``None``, and only the outer reflective BC is realized. The
+    :class:`ReflectiveBoundary` branch produces a
+    :class:`PermutationOperator` over ``quad.reflection_index("x")``;
+    the shim wraps it with no bound quadrature.
     """
     mesh = Mesh1D(
         edges=np.linspace(0.1, 1.0, 6),
@@ -273,26 +275,28 @@ def test_1d_cylindrical_reflective_routes_through_realizer():
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     sn = SNMesh(mesh, quad, placeholder_materials())
-    # Realizer path: shim wraps a realized 1-arg PermutationOperator.
-    assert isinstance(sn.bc_left, _BoundBoundaryOperator)
-    assert isinstance(sn.bc_left.inner, PermutationOperator)
-    # Issue #176 / C176.1 dropped the _quadrature attribute entirely.
-    assert not hasattr(sn.bc_left, "_quadrature")
-    assert sn.bc_left == "reflective"
-    # The permutation matches quad.reflection_index("x") exactly.
+    # ONE boundary: no inner-face operator at the pole (the bc_left
+    # declaration on the mesh is ignored — the axis is the pole
+    # closure's regularity condition, always symmetric by geometry).
+    assert sn.bc_left is None
+    assert sn.bc_xmin is None
+    assert sn._trace is not None
+    assert sn._trace.face_names == ("xmax",)
+    # Outer face: realizer path; shim wraps a realized 1-arg op.
+    assert isinstance(sn.bc_right, _BoundBoundaryOperator)
+    assert isinstance(sn.bc_right.inner, PermutationOperator)
+    assert not hasattr(sn.bc_right, "_quadrature")
+    assert sn.bc_right == "reflective"
     np.testing.assert_array_equal(
-        sn.bc_left.inner.perm, quad.reflection_index("x"),
+        sn.bc_right.inner.perm, quad.reflection_index("x"),
     )
-    # Curvilinear trace spaces ARE now built.
-    assert sn._inflow_trace is not None
-    assert sn._outflow_trace is not None
 
-    # Bit-equivalence: the shim's 1-arg apply matches the legacy
+    # Bit-equivalence: the shim's 1-arg apply matches the
     # ReflectiveBoundary semantics — psi[reflection_index].
     rng = np.random.default_rng(7)
     psi = rng.standard_normal(size=(quad.N, 2))
     np.testing.assert_array_equal(
-        sn.bc_left.apply(psi),
+        sn.bc_right.apply(psi),
         psi[quad.reflection_index("x")],
     )
 

@@ -1,6 +1,6 @@
 r"""Strict 1-arg passthrough wrapping a realized BC operator with a kind tag.
 
-After Issue #188 (curvilinear `InflowTraceSpace` support) every
+After Issue #188 (curvilinear trace support) every
 :class:`~orpheus.sn.geometry.SNMesh` BC routes through
 :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` to a 1-arg
 :class:`~orpheus.numerics.operator.LinearOperator`. After Issue #186
@@ -25,9 +25,9 @@ The original Wave-8/9 implementation carried an optional
 ``quadrature=`` kwarg that, when non-``None``, bound an
 AngularQuadrature and forwarded ``inner.apply(psi, bound_quad)`` to
 a legacy 2-arg :class:`BoundaryTraceLaw` body. That mode existed
-ONLY because Wave 2 deferred curvilinear :class:`InflowTraceSpace`,
-which forced :class:`SNMesh._resolve_bcs` to bypass the realizer for
-spherical / cylindrical meshes. Issue #188 lifted that deferral;
+ONLY because Wave 2 deferred curvilinear trace support, which forced
+:class:`SNMesh._resolve_bcs` to bypass the realizer for spherical /
+cylindrical meshes. Issue #188 lifted that deferral;
 Issue #176 dropped the bound-quadrature mode; Issue #186 then
 dropped the ``*_extra, **_kw`` swallow on :meth:`apply` since the
 underlying need (legacy 2-arg test call sites) was eliminated by

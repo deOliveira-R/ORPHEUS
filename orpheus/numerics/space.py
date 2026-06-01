@@ -34,9 +34,12 @@ specialisations layered on top of :class:`FunctionSpace`:
 * **MeshFunctionSpace** — functions on a structured mesh; carries a
   reference to the :class:`~orpheus.geometry.mesh.Mesh1D` /
   :class:`~orpheus.geometry.mesh.Mesh2D` instance.
-* **TraceSpace** — functions on a boundary face; the domain/range
-  for :class:`~orpheus.geometry.boundary.BoundaryOperator`. Carries
-  a directional tag (``"in"`` vs ``"out"``).
+* **TraceSpace** — functions on the boundary; the domain/range for
+  :class:`~orpheus.geometry.boundary.BoundaryOperator`. ONE
+  whole-boundary space (see
+  :mod:`orpheus.numerics.spaces.trace_space`); inflow / outflow are
+  selectors over its signed :math:`\Omega\cdot\hat n`, not directional
+  tags.
 * **RegionSpace** — region-piecewise constant fields (one value per
   homogenised region); used by region-collapsed CP / homogenisation.
 * **EnergyGroupSpace** — multi-group flux space; tensored with a
@@ -73,7 +76,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal, Optional
+from typing import Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -84,7 +87,6 @@ __all__ = [
     "TensorProductSpace",
     "angular_flux_space",
     "scalar_flux_space",
-    "boundary_trace_space",
 ]
 
 
@@ -498,43 +500,3 @@ def scalar_flux_space(n_cells: int, n_groups: int) -> FunctionSpace:
     )
 
 
-def boundary_trace_space(
-    direction: Literal["in", "out"],
-    n_ordinates: int,
-    n_groups: int,
-    *,
-    quadrature_weights: NDArray | None = None,
-) -> FunctionSpace:
-    r"""Construct the directional boundary-trace space.
-
-    Shape is ``(n_ordinates, n_groups)``. The ``direction`` tag
-    distinguishes the *incoming* and *outgoing* faces of a boundary
-    operator: a :class:`BoundaryOperator` ``B`` has
-    ``B.domain = boundary_trace_space("out", ...)`` and
-    ``B.codomain = boundary_trace_space("in", ...)`` (it consumes
-    outgoing flux, produces incoming flux).
-
-    Parameters
-    ----------
-    direction : ``"in"`` | ``"out"``
-        Whether this trace describes flux flowing **into** the
-        domain (incoming) or **out of** the domain (outgoing).
-    n_ordinates, n_groups : int
-        Tensor dimensions.
-    quadrature_weights : NDArray, optional
-        Shape ``(n_ordinates,)`` weights along the ordinate axis.
-    """
-    weights: NDArray | None = None
-    if quadrature_weights is not None:
-        w = np.asarray(quadrature_weights)
-        if w.shape != (n_ordinates,):
-            raise ValueError(
-                f"quadrature_weights must have shape ({n_ordinates},), "
-                f"got {w.shape}"
-            )
-        weights = w.reshape(n_ordinates, 1)
-    return FunctionSpace(
-        name=f"boundary_trace_{direction}",
-        shape=(n_ordinates, n_groups),
-        inner_product_weights=weights,
-    )

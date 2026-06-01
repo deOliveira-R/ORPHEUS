@@ -16,7 +16,7 @@ The realisation map (legacy class → Wave-0 / Wave-1 primitive)
 * :class:`~orpheus.geometry.boundary.vacuum.VacuumBoundaryOperator` →
   :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
   with the per-face inflow indices from the method space's
-  :class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace`. **Semantic
+  :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`. **Semantic
   correction** (Wave 5 risk register entry, plan §16A.5): the legacy
   body zeroes ALL ordinates, but the §16A.10 trace-correct
   implementation zeroes ONLY the inflow ordinates so the outflow
@@ -40,8 +40,8 @@ The realisation map (legacy class → Wave-0 / Wave-1 primitive)
   :class:`~orpheus.numerics.operator.PeriodicWrapOperator`.
 * :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow(source)` →
   :class:`~orpheus.sn.angular_operator.IncomingSourceOperator(source)`
-  — apply returns ``source.evaluate(probe_inflow_trace)``, ignoring
-  the outgoing flux. The rank-0 affine BC (Wave 7 / C7.5).
+  — apply returns ``source.evaluate(psi_out.shape)``, ignoring the
+  outgoing flux. The rank-0 affine BC (Wave 7 / C7.5).
 
 Wave 11 removed the ``MixedBoundaryOperator`` composer from the
 dispatch table. Rank-N compositions are now expressed via Wave-0
@@ -135,7 +135,7 @@ class SNBoundaryRealizer:
                     "VacuumBoundaryOperator without inflow_indices in "
                     "method_space. Wave 8's SNMesh wiring populates "
                     "this from "
-                    "InflowTraceSpace.inflow_indices_for_face. For "
+                    "TraceSpace.inflow_indices_for_face. For "
                     "now, supply inflow_indices explicitly via "
                     "SNMethodSpace(quadrature=quad, face=..., "
                     "inflow_indices=...).",
@@ -231,7 +231,7 @@ class SNBoundaryRealizer:
         if isinstance(law, PrescribedInflow):
             # Wave-7 addition: rank-0 affine source. The operator's
             # apply ignores the outgoing flux and returns
-            # source.evaluate(probe_trace). Wave 8 will extend
+            # source.evaluate(psi_out.shape). Wave 8 will extend
             # IncomingSourceOperator with face / inflow-indices
             # plumbing once SNMethodSpace carries them.
             return IncomingSourceOperator(law.source)

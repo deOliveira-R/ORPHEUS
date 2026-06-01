@@ -74,7 +74,7 @@ realizer routing). A.3 touches that wiring — watch it.
 |---|---|---|---|
 | 0a/0b | test-architect spec + explorer L20 audit | — | done |
 | **A.1 ✅** | remove `units` from `FunctionSpace` (`space.py`: field, `__eq__`, `__repr__`, `_tensor_product_units`); drop Layer-3 assert in `field.py`; migrate unit-pins (3 in `test_space_algebra.py` + **5 in `test_field.py`** — grep found more than the spec listed); fix latent cm²→cm³ error in field.py docstring; scalar_flux.py docstring | **BI** (units `None` everywhere) | **DONE: 237 passed `-O`** (space+space_algebra+field+operator+transport+typed_sources) |
-| **A.2+A.3** (MERGED) | **TraceSpace unification** — one logical change (see "Unification design" below): build one concrete `TraceSpace(FunctionSpace)`; migrate the 5 consumers; delete `Inflow/OutflowTraceSpace` + `boundary_trace_space()` factory + `numerics/trace_space.py` shim; rewrite `test_trace_space.py` | **BI both sides** (operator + realizer) | rewritten `test_trace_space.py` (L1 `sign(Ω·n)`) + eps-gap guard; trace/realizer/method_space/btl/bound_compat green; red set still exactly 5 |
+| **A.2+A.3 ✅** (MERGED) | **TraceSpace unification** — DONE. Built one concrete `TraceSpace(FunctionSpace)` (whole-boundary `shape=(layout.total_size,)`, `layout: FaceLayout`, signed `omega_dot_n (n_faces,N)`, `_TANGENTIAL_EPS=4·machine_eps`, inflow/outflow selectors). Migrated SNMesh (`_inflow_trace`+`_outflow_trace`→one `_trace`), method_space (`inflow_trace`/`outflow_trace`→`trace`), `_resolve_one` (`for_face(trace=)`). Decoupled `IncomingSourceOperator` probe + `BoundarySource.evaluate` from the trace → **`evaluate(shape)`** (retired the fake-trace-as-shape-carrier anti-pattern). Deleted `Inflow/OutflowTraceSpace` + `boundary_trace_space()` + `numerics/trace_space.py` shim. **Curvilinear-one-boundary resolved (see below).** | **BI both sides** | DONE — verified in memory-safe targeted chunks (full `tests/sn` OOMs: 1376 single-process items, pre-existing infra, NOT ours). **Zero new failures.** trace/space/method_space/realizer_wiring/bound_compat/btl: 68 pass / 5 pre-existing TP-lift red. sn_boundary_realizer+native_matvec+streaming_decomposition(Res-A)+typed_sources: 80 pass / 1 pre-existing stale red (`test_white_z_axis…raises`, stale `mu_z` regex → msg is now "degenerate for this face"). unified_matvec_cylinder (curvilinear `bc_left=None`): all pass. phase_c_gates(L0)+solution: 42 pass / 6 expected-xfail. Masks bit-identical (xmin↔old "left", xmax↔old "right"). **Pre-existing base-branch reds confirmed via `git stash` (same failures with my changes removed):** 6× curvilinear-sweep `IndexError` in `sweep_cache.py:431` `sig_t[:, geom.chain_idx]` (test_spherical ×3 + test_cylindrical ×3 — the `_sweep_1d_unified`/CollisionCache legacy path, superseded by the passing matvec; a separate subsystem). |
 | **A.4** | consolidate inline `mu_x>±eps` masks in `operator.py` (≈8 copies; verify `eps`=`_TANGENTIAL_EPS`) | **BI (highest risk)** | Resolution-A `assert_array_equal`; 347 wall |
 | **A.5** | re-home `BoundaryFlux` onto `TraceSpace`; FaceLayout field→space | BI | `test_boundary_flux.py`, `test_timed_full_field.py` |
 | **B.1** | storage-base ABCs; dedup; re-parent | BI | leaf tests bit-identical |
@@ -145,4 +145,53 @@ per-face `Inflow/OutflowTraceSpace` AND the ad-hoc
   tests). A.5 then re-homes `BoundaryFlux` onto this `TraceSpace` (FaceLayout
   field→space).
 - **Probe artifact:** `eps_probe.py` lives in the job tmp (not committed); its
-  result is captured above. The gap-guard test is the durable form.
+  result is captured above. The gap-guard test is the durable form
+  (`test_eps_sits_in_the_round_off_to_genuine_gap`, `@foundation`).
+
+### Curvilinear-one-boundary — RESOLVED (2026-05-31, user-steered)
+
+The face-naming reconciliation surfaced a deeper physics question the user
+posed directly: *does a solid sphere have one boundary or two?* **Answer: ONE
+(the outer radius r=R).** The axis r=0 is NOT a boundary — it is a
+coordinate-singularity / symmetry condition `ψ(0,μ)=ψ(0,−μ)`, the r→0 limit of
+the angular-redistribution term `(1−μ²)/r ∂ψ/∂μ`, handled by the **angular pole
+closure** (`MorelMontryAngularSweep` / Carlson seed), NOT a BC. Litmus: a
+boundary is where you can impose inflow (vacuum/albedo/source/reflection); at
+r=0 there is no surface, no "outside", and vacuum/source are meaningless — the
+μ→−μ map is geometry-forced, not chosen. Modeling it as a reflective boundary
+conflates "a mirror you placed" with "the sphere is symmetric about its
+centre".
+
+**Decisive evidence it's SAFE (the sweep already agrees):**
+`operator.py:429/679` set `bc_inner = sn_mesh.bc_left if curvature=="cartesian"
+else None` — the curvilinear matvec **never reads `bc_left`**; `has_inner_face =
+"xmin" in boundary.layout.faces` is False for curvilinear; `sweep.py` curvilinear
+branch reads only `bc_right`/`xmax`; `boundary_face_layout` already says
+curvilinear = `xmax` only. So the legacy reflective `bc_left` for curvilinear
+was **vestigial** — fabricated by `_resolve_bcs`, read by nothing, asserted only
+by two already-red (TP-lift) tests.
+
+**What changed:** the unified trace keys on `boundary_face_layout` → curvilinear
+trace = `xmax` only (no phantom inner-face mask). `_resolve_bcs` no longer
+fabricates a curvilinear `bc_left`: **`sn.bc_left = sn.bc_xmin = None` for
+curvilinear** (the mesh's `bc_left` declaration at r=0 is moot — the axis is the
+pole closure's). Slab keeps both `xmin`/`xmax` (genuine boundaries; matvec reads
+`bc_inner = bc_left`). All bit-identical to prior numerics (the sweep never used
+the vestigial op). Curvilinear BC-resolution tests rewritten to the principled
+one-boundary contract (they stay red ONLY on the separate Wave-T.1 TP-lift
+`isinstance` issue, tracked for C.2).
+
+**Face naming:** 1-D now uses `xmin`/`xmax` (was `left`/`right`); radial axis IS
+the x-axis. Universal `_FACE_NORMALS = {xmin:(0,-1), xmax:(0,+1), ymin:(1,-1),
+ymax:(1,+1)}` serves every mesh. `_resolve_one` reflective-axis logic (`"y" if
+face in {ymin,ymax} else "x"`) unchanged-correct.
+
+### Remaining A-phase work (unchanged scope)
+- **A.4** — consolidate `operator.py` inline `mu_x>±eps` masks (≈8 copies) to
+  read `TraceSpace.outflow_indices_for_face`. The selectors are ready; the masks
+  are bit-identical (eps unified). NOTE: the operator builds masks as boolean
+  (`mu_x > eps`); selectors return indices — both valid for fancy-indexing the
+  face views. Verify Resolution-A `assert_array_equal` + 347-wall.
+- **A.5** — re-home `BoundaryFlux` onto `TraceSpace` (its `sn_boundary_flat`
+  space → the unified trace; FaceLayout field→space). The trace already carries
+  `layout` + `shape=(total_size,)` + Euclidean weights = bit-identical storage.

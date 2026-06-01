@@ -64,15 +64,6 @@ class _StubLaw(BoundaryTraceLaw, key="_stub_for_test"):
     """
 
 
-class _MockTrace:
-    """Stand-in for :class:`InflowTraceSpace` with just a
-    ``shape`` attribute -- enough to exercise
-    :class:`NoSource` / :class:`ConstantInflowSource`."""
-
-    def __init__(self, shape: tuple[int, ...]) -> None:
-        self.shape = shape
-
-
 # ─────────────────────────────────────────────────────────────────────
 # Descriptor surface (Issue #186 / B3 + β2)
 # ─────────────────────────────────────────────────────────────────────
@@ -119,8 +110,7 @@ def test_source_default_is_no_source() -> None:
     law = _StubLaw()
     src = law.source
     assert isinstance(src, NoSource)
-    trace = _MockTrace(shape=(8, 1))
-    out = src.evaluate(trace)  # type: ignore[arg-type]
+    out = src.evaluate((8, 1))
     assert out.shape == (8, 1)
     assert np.all(out == 0.0)
 
@@ -253,10 +243,9 @@ def test_unified_registry_holds_all_concretes() -> None:
 
 
 @pytest.mark.foundation
-def test_no_source_evaluate_returns_zeros_of_trace_shape() -> None:
+def test_no_source_evaluate_returns_zeros_of_requested_shape() -> None:
     src = NoSource()
-    trace = _MockTrace(shape=(12, 2))
-    out = src.evaluate(trace)  # type: ignore[arg-type]
+    out = src.evaluate((12, 2))
     assert out.shape == (12, 2)
     assert out.dtype == np.float64
     assert np.all(out == 0.0)
@@ -265,8 +254,7 @@ def test_no_source_evaluate_returns_zeros_of_trace_shape() -> None:
 @pytest.mark.foundation
 def test_constant_inflow_source_returns_value_everywhere() -> None:
     src = ConstantInflowSource(value=2.5)
-    trace = _MockTrace(shape=(6, 3))
-    out = src.evaluate(trace)  # type: ignore[arg-type]
+    out = src.evaluate((6, 3))
     assert out.shape == (6, 3)
     assert out.dtype == np.float64
     assert np.all(out == 2.5)

@@ -15,7 +15,6 @@ import pytest
 from orpheus.numerics.space import (
     FunctionSpace,
     angular_flux_space,
-    boundary_trace_space,
     scalar_flux_space,
 )
 
@@ -186,22 +185,8 @@ def test_scalar_flux_space_shape():
     assert sp.inner_product_weights is None
 
 
-@pytest.mark.foundation
-def test_boundary_trace_space_directions():
-    sp_in = boundary_trace_space(direction="in", n_ordinates=8, n_groups=2)
-    sp_out = boundary_trace_space(direction="out", n_ordinates=8, n_groups=2)
-    assert sp_in != sp_out  # different name (direction tag)
-    assert sp_in.shape == (8, 2)
-    assert sp_out.shape == (8, 2)
-    assert "in" in sp_in.name
-    assert "out" in sp_out.name
-
-
-@pytest.mark.foundation
-def test_boundary_trace_space_with_quadrature_weights():
-    qw = np.linspace(0.1, 0.9, 8)
-    sp = boundary_trace_space(
-        direction="in", n_ordinates=8, n_groups=2,
-        quadrature_weights=qw,
-    )
-    assert sp.inner_product_weights.shape == (8, 1)
+# NOTE: the directional ``boundary_trace_space()`` factory was retired
+# in the #205/#201 trace-space unification — the whole-boundary trace is
+# now the concrete :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
+# (see ``tests/numerics/test_trace_space.py``), with inflow/outflow as
+# selectors rather than a directional space tag.

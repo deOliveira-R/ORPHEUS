@@ -1,14 +1,14 @@
 r"""Tests for :mod:`orpheus.numerics.spaces.trace_space`.
 
-Wave 2 of the ``transient-giggling-cake`` plan — trace function
-spaces with per-face inflow / outflow masks.
+The unified :class:`TraceSpace` (#205 / #201) — ONE whole-boundary
+trace function space carrying the signed :math:`\Omega\cdot\hat n` per
+face. Inflow / outflow are *selectors* over it, not separate types.
 
-L0 tests cover structural / type / equality / dtype / shape /
-subset selection / error raising.
-
-L1 tests cover the mathematical correctness of the directional
-predicate :math:`\mathrm{sign}(\Omega \cdot \hat n_f)` mask
-construction against hand-computed expectations.
+L0 tests cover structure / identity / dtype / shape / selectors /
+error raising. L1 tests cover the directional-predicate correctness
+:math:`\mathrm{sign}(\Omega\cdot\hat n_f)` against hand-computed
+expectations. The eps-gap guard pins the principled tangential
+tolerance against every shipped quadrature.
 """
 
 from __future__ import annotations
@@ -20,457 +20,342 @@ import pytest
 
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.mesh import Mesh1D, Mesh2D
+from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.spaces.trace_space import (
-    InflowTraceSpace,
-    OutflowTraceSpace,
-    TraceSpace,
-)
+from orpheus.numerics.spaces.trace_space import TraceSpace, _TANGENTIAL_EPS
 from orpheus.numerics.quadrature import Quadrature
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Helpers
+# Helpers — build the (mesh, quadrature, layout) triple the unified
+# TraceSpace consumes. Layouts mirror SNMesh.boundary_face_layout:
+# slab xmin/xmax, curvilinear xmax-only, 2-D xmin/xmax/ymin/ymax.
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _mesh1d_cartesian(n: int = 4) -> Mesh1D:
-    """Tiny 1-D slab mesh — Cartesian, n cells, uniform edges."""
+def _mesh1d(coord: CoordSystem, n: int = 4) -> Mesh1D:
     return Mesh1D(
         edges=np.linspace(0.0, 1.0, n + 1),
         mat_ids=np.zeros(n, dtype=int),
-        coord=CoordSystem.CARTESIAN,
+        coord=coord,
     )
 
 
-def _mesh1d_spherical(n: int = 4) -> Mesh1D:
-    """Tiny spherical Mesh1D — radial direction along the x-axis.
-
-    Issue #188 lifted the curvilinear-Mesh1D deferral; this mesh
-    feeds the same per-face inflow-mask predicate as the slab.
-    """
-    return Mesh1D(
-        edges=np.linspace(0.0, 1.0, n + 1),
-        mat_ids=np.zeros(n, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-    )
-
-
-def _mesh1d_cylindrical(n: int = 4) -> Mesh1D:
-    """Tiny cylindrical Mesh1D — radial direction along the x-axis.
-
-    Shares the ("left", "right") face structure with slab and
-    spherical Mesh1D; the inflow predicate is identical.
-    """
-    return Mesh1D(
-        edges=np.linspace(0.0, 1.0, n + 1),
-        mat_ids=np.zeros(n, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-    )
-
-
-def _mesh2d_cartesian(nx: int = 3, ny: int = 3) -> Mesh2D:
-    """Tiny 2-D Cartesian mesh, (nx, ny) cells."""
+def _mesh2d(coord: CoordSystem, nx: int = 3, ny: int = 3) -> Mesh2D:
     return Mesh2D(
         edges_x=np.linspace(0.0, 1.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        coord=CoordSystem.CARTESIAN,
+        coord=coord,
     )
 
 
-def _mesh2d_cylindrical(nr: int = 3, nz: int = 3) -> Mesh2D:
-    """Tiny 2-D cylindrical (r, z) mesh — for the "still raises" test.
+def _slab_layout(N: int, ng: int = 1) -> FaceLayout:
+    return FaceLayout.from_named_shapes([("xmin", (N, ng)), ("xmax", (N, ng))])
 
-    ORPHEUS has no 2-D cylindrical sweep today; the trace-space
-    mask construction continues to raise :class:`NotImplementedError`
-    until that solver lands and the azimuthal averaging is wired in.
-    """
-    return Mesh2D(
-        edges_x=np.linspace(0.0, 1.0, nr + 1),
-        edges_y=np.linspace(0.0, 1.0, nz + 1),
-        mat_map=np.zeros((nr, nz), dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
+
+def _curvilinear_layout(N: int, ng: int = 1) -> FaceLayout:
+    return FaceLayout.from_named_shapes([("xmax", (N, ng))])
+
+
+def _cartesian2d_layout(N: int, ng: int, nx: int, ny: int) -> FaceLayout:
+    return FaceLayout.from_named_shapes([
+        ("xmin", (N, ng, ny)), ("xmax", (N, ng, ny)),
+        ("ymin", (N, ng, nx)), ("ymax", (N, ng, nx)),
+    ])
+
+
+def _trace_2d(quad, nx: int = 3, ny: int = 3, ng: int = 1) -> TraceSpace:
+    mesh = _mesh2d(CoordSystem.CARTESIAN, nx, ny)
+    return TraceSpace.from_mesh_and_quadrature(
+        mesh, quad, _cartesian2d_layout(quad.N, ng, nx, ny),
     )
+
+
+def _trace_1d(coord: CoordSystem, quad, ng: int = 1) -> TraceSpace:
+    mesh = _mesh1d(coord)
+    if coord is CoordSystem.CARTESIAN:
+        layout = _slab_layout(quad.N, ng)
+    else:
+        layout = _curvilinear_layout(quad.N, ng)
+    return TraceSpace.from_mesh_and_quadrature(mesh, quad, layout)
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Test 1 — L0: type construction + frozen invariance
+# L0 — structure, identity, frozen
 # ─────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.l0
-def test_inflow_trace_space_constructible_and_frozen():
-    """L0: InflowTraceSpace constructs via factory; mutation raises."""
-    mesh = _mesh2d_cartesian()
+def test_trace_space_constructible_and_frozen():
+    """L0: TraceSpace builds via factory; mutation raises; is a FunctionSpace."""
     quad = Quadrature.lebedev(11)
-    space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-
-    # Subclass check.
-    assert isinstance(space, InflowTraceSpace)
+    space = _trace_2d(quad)
     assert isinstance(space, TraceSpace)
     assert isinstance(space, FunctionSpace)
-    # Frozen: attempting to mutate any dataclass field raises.
     with pytest.raises(dataclasses.FrozenInstanceError):
         space.name = "evil"  # type: ignore[misc]
     with pytest.raises(dataclasses.FrozenInstanceError):
         space.shape = (1,)  # type: ignore[misc]
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Test 2 — L0: equality + distinguishability
-# ─────────────────────────────────────────────────────────────────────
+@pytest.mark.l0
+def test_shape_is_whole_boundary_flat_total_size():
+    """L0: shape == (layout.total_size,) — the whole boundary, flat."""
+    quad = Quadrature.lebedev(11)
+    space = _trace_2d(quad, nx=3, ny=3, ng=2)
+    # 4 faces: 2 x-faces (N*ng*ny) + 2 y-faces (N*ng*nx).
+    expected = 2 * quad.N * 2 * 3 + 2 * quad.N * 2 * 3
+    assert space.shape == (expected,)
+    assert space.layout.total_size == expected
 
 
 @pytest.mark.l0
-def test_inflow_outflow_distinguishable_by_name():
-    """L0: InflowTraceSpace and OutflowTraceSpace with same N/ng UNEQUAL."""
-    mesh = _mesh2d_cartesian()
+def test_face_names_track_layout_order():
+    """L0: face_names is the layout's ordered faces (omega_dot_n row order)."""
     quad = Quadrature.lebedev(11)
-    inflow = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    outflow = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    assert inflow != outflow
-    assert hash(inflow) != hash(outflow)
+    space = _trace_2d(quad)
+    assert space.face_names == ("xmin", "xmax", "ymin", "ymax")
+    assert space.omega_dot_n.shape == (4, quad.N)
 
 
 @pytest.mark.l0
-def test_inflow_trace_space_equality_independent_of_mask():
-    """L0: two InflowTraceSpaces with same N/ng compare equal — mask not in __eq__."""
-    mesh = _mesh2d_cartesian()
+def test_identity_independent_of_leaf_data():
+    """L0: two trace spaces of the same (name, shape) compare equal —
+    layout / omega_dot_n are ``compare=False`` leaf-data (FunctionSpace
+    identity convention)."""
     quad = Quadrature.lebedev(11)
-    a = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    b = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
+    a = _trace_2d(quad)
+    b = _trace_2d(quad)
     assert a == b
     assert hash(a) == hash(b)
-    # And the masks are present + equal-content.
-    np.testing.assert_array_equal(a.inflow_mask, b.inflow_mask)
+    np.testing.assert_array_equal(a.omega_dot_n, b.omega_dot_n)
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Test 3 — L1: from_mesh_and_quadrature on 2-D Cartesian + Lebedev
-# ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.l1
-def test_mesh2d_cartesian_lebedev_inflow_mask_per_face():
-    """L1: per-face inflow predicate matches mu_x / mu_y signs."""
-    mesh = _mesh2d_cartesian()
-    quad = Quadrature.lebedev(11)
-    eps = 1e-12
-    space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    mask = space.inflow_mask
-    assert mask.shape == (4, quad.N)
-    # Faces in canonical order: xmin, xmax, ymin, ymax.
-    # bc_xmin: outward -x → inflow iff mu_x > eps
-    np.testing.assert_array_equal(mask[0], quad.mu_x > eps)
-    # bc_xmax: outward +x → inflow iff mu_x < -eps
-    np.testing.assert_array_equal(mask[1], quad.mu_x < -eps)
-    # bc_ymin: outward -y → inflow iff mu_y > eps
-    np.testing.assert_array_equal(mask[2], quad.mu_y > eps)
-    # bc_ymax: outward +y → inflow iff mu_y < -eps
-    np.testing.assert_array_equal(mask[3], quad.mu_y < -eps)
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Test 4 — L1: mask consistency with tangential ordinates excluded
+# L1 — directional-predicate correctness
 # ─────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.l1
-def test_lebedev_axis_aligned_ordinates_excluded_from_both_masks():
-    """L1: pure-axis ordinates (e.g. (0,0,±1)) appear in NEITHER mask
-    on a face perpendicular to them."""
-    # Lebedev order=3 has 6 ordinates: (±1,0,0), (0,±1,0), (0,0,±1) —
-    # all axis-aligned. Order=11 still includes the 6 axis ordinates.
-    mesh = _mesh2d_cartesian()
+def test_2d_cartesian_lebedev_inflow_selectors_per_face():
+    """L1: per-face inflow indices match the hand-computed mu signs."""
     quad = Quadrature.lebedev(11)
-    inflow = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    outflow = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    # For face "xmin" (perpendicular to z-axis ordinates), the
-    # (0, 0, ±1) ordinates have Ω · n = 0 and must be excluded.
-    z_axis_indices = np.where(
+    eps = _TANGENTIAL_EPS
+    space = _trace_2d(quad)
+    # xmin: outward -x → inflow iff Ω·n = -mu_x < 0 iff mu_x > eps.
+    np.testing.assert_array_equal(
+        space.inflow_indices_for_face("xmin"), np.flatnonzero(quad.mu_x > eps),
+    )
+    # xmax: outward +x → inflow iff mu_x < -eps.
+    np.testing.assert_array_equal(
+        space.inflow_indices_for_face("xmax"), np.flatnonzero(quad.mu_x < -eps),
+    )
+    # ymin / ymax along the y-axis.
+    np.testing.assert_array_equal(
+        space.inflow_indices_for_face("ymin"), np.flatnonzero(quad.mu_y > eps),
+    )
+    np.testing.assert_array_equal(
+        space.inflow_indices_for_face("ymax"), np.flatnonzero(quad.mu_y < -eps),
+    )
+
+
+@pytest.mark.l1
+def test_outflow_selectors_are_sign_flipped_inflow():
+    """L1: outflow at a face is the +sign half (complement of inflow on
+    a non-tangential quadrature)."""
+    quad = Quadrature.lebedev(11)
+    eps = _TANGENTIAL_EPS
+    space = _trace_2d(quad)
+    np.testing.assert_array_equal(
+        space.outflow_indices_for_face("xmin"), np.flatnonzero(quad.mu_x < -eps),
+    )
+    np.testing.assert_array_equal(
+        space.outflow_indices_for_face("xmax"), np.flatnonzero(quad.mu_x > eps),
+    )
+
+
+@pytest.mark.l1
+def test_axis_aligned_ordinates_excluded_from_both_selectors():
+    """L1: pure-axis ordinates (e.g. (0,0,±1)) are tangential to a
+    perpendicular face — in NEITHER selector."""
+    quad = Quadrature.lebedev(11)
+    space = _trace_2d(quad)
+    z_axis = np.where(
         (np.abs(quad.mu_x) < 1e-12) & (np.abs(quad.mu_y) < 1e-12)
         & (np.abs(quad.mu_z) > 0.5)
     )[0]
-    # Sanity: Lebedev 11 has axis-aligned ordinates.
-    assert z_axis_indices.size >= 2, "expected (0,0,±1) ordinates"
-    # For face "xmin" (idx 0), these ordinates are tangential.
-    assert not inflow.inflow_mask[0, z_axis_indices].any()
-    assert not outflow.outflow_mask[0, z_axis_indices].any()
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Test 5 — L0: 1-D slab edge case
-# ─────────────────────────────────────────────────────────────────────
+    assert z_axis.size >= 2, "expected (0,0,±1) ordinates in Lebedev 11"
+    inflow = space.inflow_indices_for_face("xmin")
+    outflow = space.outflow_indices_for_face("xmin")
+    assert not np.intersect1d(inflow, z_axis).size
+    assert not np.intersect1d(outflow, z_axis).size
 
 
 @pytest.mark.l0
-def test_mesh1d_cartesian_gausslegendre():
-    """L0: Mesh1D Cartesian + GL produces (2, N) inflow mask;
-    bc_left has the 4 positive-mu_x ordinates as inflow."""
-    mesh = _mesh1d_cartesian()
-    quad = Quadrature.gauss_legendre(n_ordinates=8)
-    space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    assert space.inflow_mask.shape == (2, 8)
-    # bc_left: inflow iff mu_x > 0. GL on (-1, 1) with N=8 has 4
-    # positive nodes.
-    inflow_left = space.inflow_mask[0]
-    assert inflow_left.sum() == 4
-    np.testing.assert_array_equal(inflow_left, quad.mu_x > 1e-12)
-    # bc_right: inflow iff mu_x < 0.
-    inflow_right = space.inflow_mask[1]
-    assert inflow_right.sum() == 4
-    np.testing.assert_array_equal(inflow_right, quad.mu_x < -1e-12)
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Test 6 — L0: inflow_indices_for_face returns the right indices
-# ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.l0
-def test_inflow_indices_for_face_cross_check_against_mask():
-    """L0: inflow_indices_for_face("xmin") matches np.flatnonzero of mask row."""
-    mesh = _mesh2d_cartesian()
-    quad = Quadrature.lebedev(11)
-    space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    indices = space.inflow_indices_for_face("xmin")
-    expected = np.flatnonzero(space.inflow_mask[0])
-    np.testing.assert_array_equal(indices, expected)
-    # And for "ymax" (mask row 3).
-    indices_ymax = space.inflow_indices_for_face("ymax")
-    expected_ymax = np.flatnonzero(space.inflow_mask[3])
-    np.testing.assert_array_equal(indices_ymax, expected_ymax)
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Test 7 — L0: goodness of mask — sums bounded by N
-# ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.l0
-def test_inflow_outflow_sums_bounded_by_n_ordinates():
-    """L0: inflow_mask[f].sum() + outflow_mask[f].sum() <= N (tangentials excluded)."""
-    mesh = _mesh2d_cartesian()
-    quad = Quadrature.lebedev(11)
-    inflow = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    outflow = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    for f_idx in range(4):
-        total = (
-            int(inflow.inflow_mask[f_idx].sum())
-            + int(outflow.outflow_mask[f_idx].sum())
-        )
-        assert total <= quad.N
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Test 8 — L1: curvilinear Mesh1D inflow / outflow masks (Issue #188)
-# ─────────────────────────────────────────────────────────────────────
-
-
-class TestCurvilinear1DTraceMask:
-    r"""Curvilinear :class:`Mesh1D` + :class:`GaussLegendre1D` trace-space
-    construction.
-
-    1-D spherical and 1-D cylindrical meshes share the
-    ``("left", "right")`` face structure with 1-D Cartesian; only
-    the geometric interpretation of the outward normal differs (the
-    radial :math:`\pm \hat r` vs the Cartesian :math:`\pm \hat x`).
-    The quadrature's :attr:`mu_x` IS the direction cosine along the
-    radial axis for both curvilinear coords (the GaussLegendre1D
-    adapter is shared); the predicate :math:`\mathrm{sign}(\Omega \cdot
-    \hat n_f) < -\epsilon` applies unchanged.
-
-    Issue #188 lifted the earlier NotImplementedError guard that
-    rejected curvilinear Mesh1D outright. These tests pin the
-    contract: same predicate, same shape, same indices.
-    """
-
-    @pytest.mark.l1
-    def test_1d_spherical_inflow_mask(self):
-        """L1: spherical Mesh1D + GL produces the same predicate as slab."""
-        mesh = _mesh1d_spherical()
-        quad = Quadrature.gauss_legendre(n_ordinates=8)
-        space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-        # Shape: (2 faces, N).
-        assert space.inflow_mask.shape == (2, quad.N)
-        # bc_left: outward normal -r̂ → inflow iff mu_x > eps (Ω · n = -mu_x < 0).
-        np.testing.assert_array_equal(
-            space.inflow_mask[0], quad.mu_x > 1e-12,
-        )
-        # bc_right: outward normal +r̂ → inflow iff mu_x < -eps.
-        np.testing.assert_array_equal(
-            space.inflow_mask[1], quad.mu_x < -1e-12,
-        )
-
-    @pytest.mark.l1
-    def test_1d_cylindrical_inflow_mask(self):
-        """L1: cylindrical Mesh1D matches spherical (same face structure)."""
-        mesh_sph = _mesh1d_spherical()
-        mesh_cyl = _mesh1d_cylindrical()
-        quad = Quadrature.gauss_legendre(n_ordinates=8)
-        sph = InflowTraceSpace.from_mesh_and_quadrature(mesh_sph, quad, ng=1)
-        cyl = InflowTraceSpace.from_mesh_and_quadrature(mesh_cyl, quad, ng=1)
-        # Pure-geometry: face_names and inflow_mask coincide.
-        assert sph.face_names == cyl.face_names == ("left", "right")
-        np.testing.assert_array_equal(sph.inflow_mask, cyl.inflow_mask)
-
-    @pytest.mark.l1
-    def test_1d_spherical_outflow_mask_complementary(self):
-        """L1: at each face, outflow is complement of inflow on GL
-        (which has no mu_x = 0 ordinate, so no tangential)."""
-        mesh = _mesh1d_spherical()
-        quad = Quadrature.gauss_legendre(n_ordinates=8)
-        inflow = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-        outflow = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-        for f_idx in range(2):
-            complement = inflow.inflow_mask[f_idx] ^ outflow.outflow_mask[f_idx]
-            assert complement.all(), (
-                f"face {f_idx} fails XOR-complementarity on spherical Mesh1D"
-            )
-
-    @pytest.mark.l1
-    def test_1d_cylindrical_inflow_indices_for_face(self):
-        """L1: inflow_indices_for_face works identically on curvilinear."""
-        mesh = _mesh1d_cylindrical()
-        quad = Quadrature.gauss_legendre(n_ordinates=8)
-        space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-        left_idx = space.inflow_indices_for_face("left")
-        # Should be exactly the indices where mu_x > 0 (Ω · (-r̂) < 0).
-        np.testing.assert_array_equal(left_idx, np.flatnonzero(quad.mu_x > 1e-12))
-        right_idx = space.inflow_indices_for_face("right")
-        np.testing.assert_array_equal(right_idx, np.flatnonzero(quad.mu_x < -1e-12))
-
-    @pytest.mark.l1
-    def test_curvilinear_inflow_matches_cartesian_with_same_quadrature(self):
-        """L1: slab / spherical / cylindrical Mesh1D produce IDENTICAL
-        inflow masks given the same quadrature.
-
-        This is the geometric content of Issue #188: the per-face inflow
-        predicate is a property of the quadrature's mu_x and the face's
-        outward normal, both of which are identical across the three
-        1-D coord systems.
-        """
-        quad = Quadrature.gauss_legendre(n_ordinates=8)
-        cart = InflowTraceSpace.from_mesh_and_quadrature(
-            _mesh1d_cartesian(), quad, ng=1,
-        )
-        sph = InflowTraceSpace.from_mesh_and_quadrature(
-            _mesh1d_spherical(), quad, ng=1,
-        )
-        cyl = InflowTraceSpace.from_mesh_and_quadrature(
-            _mesh1d_cylindrical(), quad, ng=1,
-        )
-        np.testing.assert_array_equal(cart.inflow_mask, sph.inflow_mask)
-        np.testing.assert_array_equal(cart.inflow_mask, cyl.inflow_mask)
-
-
-@pytest.mark.l0
-def test_mesh2d_cylindrical_still_raises():
-    """L0: 2-D cylindrical Mesh2D still raises NotImplementedError.
-
-    No 2-D cylindrical SN sweep exists in ORPHEUS today; the
-    azimuthal-averaging machinery the (r, z) face normals would
-    require has not been wired into the predicate. The Issue #188
-    change scope was Mesh1D only; the Mesh2D guard stays.
-    """
-    mesh = _mesh2d_cylindrical()
-    quad = Quadrature.lebedev(11)
-    with pytest.raises(NotImplementedError, match="curvilinear"):
-        InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    with pytest.raises(NotImplementedError, match="curvilinear"):
-        OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Test 9 — L0: subset of faces
-# ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.l0
-def test_subset_of_faces_produces_smaller_mask():
-    """L0: faces=["xmin"] → inflow_mask shape (1, N)."""
-    mesh = _mesh2d_cartesian()
-    quad = Quadrature.lebedev(11)
-    space = InflowTraceSpace.from_mesh_and_quadrature(
-        mesh, quad, faces=["xmin"], ng=1,
+def test_1d_slab_inflow_bit_identical_to_mu_signs():
+    """L0: 1-D slab xmin / xmax inflow matches the legacy left / right
+    masks bit-for-bit (xmin↔old 'left', xmax↔old 'right')."""
+    quad = Quadrature.gauss_legendre(8)
+    space = _trace_1d(CoordSystem.CARTESIAN, quad)
+    assert space.face_names == ("xmin", "xmax")
+    np.testing.assert_array_equal(
+        space.inflow_indices_for_face("xmin"),
+        np.flatnonzero(quad.mu_x > _TANGENTIAL_EPS),
     )
-    assert space.inflow_mask.shape == (1, quad.N)
-    assert space.face_names == ("xmin",)
+    np.testing.assert_array_equal(
+        space.inflow_indices_for_face("xmax"),
+        np.flatnonzero(quad.mu_x < -_TANGENTIAL_EPS),
+    )
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Test 10 — L0: ng > 1 sets shape correctly
-# ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.l0
-def test_ng_greater_than_one_in_shape():
-    """L0: ng=4 yields shape == (n_ordinates, 4)."""
-    mesh = _mesh2d_cartesian()
-    quad = Quadrature.lebedev(11)
-    space = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=4)
-    assert space.shape == (quad.N, 4)
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Test 11 — L0: inflow XOR outflow on non-tangential quadrature
-# ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.l0
+@pytest.mark.l1
 def test_inflow_xor_outflow_complementary_for_gl_1d():
-    """L0: for GL 1-D (no axis-aligned-to-x ordinates at standard N),
-    inflow XOR outflow is True on every ordinate per face."""
-    # GL ordinates are strictly in (-1, 1), never 0 → no tangentials
-    # against the x-aligned faces.
-    mesh = _mesh1d_cartesian()
-    quad = Quadrature.gauss_legendre(n_ordinates=8)
-    inflow = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    outflow = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    for f_idx in range(2):
-        complement = inflow.inflow_mask[f_idx] ^ outflow.outflow_mask[f_idx]
-        assert complement.all(), f"face {f_idx} fails XOR-complementarity"
+    """L0: GL ordinates are strictly in (-1, 1) → no tangentials; inflow
+    and outflow partition every ordinate per face."""
+    quad = Quadrature.gauss_legendre(8)
+    space = _trace_1d(CoordSystem.CARTESIAN, quad)
+    for face in space.face_names:
+        inflow = set(space.inflow_indices_for_face(face).tolist())
+        outflow = set(space.outflow_indices_for_face(face).tolist())
+        assert inflow.isdisjoint(outflow)
+        assert inflow | outflow == set(range(quad.N))
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Test 12 — L0: mask dtype is bool
+# L0 — curvilinear: ONE boundary (the face-naming reconciliation)
 # ─────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.l0
-def test_mask_dtype_is_bool():
-    """L0: inflow_mask / outflow_mask are bool arrays, not int."""
-    mesh = _mesh2d_cartesian()
-    quad = Quadrature.lebedev(11)
-    inflow = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    outflow = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    assert inflow.inflow_mask.dtype == np.bool_
-    assert outflow.outflow_mask.dtype == np.bool_
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Bonus — L0: outflow factory + index method
-# ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.l0
-def test_outflow_indices_for_face_cross_check_against_mask():
-    """L0: outflow_indices_for_face matches np.flatnonzero of mask."""
-    mesh = _mesh2d_cartesian()
-    quad = Quadrature.lebedev(11)
-    space = OutflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
-    for f_idx, face in enumerate(("xmin", "xmax", "ymin", "ymax")):
-        indices = space.outflow_indices_for_face(face)
-        expected = np.flatnonzero(space.outflow_mask[f_idx])
-        np.testing.assert_array_equal(indices, expected)
-
-
-@pytest.mark.l0
-def test_unknown_face_raises_value_error():
-    """L0: inflow_indices_for_face('bogus') raises ValueError."""
-    mesh = _mesh2d_cartesian()
-    quad = Quadrature.lebedev(11)
-    inflow = InflowTraceSpace.from_mesh_and_quadrature(mesh, quad, ng=1)
+@pytest.mark.parametrize("coord", [CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL])
+def test_curvilinear_has_only_outer_xmax_face(coord):
+    """L0: a solid sphere / cylinder has exactly ONE boundary face
+    (``xmax`` = outer radius). The pole r=0 is the angular closure's
+    regularity condition, NOT a BC face — so there is no inner face
+    (this is the latent-bug fix: the legacy trace fabricated a phantom
+    ``left`` mask for r=0)."""
+    quad = Quadrature.gauss_legendre(8)
+    space = _trace_1d(coord, quad)
+    assert space.face_names == ("xmax",)
+    # xmax inflow on curvilinear == the same predicate as slab's xmax.
+    np.testing.assert_array_equal(
+        space.inflow_indices_for_face("xmax"),
+        np.flatnonzero(quad.mu_x < -_TANGENTIAL_EPS),
+    )
     with pytest.raises(ValueError, match="Unknown face"):
-        inflow.inflow_indices_for_face("bogus")
+        space.inflow_indices_for_face("xmin")
+
+
+@pytest.mark.l1
+def test_curvilinear_xmax_matches_cartesian_xmax():
+    """L1: the outer-radius predicate is identical to slab xmax — the
+    per-face inflow predicate is a property of mu_x and the outward
+    normal, both shared across 1-D coord systems."""
+    quad = Quadrature.gauss_legendre(8)
+    cart = _trace_1d(CoordSystem.CARTESIAN, quad)
+    sph = _trace_1d(CoordSystem.SPHERICAL, quad)
+    cyl = _trace_1d(CoordSystem.CYLINDRICAL, quad)
+    np.testing.assert_array_equal(
+        cart.inflow_indices_for_face("xmax"), sph.inflow_indices_for_face("xmax"),
+    )
+    np.testing.assert_array_equal(
+        sph.inflow_indices_for_face("xmax"), cyl.inflow_indices_for_face("xmax"),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# L0 — error contracts
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l0
+def test_2d_cylindrical_raises():
+    """L0: 2-D cylindrical Mesh2D raises NotImplementedError — the
+    (r, z) face normals need azimuthal averaging that is unwired."""
+    quad = Quadrature.lebedev(11)
+    mesh = _mesh2d(CoordSystem.CYLINDRICAL)
+    layout = _cartesian2d_layout(quad.N, 1, 3, 3)
+    with pytest.raises(NotImplementedError, match="curvilinear"):
+        TraceSpace.from_mesh_and_quadrature(mesh, quad, layout)
+
+
+@pytest.mark.l0
+def test_unknown_face_in_layout_raises():
+    """L0: a layout naming a face absent from the normal table raises."""
+    quad = Quadrature.gauss_legendre(8)
+    mesh = _mesh1d(CoordSystem.CARTESIAN)
+    bad = FaceLayout.from_named_shapes([("zmin", (quad.N, 1))])
+    with pytest.raises(ValueError, match="Unknown face name"):
+        TraceSpace.from_mesh_and_quadrature(mesh, quad, bad)
+
+
+@pytest.mark.l0
+def test_selector_on_unknown_face_raises():
+    """L0: selecting a face not in the layout raises ValueError."""
+    quad = Quadrature.lebedev(11)
+    space = _trace_2d(quad)
+    with pytest.raises(ValueError, match="Unknown face"):
+        space.inflow_indices_for_face("bogus")
+
+
+@pytest.mark.l0
+def test_omega_dot_n_dtype_is_float():
+    """L0: the signed projection table is float (not int / bool)."""
+    quad = Quadrature.lebedev(11)
+    space = _trace_2d(quad)
+    assert space.omega_dot_n.dtype == np.float64
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Foundation — principled tangential tolerance (the eps-gap guard)
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.foundation
+def test_eps_is_four_machine_eps():
+    """The tangential tolerance is the principled 4·machine_eps, NOT a
+    hand-tuned magic number."""
+    assert _TANGENTIAL_EPS == 4.0 * np.finfo(np.float64).eps
+
+
+@pytest.mark.foundation
+def test_eps_sits_in_the_round_off_to_genuine_gap():
+    r"""Across every shipped quadrature, the tangential eps must sit
+    strictly between the round-off cluster (nominally-tangential cosines,
+    which are EXACTLY 0.0) and the smallest GENUINE direction cosine.
+    This is the durable form of ``eps_probe.py``: a future quadrature
+    cannot silently violate the gap that makes the inflow/outflow masks
+    bit-identical to the legacy ``1e-15`` / ``1e-12`` tolerances.
+    """
+    quads = [Quadrature.gauss_legendre(n) for n in (2, 3, 4, 5, 7, 8, 16, 32, 64)]
+    for order in (3, 5, 7, 11, 17, 29, 53):
+        try:
+            quads.append(Quadrature.lebedev(order))
+        except Exception:  # noqa: BLE001 — order may be unavailable
+            pass
+
+    min_genuine = np.inf
+    for q in quads:
+        for axis in ("mu_x", "mu_y", "mu_z"):
+            mu = getattr(q, axis, None)
+            if mu is None:
+                continue
+            amu = np.abs(np.asarray(mu, dtype=float))
+            # Nominally-tangential cosines are exactly 0.0 (quadrature
+            # symmetry) — never in the (0, eps] round-off band.
+            assert not np.any((amu > 0.0) & (amu <= _TANGENTIAL_EPS)), (
+                f"{type(q).__name__} {axis} has a cosine in the round-off "
+                f"band (0, eps] — the exactly-zero assumption is violated"
+            )
+            genuine = amu[amu > _TANGENTIAL_EPS]
+            if genuine.size:
+                min_genuine = min(min_genuine, float(genuine.min()))
+
+    # eps must be far below the smallest genuine cosine (empirically
+    # 2.44e-2, ~13 orders above eps).
+    assert _TANGENTIAL_EPS < min_genuine
+    assert min_genuine > 1e-3, (
+        f"smallest genuine |cosine| = {min_genuine:.3e} is suspiciously "
+        f"small — investigate before trusting the gap"
+    )

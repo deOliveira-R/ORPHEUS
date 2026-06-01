@@ -21,7 +21,7 @@ The Wave-8/9 implementation carried an optional ``quadrature=``
 kwarg that bound an :class:`AngularQuadrature` and forwarded
 ``inner.apply(psi, bound_quad)`` to a legacy 2-arg
 :class:`BoundaryTraceLaw` body. Issue #176 dropped that mode after
-Issue #188 (curvilinear :class:`InflowTraceSpace` support) eliminated
+Issue #188 (curvilinear trace support) eliminated
 the curvilinear-bypass code path. Issue #186 (B3 + β2) then dropped
 the ``*_extra, **_kw`` swallow on :meth:`apply` since every remaining
 caller is strict 1-arg.
@@ -192,13 +192,13 @@ class Test188WiringContracts:
     """Curvilinear ``SNMesh._resolve_one`` + 1-D y-placeholder contracts."""
 
     def test_curvilinear_resolve_one_routes_through_realizer(self):
-        """Issue #188 / C188.3: a 1-D spherical :class:`SNMesh`
-        exposes ``bc_left`` / ``bc_right`` as
-        :class:`_BoundBoundaryOperator` shims wrapping REALIZED
-        1-arg operators. C188.1+C188.2 extended
-        :class:`InflowTraceSpace` to all 1-D coord systems, so the
-        realizer-then-shim path is uniform across Cartesian /
-        spherical / cylindrical meshes.
+        """A 1-D spherical :class:`SNMesh` has exactly ONE boundary —
+        the outer radius (``xmax`` / ``bc_right``) — realized through
+        :class:`SNBoundaryRealizer` to a 1-arg operator. The pole r=0
+        is the angular closure's regularity condition, NOT a BC face,
+        so ``bc_left`` / ``bc_xmin`` are ``None`` (the mesh's
+        ``bc_left`` declaration is moot — the centreline is always
+        symmetric by geometry).
 
         Compatibility against the pre-C188.3 bound-quadrature path
         is verified end-to-end by the curvilinear SN regression
@@ -206,10 +206,7 @@ class Test188WiringContracts:
         the structural contract.
         """
         from orpheus.geometry import BC, CoordSystem, Mesh1D
-        from orpheus.numerics.operator import (
-            IncomingOrdinateMaskTensor,
-            PermutationOperator as _PO,
-        )
+        from orpheus.numerics.operator import IncomingOrdinateMaskTensor
         from orpheus.sn.geometry import SNMesh
         from orpheus.numerics.quadrature import Quadrature
 
@@ -223,17 +220,17 @@ class Test188WiringContracts:
         quad = Quadrature.gauss_legendre(8)
         sn = SNMesh(mesh, quad, placeholder_materials())
 
-        # Curvilinear now builds traces (C188.1+C188.2 lifted guard).
-        assert sn._inflow_trace is not None
-        # Realizer-path shims wrap realized 1-arg primitives.
-        assert isinstance(sn.bc_left, _BoundBoundaryOperator)
+        # ONE boundary: the unified trace carries only the outer face.
+        assert sn._trace is not None
+        assert sn._trace.face_names == ("xmax",)
+        # No inner-face operator at the pole.
+        assert sn.bc_left is None
+        assert sn.bc_xmin is None
+        # Outer face: realizer-path shim wrapping the realized vacuum
+        # primitive (IncomingOrdinateMaskTensor).
         assert isinstance(sn.bc_right, _BoundBoundaryOperator)
-        # Inner is the realized primitive: PermutationOperator for
-        # reflective; IncomingOrdinateMaskTensor for vacuum.
-        assert isinstance(sn.bc_left.inner, _PO)
         assert isinstance(sn.bc_right.inner, IncomingOrdinateMaskTensor)
-        # Kind tags survive for the legacy string-comparison surface.
-        assert sn.bc_left == "reflective"
+        # Kind tag survives for the legacy string-comparison surface.
         assert sn.bc_right == "vacuum"
 
     def test_1d_y_face_placeholders_realized_through_minimal_space(self):

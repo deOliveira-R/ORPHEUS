@@ -133,19 +133,22 @@ class SNMesh:
         (1-D Cartesian, 1-D spherical, 1-D cylindrical, 2-D
         Cartesian) and wrapped in :class:`_BoundBoundaryOperator`
         for compatibility with the SN-side call surface.
-    bc_left, bc_right : _BoundBoundaryOperator
-        Resolved BC operator at the left/right (1-D) boundaries.
-        All supported paths: a :class:`_BoundBoundaryOperator` shim
-        wrapping the realized 1-arg :class:`LinearOperator` and
-        carrying a free-form ``kind`` tag so ``sn_mesh.bc_left ==
-        "vacuum"`` style comparisons keep working. Issue #188 /
-        C188.3 removed the curvilinear bypass; the realizer is now
-        applied uniformly for 1-D Cartesian, 1-D spherical, 1-D
-        cylindrical, and 2-D Cartesian meshes.
-    bc_xmin, bc_xmax, bc_ymin, bc_ymax : _BoundBoundaryOperator
+    bc_left, bc_right : _BoundBoundaryOperator | None
+        Resolved BC operator at the inner/outer (1-D) boundaries.
+        A :class:`_BoundBoundaryOperator` shim wrapping the realized
+        1-arg :class:`LinearOperator` and carrying a free-form
+        ``kind`` tag so ``sn_mesh.bc_left == "vacuum"`` style
+        comparisons keep working. **A solid sphere / cylinder has
+        only ONE boundary** — the outer radius (``bc_right`` /
+        ``bc_xmax``); on curvilinear meshes ``bc_left`` (= ``bc_xmin``)
+        is ``None`` because the pole r=0 is the angular closure's
+        regularity condition, not a BC face. Slab keeps both.
+        Issue #188 / C188.3 removed the curvilinear bypass; the
+        realizer is applied uniformly for every face that exists.
+    bc_xmin, bc_xmax, bc_ymin, bc_ymax : _BoundBoundaryOperator | None
         Same conventions for the 4 faces of a 2-D mesh. On 1-D
         meshes ``bc_xmin`` / ``bc_xmax`` alias ``bc_left`` /
-        ``bc_right``, and ``bc_ymin`` / ``bc_ymax`` are realized
+        ``bc_right`` (``bc_xmin`` is ``None`` on curvilinear), and ``bc_ymin`` / ``bc_ymax`` are realized
         :class:`ReflectiveBoundary(axis="y")` placeholders routed
         through the realizer with
         :meth:`SNMethodSpace.minimal(quad)`; for GL1D the realized
@@ -388,71 +391,73 @@ class SNMesh:
         :class:`SNBoundaryRealizer`. The realizer is applied uniformly
         for 1-D Cartesian, 1-D spherical, 1-D cylindrical, and 2-D
         Cartesian meshes (C188.1 + C188.2 lifted the Mesh1D
-        curvilinear guard on
-        :meth:`InflowTraceSpace.from_mesh_and_quadrature`; C188.3
-        removes the matching curvilinear bypass here).
+        curvilinear guard on the trace space; C188.3 removes the
+        matching curvilinear bypass here). A solid sphere / cylinder
+        has only the outer (``xmax``) boundary face — ``bc_left`` /
+        ``bc_xmin`` are ``None`` (the pole r=0 is the angular
+        closure's regularity condition, not a BC face).
         """
         default = BC("reflective")
 
-        # Build the inflow / outflow trace spaces ONCE per SNMesh.
-        # Issue #188 / C188.1+C188.2 extended
-        # :meth:`InflowTraceSpace.from_mesh_and_quadrature` to all
-        # 1-D coord systems (spherical / cylindrical share the
-        # ``("left", "right")`` face structure with slab). 2-D
-        # cylindrical :class:`Mesh2D` is the only mesh that still
-        # raises (no 2-D cylindrical SN sweep exists in ORPHEUS
-        # today); it stays at ``_inflow_trace = None``.
-        self._inflow_trace = None
-        self._outflow_trace = None
+        # Build ONE unified trace space per SNMesh, keyed on the mesh's
+        # TRUE boundary faces (``boundary_face_layout``): slab
+        # ``xmin``/``xmax``, curvilinear ``xmax`` only (the pole at r=0
+        # is the angular closure's regularity condition, not a BC
+        # face), 2-D Cartesian ``xmin``/``xmax``/``ymin``/``ymax``.
+        # Inflow / outflow are selectors over the signed Ω·n it
+        # carries. 2-D cylindrical :class:`Mesh2D` has no SN sweep and
+        # stays trace-less (``_trace = None``).
+        self._trace = None
         build_trace = (
             isinstance(mesh, Mesh1D)
             or (isinstance(mesh, Mesh2D) and mesh.coord == CoordSystem.CARTESIAN)
         )
         if build_trace:
-            from orpheus.numerics.spaces.trace_space import (
-                InflowTraceSpace,
-                OutflowTraceSpace,
-            )
-            faces = self._face_names_for_mesh(mesh)
-            self._inflow_trace = InflowTraceSpace.from_mesh_and_quadrature(
-                mesh, self.quad, faces=faces,
-            )
-            self._outflow_trace = OutflowTraceSpace.from_mesh_and_quadrature(
-                mesh, self.quad, faces=faces,
+            from orpheus.numerics.spaces.trace_space import TraceSpace
+            self._trace = TraceSpace.from_mesh_and_quadrature(
+                mesh, self.quad, self.boundary_face_layout,
             )
 
         if isinstance(mesh, Mesh1D):
-            self.bc_left = self._resolve_one(mesh.bc_left or default, "left")
-            self.bc_right = self._resolve_one(mesh.bc_right or default, "right")
-            # Expose 2-D-style attributes for uniform sweep access.
-            # The ``y`` faces of a 1-D mesh are degenerate (no y
-            # dimension); 1-D sweeps don't consume them. The 1-D
-            # trace space's ``face_names == ("left", "right")``, so
-            # ``SNMethodSpace.for_face(face="ymin", inflow_trace=...)``
-            # would raise — we route through the realizer with
-            # :meth:`SNMethodSpace.minimal(self.quad)` instead. For
-            # :class:`GaussLegendre1D` (the 1-D quadrature)
-            # ``reflection_index("y")`` returns the identity
-            # permutation (every ordinate is its own partner because
-            # ``mu_y == 0``), so the realized op is a no-op
-            # :class:`PermutationOperator`. The realizer's
+            is_curvilinear = (
+                getattr(self, "curvature", None) in ("spherical", "cylindrical")
+            )
+            if is_curvilinear:
+                # A solid sphere / cylinder has exactly ONE boundary:
+                # the outer radius (``xmax``). The geometric pole at
+                # r=0 is NOT a boundary face — it is a regularity /
+                # symmetry condition (ψ(0,μ)=ψ(0,−μ), the r→0 limit of
+                # the angular-redistribution term) handled by the
+                # angular pole closure, NOT an externally-imposed BC.
+                # The matvec agrees: it sets ``bc_inner = None`` for
+                # curvilinear and routes the centreline through
+                # ``pole_angular_closure``; ``boundary_face_layout``
+                # agrees (``xmax`` only). So there is no inner boundary
+                # operator — ``bc_left`` / ``bc_xmin`` are ``None``.
+                self.bc_right = self._resolve_one(
+                    mesh.bc_right or default, "xmax",
+                )
+                self.bc_xmax = self.bc_right
+                self.bc_left = None
+                self.bc_xmin = None
+            else:
+                # 1-D slab: two genuine boundaries. The radial axis IS
+                # the x-axis, so the faces are ``xmin`` / ``xmax``
+                # (matching the unified trace + boundary_face_layout).
+                self.bc_left = self._resolve_one(mesh.bc_left or default, "xmin")
+                self.bc_right = self._resolve_one(mesh.bc_right or default, "xmax")
+                self.bc_xmin = self.bc_left
+                self.bc_xmax = self.bc_right
+            # Expose degenerate y-face placeholders for uniform sweep
+            # access. The ``y`` faces of a 1-D mesh carry no spatial
+            # extent; 1-D sweeps don't consume them. The realizer's
             # :class:`ReflectiveBoundary` branch does NOT read
-            # ``inflow_indices``, only ``law.axis`` and
-            # ``quad.reflection_index``, so passing the minimal
-            # method space is safe.
-            #
-            # Any future consumer that calls ``apply`` on these
-            # placeholders sees the same uniform 1-arg contract as
-            # every other ``bc_*`` attribute; the legacy 2-D Cartesian
-            # ``solution_to_angular_flux`` decoder consumed
-            # ``bc_ymin.apply(...)`` on 1-D meshes when
-            # ``curvature is None`` but discarded the result because
-            # the inner ``if mu_y[n] > 1e-15`` filter was false for
-            # every ordinate on GL1D.  (Decoder retired in D-J; the
-            # 1-D matvec now uses ``transport_operator_matvec_unified``
-            # which does not need the placeholder.)
-            self.bc_xmin = self.bc_left
-            self.bc_xmax = self.bc_right
+            # ``inflow_indices`` (only ``law.axis`` +
+            # ``quad.reflection_index``), so a minimal method space
+            # suffices. For :class:`GaussLegendre1D`,
+            # ``reflection_index("y")`` is the identity permutation
+            # (every ordinate is its own partner because ``mu_y == 0``),
+            # so the realized op is a no-op.
             y_method_space = SNMethodSpace.minimal(self.quad)
             y_realized = SNBoundaryRealizer().realize(
                 ReflectiveBoundary(axis="y", albedo=1.0),
@@ -472,29 +477,24 @@ class SNMesh:
             self.bc_left = self.bc_xmin
             self.bc_right = self.bc_xmax
 
-    @staticmethod
-    def _face_names_for_mesh(mesh: Mesh1D | Mesh2D) -> tuple[str, ...]:
-        """Ordered face-name tuple matching the trace-space row order."""
-        if isinstance(mesh, Mesh1D):
-            return ("left", "right")
-        return ("xmin", "xmax", "ymin", "ymax")
-
     def _resolve_one(self, bc: BC, face: str):
         r"""Realize a BC on the given face.
 
         Build an :class:`SNMethodSpace` carrying the precomputed
-        inflow / outflow traces, hand it to
-        :class:`SNBoundaryRealizer.realize`, wrap the 1-arg result in
-        :class:`_BoundBoundaryOperator` so the SN-side call surface
-        sees a uniform 1-arg ``apply(psi)`` contract.
+        unified :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`,
+        hand it to :class:`SNBoundaryRealizer.realize`, wrap the 1-arg
+        result in :class:`_BoundBoundaryOperator` so the SN-side call
+        surface sees a uniform 1-arg ``apply(psi)`` contract.
 
         Issue #188 / C188.3: every supported mesh (1-D Cartesian,
         1-D spherical, 1-D cylindrical, 2-D Cartesian) routes
         through the realizer here. The pre-C188.3 curvilinear
         bypass — which wrapped the raw 2-arg
         :class:`BoundaryTraceLaw` with a bound quadrature — is
-        gone, made redundant by C188.1+C188.2's curvilinear
-        :class:`InflowTraceSpace` support.
+        gone, made redundant by the unified trace's curvilinear
+        support. ``face`` must name a face present in the trace
+        (``xmin`` / ``xmax`` / ``ymin`` / ``ymax``); curvilinear's
+        inner pole is handled by the angular closure, not here.
         """
         law_cls = self.BOUNDARY_OPERATOR_REGISTRY.get(bc.kind)
         if law_cls is None:
@@ -517,8 +517,7 @@ class SNMesh:
             mesh=self.mesh,
             quadrature=self.quad,
             face=face,
-            inflow_trace=self._inflow_trace,
-            outflow_trace=self._outflow_trace,
+            trace=self._trace,
         )
         realized = SNBoundaryRealizer().realize(law, method_space)
         return _BoundBoundaryOperator(realized, kind=bc.kind)

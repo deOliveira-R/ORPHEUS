@@ -273,27 +273,17 @@ class IncomingSourceOperator(LinearOperatorMixin):
         self.source = source
 
     def apply(self, psi_out: np.ndarray) -> np.ndarray:
-        r"""Return the source evaluated on a probe inflow trace of
-        ``psi_out.shape``. ``psi_out`` itself is IGNORED.
+        r"""Return the source evaluated at ``psi_out.shape``. ``psi_out``
+        itself is IGNORED (the affine source does not depend on the
+        outgoing flux).
 
-        The probe trace is a minimal :class:`InflowTraceSpace`
-        carrying just the ``shape`` field (``inflow_mask`` /
-        ``face_names`` default to empty). Sources that need richer
-        trace metadata (face-tagged inflow injection, per-ordinate
-        masks) require Wave 8's full
+        The source is asked to fill an array of the incoming-face
+        shape. Sources that need richer trace metadata (face-tagged
+        inflow injection, per-ordinate masks) require Wave 8's full
         :class:`~orpheus.sn.method_space.SNMethodSpace` wiring; the
         Wave-7 ship-state covers the
         :class:`~orpheus.geometry.boundary._source.NoSource` /
         :class:`~orpheus.geometry.boundary._source.ConstantInflowSource`
-        cases that only need ``shape``.
+        cases that only need the shape.
         """
-        # Local import — :mod:`orpheus.numerics.spaces.trace_space` is a
-        # peer module; deferring to def-level keeps cold-import time
-        # off this module.
-        from orpheus.numerics.spaces.trace_space import InflowTraceSpace
-
-        probe = InflowTraceSpace(
-            name="trace_inflow",
-            shape=tuple(int(s) for s in psi_out.shape),
-        )
-        return self.source.evaluate(probe)
+        return self.source.evaluate(tuple(int(s) for s in psi_out.shape))
