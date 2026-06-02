@@ -131,7 +131,7 @@ def _krylov_power_iteration_kinf(
     from orpheus.numerics.operator import ZeroOperator
     from orpheus.sn.geometry import SNMesh
     from orpheus.sn.operator import CollisionOperator, StreamingOperator
-    from orpheus.sn.solver import SNSolver
+    from orpheus.sn.solver import SNSolver, _zero_within_group_fission
     from orpheus.transport.source_sinks import AngularSourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
@@ -162,7 +162,10 @@ def _krylov_power_iteration_kinf(
     N = sn_mesh.quad.N
     nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
     krylov = KrylovAcceleration(
-        LC, solver.scattering_op, ZeroOperator(),
+        # B.5.2: the within-group zero-fission slot must emit a zero SOURCE
+        # (AngularSourceSink), not a flux echo — mirror SNSolver._solve_krylov.
+        LC, solver.scattering_op,
+        ZeroOperator(codomain_zero=_zero_within_group_fission),
         preconditioner=precond,
         tol=1e-12, max_iter=300,
         restart=min(50, N * ng * nx * ny),
@@ -178,12 +181,14 @@ def _krylov_power_iteration_kinf(
         # :class:`TimedFullField` composite — bulk = L2 AngularFlux
         # carrying ``q_ext_per_ord.values``; boundary = implicit zero.
         zero = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
-        q_ext_typed = replace(
-            zero,
-            bulk=replace(zero.bulk, values=q_ext_per_ord.values),
-        )
+        # B.5.2: q_ext IS a source (AngularSourceSink), emitted directly — no
+        # re-wrap into AngularFlux.  The iterate/return is a flux, so bootstrap
+        # a flux initial_guess on the cold start (psi_typed_warm is None on the
+        # first outer), mirroring SNSolver._solve_krylov.
+        q_ext_typed = replace(zero, bulk=q_ext_per_ord)
         psi_typed, _residuals = krylov.solve(
-            q_ext_typed, initial_guess=psi_typed_warm,
+            q_ext_typed,
+            initial_guess=psi_typed_warm if psi_typed_warm is not None else zero,
         )
         psi_typed_warm = psi_typed
         phi = psi_typed.bulk.integrate_angular().values

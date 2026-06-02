@@ -725,9 +725,17 @@ class KrylovAcceleration:
                 callback=callback,
                 callback_type='pr_norm',
             )
-        except TypeError:
-            # Older scipy versions use ``tol`` instead of ``rtol`` and
-            # may not honour ``callback_type``.  Drop both keywords.
+        except TypeError as exc:
+            # Older scipy (<1.14) used ``tol`` instead of ``rtol`` and may not
+            # honour ``callback_type`` — fall back ONLY for a genuine SCIPY
+            # SIGNATURE mismatch ("unexpected keyword argument ...").  A
+            # TypeError raised from INSIDE ``A_matvec`` / ``M_matvec`` / the
+            # callback (e.g. a cross-class typed-field op) MUST NOT be masked
+            # as a scipy-version issue — re-raise it so the real error
+            # surfaces.  (This exact over-broad ``except`` masked a B.5.2
+            # matvec cross-class regression as a misleading "tol" error.)
+            if "unexpected keyword argument" not in str(exc):
+                raise
             solution, info = spla.gmres(
                 A_scipy, b, x0=x0, M=M_scipy,
                 tol=self.tol,
