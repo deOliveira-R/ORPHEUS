@@ -9,8 +9,8 @@ that share a dimensional signature with the corresponding **sources**
 imbalance of an equation, not an external drive. Per the Field ABC's
 Layer-1 class-identity gate, cross-class arithmetic between a residual
 and a source (or a flux) is forbidden *even when units match*; the
-balance that combines them goes through a NAMED composition
-(``IterationResidual.from_balance``, B.5 / Issue #201), never a bare
+balance that combines them goes through a NAMED composition (each
+residual leaf's ``from_balance`` factory, B.5 / Issue #201), never a bare
 cross-class dunder.
 
 Role grid (field vocabulary, issues #205 / #201)

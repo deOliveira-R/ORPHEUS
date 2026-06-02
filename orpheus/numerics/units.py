@@ -25,10 +25,10 @@ therefore **machine-readable metadata**, not a gate. Its consumers are:
 * **diagnostics (now):** :meth:`Field._check_partner` and
   :meth:`Field.__repr__` surface ``UNITS`` so a cross-class error reads
   ``"AngularResidual [1/cm³/s/sr] vs AngularSourceSink [1/cm³/s/sr]: same units,
-  different role — use IterationResidual.from_balance"``;
-* **named composition (B.5):** ``IterationResidual.from_balance`` sanity-
-  checks that a residual and a source share a unit signature before
-  combining;
+  different role — use AngularResidual.from_balance"``;
+* **named composition (B.5):** each residual leaf's ``from_balance``
+  factory sanity-checks that its two same-class operands share its own
+  unit signature (``sr``-exact) before forming the residual;
 * **operator unit-gain (#208):** the construction-time dimensional check
   composes operator gains against these field units.
 

@@ -38,8 +38,8 @@ DIFFERENT classes. Field's Layer-1 class-identity gate
 rejects ``angular_residual - angular_source`` even though the units
 align: *same units give permission to add in linear algebra; they do
 not give meaning*. The balance that combines a residual and a source
-goes through an explicit **named composition** (planned
-``IterationResidual.from_balance(lhs, rhs)``, B.5 / Issue #201), never
+goes through an explicit **named composition**
+(:meth:`AngularResidual.from_balance`, B.5 / Issue #201), never
 a bare cross-class ``-``. See :class:`~orpheus.numerics.field.Field`
 "Class identity for cross-class same-units operations".
 
@@ -60,8 +60,8 @@ References
 ==========
 
 * ``.claude/plans/field_role_typing_view_g.md`` — Phase B (field
-  vocabulary), step B.3 (new role leaves); B.5 (named-composition
-  ``IterationResidual.from_balance``, dimensional-sin rewire).
+  vocabulary), step B.3 (new role leaves); B.5.1 (named-composition
+  ``AngularResidual.from_balance`` mint), B.5.2 (dimensional-sin rewire).
 * Grand Report v3 §5.5 (Field hierarchy), §32.5 (Field primitive spec).
 * ``coding-elegance`` Pattern 4 (illegal states unrepresentable) — a
   residual and a source can no longer be silently mixed.
@@ -109,12 +109,13 @@ class AngularResidual(AngularField):
     :class:`~orpheus.transport.fields.angular_flux.AngularFlux` (same
     shape, different units). Same-class arithmetic is closed.
 
-    Unlike :class:`AngularFlux` (``zeros_on``) and
+    Like :class:`AngularFlux` (``zeros_on``) and
     :class:`AngularSourceSink` (``from_isotropic``), :class:`AngularResidual`
-    intentionally exposes NO bespoke factory: a residual is *produced*
-    by an operator balance (B.5 ``IterationResidual.from_balance``), not
-    constructed from thin air. Tests and producers build it via the
-    inherited :meth:`from_mesh`.
+    carries one bespoke factory — :meth:`from_balance` — but it is a
+    *named composition*, not a from-thin-air constructor: a residual is
+    *produced* by an operator balance :math:`r = (L+C-S-F)\psi - q`, never
+    minted from nothing. Tests and direct producers may also build it via
+    the inherited :meth:`from_mesh`.
     """
 
     #: The :class:`FunctionSpace` name for this leaf — distinct from
@@ -130,3 +131,30 @@ class AngularResidual(AngularField):
     #: shared with ``AngularSourceSink`` (same units, different role → the gate
     #: is class identity, NOT units). Metadata, not the gate.
     UNITS: ClassVar[Unit] = ANGULAR_RATE_UNITS
+
+    @classmethod
+    def from_balance(
+        cls, lhs: AngularField, rhs: AngularField,
+    ) -> "AngularResidual":
+        r"""Construct the per-ordinate transport-balance residual.
+
+        The residual leaf's bespoke factory (parallel to
+        :meth:`AngularFlux.zeros_on` / ``AngularSourceSink.from_isotropic``):
+        the per-ordinate transport-balance defect
+
+        .. math::
+
+            r_n \;=\; \bigl[(L + C - S - F)\,\psi\bigr]_n \;-\; q_n ,
+
+        formed as ``lhs − rhs`` from two same-class
+        :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+        operands — the operator output :math:`(L+C-S-F)\psi` (``lhs``) and
+        the external source :math:`q` (``rhs``). The role transition (source
+        operands → residual result) is what distinguishes this from a bare
+        same-class ``lhs - rhs`` (which would MIS-TYPE the defect as
+        ``AngularSourceSink``). See
+        :meth:`~orpheus.numerics.field.Field._from_balance` for the three
+        guards (same-class operands, ``sr``-exact units, same space + mesh)
+        and why the result lands on the ``"angular_residual"`` space.
+        """
+        return cls._from_balance(lhs, rhs)

@@ -28,7 +28,7 @@ classes. Field's Layer-1 class-identity gate
 rejects ``scalar_residual - scalar_source`` even though units align:
 same units give permission to add, not meaning. The balance combining
 a residual and a source goes through an explicit named composition
-(planned ``IterationResidual.from_balance``, B.5 / Issue #201), never a
+(:meth:`ScalarResidual.from_balance`, B.5 / Issue #201), never a
 bare cross-class ``-``. See the module docstring of
 :mod:`orpheus.transport.residuals.angular_residual` for the full
 "dimensional sin" rationale.
@@ -93,9 +93,10 @@ class ScalarResidual(ScalarField):
     :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` (same
     shape, different units). Same-class arithmetic is closed.
 
-    Like :class:`AngularResidual`, it exposes NO bespoke factory — a
-    residual is *produced* by an operator balance, not constructed from
-    thin air. Build via the inherited :meth:`from_mesh`.
+    Like :class:`AngularResidual`, its one bespoke factory is the named
+    composition :meth:`from_balance` — a residual is *produced* by an
+    operator balance, not minted from thin air. Tests and direct producers
+    may also build it via the inherited :meth:`from_mesh`.
     """
 
     #: The :class:`FunctionSpace` name for this leaf — distinct from
@@ -109,3 +110,19 @@ class ScalarResidual(ScalarField):
     #: shared with ``ScalarSourceSink`` (same units, different role → the gate
     #: is class identity, NOT units). Metadata, not the gate.
     UNITS: ClassVar[Unit] = SCALAR_RATE_UNITS
+
+    @classmethod
+    def from_balance(
+        cls, lhs: ScalarField, rhs: ScalarField,
+    ) -> "ScalarResidual":
+        r"""Construct the angle-integrated transport-balance residual.
+
+        The residual leaf's bespoke factory: the scalar (angle-integrated)
+        transport-balance defect ``r = lhs − rhs``, formed from two
+        same-class
+        :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+        operands. See :meth:`~orpheus.numerics.field.Field._from_balance` for
+        the three guards (same-class operands, ``sr``-exact units, same space
+        + mesh) and why the result lands on the ``"scalar_residual"`` space.
+        """
+        return cls._from_balance(lhs, rhs)

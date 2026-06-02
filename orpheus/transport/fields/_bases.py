@@ -423,6 +423,37 @@ class BoundaryField(Field):
     # ── Construction factories (via ``cls`` — build the subclass) ────
 
     @classmethod
+    def from_mesh(cls, values: NDArray, mesh: "SNMesh"):
+        r"""Construct from a flat trace buffer + mesh, sourcing ``mesh.trace``.
+
+        The boundary-locus counterpart to the bulk families'
+        :meth:`AngularField.from_mesh`, giving every locus the SAME
+        "construct this leaf from raw ``values`` + ``mesh``" surface. Unlike
+        :meth:`from_face_arrays` (a per-face dict, packed into the flat
+        layout) it takes the already-packed ``(layout.total_size,)`` buffer
+        directly. This is the reconstruction path the named composition
+        :meth:`~orpheus.numerics.field.Field._from_balance` uses to re-wrap a
+        differenced trace buffer in the residual role — so a boundary residual
+        lands on the same ``mesh.trace`` space as every other boundary leaf.
+
+        Raises
+        ------
+        ValueError
+            If ``mesh.trace is None`` (a trace-less 2-D cylindrical mesh,
+            which has no SN sweep) — a boundary field cannot be built
+            without a boundary trace.
+        """
+        space = mesh.trace
+        if space is None:
+            raise ValueError(
+                f"{cls.__name__}.from_mesh: mesh has no TraceSpace "
+                f"(mesh.trace is None — only trace-less 2-D cylindrical "
+                f"meshes, which have no SN sweep, hit this). A boundary "
+                f"field cannot be built without a boundary trace."
+            )
+        return cls(values=values, space=space, mesh=mesh)
+
+    @classmethod
     def zeros_on(cls, mesh: "SNMesh"):
         r"""Construct a zero boundary field sized to ``mesh`` (B.5.A).
 

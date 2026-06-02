@@ -63,22 +63,30 @@ operation (which would be prohibitive).
 Class identity for cross-class same-units operations
 ====================================================
 
-When two distinct Field subclasses share a dimensional signature
-(e.g. ``AngularResidual`` and ``AngularSourceSink`` both have units
-``1/(cm³·s·sr·eV)``), arithmetic between them is REQUIRED to go
-through an explicit *named composition* — a factory method that
-constructs the result with a definite physical interpretation. The
-canonical example (planned for Issue #201):
+Two mechanisms work together when distinct Field subclasses share a
+dimensional signature (e.g. ``AngularResidual`` and ``AngularSourceSink``
+both carry ``1/(cm³·s·sr)``):
 
-.. code-block:: python
+* **The class gate forbids cross-class arithmetic** even when units
+  match — ``angular_residual - angular_source`` RAISES. Same units grant
+  permission to add in linear algebra; they do not grant meaning.
+* **A role transition goes through a named composition.** The transport
+  balance :math:`r = A\psi - q` differences two *same-class*
+  ``AngularSourceSink`` operands (the operator output :math:`A\psi` and
+  the external source :math:`q`), but the *result* is a different role —
+  a residual (a defect), not a source. Bare same-class subtraction would
+  typecheck yet MIS-TYPE the defect as ``AngularSourceSink``; the named
+  composition :meth:`Field._from_balance` (exposed as each residual
+  leaf's ``from_balance`` factory) makes the transition explicit and
+  lands the result in the correct ``AngularResidual`` class:
 
-    # FORBIDDEN — cross-class arithmetic raises TypeError:
-    iteration_residual = angular_residual - angular_source
+  .. code-block:: python
 
-    # REQUIRED — named composition with explicit physical meaning:
-    iteration_residual = IterationResidual.from_balance(
-        lhs=angular_residual, rhs=angular_source,
-    )
+      # same-class subtraction typechecks but MIS-TYPES the defect:
+      wrong = operator_output - q_ext           # AngularSourceSink (!)
+
+      # named composition — correctly typed as the residual role:
+      residual = AngularResidual.from_balance(lhs=operator_output, rhs=q_ext)
 
 The named-composition discipline IS what makes the Field algebra
 sound under physical interpretation. ``coding-elegance`` Pattern 4
@@ -243,7 +251,7 @@ class Field(ABC):
                 f"[{_unit_label(other)}]. Cross-class arithmetic is forbidden "
                 f"even when the units match — same units grant permission to "
                 f"add in linear algebra, not meaning. Use an explicit named "
-                f"composition (e.g. IterationResidual.from_balance(lhs, rhs))."
+                f"composition (e.g. AngularResidual.from_balance(lhs, rhs))."
             )
         if self.space != other.space:
             raise ValueError(
@@ -270,6 +278,69 @@ class Field(ABC):
 
     def __truediv__(self: T, scalar: float) -> T:
         return replace(self, values=self.values / float(scalar))
+
+    # ── Named composition ────────────────────────────────────────────────
+
+    @classmethod
+    def _from_balance(cls: type[T], lhs: "Field", rhs: "Field") -> T:
+        r"""Shared engine for the residual leaves' ``from_balance`` factory.
+
+        The ONE sanctioned way to cross the Layer-1 class gate: build a
+        field of class ``cls`` (always a *residual* role leaf) as the signed
+        difference ``lhs − rhs`` of two same-class operands whose units match
+        ``cls``. This is the dual of :meth:`__sub__` — ``__sub__`` keeps the
+        class fixed; ``_from_balance`` permits a *class transition* (e.g.
+        ``AngularSourceSink`` operands → ``AngularResidual`` result) precisely
+        because the transition is dimensionally sound and explicitly named.
+
+        Each residual leaf exposes this as its public ``from_balance``
+        classmethod — its bespoke construction story (a residual is the
+        *defect of a balance*, never built from thin air), parallel to
+        ``AngularFlux.zeros_on`` / ``AngularSourceSink.from_isotropic``. So
+        the public API reads ``AngularResidual.from_balance(lhs=Aψ, rhs=q)``;
+        the leaves delegate here so the check-and-reconstruct logic lives in
+        exactly one place (``coding-elegance`` Pattern 2).
+
+        Three guards, in order:
+
+        1. **Same-class operands.** ``type(lhs) is type(rhs)`` — the two
+           sides of one balance are the same kind before differencing.
+        2. **Dimensional soundness.** ``lhs.UNITS == rhs.UNITS == cls.UNITS``,
+           compared by EXACT unit equality (``sr``-sensitive — the ERR-039
+           guard; see :mod:`orpheus.numerics.units`), so a residual cannot be
+           formed from operands whose signature differs from its own.
+        3. **Same space + same mesh.** delegated to the operands'
+           :meth:`_check_partner` (its class branch is already satisfied, so
+           only the space / mesh-binding checks fire).
+
+        The result is rebuilt on ``cls``'s OWN space via ``cls.from_mesh``
+        (e.g. an ``AngularResidual`` lands on the ``"angular_residual"`` space,
+        NOT the operands' ``"angular_source_sink"`` space). This keeps every
+        residual — whether minted here or via :meth:`from_mesh` — on one space
+        identity, so they remain mutually additive. ``cls.from_mesh`` /
+        ``lhs.mesh`` are the L2 mesh-bound contract every role leaf satisfies;
+        ``Field`` (L1) declares neither, so this engine is meaningful only for
+        a mesh-bound ``cls`` (every concrete residual leaf qualifies).
+        """
+        if type(lhs) is not type(rhs):
+            raise TypeError(
+                f"{cls.__name__}.from_balance requires two same-class operands "
+                f"(the two sides of one balance, differenced before the role "
+                f"transition); got {type(lhs).__name__} and "
+                f"{type(rhs).__name__}."
+            )
+        if not (lhs.UNITS == rhs.UNITS == cls.UNITS):
+            raise TypeError(
+                f"{cls.__name__}.from_balance: operand units "
+                f"[{lhs.UNITS:~P}] must match the residual's units "
+                f"[{cls.UNITS:~P}] (exact, sr-sensitive). A balance of two "
+                f"{lhs.UNITS:~P} quantities yields a {cls.UNITS:~P} residual "
+                f"only when the signatures agree."
+            )
+        lhs._check_partner(rhs)  # same space + mesh (class branch already ok)
+        return cls.from_mesh(  # type: ignore[attr-defined]
+            lhs.values - rhs.values, lhs.mesh,  # type: ignore[attr-defined]
+        )
 
     # ── Diagnostics ─────────────────────────────────────────────────────
 

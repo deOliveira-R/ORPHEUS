@@ -317,21 +317,30 @@ Together these layers make dimensional-mismatch bugs unrepresentable
 without paying the cost of full ``pint.Quantity`` arithmetic on every
 ndarray operation.
 
-**Class identity for cross-class same-units operations.** When two
-distinct Field subclasses share a dimensional signature, arithmetic
-between them MUST go through an explicit *named composition* — a
-factory method that constructs the result with a definite physical
-interpretation. The canonical example (planned with Issue #201):
+**Class identity for cross-class same-units operations.** Two mechanisms
+work together when distinct Field subclasses share a dimensional
+signature (e.g. ``AngularResidual`` and ``AngularSourceSink`` both carry
+``1/(cm³·s·sr)``):
 
-.. code-block:: python
+* **The class gate forbids cross-class arithmetic** even when units
+  match — ``angular_residual - angular_source`` RAISES. Same units grant
+  permission to add in linear algebra, not meaning.
+* **A role transition goes through a named composition.** The transport
+  balance :math:`r = A\psi - q` differences two *same-class*
+  ``AngularSourceSink`` operands (the operator output :math:`A\psi` and
+  the external source :math:`q`), but the *result* is a residual (a
+  defect), not a source. Bare same-class subtraction typechecks yet
+  MIS-TYPES the defect; each residual leaf's ``from_balance`` factory
+  makes the transition explicit and lands the result in the correct
+  residual class:
 
-    # FORBIDDEN — cross-class arithmetic raises TypeError:
-    iteration_residual = angular_residual - angular_source
+  .. code-block:: python
 
-    # REQUIRED — named composition with explicit physical meaning:
-    iteration_residual = IterationResidual.from_balance(
-        lhs=angular_residual, rhs=angular_source,
-    )
+      # same-class subtraction typechecks but MIS-TYPES the defect:
+      wrong = operator_output - q_ext           # AngularSourceSink (!)
+
+      # named composition — correctly typed as the residual role:
+      residual = AngularResidual.from_balance(lhs=operator_output, rhs=q_ext)
 
 The named-composition discipline IS what makes the Field algebra
 sound under physical interpretation — ``coding-elegance`` Pattern 4

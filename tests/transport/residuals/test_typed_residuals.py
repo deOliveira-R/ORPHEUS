@@ -8,8 +8,8 @@ shape validation, same-class dunder algebra (closed), the mesh-binding
 guard, and the **load-bearing cross-class rejection**: a residual and a
 source that share the same shape AND the same units still cannot be
 added, because Field's Layer-1 class-identity gate makes "same units"
-grant permission, not meaning (the named-composition discipline,
-``IterationResidual.from_balance``, B.5 / Issue #201).
+grant permission, not meaning (the named-composition discipline, each
+residual leaf's ``from_balance`` factory, B.5 / Issue #201).
 
 These are ``foundation`` tests: they verify software invariants
 (constructor shape check, frozen-ness, dunder algebra, the class gate)
@@ -35,8 +35,13 @@ from orpheus.numerics.field import Field
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
-from orpheus.transport.residuals import AngularResidual, ScalarResidual
+from orpheus.transport.residuals import (
+    AngularResidual,
+    BoundaryResidual,
+    ScalarResidual,
+)
 from orpheus.transport.source_sinks import AngularSourceSink, ScalarSourceSink
 
 from tests.sn._test_helpers import placeholder_materials
@@ -291,3 +296,135 @@ class Test2DResiduals:
         b = AngularResidual.from_mesh(rng.standard_normal(_ang_shape(m)), m)
         c = a + b
         np.testing.assert_array_equal(c.values, a.values + b.values)
+
+
+# ════════════════════════════════════════════════════════════════════
+# from_balance — the B.5.1 named composition.
+#
+# Each residual leaf's bespoke factory: form the residual ``lhs − rhs``
+# from two SAME-CLASS operands (the two sides of a balance) whose units
+# match the residual's own. The role transition (e.g. AngularSourceSink
+# operands → AngularResidual result) is the typed counterpart of the
+# dimensional-sin rewire (B.5.2). Three guards: same-class operands,
+# sr-exact units, same space + mesh.
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestFromBalance:
+    # ── Angular (bulk) ───────────────────────────────────────────────
+    def test_angular_type_and_own_space(self) -> None:
+        """Result is an ``AngularResidual`` on its OWN ``"angular_residual"``
+        space — NOT the operands' ``"angular_source_sink"`` space."""
+        m = _slab_mesh()
+        lhs = AngularSourceSink.from_mesh(np.full(_ang_shape(m), 3.0), m)
+        rhs = AngularSourceSink.from_mesh(np.full(_ang_shape(m), 1.0), m)
+        r = AngularResidual.from_balance(lhs=lhs, rhs=rhs)
+        assert isinstance(r, AngularResidual)
+        assert r.space.name == "angular_residual"
+        assert r.mesh is m
+
+    def test_angular_sign_is_lhs_minus_rhs(self) -> None:
+        m = _slab_mesh()
+        lhs = AngularSourceSink.from_mesh(np.full(_ang_shape(m), 3.0), m)
+        rhs = AngularSourceSink.from_mesh(np.full(_ang_shape(m), 1.0), m)
+        r = AngularResidual.from_balance(lhs=lhs, rhs=rhs)
+        np.testing.assert_array_equal(r.values, lhs.values - rhs.values)
+        assert np.all(r.values == 2.0)
+
+    def test_angular_positional_and_keyword_equivalent(self) -> None:
+        m = _slab_mesh()
+        rng = np.random.default_rng(7)
+        a = AngularSourceSink.from_mesh(rng.standard_normal(_ang_shape(m)), m)
+        b = AngularSourceSink.from_mesh(rng.standard_normal(_ang_shape(m)), m)
+        np.testing.assert_array_equal(
+            AngularResidual.from_balance(a, b).values,
+            AngularResidual.from_balance(lhs=a, rhs=b).values,
+        )
+
+    def test_angular_result_addable_to_from_mesh_residual(self) -> None:
+        """Load-bearing space-identity check: a ``from_balance`` residual and
+        a ``from_mesh`` residual share one space, so they are mutually
+        additive. (Would FAIL if ``from_balance`` reused the operands'
+        ``"angular_source_sink"`` space.)"""
+        m = _slab_mesh()
+        lhs = AngularSourceSink.from_mesh(np.full(_ang_shape(m), 3.0), m)
+        rhs = AngularSourceSink.from_mesh(np.full(_ang_shape(m), 1.0), m)
+        from_bal = AngularResidual.from_balance(lhs=lhs, rhs=rhs)
+        from_msh = AngularResidual.from_mesh(np.full(_ang_shape(m), 5.0), m)
+        total = from_bal + from_msh  # MUST NOT raise (same space identity)
+        assert isinstance(total, AngularResidual)
+        assert np.all(total.values == 7.0)
+
+    # ── Guards ───────────────────────────────────────────────────────
+    def test_cross_class_operands_raise(self) -> None:
+        """Operands of different class (source vs flux) → TypeError."""
+        m = _slab_mesh()
+        src = AngularSourceSink.from_mesh(np.ones(_ang_shape(m)), m)
+        psi = AngularFlux.from_mesh(np.ones(_ang_shape(m)), m)
+        with pytest.raises(TypeError, match="same-class operands"):
+            AngularResidual.from_balance(lhs=src, rhs=psi)  # type: ignore[arg-type]
+
+    def test_wrong_units_operands_raise(self) -> None:
+        """Operands are a valid same-class pair (``AngularFlux``), but their
+        units ``1/(cm²·s·sr)`` differ from ``AngularResidual``'s
+        ``1/(cm³·s·sr)`` → TypeError (the sr-exact dimensional guard)."""
+        m = _slab_mesh()
+        a = AngularFlux.from_mesh(np.ones(_ang_shape(m)), m)
+        b = AngularFlux.from_mesh(np.ones(_ang_shape(m)), m)
+        with pytest.raises(TypeError, match="must match the residual's units"):
+            AngularResidual.from_balance(lhs=a, rhs=b)  # type: ignore[arg-type]
+
+    def test_mesh_mismatch_raises(self) -> None:
+        a = AngularSourceSink.from_mesh(np.ones((4, 2, 4, 1)), _slab_mesh())
+        b = AngularSourceSink.from_mesh(np.ones((4, 2, 4, 1)), _slab_mesh())
+        with pytest.raises(ValueError, match="distinct SNMesh"):
+            AngularResidual.from_balance(lhs=a, rhs=b)
+
+    # ── Scalar (bulk) ────────────────────────────────────────────────
+    def test_scalar_type_sign_space(self) -> None:
+        m = _slab_mesh()
+        lhs = ScalarSourceSink.from_mesh(np.full(_sca_shape(m), 5.0), m)
+        rhs = ScalarSourceSink.from_mesh(np.full(_sca_shape(m), 2.0), m)
+        r = ScalarResidual.from_balance(lhs=lhs, rhs=rhs)
+        assert isinstance(r, ScalarResidual)
+        assert r.space.name == "scalar_residual"
+        assert np.all(r.values == 3.0)
+
+    def test_scalar_2d(self) -> None:
+        m = _2d_mesh()
+        rng = np.random.default_rng(13)
+        lhs = ScalarSourceSink.from_mesh(rng.standard_normal(_sca_shape(m)), m)
+        rhs = ScalarSourceSink.from_mesh(rng.standard_normal(_sca_shape(m)), m)
+        r = ScalarResidual.from_balance(lhs=lhs, rhs=rhs)
+        np.testing.assert_array_equal(r.values, lhs.values - rhs.values)
+
+
+# ════════════════════════════════════════════════════════════════════
+# Boundary locus — the uniform from_mesh factory + from_balance (the
+# capability is minted in B.5.1; the matvec wiring is deferred to
+# B.5.2 / #208). All boundary leaves share the SAME ``mesh.trace`` space.
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestBoundaryFromMeshAndBalance:
+    def test_from_mesh_roundtrip_on_trace(self) -> None:
+        """``BoundaryField.from_mesh`` (B.5.1) packs a flat buffer onto the
+        shared ``mesh.trace`` — the uniform construction surface bulk leaves
+        already had."""
+        m = _slab_mesh()
+        n = BoundaryFlux.zeros_on(m).values.size
+        vals = np.arange(float(n))
+        bf = BoundaryFlux.from_mesh(vals, m)
+        assert isinstance(bf, BoundaryFlux)
+        assert bf.space is m.trace
+        np.testing.assert_array_equal(bf.values, vals)
+
+    def test_boundary_from_balance(self) -> None:
+        m = _slab_mesh()
+        n = BoundaryFlux.zeros_on(m).values.size
+        lhs = BoundaryFlux.from_mesh(np.full(n, 4.0), m)
+        rhs = BoundaryFlux.from_mesh(np.full(n, 1.0), m)
+        r = BoundaryResidual.from_balance(lhs=lhs, rhs=rhs)
+        assert isinstance(r, BoundaryResidual)
+        assert r.space is m.trace  # shared trace space (all boundary leaves)
+        assert np.all(r.values == 3.0)

@@ -41,8 +41,10 @@ output carve; it is INSEPARABLE from the bulk half (the
 boundary to share a class, and the typed arithmetic at
 ``iteration.py:455`` / ``:511`` decides all operator-output types
 together). This leaf is minted here (B.3) so it is **ready** for the
-B.5 wiring; the wiring itself — with its ``from_balance`` named
-composition and a test-architect verification plan — lands in B.5.
+B.5 wiring. The :meth:`BoundaryResidual.from_balance` named-composition
+factory is minted in **B.5.1** (alongside the bulk residuals); the
+operator-output *wiring* itself — retyping the matvec emission sites,
+with a test-architect verification plan — lands in **B.5.2 / #208**.
 
 Units (B.4 — declared as the ``UNITS`` class constant)
 ======================================================
@@ -114,3 +116,29 @@ class BoundaryResidual(BoundaryField):
     #: shared with ``BoundaryFlux`` / ``BoundarySourceSink`` (same units,
     #: different role → class gate). Metadata, not the gate.
     UNITS: ClassVar[Unit] = ANGULAR_FLUX_UNITS
+
+    @classmethod
+    def from_balance(
+        cls, lhs: BoundaryField, rhs: BoundaryField,
+    ) -> "BoundaryResidual":
+        r"""Construct the boundary-balance residual.
+
+        The residual leaf's bespoke factory: the defect of the affine
+        boundary law
+
+        .. math::
+
+            r_\Gamma \;=\; \gamma_-\psi \;-\; \bigl(R\,G\,\gamma_+\psi + q\bigr),
+
+        formed as ``lhs − rhs`` from two same-class boundary operands (both
+        flux-typed on the trace,
+        :data:`~orpheus.numerics.units.ANGULAR_FLUX_UNITS`). See
+        :meth:`~orpheus.numerics.field.Field._from_balance` for the three
+        guards (same-class operands, ``sr``-exact units, same space + mesh);
+        the result lands on the shared ``mesh.trace`` space.
+
+        The factory is minted in B.5.1 so the leaf is ready; the matvec
+        wiring that *feeds* it (the operator-output face-defect retype) is
+        deferred to B.5.2 / #208 — see the module docstring.
+        """
+        return cls._from_balance(lhs, rhs)
